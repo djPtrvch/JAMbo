@@ -7,6 +7,8 @@ export interface Popup {
   box: HTMLElement;
   /** Показать окно под (или над) элементом. */
   openAt(anchor: Element, width: number): void;
+  /** Показать окно ровно поверх элемента (тот же размер и место). */
+  openOver(target: Element): void;
   close(): void;
   isOpen(): boolean;
 }
@@ -28,7 +30,15 @@ export function makePopup(cls = ''): Popup {
       box.style.top = `${below ? r.bottom + 6 : Math.max(8, r.top - 6 - bh)}px`;
       box.style.left = `${Math.max(8, Math.min(window.innerWidth - width - 8, r.left + r.width / 2 - width / 2))}px`;
     },
-    close() { root.classList.add('hidden'); },
+    openOver(target) {
+      root.classList.remove('hidden');
+      const r = target.getBoundingClientRect();
+      Object.assign(box.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
+    },
+    close() {
+      root.classList.add('hidden');
+      box.style.height = '';
+    },
     isOpen: () => !root.classList.contains('hidden'),
   };
   // Тап мимо окна закрывает его.

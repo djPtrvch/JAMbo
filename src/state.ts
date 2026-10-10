@@ -4,7 +4,7 @@
 
 import {
   FX_GRID, MASTER_GRID, MAX_PAGES, MIX_GRID, MOD_GRID, PATTERN_SLOTS, RATIOS, STEPS_PER_PAGE, TRACK_COUNT, TRACK_GRID, OCTAVE_DEF, OCTAVE_MAX, OCTAVE_MIN,
-  BPM_MAX, BPM_MIN, SYNTH_ENGINES, SYNTH_GRID, synthEngine, synthKey, EQ_BANDS, EQ_BELL, EQ_FREQ_MAX, EQ_FREQ_MIN, EQ_GAIN_MAX, EQ_Q_DEF, EQ_Q_MAX, EQ_Q_MIN, EQ_TYPES, NOTE_NAMES, PROGRESSIONS, SCALES, fromNorm, toNorm, type ParamDef, type Slot,
+  BPM_MAX, BPM_MIN, PRESET_PARAMS, SYNTH_ENGINES, SYNTH_GRID, synthEngine, synthKey, EQ_BANDS, EQ_BELL, EQ_FREQ_MAX, EQ_FREQ_MIN, EQ_GAIN_MAX, EQ_Q_DEF, EQ_Q_MAX, EQ_Q_MIN, EQ_TYPES, NOTE_NAMES, PROGRESSIONS, SCALES, fromNorm, toNorm, type ParamDef, type Slot,
 } from './params';
 
 export interface Step {
@@ -157,6 +157,8 @@ export interface Ui {
   eqView: boolean;
   /** Выбранная полоса EQ (−1 — нет). */
   eqBand: number;
+  /** Последний выбранный стрелками пресет синта на каждой дорожке (−1 — нет). */
+  presetPos: number[];
   /** Превью формы волны LFO в окне сэмпла. */
   lfoPreviewUntil: number;
 }
@@ -260,6 +262,7 @@ export const ui: Ui = {
   patternView: false,
   eqView: false,
   eqBand: -1,
+  presetPos: Array(TRACK_COUNT).fill(-1),
   lfoPreviewUntil: 0,
 };
 
@@ -886,6 +889,68 @@ export function setTrackSample(i: number, key: string, fileName?: string, root?:
 /** Синт на дорожке: движок Plaits engine (меню окна сэмпла). */
 export function setTrackSynth(i: number, engine: number) {
   setTrackSample(i, synthKey(engine));
+  ui.presetPos[i] = -1;
+}
+
+// ---------- Пресеты синта ----------
+
+/** Пресет синта: движок и параметры звука (PRESET_PARAMS). */
+export interface Preset { name: string; sound: string; params: Record<string, number> }
+
+// Папка пресетов общая для всех дорожек и хранится в браузере (переживает перезагрузку).
+const PRESET_STORE = 'jambo.presets';
+let presetList: Preset[] = loadPresets();
+
+function loadPresets(): Preset[] {
+  try {
+    const list = JSON.parse(localStorage.getItem(PRESET_STORE) ?? '[]');
+    return Array.isArray(list) ? list : [];
+  } catch { return []; }
+}
+
+function storePresets() {
+  try { localStorage.setItem(PRESET_STORE, JSON.stringify(presetList)); } catch { /* хранилище недоступно */ }
+}
+
+export const presets = () => presetList;
+
+/** Имя нового пресета по умолчанию: движок и номер. */
+export function nextPresetName(i: number): string {
+  const e = synthEngine(doc.tracks[i].sample);
+  const base = e !== null ? SYNTH_ENGINES[e].name : 'PRESET';
+  return `${base} ${presetList.filter((p) => p.name.startsWith(base)).length + 1}`;
+}
+
+/** Сохранить синт дорожки i в папку пресетов. */
+export function savePreset(i: number, name: string) {
+  const t = doc.tracks[i];
+  if (synthEngine(t.sample) === null) return;
+  const params: Record<string, number> = {};
+  for (const id of PRESET_PARAMS) params[id] = t.params[id];
+  presetList.push({ name: name.trim() || nextPresetName(i), sound: t.sample, params });
+  storePresets();
+  ui.presetPos[i] = presetList.length - 1;
+}
+
+/** Стрелки под окном сэмпла у синта: соседний пресет из папки. */
+export function stepPreset(i: number, dir: 1 | -1) {
+  const n = presetList.length;
+  if (!n) return;
+  const pos = ui.presetPos[i];
+  const k = pos < 0 ? (dir > 0 ? 0 : n - 1) : (pos + dir + n) % n;
+  const p = presetList[k];
+  const t = doc.tracks[i];
+  edit(() => {
+    t.sample = p.sound;
+    for (const id of PRESET_PARAMS) if (typeof p.params[id] === 'number') t.params[id] = p.params[id];
+  });
+  ui.presetPos[i] = k;
+}
+
+/** Имя пресета, выбранного на дорожке стрелками ('' — нет). */
+export function presetName(i: number): string {
+  const p = presetList[ui.presetPos[i]];
+  return p && p.sound === doc.tracks[i].sample ? p.name : '';
 }
 
 /** Имя звука для окна сэмпла (файл или движок синта). */

@@ -15,8 +15,8 @@ import {
 } from '../audio/engine';
 import { LFO_WAVES, OVER_PEAK, RATIOS, SYNTH_ENGINES, TRACK_COUNT, fmtVol, noteName, synthEngine } from '../params';
 import { fmtDb, levelFrac } from './meter';
-import { makePopup, popupButton } from './popup';
-import { audible, cycleRatio, doc, setTrackSynth, toggleCmpBypass, toggleLimBypass, envOut, envShape, lfoShape, rt, sampleName, selTrack, ui } from '../state';
+import { makePopup, openInput, popupButton } from './popup';
+import { audible, cycleRatio, doc, nextPresetName, presetName, savePreset, setTrackSynth, toggleCmpBypass, toggleLimBypass, envOut, envShape, lfoShape, rt, sampleName, selTrack, ui } from '../state';
 import { h, setAttr, setClass, setText, svg } from './dom';
 
 const W = 200;
@@ -172,9 +172,11 @@ export function buildSample(): HTMLElement {
   cutStart = svg('rect', { x: 0, y: 0, height: WAVE_H, class: 'sample-cut' });
   cutEnd = svg('rect', { y: 0, height: WAVE_H, class: 'sample-cut' });
   wave.append(wavePath, cutStart, cutEnd);
-  // Тап по окну — меню звука; в нём кнопка SAMPLE с настоящим полем выбора файла поверх
-  // (на iOS системный выбор файла надёжно открывается только прямым тапом по полю).
-  const menu = makePopup('grid cols-4 source-menu');
+  // Тап по окну — меню звука. Оно ложится ровно на миниатюры страниц справа и закрывает их,
+  // пока выбирают звук: группы SYNTH (музыкальные движки), DRUMS (шумы и ударные) и
+  // SAMPLE · MIDI. Кнопка SAMPLE — с настоящим полем выбора файла поверх (на iOS системный
+  // выбор файла надёжно открывается только прямым тапом по полю).
+  const menu = makePopup('source-menu');
   const sampleBtn = h('div', 'popup-btn sample-pick', 'SAMPLE');
   const input = h('input', 'sample-file');
   input.type = 'file';
@@ -189,12 +191,23 @@ export function buildSample(): HTMLElement {
   });
   sampleBtn.append(input);
   // MIDI OUT: Web MIDI в Safari недоступен — выход MIDI появится в нативном приложении.
-  const midiBtn = popupButton('MIDI OUT · нет в Safari', () => {});
+  const midiBtn = popupButton('MIDI', () => {});
   midiBtn.disabled = true;
-  midiBtn.classList.add('span-2');
-  sampleBtn.classList.add('span-2');
+  // SAVE — сохранить синт дорожки в папку пресетов (стрелки под окном их перелистывают).
+  const saveBtn = popupButton('SAVE', () => {
+    menu.close();
+    const i = ui.selectedTrack;
+    openInput(stub, nextPresetName(i), (name) => savePreset(i, name));
+  });
   const engineBtns = SYNTH_ENGINES.map((e, k) => popupButton(e.name, () => { setTrackSynth(ui.selectedTrack, k); menu.close(); }));
-  menu.box.append(sampleBtn, midiBtn, ...engineBtns);
+  const group = (title: string, cols: number, items: HTMLElement[]) => {
+    const g = h('div', `source-group cols-${cols}`);
+    g.append(...items);
+    menu.box.append(h('div', 'source-title', title), g);
+  };
+  group('SYNTH', 2, engineBtns.filter((_, k) => SYNTH_ENGINES[k].bank === 'synth'));
+  group('DRUMS', 2, engineBtns.filter((_, k) => SYNTH_ENGINES[k].bank === 'drum'));
+  group('SAMPLE · MIDI · PRESET', 3, [sampleBtn, midiBtn, saveBtn]);
   let downY = 0;
   stub.addEventListener('pointerdown', (e) => { downY = e.clientY; });
   stub.addEventListener('pointerup', (e) => {
@@ -202,7 +215,9 @@ export function buildSample(): HTMLElement {
     const cur = synthEngine(selTrack().sample);
     engineBtns.forEach((b, k) => b.classList.toggle('current', k === cur));
     sampleBtn.classList.toggle('current', cur === null && selTrack().sample !== '');
-    menu.openAt(stub, 4 * 104);
+    saveBtn.disabled = cur === null;
+    const pages = document.querySelector('.side.right .pages');
+    if (pages) menu.openOver(pages);
   });
   stub.append(waveTitle, wave, synthInfo, stubName);
 
@@ -328,7 +343,8 @@ function renderWave() {
   const root = sampleRoot(t.sample);
   // Стерео-сэмпл отмечен ST и рисуется двумя дорожками (L сверху, R снизу), моно — M.
   const ch = t.sample ? (sampleIsStereo(t.sample) ? 'ST' : 'M') : '';
-  setText(waveTitle, engine !== null ? `MI · ${SYNTH_ENGINES[engine].name}`
+  const preset = presetName(ui.selectedTrack);
+  setText(waveTitle, engine !== null ? `MI · ${SYNTH_ENGINES[engine].name}${preset ? ` · ${preset}` : ''}`
     : t.sample ? `${sampleName(t.sample)} · ${root !== null ? noteName(root) : '—'} · ${ch}` : sampleName(t.sample));
   // Пока звук не включён — подсказка с состоянием (помогает понять, почему тихо).
   const state = audioState();
@@ -411,8 +427,9 @@ export function renderSample(now: number) {
   if (panel === 'master') renderMaster(now);
   if (panel === 'mix') renderMix(now);
   const [pos, total] = sampleListPos();
-  setText(navLabel, total ? `${pos} / ${total}` : 'файлы');
-  setClass(navRow, 'disabled', total < 2);
+  const synth = synthEngine(selTrack().sample) !== null;
+  setText(navLabel, total ? `${pos || '–'} / ${total}` : synth ? 'пресеты' : 'файлы');
+  setClass(navRow, 'disabled', synth ? total < 1 : total < 2);
   // У MIX и MST сэмплов нет — стрелки скрыты.
   setClass(navRow, 'hidden', ui.channel !== 'track');
   if (!show) return;
