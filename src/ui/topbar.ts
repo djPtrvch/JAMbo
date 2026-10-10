@@ -1,43 +1,24 @@
-// Верхняя панель: бутерброд-меню (заглушка), BPM, гамма и корневая нота.
-// Значения меняются вертикальным движением пальца, как ручки.
+// Верхняя панель: бутерброд-меню (заглушка), BPM, метроном, гамма и корневая нота.
+// Тап по гамме и ноте открывает меню выбора.
 
+import { unlockAudio } from '../audio';
 import { NOTE_NAMES, SCALES } from '../params';
-import { beginGesture, doc, endGesture, setBpm, setRoot, setScale } from '../state';
-import { h, setText } from './dom';
+import { doc, rt, setBpm, setRoot, setScale, ui } from '../state';
+import { choiceMenu, dragField } from './controls';
+import { h, setClass } from './dom';
 
-interface Field { value: HTMLElement; read: () => string }
-const fields: Field[] = [];
+let metro: HTMLElement;
 
-/** Поле с вертикальным управлением: pxPerUnit пикселей на единицу значения. */
-function dragField(label: string, get: () => number, set: (v: number) => void, show: () => string, pxPerUnit: number): HTMLElement {
-  const el = h('div', 'field');
-  const value = h('div', 'field-value');
-  el.append(h('div', 'field-label', label), value);
-  let id = -1;
-  let startY = 0;
-  let startV = 0;
+function metronomeIcon(): HTMLElement {
+  const el = h('div', 'metro');
+  el.innerHTML = '<svg viewBox="0 0 24 24"><path d="M9 3h6l4 18H5L9 3z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 16l5-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M7 16h10" stroke="currentColor" stroke-width="1.8"/></svg>';
   el.addEventListener('pointerdown', (e) => {
     e.preventDefault();
-    el.setPointerCapture(e.pointerId);
-    id = e.pointerId;
-    startY = e.clientY;
-    startV = get();
-    el.classList.add('active');
-    beginGesture();
+    unlockAudio();
+    ui.metronome = !ui.metronome;
   });
-  el.addEventListener('pointermove', (e) => {
-    if (e.pointerId !== id) return;
-    set(startV + Math.round((startY - e.clientY) / pxPerUnit));
-  });
-  const up = (e: PointerEvent) => {
-    if (e.pointerId !== id) return;
-    id = -1;
-    el.classList.remove('active');
-    endGesture();
-  };
-  el.addEventListener('pointerup', up);
-  el.addEventListener('pointercancel', up);
-  fields.push({ value, read: show });
+  // iOS иногда разрешает звук только на отпускании пальца.
+  el.addEventListener('pointerup', unlockAudio);
   return el;
 }
 
@@ -45,15 +26,21 @@ export function buildTopbar(): HTMLElement {
   const el = h('div', 'topbar');
   const burger = h('div', 'burger');
   burger.append(h('span'), h('span'), h('span'));
+  metro = metronomeIcon();
+  const scaleMenu = choiceMenu(SCALES.map((s) => s.name), 3, () => doc.scale, setScale);
+  const rootMenu = choiceMenu(NOTE_NAMES, 4, () => doc.root, setRoot);
   el.append(
     burger,
     dragField('BPM', () => doc.bpm, setBpm, () => String(doc.bpm), 4),
-    dragField('SCALE', () => doc.scale, setScale, () => SCALES[doc.scale], 24),
-    dragField('ROOT', () => doc.root, setRoot, () => NOTE_NAMES[doc.root], 24),
+    metro,
+    dragField('SCALE', () => doc.scale, setScale, () => SCALES[doc.scale].name, 24, scaleMenu),
+    dragField('ROOT', () => doc.root, setRoot, () => NOTE_NAMES[doc.root], 24, rootMenu),
   );
   return el;
 }
 
-export function renderTopbar() {
-  for (const f of fields) setText(f.value, f.read());
+export function renderTopbar(now: number) {
+  setClass(metro, 'on', ui.metronome);
+  setClass(metro, 'beat', ui.playing && now < rt.beatUntil);
+  setClass(metro, 'accent', rt.beatAccent);
 }
