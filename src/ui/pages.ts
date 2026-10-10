@@ -36,6 +36,7 @@ export function buildPages(): HTMLElement {
   for (let i = 0; i < MAX_PAGES; i++) {
     const root = h('div', 'thumb');
     root.dataset.page = String(i);
+    root.style.gridRow = String(i + 1);
     const cells: HTMLElement[] = [];
     for (let k = 0; k < STEPS_PER_PAGE; k++) {
       const c = h('div', 'thumb-cell');
