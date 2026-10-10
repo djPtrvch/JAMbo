@@ -10,13 +10,13 @@
 
 import {
   audioState, limiterLookahead, limiterReduction, sampleIsStereo, trackDuckDb, trackIsStereo,
-  type Level, loadSampleFiles, loadStepSample, masterLevels, masterReduction, sampleListPos, samplePeaks,
-  sampleRoot, stepSample, trackLevel,
+  type Level, loadSampleFiles, loadStepSample, masterLevels, masterReduction, samplePeaks,
+  sampleRoot, trackLevel,
 } from '../audio/engine';
 import { LFO_WAVES, OVER_PEAK, RATIOS, SYNTH_ENGINES, TRACK_COUNT, noteName, synthEngine, synthKey } from '../params';
 import { fmtDb, levelFrac } from './meter';
 import { makePopup, openInput, popupButton } from './popup';
-import { audible, cycleRatio, deletePreset, doc, duplicatePreset, heldStepSound, liveMaster, loadPreset, renamePreset, setStepSound, nextPresetName, presets, presetName, savePreset, setTrackSynth, toggleCmpBypass, toggleLimBypass, envOut, envShape, lfoShape, rt, sampleName, selTrack, ui } from '../state';
+import { audible, cycleRatio, deletePreset, doc, duplicatePreset, heldStepSound, liveMaster, loadPreset, renamePreset, setStepSound, folderItemName, folderPos, nextPresetName, presets, savePreset, stepFolder, stepFolderOnSteps, setTrackSynth, toggleCmpBypass, toggleLimBypass, envOut, envShape, lfoShape, rt, sampleName, selTrack, ui } from '../state';
 import { h, setAttr, setClass, setText, svg } from './dom';
 
 const W = 200;
@@ -191,7 +191,7 @@ export function buildSample(): HTMLElement {
   input.addEventListener('change', () => {
     const files = Array.from(input.files ?? []);
     const fail = () => window.alert('Could not open the file as audio');
-    if (files.length && stepTargets.length) void loadStepSample(files[0], stepTargets).catch(fail);
+    if (files.length && stepTargets.length) void loadStepSample(files, stepTargets).catch(fail);
     else if (files.length) void loadSampleFiles(files).catch(fail);
     input.value = '';
     menu.close();
@@ -230,7 +230,6 @@ export function buildSample(): HTMLElement {
   const presetMenu = makePopup('source-menu preset-list');
   const openPresetList = () => {
     const list = presets();
-    const cur = ui.presetPos[ui.selectedTrack];
     presetMenu.box.replaceChildren(h('div', 'source-title', `PRESETS · ${list.length}`));
     const g = h('div', 'preset-grid');
     list.forEach((pr, k) => {
@@ -250,7 +249,6 @@ export function buildSample(): HTMLElement {
       b.addEventListener('pointerup', stop);
       b.addEventListener('pointercancel', stop);
       b.addEventListener('pointerleave', stop);
-      b.classList.toggle('current', k === cur);
       g.append(b);
     });
     if (!list.length) g.append(h('div', 'preset-empty', 'No presets yet — save a synth with SAVE'));
@@ -357,8 +355,16 @@ export function buildSampleNav(): HTMLElement {
   const prev = h('div', 'btn arrow', '◀');
   const next = h('div', 'btn arrow', '▶');
   navLabel = h('div', 'sample-nav-label');
-  prev.addEventListener('pointerdown', (e) => { e.preventDefault(); void stepSample(-1); });
-  next.addEventListener('pointerdown', (e) => { e.preventDefault(); void stepSample(1); });
+  // Стрелка: соседний звук папки дорожки; с зажатым шагом — звук этого шага (p-lock).
+  const step = (dir: 1 | -1) => {
+    const held = ui.channel === 'track' ? [...ui.heldSteps.values()] : [];
+    if (held.length) {
+      held.forEach((hs) => { hs.used = true; });
+      stepFolderOnSteps(ui.selectedTrack, held.map((hs) => hs.index), dir);
+    } else stepFolder(ui.selectedTrack, dir);
+  };
+  prev.addEventListener('pointerdown', (e) => { e.preventDefault(); step(-1); });
+  next.addEventListener('pointerdown', (e) => { e.preventDefault(); step(1); });
   navRow.append(prev, navLabel, next);
   return navRow;
 }
@@ -426,7 +432,7 @@ function renderWave() {
   const root = sampleRoot(t.sample);
   // Стерео-сэмпл отмечен ST и рисуется двумя дорожками (L сверху, R снизу), моно — M.
   const ch = t.sample ? (sampleIsStereo(t.sample) ? 'ST' : 'M') : '';
-  const preset = presetName(ui.selectedTrack);
+  const preset = stepSound ? '' : folderItemName(ui.selectedTrack);
   setText(waveTitle, engine !== null ? `MI · ${SYNTH_ENGINES[engine].name}${preset ? ` · ${preset}` : ''}`
     : t.sample ? `${sampleName(t.sample)} · ${root !== null ? noteName(root) : '—'} · ${ch}` : sampleName(t.sample));
   // Пока звук не включён — подсказка с состоянием (помогает понять, почему тихо).
@@ -508,10 +514,9 @@ export function renderSample(now: number) {
   if (panel === 'wave') renderWave();
   if (panel === 'master') renderMaster(now);
   if (panel === 'mix') renderMix(now);
-  const [pos, total] = sampleListPos();
-  const synth = synthEngine(selTrack().sample) !== null;
-  setText(navLabel, total ? `${pos || '–'} / ${total}` : synth ? 'presets' : 'files');
-  setClass(navRow, 'disabled', synth ? total < 1 : total < 2);
+  const [pos, total] = folderPos(ui.selectedTrack);
+  setText(navLabel, total ? `${pos || '–'} / ${total}` : 'folder');
+  setClass(navRow, 'disabled', total < 1);
   // У MIX и MST сэмплов нет — стрелки скрыты.
   setClass(navRow, 'hidden', ui.channel !== 'track');
   if (!show) return;
