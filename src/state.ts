@@ -91,6 +91,7 @@ export interface Ui {
   clipboard: Step[] | null;
   pageMenu: number | null;
   trackClipboard: Track | null;
+  patternClipboard: Pattern | null;
   trackMenu: number | null;
   topMenu: 'scale' | 'root' | 'progression' | null;
   metronome: boolean;
@@ -179,6 +180,7 @@ export const ui: Ui = {
   clipboard: null,
   pageMenu: null,
   trackClipboard: null,
+  patternClipboard: null,
   trackMenu: null,
   topMenu: null,
   metronome: false,
@@ -686,4 +688,54 @@ export function createPattern(i: number, k: number) {
       length: STEPS_PER_PAGE, playFrom: 0, playTo: 0,
     };
   });
+}
+
+/** Копия паттерна ячейки (null — пустая). */
+export function patternAt(t: Track, k: number): Pattern | null {
+  if (k === t.slot) return takePattern(t);
+  return t.slots[k] ? clone(t.slots[k]) : null;
+}
+
+function setPatternAt(t: Track, k: number, p: Pattern) {
+  if (k === t.slot) putPattern(t, p);
+  else t.slots[k] = clone(p);
+}
+
+/** Ближайшая пустая ячейка ниже k (потом сверху), −1 — свободных нет. */
+export function freeSlotAfter(t: Track, k: number): number {
+  for (let d = 1; d < PATTERN_SLOTS; d++) {
+    const j = (k + d) % PATTERN_SLOTS;
+    if (!slotFilled(t, j)) return j;
+  }
+  return -1;
+}
+
+export function duplicatePattern(i: number, k: number) {
+  const t = doc.tracks[i];
+  const j = freeSlotAfter(t, k);
+  const p = patternAt(t, k);
+  if (j < 0 || !p) return;
+  edit(() => { t.slots[j] = p; });
+}
+
+export function copyPattern(i: number, k: number) {
+  ui.patternClipboard = patternAt(doc.tracks[i], k);
+}
+
+export function pastePattern(i: number, k: number) {
+  const clip = ui.patternClipboard;
+  if (!clip) return;
+  edit(() => setPatternAt(doc.tracks[i], k, clip));
+  if (i === ui.selectedTrack) clampView();
+}
+
+/** Удаление: ячейка пустеет; у активной очищаются шаги (звук остаётся) и дорожка останавливается. */
+export function deletePattern(i: number, k: number) {
+  const t = doc.tracks[i];
+  edit(() => {
+    if (k !== t.slot) { t.slots[k] = null; return; }
+    putPattern(t, { ...takePattern(t), pages: [emptyPage()], length: STEPS_PER_PAGE, playFrom: 0, playTo: 0 });
+    t.stopped = true;
+  });
+  if (i === ui.selectedTrack) { ui.heldSteps.clear(); clampView(); }
 }
