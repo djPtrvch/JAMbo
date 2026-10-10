@@ -10,13 +10,13 @@
 
 import {
   audioState, limiterLookahead, limiterReduction, sampleIsStereo, trackDuckDb, trackIsStereo,
-  type Level, loadSampleFiles, masterLevels, masterReduction, sampleListPos, samplePeaks,
+  type Level, loadSampleFiles, loadStepSample, masterLevels, masterReduction, sampleListPos, samplePeaks,
   sampleRoot, stepSample, trackLevel,
 } from '../audio/engine';
-import { LFO_WAVES, OVER_PEAK, RATIOS, SYNTH_ENGINES, TRACK_COUNT, noteName, synthEngine } from '../params';
+import { LFO_WAVES, OVER_PEAK, RATIOS, SYNTH_ENGINES, TRACK_COUNT, noteName, synthEngine, synthKey } from '../params';
 import { fmtDb, levelFrac } from './meter';
 import { makePopup, openInput, popupButton } from './popup';
-import { audible, cycleRatio, doc, liveMaster, loadPreset, nextPresetName, presets, presetName, savePreset, setTrackSynth, toggleCmpBypass, toggleLimBypass, envOut, envShape, lfoShape, rt, sampleName, selTrack, ui } from '../state';
+import { audible, cycleRatio, deletePreset, doc, duplicatePreset, heldStepSound, liveMaster, loadPreset, renamePreset, setStepSound, nextPresetName, presets, presetName, savePreset, setTrackSynth, toggleCmpBypass, toggleLimBypass, envOut, envShape, lfoShape, rt, sampleName, selTrack, ui } from '../state';
 import { h, setAttr, setClass, setText, svg } from './dom';
 
 const W = 200;
@@ -177,6 +177,11 @@ export function buildSample(): HTMLElement {
   // SAMPLE · MIDI. Кнопка SAMPLE — с настоящим полем выбора файла поверх (на iOS системный
   // выбор файла надёжно открывается только прямым тапом по полю).
   const menu = makePopup('source-menu');
+  // Шаги, зажатые в момент открытия меню: выбранный звук ставится на них, а не на дорожку
+  // (пальцы со шагов можно убрать — например, пока открыт выбор файла).
+  let stepTargets: number[] = [];
+  const stepTitle = h('div', 'source-title step-title hidden');
+  menu.box.append(stepTitle);
   const sampleBtn = h('div', 'popup-btn sample-pick', 'SAMPLE');
   const input = h('input', 'sample-file');
   input.type = 'file';
@@ -185,21 +190,30 @@ export function buildSample(): HTMLElement {
   input.accept = 'audio/*,.wav,.wave,.aif,.aiff,.mp3,.m4a,.aac,.caf,.flac,.ogg';
   input.addEventListener('change', () => {
     const files = Array.from(input.files ?? []);
-    if (files.length) void loadSampleFiles(files).catch(() => window.alert('Не удалось открыть файл как аудио'));
+    const fail = () => window.alert('Не удалось открыть файл как аудио');
+    if (files.length && stepTargets.length) void loadStepSample(files[0], stepTargets).catch(fail);
+    else if (files.length) void loadSampleFiles(files).catch(fail);
     input.value = '';
     menu.close();
   });
   sampleBtn.append(input);
   // MIDI OUT: Web MIDI в Safari недоступен — выход MIDI появится в нативном приложении.
-  const midiBtn = popupButton('MIDI', () => {});
-  midiBtn.disabled = true;
+  // Для зажатого шага на этом месте TRACK — вернуть шагу звук дорожки.
+  const midiBtn = popupButton('MIDI', () => {
+    if (stepTargets.length) setStepSound(ui.selectedTrack, stepTargets, null);
+    menu.close();
+  });
   // SAVE — сохранить синт дорожки в папку пресетов (стрелки под окном их перелистывают).
   const saveBtn = popupButton('SAVE', () => {
     menu.close();
     const i = ui.selectedTrack;
     openInput(stub, nextPresetName(i), (name) => savePreset(i, name));
   });
-  const engineBtns = SYNTH_ENGINES.map((e, k) => popupButton(e.name, () => { setTrackSynth(ui.selectedTrack, k); menu.close(); }));
+  const engineBtns = SYNTH_ENGINES.map((e, k) => popupButton(e.name, () => {
+    if (stepTargets.length) setStepSound(ui.selectedTrack, stepTargets, synthKey(k));
+    else setTrackSynth(ui.selectedTrack, k);
+    menu.close();
+  }));
   const group = (title: string, cols: number, items: HTMLElement[]) => {
     const g = h('div', `source-group cols-${cols}`);
     g.append(...items);
@@ -222,15 +236,42 @@ export function buildSample(): HTMLElement {
     list.forEach((pr, k) => {
       const e = synthEngine(pr.sound);
       const b = popupButton(`${pr.name}\n${e !== null ? SYNTH_ENGINES[e]?.name ?? '' : ''}`, () => {
+        if (holdFired) return;
         loadPreset(ui.selectedTrack, k);
         presetMenu.close();
       });
+      // Удержание пресета — меню RENAME / DUPLICATE / DELETE.
+      let timer = 0;
+      b.addEventListener('pointerdown', () => {
+        holdFired = false;
+        timer = window.setTimeout(() => { holdFired = true; openPresetActions(k, b); }, 500);
+      });
+      const stop = () => clearTimeout(timer);
+      b.addEventListener('pointerup', stop);
+      b.addEventListener('pointercancel', stop);
+      b.addEventListener('pointerleave', stop);
       b.classList.toggle('current', k === cur);
       g.append(b);
     });
     if (!list.length) g.append(h('div', 'preset-empty', 'Пресетов нет — сохраните синт кнопкой SAVE'));
     presetMenu.box.append(g);
     presetMenu.openRect(menuRect());
+  };
+  let holdFired = false;
+  let actionPreset = -1;
+  const actions = makePopup();
+  actions.box.append(
+    popupButton('RENAME', () => {
+      actions.close();
+      const k = actionPreset;
+      openInput(presetMenu.box, presets()[k]?.name ?? '', (name) => { renamePreset(k, name); openPresetList(); });
+    }),
+    popupButton('DUPLICATE', () => { actions.close(); duplicatePreset(actionPreset); openPresetList(); }),
+    popupButton('DELETE', () => { actions.close(); deletePreset(actionPreset); openPresetList(); }),
+  );
+  const openPresetActions = (k: number, anchor: Element) => {
+    actionPreset = k;
+    actions.openAt(anchor, 160);
   };
   const menuRect = () => {
     const pages = document.querySelector('.side.right .pages')?.getBoundingClientRect();
@@ -241,11 +282,21 @@ export function buildSample(): HTMLElement {
   stub.addEventListener('pointerdown', (e) => { downY = e.clientY; });
   stub.addEventListener('pointerup', (e) => {
     if (Math.abs(e.clientY - downY) > 10) return;
-    const cur = synthEngine(selTrack().sample);
+    // Зажат шаг — меню выбирает звук этого шага (тоже p-lock).
+    const held = ui.channel === 'track' ? [...ui.heldSteps.values()] : [];
+    held.forEach((hs) => { hs.used = true; });
+    stepTargets = held.map((hs) => hs.index);
+    const step = stepTargets.length > 0;
+    setClass(stepTitle, 'hidden', !step);
+    setText(stepTitle, `ЗВУК ШАГА ${stepTargets.map((i) => i + 1).join(', ')}`);
+    const key = step ? heldStepSound() ?? '' : selTrack().sample;
+    const cur = synthEngine(key);
     engineBtns.forEach((b, k) => b.classList.toggle('current', k === cur));
-    sampleBtn.classList.toggle('current', cur === null && selTrack().sample !== '');
-    saveBtn.disabled = cur === null;
-    loadBtn.disabled = presets().length === 0;
+    sampleBtn.classList.toggle('current', cur === null && key !== '');
+    setText(midiBtn, step ? 'TRACK' : 'MIDI');
+    midiBtn.disabled = !step;
+    saveBtn.disabled = step || cur === null;
+    loadBtn.disabled = step || presets().length === 0;
     menu.openRect(menuRect());
   });
   stub.append(waveTitle, wave, synthInfo, stubName);
@@ -365,7 +416,10 @@ function renderEnv(m: Mini, now: number) {
 }
 
 function renderWave() {
-  const t = selTrack();
+  // Пока зажат шаг со своим звуком — окно показывает звук шага.
+  const tr = selTrack();
+  const stepSound = heldStepSound();
+  const t = stepSound ? { ...tr, sample: stepSound } : tr;
   const engine = synthEngine(t.sample);
   setClass(waveSvg, 'hidden', engine !== null);
   setClass(synthInfo, 'hidden', engine === null);
