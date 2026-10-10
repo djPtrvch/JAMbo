@@ -20,8 +20,39 @@ interface TrackView { root: HTMLElement; name: HTMLElement; state: HTMLElement; 
 const views: TrackView[] = [];
 let menu: ReturnType<typeof makePopup>;
 let pasteBtn: HTMLButtonElement;
+let renamePopup: ReturnType<typeof makePopup>;
+let renameInput: HTMLInputElement;
+let renameIndex = -1;
+
+/**
+ * Своё окно переименования: системный window.prompt в Safari прерывает звук
+ * (аудиоконтекст становится «interrupted»), поэтому поле ввода — прямо на странице.
+ */
+function buildRename() {
+  renamePopup = makePopup('rename');
+  renameInput = h('input', 'rename-input');
+  renameInput.type = 'text';
+  renameInput.maxLength = 12;
+  const done = () => {
+    if (renameIndex >= 0) renameTrack(renameIndex, renameInput.value);
+    renameIndex = -1;
+    renameInput.blur();
+    renamePopup.close();
+  };
+  renameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') done(); });
+  renamePopup.box.append(renameInput, popupButton('OK', done));
+}
+
+function openRename(i: number) {
+  renameIndex = i;
+  renameInput.value = doc.tracks[i].name;
+  renamePopup.openAt(views[i].root, 220);
+  renameInput.focus();
+  renameInput.select();
+}
 
 function buildMenu() {
+  buildRename();
   menu = makePopup();
   const act = (fn: (i: number) => void) => () => {
     const i = ui.trackMenu;
@@ -31,10 +62,7 @@ function buildMenu() {
   };
   pasteBtn = popupButton('PASTE', act(pasteTrack));
   menu.box.append(
-    popupButton('RENAME', act((i) => {
-      const name = window.prompt('Название дорожки', doc.tracks[i].name);
-      if (name !== null) renameTrack(i, name);
-    })),
+    popupButton('RENAME', act(openRename)),
     popupButton('COPY', act(copyTrack)),
     pasteBtn,
     popupButton('DELETE', act(deleteTrack)),
