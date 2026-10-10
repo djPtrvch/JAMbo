@@ -13,10 +13,10 @@ import {
   type Level, loadSampleFiles, masterLevels, masterReduction, sampleListPos, samplePeaks,
   sampleRoot, stepSample, trackLevel,
 } from '../audio/engine';
-import { LFO_WAVES, OVER_PEAK, RATIOS, SYNTH_ENGINES, TRACK_COUNT, fmtVol, noteName, synthEngine } from '../params';
+import { LFO_WAVES, OVER_PEAK, RATIOS, SYNTH_ENGINES, TRACK_COUNT, noteName, synthEngine } from '../params';
 import { fmtDb, levelFrac } from './meter';
 import { makePopup, openInput, popupButton } from './popup';
-import { audible, cycleRatio, doc, nextPresetName, presetName, savePreset, setTrackSynth, toggleCmpBypass, toggleLimBypass, envOut, envShape, lfoShape, rt, sampleName, selTrack, ui } from '../state';
+import { audible, cycleRatio, doc, liveMaster, nextPresetName, presetName, savePreset, setTrackSynth, toggleCmpBypass, toggleLimBypass, envOut, envShape, lfoShape, rt, sampleName, selTrack, ui } from '../state';
 import { h, setAttr, setClass, setText, svg } from './dom';
 
 const W = 200;
@@ -172,8 +172,8 @@ export function buildSample(): HTMLElement {
   cutStart = svg('rect', { x: 0, y: 0, height: WAVE_H, class: 'sample-cut' });
   cutEnd = svg('rect', { y: 0, height: WAVE_H, class: 'sample-cut' });
   wave.append(wavePath, cutStart, cutEnd);
-  // Тап по окну — меню звука. Оно ложится ровно на миниатюры страниц справа и закрывает их,
-  // пока выбирают звук: группы SYNTH (музыкальные движки), DRUMS (шумы и ударные) и
+  // Тап по окну — меню звука. Оно ложится слева на окно сэмпла (размером с миниатюры страниц
+  // справа) и закрывает его, пока выбирают звук: группы SYNTH (музыкальные движки), DRUMS (шумы и ударные) и
   // SAMPLE · MIDI. Кнопка SAMPLE — с настоящим полем выбора файла поверх (на iOS системный
   // выбор файла надёжно открывается только прямым тапом по полю).
   const menu = makePopup('source-menu');
@@ -216,8 +216,9 @@ export function buildSample(): HTMLElement {
     engineBtns.forEach((b, k) => b.classList.toggle('current', k === cur));
     sampleBtn.classList.toggle('current', cur === null && selTrack().sample !== '');
     saveBtn.disabled = cur === null;
-    const pages = document.querySelector('.side.right .pages');
-    if (pages) menu.openOver(pages);
+    const pages = document.querySelector('.side.right .pages')?.getBoundingClientRect();
+    const win = root.getBoundingClientRect();
+    menu.openRect({ left: win.left, top: win.top, width: win.width, height: pages?.height ?? win.height });
   });
   stub.append(waveTitle, wave, synthInfo, stubName);
 
@@ -249,9 +250,9 @@ export function buildSample(): HTMLElement {
   masterPanel.append(groups);
 
   // MIX: уровень каждой дорожки после громкости микшера — как измеритель справа: жёлтый, стерео —
-  // две полосы, моно — одна, выше 0 dB — красный; заглушённая дорожка — серая; над метром
-  // положение регулятора громкости в dB; снижение громкости от sidechain — оранжевым сверху.
-  mixPanel = h('div', 'master-panel hidden');
+  // две полосы, моно — одна, выше 0 dB — красный; заглушённая дорожка — серая; снижение
+  // громкости от sidechain — оранжевым сверху. Положение регуляторов видно на самих ручках.
+  mixPanel = h('div', 'master-panel mix-panel hidden');
   for (let i = 0; i < TRACK_COUNT; i++) mixBars.push(vbar(`T${i + 1}`, 'yellow', true));
   mixPanel.append(h('div', 'vbar-title', 'MIXER'), wrap(mixBars));
 
@@ -394,7 +395,7 @@ function renderMaster(now: number) {
   setClass(cmpBypassBtn, 'active', doc.cmpBypass);
   const m = masterLevels(now);
   // Компрессор: вход с линией Threshold, GR (Threshold, Ratio, Attack, Release), выход после Makeup.
-  setLevelBar(compBars[0], m.comp, true, fmtDb(pk(m.comp)), dbFrac(doc.master['cmp.threshold']));
+  setLevelBar(compBars[0], m.comp, true, fmtDb(pk(m.comp)), dbFrac(liveMaster()['cmp.threshold']));
   // В тишине браузер может отдавать «залипшее» значение reduction — без сигнала GR = 0.
   const silent = (l: Level) => pk(l) < 1e-4;
   setGrBar(compBars[1], doc.cmpBypass || silent(m.comp) ? 0 : Math.min(0, masterReduction()));
@@ -402,7 +403,7 @@ function renderMaster(now: number) {
   // Лимитер: вход после Input, GR, выход с линией Ceiling, пик-холдом и меткой клиппинга.
   setLevelBar(limBars[0], m.lim, true, fmtDb(pk(m.lim)));
   setGrBar(limBars[1], doc.limBypass || silent(m.lim) ? 0 : Math.min(0, limiterReduction()));
-  setLevelBar(limBars[2], m.out, true, fmtDb(pk(m.out)), dbFrac(doc.master['lim.ceiling']));
+  setLevelBar(limBars[2], m.out, true, fmtDb(pk(m.out)), dbFrac(liveMaster()['lim.ceiling']));
 }
 
 function renderMix(now: number) {
@@ -411,8 +412,7 @@ function renderMix(now: number) {
     const lv = trackLevel(i, now);
     setText(b.label, t.name);
     setClass(b.root, 'muted', !audible(i));
-    // Число над метром — положение регулятора громкости в dB (не измеренный уровень).
-    setLevelBar(b, lv, trackIsStereo(i), fmtVol(doc.mixer[`mix.vol${i + 1}`]).replace(' dB', ''), null, trackDuckDb(i));
+    setLevelBar(b, lv, trackIsStereo(i), '', null, trackDuckDb(i));
   });
 }
 
