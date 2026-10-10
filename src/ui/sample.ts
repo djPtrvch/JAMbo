@@ -58,7 +58,8 @@ export function buildSample(): HTMLElement {
   // Настоящее поле выбора файла поверх окна: системный выбор файла открывается по тапу.
   const input = h('input', 'sample-file');
   input.type = 'file';
-  input.accept = 'audio/*';
+  // Явные расширения: на iOS один 'audio/*' иногда не даёт выбрать файл в «Файлах».
+  input.accept = 'audio/*,.wav,.wave,.aif,.aiff,.mp3,.m4a,.aac,.caf,.flac,.ogg';
   input.addEventListener('change', () => {
     const f = input.files?.[0];
     if (f) void loadSampleFile(f).catch(() => window.alert('Не удалось открыть файл как аудио'));
@@ -143,7 +144,7 @@ function renderEnv(m: Mini, now: number) {
 function renderWave() {
   const t = selTrack();
   setText(waveTitle, sampleName(t.sample));
-  setText(stubName, `${t.name} · тап — загрузить файл`);
+  setText(stubName, `${t.name} · тап — ${t.sample ? 'заменить' : 'загрузить'} файл`);
   const p = samplePeaks(t.sample);
   const key = p ? t.sample : '';
   if (key !== wavePeaksKey) {

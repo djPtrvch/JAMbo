@@ -14,8 +14,8 @@
   --root: #2c3a44;
   --radius: 10px;
   --gap: 6px;
-  /* Ширина ячеек MIX и MST в строке дорожек. */
-  --channel-col: 64px;
+  /* Ширина ячеек MIX и MST = ширина шага секвенсора (16 шагов с промежутком 4px). */
+  --channel-col: calc((100% - 15 * 4px) / 16);
 }
 
 * { box-sizing: border-box; touch-action: none; }
@@ -152,7 +152,11 @@ html, body {
 .sample-wave-path { stroke: var(--accent); stroke-width: 1.2; vector-effect: non-scaling-stroke; fill: none; }
 .sample-cut { fill: var(--bg); opacity: 0.7; }
 /* Поле выбора файла прозрачно лежит поверх окна сэмпла. */
-.sample-file { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; }
+.sample-file {
+  position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%;
+  /* iOS не активирует поля ввода внутри user-select: none — возвращаем обычное поведение. */
+  -webkit-user-select: auto; user-select: auto; touch-action: manipulation; cursor: pointer;
+}
 .master-panel { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 10px; padding: 12px; }
 .ratio-btn { width: 100%; height: 56px; }
 .gr-meter { width: 100%; height: 10px; border-radius: 5px; background: var(--off); overflow: hidden; }

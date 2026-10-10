@@ -60,6 +60,7 @@ document.addEventListener('gesturestart', (e) => e.preventDefault());
 initAudio();
 document.addEventListener('pointerdown', unlockAudio);
 document.addEventListener('pointerup', unlockAudio);
+document.addEventListener('touchend', unlockAudio);
 
 let last = performance.now();
 function frame(now: number) {
