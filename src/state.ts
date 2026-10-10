@@ -78,8 +78,8 @@ export interface Ui {
   progression: number;
   /** Выбранные ноты: ими ставятся новые триги. */
   selNotes: number[];
-  /** Ноты, на которых сейчас пальцы. */
-  pressedNotes: Set<number>;
+  /** Зажатые клавиши пианоролла: палец (pointerId) → его ноты. */
+  pressedKeys: Map<number, number[]>;
   /** Превью формы волны LFO в окне сэмпла. */
   lfoPreviewUntil: number;
   lfoPreview: 1 | 2;
@@ -152,7 +152,7 @@ export const ui: Ui = {
   chordMode: false,
   progression: 0,
   selNotes: [],
-  pressedNotes: new Set(),
+  pressedKeys: new Map(),
   lfoPreviewUntil: 0,
   lfoPreview: 1,
 };
@@ -344,9 +344,6 @@ export function setNoteLength(index: number, len: number) {
 
 export const hasLocks = (s: Step) => Object.keys(s.locks).length > 0;
 
-export function trackHasLocks(t: Track): boolean {
-  return t.pages.some((pg) => pg.some(hasLocks));
-}
 
 export function setPatternLength(lastIndex: number) {
   edit(() => {
@@ -555,27 +552,34 @@ export function heldStepNotes(): number[] | null {
   return stepAt(selTrack(), idx)?.notes ?? [];
 }
 
+/** Все ноты, зажатые сейчас на пианоролле (по возрастанию). */
+export function pressedNotes(): number[] {
+  const all = new Set<number>();
+  for (const notes of ui.pressedKeys.values()) notes.forEach((n) => all.add(n));
+  return [...all].sort((a, b) => a - b);
+}
+
 /**
- * Нажатие на пианоролле (одна нота или аккорд).
- * Шаг удерживается — меняем ноты шага, иначе меняем выбранные ноты.
+ * Нажатие на пианоролле: выбранными становятся все зажатые сейчас ноты
+ * (одна нота — одна, несколько одновременно — все). Если удерживается шаг —
+ * его ноты заменяются зажатыми.
  */
-export function inputNotes(notes: number[], chord: boolean) {
+export function inputNotes() {
+  const notes = pressedNotes();
+  if (notes.length === 0) return;
   if (ui.heldSteps.size > 0) {
     edit(() => {
       for (const h of ui.heldSteps.values()) {
         const s = stepAt(selTrack(), h.index);
         if (!s) continue;
         h.used = true;
-        if (chord || !s.on) s.notes = [...notes];
-        else s.notes = s.notes.includes(notes[0]) ? s.notes.filter((n) => n !== notes[0]) : [...s.notes, notes[0]].sort((a, b) => a - b);
-        s.on = s.notes.length > 0;
-        if (!s.on) s.len = 1;
+        s.notes = [...notes];
+        s.on = true;
       }
     });
     return;
   }
-  if (chord) ui.selNotes = [...notes];
-  else ui.selNotes = ui.selNotes.includes(notes[0]) ? ui.selNotes.filter((n) => n !== notes[0]) : [...ui.selNotes, notes[0]];
+  ui.selNotes = notes;
 }
 
 /** Запись с REC: ноты на шаг index. merge — добавить к уже записанным на этом проходе. */

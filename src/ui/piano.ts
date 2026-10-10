@@ -1,11 +1,12 @@
 // Пианоролл под секвенсором: ноты выбранной гаммы (две октавы), корневая нота выделена.
-// Слева — режим аккордов, справа — стрелки октавы, ниже — выбор аккордовой прогрессии.
-// Тап по ноте выбирает ноты для новых тригов; при удержании шага — меняет ноты шага;
+// Слева — режим аккордов, справа — стрелки октавы; в режиме аккордов снизу всплывает выбор прогрессии.
+// Зажатые ноты (одна или несколько одновременно) становятся выбранными — ими ставятся триги;
+// при удержании шага зажатые ноты заменяют ноты шага;
 // с REC во время проигрывания — записывает ноты в реальном времени.
 
 import { PROGRESSIONS, SCALES, noteName } from '../params';
 import {
-  chordName, chordOnDegree, doc, heldStepNotes, inputNotes, isRoot, recordNotes, rt, scaleNotes,
+  chordName, chordOnDegree, doc, heldStepNotes, inputNotes, isRoot, pressedNotes, recordNotes, rt, scaleNotes,
   setOctave, setProgression, ui,
 } from '../state';
 import { recStep } from '../transport';
@@ -24,7 +25,7 @@ let progRow: HTMLElement;
 const keyCount = () => Math.min(MAX_KEYS, SCALES[doc.scale].steps.length * 2 + 1);
 
 /** Нажатие ноты/аккорда: запись, редактирование шага или выбор. */
-function press(notes: number[], chord: boolean) {
+function press(notes: number[]) {
   const ti = ui.selectedTrack;
   if (ui.rec && ui.playing && ui.heldSteps.size === 0) {
     const now = performance.now();
@@ -34,21 +35,17 @@ function press(notes: number[], chord: boolean) {
     rt.noteFlash[ti] = { notes, until: now + 200 };
     return;
   }
-  inputNotes(notes, chord);
+  inputNotes();
 }
 
-function pressHandlers(el: HTMLElement, notes: () => number[], chord: () => boolean) {
-  let pressed: number[] = [];
+function pressHandlers(el: HTMLElement, notes: () => number[]) {
   el.addEventListener('pointerdown', (e) => {
     e.preventDefault();
-    pressed = notes();
-    pressed.forEach((n) => ui.pressedNotes.add(n));
-    press(pressed, chord());
+    const n = notes();
+    ui.pressedKeys.set(e.pointerId, n);
+    press(n);
   });
-  const up = () => {
-    pressed.forEach((n) => ui.pressedNotes.delete(n));
-    pressed = [];
-  };
+  const up = (e: PointerEvent) => { ui.pressedKeys.delete(e.pointerId); };
   el.addEventListener('pointerup', up);
   el.addEventListener('pointercancel', up);
 }
@@ -66,7 +63,6 @@ export function buildPiano(): HTMLElement {
     pressHandlers(
       key,
       () => (ui.chordMode ? chordOnDegree(k) : [scaleNotes(1, k)[0]]),
-      () => ui.chordMode,
     );
     keys.push(key);
     keyRow.append(key);
@@ -90,7 +86,7 @@ export function buildProgression(): HTMLElement {
   const chipRow = h('div', 'chips');
   for (let c = 0; c < MAX_CHORDS; c++) {
     const chip = h('div', 'chip');
-    pressHandlers(chip, () => chordOnDegree(PROGRESSIONS[ui.progression].degrees[c] ?? 0), () => true);
+    pressHandlers(chip, () => chordOnDegree(PROGRESSIONS[ui.progression].degrees[c] ?? 0));
     chips.push(chip);
     chipRow.append(chip);
   }
@@ -102,6 +98,7 @@ export function renderPiano(now: number) {
   const count = keyCount();
   const notes = scaleNotes(count);
   const held = heldStepNotes();
+  const pressed = new Set(pressedNotes());
   const shown = new Set(held ?? ui.selNotes);
   const flash = rt.noteFlash[ui.selectedTrack];
   const playing = new Set(now < flash.until ? flash.notes : []);
@@ -116,7 +113,7 @@ export function renderPiano(now: number) {
     setClass(key, 'selected', shown.has(n));
     setClass(key, 'step-notes', held !== null && shown.has(n));
     setClass(key, 'playing', playing.has(n));
-    setClass(key, 'pressed', ui.pressedNotes.has(n));
+    setClass(key, 'pressed', pressed.has(n));
   });
   setClass(chordBtn, 'active', ui.chordMode);
 
@@ -127,7 +124,9 @@ export function renderPiano(now: number) {
     setText(chip, chordName(degrees[c]));
     const chord = chordOnDegree(degrees[c]);
     setClass(chip, 'playing', chord.every((n) => playing.has(n)));
-    setClass(chip, 'pressed', chord.every((n) => ui.pressedNotes.has(n)));
+    setClass(chip, 'pressed', chord.every((n) => pressed.has(n)));
   });
-  setClass(progRow, 'dim', !ui.chordMode);
+  // Строка прогрессии всплывает снизу только в режиме аккордов.
+  setClass(progRow, 'hidden', !ui.chordMode);
+  setClass(document.getElementById('app')!, 'chord', ui.chordMode);
 }
