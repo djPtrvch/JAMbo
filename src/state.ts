@@ -1096,10 +1096,10 @@ export function presetName(i: number): string {
 
 /** Имя звука для окна сэмпла (файл или движок синта). */
 export function sampleName(key: string): string {
-  if (!key) return 'Нет сэмпла';
+  if (!key) return 'No sample';
   const e = synthEngine(key);
   if (e !== null) return SYNTH_ENGINES[e]?.name ?? 'SYNTH';
-  return doc.files[key] ?? 'файл';
+  return doc.files[key] ?? 'file';
 }
 
 // ---------- Эквалайзер ----------

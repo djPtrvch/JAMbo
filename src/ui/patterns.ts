@@ -37,12 +37,12 @@ function buildSceneMenu() {
   sceneInput = h('input', 'rename-input');
   sceneInput.type = 'text';
   sceneInput.maxLength = 12;
-  sceneInput.placeholder = 'имя';
+  sceneInput.placeholder = 'name';
   const row = h('div', 'scene-reps-row');
   const minus = popupButton('−', () => { sceneRepsValue = Math.max(0, sceneRepsValue - 1); showReps(); });
   const plus = popupButton('+', () => { sceneRepsValue = Math.min(64, sceneRepsValue + 1); showReps(); });
   sceneReps = h('div', 'scene-reps');
-  row.append(h('div', 'scene-reps-label', 'ПОВТОРЫ'), minus, sceneReps, plus);
+  row.append(h('div', 'scene-reps-label', 'REPEATS'), minus, sceneReps, plus);
   const done = () => {
     if (sceneRow >= 0) setScene(sceneRow, sceneInput.value, sceneRepsValue);
     sceneInput.blur();

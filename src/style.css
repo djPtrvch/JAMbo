@@ -621,3 +621,11 @@ html, body {
 .preset-grid { flex: 1; min-height: 0; overflow-y: auto; touch-action: pan-y; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 44px; gap: 4px; align-content: start; }
 .preset-grid .popup-btn { white-space: pre; line-height: 1.2; font-size: 11px; overflow: hidden; text-overflow: ellipsis; }
 .preset-empty { grid-column: 1 / -1; padding: 12px 4px; font-size: 12px; color: var(--dim); text-align: center; }
+
+/* Меню звука на всю левую колонку: крупные кнопки. */
+.source-menu .popup-btn { font-size: 14px; }
+.source-menu .source-title { font-size: 10px; }
+/* Последняя группа (SAMPLE, MIDI, SAVE, LOAD) — два ряда по две кнопки. */
+.source-menu .source-group:last-child { flex: 2 1 0; }
+.preset-grid { grid-auto-rows: 56px; }
+.preset-grid .popup-btn { font-size: 13px; }

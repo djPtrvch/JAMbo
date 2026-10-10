@@ -172,8 +172,8 @@ export function buildSample(): HTMLElement {
   cutStart = svg('rect', { x: 0, y: 0, height: WAVE_H, class: 'sample-cut' });
   cutEnd = svg('rect', { y: 0, height: WAVE_H, class: 'sample-cut' });
   wave.append(wavePath, cutStart, cutEnd);
-  // Тап по окну — меню звука. Оно ложится слева на окно сэмпла (размером с миниатюры страниц
-  // справа) и закрывает его, пока выбирают звук: группы SYNTH (музыкальные движки), DRUMS (шумы и ударные) и
+  // Тап по окну — меню звука. Оно закрывает всю левую колонку (окно сэмпла, стрелки, LFO и ENV),
+  // пока выбирают звук: группы SYNTH (музыкальные движки), DRUMS (шумы и ударные) и
   // SAMPLE · MIDI. Кнопка SAMPLE — с настоящим полем выбора файла поверх (на iOS системный
   // выбор файла надёжно открывается только прямым тапом по полю).
   const menu = makePopup('source-menu');
@@ -190,7 +190,7 @@ export function buildSample(): HTMLElement {
   input.accept = 'audio/*,.wav,.wave,.aif,.aiff,.mp3,.m4a,.aac,.caf,.flac,.ogg';
   input.addEventListener('change', () => {
     const files = Array.from(input.files ?? []);
-    const fail = () => window.alert('Не удалось открыть файл как аудио');
+    const fail = () => window.alert('Could not open the file as audio');
     if (files.length && stepTargets.length) void loadStepSample(files[0], stepTargets).catch(fail);
     else if (files.length) void loadSampleFiles(files).catch(fail);
     input.value = '';
@@ -226,7 +226,7 @@ export function buildSample(): HTMLElement {
     menu.close();
     openPresetList();
   });
-  group('SAMPLE · MIDI · PRESET', 4, [sampleBtn, midiBtn, saveBtn, loadBtn]);
+  group('SAMPLE · MIDI · PRESET', 2, [sampleBtn, midiBtn, saveBtn, loadBtn]);
   const presetMenu = makePopup('source-menu preset-list');
   const openPresetList = () => {
     const list = presets();
@@ -253,7 +253,7 @@ export function buildSample(): HTMLElement {
       b.classList.toggle('current', k === cur);
       g.append(b);
     });
-    if (!list.length) g.append(h('div', 'preset-empty', 'Пресетов нет — сохраните синт кнопкой SAVE'));
+    if (!list.length) g.append(h('div', 'preset-empty', 'No presets yet — save a synth with SAVE'));
     presetMenu.box.append(g);
     presetMenu.openRect(menuRect());
   };
@@ -273,10 +273,10 @@ export function buildSample(): HTMLElement {
     actionPreset = k;
     actions.openAt(anchor, 160);
   };
+  // Меню закрывает всю левую колонку (окно сэмпла, стрелки и кнопки LFO/ENV) — кнопки крупнее.
   const menuRect = () => {
-    const pages = document.querySelector('.side.right .pages')?.getBoundingClientRect();
-    const win = root.getBoundingClientRect();
-    return { left: win.left, top: win.top, width: win.width, height: pages?.height ?? win.height };
+    const side = (root.closest('.side') ?? root).getBoundingClientRect();
+    return { left: side.left, top: side.top, width: side.width, height: side.height };
   };
   let downY = 0;
   stub.addEventListener('pointerdown', (e) => { downY = e.clientY; });
@@ -288,7 +288,7 @@ export function buildSample(): HTMLElement {
     stepTargets = held.map((hs) => hs.index);
     const step = stepTargets.length > 0;
     setClass(stepTitle, 'hidden', !step);
-    setText(stepTitle, `ЗВУК ШАГА ${stepTargets.map((i) => i + 1).join(', ')}`);
+    setText(stepTitle, `STEP ${stepTargets.map((i) => i + 1).join(', ')}`);
     const key = step ? heldStepSound() ?? '' : selTrack().sample;
     const cur = synthEngine(key);
     engineBtns.forEach((b, k) => b.classList.toggle('current', k === cur));
@@ -432,8 +432,8 @@ function renderWave() {
   // Пока звук не включён — подсказка с состоянием (помогает понять, почему тихо).
   const state = audioState();
   setText(stubName, state === 'running'
-    ? `${t.name} · тап — выбор звука`
-    : `Звук выключен (${state}) — коснитесь экрана`);
+    ? `${t.name} · tap to choose sound`
+    : `Audio off (${state}) — tap the screen`);
   setClass(stubName, 'warn', state !== 'running');
   if (engine !== null) {
     // Синт: полное имя движка и что делают ручки Harmonics, Timbre, Morph.
@@ -510,7 +510,7 @@ export function renderSample(now: number) {
   if (panel === 'mix') renderMix(now);
   const [pos, total] = sampleListPos();
   const synth = synthEngine(selTrack().sample) !== null;
-  setText(navLabel, total ? `${pos || '–'} / ${total}` : synth ? 'пресеты' : 'файлы');
+  setText(navLabel, total ? `${pos || '–'} / ${total}` : synth ? 'presets' : 'files');
   setClass(navRow, 'disabled', synth ? total < 1 : total < 2);
   // У MIX и MST сэмплов нет — стрелки скрыты.
   setClass(navRow, 'hidden', ui.channel !== 'track');
