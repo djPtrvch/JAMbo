@@ -3,15 +3,17 @@
 // ui — текущие удержания кнопок/шагов и выбор. rt — данные реального времени (LFO, проигрывание).
 
 import {
-  FX_GRID, MAX_PAGES, MOD_GRID, STEPS_PER_PAGE, TRACK_COUNT, TRACK_GRID,
-  BPM_MAX, BPM_MIN, NOTE_NAMES, SCALES, fromNorm, toNorm, type ParamDef, type Slot,
+  FX_GRID, MAX_PAGES, MOD_GRID, STEPS_PER_PAGE, TRACK_COUNT, TRACK_GRID, OCTAVE_DEF, OCTAVE_MAX, OCTAVE_MIN,
+  BPM_MAX, BPM_MIN, NOTE_NAMES, PROGRESSIONS, SCALES, fromNorm, toNorm, type ParamDef, type Slot,
 } from './params';
 
 export interface Step {
   on: boolean;
   /** Длина ноты в шагах. */
   len: number;
-  /** P-lock: id параметра → значение. */
+  /** Ноты шага (MIDI). Несколько нот — POLY. */
+  notes: number[];
+  /** P-lock: id параметра → значение. Может быть и на шаге без ноты. */
   locks: Record<string, number>;
 }
 
@@ -29,6 +31,9 @@ export interface Track {
   pages: Step[][];
   /** Длина паттерна в шагах (1..pages*16). */
   length: number;
+  /** Какие страницы играют: диапазон playFrom..playTo. */
+  playFrom: number;
+  playTo: number;
   mute: boolean;
   solo: boolean;
 }
@@ -63,6 +68,21 @@ export interface Ui {
   rec: boolean;
   clipboard: Step[] | null;
   pageMenu: number | null;
+  trackClipboard: Track | null;
+  trackMenu: number | null;
+  topMenu: 'scale' | 'root' | 'progression' | null;
+  metronome: boolean;
+  /** Пианоролл. */
+  octave: number;
+  chordMode: boolean;
+  progression: number;
+  /** Выбранные ноты: ими ставятся новые триги. */
+  selNotes: number[];
+  /** Ноты, на которых сейчас пальцы. */
+  pressedNotes: Set<number>;
+  /** Превью формы волны LFO в окне сэмпла. */
+  lfoPreviewUntil: number;
+  lfoPreview: 1 | 2;
 }
 
 export interface Runtime {
@@ -72,6 +92,11 @@ export interface Runtime {
   flashUntil: number[];
   lfoPhase: [number, number][];
   lfoRandom: [number, number][];
+  /** Ноты, которые сейчас звучат на дорожке (подсветка пианоролла). */
+  noteFlash: { notes: number[]; until: number }[];
+  /** Мигание метронома: до какого момента и сильная ли доля. */
+  beatUntil: number;
+  beatAccent: boolean;
 }
 
 // ---------- Создание ----------
@@ -83,7 +108,7 @@ function defaults(grid: Slot[]): Record<string, number> {
 }
 
 export function emptyPage(): Step[] {
-  return Array.from({ length: STEPS_PER_PAGE }, () => ({ on: false, len: 1, locks: {} }));
+  return Array.from({ length: STEPS_PER_PAGE }, () => ({ on: false, len: 1, notes: [], locks: {} }));
 }
 
 function newTrack(i: number): Track {
@@ -93,6 +118,8 @@ function newTrack(i: number): Track {
     assigns: {},
     pages: [emptyPage()],
     length: STEPS_PER_PAGE,
+    playFrom: 0,
+    playTo: 0,
     mute: false,
     solo: false,
   };
@@ -117,6 +144,17 @@ export const ui: Ui = {
   rec: false,
   clipboard: null,
   pageMenu: null,
+  trackClipboard: null,
+  trackMenu: null,
+  topMenu: null,
+  metronome: false,
+  octave: OCTAVE_DEF,
+  chordMode: false,
+  progression: 0,
+  selNotes: [],
+  pressedNotes: new Set(),
+  lfoPreviewUntil: 0,
+  lfoPreview: 1,
 };
 
 export const rt: Runtime = {
@@ -124,6 +162,9 @@ export const rt: Runtime = {
   flashUntil: Array(TRACK_COUNT).fill(0),
   lfoPhase: Array.from({ length: TRACK_COUNT }, () => [0, 0] as [number, number]),
   lfoRandom: Array.from({ length: TRACK_COUNT }, () => [Math.random() * 2 - 1, Math.random() * 2 - 1] as [number, number]),
+  noteFlash: Array.from({ length: TRACK_COUNT }, () => ({ notes: [], until: 0 })),
+  beatUntil: 0,
+  beatAccent: false,
 };
 
 // ---------- UNDO ----------
@@ -208,11 +249,15 @@ export function setParamNorm(mode: GridMode, p: ParamDef, norm: number) {
   const v = fromNorm(p, norm);
   if (mode === 'fx') doc.fx[p.id] = v;
   else for (const t of targetTracks()) t.params[p.id] = v;
+  if (p.id.startsWith('lfo')) {
+    ui.lfoPreview = p.id.startsWith('lfo1') ? 1 : 2;
+    ui.lfoPreviewUntil = performance.now() + 1500;
+  }
 }
 
 // ---------- LFO ----------
 
-function lfoShape(wave: number, phase: number, rnd: number): number {
+export function lfoShape(wave: number, phase: number, rnd: number): number {
   switch (wave) {
     case 0: return Math.sin(phase * 2 * Math.PI);
     case 1: return phase < 0.25 ? phase * 4 : phase < 0.75 ? 2 - phase * 4 : phase * 4 - 4;
@@ -271,12 +316,21 @@ export function stepAt(t: Track, index: number): Step | undefined {
   return t.pages[Math.floor(index / STEPS_PER_PAGE)]?.[index % STEPS_PER_PAGE];
 }
 
+function turnOn(s: Step) {
+  if (s.on) return;
+  s.on = true;
+  if (s.notes.length === 0) s.notes = trigNotes();
+}
+
 export function toggleStep(index: number) {
   edit(() => {
     const s = stepAt(selTrack(), index);
     if (!s) return;
-    s.on = !s.on;
-    if (!s.on) { s.len = 1; s.locks = {}; }
+    if (!s.on) { turnOn(s); return; }
+    s.on = false;
+    s.len = 1;
+    s.notes = [];
+    s.locks = {};
   });
 }
 
@@ -284,8 +338,14 @@ export function toggleStep(index: number) {
 export function setNoteLength(index: number, len: number) {
   const s = stepAt(selTrack(), index);
   if (!s) return;
-  s.on = true;
+  turnOn(s);
   s.len = Math.max(1, len);
+}
+
+export const hasLocks = (s: Step) => Object.keys(s.locks).length > 0;
+
+export function trackHasLocks(t: Track): boolean {
+  return t.pages.some((pg) => pg.some(hasLocks));
 }
 
 export function setPatternLength(lastIndex: number) {
@@ -304,7 +364,6 @@ export function setLockNorm(p: ParamDef, norm: number) {
   for (const h of ui.heldSteps.values()) {
     const s = stepAt(selTrack(), h.index);
     if (!s) continue;
-    s.on = true;
     s.locks[p.id] = v;
     h.used = true;
   }
@@ -339,12 +398,33 @@ export function selectTrack(i: number) {
   clampView();
 }
 
-/** Сохранить длину «на все страницы», если она была полной. */
+/** Сохранить длину и диапазон «на все страницы», если они были полными. */
 function changePages(t: Track, fn: () => void) {
   const full = t.length === t.pages.length * STEPS_PER_PAGE;
+  const allPlay = t.playFrom === 0 && t.playTo === t.pages.length - 1;
   fn();
+  const last = t.pages.length - 1;
   const max = t.pages.length * STEPS_PER_PAGE;
   t.length = full ? max : Math.min(t.length, max);
+  if (allPlay) { t.playFrom = 0; t.playTo = last; }
+  t.playTo = Math.min(t.playTo, last);
+  t.playFrom = Math.min(t.playFrom, t.playTo);
+}
+
+/** Шаги, которые проигрываются: выбранные страницы, обрезанные длиной паттерна. */
+export function playRange(t: Track): [number, number] {
+  const a = t.playFrom * STEPS_PER_PAGE;
+  let b = (t.playTo + 1) * STEPS_PER_PAGE - 1;
+  if (t.length > a) b = Math.min(b, t.length - 1);
+  return [a, b];
+}
+
+export function setPlayPages(from: number, to: number) {
+  const t = selTrack();
+  edit(() => {
+    t.playFrom = Math.max(0, Math.min(from, to));
+    t.playTo = Math.min(t.pages.length - 1, Math.max(from, to));
+  });
 }
 
 const clonePage = (p: Step[]): Step[] => JSON.parse(JSON.stringify(p));
@@ -382,6 +462,32 @@ export function deletePage(i: number) {
 
 // ---------- Дорожки и верхняя панель ----------
 
+export function renameTrack(i: number, name: string) {
+  const n = name.trim().slice(0, 12);
+  if (n) edit(() => { doc.tracks[i].name = n; });
+}
+
+export function copyTrack(i: number) {
+  ui.trackClipboard = JSON.parse(JSON.stringify(doc.tracks[i]));
+}
+
+/** Вставка: звук и паттерн из буфера, имя дорожки остаётся. */
+export function pasteTrack(i: number) {
+  const clip = ui.trackClipboard;
+  if (!clip) return;
+  edit(() => {
+    const name = doc.tracks[i].name;
+    doc.tracks[i] = { ...JSON.parse(JSON.stringify(clip)), name };
+  });
+  clampView();
+}
+
+/** Удаление: дорожка очищается до исходного состояния. */
+export function deleteTrack(i: number) {
+  edit(() => { doc.tracks[i] = newTrack(i); });
+  clampView();
+}
+
 export function toggleMute(i: number) {
   edit(() => { doc.tracks[i].mute = !doc.tracks[i].mute; });
 }
@@ -399,5 +505,88 @@ export function audible(i: number): boolean {
 
 export function setBpm(v: number) { doc.bpm = Math.round(Math.min(BPM_MAX, Math.max(BPM_MIN, v))); }
 export function setScale(v: number) { doc.scale = ((Math.round(v) % SCALES.length) + SCALES.length) % SCALES.length; }
+export function setProgression(v: number) { ui.progression = ((Math.round(v) % PROGRESSIONS.length) + PROGRESSIONS.length) % PROGRESSIONS.length; }
+
+// ---------- Пианоролл и аккорды ----------
+
+/** Нижняя нота пианоролла: корневая нота выбранной октавы. */
+export const baseNote = () => 12 * (ui.octave + 1) + doc.root;
+
+export function setOctave(o: number) {
+  ui.octave = Math.min(OCTAVE_MAX, Math.max(OCTAVE_MIN, o));
+}
+
+/** Ноты гаммы от baseNote на count ступеней вверх. */
+export function scaleNotes(count: number, from = 0): number[] {
+  const steps = SCALES[doc.scale].steps;
+  const out: number[] = [];
+  for (let k = from; k < from + count; k++) {
+    const oct = Math.floor(k / steps.length);
+    out.push(baseNote() + 12 * oct + steps[((k % steps.length) + steps.length) % steps.length]);
+  }
+  return out;
+}
+
+/** Трезвучие от ступени degree (ноты гаммы через одну). */
+export function chordOnDegree(degree: number): number[] {
+  return [0, 2, 4].map((k) => scaleNotes(1, degree + k)[0]);
+}
+
+/** Название аккорда ступени: C, Am, Bdim. */
+export function chordName(degree: number): string {
+  const [r, t, f] = chordOnDegree(degree);
+  const third = t - r;
+  const fifth = f - r;
+  const q = fifth === 6 ? 'dim' : fifth === 8 ? 'aug' : third === 3 ? 'm' : '';
+  return NOTE_NAMES[r % 12] + q;
+}
+
+export const isRoot = (midi: number) => midi % 12 === doc.root;
+
+/** Ноты для нового трига: выбранные или корневая нота. */
+export function trigNotes(): number[] {
+  return ui.selNotes.length ? [...ui.selNotes].sort((a, b) => a - b) : [baseNote()];
+}
+
+/** Ноты удерживаемых шагов выбранной дорожки (для подсветки пианоролла). */
+export function heldStepNotes(): number[] | null {
+  const idx = firstHeldStep();
+  if (idx === null) return null;
+  return stepAt(selTrack(), idx)?.notes ?? [];
+}
+
+/**
+ * Нажатие на пианоролле (одна нота или аккорд).
+ * Шаг удерживается — меняем ноты шага, иначе меняем выбранные ноты.
+ */
+export function inputNotes(notes: number[], chord: boolean) {
+  if (ui.heldSteps.size > 0) {
+    edit(() => {
+      for (const h of ui.heldSteps.values()) {
+        const s = stepAt(selTrack(), h.index);
+        if (!s) continue;
+        h.used = true;
+        if (chord || !s.on) s.notes = [...notes];
+        else s.notes = s.notes.includes(notes[0]) ? s.notes.filter((n) => n !== notes[0]) : [...s.notes, notes[0]].sort((a, b) => a - b);
+        s.on = s.notes.length > 0;
+        if (!s.on) s.len = 1;
+      }
+    });
+    return;
+  }
+  if (chord) ui.selNotes = [...notes];
+  else ui.selNotes = ui.selNotes.includes(notes[0]) ? ui.selNotes.filter((n) => n !== notes[0]) : [...ui.selNotes, notes[0]];
+}
+
+/** Запись с REC: ноты на шаг index. merge — добавить к уже записанным на этом проходе. */
+export function recordNotes(trackIndex: number, index: number, notes: number[], merge: boolean) {
+  edit(() => {
+    const s = stepAt(doc.tracks[trackIndex], index);
+    if (!s) return;
+    s.notes = merge && s.on ? [...new Set([...s.notes, ...notes])].sort((a, b) => a - b) : [...notes];
+    s.on = true;
+    s.len = 1;
+  });
+}
 export function setRoot(v: number) { doc.root = ((Math.round(v) % NOTE_NAMES.length) + NOTE_NAMES.length) % NOTE_NAMES.length; }
 

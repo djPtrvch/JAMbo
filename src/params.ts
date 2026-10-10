@@ -28,6 +28,16 @@ const pct = (v: number) => `${Math.round(v)}%`;
 const ms = (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(2)}s` : `${Math.round(v)}ms`);
 const hz = (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v >= 100 ? `${Math.round(v)}` : `${v.toFixed(1)}`);
 const lfoHz = (v: number) => (v < 1 ? `${v.toFixed(2)}Hz` : `${v.toFixed(1)}Hz`);
+/** Двухполярный фильтр: влево от центра — low pass, вправо — high pass, в центре выключен. */
+export function filterFreq(v: number): { type: 'off' | 'lp' | 'hp'; hz: number } {
+  if (Math.abs(v) < 0.5) return { type: 'off', hz: 0 };
+  if (v < 0) return { type: 'lp', hz: 20000 * Math.pow(30 / 20000, -v / 100) };
+  return { type: 'hp', hz: 20 * Math.pow(10000 / 20, v / 100) };
+}
+const filterFormat = (v: number) => {
+  const f = filterFreq(v);
+  return f.type === 'off' ? 'OFF' : `${f.type === 'lp' ? 'LP' : 'HP'} ${hz(f.hz)}`;
+};
 const opt = (options: string[]) => (v: number) => options[Math.round(v)] ?? '';
 
 function smooth(id: string, label: string, min: number, max: number, def: number, format: (v: number) => string, extra: Partial<ParamDef> = {}): ParamDef {
@@ -57,7 +67,7 @@ export const TRACK_GRID: Slot[] = grid([
   [
     smooth('attack', 'Attack', 0, 2000, 0, ms),
     smooth('decay', 'Decay', 0, 4000, 500, ms),
-    smooth('cutoff', 'Cutoff', 20, 20000, 20000, hz, { exp: true }),
+    smooth('filter', 'Filter', -100, 100, 0, filterFormat, { bipolar: true }),
     smooth('reso', 'Resonance', 0, 100, 0, pct),
   ],
   [
@@ -118,7 +128,37 @@ export const FX_GRID: Slot[] = grid([
 // ---------- Верхняя панель ----------
 
 export const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-export const SCALES = ['Major', 'Minor', 'Dorian', 'Phrygian', 'Lydian', 'Mixolydian', 'Locrian', 'Harm Minor', 'Pent Major', 'Pent Minor', 'Chromatic'];
+export const SCALES: { name: string; steps: number[] }[] = [
+  { name: 'Major', steps: [0, 2, 4, 5, 7, 9, 11] },
+  { name: 'Minor', steps: [0, 2, 3, 5, 7, 8, 10] },
+  { name: 'Dorian', steps: [0, 2, 3, 5, 7, 9, 10] },
+  { name: 'Phrygian', steps: [0, 1, 3, 5, 7, 8, 10] },
+  { name: 'Lydian', steps: [0, 2, 4, 6, 7, 9, 11] },
+  { name: 'Mixolydian', steps: [0, 2, 4, 5, 7, 9, 10] },
+  { name: 'Locrian', steps: [0, 1, 3, 5, 6, 8, 10] },
+  { name: 'Harm Minor', steps: [0, 2, 3, 5, 7, 8, 11] },
+  { name: 'Pent Major', steps: [0, 2, 4, 7, 9] },
+  { name: 'Pent Minor', steps: [0, 3, 5, 7, 10] },
+  { name: 'Chromatic', steps: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] },
+];
+
+/** Аккордовые прогрессии: ступени гаммы (0 = I). */
+export const PROGRESSIONS: { name: string; degrees: number[] }[] = [
+  { name: 'I–V–vi–IV', degrees: [0, 4, 5, 3] },
+  { name: 'I–vi–IV–V', degrees: [0, 5, 3, 4] },
+  { name: 'vi–IV–I–V', degrees: [5, 3, 0, 4] },
+  { name: 'ii–V–I', degrees: [1, 4, 0] },
+  { name: 'I–IV–V–IV', degrees: [0, 3, 4, 3] },
+  { name: 'i–VII–VI–VII', degrees: [0, 6, 5, 6] },
+  { name: 'Canon', degrees: [0, 4, 5, 2, 3, 0, 3, 4] },
+];
+
+/** Октава пианоролла (C4 = MIDI 60). */
+export const OCTAVE_MIN = 0;
+export const OCTAVE_MAX = 7;
+export const OCTAVE_DEF = 3;
+
+export const noteName = (midi: number) => `${NOTE_NAMES[midi % 12]}${Math.floor(midi / 12) - 1}`;
 export const BPM_MIN = 40;
 export const BPM_MAX = 240;
 

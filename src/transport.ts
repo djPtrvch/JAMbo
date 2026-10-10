@@ -1,14 +1,17 @@
-// Таймер по BPM без звука: двигает шаги дорожек и заставляет их мигать.
+// Таймер по BPM: двигает шаги дорожек, мигает дорожками и нотами пианоролла, ведёт метроном.
 // Probability, Ratchet и Swing (с p-lock и LFO) влияют на мигание, чтобы их можно было проверить на глаз.
 
+import { clickAt } from './audio';
 import { PARAM_BY_ID, STEPS_PER_PAGE, fromNorm } from './params';
-import { audible, doc, modulatedNorm, rt, stepAt, ui } from './state';
+import { audible, doc, modulatedNorm, playRange, rt, stepAt, ui, type Track } from './state';
 
+const LOOKAHEAD_MS = 60;
 let nextTime = 0;
 let tick = 0;
-const flashes: { time: number; track: number; dur: number }[] = [];
+interface Flash { time: number; track: number; dur: number; notes: number[]; noteDur: number }
+const flashes: Flash[] = [];
 
-const stepMs = () => 60000 / doc.bpm / 4;
+export const stepMs = () => 60000 / doc.bpm / 4;
 
 export function setPlaying(on: boolean) {
   ui.playing = on;
@@ -20,6 +23,12 @@ export function setPlaying(on: boolean) {
   }
 }
 
+/** Шаг дорожки на глобальном тике: проигрываются только выбранные страницы. */
+function posAt(t: Track, k: number): number {
+  const [a, b] = playRange(t);
+  return a + (k % (b - a + 1));
+}
+
 /** Значение параметра на шаге с учётом p-lock и LFO. */
 function playValue(trackIndex: number, id: string, locks: Record<string, number>): number {
   const p = PARAM_BY_ID[id];
@@ -27,10 +36,15 @@ function playValue(trackIndex: number, id: string, locks: Record<string, number>
   return fromNorm(p, modulatedNorm(trackIndex, p, base));
 }
 
-function playStep(now: number) {
+function playStep(time: number) {
   const dur = stepMs();
+  if (tick % 4 === 0) {
+    const accent = tick % 16 === 0;
+    flashes.push({ time, track: -1, dur: 90, notes: [], noteDur: accent ? 1 : 0 });
+    if (ui.metronome) clickAt(time, accent);
+  }
   doc.tracks.forEach((t, i) => {
-    const pos = tick % t.length;
+    const pos = posAt(t, tick);
     rt.playPos[i] = pos;
     const s = stepAt(t, pos);
     if (!s?.on || !audible(i)) return;
@@ -40,7 +54,7 @@ function playStep(now: number) {
     const offset = pos % 2 === 1 ? ((swing - 50) / 50) * dur : 0;
     const sub = dur / ratchet;
     for (let r = 0; r < ratchet; r++) {
-      flashes.push({ time: now + offset + r * sub, track: i, dur: Math.min(90, sub * 0.6) });
+      flashes.push({ time: time + offset + r * sub, track: i, dur: Math.min(90, sub * 0.6), notes: s.notes, noteDur: ratchet > 1 ? sub * 0.6 : s.len * dur * 0.9 });
     }
   });
   tick++;
@@ -51,18 +65,37 @@ export function updateTransport(now: number) {
   if (ui.playing) {
     // Если вкладка была в фоне — не догоняем пропущенные шаги.
     if (now - nextTime > 1000) nextTime = now;
-    while (now >= nextTime) {
+    // Шаги обрабатываем чуть заранее, чтобы щелчок метронома попал точно в долю.
+    while (now + LOOKAHEAD_MS >= nextTime) {
       playStep(nextTime);
       nextTime += stepMs();
     }
   }
   for (let k = flashes.length - 1; k >= 0; k--) {
     const f = flashes[k];
-    if (now >= f.time) {
-      rt.flashUntil[f.track] = Math.max(rt.flashUntil[f.track], now + f.dur);
-      flashes.splice(k, 1);
+    if (now < f.time) continue;
+    flashes.splice(k, 1);
+    if (f.track < 0) {
+      rt.beatUntil = now + f.dur;
+      rt.beatAccent = f.noteDur === 1;
+      continue;
     }
+    rt.flashUntil[f.track] = Math.max(rt.flashUntil[f.track], now + f.dur);
+    rt.noteFlash[f.track] = { notes: f.notes, until: now + f.noteDur };
   }
+}
+
+/**
+ * Шаг для записи с REC: ближайший к моменту нажатия (квантизация к 1/16).
+ * merge = нажатие попало на тот же шаг, что и предыдущее (аккорд пальцами).
+ */
+let lastRec = { track: -1, tick: -1 };
+export function recStep(trackIndex: number, now: number): { index: number; merge: boolean } | null {
+  if (!ui.playing) return null;
+  const k = Math.max(0, tick + Math.round((now - nextTime) / stepMs()));
+  const merge = lastRec.track === trackIndex && lastRec.tick === k;
+  lastRec = { track: trackIndex, tick: k };
+  return { index: posAt(doc.tracks[trackIndex], k), merge };
 }
 
 /** Страница, на которой сейчас играет дорожка. */
