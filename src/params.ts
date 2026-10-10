@@ -103,6 +103,43 @@ export const TRACK_GRID: Slot[] = grid([
   ],
 ]);
 
+// ---------- Синты: движки Mutable Instruments Plaits ----------
+
+/**
+ * Первые 16 (классических) движков Plaits: подпись в меню и что делают Harmonics, Timbre, Morph.
+ * Номер в списке = номер движка в plaits.wasm.
+ */
+export const SYNTH_ENGINES: { name: string; full: string; harm: string; timbre: string; morph: string }[] = [
+  { name: 'VA', full: 'Virtual analog', harm: 'detune', timbre: 'pulse width', morph: 'saw shape' },
+  { name: 'WAVESHAPE', full: 'Waveshaping', harm: 'waveform', timbre: 'fold', morph: 'asymmetry' },
+  { name: 'FM', full: '2-op FM', harm: 'ratio', timbre: 'mod index', morph: 'feedback' },
+  { name: 'GRAIN', full: 'Grain / formant', harm: 'formant ratio', timbre: 'formant freq', morph: 'width' },
+  { name: 'ADDITIVE', full: 'Harmonic', harm: 'bumps', timbre: 'main harmonic', morph: 'bump shape' },
+  { name: 'WAVETABLE', full: 'Wavetable', harm: 'bank', timbre: 'row', morph: 'column' },
+  { name: 'CHORDS', full: 'Chords', harm: 'chord', timbre: 'inversion', morph: 'waveform' },
+  { name: 'SPEECH', full: 'Vowel / speech', harm: 'synth type', timbre: 'species', morph: 'phoneme' },
+  { name: 'SWARM', full: 'Granular swarm', harm: 'detune', timbre: 'density', morph: 'grain size' },
+  { name: 'NOISE', full: 'Filtered noise', harm: 'LP–BP–HP', timbre: 'clock', morph: 'resonance' },
+  { name: 'PARTICLE', full: 'Particle noise', harm: 'freq spread', timbre: 'density', morph: 'filter' },
+  { name: 'STRING', full: 'Inharmonic string', harm: 'material', timbre: 'brightness', morph: 'decay' },
+  { name: 'MODAL', full: 'Modal resonator', harm: 'material', timbre: 'brightness', morph: 'decay' },
+  { name: 'KICK', full: 'Analog bass drum', harm: 'attack', timbre: 'brightness', morph: 'decay' },
+  { name: 'SNARE', full: 'Analog snare', harm: 'noise', timbre: 'modes', morph: 'decay' },
+  { name: 'HI-HAT', full: 'Analog hi-hat', harm: 'metal', timbre: 'high-pass', morph: 'decay' },
+];
+
+/** Ключ звука дорожки: 'mi:<n>' — движок Plaits n; иначе сэмпл ('file:<n>' или '' — нет). */
+export const synthKey = (engine: number) => `mi:${engine}`;
+export const synthEngine = (key: string): number | null => (key.startsWith('mi:') ? Number(key.slice(3)) : null);
+
+/** Колонка 1 для синта: Harmonics, Timbre, Morph, Level (вместо Pitch, Start, End, Level). */
+export const SYNTH_GRID: Slot[] = TRACK_GRID.map((p, i) => {
+  if (i === 0) return smooth('harm', 'Harmonics', 0, 100, 50, pct);
+  if (i === 4) return smooth('timbre', 'Timbre', 0, 100, 50, pct);
+  if (i === 8) return smooth('morph', 'Morph', 0, 100, 50, pct);
+  return p;
+});
+
 // ---------- MOD: LFO1, LFO2, LFO3 и огибающая ENV (по дорожкам) ----------
 
 export const LFO_WAVES = ['Sine', 'Triangle', 'Saw', 'Square', 'Random'];
@@ -245,7 +282,7 @@ export const MAX_PAGES = 8;
 /** Ячеек в столбце сетки паттернов. */
 export const PATTERN_SLOTS = 8;
 
-export const ALL_PARAMS: ParamDef[] = [...TRACK_GRID, ...MOD_GRID, ...FX_GRID, ...MIX_GRID, ...MASTER_GRID].filter((p): p is ParamDef => p !== null);
+export const ALL_PARAMS: ParamDef[] = [...TRACK_GRID, ...[SYNTH_GRID[0], SYNTH_GRID[4], SYNTH_GRID[8]], ...MOD_GRID, ...FX_GRID, ...MIX_GRID, ...MASTER_GRID].filter((p): p is ParamDef => p !== null);
 export const PARAM_BY_ID: Record<string, ParamDef> = Object.fromEntries(ALL_PARAMS.map((p) => [p.id, p]));
 
 /** Значение параметра → 0..1 (положение ручки). */
