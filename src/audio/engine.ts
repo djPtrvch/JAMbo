@@ -17,7 +17,7 @@
 // лимитера): пиковый уровень по каналам и громкость в LUFS (K-взвешивание, окно ~400 мс).
 
 import { DELAY_DIVS, OVER_PEAK, SYNTH_ENGINES, synthEngine, PARAM_BY_ID, RATIOS, VOL_DEF_DB, volGain, SAMPLE_ROOT, TRACK_COUNT, filterFreq, fromNorm } from '../params';
-import { doc, modulatedNorm, setTrackSample, setTrackSynth, ui } from '../state';
+import { doc, modulatedNorm, presets, setTrackSample, stepPreset, ui } from '../state';
 import { detectRoot } from './pitch';
 import { EqChain } from './eq';
 
@@ -78,6 +78,7 @@ function ensureSynth(track: number): Synth | null {
     outputChannelCount: Array(SYNTH_SLOTS).fill(1),
     processorOptions: { bytes: wasmBytes, slots: SYNTH_SLOTS },
   });
+  node.port.onmessage = (e) => { if (typeof e.data?.cpu === 'number') synthCpu[track] = e.data.cpu; };
   const ch = tracks[track];
   const slots = Array.from({ length: SYNTH_SLOTS }, (_, k) => {
     const amp = c.createGain();
@@ -97,8 +98,24 @@ function ensureSynth(track: number): Synth | null {
   return (synths[track] = { node, slots, next: 0 });
 }
 
-/** Параметры движка 0..1 для голоса синта (с p-lock и модуляцией). */
-const synthParams = (v: (id: string) => number) => ({ harmonics: v('harm') / 100, timbre: v('timbre') / 100, morph: v('morph') / 100 });
+/** Ручка Decay (мс) → затухание движка Plaits 0..1. */
+const decayNorm = (ms: number) => Math.sqrt(Math.min(1, Math.max(0, ms / 4000)));
+
+/**
+ * Параметры движка 0..1 для голоса синта (с p-lock и модуляцией). У движков, где Morph в Plaits —
+ * затухание, затухание берётся с ручки Decay, а Morph смешивает выходы OUT и AUX.
+ */
+function synthParams(engine: number, v: (id: string) => number) {
+  const harmonics = v('harm') / 100;
+  const timbre = v('timbre') / 100;
+  if (SYNTH_ENGINES[engine].decay) return { harmonics, timbre, morph: decayNorm(v('decay')), aux: v('morph') / 100 };
+  return { harmonics, timbre, morph: v('morph') / 100, aux: 0 };
+}
+
+// Нагрузка расчёта синтов: доля реального времени по каждой дорожке (присылает AudioWorklet).
+const synthCpu: number[] = Array(TRACK_COUNT).fill(0);
+/** Суммарная нагрузка расчёта синтов (доля 0..1). */
+export const synthLoad = () => synthCpu.reduce((a, b) => a + b, 0);
 const MAX_VOICES = 48;
 
 // Узлы эффектов и мастера.
@@ -366,8 +383,11 @@ function triggerSynth(track: number, engine: number, at: number, notes: number[]
   const v = (id: string) => value(track, id, locks);
   const attack = Math.max(0.001, v('attack') / 1000);
   const decay = v('decay') / 1000;
+  // Затухает сам движок (Decay управляет им): огибающая только с атакой, голос считается,
+  // пока не затихнет (это отслеживает AudioWorklet).
+  const selfDecay = SYNTH_ENGINES[engine].decay;
   // Голос молчит после затухания огибающей (дальше движок не считается — экономия процессора).
-  const end = at + attack + Math.max(0.02, decay) * 2 + 0.05;
+  const end = selfDecay ? at + attack + 15 : at + attack + Math.max(0.02, decay) * 2 + 0.05;
   const sr = ctx!.sampleRate;
   const events = notes.map((note) => {
     const slot = sy.next;
@@ -379,13 +399,13 @@ function triggerSynth(track: number, engine: number, at: number, notes: number[]
     g.cancelScheduledValues(at);
     g.setValueAtTime(0, at);
     g.linearRampToValueAtTime(1, at + attack);
-    g.setTargetAtTime(0, at + attack, Math.max(0.005, decay / 4));
+    if (!selfDecay) g.setTargetAtTime(0, at + attack, Math.max(0.005, decay / 4));
     sl.level.gain.setValueAtTime(levelGain(v('level')), at);
     applyFilter(sl.filter, v('filter'), v('reso'), at, false);
     sl.pan.pan.setValueAtTime(Math.max(-1, Math.min(1, v('pan') / 64)), at);
     SENDS.forEach((id, k) => sl.sends[k].gain.setValueAtTime(v(id) / 100, at));
     voices.push({ track, root: 0, locks, note, src: null, synth: { slot, engine, end }, level: sl.level, filter: sl.filter, pan: sl.pan, sends: sl.sends, ended: false });
-    return { type: 'note', slot, frame: Math.round(at * sr), end: Math.round(end * sr), engine, note, ...synthParams(v), accent: 0.8 };
+    return { type: 'note', slot, frame: Math.round(at * sr), end: Math.round(end * sr), engine, note, ...synthParams(engine, v), accent: 0.8 };
   });
   sy.node.port.postMessage(events);
   sidechain(track, at);
@@ -423,8 +443,8 @@ function updateVoices() {
     if (Object.keys(assigns).length === 0) continue;
     const v = (id: string) => value(vo.track, id, vo.locks);
     const now = c.currentTime;
-    if (vo.synth && (assigns.harm || assigns.timbre || assigns.morph)) {
-      synths[vo.track]?.node.port.postMessage([{ type: 'mod', slot: vo.synth.slot, note: vo.note, ...synthParams(v) }]);
+    if (vo.synth && (assigns.harm || assigns.timbre || assigns.morph || (assigns.decay && SYNTH_ENGINES[vo.synth.engine].decay))) {
+      synths[vo.track]?.node.port.postMessage([{ type: 'mod', slot: vo.synth.slot, note: vo.note, ...synthParams(vo.synth.engine, v) }]);
     }
     if (assigns.pitch && vo.src) vo.src.playbackRate.setTargetAtTime(rateFor(vo.note, vo.root, v('pitch')), now, 0.01);
     if (assigns.level) vo.level.gain.setTargetAtTime(levelGain(v('level')), now, 0.01);
@@ -643,10 +663,9 @@ export async function loadSampleFiles(files: File[]): Promise<void> {
 /** Стрелки под окном сэмпла: соседний файл из списка выбранной дорожки. */
 export async function stepSample(dir: 1 | -1): Promise<void> {
   const track = ui.selectedTrack;
-  // У синта стрелки перелистывают движки.
-  const engine = synthEngine(doc.tracks[track].sample);
-  if (engine !== null) {
-    setTrackSynth(track, (engine + dir + SYNTH_ENGINES.length) % SYNTH_ENGINES.length);
+  // У синта стрелки перелистывают пресеты из папки пресетов.
+  if (synthEngine(doc.tracks[track].sample) !== null) {
+    stepPreset(track, dir);
     return;
   }
   const list = fileLists.get(track);
@@ -657,8 +676,10 @@ export async function stepSample(dir: 1 | -1): Promise<void> {
 
 /** Позиция в списке файлов выбранной дорожки: [номер, всего]. */
 export function sampleListPos(): [number, number] {
-  const engine = synthEngine(doc.tracks[ui.selectedTrack].sample);
-  if (engine !== null) return [engine + 1, SYNTH_ENGINES.length];
+  if (synthEngine(doc.tracks[ui.selectedTrack].sample) !== null) {
+    const n = presets().length;
+    return [n ? (ui.presetPos[ui.selectedTrack] ?? -1) + 1 : 0, n];
+  }
   const list = fileLists.get(ui.selectedTrack);
   return list ? [list.index + 1, list.files.length] : [0, 0];
 }

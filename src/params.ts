@@ -107,26 +107,32 @@ export const TRACK_GRID: Slot[] = grid([
 
 /**
  * Первые 16 (классических) движков Plaits: подпись в меню и что делают Harmonics, Timbre, Morph.
- * Номер в списке = номер движка в plaits.wasm.
+ * Номер в списке = номер движка в plaits.wasm. bank — группа в меню: 'synth' (музыкальные,
+ * зелёный банк Plaits) или 'drum' (шумы и ударные, красный банк).
+ * decay: у движка Morph в Plaits — затухание; здесь затуханием управляет ручка Decay, а Morph —
+ * микс выходов OUT и AUX (как у модуля).
  */
-export const SYNTH_ENGINES: { name: string; full: string; harm: string; timbre: string; morph: string }[] = [
-  { name: 'VA', full: 'Virtual analog', harm: 'detune', timbre: 'pulse width', morph: 'saw shape' },
-  { name: 'WAVESHAPE', full: 'Waveshaping', harm: 'waveform', timbre: 'fold', morph: 'asymmetry' },
-  { name: 'FM', full: '2-op FM', harm: 'ratio', timbre: 'mod index', morph: 'feedback' },
-  { name: 'GRAIN', full: 'Grain / formant', harm: 'formant ratio', timbre: 'formant freq', morph: 'width' },
-  { name: 'ADDITIVE', full: 'Harmonic', harm: 'bumps', timbre: 'main harmonic', morph: 'bump shape' },
-  { name: 'WAVETABLE', full: 'Wavetable', harm: 'bank', timbre: 'row', morph: 'column' },
-  { name: 'CHORDS', full: 'Chords', harm: 'chord', timbre: 'inversion', morph: 'waveform' },
-  { name: 'SPEECH', full: 'Vowel / speech', harm: 'synth type', timbre: 'species', morph: 'phoneme' },
-  { name: 'SWARM', full: 'Granular swarm', harm: 'detune', timbre: 'density', morph: 'grain size' },
-  { name: 'NOISE', full: 'Filtered noise', harm: 'LP–BP–HP', timbre: 'clock', morph: 'resonance' },
-  { name: 'PARTICLE', full: 'Particle noise', harm: 'freq spread', timbre: 'density', morph: 'filter' },
-  { name: 'STRING', full: 'Inharmonic string', harm: 'material', timbre: 'brightness', morph: 'decay' },
-  { name: 'MODAL', full: 'Modal resonator', harm: 'material', timbre: 'brightness', morph: 'decay' },
-  { name: 'KICK', full: 'Analog bass drum', harm: 'attack', timbre: 'brightness', morph: 'decay' },
-  { name: 'SNARE', full: 'Analog snare', harm: 'noise', timbre: 'modes', morph: 'decay' },
-  { name: 'HI-HAT', full: 'Analog hi-hat', harm: 'metal', timbre: 'high-pass', morph: 'decay' },
+export const SYNTH_ENGINES: { name: string; full: string; bank: 'synth' | 'drum'; decay: boolean; harm: string; timbre: string; morph: string }[] = [
+  { name: 'VA', full: 'Virtual analog', bank: 'synth', decay: false, harm: 'detune', timbre: 'pulse width', morph: 'saw shape' },
+  { name: 'WAVESHAPE', full: 'Waveshaping', bank: 'synth', decay: false, harm: 'waveform', timbre: 'fold', morph: 'asymmetry' },
+  { name: 'FM', full: '2-op FM', bank: 'synth', decay: false, harm: 'ratio', timbre: 'mod index', morph: 'feedback' },
+  { name: 'GRAIN', full: 'Grain / formant', bank: 'synth', decay: false, harm: 'formant ratio', timbre: 'formant freq', morph: 'width' },
+  { name: 'ADDITIVE', full: 'Harmonic', bank: 'synth', decay: false, harm: 'bumps', timbre: 'main harmonic', morph: 'bump shape' },
+  { name: 'WAVETABLE', full: 'Wavetable', bank: 'synth', decay: false, harm: 'bank', timbre: 'row', morph: 'column' },
+  { name: 'CHORDS', full: 'Chords', bank: 'synth', decay: false, harm: 'chord', timbre: 'inversion', morph: 'waveform' },
+  { name: 'SPEECH', full: 'Vowel / speech', bank: 'synth', decay: false, harm: 'synth type', timbre: 'species', morph: 'phoneme' },
+  { name: 'SWARM', full: 'Granular swarm', bank: 'drum', decay: false, harm: 'detune', timbre: 'density', morph: 'grain size' },
+  { name: 'NOISE', full: 'Filtered noise', bank: 'drum', decay: false, harm: 'LP–BP–HP', timbre: 'clock', morph: 'resonance' },
+  { name: 'PARTICLE', full: 'Particle noise', bank: 'drum', decay: false, harm: 'freq spread', timbre: 'density', morph: 'filter' },
+  { name: 'STRING', full: 'Inharmonic string', bank: 'drum', decay: true, harm: 'material', timbre: 'brightness', morph: 'OUT–AUX' },
+  { name: 'MODAL', full: 'Modal resonator', bank: 'drum', decay: true, harm: 'material', timbre: 'brightness', morph: 'OUT–AUX' },
+  { name: 'KICK', full: 'Analog bass drum', bank: 'drum', decay: true, harm: 'attack', timbre: 'brightness', morph: 'OUT–AUX' },
+  { name: 'SNARE', full: 'Analog snare', bank: 'drum', decay: true, harm: 'noise', timbre: 'modes', morph: 'OUT–AUX' },
+  { name: 'HI-HAT', full: 'Analog hi-hat', bank: 'drum', decay: true, harm: 'metal', timbre: 'high-pass', morph: 'OUT–AUX' },
 ];
+
+/** Параметры звука, которые сохраняются в пресете синта (вместе с движком). */
+export const PRESET_PARAMS = ['harm', 'timbre', 'morph', 'level', 'attack', 'decay', 'filter', 'reso'];
 
 /** Ключ звука дорожки: 'mi:<n>' — движок Plaits n; иначе сэмпл ('file:<n>' или '' — нет). */
 export const synthKey = (engine: number) => `mi:${engine}`;

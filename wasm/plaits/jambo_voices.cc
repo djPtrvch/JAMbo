@@ -53,6 +53,7 @@ struct Slot {
   Engine* engines[kEngines];
   char buffer[kBufferSize];
   stmlib::Limiter limiter;
+  stmlib::Limiter aux_limiter;
 
   int engine;
   bool rising;
@@ -62,6 +63,8 @@ struct Slot {
   float timbre;
   float morph;
   float accent;
+  // Микс выходов OUT и AUX (0 — только OUT), как переключение выходов модуля Plaits.
+  float aux_mix;
   float out[kMaxBlockSize];
   float aux[kMaxBlockSize];
 };
@@ -70,10 +73,19 @@ Slot slots[kSlots];
 float output[kMaxBlockSize];
 
 // Как в plaits/dsp/voice.cc: огибающая уже есть у движка, усиление выхода (< 0 — лимитер).
-void Register(Engine* e, bool already_enveloped, float out_gain) {
+void Register(Engine* e, bool already_enveloped, float out_gain, float aux_gain) {
   e->post_processing_settings.already_enveloped = already_enveloped;
   e->post_processing_settings.out_gain = out_gain;
-  e->post_processing_settings.aux_gain = out_gain;
+  e->post_processing_settings.aux_gain = aux_gain;
+}
+
+// Усиление выхода как в plaits/dsp/voice.cc: < 0 — лимитер с этим предусилением.
+void Post(stmlib::Limiter* limiter, float gain, float* buffer, int size) {
+  if (gain < 0.0f) {
+    limiter->Process(-gain, buffer, size);
+    gain = 1.0f;
+  }
+  for (int i = 0; i < size; ++i) buffer[i] *= gain;
 }
 
 }  // namespace
@@ -94,15 +106,21 @@ void init() {
       0.8f, 0.7f, 0.6f, 0.7f, 0.8f, 0.6f, 0.8f, -0.7f,
       -3.0f, -1.0f, -2.0f, -1.0f, -1.0f, 0.8f, 0.8f, 0.8f,
     };
+    const float aux_gains[kEngines] = {
+      0.8f, 0.6f, 0.6f, 0.6f, 0.8f, 0.6f, 0.8f, 0.8f,
+      1.0f, -1.0f, 1.0f, 0.8f, 0.8f, 0.8f, 0.8f, 0.8f,
+    };
     stmlib::BufferAllocator allocator(s.buffer, kBufferSize);
     for (int k = 0; k < kEngines; ++k) {
       s.engines[k] = list[k];
-      Register(list[k], k >= 11, gains[k]);
+      Register(list[k], k >= 11, gains[k], aux_gains[k]);
       // Все движки голоса делят одну память.
       allocator.Free();
       list[k]->Init(&allocator);
     }
     s.limiter.Init();
+    s.aux_limiter.Init();
+    s.aux_mix = 0.0f;
     s.engine = 0;
     s.engines[0]->LoadUserData(nullptr);
     s.engines[0]->Reset();
@@ -114,9 +132,12 @@ void init() {
   }
 }
 
-/** Параметры голоса: движок 0..15, нота (MIDI, 60 = C4), harmonics/timbre/morph 0..1. */
+/**
+ * Параметры голоса: движок 0..15, нота (MIDI, 60 = C4), harmonics/timbre/morph 0..1,
+ * aux_mix — доля выхода AUX (0..1).
+ */
 __attribute__((export_name("set")))
-void set(int slot, int engine, float note, float harmonics, float timbre, float morph, float accent) {
+void set(int slot, int engine, float note, float harmonics, float timbre, float morph, float accent, float aux_mix) {
   Slot& s = slots[slot];
   if (engine < 0 || engine >= kEngines) engine = 0;
   if (engine != s.engine) {
@@ -124,7 +145,9 @@ void set(int slot, int engine, float note, float harmonics, float timbre, float 
     s.engines[engine]->LoadUserData(nullptr);
     s.engines[engine]->Reset();
     s.limiter.Init();
+    s.aux_limiter.Init();
   }
+  s.aux_mix = aux_mix < 0.0f ? 0.0f : (aux_mix > 1.0f ? 1.0f : aux_mix);
   s.note = note;
   s.harmonics = harmonics;
   s.timbre = timbre;
@@ -159,13 +182,11 @@ float* render(int slot, int size) {
   p.accent = s.accent;
   bool already_enveloped = e->post_processing_settings.already_enveloped;
   e->Render(p, s.out, s.aux, size, &already_enveloped);
-  float gain = e->post_processing_settings.out_gain;
-  if (gain < 0.0f) {
-    s.limiter.Process(-gain, s.out, size);
-    gain = 1.0f;
-  }
+  Post(&s.limiter, e->post_processing_settings.out_gain, s.out, size);
+  Post(&s.aux_limiter, e->post_processing_settings.aux_gain, s.aux, size);
+  const float a = s.aux_mix;
   for (int i = 0; i < size; ++i) {
-    float v = s.out[i] * gain;
+    float v = s.out[i] * (1.0f - a) + s.aux[i] * a;
     output[i] = v > 1.0f ? 1.0f : (v < -1.0f ? -1.0f : v);
   }
   return output;
