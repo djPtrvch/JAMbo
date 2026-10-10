@@ -145,6 +145,8 @@ html, body {
 .main > .center { grid-area: center; }
 .main > .right { grid-area: right; }
 .main > .meter { grid-area: meter; }
+/* Измеритель уровня поднимается до верха кнопок PATTERNS и EQ (место справа от EQ свободно). */
+.main > .meter { margin-top: calc(-44px - var(--gap)); }
 
 /* ---------- Измеритель уровня (правый край) ---------- */
 
@@ -276,6 +278,9 @@ html, body {
 /* Во всю ширину: столбцы совпадают со строкой дорожек (тот же шаблон и промежуток). */
 .main.patterns { grid-template-areas: "center center center center"; }
 .main.patterns > .side, .main.patterns > .meter { display: none; }
+/* Эквалайзер — до края миниатюр страниц, справа измеритель уровня. */
+.main.eq { grid-template-areas: "center center center meter"; }
+.main.eq > .side { display: none; }
 .pattern-grid {
   display: grid;
   grid-template-columns: var(--channel-col) repeat(var(--tracks), minmax(0, 1fr)) var(--channel-col);

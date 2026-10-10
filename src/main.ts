@@ -74,10 +74,10 @@ function frame(now: number) {
   renderTopbar(now);
   renderFields();
   renderSample(now);
-  const wide = ui.patternView || ui.eqView;
-  setClass(knobGrid, 'hidden', wide);
-  // Сетка паттернов и эквалайзер занимают всю ширину, боковые колонки скрываются.
-  setClass(main, 'patterns', wide);
+  setClass(knobGrid, 'hidden', ui.patternView || ui.eqView);
+  // Сетка паттернов занимает всю ширину; эквалайзер — до края миниатюр страниц, справа измеритель.
+  setClass(main, 'patterns', ui.patternView);
+  setClass(main, 'eq', ui.eqView);
   renderKnobs(now);
   renderPatternGrid();
   renderEq();
@@ -86,7 +86,7 @@ function frame(now: number) {
   renderPiano(now);
   renderPages();
   renderButtons();
-  if (!wide) renderMeter(now);
+  if (!ui.patternView) renderMeter(now);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

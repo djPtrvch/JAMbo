@@ -4,7 +4,7 @@
 // Управление касанием: двойной тап по пустому месту — новая bell-полоса (частота по горизонтали,
 // усиление по вертикали); точку тянут (у cut и notch — только частота); двойной тап по точке
 // включает и выключает полосу; долгое нажатие — меню типа, крутизны среза и удаления.
-// Внизу поля выбранной полосы: тип, Freq, Gain, Q (двойной тап по Q — сброс).
+// Внизу поля выбранной полосы: тип, Freq (удержание — ввод числа), Gain, Q (двойной тап по Q — сброс).
 //
 // Фон — сетка частот и уровней; спектр до EQ — серая линия, после — серая полупрозрачная
 // заливка; суммарная кривая белая; точки полос белые с номерами,
@@ -21,7 +21,7 @@ import {
 } from '../state';
 import { dragField } from './controls';
 import { h, setClass, setText } from './dom';
-import { makePopup, popupButton } from './popup';
+import { makePopup, openInput, popupButton } from './popup';
 
 /** Вертикальная шкала кривой EQ: ±DB_RANGE дБ на всю высоту (усиление полос — до ±18 дБ). */
 const DB_RANGE = 21;
@@ -59,6 +59,13 @@ function fmtHz(f: number): string {
   return `${(f / 1000).toFixed(f < 10000 ? 2 : 1)} kHz`;
 }
 const fmtGain = (g: number) => `${g > 0 ? '+' : ''}${g.toFixed(1)} dB`;
+/** Частота из введённого текста: «440», «440 Hz», «1.5k», «2 kHz»; null — не число. */
+function parseFreq(text: string): number | null {
+  const m = text.trim().toLowerCase().replace(',', '.').match(/^([0-9]*\.?[0-9]+)\s*(k)?/);
+  if (!m) return null;
+  const v = parseFloat(m[1]) * (m[2] ? 1000 : 1);
+  return Number.isFinite(v) && v > 0 ? v : null;
+}
 const noteOf = (f: number) => noteName(Math.max(0, Math.round(69 + 12 * Math.log2(f / 440))));
 
 // ---------- Касания ----------
@@ -193,7 +200,9 @@ export function buildEq(): HTMLElement {
   const freqField = dragField(
     'FREQ', () => Math.round(Math.log2((selectedBand()?.freq ?? 1000) / EQ_FREQ_MIN) * 24),
     (v) => setEqBand(k(), { freq: EQ_FREQ_MIN * Math.pow(2, v / 24) }),
-    () => { const b = selectedBand(); return b ? fmtHz(b.freq) : '—'; }, 2,
+    () => { const b = selectedBand(); return b ? fmtHz(b.freq) : '—'; }, 2, undefined,
+    // Удержание — ввод частоты числом (Гц; «1.5k» — килогерцы).
+    (el) => { const b = selectedBand(); if (b) openInput(el, String(Math.round(b.freq)), (v) => { const f = parseFreq(v); if (f) setEqBand(k(), { freq: f }); }, true); },
   );
   const gainField = dragField(
     'GAIN', () => Math.round((selectedBand()?.gain ?? 0) * 10),
