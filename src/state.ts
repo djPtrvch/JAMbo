@@ -502,6 +502,11 @@ export function toggleSolo(i: number) {
   edit(() => { doc.tracks[i].solo = !doc.tracks[i].solo; });
 }
 
+/** Дорожка используется: на ней есть хотя бы один триг. */
+export function trackInUse(t: Track): boolean {
+  return t.pages.some((pg) => pg.some((s) => s.on));
+}
+
 /** Слышна ли дорожка с учётом mute/solo. */
 export function audible(i: number): boolean {
   const anySolo = doc.tracks.some((t) => t.solo);
