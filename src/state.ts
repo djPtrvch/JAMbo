@@ -84,6 +84,8 @@ export interface Doc {
   master: Record<string, number>;
   /** Индекс в RATIOS (кнопка RATIO). */
   ratio: number;
+  /** Bypass компрессора и лимитера мастера. */
+  bypass: { cmp: boolean; lim: boolean };
   /** Имена загруженных файлов: ключ сэмпла → имя. */
   files: Record<string, string>;
   /** Определённая высота сэмплов: ключ → MIDI-нота (нет — C3). */
@@ -115,9 +117,7 @@ export interface Ui {
   rec: boolean;
   clipboard: Step[] | null;
   pageMenu: number | null;
-  trackClipboard: Track | null;
   patternClipboard: Pattern | null;
-  trackMenu: number | null;
   topMenu: 'scale' | 'root' | 'progression' | null;
   metronome: boolean;
   /** Пианоролл. */
@@ -198,6 +198,7 @@ export const doc: Doc = {
   mixer: defaults(MIX_GRID),
   master: defaults(MASTER_GRID),
   ratio: 1,
+  bypass: { cmp: false, lim: false },
   files: {},
   roots: {},
 };
@@ -214,9 +215,7 @@ export const ui: Ui = {
   rec: false,
   clipboard: null,
   pageMenu: null,
-  trackClipboard: null,
   patternClipboard: null,
-  trackMenu: null,
   topMenu: null,
   metronome: false,
   octave: OCTAVE_DEF,
@@ -600,41 +599,18 @@ export function renameTrack(i: number, name: string) {
   if (n) edit(() => { doc.tracks[i].name = n; });
 }
 
-export function copyTrack(i: number) {
-  ui.trackClipboard = JSON.parse(JSON.stringify(doc.tracks[i]));
-}
 
-/** Вставка: звук и паттерн из буфера, имя дорожки остаётся. */
-export function pasteTrack(i: number) {
-  const clip = ui.trackClipboard;
-  if (!clip) return;
-  edit(() => {
-    const name = doc.tracks[i].name;
-    doc.tracks[i] = { ...JSON.parse(JSON.stringify(clip)), name };
-  });
-  clampView();
-}
-
-/** Удаление: дорожка очищается до исходного состояния. */
-export function deleteTrack(i: number) {
-  edit(() => { doc.tracks[i] = newTrack(i); });
-  clampView();
-}
-
-/** Mute и solo на дорожке взаимоисключающие: включение одного выключает другое. */
-export function toggleMute(i: number) {
+/**
+ * Свайп по дорожке: если включён mute или solo — любой свайп (вверх или вниз) его выключает;
+ * иначе свайп вниз включает mute, вверх — solo. Одновременно mute и solo не бывает.
+ */
+export function swipeTrack(i: number, dir: 'up' | 'down') {
   edit(() => {
     const t = doc.tracks[i];
-    t.mute = !t.mute;
-    if (t.mute) t.solo = false;
-  });
-}
-
-export function toggleSolo(i: number) {
-  edit(() => {
-    const t = doc.tracks[i];
-    t.solo = !t.solo;
-    if (t.solo) t.mute = false;
+    if (t.mute) t.mute = false;
+    else if (t.solo) t.solo = false;
+    else if (dir === 'down') t.mute = true;
+    else t.solo = true;
   });
 }
 
@@ -843,6 +819,11 @@ export function deletePattern(i: number, k: number) {
 
 export function selectChannel(c: Channel) {
   ui.channel = c;
+}
+
+/** Кнопки BYPASS компрессора и лимитера мастера. */
+export function toggleBypass(which: 'cmp' | 'lim') {
+  edit(() => { doc.bypass[which] = !doc.bypass[which]; });
 }
 
 /** Кнопка RATIO мастера: следующее значение по кругу. */

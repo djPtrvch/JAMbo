@@ -6,12 +6,15 @@ import {
   beginGesture, clearLfoAssign, clearLock, doc, endGesture, firstHeldStep, gridFor, gridMode, heldLfo,
   lockValue, modulatedNorm, paramValue, rt, type Mod, setLfoAmount, setLockNorm, setParamNorm, ui, type GridMode,
 } from '../state';
+import { openRename } from './tracks';
 import { DOUBLE_TAP_MS, h, setAttr, setClass, setText, svg } from './dom';
 
 /** Сколько пикселей вертикального хода = полный оборот ручки. */
 const TRAVEL_PX = 240;
 /** Мёртвая зона, чтобы тап не сдвигал значение. */
 const DEAD_PX = 4;
+/** Удержание ручки громкости в MIX для переименования дорожки. */
+const RENAME_HOLD_MS = 500;
 
 // Геометрия дуги: от −135° до +135°.
 const START = -135;
@@ -57,6 +60,7 @@ interface Gesture {
   kind: 'base' | 'lock' | 'lfo';
   lfo: Mod;
   consumed: boolean;
+  holdTimer?: number;
 }
 
 const views: KnobView[] = [];
@@ -128,6 +132,17 @@ function onDown(slot: number, e: PointerEvent) {
 
   gestures.set(e.pointerId, g);
   beginGesture();
+
+  // MIX: удержание ручки громкости дорожки без движения — окно переименования дорожки.
+  if (mode === 'mix' && slot < doc.tracks.length) {
+    const anchor = e.currentTarget as Element;
+    g.holdTimer = window.setTimeout(() => {
+      if (!g.moved && gestures.get(e.pointerId) === g) {
+        g.consumed = true;
+        openRename(slot, anchor);
+      }
+    }, RENAME_HOLD_MS);
+  }
 }
 
 function onMove(e: PointerEvent) {
@@ -155,6 +170,7 @@ function onUp(e: PointerEvent) {
   const g = gestures.get(e.pointerId);
   if (!g) return;
   gestures.delete(e.pointerId);
+  clearTimeout(g.holdTimer);
   if (!g.moved && !g.consumed) lastTap[g.slot] = performance.now();
   endGesture();
 }
