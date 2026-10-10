@@ -10,18 +10,22 @@
 //
 // Параметры голоса берутся на шаге с учётом p-lock и модуляции; если на ручку назначен LFO
 // или ENV, значения голоса обновляются каждый кадр, пока он звучит.
+// Измерители уровня стоят на выходе каждой дорожки и в мастере (вход компрессора, вход и выход
+// лимитера): пиковый уровень по каналам и громкость в LUFS (K-взвешивание, окно ~400 мс).
 
 import { PARAM_BY_ID, RATIOS, SAMPLE_ROOT, TRACK_COUNT, filterFreq, fromNorm } from '../params';
 import { doc, modulatedNorm, setTrackSample, ui } from '../state';
+import { detectRoot } from './pitch';
 
 let ctx: AudioContext | null = null;
 const buffers = new Map<string, AudioBuffer>();
 const peaks = new Map<string, Float32Array>();
 let fileCount = 0;
 
-interface TrackChain { input: GainNode; duck: GainNode; vol: GainNode; sends: GainNode[] }
+interface TrackChain { input: GainNode; duck: GainNode; vol: GainNode; sends: GainNode[]; meter: Meter }
 interface Voice {
   track: number;
+  root: number;
   locks: Record<string, number>;
   note: number;
   src: AudioBufferSourceNode;
@@ -41,18 +45,18 @@ const MAX_VOICES = 48;
 let rev: { hpf: BiquadFilterNode; pre: DelayNode; conv: ConvolverNode };
 let dly: { hpf: BiquadFilterNode; l: DelayNode; r: DelayNode; fbL: GainNode; fbR: GainNode };
 let drv: { shaper: WaveShaperNode; tone: BiquadFilterNode };
-let mst: { comp: DynamicsCompressorNode; makeup: GainNode; limIn: GainNode; lim: DynamicsCompressorNode };
+let mst: {
+  comp: DynamicsCompressorNode; makeup: GainNode; limIn: GainNode; lim: DynamicsCompressorNode;
+  compMeter: Meter; limMeter: Meter; outMeter: Meter;
+};
 
 const SENDS = ['reverb', 'delay', 'drive'] as const;
 
 // ---------- Запуск ----------
 
-/** Создать контекст (можно до касания — он будет на паузе). */
+/** Создать контекст (на паузе, пока его не включит касание). */
 function ensureCtx(): AudioContext {
   if (ctx) return ctx;
-  // iOS 17+: играть даже при выключенном звонке (переключатель Mute).
-  const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
-  if (session) session.type = 'playback';
   ctx = new AudioContext({ latencyHint: 'interactive' });
   buildGraph(ctx);
   return ctx;
@@ -66,12 +70,47 @@ function ensureCtx(): AudioContext {
  */
 export function unlockAudio() {
   const c = ensureCtx();
+  unmuteHtmlAudio();
   if (c.state === 'running') return;
   void c.resume().catch(() => { /* повторим на следующем касании */ });
   const src = c.createBufferSource();
   src.buffer = c.createBuffer(1, 1, c.sampleRate);
   src.connect(c.destination);
   src.start();
+}
+
+/**
+ * Safari: Web Audio по умолчанию звучит как «системные звуки» и глушится переключателем
+ * беззвучного режима и настройками сайта. Беззвучный зацикленный HTML-аудиоэлемент,
+ * запущенный касанием, переводит страницу в режим воспроизведения медиа, и Web Audio звучит.
+ */
+let htmlAudio: HTMLAudioElement | null = null;
+
+function silentWavUrl(): string {
+  const n = 4000;
+  const buf = new ArrayBuffer(44 + n);
+  const v = new DataView(buf);
+  const str = (o: number, s: string) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  str(0, 'RIFF'); v.setUint32(4, 36 + n, true); str(8, 'WAVE');
+  str(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, 8000, true); v.setUint32(28, 8000, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true);
+  str(36, 'data'); v.setUint32(40, n, true);
+  for (let i = 0; i < n; i++) v.setUint8(44 + i, 128);
+  return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+}
+
+function unmuteHtmlAudio() {
+  if (!htmlAudio) {
+    htmlAudio = document.createElement('audio');
+    htmlAudio.setAttribute('x-webkit-airplay', 'deny');
+    htmlAudio.preload = 'auto';
+    htmlAudio.loop = true;
+    htmlAudio.src = silentWavUrl();
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) htmlAudio?.pause();
+    });
+  }
+  if (htmlAudio.paused && !document.hidden) void htmlAudio.play().catch(() => { /* повторим на следующем касании */ });
 }
 
 /** Состояние звука для подсказки на экране: running, suspended, interrupted или none. */
@@ -88,7 +127,10 @@ function buildGraph(c: AudioContext) {
   lim.knee.value = 0;
   lim.ratio.value = 20;
   masterIn.connect(comp).connect(makeup).connect(limIn).connect(lim).connect(c.destination);
-  mst = { comp, makeup, limIn, lim };
+  mst = {
+    comp, makeup, limIn, lim,
+    compMeter: new Meter(c, masterIn, false), limMeter: new Meter(c, limIn, false), outMeter: new Meter(c, lim, true),
+  };
 
   // Reverb: HPF → предзадержка → свёртка.
   const revIn = c.createGain();
@@ -142,7 +184,7 @@ function buildGraph(c: AudioContext) {
       g.connect(bus);
       return g;
     });
-    return { input, duck, vol, sends };
+    return { input, duck, vol, sends, meter: new Meter(c, vol, true) };
   });
 }
 
@@ -177,7 +219,10 @@ function applyFilter(f: BiquadFilterNode, v: number, reso: number, at: number, s
 }
 
 const levelGain = (v: number) => Math.pow(v / 127, 1.5);
-const rateFor = (note: number, pitch: number) => Math.pow(2, (note - SAMPLE_ROOT + pitch) / 12);
+/** Скорость воспроизведения: нота относительно определённой высоты сэмпла (root) + Pitch. */
+const rateFor = (note: number, root: number, pitch: number) => Math.pow(2, (note - root + pitch) / 12);
+/** Высота сэмпла: определённая при загрузке, иначе C3. */
+const rootOf = (key: string) => doc.roots[key] ?? SAMPLE_ROOT;
 
 /** Запустить ноты дорожки в момент time (performance.now). */
 export function triggerTrack(track: number, time: number, notes: number[], locks: Record<string, number>) {
@@ -194,9 +239,10 @@ export function triggerTrack(track: number, time: number, notes: number[], locks
   if (endSec - startSec < 0.003) return;
   const attack = v('attack') / 1000;
   const decay = v('decay') / 1000;
+  const root = rootOf(t.sample);
 
   for (const note of notes) {
-    const rate = rateFor(note, v('pitch'));
+    const rate = rateFor(note, root, v('pitch'));
     const src = ctx.createBufferSource();
     src.buffer = buf;
     src.playbackRate.value = rate;
@@ -226,7 +272,7 @@ export function triggerTrack(track: number, time: number, notes: number[], locks
     const stopAt = at + Math.min(playDur, attack + decay + 0.1);
     src.start(at, startSec, Math.max(0.003, (endSec - startSec)));
     src.stop(stopAt);
-    const voice: Voice = { track, locks, note, src, level, filter, pan, sends, ended: false };
+    const voice: Voice = { track, root, locks, note, src, level, filter, pan, sends, ended: false };
     src.onended = () => {
       voice.ended = true;
       for (const n of [src, amp, level, filter, pan, ...sends]) n.disconnect();
@@ -271,7 +317,7 @@ function updateVoices() {
     if (Object.keys(assigns).length === 0) continue;
     const v = (id: string) => value(vo.track, id, vo.locks);
     const now = c.currentTime;
-    if (assigns.pitch) vo.src.playbackRate.setTargetAtTime(rateFor(vo.note, v('pitch')), now, 0.01);
+    if (assigns.pitch) vo.src.playbackRate.setTargetAtTime(rateFor(vo.note, vo.root, v('pitch')), now, 0.01);
     if (assigns.level) vo.level.gain.setTargetAtTime(levelGain(v('level')), now, 0.01);
     if (assigns.filter || assigns.reso) applyFilter(vo.filter, v('filter'), v('reso'), now, true);
     if (assigns.pan) vo.pan.pan.setTargetAtTime(Math.max(-1, Math.min(1, v('pan') / 64)), now, 0.01);
@@ -400,15 +446,44 @@ export function clickAt(time: number, accent: boolean) {
 
 // ---------- Сэмплы и файлы ----------
 
-/** Загрузить аудиофайл с iPad и поставить его на выбранную дорожку. */
-export async function loadSampleFile(file: File): Promise<void> {
+// Файлы, выбранные в окне выбора (их можно выбрать сразу несколько — это «папка»):
+// стрелки под окном сэмпла перелистывают их по кругу.
+let fileList: File[] = [];
+let fileIndex = 0;
+const fileKeys = new Map<File, string>();
+
+/** Загрузить файл (один раз) и поставить его на выбранную дорожку; высота определяется сама. */
+async function loadFile(file: File): Promise<void> {
   const c = ensureCtx();
-  const data = await file.arrayBuffer();
-  const buf = await c.decodeAudioData(data);
-  const key = `file:${++fileCount}`;
-  buffers.set(key, buf);
-  setTrackSample(ui.selectedTrack, key, file.name);
+  let key = fileKeys.get(file);
+  if (!key) {
+    const buf = await c.decodeAudioData(await file.arrayBuffer());
+    key = `file:${++fileCount}`;
+    buffers.set(key, buf);
+    fileKeys.set(file, key);
+    setTrackSample(ui.selectedTrack, key, file.name, detectRoot(buf));
+  } else {
+    setTrackSample(ui.selectedTrack, key, file.name);
+  }
 }
+
+/** Выбор файлов: первый ставится на дорожку, остальные доступны стрелками. */
+export async function loadSampleFiles(files: File[]): Promise<void> {
+  if (files.length === 0) return;
+  fileList = files;
+  fileIndex = 0;
+  await loadFile(files[0]);
+}
+
+/** Стрелки под окном сэмпла: соседний файл из выбранных. */
+export async function stepSample(dir: 1 | -1): Promise<void> {
+  if (fileList.length === 0) return;
+  fileIndex = (fileIndex + dir + fileList.length) % fileList.length;
+  await loadFile(fileList[fileIndex]);
+}
+
+/** Позиция в выбранных файлах: [номер, всего]. */
+export const sampleListPos = (): [number, number] => [fileList.length ? fileIndex + 1 : 0, fileList.length];
 
 /** Огибающая сэмпла для окна сэмпла: n пиков 0..1. */
 export function samplePeaks(key: string, n = 160): Float32Array | null {
@@ -431,3 +506,104 @@ export function samplePeaks(key: string, n = 160): Float32Array | null {
   return out;
 }
 
+
+// ---------- Измерители уровня ----------
+
+export interface Level {
+  /** Пиковый уровень по каналам (0..1+, с плавным спадом). */
+  l: number;
+  r: number;
+  /** Громкость LUFS (momentary, ~400 мс), -Infinity — тишина. */
+  lufs: number;
+  /** Была перегрузка (≥ 0 dBFS) за последнюю секунду. */
+  clip: boolean;
+}
+
+/** Измеритель: пики по каналам и (по желанию) K-взвешенная громкость. */
+class Meter {
+  private an: AnalyserNode[];
+  private k: AnalyserNode[] = [];
+  private buf = new Float32Array(1024);
+  private kbuf: Float32Array<ArrayBuffer> | null = null;
+  private disp = [0, 0];
+  private clipUntil = 0;
+  private lufsCache = -Infinity;
+  private lufsAt = 0;
+
+  constructor(c: AudioContext, src: AudioNode, lufs: boolean) {
+    const split = c.createChannelSplitter(2);
+    src.connect(split);
+    this.an = [0, 1].map((ch) => {
+      const a = c.createAnalyser();
+      a.fftSize = 1024;
+      split.connect(a, ch);
+      return a;
+    });
+    if (lufs) {
+      this.kbuf = new Float32Array(16384);
+      this.k = [0, 1].map((ch) => {
+        // K-взвешивание (ITU-R BS.1770): полка +4 дБ выше 1.5 кГц и срез ниже 38 Гц.
+        const shelf = c.createBiquadFilter();
+        shelf.type = 'highshelf';
+        shelf.frequency.value = 1682;
+        shelf.gain.value = 4;
+        const hp = c.createBiquadFilter();
+        hp.type = 'highpass';
+        hp.frequency.value = 38;
+        hp.Q.value = 0.5;
+        const a = c.createAnalyser();
+        a.fftSize = 16384;
+        split.connect(shelf, ch).connect(hp).connect(a);
+        return a;
+      });
+    }
+  }
+
+  read(now: number): Level {
+    const peak = this.an.map((a) => {
+      a.getFloatTimeDomainData(this.buf);
+      let m = 0;
+      for (const v of this.buf) m = Math.max(m, Math.abs(v));
+      return m;
+    });
+    peak.forEach((p, i) => { this.disp[i] = Math.max(p, this.disp[i] * 0.9); });
+    if (Math.max(...peak) >= 1) this.clipUntil = now + 1000;
+    // LUFS считаем не чаще 10 раз в секунду: окно большое.
+    if (this.kbuf && now - this.lufsAt > 100) {
+      this.lufsAt = now;
+      let sum = 0;
+      for (const a of this.k) {
+        a.getFloatTimeDomainData(this.kbuf);
+        let ms = 0;
+        for (const v of this.kbuf) ms += v * v;
+        sum += ms / this.kbuf.length;
+      }
+      this.lufsCache = sum > 1e-10 ? -0.691 + 10 * Math.log10(sum) : -Infinity;
+    }
+    return { l: this.disp[0], r: this.disp[1], lufs: this.lufsCache, clip: now < this.clipUntil };
+  }
+}
+
+const SILENT: Level = { l: 0, r: 0, lufs: -Infinity, clip: false };
+
+/** Уровень дорожки (после громкости микшера). */
+export const trackLevel = (i: number, now: number): Level => (tracks[i] ? tracks[i].meter.read(now) : SILENT);
+
+/** Мастер: вход компрессора, вход лимитера, выход. */
+export function masterLevels(now: number): { comp: Level; lim: Level; out: Level } {
+  if (!mst) return { comp: SILENT, lim: SILENT, out: SILENT };
+  return { comp: mst.compMeter.read(now), lim: mst.limMeter.read(now), out: mst.outMeter.read(now) };
+}
+
+/** Снижение усиления лимитера (дБ, ≤ 0). */
+export const limiterReduction = () => (mst ? mst.lim.reduction : 0);
+
+/** Дорожка звучит в стерео: стереофайл или панорама не по центру. */
+export function trackIsStereo(i: number): boolean {
+  const t = doc.tracks[i];
+  const buf = buffers.get(t.sample);
+  return (buf?.numberOfChannels ?? 1) > 1 || Math.abs(t.params.pan) >= 1;
+}
+
+/** Определённая высота сэмпла (MIDI) или null. */
+export const sampleRoot = (key: string): number | null => doc.roots[key] ?? null;
