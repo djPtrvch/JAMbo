@@ -1,11 +1,13 @@
-// Строка дорожек: тап — выбор, свайп вниз — mute (красный контур), свайп вверх — solo,
+// Строка дорожек: слева канал микшера MIX, справа мастер MST (тап — ручки показывают их).
+// Дорожки: тап — выбор, свайп вниз — mute (красный контур), свайп вверх — solo,
 // удержание — меню rename / copy / paste / delete.
 // Дорожка мигает при срабатывании своих шагов; жёлтая точка — параметры этой дорожки
 // меняли с зажатым TRACK (на всю дорожку).
 
 import { TRACK_COUNT } from '../params';
 import {
-  audible, copyTrack, deleteTrack, doc, pasteTrack, renameTrack, rt, selectTrack, toggleMute, toggleSolo, ui,
+  audible, copyTrack, deleteTrack, doc, pasteTrack, renameTrack, rt, selectChannel, selectTrack, toggleMute,
+  toggleSolo, ui, type Channel,
 } from '../state';
 import { h, setClass, setText } from './dom';
 import { makePopup, popupButton } from './popup';
@@ -39,9 +41,19 @@ function buildMenu() {
   );
 }
 
+const channels: [HTMLElement, Channel][] = [];
+
+function channelCell(label: string, c: Channel): HTMLElement {
+  const el = h('div', 'track channel', label);
+  el.addEventListener('pointerdown', (e) => { e.preventDefault(); selectChannel(c); });
+  channels.push([el, c]);
+  return el;
+}
+
 export function buildTracks(): HTMLElement {
   buildMenu();
   const el = h('div', 'tracks');
+  el.append(channelCell('MIX', 'mix'));
   for (let i = 0; i < TRACK_COUNT; i++) {
     const root = h('div', 'track');
     const name = h('div', 'track-name');
@@ -85,6 +97,7 @@ export function buildTracks(): HTMLElement {
     views.push({ root, name, state, dot });
     el.append(root);
   }
+  el.append(channelCell('MST', 'master'));
   return el;
 }
 
@@ -92,7 +105,7 @@ export function renderTracks(now: number) {
   views.forEach((v, i) => {
     const t = doc.tracks[i];
     setText(v.name, t.name);
-    setClass(v.root, 'selected', i === ui.selectedTrack);
+    setClass(v.root, 'selected', ui.channel === 'track' && i === ui.selectedTrack);
     setClass(v.root, 'muted', t.mute);
     setClass(v.root, 'soloed', t.solo);
     setClass(v.root, 'silent', !audible(i));
@@ -100,5 +113,6 @@ export function renderTracks(now: number) {
     setClass(v.dot, 'hidden', !t.trackEdit);
     setText(v.state, t.solo ? 'S' : t.mute ? 'M' : '');
   });
+  for (const [el, c] of channels) setClass(el, 'selected', ui.channel === c);
   if (!menu.isOpen()) ui.trackMenu = null;
 }

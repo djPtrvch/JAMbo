@@ -70,6 +70,9 @@ export function buildPatternGrid(): HTMLElement {
   for (let k = 0; k < PATTERN_SLOTS; k++) {
     for (let i = 0; i < TRACK_COUNT; i++) {
       const root = h('div', 'pattern-cell');
+      // Столбцы сетки стоят ровно над дорожками (первый столбец — под MIX, пустой).
+      root.style.gridColumn = String(i + 2);
+      root.style.gridRow = String(k + 1);
       const thumb = svg('svg', { class: 'pattern-thumb', preserveAspectRatio: 'none' });
       const bar = h('div', 'pattern-bar');
       root.append(thumb, bar);

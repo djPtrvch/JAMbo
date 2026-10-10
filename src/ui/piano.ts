@@ -9,6 +9,7 @@ import {
   chordName, chordOnDegree, doc, heldStepNotes, inputNotes, isRoot, pressedNotes, recordNotes, rt, scaleNotes,
   setOctave, setProgression, ui,
 } from '../state';
+import { playNow, unlockAudio } from '../audio/engine';
 import { recStep } from '../transport';
 import { h, setClass, setText } from './dom';
 import { choiceMenu, dragField } from './controls';
@@ -27,6 +28,9 @@ const keyCount = () => Math.min(MAX_KEYS, SCALES[doc.scale].steps.length * 2 + 1
 /** Нажатие ноты/аккорда: запись, редактирование шага или выбор. */
 function press(notes: number[]) {
   const ti = ui.selectedTrack;
+  // Живой наигрыш: нота сразу звучит звуком выбранной дорожки.
+  unlockAudio();
+  playNow(ti, notes);
   if (ui.rec && ui.playing && ui.heldSteps.size === 0) {
     const now = performance.now();
     const at = recStep(ti, now);

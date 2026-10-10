@@ -3,7 +3,7 @@
 // LFO1/LFO2/LFO3/ENV/TRACK/FX/MOD работают на удержание.
 
 import { canUndo, doc, gridMode, setHeld, ui, undo, undoTrackEdits, type HoldButton } from '../state';
-import { unlockAudio } from '../audio';
+import { unlockAudio } from '../audio/engine';
 import { setPlaying } from '../transport';
 import { h, setClass } from './dom';
 

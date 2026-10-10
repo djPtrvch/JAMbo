@@ -181,7 +181,8 @@ export function renderKnobs(now: number) {
       setAttr(v.pointer, 'transform', `rotate(${START} 50 50)`);
       return;
     }
-    setText(v.label, p.label);
+    // В микшере подписи ручек — имена дорожек.
+    setText(v.label, mode === 'mix' ? doc.tracks[slot]?.name ?? p.label : p.label);
 
     const base = paramValue(mode, p);
     const baseN = toNorm(p, base);

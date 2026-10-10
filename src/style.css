@@ -14,6 +14,8 @@
   --root: #2c3a44;
   --radius: 10px;
   --gap: 6px;
+  /* Ширина ячеек MIX и MST в строке дорожек. */
+  --channel-col: 64px;
 }
 
 * { box-sizing: border-box; touch-action: none; }
@@ -145,6 +147,16 @@ html, body {
   min-height: 0;
 }
 .sample-title { color: var(--dim); letter-spacing: 0.12em; font-size: 11px; }
+.sample-stub { position: relative; padding: 8px; }
+.sample-wave { width: 100%; flex: 1; min-height: 0; }
+.sample-wave-path { stroke: var(--accent); stroke-width: 1.2; vector-effect: non-scaling-stroke; fill: none; }
+.sample-cut { fill: var(--bg); opacity: 0.7; }
+/* Поле выбора файла прозрачно лежит поверх окна сэмпла. */
+.sample-file { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; }
+.master-panel { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 10px; padding: 12px; }
+.ratio-btn { width: 100%; height: 56px; }
+.gr-meter { width: 100%; height: 10px; border-radius: 5px; background: var(--off); overflow: hidden; }
+.gr-bar { height: 100%; width: 0; background: var(--accent); }
 .sample-name { color: var(--off); }
 .mod-previews {
   flex: 1;
@@ -179,7 +191,7 @@ html, body {
 .main.patterns > .side { display: none; }
 .pattern-grid {
   display: grid;
-  grid-template-columns: repeat(var(--tracks), minmax(0, 1fr));
+  grid-template-columns: var(--channel-col) repeat(var(--tracks), minmax(0, 1fr)) var(--channel-col);
   grid-template-rows: repeat(8, minmax(0, 1fr));
   gap: 4px 6px;
   min-height: 0;
@@ -338,11 +350,14 @@ html, body {
 
 /* ---------- Дорожки ---------- */
 
+/* MIX — первый столбец, MST — последний; столбцы дорожек между ними. */
 .tracks {
   display: grid;
-  grid-template-columns: repeat(var(--tracks), minmax(0, 1fr));
+  grid-template-columns: var(--channel-col) repeat(var(--tracks), minmax(0, 1fr)) var(--channel-col);
   gap: 6px;
 }
+.track.channel { font-weight: 700; font-size: 12px; letter-spacing: 0.06em; color: var(--dim); }
+.track.channel.selected { color: var(--text); }
 
 .track {
   position: relative;

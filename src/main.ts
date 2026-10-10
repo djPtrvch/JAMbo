@@ -1,6 +1,7 @@
 import './style.css';
 import { TRACK_COUNT } from './params';
 import { advanceLfos, ui } from './state';
+import { initAudio, unlockAudio, updateAudio } from './audio/engine';
 import { updateTransport } from './transport';
 import { buildLeftButtons, buildPatternsButton, buildRightButtons, buildTransportButtons, renderButtons } from './ui/buttons';
 import { renderFields } from './ui/controls';
@@ -54,11 +55,18 @@ document.addEventListener('dblclick', (e) => e.preventDefault());
 document.addEventListener('contextmenu', (e) => e.preventDefault());
 document.addEventListener('gesturestart', (e) => e.preventDefault());
 
+// Звук: контекст создаётся сразу (на паузе) и включается любым касанием экрана
+// (iOS Safari разрешает звук только из действия пользователя).
+initAudio();
+document.addEventListener('pointerdown', unlockAudio);
+document.addEventListener('pointerup', unlockAudio);
+
 let last = performance.now();
 function frame(now: number) {
   advanceLfos(Math.min(0.1, (now - last) / 1000));
   last = now;
   updateTransport(now);
+  updateAudio(now);
   renderTopbar(now);
   renderFields();
   renderSample(now);

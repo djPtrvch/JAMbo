@@ -1,7 +1,7 @@
 // Верхняя панель: бутерброд-меню (заглушка), BPM, метроном, гамма и корневая нота.
 // Тап по гамме и ноте открывает меню выбора.
 
-import { unlockAudio } from '../audio';
+import { unlockAudio } from '../audio/engine';
 import { NOTE_NAMES, SCALES } from '../params';
 import { doc, rt, setBpm, setRoot, setScale, ui } from '../state';
 import { choiceMenu, dragField } from './controls';
