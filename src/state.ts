@@ -58,6 +58,9 @@ export interface Track {
   solo: boolean;
   /** Параметры меняли с зажатым TRACK (на всю дорожку) — на дорожке жёлтая точка. */
   trackEdit: boolean;
+  /** Значения до изменений с TRACK: по ним TRACK + UNDO возвращает дорожку назад. */
+  trackOrig: Record<string, number>;
+  trackOrigAssign: Record<string, LfoAssign | null>;
   /** Ячейки столбца сетки паттернов (null — пустая). */
   slots: (Pattern | null)[];
   /** Активная ячейка (её паттерн сейчас в полях дорожки). */
@@ -161,6 +164,8 @@ function newTrack(i: number): Track {
     mute: false,
     solo: false,
     trackEdit: false,
+    trackOrig: {},
+    trackOrigAssign: {},
     slots: Array(PATTERN_SLOTS).fill(null),
     slot: 0,
     stopped: false,
@@ -284,10 +289,31 @@ export function heldLfo(): Mod | null {
  * С зажатым TRACK изменение идёт на всю дорожку (p-lock шагов остаются),
  * а на дорожке появляется жёлтая точка.
  */
-function targetTracks(): Track[] {
+function targetTracks(paramId: string, kind: 'param' | 'assign'): Track[] {
   const t = doc.tracks[ui.selectedTrack];
-  if (ui.held.track) t.trackEdit = true;
+  if (ui.held.track) {
+    t.trackEdit = true;
+    // Запоминаем исходное значение при первом изменении с TRACK.
+    if (kind === 'param' && !(paramId in t.trackOrig)) t.trackOrig[paramId] = t.params[paramId];
+    if (kind === 'assign' && !(paramId in t.trackOrigAssign)) t.trackOrigAssign[paramId] = t.assigns[paramId] ?? null;
+  }
   return [t];
+}
+
+/** TRACK + UNDO: отменить все изменения ручек, сделанные с TRACK, сразу на всех дорожках. */
+export function undoTrackEdits() {
+  edit(() => {
+    for (const t of doc.tracks) {
+      Object.assign(t.params, t.trackOrig);
+      for (const [id, a] of Object.entries(t.trackOrigAssign)) {
+        if (a) t.assigns[id] = a;
+        else delete t.assigns[id];
+      }
+      t.trackOrig = {};
+      t.trackOrigAssign = {};
+      t.trackEdit = false;
+    }
+  });
 }
 
 export const selTrack = () => doc.tracks[ui.selectedTrack];
@@ -301,7 +327,7 @@ export function paramValue(mode: GridMode, p: ParamDef, track = selTrack()): num
 export function setParamNorm(mode: GridMode, p: ParamDef, norm: number) {
   const v = fromNorm(p, norm);
   if (mode === 'fx') doc.fx[p.id] = v;
-  else for (const t of targetTracks()) t.params[p.id] = v;
+  else for (const t of targetTracks(p.id, 'param')) t.params[p.id] = v;
   if (p.id.startsWith('lfo') || p.id.startsWith('env.')) ui.lfoPreviewUntil = performance.now() + 1500;
 }
 
@@ -382,12 +408,12 @@ export function modulatedNorm(trackIndex: number, p: ParamDef, base: number): nu
 
 export function setLfoAmount(p: ParamDef, lfo: Mod, amount: number) {
   amount = Math.min(1, Math.max(-1, amount));
-  for (const t of targetTracks()) t.assigns[p.id] = { lfo, amount };
+  for (const t of targetTracks(p.id, 'assign')) t.assigns[p.id] = { lfo, amount };
 }
 
 export function clearLfoAssign(p: ParamDef, lfo: Mod) {
   edit(() => {
-    for (const t of targetTracks()) if (t.assigns[p.id]?.lfo === lfo) delete t.assigns[p.id];
+    for (const t of targetTracks(p.id, 'assign')) if (t.assigns[p.id]?.lfo === lfo) delete t.assigns[p.id];
   });
 }
 
