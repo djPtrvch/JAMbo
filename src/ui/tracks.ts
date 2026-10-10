@@ -1,12 +1,11 @@
 // Строка дорожек: тап — выбор, свайп вниз — mute (красный контур), свайп вверх — solo,
 // удержание — меню rename / copy / paste / delete.
-// Дорожка мигает при срабатывании своих шагов; жёлтая точка — у дорожки изменены параметры
-// на всю дорожку (ручками, не p-lock); с TRACK — на всех дорожках, которые изменились.
+// Дорожка мигает при срабатывании своих шагов; жёлтая точка — параметры этой дорожки
+// меняли с зажатым TRACK (на всю дорожку).
 
 import { TRACK_COUNT } from '../params';
 import {
-  audible, copyTrack, deleteTrack, doc, pasteTrack, renameTrack, rt, selectTrack, toggleMute, toggleSolo,
-  trackEdited, ui,
+  audible, copyTrack, deleteTrack, doc, pasteTrack, renameTrack, rt, selectTrack, toggleMute, toggleSolo, ui,
 } from '../state';
 import { h, setClass, setText } from './dom';
 import { makePopup, popupButton } from './popup';
@@ -98,7 +97,7 @@ export function renderTracks(now: number) {
     setClass(v.root, 'soloed', t.solo);
     setClass(v.root, 'silent', !audible(i));
     setClass(v.root, 'flash', now < rt.flashUntil[i]);
-    setClass(v.dot, 'hidden', !trackEdited(t));
+    setClass(v.dot, 'hidden', !t.trackEdit);
     setText(v.state, t.solo ? 'S' : t.mute ? 'M' : '');
   });
   if (!menu.isOpen()) ui.trackMenu = null;

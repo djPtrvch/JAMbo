@@ -36,6 +36,8 @@ export interface Track {
   playTo: number;
   mute: boolean;
   solo: boolean;
+  /** Параметры меняли с зажатым TRACK (на всю дорожку) — на дорожке жёлтая точка. */
+  trackEdit: boolean;
 }
 
 export interface Doc {
@@ -124,6 +126,7 @@ function newTrack(i: number): Track {
     playTo: 0,
     mute: false,
     solo: false,
+    trackEdit: false,
   };
 }
 
@@ -235,9 +238,18 @@ export function heldLfo(): 1 | 2 | null {
   return ui.held.lfo1 ? 1 : ui.held.lfo2 ? 2 : null;
 }
 
-/** Дорожки, к которым применяется действие: выбранная или все (TRACK). */
-function targetTracks(): Track[] {
-  return ui.held.track ? doc.tracks : [doc.tracks[ui.selectedTrack]];
+/**
+ * Дорожка, к которой применяется действие ручки — всегда выбранная.
+ * С зажатым TRACK изменение идёт на всю дорожку: p-lock этого параметра на всех её шагах
+ * снимаются, а на дорожке появляется жёлтая точка.
+ */
+function targetTracks(paramId?: string): Track[] {
+  const t = doc.tracks[ui.selectedTrack];
+  if (ui.held.track) {
+    t.trackEdit = true;
+    if (paramId) for (const pg of t.pages) for (const s of pg) delete s.locks[paramId];
+  }
+  return [t];
 }
 
 export const selTrack = () => doc.tracks[ui.selectedTrack];
@@ -251,7 +263,7 @@ export function paramValue(mode: GridMode, p: ParamDef, track = selTrack()): num
 export function setParamNorm(mode: GridMode, p: ParamDef, norm: number) {
   const v = fromNorm(p, norm);
   if (mode === 'fx') doc.fx[p.id] = v;
-  else for (const t of targetTracks()) t.params[p.id] = v;
+  else for (const t of targetTracks(p.id)) t.params[p.id] = v;
   if (p.id.startsWith('lfo')) {
     ui.lfoPreview = p.id.startsWith('lfo1') ? 1 : 2;
     ui.lfoPreviewUntil = performance.now() + 1500;
@@ -494,14 +506,6 @@ export function toggleMute(i: number) {
 
 export function toggleSolo(i: number) {
   edit(() => { doc.tracks[i].solo = !doc.tracks[i].solo; });
-}
-
-const TRACK_DEFAULTS = { ...defaults(TRACK_GRID), ...defaults(MOD_GRID) };
-
-/** Параметры дорожки изменены ручками (на всю дорожку, не p-lock) или назначен LFO. */
-export function trackEdited(t: Track): boolean {
-  if (Object.keys(t.assigns).length > 0) return true;
-  return Object.entries(TRACK_DEFAULTS).some(([id, v]) => t.params[id] !== v);
 }
 
 /** Слышна ли дорожка с учётом mute/solo. */
