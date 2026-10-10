@@ -166,7 +166,7 @@ export const MASTER_GRID: Slot[] = grid([
   [],
   [],
   [
-    smooth('cmp.threshold', 'Threshold', -60, 0, -12, db),
+    smooth('cmp.threshold', 'Threshold', -60, 0, 0, db),
     smooth('cmp.attack', 'Attack', 0.1, 100, 10, ms, { exp: true }),
     smooth('cmp.release', 'Release', 10, 1000, 200, ms, { exp: true }),
     smooth('cmp.makeup', 'Makeup', 0, 24, 0, db),

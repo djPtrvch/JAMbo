@@ -381,7 +381,7 @@ function updateFx(now: number) {
     }
   }
 
-  const fsig = JSON.stringify([fx, doc.mixer, doc.master, doc.ratio]);
+  const fsig = JSON.stringify([fx, doc.mixer, doc.master, doc.ratio, doc.limBypass]);
   if (fsig === fxSig) return;
   fxSig = fsig;
   set(rev.hpf.frequency, fx['rev.hpf']);
@@ -409,8 +409,12 @@ function updateFx(now: number) {
   set(mst.comp.release, m['cmp.release'] / 1000);
   set(mst.comp.ratio, RATIOS[doc.ratio]);
   set(mst.makeup.gain, Math.pow(10, m['cmp.makeup'] / 20));
-  set(mst.limIn.gain, Math.pow(10, m['lim.input'] / 20));
-  set(mst.lim.threshold, m['lim.ceiling']);
+  // BYPASS лимитера: без Input, порог 0 dB и Ratio 1:1 — сигнал проходит как есть,
+  // и метры мастера показывают текущий выходной уровень без ограничения.
+  const lb = doc.limBypass;
+  set(mst.limIn.gain, lb ? 1 : Math.pow(10, m['lim.input'] / 20));
+  set(mst.lim.ratio, lb ? 1 : 20);
+  set(mst.lim.threshold, lb ? 0 : m['lim.ceiling']);
   // Lookahead в Web Audio недоступен — приближаем быстрой атакой лимитера.
   set(mst.lim.attack, Math.max(0.001, m['lim.lookahead'] / 1000));
   set(mst.lim.release, m['lim.release'] / 1000);

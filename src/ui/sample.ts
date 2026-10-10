@@ -13,7 +13,7 @@ import {
 } from '../audio/engine';
 import { LFO_WAVES, OVER_PEAK, RATIOS, TRACK_COUNT, fmtVol, noteName } from '../params';
 import { fmtDb, levelFrac } from './meter';
-import { audible, cycleRatio, doc, envOut, envShape, lfoShape, rt, sampleName, selTrack, ui } from '../state';
+import { audible, cycleRatio, doc, toggleLimBypass, envOut, envShape, lfoShape, rt, sampleName, selTrack, ui } from '../state';
 import { h, setAttr, setClass, setText, svg } from './dom';
 
 const W = 200;
@@ -34,6 +34,7 @@ let previews: HTMLElement;
 let masterPanel: HTMLElement;
 let ratioBtn: HTMLElement;
 let lookaheadText: HTMLElement;
+let limBypassBtn: HTMLElement;
 let mixPanel: HTMLElement;
 let navLabel: HTMLElement;
 let navRow: HTMLElement;
@@ -74,7 +75,7 @@ function vbar(label: string, kind: BarKind, valueOnTop = false): VBar {
     holds.push(hold);
     box.append(bar);
   }
-  if (kind === 'meter') {
+  if (kind === 'meter' || kind === 'yellow') {
     for (const db of TICKS) {
       const t = h('div', 'vbar-tick');
       t.style.bottom = `${(dbFrac(db) * 100).toFixed(1)}%`;
@@ -169,7 +170,8 @@ export function buildSample(): HTMLElement {
 
   // MST как в Ableton: у компрессора вход (белая линия Threshold), снижение громкости (GR) и выход
   // после Makeup; под ними кнопка RATIO с числом. У лимитера вход (после Input), GR и выход с белой
-  // линией Ceiling, пик-холдом и меткой клиппинга; под ними Lookahead числом (это не метр).
+  // линией Ceiling, пик-холдом и меткой клиппинга (тот же уровень, что у метра справа);
+  // под ними BYPASS и Lookahead числом (это не метр).
   // Полосы обоих устройств одной длины.
   masterPanel = h('div', 'master-panel hidden');
   ratioBtn = h('div', 'btn dev-btn');
@@ -182,8 +184,10 @@ export function buildSample(): HTMLElement {
   limBars.push(vbar('IN', 'meter'), vbar('GR', 'gr'), vbar('OUT', 'meter'));
   const compBtns = h('div', 'dev-btns');
   compBtns.append(ratioBtn);
+  limBypassBtn = h('div', 'btn dev-btn', 'BYPASS');
+  limBypassBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); toggleLimBypass(); });
   const limBtns = h('div', 'dev-btns');
-  limBtns.append(lookaheadText);
+  limBtns.append(limBypassBtn, lookaheadText);
   comp.append(h('div', 'vbar-title', 'COMP'), wrap(compBars), compBtns);
   lim.append(h('div', 'vbar-title', 'LIMIT'), wrap(limBars), limBtns);
   groups.append(comp, lim);
@@ -318,6 +322,7 @@ const pk = (l: Level) => Math.max(l.l, l.r);
 function renderMaster(now: number) {
   setText(ratioBtn, `RATIO\n${RATIOS[doc.ratio]}:1`);
   setText(lookaheadText, `LOOKAHEAD\n${limiterLookahead().toFixed(1)} ms`);
+  setClass(limBypassBtn, 'active', doc.limBypass);
   const m = masterLevels(now);
   // Компрессор: вход с линией Threshold, GR (Threshold, Ratio, Attack, Release), выход после Makeup.
   setLevelBar(compBars[0], m.comp, true, fmtDb(pk(m.comp)), dbFrac(doc.master['cmp.threshold']));
@@ -325,7 +330,7 @@ function renderMaster(now: number) {
   setLevelBar(compBars[2], m.compOut, true, fmtDb(pk(m.compOut)));
   // Лимитер: вход после Input, GR, выход с линией Ceiling, пик-холдом и меткой клиппинга.
   setLevelBar(limBars[0], m.lim, true, fmtDb(pk(m.lim)));
-  setGrBar(limBars[1], Math.min(0, limiterReduction()));
+  setGrBar(limBars[1], doc.limBypass ? 0 : Math.min(0, limiterReduction()));
   setLevelBar(limBars[2], m.out, true, fmtDb(pk(m.out)), dbFrac(doc.master['lim.ceiling']));
 }
 
