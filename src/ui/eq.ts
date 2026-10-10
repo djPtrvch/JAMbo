@@ -2,18 +2,18 @@
 // Показывает EQ выбранной дорожки, а при MIX и MST — мастера. 8 полос, по умолчанию их нет.
 //
 // Управление касанием: двойной тап по пустому месту — новая bell-полоса (частота по горизонтали,
-// усиление по вертикали); точку тянут (у cut и notch — только частота); щипок по выбранной точке
-// меняет Q; двойной тап по точке включает и выключает полосу; долгое нажатие — меню типа,
-// крутизны среза и удаления. Внизу поля выбранной полосы: тип, Freq, Gain, Q.
+// усиление по вертикали); точку тянут (у cut и notch — только частота); двойной тап по точке
+// включает и выключает полосу; долгое нажатие — меню типа, крутизны среза и удаления.
+// Внизу поля выбранной полосы: тип, Freq, Gain, Q (двойной тап по Q — сброс).
 //
-// Фон — сетка частот и уровней; спектр до EQ — серая линия, после — заливка (жёлтая, выше −6 dB
-// оранжевая, выше 0 dB красная); суммарная кривая белая; точки полос белые с номерами,
+// Фон — сетка частот и уровней; спектр до EQ — серая линия, после — серая полупрозрачная
+// заливка; суммарная кривая белая; точки полос белые с номерами,
 // выбранная крупнее и жёлтая, выключенные серые. Анализаторы работают, только пока панель открыта.
 
 import { bandResponse } from '../audio/eq';
 import { eqSampleRate, eqSpectrum, setEqScope } from '../audio/engine';
 import {
-  EQ_FREQ_MAX, EQ_FREQ_MIN, EQ_SLOPES, EQ_TYPES, eqHasGain, eqIsCut, noteName,
+  EQ_FREQ_MAX, EQ_FREQ_MIN, EQ_Q_DEF, EQ_SLOPES, EQ_TYPES, eqHasGain, eqIsCut, noteName,
 } from '../params';
 import {
   addEqBand, beginGesture, deleteEqBand, endGesture, eqTarget, eqTargetName, resetEq, selectedBand,
@@ -69,8 +69,8 @@ interface Touch {
   moved: boolean; menu: boolean; gesture: boolean; timer: number;
 }
 const touches = new Map<number, Touch>();
-let pinch: { band: number; a: number; b: number; d0: number; q0: number } | null = null;
 let lastTap: { t: number; x: number; y: number; band: number } | null = null;
+let lastQTap = 0;
 
 function local(e: PointerEvent): [number, number] {
   const r = canvas.getBoundingClientRect();
@@ -96,17 +96,9 @@ function down(e: PointerEvent) {
   const hit = hitBand(x, y);
   const t: Touch = { id: e.pointerId, x, y, x0: x, y0: y, band: -1, f0: 0, g0: 0, moved: false, menu: false, gesture: false, timer: 0 };
   touches.set(e.pointerId, t);
-  // Второй палец рядом с выбранной точкой, которую уже держат, — щипок (Q).
-  const holder = [...touches.values()].find((o) => o !== t && o.band >= 0 && o.band === ui.eqBand);
-  const sel = selectedBand();
-  if (holder && sel && !pinch && (hit < 0 || hit === ui.eqBand)) {
-    clearTimeout(holder.timer);
-    holder.moved = true;
-    pinch = { band: ui.eqBand, a: holder.id, b: t.id, d0: Math.max(20, Math.hypot(holder.x - x, holder.y - y)), q0: sel.q };
-    t.moved = true;
-    return;
-  }
   if (hit < 0) return;
+  // Одну точку держит один палец.
+  if ([...touches.values()].some((o) => o !== t && o.band === hit)) return;
   const b = eqTarget().bands[hit]!;
   ui.eqBand = hit;
   Object.assign(t, { band: hit, f0: b.freq, g0: b.gain, gesture: true });
@@ -123,15 +115,6 @@ function move(e: PointerEvent) {
   if (!t) return;
   [t.x, t.y] = local(e);
   if (!t.moved && Math.hypot(t.x - t.x0, t.y - t.y0) > MOVE_PX) { t.moved = true; clearTimeout(t.timer); }
-  if (pinch && (t.id === pinch.a || t.id === pinch.b)) {
-    const a = touches.get(pinch.a);
-    const b = touches.get(pinch.b);
-    if (!a || !b) return;
-    // Пальцы врозь — полоса шире (Q меньше), сведение — уже.
-    const d = Math.max(20, Math.hypot(a.x - b.x, a.y - b.y));
-    setEqBand(pinch.band, { q: pinch.q0 * (pinch.d0 / d) });
-    return;
-  }
   if (t.band < 0 || t.menu || !t.moved) return;
   const b = eqTarget().bands[t.band];
   if (!b) return;
@@ -144,13 +127,6 @@ function up(e: PointerEvent) {
   if (!t) return;
   touches.delete(e.pointerId);
   clearTimeout(t.timer);
-  if (pinch && (t.id === pinch.a || t.id === pinch.b)) {
-    // Оставшийся палец продолжает тянуть точку с текущего места.
-    const other = touches.get(t.id === pinch.a ? pinch.b : pinch.a);
-    const b = eqTarget().bands[pinch.band];
-    if (other && b) Object.assign(other, { x0: other.x, y0: other.y, f0: b.freq, g0: b.gain });
-    pinch = null;
-  }
   if (t.gesture) endGesture();
   if (t.moved || t.menu || e.type !== 'pointerup') return;
   const now = performance.now();
@@ -228,6 +204,12 @@ export function buildEq(): HTMLElement {
     'Q', () => Math.round(Math.log2(selectedBand()?.q ?? 1) * 12),
     (v) => setEqBand(k(), { q: Math.pow(2, v / 12) }),
     () => { const b = selectedBand(); return b ? b.q.toFixed(2) : '—'; }, 3,
+    () => {
+      // Двойной тап по Q — сброс к значению по умолчанию.
+      const now = performance.now();
+      if (now - lastQTap < DOUBLE_MS && selectedBand()) { setEqBand(k(), { q: EQ_Q_DEF }); lastQTap = 0; }
+      else lastQTap = now;
+    },
   );
   for (const f of [typeField, freqField, gainField, qField]) f.classList.add('eq-field');
   bypassBtn = h('div', 'btn eq-tool', 'BYPASS');
@@ -323,25 +305,14 @@ function drawSpectrum(g: CanvasRenderingContext2D) {
     yPre[i] = yOfSpec(Math.max(SPEC_BOT, specAt(pre, f0, f1, binHz)));
     yPost[i] = yOfSpec(Math.max(SPEC_BOT, specAt(post, f0, f1, binHz)));
   }
-  // После EQ — заливка: жёлтая, выше −6 dB оранжевая, выше 0 dB красная (как в метрах).
-  const p0 = yOfSpec(0) / H;
-  const p6 = yOfSpec(-6) / H;
-  const grad = g.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, '#ff4d4d');
-  grad.addColorStop(p0, '#ff4d4d');
-  grad.addColorStop(p0, '#ff8a3d');
-  grad.addColorStop(p6, '#ff8a3d');
-  grad.addColorStop(p6, '#ffd23f');
-  grad.addColorStop(1, '#ffd23f');
+  // После EQ — серая полупрозрачная заливка.
   g.beginPath();
   g.moveTo(0, H);
   for (let i = 0; i < n; i++) g.lineTo(i * STEP, yPost[i]);
   g.lineTo(W, H);
   g.closePath();
-  g.globalAlpha = 0.7;
-  g.fillStyle = grad;
+  g.fillStyle = 'rgba(200,205,212,0.22)';
   g.fill();
-  g.globalAlpha = 1;
   // До EQ — серая линия.
   g.beginPath();
   for (let i = 0; i < n; i++) (i ? g.lineTo : g.moveTo).call(g, i * STEP, yPre[i]);

@@ -78,7 +78,8 @@ html, body {
 .top-left { display: flex; align-items: stretch; gap: var(--gap); min-width: 0; }
 /* Правый блок шириной с правую колонку; PATTERNS на месте бывшей кнопки PLAY. */
 .top-right { width: calc(220px + var(--gap) + var(--meter-w)); flex: none; display: flex; gap: var(--gap); }
-.top-right .eq-btn { flex: 1; }
+/* EQ кончается вместе с миниатюрами страниц (над измерителем — пусто). */
+.top-right .eq-btn { width: 107px; margin-right: calc(var(--gap) + var(--meter-w)); }
 
 .top-left-group { width: 220px; flex: none; display: flex; gap: var(--gap); }
 .top-left-group .bpm-field { flex: 1; min-width: 0; padding: 4px 10px; }
