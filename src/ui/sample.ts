@@ -7,12 +7,13 @@
 // (форма волны с Wave, Depth и Invert, бегущая точка фазы) и огибающей ENV (форма ADSR).
 
 import {
-  audioState, limiterReduction, trackIsStereo, loadSampleFiles, masterLevels, masterReduction, sampleListPos, samplePeaks,
+  audioState, limiterLookahead, limiterReduction, resetTrackPeak, sampleIsStereo, trackDuckDb, trackIsStereo,
+  type Level, loadSampleFiles, masterLevels, masterReduction, sampleListPos, samplePeaks,
   sampleRoot, stepSample, trackLevel,
 } from '../audio/engine';
 import { LFO_WAVES, RATIOS, TRACK_COUNT, noteName } from '../params';
 import { fmtDb, levelFrac } from './meter';
-import { cycleRatio, doc, toggleBypass, envOut, envShape, lfoShape, rt, sampleName, selTrack, ui } from '../state';
+import { audible, cycleRatio, doc, envOut, envShape, lfoShape, rt, sampleName, selTrack, ui } from '../state';
 import { h, setAttr, setClass, setText, svg } from './dom';
 
 const W = 200;
@@ -32,19 +33,23 @@ let wavePeaksKey = '';
 let previews: HTMLElement;
 let masterPanel: HTMLElement;
 let ratioBtn: HTMLElement;
-let cmpBypassBtn: HTMLElement;
-let limBypassBtn: HTMLElement;
+let lookaheadText: HTMLElement;
 let mixPanel: HTMLElement;
 let navLabel: HTMLElement;
 let navRow: HTMLElement;
 
 /**
- * Вертикальная полоса уровня (1 или 2 канала) с меткой, числом и подписью.
- * kind: 'yellow' — жёлтая (микшер, как измеритель справа); 'meter' — как в Ableton:
- * градиент зелёный → жёлтый → красный со шкалой; 'gr' — снижение громкости, оранжевая сверху.
+ * Вертикальный метр (1 или 2 канала): заливка, пик-холд (тонкая светлая линия ~1,5 с),
+ * метка клиппинга сверху, метка порога (белая линия), число и подпись.
+ * kind: 'yellow' — жёлтый (микшер, как измеритель справа; выше 0 dB — красный);
+ * 'meter' — как в Ableton: градиент зелёный → жёлтый → красный со шкалой;
+ * 'gr' — снижение громкости, оранжевым сверху.
  */
 type BarKind = 'yellow' | 'meter' | 'gr';
-interface VBar { root: HTMLElement; chans: HTMLElement[]; fills: HTMLElement[]; mark: HTMLElement; value: HTMLElement; label: HTMLElement; kind: BarKind }
+interface VBar {
+  root: HTMLElement; chans: HTMLElement[]; fills: HTMLElement[]; holds: HTMLElement[]; gr: HTMLElement;
+  clipMark: HTMLElement; mark: HTMLElement; value: HTMLElement; label: HTMLElement; kind: BarKind;
+}
 const mixBars: VBar[] = [];
 const compBars: VBar[] = [];
 const limBars: VBar[] = [];
@@ -52,17 +57,21 @@ const limBars: VBar[] = [];
 /** Отметки шкалы в dB (как сетка на измерителях Ableton). */
 const TICKS = [-6, -12, -24, -48];
 
-function vbar(label: string, kind: BarKind): VBar {
+function vbar(label: string, kind: BarKind, valueOnTop = false): VBar {
   const root = h('div', 'vbar-col');
+  const clipMark = h('div', 'vbar-clip');
   const box = h('div', 'vbar-box');
   const chans: HTMLElement[] = [];
   const fills: HTMLElement[] = [];
+  const holds: HTMLElement[] = [];
   for (let ch = 0; ch < (kind === 'gr' ? 1 : 2); ch++) {
     const bar = h('div', `vbar ${kind}`);
     const fill = h('div', 'vbar-fill');
-    bar.append(fill);
+    const hold = h('div', 'vbar-hold');
+    bar.append(fill, hold);
     chans.push(bar);
     fills.push(fill);
+    holds.push(hold);
     box.append(bar);
   }
   if (kind === 'meter') {
@@ -72,29 +81,49 @@ function vbar(label: string, kind: BarKind): VBar {
       box.append(t);
     }
   }
+  // Снижение громкости от sidechain на метре дорожки — оранжевым сверху.
+  const gr = h('div', 'vbar-gr hidden');
   const mark = h('div', 'vbar-mark hidden');
-  box.append(mark);
+  box.append(gr, mark);
   const value = h('div', 'vbar-val');
   const lab = h('div', 'vbar-label', label);
-  root.append(box, value, lab);
-  return { root, chans, fills, mark, value, label: lab, kind };
+  if (valueOnTop) root.append(value, clipMark, box, lab);
+  else root.append(clipMark, box, value, lab);
+  if (kind === 'gr') clipMark.classList.add('invisible');
+  return { root, chans, fills, holds, gr, clipMark, mark, value, label: lab, kind };
 }
 
-/**
- * Обновить полосу: доли по каналам (0..1; для 'gr' — доля снижения сверху),
- * stereo — показывать ли второй канал, mark — метка (порог), text — число под полосой.
- */
-function setBar(b: VBar, fracs: number[], stereo: boolean, text: string, mark: number | null = null, clip = false) {
-  b.chans.forEach((c, i) => setClass(c, 'hidden', i > 0 && !stereo));
+const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
+
+/** Метр уровня: доли по каналам, пик-холд, перегрузка, метка порога, число. */
+function setLevelBar(b: VBar, lv: Level, stereo: boolean, text: string, mark: number | null = null, grDb = 0) {
+  const fr = stereo ? [levelFrac(lv.l), levelFrac(lv.r)] : [levelFrac(Math.max(lv.l, lv.r))];
+  const hd = stereo ? [levelFrac(lv.holdL), levelFrac(lv.holdR)] : [levelFrac(Math.max(lv.holdL, lv.holdR))];
+  b.chans.forEach((c, i) => setClass(c, 'hidden', i >= fr.length));
   b.fills.forEach((f, i) => {
-    const v = Math.min(1, Math.max(0, fracs[Math.min(i, fracs.length - 1)]));
-    // У градиентной полосы закрывается незаполненная часть сверху, у остальных растёт заливка.
+    if (i >= fr.length) return;
+    const v = clamp01(fr[i]);
+    // Градиентный метр: незаполненная часть закрыта сверху; жёлтый — заливка снизу.
     setAttr(f, 'style', `height:${((b.kind === 'meter' ? 1 - v : v) * 100).toFixed(1)}%`);
-    setClass(f, 'clip', clip);
+    setClass(f, 'over', b.kind === 'yellow' && Math.max(lv.l, lv.r) >= 1);
   });
+  b.holds.forEach((hl, i) => {
+    if (i >= hd.length) return;
+    setClass(hl, 'hidden', hd[i] <= 0.01);
+    setAttr(hl, 'style', `bottom:${(clamp01(hd[i]) * 100).toFixed(1)}%`);
+  });
+  setClass(b.clipMark, 'on', lv.clip);
   setClass(b.mark, 'hidden', mark === null);
-  if (mark !== null) setAttr(b.mark, 'style', `bottom:${(Math.min(1, Math.max(0, mark)) * 100).toFixed(1)}%`);
+  if (mark !== null) setAttr(b.mark, 'style', `bottom:${(clamp01(mark) * 100).toFixed(1)}%`);
+  setClass(b.gr, 'hidden', grDb > -0.1);
+  if (grDb <= -0.1) setAttr(b.gr, 'style', `height:${(clamp01(-grDb / 24) * 100).toFixed(1)}%`);
   setText(b.value, text);
+}
+
+/** Метр снижения громкости (GR): доля сверху вниз, число в dB. */
+function setGrBar(b: VBar, grDb: number) {
+  setAttr(b.fills[0], 'style', `height:${(clamp01(-grDb / 24) * 100).toFixed(1)}%`);
+  setText(b.value, grDb.toFixed(1));
 }
 
 /** dB (−60…0) → доля высоты. */
@@ -138,37 +167,37 @@ export function buildSample(): HTMLElement {
   });
   stub.append(waveTitle, wave, stubName, input);
 
-  // MST как в Ableton: у каждого устройства вход (с меткой порога), снижение громкости, выход;
-  // полосы одной длины, под ними кнопки: у компрессора BYPASS и RATIO, у лимитера BYPASS.
+  // MST как в Ableton: у компрессора вход (белая линия Threshold), снижение громкости (GR) и выход
+  // после Makeup; под ними кнопка RATIO с числом. У лимитера вход (после Input), GR и выход с белой
+  // линией Ceiling, пик-холдом и меткой клиппинга; под ними Lookahead числом (это не метр).
+  // Полосы обоих устройств одной длины.
   masterPanel = h('div', 'master-panel hidden');
-  const tapBtn = (cls: string, fn: () => void) => {
-    const el = h('div', `btn ${cls}`);
-    el.addEventListener('pointerdown', (e) => { e.preventDefault(); fn(); });
-    return el;
-  };
-  ratioBtn = tapBtn('dev-btn', cycleRatio);
-  cmpBypassBtn = tapBtn('dev-btn', () => toggleBypass('cmp'));
-  limBypassBtn = tapBtn('dev-btn', () => toggleBypass('lim'));
-  setText(cmpBypassBtn, 'BYPASS');
-  setText(limBypassBtn, 'BYPASS');
+  ratioBtn = h('div', 'btn dev-btn');
+  ratioBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); cycleRatio(); });
+  lookaheadText = h('div', 'dev-info');
   const groups = h('div', 'vbar-groups');
   const comp = h('div', 'vbar-group');
   const lim = h('div', 'vbar-group');
   compBars.push(vbar('IN', 'meter'), vbar('GR', 'gr'), vbar('OUT', 'meter'));
   limBars.push(vbar('IN', 'meter'), vbar('GR', 'gr'), vbar('OUT', 'meter'));
   const compBtns = h('div', 'dev-btns');
-  compBtns.append(cmpBypassBtn, ratioBtn);
+  compBtns.append(ratioBtn);
   const limBtns = h('div', 'dev-btns');
-  limBtns.append(limBypassBtn);
+  limBtns.append(lookaheadText);
   comp.append(h('div', 'vbar-title', 'COMP'), wrap(compBars), compBtns);
   lim.append(h('div', 'vbar-title', 'LIMIT'), wrap(limBars), limBtns);
   groups.append(comp, lim);
   masterPanel.append(groups);
 
-  // MIX: уровень каждой дорожки после громкости микшера — как измеритель справа
-  // (жёлтый, стерео — две полосы, моно — одна, перегрузка — красная).
+  // MIX: уровень каждой дорожки после громкости микшера — как измеритель справа: жёлтый, стерео —
+  // две полосы, моно — одна, выше 0 dB — красный; заглушённая дорожка — серая; над метром пик
+  // в dB (тап — сброс); снижение громкости от sidechain — оранжевым сверху.
   mixPanel = h('div', 'master-panel hidden');
-  for (let i = 0; i < TRACK_COUNT; i++) mixBars.push(vbar(`T${i + 1}`, 'yellow'));
+  for (let i = 0; i < TRACK_COUNT; i++) {
+    const b = vbar(`T${i + 1}`, 'yellow', true);
+    b.value.addEventListener('pointerdown', (e) => { e.preventDefault(); resetTrackPeak(i); });
+    mixBars.push(b);
+  }
   mixPanel.append(h('div', 'vbar-title', 'MIXER'), wrap(mixBars));
 
   previews = h('div', 'mod-previews hidden');
@@ -254,7 +283,9 @@ function renderEnv(m: Mini, now: number) {
 function renderWave() {
   const t = selTrack();
   const root = sampleRoot(t.sample);
-  setText(waveTitle, t.sample ? `${sampleName(t.sample)} · ${root !== null ? noteName(root) : '—'}` : sampleName(t.sample));
+  // Стерео-сэмпл отмечен ST и рисуется двумя дорожками (L сверху, R снизу), моно — M.
+  const ch = t.sample ? (sampleIsStereo(t.sample) ? 'ST' : 'M') : '';
+  setText(waveTitle, t.sample ? `${sampleName(t.sample)} · ${root !== null ? noteName(root) : '—'} · ${ch}` : sampleName(t.sample));
   // Пока звук не включён — подсказка с состоянием (помогает понять, почему тихо).
   const state = audioState();
   setText(stubName, state === 'running'
@@ -267,10 +298,14 @@ function renderWave() {
     wavePeaksKey = key;
     let d = '';
     if (p) {
-      const mid = WAVE_H / 2;
-      p.forEach((v, i) => {
-        const x = ((i + 0.5) / p.length) * WAVE_W;
-        d += `M${x.toFixed(1)} ${(mid - v * mid * 0.9).toFixed(1)}V${(mid + v * mid * 0.9).toFixed(1)}`;
+      const laneH = WAVE_H / p.length;
+      p.forEach((lane, li) => {
+        const mid = laneH * (li + 0.5);
+        const amp = (laneH / 2) * 0.9;
+        lane.forEach((v, i) => {
+          const x = ((i + 0.5) / lane.length) * WAVE_W;
+          d += `M${x.toFixed(1)} ${(mid - v * amp).toFixed(1)}V${(mid + v * amp).toFixed(1)}`;
+        });
       });
     }
     setAttr(wavePath, 'd', d);
@@ -282,32 +317,29 @@ function renderWave() {
   setAttr(cutEnd, 'width', (WAVE_W - e).toFixed(1));
 }
 
-const pk = (l: { l: number; r: number }) => Math.max(l.l, l.r);
-const lvFracs = (l: { l: number; r: number }) => [levelFrac(l.l), levelFrac(l.r)];
+const pk = (l: Level) => Math.max(l.l, l.r);
 
 function renderMaster(now: number) {
   setText(ratioBtn, `RATIO\n${RATIOS[doc.ratio]}:1`);
-  setClass(cmpBypassBtn, 'active', doc.bypass.cmp);
-  setClass(limBypassBtn, 'active', doc.bypass.lim);
+  setText(lookaheadText, `LOOKAHEAD\n${limiterLookahead().toFixed(1)} ms`);
   const m = masterLevels(now);
-  const cgr = doc.bypass.cmp ? 0 : Math.min(0, masterReduction());
-  const lgr = doc.bypass.lim ? 0 : Math.min(0, limiterReduction());
-  // Компрессор: вход с меткой Threshold, снижение громкости, выход после Makeup.
-  setBar(compBars[0], lvFracs(m.comp), true, fmtDb(pk(m.comp)), dbFrac(doc.master['cmp.threshold']), m.comp.clip);
-  setBar(compBars[1], [-cgr / 24], false, cgr.toFixed(1));
-  setBar(compBars[2], lvFracs(m.compOut), true, fmtDb(pk(m.compOut)), null, m.compOut.clip);
-  // Лимитер: вход с меткой Ceiling, снижение громкости, выход.
-  setBar(limBars[0], lvFracs(m.lim), true, fmtDb(pk(m.lim)), dbFrac(doc.master['lim.ceiling']), m.lim.clip);
-  setBar(limBars[1], [-lgr / 24], false, lgr.toFixed(1));
-  setBar(limBars[2], lvFracs(m.out), true, fmtDb(pk(m.out)), null, m.out.clip);
+  // Компрессор: вход с линией Threshold, GR (Threshold, Ratio, Attack, Release), выход после Makeup.
+  setLevelBar(compBars[0], m.comp, true, fmtDb(pk(m.comp)), dbFrac(doc.master['cmp.threshold']));
+  setGrBar(compBars[1], Math.min(0, masterReduction()));
+  setLevelBar(compBars[2], m.compOut, true, fmtDb(pk(m.compOut)));
+  // Лимитер: вход после Input, GR, выход с линией Ceiling, пик-холдом и меткой клиппинга.
+  setLevelBar(limBars[0], m.lim, true, fmtDb(pk(m.lim)));
+  setGrBar(limBars[1], Math.min(0, limiterReduction()));
+  setLevelBar(limBars[2], m.out, true, fmtDb(pk(m.out)), dbFrac(doc.master['lim.ceiling']));
 }
 
 function renderMix(now: number) {
   mixBars.forEach((b, i) => {
+    const t = doc.tracks[i];
     const lv = trackLevel(i, now);
-    const stereo = trackIsStereo(i);
-    setText(b.label, doc.tracks[i].name);
-    setBar(b, stereo ? lvFracs(lv) : [levelFrac(pk(lv))], stereo, fmtDb(pk(lv)), null, lv.clip);
+    setText(b.label, t.name);
+    setClass(b.root, 'muted', !audible(i));
+    setLevelBar(b, lv, trackIsStereo(i), fmtDb(lv.max), null, trackDuckDb(i));
   });
 }
 
