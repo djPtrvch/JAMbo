@@ -1,8 +1,8 @@
-// Кнопки: LFO1, LFO2, LFO3, ENV (слева, под окном сэмпла); TRACK, UNDO, FX, MOD (справа внизу);
+// Кнопки: LFO1, LFO2, LFO3, ENV (слева, под окном сэмпла); MORPH, UNDO, FX, MOD (справа внизу);
 // PLAY, REC, PATTERNS и EQ (в верхней панели справа).
-// LFO1/LFO2/LFO3/ENV/TRACK/FX/MOD работают на удержание.
+// LFO1/LFO2/LFO3/ENV/FX/MOD работают на удержание; MORPH — тап (режим) и удержание (+ UNDO).
 
-import { canUndo, doc, gridMode, setHeld, toggleView, ui, undo, undoTrackEdits, type HoldButton } from '../state';
+import { canUndo, doc, gridMode, setHeld, toggleMorph, toggleView, ui, undo, undoTrackEdits, type HoldButton } from '../state';
 import { setPlaying } from '../transport';
 import { h, setClass } from './dom';
 
@@ -10,6 +10,9 @@ const holdViews: [HTMLElement, HoldButton][] = [];
 let playBtn: HTMLElement;
 let recBtn: HTMLElement;
 let undoBtn: HTMLElement;
+let morphBtn: HTMLElement;
+/** На удержании MORPH уже нажали UNDO — отпускание не переключает режим. */
+let morphUsed = false;
 
 function holdButton(label: string, btn: HoldButton): HTMLElement {
   const el = h('div', 'btn', label);
@@ -74,8 +77,15 @@ export function buildEqButton(): HTMLElement {
 export function buildRightButtons(): HTMLElement {
   const el = h('div', 'btn-grid');
   // С зажатым TRACK — отмена всех изменений, сделанных с TRACK, на всех дорожках.
-  undoBtn = tapButton('UNDO', () => (ui.held.track ? undoTrackEdits() : undo()));
-  el.append(holdButton('TRACK', 'track'), undoBtn, holdButton('FX', 'fx'), holdButton('MOD', 'mod'));
+  // MORPH: тап включает и выключает режим (выключение возвращает параметры к моменту включения);
+  // удержание MORPH + тап по UNDO сбрасывает изменения, сделанные в режиме MORPH.
+  undoBtn = tapButton('UNDO', () => {
+    if (ui.held.track) { morphUsed = true; undoTrackEdits(); } else undo();
+  });
+  morphBtn = holdButton('MORPH', 'track');
+  morphBtn.addEventListener('pointerdown', () => { morphUsed = false; });
+  morphBtn.addEventListener('pointerup', () => { if (!morphUsed && !ui.held.track) toggleMorph(); });
+  el.append(morphBtn, undoBtn, holdButton('FX', 'fx'), holdButton('MOD', 'mod'));
   return el;
 }
 
@@ -89,5 +99,6 @@ export function renderButtons() {
   setClass(patternsBtn, 'active', ui.patternView);
   setClass(eqBtn, 'active', ui.eqView);
   setClass(recBtn, 'rec', ui.rec);
+  setClass(morphBtn, 'morph-on', ui.morph);
   setClass(undoBtn, 'disabled', ui.held.track ? !doc.tracks.some((t) => t.trackEdit) : !canUndo());
 }

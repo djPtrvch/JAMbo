@@ -172,6 +172,8 @@ export interface Ui {
   eqBand: number;
   /** Последний выбранный стрелками пресет синта на каждой дорожке (−1 — нет). */
   presetPos: number[];
+  /** Включён режим MORPH (временные изменения ручек). */
+  morph: boolean;
   /** Превью формы волны LFO в окне сэмпла. */
   lfoPreviewUntil: number;
 }
@@ -280,6 +282,7 @@ export const ui: Ui = {
   pressedKeys: new Map(),
   patternView: false,
   eqView: false,
+  morph: false,
   eqBand: -1,
   presetPos: Array(TRACK_COUNT).fill(-1),
   lfoPreviewUntil: 0,
@@ -375,9 +378,9 @@ export function heldLfo(): Mod | null {
  */
 function targetTracks(paramId: string, kind: 'param' | 'assign'): Track[] {
   const t = doc.tracks[ui.selectedTrack];
-  if (ui.held.track) {
+  if (ui.morph) {
     t.trackEdit = true;
-    // Запоминаем исходное значение при первом изменении с TRACK.
+    // Запоминаем исходное значение при первом изменении в режиме MORPH.
     if (kind === 'param' && !(paramId in t.trackOrig)) t.trackOrig[paramId] = t.params[paramId];
     if (kind === 'assign' && !(paramId in t.trackOrigAssign)) t.trackOrigAssign[paramId] = t.assigns[paramId] ?? null;
   }
@@ -385,6 +388,15 @@ function targetTracks(paramId: string, kind: 'param' | 'assign'): Track[] {
 }
 
 /** TRACK + UNDO: отменить все изменения ручек, сделанные с TRACK, сразу на всех дорожках. */
+/**
+ * Кнопка MORPH (тап): включает режим, в котором ручки меняют дорожки временно; повторный тап
+ * выключает его и возвращает все изменённые параметры к моменту включения.
+ */
+export function toggleMorph() {
+  if (ui.morph) undoTrackEdits();
+  ui.morph = !ui.morph;
+}
+
 export function undoTrackEdits() {
   edit(() => {
     for (const t of doc.tracks) {
@@ -900,6 +912,15 @@ export function duplicatePattern(i: number, k: number) {
 
 export function copyPattern(i: number, k: number) {
   ui.patternClipboard = patternAt(doc.tracks[i], k);
+}
+
+/** Перетаскивание: копия паттерна (i, k) в ячейку (j, m) — новая или вместо прежнего. */
+export function dropPattern(i: number, k: number, j: number, m: number) {
+  if (i === j && k === m) return;
+  const p = patternAt(doc.tracks[i], k);
+  if (!p) return;
+  edit(() => setPatternAt(doc.tracks[j], m, p));
+  if (j === ui.selectedTrack) clampView();
 }
 
 export function pastePattern(i: number, k: number) {
