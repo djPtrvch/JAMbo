@@ -1,23 +1,21 @@
 import './style.css';
-import { advanceLfos, selTrack } from './state';
+import { advanceLfos } from './state';
 import { updateTransport } from './transport';
 import { buildLeftButtons, buildRightButtons, renderButtons } from './ui/buttons';
-import { h, setText } from './ui/dom';
+import { renderFields } from './ui/controls';
+import { h } from './ui/dom';
 import { buildKnobGrid, renderKnobs } from './ui/knobs';
 import { buildPages, renderPages } from './ui/pages';
+import { buildPiano, buildProgression, renderPiano } from './ui/piano';
+import { buildSample, renderSample } from './ui/sample';
 import { buildSequencer, renderSequencer } from './ui/sequencer';
 import { buildTopbar, renderTopbar } from './ui/topbar';
 import { buildTracks, renderTracks } from './ui/tracks';
 
 const app = document.getElementById('app')!;
 
-// Окно сэмпла — пока заглушка.
-const sample = h('div', 'sample');
-const sampleName = h('div', 'sample-name');
-sample.append(h('div', 'sample-title', 'SAMPLE'), sampleName);
-
 const left = h('div', 'side left');
-left.append(sample, buildLeftButtons());
+left.append(buildSample(), buildLeftButtons());
 
 const right = h('div', 'side right');
 right.append(buildPages(), h('div', 'spacer'), buildRightButtons());
@@ -25,9 +23,15 @@ right.append(buildPages(), h('div', 'spacer'), buildRightButtons());
 const main = h('div', 'main');
 main.append(left, buildKnobGrid(), right);
 
-app.append(buildTopbar(), main, buildTracks(), buildSequencer());
+app.append(buildTopbar(), main, buildTracks(), buildSequencer(), buildPiano(), buildProgression());
 
-// Блокируем системные жесты Safari (лупа, выделение, контекстное меню).
+// Блокируем системные жесты Safari: масштаб двойным тапом и щипком, лупу, контекстное меню.
+// Всё управление идёт через pointer-события, поэтому touch-события можно гасить целиком.
+const allowNative = (e: Event) => e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
+for (const type of ['touchstart', 'touchmove', 'touchend'] as const) {
+  document.addEventListener(type, (e) => { if (!allowNative(e)) e.preventDefault(); }, { passive: false });
+}
+document.addEventListener('dblclick', (e) => e.preventDefault());
 document.addEventListener('contextmenu', (e) => e.preventDefault());
 document.addEventListener('gesturestart', (e) => e.preventDefault());
 
@@ -36,11 +40,13 @@ function frame(now: number) {
   advanceLfos(Math.min(0.1, (now - last) / 1000));
   last = now;
   updateTransport(now);
-  setText(sampleName, `${selTrack().name} — пусто`);
-  renderTopbar();
+  renderTopbar(now);
+  renderFields();
+  renderSample(now);
   renderKnobs();
   renderTracks(now);
   renderSequencer();
+  renderPiano(now);
   renderPages();
   renderButtons();
   requestAnimationFrame(frame);
