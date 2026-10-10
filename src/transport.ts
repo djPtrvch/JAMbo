@@ -10,12 +10,15 @@ let nextTime = 0;
 let tick = 0;
 interface Flash { time: number; track: number; dur: number; notes: number[]; noteDur: number }
 const flashes: Flash[] = [];
+const lockEvents: { time: number; track: number; locks: Record<string, number>; until: number }[] = [];
 
 export const stepMs = () => 60000 / doc.bpm / 4;
 
 export function setPlaying(on: boolean) {
   ui.playing = on;
   flashes.length = 0;
+  lockEvents.length = 0;
+  rt.playLocks.forEach((l) => { l.until = 0; });
   rt.playPos.fill(-1);
   if (on) {
     tick = 0;
@@ -47,6 +50,8 @@ function playStep(time: number) {
     const pos = posAt(t, tick);
     rt.playPos[i] = pos;
     const s = stepAt(t, pos);
+    // P-lock шага (и на шаге без ноты) показываем на ручках, пока идёт шаг.
+    if (s && Object.keys(s.locks).length > 0) lockEvents.push({ time, track: i, locks: s.locks, until: time + dur });
     if (!s?.on || !audible(i)) return;
     if (Math.random() * 100 >= playValue(i, 'prob', s.locks)) return;
     const ratchet = playValue(i, 'ratchet', s.locks) + 1;
@@ -70,6 +75,12 @@ export function updateTransport(now: number) {
       playStep(nextTime);
       nextTime += stepMs();
     }
+  }
+  for (let k = lockEvents.length - 1; k >= 0; k--) {
+    const e = lockEvents[k];
+    if (now < e.time) continue;
+    lockEvents.splice(k, 1);
+    rt.playLocks[e.track] = { locks: e.locks, until: e.until };
   }
   for (let k = flashes.length - 1; k >= 0; k--) {
     const f = flashes[k];

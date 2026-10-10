@@ -4,7 +4,7 @@
 import { fromNorm, toNorm, type ParamDef } from '../params';
 import {
   beginGesture, clearLfoAssign, clearLock, doc, endGesture, firstHeldStep, gridFor, gridMode, heldLfo,
-  lockValue, modulatedNorm, paramValue, setLfoAmount, setLockNorm, setParamNorm, ui, type GridMode,
+  lockValue, modulatedNorm, paramValue, rt, setLfoAmount, setLockNorm, setParamNorm, ui, type GridMode,
 } from '../state';
 import { DOUBLE_TAP_MS, h, setAttr, setClass, setText, svg } from './dom';
 
@@ -161,12 +161,14 @@ function onUp(e: PointerEvent) {
 
 // ---------- Отрисовка (каждый кадр) ----------
 
-export function renderKnobs() {
+export function renderKnobs(now: number) {
   const mode = gridMode();
   const grid = gridFor(mode);
   const ti = ui.selectedTrack;
   const track = doc.tracks[ti];
   const held = mode === 'track' ? firstHeldStep() : null;
+  const pl = rt.playLocks[ti];
+  const playLocks = mode === 'track' && ui.playing && now < pl.until ? pl.locks : undefined;
   const lfoHeld = mode === 'track' ? heldLfo() : null;
 
   views.forEach((v, slot) => {
@@ -187,7 +189,10 @@ export function renderKnobs() {
     setAttr(v.valueArc, 'd', arc(R_VALUE, origin, baseN));
 
     // P-lock удерживаемого шага — жёлтым.
-    const lock = held !== null ? track.pages[Math.floor(held / 16)]?.[held % 16]?.locks[p.id] : undefined;
+    // Удерживаемый шаг, иначе — шаг, который сейчас играет.
+    const lock = held !== null
+      ? track.pages[Math.floor(held / 16)]?.[held % 16]?.locks[p.id]
+      : playLocks?.[p.id];
     const locked = lock !== undefined;
     setClass(v.root, 'locked', locked);
     const shownBase = locked ? lock! : base;

@@ -18,7 +18,7 @@ const left = h('div', 'side left');
 left.append(buildSample(), buildLeftButtons());
 
 const right = h('div', 'side right');
-right.append(buildPages(), h('div', 'spacer'), buildRightButtons());
+right.append(buildPages(), buildRightButtons());
 
 const main = h('div', 'main');
 main.append(left, buildKnobGrid(), right);
@@ -43,7 +43,7 @@ function frame(now: number) {
   renderTopbar(now);
   renderFields();
   renderSample(now);
-  renderKnobs();
+  renderKnobs(now);
   renderTracks(now);
   renderSequencer();
   renderPiano(now);
