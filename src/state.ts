@@ -3,7 +3,7 @@
 // ui — текущие удержания кнопок/шагов и выбор. rt — данные реального времени (LFO, проигрывание).
 
 import {
-  FX_GRID, MAX_PAGES, MOD_GRID, PATTERN_SLOTS, STEPS_PER_PAGE, TRACK_COUNT, TRACK_GRID, OCTAVE_DEF, OCTAVE_MAX, OCTAVE_MIN,
+  FX_GRID, KIT, MASTER_GRID, MAX_PAGES, MIX_GRID, MOD_GRID, PATTERN_SLOTS, RATIOS, STEPS_PER_PAGE, TRACK_COUNT, TRACK_GRID, OCTAVE_DEF, OCTAVE_MAX, OCTAVE_MIN,
   BPM_MAX, BPM_MIN, NOTE_NAMES, PROGRESSIONS, SCALES, fromNorm, toNorm, type ParamDef, type Slot,
 } from './params';
 
@@ -31,6 +31,8 @@ export interface LfoAssign {
 
 /** Паттерн ячейки сетки 8×8: звук дорожки (параметры, LFO) и последовательность. */
 export interface Pattern {
+  /** Сэмпл: 'kit:<id>' — встроенный, 'file:<n>' — загруженный с iPad. */
+  sample: string;
   params: Record<string, number>;
   assigns: Record<string, LfoAssign>;
   pages: Step[][];
@@ -45,6 +47,7 @@ export interface Pattern {
  */
 export interface Track {
   name: string;
+  sample: string;
   /** Параметры дорожки и её LFO (lfo1.*, lfo2.*). */
   params: Record<string, number>;
   assigns: Record<string, LfoAssign>;
@@ -75,9 +78,19 @@ export interface Doc {
   root: number;
   tracks: Track[];
   fx: Record<string, number>;
+  /** Громкости дорожек (микшер). */
+  mixer: Record<string, number>;
+  /** Компрессор и лимитер мастера. */
+  master: Record<string, number>;
+  /** Индекс в RATIOS (кнопка RATIO). */
+  ratio: number;
+  /** Имена загруженных файлов: ключ сэмпла → имя. */
+  files: Record<string, string>;
 }
 
-export type GridMode = 'track' | 'fx' | 'mod';
+export type GridMode = 'track' | 'fx' | 'mod' | 'mix' | 'master';
+/** Что выбрано в строке дорожек: дорожка, канал микшера MIX или мастер MST. */
+export type Channel = 'track' | 'mix' | 'master';
 export type HoldButton = 'lfo1' | 'lfo2' | 'lfo3' | 'env' | 'track' | 'fx' | 'mod';
 
 export interface HeldStep {
@@ -88,10 +101,11 @@ export interface HeldStep {
 
 export interface Ui {
   selectedTrack: number;
+  channel: Channel;
   viewPage: number;
   held: Record<HoldButton, boolean>;
   /** Порядок нажатия FX/MOD: побеждает нажатая последней. */
-  modeOrder: GridMode[];
+  modeOrder: ('fx' | 'mod')[];
   /** Последняя нажатая LFO-кнопка (если удерживаются обе). */
   lastLfo: Mod;
   heldSteps: Map<number, HeldStep>;
@@ -155,6 +169,7 @@ export function emptyPage(): Step[] {
 function newTrack(i: number): Track {
   return {
     name: `T${i + 1}`,
+    sample: `kit:${KIT[i % KIT.length].id}`,
     params: { ...defaults(TRACK_GRID), ...defaults(MOD_GRID) },
     assigns: {},
     pages: [emptyPage()],
@@ -178,10 +193,15 @@ export const doc: Doc = {
   root: 0,
   tracks: Array.from({ length: TRACK_COUNT }, (_, i) => newTrack(i)),
   fx: defaults(FX_GRID),
+  mixer: defaults(MIX_GRID),
+  master: defaults(MASTER_GRID),
+  ratio: 1,
+  files: {},
 };
 
 export const ui: Ui = {
   selectedTrack: 0,
+  channel: 'track',
   viewPage: 0,
   held: { lfo1: false, lfo2: false, lfo3: false, env: false, track: false, fx: false, mod: false },
   modeOrder: [],
@@ -264,11 +284,11 @@ export const canUndo = () => undoStack.length > 0;
 
 export function gridMode(): GridMode {
   for (let i = ui.modeOrder.length - 1; i >= 0; i--) if (ui.held[ui.modeOrder[i]]) return ui.modeOrder[i];
-  return 'track';
+  return ui.channel;
 }
 
 export function gridFor(mode: GridMode): Slot[] {
-  return mode === 'fx' ? FX_GRID : mode === 'mod' ? MOD_GRID : TRACK_GRID;
+  return { track: TRACK_GRID, fx: FX_GRID, mod: MOD_GRID, mix: MIX_GRID, master: MASTER_GRID }[mode];
 }
 
 export function setHeld(btn: HoldButton, down: boolean) {
@@ -321,12 +341,17 @@ export const selTrack = () => doc.tracks[ui.selectedTrack];
 // ---------- Параметры ----------
 
 export function paramValue(mode: GridMode, p: ParamDef, track = selTrack()): number {
-  return mode === 'fx' ? doc.fx[p.id] : track.params[p.id];
+  if (mode === 'fx') return doc.fx[p.id];
+  if (mode === 'mix') return doc.mixer[p.id];
+  if (mode === 'master') return doc.master[p.id];
+  return track.params[p.id];
 }
 
 export function setParamNorm(mode: GridMode, p: ParamDef, norm: number) {
   const v = fromNorm(p, norm);
   if (mode === 'fx') doc.fx[p.id] = v;
+  else if (mode === 'mix') doc.mixer[p.id] = v;
+  else if (mode === 'master') doc.master[p.id] = v;
   else for (const t of targetTracks(p.id, 'param')) t.params[p.id] = v;
   if (p.id.startsWith('lfo') || p.id.startsWith('env.')) ui.lfoPreviewUntil = performance.now() + 1500;
 }
@@ -498,6 +523,7 @@ function clampView() {
 
 export function selectTrack(i: number) {
   ui.selectedTrack = i;
+  ui.channel = 'track';
   ui.heldSteps.clear();
   clampView();
 }
@@ -707,7 +733,7 @@ export function setRoot(v: number) { doc.root = ((Math.round(v) % NOTE_NAMES.len
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v));
 
 function takePattern(t: Track): Pattern {
-  return clone({ params: t.params, assigns: t.assigns, pages: t.pages, length: t.length, playFrom: t.playFrom, playTo: t.playTo });
+  return clone({ sample: t.sample, params: t.params, assigns: t.assigns, pages: t.pages, length: t.length, playFrom: t.playFrom, playTo: t.playTo });
 }
 
 function putPattern(t: Track, p: Pattern) {
@@ -745,7 +771,7 @@ export function createPattern(i: number, k: number) {
   edit(() => {
     const t = doc.tracks[i];
     t.slots[k] = {
-      params: clone(t.params), assigns: clone(t.assigns), pages: [emptyPage()],
+      sample: t.sample, params: clone(t.params), assigns: clone(t.assigns), pages: [emptyPage()],
       length: STEPS_PER_PAGE, playFrom: 0, playTo: 0,
     };
   });
@@ -799,4 +825,29 @@ export function deletePattern(i: number, k: number) {
     t.stopped = true;
   });
   if (i === ui.selectedTrack) { ui.heldSteps.clear(); clampView(); }
+}
+
+// ---------- Микшер, мастер, сэмплы ----------
+
+export function selectChannel(c: Channel) {
+  ui.channel = c;
+}
+
+/** Кнопка RATIO мастера: следующее значение по кругу. */
+export function cycleRatio() {
+  edit(() => { doc.ratio = (doc.ratio + 1) % RATIOS.length; });
+}
+
+/** Поставить сэмпл на дорожку (активный паттерн). */
+export function setTrackSample(i: number, key: string, fileName?: string) {
+  edit(() => {
+    doc.tracks[i].sample = key;
+    if (fileName) doc.files[key] = fileName;
+  });
+}
+
+/** Имя сэмпла для окна сэмпла. */
+export function sampleName(key: string): string {
+  if (key.startsWith('kit:')) return KIT.find((k) => `kit:${k.id}` === key)?.name ?? key;
+  return doc.files[key] ?? 'файл';
 }

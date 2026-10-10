@@ -1,6 +1,9 @@
 // Единая таблица параметров: названия, подписи ручек, диапазоны и форматы.
 // Меняем подписи и диапазоны только здесь.
 
+/** Дорожек сейчас (расширяемо до 16). */
+export const TRACK_COUNT = 8;
+
 export type KnobKind = 'smooth' | 'stepped';
 
 export interface ParamDef {
@@ -135,6 +138,47 @@ export const FX_GRID: Slot[] = grid([
   ],
 ]);
 
+// ---------- Микшер: 16 ручек = громкости дорожек (несуществующие — серые) ----------
+
+/** Ручек громкости в микшере (до 16 дорожек). */
+export const MIX_SLOTS = 16;
+
+export const MIX_GRID: Slot[] = Array.from({ length: MIX_SLOTS }, (_, i) =>
+  i < TRACK_COUNT ? smooth(`mix.vol${i + 1}`, `T${i + 1}`, 0, 100, 80, pct) : null);
+
+// ---------- Мастер: компрессор и лимитер (Ratio — отдельной кнопкой) ----------
+
+const db = (v: number) => `${v > 0 ? '+' : ''}${v.toFixed(1)}dB`;
+
+export const MASTER_GRID: Slot[] = grid([
+  [
+    smooth('cmp.threshold', 'Threshold', -60, 0, -12, db),
+    smooth('cmp.attack', 'Attack', 0.1, 100, 10, ms, { exp: true }),
+    smooth('cmp.release', 'Release', 10, 1000, 200, ms, { exp: true }),
+    smooth('cmp.makeup', 'Makeup', 0, 24, 0, db),
+  ],
+  [
+    smooth('lim.input', 'Lim Input', 0, 24, 0, db),
+    smooth('lim.ceiling', 'Ceiling', -12, 0, -0.3, db),
+    smooth('lim.lookahead', 'Lookahead', 0, 10, 3, (v) => `${v.toFixed(1)}ms`),
+    smooth('lim.release', 'Lim Release', 10, 1000, 100, ms, { exp: true }),
+  ],
+  [],
+  [],
+]);
+
+/** Встроенный набор сэмплов: по одному на дорожку T1–T8 (генерируются в коде). */
+export const KIT: { id: string; name: string }[] = [
+  { id: 'kick', name: 'Kick' }, { id: 'snare', name: 'Snare' }, { id: 'clap', name: 'Clap' },
+  { id: 'hat', name: 'Closed Hat' }, { id: 'openhat', name: 'Open Hat' }, { id: 'tom', name: 'Tom' },
+  { id: 'perc', name: 'Perc' }, { id: 'bass', name: 'Bass' },
+];
+/** Нота, на которой сэмпл звучит в исходной высоте (C3). */
+export const SAMPLE_ROOT = 48;
+
+/** Ratio компрессора мастера (кнопка RATIO перебирает по кругу). */
+export const RATIOS = [2, 4, 8, 20];
+
 // ---------- Верхняя панель ----------
 
 export const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -174,13 +218,12 @@ export const BPM_MAX = 240;
 
 // ---------- Общие константы ----------
 
-export const TRACK_COUNT = 8;
 export const STEPS_PER_PAGE = 16;
 export const MAX_PAGES = 8;
 /** Ячеек в столбце сетки паттернов. */
 export const PATTERN_SLOTS = 8;
 
-export const ALL_PARAMS: ParamDef[] = [...TRACK_GRID, ...MOD_GRID, ...FX_GRID].filter((p): p is ParamDef => p !== null);
+export const ALL_PARAMS: ParamDef[] = [...TRACK_GRID, ...MOD_GRID, ...FX_GRID, ...MIX_GRID, ...MASTER_GRID].filter((p): p is ParamDef => p !== null);
 export const PARAM_BY_ID: Record<string, ParamDef> = Object.fromEntries(ALL_PARAMS.map((p) => [p.id, p]));
 
 /** Значение параметра → 0..1 (положение ручки). */
