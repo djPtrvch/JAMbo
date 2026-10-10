@@ -1,11 +1,12 @@
-// Таймер по BPM: двигает шаги дорожек, мигает дорожками и нотами пианоролла, ведёт метроном.
-// Probability, Ratchet и Swing (с p-lock и LFO) влияют на мигание, чтобы их можно было проверить на глаз.
+// Таймер по BPM: двигает шаги дорожек, запускает звук, мигает дорожками и нотами пианоролла,
+// ведёт метроном. Probability, Ratchet и Swing (с p-lock и LFO) влияют на звук и мигание.
 
-import { clickAt } from './audio';
+import { clickAt, triggerTrack } from './audio/engine';
 import { PARAM_BY_ID, STEPS_PER_PAGE, fromNorm } from './params';
 import { triggerEnv, activateSlot, audible, doc, modulatedNorm, playRange, rt, stepAt, stopTrack, ui } from './state';
 
-const LOOKAHEAD_MS = 60;
+/** Шаги планируются заранее, чтобы звук и щелчок метронома попадали точно в долю. */
+const LOOKAHEAD_MS = 100;
 let nextTime = 0;
 let tick = 0;
 interface Flash { time: number; track: number; dur: number; notes: number[]; noteDur: number }
@@ -92,6 +93,7 @@ function playStep(time: number) {
     const offset = pos % 2 === 1 ? ((swing - 50) / 50) * dur : 0;
     const sub = dur / ratchet;
     for (let r = 0; r < ratchet; r++) {
+      triggerTrack(i, time + offset + r * sub, s.notes, s.locks);
       flashes.push({ time: time + offset + r * sub, track: i, dur: Math.min(90, sub * 0.6), notes: s.notes, noteDur: ratchet > 1 ? sub * 0.6 : s.len * dur * 0.9 });
     }
   });
@@ -103,7 +105,6 @@ export function updateTransport(now: number) {
   if (ui.playing) {
     // Если вкладка была в фоне — не догоняем пропущенные шаги.
     if (now - nextTime > 1000) nextTime = now;
-    // Шаги обрабатываем чуть заранее, чтобы щелчок метронома попал точно в долю.
     while (now + LOOKAHEAD_MS >= nextTime) {
       playStep(nextTime);
       nextTime += stepMs();
