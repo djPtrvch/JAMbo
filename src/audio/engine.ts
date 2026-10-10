@@ -19,7 +19,7 @@ import { detectRoot } from './pitch';
 
 let ctx: AudioContext | null = null;
 const buffers = new Map<string, AudioBuffer>();
-const peaks = new Map<string, Float32Array>();
+const peaks = new Map<string, Float32Array[]>();
 let fileCount = 0;
 
 interface TrackChain { input: GainNode; duck: GainNode; vol: GainNode; sends: GainNode[]; meter: Meter }
@@ -381,7 +381,7 @@ function updateFx(now: number) {
     }
   }
 
-  const fsig = JSON.stringify([fx, doc.mixer, doc.master, doc.ratio, doc.bypass]);
+  const fsig = JSON.stringify([fx, doc.mixer, doc.master, doc.ratio]);
   if (fsig === fxSig) return;
   fxSig = fsig;
   set(rev.hpf.frequency, fx['rev.hpf']);
@@ -404,17 +404,13 @@ function updateFx(now: number) {
   });
 
   const m = doc.master;
-  // Bypass: компрессор с Ratio 1:1 и без Makeup, лимитер с порогом 0 dB и без Input — сигнал проходит как есть.
-  const cb = doc.bypass.cmp;
-  const lb = doc.bypass.lim;
-  set(mst.comp.threshold, cb ? 0 : m['cmp.threshold']);
+  set(mst.comp.threshold, m['cmp.threshold']);
   set(mst.comp.attack, m['cmp.attack'] / 1000);
   set(mst.comp.release, m['cmp.release'] / 1000);
-  set(mst.comp.ratio, cb ? 1 : RATIOS[doc.ratio]);
-  set(mst.makeup.gain, cb ? 1 : Math.pow(10, m['cmp.makeup'] / 20));
-  set(mst.limIn.gain, lb ? 1 : Math.pow(10, m['lim.input'] / 20));
-  set(mst.lim.ratio, lb ? 1 : 20);
-  set(mst.lim.threshold, lb ? 0 : m['lim.ceiling']);
+  set(mst.comp.ratio, RATIOS[doc.ratio]);
+  set(mst.makeup.gain, Math.pow(10, m['cmp.makeup'] / 20));
+  set(mst.limIn.gain, Math.pow(10, m['lim.input'] / 20));
+  set(mst.lim.threshold, m['lim.ceiling']);
   // Lookahead в Web Audio недоступен — приближаем быстрой атакой лимитера.
   set(mst.lim.attack, Math.max(0.001, m['lim.lookahead'] / 1000));
   set(mst.lim.release, m['lim.release'] / 1000);
@@ -493,25 +489,32 @@ export function sampleListPos(): [number, number] {
 }
 
 /** Огибающая сэмпла для окна сэмпла: n пиков 0..1. */
-export function samplePeaks(key: string, n = 160): Float32Array | null {
+export function samplePeaks(key: string, n = 160): Float32Array[] | null {
   const cached = peaks.get(key);
   if (cached) return cached;
   const buf = buffers.get(key);
   if (!buf) return null;
-  const d = buf.getChannelData(0);
-  const out = new Float32Array(n);
-  const step = Math.max(1, Math.floor(d.length / n));
+  // Стерео — две огибающие (L и R), моно — одна; общая нормировка.
+  const chans = Math.min(2, buf.numberOfChannels);
+  const out = Array.from({ length: chans }, () => new Float32Array(n));
   let max = 0;
-  for (let i = 0; i < n; i++) {
-    let m = 0;
-    for (let j = i * step; j < Math.min(d.length, (i + 1) * step); j++) m = Math.max(m, Math.abs(d[j]));
-    out[i] = m;
-    max = Math.max(max, m);
+  for (let ch = 0; ch < chans; ch++) {
+    const d = buf.getChannelData(ch);
+    const step = Math.max(1, Math.floor(d.length / n));
+    for (let i = 0; i < n; i++) {
+      let m = 0;
+      for (let j = i * step; j < Math.min(d.length, (i + 1) * step); j++) m = Math.max(m, Math.abs(d[j]));
+      out[ch][i] = m;
+      max = Math.max(max, m);
+    }
   }
-  if (max > 0) for (let i = 0; i < n; i++) out[i] /= max;
+  if (max > 0) for (const o of out) for (let i = 0; i < n; i++) o[i] /= max;
   peaks.set(key, out);
   return out;
 }
+
+/** Сэмпл стерео (для индикации в окне сэмпла). */
+export const sampleIsStereo = (key: string) => (buffers.get(key)?.numberOfChannels ?? 1) > 1;
 
 
 // ---------- Измерители уровня ----------
@@ -522,8 +525,13 @@ export interface Level {
   r: number;
   /** Громкость LUFS (momentary, ~400 мс), -Infinity — тишина. */
   lufs: number;
-  /** Была перегрузка (≥ 0 dBFS) за последнюю секунду. */
+  /** Была перегрузка (≥ 0 dBFS) за последние 2 с — метка клиппинга. */
   clip: boolean;
+  /** Пик-холд по каналам: держится ~1,5 с, потом плавно спадает. */
+  holdL: number;
+  holdR: number;
+  /** Максимальный пик с последнего сброса (число над метром, тап — сброс). */
+  max: number;
 }
 
 /** Измеритель: пики по каналам и (по желанию) K-взвешенная громкость. */
@@ -533,6 +541,9 @@ class Meter {
   private buf = new Float32Array(1024);
   private kbuf: Float32Array<ArrayBuffer> | null = null;
   private disp = [0, 0];
+  private hold = [0, 0];
+  private holdAt = [0, 0];
+  private max = 0;
   private clipUntil = 0;
   private lufsCache = -Infinity;
   private lufsAt = 0;
@@ -584,8 +595,13 @@ class Meter {
       for (const v of this.buf) m = Math.max(m, Math.abs(v));
       return m;
     });
-    peak.forEach((p, i) => { this.disp[i] = Math.max(p, this.disp[i] * 0.9); });
-    if (Math.max(...peak) >= 1) this.clipUntil = now + 1000;
+    peak.forEach((p, i) => {
+      this.disp[i] = Math.max(p, this.disp[i] * 0.9);
+      // Пик-холд: новый пик фиксируется на 1,5 с, затем линия плавно опускается.
+      if (p >= this.hold[i]) { this.hold[i] = p; this.holdAt[i] = now; } else if (now - this.holdAt[i] > 1500) this.hold[i] *= 0.95;
+      this.max = Math.max(this.max, p);
+    });
+    if (Math.max(...peak) >= 1) this.clipUntil = now + 2000;
     // LUFS считаем не чаще 10 раз в секунду: окно большое.
     if (this.kbuf && now - this.lufsAt > 100) {
       this.lufsAt = now;
@@ -598,11 +614,34 @@ class Meter {
       }
       this.lufsCache = sum > 1e-10 ? -0.691 + 10 * Math.log10(sum) : -Infinity;
     }
-    return { l: this.disp[0], r: this.disp[1], lufs: this.lufsCache, clip: now < this.clipUntil };
+    return {
+      l: this.disp[0], r: this.disp[1], lufs: this.lufsCache, clip: now < this.clipUntil,
+      holdL: this.hold[0], holdR: this.hold[1], max: this.max,
+    };
+  }
+
+  /** Сброс числа максимального пика и метки клиппинга. */
+  reset() {
+    this.max = 0;
+    this.clipUntil = 0;
   }
 }
 
-const SILENT: Level = { l: 0, r: 0, lufs: -Infinity, clip: false };
+const SILENT: Level = { l: 0, r: 0, lufs: -Infinity, clip: false, holdL: 0, holdR: 0, max: 0 };
+
+/** Сброс пика дорожки (тап по числу над метром в микшере). */
+export function resetTrackPeak(i: number) {
+  tracks[i]?.meter.reset();
+}
+
+/** Снижение громкости дорожки от sidechain, дБ (≤ 0). */
+export function trackDuckDb(i: number): number {
+  const g = tracks[i]?.duck.gain.value ?? 1;
+  return g < 0.999 ? 20 * Math.log10(Math.max(1e-4, g)) : 0;
+}
+
+/** Lookahead лимитера — показывается числом. */
+export const limiterLookahead = () => doc.master['lim.lookahead'];
 
 /** Уровень дорожки (после громкости микшера). */
 export const trackLevel = (i: number, now: number): Level => (tracks[i] ? tracks[i].meter.read(now) : SILENT);

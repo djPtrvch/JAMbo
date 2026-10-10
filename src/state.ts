@@ -84,8 +84,6 @@ export interface Doc {
   master: Record<string, number>;
   /** Индекс в RATIOS (кнопка RATIO). */
   ratio: number;
-  /** Bypass компрессора и лимитера мастера. */
-  bypass: { cmp: boolean; lim: boolean };
   /** Имена загруженных файлов: ключ сэмпла → имя. */
   files: Record<string, string>;
   /** Определённая высота сэмплов: ключ → MIDI-нота (нет — C3). */
@@ -198,7 +196,6 @@ export const doc: Doc = {
   mixer: defaults(MIX_GRID),
   master: defaults(MASTER_GRID),
   ratio: 1,
-  bypass: { cmp: false, lim: false },
   files: {},
   roots: {},
 };
@@ -819,11 +816,6 @@ export function deletePattern(i: number, k: number) {
 
 export function selectChannel(c: Channel) {
   ui.channel = c;
-}
-
-/** Кнопки BYPASS компрессора и лимитера мастера. */
-export function toggleBypass(which: 'cmp' | 'lim') {
-  edit(() => { doc.bypass[which] = !doc.bypass[which]; });
 }
 
 /** Кнопка RATIO мастера: следующее значение по кругу. */
