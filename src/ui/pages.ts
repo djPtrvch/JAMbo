@@ -1,99 +1,125 @@
-// Миниатюры страниц паттерна: тап — показать страницу, «+» — добавить (до 4),
-// удержание — окно duplicate / copy / paste / delete.
+// Миниатюры страниц паттерна — строки одна под другой во всю ширину.
+// Тап — эта страница играет (и открывается в секвенсоре); протянуть по нескольким — играют они все.
+// «+» — добавить страницу (до 4); удержание — окно duplicate / copy / paste / delete.
 
 import { MAX_PAGES, STEPS_PER_PAGE } from '../params';
-import { addPage, copyPage, deletePage, duplicatePage, pastePage, rt, selTrack, ui } from '../state';
-import { playPage } from '../transport';
+import {
+  addPage, copyPage, deletePage, duplicatePage, hasLocks, pastePage, rt, selTrack, setPlayPages, ui,
+} from '../state';
 import { h, setClass } from './dom';
+import { makePopup, popupButton, type Popup } from './popup';
 
 const HOLD_MS = 450;
 
-interface Thumb { root: HTMLElement; dots: HTMLElement[] }
+interface Thumb { root: HTMLElement; cells: HTMLElement[] }
 const thumbs: Thumb[] = [];
+let list: HTMLElement;
 let plus: HTMLElement;
-let menu: HTMLElement;
+let menu: Popup;
 const menuButtons: Record<string, HTMLButtonElement> = {};
 
+/** Текущее протягивание по миниатюрам. */
+let drag: { id: number; from: number; to: number; timer: number; menu: boolean } | null = null;
+
+function thumbAt(x: number, y: number): number {
+  const el = document.elementFromPoint(x, y)?.closest('.thumb') as HTMLElement | null;
+  return el && list.contains(el) && el.dataset.page ? Number(el.dataset.page) : -1;
+}
+
 export function buildPages(): HTMLElement {
-  const el = h('div', 'pages');
+  list = h('div', 'pages');
   for (let i = 0; i < MAX_PAGES; i++) {
     const root = h('div', 'thumb');
-    const dots: HTMLElement[] = [];
+    root.dataset.page = String(i);
+    const cells: HTMLElement[] = [];
     for (let k = 0; k < STEPS_PER_PAGE; k++) {
-      const d = h('div', 'thumb-dot');
-      dots.push(d);
-      root.append(d);
+      const c = h('div', 'thumb-cell');
+      if (k % 4 === 0) c.classList.add('beat');
+      cells.push(c);
+      root.append(c);
     }
-    let timer = 0;
-    let opened = false;
     root.addEventListener('pointerdown', (e) => {
       e.preventDefault();
-      opened = false;
-      timer = window.setTimeout(() => { opened = true; openMenu(i); }, HOLD_MS);
+      if (drag) return;
+      root.releasePointerCapture?.(e.pointerId);
+      drag = {
+        id: e.pointerId, from: i, to: i, menu: false,
+        timer: window.setTimeout(() => { if (drag && drag.to === drag.from) { drag.menu = true; openMenu(i); } }, HOLD_MS),
+      };
     });
-    root.addEventListener('pointerup', () => {
-      clearTimeout(timer);
-      if (!opened) ui.viewPage = i;
-    });
-    root.addEventListener('pointercancel', () => clearTimeout(timer));
-    thumbs.push({ root, dots });
-    el.append(root);
+    thumbs.push({ root, cells });
+    list.append(root);
   }
   plus = h('div', 'thumb plus', '+');
   plus.addEventListener('pointerdown', (e) => { e.preventDefault(); addPage(); });
-  el.append(plus);
+  list.append(plus);
 
-  menu = h('div', 'page-menu hidden');
+  document.addEventListener('pointermove', (e) => {
+    if (!drag || e.pointerId !== drag.id || drag.menu) return;
+    const i = thumbAt(e.clientX, e.clientY);
+    if (i >= 0 && i < selTrack().pages.length && i !== drag.to) {
+      drag.to = i;
+      clearTimeout(drag.timer);
+    }
+  });
+  const up = (e: PointerEvent) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    clearTimeout(drag.timer);
+    if (!drag.menu && e.type === 'pointerup') {
+      setPlayPages(drag.from, drag.to);
+      ui.viewPage = drag.from;
+    }
+    drag = null;
+  };
+  document.addEventListener('pointerup', up);
+  document.addEventListener('pointercancel', up);
+
+  menu = makePopup();
   const actions: [string, (i: number) => void][] = [
     ['duplicate', duplicatePage], ['copy', copyPage], ['paste', pastePage], ['delete', deletePage],
   ];
-  const box = h('div', 'page-menu-box');
   for (const [name, fn] of actions) {
-    const b = h('button', 'page-menu-btn', name.toUpperCase());
-    b.addEventListener('pointerup', () => {
-      if (ui.pageMenu !== null && !b.disabled) fn(ui.pageMenu);
-      ui.pageMenu = null;
+    const b = popupButton(name.toUpperCase(), () => {
+      const i = ui.pageMenu;
+      menu.close();
+      if (i !== null) fn(i);
     });
     menuButtons[name] = b;
-    box.append(b);
+    menu.box.append(b);
   }
-  menu.append(box);
-  // Тап мимо окна закрывает его.
-  menu.addEventListener('pointerdown', (e) => { if (e.target === menu) ui.pageMenu = null; });
-  document.body.append(menu);
-  return el;
+  return list;
 }
 
 function openMenu(i: number) {
   ui.pageMenu = i;
-  const r = thumbs[i].root.getBoundingClientRect();
-  const box = menu.firstElementChild as HTMLElement;
-  box.style.top = `${r.bottom + 8}px`;
-  box.style.left = `${Math.max(8, Math.min(window.innerWidth - 188, r.left + r.width / 2 - 90))}px`;
+  const t = selTrack();
+  menuButtons.duplicate.disabled = t.pages.length >= MAX_PAGES;
+  menuButtons.paste.disabled = !ui.clipboard;
+  menuButtons.delete.disabled = t.pages.length <= 1;
+  menu.openAt(thumbs[i].root, 180);
 }
 
 export function renderPages() {
   const t = selTrack();
-  const playing = ui.playing ? playPage(ui.selectedTrack) : -1;
+  const pos = ui.playing ? rt.playPos[ui.selectedTrack] : -1;
+  const from = drag && !drag.menu ? Math.min(drag.from, drag.to) : t.playFrom;
+  const to = drag && !drag.menu ? Math.max(drag.from, drag.to) : t.playTo;
   thumbs.forEach((th, i) => {
     const exists = i < t.pages.length;
     setClass(th.root, 'hidden', !exists);
     if (!exists) return;
     setClass(th.root, 'current', i === ui.viewPage);
-    setClass(th.root, 'playing', i === playing);
-    setClass(th.root, 'outside', i * STEPS_PER_PAGE >= t.length);
-    th.dots.forEach((d, k) => {
+    setClass(th.root, 'in-play', i >= from && i <= to);
+    th.cells.forEach((c, k) => {
       const s = t.pages[i][k];
       const index = i * STEPS_PER_PAGE + k;
-      setClass(d, 'on', s.on);
-      setClass(d, 'plock', s.on && Object.keys(s.locks).length > 0);
-      setClass(d, 'pos', ui.playing && rt.playPos[ui.selectedTrack] === index);
+      setClass(c, 'on', s.on);
+      setClass(c, 'plock', s.on && hasLocks(s));
+      setClass(c, 'lock-only', !s.on && hasLocks(s));
+      setClass(c, 'outside', index >= t.length);
+      setClass(c, 'pos', index === pos);
     });
   });
   setClass(plus, 'hidden', t.pages.length >= MAX_PAGES);
-
-  setClass(menu, 'hidden', ui.pageMenu === null);
-  menuButtons.duplicate.disabled = t.pages.length >= MAX_PAGES;
-  menuButtons.paste.disabled = !ui.clipboard;
-  menuButtons.delete.disabled = t.pages.length <= 1;
+  if (!menu.isOpen()) ui.pageMenu = null;
 }

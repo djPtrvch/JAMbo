@@ -2,11 +2,11 @@
 // Тап — триг; нажать и протянуть вправо — длинная нота; удержание шага + ручка — p-lock;
 // удержать первый шаг и дважды тапнуть по другому — последний шаг паттерна.
 
-import { STEPS_PER_PAGE } from '../params';
+import { STEPS_PER_PAGE, noteName } from '../params';
 import {
-  beginGesture, endGesture, selTrack, setNoteLength, setPatternLength, stepAt, toggleStep, ui, rt,
+  beginGesture, endGesture, hasLocks, selTrack, setNoteLength, setPatternLength, stepAt, toggleStep, ui, rt,
 } from '../state';
-import { DOUBLE_TAP_MS, h, setClass } from './dom';
+import { DOUBLE_TAP_MS, h, setClass, setText } from './dom';
 
 /** Дольше этого — уже удержание, триг не переключается. */
 const TAP_MS = 350;
@@ -22,6 +22,7 @@ interface Press {
 }
 
 const cells: HTMLElement[] = [];
+const labels: HTMLElement[] = [];
 const presses = new Map<number, Press>();
 const lastTap: number[] = Array(STEPS_PER_PAGE).fill(-1e9);
 let grid: HTMLElement;
@@ -42,7 +43,11 @@ export function buildSequencer(): HTMLElement {
     const cell = h('div', 'step');
     cell.dataset.col = String(col);
     if (col % 4 === 0) cell.classList.add('beat');
-    cell.append(h('div', 'step-fill'));
+    const fill = h('div', 'step-fill');
+    const label = h('div', 'step-note');
+    fill.append(label);
+    labels.push(label);
+    cell.append(fill);
     cells.push(cell);
     grid.append(cell);
 
@@ -114,9 +119,13 @@ export function renderSequencer() {
   cells.forEach((cell, col) => {
     const index = page * STEPS_PER_PAGE + col;
     const s = stepAt(t, index);
-    setClass(cell, 'on', !!s?.on);
-    setClass(cell, 'plock', !!s?.on && Object.keys(s.locks).length > 0);
-    setClass(cell, 'tail', !s?.on && tail.has(index));
+    const on = !!s?.on;
+    setClass(cell, 'on', on);
+    setClass(cell, 'plock', on && hasLocks(s!));
+    // P-lock без ноты — жёлтая обводка.
+    setClass(cell, 'lock-only', !on && !!s && hasLocks(s));
+    setClass(cell, 'tail', !on && tail.has(index));
+    setText(labels[col], on ? (s!.notes.length > 1 ? 'POLY' : s!.notes.length === 1 ? noteName(s!.notes[0]) : '') : '');
     setClass(cell, 'held', heldIdx.has(index));
     setClass(cell, 'playing', index === playPos);
     setClass(cell, 'outside', index >= t.length);
