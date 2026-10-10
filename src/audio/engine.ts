@@ -13,7 +13,7 @@
 // Измерители уровня стоят на выходе каждой дорожки и в мастере (вход компрессора, вход и выход
 // лимитера): пиковый уровень по каналам и громкость в LUFS (K-взвешивание, окно ~400 мс).
 
-import { PARAM_BY_ID, RATIOS, SAMPLE_ROOT, TRACK_COUNT, filterFreq, fromNorm } from '../params';
+import { PARAM_BY_ID, RATIOS, volGain, SAMPLE_ROOT, TRACK_COUNT, filterFreq, fromNorm } from '../params';
 import { doc, modulatedNorm, setTrackSample, ui } from '../state';
 import { detectRoot } from './pitch';
 
@@ -398,7 +398,7 @@ function updateFx(now: number) {
   set(drv.tone.frequency, 500 * Math.pow(24, fx['od.tone'] / 100));
 
   tracks.forEach((ch, i) => {
-    const vol = Math.pow((doc.mixer[`mix.vol${i + 1}`] ?? 80) / 100, 2);
+    const vol = volGain(doc.mixer[`mix.vol${i + 1}`] ?? 0);
     set(ch.vol.gain, vol);
     ch.sends.forEach((s) => set(s.gain, vol));
   });
@@ -619,20 +619,9 @@ class Meter {
       holdL: this.hold[0], holdR: this.hold[1], max: this.max,
     };
   }
-
-  /** Сброс числа максимального пика и метки клиппинга. */
-  reset() {
-    this.max = 0;
-    this.clipUntil = 0;
-  }
 }
 
 const SILENT: Level = { l: 0, r: 0, lufs: -Infinity, clip: false, holdL: 0, holdR: 0, max: 0 };
-
-/** Сброс пика дорожки (тап по числу над метром в микшере). */
-export function resetTrackPeak(i: number) {
-  tracks[i]?.meter.reset();
-}
 
 /** Снижение громкости дорожки от sidechain, дБ (≤ 0). */
 export function trackDuckDb(i: number): number {

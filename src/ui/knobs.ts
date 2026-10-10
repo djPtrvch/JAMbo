@@ -3,11 +3,9 @@
 
 import { fromNorm, toNorm, type ParamDef } from '../params';
 import {
-  audible, beginGesture, clearLfoAssign, clearLock, doc, endGesture, firstHeldStep, gridFor, gridMode, heldLfo,
+  beginGesture, clearLfoAssign, clearLock, doc, endGesture, firstHeldStep, gridFor, gridMode, heldLfo,
   lockValue, modulatedNorm, paramValue, rt, type Mod, setLfoAmount, setLockNorm, setParamNorm, ui, type GridMode,
 } from '../state';
-import { resetTrackPeak, trackDuckDb, trackIsStereo, trackLevel } from '../audio/engine';
-import { fmtDb, levelFrac } from './meter';
 import { openRename } from './tracks';
 import { DOUBLE_TAP_MS, h, setAttr, setClass, setText, svg } from './dom';
 
@@ -48,30 +46,6 @@ interface KnobView {
   rangeArc: SVGPathElement;
   lockArc: SVGPathElement;
   pointer: SVGLineElement;
-  meter: {
-    root: HTMLElement; peak: HTMLElement; chans: HTMLElement[]; fills: HTMLElement[]; holds: HTMLElement[]; gr: HTMLElement;
-  };
-}
-
-/** Метр дорожки у ручки громкости в MIX: стерео — две полосы, моно — одна, заглушена — серый. */
-function renderKnobMeter(v: KnobView, track: number, now: number) {
-  const m = v.meter;
-  const lv = trackLevel(track, now);
-  const stereo = trackIsStereo(track);
-  const peaks = stereo ? [lv.l, lv.r] : [Math.max(lv.l, lv.r)];
-  const holds = stereo ? [lv.holdL, lv.holdR] : [Math.max(lv.holdL, lv.holdR)];
-  m.chans.forEach((c, i) => setClass(c, 'hidden', i >= peaks.length));
-  peaks.forEach((p, i) => {
-    setAttr(m.fills[i], 'style', `height:${(levelFrac(p) * 100).toFixed(1)}%`);
-    setClass(m.fills[i], 'over', p >= 1);
-    setClass(m.holds[i], 'hidden', holds[i] < 0.001);
-    setAttr(m.holds[i], 'style', `bottom:${(levelFrac(holds[i]) * 100).toFixed(1)}%`);
-  });
-  const g = trackDuckDb(track);
-  setClass(m.gr, 'hidden', g > -0.1);
-  if (g <= -0.1) setAttr(m.gr, 'style', `height:${Math.min(100, (-g / 24) * 100).toFixed(1)}%`);
-  setClass(m.root, 'muted', !audible(track));
-  setText(m.peak, fmtDb(lv.max));
 }
 
 interface Gesture {
@@ -110,39 +84,11 @@ function buildKnob(slot: number): KnobView {
   dial.append(box, value);
   root.append(dial, label);
 
-  // MIX: справа от ручки громкости узкий метр дорожки (после фейдера), над ним пик в dB.
-  const meter = h('div', 'knob-meter hidden');
-  const peak = h('div', 'knob-meter-peak');
-  const bars = h('div', 'knob-meter-bars');
-  const fills: HTMLElement[] = [];
-  const holds: HTMLElement[] = [];
-  const chans: HTMLElement[] = [];
-  for (let ch = 0; ch < 2; ch++) {
-    const bar = h('div', 'knob-meter-bar');
-    const fill = h('div', 'knob-meter-fill');
-    const hold = h('div', 'vbar-hold');
-    bar.append(fill, hold);
-    bars.append(bar);
-    fills.push(fill);
-    holds.push(hold);
-    chans.push(bar);
-  }
-  const gr = h('div', 'vbar-gr hidden');
-  bars.append(gr);
-  meter.append(peak, bars);
-  // Тап по числу пика — сброс (не трогает ручку).
-  peak.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    resetTrackPeak(slot);
-  });
-  root.append(meter);
-
   root.addEventListener('pointerdown', (e) => onDown(slot, e));
   root.addEventListener('pointermove', (e) => onMove(e));
   root.addEventListener('pointerup', (e) => onUp(e));
   root.addEventListener('pointercancel', (e) => onUp(e));
-  return { root, label, value, valueArc, lfoArc, rangeArc, lockArc, pointer, meter: { root: meter, peak, chans, fills, holds, gr } };
+  return { root, label, value, valueArc, lfoArc, rangeArc, lockArc, pointer };
 }
 
 export function buildKnobGrid(): HTMLElement {
@@ -245,18 +191,14 @@ export function renderKnobs(now: number) {
     const p = grid[slot];
     setClass(v.root, 'inactive', !p);
     if (!p) {
-      setClass(v.meter.root, 'hidden', true);
       setText(v.label, '');
       setText(v.value, '');
       for (const a of [v.valueArc, v.lfoArc, v.rangeArc, v.lockArc]) setAttr(a, 'd', '');
       setAttr(v.pointer, 'transform', `rotate(${START} 50 50)`);
       return;
     }
-    // В микшере подписи ручек — имена дорожек, справа от ручки — метр дорожки.
+    // В микшере подписи ручек — имена дорожек.
     setText(v.label, mode === 'mix' ? doc.tracks[slot]?.name ?? p.label : p.label);
-    const mixMeter = mode === 'mix' && slot < doc.tracks.length;
-    setClass(v.meter.root, 'hidden', !mixMeter);
-    if (mixMeter) renderKnobMeter(v, slot, now);
 
     const base = paramValue(mode, p);
     const baseN = toNorm(p, base);

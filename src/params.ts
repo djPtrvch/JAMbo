@@ -140,11 +140,18 @@ export const FX_GRID: Slot[] = grid([
 
 // ---------- Микшер: 16 ручек = громкости дорожек (несуществующие — серые) ----------
 
+/** Громкость дорожки в dB: от тишины (−∞ на минимуме) до 0 dB. */
+export const VOL_MIN_DB = -60;
+const volDb = (v: number) => (v <= VOL_MIN_DB + 0.05 ? '−∞ dB' : `${v.toFixed(1)} dB`);
+/** Громкость дорожки (dB) → усиление. */
+export const volGain = (db: number) => (db <= VOL_MIN_DB + 0.05 ? 0 : Math.pow(10, db / 20));
+export const fmtVol = volDb;
+
 /** Ручек громкости в микшере (до 16 дорожек). */
 export const MIX_SLOTS = 16;
 
 export const MIX_GRID: Slot[] = Array.from({ length: MIX_SLOTS }, (_, i) =>
-  i < TRACK_COUNT ? smooth(`mix.vol${i + 1}`, `T${i + 1}`, 0, 100, 80, pct) : null);
+  i < TRACK_COUNT ? smooth(`mix.vol${i + 1}`, `T${i + 1}`, VOL_MIN_DB, 0, 0, volDb) : null);
 
 // ---------- Мастер: компрессор (колонка 3) и лимитер (колонка 4), Ratio — отдельной кнопкой ----------
 
