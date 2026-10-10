@@ -2,6 +2,7 @@
 // LFO1/LFO2/TRACK/FX/MOD работают на удержание.
 
 import { canUndo, gridMode, setHeld, ui, undo, type HoldButton } from '../state';
+import { unlockAudio } from '../audio';
 import { setPlaying } from '../transport';
 import { h, setClass } from './dom';
 
@@ -38,13 +39,14 @@ function tapButton(label: string, fn: () => void): HTMLElement {
 export function buildLeftButtons(): HTMLElement {
   const el = h('div', 'btn-grid');
   undoBtn = tapButton('UNDO', undo);
-  el.append(holdButton('LFO1', 'lfo1'), holdButton('LFO2', 'lfo2'), holdButton('TRACK', 'track'), undoBtn);
+  el.append(holdButton('LFO1', 'lfo1'), holdButton('LFO2', 'lfo2'), undoBtn, holdButton('TRACK', 'track'));
   return el;
 }
 
 export function buildRightButtons(): HTMLElement {
   const el = h('div', 'btn-grid');
-  playBtn = tapButton('PLAY', () => setPlaying(!ui.playing));
+  playBtn = tapButton('PLAY', () => { unlockAudio(); setPlaying(!ui.playing); });
+  playBtn.addEventListener('pointerup', unlockAudio);
   recBtn = tapButton('REC', () => { ui.rec = !ui.rec; });
   el.append(playBtn, recBtn, holdButton('FX', 'fx'), holdButton('MOD', 'mod'));
   return el;
