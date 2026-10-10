@@ -3,6 +3,10 @@
 
 /** Дорожек сейчас (расширяемо до 16). */
 export const TRACK_COUNT = 8;
+/** Номера последовательностей: 0..TRACK_COUNT-1 — дорожки, затем свои у каналов MIX и MST. */
+export const SEQ_MIX = TRACK_COUNT;
+export const SEQ_MST = TRACK_COUNT + 1;
+export const SEQ_COUNT = TRACK_COUNT + 2;
 
 export type KnobKind = 'smooth' | 'stepped';
 

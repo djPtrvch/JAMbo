@@ -2,8 +2,8 @@
 // ведёт метроном. Probability, Ratchet и Swing (с p-lock и LFO) влияют на звук и мигание.
 
 import { clickAt, triggerTrack } from './audio/engine';
-import { PARAM_BY_ID, STEPS_PER_PAGE, fromNorm } from './params';
-import { triggerEnv, activateSlot, audible, doc, modulatedNorm, playRange, rt, stepAt, stopTrack, ui } from './state';
+import { PARAM_BY_ID, SEQ_MIX, SEQ_MST, STEPS_PER_PAGE, fromNorm } from './params';
+import { triggerEnv, activateSlot, audible, doc, modulatedNorm, playRange, rt, seqAt, stepAt, stopTrack, ui } from './state';
 
 /** Шаги планируются заранее, чтобы звук и щелчок метронома попадали точно в долю. */
 const LOOKAHEAD_MS = 100;
@@ -32,7 +32,7 @@ export function setPlaying(on: boolean) {
 
 /** Шаг дорожки на глобальном тике: проигрываются только выбранные страницы. */
 function posAt(i: number, k: number): number {
-  const [a, b] = playRange(doc.tracks[i]);
+  const [a, b] = playRange(seqAt(i));
   const n = k - rt.trackStart[i];
   const len = b - a + 1;
   return a + (((n % len) + len) % len);
@@ -74,6 +74,13 @@ function playStep(time: number) {
     const accent = tick % 16 === 0;
     flashes.push({ time, track: -1, dur: 90, notes: [], noteDur: accent ? 1 : 0 });
     if (ui.metronome) clickAt(time, accent);
+  }
+  // Свои последовательности MIX и MST: только p-lock микшера и мастера на время шага.
+  for (const k of [SEQ_MIX, SEQ_MST]) {
+    const pos = posAt(k, tick);
+    rt.playPos[k] = pos;
+    const s = stepAt(seqAt(k), pos);
+    if (s && Object.keys(s.locks).length > 0) lockEvents.push({ time, track: k, locks: s.locks, until: time + dur });
   }
   doc.tracks.forEach((t, i) => {
     if (rt.queued[i] !== null && atBoundary(i, tick)) {

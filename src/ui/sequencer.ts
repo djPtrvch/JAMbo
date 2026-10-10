@@ -1,10 +1,10 @@
-// 16-шаговый секвенсор выбранной дорожки.
+// 16-шаговый секвенсор выбранной дорожки (или своей последовательности MIX, MST — только p-lock).
 // Тап — триг; нажать и протянуть вправо — длинная нота; удержание шага + ручка — p-lock;
 // удержать первый шаг и дважды тапнуть по другому — последний шаг паттерна.
 
 import { STEPS_PER_PAGE, noteName } from '../params';
 import {
-  beginGesture, endGesture, hasLocks, selTrack, setNoteLength, setPatternLength, stepAt, toggleStep, ui, rt,
+  beginGesture, curSeq, endGesture, hasLocks, seqIndex, setNoteLength, setPatternLength, stepAt, toggleStep, ui, rt,
 } from '../state';
 import { DOUBLE_TAP_MS, h, setClass, setText } from './dom';
 
@@ -103,9 +103,9 @@ function onUp(e: PointerEvent, cancelled: boolean) {
 }
 
 export function renderSequencer() {
-  const t = selTrack();
+  const t = curSeq();
   const page = ui.viewPage;
-  const playPos = ui.playing ? rt.playPos[ui.selectedTrack] : -1;
+  const playPos = ui.playing ? rt.playPos[seqIndex()] : -1;
   const heldIdx = new Set([...ui.heldSteps.values()].map((s) => s.index));
 
   // Хвосты длинных нот (могут начинаться на предыдущих страницах).

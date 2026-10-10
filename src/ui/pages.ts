@@ -5,7 +5,7 @@
 
 import { MAX_PAGES, STEPS_PER_PAGE } from '../params';
 import {
-  addPage, copyPage, deletePage, duplicatePage, hasLocks, pastePage, rt, selTrack, setPlayPages, ui,
+  addPage, copyPage, deletePage, duplicatePage, hasLocks, pastePage, rt, curSeq, seqIndex, setPlayPages, ui,
 } from '../state';
 import { h, setClass } from './dom';
 import { makePopup, popupButton, type Popup } from './popup';
@@ -63,7 +63,7 @@ export function buildPages(): HTMLElement {
   document.addEventListener('pointermove', (e) => {
     if (!drag || e.pointerId !== drag.id || drag.menu) return;
     const i = thumbAt(e.clientX, e.clientY);
-    if (i >= 0 && i < selTrack().pages.length && i !== drag.to) {
+    if (i >= 0 && i < curSeq().pages.length && i !== drag.to) {
       drag.to = i;
       clearTimeout(drag.timer);
     }
@@ -98,7 +98,7 @@ export function buildPages(): HTMLElement {
 
 function openMenu(i: number) {
   ui.pageMenu = i;
-  const t = selTrack();
+  const t = curSeq();
   menuButtons.duplicate.disabled = t.pages.length >= MAX_PAGES;
   menuButtons.paste.disabled = !ui.clipboard;
   menuButtons.delete.disabled = t.pages.length <= 1;
@@ -106,8 +106,8 @@ function openMenu(i: number) {
 }
 
 export function renderPages() {
-  const t = selTrack();
-  const pos = ui.playing ? rt.playPos[ui.selectedTrack] : -1;
+  const t = curSeq();
+  const pos = ui.playing ? rt.playPos[seqIndex()] : -1;
   const from = drag && !drag.menu ? Math.min(drag.from, drag.to) : t.playFrom;
   const to = drag && !drag.menu ? Math.max(drag.from, drag.to) : t.playTo;
   thumbs.forEach((th, i) => {

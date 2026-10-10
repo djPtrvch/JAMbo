@@ -3,8 +3,9 @@
 
 import { fromNorm, toNorm, type ParamDef } from '../params';
 import {
+  curSeq, liveLocks, seqIndex,
   beginGesture, clearLfoAssign, clearLock, doc, endGesture, firstHeldStep, gridFor, gridMode, heldLfo,
-  lockValue, modulatedNorm, paramValue, rt, type Mod, setLfoAmount, setLockNorm, setParamNorm, ui, type GridMode,
+  lockValue, modulatedNorm, paramValue, type Mod, setLfoAmount, setLockNorm, setParamNorm, ui, type GridMode,
 } from '../state';
 import { openRename } from './tracks';
 import { DOUBLE_TAP_MS, h, setAttr, setClass, setText, svg } from './dom';
@@ -112,7 +113,8 @@ function onDown(slot: number, e: PointerEvent) {
 
   const lfo = heldLfo();
   const held = firstHeldStep();
-  const kind: Gesture['kind'] = mode === 'track' && held !== null ? 'lock' : mode === 'track' && lfo ? 'lfo' : 'base';
+  // Удержание шага — p-lock в любом режиме (дорожка, FX, MOD, MIX, MST).
+  const kind: Gesture['kind'] = held !== null ? 'lock' : mode === 'track' && lfo ? 'lfo' : 'base';
   const g: Gesture = { slot, mode, param, startY: e.clientY, lastY: e.clientY, moved: false, acc: 0, kind, lfo: lfo ?? 1, consumed: false };
 
   // Двойной тап: только при удержании шага (снять p-lock) или LFO (снять назначение).
@@ -183,9 +185,9 @@ export function renderKnobs(now: number) {
   const grid = gridFor(mode);
   const ti = ui.selectedTrack;
   const track = doc.tracks[ti];
-  const held = mode === 'track' ? firstHeldStep() : null;
-  const pl = rt.playLocks[ti];
-  const playLocks = mode === 'track' && ui.playing && now < pl.until ? pl.locks : undefined;
+  const held = firstHeldStep();
+  const seq = curSeq();
+  const playLocks = liveLocks(seqIndex(), now) ?? undefined;
   const lfoHeld = mode === 'track' ? heldLfo() : null;
 
   views.forEach((v, slot) => {
@@ -209,7 +211,7 @@ export function renderKnobs(now: number) {
     // P-lock удерживаемого шага — жёлтым.
     // Удерживаемый шаг, иначе — шаг, который сейчас играет.
     const lock = held !== null
-      ? track.pages[Math.floor(held / 16)]?.[held % 16]?.locks[p.id]
+      ? seq.pages[Math.floor(held / 16)]?.[held % 16]?.locks[p.id]
       : playLocks?.[p.id];
     const locked = lock !== undefined;
     setClass(v.root, 'locked', locked);

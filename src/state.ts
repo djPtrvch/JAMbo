@@ -4,7 +4,7 @@
 
 import {
   FX_GRID, MASTER_GRID, MAX_PAGES, MIX_GRID, MOD_GRID, PATTERN_SLOTS, RATIOS, STEPS_PER_PAGE, TRACK_COUNT, TRACK_GRID, OCTAVE_DEF, OCTAVE_MAX, OCTAVE_MIN,
-  BPM_MAX, BPM_MIN, PRESET_PARAMS, SYNTH_ENGINES, SYNTH_GRID, synthEngine, synthKey, EQ_BANDS, EQ_BELL, EQ_FREQ_MAX, EQ_FREQ_MIN, EQ_GAIN_MAX, EQ_Q_DEF, EQ_Q_MAX, EQ_Q_MIN, EQ_TYPES, NOTE_NAMES, PROGRESSIONS, SCALES, fromNorm, toNorm, type ParamDef, type Slot,
+  BPM_MAX, BPM_MIN, PRESET_PARAMS, SEQ_COUNT, SEQ_MIX, SEQ_MST, SYNTH_ENGINES, SYNTH_GRID, synthEngine, synthKey, EQ_BANDS, EQ_BELL, EQ_FREQ_MAX, EQ_FREQ_MIN, EQ_GAIN_MAX, EQ_Q_DEF, EQ_Q_MAX, EQ_Q_MIN, EQ_TYPES, NOTE_NAMES, PROGRESSIONS, SCALES, fromNorm, toNorm, type ParamDef, type Slot,
 } from './params';
 
 export interface Step {
@@ -106,6 +106,11 @@ export interface Doc {
   limBypass: boolean;
   /** Компрессор мастера выключен (кнопка BYPASS). */
   cmpBypass: boolean;
+  /**
+   * Свои последовательности каналов MIX и MST: шаги без нот, только p-lock параметров
+   * микшера и мастера. Хранятся как дорожки (страницы, длина, играющие страницы).
+   */
+  chanSeqs: Track[];
   /** Эквалайзеры дорожек и мастера. */
   eqs: Eq[];
   masterEq: Eq;
@@ -201,9 +206,9 @@ function newEq(): Eq {
   return { on: true, bands: Array(EQ_BANDS).fill(null) };
 }
 
-function newTrack(i: number): Track {
+function newTrack(i: number, name = `T${i + 1}`): Track {
   return {
-    name: `T${i + 1}`,
+    name,
     sample: '',
     params: { ...defaults(TRACK_GRID), ...defaults(SYNTH_GRID), ...defaults(MOD_GRID) },
     assigns: {},
@@ -233,6 +238,7 @@ export const doc: Doc = {
   ratio: 1,
   limBypass: false,
   cmpBypass: false,
+  chanSeqs: [newTrack(0, 'MIX'), newTrack(0, 'MST')],
   eqs: Array.from({ length: TRACK_COUNT }, () => newEq()),
   masterEq: newEq(),
   files: {},
@@ -267,14 +273,14 @@ export const ui: Ui = {
 };
 
 export const rt: Runtime = {
-  playPos: Array(TRACK_COUNT).fill(-1),
+  playPos: Array(SEQ_COUNT).fill(-1),
   flashUntil: Array(TRACK_COUNT).fill(0),
   lfoPhase: Array.from({ length: TRACK_COUNT }, () => [0, 0, 0]),
   lfoRandom: Array.from({ length: TRACK_COUNT }, () => [0, 0, 0].map(() => Math.random() * 2 - 1)),
   env: Array.from({ length: TRACK_COUNT }, () => ({ start: -1, gateEnd: -1 })),
   noteFlash: Array.from({ length: TRACK_COUNT }, () => ({ notes: [], until: 0 })),
-  playLocks: Array.from({ length: TRACK_COUNT }, () => ({ locks: {}, until: 0 })),
-  trackStart: Array(TRACK_COUNT).fill(0),
+  playLocks: Array.from({ length: SEQ_COUNT }, () => ({ locks: {}, until: 0 })),
+  trackStart: Array(SEQ_COUNT).fill(0),
   queued: Array(TRACK_COUNT).fill(null),
   beatUntil: 0,
   beatAccent: false,
@@ -381,6 +387,46 @@ export function undoTrackEdits() {
 
 export const selTrack = () => doc.tracks[ui.selectedTrack];
 
+// ---------- Последовательности: дорожки и каналы MIX, MST ----------
+
+export const seqAt = (k: number): Track => (k < TRACK_COUNT ? doc.tracks[k] : doc.chanSeqs[k - TRACK_COUNT]);
+/** Последовательность, которую показывает секвенсор: выбранная дорожка, MIX или MST. */
+export const seqIndex = () => (ui.channel === 'track' ? ui.selectedTrack : ui.channel === 'mix' ? SEQ_MIX : SEQ_MST);
+export const curSeq = () => seqAt(seqIndex());
+/** На шагах MIX и MST нет нот — только p-lock. */
+export const seqHasNotes = () => ui.channel === 'track';
+
+/** P-lock шага, который сейчас играет в последовательности k (или null). */
+export function liveLocks(k: number, now = performance.now()): Record<string, number> | null {
+  const pl = rt.playLocks[k];
+  return ui.playing && pl && now < pl.until ? pl.locks : null;
+}
+
+/** Значения с p-lock играющих шагов: base, перекрытый p-lock последовательностей seqs. */
+function withLocks(base: Record<string, number>, seqs: number[], now: number): Record<string, number> {
+  let out: Record<string, number> | null = null;
+  for (const k of seqs) {
+    const l = liveLocks(k, now);
+    if (!l) continue;
+    for (const id in l) {
+      if (!(id in base)) continue;
+      out ??= { ...base };
+      out[id] = l[id];
+    }
+  }
+  return out ?? base;
+}
+
+const ALL_SEQS = Array.from({ length: SEQ_COUNT }, (_, k) => k);
+/** Общие FX с p-lock: шаг любой дорожки (или MIX, MST) с p-lock FX меняет их на время шага. */
+export const liveFx = (now = performance.now()) => withLocks(doc.fx, ALL_SEQS, now);
+/** Громкости микшера с p-lock шагов последовательности MIX. */
+export const liveMixer = (now = performance.now()) => withLocks(doc.mixer, [SEQ_MIX], now);
+/** Компрессор и лимитер мастера с p-lock шагов последовательности MST. */
+export const liveMaster = (now = performance.now()) => withLocks(doc.master, [SEQ_MST], now);
+/** Параметры дорожки с p-lock её играющего шага (LFO, ENV — p-lock в режиме MOD). */
+export const liveParams = (i: number, now = performance.now()) => withLocks(doc.tracks[i].params, [i], now);
+
 // ---------- Параметры ----------
 
 export function paramValue(mode: GridMode, p: ParamDef, track = selTrack()): number {
@@ -413,19 +459,20 @@ export function lfoShape(wave: number, phase: number, rnd: number): number {
 
 /** Выход LFO дорожки −1..+1 с учётом Depth и Invert. */
 export function lfoOut(trackIndex: number, n: 1 | 2 | 3): number {
-  const t = doc.tracks[trackIndex];
+  const p = liveParams(trackIndex);
   const pre = `lfo${n}.`;
-  const shape = lfoShape(t.params[pre + 'wave'], rt.lfoPhase[trackIndex][n - 1], rt.lfoRandom[trackIndex][n - 1]);
-  const depth = t.params[pre + 'depth'] / 100;
-  const polarity = 1 - 2 * t.params[pre + 'invert'];
+  const shape = lfoShape(p[pre + 'wave'], rt.lfoPhase[trackIndex][n - 1], rt.lfoRandom[trackIndex][n - 1]);
+  const depth = p[pre + 'depth'] / 100;
+  const polarity = 1 - 2 * p[pre + 'invert'];
   return shape * depth * polarity;
 }
 
 /** Продвинуть фазы всех LFO (LFO работают всегда, независимо от PLAY). */
 export function advanceLfos(dt: number) {
-  doc.tracks.forEach((t, i) => {
+  doc.tracks.forEach((_, i) => {
+    const p = liveParams(i);
     for (const n of [1, 2, 3] as const) {
-      let ph = rt.lfoPhase[i][n - 1] + dt * t.params[`lfo${n}.speed`];
+      let ph = rt.lfoPhase[i][n - 1] + dt * p[`lfo${n}.speed`];
       if (ph >= 1) {
         ph %= 1;
         rt.lfoRandom[i][n - 1] = Math.random() * 2 - 1;
@@ -458,7 +505,7 @@ export function triggerEnv(trackIndex: number, now: number, gateMs: number) {
 export function envOut(trackIndex: number, now = performance.now()): number {
   const e = rt.env[trackIndex];
   if (e.start < 0) return 0;
-  return envShape(doc.tracks[trackIndex].params, now - e.start, e.gateEnd - e.start);
+  return envShape(liveParams(trackIndex, now), now - e.start, e.gateEnd - e.start);
 }
 
 /** Выход источника модуляции: LFO −1..+1, ENV 0..1. */
@@ -498,8 +545,9 @@ function turnOn(s: Step) {
 }
 
 export function toggleStep(index: number) {
+  if (!seqHasNotes()) return;
   edit(() => {
-    const s = stepAt(selTrack(), index);
+    const s = stepAt(curSeq(), index);
     if (!s) return;
     if (!s.on) { turnOn(s); return; }
     s.on = false;
@@ -511,7 +559,8 @@ export function toggleStep(index: number) {
 
 /** Протягивание: триг на шаге index длиной len шагов. */
 export function setNoteLength(index: number, len: number) {
-  const s = stepAt(selTrack(), index);
+  if (!seqHasNotes()) return;
+  const s = stepAt(curSeq(), index);
   if (!s) return;
   turnOn(s);
   s.len = Math.max(1, len);
@@ -522,19 +571,19 @@ export const hasLocks = (s: Step) => Object.keys(s.locks).length > 0;
 
 export function setPatternLength(lastIndex: number) {
   edit(() => {
-    const t = selTrack();
+    const t = curSeq();
     t.length = Math.min(t.pages.length * STEPS_PER_PAGE, Math.max(1, lastIndex + 1));
   });
 }
 
 export function lockValue(index: number, p: ParamDef): number | undefined {
-  return stepAt(selTrack(), index)?.locks[p.id];
+  return stepAt(curSeq(), index)?.locks[p.id];
 }
 
 export function setLockNorm(p: ParamDef, norm: number) {
   const v = fromNorm(p, norm);
   for (const h of ui.heldSteps.values()) {
-    const s = stepAt(selTrack(), h.index);
+    const s = stepAt(curSeq(), h.index);
     if (!s) continue;
     s.locks[p.id] = v;
     h.used = true;
@@ -544,7 +593,7 @@ export function setLockNorm(p: ParamDef, norm: number) {
 export function clearLock(p: ParamDef) {
   edit(() => {
     for (const h of ui.heldSteps.values()) {
-      const s = stepAt(selTrack(), h.index);
+      const s = stepAt(curSeq(), h.index);
       if (s) delete s.locks[p.id];
       h.used = true;
     }
@@ -560,7 +609,7 @@ export function firstHeldStep(): number | null {
 // ---------- Страницы ----------
 
 function clampView() {
-  const t = selTrack();
+  const t = curSeq();
   if (ui.viewPage >= t.pages.length) ui.viewPage = t.pages.length - 1;
 }
 
@@ -593,7 +642,7 @@ export function playRange(t: Track): [number, number] {
 }
 
 export function setPlayPages(from: number, to: number) {
-  const t = selTrack();
+  const t = curSeq();
   edit(() => {
     t.playFrom = Math.max(0, Math.min(from, to));
     t.playTo = Math.min(t.pages.length - 1, Math.max(from, to));
@@ -603,31 +652,31 @@ export function setPlayPages(from: number, to: number) {
 const clonePage = (p: Step[]): Step[] => JSON.parse(JSON.stringify(p));
 
 export function addPage() {
-  const t = selTrack();
+  const t = curSeq();
   if (t.pages.length >= MAX_PAGES) return;
   edit(() => changePages(t, () => t.pages.push(emptyPage())));
   ui.viewPage = t.pages.length - 1;
 }
 
 export function duplicatePage(i: number) {
-  const t = selTrack();
+  const t = curSeq();
   if (t.pages.length >= MAX_PAGES) return;
   edit(() => changePages(t, () => t.pages.splice(i + 1, 0, clonePage(t.pages[i]))));
   ui.viewPage = i + 1;
 }
 
 export function copyPage(i: number) {
-  ui.clipboard = clonePage(selTrack().pages[i]);
+  ui.clipboard = clonePage(curSeq().pages[i]);
 }
 
 export function pastePage(i: number) {
   const clip = ui.clipboard;
   if (!clip) return;
-  edit(() => { selTrack().pages[i] = clonePage(clip); });
+  edit(() => { curSeq().pages[i] = clonePage(clip); });
 }
 
 export function deletePage(i: number) {
-  const t = selTrack();
+  const t = curSeq();
   if (t.pages.length <= 1) return;
   edit(() => changePages(t, () => t.pages.splice(i, 1)));
   clampView();
@@ -711,7 +760,7 @@ export function trigNotes(): number[] {
 export function heldStepNotes(): number[] | null {
   const idx = firstHeldStep();
   if (idx === null) return null;
-  return stepAt(selTrack(), idx)?.notes ?? [];
+  return stepAt(curSeq(), idx)?.notes ?? [];
 }
 
 /** Все ноты, зажатые сейчас на пианоролле (по возрастанию). */
@@ -729,7 +778,7 @@ export function pressedNotes(): number[] {
 export function inputNotes() {
   const notes = pressedNotes();
   if (notes.length === 0) return;
-  if (ui.heldSteps.size > 0) {
+  if (ui.heldSteps.size > 0 && seqHasNotes()) {
     edit(() => {
       for (const h of ui.heldSteps.values()) {
         const s = stepAt(selTrack(), h.index);
@@ -860,6 +909,8 @@ export function deletePattern(i: number, k: number) {
 
 export function selectChannel(c: Channel) {
   ui.channel = c;
+  ui.heldSteps.clear();
+  clampView();
 }
 
 /** Кнопка BYPASS компрессора мастера. */
