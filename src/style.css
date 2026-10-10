@@ -62,7 +62,10 @@ html, body {
 
 /* ---------- Верхняя панель ---------- */
 
-.topbar { display: flex; align-items: stretch; gap: var(--gap); }
+.topbar { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: var(--gap); }
+.top-left { display: flex; align-items: stretch; gap: var(--gap); min-width: 0; }
+/* Правый блок шириной с правую колонку; PATTERNS на месте бывшей кнопки PLAY. */
+.top-right { width: 220px; justify-self: end; display: flex; }
 
 .burger {
   width: 52px;
@@ -91,8 +94,7 @@ html, body {
 
 .patterns-btn { width: 107px; }
 
-.top-spacer { flex: 1; }
-/* PLAY и REC по высоте как поля панели, по ширине — над правой колонкой. */
+/* PLAY и REC по центру панели, по высоте как поля панели. */
 .transport { width: 220px; display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); }
 
 .metro {

@@ -1,8 +1,8 @@
 // Кнопки: LFO1, LFO2, LFO3, ENV (слева, под окном сэмпла); TRACK, UNDO, FX, MOD (справа внизу);
-// PATTERNS, PLAY, REC (в верхней панели).
+// PLAY, REC (по центру верхней панели), PATTERNS (в верхней панели справа).
 // LFO1/LFO2/LFO3/ENV/TRACK/FX/MOD работают на удержание.
 
-import { canUndo, gridMode, setHeld, ui, undo, type HoldButton } from '../state';
+import { canUndo, doc, gridMode, setHeld, ui, undo, undoTrackEdits, type HoldButton } from '../state';
 import { unlockAudio } from '../audio';
 import { setPlaying } from '../transport';
 import { h, setClass } from './dom';
@@ -43,7 +43,7 @@ export function buildLeftButtons(): HTMLElement {
   return el;
 }
 
-/** PLAY и REC в правом верхнем углу (в верхней панели) — видны и в режиме сетки паттернов. */
+/** PLAY и REC по центру верхней панели — видны и в режиме сетки паттернов. */
 export function buildTransportButtons(): HTMLElement {
   const el = h('div', 'transport');
   playBtn = tapButton('PLAY', () => { unlockAudio(); setPlaying(!ui.playing); });
@@ -55,7 +55,7 @@ export function buildTransportButtons(): HTMLElement {
 
 let patternsBtn: HTMLElement;
 
-/** Кнопка PATTERNS рядом с корневой нотой: переключает центр экрана на сетку паттернов. */
+/** Кнопка PATTERNS в правом верхнем углу (над правой колонкой): переключает центр экрана на сетку паттернов. */
 export function buildPatternsButton(): HTMLElement {
   patternsBtn = tapButton('PATTERNS', () => { ui.patternView = !ui.patternView; });
   patternsBtn.classList.add('patterns-btn');
@@ -64,7 +64,8 @@ export function buildPatternsButton(): HTMLElement {
 
 export function buildRightButtons(): HTMLElement {
   const el = h('div', 'btn-grid');
-  undoBtn = tapButton('UNDO', undo);
+  // С зажатым TRACK — отмена всех изменений, сделанных с TRACK, на всех дорожках.
+  undoBtn = tapButton('UNDO', () => (ui.held.track ? undoTrackEdits() : undo()));
   el.append(holdButton('TRACK', 'track'), undoBtn, holdButton('FX', 'fx'), holdButton('MOD', 'mod'));
   return el;
 }
@@ -78,5 +79,5 @@ export function renderButtons() {
   setClass(playBtn, 'active', ui.playing);
   setClass(patternsBtn, 'active', ui.patternView);
   setClass(recBtn, 'rec', ui.rec);
-  setClass(undoBtn, 'disabled', !canUndo());
+  setClass(undoBtn, 'disabled', ui.held.track ? !doc.tracks.some((t) => t.trackEdit) : !canUndo());
 }

@@ -31,10 +31,13 @@ const center = h('div', 'center');
 center.append(knobGrid, buildPatternGrid());
 main.append(left, center, right);
 
-// Кнопка PATTERNS — рядом с корневой нотой; PLAY и REC — в правом верхнем углу,
-// над правой колонкой (видны и в режиме сетки паттернов).
+// Верхняя панель: слева поля, по центру PLAY и REC, справа (над правой колонкой) PATTERNS.
 const topbar = buildTopbar();
-topbar.append(buildPatternsButton(), h('div', 'top-spacer'), buildTransportButtons());
+const topLeft = h('div', 'top-left');
+topLeft.append(...topbar.children);
+const topRight = h('div', 'top-right');
+topRight.append(buildPatternsButton());
+topbar.append(topLeft, buildTransportButtons(), topRight);
 
 // Число столбцов дорожек: строка дорожек и сетка паттернов совпадают по ширине столбцов.
 app.style.setProperty('--tracks', String(TRACK_COUNT));
