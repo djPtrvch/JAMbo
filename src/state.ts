@@ -86,6 +86,8 @@ export interface Doc {
   ratio: number;
   /** Имена загруженных файлов: ключ сэмпла → имя. */
   files: Record<string, string>;
+  /** Определённая высота сэмплов: ключ → MIDI-нота (нет — C3). */
+  roots: Record<string, number>;
 }
 
 export type GridMode = 'track' | 'fx' | 'mod' | 'mix' | 'master';
@@ -197,6 +199,7 @@ export const doc: Doc = {
   master: defaults(MASTER_GRID),
   ratio: 1,
   files: {},
+  roots: {},
 };
 
 export const ui: Ui = {
@@ -618,12 +621,21 @@ export function deleteTrack(i: number) {
   clampView();
 }
 
+/** Mute и solo на дорожке взаимоисключающие: включение одного выключает другое. */
 export function toggleMute(i: number) {
-  edit(() => { doc.tracks[i].mute = !doc.tracks[i].mute; });
+  edit(() => {
+    const t = doc.tracks[i];
+    t.mute = !t.mute;
+    if (t.mute) t.solo = false;
+  });
 }
 
 export function toggleSolo(i: number) {
-  edit(() => { doc.tracks[i].solo = !doc.tracks[i].solo; });
+  edit(() => {
+    const t = doc.tracks[i];
+    t.solo = !t.solo;
+    if (t.solo) t.mute = false;
+  });
 }
 
 /** Слышна ли дорожка с учётом mute/solo. */
@@ -839,10 +851,11 @@ export function cycleRatio() {
 }
 
 /** Поставить сэмпл на дорожку (активный паттерн). */
-export function setTrackSample(i: number, key: string, fileName?: string) {
+export function setTrackSample(i: number, key: string, fileName?: string, root?: number | null) {
   edit(() => {
     doc.tracks[i].sample = key;
     if (fileName) doc.files[key] = fileName;
+    if (typeof root === 'number') doc.roots[key] = root;
   });
 }
 

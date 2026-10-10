@@ -146,11 +146,13 @@ export const MIX_SLOTS = 16;
 export const MIX_GRID: Slot[] = Array.from({ length: MIX_SLOTS }, (_, i) =>
   i < TRACK_COUNT ? smooth(`mix.vol${i + 1}`, `T${i + 1}`, 0, 100, 80, pct) : null);
 
-// ---------- Мастер: компрессор и лимитер (Ratio — отдельной кнопкой) ----------
+// ---------- Мастер: компрессор (колонка 3) и лимитер (колонка 4), Ratio — отдельной кнопкой ----------
 
 const db = (v: number) => `${v > 0 ? '+' : ''}${v.toFixed(1)}dB`;
 
 export const MASTER_GRID: Slot[] = grid([
+  [],
+  [],
   [
     smooth('cmp.threshold', 'Threshold', -60, 0, -12, db),
     smooth('cmp.attack', 'Attack', 0.1, 100, 10, ms, { exp: true }),
@@ -163,8 +165,6 @@ export const MASTER_GRID: Slot[] = grid([
     smooth('lim.lookahead', 'Lookahead', 0, 10, 3, (v) => `${v.toFixed(1)}ms`),
     smooth('lim.release', 'Lim Release', 10, 1000, 100, ms, { exp: true }),
   ],
-  [],
-  [],
 ]);
 
 /** Нота, на которой сэмпл звучит в исходной высоте (C3). */
