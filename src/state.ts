@@ -3,7 +3,7 @@
 // ui — текущие удержания кнопок/шагов и выбор. rt — данные реального времени (LFO, проигрывание).
 
 import {
-  FX_GRID, MAX_PAGES, MOD_GRID, STEPS_PER_PAGE, TRACK_COUNT, TRACK_GRID, OCTAVE_DEF, OCTAVE_MAX, OCTAVE_MIN,
+  FX_GRID, MAX_PAGES, MOD_GRID, PATTERN_SLOTS, STEPS_PER_PAGE, TRACK_COUNT, TRACK_GRID, OCTAVE_DEF, OCTAVE_MAX, OCTAVE_MIN,
   BPM_MAX, BPM_MIN, NOTE_NAMES, PROGRESSIONS, SCALES, fromNorm, toNorm, type ParamDef, type Slot,
 } from './params';
 
@@ -23,6 +23,20 @@ export interface LfoAssign {
   amount: number;
 }
 
+/** Паттерн ячейки сетки 8×8: звук дорожки (параметры, LFO) и последовательность. */
+export interface Pattern {
+  params: Record<string, number>;
+  assigns: Record<string, LfoAssign>;
+  pages: Step[][];
+  length: number;
+  playFrom: number;
+  playTo: number;
+}
+
+/**
+ * Дорожка. Поля params…playTo — это активный паттерн (его играем и редактируем);
+ * остальные паттерны столбца лежат в slots, при переключении они меняются местами.
+ */
 export interface Track {
   name: string;
   /** Параметры дорожки и её LFO (lfo1.*, lfo2.*). */
@@ -38,6 +52,12 @@ export interface Track {
   solo: boolean;
   /** Параметры меняли с зажатым TRACK (на всю дорожку) — на дорожке жёлтая точка. */
   trackEdit: boolean;
+  /** Ячейки столбца сетки паттернов (null — пустая). */
+  slots: (Pattern | null)[];
+  /** Активная ячейка (её паттерн сейчас в полях дорожки). */
+  slot: number;
+  /** Дорожка остановлена в сетке паттернов (не играет). */
+  stopped: boolean;
 }
 
 export interface Doc {
@@ -82,6 +102,8 @@ export interface Ui {
   selNotes: number[];
   /** Зажатые клавиши пианоролла: палец (pointerId) → его ноты. */
   pressedKeys: Map<number, number[]>;
+  /** Центр экрана: сетка паттернов 8×8 вместо ручек. */
+  patternView: boolean;
   /** Превью формы волны LFO в окне сэмпла. */
   lfoPreviewUntil: number;
   lfoPreview: 1 | 2;
@@ -96,6 +118,10 @@ export interface Runtime {
   lfoRandom: [number, number][];
   /** Ноты, которые сейчас звучат на дорожке (подсветка пианоролла). */
   noteFlash: { notes: number[]; until: number }[];
+  /** Глобальный тик, с которого дорожка играет текущий паттерн. */
+  trackStart: number[];
+  /** Ожидает запуска по окончании текущего паттерна: номер ячейки, 'stop' или null. */
+  queued: (number | 'stop' | null)[];
   /** P-lock проигрываемого шага каждой дорожки (индикация на ручках). */
   playLocks: { locks: Record<string, number>; until: number }[];
   /** Мигание метронома: до какого момента и сильная ли доля. */
@@ -127,6 +153,9 @@ function newTrack(i: number): Track {
     mute: false,
     solo: false,
     trackEdit: false,
+    slots: Array(PATTERN_SLOTS).fill(null),
+    slot: 0,
+    stopped: false,
   };
 }
 
@@ -158,6 +187,7 @@ export const ui: Ui = {
   progression: 0,
   selNotes: [],
   pressedKeys: new Map(),
+  patternView: false,
   lfoPreviewUntil: 0,
   lfoPreview: 1,
 };
@@ -169,6 +199,8 @@ export const rt: Runtime = {
   lfoRandom: Array.from({ length: TRACK_COUNT }, () => [Math.random() * 2 - 1, Math.random() * 2 - 1] as [number, number]),
   noteFlash: Array.from({ length: TRACK_COUNT }, () => ({ notes: [], until: 0 })),
   playLocks: Array.from({ length: TRACK_COUNT }, () => ({ locks: {}, until: 0 })),
+  trackStart: Array(TRACK_COUNT).fill(0),
+  queued: Array(TRACK_COUNT).fill(null),
   beatUntil: 0,
   beatAccent: false,
 };
@@ -606,3 +638,52 @@ export function recordNotes(trackIndex: number, index: number, notes: number[], 
 }
 export function setRoot(v: number) { doc.root = ((Math.round(v) % NOTE_NAMES.length) + NOTE_NAMES.length) % NOTE_NAMES.length; }
 
+
+// ---------- Сетка паттернов 8×8 ----------
+
+const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v));
+
+function takePattern(t: Track): Pattern {
+  return clone({ params: t.params, assigns: t.assigns, pages: t.pages, length: t.length, playFrom: t.playFrom, playTo: t.playTo });
+}
+
+function putPattern(t: Track, p: Pattern) {
+  Object.assign(t, clone(p));
+}
+
+/** Ячейка не пустая. Активная ячейка всегда занята. */
+export const slotFilled = (t: Track, k: number) => k === t.slot || t.slots[k] !== null;
+
+/** Сделать ячейку k активной: текущий паттерн уходит в свою ячейку, паттерн k загружается. */
+export function activateSlot(i: number, k: number) {
+  edit(() => {
+    const t = doc.tracks[i];
+    if (k !== t.slot) {
+      t.slots[t.slot] = takePattern(t);
+      const next = t.slots[k];
+      if (next) putPattern(t, next);
+      t.slots[k] = null;
+      t.slot = k;
+    }
+    t.stopped = false;
+  });
+  if (i === ui.selectedTrack) {
+    ui.heldSteps.clear();
+    clampView();
+  }
+}
+
+export function stopTrack(i: number) {
+  edit(() => { doc.tracks[i].stopped = true; });
+}
+
+/** Новый паттерн в пустой ячейке: копия звука дорожки, пустая последовательность. */
+export function createPattern(i: number, k: number) {
+  edit(() => {
+    const t = doc.tracks[i];
+    t.slots[k] = {
+      params: clone(t.params), assigns: clone(t.assigns), pages: [emptyPage()],
+      length: STEPS_PER_PAGE, playFrom: 0, playTo: 0,
+    };
+  });
+}
