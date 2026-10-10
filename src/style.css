@@ -91,6 +91,10 @@ html, body {
 
 .patterns-btn { width: 107px; }
 
+.top-spacer { flex: 1; }
+/* PLAY и REC по высоте как поля панели, по ширине — над правой колонкой. */
+.transport { width: 220px; display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); }
+
 .metro {
   width: 52px;
   border-radius: var(--radius);
@@ -110,14 +114,12 @@ html, body {
 .main {
   display: grid;
   grid-template-columns: 220px minmax(0, 1fr) 220px;
-  grid-template-rows: 56px minmax(0, 1fr);
-  grid-template-areas: "left center transport" "left center right";
+  grid-template-areas: "left center right";
   gap: var(--gap);
   min-height: 0;
 }
 .main > .left { grid-area: left; }
 .main > .center { grid-area: center; }
-.main > .transport { grid-area: transport; }
 .main > .right { grid-area: right; }
 
 .side { display: flex; flex-direction: column; gap: var(--gap); min-height: 0; }
@@ -171,7 +173,7 @@ html, body {
 .center > * { flex: 1; }
 
 /* Во всю ширину: столбцы совпадают со строкой дорожек (тот же шаблон и промежуток). */
-.main.patterns { grid-template-areas: ". . transport" "center center center"; }
+.main.patterns { grid-template-areas: "center center center"; }
 .main.patterns > .side { display: none; }
 .pattern-grid {
   display: grid;
