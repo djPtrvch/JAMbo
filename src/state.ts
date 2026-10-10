@@ -86,6 +86,8 @@ export interface Doc {
   ratio: number;
   /** Лимитер мастера выключен (кнопка BYPASS). */
   limBypass: boolean;
+  /** Компрессор мастера выключен (кнопка BYPASS). */
+  cmpBypass: boolean;
   /** Имена загруженных файлов: ключ сэмпла → имя. */
   files: Record<string, string>;
   /** Определённая высота сэмплов: ключ → MIDI-нота (нет — C3). */
@@ -199,6 +201,7 @@ export const doc: Doc = {
   master: defaults(MASTER_GRID),
   ratio: 1,
   limBypass: false,
+  cmpBypass: false,
   files: {},
   roots: {},
 };
@@ -819,6 +822,11 @@ export function deletePattern(i: number, k: number) {
 
 export function selectChannel(c: Channel) {
   ui.channel = c;
+}
+
+/** Кнопка BYPASS компрессора мастера. */
+export function toggleCmpBypass() {
+  edit(() => { doc.cmpBypass = !doc.cmpBypass; });
 }
 
 /** Кнопка BYPASS лимитера мастера. */

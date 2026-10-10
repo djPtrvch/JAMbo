@@ -381,7 +381,7 @@ function updateFx(now: number) {
     }
   }
 
-  const fsig = JSON.stringify([fx, doc.mixer, doc.master, doc.ratio, doc.limBypass]);
+  const fsig = JSON.stringify([fx, doc.mixer, doc.master, doc.ratio, doc.limBypass, doc.cmpBypass]);
   if (fsig === fxSig) return;
   fxSig = fsig;
   set(rev.hpf.frequency, fx['rev.hpf']);
@@ -404,11 +404,13 @@ function updateFx(now: number) {
   });
 
   const m = doc.master;
-  set(mst.comp.threshold, m['cmp.threshold']);
+  // BYPASS компрессора: порог 0 dB, Ratio 1:1 и без Makeup — сигнал проходит как есть.
+  const cb = doc.cmpBypass;
+  set(mst.comp.threshold, cb ? 0 : m['cmp.threshold']);
   set(mst.comp.attack, m['cmp.attack'] / 1000);
   set(mst.comp.release, m['cmp.release'] / 1000);
-  set(mst.comp.ratio, RATIOS[doc.ratio]);
-  set(mst.makeup.gain, Math.pow(10, m['cmp.makeup'] / 20));
+  set(mst.comp.ratio, cb ? 1 : RATIOS[doc.ratio]);
+  set(mst.makeup.gain, cb ? 1 : Math.pow(10, m['cmp.makeup'] / 20));
   // BYPASS лимитера: без Input, порог 0 dB и Ratio 1:1 — сигнал проходит как есть,
   // и метры мастера показывают текущий выходной уровень без ограничения.
   const lb = doc.limBypass;
