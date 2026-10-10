@@ -1,6 +1,8 @@
 // Окно сэмпла: имя, определённая высота и форма волны сэмпла выбранной дорожки, Start/End
-// затемняют отрезанное. Тап — выбор аудиофайлов с iPad (можно сразу несколько — это «папка»):
-// первый заменяет сэмпл дорожки, стрелки под окном перелистывают остальные.
+// затемняют отрезанное. Тап — меню звука дорожки: SAMPLE (выбор аудиофайлов с iPad, можно сразу
+// несколько — это «папка»: первый заменяет сэмпл, стрелки под окном перелистывают остальные),
+// один из 16 движков Mutable Instruments Plaits или MIDI OUT. У синта в окне имя движка и что
+// делают Harmonics, Timbre, Morph; стрелки перелистывают движки.
 // MIX — уровень каждой дорожки (как измеритель справа). MST — как в Ableton: у компрессора и
 // лимитера вход с меткой порога, снижение громкости и выход, под ними BYPASS (и RATIO у компрессора).
 // Пока меняются параметры модуляции (MOD) — здесь сразу видны миниатюры LFO1, LFO2, LFO3
@@ -11,9 +13,10 @@ import {
   type Level, loadSampleFiles, masterLevels, masterReduction, sampleListPos, samplePeaks,
   sampleRoot, stepSample, trackLevel,
 } from '../audio/engine';
-import { LFO_WAVES, OVER_PEAK, RATIOS, TRACK_COUNT, fmtVol, noteName } from '../params';
+import { LFO_WAVES, OVER_PEAK, RATIOS, SYNTH_ENGINES, TRACK_COUNT, fmtVol, noteName, synthEngine } from '../params';
 import { fmtDb, levelFrac } from './meter';
-import { audible, cycleRatio, doc, toggleCmpBypass, toggleLimBypass, envOut, envShape, lfoShape, rt, sampleName, selTrack, ui } from '../state';
+import { makePopup, popupButton } from './popup';
+import { audible, cycleRatio, doc, setTrackSynth, toggleCmpBypass, toggleLimBypass, envOut, envShape, lfoShape, rt, sampleName, selTrack, ui } from '../state';
 import { h, setAttr, setClass, setText, svg } from './dom';
 
 const W = 200;
@@ -30,6 +33,10 @@ let wavePath: SVGPathElement;
 let cutStart: SVGRectElement;
 let cutEnd: SVGRectElement;
 let wavePeaksKey = '';
+let waveSvg: SVGSVGElement;
+let synthInfo: HTMLElement;
+let synthFull: HTMLElement;
+const synthRows: HTMLElement[] = [];
 let previews: HTMLElement;
 let masterPanel: HTMLElement;
 let ratioBtn: HTMLElement;
@@ -152,11 +159,23 @@ export function buildSample(): HTMLElement {
   stubName = h('div', 'sample-name');
   waveTitle = h('div', 'sample-title');
   const wave = svg('svg', { viewBox: `0 0 ${WAVE_W} ${WAVE_H}`, preserveAspectRatio: 'none', class: 'sample-wave' });
+  waveSvg = wave;
+  synthInfo = h('div', 'synth-info hidden');
+  synthFull = h('div', 'synth-full');
+  synthInfo.append(synthFull);
+  for (let i = 0; i < 3; i++) {
+    const row = h('div', 'synth-row');
+    synthRows.push(row);
+    synthInfo.append(row);
+  }
   wavePath = svg('path', { class: 'sample-wave-path' });
   cutStart = svg('rect', { x: 0, y: 0, height: WAVE_H, class: 'sample-cut' });
   cutEnd = svg('rect', { y: 0, height: WAVE_H, class: 'sample-cut' });
   wave.append(wavePath, cutStart, cutEnd);
-  // Настоящее поле выбора файла поверх окна: системный выбор файла открывается по тапу.
+  // Тап по окну — меню звука; в нём кнопка SAMPLE с настоящим полем выбора файла поверх
+  // (на iOS системный выбор файла надёжно открывается только прямым тапом по полю).
+  const menu = makePopup('grid cols-4 source-menu');
+  const sampleBtn = h('div', 'popup-btn sample-pick', 'SAMPLE');
   const input = h('input', 'sample-file');
   input.type = 'file';
   input.multiple = true;
@@ -166,8 +185,26 @@ export function buildSample(): HTMLElement {
     const files = Array.from(input.files ?? []);
     if (files.length) void loadSampleFiles(files).catch(() => window.alert('Не удалось открыть файл как аудио'));
     input.value = '';
+    menu.close();
   });
-  stub.append(waveTitle, wave, stubName, input);
+  sampleBtn.append(input);
+  // MIDI OUT: Web MIDI в Safari недоступен — выход MIDI появится в нативном приложении.
+  const midiBtn = popupButton('MIDI OUT · нет в Safari', () => {});
+  midiBtn.disabled = true;
+  midiBtn.classList.add('span-2');
+  sampleBtn.classList.add('span-2');
+  const engineBtns = SYNTH_ENGINES.map((e, k) => popupButton(e.name, () => { setTrackSynth(ui.selectedTrack, k); menu.close(); }));
+  menu.box.append(sampleBtn, midiBtn, ...engineBtns);
+  let downY = 0;
+  stub.addEventListener('pointerdown', (e) => { downY = e.clientY; });
+  stub.addEventListener('pointerup', (e) => {
+    if (Math.abs(e.clientY - downY) > 10) return;
+    const cur = synthEngine(selTrack().sample);
+    engineBtns.forEach((b, k) => b.classList.toggle('current', k === cur));
+    sampleBtn.classList.toggle('current', cur === null && selTrack().sample !== '');
+    menu.openAt(stub, 4 * 104);
+  });
+  stub.append(waveTitle, wave, synthInfo, stubName);
 
   // MST как в Ableton: у компрессора вход (белая линия Threshold), снижение громкости (GR) и выход
   // после Makeup; под ними BYPASS и RATIO с числом. У лимитера вход (после Input), GR и выход с белой
@@ -285,16 +322,28 @@ function renderEnv(m: Mini, now: number) {
 
 function renderWave() {
   const t = selTrack();
+  const engine = synthEngine(t.sample);
+  setClass(waveSvg, 'hidden', engine !== null);
+  setClass(synthInfo, 'hidden', engine === null);
   const root = sampleRoot(t.sample);
   // Стерео-сэмпл отмечен ST и рисуется двумя дорожками (L сверху, R снизу), моно — M.
   const ch = t.sample ? (sampleIsStereo(t.sample) ? 'ST' : 'M') : '';
-  setText(waveTitle, t.sample ? `${sampleName(t.sample)} · ${root !== null ? noteName(root) : '—'} · ${ch}` : sampleName(t.sample));
+  setText(waveTitle, engine !== null ? `MI · ${SYNTH_ENGINES[engine].name}`
+    : t.sample ? `${sampleName(t.sample)} · ${root !== null ? noteName(root) : '—'} · ${ch}` : sampleName(t.sample));
   // Пока звук не включён — подсказка с состоянием (помогает понять, почему тихо).
   const state = audioState();
   setText(stubName, state === 'running'
-    ? `${t.name} · тап — ${t.sample ? 'заменить' : 'загрузить'} файл`
+    ? `${t.name} · тап — выбор звука`
     : `Звук выключен (${state}) — коснитесь экрана`);
   setClass(stubName, 'warn', state !== 'running');
+  if (engine !== null) {
+    // Синт: полное имя движка и что делают ручки Harmonics, Timbre, Morph.
+    const e = SYNTH_ENGINES[engine];
+    setText(synthFull, e.full);
+    const rows: [string, string, string][] = [['HARM', e.harm, 'harm'], ['TIMBRE', e.timbre, 'timbre'], ['MORPH', e.morph, 'morph']];
+    rows.forEach(([label, what, id], i) => setText(synthRows[i], `${label} · ${what} · ${Math.round(t.params[id] ?? 50)}%`));
+    return;
+  }
   const p = samplePeaks(t.sample);
   const key = p ? t.sample : '';
   if (key !== wavePeaksKey) {

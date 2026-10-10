@@ -236,7 +236,7 @@ html, body {
 .sample-wave { width: 100%; flex: 1; min-height: 0; }
 .sample-wave-path { stroke: var(--accent); stroke-width: 1.2; vector-effect: non-scaling-stroke; fill: none; }
 .sample-cut { fill: var(--bg); opacity: 0.7; }
-/* Поле выбора файла прозрачно лежит поверх окна сэмпла. */
+/* Поле выбора файла прозрачно лежит поверх кнопки SAMPLE в меню звука. */
 .sample-file {
   position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%;
   /* iOS не активирует поля ввода внутри user-select: none — возвращаем обычное поведение. */
@@ -580,3 +580,11 @@ html, body {
 .eq-field .field-value { font-size: 16px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 .eq-tool { width: 96px; flex: none; font-size: 12px; }
 .popup-btn.wide { grid-column: 1 / -1; }
+
+/* ---------- Меню звука дорожки и синт в окне сэмпла ---------- */
+
+.popup-btn.span-2 { grid-column: span 2; }
+.sample-pick { position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.synth-info { flex: 1; width: 100%; display: flex; flex-direction: column; justify-content: center; gap: 8px; padding: 0 6px; min-height: 0; }
+.synth-full { font-size: 17px; font-weight: 600; color: var(--accent); }
+.synth-row { font-size: 11px; letter-spacing: 0.04em; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
