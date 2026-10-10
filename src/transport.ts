@@ -3,7 +3,7 @@
 
 import { clickAt } from './audio';
 import { PARAM_BY_ID, STEPS_PER_PAGE, fromNorm } from './params';
-import { activateSlot, audible, doc, modulatedNorm, playRange, rt, stepAt, stopTrack, ui } from './state';
+import { triggerEnv, activateSlot, audible, doc, modulatedNorm, playRange, rt, stepAt, stopTrack, ui } from './state';
 
 const LOOKAHEAD_MS = 60;
 let nextTime = 0;
@@ -125,6 +125,7 @@ export function updateTransport(now: number) {
       continue;
     }
     rt.flashUntil[f.track] = Math.max(rt.flashUntil[f.track], now + f.dur);
+    triggerEnv(f.track, now, f.noteDur);
     rt.noteFlash[f.track] = { notes: f.notes, until: now + f.noteDur };
   }
 }

@@ -4,7 +4,7 @@
 import { fromNorm, toNorm, type ParamDef } from '../params';
 import {
   beginGesture, clearLfoAssign, clearLock, doc, endGesture, firstHeldStep, gridFor, gridMode, heldLfo,
-  lockValue, modulatedNorm, paramValue, rt, setLfoAmount, setLockNorm, setParamNorm, ui, type GridMode,
+  lockValue, modulatedNorm, paramValue, rt, type Mod, setLfoAmount, setLockNorm, setParamNorm, ui, type GridMode,
 } from '../state';
 import { DOUBLE_TAP_MS, h, setAttr, setClass, setText, svg } from './dom';
 
@@ -55,7 +55,7 @@ interface Gesture {
   /** Накопитель положения ручки (0..1, для LFO −1..1). */
   acc: number;
   kind: 'base' | 'lock' | 'lfo';
-  lfo: 1 | 2;
+  lfo: Mod;
   consumed: boolean;
 }
 
@@ -203,19 +203,19 @@ export function renderKnobs(now: number) {
     const assign = mode === 'track' ? track.assigns[p.id] : undefined;
     const modN = mode === 'track' ? modulatedNorm(ti, p, shownBase) : shownN;
     setAttr(v.lfoArc, 'd', assign ? arc(R_LFO, shownN, modN) : '');
-    setAttr(v.lfoArc, 'class', assign ? `k-lfo lfo${assign.lfo}` : 'k-lfo');
+    setAttr(v.lfoArc, 'class', assign ? `k-lfo mod${assign.lfo}` : 'k-lfo');
 
     // Пока держим LFO — видна вся зона воздействия.
     const showRange = lfoHeld && assign && assign.lfo === lfoHeld;
     setAttr(v.rangeArc, 'd', showRange ? arc(R_LFO, Math.max(0, shownN - Math.abs(assign!.amount)), Math.min(1, shownN + Math.abs(assign!.amount))) : '');
-    setAttr(v.rangeArc, 'class', showRange ? `k-range lfo${lfoHeld}` : 'k-range');
+    setAttr(v.rangeArc, 'class', showRange ? `k-range mod${lfoHeld}` : 'k-range');
 
     setAttr(v.pointer, 'transform', `rotate(${(START + SWEEP * modN).toFixed(1)} 50 50)`);
 
     let text = p.format(fromNorm(p, modN));
     if (lfoHeld && assign && assign.lfo === lfoHeld) {
       const a = Math.round(assign.amount * 100);
-      text = `L${lfoHeld} ${a > 0 ? '+' : ''}${a}%`;
+      text = `${lfoHeld === 4 ? 'ENV' : `L${lfoHeld}`} ${a > 0 ? '+' : ''}${a}%`;
     }
     setText(v.value, text);
   });

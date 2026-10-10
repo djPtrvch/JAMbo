@@ -84,11 +84,11 @@ export const TRACK_GRID: Slot[] = grid([
   ],
 ]);
 
-// ---------- MOD: LFO1 и LFO2 (по дорожкам) ----------
+// ---------- MOD: LFO1, LFO2, LFO3 и огибающая ENV (по дорожкам) ----------
 
 export const LFO_WAVES = ['Sine', 'Triangle', 'Saw', 'Square', 'Random'];
 
-function lfoColumn(n: 1 | 2): Slot[] {
+function lfoColumn(n: 1 | 2 | 3): Slot[] {
   return [
     stepped(`lfo${n}.wave`, `LFO${n} Wave`, LFO_WAVES),
     smooth(`lfo${n}.speed`, `LFO${n} Speed`, 0.05, 20, 1, lfoHz, { exp: true }),
@@ -97,7 +97,17 @@ function lfoColumn(n: 1 | 2): Slot[] {
   ];
 }
 
-export const MOD_GRID: Slot[] = grid([lfoColumn(1), lfoColumn(2), [], []]);
+/** Огибающая ENV (источник модуляции, запускается каждым тригом дорожки). */
+function envColumn(): Slot[] {
+  return [
+    smooth('env.attack', 'ENV Attack', 1, 4000, 10, ms, { exp: true }),
+    smooth('env.decay', 'ENV Decay', 1, 4000, 300, ms, { exp: true }),
+    smooth('env.sustain', 'ENV Sustain', 0, 100, 50, pct),
+    smooth('env.release', 'ENV Release', 1, 4000, 300, ms, { exp: true }),
+  ];
+}
+
+export const MOD_GRID: Slot[] = grid([lfoColumn(1), lfoColumn(2), lfoColumn(3), envColumn()]);
 
 // ---------- FX: общие параметры (не по дорожкам) ----------
 

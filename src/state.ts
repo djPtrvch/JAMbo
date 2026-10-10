@@ -17,8 +17,14 @@ export interface Step {
   locks: Record<string, number>;
 }
 
+/** Источник модуляции: 1–3 = LFO1–LFO3, 4 = огибающая ENV. */
+export type Mod = 1 | 2 | 3 | 4;
+export const MOD_SOURCES: Mod[] = [1, 2, 3, 4];
+export const modName = (m: Mod) => (m === 4 ? 'ENV' : `LFO${m}`);
+const MOD_BUTTON: Record<Mod, HoldButton> = { 1: 'lfo1', 2: 'lfo2', 3: 'lfo3', 4: 'env' };
+
 export interface LfoAssign {
-  lfo: 1 | 2;
+  lfo: Mod;
   /** Степень воздействия −1..+1 (в долях хода ручки). */
   amount: number;
 }
@@ -69,7 +75,7 @@ export interface Doc {
 }
 
 export type GridMode = 'track' | 'fx' | 'mod';
-export type HoldButton = 'lfo1' | 'lfo2' | 'track' | 'fx' | 'mod';
+export type HoldButton = 'lfo1' | 'lfo2' | 'lfo3' | 'env' | 'track' | 'fx' | 'mod';
 
 export interface HeldStep {
   index: number;
@@ -84,7 +90,7 @@ export interface Ui {
   /** Порядок нажатия FX/MOD: побеждает нажатая последней. */
   modeOrder: GridMode[];
   /** Последняя нажатая LFO-кнопка (если удерживаются обе). */
-  lastLfo: 1 | 2;
+  lastLfo: Mod;
   heldSteps: Map<number, HeldStep>;
   playing: boolean;
   rec: boolean;
@@ -107,7 +113,6 @@ export interface Ui {
   patternView: boolean;
   /** Превью формы волны LFO в окне сэмпла. */
   lfoPreviewUntil: number;
-  lfoPreview: 1 | 2;
 }
 
 export interface Runtime {
@@ -115,8 +120,10 @@ export interface Runtime {
   playPos: number[];
   /** До какого момента (performance.now) мигает дорожка. */
   flashUntil: number[];
-  lfoPhase: [number, number][];
-  lfoRandom: [number, number][];
+  lfoPhase: number[][];
+  lfoRandom: number[][];
+  /** Огибающая ENV: момент запуска и конец гейта (performance.now), start < 0 — не запускалась. */
+  env: { start: number; gateEnd: number }[];
   /** Ноты, которые сейчас звучат на дорожке (подсветка пианоролла). */
   noteFlash: { notes: number[]; until: number }[];
   /** Глобальный тик, с которого дорожка играет текущий паттерн. */
@@ -171,7 +178,7 @@ export const doc: Doc = {
 export const ui: Ui = {
   selectedTrack: 0,
   viewPage: 0,
-  held: { lfo1: false, lfo2: false, track: false, fx: false, mod: false },
+  held: { lfo1: false, lfo2: false, lfo3: false, env: false, track: false, fx: false, mod: false },
   modeOrder: [],
   lastLfo: 1,
   heldSteps: new Map(),
@@ -191,14 +198,14 @@ export const ui: Ui = {
   pressedKeys: new Map(),
   patternView: false,
   lfoPreviewUntil: 0,
-  lfoPreview: 1,
 };
 
 export const rt: Runtime = {
   playPos: Array(TRACK_COUNT).fill(-1),
   flashUntil: Array(TRACK_COUNT).fill(0),
-  lfoPhase: Array.from({ length: TRACK_COUNT }, () => [0, 0] as [number, number]),
-  lfoRandom: Array.from({ length: TRACK_COUNT }, () => [Math.random() * 2 - 1, Math.random() * 2 - 1] as [number, number]),
+  lfoPhase: Array.from({ length: TRACK_COUNT }, () => [0, 0, 0]),
+  lfoRandom: Array.from({ length: TRACK_COUNT }, () => [0, 0, 0].map(() => Math.random() * 2 - 1)),
+  env: Array.from({ length: TRACK_COUNT }, () => ({ start: -1, gateEnd: -1 })),
   noteFlash: Array.from({ length: TRACK_COUNT }, () => ({ notes: [], until: 0 })),
   playLocks: Array.from({ length: TRACK_COUNT }, () => ({ locks: {}, until: 0 })),
   trackStart: Array(TRACK_COUNT).fill(0),
@@ -262,14 +269,14 @@ export function gridFor(mode: GridMode): Slot[] {
 export function setHeld(btn: HoldButton, down: boolean) {
   ui.held[btn] = down;
   if (down && (btn === 'fx' || btn === 'mod')) ui.modeOrder = [...ui.modeOrder.filter((m) => m !== btn), btn];
-  if (down && btn === 'lfo1') ui.lastLfo = 1;
-  if (down && btn === 'lfo2') ui.lastLfo = 2;
+  const m = MOD_SOURCES.find((s) => MOD_BUTTON[s] === btn);
+  if (down && m) ui.lastLfo = m;
 }
 
 /** Активная LFO-кнопка, если удерживается. */
-export function heldLfo(): 1 | 2 | null {
-  if (ui.held.lfo1 && ui.held.lfo2) return ui.lastLfo;
-  return ui.held.lfo1 ? 1 : ui.held.lfo2 ? 2 : null;
+export function heldLfo(): Mod | null {
+  if (ui.held[MOD_BUTTON[ui.lastLfo]]) return ui.lastLfo;
+  return MOD_SOURCES.find((m) => ui.held[MOD_BUTTON[m]]) ?? null;
 }
 
 /**
@@ -295,10 +302,7 @@ export function setParamNorm(mode: GridMode, p: ParamDef, norm: number) {
   const v = fromNorm(p, norm);
   if (mode === 'fx') doc.fx[p.id] = v;
   else for (const t of targetTracks()) t.params[p.id] = v;
-  if (p.id.startsWith('lfo')) {
-    ui.lfoPreview = p.id.startsWith('lfo1') ? 1 : 2;
-    ui.lfoPreviewUntil = performance.now() + 1500;
-  }
+  if (p.id.startsWith('lfo') || p.id.startsWith('env.')) ui.lfoPreviewUntil = performance.now() + 1500;
 }
 
 // ---------- LFO ----------
@@ -314,7 +318,7 @@ export function lfoShape(wave: number, phase: number, rnd: number): number {
 }
 
 /** Выход LFO дорожки −1..+1 с учётом Depth и Invert. */
-export function lfoOut(trackIndex: number, n: 1 | 2): number {
+export function lfoOut(trackIndex: number, n: 1 | 2 | 3): number {
   const t = doc.tracks[trackIndex];
   const pre = `lfo${n}.`;
   const shape = lfoShape(t.params[pre + 'wave'], rt.lfoPhase[trackIndex][n - 1], rt.lfoRandom[trackIndex][n - 1]);
@@ -326,7 +330,7 @@ export function lfoOut(trackIndex: number, n: 1 | 2): number {
 /** Продвинуть фазы всех LFO (LFO работают всегда, независимо от PLAY). */
 export function advanceLfos(dt: number) {
   doc.tracks.forEach((t, i) => {
-    for (const n of [1, 2] as const) {
+    for (const n of [1, 2, 3] as const) {
       let ph = rt.lfoPhase[i][n - 1] + dt * t.params[`lfo${n}.speed`];
       if (ph >= 1) {
         ph %= 1;
@@ -337,20 +341,51 @@ export function advanceLfos(dt: number) {
   });
 }
 
+// ---------- Огибающая ENV ----------
+
+/** Уровень ADSR (0..1) через t мс после запуска при гейте gate мс; p — параметры дорожки. */
+export function envShape(p: Record<string, number>, t: number, gate: number): number {
+  const a = p['env.attack'];
+  const d = p['env.decay'];
+  const s = p['env.sustain'] / 100;
+  const r = p['env.release'];
+  const ads = (x: number) => (x < a ? x / a : x < a + d ? 1 - (1 - s) * (x - a) / d : s);
+  if (t < 0) return 0;
+  if (t < gate) return ads(t);
+  const rel = t - gate;
+  return rel < r ? ads(gate) * (1 - rel / r) : 0;
+}
+
+/** Запуск огибающей дорожки тригом; gateMs — длительность ноты. */
+export function triggerEnv(trackIndex: number, now: number, gateMs: number) {
+  rt.env[trackIndex] = { start: now, gateEnd: now + gateMs };
+}
+
+export function envOut(trackIndex: number, now = performance.now()): number {
+  const e = rt.env[trackIndex];
+  if (e.start < 0) return 0;
+  return envShape(doc.tracks[trackIndex].params, now - e.start, e.gateEnd - e.start);
+}
+
+/** Выход источника модуляции: LFO −1..+1, ENV 0..1. */
+export function modOut(trackIndex: number, m: Mod): number {
+  return m === 4 ? envOut(trackIndex) : lfoOut(trackIndex, m);
+}
+
 /** Значение ручки дорожки в 0..1 с учётом LFO (base — базовое или p-lock значение). */
 export function modulatedNorm(trackIndex: number, p: ParamDef, base: number): number {
   const a = doc.tracks[trackIndex].assigns[p.id];
   const n = toNorm(p, base);
   if (!a) return n;
-  return Math.min(1, Math.max(0, n + a.amount * lfoOut(trackIndex, a.lfo)));
+  return Math.min(1, Math.max(0, n + a.amount * modOut(trackIndex, a.lfo)));
 }
 
-export function setLfoAmount(p: ParamDef, lfo: 1 | 2, amount: number) {
+export function setLfoAmount(p: ParamDef, lfo: Mod, amount: number) {
   amount = Math.min(1, Math.max(-1, amount));
   for (const t of targetTracks()) t.assigns[p.id] = { lfo, amount };
 }
 
-export function clearLfoAssign(p: ParamDef, lfo: 1 | 2) {
+export function clearLfoAssign(p: ParamDef, lfo: Mod) {
   edit(() => {
     for (const t of targetTracks()) if (t.assigns[p.id]?.lfo === lfo) delete t.assigns[p.id];
   });
