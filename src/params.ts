@@ -142,7 +142,12 @@ export const FX_GRID: Slot[] = grid([
 
 /** Громкость дорожки в dB: от тишины (−∞ на минимуме) до 0 dB. */
 export const VOL_MIN_DB = -60;
+/** Громкость дорожки по умолчанию (поднять можно до 0 dB). */
+export const VOL_DEF_DB = -10;
 const volDb = (v: number) => (v <= VOL_MIN_DB + 0.05 ? '−∞ dB' : `${v.toFixed(1)} dB`);
+/** Порог «0 dB» для всех метров проекта: пик от −0.01 dBFS и выше — красная индикация. */
+export const OVER_PEAK = 0.999;
+
 /** Громкость дорожки (dB) → усиление. */
 export const volGain = (db: number) => (db <= VOL_MIN_DB + 0.05 ? 0 : Math.pow(10, db / 20));
 export const fmtVol = volDb;
@@ -151,7 +156,7 @@ export const fmtVol = volDb;
 export const MIX_SLOTS = 16;
 
 export const MIX_GRID: Slot[] = Array.from({ length: MIX_SLOTS }, (_, i) =>
-  i < TRACK_COUNT ? smooth(`mix.vol${i + 1}`, `T${i + 1}`, VOL_MIN_DB, 0, 0, volDb) : null);
+  i < TRACK_COUNT ? smooth(`mix.vol${i + 1}`, `T${i + 1}`, VOL_MIN_DB, 0, VOL_DEF_DB, volDb) : null);
 
 // ---------- Мастер: компрессор (колонка 3) и лимитер (колонка 4), Ratio — отдельной кнопкой ----------
 

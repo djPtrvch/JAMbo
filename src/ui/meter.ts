@@ -4,6 +4,7 @@
 // выше 0 dB полоса красная. Снизу пик в dB, сверху громкость в LUFS.
 
 import { masterLevels, trackIsStereo, trackLevel, type Level } from '../audio/engine';
+import { OVER_PEAK } from '../params';
 import { ui } from '../state';
 import { h, setAttr, setClass, setText } from './dom';
 
@@ -58,7 +59,7 @@ export function renderMeter(now: number) {
     setClass(b.root, 'hidden', i >= peaks.length);
     if (i >= peaks.length) return;
     setAttr(b.fill, 'style', `height:${(levelFrac(peaks[i]) * 100).toFixed(1)}%`);
-    setClass(b.fill, 'clip', peaks[i] >= 1);
+    setClass(b.fill, 'clip', peaks[i] >= OVER_PEAK);
     setClass(b.hold, 'hidden', holds[i] < 0.001);
     setAttr(b.hold, 'style', `bottom:${(levelFrac(holds[i]) * 100).toFixed(1)}%`);
   });

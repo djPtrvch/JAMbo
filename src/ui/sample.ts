@@ -11,7 +11,7 @@ import {
   type Level, loadSampleFiles, masterLevels, masterReduction, sampleListPos, samplePeaks,
   sampleRoot, stepSample, trackLevel,
 } from '../audio/engine';
-import { LFO_WAVES, RATIOS, TRACK_COUNT, fmtVol, noteName } from '../params';
+import { LFO_WAVES, OVER_PEAK, RATIOS, TRACK_COUNT, fmtVol, noteName } from '../params';
 import { fmtDb, levelFrac } from './meter';
 import { audible, cycleRatio, doc, envOut, envShape, lfoShape, rt, sampleName, selTrack, ui } from '../state';
 import { h, setAttr, setClass, setText, svg } from './dom';
@@ -100,11 +100,12 @@ function setLevelBar(b: VBar, lv: Level, stereo: boolean, text: string, mark: nu
   const fr = stereo ? [levelFrac(lv.l), levelFrac(lv.r)] : [levelFrac(Math.max(lv.l, lv.r))];
   const hd = stereo ? [levelFrac(lv.holdL), levelFrac(lv.holdR)] : [levelFrac(Math.max(lv.holdL, lv.holdR))];
   b.chans.forEach((c, i) => setClass(c, 'hidden', i >= fr.length));
+  // Выше 0 dB (пик ≥ 1.0) полоса канала горит красным — так во всех метрах проекта.
+  const pk = stereo ? [lv.l, lv.r] : [Math.max(lv.l, lv.r)];
   b.fills.forEach((f, i) => {
     if (i >= fr.length) return;
-    const v = clamp01(fr[i]);
-    setAttr(f, 'style', `height:${(v * 100).toFixed(1)}%`);
-    setClass(f, 'over', Math.max(lv.l, lv.r) >= 1);
+    setAttr(f, 'style', `height:${(clamp01(fr[i]) * 100).toFixed(1)}%`);
+    setClass(f, 'over', pk[i] >= OVER_PEAK);
   });
   b.holds.forEach((hl, i) => {
     if (i >= hd.length) return;

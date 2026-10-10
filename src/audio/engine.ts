@@ -13,7 +13,7 @@
 // Измерители уровня стоят на выходе каждой дорожки и в мастере (вход компрессора, вход и выход
 // лимитера): пиковый уровень по каналам и громкость в LUFS (K-взвешивание, окно ~400 мс).
 
-import { PARAM_BY_ID, RATIOS, volGain, SAMPLE_ROOT, TRACK_COUNT, filterFreq, fromNorm } from '../params';
+import { OVER_PEAK, PARAM_BY_ID, RATIOS, VOL_DEF_DB, volGain, SAMPLE_ROOT, TRACK_COUNT, filterFreq, fromNorm } from '../params';
 import { doc, modulatedNorm, setTrackSample, ui } from '../state';
 import { detectRoot } from './pitch';
 
@@ -398,7 +398,7 @@ function updateFx(now: number) {
   set(drv.tone.frequency, 500 * Math.pow(24, fx['od.tone'] / 100));
 
   tracks.forEach((ch, i) => {
-    const vol = volGain(doc.mixer[`mix.vol${i + 1}`] ?? 0);
+    const vol = volGain(doc.mixer[`mix.vol${i + 1}`] ?? VOL_DEF_DB);
     set(ch.vol.gain, vol);
     ch.sends.forEach((s) => set(s.gain, vol));
   });
@@ -601,7 +601,7 @@ class Meter {
       if (p >= this.hold[i]) { this.hold[i] = p; this.holdAt[i] = now; } else if (now - this.holdAt[i] > 1500) this.hold[i] *= 0.95;
       this.max = Math.max(this.max, p);
     });
-    if (Math.max(...peak) >= 1) this.clipUntil = now + 2000;
+    if (Math.max(...peak) >= OVER_PEAK) this.clipUntil = now + 2000;
     // LUFS считаем не чаще 10 раз в секунду: окно большое.
     if (this.kbuf && now - this.lufsAt > 100) {
       this.lufsAt = now;
