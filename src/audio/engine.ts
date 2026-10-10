@@ -47,7 +47,7 @@ let dly: { hpf: BiquadFilterNode; l: DelayNode; r: DelayNode; fbL: GainNode; fbR
 let drv: { shaper: WaveShaperNode; tone: BiquadFilterNode };
 let mst: {
   comp: DynamicsCompressorNode; makeup: GainNode; limIn: GainNode; lim: DynamicsCompressorNode;
-  compMeter: Meter; limMeter: Meter; outMeter: Meter;
+  compMeter: Meter; compOutMeter: Meter; limMeter: Meter; outMeter: Meter;
 };
 
 const SENDS = ['reverb', 'delay', 'drive'] as const;
@@ -129,7 +129,7 @@ function buildGraph(c: AudioContext) {
   masterIn.connect(comp).connect(makeup).connect(limIn).connect(lim).connect(c.destination);
   mst = {
     comp, makeup, limIn, lim,
-    compMeter: new Meter(c, masterIn, false), limMeter: new Meter(c, limIn, false), outMeter: new Meter(c, lim, true),
+    compMeter: new Meter(c, masterIn, false), compOutMeter: new Meter(c, makeup, false), limMeter: new Meter(c, limIn, false), outMeter: new Meter(c, lim, true),
   };
 
   // Reverb: HPF → предзадержка → свёртка.
@@ -221,8 +221,6 @@ function applyFilter(f: BiquadFilterNode, v: number, reso: number, at: number, s
 const levelGain = (v: number) => Math.pow(v / 127, 1.5);
 /** Скорость воспроизведения: нота относительно определённой высоты сэмпла (root) + Pitch. */
 const rateFor = (note: number, root: number, pitch: number) => Math.pow(2, (note - root + pitch) / 12);
-/** Высота сэмпла: определённая при загрузке, иначе C3. */
-const rootOf = (key: string) => doc.roots[key] ?? SAMPLE_ROOT;
 
 /** Запустить ноты дорожки в момент time (performance.now). */
 export function triggerTrack(track: number, time: number, notes: number[], locks: Record<string, number>) {
@@ -239,7 +237,8 @@ export function triggerTrack(track: number, time: number, notes: number[], locks
   if (endSec - startSec < 0.003) return;
   const attack = v('attack') / 1000;
   const decay = v('decay') / 1000;
-  const root = rootOf(t.sample);
+  // Высота сэмпла определяется только для индикации: воспроизведение всегда от C3.
+  const root = SAMPLE_ROOT;
 
   for (const note of notes) {
     const rate = rateFor(note, root, v('pitch'));
@@ -446,14 +445,13 @@ export function clickAt(time: number, accent: boolean) {
 
 // ---------- Сэмплы и файлы ----------
 
-// Файлы, выбранные в окне выбора (их можно выбрать сразу несколько — это «папка»):
-// стрелки под окном сэмпла перелистывают их по кругу.
-let fileList: File[] = [];
-let fileIndex = 0;
+// Файлы, выбранные в окне выбора (можно сразу несколько — это «папка»), привязаны к дорожке,
+// на которую их загрузили: стрелки под окном сэмпла перелистывают их по кругу.
+const fileLists = new Map<number, { files: File[]; index: number }>();
 const fileKeys = new Map<File, string>();
 
-/** Загрузить файл (один раз) и поставить его на выбранную дорожку; высота определяется сама. */
-async function loadFile(file: File): Promise<void> {
+/** Загрузить файл (один раз) и поставить его на дорожку; высота определяется для индикации. */
+async function loadFile(track: number, file: File): Promise<void> {
   const c = ensureCtx();
   let key = fileKeys.get(file);
   if (!key) {
@@ -461,29 +459,34 @@ async function loadFile(file: File): Promise<void> {
     key = `file:${++fileCount}`;
     buffers.set(key, buf);
     fileKeys.set(file, key);
-    setTrackSample(ui.selectedTrack, key, file.name, detectRoot(buf));
+    setTrackSample(track, key, file.name, detectRoot(buf));
   } else {
-    setTrackSample(ui.selectedTrack, key, file.name);
+    setTrackSample(track, key, file.name);
   }
 }
 
-/** Выбор файлов: первый ставится на дорожку, остальные доступны стрелками. */
+/** Выбор файлов: они становятся списком выбранной дорожки, первый ставится на неё. */
 export async function loadSampleFiles(files: File[]): Promise<void> {
   if (files.length === 0) return;
-  fileList = files;
-  fileIndex = 0;
-  await loadFile(files[0]);
+  const track = ui.selectedTrack;
+  fileLists.set(track, { files, index: 0 });
+  await loadFile(track, files[0]);
 }
 
-/** Стрелки под окном сэмпла: соседний файл из выбранных. */
+/** Стрелки под окном сэмпла: соседний файл из списка выбранной дорожки. */
 export async function stepSample(dir: 1 | -1): Promise<void> {
-  if (fileList.length === 0) return;
-  fileIndex = (fileIndex + dir + fileList.length) % fileList.length;
-  await loadFile(fileList[fileIndex]);
+  const track = ui.selectedTrack;
+  const list = fileLists.get(track);
+  if (!list || list.files.length === 0) return;
+  list.index = (list.index + dir + list.files.length) % list.files.length;
+  await loadFile(track, list.files[list.index]);
 }
 
-/** Позиция в выбранных файлах: [номер, всего]. */
-export const sampleListPos = (): [number, number] => [fileList.length ? fileIndex + 1 : 0, fileList.length];
+/** Позиция в списке файлов выбранной дорожки: [номер, всего]. */
+export function sampleListPos(): [number, number] {
+  const list = fileLists.get(ui.selectedTrack);
+  return list ? [list.index + 1, list.files.length] : [0, 0];
+}
 
 /** Огибающая сэмпла для окна сэмпла: n пиков 0..1. */
 export function samplePeaks(key: string, n = 160): Float32Array | null {
@@ -589,10 +592,13 @@ const SILENT: Level = { l: 0, r: 0, lufs: -Infinity, clip: false };
 /** Уровень дорожки (после громкости микшера). */
 export const trackLevel = (i: number, now: number): Level => (tracks[i] ? tracks[i].meter.read(now) : SILENT);
 
-/** Мастер: вход компрессора, вход лимитера, выход. */
-export function masterLevels(now: number): { comp: Level; lim: Level; out: Level } {
-  if (!mst) return { comp: SILENT, lim: SILENT, out: SILENT };
-  return { comp: mst.compMeter.read(now), lim: mst.limMeter.read(now), out: mst.outMeter.read(now) };
+/** Мастер: вход и выход компрессора (после Makeup), вход лимитера, выход. */
+export function masterLevels(now: number): { comp: Level; compOut: Level; lim: Level; out: Level } {
+  if (!mst) return { comp: SILENT, compOut: SILENT, lim: SILENT, out: SILENT };
+  return {
+    comp: mst.compMeter.read(now), compOut: mst.compOutMeter.read(now),
+    lim: mst.limMeter.read(now), out: mst.outMeter.read(now),
+  };
 }
 
 /** Снижение усиления лимитера (дБ, ≤ 0). */
