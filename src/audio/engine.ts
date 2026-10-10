@@ -381,7 +381,7 @@ function updateFx(now: number) {
     }
   }
 
-  const fsig = JSON.stringify([fx, doc.mixer, doc.master, doc.ratio]);
+  const fsig = JSON.stringify([fx, doc.mixer, doc.master, doc.ratio, doc.bypass]);
   if (fsig === fxSig) return;
   fxSig = fsig;
   set(rev.hpf.frequency, fx['rev.hpf']);
@@ -404,13 +404,17 @@ function updateFx(now: number) {
   });
 
   const m = doc.master;
-  set(mst.comp.threshold, m['cmp.threshold']);
+  // Bypass: компрессор с Ratio 1:1 и без Makeup, лимитер с порогом 0 dB и без Input — сигнал проходит как есть.
+  const cb = doc.bypass.cmp;
+  const lb = doc.bypass.lim;
+  set(mst.comp.threshold, cb ? 0 : m['cmp.threshold']);
   set(mst.comp.attack, m['cmp.attack'] / 1000);
   set(mst.comp.release, m['cmp.release'] / 1000);
-  set(mst.comp.ratio, RATIOS[doc.ratio]);
-  set(mst.makeup.gain, Math.pow(10, m['cmp.makeup'] / 20));
-  set(mst.limIn.gain, Math.pow(10, m['lim.input'] / 20));
-  set(mst.lim.threshold, m['lim.ceiling']);
+  set(mst.comp.ratio, cb ? 1 : RATIOS[doc.ratio]);
+  set(mst.makeup.gain, cb ? 1 : Math.pow(10, m['cmp.makeup'] / 20));
+  set(mst.limIn.gain, lb ? 1 : Math.pow(10, m['lim.input'] / 20));
+  set(mst.lim.ratio, lb ? 1 : 20);
+  set(mst.lim.threshold, lb ? 0 : m['lim.ceiling']);
   // Lookahead в Web Audio недоступен — приближаем быстрой атакой лимитера.
   set(mst.lim.attack, Math.max(0.001, m['lim.lookahead'] / 1000));
   set(mst.lim.release, m['lim.release'] / 1000);
@@ -562,7 +566,18 @@ class Meter {
     }
   }
 
+  private last: Level | null = null;
+  private lastAt = -1;
+
+  /** Чтение раз в кадр: повторный вызов с тем же now возвращает то же значение. */
   read(now: number): Level {
+    if (now === this.lastAt && this.last) return this.last;
+    this.lastAt = now;
+    this.last = this.measure(now);
+    return this.last;
+  }
+
+  private measure(now: number): Level {
     const peak = this.an.map((a) => {
       a.getFloatTimeDomainData(this.buf);
       let m = 0;
