@@ -1,12 +1,12 @@
 import './style.css';
 import { TRACK_COUNT } from './params';
 import { advanceLfos, ui } from './state';
-import { unlockAudio, updateAudio } from './audio/engine';
+import { synthLoad, unlockAudio, updateAudio } from './audio/engine';
 import { updateTransport } from './transport';
 import { buildEqButton, buildLeftButtons, buildPatternsButton, buildRightButtons, buildTransportButtons, renderButtons } from './ui/buttons';
 import { renderFields } from './ui/controls';
 import { buildEq, renderEq } from './ui/eq';
-import { h, setClass } from './ui/dom';
+import { h, setClass, setText } from './ui/dom';
 import { buildKnobGrid, renderKnobs } from './ui/knobs';
 import { buildPages, renderPages } from './ui/pages';
 import { buildPatternGrid, renderPatternGrid } from './ui/patterns';
@@ -41,7 +41,9 @@ const topbar = buildTopbar();
 const topLeft = h('div', 'top-left');
 topLeft.append(...topbar.children);
 const topRight = h('div', 'top-right');
-topRight.append(buildPatternsButton(), buildEqButton());
+// Справа от EQ, над измерителем уровня — загрузка процессора.
+const cpu = h('div', 'cpu', 'CPU\n–');
+topRight.append(buildPatternsButton(), buildEqButton(), cpu);
 topbar.append(topLeft, buildTransportButtons(), topRight);
 
 // Число столбцов дорожек: строка дорожек и сетка паттернов совпадают по ширине столбцов.
@@ -65,8 +67,24 @@ document.addEventListener('gesturestart', (e) => e.preventDefault());
 document.addEventListener('touchend', unlockAudio);
 document.addEventListener('pointerup', unlockAudio);
 
+// Загрузка процессора: доля времени, которую занимает работа интерфейса и транспорта в кадре
+// (основной поток), плюс расчёт синтов в AudioWorklet. Встроенные узлы Web Audio браузер
+// не отчитывает — их здесь нет. Обновляется дважды в секунду.
+let busy = 0;
+let cpuFrom = performance.now();
+
+function renderCpu(now: number) {
+  if (now - cpuFrom < 500) return;
+  const pct = Math.round((busy / (now - cpuFrom) + synthLoad()) * 100);
+  busy = 0;
+  cpuFrom = now;
+  setText(cpu, `CPU\n${pct}%`);
+  setClass(cpu, 'high', pct >= 70);
+}
+
 let last = performance.now();
 function frame(now: number) {
+  const t0 = performance.now();
   advanceLfos(Math.min(0.1, (now - last) / 1000));
   last = now;
   updateTransport(now);
@@ -87,6 +105,8 @@ function frame(now: number) {
   renderPages();
   renderButtons();
   if (!ui.patternView) renderMeter(now);
+  busy += performance.now() - t0;
+  renderCpu(now);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
