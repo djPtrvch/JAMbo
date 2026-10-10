@@ -77,7 +77,8 @@ html, body {
 .topbar > .top-left { flex: 1; }
 .top-left { display: flex; align-items: stretch; gap: var(--gap); min-width: 0; }
 /* Правый блок шириной с правую колонку; PATTERNS на месте бывшей кнопки PLAY. */
-.top-right { width: calc(220px + var(--gap) + var(--meter-w)); flex: none; display: flex; }
+.top-right { width: calc(220px + var(--gap) + var(--meter-w)); flex: none; display: flex; gap: var(--gap); }
+.top-right .eq-btn { flex: 1; }
 
 .top-left-group { width: 220px; flex: none; display: flex; gap: var(--gap); }
 .top-left-group .bpm-field { flex: 1; min-width: 0; padding: 4px 10px; }
@@ -553,3 +554,23 @@ html, body {
 }
 .chip.playing { background: var(--accent); color: var(--bg); }
 .chip.pressed { background: var(--text); color: var(--bg); }
+
+/* ---------- Эквалайзер (кнопка EQ) ---------- */
+
+.eq-panel { display: flex; flex-direction: column; gap: var(--gap); min-height: 0; min-width: 0; }
+.eq-plot { position: relative; flex: 1; min-height: 0; border-radius: var(--radius); background: var(--panel); overflow: hidden; }
+.eq-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.eq-anchor { position: absolute; width: 1px; height: 1px; pointer-events: none; }
+/* Подсказка над пальцем: палец закрывает остальные значения. */
+.eq-tip {
+  position: absolute; transform: translateX(-50%); pointer-events: none;
+  padding: 5px 9px; border-radius: 8px; background: rgba(36, 39, 44, 0.95); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  font-size: 13px; line-height: 1.3; white-space: pre; text-align: center; font-variant-numeric: tabular-nums;
+}
+.eq-bar { height: 48px; flex: none; display: flex; gap: var(--gap); }
+.eq-name { width: 90px; flex: none; display: flex; align-items: center; justify-content: center; text-align: center; white-space: pre; font-size: 11px; letter-spacing: 0.08em; color: var(--dim); }
+.field.eq-field { flex: 1; min-width: 0; flex-direction: column; justify-content: center; align-items: flex-start; gap: 0; padding: 2px 12px; }
+.eq-field .field-label { font-size: 9px; }
+.eq-field .field-value { font-size: 16px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.eq-tool { width: 96px; flex: none; font-size: 12px; }
+.popup-btn.wide { grid-column: 1 / -1; }

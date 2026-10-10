@@ -1,8 +1,8 @@
 // Кнопки: LFO1, LFO2, LFO3, ENV (слева, под окном сэмпла); TRACK, UNDO, FX, MOD (справа внизу);
-// PLAY, REC и PATTERNS (в верхней панели справа).
+// PLAY, REC, PATTERNS и EQ (в верхней панели справа).
 // LFO1/LFO2/LFO3/ENV/TRACK/FX/MOD работают на удержание.
 
-import { canUndo, doc, gridMode, setHeld, ui, undo, undoTrackEdits, type HoldButton } from '../state';
+import { canUndo, doc, gridMode, setHeld, toggleView, ui, undo, undoTrackEdits, type HoldButton } from '../state';
 import { setPlaying } from '../transport';
 import { h, setClass } from './dom';
 
@@ -57,9 +57,18 @@ let patternsBtn: HTMLElement;
 
 /** Кнопка PATTERNS в правом верхнем углу (над правой колонкой): переключает центр экрана на сетку паттернов. */
 export function buildPatternsButton(): HTMLElement {
-  patternsBtn = tapButton('PATTERNS', () => { ui.patternView = !ui.patternView; });
+  patternsBtn = tapButton('PATTERNS', () => toggleView('patterns'));
   patternsBtn.classList.add('patterns-btn');
   return patternsBtn;
+}
+
+let eqBtn: HTMLElement;
+
+/** Кнопка EQ справа от PATTERNS: эквалайзер выбранной дорожки или мастера на месте центра экрана. */
+export function buildEqButton(): HTMLElement {
+  eqBtn = tapButton('EQ', () => toggleView('eq'));
+  eqBtn.classList.add('eq-btn');
+  return eqBtn;
 }
 
 export function buildRightButtons(): HTMLElement {
@@ -78,6 +87,7 @@ export function renderButtons() {
   }
   setClass(playBtn, 'active', ui.playing);
   setClass(patternsBtn, 'active', ui.patternView);
+  setClass(eqBtn, 'active', ui.eqView);
   setClass(recBtn, 'rec', ui.rec);
   setClass(undoBtn, 'disabled', ui.held.track ? !doc.tracks.some((t) => t.trackEdit) : !canUndo());
 }

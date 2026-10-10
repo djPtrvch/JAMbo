@@ -3,8 +3,9 @@ import { TRACK_COUNT } from './params';
 import { advanceLfos, ui } from './state';
 import { unlockAudio, updateAudio } from './audio/engine';
 import { updateTransport } from './transport';
-import { buildLeftButtons, buildPatternsButton, buildRightButtons, buildTransportButtons, renderButtons } from './ui/buttons';
+import { buildEqButton, buildLeftButtons, buildPatternsButton, buildRightButtons, buildTransportButtons, renderButtons } from './ui/buttons';
 import { renderFields } from './ui/controls';
+import { buildEq, renderEq } from './ui/eq';
 import { h, setClass } from './ui/dom';
 import { buildKnobGrid, renderKnobs } from './ui/knobs';
 import { buildPages, renderPages } from './ui/pages';
@@ -27,20 +28,20 @@ const right = h('div', 'side right');
 right.append(buildPages(), buildRightButtons());
 
 const main = h('div', 'main');
-// Центр: ручки 4×4 или сетка паттернов 8×8 (кнопка PATTERNS).
+// Центр: ручки 4×4, сетка паттернов 8×8 (кнопка PATTERNS) или эквалайзер (кнопка EQ).
 const knobGrid = buildKnobGrid();
 const center = h('div', 'center');
-center.append(knobGrid, buildPatternGrid());
+center.append(knobGrid, buildPatternGrid(), buildEq());
 // Справа с краю — измеритель уровня.
 const meter = buildMeter();
 main.append(left, center, right, meter);
 
-// Верхняя панель: слева поля; справа PLAY и REC, а за ними PATTERNS над правой колонкой.
+// Верхняя панель: слева поля; справа PLAY и REC, а за ними PATTERNS и EQ над правой колонкой.
 const topbar = buildTopbar();
 const topLeft = h('div', 'top-left');
 topLeft.append(...topbar.children);
 const topRight = h('div', 'top-right');
-topRight.append(buildPatternsButton());
+topRight.append(buildPatternsButton(), buildEqButton());
 topbar.append(topLeft, buildTransportButtons(), topRight);
 
 // Число столбцов дорожек: строка дорожек и сетка паттернов совпадают по ширине столбцов.
@@ -73,17 +74,19 @@ function frame(now: number) {
   renderTopbar(now);
   renderFields();
   renderSample(now);
-  setClass(knobGrid, 'hidden', ui.patternView);
-  // Сетка паттернов занимает всю ширину, боковые колонки скрываются.
-  setClass(main, 'patterns', ui.patternView);
+  const wide = ui.patternView || ui.eqView;
+  setClass(knobGrid, 'hidden', wide);
+  // Сетка паттернов и эквалайзер занимают всю ширину, боковые колонки скрываются.
+  setClass(main, 'patterns', wide);
   renderKnobs(now);
   renderPatternGrid();
+  renderEq();
   renderTracks(now);
   renderSequencer();
   renderPiano(now);
   renderPages();
   renderButtons();
-  if (!ui.patternView) renderMeter(now);
+  if (!wide) renderMeter(now);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
