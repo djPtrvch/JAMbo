@@ -167,12 +167,6 @@ export const MASTER_GRID: Slot[] = grid([
   [],
 ]);
 
-/** Встроенный набор сэмплов: по одному на дорожку T1–T8 (генерируются в коде). */
-export const KIT: { id: string; name: string }[] = [
-  { id: 'kick', name: 'Kick' }, { id: 'snare', name: 'Snare' }, { id: 'clap', name: 'Clap' },
-  { id: 'hat', name: 'Closed Hat' }, { id: 'openhat', name: 'Open Hat' }, { id: 'tom', name: 'Tom' },
-  { id: 'perc', name: 'Perc' }, { id: 'bass', name: 'Bass' },
-];
 /** Нота, на которой сэмпл звучит в исходной высоте (C3). */
 export const SAMPLE_ROOT = 48;
 

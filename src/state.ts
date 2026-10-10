@@ -3,7 +3,7 @@
 // ui — текущие удержания кнопок/шагов и выбор. rt — данные реального времени (LFO, проигрывание).
 
 import {
-  FX_GRID, KIT, MASTER_GRID, MAX_PAGES, MIX_GRID, MOD_GRID, PATTERN_SLOTS, RATIOS, STEPS_PER_PAGE, TRACK_COUNT, TRACK_GRID, OCTAVE_DEF, OCTAVE_MAX, OCTAVE_MIN,
+  FX_GRID, MASTER_GRID, MAX_PAGES, MIX_GRID, MOD_GRID, PATTERN_SLOTS, RATIOS, STEPS_PER_PAGE, TRACK_COUNT, TRACK_GRID, OCTAVE_DEF, OCTAVE_MAX, OCTAVE_MIN,
   BPM_MAX, BPM_MIN, NOTE_NAMES, PROGRESSIONS, SCALES, fromNorm, toNorm, type ParamDef, type Slot,
 } from './params';
 
@@ -31,7 +31,7 @@ export interface LfoAssign {
 
 /** Паттерн ячейки сетки 8×8: звук дорожки (параметры, LFO) и последовательность. */
 export interface Pattern {
-  /** Сэмпл: 'kit:<id>' — встроенный, 'file:<n>' — загруженный с iPad. */
+  /** Сэмпл: 'file:<n>' — загруженный с iPad, '' — нет сэмпла. */
   sample: string;
   params: Record<string, number>;
   assigns: Record<string, LfoAssign>;
@@ -169,7 +169,7 @@ export function emptyPage(): Step[] {
 function newTrack(i: number): Track {
   return {
     name: `T${i + 1}`,
-    sample: `kit:${KIT[i % KIT.length].id}`,
+    sample: '',
     params: { ...defaults(TRACK_GRID), ...defaults(MOD_GRID) },
     assigns: {},
     pages: [emptyPage()],
@@ -848,6 +848,6 @@ export function setTrackSample(i: number, key: string, fileName?: string) {
 
 /** Имя сэмпла для окна сэмпла. */
 export function sampleName(key: string): string {
-  if (key.startsWith('kit:')) return KIT.find((k) => `kit:${k.id}` === key)?.name ?? key;
+  if (!key) return 'Нет сэмпла';
   return doc.files[key] ?? 'файл';
 }

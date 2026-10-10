@@ -13,7 +13,6 @@
 
 import { PARAM_BY_ID, RATIOS, SAMPLE_ROOT, TRACK_COUNT, filterFreq, fromNorm } from '../params';
 import { doc, modulatedNorm, setTrackSample, ui } from '../state';
-import { buildKit } from './kit';
 
 let ctx: AudioContext | null = null;
 const buffers = new Map<string, AudioBuffer>();
@@ -55,15 +54,26 @@ function ensureCtx(): AudioContext {
   const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
   if (session) session.type = 'playback';
   ctx = new AudioContext({ latencyHint: 'interactive' });
-  for (const [k, b] of buildKit(ctx)) buffers.set(k, b);
   buildGraph(ctx);
   return ctx;
 }
 
-/** В iOS Safari звук можно включить только из касания пользователя. */
+let unlocked = false;
+
+/**
+ * В iOS Safari звук можно включить только из касания пользователя: возобновляем контекст
+ * и один раз проигрываем беззвучный буфер (так iOS надёжно открывает вывод звука).
+ */
 export function unlockAudio() {
   const c = ensureCtx();
   if (c.state !== 'running') void c.resume();
+  if (!unlocked) {
+    unlocked = true;
+    const src = c.createBufferSource();
+    src.buffer = c.createBuffer(1, 1, c.sampleRate);
+    src.connect(c.destination);
+    src.start();
+  }
 }
 
 export function initAudio() {
@@ -174,7 +184,8 @@ const rateFor = (note: number, pitch: number) => Math.pow(2, (note - SAMPLE_ROOT
 
 /** Запустить ноты дорожки в момент time (performance.now). */
 export function triggerTrack(track: number, time: number, notes: number[], locks: Record<string, number>) {
-  if (!ctx || ctx.state !== 'running') return;
+  // Контекст может ещё просыпаться после первого касания — ноты всё равно ставим в план.
+  if (!ctx || ctx.state === 'closed') return;
   const t = doc.tracks[track];
   const buf = buffers.get(t.sample);
   if (!buf) return;
