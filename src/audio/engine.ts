@@ -17,7 +17,7 @@
 // лимитера): пиковый уровень по каналам и громкость в LUFS (K-взвешивание, окно ~400 мс).
 
 import { DELAY_DIVS, OVER_PEAK, SYNTH_ENGINES, synthEngine, PARAM_BY_ID, RATIOS, VOL_DEF_DB, volGain, SAMPLE_ROOT, TRACK_COUNT, filterFreq, fromNorm } from '../params';
-import { doc, setStepSound, liveFx, liveMaster, liveMixer, modulatedNorm, presets, setTrackSample, stepPreset, ui } from '../state';
+import { addSamplesQuiet, addSamplesToFolder, doc, setStepSound, liveFx, liveMaster, liveMixer, modulatedNorm, ui } from '../state';
 import { detectRoot } from './pitch';
 import { EqChain } from './eq';
 
@@ -653,65 +653,47 @@ export function clickAt(time: number, accent: boolean) {
 
 // ---------- Сэмплы и файлы ----------
 
-// Файлы, выбранные в окне выбора (можно сразу несколько — это «папка»), привязаны к дорожке,
-// на которую их загрузили: стрелки под окном сэмпла перелистывают их по кругу.
-const fileLists = new Map<number, { files: File[]; index: number }>();
+// Файлы, выбранные в окне выбора (можно сразу несколько), декодируются и ложатся в папку
+// дорожки (state: doc.folders) вместе с её пресетами; стрелки под окном сэмпла их перелистывают.
 const fileKeys = new Map<File, string>();
 
-/** Загрузить файл (один раз) и поставить его на дорожку; высота определяется для индикации. */
-/** Декодировать файл (один раз): ключ сэмпла и определённая высота (только у нового). */
-async function decodeFile(file: File): Promise<{ key: string; root?: number | null }> {
+/** Декодировать файл (один раз): ключ сэмпла; имя и высота запоминаются в doc. */
+async function decodeFile(file: File): Promise<string> {
   const c = ensureCtx();
   const known = fileKeys.get(file);
-  if (known) return { key: known };
+  if (known) return known;
   const buf = await c.decodeAudioData(await file.arrayBuffer());
   const key = `file:${++fileCount}`;
   buffers.set(key, buf);
   fileKeys.set(file, key);
-  return { key, root: detectRoot(buf) };
+  doc.files[key] = file.name;
+  const root = detectRoot(buf);
+  if (typeof root === 'number') doc.roots[key] = root;
+  return key;
 }
 
-async function loadFile(track: number, file: File): Promise<void> {
-  const { key, root } = await decodeFile(file);
-  setTrackSample(track, key, file.name, root);
+/** Нераспознанные файлы пропускаются; если не открылся ни один — ошибка. */
+async function decodeAll(files: File[]): Promise<string[]> {
+  const keys: string[] = [];
+  for (const f of files) {
+    try { keys.push(await decodeFile(f)); } catch { /* не аудио */ }
+  }
+  if (files.length && !keys.length) throw new Error('no audio');
+  return keys;
 }
 
-/** Сэмпл на шаги steps выбранной дорожки (зажат шаг + выбор файла в меню звука). */
-export async function loadStepSample(file: File, steps: number[]): Promise<void> {
-  const { key, root } = await decodeFile(file);
-  setStepSound(ui.selectedTrack, steps, key, file.name, root);
-}
-
-/** Выбор файлов: они становятся списком выбранной дорожки, первый ставится на неё. */
+/** Выбор файлов: все ложатся в папку выбранной дорожки, первый звучит на ней. */
 export async function loadSampleFiles(files: File[]): Promise<void> {
-  if (files.length === 0) return;
   const track = ui.selectedTrack;
-  fileLists.set(track, { files, index: 0 });
-  await loadFile(track, files[0]);
+  addSamplesToFolder(track, await decodeAll(files));
 }
 
-/** Стрелки под окном сэмпла: соседний файл из списка выбранной дорожки. */
-export async function stepSample(dir: 1 | -1): Promise<void> {
+/** Файлы для зажатых шагов: в папку дорожки, первый — звук этих шагов. */
+export async function loadStepSample(files: File[], steps: number[]): Promise<void> {
   const track = ui.selectedTrack;
-  // У синта стрелки перелистывают пресеты из папки пресетов.
-  if (synthEngine(doc.tracks[track].sample) !== null) {
-    stepPreset(track, dir);
-    return;
-  }
-  const list = fileLists.get(track);
-  if (!list || list.files.length === 0) return;
-  list.index = (list.index + dir + list.files.length) % list.files.length;
-  await loadFile(track, list.files[list.index]);
-}
-
-/** Позиция в списке файлов выбранной дорожки: [номер, всего]. */
-export function sampleListPos(): [number, number] {
-  if (synthEngine(doc.tracks[ui.selectedTrack].sample) !== null) {
-    const n = presets().length;
-    return [n ? (ui.presetPos[ui.selectedTrack] ?? -1) + 1 : 0, n];
-  }
-  const list = fileLists.get(ui.selectedTrack);
-  return list ? [list.index + 1, list.files.length] : [0, 0];
+  const keys = await decodeAll(files);
+  addSamplesQuiet(track, keys);
+  setStepSound(track, steps, keys[0]);
 }
 
 /** Огибающая сэмпла для окна сэмпла: n пиков 0..1. */

@@ -98,6 +98,10 @@ export interface Scene {
   repeats: number;
 }
 
+/** Звук в папке дорожки: сэмпл (ключ файла) или пресет синта (копия). */
+export type FolderItem = { sample: string } | { preset: Preset };
+export interface Folder { items: FolderItem[]; index: number }
+
 export interface Doc {
   bpm: number;
   scale: number;
@@ -119,6 +123,8 @@ export interface Doc {
    * микшера и мастера. Хранятся как дорожки (страницы, длина, играющие страницы).
    */
   chanSeqs: Track[];
+  /** Папки дорожек: загруженные сэмплы и пресеты, их перелистывают стрелки под окном сэмпла. */
+  folders: Folder[];
   /** Строки сетки паттернов: имена и повторы. */
   scenes: Scene[];
   /** Эквалайзеры дорожек и мастера. */
@@ -172,8 +178,6 @@ export interface Ui {
   eqView: boolean;
   /** Выбранная полоса EQ (−1 — нет). */
   eqBand: number;
-  /** Последний выбранный стрелками пресет синта на каждой дорожке (−1 — нет). */
-  presetPos: number[];
   /** Включён режим MORPH (временные изменения ручек). */
   morph: boolean;
   /** Превью формы волны LFO в окне сэмпла. */
@@ -256,6 +260,7 @@ export const doc: Doc = {
   cmpBypass: false,
   chanSeqs: [newTrack(0, 'MIX'), newTrack(0, 'MST')],
   scenes: Array.from({ length: PATTERN_SLOTS }, () => ({ name: '', repeats: 0 })),
+  folders: Array.from({ length: TRACK_COUNT }, () => ({ items: [], index: -1 })),
   eqs: Array.from({ length: TRACK_COUNT }, () => newEq()),
   masterEq: newEq(),
   files: {},
@@ -286,7 +291,6 @@ export const ui: Ui = {
   eqView: false,
   morph: false,
   eqBand: -1,
-  presetPos: Array(TRACK_COUNT).fill(-1),
   lfoPreviewUntil: 0,
 };
 
@@ -999,7 +1003,6 @@ export function setTrackSample(i: number, key: string, fileName?: string, root?:
 /** Синт на дорожке: движок Plaits engine (меню окна сэмпла). */
 export function setTrackSynth(i: number, engine: number) {
   setTrackSample(i, synthKey(engine));
-  ui.presetPos[i] = -1;
 }
 
 // ---------- Пресеты синта ----------
@@ -1031,35 +1034,26 @@ export function nextPresetName(i: number): string {
   return `${base} ${presetList.filter((p) => p.name.startsWith(base)).length + 1}`;
 }
 
-/** Сохранить синт дорожки i в папку пресетов. */
+/** Сохранить синт дорожки i в библиотеку пресетов и в папку дорожки. */
 export function savePreset(i: number, name: string) {
   const t = doc.tracks[i];
   if (synthEngine(t.sample) === null) return;
   const params: Record<string, number> = {};
   for (const id of PRESET_PARAMS) params[id] = t.params[id];
-  presetList.push({ name: name.trim() || nextPresetName(i), sound: t.sample, params });
+  const p = { name: name.trim() || nextPresetName(i), sound: t.sample, params };
+  presetList.push(p);
   storePresets();
-  ui.presetPos[i] = presetList.length - 1;
+  edit(() => addItems(i, [{ preset: clone(p) }]));
 }
 
-/** Стрелки под окном сэмпла у синта: соседний пресет из папки. */
-export function stepPreset(i: number, dir: 1 | -1) {
-  const n = presetList.length;
-  if (!n) return;
-  const pos = ui.presetPos[i];
-  loadPreset(i, pos < 0 ? (dir > 0 ? 0 : n - 1) : (pos + dir + n) % n);
-}
-
-/** Загрузить пресет k из папки на дорожку i (кнопка LOAD в меню звука, стрелки). */
+/** Пресет k из библиотеки (LOAD): добавляется в папку дорожки и звучит на ней. */
 export function loadPreset(i: number, k: number) {
   const p = presetList[k];
   if (!p) return;
-  const t = doc.tracks[i];
   edit(() => {
-    t.sample = p.sound;
-    for (const id of PRESET_PARAMS) if (typeof p.params[id] === 'number') t.params[id] = p.params[id];
+    const at = addItems(i, [{ preset: clone(p) }]);
+    applyItem(i, doc.folders[i].items[at]);
   });
-  ui.presetPos[i] = k;
 }
 
 /** Меню удержания пресета: переименовать. */
@@ -1075,23 +1069,113 @@ export function renamePreset(k: number, name: string) {
 export function duplicatePreset(k: number) {
   const p = presetList[k];
   if (!p) return;
-  presetList.splice(k + 1, 0, { ...JSON.parse(JSON.stringify(p)), name: `${p.name} copy`.slice(0, 16) });
-  ui.presetPos = ui.presetPos.map((pos) => (pos > k ? pos + 1 : pos));
+  presetList.splice(k + 1, 0, { ...clone(p), name: `${p.name} copy`.slice(0, 16) });
   storePresets();
 }
 
-/** Меню удержания пресета: удалить из папки. */
+/** Меню удержания пресета: удалить из библиотеки (в папках дорожек копии остаются). */
 export function deletePreset(k: number) {
   if (!presetList[k]) return;
   presetList.splice(k, 1);
-  ui.presetPos = ui.presetPos.map((pos) => (pos === k ? -1 : pos > k ? pos - 1 : pos));
   storePresets();
 }
 
-/** Имя пресета, выбранного на дорожке стрелками ('' — нет). */
-export function presetName(i: number): string {
-  const p = presetList[ui.presetPos[i]];
-  return p && p.sound === doc.tracks[i].sample ? p.name : '';
+// ---------- Папка дорожки: сэмплы и пресеты на стрелках ----------
+
+const itemKey = (it: FolderItem) => ('sample' in it ? it.sample : it.preset.sound);
+export const itemName = (it: FolderItem) => ('sample' in it ? sampleName(it.sample) : it.preset.name);
+
+/** Добавить звуки в папку дорожки (уже лежащий там сэмпл не повторяется); номер первого. */
+function addItems(i: number, items: FolderItem[]): number {
+  const f = doc.folders[i];
+  let first = -1;
+  for (const it of items) {
+    let k = 'sample' in it ? f.items.findIndex((x) => 'sample' in x && x.sample === it.sample) : -1;
+    if (k < 0) { f.items.push(it); k = f.items.length - 1; }
+    if (first < 0) first = k;
+  }
+  if (first >= 0) f.index = first;
+  return first;
+}
+
+/** Поставить звук из папки на дорожку (пресет — движок и его параметры). */
+function applyItem(i: number, it: FolderItem) {
+  const t = doc.tracks[i];
+  if ('sample' in it) { t.sample = it.sample; return; }
+  t.sample = it.preset.sound;
+  for (const id of PRESET_PARAMS) if (typeof it.preset.params[id] === 'number') t.params[id] = it.preset.params[id];
+}
+
+/** Загруженные файлы (уже декодированные, ключи keys) — в папку дорожки, первый звучит. */
+export function addSamplesToFolder(i: number, keys: string[]) {
+  edit(() => {
+    const at = addItems(i, keys.map((sample) => ({ sample })));
+    if (at >= 0) applyItem(i, doc.folders[i].items[at]);
+  });
+}
+
+/** Добавить сэмплы в папку, не меняя звук дорожки (выбор файла для зажатого шага). */
+export function addSamplesQuiet(i: number, keys: string[]) {
+  const f = doc.folders[i];
+  const index = f.index;
+  edit(() => { addItems(i, keys.map((sample) => ({ sample }))); f.index = index < 0 ? f.index : index; });
+}
+
+/** Стрелки: соседний звук папки на дорожку. */
+export function stepFolder(i: number, dir: 1 | -1) {
+  const f = doc.folders[i];
+  const n = f.items.length;
+  if (!n) return;
+  edit(() => {
+    f.index = f.index < 0 ? (dir > 0 ? 0 : n - 1) : (f.index + dir + n) % n;
+    applyItem(i, f.items[f.index]);
+  });
+}
+
+/** Номер звука шага в папке (по его звуку) или −1. */
+function stepItemIndex(i: number, s: Step): number {
+  if (!s.sound) return -1;
+  return doc.folders[i].items.findIndex((it) => itemKey(it) === s.sound);
+}
+
+/**
+ * Зажат шаг + стрелка: шагу — соседний звук папки (p-lock звука; у пресета ещё и p-lock его
+ * параметров). Начинаем от звука шага, а если его нет — от звука дорожки.
+ */
+export function stepFolderOnSteps(i: number, indices: number[], dir: 1 | -1) {
+  const f = doc.folders[i];
+  const n = f.items.length;
+  if (!n) return;
+  edit(() => {
+    for (const idx of indices) {
+      const s = stepAt(doc.tracks[i], idx);
+      if (!s) continue;
+      const cur = stepItemIndex(i, s);
+      const base = cur >= 0 ? cur : f.index;
+      const k = base < 0 ? (dir > 0 ? 0 : n - 1) : (base + dir + n) % n;
+      const it = f.items[k];
+      s.sound = itemKey(it);
+      if ('preset' in it) for (const id of PRESET_PARAMS) if (typeof it.preset.params[id] === 'number') s.locks[id] = it.preset.params[id];
+    }
+  });
+}
+
+/** Позиция для подписи между стрелками: [номер, всего]; с зажатым шагом — звук шага. */
+export function folderPos(i: number): [number, number] {
+  const f = doc.folders[i];
+  const idx = firstHeldStep();
+  if (idx !== null && ui.channel === 'track') {
+    const s = stepAt(doc.tracks[i], idx);
+    if (s?.sound) return [stepItemIndex(i, s) + 1, f.items.length];
+  }
+  return [f.index + 1, f.items.length];
+}
+
+/** Имя текущего звука папки, если он сейчас на дорожке ('' — нет). */
+export function folderItemName(i: number): string {
+  const f = doc.folders[i];
+  const it = f.items[f.index];
+  return it && itemKey(it) === doc.tracks[i].sample && 'preset' in it ? it.preset.name : '';
 }
 
 /** Имя звука для окна сэмпла (файл или движок синта). */
