@@ -1,5 +1,6 @@
-// Кнопки: LFO1, LFO2, UNDO, TRACK (слева), PATTERNS и PLAY, REC, FX, MOD (справа).
-// LFO1/LFO2/TRACK/FX/MOD работают на удержание.
+// Кнопки: LFO1, LFO2, LFO3, ENV (слева, под окном сэмпла); PLAY, REC (справа над миниатюрами
+// страниц); TRACK, UNDO, FX, MOD (справа внизу); PATTERNS (в верхней панели).
+// LFO1/LFO2/LFO3/ENV/TRACK/FX/MOD работают на удержание.
 
 import { canUndo, gridMode, setHeld, ui, undo, type HoldButton } from '../state';
 import { unlockAudio } from '../audio';
@@ -38,14 +39,23 @@ function tapButton(label: string, fn: () => void): HTMLElement {
 
 export function buildLeftButtons(): HTMLElement {
   const el = h('div', 'btn-grid');
-  undoBtn = tapButton('UNDO', undo);
-  el.append(holdButton('LFO1', 'lfo1'), holdButton('LFO2', 'lfo2'), undoBtn, holdButton('TRACK', 'track'));
+  el.append(holdButton('LFO1', 'lfo1'), holdButton('LFO2', 'lfo2'), holdButton('LFO3', 'lfo3'), holdButton('ENV', 'env'));
+  return el;
+}
+
+/** PLAY и REC над миниатюрами страниц — видны и в режиме сетки паттернов. */
+export function buildTransportButtons(): HTMLElement {
+  const el = h('div', 'btn-grid transport');
+  playBtn = tapButton('PLAY', () => { unlockAudio(); setPlaying(!ui.playing); });
+  playBtn.addEventListener('pointerup', unlockAudio);
+  recBtn = tapButton('REC', () => { ui.rec = !ui.rec; });
+  el.append(playBtn, recBtn);
   return el;
 }
 
 let patternsBtn: HTMLElement;
 
-/** Кнопка PATTERNS в правом верхнем углу: переключает центр экрана на сетку паттернов. */
+/** Кнопка PATTERNS рядом с корневой нотой: переключает центр экрана на сетку паттернов. */
 export function buildPatternsButton(): HTMLElement {
   patternsBtn = tapButton('PATTERNS', () => { ui.patternView = !ui.patternView; });
   patternsBtn.classList.add('patterns-btn');
@@ -54,10 +64,8 @@ export function buildPatternsButton(): HTMLElement {
 
 export function buildRightButtons(): HTMLElement {
   const el = h('div', 'btn-grid');
-  playBtn = tapButton('PLAY', () => { unlockAudio(); setPlaying(!ui.playing); });
-  playBtn.addEventListener('pointerup', unlockAudio);
-  recBtn = tapButton('REC', () => { ui.rec = !ui.rec; });
-  el.append(playBtn, recBtn, holdButton('FX', 'fx'), holdButton('MOD', 'mod'));
+  undoBtn = tapButton('UNDO', undo);
+  el.append(holdButton('TRACK', 'track'), undoBtn, holdButton('FX', 'fx'), holdButton('MOD', 'mod'));
   return el;
 }
 

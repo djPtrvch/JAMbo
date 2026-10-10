@@ -2,7 +2,7 @@ import './style.css';
 import { TRACK_COUNT } from './params';
 import { advanceLfos, ui } from './state';
 import { updateTransport } from './transport';
-import { buildLeftButtons, buildPatternsButton, buildRightButtons, renderButtons } from './ui/buttons';
+import { buildLeftButtons, buildPatternsButton, buildRightButtons, buildTransportButtons, renderButtons } from './ui/buttons';
 import { renderFields } from './ui/controls';
 import { h, setClass } from './ui/dom';
 import { buildKnobGrid, renderKnobs } from './ui/knobs';
@@ -16,6 +16,8 @@ import { buildTracks, renderTracks } from './ui/tracks';
 
 const app = document.getElementById('app')!;
 
+// Центр — сетка из областей: слева окно сэмпла и кнопки модуляции, справа PLAY/REC сверху,
+// под ними миниатюры страниц и кнопки. В режиме паттернов остаются только PLAY/REC и сетка.
 const left = h('div', 'side left');
 left.append(buildSample(), buildLeftButtons());
 
@@ -27,11 +29,11 @@ const main = h('div', 'main');
 const knobGrid = buildKnobGrid();
 const center = h('div', 'center');
 center.append(knobGrid, buildPatternGrid());
-main.append(left, center, right);
+main.append(left, center, buildTransportButtons(), right);
 
-// Кнопка PATTERNS — в правом верхнем углу.
+// Кнопка PATTERNS — рядом с корневой нотой.
 const topbar = buildTopbar();
-topbar.append(h('div', 'top-spacer'), buildPatternsButton());
+topbar.append(buildPatternsButton());
 
 // Число столбцов дорожек: строка дорожек и сетка паттернов совпадают по ширине столбцов.
 app.style.setProperty('--tracks', String(TRACK_COUNT));
