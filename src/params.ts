@@ -245,3 +245,29 @@ export function fromNorm(p: ParamDef, n: number): number {
   if (p.exp) return p.min * Math.pow(p.max / p.min, n);
   return p.min + n * (p.max - p.min);
 }
+
+// ---------- Эквалайзер (кнопка EQ) ----------
+
+/** Типы полос EQ: подпись и тип BiquadFilterNode. */
+export const EQ_TYPES: { name: string; node: BiquadFilterType }[] = [
+  { name: 'Bell', node: 'peaking' },
+  { name: 'Low Shelf', node: 'lowshelf' },
+  { name: 'High Shelf', node: 'highshelf' },
+  { name: 'Low Cut', node: 'highpass' },
+  { name: 'High Cut', node: 'lowpass' },
+  { name: 'Notch', node: 'notch' },
+];
+export const EQ_BELL = 0;
+/** Low cut и high cut: крутизна среза выбирается. */
+export const eqIsCut = (type: number) => type === 3 || type === 4;
+/** Усиление не применяется к cut и notch. */
+export const eqHasGain = (type: number) => type <= 2;
+/** Крутизна среза, дБ/окт (каскад из 1, 2 или 4 биквадов). */
+export const EQ_SLOPES = [12, 24, 48];
+export const EQ_BANDS = 8;
+export const EQ_FREQ_MIN = 20;
+export const EQ_FREQ_MAX = 20000;
+export const EQ_GAIN_MAX = 18;
+export const EQ_Q_MIN = 0.1;
+export const EQ_Q_MAX = 18;
+export const EQ_Q_DEF = 1;

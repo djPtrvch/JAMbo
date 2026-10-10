@@ -4,8 +4,9 @@
 // Голос (на каждую ноту трига):
 //   сэмпл → огибающая Attack/Decay → Level → фильтр LP/HP → Pan → вход дорожки
 //                                                               ↘ посылы Reverb / Delay / Drive
-// Дорожка: вход → sidechain (приглушение) → громкость микшера → мастер.
-// Мастер: компрессор (Threshold, Attack, Release, Ratio, Makeup) → лимитер (Input, Ceiling,
+// Дорожка: EQ → вход → sidechain (приглушение) → громкость микшера → мастер. EQ стоит до эффектов:
+// у каждого посыла голоса своя копия EQ дорожки с теми же полосами.
+// Мастер: EQ → компрессор (Threshold, Attack, Release, Ratio, Makeup) → лимитер (Input, Ceiling,
 // Lookahead, Release) → выход.
 //
 // Параметры голоса берутся на шаге с учётом p-lock и модуляции; если на ручку назначен LFO
@@ -16,13 +17,18 @@
 import { OVER_PEAK, PARAM_BY_ID, RATIOS, VOL_DEF_DB, volGain, SAMPLE_ROOT, TRACK_COUNT, filterFreq, fromNorm } from '../params';
 import { doc, modulatedNorm, setTrackSample, ui } from '../state';
 import { detectRoot } from './pitch';
+import { EqChain } from './eq';
 
 let ctx: AudioContext | null = null;
 const buffers = new Map<string, AudioBuffer>();
 const peaks = new Map<string, Float32Array[]>();
 let fileCount = 0;
 
-interface TrackChain { input: GainNode; duck: GainNode; vol: GainNode; sends: GainNode[]; meter: Meter }
+interface TrackChain {
+  /** EQ сухого сигнала и копии EQ для посылов Reverb / Delay / Drive. */
+  eq: EqChain; sendEqs: EqChain[];
+  input: GainNode; duck: GainNode; vol: GainNode; sends: GainNode[]; meter: Meter;
+}
 interface Voice {
   track: number;
   root: number;
@@ -46,7 +52,7 @@ let rev: { hpf: BiquadFilterNode; pre: DelayNode; conv: ConvolverNode };
 let dly: { hpf: BiquadFilterNode; l: DelayNode; r: DelayNode; fbL: GainNode; fbR: GainNode };
 let drv: { shaper: WaveShaperNode; tone: BiquadFilterNode };
 let mst: {
-  comp: DynamicsCompressorNode; makeup: GainNode; limIn: GainNode; lim: DynamicsCompressorNode;
+  eq: EqChain; comp: DynamicsCompressorNode; makeup: GainNode; limIn: GainNode; lim: DynamicsCompressorNode;
   compMeter: Meter; compOutMeter: Meter; limMeter: Meter; outMeter: Meter;
 };
 
@@ -126,10 +132,12 @@ function buildGraph(c: AudioContext) {
   const lim = c.createDynamicsCompressor();
   lim.knee.value = 0;
   lim.ratio.value = 20;
-  masterIn.connect(comp).connect(makeup).connect(limIn).connect(lim).connect(c.destination);
+  const eq = new EqChain(c);
+  masterIn.connect(eq.input);
+  eq.output.connect(comp).connect(makeup).connect(limIn).connect(lim).connect(c.destination);
   mst = {
-    comp, makeup, limIn, lim,
-    compMeter: new Meter(c, masterIn, false), compOutMeter: new Meter(c, makeup, false), limMeter: new Meter(c, limIn, false), outMeter: new Meter(c, lim, true),
+    eq, comp, makeup, limIn, lim,
+    compMeter: new Meter(c, eq.output, false), compOutMeter: new Meter(c, makeup, false), limMeter: new Meter(c, limIn, false), outMeter: new Meter(c, lim, true),
   };
 
   // Reverb: HPF → предзадержка → свёртка.
@@ -178,13 +186,20 @@ function buildGraph(c: AudioContext) {
     const input = c.createGain();
     const duck = c.createGain();
     const vol = c.createGain();
+    const eq = new EqChain(c);
+    eq.output.connect(input);
     input.connect(duck).connect(vol).connect(masterIn);
     const sends = busInputs.map((bus) => {
       const g = c.createGain();
       g.connect(bus);
       return g;
     });
-    return { input, duck, vol, sends, meter: new Meter(c, vol, true) };
+    const sendEqs = sends.map((g) => {
+      const e = new EqChain(c);
+      e.output.connect(g);
+      return e;
+    });
+    return { eq, sendEqs, input, duck, vol, sends, meter: new Meter(c, vol, true) };
   });
 }
 
@@ -259,11 +274,11 @@ export function triggerTrack(track: number, time: number, notes: number[], locks
     applyFilter(filter, v('filter'), v('reso'), at, false);
     pan.pan.value = Math.max(-1, Math.min(1, v('pan') / 64));
 
-    src.connect(amp).connect(level).connect(filter).connect(pan).connect(ch.input);
+    src.connect(amp).connect(level).connect(filter).connect(pan).connect(ch.eq.input);
     const sends = SENDS.map((id, k) => {
       const g = ctx!.createGain();
       g.gain.value = v(id) / 100;
-      pan.connect(g).connect(ch.sends[k]);
+      pan.connect(g).connect(ch.sendEqs[k].input);
       return g;
     });
 
@@ -426,8 +441,56 @@ function updateFx(now: number) {
 export function updateAudio(now: number) {
   if (!ctx) return;
   updateFx(now);
+  updateEqs();
   updateVoices();
 }
+
+// ---------- Эквалайзеры ----------
+
+function updateEqs() {
+  tracks.forEach((ch, i) => {
+    const eq = doc.eqs[i];
+    ch.eq.update(eq);
+    for (const e of ch.sendEqs) e.update(eq);
+  });
+  mst.eq.update(doc.masterEq);
+}
+
+// Спектр до и после EQ — только пока открыта панель EQ (анализаторы иначе отключены).
+let scopePre: AnalyserNode | null = null;
+let scopePost: AnalyserNode | null = null;
+let scopeOn: EqChain | null = null;
+
+/** Подключить анализаторы к EQ канала (дорожка или 'master'); null — отключить. */
+export function setEqScope(channel: number | 'master' | null) {
+  if (!ctx) return;
+  const chain = channel === null ? null : channel === 'master' ? mst.eq : tracks[channel]?.eq ?? null;
+  if (chain === scopeOn) return;
+  if (!scopePre) {
+    scopePre = ctx.createAnalyser();
+    scopePost = ctx.createAnalyser();
+    for (const a of [scopePre, scopePost!]) { a.fftSize = 4096; a.smoothingTimeConstant = 0.8; a.minDecibels = -100; a.maxDecibels = 0; }
+  }
+  if (scopeOn) {
+    scopeOn.input.disconnect(scopePre);
+    scopeOn.output.disconnect(scopePost!);
+  }
+  scopeOn = chain;
+  if (chain) {
+    chain.input.connect(scopePre);
+    chain.output.connect(scopePost!);
+  }
+}
+
+/** Спектр до и после EQ в dBFS (по бинам FFT); false — анализаторы не подключены. */
+export function eqSpectrum(pre: Float32Array<ArrayBuffer>, post: Float32Array<ArrayBuffer>): boolean {
+  if (!scopeOn || !scopePre || !scopePost) return false;
+  scopePre.getFloatFrequencyData(pre);
+  scopePost.getFloatFrequencyData(post);
+  return true;
+}
+
+export const eqSampleRate = () => (ctx ? ctx.sampleRate : 48000);
 
 /** Понижение усиления компрессора мастера (дБ, ≤ 0). */
 export const masterReduction = () => (mst ? mst.comp.reduction : 0);

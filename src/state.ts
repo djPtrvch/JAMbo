@@ -4,7 +4,7 @@
 
 import {
   FX_GRID, MASTER_GRID, MAX_PAGES, MIX_GRID, MOD_GRID, PATTERN_SLOTS, RATIOS, STEPS_PER_PAGE, TRACK_COUNT, TRACK_GRID, OCTAVE_DEF, OCTAVE_MAX, OCTAVE_MIN,
-  BPM_MAX, BPM_MIN, NOTE_NAMES, PROGRESSIONS, SCALES, fromNorm, toNorm, type ParamDef, type Slot,
+  BPM_MAX, BPM_MIN, EQ_BANDS, EQ_BELL, EQ_FREQ_MAX, EQ_FREQ_MIN, EQ_GAIN_MAX, EQ_Q_DEF, EQ_Q_MAX, EQ_Q_MIN, EQ_TYPES, NOTE_NAMES, PROGRESSIONS, SCALES, fromNorm, toNorm, type ParamDef, type Slot,
 } from './params';
 
 export interface Step {
@@ -72,6 +72,24 @@ export interface Track {
   stopped: boolean;
 }
 
+/** Полоса эквалайзера. */
+export interface EqBand {
+  on: boolean;
+  /** Индекс в EQ_TYPES. */
+  type: number;
+  freq: number;
+  gain: number;
+  q: number;
+  /** Индекс в EQ_SLOPES (для low cut и high cut). */
+  slope: number;
+}
+
+/** Эквалайзер канала: 8 мест под полосы (null — полосы нет). */
+export interface Eq {
+  on: boolean;
+  bands: (EqBand | null)[];
+}
+
 export interface Doc {
   bpm: number;
   scale: number;
@@ -88,6 +106,9 @@ export interface Doc {
   limBypass: boolean;
   /** Компрессор мастера выключен (кнопка BYPASS). */
   cmpBypass: boolean;
+  /** Эквалайзеры дорожек и мастера. */
+  eqs: Eq[];
+  masterEq: Eq;
   /** Имена загруженных файлов: ключ сэмпла → имя. */
   files: Record<string, string>;
   /** Определённая высота сэмплов: ключ → MIDI-нота (нет — C3). */
@@ -132,6 +153,10 @@ export interface Ui {
   pressedKeys: Map<number, number[]>;
   /** Центр экрана: сетка паттернов 8×8 вместо ручек. */
   patternView: boolean;
+  /** Центр экрана: эквалайзер выбранной дорожки или мастера. */
+  eqView: boolean;
+  /** Выбранная полоса EQ (−1 — нет). */
+  eqBand: number;
   /** Превью формы волны LFO в окне сэмпла. */
   lfoPreviewUntil: number;
 }
@@ -170,6 +195,10 @@ export function emptyPage(): Step[] {
   return Array.from({ length: STEPS_PER_PAGE }, () => ({ on: false, len: 1, notes: [], locks: {} }));
 }
 
+function newEq(): Eq {
+  return { on: true, bands: Array(EQ_BANDS).fill(null) };
+}
+
 function newTrack(i: number): Track {
   return {
     name: `T${i + 1}`,
@@ -202,6 +231,8 @@ export const doc: Doc = {
   ratio: 1,
   limBypass: false,
   cmpBypass: false,
+  eqs: Array.from({ length: TRACK_COUNT }, () => newEq()),
+  masterEq: newEq(),
   files: {},
   roots: {},
 };
@@ -227,6 +258,8 @@ export const ui: Ui = {
   selNotes: [],
   pressedKeys: new Map(),
   patternView: false,
+  eqView: false,
+  eqBand: -1,
   lfoPreviewUntil: 0,
 };
 
@@ -852,4 +885,78 @@ export function setTrackSample(i: number, key: string, fileName?: string, root?:
 export function sampleName(key: string): string {
   if (!key) return 'Нет сэмпла';
   return doc.files[key] ?? 'файл';
+}
+
+// ---------- Эквалайзер ----------
+
+/** EQ, который показывает панель: выбранной дорожки, а при MIX и MST — мастера. */
+export const eqTarget = (): Eq => (ui.channel === 'track' ? doc.eqs[ui.selectedTrack] : doc.masterEq);
+export const eqTargetName = () => (ui.channel === 'track' ? doc.tracks[ui.selectedTrack].name : 'MASTER');
+export const selectedBand = (): EqBand | null => (ui.eqBand >= 0 ? eqTarget().bands[ui.eqBand] : null);
+
+const clampN = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
+/** Кнопки PATTERNS и EQ переключают центр экрана (одновременно открыт только один вид). */
+export function toggleView(v: 'patterns' | 'eq') {
+  const open = v === 'patterns' ? !ui.patternView : !ui.eqView;
+  ui.patternView = v === 'patterns' && open;
+  ui.eqView = v === 'eq' && open;
+}
+
+/** Новая bell-полоса (двойной тап по пустому месту); −1, если мест нет. */
+export function addEqBand(freq: number, gain: number): number {
+  const eq = eqTarget();
+  const k = eq.bands.indexOf(null);
+  if (k < 0) return -1;
+  edit(() => {
+    eq.bands[k] = { on: true, type: EQ_BELL, freq: clampN(freq, EQ_FREQ_MIN, EQ_FREQ_MAX), gain: clampN(gain, -EQ_GAIN_MAX, EQ_GAIN_MAX), q: EQ_Q_DEF, slope: 0 };
+  });
+  ui.eqBand = k;
+  return k;
+}
+
+/** Изменить значения полосы (внутри жеста — одна запись UNDO на жест). */
+export function setEqBand(k: number, patch: Partial<Pick<EqBand, 'freq' | 'gain' | 'q'>>) {
+  const b = eqTarget().bands[k];
+  if (!b) return;
+  edit(() => {
+    if (patch.freq !== undefined) b.freq = clampN(patch.freq, EQ_FREQ_MIN, EQ_FREQ_MAX);
+    if (patch.gain !== undefined) b.gain = Math.round(clampN(patch.gain, -EQ_GAIN_MAX, EQ_GAIN_MAX) * 10) / 10;
+    if (patch.q !== undefined) b.q = clampN(patch.q, EQ_Q_MIN, EQ_Q_MAX);
+  });
+}
+
+export function setEqType(k: number, type: number) {
+  const b = eqTarget().bands[k];
+  if (b) edit(() => { b.type = ((Math.round(type) % EQ_TYPES.length) + EQ_TYPES.length) % EQ_TYPES.length; });
+}
+
+export function setEqSlope(k: number, slope: number) {
+  const b = eqTarget().bands[k];
+  if (b) edit(() => { b.slope = slope; });
+}
+
+/** Двойной тап по точке: включить или выключить полосу. */
+export function toggleEqBand(k: number) {
+  const b = eqTarget().bands[k];
+  if (b) edit(() => { b.on = !b.on; });
+}
+
+export function deleteEqBand(k: number) {
+  const eq = eqTarget();
+  edit(() => { eq.bands[k] = null; });
+  if (ui.eqBand === k) ui.eqBand = -1;
+}
+
+/** Кнопка EQ ON: включение и выключение эквалайзера канала (bypass). */
+export function toggleEq() {
+  const eq = eqTarget();
+  edit(() => { eq.on = !eq.on; });
+}
+
+/** Кнопка RESET: удалить все полосы канала. */
+export function resetEq() {
+  const eq = eqTarget();
+  edit(() => { eq.bands = Array(EQ_BANDS).fill(null); });
+  ui.eqBand = -1;
 }
