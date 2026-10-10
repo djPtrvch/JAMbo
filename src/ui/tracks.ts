@@ -1,12 +1,11 @@
 // Строка дорожек: тап — выбор, свайп вниз — mute (красный контур), свайп вверх — solo,
 // удержание — меню rename / copy / paste / delete.
-// Дорожка мигает при срабатывании своих шагов; жёлтая точка — на дорожке есть p-lock;
-// при удержании TRACK — жёлтый маркер.
+// Дорожка мигает при срабатывании своих шагов; при удержании TRACK (параметр применяется
+// ко всем дорожкам) на дорожках появляется жёлтая точка.
 
 import { TRACK_COUNT } from '../params';
 import {
-  audible, copyTrack, deleteTrack, doc, pasteTrack, renameTrack, rt, selectTrack, toggleMute, toggleSolo,
-  trackHasLocks, ui,
+  audible, copyTrack, deleteTrack, doc, pasteTrack, renameTrack, rt, selectTrack, toggleMute, toggleSolo, ui,
 } from '../state';
 import { h, setClass, setText } from './dom';
 import { makePopup, popupButton } from './popup';
@@ -48,7 +47,7 @@ export function buildTracks(): HTMLElement {
     const name = h('div', 'track-name');
     const state = h('div', 'track-state');
     const dot = h('div', 'track-dot');
-    root.append(name, state, dot, h('div', 'track-marker'));
+    root.append(name, state, dot);
 
     let startY = 0;
     let id = -1;
@@ -98,8 +97,7 @@ export function renderTracks(now: number) {
     setClass(v.root, 'soloed', t.solo);
     setClass(v.root, 'silent', !audible(i));
     setClass(v.root, 'flash', now < rt.flashUntil[i]);
-    setClass(v.root, 'track-all', ui.held.track);
-    setClass(v.dot, 'hidden', !trackHasLocks(t));
+    setClass(v.dot, 'hidden', !ui.held.track);
     setText(v.state, t.solo ? 'S' : t.mute ? 'M' : '');
   });
   if (!menu.isOpen()) ui.trackMenu = null;

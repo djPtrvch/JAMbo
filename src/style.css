@@ -33,10 +33,12 @@ html, body {
   -webkit-text-size-adjust: 100%;
 }
 
+#app.chord { grid-template-rows: 44px minmax(0, 1fr) 50px 60px 56px 36px; }
+
 #app {
   height: 100dvh;
   display: grid;
-  grid-template-rows: 44px minmax(0, 1fr) 50px 60px 56px 36px;
+  grid-template-rows: 44px minmax(0, 1fr) 50px 60px 56px;
   gap: var(--gap);
   padding: max(8px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
 }
@@ -201,11 +203,19 @@ html, body {
 
 /* ---------- Страницы (миниатюры строками) ---------- */
 
-.pages { display: flex; flex-direction: column; gap: 5px; }
+.pages { position: relative; display: flex; flex-direction: column; gap: 4px; }
+.play-outline {
+  position: absolute;
+  left: -3px;
+  right: -3px;
+  border: 2px solid var(--accent);
+  border-radius: 8px;
+  pointer-events: none;
+}
 
 .thumb {
-  height: 30px;
-  padding: 4px;
+  height: 24px;
+  padding: 3px;
   border-radius: 6px;
   background: var(--panel);
   border: 2px solid transparent;
@@ -213,7 +223,6 @@ html, body {
   grid-template-columns: repeat(16, 1fr);
   gap: 2px;
 }
-.thumb.in-play { background: #1f2a31; }
 .thumb.current { border-color: var(--text); }
 .thumb-cell { border-radius: 2px; background: var(--off); }
 .thumb-cell.beat { background: #464b52; }
@@ -289,8 +298,6 @@ html, body {
 .track.muted .track-state { color: var(--mute); }
 .track.soloed .track-state { color: var(--solo); }
 .track-dot { position: absolute; top: 6px; left: 7px; width: 6px; height: 6px; border-radius: 50%; background: var(--plock); }
-.track-marker { display: none; position: absolute; left: 8px; right: 8px; bottom: 4px; height: 4px; border-radius: 2px; background: var(--plock); }
-.track.track-all .track-marker { display: block; }
 
 /* ---------- Секвенсор ---------- */
 
@@ -320,9 +327,8 @@ html, body {
 .step-note { font-size: 11px; font-weight: 700; color: var(--bg); white-space: nowrap; }
 .step.on .step-fill { background: var(--text); }
 .step.plock .step-fill { background: var(--plock); }
-/* Хвост длинной ноты — такая же полоса, продолжающая ноту через промежуток между шагами. */
-.step.tail .step-fill { background: var(--text); opacity: 0.55; margin-left: -14px; border-radius: 0 4px 4px 0; }
-.step.tail:first-child .step-fill { margin-left: 0; }
+/* Хвост длинной ноты — полупрозрачные ячейки той же ширины, что и шаг. */
+.step.tail .step-fill { background: var(--text); opacity: 0.4; }
 .step.lock-only { box-shadow: inset 0 0 0 2px var(--plock); }
 .step.held { box-shadow: inset 0 0 0 2px var(--text); }
 .step.playing { box-shadow: inset 0 0 0 2px var(--accent); }
@@ -362,10 +368,10 @@ html, body {
 
 /* ---------- Аккордовая прогрессия ---------- */
 
-.progression { display: flex; gap: var(--gap); }
+.progression { display: flex; gap: var(--gap); animation: slide-up 160ms ease-out; }
+@keyframes slide-up { from { transform: translateY(100%); opacity: 0; } to { transform: none; opacity: 1; } }
 .progression .field { min-width: 260px; padding: 2px 12px; }
 .progression .field-value { font-size: 15px; }
-.progression.dim .chips { opacity: 0.45; }
 .chips { flex: 1; display: flex; gap: 4px; }
 .chip {
   flex: 1;
