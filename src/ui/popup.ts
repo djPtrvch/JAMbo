@@ -36,6 +36,38 @@ export function makePopup(cls = ''): Popup {
   return p;
 }
 
+let inputPopup: Popup | null = null;
+let inputField: HTMLInputElement;
+let inputDone: ((v: string) => void) | null = null;
+
+/**
+ * Поле ввода рядом с элементом anchor (имя дорожки, частота EQ). Своё, на странице: системный
+ * window.prompt в Safari прерывает звук (аудиоконтекст становится «interrupted»).
+ */
+export function openInput(anchor: Element, value: string, done: (v: string) => void, numeric = false) {
+  if (!inputPopup) {
+    const p = makePopup('rename');
+    inputField = h('input', 'rename-input');
+    inputField.type = 'text';
+    const ok = () => {
+      inputDone?.(inputField.value);
+      inputDone = null;
+      inputField.blur();
+      p.close();
+    };
+    inputField.addEventListener('keydown', (e) => { if (e.key === 'Enter') ok(); });
+    p.box.append(inputField, popupButton('OK', ok));
+    inputPopup = p;
+  }
+  inputDone = done;
+  inputField.value = value;
+  inputField.maxLength = numeric ? 10 : 12;
+  inputField.inputMode = numeric ? 'decimal' : 'text';
+  inputPopup.openAt(anchor, 220);
+  inputField.focus();
+  inputField.select();
+}
+
 export function popupButton(label: string, onTap: () => void): HTMLButtonElement {
   const b = h('button', 'popup-btn', label);
   b.addEventListener('pointerup', () => { if (!b.disabled) onTap(); });

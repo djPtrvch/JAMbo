@@ -133,9 +133,10 @@ function onDown(slot: number, e: PointerEvent) {
   gestures.set(e.pointerId, g);
   beginGesture();
 
-  // MIX: удержание ручки громкости дорожки без движения — окно переименования дорожки.
-  if (mode === 'mix' && slot < doc.tracks.length) {
-    const anchor = e.currentTarget as Element;
+  // MIX: удержание подписи (имени) под ручкой громкости без движения — окно переименования.
+  const label = (e.target as Element).closest('.knob-label');
+  if (mode === 'mix' && slot < doc.tracks.length && label) {
+    const anchor = label;
     g.holdTimer = window.setTimeout(() => {
       if (!g.moved && gestures.get(e.pointerId) === g) {
         g.consumed = true;

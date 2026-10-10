@@ -1,49 +1,22 @@
 // Строка дорожек: слева канал микшера MIX, справа мастер MST (тап — ручки показывают их).
 // Дорожки: тап — выбор; свайп вниз — mute (красный контур), свайп вверх — solo (жёлтая дорожка);
 // включённый mute или solo выключается любым свайпом. Удержание дорожки ничего не делает.
-// Переименование — в MIX: удержание ручки громкости дорожки открывает поле ввода имени.
+// Переименование — в MIX: удержание подписи под ручкой громкости дорожки открывает поле ввода имени.
 // Дорожка мигает при срабатывании своих шагов; жёлтая точка — параметры этой дорожки
 // меняли с зажатым TRACK (на всю дорожку).
 
 import { TRACK_COUNT } from '../params';
 import { audible, doc, renameTrack, rt, selectChannel, selectTrack, swipeTrack, ui, type Channel } from '../state';
 import { h, setClass, setText } from './dom';
-import { makePopup, popupButton } from './popup';
+import { openInput } from './popup';
 
 const SWIPE_PX = 24;
 
 interface TrackView { root: HTMLElement; name: HTMLElement; state: HTMLElement; dot: HTMLElement }
 const views: TrackView[] = [];
-let renamePopup: ReturnType<typeof makePopup>;
-let renameInput: HTMLInputElement;
-let renameIndex = -1;
-
-/**
- * Своё окно переименования: системный window.prompt в Safari прерывает звук
- * (аудиоконтекст становится «interrupted»), поэтому поле ввода — прямо на странице.
- */
-function buildRename() {
-  renamePopup = makePopup('rename');
-  renameInput = h('input', 'rename-input');
-  renameInput.type = 'text';
-  renameInput.maxLength = 12;
-  const done = () => {
-    if (renameIndex >= 0) renameTrack(renameIndex, renameInput.value);
-    renameIndex = -1;
-    renameInput.blur();
-    renamePopup.close();
-  };
-  renameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') done(); });
-  renamePopup.box.append(renameInput, popupButton('OK', done));
-}
-
-/** Окно переименования дорожки i рядом с элементом anchor (ручкой громкости в MIX). */
+/** Окно переименования дорожки i рядом с элементом anchor (подписью ручки громкости в MIX). */
 export function openRename(i: number, anchor: Element) {
-  renameIndex = i;
-  renameInput.value = doc.tracks[i].name;
-  renamePopup.openAt(anchor, 220);
-  renameInput.focus();
-  renameInput.select();
+  openInput(anchor, doc.tracks[i].name, (v) => renameTrack(i, v));
 }
 
 const channels: [HTMLElement, Channel][] = [];
@@ -56,7 +29,6 @@ function channelCell(label: string, c: Channel): HTMLElement {
 }
 
 export function buildTracks(): HTMLElement {
-  buildRename();
   const el = h('div', 'tracks');
   el.append(channelCell('MIX', 'mix'));
   for (let i = 0; i < TRACK_COUNT; i++) {
