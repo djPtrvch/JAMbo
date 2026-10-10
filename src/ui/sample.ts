@@ -2,7 +2,7 @@
 // затемняют отрезанное. Тап — выбор аудиофайлов с iPad (можно сразу несколько — это «папка»):
 // первый заменяет сэмпл дорожки, стрелки под окном перелистывают остальные.
 // MIX — жёлтые полосы уровня каждой дорожки. MST — по три полосы компрессора (Threshold,
-// Gain reduction, Makeup) и лимитера (Ceiling, снижение громкости, выход) и кнопка RATIO.
+// Gain reduction, выход после Makeup) и RATIO под ними, лимитера (Ceiling, снижение громкости, выход).
 // Пока меняются параметры модуляции (MOD) — здесь сразу видны миниатюры LFO1, LFO2, LFO3
 // (форма волны с Wave, Depth и Invert, бегущая точка фазы) и огибающей ENV (форма ADSR).
 
@@ -106,12 +106,13 @@ export function buildSample(): HTMLElement {
   const groups = h('div', 'vbar-groups');
   const comp = h('div', 'vbar-group');
   const lim = h('div', 'vbar-group');
-  compBars.push(vbar('THR'), vbar('GR', true), vbar('MKP'));
+  compBars.push(vbar('THR'), vbar('GR', true), vbar('OUT'));
   limBars.push(vbar('CEIL'), vbar('GR', true), vbar('OUT'));
-  comp.append(h('div', 'vbar-title', 'COMP'), wrap(compBars));
+  // RATIO — прямо под полосами компрессора.
+  comp.append(h('div', 'vbar-title', 'COMP'), wrap(compBars), ratioBtn);
   lim.append(h('div', 'vbar-title', 'LIMIT'), wrap(limBars));
   groups.append(comp, lim);
-  masterPanel.append(groups, ratioBtn);
+  masterPanel.append(groups);
 
   mixPanel = h('div', 'master-panel hidden');
   for (let i = 0; i < TRACK_COUNT; i++) mixBars.push(vbar(`T${i + 1}`));
@@ -232,10 +233,11 @@ function renderMaster(now: number) {
   setText(ratioBtn, `RATIO ${RATIOS[doc.ratio]}:1`);
   const m = masterLevels(now);
   const peakDb = (l: { l: number; r: number }) => { const p = Math.max(l.l, l.r); return p > 0 ? 20 * Math.log10(p) : -100; };
-  // Компрессор: уровень входа с меткой Threshold, понижение усиления, Makeup.
+  // Компрессор: уровень входа с меткой Threshold, понижение усиления, выходной уровень
+  // после Makeup (ручка Makeup поднимает его, как в компрессорах Drambo и Ableton).
   setBar(compBars[0], dbFrac(peakDb(m.comp)), dbFrac(doc.master['cmp.threshold']));
   setBar(compBars[1], -Math.min(0, masterReduction()) / 24);
-  setBar(compBars[2], doc.master['cmp.makeup'] / 24);
+  setBar(compBars[2], dbFrac(peakDb(m.compOut)));
   // Лимитер: уровень входа с меткой Ceiling, снижение громкости, выход.
   setBar(limBars[0], dbFrac(peakDb(m.lim)), dbFrac(doc.master['lim.ceiling']));
   setBar(limBars[1], -Math.min(0, limiterReduction()) / 24);
@@ -263,6 +265,8 @@ export function renderSample(now: number) {
   const [pos, total] = sampleListPos();
   setText(navLabel, total ? `${pos} / ${total}` : 'файлы');
   setClass(navRow, 'disabled', total < 2);
+  // У MIX и MST сэмплов нет — стрелки скрыты.
+  setClass(navRow, 'hidden', ui.channel !== 'track');
   if (!show) return;
   renderLfo(minis[0], 1);
   renderLfo(minis[1], 2);
