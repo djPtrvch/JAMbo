@@ -586,7 +586,9 @@ export function toggleStep(index: number) {
     s.on = false;
     s.len = 1;
     s.notes = [];
+    // Снятый триг забывает и p-lock, и свой звук шага.
     s.locks = {};
+    delete s.sound;
   });
 }
 
