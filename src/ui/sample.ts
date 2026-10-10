@@ -16,7 +16,7 @@ import {
 import { LFO_WAVES, OVER_PEAK, RATIOS, SYNTH_ENGINES, TRACK_COUNT, noteName, synthEngine } from '../params';
 import { fmtDb, levelFrac } from './meter';
 import { makePopup, openInput, popupButton } from './popup';
-import { audible, cycleRatio, doc, liveMaster, nextPresetName, presetName, savePreset, setTrackSynth, toggleCmpBypass, toggleLimBypass, envOut, envShape, lfoShape, rt, sampleName, selTrack, ui } from '../state';
+import { audible, cycleRatio, doc, liveMaster, loadPreset, nextPresetName, presets, presetName, savePreset, setTrackSynth, toggleCmpBypass, toggleLimBypass, envOut, envShape, lfoShape, rt, sampleName, selTrack, ui } from '../state';
 import { h, setAttr, setClass, setText, svg } from './dom';
 
 const W = 200;
@@ -207,7 +207,36 @@ export function buildSample(): HTMLElement {
   };
   group('SYNTH', 2, engineBtns.filter((_, k) => SYNTH_ENGINES[k].bank === 'synth'));
   group('DRUMS', 2, engineBtns.filter((_, k) => SYNTH_ENGINES[k].bank === 'drum'));
-  group('SAMPLE · MIDI · PRESET', 3, [sampleBtn, midiBtn, saveBtn]);
+  // LOAD — список сохранённых пресетов (на том же месте); тап по пресету ставит его на дорожку.
+  const loadBtn = popupButton('LOAD', () => {
+    menu.close();
+    openPresetList();
+  });
+  group('SAMPLE · MIDI · PRESET', 4, [sampleBtn, midiBtn, saveBtn, loadBtn]);
+  const presetMenu = makePopup('source-menu preset-list');
+  const openPresetList = () => {
+    const list = presets();
+    const cur = ui.presetPos[ui.selectedTrack];
+    presetMenu.box.replaceChildren(h('div', 'source-title', `PRESETS · ${list.length}`));
+    const g = h('div', 'preset-grid');
+    list.forEach((pr, k) => {
+      const e = synthEngine(pr.sound);
+      const b = popupButton(`${pr.name}\n${e !== null ? SYNTH_ENGINES[e]?.name ?? '' : ''}`, () => {
+        loadPreset(ui.selectedTrack, k);
+        presetMenu.close();
+      });
+      b.classList.toggle('current', k === cur);
+      g.append(b);
+    });
+    if (!list.length) g.append(h('div', 'preset-empty', 'Пресетов нет — сохраните синт кнопкой SAVE'));
+    presetMenu.box.append(g);
+    presetMenu.openRect(menuRect());
+  };
+  const menuRect = () => {
+    const pages = document.querySelector('.side.right .pages')?.getBoundingClientRect();
+    const win = root.getBoundingClientRect();
+    return { left: win.left, top: win.top, width: win.width, height: pages?.height ?? win.height };
+  };
   let downY = 0;
   stub.addEventListener('pointerdown', (e) => { downY = e.clientY; });
   stub.addEventListener('pointerup', (e) => {
@@ -216,9 +245,8 @@ export function buildSample(): HTMLElement {
     engineBtns.forEach((b, k) => b.classList.toggle('current', k === cur));
     sampleBtn.classList.toggle('current', cur === null && selTrack().sample !== '');
     saveBtn.disabled = cur === null;
-    const pages = document.querySelector('.side.right .pages')?.getBoundingClientRect();
-    const win = root.getBoundingClientRect();
-    menu.openRect({ left: win.left, top: win.top, width: win.width, height: pages?.height ?? win.height });
+    loadBtn.disabled = presets().length === 0;
+    menu.openRect(menuRect());
   });
   stub.append(waveTitle, wave, synthInfo, stubName);
 

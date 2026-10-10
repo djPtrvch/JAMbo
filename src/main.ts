@@ -53,7 +53,9 @@ app.append(topbar, main, buildTracks(), buildSequencer(), buildPiano(), buildPro
 
 // Блокируем системные жесты Safari: масштаб двойным тапом и щипком, лупу, контекстное меню.
 // Всё управление идёт через pointer-события, поэтому touch-события можно гасить целиком.
-const allowNative = (e: Event) => e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
+// Поля ввода и прокручиваемый список пресетов получают обычные касания.
+const allowNative = (e: Event) => e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement
+  || (e.target instanceof Element && e.target.closest('.preset-grid') !== null);
 // touchend не гасим: в iOS именно отпускание пальца — действие пользователя, которое включает звук.
 // Масштаб двойным тапом отключён через CSS (touch-action: none на всех элементах).
 for (const type of ['touchstart', 'touchmove'] as const) {

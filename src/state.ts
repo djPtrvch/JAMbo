@@ -1024,8 +1024,13 @@ export function stepPreset(i: number, dir: 1 | -1) {
   const n = presetList.length;
   if (!n) return;
   const pos = ui.presetPos[i];
-  const k = pos < 0 ? (dir > 0 ? 0 : n - 1) : (pos + dir + n) % n;
+  loadPreset(i, pos < 0 ? (dir > 0 ? 0 : n - 1) : (pos + dir + n) % n);
+}
+
+/** Загрузить пресет k из папки на дорожку i (кнопка LOAD в меню звука, стрелки). */
+export function loadPreset(i: number, k: number) {
   const p = presetList[k];
+  if (!p) return;
   const t = doc.tracks[i];
   edit(() => {
     t.sample = p.sound;
