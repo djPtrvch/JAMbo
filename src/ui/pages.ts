@@ -1,6 +1,7 @@
 // Миниатюры страниц паттерна — строки одна под другой во всю ширину.
-// Тап — эта страница играет (и открывается в секвенсоре); протянуть по нескольким — играют они все.
-// «+» — добавить страницу (до 4); удержание — окно duplicate / copy / paste / delete.
+// Тап — эта страница играет (и открывается в секвенсоре); протянуть по нескольким — играют они все,
+// вокруг играющих страниц общая обводка.
+// «+» — добавить страницу (до 8); удержание — окно duplicate / copy / paste / delete.
 
 import { MAX_PAGES, STEPS_PER_PAGE } from '../params';
 import {
@@ -15,6 +16,8 @@ interface Thumb { root: HTMLElement; cells: HTMLElement[] }
 const thumbs: Thumb[] = [];
 let list: HTMLElement;
 let plus: HTMLElement;
+/** Общая обводка вокруг играющих страниц. */
+let outline: HTMLElement;
 let menu: Popup;
 const menuButtons: Record<string, HTMLButtonElement> = {};
 
@@ -28,6 +31,8 @@ function thumbAt(x: number, y: number): number {
 
 export function buildPages(): HTMLElement {
   list = h('div', 'pages');
+  outline = h('div', 'play-outline');
+  list.append(outline);
   for (let i = 0; i < MAX_PAGES; i++) {
     const root = h('div', 'thumb');
     root.dataset.page = String(i);
@@ -109,7 +114,6 @@ export function renderPages() {
     setClass(th.root, 'hidden', !exists);
     if (!exists) return;
     setClass(th.root, 'current', i === ui.viewPage);
-    setClass(th.root, 'in-play', i >= from && i <= to);
     th.cells.forEach((c, k) => {
       const s = t.pages[i][k];
       const index = i * STEPS_PER_PAGE + k;
@@ -121,5 +125,11 @@ export function renderPages() {
     });
   });
   setClass(plus, 'hidden', t.pages.length >= MAX_PAGES);
+
+  // Обводка от первой до последней играющей страницы.
+  const first = thumbs[from].root;
+  const last = thumbs[Math.min(to, t.pages.length - 1)].root;
+  outline.style.top = `${first.offsetTop - 3}px`;
+  outline.style.height = `${last.offsetTop + last.offsetHeight - first.offsetTop + 6}px`;
   if (!menu.isOpen()) ui.pageMenu = null;
 }

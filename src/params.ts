@@ -166,7 +166,7 @@ export const BPM_MAX = 240;
 
 export const TRACK_COUNT = 8;
 export const STEPS_PER_PAGE = 16;
-export const MAX_PAGES = 4;
+export const MAX_PAGES = 8;
 
 export const ALL_PARAMS: ParamDef[] = [...TRACK_GRID, ...MOD_GRID, ...FX_GRID].filter((p): p is ParamDef => p !== null);
 export const PARAM_BY_ID: Record<string, ParamDef> = Object.fromEntries(ALL_PARAMS.map((p) => [p.id, p]));
