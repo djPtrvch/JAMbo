@@ -7,11 +7,11 @@
 // (форма волны с Wave, Depth и Invert, бегущая точка фазы) и огибающей ENV (форма ADSR).
 
 import {
-  audioState, limiterLookahead, limiterReduction, resetTrackPeak, sampleIsStereo, trackDuckDb, trackIsStereo,
+  audioState, limiterLookahead, limiterReduction, sampleIsStereo, trackDuckDb, trackIsStereo,
   type Level, loadSampleFiles, masterLevels, masterReduction, sampleListPos, samplePeaks,
   sampleRoot, stepSample, trackLevel,
 } from '../audio/engine';
-import { LFO_WAVES, RATIOS, TRACK_COUNT, noteName } from '../params';
+import { LFO_WAVES, RATIOS, TRACK_COUNT, fmtVol, noteName } from '../params';
 import { fmtDb, levelFrac } from './meter';
 import { audible, cycleRatio, doc, envOut, envShape, lfoShape, rt, sampleName, selTrack, ui } from '../state';
 import { h, setAttr, setClass, setText, svg } from './dom';
@@ -42,7 +42,7 @@ let navRow: HTMLElement;
  * Вертикальный метр (1 или 2 канала): заливка, пик-холд (тонкая светлая линия ~1,5 с),
  * метка клиппинга сверху, метка порога (белая линия), число и подпись.
  * kind: 'yellow' — жёлтый (микшер, как измеритель справа; выше 0 dB — красный);
- * 'meter' — как в Ableton: градиент зелёный → жёлтый → красный со шкалой;
+ * 'meter' — метр мастера: тоже жёлтый (выше 0 dB — красный), со шкалой в dB;
  * 'gr' — снижение громкости, оранжевым сверху.
  */
 type BarKind = 'yellow' | 'meter' | 'gr';
@@ -103,9 +103,8 @@ function setLevelBar(b: VBar, lv: Level, stereo: boolean, text: string, mark: nu
   b.fills.forEach((f, i) => {
     if (i >= fr.length) return;
     const v = clamp01(fr[i]);
-    // Градиентный метр: незаполненная часть закрыта сверху; жёлтый — заливка снизу.
-    setAttr(f, 'style', `height:${((b.kind === 'meter' ? 1 - v : v) * 100).toFixed(1)}%`);
-    setClass(f, 'over', b.kind === 'yellow' && Math.max(lv.l, lv.r) >= 1);
+    setAttr(f, 'style', `height:${(v * 100).toFixed(1)}%`);
+    setClass(f, 'over', Math.max(lv.l, lv.r) >= 1);
   });
   b.holds.forEach((hl, i) => {
     if (i >= hd.length) return;
@@ -190,14 +189,10 @@ export function buildSample(): HTMLElement {
   masterPanel.append(groups);
 
   // MIX: уровень каждой дорожки после громкости микшера — как измеритель справа: жёлтый, стерео —
-  // две полосы, моно — одна, выше 0 dB — красный; заглушённая дорожка — серая; над метром пик
-  // в dB (тап — сброс); снижение громкости от sidechain — оранжевым сверху.
+  // две полосы, моно — одна, выше 0 dB — красный; заглушённая дорожка — серая; над метром
+  // положение регулятора громкости в dB; снижение громкости от sidechain — оранжевым сверху.
   mixPanel = h('div', 'master-panel hidden');
-  for (let i = 0; i < TRACK_COUNT; i++) {
-    const b = vbar(`T${i + 1}`, 'yellow', true);
-    b.value.addEventListener('pointerdown', (e) => { e.preventDefault(); resetTrackPeak(i); });
-    mixBars.push(b);
-  }
+  for (let i = 0; i < TRACK_COUNT; i++) mixBars.push(vbar(`T${i + 1}`, 'yellow', true));
   mixPanel.append(h('div', 'vbar-title', 'MIXER'), wrap(mixBars));
 
   previews = h('div', 'mod-previews hidden');
@@ -339,7 +334,8 @@ function renderMix(now: number) {
     const lv = trackLevel(i, now);
     setText(b.label, t.name);
     setClass(b.root, 'muted', !audible(i));
-    setLevelBar(b, lv, trackIsStereo(i), fmtDb(lv.max), null, trackDuckDb(i));
+    // Число над метром — положение регулятора громкости в dB (не измеренный уровень).
+    setLevelBar(b, lv, trackIsStereo(i), fmtVol(doc.mixer[`mix.vol${i + 1}`]).replace(' dB', ''), null, trackDuckDb(i));
   });
 }
 
