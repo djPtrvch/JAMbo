@@ -29,10 +29,13 @@ export function buildTopbar(): HTMLElement {
   metro = metronomeIcon();
   const scaleMenu = choiceMenu(SCALES.map((s) => s.name), 3, () => doc.scale, setScale);
   const rootMenu = choiceMenu(NOTE_NAMES, 4, () => doc.root, setRoot);
+  // Бутерброд, темп и метроном — группа шириной с левую колонку (край по окну сэмпла).
+  const leftGroup = h('div', 'top-left-group');
+  const bpm = dragField('BPM', () => doc.bpm, setBpm, () => String(doc.bpm), 4);
+  bpm.classList.add('bpm-field');
+  leftGroup.append(burger, bpm, metro);
   el.append(
-    burger,
-    dragField('BPM', () => doc.bpm, setBpm, () => String(doc.bpm), 4),
-    metro,
+    leftGroup,
     dragField('SCALE', () => doc.scale, setScale, () => SCALES[doc.scale].name, 24, scaleMenu),
     dragField('ROOT', () => doc.root, setRoot, () => NOTE_NAMES[doc.root], 24, rootMenu),
   );
