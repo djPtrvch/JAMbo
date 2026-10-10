@@ -1,7 +1,7 @@
 import './style.css';
 import { TRACK_COUNT } from './params';
 import { advanceLfos, ui } from './state';
-import { initAudio, unlockAudio, updateAudio } from './audio/engine';
+import { unlockAudio, updateAudio } from './audio/engine';
 import { updateTransport } from './transport';
 import { buildLeftButtons, buildPatternsButton, buildRightButtons, buildTransportButtons, renderButtons } from './ui/buttons';
 import { renderFields } from './ui/controls';
@@ -48,19 +48,18 @@ app.append(topbar, main, buildTracks(), buildSequencer(), buildPiano(), buildPro
 // Блокируем системные жесты Safari: масштаб двойным тапом и щипком, лупу, контекстное меню.
 // Всё управление идёт через pointer-события, поэтому touch-события можно гасить целиком.
 const allowNative = (e: Event) => e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
-for (const type of ['touchstart', 'touchmove', 'touchend'] as const) {
+// touchend не гасим: в iOS именно отпускание пальца — действие пользователя, которое включает звук.
+// Масштаб двойным тапом отключён через CSS (touch-action: none на всех элементах).
+for (const type of ['touchstart', 'touchmove'] as const) {
   document.addEventListener(type, (e) => { if (!allowNative(e)) e.preventDefault(); }, { passive: false });
 }
 document.addEventListener('dblclick', (e) => e.preventDefault());
 document.addEventListener('contextmenu', (e) => e.preventDefault());
 document.addEventListener('gesturestart', (e) => e.preventDefault());
 
-// Звук: контекст создаётся сразу (на паузе) и включается любым касанием экрана
-// (iOS Safari разрешает звук только из действия пользователя).
-initAudio();
-document.addEventListener('pointerdown', unlockAudio);
-document.addEventListener('pointerup', unlockAudio);
+// Звук включается отпусканием пальца (iOS Safari разрешает звук только из действия пользователя).
 document.addEventListener('touchend', unlockAudio);
+document.addEventListener('pointerup', unlockAudio);
 
 let last = performance.now();
 function frame(now: number) {

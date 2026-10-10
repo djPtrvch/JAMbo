@@ -4,7 +4,7 @@
 // (форма волны с Wave, Depth и Invert, бегущая точка фазы) и огибающей ENV (форма ADSR).
 // При выбранном мастере (MST) — кнопка RATIO компрессора и индикатор его работы.
 
-import { loadSampleFile, masterReduction, samplePeaks } from '../audio/engine';
+import { audioState, loadSampleFile, masterReduction, samplePeaks } from '../audio/engine';
 import { LFO_WAVES, RATIOS } from '../params';
 import { cycleRatio, doc, envOut, envShape, lfoShape, rt, sampleName, selTrack, ui } from '../state';
 import { h, setAttr, setClass, setText, svg } from './dom';
@@ -144,7 +144,12 @@ function renderEnv(m: Mini, now: number) {
 function renderWave() {
   const t = selTrack();
   setText(waveTitle, sampleName(t.sample));
-  setText(stubName, `${t.name} · тап — ${t.sample ? 'заменить' : 'загрузить'} файл`);
+  // Пока звук не включён — подсказка с состоянием (помогает понять, почему тихо).
+  const state = audioState();
+  setText(stubName, state === 'running'
+    ? `${t.name} · тап — ${t.sample ? 'заменить' : 'загрузить'} файл`
+    : `Звук выключен (${state}) — коснитесь экрана`);
+  setClass(stubName, 'warn', state !== 'running');
   const p = samplePeaks(t.sample);
   const key = p ? t.sample : '';
   if (key !== wavePeaksKey) {

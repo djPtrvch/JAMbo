@@ -3,7 +3,6 @@
 // LFO1/LFO2/LFO3/ENV/TRACK/FX/MOD работают на удержание.
 
 import { canUndo, doc, gridMode, setHeld, ui, undo, undoTrackEdits, type HoldButton } from '../state';
-import { unlockAudio } from '../audio/engine';
 import { setPlaying } from '../transport';
 import { h, setClass } from './dom';
 
@@ -46,8 +45,7 @@ export function buildLeftButtons(): HTMLElement {
 /** PLAY и REC по центру верхней панели — видны и в режиме сетки паттернов. */
 export function buildTransportButtons(): HTMLElement {
   const el = h('div', 'transport');
-  playBtn = tapButton('PLAY', () => { unlockAudio(); setPlaying(!ui.playing); });
-  playBtn.addEventListener('pointerup', unlockAudio);
+  playBtn = tapButton('PLAY', () => setPlaying(!ui.playing));
   recBtn = tapButton('REC', () => { ui.rec = !ui.rec; });
   el.append(playBtn, recBtn);
   return el;

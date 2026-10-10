@@ -162,6 +162,7 @@ html, body {
 .gr-meter { width: 100%; height: 10px; border-radius: 5px; background: var(--off); overflow: hidden; }
 .gr-bar { height: 100%; width: 0; background: var(--accent); }
 .sample-name { color: var(--off); }
+.sample-name.warn { color: var(--rec); }
 .mod-previews {
   flex: 1;
   display: grid;

@@ -58,27 +58,24 @@ function ensureCtx(): AudioContext {
   return ctx;
 }
 
-let unlocked = false;
-
 /**
- * В iOS Safari звук можно включить только из касания пользователя: возобновляем контекст
- * и один раз проигрываем беззвучный буфер (так iOS надёжно открывает вывод звука).
+ * В iOS Safari звук можно включить только из действия пользователя (отпускание пальца):
+ * при каждом таком касании, пока звук не включён, создаём/возобновляем контекст и проигрываем
+ * беззвучный буфер — так iOS надёжно открывает вывод звука (в том числе после перерыва,
+ * например после окна выбора файла, когда контекст становится «interrupted»).
  */
 export function unlockAudio() {
   const c = ensureCtx();
-  if (c.state !== 'running') void c.resume();
-  if (!unlocked) {
-    unlocked = true;
-    const src = c.createBufferSource();
-    src.buffer = c.createBuffer(1, 1, c.sampleRate);
-    src.connect(c.destination);
-    src.start();
-  }
+  if (c.state === 'running') return;
+  void c.resume().catch(() => { /* повторим на следующем касании */ });
+  const src = c.createBufferSource();
+  src.buffer = c.createBuffer(1, 1, c.sampleRate);
+  src.connect(c.destination);
+  src.start();
 }
 
-export function initAudio() {
-  ensureCtx();
-}
+/** Состояние звука для подсказки на экране: running, suspended, interrupted или none. */
+export const audioState = (): string => (ctx ? ctx.state : 'none');
 
 function buildGraph(c: AudioContext) {
   // Мастер.
