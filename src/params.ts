@@ -43,6 +43,22 @@ const filterFormat = (v: number) => {
 };
 const opt = (options: string[]) => (v: number) => options[Math.round(v)] ?? '';
 
+/** Время Delay в долях такта по темпу: подпись и длительность в долях (четвертях). */
+export const DELAY_DIVS: { name: string; beats: number }[] = [
+  { name: '1/32', beats: 1 / 8 },
+  { name: '1/16T', beats: 1 / 6 },
+  { name: '1/16', beats: 1 / 4 },
+  { name: '1/16D', beats: 3 / 8 },
+  { name: '1/8T', beats: 1 / 3 },
+  { name: '1/8', beats: 1 / 2 },
+  { name: '1/8D', beats: 3 / 4 },
+  { name: '1/4T', beats: 2 / 3 },
+  { name: '1/4', beats: 1 },
+  { name: '1/4D', beats: 3 / 2 },
+  { name: '1/2', beats: 2 },
+  { name: '1 bar', beats: 4 },
+];
+
 function smooth(id: string, label: string, min: number, max: number, def: number, format: (v: number) => string, extra: Partial<ParamDef> = {}): ParamDef {
   return { id, label, kind: 'smooth', min, max, def, format, ...extra };
 }
@@ -123,7 +139,7 @@ export const FX_GRID: Slot[] = grid([
   ],
   [
     smooth('dly.feedback', 'Dly Feedback', 0, 100, 40, pct),
-    smooth('dly.time', 'Dly Time', 10, 2000, 375, ms, { exp: true }),
+    stepped('dly.time', 'Dly Time', DELAY_DIVS.map((d) => d.name), 6),
     smooth('dly.hpf', 'Dly HPF', 20, 2000, 20, hz, { exp: true }),
     smooth('dly.stereo', 'Dly Stereo', 0, 100, 0, pct),
   ],

@@ -14,7 +14,7 @@
 // Измерители уровня стоят на выходе каждой дорожки и в мастере (вход компрессора, вход и выход
 // лимитера): пиковый уровень по каналам и громкость в LUFS (K-взвешивание, окно ~400 мс).
 
-import { OVER_PEAK, PARAM_BY_ID, RATIOS, VOL_DEF_DB, volGain, SAMPLE_ROOT, TRACK_COUNT, filterFreq, fromNorm } from '../params';
+import { DELAY_DIVS, OVER_PEAK, PARAM_BY_ID, RATIOS, VOL_DEF_DB, volGain, SAMPLE_ROOT, TRACK_COUNT, filterFreq, fromNorm } from '../params';
 import { doc, modulatedNorm, setTrackSample, ui } from '../state';
 import { detectRoot } from './pitch';
 import { EqChain } from './eq';
@@ -57,6 +57,8 @@ let mst: {
 };
 
 const SENDS = ['reverb', 'delay', 'drive'] as const;
+/** Наибольшее время Delay, с (1 такт при 40 BPM — 6 с, со Stereo — до 9 с). */
+const MAX_DELAY = 9;
 
 // ---------- Запуск ----------
 
@@ -153,8 +155,8 @@ function buildGraph(c: AudioContext) {
   const dlyIn = c.createGain();
   const dhpf = c.createBiquadFilter();
   dhpf.type = 'highpass';
-  const l = c.createDelay(4);
-  const r = c.createDelay(4);
+  const l = c.createDelay(MAX_DELAY);
+  const r = c.createDelay(MAX_DELAY);
   const fbL = c.createGain();
   const fbR = c.createGain();
   const merger = c.createChannelMerger(2);
@@ -396,15 +398,16 @@ function updateFx(now: number) {
     }
   }
 
-  const fsig = JSON.stringify([fx, doc.mixer, doc.master, doc.ratio, doc.limBypass, doc.cmpBypass]);
+  const fsig = JSON.stringify([fx, doc.mixer, doc.master, doc.ratio, doc.limBypass, doc.cmpBypass, doc.bpm]);
   if (fsig === fxSig) return;
   fxSig = fsig;
   set(rev.hpf.frequency, fx['rev.hpf']);
   set(rev.pre.delayTime, fx['rev.predelay'] / 1000);
 
-  const time = fx['dly.time'] / 1000;
+  // Время Delay привязано к темпу: доля такта × длительность четверти.
+  const time = Math.min(MAX_DELAY, DELAY_DIVS[Math.round(fx['dly.time'])].beats * 60 / doc.bpm);
   set(dly.l.delayTime, time);
-  set(dly.r.delayTime, Math.min(4, time * (1 + (fx['dly.stereo'] / 100) * 0.5)));
+  set(dly.r.delayTime, Math.min(MAX_DELAY, time * (1 + (fx['dly.stereo'] / 100) * 0.5)));
   set(dly.fbL.gain, fx['dly.feedback'] / 100 * 0.95);
   set(dly.fbR.gain, fx['dly.feedback'] / 100 * 0.95);
   set(dly.hpf.frequency, fx['dly.hpf']);
