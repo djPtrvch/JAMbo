@@ -3,7 +3,8 @@
 // Тап по ячейке выбирает дорожку и запускает её паттерн, когда текущий доиграет:
 // пустая ячейка — новый паттерн с копией звука дорожки; играющая — остановка дорожки;
 // повторный тап по ожидающей ячейке отменяет запуск.
-// Свайп вверх по ячейке — меню duplicate / copy / paste / delete.
+// Свайп вверх по ячейке — меню duplicate / copy / paste / delete. Перетаскивание паттерна на
+// другую ячейку (в любом столбце) кладёт туда его копию: в пустую — новый, в занятую — вместо.
 // Колонка строк (сцен) над MIX: тап запускает всю строку (пустые ячейки останавливают дорожку;
 // во время проигрывания — с начала такта), удержание — меню: имя строки и число повторов, после
 // которых играет следующая строка (∞ — без перехода).
@@ -11,7 +12,7 @@
 import { PATTERN_SLOTS, STEPS_PER_PAGE, TRACK_COUNT } from '../params';
 import {
   rowFilled, sceneName, setScene,
-  copyPattern, createPattern, deletePattern, doc, duplicatePattern, freeSlotAfter, hasLocks, pastePattern,
+  copyPattern, createPattern, dropPattern, deletePattern, doc, duplicatePattern, freeSlotAfter, hasLocks, pastePattern,
   playRange, rt, selectTrack, slotFilled, ui, type Pattern,
 } from '../state';
 import { queuePattern, queueScene, sceneProgress } from '../transport';
@@ -142,6 +143,26 @@ function buildMenu() {
   }
 }
 
+let dropTarget: [number, number] | null = null;
+
+/** Ячейка паттерна под точкой экрана: [дорожка, строка] или null. */
+function cellAt(x: number, y: number): [number, number] | null {
+  for (let i = 0; i < cells.length; i++) {
+    for (let k = 0; k < cells[i].length; k++) {
+      const r = cells[i][k].root.getBoundingClientRect();
+      if (x >= r.left && x < r.right && y >= r.top && y < r.bottom) return [i, k];
+    }
+  }
+  return null;
+}
+
+/** Подсветка ячейки, куда упадёт перетаскиваемый паттерн. */
+function setDropTarget(t: [number, number] | null) {
+  if (dropTarget) cells[dropTarget[0]][dropTarget[1]].root.classList.remove('drop-target');
+  dropTarget = t;
+  if (t) cells[t[0]][t[1]].root.classList.add('drop-target');
+}
+
 export function buildPatternGrid(): HTMLElement {
   buildMenu();
   buildSceneMenu();
@@ -164,11 +185,21 @@ export function buildPatternGrid(): HTMLElement {
         id = e.pointerId;
         startY = e.clientY;
       });
+      root.addEventListener('pointermove', (e) => {
+        if (e.pointerId !== id) return;
+        const target = slotFilled(doc.tracks[i], k) ? cellAt(e.clientX, e.clientY) : null;
+        setDropTarget(target && (target[0] !== i || target[1] !== k) ? target : null);
+      });
       const finish = (e: PointerEvent, cancelled: boolean) => {
         if (e.pointerId !== id) return;
         id = -1;
+        const target = dropTarget;
+        setDropTarget(null);
         if (cancelled) return;
-        if (startY - e.clientY > SWIPE_PX) openMenu(i, k);
+        // Короткий свайп вверх в ячейку над собой — это меню, а не перетаскивание.
+        const swipe = startY - e.clientY > SWIPE_PX && startY - e.clientY < root.offsetHeight * 0.9;
+        if (target && !(swipe && target[0] === i && target[1] === k - 1)) dropPattern(i, k, target[0], target[1]);
+        else if (startY - e.clientY > SWIPE_PX) openMenu(i, k);
         else tapCell(i, k);
       };
       root.addEventListener('pointerup', (e) => finish(e, false));
