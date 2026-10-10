@@ -17,7 +17,7 @@
 // лимитера): пиковый уровень по каналам и громкость в LUFS (K-взвешивание, окно ~400 мс).
 
 import { DELAY_DIVS, OVER_PEAK, SYNTH_ENGINES, synthEngine, PARAM_BY_ID, RATIOS, VOL_DEF_DB, volGain, SAMPLE_ROOT, TRACK_COUNT, filterFreq, fromNorm } from '../params';
-import { doc, liveFx, liveMaster, liveMixer, modulatedNorm, presets, setTrackSample, stepPreset, ui } from '../state';
+import { doc, setStepSound, liveFx, liveMaster, liveMixer, modulatedNorm, presets, setTrackSample, stepPreset, ui } from '../state';
 import { detectRoot } from './pitch';
 import { EqChain } from './eq';
 
@@ -312,13 +312,15 @@ const levelGain = (v: number) => Math.pow(v / 127, 1.5);
 const rateFor = (note: number, root: number, pitch: number) => Math.pow(2, (note - root + pitch) / 12);
 
 /** Запустить ноты дорожки в момент time (performance.now). */
-export function triggerTrack(track: number, time: number, notes: number[], locks: Record<string, number>) {
+export function triggerTrack(track: number, time: number, notes: number[], locks: Record<string, number>, sound?: string) {
   // Контекст может ещё просыпаться после первого касания — ноты всё равно ставим в план.
   if (!ctx || ctx.state === 'closed') return;
   const t = doc.tracks[track];
-  const engine = synthEngine(t.sample);
+  // У шага может быть свой звук (сэмпл или движок) вместо звука дорожки.
+  const key = sound || t.sample;
+  const engine = synthEngine(key);
   if (engine !== null) { triggerSynth(track, engine, toCtx(time), notes, locks); return; }
-  const buf = buffers.get(t.sample);
+  const buf = buffers.get(key);
   if (!buf) return;
   const at = toCtx(time);
   const v = (id: string) => value(track, id, locks);
@@ -657,18 +659,27 @@ const fileLists = new Map<number, { files: File[]; index: number }>();
 const fileKeys = new Map<File, string>();
 
 /** Загрузить файл (один раз) и поставить его на дорожку; высота определяется для индикации. */
-async function loadFile(track: number, file: File): Promise<void> {
+/** Декодировать файл (один раз): ключ сэмпла и определённая высота (только у нового). */
+async function decodeFile(file: File): Promise<{ key: string; root?: number | null }> {
   const c = ensureCtx();
-  let key = fileKeys.get(file);
-  if (!key) {
-    const buf = await c.decodeAudioData(await file.arrayBuffer());
-    key = `file:${++fileCount}`;
-    buffers.set(key, buf);
-    fileKeys.set(file, key);
-    setTrackSample(track, key, file.name, detectRoot(buf));
-  } else {
-    setTrackSample(track, key, file.name);
-  }
+  const known = fileKeys.get(file);
+  if (known) return { key: known };
+  const buf = await c.decodeAudioData(await file.arrayBuffer());
+  const key = `file:${++fileCount}`;
+  buffers.set(key, buf);
+  fileKeys.set(file, key);
+  return { key, root: detectRoot(buf) };
+}
+
+async function loadFile(track: number, file: File): Promise<void> {
+  const { key, root } = await decodeFile(file);
+  setTrackSample(track, key, file.name, root);
+}
+
+/** Сэмпл на шаги steps выбранной дорожки (зажат шаг + выбор файла в меню звука). */
+export async function loadStepSample(file: File, steps: number[]): Promise<void> {
+  const { key, root } = await decodeFile(file);
+  setStepSound(ui.selectedTrack, steps, key, file.name, root);
 }
 
 /** Выбор файлов: они становятся списком выбранной дорожки, первый ставится на неё. */

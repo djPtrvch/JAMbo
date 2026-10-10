@@ -147,7 +147,7 @@ function playStep(time: number) {
     const offset = pos % 2 === 1 ? ((swing - 50) / 50) * dur : 0;
     const sub = dur / ratchet;
     for (let r = 0; r < ratchet; r++) {
-      triggerTrack(i, time + offset + r * sub, s.notes, s.locks);
+      triggerTrack(i, time + offset + r * sub, s.notes, s.locks, s.sound);
       flashes.push({ time: time + offset + r * sub, track: i, dur: Math.min(90, sub * 0.6), notes: s.notes, noteDur: ratchet > 1 ? sub * 0.6 : s.len * dur * 0.9 });
     }
   });

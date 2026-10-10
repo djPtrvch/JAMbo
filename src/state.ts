@@ -15,6 +15,8 @@ export interface Step {
   notes: number[];
   /** P-lock: id параметра → значение. Может быть и на шаге без ноты. */
   locks: Record<string, number>;
+  /** Свой звук шага (сэмпл или движок синта) вместо звука дорожки — тоже p-lock. */
+  sound?: string;
 }
 
 /** Источник модуляции: 1–3 = LFO1–LFO3, 4 = огибающая ENV. */
@@ -593,7 +595,28 @@ export function setNoteLength(index: number, len: number) {
   s.len = Math.max(1, len);
 }
 
-export const hasLocks = (s: Step) => Object.keys(s.locks).length > 0;
+export const hasLocks = (s: Step) => Object.keys(s.locks).length > 0 || !!s.sound;
+
+/** Свой звук на шагах indices выбранной дорожки (null — снова звук дорожки). */
+export function setStepSound(track: number, indices: number[], key: string | null, fileName?: string, root?: number | null) {
+  edit(() => {
+    for (const i of indices) {
+      const s = stepAt(doc.tracks[track], i);
+      if (!s) continue;
+      if (key) s.sound = key;
+      else delete s.sound;
+    }
+    if (key && fileName) doc.files[key] = fileName;
+    if (key && typeof root === 'number') doc.roots[key] = root;
+  });
+}
+
+/** Свой звук первого удерживаемого шага выбранной дорожки (для окна сэмпла) или null. */
+export function heldStepSound(): string | null {
+  const idx = firstHeldStep();
+  if (idx === null || ui.channel !== 'track') return null;
+  return stepAt(selTrack(), idx)?.sound ?? null;
+}
 
 
 export function setPatternLength(lastIndex: number) {
@@ -1037,6 +1060,32 @@ export function loadPreset(i: number, k: number) {
     for (const id of PRESET_PARAMS) if (typeof p.params[id] === 'number') t.params[id] = p.params[id];
   });
   ui.presetPos[i] = k;
+}
+
+/** Меню удержания пресета: переименовать. */
+export function renamePreset(k: number, name: string) {
+  const p = presetList[k];
+  const n = name.trim();
+  if (!p || !n) return;
+  p.name = n.slice(0, 16);
+  storePresets();
+}
+
+/** Меню удержания пресета: копия сразу после него. */
+export function duplicatePreset(k: number) {
+  const p = presetList[k];
+  if (!p) return;
+  presetList.splice(k + 1, 0, { ...JSON.parse(JSON.stringify(p)), name: `${p.name} copy`.slice(0, 16) });
+  ui.presetPos = ui.presetPos.map((pos) => (pos > k ? pos + 1 : pos));
+  storePresets();
+}
+
+/** Меню удержания пресета: удалить из папки. */
+export function deletePreset(k: number) {
+  if (!presetList[k]) return;
+  presetList.splice(k, 1);
+  ui.presetPos = ui.presetPos.map((pos) => (pos === k ? -1 : pos > k ? pos - 1 : pos));
+  storePresets();
 }
 
 /** Имя пресета, выбранного на дорожке стрелками ('' — нет). */
