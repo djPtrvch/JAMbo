@@ -1,4 +1,5 @@
 import './style.css';
+import { TRACK_COUNT } from './params';
 import { advanceLfos, ui } from './state';
 import { updateTransport } from './transport';
 import { buildLeftButtons, buildPatternsButton, buildRightButtons, renderButtons } from './ui/buttons';
@@ -19,7 +20,7 @@ const left = h('div', 'side left');
 left.append(buildSample(), buildLeftButtons());
 
 const right = h('div', 'side right');
-right.append(buildPatternsButton(), buildPages(), buildRightButtons());
+right.append(buildPages(), buildRightButtons());
 
 const main = h('div', 'main');
 // Центр: ручки 4×4 или сетка паттернов 8×8 (кнопка PATTERNS).
@@ -28,7 +29,14 @@ const center = h('div', 'center');
 center.append(knobGrid, buildPatternGrid());
 main.append(left, center, right);
 
-app.append(buildTopbar(), main, buildTracks(), buildSequencer(), buildPiano(), buildProgression());
+// Кнопка PATTERNS — в правом верхнем углу.
+const topbar = buildTopbar();
+topbar.append(h('div', 'top-spacer'), buildPatternsButton());
+
+// Число столбцов дорожек: строка дорожек и сетка паттернов совпадают по ширине столбцов.
+app.style.setProperty('--tracks', String(TRACK_COUNT));
+
+app.append(topbar, main, buildTracks(), buildSequencer(), buildPiano(), buildProgression());
 
 // Блокируем системные жесты Safari: масштаб двойным тапом и щипком, лупу, контекстное меню.
 // Всё управление идёт через pointer-события, поэтому touch-события можно гасить целиком.
@@ -49,6 +57,8 @@ function frame(now: number) {
   renderFields();
   renderSample(now);
   setClass(knobGrid, 'hidden', ui.patternView);
+  // Сетка паттернов занимает всю ширину, боковые колонки скрываются.
+  setClass(main, 'patterns', ui.patternView);
   renderKnobs(now);
   renderPatternGrid();
   renderTracks(now);

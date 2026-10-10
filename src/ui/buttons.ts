@@ -45,12 +45,11 @@ export function buildLeftButtons(): HTMLElement {
 
 let patternsBtn: HTMLElement;
 
-/** Кнопка PATTERNS над миниатюрами страниц: переключает центр экрана на сетку паттернов. */
+/** Кнопка PATTERNS в правом верхнем углу: переключает центр экрана на сетку паттернов. */
 export function buildPatternsButton(): HTMLElement {
-  const el = h('div', 'btn-grid');
   patternsBtn = tapButton('PATTERNS', () => { ui.patternView = !ui.patternView; });
-  el.append(patternsBtn);
-  return el;
+  patternsBtn.classList.add('patterns-btn');
+  return patternsBtn;
 }
 
 export function buildRightButtons(): HTMLElement {
