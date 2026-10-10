@@ -17,7 +17,7 @@
 // лимитера): пиковый уровень по каналам и громкость в LUFS (K-взвешивание, окно ~400 мс).
 
 import { DELAY_DIVS, OVER_PEAK, SYNTH_ENGINES, synthEngine, PARAM_BY_ID, RATIOS, VOL_DEF_DB, volGain, SAMPLE_ROOT, TRACK_COUNT, filterFreq, fromNorm } from '../params';
-import { doc, modulatedNorm, presets, setTrackSample, stepPreset, ui } from '../state';
+import { doc, liveFx, liveMaster, liveMixer, modulatedNorm, presets, setTrackSample, stepPreset, ui } from '../state';
 import { detectRoot } from './pitch';
 import { EqChain } from './eq';
 
@@ -54,7 +54,7 @@ const voices: Voice[] = [];
 
 const SYNTH_SLOTS = 6;
 interface SynthSlot { amp: GainNode; level: GainNode; filter: BiquadFilterNode; pan: StereoPannerNode; sends: GainNode[] }
-interface Synth { node: AudioWorkletNode; slots: SynthSlot[]; next: number }
+interface Synth { node: AudioWorkletNode; slots: SynthSlot[]; next: number; busyUntil: number[] }
 const synths: (Synth | null)[] = Array(TRACK_COUNT).fill(null);
 let wasmBytes: ArrayBuffer | null = null;
 
@@ -95,7 +95,7 @@ function ensureSynth(track: number): Synth | null {
     });
     return { amp, level, filter, pan, sends };
   });
-  return (synths[track] = { node, slots, next: 0 });
+  return (synths[track] = { node, slots, next: 0, busyUntil: Array(SYNTH_SLOTS).fill(0) });
 }
 
 /** Ручка Decay (мс) → затухание движка Plaits 0..1. */
@@ -377,11 +377,14 @@ export function triggerTrack(track: number, time: number, notes: number[], locks
 }
 
 /** Ноты синта: голоса по кругу, огибающая и параметры — на постоянной цепочке голоса. */
-function triggerSynth(track: number, engine: number, at: number, notes: number[], locks: Record<string, number>) {
+function triggerSynth(track: number, engine: number, at0: number, notes: number[], locks: Record<string, number>) {
   const sy = ensureSynth(track);
   if (!sy) return;
+  // Живой наигрыш: небольшой запас, чтобы нота успела дойти до AudioWorklet к началу огибающей
+  // (иначе огибающая открывается раньше звука движка — щелчок).
+  const at = Math.max(at0, ctx!.currentTime + 0.012);
   const v = (id: string) => value(track, id, locks);
-  const attack = Math.max(0.001, v('attack') / 1000);
+  const attack = Math.max(0.002, v('attack') / 1000);
   const decay = v('decay') / 1000;
   // Затухает сам движок (Decay управляет им): огибающая только с атакой, голос считается,
   // пока не затихнет (это отслеживает AudioWorklet).
@@ -390,22 +393,34 @@ function triggerSynth(track: number, engine: number, at: number, notes: number[]
   const end = selfDecay ? at + attack + 15 : at + attack + Math.max(0.02, decay) * 2 + 0.05;
   const sr = ctx!.sampleRate;
   const events = notes.map((note) => {
-    const slot = sy.next;
-    sy.next = (sy.next + 1) % SYNTH_SLOTS;
+    // Свободный голос (затих к моменту ноты), иначе — самый старый по кругу.
+    let slot = -1;
+    for (let k = 0; k < SYNTH_SLOTS; k++) {
+      const c = (sy.next + k) % SYNTH_SLOTS;
+      if (sy.busyUntil[c] <= at) { slot = c; break; }
+    }
+    const steal = slot < 0;
+    if (steal) slot = sy.next;
+    sy.next = (slot + 1) % SYNTH_SLOTS;
     const sl = sy.slots[slot];
-    // Голос, который ещё звучит в этом слоте, уступает место новой ноте.
+    // Голос, который ещё звучит в этом слоте, уступает место новой ноте: быстро гаснет (≈5 мс),
+    // и новая нота начинается после этого — без щелчка.
     for (const vo of voices) if (vo.synth && vo.track === track && vo.synth.slot === slot) vo.ended = true;
+    const start = steal ? at + 0.008 : at;
     const g = sl.amp.gain;
     g.cancelScheduledValues(at);
-    g.setValueAtTime(0, at);
-    g.linearRampToValueAtTime(1, at + attack);
-    if (!selfDecay) g.setTargetAtTime(0, at + attack, Math.max(0.005, decay / 4));
-    sl.level.gain.setValueAtTime(levelGain(v('level')), at);
-    applyFilter(sl.filter, v('filter'), v('reso'), at, false);
-    sl.pan.pan.setValueAtTime(Math.max(-1, Math.min(1, v('pan') / 64)), at);
-    SENDS.forEach((id, k) => sl.sends[k].gain.setValueAtTime(v(id) / 100, at));
-    voices.push({ track, root: 0, locks, note, src: null, synth: { slot, engine, end }, level: sl.level, filter: sl.filter, pan: sl.pan, sends: sl.sends, ended: false });
-    return { type: 'note', slot, frame: Math.round(at * sr), end: Math.round(end * sr), engine, note, ...synthParams(engine, v), accent: 0.8 };
+    if (steal) g.setTargetAtTime(0, at, 0.0015);
+    g.setValueAtTime(0, start);
+    g.linearRampToValueAtTime(1, start + attack);
+    if (!selfDecay) g.setTargetAtTime(0, start + attack, Math.max(0.005, decay / 4));
+    sl.level.gain.setValueAtTime(levelGain(v('level')), start);
+    applyFilter(sl.filter, v('filter'), v('reso'), start, false);
+    sl.pan.pan.setValueAtTime(Math.max(-1, Math.min(1, v('pan') / 64)), start);
+    SENDS.forEach((id, k) => sl.sends[k].gain.setValueAtTime(v(id) / 100, start));
+    const stop = end + (start - at);
+    sy.busyUntil[slot] = selfDecay ? start + attack + 0.3 + 4 * decay : stop;
+    voices.push({ track, root: 0, locks, note, src: null, synth: { slot, engine, end: stop }, level: sl.level, filter: sl.filter, pan: sl.pan, sends: sl.sends, ended: false });
+    return { type: 'note', slot, frame: Math.round(start * sr), end: Math.round(stop * sr), engine, note, ...synthParams(engine, v), accent: 0.8 };
   });
   sy.node.port.postMessage(events);
   sidechain(track, at);
@@ -418,9 +433,10 @@ export function playNow(track: number, notes: number[]) {
 
 /** Sidechain: триг дорожки-источника приглушает остальные на их Sidechain amount. */
 function sidechain(source: number, at: number) {
-  if (source !== doc.fx['sc.source']) return;
-  const atk = doc.fx['sc.attack'] / 1000;
-  const rel = doc.fx['sc.release'] / 1000;
+  const fx = liveFx();
+  if (source !== fx['sc.source']) return;
+  const atk = fx['sc.attack'] / 1000;
+  const rel = fx['sc.release'] / 1000;
   doc.tracks.forEach((t, i) => {
     if (i === source) return;
     const amount = t.params.sidechain / 100;
@@ -496,7 +512,10 @@ function buildIR(c: AudioContext, decay: number, size: number): AudioBuffer {
 
 function updateFx(now: number) {
   const c = ctx!;
-  const fx = doc.fx;
+  // Значения с p-lock играющих шагов (FX — любой дорожки, микшер — MIX, мастер — MST).
+  const fx = liveFx(now);
+  const mixer = liveMixer(now);
+  const master = liveMaster(now);
   const ct = c.currentTime;
   const set = (p: AudioParam, v: number) => p.setTargetAtTime(v, ct, 0.02);
 
@@ -511,7 +530,7 @@ function updateFx(now: number) {
     }
   }
 
-  const fsig = JSON.stringify([fx, doc.mixer, doc.master, doc.ratio, doc.limBypass, doc.cmpBypass, doc.bpm]);
+  const fsig = JSON.stringify([fx, mixer, master, doc.ratio, doc.limBypass, doc.cmpBypass, doc.bpm]);
   if (fsig === fxSig) return;
   fxSig = fsig;
   set(rev.hpf.frequency, fx['rev.hpf']);
@@ -529,12 +548,12 @@ function updateFx(now: number) {
   set(drv.tone.frequency, 500 * Math.pow(24, fx['od.tone'] / 100));
 
   tracks.forEach((ch, i) => {
-    const vol = volGain(doc.mixer[`mix.vol${i + 1}`] ?? VOL_DEF_DB);
+    const vol = volGain(mixer[`mix.vol${i + 1}`] ?? VOL_DEF_DB);
     set(ch.vol.gain, vol);
     ch.sends.forEach((s) => set(s.gain, vol));
   });
 
-  const m = doc.master;
+  const m = master;
   // BYPASS компрессора: порог 0 dB, Ratio 1:1 и без Makeup — сигнал проходит как есть.
   const cb = doc.cmpBypass;
   set(mst.comp.threshold, cb ? 0 : m['cmp.threshold']);
@@ -826,7 +845,7 @@ export function trackDuckDb(i: number): number {
 }
 
 /** Lookahead лимитера — показывается числом. */
-export const limiterLookahead = () => doc.master['lim.lookahead'];
+export const limiterLookahead = () => liveMaster()['lim.lookahead'];
 
 /** Уровень дорожки (после громкости микшера). */
 export const trackLevel = (i: number, now: number): Level => (tracks[i] ? tracks[i].meter.read(now) : SILENT);
