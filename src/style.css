@@ -14,6 +14,8 @@
   --root: #2c3a44;
   --radius: 10px;
   --gap: 6px;
+  /* Ширина измерителя уровня справа. */
+  --meter-w: 30px;
   /* Ширина ячеек MIX и MST = ширина шага секвенсора (16 шагов с промежутком 4px). */
   --channel-col: calc((100% - 15 * 4px) / 16);
 }
@@ -67,7 +69,7 @@ html, body {
 .topbar { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: var(--gap); }
 .top-left { display: flex; align-items: stretch; gap: var(--gap); min-width: 0; }
 /* Правый блок шириной с правую колонку; PATTERNS на месте бывшей кнопки PLAY. */
-.top-right { width: 220px; justify-self: end; display: flex; }
+.top-right { width: calc(220px + var(--gap) + var(--meter-w)); justify-self: end; display: flex; }
 
 .burger {
   width: 52px;
@@ -117,14 +119,54 @@ html, body {
 
 .main {
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr) 220px;
-  grid-template-areas: "left center right";
+  grid-template-columns: 220px minmax(0, 1fr) 220px var(--meter-w);
+  grid-template-areas: "left center right meter";
   gap: var(--gap);
   min-height: 0;
 }
 .main > .left { grid-area: left; }
 .main > .center { grid-area: center; }
 .main > .right { grid-area: right; }
+.main > .meter { grid-area: meter; }
+
+/* ---------- Измеритель уровня (правый край) ---------- */
+
+.meter { display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 0; }
+.meter-text { font-size: 9px; line-height: 1.15; text-align: center; color: var(--dim); font-variant-numeric: tabular-nums; white-space: pre; }
+.meter-bars { flex: 1; display: flex; gap: 3px; width: 100%; justify-content: center; min-height: 0; }
+.meter-bar { position: relative; width: 9px; border-radius: 3px; background: var(--panel); overflow: hidden; }
+.meter-fill { position: absolute; left: 0; right: 0; bottom: 0; background: var(--plock); }
+.meter-fill.clip { background: var(--rec); }
+
+/* ---------- Полосы MIX и MST в окне сэмпла ---------- */
+
+.vbar-groups { flex: 1; width: 100%; display: flex; gap: 10px; min-height: 0; }
+.vbar-group { flex: 1; display: flex; flex-direction: column; gap: 4px; min-height: 0; }
+.vbar-title { font-size: 10px; letter-spacing: 0.1em; color: var(--dim); text-align: center; }
+.vbar-row { flex: 1; display: flex; gap: 4px; min-height: 0; width: 100%; }
+.vbar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
+.vbar { position: relative; flex: 1; width: 100%; max-width: 18px; border-radius: 3px; background: var(--off); overflow: hidden; }
+.vbar-fill { position: absolute; left: 0; right: 0; bottom: 0; background: var(--plock); }
+.vbar-fill.down { top: 0; bottom: auto; background: var(--accent); }
+.vbar-mark { position: absolute; left: 0; right: 0; height: 2px; background: #fff; }
+.vbar-label { font-size: 9px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+
+/* ---------- Стрелки под окном сэмпла ---------- */
+
+.sample-nav { display: flex; gap: var(--gap); height: 36px; flex: none; }
+.sample-nav .arrow { width: 56px; }
+.sample-nav-label { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--dim); }
+.sample-nav.disabled .arrow { color: var(--off); }
+
+/* ---------- Окно переименования ---------- */
+
+.popup-box.rename { flex-direction: row; }
+.rename-input {
+  flex: 1; min-width: 0; height: 44px; border: 0; border-radius: 6px; padding: 0 10px;
+  background: var(--panel); color: var(--text); font: inherit; font-size: 16px;
+  -webkit-user-select: text; user-select: text; touch-action: manipulation;
+}
+.popup-box.rename .popup-btn { width: 60px; }
 
 .side { display: flex; flex-direction: column; gap: var(--gap); min-height: 0; }
 
@@ -192,8 +234,8 @@ html, body {
 .center > * { flex: 1; }
 
 /* Во всю ширину: столбцы совпадают со строкой дорожек (тот же шаблон и промежуток). */
-.main.patterns { grid-template-areas: "center center center"; }
-.main.patterns > .side { display: none; }
+.main.patterns { grid-template-areas: "center center center center"; }
+.main.patterns > .side, .main.patterns > .meter { display: none; }
 .pattern-grid {
   display: grid;
   grid-template-columns: var(--channel-col) repeat(var(--tracks), minmax(0, 1fr)) var(--channel-col);

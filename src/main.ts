@@ -10,7 +10,8 @@ import { buildKnobGrid, renderKnobs } from './ui/knobs';
 import { buildPages, renderPages } from './ui/pages';
 import { buildPatternGrid, renderPatternGrid } from './ui/patterns';
 import { buildPiano, buildProgression, renderPiano } from './ui/piano';
-import { buildSample, renderSample } from './ui/sample';
+import { buildMeter, renderMeter } from './ui/meter';
+import { buildSample, buildSampleNav, renderSample } from './ui/sample';
 import { buildSequencer, renderSequencer } from './ui/sequencer';
 import { buildTopbar, renderTopbar } from './ui/topbar';
 import { buildTracks, renderTracks } from './ui/tracks';
@@ -20,7 +21,7 @@ const app = document.getElementById('app')!;
 // Центр: слева окно сэмпла и кнопки модуляции, справа миниатюры страниц и кнопки.
 // В режиме паттернов остаётся только сетка во всю ширину.
 const left = h('div', 'side left');
-left.append(buildSample(), buildLeftButtons());
+left.append(buildSample(), buildSampleNav(), buildLeftButtons());
 
 const right = h('div', 'side right');
 right.append(buildPages(), buildRightButtons());
@@ -30,7 +31,9 @@ const main = h('div', 'main');
 const knobGrid = buildKnobGrid();
 const center = h('div', 'center');
 center.append(knobGrid, buildPatternGrid());
-main.append(left, center, right);
+// Справа с краю — измеритель уровня.
+const meter = buildMeter();
+main.append(left, center, right, meter);
 
 // Верхняя панель: слева поля, по центру PLAY и REC, справа (над правой колонкой) PATTERNS.
 const topbar = buildTopbar();
@@ -80,6 +83,7 @@ function frame(now: number) {
   renderPiano(now);
   renderPages();
   renderButtons();
+  if (!ui.patternView) renderMeter(now);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

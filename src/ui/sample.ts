@@ -1,11 +1,17 @@
-// Окно сэмпла: имя и форма волны сэмпла выбранной дорожки, Start/End затемняют отрезанное.
-// Тап — выбор аудиофайла с iPad (WAV/MP3/M4A…), он заменяет сэмпл дорожки.
+// Окно сэмпла: имя, определённая высота и форма волны сэмпла выбранной дорожки, Start/End
+// затемняют отрезанное. Тап — выбор аудиофайлов с iPad (можно сразу несколько — это «папка»):
+// первый заменяет сэмпл дорожки, стрелки под окном перелистывают остальные.
+// MIX — жёлтые полосы уровня каждой дорожки. MST — по три полосы компрессора (Threshold,
+// Gain reduction, Makeup) и лимитера (Ceiling, снижение громкости, выход) и кнопка RATIO.
 // Пока меняются параметры модуляции (MOD) — здесь сразу видны миниатюры LFO1, LFO2, LFO3
 // (форма волны с Wave, Depth и Invert, бегущая точка фазы) и огибающей ENV (форма ADSR).
-// При выбранном мастере (MST) — кнопка RATIO компрессора и индикатор его работы.
 
-import { audioState, loadSampleFile, masterReduction, samplePeaks } from '../audio/engine';
-import { LFO_WAVES, RATIOS } from '../params';
+import {
+  audioState, limiterReduction, loadSampleFiles, masterLevels, masterReduction, sampleListPos, samplePeaks,
+  sampleRoot, stepSample, trackLevel,
+} from '../audio/engine';
+import { LFO_WAVES, RATIOS, TRACK_COUNT, noteName } from '../params';
+import { levelFrac } from './meter';
 import { cycleRatio, doc, envOut, envShape, lfoShape, rt, sampleName, selTrack, ui } from '../state';
 import { h, setAttr, setClass, setText, svg } from './dom';
 
@@ -26,9 +32,35 @@ let wavePeaksKey = '';
 let previews: HTMLElement;
 let masterPanel: HTMLElement;
 let ratioBtn: HTMLElement;
-let grBar: HTMLElement;
-let grText: HTMLElement;
 let mixPanel: HTMLElement;
+let navLabel: HTMLElement;
+let navRow: HTMLElement;
+
+/** Вертикальная полоса: заливка, метка уровня (линия) и подпись. */
+interface VBar { root: HTMLElement; fill: HTMLElement; mark: HTMLElement; label: HTMLElement }
+const mixBars: VBar[] = [];
+const compBars: VBar[] = [];
+const limBars: VBar[] = [];
+
+function vbar(label: string, down = false): VBar {
+  const root = h('div', 'vbar-col');
+  const bar = h('div', 'vbar');
+  const fill = h('div', down ? 'vbar-fill down' : 'vbar-fill');
+  const mark = h('div', 'vbar-mark hidden');
+  bar.append(fill, mark);
+  const lab = h('div', 'vbar-label', label);
+  root.append(bar, lab);
+  return { root, fill, mark, label: lab };
+}
+
+function setBar(b: VBar, frac: number, mark: number | null = null) {
+  setAttr(b.fill, 'style', `height:${(Math.min(1, Math.max(0, frac)) * 100).toFixed(1)}%`);
+  setClass(b.mark, 'hidden', mark === null);
+  if (mark !== null) setAttr(b.mark, 'style', `bottom:${(Math.min(1, Math.max(0, mark)) * 100).toFixed(1)}%`);
+}
+
+/** dB (−60…0) → доля высоты. */
+const dbFrac = (db: number) => (db + 60) / 60;
 const WAVE_W = 200;
 const WAVE_H = 100;
 const minis: Mini[] = [];
@@ -58,11 +90,12 @@ export function buildSample(): HTMLElement {
   // Настоящее поле выбора файла поверх окна: системный выбор файла открывается по тапу.
   const input = h('input', 'sample-file');
   input.type = 'file';
+  input.multiple = true;
   // Явные расширения: на iOS один 'audio/*' иногда не даёт выбрать файл в «Файлах».
   input.accept = 'audio/*,.wav,.wave,.aif,.aiff,.mp3,.m4a,.aac,.caf,.flac,.ogg';
   input.addEventListener('change', () => {
-    const f = input.files?.[0];
-    if (f) void loadSampleFile(f).catch(() => window.alert('Не удалось открыть файл как аудио'));
+    const files = Array.from(input.files ?? []);
+    if (files.length) void loadSampleFiles(files).catch(() => window.alert('Не удалось открыть файл как аудио'));
     input.value = '';
   });
   stub.append(waveTitle, wave, stubName, input);
@@ -70,14 +103,19 @@ export function buildSample(): HTMLElement {
   masterPanel = h('div', 'master-panel hidden');
   ratioBtn = h('div', 'btn ratio-btn');
   ratioBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); cycleRatio(); });
-  const gr = h('div', 'gr-meter');
-  grBar = h('div', 'gr-bar');
-  gr.append(grBar);
-  grText = h('div', 'sample-name');
-  masterPanel.append(h('div', 'sample-title', 'MASTER'), ratioBtn, h('div', 'sample-name', 'Gain reduction'), gr, grText);
+  const groups = h('div', 'vbar-groups');
+  const comp = h('div', 'vbar-group');
+  const lim = h('div', 'vbar-group');
+  compBars.push(vbar('THR'), vbar('GR', true), vbar('MKP'));
+  limBars.push(vbar('CEIL'), vbar('GR', true), vbar('OUT'));
+  comp.append(h('div', 'vbar-title', 'COMP'), wrap(compBars));
+  lim.append(h('div', 'vbar-title', 'LIMIT'), wrap(limBars));
+  groups.append(comp, lim);
+  masterPanel.append(groups, ratioBtn);
 
   mixPanel = h('div', 'master-panel hidden');
-  mixPanel.append(h('div', 'sample-title', 'MIXER'), h('div', 'sample-name', 'Громкости дорожек'));
+  for (let i = 0; i < TRACK_COUNT; i++) mixBars.push(vbar(`T${i + 1}`));
+  mixPanel.append(h('div', 'vbar-title', 'MIXER'), wrap(mixBars));
 
   previews = h('div', 'mod-previews hidden');
   for (let k = 0; k < 4; k++) {
@@ -87,6 +125,24 @@ export function buildSample(): HTMLElement {
   }
   root.append(stub, masterPanel, mixPanel, previews);
   return root;
+}
+
+function wrap(list: VBar[]): HTMLElement {
+  const el = h('div', 'vbar-row');
+  el.append(...list.map((b) => b.root));
+  return el;
+}
+
+/** Стрелки под окном сэмпла: соседний файл из выбранных. */
+export function buildSampleNav(): HTMLElement {
+  navRow = h('div', 'sample-nav');
+  const prev = h('div', 'btn arrow', '◀');
+  const next = h('div', 'btn arrow', '▶');
+  navLabel = h('div', 'sample-nav-label');
+  prev.addEventListener('pointerdown', (e) => { e.preventDefault(); void stepSample(-1); });
+  next.addEventListener('pointerdown', (e) => { e.preventDefault(); void stepSample(1); });
+  navRow.append(prev, navLabel, next);
+  return navRow;
 }
 
 /** LFO n: значение формы волны с Depth и Invert, −1..+1. */
@@ -143,7 +199,8 @@ function renderEnv(m: Mini, now: number) {
 
 function renderWave() {
   const t = selTrack();
-  setText(waveTitle, sampleName(t.sample));
+  const root = sampleRoot(t.sample);
+  setText(waveTitle, t.sample ? `${sampleName(t.sample)} · ${root !== null ? noteName(root) : '—'}` : sampleName(t.sample));
   // Пока звук не включён — подсказка с состоянием (помогает понять, почему тихо).
   const state = audioState();
   setText(stubName, state === 'running'
@@ -171,11 +228,26 @@ function renderWave() {
   setAttr(cutEnd, 'width', (WAVE_W - e).toFixed(1));
 }
 
-function renderMaster() {
+function renderMaster(now: number) {
   setText(ratioBtn, `RATIO ${RATIOS[doc.ratio]}:1`);
-  const gr = Math.min(0, masterReduction());
-  setAttr(grBar, 'style', `width:${Math.min(100, (-gr / 24) * 100).toFixed(0)}%`);
-  setText(grText, `${gr.toFixed(1)} dB`);
+  const m = masterLevels(now);
+  const peakDb = (l: { l: number; r: number }) => { const p = Math.max(l.l, l.r); return p > 0 ? 20 * Math.log10(p) : -100; };
+  // Компрессор: уровень входа с меткой Threshold, понижение усиления, Makeup.
+  setBar(compBars[0], dbFrac(peakDb(m.comp)), dbFrac(doc.master['cmp.threshold']));
+  setBar(compBars[1], -Math.min(0, masterReduction()) / 24);
+  setBar(compBars[2], doc.master['cmp.makeup'] / 24);
+  // Лимитер: уровень входа с меткой Ceiling, снижение громкости, выход.
+  setBar(limBars[0], dbFrac(peakDb(m.lim)), dbFrac(doc.master['lim.ceiling']));
+  setBar(limBars[1], -Math.min(0, limiterReduction()) / 24);
+  setBar(limBars[2], dbFrac(peakDb(m.out)));
+}
+
+function renderMix(now: number) {
+  mixBars.forEach((b, i) => {
+    const lv = trackLevel(i, now);
+    setText(b.label, doc.tracks[i].name);
+    setBar(b, levelFrac(Math.max(lv.l, lv.r)));
+  });
 }
 
 export function renderSample(now: number) {
@@ -186,7 +258,11 @@ export function renderSample(now: number) {
   setClass(mixPanel, 'hidden', panel !== 'mix');
   setClass(previews, 'hidden', panel !== 'mod');
   if (panel === 'wave') renderWave();
-  if (panel === 'master') renderMaster();
+  if (panel === 'master') renderMaster(now);
+  if (panel === 'mix') renderMix(now);
+  const [pos, total] = sampleListPos();
+  setText(navLabel, total ? `${pos} / ${total}` : 'файлы');
+  setClass(navRow, 'disabled', total < 2);
   if (!show) return;
   renderLfo(minis[0], 1);
   renderLfo(minis[1], 2);
