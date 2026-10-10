@@ -232,7 +232,7 @@ export const PROGRESSIONS: { name: string; degrees: number[] }[] = [
 /** Октава пианоролла (C4 = MIDI 60). */
 export const OCTAVE_MIN = 0;
 export const OCTAVE_MAX = 7;
-export const OCTAVE_DEF = 3;
+export const OCTAVE_DEF = 2;
 
 export const noteName = (midi: number) => `${NOTE_NAMES[midi % 12]}${Math.floor(midi / 12) - 1}`;
 export const BPM_MIN = 40;
