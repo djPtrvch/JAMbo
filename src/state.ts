@@ -240,15 +240,12 @@ export function heldLfo(): 1 | 2 | null {
 
 /**
  * Дорожка, к которой применяется действие ручки — всегда выбранная.
- * С зажатым TRACK изменение идёт на всю дорожку: p-lock этого параметра на всех её шагах
- * снимаются, а на дорожке появляется жёлтая точка.
+ * С зажатым TRACK изменение идёт на всю дорожку (p-lock шагов остаются),
+ * а на дорожке появляется жёлтая точка.
  */
-function targetTracks(paramId?: string): Track[] {
+function targetTracks(): Track[] {
   const t = doc.tracks[ui.selectedTrack];
-  if (ui.held.track) {
-    t.trackEdit = true;
-    if (paramId) for (const pg of t.pages) for (const s of pg) delete s.locks[paramId];
-  }
+  if (ui.held.track) t.trackEdit = true;
   return [t];
 }
 
@@ -263,7 +260,7 @@ export function paramValue(mode: GridMode, p: ParamDef, track = selTrack()): num
 export function setParamNorm(mode: GridMode, p: ParamDef, norm: number) {
   const v = fromNorm(p, norm);
   if (mode === 'fx') doc.fx[p.id] = v;
-  else for (const t of targetTracks(p.id)) t.params[p.id] = v;
+  else for (const t of targetTracks()) t.params[p.id] = v;
   if (p.id.startsWith('lfo')) {
     ui.lfoPreview = p.id.startsWith('lfo1') ? 1 : 2;
     ui.lfoPreviewUntil = performance.now() + 1500;
