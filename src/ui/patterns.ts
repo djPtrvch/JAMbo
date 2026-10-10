@@ -4,17 +4,95 @@
 // пустая ячейка — новый паттерн с копией звука дорожки; играющая — остановка дорожки;
 // повторный тап по ожидающей ячейке отменяет запуск.
 // Свайп вверх по ячейке — меню duplicate / copy / paste / delete.
+// Колонка строк (сцен) над MIX: тап запускает всю строку (пустые ячейки останавливают дорожку;
+// во время проигрывания — с начала такта), удержание — меню: имя строки и число повторов, после
+// которых играет следующая строка (∞ — без перехода).
 
 import { PATTERN_SLOTS, STEPS_PER_PAGE, TRACK_COUNT } from '../params';
 import {
+  rowFilled, sceneName, setScene,
   copyPattern, createPattern, deletePattern, doc, duplicatePattern, freeSlotAfter, hasLocks, pastePattern,
   playRange, rt, selectTrack, slotFilled, ui, type Pattern,
 } from '../state';
-import { queuePattern } from '../transport';
-import { h, setAttr, setClass, svg } from './dom';
+import { queuePattern, queueScene, sceneProgress } from '../transport';
+import { h, setAttr, setClass, setText, svg } from './dom';
 import { makePopup, popupButton, type Popup } from './popup';
 
 const SWIPE_PX = 24;
+const HOLD_MS = 500;
+
+interface SceneCell { root: HTMLElement; name: HTMLElement; reps: HTMLElement; bar: HTMLElement }
+const sceneCells: SceneCell[] = [];
+let sceneMenu: Popup;
+let sceneInput: HTMLInputElement;
+let sceneReps: HTMLElement;
+let sceneRow = -1;
+let sceneRepsValue = 0;
+
+const fmtReps = (n: number) => (n === 0 ? '∞' : `×${n}`);
+
+function buildSceneMenu() {
+  sceneMenu = makePopup('scene-menu');
+  sceneInput = h('input', 'rename-input');
+  sceneInput.type = 'text';
+  sceneInput.maxLength = 12;
+  sceneInput.placeholder = 'имя';
+  const row = h('div', 'scene-reps-row');
+  const minus = popupButton('−', () => { sceneRepsValue = Math.max(0, sceneRepsValue - 1); showReps(); });
+  const plus = popupButton('+', () => { sceneRepsValue = Math.min(64, sceneRepsValue + 1); showReps(); });
+  sceneReps = h('div', 'scene-reps');
+  row.append(h('div', 'scene-reps-label', 'ПОВТОРЫ'), minus, sceneReps, plus);
+  const done = () => {
+    if (sceneRow >= 0) setScene(sceneRow, sceneInput.value, sceneRepsValue);
+    sceneInput.blur();
+    sceneMenu.close();
+  };
+  sceneInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') done(); });
+  sceneMenu.box.append(sceneInput, row, popupButton('OK', done));
+}
+
+function showReps() {
+  setText(sceneReps, fmtReps(sceneRepsValue));
+}
+
+function openSceneMenu(k: number) {
+  sceneRow = k;
+  sceneInput.value = doc.scenes[k].name;
+  sceneRepsValue = doc.scenes[k].repeats;
+  showReps();
+  sceneMenu.openAt(sceneCells[k].root, 260);
+}
+
+/** Ячейка строки (сцены) в колонке над MIX. */
+function buildSceneCell(k: number): HTMLElement {
+  const root = h('div', 'pattern-cell scene-cell');
+  root.style.gridColumn = '1';
+  root.style.gridRow = String(k + 1);
+  const name = h('div', 'scene-name');
+  const reps = h('div', 'scene-reps-badge');
+  const bar = h('div', 'pattern-bar');
+  root.append(name, reps, bar);
+  let id = -1;
+  let timer = 0;
+  let held = false;
+  root.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    root.setPointerCapture(e.pointerId);
+    id = e.pointerId;
+    held = false;
+    timer = window.setTimeout(() => { held = true; openSceneMenu(k); }, HOLD_MS);
+  });
+  const finish = (e: PointerEvent, cancelled: boolean) => {
+    if (e.pointerId !== id) return;
+    id = -1;
+    clearTimeout(timer);
+    if (!cancelled && !held) queueScene(k);
+  };
+  root.addEventListener('pointerup', (e) => finish(e, false));
+  root.addEventListener('pointercancel', (e) => finish(e, true));
+  sceneCells.push({ root, name, reps, bar });
+  return root;
+}
 
 interface Cell { root: HTMLElement; bar: HTMLElement; thumb: SVGSVGElement; sig: string }
 const cells: Cell[][] = [];
@@ -66,11 +144,13 @@ function buildMenu() {
 
 export function buildPatternGrid(): HTMLElement {
   buildMenu();
+  buildSceneMenu();
   grid = h('div', 'pattern-grid hidden');
+  for (let k = 0; k < PATTERN_SLOTS; k++) grid.append(buildSceneCell(k));
   for (let k = 0; k < PATTERN_SLOTS; k++) {
     for (let i = 0; i < TRACK_COUNT; i++) {
       const root = h('div', 'pattern-cell');
-      // Столбцы сетки стоят ровно над дорожками (первый столбец — под MIX, пустой).
+      // Столбцы сетки стоят ровно над дорожками (первый столбец — над MIX, строки).
       root.style.gridColumn = String(i + 2);
       root.style.gridRow = String(k + 1);
       const thumb = svg('svg', { class: 'pattern-thumb', preserveAspectRatio: 'none' });
@@ -129,6 +209,18 @@ export function renderPatternGrid() {
   setClass(grid, 'hidden', !ui.patternView);
   if (!ui.patternView) return;
   if (!menu.isOpen()) menuCell = null;
+  const prog = sceneProgress();
+  sceneCells.forEach((c, k) => {
+    const sc = doc.scenes[k];
+    const playing = rt.scene?.row === k && ui.playing;
+    setText(c.name, sceneName(k));
+    // Повторы: у играющей строки — номер прохода.
+    setText(c.reps, playing && prog && sc.repeats > 0 ? `${Math.min(prog.pass + 1, sc.repeats)}/${sc.repeats}` : fmtReps(sc.repeats));
+    setClass(c.root, 'filled', rowFilled(k));
+    setClass(c.root, 'active', rt.scene?.row === k);
+    setClass(c.root, 'queued', rt.sceneQueued === k);
+    setAttr(c.bar, 'style', `width:${playing && prog ? Math.round(prog.frac * 100) : 0}%`);
+  });
   doc.tracks.forEach((t, i) => {
     const q = rt.queued[i];
     cells[i].forEach((c, k) => {
