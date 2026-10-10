@@ -35,7 +35,7 @@ center.append(knobGrid, buildPatternGrid());
 const meter = buildMeter();
 main.append(left, center, right, meter);
 
-// Верхняя панель: слева поля, по центру PLAY и REC, справа (над правой колонкой) PATTERNS.
+// Верхняя панель: слева поля; справа PLAY и REC, а за ними PATTERNS над правой колонкой.
 const topbar = buildTopbar();
 const topLeft = h('div', 'top-left');
 topLeft.append(...topbar.children);

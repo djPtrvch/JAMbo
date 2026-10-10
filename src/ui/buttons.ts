@@ -1,5 +1,5 @@
 // Кнопки: LFO1, LFO2, LFO3, ENV (слева, под окном сэмпла); TRACK, UNDO, FX, MOD (справа внизу);
-// PLAY, REC (по центру верхней панели), PATTERNS (в верхней панели справа).
+// PLAY, REC и PATTERNS (в верхней панели справа).
 // LFO1/LFO2/LFO3/ENV/TRACK/FX/MOD работают на удержание.
 
 import { canUndo, doc, gridMode, setHeld, ui, undo, undoTrackEdits, type HoldButton } from '../state';
@@ -42,11 +42,13 @@ export function buildLeftButtons(): HTMLElement {
   return el;
 }
 
-/** PLAY и REC по центру верхней панели — видны и в режиме сетки паттернов. */
+/** PLAY (зелёная) и REC (красная) слева от PATTERNS — видны и в режиме сетки паттернов. */
 export function buildTransportButtons(): HTMLElement {
   const el = h('div', 'transport');
   playBtn = tapButton('PLAY', () => setPlaying(!ui.playing));
+  playBtn.classList.add('play-btn');
   recBtn = tapButton('REC', () => { ui.rec = !ui.rec; });
+  recBtn.classList.add('rec-btn');
   el.append(playBtn, recBtn);
   return el;
 }

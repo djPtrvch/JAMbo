@@ -11,6 +11,7 @@
   --mute: #ff4d4d;
   --solo: #7ae582;
   --rec: #ff4d4d;
+  --play: #3ddc84;
   --root: #2c3a44;
   --radius: 10px;
   --gap: 6px;
@@ -62,14 +63,19 @@ html, body {
 .btn.active { background: var(--text); color: var(--bg); }
 .btn.mode { box-shadow: inset 0 0 0 2px var(--accent); }
 .btn.rec { background: var(--rec); color: #fff; }
+/* PLAY — зелёная окантовка, при игре горит зелёным; REC — красная окантовка, включена — красная. */
+.btn.play-btn { box-shadow: inset 0 0 0 2px var(--play); }
+.btn.play-btn.active { background: var(--play); color: var(--bg); }
+.btn.rec-btn { box-shadow: inset 0 0 0 2px var(--rec); }
 .btn.disabled { color: var(--off); }
 
 /* ---------- Верхняя панель ---------- */
 
-.topbar { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: var(--gap); }
+.topbar { display: flex; gap: var(--gap); }
+.topbar > .top-left { flex: 1; }
 .top-left { display: flex; align-items: stretch; gap: var(--gap); min-width: 0; }
 /* Правый блок шириной с правую колонку; PATTERNS на месте бывшей кнопки PLAY. */
-.top-right { width: calc(220px + var(--gap) + var(--meter-w)); justify-self: end; display: flex; }
+.top-right { width: calc(220px + var(--gap) + var(--meter-w)); flex: none; display: flex; }
 
 .burger {
   width: 52px;
@@ -200,7 +206,7 @@ html, body {
   -webkit-user-select: auto; user-select: auto; touch-action: manipulation; cursor: pointer;
 }
 .master-panel { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 10px; padding: 12px; }
-.ratio-btn { width: 100%; height: 56px; }
+.ratio-btn { width: 100%; height: 40px; flex: none; font-size: 12px; }
 .gr-meter { width: 100%; height: 10px; border-radius: 5px; background: var(--off); overflow: hidden; }
 .gr-bar { height: 100%; width: 0; background: var(--accent); }
 .sample-name { color: var(--off); }
