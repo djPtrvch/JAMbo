@@ -91,8 +91,8 @@ export const LFO_WAVES = ['Sine', 'Triangle', 'Saw', 'Square', 'Random'];
 function lfoColumn(n: 1 | 2): Slot[] {
   return [
     stepped(`lfo${n}.wave`, `LFO${n} Wave`, LFO_WAVES),
-    smooth(`lfo${n}.depth`, `LFO${n} Depth`, 0, 100, 100, pct),
     smooth(`lfo${n}.speed`, `LFO${n} Speed`, 0.05, 20, 1, lfoHz, { exp: true }),
+    smooth(`lfo${n}.depth`, `LFO${n} Depth`, 0, 100, 100, pct),
     smooth(`lfo${n}.invert`, `LFO${n} Invert`, 0, 1, 0, (v) => { const p = Math.round((1 - 2 * v) * 100); return p === 0 ? 'flat' : `${p > 0 ? '+' : ''}${p}%`; }),
   ];
 }
