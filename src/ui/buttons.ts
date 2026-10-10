@@ -1,4 +1,4 @@
-// Кнопки: LFO1, LFO2, TRACK, UNDO (слева) и PLAY, REC, FX, MOD (справа).
+// Кнопки: LFO1, LFO2, UNDO, TRACK (слева), PATTERNS и PLAY, REC, FX, MOD (справа).
 // LFO1/LFO2/TRACK/FX/MOD работают на удержание.
 
 import { canUndo, gridMode, setHeld, ui, undo, type HoldButton } from '../state';
@@ -43,6 +43,16 @@ export function buildLeftButtons(): HTMLElement {
   return el;
 }
 
+let patternsBtn: HTMLElement;
+
+/** Кнопка PATTERNS над миниатюрами страниц: переключает центр экрана на сетку паттернов. */
+export function buildPatternsButton(): HTMLElement {
+  const el = h('div', 'btn-grid');
+  patternsBtn = tapButton('PATTERNS', () => { ui.patternView = !ui.patternView; });
+  el.append(patternsBtn);
+  return el;
+}
+
 export function buildRightButtons(): HTMLElement {
   const el = h('div', 'btn-grid');
   playBtn = tapButton('PLAY', () => { unlockAudio(); setPlaying(!ui.playing); });
@@ -59,6 +69,7 @@ export function renderButtons() {
     if (btn === 'fx' || btn === 'mod') setClass(el, 'mode', mode === btn);
   }
   setClass(playBtn, 'active', ui.playing);
+  setClass(patternsBtn, 'active', ui.patternView);
   setClass(recBtn, 'rec', ui.rec);
   setClass(undoBtn, 'disabled', !canUndo());
 }

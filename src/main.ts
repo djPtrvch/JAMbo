@@ -1,11 +1,12 @@
 import './style.css';
-import { advanceLfos } from './state';
+import { advanceLfos, ui } from './state';
 import { updateTransport } from './transport';
-import { buildLeftButtons, buildRightButtons, renderButtons } from './ui/buttons';
+import { buildLeftButtons, buildPatternsButton, buildRightButtons, renderButtons } from './ui/buttons';
 import { renderFields } from './ui/controls';
-import { h } from './ui/dom';
+import { h, setClass } from './ui/dom';
 import { buildKnobGrid, renderKnobs } from './ui/knobs';
 import { buildPages, renderPages } from './ui/pages';
+import { buildPatternGrid, renderPatternGrid } from './ui/patterns';
 import { buildPiano, buildProgression, renderPiano } from './ui/piano';
 import { buildSample, renderSample } from './ui/sample';
 import { buildSequencer, renderSequencer } from './ui/sequencer';
@@ -18,10 +19,14 @@ const left = h('div', 'side left');
 left.append(buildSample(), buildLeftButtons());
 
 const right = h('div', 'side right');
-right.append(buildPages(), buildRightButtons());
+right.append(buildPatternsButton(), buildPages(), buildRightButtons());
 
 const main = h('div', 'main');
-main.append(left, buildKnobGrid(), right);
+// Центр: ручки 4×4 или сетка паттернов 8×8 (кнопка PATTERNS).
+const knobGrid = buildKnobGrid();
+const center = h('div', 'center');
+center.append(knobGrid, buildPatternGrid());
+main.append(left, center, right);
 
 app.append(buildTopbar(), main, buildTracks(), buildSequencer(), buildPiano(), buildProgression());
 
@@ -43,7 +48,9 @@ function frame(now: number) {
   renderTopbar(now);
   renderFields();
   renderSample(now);
+  setClass(knobGrid, 'hidden', ui.patternView);
   renderKnobs(now);
+  renderPatternGrid();
   renderTracks(now);
   renderSequencer();
   renderPiano(now);

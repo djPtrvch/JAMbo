@@ -148,6 +148,42 @@ html, body {
   gap: var(--gap);
 }
 
+/* ---------- Центр: ручки или сетка паттернов ---------- */
+
+.center { display: flex; min-height: 0; min-width: 0; }
+.center > * { flex: 1; }
+
+.pattern-grid {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  grid-template-rows: 20px repeat(8, minmax(0, 1fr));
+  gap: 4px;
+  min-height: 0;
+}
+.pattern-head {
+  font-size: 11px;
+  color: var(--dim);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  align-self: end;
+}
+.pattern-head.selected { color: var(--accent); }
+.pattern-cell {
+  position: relative;
+  border-radius: 6px;
+  background: var(--panel);
+  overflow: hidden;
+}
+.pattern-cell.selected-col { background: #1f2227; }
+.pattern-cell.filled { background: var(--off); }
+.pattern-cell.active { background: var(--accent); }
+.pattern-bar { position: absolute; left: 0; bottom: 0; height: 4px; background: var(--bg); opacity: 0.6; }
+.pattern-cell.queued, .pattern-cell.stopping { animation: queued-blink 0.5s steps(2, jump-none) infinite; }
+.pattern-cell.queued { box-shadow: inset 0 0 0 2px var(--accent); }
+@keyframes queued-blink { 50% { opacity: 0.35; } }
+
 /* ---------- Ручки ---------- */
 
 .knob-grid {
