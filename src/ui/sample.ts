@@ -1,18 +1,18 @@
 // Окно сэмпла: имя, определённая высота и форма волны сэмпла выбранной дорожки, Start/End
 // затемняют отрезанное. Тап — выбор аудиофайлов с iPad (можно сразу несколько — это «папка»):
 // первый заменяет сэмпл дорожки, стрелки под окном перелистывают остальные.
-// MIX — жёлтые полосы уровня каждой дорожки. MST — по три полосы компрессора (Threshold,
-// Gain reduction, выход после Makeup) и RATIO под ними, лимитера (Ceiling, снижение громкости, выход).
+// MIX — уровень каждой дорожки (как измеритель справа). MST — как в Ableton: у компрессора и
+// лимитера вход с меткой порога, снижение громкости и выход, под ними BYPASS (и RATIO у компрессора).
 // Пока меняются параметры модуляции (MOD) — здесь сразу видны миниатюры LFO1, LFO2, LFO3
 // (форма волны с Wave, Depth и Invert, бегущая точка фазы) и огибающей ENV (форма ADSR).
 
 import {
-  audioState, limiterReduction, loadSampleFiles, masterLevels, masterReduction, sampleListPos, samplePeaks,
+  audioState, limiterReduction, trackIsStereo, loadSampleFiles, masterLevels, masterReduction, sampleListPos, samplePeaks,
   sampleRoot, stepSample, trackLevel,
 } from '../audio/engine';
 import { LFO_WAVES, RATIOS, TRACK_COUNT, noteName } from '../params';
-import { levelFrac } from './meter';
-import { cycleRatio, doc, envOut, envShape, lfoShape, rt, sampleName, selTrack, ui } from '../state';
+import { fmtDb, levelFrac } from './meter';
+import { cycleRatio, doc, toggleBypass, envOut, envShape, lfoShape, rt, sampleName, selTrack, ui } from '../state';
 import { h, setAttr, setClass, setText, svg } from './dom';
 
 const W = 200;
@@ -32,31 +32,69 @@ let wavePeaksKey = '';
 let previews: HTMLElement;
 let masterPanel: HTMLElement;
 let ratioBtn: HTMLElement;
+let cmpBypassBtn: HTMLElement;
+let limBypassBtn: HTMLElement;
 let mixPanel: HTMLElement;
 let navLabel: HTMLElement;
 let navRow: HTMLElement;
 
-/** Вертикальная полоса: заливка, метка уровня (линия) и подпись. */
-interface VBar { root: HTMLElement; fill: HTMLElement; mark: HTMLElement; label: HTMLElement }
+/**
+ * Вертикальная полоса уровня (1 или 2 канала) с меткой, числом и подписью.
+ * kind: 'yellow' — жёлтая (микшер, как измеритель справа); 'meter' — как в Ableton:
+ * градиент зелёный → жёлтый → красный со шкалой; 'gr' — снижение громкости, оранжевая сверху.
+ */
+type BarKind = 'yellow' | 'meter' | 'gr';
+interface VBar { root: HTMLElement; chans: HTMLElement[]; fills: HTMLElement[]; mark: HTMLElement; value: HTMLElement; label: HTMLElement; kind: BarKind }
 const mixBars: VBar[] = [];
 const compBars: VBar[] = [];
 const limBars: VBar[] = [];
 
-function vbar(label: string, down = false): VBar {
+/** Отметки шкалы в dB (как сетка на измерителях Ableton). */
+const TICKS = [-6, -12, -24, -48];
+
+function vbar(label: string, kind: BarKind): VBar {
   const root = h('div', 'vbar-col');
-  const bar = h('div', 'vbar');
-  const fill = h('div', down ? 'vbar-fill down' : 'vbar-fill');
+  const box = h('div', 'vbar-box');
+  const chans: HTMLElement[] = [];
+  const fills: HTMLElement[] = [];
+  for (let ch = 0; ch < (kind === 'gr' ? 1 : 2); ch++) {
+    const bar = h('div', `vbar ${kind}`);
+    const fill = h('div', 'vbar-fill');
+    bar.append(fill);
+    chans.push(bar);
+    fills.push(fill);
+    box.append(bar);
+  }
+  if (kind === 'meter') {
+    for (const db of TICKS) {
+      const t = h('div', 'vbar-tick');
+      t.style.bottom = `${(dbFrac(db) * 100).toFixed(1)}%`;
+      box.append(t);
+    }
+  }
   const mark = h('div', 'vbar-mark hidden');
-  bar.append(fill, mark);
+  box.append(mark);
+  const value = h('div', 'vbar-val');
   const lab = h('div', 'vbar-label', label);
-  root.append(bar, lab);
-  return { root, fill, mark, label: lab };
+  root.append(box, value, lab);
+  return { root, chans, fills, mark, value, label: lab, kind };
 }
 
-function setBar(b: VBar, frac: number, mark: number | null = null) {
-  setAttr(b.fill, 'style', `height:${(Math.min(1, Math.max(0, frac)) * 100).toFixed(1)}%`);
+/**
+ * Обновить полосу: доли по каналам (0..1; для 'gr' — доля снижения сверху),
+ * stereo — показывать ли второй канал, mark — метка (порог), text — число под полосой.
+ */
+function setBar(b: VBar, fracs: number[], stereo: boolean, text: string, mark: number | null = null, clip = false) {
+  b.chans.forEach((c, i) => setClass(c, 'hidden', i > 0 && !stereo));
+  b.fills.forEach((f, i) => {
+    const v = Math.min(1, Math.max(0, fracs[Math.min(i, fracs.length - 1)]));
+    // У градиентной полосы закрывается незаполненная часть сверху, у остальных растёт заливка.
+    setAttr(f, 'style', `height:${((b.kind === 'meter' ? 1 - v : v) * 100).toFixed(1)}%`);
+    setClass(f, 'clip', clip);
+  });
   setClass(b.mark, 'hidden', mark === null);
   if (mark !== null) setAttr(b.mark, 'style', `bottom:${(Math.min(1, Math.max(0, mark)) * 100).toFixed(1)}%`);
+  setText(b.value, text);
 }
 
 /** dB (−60…0) → доля высоты. */
@@ -100,22 +138,37 @@ export function buildSample(): HTMLElement {
   });
   stub.append(waveTitle, wave, stubName, input);
 
+  // MST как в Ableton: у каждого устройства вход (с меткой порога), снижение громкости, выход;
+  // полосы одной длины, под ними кнопки: у компрессора BYPASS и RATIO, у лимитера BYPASS.
   masterPanel = h('div', 'master-panel hidden');
-  ratioBtn = h('div', 'btn ratio-btn');
-  ratioBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); cycleRatio(); });
+  const tapBtn = (cls: string, fn: () => void) => {
+    const el = h('div', `btn ${cls}`);
+    el.addEventListener('pointerdown', (e) => { e.preventDefault(); fn(); });
+    return el;
+  };
+  ratioBtn = tapBtn('dev-btn', cycleRatio);
+  cmpBypassBtn = tapBtn('dev-btn', () => toggleBypass('cmp'));
+  limBypassBtn = tapBtn('dev-btn', () => toggleBypass('lim'));
+  setText(cmpBypassBtn, 'BYPASS');
+  setText(limBypassBtn, 'BYPASS');
   const groups = h('div', 'vbar-groups');
   const comp = h('div', 'vbar-group');
   const lim = h('div', 'vbar-group');
-  compBars.push(vbar('THR'), vbar('GR', true), vbar('OUT'));
-  limBars.push(vbar('CEIL'), vbar('GR', true), vbar('OUT'));
-  // RATIO — прямо под полосами компрессора.
-  comp.append(h('div', 'vbar-title', 'COMP'), wrap(compBars), ratioBtn);
-  lim.append(h('div', 'vbar-title', 'LIMIT'), wrap(limBars));
+  compBars.push(vbar('IN', 'meter'), vbar('GR', 'gr'), vbar('OUT', 'meter'));
+  limBars.push(vbar('IN', 'meter'), vbar('GR', 'gr'), vbar('OUT', 'meter'));
+  const compBtns = h('div', 'dev-btns');
+  compBtns.append(cmpBypassBtn, ratioBtn);
+  const limBtns = h('div', 'dev-btns');
+  limBtns.append(limBypassBtn);
+  comp.append(h('div', 'vbar-title', 'COMP'), wrap(compBars), compBtns);
+  lim.append(h('div', 'vbar-title', 'LIMIT'), wrap(limBars), limBtns);
   groups.append(comp, lim);
   masterPanel.append(groups);
 
+  // MIX: уровень каждой дорожки после громкости микшера — как измеритель справа
+  // (жёлтый, стерео — две полосы, моно — одна, перегрузка — красная).
   mixPanel = h('div', 'master-panel hidden');
-  for (let i = 0; i < TRACK_COUNT; i++) mixBars.push(vbar(`T${i + 1}`));
+  for (let i = 0; i < TRACK_COUNT; i++) mixBars.push(vbar(`T${i + 1}`, 'yellow'));
   mixPanel.append(h('div', 'vbar-title', 'MIXER'), wrap(mixBars));
 
   previews = h('div', 'mod-previews hidden');
@@ -229,26 +282,32 @@ function renderWave() {
   setAttr(cutEnd, 'width', (WAVE_W - e).toFixed(1));
 }
 
+const pk = (l: { l: number; r: number }) => Math.max(l.l, l.r);
+const lvFracs = (l: { l: number; r: number }) => [levelFrac(l.l), levelFrac(l.r)];
+
 function renderMaster(now: number) {
-  setText(ratioBtn, `RATIO ${RATIOS[doc.ratio]}:1`);
+  setText(ratioBtn, `RATIO\n${RATIOS[doc.ratio]}:1`);
+  setClass(cmpBypassBtn, 'active', doc.bypass.cmp);
+  setClass(limBypassBtn, 'active', doc.bypass.lim);
   const m = masterLevels(now);
-  const peakDb = (l: { l: number; r: number }) => { const p = Math.max(l.l, l.r); return p > 0 ? 20 * Math.log10(p) : -100; };
-  // Компрессор: уровень входа с меткой Threshold, понижение усиления, выходной уровень
-  // после Makeup (ручка Makeup поднимает его, как в компрессорах Drambo и Ableton).
-  setBar(compBars[0], dbFrac(peakDb(m.comp)), dbFrac(doc.master['cmp.threshold']));
-  setBar(compBars[1], -Math.min(0, masterReduction()) / 24);
-  setBar(compBars[2], dbFrac(peakDb(m.compOut)));
-  // Лимитер: уровень входа с меткой Ceiling, снижение громкости, выход.
-  setBar(limBars[0], dbFrac(peakDb(m.lim)), dbFrac(doc.master['lim.ceiling']));
-  setBar(limBars[1], -Math.min(0, limiterReduction()) / 24);
-  setBar(limBars[2], dbFrac(peakDb(m.out)));
+  const cgr = doc.bypass.cmp ? 0 : Math.min(0, masterReduction());
+  const lgr = doc.bypass.lim ? 0 : Math.min(0, limiterReduction());
+  // Компрессор: вход с меткой Threshold, снижение громкости, выход после Makeup.
+  setBar(compBars[0], lvFracs(m.comp), true, fmtDb(pk(m.comp)), dbFrac(doc.master['cmp.threshold']), m.comp.clip);
+  setBar(compBars[1], [-cgr / 24], false, cgr.toFixed(1));
+  setBar(compBars[2], lvFracs(m.compOut), true, fmtDb(pk(m.compOut)), null, m.compOut.clip);
+  // Лимитер: вход с меткой Ceiling, снижение громкости, выход.
+  setBar(limBars[0], lvFracs(m.lim), true, fmtDb(pk(m.lim)), dbFrac(doc.master['lim.ceiling']), m.lim.clip);
+  setBar(limBars[1], [-lgr / 24], false, lgr.toFixed(1));
+  setBar(limBars[2], lvFracs(m.out), true, fmtDb(pk(m.out)), null, m.out.clip);
 }
 
 function renderMix(now: number) {
   mixBars.forEach((b, i) => {
     const lv = trackLevel(i, now);
+    const stereo = trackIsStereo(i);
     setText(b.label, doc.tracks[i].name);
-    setBar(b, levelFrac(Math.max(lv.l, lv.r)));
+    setBar(b, stereo ? lvFracs(lv) : [levelFrac(pk(lv))], stereo, fmtDb(pk(lv)), null, lv.clip);
   });
 }
 

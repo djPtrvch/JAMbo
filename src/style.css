@@ -147,15 +147,27 @@ html, body {
 /* ---------- Полосы MIX и MST в окне сэмпла ---------- */
 
 .vbar-groups { flex: 1; width: 100%; display: flex; gap: 10px; min-height: 0; }
-.vbar-group { flex: 1; display: flex; flex-direction: column; gap: 4px; min-height: 0; }
+.vbar-group { flex: 1; display: flex; flex-direction: column; gap: 4px; min-height: 0; min-width: 0; }
 .vbar-title { font-size: 10px; letter-spacing: 0.1em; color: var(--dim); text-align: center; }
 .vbar-row { flex: 1; display: flex; gap: 4px; min-height: 0; width: 100%; }
-.vbar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
-.vbar { position: relative; flex: 1; width: 100%; max-width: 18px; border-radius: 3px; background: var(--off); overflow: hidden; }
-.vbar-fill { position: absolute; left: 0; right: 0; bottom: 0; background: var(--plock); }
-.vbar-fill.down { top: 0; bottom: auto; background: var(--accent); }
-.vbar-mark { position: absolute; left: 0; right: 0; height: 2px; background: #fff; }
+.vbar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; }
+.vbar-box { position: relative; flex: 1; width: 100%; max-width: 22px; display: flex; gap: 2px; justify-content: center; min-height: 0; }
+.vbar { position: relative; flex: 1; border-radius: 2px; background: var(--off); overflow: hidden; }
+.vbar-fill { position: absolute; left: 0; right: 0; bottom: 0; }
+/* Микшер: жёлтая заливка снизу, как у измерителя справа. */
+.vbar.yellow .vbar-fill { background: var(--plock); }
+/* Как в Ableton: градиент на всю высоту, незаполненная часть закрыта сверху. */
+.vbar.meter { background: linear-gradient(to top, #3ddc84 0%, #3ddc84 75%, #ffd23f 88%, #ff4d4d 100%); }
+.vbar.meter .vbar-fill { top: 0; bottom: auto; background: #2a2d32; }
+/* Снижение громкости — оранжевым сверху вниз. */
+.vbar.gr .vbar-fill { top: 0; bottom: auto; background: #ff8a3d; }
+.vbar.yellow .vbar-fill.clip { background: var(--rec); }
+.vbar-tick { position: absolute; left: -2px; right: -2px; height: 1px; background: rgba(0, 0, 0, 0.45); pointer-events: none; }
+.vbar-mark { position: absolute; left: -3px; right: -3px; height: 2px; background: #fff; }
+.vbar-val { font-size: 9px; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .vbar-label { font-size: 9px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.dev-btns { display: flex; gap: 4px; height: 36px; flex: none; }
+.dev-btn { flex: 1; font-size: 10px; letter-spacing: 0.04em; white-space: pre; line-height: 1.15; text-align: center; }
 
 /* ---------- Стрелки под окном сэмпла ---------- */
 
@@ -206,7 +218,6 @@ html, body {
   -webkit-user-select: auto; user-select: auto; touch-action: manipulation; cursor: pointer;
 }
 .master-panel { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 10px; padding: 12px; }
-.ratio-btn { width: 100%; height: 40px; flex: none; font-size: 12px; }
 .gr-meter { width: 100%; height: 10px; border-radius: 5px; background: var(--off); overflow: hidden; }
 .gr-bar { height: 100%; width: 0; background: var(--accent); }
 .sample-name { color: var(--off); }
@@ -429,7 +440,10 @@ html, body {
 .track-name { font-weight: 600; max-width: 90%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .track-state { position: absolute; top: 3px; right: 7px; font-size: 11px; font-weight: 700; }
 .track.muted .track-state { color: var(--mute); }
-.track.soloed .track-state { color: var(--solo); }
+.track.soloed .track-state { color: var(--bg); }
+/* Solo — дорожка горит жёлтым. */
+.track.soloed { background: var(--plock); color: var(--bg); }
+.track.soloed.flash { background: #fff0a8; }
 .track-dot { position: absolute; top: 6px; left: 7px; width: 6px; height: 6px; border-radius: 50%; background: var(--plock); }
 
 /* ---------- Секвенсор ---------- */
