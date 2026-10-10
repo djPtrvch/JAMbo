@@ -3,7 +3,9 @@
 
 import { clickAt, triggerTrack } from './audio/engine';
 import { PARAM_BY_ID, SEQ_MIX, SEQ_MST, STEPS_PER_PAGE, fromNorm } from './params';
-import { triggerEnv, activateSlot, audible, doc, modulatedNorm, playRange, rt, seqAt, stepAt, stopTrack, ui } from './state';
+import {
+  triggerEnv, activateSlot, audible, doc, modulatedNorm, playRange, rowFilled, rt, seqAt, slotFilled, stepAt, stopTrack, ui,
+} from './state';
 
 /** Шаги планируются заранее, чтобы звук и щелчок метронома попадали точно в долю. */
 const LOOKAHEAD_MS = 100;
@@ -25,6 +27,8 @@ export function setPlaying(on: boolean) {
   if (on) {
     // Паттерны, выбранные в сетке до старта, запускаются сразу.
     rt.queued.forEach((q, i) => applyQueued(i, q));
+    if (rt.sceneQueued !== null) startScene(rt.sceneQueued, 0);
+    if (rt.scene) rt.scene.start = 0;
     tick = 0;
     nextTime = performance.now() + 30;
   }
@@ -51,6 +55,39 @@ function applyQueued(i: number, q: number | 'stop' | null) {
 export function queuePattern(i: number, q: number | 'stop') {
   if (!ui.playing) { applyQueued(i, q); return; }
   rt.queued[i] = rt.queued[i] === q ? null : q;
+}
+
+/**
+ * Запуск строки (сцены) k на тике at: на каждой дорожке — паттерн этой строки, дорожки
+ * с пустой ячейкой останавливаются. Длина прохода — самый длинный паттерн строки.
+ */
+function startScene(k: number, at: number) {
+  let len = 0;
+  doc.tracks.forEach((t, i) => {
+    rt.queued[i] = null;
+    rt.trackStart[i] = at;
+    if (!slotFilled(t, k)) { stopTrack(i); return; }
+    activateSlot(i, k);
+    const [a, b] = playRange(t);
+    len = Math.max(len, b - a + 1);
+  });
+  rt.scene = { row: k, start: at, len: len || 16 };
+  rt.sceneQueued = null;
+}
+
+/**
+ * Тап по ячейке строки: без проигрывания строка запускается сразу, во время проигрывания —
+ * с начала следующего такта (повторный тап по ожидающей — отмена).
+ */
+export function queueScene(k: number) {
+  if (!ui.playing) { startScene(k, 0); return; }
+  rt.sceneQueued = rt.sceneQueued === k ? null : k;
+}
+
+/** Строка после k, в которой есть паттерны (или null). */
+function nextScene(k: number): number | null {
+  for (let n = k + 1; n < doc.scenes.length; n++) if (rowFilled(n)) return n;
+  return null;
 }
 
 /** Пора ли запускать ожидающий паттерн дорожки на тике k. */
@@ -81,6 +118,16 @@ function playStep(time: number) {
     rt.playPos[k] = pos;
     const s = stepAt(seqAt(k), pos);
     if (s && Object.keys(s.locks).length > 0) lockEvents.push({ time, track: k, locks: s.locks, until: time + dur });
+  }
+  // Строки: ожидающая — с начала такта; играющая с повторами — после N проходов следующая строка.
+  if (rt.sceneQueued !== null && tick % 16 === 0) startScene(rt.sceneQueued, tick);
+  else if (rt.scene) {
+    const reps = doc.scenes[rt.scene.row].repeats;
+    if (reps > 0 && tick - rt.scene.start >= reps * rt.scene.len) {
+      const n = nextScene(rt.scene.row);
+      if (n !== null) startScene(n, tick);
+      else rt.scene.start = tick;
+    }
   }
   doc.tracks.forEach((t, i) => {
     if (rt.queued[i] !== null && atBoundary(i, tick)) {
@@ -149,6 +196,13 @@ export function recStep(trackIndex: number, now: number): { index: number; merge
   const merge = lastRec.track === trackIndex && lastRec.tick === k;
   lastRec = { track: trackIndex, tick: k };
   return { index: posAt(trackIndex, k), merge };
+}
+
+/** Пройдено проходов играющей строки (0-based) и доля текущего прохода. */
+export function sceneProgress(): { pass: number; frac: number } | null {
+  if (!rt.scene || !ui.playing) return null;
+  const n = Math.max(0, tick - 1 - rt.scene.start);
+  return { pass: Math.floor(n / rt.scene.len), frac: ((n % rt.scene.len) + 1) / rt.scene.len };
 }
 
 /** Страница, на которой сейчас играет дорожка. */

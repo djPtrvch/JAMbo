@@ -90,6 +90,12 @@ export interface Eq {
   bands: (EqBand | null)[];
 }
 
+/** Строка сетки паттернов (сцена): имя и число повторов до перехода на следующую (0 — без перехода). */
+export interface Scene {
+  name: string;
+  repeats: number;
+}
+
 export interface Doc {
   bpm: number;
   scale: number;
@@ -111,6 +117,8 @@ export interface Doc {
    * микшера и мастера. Хранятся как дорожки (страницы, длина, играющие страницы).
    */
   chanSeqs: Track[];
+  /** Строки сетки паттернов: имена и повторы. */
+  scenes: Scene[];
   /** Эквалайзеры дорожек и мастера. */
   eqs: Eq[];
   masterEq: Eq;
@@ -183,6 +191,10 @@ export interface Runtime {
   trackStart: number[];
   /** Ожидает запуска по окончании текущего паттерна: номер ячейки, 'stop' или null. */
   queued: (number | 'stop' | null)[];
+  /** Играющая строка (сцена): номер, тик запуска и длина прохода в шагах. */
+  scene: { row: number; start: number; len: number } | null;
+  /** Строка, которая ждёт запуска с начала следующего такта. */
+  sceneQueued: number | null;
   /** P-lock проигрываемого шага каждой дорожки (индикация на ручках). */
   playLocks: { locks: Record<string, number>; until: number }[];
   /** Мигание метронома: до какого момента и сильная ли доля. */
@@ -239,6 +251,7 @@ export const doc: Doc = {
   limBypass: false,
   cmpBypass: false,
   chanSeqs: [newTrack(0, 'MIX'), newTrack(0, 'MST')],
+  scenes: Array.from({ length: PATTERN_SLOTS }, () => ({ name: '', repeats: 0 })),
   eqs: Array.from({ length: TRACK_COUNT }, () => newEq()),
   masterEq: newEq(),
   files: {},
@@ -282,6 +295,8 @@ export const rt: Runtime = {
   playLocks: Array.from({ length: SEQ_COUNT }, () => ({ locks: {}, until: 0 })),
   trackStart: Array(SEQ_COUNT).fill(0),
   queued: Array(TRACK_COUNT).fill(null),
+  scene: null,
+  sceneQueued: null,
   beatUntil: 0,
   beatAccent: false,
 };
@@ -1084,4 +1099,19 @@ export function resetEq() {
   const eq = eqTarget();
   edit(() => { eq.bands = Array(EQ_BANDS).fill(null); });
   ui.eqBand = -1;
+}
+
+// ---------- Строки сетки паттернов (сцены) ----------
+
+/** В строке k есть хотя бы один паттерн. */
+export const rowFilled = (k: number) => doc.tracks.some((t) => slotFilled(t, k));
+
+/** Имя строки для колонки сцен (без имени — номер). */
+export const sceneName = (k: number) => doc.scenes[k].name || String(k + 1);
+
+/** Имя и число повторов строки (меню по удержанию ячейки сцены). */
+export function setScene(k: number, name: string, repeats: number) {
+  edit(() => {
+    doc.scenes[k] = { name: name.trim().slice(0, 12), repeats: Math.max(0, Math.min(64, Math.round(repeats))) };
+  });
 }
