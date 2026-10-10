@@ -80,8 +80,6 @@ export interface Ui {
   selNotes: number[];
   /** Зажатые клавиши пианоролла: палец (pointerId) → его ноты. */
   pressedKeys: Map<number, number[]>;
-  /** С зажатым TRACK уже повернули ручку — параметр применён ко всем дорожкам. */
-  trackApplied: boolean;
   /** Превью формы волны LFO в окне сэмпла. */
   lfoPreviewUntil: number;
   lfoPreview: 1 | 2;
@@ -157,7 +155,6 @@ export const ui: Ui = {
   progression: 0,
   selNotes: [],
   pressedKeys: new Map(),
-  trackApplied: false,
   lfoPreviewUntil: 0,
   lfoPreview: 1,
 };
@@ -227,7 +224,6 @@ export function gridFor(mode: GridMode): Slot[] {
 
 export function setHeld(btn: HoldButton, down: boolean) {
   ui.held[btn] = down;
-  if (btn === 'track' && !down) ui.trackApplied = false;
   if (down && (btn === 'fx' || btn === 'mod')) ui.modeOrder = [...ui.modeOrder.filter((m) => m !== btn), btn];
   if (down && btn === 'lfo1') ui.lastLfo = 1;
   if (down && btn === 'lfo2') ui.lastLfo = 2;
@@ -241,9 +237,7 @@ export function heldLfo(): 1 | 2 | null {
 
 /** Дорожки, к которым применяется действие: выбранная или все (TRACK). */
 function targetTracks(): Track[] {
-  if (!ui.held.track) return [doc.tracks[ui.selectedTrack]];
-  ui.trackApplied = true;
-  return doc.tracks;
+  return ui.held.track ? doc.tracks : [doc.tracks[ui.selectedTrack]];
 }
 
 export const selTrack = () => doc.tracks[ui.selectedTrack];
@@ -502,9 +496,12 @@ export function toggleSolo(i: number) {
   edit(() => { doc.tracks[i].solo = !doc.tracks[i].solo; });
 }
 
-/** Дорожка используется: на ней есть хотя бы один триг. */
-export function trackInUse(t: Track): boolean {
-  return t.pages.some((pg) => pg.some((s) => s.on));
+const TRACK_DEFAULTS = { ...defaults(TRACK_GRID), ...defaults(MOD_GRID) };
+
+/** Параметры дорожки изменены ручками (на всю дорожку, не p-lock) или назначен LFO. */
+export function trackEdited(t: Track): boolean {
+  if (Object.keys(t.assigns).length > 0) return true;
+  return Object.entries(TRACK_DEFAULTS).some(([id, v]) => t.params[id] !== v);
 }
 
 /** Слышна ли дорожка с учётом mute/solo. */
