@@ -1,7 +1,7 @@
 // Окно сэмпла: имя, определённая высота и форма волны сэмпла выбранной дорожки, Start/End
 // затемняют отрезанное. Тап — меню звука дорожки: SAMPLE (выбор аудиофайлов с iPad, можно сразу
 // несколько — это «папка»: первый заменяет сэмпл, стрелки под окном перелистывают остальные),
-// один из 16 движков Mutable Instruments Plaits или MIDI OUT. У синта в окне имя движка и что
+// один из 24 движков Mutable Instruments Plaits (SYNTH, SYNTH 2 — новые из Plaits 1.2, DRUMS) или MIDI OUT. У синта в окне имя движка и что
 // делают Harmonics, Timbre, Morph; стрелки перелистывают движки.
 // MIX — уровень каждой дорожки (как измеритель справа). MST — как в Ableton: у компрессора и
 // лимитера вход с меткой порога, снижение громкости и выход, под ними BYPASS (и RATIO у компрессора).
@@ -221,13 +221,15 @@ export function buildSample(): HTMLElement {
     else setTrackSynth(ui.selectedTrack, k);
     menu.close();
   }));
-  const group = (title: string, cols: number, items: HTMLElement[]) => {
-    const g = h('div', `source-group cols-${cols}`);
+  const group = (title: string, cols: number, items: HTMLElement[], cls = '') => {
+    const g = h('div', `source-group cols-${cols} ${cls}`);
     g.append(...items);
     menu.box.append(h('div', 'source-title', title), g);
   };
-  group('SYNTH', 2, engineBtns.filter((_, k) => SYNTH_ENGINES[k].bank === 'synth'));
-  group('DRUMS', 2, engineBtns.filter((_, k) => SYNTH_ENGINES[k].bank === 'drum'));
+  // Движки — по три в ряд (24 кнопки помещаются в левую колонку).
+  group('SYNTH', 3, engineBtns.filter((_, k) => SYNTH_ENGINES[k].bank === 'synth'), 'engines');
+  group('SYNTH 2', 3, engineBtns.filter((_, k) => SYNTH_ENGINES[k].bank === 'synth2'), 'engines');
+  group('DRUMS', 3, engineBtns.filter((_, k) => SYNTH_ENGINES[k].bank === 'drum'), 'engines');
   // LOAD — список сохранённых пресетов (на том же месте); тап по пресету ставит его на дорожку.
   const loadBtn = popupButton('LOAD', () => {
     menu.close();
