@@ -341,6 +341,8 @@ function buildGraph(c: AudioContext) {
   // Громкость выхода (регулятор на измерителе справа при MST) — после лимитера, перед выходом.
   const outVol = c.createGain();
   eq.output.connect(satIn).connect(glueIn).connect(clipIn).connect(limIn).connect(outVol).connect(c.destination);
+  mSplit = mScopeL = mScopeR = null;
+  mTap = null;
   mst = { eq, satIn, sat: null, glueIn, glue: null, clipIn, clip: null, limIn, lim: null, outVol, outMeter: new Meter(c, outVol, true) };
   satSig = '';
   glueSig = '';
@@ -756,6 +758,41 @@ export function setEqScope(channel: number | 'master' | null) {
     chain.input.connect(scopePre);
     chain.output.connect(scopePost!);
   }
+}
+
+// ---------- Скоп мастера (гониометр и осциллоскоп при MST) ----------
+
+let mScopeL: AnalyserNode | null = null;
+let mScopeR: AnalyserNode | null = null;
+let mSplit: ChannelSplitterNode | null = null;
+let mTap: AudioNode | null = null;
+
+/** Точка съёма скопа: 0 после сатуратора, 1 компрессора, 2 клиппера, 3 лимитера; null — выключен. */
+export function setMasterScope(point: number | null) {
+  if (!ctx || !mst) return;
+  const nodes: (AudioNode | null)[] = [mst.glueIn, mst.clipIn, mst.limIn, mst.lim ?? mst.limIn];
+  // Пока устройство не загружено, его выход — следующий вход (сигнал идёт мимо).
+  const tap = point === null ? null : nodes[point];
+  if (tap === mTap) return;
+  if (!mSplit) {
+    mSplit = ctx.createChannelSplitter(2);
+    mScopeL = ctx.createAnalyser();
+    mScopeR = ctx.createAnalyser();
+    for (const a of [mScopeL, mScopeR]) { a.fftSize = 4096; a.smoothingTimeConstant = 0; }
+    mSplit.connect(mScopeL, 0);
+    mSplit.connect(mScopeR, 1);
+  }
+  if (mTap) mTap.disconnect(mSplit);
+  mTap = tap;
+  if (tap) tap.connect(mSplit);
+}
+
+/** Сигнал мастера в точке съёма (L и R, по 4096 отсчётов); false — скоп выключен. */
+export function masterScope(L: Float32Array<ArrayBuffer>, R: Float32Array<ArrayBuffer>): boolean {
+  if (!mTap || !mScopeL || !mScopeR) return false;
+  mScopeL.getFloatTimeDomainData(L);
+  mScopeR.getFloatTimeDomainData(R);
+  return true;
 }
 
 /** Текущий сдвиг динамических полос показанного EQ, dB (null — панель закрыта). */

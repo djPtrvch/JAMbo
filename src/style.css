@@ -903,3 +903,9 @@ html, body {
 .eq-dyn-fields .field { flex: 1; min-width: 0; height: 52px; flex-direction: column; justify-content: center; align-items: flex-start; gap: 0; padding: 2px 12px; }
 .eq-dyn-fields .field-label { font-size: 9px; }
 .eq-dyn-fields .field-value { font-size: 16px; }
+/* Скоп мастера (при MST вместо миниатюр страниц): гониометр, осциллоскоп, точки съёма. */
+.mscope { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 6px; }
+.mscope-gonio { flex: 3; min-height: 0; width: 100%; border-radius: var(--radius); background: var(--panel); }
+.mscope-osc { flex: 2; min-height: 0; width: 100%; border-radius: var(--radius); background: var(--panel); }
+.mscope-btns { flex: none; height: 40px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.mscope-btns .btn { font-size: 11px; padding: 0; }
