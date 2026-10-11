@@ -267,7 +267,6 @@ export const MIX_GRID: Slot[] = Array.from({ length: MIX_SLOTS }, (_, i) =>
 
 // ---------- Мастер: компрессор (колонка 3) и лимитер (колонка 4), Ratio — отдельной кнопкой ----------
 
-const db = (v: number) => `${v > 0 ? '+' : ''}${v.toFixed(1)}dB`;
 
 /** Release компрессора мастера в AUTO (последние 8% хода ручки). */
 export const AUTO_VALUE = 1e9;
@@ -287,10 +286,11 @@ export const MASTER_GRID: Slot[] = grid([
     smooth('cmp.makeup', 'Makeup', 0, 18, 0, cmpDb, { ...CMP, step: 0.1 }),
   ],
   [
-    smooth('lim.input', 'Lim Input', 0, 24, 0, db),
-    smooth('lim.ceiling', 'Ceiling', -12, 0, -0.3, db),
-    smooth('lim.lookahead', 'Lookahead', 0, 10, 3, (v) => `${v.toFixed(1)}ms`),
-    smooth('lim.release', 'Lim Release', 10, 1000, 100, ms, { exp: true }),
+    // Лимитер мастер-шины (limiter-worklet.js): все ручки плавные, без p-lock.
+    smooth('lim.input', 'Gain', 0, 24, 0, cmpDb, { ...CMP, step: 0.1 }),
+    smooth('lim.ceiling', 'Ceiling', -24, 0, -1, cmpDb, { ...CMP, step: 0.1 }),
+    smooth('lim.lookahead', 'Lookahead', 0.5, 6, 3, (v) => `${v.toFixed(1)} ms`, CMP),
+    smooth('lim.release', 'Release', 10, 1000, 150, cmpMs, { ...CMP, exp: true, autoTop: 0.08 }),
   ],
 ]);
 

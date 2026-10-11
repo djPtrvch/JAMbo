@@ -127,53 +127,66 @@ let rev: { hpf: BiquadFilterNode; pre: DelayNode; conv: ConvolverNode };
 let dly: { hpf: BiquadFilterNode; l: DelayNode; r: DelayNode; fbL: GainNode; fbR: GainNode };
 let drv: { shaper: WaveShaperNode; tone: BiquadFilterNode };
 let mst: {
-  eq: EqChain; glueIn: GainNode; glue: AudioWorkletNode | null; limIn: GainNode; lim: DynamicsCompressorNode; outVol: GainNode;
-  limMeter: Meter; limOutMeter: Meter; outMeter: Meter;
+  eq: EqChain; glueIn: GainNode; glue: AudioWorkletNode | null; limIn: GainNode; lim: AudioWorkletNode | null; outVol: GainNode;
+  outMeter: Meter;
 };
 
 const SENDS = ['reverb', 'delay', 'drive'] as const;
 /** Наибольшее время Delay, с (1 такт при 40 BPM — 6 с, со Stereo — до 9 с). */
 const MAX_DELAY = 9;
 
-// ---------- Компрессор мастера (glue) ----------
+// ---------- Компрессор (glue) и лимитер мастера — AudioWorklet ----------
 
-/** Последняя индикация компрессора: пик входа, наибольший GR (dB, ≥ 0), пик выхода, время. */
-const glueLevels = { in: 0, gr: 0, out: 0, at: 0 };
+/** Индикация устройства мастера: пик входа, наибольший GR (dB, ≥ 0), пик выхода, время прихода. */
+export interface DynLevels { in: number; gr: number; out: number; at: number }
+const glueLevels: DynLevels = { in: 0, gr: 0, out: 0, at: 0 };
+const limLevels: DynLevels = { in: 0, gr: 0, out: 0, at: 0 };
 export const glueMeter = () => glueLevels;
+export const limiterMeter = () => limLevels;
 
-/** Загрузить glue-worklet.js и вставить компрессор в мастер (до этого сигнал идёт мимо). */
-function loadGlue(c: AudioContext) {
-  void c.audioWorklet.addModule(new URL('glue-worklet.js', document.baseURI).href).then(() => {
-    if (c !== ctx || !mst || mst.glue) return;
-    const node = new AudioWorkletNode(c, 'glue', {
+/**
+ * Загрузить модуль worklet и вставить устройство между узлами from и to (до этого сигнал идёт
+ * мимо — без обработки). Индикация приходит сообщениями в levels.
+ */
+function loadDevice(c: AudioContext, file: string, name: string, from: GainNode, to: AudioNode, levels: DynLevels, ready: (n: AudioWorkletNode) => void) {
+  void c.audioWorklet.addModule(new URL(file, document.baseURI).href).then(() => {
+    if (c !== ctx || !mst) return;
+    const node = new AudioWorkletNode(c, name, {
       numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2], channelCount: 2, channelCountMode: 'explicit',
     });
     node.port.onmessage = (e) => {
       const [i, g, o] = e.data as number[];
-      glueLevels.in = i; glueLevels.gr = g; glueLevels.out = o; glueLevels.at = performance.now();
+      levels.in = i; levels.gr = g; levels.out = o; levels.at = performance.now();
     };
-    mst.glueIn.disconnect();
-    mst.glueIn.connect(node).connect(mst.limIn);
-    mst.glue = node;
-    glueSig = '';
-    sendGlue();
-  }).catch((e) => console.error('glue', e));
+    from.disconnect();
+    from.connect(node).connect(to);
+    ready(node);
+    sendDynamics();
+  }).catch((e) => console.error(name, e));
 }
 
 let glueSig = '';
-/** Параметры компрессора — в worklet (только при изменении). */
-function sendGlue() {
-  if (!mst?.glue) return;
+let limSig = '';
+/** Параметры компрессора и лимитера — в worklet (только при изменении). */
+function sendDynamics() {
+  if (!mst) return;
   const m = liveMaster();
-  const rel = m['cmp.release'];
-  const msg = {
-    thr: m['cmp.threshold'], att: m['cmp.attack'], rel: isAuto(rel) ? 400 : rel, auto: isAuto(rel),
-    makeup: m['cmp.makeup'], ratio: RATIOS[doc.ratio] ?? 2, bypass: doc.cmpBypass,
-  };
-  const sig = JSON.stringify(msg);
-  if (sig === glueSig) return;
-  glueSig = sig;
-  mst.glue.port.postMessage(msg);
+  const auto = (v: number) => (isAuto(v) ? { rel: 400, auto: true } : { rel: v, auto: false });
+  if (mst.glue) {
+    const msg = {
+      thr: m['cmp.threshold'], att: m['cmp.attack'], ...auto(m['cmp.release']),
+      makeup: m['cmp.makeup'], ratio: RATIOS[doc.ratio] ?? 2, bypass: doc.cmpBypass,
+    };
+    const sig = JSON.stringify(msg);
+    if (sig !== glueSig) { glueSig = sig; mst.glue.port.postMessage(msg); }
+  }
+  if (mst.lim) {
+    const msg = {
+      gain: m['lim.input'], ceiling: m['lim.ceiling'], lookahead: m['lim.lookahead'], ...auto(m['lim.release']), bypass: doc.limBypass,
+    };
+    const sig = JSON.stringify(msg);
+    if (sig !== limSig) { limSig = sig; mst.lim.port.postMessage(msg); }
+  }
 }
 
 // ---------- Запуск ----------
@@ -289,22 +302,20 @@ export const audioState = (): string => (ctx ? ctx.state : 'none');
 function buildGraph(c: AudioContext) {
   // Мастер.
   const masterIn = c.createGain();
-  // Компрессор мастера «glue» (glue-worklet.js) встаёт между glueIn и limIn, когда модуль загружен.
+  // Компрессор «glue» (glue-worklet.js) встаёт между glueIn и limIn, лимитер (limiter-worklet.js) —
+  // между limIn и громкостью выхода, когда модули загружены.
   const glueIn = c.createGain();
   const limIn = c.createGain();
-  const lim = c.createDynamicsCompressor();
-  lim.knee.value = 0;
-  lim.ratio.value = 20;
   const eq = new EqChain(c);
   masterIn.connect(eq.input);
   // Громкость выхода (регулятор на измерителе справа при MST) — после лимитера, перед выходом.
   const outVol = c.createGain();
-  eq.output.connect(glueIn).connect(limIn).connect(lim).connect(outVol).connect(c.destination);
-  mst = {
-    eq, glueIn, glue: null, limIn, lim, outVol,
-    limMeter: new Meter(c, limIn, false), limOutMeter: new Meter(c, lim, false), outMeter: new Meter(c, outVol, true),
-  };
-  loadGlue(c);
+  eq.output.connect(glueIn).connect(limIn).connect(outVol).connect(c.destination);
+  mst = { eq, glueIn, glue: null, limIn, lim: null, outVol, outMeter: new Meter(c, outVol, true) };
+  glueSig = '';
+  limSig = '';
+  loadDevice(c, 'glue-worklet.js', 'glue', glueIn, limIn, glueLevels, (n) => { mst!.glue = n; });
+  loadDevice(c, 'limiter-worklet.js', 'limiter', limIn, outVol, limLevels, (n) => { mst!.lim = n; });
 
   // Reverb: HPF → предзадержка → свёртка.
   const revIn = c.createGain();
@@ -655,17 +666,7 @@ function updateFx(now: number) {
     ch.sends.forEach((s) => set(s.gain, vol));
   });
 
-  const m = master;
-  sendGlue();
-  // BYPASS лимитера: без Input, порог 0 dB и Ratio 1:1 — сигнал проходит как есть,
-  // и метры мастера показывают текущий выходной уровень без ограничения.
-  const lb = doc.limBypass;
-  set(mst.limIn.gain, lb ? 1 : Math.pow(10, m['lim.input'] / 20));
-  set(mst.lim.ratio, lb ? 1 : 20);
-  set(mst.lim.threshold, lb ? 0 : m['lim.ceiling']);
-  // Lookahead в Web Audio недоступен — приближаем быстрой атакой лимитера.
-  set(mst.lim.attack, Math.max(0.001, m['lim.lookahead'] / 1000));
-  set(mst.lim.release, m['lim.release'] / 1000);
+  sendDynamics();
   set(mst.outVol.gain, volGain(doc.outVol));
 }
 
@@ -1065,16 +1066,13 @@ export function trackDuckDb(i: number): number {
 }
 
 /** Lookahead лимитера — показывается числом. */
-export const limiterLookahead = () => liveMaster()['lim.lookahead'];
 
 /** Уровень дорожки (после громкости микшера). */
 export const trackLevel = (i: number, now: number): Level => (tracks[i] ? tracks[i].meter.read(now) : SILENT);
 
-/** Мастер: вход и выход компрессора (после Makeup), вход лимитера, выход. */
-/** Уровни мастера (компрессор — glueMeter): limOut — выход лимитера, out — оконечный сигнал после громкости выхода. */
-export function masterLevels(now: number): { lim: Level; limOut: Level; out: Level } {
-  if (!mst) return { lim: SILENT, limOut: SILENT, out: SILENT };
-  return { lim: mst.limMeter.read(now), limOut: mst.limOutMeter.read(now), out: mst.outMeter.read(now) };
+/** Оконечный сигнал мастера после громкости выхода (компрессор и лимитер — glueMeter, limiterMeter). */
+export function masterLevels(now: number): { out: Level } {
+  return { out: mst ? mst.outMeter.read(now) : SILENT };
 }
 
 /** Сброс интегральной громкости измерителя справа: дорожка i или выход мастера ('master'). */
@@ -1090,7 +1088,6 @@ export function resetPeak(ch: number | 'master') {
 }
 
 /** Снижение усиления лимитера (дБ, ≤ 0). */
-export const limiterReduction = () => (mst ? mst.lim.reduction : 0);
 
 /** Дорожка звучит в стерео: стереофайл или панорама не по центру. */
 export function trackIsStereo(i: number): boolean {

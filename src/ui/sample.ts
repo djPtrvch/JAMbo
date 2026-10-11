@@ -9,16 +9,16 @@
 // (форма волны с Wave, Depth и Invert, бегущая точка фазы) и огибающей ENV (форма ADSR).
 
 import {
-  audioState, limiterLookahead, limiterReduction, sampleIsStereo, trackDuckDb, trackIsStereo,
-  type Level, masterLevels, samplePeaks,
+  audioState, sampleIsStereo, trackDuckDb, trackIsStereo,
+  type Level, samplePeaks,
   sampleRoot, trackLevel,
 } from '../audio/engine';
 import { LFO_WAVES, OVER_PEAK, SYNTH_ENGINES, TRACK_COUNT, noteName, synthEngine, synthGrid, synthKey } from '../params';
-import { fmtDb, levelFrac } from './meter';
+import { levelFrac } from './meter';
 import { makePopup, popupButton } from './popup';
-import { audible, doc, heldStepSound, liveMaster, setStepSound, folderItemName, folderPos, stepFolder, stepFolderOnSteps, setTrackSynth, toggleLimBypass, envAt, envShape, liveParams, lfoShape, rt, sampleName, selTrack, ui } from '../state';
+import { audible, doc, heldStepSound, setStepSound, folderItemName, folderPos, stepFolder, stepFolderOnSteps, setTrackSynth, envAt, envShape, liveParams, lfoShape, rt, sampleName, selTrack, ui } from '../state';
 import { openSampleEditor } from './sampleedit';
-import { buildGlue, renderGlue } from './glue';
+import { buildGlue, buildLimiter, renderDynamics } from './dynamics';
 import { iconView, renderIcon, type IconView } from './engineIcon';
 import { openBrowser } from './browser';
 import { h, setAttr, setClass, setText, svg } from './dom';
@@ -47,8 +47,6 @@ const BIG_ICON_PX = 120;
 const synthRows: HTMLElement[] = [];
 let previews: HTMLElement;
 let masterPanel: HTMLElement;
-let lookaheadText: HTMLElement;
-let limBypassBtn: HTMLElement;
 let mixPanel: HTMLElement;
 let navLabel: HTMLElement;
 let navRow: HTMLElement;
@@ -66,7 +64,6 @@ interface VBar {
   clipMark: HTMLElement; mark: HTMLElement; value: HTMLElement; label: HTMLElement; kind: BarKind;
 }
 const mixBars: VBar[] = [];
-const limBars: VBar[] = [];
 
 /** Отметки шкалы в dB (как сетка на измерителях Ableton). */
 const TICKS = [-6, -12, -24, -48];
@@ -136,12 +133,6 @@ function setLevelBar(b: VBar, lv: Level, stereo: boolean, text: string, mark: nu
   setClass(b.gr, 'hidden', grDb > -0.1);
   if (grDb <= -0.1) setAttr(b.gr, 'style', `height:${(clamp01(-grDb / 24) * 100).toFixed(1)}%`);
   setText(b.value, text);
-}
-
-/** Метр снижения громкости (GR): доля сверху вниз, число в dB. */
-function setGrBar(b: VBar, grDb: number) {
-  setAttr(b.fills[0], 'style', `height:${(clamp01(-grDb / 24) * 100).toFixed(1)}%`);
-  setText(b.value, grDb.toFixed(1));
 }
 
 /** dB (−60…0) → доля высоты. */
@@ -272,22 +263,12 @@ export function buildSample(): HTMLElement {
   });
   stub.append(waveTitle, wave, synthInfo, stubName);
 
-  // MST: слева компрессор «glue» (glue.ts), справа лимитер как в Ableton: у лимитера вход (после Input), GR и выход с белой
-  // линией Ceiling, пик-холдом и меткой клиппинга (тот же уровень, что у метра справа);
-  // под ними BYPASS и Lookahead числом (это не метр).
-  // Полосы обоих устройств одной длины.
+  // MST: слева компрессор «glue», справа лимитер — один компонент сегментных столбцов IN | GR | OUT
+  // (dynamics.ts), под ними кнопки (у компрессора BYPASS и RATIO, у лимитера BYPASS).
   masterPanel = h('div', 'master-panel hidden');
-  lookaheadText = h('div', 'dev-info');
   const groups = h('div', 'vbar-groups');
-  // Компрессор мастера «glue» — своя индикация (glue.ts): IN | GR | OUT сегментами, BYPASS и RATIO.
   const comp = buildGlue();
-  const lim = h('div', 'vbar-group');
-  limBars.push(vbar('IN', 'meter'), vbar('GR', 'gr'), vbar('OUT', 'meter'));
-  limBypassBtn = h('div', 'btn dev-btn', 'BYPASS');
-  limBypassBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); toggleLimBypass(); });
-  const limBtns = h('div', 'dev-btns');
-  limBtns.append(limBypassBtn, lookaheadText);
-  lim.append(h('div', 'vbar-title', 'LIMIT'), wrap(limBars), limBtns);
+  const lim = buildLimiter();
   groups.append(comp, lim);
   masterPanel.append(groups);
 
@@ -450,20 +431,8 @@ function renderWave() {
   setAttr(cutEnd, 'width', (WAVE_W - e).toFixed(1));
 }
 
-const pk = (l: Level) => Math.max(l.l, l.r);
-
 function renderMaster(now: number) {
-  renderGlue(now);
-  setText(lookaheadText, `LOOKAHEAD\n${limiterLookahead().toFixed(1)} ms`);
-  setClass(limBypassBtn, 'active', doc.limBypass);
-  const m = masterLevels(now);
-  // Метры лимитера — одной полосой (наибольший из L и R).
-  // В тишине браузер может отдавать «залипшее» значение reduction — без сигнала GR = 0.
-  const silent = (l: Level) => pk(l) < 1e-4;
-  // Лимитер: вход после Input, GR, выход с линией Ceiling, пик-холдом и меткой клиппинга.
-  setLevelBar(limBars[0], m.lim, false, fmtDb(pk(m.lim)));
-  setGrBar(limBars[1], doc.limBypass || silent(m.lim) ? 0 : Math.min(0, limiterReduction()));
-  setLevelBar(limBars[2], m.limOut, false, fmtDb(pk(m.limOut)), dbFrac(liveMaster()['lim.ceiling']));
+  renderDynamics(now);
 }
 
 function renderMix(now: number) {
