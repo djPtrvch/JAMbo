@@ -7,7 +7,7 @@
 
 import { masterLevels, resetLoudness, resetPeak, trackIsStereo, trackLevel, type Level } from '../audio/engine';
 import { OVER_PEAK } from '../params';
-import { ui } from '../state';
+import { beginGesture, endGesture, setMorphAmount, ui } from '../state';
 import { h, setAttr, setClass, setText } from './dom';
 
 let lufsText: HTMLElement;
@@ -49,8 +49,49 @@ export function buildMeter(): HTMLElement {
     t.style.bottom = `${((db + 60) / 60) * 100}%`;
     box.append(t);
   }
-  el.append(lufsText, clipMark, box, dbText);
+  // Кроссфейдер MORPH: пока режим включён, стоит на месте измерителя. Вверху — все изменения
+  // MORPH, опускание плавно возвращает исходные значения; внизу режим выключается.
+  morphEl = h('div', 'morph-fader hidden');
+  const track = h('div', 'xf-track mf-track');
+  morphFill = h('div', 'xf-fill mf-fill');
+  morphThumb = h('div', 'xf-thumb mf-thumb');
+  track.append(morphFill, morphThumb);
+  morphEl.append(h('div', 'mf-label', 'MRPH'), track, h('div', 'mf-label', 'OFF'));
+  let id = -1;
+  const setFrom = (y: number) => {
+    const r = track.getBoundingClientRect();
+    setMorphAmount(1 - (y - r.top) / r.height);
+  };
+  morphEl.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    morphEl.setPointerCapture(e.pointerId);
+    id = e.pointerId;
+    beginGesture();
+    setFrom(e.clientY);
+  });
+  morphEl.addEventListener('pointermove', (e) => { if (e.pointerId === id && ui.morph) setFrom(e.clientY); });
+  const up = (e: PointerEvent) => { if (e.pointerId === id) { id = -1; endGesture(); } };
+  morphEl.addEventListener('pointerup', up);
+  morphEl.addEventListener('pointercancel', up);
+  meterParts = [lufsText, clipMark, box, dbText];
+  el.append(lufsText, clipMark, box, dbText, morphEl);
   return el;
+}
+
+let morphEl: HTMLElement;
+let morphFill: HTMLElement;
+let morphThumb: HTMLElement;
+let meterParts: HTMLElement[] = [];
+
+/** MORPH включён — вместо измерителя кроссфейдер. */
+function renderMorphFader(): boolean {
+  setClass(morphEl, 'hidden', !ui.morph);
+  for (const e of meterParts) setClass(e, 'hidden', ui.morph);
+  if (!ui.morph) return false;
+  const pct = `${(ui.morphAmt * 100).toFixed(1)}%`;
+  setAttr(morphThumb, 'style', `bottom:${pct}`);
+  setAttr(morphFill, 'style', `height:${pct}`);
+  return true;
 }
 
 /** Что показывает измеритель: дорожка или выход мастера (при MIX и MST). */
@@ -72,6 +113,7 @@ export function tickMeter(now: number) {
 export function renderMeter(now: number) {
   const master = ui.channel !== 'track';
   const lv: Level = measure(now);
+  if (renderMorphFader()) return;
   const stereo = master || trackIsStereo(ui.selectedTrack);
   const peaks = stereo ? [lv.l, lv.r] : [Math.max(lv.l, lv.r)];
   const holds = stereo ? [lv.holdL, lv.holdR] : [Math.max(lv.holdL, lv.holdR)];
