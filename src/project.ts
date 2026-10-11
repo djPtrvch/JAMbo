@@ -83,7 +83,9 @@ async function openRecord(rec: ProjectRecord, mix = false) {
   remember(project.id);
   await show(normalizeDoc(rec.doc), mix);
   const json = JSON.stringify(docForSave());
-  lastAuto = json;
+  // Открытый проект сразу становится автосохранением (иначе после перезагрузки откроется прежняя
+  // работа из Autosave — с её именами дорожек и паттернами). Само Autosave перезаписывать незачем.
+  lastAuto = auto ? json : '';
   // У Autosave «сохранено» — то, что лежит в самом проекте.
   const saved = auto ? await getProject(project.id) : rec;
   lastSaved = saved ? JSON.stringify(normalizeDoc(saved.doc)) : '';
