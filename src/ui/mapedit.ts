@@ -8,13 +8,15 @@
 // Unmap снимает маппинг, ✕ закрывает окно.
 
 import {
+  condKey, pinned,
   clashFor, clearTarget, draftMapping, learn, mappingFor, midiDevices, midiOutputs, onLearnChanged, sameTarget,
   targetLabel, updateMapping,
 } from '../midi';
 import { settings, type ControlType, type MidiMapping, type MidiTarget, type RelEnc } from '../settings';
+import { ui } from '../state';
 import { h, setAttr, svg } from './dom';
 
-type Page = 'main' | 'port' | 'event' | 'control' | 'encoder' | 'channel' | 'range' | 'feedback';
+type Page = 'main' | 'port' | 'event' | 'control' | 'encoder' | 'channel' | 'range' | 'feedback' | 'cond';
 
 let win: HTMLElement;
 let head: HTMLElement;
@@ -41,8 +43,11 @@ const ENCS: [RelEnc, string, string][] = [
 ];
 const TITLES: Record<Page, string> = {
   main: 'MIDI map', port: 'Input port', event: 'Event type', control: 'Control type', encoder: 'Encoder',
-  channel: 'Channel', range: 'Range', feedback: 'Feedback port',
+  channel: 'Channel', range: 'Range', feedback: 'Feedback port', cond: 'Condition',
 };
+
+/** Подпись условия: Global, Current track (T3), Clip launcher. */
+const condName = (m: MidiMapping) => (m.cond === 'track' ? `Current track (T${m.track + 1})` : m.cond === 'clip' ? 'Clip launcher' : 'Global');
 
 const pct = (n: number) => Math.round(n * 100);
 const inputs = () => midiDevices().filter((d) => d.dir === 'in');
@@ -241,6 +246,7 @@ function render() {
       row('Control type', ctl, 'control'),
       ...(knob && cur.control === 'rel' ? [row('Encoder', ENCS.find(([e]) => e === cur.enc)![1], 'encoder')] : []),
       ...(knob ? [row('Range', `${pct(cur.min)} – ${pct(cur.max)} %`, 'range')] : []),
+      row('Condition', condName(cur), 'cond'),
     );
     const fbSection = h('div', 'mm-list');
     fbSection.append(row('Input port', cur.input ? name(ins, cur.input) : 'Any', 'port'), row('Feedback port', fb, 'feedback'));
@@ -250,6 +256,16 @@ function render() {
     body.replaceChildren(status, section, fbSection);
   } else if (page === 'port') {
     body.replaceChildren(options<string>([['', 'Any'], ...ins.map((d): [string, string] => [d.id, d.name])], cur.input, (v) => patch({ input: v })));
+  } else if (page === 'cond') {
+    // Current track — дорожка, выбранная сейчас (у каждой дорожки свои маппинги).
+    const tr = ui.channel === 'track' ? ui.selectedTrack : cur.track;
+    const items: [string, string, string][] = [
+      ['global', 'Global', 'all tracks and views'],
+      [`track:${tr}`, `Current track (T${tr + 1})`, 'only while this track is selected'],
+      ['clip', 'Clip launcher', 'only while PATTERNS is open'],
+    ];
+    body.replaceChildren(options(items, condKey(cur), (v) => patch(v.startsWith('track:')
+      ? { cond: 'track', track: Number(v.slice(6)) } : { cond: v as MidiMapping['cond'] })));
   } else if (page === 'event') {
     body.replaceChildren(options<'cc' | 'note'>([['cc', 'CC'], ['note', 'Note']], cur.src.type, (v) => patch({ src: { ...cur.src, type: v } })));
   } else if (page === 'control') {
@@ -269,10 +285,15 @@ function render() {
 export const isOpen = () => !!win && !win.classList.contains('hidden');
 
 /** Открыть окно MIDI MAP для цели t; back — после закрытия вернуться в меню MIDI. */
-export function openMapEditor(t: MidiTarget, back: (() => void) | null = null) {
+export function openMapEditor(t: MidiTarget, back: (() => void) | null = null, cond: string | null = null) {
   if (!win) build();
   if (!target || !sameTarget(target, t)) page = 'main';
   target = t;
+  // Окно правит маппинг условия cond (из списка) или того, что действует сейчас.
+  pinned.target = t;
+  pinned.cond = cond;
+  const m = mappingFor(t);
+  pinned.cond = m ? condKey(m) : cond;
   typing = null;
   onBack = back;
   learn.edit = true;
@@ -287,6 +308,8 @@ export function closeMapEditor() {
   learn.edit = false;
   if (!learn.on) learn.target = null;
   target = null;
+  pinned.target = null;
+  pinned.cond = null;
   const back = onBack;
   onBack = null;
   back?.();

@@ -20,6 +20,7 @@ export type MidiTarget = { kind: 'knob'; slot: number } | { kind: 'button'; name
 export type ControlType = 'momentary' | 'toggle' | 'abs' | 'rel';
 /** Как энкодер кодирует шаг: OFFSET (64 ± n: 65 вверх, 63 вниз), 2'S (1 вверх, 127 вниз), SIGNED (1 вверх, 65 вниз). */
 export type RelEnc = 'offset' | 'twos' | 'signed';
+export type MidiCond = 'global' | 'track' | 'clip';
 export interface MidiMapping {
   src: MidiSource;
   target: MidiTarget;
@@ -30,6 +31,15 @@ export interface MidiMapping {
   max: number;
   /** Вход, с которого слушать: '' — любой, иначе id входа (Web MIDI или Bluetooth). */
   input: string;
+  /**
+   * Когда маппинг работает: 'global' — всегда (на всех дорожках и вкладках); 'track' — только
+   * пока выбрана дорожка track (у каждой дорожки свои маппинги); 'clip' — только пока открыта
+   * сетка паттернов. Если источник назначен в нескольких условиях, действует самое точное:
+   * clip, затем track, затем global.
+   */
+  cond: MidiCond;
+  /** Дорожка условия 'track'. */
+  track: number;
   /** Порт обратной связи: '' — по умолчанию (DEVICES → FEEDBACK OUTPUT), 'none' — нет, иначе id выхода. */
   port: string;
 }
@@ -63,7 +73,7 @@ export function fullMapping(m: Partial<MidiMapping> & Pick<MidiMapping, 'src' | 
   return {
     control: knob ? (knobMode === 'abs' ? 'abs' : 'rel') : 'momentary',
     enc: knobMode === 'rel2c' ? 'twos' : 'offset',
-    min: 0, max: 1, port: '', input: '',
+    min: 0, max: 1, port: '', input: '', cond: 'global', track: 0,
     ...m,
   };
 }

@@ -7,7 +7,7 @@
 
 import {
   clearMappings, connectBluetooth, disconnectBluetooth, hasBluetooth, hasWebMidi, initMidi, midiDevices,
-  onDevicesChanged, removeMapping, setLearn, sourceLabel, targetLabel, twisterPreset,
+  condKey, onDevicesChanged, removeMapping, setLearn, sourceLabel, targetLabel, twisterPreset,
 } from '../midi';
 import { TRACK_COUNT } from '../params';
 import { saveSettings, settings } from '../settings';
@@ -121,12 +121,12 @@ function renderMapping() {
   const list = h('div', 'project-list midi-maps');
   settings.mappings.forEach((m, k) => {
     const row = h('div', 'midi-map');
-    row.append(h('div', 'midi-map-src', sourceLabel(m.src)), h('div', 'midi-map-dst', `${targetLabel(m.target)}  ·  ${CONTROL_NAMES[m.control]}`));
+    row.append(h('div', 'midi-map-src', sourceLabel(m.src)), h('div', 'midi-map-dst', `${targetLabel(m.target)}  ·  ${CONTROL_NAMES[m.control]}${m.cond === 'track' ? `  ·  T${m.track + 1}` : m.cond === 'clip' ? '  ·  CLIPS' : ''}`));
     // Тап по строке — окно настройки маппинга (стрелка назад — сюда).
     row.addEventListener('pointerup', (e) => {
       if ((e.target as Element).closest('.midi-map-del')) return;
       panel.close();
-      openMapEditor(m.target, () => openMidi(anchorEl, onBack));
+      openMapEditor(m.target, () => openMidi(anchorEl, onBack), condKey(m));
     });
     const del = popupButton('✕', () => { removeMapping(k); render(); });
     del.classList.add('midi-map-del');

@@ -17,6 +17,7 @@ import {
   playRange, rt, selectTrack, slotFilled, ui, type Pattern,
 } from '../state';
 import { queuePattern, queueScene, sceneProgress } from '../transport';
+import { registerAction } from '../midi';
 import { h, setAttr, setClass, setText, svg } from './dom';
 import { makePopup, popupButton, type Popup } from './popup';
 
@@ -95,6 +96,8 @@ function buildSceneCell(k: number): HTMLElement {
   };
   root.addEventListener('pointerup', (e) => finish(e, false));
   root.addEventListener('pointercancel', (e) => finish(e, true));
+  // MIDI: запуск строки (для Clip launcher).
+  registerAction(`ROW${k + 1}`, { label: `ROW ${k + 1}`, press: () => queueScene(k), state: () => rt.scene?.row === k }, root);
   sceneCells.push({ root, name, reps, bar });
   return root;
 }
@@ -273,6 +276,11 @@ export function buildPatternGrid(): HTMLElement {
       root.style.gridColumn = String(i + 2);
       root.style.gridRow = String(k + 1);
       const thumb = svg('svg', { class: 'pattern-thumb', preserveAspectRatio: 'none' });
+      // MIDI: ячейка как тап (запуск, остановка, новый паттерн) — для Clip launcher.
+      registerAction(`CLIP${i + 1}.${k + 1}`, {
+        label: `CLIP T${i + 1} · ${k + 1}`, press: () => tapCell(i, k),
+        state: () => doc.tracks[i].slot === k && !doc.tracks[i].stopped,
+      }, root);
       const bar = h('div', 'pattern-bar');
       root.append(thumb, bar);
       let id = -1;

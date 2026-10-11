@@ -12,7 +12,7 @@
 
 import { toNorm } from './params';
 import {
-  assignFor, beginGesture, endGesture, firstHeldStep, gridFor, gridMode, heldLfo, lockValue, paramValue,
+  assignFor, beginGesture, endGesture, ui, firstHeldStep, gridFor, gridMode, heldLfo, lockValue, paramValue,
   setLfoAmount, setLockNorm, setParamNorm,
 } from './state';
 import { fullMapping, saveSettings, settings, type MidiMapping, type MidiSource, type MidiTarget } from './settings';
@@ -93,16 +93,50 @@ export const targetFromAttr = (v: string): MidiTarget | null => {
 export const sameTarget = (a: MidiTarget, b: MidiTarget) => a.kind === b.kind
   && (a.kind === 'knob' ? a.slot === (b as typeof a).slot : a.name === (b as typeof a).name);
 const sameSource = (a: MidiSource, b: MidiSource) => a.type === b.type && a.ch === b.ch && a.num === b.num;
-/** Маппинги делят источник: тот же источник и пересекающиеся входы (любой или один и тот же). */
-const clash = (a: MidiMapping, b: MidiMapping) => sameSource(a.src, b.src) && (!a.input || !b.input || a.input === b.input);
+
+// ---------- Условия (Condition) ----------
+
+/** Ключ условия маппинга: 'global', 'clip' или 'track:N'. */
+export const condKey = (m: Pick<MidiMapping, 'cond' | 'track'>) => (m.cond === 'track' ? `track:${m.track}` : m.cond);
+/** Действующие сейчас условия, от самого точного: сетка паттернов, выбранная дорожка, global. */
+function activeConds(): string[] {
+  const out: string[] = [];
+  if (ui.patternView) out.push('clip');
+  if (ui.channel === 'track') out.push(`track:${ui.selectedTrack}`);
+  out.push('global');
+  return out;
+}
+/** Условие нового маппинга: в сетке паттернов — Clip launcher, иначе Global. */
+function defaultCond(): Pick<MidiMapping, 'cond' | 'track'> {
+  const p = pinned.cond;
+  if (p) return p.startsWith('track:') ? { cond: 'track', track: Number(p.slice(6)) } : { cond: p as MidiMapping['cond'], track: ui.selectedTrack };
+  return { cond: ui.patternView ? 'clip' : 'global', track: ui.selectedTrack };
+}
+
+/** Маппинги делят источник: тот же источник, то же условие и пересекающиеся входы. */
+const clash = (a: MidiMapping, b: MidiMapping) => sameSource(a.src, b.src) && condKey(a) === condKey(b)
+  && (!a.input || !b.input || a.input === b.input);
 /** Маппинг, который отберёт этот источник у другой цели (окно настройки предупреждает). */
 export const clashFor = (m: MidiMapping) => settings.mappings.find((x) => !sameTarget(x.target, m.target) && clash(x, m));
 const targetKey = (t: MidiTarget) => (t.kind === 'knob' ? `knob:${t.slot}` : `btn:${t.name}`);
 
-/** Есть ли маппинг на цель (подсветка в режиме LEARN). */
-export const isMapped = (t: MidiTarget) => settings.mappings.some((m) => sameTarget(m.target, t));
-/** Маппинг цели (у цели один источник). */
-export const mappingFor = (t: MidiTarget) => settings.mappings.find((m) => sameTarget(m.target, t));
+/**
+ * Условие, закреплённое окном MIDI MAP: окно правит маппинг этого условия, даже если оно сейчас
+ * не действует (например, Clip launcher при закрытой сетке паттернов).
+ */
+export const pinned: { target: MidiTarget | null; cond: string | null } = { target: null, cond: null };
+
+/** Маппинг цели в нынешнем контексте (закреплённое окном условие, иначе самое точное действующее). */
+export function mappingFor(t: MidiTarget): MidiMapping | undefined {
+  const conds = pinned.target && pinned.cond && sameTarget(pinned.target, t) ? [pinned.cond] : activeConds();
+  for (const c of conds) {
+    const m = settings.mappings.find((x) => sameTarget(x.target, t) && condKey(x) === c);
+    if (m) return m;
+  }
+  return undefined;
+}
+/** Есть ли действующий маппинг на цель (подсветка в режиме LEARN). */
+export const isMapped = (t: MidiTarget) => !!mappingFor(t);
 
 // ---------- MIDI LEARN ----------
 
@@ -143,7 +177,7 @@ function freeSource(): MidiSource {
 }
 
 /** Черновик маппинга цели без маппинга (окно настройки до первого изменения). */
-export const draftMapping = (t: MidiTarget): MidiMapping => fullMapping({ src: freeSource(), target: t });
+export const draftMapping = (t: MidiTarget): MidiMapping => fullMapping({ src: freeSource(), target: t, ...defaultCond() });
 
 /**
  * Изменить маппинг цели (окно настройки, LEARN): поля patch поверх нынешнего маппинга (или нового).
@@ -152,7 +186,10 @@ export const draftMapping = (t: MidiTarget): MidiMapping => fullMapping({ src: f
 export function updateMapping(t: MidiTarget, patch: Partial<MidiMapping>) {
   const cur = mappingFor(t) ?? draftMapping(t);
   const m: MidiMapping = { ...cur, ...patch, target: t };
-  store([...settings.mappings.filter((x) => !sameTarget(x.target, t) && !clash(x, m)), m]);
+  // У цели в одном условии — один маппинг (прежний, и тот, что уже был в новом условии, уходят).
+  const mine = (x: MidiMapping) => sameTarget(x.target, t) && (x === cur || condKey(x) === condKey(m));
+  store([...settings.mappings.filter((x) => !mine(x) && !clash(x, m)), m]);
+  if (pinned.target && sameTarget(pinned.target, t)) pinned.cond = condKey(m);
 }
 
 export function removeMapping(k: number) {
@@ -161,7 +198,8 @@ export function removeMapping(k: number) {
 
 /** Снять маппинг цели (CLEAR в полосе LEARN, DELETE в окне настройки). */
 export function clearTarget(t: MidiTarget) {
-  store(settings.mappings.filter((m) => !sameTarget(m.target, t)));
+  const cur = mappingFor(t);
+  if (cur) store(settings.mappings.filter((m) => m !== cur));
 }
 
 export function clearMappings() {
@@ -280,9 +318,15 @@ function handle(status: number, d1: number, d2: number, input: string) {
     return;
   }
 
-  const maps = settings.mappings.filter((m) => sameSource(m.src, src) && (!m.input || m.input === input));
-  if (maps.length) {
-    for (const m of maps) apply(m, isCc, d2, isCc ? d2 >= 64 : isOn);
+  // Из маппингов источника действует самое точное условие (clip, дорожка, global).
+  const all = settings.mappings.filter((m) => sameSource(m.src, src) && (!m.input || m.input === input));
+  if (all.length) {
+    for (const c of activeConds()) {
+      const maps = all.filter((m) => condKey(m) === c);
+      if (!maps.length) continue;
+      for (const m of maps) apply(m, isCc, d2, isCc ? d2 >= 64 : isOn);
+      break;
+    }
     return;
   }
   if (!isOn) return;
@@ -313,7 +357,17 @@ export function sendFeedback(now: number) {
   const mode = gridMode();
   const grid = gridFor(mode);
   const held = firstHeldStep();
+  // Только действующие маппинги: у источника — самый точный из действующих сейчас.
+  const conds = activeConds();
+  const best = new Map<string, MidiMapping>();
   for (const m of settings.mappings) {
+    const r = conds.indexOf(condKey(m));
+    if (r < 0) continue;
+    const key = `${m.input}:${m.src.type}:${m.src.ch}:${m.src.num}`;
+    const b = best.get(key);
+    if (!b || r < conds.indexOf(condKey(b))) best.set(key, m);
+  }
+  for (const m of best.values()) {
     const out = feedbackOut(m);
     if (!out) continue;
     let v: number;
