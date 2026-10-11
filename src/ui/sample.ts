@@ -417,12 +417,12 @@ function renderWave() {
     : `Audio off (${state}) — tap the screen`);
   setClass(stubName, 'warn', state !== 'running');
   if (engine !== null) {
-    // Синт: полное имя движка и что делают ручки Harmonics, Timbre, Morph.
+    // Синт: полное имя движка и названия его ручек 1.1–1.3.
     const e = SYNTH_ENGINES[engine];
     setText(synthFull, e.full);
     renderIcon(bigIcon, ui.selectedTrack, performance.now());
-    const rows: [string, string, string][] = [['HARM', e.harm, 'harm'], ['TIMBRE', e.timbre, 'timbre'], ['MORPH', e.morph, 'morph']];
-    rows.forEach(([label, what, id], i) => setText(synthRows[i], `${label} · ${what} · ${Math.round(t.params[id] ?? 50)}%`));
+    // Только названия ручек 1.1–1.3 этого движка (как подписи ручек, с заглавной буквы).
+    [e.harm, e.timbre, e.morph].forEach((what, i) => setText(synthRows[i], what.charAt(0).toUpperCase() + what.slice(1)));
     return;
   }
   const p = samplePeaks(t.sample);
