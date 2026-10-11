@@ -5,7 +5,7 @@
 // с REC во время проигрывания — записывает ноты в реальном времени.
 
 import { PROGRESSIONS, SCALES, noteName } from '../params';
-import {
+import { releaseEnv,
   chordName, chordOnDegree, doc, heldStepNotes, inputNotes, isRoot, pressedNotes, recordNotes, rt, scaleNotes,
   setOctave, setProgression, ui,
 } from '../state';
@@ -29,11 +29,11 @@ const keyCount = () => Math.min(MAX_KEYS, SCALES[doc.scale].steps.length * 2 + 1
  * Нажатие ноты/аккорда: запись, редактирование шага или выбор (и ноты с MIDI-входов).
  * track — дорожка для нот с MIDI по каналам (без неё — выбранная).
  */
-export function press(notes: number[], track: number | null = null) {
+export function press(notes: number[], track: number | null = null, held = false) {
   const ti = track ?? ui.selectedTrack;
   // Живой наигрыш: нота сразу звучит звуком выбранной дорожки.
   unlockAudio();
-  playNow(ti, notes);
+  playNow(ti, notes, held);
   if (ui.rec && ui.playing && ui.heldSteps.size === 0) {
     const now = performance.now();
     const at = recStep(ti, now);
@@ -50,9 +50,13 @@ function pressHandlers(el: HTMLElement, notes: () => number[]) {
     e.preventDefault();
     const n = notes();
     ui.pressedKeys.set(e.pointerId, n);
-    press(n);
+    press(n, null, true);
   });
-  const up = (e: PointerEvent) => { ui.pressedKeys.delete(e.pointerId); };
+  // Отпущена последняя клавиша — у ENV начинается Release.
+  const up = (e: PointerEvent) => {
+    if (!ui.pressedKeys.delete(e.pointerId)) return;
+    if (ui.pressedKeys.size === 0) releaseEnv(ui.selectedTrack);
+  };
   el.addEventListener('pointerup', up);
   el.addEventListener('pointercancel', up);
 }

@@ -21,6 +21,11 @@ export interface ParamDef {
   def: number;
   /** Экспоненциальная шкала (частоты, Гц). */
   exp?: boolean;
+  /**
+   * Степенная шкала от нуля: значение = min + (max − min)·n^curve. Короткие времена (Attack,
+   * Decay) — в нижней части ручки, длинные — вверху; ноль остаётся достижим (в отличие от exp).
+   */
+  curve?: number;
   /** Дуга рисуется от центра (Pan, Pitch, Invert). */
   bipolar?: boolean;
   /** Подписи ступеней для ступенчатых ручек (значение = индекс). */
@@ -88,8 +93,8 @@ export const TRACK_GRID: Slot[] = grid([
     smooth('level', 'Level', 0, 127, 100, (v) => `${Math.round(v)}`),
   ],
   [
-    smooth('attack', 'Attack', 0, 2000, 0, ms),
-    smooth('decay', 'Decay', 0, 4000, 500, ms),
+    smooth('attack', 'Attack', 0, 2000, 0, ms, { curve: 3 }),
+    smooth('decay', 'Decay', 0, 4000, 500, ms, { curve: 3 }),
     smooth('filter', 'Filter', -100, 100, 0, filterFormat, { bipolar: true }),
     smooth('reso', 'Resonance', 0, 100, 0, pct),
   ],
@@ -303,6 +308,7 @@ export const PARAM_BY_ID: Record<string, ParamDef> = Object.fromEntries(ALL_PARA
 /** Значение параметра → 0..1 (положение ручки). */
 export function toNorm(p: ParamDef, v: number): number {
   if (p.exp) return Math.log(v / p.min) / Math.log(p.max / p.min);
+  if (p.curve) return Math.pow(Math.min(1, Math.max(0, (v - p.min) / (p.max - p.min))), 1 / p.curve);
   return (v - p.min) / (p.max - p.min);
 }
 
@@ -311,6 +317,7 @@ export function fromNorm(p: ParamDef, n: number): number {
   n = Math.min(1, Math.max(0, n));
   if (p.kind === 'stepped') return Math.round(n * (p.max - p.min)) + p.min;
   if (p.exp) return p.min * Math.pow(p.max / p.min, n);
+  if (p.curve) return p.min + Math.pow(n, p.curve) * (p.max - p.min);
   return p.min + n * (p.max - p.min);
 }
 

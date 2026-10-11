@@ -147,8 +147,13 @@ function playStep(time: number) {
     const offset = pos % 2 === 1 ? ((swing - 50) / 50) * dur : 0;
     const sub = dur / ratchet;
     for (let r = 0; r < ratchet; r++) {
-      triggerTrack(i, time + offset + r * sub, s.notes, s.locks, s.sound);
-      flashes.push({ time: time + offset + r * sub, track: i, dur: Math.min(90, sub * 0.6), notes: s.notes, noteDur: ratchet > 1 ? sub * 0.6 : s.len * dur * 0.9 });
+      const at = time + offset + r * sub;
+      const noteDur = ratchet > 1 ? sub * 0.6 : s.len * dur * 0.9;
+      // ENV запускается в момент ноты (запланирован заранее, как и сама нота): начальные
+      // значения ноты берут ENV на этот момент, а не хвост предыдущей.
+      triggerEnv(i, at, noteDur);
+      triggerTrack(i, at, s.notes, s.locks, s.sound);
+      flashes.push({ time: at, track: i, dur: Math.min(90, sub * 0.6), notes: s.notes, noteDur });
     }
   });
   tick++;
@@ -180,7 +185,6 @@ export function updateTransport(now: number) {
       continue;
     }
     rt.flashUntil[f.track] = Math.max(rt.flashUntil[f.track], now + f.dur);
-    triggerEnv(f.track, now, f.noteDur);
     rt.noteFlash[f.track] = { notes: f.notes, until: now + f.noteDur };
   }
 }

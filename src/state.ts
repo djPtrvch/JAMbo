@@ -200,6 +200,8 @@ export interface Runtime {
   lfoRandom: number[][];
   /** Огибающая ENV: момент запуска и конец гейта (performance.now), start < 0 — не запускалась. */
   env: { start: number; gateEnd: number }[];
+  /** Запуски ENV, запланированные наперёд (ноты секвенсора ставятся заранее), по времени. */
+  envQueue: { start: number; gateEnd: number }[][];
   /** Ноты, которые сейчас звучат на дорожке (подсветка пианоролла). */
   noteFlash: { notes: number[]; until: number }[];
   /** Глобальный тик, с которого дорожка играет текущий паттерн. */
@@ -314,6 +316,7 @@ export const rt: Runtime = {
   lfoPhase: Array.from({ length: TRACK_COUNT }, () => [0, 0, 0]),
   lfoRandom: Array.from({ length: TRACK_COUNT }, () => [0, 0, 0].map(() => Math.random() * 2 - 1)),
   env: Array.from({ length: TRACK_COUNT }, () => ({ start: -1, gateEnd: -1 })),
+  envQueue: Array.from({ length: TRACK_COUNT }, () => []),
   noteFlash: Array.from({ length: TRACK_COUNT }, () => ({ notes: [], until: 0 })),
   playLocks: Array.from({ length: SEQ_COUNT }, () => ({ locks: {}, until: 0 })),
   trackStart: Array(SEQ_COUNT).fill(0),
@@ -572,28 +575,59 @@ export function envShape(p: Record<string, number>, t: number, gate: number): nu
   return rel < r ? ads(gate) * (1 - rel / r) : 0;
 }
 
-/** Запуск огибающей дорожки тригом; gateMs — длительность ноты. */
-export function triggerEnv(trackIndex: number, now: number, gateMs: number) {
-  rt.env[trackIndex] = { start: now, gateEnd: now + gateMs };
+/**
+ * Запуск огибающей дорожки тригом в момент start (performance.now, может быть в будущем —
+ * ноты секвенсора планируются заранее); gateMs — длительность ноты.
+ */
+export function triggerEnv(trackIndex: number, start: number, gateMs: number) {
+  const q = rt.envQueue[trackIndex];
+  q.push({ start, gateEnd: start + gateMs });
+  q.sort((a, b) => a.start - b.start);
+  promoteEnv(trackIndex, performance.now());
 }
 
-export function envOut(trackIndex: number, now = performance.now()): number {
+/** Живая нота отпущена (палец снят с клавиши) — у огибающей начинается Release. */
+export function releaseEnv(trackIndex: number, now = performance.now()) {
   const e = rt.env[trackIndex];
+  if (e.start >= 0 && e.gateEnd > now) e.gateEnd = now;
+}
+
+/** Наступившие запуски из очереди становятся текущей огибающей. */
+function promoteEnv(trackIndex: number, now: number) {
+  const q = rt.envQueue[trackIndex];
+  while (q.length && q[0].start <= now) rt.env[trackIndex] = q.shift()!;
+}
+
+/** Запуск огибающей, который действует в момент at (последний начавшийся к этому времени). */
+export function envAt(trackIndex: number, at: number): { start: number; gateEnd: number } {
+  const now = performance.now();
+  promoteEnv(trackIndex, now);
+  let e = rt.env[trackIndex];
+  // Момент в будущем (начало запланированной ноты) — учитываем запланированные запуски.
+  if (at > now) for (const x of rt.envQueue[trackIndex]) if (x.start <= at) e = x;
+  return e;
+}
+
+export function envOut(trackIndex: number, at = performance.now()): number {
+  const e = envAt(trackIndex, at);
   if (e.start < 0) return 0;
-  return envShape(liveParams(trackIndex, now), now - e.start, e.gateEnd - e.start);
+  return envShape(liveParams(trackIndex, at), at - e.start, e.gateEnd - e.start);
 }
 
-/** Выход источника модуляции: LFO −1..+1, ENV 0..1. */
-export function modOut(trackIndex: number, m: Mod): number {
-  return m === 4 ? envOut(trackIndex) : lfoOut(trackIndex, m);
+/** Выход источника модуляции: LFO −1..+1, ENV 0..1 (at — момент, по умолчанию сейчас). */
+export function modOut(trackIndex: number, m: Mod, at?: number): number {
+  return m === 4 ? envOut(trackIndex, at) : lfoOut(trackIndex, m);
 }
 
-/** Значение ручки дорожки в 0..1 с учётом LFO (base — базовое или p-lock значение). */
-export function modulatedNorm(trackIndex: number, p: ParamDef, base: number): number {
+/**
+ * Значение ручки дорожки в 0..1 с учётом LFO (base — базовое или p-lock значение). at — момент
+ * (начало запланированной ноты: ENV берётся на этот момент, а не на сейчас).
+ */
+export function modulatedNorm(trackIndex: number, p: ParamDef, base: number, at?: number): number {
   const a = doc.tracks[trackIndex].assigns[p.id];
   const n = toNorm(p, base);
   if (!a) return n;
-  return Math.min(1, Math.max(0, n + a.amount * modOut(trackIndex, a.lfo)));
+  return Math.min(1, Math.max(0, n + a.amount * modOut(trackIndex, a.lfo, at)));
 }
 
 export function setLfoAmount(p: ParamDef, lfo: Mod, amount: number, mode: GridMode = 'track') {

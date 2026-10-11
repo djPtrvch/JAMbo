@@ -17,7 +17,7 @@
 // лимитера): пиковый уровень по каналам и громкость в LUFS (K-взвешивание, окно ~400 мс).
 
 import { DELAY_DIVS, OVER_PEAK, SYNTH_ENGINES, synthEngine, PARAM_BY_ID, RATIOS, VOL_DEF_DB, volGain, SAMPLE_ROOT, TRACK_COUNT, filterFreq, fromNorm } from '../params';
-import { addSamplesQuiet, addSamplesToFolder, doc, setStepSound, liveFx, liveMaster, liveMixer, modulatedNorm, ui } from '../state';
+import { addSamplesQuiet, addSamplesToFolder, doc, setStepSound, triggerEnv, liveFx, liveMaster, liveMixer, modulatedNorm, ui } from '../state';
 import { detectRoot } from './pitch';
 import { encodeWav } from './wav';
 import { settings } from '../settings';
@@ -38,6 +38,8 @@ interface Voice {
   root: number;
   locks: Record<string, number>;
   note: number;
+  /** Время начала ноты (контекст): до него модуляция голос не трогает. */
+  at: number;
   /** Сэмпл; у голоса синта — null (звучит слот synth). */
   src: AudioBufferSourceNode | null;
   synth: { slot: number; engine: number; end: number } | null;
@@ -332,11 +334,11 @@ function toCtx(perf: number): number {
 
 // ---------- Голоса ----------
 
-/** Значение параметра голоса с p-lock и текущей модуляцией. */
-function value(track: number, id: string, locks: Record<string, number>): number {
+/** Значение параметра голоса с p-lock и модуляцией; at — момент (performance.now) начала ноты. */
+function value(track: number, id: string, locks: Record<string, number>, at?: number): number {
   const p = PARAM_BY_ID[id];
   const base = locks[id] ?? doc.tracks[track].params[id];
-  return fromNorm(p, modulatedNorm(track, p, base));
+  return fromNorm(p, modulatedNorm(track, p, base, at));
 }
 
 function applyFilter(f: BiquadFilterNode, v: number, reso: number, at: number, smooth: boolean) {
@@ -366,11 +368,12 @@ export function triggerTrack(track: number, time: number, notes: number[], locks
   // У шага может быть свой звук (сэмпл или движок) вместо звука дорожки.
   const key = sound || t.sample;
   const engine = synthEngine(key);
-  if (engine !== null) { triggerSynth(track, engine, toCtx(time), notes, locks); return; }
+  if (engine !== null) { triggerSynth(track, engine, time, notes, locks); return; }
   const buf = buffers.get(key);
   if (!buf) return;
   const at = toCtx(time);
-  const v = (id: string) => value(track, id, locks);
+  // Начальные значения — с модуляцией на момент ноты (ENV запущен на это время).
+  const v = (id: string) => value(track, id, locks, time);
 
   const startSec = (buf.duration * v('start')) / 100;
   const endSec = (buf.duration * v('end')) / 100;
@@ -411,7 +414,7 @@ export function triggerTrack(track: number, time: number, notes: number[], locks
     const stopAt = at + Math.min(playDur, attack + decay + 0.1);
     src.start(at, startSec, Math.max(0.003, (endSec - startSec)));
     src.stop(stopAt);
-    const voice: Voice = { track, root, locks, note, src, synth: null, level, filter, pan, sends, ended: false };
+    const voice: Voice = { track, root, locks, note, at, src, synth: null, level, filter, pan, sends, ended: false };
     src.onended = () => {
       voice.ended = true;
       for (const n of [src, amp, level, filter, pan, ...sends]) n.disconnect();
@@ -426,13 +429,14 @@ export function triggerTrack(track: number, time: number, notes: number[], locks
 }
 
 /** Ноты синта: голоса по кругу, огибающая и параметры — на постоянной цепочке голоса. */
-function triggerSynth(track: number, engine: number, at0: number, notes: number[], locks: Record<string, number>) {
+function triggerSynth(track: number, engine: number, time: number, notes: number[], locks: Record<string, number>) {
   const sy = ensureSynth(track);
   if (!sy) return;
+  const at0 = toCtx(time);
   // Живой наигрыш: небольшой запас, чтобы нота успела дойти до AudioWorklet к началу огибающей
   // (иначе огибающая открывается раньше звука движка — щелчок).
   const at = Math.max(at0, ctx!.currentTime + 0.012);
-  const v = (id: string) => value(track, id, locks);
+  const v = (id: string) => value(track, id, locks, time);
   const attack = Math.max(0.002, v('attack') / 1000);
   const decay = v('decay') / 1000;
   // Затухает сам движок (Decay управляет им): огибающая только с атакой, голос считается,
@@ -468,7 +472,7 @@ function triggerSynth(track: number, engine: number, at0: number, notes: number[
     SENDS.forEach((id, k) => sl.sends[k].gain.setValueAtTime(v(id) / 100, start));
     const stop = end + (start - at);
     sy.busyUntil[slot] = selfDecay ? start + attack + 0.3 + 4 * decay : stop;
-    voices.push({ track, root: 0, locks, note, src: null, synth: { slot, engine, end: stop }, level: sl.level, filter: sl.filter, pan: sl.pan, sends: sl.sends, ended: false });
+    voices.push({ track, root: 0, locks, note, at: start, src: null, synth: { slot, engine, end: stop }, level: sl.level, filter: sl.filter, pan: sl.pan, sends: sl.sends, ended: false });
     return { type: 'note', slot, frame: Math.round(start * sr), end: Math.round(stop * sr), engine, note, ...synthParams(engine, v), accent: 0.8 };
   });
   sy.node.port.postMessage(events);
@@ -476,8 +480,12 @@ function triggerSynth(track: number, engine: number, at0: number, notes: number[
 }
 
 /** Живой наигрыш с пианоролла: ноты выбранной дорожки сейчас. */
-export function playNow(track: number, notes: number[]) {
-  triggerTrack(track, performance.now(), notes, {});
+export function playNow(track: number, notes: number[], held = false) {
+  // Живая нота тоже запускает ENV: гейт — пока держат клавишу (held, отпускание — releaseEnv),
+  // иначе (ноты с MIDI) — один шаг.
+  const now = performance.now();
+  triggerEnv(track, now, held ? 1e9 : 60000 / doc.bpm / 4);
+  triggerTrack(track, now, notes, {});
 }
 
 /** Sidechain: триг дорожки-источника приглушает остальные на их Sidechain amount. */
@@ -504,6 +512,8 @@ function updateVoices() {
     const vo = voices[k];
     if (vo.synth && c.currentTime > vo.synth.end) vo.ended = true;
     if (vo.ended) { voices.splice(k, 1); continue; }
+    // Нота ещё не началась (запланирована наперёд) — её начальные значения уже выставлены.
+    if (vo.at > c.currentTime) continue;
     const assigns = doc.tracks[vo.track].assigns;
     if (Object.keys(assigns).length === 0) continue;
     const v = (id: string) => value(vo.track, id, vo.locks);

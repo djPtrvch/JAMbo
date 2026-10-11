@@ -16,7 +16,7 @@ import {
 import { LFO_WAVES, OVER_PEAK, RATIOS, SYNTH_ENGINES, TRACK_COUNT, noteName, synthEngine, synthKey } from '../params';
 import { fmtDb, levelFrac } from './meter';
 import { backHeader, makePopup, openInput, popupButton } from './popup';
-import { audible, cycleRatio, deletePreset, doc, duplicatePreset, heldStepSound, liveMaster, loadPreset, renamePreset, setStepSound, folderItemName, folderPos, nextPresetName, presets, savePreset, stepFolder, stepFolderOnSteps, setTrackSynth, toggleCmpBypass, toggleLimBypass, envOut, envShape, lfoShape, rt, sampleName, selTrack, ui } from '../state';
+import { audible, cycleRatio, deletePreset, doc, duplicatePreset, heldStepSound, liveMaster, loadPreset, renamePreset, setStepSound, folderItemName, folderPos, nextPresetName, presets, savePreset, stepFolder, stepFolderOnSteps, setTrackSynth, toggleCmpBypass, toggleLimBypass, envAt, envOut, envShape, lfoShape, rt, sampleName, selTrack, ui } from '../state';
 import { openSampleEditor } from './sampleedit';
 import { h, setAttr, setClass, setText, svg } from './dom';
 
@@ -434,7 +434,7 @@ function renderEnv(m: Mini, now: number) {
     d += `${i ? 'L' : 'M'}${((i / POINTS) * W).toFixed(1)} ${yUni(envShape(p, t, gate))}`;
   }
   setAttr(m.wave, 'd', d);
-  const e = rt.env[ui.selectedTrack];
+  const e = envAt(ui.selectedTrack, now);
   const level = envOut(ui.selectedTrack, now);
   // Позиция точки: время с запуска, растянутое по реальному гейту в условную шкалу.
   let x = 0;
