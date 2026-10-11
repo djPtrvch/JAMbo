@@ -3,7 +3,7 @@
 
 import { fromNorm, toNorm, type ParamDef } from '../params';
 import {
-  curSeq, liveLocks, seqIndex,
+  assignFor, curSeq, fxModNorm, liveLocks, seqIndex,
   beginGesture, clearLfoAssign, clearLock, doc, endGesture, firstHeldStep, gridFor, gridMode, heldLfo,
   lockValue, modulatedNorm, paramValue, type Mod, setLfoAmount, setLockNorm, setParamNorm, ui, type GridMode,
 } from '../state';
@@ -114,7 +114,9 @@ function onDown(slot: number, e: PointerEvent) {
   const lfo = heldLfo();
   const held = firstHeldStep();
   // Удержание шага — p-lock в любом режиме (дорожка, FX, MOD, MIX, MST).
-  const kind: Gesture['kind'] = held !== null ? 'lock' : mode === 'track' && lfo ? 'lfo' : 'base';
+  // LFO/ENV назначаются на ручки дорожки и FX.
+  const canMod = mode === 'track' || mode === 'fx';
+  const kind: Gesture['kind'] = held !== null ? 'lock' : canMod && lfo ? 'lfo' : 'base';
   const g: Gesture = { slot, mode, param, startY: e.clientY, lastY: e.clientY, moved: false, acc: 0, kind, lfo: lfo ?? 1, consumed: false };
 
   // Двойной тап: только при удержании шага (снять p-lock) или LFO (снять назначение).
@@ -122,13 +124,13 @@ function onDown(slot: number, e: PointerEvent) {
   if (now - lastTap[slot] < DOUBLE_TAP_MS) {
     lastTap[slot] = -1e9;
     if (kind === 'lock') clearLock(param);
-    else if (kind === 'lfo') clearLfoAssign(param, g.lfo);
+    else if (kind === 'lfo') clearLfoAssign(param, g.lfo, mode);
     g.consumed = true;
   }
 
   if (kind === 'lock') g.acc = toNorm(param, lockValue(held!, param) ?? paramValue(mode, param));
   else if (kind === 'lfo') {
-    const a = doc.tracks[ui.selectedTrack].assigns[param.id];
+    const a = assignFor(mode, param);
     g.acc = a && a.lfo === g.lfo ? a.amount : 0;
   } else g.acc = toNorm(param, paramValue(mode, param));
 
@@ -161,7 +163,7 @@ function onMove(e: PointerEvent) {
   g.lastY = e.clientY;
   if (g.kind === 'lfo') {
     g.acc = Math.min(1, Math.max(-1, g.acc + d));
-    setLfoAmount(g.param, g.lfo, g.acc);
+    setLfoAmount(g.param, g.lfo, g.acc, g.mode);
     return;
   }
   g.acc = Math.min(1, Math.max(0, g.acc + d));
@@ -188,7 +190,7 @@ export function renderKnobs(now: number) {
   const held = firstHeldStep();
   const seq = curSeq();
   const playLocks = liveLocks(seqIndex(), now) ?? undefined;
-  const lfoHeld = mode === 'track' ? heldLfo() : null;
+  const lfoHeld = mode === 'track' || mode === 'fx' ? heldLfo() : null;
 
   views.forEach((v, slot) => {
     const p = grid[slot];
@@ -220,8 +222,8 @@ export function renderKnobs(now: number) {
     setAttr(v.lockArc, 'd', locked ? arc(R_LOCK, origin, shownN) : '');
 
     // LFO: динамическое кольцо от базового до текущего значения.
-    const assign = mode === 'track' ? track.assigns[p.id] : undefined;
-    const modN = mode === 'track' ? modulatedNorm(ti, p, shownBase) : shownN;
+    const assign = mode === 'track' ? track.assigns[p.id] : mode === 'fx' ? assignFor('fx', p) : undefined;
+    const modN = mode === 'track' ? modulatedNorm(ti, p, shownBase) : mode === 'fx' ? fxModNorm(p, shownBase) : shownN;
     setAttr(v.lfoArc, 'd', assign ? arc(R_LFO, shownN, modN) : '');
     setAttr(v.lfoArc, 'class', assign ? `k-lfo mod${assign.lfo}` : 'k-lfo');
 

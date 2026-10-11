@@ -123,6 +123,11 @@ export interface Doc {
    * микшера и мастера. Хранятся как дорожки (страницы, длина, играющие страницы).
    */
   chanSeqs: Track[];
+  /**
+   * Назначения LFO и ENV на параметры FX (общие эффекты): источник — LFO/ENV дорожки track,
+   * выбранной при назначении.
+   */
+  fxAssigns: Record<string, LfoAssign & { track: number }>;
   /** Папки дорожек: загруженные сэмплы и пресеты, их перелистывают стрелки под окном сэмпла. */
   folders: Folder[];
   /** Строки сетки паттернов: имена и повторы. */
@@ -263,6 +268,7 @@ export function makeDoc(): Doc {
   chanSeqs: [newTrack(0, 'MIX'), newTrack(0, 'MST')],
   scenes: Array.from({ length: PATTERN_SLOTS }, () => ({ name: '', repeats: 0 })),
   folders: Array.from({ length: TRACK_COUNT }, () => ({ items: [], index: -1 })),
+  fxAssigns: {},
   eqs: Array.from({ length: TRACK_COUNT }, () => newEq()),
   masterEq: newEq(),
   files: {},
@@ -456,8 +462,21 @@ function withLocks(base: Record<string, number>, seqs: number[], now: number): R
 }
 
 const ALL_SEQS = Array.from({ length: SEQ_COUNT }, (_, k) => k);
-/** Общие FX с p-lock: шаг любой дорожки (или MIX, MST) с p-lock FX меняет их на время шага. */
-export const liveFx = (now = performance.now()) => withLocks(doc.fx, ALL_SEQS, now);
+/**
+ * Общие FX с p-lock (шаг любой дорожки или MIX, MST меняет их на время шага) и с назначенными
+ * LFO/ENV.
+ */
+export function liveFx(now = performance.now()): Record<string, number> {
+  const fx = withLocks(doc.fx, ALL_SEQS, now);
+  const ids = Object.keys(doc.fxAssigns);
+  if (!ids.length) return fx;
+  const out = { ...fx };
+  for (const id of ids) {
+    const p = PARAM_BY_ID[id];
+    if (p && id in out) out[id] = fromNorm(p, fxModNorm(p, out[id]));
+  }
+  return out;
+}
 /** Громкости микшера с p-lock шагов последовательности MIX. */
 export const liveMixer = (now = performance.now()) => withLocks(doc.mixer, [SEQ_MIX], now);
 /** Компрессор и лимитер мастера с p-lock шагов последовательности MST. */
@@ -559,15 +578,33 @@ export function modulatedNorm(trackIndex: number, p: ParamDef, base: number): nu
   return Math.min(1, Math.max(0, n + a.amount * modOut(trackIndex, a.lfo)));
 }
 
-export function setLfoAmount(p: ParamDef, lfo: Mod, amount: number) {
+export function setLfoAmount(p: ParamDef, lfo: Mod, amount: number, mode: GridMode = 'track') {
   amount = Math.min(1, Math.max(-1, amount));
+  // FX: источник — LFO/ENV выбранной дорожки.
+  if (mode === 'fx') { doc.fxAssigns[p.id] = { lfo, amount, track: ui.selectedTrack }; return; }
   for (const t of targetTracks(p.id, 'assign')) t.assigns[p.id] = { lfo, amount };
 }
 
-export function clearLfoAssign(p: ParamDef, lfo: Mod) {
+export function clearLfoAssign(p: ParamDef, lfo: Mod, mode: GridMode = 'track') {
   edit(() => {
+    if (mode === 'fx') { if (doc.fxAssigns[p.id]?.lfo === lfo) delete doc.fxAssigns[p.id]; return; }
     for (const t of targetTracks(p.id, 'assign')) if (t.assigns[p.id]?.lfo === lfo) delete t.assigns[p.id];
   });
+}
+
+/** Назначение LFO/ENV на ручку в режиме mode (дорожка или FX). */
+export function assignFor(mode: GridMode, p: ParamDef): LfoAssign | undefined {
+  if (mode === 'fx') return doc.fxAssigns[p.id];
+  if (mode === 'track' || mode === 'mod') return selTrack().assigns[p.id];
+  return undefined;
+}
+
+/** Значение параметра FX в 0..1 с учётом назначенного LFO/ENV. */
+export function fxModNorm(p: ParamDef, base: number): number {
+  const a = doc.fxAssigns[p.id];
+  const n = toNorm(p, base);
+  if (!a) return n;
+  return Math.min(1, Math.max(0, n + a.amount * modOut(a.track, a.lfo)));
 }
 
 // ---------- Шаги и p-lock ----------
