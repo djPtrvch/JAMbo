@@ -2,8 +2,6 @@
 
 import { h } from './dom';
 
-/** Ширина меню «бутерброд» и всех его подменю (PROJECTS, SETTINGS, MIDI). */
-export const MENU_W = 420;
 
 export interface Popup {
   root: HTMLElement;
@@ -99,4 +97,15 @@ export function backHeader(title: HTMLElement, onBack: () => void): HTMLElement 
   back.addEventListener('pointerup', onBack);
   row.append(back, title);
   return row;
+}
+
+/**
+ * Меню «бутерброд» и его подменю (PROJECTS, SETTINGS, MIDI): вровень с кнопками верхней панели —
+ * от левого края кнопки меню до правого края поля SCALE.
+ */
+export function openMenuPanel(p: Popup, anchor: Element) {
+  const a = anchor.getBoundingClientRect();
+  const scale = document.querySelector('.top-mid > :first-child')?.getBoundingClientRect();
+  p.openAt(anchor, scale ? scale.right - a.left : 420);
+  p.box.style.left = `${a.left}px`;
 }

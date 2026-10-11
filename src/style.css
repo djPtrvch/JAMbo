@@ -793,3 +793,6 @@ html, body {
 .lib-item.current .lib-detail { color: var(--bg); }
 .lib-item.picked { box-shadow: inset 0 0 0 2px var(--plock); }
 .lib-item.picked .lib-name::after { content: '  ✓'; color: var(--plock); }
+/* Кнопки нижних полос браузера (LOAD, CANCEL, SAVE HERE) — полноразмерные. */
+.lib-save .btn { height: 48px; width: 150px; font-size: 13px; }
+.lib-save { height: 52px; }

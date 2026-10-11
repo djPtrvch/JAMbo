@@ -13,7 +13,7 @@ import { TRACK_COUNT } from '../params';
 import { saveSettings, settings } from '../settings';
 import { openMapEditor } from './mapedit';
 import { h } from './dom';
-import { backHeader, MENU_W, makePopup, popupButton, type Popup } from './popup';
+import { backHeader, makePopup, openMenuPanel, popupButton, type Popup } from './popup';
 
 type Tab = 'devices' | 'mapping' | 'notes';
 
@@ -174,7 +174,7 @@ export function openMidi(anchor: Element, back: () => void) {
   if (!panel) build();
   status = '';
   render();
-  panel.openAt(anchor, MENU_W);
+  openMenuPanel(panel, anchor);
   void initMidi().then(() => { if (panel.isOpen()) render(); });
 }
 

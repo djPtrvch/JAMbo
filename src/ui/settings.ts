@@ -6,7 +6,7 @@
 import { applyOutput, audioInfo, canChooseOutput, restartAudio } from '../audio/engine';
 import { BUFFER_SIZES, SAMPLE_RATES, saveSettings, settings } from '../settings';
 import { h, setText } from './dom';
-import { backHeader, MENU_W, makePopup, popupButton, type Popup } from './popup';
+import { backHeader, makePopup, openMenuPanel, popupButton, type Popup } from './popup';
 import { openMidi } from './midi';
 import { openProjectMenu } from './projects';
 
@@ -32,7 +32,7 @@ export function openMainMenu(anchor: Element) {
       popupButton('MIDI', () => { main.close(); openMidi(anchorEl, back); }),
     );
   }
-  main.openAt(anchor, MENU_W);
+  openMenuPanel(main, anchor);
 }
 
 function buildPanel() {
@@ -50,7 +50,7 @@ function buildPanel() {
 export function openSettings(anchor: Element) {
   if (!panel) buildPanel();
   render();
-  panel.openAt(anchor, MENU_W);
+  openMenuPanel(panel, anchor);
   clearInterval(infoTimer);
   // Фактические параметры звука обновляются, пока окно открыто.
   infoTimer = window.setInterval(() => {
