@@ -25,8 +25,8 @@ let progRow: HTMLElement;
 /** Клавиш на экране: две октавы гаммы + верхняя корневая нота. */
 const keyCount = () => Math.min(MAX_KEYS, SCALES[doc.scale].steps.length * 2 + 1);
 
-/** Нажатие ноты/аккорда: запись, редактирование шага или выбор. */
-function press(notes: number[]) {
+/** Нажатие ноты/аккорда: запись, редактирование шага или выбор (и ноты с MIDI-входов). */
+export function press(notes: number[]) {
   const ti = ui.selectedTrack;
   // Живой наигрыш: нота сразу звучит звуком выбранной дорожки.
   unlockAudio();

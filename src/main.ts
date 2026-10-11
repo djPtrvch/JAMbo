@@ -3,6 +3,7 @@ import { TRACK_COUNT } from './params';
 import { advanceLfos, ui, updateTransition } from './state';
 import { synthLoad, unlockAudio, updateAudio } from './audio/engine';
 import { initProjects } from './project';
+import { setNoteHandler } from './midi';
 import { updateTransport } from './transport';
 import { buildEqButton, buildLeftButtons, buildPatternsButton, buildRightButtons, buildTransportButtons, renderButtons } from './ui/buttons';
 import { renderFields } from './ui/controls';
@@ -11,7 +12,7 @@ import { h, setClass, setText } from './ui/dom';
 import { buildKnobGrid, renderKnobs } from './ui/knobs';
 import { buildPages, renderPages } from './ui/pages';
 import { buildPatternGrid, renderPatternGrid } from './ui/patterns';
-import { buildPiano, buildProgression, renderPiano } from './ui/piano';
+import { buildPiano, buildProgression, press, renderPiano } from './ui/piano';
 import { buildMeter, renderMeter } from './ui/meter';
 import { buildSample, buildSampleNav, renderSample } from './ui/sample';
 import { buildSequencer, renderSequencer } from './ui/sequencer';
@@ -117,3 +118,6 @@ requestAnimationFrame(frame);
 
 // Последний открытый проект (или новый) и автосохранение.
 void initProjects();
+
+// Ноты с MIDI-входов играют выбранную дорожку, как пианоролл.
+setNoteHandler((note) => press([note]));
