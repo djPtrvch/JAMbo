@@ -28,6 +28,8 @@ export interface MidiMapping {
   /** Диапазон ручки 0–1: min — при 0, max — при 127 (min > max — инвертировано). */
   min: number;
   max: number;
+  /** Вход, с которого слушать: '' — любой, иначе id входа (Web MIDI или Bluetooth). */
+  input: string;
   /** Порт обратной связи: '' — по умолчанию (DEVICES → FEEDBACK OUTPUT), 'none' — нет, иначе id выхода. */
   port: string;
 }
@@ -61,7 +63,7 @@ export function fullMapping(m: Partial<MidiMapping> & Pick<MidiMapping, 'src' | 
   return {
     control: knob ? (knobMode === 'abs' ? 'abs' : 'rel') : 'momentary',
     enc: knobMode === 'rel2c' ? 'twos' : 'offset',
-    min: 0, max: 1, port: '',
+    min: 0, max: 1, port: '', input: '',
     ...m,
   };
 }

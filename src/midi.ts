@@ -93,6 +93,10 @@ export const targetFromAttr = (v: string): MidiTarget | null => {
 export const sameTarget = (a: MidiTarget, b: MidiTarget) => a.kind === b.kind
   && (a.kind === 'knob' ? a.slot === (b as typeof a).slot : a.name === (b as typeof a).name);
 const sameSource = (a: MidiSource, b: MidiSource) => a.type === b.type && a.ch === b.ch && a.num === b.num;
+/** Маппинги делят источник: тот же источник и пересекающиеся входы (любой или один и тот же). */
+const clash = (a: MidiMapping, b: MidiMapping) => sameSource(a.src, b.src) && (!a.input || !b.input || a.input === b.input);
+/** Маппинг, который отберёт этот источник у другой цели (окно настройки предупреждает). */
+export const clashFor = (m: MidiMapping) => settings.mappings.find((x) => !sameTarget(x.target, m.target) && clash(x, m));
 const targetKey = (t: MidiTarget) => (t.kind === 'knob' ? `knob:${t.slot}` : `btn:${t.name}`);
 
 /** Есть ли маппинг на цель (подсветка в режиме LEARN). */
@@ -148,7 +152,7 @@ export const draftMapping = (t: MidiTarget): MidiMapping => fullMapping({ src: f
 export function updateMapping(t: MidiTarget, patch: Partial<MidiMapping>) {
   const cur = mappingFor(t) ?? draftMapping(t);
   const m: MidiMapping = { ...cur, ...patch, target: t };
-  store([...settings.mappings.filter((x) => !sameTarget(x.target, t) && !sameSource(x.src, m.src)), m]);
+  store([...settings.mappings.filter((x) => !sameTarget(x.target, t) && !clash(x, m)), m]);
 }
 
 export function removeMapping(k: number) {
@@ -255,7 +259,7 @@ function apply(m: MidiMapping, isCc: boolean, value: number, on: boolean) {
 }
 
 /** Разбор MIDI-сообщения: маппинги и LEARN, остальные ноты — играют дорожку. */
-function handle(status: number, d1: number, d2: number) {
+function handle(status: number, d1: number, d2: number, input: string) {
   const type = status & 0xf0;
   const ch = status & 0x0f;
   const isCc = type === 0xb0;
@@ -269,13 +273,14 @@ function handle(status: number, d1: number, d2: number) {
     // Новый источник цели; тип управления, диапазон и порт остаются (у новой — по виду сообщения).
     if (learn.target) {
       const had = mappingFor(learn.target);
-      updateMapping(learn.target, had ? { src } : { src, control: learn.target.kind === 'knob' && isCc ? 'abs' : 'momentary' });
+      // Вход — тот, с которого пришло сообщение (как Port в Drambo).
+      updateMapping(learn.target, had ? { src, input } : { src, input, control: learn.target.kind === 'knob' && isCc ? 'abs' : 'momentary' });
     }
     learnChanged();
     return;
   }
 
-  const maps = settings.mappings.filter((m) => sameSource(m.src, src));
+  const maps = settings.mappings.filter((m) => sameSource(m.src, src) && (!m.input || m.input === input));
   if (maps.length) {
     for (const m of maps) apply(m, isCc, d2, isCc ? d2 >= 64 : isOn);
     return;
@@ -346,7 +351,7 @@ export async function initMidi(): Promise<void> {
       input.onmidimessage = (e) => {
         if (settings.midiIn && input.id !== settings.midiIn) return;
         const d = e.data;
-        if (d && d.length >= 3) handle(d[0], d[1], d[2]);
+        if (d && d.length >= 3) handle(d[0], d[1], d[2], input.id);
       };
     });
     sent.clear();
@@ -369,7 +374,7 @@ export function midiDevices(): MidiDevice[] {
  * Пакет BLE MIDI: заголовок, затем [метка времени][статус][данные…] (статус может повторяться
  * «бегущим» — без нового байта статуса).
  */
-function parseBle(b: Uint8Array) {
+function parseBle(b: Uint8Array, id: string) {
   let status = 0;
   let i = 1;
   while (i < b.length) {
@@ -381,7 +386,7 @@ function parseBle(b: Uint8Array) {
     if (!status || status >= 0xf0) break;
     const two = (status & 0xf0) !== 0xc0 && (status & 0xf0) !== 0xd0;
     if (i + (two ? 1 : 0) >= b.length) break;
-    handle(status, b[i], two ? b[i + 1] : 0);
+    handle(status, b[i], two ? b[i + 1] : 0, id);
     i += two ? 2 : 1;
   }
 }
@@ -395,7 +400,7 @@ export async function connectBluetooth(): Promise<string> {
   const ch = await service.getCharacteristic(BLE_MIDI_CHAR);
   ch.addEventListener('characteristicvaluechanged', () => {
     const v = ch.value;
-    if (v) parseBle(new Uint8Array(v.buffer, v.byteOffset, v.byteLength));
+    if (v) parseBle(new Uint8Array(v.buffer, v.byteOffset, v.byteLength), device.id);
   });
   await ch.startNotifications();
   const name = device.name || 'Bluetooth MIDI';
