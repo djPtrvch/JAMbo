@@ -216,11 +216,17 @@ function openEqPresets(anchor: Element) {
   presetMenu.openAt(anchor, 340);
 }
 
-/** Ввод частоты выбранной полосы числом. */
+/** Ввод частоты выбранной полосы числом — окно внутри поля эквалайзера, вверху (по горизонтали — над полем Freq). */
 function freqInput(el: HTMLElement) {
   const b = selectedBand();
   const k = ui.eqBand;
-  if (b) openInput(el, String(Math.round(b.freq)), (v) => { const f = parseFreq(v); if (f) setEqBand(k, { freq: f }); }, true);
+  if (!b) return;
+  const r = el.getBoundingClientRect();
+  const p = plot.getBoundingClientRect();
+  anchor.style.left = `${r.left + r.width / 2 - p.left}px`;
+  // Вверху поля: нижнюю часть экрана на iPad закрывает клавиатура.
+  anchor.style.top = "12px";
+  openInput(anchor, String(Math.round(b.freq)), (v) => { const f = parseFreq(v); if (f) setEqBand(k, { freq: f }); }, true);
 }
 
 // ---------- Построение ----------
