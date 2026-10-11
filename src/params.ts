@@ -32,6 +32,8 @@ export interface ParamDef {
   step?: number;
   /** Последняя доля хода ручки — AUTO (значение AUTO_VALUE); шкала до неё — как обычно. */
   autoTop?: number;
+  /** Первая доля хода ручки — OFF (значение 0); шкала после неё — как обычно. */
+  offBottom?: number;
   /** P-lock на ручку не ставится (ручки компрессора мастера). */
   noLock?: boolean;
   /** Ступенчатая ручка в процентах (1.1 некоторых движков): число пунктов, значение — середина пункта. */
@@ -277,13 +279,19 @@ const CMP = { noLock: true } as const;
 
 export const MASTER_GRID: Slot[] = grid([
   [],
-  [],
   [
     // Компрессор мастер-шины «glue» (glue-worklet.js): все ручки плавные, без p-lock.
     smooth('cmp.threshold', 'Threshold', -40, 0, -10, cmpDb, { ...CMP, step: 0.1 }),
     smooth('cmp.attack', 'Attack', 0.1, 100, 10, cmpMs, { ...CMP, exp: true }),
     smooth('cmp.release', 'Release', 20, 2000, 400, cmpMs, { ...CMP, exp: true, autoTop: 0.08 }),
     smooth('cmp.makeup', 'Makeup', 0, 18, 0, cmpDb, { ...CMP, step: 0.1 }),
+  ],
+  [
+    // Клиппер мастер-шины (clipper-worklet.js): все ручки плавные, без p-lock. BASS: первые 5% — OFF.
+    smooth('clip.drive', 'Drive', 0, 12, 0, cmpDb, { ...CMP, step: 0.1 }),
+    smooth('clip.ceiling', 'Ceiling', -12, 0, -1, cmpDb, { ...CMP, step: 0.1 }),
+    smooth('clip.softness', 'Softness', 0, 100, 30, (v) => `${Math.round(v)}%`, CMP),
+    smooth('clip.bass', 'Bass', 20, 300, 100, (v) => (v <= 0 ? 'OFF' : `${Math.round(v)} Hz`), { ...CMP, exp: true, offBottom: 0.05 }),
   ],
   [
     // Лимитер мастер-шины (limiter-worklet.js): все ручки плавные, без p-lock.
@@ -349,6 +357,7 @@ export const PARAM_BY_ID: Record<string, ParamDef> = Object.fromEntries(ALL_PARA
 
 /** Значение параметра → 0..1 (положение ручки). */
 export function toNorm(p: ParamDef, v: number): number {
+  if (p.offBottom) return v <= 0 ? 0 : p.offBottom + (1 - p.offBottom) * toNorm({ ...p, offBottom: undefined }, Math.max(p.min, v));
   if (p.autoTop) return isAuto(v) ? 1 : (1 - p.autoTop) * toNorm({ ...p, autoTop: undefined }, Math.min(p.max, v));
   if (p.exp) return Math.log(v / p.min) / Math.log(p.max / p.min);
   if (p.curve) return Math.pow(Math.min(1, Math.max(0, (v - p.min) / (p.max - p.min))), 1 / p.curve);
@@ -358,6 +367,7 @@ export function toNorm(p: ParamDef, v: number): number {
 /** 0..1 → значение параметра (ступенчатые округляются). */
 export function fromNorm(p: ParamDef, n: number): number {
   n = Math.min(1, Math.max(0, n));
+  if (p.offBottom) return n < p.offBottom ? 0 : fromNorm({ ...p, offBottom: undefined }, (n - p.offBottom) / (1 - p.offBottom));
   if (p.autoTop) return n >= 1 - p.autoTop ? AUTO_VALUE : fromNorm({ ...p, autoTop: undefined }, n / (1 - p.autoTop));
   if (p.step) {
     const v = fromNorm({ ...p, step: undefined }, n);

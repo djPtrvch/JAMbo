@@ -127,7 +127,8 @@ let rev: { hpf: BiquadFilterNode; pre: DelayNode; conv: ConvolverNode };
 let dly: { hpf: BiquadFilterNode; l: DelayNode; r: DelayNode; fbL: GainNode; fbR: GainNode };
 let drv: { shaper: WaveShaperNode; tone: BiquadFilterNode };
 let mst: {
-  eq: EqChain; glueIn: GainNode; glue: AudioWorkletNode | null; limIn: GainNode; lim: AudioWorkletNode | null; outVol: GainNode;
+  eq: EqChain; glueIn: GainNode; glue: AudioWorkletNode | null; clipIn: GainNode; clip: AudioWorkletNode | null;
+  limIn: GainNode; lim: AudioWorkletNode | null; outVol: GainNode;
   outMeter: Meter;
 };
 
@@ -135,13 +136,15 @@ const SENDS = ['reverb', 'delay', 'drive'] as const;
 /** Наибольшее время Delay, с (1 такт при 40 BPM — 6 с, со Stereo — до 9 с). */
 const MAX_DELAY = 9;
 
-// ---------- Компрессор (glue) и лимитер мастера — AudioWorklet ----------
+// ---------- Компрессор (glue), клиппер и лимитер мастера — AudioWorklet ----------
 
 /** Индикация устройства мастера: пик входа, наибольший GR (dB, ≥ 0), пик выхода, время прихода. */
 export interface DynLevels { in: number; gr: number; out: number; at: number }
 const glueLevels: DynLevels = { in: 0, gr: 0, out: 0, at: 0 };
+const clipLevels: DynLevels = { in: 0, gr: 0, out: 0, at: 0 };
 const limLevels: DynLevels = { in: 0, gr: 0, out: 0, at: 0 };
 export const glueMeter = () => glueLevels;
+export const clipperMeter = () => clipLevels;
 export const limiterMeter = () => limLevels;
 
 /**
@@ -166,8 +169,9 @@ function loadDevice(c: AudioContext, file: string, name: string, from: GainNode,
 }
 
 let glueSig = '';
+let clipSig = '';
 let limSig = '';
-/** Параметры компрессора и лимитера — в worklet (только при изменении). */
+/** Параметры компрессора, клиппера и лимитера — в worklet (только при изменении). */
 function sendDynamics() {
   if (!mst) return;
   const m = liveMaster();
@@ -179,6 +183,13 @@ function sendDynamics() {
     };
     const sig = JSON.stringify(msg);
     if (sig !== glueSig) { glueSig = sig; mst.glue.port.postMessage(msg); }
+  }
+  if (mst.clip) {
+    const msg = {
+      drive: m['clip.drive'], ceiling: m['clip.ceiling'], softness: m['clip.softness'], bass: m['clip.bass'], bypass: doc.clipBypass,
+    };
+    const sig = JSON.stringify(msg);
+    if (sig !== clipSig) { clipSig = sig; mst.clip.port.postMessage(msg); }
   }
   if (mst.lim) {
     const msg = {
@@ -302,19 +313,23 @@ export const audioState = (): string => (ctx ? ctx.state : 'none');
 function buildGraph(c: AudioContext) {
   // Мастер.
   const masterIn = c.createGain();
-  // Компрессор «glue» (glue-worklet.js) встаёт между glueIn и limIn, лимитер (limiter-worklet.js) —
-  // между limIn и громкостью выхода, когда модули загружены.
+  // Компрессор «glue» (glue-worklet.js) встаёт между glueIn и clipIn, клиппер (clipper-worklet.js) —
+  // между clipIn и limIn, лимитер (limiter-worklet.js) — между limIn и громкостью выхода, когда
+  // модули загружены (до этого сигнал идёт мимо).
   const glueIn = c.createGain();
+  const clipIn = c.createGain();
   const limIn = c.createGain();
   const eq = new EqChain(c);
   masterIn.connect(eq.input);
   // Громкость выхода (регулятор на измерителе справа при MST) — после лимитера, перед выходом.
   const outVol = c.createGain();
-  eq.output.connect(glueIn).connect(limIn).connect(outVol).connect(c.destination);
-  mst = { eq, glueIn, glue: null, limIn, lim: null, outVol, outMeter: new Meter(c, outVol, true) };
+  eq.output.connect(glueIn).connect(clipIn).connect(limIn).connect(outVol).connect(c.destination);
+  mst = { eq, glueIn, glue: null, clipIn, clip: null, limIn, lim: null, outVol, outMeter: new Meter(c, outVol, true) };
   glueSig = '';
+  clipSig = '';
   limSig = '';
-  loadDevice(c, 'glue-worklet.js', 'glue', glueIn, limIn, glueLevels, (n) => { mst!.glue = n; });
+  loadDevice(c, 'glue-worklet.js', 'glue', glueIn, clipIn, glueLevels, (n) => { mst!.glue = n; });
+  loadDevice(c, 'clipper-worklet.js', 'clipper', clipIn, limIn, clipLevels, (n) => { mst!.clip = n; });
   loadDevice(c, 'limiter-worklet.js', 'limiter', limIn, outVol, limLevels, (n) => { mst!.lim = n; });
 
   // Reverb: HPF → предзадержка → свёртка.
@@ -643,7 +658,7 @@ function updateFx(now: number) {
     }
   }
 
-  const fsig = JSON.stringify([fx, mixer, master, doc.ratio, doc.limBypass, doc.cmpBypass, doc.bpm]);
+  const fsig = JSON.stringify([fx, mixer, master, doc.ratio, doc.limBypass, doc.cmpBypass, doc.clipBypass, doc.bpm]);
   if (fsig === fxSig) return;
   fxSig = fsig;
   set(rev.hpf.frequency, fx['rev.hpf']);

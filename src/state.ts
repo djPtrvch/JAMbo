@@ -120,6 +120,8 @@ export interface Doc {
   outVol: number;
   /** Компрессор мастера выключен (кнопка BYPASS). */
   cmpBypass: boolean;
+  /** BYPASS клиппера мастера. */
+  clipBypass: boolean;
   /**
    * Свои последовательности каналов MIX и MST: шаги без нот, только p-lock параметров
    * микшера и мастера. Хранятся как дорожки (страницы, длина, играющие страницы).
@@ -273,6 +275,7 @@ export function makeDoc(): Doc {
   ratio: 0,
   limBypass: false,
   cmpBypass: false,
+  clipBypass: false,
   outVol: 0,
   chanSeqs: [newTrack(0, 'MIX'), newTrack(0, 'MST')],
   scenes: Array.from({ length: PATTERN_SLOTS }, () => ({ name: '', repeats: 0 })),
@@ -1086,6 +1089,10 @@ export function toggleCmpBypass() {
   edit(() => { doc.cmpBypass = !doc.cmpBypass; });
 }
 
+export function toggleClipBypass() {
+  edit(() => { doc.clipBypass = !doc.clipBypass; });
+}
+
 /** Кнопка BYPASS лимитера мастера. */
 export function toggleLimBypass() {
   edit(() => { doc.limBypass = !doc.limBypass; });
@@ -1451,7 +1458,7 @@ export function normalizeDoc(raw: unknown): Doc {
   // RATIO теперь 2:1, 4:1, 10:1 — прежние 8:1 и 20:1 становятся 10:1.
   d.ratio = Math.min(RATIOS.length - 1, Math.max(0, Math.round(d.ratio ?? 0)));
   // Значения мастера — в пределах нынешних шкал (у компрессора они стали другими).
-  for (const p of MASTER_GRID) if (p && !isAuto(d.master[p.id])) d.master[p.id] = Math.min(p.max, Math.max(p.min, d.master[p.id]));
+  for (const p of MASTER_GRID) if (p && !isAuto(d.master[p.id]) && !(p.offBottom && d.master[p.id] <= 0)) d.master[p.id] = Math.min(p.max, Math.max(p.min, d.master[p.id]));
   return d;
 }
 
@@ -1526,7 +1533,7 @@ const emptyLike = (p: Pattern): Pattern => ({ ...clone(p), pages: [emptyPage()],
 
 // ---------- Кроссфейдер общих настроек ----------
 
-const GLOBAL_KEYS = ['bpm', 'scale', 'root', 'fx', 'mixer', 'master', 'ratio', 'limBypass', 'cmpBypass', 'eqs', 'masterEq', 'outVol'] as const;
+const GLOBAL_KEYS = ['bpm', 'scale', 'root', 'fx', 'mixer', 'master', 'ratio', 'limBypass', 'cmpBypass', 'clipBypass', 'eqs', 'masterEq', 'outVol'] as const;
 type Globals = Pick<Doc, (typeof GLOBAL_KEYS)[number]>;
 const takeGlobals = (d: Doc): Globals => clone(Object.fromEntries(GLOBAL_KEYS.map((k) => [k, d[k]])) as Globals);
 
@@ -1562,6 +1569,7 @@ export function setCrossfade(pos: number) {
   doc.ratio = half.ratio;
   doc.limBypass = half.limBypass;
   doc.cmpBypass = half.cmpBypass;
+  doc.clipBypass = half.clipBypass;
   doc.eqs = clone(half.eqs);
   doc.masterEq = clone(half.masterEq);
   // У NEW — ровно настройки нового проекта. Кроссфейдер исчезает вместе со строкой PREV
