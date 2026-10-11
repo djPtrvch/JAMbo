@@ -112,6 +112,35 @@
 - Сохранение: внизу поле NAME и SAVE HERE — в открытую папку.
 - Системная папка RECORDINGS (жёлтая, не удаляется и не переименовывается) — для стемов дорожек; запись стемов будет позже.
 
+## Движки и иконки
+- Таблица движков — одно место для названий, подписей ручек 1.1, 1.2, 1.3 и их типа (плавная или ступенчатая). Подписи в интерфейсе — на английском:
+
+| id | Движок | 1.1 | 1.2 | 1.3 |
+|---|---|---|---|---|
+| 0 | Pair of classic waves | detune | pulse width | triangle→saw |
+| 1 | Waveshaper | shaper waveform | fold depth | asymmetry |
+| 2 | Two-operator FM | frequency ratio | mod index | feedback |
+| 3 | Granular formant | formant ratio | formant freq | formant width |
+| 4 | Harmonic | bumps | main harmonic | bump shape |
+| 5 | Wavetable | bank A–D (ступенчатая, 4) | row | column |
+| 6 | Chords | chord type (ступенчатая, 11) | inversion | waveform |
+| 7 | Vowel & speech | mode (ступенчатая, 4: formant, SAM, LPC, words) | species | phoneme / word |
+| 8 | Granular cloud | pitch spread | density | grain length |
+| 9 | Filtered noise | LP→BP→HP | clock freq | resonance |
+| 10 | Particle noise | freq spread | density | all-pass→band-pass |
+| 11 | Inharmonic string | material (inharmonicity) | excitation brightness | OUT→AUX |
+| 12 | Modal resonator | material | brightness & dust | OUT→AUX |
+| 13 | Analog bass drum | attack & overdrive | brightness | OUT→AUX |
+| 14 | Analog snare | harmonics↔noise | mode balance | OUT→AUX |
+| 15 | Analog hi-hat | metal↔noise | HPF cutoff | OUT→AUX |
+| — | Sample | pitch | start | end |
+
+- У движков 11–15 (aux) ручка 1.3 вместо Morph — OUT→AUX (плавный кроссфейд 0…1), затухание — от ручки Decay (2.2). У остальных aux нет, 1.3 — Morph. Подписи движка 11 сверены с мануалом Plaits.
+- Иконка движка: генератор из docs/icons/engine_icons.js, перенесён в src/engineIcons.ts (логика форм та же; как должно выглядеть — docs/icons/engines-1..4.png, что меняется у каждого движка — docs/icons/ENGINE_ICONS_SPEC.md). Параметры 0…1: h — ручка 1.1, t — 1.2, m — 1.3 (у 11–15 — OUT→AUX), d — Decay 2.2 (по умолчанию 0.5). У Sample — волна с маркерами start и end.
+- Иконка живая: перерисовывается (requestAnimationFrame) при любом изменении ручки, в том числе от LFO/ENV и p-lock (с зажатым шагом — его значения). У ступенчатых ручек (1.1 движков 5, 6, 7) иконка переключается скачком по пункту.
+- Цвета из CSS-переменных темы: иконка белая (в светлой теме — цвет текста), линия 1.8 на сетке 64×64. Пока палец держит ручку 1.1–1.3 или Decay, связанная с ней часть иконки оранжевая, остальное серое; отпустили — снова белая. Жёлтый — только рамка выбранной дорожки. Отдельных индикаторов (точки AUX, «призрака» положения) нет: AUX виден по самой иконке.
+- Где: в плитке дорожки — иконка её движка (у сэмпла — Sample) рядом с именем; в окне сэмпла слева — крупная иконка (~120 px) выбранной дорожки, тап по ней открывает меню звука (16 движков и SAMPLE), выбор меняет движок дорожки, подписи и типы ручек 1.1–1.3 (подпись мелко под ручкой).
+
 ## Режимы сетки ручек
 - Выбор дорожки: ручки показывают параметры этой дорожки.
 - Микшер (MIX): 16 ручек = громкости дорожек в dB (от −∞ до 0 dB, по умолчанию −10 dB), подписи — имена дорожек (несуществующие не подсвечиваются). Метров рядом с ручками нет — уровни дорожек видны в окне сэмпла.
