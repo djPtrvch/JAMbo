@@ -11,7 +11,7 @@
 
 import { PATTERN_SLOTS, STEPS_PER_PAGE, TRACK_COUNT } from '../params';
 import {
-  rowFilled, sceneName, setScene,
+  inTransition, rowFilled, sceneName, setScene,
   copyPattern, createPattern, dropPattern, deletePattern, doc, duplicatePattern, freeSlotAfter, hasLocks, pastePattern,
   playRange, rt, selectTrack, slotFilled, ui, type Pattern,
 } from '../state';
@@ -255,7 +255,8 @@ export function renderPatternGrid() {
   doc.tracks.forEach((t, i) => {
     const q = rt.queued[i];
     cells[i].forEach((c, k) => {
-      const filled = slotFilled(t, k);
+      // Во время перехода строка 1 у неиграющей дорожки — пустая заглушка.
+      const filled = slotFilled(t, k) && !(inTransition() && k === 0 && t.stopped);
       const active = k === t.slot;
       setClass(c.root, 'filled', filled);
       setClass(c.root, 'active', active && !t.stopped);
