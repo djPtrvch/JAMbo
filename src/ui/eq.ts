@@ -21,6 +21,7 @@ import {
   deleteEqPreset, eqPresets, loadEqPreset, nextEqPresetName, renameEqPreset, saveEqPreset,
 } from '../state';
 import { dragField } from './controls';
+import { color } from './theme';
 import { h, setClass, setText } from './dom';
 import { makePopup, openInput, popupButton } from './popup';
 
@@ -351,16 +352,16 @@ function drawGrid(g: CanvasRenderingContext2D) {
       const f = d * m;
       if (f < EQ_FREQ_MIN || f > EQ_FREQ_MAX) continue;
       const x = Math.round(xOf(f)) + 0.5;
-      g.strokeStyle = m === 1 ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.06)';
+      g.strokeStyle = m === 1 ? color('--grid-strong') : color('--grid');
       g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke();
     }
   }
   for (let db = -18; db <= 18; db += 6) {
     const y = Math.round(yOfGain(db)) + 0.5;
-    g.strokeStyle = db === 0 ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.06)';
+    g.strokeStyle = db === 0 ? color('--grid-strong') : color('--grid');
     g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke();
   }
-  g.fillStyle = '#7d838c';
+  g.fillStyle = color('--dim');
   g.font = '11px -apple-system, sans-serif';
   g.textBaseline = 'bottom';
   for (const [f, s] of [[100, '100 Hz'], [1000, '1 kHz'], [10000, '10 kHz']] as const) g.fillText(s, xOf(f) + 4, H - 4);
@@ -386,14 +387,18 @@ function drawSpectrum(g: CanvasRenderingContext2D) {
   for (let i = 0; i < n; i++) g.lineTo(i * STEP, yPost[i]);
   g.lineTo(W, H);
   g.closePath();
-  g.fillStyle = 'rgba(200,205,212,0.22)';
+  g.fillStyle = color('--dim');
+  g.globalAlpha = 0.22;
   g.fill();
+  g.globalAlpha = 1;
   // До EQ — серая линия.
   g.beginPath();
   for (let i = 0; i < n; i++) (i ? g.lineTo : g.moveTo).call(g, i * STEP, yPre[i]);
-  g.strokeStyle = 'rgba(200,205,212,0.55)';
+  g.strokeStyle = color('--dim');
+  g.globalAlpha = 0.6;
   g.lineWidth = 1.2;
   g.stroke();
+  g.globalAlpha = 1;
 }
 
 function drawCurve(g: CanvasRenderingContext2D, on: boolean) {
@@ -403,9 +408,11 @@ function drawCurve(g: CanvasRenderingContext2D, on: boolean) {
     const y = yOfGain(Math.max(-DB_RANGE * 1.2, Math.min(DB_RANGE * 1.2, curve[i])));
     (i ? g.lineTo : g.moveTo).call(g, i * STEP, y);
   }
-  g.strokeStyle = on ? '#ffffff' : 'rgba(255,255,255,0.35)';
+  g.strokeStyle = color('--ink');
+  g.globalAlpha = on ? 1 : 0.35;
   g.lineWidth = 2;
   g.stroke();
+  g.globalAlpha = 1;
 }
 
 function drawPoints(g: CanvasRenderingContext2D) {
@@ -419,9 +426,9 @@ function drawPoints(g: CanvasRenderingContext2D) {
     const y = pointY(b);
     g.beginPath();
     g.arc(x, y, r, 0, Math.PI * 2);
-    g.fillStyle = !b.on ? '#6b7078' : sel ? '#ffd23f' : '#ffffff';
+    g.fillStyle = !b.on ? color('--mute-grey') : sel ? color('--accent') : color('--ink');
     g.fill();
-    g.fillStyle = '#111214';
+    g.fillStyle = sel ? color('--on-accent') : color('--bg');
     g.font = `600 ${sel ? 13 : 11}px -apple-system, sans-serif`;
     g.fillText(String(k + 1), x, y + 0.5);
   });

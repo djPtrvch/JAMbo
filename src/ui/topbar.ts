@@ -38,8 +38,8 @@ export function buildTopbar(): HTMLElement {
   bpm.classList.add('bpm-field');
   leftGroup.append(burger, bpm, metro);
   // Гамма и нота — той же ширины, что PLAY и REC.
-  const scale = dragField('SCALE', () => doc.scale, setScale, () => SCALES[doc.scale].name, 24, scaleMenu);
-  const root = dragField('ROOT', () => doc.root, setRoot, () => NOTE_NAMES[doc.root], 24, rootMenu);
+  const scale = dragField('Scale', () => doc.scale, setScale, () => SCALES[doc.scale].name, 24, scaleMenu);
+  const root = dragField('Root', () => doc.root, setRoot, () => NOTE_NAMES[doc.root], 24, rootMenu);
   scale.classList.add('narrow-field');
   root.classList.add('narrow-field');
   el.append(leftGroup, scale, root);

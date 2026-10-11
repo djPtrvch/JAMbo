@@ -8,12 +8,14 @@
 import { TRACK_COUNT } from '../params';
 import { audible, doc, renameTrack, rt, selectChannel, selectTrack, swipeTrack, ui, type Channel } from '../state';
 import { registerAction } from '../midi';
-import { h, setClass, setText } from './dom';
+import { trackLevel } from '../audio/engine';
+import { h, setAttr, setClass, setText, titleCase } from './dom';
+import { levelFrac } from './meter';
 import { openInput } from './popup';
 
 const SWIPE_PX = 24;
 
-interface TrackView { root: HTMLElement; name: HTMLElement; state: HTMLElement; dot: HTMLElement }
+interface TrackView { root: HTMLElement; num: HTMLElement; name: HTMLElement; state: HTMLElement; dot: HTMLElement; level: HTMLElement }
 const views: TrackView[] = [];
 /** Окно переименования дорожки i рядом с элементом anchor (подписью ручки громкости в MIX). */
 export function openRename(i: number, anchor: Element) {
@@ -23,7 +25,7 @@ export function openRename(i: number, anchor: Element) {
 const channels: [HTMLElement, Channel][] = [];
 
 function channelCell(label: string, c: Channel): HTMLElement {
-  const el = h('div', 'track channel', label);
+  const el = h('div', 'track channel', titleCase(label));
   el.addEventListener('pointerdown', (e) => { e.preventDefault(); selectChannel(c); });
   channels.push([el, c]);
   registerAction(label, { label, press: () => selectChannel(c), state: () => ui.channel === c }, el);
@@ -34,11 +36,18 @@ export function buildTracks(): HTMLElement {
   const el = h('div', 'tracks');
   el.append(channelCell('MIX', 'mix'));
   for (let i = 0; i < TRACK_COUNT; i++) {
+    // Номер и имя дорожки, под ними — полоска уровня (после громкости микшера).
     const root = h('div', 'track');
+    const label = h('div', 'track-label');
+    const num = h('div', 'track-num', `T${i + 1}`);
     const name = h('div', 'track-name');
+    label.append(num, name);
     const state = h('div', 'track-state');
     const dot = h('div', 'track-dot');
-    root.append(name, state, dot);
+    const meter = h('div', 'track-meter');
+    const level = h('div', 'track-level');
+    meter.append(level);
+    root.append(label, meter, state, dot);
 
     let startY = 0;
     let id = -1;
@@ -62,7 +71,7 @@ export function buildTracks(): HTMLElement {
 
     // С MIDI — выбор дорожки (T1…T8 — по номеру, не по имени).
     registerAction(`T${i + 1}`, { label: `TRACK ${i + 1}`, press: () => selectTrack(i), state: () => ui.channel === 'track' && ui.selectedTrack === i }, root);
-    views.push({ root, name, state, dot });
+    views.push({ root, num, name, state, dot, level });
     el.append(root);
   }
   el.append(channelCell('MST', 'master'));
@@ -72,7 +81,10 @@ export function buildTracks(): HTMLElement {
 export function renderTracks(now: number) {
   views.forEach((v, i) => {
     const t = doc.tracks[i];
-    setText(v.name, t.name);
+    // Имя по умолчанию (T1…) уже в номере — второй раз не пишем.
+    setText(v.name, t.name === `T${i + 1}` ? '' : t.name);
+    const lv = trackLevel(i, now);
+    setAttr(v.level, 'style', `width:${(levelFrac(Math.max(lv.l, lv.r)) * 100).toFixed(0)}%`);
     setClass(v.root, 'selected', ui.channel === 'track' && i === ui.selectedTrack);
     setClass(v.root, 'muted', t.mute);
     setClass(v.root, 'soloed', t.solo);

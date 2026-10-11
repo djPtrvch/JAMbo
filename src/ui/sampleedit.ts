@@ -11,6 +11,7 @@ import { openBrowser } from './browser';
 import { synthEngine } from '../params';
 import { doc, replaceSample, sampleName, toggleView, ui } from '../state';
 import { h, setClass, setText } from './dom';
+import { color } from './theme';
 
 /** NORMALIZE: пик сэмпла, dBFS (чуть ниже 0 dB — метры не горят красным). */
 const PEAK_DB = -0.1;
@@ -256,16 +257,16 @@ export function renderSampleEditor() {
   for (let c = 0; c < lanes; c++) {
     const mid = lh * c + lh / 2;
     const amp = lh / 2 - 6;
-    g.fillStyle = '#e6e8eb';
+    g.fillStyle = color('--ink');
     for (let x = 0; x < e.w; x++) {
       const y0 = mid - e.max[c][x] * amp;
       const y1 = mid - e.min[c][x] * amp;
       g.fillRect(x, y0, 1, Math.max(1, y1 - y0));
     }
-    g.fillStyle = '#2f3338';
+    g.fillStyle = color('--line');
     g.fillRect(0, mid, W, 1);
     if (lanes > 1) {
-      g.fillStyle = '#7d838c';
+      g.fillStyle = color('--dim');
       g.font = '11px -apple-system, system-ui, sans-serif';
       g.fillText(c ? 'R' : 'L', 8, lh * c + 16);
     }
@@ -273,10 +274,10 @@ export function renderSampleEditor() {
   // Отрезаемое — затемнено, маркеры — жёлтые линии с ручками сверху и снизу.
   const xa = mark.a * W;
   const xb = mark.b * W;
-  g.fillStyle = 'rgba(17, 18, 20, 0.72)';
+  g.fillStyle = color('--scrim');
   g.fillRect(0, 0, xa, H);
   g.fillRect(xb, 0, W - xb, H);
-  g.fillStyle = '#ffd23f';
+  g.fillStyle = color('--accent');
   for (const [x, right] of [[xa, false], [xb, true]] as [number, boolean][]) {
     g.fillRect(Math.round(x) - 1, 0, 2, H);
     const hx = right ? x - 22 : x;
