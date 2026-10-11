@@ -13,7 +13,7 @@ import {
   type Level, masterLevels, masterReduction, samplePeaks,
   sampleRoot, trackLevel,
 } from '../audio/engine';
-import { LFO_WAVES, OVER_PEAK, RATIOS, SYNTH_ENGINES, TRACK_COUNT, noteName, synthEngine, synthKey } from '../params';
+import { LFO_WAVES, OVER_PEAK, RATIOS, SYNTH_ENGINES, TRACK_COUNT, noteName, synthEngine, synthGrid, synthKey } from '../params';
 import { fmtDb, levelFrac } from './meter';
 import { makePopup, popupButton } from './popup';
 import { audible, cycleRatio, doc, heldStepSound, liveMaster, setStepSound, folderItemName, folderPos, stepFolder, stepFolderOnSteps, setTrackSynth, toggleCmpBypass, toggleLimBypass, envAt, envOut, envShape, lfoShape, rt, sampleName, selTrack, ui } from '../state';
@@ -421,8 +421,12 @@ function renderWave() {
     const e = SYNTH_ENGINES[engine];
     setText(synthFull, e.full);
     renderIcon(bigIcon, ui.selectedTrack, performance.now());
-    // Только названия ручек 1.1–1.3 этого движка (как подписи ручек, с заглавной буквы).
-    [e.harm, e.timbre, e.morph].forEach((what, i) => setText(synthRows[i], what.charAt(0).toUpperCase() + what.slice(1)));
+    // Названия ручек 1.1–1.3 этого движка (как подписи ручек) и их значения (как на ручке: у ступенчатой — пункт).
+    const grid = synthGrid(engine);
+    [0, 4, 8].forEach((slot, i) => {
+      const p = grid[slot]!;
+      setText(synthRows[i], `${p.label} · ${p.format(t.params[p.id] ?? p.def)}`);
+    });
     return;
   }
   const p = samplePeaks(t.sample);
