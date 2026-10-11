@@ -19,7 +19,7 @@ import { h, setClass, setText } from './ui/dom';
 import { buildKnobGrid, renderKnobs } from './ui/knobs';
 import { buildLearnBar, renderLearn } from './ui/learn';
 import { buildPages, renderPages } from './ui/pages';
-import { buildScope, renderScope } from './ui/scope';
+import { buildScope, buildScopeButtons, renderScope } from './ui/scope';
 import { eqSampleRate } from './audio/engine';
 import { buildPatternGrid, renderPatternGrid } from './ui/patterns';
 import { buildPiano, buildProgression, press, renderPiano } from './ui/piano';
@@ -39,7 +39,9 @@ left.append(buildSample(), buildSampleNav(), buildLeftButtons());
 const right = h('div', 'side right');
 // При MST на месте миниатюр страниц — скоп мастера (гониометр, осциллоскоп).
 const pagesEl = buildPages();
-right.append(pagesEl, buildScope(), buildRightButtons());
+// При MST на месте MORPH, RANDOM, FX, MOD — кнопки точки съёма скопа.
+const rightBtns = buildRightButtons();
+right.append(pagesEl, buildScope(), rightBtns, buildScopeButtons());
 
 const main = h('div', 'main');
 // Центр: ручки 4×4, сетка паттернов 8×8 (кнопка PATTERNS), эквалайзер (кнопка EQ) или редактор
@@ -127,6 +129,7 @@ function frame(now: number) {
   renderPiano(now);
   renderPages();
   setClass(pagesEl, 'hidden', ui.channel === 'master');
+  setClass(rightBtns, 'hidden', ui.channel === 'master');
   renderScope(eqSampleRate());
   renderButtons();
   renderLearn();

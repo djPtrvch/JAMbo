@@ -294,14 +294,14 @@ export const MASTER_GRID: Slot[] = grid([
   ],
   [
     // Клиппер мастер-шины (clipper-worklet.js): все ручки плавные, без p-lock. BASS: первые 5% — OFF.
-    smooth('clip.drive', 'Drive', 0, 12, 0, cmpDb, { ...CMP, step: 0.1 }),
+    smooth('clip.drive', 'Input', 0, 12, 0, cmpDb, { ...CMP, step: 0.1 }),
     smooth('clip.ceiling', 'Ceiling', -12, 0, -1, cmpDb, { ...CMP, step: 0.1 }),
     smooth('clip.softness', 'Softness', 0, 100, 30, (v) => `${Math.round(v)}%`, CMP),
     smooth('clip.bass', 'Bass', 20, 300, 0, (v) => (v <= 0 ? 'OFF' : `${Math.round(v)} Hz`), { ...CMP, exp: true, offBottom: 0.05 }),
   ],
   [
     // Лимитер мастер-шины (limiter-worklet.js): все ручки плавные, без p-lock.
-    smooth('lim.input', 'Gain', 0, 24, 0, cmpDb, { ...CMP, step: 0.1 }),
+    smooth('lim.input', 'Input', 0, 24, 0, cmpDb, { ...CMP, step: 0.1 }),
     smooth('lim.ceiling', 'Ceiling', -24, 0, -1, cmpDb, { ...CMP, step: 0.1 }),
     smooth('lim.lookahead', 'Lookahead', 0.5, 6, 3, (v) => `${v.toFixed(1)} ms`, CMP),
     smooth('lim.release', 'Release', 10, 1000, 150, cmpMs, { ...CMP, exp: true, autoTop: 0.08 }),

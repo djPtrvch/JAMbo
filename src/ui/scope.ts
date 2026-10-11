@@ -1,7 +1,7 @@
 // Скоп мастера: при MST на месте миниатюр страниц. Сверху гониометр (стереобаза: точки L/R,
 // повёрнутые на 45° — вертикаль mid, горизонталь side, с послесвечением), под ним осциллоскоп
-// (L+R, ~40 ms, синхронизация по переходу через ноль вверх), под ним кнопки SAT, COMP, CLIP, LIM —
-// точка съёма (после сатуратора, компрессора, клиппера или лимитера). Анализаторы работают,
+// (L+R, ~40 ms, синхронизация по переходу через ноль вверх) до кнопок. Кнопки SAT, COMP, CLIP, LIM —
+// точка съёма (после сатуратора, компрессора, клиппера или лимитера) — на месте MORPH, RANDOM, FX, MOD. Анализаторы работают,
 // только пока скоп виден.
 
 import { masterScope, setMasterScope } from '../audio/engine';
@@ -18,6 +18,7 @@ const PERSIST = 0.75;
 let root: HTMLElement;
 let gonio: HTMLCanvasElement;
 let osc: HTMLCanvasElement;
+let btnGrid: HTMLElement;
 const btns: HTMLElement[] = [];
 /** Точка съёма; по умолчанию — после лимитера (в проекте не хранится). */
 let point = 3;
@@ -30,15 +31,20 @@ export function buildScope(): HTMLElement {
   gonio.className = 'mscope-gonio';
   osc = document.createElement('canvas');
   osc.className = 'mscope-osc';
-  const row = h('div', 'mscope-btns');
+  root.append(gonio, osc);
+  return root;
+}
+
+/** Кнопки точки съёма: сетка 2×2 на месте MORPH, RANDOM, FX, MOD (видна только при MST). */
+export function buildScopeButtons(): HTMLElement {
+  btnGrid = h('div', 'btn-grid hidden');
   POINTS.forEach((name, i) => {
     const b = h('div', 'btn master-btn', name);
     b.addEventListener('pointerdown', (e) => { e.preventDefault(); point = i; });
     btns.push(b);
-    row.append(b);
+    btnGrid.append(b);
   });
-  root.append(gonio, osc, row);
-  return root;
+  return btnGrid;
 }
 
 /** Холст под размер элемента (с учётом плотности пикселей). */
@@ -122,6 +128,7 @@ function drawOsc(ok: boolean, sr: number) {
 export function renderScope(sampleRate: number) {
   const show = ui.channel === 'master';
   setClass(root, 'hidden', !show);
+  setClass(btnGrid, 'hidden', !show);
   setMasterScope(show ? point : null);
   if (!show) return;
   btns.forEach((b, i) => setClass(b, 'active', i === point));

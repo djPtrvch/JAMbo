@@ -181,7 +181,7 @@ function openBandMenu(k: number, x: number, y: number) {
 // ---------- Меню STEREO / MID / SIDE и DYN ----------
 
 const msMenu = makePopup('eq-list');
-const msScroll = h('div', 'eq-scroll');
+const msScroll = h('div', 'eq-scroll one-col');
 const msBtns = EQ_MS.map((name, i) => popupButton(name, () => { setEqMs(ui.eqBand, i); msMenu.close(); }));
 msScroll.append(...msBtns);
 msMenu.box.append(h('div', 'source-title', 'CHANNEL'), msScroll);
@@ -568,7 +568,7 @@ function drawCurve(g: CanvasRenderingContext2D, on: boolean) {
   if (hasSide) strokeCurve(g, curveSide, color('--eq-side'), a);
 }
 
-/** Цвет точки по режиму: STEREO — белая, MID — голубая, SIDE — фиолетовая. */
+/** Цвет точки по режиму: STEREO — белая, MID — красная, SIDE — оранжевая (цвета интерфейса). */
 const msColor = (b: EqBand) => color((b.ms ?? 0) === 1 ? '--eq-mid' : (b.ms ?? 0) === 2 ? '--eq-side' : '--ink');
 
 function drawPoints(g: CanvasRenderingContext2D) {
