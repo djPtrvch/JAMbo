@@ -140,7 +140,9 @@ function playStep(time: number) {
     const s = stepAt(t, pos);
     // P-lock шага (и на шаге без ноты) показываем на ручках, пока идёт шаг.
     if (s && Object.keys(s.locks).length > 0) lockEvents.push({ time, track: i, locks: s.locks, until: time + dur });
-    if (!s?.on || !audible(i)) return;
+    // Заглушённая дорожка играет дальше (её выход глушит движок): уровень виден в MIX, она источник
+    // sidechain и динамического EQ; не мигает.
+    if (!s?.on) return;
     if (Math.random() * 100 >= playValue(i, 'prob', s.locks)) return;
     const ratchet = playValue(i, 'ratchet', s.locks) + 1;
     const swing = playValue(i, 'swing', s.locks);
@@ -153,7 +155,7 @@ function playStep(time: number) {
       // значения ноты берут ENV на этот момент, а не хвост предыдущей.
       triggerEnv(i, at, noteDur);
       triggerTrack(i, at, s.notes, s.locks, s.sound);
-      flashes.push({ time: at, track: i, dur: Math.min(90, sub * 0.6), notes: s.notes, noteDur });
+      if (audible(i)) flashes.push({ time: at, track: i, dur: Math.min(90, sub * 0.6), notes: s.notes, noteDur });
     }
   });
   tick++;

@@ -6,7 +6,7 @@
 //                                                                          ↘ посылы Reverb / Delay / Drive
 // Синт — движки Mutable Instruments Plaits (plaits.wasm в AudioWorklet, узел на дорожку с
 // SYNTH_SLOTS голосами); цепочка каждого голоса синта постоянная, огибающая ставится на триге.
-// Дорожка: EQ → вход → sidechain (приглушение) → громкость микшера → мастер. EQ стоит до эффектов:
+// Дорожка: EQ → вход → sidechain (приглушение) → громкость микшера → mute/solo → мастер. EQ стоит до эффектов:
 // у каждого посыла голоса своя копия EQ дорожки с теми же полосами.
 // Мастер: EQ → компрессор (Threshold, Attack, Release, Ratio, Makeup) → лимитер (Input, Ceiling,
 // Lookahead, Release) → выход.
@@ -17,7 +17,7 @@
 // лимитера): пиковый уровень по каналам и громкость в LUFS (K-взвешивание, окно ~400 мс).
 
 import { DELAY_DIVS, isAuto, OVER_PEAK, SYNTH_ENGINES, synthEngine, PARAM_BY_ID, RATIOS, VOL_DEF_DB, volGain, SAMPLE_ROOT, TRACK_COUNT, filterFreq, fromNorm } from '../params';
-import { addSamplesQuiet, addSamplesToFolder, doc, setStepSound, triggerEnv, liveFx, liveMaster, liveMixer, modulatedNorm, ui } from '../state';
+import { audible, addSamplesQuiet, addSamplesToFolder, doc, setStepSound, triggerEnv, liveFx, liveMaster, liveMixer, modulatedNorm, ui } from '../state';
 import { detectRoot } from './pitch';
 import { encodeWav } from './wav';
 import { settings } from '../settings';
@@ -31,7 +31,9 @@ const peaks = new Map<string, Float32Array[]>();
 interface TrackChain {
   /** EQ сухого сигнала и копии EQ для посылов Reverb / Delay / Drive. */
   eq: EqChain; sendEqs: EqChain[];
-  input: GainNode; duck: GainNode; vol: GainNode; sends: GainNode[]; meter: Meter;
+  input: GainNode; duck: GainNode; vol: GainNode;
+  /** Mute / solo: глушит выход дорожки (сухой и посылы); метр стоит до него — уровень виден и у заглушённой. */
+  gate: GainNode; sends: GainNode[]; meter: Meter;
 }
 interface Voice {
   track: number;
@@ -392,9 +394,10 @@ function buildGraph(c: AudioContext) {
     const input = c.createGain();
     const duck = c.createGain();
     const vol = c.createGain();
+    const gate = c.createGain();
     const eq = new EqChain(c);
     eq.output.connect(input);
-    input.connect(duck).connect(vol).connect(masterIn);
+    input.connect(duck).connect(vol).connect(gate).connect(masterIn);
     const sends = busInputs.map((bus) => {
       const g = c.createGain();
       g.connect(bus);
@@ -405,7 +408,7 @@ function buildGraph(c: AudioContext) {
       e.output.connect(g);
       return e;
     });
-    return { eq, sendEqs, input, duck, vol, sends, meter: new Meter(c, vol, true) };
+    return { eq, sendEqs, input, duck, vol, gate, sends, meter: new Meter(c, vol, true) };
   });
 }
 
@@ -692,7 +695,10 @@ function updateFx(now: number) {
   tracks.forEach((ch, i) => {
     const vol = volGain(mixer[`mix.vol${i + 1}`] ?? VOL_DEF_DB);
     set(ch.vol.gain, vol);
-    ch.sends.forEach((s) => set(s.gain, vol));
+    // Mute / solo — плавно (~5 ms); ноты заглушённой дорожки играют дальше (метр, sidechain, DYN EQ).
+    const open = audible(i) ? 1 : 0;
+    ch.gate.gain.setTargetAtTime(open, ct, 0.0015);
+    ch.sends.forEach((s) => s.gain.setTargetAtTime(vol * open, ct, open ? 0.02 : 0.0015));
   });
 
   sendDynamics();
