@@ -16,7 +16,7 @@
 // Измерители уровня стоят на выходе каждой дорожки и в мастере (вход компрессора, вход и выход
 // лимитера): пиковый уровень по каналам и громкость в LUFS (K-взвешивание, окно ~400 мс).
 
-import { DELAY_DIVS, OVER_PEAK, SYNTH_ENGINES, synthEngine, PARAM_BY_ID, RATIOS, VOL_DEF_DB, volGain, SAMPLE_ROOT, TRACK_COUNT, filterFreq, fromNorm } from '../params';
+import { DELAY_DIVS, isAuto, OVER_PEAK, SYNTH_ENGINES, synthEngine, PARAM_BY_ID, RATIOS, VOL_DEF_DB, volGain, SAMPLE_ROOT, TRACK_COUNT, filterFreq, fromNorm } from '../params';
 import { addSamplesQuiet, addSamplesToFolder, doc, setStepSound, triggerEnv, liveFx, liveMaster, liveMixer, modulatedNorm, ui } from '../state';
 import { detectRoot } from './pitch';
 import { encodeWav } from './wav';
@@ -127,13 +127,54 @@ let rev: { hpf: BiquadFilterNode; pre: DelayNode; conv: ConvolverNode };
 let dly: { hpf: BiquadFilterNode; l: DelayNode; r: DelayNode; fbL: GainNode; fbR: GainNode };
 let drv: { shaper: WaveShaperNode; tone: BiquadFilterNode };
 let mst: {
-  eq: EqChain; comp: DynamicsCompressorNode; makeup: GainNode; limIn: GainNode; lim: DynamicsCompressorNode; outVol: GainNode;
-  compMeter: Meter; compOutMeter: Meter; limMeter: Meter; limOutMeter: Meter; outMeter: Meter;
+  eq: EqChain; glueIn: GainNode; glue: AudioWorkletNode | null; limIn: GainNode; lim: DynamicsCompressorNode; outVol: GainNode;
+  limMeter: Meter; limOutMeter: Meter; outMeter: Meter;
 };
 
 const SENDS = ['reverb', 'delay', 'drive'] as const;
 /** Наибольшее время Delay, с (1 такт при 40 BPM — 6 с, со Stereo — до 9 с). */
 const MAX_DELAY = 9;
+
+// ---------- Компрессор мастера (glue) ----------
+
+/** Последняя индикация компрессора: пик входа, наибольший GR (dB, ≥ 0), пик выхода, время. */
+const glueLevels = { in: 0, gr: 0, out: 0, at: 0 };
+export const glueMeter = () => glueLevels;
+
+/** Загрузить glue-worklet.js и вставить компрессор в мастер (до этого сигнал идёт мимо). */
+function loadGlue(c: AudioContext) {
+  void c.audioWorklet.addModule(new URL('glue-worklet.js', document.baseURI).href).then(() => {
+    if (c !== ctx || !mst || mst.glue) return;
+    const node = new AudioWorkletNode(c, 'glue', {
+      numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2], channelCount: 2, channelCountMode: 'explicit',
+    });
+    node.port.onmessage = (e) => {
+      const [i, g, o] = e.data as number[];
+      glueLevels.in = i; glueLevels.gr = g; glueLevels.out = o; glueLevels.at = performance.now();
+    };
+    mst.glueIn.disconnect();
+    mst.glueIn.connect(node).connect(mst.limIn);
+    mst.glue = node;
+    glueSig = '';
+    sendGlue();
+  }).catch((e) => console.error('glue', e));
+}
+
+let glueSig = '';
+/** Параметры компрессора — в worklet (только при изменении). */
+function sendGlue() {
+  if (!mst?.glue) return;
+  const m = liveMaster();
+  const rel = m['cmp.release'];
+  const msg = {
+    thr: m['cmp.threshold'], att: m['cmp.attack'], rel: isAuto(rel) ? 400 : rel, auto: isAuto(rel),
+    makeup: m['cmp.makeup'], ratio: RATIOS[doc.ratio] ?? 2, bypass: doc.cmpBypass,
+  };
+  const sig = JSON.stringify(msg);
+  if (sig === glueSig) return;
+  glueSig = sig;
+  mst.glue.port.postMessage(msg);
+}
 
 // ---------- Запуск ----------
 
@@ -248,9 +289,8 @@ export const audioState = (): string => (ctx ? ctx.state : 'none');
 function buildGraph(c: AudioContext) {
   // Мастер.
   const masterIn = c.createGain();
-  const comp = c.createDynamicsCompressor();
-  comp.knee.value = 6;
-  const makeup = c.createGain();
+  // Компрессор мастера «glue» (glue-worklet.js) встаёт между glueIn и limIn, когда модуль загружен.
+  const glueIn = c.createGain();
   const limIn = c.createGain();
   const lim = c.createDynamicsCompressor();
   lim.knee.value = 0;
@@ -259,12 +299,12 @@ function buildGraph(c: AudioContext) {
   masterIn.connect(eq.input);
   // Громкость выхода (регулятор на измерителе справа при MST) — после лимитера, перед выходом.
   const outVol = c.createGain();
-  eq.output.connect(comp).connect(makeup).connect(limIn).connect(lim).connect(outVol).connect(c.destination);
+  eq.output.connect(glueIn).connect(limIn).connect(lim).connect(outVol).connect(c.destination);
   mst = {
-    eq, comp, makeup, limIn, lim, outVol,
-    compMeter: new Meter(c, eq.output, false), compOutMeter: new Meter(c, makeup, false), limMeter: new Meter(c, limIn, false),
-    limOutMeter: new Meter(c, lim, false), outMeter: new Meter(c, outVol, true),
+    eq, glueIn, glue: null, limIn, lim, outVol,
+    limMeter: new Meter(c, limIn, false), limOutMeter: new Meter(c, lim, false), outMeter: new Meter(c, outVol, true),
   };
+  loadGlue(c);
 
   // Reverb: HPF → предзадержка → свёртка.
   const revIn = c.createGain();
@@ -616,13 +656,7 @@ function updateFx(now: number) {
   });
 
   const m = master;
-  // BYPASS компрессора: порог 0 dB, Ratio 1:1 и без Makeup — сигнал проходит как есть.
-  const cb = doc.cmpBypass;
-  set(mst.comp.threshold, cb ? 0 : m['cmp.threshold']);
-  set(mst.comp.attack, m['cmp.attack'] / 1000);
-  set(mst.comp.release, m['cmp.release'] / 1000);
-  set(mst.comp.ratio, cb ? 1 : RATIOS[doc.ratio]);
-  set(mst.makeup.gain, cb ? 1 : Math.pow(10, m['cmp.makeup'] / 20));
+  sendGlue();
   // BYPASS лимитера: без Input, порог 0 dB и Ratio 1:1 — сигнал проходит как есть,
   // и метры мастера показывают текущий выходной уровень без ограничения.
   const lb = doc.limBypass;
@@ -693,7 +727,6 @@ export function eqSpectrum(pre: Float32Array<ArrayBuffer>, post: Float32Array<Ar
 export const eqSampleRate = () => (ctx ? ctx.sampleRate : 48000);
 
 /** Понижение усиления компрессора мастера (дБ, ≤ 0). */
-export const masterReduction = () => (mst ? mst.comp.reduction : 0);
 
 // ---------- Метроном ----------
 
@@ -1038,13 +1071,10 @@ export const limiterLookahead = () => liveMaster()['lim.lookahead'];
 export const trackLevel = (i: number, now: number): Level => (tracks[i] ? tracks[i].meter.read(now) : SILENT);
 
 /** Мастер: вход и выход компрессора (после Makeup), вход лимитера, выход. */
-/** Уровни мастера: limOut — выход лимитера, out — оконечный сигнал после громкости выхода. */
-export function masterLevels(now: number): { comp: Level; compOut: Level; lim: Level; limOut: Level; out: Level } {
-  if (!mst) return { comp: SILENT, compOut: SILENT, lim: SILENT, limOut: SILENT, out: SILENT };
-  return {
-    comp: mst.compMeter.read(now), compOut: mst.compOutMeter.read(now),
-    lim: mst.limMeter.read(now), limOut: mst.limOutMeter.read(now), out: mst.outMeter.read(now),
-  };
+/** Уровни мастера (компрессор — glueMeter): limOut — выход лимитера, out — оконечный сигнал после громкости выхода. */
+export function masterLevels(now: number): { lim: Level; limOut: Level; out: Level } {
+  if (!mst) return { lim: SILENT, limOut: SILENT, out: SILENT };
+  return { lim: mst.limMeter.read(now), limOut: mst.limOutMeter.read(now), out: mst.outMeter.read(now) };
 }
 
 /** Сброс интегральной громкости измерителя справа: дорожка i или выход мастера ('master'). */

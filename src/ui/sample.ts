@@ -10,14 +10,15 @@
 
 import {
   audioState, limiterLookahead, limiterReduction, sampleIsStereo, trackDuckDb, trackIsStereo,
-  type Level, masterLevels, masterReduction, samplePeaks,
+  type Level, masterLevels, samplePeaks,
   sampleRoot, trackLevel,
 } from '../audio/engine';
-import { LFO_WAVES, OVER_PEAK, RATIOS, SYNTH_ENGINES, TRACK_COUNT, noteName, synthEngine, synthGrid, synthKey } from '../params';
+import { LFO_WAVES, OVER_PEAK, SYNTH_ENGINES, TRACK_COUNT, noteName, synthEngine, synthGrid, synthKey } from '../params';
 import { fmtDb, levelFrac } from './meter';
 import { makePopup, popupButton } from './popup';
-import { audible, cycleRatio, doc, heldStepSound, liveMaster, setStepSound, folderItemName, folderPos, stepFolder, stepFolderOnSteps, setTrackSynth, toggleCmpBypass, toggleLimBypass, envAt, envShape, liveParams, lfoShape, rt, sampleName, selTrack, ui } from '../state';
+import { audible, doc, heldStepSound, liveMaster, setStepSound, folderItemName, folderPos, stepFolder, stepFolderOnSteps, setTrackSynth, toggleLimBypass, envAt, envShape, liveParams, lfoShape, rt, sampleName, selTrack, ui } from '../state';
 import { openSampleEditor } from './sampleedit';
+import { buildGlue, renderGlue } from './glue';
 import { iconView, renderIcon, type IconView } from './engineIcon';
 import { openBrowser } from './browser';
 import { h, setAttr, setClass, setText, svg } from './dom';
@@ -46,10 +47,8 @@ const BIG_ICON_PX = 120;
 const synthRows: HTMLElement[] = [];
 let previews: HTMLElement;
 let masterPanel: HTMLElement;
-let ratioBtn: HTMLElement;
 let lookaheadText: HTMLElement;
 let limBypassBtn: HTMLElement;
-let cmpBypassBtn: HTMLElement;
 let mixPanel: HTMLElement;
 let navLabel: HTMLElement;
 let navRow: HTMLElement;
@@ -67,7 +66,6 @@ interface VBar {
   clipMark: HTMLElement; mark: HTMLElement; value: HTMLElement; label: HTMLElement; kind: BarKind;
 }
 const mixBars: VBar[] = [];
-const compBars: VBar[] = [];
 const limBars: VBar[] = [];
 
 /** Отметки шкалы в dB (как сетка на измерителях Ableton). */
@@ -274,29 +272,21 @@ export function buildSample(): HTMLElement {
   });
   stub.append(waveTitle, wave, synthInfo, stubName);
 
-  // MST как в Ableton: у компрессора вход (белая линия Threshold), снижение громкости (GR) и выход
-  // после Makeup; под ними BYPASS и RATIO с числом. У лимитера вход (после Input), GR и выход с белой
+  // MST: слева компрессор «glue» (glue.ts), справа лимитер как в Ableton: у лимитера вход (после Input), GR и выход с белой
   // линией Ceiling, пик-холдом и меткой клиппинга (тот же уровень, что у метра справа);
   // под ними BYPASS и Lookahead числом (это не метр).
   // Полосы обоих устройств одной длины.
   masterPanel = h('div', 'master-panel hidden');
-  ratioBtn = h('div', 'btn dev-btn');
-  ratioBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); cycleRatio(); });
   lookaheadText = h('div', 'dev-info');
   const groups = h('div', 'vbar-groups');
-  const comp = h('div', 'vbar-group');
+  // Компрессор мастера «glue» — своя индикация (glue.ts): IN | GR | OUT сегментами, BYPASS и RATIO.
+  const comp = buildGlue();
   const lim = h('div', 'vbar-group');
-  compBars.push(vbar('IN', 'meter'), vbar('GR', 'gr'), vbar('OUT', 'meter'));
   limBars.push(vbar('IN', 'meter'), vbar('GR', 'gr'), vbar('OUT', 'meter'));
-  cmpBypassBtn = h('div', 'btn dev-btn', 'BYPASS');
-  cmpBypassBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); toggleCmpBypass(); });
-  const compBtns = h('div', 'dev-btns');
-  compBtns.append(cmpBypassBtn, ratioBtn);
   limBypassBtn = h('div', 'btn dev-btn', 'BYPASS');
   limBypassBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); toggleLimBypass(); });
   const limBtns = h('div', 'dev-btns');
   limBtns.append(limBypassBtn, lookaheadText);
-  comp.append(h('div', 'vbar-title', 'COMP'), wrap(compBars), compBtns);
   lim.append(h('div', 'vbar-title', 'LIMIT'), wrap(limBars), limBtns);
   groups.append(comp, lim);
   masterPanel.append(groups);
@@ -463,18 +453,13 @@ function renderWave() {
 const pk = (l: Level) => Math.max(l.l, l.r);
 
 function renderMaster(now: number) {
-  setText(ratioBtn, `RATIO\n${RATIOS[doc.ratio]}:1`);
+  renderGlue(now);
   setText(lookaheadText, `LOOKAHEAD\n${limiterLookahead().toFixed(1)} ms`);
   setClass(limBypassBtn, 'active', doc.limBypass);
-  setClass(cmpBypassBtn, 'active', doc.cmpBypass);
   const m = masterLevels(now);
-  // Метры компрессора и лимитера — одной полосой (наибольший из L и R).
-  // Компрессор: вход с линией Threshold, GR (Threshold, Ratio, Attack, Release), выход после Makeup.
-  setLevelBar(compBars[0], m.comp, false, fmtDb(pk(m.comp)), dbFrac(liveMaster()['cmp.threshold']));
+  // Метры лимитера — одной полосой (наибольший из L и R).
   // В тишине браузер может отдавать «залипшее» значение reduction — без сигнала GR = 0.
   const silent = (l: Level) => pk(l) < 1e-4;
-  setGrBar(compBars[1], doc.cmpBypass || silent(m.comp) ? 0 : Math.min(0, masterReduction()));
-  setLevelBar(compBars[2], m.compOut, false, fmtDb(pk(m.compOut)));
   // Лимитер: вход после Input, GR, выход с линией Ceiling, пик-холдом и меткой клиппинга.
   setLevelBar(limBars[0], m.lim, false, fmtDb(pk(m.lim)));
   setGrBar(limBars[1], doc.limBypass || silent(m.lim) ? 0 : Math.min(0, limiterReduction()));

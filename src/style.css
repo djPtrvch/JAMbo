@@ -246,6 +246,19 @@ html, body {
 .dev-btn { flex: 1; font-size: 7.5px; font-weight: 500; letter-spacing: 0.06em; white-space: pre; line-height: 1.15; text-align: center; }
 .dev-info { flex: 1; min-width: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 7px; letter-spacing: 0.04em; color: var(--dim); white-space: pre; line-height: 1.2; }
 
+/* Компрессор мастера «glue»: столбцы IN | GR | OUT на холсте, сверху пик GR и клип, снизу BYPASS и RATIO. */
+.glue-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--glue-gap); flex: none; width: 100%; }
+.glue-top { height: 12px; align-items: center; }
+.glue-gr-text { font-size: 7.5px; text-align: center; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: visible; letter-spacing: -0.2px; }
+.glue-clip { height: 5px; border-radius: 2px; background: var(--off); cursor: pointer; }
+.glue-clip.on { background: var(--rec); }
+.glue-canvas { flex: 1; width: 100%; min-height: 0; display: block; }
+.glue-labels > div { font-size: 9px; color: var(--dim); text-align: center; }
+.glue-btns { display: grid; grid-template-columns: 1fr 1fr; gap: var(--glue-gap); height: 36px; flex: none; width: 100%; }
+.glue-btns .dev-btn { font-size: 8px; min-width: 0; }
+.glue .btn.active { background: var(--plock); color: var(--on-accent); }
+.glue-ratio { background: var(--plock); color: var(--on-accent); font-weight: 700; }
+
 /* ---------- Стрелки под окном сэмпла ---------- */
 
 .sample-nav { display: flex; gap: var(--gap); height: 36px; flex: none; }
