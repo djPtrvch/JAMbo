@@ -106,7 +106,7 @@ export const TRACK_GRID: Slot[] = grid([
   ],
   [
     smooth('pan', 'Pan', -64, 63, 0, (v) => { const r = Math.round(v); return r === 0 ? 'C' : r < 0 ? `L${-r}` : `R${r}`; }, { bipolar: true }),
-    smooth('prob', 'Probability', 0, 100, 100, pct),
+    smooth('prob', 'Chance', 0, 100, 100, pct),
     stepped('ratchet', 'Ratchet', ['1', '2', '3', '4']),
     smooth('swing', 'Swing', 50, 75, 50, pct),
   ],
@@ -333,6 +333,8 @@ export const EQ_TYPES: { name: string; node: BiquadFilterType }[] = [
   { name: 'Notch', node: 'notch' },
 ];
 export const EQ_BELL = 0;
+/** Порядок типов в меню и в поле TYPE: bell, low cut, high cut, затем остальные (индексы в EQ_TYPES не меняются — так они хранятся в проектах). */
+export const EQ_TYPE_ORDER = [0, 3, 4, 1, 2, 5];
 /** Low cut и high cut: крутизна среза выбирается. */
 export const eqIsCut = (type: number) => type === 3 || type === 4;
 /** Усиление не применяется к cut и notch. */

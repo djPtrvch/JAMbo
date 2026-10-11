@@ -13,7 +13,7 @@
 import { bandResponse } from '../audio/eq';
 import { eqSampleRate, eqSpectrum, setEqScope } from '../audio/engine';
 import {
-  EQ_FREQ_MAX, EQ_FREQ_MIN, EQ_Q_DEF, EQ_SLOPES, EQ_TYPES, eqHasGain, eqIsCut, noteName,
+  EQ_FREQ_MAX, EQ_FREQ_MIN, EQ_Q_DEF, EQ_SLOPES, EQ_TYPE_ORDER, EQ_TYPES, eqHasGain, eqIsCut, noteName,
 } from '../params';
 import {
   addEqBand, beginGesture, deleteEqBand, endGesture, eqTarget, eqTargetName, resetEq, selectedBand,
@@ -154,7 +154,7 @@ const typeBtns = EQ_TYPES.map((tp, i) => popupButton(tp.name.toUpperCase(), () =
 const slopeBtns = EQ_SLOPES.map((s, i) => popupButton(`${s} dB/oct`, () => { setEqSlope(menuBand, i); menu.close(); }));
 const deleteBtn = popupButton('DELETE', () => { deleteEqBand(menuBand); menu.close(); });
 deleteBtn.classList.add('wide');
-menu.box.append(...typeBtns, ...slopeBtns, deleteBtn);
+menu.box.append(...EQ_TYPE_ORDER.map((i) => typeBtns[i]), ...slopeBtns, deleteBtn);
 let menuBand = -1;
 
 function openBandMenu(k: number, x: number, y: number) {
@@ -239,7 +239,9 @@ export function buildEq(): HTMLElement {
   nameText = h('div', 'eq-name');
   const k = () => ui.eqBand;
   const typeField = dragField(
-    'TYPE', () => selectedBand()?.type ?? 0, (v) => setEqType(k(), v),
+    // Вертикальное движение идёт по порядку меню (EQ_TYPE_ORDER).
+    'TYPE', () => EQ_TYPE_ORDER.indexOf(selectedBand()?.type ?? 0),
+    (v) => setEqType(k(), EQ_TYPE_ORDER[((v % EQ_TYPE_ORDER.length) + EQ_TYPE_ORDER.length) % EQ_TYPE_ORDER.length]),
     () => { const b = selectedBand(); return b ? EQ_TYPES[b.type].name + (eqIsCut(b.type) ? ` ${EQ_SLOPES[b.slope]}` : '') : '—'; },
     30, (el) => { if (selectedBand()) { const r = el.getBoundingClientRect(), p = plot.getBoundingClientRect(); openBandMenu(k(), r.left + r.width / 2 - p.left, r.top - p.top); } },
   );
