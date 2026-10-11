@@ -11,7 +11,7 @@
 
 import { PATTERN_SLOTS, STEPS_PER_PAGE, TRACK_COUNT } from '../params';
 import {
-  crossfade, inTransition, rowFilled, sceneName, setCrossfade, setScene, transitionMoves,
+  crossfade, isPrevPlaceholder, rowFilled, sceneName, setCrossfade, setScene, transitionMoves,
   copyPattern, createPattern, dropPattern, deletePattern, doc, duplicatePattern, freeSlotAfter, hasLocks, pastePattern,
   playRange, rt, selectTrack, slotFilled, ui, type Pattern,
 } from '../state';
@@ -104,6 +104,8 @@ const menuButtons: Record<string, HTMLButtonElement> = {};
 
 function tapCell(i: number, k: number) {
   const t = doc.tracks[i];
+  // Пустая заглушка строки PREV не запускается.
+  if (isPrevPlaceholder(i, k)) return;
   selectTrack(i);
   if (!slotFilled(t, k)) {
     createPattern(i, k);
@@ -324,8 +326,8 @@ export function renderPatternGrid() {
   doc.tracks.forEach((t, i) => {
     const q = rt.queued[i];
     cells[i].forEach((c, k) => {
-      // Во время перехода нижняя строка (PREV) у неиграющей дорожки — пустая заглушка.
-      const filled = slotFilled(t, k) && !(inTransition() && k === PATTERN_SLOTS - 1 && t.stopped);
+      // Во время перехода нижняя строка (PREV) у дорожки без старого паттерна — пустая заглушка.
+      const filled = slotFilled(t, k) && !isPrevPlaceholder(i, k);
       const active = k === t.slot;
       setClass(c.root, 'filled', filled);
       setClass(c.root, 'active', active && !t.stopped);

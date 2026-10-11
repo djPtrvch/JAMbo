@@ -1358,9 +1358,12 @@ export function loadDoc(d: Doc) {
  * Общие настройки (темп, гамма, FX, микшер, мастер, EQ) переходят от старого проекта к новому
  * вертикальным кроссфейдером справа от сетки паттернов (внизу — старый, вверху — новый).
  */
-interface Transition { hidden: (Pattern | null)[]; origSlot: number[]; hiddenScene: Scene }
+/** real[i] — в строке PREV дорожки настоящий старый паттерн (иначе пустая заглушка). */
+interface Transition { hidden: (Pattern | null)[]; origSlot: number[]; hiddenScene: Scene; real: boolean[] }
 let transition: Transition | null = null;
 export const inTransition = () => transition !== null;
+/** Ячейка строки PREV без старого паттерна (рисуется пустой). */
+export const isPrevPlaceholder = (i: number, k: number) => !!transition && k === PATTERN_SLOTS - 1 && !transition.real[i];
 const LAST = PATTERN_SLOTS - 1;
 
 /** Строки, из которых старые паттерны опустились вниз (для анимации): дорожка → строка. */
@@ -1429,13 +1432,14 @@ export function switchWithTransition(next: Doc) {
   // Играющим считается не остановленный паттерн, в котором есть триги.
   const old = doc.tracks.map((t) => ({ playing: !t.stopped && t.pages.some((pg) => pg.some((st) => st.on)), pattern: takePattern(t), row: t.slot }));
   const from = takeGlobals(doc);
-  const tr: Transition = { hidden: [], origSlot: [], hiddenScene: next.scenes[LAST] };
+  const tr: Transition = { hidden: [], origSlot: [], hiddenScene: next.scenes[LAST], real: [] };
   transitionMoves.length = 0;
   next.tracks.forEach((t, i) => {
     const rows = rowsOf(t);
     tr.hidden[i] = rows[LAST];
     tr.origSlot[i] = t.slot;
     const playing = old[i].playing;
+    tr.real[i] = playing;
     const prev = playing ? old[i].pattern : emptyLike(takePattern(t));
     setRows(t, [...rows.slice(0, LAST), prev], LAST);
     t.stopped = !playing;
@@ -1478,11 +1482,15 @@ export function docForSave(): Doc {
   return d;
 }
 
-/** Каждый кадр: закончить переход, когда в строке PREV ничего не играет и не ждёт запуска. */
+/**
+ * Каждый кадр: закончить переход, когда ни одна дорожка не стоит на старом паттерне строки PREV
+ * (все перешли на паттерны нового проекта) и ничего не ждёт запуска из PREV. Остановленный
+ * старый паттерн остаётся в PREV — его можно запустить снова.
+ */
 export function updateTransition() {
   const tr = transition;
   if (!tr) return;
-  const busy = doc.tracks.some((t, i) => (t.slot === LAST && !t.stopped) || rt.queued[i] === LAST) || rt.scene?.row === LAST || rt.sceneQueued === LAST;
+  const busy = doc.tracks.some((t, i) => (tr.real[i] && t.slot === LAST && slotFilled(t, LAST)) || rt.queued[i] === LAST) || rt.scene?.row === LAST || rt.sceneQueued === LAST;
   if (busy) return;
   unshiftDoc(doc, tr);
   transition = null;
