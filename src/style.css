@@ -208,7 +208,9 @@ html, body {
 .meter-fill.clip { background: var(--rec); }
 .meter .vbar-clip { width: 21px; }
 .meter-bars { position: relative; }
-.meter-tick { position: absolute; left: 0; right: 0; height: 1px; background: var(--grid-strong); pointer-events: none; }
+.meter-bars { touch-action: none; }
+/* Регулятор громкости выхода мастера поверх полос (MST): шире полос, по центру своего уровня. */
+.meter-vol { position: absolute; left: 50%; width: 30px; height: 8px; margin-bottom: -4px; transform: translateX(-50%); border-radius: 3px; background: var(--ink); border: 1.5px solid var(--bg); box-shadow: 0 1px 4px var(--shadow); pointer-events: none; }
 
 /* ---------- Полосы MIX и MST в окне сэмпла ---------- */
 
@@ -657,6 +659,8 @@ html, body {
 
 /* Микшер в окне сэмпла: без чисел над метрами (громкость видна на ручках). */
 .mix-panel .vbar-val { display: none; }
+/* Без серых отметок шкалы на метрах MIX. */
+.mix-panel .vbar-tick { display: none; }
 
 /* ---------- Строки сетки паттернов (сцены) — колонка над MIX ---------- */
 

@@ -127,8 +127,8 @@ let rev: { hpf: BiquadFilterNode; pre: DelayNode; conv: ConvolverNode };
 let dly: { hpf: BiquadFilterNode; l: DelayNode; r: DelayNode; fbL: GainNode; fbR: GainNode };
 let drv: { shaper: WaveShaperNode; tone: BiquadFilterNode };
 let mst: {
-  eq: EqChain; comp: DynamicsCompressorNode; makeup: GainNode; limIn: GainNode; lim: DynamicsCompressorNode;
-  compMeter: Meter; compOutMeter: Meter; limMeter: Meter; outMeter: Meter;
+  eq: EqChain; comp: DynamicsCompressorNode; makeup: GainNode; limIn: GainNode; lim: DynamicsCompressorNode; outVol: GainNode;
+  compMeter: Meter; compOutMeter: Meter; limMeter: Meter; limOutMeter: Meter; outMeter: Meter;
 };
 
 const SENDS = ['reverb', 'delay', 'drive'] as const;
@@ -257,10 +257,13 @@ function buildGraph(c: AudioContext) {
   lim.ratio.value = 20;
   const eq = new EqChain(c);
   masterIn.connect(eq.input);
-  eq.output.connect(comp).connect(makeup).connect(limIn).connect(lim).connect(c.destination);
+  // Громкость выхода (регулятор на измерителе справа при MST) — после лимитера, перед выходом.
+  const outVol = c.createGain();
+  eq.output.connect(comp).connect(makeup).connect(limIn).connect(lim).connect(outVol).connect(c.destination);
   mst = {
-    eq, comp, makeup, limIn, lim,
-    compMeter: new Meter(c, eq.output, false), compOutMeter: new Meter(c, makeup, false), limMeter: new Meter(c, limIn, false), outMeter: new Meter(c, lim, true),
+    eq, comp, makeup, limIn, lim, outVol,
+    compMeter: new Meter(c, eq.output, false), compOutMeter: new Meter(c, makeup, false), limMeter: new Meter(c, limIn, false),
+    limOutMeter: new Meter(c, lim, false), outMeter: new Meter(c, outVol, true),
   };
 
   // Reverb: HPF → предзадержка → свёртка.
@@ -629,6 +632,7 @@ function updateFx(now: number) {
   // Lookahead в Web Audio недоступен — приближаем быстрой атакой лимитера.
   set(mst.lim.attack, Math.max(0.001, m['lim.lookahead'] / 1000));
   set(mst.lim.release, m['lim.release'] / 1000);
+  set(mst.outVol.gain, volGain(doc.outVol));
 }
 
 /** Каждый кадр: эффекты, микшер, мастер и модуляция голосов. */
@@ -1034,11 +1038,12 @@ export const limiterLookahead = () => liveMaster()['lim.lookahead'];
 export const trackLevel = (i: number, now: number): Level => (tracks[i] ? tracks[i].meter.read(now) : SILENT);
 
 /** Мастер: вход и выход компрессора (после Makeup), вход лимитера, выход. */
-export function masterLevels(now: number): { comp: Level; compOut: Level; lim: Level; out: Level } {
-  if (!mst) return { comp: SILENT, compOut: SILENT, lim: SILENT, out: SILENT };
+/** Уровни мастера: limOut — выход лимитера, out — оконечный сигнал после громкости выхода. */
+export function masterLevels(now: number): { comp: Level; compOut: Level; lim: Level; limOut: Level; out: Level } {
+  if (!mst) return { comp: SILENT, compOut: SILENT, lim: SILENT, limOut: SILENT, out: SILENT };
   return {
     comp: mst.compMeter.read(now), compOut: mst.compOutMeter.read(now),
-    lim: mst.limMeter.read(now), out: mst.outMeter.read(now),
+    lim: mst.limMeter.read(now), limOut: mst.limOutMeter.read(now), out: mst.outMeter.read(now),
   };
 }
 

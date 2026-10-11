@@ -4,7 +4,7 @@
 
 import {
   FX_GRID, MASTER_GRID, MAX_PAGES, MIX_GRID, MOD_GRID, PATTERN_SLOTS, RATIOS, STEPS_PER_PAGE, TRACK_COUNT, TRACK_GRID, OCTAVE_DEF, OCTAVE_MAX, OCTAVE_MIN,
-  BPM_MAX, BPM_MIN, PARAM_BY_ID, PRESET_PARAMS, SEQ_COUNT, SEQ_MIX, SEQ_MST, SYNTH_ENGINES, SYNTH_GRID, synthEngine, synthGrid, synthKey, EQ_BANDS, EQ_BELL, EQ_FREQ_MAX, EQ_FREQ_MIN, EQ_GAIN_MAX, EQ_Q_DEF, EQ_Q_MAX, EQ_Q_MIN, EQ_TYPES, NOTE_NAMES, PROGRESSIONS, SCALES, fromNorm, toNorm, type ParamDef, type Slot,
+  BPM_MAX, BPM_MIN, VOL_MIN_DB, PARAM_BY_ID, PRESET_PARAMS, SEQ_COUNT, SEQ_MIX, SEQ_MST, SYNTH_ENGINES, SYNTH_GRID, synthEngine, synthGrid, synthKey, EQ_BANDS, EQ_BELL, EQ_FREQ_MAX, EQ_FREQ_MIN, EQ_GAIN_MAX, EQ_Q_DEF, EQ_Q_MAX, EQ_Q_MIN, EQ_TYPES, NOTE_NAMES, PROGRESSIONS, SCALES, fromNorm, toNorm, type ParamDef, type Slot,
 } from './params';
 
 export interface Step {
@@ -116,6 +116,8 @@ export interface Doc {
   ratio: number;
   /** Лимитер мастера выключен (кнопка BYPASS). */
   limBypass: boolean;
+  /** Громкость выхода мастера после лимитера, dB (VOL_MIN_DB — тишина; 0 — без ослабления). */
+  outVol: number;
   /** Компрессор мастера выключен (кнопка BYPASS). */
   cmpBypass: boolean;
   /**
@@ -271,6 +273,7 @@ export function makeDoc(): Doc {
   ratio: 1,
   limBypass: false,
   cmpBypass: false,
+  outVol: 0,
   chanSeqs: [newTrack(0, 'MIX'), newTrack(0, 'MST')],
   scenes: Array.from({ length: PATTERN_SLOTS }, () => ({ name: '', repeats: 0 })),
   folders: Array.from({ length: TRACK_COUNT }, () => ({ items: [], index: -1 })),
@@ -865,6 +868,8 @@ export function audible(i: number): boolean {
   return anySolo ? t.solo : !t.mute;
 }
 
+/** Громкость выхода мастера (регулятор на измерителе справа), dB. */
+export function setOutVol(db: number) { doc.outVol = Math.min(0, Math.max(VOL_MIN_DB, db)); }
 export function setBpm(v: number) { doc.bpm = Math.round(Math.min(BPM_MAX, Math.max(BPM_MIN, v))); }
 export function setScale(v: number) { doc.scale = ((Math.round(v) % SCALES.length) + SCALES.length) % SCALES.length; }
 export function setProgression(v: number) { ui.progression = ((Math.round(v) % PROGRESSIONS.length) + PROGRESSIONS.length) % PROGRESSIONS.length; }
@@ -1517,7 +1522,7 @@ const emptyLike = (p: Pattern): Pattern => ({ ...clone(p), pages: [emptyPage()],
 
 // ---------- Кроссфейдер общих настроек ----------
 
-const GLOBAL_KEYS = ['bpm', 'scale', 'root', 'fx', 'mixer', 'master', 'ratio', 'limBypass', 'cmpBypass', 'eqs', 'masterEq'] as const;
+const GLOBAL_KEYS = ['bpm', 'scale', 'root', 'fx', 'mixer', 'master', 'ratio', 'limBypass', 'cmpBypass', 'eqs', 'masterEq', 'outVol'] as const;
 type Globals = Pick<Doc, (typeof GLOBAL_KEYS)[number]>;
 const takeGlobals = (d: Doc): Globals => clone(Object.fromEntries(GLOBAL_KEYS.map((k) => [k, d[k]])) as Globals);
 
@@ -1544,6 +1549,7 @@ export function setCrossfade(pos: number) {
   const { from: a, to: b } = xfade;
   const half = t < 0.5 ? a : b;
   doc.bpm = Math.round(a.bpm + (b.bpm - a.bpm) * t);
+  doc.outVol = a.outVol + (b.outVol - a.outVol) * t;
   doc.scale = half.scale;
   doc.root = half.root;
   doc.fx = blendRecord(a.fx, b.fx, t);

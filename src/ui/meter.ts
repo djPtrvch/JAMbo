@@ -4,19 +4,23 @@
 // выше 0 dB полоса красная. Снизу максимальный пик в dB, сверху интегральная громкость в LUFS (как
 // в Grand Finale): оба копятся с последнего сброса; тап по числу — его сброс (отсчёт заново).
 // При смене канала измерителя сбрасываются оба.
+// При MST поверх полос — регулятор громкости выхода (после лимитера): палец вверх-вниз двигает его,
+// метр показывает оконечный сигнал уже после этой громкости.
 
 import { masterLevels, resetLoudness, resetPeak, trackIsStereo, trackLevel, type Level } from '../audio/engine';
-import { OVER_PEAK } from '../params';
-import { ui } from '../state';
+import { OVER_PEAK, VOL_MIN_DB, fmtVol } from '../params';
+import { beginGesture, doc, endGesture, setOutVol, ui } from '../state';
 import { h, setAttr, setClass, setText } from './dom';
 
 let lufsText: HTMLElement;
 let dbText: HTMLElement;
 let clipMark: HTMLElement;
 const bars: { root: HTMLElement; fill: HTMLElement; hold: HTMLElement }[] = [];
-
-/** Отметки шкалы в dB. */
-export const SCALE_DB = [0, -6, -12, -24, -48];
+let volThumb: HTMLElement;
+/** Палец на регуляторе громкости: пока держат — снизу его значение. */
+let volDrag = false;
+/** Ход пальца на всю шкалу регулятора, px. */
+const VOL_TRAVEL_PX = 240;
 
 /** Пик 0..1+ → доля высоты полосы (шкала −60…0 dBFS). */
 export function levelFrac(peak: number): number {
@@ -44,11 +48,34 @@ export function buildMeter(): HTMLElement {
     bars.push({ root, fill, hold });
     box.append(root);
   }
-  for (const db of SCALE_DB) {
-    const t = h('div', 'meter-tick');
-    t.style.bottom = `${((db + 60) / 60) * 100}%`;
-    box.append(t);
-  }
+  // Регулятор громкости выхода мастера (виден при MST): положение — по той же шкале dB, что и полосы.
+  volThumb = h('div', 'meter-vol hidden');
+  box.append(volThumb);
+  let id = -1;
+  let y0 = 0;
+  let v0 = 0;
+  box.addEventListener('pointerdown', (e) => {
+    if (ui.channel !== 'master') return;
+    e.preventDefault();
+    box.setPointerCapture(e.pointerId);
+    id = e.pointerId;
+    y0 = e.clientY;
+    v0 = doc.outVol;
+    volDrag = true;
+    beginGesture();
+  });
+  box.addEventListener('pointermove', (e) => {
+    if (e.pointerId !== id) return;
+    setOutVol(v0 + ((y0 - e.clientY) / VOL_TRAVEL_PX) * -VOL_MIN_DB);
+  });
+  const up = (e: PointerEvent) => {
+    if (e.pointerId !== id) return;
+    id = -1;
+    volDrag = false;
+    endGesture();
+  };
+  box.addEventListener('pointerup', up);
+  box.addEventListener('pointercancel', up);
   el.append(lufsText, clipMark, box, dbText);
   return el;
 }
@@ -85,5 +112,8 @@ export function renderMeter(now: number) {
   });
   setClass(clipMark, 'on', lv.clip);
   setText(lufsText, `LUFS\n${fmtLufs(lv.lufsI)}`);
-  setText(dbText, `${fmtDb(lv.max)}\ndB`);
+  const vol = ui.channel === 'master';
+  setClass(volThumb, 'hidden', !vol);
+  if (vol) setAttr(volThumb, 'style', `bottom:${(((doc.outVol - VOL_MIN_DB) / -VOL_MIN_DB) * 100).toFixed(1)}%`);
+  setText(dbText, vol && volDrag ? `VOL\n${fmtVol(doc.outVol).replace(' dB', '')}` : `${fmtDb(lv.max)}\ndB`);
 }

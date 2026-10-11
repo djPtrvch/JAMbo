@@ -472,7 +472,7 @@ function renderMaster(now: number) {
   // Лимитер: вход после Input, GR, выход с линией Ceiling, пик-холдом и меткой клиппинга.
   setLevelBar(limBars[0], m.lim, false, fmtDb(pk(m.lim)));
   setGrBar(limBars[1], doc.limBypass || silent(m.lim) ? 0 : Math.min(0, limiterReduction()));
-  setLevelBar(limBars[2], m.out, false, fmtDb(pk(m.out)), dbFrac(liveMaster()['lim.ceiling']));
+  setLevelBar(limBars[2], m.limOut, false, fmtDb(pk(m.limOut)), dbFrac(liveMaster()['lim.ceiling']));
 }
 
 function renderMix(now: number) {
