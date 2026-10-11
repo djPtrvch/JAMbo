@@ -119,7 +119,7 @@ html, body {
 .patterns-btn { width: 107px; }
 
 /* PLAY и REC по центру панели, по высоте как поля панели. */
-.transport { width: 220px; display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); }
+.transport { width: calc(321px + 2 * var(--gap)); display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--gap); }
 
 .metro {
   width: 52px;

@@ -2,13 +2,13 @@
 // остаётся измеритель уровня). Форма волны сэмпла выбранной дорожки (стерео — L и R) и два маркера
 // обрезки: палец тянет ближайший маркер (можно оба сразу двумя пальцами), над пальцем — время.
 // Внизу: имя, длина и выделение; LOAD (файл с iPad — в папку дорожки, как SAMPLE), TRIM (оставить
-// выделенное), NORMALIZE (пик −0.1 dBFS), MONO (среднее L и R), SAVE (WAV в «Файлы»), UNDO, CLOSE.
+// выделенное), NORMALIZE (пик −0.1 dBFS), MONO (среднее L и R), SAVE (WAV в «Файлы»), CLOSE.
 // TRIM, NORMALIZE и MONO сразу ставят на дорожку отредактированную копию (в папке — на месте
-// исходного сэмпла); UNDO (общая отмена) возвращает исходный.
+// исходного сэмпла); UNDO в верхней панели возвращает исходный.
 
 import { addEditedSample, downloadSample, loadSampleFiles, sampleBuffer } from '../audio/engine';
 import { synthEngine } from '../params';
-import { canUndo, doc, replaceSample, sampleName, toggleView, ui, undo } from '../state';
+import { doc, replaceSample, sampleName, toggleView, ui } from '../state';
 import { h, setClass, setText } from './dom';
 
 /** NORMALIZE: пик сэмпла, dBFS (чуть ниже 0 dB — метры не горят красным). */
@@ -24,7 +24,6 @@ let trimBtn: HTMLElement;
 let normBtn: HTMLElement;
 let monoBtn: HTMLElement;
 let saveBtn: HTMLElement;
-let undoBtn: HTMLElement;
 const tools: HTMLElement[] = [];
 
 /** Маркеры обрезки (доля длины 0..1) для сэмпла key. */
@@ -189,10 +188,8 @@ export function buildSampleEditor(): HTMLElement {
   normBtn = tool('NORMALIZE', normalize);
   monoBtn = tool('MONO', mono);
   saveBtn = tool('SAVE', () => downloadSample(currentKey()));
-  // Правая колонка с UNDO в этом режиме скрыта (как в EQ) — та же общая UNDO здесь.
-  undoBtn = tool('UNDO', undo);
   const close = tool('CLOSE', () => toggleView('sample'));
-  bar.append(nameText, h('div', 'sedit-space'), load, trimBtn, normBtn, monoBtn, saveBtn, undoBtn, close);
+  bar.append(nameText, h('div', 'sedit-space'), load, trimBtn, normBtn, monoBtn, saveBtn, close);
   panel.append(plot, bar);
   return panel;
 }
@@ -237,7 +234,6 @@ export function renderSampleEditor() {
   setClass(normBtn, 'disabled', !buf);
   setClass(monoBtn, 'disabled', !buf || buf.numberOfChannels < 2);
   setClass(saveBtn, 'disabled', !buf);
-  setClass(undoBtn, 'disabled', !canUndo());
   for (const t of tools) setClass(t, 'busy', busy);
 
   setClass(note, 'hidden', !!buf);

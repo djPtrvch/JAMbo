@@ -1,5 +1,5 @@
-// Кнопки: LFO1, LFO2, LFO3, ENV (слева, под окном сэмпла); MORPH, UNDO, FX, MOD (справа внизу);
-// PLAY, REC, PATTERNS и EQ (в верхней панели справа).
+// Кнопки: LFO1, LFO2, LFO3, ENV (слева, под окном сэмпла); MORPH, RANDOM, FX, MOD (справа внизу);
+// PLAY, REC, UNDO, PATTERNS и EQ (в верхней панели справа).
 // LFO1/LFO2/LFO3/ENV/FX/MOD работают на удержание; MORPH — тап (режим) и удержание (+ UNDO).
 
 import { canUndo, doc, gridMode, setHeld, toggleMorph, toggleView, ui, undo, undoTrackEdits, type HoldButton } from '../state';
@@ -48,14 +48,20 @@ export function buildLeftButtons(): HTMLElement {
   return el;
 }
 
-/** PLAY (зелёная) и REC (красная) слева от PATTERNS — видны и в режиме сетки паттернов. */
+/**
+ * PLAY (зелёная), REC (красная) и UNDO слева от PATTERNS — видны во всех режимах (паттерны, EQ,
+ * редактор сэмпла). С зажатой MORPH тап по UNDO сбрасывает изменения, сделанные в режиме MORPH.
+ */
 export function buildTransportButtons(): HTMLElement {
   const el = h('div', 'transport');
   playBtn = tapButton('PLAY', () => setPlaying(!ui.playing), () => ui.playing);
   playBtn.classList.add('play-btn');
   recBtn = tapButton('REC', () => { ui.rec = !ui.rec; }, () => ui.rec);
   recBtn.classList.add('rec-btn');
-  el.append(playBtn, recBtn);
+  undoBtn = tapButton('UNDO', () => {
+    if (ui.held.track) { morphUsed = true; undoTrackEdits(); } else undo();
+  });
+  el.append(playBtn, recBtn, undoBtn);
   return el;
 }
 
@@ -79,12 +85,8 @@ export function buildEqButton(): HTMLElement {
 
 export function buildRightButtons(): HTMLElement {
   const el = h('div', 'btn-grid');
-  // С зажатым TRACK — отмена всех изменений, сделанных с TRACK, на всех дорожках.
   // MORPH: тап включает и выключает режим (выключение возвращает параметры к моменту включения);
-  // удержание MORPH + тап по UNDO сбрасывает изменения, сделанные в режиме MORPH.
-  undoBtn = tapButton('UNDO', () => {
-    if (ui.held.track) { morphUsed = true; undoTrackEdits(); } else undo();
-  });
+  // удержание MORPH + тап по UNDO (в верхней панели) сбрасывает изменения, сделанные в режиме MORPH.
   morphBtn = holdButton('MORPH', 'track');
   morphBtn.addEventListener('pointerdown', () => { morphUsed = false; });
   morphBtn.addEventListener('pointerup', () => { if (!morphUsed && !ui.held.track) toggleMorph(); });
@@ -95,7 +97,9 @@ export function buildRightButtons(): HTMLElement {
     release: () => { setHeld('track', false); if (!morphUsed) toggleMorph(); },
     state: () => ui.morph,
   }, morphBtn);
-  el.append(morphBtn, undoBtn, holdButton('FX', 'fx'), holdButton('MOD', 'mod'));
+  // RANDOM — на месте прежней UNDO; что она делает, ещё не определено (пока неактивна).
+  const random = h('div', 'btn disabled', 'RANDOM');
+  el.append(morphBtn, random, holdButton('FX', 'fx'), holdButton('MOD', 'mod'));
   return el;
 }
 
