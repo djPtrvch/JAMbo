@@ -10,6 +10,7 @@ import { buildEqButton, buildLeftButtons, buildPatternsButton, buildRightButtons
 import { renderFields } from './ui/controls';
 import { buildEq, renderEq } from './ui/eq';
 import { buildSampleEditor, renderSampleEditor } from './ui/sampleedit';
+import { buildBrowser, renderBrowser } from './ui/browser';
 import { h, setClass, setText } from './ui/dom';
 import { buildKnobGrid, renderKnobs } from './ui/knobs';
 import { buildLearnBar, renderLearn } from './ui/learn';
@@ -37,7 +38,7 @@ const main = h('div', 'main');
 // сэмпла (удержание окна сэмпла).
 const knobGrid = buildKnobGrid();
 const center = h('div', 'center');
-center.append(knobGrid, buildPatternGrid(), buildEq(), buildSampleEditor());
+center.append(knobGrid, buildPatternGrid(), buildEq(), buildSampleEditor(), buildBrowser());
 // Справа с краю — измеритель уровня.
 const meter = buildMeter();
 main.append(left, center, right, meter);
@@ -103,15 +104,16 @@ function frame(now: number) {
   renderTopbar(now);
   renderFields();
   renderSample(now);
-  setClass(knobGrid, 'hidden', ui.patternView || ui.eqView || ui.sampleView);
+  setClass(knobGrid, 'hidden', ui.patternView || ui.eqView || ui.sampleView || ui.browserView);
   // Сетка паттернов занимает всю ширину; эквалайзер — до края миниатюр страниц, справа измеритель.
   setClass(main, 'patterns', ui.patternView);
   // Редактор сэмпла — на том же месте, что эквалайзер.
-  setClass(main, 'eq', ui.eqView || ui.sampleView);
+  setClass(main, 'eq', ui.eqView || ui.sampleView || ui.browserView);
   renderKnobs(now);
   renderPatternGrid();
   renderEq();
   renderSampleEditor();
+  renderBrowser();
   renderTracks(now);
   renderSequencer();
   renderPiano(now);

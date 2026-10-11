@@ -764,3 +764,28 @@ html, body {
 .mm-row.mm-act .mm-label { color: var(--accent); }
 .mm-row.mm-act.disabled .mm-label { color: var(--off); }
 .popup:has(> .popup-box.rename) { z-index: 70; }
+
+/* ---------- Браузер библиотеки (сэмплы и пресеты по папкам) ---------- */
+.browser .lib-head { align-items: stretch; }
+.lib-up { width: 56px; font-size: 26px; }
+.lib-up.disabled { opacity: 0.3; }
+.lib-path { flex: 1; min-width: 0; display: flex; align-items: center; padding: 0 8px; font-size: 13px; letter-spacing: 0.06em; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lib-list { flex: 1; grid-auto-rows: 52px; align-content: start; background: var(--panel); border-radius: var(--radius); padding: 6px; }
+.lib-row { background: var(--panel-2); }
+.lib-acts { position: absolute; right: 0; top: 0; bottom: 0; display: flex; }
+.lib-act { width: 72px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; color: #fff; background: var(--off); }
+.lib-act.lib-trash { background: var(--rec); }
+.lib-act svg { width: 22px; height: 22px; }
+.lib-item { flex-direction: row; align-items: center; justify-content: space-between; background: var(--panel-2); }
+.lib-item.system .lib-name { color: var(--plock); }
+.lib-name { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.lib-detail { font-size: 11px; color: var(--dim); letter-spacing: 0.04em; flex: none; padding-left: 12px; }
+.lib-empty { padding: 12px; }
+.lib-save { align-items: center; }
+.lib-save.hidden { display: none; }
+.lib-save-label { font-size: 10px; letter-spacing: 0.1em; color: var(--dim); padding: 0 6px; }
+.lib-name-input { height: 44px; flex: 1; }
+.lib-save-btn { width: 120px; background: var(--accent); color: var(--bg); }
+.lib-note { flex: none; }
+.lib-item { transition: width 0.18s ease; }
+.lib-row:not(.open):not(:has(.dragging)) .lib-acts { visibility: hidden; }

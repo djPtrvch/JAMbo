@@ -1,12 +1,13 @@
 // Редактор сэмпла: удержание окна сэмпла открывает его на месте центра экрана (как EQ, справа
 // остаётся измеритель уровня). Форма волны сэмпла выбранной дорожки (стерео — L и R) и два маркера
 // обрезки: палец тянет ближайший маркер (можно оба сразу двумя пальцами), над пальцем — время.
-// Внизу: имя, длина и выделение; LOAD (файл с iPad — в папку дорожки, как SAMPLE), SAVE (WAV в
-// «Файлы»), TRIM (оставить выделенное), NORMALIZE (пик −0.1 dBFS), MONO (среднее L и R), CLOSE.
+// Внизу: имя, длина и выделение; LOAD (браузер библиотеки), SAVE (в библиотеку; WAV в «Файлы» —
+// EXPORT в браузере), TRIM (оставить выделенное), NORMALIZE (пик −0.1 dBFS), MONO (среднее L и R), CLOSE.
 // TRIM, NORMALIZE и MONO сразу ставят на дорожку отредактированную копию (в папке — на месте
 // исходного сэмпла); UNDO в верхней панели возвращает исходный.
 
-import { addEditedSample, downloadSample, loadSampleFiles, sampleBuffer } from '../audio/engine';
+import { addEditedSample, sampleBuffer } from '../audio/engine';
+import { openBrowser } from './browser';
 import { synthEngine } from '../params';
 import { doc, replaceSample, sampleName, toggleView, ui } from '../state';
 import { h, setClass, setText } from './dom';
@@ -172,22 +173,13 @@ export function buildSampleEditor(): HTMLElement {
 
   const bar = h('div', 'eq-bar');
   nameText = h('div', 'eq-name sedit-name');
-  // LOAD — поле выбора файла прозрачно поверх кнопки (на iOS выбор файла — только прямым тапом).
-  const load = h('div', 'btn eq-tool sample-pick', 'LOAD');
-  const input = h('input', 'sample-file');
-  input.type = 'file';
-  input.multiple = true;
-  input.accept = 'audio/*,.wav,.wave,.aif,.aiff,.mp3,.m4a,.aac,.caf,.flac,.ogg';
-  input.addEventListener('change', () => {
-    const files = Array.from(input.files ?? []);
-    input.value = '';
-    if (files.length && ui.channel === 'track') void loadSampleFiles(files).catch(() => window.alert('Could not open the file as audio'));
-  });
-  load.append(input);
+  // LOAD — браузер библиотеки (сэмпл на дорожку; файлы с iPad и iCloud — IMPORT там).
+  const load = tool('LOAD', () => openBrowser({ kind: 'load', steps: [] }));
   trimBtn = tool('TRIM', trim);
   normBtn = tool('NORMALIZE', normalize);
   monoBtn = tool('MONO', mono);
-  saveBtn = tool('SAVE', () => downloadSample(currentKey()));
+  // SAVE — сэмпл в библиотеку (папку выбирают в браузере); WAV в «Файлы» — EXPORT в браузере.
+  saveBtn = tool('SAVE', () => openBrowser({ kind: 'save-sample', key: currentKey() }));
   const close = tool('CLOSE', () => toggleView('sample'));
   // LOAD и SAVE рядом, за ними правки.
   bar.append(nameText, h('div', 'sedit-space'), load, saveBtn, trimBtn, normBtn, monoBtn, close);

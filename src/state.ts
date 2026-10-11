@@ -183,6 +183,8 @@ export interface Ui {
   eqView: boolean;
   /** Редактор сэмпла (удержание окна сэмпла) на месте центра экрана, как EQ. */
   sampleView: boolean;
+  /** Браузер библиотеки сэмплов и пресетов на месте центра экрана. */
+  browserView: boolean;
   /** Выбранная полоса EQ (−1 — нет). */
   eqBand: number;
   /** Включён режим MORPH (временные изменения ручек). */
@@ -305,6 +307,7 @@ export const ui: Ui = {
   patternView: false,
   eqView: false,
   sampleView: false,
+  browserView: false,
   morph: false,
   eqBand: -1,
   lfoPreviewUntil: 0,
@@ -1142,6 +1145,28 @@ export function savePreset(i: number, name: string) {
   edit(() => addItems(i, [{ preset: clone(p) }]));
 }
 
+/** Пресет из синта дорожки i (SAVE в браузер библиотеки); у сэмпла — null. */
+export function presetFromTrack(i: number, name: string): Preset | null {
+  const t = doc.tracks[i];
+  if (synthEngine(t.sample) === null) return null;
+  const params: Record<string, number> = {};
+  for (const id of PRESET_PARAMS) params[id] = t.params[id];
+  return { name: name.trim() || nextPresetName(i), sound: t.sample, params };
+}
+
+/** Сохранённый пресет — и в папку дорожки (стрелки под окном сэмпла его перелистывают). */
+export function addPresetToFolder(i: number, p: Preset) {
+  edit(() => addItems(i, [{ preset: clone(p) }]));
+}
+
+/** Пресет из библиотеки (браузер): добавляется в папку дорожки и звучит на ней. */
+export function applyPreset(i: number, p: Preset) {
+  edit(() => {
+    const at = addItems(i, [{ preset: clone(p) }]);
+    applyItem(i, doc.folders[i].items[at]);
+  });
+}
+
 /** Пресет k из библиотеки (LOAD): добавляется в папку дорожки и звучит на ней. */
 export function loadPreset(i: number, k: number) {
   const p = presetList[k];
@@ -1307,11 +1332,12 @@ export const selectedBand = (): EqBand | null => (ui.eqBand >= 0 ? eqTarget().ba
 const clampN = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
 /** Кнопки PATTERNS и EQ переключают центр экрана (одновременно открыт только один вид). */
-export function toggleView(v: 'patterns' | 'eq' | 'sample') {
-  const open = v === 'patterns' ? !ui.patternView : v === 'eq' ? !ui.eqView : !ui.sampleView;
+export function toggleView(v: 'patterns' | 'eq' | 'sample' | 'browser') {
+  const open = v === 'patterns' ? !ui.patternView : v === 'eq' ? !ui.eqView : v === 'sample' ? !ui.sampleView : !ui.browserView;
   ui.patternView = v === 'patterns' && open;
   ui.eqView = v === 'eq' && open;
   ui.sampleView = v === 'sample' && open;
+  ui.browserView = v === 'browser' && open;
 }
 
 /** Новая bell-полоса (двойной тап по пустому месту); −1, если мест нет. */

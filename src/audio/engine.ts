@@ -767,6 +767,29 @@ async function decodeAll(files: File[]): Promise<string[]> {
   return keys;
 }
 
+/** Файлы с iPad (IMPORT в браузере библиотеки): декодировать и сохранить; ключи и имена. */
+export async function importAudioFiles(files: File[]): Promise<{ key: string; name: string }[]> {
+  const out: { key: string; name: string }[] = [];
+  for (const f of files) {
+    try { out.push({ key: await decodeFile(f), name: f.name }); } catch { /* не аудио */ }
+  }
+  if (files.length && !out.length) throw new Error('no audio');
+  return out;
+}
+
+/** Сэмпл из библиотеки: загрузить из хранилища, имя и высота — в проект. false — сэмпла нет. */
+export async function useLibrarySample(key: string, name: string): Promise<boolean> {
+  await ensureSamples([key]);
+  const buf = buffers.get(key);
+  if (!buf) return false;
+  doc.files[key] = name;
+  if (!(key in doc.roots)) {
+    const root = detectRoot(buf);
+    if (typeof root === 'number') doc.roots[key] = root;
+  }
+  return true;
+}
+
 /** Выбор файлов: все ложатся в папку выбранной дорожки, первый звучит на ней. */
 export async function loadSampleFiles(files: File[]): Promise<void> {
   const track = ui.selectedTrack;
