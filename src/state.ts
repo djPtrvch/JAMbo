@@ -1534,3 +1534,56 @@ export function updateTransition() {
   resetUndo();
   clampView();
 }
+
+// ---------- Пресеты EQ ----------
+
+/** Пресет EQ: имя, BYPASS и полосы. Библиотека общая для всех дорожек и проектов (в браузере). */
+export interface EqPreset { name: string; eq: Eq }
+const EQ_PRESET_STORE = 'jambo.eqPresets';
+let eqPresetList: EqPreset[] = (() => {
+  try {
+    const list = JSON.parse(localStorage.getItem(EQ_PRESET_STORE) ?? '[]');
+    return Array.isArray(list) ? list : [];
+  } catch { return []; }
+})();
+
+function storeEqPresets() {
+  try { localStorage.setItem(EQ_PRESET_STORE, JSON.stringify(eqPresetList)); } catch { /* хранилище недоступно */ }
+}
+
+export const eqPresets = () => eqPresetList;
+
+/** Имя нового пресета EQ по умолчанию. */
+export const nextEqPresetName = () => `EQ ${eqPresetList.length + 1}`;
+
+/** Сохранить EQ канала, который показывает панель, в библиотеку. */
+export function saveEqPreset(name: string) {
+  eqPresetList.push({ name: name.trim().slice(0, 16) || nextEqPresetName(), eq: clone(eqTarget()) });
+  storeEqPresets();
+}
+
+/** Загрузить пресет k в EQ канала, который показывает панель (отмена — UNDO). */
+export function loadEqPreset(k: number) {
+  const p = eqPresetList[k];
+  if (!p) return;
+  const eq = eqTarget();
+  edit(() => {
+    eq.on = p.eq.on;
+    eq.bands = Array.from({ length: EQ_BANDS }, (_, i) => (p.eq.bands[i] ? clone(p.eq.bands[i]) : null));
+  });
+  ui.eqBand = -1;
+}
+
+export function renameEqPreset(k: number, name: string) {
+  const p = eqPresetList[k];
+  const n = name.trim().slice(0, 16);
+  if (!p || !n) return;
+  p.name = n;
+  storeEqPresets();
+}
+
+export function deleteEqPreset(k: number) {
+  if (!eqPresetList[k]) return;
+  eqPresetList.splice(k, 1);
+  storeEqPresets();
+}

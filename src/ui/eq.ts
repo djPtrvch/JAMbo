@@ -18,6 +18,7 @@ import {
 import {
   addEqBand, beginGesture, deleteEqBand, endGesture, eqTarget, eqTargetName, resetEq, selectedBand,
   setEqBand, setEqSlope, setEqType, toggleEq, toggleEqBand, ui, type EqBand,
+  deleteEqPreset, eqPresets, loadEqPreset, nextEqPresetName, renameEqPreset, saveEqPreset,
 } from '../state';
 import { dragField } from './controls';
 import { h, setClass, setText } from './dom';
@@ -170,6 +171,51 @@ function openBandMenu(k: number, x: number, y: number) {
   menu.openAt(anchor, 390);
 }
 
+// ---------- Пресеты EQ ----------
+
+const presetMenu = makePopup('eq-presets');
+const presetActions = makePopup();
+let presetAnchor: Element;
+let actionK = -1;
+
+presetActions.box.append(
+  popupButton('RENAME', () => {
+    presetActions.close();
+    const k = actionK;
+    openInput(presetMenu.box, eqPresets()[k]?.name ?? '', (n) => { renameEqPreset(k, n); openEqPresets(presetAnchor); });
+  }),
+  popupButton('DELETE', () => { presetActions.close(); deleteEqPreset(actionK); openEqPresets(presetAnchor); }),
+);
+
+function openEqPresets(anchor: Element) {
+  presetAnchor = anchor;
+  const list = eqPresets();
+  const grid = h('div', 'preset-grid');
+  list.forEach((p, k) => {
+    let held = false;
+    let timer = 0;
+    const bands = p.eq.bands.filter((b) => b).length;
+    const b = popupButton(`${p.name}\n${bands} band${bands === 1 ? '' : 's'}`, () => {
+      if (held) return;
+      loadEqPreset(k);
+      presetMenu.close();
+    });
+    b.addEventListener('pointerdown', () => {
+      held = false;
+      timer = window.setTimeout(() => { held = true; actionK = k; presetActions.openAt(b, 160); }, 500);
+    });
+    for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) b.addEventListener(ev, () => clearTimeout(timer));
+    grid.append(b);
+  });
+  if (!list.length) grid.append(h('div', 'preset-empty', 'No EQ presets yet — save one with SAVE'));
+  const save = popupButton('SAVE', () => {
+    presetMenu.close();
+    openInput(anchor, nextEqPresetName(), (n) => saveEqPreset(n));
+  });
+  presetMenu.box.replaceChildren(h('div', 'source-title', `EQ PRESETS · ${list.length}`), save, grid);
+  presetMenu.openAt(anchor, 340);
+}
+
 // ---------- Построение ----------
 
 export function buildEq(): HTMLElement {
@@ -225,7 +271,11 @@ export function buildEq(): HTMLElement {
   bypassBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); toggleEq(); });
   const resetBtn = h('div', 'btn eq-tool', 'RESET');
   resetBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); resetEq(); });
-  bar.append(nameText, typeField, freqField, gainField, qField, bypassBtn, resetBtn);
+  // PRESETS — библиотека пресетов EQ: SAVE (сохранить EQ канала), тап по пресету — загрузить,
+  // удержание — RENAME / DELETE.
+  const presetBtn = h('div', 'btn eq-tool', 'PRESETS');
+  presetBtn.addEventListener('pointerup', () => openEqPresets(presetBtn));
+  bar.append(nameText, typeField, freqField, gainField, qField, presetBtn, bypassBtn, resetBtn);
 
   panel.append(plot, bar);
   return panel;

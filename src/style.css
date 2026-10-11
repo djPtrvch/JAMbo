@@ -680,3 +680,7 @@ html, body {
 .mix-panel .vbar-col { position: relative; }
 .mix-panel .vbar-clip { position: absolute; top: 0; left: 50%; transform: translateX(-50%); z-index: 1; background: transparent; }
 .mix-panel .vbar-clip.on { background: var(--rec); }
+
+/* Пресеты EQ: окно над нижней строкой EQ, длинный список прокручивается. */
+.popup-box.eq-presets { max-height: 420px; }
+.eq-presets .preset-grid { min-height: 56px; }
