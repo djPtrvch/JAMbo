@@ -22,8 +22,7 @@ const RENAME_HOLD_MS = 500;
 const START = -135;
 const SWEEP = 270;
 const R_VALUE = 36;
-/** P-lock — жёлтая дуга на том же кольце, что и значение. */
-const R_LOCK = 36;
+const R_LOCK = 28;
 const R_LFO = 45;
 
 function polar(r: number, deg: number) {
@@ -48,7 +47,7 @@ interface KnobView {
   lfoArc: SVGPathElement;
   rangeArc: SVGPathElement;
   lockArc: SVGPathElement;
-  pointer: SVGCircleElement;
+  pointer: SVGLineElement;
 }
 
 interface Gesture {
@@ -79,8 +78,7 @@ function buildKnob(slot: number): KnobView {
   const lockArc = svg('path', { class: 'k-lock' });
   const lfoArc = svg('path', { class: 'k-lfo' });
   box.append(svg('circle', { cx: 50, cy: 50, r: 24, class: 'k-cap' }));
-  // Указатель — точка на кольце значения.
-  const pointer = svg('circle', { cx: 50, cy: 50 - R_VALUE, r: 4.5, class: 'k-pointer' });
+  const pointer = svg('line', { x1: 50, y1: 29, x2: 50, y2: 22, class: 'k-pointer' });
   box.append(rangeArc, valueArc, lockArc, lfoArc, pointer);
   const value = h('div', 'knob-value');
   const label = h('div', 'knob-label');

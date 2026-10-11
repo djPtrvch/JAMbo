@@ -19,7 +19,7 @@ import { makePopup, popupButton } from './popup';
 import { audible, cycleRatio, doc, heldStepSound, liveMaster, setStepSound, folderItemName, folderPos, stepFolder, stepFolderOnSteps, setTrackSynth, toggleCmpBypass, toggleLimBypass, envAt, envOut, envShape, lfoShape, rt, sampleName, selTrack, ui } from '../state';
 import { openSampleEditor } from './sampleedit';
 import { openBrowser } from './browser';
-import { h, setAttr, setClass, setText, svg, titleCase } from './dom';
+import { h, setAttr, setClass, setText, svg } from './dom';
 
 const W = 200;
 const H = 80;
@@ -169,17 +169,13 @@ export function buildSample(): HTMLElement {
   const wave = svg('svg', { viewBox: `0 0 ${WAVE_W} ${WAVE_H}`, preserveAspectRatio: 'none', class: 'sample-wave' });
   waveSvg = wave;
   synthInfo = h('div', 'synth-info hidden');
-  // Синт: крупное имя движка, жёлтая черта и таблица: ручка — что делает — значение.
   synthFull = h('div', 'synth-full');
-  synthInfo.append(synthFull, h('div', 'synth-rule'));
-  const table = h('div', 'synth-table');
+  synthInfo.append(synthFull);
   for (let i = 0; i < 3; i++) {
     const row = h('div', 'synth-row');
-    row.append(h('span', 'synth-k'), h('span', 'synth-v'), h('span', 'synth-n'));
     synthRows.push(row);
-    table.append(row);
+    synthInfo.append(row);
   }
-  synthInfo.append(table);
   wavePath = svg('path', { class: 'sample-wave-path' });
   cutStart = svg('rect', { x: 0, y: 0, height: WAVE_H, class: 'sample-cut' });
   cutEnd = svg('rect', { y: 0, height: WAVE_H, class: 'sample-cut' });
@@ -406,7 +402,7 @@ function renderWave() {
   // Стерео-сэмпл отмечен ST и рисуется двумя дорожками (L сверху, R снизу), моно — M.
   const ch = t.sample ? (sampleIsStereo(t.sample) ? 'ST' : 'M') : '';
   const preset = stepSound ? '' : folderItemName(ui.selectedTrack);
-  setText(waveTitle, engine !== null ? `MI · ${titleCase(SYNTH_ENGINES[engine].name)}${preset ? ` · ${preset}` : ''}`
+  setText(waveTitle, engine !== null ? `MI · ${SYNTH_ENGINES[engine].name}${preset ? ` · ${preset}` : ''}`
     : t.sample ? `${sampleName(t.sample)} · ${root !== null ? noteName(root) : '—'} · ${ch}` : sampleName(t.sample));
   // Пока звук не включён — подсказка с состоянием (помогает понять, почему тихо).
   const state = audioState();
@@ -418,13 +414,8 @@ function renderWave() {
     // Синт: полное имя движка и что делают ручки Harmonics, Timbre, Morph.
     const e = SYNTH_ENGINES[engine];
     setText(synthFull, e.full);
-    const rows: [string, string, string][] = [['Harm', e.harm, 'harm'], ['Timbre', e.timbre, 'timbre'], ['Morph', e.morph, 'morph']];
-    rows.forEach(([label, what, id], i) => {
-      const [k, v, n] = synthRows[i].children as unknown as HTMLElement[];
-      setText(k, label);
-      setText(v, what);
-      setText(n, `${Math.round(t.params[id] ?? 50)}%`);
-    });
+    const rows: [string, string, string][] = [['HARM', e.harm, 'harm'], ['TIMBRE', e.timbre, 'timbre'], ['MORPH', e.morph, 'morph']];
+    rows.forEach(([label, what, id], i) => setText(synthRows[i], `${label} · ${what} · ${Math.round(t.params[id] ?? 50)}%`));
     return;
   }
   const p = samplePeaks(t.sample);

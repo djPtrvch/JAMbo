@@ -64,7 +64,7 @@ function pressHandlers(el: HTMLElement, notes: () => number[]) {
 export function buildPiano(): HTMLElement {
   const el = h('div', 'piano');
 
-  chordBtn = h('div', 'btn chord-btn', 'Chord');
+  chordBtn = h('div', 'btn chord-btn', 'CHORD');
   chordBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); ui.chordMode = !ui.chordMode; });
 
   const keyRow = h('div', 'keys');

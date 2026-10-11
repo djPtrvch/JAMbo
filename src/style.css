@@ -1,62 +1,30 @@
 :root {
-  /* Общие размеры (цвета — в темах ниже). */
-  --radius: 12px;
+  --radius: 10px;
   --gap: 6px;
   /* Ширина измерителя уровня справа. */
   --meter-w: 30px;
   /* Ширина ячеек MIX и MST = ширина шага секвенсора (16 шагов с промежутком 4px). */
   --channel-col: calc((100% - 15 * 4px) / 16);
-  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', 'Helvetica Neue', sans-serif;
 }
 
 /*
- * Темы: светлая (тёплый серый фон, чёрные линии) и тёмная (почти чёрный фон, белые линии).
- * Жёлтый — активное (PLAY, триги, p-lock, выбор), красный — REC и mute.
- * --ink — линии значений ручек и выделение (чёрный / белый); --accent-soft — заливка активного;
- * --on-accent — текст на жёлтом.
+ * Темы в чёрно-жёлто-серо-белой гамме (красный — только REC, mute и перегрузка).
+ * Тёмная: почти чёрный фон, серые панели, белые значения. Светлая — та же раскладка:
+ * светло-серый фон, белые панели, чёрные значения.
+ * --ink — значения ручек и выделение; --accent — жёлтый (активное); --on-accent — текст на жёлтом.
  */
-:root, :root[data-theme='light'] {
-  color-scheme: light;
-  --bg: #ecebe6;
-  --panel: #ecebe6;
-  --panel-2: #e1e0da;
-  --surface: #f6f5f1;
-  --line: #d3d2cc;
-  --text: #151515;
-  --dim: #6c6b67;
-  --off: #b9b8b2;
-  --ink: #111111;
-  --accent: #f4c20d;
-  --accent-soft: #ffe36e;
-  --accent-text: #151515;
-  --on-accent: #151515;
-  --plock: #f2b705;
-  --mute: #e5383b;
-  --solo: #f4c20d;
-  --rec: #e5383b;
-  --play: #f4c20d;
-  --gr: #f08a24;
-  --mute-grey: #9c9b96;
-  --root: #d7d6d0;
-  --flash: #d9d8d2;
-  --shadow: rgba(0, 0, 0, 0.18);
-  --scrim: rgba(236, 235, 230, 0.72);
-  --grid: rgba(0, 0, 0, 0.07);
-  --grid-strong: rgba(0, 0, 0, 0.18);
-}
-:root[data-theme='dark'] {
+:root, :root[data-theme='dark'] {
   color-scheme: dark;
-  --bg: #0a0a0a;
-  --panel: #0a0a0a;
-  --panel-2: #191919;
-  --surface: #141414;
-  --line: #2a2a2a;
-  --text: #f2f2f2;
-  --dim: #8b8b8b;
-  --off: #3a3a3a;
-  --ink: #f2f2f2;
+  --bg: #111111;
+  --panel: #1c1c1c;
+  --panel-2: #272727;
+  --line: #333333;
+  --text: #ececec;
+  --dim: #8a8a8a;
+  --off: #3d3d3d;
+  --ink: #ececec;
   --accent: #ffc81e;
-  --accent-soft: #241d06;
+  --accent-soft: #3a2f0a;
   --accent-text: #ffc81e;
   --on-accent: #111111;
   --plock: #ffc81e;
@@ -65,13 +33,41 @@
   --rec: #ff4d4d;
   --play: #ffc81e;
   --gr: #ff8a3d;
-  --mute-grey: #5d5d5d;
-  --root: #222222;
-  --flash: #2a2a2a;
-  --shadow: rgba(0, 0, 0, 0.7);
-  --scrim: rgba(10, 10, 10, 0.72);
+  --mute-grey: #6b6b6b;
+  --root: #303030;
+  --flash: #4a4a4a;
+  --shadow: rgba(0, 0, 0, 0.6);
+  --scrim: rgba(17, 17, 17, 0.72);
   --grid: rgba(255, 255, 255, 0.06);
   --grid-strong: rgba(255, 255, 255, 0.18);
+}
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg: #e6e5e1;
+  --panel: #f7f6f3;
+  --panel-2: #ffffff;
+  --line: #cfceca;
+  --text: #161616;
+  --dim: #77766f;
+  --off: #c4c3be;
+  --ink: #161616;
+  --accent: #f0b800;
+  --accent-soft: #ffeaa0;
+  --accent-text: #8a6a00;
+  --on-accent: #161616;
+  --plock: #f0b800;
+  --mute: #e5383b;
+  --solo: #f0b800;
+  --rec: #e5383b;
+  --play: #f0b800;
+  --gr: #f08a24;
+  --mute-grey: #a3a29d;
+  --root: #e9e8e3;
+  --flash: #d6d5d0;
+  --shadow: rgba(0, 0, 0, 0.18);
+  --scrim: rgba(230, 229, 225, 0.72);
+  --grid: rgba(0, 0, 0, 0.07);
+  --grid-strong: rgba(0, 0, 0, 0.2);
 }
 
 * { box-sizing: border-box; touch-action: none; }
@@ -81,7 +77,7 @@ html, body {
   height: 100%;
   background: var(--bg);
   color: var(--text);
-  font: 13px/1.2 var(--font);
+  font: 13px/1.2 -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
   overflow: hidden;
   overscroll-behavior: none;
   -webkit-user-select: none;
@@ -114,7 +110,7 @@ html, body {
   color: var(--text);
 }
 .btn.active { background: var(--text); color: var(--bg); }
-.btn.mode { box-shadow: inset 0 0 0 2px var(--accent); }
+.btn.mode { box-shadow: inset 0 0 0 2px var(--ink); }
 .btn.rec { background: var(--rec); color: #fff; }
 /* PLAY — зелёная окантовка, при игре горит зелёным; REC — красная окантовка, включена — красная. */
 .btn.play-btn { box-shadow: inset 0 0 0 2px var(--play); }
@@ -181,7 +177,7 @@ html, body {
   justify-content: center;
 }
 .metro svg { width: 24px; height: 24px; }
-.metro.on { color: var(--text); box-shadow: inset 0 0 0 2px var(--accent); }
+.metro.on { color: var(--text); box-shadow: inset 0 0 0 2px var(--ink); }
 .metro.beat { background: var(--panel-2); }
 .metro.beat.accent { background: var(--accent-soft); }
 
@@ -286,7 +282,7 @@ html, body {
 .sample-title { color: var(--dim); letter-spacing: 0.12em; font-size: 11px; }
 .sample-stub { position: relative; padding: 8px; }
 .sample-wave { width: 100%; flex: 1; min-height: 0; }
-.sample-wave-path { stroke: var(--accent); stroke-width: 1.2; vector-effect: non-scaling-stroke; fill: none; }
+.sample-wave-path { stroke: var(--ink); stroke-width: 1.2; vector-effect: non-scaling-stroke; fill: none; }
 .sample-cut { fill: var(--bg); opacity: 0.7; }
 /* Поле выбора файла прозрачно лежит поверх кнопки SAMPLE в меню звука. */
 .sample-file {
@@ -352,7 +348,10 @@ html, body {
 .pattern-cell.filled { background: var(--panel-2); }
 .pattern-cell.active { background: var(--accent-soft); box-shadow: inset 0 0 0 2px var(--accent); }
 .pattern-thumb { flex: 1; width: 100%; height: 100%; }
-.pt-dot { fill: var(--off); }
+/* Шаги в превью паттерна — с тонкой обводкой (1 px при любом масштабе), чтобы были видны. */
+.pt-dot { fill: var(--off); stroke: var(--dim); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.pt-dot.on { stroke: var(--text); }
+.pt-dot.plock { stroke: var(--plock); }
 .pt-dot.on { fill: var(--text); }
 .pt-dot.plock { fill: var(--plock); }
 .pt-dot.outside { opacity: 0.2; }
@@ -395,7 +394,7 @@ html, body {
 .knob-label { font-size: 11px; color: var(--dim); white-space: nowrap; }
 
 .k-track { fill: none; stroke: var(--off); stroke-width: 6; stroke-linecap: round; }
-.k-value { fill: none; stroke: var(--accent); stroke-width: 6; stroke-linecap: round; }
+.k-value { fill: none; stroke: var(--ink); stroke-width: 6; stroke-linecap: round; }
 .k-lock { fill: none; stroke: var(--plock); stroke-width: 5; stroke-linecap: round; }
 .k-cap { fill: var(--panel-2); }
 .k-pointer { stroke: var(--text); stroke-width: 3; stroke-linecap: round; }
@@ -412,9 +411,9 @@ html, body {
 .knob.locked .k-pointer { stroke: var(--plock); }
 .knob.locked .knob-value { color: var(--plock); }
 
-.knob.inactive .k-track { stroke: var(--panel-2); }
-.knob.inactive .k-cap { fill: transparent; }
-.knob.inactive .k-pointer { stroke: transparent; fill: transparent; }
+.knob.inactive .k-track { stroke: var(--panel); }
+.knob.inactive .k-cap { fill: var(--panel); }
+.knob.inactive .k-pointer { stroke: var(--panel-2); }
 
 /* ---------- Страницы (миниатюры строками) ---------- */
 
@@ -513,7 +512,7 @@ html, body {
   justify-content: center;
   transition: background-color 60ms;
 }
-.track.selected { border-color: var(--accent); }
+.track.selected { border-color: var(--ink); }
 .track.muted { border-color: var(--mute); }
 .track.flash { background: var(--flash); transition: none; }
 .track.silent .track-name { color: var(--off); }
@@ -622,7 +621,7 @@ html, body {
 /* Подсказка над пальцем: палец закрывает остальные значения. */
 .eq-tip {
   position: absolute; transform: translateX(-50%); pointer-events: none;
-  padding: 5px 9px; border-radius: 8px; background: var(--surface); box-shadow: 0 4px 16px var(--shadow);
+  padding: 5px 9px; border-radius: 8px; background: var(--panel-2); box-shadow: 0 4px 16px var(--shadow);
   font-size: 13px; line-height: 1.3; white-space: pre; text-align: center; font-variant-numeric: tabular-nums;
 }
 .eq-bar { height: 48px; flex: none; display: flex; gap: var(--gap); }
@@ -644,7 +643,7 @@ html, body {
 .source-menu .popup-btn { height: auto; min-height: 0; font-size: 11px; padding: 0 2px; }
 .sample-pick { position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .synth-info { flex: 1; width: 100%; display: flex; flex-direction: column; justify-content: center; gap: 8px; padding: 0 6px; min-height: 0; }
-.synth-full { font-size: 17px; font-weight: 600; color: var(--accent); }
+.synth-full { font-size: 17px; font-weight: 600; color: var(--accent-text); }
 .synth-row { font-size: 11px; letter-spacing: 0.04em; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Микшер в окне сэмпла: без чисел над метрами (громкость видна на ручках). */
@@ -743,7 +742,7 @@ html, body {
   max-width: calc(100vw - 32px); box-shadow: 0 6px 24px var(--shadow);
 }
 .learn-bar.hidden { display: none; }
-.learn-text { font-size: 12px; font-weight: 600; letter-spacing: 0.04em; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.learn-text { font-size: 12px; font-weight: 600; letter-spacing: 0.04em; color: var(--accent-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .learn-btn { height: 34px; min-width: 64px; padding: 0 10px; font-size: 11px; flex: none; }
 .learn-btn.disabled { opacity: 0.35; }
 .midi-mapped { outline: 2px dashed var(--accent); outline-offset: -2px; }
@@ -763,7 +762,7 @@ html, body {
 .mm.hidden { display: none; }
 .mm-head { display: grid; grid-template-columns: 90px 1fr 90px; align-items: center; height: 52px; background: var(--panel-2); touch-action: none; cursor: grab; flex: none; }
 .mm-title { text-align: center; font-weight: 600; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mm-head-btn { height: 52px; display: flex; align-items: center; padding: 0 14px; color: var(--accent); font-size: 16px; cursor: pointer; }
+.mm-head-btn { height: 52px; display: flex; align-items: center; padding: 0 14px; color: var(--accent-text); font-size: 16px; cursor: pointer; }
 .mm-head-btn.back { font-size: 30px; padding-bottom: 4px; }
 .mm-close { justify-content: flex-end; font-size: 20px; }
 .mm-body { overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding: 10px 0 14px; }
@@ -773,13 +772,13 @@ html, body {
 .mm-label { font-size: 15px; white-space: nowrap; }
 .mm-value { flex: 1; text-align: right; color: var(--dim); font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mm-chev { color: var(--dim); font-size: 22px; width: 10px; }
-.mm-check { color: var(--accent); width: 16px; text-align: right; }
-.mm-opt.current .mm-label { color: var(--accent); }
+.mm-check { color: var(--accent-text); width: 16px; text-align: right; }
+.mm-opt.current .mm-label { color: var(--accent-text); }
 .mm-grid { display: grid; grid-template-columns: repeat(var(--cols), 1fr); gap: 4px; padding: 0 10px; }
 .mm-grid .mm-row { justify-content: center; border: 0; border-radius: 8px; background: var(--panel); min-height: 48px; }
 .mm-grid .mm-opt.current { background: var(--accent); }
 .mm-grid .mm-opt.current .mm-label { color: var(--on-accent); font-weight: 600; }
-.mm-number { width: 60px; margin-left: 24px; border: 0; background: transparent; color: var(--accent); font: inherit; font-size: 15px; -webkit-user-select: text; user-select: text; touch-action: manipulation; }
+.mm-number { width: 60px; margin-left: 24px; border: 0; background: transparent; color: var(--accent-text); font: inherit; font-size: 15px; -webkit-user-select: text; user-select: text; touch-action: manipulation; }
 .mm-number:focus { outline: none; }
 .mm-warn { flex: 1; color: var(--plock); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mm-clear { width: 22px; height: 22px; border-radius: 50%; background: var(--off); color: var(--text); display: flex; align-items: center; justify-content: center; font-size: 15px; }
@@ -788,7 +787,7 @@ html, body {
 .mm-curve { width: 100%; height: auto; touch-action: none; background: var(--panel); border-radius: 8px; }
 .mm-range-vals { text-align: center; color: var(--dim); font-size: 13px; }
 .mm-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-.mm-btn { height: 44px; border-radius: 8px; background: var(--panel); display: flex; align-items: center; justify-content: center; color: var(--accent); font-size: 15px; }
+.mm-btn { height: 44px; border-radius: 8px; background: var(--panel); display: flex; align-items: center; justify-content: center; color: var(--accent-text); font-size: 15px; }
 .map-curve-frame { fill: none; stroke: var(--line); }
 .map-curve-line { stroke: var(--text); stroke-width: 2; }
 .map-curve-dot { fill: var(--accent); }
@@ -812,7 +811,7 @@ html, body {
 /* Кнопка LFO/ENV, назначенного на ручку под пальцем, — белый контур. */
 .btn.mod-src { box-shadow: inset 0 0 0 2px var(--text); }
 /* Пресеты маппингов: действия — голубым, недоступные — серым. Поле ввода имени — поверх окна MIDI MAP. */
-.mm-row.mm-act .mm-label { color: var(--accent); }
+.mm-row.mm-act .mm-label { color: var(--accent-text); }
 .mm-row.mm-act.disabled .mm-label { color: var(--off); }
 .popup:has(> .popup-box.rename) { z-index: 70; }
 
@@ -847,163 +846,3 @@ html, body {
 /* Кнопки нижних полос браузера (LOAD, CANCEL, SAVE HERE) — полноразмерные. */
 .lib-save .btn { height: 48px; width: 150px; font-size: 13px; }
 .lib-save { height: 52px; }
-
-/* =====================================================================
-   Оформление (светлая и тёмная темы): тонкие рамки вместо заливок, крупные цифры,
-   жёлтое — активное, чёрное/белое (--ink) — выделение и значения ручек.
-   ===================================================================== */
-
-html, body { font-size: 13px; }
-
-/* Кнопки и поля верхней панели: прозрачные, с тонкой рамкой. */
-.btn, .field, .burger, .metro, .track, .step, .key, .chip, .thumb, .sample, .arrow {
-  background: transparent;
-  border: 1.5px solid var(--line);
-}
-.btn {
-  font-weight: 500;
-  letter-spacing: 0;
-  font-size: 15px;
-  border-radius: var(--radius);
-}
-.btn.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
-.btn.mode { box-shadow: none; border: 2px solid var(--ink); }
-.btn.disabled { color: var(--off); }
-/* PLAY: при игре — жёлтая (светлая тема — заливка, тёмная — рамка и текст). */
-.btn.play-btn { box-shadow: none; gap: 8px; }
-.play-icon { font-size: 12px; }
-.btn.play-btn.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-text); }
-/* REC: красный текст, включена — красная заливка. */
-.btn.rec-btn { box-shadow: none; color: var(--rec); }
-.btn.rec { background: var(--rec); border-color: var(--rec); color: #fff; }
-.btn.morph-on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-text); }
-/* Зажатые LFO/ENV/FX/MOD — чёрные (в тёмной теме белые). */
-.btn-grid .btn.active { background: var(--ink); color: var(--bg); }
-/* Кнопка источника модуляции под пальцем на ручке — контур. */
-.btn.mod-src { box-shadow: inset 0 0 0 2px var(--ink); }
-
-.field { padding: 4px 16px; }
-.field.active { background: var(--panel-2); }
-.field-label { font-size: 11px; letter-spacing: 0.02em; color: var(--dim); }
-.field-value { font-size: 22px; font-weight: 400; }
-.narrow-field .field-label { font-size: 11px; }
-.narrow-field .field-value { font-size: 20px; }
-.top-left-group .bpm-field { flex-direction: row; align-items: center; gap: 12px; }
-.burger span { background: var(--text); width: 22px; height: 2px; }
-.metro { color: var(--text); }
-.metro.on { box-shadow: none; border: 2px solid var(--ink); }
-.metro.beat { background: var(--panel-2); }
-.cpu { font-size: 10px; }
-
-/* Окно сэмпла и синта. */
-.sample { border-style: solid; }
-.sample-title { letter-spacing: 0.02em; font-size: 12px; text-align: center; }
-.sample-wave-path { stroke: var(--ink); }
-.synth-info { justify-content: flex-start; gap: 10px; padding: 14px 10px 6px; }
-.synth-full { font-size: 34px; font-weight: 400; line-height: 1.05; color: var(--text); letter-spacing: -0.01em; }
-.synth-rule { width: 26px; height: 3px; border-radius: 2px; background: var(--accent); }
-.synth-table { display: grid; grid-template-columns: auto 1fr auto; gap: 6px 14px; align-items: baseline; }
-.synth-row { display: contents; font-size: 14px; }
-.synth-k { color: var(--text); }
-.synth-v { color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.synth-n { color: var(--dim); font-size: 12px; font-variant-numeric: tabular-nums; }
-.sample-nav .arrow, .sample-nav-label { border-radius: var(--radius); }
-.sample-nav-label { border: 1.5px solid var(--line); font-size: 14px; color: var(--dim); }
-
-/* Ручки: тонкое кольцо, линия значения и точка на ней; число крупно по центру. */
-.knob-grid { gap: 4px; }
-.knob-svg { overflow: visible; }
-.k-track { stroke: var(--line); stroke-width: 2.5; }
-.k-value { stroke: var(--ink); stroke-width: 3.5; }
-.k-lock { stroke: var(--accent); stroke-width: 4; }
-.k-cap { fill: transparent; }
-.k-pointer { fill: var(--ink); stroke: none; }
-.knob.locked .k-pointer { fill: var(--accent); stroke: none; }
-.knob.locked .knob-value { color: var(--text); }
-/* Модуляция LFO — пунктир точками снаружи (у каждого источника своя прозрачность), ENV — штрихи. */
-.k-lfo { stroke: var(--ink); stroke-width: 2.5; stroke-dasharray: 0.1 5; stroke-linecap: round; }
-.k-lfo.mod4 { stroke-dasharray: 4 4; stroke-linecap: butt; }
-.k-range { stroke: var(--ink); stroke-width: 8; }
-.knob-value { font-size: clamp(12px, 1.6vw, 21px); font-weight: 400; color: var(--text); }
-.knob-label { font-size: 14px; color: var(--dim); }
-.knob.inactive .knob-label { color: var(--off); }
-.knob.inactive .k-track { stroke: var(--panel-2); }
-
-/* Миниатюры страниц: рамка, триги — жёлтые; играющие страницы — жёлтая обводка. */
-.thumb { border-radius: 10px; padding: 6px; }
-.thumb.current { background: var(--panel-2); }
-.thumb-cell { background: transparent; }
-.thumb-cell.beat { background: transparent; }
-.thumb-cell.on { background: var(--accent); }
-.thumb-cell.plock { background: var(--accent); box-shadow: inset 0 0 0 1.5px var(--ink); }
-.thumb-cell.pos { outline: 2px solid var(--ink); }
-.play-outline { border-color: var(--accent); border-radius: 12px; }
-.thumb.plus { border-style: dashed; border-width: 1.5px; }
-
-/* Дорожки: номер крупно, имя мельче, полоска уровня; выбранная — чёрная рамка; solo — жёлтая. */
-.track { flex-direction: column; gap: 4px; border-radius: var(--radius); }
-.track-label { display: flex; align-items: baseline; gap: 6px; max-width: 92%; overflow: hidden; }
-.track-num { font-size: 20px; font-weight: 600; }
-.track-name { font-size: 14px; font-weight: 400; color: var(--dim); max-width: none; }
-.track-meter { width: 72%; height: 3px; border-radius: 2px; background: var(--line); overflow: hidden; }
-.track-level { height: 100%; width: 0; background: var(--accent); }
-.track.channel { font-size: 16px; font-weight: 400; letter-spacing: 0; color: var(--dim); }
-.track.channel.selected { color: var(--text); border: 2px solid var(--ink); }
-.track.selected { border: 2px solid var(--ink); }
-.track.soloed { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-text); }
-.track.soloed .track-name { color: var(--accent-text); }
-.track.soloed .track-level { background: var(--ink); }
-.track.muted { border-color: var(--line); opacity: 0.55; }
-.track.muted .track-state { color: var(--mute); }
-.track-state { left: 9px; right: auto; top: 5px; font-size: 11px; }
-.track-dot { left: auto; right: 9px; top: 7px; background: var(--ink); }
-.track.flash { background: var(--flash); }
-
-/* Секвенсор: нота сверху слева; триги — жёлтые; играющий шаг — чёрный (белый). */
-.sequencer { gap: 6px; }
-.step { border-radius: 10px; padding: 0; }
-.step.beat { background: transparent; border-color: var(--off); }
-.step-fill { border-radius: 8px; align-items: flex-start; justify-content: flex-start; padding: 7px 9px; }
-.step-note { font-size: 15px; font-weight: 400; color: var(--accent-text); }
-.step.on { background: var(--accent-soft); border-color: var(--accent); }
-.step.on .step-fill, .step.plock .step-fill { background: transparent; }
-/* P-lock на шаге — ромб в правом верхнем углу. */
-.step.plock::before { content: ''; position: absolute; top: 7px; right: 7px; width: 7px; height: 7px; background: var(--ink); transform: rotate(45deg); }
-.step.tail { background: var(--accent-soft); border-color: var(--accent); opacity: 0.55; }
-.step.tail .step-fill { background: transparent; opacity: 1; }
-.step.lock-only { box-shadow: none; border: 1.5px dashed var(--accent); }
-.step.held { box-shadow: none; border: 2px solid var(--ink); }
-.step.playing { background: var(--ink); border-color: var(--ink); box-shadow: none; }
-.step.playing .step-note { color: var(--bg); }
-.step.last::after { background: var(--ink); }
-
-/* Пианоролл: нота снизу слева; корневая — тёмная рамка; выбранная — жёлтая. */
-.keys { gap: 6px; }
-.key { border-radius: 10px; justify-content: flex-start; padding: 0 0 8px 10px; font-size: 15px; color: var(--dim); }
-.key.root { background: transparent; border-color: var(--dim); color: var(--text); }
-.key.selected { box-shadow: none; background: var(--accent-soft); border-color: var(--accent); color: var(--accent-text); }
-.key.step-notes { box-shadow: none; border: 2px solid var(--ink); }
-.key.playing { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
-.key.pressed { background: var(--ink); border-color: var(--ink); color: var(--bg); }
-.chord-btn { font-size: 15px; }
-.chip.playing { border-color: var(--accent); }
-
-/* Измеритель справа: тонкие жёлтые полосы. */
-.meter-bar { width: 4px; background: var(--line); border-radius: 2px; }
-.meter-bars { gap: 4px; }
-.meter-fill { background: var(--accent); }
-
-/* Всплывающие окна и меню. */
-.popup-box { background: var(--surface); border: 1px solid var(--line); }
-.popup-btn { background: transparent; border: 1.5px solid var(--line); font-weight: 500; letter-spacing: 0.02em; border-radius: 10px; }
-.popup-btn.current { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-text); }
-.mm-grid .mm-opt.current { background: var(--accent-soft); }
-.mm-grid .mm-opt.current .mm-label { color: var(--accent-text); }
-
-/* Сетка паттернов и EQ — рамки вместо заливок. */
-.pattern-cell { background: transparent; border: 1.5px solid var(--line); }
-.pattern-cell.active { background: var(--accent-soft); box-shadow: none; border-color: var(--accent); }
-.eq-plot { background: transparent; border: 1.5px solid var(--line); }
-.lib-list { background: transparent; border: 1.5px solid var(--line); }
-.lib-row, .lib-item { background: var(--surface); }
-.lib-item.current { background: var(--accent-soft); color: var(--accent-text); }

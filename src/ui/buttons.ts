@@ -5,7 +5,7 @@
 import { canRedo, canUndo, redo, doc, gridMode, setHeld, toggleMorph, toggleView, ui, undo, undoTrackEdits, type HoldButton } from '../state';
 import { registerAction } from '../midi';
 import { setPlaying } from '../transport';
-import { h, setClass, titleCase } from './dom';
+import { h, setClass } from './dom';
 import { heldKnobSources } from './knobs';
 
 const holdViews: [HTMLElement, HoldButton][] = [];
@@ -18,7 +18,7 @@ let morphBtn: HTMLElement;
 let morphUsed = false;
 
 function holdButton(label: string, btn: HoldButton): HTMLElement {
-  const el = h('div', 'btn', titleCase(label));
+  const el = h('div', 'btn', label);
   const pointers = new Set<number>();
   const release = (e: PointerEvent) => {
     pointers.delete(e.pointerId);
@@ -38,7 +38,7 @@ function holdButton(label: string, btn: HoldButton): HTMLElement {
 }
 
 function tapButton(label: string, fn: () => void, state?: () => boolean): HTMLElement {
-  const el = h('div', 'btn', titleCase(label));
+  const el = h('div', 'btn', label);
   el.addEventListener('pointerdown', (e) => { e.preventDefault(); fn(); });
   registerAction(label, { label, press: fn, state }, el);
   return el;
@@ -58,7 +58,6 @@ export function buildTransportButtons(): HTMLElement {
   const el = h('div', 'transport');
   playBtn = tapButton('PLAY', () => setPlaying(!ui.playing), () => ui.playing);
   playBtn.classList.add('play-btn');
-  playBtn.prepend(h('span', 'play-icon', '▶'));
   recBtn = tapButton('REC', () => { ui.rec = !ui.rec; }, () => ui.rec);
   recBtn.classList.add('rec-btn');
   undoBtn = tapButton('UNDO', () => {
@@ -102,7 +101,7 @@ export function buildRightButtons(): HTMLElement {
     state: () => ui.morph,
   }, morphBtn);
   // RANDOM — на месте прежней UNDO; что она делает, ещё не определено (пока неактивна).
-  const random = h('div', 'btn disabled', 'Random');
+  const random = h('div', 'btn disabled', 'RANDOM');
   el.append(morphBtn, random, holdButton('FX', 'fx'), holdButton('MOD', 'mod'));
   return el;
 }

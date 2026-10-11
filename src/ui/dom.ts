@@ -41,7 +41,3 @@ export function setClass(el: Element, name: string, on: boolean) {
 
 /** Двойной тап: два касания без движения в пределах 300 мс. */
 export const DOUBLE_TAP_MS = 300;
-
-/** Подпись кнопки в стиле оформления: «PLAY» → «Play»; сокращения (EQ, FX, BPM) и LFO1 — как есть. */
-const KEEP = new Set(['EQ', 'FX', 'BPM', 'MI']);
-export const titleCase = (s: string) => s.replace(/[A-Z][A-Z0-9-]*/g, (w) => (KEEP.has(w) || /\d/.test(w) ? w : w[0] + w.slice(1).toLowerCase()));
