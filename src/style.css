@@ -24,6 +24,9 @@
   --off: #3d3d3d;
   --ink: #ececec;
   --accent: #ffc81e;
+  /* Полосы EQ MID и SIDE. */
+  --eq-mid: #4fb4ff;
+  --eq-side: #c58bff;
   --accent-soft: #3a2f0a;
   --accent-text: #ffc81e;
   --on-accent: #111111;
@@ -53,6 +56,8 @@
   --off: #c4c3be;
   --ink: #161616;
   --accent: #f0b800;
+  --eq-mid: #1d7fd6;
+  --eq-side: #8a47d6;
   --accent-soft: #ffeaa0;
   --accent-text: #8a6a00;
   --on-accent: #161616;
@@ -889,3 +894,12 @@ html, body {
 /* Список проектов: справа темп, нота и гамма. */
 .project-meta { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: inherit; opacity: 0.65; font-size: 12px; }
 .project-row.open .project-meta { display: none; }
+
+/* EQ: меню STEREO/MID/SIDE и DYN (списки прокручиваются пальцем). */
+.popup-box.eq-list { gap: 6px; }
+.eq-scroll { max-height: 240px; overflow-y: auto; touch-action: pan-y; display: flex; flex-direction: column; gap: 4px; -webkit-overflow-scrolling: touch; }
+.eq-scroll .popup-btn { flex: none; height: 44px; }
+.eq-dyn-fields { display: flex; gap: 6px; }
+.eq-dyn-fields .field { flex: 1; min-width: 0; height: 52px; flex-direction: column; justify-content: center; align-items: flex-start; gap: 0; padding: 2px 12px; }
+.eq-dyn-fields .field-label { font-size: 9px; }
+.eq-dyn-fields .field-value { font-size: 16px; }

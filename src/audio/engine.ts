@@ -22,7 +22,7 @@ import { detectRoot } from './pitch';
 import { encodeWav } from './wav';
 import { settings } from '../settings';
 import { getSample, putSample, sampleKey, type SampleRecord } from '../storage';
-import { EqChain } from './eq';
+import { EqChain, setEqDynReady, type DynSource } from './eq';
 
 let ctx: AudioContext | null = null;
 const buffers = new Map<string, AudioBuffer>();
@@ -331,7 +331,12 @@ function buildGraph(c: AudioContext) {
   const glueIn = c.createGain();
   const clipIn = c.createGain();
   const limIn = c.createGain();
-  const eq = new EqChain(c);
+  // Источник T1…T16 динамических полос EQ — выход дорожки после громкости микшера (до mute).
+  const dynSource: DynSource = (n) => tracks[n - 1]?.vol ?? null;
+  setEqDynReady(false);
+  void c.audioWorklet.addModule(new URL('eqdyn-worklet.js', document.baseURI).href)
+    .then(() => { if (c === ctx) setEqDynReady(true); }).catch((e) => console.error('eqdyn', e));
+  const eq = new EqChain(c, dynSource);
   masterIn.connect(eq.input);
   // Громкость выхода (регулятор на измерителе справа при MST) — после лимитера, перед выходом.
   const outVol = c.createGain();
@@ -395,7 +400,7 @@ function buildGraph(c: AudioContext) {
     const duck = c.createGain();
     const vol = c.createGain();
     const gate = c.createGain();
-    const eq = new EqChain(c);
+    const eq = new EqChain(c, dynSource);
     eq.output.connect(input);
     input.connect(duck).connect(vol).connect(gate).connect(masterIn);
     const sends = busInputs.map((bus) => {
@@ -404,7 +409,8 @@ function buildGraph(c: AudioContext) {
       return g;
     });
     const sendEqs = sends.map((g) => {
-      const e = new EqChain(c);
+      // Копия EQ для посыла: сдвиг динамических полос — от детекторов основного EQ дорожки.
+      const e = new EqChain(c, undefined, eq);
       e.output.connect(g);
       return e;
     });
@@ -751,6 +757,9 @@ export function setEqScope(channel: number | 'master' | null) {
     chain.output.connect(scopePost!);
   }
 }
+
+/** Текущий сдвиг динамических полос показанного EQ, dB (null — панель закрыта). */
+export const eqDynDb = (): Float32Array | null => scopeOn?.dyn ?? null;
 
 /** Спектр до и после EQ в dBFS (по бинам FFT); false — анализаторы не подключены. */
 export function eqSpectrum(pre: Float32Array<ArrayBuffer>, post: Float32Array<ArrayBuffer>): boolean {

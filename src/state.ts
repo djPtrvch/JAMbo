@@ -4,7 +4,7 @@
 
 import {
   FX_GRID, isAuto, MASTER_GRID, MAX_PAGES, MIX_GRID, MOD_GRID, PATTERN_SLOTS, RATIOS, STEPS_PER_PAGE, TRACK_COUNT, TRACK_GRID, OCTAVE_DEF, OCTAVE_MAX, OCTAVE_MIN,
-  BPM_MAX, BPM_MIN, VOL_MIN_DB, PARAM_BY_ID, PRESET_PARAMS, SEQ_COUNT, SEQ_MIX, SEQ_MST, SYNTH_ENGINES, SYNTH_GRID, synthEngine, synthGrid, synthKey, EQ_BANDS, EQ_BELL, EQ_FREQ_MAX, EQ_FREQ_MIN, EQ_GAIN_MAX, EQ_Q_DEF, EQ_Q_MAX, EQ_Q_MIN, EQ_TYPES, NOTE_NAMES, PROGRESSIONS, SCALES, fromNorm, toNorm, type ParamDef, type Slot,
+  BPM_MAX, BPM_MIN, VOL_MIN_DB, PARAM_BY_ID, PRESET_PARAMS, SEQ_COUNT, SEQ_MIX, SEQ_MST, SYNTH_ENGINES, SYNTH_GRID, synthEngine, synthGrid, synthKey, EQ_BANDS, EQ_BELL, EQ_DYN_RANGE_MAX, EQ_DYN_THR_MIN, EQ_FREQ_MAX, EQ_FREQ_MIN, EQ_GAIN_MAX, EQ_Q_DEF, EQ_Q_MAX, EQ_Q_MIN, EQ_TYPES, NOTE_NAMES, PROGRESSIONS, SCALES, fromNorm, toNorm, type ParamDef, type Slot,
 } from './params';
 
 export interface Step {
@@ -84,6 +84,13 @@ export interface EqBand {
   q: number;
   /** Индекс в EQ_SLOPES (для low cut и high cut). */
   slope: number;
+  /** Индекс в EQ_MS: 0 STEREO (нет поля — тоже), 1 MID, 2 SIDE. */
+  ms?: number;
+  /** Динамическая полоса: −1 или нет поля — OFF, 0 — SELF, n — дорожка n (1…16). */
+  dyn?: number;
+  /** Порог детектора, dBFS, и сдвиг усиления, dB (у динамической полосы). */
+  thr?: number;
+  range?: number;
 }
 
 /** Эквалайзер канала: 8 мест под полосы (null — полосы нет). */
@@ -1384,6 +1391,28 @@ export function setEqType(k: number, type: number) {
 export function setEqSlope(k: number, slope: number) {
   const b = eqTarget().bands[k];
   if (b) edit(() => { b.slope = slope; });
+}
+
+/** Режим полосы: 0 STEREO, 1 MID, 2 SIDE. */
+export function setEqMs(k: number, ms: number) {
+  const b = eqTarget().bands[k];
+  if (b) edit(() => { b.ms = ms; });
+}
+
+/** Источник динамической полосы: −1 OFF, 0 SELF, n — дорожка n. */
+export function setEqDyn(k: number, src: number) {
+  const b = eqTarget().bands[k];
+  if (b) edit(() => { b.dyn = src; });
+}
+
+/** Порог (dBFS) и сдвиг (dB) динамической полосы (внутри жеста — одна запись UNDO). */
+export function setEqDynParams(k: number, patch: { thr?: number; range?: number }) {
+  const b = eqTarget().bands[k];
+  if (!b) return;
+  edit(() => {
+    if (patch.thr !== undefined) b.thr = Math.round(clampN(patch.thr, EQ_DYN_THR_MIN, 0) * 10) / 10;
+    if (patch.range !== undefined) b.range = Math.round(clampN(patch.range, -EQ_DYN_RANGE_MAX, EQ_DYN_RANGE_MAX) * 10) / 10;
+  });
 }
 
 /** Двойной тап по точке: включить или выключить полосу. */

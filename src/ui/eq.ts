@@ -11,13 +11,13 @@
 // выбранная крупнее и жёлтая, выключенные серые. Анализаторы работают, только пока панель открыта.
 
 import { bandResponse } from '../audio/eq';
-import { eqSampleRate, eqSpectrum, setEqScope } from '../audio/engine';
+import { eqDynDb, eqSampleRate, eqSpectrum, setEqScope } from '../audio/engine';
 import {
-  EQ_FREQ_MAX, EQ_FREQ_MIN, EQ_Q_DEF, EQ_SLOPES, EQ_TYPE_ORDER, EQ_TYPES, eqHasGain, eqIsCut, noteName,
+  EQ_DYN_RANGE_DEF, EQ_DYN_THR_DEF, EQ_FREQ_MAX, EQ_FREQ_MIN, EQ_MS, EQ_Q_DEF, EQ_SLOPES, EQ_TYPE_ORDER, EQ_TYPES, eqDynOn, eqHasGain, eqIsCut, noteName,
 } from '../params';
 import {
   addEqBand, beginGesture, deleteEqBand, endGesture, eqTarget, eqTargetName, resetEq, selectedBand,
-  setEqBand, setEqSlope, setEqType, toggleEq, toggleEqBand, ui, type EqBand,
+  setEqBand, setEqDyn, setEqDynParams, setEqMs, setEqSlope, setEqType, toggleEq, toggleEqBand, ui, doc, type EqBand,
   deleteEqPreset, eqPresets, loadEqPreset, nextEqPresetName, renameEqPreset, saveEqPreset,
 } from '../state';
 import { dragField } from './controls';
@@ -54,7 +54,13 @@ const freqAt = (x: number) => EQ_FREQ_MIN * Math.pow(2, (x / W) * OCTAVES);
 const yOfGain = (g: number) => H / 2 - (g / DB_RANGE) * (H / 2);
 const gainAt = (y: number) => ((H / 2 - y) / (H / 2)) * DB_RANGE;
 const yOfSpec = (db: number) => (H * (SPEC_TOP - db)) / (SPEC_TOP - SPEC_BOT);
-const pointY = (b: EqBand) => yOfGain(eqHasGain(b.type) ? b.gain : 0);
+/** Сдвиг динамической полосы k сейчас, dB (0 — не динамическая). */
+function dynOff(b: EqBand, k: number): number {
+  if (!eqDynOn(b) || !b.on) return 0;
+  return eqDynDb()?.[k] ?? 0;
+}
+/** Точка полосы — с текущим сдвигом динамической полосы. */
+const pointY = (b: EqBand, k = -1) => yOfGain(eqHasGain(b.type) ? b.gain + (k >= 0 ? dynOff(b, k) : 0) : 0);
 
 function fmtHz(f: number): string {
   if (f < 1000) return `${f.toFixed(f < 100 ? 1 : 0)} Hz`;
@@ -92,7 +98,7 @@ function hitBand(x: number, y: number): number {
   let bestD = HIT_R;
   eqTarget().bands.forEach((b, k) => {
     if (!b) return;
-    const d = Math.hypot(xOf(b.freq) - x, pointY(b) - y) - (k === ui.eqBand ? 6 : 0);
+    const d = Math.hypot(xOf(b.freq) - x, pointY(b, k) - y) - (k === ui.eqBand ? 6 : 0);
     if (d < bestD) { bestD = d; best = k; }
   });
   return best;
@@ -170,6 +176,50 @@ function openBandMenu(k: number, x: number, y: number) {
   anchor.style.left = `${x}px`;
   anchor.style.top = `${y}px`;
   menu.openAt(anchor, 390);
+}
+
+// ---------- Меню STEREO / MID / SIDE и DYN ----------
+
+const msMenu = makePopup('eq-list');
+const msScroll = h('div', 'eq-scroll');
+const msBtns = EQ_MS.map((name, i) => popupButton(name, () => { setEqMs(ui.eqBand, i); msMenu.close(); }));
+msScroll.append(...msBtns);
+msMenu.box.append(h('div', 'source-title', 'CHANNEL'), msScroll);
+
+function openMsMenu(el: Element) {
+  const b = selectedBand();
+  if (!b) return;
+  msBtns.forEach((btn, i) => btn.classList.toggle('current', i === (b.ms ?? 0)));
+  msMenu.openAt(el, 200);
+}
+
+const dynMenu = makePopup('eq-list');
+const dynScroll = h('div', 'eq-scroll');
+const dynFields = h('div', 'eq-dyn-fields');
+dynFields.append(
+  dragField('THRESHOLD', () => Math.round((selectedBand()?.thr ?? EQ_DYN_THR_DEF) * 2),
+    (v) => setEqDynParams(ui.eqBand, { thr: v / 2 }),
+    () => `${(selectedBand()?.thr ?? EQ_DYN_THR_DEF).toFixed(1)} dB`, 3),
+  dragField('RANGE', () => Math.round((selectedBand()?.range ?? EQ_DYN_RANGE_DEF) * 2),
+    (v) => setEqDynParams(ui.eqBand, { range: v / 2 }),
+    () => fmtGain(selectedBand()?.range ?? EQ_DYN_RANGE_DEF), 3),
+);
+for (const f of dynFields.children) f.classList.add('eq-field');
+dynMenu.box.append(h('div', 'source-title', 'DYNAMIC · SOURCE'), dynScroll, dynFields);
+
+/** Подпись источника динамической полосы. */
+const dynName = (b: EqBand) => (!eqHasGain(b.type) ? '—' : !eqDynOn(b) ? 'OFF' : b.dyn === 0 ? 'SELF' : doc.tracks[b.dyn! - 1]?.name ?? `T${b.dyn}`);
+
+function openDynMenu(el: Element) {
+  const b = selectedBand();
+  if (!b || !eqHasGain(b.type)) return;
+  const items: [string, number][] = [['OFF', -1], ['SELF', 0], ...doc.tracks.map((t, i): [string, number] => [t.name, i + 1])];
+  dynScroll.replaceChildren(...items.map(([name, v]) => {
+    const btn = popupButton(name, () => { setEqDyn(ui.eqBand, v); for (const x of dynScroll.children) x.classList.toggle('current', x === btn); });
+    btn.classList.toggle('current', (b.dyn ?? -1) === v || (v === -1 && !eqDynOn(b)));
+    return btn;
+  }));
+  dynMenu.openAt(el, 300);
 }
 
 // ---------- Пресеты EQ ----------
@@ -302,7 +352,20 @@ export function buildEq(): HTMLElement {
     // Удержание — ввод Q числом.
     (el) => numInput(el, 'q'),
   );
-  for (const f of [typeField, freqField, gainField, qField]) f.classList.add('eq-field');
+  // STEREO / MID / SIDE: тап — меню, палец вниз — следующий режим.
+  const msField = dragField(
+    'M/S', () => -(selectedBand()?.ms ?? 0),
+    (v) => setEqMs(k(), ((-v % 3) + 3) % 3),
+    () => { const b = selectedBand(); return b ? EQ_MS[b.ms ?? 0] : '—'; }, 30,
+    (el) => openMsMenu(el),
+  );
+  // DYN: тап — меню источника (OFF, SELF, дорожки) с THRESHOLD и RANGE.
+  const dynField = dragField(
+    'DYN', () => 0, () => { /* только тап */ },
+    () => { const b = selectedBand(); return b ? dynName(b) : '—'; }, 1000,
+    (el) => openDynMenu(el),
+  );
+  for (const f of [typeField, freqField, gainField, qField, msField, dynField]) f.classList.add('eq-field');
   bypassBtn = h('div', 'btn eq-tool', 'BYPASS');
   bypassBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); toggleEq(); });
   const resetBtn = h('div', 'btn eq-tool', 'RESET');
@@ -311,7 +374,7 @@ export function buildEq(): HTMLElement {
   // удержание — RENAME / DELETE.
   const presetBtn = h('div', 'btn eq-tool', 'PRESETS');
   presetBtn.addEventListener('pointerup', () => openEqPresets(presetBtn));
-  bar.append(nameText, typeField, freqField, gainField, qField, presetBtn, bypassBtn, resetBtn);
+  bar.append(nameText, typeField, freqField, gainField, qField, msField, dynField, presetBtn, bypassBtn, resetBtn);
 
   panel.append(plot, bar);
   return panel;
@@ -320,33 +383,54 @@ export function buildEq(): HTMLElement {
 // ---------- Отрисовка ----------
 
 let freqs = new Float32Array(0);
+/** Суммарные кривые: стерео-полосы, середина (стерео + MID), бока (стерео + SIDE). */
 let curve = new Float32Array(0);
+let curveMid = new Float32Array(0);
+let curveSide = new Float32Array(0);
 let band = new Float32Array(0);
 let curveSig = '';
+let hasMid = false;
+let hasSide = false;
+let hasStereo = false;
 const pre = new Float32Array(2048);
 const post = new Float32Array(2048);
 const STEP = 2;
 
-/** Суммарная кривая EQ по точкам через STEP пикселей (пересчёт только при изменениях). */
+/** Суммарные кривые EQ по точкам через STEP пикселей (с текущим сдвигом динамических полос; пересчёт только при изменениях). */
 function updateCurve() {
   const eq = eqTarget();
   const n = Math.ceil(W / STEP) + 1;
   const sr = eqSampleRate();
-  const sig = `${n}|${sr}|${JSON.stringify(eq)}`;
+  const offs = eq.bands.map((b, k) => (b ? dynOff(b, k).toFixed(1) : '')).join(',');
+  const sig = `${n}|${sr}|${JSON.stringify(eq)}|${offs}`;
   if (sig === curveSig) return;
   curveSig = sig;
   if (freqs.length !== n) {
     freqs = new Float32Array(n);
     curve = new Float32Array(n);
+    curveMid = new Float32Array(n);
+    curveSide = new Float32Array(n);
     band = new Float32Array(n);
   }
   for (let i = 0; i < n; i++) freqs[i] = Math.min(sr / 2, freqAt(i * STEP));
   curve.fill(0);
-  for (const b of eq.bands) {
-    if (!b || !b.on) continue;
-    bandResponse(b, freqs, band, sr);
-    for (let i = 0; i < n; i++) curve[i] += band[i];
-  }
+  curveMid.fill(0);
+  curveSide.fill(0);
+  hasMid = hasSide = hasStereo = false;
+  eq.bands.forEach((b, k) => {
+    if (!b || !b.on) return;
+    const off = dynOff(b, k);
+    bandResponse(off ? { ...b, gain: b.gain + off } : b, freqs, band, sr);
+    const ms = b.ms ?? 0;
+    if (ms === 0) hasStereo = true;
+    if (ms === 1) hasMid = true;
+    if (ms === 2) hasSide = true;
+    for (let i = 0; i < n; i++) {
+      if (ms === 0) curve[i] += band[i];
+      if (ms !== 2) curveMid[i] += band[i];
+      if (ms !== 1) curveSide[i] += band[i];
+    }
+  });
 }
 
 function drawGrid(g: CanvasRenderingContext2D) {
@@ -459,19 +543,33 @@ function drawSpectrum(g: CanvasRenderingContext2D) {
   g.globalAlpha = 1;
 }
 
-function drawCurve(g: CanvasRenderingContext2D, on: boolean) {
-  updateCurve();
+function strokeCurve(g: CanvasRenderingContext2D, c: Float32Array, col: string, alpha: number) {
   g.beginPath();
-  for (let i = 0; i < curve.length; i++) {
-    const y = yOfGain(Math.max(-DB_RANGE * 1.2, Math.min(DB_RANGE * 1.2, curve[i])));
+  for (let i = 0; i < c.length; i++) {
+    const y = yOfGain(Math.max(-DB_RANGE * 1.2, Math.min(DB_RANGE * 1.2, c[i])));
     (i ? g.lineTo : g.moveTo).call(g, i * STEP, y);
   }
-  g.strokeStyle = color('--ink');
-  g.globalAlpha = on ? 1 : 0.35;
+  g.strokeStyle = col;
+  g.globalAlpha = alpha;
   g.lineWidth = 2;
   g.stroke();
   g.globalAlpha = 1;
 }
+
+/**
+ * Кривые: белая — стерео-полосы; при полосах MID/SIDE ещё кривые середины (стерео + MID) и боков
+ * (стерео + SIDE) их цветами.
+ */
+function drawCurve(g: CanvasRenderingContext2D, on: boolean) {
+  updateCurve();
+  const a = on ? 1 : 0.35;
+  if (hasStereo || (!hasMid && !hasSide)) strokeCurve(g, curve, color('--ink'), a);
+  if (hasMid) strokeCurve(g, curveMid, color('--eq-mid'), a);
+  if (hasSide) strokeCurve(g, curveSide, color('--eq-side'), a);
+}
+
+/** Цвет точки по режиму: STEREO — белая, MID — голубая, SIDE — фиолетовая. */
+const msColor = (b: EqBand) => color((b.ms ?? 0) === 1 ? '--eq-mid' : (b.ms ?? 0) === 2 ? '--eq-side' : '--ink');
 
 function drawPoints(g: CanvasRenderingContext2D) {
   g.textAlign = 'center';
@@ -481,11 +579,29 @@ function drawPoints(g: CanvasRenderingContext2D) {
     const sel = k === ui.eqBand;
     const r = sel ? 13 : 10;
     const x = xOf(b.freq);
-    const y = pointY(b);
+    const y = pointY(b, k);
+    // Динамическая полоса: на месте статического усиления — полое кольцо.
+    if (eqDynOn(b) && b.on) {
+      g.beginPath();
+      g.arc(x, pointY(b), r - 1, 0, Math.PI * 2);
+      g.strokeStyle = msColor(b);
+      g.lineWidth = 1.5;
+      g.globalAlpha = 0.7;
+      g.stroke();
+      g.globalAlpha = 1;
+    }
     g.beginPath();
     g.arc(x, y, r, 0, Math.PI * 2);
-    g.fillStyle = !b.on ? color('--mute-grey') : sel ? color('--accent') : color('--ink');
+    g.fillStyle = !b.on ? color('--mute-grey') : sel ? color('--accent') : msColor(b);
     g.fill();
+    // Выбранная MID/SIDE — жёлтая с кольцом цвета режима.
+    if (sel && b.on && (b.ms ?? 0) > 0) {
+      g.beginPath();
+      g.arc(x, y, r + 2.5, 0, Math.PI * 2);
+      g.strokeStyle = msColor(b);
+      g.lineWidth = 3;
+      g.stroke();
+    }
     g.fillStyle = sel ? color('--on-accent') : color('--bg');
     g.font = `600 ${sel ? 13 : 11}px -apple-system, sans-serif`;
     g.fillText(String(k + 1), x, y + 0.5);

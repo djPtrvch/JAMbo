@@ -409,6 +409,14 @@ export const eqHasGain = (type: number) => type <= 2;
 /** Крутизна среза, дБ/окт (каскад из 1, 2 или 4 биквадов). */
 export const EQ_SLOPES = [12, 24, 48];
 export const EQ_BANDS = 8;
+/** Режим полосы: на оба канала, только середина (L+R)/2 или только бока (L−R)/2. */
+export const EQ_MS = ['STEREO', 'MID', 'SIDE'];
+/** Динамическая полоса: только у bell и shelf; источник dyn: −1 (нет) — OFF, 0 — SELF, n — дорожка n. */
+export const eqDynOn = (b: { type: number; dyn?: number }) => eqHasGain(b.type) && (b.dyn ?? -1) >= 0;
+export const EQ_DYN_THR_DEF = -24;
+export const EQ_DYN_THR_MIN = -60;
+export const EQ_DYN_RANGE_DEF = -6;
+export const EQ_DYN_RANGE_MAX = 18;
 export const EQ_FREQ_MIN = 20;
 export const EQ_FREQ_MAX = 20000;
 export const EQ_GAIN_MAX = 18;
