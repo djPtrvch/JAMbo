@@ -49,6 +49,8 @@ let pickText: HTMLElement;
 /** Что загружено последним (строка внизу). */
 let loadedMsg = '';
 const HOLD_MS = 500;
+/** Удержание сработало — следующий click (после отпускания, уже по перерисованной строке) не тап. */
+let swallowClick = false;
 let mode: Mode = { kind: 'load', steps: [] };
 /** Папка, где корзина ждёт второго тапа (подтверждение удаления непустой папки). */
 let confirmId = '';
@@ -156,18 +158,22 @@ function libRow(n: LibNode): HTMLElement {
   // Удержание сэмпла (без сдвига) — выбор нескольких.
   let holdTimer = 0;
   let held = false;
+  let swiped = false;
   item.addEventListener('pointerdown', (e) => {
     id = e.pointerId;
     x0 = e.clientX;
     base = row.classList.contains('open') ? -actsW : 0;
     dx = 0;
     held = false;
+    swiped = false;
+    swallowClick = false;
     item.classList.add('dragging');
     clearTimeout(holdTimer);
     if (n.kind === 'sample' && mode.kind === 'load' && !mode.steps.length && !picked && !base) {
       holdTimer = window.setTimeout(() => {
         if (Math.abs(dx) > 10) return;
         held = true;
+        swallowClick = true;
         picked = new Set([n.id]);
         fill();
       }, HOLD_MS);
@@ -179,18 +185,20 @@ function libRow(n: LibNode): HTMLElement {
     if (Math.abs(dx) > 10) clearTimeout(holdTimer);
     if (Math.abs(dx) > 6 && !picked) place(Math.max(-actsW, Math.min(0, base + dx)));
   });
-  const end = (e: PointerEvent, cancel: boolean) => {
+  // Тап — по click: в прокручиваемом списке iOS может прислать pointercancel вместо pointerup,
+  // а click приходит только на настоящий тап (не на прокрутку и не на свайп).
+  item.addEventListener('click', () => {
+    if (held || swiped || swallowClick) { held = false; swiped = false; swallowClick = false; return; }
+    if (row.classList.contains('open')) { row.classList.remove('open'); place(0); return; }
+    void open(n).catch(fail('Load'));
+  });
+  const end = (e: PointerEvent) => {
     if (e.pointerId !== id) return;
     id = -1;
     item.classList.remove('dragging');
     clearTimeout(holdTimer);
-    if (held) return;
-    if (picked && !cancel) { void open(n); return; }
-    if (Math.abs(dx) <= 6 && !cancel) {
-      if (base) { row.classList.remove('open'); place(0); return; }
-      void open(n).catch(fail('Load'));
-      return;
-    }
+    swiped = Math.abs(dx) > 6;
+    if (held || !swiped || picked) return;
     if (n.system) return;
     const opened = base + dx < -actsW / 2;
     // Открыта может быть только одна строка.
@@ -198,8 +206,8 @@ function libRow(n: LibNode): HTMLElement {
     row.classList.toggle('open', opened);
     place(opened ? -actsW : 0);
   };
-  item.addEventListener('pointerup', (e) => end(e, false));
-  item.addEventListener('pointercancel', (e) => end(e, true));
+  item.addEventListener('pointerup', end);
+  item.addEventListener('pointercancel', end);
   return row;
 }
 
@@ -238,7 +246,8 @@ export function buildBrowser(): HTMLElement {
   const input = h('input', 'sample-file');
   input.type = 'file';
   input.multiple = true;
-  input.accept = 'audio/*,.wav,.wave,.aif,.aiff,.mp3,.m4a,.aac,.caf,.flac,.ogg,.zip,.jambopreset';
+  // Без accept: на iOS список расширений (.jambopreset, .zip) может сделать файлы в «Файлах»
+  // серыми — выбрать можно любой файл, неподходящие пропускаются при импорте.
   input.addEventListener('change', () => {
     const files = Array.from(input.files ?? []);
     input.value = '';

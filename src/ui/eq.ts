@@ -216,6 +216,13 @@ function openEqPresets(anchor: Element) {
   presetMenu.openAt(anchor, 340);
 }
 
+/** Ввод частоты выбранной полосы числом. */
+function freqInput(el: HTMLElement) {
+  const b = selectedBand();
+  const k = ui.eqBand;
+  if (b) openInput(el, String(Math.round(b.freq)), (v) => { const f = parseFreq(v); if (f) setEqBand(k, { freq: f }); }, true);
+}
+
 // ---------- Построение ----------
 
 export function buildEq(): HTMLElement {
@@ -248,9 +255,10 @@ export function buildEq(): HTMLElement {
   const freqField = dragField(
     'FREQ', () => Math.round(Math.log2((selectedBand()?.freq ?? 1000) / EQ_FREQ_MIN) * 24),
     (v) => setEqBand(k(), { freq: EQ_FREQ_MIN * Math.pow(2, v / 24) }),
-    () => { const b = selectedBand(); return b ? fmtHz(b.freq) : '—'; }, 2, undefined,
-    // Удержание — ввод частоты числом (Гц; «1.5k» — килогерцы).
-    (el) => { const b = selectedBand(); if (b) openInput(el, String(Math.round(b.freq)), (v) => { const f = parseFreq(v); if (f) setEqBand(k(), { freq: f }); }, true); },
+    () => { const b = selectedBand(); return b ? fmtHz(b.freq) : '—'; }, 2,
+    // Тап (в момент отпускания — iOS показывает клавиатуру) и удержание — ввод частоты числом
+    // (Гц; «1.5k» — килогерцы).
+    (el) => freqInput(el), (el) => freqInput(el),
   );
   const gainField = dragField(
     'GAIN', () => Math.round((selectedBand()?.gain ?? 0) * 10),
