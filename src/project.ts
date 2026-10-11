@@ -111,10 +111,22 @@ export async function newProject() {
   await saveNow(true);
 }
 
-/** Копия текущего проекта под новым именем (дальше работаем в копии). */
-export async function saveAs(name: string) {
+/** Кнопка SAVE: сохранить текущий проект сейчас. */
+export const saveProject = () => saveNow(true);
+
+/** Проект с таким именем (кроме текущего) — для вопроса о перезаписи в SAVE AS. */
+export function projectNamed(name: string): ProjectInfo | undefined {
+  const n = name.trim().slice(0, 24);
+  return projectsCache.find((p) => p.name === n && p.id !== project.id);
+}
+
+/**
+ * Копия текущего проекта под новым именем (дальше работаем в копии). replace — проект с тем же
+ * именем, который перезаписывается (после подтверждения).
+ */
+export async function saveAs(name: string, replace?: ProjectInfo) {
   await saveNow();
-  project.id = newId();
+  project.id = replace ? replace.id : newId();
   project.name = name.trim().slice(0, 24) || nextName();
   remember(project.id);
   await saveNow(true);
@@ -127,8 +139,15 @@ export async function renameProject(name: string) {
   await saveNow(true);
 }
 
+/** Удалить проект из списка (свайп влево и корзина); текущий — с открытием другого. */
+export async function deleteById(id: string) {
+  if (id === project.id) { await deleteCurrent(); return; }
+  await deleteProject(id);
+  await refreshList();
+}
+
 /** Удалить текущий проект и открыть другой (или новый). */
-export async function deleteCurrent() {
+async function deleteCurrent() {
   await deleteProject(project.id);
   await refreshList();
   project.id = '';
