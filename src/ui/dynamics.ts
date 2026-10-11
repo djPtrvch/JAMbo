@@ -131,10 +131,10 @@ class DynView {
         c.fillStyle = levelColor(b.hold);
         c.fillRect(x, yOf(b.hold, range) - dpr, colW, line);
       }
-      // Белая риска (порог / CEILING).
+      // Белая риска (порог / CEILING) — жирная, 3 px.
       if (mark !== null) {
         c.fillStyle = ink;
-        c.fillRect(x, yOf(mark, range) - dpr, colW, line);
+        c.fillRect(x, yOf(mark, range) - 1.5 * dpr, colW, 3 * dpr);
       }
     };
     level(0, o.inRange, this.bIn, o.inMark());
@@ -179,7 +179,7 @@ export function buildClipper(): HTMLElement {
   clip = new DynView({
     title: 'CLIP', meter: clipperMeter, bypass: () => doc.clipBypass,
     inRange: [-30, 12], outRange: [-30, 0], grMax: 12,
-    inMark: ceiling, outMark: ceiling,
+    inMark: ceiling, outMark: () => null,
     clips: (pk) => pk > 1,
   });
   return clip.el;
@@ -191,7 +191,7 @@ export function buildLimiter(): HTMLElement {
   lim = new DynView({
     title: 'LIM', meter: limiterMeter, bypass: () => doc.limBypass,
     inRange: [-30, 12], outRange: [-30, 0], grMax: 12,
-    inMark: ceiling, outMark: ceiling,
+    inMark: ceiling, outMark: () => null,
     // Небольшой допуск — от округления значений при сглаживании CEILING.
     clips: (pk) => toDb(pk) > ceiling() + 0.05,
   });
