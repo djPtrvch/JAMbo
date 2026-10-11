@@ -278,7 +278,13 @@ const cmpMs = (v: number) => (isAuto(v) ? 'AUTO' : v >= 1000 ? `${(v / 1000).toF
 const CMP = { noLock: true } as const;
 
 export const MASTER_GRID: Slot[] = grid([
-  [],
+  [
+    // Сатуратор мастер-шины (saturator-worklet.js): без p-lock; DRIVE 0 — прозрачен (вместо BYPASS).
+    smooth('sat.drive', 'Drive', 0, 24, 0, cmpDb, { ...CMP, step: 0.1 }),
+    { ...stepped('sat.type', 'Type', ['TAPE', 'TUBE', 'EDGE']), ...CMP },
+    smooth('sat.tone', 'Tone', -100, 100, 0, (v) => cmpDb((v / 100) * 6), CMP),
+    smooth('sat.mix', 'Mix', 0, 100, 100, (v) => `${Math.round(v)}%`, CMP),
+  ],
   [
     // Компрессор мастер-шины «glue» (glue-worklet.js): все ручки плавные, без p-lock.
     smooth('cmp.threshold', 'Threshold', -40, 0, -10, cmpDb, { ...CMP, step: 0.1 }),

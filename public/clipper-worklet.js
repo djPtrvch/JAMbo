@@ -1,16 +1,12 @@
 // Клиппер мастер-шины: между компрессором и лимитером. Стерео, каналы независимо.
 // Вход · DRIVE → кроссовер Linkwitz-Riley 4-го порядка на частоте BASS (OFF — без деления) →
-// ВЧ-полоса: 4× оверсэмплинг (полифазный FIR) → нелинейность с мягким коленом (SOFTNESS) по CEILING
+// ВЧ-полоса: 4× оверсэмплинг (полифазный FIR, общий модуль oversampler.js) → нелинейность с мягким коленом (SOFTNESS) по CEILING
 // (с антипроизводной — меньше алиасинга) → обратно; НЧ-полоса — без обработки, с той же задержкой →
 // сумма. BYPASS — кроссфейд 10 ms с задержанным входом (задержка не меняется).
 // Для индикации ~60 раз в секунду уходит [пик после DRIVE, наибольший срез пика за окна 10 ms в dB,
 // пик выхода].
 
 // ---------- Константы (одно место) ----------
-const OVERSAMPLE = 4;
-/** Длина FIR оверсэмплинга (отсчёты 4× частоты), нечётная — целый центр. */
-const FIR_LEN = 129;
-const KAISER_BETA = 9;
 const BASS_OFF_HZ = 0; // BASS = OFF приходит как 0
 const PARAM_SMOOTH_MS = 20;
 const BYPASS_MS = 10;
@@ -18,50 +14,11 @@ const GR_WINDOW_MS = 10;
 const METER_HZ = 60;
 const TINY = 1e-25;
 
+/** Оверсэмплер — общий модуль (oversampler.js, загружается раньше). */
+const { OVERSAMPLE, FIR_LEN, PHASE_LEN, PHASES, PH0_DELAY, PH0_GAIN, DEC_C, DEC_HALF, DEC_MID } = globalThis.JamboOversampler;
+
 const coef = (ms, sr) => (ms <= 0 ? 0 : Math.exp(-1 / ((ms / 1000) * sr)));
 
-function besselI0(x) {
-  let s = 1;
-  let t = 1;
-  for (let k = 1; k < 30; k++) { t *= (x / (2 * k)) ** 2; s += t; }
-  return s;
-}
-
-/** Ядро ФНЧ на частоте Найквиста исходной частоты (окно Кайзера), в отсчётах 4× частоты. */
-function makeKernel() {
-  const h = new Float64Array(FIR_LEN);
-  const c = (FIR_LEN - 1) / 2;
-  const fc = 0.5 / OVERSAMPLE;
-  let sum = 0;
-  for (let k = 0; k < FIR_LEN; k++) {
-    const d = k - c;
-    const sinc = d === 0 ? 2 * fc : Math.sin(2 * Math.PI * fc * d) / (Math.PI * d);
-    const r = d / c;
-    const w = besselI0(KAISER_BETA * Math.sqrt(Math.max(0, 1 - r * r))) / besselI0(KAISER_BETA);
-    h[k] = sinc * w;
-    sum += h[k];
-  }
-  for (let k = 0; k < FIR_LEN; k++) h[k] /= sum;
-  return h;
-}
-const KERNEL = makeKernel();
-/**
- * Фазы интерполятора (усиление OVERSAMPLE). У ядра с частотой среза на Найквисте каждый 4-й отсчёт от
- * центра — ноль, поэтому фаза 0 — просто задержка на PH0_DELAY исходных отсчётов.
- */
-const PHASE_LEN = Math.ceil(FIR_LEN / OVERSAMPLE);
-const PHASES = [];
-for (let p = 0; p < OVERSAMPLE; p++) {
-  const taps = new Float64Array(PHASE_LEN);
-  for (let k = p, j = 0; k < FIR_LEN; k += OVERSAMPLE, j++) taps[j] = KERNEL[k] * OVERSAMPLE;
-  PHASES.push(taps);
-}
-const PH0_DELAY = (FIR_LEN - 1) / 2 / OVERSAMPLE;
-const PH0_GAIN = KERNEL[(FIR_LEN - 1) / 2] * OVERSAMPLE;
-/** Децимация: ядро симметрично — пары отводов складываются. */
-const DEC_C = (FIR_LEN - 1) / 2;
-const DEC_HALF = KERNEL.slice(0, DEC_C);
-const DEC_MID = KERNEL[DEC_C];
 /**
  * Задержка ВЧ-пути в исходных отсчётах: интерполятор (c) + коррекция (1) + антипроизводная (½) +
  * децимация (c), всё в отсчётах 4× частоты.
