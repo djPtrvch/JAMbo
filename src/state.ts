@@ -327,6 +327,8 @@ export const rt: Runtime = {
 // ---------- UNDO ----------
 
 const undoStack: string[] = [];
+/** Отменённые шаги (REDO); новое действие её очищает. */
+const redoStack: string[] = [];
 const UNDO_LIMIT = 200;
 let gestureDepth = 0;
 let gestureSnapshot = '';
@@ -334,6 +336,7 @@ let gestureSnapshot = '';
 const snapshot = () => JSON.stringify(doc);
 
 function pushUndo(snap: string) {
+  redoStack.length = 0;
   undoStack.push(snap);
   if (undoStack.length > UNDO_LIMIT) undoStack.shift();
 }
@@ -359,9 +362,21 @@ export function endGesture() {
 export function undo() {
   const snap = undoStack.pop();
   if (!snap) return;
+  redoStack.push(snapshot());
   Object.assign(doc, JSON.parse(snap) as Doc);
   clampView();
 }
+
+/** REDO: вернуть отменённое UNDO. */
+export function redo() {
+  const snap = redoStack.pop();
+  if (!snap) return;
+  undoStack.push(snapshot());
+  Object.assign(doc, JSON.parse(snap) as Doc);
+  clampView();
+}
+
+export const canRedo = () => redoStack.length > 0;
 
 export const canUndo = () => undoStack.length > 0;
 
@@ -1343,6 +1358,7 @@ export function setScene(k: number, name: string, repeats: number) {
 /** Сбросить историю UNDO (при открытии другого проекта). */
 export function resetUndo() {
   undoStack.length = 0;
+  redoStack.length = 0;
 }
 
 /**

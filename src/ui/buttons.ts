@@ -1,8 +1,8 @@
 // Кнопки: LFO1, LFO2, LFO3, ENV (слева, под окном сэмпла); MORPH, RANDOM, FX, MOD (справа внизу);
-// PLAY, REC, UNDO, PATTERNS и EQ (в верхней панели справа).
+// PLAY, REC, UNDO, REDO, PATTERNS и EQ (в верхней панели справа).
 // LFO1/LFO2/LFO3/ENV/FX/MOD работают на удержание; MORPH — тап (режим) и удержание (+ UNDO).
 
-import { canUndo, doc, gridMode, setHeld, toggleMorph, toggleView, ui, undo, undoTrackEdits, type HoldButton } from '../state';
+import { canRedo, canUndo, redo, doc, gridMode, setHeld, toggleMorph, toggleView, ui, undo, undoTrackEdits, type HoldButton } from '../state';
 import { registerAction } from '../midi';
 import { setPlaying } from '../transport';
 import { h, setClass } from './dom';
@@ -11,6 +11,7 @@ const holdViews: [HTMLElement, HoldButton][] = [];
 let playBtn: HTMLElement;
 let recBtn: HTMLElement;
 let undoBtn: HTMLElement;
+let redoBtn: HTMLElement;
 let morphBtn: HTMLElement;
 /** На удержании MORPH уже нажали UNDO — отпускание не переключает режим. */
 let morphUsed = false;
@@ -49,7 +50,7 @@ export function buildLeftButtons(): HTMLElement {
 }
 
 /**
- * PLAY (зелёная), REC (красная) и UNDO слева от PATTERNS — видны во всех режимах (паттерны, EQ,
+ * PLAY (зелёная), REC (красная), UNDO и REDO слева от PATTERNS — видны во всех режимах (паттерны, EQ,
  * редактор сэмпла). С зажатой MORPH тап по UNDO сбрасывает изменения, сделанные в режиме MORPH.
  */
 export function buildTransportButtons(): HTMLElement {
@@ -61,7 +62,8 @@ export function buildTransportButtons(): HTMLElement {
   undoBtn = tapButton('UNDO', () => {
     if (ui.held.track) { morphUsed = true; undoTrackEdits(); } else undo();
   });
-  el.append(playBtn, recBtn, undoBtn);
+  redoBtn = tapButton('REDO', redo);
+  el.append(playBtn, recBtn, undoBtn, redoBtn);
   return el;
 }
 
@@ -114,5 +116,6 @@ export function renderButtons() {
   setClass(eqBtn, 'active', ui.eqView);
   setClass(recBtn, 'rec', ui.rec);
   setClass(morphBtn, 'morph-on', ui.morph);
+  setClass(redoBtn, 'disabled', !canRedo());
   setClass(undoBtn, 'disabled', ui.held.track ? !doc.tracks.some((t) => t.trackEdit) : !canUndo());
 }

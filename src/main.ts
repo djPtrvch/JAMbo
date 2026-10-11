@@ -42,15 +42,17 @@ center.append(knobGrid, buildPatternGrid(), buildEq(), buildSampleEditor());
 const meter = buildMeter();
 main.append(left, center, right, meter);
 
-// Верхняя панель: слева поля; справа PLAY и REC, а за ними PATTERNS и EQ над правой колонкой.
+// Верхняя панель: слева бутерброд, темп и метроном (ширина левой колонки); дальше одной сеткой
+// равной ширины SCALE, ROOT, PLAY, REC, UNDO, REDO; справа PATTERNS и EQ над правой колонкой.
 const topbar = buildTopbar();
-const topLeft = h('div', 'top-left');
-topLeft.append(...topbar.children);
+const [leftGroup, ...fields] = [...topbar.children];
+const topMid = h('div', 'top-mid');
+topMid.append(...fields, ...buildTransportButtons().children);
 const topRight = h('div', 'top-right');
 // Справа от EQ, над измерителем уровня — загрузка процессора.
 const cpu = h('div', 'cpu', 'CPU\n–');
 topRight.append(buildPatternsButton(), buildEqButton(), cpu);
-topbar.append(topLeft, buildTransportButtons(), topRight);
+topbar.append(leftGroup, topMid, topRight);
 
 // Число столбцов дорожек: строка дорожек и сетка паттернов совпадают по ширине столбцов.
 app.style.setProperty('--tracks', String(TRACK_COUNT));
