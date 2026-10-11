@@ -61,12 +61,14 @@ export interface Settings {
   mappings: MidiMapping[];
   /** Имя пресета маппингов, загруженного последним ('' — нет). */
   midiPreset: string;
+  /** Оформление: как в системе (светлое или тёмное по настройке iPad), светлое или тёмное. */
+  theme: 'system' | 'light' | 'dark';
 }
 
 const KEY = 'jambo.settings';
 const DEFAULTS: Settings = {
   sampleRate: 0, bufferSize: 0, background: true, outputId: '', inputId: '',
-  midiIn: '', midiFeedback: '', noteChannel: 0, noteRoute: 'selected', mappings: [], midiPreset: '',
+  midiIn: '', midiFeedback: '', noteChannel: 0, noteRoute: 'selected', mappings: [], midiPreset: '', theme: 'system',
 };
 
 /** Маппинг с недостающими полями (старые настройки: общий режим энкодеров knobMode). */

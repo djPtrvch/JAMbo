@@ -1,4 +1,8 @@
 import './style.css';
+import { applyTheme } from './ui/theme';
+
+// Оформление до первой отрисовки (светлое или тёмное — по настройке или как в системе).
+applyTheme();
 import { TRACK_COUNT } from './params';
 import { advanceLfos, ui, updateTransition } from './state';
 import { synthLoad, unlockAudio, updateAudio } from './audio/engine';

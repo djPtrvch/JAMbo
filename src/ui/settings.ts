@@ -6,6 +6,7 @@
 import { applyOutput, audioInfo, canChooseOutput, restartAudio } from '../audio/engine';
 import { BUFFER_SIZES, SAMPLE_RATES, saveSettings, settings } from '../settings';
 import { h, setText } from './dom';
+import { setTheme } from './theme';
 import { backHeader, makePopup, openMenuPanel, popupButton, type Popup } from './popup';
 import { openMidi } from './midi';
 import { openProjectMenu } from './projects';
@@ -44,7 +45,12 @@ function buildPanel() {
     tabs.append(tabBtns[t]);
   }
   body = h('div', 'settings-body');
-  panel.box.append(backHeader(h('div', 'project-title', 'Settings'), () => { panel.close(); openMainMenu(anchorEl); }), tabs, body);
+  // Оформление — над вкладками: как в системе, светлое, тёмное.
+  appearance = h('div', 'settings-choice');
+  panel.box.append(
+    backHeader(h('div', 'project-title', 'Settings'), () => { panel.close(); openMainMenu(anchorEl); }),
+    h('div', 'source-title', 'APPEARANCE'), appearance, tabs, body,
+  );
 }
 
 export function openSettings(anchor: Element) {
@@ -150,7 +156,14 @@ function renderOutput() {
   );
 }
 
+let appearance: HTMLElement;
+
 function render() {
+  appearance.replaceChildren(...(['system', 'light', 'dark'] as const).map((t) => {
+    const b = popupButton(t === 'system' ? 'SYSTEM' : t.toUpperCase(), () => { setTheme(t); render(); });
+    b.classList.toggle('current', settings.theme === t);
+    return b;
+  }));
   for (const t of Object.keys(tabBtns) as Tab[]) tabBtns[t].classList.toggle('current', t === tab);
   body.replaceChildren();
   if (tab === 'engine') renderEngine();
