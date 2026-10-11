@@ -1,7 +1,8 @@
 import './style.css';
 import { TRACK_COUNT } from './params';
-import { advanceLfos, ui } from './state';
+import { advanceLfos, ui, updateTransition } from './state';
 import { synthLoad, unlockAudio, updateAudio } from './audio/engine';
+import { initProjects } from './project';
 import { updateTransport } from './transport';
 import { buildEqButton, buildLeftButtons, buildPatternsButton, buildRightButtons, buildTransportButtons, renderButtons } from './ui/buttons';
 import { renderFields } from './ui/controls';
@@ -55,7 +56,7 @@ app.append(topbar, main, buildTracks(), buildSequencer(), buildPiano(), buildPro
 // Всё управление идёт через pointer-события, поэтому touch-события можно гасить целиком.
 // Поля ввода и прокручиваемый список пресетов получают обычные касания.
 const allowNative = (e: Event) => e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement
-  || (e.target instanceof Element && e.target.closest('.preset-grid') !== null);
+  || (e.target instanceof Element && e.target.closest('.preset-grid, .project-list') !== null);
 // touchend не гасим: в iOS именно отпускание пальца — действие пользователя, которое включает звук.
 // Масштаб двойным тапом отключён через CSS (touch-action: none на всех элементах).
 for (const type of ['touchstart', 'touchmove'] as const) {
@@ -90,6 +91,7 @@ function frame(now: number) {
   advanceLfos(Math.min(0.1, (now - last) / 1000));
   last = now;
   updateTransport(now);
+  updateTransition();
   updateAudio(now);
   renderTopbar(now);
   renderFields();
@@ -112,3 +114,6 @@ function frame(now: number) {
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
+
+// Последний открытый проект (или новый) и автосохранение.
+void initProjects();

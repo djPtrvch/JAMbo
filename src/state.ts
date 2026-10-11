@@ -247,7 +247,9 @@ function newTrack(i: number, name = `T${i + 1}`): Track {
   };
 }
 
-export const doc: Doc = {
+/** Новый пустой проект. */
+export function makeDoc(): Doc {
+  return {
   bpm: 120,
   scale: 0,
   root: 0,
@@ -265,7 +267,10 @@ export const doc: Doc = {
   masterEq: newEq(),
   files: {},
   roots: {},
-};
+  };
+}
+
+export const doc: Doc = makeDoc();
 
 export const ui: Ui = {
   selectedTrack: 0,
@@ -1275,4 +1280,155 @@ export function setScene(k: number, name: string, repeats: number) {
   edit(() => {
     doc.scenes[k] = { name: name.trim().slice(0, 12), repeats: Math.max(0, Math.min(64, Math.round(repeats))) };
   });
+}
+
+// ---------- Проекты: замена документа и переход между проектами ----------
+
+/** Сбросить историю UNDO (при открытии другого проекта). */
+export function resetUndo() {
+  undoStack.length = 0;
+}
+
+/**
+ * Привести сохранённый документ к текущему формату: недостающие поля берутся из нового
+ * проекта (в том числе новые параметры дорожек и паттернов).
+ */
+export function normalizeDoc(raw: unknown): Doc {
+  const base = makeDoc();
+  const d = { ...base, ...(raw as Partial<Doc>) } as Doc;
+  const trackDefaults = base.tracks[0].params;
+  const fixParams = (p: { params: Record<string, number> }) => { p.params = { ...trackDefaults, ...p.params }; };
+  d.tracks = base.tracks.map((bt, i) => {
+    const t = { ...bt, ...(d.tracks?.[i] ?? {}) } as Track;
+    fixParams(t);
+    t.slots = Array.from({ length: PATTERN_SLOTS }, (_, k) => t.slots?.[k] ?? null);
+    t.slots.forEach((p) => { if (p) fixParams(p); });
+    return t;
+  });
+  d.chanSeqs = base.chanSeqs.map((b, k) => ({ ...b, ...(d.chanSeqs?.[k] ?? {}) }));
+  d.scenes = base.scenes.map((b, k) => d.scenes?.[k] ?? b);
+  d.folders = base.folders.map((b, k) => d.folders?.[k] ?? b);
+  d.eqs = base.eqs.map((b, k) => d.eqs?.[k] ?? b);
+  for (const key of ['fx', 'mixer', 'master'] as const) d[key] = { ...base[key], ...d[key] };
+  return d;
+}
+
+/** Ключи всех сэмплов, на которые ссылается документ. */
+export function sampleKeys(d: Doc): string[] {
+  const keys = new Set<string>(Object.keys(d.files));
+  const add = (k?: string) => { if (k && k.startsWith('s:')) keys.add(k); };
+  const pats = (t: Track) => [t, ...t.slots.filter((p): p is Pattern => !!p)];
+  for (const t of d.tracks) {
+    for (const p of pats(t)) {
+      add(p.sample);
+      p.pages.forEach((pg) => pg.forEach((st) => add(st.sound)));
+    }
+  }
+  d.folders.forEach((f) => f.items.forEach((it) => add('sample' in it ? it.sample : undefined)));
+  return [...keys].filter((k) => k.startsWith('s:'));
+}
+
+/** Сброс выбора и удержаний интерфейса при открытии проекта. */
+function resetUi() {
+  ui.selectedTrack = 0;
+  ui.channel = 'track';
+  ui.viewPage = 0;
+  ui.heldSteps.clear();
+  ui.eqBand = -1;
+  ui.morph = false;
+  ui.pageMenu = null;
+}
+
+/** Открыть проект без перехода: документ целиком заменяется. */
+export function loadDoc(d: Doc) {
+  transition = null;
+  Object.assign(doc, d);
+  resetUndo();
+  resetUi();
+  rt.queued.fill(null);
+  rt.scene = null;
+  rt.sceneQueued = null;
+}
+
+/**
+ * Переход между проектами во время игры: играющие паттерны старого проекта уходят в строку 1
+ * (и доигрывают), строки 1–7 нового проекта встают в строки 2–8, его строка 8 временно скрыта.
+ * Общие настройки (темп, гамма, FX, микшер, мастер, EQ) — сразу из нового проекта.
+ * Когда в строке 1 больше ничего не играет, сетка возвращается к строкам 1–8 нового проекта.
+ */
+interface Transition { hidden: (Pattern | null)[]; origSlot: number[]; hiddenScene: Scene }
+let transition: Transition | null = null;
+export const inTransition = () => transition !== null;
+
+/** Все паттерны столбца по строкам (активный — из полей дорожки). */
+const rowsOf = (t: Track) => Array.from({ length: PATTERN_SLOTS }, (_, k) => patternAt(t, k));
+
+/** Перестроить столбец дорожки: паттерны по строкам и активная строка. */
+function setRows(t: Track, rows: (Pattern | null)[], active: number) {
+  putPattern(t, rows[active]!);
+  t.slots = rows.map((p, k) => (k === active ? null : p ? clone(p) : null));
+  t.slot = active;
+}
+
+/** Пустой паттерн со звуком p (заглушка активной строки). */
+const emptyLike = (p: Pattern): Pattern => ({ ...clone(p), pages: [emptyPage()], length: STEPS_PER_PAGE, playFrom: 0, playTo: 0 });
+
+export function switchWithTransition(next: Doc) {
+  // Играющим считается не остановленный паттерн, в котором есть триги.
+  const old = doc.tracks.map((t) => ({ playing: !t.stopped && t.pages.some((pg) => pg.some((st) => st.on)), pattern: takePattern(t) }));
+  const tr: Transition = { hidden: [], origSlot: [], hiddenScene: next.scenes[PATTERN_SLOTS - 1] };
+  next.tracks.forEach((t, i) => {
+    const rows = rowsOf(t);
+    tr.hidden[i] = rows[PATTERN_SLOTS - 1];
+    tr.origSlot[i] = t.slot;
+    const playing = old[i].playing;
+    const first = playing ? old[i].pattern : emptyLike(takePattern(t));
+    setRows(t, [first, ...rows.slice(0, PATTERN_SLOTS - 1)], 0);
+    t.stopped = !playing;
+  });
+  next.scenes = [{ name: 'PREV', repeats: 0 }, ...next.scenes.slice(0, PATTERN_SLOTS - 1)];
+  Object.assign(doc, next);
+  transition = tr;
+  resetUndo();
+  resetUi();
+  rt.queued.fill(null);
+  rt.scene = null;
+  rt.sceneQueued = null;
+}
+
+/** Убрать строку 1 перехода из документа d: строки 2–8 → 1–7, скрытая строка → 8. */
+function unshiftDoc(d: Doc, tr: Transition) {
+  d.tracks.forEach((t, i) => {
+    const rows = [...rowsOf(t).slice(1), tr.hidden[i]];
+    const fromRow0 = t.slot === 0;
+    let active = fromRow0 ? tr.origSlot[i] : t.slot - 1;
+    if (!rows[active]) active = rows.findIndex((p) => p);
+    if (active < 0) { rows[0] = emptyLike(takePattern(t)); active = 0; }
+    setRows(t, rows, active);
+    if (fromRow0) t.stopped = true;
+  });
+  d.scenes = [...d.scenes.slice(1), tr.hiddenScene];
+}
+
+/** Документ для сохранения: во время перехода — без строки 1 старого проекта. */
+export function docForSave(): Doc {
+  if (!transition) return doc;
+  const d = clone(doc);
+  unshiftDoc(d, transition);
+  return d;
+}
+
+/** Каждый кадр: закончить переход, когда в строке 1 ничего не играет и не ждёт запуска. */
+export function updateTransition() {
+  const tr = transition;
+  if (!tr) return;
+  const busy = doc.tracks.some((t, i) => (t.slot === 0 && !t.stopped) || rt.queued[i] === 0) || rt.scene?.row === 0 || rt.sceneQueued === 0;
+  if (busy) return;
+  unshiftDoc(doc, tr);
+  transition = null;
+  rt.queued = rt.queued.map((q) => (typeof q === 'number' ? q - 1 : q));
+  if (rt.scene) rt.scene.row -= 1;
+  if (rt.sceneQueued !== null) rt.sceneQueued -= 1;
+  resetUndo();
+  clampView();
 }
