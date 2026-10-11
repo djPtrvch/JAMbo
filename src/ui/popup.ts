@@ -2,6 +2,9 @@
 
 import { h } from './dom';
 
+/** Ширина меню «бутерброд» и всех его подменю (PROJECTS, SETTINGS, MIDI). */
+export const MENU_W = 420;
+
 export interface Popup {
   root: HTMLElement;
   box: HTMLElement;

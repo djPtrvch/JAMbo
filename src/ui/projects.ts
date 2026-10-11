@@ -9,7 +9,7 @@ import {
   renameProject, saveAs, saveProject, unsaved,
 } from '../project';
 import { h, setText } from './dom';
-import { backHeader, makePopup, openInput, popupButton, type Popup } from './popup';
+import { backHeader, MENU_W, makePopup, openInput, popupButton, type Popup } from './popup';
 import type { ProjectInfo } from '../storage';
 
 const TRASH_W = 72;
@@ -166,7 +166,7 @@ export function openProjectMenu(anchor: Element, back: () => void) {
   if (!menu) buildMenu();
   anchorEl = anchor;
   fillList();
-  menu.openAt(anchor, 340);
+  menu.openAt(anchor, MENU_W);
   // Окно — от верхней панели вниз, чтобы список помещался.
   menu.box.style.maxHeight = `${window.innerHeight - menu.box.getBoundingClientRect().top - 12}px`;
 }

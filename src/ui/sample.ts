@@ -79,11 +79,15 @@ function vbar(label: string, kind: BarKind, valueOnTop = false): VBar {
   for (let ch = 0; ch < (kind === 'gr' ? 1 : 2); ch++) {
     const bar = h('div', `vbar ${kind}`);
     const fill = h('div', 'vbar-fill');
-    const hold = h('div', 'vbar-hold');
-    bar.append(fill, hold);
+    bar.append(fill);
+    // У GR пик-холда нет (линии сверху не нужно).
+    if (kind !== 'gr') {
+      const hold = h('div', 'vbar-hold');
+      bar.append(hold);
+      holds.push(hold);
+    }
     chans.push(bar);
     fills.push(fill);
-    holds.push(hold);
     box.append(bar);
   }
   if (kind === 'meter' || kind === 'yellow') {
