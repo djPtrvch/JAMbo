@@ -1,5 +1,7 @@
-// Голоса синтезатора JAMbo на движках Mutable Instruments Plaits (первые 16, классические).
-// Один экземпляр модуля WebAssembly = одна дорожка: kSlots голосов, у каждого свои 16 движков
+// Голоса синтезатора JAMbo на движках Mutable Instruments Plaits: 16 классических (0–15) и 8 новых
+// из Plaits 1.2 (16–23: VA-VCF, phase distortion, 6-op FM — три банка патчей, wave terrain,
+// string machine, chiptune). Номера классических не меняются (так они хранятся в проектах).
+// Один экземпляр модуля WebAssembly = одна дорожка: kSlots голосов, у каждого свои движки
 // в общей памяти (как в Plaits: движки делят один буфер, при смене движка — Reset).
 // Огибающую громкости, фильтр и панораму делает Web Audio; здесь — только звук движка
 // (LPG Plaits не используется). Частота дискретизации Plaits — 48 кГц.
@@ -22,6 +24,13 @@
 #include "plaits/dsp/engine/virtual_analog_engine.h"
 #include "plaits/dsp/engine/waveshaping_engine.h"
 #include "plaits/dsp/engine/wavetable_engine.h"
+#include "plaits/dsp/engine2/chiptune_engine.h"
+#include "plaits/dsp/engine2/phase_distortion_engine.h"
+#include "plaits/dsp/engine2/six_op_engine.h"
+#include "plaits/dsp/engine2/string_machine_engine.h"
+#include "plaits/dsp/engine2/virtual_analog_vcf_engine.h"
+#include "plaits/dsp/engine2/wave_terrain_engine.h"
+#include "plaits/resources.h"
 #include "stmlib/dsp/limiter.h"
 
 using namespace plaits;
@@ -29,7 +38,9 @@ using namespace plaits;
 namespace {
 
 const int kSlots = 6;
-const int kEngines = 16;
+const int kEngines = 24;
+// 6-op FM: один движок на три номера (18–20), у каждого свой банк патчей (как в Plaits).
+const int kSixOpFirst = 18;
 const int kBufferSize = 16384;
 
 struct Slot {
@@ -49,6 +60,12 @@ struct Slot {
   BassDrumEngine bass_drum;
   SnareDrumEngine snare_drum;
   HiHatEngine hi_hat;
+  VirtualAnalogVCFEngine virtual_analog_vcf;
+  PhaseDistortionEngine phase_distortion;
+  SixOpEngine six_op;
+  WaveTerrainEngine wave_terrain;
+  StringMachineEngine string_machine;
+  ChiptuneEngine chiptune;
 
   Engine* engines[kEngines];
   char buffer[kBufferSize];
@@ -88,6 +105,14 @@ void Post(stmlib::Limiter* limiter, float gain, float* buffer, int size) {
   for (int i = 0; i < size; ++i) buffer[i] *= gain;
 }
 
+// Смена движка: данные (у 6-op FM — банк патчей) и сброс, как в plaits/dsp/voice.cc.
+void Load(Slot& s, int engine) {
+  const uint8_t* data = nullptr;
+  if (engine >= kSixOpFirst && engine < kSixOpFirst + 3) data = fm_patches_table[engine - kSixOpFirst];
+  s.engines[engine]->LoadUserData(data);
+  s.engines[engine]->Reset();
+}
+
 }  // namespace
 
 extern "C" {
@@ -101,20 +126,27 @@ void init() {
       &s.additive, &s.wavetable, &s.chord, &s.speech,
       &s.swarm, &s.noise, &s.particle, &s.string,
       &s.modal, &s.bass_drum, &s.snare_drum, &s.hi_hat,
+      &s.virtual_analog_vcf, &s.phase_distortion, &s.six_op, &s.six_op,
+      &s.six_op, &s.wave_terrain, &s.string_machine, &s.chiptune,
     };
+    // Усиления и «огибающая уже есть» — как в plaits/dsp/voice.cc.
     const float gains[kEngines] = {
       0.8f, 0.7f, 0.6f, 0.7f, 0.8f, 0.6f, 0.8f, -0.7f,
       -3.0f, -1.0f, -2.0f, -1.0f, -1.0f, 0.8f, 0.8f, 0.8f,
+      1.0f, 0.7f, 1.0f, 1.0f, 1.0f, 0.7f, 0.8f, 0.5f,
     };
     const float aux_gains[kEngines] = {
       0.8f, 0.6f, 0.6f, 0.6f, 0.8f, 0.6f, 0.8f, 0.8f,
       1.0f, -1.0f, 1.0f, 0.8f, 0.8f, 0.8f, 0.8f, 0.8f,
+      1.0f, 0.7f, 1.0f, 1.0f, 1.0f, 0.7f, 0.8f, 0.5f,
     };
     stmlib::BufferAllocator allocator(s.buffer, kBufferSize);
     for (int k = 0; k < kEngines; ++k) {
       s.engines[k] = list[k];
-      Register(list[k], k >= 11, gains[k], aux_gains[k]);
-      // Все движки голоса делят одну память.
+      bool enveloped = (k >= 11 && k <= 15) || (k >= kSixOpFirst && k < kSixOpFirst + 3);
+      Register(list[k], enveloped, gains[k], aux_gains[k]);
+      // Все движки голоса делят одну память (6-op FM инициализируется один раз).
+      if (k > kSixOpFirst && k < kSixOpFirst + 3) continue;
       allocator.Free();
       list[k]->Init(&allocator);
     }
@@ -122,8 +154,7 @@ void init() {
     s.aux_limiter.Init();
     s.aux_mix = 0.0f;
     s.engine = 0;
-    s.engines[0]->LoadUserData(nullptr);
-    s.engines[0]->Reset();
+    Load(s, 0);
     s.rising = false;
     s.gate = false;
     s.note = 48.0f;
@@ -133,7 +164,7 @@ void init() {
 }
 
 /**
- * Параметры голоса: движок 0..15, нота (MIDI, 60 = C4), harmonics/timbre/morph 0..1,
+ * Параметры голоса: движок 0..23, нота (MIDI, 60 = C4), harmonics/timbre/morph 0..1,
  * aux_mix — доля выхода AUX (0..1).
  */
 __attribute__((export_name("set")))
@@ -142,8 +173,7 @@ void set(int slot, int engine, float note, float harmonics, float timbre, float 
   if (engine < 0 || engine >= kEngines) engine = 0;
   if (engine != s.engine) {
     s.engine = engine;
-    s.engines[engine]->LoadUserData(nullptr);
-    s.engines[engine]->Reset();
+    Load(s, engine);
     s.limiter.Init();
     s.aux_limiter.Init();
   }
