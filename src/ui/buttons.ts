@@ -6,6 +6,7 @@ import { canRedo, canUndo, redo, doc, gridMode, setHeld, toggleMorph, toggleView
 import { registerAction } from '../midi';
 import { setPlaying } from '../transport';
 import { h, setClass } from './dom';
+import { heldKnobSources } from './knobs';
 
 const holdViews: [HTMLElement, HoldButton][] = [];
 let playBtn: HTMLElement;
@@ -107,8 +108,12 @@ export function buildRightButtons(): HTMLElement {
 
 export function renderButtons() {
   const mode = gridMode();
+  // Пока палец держит ручку с назначенным LFO/ENV — кнопка этого источника обведена.
+  const srcs = heldKnobSources();
+  const SRC: Partial<Record<HoldButton, number>> = { lfo1: 1, lfo2: 2, lfo3: 3, env: 4 };
   for (const [el, btn] of holdViews) {
     setClass(el, 'active', ui.held[btn]);
+    setClass(el, 'mod-src', SRC[btn] !== undefined && srcs.has(SRC[btn] as 1 | 2 | 3 | 4));
     if (btn === 'fx' || btn === 'mod') setClass(el, 'mode', mode === btn);
   }
   setClass(playBtn, 'active', ui.playing);

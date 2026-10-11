@@ -182,6 +182,16 @@ function onUp(e: PointerEvent) {
   endGesture();
 }
 
+/** Источники (LFO1–3, ENV), назначенные на ручки, которые сейчас держит палец (обводка их кнопок). */
+export function heldKnobSources(): Set<Mod> {
+  const out = new Set<Mod>();
+  for (const g of gestures.values()) {
+    const a = assignFor(g.mode, g.param);
+    if (a) out.add(a.lfo);
+  }
+  return out;
+}
+
 // ---------- Отрисовка (каждый кадр) ----------
 
 export function renderKnobs(now: number) {
