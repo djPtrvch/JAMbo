@@ -19,12 +19,12 @@
 import { DELAY_DIVS, OVER_PEAK, SYNTH_ENGINES, synthEngine, PARAM_BY_ID, RATIOS, VOL_DEF_DB, volGain, SAMPLE_ROOT, TRACK_COUNT, filterFreq, fromNorm } from '../params';
 import { addSamplesQuiet, addSamplesToFolder, doc, setStepSound, liveFx, liveMaster, liveMixer, modulatedNorm, ui } from '../state';
 import { detectRoot } from './pitch';
+import { getSample, putSample, sampleKey, type SampleRecord } from '../storage';
 import { EqChain } from './eq';
 
 let ctx: AudioContext | null = null;
 const buffers = new Map<string, AudioBuffer>();
 const peaks = new Map<string, Float32Array[]>();
-let fileCount = 0;
 
 interface TrackChain {
   /** EQ сухого сигнала и копии EQ для посылов Reverb / Delay / Drive. */
@@ -657,19 +657,47 @@ export function clickAt(time: number, accent: boolean) {
 // дорожки (state: doc.folders) вместе с её пресетами; стрелки под окном сэмпла их перелистывают.
 const fileKeys = new Map<File, string>();
 
-/** Декодировать файл (один раз): ключ сэмпла; имя и высота запоминаются в doc. */
+/**
+ * Декодировать файл (один раз): ключ сэмпла по содержимому; файл сохраняется в браузере
+ * (IndexedDB) для проектов, имя и высота запоминаются в doc.
+ */
 async function decodeFile(file: File): Promise<string> {
   const c = ensureCtx();
   const known = fileKeys.get(file);
   if (known) return known;
-  const buf = await c.decodeAudioData(await file.arrayBuffer());
-  const key = `file:${++fileCount}`;
-  buffers.set(key, buf);
+  const bytes = await file.arrayBuffer();
+  const key = await sampleKey(bytes);
+  if (!buffers.has(key)) {
+    // decodeAudioData может забрать буфер — декодируем копию.
+    buffers.set(key, await c.decodeAudioData(bytes.slice(0)));
+    void putSample({ key, name: file.name, bytes }).catch((e) => console.error('sample store', e));
+  }
   fileKeys.set(file, key);
   doc.files[key] = file.name;
-  const root = detectRoot(buf);
+  const root = detectRoot(buffers.get(key)!);
   if (typeof root === 'number') doc.roots[key] = root;
   return key;
+}
+
+/** Сэмплы проекта из браузерного хранилища в память (перед открытием проекта). */
+export async function ensureSamples(keys: string[]): Promise<void> {
+  const c = ensureCtx();
+  for (const key of keys) {
+    if (buffers.has(key)) continue;
+    const rec = await getSample(key);
+    if (!rec) continue;
+    try { buffers.set(key, await c.decodeAudioData(rec.bytes.slice(0))); } catch { /* испорченный файл */ }
+  }
+}
+
+/** Байты сэмплов для экспорта проекта. */
+export async function sampleRecords(keys: string[]): Promise<SampleRecord[]> {
+  const out: SampleRecord[] = [];
+  for (const key of keys) {
+    const rec = await getSample(key);
+    if (rec) out.push(rec);
+  }
+  return out;
 }
 
 /** Нераспознанные файлы пропускаются; если не открылся ни один — ошибка. */
