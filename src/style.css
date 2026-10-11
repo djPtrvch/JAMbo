@@ -757,3 +757,5 @@ html, body {
 .eq-tool.busy { opacity: 0.6; }
 .sedit .eq-canvas { touch-action: none; }
 .meter-lufs { cursor: pointer; padding: 4px 0; margin: -4px 0; }
+/* Мастер: на метрах компрессора и лимитера без чисел. */
+.master-panel .vbar-val { display: none; }

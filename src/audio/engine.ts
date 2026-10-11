@@ -882,6 +882,11 @@ class Meter {
   private binE = new Float64Array(INT_BINS);
   private lufsI = -Infinity;
 
+  /** Сброс максимального пика (тап по dB, смена канала измерителя). */
+  resetPeak() {
+    this.max = 0;
+  }
+
   /** Сброс интегральной громкости (тап по LUFS, смена канала измерителя). */
   resetIntegrated() {
     this.binN.fill(0);
@@ -1008,6 +1013,12 @@ export function masterLevels(now: number): { comp: Level; compOut: Level; lim: L
 export function resetLoudness(ch: number | 'master') {
   if (ch === 'master') mst?.outMeter.resetIntegrated();
   else tracks[ch]?.meter.resetIntegrated();
+}
+
+/** Сброс максимального пика измерителя справа: дорожка i или выход мастера ('master'). */
+export function resetPeak(ch: number | 'master') {
+  if (ch === 'master') mst?.outMeter.resetPeak();
+  else tracks[ch]?.meter.resetPeak();
 }
 
 /** Снижение усиления лимитера (дБ, ≤ 0). */

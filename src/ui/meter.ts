@@ -1,11 +1,11 @@
 // Измеритель уровня в правом краю (сбоку от миниатюр страниц и кнопок).
 // Показывает выбранную дорожку, а при выбранных MIX или MST — общий выход мастера после лимитера.
 // Стерео — две полосы, моно — одна; шкала в dB, пик-холд (~1,5 с), метка клиппинга сверху,
-// выше 0 dB полоса красная. Снизу пик в dB, сверху интегральная громкость в LUFS (как в Grand
-// Finale): копится с последнего сброса; тап по числу — сброс (отсчёт заново, сначала — как
-// моментальная). Сброс и при смене канала измерителя.
+// выше 0 dB полоса красная. Снизу максимальный пик в dB, сверху интегральная громкость в LUFS (как
+// в Grand Finale): оба копятся с последнего сброса; тап по числу — его сброс (отсчёт заново).
+// При смене канала измерителя сбрасываются оба.
 
-import { masterLevels, resetLoudness, trackIsStereo, trackLevel, type Level } from '../audio/engine';
+import { masterLevels, resetLoudness, resetPeak, trackIsStereo, trackLevel, type Level } from '../audio/engine';
 import { OVER_PEAK } from '../params';
 import { ui } from '../state';
 import { h, setAttr, setClass, setText } from './dom';
@@ -32,7 +32,8 @@ export function buildMeter(): HTMLElement {
   const el = h('div', 'meter');
   lufsText = h('div', 'meter-text meter-lufs');
   lufsText.addEventListener('pointerdown', (e) => { e.preventDefault(); resetLoudness(source()); });
-  dbText = h('div', 'meter-text');
+  dbText = h('div', 'meter-text meter-lufs');
+  dbText.addEventListener('pointerdown', (e) => { e.preventDefault(); resetPeak(source()); });
   clipMark = h('div', 'vbar-clip');
   const box = h('div', 'meter-bars');
   for (let i = 0; i < 2; i++) {
@@ -59,7 +60,7 @@ let shown: number | 'master' | null = null;
 /** Уровень показанного канала; при смене канала интегральная громкость считается заново. */
 function measure(now: number): Level {
   const src = source();
-  if (src !== shown) { shown = src; resetLoudness(src); }
+  if (src !== shown) { shown = src; resetLoudness(src); resetPeak(src); }
   return src === 'master' ? masterLevels(now).out : trackLevel(src, now);
 }
 
@@ -84,5 +85,5 @@ export function renderMeter(now: number) {
   });
   setClass(clipMark, 'on', lv.clip);
   setText(lufsText, `LUFS\n${fmtLufs(lv.lufsI)}`);
-  setText(dbText, `${fmtDb(Math.max(lv.l, lv.r))}\ndB`);
+  setText(dbText, `${fmtDb(lv.max)}\ndB`);
 }
