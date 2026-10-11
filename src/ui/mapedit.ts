@@ -8,6 +8,7 @@
 // Unmap снимает маппинг, ✕ закрывает окно.
 
 import {
+  deleteMidiPreset, loadMidiPreset, midiPresets, presetModified, renameMidiPreset, saveMidiPreset, TWISTER_NAME,
   condKey, pinned,
   clashFor, clearTarget, draftMapping, learn, mappingFor, midiDevices, midiOutputs, onLearnChanged, sameTarget,
   targetLabel, updateMapping,
@@ -15,8 +16,9 @@ import {
 import { settings, type ControlType, type MidiMapping, type MidiTarget, type RelEnc } from '../settings';
 import { ui } from '../state';
 import { h, setAttr, svg } from './dom';
+import { openInput } from './popup';
 
-type Page = 'main' | 'port' | 'event' | 'control' | 'encoder' | 'channel' | 'range' | 'feedback' | 'cond';
+type Page = 'main' | 'port' | 'event' | 'control' | 'encoder' | 'channel' | 'range' | 'feedback' | 'cond' | 'preset';
 
 let win: HTMLElement;
 let head: HTMLElement;
@@ -43,7 +45,7 @@ const ENCS: [RelEnc, string, string][] = [
 ];
 const TITLES: Record<Page, string> = {
   main: 'MIDI map', port: 'Input port', event: 'Event type', control: 'Control type', encoder: 'Encoder',
-  channel: 'Channel', range: 'Range', feedback: 'Feedback port', cond: 'Condition',
+  channel: 'Channel', range: 'Range', feedback: 'Feedback port', cond: 'Condition', preset: 'Preset',
 };
 
 /** Подпись условия: Global, Current track (T3), Clip launcher. */
@@ -253,9 +255,32 @@ function render() {
     const status = h('div', 'mm-note', mapped
       ? 'Move a control to remap.'
       : 'Not mapped yet — move a control on your MIDI device or set the fields.');
-    body.replaceChildren(status, section, fbSection);
+    // В самом верху — пресет маппингов (набор под контроллер), «*» — изменён после загрузки.
+    const presetSection = h('div', 'mm-list');
+    presetSection.append(row('Preset', settings.midiPreset ? `${settings.midiPreset}${presetModified() ? ' *' : ''}` : 'None', 'preset'));
+    body.replaceChildren(presetSection, status, section, fbSection);
   } else if (page === 'port') {
     body.replaceChildren(options<string>([['', 'Any'], ...ins.map((d): [string, string] => [d.id, d.name])], cur.input, (v) => patch({ input: v })));
+  } else if (page === 'preset') {
+    // Тап — загрузить (маппинги пресета заменяют все нынешние); ниже — сохранить, переименовать, удалить.
+    const list = options(midiPresets().map((p): [string, string, string] => [p.name, p.name, `${p.mappings.length}`]),
+      settings.midiPreset, (v) => loadMidiPreset(v));
+    const own = settings.midiPreset && settings.midiPreset !== TWISTER_NAME ? settings.midiPreset : '';
+    const actions = h('div', 'mm-list');
+    const act = (label: string, fn: () => void, off = false) => {
+      const el = row(label, '');
+      el.classList.add('mm-act');
+      if (off) el.classList.add('disabled');
+      else el.addEventListener('pointerup', fn);
+      return el;
+    };
+    actions.append(
+      act('Save current as new…', () => openInput(win, `Controller ${midiPresets().length}`, (n) => { saveMidiPreset(n); render(); })),
+      act(own ? `Save to “${own}”` : 'Save to preset', () => { saveMidiPreset(own); render(); }, !own),
+      act('Rename…', () => openInput(win, own, (n) => { renameMidiPreset(own, n); render(); }), !own),
+      act('Delete', () => { deleteMidiPreset(own); render(); }, !own),
+    );
+    body.replaceChildren(list, h('div', 'mm-note', 'Loading a preset replaces all current mappings.'), actions);
   } else if (page === 'cond') {
     // Current track — дорожка, выбранная сейчас (у каждой дорожки свои маппинги).
     const tr = ui.channel === 'track' ? ui.selectedTrack : cur.track;

@@ -207,9 +207,71 @@ export function clearMappings() {
 }
 
 /** Midi Fighter Twister (заводские настройки): энкодеры — CC 0–15 на канале 1, ряд за рядом, как сетка. */
+const twisterKnobs = () => Array.from({ length: 16 }, (_, slot) => fullMapping({ src: { type: 'cc', ch: 0, num: slot }, target: { kind: 'knob', slot }, control: 'abs' }));
 export function twisterPreset() {
-  const knobs = Array.from({ length: 16 }, (_, slot) => fullMapping({ src: { type: 'cc', ch: 0, num: slot }, target: { kind: 'knob', slot }, control: 'abs' }));
+  const knobs = twisterKnobs();
   store([...knobs, ...settings.mappings.filter((m) => m.target.kind !== 'knob' && !knobs.some((k) => sameSource(k.src, m.src)))]);
+}
+
+// ---------- Пресеты маппингов (строка Preset в окне MIDI MAP) ----------
+
+/** Набор маппингов под контроллер. Хранится в браузере, общий для всех проектов. */
+export interface MidiPreset { name: string; mappings: MidiMapping[] }
+const PRESET_KEY = 'jambo.midiPresets';
+/** Встроенный пресет (не удаляется). */
+export const TWISTER_NAME = 'Midi Fighter Twister';
+let presetList: MidiPreset[] = (() => {
+  try {
+    const l = JSON.parse(localStorage.getItem(PRESET_KEY) ?? '[]');
+    return Array.isArray(l) ? l.map((p: MidiPreset) => ({ name: p.name, mappings: (p.mappings ?? []).map((m) => fullMapping(m)) })) : [];
+  } catch { return []; }
+})();
+const storePresets = () => { try { localStorage.setItem(PRESET_KEY, JSON.stringify(presetList)); } catch { /* хранилище недоступно */ } };
+
+/** Пресеты: встроенный Twister и сохранённые. */
+export const midiPresets = (): MidiPreset[] => [{ name: TWISTER_NAME, mappings: twisterKnobs() }, ...presetList];
+
+/** Загрузить пресет: его маппинги заменяют все нынешние. */
+export function loadMidiPreset(name: string) {
+  const p = midiPresets().find((x) => x.name === name);
+  if (!p) return;
+  saveSettings({ midiPreset: p.name });
+  store(p.mappings.map((m) => ({ ...m })));
+}
+
+/** Сохранить нынешние маппинги пресетом (то же имя — перезаписать). */
+export function saveMidiPreset(name: string) {
+  const n = name.trim().slice(0, 32);
+  if (!n || n === TWISTER_NAME) return;
+  const p = { name: n, mappings: settings.mappings.map((m) => ({ ...m })) };
+  const k = presetList.findIndex((x) => x.name === n);
+  if (k >= 0) presetList[k] = p; else presetList.push(p);
+  storePresets();
+  saveSettings({ midiPreset: n });
+  learnChanged();
+}
+
+export function renameMidiPreset(from: string, to: string) {
+  const n = to.trim().slice(0, 32);
+  const p = presetList.find((x) => x.name === from);
+  if (!p || !n || n === TWISTER_NAME || presetList.some((x) => x !== p && x.name === n)) return;
+  p.name = n;
+  storePresets();
+  if (settings.midiPreset === from) saveSettings({ midiPreset: n });
+  learnChanged();
+}
+
+export function deleteMidiPreset(name: string) {
+  presetList = presetList.filter((x) => x.name !== name);
+  storePresets();
+  if (settings.midiPreset === name) saveSettings({ midiPreset: '' });
+  learnChanged();
+}
+
+/** Маппинги изменены после загрузки или сохранения пресета (в строке Preset — «*»). */
+export function presetModified(): boolean {
+  const p = midiPresets().find((x) => x.name === settings.midiPreset);
+  return !!p && JSON.stringify(p.mappings) !== JSON.stringify(settings.mappings);
 }
 
 // ---------- Ручки ----------

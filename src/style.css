@@ -760,3 +760,7 @@ html, body {
 .master-panel .vbar-val { display: none; }
 /* Кнопка LFO/ENV, назначенного на ручку под пальцем, — белый контур. */
 .btn.mod-src { box-shadow: inset 0 0 0 2px var(--text); }
+/* Пресеты маппингов: действия — голубым, недоступные — серым. Поле ввода имени — поверх окна MIDI MAP. */
+.mm-row.mm-act .mm-label { color: var(--accent); }
+.mm-row.mm-act.disabled .mm-label { color: var(--off); }
+.popup:has(> .popup-box.rename) { z-index: 70; }

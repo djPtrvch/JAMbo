@@ -59,12 +59,14 @@ export interface Settings {
   /** Куда идут ноты: выбранная дорожка или канал N → дорожка N. */
   noteRoute: 'selected' | 'channel';
   mappings: MidiMapping[];
+  /** Имя пресета маппингов, загруженного последним ('' — нет). */
+  midiPreset: string;
 }
 
 const KEY = 'jambo.settings';
 const DEFAULTS: Settings = {
   sampleRate: 0, bufferSize: 0, background: true, outputId: '', inputId: '',
-  midiIn: '', midiFeedback: '', noteChannel: 0, noteRoute: 'selected', mappings: [],
+  midiIn: '', midiFeedback: '', noteChannel: 0, noteRoute: 'selected', mappings: [], midiPreset: '',
 };
 
 /** Маппинг с недостающими полями (старые настройки: общий режим энкодеров knobMode). */
