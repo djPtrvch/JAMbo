@@ -684,3 +684,23 @@ html, body {
 /* Пресеты EQ: окно над нижней строкой EQ, длинный список прокручивается. */
 .popup-box.eq-presets { max-height: 420px; }
 .eq-presets .preset-grid { min-height: 56px; }
+
+/* MIDI LEARN: полоса внизу (над пианороллом), цель — голубая рамка, назначенные — голубой пунктир. */
+.learn-bar {
+  position: fixed; left: 50%; bottom: 8px; transform: translateX(-50%); z-index: 60;
+  display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 14px;
+  background: var(--panel); border: 2px solid var(--accent); border-radius: var(--radius);
+  max-width: calc(100vw - 32px); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6);
+}
+.learn-bar.hidden { display: none; }
+.learn-text { font-size: 12px; font-weight: 600; letter-spacing: 0.04em; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.learn-btn { height: 34px; min-width: 64px; padding: 0 10px; font-size: 11px; flex: none; }
+.learn-btn.disabled { opacity: 0.35; }
+.midi-mapped { outline: 2px dashed var(--accent); outline-offset: -2px; }
+.midi-target { outline: 3px solid var(--accent); outline-offset: -3px; }
+.midi-menu .settings-choice:has(> :nth-child(17)) { grid-auto-flow: row; grid-template-columns: repeat(9, 1fr); }
+.midi-maps { max-height: 220px; grid-auto-rows: 40px; flex: none; }
+.midi-map { display: grid; grid-template-columns: 1fr 1fr 40px; align-items: center; gap: 6px; padding-left: 10px; background: var(--panel-2); border-radius: 6px; font-size: 12px; }
+.midi-map-src { color: var(--dim); font-variant-numeric: tabular-nums; }
+.midi-map-dst { font-weight: 600; letter-spacing: 0.04em; }
+.midi-map .midi-map-del { height: 40px; min-height: 0; }
