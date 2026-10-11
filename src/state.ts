@@ -1535,8 +1535,13 @@ export function setCrossfade(pos: number) {
 }
 
 export function switchWithTransition(next: Doc) {
-  // Играющим считается не остановленный паттерн, в котором есть триги.
-  const old = doc.tracks.map((t) => ({ playing: !t.stopped && t.pages.some((pg) => pg.some((st) => st.on)), pattern: takePattern(t), row: t.slot }));
+  // В PREV ложатся все старые паттерны с тригами; играть продолжают только те, что звучали
+  // (идёт проигрывание и дорожка не остановлена), остальные стоят незапущенными.
+  // Дорожка, которая ждала остановки, тоже остаётся стоять.
+  const old = doc.tracks.map((t, i) => {
+    const trigs = t.pages.some((pg) => pg.some((st) => st.on));
+    return { trigs, playing: ui.playing && !t.stopped && rt.queued[i] !== 'stop' && trigs, pattern: takePattern(t), row: t.slot };
+  });
   const from = takeGlobals(doc);
   const tr: Transition = { hidden: [], origSlot: [], hiddenScene: next.scenes[LAST], real: [] };
   transitionMoves.length = 0;
@@ -1544,12 +1549,12 @@ export function switchWithTransition(next: Doc) {
     const rows = rowsOf(t);
     tr.hidden[i] = rows[LAST];
     tr.origSlot[i] = t.slot;
-    const playing = old[i].playing;
-    tr.real[i] = playing;
-    const prev = playing ? old[i].pattern : emptyLike(takePattern(t));
+    const { playing, trigs } = old[i];
+    tr.real[i] = trigs;
+    const prev = trigs ? old[i].pattern : emptyLike(takePattern(t));
     setRows(t, [...rows.slice(0, LAST), prev], LAST);
     t.stopped = !playing;
-    if (playing) transitionMoves.push({ track: i, from: old[i].row });
+    if (trigs) transitionMoves.push({ track: i, from: old[i].row });
   });
   next.scenes = [...next.scenes.slice(0, LAST), { name: 'PREV', repeats: 0 }];
   const to = takeGlobals(next);
@@ -1589,14 +1594,16 @@ export function docForSave(): Doc {
 }
 
 /**
- * Каждый кадр: закончить переход, когда ни одна дорожка не стоит на старом паттерне строки PREV
- * (все перешли на паттерны нового проекта) и ничего не ждёт запуска из PREV. Остановленный
- * старый паттерн остаётся в PREV — его можно запустить снова.
+ * Каждый кадр: закончить переход (строка PREV уступает место строке 8 нового проекта), когда
+ * кроссфейдер доведён до NEW, ни одна дорожка не играет старый паттерн из PREV и ничего не ждёт
+ * запуска из PREV. До этого старые паттерны остаются в PREV — их можно запускать снова.
  */
 export function updateTransition() {
   const tr = transition;
   if (!tr) return;
-  const busy = doc.tracks.some((t, i) => (tr.real[i] && t.slot === LAST && slotFilled(t, LAST)) || rt.queued[i] === LAST) || rt.scene?.row === LAST || rt.sceneQueued === LAST;
+  const busy = xfade !== null
+    || doc.tracks.some((t, i) => (tr.real[i] && t.slot === LAST && !t.stopped && slotFilled(t, LAST)) || rt.queued[i] === LAST)
+    || rt.scene?.row === LAST || rt.sceneQueued === LAST;
   if (busy) return;
   unshiftDoc(doc, tr);
   transition = null;
