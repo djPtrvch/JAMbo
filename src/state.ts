@@ -181,6 +181,8 @@ export interface Ui {
   patternView: boolean;
   /** Центр экрана: эквалайзер выбранной дорожки или мастера. */
   eqView: boolean;
+  /** Редактор сэмпла (удержание окна сэмпла) на месте центра экрана, как EQ. */
+  sampleView: boolean;
   /** Выбранная полоса EQ (−1 — нет). */
   eqBand: number;
   /** Включён режим MORPH (временные изменения ручек). */
@@ -300,6 +302,7 @@ export const ui: Ui = {
   pressedKeys: new Map(),
   patternView: false,
   eqView: false,
+  sampleView: false,
   morph: false,
   eqBand: -1,
   lfoPreviewUntil: 0,
@@ -1165,6 +1168,21 @@ export function addSamplesQuiet(i: number, keys: string[]) {
   edit(() => { addItems(i, keys.map((sample) => ({ sample }))); f.index = index < 0 ? f.index : index; });
 }
 
+/**
+ * Редактор сэмпла: отредактированная копия (newKey) встаёт на дорожку вместо oldKey — и в папке
+ * на его место (UNDO возвращает исходный).
+ */
+export function replaceSample(i: number, oldKey: string, newKey: string) {
+  edit(() => {
+    const t = doc.tracks[i];
+    const f = doc.folders[i];
+    const k = f.items.findIndex((it) => 'sample' in it && it.sample === oldKey);
+    if (k >= 0) { f.items[k] = { sample: newKey }; f.index = k; }
+    else addItems(i, [{ sample: newKey }]);
+    t.sample = newKey;
+  });
+}
+
 /** Стрелки: соседний звук папки на дорожку. */
 export function stepFolder(i: number, dir: 1 | -1) {
   const f = doc.folders[i];
@@ -1240,10 +1258,11 @@ export const selectedBand = (): EqBand | null => (ui.eqBand >= 0 ? eqTarget().ba
 const clampN = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
 /** Кнопки PATTERNS и EQ переключают центр экрана (одновременно открыт только один вид). */
-export function toggleView(v: 'patterns' | 'eq') {
-  const open = v === 'patterns' ? !ui.patternView : !ui.eqView;
+export function toggleView(v: 'patterns' | 'eq' | 'sample') {
+  const open = v === 'patterns' ? !ui.patternView : v === 'eq' ? !ui.eqView : !ui.sampleView;
   ui.patternView = v === 'patterns' && open;
   ui.eqView = v === 'eq' && open;
+  ui.sampleView = v === 'sample' && open;
 }
 
 /** Новая bell-полоса (двойной тап по пустому месту); −1, если мест нет. */

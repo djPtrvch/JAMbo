@@ -19,6 +19,7 @@
 import { DELAY_DIVS, OVER_PEAK, SYNTH_ENGINES, synthEngine, PARAM_BY_ID, RATIOS, VOL_DEF_DB, volGain, SAMPLE_ROOT, TRACK_COUNT, filterFreq, fromNorm } from '../params';
 import { addSamplesQuiet, addSamplesToFolder, doc, setStepSound, liveFx, liveMaster, liveMixer, modulatedNorm, ui } from '../state';
 import { detectRoot } from './pitch';
+import { encodeWav } from './wav';
 import { settings } from '../settings';
 import { getSample, putSample, sampleKey, type SampleRecord } from '../storage';
 import { EqChain } from './eq';
@@ -793,6 +794,44 @@ export function samplePeaks(key: string, n = 160): Float32Array[] | null {
   if (max > 0) for (const o of out) for (let i = 0; i < n; i++) o[i] /= max;
   peaks.set(key, out);
   return out;
+}
+
+// ---------- Редактор сэмпла ----------
+
+/** Декодированный сэмпл (редактор сэмпла). */
+export const sampleBuffer = (key: string): AudioBuffer | null => buffers.get(key) ?? null;
+
+/**
+ * Отредактированный сэмпл (TRIM, NORMALIZE, MONO): каналы data → новый сэмпл (WAV 24 бит, ключ по
+ * содержимому, хранится в браузере), имя и высота — как у исходного from.
+ */
+export async function addEditedSample(from: string, data: Float32Array[], rate: number): Promise<string> {
+  const c = ensureCtx();
+  const buf = c.createBuffer(data.length, data[0].length, rate);
+  data.forEach((d, ch) => buf.copyToChannel(d as Float32Array<ArrayBuffer>, ch));
+  const bytes = encodeWav(buf);
+  const key = await sampleKey(bytes);
+  if (!buffers.has(key)) {
+    buffers.set(key, buf);
+    await putSample({ key, name: doc.files[from] ?? 'sample.wav', bytes });
+  }
+  doc.files[key] = doc.files[from] ?? 'sample.wav';
+  if (typeof doc.roots[from] === 'number') doc.roots[key] = doc.roots[from];
+  return key;
+}
+
+/** Сэмпл WAV-файлом (SAVE в редакторе): на iPad — в «Файлы». */
+export function downloadSample(key: string) {
+  const buf = buffers.get(key);
+  if (!buf) return;
+  const url = URL.createObjectURL(new Blob([encodeWav(buf)], { type: 'audio/wav' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${(doc.files[key] ?? 'sample').replace(/\.[^.]+$/, '').replace(/[^\w\- ]+/g, '_') || 'sample'}.wav`;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
 }
 
 /** Сэмпл стерео (для индикации в окне сэмпла). */
