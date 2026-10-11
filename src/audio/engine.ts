@@ -19,6 +19,7 @@
 import { DELAY_DIVS, OVER_PEAK, SYNTH_ENGINES, synthEngine, PARAM_BY_ID, RATIOS, VOL_DEF_DB, volGain, SAMPLE_ROOT, TRACK_COUNT, filterFreq, fromNorm } from '../params';
 import { addSamplesQuiet, addSamplesToFolder, doc, setStepSound, liveFx, liveMaster, liveMixer, modulatedNorm, ui } from '../state';
 import { detectRoot } from './pitch';
+import { settings } from '../settings';
 import { getSample, putSample, sampleKey, type SampleRecord } from '../storage';
 import { EqChain } from './eq';
 
@@ -136,10 +137,49 @@ const MAX_DELAY = 9;
 /** Создать контекст (на паузе, пока его не включит касание). */
 function ensureCtx(): AudioContext {
   if (ctx) return ctx;
-  ctx = new AudioContext({ latencyHint: 'interactive' });
+  // Настройки AUDIO ENGINE: частота дискретизации и буфер (как подсказка задержки).
+  const opts: AudioContextOptions = { latencyHint: 'interactive' };
+  if (settings.sampleRate) opts.sampleRate = settings.sampleRate;
+  if (settings.bufferSize) opts.latencyHint = settings.bufferSize / (settings.sampleRate || 48000);
+  try { ctx = new AudioContext(opts); } catch { ctx = new AudioContext({ latencyHint: 'interactive' }); }
   buildGraph(ctx);
   loadSynth(ctx);
+  void applyOutput();
   return ctx;
+}
+
+/** Выход SETTINGS → OUTPUT (там, где браузер умеет выбирать выход: AudioContext.setSinkId). */
+export const canChooseOutput = () => 'setSinkId' in AudioContext.prototype;
+export async function applyOutput() {
+  const c = ctx as (AudioContext & { setSinkId?: (id: string) => Promise<void> }) | null;
+  if (!c?.setSinkId) return;
+  try { await c.setSinkId(settings.outputId); } catch (e) { console.error('output', e); }
+}
+
+/**
+ * Пересоздать аудиоконтекст с новыми настройками (частота, буфер): весь граф строится заново,
+ * сэмплы остаются в памяти, синты загружаются в новый контекст. Вызывать из касания (iOS).
+ */
+export async function restartAudio() {
+  const old = ctx;
+  if (!old) return;
+  ctx = null;
+  voices.length = 0;
+  synths.fill(null);
+  synthCpu.fill(0);
+  wasmBytes = null;
+  scopePre = scopePost = null;
+  scopeOn = null;
+  fxSig = '';
+  irSig = '';
+  unlockAudio();
+  await old.close().catch(() => {});
+}
+
+/** Фактические параметры звука для SETTINGS. */
+export function audioInfo() {
+  const c = ctx;
+  return { state: c?.state ?? 'none', sampleRate: c?.sampleRate ?? 0, baseLatency: c?.baseLatency ?? 0, outputLatency: (c as AudioContext & { outputLatency?: number })?.outputLatency ?? 0 };
 }
 
 /**
@@ -186,11 +226,17 @@ function unmuteHtmlAudio() {
     htmlAudio.preload = 'auto';
     htmlAudio.loop = true;
     htmlAudio.src = silentWavUrl();
+    // BACKGROUND: со включённой настройкой звук играет и в фоне (iOS не глушит страницу, пока
+    // играет HTML-аудио); без неё при сворачивании звук останавливается.
     document.addEventListener('visibilitychange', () => {
-      if (document.hidden) htmlAudio?.pause();
+      if (!document.hidden) { void ctx?.resume().catch(() => {}); return; }
+      if (settings.background) return;
+      htmlAudio?.pause();
+      void ctx?.suspend().catch(() => {});
     });
+    if ('mediaSession' in navigator) navigator.mediaSession.metadata = new MediaMetadata({ title: 'JAMbo', artist: 'Groovebox' });
   }
-  if (htmlAudio.paused && !document.hidden) void htmlAudio.play().catch(() => { /* повторим на следующем касании */ });
+  if (htmlAudio.paused && (!document.hidden || settings.background)) void htmlAudio.play().catch(() => { /* повторим на следующем касании */ });
 }
 
 /** Состояние звука для подсказки на экране: running, suspended, interrupted или none. */
