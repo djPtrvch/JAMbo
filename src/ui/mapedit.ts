@@ -1,10 +1,10 @@
 // Окно MIDI MAP (как в Drambo): плавающее, перетаскивается за заголовок, не закрывает экран.
 // Открывается двойным тапом по ручке или кнопке в режиме MIDI LEARN (тап по другой цели, пока окно
 // открыто, переключает окно на неё) или тапом по строке в списке маппингов меню MIDI.
-// Строки: Port (вход), Event type (CC / Note), Number (ввод числом), Control type, Encoder (у Continuous
-// relative), Channel (1–16), Range (график: концы тянут вверх-вниз, Invert), Feedback port.
+// Строки: Number (ввод числом), Channel (1–16), Event type (CC / Note), Control type, Encoder (у Continuous
+// relative), Range (график: концы тянут вверх-вниз, Invert); ниже Feedback port и Input port (вход).
 // Строка с «›» открывает выбор на месте списка (стрелка назад — обратно). Движение контроллера,
-// пока окно открыто, задаёт Port, Event type, Number и Channel сразу.
+// пока окно открыто, задаёт Number, Channel, Event type и Input port сразу.
 // Unmap снимает маппинг, ✕ закрывает окно.
 
 import {
@@ -40,7 +40,7 @@ const ENCS: [RelEnc, string, string][] = [
   ['signed', 'Signed bit', '1 up · 65 down'],
 ];
 const TITLES: Record<Page, string> = {
-  main: 'MIDI map', port: 'Port', event: 'Event type', control: 'Control type', encoder: 'Encoder',
+  main: 'MIDI map', port: 'Input port', event: 'Event type', control: 'Control type', encoder: 'Encoder',
   channel: 'Channel', range: 'Range', feedback: 'Feedback port',
 };
 
@@ -232,17 +232,18 @@ function render() {
     const ctl = CONTROLS.find(([c]) => c === cur.control)![1];
     const fb = cur.port === 'none' ? 'None' : cur.port ? name(outs, cur.port) : `Default (${defOut})`;
     const section = h('div', 'mm-list');
+    // Порядок: номер, канал, тип сообщения, тип управления (и кодировка энкодера), диапазон;
+    // ниже — порты: обратная связь и вход.
     section.append(
-      row('Port', cur.input ? name(ins, cur.input) : 'Any', 'port'),
-      row('Event type', cur.src.type === 'cc' ? 'CC' : 'Note', 'event'),
       numberRow(),
+      row('Channel', String(cur.src.ch + 1), 'channel'),
+      row('Event type', cur.src.type === 'cc' ? 'CC' : 'Note', 'event'),
       row('Control type', ctl, 'control'),
       ...(knob && cur.control === 'rel' ? [row('Encoder', ENCS.find(([e]) => e === cur.enc)![1], 'encoder')] : []),
-      row('Channel', String(cur.src.ch + 1), 'channel'),
       ...(knob ? [row('Range', `${pct(cur.min)} – ${pct(cur.max)} %`, 'range')] : []),
     );
     const fbSection = h('div', 'mm-list');
-    fbSection.append(row('Feedback port', fb, 'feedback'));
+    fbSection.append(row('Feedback port', fb, 'feedback'), row('Input port', cur.input ? name(ins, cur.input) : 'Any', 'port'));
     const status = h('div', 'mm-note', mapped
       ? 'Move a control to remap.'
       : 'Not mapped yet — move a control on your MIDI device or set the fields.');
