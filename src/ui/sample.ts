@@ -502,16 +502,17 @@ function renderMaster(now: number) {
   setClass(limBypassBtn, 'active', doc.limBypass);
   setClass(cmpBypassBtn, 'active', doc.cmpBypass);
   const m = masterLevels(now);
+  // Метры компрессора и лимитера — одной полосой (наибольший из L и R).
   // Компрессор: вход с линией Threshold, GR (Threshold, Ratio, Attack, Release), выход после Makeup.
-  setLevelBar(compBars[0], m.comp, true, fmtDb(pk(m.comp)), dbFrac(liveMaster()['cmp.threshold']));
+  setLevelBar(compBars[0], m.comp, false, fmtDb(pk(m.comp)), dbFrac(liveMaster()['cmp.threshold']));
   // В тишине браузер может отдавать «залипшее» значение reduction — без сигнала GR = 0.
   const silent = (l: Level) => pk(l) < 1e-4;
   setGrBar(compBars[1], doc.cmpBypass || silent(m.comp) ? 0 : Math.min(0, masterReduction()));
-  setLevelBar(compBars[2], m.compOut, true, fmtDb(pk(m.compOut)));
+  setLevelBar(compBars[2], m.compOut, false, fmtDb(pk(m.compOut)));
   // Лимитер: вход после Input, GR, выход с линией Ceiling, пик-холдом и меткой клиппинга.
-  setLevelBar(limBars[0], m.lim, true, fmtDb(pk(m.lim)));
+  setLevelBar(limBars[0], m.lim, false, fmtDb(pk(m.lim)));
   setGrBar(limBars[1], doc.limBypass || silent(m.lim) ? 0 : Math.min(0, limiterReduction()));
-  setLevelBar(limBars[2], m.out, true, fmtDb(pk(m.out)), dbFrac(liveMaster()['lim.ceiling']));
+  setLevelBar(limBars[2], m.out, false, fmtDb(pk(m.out)), dbFrac(liveMaster()['lim.ceiling']));
 }
 
 function renderMix(now: number) {
