@@ -675,3 +675,8 @@ html, body {
 .menu-header { display: flex; align-items: center; gap: 6px; }
 .menu-back { width: 44px; height: 40px; flex: none; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: var(--panel); font-size: 28px; line-height: 1; padding-bottom: 4px; }
 .menu-header .project-title, .menu-header .source-title { flex: 1; min-width: 0; }
+/* Микшер: полосы во всю высоту — метка клиппинга не отдельным рядом, а в верхнем краю полосы
+   (горит красным, только когда был клиппинг). */
+.mix-panel .vbar-col { position: relative; }
+.mix-panel .vbar-clip { position: absolute; top: 0; left: 50%; transform: translateX(-50%); z-index: 1; background: transparent; }
+.mix-panel .vbar-clip.on { background: var(--rec); }
