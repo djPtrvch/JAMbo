@@ -349,21 +349,6 @@ function updateCurve() {
   }
 }
 
-/** Значение спектра (dBFS) на частоте f: максимум по бинам в столбце пикселей. */
-function specAt(data: Float32Array, f0: number, f1: number, binHz: number): number {
-  const i0 = Math.max(1, Math.floor(f0 / binHz));
-  const i1 = Math.min(data.length - 1, Math.floor(f1 / binHz));
-  if (i1 <= i0) {
-    // Низкие частоты: бинов меньше, чем пикселей — интерполяция между соседними бинами.
-    const p = Math.min(data.length - 2, f0 / binHz);
-    const i = Math.floor(p);
-    return data[i] + (data[i + 1] - data[i]) * (p - i);
-  }
-  let m = -Infinity;
-  for (let i = i0; i <= i1; i++) m = Math.max(m, data[i]);
-  return m;
-}
-
 function drawGrid(g: CanvasRenderingContext2D) {
   g.lineWidth = 1;
   for (let d = 10; d <= 10000; d *= 10) {
@@ -388,22 +373,75 @@ function drawGrid(g: CanvasRenderingContext2D) {
   for (const db of [12, 0, -12]) g.fillText(`${db > 0 ? '+' : ''}${db} dB`, 6, yOfGain(db) - 8);
 }
 
+// ---------- Спектр (плавный, как в FabFilter) ----------
+
+/** Шаг столбцов спектра, px. */
+const SPEC_STEP = 3;
+/** Ширина усреднения — 1/6 октавы. */
+const SPEC_BAND = Math.pow(2, 1 / 12);
+/** Спад, dB/с (подъём — сразу). */
+const SPEC_FALL = 30;
+const cumPre = new Float64Array(2049);
+const cumPost = new Float64Array(2049);
+let dispPre = new Float32Array(0);
+let dispPost = new Float32Array(0);
+let specT = 0;
+
+/** Накопленная сумма мощности по бинам (для среднего по полосе). */
+function cumulate(data: Float32Array, cum: Float64Array) {
+  cum[0] = 0;
+  for (let i = 0; i < data.length; i++) cum[i + 1] = cum[i] + Math.pow(10, data[i] / 10);
+}
+
+/** Средняя мощность (dB) между частотами f0 и f1, с долями крайних бинов. */
+function bandDb(cum: Float64Array, f0: number, f1: number, binHz: number): number {
+  const n = cum.length - 1;
+  const at = (f: number) => {
+    const p = Math.min(n, Math.max(0, f / binHz + 0.5));
+    const i = Math.min(n - 1, Math.floor(p));
+    return cum[i] + (cum[i + 1] - cum[i]) * (p - i);
+  };
+  const w = Math.max(1e-3, (f1 - f0) / binHz);
+  return 10 * Math.log10(Math.max(1e-12, (at(f1) - at(f0)) / w));
+}
+
+/** Плавная линия через точки (квадратичные кривые через середины отрезков). */
+function smoothPath(g: CanvasRenderingContext2D, ys: Float32Array, start: boolean) {
+  const n = ys.length;
+  if (start) g.moveTo(0, ys[0]); else g.lineTo(0, ys[0]);
+  for (let i = 1; i < n - 1; i++) {
+    const x = i * SPEC_STEP;
+    g.quadraticCurveTo(x, ys[i], x + SPEC_STEP / 2, (ys[i] + ys[i + 1]) / 2);
+  }
+  g.lineTo((n - 1) * SPEC_STEP, ys[n - 1]);
+}
+
 function drawSpectrum(g: CanvasRenderingContext2D) {
   if (!eqSpectrum(pre, post)) return;
+  const now = performance.now();
+  const dt = Math.min(0.1, (now - specT) / 1000);
+  specT = now;
   const binHz = eqSampleRate() / 4096;
-  const n = Math.ceil(W / STEP) + 1;
+  cumulate(pre, cumPre);
+  cumulate(post, cumPost);
+  const n = Math.ceil(W / SPEC_STEP) + 1;
+  if (dispPre.length !== n) { dispPre = new Float32Array(n).fill(SPEC_BOT); dispPost = new Float32Array(n).fill(SPEC_BOT); }
   const yPre = new Float32Array(n);
   const yPost = new Float32Array(n);
+  const fall = SPEC_FALL * dt;
   for (let i = 0; i < n; i++) {
-    const f0 = freqAt(i * STEP);
-    const f1 = freqAt((i + 1) * STEP);
-    yPre[i] = yOfSpec(Math.max(SPEC_BOT, specAt(pre, f0, f1, binHz)));
-    yPost[i] = yOfSpec(Math.max(SPEC_BOT, specAt(post, f0, f1, binHz)));
+    const f = freqAt(i * SPEC_STEP);
+    const a = Math.max(SPEC_BOT, bandDb(cumPre, f / SPEC_BAND, f * SPEC_BAND, binHz));
+    const b = Math.max(SPEC_BOT, bandDb(cumPost, f / SPEC_BAND, f * SPEC_BAND, binHz));
+    dispPre[i] = a > dispPre[i] ? a : Math.max(a, dispPre[i] - fall);
+    dispPost[i] = b > dispPost[i] ? b : Math.max(b, dispPost[i] - fall);
+    yPre[i] = yOfSpec(dispPre[i]);
+    yPost[i] = yOfSpec(dispPost[i]);
   }
   // После EQ — серая полупрозрачная заливка.
   g.beginPath();
   g.moveTo(0, H);
-  for (let i = 0; i < n; i++) g.lineTo(i * STEP, yPost[i]);
+  smoothPath(g, yPost, false);
   g.lineTo(W, H);
   g.closePath();
   g.fillStyle = color('--dim');
@@ -412,10 +450,11 @@ function drawSpectrum(g: CanvasRenderingContext2D) {
   g.globalAlpha = 1;
   // До EQ — серая линия.
   g.beginPath();
-  for (let i = 0; i < n; i++) (i ? g.lineTo : g.moveTo).call(g, i * STEP, yPre[i]);
+  smoothPath(g, yPre, true);
   g.strokeStyle = color('--dim');
   g.globalAlpha = 0.6;
   g.lineWidth = 1.2;
+  g.lineJoin = 'round';
   g.stroke();
   g.globalAlpha = 1;
 }
