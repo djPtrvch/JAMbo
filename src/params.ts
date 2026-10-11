@@ -140,7 +140,7 @@ export const SYNTH_ENGINES: SynthEngine[] = [
   { name: 'ADDITIVE', full: 'Harmonic', bank: 'synth', decay: false, harm: 'bumps', timbre: 'main harmonic', morph: 'bump shape' },
   { name: 'WAVETABLE', full: 'Wavetable', bank: 'synth', decay: false, harm: 'bank', timbre: 'row', morph: 'column', options: ['A', 'B', 'C', 'D'] },
   { name: 'CHORDS', full: 'Chords', bank: 'synth', decay: false, harm: 'chord type', timbre: 'inversion', morph: 'waveform',
-    options: ['OCT', '5', 'sus4', 'm', 'm7', 'm9', 'm11', '69', 'M9', 'M7', 'M'] },
+    options: ['oct', '5', 'sus4', 'm', 'm7', 'm9', 'm11', '6/9', 'M9', 'M7', 'M'] },
   { name: 'SPEECH', full: 'Vowel & speech', bank: 'synth', decay: false, harm: 'mode', timbre: 'species', morph: 'phoneme / word',
     options: ['Formant', 'SAM', 'LPC', 'Words'] },
   { name: 'SWARM', full: 'Granular cloud', bank: 'drum', decay: false, harm: 'pitch spread', timbre: 'density', morph: 'grain length' },

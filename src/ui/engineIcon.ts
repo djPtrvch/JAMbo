@@ -1,8 +1,7 @@
 // Живая иконка движка — крупно в окне сэмпла слева. Значения — как на ручках:
 // база дорожки, p-lock (зажатый шаг — его значения, при игре — играющего шага), поверх LFO/ENV.
 // Иконка одного цвета: белая в тёмной теме, чёрная в светлой (без подсветки частей).
-// Перерисовка — в общем кадре (requestAnimationFrame); SVG пересобирается, только когда изменились
-// значения или подсветка.
+// Перерисовка — в общем кадре (requestAnimationFrame); SVG пересобирается, только когда изменились значения.
 
 import { iconSvg, type IconParam, type IconValues } from '../engineIcons';
 import { TRACK_GRID, stepIndex, synthEngine, synthGrid, type ParamDef } from '../params';
@@ -42,5 +41,5 @@ export function renderIcon(view: IconView, track: number, now: number) {
   const key = icon ? `${icon.id}|${icon.v.h.toFixed(3)}|${icon.v.t.toFixed(3)}|${icon.v.m.toFixed(3)}|${icon.v.d!.toFixed(3)}` : '';
   if (key === view.key) return;
   view.key = key;
-  view.el.innerHTML = icon ? iconSvg(icon.id, icon.v, null, view.size) : '';
+  view.el.innerHTML = icon ? iconSvg(icon.id, icon.v, view.size) : '';
 }

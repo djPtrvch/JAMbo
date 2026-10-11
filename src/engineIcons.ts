@@ -1,13 +1,13 @@
 // Иконки движков (стиль Ink): перенос docs/icons/engine_icons.js без изменения логики форм.
 // ICONS[id](v) — элементы иконки; v = {h, t, m, d} в 0..1 (h — ручка 1.1, t — 1.2, m — 1.3,
 // у 11–15 m — OUT→AUX, d — Decay 2.2). У элемента g — от каких параметров он зависит ('x' — ни от каких).
-// iconSvg — SVG-строка: без hl все элементы класса w (белые), с hl — o (оранжевые, зависят от hl) и g (серые).
+// iconSvg — SVG-строка одного цвета (currentColor), без подсветки частей.
 // Формулы перенесены как есть (компактная запись источника) — строгие проверки типов для них выключены.
 // @ts-nocheck
 
 export interface IconValues { h: number; t: number; m: number; d?: number; a?: boolean }
 export type IconParam = 'h' | 't' | 'm' | 'd';
-interface El { g: string; d?: string; c?: number[]; fill?: boolean; op?: number }
+interface El { g: string; d?: string; c?: number[]; fill?: boolean; op?: number; dash?: boolean; tx?: string; x?: number; y?: number; size?: number }
 
 const TAU=Math.PI*2, clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v)), f1=n=>n.toFixed(1);
 const pts=(a:number[][])=>'M'+a.map(p=>f1(p[0])+' '+f1(p[1])).join('L');
@@ -123,19 +123,53 @@ Object.assign(ICONS,{
   const els=[{g:'htmd',d:s},{g:'t',d:`M6 ${f1(yc)}H58`,op:.8}];if(x>.05)els.push({g:'htmd',d:sq,op:x});return els;}
 });
 
+// v2: перерисованы VA (0), Chords (6), Particle (10), Hi-hat (15).
+const CHLAB=['oct','5','sus4','m','m7','m9','m11','6/9','M9','M7','M'];
+Object.assign(ICONS,{
+0:v=>{const L=26,w=.1+.4*v.t,r=.5+.45*v.m,L2=L*(1-.4*v.h),els=[];
+  for(let k=0;k<3;k++)els.push({g:'x',d:`M${6+k*L} 4V60`,op:.3,dash:true});
+  els.push({g:'t',d:pts(fx(6,58,200,x=>{const p=((x-6)/L)%1;return p<w?8:26;}))});
+  els.push({g:'hm',d:pts(fx(6,58,200,x=>{const p=((x-6)/L2)%1,val=p<r?p/r:(1-p)/(1-r);return 56-18*val;}))});
+  return els;},
+6:v=>{const idx=Math.min(10,Math.floor(v.h*11)),k=Math.min(3,Math.floor(v.t*4));let n=CHORDS[idx].slice();
+  for(let i=0;i<k;i++){n.sort((a,b)=>a-b);n.push(n.shift()+12);}n.sort((a,b)=>a-b);
+  const els=n.map((nn,i)=>dot(9+(i%2)*13,clamp(57-nn*1.3,6,57),2,'ht'));
+  els.push({g:'h',tx:CHLAB[idx],x:47,y:26,size:12});
+  els.push({g:'m',d:pts(fx(34,60,70,(x,u)=>{let s=0,nm=0;const p=2-1.6*v.m;for(let q=1;q<=6;q++){s+=Math.sin(TAU*q*u)/Math.pow(q,p);nm+=1/Math.pow(q,p);}return 47-9*s/nm*1.3;}))});
+  els.push({g:'x',d:'M34 47H60',op:.3});return els;},
+10:v=>{const R=rnd(17),N=3+Math.round(v.t*9),rx=[],ry=[],els=[];for(let i=0;i<14;i++){rx.push(R());ry.push(R());}
+  for(let j=0;j<N;j++){const c=j%4,r=Math.floor(j/4),x=clamp(11+c*14+(rx[j]-.5)*v.h*22,5,59),y=clamp(16+r*14+(ry[j]-.5)*v.h*16,5,59);
+    els.push(dot(x,y,1.8,'ht'));
+    if(v.m<.5){const k=(.5-v.m)*2;if(k>.05){els.push(ring(x,y,2.8+k*2.2,'m'));els.push(ring(x,y,4.5+k*3.5,'m',.5));}}
+    else{const k=(v.m-.5)*2;if(k>.05){const len=4+k*10;els.push({g:'m',d:pts(fx(x+3,x+3+len,24,(xx,u)=>y+2.4*Math.sin(TAU*2.5*u)*(1-u)))});}}}
+  return els;},
+15:v=>{const d=dd(v),x=v.m,R=rnd(13),g=1+d*11,rx=22,ry=4.2,cyT=33-g/2,cyB=39+g/2,els=[];
+  const ell=cy=>`M${32-rx} ${f1(cy)}a${rx} ${ry} 0 1 0 ${2*rx} 0a${rx} ${ry} 0 1 0 ${-2*rx} 0`;
+  els.push({g:'d',d:ell(cyB)},{g:'d',d:ell(cyT)},{g:'x',d:`M32 ${f1(cyB+ry)}V61`},{g:'d',d:`M32 ${f1(cyT-ry)}V${f1(cyT-ry-3)}`});
+  const n=3+Math.round(v.t*6),L=lerp(14,7,v.t),PA=[-140,-90,-40];let rd='';
+  for(let i=0;i<n;i++){const uni=-160+140*(i+.5)/n,pair=PA[Math.min(2,Math.floor(i*3/n))]+((i%2)?6:-6),th=lerp(uni,pair,x)*Math.PI/180,
+    ox=32+rx*.8*Math.cos(th),oy=cyT-ry-0.5+ry*Math.sin(th)*.6,ang=-Math.PI/2+(th+Math.PI/2)*.45,jx=(R()-.5)*v.h*3;
+    for(let j=0;j<4;j++){if(j>0&&R()<v.h*.6)continue;const a0=j/4*L,a1=(j+1-.7*v.h)/4*L;
+      rd+=`M${f1(ox+jx+Math.cos(ang)*a0)} ${f1(oy+Math.sin(ang)*a0)}L${f1(ox+jx+Math.cos(ang)*a1)} ${f1(oy+Math.sin(ang)*a1)}`;}}
+  els.push({g:'htm',d:rd});return els;}
+});
+
 /** Иконки: 0–15 — движки Plaits, 's' — сэмпл. */
 export const ICON_IDS = [...Array.from({ length: 16 }, (_, i) => String(i)), 's'];
 
-const match = (g: string, hl: IconParam | null) => !!hl && g.indexOf(hl) >= 0;
+/** Толщина линии иконок (в источнике 1.8; в приложении чуть тоньше). */
+export const ICON_STROKE = 1.4;
 
-export function iconSvg(id: string, v: IconValues, hl: IconParam | null, size: number): string {
+/** SVG-строка иконки: один цвет (currentColor — цвет темы), изменения видны только по форме. */
+export function iconSvg(id: string, v: IconValues, size: number): string {
   const parts: string[] = [];
   for (const e of ICONS[id](v)) {
-    const cls = hl ? (match(e.g, hl) ? 'o' : 'g') : 'w';
     const op = e.op != null ? ` opacity="${e.op.toFixed(2)}"` : '';
+    const da = e.dash ? ' stroke-dasharray="2 2.4"' : '';
     const fill = e.fill ? 'currentColor' : 'none';
-    if (e.c) parts.push(`<circle class="${cls}" cx="${f1(e.c[0])}" cy="${f1(e.c[1])}" r="${e.c[2]}" fill="${fill}"${op}/>`);
-    else parts.push(`<path class="${cls}" d="${e.d}" fill="${fill}"${op}/>`);
+    if (e.tx) parts.push(`<text x="${e.x}" y="${e.y}" font-size="${e.size || 10}" font-weight="600" font-family="DejaVu Sans Mono,monospace" text-anchor="middle" fill="currentColor" stroke="none">${e.tx}</text>`);
+    else if (e.c) parts.push(`<circle cx="${f1(e.c[0])}" cy="${f1(e.c[1])}" r="${e.c[2]}" fill="${fill}"${op}/>`);
+    else parts.push(`<path d="${e.d}" fill="${fill}"${op}${da}/>`);
   }
-  return `<svg viewBox="0 0 64 64" width="${size}" height="${size}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${parts.join('')}</svg>`;
+  return `<svg class="w" viewBox="0 0 64 64" width="${size}" height="${size}" stroke="currentColor" stroke-width="${ICON_STROKE}" stroke-linecap="round" stroke-linejoin="round" style="color:inherit">${parts.join('')}</svg>`;
 }
