@@ -16,7 +16,7 @@ import { buildLearnBar, renderLearn } from './ui/learn';
 import { buildPages, renderPages } from './ui/pages';
 import { buildPatternGrid, renderPatternGrid } from './ui/patterns';
 import { buildPiano, buildProgression, press, renderPiano } from './ui/piano';
-import { buildMeter, renderMeter } from './ui/meter';
+import { buildMeter, renderMeter, tickMeter } from './ui/meter';
 import { buildSample, buildSampleNav, renderSample } from './ui/sample';
 import { buildSequencer, renderSequencer } from './ui/sequencer';
 import { buildTopbar, renderTopbar } from './ui/topbar';
@@ -118,6 +118,7 @@ function frame(now: number) {
   renderLearn();
   sendFeedback(now);
   if (!ui.patternView) renderMeter(now);
+  else tickMeter(now);
   busy += performance.now() - t0;
   renderCpu(now);
   requestAnimationFrame(frame);

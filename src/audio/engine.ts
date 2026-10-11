@@ -846,6 +846,8 @@ export interface Level {
   r: number;
   /** Громкость LUFS (momentary, ~400 мс), -Infinity — тишина. */
   lufs: number;
+  /** Интегральная громкость LUFS с последнего сброса (BS.1770: пороги −70 LUFS и −10 LU). */
+  lufsI: number;
   /** Была перегрузка (≥ 0 dBFS) за последние 2 с — метка клиппинга. */
   clip: boolean;
   /** Пик-холд по каналам: держится ~1,5 с, потом плавно спадает. */
@@ -854,6 +856,10 @@ export interface Level {
   /** Максимальный пик с последнего сброса (число над метром, тап — сброс). */
   max: number;
 }
+
+/** Интегральная громкость: абсолютный порог и корзины по 0,1 LU от него до +10 LUFS. */
+const INT_ABS_GATE = -70;
+const INT_BINS = 800;
 
 /** Измеритель: пики по каналам и (по желанию) K-взвешенная громкость. */
 class Meter {
@@ -868,6 +874,38 @@ class Meter {
   private clipUntil = 0;
   private lufsCache = -Infinity;
   private lufsAt = 0;
+  /**
+   * Интегральная громкость: блоки (~400 мс, каждые 100 мс — перекрытие 75%) выше −70 LUFS
+   * копятся по корзинам 0,1 LU (число и энергия) — память не растёт со временем.
+   */
+  private binN = new Float64Array(INT_BINS);
+  private binE = new Float64Array(INT_BINS);
+  private lufsI = -Infinity;
+
+  /** Сброс интегральной громкости (тап по LUFS, смена канала измерителя). */
+  resetIntegrated() {
+    this.binN.fill(0);
+    this.binE.fill(0);
+    this.lufsI = -Infinity;
+  }
+
+  private integrate(energy: number) {
+    const l = energy > 1e-10 ? -0.691 + 10 * Math.log10(energy) : -Infinity;
+    if (l <= INT_ABS_GATE) return;
+    const b = Math.min(INT_BINS - 1, Math.floor((l - INT_ABS_GATE) * 10));
+    this.binN[b]++;
+    this.binE[b] += energy;
+    // Относительный порог: средняя громкость блоков выше −70 LUFS минус 10 LU.
+    let n = 0;
+    let e = 0;
+    for (let i = 0; i < INT_BINS; i++) { n += this.binN[i]; e += this.binE[i]; }
+    const rel = -0.691 + 10 * Math.log10(e / n) - 10;
+    const from = Math.max(0, Math.ceil((rel - INT_ABS_GATE) * 10));
+    n = 0;
+    e = 0;
+    for (let i = from; i < INT_BINS; i++) { n += this.binN[i]; e += this.binE[i]; }
+    this.lufsI = n ? -0.691 + 10 * Math.log10(e / n) : -Infinity;
+  }
 
   constructor(c: AudioContext, src: AudioNode, lufs: boolean) {
     const split = c.createChannelSplitter(2);
@@ -934,15 +972,16 @@ class Meter {
         sum += ms / this.kbuf.length;
       }
       this.lufsCache = sum > 1e-10 ? -0.691 + 10 * Math.log10(sum) : -Infinity;
+      this.integrate(sum);
     }
     return {
-      l: this.disp[0], r: this.disp[1], lufs: this.lufsCache, clip: now < this.clipUntil,
+      l: this.disp[0], r: this.disp[1], lufs: this.lufsCache, lufsI: this.lufsI, clip: now < this.clipUntil,
       holdL: this.hold[0], holdR: this.hold[1], max: this.max,
     };
   }
 }
 
-const SILENT: Level = { l: 0, r: 0, lufs: -Infinity, clip: false, holdL: 0, holdR: 0, max: 0 };
+const SILENT: Level = { l: 0, r: 0, lufs: -Infinity, lufsI: -Infinity, clip: false, holdL: 0, holdR: 0, max: 0 };
 
 /** Снижение громкости дорожки от sidechain, дБ (≤ 0). */
 export function trackDuckDb(i: number): number {
@@ -963,6 +1002,12 @@ export function masterLevels(now: number): { comp: Level; compOut: Level; lim: L
     comp: mst.compMeter.read(now), compOut: mst.compOutMeter.read(now),
     lim: mst.limMeter.read(now), out: mst.outMeter.read(now),
   };
+}
+
+/** Сброс интегральной громкости измерителя справа: дорожка i или выход мастера ('master'). */
+export function resetLoudness(ch: number | 'master') {
+  if (ch === 'master') mst?.outMeter.resetIntegrated();
+  else tracks[ch]?.meter.resetIntegrated();
 }
 
 /** Снижение усиления лимитера (дБ, ≤ 0). */

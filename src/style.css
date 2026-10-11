@@ -756,3 +756,4 @@ html, body {
 .eq-tool.disabled { opacity: 0.35; }
 .eq-tool.busy { opacity: 0.6; }
 .sedit .eq-canvas { touch-action: none; }
+.meter-lufs { cursor: pointer; padding: 4px 0; margin: -4px 0; }

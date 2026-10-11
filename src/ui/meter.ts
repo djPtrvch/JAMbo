@@ -1,9 +1,11 @@
 // Измеритель уровня в правом краю (сбоку от миниатюр страниц и кнопок).
 // Показывает выбранную дорожку, а при выбранных MIX или MST — общий выход мастера после лимитера.
 // Стерео — две полосы, моно — одна; шкала в dB, пик-холд (~1,5 с), метка клиппинга сверху,
-// выше 0 dB полоса красная. Снизу пик в dB, сверху громкость в LUFS.
+// выше 0 dB полоса красная. Снизу пик в dB, сверху интегральная громкость в LUFS (как в Grand
+// Finale): копится с последнего сброса; тап по числу — сброс (отсчёт заново, сначала — как
+// моментальная). Сброс и при смене канала измерителя.
 
-import { masterLevels, trackIsStereo, trackLevel, type Level } from '../audio/engine';
+import { masterLevels, resetLoudness, trackIsStereo, trackLevel, type Level } from '../audio/engine';
 import { OVER_PEAK } from '../params';
 import { ui } from '../state';
 import { h, setAttr, setClass, setText } from './dom';
@@ -28,7 +30,8 @@ export const fmtLufs = (l: number) => (Number.isFinite(l) ? l.toFixed(1) : '−�
 
 export function buildMeter(): HTMLElement {
   const el = h('div', 'meter');
-  lufsText = h('div', 'meter-text');
+  lufsText = h('div', 'meter-text meter-lufs');
+  lufsText.addEventListener('pointerdown', (e) => { e.preventDefault(); resetLoudness(source()); });
   dbText = h('div', 'meter-text');
   clipMark = h('div', 'vbar-clip');
   const box = h('div', 'meter-bars');
@@ -49,9 +52,25 @@ export function buildMeter(): HTMLElement {
   return el;
 }
 
+/** Что показывает измеритель: дорожка или выход мастера (при MIX и MST). */
+const source = (): number | 'master' => (ui.channel === 'track' ? ui.selectedTrack : 'master');
+let shown: number | 'master' | null = null;
+
+/** Уровень показанного канала; при смене канала интегральная громкость считается заново. */
+function measure(now: number): Level {
+  const src = source();
+  if (src !== shown) { shown = src; resetLoudness(src); }
+  return src === 'master' ? masterLevels(now).out : trackLevel(src, now);
+}
+
+/** Измеритель скрыт (сетка паттернов) — громкость всё равно копится. */
+export function tickMeter(now: number) {
+  measure(now);
+}
+
 export function renderMeter(now: number) {
   const master = ui.channel !== 'track';
-  const lv: Level = master ? masterLevels(now).out : trackLevel(ui.selectedTrack, now);
+  const lv: Level = measure(now);
   const stereo = master || trackIsStereo(ui.selectedTrack);
   const peaks = stereo ? [lv.l, lv.r] : [Math.max(lv.l, lv.r)];
   const holds = stereo ? [lv.holdL, lv.holdR] : [Math.max(lv.holdL, lv.holdR)];
@@ -64,6 +83,6 @@ export function renderMeter(now: number) {
     setAttr(b.hold, 'style', `bottom:${(levelFrac(holds[i]) * 100).toFixed(1)}%`);
   });
   setClass(clipMark, 'on', lv.clip);
-  setText(lufsText, `LUFS\n${fmtLufs(lv.lufs)}`);
+  setText(lufsText, `LUFS\n${fmtLufs(lv.lufsI)}`);
   setText(dbText, `${fmtDb(Math.max(lv.l, lv.r))}\ndB`);
 }
