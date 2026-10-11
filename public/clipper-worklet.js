@@ -116,6 +116,7 @@ class Channel {
     this.c1 = 0;
     this.lfDelay = new Float64Array(LF_DELAY + 1);
     this.dryDelay = new Float64Array(LF_DELAY + 1);
+    this.hfDelay = new Float64Array(LF_DELAY + 1); // ВЧ без среза — опора для GR
     this.dpos = 0;
   }
 }
@@ -148,6 +149,8 @@ class ClipperProcessor extends AudioWorkletProcessor {
     this.cHp = butter(100, sr, true);
     this.grWin = Math.round((GR_WINDOW_MS / 1000) * sr);
     this.grN = 0;
+    /** В окне нелинейность срабатывала (иначе GR — только погрешность фильтров, показываем 0). */
+    this.engaged = false;
     this.winIn = 0;
     this.winOut = 0;
     this.meterEvery = Math.max(128, Math.round(sr / METER_HZ));
@@ -184,6 +187,7 @@ class ClipperProcessor extends AudioWorkletProcessor {
         y = 0.5 * (u + u0);
         c.prevF = 0.5 * u * u;
       } else {
+        this.engaged = true;
         const F = antideriv(u, k);
         const du = u - u0;
         y = Math.abs(du) > 1e-6 ? (F - c.prevF) / du : shape(0.5 * (u + u0), k);
@@ -263,26 +267,31 @@ class ClipperProcessor extends AudioWorkletProcessor {
         const r = (dp + 1) % D;
         const lfOut = c.lfDelay[r];
         const dryOut = c.dryDelay[r];
+        const lin = lfOut + c.hfDelay[r];
         c.lfDelay[dp] = lfIn;
         c.dryDelay[dp] = raw;
+        c.hfDelay[dp] = hfIn;
         c.dpos = r;
         const wet = lfOut + yh;
         // В bypass клиппер отключён целиком (и DRIVE тоже): сухой — исходный сигнал с той же задержкой.
         const y = this.wet * wet + (1 - this.wet) * dryOut;
         const o = out[k] || out[0];
         o[i] = y;
-        const xd = Math.abs(dryOut) * this.driveLin;
-        if (xd > dryPk) dryPk = xd;
+        // Опора для GR — тот же сигнал без среза (НЧ + ВЧ, с той же задержкой и фазой кроссовера).
+        if (Math.abs(lin) > dryPk) dryPk = Math.abs(lin);
         if (Math.abs(wet) > outPk) outPk = Math.abs(wet);
         if (Math.abs(y) > this.mOut) this.mOut = Math.abs(y);
         if (!out[1]) break;
       }
       if (inPk > this.mIn) this.mIn = inPk;
-      // Срез пика: самый большой пик выхода к самому большому пику входа (с той же задержкой) за 10 ms.
+      // Срез пика: самый большой пик выхода к самому большому пику того же сигнала без среза за 10 ms.
       if (dryPk > this.winIn) this.winIn = dryPk;
       if (outPk > this.winOut) this.winOut = outPk;
       if (++this.grN >= this.grWin) {
-        const gr = this.winIn > 1e-6 && this.wet > 0.5 ? Math.max(0, -20 * Math.log10(Math.max(this.winOut, 1e-9) / this.winIn)) : 0;
+        let gr = this.winIn > 1e-6 && this.wet > 0.5 ? Math.max(0, -20 * Math.log10(Math.max(this.winOut, 1e-9) / this.winIn)) : 0;
+        // Без срабатывания нелинейности или меньше 0.1 dB — погрешность фильтров оверсэмплинга, не срез.
+        if (gr < 0.1 || !this.engaged) gr = 0;
+        this.engaged = false;
         if (gr > this.mGr) this.mGr = gr;
         this.grN = 0;
         this.winIn = 0;

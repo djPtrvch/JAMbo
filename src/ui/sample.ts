@@ -18,7 +18,7 @@ import { levelFrac } from './meter';
 import { makePopup, popupButton } from './popup';
 import { audible, doc, heldStepSound, setStepSound, folderItemName, folderPos, stepFolder, stepFolderOnSteps, setTrackSynth, envAt, envShape, liveParams, lfoShape, rt, sampleName, selTrack, ui } from '../state';
 import { openSampleEditor } from './sampleedit';
-import { buildGlue, buildLimiter, renderDynamics } from './dynamics';
+import { buildClipper, buildGlue, buildLimiter, renderDynamics } from './dynamics';
 import { iconView, renderIcon, type IconView } from './engineIcon';
 import { openBrowser } from './browser';
 import { h, setAttr, setClass, setText, svg } from './dom';
@@ -268,8 +268,9 @@ export function buildSample(): HTMLElement {
   masterPanel = h('div', 'master-panel hidden');
   const groups = h('div', 'vbar-groups');
   const comp = buildGlue();
+  const clip = buildClipper();
   const lim = buildLimiter();
-  groups.append(comp, lim);
+  groups.append(comp, clip, lim);
   masterPanel.append(groups);
 
   // MIX: уровень каждой дорожки после громкости микшера — как измеритель справа: жёлтый, стерео —
@@ -450,6 +451,9 @@ export function renderSample(now: number) {
   const panel = show ? 'mod' : ui.channel === 'master' ? 'master' : ui.channel === 'mix' ? 'mix' : 'wave';
   setClass(stub, 'hidden', panel !== 'wave');
   setClass(masterPanel, 'hidden', panel !== 'master');
+  // При MST панель мастера занимает всю левую колонку (стрелок и кнопок LFO/ENV не видно).
+  const side = masterPanel.closest('.side');
+  if (side) setClass(side as HTMLElement, 'master', panel === 'master');
   setClass(mixPanel, 'hidden', panel !== 'mix');
   setClass(previews, 'hidden', panel !== 'mod');
   if (panel === 'wave') renderWave();

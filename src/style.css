@@ -214,7 +214,7 @@ html, body {
 
 /* ---------- Полосы MIX и MST в окне сэмпла ---------- */
 
-.vbar-groups { flex: 1; width: 100%; display: flex; gap: 10px; min-height: 0; }
+.vbar-groups { flex: 1; width: 100%; display: flex; gap: 8px; min-height: 0; }
 .vbar-group { flex: 1 1 0; display: flex; flex-direction: column; gap: 4px; min-height: 0; min-width: 0; }
 .vbar-title { font-size: 10px; letter-spacing: 0.1em; color: var(--dim); text-align: center; }
 .vbar-row { flex: 1; display: flex; gap: 4px; min-height: 0; width: 100%; }
@@ -249,13 +249,13 @@ html, body {
 /* Компрессор мастера «glue»: столбцы IN | GR | OUT на холсте, сверху пик GR и клип, снизу BYPASS и RATIO. */
 .glue-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--glue-gap); flex: none; width: 100%; }
 .glue-top { height: 12px; align-items: center; }
-.glue-gr-text { font-size: 7.5px; text-align: center; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: visible; letter-spacing: -0.2px; }
+.glue-gr-text { grid-column: 1 / 3; font-size: 7.5px; text-align: right; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; letter-spacing: -0.2px; }
 .glue-clip { height: 5px; border-radius: 2px; background: var(--off); cursor: pointer; }
 .glue-clip.on { background: var(--rec); }
 .glue-canvas { flex: 1; width: 100%; min-height: 0; display: block; }
 .glue-labels > div { font-size: 9px; color: var(--dim); text-align: center; }
 .glue-btns { display: grid; grid-template-columns: 1fr 1fr; gap: var(--glue-gap); height: 36px; flex: none; width: 100%; }
-.glue-btns .dev-btn { font-size: 8px; min-width: 0; }
+.glue-btns .dev-btn { font-size: 6.5px; letter-spacing: 0; min-width: 0; overflow: hidden; padding: 0; }
 .glue .btn.active { background: var(--plock); color: var(--on-accent); }
 .glue-ratio { background: var(--plock); color: var(--on-accent); font-weight: 700; }
 
@@ -277,6 +277,8 @@ html, body {
 .popup-box.rename .popup-btn { width: 60px; }
 
 .side { display: flex; flex-direction: column; gap: var(--gap); min-height: 0; }
+/* MST: боковая панель мастера на всю левую колонку. */
+.side.master > :not(.sample) { display: none; }
 
 .sample {
   flex: 1;

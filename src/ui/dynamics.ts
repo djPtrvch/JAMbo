@@ -1,15 +1,15 @@
-// Индикация устройств мастера в окне сэмпла при MST — один компонент сегментных столбцов IN | GR | OUT
-// для компрессора «glue» (группа COMP) и лимитера (группа LIMIT): одинаковые размеры, зазоры,
+// Боковая панель мастера (при MST — вся левая колонка): блоки COMP | CLIP | LIM в порядке цепочки —
+// один компонент сегментных столбцов IN | GR | OUT для всех трёх: одинаковые размеры, зазоры,
 // 24 сегмента, цвета, тусклые сегменты, баллистика, peak hold, шрифты и кнопки. Различаются только
-// параметры: шкалы, белые риски (порог компрессора, CEILING лимитера), условие клипа и кнопки.
+// параметры: шкалы, белые риски (порог компрессора, CEILING клиппера и лимитера), условие клипа и кнопки.
 // Подъём мгновенный, спад 20 dB/s, пиковая метка 1.5 с тонкой линией того же цвета; неактивные
 // сегменты тусклые. GR растёт сверху вниз, оранжевый; рядом число — пик GR за 1.5 с; за краем шкалы
 // нижний сегмент мигает. Над OUT индикатор клипа — держится до тапа. В bypass столбцы серые, GR ноль.
 // Цвета — из темы: жёлтый ниже −6 dB, оранжевый от −6 до 0, красный выше 0. Холст рисуется в общем кадре.
 
-import { glueMeter, limiterMeter, type DynLevels } from '../audio/engine';
+import { clipperMeter, glueMeter, limiterMeter, type DynLevels } from '../audio/engine';
 import { RATIOS } from '../params';
-import { cycleRatio, doc, liveMaster, toggleCmpBypass, toggleLimBypass } from '../state';
+import { cycleRatio, doc, liveMaster, toggleClipBypass, toggleCmpBypass, toggleLimBypass } from '../state';
 import { h, setClass, setText } from './dom';
 import { color } from './theme';
 
@@ -62,12 +62,12 @@ class DynView {
 
   constructor(private o: DynOptions) {
     this.el = h('div', 'vbar-group glue');
-    // Над столбцами: пусто | пик GR числом | индикатор клипа OUT.
+    // Над столбцами: пик GR числом (над IN и GR, по правому краю GR) | индикатор клипа над OUT.
     const top = h('div', 'glue-row glue-top');
     this.grText = h('div', 'glue-gr-text');
     this.clipEl = h('div', 'glue-clip');
     this.clipEl.addEventListener('pointerdown', (e) => { e.preventDefault(); this.clipped = false; });
-    top.append(h('div'), this.grText, this.clipEl);
+    top.append(this.grText, this.clipEl);
     this.canvas = h('canvas', 'glue-canvas');
     const labels = h('div', 'glue-row glue-labels');
     labels.append(h('div', '', 'IN'), h('div', '', 'GR'), h('div', '', 'OUT'));
@@ -172,7 +172,9 @@ const btn = (label: string, fn: () => void, cls = '') => {
 };
 
 let glue: DynView;
+let clip: DynView;
 let lim: DynView;
+let clipBypass: HTMLElement;
 let glueBypass: HTMLElement;
 let glueRatio: HTMLElement;
 let limBypass: HTMLElement;
@@ -191,12 +193,26 @@ export function buildGlue(): HTMLElement {
   return glue.el;
 }
 
+/** Клиппер: IN −30…+12, GR 0…−12, OUT −30…0; риски CEILING на IN и OUT; клип — сэмпл выхода выше 0 dBFS. */
+export function buildClipper(): HTMLElement {
+  clipBypass = btn('BYPASS', toggleClipBypass);
+  const ceiling = () => liveMaster()['clip.ceiling'];
+  clip = new DynView({
+    title: 'CLIP', meter: clipperMeter, bypass: () => doc.clipBypass,
+    inRange: [-30, 12], outRange: [-30, 0], grMax: 12,
+    inMark: ceiling, outMark: ceiling,
+    clips: (pk) => pk > 1,
+    buttons: [clipBypass, null],
+  });
+  return clip.el;
+}
+
 /** Лимитер: IN −30…+12, GR 0…−12, OUT −30…0; риски CEILING на IN и OUT; клип — true peak выше CEILING. */
 export function buildLimiter(): HTMLElement {
   limBypass = btn('BYPASS', toggleLimBypass);
   const ceiling = () => liveMaster()['lim.ceiling'];
   lim = new DynView({
-    title: 'LIMIT', meter: limiterMeter, bypass: () => doc.limBypass,
+    title: 'LIM', meter: limiterMeter, bypass: () => doc.limBypass,
     inRange: [-30, 12], outRange: [-30, 0], grMax: 12,
     inMark: ceiling, outMark: ceiling,
     // Небольшой допуск — от округления значений при сглаживании CEILING.
@@ -209,7 +225,9 @@ export function buildLimiter(): HTMLElement {
 export function renderDynamics(now: number) {
   setText(glueRatio, `${RATIOS[doc.ratio]}:1`);
   setClass(glueBypass, 'active', doc.cmpBypass);
+  setClass(clipBypass, 'active', doc.clipBypass);
   setClass(limBypass, 'active', doc.limBypass);
   glue.render(now);
+  clip.render(now);
   lim.render(now);
 }
