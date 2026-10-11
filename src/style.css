@@ -758,5 +758,3 @@ html, body {
 .meter-lufs { cursor: pointer; padding: 4px 0; margin: -4px 0; }
 /* Мастер: на метрах компрессора и лимитера без чисел. */
 .master-panel .vbar-val { display: none; }
-.source-group.engines { flex: 3 1 0; }
-.source-group.engines .popup-btn { font-size: 10px; letter-spacing: 0.02em; }

@@ -15,8 +15,6 @@ const BLOCK = 24;
 /** Тишина дольше этого (кадров) после атаки — голос больше не считается. */
 const SILENCE = 4800;
 const QUIET = 1e-5;
-/** 6-op FM (18–20): у патчей свои огибающие, им нужен гейт — держится до конца ноты (end). */
-const GATED = new Set([18, 19, 20]);
 
 class PlaitsProcessor extends AudioWorkletProcessor {
   constructor(options) {
@@ -76,8 +74,8 @@ class PlaitsProcessor extends AudioWorkletProcessor {
           const ptr = this.w.render(s, n);
           const buf = new Float32Array(this.w.memory.buffer, ptr, n);
           out.set(buf, pos);
-          // Триггер — короткий импульс: гейт держится один блок (у 6-op FM — до конца ноты).
-          if (!GATED.has(this.engine[s])) this.w.release(s);
+          // Триггер — короткий импульс: гейт держится один блок.
+          this.w.release(s);
           let peak = 0;
           for (let i = 0; i < n; i++) peak = Math.max(peak, Math.abs(buf[i]));
           this.quiet[s] = peak < QUIET ? this.quiet[s] + n : 0;

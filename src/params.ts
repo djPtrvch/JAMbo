@@ -110,14 +110,14 @@ export const TRACK_GRID: Slot[] = grid([
 // ---------- Синты: движки Mutable Instruments Plaits ----------
 
 /**
- * Движки Plaits: 16 классических и 8 новых из Plaits 1.2; подпись в меню и что делают Harmonics,
- * Timbre, Morph. Номер в списке = номер движка в plaits.wasm. bank — группа в меню: 'synth'
- * (музыкальные, зелёный банк Plaits), 'synth2' (новые из Plaits 1.2) или 'drum' (шумы и ударные,
+ * Движки Plaits: 16 классических и два из Plaits 1.2 (string machine, chiptune); подпись в меню и
+ * что делают Harmonics, Timbre, Morph. Номер в списке = номер движка в plaits.wasm. bank — группа
+ * в меню: 'synth' (музыкальные, зелёный банк Plaits и два новых) или 'drum' (шумы и ударные,
  * красный банк).
  * decay: у движка Morph в Plaits — затухание; здесь затуханием управляет ручка Decay, а Morph —
  * микс выходов OUT и AUX (как у модуля).
  */
-export const SYNTH_ENGINES: { name: string; full: string; bank: 'synth' | 'synth2' | 'drum'; decay: boolean; harm: string; timbre: string; morph: string }[] = [
+export const SYNTH_ENGINES: { name: string; full: string; bank: 'synth' | 'drum'; decay: boolean; harm: string; timbre: string; morph: string }[] = [
   { name: 'VA', full: 'Virtual analog', bank: 'synth', decay: false, harm: 'detune', timbre: 'pulse width', morph: 'saw shape' },
   { name: 'WAVESHAPE', full: 'Waveshaping', bank: 'synth', decay: false, harm: 'waveform', timbre: 'fold', morph: 'asymmetry' },
   { name: 'FM', full: '2-op FM', bank: 'synth', decay: false, harm: 'ratio', timbre: 'mod index', morph: 'feedback' },
@@ -134,15 +134,9 @@ export const SYNTH_ENGINES: { name: string; full: string; bank: 'synth' | 'synth
   { name: 'KICK', full: 'Analog bass drum', bank: 'drum', decay: true, harm: 'attack', timbre: 'brightness', morph: 'OUT–AUX' },
   { name: 'SNARE', full: 'Analog snare', bank: 'drum', decay: true, harm: 'noise', timbre: 'modes', morph: 'OUT–AUX' },
   { name: 'HI-HAT', full: 'Analog hi-hat', bank: 'drum', decay: true, harm: 'metal', timbre: 'high-pass', morph: 'OUT–AUX' },
-  // Plaits 1.2 (16–23): номера после классических — старые проекты не меняются.
-  { name: 'VA-VCF', full: 'Virtual analog + filter', bank: 'synth2', decay: false, harm: 'resonance', timbre: 'cutoff', morph: 'waveform' },
-  { name: 'PHASE DIST', full: 'Phase distortion', bank: 'synth2', decay: false, harm: 'dist. freq', timbre: 'dist. amount', morph: 'asymmetry' },
-  { name: '6-OP FM 1', full: '6-op FM · bank 1', bank: 'synth2', decay: false, harm: 'patch', timbre: 'mod level', morph: 'env stretch' },
-  { name: '6-OP FM 2', full: '6-op FM · bank 2', bank: 'synth2', decay: false, harm: 'patch', timbre: 'mod level', morph: 'env stretch' },
-  { name: '6-OP FM 3', full: '6-op FM · bank 3', bank: 'synth2', decay: false, harm: 'patch', timbre: 'mod level', morph: 'env stretch' },
-  { name: 'TERRAIN', full: 'Wave terrain', bank: 'synth2', decay: false, harm: 'terrain', timbre: 'path radius', morph: 'path offset' },
-  { name: 'STRING MACH', full: 'String machine', bank: 'synth2', decay: false, harm: 'chord', timbre: 'chorus / filter', morph: 'waveform' },
-  { name: 'CHIPTUNE', full: 'Chiptune', bank: 'synth2', decay: false, harm: 'chord', timbre: 'arpeggio', morph: 'pulse width' },
+  // Из Plaits 1.2 (16–17): номера после классических — старые проекты не меняются.
+  { name: 'STRING MACH', full: 'String machine', bank: 'synth', decay: false, harm: 'chord', timbre: 'chorus / filter', morph: 'waveform' },
+  { name: 'CHIPTUNE', full: 'Chiptune', bank: 'synth', decay: false, harm: 'chord', timbre: 'arpeggio', morph: 'pulse width' },
 ];
 
 /** Параметры звука, которые сохраняются в пресете синта (вместе с движком). */
@@ -150,7 +144,12 @@ export const PRESET_PARAMS = ['harm', 'timbre', 'morph', 'level', 'attack', 'dec
 
 /** Ключ звука дорожки: 'mi:<n>' — движок Plaits n; иначе сэмпл ('file:<n>' или '' — нет). */
 export const synthKey = (engine: number) => `mi:${engine}`;
-export const synthEngine = (key: string): number | null => (key.startsWith('mi:') ? Number(key.slice(3)) : null);
+/** Номер движка из ключа звука; неизвестный номер (движок убран) — null. */
+export const synthEngine = (key: string): number | null => {
+  if (!key.startsWith('mi:')) return null;
+  const n = Number(key.slice(3));
+  return n >= 0 && n < SYNTH_ENGINES.length ? n : null;
+};
 
 /** Колонка 1 для синта: Harmonics, Timbre, Morph, Level (вместо Pitch, Start, End, Level). */
 export const SYNTH_GRID: Slot[] = TRACK_GRID.map((p, i) => {

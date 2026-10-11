@@ -26,8 +26,8 @@ SOURCES=(
   $P/dsp/speech/*.cc
   $P/dsp/physical_modelling/*.cc
   $P/dsp/engine/*.cc
-  $P/dsp/engine2/*.cc
-  $P/dsp/fm/*.cc
+  $P/dsp/engine2/string_machine_engine.cc
+  $P/dsp/engine2/chiptune_engine.cc
   $SRC/stmlib/dsp/units.cc
   $SRC/stmlib/utils/random.cc
 )
