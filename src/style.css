@@ -789,3 +789,7 @@ html, body {
 .lib-note { flex: none; }
 .lib-item { transition: width 0.18s ease; }
 .lib-row:not(.open):not(:has(.dragging)) .lib-acts { visibility: hidden; }
+.lib-item.current { background: var(--accent); color: var(--bg); }
+.lib-item.current .lib-detail { color: var(--bg); }
+.lib-item.picked { box-shadow: inset 0 0 0 2px var(--plock); }
+.lib-item.picked .lib-name::after { content: '  ✓'; color: var(--plock); }
