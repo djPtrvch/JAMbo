@@ -28,6 +28,8 @@ export interface ParamDef {
   curve?: number;
   /** Дуга рисуется от центра (Pan, Pitch, Invert). */
   bipolar?: boolean;
+  /** Ступенчатая ручка в процентах (1.1 некоторых движков): число пунктов, значение — середина пункта. */
+  steps?: number;
   /** Подписи ступеней для ступенчатых ручек (значение = индекс). */
   options?: string[];
   format: (v: number) => string;
@@ -121,23 +123,34 @@ export const TRACK_GRID: Slot[] = grid([
  * decay: у движка Morph в Plaits — затухание; здесь затуханием управляет ручка Decay, а Morph —
  * микс выходов OUT и AUX (как у модуля).
  */
-export const SYNTH_ENGINES: { name: string; full: string; bank: 'synth' | 'drum'; decay: boolean; harm: string; timbre: string; morph: string }[] = [
-  { name: 'VA', full: 'Virtual analog', bank: 'synth', decay: false, harm: 'detune', timbre: 'pulse width', morph: 'saw shape' },
-  { name: 'WAVESHAPE', full: 'Waveshaping', bank: 'synth', decay: false, harm: 'waveform', timbre: 'fold', morph: 'asymmetry' },
-  { name: 'FM', full: '2-op FM', bank: 'synth', decay: false, harm: 'ratio', timbre: 'mod index', morph: 'feedback' },
-  { name: 'GRAIN', full: 'Grain / formant', bank: 'synth', decay: false, harm: 'formant ratio', timbre: 'formant freq', morph: 'width' },
+/**
+ * Таблица движков (одно место): короткое имя (кнопки меню), полное, банк меню, aux (11–15: ручка 1.3 —
+ * OUT→AUX, затухание от Decay) и подписи ручек 1.1, 1.2, 1.3. steps — ступенчатая ручка 1.1 (пункты
+ * options): значение остаётся 0..100 %, ручка встаёт на середину пункта.
+ */
+export interface SynthEngine {
+  name: string; full: string; bank: 'synth' | 'drum'; decay: boolean;
+  harm: string; timbre: string; morph: string; options?: string[];
+}
+export const SYNTH_ENGINES: SynthEngine[] = [
+  { name: 'VA', full: 'Pair of classic waves', bank: 'synth', decay: false, harm: 'detune', timbre: 'pulse width', morph: 'triangle→saw' },
+  { name: 'WAVESHAPE', full: 'Waveshaper', bank: 'synth', decay: false, harm: 'shaper waveform', timbre: 'fold depth', morph: 'asymmetry' },
+  { name: 'FM', full: 'Two-operator FM', bank: 'synth', decay: false, harm: 'frequency ratio', timbre: 'mod index', morph: 'feedback' },
+  { name: 'GRAIN', full: 'Granular formant', bank: 'synth', decay: false, harm: 'formant ratio', timbre: 'formant freq', morph: 'formant width' },
   { name: 'ADDITIVE', full: 'Harmonic', bank: 'synth', decay: false, harm: 'bumps', timbre: 'main harmonic', morph: 'bump shape' },
-  { name: 'WAVETABLE', full: 'Wavetable', bank: 'synth', decay: false, harm: 'bank', timbre: 'row', morph: 'column' },
-  { name: 'CHORDS', full: 'Chords', bank: 'synth', decay: false, harm: 'chord', timbre: 'inversion', morph: 'waveform' },
-  { name: 'SPEECH', full: 'Vowel / speech', bank: 'synth', decay: false, harm: 'synth type', timbre: 'species', morph: 'phoneme' },
-  { name: 'SWARM', full: 'Granular swarm', bank: 'drum', decay: false, harm: 'detune', timbre: 'density', morph: 'grain size' },
-  { name: 'NOISE', full: 'Filtered noise', bank: 'drum', decay: false, harm: 'LP–BP–HP', timbre: 'clock', morph: 'resonance' },
-  { name: 'PARTICLE', full: 'Particle noise', bank: 'drum', decay: false, harm: 'freq spread', timbre: 'density', morph: 'filter' },
-  { name: 'STRING', full: 'Inharmonic string', bank: 'drum', decay: true, harm: 'material', timbre: 'brightness', morph: 'OUT–AUX' },
-  { name: 'MODAL', full: 'Modal resonator', bank: 'drum', decay: true, harm: 'material', timbre: 'brightness', morph: 'OUT–AUX' },
-  { name: 'KICK', full: 'Analog bass drum', bank: 'drum', decay: true, harm: 'attack', timbre: 'brightness', morph: 'OUT–AUX' },
-  { name: 'SNARE', full: 'Analog snare', bank: 'drum', decay: true, harm: 'noise', timbre: 'modes', morph: 'OUT–AUX' },
-  { name: 'HI-HAT', full: 'Analog hi-hat', bank: 'drum', decay: true, harm: 'metal', timbre: 'high-pass', morph: 'OUT–AUX' },
+  { name: 'WAVETABLE', full: 'Wavetable', bank: 'synth', decay: false, harm: 'bank', timbre: 'row', morph: 'column', options: ['A', 'B', 'C', 'D'] },
+  { name: 'CHORDS', full: 'Chords', bank: 'synth', decay: false, harm: 'chord type', timbre: 'inversion', morph: 'waveform',
+    options: ['OCT', '5', 'sus4', 'm', 'm7', 'm9', 'm11', '69', 'M9', 'M7', 'M'] },
+  { name: 'SPEECH', full: 'Vowel & speech', bank: 'synth', decay: false, harm: 'mode', timbre: 'species', morph: 'phoneme / word',
+    options: ['Formant', 'SAM', 'LPC', 'Words'] },
+  { name: 'SWARM', full: 'Granular cloud', bank: 'drum', decay: false, harm: 'pitch spread', timbre: 'density', morph: 'grain length' },
+  { name: 'NOISE', full: 'Filtered noise', bank: 'drum', decay: false, harm: 'LP→BP→HP', timbre: 'clock freq', morph: 'resonance' },
+  { name: 'PARTICLE', full: 'Particle noise', bank: 'drum', decay: false, harm: 'freq spread', timbre: 'density', morph: 'all-pass→band-pass' },
+  { name: 'STRING', full: 'Inharmonic string', bank: 'drum', decay: true, harm: 'material (inharmonicity)', timbre: 'excitation brightness', morph: 'OUT→AUX' },
+  { name: 'MODAL', full: 'Modal resonator', bank: 'drum', decay: true, harm: 'material', timbre: 'brightness & dust', morph: 'OUT→AUX' },
+  { name: 'KICK', full: 'Analog bass drum', bank: 'drum', decay: true, harm: 'attack & overdrive', timbre: 'brightness', morph: 'OUT→AUX' },
+  { name: 'SNARE', full: 'Analog snare', bank: 'drum', decay: true, harm: 'harmonics↔noise', timbre: 'mode balance', morph: 'OUT→AUX' },
+  { name: 'HI-HAT', full: 'Analog hi-hat', bank: 'drum', decay: true, harm: 'metal↔noise', timbre: 'HPF cutoff', morph: 'OUT→AUX' },
 ];
 
 /** Параметры звука, которые сохраняются в пресете синта (вместе с движком). */
@@ -159,6 +172,21 @@ export const SYNTH_GRID: Slot[] = TRACK_GRID.map((p, i) => {
   if (i === 8) return smooth('morph', 'Morph', 0, 100, 50, pct);
   return p;
 });
+
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+/** Колонка 1 движка: подписи 1.1–1.3 из таблицы, у WAVETABLE, CHORDS, SPEECH 1.1 ступенчатая. */
+const ENGINE_GRIDS: Slot[][] = SYNTH_ENGINES.map((e) => SYNTH_GRID.map((p, i) => {
+  if (!p || (i !== 0 && i !== 4 && i !== 8)) return p;
+  const label = cap(i === 0 ? e.harm : i === 4 ? e.timbre : e.morph);
+  if (i === 0 && e.options) {
+    const o = e.options;
+    return { ...p, label, kind: 'stepped', steps: o.length, format: (v: number) => o[stepIndex(v / 100, o.length)] };
+  }
+  return { ...p, label };
+}));
+export const synthGrid = (engine: number): Slot[] => ENGINE_GRIDS[engine] ?? SYNTH_GRID;
+/** Пункт ступенчатой ручки по положению 0..1. */
+export const stepIndex = (n: number, steps: number) => Math.min(steps - 1, Math.max(0, Math.floor(n * steps)));
 
 // ---------- MOD: LFO1, LFO2, LFO3 и огибающая ENV (по дорожкам) ----------
 
@@ -315,6 +343,7 @@ export function toNorm(p: ParamDef, v: number): number {
 /** 0..1 → значение параметра (ступенчатые округляются). */
 export function fromNorm(p: ParamDef, n: number): number {
   n = Math.min(1, Math.max(0, n));
+  if (p.steps) return p.min + ((stepIndex(n, p.steps) + 0.5) / p.steps) * (p.max - p.min);
   if (p.kind === 'stepped') return Math.round(n * (p.max - p.min)) + p.min;
   if (p.exp) return p.min * Math.pow(p.max / p.min, n);
   if (p.curve) return p.min + Math.pow(n, p.curve) * (p.max - p.min);
