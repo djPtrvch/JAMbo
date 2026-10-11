@@ -291,7 +291,7 @@ export const MASTER_GRID: Slot[] = grid([
     smooth('clip.drive', 'Drive', 0, 12, 0, cmpDb, { ...CMP, step: 0.1 }),
     smooth('clip.ceiling', 'Ceiling', -12, 0, -1, cmpDb, { ...CMP, step: 0.1 }),
     smooth('clip.softness', 'Softness', 0, 100, 30, (v) => `${Math.round(v)}%`, CMP),
-    smooth('clip.bass', 'Bass', 20, 300, 100, (v) => (v <= 0 ? 'OFF' : `${Math.round(v)} Hz`), { ...CMP, exp: true, offBottom: 0.05 }),
+    smooth('clip.bass', 'Bass', 20, 300, 0, (v) => (v <= 0 ? 'OFF' : `${Math.round(v)} Hz`), { ...CMP, exp: true, offBottom: 0.05 }),
   ],
   [
     // Лимитер мастер-шины (limiter-worklet.js): все ручки плавные, без p-lock.

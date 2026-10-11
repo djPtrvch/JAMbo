@@ -133,7 +133,7 @@ class ClipperProcessor extends AudioWorkletProcessor {
     super();
     const sr = sampleRate;
     this.sr = sr;
-    this.p = { drive: 0, ceiling: -1, softness: 30, bass: 100, bypass: false };
+    this.p = { drive: 0, ceiling: -1, softness: 30, bass: 0, bypass: false };
     this.driveLin = 1;
     this.ceil = Math.pow(10, -1 / 20);
     this.knee = 1 - 0.6 * 0.3;

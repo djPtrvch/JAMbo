@@ -54,7 +54,7 @@ let limBypassBtn: HTMLElement;
 
 /**
  * Слева под окном сэмпла: LFO1, LFO2, LFO3, ENV. При MST на их месте (тот же размер и порядок
- * сетки) кнопки мастера: RATIO компрессора, BYPASS клиппера, BYPASS компрессора, BYPASS лимитера.
+ * сетки) кнопки мастера: BYPASS компрессора, BYPASS клиппера, RATIO компрессора, BYPASS лимитера.
  */
 export function buildLeftButtons(): HTMLElement {
   const el = h('div', 'left-btns');
@@ -71,7 +71,7 @@ export function buildLeftButtons(): HTMLElement {
   compBypassBtn = tap('BYPASS\nCOMP', toggleCmpBypass);
   limBypassBtn = tap('BYPASS\nLIM', toggleLimBypass);
   masterGrid = h('div', 'btn-grid hidden');
-  masterGrid.append(ratioBtn, clipBypassBtn, compBypassBtn, limBypassBtn);
+  masterGrid.append(compBypassBtn, clipBypassBtn, ratioBtn, limBypassBtn);
   el.append(lfoGrid, masterGrid);
   return el;
 }
