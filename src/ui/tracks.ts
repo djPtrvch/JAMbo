@@ -10,10 +10,13 @@ import { audible, doc, renameTrack, rt, selectChannel, selectTrack, swipeTrack, 
 import { registerAction } from '../midi';
 import { h, setClass, setText } from './dom';
 import { openInput } from './popup';
+import { iconView, renderIcon, type IconView } from './engineIcon';
 
 const SWIPE_PX = 24;
+/** Иконка движка в плитке: по высоте строки дорожек. */
+const ICON_PX = 34;
 
-interface TrackView { root: HTMLElement; name: HTMLElement; state: HTMLElement; dot: HTMLElement }
+interface TrackView { root: HTMLElement; name: HTMLElement; state: HTMLElement; dot: HTMLElement; icon: IconView }
 const views: TrackView[] = [];
 /** Окно переименования дорожки i рядом с элементом anchor (подписью ручки громкости в MIX). */
 export function openRename(i: number, anchor: Element) {
@@ -38,7 +41,9 @@ export function buildTracks(): HTMLElement {
     const name = h('div', 'track-name');
     const state = h('div', 'track-state');
     const dot = h('div', 'track-dot');
-    root.append(name, state, dot);
+    // Иконка движка дорожки (у сэмпла — Sample) рядом с именем.
+    const iconEl = h('div', 'track-icon engine-icon');
+    root.append(iconEl, name, state, dot);
 
     let startY = 0;
     let id = -1;
@@ -62,7 +67,7 @@ export function buildTracks(): HTMLElement {
 
     // С MIDI — выбор дорожки (T1…T8 — по номеру, не по имени).
     registerAction(`T${i + 1}`, { label: `TRACK ${i + 1}`, press: () => selectTrack(i), state: () => ui.channel === 'track' && ui.selectedTrack === i }, root);
-    views.push({ root, name, state, dot });
+    views.push({ root, name, state, dot, icon: iconView(iconEl, ICON_PX) });
     el.append(root);
   }
   el.append(channelCell('MST', 'master'));
@@ -80,6 +85,7 @@ export function renderTracks(now: number) {
     setClass(v.root, 'flash', now < rt.flashUntil[i]);
     setClass(v.dot, 'hidden', !t.trackEdit);
     setText(v.state, t.solo ? 'S' : t.mute ? 'M' : '');
+    renderIcon(v.icon, i, now);
   });
   for (const [el, c] of channels) setClass(el, 'selected', ui.channel === c);
 }

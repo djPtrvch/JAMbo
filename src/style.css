@@ -33,6 +33,9 @@
   --rec: #ff4d4d;
   --play: #ffc81e;
   --gr: #ff8a3d;
+  --icon: #e8e8e8;
+  --icon-hl: #ff8a3d;
+  --icon-dim: #6b6b6b;
   --mute-grey: #6b6b6b;
   --root: #303030;
   --flash: #4a4a4a;
@@ -61,6 +64,9 @@
   --rec: #e5383b;
   --play: #f0b800;
   --gr: #f08a24;
+  --icon: #161616;
+  --icon-hl: #f07a10;
+  --icon-dim: #a3a29d;
   --mute-grey: #a3a29d;
   --root: #e9e8e3;
   --flash: #d6d5d0;
@@ -512,7 +518,7 @@ html, body {
   justify-content: center;
   transition: background-color 60ms;
 }
-.track.selected { border-color: var(--ink); }
+.track.selected { border-color: var(--accent); }
 .track.muted { border-color: var(--mute); }
 .track.flash { background: var(--flash); transition: none; }
 .track.silent .track-name { color: var(--off); }
@@ -642,6 +648,16 @@ html, body {
 .source-group.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); flex: 1 1 0; }
 .source-menu .popup-btn { height: auto; min-height: 0; font-size: 11px; padding: 0 2px; }
 .sample-pick { position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+/* Иконки движков: белая (цвет --icon); пока держат ручку — её часть оранжевая, остальное серое. */
+.engine-icon { flex: none; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+.engine-icon .w { color: var(--icon); }
+.engine-icon .o { color: var(--icon-hl); }
+.engine-icon .g { color: var(--icon-dim); }
+.track { gap: 4px; }
+.track-icon:empty { display: none; }
+.track.soloed .engine-icon .w { color: var(--on-accent); }
+.track.silent .engine-icon .w { color: var(--off); }
+.synth-icon { align-self: center; }
 .synth-info { flex: 1; width: 100%; display: flex; flex-direction: column; justify-content: center; gap: 8px; padding: 0 6px; min-height: 0; }
 .synth-full { font-size: 17px; font-weight: 600; color: var(--accent-text); }
 .synth-row { font-size: 11px; letter-spacing: 0.04em; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

@@ -18,6 +18,7 @@ import { fmtDb, levelFrac } from './meter';
 import { makePopup, popupButton } from './popup';
 import { audible, cycleRatio, doc, heldStepSound, liveMaster, setStepSound, folderItemName, folderPos, stepFolder, stepFolderOnSteps, setTrackSynth, toggleCmpBypass, toggleLimBypass, envAt, envOut, envShape, lfoShape, rt, sampleName, selTrack, ui } from '../state';
 import { openSampleEditor } from './sampleedit';
+import { iconView, renderIcon, type IconView } from './engineIcon';
 import { openBrowser } from './browser';
 import { h, setAttr, setClass, setText, svg } from './dom';
 
@@ -40,6 +41,8 @@ let wavePeaksKey = '';
 let waveSvg: SVGSVGElement;
 let synthInfo: HTMLElement;
 let synthFull: HTMLElement;
+let bigIcon: IconView;
+const BIG_ICON_PX = 120;
 const synthRows: HTMLElement[] = [];
 let previews: HTMLElement;
 let masterPanel: HTMLElement;
@@ -170,7 +173,10 @@ export function buildSample(): HTMLElement {
   waveSvg = wave;
   synthInfo = h('div', 'synth-info hidden');
   synthFull = h('div', 'synth-full');
-  synthInfo.append(synthFull);
+  // Крупная живая иконка движка; тап по ней (как по всему окну) открывает меню звука.
+  const iconEl = h('div', 'synth-icon engine-icon');
+  bigIcon = iconView(iconEl, BIG_ICON_PX);
+  synthInfo.append(iconEl, synthFull);
   for (let i = 0; i < 3; i++) {
     const row = h('div', 'synth-row');
     synthRows.push(row);
@@ -414,6 +420,7 @@ function renderWave() {
     // Синт: полное имя движка и что делают ручки Harmonics, Timbre, Morph.
     const e = SYNTH_ENGINES[engine];
     setText(synthFull, e.full);
+    renderIcon(bigIcon, ui.selectedTrack, performance.now());
     const rows: [string, string, string][] = [['HARM', e.harm, 'harm'], ['TIMBRE', e.timbre, 'timbre'], ['MORPH', e.morph, 'morph']];
     rows.forEach(([label, what, id], i) => setText(synthRows[i], `${label} · ${what} · ${Math.round(t.params[id] ?? 50)}%`));
     return;
