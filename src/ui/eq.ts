@@ -4,7 +4,7 @@
 // Управление касанием: двойной тап по пустому месту — новая bell-полоса (частота по горизонтали,
 // усиление по вертикали); точку тянут (у cut и notch — только частота); двойной тап по точке
 // включает и выключает полосу; долгое нажатие — меню типа, крутизны среза и удаления.
-// Внизу поля выбранной полосы: тип, Freq (удержание — ввод числа), Gain, Q (двойной тап по Q — сброс).
+// Внизу поля выбранной полосы: тип, Freq, Gain, Q (удержание — ввод числа; двойной тап по Q — сброс).
 //
 // Фон — сетка частот и уровней; спектр до EQ — серая линия, после — серая полупрозрачная
 // заливка; суммарная кривая белая; точки полос белые с номерами,
@@ -217,18 +217,33 @@ function openEqPresets(anchor: Element) {
   presetMenu.openAt(anchor, 340);
 }
 
-/** Ввод частоты выбранной полосы числом — окно внутри поля эквалайзера, вверху (по горизонтали — над полем Freq). */
-function freqInput(el: HTMLElement) {
+/** Число из введённого текста (запятая — как точка); null — не число. */
+function parseNum(text: string): number | null {
+  const v = parseFloat(text.trim().replace(',', '.'));
+  return Number.isFinite(v) ? v : null;
+}
+
+/**
+ * Ввод значения выбранной полосы числом (Freq, Gain, Q) — окно внутри поля эквалайзера, вверху
+ * (по горизонтали — над полем): нижнюю часть экрана на iPad закрывает клавиатура.
+ */
+function numInput(el: HTMLElement, field: 'freq' | 'gain' | 'q') {
   const b = selectedBand();
   const k = ui.eqBand;
-  if (!b) return;
+  if (!b || (field === 'gain' && !eqHasGain(b.type))) return;
   const r = el.getBoundingClientRect();
   const p = plot.getBoundingClientRect();
   anchor.style.left = `${r.left + r.width / 2 - p.left}px`;
-  // Вверху поля: нижнюю часть экрана на iPad закрывает клавиатура.
   anchor.style.top = "12px";
-  openInput(anchor, String(Math.round(b.freq)), (v) => { const f = parseFreq(v); if (f) setEqBand(k, { freq: f }); }, true);
+  const init = field === 'freq' ? String(Math.round(b.freq)) : field === 'gain' ? b.gain.toFixed(1) : b.q.toFixed(2);
+  openInput(anchor, init, (v) => {
+    const n = field === 'freq' ? parseFreq(v) : parseNum(v);
+    if (n === null) return;
+    if (field === 'q' && n <= 0) return;
+    setEqBand(k, { [field]: n });
+  }, true);
 }
+const freqInput = (el: HTMLElement) => numInput(el, 'freq');
 
 // ---------- Построение ----------
 
@@ -271,6 +286,8 @@ export function buildEq(): HTMLElement {
     'GAIN', () => Math.round((selectedBand()?.gain ?? 0) * 10),
     (v) => { const b = selectedBand(); if (b && eqHasGain(b.type)) setEqBand(k(), { gain: v / 10 }); },
     () => { const b = selectedBand(); return b && eqHasGain(b.type) ? fmtGain(b.gain) : '—'; }, 1,
+    // Удержание — ввод усиления числом (dB).
+    undefined, (el) => numInput(el, 'gain'),
   );
   const qField = dragField(
     'Q', () => Math.round(Math.log2(selectedBand()?.q ?? 1) * 12),
@@ -282,6 +299,8 @@ export function buildEq(): HTMLElement {
       if (now - lastQTap < DOUBLE_MS && selectedBand()) { setEqBand(k(), { q: EQ_Q_DEF }); lastQTap = 0; }
       else lastQTap = now;
     },
+    // Удержание — ввод Q числом.
+    (el) => numInput(el, 'q'),
   );
   for (const f of [typeField, freqField, gainField, qField]) f.classList.add('eq-field');
   bypassBtn = h('div', 'btn eq-tool', 'BYPASS');
