@@ -189,8 +189,6 @@ export interface Ui {
   eqBand: number;
   /** Включён режим MORPH (временные изменения ручек). */
   morph: boolean;
-  /** Кроссфейдер MORPH (на месте измерителя): 1 — все изменения MORPH, 0 — исходные значения. */
-  morphAmt: number;
   /** Превью формы волны LFO в окне сэмпла. */
   lfoPreviewUntil: number;
 }
@@ -311,7 +309,6 @@ export const ui: Ui = {
   sampleView: false,
   browserView: false,
   morph: false,
-  morphAmt: 1,
   eqBand: -1,
   lfoPreviewUntil: 0,
 };
@@ -439,65 +436,6 @@ function targetTracks(paramId: string, kind: 'param' | 'assign'): Track[] {
 export function toggleMorph() {
   if (ui.morph) undoTrackEdits();
   ui.morph = !ui.morph;
-  ui.morphAmt = 1;
-  morphTarget = null;
-}
-
-/**
- * Значения, к которым ведёт кроссфейдер MORPH вверху (изменения, сделанные в режиме MORPH):
- * запоминаются при первом движении фейдера; ручки, повёрнутые при опущенном фейдере, пересчитывают
- * их так, чтобы ручка шла за пальцем.
- */
-let morphTarget: { params: Record<string, number>; assigns: Record<string, LfoAssign | null> }[] | null = null;
-
-function snapshotMorph() {
-  morphTarget = doc.tracks.map((t) => ({
-    params: Object.fromEntries(Object.keys(t.trackOrig).map((id) => [id, t.params[id]])),
-    assigns: Object.fromEntries(Object.keys(t.trackOrigAssign).map((id) => [id, t.assigns[id] ? clone(t.assigns[id]) : null])),
-  }));
-}
-
-/** Смесь исходного и изменённого значения (ступенчатые — переключаются на середине). */
-function morphMix(p: ParamDef | undefined, from: number, to: number, a: number): number {
-  if (!p || p.kind === 'stepped') return a < 0.5 ? from : to;
-  return from + (to - from) * a;
-}
-
-/**
- * Кроссфейдер MORPH: a = 1 — все изменения MORPH, 0 — исходные значения всех дорожек.
- * Опустили до конца — режим выключается (как повторный тап по MORPH).
- */
-export function setMorphAmount(a: number) {
-  if (!ui.morph) return;
-  a = Math.max(0, Math.min(1, a));
-  if (a <= 0.005) { toggleMorph(); return; }
-  // Фейдер вверху — значения дорожек и есть цель (с учётом всего, что меняли в MORPH до этого).
-  if (!morphTarget || ui.morphAmt >= 1) snapshotMorph();
-  ui.morphAmt = a;
-  doc.tracks.forEach((t, i) => {
-    const tg = morphTarget![i];
-    if (!tg) return;
-    for (const [id, to] of Object.entries(tg.params)) {
-      if (id in t.trackOrig) t.params[id] = morphMix(PARAM_BY_ID[id], t.trackOrig[id], to, a);
-    }
-    // Назначения LFO/ENV: степень растёт от исходной (или нуля) к изменённой.
-    for (const [id, to] of Object.entries(tg.assigns)) {
-      if (!(id in t.trackOrigAssign)) continue;
-      const from = t.trackOrigAssign[id];
-      if (!to) { if (a < 0.5) { if (from) t.assigns[id] = clone(from); } else delete t.assigns[id]; continue; }
-      const base = from && from.lfo === to.lfo ? from.amount : 0;
-      t.assigns[id] = { lfo: to.lfo, amount: base + (to.amount - base) * a };
-    }
-  });
-}
-
-/** Ручку повернули при опущенном фейдере: цель — такая, чтобы при нынешнем положении было v. */
-function morphRetarget(t: Track, p: ParamDef, v: number) {
-  if (!morphTarget || ui.morphAmt >= 1) return;
-  const i = doc.tracks.indexOf(t);
-  const from = t.trackOrig[p.id] ?? v;
-  const to = p.kind === 'stepped' ? v : from + (v - from) / ui.morphAmt;
-  morphTarget[i].params[p.id] = Math.min(p.max, Math.max(p.min, to));
 }
 
 export function undoTrackEdits() {
@@ -513,8 +451,6 @@ export function undoTrackEdits() {
       t.trackEdit = false;
     }
   });
-  ui.morphAmt = 1;
-  morphTarget = null;
 }
 
 export const selTrack = () => doc.tracks[ui.selectedTrack];
@@ -586,7 +522,7 @@ export function setParamNorm(mode: GridMode, p: ParamDef, norm: number) {
   if (mode === 'fx') doc.fx[p.id] = v;
   else if (mode === 'mix') doc.mixer[p.id] = v;
   else if (mode === 'master') doc.master[p.id] = v;
-  else for (const t of targetTracks(p.id, 'param')) { t.params[p.id] = v; if (ui.morph) morphRetarget(t, p, v); }
+  else for (const t of targetTracks(p.id, 'param')) t.params[p.id] = v;
   if (p.id.startsWith('lfo') || p.id.startsWith('env.')) ui.lfoPreviewUntil = performance.now() + 1500;
 }
 
