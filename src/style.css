@@ -704,22 +704,44 @@ html, body {
 .midi-map-src { color: var(--dim); font-variant-numeric: tabular-nums; }
 .midi-map-dst { font-weight: 600; letter-spacing: 0.04em; }
 .midi-map .midi-map-del { height: 40px; min-height: 0; }
-/* Окно настройки MIDI-маппинга. */
-.popup-box.midi-edit { max-height: calc(100vh - 16px); overflow-y: auto; }
-.map-fields { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
-.field.map-field { background: var(--panel); min-height: 52px; border-radius: 6px; }
-.field.map-range { flex: none; }
-.map-curve { display: flex; flex-direction: column; gap: 4px; padding-top: 4px; }
-.map-curve.hidden, .settings-row.hidden { display: none; }
-.map-curve-svg { width: 100%; height: auto; touch-action: none; background: var(--panel); border-radius: 6px; }
+/* Окно MIDI MAP (как в Drambo): плавающее, перетаскивается за заголовок. */
+.mm {
+  position: fixed; z-index: 55; width: 380px; max-height: calc(100vh - 16px); display: flex; flex-direction: column;
+  background: var(--bg); border-radius: 14px; overflow: hidden; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
+  border: 1px solid var(--line);
+}
+.mm.hidden { display: none; }
+.mm-head { display: grid; grid-template-columns: 90px 1fr 90px; align-items: center; height: 52px; background: var(--panel-2); touch-action: none; cursor: grab; flex: none; }
+.mm-title { text-align: center; font-weight: 600; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mm-head-btn { height: 52px; display: flex; align-items: center; padding: 0 14px; color: var(--accent); font-size: 16px; cursor: pointer; }
+.mm-head-btn.back { font-size: 30px; padding-bottom: 4px; }
+.mm-close { justify-content: flex-end; font-size: 20px; }
+.mm-body { overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding: 10px 0 14px; }
+.mm-list { background: var(--panel); }
+.mm-row { display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 0 14px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.mm-list > .mm-row:last-child { border-bottom: 0; }
+.mm-label { font-size: 15px; white-space: nowrap; }
+.mm-value { flex: 1; text-align: right; color: var(--dim); font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mm-chev { color: var(--dim); font-size: 22px; width: 10px; }
+.mm-check { color: var(--accent); width: 16px; text-align: right; }
+.mm-opt.current .mm-label { color: var(--accent); }
+.mm-grid { display: grid; grid-template-columns: repeat(var(--cols), 1fr); gap: 4px; padding: 0 10px; }
+.mm-grid .mm-row { justify-content: center; border: 0; border-radius: 8px; background: var(--panel); min-height: 48px; }
+.mm-grid .mm-opt.current { background: var(--accent); }
+.mm-grid .mm-opt.current .mm-label { color: var(--bg); font-weight: 600; }
+.mm-number { width: 60px; margin-left: 24px; border: 0; background: transparent; color: var(--accent); font: inherit; font-size: 15px; -webkit-user-select: text; user-select: text; touch-action: manipulation; }
+.mm-number:focus { outline: none; }
+.mm-warn { flex: 1; color: var(--plock); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mm-clear { width: 22px; height: 22px; border-radius: 50%; background: var(--off); color: var(--text); display: flex; align-items: center; justify-content: center; font-size: 15px; }
+.mm-note { padding: 0 14px; font-size: 12px; color: var(--dim); }
+.mm-range { display: flex; flex-direction: column; gap: 8px; padding: 0 10px; }
+.mm-curve { width: 100%; height: auto; touch-action: none; background: var(--panel); border-radius: 8px; }
+.mm-range-vals { text-align: center; color: var(--dim); font-size: 13px; }
+.mm-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.mm-btn { height: 44px; border-radius: 8px; background: var(--panel); display: flex; align-items: center; justify-content: center; color: var(--accent); font-size: 15px; }
 .map-curve-frame { fill: none; stroke: var(--line); }
 .map-curve-line { stroke: var(--text); stroke-width: 2; }
 .map-curve-dot { fill: var(--accent); }
 .map-curve-text { fill: var(--dim); font-size: 10px; }
 .map-curve-text.end { text-anchor: end; }
 .midi-map { cursor: pointer; }
-.popup-btn.map-delete { color: var(--rec); }
-.map-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.map-col { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.map-curve-svg { max-height: 170px; }
-.settings-choice.map-controls { grid-auto-flow: row; grid-template-columns: 1fr 1fr; }

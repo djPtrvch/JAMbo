@@ -138,7 +138,7 @@ function renderMapping() {
   body.append(
     ...(u ? [u] : []),
     top,
-    note('MIDI LEARN: tap a knob or button on screen, then move a control; double-tap it to edit the mapping (type, channel, number, control type, range, feedback port). Knobs are mapped by position in the 4×4 grid and follow the current mode (track, FX, MOD, MIX, MST). Hold a step to p-lock, hold LFO/ENV to set modulation. TWISTER PRESET maps CC 0–15 on channel 1 to the 16 knobs. Tap a mapping below to edit it.'),
+    note('MIDI LEARN: tap a knob or button on screen, then move a control; double-tap it to open MIDI MAP (port, event type, number, control type, channel, range, feedback port). Knobs are mapped by position in the 4×4 grid and follow the current mode (track, FX, MOD, MIX, MST). Hold a step to p-lock, hold LFO/ENV to set modulation. TWISTER PRESET maps CC 0–15 on channel 1 to the 16 knobs. Tap a mapping below to edit it.'),
     title(`MAPPINGS (${settings.mappings.length})`),
     settings.mappings.length ? list : note('No mappings yet.'),
     clear,

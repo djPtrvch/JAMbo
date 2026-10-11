@@ -6,7 +6,7 @@
 import { clearTarget, learn, isMapped, onLearnChanged, setLearn, sourceLabel, targetFromAttr, targetLabel, learnTarget } from '../midi';
 import { settings } from '../settings';
 import { DOUBLE_TAP_MS, h, setClass, setText } from './dom';
-import { openMapEditor } from './mapedit';
+import { isOpen, openMapEditor } from './mapedit';
 
 let bar: HTMLElement;
 let text: HTMLElement;
@@ -59,6 +59,8 @@ export function buildLearnBar(): HTMLElement {
     lastTap.key = el.dataset.midi!;
     lastTap.at = now;
     learnTarget(t);
+    // Окно MIDI MAP открыто — переходит на новую цель.
+    if (isOpen()) openMapEditor(t);
   }, true);
   const release = (e: PointerEvent) => {
     if (blocked.delete(e.pointerId)) e.stopPropagation();
