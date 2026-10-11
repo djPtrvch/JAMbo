@@ -11,7 +11,7 @@
 
 import { PATTERN_SLOTS, STEPS_PER_PAGE, TRACK_COUNT } from '../params';
 import {
-  inTransition, rowFilled, sceneName, setScene,
+  crossfade, inTransition, rowFilled, sceneName, setCrossfade, setScene, transitionMoves,
   copyPattern, createPattern, dropPattern, deletePattern, doc, duplicatePattern, freeSlotAfter, hasLocks, pastePattern,
   playRange, rt, selectTrack, slotFilled, ui, type Pattern,
 } from '../state';
@@ -145,6 +145,72 @@ function buildMenu() {
 
 let dropTarget: [number, number] | null = null;
 
+// ---------- Кроссфейдер перехода между проектами (справа от сетки, над MST) ----------
+
+let xf: HTMLElement;
+let xfThumb: HTMLElement;
+let xfFill: HTMLElement;
+let xfNew: HTMLElement;
+
+/** Вертикальный кроссфейдер: внизу — общие настройки старого проекта, вверху — нового. */
+function buildCrossfader(): HTMLElement {
+  xf = h('div', 'xfader hidden');
+  xf.style.gridColumn = String(TRACK_COUNT + 2);
+  xf.style.gridRow = `1 / ${PATTERN_SLOTS + 1}`;
+  xfNew = h('div', 'xf-label', 'NEW');
+  const track = h('div', 'xf-track');
+  xfFill = h('div', 'xf-fill');
+  xfThumb = h('div', 'xf-thumb');
+  track.append(xfFill, xfThumb);
+  xf.append(xfNew, track, h('div', 'xf-label', 'OLD'));
+  let id = -1;
+  const setFrom = (y: number) => {
+    const r = track.getBoundingClientRect();
+    setCrossfade(1 - (y - r.top) / r.height);
+  };
+  xf.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    xf.setPointerCapture(e.pointerId);
+    id = e.pointerId;
+    setFrom(e.clientY);
+  });
+  xf.addEventListener('pointermove', (e) => { if (e.pointerId === id) setFrom(e.clientY); });
+  const up = (e: PointerEvent) => { if (e.pointerId === id) id = -1; };
+  xf.addEventListener('pointerup', up);
+  xf.addEventListener('pointercancel', up);
+  return xf;
+}
+
+function renderCrossfader() {
+  const pos = crossfade();
+  setClass(xf, 'hidden', pos === null);
+  if (pos === null) return;
+  const pct = `${(pos * 100).toFixed(1)}%`;
+  setAttr(xfThumb, 'style', `bottom:${pct}`);
+  setAttr(xfFill, 'style', `height:${pct}`);
+}
+
+/** Анимация: старые паттерны опускаются в нижнюю строку, остальные ячейки проявляются. */
+function animateTransition() {
+  if (!transitionMoves.length) return;
+  const moves = transitionMoves.splice(0);
+  if (!ui.patternView) return;
+  const last = PATTERN_SLOTS - 1;
+  const pitch = cells[0][1].root.offsetTop - cells[0][0].root.offsetTop;
+  const moved = new Set(moves.map((m) => m.track));
+  cells.forEach((col, i) => col.forEach((c, k) => {
+    if (k === last && moved.has(i)) return;
+    c.root.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 450, easing: 'ease-out' });
+  }));
+  for (const m of moves) {
+    const dy = (m.from - last) * pitch;
+    cells[m.track][last].root.animate(
+      [{ transform: `translateY(${dy}px)`, zIndex: 2 }, { transform: 'none', zIndex: 2 }],
+      { duration: 650, easing: 'cubic-bezier(.2,.8,.2,1)' },
+    );
+  }
+}
+
 /** Ячейка паттерна под точкой экрана: [дорожка, строка] или null. */
 function cellAt(x: number, y: number): [number, number] | null {
   for (let i = 0; i < cells.length; i++) {
@@ -167,6 +233,7 @@ export function buildPatternGrid(): HTMLElement {
   buildMenu();
   buildSceneMenu();
   grid = h('div', 'pattern-grid hidden');
+  grid.append(buildCrossfader());
   for (let k = 0; k < PATTERN_SLOTS; k++) grid.append(buildSceneCell(k));
   for (let k = 0; k < PATTERN_SLOTS; k++) {
     for (let i = 0; i < TRACK_COUNT; i++) {
@@ -240,6 +307,8 @@ export function renderPatternGrid() {
   setClass(grid, 'hidden', !ui.patternView);
   if (!ui.patternView) return;
   if (!menu.isOpen()) menuCell = null;
+  renderCrossfader();
+  animateTransition();
   const prog = sceneProgress();
   sceneCells.forEach((c, k) => {
     const sc = doc.scenes[k];
@@ -255,15 +324,15 @@ export function renderPatternGrid() {
   doc.tracks.forEach((t, i) => {
     const q = rt.queued[i];
     cells[i].forEach((c, k) => {
-      // Во время перехода строка 1 у неиграющей дорожки — пустая заглушка.
-      const filled = slotFilled(t, k) && !(inTransition() && k === 0 && t.stopped);
+      // Во время перехода нижняя строка (PREV) у неиграющей дорожки — пустая заглушка.
+      const filled = slotFilled(t, k) && !(inTransition() && k === PATTERN_SLOTS - 1 && t.stopped);
       const active = k === t.slot;
       setClass(c.root, 'filled', filled);
       setClass(c.root, 'active', active && !t.stopped);
       setClass(c.root, 'queued', q === k);
       setClass(c.root, 'stopping', active && q === 'stop');
       setClass(c.root, 'selected-col', i === ui.selectedTrack);
-      drawThumb(c, active ? t : t.slots[k]);
+      drawThumb(c, !filled ? null : active ? t : t.slots[k]);
       // Прогресс проигрывания активного паттерна.
       let progress = 0;
       if (active && !t.stopped && ui.playing && rt.playPos[i] >= 0) {

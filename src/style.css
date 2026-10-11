@@ -636,5 +636,20 @@ html, body {
 .project-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
 .project-actions .popup-btn { height: 44px; }
 .project-list { flex: 1; min-height: 60px; overflow-y: auto; touch-action: pan-y; display: grid; grid-auto-rows: 48px; gap: 4px; }
-.project-list .popup-btn { white-space: pre; line-height: 1.25; text-align: left; padding: 0 12px; font-size: 13px; }
+/* Строка проекта: свайп влево открывает корзину справа (как в приложениях iPad). */
+.project-row { position: relative; overflow: hidden; border-radius: 6px; background: var(--rec); }
+.project-trash { position: absolute; right: 0; top: 0; bottom: 0; width: 72px; display: flex; align-items: center; justify-content: center; color: #fff; }
+.project-trash svg { width: 24px; height: 24px; }
+.project-item { position: relative; height: 100%; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; white-space: pre; line-height: 1.25; text-align: left; padding: 0 12px; font-size: 13px; transition: transform 0.18s ease; touch-action: pan-y; }
+.project-item.dragging { transition: none; }
+.confirm-text { padding: 8px 6px; font-size: 14px; line-height: 1.3; }
+.confirm-row { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.confirm-row .popup-btn:last-child { background: var(--rec); color: #fff; }
 .popup-box.project-menu { overflow: hidden; }
+
+/* Кроссфейдер перехода между проектами: справа от сетки паттернов (над MST). */
+.xfader { display: flex; flex-direction: column; align-items: center; gap: 20px; padding: 6px 0; border-radius: 6px; background: var(--panel); }
+.xf-label { font-size: 10px; letter-spacing: 0.08em; color: var(--dim); }
+.xf-track { position: relative; flex: 1; width: 10px; border-radius: 5px; background: var(--off); }
+.xf-fill { position: absolute; left: 0; right: 0; bottom: 0; border-radius: 5px; background: var(--accent); }
+.xf-thumb { position: absolute; left: 50%; width: 44px; height: 28px; margin-bottom: -14px; transform: translateX(-50%); border-radius: 6px; background: var(--text); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5); }
