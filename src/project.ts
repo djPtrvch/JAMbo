@@ -6,7 +6,7 @@
 // сохраняет в тот проект, из которого она сделана. Всё хранится в браузере (storage.ts).
 
 import { ensureSamples, sampleRecords } from './audio/engine';
-import { docForSave, loadDoc, makeDoc, normalizeDoc, sampleKeys, switchWithTransition, ui, type Doc } from './state';
+import { docForSave, loadDoc, makeDoc, normalizeDoc, sampleKeys, switchWithTransition, type Doc } from './state';
 import {
   deleteProject, getProject, listProjects, newId, packProject, putProject, putSample, unpackProject,
   type ProjectInfo, type ProjectRecord,
@@ -64,21 +64,24 @@ function nextName(base = 'Project'): string {
   return `${base} ${n}`;
 }
 
-/** Показать документ d: во время игры — переходом, иначе — сразу. */
-async function show(d: Doc) {
+/**
+ * Показать документ d: mix — переходом (играющие паттерны старого проекта уходят в строку PREV,
+ * кроссфейдер), иначе — сразу (LOAD).
+ */
+async function show(d: Doc, mix = false) {
   await ensureSamples(sampleKeys(d));
-  if (ui.playing) switchWithTransition(d);
+  if (mix) switchWithTransition(d);
   else loadDoc(d);
 }
 
 /** Открыть запись: проект — как есть, Autosave — в проект, из которого она сделана. */
-async function openRecord(rec: ProjectRecord) {
+async function openRecord(rec: ProjectRecord, mix = false) {
   project.ready = false;
   const auto = rec.id === AUTOSAVE_ID;
   project.id = auto ? rec.projectId ?? newId() : rec.id;
   project.name = auto ? rec.projectName ?? nextName() : rec.name;
   remember(project.id);
-  await show(normalizeDoc(rec.doc));
+  await show(normalizeDoc(rec.doc), mix);
   const json = JSON.stringify(docForSave());
   lastAuto = json;
   // У Autosave «сохранено» — то, что лежит в самом проекте.
@@ -109,10 +112,11 @@ export async function initProjects() {
 }
 
 /** Открыть сохранённый проект или Autosave из списка. */
-export async function openProject(id: string) {
+/** mix — MIX (переход), иначе LOAD (сразу). */
+export async function openProject(id: string, mix = false) {
   if (id === project.id) return;
   const rec = await getProject(id);
-  if (rec) await openRecord(rec);
+  if (rec) await openRecord(rec, mix);
 }
 
 /** Новый пустой проект (в список попадёт после SAVE). */
@@ -173,7 +177,7 @@ export async function exportProject() {
 }
 
 /** Импорт файла .jambo: сохраняется как новый проект и сразу открывается. */
-export async function importProject(file: File) {
+export async function importProject(file: File, mix = false) {
   const { name, doc: raw, samples } = await unpackProject(file);
   for (const s of samples) await putSample(s);
   const rec: ProjectRecord = {
@@ -184,5 +188,5 @@ export async function importProject(file: File) {
   };
   await putProject(rec);
   await refreshList();
-  await openRecord(rec);
+  await openRecord(rec, mix);
 }

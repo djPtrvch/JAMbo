@@ -1,5 +1,6 @@
 // Меню «бутерброд»: текущий проект, действия NEW, SAVE, SAVE AS, RENAME, EXPORT, IMPORT
-// и список сохранённых проектов (тап — открыть; во время игры — переходом через сетку паттернов).
+// и список сохранённых проектов. Открытие проекта (тап по нему или IMPORT) спрашивает LOAD или MIX:
+// LOAD — сразу вместо текущего, MIX — переходом через сетку паттернов (строка PREV, кроссфейдер).
 // Свайп влево по проекту открывает справа корзину — тап по ней удаляет проект.
 // SAVE AS с именем существующего проекта спрашивает, перезаписать ли его.
 
@@ -39,8 +40,7 @@ function buildMenu() {
   input.addEventListener('change', () => {
     const f = input.files?.[0];
     input.value = '';
-    menu.close();
-    if (f) void importProject(f).catch(fail('Import'));
+    if (f) askMode(importBtn, (mix) => { menu.close(); void importProject(f, mix).catch(fail('Import')); }, f.name.replace(/\.jambo$/i, ''));
   });
   importBtn.append(input);
   actions.append(
@@ -63,6 +63,27 @@ function buildMenu() {
     popupButton('OVERWRITE', () => { confirm.close(); confirmYes(); }),
   );
   confirm.box.append(confirmText, row);
+
+  // LOAD или MIX при открытии проекта.
+  modePopup = makePopup('confirm');
+  modeText = h('div', 'confirm-text');
+  const modeRow = h('div', 'confirm-row load-mix');
+  modeRow.append(
+    popupButton('LOAD', () => { modePopup.close(); modeDone(false); }),
+    popupButton('MIX', () => { modePopup.close(); modeDone(true); }),
+  );
+  modePopup.box.append(modeText, modeRow, h('div', 'settings-note', 'LOAD replaces the current project now. MIX keeps the playing patterns in the bottom row (PREV) and blends tempo and settings with the crossfader.'));
+}
+
+let modePopup: Popup;
+let modeText: HTMLElement;
+let modeDone: (mix: boolean) => void = () => {};
+
+/** Спросить LOAD или MIX (окно рядом с anchor, поверх меню проектов). */
+function askMode(anchor: Element, done: (mix: boolean) => void, name = 'project') {
+  setText(modeText, `Open “${name}”`);
+  modeDone = done;
+  modePopup.openAt(anchor, 320);
 }
 
 /** SAVE AS: если проект с таким именем есть — спросить, перезаписать ли его. */
@@ -115,8 +136,7 @@ function projectRow(p: ProjectInfo): HTMLElement {
     if (Math.abs(dx) <= 6 && !cancel) {
       // Тап: открытая строка закрывается, закрытая — открывает проект.
       if (base) { row.classList.remove('open'); place(0); return; }
-      menu.close();
-      void openProject(p.id).catch(fail('Open'));
+      askMode(item, (mix) => { menu.close(); void openProject(p.id, mix).catch(fail('Open')); }, p.name);
       return;
     }
     const open = x < -TRASH_W / 2;
