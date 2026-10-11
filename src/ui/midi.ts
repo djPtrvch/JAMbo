@@ -1,4 +1,5 @@
-// Меню MIDI (бутерброд → MIDI): подключённые MIDI-устройства и подключение Bluetooth MIDI.
+// Меню MIDI (бутерброд → MIDI): подключённые MIDI-устройства, подключение Bluetooth MIDI (CONNECT)
+// и ADVERTISE (быть видимым как Bluetooth MIDI — только в нативном приложении).
 // Входящие ноты играют выбранную дорожку (см. midi.ts). В Safari на iPad Web MIDI и Web Bluetooth
 // нет — меню объясняет это.
 
@@ -18,17 +19,26 @@ function build() {
   panel = makePopup('settings midi-menu');
   list = h('div', 'settings-devices');
   status = h('div', 'settings-note');
-  bleBtn = popupButton('CONNECT BLUETOOTH MIDI', () => {
+  bleBtn = popupButton('CONNECT', () => {
     setText(status, 'Searching for Bluetooth MIDI devices…');
     void connectBluetooth()
       .then((name) => setText(status, `Connected: ${name}`))
       .catch((e) => setText(status, e?.name === 'NotFoundError' ? 'No device chosen.' : `Could not connect: ${e?.message ?? e}`));
   });
+  // ADVERTISE — iPad сам виден другим как Bluetooth MIDI-устройство. В браузерах объявлять себя
+  // по Bluetooth нельзя (Web Bluetooth умеет только искать чужие устройства) — кнопка появится
+  // рабочей в нативном приложении (CoreMIDI).
+  const advertise = popupButton('ADVERTISE', () => {});
+  advertise.disabled = true;
+  const bleRow = h('div', 'settings-choice');
+  bleRow.append(bleBtn, advertise);
   panel.box.append(
     backHeader(h('div', 'project-title', 'MIDI'), () => { panel.close(); onBack(); }),
     h('div', 'source-title', 'CONNECTED DEVICES'),
     list,
-    bleBtn,
+    h('div', 'source-title', 'BLUETOOTH MIDI'),
+    bleRow,
+    h('div', 'settings-note', 'ADVERTISE makes this iPad visible to other devices as Bluetooth MIDI. Browsers can’t advertise over Bluetooth, so it will work in the native app.'),
     status,
   );
   onDevicesChanged(() => { if (panel.isOpen()) fill(); });
