@@ -5,7 +5,8 @@
 const DB = 'jambo';
 const VERSION = 1;
 
-export interface ProjectInfo { id: string; name: string; updated: number }
+/** projectId/projectName — у записи Autosave: проект, из которого она сделана. */
+export interface ProjectInfo { id: string; name: string; updated: number; projectId?: string; projectName?: string }
 export interface ProjectRecord extends ProjectInfo { doc: unknown }
 export interface SampleRecord { key: string; name: string; bytes: ArrayBuffer }
 
@@ -41,7 +42,8 @@ export const deleteProject = (id: string) => run('projects', 'readwrite', (s) =>
 /** Список проектов (без содержимого), новые сверху. */
 export async function listProjects(): Promise<ProjectInfo[]> {
   const all = await run<ProjectRecord[]>('projects', 'readonly', (s) => s.getAll());
-  return all.map(({ id, name, updated }) => ({ id, name, updated })).sort((a, b) => b.updated - a.updated);
+  return all.map(({ id, name, updated, projectId, projectName }) => ({ id, name, updated, projectId, projectName }))
+    .sort((a, b) => b.updated - a.updated);
 }
 
 export const getSample = (key: string) => run<SampleRecord | undefined>('samples', 'readonly', (s) => s.get(key));

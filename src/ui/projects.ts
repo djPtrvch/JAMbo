@@ -4,11 +4,12 @@
 // SAVE AS с именем существующего проекта спрашивает, перезаписать ли его.
 
 import {
-  deleteById, exportProject, importProject, newProject, openProject, project, projectNamed, projects, renameProject,
-  saveAs, saveProject,
+  deleteById, exportProject, importProject, isAutosave, newProject, openProject, project, projectNamed, projects,
+  renameProject, saveAs, saveProject, unsaved,
 } from '../project';
 import { h, setText } from './dom';
 import { makePopup, openInput, popupButton, type Popup } from './popup';
+import type { ProjectInfo } from '../storage';
 
 const TRASH_W = 72;
 
@@ -73,7 +74,7 @@ function askSaveAs(name: string) {
 }
 
 /** Строка списка: свайп влево открывает корзину справа, тап — открыть проект. */
-function projectRow(p: { id: string; name: string; updated: number }): HTMLElement {
+function projectRow(p: ProjectInfo): HTMLElement {
   const row = h('div', 'project-row');
   const trash = h('div', 'project-trash');
   trash.innerHTML = '<svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -81,8 +82,11 @@ function projectRow(p: { id: string; name: string; updated: number }): HTMLEleme
     void deleteById(p.id).then(() => fillList()).catch(fail('Delete'));
   });
   const date = new Date(p.updated).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
-  const item = h('div', 'popup-btn project-item', `${p.name}\n${date}`);
+  // Autosave: дата, время и проект, из которого оно сделано.
+  const label = isAutosave(p.id) ? `Autosave · ${p.projectName ?? ''}\n${date}` : `${p.name}\n${date}`;
+  const item = h('div', 'popup-btn project-item', label);
   item.classList.toggle('current', p.id === project.id);
+  item.classList.toggle('autosave', isAutosave(p.id));
   row.append(trash, item);
 
   let id = -1;
@@ -131,7 +135,7 @@ function closeRow(r: HTMLElement) {
 }
 
 function fillList() {
-  setText(title, project.name || '—');
+  setText(title, `${project.name || '—'}${unsaved() ? ' · unsaved' : ''}`);
   list.replaceChildren(...projects().map(projectRow));
 }
 
