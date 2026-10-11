@@ -277,8 +277,11 @@ html, body {
 .popup-box.rename .popup-btn { width: 60px; }
 
 .side { display: flex; flex-direction: column; gap: var(--gap); min-height: 0; }
-/* MST: боковая панель мастера на всю левую колонку. */
-.side.master > :not(.sample) { display: none; }
+/* Кнопки слева под окном сэмпла: LFO/ENV или (при MST) кнопки мастера — та же сетка. */
+.left-btns { display: contents; }
+.master-btn { white-space: pre; line-height: 1.2; text-align: center; }
+.master-btn.active { background: var(--plock); color: var(--on-accent); }
+.master-btn.ratio-btn { background: var(--plock); color: var(--on-accent); }
 
 .sample {
   flex: 1;

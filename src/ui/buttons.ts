@@ -1,11 +1,12 @@
-// Кнопки: LFO1, LFO2, LFO3, ENV (слева, под окном сэмпла); MORPH, RANDOM, FX, MOD (справа внизу);
+// Кнопки: LFO1, LFO2, LFO3, ENV (слева, под окном сэмпла; при MST — RATIO и BYPASS устройств мастера); MORPH, RANDOM, FX, MOD (справа внизу);
 // PLAY, REC, UNDO, REDO, PATTERNS и EQ (в верхней панели справа).
 // LFO1/LFO2/LFO3/ENV/FX/MOD работают на удержание; MORPH — тап (режим) и удержание (+ UNDO).
 
-import { canRedo, canUndo, redo, doc, gridMode, setHeld, toggleMorph, toggleView, ui, undo, undoTrackEdits, type HoldButton } from '../state';
+import { canRedo, canUndo, cycleRatio, redo, doc, gridMode, setHeld, toggleClipBypass, toggleCmpBypass, toggleLimBypass, toggleMorph, toggleView, ui, undo, undoTrackEdits, type HoldButton } from '../state';
+import { RATIOS } from '../params';
 import { registerAction } from '../midi';
 import { setPlaying } from '../transport';
-import { h, setClass } from './dom';
+import { h, setClass, setText } from './dom';
 import { heldKnobSources } from './knobs';
 
 const holdViews: [HTMLElement, HoldButton][] = [];
@@ -44,9 +45,34 @@ function tapButton(label: string, fn: () => void, state?: () => boolean): HTMLEl
   return el;
 }
 
+let lfoGrid: HTMLElement;
+let masterGrid: HTMLElement;
+let ratioBtn: HTMLElement;
+let compBypassBtn: HTMLElement;
+let clipBypassBtn: HTMLElement;
+let limBypassBtn: HTMLElement;
+
+/**
+ * Слева под окном сэмпла: LFO1, LFO2, LFO3, ENV. При MST на их месте (тот же размер и порядок
+ * сетки) кнопки мастера: RATIO компрессора, BYPASS клиппера, BYPASS компрессора, BYPASS лимитера.
+ */
 export function buildLeftButtons(): HTMLElement {
-  const el = h('div', 'btn-grid');
-  el.append(holdButton('LFO1', 'lfo1'), holdButton('LFO2', 'lfo2'), holdButton('LFO3', 'lfo3'), holdButton('ENV', 'env'));
+  const el = h('div', 'left-btns');
+  lfoGrid = h('div', 'btn-grid');
+  lfoGrid.append(holdButton('LFO1', 'lfo1'), holdButton('LFO2', 'lfo2'), holdButton('LFO3', 'lfo3'), holdButton('ENV', 'env'));
+  const tap = (label: string, fn: () => void) => {
+    const b = h('div', 'btn master-btn', label);
+    b.addEventListener('pointerdown', (e) => { e.preventDefault(); fn(); });
+    return b;
+  };
+  ratioBtn = tap('', cycleRatio);
+  ratioBtn.classList.add('ratio-btn');
+  clipBypassBtn = tap('BYPASS\nCLIP', toggleClipBypass);
+  compBypassBtn = tap('BYPASS\nCOMP', toggleCmpBypass);
+  limBypassBtn = tap('BYPASS\nLIM', toggleLimBypass);
+  masterGrid = h('div', 'btn-grid hidden');
+  masterGrid.append(ratioBtn, clipBypassBtn, compBypassBtn, limBypassBtn);
+  el.append(lfoGrid, masterGrid);
   return el;
 }
 
@@ -115,6 +141,15 @@ export function renderButtons() {
     setClass(el, 'active', ui.held[btn]);
     setClass(el, 'mod-src', SRC[btn] !== undefined && srcs.has(SRC[btn] as 1 | 2 | 3 | 4));
     if (btn === 'fx' || btn === 'mod') setClass(el, 'mode', mode === btn);
+  }
+  const master = ui.channel === 'master';
+  setClass(lfoGrid, 'hidden', master);
+  setClass(masterGrid, 'hidden', !master);
+  if (master) {
+    setText(ratioBtn, `RATIO\n${RATIOS[doc.ratio]}:1`);
+    setClass(compBypassBtn, 'active', doc.cmpBypass);
+    setClass(clipBypassBtn, 'active', doc.clipBypass);
+    setClass(limBypassBtn, 'active', doc.limBypass);
   }
   setClass(playBtn, 'active', ui.playing);
   setClass(patternsBtn, 'active', ui.patternView);

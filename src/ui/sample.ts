@@ -451,9 +451,6 @@ export function renderSample(now: number) {
   const panel = show ? 'mod' : ui.channel === 'master' ? 'master' : ui.channel === 'mix' ? 'mix' : 'wave';
   setClass(stub, 'hidden', panel !== 'wave');
   setClass(masterPanel, 'hidden', panel !== 'master');
-  // При MST панель мастера занимает всю левую колонку (стрелок и кнопок LFO/ENV не видно).
-  const side = masterPanel.closest('.side');
-  if (side) setClass(side as HTMLElement, 'master', panel === 'master');
   setClass(mixPanel, 'hidden', panel !== 'mix');
   setClass(previews, 'hidden', panel !== 'mod');
   if (panel === 'wave') renderWave();
