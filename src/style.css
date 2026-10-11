@@ -647,7 +647,10 @@ html, body {
 /* Иконка движка: белая в тёмной теме, чёрная в светлой. */
 .engine-icon { flex: none; display: flex; align-items: center; justify-content: center; pointer-events: none; }
 .engine-icon .w { color: var(--icon); }
-.synth-icon { align-self: center; }
+.synth-icon { align-self: center; flex: 1 1 0; min-height: 0; max-height: 120px; width: 100%; }
+/* Иконка ужимается по высоте окна (Safari с панелями вкладок), текст под ней не наезжает. */
+.synth-icon svg { width: auto; height: 100%; max-height: 120px; }
+.synth-full, .synth-row { flex: none; }
 .synth-info { flex: 1; width: 100%; display: flex; flex-direction: column; justify-content: center; gap: 8px; padding: 0 6px; min-height: 0; }
 .synth-full { font-size: 17px; font-weight: 600; color: var(--accent-text); }
 .synth-row { font-size: 11px; letter-spacing: 0.04em; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
