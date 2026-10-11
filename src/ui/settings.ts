@@ -1,11 +1,13 @@
-// Меню «бутерброд»: два пункта — PROJECTS (проекты, ui/projects.ts) и SETTINGS.
+// Меню «бутерброд»: PROJECTS (проекты, ui/projects.ts), SETTINGS и MIDI (ui/midi.ts);
+// во вложенных меню стрелка назад возвращает сюда.
 // SETTINGS — вкладки AUDIO ENGINE (частота дискретизации, размер буфера), BACKGROUND (звук в фоне)
 // и OUTPUT (выход и вход аудиоинтерфейса).
 
 import { applyOutput, audioInfo, canChooseOutput, restartAudio } from '../audio/engine';
 import { BUFFER_SIZES, SAMPLE_RATES, saveSettings, settings } from '../settings';
 import { h, setText } from './dom';
-import { makePopup, popupButton, type Popup } from './popup';
+import { backHeader, makePopup, popupButton, type Popup } from './popup';
+import { openMidi } from './midi';
 import { openProjectMenu } from './projects';
 
 type Tab = 'engine' | 'background' | 'output';
@@ -23,9 +25,11 @@ export function openMainMenu(anchor: Element) {
   anchorEl = anchor;
   if (!main) {
     main = makePopup('main-menu');
+    const back = () => openMainMenu(anchorEl);
     main.box.append(
-      popupButton('PROJECTS', () => { main.close(); openProjectMenu(anchorEl); }),
+      popupButton('PROJECTS', () => { main.close(); openProjectMenu(anchorEl, back); }),
       popupButton('SETTINGS', () => { main.close(); openSettings(anchorEl); }),
+      popupButton('MIDI', () => { main.close(); openMidi(anchorEl, back); }),
     );
   }
   main.openAt(anchor, 200);
@@ -40,7 +44,7 @@ function buildPanel() {
     tabs.append(tabBtns[t]);
   }
   body = h('div', 'settings-body');
-  panel.box.append(h('div', 'project-title', 'Settings'), tabs, body);
+  panel.box.append(backHeader(h('div', 'project-title', 'Settings'), () => { panel.close(); openMainMenu(anchorEl); }), tabs, body);
 }
 
 export function openSettings(anchor: Element) {

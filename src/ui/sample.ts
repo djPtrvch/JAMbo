@@ -15,7 +15,7 @@ import {
 } from '../audio/engine';
 import { LFO_WAVES, OVER_PEAK, RATIOS, SYNTH_ENGINES, TRACK_COUNT, noteName, synthEngine, synthKey } from '../params';
 import { fmtDb, levelFrac } from './meter';
-import { makePopup, openInput, popupButton } from './popup';
+import { backHeader, makePopup, openInput, popupButton } from './popup';
 import { audible, cycleRatio, deletePreset, doc, duplicatePreset, heldStepSound, liveMaster, loadPreset, renamePreset, setStepSound, folderItemName, folderPos, nextPresetName, presets, savePreset, stepFolder, stepFolderOnSteps, setTrackSynth, toggleCmpBypass, toggleLimBypass, envOut, envShape, lfoShape, rt, sampleName, selTrack, ui } from '../state';
 import { h, setAttr, setClass, setText, svg } from './dom';
 
@@ -230,7 +230,11 @@ export function buildSample(): HTMLElement {
   const presetMenu = makePopup('source-menu preset-list');
   const openPresetList = () => {
     const list = presets();
-    presetMenu.box.replaceChildren(h('div', 'source-title', `PRESETS · ${list.length}`));
+    // Стрелка назад — снова меню звука.
+    presetMenu.box.replaceChildren(backHeader(h('div', 'source-title', `PRESETS · ${list.length}`), () => {
+      presetMenu.close();
+      menu.openRect(menuRect());
+    }));
     const g = h('div', 'preset-grid');
     list.forEach((pr, k) => {
       const e = synthEngine(pr.sound);

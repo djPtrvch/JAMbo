@@ -8,7 +8,7 @@ import {
   renameProject, saveAs, saveProject, unsaved,
 } from '../project';
 import { h, setText } from './dom';
-import { makePopup, openInput, popupButton, type Popup } from './popup';
+import { backHeader, makePopup, openInput, popupButton, type Popup } from './popup';
 import type { ProjectInfo } from '../storage';
 
 const TRASH_W = 72;
@@ -20,6 +20,7 @@ let confirmYes: () => void = () => {};
 let title: HTMLElement;
 let list: HTMLElement;
 let anchorEl: Element;
+let onBack: () => void = () => {};
 
 const fail = (what: string) => (e: unknown) => {
   console.error(what, e);
@@ -51,7 +52,7 @@ function buildMenu() {
     importBtn,
   );
   list = h('div', 'project-list');
-  menu.box.append(title, actions, h('div', 'source-title', 'PROJECTS'), list);
+  menu.box.append(backHeader(title, () => { menu.close(); onBack(); }), actions, h('div', 'source-title', 'PROJECTS'), list);
 
   // Вопрос о перезаписи (SAVE AS с существующим именем).
   confirm = makePopup('confirm');
@@ -139,7 +140,9 @@ function fillList() {
   list.replaceChildren(...projects().map(projectRow));
 }
 
-export function openProjectMenu(anchor: Element) {
+/** onBack — стрелка назад (в главное меню бутерброда). */
+export function openProjectMenu(anchor: Element, back: () => void) {
+  onBack = back;
   if (!menu) buildMenu();
   anchorEl = anchor;
   fillList();

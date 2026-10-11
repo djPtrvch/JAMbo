@@ -82,3 +82,12 @@ export function popupButton(label: string, onTap: () => void): HTMLButtonElement
   b.addEventListener('pointerup', () => { if (!b.disabled) onTap(); });
   return b;
 }
+
+/** Заголовок вложенного меню: стрелка назад и название. */
+export function backHeader(title: HTMLElement, onBack: () => void): HTMLElement {
+  const row = h('div', 'menu-header');
+  const back = h('div', 'menu-back', '‹');
+  back.addEventListener('pointerup', onBack);
+  row.append(back, title);
+  return row;
+}

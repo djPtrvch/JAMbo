@@ -670,3 +670,8 @@ html, body {
 .settings-devices .popup-btn { text-align: left; padding: 0 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .settings-note { font-size: 12px; line-height: 1.35; color: var(--dim); }
 .settings-info { font-size: 12px; line-height: 1.35; color: var(--text); font-variant-numeric: tabular-nums; }
+
+/* Заголовок вложенного меню: стрелка назад и название. */
+.menu-header { display: flex; align-items: center; gap: 6px; }
+.menu-back { width: 44px; height: 40px; flex: none; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: var(--panel); font-size: 28px; line-height: 1; padding-bottom: 4px; }
+.menu-header .project-title, .menu-header .source-title { flex: 1; min-width: 0; }
