@@ -1,8 +1,8 @@
 // Окно MIDI MAP (как в Drambo): плавающее, перетаскивается за заголовок, не закрывает экран.
 // Открывается двойным тапом по ручке или кнопке в режиме MIDI LEARN (тап по другой цели, пока окно
 // открыто, переключает окно на неё) или тапом по строке в списке маппингов меню MIDI.
-// Строки: Input port (вход), Number (ввод числом), Channel (1–16), Event type (CC / Note), Control type,
-// Encoder (у Continuous relative), Range (график: концы тянут вверх-вниз, Invert); ниже Feedback port.
+// Строки: Number (ввод числом), Channel (1–16), Event type (CC / Note), Control type, Encoder (у Continuous
+// relative), Range (график: концы тянут вверх-вниз, Invert); ниже блок портов: Input port и Feedback port.
 // Строка с «›» открывает выбор на месте списка (стрелка назад — обратно). Движение контроллера,
 // пока окно открыто, задаёт Number, Channel, Event type и Input port сразу.
 // Unmap снимает маппинг, ✕ закрывает окно.
@@ -232,10 +232,9 @@ function render() {
     const ctl = CONTROLS.find(([c]) => c === cur.control)![1];
     const fb = cur.port === 'none' ? 'None' : cur.port ? name(outs, cur.port) : `Default (${defOut})`;
     const section = h('div', 'mm-list');
-    // Порядок: вход, номер, канал, тип сообщения, тип управления (и кодировка энкодера), диапазон;
-    // ниже отдельно — порт обратной связи.
+    // Порядок: номер, канал, тип сообщения, тип управления (и кодировка энкодера), диапазон;
+    // ниже отдельно — порты: вход и обратная связь.
     section.append(
-      row('Input port', cur.input ? name(ins, cur.input) : 'Any', 'port'),
       numberRow(),
       row('Channel', String(cur.src.ch + 1), 'channel'),
       row('Event type', cur.src.type === 'cc' ? 'CC' : 'Note', 'event'),
@@ -244,7 +243,7 @@ function render() {
       ...(knob ? [row('Range', `${pct(cur.min)} – ${pct(cur.max)} %`, 'range')] : []),
     );
     const fbSection = h('div', 'mm-list');
-    fbSection.append(row('Feedback port', fb, 'feedback'));
+    fbSection.append(row('Input port', cur.input ? name(ins, cur.input) : 'Any', 'port'), row('Feedback port', fb, 'feedback'));
     const status = h('div', 'mm-note', mapped
       ? 'Move a control to remap.'
       : 'Not mapped yet — move a control on your MIDI device or set the fields.');
