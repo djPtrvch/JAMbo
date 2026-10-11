@@ -239,9 +239,9 @@ export function buildEq(): HTMLElement {
   nameText = h('div', 'eq-name');
   const k = () => ui.eqBand;
   const typeField = dragField(
-    // Вертикальное движение идёт по порядку меню (EQ_TYPE_ORDER).
-    'TYPE', () => EQ_TYPE_ORDER.indexOf(selectedBand()?.type ?? 0),
-    (v) => setEqType(k(), EQ_TYPE_ORDER[((v % EQ_TYPE_ORDER.length) + EQ_TYPE_ORDER.length) % EQ_TYPE_ORDER.length]),
+    // Вертикальное движение идёт по порядку меню (EQ_TYPE_ORDER): палец вниз — следующий тип.
+    'TYPE', () => -EQ_TYPE_ORDER.indexOf(selectedBand()?.type ?? 0),
+    (v) => setEqType(k(), EQ_TYPE_ORDER[((-v % EQ_TYPE_ORDER.length) + EQ_TYPE_ORDER.length) % EQ_TYPE_ORDER.length]),
     () => { const b = selectedBand(); return b ? EQ_TYPES[b.type].name + (eqIsCut(b.type) ? ` ${EQ_SLOPES[b.slope]}` : '') : '—'; },
     30, (el) => { if (selectedBand()) { const r = el.getBoundingClientRect(), p = plot.getBoundingClientRect(); openBandMenu(k(), r.left + r.width / 2 - p.left, r.top - p.top); } },
   );

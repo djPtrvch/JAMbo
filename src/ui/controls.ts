@@ -7,6 +7,8 @@ import { makePopup, popupButton } from './popup';
 interface Field { value: HTMLElement; read: () => string }
 const fields: Field[] = [];
 const TAP_PX = 6;
+/** У поля с удержанием палец на iPad «плывёт» — движение засчитывается только после этого сдвига. */
+const HOLD_TAP_PX = 14;
 const HOLD_MS = 500;
 
 /**
@@ -43,7 +45,7 @@ export function dragField(
   el.addEventListener('pointermove', (e) => {
     if (e.pointerId !== id) return;
     if (held) return;
-    if (Math.abs(startY - e.clientY) > TAP_PX) { moved = true; clearTimeout(timer); }
+    if (Math.abs(startY - e.clientY) > (onHold ? HOLD_TAP_PX : TAP_PX)) { moved = true; clearTimeout(timer); }
     if (moved) set(startV + Math.round((startY - e.clientY) / pxPerUnit));
   });
   const up = (e: PointerEvent) => {
