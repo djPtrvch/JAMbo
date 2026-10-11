@@ -107,5 +107,11 @@ export function openMenuPanel(p: Popup, anchor: Element) {
   const a = anchor.getBoundingClientRect();
   const scale = document.querySelector('.top-mid > :first-child')?.getBoundingClientRect();
   p.openAt(anchor, scale ? scale.right - a.left : 420);
-  p.box.style.left = `${a.left}px`;
+  // Размер всегда один: по ширине — от бутерброда до края SCALE, по высоте — от верхней панели до
+  // строки дорожек (низ кнопок LFO3 и ENV). Не помещается — прокрутка пальцем вверх-вниз.
+  const top = a.bottom + 6;
+  const tracks = document.querySelector('.tracks')?.getBoundingClientRect();
+  const bottom = tracks ? tracks.top - 6 : window.innerHeight - 8;
+  p.box.classList.add('menu-panel');
+  Object.assign(p.box.style, { left: `${a.left}px`, top: `${top}px`, height: `${Math.max(120, bottom - top)}px` });
 }

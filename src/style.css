@@ -704,6 +704,11 @@ html, body {
 .confirm-row { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
 .confirm-row .popup-btn:last-child { background: var(--rec); color: #fff; }
 .popup-box.project-menu { overflow: hidden; }
+/* Меню «бутерброд» и его подменю — одного размера (до строки дорожек); лишнее прокручивается. */
+.popup-box.menu-panel { overflow-y: auto; touch-action: pan-y; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.popup-box.menu-panel > * { flex-shrink: 0; }
+.popup-box.menu-panel.project-menu { overflow: hidden; }
+.popup-box.menu-panel > .project-list { flex-shrink: 1; }
 
 /* Кроссфейдер перехода между проектами: справа от сетки паттернов (над MST). */
 .xfader { display: flex; flex-direction: column; align-items: center; gap: 20px; padding: 6px 0; border-radius: 6px; background: var(--panel); }
