@@ -9,6 +9,7 @@ import { updateTransport } from './transport';
 import { buildEqButton, buildLeftButtons, buildPatternsButton, buildRightButtons, buildTransportButtons, renderButtons } from './ui/buttons';
 import { renderFields } from './ui/controls';
 import { buildEq, renderEq } from './ui/eq';
+import { buildSampleEditor, renderSampleEditor } from './ui/sampleedit';
 import { h, setClass, setText } from './ui/dom';
 import { buildKnobGrid, renderKnobs } from './ui/knobs';
 import { buildLearnBar, renderLearn } from './ui/learn';
@@ -32,10 +33,11 @@ const right = h('div', 'side right');
 right.append(buildPages(), buildRightButtons());
 
 const main = h('div', 'main');
-// Центр: ручки 4×4, сетка паттернов 8×8 (кнопка PATTERNS) или эквалайзер (кнопка EQ).
+// Центр: ручки 4×4, сетка паттернов 8×8 (кнопка PATTERNS), эквалайзер (кнопка EQ) или редактор
+// сэмпла (удержание окна сэмпла).
 const knobGrid = buildKnobGrid();
 const center = h('div', 'center');
-center.append(knobGrid, buildPatternGrid(), buildEq());
+center.append(knobGrid, buildPatternGrid(), buildEq(), buildSampleEditor());
 // Справа с краю — измеритель уровня.
 const meter = buildMeter();
 main.append(left, center, right, meter);
@@ -99,13 +101,15 @@ function frame(now: number) {
   renderTopbar(now);
   renderFields();
   renderSample(now);
-  setClass(knobGrid, 'hidden', ui.patternView || ui.eqView);
+  setClass(knobGrid, 'hidden', ui.patternView || ui.eqView || ui.sampleView);
   // Сетка паттернов занимает всю ширину; эквалайзер — до края миниатюр страниц, справа измеритель.
   setClass(main, 'patterns', ui.patternView);
-  setClass(main, 'eq', ui.eqView);
+  // Редактор сэмпла — на том же месте, что эквалайзер.
+  setClass(main, 'eq', ui.eqView || ui.sampleView);
   renderKnobs(now);
   renderPatternGrid();
   renderEq();
+  renderSampleEditor();
   renderTracks(now);
   renderSequencer();
   renderPiano(now);

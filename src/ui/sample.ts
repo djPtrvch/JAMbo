@@ -17,12 +17,15 @@ import { LFO_WAVES, OVER_PEAK, RATIOS, SYNTH_ENGINES, TRACK_COUNT, noteName, syn
 import { fmtDb, levelFrac } from './meter';
 import { backHeader, makePopup, openInput, popupButton } from './popup';
 import { audible, cycleRatio, deletePreset, doc, duplicatePreset, heldStepSound, liveMaster, loadPreset, renamePreset, setStepSound, folderItemName, folderPos, nextPresetName, presets, savePreset, stepFolder, stepFolderOnSteps, setTrackSynth, toggleCmpBypass, toggleLimBypass, envOut, envShape, lfoShape, rt, sampleName, selTrack, ui } from '../state';
+import { openSampleEditor } from './sampleedit';
 import { h, setAttr, setClass, setText, svg } from './dom';
 
 const W = 200;
 const H = 80;
 const POINTS = 100;
 /** Фиксированный «случайный» рисунок для формы Random. */
+/** Удержание окна сэмпла — редактор сэмпла. */
+const SAMPLE_HOLD_MS = 500;
 const RANDOM_STEPS = [0.6, -0.3, 0.9, -0.8, 0.2, -0.5, 0.75, -0.1];
 
 interface Mini { title: HTMLElement; wave: SVGPathElement; dot: SVGCircleElement }
@@ -281,8 +284,21 @@ export function buildSample(): HTMLElement {
     return { left: side.left, top: side.top, width: side.width, height: side.height };
   };
   let downY = 0;
-  stub.addEventListener('pointerdown', (e) => { downY = e.clientY; });
+  // Удержание окна сэмпла (без зажатого шага) — редактор сэмпла; отпускание тогда меню не открывает.
+  let holdTimer = 0;
+  let heldOpen = false;
+  stub.addEventListener('pointerdown', (e) => {
+    downY = e.clientY;
+    heldOpen = false;
+    clearTimeout(holdTimer);
+    if (ui.channel !== 'track' || ui.heldSteps.size) return;
+    holdTimer = window.setTimeout(() => { heldOpen = true; openSampleEditor(); }, SAMPLE_HOLD_MS);
+  });
+  stub.addEventListener('pointermove', (e) => { if (Math.abs(e.clientY - downY) > 10) clearTimeout(holdTimer); });
+  stub.addEventListener('pointercancel', () => clearTimeout(holdTimer));
   stub.addEventListener('pointerup', (e) => {
+    clearTimeout(holdTimer);
+    if (heldOpen) { heldOpen = false; return; }
     if (Math.abs(e.clientY - downY) > 10) return;
     // Зажат шаг — меню выбирает звук этого шага (тоже p-lock).
     const held = ui.channel === 'track' ? [...ui.heldSteps.values()] : [];

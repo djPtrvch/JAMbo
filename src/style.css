@@ -747,3 +747,12 @@ html, body {
 .midi-map { cursor: pointer; }
 .confirm-row.load-mix .popup-btn:last-child { background: var(--accent); color: var(--bg); }
 .mm-head-btn.disabled { color: var(--off); pointer-events: none; }
+
+/* ---------- Редактор сэмпла (удержание окна сэмпла) ---------- */
+.eq-name.sedit-name { width: 200px; justify-content: flex-start; text-align: left; padding: 0 6px; color: var(--text); overflow: hidden; }
+.sedit-space { flex: 1; }
+.sedit-note { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--dim); font-size: 14px; pointer-events: none; }
+.sedit-note.hidden { display: none; }
+.eq-tool.disabled { opacity: 0.35; }
+.eq-tool.busy { opacity: 0.6; }
+.sedit .eq-canvas { touch-action: none; }
