@@ -1,8 +1,8 @@
 // Редактор сэмпла: удержание окна сэмпла открывает его на месте центра экрана (как EQ, справа
 // остаётся измеритель уровня). Форма волны сэмпла выбранной дорожки (стерео — L и R) и два маркера
 // обрезки: палец тянет ближайший маркер (можно оба сразу двумя пальцами), над пальцем — время.
-// Внизу: имя, длина и выделение; LOAD (файл с iPad — в папку дорожки, как SAMPLE), TRIM (оставить
-// выделенное), NORMALIZE (пик −0.1 dBFS), MONO (среднее L и R), SAVE (WAV в «Файлы»), CLOSE.
+// Внизу: имя, длина и выделение; LOAD (файл с iPad — в папку дорожки, как SAMPLE), SAVE (WAV в
+// «Файлы»), TRIM (оставить выделенное), NORMALIZE (пик −0.1 dBFS), MONO (среднее L и R), CLOSE.
 // TRIM, NORMALIZE и MONO сразу ставят на дорожку отредактированную копию (в папке — на месте
 // исходного сэмпла); UNDO в верхней панели возвращает исходный.
 
@@ -189,7 +189,8 @@ export function buildSampleEditor(): HTMLElement {
   monoBtn = tool('MONO', mono);
   saveBtn = tool('SAVE', () => downloadSample(currentKey()));
   const close = tool('CLOSE', () => toggleView('sample'));
-  bar.append(nameText, h('div', 'sedit-space'), load, trimBtn, normBtn, monoBtn, saveBtn, close);
+  // LOAD и SAVE рядом, за ними правки.
+  bar.append(nameText, h('div', 'sedit-space'), load, saveBtn, trimBtn, normBtn, monoBtn, close);
   panel.append(plot, bar);
   return panel;
 }
