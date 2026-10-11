@@ -110,10 +110,9 @@ export const TRACK_GRID: Slot[] = grid([
 // ---------- Синты: движки Mutable Instruments Plaits ----------
 
 /**
- * Движки Plaits: 16 классических и два из Plaits 1.2 (string machine, chiptune); подпись в меню и
- * что делают Harmonics, Timbre, Morph. Номер в списке = номер движка в plaits.wasm. bank — группа
- * в меню: 'synth' (музыкальные, зелёный банк Plaits и два новых) или 'drum' (шумы и ударные,
- * красный банк).
+ * Первые 16 (классических) движков Plaits: подпись в меню и что делают Harmonics, Timbre, Morph.
+ * Номер в списке = номер движка в plaits.wasm. bank — группа в меню: 'synth' (музыкальные,
+ * зелёный банк Plaits) или 'drum' (шумы и ударные, красный банк).
  * decay: у движка Morph в Plaits — затухание; здесь затуханием управляет ручка Decay, а Morph —
  * микс выходов OUT и AUX (как у модуля).
  */
@@ -134,9 +133,6 @@ export const SYNTH_ENGINES: { name: string; full: string; bank: 'synth' | 'drum'
   { name: 'KICK', full: 'Analog bass drum', bank: 'drum', decay: true, harm: 'attack', timbre: 'brightness', morph: 'OUT–AUX' },
   { name: 'SNARE', full: 'Analog snare', bank: 'drum', decay: true, harm: 'noise', timbre: 'modes', morph: 'OUT–AUX' },
   { name: 'HI-HAT', full: 'Analog hi-hat', bank: 'drum', decay: true, harm: 'metal', timbre: 'high-pass', morph: 'OUT–AUX' },
-  // Из Plaits 1.2 (16–17): номера после классических — старые проекты не меняются.
-  { name: 'STRING MACH', full: 'String machine', bank: 'synth', decay: false, harm: 'chord', timbre: 'chorus / filter', morph: 'waveform' },
-  { name: 'CHIPTUNE', full: 'Chiptune', bank: 'synth', decay: false, harm: 'chord', timbre: 'arpeggio', morph: 'pulse width' },
 ];
 
 /** Параметры звука, которые сохраняются в пресете синта (вместе с движком). */
