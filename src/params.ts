@@ -330,6 +330,8 @@ export const SCALES: { name: string; steps: number[] }[] = [
   { name: 'Pent Minor', steps: [0, 3, 5, 7, 10] },
   { name: 'Chromatic', steps: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] },
 ];
+/** Сокращённые названия гамм (список проектов). */
+export const SCALE_SHORT = ['Maj', 'Min', 'Dor', 'Phr', 'Lyd', 'Mix', 'Loc', 'HMin', 'PMaj', 'PMin', 'Chr'];
 
 /** Аккордовые прогрессии: ступени гаммы (0 = I). */
 export const PROGRESSIONS: { name: string; degrees: number[] }[] = [

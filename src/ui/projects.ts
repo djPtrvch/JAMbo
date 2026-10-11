@@ -11,6 +11,7 @@ import {
 import { h, setText } from './dom';
 import { backHeader, makePopup, openMenuPanel, openInput, popupButton, type Popup } from './popup';
 import type { ProjectInfo } from '../storage';
+import { NOTE_NAMES, SCALE_SHORT } from '../params';
 
 /** Ширина кнопки за строкой проекта (EDIT, корзина). */
 const TRASH_W = 72;
@@ -120,6 +121,11 @@ function projectRow(p: ProjectInfo): HTMLElement {
   const item = h('div', 'popup-btn project-item', label);
   item.classList.toggle('current', p.id === project.id);
   item.classList.toggle('autosave', isAutosave(p.id));
+  // Справа — темп, корневая нота и гамма (сокращённо).
+  if (p.bpm !== undefined) {
+    const key = p.root !== undefined && p.scale !== undefined ? ` · ${NOTE_NAMES[p.root % 12]} ${SCALE_SHORT[p.scale] ?? ''}` : '';
+    item.append(h('span', 'project-meta', `${Math.round(p.bpm)}${key}`));
+  }
   if (!auto) acts.append(edit);
   acts.append(trash);
   row.append(acts, item);

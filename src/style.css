@@ -886,3 +886,6 @@ html, body {
 /* Кнопки нижних полос браузера (LOAD, CANCEL, SAVE HERE) — полноразмерные. */
 .lib-save .btn { height: 48px; width: 150px; font-size: 13px; }
 .lib-save { height: 52px; }
+/* Список проектов: справа темп, нота и гамма. */
+.project-meta { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: inherit; opacity: 0.65; font-size: 12px; }
+.project-row.open .project-meta { display: none; }
