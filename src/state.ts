@@ -1554,11 +1554,9 @@ export function setCrossfade(pos: number) {
   doc.cmpBypass = half.cmpBypass;
   doc.eqs = clone(half.eqs);
   doc.masterEq = clone(half.masterEq);
-  // Дошли до нового проекта — кроссфейдер больше не нужен.
-  if (t >= 1) {
-    Object.assign(doc, clone(b));
-    xfade = null;
-  }
+  // У NEW — ровно настройки нового проекта. Кроссфейдер исчезает вместе со строкой PREV
+  // (updateTransition), когда дорожки перешли на новые паттерны.
+  if (t >= 1) Object.assign(doc, clone(b));
 }
 
 export function switchWithTransition(next: Doc) {
@@ -1567,7 +1565,7 @@ export function switchWithTransition(next: Doc) {
   // Дорожка, которая ждала остановки, тоже остаётся стоять.
   const old = doc.tracks.map((t, i) => {
     const trigs = t.pages.some((pg) => pg.some((st) => st.on));
-    return { trigs, playing: ui.playing && !t.stopped && rt.queued[i] !== 'stop' && trigs, pattern: takePattern(t), row: t.slot };
+    return { trigs, playing: ui.playing && !t.stopped && rt.queued[i] !== 'stop' && trigs, pattern: takePattern(t), row: t.slot, mute: t.mute, solo: t.solo };
   });
   const from = takeGlobals(doc);
   const tr: Transition = { hidden: [], origSlot: [], hiddenScene: next.scenes[LAST], real: [] };
@@ -1581,6 +1579,9 @@ export function switchWithTransition(next: Doc) {
     const prev = trigs ? old[i].pattern : emptyLike(takePattern(t));
     setRows(t, [...rows.slice(0, LAST), prev], LAST);
     t.stopped = !playing;
+    // Mute и solo дорожек переходят из старого проекта: заглушённая дорожка молчит и на новых паттернах.
+    t.mute = old[i].mute;
+    t.solo = old[i].solo;
     if (trigs) transitionMoves.push({ track: i, from: old[i].row });
   });
   next.scenes = [...next.scenes.slice(0, LAST), { name: 'PREV', repeats: 0 }];
@@ -1621,19 +1622,20 @@ export function docForSave(): Doc {
 }
 
 /**
- * Каждый кадр: закончить переход (строка PREV уступает место строке 8 нового проекта), когда
- * кроссфейдер доведён до NEW, ни одна дорожка не играет старый паттерн из PREV и ничего не ждёт
+ * Каждый кадр: закончить переход (строка PREV уступает место строке 8 нового проекта, кроссфейдер
+ * исчезает), когда кроссфейдер доведён до NEW, ни одна дорожка не играет старый паттерн из PREV и ничего не ждёт
  * запуска из PREV. До этого старые паттерны остаются в PREV — их можно запускать снова.
  */
 export function updateTransition() {
   const tr = transition;
   if (!tr) return;
-  const busy = xfade !== null
+  const busy = (xfade !== null && xfade.pos < 1)
     || doc.tracks.some((t, i) => (tr.real[i] && t.slot === LAST && !t.stopped && slotFilled(t, LAST)) || rt.queued[i] === LAST)
     || rt.scene?.row === LAST || rt.sceneQueued === LAST;
   if (busy) return;
   unshiftDoc(doc, tr);
   transition = null;
+  xfade = null;
   resetUndo();
   clampView();
 }
