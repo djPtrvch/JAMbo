@@ -4,7 +4,7 @@
 
 import {
   FX_GRID, MASTER_GRID, MAX_PAGES, MIX_GRID, MOD_GRID, PATTERN_SLOTS, RATIOS, STEPS_PER_PAGE, TRACK_COUNT, TRACK_GRID, OCTAVE_DEF, OCTAVE_MAX, OCTAVE_MIN,
-  BPM_MAX, BPM_MIN, PRESET_PARAMS, SEQ_COUNT, SEQ_MIX, SEQ_MST, SYNTH_ENGINES, SYNTH_GRID, synthEngine, synthKey, EQ_BANDS, EQ_BELL, EQ_FREQ_MAX, EQ_FREQ_MIN, EQ_GAIN_MAX, EQ_Q_DEF, EQ_Q_MAX, EQ_Q_MIN, EQ_TYPES, NOTE_NAMES, PROGRESSIONS, SCALES, fromNorm, toNorm, type ParamDef, type Slot,
+  BPM_MAX, BPM_MIN, PARAM_BY_ID, PRESET_PARAMS, SEQ_COUNT, SEQ_MIX, SEQ_MST, SYNTH_ENGINES, SYNTH_GRID, synthEngine, synthKey, EQ_BANDS, EQ_BELL, EQ_FREQ_MAX, EQ_FREQ_MIN, EQ_GAIN_MAX, EQ_Q_DEF, EQ_Q_MAX, EQ_Q_MIN, EQ_TYPES, NOTE_NAMES, PROGRESSIONS, SCALES, fromNorm, toNorm, type ParamDef, type Slot,
 } from './params';
 
 export interface Step {
@@ -1342,6 +1342,7 @@ function resetUi() {
 /** Открыть проект без перехода: документ целиком заменяется. */
 export function loadDoc(d: Doc) {
   transition = null;
+  xfade = null;
   Object.assign(doc, d);
   resetUndo();
   resetUi();
@@ -1351,14 +1352,19 @@ export function loadDoc(d: Doc) {
 }
 
 /**
- * Переход между проектами во время игры: играющие паттерны старого проекта уходят в строку 1
- * (и доигрывают), строки 1–7 нового проекта встают в строки 2–8, его строка 8 временно скрыта.
- * Общие настройки (темп, гамма, FX, микшер, мастер, EQ) — сразу из нового проекта.
- * Когда в строке 1 больше ничего не играет, сетка возвращается к строкам 1–8 нового проекта.
+ * Переход между проектами во время игры: играющие паттерны старого проекта опускаются в нижнюю
+ * строку сетки (строка 8, PREV) и доигрывают; строки 1–7 нового проекта стоят на своих местах,
+ * его строка 8 временно скрыта. Когда в строке 8 больше ничего не играет, она возвращается.
+ * Общие настройки (темп, гамма, FX, микшер, мастер, EQ) переходят от старого проекта к новому
+ * вертикальным кроссфейдером справа от сетки паттернов (внизу — старый, вверху — новый).
  */
 interface Transition { hidden: (Pattern | null)[]; origSlot: number[]; hiddenScene: Scene }
 let transition: Transition | null = null;
 export const inTransition = () => transition !== null;
+const LAST = PATTERN_SLOTS - 1;
+
+/** Строки, из которых старые паттерны опустились вниз (для анимации): дорожка → строка. */
+export const transitionMoves: { track: number; from: number }[] = [];
 
 /** Все паттерны столбца по строкам (активный — из полей дорожки). */
 const rowsOf = (t: Track) => Array.from({ length: PATTERN_SLOTS }, (_, k) => patternAt(t, k));
@@ -1373,22 +1379,75 @@ function setRows(t: Track, rows: (Pattern | null)[], active: number) {
 /** Пустой паттерн со звуком p (заглушка активной строки). */
 const emptyLike = (p: Pattern): Pattern => ({ ...clone(p), pages: [emptyPage()], length: STEPS_PER_PAGE, playFrom: 0, playTo: 0 });
 
+// ---------- Кроссфейдер общих настроек ----------
+
+const GLOBAL_KEYS = ['bpm', 'scale', 'root', 'fx', 'mixer', 'master', 'ratio', 'limBypass', 'cmpBypass', 'eqs', 'masterEq'] as const;
+type Globals = Pick<Doc, (typeof GLOBAL_KEYS)[number]>;
+const takeGlobals = (d: Doc): Globals => clone(Object.fromEntries(GLOBAL_KEYS.map((k) => [k, d[k]])) as Globals);
+
+/** Кроссфейдер: от общих настроек старого проекта (0) к новому (1). */
+let xfade: { from: Globals; to: Globals; pos: number } | null = null;
+export const crossfade = () => (xfade ? xfade.pos : null);
+
+/** Числа — плавно, ступенчатые и всё прочее (гамма, нота, Ratio, BYPASS, EQ) — на середине. */
+function blendRecord(a: Record<string, number>, b: Record<string, number>, t: number): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const id of Object.keys(b)) {
+    const x = a[id] ?? b[id];
+    const p = PARAM_BY_ID[id];
+    out[id] = p && p.kind === 'smooth' ? x + (b[id] - x) * t : t < 0.5 ? x : b[id];
+  }
+  return out;
+}
+
+/** Положение кроссфейдера 0..1: общие настройки документа — смесь старых и новых. */
+export function setCrossfade(pos: number) {
+  if (!xfade) return;
+  const t = Math.max(0, Math.min(1, pos));
+  xfade.pos = t;
+  const { from: a, to: b } = xfade;
+  const half = t < 0.5 ? a : b;
+  doc.bpm = Math.round(a.bpm + (b.bpm - a.bpm) * t);
+  doc.scale = half.scale;
+  doc.root = half.root;
+  doc.fx = blendRecord(a.fx, b.fx, t);
+  doc.mixer = blendRecord(a.mixer, b.mixer, t);
+  doc.master = blendRecord(a.master, b.master, t);
+  doc.ratio = half.ratio;
+  doc.limBypass = half.limBypass;
+  doc.cmpBypass = half.cmpBypass;
+  doc.eqs = clone(half.eqs);
+  doc.masterEq = clone(half.masterEq);
+  // Дошли до нового проекта — кроссфейдер больше не нужен.
+  if (t >= 1) {
+    Object.assign(doc, clone(b));
+    xfade = null;
+  }
+}
+
 export function switchWithTransition(next: Doc) {
   // Играющим считается не остановленный паттерн, в котором есть триги.
-  const old = doc.tracks.map((t) => ({ playing: !t.stopped && t.pages.some((pg) => pg.some((st) => st.on)), pattern: takePattern(t) }));
-  const tr: Transition = { hidden: [], origSlot: [], hiddenScene: next.scenes[PATTERN_SLOTS - 1] };
+  const old = doc.tracks.map((t) => ({ playing: !t.stopped && t.pages.some((pg) => pg.some((st) => st.on)), pattern: takePattern(t), row: t.slot }));
+  const from = takeGlobals(doc);
+  const tr: Transition = { hidden: [], origSlot: [], hiddenScene: next.scenes[LAST] };
+  transitionMoves.length = 0;
   next.tracks.forEach((t, i) => {
     const rows = rowsOf(t);
-    tr.hidden[i] = rows[PATTERN_SLOTS - 1];
+    tr.hidden[i] = rows[LAST];
     tr.origSlot[i] = t.slot;
     const playing = old[i].playing;
-    const first = playing ? old[i].pattern : emptyLike(takePattern(t));
-    setRows(t, [first, ...rows.slice(0, PATTERN_SLOTS - 1)], 0);
+    const prev = playing ? old[i].pattern : emptyLike(takePattern(t));
+    setRows(t, [...rows.slice(0, LAST), prev], LAST);
     t.stopped = !playing;
+    if (playing) transitionMoves.push({ track: i, from: old[i].row });
   });
-  next.scenes = [{ name: 'PREV', repeats: 0 }, ...next.scenes.slice(0, PATTERN_SLOTS - 1)];
+  next.scenes = [...next.scenes.slice(0, LAST), { name: 'PREV', repeats: 0 }];
+  const to = takeGlobals(next);
   Object.assign(doc, next);
   transition = tr;
+  // Общие настройки пока старые — кроссфейдер внизу.
+  xfade = { from, to, pos: 0 };
+  setCrossfade(0);
   resetUndo();
   resetUi();
   rt.queued.fill(null);
@@ -1396,39 +1455,37 @@ export function switchWithTransition(next: Doc) {
   rt.sceneQueued = null;
 }
 
-/** Убрать строку 1 перехода из документа d: строки 2–8 → 1–7, скрытая строка → 8. */
+/** Вернуть строку 8 нового проекта вместо строки PREV в документе d. */
 function unshiftDoc(d: Doc, tr: Transition) {
   d.tracks.forEach((t, i) => {
-    const rows = [...rowsOf(t).slice(1), tr.hidden[i]];
-    const fromRow0 = t.slot === 0;
-    let active = fromRow0 ? tr.origSlot[i] : t.slot - 1;
+    const rows = [...rowsOf(t).slice(0, LAST), tr.hidden[i]];
+    const fromPrev = t.slot === LAST;
+    let active = fromPrev ? tr.origSlot[i] : t.slot;
     if (!rows[active]) active = rows.findIndex((p) => p);
     if (active < 0) { rows[0] = emptyLike(takePattern(t)); active = 0; }
     setRows(t, rows, active);
-    if (fromRow0) t.stopped = true;
+    if (fromPrev) t.stopped = true;
   });
-  d.scenes = [...d.scenes.slice(1), tr.hiddenScene];
+  d.scenes = [...d.scenes.slice(0, LAST), tr.hiddenScene];
 }
 
-/** Документ для сохранения: во время перехода — без строки 1 старого проекта. */
+/** Документ для сохранения: без строки PREV и с общими настройками нового проекта. */
 export function docForSave(): Doc {
-  if (!transition) return doc;
+  if (!transition && !xfade) return doc;
   const d = clone(doc);
-  unshiftDoc(d, transition);
+  if (transition) unshiftDoc(d, transition);
+  if (xfade) Object.assign(d, clone(xfade.to));
   return d;
 }
 
-/** Каждый кадр: закончить переход, когда в строке 1 ничего не играет и не ждёт запуска. */
+/** Каждый кадр: закончить переход, когда в строке PREV ничего не играет и не ждёт запуска. */
 export function updateTransition() {
   const tr = transition;
   if (!tr) return;
-  const busy = doc.tracks.some((t, i) => (t.slot === 0 && !t.stopped) || rt.queued[i] === 0) || rt.scene?.row === 0 || rt.sceneQueued === 0;
+  const busy = doc.tracks.some((t, i) => (t.slot === LAST && !t.stopped) || rt.queued[i] === LAST) || rt.scene?.row === LAST || rt.sceneQueued === LAST;
   if (busy) return;
   unshiftDoc(doc, tr);
   transition = null;
-  rt.queued = rt.queued.map((q) => (typeof q === 'number' ? q - 1 : q));
-  if (rt.scene) rt.scene.row -= 1;
-  if (rt.sceneQueued !== null) rt.sceneQueued -= 1;
   resetUndo();
   clampView();
 }
