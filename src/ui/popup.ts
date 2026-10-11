@@ -78,6 +78,12 @@ export function openInput(anchor: Element, value: string, done: (v: string) => v
   inputPopup.openAt(anchor, 220);
   inputField.focus();
   inputField.select();
+  // Окно открыто удержанием (по таймеру, не в момент касания): iOS показывает клавиатуру, только
+  // если фокус ставится в обработчике касания — ставим его ещё раз, когда палец отпустят.
+  const refocus = () => {
+    if (inputPopup?.isOpen() && document.activeElement !== inputField) { inputField.focus(); inputField.select(); }
+  };
+  document.addEventListener('touchend', refocus, { once: true, capture: true });
 }
 
 export function popupButton(label: string, onTap: () => void): HTMLButtonElement {
