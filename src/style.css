@@ -704,3 +704,22 @@ html, body {
 .midi-map-src { color: var(--dim); font-variant-numeric: tabular-nums; }
 .midi-map-dst { font-weight: 600; letter-spacing: 0.04em; }
 .midi-map .midi-map-del { height: 40px; min-height: 0; }
+/* Окно настройки MIDI-маппинга. */
+.popup-box.midi-edit { max-height: calc(100vh - 16px); overflow-y: auto; }
+.map-fields { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.field.map-field { background: var(--panel); min-height: 52px; border-radius: 6px; }
+.field.map-range { flex: none; }
+.map-curve { display: flex; flex-direction: column; gap: 4px; padding-top: 4px; }
+.map-curve.hidden, .settings-row.hidden { display: none; }
+.map-curve-svg { width: 100%; height: auto; touch-action: none; background: var(--panel); border-radius: 6px; }
+.map-curve-frame { fill: none; stroke: var(--line); }
+.map-curve-line { stroke: var(--text); stroke-width: 2; }
+.map-curve-dot { fill: var(--accent); }
+.map-curve-text { fill: var(--dim); font-size: 10px; }
+.map-curve-text.end { text-anchor: end; }
+.midi-map { cursor: pointer; }
+.popup-btn.map-delete { color: var(--rec); }
+.map-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.map-col { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.map-curve-svg { max-height: 170px; }
+.settings-choice.map-controls { grid-auto-flow: row; grid-template-columns: 1fr 1fr; }

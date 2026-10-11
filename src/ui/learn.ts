@@ -1,11 +1,12 @@
 // MIDI LEARN (меню MIDI → MAPPING → LEARN): полоса внизу экрана, поверх пианоролла. Тап по ручке или кнопке выбирает
 // цель (обычное действие не выполняется), затем движение контроллера (CC или нота) назначает его.
-// Цель — голубая рамка, уже назначенные — голубой пунктир. CLEAR снимает маппинги цели, DONE —
-// выход из режима.
+// Цель — голубая рамка, уже назначенные — голубой пунктир. Двойной тап по цели — окно настройки
+// маппинга (ui/mapedit.ts). CLEAR снимает маппинги цели, DONE — выход из режима.
 
 import { clearTarget, learn, isMapped, onLearnChanged, setLearn, sourceLabel, targetFromAttr, targetLabel, learnTarget } from '../midi';
 import { settings } from '../settings';
-import { h, setClass, setText } from './dom';
+import { DOUBLE_TAP_MS, h, setClass, setText } from './dom';
+import { openMapEditor } from './mapedit';
 
 let bar: HTMLElement;
 let text: HTMLElement;
@@ -13,9 +14,11 @@ let clearBtn: HTMLElement;
 let marked: HTMLElement[] = [];
 /** Касания, начатые на цели в режиме LEARN, — их отпускание тоже не доходит до кнопки. */
 const blocked = new Set<number>();
+/** Последний тап по цели (двойной тап — окно настройки). */
+const lastTap = { key: '', at: -1e9 };
 
 function describe() {
-  if (!learn.target) return 'MIDI LEARN · Tap a knob or button on screen';
+  if (!learn.target) return 'MIDI LEARN · Tap a knob or button on screen, double-tap to edit';
   const t = targetLabel(learn.target);
   const m = settings.mappings.filter((x) => JSON.stringify(x.target) === JSON.stringify(learn.target));
   if (!m.length) return `${t} · Move a control on your MIDI device`;
@@ -47,6 +50,14 @@ export function buildLearnBar(): HTMLElement {
     e.preventDefault();
     e.stopPropagation();
     blocked.add(e.pointerId);
+    const now = performance.now();
+    if (el.dataset.midi === lastTap.key && now - lastTap.at < DOUBLE_TAP_MS) {
+      lastTap.at = -1e9;
+      openMapEditor(t);
+      return;
+    }
+    lastTap.key = el.dataset.midi!;
+    lastTap.at = now;
     learnTarget(t);
   }, true);
   const release = (e: PointerEvent) => {

@@ -10,7 +10,8 @@ import {
   onDevicesChanged, removeMapping, setLearn, sourceLabel, targetLabel, twisterPreset,
 } from '../midi';
 import { TRACK_COUNT } from '../params';
-import { saveSettings, settings, type KnobMode } from '../settings';
+import { saveSettings, settings } from '../settings';
+import { openMapEditor } from './mapedit';
 import { h } from './dom';
 import { backHeader, makePopup, popupButton, type Popup } from './popup';
 
@@ -108,7 +109,8 @@ function renderDevices() {
   );
 }
 
-const KNOB_MODES: [KnobMode, string][] = [['abs', 'ABSOLUTE'], ['rel64', 'RELATIVE 64'], ['rel2c', 'RELATIVE 2’S']];
+
+const CONTROL_NAMES = { momentary: 'MOMENTARY', toggle: 'TOGGLE', abs: 'ABSOLUTE', rel: 'RELATIVE' };
 
 function renderMapping() {
   const u = unsupported();
@@ -119,7 +121,13 @@ function renderMapping() {
   const list = h('div', 'project-list midi-maps');
   settings.mappings.forEach((m, k) => {
     const row = h('div', 'midi-map');
-    row.append(h('div', 'midi-map-src', sourceLabel(m.src)), h('div', 'midi-map-dst', targetLabel(m.target)));
+    row.append(h('div', 'midi-map-src', sourceLabel(m.src)), h('div', 'midi-map-dst', `${targetLabel(m.target)}  ·  ${CONTROL_NAMES[m.control]}`));
+    // Тап по строке — окно настройки маппинга (стрелка назад — сюда).
+    row.addEventListener('pointerup', (e) => {
+      if ((e.target as Element).closest('.midi-map-del')) return;
+      panel.close();
+      openMapEditor(m.target, () => openMidi(anchorEl, onBack));
+    });
     const del = popupButton('✕', () => { removeMapping(k); render(); });
     del.classList.add('midi-map-del');
     row.append(del);
@@ -130,10 +138,7 @@ function renderMapping() {
   body.append(
     ...(u ? [u] : []),
     top,
-    note('MIDI LEARN: tap a knob or button on screen, then move a control. Knobs are mapped by position in the 4×4 grid and follow the current mode (track, FX, MOD, MIX, MST). Hold a step to p-lock, hold LFO/ENV to set modulation. TWISTER PRESET maps CC 0–15 on channel 1 to the 16 knobs.'),
-    title('KNOB MODE'),
-    choice(KNOB_MODES.map(([m]) => m), settings.knobMode, (m) => KNOB_MODES.find(([x]) => x === m)![1], (m) => saveSettings({ knobMode: m })),
-    note('ABSOLUTE: 0–127. RELATIVE 64: 65 = up, 63 = down. RELATIVE 2’S: 1 = up, 127 = down.'),
+    note('MIDI LEARN: tap a knob or button on screen, then move a control; double-tap it to edit the mapping (type, channel, number, control type, range, feedback port). Knobs are mapped by position in the 4×4 grid and follow the current mode (track, FX, MOD, MIX, MST). Hold a step to p-lock, hold LFO/ENV to set modulation. TWISTER PRESET maps CC 0–15 on channel 1 to the 16 knobs. Tap a mapping below to edit it.'),
     title(`MAPPINGS (${settings.mappings.length})`),
     settings.mappings.length ? list : note('No mappings yet.'),
     clear,
@@ -161,8 +166,11 @@ function render() {
 }
 
 /** Открыть меню MIDI; back — стрелка назад (главное меню бутерброда). */
+let anchorEl: Element;
+
 export function openMidi(anchor: Element, back: () => void) {
   onBack = back;
+  anchorEl = anchor;
   if (!panel) build();
   status = '';
   render();
