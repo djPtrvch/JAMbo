@@ -157,6 +157,15 @@ export async function renameProject(name: string) {
   await refreshList();
 }
 
+/** Переименовать проект из списка (свайп влево → EDIT); текущий — как RENAME. */
+export async function renameById(id: string, name: string) {
+  if (id === project.id) { await renameProject(name); return; }
+  const n = name.trim().slice(0, 24);
+  const rec = n ? await getProject(id) : undefined;
+  if (rec) await putProject({ ...rec, name: n });
+  await refreshList();
+}
+
 /** Удалить запись из списка (свайп влево и корзина). Текущая работа на экране остаётся. */
 export async function deleteById(id: string) {
   await deleteProject(id);

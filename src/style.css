@@ -699,10 +699,14 @@ html, body {
 .project-actions .popup-btn { height: 44px; }
 .project-list { flex: 1; min-height: 60px; overflow-y: auto; touch-action: pan-y; display: grid; grid-auto-rows: 48px; gap: 4px; }
 /* Строка проекта: свайп влево открывает корзину справа (как в приложениях iPad). */
-.project-row { position: relative; overflow: hidden; border-radius: 6px; background: var(--rec); }
-.project-trash { position: absolute; right: 0; top: 0; bottom: 0; width: 72px; display: flex; align-items: center; justify-content: center; color: #fff; }
+.project-row { position: relative; overflow: hidden; border-radius: 6px; }
+.project-acts { position: absolute; right: 0; top: 0; bottom: 0; display: flex; }
+.project-row:not(.open):not(:has(.dragging)) .project-acts { visibility: hidden; }
+.project-edit, .project-trash { width: 72px; display: flex; align-items: center; justify-content: center; color: #fff; }
+.project-edit { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; background: var(--off); }
+.project-trash { background: var(--rec); }
 .project-trash svg { width: 24px; height: 24px; }
-.project-item { position: relative; height: 100%; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; white-space: pre; line-height: 1.25; text-align: left; padding: 0 12px; font-size: 13px; transition: transform 0.18s ease; touch-action: pan-y; }
+.project-item { position: relative; height: 100%; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; white-space: pre; line-height: 1.25; text-align: left; padding: 0 12px; font-size: 13px; transition: width 0.18s ease; touch-action: pan-y; margin-left: 0; }
 .project-item.dragging { transition: none; }
 .confirm-text { padding: 8px 6px; font-size: 14px; line-height: 1.3; }
 .confirm-row { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }

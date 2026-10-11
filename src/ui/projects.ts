@@ -6,12 +6,13 @@
 
 import {
   deleteById, exportProject, importProject, isAutosave, newProject, openProject, project, projectNamed, projects,
-  renameProject, saveAs, saveProject, unsaved,
+  renameById, renameProject, saveAs, saveProject, unsaved,
 } from '../project';
 import { h, setText } from './dom';
 import { backHeader, makePopup, openMenuPanel, openInput, popupButton, type Popup } from './popup';
 import type { ProjectInfo } from '../storage';
 
+/** Ширина кнопки за строкой проекта (EDIT, корзина). */
 const TRASH_W = 72;
 
 let menu: Popup;
@@ -98,6 +99,16 @@ function askSaveAs(name: string) {
 /** Строка списка: свайп влево открывает корзину справа, тап — открыть проект. */
 function projectRow(p: ProjectInfo): HTMLElement {
   const row = h('div', 'project-row');
+  // Свайп влево открывает справа EDIT (переименовать) и корзину, как в браузере библиотеки.
+  // У Autosave — только корзина.
+  const auto = isAutosave(p.id);
+  const actW = auto ? TRASH_W : 2 * TRASH_W;
+  const acts = h('div', 'project-acts');
+  const edit = h('div', 'project-edit', 'EDIT');
+  edit.addEventListener('pointerup', () => {
+    closeRow(row);
+    openInput(item, p.name, (n) => void renameById(p.id, n).then(() => fillList()).catch(fail('Rename')));
+  });
   const trash = h('div', 'project-trash');
   trash.innerHTML = '<svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   trash.addEventListener('pointerup', () => {
@@ -109,24 +120,27 @@ function projectRow(p: ProjectInfo): HTMLElement {
   const item = h('div', 'popup-btn project-item', label);
   item.classList.toggle('current', p.id === project.id);
   item.classList.toggle('autosave', isAutosave(p.id));
-  row.append(trash, item);
+  if (!auto) acts.append(edit);
+  acts.append(trash);
+  row.append(acts, item);
 
   let id = -1;
   let x0 = 0;
   let base = 0;
   let dx = 0;
-  const place = (x: number) => { item.style.transform = x ? `translateX(${x}px)` : ''; };
+  // Строка сужается (а не сдвигается), чтобы имя оставалось видно.
+  const place = (x: number) => { item.style.width = x ? `calc(100% - ${-x}px)` : ''; };
   item.addEventListener('pointerdown', (e) => {
     id = e.pointerId;
     x0 = e.clientX;
-    base = row.classList.contains('open') ? -TRASH_W : 0;
+    base = row.classList.contains('open') ? -actW : 0;
     dx = 0;
     item.classList.add('dragging');
   });
   item.addEventListener('pointermove', (e) => {
     if (e.pointerId !== id) return;
     dx = e.clientX - x0;
-    if (Math.abs(dx) > 6) place(Math.max(-TRASH_W, Math.min(0, base + dx)));
+    if (Math.abs(dx) > 6) place(Math.max(-actW, Math.min(0, base + dx)));
   });
   const end = (e: PointerEvent, cancel: boolean) => {
     if (e.pointerId !== id) return;
@@ -139,11 +153,11 @@ function projectRow(p: ProjectInfo): HTMLElement {
       askMode(item, (mix) => { menu.close(); void openProject(p.id, mix).catch(fail('Open')); }, p.name);
       return;
     }
-    const open = x < -TRASH_W / 2;
+    const open = x < -actW / 2;
     // Открыта может быть только одна строка.
     if (open) list.querySelectorAll('.project-row.open').forEach((r) => { if (r !== row) closeRow(r as HTMLElement); });
     row.classList.toggle('open', open);
-    place(open ? -TRASH_W : 0);
+    place(open ? -actW : 0);
   };
   item.addEventListener('pointerup', (e) => end(e, false));
   item.addEventListener('pointercancel', (e) => end(e, true));
@@ -152,7 +166,7 @@ function projectRow(p: ProjectInfo): HTMLElement {
 
 function closeRow(r: HTMLElement) {
   r.classList.remove('open');
-  (r.querySelector('.project-item') as HTMLElement).style.transform = '';
+  (r.querySelector('.project-item') as HTMLElement).style.width = '';
 }
 
 function fillList() {

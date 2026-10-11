@@ -16,7 +16,7 @@ import {
 import { LFO_WAVES, OVER_PEAK, RATIOS, SYNTH_ENGINES, TRACK_COUNT, noteName, synthEngine, synthGrid, synthKey } from '../params';
 import { fmtDb, levelFrac } from './meter';
 import { makePopup, popupButton } from './popup';
-import { audible, cycleRatio, doc, heldStepSound, liveMaster, setStepSound, folderItemName, folderPos, stepFolder, stepFolderOnSteps, setTrackSynth, toggleCmpBypass, toggleLimBypass, envAt, envOut, envShape, lfoShape, rt, sampleName, selTrack, ui } from '../state';
+import { audible, cycleRatio, doc, heldStepSound, liveMaster, setStepSound, folderItemName, folderPos, stepFolder, stepFolderOnSteps, setTrackSynth, toggleCmpBypass, toggleLimBypass, envAt, envShape, liveParams, lfoShape, rt, sampleName, selTrack, ui } from '../state';
 import { openSampleEditor } from './sampleedit';
 import { iconView, renderIcon, type IconView } from './engineIcon';
 import { openBrowser } from './browser';
@@ -368,32 +368,38 @@ function renderLfo(m: Mini, n: 1 | 2 | 3) {
   setAttr(m.dot, 'cy', yBi(lfoValue(n, phase)));
 }
 
-/** ENV: форма ADSR с условным гейтом; точка по высоте — текущий уровень огибающей. */
+/**
+ * ENV: форма ADSR и точка на ней. Без ноты — условный гейт (видны все стадии). Пока звучит нота,
+ * кривая — её настоящая огибающая: если гейт короче Attack+Decay, Release начинается с того уровня,
+ * где оборвалась нота. Точка всегда на кривой: стадии A и D — в реальном времени, Sustain —
+ * до края своего участка, Release — от его начала. Значения — как у звука (с p-lock шага).
+ */
 function renderEnv(m: Mini, now: number) {
-  const p = selTrack().params;
+  const ti = ui.selectedTrack;
+  const p = liveParams(ti, now);
   const a = p['env.attack'];
   const dcy = p['env.decay'];
   const r = p['env.release'];
-  const gate = a + dcy + Math.max(200, (a + dcy + r) * 0.3);
+  const ad = a + dcy;
+  const e = envAt(ti, now);
+  const t = e.start >= 0 ? now - e.start : -1;
+  const g = e.gateEnd - e.start;
+  const active = t >= 0 && t < g + r;
+  // Нота короче A+D — рисуем её настоящий гейт; иначе условный (участок Sustain виден всегда).
+  const gate = active && g < ad ? g : ad + Math.max(200, (ad + r) * 0.3);
   const total = gate + r;
   setText(m.title, `ENV · A${Math.round(a)} D${Math.round(dcy)} S${Math.round(p['env.sustain'])}% R${Math.round(r)}`);
   let d = '';
   for (let i = 0; i <= POINTS; i++) {
-    const t = (i / POINTS) * total;
-    d += `${i ? 'L' : 'M'}${((i / POINTS) * W).toFixed(1)} ${yUni(envShape(p, t, gate))}`;
+    const x = (i / POINTS) * total;
+    d += `${i ? 'L' : 'M'}${((i / POINTS) * W).toFixed(1)} ${yUni(envShape(p, x, gate))}`;
   }
   setAttr(m.wave, 'd', d);
-  const e = envAt(ui.selectedTrack, now);
-  const level = envOut(ui.selectedTrack, now);
-  // Позиция точки: время с запуска, растянутое по реальному гейту в условную шкалу.
+  // Время ноты → место на кривой.
   let x = 0;
-  if (e.start >= 0) {
-    const t = now - e.start;
-    const g = e.gateEnd - e.start;
-    x = t < g ? Math.min(gate, t) : gate + Math.min(r, t - g);
-  }
+  if (t >= 0) x = t < g ? Math.min(gate, t) : gate + Math.min(r, t - g);
   setAttr(m.dot, 'cx', ((x / total) * W).toFixed(1));
-  setAttr(m.dot, 'cy', yUni(level));
+  setAttr(m.dot, 'cy', yUni(envShape(p, x, gate)));
 }
 
 function renderWave() {
