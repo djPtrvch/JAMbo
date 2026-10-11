@@ -28,6 +28,12 @@ export interface ParamDef {
   curve?: number;
   /** Дуга рисуется от центра (Pan, Pitch, Invert). */
   bipolar?: boolean;
+  /** Шаг значения (0.1 dB у компрессора мастера). */
+  step?: number;
+  /** Последняя доля хода ручки — AUTO (значение AUTO_VALUE); шкала до неё — как обычно. */
+  autoTop?: number;
+  /** P-lock на ручку не ставится (ручки компрессора мастера). */
+  noLock?: boolean;
   /** Ступенчатая ручка в процентах (1.1 некоторых движков): число пунктов, значение — середина пункта. */
   steps?: number;
   /** Подписи ступеней для ступенчатых ручек (значение = индекс). */
@@ -263,14 +269,22 @@ export const MIX_GRID: Slot[] = Array.from({ length: MIX_SLOTS }, (_, i) =>
 
 const db = (v: number) => `${v > 0 ? '+' : ''}${v.toFixed(1)}dB`;
 
+/** Release компрессора мастера в AUTO (последние 8% хода ручки). */
+export const AUTO_VALUE = 1e9;
+export const isAuto = (v: number) => v >= AUTO_VALUE;
+const cmpDb = (v: number) => `${v > 0.04 ? '+' : ''}${v.toFixed(1)} dB`;
+const cmpMs = (v: number) => (isAuto(v) ? 'AUTO' : v >= 1000 ? `${(v / 1000).toFixed(1)} s` : v < 10 ? `${v.toFixed(1)} ms` : `${Math.round(v)} ms`);
+const CMP = { noLock: true } as const;
+
 export const MASTER_GRID: Slot[] = grid([
   [],
   [],
   [
-    smooth('cmp.threshold', 'Threshold', -60, 0, 0, db),
-    smooth('cmp.attack', 'Attack', 0.1, 100, 10, ms, { exp: true }),
-    smooth('cmp.release', 'Release', 10, 1000, 200, ms, { exp: true }),
-    smooth('cmp.makeup', 'Makeup', 0, 24, 0, db),
+    // Компрессор мастер-шины «glue» (glue-worklet.js): все ручки плавные, без p-lock.
+    smooth('cmp.threshold', 'Threshold', -40, 0, -10, cmpDb, { ...CMP, step: 0.1 }),
+    smooth('cmp.attack', 'Attack', 0.1, 100, 10, cmpMs, { ...CMP, exp: true }),
+    smooth('cmp.release', 'Release', 20, 2000, 400, cmpMs, { ...CMP, exp: true, autoTop: 0.08 }),
+    smooth('cmp.makeup', 'Makeup', 0, 18, 0, cmpDb, { ...CMP, step: 0.1 }),
   ],
   [
     smooth('lim.input', 'Lim Input', 0, 24, 0, db),
@@ -284,7 +298,7 @@ export const MASTER_GRID: Slot[] = grid([
 export const SAMPLE_ROOT = 48;
 
 /** Ratio компрессора мастера (кнопка RATIO перебирает по кругу). */
-export const RATIOS = [2, 4, 8, 20];
+export const RATIOS = [2, 4, 10];
 
 // ---------- Верхняя панель ----------
 
@@ -335,6 +349,7 @@ export const PARAM_BY_ID: Record<string, ParamDef> = Object.fromEntries(ALL_PARA
 
 /** Значение параметра → 0..1 (положение ручки). */
 export function toNorm(p: ParamDef, v: number): number {
+  if (p.autoTop) return isAuto(v) ? 1 : (1 - p.autoTop) * toNorm({ ...p, autoTop: undefined }, Math.min(p.max, v));
   if (p.exp) return Math.log(v / p.min) / Math.log(p.max / p.min);
   if (p.curve) return Math.pow(Math.min(1, Math.max(0, (v - p.min) / (p.max - p.min))), 1 / p.curve);
   return (v - p.min) / (p.max - p.min);
@@ -343,6 +358,11 @@ export function toNorm(p: ParamDef, v: number): number {
 /** 0..1 → значение параметра (ступенчатые округляются). */
 export function fromNorm(p: ParamDef, n: number): number {
   n = Math.min(1, Math.max(0, n));
+  if (p.autoTop) return n >= 1 - p.autoTop ? AUTO_VALUE : fromNorm({ ...p, autoTop: undefined }, n / (1 - p.autoTop));
+  if (p.step) {
+    const v = fromNorm({ ...p, step: undefined }, n);
+    return Math.round(v / p.step) * p.step;
+  }
   if (p.steps) return p.min + ((stepIndex(n, p.steps) + 0.5) / p.steps) * (p.max - p.min);
   if (p.kind === 'stepped') return Math.round(n * (p.max - p.min)) + p.min;
   if (p.exp) return p.min * Math.pow(p.max / p.min, n);

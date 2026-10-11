@@ -3,7 +3,7 @@
 // ui — текущие удержания кнопок/шагов и выбор. rt — данные реального времени (LFO, проигрывание).
 
 import {
-  FX_GRID, MASTER_GRID, MAX_PAGES, MIX_GRID, MOD_GRID, PATTERN_SLOTS, RATIOS, STEPS_PER_PAGE, TRACK_COUNT, TRACK_GRID, OCTAVE_DEF, OCTAVE_MAX, OCTAVE_MIN,
+  FX_GRID, isAuto, MASTER_GRID, MAX_PAGES, MIX_GRID, MOD_GRID, PATTERN_SLOTS, RATIOS, STEPS_PER_PAGE, TRACK_COUNT, TRACK_GRID, OCTAVE_DEF, OCTAVE_MAX, OCTAVE_MIN,
   BPM_MAX, BPM_MIN, VOL_MIN_DB, PARAM_BY_ID, PRESET_PARAMS, SEQ_COUNT, SEQ_MIX, SEQ_MST, SYNTH_ENGINES, SYNTH_GRID, synthEngine, synthGrid, synthKey, EQ_BANDS, EQ_BELL, EQ_FREQ_MAX, EQ_FREQ_MIN, EQ_GAIN_MAX, EQ_Q_DEF, EQ_Q_MAX, EQ_Q_MIN, EQ_TYPES, NOTE_NAMES, PROGRESSIONS, SCALES, fromNorm, toNorm, type ParamDef, type Slot,
 } from './params';
 
@@ -270,7 +270,7 @@ export function makeDoc(): Doc {
   fx: defaults(FX_GRID),
   mixer: defaults(MIX_GRID),
   master: defaults(MASTER_GRID),
-  ratio: 1,
+  ratio: 0,
   limBypass: false,
   cmpBypass: false,
   outVol: 0,
@@ -1448,6 +1448,10 @@ export function normalizeDoc(raw: unknown): Doc {
   d.folders = base.folders.map((b, k) => d.folders?.[k] ?? b);
   d.eqs = base.eqs.map((b, k) => d.eqs?.[k] ?? b);
   for (const key of ['fx', 'mixer', 'master'] as const) d[key] = { ...base[key], ...d[key] };
+  // RATIO теперь 2:1, 4:1, 10:1 — прежние 8:1 и 20:1 становятся 10:1.
+  d.ratio = Math.min(RATIOS.length - 1, Math.max(0, Math.round(d.ratio ?? 0)));
+  // Значения мастера — в пределах нынешних шкал (у компрессора они стали другими).
+  for (const p of MASTER_GRID) if (p && !isAuto(d.master[p.id])) d.master[p.id] = Math.min(p.max, Math.max(p.min, d.master[p.id]));
   return d;
 }
 

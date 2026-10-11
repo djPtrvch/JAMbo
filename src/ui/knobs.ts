@@ -118,7 +118,8 @@ function onDown(slot: number, e: PointerEvent) {
   // Удержание шага — p-lock в любом режиме (дорожка, FX, MOD, MIX, MST).
   // LFO/ENV назначаются на ручки дорожки и FX.
   const canMod = mode === 'track' || mode === 'fx';
-  const kind: Gesture['kind'] = held !== null ? 'lock' : canMod && lfo ? 'lfo' : 'base';
+  // Ручки без p-lock (компрессор мастера) с зажатым шагом крутят само значение.
+  const kind: Gesture['kind'] = held !== null && !param.noLock ? 'lock' : canMod && lfo ? 'lfo' : 'base';
   const g: Gesture = { slot, mode, param, startY: e.clientY, lastY: e.clientY, moved: false, acc: 0, kind, lfo: lfo ?? 1, consumed: false };
 
   // Двойной тап: только при удержании шага (снять p-lock) или LFO (снять назначение).

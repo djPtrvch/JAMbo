@@ -317,9 +317,9 @@ function knobInput(m: MidiMapping, slot: number, at: number | null, step: number
     setLfoAmount(p, lfo, n * 2 - 1, mode);
     return;
   }
-  const base = held !== null ? lockValue(held, p) ?? paramValue(mode, p) : paramValue(mode, p);
+  const base = held !== null && !p.noLock ? lockValue(held, p) ?? paramValue(mode, p) : paramValue(mode, p);
   const n = at !== null ? m.min + at * (m.max - m.min) : Math.min(hi, Math.max(lo, toNorm(p, base) + (dir * step) / 128));
-  if (held !== null) setLockNorm(p, n);
+  if (held !== null && !p.noLock) setLockNorm(p, n);
   else setParamNorm(mode, p, n);
 }
 
