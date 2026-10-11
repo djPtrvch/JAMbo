@@ -7,6 +7,7 @@ import {
   beginGesture, clearLfoAssign, clearLock, doc, endGesture, firstHeldStep, gridFor, gridMode, heldLfo,
   lockValue, modulatedNorm, paramValue, type Mod, setLfoAmount, setLockNorm, setParamNorm, ui, type GridMode,
 } from '../state';
+import { markKnob } from '../midi';
 import { openRename } from './tracks';
 import { DOUBLE_TAP_MS, h, setAttr, setClass, setText, svg } from './dom';
 
@@ -85,6 +86,7 @@ function buildKnob(slot: number): KnobView {
   dial.append(box, value);
   root.append(dial, label);
 
+  markKnob(root, slot);
   root.addEventListener('pointerdown', (e) => onDown(slot, e));
   root.addEventListener('pointermove', (e) => onMove(e));
   root.addEventListener('pointerup', (e) => onUp(e));

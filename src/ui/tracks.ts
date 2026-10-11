@@ -7,6 +7,7 @@
 
 import { TRACK_COUNT } from '../params';
 import { audible, doc, renameTrack, rt, selectChannel, selectTrack, swipeTrack, ui, type Channel } from '../state';
+import { registerAction } from '../midi';
 import { h, setClass, setText } from './dom';
 import { openInput } from './popup';
 
@@ -25,6 +26,7 @@ function channelCell(label: string, c: Channel): HTMLElement {
   const el = h('div', 'track channel', label);
   el.addEventListener('pointerdown', (e) => { e.preventDefault(); selectChannel(c); });
   channels.push([el, c]);
+  registerAction(label, { label, press: () => selectChannel(c) }, el);
   return el;
 }
 
@@ -58,6 +60,8 @@ export function buildTracks(): HTMLElement {
     root.addEventListener('pointerup', (e) => finish(e, false));
     root.addEventListener('pointercancel', (e) => finish(e, true));
 
+    // С MIDI — выбор дорожки (T1…T8 — по номеру, не по имени).
+    registerAction(`T${i + 1}`, { label: `TRACK ${i + 1}`, press: () => selectTrack(i) }, root);
     views.push({ root, name, state, dot });
     el.append(root);
   }

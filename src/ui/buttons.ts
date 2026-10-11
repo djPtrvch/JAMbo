@@ -3,6 +3,7 @@
 // LFO1/LFO2/LFO3/ENV/FX/MOD работают на удержание; MORPH — тап (режим) и удержание (+ UNDO).
 
 import { canUndo, doc, gridMode, setHeld, toggleMorph, toggleView, ui, undo, undoTrackEdits, type HoldButton } from '../state';
+import { registerAction } from '../midi';
 import { setPlaying } from '../transport';
 import { h, setClass } from './dom';
 
@@ -30,12 +31,14 @@ function holdButton(label: string, btn: HoldButton): HTMLElement {
   el.addEventListener('pointerup', release);
   el.addEventListener('pointercancel', release);
   holdViews.push([el, btn]);
+  if (btn !== 'track') registerAction(label, { label, press: () => setHeld(btn, true), release: () => setHeld(btn, false) }, el);
   return el;
 }
 
 function tapButton(label: string, fn: () => void): HTMLElement {
   const el = h('div', 'btn', label);
   el.addEventListener('pointerdown', (e) => { e.preventDefault(); fn(); });
+  registerAction(label, { label, press: fn }, el);
   return el;
 }
 
@@ -85,6 +88,12 @@ export function buildRightButtons(): HTMLElement {
   morphBtn = holdButton('MORPH', 'track');
   morphBtn.addEventListener('pointerdown', () => { morphUsed = false; });
   morphBtn.addEventListener('pointerup', () => { if (!morphUsed && !ui.held.track) toggleMorph(); });
+  // С MIDI — так же: нажатие держит MORPH, отпускание без UNDO переключает режим.
+  registerAction('MORPH', {
+    label: 'MORPH',
+    press: () => { morphUsed = false; setHeld('track', true); },
+    release: () => { setHeld('track', false); if (!morphUsed) toggleMorph(); },
+  }, morphBtn);
   el.append(morphBtn, undoBtn, holdButton('FX', 'fx'), holdButton('MOD', 'mod'));
   return el;
 }

@@ -3,13 +3,14 @@ import { TRACK_COUNT } from './params';
 import { advanceLfos, ui, updateTransition } from './state';
 import { synthLoad, unlockAudio, updateAudio } from './audio/engine';
 import { initProjects } from './project';
-import { setNoteHandler } from './midi';
+import { sendFeedback, setNoteHandler } from './midi';
 import { updateTransport } from './transport';
 import { buildEqButton, buildLeftButtons, buildPatternsButton, buildRightButtons, buildTransportButtons, renderButtons } from './ui/buttons';
 import { renderFields } from './ui/controls';
 import { buildEq, renderEq } from './ui/eq';
 import { h, setClass, setText } from './ui/dom';
 import { buildKnobGrid, renderKnobs } from './ui/knobs';
+import { buildLearnBar, renderLearn } from './ui/learn';
 import { buildPages, renderPages } from './ui/pages';
 import { buildPatternGrid, renderPatternGrid } from './ui/patterns';
 import { buildPiano, buildProgression, press, renderPiano } from './ui/piano';
@@ -51,7 +52,7 @@ topbar.append(topLeft, buildTransportButtons(), topRight);
 // Число столбцов дорожек: строка дорожек и сетка паттернов совпадают по ширине столбцов.
 app.style.setProperty('--tracks', String(TRACK_COUNT));
 
-app.append(topbar, main, buildTracks(), buildSequencer(), buildPiano(), buildProgression());
+app.append(topbar, main, buildTracks(), buildSequencer(), buildPiano(), buildProgression(), buildLearnBar());
 
 // Блокируем системные жесты Safari: масштаб двойным тапом и щипком, лупу, контекстное меню.
 // Всё управление идёт через pointer-события, поэтому touch-события можно гасить целиком.
@@ -109,6 +110,8 @@ function frame(now: number) {
   renderPiano(now);
   renderPages();
   renderButtons();
+  renderLearn();
+  sendFeedback(now);
   if (!ui.patternView) renderMeter(now);
   busy += performance.now() - t0;
   renderCpu(now);
@@ -119,5 +122,8 @@ requestAnimationFrame(frame);
 // Последний открытый проект (или новый) и автосохранение.
 void initProjects();
 
-// Ноты с MIDI-входов играют выбранную дорожку, как пианоролл.
-setNoteHandler((note) => press([note]));
+// Ноты с MIDI-входов играют выбранную дорожку, как пианоролл (или дорожку по номеру канала).
+setNoteHandler((note, _vel, track) => {
+  if (track === null) press([note]);
+  else if (track < TRACK_COUNT) press([note], track);
+});
