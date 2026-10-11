@@ -31,14 +31,14 @@ function holdButton(label: string, btn: HoldButton): HTMLElement {
   el.addEventListener('pointerup', release);
   el.addEventListener('pointercancel', release);
   holdViews.push([el, btn]);
-  if (btn !== 'track') registerAction(label, { label, press: () => setHeld(btn, true), release: () => setHeld(btn, false) }, el);
+  if (btn !== 'track') registerAction(label, { label, press: () => setHeld(btn, true), release: () => setHeld(btn, false), state: () => ui.held[btn] }, el);
   return el;
 }
 
-function tapButton(label: string, fn: () => void): HTMLElement {
+function tapButton(label: string, fn: () => void, state?: () => boolean): HTMLElement {
   const el = h('div', 'btn', label);
   el.addEventListener('pointerdown', (e) => { e.preventDefault(); fn(); });
-  registerAction(label, { label, press: fn }, el);
+  registerAction(label, { label, press: fn, state }, el);
   return el;
 }
 
@@ -51,9 +51,9 @@ export function buildLeftButtons(): HTMLElement {
 /** PLAY (зелёная) и REC (красная) слева от PATTERNS — видны и в режиме сетки паттернов. */
 export function buildTransportButtons(): HTMLElement {
   const el = h('div', 'transport');
-  playBtn = tapButton('PLAY', () => setPlaying(!ui.playing));
+  playBtn = tapButton('PLAY', () => setPlaying(!ui.playing), () => ui.playing);
   playBtn.classList.add('play-btn');
-  recBtn = tapButton('REC', () => { ui.rec = !ui.rec; });
+  recBtn = tapButton('REC', () => { ui.rec = !ui.rec; }, () => ui.rec);
   recBtn.classList.add('rec-btn');
   el.append(playBtn, recBtn);
   return el;
@@ -63,7 +63,7 @@ let patternsBtn: HTMLElement;
 
 /** Кнопка PATTERNS в правом верхнем углу (над правой колонкой): переключает центр экрана на сетку паттернов. */
 export function buildPatternsButton(): HTMLElement {
-  patternsBtn = tapButton('PATTERNS', () => toggleView('patterns'));
+  patternsBtn = tapButton('PATTERNS', () => toggleView('patterns'), () => ui.patternView);
   patternsBtn.classList.add('patterns-btn');
   return patternsBtn;
 }
@@ -72,7 +72,7 @@ let eqBtn: HTMLElement;
 
 /** Кнопка EQ справа от PATTERNS: эквалайзер выбранной дорожки или мастера на месте центра экрана. */
 export function buildEqButton(): HTMLElement {
-  eqBtn = tapButton('EQ', () => toggleView('eq'));
+  eqBtn = tapButton('EQ', () => toggleView('eq'), () => ui.eqView);
   eqBtn.classList.add('eq-btn');
   return eqBtn;
 }
@@ -93,6 +93,7 @@ export function buildRightButtons(): HTMLElement {
     label: 'MORPH',
     press: () => { morphUsed = false; setHeld('track', true); },
     release: () => { setHeld('track', false); if (!morphUsed) toggleMorph(); },
+    state: () => ui.morph,
   }, morphBtn);
   el.append(morphBtn, undoBtn, holdButton('FX', 'fx'), holdButton('MOD', 'mod'));
   return el;

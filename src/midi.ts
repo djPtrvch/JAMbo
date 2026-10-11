@@ -15,7 +15,7 @@ import {
   assignFor, beginGesture, endGesture, firstHeldStep, gridFor, gridMode, heldLfo, lockValue, paramValue,
   setLfoAmount, setLockNorm, setParamNorm,
 } from './state';
-import { saveSettings, settings, type MidiMapping, type MidiSource, type MidiTarget } from './settings';
+import { fullMapping, saveSettings, settings, type MidiMapping, type MidiSource, type MidiTarget } from './settings';
 
 // Web Bluetooth нет в стандартных типах TypeScript — только то, что здесь нужно.
 interface BleCharacteristic extends EventTarget { value: DataView | null; startNotifications(): Promise<unknown> }
@@ -58,14 +58,15 @@ const changed = () => listeners.forEach((l) => l());
 
 // ---------- Кнопки (действия интерфейса) ----------
 
-/** Действие кнопки для MIDI: нажатие и отпускание (у кнопок на удержание). */
-export interface MidiAction { label: string; press: () => void; release?: () => void }
+/**
+ * Действие кнопки для MIDI: нажатие и отпускание (у кнопок на удержание);
+ * state — горит ли кнопка (для обратной связи: подсветка кнопки контроллера).
+ */
+export interface MidiAction { label: string; press: () => void; release?: () => void; state?: () => boolean }
 const actions = new Map<string, MidiAction>();
-const order: string[] = [];
 
 /** Интерфейс регистрирует кнопку; элемент помечается data-midi для MIDI LEARN. */
 export function registerAction(name: string, action: MidiAction, el?: HTMLElement) {
-  if (!actions.has(name)) order.push(name);
   actions.set(name, action);
   if (el) el.dataset.midi = `btn:${name}`;
 }
@@ -75,6 +76,7 @@ export function markKnob(el: HTMLElement, slot: number) {
   el.dataset.midi = `knob:${slot}`;
 }
 
+/** Подпись ручки — столбец.ряд, как в описании сетки. */
 export const targetLabel = (t: MidiTarget) => (t.kind === 'knob'
   ? `KNOB ${(t.slot % 4) + 1}.${Math.floor(t.slot / 4) + 1}`
   : actions.get(t.name)?.label ?? t.name);
@@ -88,16 +90,20 @@ export const targetFromAttr = (v: string): MidiTarget | null => {
   return null;
 };
 
-const sameTarget = (a: MidiTarget, b: MidiTarget) => a.kind === b.kind
+export const sameTarget = (a: MidiTarget, b: MidiTarget) => a.kind === b.kind
   && (a.kind === 'knob' ? a.slot === (b as typeof a).slot : a.name === (b as typeof a).name);
 const sameSource = (a: MidiSource, b: MidiSource) => a.type === b.type && a.ch === b.ch && a.num === b.num;
+const targetKey = (t: MidiTarget) => (t.kind === 'knob' ? `knob:${t.slot}` : `btn:${t.name}`);
 
 /** Есть ли маппинг на цель (подсветка в режиме LEARN). */
 export const isMapped = (t: MidiTarget) => settings.mappings.some((m) => sameTarget(m.target, t));
+/** Маппинг цели (у цели один источник). */
+export const mappingFor = (t: MidiTarget) => settings.mappings.find((m) => sameTarget(m.target, t));
 
 // ---------- MIDI LEARN ----------
 
-export const learn = { on: false, target: null as MidiTarget | null, last: '' };
+/** on — режим LEARN; edit — открыто окно настройки маппинга (оно тоже ловит источник для своей цели). */
+export const learn = { on: false, edit: false, target: null as MidiTarget | null, last: '' };
 let learnListeners: (() => void)[] = [];
 export function onLearnChanged(fn: () => void) { learnListeners.push(fn); }
 const learnChanged = () => learnListeners.forEach((l) => l());
@@ -115,32 +121,53 @@ export function learnTarget(t: MidiTarget) {
   learnChanged();
 }
 
-/** Новый маппинг: источник занимает цель (старые маппинги этого источника и этой цели убираются). */
-export function addMapping(m: MidiMapping) {
-  const rest = settings.mappings.filter((x) => !sameSource(x.src, m.src) && !sameTarget(x.target, m.target));
-  saveSettings({ mappings: [...rest, m] });
+/** Сохранить маппинги: источник ведёт только к одной цели. */
+function store(list: MidiMapping[]) {
+  saveSettings({ mappings: list });
   sent.clear();
+  toggled.clear();
+  learnChanged();
+}
+
+/** Первый свободный CC на канале 1 (для нового маппинга из окна настройки). */
+function freeSource(): MidiSource {
+  for (let n = 0; n < 128; n++) {
+    const src: MidiSource = { type: 'cc', ch: 0, num: n };
+    if (!settings.mappings.some((m) => sameSource(m.src, src))) return src;
+  }
+  return { type: 'cc', ch: 0, num: 0 };
+}
+
+/** Черновик маппинга цели без маппинга (окно настройки до первого изменения). */
+export const draftMapping = (t: MidiTarget): MidiMapping => fullMapping({ src: freeSource(), target: t });
+
+/**
+ * Изменить маппинг цели (окно настройки, LEARN): поля patch поверх нынешнего маппинга (или нового).
+ * Источник, занятый другой целью, переходит к этой.
+ */
+export function updateMapping(t: MidiTarget, patch: Partial<MidiMapping>) {
+  const cur = mappingFor(t) ?? draftMapping(t);
+  const m: MidiMapping = { ...cur, ...patch, target: t };
+  store([...settings.mappings.filter((x) => !sameTarget(x.target, t) && !sameSource(x.src, m.src)), m]);
 }
 
 export function removeMapping(k: number) {
-  saveSettings({ mappings: settings.mappings.filter((_, i) => i !== k) });
+  store(settings.mappings.filter((_, i) => i !== k));
 }
 
-/** Все маппинги цели (двойной тап в режиме LEARN — снять). */
+/** Снять маппинг цели (CLEAR в полосе LEARN, DELETE в окне настройки). */
 export function clearTarget(t: MidiTarget) {
-  saveSettings({ mappings: settings.mappings.filter((m) => !sameTarget(m.target, t)) });
+  store(settings.mappings.filter((m) => !sameTarget(m.target, t)));
 }
 
 export function clearMappings() {
-  saveSettings({ mappings: [] });
+  store([]);
 }
 
 /** Midi Fighter Twister (заводские настройки): энкодеры — CC 0–15 на канале 1, ряд за рядом, как сетка. */
 export function twisterPreset() {
-  const knobs: MidiMapping[] = Array.from({ length: 16 }, (_, slot) => ({ src: { type: 'cc', ch: 0, num: slot }, target: { kind: 'knob', slot } }));
-  const rest = settings.mappings.filter((m) => m.target.kind !== 'knob' && !knobs.some((k) => sameSource(k.src, m.src)));
-  saveSettings({ mappings: [...knobs, ...rest], knobMode: 'abs' });
-  sent.clear();
+  const knobs = Array.from({ length: 16 }, (_, slot) => fullMapping({ src: { type: 'cc', ch: 0, num: slot }, target: { kind: 'knob', slot }, control: 'abs' }));
+  store([...knobs, ...settings.mappings.filter((m) => m.target.kind !== 'knob' && !knobs.some((k) => sameSource(k.src, m.src)))]);
 }
 
 // ---------- Ручки ----------
@@ -153,25 +180,41 @@ function touchGesture() {
   gestureTimer = window.setTimeout(() => { gestureTimer = 0; endGesture(); }, 300);
 }
 
-/** CC на ручку: как палец — с удержанием шага p-lock, с удержанием LFO/ENV — назначение. */
-function knobInput(slot: number, value: number) {
+/** Шаг энкодера (RELATIVE) из значения CC. */
+function relStep(enc: MidiMapping['enc'], v: number): number {
+  if (enc === 'offset') return v - 64;
+  if (enc === 'twos') return v < 64 ? v : v - 128;
+  return v & 64 ? -(v & 63) : v & 63;
+}
+
+/** Состояние TOGGLE по цели (включено ли). */
+const toggled = new Map<string, boolean>();
+
+/**
+ * Значение на ручку: как палец — с удержанием шага p-lock, с удержанием LFO/ENV — назначение.
+ * at — положение 0–1 внутри диапазона (ABSOLUTE и кнопки), step — шаг энкодера (RELATIVE).
+ */
+function knobInput(m: MidiMapping, slot: number, at: number | null, step: number) {
   const mode = gridMode();
   const p = gridFor(mode)[slot];
   if (!p) return;
-  const rel = settings.knobMode === 'abs' ? null
-    : settings.knobMode === 'rel64' ? value - 64 : value < 64 ? value : value - 128;
   const held = firstHeldStep();
   const lfo = mode === 'track' || mode === 'fx' ? heldLfo() : null;
+  const lo = Math.min(m.min, m.max);
+  const hi = Math.max(m.min, m.max);
+  // Инвертированный диапазон — энкодер крутит в обратную сторону.
+  const dir = m.max >= m.min ? 1 : -1;
   touchGesture();
   if (held === null && lfo) {
+    // Степень назначения −1…1: диапазон 0–1 растягивается на неё.
     const a = assignFor(mode, p);
-    const cur = a && a.lfo === lfo ? a.amount : 0;
-    const v = rel === null ? (value / 127) * 2 - 1 : cur + rel / 64;
-    setLfoAmount(p, lfo, Math.min(1, Math.max(-1, v)), mode);
+    const cur = (((a && a.lfo === lfo ? a.amount : 0) + 1) / 2);
+    const n = at !== null ? m.min + at * (m.max - m.min) : Math.min(hi, Math.max(lo, cur + (dir * step) / 128));
+    setLfoAmount(p, lfo, n * 2 - 1, mode);
     return;
   }
   const base = held !== null ? lockValue(held, p) ?? paramValue(mode, p) : paramValue(mode, p);
-  const n = rel === null ? value / 127 : Math.min(1, Math.max(0, toNorm(p, base) + rel / 128));
+  const n = at !== null ? m.min + at * (m.max - m.min) : Math.min(hi, Math.max(lo, toNorm(p, base) + (dir * step) / 128));
   if (held !== null) setLockNorm(p, n);
   else setParamNorm(mode, p, n);
 }
@@ -188,6 +231,29 @@ function buttonInput(name: string, on: boolean) {
   else if (!on && down.has(name)) { down.delete(name); a.release?.(); }
 }
 
+/** Сообщение по маппингу. value — CC или скорость ноты; on — нажатие (CC ≥ 64, Note On). */
+function apply(m: MidiMapping, isCc: boolean, value: number, on: boolean) {
+  const t = m.target;
+  const key = targetKey(t);
+  // Кнопочные типы: MOMENTARY — пока нажата; TOGGLE — нажатие переключает (отпускание не важно).
+  const button = m.control === 'momentary' || m.control === 'toggle' || !isCc;
+  let state = on;
+  if (button && m.control === 'toggle') {
+    if (!on) return;
+    state = !toggled.get(key);
+    toggled.set(key, state);
+  }
+  if (t.kind === 'button') {
+    // У кнопок ABSOLUTE и RELATIVE ведут себя как MOMENTARY.
+    if (button || m.control === 'abs') buttonInput(t.name, state);
+    else if (relStep(m.enc, value) > 0) { buttonInput(t.name, true); buttonInput(t.name, false); }
+    return;
+  }
+  if (button) knobInput(m, t.slot, state ? 1 : 0, 0);
+  else if (m.control === 'abs') knobInput(m, t.slot, value / 127, 0);
+  else knobInput(m, t.slot, null, relStep(m.enc, value));
+}
+
 /** Разбор MIDI-сообщения: маппинги и LEARN, остальные ноты — играют дорожку. */
 function handle(status: number, d1: number, d2: number) {
   const type = status & 0xf0;
@@ -198,19 +264,20 @@ function handle(status: number, d1: number, d2: number) {
   if (!isCc && !isOn && !isOff) return;
   const src: MidiSource = { type: isCc ? 'cc' : 'note', ch, num: d1 };
 
-  if (learn.on && (isCc || isOn)) {
+  if ((learn.on || learn.edit) && (isCc || isOn)) {
     learn.last = sourceLabel(src);
-    if (learn.target) addMapping({ src, target: learn.target });
+    // Новый источник цели; тип управления, диапазон и порт остаются (у новой — по виду сообщения).
+    if (learn.target) {
+      const had = mappingFor(learn.target);
+      updateMapping(learn.target, had ? { src } : { src, control: learn.target.kind === 'knob' && isCc ? 'abs' : 'momentary' });
+    }
     learnChanged();
     return;
   }
 
   const maps = settings.mappings.filter((m) => sameSource(m.src, src));
   if (maps.length) {
-    for (const m of maps) {
-      if (m.target.kind === 'knob') { if (isCc) knobInput(m.target.slot, d2); }
-      else buttonInput(m.target.name, isCc ? d2 >= 64 : isOn);
-    }
+    for (const m of maps) apply(m, isCc, d2, isCc ? d2 >= 64 : isOn);
     return;
   }
   if (!isOn) return;
@@ -220,28 +287,51 @@ function handle(status: number, d1: number, d2: number) {
 
 // ---------- Обратная связь ----------
 
-/** Последние отправленные значения (по источнику) — шлём только изменения. */
+/** Последние отправленные значения (по порту и источнику) — шлём только изменения. */
 const sent = new Map<string, number>();
 let lastFeedback = 0;
 
-/** Значения ручек — на выход обратной связи (кольца энкодеров). Вызывается каждый кадр. */
+/** Выход обратной связи маппинга (null — нет). */
+function feedbackOut(m: MidiMapping): MIDIOutput | null {
+  const id = m.port === 'none' ? '' : m.port || settings.midiFeedback;
+  const out = id ? access?.outputs.get(id) : undefined;
+  return out && out.state === 'connected' ? out : null;
+}
+
+/**
+ * Значения ручек и состояние кнопок — на выходы обратной связи (кольца и подсветка энкодеров).
+ * Ручка — в своём диапазоне 0–127; кнопка — 127 (горит) или 0. Вызывается каждый кадр.
+ */
 export function sendFeedback(now: number) {
-  if (!access || !settings.midiFeedback || now - lastFeedback < 30) return;
+  if (!access || now - lastFeedback < 30) return;
   lastFeedback = now;
-  const out = access.outputs.get(settings.midiFeedback);
-  if (!out || out.state !== 'connected') return;
   const mode = gridMode();
   const grid = gridFor(mode);
   const held = firstHeldStep();
   for (const m of settings.mappings) {
-    if (m.target.kind !== 'knob' || m.src.type !== 'cc') continue;
-    const p = grid[m.target.slot];
-    const v = p ? Math.round(toNorm(p, (held !== null ? lockValue(held, p) : undefined) ?? paramValue(mode, p)) * 127) : 0;
-    const key = `${m.src.ch}:${m.src.num}`;
+    const out = feedbackOut(m);
+    if (!out) continue;
+    let v: number;
+    if (m.target.kind === 'knob') {
+      const p = grid[m.target.slot];
+      const n = p ? toNorm(p, (held !== null ? lockValue(held, p) : undefined) ?? paramValue(mode, p)) : 0;
+      const span = m.max - m.min;
+      v = span ? Math.round(Math.min(1, Math.max(0, (n - m.min) / span)) * 127) : 0;
+    } else {
+      v = actions.get(m.target.name)?.state?.() ? 127 : 0;
+    }
+    const key = `${out.id}:${m.src.type}:${m.src.ch}:${m.src.num}`;
     if (sent.get(key) === v) continue;
     sent.set(key, v);
-    out.send([0xb0 | m.src.ch, m.src.num, v]);
+    out.send(m.src.type === 'cc' ? [0xb0 | m.src.ch, m.src.num, v] : [0x90 | m.src.ch, m.src.num, v]);
   }
+}
+
+/** Выходы MIDI (для выбора порта обратной связи). */
+export function midiOutputs(): { id: string; name: string }[] {
+  const out: { id: string; name: string }[] = [];
+  access?.outputs.forEach((p) => { if (p.state === 'connected') out.push({ id: p.id, name: p.name ?? 'MIDI Out' }); });
+  return out;
 }
 
 /** Разрешение Web MIDI и подписка на входы. */

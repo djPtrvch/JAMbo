@@ -3,7 +3,8 @@ import { TRACK_COUNT } from './params';
 import { advanceLfos, ui, updateTransition } from './state';
 import { synthLoad, unlockAudio, updateAudio } from './audio/engine';
 import { initProjects } from './project';
-import { sendFeedback, setNoteHandler } from './midi';
+import { initMidi, sendFeedback, setNoteHandler } from './midi';
+import { settings } from './settings';
 import { updateTransport } from './transport';
 import { buildEqButton, buildLeftButtons, buildPatternsButton, buildRightButtons, buildTransportButtons, renderButtons } from './ui/buttons';
 import { renderFields } from './ui/controls';
@@ -121,6 +122,9 @@ requestAnimationFrame(frame);
 
 // Последний открытый проект (или новый) и автосохранение.
 void initProjects();
+
+// MIDI: если маппинги уже есть — подключаемся сразу (без открытия меню MIDI).
+if (settings.mappings.length) void initMidi();
 
 // Ноты с MIDI-входов играют выбранную дорожку, как пианоролл (или дорожку по номеру канала).
 setNoteHandler((note, _vel, track) => {

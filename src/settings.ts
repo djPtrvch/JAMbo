@@ -2,7 +2,7 @@
 // AUDIO ENGINE: частота дискретизации и размер буфера (подсказка задержки для Web Audio);
 // BACKGROUND: звук продолжает играть, когда Safari свёрнут или экран заблокирован;
 // OUTPUT: выход и вход аудиоинтерфейса. Там же — настройки MIDI (меню MIDI): входы, обратная
-// связь, режим энкодеров, ноты и MIDI-маппинги.
+// связь, ноты и MIDI-маппинги (у каждого — тип управления, диапазон и порт обратной связи).
 
 /** 0 — как у устройства. */
 export const SAMPLE_RATES = [0, 44100, 48000];
@@ -13,9 +13,24 @@ export const BUFFER_SIZES = [0, 128, 256, 512, 1024];
 export interface MidiSource { type: 'cc' | 'note'; ch: number; num: number }
 /** Цель: ручка сетки 4×4 по позиции (0–15, ряд за рядом) или кнопка интерфейса по имени. */
 export type MidiTarget = { kind: 'knob'; slot: number } | { kind: 'button'; name: string };
-export interface MidiMapping { src: MidiSource; target: MidiTarget }
-/** Как энкодер шлёт CC: абсолютно 0–127 или относительно (64 ± шаг; дополнительный код). */
-export type KnobMode = 'abs' | 'rel64' | 'rel2c';
+/**
+ * Тип управления: кнопка (MOMENTARY — пока нажата, TOGGLE — нажатие включает, следующее выключает),
+ * ABSOLUTE — значение 0–127, RELATIVE — энкодер шлёт шаги (см. RelEnc).
+ */
+export type ControlType = 'momentary' | 'toggle' | 'abs' | 'rel';
+/** Как энкодер кодирует шаг: OFFSET (64 ± n: 65 вверх, 63 вниз), 2'S (1 вверх, 127 вниз), SIGNED (1 вверх, 65 вниз). */
+export type RelEnc = 'offset' | 'twos' | 'signed';
+export interface MidiMapping {
+  src: MidiSource;
+  target: MidiTarget;
+  control: ControlType;
+  enc: RelEnc;
+  /** Диапазон ручки 0–1: min — при 0, max — при 127 (min > max — инвертировано). */
+  min: number;
+  max: number;
+  /** Порт обратной связи: '' — по умолчанию (DEVICES → FEEDBACK OUTPUT), 'none' — нет, иначе id выхода. */
+  port: string;
+}
 
 export interface Settings {
   sampleRate: number;
@@ -24,10 +39,9 @@ export interface Settings {
   /** Идентификаторы устройств ('' — по умолчанию). */
   outputId: string;
   inputId: string;
-  /** MIDI: вход ('' — все), выход обратной связи ('' — нет), режим энкодеров, ноты, маппинги. */
+  /** MIDI: вход ('' — все), выход обратной связи по умолчанию ('' — нет), ноты, маппинги. */
   midiIn: string;
   midiFeedback: string;
-  knobMode: KnobMode;
   /** Канал нот: 0 — любой, 1–16. */
   noteChannel: number;
   /** Куда идут ноты: выбранная дорожка или канал N → дорожка N. */
@@ -38,11 +52,28 @@ export interface Settings {
 const KEY = 'jambo.settings';
 const DEFAULTS: Settings = {
   sampleRate: 0, bufferSize: 0, background: true, outputId: '', inputId: '',
-  midiIn: '', midiFeedback: '', knobMode: 'abs', noteChannel: 0, noteRoute: 'selected', mappings: [],
+  midiIn: '', midiFeedback: '', noteChannel: 0, noteRoute: 'selected', mappings: [],
 };
 
+/** Маппинг с недостающими полями (старые настройки: общий режим энкодеров knobMode). */
+export function fullMapping(m: Partial<MidiMapping> & Pick<MidiMapping, 'src' | 'target'>, knobMode = 'abs'): MidiMapping {
+  const knob = m.target.kind === 'knob';
+  return {
+    control: knob ? (knobMode === 'abs' ? 'abs' : 'rel') : 'momentary',
+    enc: knobMode === 'rel2c' ? 'twos' : 'offset',
+    min: 0, max: 1, port: '',
+    ...m,
+  };
+}
+
 function load(): Settings {
-  try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) ?? '{}') }; } catch { return { ...DEFAULTS }; }
+  try {
+    const raw = JSON.parse(localStorage.getItem(KEY) ?? '{}');
+    const s: Settings = { ...DEFAULTS, ...raw };
+    s.mappings = (s.mappings ?? []).map((m) => fullMapping(m, raw.knobMode));
+    delete (s as Partial<Settings> & { knobMode?: string }).knobMode;
+    return s;
+  } catch { return { ...DEFAULTS }; }
 }
 
 export const settings: Settings = load();

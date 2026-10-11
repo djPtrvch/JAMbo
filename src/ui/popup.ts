@@ -11,6 +11,8 @@ export interface Popup {
   openRect(r: { left: number; top: number; width: number; height: number }): void;
   close(): void;
   isOpen(): boolean;
+  /** Вызывается при закрытии окна. */
+  onClose?: () => void;
 }
 
 export function makePopup(cls = ''): Popup {
@@ -35,8 +37,10 @@ export function makePopup(cls = ''): Popup {
       Object.assign(box.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
     },
     close() {
+      const was = !root.classList.contains('hidden');
       root.classList.add('hidden');
       box.style.height = '';
+      if (was) p.onClose?.();
     },
     isOpen: () => !root.classList.contains('hidden'),
   };

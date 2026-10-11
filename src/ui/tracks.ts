@@ -26,7 +26,7 @@ function channelCell(label: string, c: Channel): HTMLElement {
   const el = h('div', 'track channel', label);
   el.addEventListener('pointerdown', (e) => { e.preventDefault(); selectChannel(c); });
   channels.push([el, c]);
-  registerAction(label, { label, press: () => selectChannel(c) }, el);
+  registerAction(label, { label, press: () => selectChannel(c), state: () => ui.channel === c }, el);
   return el;
 }
 
@@ -61,7 +61,7 @@ export function buildTracks(): HTMLElement {
     root.addEventListener('pointercancel', (e) => finish(e, true));
 
     // С MIDI — выбор дорожки (T1…T8 — по номеру, не по имени).
-    registerAction(`T${i + 1}`, { label: `TRACK ${i + 1}`, press: () => selectTrack(i) }, root);
+    registerAction(`T${i + 1}`, { label: `TRACK ${i + 1}`, press: () => selectTrack(i), state: () => ui.channel === 'track' && ui.selectedTrack === i }, root);
     views.push({ root, name, state, dot });
     el.append(root);
   }
