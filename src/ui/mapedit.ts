@@ -218,8 +218,10 @@ function render() {
   const knob = t.kind === 'knob';
 
   titleEl.textContent = page === 'main' ? targetLabel(t) : TITLES[page];
-  leftBtn.textContent = page === 'main' ? (mapped ? 'Unmap' : '') : '‹';
+  // Unmap всегда на месте; без маппинга — серая.
+  leftBtn.textContent = page === 'main' ? 'Unmap' : '‹';
   leftBtn.classList.toggle('back', page !== 'main');
+  leftBtn.classList.toggle('disabled', page === 'main' && !mapped);
 
   const ins = inputs();
   const outs = midiOutputs();

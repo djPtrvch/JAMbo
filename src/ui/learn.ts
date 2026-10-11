@@ -1,7 +1,7 @@
 // MIDI LEARN (меню MIDI → MAPPING → LEARN): полоса внизу экрана, поверх пианоролла. Тап по ручке или кнопке выбирает
 // цель (обычное действие не выполняется), затем движение контроллера (CC или нота) назначает его.
 // Цель — голубая рамка, уже назначенные — голубой пунктир. Двойной тап по цели — окно настройки
-// маппинга (ui/mapedit.ts). CLEAR снимает маппинги цели, DONE — выход из режима.
+// маппинга (ui/mapedit.ts). UNMAP снимает маппинг цели, DONE — выход из режима.
 
 import { clearTarget, learn, isMapped, onLearnChanged, setLearn, sourceLabel, targetFromAttr, targetLabel, learnTarget } from '../midi';
 import { settings } from '../settings';
@@ -34,7 +34,7 @@ function update() {
 export function buildLearnBar(): HTMLElement {
   bar = h('div', 'learn-bar hidden');
   text = h('div', 'learn-text');
-  clearBtn = h('div', 'btn learn-btn', 'CLEAR');
+  clearBtn = h('div', 'btn learn-btn', 'UNMAP');
   const done = h('div', 'btn learn-btn', 'DONE');
   clearBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); if (learn.target) { clearTarget(learn.target); update(); } });
   done.addEventListener('pointerdown', (e) => { e.preventDefault(); setLearn(false); });
