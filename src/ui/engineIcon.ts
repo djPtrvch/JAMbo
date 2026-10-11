@@ -1,13 +1,12 @@
-// Живые иконки движков: в плитке дорожки и крупно в окне сэмпла. Значения — как на ручках:
+// Живая иконка движка — крупно в окне сэмпла слева. Значения — как на ручках:
 // база дорожки, p-lock (зажатый шаг — его значения, при игре — играющего шага), поверх LFO/ENV.
-// Пока палец держит ручку 1.1–1.3 или Decay выбранной дорожки, связанная часть иконки оранжевая.
+// Иконка одного цвета: белая в тёмной теме, чёрная в светлой (без подсветки частей).
 // Перерисовка — в общем кадре (requestAnimationFrame); SVG пересобирается, только когда изменились
 // значения или подсветка.
 
 import { iconSvg, type IconParam, type IconValues } from '../engineIcons';
 import { TRACK_GRID, stepIndex, synthEngine, synthGrid, type ParamDef } from '../params';
 import { doc, firstHeldStep, heldStepSound, liveLocks, modulatedNorm, seqAt, ui } from '../state';
-import { heldIconParam } from './knobs';
 
 /** Ручки сетки: 1.1, 1.2, 1.3 и Decay 2.2. */
 const SLOTS: [IconParam, number][] = [['h', 0], ['t', 4], ['m', 8], ['d', 5]];
@@ -40,9 +39,8 @@ function iconFor(i: number, now: number): { id: string; v: IconValues } | null {
 
 export function renderIcon(view: IconView, track: number, now: number) {
   const icon = iconFor(track, now);
-  const hl = icon && ui.channel === 'track' && track === ui.selectedTrack ? heldIconParam() : null;
-  const key = icon ? `${icon.id}|${icon.v.h.toFixed(3)}|${icon.v.t.toFixed(3)}|${icon.v.m.toFixed(3)}|${icon.v.d!.toFixed(3)}|${hl ?? ''}` : '';
+  const key = icon ? `${icon.id}|${icon.v.h.toFixed(3)}|${icon.v.t.toFixed(3)}|${icon.v.m.toFixed(3)}|${icon.v.d!.toFixed(3)}` : '';
   if (key === view.key) return;
   view.key = key;
-  view.el.innerHTML = icon ? iconSvg(icon.id, icon.v, hl, view.size) : '';
+  view.el.innerHTML = icon ? iconSvg(icon.id, icon.v, null, view.size) : '';
 }

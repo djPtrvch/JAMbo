@@ -8,7 +8,6 @@ import {
   lockValue, modulatedNorm, paramValue, type Mod, setLfoAmount, setLockNorm, setParamNorm, ui, type GridMode,
 } from '../state';
 import { markKnob } from '../midi';
-import type { IconParam } from '../engineIcons';
 import { openRename } from './tracks';
 import { DOUBLE_TAP_MS, h, setAttr, setClass, setText, svg } from './dom';
 
@@ -191,13 +190,6 @@ export function heldKnobSources(): Set<Mod> {
     if (a) out.add(a.lfo);
   }
   return out;
-}
-
-/** Ручка 1.1, 1.2, 1.3 или Decay дорожки, которую держит палец: её часть иконки движка — оранжевая. */
-const ICON_SLOTS: Record<number, IconParam> = { 0: 'h', 4: 't', 8: 'm', 5: 'd' };
-export function heldIconParam(): IconParam | null {
-  for (const g of gestures.values()) if (g.mode === 'track' && g.kind !== 'lfo' && ICON_SLOTS[g.slot]) return ICON_SLOTS[g.slot];
-  return null;
 }
 
 // ---------- Отрисовка (каждый кадр) ----------
