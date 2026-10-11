@@ -1,11 +1,11 @@
-// Верхняя панель: бутерброд-меню (проекты), BPM, метроном, гамма и корневая нота.
+// Верхняя панель: бутерброд-меню (PROJECTS, SETTINGS), BPM, метроном, гамма и корневая нота.
 // Тап по гамме и ноте открывает меню выбора.
 
 import { unlockAudio } from '../audio/engine';
 import { NOTE_NAMES, SCALES } from '../params';
 import { doc, rt, setBpm, setRoot, setScale, ui } from '../state';
 import { choiceMenu, dragField } from './controls';
-import { openProjectMenu } from './projects';
+import { openMainMenu } from './settings';
 import { h, setClass } from './dom';
 
 let metro: HTMLElement;
@@ -27,8 +27,8 @@ export function buildTopbar(): HTMLElement {
   const el = h('div', 'topbar');
   const burger = h('div', 'burger');
   burger.append(h('span'), h('span'), h('span'));
-  // Бутерброд — меню проектов.
-  burger.addEventListener('pointerup', () => openProjectMenu(burger));
+  // Бутерброд — меню PROJECTS и SETTINGS.
+  burger.addEventListener('pointerup', () => openMainMenu(burger));
   metro = metronomeIcon();
   const scaleMenu = choiceMenu(SCALES.map((s) => s.name), 3, () => doc.scale, setScale);
   const rootMenu = choiceMenu(NOTE_NAMES, 4, () => doc.root, setRoot);

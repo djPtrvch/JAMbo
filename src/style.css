@@ -658,3 +658,15 @@ html, body {
 /* Перетаскивание паттерна: копия ячейки над экраном, исходная бледнеет. */
 .drag-ghost { position: fixed; z-index: 20; pointer-events: none; margin: 0; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.6), inset 0 0 0 2px var(--plock); opacity: 0.95; }
 .pattern-cell.lifted { opacity: 0.35; }
+
+/* ---------- Меню «бутерброд»: PROJECTS, SETTINGS ---------- */
+
+.popup-box.main-menu .popup-btn { height: 52px; font-size: 15px; }
+.settings-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.settings-body { display: flex; flex-direction: column; gap: 10px; padding-top: 6px; }
+.settings-row { display: flex; flex-direction: column; gap: 4px; }
+.settings-choice { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; }
+.settings-devices { display: flex; flex-direction: column; gap: 4px; }
+.settings-devices .popup-btn { text-align: left; padding: 0 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.settings-note { font-size: 12px; line-height: 1.35; color: var(--dim); }
+.settings-info { font-size: 12px; line-height: 1.35; color: var(--text); font-variant-numeric: tabular-nums; }
