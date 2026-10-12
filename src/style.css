@@ -18,6 +18,8 @@
   --bg: #111111;
   --panel: #1c1c1c;
   --panel-2: #272727;
+  /* Строка дорожек — чуть светлее шагов секвенсора, чтобы не сливалась. */
+  --track-bg: #2e2e2e;
   --line: #333333;
   --text: #ececec;
   --dim: #8a8a8a;
@@ -56,6 +58,7 @@
   --bg: #e6e5e1;
   --panel: #f7f6f3;
   --panel-2: #ffffff;
+  --track-bg: #ffffff;
   --line: #cfceca;
   --text: #161616;
   --dim: #77766f;
@@ -538,7 +541,7 @@ html, body {
 .track {
   position: relative;
   border-radius: var(--radius);
-  background: var(--panel);
+  background: var(--track-bg);
   border: 2px solid transparent;
   display: flex;
   align-items: center;
