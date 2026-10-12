@@ -345,6 +345,7 @@ export function renderKnobs(now: number) {
       const a = Math.round(assign.amount * 100);
       text = `${lfoHeld === 4 ? 'ENV' : `L${lfoHeld}`} ${a > 0 ? '+' : ''}${a}%`;
     }
-    setText(v.value, text);
+    // Единица dB — второй строкой под числом.
+    setText(v.value, text.replace(/ dB$/, '\ndB'));
   });
 }
