@@ -3,7 +3,7 @@
 
 import { fromNorm, toNorm, type ParamDef } from '../params';
 import {
-  addTrack, audible, assignFor, canAddTrack, canDeleteTrack, deleteTrack, curSeq, fxModNorm, liveLocks, seqIndex,
+  addTrack, audible, assignFor, canAddTrack, canDeleteTrack, copyTrack, deleteTrack, hasTrackClip, pasteTrack, curSeq, fxModNorm, liveLocks, seqIndex,
   beginGesture, clearLfoAssign, clearLock, doc, endGesture, firstHeldStep, gridFor, gridMode, heldLfo,
   lockValue, modulatedNorm, paramValue, type Mod, setLfoAmount, setLockNorm, setParamNorm, ui, type GridMode,
 } from '../state';
@@ -157,11 +157,15 @@ export function buildKnobGrid(): HTMLElement {
 const TRACK_HOLD_MS = 500;
 let trackMenu: Popup | null = null;
 
-/** Окно с одной кнопкой (ADD TRACK или DELETE TRACK) у ручки. */
-function openTrackMenu(anchor: Element, label: string, action: () => void) {
+/** Окно у ручки: кнопки [надпись, действие, активна]. */
+function openTrackMenu(anchor: Element, items: [string, () => void, boolean?][]) {
   if (!trackMenu) trackMenu = makePopup();
   const menu = trackMenu;
-  menu.box.replaceChildren(popupButton(label, () => { menu.close(); action(); }));
+  menu.box.replaceChildren(...items.map(([label, action, on = true]) => {
+    const b = popupButton(label, () => { menu.close(); action(); });
+    b.disabled = !on;
+    return b;
+  }));
   menu.openAt(anchor, 180);
 }
 
@@ -174,7 +178,7 @@ function onHiddenDown(slot: number, e: PointerEvent) {
   root.setPointerCapture(e.pointerId);
   const timer = window.setTimeout(() => {
     hiddenHolds.delete(e.pointerId);
-    if (gridMode() === 'mix' && canAddTrack()) openTrackMenu(root, 'ADD TRACK', addTrack);
+    if (gridMode() === 'mix' && canAddTrack()) openTrackMenu(root, [['ADD TRACK', addTrack]]);
   }, TRACK_HOLD_MS);
   hiddenHolds.set(e.pointerId, { timer, y: e.clientY });
 }
@@ -229,13 +233,18 @@ function onDown(slot: number, e: PointerEvent) {
         openRename(slot, anchor);
       }
     }, RENAME_HOLD_MS);
-  } else if (mode === 'mix' && canDeleteTrack(slot) && held === null) {
-    // Дорожек больше 8: удержание ручки любой дорожки без движения — DELETE TRACK (правые сдвигаются).
+  } else if (mode === 'mix' && slot < doc.tracks.length && held === null) {
+    // Удержание ручки громкости дорожки без движения — COPY, PASTE (дорожку целиком) и DELETE TRACK
+    // (если дорожек больше 8; правые сдвигаются).
     const anchor = views[slot].root;
     g.holdTimer = window.setTimeout(() => {
       if (!g.moved && gestures.get(e.pointerId) === g) {
         g.consumed = true;
-        openTrackMenu(anchor, 'DELETE TRACK', () => deleteTrack(slot));
+        openTrackMenu(anchor, [
+          ['COPY', () => copyTrack(slot)],
+          ['PASTE', () => pasteTrack(slot), hasTrackClip()],
+          ['DELETE TRACK', () => deleteTrack(slot), canDeleteTrack(slot)],
+        ]);
       }
     }, TRACK_HOLD_MS);
   }

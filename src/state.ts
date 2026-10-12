@@ -415,8 +415,17 @@ function restoreDoc(snap: string) {
   // Что играет сейчас, остаётся играть: UNDO отменяет правки, а не запуск паттернов.
   const play = doc.tracks.map((t) => ({ slot: t.slot, stopped: t.stopped }));
   const d = JSON.parse(snap) as Doc;
+  // Число дорожек изменилось (UNDO/REDO добавления или удаления): номера сдвинуты — состояние игры
+  // по номерам не переносим (дорожка получила бы чужой паттерн или остановку), а ход дорожек
+  // выравниваем по общему такту.
+  const sameTracks = d.tracks.length === doc.tracks.length;
   for (const k of Object.keys(doc) as (keyof Doc)[]) if (!(k in d)) delete doc[k];
   Object.assign(doc, d);
+  if (!sameTracks) {
+    rt.trackStart.fill(0, 0, MAX_TRACKS);
+    rt.queued.fill(null);
+    return;
+  }
   doc.tracks.forEach((t, i) => {
     const p = play[i];
     if (!p) return;
@@ -850,6 +859,37 @@ export function selectTrack(i: number) {
 // ---------- Число дорожек: 8 по умолчанию, до 12 ----------
 
 export const canAddTrack = () => doc.tracks.length < MAX_TRACKS;
+/** Скопированная дорожка (COPY в MIX): звук, паттерны, EQ, папка и громкость; src — откуда. */
+interface TrackClip { src: number; track: Track; eq: Eq; folder: Folder; vol: number | undefined }
+let trackClip: TrackClip | null = null;
+export const hasTrackClip = () => trackClip !== null;
+
+/** COPY дорожки (удержание ручки громкости в MIX). */
+export function copyTrack(i: number) {
+  if (!doc.tracks[i]) return;
+  trackClip = clone({ src: i, track: doc.tracks[i], eq: doc.eqs[i], folder: doc.folders[i], vol: doc.mixer[`mix.vol${i + 1}`] });
+}
+
+/**
+ * PASTE дорожки на место i: звук, паттерны (все ячейки сетки), имя, EQ, папка звуков и громкость —
+ * как у скопированной; mute и solo остаются у этой дорожки. Ход — как у исходной (играют в такт).
+ * Отмена — UNDO.
+ */
+export function pasteTrack(i: number) {
+  const c = trackClip;
+  if (!c || !doc.tracks[i]) return;
+  edit(() => {
+    const t = doc.tracks[i];
+    doc.tracks[i] = { ...clone(c.track), mute: t.mute, solo: t.solo };
+    doc.eqs[i] = clone(c.eq);
+    doc.folders[i] = clone(c.folder);
+    if (c.vol !== undefined) doc.mixer[`mix.vol${i + 1}`] = c.vol;
+  });
+  if (c.src < doc.tracks.length) rt.trackStart[i] = rt.trackStart[c.src];
+  rt.queued[i] = null;
+  if (i === ui.selectedTrack) { ui.heldSteps.clear(); clampView(); }
+}
+
 /** Удалить можно любую дорожку, пока их больше 8 (меньше 8 не бывает); правые сдвигаются влево. */
 export const canDeleteTrack = (i: number) => doc.tracks.length > TRACK_COUNT && i >= 0 && i < doc.tracks.length;
 
