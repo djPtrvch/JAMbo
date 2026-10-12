@@ -246,7 +246,9 @@ export function buildSample(): HTMLElement {
     heldOpen = false;
     clearTimeout(holdTimer);
     if (ui.channel !== 'track' || ui.heldSteps.size) return;
-    holdTimer = window.setTimeout(() => { heldOpen = true; openSampleEditor(); }, SAMPLE_HOLD_MS);
+    // У синта редактора сэмпла нет — удержание ничего не делает (и меню звука после него не открывается).
+    const synth = synthEngine(doc.tracks[ui.selectedTrack].sample) !== null;
+    holdTimer = window.setTimeout(() => { heldOpen = true; if (!synth) openSampleEditor(); }, SAMPLE_HOLD_MS);
   });
   stub.addEventListener('pointermove', (e) => { if (Math.abs(e.clientY - downY) > 10) clearTimeout(holdTimer); });
   stub.addEventListener('pointercancel', () => clearTimeout(holdTimer));

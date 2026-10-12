@@ -88,6 +88,25 @@ function uniqueName(parent: string, name: string, except?: string): string {
   return `${base} ${k}`;
 }
 
+/** Сэмпл или пресет с таким же именем в папке (при сохранении — вопрос: перезаписать или сохранить как). */
+export function sameName(parent: string, name: string): LibNode | undefined {
+  const base = name.trim().slice(0, 40) || 'Untitled';
+  return nodes.find((n) => n.parent === parent && n.kind !== 'folder' && n.name === base);
+}
+
+/** Свободное имя в папке («Name 2», …) — подсказка для SAVE AS. */
+export const freeName = (parent: string, name: string) => uniqueName(parent, name);
+
+/** Перезаписать сэмпл или пресет: имя и место те же, содержимое новое (сэмпл может стать пресетом и наоборот). */
+export function overwrite(id: string, item: { key: string } | { preset: Preset }) {
+  const n = node(id);
+  if (!n || n.kind === 'folder') return;
+  if ('key' in item) { n.kind = 'sample'; n.key = item.key; delete n.preset; }
+  else { n.kind = 'preset'; n.preset = { ...item.preset, name: n.name }; delete n.key; }
+  n.updated = Date.now();
+  store();
+}
+
 export function createFolder(parent: string, name: string): LibNode {
   const n: LibNode = { id: newId(), parent, kind: 'folder', name: uniqueName(parent, name), updated: Date.now() };
   nodes.push(n);

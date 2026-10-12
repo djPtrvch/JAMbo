@@ -15,8 +15,8 @@
 import { useLibrarySample } from '../audio/engine';
 import { exportNode, importInto } from '../libio';
 import {
-  ROOT, RECORDINGS, addPreset, addSample, children, countInside, createFolder, node, onLibraryChanged, path, remove, rename,
-  type LibNode,
+  ROOT, RECORDINGS, addPreset, addSample, children, countInside, createFolder, freeName, node, onLibraryChanged, overwrite, path, remove, rename,
+  sameName, type LibNode,
 } from '../library';
 import { SYNTH_ENGINES, synthEngine } from '../params';
 import {
@@ -24,7 +24,10 @@ import {
   sampleName, setStepSound, toggleView, ui,
 } from '../state';
 import { h, setClass, setText } from './dom';
-import { openInput } from './popup';
+import { makePopup, openInput, popupButton, type Popup } from './popup';
+
+/** Кнопка SAVE HERE (к ней привязано окно «перезаписать или сохранить как»). */
+let saveHereBtn: HTMLElement;
 
 /** Что делает браузер: загрузка (в дорожку или на зажатые шаги) или сохранение пресета / сэмпла. */
 type Mode =
@@ -267,6 +270,7 @@ export function buildBrowser(): HTMLElement {
   nameInput.type = 'text';
   nameInput.maxLength = 40;
   const saveHere = h('div', 'btn eq-tool lib-save-btn', 'SAVE HERE');
+  saveHereBtn = saveHere;
   saveHere.addEventListener('pointerup', () => save());
   nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') save(); });
   saveBar.append(h('div', 'lib-save-label', 'NAME'), nameInput, saveHere);
@@ -287,17 +291,48 @@ export function buildBrowser(): HTMLElement {
 /** SAVE HERE: пресет синта дорожки или сэмпл — в открытую папку. */
 function save() {
   const into = folder === RECORDINGS ? ROOT : folder;
+  const name = nameInput.value.trim() || (mode.kind === 'save-sample' ? sampleName(mode.key) : '');
+  nameInput.blur();
+  const same = sameName(into, name);
+  // Такое имя уже есть — вопрос: перезаписать или сохранить под другим именем.
+  if (same) { askOverwrite(same.id, into, name); return; }
+  saveAs(into, name);
+}
+
+function saveAs(into: string, name: string, over?: string) {
   if (mode.kind === 'save-preset') {
-    const p = presetFromTrack(ui.selectedTrack, nameInput.value);
+    const p = presetFromTrack(ui.selectedTrack, name);
     if (!p) return;
-    const n = addPreset(into, p);
+    if (over) overwrite(over, { preset: p });
+    const n = over ? node(over)! : addPreset(into, p);
     addPresetToFolder(ui.selectedTrack, { ...p, name: n.name });
   } else if (mode.kind === 'save-sample') {
-    addSample(into, mode.key, nameInput.value || sampleName(mode.key));
+    if (over) overwrite(over, { key: mode.key });
+    else addSample(into, mode.key, name);
   }
-  nameInput.blur();
   mode = { kind: 'load', steps: [] };
   fill();
+}
+
+let askPopup: Popup | null = null;
+function askOverwrite(id: string, into: string, name: string) {
+  askPopup ??= makePopup();
+  const pop = askPopup;
+  pop.box.replaceChildren(
+    h('div', 'popup-title', `“${name}” already exists`),
+    popupButton('OVERWRITE', () => { pop.close(); saveAs(into, name, id); }),
+    popupButton('SAVE AS…', () => {
+      pop.close();
+      // Новое имя (по умолчанию свободное «Name 2»); если и оно занято — снова вопрос.
+      openInput(saveHereBtn, freeName(into, name), (v) => {
+        const nm = v.trim() || freeName(into, name);
+        const again = sameName(into, nm);
+        if (again) askOverwrite(again.id, into, nm); else saveAs(into, nm);
+      });
+    }),
+    popupButton('CANCEL', () => pop.close()),
+  );
+  pop.openAt(saveHereBtn, 220);
 }
 
 /** Открыть браузер: загрузка (steps — зажатые шаги) или сохранение. */

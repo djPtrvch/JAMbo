@@ -954,3 +954,6 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 /* Все надписи DELETE — красным. */
 .popup-btn.danger, .mm-act.danger { color: var(--rec); }
 .popup-btn.danger:disabled, .mm-act.danger.disabled { color: var(--off); }
+
+/* Заголовок всплывающего окна (вопрос перед кнопками). */
+.popup-title { padding: 6px 4px 8px; font-size: 13px; color: var(--text); text-align: center; overflow-wrap: anywhere; }
