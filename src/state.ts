@@ -562,14 +562,20 @@ export function lfoShape(wave: number, phase: number, rnd: number): number {
   }
 }
 
-/** Выход LFO дорожки −1..+1 с учётом Depth и Invert. */
+/**
+ * Форма LFO n с Polarity (биполярная −1…+1 ↔ однополярная 0…+1, плавно) и Invert (от нормальной
+ * через плоскую к перевёрнутой).
+ */
+export function lfoShaped(p: Record<string, number>, n: 1 | 2 | 3, shape: number): number {
+  const u = p[`lfo${n}.polar`] ?? 0;
+  return (shape * (1 - u) + ((shape + 1) / 2) * u) * (1 - 2 * p[`lfo${n}.invert`]);
+}
+
+/** Выход LFO дорожки с учётом Polarity и Invert. */
 export function lfoOut(trackIndex: number, n: 1 | 2 | 3): number {
   const p = liveParams(trackIndex);
-  const pre = `lfo${n}.`;
-  const shape = lfoShape(p[pre + 'wave'], rt.lfoPhase[trackIndex][n - 1], rt.lfoRandom[trackIndex][n - 1]);
-  const depth = p[pre + 'depth'] / 100;
-  const polarity = 1 - 2 * p[pre + 'invert'];
-  return shape * depth * polarity;
+  const shape = lfoShape(p[`lfo${n}.wave`], rt.lfoPhase[trackIndex][n - 1], rt.lfoRandom[trackIndex][n - 1]);
+  return lfoShaped(p, n, shape);
 }
 
 /** Продвинуть фазы всех LFO (LFO работают всегда, независимо от PLAY). */
@@ -1606,7 +1612,17 @@ export function normalizeDoc(raw: unknown): Doc {
   const base = makeDoc();
   const d = { ...base, ...(raw as Partial<Doc>) } as Doc;
   const trackDefaults = base.tracks[0].params;
-  const fixParams = (p: { params: Record<string, number> }) => { p.params = { ...trackDefaults, ...p.params }; };
+  const fixParams = (p: { params: Record<string, number> }) => {
+    // Прежний Depth LFO (убран) входит в Invert: множитель (1 − 2·invert) умножается на depth.
+    for (const n of [1, 2, 3]) {
+      const d = p.params[`lfo${n}.depth`];
+      if (d === undefined) continue;
+      const inv = p.params[`lfo${n}.invert`] ?? 0;
+      p.params[`lfo${n}.invert`] = (1 - (d / 100) * (1 - 2 * inv)) / 2;
+      delete p.params[`lfo${n}.depth`];
+    }
+    p.params = { ...trackDefaults, ...p.params };
+  };
   // Дорожек от 8 (по умолчанию) до 12.
   const count = Math.min(MAX_TRACKS, Math.max(TRACK_COUNT, d.tracks?.length ?? 0));
   d.tracks = Array.from({ length: count }, (_, i) => {

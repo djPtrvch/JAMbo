@@ -16,7 +16,7 @@ import {
 import { LFO_WAVES, MAX_TRACKS, OVER_PEAK, SYNTH_ENGINES, noteName, synthEngine, synthGrid, synthKey } from '../params';
 import { levelFrac } from './meter';
 import { makePopup, popupButton } from './popup';
-import { audible, doc, heldStepSound, setStepSound, folderItemName, folderPos, stepFolder, stepFolderOnSteps, setTrackSynth, envAt, envShape, liveParams, lfoShape, rt, sampleName, selTrack, ui } from '../state';
+import { audible, doc, heldStepSound, setStepSound, folderItemName, folderPos, stepFolder, stepFolderOnSteps, setTrackSynth, envAt, envShape, liveParams, lfoShape, lfoShaped, rt, sampleName, selTrack, ui } from '../state';
 import { openSampleEditor } from './sampleedit';
 import { buildClipper, buildGlue, buildLimiter, renderDynamics } from './dynamics';
 import { iconView, renderIcon, type IconView } from './engineIcon';
@@ -336,11 +336,11 @@ export function buildSampleNav(): HTMLElement {
   return navRow;
 }
 
-/** LFO n: значение формы волны с Depth и Invert, −1..+1. */
+/** LFO n: значение формы волны с Polarity и Invert. */
 function lfoValue(n: 1 | 2 | 3, phase: number): number {
   const p = selTrack().params;
   const rnd = RANDOM_STEPS[Math.floor(phase * RANDOM_STEPS.length) % RANDOM_STEPS.length];
-  return lfoShape(p[`lfo${n}.wave`], phase, rnd) * (p[`lfo${n}.depth`] / 100) * (1 - 2 * p[`lfo${n}.invert`]);
+  return lfoShaped(p, n, lfoShape(p[`lfo${n}.wave`], phase, rnd));
 }
 
 const yBi = (v: number) => (H / 2 - v * (H / 2 - 6)).toFixed(1);

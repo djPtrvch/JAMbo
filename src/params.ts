@@ -207,8 +207,9 @@ function lfoColumn(n: 1 | 2 | 3): Slot[] {
   return [
     stepped(`lfo${n}.wave`, `LFO${n} Wave`, LFO_WAVES),
     smooth(`lfo${n}.speed`, `LFO${n} Speed`, 0.05, 20, 1, lfoHz, { exp: true }),
-    smooth(`lfo${n}.depth`, `LFO${n} Depth`, 0, 100, 100, pct),
     smooth(`lfo${n}.invert`, `LFO${n} Invert`, 0, 1, 0, (v) => { const p = Math.round((1 - 2 * v) * 100); return p === 0 ? 'flat' : `${p > 0 ? '+' : ''}${p}%`; }),
+    // Полярность: 0 — биполярная (−1…+1 вокруг значения ручки), 1 — однополярная (0…+1, только вверх), между — плавно.
+    smooth(`lfo${n}.polar`, `LFO${n} Polarity`, 0, 1, 0, (v) => (v < 0.005 ? 'BI' : v > 0.995 ? 'UNI' : `UNI ${Math.round(v * 100)}%`)),
   ];
 }
 
