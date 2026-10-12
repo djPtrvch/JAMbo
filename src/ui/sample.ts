@@ -197,9 +197,9 @@ export function buildSample(): HTMLElement {
   let stepTargets: number[] = [];
   const stepTitle = h('div', 'source-title step-title hidden');
   menu.box.append(stepTitle);
-  // SAMPLE — браузер библиотеки (сэмплы и пресеты по папкам; файлы с iPad и iCloud — IMPORT там).
+  // LOAD — браузер библиотеки (сэмплы и пресеты синтов по папкам; файлы с iPad и iCloud — IMPORT там).
   // Для зажатых шагов сэмпл из браузера становится их звуком.
-  const sampleBtn = popupButton('SAMPLE', () => {
+  const sampleBtn = popupButton('LOAD', () => {
     menu.close();
     openBrowser({ kind: 'load', steps: stepTargets });
   });
@@ -240,7 +240,7 @@ export function buildSample(): HTMLElement {
     menu.close();
     openBrowser({ kind: 'load-table' });
   });
-  group('SAMPLE · MIDI · PRESET', 2, [sampleBtn, midiBtn, saveBtn, tableBtn]);
+  group('LOAD · MIDI · PRESET', 2, [sampleBtn, midiBtn, saveBtn, tableBtn]);
   // Меню закрывает всю левую колонку (окно сэмпла, стрелки и кнопки LFO/ENV) — кнопки крупнее.
   const menuRect = () => {
     const side = (root.closest('.side') ?? root).getBoundingClientRect();
