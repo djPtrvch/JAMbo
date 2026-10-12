@@ -8,6 +8,8 @@ import { registerAction } from '../midi';
 import { setPlaying } from '../transport';
 import { h, setClass, setText } from './dom';
 import { heldKnobSources } from './knobs';
+import { markPlay, markPlayNote } from './debug';
+import { audioState, probeNextNote, unlockAudio } from '../audio/engine';
 
 const holdViews: [HTMLElement, HoldButton][] = [];
 let playBtn: HTMLElement;
@@ -38,9 +40,9 @@ function holdButton(label: string, btn: HoldButton): HTMLElement {
   return el;
 }
 
-function tapButton(label: string, fn: () => void, state?: () => boolean): HTMLElement {
+function tapButton(label: string, fn: (e?: PointerEvent) => void, state?: () => boolean): HTMLElement {
   const el = h('div', 'btn', label);
-  el.addEventListener('pointerdown', (e) => { e.preventDefault(); fn(); });
+  el.addEventListener('pointerdown', (e) => { e.preventDefault(); fn(e); });
   registerAction(label, { label, press: fn, state }, el);
   return el;
 }
@@ -82,7 +84,13 @@ export function buildLeftButtons(): HTMLElement {
  */
 export function buildTransportButtons(): HTMLElement {
   const el = h('div', 'transport');
-  playBtn = tapButton('PLAY', () => setPlaying(!ui.playing), () => ui.playing);
+  playBtn = tapButton('PLAY', (e) => {
+    // Звук мог быть приостановлен (Safari): будим сразу, на касании, а не на отпускании.
+    if (audioState() !== 'running') unlockAudio();
+    if (!ui.playing && e) probeNextNote(markPlayNote);
+    setPlaying(!ui.playing);
+    if (ui.playing && e) markPlay(e.timeStamp);
+  }, () => ui.playing);
   playBtn.classList.add('play-btn');
   recBtn = tapButton('REC', () => { ui.rec = !ui.rec; endRecTake(); }, () => ui.rec);
   recBtn.classList.add('rec-btn');

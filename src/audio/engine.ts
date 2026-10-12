@@ -423,6 +423,15 @@ function buildGraph(c: AudioContext) {
   });
 }
 
+/** Экран отладки: следующая нота сообщает, насколько позже текущего времени звука она стоит (с). */
+let noteProbe: ((ahead: number) => void) | null = null;
+export const probeNextNote = (f: (ahead: number) => void) => { noteProbe = f; };
+function probe(at: number) {
+  if (!noteProbe) return;
+  noteProbe(at - ctx!.currentTime);
+  noteProbe = null;
+}
+
 /** Время performance.now() → время контекста. */
 function toCtx(perf: number): number {
   const c = ctx!;
@@ -469,6 +478,7 @@ export function triggerTrack(track: number, time: number, notes: number[], locks
   const buf = buffers.get(key);
   if (!buf) return;
   const at = toCtx(time);
+  probe(at);
   // Начальные значения — с модуляцией на момент ноты (ENV запущен на это время).
   const v = (id: string) => value(track, id, locks, time);
 
@@ -533,6 +543,7 @@ function triggerSynth(track: number, engine: number, time: number, notes: number
   // Живой наигрыш: небольшой запас, чтобы нота успела дойти до AudioWorklet к началу огибающей
   // (иначе огибающая открывается раньше звука движка — щелчок).
   const at = Math.max(at0, ctx!.currentTime + 0.012);
+  probe(at);
   const v = (id: string) => value(track, id, locks, time);
   const attack = Math.max(0.002, v('attack') / 1000);
   const decay = v('decay') / 1000;
