@@ -469,3 +469,10 @@ export function setTrackCountParams(n: number) {
   const sc = PARAM_BY_ID['sc.source'];
   if (sc) sc.max = n - 1;
 }
+
+/** Имена дорожек сменились: пункты SC Source — имена дорожек (без имени — номер). */
+export function setTrackNameParams(names: string[]) {
+  const opts = PARAM_BY_ID['sc.source']?.options;
+  if (!opts) return;
+  for (let i = 0; i < opts.length; i++) opts[i] = names[i] || `${i + 1}`;
+}

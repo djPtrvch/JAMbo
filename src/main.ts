@@ -29,7 +29,7 @@ if (standalone) {
     requestAnimationFrame(check);
   }
 }
-import { setTrackCountParams } from './params';
+import { setTrackCountParams, setTrackNameParams } from './params';
 import { advanceLfos, doc, onGateChange, onTrackDeleted, ui, updateTransition } from './state';
 import { attachDebug, markGate } from './ui/debug';
 import { applyAllGates, synthLoad, trackDeleted, unlockAudio, updateAudio } from './audio/engine';
@@ -107,7 +107,11 @@ topbar.append(leftGroup, topMid, topRight);
 // (дорожек 8…12; MIX и MST — постоянной ширины).
 
 let trackCols = 0;
+let trackNames = '';
 function syncTrackCount() {
+  const names = doc.tracks.map((t) => t.name);
+  const sig = names.join('\n');
+  if (sig !== trackNames) { trackNames = sig; setTrackNameParams(names); }
   const n = doc.tracks.length;
   if (n === trackCols) return;
   trackCols = n;
