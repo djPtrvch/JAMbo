@@ -9,7 +9,7 @@
 
 import { masterLevels, resetLoudness, resetPeak, trackIsStereo, trackLevel, type Level } from '../audio/engine';
 import { OVER_PEAK, VOL_MIN_DB, fmtVol } from '../params';
-import { beginGesture, doc, endGesture, setOutVol, ui } from '../state';
+import { beginGesture, doc, endGesture, setOutVol, setTrackVol, trackVol, ui } from '../state';
 import { h, setAttr, setClass, setText } from './dom';
 
 let lufsText: HTMLElement;
@@ -48,25 +48,26 @@ export function buildMeter(): HTMLElement {
     bars.push({ root, fill, hold });
     box.append(root);
   }
-  // Регулятор громкости выхода мастера (виден при MST): положение — по той же шкале dB, что и полосы.
-  volThumb = h('div', 'meter-vol hidden');
+  // Регулятор громкости (белая планка) по той же шкале dB, что и полосы: у дорожки — её громкость
+  // в микшере (та же, что ручка в MIX), при MIX и MST — громкость выхода мастера.
+  volThumb = h('div', 'meter-vol');
   box.append(volThumb);
   let id = -1;
   let y0 = 0;
   let v0 = 0;
   box.addEventListener('pointerdown', (e) => {
-    if (ui.channel !== 'master') return;
     e.preventDefault();
     box.setPointerCapture(e.pointerId);
     id = e.pointerId;
     y0 = e.clientY;
-    v0 = doc.outVol;
+    v0 = volValue();
     volDrag = true;
     beginGesture();
   });
   box.addEventListener('pointermove', (e) => {
     if (e.pointerId !== id) return;
-    setOutVol(v0 + ((y0 - e.clientY) / VOL_TRAVEL_PX) * -VOL_MIN_DB);
+    const v = v0 + ((y0 - e.clientY) / VOL_TRAVEL_PX) * -VOL_MIN_DB;
+    if (ui.channel === 'track') setTrackVol(ui.selectedTrack, v); else setOutVol(v);
   });
   const up = (e: PointerEvent) => {
     if (e.pointerId !== id) return;
@@ -81,6 +82,9 @@ export function buildMeter(): HTMLElement {
 }
 
 /** Что показывает измеритель: дорожка или выход мастера (при MIX и MST). */
+/** Значение регулятора: громкость выбранной дорожки или выхода мастера (MIX, MST), dB. */
+const volValue = () => (ui.channel === 'track' ? trackVol(ui.selectedTrack) : doc.outVol);
+
 const source = (): number | 'master' => (ui.channel === 'track' ? ui.selectedTrack : 'master');
 let shown: number | 'master' | null = null;
 
@@ -112,8 +116,7 @@ export function renderMeter(now: number) {
   });
   setClass(clipMark, 'on', lv.clip);
   setText(lufsText, `LUFS\n${fmtLufs(lv.lufsI)}`);
-  const vol = ui.channel === 'master';
-  setClass(volThumb, 'hidden', !vol);
-  if (vol) setAttr(volThumb, 'style', `bottom:${(((doc.outVol - VOL_MIN_DB) / -VOL_MIN_DB) * 100).toFixed(1)}%`);
-  setText(dbText, vol && volDrag ? `VOL\n${fmtVol(doc.outVol).replace(' dB', '')}` : `${fmtDb(lv.max)}\ndB`);
+  const v = volValue();
+  setAttr(volThumb, 'style', `bottom:${(((v - VOL_MIN_DB) / -VOL_MIN_DB) * 100).toFixed(1)}%`);
+  setText(dbText, volDrag ? `VOL\n${fmtVol(v).replace(' dB', '')}` : `${fmtDb(lv.max)}\ndB`);
 }

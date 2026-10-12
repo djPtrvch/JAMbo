@@ -4,7 +4,7 @@
 
 import {
   FX_GRID, isAuto, MASTER_GRID, MAX_PAGES, MIX_GRID, MOD_GRID, PATTERN_SLOTS, RATIOS, STEPS_PER_PAGE, TRACK_COUNT, MAX_TRACKS, TRACK_GRID, OCTAVE_DEF, OCTAVE_MAX, OCTAVE_MIN,
-  BPM_MAX, BPM_MIN, VOL_MIN_DB, PARAM_BY_ID, PRESET_PARAMS, SEQ_COUNT, SEQ_MIX, SEQ_MST, SYNTH_ENGINES, SYNTH_GRID, synthEngine, synthGrid, synthKey, EQ_BANDS, EQ_BELL, EQ_DYN_RANGE_MAX, EQ_DYN_THR_MIN, EQ_FREQ_MAX, EQ_FREQ_MIN, EQ_GAIN_MAX, EQ_Q_DEF, EQ_Q_MAX, EQ_Q_MIN, EQ_TYPES, NOTE_NAMES, PROGRESSIONS, SCALES, fromNorm, toNorm, type ParamDef, type Slot,
+  BPM_MAX, BPM_MIN, VOL_MIN_DB, VOL_DEF_DB, PARAM_BY_ID, PRESET_PARAMS, SEQ_COUNT, SEQ_MIX, SEQ_MST, SYNTH_ENGINES, SYNTH_GRID, synthEngine, synthGrid, synthKey, EQ_BANDS, EQ_BELL, EQ_DYN_RANGE_MAX, EQ_DYN_THR_MIN, EQ_FREQ_MAX, EQ_FREQ_MIN, EQ_GAIN_MAX, EQ_Q_DEF, EQ_Q_MAX, EQ_Q_MIN, EQ_TYPES, NOTE_NAMES, PROGRESSIONS, SCALES, fromNorm, toNorm, type ParamDef, type Slot,
 } from './params';
 
 export interface Step {
@@ -988,6 +988,10 @@ export function audible(i: number): boolean {
   const anySolo = doc.tracks.some((x) => x.solo);
   return anySolo ? t.solo : !t.mute;
 }
+
+/** Громкость дорожки i в микшере (ручка в MIX и регулятор на измерителе справа), dB. */
+export const trackVol = (i: number) => doc.mixer[`mix.vol${i + 1}`] ?? VOL_DEF_DB;
+export function setTrackVol(i: number, db: number) { doc.mixer[`mix.vol${i + 1}`] = Math.min(0, Math.max(VOL_MIN_DB, db)); }
 
 /** Громкость выхода мастера (регулятор на измерителе справа), dB. */
 export function setOutVol(db: number) { doc.outVol = Math.min(0, Math.max(VOL_MIN_DB, db)); }
