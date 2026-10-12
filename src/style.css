@@ -635,13 +635,13 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 
 .piano.open > .scale-panel { display: grid; }
 /* Строка под клавишами — по сетке клавиш (--keys столбцов, тот же зазор 3 px): SCALE — 2 клавиши,
-   ROOT и CHORD — по 1, PROGRESSION — 4, аккорды прогрессии — по 2 (что не помещается — прокрутка). */
+   ROOT и CHORD — по 1, PROGRESSION — 3, аккорды прогрессии — по 2 (что не помещается — прокрутка). */
 .scale-panel { grid-template-columns: repeat(var(--keys, 15), minmax(0, 1fr)); gap: 3px; min-width: 0; }
 .scale-panel .sp-scale { grid-column: span 2; }
 .scale-panel .sp-root { grid-column: span 1; }
 .scale-panel .chord-btn { grid-column: span 1; }
-.scale-panel .sp-prog { grid-column: span 4; }
-.scale-panel .chips { grid-column: 9 / -1; overflow-x: auto; scrollbar-width: none; }
+.scale-panel .sp-prog { grid-column: span 3; }
+.scale-panel .chips { grid-column: 8 / -1; overflow-x: auto; scrollbar-width: none; }
 .scale-panel .chips::-webkit-scrollbar { display: none; }
 .scale-panel .chips, .scale-panel .chips * { touch-action: pan-x; }
 .scale-panel .chip { flex: none; width: calc(2 * var(--key-w, 64px) + 3px); }
