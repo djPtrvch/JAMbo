@@ -251,6 +251,8 @@ export async function restartAudio() {
   scopeOn = null;
   fxSig = '';
   irSig = '';
+  tailUntil = 0;
+  gateOpen.length = 0;
   unlockAudio();
   await old.close().catch(() => {});
 }
@@ -684,7 +686,7 @@ function updateFx(now: number) {
     }
   }
 
-  const fsig = JSON.stringify([fx, mixer, master, doc.ratio, doc.limBypass, doc.cmpBypass, doc.clipBypass, doc.bpm]);
+  const fsig = JSON.stringify([fx, mixer, master, doc.ratio, doc.limBypass, doc.cmpBypass, doc.clipBypass, doc.bpm, doc.tracks.map((t) => +t.mute + 2 * +t.solo)]);
   if (fsig === fxSig) return;
   fxSig = fsig;
   set(rev.hpf.frequency, fx['rev.hpf']);
@@ -694,8 +696,10 @@ function updateFx(now: number) {
   const time = Math.min(MAX_DELAY, DELAY_DIVS[Math.round(fx['dly.time'])].beats * 60 / doc.bpm);
   set(dly.l.delayTime, time);
   set(dly.r.delayTime, Math.min(MAX_DELAY, time * (1 + (fx['dly.stereo'] / 100) * 0.5)));
-  set(dly.fbL.gain, fx['dly.feedback'] / 100 * 0.95);
-  set(dly.fbR.gain, fx['dly.feedback'] / 100 * 0.95);
+  // Пока идёт MUTE TAILS, обратная связь возвращается не раньше его конца.
+  const fbAt = Math.max(ct, tailUntil);
+  dly.fbL.gain.setTargetAtTime(fx['dly.feedback'] / 100 * 0.95, fbAt, 0.02);
+  dly.fbR.gain.setTargetAtTime(fx['dly.feedback'] / 100 * 0.95, fbAt, 0.02);
   set(dly.hpf.frequency, fx['dly.hpf']);
 
   drv.shaper.curve = driveCurve(Math.round(fx['od.type'])) as Float32Array<ArrayBuffer>;
@@ -704,14 +708,54 @@ function updateFx(now: number) {
   tracks.forEach((ch, i) => {
     const vol = volGain(mixer[`mix.vol${i + 1}`] ?? VOL_DEF_DB);
     set(ch.vol.gain, vol);
-    // Mute / solo — плавно (~5 ms); ноты заглушённой дорожки играют дальше (метр, sidechain, DYN EQ).
-    const open = audible(i) ? 1 : 0;
-    ch.gate.gain.setTargetAtTime(open, ct, 0.0015);
-    ch.sends.forEach((s) => s.gain.setTargetAtTime(vol * open, ct, open ? 0.02 : 0.0015));
+    gateTrack(i, vol, ct);
   });
 
   sendDynamics();
   set(mst.outVol.gain, volGain(doc.outVol));
+}
+
+/** Постоянная времени гейта mute/solo: закрывается и открывается за ~5 ms (3τ). */
+const GATE_TAU = 0.0015;
+/** MUTE TAILS: на столько секунд гасится обратная связь Delay, если заглушили его единственный источник. */
+const TAIL_CUT = 0.1;
+const gateOpen: boolean[] = [];
+let tailUntil = 0;
+
+/** Гейт дорожки i (mute/solo): выход и посылы; ноты заглушённой дорожки играют дальше (метр, sidechain, DYN EQ). */
+function gateTrack(i: number, vol: number, ct: number) {
+  const ch = tracks[i];
+  const open = audible(i);
+  ch.gate.gain.setTargetAtTime(open ? 1 : 0, ct, GATE_TAU);
+  ch.sends.forEach((s) => s.gain.setTargetAtTime(open ? vol : 0, ct, GATE_TAU));
+  if (gateOpen[i] === true && !open && settings.muteTails) cutDelayTail(i, ct);
+  gateOpen[i] = open;
+}
+
+/** MUTE TAILS: заглушённая дорожка — единственный слышимый источник посыла Delay → гасим его повторы. */
+function cutDelayTail(i: number, ct: number) {
+  const sends = (k: number) => (doc.tracks[k].params.delay ?? 0) > 0;
+  if (!sends(i) || doc.tracks.some((_, k) => k !== i && audible(k) && sends(k))) return;
+  const fb = doc.fx['dly.feedback'] / 100 * 0.95;
+  for (const g of [dly.fbL.gain, dly.fbR.gain]) {
+    g.cancelScheduledValues(ct);
+    g.setTargetAtTime(0, ct, GATE_TAU);
+    g.setTargetAtTime(fb, ct + TAIL_CUT, 0.005);
+  }
+  tailUntil = ct + TAIL_CUT;
+}
+
+/**
+ * Mute/solo сразу, из жеста (не дожидаясь кадра): гейты всех дорожек — solo одной меняет остальные.
+ * Возвращает время вызова (performance.now) для экрана отладки.
+ */
+export function applyAllGates(): number {
+  const t = performance.now();
+  if (!ctx || !tracks.length) return t;
+  const mixer = liveMixer(t);
+  const ct = ctx.currentTime;
+  tracks.forEach((_, i) => gateTrack(i, volGain(mixer[`mix.vol${i + 1}`] ?? VOL_DEF_DB), ct));
+  return t;
 }
 
 /** Каждый кадр: эффекты, микшер, мастер и модуляция голосов. */

@@ -4,8 +4,9 @@ import { applyTheme } from './ui/theme';
 // Оформление до первой отрисовки (светлое или тёмное — по настройке или как в системе).
 applyTheme();
 import { TRACK_COUNT } from './params';
-import { advanceLfos, ui, updateTransition } from './state';
-import { synthLoad, unlockAudio, updateAudio } from './audio/engine';
+import { advanceLfos, onGateChange, ui, updateTransition } from './state';
+import { attachDebug, markGate } from './ui/debug';
+import { applyAllGates, synthLoad, unlockAudio, updateAudio } from './audio/engine';
 import { initProjects } from './project';
 import { initMidi, sendFeedback, setNoteHandler } from './midi';
 import { settings } from './settings';
@@ -63,6 +64,10 @@ const topRight = h('div', 'top-right');
 // Справа от EQ, над измерителем уровня — загрузка процессора.
 const cpu = h('div', 'cpu', 'CPU\n–');
 topRight.append(buildPatternsButton(), buildEqButton(), cpu);
+attachDebug(cpu);
+
+// Mute/solo звучат сразу из жеста, не дожидаясь кадра.
+onGateChange(() => markGate(applyAllGates()));
 topbar.append(leftGroup, topMid, topRight);
 
 // Число столбцов дорожек: строка дорожек и сетка паттернов совпадают по ширине столбцов.

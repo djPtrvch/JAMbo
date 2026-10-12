@@ -389,6 +389,7 @@ export function undo() {
   redoStack.push(snapshot());
   Object.assign(doc, JSON.parse(snap) as Doc);
   clampView();
+  gateHook();
 }
 
 /** REDO: вернуть отменённое UNDO. */
@@ -399,6 +400,7 @@ export function redo() {
   undoStack.push(snapshot());
   Object.assign(doc, JSON.parse(snap) as Doc);
   clampView();
+  gateHook();
 }
 
 export const canRedo = () => redoStack.length > 0;
@@ -874,14 +876,27 @@ export function renameTrack(i: number, name: string) {
  * Свайп по дорожке: если включён mute или solo — любой свайп (вверх или вниз) его выключает;
  * иначе свайп вниз включает mute, вверх — solo. Одновременно mute и solo не бывает.
  */
+/** Звук mute/solo сразу из жеста (движок регистрирует applyAllGates; state не импортирует движок). */
+let gateHook: () => void = () => {};
+export const onGateChange = (f: () => void) => { gateHook = f; };
+
 export function swipeTrack(i: number, dir: 'up' | 'down') {
-  edit(() => {
-    const t = doc.tracks[i];
-    if (t.mute) t.mute = false;
-    else if (t.solo) t.solo = false;
-    else if (dir === 'down') t.mute = true;
-    else t.solo = true;
-  });
+  const flags = doc.tracks.map((t) => [t.mute, t.solo] as const);
+  const t = doc.tracks[i];
+  if (t.mute) t.mute = false;
+  else if (t.solo) t.solo = false;
+  else if (dir === 'down') t.mute = true;
+  else t.solo = true;
+  gateHook();
+  if (gestureDepth > 0) return;
+  // UNDO — после звука, вне жеста: снимок документа с прежними флагами (JSON — не в обработчике касания).
+  setTimeout(() => {
+    const now = doc.tracks.map((x) => [x.mute, x.solo] as const);
+    doc.tracks.forEach((x, k) => { if (flags[k]) [x.mute, x.solo] = flags[k]; });
+    const snap = snapshot();
+    doc.tracks.forEach((x, k) => { [x.mute, x.solo] = now[k]; });
+    pushUndo(snap);
+  }, 0);
 }
 
 /** Слышна ли дорожка с учётом mute/solo. */

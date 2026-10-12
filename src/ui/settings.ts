@@ -101,6 +101,8 @@ function renderEngine() {
     }),
     note('Changing these restarts the audio engine. Safari may round the buffer size to what the device supports; the actual latency is shown below.'),
     h('div', 'settings-info', engineInfo()),
+    choice('MUTE TAILS', [false, true], settings.muteTails, (v) => (v ? 'ON' : 'OFF'), (v) => saveSettings({ muteTails: v })),
+    note('OFF: muting a track cuts its sound and sends at once; Reverb and Delay tails ring out (as in Ableton). ON: if the muted track is the only one sending to Delay, the Delay repeats are cut too.'),
   );
 }
 

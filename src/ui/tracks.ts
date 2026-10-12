@@ -10,8 +10,10 @@ import { audible, doc, renameTrack, rt, selectChannel, selectTrack, swipeTrack, 
 import { registerAction } from '../midi';
 import { h, setClass, setText } from './dom';
 import { openInput } from './popup';
+import { markSwipe } from './debug';
 
 const SWIPE_PX = 24;
+const RAW = 'onpointerrawupdate' in window;
 
 interface TrackView { root: HTMLElement; name: HTMLElement; state: HTMLElement; dot: HTMLElement }
 const views: TrackView[] = [];
@@ -41,6 +43,7 @@ export function buildTracks(): HTMLElement {
     root.append(name, state, dot);
 
     let startY = 0;
+    let downT = 0;
     let id = -1;
     /** Свайп уже сработал (mute/solo включаются, как только палец прошёл порог, не дожидаясь отпускания). */
     let swiped = false;
@@ -49,12 +52,18 @@ export function buildTracks(): HTMLElement {
       root.setPointerCapture(e.pointerId);
       id = e.pointerId;
       startY = e.clientY;
+      downT = e.timeStamp;
       swiped = false;
     });
-    root.addEventListener('pointermove', (e) => {
+    // pointerrawupdate (где есть) приходит сразу, pointermove браузер придерживает до кадра.
+    root.addEventListener(RAW ? 'pointerrawupdate' as 'pointermove' : 'pointermove', (e) => {
       if (e.pointerId !== id || swiped) return;
       const dy = e.clientY - startY;
-      if (Math.abs(dy) > SWIPE_PX) { swiped = true; swipeTrack(i, dy > 0 ? 'down' : 'up'); }
+      if (Math.abs(dy) > SWIPE_PX) {
+        swiped = true;
+        markSwipe(downT, e.timeStamp);
+        swipeTrack(i, dy > 0 ? 'down' : 'up');
+      }
     });
     const finish = (e: PointerEvent, cancelled: boolean) => {
       if (e.pointerId !== id) return;

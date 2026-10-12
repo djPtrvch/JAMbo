@@ -48,6 +48,8 @@ export interface Settings {
   sampleRate: number;
   bufferSize: number;
   background: boolean;
+  /** MUTE TAILS: mute дорожки — единственного источника посыла Delay — гасит и его повторы. */
+  muteTails: boolean;
   /** Идентификаторы устройств ('' — по умолчанию). */
   outputId: string;
   inputId: string;
@@ -67,7 +69,7 @@ export interface Settings {
 
 const KEY = 'jambo.settings';
 const DEFAULTS: Settings = {
-  sampleRate: 0, bufferSize: 0, background: true, outputId: '', inputId: '',
+  sampleRate: 0, bufferSize: 0, background: true, muteTails: false, outputId: '', inputId: '',
   midiIn: '', midiFeedback: '', noteChannel: 0, noteRoute: 'selected', mappings: [], midiPreset: '', theme: 'system',
 };
 
