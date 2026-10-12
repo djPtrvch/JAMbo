@@ -7,7 +7,7 @@
 
 import { MAX_PAGES, STEPS_PER_PAGE } from '../params';
 import {
-  addPage, clearPage, nudgePage, copyPage, deletePage, duplicatePage, hasLocks, pastePage, rt, curSeq, seqIndex, setPlayPages, ui,
+  addPage, clearPage, nudgePage, pageRange, copyPage, deletePage, duplicatePage, hasLocks, pastePage, rt, curSeq, seqIndex, setPlayPages, ui,
 } from '../state';
 import { DOUBLE_TAP_MS, h, setClass } from './dom';
 import { makePopup, popupButton, type Popup } from './popup';
@@ -183,9 +183,12 @@ export function buildPages(): HTMLElement {
 function openMenu(i: number) {
   ui.pageMenu = i;
   const t = curSeq();
-  menuButtons.duplicate.disabled = t.pages.length >= MAX_PAGES;
+  // Внутри белой обводки — всё действует на весь играющий диапазон.
+  const [a, b] = pageRange(i);
+  const n = b - a + 1;
+  menuButtons.duplicate.disabled = t.pages.length + n > MAX_PAGES;
   menuButtons.paste.disabled = !ui.clipboard;
-  menuButtons.delete.disabled = t.pages.length <= 1;
+  menuButtons.delete.disabled = t.pages.length - n < 1;
   menu.openAt(thumbs[i].root, 180);
 }
 

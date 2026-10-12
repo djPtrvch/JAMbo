@@ -187,7 +187,8 @@ export interface Ui {
   heldSteps: Map<number, HeldStep>;
   playing: boolean;
   rec: boolean;
-  clipboard: Step[] | null;
+  /** Скопированные страницы (одна или выбранный диапазон). */
+  clipboard: Step[][] | null;
   pageMenu: number | null;
   patternClipboard: Pattern | null;
   /** Скопированная строка сетки паттернов (паттерны по дорожкам, имя и повторы). */
@@ -1009,52 +1010,91 @@ export function addPage() {
   ui.viewPage = t.pages.length - 1;
 }
 
+/**
+ * Страницы, на которые действует меню страницы: если миниатюра внутри играющего диапазона
+ * (белая обводка) — весь диапазон, иначе только она.
+ */
+export function pageRange(i: number): [number, number] {
+  const t = curSeq();
+  return i >= t.playFrom && i <= t.playTo ? [t.playFrom, t.playTo] : [i, i];
+}
+
 export function duplicatePage(i: number) {
   const t = curSeq();
-  if (t.pages.length >= MAX_PAGES) return;
-  edit(() => changePages(t, () => t.pages.splice(i + 1, 0, clonePage(t.pages[i]))));
-  ui.viewPage = i + 1;
+  const [a, b] = pageRange(i);
+  const n = b - a + 1;
+  if (t.pages.length + n > MAX_PAGES) return;
+  edit(() => changePages(t, () => {
+    t.pages.splice(b + 1, 0, ...t.pages.slice(a, b + 1).map(clonePage));
+    // Копии встали левее играющих страниц — играют те же страницы (номера сдвинулись).
+    if (t.playFrom > b) { t.playFrom += n; t.playTo += n; }
+  }));
+  ui.viewPage = b + 1;
 }
 
 export function copyPage(i: number) {
-  ui.clipboard = clonePage(curSeq().pages[i]);
+  const [a, b] = pageRange(i);
+  ui.clipboard = curSeq().pages.slice(a, b + 1).map(clonePage);
 }
 
+/** PASTE: скопированные страницы встают с первой страницы диапазона (не хватает — добавляются, до 8). */
 export function pastePage(i: number) {
   const clip = ui.clipboard;
   if (!clip) return;
-  edit(() => { curSeq().pages[i] = clonePage(clip); });
+  const t = curSeq();
+  const [a] = pageRange(i);
+  edit(() => changePages(t, () => {
+    clip.forEach((pg, k) => {
+      if (a + k < t.pages.length) t.pages[a + k] = clonePage(pg);
+      else if (t.pages.length < MAX_PAGES) t.pages.push(clonePage(pg));
+    });
+  }));
 }
 
-/** CLEAR: очистить страницу — все шаги пустые (ноты, триги, p-lock и звуки шагов убираются). */
+/** CLEAR: очистить страницы — все шаги пустые (ноты, триги, p-lock и звуки шагов убираются). */
 export function clearPage(i: number) {
   const t = curSeq();
   if (!t.pages[i]) return;
-  edit(() => { t.pages[i] = emptyPage(); });
+  const [a, b] = pageRange(i);
+  edit(() => { for (let k = a; k <= b; k++) t.pages[k] = emptyPage(); });
 }
 
-/** Стрелки меню страницы: ◀ ▶ — шаги страницы по кругу на один шаг, ▲ ▼ — ноты на октаву. */
+/**
+ * Стрелки меню страницы: ◀ ▶ — шаги диапазона по кругу на один шаг (через границы страниц),
+ * ▲ ▼ — ноты на октаву.
+ */
 export function nudgePage(i: number, dir: 'left' | 'right' | 'up' | 'down') {
-  const page = curSeq().pages[i];
-  if (!page) return;
+  const t = curSeq();
+  if (!t.pages[i]) return;
+  const [a, b] = pageRange(i);
+  const pages = t.pages.slice(a, b + 1);
+  const steps = pages.flat();
   if (dir === 'left' || dir === 'right') {
     edit(() => {
-      if (dir === 'left') page.push(page.shift()!);
-      else page.unshift(page.pop()!);
+      if (dir === 'left') steps.push(steps.shift()!);
+      else steps.unshift(steps.pop()!);
+      pages.forEach((_, k) => { t.pages[a + k] = steps.slice(k * STEPS_PER_PAGE, (k + 1) * STEPS_PER_PAGE); });
     });
     return;
   }
   const d = dir === 'up' ? 12 : -12;
-  const notes = page.flatMap((s) => s.notes);
+  const notes = steps.flatMap((st) => st.notes);
   // Нота за пределами 0…127 — сдвига нет (иначе аккорды сплющились бы).
   if (!notes.length || notes.some((n) => n + d < 0 || n + d > 127)) return;
-  edit(() => { for (const s of page) s.notes = s.notes.map((n) => n + d); });
+  edit(() => { for (const st of steps) st.notes = st.notes.map((n) => n + d); });
 }
 
+/** DELETE: убрать страницы диапазона (одна страница остаётся всегда). */
 export function deletePage(i: number) {
   const t = curSeq();
-  if (t.pages.length <= 1) return;
-  edit(() => changePages(t, () => t.pages.splice(i, 1)));
+  const [a, b] = pageRange(i);
+  if (t.pages.length - (b - a + 1) < 1) return;
+  edit(() => changePages(t, () => {
+    t.pages.splice(a, b - a + 1);
+    // Играли удалённые — играет страница на их месте.
+    if (t.playFrom >= a && t.playTo <= b) { t.playFrom = t.playTo = Math.min(a, t.pages.length - 1); }
+    else if (t.playFrom > b) { t.playFrom -= b - a + 1; t.playTo -= b - a + 1; }
+  }));
   clampView();
 }
 
