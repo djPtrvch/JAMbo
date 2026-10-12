@@ -1,13 +1,14 @@
 // Миниатюры страниц паттерна — строки одна под другой во всю ширину.
 // Тап — эта страница играет (и открывается в секвенсоре); протянуть по нескольким — играют они все,
-// вокруг играющих страниц общая обводка.
-// «+» — добавить страницу (до 8); удержание — окно duplicate / copy / paste / clear / delete.
+// вокруг играющих страниц общая обводка. Удержание — страница открывается в секвенсоре для
+// редактирования (играющие не меняются). Двойной тап — окно duplicate / copy / paste / clear / delete.
+// «+» — добавить страницу (до 8).
 
 import { MAX_PAGES, STEPS_PER_PAGE } from '../params';
 import {
   addPage, clearPage, copyPage, deletePage, duplicatePage, hasLocks, pastePage, rt, curSeq, seqIndex, setPlayPages, ui,
 } from '../state';
-import { h, setClass } from './dom';
+import { DOUBLE_TAP_MS, h, setClass } from './dom';
 import { makePopup, popupButton, type Popup } from './popup';
 
 const HOLD_MS = 450;
@@ -23,6 +24,8 @@ const menuButtons: Record<string, HTMLButtonElement> = {};
 
 /** Текущее протягивание по миниатюрам. */
 let drag: { id: number; from: number; to: number; timer: number; menu: boolean } | null = null;
+/** Последний тап по миниатюре: страница и время (двойной тап — меню). */
+let lastTap = { page: -1, at: 0, from: 0, to: 0, view: 0 };
 
 function thumbAt(x: number, y: number): number {
   const el = document.elementFromPoint(x, y)?.closest('.thumb') as HTMLElement | null;
@@ -50,7 +53,8 @@ export function buildPages(): HTMLElement {
       root.releasePointerCapture?.(e.pointerId);
       drag = {
         id: e.pointerId, from: i, to: i, menu: false,
-        timer: window.setTimeout(() => { if (drag && drag.to === drag.from) { drag.menu = true; openMenu(i); } }, HOLD_MS),
+        // Удержание без протягивания — страница открывается для редактирования (играющие не меняются).
+        timer: window.setTimeout(() => { if (drag && drag.to === drag.from) { drag.menu = true; ui.viewPage = i; } }, HOLD_MS),
       };
     });
     thumbs.push({ root, cells });
@@ -72,8 +76,20 @@ export function buildPages(): HTMLElement {
     if (!drag || e.pointerId !== drag.id) return;
     clearTimeout(drag.timer);
     if (!drag.menu && e.type === 'pointerup') {
-      setPlayPages(drag.from, drag.to);
-      ui.viewPage = drag.from;
+      const now = performance.now();
+      if (drag.from === drag.to && lastTap.page === drag.from && now - lastTap.at < DOUBLE_TAP_MS) {
+        // Двойной тап — меню страницы; играющие страницы — как до первого тапа.
+        setPlayPages(lastTap.from, lastTap.to);
+        ui.viewPage = lastTap.view;
+        lastTap = { page: -1, at: 0, from: 0, to: 0, view: 0 };
+        openMenu(drag.from);
+      } else {
+        const t = curSeq();
+        const before = { from: t.playFrom, to: t.playTo, view: ui.viewPage };
+        setPlayPages(drag.from, drag.to);
+        ui.viewPage = drag.from;
+        lastTap = drag.from === drag.to ? { page: drag.from, at: now, ...before } : { page: -1, at: 0, from: 0, to: 0, view: 0 };
+      }
     }
     drag = null;
   };
