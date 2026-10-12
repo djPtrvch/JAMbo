@@ -3,6 +3,32 @@ import { applyTheme } from './ui/theme';
 
 // Оформление до первой отрисовки (светлое или тёмное — по настройке или как в системе).
 applyTheme();
+
+// Веб-приложение с экрана «Домой» (iOS): при запуске первые кадры (~0,4 с) WebKit показывает страницу
+// с чужим масштабом вьюпорта (как будто ширина портретная), потом поправляет сам. Пока ширина
+// страницы не совпала с длинной/короткой стороной экрана и масштаб не 1, приложение скрыто (виден
+// только фон); не дольше 1 с — на случай окна Stage Manager, где ширина и не совпадёт.
+const standalone = (navigator as { standalone?: boolean }).standalone === true
+  || matchMedia('(display-mode: standalone)').matches;
+if (standalone) {
+  const rootEl = document.documentElement;
+  const ok = () => {
+    const long = Math.max(screen.width, screen.height);
+    const short = Math.min(screen.width, screen.height);
+    const want = innerWidth > innerHeight ? long : short;
+    const scale = window.visualViewport?.scale ?? 1;
+    return Math.abs(innerWidth - want) <= 2 && Math.abs(scale - 1) < 0.01;
+  };
+  if (!ok()) {
+    rootEl.style.visibility = 'hidden';
+    const t0 = performance.now();
+    const check = () => {
+      if (ok() || performance.now() - t0 > 1000) { rootEl.style.visibility = ''; return; }
+      requestAnimationFrame(check);
+    };
+    requestAnimationFrame(check);
+  }
+}
 import { setTrackCountParams } from './params';
 import { advanceLfos, doc, onGateChange, onTrackDeleted, ui, updateTransition } from './state';
 import { attachDebug, markGate } from './ui/debug';
