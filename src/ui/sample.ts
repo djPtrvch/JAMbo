@@ -363,9 +363,9 @@ function renderEnv(m: Mini, now: number) {
   const e = envAt(ti, now);
   const t = e.start >= 0 ? now - e.start : -1;
   const g = e.gateEnd - e.start;
-  const active = t >= 0 && t < g + r;
-  // Нота короче A+D — рисуем её настоящий гейт; иначе условный (участок Sustain виден всегда).
-  const gate = active && g < ad ? g : ad + Math.max(200, (ad + r) * 0.3);
+  // Последняя нота короче A+D — рисуем её настоящий гейт (и после того, как она отзвучала, — иначе
+  // кривая прыгала бы между формой ноты и полной ADSR); иначе условный (участок Sustain виден всегда).
+  const gate = e.start >= 0 && g < ad ? g : ad + Math.max(200, (ad + r) * 0.3);
   const total = gate + r;
   setText(m.title, `ENV · A${Math.round(a)} D${Math.round(dcy)} S${Math.round(p['env.sustain'])}% R${Math.round(r)}`);
   let d = '';
