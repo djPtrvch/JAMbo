@@ -390,7 +390,7 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 }
 .pattern-cell.selected-col { background: var(--panel-2); }
 .pattern-cell.filled { background: var(--panel-2); }
-.pattern-cell.active { background: var(--accent-soft); box-shadow: inset 0 0 0 2px var(--accent); }
+.pattern-cell.active { box-shadow: inset 0 0 0 2px var(--accent); }
 .pattern-thumb { flex: 1; width: 100%; height: 100%; }
 /* Шаги в превью паттерна — с тонкой обводкой (1 px при любом масштабе), чтобы были видны. */
 .pt-dot { fill: var(--off); stroke: var(--dim); stroke-width: 1px; vector-effect: non-scaling-stroke; }
@@ -788,7 +788,6 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 
 /* Кроссфейдер перехода между проектами: справа от сетки паттернов (над MST). */
 .xfader { display: flex; flex-direction: column; align-items: center; gap: 20px; padding: 6px 0; border-radius: 6px; background: var(--panel); }
-.xf-label { font-size: 10px; letter-spacing: 0.08em; color: var(--dim); }
 .xf-track { position: relative; flex: 1; width: 10px; border-radius: 5px; background: var(--off); }
 .xf-fill { position: absolute; left: 0; right: 0; bottom: 0; border-radius: 5px; background: var(--accent); }
 .xf-thumb { position: absolute; left: 50%; width: 44px; height: 28px; margin-bottom: -14px; transform: translateX(-50%); border-radius: 6px; background: var(--text); box-shadow: 0 2px 8px var(--shadow); }

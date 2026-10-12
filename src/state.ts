@@ -4,7 +4,7 @@
 
 import {
   FX_GRID, isAuto, MASTER_GRID, MAX_PAGES, MIX_GRID, MOD_GRID, PATTERN_SLOTS, RATIOS, STEPS_PER_PAGE, TRACK_COUNT, MAX_TRACKS, TRACK_GRID, OCTAVE_DEF, OCTAVE_MAX, OCTAVE_MIN,
-  BPM_MAX, BPM_MIN, VOL_MIN_DB, VOL_DEF_DB, PARAM_BY_ID, PRESET_PARAMS, SEQ_COUNT, SEQ_MIX, SEQ_MST, SYNTH_ENGINES, SYNTH_GRID, synthEngine, synthGrid, synthKey, EQ_BANDS, EQ_BELL, EQ_DYN_RANGE_MAX, EQ_DYN_THR_MIN, EQ_FREQ_MAX, EQ_FREQ_MIN, EQ_GAIN_MAX, EQ_Q_DEF, EQ_Q_MAX, EQ_Q_MIN, EQ_TYPES, NOTE_NAMES, PROGRESSIONS, SCALES, fromNorm, toNorm, type ParamDef, type Slot,
+  BPM_MAX, BPM_MIN, VOL_MIN_DB, VOL_DEF_DB, PARAM_BY_ID, PRESET_PARAMS, SEQ_COUNT, SEQ_MIX, SEQ_MST, SYNTH_ENGINES, SYNTH_GRID, synthEngine, synthGrid, synthKey, EQ_BANDS, EQ_BELL, eqHasGain, EQ_DYN_RANGE_MAX, EQ_DYN_THR_MIN, EQ_FREQ_MAX, EQ_FREQ_MIN, EQ_GAIN_MAX, EQ_Q_DEF, EQ_Q_MAX, EQ_Q_MIN, EQ_TYPES, NOTE_NAMES, PROGRESSIONS, SCALES, fromNorm, toNorm, type ParamDef, type Slot,
 } from './params';
 
 export interface Step {
@@ -328,6 +328,19 @@ export const ui: Ui = {
   eqBand: -1,
   lfoPreviewUntil: 0,
 };
+
+/**
+ * Режим аккордов, прогрессия и выбранные ноты — у каждой дорожки свои (не сохраняются в проекте);
+ * ui.chordMode, ui.progression, ui.selNotes — значения выбранной дорожки. Гамма и нота — общие.
+ */
+const perTrack = Array.from({ length: MAX_TRACKS }, () => ({ chordMode: false, progression: 0, selNotes: [] as number[] }));
+for (const key of ['chordMode', 'progression', 'selNotes'] as const) {
+  Object.defineProperty(ui, key, {
+    get: () => perTrack[ui.selectedTrack][key],
+    set: (v) => { (perTrack[ui.selectedTrack] as Record<string, unknown>)[key] = v; },
+    enumerable: true,
+  });
+}
 
 export const rt: Runtime = {
   playPos: Array(SEQ_COUNT).fill(-1),
@@ -1739,6 +1752,30 @@ function blendRecord(a: Record<string, number>, b: Record<string, number>, t: nu
   return out;
 }
 
+/**
+ * EQ при кроссфейде — плавно: полоса, которая есть в обоих (тот же тип, крутизна, M/S), меняет частоту,
+ * усиление и Q; bell/shelf, которой нет на одной стороне, вводится и выводится усилением (от 0 dB);
+ * остальное (разные типы, cut и notch только с одной стороны) переключается на середине.
+ */
+function blendEq(a: Eq | undefined, b: Eq | undefined, t: number): Eq {
+  const bandsOf = (e: Eq | undefined) => (e && e.on ? e.bands : []);
+  const A = bandsOf(a);
+  const B = bandsOf(b);
+  const geo = (x: number, y: number) => x * Math.pow(y / x, t);
+  const bands = Array.from({ length: EQ_BANDS }, (_, k): EqBand | null => {
+    const x = A[k]?.on ? A[k]! : null;
+    const y = B[k]?.on ? B[k]! : null;
+    if (x && y && x.type === y.type && x.slope === y.slope && (x.ms ?? 0) === (y.ms ?? 0)) {
+      return { ...(t < 0.5 ? x : y), freq: geo(x.freq, y.freq), gain: x.gain + (y.gain - x.gain) * t, q: geo(x.q, y.q) };
+    }
+    if (x && !y && eqHasGain(x.type)) return { ...x, gain: x.gain * (1 - t) };
+    if (y && !x && eqHasGain(y.type)) return { ...y, gain: y.gain * t };
+    const pick = t < 0.5 ? x : y;
+    return pick ? clone(pick) : null;
+  });
+  return { on: !!(a?.on || b?.on), bands };
+}
+
 /** Положение кроссфейдера 0..1: общие настройки документа — смесь старых и новых. */
 export function setCrossfade(pos: number) {
   if (!xfade) return;
@@ -1757,8 +1794,8 @@ export function setCrossfade(pos: number) {
   doc.limBypass = half.limBypass;
   doc.cmpBypass = half.cmpBypass;
   doc.clipBypass = half.clipBypass;
-  doc.eqs = clone(half.eqs);
-  doc.masterEq = clone(half.masterEq);
+  doc.eqs = Array.from({ length: Math.max(a.eqs.length, b.eqs.length) }, (_, i) => blendEq(a.eqs[i], b.eqs[i], t));
+  doc.masterEq = blendEq(a.masterEq, b.masterEq, t);
   // У NEW — ровно настройки нового проекта. Кроссфейдер исчезает вместе со строкой PREV
   // (updateTransition), когда дорожки перешли на новые паттерны.
   if (t >= 1) Object.assign(doc, clone(b));

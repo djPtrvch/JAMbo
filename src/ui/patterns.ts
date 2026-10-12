@@ -159,18 +159,17 @@ let dropTarget: [number, number] | null = null;
 let xf: HTMLElement;
 let xfThumb: HTMLElement;
 let xfFill: HTMLElement;
-let xfNew: HTMLElement;
 
 /** Вертикальный кроссфейдер: внизу — общие настройки старого проекта, вверху — нового. */
 function buildCrossfader(): HTMLElement {
   xf = h('div', 'xfader hidden');
   xf.style.gridRow = `1 / ${PATTERN_SLOTS + 1}`;
-  xfNew = h('div', 'xf-label', 'NEW');
   const track = h('div', 'xf-track');
   xfFill = h('div', 'xf-fill');
   xfThumb = h('div', 'xf-thumb');
   track.append(xfFill, xfThumb);
-  xf.append(xfNew, track, h('div', 'xf-label', 'OLD'));
+  // Без надписей: внизу — старый проект, вверху — новый.
+  xf.append(track);
   let id = -1;
   const setFrom = (y: number) => {
     const r = track.getBoundingClientRect();
