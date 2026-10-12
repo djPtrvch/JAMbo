@@ -18,6 +18,8 @@ import { choiceMenu, dragField } from './controls';
 
 const MAX_KEYS = 25;
 const MAX_CHORDS = 8;
+/** Зазор между клавишами, px (как в style.css). */
+const KEY_GAP = 3;
 
 const keys: HTMLElement[] = [];
 const chips: HTMLElement[] = [];
@@ -26,6 +28,9 @@ let scaleBtn: HTMLElement;
 let pianoEl: HTMLElement;
 let progField: HTMLElement;
 let chipRow: HTMLElement;
+/** Ширина ряда клавиш (px) и число клавиш, по которым посчитан размер клавиши. */
+let rowW = 0;
+let sized = '';
 
 /** Клавиш на экране: две октавы гаммы + верхняя корневая нота. */
 const keyCount = () => Math.min(MAX_KEYS, SCALES[doc.scale].steps.length * 2 + 1);
@@ -74,6 +79,7 @@ export function buildPiano(): HTMLElement {
   scaleBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); ui.scalePanel = !ui.scalePanel; });
 
   const keyRow = h('div', 'keys');
+  new ResizeObserver(() => { rowW = keyRow.clientWidth; }).observe(keyRow);
   for (let k = 0; k < MAX_KEYS; k++) {
     const key = h('div', 'key');
     key.append(h('span'));
@@ -124,8 +130,25 @@ export function buildPiano(): HTMLElement {
   return el;
 }
 
+/**
+ * Клавиши в компактном виде (SCALE включена) квадратные: сторона = ширина клавиши (зависит от числа
+ * нот гаммы); по ней — высота пианоролла (--key-h) и сетка строки SCALE (--keys, --key-w).
+ */
+function sizeKeys(count: number) {
+  if (!rowW) return;
+  const sig = `${count}|${rowW}`;
+  if (sig === sized) return;
+  sized = sig;
+  const w = (rowW - KEY_GAP * (count - 1)) / count;
+  const app = document.getElementById('app')!;
+  app.style.setProperty('--key-h', `${w.toFixed(1)}px`);
+  app.style.setProperty('--key-w', `${w.toFixed(1)}px`);
+  app.style.setProperty('--keys', String(count));
+}
+
 export function renderPiano(now: number) {
   const count = keyCount();
+  sizeKeys(count);
   const notes = scaleNotes(count);
   const held = heldStepNotes();
   const pressed = new Set(pressedNotes());

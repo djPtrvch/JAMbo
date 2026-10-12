@@ -73,11 +73,6 @@ topbar.append(leftGroup, topMid, topRight);
 
 // Число столбцов дорожек: строка дорожек и сетка паттернов совпадают по ширине столбцов
 // (дорожек 8…12; MIX и MST — постоянной ширины).
-// Размер квадратной клавиши пианоролла — от ширины шага секвенсора (15 клавиш на 14 шагах).
-new ResizeObserver(() => {
-  const step = (app.querySelector('.sequencer')?.firstElementChild as HTMLElement | null)?.offsetWidth ?? 0;
-  if (step > 0) app.style.setProperty('--key-h', `${((14 * step + 13 * 4 - 14 * 3) / 15).toFixed(1)}px`);
-}).observe(app);
 
 let trackCols = 0;
 function syncTrackCount() {
