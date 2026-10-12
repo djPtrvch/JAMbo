@@ -94,12 +94,19 @@ export function buildTransportButtons(): HTMLElement {
   playBtn.classList.add('play-btn');
   recBtn = tapButton('REC', () => { ui.rec = !ui.rec; endRecTake(); }, () => ui.rec);
   recBtn.classList.add('rec-btn');
+  // На PLAY и REC — значки вместо надписей.
+  playBtn.innerHTML = '<svg class="tr-icon" viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z" fill="currentColor"/></svg>';
+  recBtn.innerHTML = '<svg class="tr-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" fill="currentColor"/></svg>';
   undoBtn = tapButton('UNDO', () => {
     if (ui.held.track) { morphUsed = true; undoTrackEdits(); } else undo();
   });
   redoBtn = tapButton('REDO', redo);
   undoBtn.classList.add('popup-pass');
   redoBtn.classList.add('popup-pass');
+  playBtn.classList.add('tb-play');
+  recBtn.classList.add('tb-rec');
+  undoBtn.classList.add('tb-undo');
+  redoBtn.classList.add('tb-redo');
   el.append(playBtn, recBtn, undoBtn, redoBtn);
   return el;
 }

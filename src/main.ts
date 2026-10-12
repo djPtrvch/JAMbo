@@ -55,16 +55,18 @@ center.append(knobGrid, buildPatternGrid(), buildEq(), buildSampleEditor(), buil
 const meter = buildMeter();
 main.append(left, center, right, meter);
 
-// Верхняя панель: слева бутерброд, темп и метроном (ширина левой колонки); дальше одной сеткой
-// равной ширины SCALE, ROOT, PLAY, REC, UNDO, REDO; справа PATTERNS и EQ над правой колонкой.
+// Верхняя панель: слева бутерброд, темп и метроном (ширина левой колонки); дальше SCALE, ROOT
+// (вдвое уже), по центру UNDO, PLAY, REC (значки, вдвое уже), REDO, справа от них EQ; над правой
+// колонкой PATTERNS и место ARRANGE (пока скрыта).
 const topbar = buildTopbar();
 const [leftGroup, ...fields] = [...topbar.children];
 const topMid = h('div', 'top-mid');
-topMid.append(...fields, ...buildTransportButtons().children);
+topMid.append(...fields, ...buildTransportButtons().children, buildEqButton());
 const topRight = h('div', 'top-right');
 // Справа от EQ, над измерителем уровня — загрузка процессора.
 const cpu = h('div', 'cpu', 'CPU\n–');
-topRight.append(buildPatternsButton(), buildEqButton(), cpu);
+// ARRANGE (режим аранжировки) — позже; место за ней оставлено.
+topRight.append(buildPatternsButton(), h('div', 'btn arrange-slot'), cpu);
 attachDebug(cpu);
 
 // Mute/solo звучат сразу из жеста, не дожидаясь кадра.
