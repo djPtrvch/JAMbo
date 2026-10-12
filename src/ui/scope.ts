@@ -4,7 +4,7 @@
 // осциллоскоп как в Drambo (бегущая форма волны L+R за ~1 с, без чисел).
 // Кнопки SAT, COMP, CLIP, LIM — включают и выключают точки съёма осциллоскопа (после сатуратора,
 // компрессора, клиппера, лимитера; формы волны накладываются разными цветами) — на месте MORPH,
-// RANDOM, FX, MOD. Анализаторы работают, только пока скоп виден.
+// SHIFT, FX, MOD. Анализаторы работают, только пока скоп виден.
 
 import { masterGonio, masterScope, setMasterScope } from '../audio/engine';
 import { ui } from '../state';
@@ -51,7 +51,7 @@ export function buildScope(): HTMLElement {
   return root;
 }
 
-/** Кнопки точек съёма: сетка 2×2 на месте MORPH, RANDOM, FX, MOD (видна только при MST). */
+/** Кнопки точек съёма: сетка 2×2 на месте MORPH, SHIFT, FX, MOD (видна только при MST). */
 export function buildScopeButtons(): HTMLElement {
   btnGrid = h('div', 'btn-grid hidden');
   POINTS.forEach((name, i) => {

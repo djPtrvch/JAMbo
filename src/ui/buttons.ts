@@ -1,4 +1,4 @@
-// Кнопки: LFO1, LFO2, LFO3, ENV (слева, под окном сэмпла; при MST — RATIO и BYPASS устройств мастера); MORPH, RANDOM, FX, MOD (справа внизу);
+// Кнопки: LFO1, LFO2, LFO3, ENV (слева, под окном сэмпла; при MST — RATIO и BYPASS устройств мастера); MORPH, SHIFT, FX, MOD (справа внизу);
 // PLAY, REC, UNDO, REDO, PATTERNS и EQ (в верхней панели справа).
 // LFO1/LFO2/LFO3/ENV/FX/MOD работают на удержание; MORPH — тап (режим) и удержание (+ UNDO).
 
@@ -126,9 +126,9 @@ export function buildRightButtons(): HTMLElement {
     release: () => { setHeld('track', false); if (!morphUsed) toggleMorph(); },
     state: () => ui.morph,
   }, morphBtn);
-  // RANDOM — на месте прежней UNDO; что она делает, ещё не определено (пока неактивна).
-  const random = h('div', 'btn disabled', 'RANDOM');
-  el.append(morphBtn, random, holdButton('FX', 'fx'), holdButton('MOD', 'mod'));
+  // SHIFT — на месте прежней RANDOM; что она делает, ещё не определено (пока неактивна).
+  const shift = h('div', 'btn disabled', 'SHIFT');
+  el.append(morphBtn, shift, holdButton('FX', 'fx'), holdButton('MOD', 'mod'));
   return el;
 }
 
