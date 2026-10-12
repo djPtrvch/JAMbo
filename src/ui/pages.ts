@@ -1,7 +1,8 @@
 // Миниатюры страниц паттерна — строки одна под другой во всю ширину.
 // Тап — эта страница играет (и открывается в секвенсоре); протянуть по нескольким — играют они все,
-// вокруг играющих страниц общая обводка. Удержание — страница открывается в секвенсоре для
-// редактирования (играющие не меняются). Двойной тап — окно duplicate / copy / paste / clear / delete.
+// вокруг играющих страниц общая обводка (края тянутся, за середину переносится). Удержание — страница
+// открывается в секвенсоре для редактирования (играющие не меняются), удержание и протягивание — новое
+// выделение. Двойной тап — окно duplicate / copy / paste / clear / delete.
 // «+» — добавить страницу (до 8).
 
 import { MAX_PAGES, STEPS_PER_PAGE } from '../params';
@@ -23,20 +24,26 @@ let menu: Popup;
 const menuButtons: Record<string, HTMLButtonElement> = {};
 
 /** Текущее протягивание по миниатюрам. */
-let drag: { id: number; from: number; to: number; timer: number; menu: boolean; f: number; t: number } | null = null;
+let drag: Drag | null = null;
+interface Drag { id: number; from: number; to: number; timer: number; held: boolean; f: number; t: number; n: number }
 
 /**
- * Играющие страницы после протягивания. Начали на верхней странице обводки — её верхний край
- * идёт за пальцем (вверх — растягивается, вниз — сужается), на нижней — нижний край; начали внутри
- * (или обводка из одной страницы) — вниз двигается нижний край, вверх — верхний, до страницы под
- * пальцем. Начали снаружи — новые страницы от и до.
+ * Играющие страницы после протягивания (n — всего страниц):
+ * - удержали страницу и потом тянут — новое выделение от неё до страницы под пальцем;
+ * - начали на верхней странице обводки — её верхний край идёт за пальцем (вверх — растягивается,
+ *   вниз — сужается), на нижней — нижний край; у обводки из одной страницы — растягивается в сторону пальца;
+ * - начали в середине обводки — обводка переносится целиком (длина та же);
+ * - начали снаружи — новые страницы от и до.
  */
-function dragRange(d: { from: number; to: number; f: number; t: number }): [number, number] {
-  if (d.from < d.f || d.from > d.t) return [Math.min(d.from, d.to), Math.max(d.from, d.to)];
+function dragRange(d: Drag): [number, number] {
+  const fresh: [number, number] = [Math.min(d.from, d.to), Math.max(d.from, d.to)];
+  if (d.held || d.from < d.f || d.from > d.t) return fresh;
   if (d.to === d.from) return [d.f, d.t];
-  if (d.f !== d.t && d.from === d.f) return [Math.min(d.to, d.t), d.t];
-  if (d.f !== d.t && d.from === d.t) return [d.f, Math.max(d.to, d.f)];
-  return d.to > d.from ? [d.f, d.to] : [d.to, d.t];
+  if (d.f === d.t) return fresh;
+  if (d.from === d.f) return [Math.min(d.to, d.t), d.t];
+  if (d.from === d.t) return [d.f, Math.max(d.to, d.f)];
+  const shift = Math.max(-d.f, Math.min(d.n - 1 - d.t, d.to - d.from));
+  return [d.f + shift, d.t + shift];
 }
 /** Тап по миниатюре, который ждёт второго (двойной тап — меню). */
 let tapPage = -1;
@@ -66,10 +73,12 @@ export function buildPages(): HTMLElement {
       e.preventDefault();
       if (drag) return;
       root.releasePointerCapture?.(e.pointerId);
+      const t = curSeq();
       drag = {
-        id: e.pointerId, from: i, to: i, menu: false, f: curSeq().playFrom, t: curSeq().playTo,
-        // Удержание без протягивания — страница открывается для редактирования (играющие не меняются).
-        timer: window.setTimeout(() => { if (drag && drag.to === drag.from) { drag.menu = true; ui.viewPage = i; } }, HOLD_MS),
+        id: e.pointerId, from: i, to: i, held: false, f: t.playFrom, t: t.playTo, n: t.pages.length,
+        // Удержание без протягивания — страница открывается для редактирования (играющие не меняются);
+        // если потом потянуть — новое выделение от этой страницы.
+        timer: window.setTimeout(() => { if (drag && drag.to === drag.from) { drag.held = true; ui.viewPage = i; } }, HOLD_MS),
       };
     });
     thumbs.push({ root, cells });
@@ -80,7 +89,7 @@ export function buildPages(): HTMLElement {
   list.append(plus);
 
   document.addEventListener('pointermove', (e) => {
-    if (!drag || e.pointerId !== drag.id || drag.menu) return;
+    if (!drag || e.pointerId !== drag.id) return;
     const i = thumbAt(e.clientX, e.clientY);
     if (i >= 0 && i < curSeq().pages.length && i !== drag.to) {
       drag.to = i;
@@ -90,7 +99,7 @@ export function buildPages(): HTMLElement {
   const up = (e: PointerEvent) => {
     if (!drag || e.pointerId !== drag.id) return;
     clearTimeout(drag.timer);
-    if (!drag.menu && e.type === 'pointerup') {
+    if (e.type === 'pointerup') {
       if (drag.from !== drag.to) {
         // Протянули по нескольким страницам — играют они все, сразу.
         clearTimeout(tapTimer);
@@ -98,6 +107,8 @@ export function buildPages(): HTMLElement {
         const [a, b] = dragRange(drag);
         setPlayPages(a, b);
         ui.viewPage = drag.from;
+      } else if (drag.held) {
+        // Удержание без протягивания — только открыть страницу (уже открыта по таймеру).
       } else if (tapPage === drag.from) {
         // Двойной тап — меню страницы; одиночный тап не срабатывает (обводка не двигается).
         clearTimeout(tapTimer);
@@ -151,7 +162,7 @@ export function renderPages() {
   const pos = ui.playing ? rt.playPos[seqIndex()] : -1;
   // Обводка следует за пальцем, только когда протягивают по нескольким страницам; на касании
   // одной она не прыгает (тап переключит её при отпускании, удержание её не меняет).
-  const d = drag && !drag.menu && drag.from !== drag.to ? drag : null;
+  const d = drag && drag.from !== drag.to ? drag : null;
   const [from, to] = d ? dragRange(d) : [t.playFrom, t.playTo];
   thumbs.forEach((th, i) => {
     const exists = i < t.pages.length;
