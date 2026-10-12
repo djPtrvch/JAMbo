@@ -1024,3 +1024,5 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 .source-col .source-title { text-align: center; padding-left: 0; padding-right: 0; }
 /* Меню бутерброда пианоролла: текст переносится, лишнее прокручивается. */
 .popup-box.piano-menu-pop .settings-note { font-size: 11px; line-height: 1.35; padding: 2px 4px; }
+/* Полоски бутерброда под CHORD — в одну вертикаль с верхним бутербродом (тот шириной 52 px, полоски по центру). */
+.btn.piano-menu { justify-content: flex-start; padding-left: 15px; }
