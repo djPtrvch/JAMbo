@@ -3,10 +3,11 @@
 
 import { unlockAudio } from '../audio/engine';
 import { NOTE_NAMES, SCALES } from '../params';
-import { doc, rt, setBpm, setRoot, setScale, ui } from '../state';
+import { doc, enterBpm, rt, setBpm, setRoot, setScale, ui } from '../state';
 import { choiceMenu, dragField } from './controls';
 import { openMainMenu } from './settings';
 import { h, setClass } from './dom';
+import { openInput } from './popup';
 
 let metro: HTMLElement;
 
@@ -34,7 +35,9 @@ export function buildTopbar(): HTMLElement {
   const rootMenu = choiceMenu(NOTE_NAMES, 4, () => doc.root, setRoot);
   // Бутерброд, темп и метроном — группа шириной с левую колонку (край по окну сэмпла).
   const leftGroup = h('div', 'top-left-group');
-  const bpm = dragField('BPM', () => doc.bpm, setBpm, () => String(doc.bpm), 4);
+  // Удержание темпа без движения — ввод числом.
+  const bpm = dragField('BPM', () => doc.bpm, setBpm, () => String(doc.bpm), 4, undefined,
+    (el) => openInput(el, String(doc.bpm), (v) => { const n = parseFloat(v.replace(',', '.')); if (Number.isFinite(n)) enterBpm(n); }, true));
   bpm.classList.add('bpm-field');
   leftGroup.append(burger, bpm, metro);
   // Гамма и нота — той же ширины, что PLAY и REC.

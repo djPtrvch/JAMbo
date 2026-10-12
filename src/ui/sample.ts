@@ -406,7 +406,8 @@ function renderWave() {
   // Стерео-сэмпл отмечен ST и рисуется двумя дорожками (L сверху, R снизу), моно — M.
   const ch = t.sample ? (sampleIsStereo(t.sample) ? 'ST' : 'M') : '';
   const preset = stepSound ? '' : folderItemName(ui.selectedTrack);
-  setText(waveTitle, engine !== null ? `MI · ${SYNTH_ENGINES[engine].name}${preset ? ` · ${preset}` : ''}`
+  // У синта — две строки: движок, под ним имя пресета.
+  setText(waveTitle, engine !== null ? `MI · ${SYNTH_ENGINES[engine].name}${preset ? `\n${preset}` : ''}`
     : t.sample ? `${sampleName(t.sample)} · ${root !== null ? noteName(root) : '—'} · ${ch}` : sampleName(t.sample));
   // Пока звук не включён — подсказка с состоянием (помогает понять, почему тихо).
   const state = audioState();

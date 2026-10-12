@@ -995,6 +995,8 @@ export function setTrackVol(i: number, db: number) { doc.mixer[`mix.vol${i + 1}`
 
 /** Громкость выхода мастера (регулятор на измерителе справа), dB. */
 export function setOutVol(db: number) { doc.outVol = Math.min(0, Math.max(VOL_MIN_DB, db)); }
+/** Темп, введённый числом (удержание поля BPM): одна запись в UNDO. */
+export function enterBpm(v: number) { edit(() => setBpm(v)); }
 export function setBpm(v: number) { doc.bpm = Math.round(Math.min(BPM_MAX, Math.max(BPM_MIN, v))); }
 export function setScale(v: number) { doc.scale = ((Math.round(v) % SCALES.length) + SCALES.length) % SCALES.length; }
 export function setProgression(v: number) { ui.progression = ((Math.round(v) % PROGRESSIONS.length) + PROGRESSIONS.length) % PROGRESSIONS.length; }

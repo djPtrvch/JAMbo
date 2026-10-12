@@ -323,7 +323,7 @@ input::selection, textarea::selection { background: var(--select); color: var(--
   gap: 6px;
   min-height: 0;
 }
-.sample-title { color: var(--dim); letter-spacing: 0.12em; font-size: 11px; }
+.sample-title { color: var(--dim); letter-spacing: 0.12em; font-size: 11px; white-space: pre-line; text-align: center; line-height: 1.35; }
 .sample-stub { position: relative; padding: 8px; }
 .sample-wave { width: 100%; flex: 1; min-height: 0; }
 .sample-wave-path { stroke: var(--ink); stroke-width: 1.2; vector-effect: non-scaling-stroke; fill: none; }
