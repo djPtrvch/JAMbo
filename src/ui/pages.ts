@@ -1,11 +1,11 @@
 // Миниатюры страниц паттерна — строки одна под другой во всю ширину.
 // Тап — эта страница играет (и открывается в секвенсоре); протянуть по нескольким — играют они все,
 // вокруг играющих страниц общая обводка.
-// «+» — добавить страницу (до 8); удержание — окно duplicate / copy / paste / delete.
+// «+» — добавить страницу (до 8); удержание — окно duplicate / copy / paste / clear / delete.
 
 import { MAX_PAGES, STEPS_PER_PAGE } from '../params';
 import {
-  addPage, copyPage, deletePage, duplicatePage, hasLocks, pastePage, rt, curSeq, seqIndex, setPlayPages, ui,
+  addPage, clearPage, copyPage, deletePage, duplicatePage, hasLocks, pastePage, rt, curSeq, seqIndex, setPlayPages, ui,
 } from '../state';
 import { h, setClass } from './dom';
 import { makePopup, popupButton, type Popup } from './popup';
@@ -82,7 +82,7 @@ export function buildPages(): HTMLElement {
 
   menu = makePopup();
   const actions: [string, (i: number) => void][] = [
-    ['duplicate', duplicatePage], ['copy', copyPage], ['paste', pastePage], ['delete', deletePage],
+    ['duplicate', duplicatePage], ['copy', copyPage], ['paste', pastePage], ['clear', clearPage], ['delete', deletePage],
   ];
   for (const [name, fn] of actions) {
     const b = popupButton(name.toUpperCase(), () => {

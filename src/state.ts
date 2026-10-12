@@ -848,6 +848,13 @@ export function pastePage(i: number) {
   edit(() => { curSeq().pages[i] = clonePage(clip); });
 }
 
+/** CLEAR: очистить страницу — все шаги пустые (ноты, триги, p-lock и звуки шагов убираются). */
+export function clearPage(i: number) {
+  const t = curSeq();
+  if (!t.pages[i]) return;
+  edit(() => { t.pages[i] = emptyPage(); });
+}
+
 export function deletePage(i: number) {
   const t = curSeq();
   if (t.pages.length <= 1) return;
