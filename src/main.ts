@@ -20,7 +20,6 @@ import { h, setClass, setText } from './ui/dom';
 import { buildKnobGrid, renderKnobs } from './ui/knobs';
 import { buildLearnBar, renderLearn } from './ui/learn';
 import { buildPages, renderPages } from './ui/pages';
-import { buildMixPreview, renderMixPreview } from './ui/mixpreview';
 import { buildScope, buildScopeButtons, renderScope } from './ui/scope';
 import { eqSampleRate } from './audio/engine';
 import { buildPatternGrid, renderPatternGrid } from './ui/patterns';
@@ -43,7 +42,7 @@ const right = h('div', 'side right');
 const pagesEl = buildPages();
 // При MST на месте MORPH, RANDOM, FX, MOD — кнопки точки съёма скопа.
 const rightBtns = buildRightButtons();
-right.append(pagesEl, buildMixPreview(), buildScope(), rightBtns, buildScopeButtons());
+right.append(pagesEl, buildScope(), rightBtns, buildScopeButtons());
 
 const main = h('div', 'main');
 // Центр: ручки 4×4, сетка паттернов 8×8 (кнопка PATTERNS), эквалайзер (кнопка EQ) или редактор
@@ -134,8 +133,7 @@ function frame(now: number) {
   renderSequencer();
   renderPiano(now);
   renderPages();
-  renderMixPreview();
-  setClass(pagesEl, 'hidden', ui.channel === 'master' || ui.channel === 'mix');
+  setClass(pagesEl, 'hidden', ui.channel === 'master');
   setClass(rightBtns, 'hidden', ui.channel === 'master');
   renderScope(eqSampleRate());
   renderButtons();

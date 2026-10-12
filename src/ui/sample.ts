@@ -288,7 +288,10 @@ export function buildSample(): HTMLElement {
   // громкости от sidechain — оранжевым сверху. Положение регуляторов видно на самих ручках.
   mixPanel = h('div', 'master-panel mix-panel hidden');
   for (let i = 0; i < TRACK_COUNT; i++) mixBars.push(vbar(`T${i + 1}`, 'yellow', true));
-  mixPanel.append(h('div', 'vbar-title', 'MIXER'), wrap(mixBars));
+  // Пока уровни видны у ручек громкости — полосы в окне сэмпла скрыты (остаётся заголовок).
+  const mixRow = wrap(mixBars);
+  mixRow.classList.add('hidden');
+  mixPanel.append(h('div', 'vbar-title', 'MIXER'), mixRow);
   // Узкие столбцы (много дорожек): вместо имён — номера дорожек.
   new ResizeObserver(() => {
     const w = mixPanel.clientWidth;
