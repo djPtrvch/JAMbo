@@ -631,6 +631,8 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 /* Хвост длинной ноты — полупрозрачные ячейки той же ширины, что и шаг. */
 .step.tail .step-fill { background: var(--text); opacity: 0.4; }
 .step.lock-only { box-shadow: inset 0 0 0 1px var(--plock); }
+/* Шаг со своим звуком (сэмпл, пресет, движок) — белая обводка (в светлой теме — чёрная). */
+.step.own-sound { box-shadow: inset 0 0 0 1px var(--ink); }
 .step.held { box-shadow: inset 0 0 0 1px var(--text); }
 .step.playing { box-shadow: inset 0 0 0 1px var(--accent); }
 .step.outside { opacity: 0.3; }

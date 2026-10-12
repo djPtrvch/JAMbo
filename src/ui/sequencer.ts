@@ -125,6 +125,8 @@ export function renderSequencer() {
     // P-lock без ноты — жёлтая обводка.
     setClass(cell, 'lock-only', !on && !!s && hasLocks(s));
     setClass(cell, 'tail', !on && tail.has(index));
+    // Свой звук шага (другой сэмпл или пресет, движок) — белая обводка.
+    setClass(cell, 'own-sound', on && !!s!.sound);
     setText(labels[col], on ? (s!.notes.length > 1 ? 'POLY' : s!.notes.length === 1 ? noteName(s!.notes[0]) : '') : '');
     setClass(cell, 'held', heldIdx.has(index));
     setClass(cell, 'playing', index === playPos);
