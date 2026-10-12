@@ -310,6 +310,7 @@ export async function restartAudio() {
   wasmBytes = null;
   jamboReady = false;
   scopePre = scopePost = null;
+  outScope = null;
   scopeOn = null;
   fxSig = '';
   irSig = '';
@@ -1104,6 +1105,28 @@ export function masterGonio(L: Float32Array<ArrayBuffer>, R: Float32Array<ArrayB
 export const eqDynDb = (): Float32Array | null => scopeOn?.dyn ?? null;
 
 /** Спектр до и после EQ в dBFS (по бинам FFT); false — анализаторы не подключены. */
+/** Спектр конечного сигнала мастера (после громкости выхода) — для EQ мастера, пока включён. */
+let outScope: AnalyserNode | null = null;
+export function setOutScope(on: boolean) {
+  if (!ctx || !mst) return;
+  if (on && !outScope) {
+    outScope = ctx.createAnalyser();
+    outScope.fftSize = 4096;
+    outScope.smoothingTimeConstant = 0.6;
+    outScope.minDecibels = -100;
+    outScope.maxDecibels = 0;
+    mst.outVol.connect(outScope);
+  } else if (!on && outScope) {
+    mst.outVol.disconnect(outScope);
+    outScope = null;
+  }
+}
+export function outSpectrum(out: Float32Array<ArrayBuffer>): boolean {
+  if (!outScope) return false;
+  outScope.getFloatFrequencyData(out);
+  return true;
+}
+
 export function eqSpectrum(pre: Float32Array<ArrayBuffer>, post: Float32Array<ArrayBuffer>): boolean {
   if (!scopeOn || !scopePre || !scopePost) return false;
   scopePre.getFloatFrequencyData(pre);

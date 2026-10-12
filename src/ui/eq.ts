@@ -11,7 +11,7 @@
 // выбранная крупнее и жёлтая, выключенные серые. Анализаторы работают, только пока панель открыта.
 
 import { bandResponse } from '../audio/eq';
-import { eqDynDb, eqSampleRate, eqSpectrum, setEqScope } from '../audio/engine';
+import { eqDynDb, eqSampleRate, eqSpectrum, outSpectrum, setEqScope, setOutScope } from '../audio/engine';
 import {
   EQ_DYN_RANGE_DEF, EQ_DYN_THR_DEF, EQ_FREQ_MAX, EQ_FREQ_MIN, EQ_MS, EQ_Q_DEF, EQ_SLOPES, EQ_TYPE_ORDER, EQ_TYPES, eqDynOn, eqHasGain, eqIsCut, noteName,
 } from '../params';
@@ -316,6 +316,8 @@ export function buildEq(): HTMLElement {
 
   const bar = h('div', 'eq-bar eq-grid');
   nameText = h('div', 'eq-name');
+  // EQ мастера: тап по надписи MASTER EQ — поверх спектр конечного сигнала (после всего мастера и громкости выхода).
+  nameText.addEventListener('pointerup', () => { if (ui.channel !== 'track') outOn = !outOn; });
   const k = () => ui.eqBand;
   const typeField = dragField(
     // Вертикальное движение идёт по порядку меню (EQ_TYPE_ORDER): палец вниз — следующий тип.
@@ -391,6 +393,11 @@ let hasMid = false;
 let hasSide = false;
 let hasStereo = false;
 const pre = new Float32Array(2048);
+const outData = new Float32Array(2048);
+const cumOut = new Float64Array(2049);
+let dispOut = new Float32Array(0);
+/** Показан спектр конечного сигнала мастера (не сохраняется в проекте). */
+let outOn = false;
 const post = new Float32Array(2048);
 const STEP = 2;
 
@@ -547,6 +554,36 @@ function drawSpectrum(g: CanvasRenderingContext2D) {
   g.lineJoin = 'round';
   g.stroke();
   g.globalAlpha = 1;
+  drawOutSpectrum(g, n, binHz, fall);
+}
+
+/** Спектр конечного сигнала мастера: серая заливка с красным контуром (то же сглаживание и спад). */
+function drawOutSpectrum(g: CanvasRenderingContext2D, n: number, binHz: number, fall: number) {
+  if (!outOn || ui.channel === 'track' || !outSpectrum(outData)) return;
+  cumulate(outData, cumOut);
+  if (dispOut.length !== n) dispOut = new Float32Array(n).fill(SPEC_BOT);
+  const y = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const f = freqAt(i * SPEC_STEP);
+    const a = Math.max(SPEC_BOT, bandDb(cumOut, f / SPEC_BAND, f * SPEC_BAND, binHz));
+    dispOut[i] = a > dispOut[i] ? a : Math.max(a, dispOut[i] - fall);
+    y[i] = yOfSpec(dispOut[i]);
+  }
+  g.beginPath();
+  g.moveTo(0, H);
+  smoothPath(g, y, false);
+  g.lineTo(W, H);
+  g.closePath();
+  g.fillStyle = color('--dim');
+  g.globalAlpha = 0.22;
+  g.fill();
+  g.globalAlpha = 1;
+  g.beginPath();
+  smoothPath(g, y, true);
+  g.strokeStyle = color('--rec');
+  g.lineWidth = 1.2;
+  g.lineJoin = 'round';
+  g.stroke();
 }
 
 function strokeCurve(g: CanvasRenderingContext2D, c: Float32Array, col: string, alpha: number) {
@@ -665,9 +702,13 @@ export function renderEq() {
   setClass(panel, 'hidden', !ui.eqView);
   if (!ui.eqView) {
     setEqScope(null);
+    setOutScope(false);
     return;
   }
   setEqScope(ui.channel === 'track' ? ui.selectedTrack : 'master');
+  // Анализатор конечного сигнала — только пока он показан.
+  setOutScope(outOn && ui.channel !== 'track');
+  setClass(nameText, 'out-on', outOn && ui.channel !== 'track');
   const eq = eqTarget();
   // Другой канал — выбор полосы сбрасывается.
   const key = ui.channel === 'track' ? `t${ui.selectedTrack}` : 'master';

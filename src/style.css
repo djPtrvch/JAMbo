@@ -718,6 +718,7 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 .eq-bar.eq-grid { display: block; position: relative; }
 .eq-bar.eq-grid > * { position: absolute; top: 0; bottom: 0; }
 .eq-name { width: 90px; flex: none; display: flex; align-items: center; justify-content: center; text-align: center; white-space: pre; font-size: 11px; letter-spacing: 0.08em; color: var(--dim); }
+.eq-name.out-on { color: var(--rec); }
 .field.eq-field { flex: 1; min-width: 0; flex-direction: column; justify-content: center; align-items: flex-start; gap: 0; padding: 2px 12px; }
 .eq-field .field-label { font-size: 9px; }
 .eq-field .field-value { font-size: 16px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
