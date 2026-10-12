@@ -148,6 +148,8 @@ export interface SynthEngine {
   harmFormat?: (v: number) => string;
   /** Свой предел ручки Decay, мс (у DRUM — 1000). */
   decayMax?: number;
+  /** Ручки 1.1–1.3 (harm, timbre, morph, 0…100), которые ставятся при выборе движка на дорожку. */
+  init?: { harm: number; timbre: number; morph: number };
 }
 export const SYNTH_ENGINES: SynthEngine[] = [
   { name: 'VA', full: 'Pair of classic waves', bank: 'synth', family: 'plaits', decay: false, harm: 'detune', timbre: 'pulse width', morph: 'triangle→saw' },
@@ -172,7 +174,9 @@ export const SYNTH_ENGINES: SynthEngine[] = [
   // DRUM — бочка: высота ручкой PITCH (30–100 Гц), нота её не меняет; монофонична.
   { name: 'DRUM', full: 'Drum', bank: 'jb', family: 'jambo', decay: true, harm: 'pitch', timbre: 'sweep', morph: 'drive',
     harmFormat: (v) => `${Math.round(drumPitch(v / 100))} Hz`, decayMax: 1000 },
-  { name: 'ANALOG', full: 'Analog', bank: 'jb', family: 'jambo', decay: false, harm: 'wave', timbre: 'detune', morph: 'sub' },
+  { name: 'ANALOG', full: 'Analog', bank: 'jb', family: 'jambo', decay: false, harm: 'wave', timbre: 'detune', morph: 'sub',
+    // По умолчанию — чистый синус: WAVE 0 % (sine), без DETUNE и SUB.
+    init: { harm: 0, timbre: 0, morph: 0 } },
   { name: 'FM', full: 'FM', bank: 'jb', family: 'jambo', decay: false, harm: 'ratio', timbre: 'index', morph: 'contour',
     harmFormat: (v) => `×${fmRatio(v / 100).toFixed(2)}` },
   { name: 'WTABLE', full: 'Wavetable', bank: 'jb', family: 'jambo', decay: false, harm: 'position', timbre: 'warp', morph: 'unison' },

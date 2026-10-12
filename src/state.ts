@@ -1541,7 +1541,11 @@ export function setTrackSample(i: number, key: string, fileName?: string, root?:
 export function setTrackSynth(i: number, engine: number) {
   // Своя шкала Decay движка (у DRUM — до 1000 мс): значение больше — к пределу (одна запись в UNDO).
   beginGesture();
+  const was = doc.tracks[i].sample;
   setTrackSample(i, synthKey(engine));
+  // Свои начальные ручки 1.1–1.3 движка (у ANALOG — синус без DETUNE и SUB) — при переходе на него с другого звука.
+  const init = SYNTH_ENGINES[engine].init;
+  if (init && was !== synthKey(engine)) edit(() => { Object.assign(doc.tracks[i].params, init); });
   const max = SYNTH_ENGINES[engine].decayMax;
   if (max && doc.tracks[i].params.decay > max) edit(() => { doc.tracks[i].params.decay = max; });
   endGesture();
