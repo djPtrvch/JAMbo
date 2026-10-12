@@ -1310,14 +1310,6 @@ export function addPresetToFolder(i: number, p: Preset) {
   edit(() => addItems(i, [{ preset: clone(p) }]));
 }
 
-/** Пресет из библиотеки (браузер): добавляется в папку дорожки и звучит на ней. */
-export function applyPreset(i: number, p: Preset) {
-  edit(() => {
-    const at = addItems(i, [{ preset: clone(p) }]);
-    applyItem(i, doc.folders[i].items[at]);
-  });
-}
-
 /** Пресет k из библиотеки (LOAD): добавляется в папку дорожки и звучит на ней. */
 export function loadPreset(i: number, k: number) {
   const p = presetList[k];
@@ -1383,6 +1375,18 @@ export function addSamplesToFolder(i: number, keys: string[]) {
   edit(() => {
     const at = addItems(i, keys.map((sample) => ({ sample })));
     if (at >= 0) applyItem(i, doc.folders[i].items[at]);
+  });
+}
+
+/**
+ * Браузер: папка дорожки — только выбранные звуки (тап — один, выбор нескольких — все отмеченные);
+ * первый звучит, остальные — на стрелках под окном сэмпла.
+ */
+export function setFolder(i: number, items: FolderItem[]) {
+  if (!items.length) return;
+  edit(() => {
+    doc.folders[i] = { items: items.map((it) => clone(it)), index: 0 };
+    applyItem(i, doc.folders[i].items[0]);
   });
 }
 

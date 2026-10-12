@@ -20,7 +20,7 @@ import {
 } from '../library';
 import { SYNTH_ENGINES, synthEngine } from '../params';
 import {
-  addPresetToFolder, addSamplesQuiet, addSamplesToFolder, applyPreset, doc, folderItemName, nextPresetName, presetFromTrack,
+  addPresetToFolder, addSamplesQuiet, doc, folderItemName, nextPresetName, presetFromTrack, setFolder, type FolderItem,
   sampleName, setStepSound, toggleView, ui,
 } from '../state';
 import { h, setClass, setText } from './dom';
@@ -83,16 +83,17 @@ async function open(n: LibNode) {
   if (mode.kind !== 'load') return;
   // Режим выбора: тап отмечает сэмпл.
   if (picked) {
-    if (n.kind === 'sample') { if (picked.has(n.id)) picked.delete(n.id); else picked.add(n.id); }
+    if (picked.has(n.id)) picked.delete(n.id); else picked.add(n.id);
     fill();
     return;
   }
   const track = ui.selectedTrack;
   if (n.kind === 'sample' && n.key) {
     if (!(await useLibrarySample(n.key, n.name))) { window.alert('This sample is no longer stored on this iPad'); return; }
-    if (mode.steps.length) { addSamplesQuiet(track, [n.key]); setStepSound(track, mode.steps, n.key); } else addSamplesToFolder(track, [n.key]);
+    // Звук дорожки: в её папке остаётся только он (несколько — удержанием, выбором и LOAD).
+    if (mode.steps.length) { addSamplesQuiet(track, [n.key]); setStepSound(track, mode.steps, n.key); } else setFolder(track, [{ sample: n.key }]);
   } else if (n.kind === 'preset' && n.preset && !mode.steps.length) {
-    applyPreset(track, n.preset);
+    setFolder(track, [{ preset: n.preset }]);
   } else return;
   loadedMsg = `${mode.steps.length ? `Step ${mode.steps.map((s) => s + 1).join(', ')}` : trackName(track)}: ${n.name}`;
   fill();
@@ -109,14 +110,17 @@ function isCurrent(n: LibNode): boolean {
   return false;
 }
 
-/** LOAD в режиме выбора: отмеченные сэмплы — в папку дорожки, первый звучит. */
+/** LOAD в режиме выбора: в папке дорожки — только отмеченные сэмплы и пресеты (по списку), первый звучит. */
 async function loadPicked() {
   if (!picked) return;
-  const list = children(folder).filter((n) => n.kind === 'sample' && n.key && picked!.has(n.id));
-  const keys: string[] = [];
-  for (const n of list) if (await useLibrarySample(n.key!, n.name)) keys.push(n.key!);
-  if (keys.length) addSamplesToFolder(ui.selectedTrack, keys);
-  loadedMsg = `${trackName(ui.selectedTrack)}: ${keys.length} sample${keys.length === 1 ? '' : 's'} in the track folder`;
+  const list = children(folder).filter((n) => n.kind !== 'folder' && picked!.has(n.id));
+  const items: FolderItem[] = [];
+  for (const n of list) {
+    if (n.kind === 'sample' && n.key) { if (await useLibrarySample(n.key, n.name)) items.push({ sample: n.key }); }
+    else if (n.kind === 'preset' && n.preset) items.push({ preset: n.preset });
+  }
+  setFolder(ui.selectedTrack, items);
+  loadedMsg = `${trackName(ui.selectedTrack)}: ${items.length} sound${items.length === 1 ? '' : 's'} in the track folder`;
   picked = null;
   fill();
 }
@@ -172,7 +176,7 @@ function libRow(n: LibNode): HTMLElement {
     swallowClick = false;
     item.classList.add('dragging');
     clearTimeout(holdTimer);
-    if (n.kind === 'sample' && mode.kind === 'load' && !mode.steps.length && !picked && !base) {
+    if (n.kind !== 'folder' && mode.kind === 'load' && !mode.steps.length && !picked && !base) {
       holdTimer = window.setTimeout(() => {
         if (Math.abs(dx) > 10) return;
         held = true;
@@ -225,7 +229,7 @@ function fill() {
     : 'Empty folder. NEW FOLDER, or IMPORT files from the iPad or iCloud Drive.')]));
   setClass(saveBar, 'hidden', mode.kind === 'load');
   setClass(pickBar, 'hidden', !picked);
-  if (picked) setText(pickText, `${picked.size} selected · tap samples to add or remove`);
+  if (picked) setText(pickText, `${picked.size} selected · tap samples and presets to add or remove`);
   setText(note, loadedMsg ? `Loaded → ${loadedMsg}`
     : mode.kind === 'load' && mode.steps.length ? `Loading a sample onto step ${mode.steps.map((s) => s + 1).join(', ')}.`
     : mode.kind === 'load' ? 'Tap a sample or preset to load it on the track. Hold a sample to select several.'
