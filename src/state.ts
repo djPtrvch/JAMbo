@@ -1307,7 +1307,12 @@ export function setTrackSample(i: number, key: string, fileName?: string, root?:
 
 /** Синт на дорожке: движок Plaits engine (меню окна сэмпла). */
 export function setTrackSynth(i: number, engine: number) {
+  // Своя шкала Decay движка (у DRUM — до 1000 мс): значение больше — к пределу (одна запись в UNDO).
+  beginGesture();
   setTrackSample(i, synthKey(engine));
+  const max = SYNTH_ENGINES[engine].decayMax;
+  if (max && doc.tracks[i].params.decay > max) edit(() => { doc.tracks[i].params.decay = max; });
+  endGesture();
 }
 
 // ---------- Пресеты синта ----------

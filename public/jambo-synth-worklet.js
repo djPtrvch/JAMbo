@@ -36,6 +36,8 @@ const DRUM_PITCH_MIN = 30;
 const DRUM_PITCH_MAX = 100;
 /** Decay — время до −60 dB: постоянная экспоненты = Decay / DRUM_T60. */
 const DRUM_T60 = 6.9;
+/** Предел Decay бочки, мс (ручка Decay у DRUM — 0…1000 мс). */
+const DRUM_DECAY_MAX = 1000;
 /** Сглаживание стыка при ретриге (монофонично: новый удар обрывает прошлый), с. */
 const DRUM_DECLICK = 0.002;
 /** Длительность клика, с. */
@@ -216,8 +218,8 @@ class Voice {
     const sr = sampleRate;
     // PITCH: 30 → 100 Гц логарифмически (середина ручки ≈ 55 Гц); нота высоту не меняет (бочка).
     const f0 = DRUM_PITCH_MIN * Math.pow(DRUM_PITCH_MAX / DRUM_PITCH_MIN, this.s1);
-    // Decay — время затухания до −60 dB (постоянная экспоненты = Decay / 6.9).
-    const decay = this.sd;
+    // Decay — время затухания до −60 dB (постоянная экспоненты = Decay / 6.9), не больше DRUM_DECAY_MAX.
+    const decay = Math.min(DRUM_DECAY_MAX, this.sd);
     const tau = Math.max(0.001, decay / 1000 / DRUM_T60);
     // SWEEP: 0..+48 полутонов, время свипа = clamp(0.08 × Decay, 6, 80 мс).
     const tauSweep = Math.min(0.08, Math.max(0.006, 0.08 * decay / 1000));

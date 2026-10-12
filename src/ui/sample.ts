@@ -235,17 +235,12 @@ export function buildSample(): HTMLElement {
     cols.append(col);
   }
   menu.box.append(cols);
-  // LOAD — браузер библиотеки (пресеты и сэмплы по папкам).
-  const loadBtn = popupButton('LOAD', () => {
-    menu.close();
-    openBrowser({ kind: 'load', steps: [] });
-  });
   // TABLE — таблицы WTABLE (браузер в режиме LOAD TABLE), только у дорожки с WTABLE.
   const tableBtn = popupButton('TABLE', () => {
     menu.close();
     openBrowser({ kind: 'load-table' });
   });
-  group('SAMPLE · MIDI · PRESET', 2, [sampleBtn, midiBtn, saveBtn, loadBtn, tableBtn]);
+  group('SAMPLE · MIDI · PRESET', 2, [sampleBtn, midiBtn, saveBtn, tableBtn]);
   // Меню закрывает всю левую колонку (окно сэмпла, стрелки и кнопки LFO/ENV) — кнопки крупнее.
   const menuRect = () => {
     const side = (root.closest('.side') ?? root).getBoundingClientRect();
@@ -284,7 +279,6 @@ export function buildSample(): HTMLElement {
     setText(midiBtn, step ? 'TRACK' : 'MIDI');
     midiBtn.disabled = !step;
     saveBtn.disabled = step || cur === null;
-    loadBtn.disabled = step;
     tableBtn.disabled = step || cur !== WTABLE_ENGINE;
     menu.openRect(menuRect());
   });

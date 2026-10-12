@@ -146,6 +146,8 @@ export interface SynthEngine {
   harm: string; timbre: string; morph: string; options?: string[];
   /** Свой формат ручки 1.1 (значение 0..100). */
   harmFormat?: (v: number) => string;
+  /** Свой предел ручки Decay, мс (у DRUM — 1000). */
+  decayMax?: number;
 }
 export const SYNTH_ENGINES: SynthEngine[] = [
   { name: 'VA', full: 'Pair of classic waves', bank: 'synth', family: 'plaits', decay: false, harm: 'detune', timbre: 'pulse width', morph: 'triangle→saw' },
@@ -169,7 +171,7 @@ export const SYNTH_ENGINES: SynthEngine[] = [
   // Свои движки JAMbo (jambo-synth-worklet.js): ручки 1.1–1.3 — p1, p2, p3 (0..100 %), затухание — Decay в мс.
   // DRUM — бочка: высота ручкой PITCH (30–100 Гц), нота её не меняет; монофонична.
   { name: 'DRUM', full: 'Drum', bank: 'jb', family: 'jambo', decay: true, harm: 'pitch', timbre: 'sweep', morph: 'drive',
-    harmFormat: (v) => `${Math.round(drumPitch(v / 100))} Hz` },
+    harmFormat: (v) => `${Math.round(drumPitch(v / 100))} Hz`, decayMax: 1000 },
   { name: 'ANALOG', full: 'Analog', bank: 'jb', family: 'jambo', decay: false, harm: 'wave', timbre: 'detune', morph: 'sub' },
   { name: 'FM', full: 'FM', bank: 'jb', family: 'jambo', decay: false, harm: 'ratio', timbre: 'index', morph: 'contour',
     harmFormat: (v) => `×${fmRatio(v / 100).toFixed(2)}` },
@@ -215,6 +217,7 @@ export const SYNTH_GRID: Slot[] = TRACK_GRID.map((p, i) => {
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 /** Колонка 1 движка: подписи 1.1–1.3 из таблицы, у WAVETABLE, CHORDS, SPEECH 1.1 ступенчатая. */
 const ENGINE_GRIDS: Slot[][] = SYNTH_ENGINES.map((e) => SYNTH_GRID.map((p, i) => {
+  if (p && p.id === 'decay' && e.decayMax) return { ...p, max: e.decayMax };
   if (!p || (i !== 0 && i !== 4 && i !== 8)) return p;
   const label = cap(i === 0 ? e.harm : i === 4 ? e.timbre : e.morph);
   if (i === 0 && e.options) {
