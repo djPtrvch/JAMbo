@@ -1,8 +1,8 @@
-// Кнопки: LFO1, LFO2, LFO3, ENV (слева, под окном сэмпла; при MST — BYPASS устройств мастера и SHIFT); FX, MOD, MORPH, SHIFT (справа внизу);
+// Кнопки: LFO1, LFO2, LFO3, ENV (слева, под окном сэмпла; при MST — BYPASS устройств мастера); FX, MOD, MORPH, SHIFT (справа внизу);
 // PLAY, REC, UNDO, REDO, PATTERNS и EQ (в верхней панели справа).
 // LFO1/LFO2/LFO3/ENV/FX/MOD работают на удержание; MORPH — тап (режим) и удержание (+ UNDO).
 
-import { canRedo, canUndo, endRecTake, cycleRatio, redo, doc, gridMode, setHeld, toggleClipBypass, toggleCmpBypass, toggleLimBypass, toggleMorph, toggleView, ui, undo, undoTrackEdits, type HoldButton } from '../state';
+import { canRedo, canUndo, endRecTake, cycleRatio, redo, doc, gridMode, setHeld, toggleClipBypass, toggleCmpBypass, toggleSatBypass, toggleLimBypass, toggleMorph, toggleView, ui, undo, undoTrackEdits, type HoldButton } from '../state';
 import { RATIOS } from '../params';
 import { registerAction } from '../midi';
 import { setPlaying } from '../transport';
@@ -50,12 +50,13 @@ function tapButton(label: string, fn: (e?: PointerEvent) => void, state?: () => 
 let lfoGrid: HTMLElement;
 let masterGrid: HTMLElement;
 let compBypassBtn: HTMLElement;
+let satBypassBtn: HTMLElement;
 let clipBypassBtn: HTMLElement;
 let limBypassBtn: HTMLElement;
 
 /**
  * Слева под окном сэмпла: LFO1, LFO2, LFO3, ENV. При MST на их месте (тот же размер и сетка)
- * BYPASS компрессора (с SHIFT — RATIO), BYPASS клиппера, BYPASS лимитера и SHIFT.
+ * BYPASS сатуратора, компрессора (с SHIFT — RATIO), клиппера и лимитера.
  */
 export function buildLeftButtons(): HTMLElement {
   const el = h('div', 'left-btns');
@@ -66,17 +67,18 @@ export function buildLeftButtons(): HTMLElement {
     b.addEventListener('pointerdown', (e) => { e.preventDefault(); fn(); });
     return b;
   };
-  // Вверху BYPASS COMP (с зажатой SHIFT на её месте RATIO) и BYPASS CLIP, внизу BYPASS LIM и SHIFT;
-  // включённый bypass — цветом своего модуля, как кнопки скопа справа (COMP жёлтая, CLIP оранжевая, LIM красная).
+  // Вверху BYPASS SAT и BYPASS COMP (с зажатой SHIFT на её месте RATIO), внизу BYPASS CLIP и BYPASS LIM;
+  // включённый bypass — цветом своего модуля, как формы волны скопа (SAT белая, COMP жёлтая, CLIP оранжевая, LIM красная).
+  satBypassBtn = tap('BYPASS\nSAT', toggleSatBypass);
+  satBypassBtn.classList.add('byp-sat');
   compBypassBtn = tap('BYPASS\nCOMP', () => (ui.held.shift ? cycleRatio() : toggleCmpBypass()));
   compBypassBtn.classList.add('byp-comp');
   clipBypassBtn = tap('BYPASS\nCLIP', toggleClipBypass);
   clipBypassBtn.classList.add('byp-clip');
   limBypassBtn = tap('BYPASS\nLIM', toggleLimBypass);
   limBypassBtn.classList.add('byp-lim');
-  // SHIFT при MST — та же кнопка (удержание), что справа; MIDI-цель одна (правая).
   masterGrid = h('div', 'btn-grid hidden');
-  masterGrid.append(compBypassBtn, clipBypassBtn, limBypassBtn, holdButton('SHIFT', 'shift', false));
+  masterGrid.append(satBypassBtn, compBypassBtn, clipBypassBtn, limBypassBtn);
   el.append(lfoGrid, masterGrid);
   return el;
 }
@@ -135,6 +137,9 @@ export function buildEqButton(): HTMLElement {
   return eqBtn;
 }
 
+/** SHIFT при MST — справа внизу сетки скопа (та же кнопка удержания; MIDI-цель одна — основная). */
+export const buildShiftButton = () => holdButton('SHIFT', 'shift', false);
+
 export function buildRightButtons(): HTMLElement {
   const el = h('div', 'btn-grid');
   // MORPH: тап включает и выключает режим (выключение возвращает параметры к моменту включения);
@@ -176,6 +181,7 @@ export function renderButtons() {
     setClass(compBypassBtn, 'ratio-btn', ratio);
     setClass(compBypassBtn, 'active', !ratio && doc.cmpBypass);
     setClass(clipBypassBtn, 'active', doc.clipBypass);
+    setClass(satBypassBtn, 'active', !!doc.satBypass);
     setClass(limBypassBtn, 'active', doc.limBypass);
   }
   setClass(playBtn, 'active', ui.playing);

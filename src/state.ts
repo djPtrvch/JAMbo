@@ -134,6 +134,8 @@ export interface Doc {
   cmpBypass: boolean;
   /** BYPASS клиппера мастера. */
   clipBypass: boolean;
+  /** BYPASS сатуратора мастера (в старых проектах поля нет — выключен). */
+  satBypass?: boolean;
   /**
    * Свои последовательности каналов MIX и MST: шаги без нот, только p-lock параметров
    * микшера и мастера. Хранятся как дорожки (страницы, длина, играющие страницы).
@@ -1493,6 +1495,11 @@ export function toggleCmpBypass() {
   edit(() => { doc.cmpBypass = !doc.cmpBypass; });
 }
 
+/** Кнопка BYPASS сатуратора мастера. */
+export function toggleSatBypass() {
+  edit(() => { doc.satBypass = !doc.satBypass; });
+}
+
 export function toggleClipBypass() {
   edit(() => { doc.clipBypass = !doc.clipBypass; });
 }
@@ -2120,7 +2127,7 @@ const emptyLike = (p: Pattern): Pattern => ({ ...clone(p), pages: [emptyPage()],
 
 // ---------- Кроссфейдер общих настроек ----------
 
-const GLOBAL_KEYS = ['bpm', 'scale', 'root', 'fx', 'mixer', 'master', 'ratio', 'limBypass', 'cmpBypass', 'clipBypass', 'eqs', 'masterEq', 'outVol'] as const;
+const GLOBAL_KEYS = ['bpm', 'scale', 'root', 'fx', 'mixer', 'master', 'ratio', 'limBypass', 'cmpBypass', 'clipBypass', 'satBypass', 'eqs', 'masterEq', 'outVol'] as const;
 type Globals = Pick<Doc, (typeof GLOBAL_KEYS)[number]>;
 const takeGlobals = (d: Doc): Globals => clone(Object.fromEntries(GLOBAL_KEYS.map((k) => [k, d[k]])) as Globals);
 
@@ -2181,6 +2188,7 @@ export function setCrossfade(pos: number) {
   doc.limBypass = half.limBypass;
   doc.cmpBypass = half.cmpBypass;
   doc.clipBypass = half.clipBypass;
+  doc.satBypass = half.satBypass;
   doc.eqs = Array.from({ length: Math.max(a.eqs.length, b.eqs.length) }, (_, i) => blendEq(a.eqs[i], b.eqs[i], t));
   doc.masterEq = blendEq(a.masterEq, b.masterEq, t);
   // У NEW — ровно настройки нового проекта. Кроссфейдер исчезает вместе со строкой PREV

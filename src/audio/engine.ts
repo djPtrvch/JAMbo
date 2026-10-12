@@ -243,7 +243,8 @@ function sendDynamics() {
   const m = liveMaster();
   const auto = (v: number) => (isAuto(v) ? { rel: 400, auto: true } : { rel: v, auto: false });
   if (mst.sat) {
-    const msg = { drive: m['sat.drive'], type: Math.round(m['sat.type']), tone: m['sat.tone'], mix: m['sat.mix'] };
+    // BYPASS сатуратора — MIX 0: worklet за 20 мс уходит в сухой сигнал (с той же задержкой) — без щелчка.
+    const msg = { drive: m['sat.drive'], type: Math.round(m['sat.type']), tone: m['sat.tone'], mix: doc.satBypass ? 0 : m['sat.mix'] };
     const sig = JSON.stringify(msg);
     if (sig !== satSig) { satSig = sig; mst.sat.port.postMessage(msg); }
   }
@@ -906,7 +907,7 @@ function updateFx(now: number) {
     }
   }
 
-  const fsig = JSON.stringify([fx, mixer, master, doc.ratio, doc.limBypass, doc.cmpBypass, doc.clipBypass, doc.bpm, doc.tracks.map((t) => +t.mute + 2 * +t.solo)]);
+  const fsig = JSON.stringify([fx, mixer, master, doc.ratio, doc.limBypass, doc.cmpBypass, doc.clipBypass, doc.satBypass, doc.bpm, doc.tracks.map((t) => +t.mute + 2 * +t.solo)]);
   if (fsig === fxSig) return;
   fxSig = fsig;
   set(rev.hpf.frequency, fx['rev.hpf']);

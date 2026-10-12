@@ -37,7 +37,7 @@ import { initProjects } from './project';
 import { initMidi, sendFeedback, setNoteHandler } from './midi';
 import { settings } from './settings';
 import { updateTransport } from './transport';
-import { buildEqButton, buildLeftButtons, buildPatternsButton, buildRightButtons, buildTransportButtons, renderButtons } from './ui/buttons';
+import { buildEqButton, buildLeftButtons, buildShiftButton, buildPatternsButton, buildRightButtons, buildTransportButtons, renderButtons } from './ui/buttons';
 import { renderFields } from './ui/controls';
 import { buildEq, renderEq } from './ui/eq';
 import { buildSampleEditor, renderSampleEditor } from './ui/sampleedit';
@@ -69,7 +69,7 @@ const right = h('div', 'side right');
 const pagesEl = buildPages();
 // При MST на месте MORPH, RANDOM, FX, MOD — кнопки точки съёма скопа.
 const rightBtns = buildRightButtons();
-right.append(pagesEl, buildScope(), rightBtns, buildScopeButtons());
+right.append(pagesEl, buildScope(), rightBtns, buildScopeButtons(buildShiftButton()));
 
 const main = h('div', 'main');
 // Центр: ручки 4×4, сетка паттернов 8×8 (кнопка PATTERNS), эквалайзер (кнопка EQ) или редактор
