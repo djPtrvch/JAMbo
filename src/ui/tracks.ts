@@ -5,7 +5,7 @@
 // Дорожка мигает при срабатывании своих шагов; жёлтая точка — параметры этой дорожки
 // меняли с зажатым TRACK (на всю дорожку).
 
-import { TRACK_COUNT } from '../params';
+import { MAX_TRACKS } from '../params';
 import { audible, doc, renameTrack, rt, selectChannel, selectTrack, swipeTrack, ui, type Channel } from '../state';
 import { registerAction } from '../midi';
 import { h, setClass, setText } from './dom';
@@ -35,7 +35,7 @@ function channelCell(label: string, c: Channel): HTMLElement {
 export function buildTracks(): HTMLElement {
   const el = h('div', 'tracks');
   el.append(channelCell('MIX', 'mix'));
-  for (let i = 0; i < TRACK_COUNT; i++) {
+  for (let i = 0; i < MAX_TRACKS; i++) {
     const root = h('div', 'track');
     const name = h('div', 'track-name');
     const state = h('div', 'track-state');
@@ -86,6 +86,8 @@ export function buildTracks(): HTMLElement {
 export function renderTracks(now: number) {
   views.forEach((v, i) => {
     const t = doc.tracks[i];
+    setClass(v.root, 'hidden', !t);
+    if (!t) return;
     setText(v.name, t.name);
     setClass(v.root, 'selected', ui.channel === 'track' && i === ui.selectedTrack);
     setClass(v.root, 'muted', t.mute);

@@ -3,8 +3,8 @@ import { applyTheme } from './ui/theme';
 
 // Оформление до первой отрисовки (светлое или тёмное — по настройке или как в системе).
 applyTheme();
-import { TRACK_COUNT } from './params';
-import { advanceLfos, onGateChange, ui, updateTransition } from './state';
+import { setTrackCountParams } from './params';
+import { advanceLfos, doc, onGateChange, ui, updateTransition } from './state';
 import { attachDebug, markGate } from './ui/debug';
 import { applyAllGates, synthLoad, unlockAudio, updateAudio } from './audio/engine';
 import { initProjects } from './project';
@@ -70,8 +70,17 @@ attachDebug(cpu);
 onGateChange(() => markGate(applyAllGates()));
 topbar.append(leftGroup, topMid, topRight);
 
-// Число столбцов дорожек: строка дорожек и сетка паттернов совпадают по ширине столбцов.
-app.style.setProperty('--tracks', String(TRACK_COUNT));
+// Число столбцов дорожек: строка дорожек и сетка паттернов совпадают по ширине столбцов
+// (дорожек 8…12; MIX и MST — постоянной ширины).
+let trackCols = 0;
+function syncTrackCount() {
+  const n = doc.tracks.length;
+  if (n === trackCols) return;
+  trackCols = n;
+  app.style.setProperty('--tracks', String(n));
+  setTrackCountParams(n);
+}
+syncTrackCount();
 
 app.append(topbar, main, buildTracks(), buildSequencer(), buildPiano(), buildProgression(), buildLearnBar());
 
@@ -110,6 +119,7 @@ function renderCpu(now: number) {
 
 let last = performance.now();
 function frame(now: number) {
+  syncTrackCount();
   const t0 = performance.now();
   advanceLfos(Math.min(0.1, (now - last) / 1000));
   last = now;
@@ -156,5 +166,5 @@ if (settings.mappings.length) void initMidi();
 // Ноты с MIDI-входов играют выбранную дорожку, как пианоролл (или дорожку по номеру канала).
 setNoteHandler((note, _vel, track) => {
   if (track === null) press([note]);
-  else if (track < TRACK_COUNT) press([note], track);
+  else if (track < doc.tracks.length) press([note], track);
 });

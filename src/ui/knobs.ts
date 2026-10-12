@@ -3,15 +3,16 @@
 
 import { fromNorm, toNorm, type ParamDef } from '../params';
 import {
-  audible, assignFor, curSeq, fxModNorm, liveLocks, seqIndex,
+  addTrack, audible, assignFor, canAddTrack, canDeleteTrack, deleteTrack, curSeq, fxModNorm, liveLocks, seqIndex,
   beginGesture, clearLfoAssign, clearLock, doc, endGesture, firstHeldStep, gridFor, gridMode, heldLfo,
   lockValue, modulatedNorm, paramValue, type Mod, setLfoAmount, setLockNorm, setParamNorm, ui, type GridMode,
 } from '../state';
 import { markKnob } from '../midi';
-import { OVER_PEAK, TRACK_COUNT } from '../params';
+import { MAX_TRACKS, OVER_PEAK } from '../params';
 import { trackDuckDb, trackIsStereo, trackLevel } from '../audio/engine';
 import { levelFrac } from './meter';
 import { openRename } from './tracks';
+import { makePopup, popupButton, type Popup } from './popup';
 import { DOUBLE_TAP_MS, h, setAttr, setClass, setText, svg } from './dom';
 
 /** Сколько пикселей вертикального хода = полный оборот ручки. */
@@ -150,10 +151,44 @@ export function buildKnobGrid(): HTMLElement {
 
 // ---------- Жесты ----------
 
+// ---------- Дорожки 9–12: удержание ручки в MIX ----------
+
+/** Удержание скрытой ручки (или ручки добавленной дорожки) в MIX, мс. */
+const TRACK_HOLD_MS = 500;
+let trackMenu: Popup | null = null;
+
+/** Окно с одной кнопкой (ADD TRACK или DELETE TRACK) у ручки. */
+function openTrackMenu(anchor: Element, label: string, action: () => void) {
+  if (!trackMenu) trackMenu = makePopup();
+  const menu = trackMenu;
+  menu.box.replaceChildren(popupButton(label, () => { menu.close(); action(); }));
+  menu.openAt(anchor, 180);
+}
+
+/** Скрытая ручка в MIX: удержание без движения — ADD TRACK (дорожка добавляется в конец). */
+const hiddenHolds = new Map<number, { timer: number; y: number }>();
+function onHiddenDown(slot: number, e: PointerEvent) {
+  if (gridMode() !== 'mix' || slot >= MAX_TRACKS || !canAddTrack()) return;
+  e.preventDefault();
+  const root = views[slot].root;
+  root.setPointerCapture(e.pointerId);
+  const timer = window.setTimeout(() => {
+    hiddenHolds.delete(e.pointerId);
+    if (gridMode() === 'mix' && canAddTrack()) openTrackMenu(root, 'ADD TRACK', addTrack);
+  }, TRACK_HOLD_MS);
+  hiddenHolds.set(e.pointerId, { timer, y: e.clientY });
+}
+function endHiddenHold(e: PointerEvent, moved = true) {
+  const hh = hiddenHolds.get(e.pointerId);
+  if (!hh || (!moved && Math.abs(e.clientY - hh.y) < DEAD_PX * 2)) return;
+  clearTimeout(hh.timer);
+  hiddenHolds.delete(e.pointerId);
+}
+
 function onDown(slot: number, e: PointerEvent) {
   const mode = gridMode();
   const param = gridFor(mode)[slot];
-  if (!param) return;
+  if (!param) { onHiddenDown(slot, e); return; }
   e.preventDefault();
   (e.currentTarget as Element).setPointerCapture(e.pointerId);
 
@@ -194,10 +229,20 @@ function onDown(slot: number, e: PointerEvent) {
         openRename(slot, anchor);
       }
     }, RENAME_HOLD_MS);
+  } else if (mode === 'mix' && canDeleteTrack(slot) && held === null) {
+    // Добавленная дорожка (9–12): удержание ручки без движения — DELETE TRACK.
+    const anchor = views[slot].root;
+    g.holdTimer = window.setTimeout(() => {
+      if (!g.moved && gestures.get(e.pointerId) === g) {
+        g.consumed = true;
+        openTrackMenu(anchor, 'DELETE TRACK', () => deleteTrack(slot));
+      }
+    }, TRACK_HOLD_MS);
   }
 }
 
 function onMove(e: PointerEvent) {
+  endHiddenHold(e, false);
   const g = gestures.get(e.pointerId);
   if (!g || g.consumed) return;
   if (!g.moved) {
@@ -219,6 +264,7 @@ function onMove(e: PointerEvent) {
 }
 
 function onUp(e: PointerEvent) {
+  endHiddenHold(e);
   const g = gestures.get(e.pointerId);
   if (!g) return;
   gestures.delete(e.pointerId);
@@ -251,7 +297,7 @@ export function renderKnobs(now: number) {
 
   views.forEach((v, slot) => {
     const p = grid[slot];
-    const meter = mode === 'mix' && !!p && slot < TRACK_COUNT;
+    const meter = mode === 'mix' && !!p && slot < doc.tracks.length;
     setClass(v.meter.root, 'hidden', !meter);
     if (meter) renderKnobMeter(v.meter, slot, now);
     setClass(v.root, 'inactive', !p);

@@ -9,7 +9,7 @@ import {
   clearMappings, connectBluetooth, disconnectBluetooth, hasBluetooth, hasWebMidi, initMidi, midiDevices,
   condKey, onDevicesChanged, removeMapping, setLearn, sourceLabel, targetLabel, twisterPreset,
 } from '../midi';
-import { TRACK_COUNT } from '../params';
+import { MAX_TRACKS } from '../params';
 import { saveSettings, settings } from '../settings';
 import { openMapEditor } from './mapedit';
 import { h } from './dom';
@@ -152,8 +152,8 @@ function renderNotes() {
     title('NOTE CHANNEL'),
     choice(Array.from({ length: 17 }, (_, i) => i), settings.noteChannel, (c) => (c ? String(c) : 'ALL'), (c) => saveSettings({ noteChannel: c })),
     title('NOTES PLAY'),
-    choice<'selected' | 'channel'>(['selected', 'channel'], settings.noteRoute, (r) => (r === 'selected' ? 'SELECTED TRACK' : `CH 1–${TRACK_COUNT} → TRACKS`), (r) => saveSettings({ noteRoute: r })),
-    note(`Notes from MIDI inputs play like the piano roll (and are recorded with REC). With CH 1–${TRACK_COUNT} → TRACKS, channel N plays track N. Notes and CCs mapped to buttons don’t play.`),
+    choice<'selected' | 'channel'>(['selected', 'channel'], settings.noteRoute, (r) => (r === 'selected' ? 'SELECTED TRACK' : `CH 1–${MAX_TRACKS} → TRACKS`), (r) => saveSettings({ noteRoute: r })),
+    note(`Notes from MIDI inputs play like the piano roll (and are recorded with REC). With CH 1–${MAX_TRACKS} → TRACKS, channel N plays track N. Notes and CCs mapped to buttons don’t play.`),
   );
 }
 

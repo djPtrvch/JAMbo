@@ -3,7 +3,7 @@
 // ui — текущие удержания кнопок/шагов и выбор. rt — данные реального времени (LFO, проигрывание).
 
 import {
-  FX_GRID, isAuto, MASTER_GRID, MAX_PAGES, MIX_GRID, MOD_GRID, PATTERN_SLOTS, RATIOS, STEPS_PER_PAGE, TRACK_COUNT, TRACK_GRID, OCTAVE_DEF, OCTAVE_MAX, OCTAVE_MIN,
+  FX_GRID, isAuto, MASTER_GRID, MAX_PAGES, MIX_GRID, MOD_GRID, PATTERN_SLOTS, RATIOS, STEPS_PER_PAGE, TRACK_COUNT, MAX_TRACKS, TRACK_GRID, OCTAVE_DEF, OCTAVE_MAX, OCTAVE_MIN,
   BPM_MAX, BPM_MIN, VOL_MIN_DB, PARAM_BY_ID, PRESET_PARAMS, SEQ_COUNT, SEQ_MIX, SEQ_MST, SYNTH_ENGINES, SYNTH_GRID, synthEngine, synthGrid, synthKey, EQ_BANDS, EQ_BELL, EQ_DYN_RANGE_MAX, EQ_DYN_THR_MIN, EQ_FREQ_MAX, EQ_FREQ_MIN, EQ_GAIN_MAX, EQ_Q_DEF, EQ_Q_MAX, EQ_Q_MIN, EQ_TYPES, NOTE_NAMES, PROGRESSIONS, SCALES, fromNorm, toNorm, type ParamDef, type Slot,
 } from './params';
 
@@ -328,15 +328,15 @@ export const ui: Ui = {
 
 export const rt: Runtime = {
   playPos: Array(SEQ_COUNT).fill(-1),
-  flashUntil: Array(TRACK_COUNT).fill(0),
-  lfoPhase: Array.from({ length: TRACK_COUNT }, () => [0, 0, 0]),
-  lfoRandom: Array.from({ length: TRACK_COUNT }, () => [0, 0, 0].map(() => Math.random() * 2 - 1)),
-  env: Array.from({ length: TRACK_COUNT }, () => ({ start: -1, gateEnd: -1 })),
-  envQueue: Array.from({ length: TRACK_COUNT }, () => []),
-  noteFlash: Array.from({ length: TRACK_COUNT }, () => ({ notes: [], until: 0 })),
+  flashUntil: Array(MAX_TRACKS).fill(0),
+  lfoPhase: Array.from({ length: MAX_TRACKS }, () => [0, 0, 0]),
+  lfoRandom: Array.from({ length: MAX_TRACKS }, () => [0, 0, 0].map(() => Math.random() * 2 - 1)),
+  env: Array.from({ length: MAX_TRACKS }, () => ({ start: -1, gateEnd: -1 })),
+  envQueue: Array.from({ length: MAX_TRACKS }, () => []),
+  noteFlash: Array.from({ length: MAX_TRACKS }, () => ({ notes: [], until: 0 })),
   playLocks: Array.from({ length: SEQ_COUNT }, () => ({ locks: {}, until: 0 })),
   trackStart: Array(SEQ_COUNT).fill(0),
-  queued: Array(TRACK_COUNT).fill(null),
+  queued: Array(MAX_TRACKS).fill(null),
   scene: null,
   sceneQueued: null,
   beatUntil: 0,
@@ -418,7 +418,9 @@ export function gridFor(mode: GridMode): Slot[] {
   // У дорожки с синтом колонка 1 — Harmonics, Timbre, Morph, Level.
   const engine = synthEngine(selTrack().sample);
   const track = engine !== null ? synthGrid(engine) : TRACK_GRID;
-  return { track, fx: FX_GRID, mod: MOD_GRID, mix: MIX_GRID, master: MASTER_GRID }[mode];
+  // MIX: ручки только у существующих дорожек (остальные — скрытые, удержание добавляет дорожку).
+  if (mode === 'mix') return MIX_GRID.map((p, i) => (i < doc.tracks.length ? p : null));
+  return { track, fx: FX_GRID, mod: MOD_GRID, master: MASTER_GRID }[mode];
 }
 
 export function setHeld(btn: HoldButton, down: boolean) {
@@ -479,7 +481,7 @@ export const selTrack = () => doc.tracks[ui.selectedTrack];
 
 // ---------- Последовательности: дорожки и каналы MIX, MST ----------
 
-export const seqAt = (k: number): Track => (k < TRACK_COUNT ? doc.tracks[k] : doc.chanSeqs[k - TRACK_COUNT]);
+export const seqAt = (k: number): Track => (k < MAX_TRACKS ? doc.tracks[k] : doc.chanSeqs[k - MAX_TRACKS]);
 /** Последовательность, которую показывает секвенсор: выбранная дорожка, MIX или MST. */
 export const seqIndex = () => (ui.channel === 'track' ? ui.selectedTrack : ui.channel === 'mix' ? SEQ_MIX : SEQ_MST);
 export const curSeq = () => seqAt(seqIndex());
@@ -789,10 +791,90 @@ function clampView() {
 }
 
 export function selectTrack(i: number) {
+  if (i >= doc.tracks.length) return;
   ui.selectedTrack = i;
   ui.channel = 'track';
   ui.heldSteps.clear();
   clampView();
+}
+
+// ---------- Число дорожек: 8 по умолчанию, до 12 ----------
+
+export const canAddTrack = () => doc.tracks.length < MAX_TRACKS;
+/** Удалить можно только добавленную дорожку (первые 8 есть всегда). */
+export const canDeleteTrack = (i: number) => i >= TRACK_COUNT && i < doc.tracks.length;
+
+/** Новая дорожка в конце строки (громкость по умолчанию, свой EQ и папка). Отмена — UNDO. */
+export function addTrack() {
+  if (!canAddTrack()) return;
+  edit(() => {
+    const i = doc.tracks.length;
+    doc.tracks.push(newTrack(i));
+    doc.folders.push({ items: [], index: -1 });
+    doc.eqs.push(newEq());
+    doc.mixer[`mix.vol${i + 1}`] = PARAM_BY_ID[`mix.vol${i + 1}`].def;
+    for (const k of MIX_LOCK_SEQS()) forEachStep(k, (st) => { delete st.locks[`mix.vol${i + 1}`]; });
+  });
+}
+
+/** Шаги последовательности (и всех её паттернов). */
+function forEachStep(t: Track, fn: (s: Step) => void) {
+  for (const p of [t, ...t.slots.filter((x): x is Pattern => !!x)]) p.pages.forEach((pg) => pg.forEach(fn));
+}
+const MIX_LOCK_SEQS = () => [doc.chanSeqs[0]];
+
+/**
+ * Удалить дорожку i (только добавленную): дорожки правее сдвигаются влево — вместе с ними их
+ * громкость (и p-lock громкости на шагах MIX), источник sidechain и динамических полос EQ,
+ * назначения LFO/ENV на FX. Отмена — UNDO.
+ */
+export function deleteTrack(i: number) {
+  if (!canDeleteTrack(i)) return;
+  edit(() => {
+    const n = doc.tracks.length;
+    doc.tracks.splice(i, 1);
+    doc.folders.splice(i, 1);
+    doc.eqs.splice(i, 1);
+    // Номер дорожки j (0…) после удаления i: правее — на один левее, сама i — null.
+    const map = (j: number) => (j === i ? null : j > i ? j - 1 : j);
+    const vol = (j: number) => `mix.vol${j + 1}`;
+    const shiftVols = (r: Record<string, number>) => {
+      for (let j = i; j < n - 1; j++) {
+        if (vol(j + 1) in r) r[vol(j)] = r[vol(j + 1)]; else delete r[vol(j)];
+      }
+      delete r[vol(n - 1)];
+    };
+    shiftVols(doc.mixer);
+    doc.mixer[vol(n - 1)] = PARAM_BY_ID[vol(n - 1)].def;
+    for (const t of MIX_LOCK_SEQS()) forEachStep(t, (st) => shiftVols(st.locks));
+    // Источник sidechain: удалённый — T1.
+    const sc = Math.round(doc.fx['sc.source']);
+    doc.fx['sc.source'] = map(sc) ?? 0;
+    // Динамические полосы EQ: n — дорожка n (1…); удалённый источник — OFF.
+    for (const eq of [...doc.eqs, doc.masterEq]) {
+      for (const b of eq.bands) {
+        if (!b || b.dyn === undefined || b.dyn < 1) continue;
+        const m = map(b.dyn - 1);
+        b.dyn = m === null ? -1 : m + 1;
+      }
+    }
+    for (const id of Object.keys(doc.fxAssigns)) {
+      const m = map(doc.fxAssigns[id].track);
+      if (m === null) delete doc.fxAssigns[id]; else doc.fxAssigns[id].track = m;
+    }
+    // Состояние проигрывания правее сдвигается вместе с дорожками.
+    for (const a of [rt.flashUntil, rt.lfoPhase, rt.lfoRandom, rt.env, rt.envQueue, rt.noteFlash, rt.queued] as unknown[][]) {
+      const [x] = a.splice(i, 1);
+      a.push(x);
+    }
+    for (const a of [rt.playPos, rt.trackStart, rt.playLocks] as unknown[][]) {
+      const [x] = a.splice(i, 1);
+      a.splice(MAX_TRACKS - 1, 0, x);
+    }
+    rt.queued[MAX_TRACKS - 1] = null;
+    if (ui.channel === 'track' && ui.selectedTrack >= i) ui.selectedTrack = Math.max(0, ui.selectedTrack - (ui.selectedTrack === i ? 0 : 1));
+    ui.selectedTrack = Math.min(ui.selectedTrack, doc.tracks.length - 1);
+  });
 }
 
 /** Сохранить длину и диапазон «на все страницы», если они были полными. */
@@ -901,8 +983,9 @@ export function swipeTrack(i: number, dir: 'up' | 'down') {
 
 /** Слышна ли дорожка с учётом mute/solo. */
 export function audible(i: number): boolean {
-  const anySolo = doc.tracks.some((t) => t.solo);
   const t = doc.tracks[i];
+  if (!t) return false;
+  const anySolo = doc.tracks.some((x) => x.solo);
   return anySolo ? t.solo : !t.mute;
 }
 
@@ -1514,8 +1597,10 @@ export function normalizeDoc(raw: unknown): Doc {
   const d = { ...base, ...(raw as Partial<Doc>) } as Doc;
   const trackDefaults = base.tracks[0].params;
   const fixParams = (p: { params: Record<string, number> }) => { p.params = { ...trackDefaults, ...p.params }; };
-  d.tracks = base.tracks.map((bt, i) => {
-    const t = { ...bt, ...(d.tracks?.[i] ?? {}) } as Track;
+  // Дорожек от 8 (по умолчанию) до 12.
+  const count = Math.min(MAX_TRACKS, Math.max(TRACK_COUNT, d.tracks?.length ?? 0));
+  d.tracks = Array.from({ length: count }, (_, i) => {
+    const t = { ...newTrack(i), ...(d.tracks?.[i] ?? {}) } as Track;
     fixParams(t);
     t.slots = Array.from({ length: PATTERN_SLOTS }, (_, k) => t.slots?.[k] ?? null);
     t.slots.forEach((p) => { if (p) fixParams(p); });
@@ -1523,8 +1608,8 @@ export function normalizeDoc(raw: unknown): Doc {
   });
   d.chanSeqs = base.chanSeqs.map((b, k) => ({ ...b, ...(d.chanSeqs?.[k] ?? {}) }));
   d.scenes = base.scenes.map((b, k) => d.scenes?.[k] ?? b);
-  d.folders = base.folders.map((b, k) => d.folders?.[k] ?? b);
-  d.eqs = base.eqs.map((b, k) => d.eqs?.[k] ?? b);
+  d.folders = Array.from({ length: count }, (_, k) => d.folders?.[k] ?? { items: [], index: -1 });
+  d.eqs = Array.from({ length: count }, (_, k) => d.eqs?.[k] ?? newEq());
   for (const key of ['fx', 'mixer', 'master'] as const) d[key] = { ...base[key], ...d[key] };
   // RATIO теперь 2:1, 4:1, 10:1 — прежние 8:1 и 20:1 становятся 10:1.
   d.ratio = Math.min(RATIOS.length - 1, Math.max(0, Math.round(d.ratio ?? 0)));
@@ -1656,6 +1741,14 @@ export function switchWithTransition(next: Doc) {
     const trigs = t.pages.some((pg) => pg.some((st) => st.on));
     return { trigs, playing: ui.playing && !t.stopped && rt.queued[i] !== 'stop' && trigs, pattern: takePattern(t), row: t.slot, mute: t.mute, solo: t.solo };
   });
+  // Дорожек у проектов может быть разное число: новый дополняется до числа старого (старые
+  // паттерны доигрывают на своих дорожках); у дорожек без старого паттерна PREV пустая.
+  while (next.tracks.length < old.length) {
+    next.tracks.push(newTrack(next.tracks.length));
+    next.folders.push({ items: [], index: -1 });
+    next.eqs.push(newEq());
+  }
+  const none = { trigs: false, playing: false, pattern: null, row: 0, mute: false, solo: false };
   const from = takeGlobals(doc);
   const tr: Transition = { hidden: [], origSlot: [], hiddenScene: next.scenes[LAST], real: [] };
   transitionMoves.length = 0;
@@ -1663,15 +1756,16 @@ export function switchWithTransition(next: Doc) {
     const rows = rowsOf(t);
     tr.hidden[i] = rows[LAST];
     tr.origSlot[i] = t.slot;
-    const { playing, trigs } = old[i];
+    const o = old[i] ?? none;
+    const { playing, trigs } = o;
     tr.real[i] = trigs;
-    const prev = trigs ? old[i].pattern : emptyLike(takePattern(t));
+    const prev = trigs && o.pattern ? o.pattern : emptyLike(takePattern(t));
     setRows(t, [...rows.slice(0, LAST), prev], LAST);
     t.stopped = !playing;
     // Mute и solo дорожек переходят из старого проекта: заглушённая дорожка молчит и на новых паттернах.
-    t.mute = old[i].mute;
-    t.solo = old[i].solo;
-    if (trigs) transitionMoves.push({ track: i, from: old[i].row });
+    t.mute = o.mute;
+    t.solo = o.solo;
+    if (trigs) transitionMoves.push({ track: i, from: o.row });
   });
   next.scenes = [...next.scenes.slice(0, LAST), { name: 'PREV', repeats: 0 }];
   const to = takeGlobals(next);

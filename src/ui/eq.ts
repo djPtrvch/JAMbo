@@ -638,10 +638,18 @@ let barKey = '';
  */
 function alignBar() {
   const bar = nameText.parentElement!;
-  const cells = [...document.querySelectorAll<HTMLElement>('.tracks > .track')];
+  // Сетка — как у строки с 8 дорожками: имя канала над MIX, дальше 8 равных столбцов между MIX
+  // и MST (при 9–12 дорожках кнопки не сужаются).
+  const chans = [...document.querySelectorAll<HTMLElement>('.tracks > .track.channel')];
+  const first = document.querySelector<HTMLElement>('.tracks > .track:not(.channel)');
   const items = [...bar.children] as HTMLElement[];
   const br = bar.getBoundingClientRect();
-  const rects = cells.slice(0, items.length).map((c) => c.getBoundingClientRect());
+  if (chans.length < 2 || !first) return;
+  const mix = chans[0].getBoundingClientRect();
+  const mst = chans[chans.length - 1].getBoundingClientRect();
+  const gap = first.getBoundingClientRect().left - mix.right;
+  const col = (mst.left - gap - (mix.right + gap) - 7 * gap) / 8;
+  const rects = items.map((_, i) => (i === 0 ? { left: mix.left, width: mix.width } : { left: mix.right + gap + (i - 1) * (col + gap), width: col }));
   const key = `${br.left}|${rects.map((r) => `${r.left}:${r.width}`).join(',')}`;
   if (key === barKey) return;
   barKey = key;

@@ -16,7 +16,7 @@
 // Измерители уровня стоят на выходе каждой дорожки и в мастере (вход компрессора, вход и выход
 // лимитера): пиковый уровень по каналам и громкость в LUFS (K-взвешивание, окно ~400 мс).
 
-import { DELAY_DIVS, isAuto, OVER_PEAK, SYNTH_ENGINES, synthEngine, PARAM_BY_ID, RATIOS, VOL_DEF_DB, volGain, SAMPLE_ROOT, TRACK_COUNT, filterFreq, fromNorm } from '../params';
+import { DELAY_DIVS, isAuto, OVER_PEAK, SYNTH_ENGINES, synthEngine, PARAM_BY_ID, RATIOS, VOL_DEF_DB, volGain, SAMPLE_ROOT, MAX_TRACKS, filterFreq, fromNorm } from '../params';
 import { audible, addSamplesQuiet, addSamplesToFolder, doc, setStepSound, triggerEnv, liveFx, liveMaster, liveMixer, modulatedNorm, ui } from '../state';
 import { detectRoot } from './pitch';
 import { encodeWav } from './wav';
@@ -61,7 +61,7 @@ const voices: Voice[] = [];
 const SYNTH_SLOTS = 6;
 interface SynthSlot { amp: GainNode; level: GainNode; filter: BiquadFilterNode; pan: StereoPannerNode; sends: GainNode[] }
 interface Synth { node: AudioWorkletNode; slots: SynthSlot[]; next: number; busyUntil: number[] }
-const synths: (Synth | null)[] = Array(TRACK_COUNT).fill(null);
+const synths: (Synth | null)[] = Array(MAX_TRACKS).fill(null);
 let wasmBytes: ArrayBuffer | null = null;
 
 /** Загрузить AudioWorklet и plaits.wasm (один раз, после создания контекста). */
@@ -119,7 +119,7 @@ function synthParams(engine: number, v: (id: string) => number) {
 }
 
 // Нагрузка расчёта синтов: доля реального времени по каждой дорожке (присылает AudioWorklet).
-const synthCpu: number[] = Array(TRACK_COUNT).fill(0);
+const synthCpu: number[] = Array(MAX_TRACKS).fill(0);
 /** Суммарная нагрузка расчёта синтов (доля 0..1). */
 export const synthLoad = () => synthCpu.reduce((a, b) => a + b, 0);
 const MAX_VOICES = 48;
@@ -400,7 +400,8 @@ function buildGraph(c: AudioContext) {
   busInputs = [revIn, dlyIn, drvIn];
 
   // Дорожки.
-  tracks = Array.from({ length: TRACK_COUNT }, () => {
+  // Каналы на все 12 дорожек сразу: у несуществующих гейт закрыт.
+  tracks = Array.from({ length: MAX_TRACKS }, () => {
     const input = c.createGain();
     const duck = c.createGain();
     const vol = c.createGain();
@@ -745,7 +746,7 @@ function gateTrack(i: number, vol: number, ct: number) {
 
 /** MUTE TAILS: заглушённая дорожка — единственный слышимый источник посыла Delay → гасим его повторы. */
 function cutDelayTail(i: number, ct: number) {
-  const sends = (k: number) => (doc.tracks[k].params.delay ?? 0) > 0;
+  const sends = (k: number) => (doc.tracks[k]?.params.delay ?? 0) > 0;
   if (!sends(i) || doc.tracks.some((_, k) => k !== i && audible(k) && sends(k))) return;
   const fb = doc.fx['dly.feedback'] / 100 * 0.95;
   for (const g of [dly.fbL.gain, dly.fbR.gain]) {
@@ -781,9 +782,12 @@ export function updateAudio(now: number) {
 
 // ---------- Эквалайзеры ----------
 
+/** EQ канала без дорожки: выключен. */
+const OFF_EQ = { on: false, bands: [] as never[] };
+
 function updateEqs() {
   tracks.forEach((ch, i) => {
-    const eq = doc.eqs[i];
+    const eq = doc.eqs[i] ?? OFF_EQ;
     ch.eq.update(eq);
     for (const e of ch.sendEqs) e.update(eq);
   });
@@ -1258,6 +1262,7 @@ export function resetPeak(ch: number | 'master') {
 /** Дорожка звучит в стерео: стереофайл или панорама не по центру. */
 export function trackIsStereo(i: number): boolean {
   const t = doc.tracks[i];
+  if (!t) return false;
   const buf = buffers.get(t.sample);
   if ((buf?.numberOfChannels ?? 1) > 1 || Math.abs(t.params.pan) >= 1) return true;
   // Панораму двигают LFO/ENV или p-lock шагов — сигнал тоже стерео (L и R различаются).

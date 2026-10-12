@@ -1,12 +1,14 @@
 // Единая таблица параметров: названия, подписи ручек, диапазоны и форматы.
 // Меняем подписи и диапазоны только здесь.
 
-/** Дорожек сейчас (расширяемо до 16). */
+/** Дорожек по умолчанию — и меньше нельзя. */
 export const TRACK_COUNT = 8;
-/** Номера последовательностей: 0..TRACK_COUNT-1 — дорожки, затем свои у каналов MIX и MST. */
-export const SEQ_MIX = TRACK_COUNT;
-export const SEQ_MST = TRACK_COUNT + 1;
-export const SEQ_COUNT = TRACK_COUNT + 2;
+/** Дорожек самое большее (добавляются в MIX удержанием скрытой ручки). */
+export const MAX_TRACKS = 12;
+/** Номера последовательностей: 0..MAX_TRACKS-1 — дорожки, затем свои у каналов MIX и MST. */
+export const SEQ_MIX = MAX_TRACKS;
+export const SEQ_MST = MAX_TRACKS + 1;
+export const SEQ_COUNT = MAX_TRACKS + 2;
 
 export type KnobKind = 'smooth' | 'stepped';
 
@@ -244,7 +246,7 @@ export const FX_GRID: Slot[] = grid([
   [
     smooth('sc.attack', 'SC Attack', 0.1, 100, 5, ms, { exp: true }),
     smooth('sc.release', 'SC Release', 10, 1000, 150, ms, { exp: true }),
-    stepped('sc.source', 'SC Source', ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8']),
+    stepped('sc.source', 'SC Source', Array.from({ length: MAX_TRACKS }, (_, i) => `T${i + 1}`)),
   ],
 ]);
 
@@ -266,7 +268,7 @@ export const fmtVol = volDb;
 export const MIX_SLOTS = 16;
 
 export const MIX_GRID: Slot[] = Array.from({ length: MIX_SLOTS }, (_, i) =>
-  i < TRACK_COUNT ? smooth(`mix.vol${i + 1}`, `T${i + 1}`, VOL_MIN_DB, 0, VOL_DEF_DB, volDb) : null);
+  i < MAX_TRACKS ? smooth(`mix.vol${i + 1}`, `T${i + 1}`, VOL_MIN_DB, 0, VOL_DEF_DB, volDb) : null);
 
 // ---------- Мастер: компрессор (колонка 3) и лимитер (колонка 4), Ratio — отдельной кнопкой ----------
 
@@ -424,3 +426,9 @@ export const EQ_GAIN_MAX = 18;
 export const EQ_Q_MIN = 0.1;
 export const EQ_Q_MAX = 18;
 export const EQ_Q_DEF = 1;
+
+/** Число дорожек проекта изменилось: выбор источника sidechain — только среди существующих дорожек. */
+export function setTrackCountParams(n: number) {
+  const sc = PARAM_BY_ID['sc.source'];
+  if (sc) sc.max = n - 1;
+}

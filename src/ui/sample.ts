@@ -13,7 +13,7 @@ import {
   type Level, samplePeaks,
   sampleRoot, trackLevel,
 } from '../audio/engine';
-import { LFO_WAVES, OVER_PEAK, SYNTH_ENGINES, TRACK_COUNT, noteName, synthEngine, synthGrid, synthKey } from '../params';
+import { LFO_WAVES, MAX_TRACKS, OVER_PEAK, SYNTH_ENGINES, noteName, synthEngine, synthGrid, synthKey } from '../params';
 import { levelFrac } from './meter';
 import { makePopup, popupButton } from './popup';
 import { audible, doc, heldStepSound, setStepSound, folderItemName, folderPos, stepFolder, stepFolderOnSteps, setTrackSynth, envAt, envShape, liveParams, lfoShape, rt, sampleName, selTrack, ui } from '../state';
@@ -287,7 +287,7 @@ export function buildSample(): HTMLElement {
   // две полосы, моно — одна, выше 0 dB — красный; заглушённая дорожка — серая; снижение
   // громкости от sidechain — оранжевым сверху. Положение регуляторов видно на самих ручках.
   mixPanel = h('div', 'master-panel mix-panel hidden');
-  for (let i = 0; i < TRACK_COUNT; i++) mixBars.push(vbar(`T${i + 1}`, 'yellow', true));
+  for (let i = 0; i < MAX_TRACKS; i++) mixBars.push(vbar(`T${i + 1}`, 'yellow', true));
   // Пока уровни видны у ручек громкости — полосы в окне сэмпла скрыты (остаётся заголовок).
   const mixRow = wrap(mixBars);
   mixRow.classList.add('hidden');
@@ -295,7 +295,7 @@ export function buildSample(): HTMLElement {
   // Узкие столбцы (много дорожек): вместо имён — номера дорожек.
   new ResizeObserver(() => {
     const w = mixPanel.clientWidth;
-    if (w > 0) mixNarrow = w / mixBars.length < MIX_NAME_MIN;
+    if (w > 0) mixNarrow = w / doc.tracks.length < MIX_NAME_MIN;
   }).observe(mixPanel);
 
   previews = h('div', 'mod-previews hidden');
@@ -457,6 +457,8 @@ function renderMaster(now: number) {
 function renderMix(now: number) {
   mixBars.forEach((b, i) => {
     const t = doc.tracks[i];
+    setClass(b.root, 'hidden', !t);
+    if (!t) return;
     const lv = trackLevel(i, now);
     setText(b.label, mixNarrow ? String(i + 1) : t.name);
     setClass(b.root, 'muted', !audible(i));

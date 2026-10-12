@@ -10,7 +10,7 @@
 // во время проигрывания — с начала такта), удержание — меню: имя строки и число повторов, после
 // которых играет следующая строка (∞ — без перехода).
 
-import { PATTERN_SLOTS, STEPS_PER_PAGE, TRACK_COUNT } from '../params';
+import { MAX_TRACKS, PATTERN_SLOTS, STEPS_PER_PAGE } from '../params';
 import {
   crossfade, isPrevPlaceholder, rowFilled, sceneName, setCrossfade, setScene, transitionMoves,
   copyPattern, createPattern, dropPattern, deletePattern, doc, duplicatePattern, freeSlotAfter, hasLocks, pastePattern,
@@ -164,7 +164,6 @@ let xfNew: HTMLElement;
 /** Вертикальный кроссфейдер: внизу — общие настройки старого проекта, вверху — нового. */
 function buildCrossfader(): HTMLElement {
   xf = h('div', 'xfader hidden');
-  xf.style.gridColumn = String(TRACK_COUNT + 2);
   xf.style.gridRow = `1 / ${PATTERN_SLOTS + 1}`;
   xfNew = h('div', 'xf-label', 'NEW');
   const track = h('div', 'xf-track');
@@ -270,7 +269,7 @@ export function buildPatternGrid(): HTMLElement {
   grid.append(buildCrossfader());
   for (let k = 0; k < PATTERN_SLOTS; k++) grid.append(buildSceneCell(k));
   for (let k = 0; k < PATTERN_SLOTS; k++) {
-    for (let i = 0; i < TRACK_COUNT; i++) {
+    for (let i = 0; i < MAX_TRACKS; i++) {
       const root = h('div', 'pattern-cell');
       // Столбцы сетки стоят ровно над дорожками (первый столбец — над MIX, строки).
       root.style.gridColumn = String(i + 2);
@@ -279,7 +278,7 @@ export function buildPatternGrid(): HTMLElement {
       // MIDI: ячейка как тап (запуск, остановка, новый паттерн) — для Clip launcher.
       registerAction(`CLIP${i + 1}.${k + 1}`, {
         label: `CLIP T${i + 1} · ${k + 1}`, press: () => tapCell(i, k),
-        state: () => doc.tracks[i].slot === k && !doc.tracks[i].stopped,
+        state: () => !!doc.tracks[i] && doc.tracks[i].slot === k && !doc.tracks[i].stopped,
       }, root);
       const bar = h('div', 'pattern-bar');
       root.append(thumb, bar);
@@ -382,6 +381,9 @@ export function renderPatternGrid() {
     setClass(c.root, 'queued', rt.sceneQueued === k);
     setAttr(c.bar, 'style', `width:${playing && prog ? Math.round(prog.frac * 100) : 0}%`);
   });
+  // Столбцов столько, сколько дорожек; кроссфейдер — справа от последнего.
+  setAttr(xf, 'style', `grid-column:${doc.tracks.length + 2};grid-row:1 / ${PATTERN_SLOTS + 1}`);
+  cells.forEach((col, i) => col.forEach((c) => setClass(c.root, 'hidden', i >= doc.tracks.length)));
   doc.tracks.forEach((t, i) => {
     const q = rt.queued[i];
     cells[i].forEach((c, k) => {
