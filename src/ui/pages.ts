@@ -7,7 +7,7 @@
 
 import { MAX_PAGES, STEPS_PER_PAGE } from '../params';
 import {
-  addPage, clearPage, copyPage, deletePage, duplicatePage, hasLocks, pastePage, rt, curSeq, seqIndex, setPlayPages, ui,
+  addPage, clearPage, nudgePage, copyPage, deletePage, duplicatePage, hasLocks, pastePage, rt, curSeq, seqIndex, setPlayPages, ui,
 } from '../state';
 import { DOUBLE_TAP_MS, h, setClass } from './dom';
 import { makePopup, popupButton, type Popup } from './popup';
@@ -162,6 +162,12 @@ export function buildPages(): HTMLElement {
   const actions: [string, (i: number) => void][] = [
     ['duplicate', duplicatePage], ['copy', copyPage], ['paste', pastePage], ['clear', clearPage], ['delete', deletePage],
   ];
+  // Вверху — стрелки: ◀ ▶ сдвигают шаги страницы на один, ▲ ▼ — ноты на октаву. Меню не закрывается.
+  const arrows = h('div', 'popup-arrows');
+  for (const [label, dir] of [['◀', 'left'], ['▶', 'right'], ['▲', 'up'], ['▼', 'down']] as const) {
+    arrows.append(popupButton(label, () => { if (ui.pageMenu !== null) nudgePage(ui.pageMenu, dir); }));
+  }
+  menu.box.append(arrows);
   for (const [name, fn] of actions) {
     const b = popupButton(name.toUpperCase(), () => {
       const i = ui.pageMenu;

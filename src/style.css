@@ -550,6 +550,8 @@ input::selection, textarea::selection { background: var(--select); color: var(--
   letter-spacing: 0.04em;
 }
 .popup-btn:disabled { color: var(--off); }
+/* Стрелки меню страницы: ◀ ▶ ▲ ▼ в один ряд. */
+.popup-arrows { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
 .popup-btn.current { background: var(--accent); color: var(--on-accent); }
 
 /* ---------- Дорожки ---------- */

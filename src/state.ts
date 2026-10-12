@@ -1033,6 +1033,24 @@ export function clearPage(i: number) {
   edit(() => { t.pages[i] = emptyPage(); });
 }
 
+/** Стрелки меню страницы: ◀ ▶ — шаги страницы по кругу на один шаг, ▲ ▼ — ноты на октаву. */
+export function nudgePage(i: number, dir: 'left' | 'right' | 'up' | 'down') {
+  const page = curSeq().pages[i];
+  if (!page) return;
+  if (dir === 'left' || dir === 'right') {
+    edit(() => {
+      if (dir === 'left') page.push(page.shift()!);
+      else page.unshift(page.pop()!);
+    });
+    return;
+  }
+  const d = dir === 'up' ? 12 : -12;
+  const notes = page.flatMap((s) => s.notes);
+  // Нота за пределами 0…127 — сдвига нет (иначе аккорды сплющились бы).
+  if (!notes.length || notes.some((n) => n + d < 0 || n + d > 127)) return;
+  edit(() => { for (const s of page) s.notes = s.notes.map((n) => n + d); });
+}
+
 export function deletePage(i: number) {
   const t = curSeq();
   if (t.pages.length <= 1) return;
