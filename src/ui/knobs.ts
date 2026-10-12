@@ -264,9 +264,10 @@ function onDown(slot: number, e: PointerEvent) {
   const param = gridFor(mode)[slot];
   if (!param) { onHiddenDown(slot, e); return; }
   e.preventDefault();
-  // SHIFT + тап по ручке дорожки — снять все p-lock дорожки (отмена — UNDO); ручка не крутится.
+  // SHIFT + двойной тап по ручке дорожки — снять все p-lock дорожки (отмена — UNDO); с SHIFT ручка не крутится.
   if (ui.held.shift && mode === 'track') {
-    clearTrackLocks(ui.selectedTrack);
+    const t = performance.now();
+    if (t - lastTap[slot] < DOUBLE_TAP_MS) { lastTap[slot] = -1e9; clearTrackLocks(ui.selectedTrack); } else lastTap[slot] = t;
     return;
   }
   (e.currentTarget as Element).setPointerCapture(e.pointerId);
