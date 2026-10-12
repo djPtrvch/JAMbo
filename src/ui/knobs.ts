@@ -19,8 +19,6 @@ import { DOUBLE_TAP_MS, h, setAttr, setClass, setText, svg } from './dom';
 const TRAVEL_PX = 240;
 /** Мёртвая зона, чтобы тап не сдвигал значение. */
 const DEAD_PX = 4;
-/** Удержание ручки громкости в MIX для переименования дорожки. */
-const RENAME_HOLD_MS = 500;
 
 // Геометрия дуги: от −135° до +135°.
 const START = -135;
@@ -285,12 +283,14 @@ function onDown(slot: number, e: PointerEvent) {
     if (kind === 'lock') clearLock(param);
     else if (kind === 'lfo') clearLfoAssign(param, g.lfo, mode);
     else if (trackKnob) {
-      // MIX: двойной тап по ручке громкости — COPY, PASTE (дорожку целиком) и DELETE TRACK
+      // MIX: двойной тап по ручке громкости — COPY, PASTE (дорожку целиком), DELETE TRACK и RENAME
       // (если дорожек больше 8; правые сдвигаются).
       openTrackMenu(views[slot].root, [
         ['COPY', () => copyTrack(slot)],
         ['PASTE', () => pasteTrack(slot), hasTrackClip()],
         ['DELETE TRACK', () => deleteTrack(slot), canDeleteTrack(slot)],
+        // Переименование дорожки — поле ввода у подписи под ручкой.
+        ['RENAME', () => openRename(slot, views[slot].label)],
       ]);
     }
     g.consumed = true;
@@ -305,17 +305,7 @@ function onDown(slot: number, e: PointerEvent) {
   gestures.set(e.pointerId, g);
   beginGesture();
 
-  // MIX: удержание подписи (имени) под ручкой громкости без движения — окно переименования.
-  const label = (e.target as Element).closest('.knob-label');
-  if (mode === 'mix' && slot < doc.tracks.length && label) {
-    const anchor = label;
-    g.holdTimer = window.setTimeout(() => {
-      if (!g.moved && gestures.get(e.pointerId) === g) {
-        g.consumed = true;
-        openRename(slot, anchor);
-      }
-    }, RENAME_HOLD_MS);
-  } else if (trackKnob && !g.consumed) {
+  if (trackKnob && !g.consumed) {
     // Удержание ручки громкости без движения — ручка поднимается, её тащат на место другой дорожки.
     g.holdTimer = window.setTimeout(() => {
       if (!g.moved && gestures.get(e.pointerId) === g && !g.consumed) {
