@@ -150,6 +150,8 @@ export interface Doc {
   arrEnd?: 'loop' | 'stop';
   /** Что делает «+» под строками: пустая строка или копии играющих паттернов (по умолчанию). */
   plusMode?: 'empty' | 'copy';
+  /** LOOP ROW: играющая строка повторяется бесконечно (повторы не считаются). */
+  rowLoop?: boolean;
   /** Эквалайзеры дорожек и мастера. */
   eqs: Eq[];
   masterEq: Eq;
@@ -294,7 +296,7 @@ export function makeDoc(): Doc {
   clipBypass: false,
   outVol: 0,
   chanSeqs: [newTrack(0, 'MIX'), newTrack(0, 'MST')],
-  scenes: Array.from({ length: PATTERN_SLOTS }, () => ({ name: '', repeats: 0 })),
+  scenes: Array.from({ length: PATTERN_SLOTS }, () => ({ name: '', repeats: 1 })),
   folders: Array.from({ length: TRACK_COUNT }, () => ({ items: [], index: -1 })),
   fxAssigns: {},
   eqs: Array.from({ length: TRACK_COUNT }, () => newEq()),
@@ -1645,6 +1647,10 @@ export function addSceneRow() {
   });
 }
 
+export function toggleRowLoop() {
+  edit(() => { doc.rowLoop = !doc.rowLoop; });
+}
+
 export function setPlusMode(m: 'empty' | 'copy') {
   edit(() => { doc.plusMode = m; });
 }
@@ -1692,7 +1698,7 @@ export function deleteRow(k: number) {
       setRows(t, rows, active);
     }
     doc.scenes.splice(k, 1);
-    doc.scenes.push({ name: '', repeats: 0 });
+    doc.scenes.push({ name: '', repeats: 1 });
     doc.rows = Math.max(1, n - 1);
     const st = doc.arrStart ?? 0;
     if (st > k || st >= doc.rows) doc.arrStart = Math.max(0, st - 1);
@@ -1737,7 +1743,7 @@ export const sceneName = (k: number) => doc.scenes[k].name || String(k + 1);
 /** Имя и число повторов строки (меню по удержанию ячейки сцены). */
 export function setScene(k: number, name: string, repeats: number) {
   edit(() => {
-    doc.scenes[k] = { name: name.trim().slice(0, 12), repeats: Math.max(0, Math.min(64, Math.round(repeats))) };
+    doc.scenes[k] = { name: name.trim().slice(0, 12), repeats: Math.max(1, Math.min(64, Math.round(repeats))) };
   });
 }
 
@@ -1780,7 +1786,8 @@ export function normalizeDoc(raw: unknown): Doc {
     return t;
   });
   d.chanSeqs = base.chanSeqs.map((b, k) => ({ ...b, ...(d.chanSeqs?.[k] ?? {}) }));
-  d.scenes = base.scenes.map((b, k) => d.scenes?.[k] ?? b);
+  // Повторов строки не меньше 1 (прежнее ∞ — теперь кнопка LOOP ROW в меню сетки).
+  d.scenes = base.scenes.map((b, k) => { const s = d.scenes?.[k] ?? b; return { ...s, repeats: Math.max(1, s.repeats) }; });
   d.folders = Array.from({ length: count }, (_, k) => d.folders?.[k] ?? { items: [], index: -1 });
   d.eqs = Array.from({ length: count }, (_, k) => d.eqs?.[k] ?? newEq());
   for (const key of ['fx', 'mixer', 'master'] as const) d[key] = { ...base[key], ...d[key] };

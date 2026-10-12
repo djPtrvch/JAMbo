@@ -132,7 +132,7 @@ function playStep(time: number) {
   if (rt.sceneQueued !== null && tick % 16 === 0) startScene(rt.sceneQueued, tick);
   else if (rt.scene) {
     const reps = doc.scenes[rt.scene.row].repeats;
-    if (reps > 0 && tick - rt.scene.start >= reps * rt.scene.len) {
+    if (reps > 0 && !doc.rowLoop && tick - rt.scene.start >= reps * rt.scene.len) {
       const n = nextScene(rt.scene.row);
       if (n !== null) startScene(n, tick);
       // Строки кончились: STOP — останавливается всё (и дорожки, запущенные по отдельности),

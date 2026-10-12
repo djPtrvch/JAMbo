@@ -13,7 +13,7 @@
 import { MAX_TRACKS, PATTERN_SLOTS, STEPS_PER_PAGE } from '../params';
 import {
   crossfade, inTransition, isPrevPlaceholder, rowFilled, sceneName, setCrossfade, setScene, transitionMoves,
-  addSceneRow, canAddRow, copyRow, deleteRow, duplicateRow, pasteRow, setArrangement, setPlusMode, visibleRows,
+  addSceneRow, canAddRow, copyRow, deleteRow, duplicateRow, pasteRow, setArrangement, setPlusMode, toggleRowLoop, visibleRows,
   copyPattern, createPattern, dropPattern, deletePattern, doc, duplicatePattern, freeSlotAfter, hasLocks, pastePattern,
   playRange, rt, selectTrack, slotFilled, ui, type Pattern,
 } from '../state';
@@ -46,7 +46,7 @@ function buildSceneMenu() {
   sceneInput.maxLength = 12;
   sceneInput.placeholder = 'name';
   const row = h('div', 'scene-reps-row');
-  const minus = popupButton('−', () => { sceneRepsValue = Math.max(0, sceneRepsValue - 1); showReps(); });
+  const minus = popupButton('−', () => { sceneRepsValue = Math.max(1, sceneRepsValue - 1); showReps(); });
   const plus = popupButton('+', () => { sceneRepsValue = Math.min(64, sceneRepsValue + 1); showReps(); });
   sceneReps = h('div', 'scene-reps');
   row.append(h('div', 'scene-reps-label', 'REPEATS'), minus, sceneReps, plus);
@@ -190,8 +190,21 @@ let arrBtn: HTMLElement;
 function openSpan(p: Popup, anchor: Element, from: Element, to: Element) {
   const l = from.getBoundingClientRect().left;
   const r = to.getBoundingClientRect().right;
+  p.box.style.maxHeight = '';
   p.openAt(anchor, r - l);
   p.box.style.left = `${l}px`;
+  // По высоте — между верхом сетки и строкой дорожек (их не перекрывает); что не помещается —
+  // прокрутка. Под ячейкой, если там хватает места (или его там больше), иначе над ней.
+  const a = anchor.getBoundingClientRect();
+  const top = sceneCells[0].root.getBoundingClientRect().top;
+  const bottom = (document.querySelector('.tracks')?.getBoundingClientRect().top ?? window.innerHeight) - 6;
+  const below = bottom - (a.bottom + 6);
+  const above = a.top - 6 - top;
+  const hgt = p.box.scrollHeight;
+  const down = hgt <= below || below >= above;
+  const room = down ? below : above;
+  p.box.style.maxHeight = `${room}px`;
+  p.box.style.top = `${down ? a.bottom + 6 : a.top - 6 - Math.min(hgt, room)}px`;
 }
 let arrMenu: Popup;
 
@@ -230,13 +243,20 @@ function openArrangeMenu() {
     b.classList.toggle('current', v === end);
     endRow.append(b);
   }
+  // LOOP ROW — играющая строка повторяется бесконечно.
+  const loop = popupButton('LOOP ROW', () => { toggleRowLoop(); openArrangeMenu(); });
+  loop.classList.toggle('current', !!doc.rowLoop);
+  loop.classList.add('arrange-loop');
+  const scroll = arrMenu.isOpen() ? arrMenu.box.scrollTop : 0;
   arrMenu.box.replaceChildren(
+    loop,
     h('div', 'popup-title', 'START FROM ROW'), startRow,
     h('div', 'popup-title', 'AT THE END'), endRow,
     h('div', 'popup-title', '+ ADDS'), plusRow,
   );
   // Меню сетки — от левого края последней дорожки до правого края бутерброда.
   openSpan(arrMenu, arrBtn, cells[doc.tracks.length - 1][0].root, arrBtn);
+  arrMenu.box.scrollTop = scroll;
 }
 
 // ---------- Кроссфейдер перехода между проектами (справа от сетки, над MST) ----------
@@ -459,7 +479,7 @@ export function renderPatternGrid() {
     const playing = rt.scene?.row === k && ui.playing;
     setText(c.name, sceneName(k));
     // Повторы: у играющей строки — номер прохода.
-    setText(c.reps, playing && prog && sc.repeats > 0 ? `${Math.min(prog.pass + 1, sc.repeats)}/${sc.repeats}` : fmtReps(sc.repeats));
+    setText(c.reps, playing && doc.rowLoop ? '∞' : playing && prog && sc.repeats > 0 ? `${Math.min(prog.pass + 1, sc.repeats)}/${sc.repeats}` : fmtReps(sc.repeats));
     setClass(c.root, 'filled', rowFilled(k));
     setClass(c.root, 'active', rt.scene?.row === k);
     setClass(c.root, 'queued', rt.sceneQueued === k);

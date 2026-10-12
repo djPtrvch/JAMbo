@@ -986,3 +986,7 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 .arrange-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
 .scene-acts .popup-btn { min-width: 0; padding-left: 0; padding-right: 0; }
 .arrange-row .popup-btn { min-width: 0; }
+/* Меню строки и сетки: не заходят на строку дорожек, лишнее прокручивается. */
+.popup-box.scene-menu, .popup-box.arrange-menu { overflow-y: auto; touch-action: pan-y; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.arrange-loop { width: 100%; }
+.popup-box.scene-menu > *, .popup-box.arrange-menu > * { flex-shrink: 0; }
