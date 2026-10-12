@@ -16,7 +16,7 @@
 // Измерители уровня стоят на выходе каждой дорожки и в мастере (вход компрессора, вход и выход
 // лимитера): пиковый уровень по каналам и громкость в LUFS (K-взвешивание, окно ~400 мс).
 
-import { DELAY_DIVS, isAuto, OVER_PEAK, SYNTH_ENGINES, synthEngine, PARAM_BY_ID, RATIOS, VOL_DEF_DB, volGain, SAMPLE_ROOT, MAX_TRACKS, filterFreq, fromNorm } from '../params';
+import { DELAY_DIVS, isAuto, OVER_PEAK, DRUM_ENGINE, SYNTH_ENGINES, synthEngine, PARAM_BY_ID, RATIOS, VOL_DEF_DB, volGain, SAMPLE_ROOT, MAX_TRACKS, filterFreq, fromNorm } from '../params';
 import { audible, addSamplesQuiet, addSamplesToFolder, doc, setStepSound, triggerEnv, liveFx, liveMaster, liveMixer, modulatedNorm, ui } from '../state';
 import { detectRoot } from './pitch';
 import { encodeWav } from './wav';
@@ -114,6 +114,8 @@ const decayNorm = (ms: number) => Math.sqrt(Math.min(1, Math.max(0, ms / 4000)))
 function synthParams(engine: number, v: (id: string) => number) {
   const harmonics = v('harm') / 100;
   const timbre = v('timbre') / 100;
+  // DRUM: Sweep, Tone, Drive — как есть, затухание — постоянная времени из Decay (мс).
+  if (engine === DRUM_ENGINE) return { harmonics, timbre, morph: v('morph') / 100, aux: 0, decay: v('decay') };
   if (SYNTH_ENGINES[engine].decay) return { harmonics, timbre, morph: decayNorm(v('decay')), aux: v('morph') / 100 };
   return { harmonics, timbre, morph: v('morph') / 100, aux: 0 };
 }

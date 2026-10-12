@@ -162,7 +162,12 @@ export const SYNTH_ENGINES: SynthEngine[] = [
   { name: 'KICK', full: 'Analog bass drum', bank: 'drum', decay: true, harm: 'attack & overdrive', timbre: 'brightness', morph: 'OUT→AUX' },
   { name: 'SNARE', full: 'Analog snare', bank: 'drum', decay: true, harm: 'harmonics↔noise', timbre: 'mode balance', morph: 'OUT→AUX' },
   { name: 'HI-HAT', full: 'Analog hi-hat', bank: 'drum', decay: true, harm: 'metal↔noise', timbre: 'HPF cutoff', morph: 'OUT→AUX' },
+  // Свой движок (не Plaits, считается в том же AudioWorklet): синус со свипом высоты + шум через
+  // полосовой фильтр + клик → мягкий клиппер; затухает сам (Decay).
+  { name: 'DRUM', full: 'Drum', bank: 'drum', decay: true, harm: 'sweep', timbre: 'tone', morph: 'drive' },
 ];
+/** Номер движка DRUM (не Plaits: ручка 1.3 — Drive, а не OUT→AUX). */
+export const DRUM_ENGINE = 16;
 
 /** Параметры звука, которые сохраняются в пресете синта (вместе с движком). */
 export const PRESET_PARAMS = ['harm', 'timbre', 'morph', 'level', 'attack', 'decay', 'filter', 'reso'];

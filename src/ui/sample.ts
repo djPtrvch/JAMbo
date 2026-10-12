@@ -13,7 +13,7 @@ import {
   type Level, samplePeaks,
   sampleRoot, trackLevel,
 } from '../audio/engine';
-import { LFO_WAVES, MAX_TRACKS, OVER_PEAK, SYNTH_ENGINES, noteName, synthEngine, synthGrid, synthKey } from '../params';
+import { DRUM_ENGINE, LFO_WAVES, MAX_TRACKS, OVER_PEAK, SYNTH_ENGINES, noteName, synthEngine, synthGrid, synthKey } from '../params';
 import { levelFrac } from './meter';
 import { makePopup, popupButton } from './popup';
 import { audible, doc, heldStepSound, setStepSound, folderItemName, folderPos, stepFolder, stepFolderOnSteps, setTrackSynth, envAt, envShape, liveParams, lfoShape, lfoShaped, rt, sampleName, selTrack, ui } from '../state';
@@ -407,7 +407,7 @@ function renderWave() {
   const ch = t.sample ? (sampleIsStereo(t.sample) ? 'ST' : 'M') : '';
   const preset = stepSound ? '' : folderItemName(ui.selectedTrack);
   // У синта — две строки: движок, под ним имя пресета.
-  setText(waveTitle, engine !== null ? `MI · ${SYNTH_ENGINES[engine].name}${preset ? `\n${preset}` : ''}`
+  setText(waveTitle, engine !== null ? `${engine === DRUM_ENGINE ? '' : 'MI · '}${SYNTH_ENGINES[engine].name}${preset ? `\n${preset}` : ''}`
     : t.sample ? `${sampleName(t.sample)} · ${root !== null ? noteName(root) : '—'} · ${ch}` : sampleName(t.sample));
   // Пока звук не включён — подсказка с состоянием (помогает понять, почему тихо).
   const state = audioState();
