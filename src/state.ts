@@ -1339,6 +1339,20 @@ export function recordNotes(trackIndex: number, index: number, notes: number[], 
   // Дубль начинается с первой ноты, которая что-то изменила (появилась запись в UNDO).
   recTake = undoSerial !== before ? undoSerial : -1;
 }
+/**
+ * Запись с REC: отпустили клавишу — длина записанной ноты по времени удержания (в шагах, не меньше 1,
+ * не дальше конца паттерна). В том же дубле — без новой записи в UNDO.
+ */
+export function recordLength(trackIndex: number, index: number, len: number) {
+  const write = () => {
+    const t = doc.tracks[trackIndex];
+    const s = t && stepAt(t, index);
+    if (!s || !s.on) return;
+    s.len = Math.max(s.len, Math.min(len, t.length - index));
+  };
+  if (recTake >= 0 && recTake === undoSerial) { write(); return; }
+  edit(write);
+}
 export function setRoot(v: number) { doc.root = ((Math.round(v) % NOTE_NAMES.length) + NOTE_NAMES.length) % NOTE_NAMES.length; }
 
 

@@ -6,6 +6,7 @@
 //   { type: 'note', slot, frame, end, engine, note, harmonics, timbre, morph, aux, accent }
 //     — в кадре frame голос запускается (триггер), после кадра end молчит и не считается;
 //   { type: 'mod', slot, note, harmonics, timbre, morph, aux } — модуляция звучащего голоса (сразу);
+//   { type: 'end', id, slot, end } — новый конец ноты id (отпустили живую ноту; у note тоже есть id);
 //   { type: 'stop', slot, frame } — с кадра frame голос слота молчит (слот занял голос другого семейства
 //     движков — свои движки JAMbo, jambo-synth-worklet.js).
 // Голос, который затих сам (ударные, STRING, MODAL), перестаёт считаться раньше end.
@@ -29,6 +30,7 @@ class PlaitsProcessor extends AudioWorkletProcessor {
     this.slots = slots;
     this.pending = Array.from({ length: slots }, () => []);
     this.end = new Float64Array(slots);
+    this.id = new Float64Array(slots);
     this.start0 = new Float64Array(slots);
     this.quiet = new Float64Array(slots);
     this.engine = new Int32Array(slots);
@@ -41,6 +43,10 @@ class PlaitsProcessor extends AudioWorkletProcessor {
           const q = this.pending[ev.slot];
           q.push(ev);
           q.sort((a, b) => a.frame - b.frame);
+        } else if (ev.type === 'end') {
+          // Новый конец ноты id (отпустили живую ноту): звучащей или ещё ждущей в очереди.
+          if (this.id[ev.slot] === ev.id) this.end[ev.slot] = ev.end;
+          for (const p of this.pending[ev.slot]) if (p.id === ev.id) p.end = ev.end;
         } else if (ev.type === 'mod') {
           this.w.set(ev.slot, this.engine[ev.slot], ev.note + this.noteShift, ev.harmonics, ev.timbre, ev.morph, 0.8, ev.aux);
         }
@@ -52,6 +58,7 @@ class PlaitsProcessor extends AudioWorkletProcessor {
     if (ev.type === 'stop') { this.end[slot] = Math.min(this.end[slot], ev.frame); return; }
     this.engine[slot] = ev.engine;
     this.end[slot] = ev.end;
+    this.id[slot] = ev.id ?? 0;
     this.start0[slot] = ev.frame;
     this.quiet[slot] = 0;
     this.w.set(slot, ev.engine, ev.note + this.noteShift, ev.harmonics, ev.timbre, ev.morph, ev.accent, ev.aux);

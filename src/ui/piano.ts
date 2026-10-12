@@ -7,12 +7,12 @@
 // с REC во время проигрывания — записывает ноты в реальном времени.
 
 import { PROGRESSIONS, SCALES, noteName } from '../params';
-import { releaseEnv,
+import { recordLength, releaseEnv,
   chordName, chordOnDegree, doc, heldStepNotes, inputNotes, isRoot, pressedNotes, recordNotes, rt, scaleNotes,
   setOctave, setProgression, ui,
 } from '../state';
-import { playNow, unlockAudio } from '../audio/engine';
-import { recStep } from '../transport';
+import { playNow, releaseLive, unlockAudio } from '../audio/engine';
+import { recLength, recStep } from '../transport';
 import { h, setClass, setText } from './dom';
 import { makePopup, popupButton, type Popup } from './popup';
 import { saveSettings, settings } from '../settings';
@@ -40,7 +40,7 @@ const keyCount = () => Math.min(MAX_KEYS, SCALES[doc.scale].steps.length * 2 + 1
  * Нажатие ноты/аккорда: запись, редактирование шага или выбор (и ноты с MIDI-входов).
  * track — дорожка для нот с MIDI по каналам (без неё — выбранная).
  */
-export function press(notes: number[], track: number | null = null, held = false, velocity = 1) {
+export function press(notes: number[], track: number | null = null, held = false, velocity = 1): { track: number; index: number } | null {
   const ti = track ?? ui.selectedTrack;
   // Живой наигрыш: нота сразу звучит звуком выбранной дорожки (с VELOCITY — с силой нажатия).
   unlockAudio();
@@ -51,10 +51,14 @@ export function press(notes: number[], track: number | null = null, held = false
     if (at) recordNotes(ti, at.index, notes, at.merge, settings.velocity ? velocity : undefined);
     rt.flashUntil[ti] = now + 90;
     rt.noteFlash[ti] = { notes, until: now + 200 };
-    return;
+    return at ? { track: ti, index: at.index } : null;
   }
   if (ti === ui.selectedTrack) inputNotes();
+  return null;
 }
+
+/** Зажатые клавиши: дорожка, ноты и записанный с REC шаг (длина — при отпускании). */
+const keyHolds = new Map<number, { track: number; notes: number[]; rec: { track: number; index: number } | null; t0: number }>();
 
 /**
  * Сила нажатия клавиши (0.2…1) при включённом VELOCITY: Apple Pencil — по давлению; палец (сила
@@ -107,11 +111,20 @@ function pressHandlers(el: HTMLElement, notes: () => number[]) {
     e.preventDefault();
     const n = notes();
     ui.pressedKeys.set(e.pointerId, n);
-    press(n, null, true, touchVelocity(el, e));
+    const track = ui.selectedTrack;
+    const rec = press(n, null, true, touchVelocity(el, e));
+    keyHolds.set(e.pointerId, { track, notes: n, rec, t0: performance.now() });
   });
-  // Отпущена последняя клавиша — у ENV начинается Release.
+  // Отпущена клавиша — её ноты гаснут (Decay); последняя — у ENV начинается Release.
+  // С REC длина записанной ноты — по времени удержания.
   const up = (e: PointerEvent) => {
     if (!ui.pressedKeys.delete(e.pointerId)) return;
+    const k = keyHolds.get(e.pointerId);
+    keyHolds.delete(e.pointerId);
+    if (k) {
+      releaseLive(k.track, k.notes);
+      if (k.rec) recordLength(k.rec.track, k.rec.index, recLength(performance.now() - k.t0));
+    }
     if (ui.pressedKeys.size === 0) releaseEnv(ui.selectedTrack);
   };
   el.addEventListener('pointerup', up);

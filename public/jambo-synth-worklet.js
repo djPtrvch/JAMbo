@@ -8,6 +8,7 @@
 //     — в кадре frame голос запускается, после кадра end молчит и не считается;
 //     p1, p2, p3 — ручки 1.1–1.3 (0..1), decay — ручка Decay (мс);
 //   { type: 'mod', slot, note, p1, p2, p3, decay } — модуляция звучащего голоса (сразу, со сглаживанием);
+//   { type: 'end', id, slot, end } — новый конец ноты id (отпустили живую ноту; у note тоже есть id);
 //   { type: 'stop', slot, frame } — с кадра frame голос слота молчит (слот занял голос Plaits);
 //   { type: 'table', frames, levels: [{ size, data }] } — таблица WTABLE дорожки: frames кадров,
 //     мипмапы по октавам (уровень L — гармоники до 1024 >> L, data — frames × size отсчётов).
@@ -410,6 +411,7 @@ class JamboProcessor extends AudioWorkletProcessor {
     this.voices = Array.from({ length: slots }, () => new Voice());
     this.pending = Array.from({ length: slots }, () => []);
     this.end = new Float64Array(slots);
+    this.id = new Float64Array(slots);
     this.start0 = new Float64Array(slots);
     this.quiet = new Float64Array(slots);
     this.table = null;
@@ -423,6 +425,10 @@ class JamboProcessor extends AudioWorkletProcessor {
           const q = this.pending[ev.slot];
           q.push(ev);
           q.sort((a, b) => a.frame - b.frame);
+        } else if (ev.type === 'end') {
+          // Новый конец ноты id (отпустили живую ноту): звучащей или ещё ждущей в очереди.
+          if (this.id[ev.slot] === ev.id) this.end[ev.slot] = ev.end;
+          for (const p of this.pending[ev.slot]) if (p.id === ev.id) p.end = ev.end;
         } else if (ev.type === 'mod') {
           this.voices[ev.slot].set(ev);
         }
@@ -433,6 +439,7 @@ class JamboProcessor extends AudioWorkletProcessor {
   start(slot, ev) {
     if (ev.type === 'stop') { this.end[slot] = Math.min(this.end[slot], ev.frame); return; }
     this.end[slot] = ev.end;
+    this.id[slot] = ev.id ?? 0;
     this.start0[slot] = ev.frame;
     this.quiet[slot] = 0;
     this.voices[slot].trigger(ev);

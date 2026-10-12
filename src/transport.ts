@@ -170,7 +170,8 @@ function playStep(time: number) {
       // ENV запускается в момент ноты (запланирован заранее, как и сама нота): начальные
       // значения ноты берут ENV на этот момент, а не хвост предыдущей.
       triggerEnv(i, at, noteDur);
-      triggerTrack(i, at, s.notes, s.locks, s.sound);
+      // Нота длиной от 2 шагов держит уровень до своего конца (Decay — после); в 1 шаг — как раньше.
+      triggerTrack(i, at, s.notes, s.locks, s.sound, ratchet === 1 && s.len >= 2 ? noteDur / 1000 : undefined);
       if (audible(i)) flashes.push({ time: at, track: i, dur: Math.min(90, sub * 0.6), notes: s.notes, noteDur });
     }
   });
@@ -212,6 +213,9 @@ export function updateTransport(now: number) {
  * merge = нажатие попало на тот же шаг, что и предыдущее (аккорд пальцами).
  */
 let lastRec = { track: -1, tick: -1 };
+/** Длина записанной ноты в шагах по времени удержания клавиши (округление до шага, не меньше 1). */
+export const recLength = (ms: number) => Math.max(1, Math.round(ms / stepMs()));
+
 export function recStep(trackIndex: number, now: number): { index: number; merge: boolean } | null {
   if (!ui.playing) return null;
   const k = Math.max(0, tick + Math.round((now - nextTime) / stepMs()));
