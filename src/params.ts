@@ -100,7 +100,8 @@ export const TRACK_GRID: Slot[] = grid([
     smooth('pitch', 'Pitch', -24, 24, 0, (v) => `${v > 0 ? '+' : ''}${v.toFixed(1)}st`, { alt: 'Harmonics', bipolar: true }),
     smooth('start', 'Start', 0, 100, 0, pct, { alt: 'Timbre' }),
     smooth('end', 'End', 0, 100, 100, pct, { alt: 'Morph' }),
-    smooth('level', 'Level', 0, 127, 100, (v) => `${Math.round(v)}`),
+    // Level: на ручке — проценты (100% — максимум и значение по умолчанию); хранится 0…127, как прежде.
+    smooth('level', 'Level', 0, 127, 127, (v) => `${Math.round((v / 127) * 100)}%`),
   ],
   [
     smooth('attack', 'Attack', 0, 2000, 0, ms, { curve: 3 }),

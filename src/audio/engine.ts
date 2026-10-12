@@ -1204,7 +1204,10 @@ export function resetPeak(ch: number | 'master') {
 export function trackIsStereo(i: number): boolean {
   const t = doc.tracks[i];
   const buf = buffers.get(t.sample);
-  return (buf?.numberOfChannels ?? 1) > 1 || Math.abs(t.params.pan) >= 1;
+  if ((buf?.numberOfChannels ?? 1) > 1 || Math.abs(t.params.pan) >= 1) return true;
+  // Панораму двигают LFO/ENV или p-lock шагов — сигнал тоже стерео (L и R различаются).
+  if (Math.abs(t.assigns.pan?.amount ?? 0) > 0) return true;
+  return t.pages.some((pg) => pg.some((s) => s && Math.abs(s.locks.pan ?? 0) >= 1));
 }
 
 /** Определённая высота сэмпла (MIDI) или null. */
