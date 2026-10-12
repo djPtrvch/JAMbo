@@ -405,12 +405,19 @@ export function endGesture() {
   if (--gestureDepth === 0 && snapshot() !== gestureSnapshot) pushUndo(gestureSnapshot);
 }
 
+/** Вернуть проект к снимку; необязательные поля, которых в снимке нет, убираются. */
+function restoreDoc(snap: string) {
+  const d = JSON.parse(snap) as Doc;
+  for (const k of Object.keys(doc) as (keyof Doc)[]) if (!(k in d)) delete doc[k];
+  Object.assign(doc, d);
+}
+
 export function undo() {
   const snap = undoStack.pop();
   if (!snap) return;
   undoSerial++;
   redoStack.push(snapshot());
-  Object.assign(doc, JSON.parse(snap) as Doc);
+  restoreDoc(snap);
   clampView();
   gateHook();
 }
@@ -421,7 +428,7 @@ export function redo() {
   if (!snap) return;
   undoSerial++;
   undoStack.push(snapshot());
-  Object.assign(doc, JSON.parse(snap) as Doc);
+  restoreDoc(snap);
   clampView();
   gateHook();
 }

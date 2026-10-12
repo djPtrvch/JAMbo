@@ -98,6 +98,8 @@ export function buildTransportButtons(): HTMLElement {
     if (ui.held.track) { morphUsed = true; undoTrackEdits(); } else undo();
   });
   redoBtn = tapButton('REDO', redo);
+  undoBtn.classList.add('popup-pass');
+  redoBtn.classList.add('popup-pass');
   el.append(playBtn, recBtn, undoBtn, redoBtn);
   return el;
 }

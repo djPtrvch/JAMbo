@@ -42,7 +42,13 @@ export function makePopup(cls = ''): Popup {
     isOpen: () => !root.classList.contains('hidden'),
   };
   // Тап мимо окна закрывает его.
-  root.addEventListener('pointerdown', (e) => { if (e.target === root) p.close(); });
+  // UNDO и REDO работают и при открытом окне: касание по ним закрывает окно и передаётся кнопке.
+  root.addEventListener('pointerdown', (e) => {
+    if (e.target !== root) return;
+    p.close();
+    const btn = document.elementFromPoint(e.clientX, e.clientY)?.closest('.popup-pass');
+    if (btn) btn.dispatchEvent(new PointerEvent('pointerdown', e));
+  });
   return p;
 }
 
