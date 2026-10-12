@@ -101,6 +101,9 @@ export function buildTransportButtons(): HTMLElement {
     if (ui.held.track) { morphUsed = true; undoTrackEdits(); } else undo();
   });
   redoBtn = tapButton('REDO', redo);
+  // UNDO и REDO — значки: закруглённая стрелка влево (отмена) и вправо (повтор).
+  undoBtn.innerHTML = '<svg class="tr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>';
+  redoBtn.innerHTML = '<svg class="tr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>';
   undoBtn.classList.add('popup-pass');
   redoBtn.classList.add('popup-pass');
   playBtn.classList.add('tb-play');
