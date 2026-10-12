@@ -71,6 +71,11 @@ function endReorder(d: Drag, y: number) {
 const MOVE_PX = 8;
 /** Зона края обводки (доля высоты страницы с каждой стороны границы). */
 const EDGE_ZONE = 0.4;
+/**
+ * Удержание у самой границы обводки (ближе этой доли высоты страницы) — край остаётся за пальцем
+ * (не перенос страницы): палец часто замирает, прежде чем тянуть край.
+ */
+const EDGE_HOLD = 0.25;
 /** Страница добавляется (или убирается), когда край зашёл в неё на эту долю высоты. */
 const SNAP = 0.3;
 
@@ -132,6 +137,8 @@ export function buildPages(): HTMLElement {
       const mode = Math.abs(pos - t.playFrom) <= EDGE_ZONE ? 'top'
         : Math.abs(pos - (t.playTo + 1)) <= EDGE_ZONE ? 'bottom'
           : pos > t.playFrom && pos < t.playTo + 1 ? 'move' : 'new';
+      const nearEdge = (mode === 'top' && Math.abs(pos - t.playFrom) <= EDGE_HOLD)
+        || (mode === 'bottom' && Math.abs(pos - (t.playTo + 1)) <= EDGE_HOLD);
       drag = {
         id: e.pointerId, y0: e.clientY, from: i, mode, held: false, moved: false, range: null,
         f: t.playFrom, t: t.playTo, n: t.pages.length,
@@ -140,6 +147,8 @@ export function buildPages(): HTMLElement {
         timer: window.setTimeout(() => {
           if (!drag || drag.moved) return;
           drag.held = true;
+          // У самой границы обводки удержание — открыть страницу, а протягивание потом — край.
+          if (nearEdge) { ui.viewPage = i; return; }
           drag.mode = 'reorder';
           ui.viewPage = i;
           if (drag.n < 2) return;
