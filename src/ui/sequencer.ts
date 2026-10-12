@@ -121,12 +121,12 @@ export function renderSequencer() {
     const s = stepAt(t, index);
     const on = !!s?.on;
     setClass(cell, 'on', on);
-    // Жёлтый — p-lock, поставленные вручную; свой звук шага (сэмпл, пресет) — красная обводка.
+    // Жёлтый — p-lock, поставленные вручную; свой звук шага (сэмпл, пресет) — жёлтая обводка.
     setClass(cell, 'plock', on && hasManualLocks(s!));
     // P-lock без ноты — жёлтая обводка.
     setClass(cell, 'lock-only', !on && !!s && hasLocks(s));
     setClass(cell, 'tail', !on && tail.has(index));
-    // Свой звук шага (другой сэмпл или пресет, движок) — красная обводка.
+    // Свой звук шага (другой сэмпл или пресет, движок) — жёлтая обводка.
     setClass(cell, 'own-sound', on && !!s!.sound);
     setText(labels[col], on ? (s!.notes.length > 1 ? 'POLY' : s!.notes.length === 1 ? noteName(s!.notes[0]) : '') : '');
     setClass(cell, 'held', heldIdx.has(index));
