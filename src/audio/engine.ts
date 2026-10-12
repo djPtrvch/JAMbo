@@ -296,6 +296,7 @@ export async function restartAudio() {
   voices.length = 0;
   synths.fill(null);
   synthCpu.fill(0);
+  preview = null;
   wasmBytes = null;
   jamboReady = false;
   scopePre = scopePost = null;
@@ -377,6 +378,7 @@ export const audioState = (): string => (ctx ? ctx.state : 'none');
 function buildGraph(c: AudioContext) {
   // Мастер.
   const masterIn = c.createGain();
+  masterInput = masterIn;
   // Сатуратор (saturator-worklet.js) встаёт между satIn и glueIn, компрессор «glue» (glue-worklet.js) —
   // между glueIn и clipIn, клиппер (clipper-worklet.js) —
   // между clipIn и limIn, лимитер (limiter-worklet.js) — между limIn и громкостью выхода, когда
@@ -1056,6 +1058,55 @@ export async function importAudioFiles(files: File[]): Promise<{ key: string; na
 }
 
 /** Сэмпл из библиотеки: загрузить из хранилища, имя и высота — в проект. false — сэмпла нет. */
+// ---------- Предпрослушка в браузере библиотеки ----------
+
+/** Вход мастера (сюда идёт предпрослушка сэмпла). */
+let masterInput: GainNode | null = null;
+let preview: { src: AudioBufferSourceNode; gain: GainNode } | null = null;
+/** Громкость предпрослушки сэмпла (−3 dB). */
+const PREVIEW_GAIN = 0.7;
+
+/** Остановить предпрослушку сэмпла (быстрое затухание, без щелчка). */
+export function stopPreview() {
+  if (!preview || !ctx) return;
+  const { src, gain } = preview;
+  preview = null;
+  gain.gain.setTargetAtTime(0, ctx.currentTime, 0.005);
+  try { src.stop(ctx.currentTime + 0.05); } catch { /* уже остановлен */ }
+}
+
+/**
+ * Предпрослушка сэмпла: целиком, в исходной высоте, сразу в мастер (не зависит от ручек дорожки,
+ * mute и solo). Новая предпрослушка обрывает прошлую.
+ */
+export async function previewSample(key: string) {
+  const c = ensureCtx();
+  unlockAudio();
+  await ensureSamples([key]);
+  const buf = buffers.get(key);
+  if (!buf || !masterInput || ctx !== c) return;
+  stopPreview();
+  const src = c.createBufferSource();
+  src.buffer = buf;
+  const gain = c.createGain();
+  gain.gain.value = PREVIEW_GAIN;
+  src.connect(gain).connect(masterInput);
+  src.onended = () => { src.disconnect(); gain.disconnect(); if (preview?.src === src) preview = null; };
+  src.start();
+  preview = { src, gain };
+}
+
+/**
+ * Предпрослушка пресета синта: одна нота через выбранную дорожку с движком и параметрами пресета
+ * (как звук шага; на дорожку пресет не ставится). Нота — выбранная в пианоролле, иначе C3.
+ */
+export function previewPreset(sound: string, params: Record<string, number>) {
+  ensureCtx();
+  unlockAudio();
+  stopPreview();
+  triggerTrack(ui.selectedTrack, performance.now(), [ui.selNotes[0] ?? SAMPLE_ROOT], { ...params }, sound);
+}
+
 export async function useLibrarySample(key: string, name: string): Promise<boolean> {
   await ensureSamples([key]);
   const buf = buffers.get(key);

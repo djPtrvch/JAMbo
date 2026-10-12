@@ -15,7 +15,7 @@
 // BUILT-IN TABLES (встроенные, всегда есть); IMPORT читает WAV как таблицу (размер кадра — из метки
 // Serum или выбором 256…2048 / AUTO); тап по таблице ставит её на дорожку.
 
-import { useLibrarySample } from '../audio/engine';
+import { previewPreset, previewSample, useLibrarySample } from '../audio/engine';
 import {
   BUILTIN_TABLES, FRAME_SIZES, MAX_TABLE_BYTES, autoFrameSize, builtinKey, framesFor, parseWav, userTableKey, type WavTable,
 } from '../audio/wavetable';
@@ -188,7 +188,19 @@ function libRow(n: LibNode): HTMLElement {
   const actsW = ACT_W * acts.children.length;
   const item = h('div', 'popup-btn project-item lib-item');
   const name = h('div', 'lib-name', `${iconFor(n)}  ${n.name}`);
-  item.append(name, h('div', 'lib-detail', `${detail(n)}${n.kind === 'folder' ? '  ›' : ''}`));
+  // Слева — столбец предпрослушки: ▶ у сэмпла и пресета (не загружает звук и не меняет выбор).
+  const play = h('div', 'lib-play', n.kind === 'sample' || n.kind === 'preset' ? '▶' : '');
+  if (play.textContent) {
+    for (const t of ['pointerdown', 'pointerup', 'pointercancel'] as const) play.addEventListener(t, (e) => e.stopPropagation());
+    play.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (n.kind === 'sample' && n.key) void previewSample(n.key).catch(fail('Preview'));
+      else if (n.kind === 'preset' && n.preset) previewPreset(n.preset.sound, n.preset.params);
+      play.classList.add('on');
+      window.setTimeout(() => play.classList.remove('on'), 200);
+    });
+  }
+  item.append(play, name, h('div', 'lib-detail', `${detail(n)}${n.kind === 'folder' ? '  ›' : ''}`));
   item.classList.toggle('system', !!n.system);
   item.classList.toggle('current', (mode.kind === 'load' || tableMode()) && !picked && isCurrent(n));
   item.classList.toggle('picked', !!picked?.has(n.id));
