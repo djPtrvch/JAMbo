@@ -113,10 +113,11 @@ export async function initProjects() {
   setInterval(() => { void autosave().catch((e) => console.error('autosave', e)); }, AUTOSAVE_MS);
 }
 
-/** Открыть сохранённый проект или Autosave из списка. */
-/** mix — MIX (переход), иначе LOAD (сразу). */
+/**
+ * Открыть сохранённый проект или Autosave из списка; mix — MIX (переход), иначе LOAD (сразу).
+ * Текущий проект открывается в том виде, в каком он сохранён кнопкой SAVE (несохранённое пропадает).
+ */
 export async function openProject(id: string, mix = false) {
-  if (id === project.id) return;
   const rec = await getProject(id);
   if (rec) await openRecord(rec, mix);
 }

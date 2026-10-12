@@ -342,6 +342,7 @@ function buildGraph(c: AudioContext) {
   const outVol = c.createGain();
   eq.output.connect(satIn).connect(glueIn).connect(clipIn).connect(limIn).connect(outVol).connect(c.destination);
   mSplit = mScopeL = mScopeR = null;
+  gSplit = gL = gR = null;
   mTap = null;
   mst = { eq, satIn, sat: null, glueIn, glue: null, clipIn, clip: null, limIn, lim: null, outVol, outMeter: new Meter(c, outVol, true) };
   satSig = '';
@@ -766,10 +767,29 @@ let mScopeL: AnalyserNode | null = null;
 let mScopeR: AnalyserNode | null = null;
 let mSplit: ChannelSplitterNode | null = null;
 let mTap: AudioNode | null = null;
+/** Гониометр — всегда конечный сигнал мастера (после громкости выхода). */
+let gSplit: ChannelSplitterNode | null = null;
+let gL: AnalyserNode | null = null;
+let gR: AnalyserNode | null = null;
 
-/** Точка съёма скопа: 0 после сатуратора, 1 компрессора, 2 клиппера, 3 лимитера; null — выключен. */
+/**
+ * Точка съёма осциллоскопа: 0 после сатуратора, 1 компрессора, 2 клиппера, 3 лимитера; null — скоп
+ * выключен. Гониометр подключён к конечному выходу мастера, пока скоп включён.
+ */
 export function setMasterScope(point: number | null) {
   if (!ctx || !mst) return;
+  if (point !== null && !gSplit) {
+    gSplit = ctx.createChannelSplitter(2);
+    gL = ctx.createAnalyser();
+    gR = ctx.createAnalyser();
+    for (const a of [gL, gR]) { a.fftSize = 4096; a.smoothingTimeConstant = 0; }
+    gSplit.connect(gL, 0);
+    gSplit.connect(gR, 1);
+    mst.outVol.connect(gSplit);
+  } else if (point === null && gSplit) {
+    mst.outVol.disconnect(gSplit);
+    gSplit = gL = gR = null;
+  }
   const nodes: (AudioNode | null)[] = [mst.glueIn, mst.clipIn, mst.limIn, mst.lim ?? mst.limIn];
   // Пока устройство не загружено, его выход — следующий вход (сигнал идёт мимо).
   const tap = point === null ? null : nodes[point];
@@ -792,6 +812,14 @@ export function masterScope(L: Float32Array<ArrayBuffer>, R: Float32Array<ArrayB
   if (!mTap || !mScopeL || !mScopeR) return false;
   mScopeL.getFloatTimeDomainData(L);
   mScopeR.getFloatTimeDomainData(R);
+  return true;
+}
+
+/** Конечный сигнал мастера для гониометра (L и R); false — скоп выключен. */
+export function masterGonio(L: Float32Array<ArrayBuffer>, R: Float32Array<ArrayBuffer>): boolean {
+  if (!gL || !gR) return false;
+  gL.getFloatTimeDomainData(L);
+  gR.getFloatTimeDomainData(R);
   return true;
 }
 

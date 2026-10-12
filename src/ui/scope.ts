@@ -1,10 +1,11 @@
-// Скоп мастера: при MST на месте миниатюр страниц. Сверху гониометр (стереобаза: точки L/R,
+// Скоп мастера: при MST на месте миниатюр страниц. Сверху гониометр (стереобаза конечного сигнала
+// мастера — после громкости выхода: точки L/R,
 // повёрнутые на 45° — вертикаль mid, горизонталь side, с послесвечением), под ним до кнопок
 // осциллоскоп как в Drambo (бегущая форма волны L+R за ~1 с, минимум и максимум окна).
-// Кнопки SAT, COMP, CLIP, LIM — точка съёма (после сатуратора, компрессора, клиппера или
+// Кнопки SAT, COMP, CLIP, LIM — точка съёма осциллоскопа (после сатуратора, компрессора, клиппера или
 // лимитера) — на месте MORPH, RANDOM, FX, MOD. Анализаторы работают, только пока скоп виден.
 
-import { masterScope, setMasterScope } from '../audio/engine';
+import { masterGonio, masterScope, setMasterScope } from '../audio/engine';
 import { ui } from '../state';
 import { h, setClass } from './dom';
 import { color } from './theme';
@@ -24,6 +25,9 @@ const btns: HTMLElement[] = [];
 let point = 3;
 const L = new Float32Array(4096);
 const R = new Float32Array(4096);
+/** Гониометр — конечный сигнал мастера. */
+const GL = new Float32Array(4096);
+const GR = new Float32Array(4096);
 
 export function buildScope(): HTMLElement {
   root = h('div', 'mscope hidden');
@@ -86,9 +90,9 @@ function drawGonio(ok: boolean) {
   if (!ok) return;
   g.fillStyle = color('--accent');
   g.globalAlpha = 0.55;
-  for (let i = 0; i < L.length; i += 2) {
-    const m = (L[i] + R[i]) * Math.SQRT1_2;
-    const s = (L[i] - R[i]) * Math.SQRT1_2;
+  for (let i = 0; i < GL.length; i += 2) {
+    const m = (GL[i] + GR[i]) * Math.SQRT1_2;
+    const s = (GL[i] - GR[i]) * Math.SQRT1_2;
     const x = cx + Math.max(-1.2, Math.min(1.2, s)) * r;
     const y = cy - Math.max(-1.2, Math.min(1.2, m)) * r;
     g.fillRect(x - 0.6, y - 0.6, 1.2, 1.2);
@@ -163,6 +167,6 @@ export function renderScope(sampleRate: number) {
   btns.forEach((b, i) => setClass(b, 'active', i === point));
   const ok = masterScope(L, R);
   if (!ok) { L.fill(0); R.fill(0); }
-  drawGonio(ok);
+  drawGonio(masterGonio(GL, GR));
   drawOsc(ok, sampleRate);
 }

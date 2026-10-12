@@ -82,8 +82,9 @@ let modeText: HTMLElement;
 let modeDone: (mix: boolean) => void = () => {};
 
 /** Спросить LOAD или MIX (окно рядом с anchor, поверх меню проектов). */
-function askMode(anchor: Element, done: (mix: boolean) => void, name = 'project') {
-  setText(modeText, `Open “${name}”`);
+function askMode(anchor: Element, done: (mix: boolean) => void, name = 'project', current = false) {
+  // Текущий проект открывается в сохранённом виде (кнопкой SAVE) — несохранённое пропадёт.
+  setText(modeText, current && unsaved() ? `Open saved “${name}”? Unsaved changes will be lost.` : `Open “${name}”`);
   modeDone = done;
   modePopup.openAt(anchor, 320);
 }
@@ -156,7 +157,7 @@ function projectRow(p: ProjectInfo): HTMLElement {
     if (Math.abs(dx) <= 6 && !cancel) {
       // Тап: открытая строка закрывается, закрытая — открывает проект.
       if (base) { row.classList.remove('open'); place(0); return; }
-      askMode(item, (mix) => { menu.close(); void openProject(p.id, mix).catch(fail('Open')); }, p.name);
+      askMode(item, (mix) => { menu.close(); void openProject(p.id, mix).catch(fail('Open')); }, p.name, p.id === project.id);
       return;
     }
     const open = x < -actW / 2;
