@@ -66,6 +66,9 @@ interface VBar {
   clipMark: HTMLElement; mark: HTMLElement; value: HTMLElement; label: HTMLElement; kind: BarKind;
 }
 const mixBars: VBar[] = [];
+/** Уже столбца (px) имя дорожки под метром в MIX не пишется — только номер. */
+const MIX_NAME_MIN = 18;
+let mixNarrow = false;
 
 /** Отметки шкалы в dB (как сетка на измерителях Ableton). */
 const TICKS = [-6, -12, -24, -48];
@@ -286,6 +289,11 @@ export function buildSample(): HTMLElement {
   mixPanel = h('div', 'master-panel mix-panel hidden');
   for (let i = 0; i < TRACK_COUNT; i++) mixBars.push(vbar(`T${i + 1}`, 'yellow', true));
   mixPanel.append(h('div', 'vbar-title', 'MIXER'), wrap(mixBars));
+  // Узкие столбцы (много дорожек): вместо имён — номера дорожек.
+  new ResizeObserver(() => {
+    const w = mixPanel.clientWidth;
+    if (w > 0) mixNarrow = w / mixBars.length < MIX_NAME_MIN;
+  }).observe(mixPanel);
 
   previews = h('div', 'mod-previews hidden');
   for (let k = 0; k < 4; k++) {
@@ -447,7 +455,7 @@ function renderMix(now: number) {
   mixBars.forEach((b, i) => {
     const t = doc.tracks[i];
     const lv = trackLevel(i, now);
-    setText(b.label, t.name);
+    setText(b.label, mixNarrow ? String(i + 1) : t.name);
     setClass(b.root, 'muted', !audible(i));
     setLevelBar(b, lv, trackIsStereo(i), '', null, trackDuckDb(i));
   });

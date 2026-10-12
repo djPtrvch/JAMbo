@@ -933,3 +933,11 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 
 /* Экран отладки (тройной тап по CPU). */
 .debug-panel { position: fixed; left: 50%; top: 60px; transform: translateX(-50%); z-index: 1000; padding: 14px 18px; border-radius: 8px; background: var(--panel); color: var(--ink); border: 1px solid var(--dim); font: 12px/1.5 ui-monospace, Menlo, monospace; white-space: pre; font-variant-numeric: tabular-nums; }
+
+/* MIX: полосы подстраиваются под ширину окна — при 16 дорожках и стерео всё помещается
+   (полоса до 9 px, зазоры ужимаются); окно не раздвигается. */
+.mix-panel { width: 100%; min-width: 0; overflow: hidden; padding-left: 8px; padding-right: 8px; }
+.mix-panel .vbar-row { gap: clamp(1px, 1.2%, 4px); }
+.mix-panel .vbar-box { gap: clamp(1px, 14%, 3px); }
+.mix-panel .vbar { flex: 0 1 9px; min-width: 2px; }
+.mix-panel .vbar-label { text-overflow: clip; }
