@@ -5,6 +5,8 @@
 // Формулы перенесены как есть (компактная запись источника) — строгие проверки типов для них выключены.
 // @ts-nocheck
 
+import { fmRatio } from './params';
+
 export interface IconValues { h: number; t: number; m: number; d?: number; a?: boolean }
 export type IconParam = 'h' | 't' | 'm' | 'd';
 interface El { g: string; d?: string; c?: number[]; fill?: boolean; op?: number; dash?: boolean; tx?: string; x?: number; y?: number; size?: number }
@@ -157,11 +159,27 @@ Object.assign(ICONS,{
 16:v=>{const d=dd(v),g=1+11*v.m,cmp=0.7/Math.tanh(g*0.7),k=4.5-3.5*d;let ph=0;
   const w=fx(6,58,240,(x,u)=>{const f=(0.8+0.9*v.h)*(1+9*v.t*Math.exp(-u*14));ph+=f*TAU/240*3;
     return 32-22*cmp*Math.tanh(g*0.7*Math.sin(ph)*Math.exp(-u*k));});
-  return[{g:'htmd',d:pts(w)},{g:'x',d:'M6 32H58',op:.25}];}
+  return[{g:'htmd',d:pts(w)},{g:'x',d:'M6 32H58',op:.25}];},
+// ANALOG: волна по WAVE (h: синус → треугольник → пила → квадрат, кроссфейд соседних), вторая копия
+// расходится по фазе с DETUNE (t), снизу квадрат суба — размах по SUB (m).
+17:v=>{const shp=(k,p)=>{p-=Math.floor(p);return k===0?Math.sin(TAU*p):k===1?1-4*Math.abs(p<.75?p-.25:p-1.25):k===2?1-2*p:(p<.5?1:-1);};
+  const wave=(ph)=>{const s=clamp(v.h)*3,i=Math.min(2,Math.floor(s)),f=s-i,a=Math.cos(f*Math.PI/2),b=Math.sin(f*Math.PI/2);return(a*shp(i,ph)+b*shp(i+1,ph))/(a+b);};
+  const els=[{g:'h',d:pts(fx(6,58,200,(x,u)=>24-13*wave(u*2)))}];
+  if(v.t>.02)els.push({g:'ht',d:pts(fx(6,58,200,(x,u)=>24-13*wave(u*2*(1+.06*v.t*v.t)+.15*v.t*v.t))),op:.5});
+  els.push({g:'x',d:'M6 51H58',op:.25});
+  if(v.m>.02)els.push({g:'m',d:pts(fx(6,58,200,(x,u)=>51-6*v.m*shp(3,u)))});
+  return els;},
+// FM: сверху модулятор (частота по RATIO, h), ниже несущая с фазовой модуляцией: глубина по INDEX (t),
+// спадает вдоль иконки по CONTOUR (m) и Decay (d); в углу — отношение.
+18:v=>{const r=fmRatio(v.h),idx=2.5*Math.pow(clamp(v.t),1.5),k=v.m<.5?2*v.m:1+8*(v.m-.5),dec=k*(1.6-1.3*dd(v));
+  const car=fx(6,58,400,(x,u)=>{const ph=u*1.5;return 38-14*Math.sin(TAU*ph+idx*Math.exp(-u*dec)*Math.sin(TAU*ph*r));});
+  const mod=fx(6,58,300,(x,u)=>12-4*Math.sin(TAU*u*1.5*r));
+  const lab=r>=1&&Math.abs(r-Math.round(r))<.01?`×${Math.round(r)}`:`×${r.toFixed(1)}`;
+  return[{g:'h',d:pts(mod),op:.5},{g:'tmd',d:pts(car)},{g:'h',tx:lab,x:49,y:61,size:8}];}
 });
 
-/** Иконки: 0–15 — движки Plaits, 16 — DRUM, 's' — сэмпл. */
-export const ICON_IDS = [...Array.from({ length: 17 }, (_, i) => String(i)), 's'];
+/** Иконки: 0–15 — движки Plaits, 16 — DRUM, 17 — ANALOG, 18 — FM, 's' — сэмпл. */
+export const ICON_IDS = [...Array.from({ length: 19 }, (_, i) => String(i)), 's'];
 
 /** Толщина линии иконок (в источнике 1.8; в приложении чуть тоньше). */
 export const ICON_STROKE = 1.4;
