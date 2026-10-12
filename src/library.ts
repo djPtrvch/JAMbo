@@ -11,9 +11,9 @@ export interface LibNode {
   id: string;
   /** Родительская папка ('root' — корень). */
   parent: string;
-  kind: 'folder' | 'sample' | 'preset';
+  kind: 'folder' | 'sample' | 'preset' | 'table';
   name: string;
-  /** Сэмпл: ключ в хранилище сэмплов. */
+  /** Сэмпл: ключ в хранилище сэмплов; таблица WTABLE: ключ таблицы ('wt:<ключ сэмпла>:<размер кадра>'). */
   key?: string;
   /** Пресет синта. */
   preset?: Preset;
@@ -123,6 +123,19 @@ export function addSample(parent: string, key: string, name: string): LibNode {
   store();
   return n;
 }
+
+/** Таблица WTABLE (WAV в хранилище сэмплов, key — ключ таблицы); та же в той же папке не повторяется. */
+export function addTable(parent: string, key: string, name: string): LibNode {
+  const same = nodes.find((n) => n.parent === parent && n.kind === 'table' && n.key === key);
+  if (same) return same;
+  const n: LibNode = { id: newId(), parent, kind: 'table', name: uniqueName(parent, name), key, updated: Date.now() };
+  nodes.push(n);
+  store();
+  return n;
+}
+
+/** Имя таблицы WTABLE в библиотеке по ключу (первая найденная; нет — undefined). */
+export const tableNodeName = (key: string) => nodes.find((n) => n.kind === 'table' && n.key === key)?.name;
 
 export function addPreset(parent: string, preset: Preset): LibNode {
   const name = uniqueName(parent, preset.name);

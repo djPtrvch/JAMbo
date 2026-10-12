@@ -5,6 +5,7 @@
 // и .zip (папки архива восстанавливаются внутри открытой папки).
 
 import { importAudioFiles } from './audio/engine';
+import { tableSampleKey } from './audio/wavetable';
 import { addPreset, addSample, children, createFolder, node, type LibNode } from './library';
 import type { Preset } from './state';
 import { getSample } from './storage';
@@ -49,6 +50,9 @@ async function collect(folder: LibNode, prefix: string, out: ZipEntry[]) {
     else if (n.kind === 'sample' && n.key) {
       const rec = await getSample(n.key);
       if (rec) out.push({ path: prefix + sampleFileName(n, rec.name), data: new Uint8Array(rec.bytes) });
+    } else if (n.kind === 'table' && n.key) {
+      const rec = await getSample(tableSampleKey(n.key) ?? '');
+      if (rec) out.push({ path: `${prefix}${safe(n.name)}.wav`, data: new Uint8Array(rec.bytes) });
     } else if (n.kind === 'preset' && n.preset) {
       out.push({ path: `${prefix}${safe(n.name)}${PRESET_EXT}`, data: enc.encode(JSON.stringify({ jambo: 'preset', preset: n.preset })) });
     }
@@ -62,6 +66,10 @@ export async function exportNode(id: string) {
   if (n.kind === 'sample' && n.key) {
     const rec = await getSample(n.key);
     if (rec) await saveFile(new Blob([rec.bytes]), sampleFileName(n, rec.name));
+  } else if (n.kind === 'table' && n.key) {
+    // Таблица WTABLE — исходным WAV.
+    const rec = await getSample(tableSampleKey(n.key) ?? '');
+    if (rec) await saveFile(new Blob([rec.bytes]), `${safe(n.name)}.wav`);
   } else if (n.kind === 'preset' && n.preset) {
     await saveFile(new Blob([JSON.stringify({ jambo: 'preset', preset: n.preset })], { type: 'application/json' }), `${safe(n.name)}${PRESET_EXT}`);
   } else if (n.kind === 'folder') {

@@ -13,10 +13,12 @@ import {
   type Level, samplePeaks,
   sampleRoot, trackLevel,
 } from '../audio/engine';
-import { isJambo, LFO_WAVES, MAX_TRACKS, OVER_PEAK, SYNTH_ENGINES, noteName, synthEngine, synthGrid, synthKey } from '../params';
+import { getTable, readyTable, tableName } from '../audio/wavetable';
+import { tableNodeName } from '../library';
+import { WTABLE_ENGINE, isJambo, LFO_WAVES, MAX_TRACKS, OVER_PEAK, SYNTH_ENGINES, noteName, synthEngine, synthGrid, synthKey } from '../params';
 import { levelFrac } from './meter';
 import { makePopup, popupButton } from './popup';
-import { audible, doc, heldStepSound, setStepSound, folderItemName, folderPos, stepFolder, stepFolderOnSteps, setTrackSynth, envAt, envShape, liveParams, lfoShape, lfoShaped, rt, sampleName, selTrack, ui } from '../state';
+import { audible, doc, firstHeldStep, heldStepSound, liveLocks, modulatedNorm, seqAt, setStepSound, folderItemName, folderPos, stepFolder, stepFolderOnSteps, setTrackSynth, envAt, envShape, liveParams, lfoShape, lfoShaped, rt, sampleName, selTrack, ui } from '../state';
 import { openSampleEditor } from './sampleedit';
 import { buildClipper, buildGlue, buildLimiter, renderDynamics } from './dynamics';
 import { iconView, renderIcon, type IconView } from './engineIcon';
@@ -238,7 +240,12 @@ export function buildSample(): HTMLElement {
     menu.close();
     openBrowser({ kind: 'load', steps: [] });
   });
-  group('SAMPLE · MIDI · PRESET', 2, [sampleBtn, midiBtn, saveBtn, loadBtn]);
+  // TABLE — таблицы WTABLE (браузер в режиме LOAD TABLE), только у дорожки с WTABLE.
+  const tableBtn = popupButton('TABLE', () => {
+    menu.close();
+    openBrowser({ kind: 'load-table' });
+  });
+  group('SAMPLE · MIDI · PRESET', 2, [sampleBtn, midiBtn, saveBtn, loadBtn, tableBtn]);
   // Меню закрывает всю левую колонку (окно сэмпла, стрелки и кнопки LFO/ENV) — кнопки крупнее.
   const menuRect = () => {
     const side = (root.closest('.side') ?? root).getBoundingClientRect();
@@ -278,6 +285,7 @@ export function buildSample(): HTMLElement {
     midiBtn.disabled = !step;
     saveBtn.disabled = step || cur === null;
     loadBtn.disabled = step;
+    tableBtn.disabled = step || cur !== WTABLE_ENGINE;
     menu.openRect(menuRect());
   });
   stub.append(waveTitle, wave, synthInfo, stubName);
@@ -401,6 +409,38 @@ function renderEnv(m: Mini, now: number) {
   setAttr(m.dot, 'cy', yUni(envShape(p, x, gate)));
 }
 
+/** Кадр таблицы WTABLE в окне синта (на месте иконки): POSITION — кадр, WARP — изгиб и синхронизация фазы. */
+function renderTableFrame(key: string, engine: number) {
+  const tb = readyTable(key);
+  if (!tb) { void getTable(key); return; }
+  const i = ui.selectedTrack;
+  const t = doc.tracks[i];
+  const grid = synthGrid(engine);
+  const held = firstHeldStep();
+  const locks = held !== null ? seqAt(i).pages[Math.floor(held / 16)]?.[held % 16]?.locks : liveLocks(i, performance.now()) ?? undefined;
+  const val = (slot: number) => { const p = grid[slot]!; return modulatedNorm(i, p, locks?.[p.id] ?? t.params[p.id]); };
+  const pos = val(0), warp = val(4);
+  const sig = `${key}|${pos.toFixed(3)}|${warp.toFixed(3)}|${BIG_ICON_PX}`;
+  if (sig === bigIcon.key) return;
+  bigIcon.key = sig;
+  const lv = tb.levels[0];
+  const fpos = pos * (tb.frames - 1);
+  const fi = Math.min(tb.frames - 2, Math.max(0, Math.floor(fpos))), ff = tb.frames > 1 ? fpos - fi : 0;
+  const rowB = tb.frames > 1 ? fi + 1 : fi;
+  const bend = 1 + 3 * Math.min(1, warp * 2), sync = warp > 0.5 ? 1 + 3 * (warp - 0.5) * 2 : 1;
+  let d = '';
+  const N = 128;
+  for (let k = 0; k <= N; k++) {
+    let ph = (k / N) * sync;
+    ph = Math.pow(ph - Math.floor(ph), bend);
+    const j = Math.min(lv.size - 1, Math.floor(ph * lv.size));
+    const a = lv.data[fi * lv.size + j], b = lv.data[rowB * lv.size + j];
+    const y = 32 - 26 * (a + (b - a) * ff);
+    d += `${k ? 'L' : 'M'}${(4 + (k / N) * 56).toFixed(1)} ${y.toFixed(1)}`;
+  }
+  bigIcon.el.innerHTML = `<svg class="w" viewBox="0 0 64 64" width="${BIG_ICON_PX}" height="${BIG_ICON_PX}" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 32H60" opacity="0.25"/><path d="${d}"/></svg>`;
+}
+
 function renderWave() {
   // Пока зажат шаг со своим звуком — окно показывает звук шага.
   const tr = selTrack();
@@ -425,8 +465,15 @@ function renderWave() {
   if (engine !== null) {
     // Синт: полное имя движка и названия его ручек 1.1–1.3.
     const e = SYNTH_ENGINES[engine];
-    setText(synthFull, e.full);
-    renderIcon(bigIcon, ui.selectedTrack, performance.now());
+    if (engine === WTABLE_ENGINE) {
+      // WTABLE: текущий кадр таблицы (POSITION и WARP, с LFO/ENV и p-lock), под ним — имя таблицы.
+      const key = tr.table ?? '';
+      setText(synthFull, tableName(key, new Map([[key, tableNodeName(key) ?? 'TABLE']])));
+      renderTableFrame(key, engine);
+    } else {
+      setText(synthFull, e.full);
+      renderIcon(bigIcon, ui.selectedTrack, performance.now());
+    }
     // Названия ручек 1.1–1.3 этого движка (как подписи ручек) и их значения (как на ручке: у ступенчатой — пункт).
     const grid = synthGrid(engine);
     [0, 4, 8].forEach((slot, i) => {

@@ -4,7 +4,7 @@
 
 import {
   FX_GRID, isAuto, MASTER_GRID, MAX_PAGES, MIX_GRID, MOD_GRID, PATTERN_SLOTS, RATIOS, STEPS_PER_PAGE, TRACK_COUNT, MAX_TRACKS, TRACK_GRID, OCTAVE_DEF, OCTAVE_MAX, OCTAVE_MIN,
-  BPM_MAX, BPM_MIN, VOL_MIN_DB, VOL_DEF_DB, PARAM_BY_ID, PRESET_PARAMS, SEQ_COUNT, SEQ_MIX, SEQ_MST, SYNTH_ENGINES, SYNTH_GRID, synthEngine, synthGrid, synthKey, EQ_BANDS, EQ_BELL, eqHasGain, EQ_DYN_RANGE_MAX, EQ_DYN_THR_MIN, EQ_FREQ_MAX, EQ_FREQ_MIN, EQ_GAIN_MAX, EQ_Q_DEF, EQ_Q_MAX, EQ_Q_MIN, EQ_TYPES, NOTE_NAMES, PROGRESSIONS, SCALES, fromNorm, toNorm, type ParamDef, type Slot,
+  BPM_MAX, BPM_MIN, VOL_MIN_DB, VOL_DEF_DB, PARAM_BY_ID, PRESET_PARAMS, SEQ_COUNT, SEQ_MIX, SEQ_MST, SYNTH_ENGINES, SYNTH_GRID, synthEngine, WTABLE_ENGINE, synthGrid, synthKey, EQ_BANDS, EQ_BELL, eqHasGain, EQ_DYN_RANGE_MAX, EQ_DYN_THR_MIN, EQ_FREQ_MAX, EQ_FREQ_MIN, EQ_GAIN_MAX, EQ_Q_DEF, EQ_Q_MAX, EQ_Q_MIN, EQ_TYPES, NOTE_NAMES, PROGRESSIONS, SCALES, fromNorm, toNorm, type ParamDef, type Slot,
 } from './params';
 import { tableSampleKey } from './audio/wavetable';
 
@@ -1313,7 +1313,11 @@ export function setTrackSynth(i: number, engine: number) {
 // ---------- Пресеты синта ----------
 
 /** Пресет синта: движок и параметры звука (PRESET_PARAMS). */
-export interface Preset { name: string; sound: string; params: Record<string, number> }
+export interface Preset {
+  name: string; sound: string; params: Record<string, number>;
+  /** Таблица WTABLE (ключ, см. audio/wavetable.ts) — у пресетов движка WTABLE. */
+  table?: string;
+}
 
 // Папка пресетов общая для всех дорожек и хранится в браузере (переживает перезагрузку).
 const PRESET_STORE = 'jambo.presets';
@@ -1357,7 +1361,9 @@ export function presetFromTrack(i: number, name: string): Preset | null {
   if (synthEngine(t.sample) === null) return null;
   const params: Record<string, number> = {};
   for (const id of PRESET_PARAMS) params[id] = t.params[id];
-  return { name: name.trim() || nextPresetName(i), sound: t.sample, params };
+  const p: Preset = { name: name.trim() || nextPresetName(i), sound: t.sample, params };
+  if (synthEngine(t.sample) === WTABLE_ENGINE) p.table = t.table ?? '';
+  return p;
 }
 
 /** Сохранённый пресет — и в папку дорожки (стрелки под окном сэмпла его перелистывают). */
@@ -1423,6 +1429,12 @@ function applyItem(i: number, it: FolderItem) {
   if ('sample' in it) { t.sample = it.sample; return; }
   t.sample = it.preset.sound;
   for (const id of PRESET_PARAMS) if (typeof it.preset.params[id] === 'number') t.params[id] = it.preset.params[id];
+  if (it.preset.table !== undefined) t.table = it.preset.table;
+}
+
+/** Таблица WTABLE дорожки (LOAD TABLE в браузере библиотеки); отмена — UNDO. */
+export function setTrackTable(i: number, key: string) {
+  edit(() => { doc.tracks[i].table = key; });
 }
 
 /** Загруженные файлы (уже декодированные, ключи keys) — в папку дорожки, первый звучит. */
@@ -1821,6 +1833,7 @@ export function sampleKeys(d: Doc): string[] {
   const add = (k?: string) => { if (k && k.startsWith('s:')) keys.add(k); };
   // Байты своих таблиц WTABLE хранятся как сэмплы (ключ по содержимому).
   for (const t of d.tracks) add(tableSampleKey(t.table ?? '') ?? undefined);
+  d.folders.forEach((f) => f.items.forEach((it) => add('preset' in it ? tableSampleKey(it.preset.table ?? '') ?? undefined : undefined)));
   const pats = (t: Track) => [t, ...t.slots.filter((p): p is Pattern => !!p)];
   for (const t of d.tracks) {
     for (const p of pats(t)) {

@@ -11,18 +11,25 @@
 // сэмпл как свой звук. IMPORT — файлы из «Файлов» (iPad, iCloud Drive) в открытую папку: аудио,
 // .jambopreset и .zip (папки архива восстанавливаются).
 // Сохранение: внизу имя и SAVE HERE — в открытую папку.
+// LOAD TABLE (из меню звука у дорожки с WTABLE): только папки и таблицы; в корне — папка
+// BUILT-IN TABLES (встроенные, всегда есть); IMPORT читает WAV как таблицу (размер кадра — из метки
+// Serum или выбором 256…2048 / AUTO); тап по таблице ставит её на дорожку.
 
 import { useLibrarySample } from '../audio/engine';
+import {
+  BUILTIN_TABLES, FRAME_SIZES, MAX_TABLE_BYTES, autoFrameSize, builtinKey, framesFor, parseWav, userTableKey, type WavTable,
+} from '../audio/wavetable';
 import { exportNode, importInto } from '../libio';
 import {
-  ROOT, RECORDINGS, addPreset, addSample, children, countInside, createFolder, freeName, node, onLibraryChanged, overwrite, path, remove, rename,
+  ROOT, RECORDINGS, addPreset, addSample, addTable, children, countInside, createFolder, freeName, node, onLibraryChanged, overwrite, path, remove, rename,
   sameName, type LibNode,
 } from '../library';
 import { isJambo, SYNTH_ENGINES, synthEngine } from '../params';
 import {
   addPresetToFolder, addSamplesQuiet, doc, folderItemName, nextPresetName, presetFromTrack, setFolder, type FolderItem,
-  sampleName, setStepSound, toggleView, ui,
+  sampleName, setStepSound, setTrackTable, toggleView, ui,
 } from '../state';
+import { putSample, sampleKey } from '../storage';
 import { h, setClass, setText } from './dom';
 import { makePopup, openInput, popupButton, type Popup } from './popup';
 
@@ -34,6 +41,7 @@ const LIB_NAME_MAX = 40;
 /** Что делает браузер: загрузка (в дорожку или на зажатые шаги) или сохранение пресета / сэмпла. */
 type Mode =
   | { kind: 'load'; steps: number[] }
+  | { kind: 'load-table' }
   | { kind: 'save-preset' }
   | { kind: 'save-sample'; key: string };
 
@@ -64,10 +72,29 @@ const fail = (what: string) => (e: unknown) => { console.error(what, e); window.
 
 function iconFor(n: LibNode): string {
   if (n.kind === 'folder') return n.system ? '●' : '▸';
+  if (n.kind === 'table') return '▦';
   return n.kind === 'sample' ? '∿' : '◆';
 }
 
+/** Виртуальная папка встроенных таблиц WTABLE (в режиме LOAD TABLE, в корне). */
+const BUILTIN_DIR = 'builtin-tables';
+const builtinFolder: LibNode = { id: BUILTIN_DIR, parent: ROOT, kind: 'folder', name: 'BUILT-IN TABLES', system: true, updated: 0 };
+const builtinNodes: LibNode[] = BUILTIN_TABLES.map((name) => ({ id: `bt:${name}`, parent: BUILTIN_DIR, kind: 'table', name, key: builtinKey(name), system: true, updated: 0 }));
+const tableMode = () => mode.kind === 'load-table';
+
+/** Строки открытой папки: в LOAD TABLE — папки и таблицы, иначе — всё, кроме таблиц. */
+function items(): LibNode[] {
+  if (tableMode()) {
+    if (folder === BUILTIN_DIR) return builtinNodes;
+    const list = children(folder).filter((n) => n.kind === 'folder' || n.kind === 'table');
+    return folder === ROOT ? [builtinFolder, ...list] : list;
+  }
+  return children(folder).filter((n) => n.kind !== 'table');
+}
+
 function detail(n: LibNode): string {
+  if (n.id === BUILTIN_DIR) return `${builtinNodes.length}`;
+  if (n.kind === 'table') return n.key?.startsWith('wt:') ? `table · ${n.key.split(':').pop()}` : 'built-in table';
   if (n.kind === 'folder') {
     const c = children(n.id).length;
     return n.id === RECORDINGS && !c ? 'track stems' : `${c}`;
@@ -83,6 +110,13 @@ function detail(n: LibNode): string {
 /** Тап по строке: папка — войти; сэмпл или пресет — загрузить (в режиме загрузки). */
 async function open(n: LibNode) {
   if (n.kind === 'folder') { if (!picked) { folder = n.id; confirmId = ''; fill(); } return; }
+  if (mode.kind === 'load-table') {
+    if (n.kind !== 'table' || n.key === undefined) return;
+    setTrackTable(ui.selectedTrack, n.key);
+    loadedMsg = `${trackName(ui.selectedTrack)}: table ${n.name}`;
+    fill();
+    return;
+  }
   if (mode.kind !== 'load') return;
   // Режим выбора: тап отмечает сэмпл.
   if (picked) {
@@ -108,6 +142,7 @@ const trackName = (i: number) => `Track ${doc.tracks[i]?.name ?? i + 1}`;
 function isCurrent(n: LibNode): boolean {
   if (ui.channel !== 'track') return false;
   const t = doc.tracks[ui.selectedTrack];
+  if (n.kind === 'table') return tableMode() && (t.table ?? '') === n.key;
   if (n.kind === 'sample') return !!n.key && t.sample === n.key;
   if (n.kind === 'preset' && n.preset) return t.sample === n.preset.sound && folderItemName(ui.selectedTrack) === n.name;
   return false;
@@ -155,7 +190,7 @@ function libRow(n: LibNode): HTMLElement {
   const name = h('div', 'lib-name', `${iconFor(n)}  ${n.name}`);
   item.append(name, h('div', 'lib-detail', `${detail(n)}${n.kind === 'folder' ? '  ›' : ''}`));
   item.classList.toggle('system', !!n.system);
-  item.classList.toggle('current', mode.kind === 'load' && !picked && isCurrent(n));
+  item.classList.toggle('current', (mode.kind === 'load' || tableMode()) && !picked && isCurrent(n));
   item.classList.toggle('picked', !!picked?.has(n.id));
   row.append(acts, item);
 
@@ -222,20 +257,23 @@ function libRow(n: LibNode): HTMLElement {
 }
 
 function fill() {
-  if (!node(folder) && folder !== ROOT) folder = ROOT;
-  const crumbs = path(folder).map((n) => n.name);
-  setText(pathText, ['LIBRARY', ...crumbs].join('  /  '));
+  if (folder === BUILTIN_DIR && !tableMode()) folder = ROOT;
+  if (!node(folder) && folder !== ROOT && folder !== BUILTIN_DIR) folder = ROOT;
+  const crumbs = folder === BUILTIN_DIR ? [builtinFolder.name] : path(folder).map((n) => n.name);
+  setText(pathText, [tableMode() ? 'TABLES' : 'LIBRARY', ...crumbs].join('  /  '));
   setClass(upBtn, 'disabled', folder === ROOT);
-  const items = children(folder);
-  list.replaceChildren(...(items.length ? items.map(libRow) : [h('div', 'settings-note lib-empty', folder === RECORDINGS
+  const rows = items();
+  list.replaceChildren(...(rows.length ? rows.map(libRow) : [h('div', 'settings-note lib-empty', folder === RECORDINGS
     ? 'Stems recorded from each track will be saved here.'
+    : tableMode() ? 'No tables here. IMPORT a wavetable WAV from the iPad or iCloud Drive.'
     : 'Empty folder. NEW FOLDER, or IMPORT files from the iPad or iCloud Drive.')]));
-  setClass(saveBar, 'hidden', mode.kind === 'load');
+  setClass(saveBar, 'hidden', mode.kind === 'load' || tableMode());
   setClass(pickBar, 'hidden', !picked);
   if (picked) setText(pickText, `${picked.size} selected · tap samples and presets to add or remove`);
   setText(note, loadedMsg ? `Loaded → ${loadedMsg}`
     : mode.kind === 'load' && mode.steps.length ? `Loading a sample onto step ${mode.steps.map((s) => s + 1).join(', ')}.`
     : mode.kind === 'load' ? 'Tap a sample or preset to load it on the track. Hold a sample to select several.'
+    : tableMode() ? 'Tap a table to load it on the WTABLE track. IMPORT reads WAV files as wavetables.'
     : 'Choose a folder, name it and SAVE HERE.');
 }
 
@@ -245,7 +283,7 @@ export function buildBrowser(): HTMLElement {
   upBtn = h('div', 'btn eq-tool lib-up', '‹');
   upBtn.addEventListener('pointerdown', (e) => {
     e.preventDefault();
-    const n = node(folder);
+    const n = folder === BUILTIN_DIR ? builtinFolder : node(folder);
     if (n) { folder = n.parent; confirmId = ''; picked = null; fill(); }
   });
   pathText = h('div', 'lib-path');
@@ -262,6 +300,8 @@ export function buildBrowser(): HTMLElement {
     const files = Array.from(input.files ?? []);
     input.value = '';
     if (!files.length) return;
+    // LOAD TABLE: WAV-файлы — таблицами WTABLE в открытую папку.
+    if (tableMode()) { void importTables(folder === BUILTIN_DIR ? ROOT : folder, files, importBtn).catch(fail('Import')); return; }
     // Аудио, пресеты (.jambopreset) и папки архивом (.zip) — в открытую папку.
     void importInto(folder, files).then((k) => { if (!k) window.alert('Nothing to import: no audio, presets or folders found'); })
       .catch(fail('Import'));
@@ -293,6 +333,45 @@ export function buildBrowser(): HTMLElement {
   panel.append(head, list, saveBar, pickBar, note);
   onLibraryChanged(() => { if (ui.browserView) fill(); });
   return panel;
+}
+
+/**
+ * IMPORT в LOAD TABLE: WAV (16/24 бит или float 32; стерео — левый канал, до 4 МБ) — таблицей WTABLE.
+ * Размер кадра — из метки Serum ('clm '), иначе выбор 256 / 512 / 1024 / 2048 или AUTO (по длине).
+ */
+async function importTables(into: string, files: File[], anchor: HTMLElement) {
+  let added = 0;
+  for (const f of files) {
+    if (f.size > MAX_TABLE_BYTES) { window.alert(`${f.name}: a wavetable must be up to 4 MB`); continue; }
+    const bytes = await f.arrayBuffer();
+    let w: WavTable;
+    try { w = parseWav(bytes); } catch { continue; }
+    const size = w.clm && FRAME_SIZES.includes(w.clm) ? w.clm : await askFrameSize(f.name, w, anchor);
+    if (!size) continue;
+    const key = await sampleKey(bytes);
+    await putSample({ key, name: f.name, bytes });
+    addTable(into, userTableKey(key, size), f.name.replace(/\.[^.]+$/, ''));
+    added++;
+  }
+  if (files.length && !added) window.alert('Nothing to import: no wavetable WAV files found');
+}
+
+let sizePopup: Popup | null = null;
+/** Размер кадра таблицы: AUTO (по длине файла) или 256…2048; null — отмена. */
+function askFrameSize(name: string, w: WavTable, anchor: HTMLElement): Promise<number | null> {
+  sizePopup ??= makePopup();
+  const pop = sizePopup;
+  return new Promise((resolve) => {
+    const pick = (v: number | null) => { pop.close(); resolve(v); };
+    const auto = autoFrameSize(w);
+    pop.box.replaceChildren(
+      h('div', 'popup-title', `${name}: frame size`),
+      popupButton(`AUTO · ${auto} · ${framesFor(w, auto)} frames`, () => pick(auto)),
+      ...FRAME_SIZES.map((s) => popupButton(`${s} · ${framesFor(w, s)} frames`, () => pick(s))),
+      popupButton('CANCEL', () => pick(null)),
+    );
+    pop.openAt(anchor, 260);
+  });
 }
 
 /** SAVE HERE: пресет синта дорожки или сэмпл — в открытую папку. */
