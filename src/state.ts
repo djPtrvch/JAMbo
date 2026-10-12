@@ -1146,6 +1146,22 @@ export function nudgePage(i: number, dir: 'left' | 'right' | 'up' | 'down') {
   edit(() => { for (const st of steps) st.notes = st.notes.map((n) => n + d); });
 }
 
+/**
+ * Перенос страницы (удержание миниатюры и протягивание): страница from встаёт на место to, страницы
+ * между ними сдвигаются. Играющие страницы остаются на своих местах (обводка не двигается), но если
+ * играла одна перенесённая страница — обводка идёт за ней. Открытая в секвенсоре — перенесённая.
+ */
+export function movePage(from: number, to: number) {
+  const t = curSeq();
+  const n = t.pages.length;
+  if (from === to || from < 0 || to < 0 || from >= n || to >= n) return;
+  edit(() => {
+    t.pages.splice(to, 0, ...t.pages.splice(from, 1));
+    if (t.playFrom === from && t.playTo === from) t.playFrom = t.playTo = to;
+  });
+  ui.viewPage = to;
+}
+
 /** DELETE: убрать страницы диапазона (одна страница остаётся всегда). */
 export function deletePage(i: number) {
   const t = curSeq();

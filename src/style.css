@@ -509,6 +509,10 @@ input::selection, textarea::selection { background: var(--select); color: var(--
   gap: 2px;
 }
 .thumb.current { background: var(--panel-2); }
+/* Перенос страницы: поднятая миниатюра над остальными, соседи сдвигаются плавно. */
+.thumb-lifted { position: relative; z-index: 5; box-shadow: 0 6px 18px var(--shadow); }
+.thumb-shift { transition: transform 160ms ease; }
+.thumb-settle { transition: transform 180ms ease; }
 .thumb-cell { border-radius: 2px; background: var(--off); }
 .thumb-cell.beat { background: var(--mute-grey); }
 .thumb-cell.on { background: var(--text); }

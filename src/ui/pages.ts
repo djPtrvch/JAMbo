@@ -1,13 +1,13 @@
 // Миниатюры страниц паттерна — строки одна под другой во всю ширину.
 // Тап — эта страница играет (и открывается в секвенсоре); протянуть по нескольким — играют они все,
 // вокруг играющих страниц общая обводка (края тянутся по высоте пальца, за середину переносится). Удержание — страница
-// открывается в секвенсоре для редактирования (играющие не меняются), удержание и протягивание — новое
-// выделение. Двойной тап — окно duplicate / copy / paste / clear / delete.
+// открывается в секвенсоре для редактирования (играющие не меняются), удержание и протягивание — перенос
+// страницы на другое место (остальные сдвигаются). Двойной тап — окно duplicate / copy / paste / clear / delete.
 // «+» — добавить страницу (до 8).
 
 import { MAX_PAGES, STEPS_PER_PAGE } from '../params';
 import {
-  addPage, clearPage, nudgePage, pageRange, copyPage, deletePage, duplicatePage, hasLocks, pastePage, rt, curSeq, seqIndex, setPlayPages, ui,
+  addPage, clearPage, movePage, nudgePage, pageRange, copyPage, deletePage, duplicatePage, hasLocks, pastePage, rt, curSeq, seqIndex, setPlayPages, ui,
 } from '../state';
 import { DOUBLE_TAP_MS, h, setClass } from './dom';
 import { makePopup, popupButton, type Popup } from './popup';
@@ -30,8 +30,42 @@ let drag: Drag | null = null;
  * выделение от страницы from); y0 — где коснулся; range — играющие страницы по ходу протягивания.
  */
 interface Drag {
-  id: number; y0: number; from: number; mode: 'top' | 'bottom' | 'move' | 'new'; held: boolean; moved: boolean;
+  id: number; y0: number; from: number; mode: 'top' | 'bottom' | 'move' | 'new' | 'reorder'; held: boolean; moved: boolean;
   f: number; t: number; n: number; range: [number, number] | null; timer: number;
+  /** Перенос страницы: место, куда она встанет, и шаг между миниатюрами. */
+  to?: number; pitch?: number;
+}
+
+// ---------- Перенос страницы: удержание миниатюры и протягивание ----------
+
+/** Поднятая миниатюра — за пальцем, страницы между from и to — на соседнее место (анимация CSS). */
+function layoutReorder(d: Drag, y: number) {
+  const pitch = d.pitch!;
+  d.to = Math.max(0, Math.min(d.n - 1, d.from + Math.round((y - d.y0) / pitch)));
+  for (let k = 0; k < d.n; k++) {
+    const r = thumbs[k].root;
+    if (k === d.from) { r.style.transform = `translateY(${y - d.y0}px) scale(1.04)`; continue; }
+    const p = d.from < d.to ? (k > d.from && k <= d.to ? k - 1 : k) : (k >= d.to && k < d.from ? k + 1 : k);
+    r.style.transform = p === k ? '' : `translateY(${(p - k) * pitch}px)`;
+  }
+}
+
+function endReorder(d: Drag, y: number) {
+  for (let k = 0; k < d.n; k++) {
+    thumbs[k].root.classList.remove('thumb-lifted', 'thumb-shift');
+    thumbs[k].root.style.transform = '';
+  }
+  const to = d.to ?? d.from;
+  movePage(d.from, to);
+  // Сразу перерисовать: на местах уже новый порядок; перенесённая плавно встаёт на место.
+  renderPages();
+  const r = thumbs[to].root;
+  r.classList.add('thumb-lifted');
+  r.style.transform = `translateY(${y - d.y0 - (to - d.from) * d.pitch!}px) scale(1.04)`;
+  void r.offsetWidth;
+  r.classList.add('thumb-settle');
+  r.style.transform = '';
+  window.setTimeout(() => r.classList.remove('thumb-lifted', 'thumb-settle'), 200);
 }
 /** Сдвиг пальца, после которого касание уже не тап. */
 const MOVE_PX = 8;
@@ -102,8 +136,17 @@ export function buildPages(): HTMLElement {
         id: e.pointerId, y0: e.clientY, from: i, mode, held: false, moved: false, range: null,
         f: t.playFrom, t: t.playTo, n: t.pages.length,
         // Удержание без протягивания — страница открывается для редактирования (играющие не меняются);
-        // если потом потянуть — новое выделение от этой страницы.
-        timer: window.setTimeout(() => { if (drag && !drag.moved) { drag.held = true; drag.mode = 'new'; ui.viewPage = i; } }, HOLD_MS),
+        // если потом потянуть — страница переносится на другое место (остальные сдвигаются).
+        timer: window.setTimeout(() => {
+          if (!drag || drag.moved) return;
+          drag.held = true;
+          drag.mode = 'reorder';
+          ui.viewPage = i;
+          if (drag.n < 2) return;
+          drag.pitch = geom().pitch;
+          root.classList.add('thumb-lifted');
+          for (let k = 0; k < drag.n; k++) if (k !== i) thumbs[k].root.classList.add('thumb-shift');
+        }, HOLD_MS),
       };
     });
     thumbs.push({ root, cells });
@@ -115,6 +158,12 @@ export function buildPages(): HTMLElement {
 
   document.addEventListener('pointermove', (e) => {
     if (!drag || e.pointerId !== drag.id) return;
+    if (drag.mode === 'reorder') {
+      if (drag.n < 2) return;
+      drag.moved = true;
+      layoutReorder(drag, e.clientY);
+      return;
+    }
     // По высоте пальца (не по ячейке под ним): палец может уйти вбок или в зазор между страницами.
     if (!drag.moved && Math.abs(e.clientY - drag.y0) < MOVE_PX) return;
     if (!drag.moved) { drag.moved = true; clearTimeout(drag.timer); }
@@ -123,7 +172,9 @@ export function buildPages(): HTMLElement {
   const up = (e: PointerEvent) => {
     if (!drag || e.pointerId !== drag.id) return;
     clearTimeout(drag.timer);
-    if (e.type === 'pointerup') {
+    if (drag.mode === 'reorder') {
+      if (drag.n >= 2) endReorder(drag, drag.moved ? e.clientY : drag.y0);
+    } else if (e.type === 'pointerup') {
       if (drag.moved) {
         // Протянули — играют выбранные страницы (если выбор изменился), сразу; тапом это не считается.
         clearTimeout(tapTimer);
