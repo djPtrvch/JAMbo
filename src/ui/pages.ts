@@ -124,8 +124,11 @@ function openMenu(i: number) {
 export function renderPages() {
   const t = curSeq();
   const pos = ui.playing ? rt.playPos[seqIndex()] : -1;
-  const from = drag && !drag.menu ? Math.min(drag.from, drag.to) : t.playFrom;
-  const to = drag && !drag.menu ? Math.max(drag.from, drag.to) : t.playTo;
+  // Обводка следует за пальцем, только когда протягивают по нескольким страницам; на касании
+  // одной она не прыгает (тап переключит её при отпускании, удержание её не меняет).
+  const d = drag && !drag.menu && drag.from !== drag.to ? drag : null;
+  const from = d ? Math.min(d.from, d.to) : t.playFrom;
+  const to = d ? Math.max(d.from, d.to) : t.playTo;
   thumbs.forEach((th, i) => {
     const exists = i < t.pages.length;
     setClass(th.root, 'hidden', !exists);
