@@ -16,7 +16,7 @@ import {
   EQ_DYN_RANGE_DEF, EQ_DYN_THR_DEF, EQ_FREQ_MAX, EQ_FREQ_MIN, EQ_MS, EQ_Q_DEF, EQ_SLOPES, EQ_TYPE_ORDER, EQ_TYPES, eqDynOn, eqHasGain, eqIsCut, noteName,
 } from '../params';
 import {
-  addEqBand, beginGesture, deleteEqBand, endGesture, eqTarget, eqTargetName, resetEq, selectedBand,
+  addEqBand, beginGesture, deleteEqBand, endGesture, eqTarget, eqTargetName, selectedBand,
   setEqBand, setEqDyn, setEqDynParams, setEqMs, setEqSlope, setEqType, toggleEq, toggleEqBand, ui, doc, type EqBand,
   deleteEqPreset, eqPresets, loadEqPreset, nextEqPresetName, renameEqPreset, saveEqPreset,
 } from '../state';
@@ -314,7 +314,7 @@ export function buildEq(): HTMLElement {
   canvas.addEventListener('pointerup', up);
   canvas.addEventListener('pointercancel', up);
 
-  const bar = h('div', 'eq-bar');
+  const bar = h('div', 'eq-bar eq-grid');
   nameText = h('div', 'eq-name');
   const k = () => ui.eqBand;
   const typeField = dragField(
@@ -368,13 +368,11 @@ export function buildEq(): HTMLElement {
   for (const f of [typeField, freqField, gainField, qField, msField, dynField]) f.classList.add('eq-field');
   bypassBtn = h('div', 'btn eq-tool', 'BYPASS');
   bypassBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); toggleEq(); });
-  const resetBtn = h('div', 'btn eq-tool', 'RESET');
-  resetBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); resetEq(); });
   // PRESETS — библиотека пресетов EQ: SAVE (сохранить EQ канала), тап по пресету — загрузить,
   // удержание — RENAME / DELETE.
   const presetBtn = h('div', 'btn eq-tool', 'PRESETS');
   presetBtn.addEventListener('pointerup', () => openEqPresets(presetBtn));
-  bar.append(nameText, typeField, freqField, gainField, qField, msField, dynField, presetBtn, bypassBtn, resetBtn);
+  bar.append(nameText, typeField, freqField, gainField, qField, msField, dynField, presetBtn, bypassBtn);
 
   panel.append(plot, bar);
   return panel;
@@ -624,6 +622,28 @@ function renderTips() {
 }
 
 let shownKey = '';
+let barKey = '';
+
+/**
+ * Нижний ряд EQ — ровной сеткой с дорожками: имя канала над MIX, TYPE над первой дорожкой, FREQ над
+ * второй и так далее (по позициям ячеек строки дорожек).
+ */
+function alignBar() {
+  const bar = nameText.parentElement!;
+  const cells = [...document.querySelectorAll<HTMLElement>('.tracks > .track')];
+  const items = [...bar.children] as HTMLElement[];
+  const br = bar.getBoundingClientRect();
+  const rects = cells.slice(0, items.length).map((c) => c.getBoundingClientRect());
+  const key = `${br.left}|${rects.map((r) => `${r.left}:${r.width}`).join(',')}`;
+  if (key === barKey) return;
+  barKey = key;
+  items.forEach((el, i) => {
+    const r = rects[i];
+    if (!r) return;
+    el.style.left = `${r.left - br.left}px`;
+    el.style.width = `${r.width}px`;
+  });
+}
 
 export function renderEq() {
   setClass(panel, 'hidden', !ui.eqView);
@@ -639,6 +659,7 @@ export function renderEq() {
   if (ui.eqBand >= 0 && !eq.bands[ui.eqBand]) ui.eqBand = -1;
   setText(nameText, `${eqTargetName()}\nEQ`);
   setClass(bypassBtn, 'active', !eq.on);
+  alignBar();
 
   const dpr = window.devicePixelRatio || 1;
   W = plot.clientWidth;
