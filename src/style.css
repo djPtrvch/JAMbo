@@ -134,12 +134,12 @@ html, body {
   color: var(--text);
 }
 .btn.active { background: var(--text); color: var(--bg); }
-.btn.mode { box-shadow: inset 0 0 0 2px var(--ink); }
+.btn.mode { box-shadow: inset 0 0 0 1.5px var(--ink); }
 .btn.rec { background: var(--rec); color: #fff; }
 /* PLAY — зелёная окантовка, при игре горит зелёным; REC — красная окантовка, включена — красная. */
-.btn.play-btn { box-shadow: inset 0 0 0 2px var(--play); }
+.btn.play-btn { box-shadow: inset 0 0 0 1.5px var(--play); }
 .btn.play-btn.active { background: var(--play); color: var(--on-accent); }
-.btn.rec-btn { box-shadow: inset 0 0 0 2px var(--rec); }
+.btn.rec-btn { box-shadow: inset 0 0 0 1.5px var(--rec); }
 .btn.disabled { color: var(--off); }
 
 /* ---------- Верхняя панель ---------- */
@@ -201,7 +201,7 @@ html, body {
   justify-content: center;
 }
 .metro svg { width: 24px; height: 24px; }
-.metro.on { color: var(--text); box-shadow: inset 0 0 0 2px var(--ink); }
+.metro.on { color: var(--text); box-shadow: inset 0 0 0 1.5px var(--ink); }
 .metro.beat { background: var(--panel-2); }
 .metro.beat.accent { background: var(--accent-soft); }
 
@@ -390,7 +390,7 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 }
 .pattern-cell.selected-col { background: var(--panel-2); }
 .pattern-cell.filled { background: var(--panel-2); }
-.pattern-cell.active { box-shadow: inset 0 0 0 2px var(--accent); }
+.pattern-cell.active { box-shadow: inset 0 0 0 1.5px var(--accent); }
 .pattern-thumb { flex: 1; width: 100%; height: 100%; }
 /* Шаги в превью паттерна — с тонкой обводкой (1 px при любом масштабе), чтобы были видны. */
 /* Как в миниатюрах страниц: без контура; первый шаг каждой доли темнее, триги белые, p-lock жёлтые. */
@@ -401,7 +401,7 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 .pt-dot.outside { opacity: 0.2; }
 .pattern-bar { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--accent); }
 .pattern-cell.queued, .pattern-cell.stopping { animation: queued-blink 0.5s steps(2, jump-none) infinite; }
-.pattern-cell.queued { box-shadow: inset 0 0 0 2px var(--accent); }
+.pattern-cell.queued { box-shadow: inset 0 0 0 1.5px var(--accent); }
 @keyframes queued-blink { 50% { opacity: 0.35; } }
 
 /* ---------- Ручки ---------- */
@@ -477,7 +477,7 @@ input::selection, textarea::selection { background: var(--select); color: var(--
   position: absolute;
   left: -3px;
   right: -3px;
-  border: 2px solid var(--text);
+  border: 1.5px solid var(--text);
   border-radius: 8px;
   pointer-events: none;
 }
@@ -497,7 +497,7 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 .thumb-cell.plock { background: var(--plock); }
 .thumb-cell.lock-only { box-shadow: inset 0 0 0 1px var(--plock); }
 .thumb-cell.outside { opacity: 0.12; }
-.thumb-cell.pos { outline: 2px solid var(--accent); }
+.thumb-cell.pos { outline: 1.5px solid var(--accent); }
 .thumb.plus {
   display: flex;
   align-items: center;
@@ -553,7 +553,7 @@ input::selection, textarea::selection { background: var(--select); color: var(--
   position: relative;
   border-radius: var(--radius);
   background: var(--track-bg);
-  border: 2px solid transparent;
+  border: 1.5px solid transparent;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -602,9 +602,9 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 .step.plock .step-fill { background: var(--plock); }
 /* Хвост длинной ноты — полупрозрачные ячейки той же ширины, что и шаг. */
 .step.tail .step-fill { background: var(--text); opacity: 0.4; }
-.step.lock-only { box-shadow: inset 0 0 0 2px var(--plock); }
-.step.held { box-shadow: inset 0 0 0 2px var(--text); }
-.step.playing { box-shadow: inset 0 0 0 2px var(--accent); }
+.step.lock-only { box-shadow: inset 0 0 0 1.5px var(--plock); }
+.step.held { box-shadow: inset 0 0 0 1.5px var(--text); }
+.step.playing { box-shadow: inset 0 0 0 1.5px var(--accent); }
 .step.outside { opacity: 0.3; }
 .step.last::after {
   content: '';
@@ -656,8 +656,8 @@ input::selection, textarea::selection { background: var(--select); color: var(--
   color: var(--dim);
 }
 .key.root { background: var(--root); color: var(--text); }
-.key.selected { box-shadow: inset 0 0 0 2px var(--accent); color: var(--text); }
-.key.step-notes { box-shadow: inset 0 0 0 2px var(--text); }
+.key.selected { box-shadow: inset 0 0 0 1.5px var(--accent); color: var(--text); }
+.key.step-notes { box-shadow: inset 0 0 0 1.5px var(--text); }
 .key.playing { background: var(--accent); color: var(--on-accent); }
 .key.pressed { background: var(--text); color: var(--bg); }
 .octave { display: flex; flex-direction: column; gap: 4px; min-height: 0; }
@@ -741,7 +741,7 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 
 /* MORPH включён — кнопка горит жёлтым (как точки изменённых дорожек). */
 .btn.morph-on { background: var(--plock); color: var(--on-accent); }
-.pattern-cell.drop-target { box-shadow: inset 0 0 0 2px var(--plock); }
+.pattern-cell.drop-target { box-shadow: inset 0 0 0 1.5px var(--plock); }
 
 /* Список пресетов (LOAD): на месте меню звука, прокрутка, если не помещается. */
 .source-group.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); flex: 1 1 0; }
@@ -791,7 +791,7 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 .project-item.autosave { color: var(--plock); }
 
 /* Перетаскивание паттерна: копия ячейки над экраном, исходная бледнеет. */
-.drag-ghost { position: fixed; z-index: 20; pointer-events: none; margin: 0; box-shadow: 0 10px 28px var(--shadow), inset 0 0 0 2px var(--plock); opacity: 0.95; }
+.drag-ghost { position: fixed; z-index: 20; pointer-events: none; margin: 0; box-shadow: 0 10px 28px var(--shadow), inset 0 0 0 1.5px var(--plock); opacity: 0.95; }
 .pattern-cell.lifted { opacity: 0.35; }
 
 /* ---------- Меню «бутерброд»: PROJECTS, SETTINGS ---------- */
@@ -895,7 +895,7 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 /* Мастер: на метрах компрессора и лимитера без чисел. */
 .master-panel .vbar-val { display: none; }
 /* Кнопка LFO/ENV, назначенного на ручку под пальцем, — белый контур. */
-.btn.mod-src { box-shadow: inset 0 0 0 2px var(--text); }
+.btn.mod-src { box-shadow: inset 0 0 0 1.5px var(--text); }
 /* Пресеты маппингов: действия — голубым, недоступные — серым. Поле ввода имени — поверх окна MIDI MAP. */
 .mm-row.mm-act .mm-label { color: var(--accent-text); }
 .mm-row.mm-act.disabled .mm-label { color: var(--off); }
@@ -927,7 +927,7 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 .lib-row:not(.open):not(:has(.dragging)) .lib-acts { visibility: hidden; }
 .lib-item.current { background: var(--accent); color: var(--on-accent); }
 .lib-item.current .lib-detail { color: var(--on-accent); }
-.lib-item.picked { box-shadow: inset 0 0 0 2px var(--plock); }
+.lib-item.picked { box-shadow: inset 0 0 0 1.5px var(--plock); }
 .lib-item.picked .lib-name::after { content: '  ✓'; color: var(--plock); }
 /* Кнопки нижних полос браузера (LOAD, CANCEL, SAVE HERE) — полноразмерные. */
 .lib-save .btn { height: 48px; width: 150px; font-size: 13px; }
