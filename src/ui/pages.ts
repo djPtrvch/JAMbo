@@ -24,8 +24,9 @@ const menuButtons: Record<string, HTMLButtonElement> = {};
 
 /** Текущее протягивание по миниатюрам. */
 let drag: { id: number; from: number; to: number; timer: number; menu: boolean } | null = null;
-/** Последний тап по миниатюре: страница и время (двойной тап — меню). */
-let lastTap = { page: -1, at: 0, from: 0, to: 0, view: 0 };
+/** Тап по миниатюре, который ждёт второго (двойной тап — меню). */
+let tapPage = -1;
+let tapTimer = 0;
 
 function thumbAt(x: number, y: number): number {
   const el = document.elementFromPoint(x, y)?.closest('.thumb') as HTMLElement | null;
@@ -76,19 +77,28 @@ export function buildPages(): HTMLElement {
     if (!drag || e.pointerId !== drag.id) return;
     clearTimeout(drag.timer);
     if (!drag.menu && e.type === 'pointerup') {
-      const now = performance.now();
-      if (drag.from === drag.to && lastTap.page === drag.from && now - lastTap.at < DOUBLE_TAP_MS) {
-        // Двойной тап — меню страницы; играющие страницы — как до первого тапа.
-        setPlayPages(lastTap.from, lastTap.to);
-        ui.viewPage = lastTap.view;
-        lastTap = { page: -1, at: 0, from: 0, to: 0, view: 0 };
-        openMenu(drag.from);
-      } else {
-        const t = curSeq();
-        const before = { from: t.playFrom, to: t.playTo, view: ui.viewPage };
+      if (drag.from !== drag.to) {
+        // Протянули по нескольким страницам — играют они все, сразу.
+        clearTimeout(tapTimer);
+        tapPage = -1;
         setPlayPages(drag.from, drag.to);
         ui.viewPage = drag.from;
-        lastTap = drag.from === drag.to ? { page: drag.from, at: now, ...before } : { page: -1, at: 0, from: 0, to: 0, view: 0 };
+      } else if (tapPage === drag.from) {
+        // Двойной тап — меню страницы; одиночный тап не срабатывает (обводка не двигается).
+        clearTimeout(tapTimer);
+        tapPage = -1;
+        openMenu(drag.from);
+      } else {
+        // Одиночный тап срабатывает, если за DOUBLE_TAP_MS не было второго.
+        clearTimeout(tapTimer);
+        const i = drag.from;
+        tapPage = i;
+        tapTimer = window.setTimeout(() => {
+          tapPage = -1;
+          if (i >= curSeq().pages.length) return;
+          setPlayPages(i, i);
+          ui.viewPage = i;
+        }, DOUBLE_TAP_MS);
       }
     }
     drag = null;
