@@ -111,12 +111,12 @@ html, body {
   -webkit-text-size-adjust: 100%;
 }
 
-#app.chord { grid-template-rows: 44px minmax(0, 1fr) 50px 60px 60px 36px; }
 
 #app {
   height: 100dvh;
   display: grid;
-  grid-template-rows: 44px minmax(0, 1fr) 50px 60px 60px;
+  /* Пианоролл: квадратные клавиши (--key-h, считается от ширины шага) + строка SCALE 44 px. */
+  grid-template-rows: 44px minmax(0, 1fr) 50px 60px calc(var(--key-h, 64px) + 50px);
   gap: var(--gap);
   padding: max(8px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
 }
@@ -146,7 +146,7 @@ html, body {
 
 .topbar { display: flex; gap: var(--gap); }
 /* SCALE, ROOT, PLAY, REC, UNDO, REDO — шесть столбцов равной ширины. */
-.top-mid { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--gap); }
+.top-mid { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--gap); }
 /* Правый блок шириной с правую колонку; PATTERNS на месте бывшей кнопки PLAY. */
 .top-right { width: calc(220px + var(--gap) + var(--meter-w)); flex: none; display: flex; gap: var(--gap); }
 /* EQ кончается вместе с миниатюрами страниц (над измерителем — пусто). */
@@ -616,8 +616,28 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 
 /* ---------- Пианоролл ---------- */
 
-.piano { display: flex; gap: var(--gap); }
-.chord-btn { width: 90px; flex: none; }
+/* Столбцы — как у шагов секвенсора: SCALE над первым шагом, стрелки октавы над последним. */
+.piano {
+  display: grid;
+  grid-template-columns: var(--channel-col) minmax(0, 1fr) var(--channel-col);
+  grid-template-rows: minmax(0, 1fr);
+  column-gap: 4px;
+  row-gap: var(--gap);
+  min-height: 0;
+}
+.piano > .scale-btn { grid-column: 1; grid-row: 1 / -1; }
+.piano > .keys { grid-column: 2; grid-row: 1; }
+.piano > .scale-panel { grid-column: 2; grid-row: 2; display: none; }
+.piano > .octave { grid-column: 3; grid-row: 1 / -1; }
+.piano.open { grid-template-rows: minmax(0, 1fr) 44px; }
+.piano.open > .scale-panel { display: grid; }
+/* Строка под клавишами: 14 столбцов шириной с шаг. */
+.scale-panel { grid-template-columns: repeat(14, minmax(0, 1fr)); gap: 4px; min-width: 0; }
+.scale-panel .sp-scale { grid-column: span 2; }
+.scale-panel .sp-root { grid-column: span 1; }
+.scale-panel .chord-btn { grid-column: span 1; }
+.scale-panel .sp-prog { grid-column: span 3; }
+.scale-panel .chips { grid-column: span 7; }
 .keys { flex: 1; display: flex; gap: 3px; min-width: 0; }
 .key {
   flex: 1;
@@ -636,19 +656,14 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 .key.step-notes { box-shadow: inset 0 0 0 2px var(--text); }
 .key.playing { background: var(--accent); color: var(--on-accent); }
 .key.pressed { background: var(--text); color: var(--bg); }
-.octave { display: flex; gap: var(--gap); flex: none; }
-.arrow { width: 44px; font-size: 14px; }
+.octave { display: flex; flex-direction: column; gap: 4px; min-height: 0; }
+.octave .arrow { flex: 1; min-height: 0; font-size: 14px; }
 
-/* ---------- Аккордовая прогрессия ---------- */
+/* ---------- Аккорды прогрессии (в строке SCALE) ---------- */
 
-.progression { display: flex; gap: var(--gap); animation: slide-up 160ms ease-out; }
-@keyframes slide-up { from { transform: translateY(100%); opacity: 0; } to { transform: none; opacity: 1; } }
-.progression .field { min-width: 260px; padding: 2px 12px; }
-.progression .field-value { font-size: 15px; }
-.chips { flex: 1; display: flex; gap: 4px; }
+.chips { display: flex; gap: 4px; min-width: 0; }
 .chip {
   flex: 1;
-  max-width: 120px;
   border-radius: 6px;
   background: var(--panel);
   display: flex;

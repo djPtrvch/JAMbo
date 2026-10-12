@@ -183,6 +183,8 @@ export interface Ui {
   /** Пианоролл. */
   octave: number;
   chordMode: boolean;
+  /** Кнопка SCALE пианоролла: под клавишами строка SCALE, ROOT, CHORD и прогрессии. */
+  scalePanel: boolean;
   progression: number;
   /** Выбранные ноты: ими ставятся новые триги. */
   selNotes: number[];
@@ -314,6 +316,7 @@ export const ui: Ui = {
   metronome: false,
   octave: OCTAVE_DEF,
   chordMode: false,
+  scalePanel: false,
   progression: 0,
   selNotes: [],
   pressedKeys: new Map(),

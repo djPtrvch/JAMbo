@@ -2,9 +2,8 @@
 // Тап по гамме и ноте открывает меню выбора.
 
 import { unlockAudio } from '../audio/engine';
-import { NOTE_NAMES, SCALES } from '../params';
-import { doc, enterBpm, rt, setBpm, setRoot, setScale, ui } from '../state';
-import { choiceMenu, dragField } from './controls';
+import { doc, enterBpm, rt, setBpm, ui } from '../state';
+import { dragField } from './controls';
 import { openMainMenu } from './settings';
 import { h, setClass } from './dom';
 import { openInput } from './popup';
@@ -31,8 +30,6 @@ export function buildTopbar(): HTMLElement {
   // Бутерброд — меню PROJECTS и SETTINGS.
   burger.addEventListener('pointerup', () => openMainMenu(burger));
   metro = metronomeIcon();
-  const scaleMenu = choiceMenu(SCALES.map((s) => s.name), 3, () => doc.scale, setScale);
-  const rootMenu = choiceMenu(NOTE_NAMES, 4, () => doc.root, setRoot);
   // Бутерброд, темп и метроном — группа шириной с левую колонку (край по окну сэмпла).
   const leftGroup = h('div', 'top-left-group');
   // Удержание темпа без движения — ввод числом.
@@ -40,12 +37,8 @@ export function buildTopbar(): HTMLElement {
     (el) => openInput(el, String(doc.bpm), (v) => { const n = parseFloat(v.replace(',', '.')); if (Number.isFinite(n)) enterBpm(n); }, true));
   bpm.classList.add('bpm-field');
   leftGroup.append(burger, bpm, metro);
-  // Гамма и нота — той же ширины, что PLAY и REC.
-  const scale = dragField('SCALE', () => doc.scale, setScale, () => SCALES[doc.scale].name, 24, scaleMenu);
-  const root = dragField('ROOT', () => doc.root, setRoot, () => NOTE_NAMES[doc.root], 24, rootMenu);
-  scale.classList.add('narrow-field');
-  root.classList.add('narrow-field');
-  el.append(leftGroup, scale, root);
+  // Гамма и нота — под пианороллом (кнопка SCALE).
+  el.append(leftGroup);
   return el;
 }
 

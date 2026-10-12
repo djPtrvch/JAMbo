@@ -1,13 +1,15 @@
 // Пианоролл под секвенсором: ноты выбранной гаммы (две октавы), корневая нота выделена.
-// Слева — режим аккордов, справа — стрелки октавы; в режиме аккордов снизу всплывает выбор прогрессии.
+// Слева — кнопка SCALE (шириной с первый шаг): включена — клавиши квадратные, под ними строка
+// SCALE, ROOT, CHORD (режим аккордов) и в режиме аккордов PROGRESSION с аккордами; выключена —
+// клавиши на всю высоту. Справа — стрелки октавы ▲ ▼ одна над другой (шириной с последний шаг).
 // Зажатые ноты (одна или несколько одновременно) становятся выбранными — ими ставятся триги;
 // при удержании шага зажатые ноты заменяют ноты шага;
 // с REC во время проигрывания — записывает ноты в реальном времени.
 
-import { PROGRESSIONS, SCALES, noteName } from '../params';
+import { NOTE_NAMES, PROGRESSIONS, SCALES, noteName } from '../params';
 import { releaseEnv,
   chordName, chordOnDegree, doc, heldStepNotes, inputNotes, isRoot, pressedNotes, recordNotes, rt, scaleNotes,
-  setOctave, setProgression, ui,
+  setOctave, setProgression, setRoot, setScale, ui,
 } from '../state';
 import { playNow, unlockAudio } from '../audio/engine';
 import { recStep } from '../transport';
@@ -20,7 +22,10 @@ const MAX_CHORDS = 8;
 const keys: HTMLElement[] = [];
 const chips: HTMLElement[] = [];
 let chordBtn: HTMLElement;
-let progRow: HTMLElement;
+let scaleBtn: HTMLElement;
+let pianoEl: HTMLElement;
+let progField: HTMLElement;
+let chipRow: HTMLElement;
 
 /** Клавиш на экране: две октавы гаммы + верхняя корневая нота. */
 const keyCount = () => Math.min(MAX_KEYS, SCALES[doc.scale].steps.length * 2 + 1);
@@ -63,9 +68,10 @@ function pressHandlers(el: HTMLElement, notes: () => number[]) {
 
 export function buildPiano(): HTMLElement {
   const el = h('div', 'piano');
+  pianoEl = el;
 
-  chordBtn = h('div', 'btn chord-btn', 'CHORD');
-  chordBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); ui.chordMode = !ui.chordMode; });
+  scaleBtn = h('div', 'btn scale-btn', 'SCALE');
+  scaleBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); ui.scalePanel = !ui.scalePanel; });
 
   const keyRow = h('div', 'keys');
   for (let k = 0; k < MAX_KEYS; k++) {
@@ -79,30 +85,37 @@ export function buildPiano(): HTMLElement {
     keyRow.append(key);
   }
 
-  const oct = h('div', 'octave');
-  const down = h('div', 'btn arrow', '◀');
-  const up = h('div', 'btn arrow', '▶');
-  down.addEventListener('pointerdown', (e) => { e.preventDefault(); setOctave(ui.octave - 1); });
-  up.addEventListener('pointerdown', (e) => { e.preventDefault(); setOctave(ui.octave + 1); });
-  oct.append(down, up);
-
-  el.append(chordBtn, keyRow, oct);
-  return el;
-}
-
-export function buildProgression(): HTMLElement {
-  progRow = h('div', 'progression');
-  const menu = choiceMenu(PROGRESSIONS.map((p) => p.name), 2, () => ui.progression, setProgression);
-  progRow.append(dragField('PROGRESSION', () => ui.progression, setProgression, () => PROGRESSIONS[ui.progression].name, 24, menu));
-  const chipRow = h('div', 'chips');
+  // Строка под клавишами (при включённой SCALE): гамма, нота, режим аккордов, прогрессия и её аккорды.
+  const panel = h('div', 'scale-panel');
+  const scaleMenu = choiceMenu(SCALES.map((sc) => sc.name), 3, () => doc.scale, setScale);
+  const rootMenu = choiceMenu(NOTE_NAMES, 4, () => doc.root, setRoot);
+  const scale = dragField('SCALE', () => doc.scale, setScale, () => SCALES[doc.scale].name, 24, scaleMenu);
+  const root = dragField('ROOT', () => doc.root, setRoot, () => NOTE_NAMES[doc.root], 24, rootMenu);
+  scale.classList.add('narrow-field', 'sp-scale');
+  root.classList.add('narrow-field', 'sp-root');
+  chordBtn = h('div', 'btn chord-btn', 'CHORD');
+  chordBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); ui.chordMode = !ui.chordMode; });
+  const progMenu = choiceMenu(PROGRESSIONS.map((p) => p.name), 2, () => ui.progression, setProgression);
+  progField = dragField('PROGRESSION', () => ui.progression, setProgression, () => PROGRESSIONS[ui.progression].name, 24, progMenu);
+  progField.classList.add('narrow-field', 'sp-prog');
+  chipRow = h('div', 'chips');
   for (let c = 0; c < MAX_CHORDS; c++) {
     const chip = h('div', 'chip');
     pressHandlers(chip, () => chordOnDegree(PROGRESSIONS[ui.progression].degrees[c] ?? 0));
     chips.push(chip);
     chipRow.append(chip);
   }
-  progRow.append(chipRow);
-  return progRow;
+  panel.append(scale, root, chordBtn, progField, chipRow);
+
+  const oct = h('div', 'octave');
+  const up = h('div', 'btn arrow', '▲');
+  const down = h('div', 'btn arrow', '▼');
+  down.addEventListener('pointerdown', (e) => { e.preventDefault(); setOctave(ui.octave - 1); });
+  up.addEventListener('pointerdown', (e) => { e.preventDefault(); setOctave(ui.octave + 1); });
+  oct.append(up, down);
+
+  el.append(scaleBtn, keyRow, panel, oct);
+  return el;
 }
 
 export function renderPiano(now: number) {
@@ -137,7 +150,9 @@ export function renderPiano(now: number) {
     setClass(chip, 'playing', chord.every((n) => playing.has(n)));
     setClass(chip, 'pressed', chord.every((n) => pressed.has(n)));
   });
-  // Строка прогрессии всплывает снизу только в режиме аккордов.
-  setClass(progRow, 'hidden', !ui.chordMode);
-  setClass(document.getElementById('app')!, 'chord', ui.chordMode);
+  setClass(pianoEl, 'open', ui.scalePanel);
+  setClass(scaleBtn, 'active', ui.scalePanel);
+  // Прогрессия и её аккорды — только в режиме аккордов.
+  setClass(progField, 'hidden', !ui.chordMode);
+  setClass(chipRow, 'hidden', !ui.chordMode);
 }

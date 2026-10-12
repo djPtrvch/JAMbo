@@ -23,7 +23,7 @@ import { buildPages, renderPages } from './ui/pages';
 import { buildScope, buildScopeButtons, renderScope } from './ui/scope';
 import { eqSampleRate } from './audio/engine';
 import { buildPatternGrid, renderPatternGrid } from './ui/patterns';
-import { buildPiano, buildProgression, press, renderPiano } from './ui/piano';
+import { buildPiano, press, renderPiano } from './ui/piano';
 import { buildMeter, renderMeter, tickMeter } from './ui/meter';
 import { buildSample, buildSampleNav, renderSample } from './ui/sample';
 import { buildSequencer, renderSequencer } from './ui/sequencer';
@@ -72,6 +72,12 @@ topbar.append(leftGroup, topMid, topRight);
 
 // Число столбцов дорожек: строка дорожек и сетка паттернов совпадают по ширине столбцов
 // (дорожек 8…12; MIX и MST — постоянной ширины).
+// Размер квадратной клавиши пианоролла — от ширины шага секвенсора (15 клавиш на 14 шагах).
+new ResizeObserver(() => {
+  const step = (app.querySelector('.sequencer')?.firstElementChild as HTMLElement | null)?.offsetWidth ?? 0;
+  if (step > 0) app.style.setProperty('--key-h', `${((14 * step + 13 * 4 - 14 * 3) / 15).toFixed(1)}px`);
+}).observe(app);
+
 let trackCols = 0;
 function syncTrackCount() {
   const n = doc.tracks.length;
@@ -82,7 +88,7 @@ function syncTrackCount() {
 }
 syncTrackCount();
 
-app.append(topbar, main, buildTracks(), buildSequencer(), buildPiano(), buildProgression(), buildLearnBar());
+app.append(topbar, main, buildTracks(), buildSequencer(), buildPiano(), buildLearnBar());
 
 // Блокируем системные жесты Safari: масштаб двойным тапом и щипком, лупу, контекстное меню.
 // Всё управление идёт через pointer-события, поэтому touch-события можно гасить целиком.
