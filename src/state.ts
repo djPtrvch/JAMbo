@@ -148,6 +148,8 @@ export interface Doc {
   /** Меню сетки паттернов: строка, с которой начинается PLAY, и что в конце строк — стоп или сначала. */
   arrStart?: number;
   arrEnd?: 'loop' | 'stop';
+  /** Что делает «+» под строками: пустая строка или копии играющих паттернов (по умолчанию). */
+  plusMode?: 'empty' | 'copy';
   /** Эквалайзеры дорожек и мастера. */
   eqs: Eq[];
   masterEq: Eq;
@@ -1621,23 +1623,23 @@ export function visibleRows(): number {
 }
 export const canAddRow = () => visibleRows() < rowLimit();
 
-/** «+» в колонке строк: новая строка, в неё — копии играющих паттернов дорожек (заглушённые — нет). */
+/**
+ * «+» в колонке строк: новая строка — пустая или (по умолчанию) с копиями играющих паттернов дорожек
+ * (остановленные и заглушённые — нет); что именно — в меню сетки.
+ */
 export function addSceneRow() {
   if (!canAddRow()) return;
   const r = visibleRows();
   edit(() => {
-    doc.tracks.forEach((t, i) => { if (!t.stopped && audible(i) && r !== t.slot) t.slots[r] = takePattern(t); });
+    if ((doc.plusMode ?? 'copy') === 'copy') {
+      doc.tracks.forEach((t, i) => { if (!t.stopped && audible(i) && r !== t.slot) t.slots[r] = takePattern(t); });
+    }
     doc.rows = r + 1;
   });
 }
 
-/** «+» в столбце дорожки: новая строка, в ней — новый паттерн этой дорожки (возвращает строку или −1). */
-export function addTrackRow(i: number): number {
-  if (!canAddRow()) return -1;
-  const r = visibleRows();
-  createPattern(i, r);
-  edit(() => { doc.rows = r + 1; });
-  return r;
+export function setPlusMode(m: 'empty' | 'copy') {
+  edit(() => { doc.plusMode = m; });
 }
 
 /** DUPLICATE строки: копия встаёт сразу под ней, строки ниже сдвигаются вниз. */

@@ -13,7 +13,7 @@
 import { MAX_TRACKS, PATTERN_SLOTS, STEPS_PER_PAGE } from '../params';
 import {
   crossfade, inTransition, isPrevPlaceholder, rowFilled, sceneName, setCrossfade, setScene, transitionMoves,
-  addSceneRow, addTrackRow, canAddRow, copyRow, duplicateRow, pasteRow, setArrangement, visibleRows,
+  addSceneRow, canAddRow, copyRow, duplicateRow, pasteRow, setArrangement, setPlusMode, visibleRows,
   copyPattern, createPattern, dropPattern, deletePattern, doc, duplicatePattern, freeSlotAfter, hasLocks, pastePattern,
   playRange, rt, selectTrack, slotFilled, ui, type Pattern,
 } from '../state';
@@ -170,31 +170,15 @@ let dropTarget: [number, number] | null = null;
 
 // ---------- Строка «+» и меню сетки (бутерброд справа) ----------
 
-const plusCells: HTMLElement[] = [];
 let scenePlus: HTMLElement;
 
-/** «+» под последней видимой строкой: в колонке строк — новая строка с играющими паттернами,
- * в столбце дорожки — новая строка с новым паттерном этой дорожки. */
-function buildPlusRow(): DocumentFragment {
-  const f = document.createDocumentFragment();
+/** «+» под последней видимой строкой — только в колонке строк: новая строка (пустая или с копиями
+ * играющих паттернов — по меню сетки). */
+function buildPlusRow(): HTMLElement {
   scenePlus = h('div', 'pattern-cell plus-cell', '+');
   scenePlus.style.gridColumn = '1';
   scenePlus.addEventListener('pointerdown', (e) => { e.preventDefault(); addSceneRow(); });
-  f.append(scenePlus);
-  for (let i = 0; i < MAX_TRACKS; i++) {
-    const c = h('div', 'pattern-cell plus-cell', '+');
-    c.style.gridColumn = String(i + 2);
-    c.addEventListener('pointerdown', (e) => {
-      e.preventDefault();
-      const r = addTrackRow(i);
-      if (r < 0) return;
-      selectTrack(i);
-      queuePattern(i, r);
-    });
-    plusCells.push(c);
-    f.append(c);
-  }
-  return f;
+  return scenePlus;
 }
 
 let arrBtn: HTMLElement;
@@ -221,6 +205,14 @@ function openArrangeMenu() {
     b.classList.toggle('current', k === start);
     startRow.append(b);
   }
+  // Что делает «+»: пустая строка или строка с копиями играющих паттернов.
+  const plus = doc.plusMode ?? 'copy';
+  const plusRow = h('div', 'arrange-row');
+  for (const [v, label] of [['empty', 'EMPTY ROW'], ['copy', 'COPY PLAYING']] as const) {
+    const b = popupButton(label, () => { setPlusMode(v); openArrangeMenu(); });
+    b.classList.toggle('current', v === plus);
+    plusRow.append(b);
+  }
   const endRow = h('div', 'arrange-row');
   for (const v of ['stop', 'loop'] as const) {
     const b = popupButton(v.toUpperCase(), () => { setArrangement(start, v); openArrangeMenu(); });
@@ -230,6 +222,7 @@ function openArrangeMenu() {
   arrMenu.box.replaceChildren(
     h('div', 'popup-title', 'START FROM ROW'), startRow,
     h('div', 'popup-title', 'AT THE END'), endRow,
+    h('div', 'popup-title', '+ ADDS'), plusRow,
   );
   arrMenu.openAt(arrBtn, 300);
 }
@@ -462,8 +455,12 @@ export function renderPatternGrid() {
   });
   // Столбцов столько, сколько дорожек; справа от последнего — бутерброд, под ним кроссфейдер.
   const last = doc.tracks.length + 2;
-  setAttr(xf, 'style', `grid-column:${last};grid-row:2 / ${PATTERN_SLOTS + 1}`);
+  // При переходе MIX бутерброда нет — кроссфейдер во всю высоту, как раньше.
+  const mixing = crossfade() !== null;
+  setAttr(xf, 'style', `grid-column:${last};grid-row:${mixing ? 1 : 2} / ${PATTERN_SLOTS + 1}`);
   arrBtn.style.gridColumn = String(last);
+  setClass(arrBtn, 'hidden', mixing);
+  if (mixing && arrMenu.isOpen()) arrMenu.close();
   // Видны строки 1…visibleRows (при переходе MIX — и строка PREV внизу), под ними — «+».
   const rows = visibleRows();
   const shown = (k: number) => k < rows || (inTransition() && k === PATTERN_SLOTS - 1);
@@ -472,7 +469,6 @@ export function renderPatternGrid() {
   const plus = canAddRow();
   setClass(scenePlus, 'hidden', !plus);
   scenePlus.style.gridRow = String(rows + 1);
-  plusCells.forEach((c, i) => { setClass(c, 'hidden', !plus || i >= doc.tracks.length); c.style.gridRow = String(rows + 1); });
   doc.tracks.forEach((t, i) => {
     const q = rt.queued[i];
     cells[i].forEach((c, k) => {
