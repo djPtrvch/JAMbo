@@ -18,7 +18,9 @@ const FALL_DB_S = 20;
 /** Красный держится не меньше, ms. */
 const OVER_HOLD_MS = 300;
 /** Ширина стержня, px; риска шире на RISK_EXTRA с каждой стороны, толщина RISK_H. */
-const BAR_W = 10;
+const BAR_W = 9;
+/** Скругление стержня — как у измерителя справа. */
+const BAR_R = 3;
 const RISK_EXTRA = 6;
 const RISK_H = 2;
 /** Высота строки подписей IN / GR / OUT под стержнями, px. */
@@ -110,26 +112,28 @@ class LevelBars {
       return color('--meter-ok');
     };
     const frac = (db: number) => Math.min(1, Math.max(0, (db - LEVEL_LO) / (LEVEL_HI - LEVEL_LO)));
-    // IN и OUT — снизу вверх.
-    const bar = (k: number, l: Level) => {
+    // Стержень со скруглёнными углами (как у измерителя справа): дорожка и заливка внутри одной формы.
+    const bar = (k: number, fill: string, top: number, height: number) => {
+      c.save();
+      c.beginPath();
+      c.roundRect(x0(k), 0, BAR_W, barH, BAR_R);
+      c.clip();
       c.fillStyle = track;
       c.fillRect(x0(k), 0, BAR_W, barH);
-      const f = frac(l.disp);
-      if (f > 0) {
-        c.fillStyle = levelColor(l);
-        c.fillRect(x0(k), barH * (1 - f), BAR_W, barH * f);
+      if (height > 0) {
+        c.fillStyle = fill;
+        c.fillRect(x0(k), top, BAR_W, height);
       }
+      c.restore();
     };
-    bar(0, this.lIn);
-    bar(2, this.lOut);
+    // IN и OUT — снизу вверх.
+    const fIn = frac(this.lIn.disp);
+    const fOut = frac(this.lOut.disp);
+    bar(0, levelColor(this.lIn), barH * (1 - fIn), barH * fIn);
+    bar(2, levelColor(this.lOut), barH * (1 - fOut), barH * fOut);
     // GR — сверху вниз.
-    c.fillStyle = track;
-    c.fillRect(x0(1), 0, BAR_W, barH);
     const g = Math.min(1, this.gr / o.grMax);
-    if (g > 0) {
-      c.fillStyle = bypass ? off : color('--meter-gr');
-      c.fillRect(x0(1), 0, BAR_W, barH * g);
-    }
+    bar(1, bypass ? off : color('--meter-gr'), 0, barH * g);
     // Белая риска порога — только на IN.
     c.fillStyle = color('--meter-thr');
     const ry = Math.round(barH * (1 - frac(o.inMark())) - RISK_H / 2);

@@ -26,6 +26,8 @@ const btns: HTMLElement[] = [];
 const on = [false, false, false, true];
 /** Цвета форм волны: SAT белая, COMP жёлтая, CLIP оранжевая, LIM красная (цвета темы). */
 const TRACE_COLORS = ['--ink', '--plock', '--gr', '--rec'];
+/** Прозрачность форм волны (наложение). */
+const TRACE_ALPHA = 0.6;
 const L = new Float32Array(4096);
 const R = new Float32Array(4096);
 /** Гониометр — конечный сигнал мастера. */
@@ -168,6 +170,8 @@ function drawOsc(sr: number) {
     if (!on[k]) { t.clear(); return; }
     if (masterScope(k, L, R)) t.push(Math.min(L.length, Math.round(dt * sr)), Math.max(1, (OSC_WINDOW * sr) / W));
     g.fillStyle = color(TRACE_COLORS[k]);
+    // Полупрозрачные — при наложении видны все включённые формы волны.
+    g.globalAlpha = TRACE_ALPHA;
     let lo = 0;
     let hi = 0;
     for (let x = 0; x < W; x++) {
@@ -179,6 +183,7 @@ function drawOsc(sr: number) {
       const top = y(b);
       g.fillRect(x, top, 1, Math.max(1, y(a) - top));
     }
+    g.globalAlpha = 1;
     labels.push([`${lo.toFixed(2)} > ${hi.toFixed(2)}`, TRACE_COLORS[k]]);
   });
   // Числа поверх форм волны — на подложке цвета панели, чтобы читались.
