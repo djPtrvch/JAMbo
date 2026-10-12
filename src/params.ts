@@ -229,14 +229,14 @@ export const MOD_GRID: Slot[] = grid([lfoColumn(1), lfoColumn(2), lfoColumn(3), 
 
 export const FX_GRID: Slot[] = grid([
   [
-    smooth('rev.size', 'Rev Size', 0, 100, 50, pct),
+    smooth('rev.size', 'Rev Size', 0, 100, 30, pct),
     smooth('rev.decay', 'Rev Decay', 0.1, 20, 2, (v) => `${v.toFixed(1)}s`, { exp: true }),
     smooth('rev.hpf', 'Rev HPF', 20, 2000, 20, hz, { exp: true }),
     smooth('rev.predelay', 'Rev Predelay', 0, 200, 0, ms),
   ],
   [
     smooth('dly.feedback', 'Dly Feedback', 0, 100, 40, pct),
-    stepped('dly.time', 'Dly Time', DELAY_DIVS.map((d) => d.name), 6),
+    stepped('dly.time', 'Dly Time', DELAY_DIVS.map((d) => d.name), DELAY_DIVS.findIndex((d) => d.name === '1/8')),
     smooth('dly.hpf', 'Dly HPF', 20, 2000, 20, hz, { exp: true }),
     smooth('dly.stereo', 'Dly Stereo', 0, 100, 0, pct),
   ],
