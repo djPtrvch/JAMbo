@@ -1,7 +1,7 @@
 // Скоп мастера: при MST на месте миниатюр страниц. Сверху гониометр (стереобаза конечного сигнала
 // мастера — после громкости выхода: точки L/R,
 // повёрнутые на 45° — вертикаль mid, горизонталь side, с послесвечением), под ним до кнопок
-// осциллоскоп как в Drambo (бегущая форма волны L+R за ~1 с, минимум и максимум окна).
+// осциллоскоп как в Drambo (бегущая форма волны L+R за ~1 с, без чисел).
 // Кнопки SAT, COMP, CLIP, LIM — включают и выключают точки съёма осциллоскопа (после сатуратора,
 // компрессора, клиппера, лимитера; формы волны накладываются разными цветами) — на месте MORPH,
 // RANDOM, FX, MOD. Анализаторы работают, только пока скоп виден.
@@ -114,8 +114,7 @@ function drawGonio(ok: boolean) {
 
 // Осциллоскоп как в Drambo: бегущая форма волны за OSC_WINDOW с, по столбцу на пиксель
 // (штрих от минимума до максимума отрезка). Включённые точки съёма рисуются одна поверх другой своими
-// цветами (порядок цепочки: SAT снизу, LIM сверху) — видно, что срезает каждый модуль; слева вверху —
-// минимум и максимум окна у каждой.
+// цветами (порядок цепочки: SAT снизу, LIM сверху) — видно, что срезает каждый модуль.
 
 /** История одной точки съёма: столбцы min/max по кругу. */
 class Trace {
@@ -169,9 +168,6 @@ function drawOsc(sr: number) {
   const y = (v: number) => cy - Math.max(-1, Math.min(1, v)) * amp;
   g.fillStyle = color('--grid-strong');
   g.fillRect(0, Math.round(cy), w, 1);
-  g.font = '11px -apple-system, sans-serif';
-  g.textBaseline = 'top';
-  const labels: [string, string][] = [];
   traces.forEach((t, k) => {
     t.resize(W);
     if (!on[k]) { t.clear(); return; }
@@ -179,27 +175,14 @@ function drawOsc(sr: number) {
     g.fillStyle = color(TRACE_COLORS[k]);
     // Полупрозрачные — при наложении видны все включённые формы волны.
     g.globalAlpha = TRACE_ALPHA;
-    let lo = 0;
-    let hi = 0;
     for (let x = 0; x < W; x++) {
       const i = (t.pos + x) % W;
       const a = t.min[i];
       const b = t.max[i];
-      if (a < lo) lo = a;
-      if (b > hi) hi = b;
       const top = y(b);
       g.fillRect(x, top, 1, Math.max(1, y(a) - top));
     }
     g.globalAlpha = 1;
-    labels.push([`${lo.toFixed(2)} > ${hi.toFixed(2)}`, TRACE_COLORS[k]]);
-  });
-  // Числа поверх форм волны — на подложке цвета панели, чтобы читались.
-  labels.forEach(([text, col], i) => {
-    const tw = g.measureText(text).width;
-    g.fillStyle = color('--panel');
-    g.fillRect(3, 4 + 14 * i, tw + 6, 14);
-    g.fillStyle = color(col);
-    g.fillText(text, 6, 6 + 14 * i);
   });
 }
 
