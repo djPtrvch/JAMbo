@@ -14,7 +14,7 @@ import { MAX_TRACKS, PATTERN_SLOTS, STEPS_PER_PAGE } from '../params';
 import {
   crossfade, inTransition, isPrevPlaceholder, rowFilled, sceneName, setCrossfade, setScene, transitionMoves,
   addSceneRow, canAddRow, copyRow, deleteRow, duplicateRow, pasteRow, setArrangement, rowLoopOn, setPlusMode, toggleRowLoop, visibleRows,
-  copyPattern, createPattern, dropPattern, deletePattern, doc, duplicatePattern, freeSlotAfter, hasLocks, pastePattern,
+  copyPattern, createPattern, dropPattern, deletePattern, doc, duplicatePattern, freeSlotAfter, hasManualLocks, pastePattern,
   playRange, rt, selectTrack, slotFilled, ui, type Pattern,
 } from '../state';
 import { queuePattern, queueScene, sceneProgress } from '../transport';
@@ -477,12 +477,12 @@ export function buildPatternGrid(): HTMLElement {
   return grid;
 }
 
-/** Миниатюра: строка на страницу, точка на триг (жёлтая — с p-lock). */
+/** Миниатюра: строка на страницу, точка на триг (жёлтая — с ручными p-lock, обведённая — свой звук шага). */
 function drawThumb(c: Cell, p: Pattern | null) {
   let sig = '';
   if (p) {
     sig = `${p.pages.length}:${p.length}:`;
-    p.pages.forEach((pg) => pg.forEach((s) => { sig += s.on ? (hasLocks(s) ? 'y' : 'x') : '.'; }));
+    p.pages.forEach((pg) => pg.forEach((s) => { sig += s.on ? (hasManualLocks(s) ? 'y' : 'x') + (s.sound ? 's' : '') : '.'; }));
   }
   if (sig === c.sig) return;
   c.sig = sig;
@@ -495,7 +495,8 @@ function drawThumb(c: Cell, p: Pattern | null) {
   setAttr(c.thumb, 'viewBox', `0 0 ${STEPS_PER_PAGE} ${height}`);
   p.pages.forEach((pg, r) => pg.forEach((s, col) => {
     const outside = r * STEPS_PER_PAGE + col >= p.length;
-    const cls = s.on ? (hasLocks(s) ? 'pt-dot plock' : 'pt-dot on') : col % 4 === 0 ? 'pt-dot beat' : 'pt-dot';
+    // Жёлтая — ручные p-lock, обведённая — свой звук шага (сэмпл, пресет).
+    const cls = s.on ? (hasManualLocks(s) ? 'pt-dot plock' : 'pt-dot on') + (s.sound ? ' own-sound' : '') : col % 4 === 0 ? 'pt-dot beat' : 'pt-dot';
     c.thumb.append(svg('rect', {
       x: col + 0.15, y: top + r + 0.15, width: 0.7, height: 0.7, class: outside ? `${cls} outside` : cls,
     }));

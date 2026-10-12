@@ -4,7 +4,7 @@
 
 import { STEPS_PER_PAGE, noteName } from '../params';
 import {
-  beginGesture, curSeq, endGesture, hasLocks, seqIndex, setNoteLength, setPatternLength, stepAt, toggleStep, ui, rt,
+  beginGesture, curSeq, endGesture, hasLocks, hasManualLocks, seqIndex, setNoteLength, setPatternLength, stepAt, toggleStep, ui, rt,
 } from '../state';
 import { DOUBLE_TAP_MS, h, setClass, setText } from './dom';
 
@@ -121,8 +121,8 @@ export function renderSequencer() {
     const s = stepAt(t, index);
     const on = !!s?.on;
     setClass(cell, 'on', on);
-    // Жёлтый — p-lock; шаг со своим звуком (сэмпл, пресет) не заливается жёлтым — у него только белая обводка.
-    setClass(cell, 'plock', on && !s!.sound && hasLocks(s!));
+    // Жёлтый — p-lock, поставленные вручную; свой звук шага (сэмпл, пресет) — белая обводка.
+    setClass(cell, 'plock', on && hasManualLocks(s!));
     // P-lock без ноты — жёлтая обводка.
     setClass(cell, 'lock-only', !on && !!s && hasLocks(s));
     setClass(cell, 'tail', !on && tail.has(index));

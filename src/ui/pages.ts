@@ -7,7 +7,7 @@
 
 import { MAX_PAGES, STEPS_PER_PAGE } from '../params';
 import {
-  addPage, clearPage, movePage, nudgePage, pageRange, copyPage, deletePage, duplicatePage, hasLocks, pastePage, rt, curSeq, seqIndex, setPlayPages, ui,
+  addPage, clearPage, movePage, nudgePage, pageRange, copyPage, deletePage, duplicatePage, hasLocks, hasManualLocks, pastePage, rt, curSeq, seqIndex, setPlayPages, ui,
 } from '../state';
 import { DOUBLE_TAP_MS, h, setClass } from './dom';
 import { makePopup, popupButton, type Popup } from './popup';
@@ -267,7 +267,8 @@ export function renderPages() {
       const s = t.pages[i][k];
       const index = i * STEPS_PER_PAGE + k;
       setClass(c, 'on', s.on);
-      setClass(c, 'plock', s.on && hasLocks(s));
+      setClass(c, 'plock', s.on && hasManualLocks(s));
+      setClass(c, 'own-sound', s.on && !!s.sound);
       setClass(c, 'lock-only', !s.on && hasLocks(s));
       setClass(c, 'outside', index >= t.length);
       setClass(c, 'pos', index === pos);

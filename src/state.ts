@@ -18,6 +18,8 @@ export interface Step {
   locks: Record<string, number>;
   /** Свой звук шага (сэмпл или движок синта) вместо звука дорожки — тоже p-lock. */
   sound?: string;
+  /** P-lock, которые поставил пресет звука шага (не ручные: шаг из-за них не жёлтый). */
+  soundLocks?: string[];
 }
 
 /** Источник модуляции: 1–3 = LFO1–LFO3, 4 = огибающая ENV. */
@@ -781,6 +783,7 @@ export function toggleStep(index: number) {
     // Снятый триг забывает и p-lock, и свой звук шага.
     s.locks = {};
     delete s.sound;
+    delete s.soundLocks;
   });
 }
 
@@ -794,6 +797,14 @@ export function setNoteLength(index: number, len: number) {
 }
 
 export const hasLocks = (s: Step) => Object.keys(s.locks).length > 0 || !!s.sound;
+/** P-lock, поставленные вручную (не пресетом звука шага): шаг с ними жёлтый. */
+export const hasManualLocks = (s: Step) => Object.keys(s.locks).some((k) => !s.soundLocks?.includes(k));
+
+/** Сменился звук шага — p-lock прежнего пресета звука убираются. */
+function dropSoundLocks(s: Step) {
+  for (const k of s.soundLocks ?? []) delete s.locks[k];
+  delete s.soundLocks;
+}
 
 /** Свой звук на шагах indices выбранной дорожки (null — снова звук дорожки). */
 export function setStepSound(track: number, indices: number[], key: string | null, fileName?: string, root?: number | null) {
@@ -801,6 +812,7 @@ export function setStepSound(track: number, indices: number[], key: string | nul
     for (const i of indices) {
       const s = stepAt(doc.tracks[track], i);
       if (!s) continue;
+      dropSoundLocks(s);
       if (key) s.sound = key;
       else delete s.sound;
     }
@@ -834,6 +846,8 @@ export function setLockNorm(p: ParamDef, norm: number) {
     const s = stepAt(curSeq(), h.index);
     if (!s) continue;
     s.locks[p.id] = v;
+    // Повёрнутая на шаге ручка — уже ручной p-lock (а не пресета звука).
+    if (s.soundLocks) s.soundLocks = s.soundLocks.filter((k) => k !== p.id);
     h.used = true;
   }
 }
@@ -1735,8 +1749,13 @@ export function stepFolderOnSteps(i: number, indices: number[], dir: 1 | -1) {
       const base = cur >= 0 ? cur : f.index;
       const k = base < 0 ? (dir > 0 ? 0 : n - 1) : (base + dir + n) % n;
       const it = f.items[k];
+      dropSoundLocks(s);
       s.sound = itemKey(it);
-      if ('preset' in it) for (const id of PRESET_PARAMS) if (typeof it.preset.params[id] === 'number') s.locks[id] = it.preset.params[id];
+      if ('preset' in it) {
+        const ids = PRESET_PARAMS.filter((id) => typeof it.preset.params[id] === 'number');
+        for (const id of ids) s.locks[id] = it.preset.params[id];
+        s.soundLocks = ids;
+      }
     }
   });
 }
