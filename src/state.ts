@@ -75,6 +75,8 @@ export interface Track {
   stopped: boolean;
   /** Таблица движка WTABLE ('' — встроенная BASIC; см. audio/wavetable.ts). */
   table?: string;
+  /** Постоянный номер дорожки (не её место): по нему UNDO/REDO перестановки возвращает и состояние игры. */
+  id?: number;
 }
 
 /** Полоса эквалайзера. */
@@ -263,8 +265,11 @@ function newEq(): Eq {
   return { on: true, bands: Array(EQ_BANDS).fill(null) };
 }
 
+const newTrackId = () => Math.floor(Math.random() * 2 ** 31);
+
 function newTrack(i: number, name = `${i + 1}`): Track {
   return {
+    id: newTrackId(),
     name,
     sample: '',
     params: { ...defaults(TRACK_GRID), ...defaults(SYNTH_GRID), ...defaults(MOD_GRID) },
@@ -420,6 +425,10 @@ function restoreDoc(snap: string) {
   // по номерам не переносим (дорожка получила бы чужой паттерн или остановку), а ход дорожек
   // выравниваем по общему такту.
   const sameTracks = d.tracks.length === doc.tracks.length;
+  // Дорожки переставляли (тот же набор, другой порядок): состояние игры идёт за дорожкой.
+  const ids = doc.tracks.map((t) => t.id);
+  const src = d.tracks.map((t) => (t.id === undefined ? -1 : ids.indexOf(t.id)));
+  const perm = sameTracks && new Set(src).size === src.length && !src.includes(-1) && src.some((s, j) => s !== j);
   for (const k of Object.keys(doc) as (keyof Doc)[]) if (!(k in d)) delete doc[k];
   Object.assign(doc, d);
   if (!sameTracks) {
@@ -427,8 +436,9 @@ function restoreDoc(snap: string) {
     rt.queued.fill(null);
     return;
   }
+  if (perm) permuteRuntime(src);
   doc.tracks.forEach((t, i) => {
-    const p = play[i];
+    const p = play[perm ? src[i] : i];
     if (!p) return;
     if (p.slot === t.slot || t.slots[p.slot]) { swapSlot(t, p.slot); t.stopped = p.stopped; }
     else t.stopped = true; // паттерна, который играл, в восстановленном проекте нет
@@ -881,7 +891,7 @@ export function pasteTrack(i: number) {
   if (!c || !doc.tracks[i]) return;
   edit(() => {
     const t = doc.tracks[i];
-    doc.tracks[i] = { ...clone(c.track), mute: t.mute, solo: t.solo };
+    doc.tracks[i] = { ...clone(c.track), mute: t.mute, solo: t.solo, id: t.id };
     doc.eqs[i] = clone(c.eq);
     doc.folders[i] = clone(c.folder);
     if (c.vol !== undefined) doc.mixer[`mix.vol${i + 1}`] = c.vol;
@@ -918,9 +928,61 @@ const MIX_LOCK_SEQS = () => [doc.chanSeqs[0]];
  * громкость (и p-lock громкости на шагах MIX), источник sidechain и динамических полос EQ,
  * назначения LFO/ENV на FX. Отмена — UNDO.
  */
-/** Движок гасит голоса удалённой дорожки и сдвинутых (state не импортирует движок). */
-let trackDeletedHook: (i: number) => void = () => {};
-export const onTrackDeleted = (f: (i: number) => void) => { trackDeletedHook = f; };
+/**
+ * Движок гасит голоса дорожек from…to, сменивших номер (удаление, перестановка): они звучат на
+ * цепочках прежних номеров (state не импортирует движок).
+ */
+let trackDeletedHook: (from: number, to?: number) => void = () => {};
+export const onTrackDeleted = (f: (from: number, to?: number) => void) => { trackDeletedHook = f; };
+
+/**
+ * Состояние игры, модуляции и пианоролла — за дорожками после перестановки:
+ * src[j] — прежний номер дорожки, ставшей j-й.
+ */
+function permuteRuntime(src: number[]) {
+  const arrays = [rt.flashUntil, rt.lfoPhase, rt.lfoRandom, rt.env, rt.envQueue, rt.noteFlash, rt.queued,
+    rt.playPos, rt.trackStart, rt.playLocks, perTrack] as unknown[][];
+  for (const a of arrays) {
+    const old = a.slice(0, src.length);
+    src.forEach((s, j) => { a[j] = old[s]; });
+  }
+  const moved = src.map((s, j) => (s !== j ? j : -1)).filter((j) => j >= 0);
+  if (moved.length) trackDeletedHook(Math.min(...moved), Math.max(...moved));
+  if (ui.selectedTrack < src.length) ui.selectedTrack = src.indexOf(ui.selectedTrack);
+}
+
+/**
+ * Перестановка в MIX: дорожка from встаёт на место to, дорожки между ними сдвигаются.
+ * С ней переезжают громкость (и p-lock громкости на шагах MIX), EQ, папка, источник sidechain,
+ * динамических полос EQ и назначений LFO/ENV на FX.
+ */
+export function moveTrack(from: number, to: number) {
+  const n = doc.tracks.length;
+  if (from === to || from < 0 || to < 0 || from >= n || to >= n) return;
+  // src[j] — прежний номер дорожки на месте j; map — новый номер прежней дорожки.
+  const src = Array.from({ length: n }, (_, j) => j);
+  src.splice(to, 0, ...src.splice(from, 1));
+  const map = (j: number) => (j < n ? src.indexOf(j) : j);
+  edit(() => {
+    for (const a of [doc.tracks, doc.folders, doc.eqs] as unknown[][]) {
+      const old = a.slice(0, n);
+      src.forEach((s, j) => { a[j] = old[s]; });
+    }
+    const vol = (j: number) => `mix.vol${j + 1}`;
+    const moveVols = (r: Record<string, number>) => {
+      const old = src.map((s) => r[vol(s)]);
+      old.forEach((v, j) => { if (v === undefined) delete r[vol(j)]; else r[vol(j)] = v; });
+    };
+    moveVols(doc.mixer);
+    for (const t of MIX_LOCK_SEQS()) forEachStep(t, (st) => moveVols(st.locks));
+    doc.fx['sc.source'] = map(Math.round(doc.fx['sc.source']));
+    for (const eq of [...doc.eqs, doc.masterEq]) {
+      for (const b of eq.bands) if (b && b.dyn !== undefined && b.dyn >= 1) b.dyn = map(b.dyn - 1) + 1;
+    }
+    for (const id of Object.keys(doc.fxAssigns)) doc.fxAssigns[id].track = map(doc.fxAssigns[id].track);
+  });
+  permuteRuntime(src);
+}
 
 export function deleteTrack(i: number) {
   if (!canDeleteTrack(i)) return;

@@ -437,6 +437,10 @@ input::selection, textarea::selection { background: var(--select); color: var(--
   min-height: 0;
   padding: 2px 0;
 }
+/* Перестановка дорожек в MIX: поднятая ручка над остальными, соседи сдвигаются плавно. */
+.knob-lifted { z-index: 5; }
+.knob-shift { transition: transform 160ms ease; }
+.knob-settle { transition: transform 180ms ease; }
 .knob-dial { position: relative; flex: 1; min-height: 0; width: 100%; display: flex; justify-content: center; }
 .knob-svg { height: 100%; max-width: 100%; aspect-ratio: 1; }
 .knob-value {

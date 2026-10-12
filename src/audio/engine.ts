@@ -683,22 +683,22 @@ function sidechain(source: number, at: number) {
 }
 
 /**
- * Удалена дорожка i: её голоса и голоса дорожек правее (они сдвинулись на номер левее, а звучат
- * на цепочках прежних номеров) быстро гаснут (~5 мс) и больше не модулируются; новые ноты пойдут
- * по новым номерам.
+ * Дорожки i…last сменили номер (удаление — i и все правее, перестановка — участок): их голоса
+ * звучат на цепочках прежних номеров — быстро гаснут (~5 мс) и больше не модулируются; новые ноты
+ * пойдут по новым номерам.
  */
-export function trackDeleted(i: number) {
+export function trackDeleted(i: number, last = MAX_TRACKS - 1) {
   if (!ctx) return;
   const ct = ctx.currentTime;
   for (const vo of voices) {
-    if (vo.track < i || vo.ended) continue;
+    if (vo.track < i || vo.track > last || vo.ended) continue;
     vo.ended = true;
     if (vo.src) {
       vo.level.gain.setTargetAtTime(0, ct, 0.0015);
       try { vo.src.stop(ct + 0.03); } catch { /* уже остановлен */ }
     }
   }
-  for (let ch = i; ch < MAX_TRACKS; ch++) {
+  for (let ch = i; ch <= last; ch++) {
     const sy = synths[ch];
     if (!sy) continue;
     sy.slots.forEach((sl) => { sl.amp.gain.cancelScheduledValues(ct); sl.amp.gain.setTargetAtTime(0, ct, 0.0015); });

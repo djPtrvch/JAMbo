@@ -3,7 +3,7 @@
 
 import { fromNorm, toNorm, type ParamDef } from '../params';
 import {
-  addTrack, audible, assignFor, canAddTrack, canDeleteTrack, copyTrack, deleteTrack, hasTrackClip, pasteTrack, curSeq, fxModNorm, liveLocks, seqIndex,
+  addTrack, audible, assignFor, canAddTrack, canDeleteTrack, copyTrack, deleteTrack, hasTrackClip, moveTrack, pasteTrack, curSeq, fxModNorm, liveLocks, seqIndex,
   beginGesture, clearLfoAssign, clearLock, doc, endGesture, firstHeldStep, gridFor, gridMode, heldLfo,
   lockValue, modulatedNorm, paramValue, type Mod, setLfoAmount, setLockNorm, setParamNorm, ui, type GridMode,
 } from '../state';
@@ -107,6 +107,18 @@ interface Gesture {
   lfo: Mod;
   consumed: boolean;
   holdTimer?: number;
+  /** MIX: ручку громкости подняли удержанием и перетаскивают (перестановка дорожек). */
+  drag?: TrackDrag;
+}
+
+interface TrackDrag {
+  from: number;
+  /** Место, куда встанет дорожка, если отпустить сейчас. */
+  to: number;
+  x0: number;
+  y0: number;
+  /** Центры ручек дорожек (без сдвигов) — по ним выбирается место и сдвигаются соседи. */
+  centers: { x: number; y: number }[];
 }
 
 const views: KnobView[] = [];
@@ -169,24 +181,84 @@ function openTrackMenu(anchor: Element, items: [string, () => void, boolean?][])
   menu.openAt(anchor, 180);
 }
 
-/** Скрытая ручка в MIX: удержание без движения — ADD TRACK (дорожка добавляется в конец). */
-const hiddenHolds = new Map<number, { timer: number; y: number }>();
+/** Скрытая ручка в MIX: двойной тап — ADD TRACK (дорожка добавляется в конец). */
 function onHiddenDown(slot: number, e: PointerEvent) {
   if (gridMode() !== 'mix' || slot >= MAX_TRACKS || !canAddTrack()) return;
   e.preventDefault();
-  const root = views[slot].root;
-  root.setPointerCapture(e.pointerId);
-  const timer = window.setTimeout(() => {
-    hiddenHolds.delete(e.pointerId);
-    if (gridMode() === 'mix' && canAddTrack()) openTrackMenu(root, [['ADD TRACK', addTrack]]);
-  }, TRACK_HOLD_MS);
-  hiddenHolds.set(e.pointerId, { timer, y: e.clientY });
+  const now = performance.now();
+  if (now - lastTap[slot] < DOUBLE_TAP_MS) {
+    lastTap[slot] = -1e9;
+    openTrackMenu(views[slot].root, [['ADD TRACK', addTrack]]);
+  } else lastTap[slot] = now;
 }
-function endHiddenHold(e: PointerEvent, moved = true) {
-  const hh = hiddenHolds.get(e.pointerId);
-  if (!hh || (!moved && Math.abs(e.clientY - hh.y) < DEAD_PX * 2)) return;
-  clearTimeout(hh.timer);
-  hiddenHolds.delete(e.pointerId);
+
+// ---------- Перестановка дорожек в MIX: удержание ручки громкости и перетаскивание ----------
+
+/** Место для дорожки — ближайшая к пальцу ручка существующей дорожки. */
+function dropSlot(d: TrackDrag, x: number, y: number): number {
+  let best = d.from;
+  let bd = Infinity;
+  d.centers.forEach((c, k) => {
+    const dist = (c.x - x) ** 2 + (c.y - y) ** 2;
+    if (dist < bd) { bd = dist; best = k; }
+  });
+  return best;
+}
+
+/** Поднятая ручка — за пальцем, соседи между from и to — на место соседа (анимация CSS). */
+function layoutDrag(d: TrackDrag, x: number, y: number) {
+  const n = d.centers.length;
+  for (let k = 0; k < n; k++) {
+    const r = views[k].root;
+    if (k === d.from) { r.style.transform = `translate(${x - d.x0}px, ${y - d.y0}px) scale(1.12)`; continue; }
+    // Новое место дорожки k после перестановки from → to.
+    const p = d.from < d.to ? (k > d.from && k <= d.to ? k - 1 : k) : (k >= d.to && k < d.from ? k + 1 : k);
+    const c = d.centers[k];
+    const t = d.centers[p];
+    r.style.transform = p === k ? '' : `translate(${t.x - c.x}px, ${t.y - c.y}px)`;
+  }
+}
+
+function startDrag(g: Gesture, e: PointerEvent) {
+  const n = doc.tracks.length;
+  const centers = views.slice(0, n).map((v) => {
+    const b = v.root.getBoundingClientRect();
+    return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+  });
+  g.drag = { from: g.slot, to: g.slot, x0: e.clientX, y0: e.clientY, centers };
+  views[g.slot].root.classList.add('knob-lifted');
+  for (let k = 0; k < n; k++) if (k !== g.slot) views[k].root.classList.add('knob-shift');
+}
+
+function endDrag(d: TrackDrag, x: number, y: number) {
+  const n = d.centers.length;
+  for (let k = 0; k < n; k++) {
+    const r = views[k].root;
+    r.classList.remove('knob-lifted', 'knob-shift');
+    r.style.transform = '';
+  }
+  if (d.to === d.from) {
+    // Не сдвинули: ручка плавно возвращается на место.
+    settle(d.from, x - d.x0, y - d.y0);
+    return;
+  }
+  moveTrack(d.from, d.to);
+  // Сразу перерисовать: ручки на местах показывают уже новый порядок (без мелькания старого).
+  renderKnobs(performance.now());
+  const c = d.centers[d.from];
+  const t = d.centers[d.to];
+  settle(d.to, c.x + x - d.x0 - t.x, c.y + y - d.y0 - t.y);
+}
+
+/** Ручка встаёт на место из сдвига (dx, dy) — короткая анимация. */
+function settle(slot: number, dx: number, dy: number) {
+  const r = views[slot].root;
+  r.classList.add('knob-lifted');
+  r.style.transform = `translate(${dx}px, ${dy}px) scale(1.12)`;
+  void r.offsetWidth;
+  r.classList.add('knob-settle');
+  r.style.transform = '';
+  window.setTimeout(() => r.classList.remove('knob-lifted', 'knob-settle'), 200);
 }
 
 function onDown(slot: number, e: PointerEvent) {
@@ -207,10 +279,20 @@ function onDown(slot: number, e: PointerEvent) {
 
   // Двойной тап: только при удержании шага (снять p-lock) или LFO (снять назначение).
   const now = performance.now();
+  const trackKnob = mode === 'mix' && slot < doc.tracks.length && held === null;
   if (now - lastTap[slot] < DOUBLE_TAP_MS) {
     lastTap[slot] = -1e9;
     if (kind === 'lock') clearLock(param);
     else if (kind === 'lfo') clearLfoAssign(param, g.lfo, mode);
+    else if (trackKnob) {
+      // MIX: двойной тап по ручке громкости — COPY, PASTE (дорожку целиком) и DELETE TRACK
+      // (если дорожек больше 8; правые сдвигаются).
+      openTrackMenu(views[slot].root, [
+        ['COPY', () => copyTrack(slot)],
+        ['PASTE', () => pasteTrack(slot), hasTrackClip()],
+        ['DELETE TRACK', () => deleteTrack(slot), canDeleteTrack(slot)],
+      ]);
+    }
     g.consumed = true;
   }
 
@@ -233,29 +315,28 @@ function onDown(slot: number, e: PointerEvent) {
         openRename(slot, anchor);
       }
     }, RENAME_HOLD_MS);
-  } else if (mode === 'mix' && slot < doc.tracks.length && held === null) {
-    // Удержание ручки громкости дорожки без движения — COPY, PASTE (дорожку целиком) и DELETE TRACK
-    // (если дорожек больше 8; правые сдвигаются).
-    const anchor = views[slot].root;
+  } else if (trackKnob && !g.consumed) {
+    // Удержание ручки громкости без движения — ручка поднимается, её тащат на место другой дорожки.
     g.holdTimer = window.setTimeout(() => {
-      if (!g.moved && gestures.get(e.pointerId) === g) {
+      if (!g.moved && gestures.get(e.pointerId) === g && !g.consumed) {
         g.consumed = true;
-        openTrackMenu(anchor, [
-          ['COPY', () => copyTrack(slot)],
-          ['PASTE', () => pasteTrack(slot), hasTrackClip()],
-          ['DELETE TRACK', () => deleteTrack(slot), canDeleteTrack(slot)],
-        ]);
+        startDrag(g, e);
       }
     }, TRACK_HOLD_MS);
   }
 }
 
 function onMove(e: PointerEvent) {
-  endHiddenHold(e, false);
   const g = gestures.get(e.pointerId);
+  if (g?.drag) {
+    g.drag.to = dropSlot(g.drag, e.clientX, e.clientY);
+    layoutDrag(g.drag, e.clientX, e.clientY);
+    return;
+  }
   if (!g || g.consumed) return;
   if (!g.moved) {
-    if (Math.abs(e.clientY - g.startY) < DEAD_PX) return;
+    // Пока ждём удержания (перестановка в MIX), мёртвая зона шире — палец чуть дрожит.
+    if (Math.abs(e.clientY - g.startY) < (g.holdTimer !== undefined && g.mode === 'mix' ? DEAD_PX * 2 : DEAD_PX)) return;
     g.moved = true;
     g.lastY = e.clientY;
     return;
@@ -273,11 +354,11 @@ function onMove(e: PointerEvent) {
 }
 
 function onUp(e: PointerEvent) {
-  endHiddenHold(e);
   const g = gestures.get(e.pointerId);
   if (!g) return;
   gestures.delete(e.pointerId);
   clearTimeout(g.holdTimer);
+  if (g.drag) endDrag(g.drag, e.clientX, e.clientY);
   if (!g.moved && !g.consumed) lastTap[g.slot] = performance.now();
   endGesture();
 }
