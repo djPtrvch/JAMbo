@@ -53,7 +53,7 @@ const DRUM_OUT = 0.85;
 // ---------- ANALOG ----------
 /** Расстройка OSC1/OSC2 в сумме (центы) при ручке DETUNE 100 % (кривая x²). */
 const ANALOG_DETUNE = 60;
-/** Дрейф высоты голоса: ± центов; новая случайная цель — в среднем раз в 1/ANALOG_DRIFT_RATE с, плавно за 0,7 с. */
+/** Дрейф высоты (общий на дорожку — голоса одной ноты не расходятся по фазе): ± центов; новая случайная цель — в среднем раз в 1/ANALOG_DRIFT_RATE с, плавно за 0,7 с. */
 const ANALOG_DRIFT = 3;
 const ANALOG_DRIFT_RATE = 2;
 const ANALOG_OUT = 0.62;
@@ -77,6 +77,9 @@ const SIN_N = 4096;
 const SIN = new Float32Array(SIN_N + 1);
 for (let i = 0; i <= SIN_N; i++) SIN[i] = Math.sin(TAU * i / SIN_N);
 /** Синус по фазе в долях периода (любое число), таблица с линейной интерполяцией. */
+function frac(x) { return x - Math.floor(x); }
+/** Значение треугольника ANALOG (пик на φ = 0.25) в фазе φ. */
+function triAt(ph) { return 1 - 4 * Math.abs(ph < 0.75 ? ph - 0.25 : ph - 1.25); }
 function sinT(ph) {
   let x = ph - Math.floor(ph);
   x *= SIN_N;
@@ -144,7 +147,9 @@ const flush = (x) => (x > 1e-20 || x < -1e-20 ? x : 0);
 
 /** Голос: состояние слота для всех движков (буферы — заранее). */
 class Voice {
-  constructor() {
+  constructor(proc) {
+    /** Узел дорожки: общий дрейф ANALOG. */
+    this.proc = proc;
     this.engine = DRUM;
     this.note = 48;
     // Цели ручек и сглаженные значения.
@@ -155,7 +160,7 @@ class Voice {
     // DRUM
     this.p1 = 0; this.p2 = 0; this.dc = 0; this.last = 0;
     // ANALOG
-    this.a1 = 0; this.a2 = 0; this.as = 0; this.tri1 = 0; this.tri2 = 0; this.drift = 0; this.driftTo = 0;
+    this.a1 = 0; this.a2 = 0; this.as = 0; this.tri1 = 0; this.tri2 = 0;
     // FM
     this.pc = 0; this.pm = 0; this.m1 = 0; this.m2 = 0;
     this.hb = new Float32Array(HB_LEN * 2);
@@ -179,7 +184,8 @@ class Voice {
     if (ev.decay !== undefined) this.td = ev.decay;
   }
 
-  trigger(ev) {
+  /** now — кадр начала ноты, tau — время узла с учётом дрейфа (кадров) на этот кадр. */
+  trigger(ev, now, tau) {
     // DRUM монофонична: новый удар в тот же слот, хвост прошлого гаснет за DRUM_DECLICK.
     this.dc = ev.engine === DRUM && this.engine === DRUM ? this.last : 0;
     this.engine = ev.engine;
@@ -188,16 +194,20 @@ class Voice {
     this.s1 = this.t1; this.s2 = this.t2; this.s3 = this.t3; this.sd = this.td;
     this.t = 0;
     this.p1 = 0; this.p2 = 0;
-    this.pc = 0; this.pm = 0; this.m1 = 0; this.m2 = 0;
+    this.m1 = 0; this.m2 = 0;
     this.hb.fill(0);
-    // ANALOG: случайная начальная фаза (одна на оба осциллятора — в унисоне они не гасят друг друга).
-    const ph = this.rand();
-    this.a1 = ph; this.a2 = ph; this.as = ph * 0.5;
-    this.tri1 = this.tri2 = 1 - 4 * Math.abs(ph < 0.75 ? ph - 0.25 : ph - 1.25);
-    this.drift = (this.rand() * 2 - 1) * ANALOG_DRIFT;
-    this.driftTo = this.drift;
-    // WTABLE: центр с нуля, боковые — со случайной фазы (без скачка уровня при включении унисона).
-    this.w0 = 0; this.wl = this.rand(); this.wr = this.rand();
+    // Фаза новой ноты — как у генератора, который бежит непрерывно (frac(f·t)): ноты одной высоты
+    // встают в фазу с хвостом прошлой и не гасят его (при случайной фазе уровень прыгал от ноты к ноте —
+    // на синусе звук «прерывистый»). Оба осциллятора ANALOG — из одной точки (в унисоне не гасят друг друга).
+    const f = 440 * Math.pow(2, (this.note - 69) / 12) / sampleRate;
+    const det = ANALOG_DETUNE / 2 * this.s2 * this.s2;
+    this.a1 = frac(f * Math.pow(2, det / 1200) * tau);
+    this.a2 = frac(f * Math.pow(2, -det / 1200) * tau);
+    this.as = frac(0.5 * f * tau);
+    this.tri1 = triAt(this.a1); this.tri2 = triAt(this.a2);
+    this.pc = frac(f * now); this.pm = frac(fmRatio(this.s1) * f * now);
+    // WTABLE: центр — так же, боковые — со случайной фазы (без скачка уровня при включении унисона).
+    this.w0 = frac(f * now); this.wl = this.rand(); this.wr = this.rand();
     this.fade = 0;
   }
 
@@ -266,10 +276,8 @@ class Voice {
   // с передискретизацией ×2 и полуполосным фильтром (как FM) — алиасинг пилы и квадрата ниже −60 dBc.
   analog(out, pos, n) {
     const sr2 = sampleRate * 2;
-    // Дрейф: медленное случайное блуждание ±ANALOG_DRIFT центов (на голос, общий для осцилляторов).
-    if (this.rand() < ANALOG_DRIFT_RATE * n / sampleRate) this.driftTo = (this.rand() * 2 - 1) * ANALOG_DRIFT;
-    this.drift += (this.driftTo - this.drift) * n / (0.7 * sampleRate);
-    const f0 = 440 * Math.pow(2, (this.note - 69 + this.drift / 100) / 12);
+    // Дрейф — общий на узел (process): медленное блуждание ±ANALOG_DRIFT центов.
+    const f0 = 440 * Math.pow(2, (this.note - 69) / 12) * this.proc.ratio;
     // DETUNE: OSC1 вверх, OSC2 вниз, в сумме 0..60 центов по кривой x².
     const det = ANALOG_DETUNE / 2 * this.s2 * this.s2;
     const dt1 = Math.min(0.45, f0 * Math.pow(2, det / 1200) / sr2);
@@ -419,7 +427,10 @@ class JamboProcessor extends AudioWorkletProcessor {
     super();
     const { slots } = options.processorOptions;
     this.slots = slots;
-    this.voices = Array.from({ length: slots }, () => new Voice());
+    this.voices = Array.from({ length: slots }, () => new Voice(this));
+    // Дрейф ANALOG (общий на дорожку): центы, цель, множитель частоты и время узла с дрейфом (кадров).
+    this.drift = 0; this.driftTo = 0; this.ratio = 1; this.tau = 0;
+    this.rnd = 33333;
     this.pending = Array.from({ length: slots }, () => []);
     this.end = new Float64Array(slots);
     this.id = new Float64Array(slots);
@@ -447,18 +458,26 @@ class JamboProcessor extends AudioWorkletProcessor {
     };
   }
 
-  start(slot, ev) {
+  /** now — кадр, в котором нота начинается (запоздавшая — позже своего кадра). */
+  start(slot, ev, now) {
     if (ev.type === 'stop') { this.end[slot] = Math.min(this.end[slot], ev.frame); return; }
     this.end[slot] = ev.end;
     this.id[slot] = ev.id ?? 0;
     this.start0[slot] = ev.frame;
     this.quiet[slot] = 0;
-    this.voices[slot].trigger(ev);
+    this.voices[slot].trigger(ev, now, this.tau + (now - currentFrame) * this.ratio);
   }
 
   process(_inputs, outputs) {
     const t0 = Date.now();
     const frames = outputs[0][0].length;
+    let r = this.rnd; r ^= r << 13; r ^= r >>> 17; r ^= r << 5; this.rnd = r;
+    if ((r >>> 0) / 4294967296 < ANALOG_DRIFT_RATE * frames / sampleRate) {
+      r ^= r << 13; r ^= r >>> 17; r ^= r << 5; this.rnd = r;
+      this.driftTo = ((r >>> 0) / 4294967296 * 2 - 1) * ANALOG_DRIFT;
+    }
+    this.drift += (this.driftTo - this.drift) * frames / (0.7 * sampleRate);
+    this.ratio = Math.pow(2, this.drift / 1200);
     for (let s = 0; s < this.slots; s++) {
       const out = outputs[s][0];
       const q = this.pending[s];
@@ -467,7 +486,7 @@ class JamboProcessor extends AudioWorkletProcessor {
       while (pos < frames) {
         const now = currentFrame + pos;
         // Запуск ноты ровно в её кадре (запоздавшая — сразу).
-        while (q.length && q[0].frame <= now) this.start(s, q.shift());
+        while (q.length && q[0].frame <= now) this.start(s, q.shift(), now);
         let n = Math.min(BLOCK, frames - pos);
         if (q.length) n = Math.min(n, q[0].frame - now);
         if (now >= this.end[s]) {
@@ -483,6 +502,7 @@ class JamboProcessor extends AudioWorkletProcessor {
         pos += n;
       }
     }
+    this.tau += frames * this.ratio;
     this.busy += Date.now() - t0;
     this.frames += frames;
     if (this.frames >= sampleRate / 2) {
