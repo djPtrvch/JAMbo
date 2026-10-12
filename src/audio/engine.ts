@@ -165,7 +165,8 @@ function loadDevice(c: AudioContext, file: string, name: string, from: GainNode,
       const [i, g, o] = e.data as number[];
       levels.in = i; levels.gr = g; levels.out = o; levels.at = performance.now();
     };
-    from.disconnect();
+    // Снимаем только обход (from → to): от from могут идти и другие связи (скоп мастера).
+    from.disconnect(to);
     from.connect(node).connect(to);
     ready(node);
     sendDynamics();
@@ -802,7 +803,7 @@ export function setMasterScope(point: number | null) {
     mSplit.connect(mScopeL, 0);
     mSplit.connect(mScopeR, 1);
   }
-  if (mTap) mTap.disconnect(mSplit);
+  if (mTap) { try { mTap.disconnect(mSplit); } catch { /* связь уже снята */ } }
   mTap = tap;
   if (tap) tap.connect(mSplit);
 }

@@ -1,75 +1,74 @@
-// Боковая панель мастера (при MST — вся левая колонка): блоки COMP | CLIP | LIM в порядке цепочки —
-// один компонент сегментных столбцов IN | GR | OUT для всех трёх: одинаковые размеры, зазоры,
-// 24 сегмента, цвета, тусклые сегменты, баллистика, peak hold, шрифты и кнопки. Различаются только
-// параметры: шкалы, белые риски (порог компрессора, CEILING клиппера и лимитера), условие клипа и кнопки.
-// Подъём мгновенный, спад 20 dB/s, пиковая метка 1.5 с тонкой линией того же цвета; неактивные
-// сегменты серые. GR растёт сверху вниз, оранжевый; рядом число — пик GR за 1.5 с; за краем шкалы
-// нижний сегмент мигает. Над OUT индикатор клипа — держится до тапа. В bypass столбцы серые, GR ноль.
-// Кнопки RATIO и BYPASS — на месте LFO1–3/ENV под окном (buttons.ts). Неактивные сегменты — серые.
-// Цвета — из темы: жёлтый ниже −6 dB, оранжевый от −6 до 0, красный выше 0. Холст рисуется в общем кадре.
-
+// Боковая панель мастера (при MST — окно сэмпла): блоки COMP | CLIP | LIM в порядке цепочки — один
+// компонент LevelBars в стиле Drambo: три тонких стержня IN | GR | OUT одной высоты, сплошная заливка
+// без сегментов, шкал, чисел и peak hold. IN и OUT — снизу вверх, −48…0 dBFS, цвет всего стержня по
+// пику (жёлтый ниже −6 dB, оранжевый до 0, красный выше 0 — держится не меньше 300 ms); GR — сверху
+// вниз, оранжевый, шкала у компрессора 18 dB, у клиппера и лимитера 12 dB. Белая риска порога
+// (THRESHOLD / CEILING) — только на IN. Подъём мгновенный, спад 20 dB/s. В bypass стержни серые, GR ноль.
+// Кнопки RATIO и BYPASS — на месте LFO1–3/ENV под окном (buttons.ts). Цвета — из темы (--meter-*).
+// Холст рисуется в общем кадре.
 import { clipperMeter, glueMeter, limiterMeter, type DynLevels } from '../audio/engine';
 import { doc, liveMaster } from '../state';
-import { h, setClass, setText } from './dom';
+import { h } from './dom';
 import { color } from './theme';
 
-const SEGMENTS = 24;
+/** Шкала IN и OUT, dB (низ…верх). */
+const LEVEL_LO = -48;
+const LEVEL_HI = 0;
 const FALL_DB_S = 20;
-const HOLD_MS = 1500;
-/** Промежуток между столбцами, px (столько же — между кнопками). */
-const GAP = 4;
+/** Красный держится не меньше, ms. */
+const OVER_HOLD_MS = 300;
+/** Ширина стержня, px; риска шире на RISK_EXTRA с каждой стороны, толщина RISK_H. */
+const BAR_W = 10;
+const RISK_EXTRA = 6;
+const RISK_H = 2;
+/** Высота строки подписей IN / GR / OUT под стержнями, px. */
+const LABEL_H = 14;
 /** Данные worklet старше этого — тишина (звук остановлен). */
 const STALE_MS = 150;
 
-type Range = [number, number];
-interface Ballistic { disp: number; hold: number; holdAt: number }
-const ball = (): Ballistic => ({ disp: -120, hold: -120, holdAt: 0 });
 const toDb = (x: number) => 20 * Math.log10(Math.max(x, 1e-6));
 
-/** Столбец уровня: мгновенный подъём, спад 20 dB/s, пиковая метка 1.5 с. */
-function step(b: Ballistic, v: number, dt: number, now: number) {
-  b.disp = Math.max(v, b.disp - FALL_DB_S * dt);
-  if (v >= b.hold || now - b.holdAt > HOLD_MS) { b.hold = Math.max(v, b.disp); b.holdAt = now; }
+/** Цвет темы светлее на долю k (для серых стержней в bypass). */
+function lighten(css: string, k: number): string {
+  let r = 128, g = 128, b = 128;
+  const hex = css.trim().match(/^#([0-9a-f]{6})$/i);
+  const rgb = css.match(/rgba?\(([^)]+)\)/);
+  if (hex) { const n = parseInt(hex[1], 16); r = n >> 16; g = (n >> 8) & 255; b = n & 255; }
+  else if (rgb) [r, g, b] = rgb[1].split(',').map((v) => parseFloat(v));
+  const f = (v: number) => Math.round(v + (255 - v) * k);
+  return `rgb(${f(r)}, ${f(g)}, ${f(b)})`;
 }
 
-interface DynOptions {
+interface Level { disp: number; overUntil: number }
+
+interface BarsOptions {
   title: string;
   meter: () => DynLevels;
   bypass: () => boolean;
-  inRange: Range;
-  outRange: Range;
+  /** Шкала GR, dB. */
   grMax: number;
-  /** Белые риски на IN и OUT (dB) или null. */
-  inMark: () => number | null;
-  outMark: () => number | null;
-  /** Выход перешёл границу клипа (линейный пик выхода). */
-  clips: (outPeak: number) => boolean;
+  /** Белая риска порога на IN (dB). */
+  inMark: () => number;
 }
 
-class DynView {
+/** LevelBars: общий компонент индикации компрессора, клиппера и лимитера. */
+class LevelBars {
   el: HTMLElement;
   private canvas: HTMLCanvasElement;
-  private grText: HTMLElement;
-  private clipEl: HTMLElement;
-  private bIn = ball();
-  private bOut = ball();
-  private bGr = { disp: 0, hold: 0, holdAt: 0 };
-  private clipped = false;
+  private lIn: Level = { disp: -120, overUntil: 0 };
+  private lOut: Level = { disp: -120, overUntil: 0 };
+  private gr = 0;
   private last = 0;
 
-  constructor(private o: DynOptions) {
+  constructor(private o: BarsOptions) {
     this.el = h('div', 'vbar-group glue');
-    // Над столбцами: пик GR числом (над IN и GR, по правому краю GR) | индикатор клипа над OUT.
-    const top = h('div', 'glue-row glue-top');
-    this.grText = h('div', 'glue-gr-text');
-    this.clipEl = h('div', 'glue-clip');
-    this.clipEl.addEventListener('pointerdown', (e) => { e.preventDefault(); this.clipped = false; });
-    top.append(this.grText, this.clipEl);
     this.canvas = h('canvas', 'glue-canvas');
-    const labels = h('div', 'glue-row glue-labels');
-    labels.append(h('div', '', 'IN'), h('div', '', 'GR'), h('div', '', 'OUT'));
-    this.el.style.setProperty('--glue-gap', `${GAP}px`);
-    this.el.append(h('div', 'vbar-title', o.title), top, this.canvas, labels);
+    this.el.append(h('div', 'vbar-title', o.title), this.canvas);
+  }
+
+  private level(l: Level, v: number, dt: number, now: number) {
+    l.disp = Math.max(v, l.disp - FALL_DB_S * dt);
+    if (v > 0) l.overUntil = now + OVER_HOLD_MS;
   }
 
   render(now: number) {
@@ -79,15 +78,10 @@ class DynView {
     const m = o.meter();
     const live = now - m.at < STALE_MS;
     const bypass = o.bypass();
-    step(this.bIn, live ? toDb(m.in) : -120, dt, now);
-    step(this.bOut, live ? toDb(m.out) : -120, dt, now);
+    this.level(this.lIn, live ? toDb(m.in) : -120, dt, now);
+    this.level(this.lOut, live ? toDb(m.out) : -120, dt, now);
     const gr = live && !bypass ? m.gr : 0;
-    const g = this.bGr;
-    g.disp = Math.max(gr, g.disp - FALL_DB_S * dt);
-    if (gr >= g.hold || now - g.holdAt > HOLD_MS) { g.hold = Math.max(gr, g.disp); g.holdAt = now; }
-    if (live && !bypass && o.clips(m.out)) this.clipped = true;
-    setText(this.grText, g.hold > 0.05 ? `-${g.hold.toFixed(1)} dB` : '0.0 dB');
-    setClass(this.clipEl, 'on', this.clipped);
+    this.gr = bypass ? 0 : Math.max(gr, this.gr - FALL_DB_S * dt);
     this.draw(now, bypass);
   }
 
@@ -95,106 +89,79 @@ class DynView {
     const o = this.o;
     const canvas = this.canvas;
     const dpr = window.devicePixelRatio || 1;
-    const w = Math.round(canvas.clientWidth * dpr);
-    const hh = Math.round(canvas.clientHeight * dpr);
-    if (!w || !hh) return;
+    const cw = canvas.clientWidth;
+    const ch = canvas.clientHeight;
+    if (!cw || !ch) return;
+    const w = Math.round(cw * dpr);
+    const hh = Math.round(ch * dpr);
     if (canvas.width !== w || canvas.height !== hh) { canvas.width = w; canvas.height = hh; }
     const c = canvas.getContext('2d')!;
-    c.clearRect(0, 0, w, hh);
-    const gap = GAP * dpr;
-    const colW = (w - 2 * gap) / 3;
-    const segGap = Math.max(1, Math.round(dpr));
-    const segH = (hh - (SEGMENTS - 1) * segGap) / SEGMENTS;
-    const line = Math.max(1, 1.5 * dpr);
-    const yellow = color('--plock');
-    const orange = color('--gr');
-    const red = color('--rec');
-    const grey = color('--mute-grey');
-    const ink = color('--ink');
-    // Неактивные сегменты — серые (цвет выключенного элемента темы).
-    const off = color('--off');
-    const levelColor = (db: number) => (bypass ? grey : db > 0 ? red : db >= -6 ? orange : yellow);
-    const segY = (k: number) => hh - (k + 1) * segH - k * segGap;
-    const yOf = (v: number, [lo, hi]: Range) => hh - Math.min(1, Math.max(0, (v - lo) / (hi - lo))) * hh;
-
-    const level = (col: number, range: Range, b: Ballistic, mark: number | null) => {
-      const [lo, hi] = range;
-      const x = col * (colW + gap);
-      const per = (hi - lo) / SEGMENTS;
-      for (let k = 0; k < SEGMENTS; k++) {
-        const bottom = lo + k * per;
-        c.fillStyle = b.disp > bottom ? levelColor(bottom + per / 2) : off;
-        c.fillRect(x, segY(k), colW, segH);
-      }
-      // Пиковая метка — тонкая линия цвета своего сегмента.
-      if (b.hold > lo) {
-        c.fillStyle = levelColor(b.hold);
-        c.fillRect(x, yOf(b.hold, range) - dpr, colW, line);
-      }
-      // Белая риска (порог / CEILING) — жирная, 3 px.
-      if (mark !== null) {
-        c.fillStyle = ink;
-        c.fillRect(x, yOf(mark, range) - 1.5 * dpr, colW, 3 * dpr);
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.clearRect(0, 0, cw, ch);
+    const track = color('--meter-track');
+    const off = lighten(track, 0.2);
+    const barH = ch - LABEL_H;
+    // Стержни разнесены равномерно: центры на 1/6, 3/6, 5/6 ширины блока.
+    const cx = [cw / 6, cw / 2, (5 * cw) / 6];
+    const x0 = (k: number) => Math.round(cx[k] - BAR_W / 2);
+    const levelColor = (l: Level) => {
+      if (bypass) return off;
+      if (l.disp > 0 || now < l.overUntil) return color('--meter-over');
+      return l.disp >= -6 ? color('--meter-warn') : color('--meter-ok');
+    };
+    const frac = (db: number) => Math.min(1, Math.max(0, (db - LEVEL_LO) / (LEVEL_HI - LEVEL_LO)));
+    // IN и OUT — снизу вверх.
+    const bar = (k: number, l: Level) => {
+      c.fillStyle = track;
+      c.fillRect(x0(k), 0, BAR_W, barH);
+      const f = frac(l.disp);
+      if (f > 0) {
+        c.fillStyle = levelColor(l);
+        c.fillRect(x0(k), barH * (1 - f), BAR_W, barH * f);
       }
     };
-    level(0, o.inRange, this.bIn, o.inMark());
-    level(2, o.outRange, this.bOut, o.outMark());
-
-    // GR: сверху вниз от нулевой линии; за краем шкалы нижний сегмент мигает.
-    const x = colW + gap;
-    const per = o.grMax / SEGMENTS;
-    const g = this.bGr;
-    const blink = Math.floor(now / 250) % 2 === 0;
-    for (let k = 0; k < SEGMENTS; k++) {
-      let lit = g.disp > k * per;
-      if (k === SEGMENTS - 1 && g.disp > o.grMax) lit = blink;
-      c.fillStyle = lit ? (bypass ? grey : orange) : off;
-      c.fillRect(x, k * (segH + segGap), colW, segH);
+    bar(0, this.lIn);
+    bar(2, this.lOut);
+    // GR — сверху вниз.
+    c.fillStyle = track;
+    c.fillRect(x0(1), 0, BAR_W, barH);
+    const g = Math.min(1, this.gr / o.grMax);
+    if (g > 0) {
+      c.fillStyle = bypass ? off : color('--meter-gr');
+      c.fillRect(x0(1), 0, BAR_W, barH * g);
     }
-    if (g.hold > 0.05 && !bypass) {
-      c.fillStyle = orange;
-      c.fillRect(x, Math.min(1, g.hold / o.grMax) * hh - dpr, colW, line);
-    }
+    // Белая риска порога — только на IN.
+    c.fillStyle = color('--meter-thr');
+    const ry = Math.round(barH * (1 - frac(o.inMark())) - RISK_H / 2);
+    c.fillRect(x0(0) - RISK_EXTRA, Math.max(0, Math.min(barH - RISK_H, ry)), BAR_W + 2 * RISK_EXTRA, RISK_H);
+    // Подписи под стержнями.
+    c.fillStyle = color('--dim');
+    c.font = '9px -apple-system, sans-serif';
+    c.textAlign = 'center';
+    c.textBaseline = 'bottom';
+    ['IN', 'GR', 'OUT'].forEach((t, k) => c.fillText(t, cx[k], ch));
   }
 }
 
-let glue: DynView;
-let clip: DynView;
-let lim: DynView;
+let glue: LevelBars;
+let clip: LevelBars;
+let lim: LevelBars;
 
-/** Компрессор: IN −42…0, GR 0…−18, OUT −42…+3; риска порога на IN; клип — выход выше 0 dBFS. */
+/** Компрессор: GR 0…−18 dB, риска THRESHOLD на IN. */
 export function buildGlue(): HTMLElement {
-  glue = new DynView({
-    title: 'COMP', meter: glueMeter, bypass: () => doc.cmpBypass,
-    inRange: [-42, 0], outRange: [-42, 3], grMax: 18,
-    inMark: () => liveMaster()['cmp.threshold'], outMark: () => null,
-    clips: (pk) => pk > 1,
-  });
+  glue = new LevelBars({ title: 'COMP', meter: glueMeter, bypass: () => doc.cmpBypass, grMax: 18, inMark: () => liveMaster()['cmp.threshold'] });
   return glue.el;
 }
 
-/** Клиппер: IN −30…+12, GR 0…−12, OUT −30…0; риски CEILING на IN и OUT; клип — сэмпл выхода выше 0 dBFS. */
+/** Клиппер: GR 0…−12 dB, риска CEILING на IN. */
 export function buildClipper(): HTMLElement {
-  const ceiling = () => liveMaster()['clip.ceiling'];
-  clip = new DynView({
-    title: 'CLIP', meter: clipperMeter, bypass: () => doc.clipBypass,
-    inRange: [-30, 12], outRange: [-30, 0], grMax: 12,
-    inMark: ceiling, outMark: () => null,
-    clips: (pk) => pk > 1,
-  });
+  clip = new LevelBars({ title: 'CLIP', meter: clipperMeter, bypass: () => doc.clipBypass, grMax: 12, inMark: () => liveMaster()['clip.ceiling'] });
   return clip.el;
 }
 
-/** Лимитер: IN −30…+12, GR 0…−12, OUT −30…0; риски CEILING на IN и OUT; клип — true peak выше CEILING. */
+/** Лимитер: GR 0…−12 dB, риска CEILING на IN. */
 export function buildLimiter(): HTMLElement {
-  const ceiling = () => liveMaster()['lim.ceiling'];
-  lim = new DynView({
-    title: 'LIM', meter: limiterMeter, bypass: () => doc.limBypass,
-    inRange: [-30, 12], outRange: [-30, 0], grMax: 12,
-    inMark: ceiling, outMark: () => null,
-    // Небольшой допуск — от округления значений при сглаживании CEILING.
-    clips: (pk) => toDb(pk) > ceiling() + 0.05,
-  });
+  lim = new LevelBars({ title: 'LIM', meter: limiterMeter, bypass: () => doc.limBypass, grMax: 12, inMark: () => liveMaster()['lim.ceiling'] });
   return lim.el;
 }
 
