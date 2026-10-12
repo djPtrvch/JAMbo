@@ -47,7 +47,7 @@ const ANALOG_DETUNE = 60;
 /** Дрейф высоты голоса: ± центов; новая случайная цель — в среднем раз в 1/ANALOG_DRIFT_RATE с, плавно за 0,7 с. */
 const ANALOG_DRIFT = 3;
 const ANALOG_DRIFT_RATE = 2;
-const ANALOG_OUT = 0.7;
+const ANALOG_OUT = 0.62;
 
 // ---------- FM ----------
 const FM_SNAP = [0.5, 1, 1.5, 2, 3, 4, 5, 6, 7, 8];
@@ -109,6 +109,28 @@ function blep(t, dt) {
   return 0;
 }
 
+// ANALOG: формы совмещены по фазе (все положительны на первой половине периода): синус, треугольник
+// с пиком на четверти периода, нисходящая пила, квадрат. Пик смеси соседних форм (кроссфейд равной
+// мощности, нормированный по сумме амплитуд) заранее посчитан по сетке — делением на него пик не прыгает.
+const WAVE_STEPS = 64;
+const WAVE_GAIN = new Float32Array(3 * (WAVE_STEPS + 1));
+{
+  const shape = (k, ph) => (k === 0 ? Math.sin(TAU * ph) : k === 1 ? 1 - 4 * Math.abs(ph < 0.75 ? ph - 0.25 : ph - 1.25)
+    : k === 2 ? 1 - 2 * ph : ph < 0.5 ? 1 : -1);
+  for (let seg = 0; seg < 3; seg++) {
+    for (let st = 0; st <= WAVE_STEPS; st++) {
+      const wf = st / WAVE_STEPS;
+      const ca = Math.cos(wf * Math.PI / 2), cb = Math.sin(wf * Math.PI / 2);
+      let pk = 0;
+      for (let i = 0; i < 2048; i++) {
+        const ph = i / 2048;
+        pk = Math.max(pk, Math.abs((ca * shape(seg, ph) + cb * shape(seg + 1, ph)) / (ca + cb)));
+      }
+      WAVE_GAIN[seg * (WAVE_STEPS + 1) + st] = 1 / pk;
+    }
+  }
+}
+
 const flush = (x) => (x > 1e-20 || x < -1e-20 ? x : 0);
 
 /** Голос: состояние слота для всех движков (буферы — заранее). */
@@ -158,7 +180,7 @@ class Voice {
     // ANALOG: случайная начальная фаза (одна на оба осциллятора — в унисоне они не гасят друг друга).
     const ph = this.rand();
     this.a1 = ph; this.a2 = ph; this.as = ph * 0.5;
-    this.tri1 = this.tri2 = ph < 0.5 ? -1 + 4 * ph : 3 - 4 * ph;
+    this.tri1 = this.tri2 = 1 - 4 * Math.abs(ph < 0.75 ? ph - 0.25 : ph - 1.25);
     this.drift = (this.rand() * 2 - 1) * ANALOG_DRIFT;
     this.driftTo = this.drift;
     // WTABLE: центр с нуля, боковые — со случайной фазы (без скачка уровня при включении унисона).
@@ -232,52 +254,63 @@ class Voice {
     this.p1 = p1; this.p2 = p2; this.ic1 = flush(ic1); this.ic2 = flush(ic2); this.rnd = rnd; this.t = t;
   }
 
-  // Два осциллятора PolyBLEP (одна форма) + суб (квадрат −1 октава) + дрейф высоты.
+  // Два осциллятора PolyBLEP (одна форма) + суб (квадрат −1 октава) + дрейф высоты; считается
+  // с передискретизацией ×2 и полуполосным фильтром (как FM) — алиасинг пилы и квадрата ниже −60 dBc.
   analog(out, pos, n) {
-    const sr = sampleRate;
+    const sr2 = sampleRate * 2;
     // Дрейф: медленное случайное блуждание ±ANALOG_DRIFT центов (на голос, общий для осцилляторов).
-    if (this.rand() < ANALOG_DRIFT_RATE * n / sr) this.driftTo = (this.rand() * 2 - 1) * ANALOG_DRIFT;
-    this.drift += (this.driftTo - this.drift) * n / (0.7 * sr);
+    if (this.rand() < ANALOG_DRIFT_RATE * n / sampleRate) this.driftTo = (this.rand() * 2 - 1) * ANALOG_DRIFT;
+    this.drift += (this.driftTo - this.drift) * n / (0.7 * sampleRate);
     const f0 = 440 * Math.pow(2, (this.note - 69 + this.drift / 100) / 12);
     // DETUNE: OSC1 вверх, OSC2 вниз, в сумме 0..60 центов по кривой x².
     const det = ANALOG_DETUNE / 2 * this.s2 * this.s2;
-    const dt1 = Math.min(0.45, f0 * Math.pow(2, det / 1200) / sr);
-    const dt2 = Math.min(0.45, f0 * Math.pow(2, -det / 1200) / sr);
-    const dts = f0 * 0.5 / sr;
-    // WAVE: синус (0) → треугольник (1/3) → пила (2/3) → квадрат (1); соседние формы — кроссфейд
-    // равной мощности, нормированный по сумме амплитуд (пик не прыгает).
+    const dt1 = Math.min(0.45, f0 * Math.pow(2, det / 1200) / sr2);
+    const dt2 = Math.min(0.45, f0 * Math.pow(2, -det / 1200) / sr2);
+    const dts = f0 * 0.5 / sr2;
+    // WAVE: синус (0) → треугольник (1/3) → пила (2/3) → квадрат (1).
     const seg = Math.min(2.9999, Math.max(0, this.s1 * 3));
     const wi = seg | 0, wf = seg - wi;
     const ca = Math.cos(wf * Math.PI / 2), cb = Math.sin(wf * Math.PI / 2);
-    const wA = ca / (ca + cb), wB = cb / (ca + cb);
+    const gx = wf * WAVE_STEPS, gi = gx | 0, gr = gx - gi, gb = wi * (WAVE_STEPS + 1) + gi;
+    const wg = WAVE_GAIN[gb] + (gi < WAVE_STEPS ? (WAVE_GAIN[gb + 1] - WAVE_GAIN[gb]) * gr : 0);
+    const wA = ca / (ca + cb) * wg, wB = cb / (ca + cb) * wg;
     // SUB: 0..100 % по амплитуде, общий уровень компенсируется.
     const sub = this.s3;
     const gain = ANALOG_OUT / (1 + 0.5 * sub);
-    const leak = 1 - 20 / sr;
-    let a1 = this.a1, a2 = this.a2, as = this.as, tri1 = this.tri1, tri2 = this.tri2;
+    const leak = 1 - 20 / sr2;
+    let a1 = this.a1, a2 = this.a2, as = this.as, tri1 = this.tri1, tri2 = this.tri2, hp = this.hbPos;
+    const hb = this.hb;
     for (let i = 0; i < n; i++) {
-      // Квадраты (для пилы, квадрата и треугольника — интеграла квадрата).
-      const sq1 = (a1 < 0.5 ? 1 : -1) + blep(a1, dt1) - blep(a1 < 0.5 ? a1 + 0.5 : a1 - 0.5, dt1);
-      const sq2 = (a2 < 0.5 ? 1 : -1) + blep(a2, dt2) - blep(a2 < 0.5 ? a2 + 0.5 : a2 - 0.5, dt2);
-      tri1 = tri1 * leak + 4 * dt1 * sq1;
-      tri2 = tri2 * leak + 4 * dt2 * sq2;
-      let o1A, o1B, o2A, o2B;
-      if (wi === 0) {
-        o1A = Math.sin(TAU * a1); o2A = Math.sin(TAU * a2); o1B = tri1; o2B = tri2;
-      } else if (wi === 1) {
-        o1A = tri1; o2A = tri2;
-        o1B = 2 * a1 - 1 - blep(a1, dt1); o2B = 2 * a2 - 1 - blep(a2, dt2);
-      } else {
-        o1A = 2 * a1 - 1 - blep(a1, dt1); o2A = 2 * a2 - 1 - blep(a2, dt2); o1B = sq1; o2B = sq2;
+      for (let j = 0; j < 2; j++) {
+        // Треугольник — интеграл квадрата, сдвинутого на четверть периода (пик на φ = 0.25).
+        const b1 = a1 < 0.75 ? a1 + 0.25 : a1 - 0.75, b2 = a2 < 0.75 ? a2 + 0.25 : a2 - 0.75;
+        tri1 = tri1 * leak + 4 * dt1 * ((b1 < 0.5 ? 1 : -1) + blep(b1, dt1) - blep(b1 < 0.5 ? b1 + 0.5 : b1 - 0.5, dt1));
+        tri2 = tri2 * leak + 4 * dt2 * ((b2 < 0.5 ? 1 : -1) + blep(b2, dt2) - blep(b2 < 0.5 ? b2 + 0.5 : b2 - 0.5, dt2));
+        let x1A, x2A, x1B, x2B;
+        if (wi === 0) {
+          x1A = sinT(a1); x2A = sinT(a2); x1B = tri1; x2B = tri2;
+        } else if (wi === 1) {
+          x1A = tri1; x2A = tri2;
+          x1B = 1 - 2 * a1 + blep(a1, dt1); x2B = 1 - 2 * a2 + blep(a2, dt2);
+        } else {
+          x1A = 1 - 2 * a1 + blep(a1, dt1); x2A = 1 - 2 * a2 + blep(a2, dt2);
+          x1B = (a1 < 0.5 ? 1 : -1) + blep(a1, dt1) - blep(a1 < 0.5 ? a1 + 0.5 : a1 - 0.5, dt1);
+          x2B = (a2 < 0.5 ? 1 : -1) + blep(a2, dt2) - blep(a2 < 0.5 ? a2 + 0.5 : a2 - 0.5, dt2);
+        }
+        const osc = 0.5 * (wA * (x1A + x2A) + wB * (x1B + x2B));
+        const sb = (as < 0.5 ? 1 : -1) + blep(as, dts) - blep(as < 0.5 ? as + 0.5 : as - 0.5, dts);
+        const y = gain * (osc + sub * sb);
+        hb[hp] = y; hb[hp + HB_LEN] = y;
+        hp = hp + 1 === HB_LEN ? 0 : hp + 1;
+        a1 += dt1; if (a1 >= 1) a1 -= 1;
+        a2 += dt2; if (a2 >= 1) a2 -= 1;
+        as += dts; if (as >= 1) as -= 1;
       }
-      const osc = 0.5 * (wA * (o1A + o2A) + wB * (o1B + o2B));
-      const sb = (as < 0.5 ? 1 : -1) + blep(as, dts) - blep(as < 0.5 ? as + 0.5 : as - 0.5, dts);
-      out[pos + i] = gain * (osc + sub * sb);
-      a1 += dt1; if (a1 >= 1) a1 -= 1;
-      a2 += dt2; if (a2 >= 1) a2 -= 1;
-      as += dts; if (as >= 1) as -= 1;
+      let acc = 0;
+      for (let q = 0; q < HB_N; q++) acc += HB_K[q] * hb[hp + HB_IDX[q]];
+      out[pos + i] = acc;
     }
-    this.a1 = a1; this.a2 = a2; this.as = as; this.tri1 = flush(tri1); this.tri2 = flush(tri2);
+    this.a1 = a1; this.a2 = a2; this.as = as; this.tri1 = flush(tri1); this.tri2 = flush(tri2); this.hbPos = hp;
     this.t += n;
   }
 
