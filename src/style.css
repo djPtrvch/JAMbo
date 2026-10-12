@@ -1,6 +1,8 @@
 :root {
   --radius: 10px;
   --gap: 6px;
+  /* Ширина кнопок верхней панели (PATTERNS, ARRANGE, SCALE, UNDO, REDO, EQ). */
+  --tbw: 107px;
   /* Ширина измерителя уровня справа. */
   --meter-w: 30px;
   /* Ширина ячеек MIX и MST = ширина шага секвенсора (16 шагов с промежутком 4px). */
@@ -145,22 +147,23 @@ html, body {
 /* ---------- Верхняя панель ---------- */
 
 .topbar { display: flex; gap: var(--gap); }
-/* SCALE, ROOT (вдвое уже), отступ, UNDO, PLAY и REC (вдвое уже), REDO, отступ, EQ; блок
- * UNDO–REDO — по центру экрана (стык PLAY и REC — по середине). */
-.top-mid { flex: 1; min-width: 0; display: grid; grid-template-columns: 2fr 1fr 0.17fr 2fr 1fr 1fr 2fr 0.63fr 2fr; gap: var(--gap); }
+/* SCALE, UNDO, REDO, EQ — шириной с PATTERNS; PLAY и REC — вдвое уже, стык по центру сетки ручек
+ * (средняя часть панели стоит ровно над ней); ROOT заполняет промежуток между SCALE и UNDO,
+ * справа такой же промежуток до EQ. */
+.top-mid { flex: 1; min-width: 0; display: grid; grid-template-columns: var(--tbw) minmax(0, 1fr) var(--tbw) var(--tbh) var(--tbh) var(--tbw) minmax(0, 1fr) var(--tbw); gap: var(--gap); --tbh: calc((var(--tbw) - var(--gap)) / 2); }
 .top-mid > .narrow-field:first-child { grid-column: 1; }
-.top-mid > .narrow-field:nth-child(2) { grid-column: 2; padding: 2px 8px; }
-.top-mid > .tb-undo { grid-column: 4; grid-row: 1; }
-.top-mid > .tb-play { grid-column: 5; grid-row: 1; }
-.top-mid > .tb-rec { grid-column: 6; grid-row: 1; }
-.top-mid > .tb-redo { grid-column: 7; grid-row: 1; }
-.top-mid > .eq-btn { grid-column: 9; grid-row: 1; }
+.top-mid > .narrow-field:nth-child(2) { grid-column: 2; }
+.top-mid > .tb-undo { grid-column: 3; grid-row: 1; }
+.top-mid > .tb-play { grid-column: 4; grid-row: 1; }
+.top-mid > .tb-rec { grid-column: 5; grid-row: 1; }
+.top-mid > .tb-redo { grid-column: 6; grid-row: 1; }
+.top-mid > .eq-btn { grid-column: 8; grid-row: 1; }
 .tr-icon { width: 22px; height: 22px; }
 .btn.rec-btn:not(.rec) { color: var(--rec); }
 /* Правый блок шириной с правую колонку; PATTERNS на месте бывшей кнопки PLAY. */
 .top-right { width: calc(220px + var(--gap) + var(--meter-w)); flex: none; display: flex; gap: var(--gap); }
-/* Место кнопки ARRANGE (пока скрыта) — кончается вместе с миниатюрами страниц. */
-.top-right .arrange-slot { width: 107px; visibility: hidden; }
+/* ARRANGE (пока неактивна, как SHIFT) — кончается вместе с миниатюрами страниц. */
+.top-right .arrange-slot { width: var(--tbw); }
 /* Над измерителем уровня, справа от EQ: загрузка процессора в процентах. */
 .cpu { width: var(--meter-w); flex: none; display: flex; align-items: center; justify-content: center; text-align: center; white-space: pre; font-size: 9px; line-height: 1.2; color: var(--dim); font-variant-numeric: tabular-nums; }
 .cpu.high { color: var(--rec); }
@@ -197,7 +200,7 @@ html, body {
 .field-label { color: var(--dim); font-size: 11px; letter-spacing: 0.08em; }
 .field-value { font-size: 19px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
-.patterns-btn { width: 107px; }
+.patterns-btn { width: var(--tbw); }
 
 /* PLAY и REC по центру панели, по высоте как поля панели. */
 

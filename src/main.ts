@@ -56,8 +56,8 @@ const meter = buildMeter();
 main.append(left, center, right, meter);
 
 // Верхняя панель: слева бутерброд, темп и метроном (ширина левой колонки); дальше SCALE, ROOT
-// (вдвое уже), по центру UNDO, PLAY, REC (значки, вдвое уже), REDO, справа от них EQ; над правой
-// колонкой PATTERNS и место ARRANGE (пока скрыта).
+// (заполняет промежуток до UNDO), над центром сетки ручек UNDO, PLAY, REC (значки, вдвое уже), REDO,
+// справа EQ; над правой колонкой PATTERNS и ARRANGE (пока неактивна).
 const topbar = buildTopbar();
 const [leftGroup, ...fields] = [...topbar.children];
 const topMid = h('div', 'top-mid');
@@ -65,8 +65,8 @@ topMid.append(...fields, ...buildTransportButtons().children, buildEqButton());
 const topRight = h('div', 'top-right');
 // Справа от EQ, над измерителем уровня — загрузка процессора.
 const cpu = h('div', 'cpu', 'CPU\n–');
-// ARRANGE (режим аранжировки) — позже; место за ней оставлено.
-topRight.append(buildPatternsButton(), h('div', 'btn arrange-slot'), cpu);
+// ARRANGE (режим аранжировки) — позже; пока неактивна, как SHIFT.
+topRight.append(buildPatternsButton(), h('div', 'btn disabled arrange-slot', 'ARRANGE'), cpu);
 attachDebug(cpu);
 
 // Mute/solo звучат сразу из жеста, не дожидаясь кадра.
