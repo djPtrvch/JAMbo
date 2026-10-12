@@ -12,7 +12,8 @@
 
 import { MAX_TRACKS, PATTERN_SLOTS, STEPS_PER_PAGE } from '../params';
 import {
-  crossfade, isPrevPlaceholder, rowFilled, sceneName, setCrossfade, setScene, transitionMoves,
+  crossfade, inTransition, isPrevPlaceholder, rowFilled, sceneName, setCrossfade, setScene, transitionMoves,
+  addSceneRow, addTrackRow, canAddRow, copyRow, duplicateRow, pasteRow, setArrangement, visibleRows,
   copyPattern, createPattern, dropPattern, deletePattern, doc, duplicatePattern, freeSlotAfter, hasLocks, pastePattern,
   playRange, rt, selectTrack, slotFilled, ui, type Pattern,
 } from '../state';
@@ -34,6 +35,7 @@ let sceneInput: HTMLInputElement;
 let sceneReps: HTMLElement;
 let sceneRow = -1;
 let sceneRepsValue = 0;
+const rowActs: Record<string, HTMLButtonElement> = {};
 
 const fmtReps = (n: number) => (n === 0 ? '∞' : `×${n}`);
 
@@ -54,7 +56,17 @@ function buildSceneMenu() {
     sceneMenu.close();
   };
   sceneInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') done(); });
-  sceneMenu.box.append(sceneInput, row, popupButton('OK', done));
+  // DUPLICATE (копия строки сразу под ней), COPY, PASTE.
+  const acts = h('div', 'scene-acts');
+  const act = (label: string, fn: (k: number) => void) => {
+    const b = popupButton(label, () => { const k = sceneRow; sceneInput.blur(); sceneMenu.close(); if (k >= 0) fn(k); });
+    rowActs[label] = b;
+    acts.append(b);
+  };
+  act('DUPLICATE', duplicateRow);
+  act('COPY', copyRow);
+  act('PASTE', pasteRow);
+  sceneMenu.box.append(sceneInput, row, acts, popupButton('OK', done));
 }
 
 function showReps() {
@@ -66,7 +78,9 @@ function openSceneMenu(k: number) {
   sceneInput.value = doc.scenes[k].name;
   sceneRepsValue = doc.scenes[k].repeats;
   showReps();
-  sceneMenu.openAt(sceneCells[k].root, 260);
+  rowActs.DUPLICATE.disabled = !canAddRow() || inTransition();
+  rowActs.PASTE.disabled = !ui.rowClipboard;
+  sceneMenu.openAt(sceneCells[k].root, 300);
 }
 
 /** Ячейка строки (сцены) в колонке над MIX. */
@@ -153,6 +167,72 @@ function buildMenu() {
 }
 
 let dropTarget: [number, number] | null = null;
+
+// ---------- Строка «+» и меню сетки (бутерброд справа) ----------
+
+const plusCells: HTMLElement[] = [];
+let scenePlus: HTMLElement;
+
+/** «+» под последней видимой строкой: в колонке строк — новая строка с играющими паттернами,
+ * в столбце дорожки — новая строка с новым паттерном этой дорожки. */
+function buildPlusRow(): DocumentFragment {
+  const f = document.createDocumentFragment();
+  scenePlus = h('div', 'pattern-cell plus-cell', '+');
+  scenePlus.style.gridColumn = '1';
+  scenePlus.addEventListener('pointerdown', (e) => { e.preventDefault(); addSceneRow(); });
+  f.append(scenePlus);
+  for (let i = 0; i < MAX_TRACKS; i++) {
+    const c = h('div', 'pattern-cell plus-cell', '+');
+    c.style.gridColumn = String(i + 2);
+    c.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      const r = addTrackRow(i);
+      if (r < 0) return;
+      selectTrack(i);
+      queuePattern(i, r);
+    });
+    plusCells.push(c);
+    f.append(c);
+  }
+  return f;
+}
+
+let arrBtn: HTMLElement;
+let arrMenu: Popup;
+
+/** Бутерброд справа от сетки: строка старта (с неё начинается PLAY) и что в конце строк — STOP или LOOP. */
+function buildArrangeButton(): HTMLElement {
+  arrBtn = h('div', 'btn arrange-btn');
+  const lines = h('div', 'burger-lines');
+  lines.append(h('span'), h('span'), h('span'));
+  arrBtn.append(lines);
+  arrBtn.style.gridRow = '1';
+  arrMenu = makePopup('arrange-menu');
+  arrBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); openArrangeMenu(); });
+  return arrBtn;
+}
+
+function openArrangeMenu() {
+  const start = Math.min(doc.arrStart ?? 0, visibleRows() - 1);
+  const end = doc.arrEnd ?? 'loop';
+  const startRow = h('div', 'arrange-row');
+  for (let k = 0; k < visibleRows(); k++) {
+    const b = popupButton(sceneName(k), () => { setArrangement(k, end); openArrangeMenu(); });
+    b.classList.toggle('current', k === start);
+    startRow.append(b);
+  }
+  const endRow = h('div', 'arrange-row');
+  for (const v of ['stop', 'loop'] as const) {
+    const b = popupButton(v.toUpperCase(), () => { setArrangement(start, v); openArrangeMenu(); });
+    b.classList.toggle('current', v === end);
+    endRow.append(b);
+  }
+  arrMenu.box.replaceChildren(
+    h('div', 'popup-title', 'START FROM ROW'), startRow,
+    h('div', 'popup-title', 'AT THE END'), endRow,
+  );
+  arrMenu.openAt(arrBtn, 300);
+}
 
 // ---------- Кроссфейдер перехода между проектами (справа от сетки, над MST) ----------
 
@@ -265,7 +345,7 @@ export function buildPatternGrid(): HTMLElement {
   buildMenu();
   buildSceneMenu();
   grid = h('div', 'pattern-grid hidden');
-  grid.append(buildCrossfader());
+  grid.append(buildCrossfader(), buildArrangeButton(), buildPlusRow());
   for (let k = 0; k < PATTERN_SLOTS; k++) grid.append(buildSceneCell(k));
   for (let k = 0; k < PATTERN_SLOTS; k++) {
     for (let i = 0; i < MAX_TRACKS; i++) {
@@ -380,9 +460,19 @@ export function renderPatternGrid() {
     setClass(c.root, 'queued', rt.sceneQueued === k);
     setAttr(c.bar, 'style', `width:${playing && prog ? Math.round(prog.frac * 100) : 0}%`);
   });
-  // Столбцов столько, сколько дорожек; кроссфейдер — справа от последнего.
-  setAttr(xf, 'style', `grid-column:${doc.tracks.length + 2};grid-row:1 / ${PATTERN_SLOTS + 1}`);
-  cells.forEach((col, i) => col.forEach((c) => setClass(c.root, 'hidden', i >= doc.tracks.length)));
+  // Столбцов столько, сколько дорожек; справа от последнего — бутерброд, под ним кроссфейдер.
+  const last = doc.tracks.length + 2;
+  setAttr(xf, 'style', `grid-column:${last};grid-row:2 / ${PATTERN_SLOTS + 1}`);
+  arrBtn.style.gridColumn = String(last);
+  // Видны строки 1…visibleRows (при переходе MIX — и строка PREV внизу), под ними — «+».
+  const rows = visibleRows();
+  const shown = (k: number) => k < rows || (inTransition() && k === PATTERN_SLOTS - 1);
+  sceneCells.forEach((c, k) => setClass(c.root, 'hidden', !shown(k)));
+  cells.forEach((col, i) => col.forEach((c, k) => setClass(c.root, 'hidden', i >= doc.tracks.length || !shown(k))));
+  const plus = canAddRow();
+  setClass(scenePlus, 'hidden', !plus);
+  scenePlus.style.gridRow = String(rows + 1);
+  plusCells.forEach((c, i) => { setClass(c, 'hidden', !plus || i >= doc.tracks.length); c.style.gridRow = String(rows + 1); });
   doc.tracks.forEach((t, i) => {
     const q = rt.queued[i];
     cells[i].forEach((c, k) => {

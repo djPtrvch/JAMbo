@@ -977,3 +977,9 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 .popup-title { padding: 6px 4px 8px; font-size: 13px; color: var(--text); text-align: center; overflow-wrap: anywhere; }
 .burger-lines { display: flex; flex-direction: column; gap: 5px; align-items: center; }
 .burger-lines span { width: 22px; height: 2px; background: var(--dim); border-radius: 1px; }
+
+/* Сетка паттернов: «+» под последней строкой, бутерброд справа, меню строки и сетки. */
+.pattern-cell.plus-cell { align-items: center; justify-content: center; font-size: 20px; color: var(--dim); background: none; box-shadow: inset 0 0 0 1px var(--line); }
+.arrange-btn { display: flex; align-items: center; justify-content: center; min-height: 0; }
+.scene-acts, .arrange-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+.arrange-row .popup-btn { min-width: 0; }

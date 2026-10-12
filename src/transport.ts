@@ -4,7 +4,7 @@
 import { clickAt, triggerTrack } from './audio/engine';
 import { PARAM_BY_ID, SEQ_MIX, SEQ_MST, STEPS_PER_PAGE, fromNorm } from './params';
 import {
-  triggerEnv, endRecTake, activateSlot, audible, doc, modulatedNorm, playRange, rowFilled, rt, seqAt, slotFilled, stepAt, stopTrack, ui,
+  triggerEnv, endRecTake, activateSlot, audible, doc, inTransition, visibleRows, modulatedNorm, playRange, rowFilled, rt, seqAt, slotFilled, stepAt, stopTrack, ui,
 } from './state';
 
 /** Шаги планируются заранее, чтобы звук и щелчок метронома попадали точно в долю. */
@@ -27,8 +27,14 @@ export function setPlaying(on: boolean) {
   rt.trackStart.fill(0);
   if (on) {
     // Паттерны, выбранные в сетке до старта, запускаются сразу.
+    const queued = rt.queued.some((q) => q !== null);
     rt.queued.forEach((q, i) => applyQueued(i, q));
     if (rt.sceneQueued !== null) startScene(rt.sceneQueued, 0);
+    // Иначе — строка старта из меню сетки паттернов (если в ней есть паттерны).
+    else if (!queued && !inTransition()) {
+      const k = Math.min(doc.arrStart ?? 0, visibleRows() - 1);
+      if (rowFilled(k)) startScene(k, 0);
+    }
     if (rt.scene) rt.scene.start = 0;
     tick = 0;
     // Первый шаг — сразу, в момент нажатия (не в следующем кадре).
@@ -87,9 +93,9 @@ export function queueScene(k: number) {
   rt.sceneQueued = rt.sceneQueued === k ? null : k;
 }
 
-/** Строка после k, в которой есть паттерны (или null). */
+/** Строка после k (среди видимых), в которой есть паттерны (или null). */
 function nextScene(k: number): number | null {
-  for (let n = k + 1; n < doc.scenes.length; n++) if (rowFilled(n)) return n;
+  for (let n = k + 1; n < visibleRows(); n++) if (rowFilled(n)) return n;
   return null;
 }
 
@@ -129,7 +135,13 @@ function playStep(time: number) {
     if (reps > 0 && tick - rt.scene.start >= reps * rt.scene.len) {
       const n = nextScene(rt.scene.row);
       if (n !== null) startScene(n, tick);
-      else rt.scene.start = tick;
+      // Строки кончились: STOP — останавливается всё (и дорожки, запущенные по отдельности),
+      // LOOP — снова с начала, со строки старта.
+      else if (doc.arrEnd === 'stop') { setPlaying(false); return; }
+      else {
+        const s = Math.min(doc.arrStart ?? 0, visibleRows() - 1);
+        if (rowFilled(s)) startScene(s, tick); else rt.scene.start = tick;
+      }
     }
   }
   doc.tracks.forEach((t, i) => {
@@ -169,7 +181,7 @@ export function updateTransport(now: number) {
   if (ui.playing) {
     // Если вкладка была в фоне — не догоняем пропущенные шаги.
     if (now - nextTime > 1000) nextTime = now;
-    while (now + LOOKAHEAD_MS >= nextTime) {
+    while (ui.playing && now + LOOKAHEAD_MS >= nextTime) {
       playStep(nextTime);
       nextTime += stepMs();
     }

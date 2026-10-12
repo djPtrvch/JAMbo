@@ -23,7 +23,20 @@ let menu: Popup;
 const menuButtons: Record<string, HTMLButtonElement> = {};
 
 /** Текущее протягивание по миниатюрам. */
-let drag: { id: number; from: number; to: number; timer: number; menu: boolean } | null = null;
+let drag: { id: number; from: number; to: number; timer: number; menu: boolean; f: number; t: number } | null = null;
+
+/**
+ * Играющие страницы после протягивания: начали внутри обводки — она растягивается в сторону пальца
+ * (вниз — нижний край до страницы под пальцем, вверх — верхний); начали снаружи — новые от и до.
+ */
+function dragRange(d: { from: number; to: number; f: number; t: number }): [number, number] {
+  if (d.from >= d.f && d.from <= d.t) {
+    if (d.to > d.from) return [d.f, Math.max(d.t, d.to)];
+    if (d.to < d.from) return [Math.min(d.f, d.to), d.t];
+    return [d.f, d.t];
+  }
+  return [Math.min(d.from, d.to), Math.max(d.from, d.to)];
+}
 /** Тап по миниатюре, который ждёт второго (двойной тап — меню). */
 let tapPage = -1;
 let tapTimer = 0;
@@ -53,7 +66,7 @@ export function buildPages(): HTMLElement {
       if (drag) return;
       root.releasePointerCapture?.(e.pointerId);
       drag = {
-        id: e.pointerId, from: i, to: i, menu: false,
+        id: e.pointerId, from: i, to: i, menu: false, f: curSeq().playFrom, t: curSeq().playTo,
         // Удержание без протягивания — страница открывается для редактирования (играющие не меняются).
         timer: window.setTimeout(() => { if (drag && drag.to === drag.from) { drag.menu = true; ui.viewPage = i; } }, HOLD_MS),
       };
@@ -81,7 +94,8 @@ export function buildPages(): HTMLElement {
         // Протянули по нескольким страницам — играют они все, сразу.
         clearTimeout(tapTimer);
         tapPage = -1;
-        setPlayPages(drag.from, drag.to);
+        const [a, b] = dragRange(drag);
+        setPlayPages(a, b);
         ui.viewPage = drag.from;
       } else if (tapPage === drag.from) {
         // Двойной тап — меню страницы; одиночный тап не срабатывает (обводка не двигается).
@@ -137,8 +151,7 @@ export function renderPages() {
   // Обводка следует за пальцем, только когда протягивают по нескольким страницам; на касании
   // одной она не прыгает (тап переключит её при отпускании, удержание её не меняет).
   const d = drag && !drag.menu && drag.from !== drag.to ? drag : null;
-  const from = d ? Math.min(d.from, d.to) : t.playFrom;
-  const to = d ? Math.max(d.from, d.to) : t.playTo;
+  const [from, to] = d ? dragRange(d) : [t.playFrom, t.playTo];
   thumbs.forEach((th, i) => {
     const exists = i < t.pages.length;
     setClass(th.root, 'hidden', !exists);

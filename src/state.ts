@@ -143,6 +143,11 @@ export interface Doc {
   folders: Folder[];
   /** Строки сетки паттернов: имена и повторы. */
   scenes: Scene[];
+  /** Видимых строк сетки паттернов (по умолчанию 1; добавляются «+»; заполненные видны всегда). */
+  rows?: number;
+  /** Меню сетки паттернов: строка, с которой начинается PLAY, и что в конце строк — стоп или сначала. */
+  arrStart?: number;
+  arrEnd?: 'loop' | 'stop';
   /** Эквалайзеры дорожек и мастера. */
   eqs: Eq[];
   masterEq: Eq;
@@ -178,6 +183,8 @@ export interface Ui {
   clipboard: Step[] | null;
   pageMenu: number | null;
   patternClipboard: Pattern | null;
+  /** Скопированная строка сетки паттернов (паттерны по дорожкам, имя и повторы). */
+  rowClipboard: { patterns: (Pattern | null)[]; scene: Scene } | null;
   topMenu: 'scale' | 'root' | 'progression' | null;
   metronome: boolean;
   /** Пианоролл. */
@@ -310,6 +317,7 @@ export const ui: Ui = {
   clipboard: null,
   pageMenu: null,
   patternClipboard: null,
+  rowClipboard: null,
   topMenu: null,
   metronome: false,
   octave: OCTAVE_DEF,
@@ -1598,6 +1606,82 @@ export function resetEq() {
 
 /** В строке k есть хотя бы один паттерн. */
 export const rowFilled = (k: number) => doc.tracks.some((t) => slotFilled(t, k));
+
+// ---------- Строки сетки: видимые, «+», duplicate / copy / paste ----------
+
+/** Сколько строк можно показать (при переходе MIX последняя — PREV). */
+const rowLimit = () => (transition ? PATTERN_SLOTS - 1 : PATTERN_SLOTS);
+
+/** Видимых строк: заданное число, но не меньше, чем нужно для заполненных ячеек. */
+export function visibleRows(): number {
+  const limit = rowLimit();
+  let n = Math.max(1, doc.rows ?? 1);
+  for (let k = 0; k < limit; k++) if (rowFilled(k)) n = Math.max(n, k + 1);
+  return Math.min(n, limit);
+}
+export const canAddRow = () => visibleRows() < rowLimit();
+
+/** «+» в колонке строк: новая строка, в неё — копии играющих паттернов дорожек (заглушённые — нет). */
+export function addSceneRow() {
+  if (!canAddRow()) return;
+  const r = visibleRows();
+  edit(() => {
+    doc.tracks.forEach((t, i) => { if (!t.stopped && audible(i) && r !== t.slot) t.slots[r] = takePattern(t); });
+    doc.rows = r + 1;
+  });
+}
+
+/** «+» в столбце дорожки: новая строка, в ней — новый паттерн этой дорожки (возвращает строку или −1). */
+export function addTrackRow(i: number): number {
+  if (!canAddRow()) return -1;
+  const r = visibleRows();
+  createPattern(i, r);
+  edit(() => { doc.rows = r + 1; });
+  return r;
+}
+
+/** DUPLICATE строки: копия встаёт сразу под ней, строки ниже сдвигаются вниз. */
+export function duplicateRow(k: number) {
+  if (!canAddRow() || transition) return;
+  const n = visibleRows();
+  edit(() => {
+    for (const t of doc.tracks) {
+      const rows = rowsOf(t);
+      rows.splice(k + 1, 0, rows[k] ? clone(rows[k]) : null);
+      setRows(t, rows.slice(0, PATTERN_SLOTS), t.slot > k ? t.slot + 1 : t.slot);
+    }
+    doc.scenes.splice(k + 1, 0, clone(doc.scenes[k]));
+    doc.scenes.length = PATTERN_SLOTS;
+    doc.rows = n + 1;
+  });
+  if (rt.scene && rt.scene.row > k) rt.scene.row++;
+  if (rt.sceneQueued !== null && rt.sceneQueued > k) rt.sceneQueued++;
+  rt.queued.forEach((q, i) => { if (typeof q === 'number' && q > k) rt.queued[i] = q + 1; });
+}
+
+export function copyRow(k: number) {
+  ui.rowClipboard = { patterns: doc.tracks.map((t) => patternAt(t, k)), scene: clone(doc.scenes[k]) };
+}
+
+/** PASTE строки: паттерны дорожек (пустые ячейки — пустые; играющая ячейка остаётся), имя и повторы. */
+export function pasteRow(k: number) {
+  const clip = ui.rowClipboard;
+  if (!clip) return;
+  edit(() => {
+    doc.tracks.forEach((t, i) => {
+      const p = clip.patterns[i];
+      if (p) setPatternAt(t, k, p);
+      else if (k !== t.slot) t.slots[k] = null;
+    });
+    doc.scenes[k] = clone(clip.scene);
+  });
+  clampView();
+}
+
+/** Меню сетки: строка старта и что в конце. */
+export function setArrangement(start: number, end: 'loop' | 'stop') {
+  edit(() => { doc.arrStart = start; doc.arrEnd = end; });
+}
 
 /** Имя строки для колонки сцен (без имени — номер). */
 export const sceneName = (k: number) => doc.scenes[k].name || String(k + 1);
