@@ -688,9 +688,10 @@ input::selection, textarea::selection { background: var(--select); color: var(--
   color: var(--dim);
 }
 .key.root { background: var(--root); color: var(--text); }
-.key.selected { box-shadow: inset 0 0 0 1px var(--accent); color: var(--text); }
+.key.selected { box-shadow: inset 0 0 0 1px var(--text); color: var(--text); }
 .key.step-notes { box-shadow: inset 0 0 0 1px var(--text); }
-.key.playing { background: var(--accent); color: var(--on-accent); }
+/* Подсветка и контур пианоролла — белые (в светлой теме — чёрные), не жёлтые. */
+.key.playing { background: var(--text); color: var(--bg); }
 .key.pressed { background: var(--text); color: var(--bg); }
 .octave { display: flex; flex-direction: column; gap: 4px; min-height: 0; }
 .octave .arrow { flex: 1; min-height: 0; font-size: 14px; }
@@ -707,7 +708,7 @@ input::selection, textarea::selection { background: var(--select); color: var(--
   justify-content: center;
   font-weight: 600;
 }
-.chip.playing { background: var(--accent); color: var(--on-accent); }
+.chip.playing { background: var(--text); color: var(--bg); }
 .chip.pressed { background: var(--text); color: var(--bg); }
 
 /* ---------- Эквалайзер (кнопка EQ) ---------- */
