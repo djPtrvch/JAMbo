@@ -18,7 +18,7 @@ import {
   ROOT, RECORDINGS, addPreset, addSample, children, countInside, createFolder, freeName, node, onLibraryChanged, overwrite, path, remove, rename,
   sameName, type LibNode,
 } from '../library';
-import { SYNTH_ENGINES, synthEngine } from '../params';
+import { isJambo, SYNTH_ENGINES, synthEngine } from '../params';
 import {
   addPresetToFolder, addSamplesQuiet, doc, folderItemName, nextPresetName, presetFromTrack, setFolder, type FolderItem,
   sampleName, setStepSound, toggleView, ui,
@@ -74,7 +74,8 @@ function detail(n: LibNode): string {
   }
   if (n.kind === 'preset') {
     const e = n.preset ? synthEngine(n.preset.sound) : null;
-    return e !== null ? SYNTH_ENGINES[e].name : 'preset';
+    // У движков Plaits — с префиксом MI, у своих движков JAMbo — без него.
+    return e !== null ? `${isJambo(e) ? '' : 'MI '}${SYNTH_ENGINES[e].name}` : 'preset';
   }
   return 'sample';
 }

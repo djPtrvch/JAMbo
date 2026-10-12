@@ -170,7 +170,8 @@ export const ICON_STROKE = 1.4;
 /** SVG-строка иконки: один цвет (currentColor — цвет темы), изменения видны только по форме. */
 export function iconSvg(id: string, v: IconValues, size: number): string {
   const parts: string[] = [];
-  for (const e of ICONS[id](v)) {
+  // У движков без своей иконки (ANALOG, FM, WTABLE — иконки позже) — пустое поле.
+  for (const e of ICONS[id]?.(v) ?? []) {
     const op = e.op != null ? ` opacity="${e.op.toFixed(2)}"` : '';
     const da = e.dash ? ' stroke-dasharray="2 2.4"' : '';
     const fill = e.fill ? 'currentColor' : 'none';

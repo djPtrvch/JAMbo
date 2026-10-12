@@ -13,7 +13,7 @@ import {
   type Level, samplePeaks,
   sampleRoot, trackLevel,
 } from '../audio/engine';
-import { DRUM_ENGINE, LFO_WAVES, MAX_TRACKS, OVER_PEAK, SYNTH_ENGINES, noteName, synthEngine, synthGrid, synthKey } from '../params';
+import { isJambo, LFO_WAVES, MAX_TRACKS, OVER_PEAK, SYNTH_ENGINES, noteName, synthEngine, synthGrid, synthKey } from '../params';
 import { levelFrac } from './meter';
 import { makePopup, popupButton } from './popup';
 import { audible, doc, heldStepSound, setStepSound, folderItemName, folderPos, stepFolder, stepFolderOnSteps, setTrackSynth, envAt, envShape, liveParams, lfoShape, lfoShaped, rt, sampleName, selTrack, ui } from '../state';
@@ -186,8 +186,8 @@ export function buildSample(): HTMLElement {
   cutEnd = svg('rect', { y: 0, height: WAVE_H, class: 'sample-cut' });
   wave.append(wavePath, cutStart, cutEnd);
   // Тап по окну — меню звука. Оно закрывает всю левую колонку (окно сэмпла, стрелки, LFO и ENV),
-  // пока выбирают звук: группы SYNTH (музыкальные движки), DRUMS (шумы и ударные) и
-  // SAMPLE · MIDI. Кнопка SAMPLE — с настоящим полем выбора файла поверх (на iOS системный
+  // пока выбирают звук: колонки SYNTH (свои движки), MI SYNTH (музыкальные Plaits), MI DRUMS
+  // (шумы и ударные Plaits) и группа SAMPLE · MIDI · PRESET. Кнопка SAMPLE — с настоящим полем выбора файла поверх (на iOS системный
   // выбор файла надёжно открывается только прямым тапом по полю).
   const menu = makePopup('source-menu');
   // Шаги, зажатые в момент открытия меню: выбранный звук ставится на них, а не на дорожку
@@ -224,8 +224,15 @@ export function buildSample(): HTMLElement {
     g.append(...items);
     menu.box.append(h('div', 'source-title', title), g);
   };
-  group('SYNTH', 2, engineBtns.filter((_, k) => SYNTH_ENGINES[k].bank === 'synth'));
-  group('DRUMS', 2, engineBtns.filter((_, k) => SYNTH_ENGINES[k].bank === 'drum'));
+  // Движки — три колонки: SYNTH (свои движки JAMbo), MI SYNTH (музыкальные Plaits), MI DRUMS
+  // (ударные и шумы Plaits); кнопки сверху вниз, во всех колонках одной высоты.
+  const cols = h('div', 'source-cols');
+  for (const [title, bank] of [['SYNTH', 'jb'], ['MI SYNTH', 'synth'], ['MI DRUMS', 'drum']] as const) {
+    const col = h('div', 'source-col');
+    col.append(h('div', 'source-title', title), ...engineBtns.filter((_, k) => SYNTH_ENGINES[k].bank === bank));
+    cols.append(col);
+  }
+  menu.box.append(cols);
   // LOAD — браузер библиотеки (пресеты и сэмплы по папкам).
   const loadBtn = popupButton('LOAD', () => {
     menu.close();
@@ -407,7 +414,7 @@ function renderWave() {
   const ch = t.sample ? (sampleIsStereo(t.sample) ? 'ST' : 'M') : '';
   const preset = stepSound ? '' : folderItemName(ui.selectedTrack);
   // У синта — две строки: движок, под ним имя пресета.
-  setText(waveTitle, engine !== null ? `${engine === DRUM_ENGINE ? '' : 'MI · '}${SYNTH_ENGINES[engine].name}${preset ? `\n${preset}` : ''}`
+  setText(waveTitle, engine !== null ? `${isJambo(engine) ? '' : 'MI · '}${SYNTH_ENGINES[engine].name}${preset ? `\n${preset}` : ''}`
     : t.sample ? `${sampleName(t.sample)} · ${root !== null ? noteName(root) : '—'} · ${ch}` : sampleName(t.sample));
   // Пока звук не включён — подсказка с состоянием (помогает понять, почему тихо).
   const state = audioState();

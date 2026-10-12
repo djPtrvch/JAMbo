@@ -4,8 +4,11 @@
 // Голос (на каждую ноту трига):
 //   сэмпл или голос синта → огибающая Attack/Decay → Level → фильтр LP/HP → Pan → вход дорожки
 //                                                                          ↘ посылы Reverb / Delay / Drive
-// Синт — движки Mutable Instruments Plaits (plaits.wasm в AudioWorklet, узел на дорожку с
-// SYNTH_SLOTS голосами); цепочка каждого голоса синта постоянная, огибающая ставится на триге.
+// Синт — движки Mutable Instruments Plaits (plaits.wasm в AudioWorklet) и свои движки JAMbo
+// (jambo-synth-worklet.js): на дорожку по узлу каждого нужного семейства, у узла SYNTH_SLOTS голосов;
+// оба узла идут в одни и те же постоянные цепочки голосов (огибающая ставится на триге), поэтому
+// смена семейства (в том числе звуком шага) не пересоздаёт цепочки и не щёлкает: голос другого
+// семейства в занятом слоте глушится сообщением stop в кадре новой ноты.
 // Дорожка: EQ → вход → sidechain (приглушение) → громкость микшера → mute/solo → мастер. EQ стоит до эффектов:
 // у каждого посыла голоса своя копия EQ дорожки с теми же полосами.
 // Мастер: EQ → компрессор (Threshold, Attack, Release, Ratio, Makeup) → лимитер (Input, Ceiling,
@@ -16,7 +19,7 @@
 // Измерители уровня стоят на выходе каждой дорожки и в мастере (вход компрессора, вход и выход
 // лимитера): пиковый уровень по каналам и громкость в LUFS (K-взвешивание, окно ~400 мс).
 
-import { DELAY_DIVS, isAuto, OVER_PEAK, DRUM_ENGINE, SYNTH_ENGINES, synthEngine, PARAM_BY_ID, RATIOS, VOL_DEF_DB, volGain, SAMPLE_ROOT, MAX_TRACKS, filterFreq, fromNorm } from '../params';
+import { DELAY_DIVS, isAuto, OVER_PEAK, isJambo, SYNTH_ENGINES, synthEngine, PARAM_BY_ID, RATIOS, VOL_DEF_DB, volGain, SAMPLE_ROOT, MAX_TRACKS, filterFreq, fromNorm } from '../params';
 import { audible, addSamplesQuiet, addSamplesToFolder, doc, setStepSound, triggerEnv, liveFx, liveMaster, liveMixer, modulatedNorm, ui } from '../state';
 import { detectRoot } from './pitch';
 import { encodeWav } from './wav';
@@ -56,43 +59,73 @@ let tracks: TrackChain[] = [];
 let busInputs: GainNode[] = [];
 const voices: Voice[] = [];
 
-// ---------- Синт (Plaits) ----------
+// ---------- Синт (Plaits и свои движки JAMbo) ----------
 
 const SYNTH_SLOTS = 6;
+type Family = 'plaits' | 'jambo';
 interface SynthSlot { amp: GainNode; level: GainNode; filter: BiquadFilterNode; pan: StereoPannerNode; sends: GainNode[] }
-interface Synth { node: AudioWorkletNode; slots: SynthSlot[]; next: number; busyUntil: number[] }
+interface Synth {
+  nodes: Partial<Record<Family, AudioWorkletNode>>; slots: SynthSlot[]; next: number; busyUntil: number[];
+  /** Семейство голоса, который последним занимал слот. */
+  slotFamily: (Family | null)[];
+  cpu: Record<Family, number>;
+  /** Таблица WTABLE, отправленная в узел JAMbo (ключ). */
+  table: string | null;
+}
 const synths: (Synth | null)[] = Array(MAX_TRACKS).fill(null);
 let wasmBytes: ArrayBuffer | null = null;
+let jamboReady = false;
 
-/** Загрузить AudioWorklet и plaits.wasm (один раз, после создания контекста). */
+/** Загрузить AudioWorklet'ы (plaits.wasm и свои движки) — один раз, после создания контекста. */
 function loadSynth(c: AudioContext) {
   const url = (f: string) => new URL(f, document.baseURI).href;
   void Promise.all([
     c.audioWorklet.addModule(url('plaits-worklet.js')),
     fetch(url('plaits.wasm')).then((r) => r.arrayBuffer()),
-  ]).then(([, bytes]) => { wasmBytes = bytes; }).catch((e) => console.error('synth', e));
+  ]).then(([, bytes]) => { if (ctx === c) wasmBytes = bytes; }).catch((e) => console.error('synth', e));
+  void c.audioWorklet.addModule(url('jambo-synth-worklet.js'))
+    .then(() => { if (ctx === c) jamboReady = true; }).catch((e) => console.error('jambo synth', e));
 }
 
-/** Узел синта дорожки и постоянные цепочки его голосов (создаются, когда синт выбран). */
-function ensureSynth(track: number): Synth | null {
-  if (synths[track]) return synths[track];
-  if (!ctx || !wasmBytes) return null;
-  const c = ctx;
-  const node = new AudioWorkletNode(c, 'plaits', {
+const familyOf = (engine: number): Family => SYNTH_ENGINES[engine].family;
+
+/**
+ * Узел синта дорожки нужного семейства и постоянные цепочки голосов (создаются, когда синт выбран).
+ * Цепочки общие для обоих семейств; узел семейства добавляется при первой ноте или выборе движка.
+ */
+function ensureSynth(track: number, family: Family): Synth | null {
+  if (!ctx) return null;
+  const sy = synths[track] ?? createSynthChains(track);
+  if (sy.nodes[family]) return sy;
+  if (family === 'plaits' ? !wasmBytes : !jamboReady) return null;
+  const node = new AudioWorkletNode(ctx, family === 'plaits' ? 'plaits' : 'jambo-synth', {
     numberOfInputs: 0,
     numberOfOutputs: SYNTH_SLOTS,
     outputChannelCount: Array(SYNTH_SLOTS).fill(1),
-    processorOptions: { bytes: wasmBytes, slots: SYNTH_SLOTS },
+    processorOptions: family === 'plaits' ? { bytes: wasmBytes, slots: SYNTH_SLOTS } : { slots: SYNTH_SLOTS },
   });
-  node.port.onmessage = (e) => { if (typeof e.data?.cpu === 'number') synthCpu[track] = e.data.cpu; };
+  node.port.onmessage = (e) => {
+    if (typeof e.data?.cpu !== 'number') return;
+    sy.cpu[family] = e.data.cpu;
+    synthCpu[track] = sy.cpu.plaits + sy.cpu.jambo;
+  };
+  sy.slots.forEach((sl, k) => node.connect(sl.amp, k));
+  sy.nodes[family] = node;
+  if (family === 'jambo') sy.table = null;
+  return sy;
+}
+
+/** Постоянные цепочки голосов синта дорожки (огибающая, Level, фильтр, Pan, посылы). */
+function createSynthChains(track: number): Synth {
+  const c = ctx!;
   const ch = tracks[track];
-  const slots = Array.from({ length: SYNTH_SLOTS }, (_, k) => {
+  const slots = Array.from({ length: SYNTH_SLOTS }, () => {
     const amp = c.createGain();
     amp.gain.value = 0;
     const level = c.createGain();
     const filter = c.createBiquadFilter();
     const pan = c.createStereoPanner();
-    node.connect(amp, k).connect(level).connect(filter).connect(pan).connect(ch.eq.input);
+    amp.connect(level).connect(filter).connect(pan).connect(ch.eq.input);
     const sends = SENDS.map((_, i) => {
       const g = c.createGain();
       g.gain.value = 0;
@@ -101,7 +134,10 @@ function ensureSynth(track: number): Synth | null {
     });
     return { amp, level, filter, pan, sends };
   });
-  return (synths[track] = { node, slots, next: 0, busyUntil: Array(SYNTH_SLOTS).fill(0) });
+  return (synths[track] = {
+    nodes: {}, slots, next: 0, busyUntil: Array(SYNTH_SLOTS).fill(0), slotFamily: Array(SYNTH_SLOTS).fill(null),
+    cpu: { plaits: 0, jambo: 0 }, table: null,
+  });
 }
 
 /** Ручка Decay (мс) → затухание движка Plaits 0..1. */
@@ -112,10 +148,10 @@ const decayNorm = (ms: number) => Math.sqrt(Math.min(1, Math.max(0, ms / 4000)))
  * затухание, затухание берётся с ручки Decay, а Morph смешивает выходы OUT и AUX.
  */
 function synthParams(engine: number, v: (id: string) => number) {
+  // Свои движки: ручки 1.1–1.3 — p1, p2, p3 (0..1), Decay — в мс (без пересчёта для Plaits).
+  if (isJambo(engine)) return { p1: v('harm') / 100, p2: v('timbre') / 100, p3: v('morph') / 100, decay: v('decay') };
   const harmonics = v('harm') / 100;
   const timbre = v('timbre') / 100;
-  // DRUM: Sweep, Tone, Drive — как есть, затухание — постоянная времени из Decay (мс).
-  if (engine === DRUM_ENGINE) return { harmonics, timbre, morph: v('morph') / 100, aux: 0, decay: v('decay') };
   if (SYNTH_ENGINES[engine].decay) return { harmonics, timbre, morph: decayNorm(v('decay')), aux: v('morph') / 100 };
   return { harmonics, timbre, morph: v('morph') / 100, aux: 0 };
 }
@@ -249,6 +285,7 @@ export async function restartAudio() {
   synths.fill(null);
   synthCpu.fill(0);
   wasmBytes = null;
+  jamboReady = false;
   scopePre = scopePost = null;
   scopeOn = null;
   fxSig = '';
@@ -540,8 +577,10 @@ export function triggerTrack(track: number, time: number, notes: number[], locks
 
 /** Ноты синта: голоса по кругу, огибающая и параметры — на постоянной цепочке голоса. */
 function triggerSynth(track: number, engine: number, time: number, notes: number[], locks: Record<string, number>) {
-  const sy = ensureSynth(track);
-  if (!sy) return;
+  const family = familyOf(engine);
+  const sy = ensureSynth(track, family);
+  const node = sy?.nodes[family];
+  if (!sy || !node) return;
   const at0 = toCtx(time);
   // Живой наигрыш: небольшой запас, чтобы нота успела дойти до AudioWorklet к началу огибающей
   // (иначе огибающая открывается раньше звука движка — щелчок).
@@ -567,6 +606,8 @@ function triggerSynth(track: number, engine: number, time: number, notes: number
     if (steal) slot = sy.next;
     sy.next = (slot + 1) % SYNTH_SLOTS;
     const sl = sy.slots[slot];
+    const prevFamily = sy.slotFamily[slot];
+    sy.slotFamily[slot] = family;
     // Голос, который ещё звучит в этом слоте, уступает место новой ноте: быстро гаснет (≈5 мс),
     // и новая нота начинается после этого — без щелчка.
     for (const vo of voices) if (vo.synth && vo.track === track && vo.synth.slot === slot) vo.ended = true;
@@ -584,9 +625,11 @@ function triggerSynth(track: number, engine: number, time: number, notes: number
     const stop = end + (start - at);
     sy.busyUntil[slot] = selfDecay ? start + attack + 0.3 + 4 * decay : stop;
     voices.push({ track, root: 0, locks, note, at: start, src: null, synth: { slot, engine, end: stop }, level: sl.level, filter: sl.filter, pan: sl.pan, sends: sl.sends, ended: false });
+    // Слот занимал голос другого семейства — тот замолкает в кадре новой ноты (огибающая уже погашена).
+    if (prevFamily && prevFamily !== family) sy.nodes[prevFamily]?.port.postMessage([{ type: 'stop', slot, frame: Math.round(start * sr) }]);
     return { type: 'note', slot, frame: Math.round(start * sr), end: Math.round(stop * sr), engine, note, ...synthParams(engine, v), accent: 0.8 };
   });
-  sy.node.port.postMessage(events);
+  node.port.postMessage(events);
   sidechain(track, at);
 }
 
@@ -629,8 +672,8 @@ function updateVoices() {
     if (Object.keys(assigns).length === 0) continue;
     const v = (id: string) => value(vo.track, id, vo.locks);
     const now = c.currentTime;
-    if (vo.synth && (assigns.harm || assigns.timbre || assigns.morph || (assigns.decay && SYNTH_ENGINES[vo.synth.engine].decay))) {
-      synths[vo.track]?.node.port.postMessage([{ type: 'mod', slot: vo.synth.slot, note: vo.note, ...synthParams(vo.synth.engine, v) }]);
+    if (vo.synth && (assigns.harm || assigns.timbre || assigns.morph || (assigns.decay && (SYNTH_ENGINES[vo.synth.engine].decay || isJambo(vo.synth.engine))))) {
+      synths[vo.track]?.nodes[familyOf(vo.synth.engine)]?.port.postMessage([{ type: 'mod', slot: vo.synth.slot, note: vo.note, ...synthParams(vo.synth.engine, v) }]);
     }
     if (assigns.pitch && vo.src) vo.src.playbackRate.setTargetAtTime(rateFor(vo.note, vo.root, v('pitch')), now, 0.01);
     if (assigns.level) vo.level.gain.setTargetAtTime(levelGain(v('level')), now, 0.01);
@@ -778,7 +821,10 @@ export function updateAudio(now: number) {
   updateFx(now);
   updateEqs();
   // Узел синта создаётся заранее, когда синт выбран на дорожке (не на первой ноте).
-  doc.tracks.forEach((t, i) => { if (synthEngine(t.sample) !== null) ensureSynth(i); });
+  doc.tracks.forEach((t, i) => {
+    const e = synthEngine(t.sample);
+    if (e !== null) ensureSynth(i, familyOf(e));
+  });
   updateVoices();
 }
 

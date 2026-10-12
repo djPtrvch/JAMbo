@@ -140,34 +140,52 @@ export const TRACK_GRID: Slot[] = grid([
  * options): значение остаётся 0..100 %, ручка встаёт на середину пункта.
  */
 export interface SynthEngine {
-  name: string; full: string; bank: 'synth' | 'drum'; decay: boolean;
+  name: string; full: string; bank: 'synth' | 'drum' | 'jb'; decay: boolean;
+  /** Семейство: 'plaits' — plaits.wasm (plaits-worklet.js), 'jambo' — свои движки (jambo-synth-worklet.js). */
+  family: 'plaits' | 'jambo';
   harm: string; timbre: string; morph: string; options?: string[];
+  /** Свой формат ручки 1.1 (значение 0..100). */
+  harmFormat?: (v: number) => string;
 }
 export const SYNTH_ENGINES: SynthEngine[] = [
-  { name: 'VA', full: 'Pair of classic waves', bank: 'synth', decay: false, harm: 'detune', timbre: 'pulse width', morph: 'triangle→saw' },
-  { name: 'WAVESHAPE', full: 'Waveshaper', bank: 'synth', decay: false, harm: 'shaper waveform', timbre: 'fold depth', morph: 'asymmetry' },
-  { name: 'FM', full: 'Two-operator FM', bank: 'synth', decay: false, harm: 'frequency ratio', timbre: 'mod index', morph: 'feedback' },
-  { name: 'GRAIN', full: 'Granular formant', bank: 'synth', decay: false, harm: 'formant ratio', timbre: 'formant freq', morph: 'formant width' },
-  { name: 'ADDITIVE', full: 'Harmonic', bank: 'synth', decay: false, harm: 'bumps', timbre: 'main harmonic', morph: 'bump shape' },
-  { name: 'WAVETABLE', full: 'Wavetable', bank: 'synth', decay: false, harm: 'bank', timbre: 'row', morph: 'column', options: ['A', 'B', 'C', 'D'] },
-  { name: 'CHORDS', full: 'Chords', bank: 'synth', decay: false, harm: 'chord type', timbre: 'inversion', morph: 'waveform',
+  { name: 'VA', full: 'Pair of classic waves', bank: 'synth', family: 'plaits', decay: false, harm: 'detune', timbre: 'pulse width', morph: 'triangle→saw' },
+  { name: 'WAVESHAPE', full: 'Waveshaper', bank: 'synth', family: 'plaits', decay: false, harm: 'shaper waveform', timbre: 'fold depth', morph: 'asymmetry' },
+  { name: 'FM', full: 'Two-operator FM', bank: 'synth', family: 'plaits', decay: false, harm: 'frequency ratio', timbre: 'mod index', morph: 'feedback' },
+  { name: 'GRAIN', full: 'Granular formant', bank: 'synth', family: 'plaits', decay: false, harm: 'formant ratio', timbre: 'formant freq', morph: 'formant width' },
+  { name: 'ADDITIVE', full: 'Harmonic', bank: 'synth', family: 'plaits', decay: false, harm: 'bumps', timbre: 'main harmonic', morph: 'bump shape' },
+  { name: 'WAVETABLE', full: 'Wavetable', bank: 'synth', family: 'plaits', decay: false, harm: 'bank', timbre: 'row', morph: 'column', options: ['A', 'B', 'C', 'D'] },
+  { name: 'CHORDS', full: 'Chords', bank: 'synth', family: 'plaits', decay: false, harm: 'chord type', timbre: 'inversion', morph: 'waveform',
     options: ['oct', '5', 'sus4', 'm', 'm7', 'm9', 'm11', '6/9', 'M9', 'M7', 'M'] },
-  { name: 'SPEECH', full: 'Vowel & speech', bank: 'synth', decay: false, harm: 'mode', timbre: 'species', morph: 'phoneme / word',
+  { name: 'SPEECH', full: 'Vowel & speech', bank: 'synth', family: 'plaits', decay: false, harm: 'mode', timbre: 'species', morph: 'phoneme / word',
     options: ['Formant', 'SAM', 'LPC', 'Words'] },
-  { name: 'SWARM', full: 'Granular cloud', bank: 'drum', decay: false, harm: 'pitch spread', timbre: 'density', morph: 'grain length' },
-  { name: 'NOISE', full: 'Filtered noise', bank: 'drum', decay: false, harm: 'LP→BP→HP', timbre: 'clock freq', morph: 'resonance' },
-  { name: 'PARTICLE', full: 'Particle noise', bank: 'drum', decay: false, harm: 'freq spread', timbre: 'density', morph: 'all-pass→band-pass' },
-  { name: 'STRING', full: 'Inharmonic string', bank: 'drum', decay: true, harm: 'material (inharmonicity)', timbre: 'excitation brightness', morph: 'OUT→AUX' },
-  { name: 'MODAL', full: 'Modal resonator', bank: 'drum', decay: true, harm: 'material', timbre: 'brightness & dust', morph: 'OUT→AUX' },
-  { name: 'KICK', full: 'Analog bass drum', bank: 'drum', decay: true, harm: 'attack & overdrive', timbre: 'brightness', morph: 'OUT→AUX' },
-  { name: 'SNARE', full: 'Analog snare', bank: 'drum', decay: true, harm: 'harmonics↔noise', timbre: 'mode balance', morph: 'OUT→AUX' },
-  { name: 'HI-HAT', full: 'Analog hi-hat', bank: 'drum', decay: true, harm: 'metal↔noise', timbre: 'HPF cutoff', morph: 'OUT→AUX' },
-  // Свой движок (не Plaits, считается в том же AudioWorklet): синус со свипом высоты + шум через
-  // полосовой фильтр + клик → мягкий клиппер; затухает сам (Decay).
-  { name: 'DRUM', full: 'Drum', bank: 'drum', decay: true, harm: 'sweep', timbre: 'tone', morph: 'drive' },
+  { name: 'SWARM', full: 'Granular cloud', bank: 'drum', family: 'plaits', decay: false, harm: 'pitch spread', timbre: 'density', morph: 'grain length' },
+  { name: 'NOISE', full: 'Filtered noise', bank: 'drum', family: 'plaits', decay: false, harm: 'LP→BP→HP', timbre: 'clock freq', morph: 'resonance' },
+  { name: 'PARTICLE', full: 'Particle noise', bank: 'drum', family: 'plaits', decay: false, harm: 'freq spread', timbre: 'density', morph: 'all-pass→band-pass' },
+  { name: 'STRING', full: 'Inharmonic string', bank: 'drum', family: 'plaits', decay: true, harm: 'material (inharmonicity)', timbre: 'excitation brightness', morph: 'OUT→AUX' },
+  { name: 'MODAL', full: 'Modal resonator', bank: 'drum', family: 'plaits', decay: true, harm: 'material', timbre: 'brightness & dust', morph: 'OUT→AUX' },
+  { name: 'KICK', full: 'Analog bass drum', bank: 'drum', family: 'plaits', decay: true, harm: 'attack & overdrive', timbre: 'brightness', morph: 'OUT→AUX' },
+  { name: 'SNARE', full: 'Analog snare', bank: 'drum', family: 'plaits', decay: true, harm: 'harmonics↔noise', timbre: 'mode balance', morph: 'OUT→AUX' },
+  { name: 'HI-HAT', full: 'Analog hi-hat', bank: 'drum', family: 'plaits', decay: true, harm: 'metal↔noise', timbre: 'HPF cutoff', morph: 'OUT→AUX' },
+  // Свои движки JAMbo (jambo-synth-worklet.js): ручки 1.1–1.3 — p1, p2, p3 (0..100 %), затухание — Decay в мс.
+  { name: 'DRUM', full: 'Drum', bank: 'jb', family: 'jambo', decay: true, harm: 'sweep', timbre: 'tone', morph: 'drive' },
+  { name: 'ANALOG', full: 'Analog', bank: 'jb', family: 'jambo', decay: false, harm: 'wave', timbre: 'detune', morph: 'sub' },
+  { name: 'FM', full: 'FM', bank: 'jb', family: 'jambo', decay: false, harm: 'ratio', timbre: 'index', morph: 'contour',
+    harmFormat: (v) => `×${fmRatio(v / 100).toFixed(2)}` },
+  { name: 'WTABLE', full: 'Wavetable', bank: 'jb', family: 'jambo', decay: false, harm: 'position', timbre: 'warp', morph: 'unison' },
 ];
-/** Номер движка DRUM (не Plaits: ручка 1.3 — Drive, а не OUT→AUX). */
+/** Номера своих движков (ключ звука — 'mi:<n>', как у Plaits). */
 export const DRUM_ENGINE = 16;
+export const WTABLE_ENGINE = 19;
+export const isJambo = (engine: number) => SYNTH_ENGINES[engine]?.family === 'jambo';
+
+/** Отношения частот FM, к которым ручка RATIO «прилипает» (±2 %). */
+const FM_SNAP = [0.5, 1, 1.5, 2, 3, 4, 5, 6, 7, 8];
+/** RATIO движка FM по положению ручки 0..1: 0.5 → 8 логарифмически, с привязкой к FM_SNAP. */
+export function fmRatio(n: number): number {
+  const r = 0.5 * Math.pow(16, Math.min(1, Math.max(0, n)));
+  for (const t of FM_SNAP) if (Math.abs(r / t - 1) <= 0.02) return t;
+  return r;
+}
 
 /** Параметры звука, которые сохраняются в пресете синта (вместе с движком). */
 export const PRESET_PARAMS = ['harm', 'timbre', 'morph', 'level', 'attack', 'decay', 'filter', 'reso'];
@@ -198,6 +216,7 @@ const ENGINE_GRIDS: Slot[][] = SYNTH_ENGINES.map((e) => SYNTH_GRID.map((p, i) =>
     const o = e.options;
     return { ...p, label, kind: 'stepped', steps: o.length, format: (v: number) => o[stepIndex(v / 100, o.length)] };
   }
+  if (i === 0 && e.harmFormat) return { ...p, label, format: e.harmFormat };
   return { ...p, label };
 }));
 export const synthGrid = (engine: number): Slot[] => ENGINE_GRIDS[engine] ?? SYNTH_GRID;
