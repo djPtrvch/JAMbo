@@ -3,7 +3,7 @@
 
 import { fromNorm, toNorm, type ParamDef } from '../params';
 import {
-  addTrack, audible, assignFor, canAddTrack, canDeleteTrack, copyTrack, deleteTrack, hasTrackClip, moveTrack, pasteTrack, curSeq, fxModNorm, liveLocks, seqIndex,
+  addTrack, audible, assignFor, clearTrackLocks, canAddTrack, canDeleteTrack, copyTrack, deleteTrack, hasTrackClip, moveTrack, pasteTrack, curSeq, fxModNorm, liveLocks, seqIndex,
   beginGesture, clearLfoAssign, clearLock, doc, endGesture, firstHeldStep, gridFor, gridMode, heldLfo,
   lockValue, modulatedNorm, paramValue, type Mod, setLfoAmount, setLockNorm, setParamNorm, ui, type GridMode,
 } from '../state';
@@ -264,6 +264,11 @@ function onDown(slot: number, e: PointerEvent) {
   const param = gridFor(mode)[slot];
   if (!param) { onHiddenDown(slot, e); return; }
   e.preventDefault();
+  // SHIFT + тап по ручке дорожки — снять все p-lock дорожки (отмена — UNDO); ручка не крутится.
+  if (ui.held.shift && mode === 'track') {
+    clearTrackLocks(ui.selectedTrack);
+    return;
+  }
   (e.currentTarget as Element).setPointerCapture(e.pointerId);
 
   const lfo = heldLfo();

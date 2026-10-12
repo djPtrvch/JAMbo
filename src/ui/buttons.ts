@@ -1,4 +1,4 @@
-// Кнопки: LFO1, LFO2, LFO3, ENV (слева, под окном сэмпла; при MST — RATIO и BYPASS устройств мастера); MORPH, SHIFT, FX, MOD (справа внизу);
+// Кнопки: LFO1, LFO2, LFO3, ENV (слева, под окном сэмпла; при MST — BYPASS устройств мастера и SHIFT); FX, MOD, MORPH, SHIFT (справа внизу);
 // PLAY, REC, UNDO, REDO, PATTERNS и EQ (в верхней панели справа).
 // LFO1/LFO2/LFO3/ENV/FX/MOD работают на удержание; MORPH — тап (режим) и удержание (+ UNDO).
 
@@ -20,7 +20,7 @@ let morphBtn: HTMLElement;
 /** На удержании MORPH уже нажали UNDO — отпускание не переключает режим. */
 let morphUsed = false;
 
-function holdButton(label: string, btn: HoldButton): HTMLElement {
+function holdButton(label: string, btn: HoldButton, midi = true): HTMLElement {
   const el = h('div', 'btn', label);
   const pointers = new Set<number>();
   const release = (e: PointerEvent) => {
@@ -36,7 +36,7 @@ function holdButton(label: string, btn: HoldButton): HTMLElement {
   el.addEventListener('pointerup', release);
   el.addEventListener('pointercancel', release);
   holdViews.push([el, btn]);
-  if (btn !== 'track') registerAction(label, { label, press: () => setHeld(btn, true), release: () => setHeld(btn, false), state: () => ui.held[btn] }, el);
+  if (btn !== 'track' && midi) registerAction(label, { label, press: () => setHeld(btn, true), release: () => setHeld(btn, false), state: () => ui.held[btn] }, el);
   return el;
 }
 
@@ -49,14 +49,13 @@ function tapButton(label: string, fn: (e?: PointerEvent) => void, state?: () => 
 
 let lfoGrid: HTMLElement;
 let masterGrid: HTMLElement;
-let ratioBtn: HTMLElement;
 let compBypassBtn: HTMLElement;
 let clipBypassBtn: HTMLElement;
 let limBypassBtn: HTMLElement;
 
 /**
- * Слева под окном сэмпла: LFO1, LFO2, LFO3, ENV. При MST на их месте (тот же размер и порядок
- * сетки) кнопки мастера: BYPASS компрессора, BYPASS клиппера, RATIO компрессора, BYPASS лимитера.
+ * Слева под окном сэмпла: LFO1, LFO2, LFO3, ENV. При MST на их месте (тот же размер и сетка)
+ * BYPASS компрессора (с SHIFT — RATIO), BYPASS клиппера, BYPASS лимитера и SHIFT.
  */
 export function buildLeftButtons(): HTMLElement {
   const el = h('div', 'left-btns');
@@ -67,13 +66,17 @@ export function buildLeftButtons(): HTMLElement {
     b.addEventListener('pointerdown', (e) => { e.preventDefault(); fn(); });
     return b;
   };
-  ratioBtn = tap('', cycleRatio);
-  ratioBtn.classList.add('ratio-btn');
+  // Вверху BYPASS COMP (с зажатой SHIFT на её месте RATIO) и BYPASS CLIP, внизу BYPASS LIM и SHIFT;
+  // включённый bypass — цветом своего модуля, как кнопки скопа справа (COMP жёлтая, CLIP оранжевая, LIM красная).
+  compBypassBtn = tap('BYPASS\nCOMP', () => (ui.held.shift ? cycleRatio() : toggleCmpBypass()));
+  compBypassBtn.classList.add('byp-comp');
   clipBypassBtn = tap('BYPASS\nCLIP', toggleClipBypass);
-  compBypassBtn = tap('BYPASS\nCOMP', toggleCmpBypass);
+  clipBypassBtn.classList.add('byp-clip');
   limBypassBtn = tap('BYPASS\nLIM', toggleLimBypass);
+  limBypassBtn.classList.add('byp-lim');
+  // SHIFT при MST — та же кнопка (удержание), что справа; MIDI-цель одна (правая).
   masterGrid = h('div', 'btn-grid hidden');
-  masterGrid.append(compBypassBtn, clipBypassBtn, ratioBtn, limBypassBtn);
+  masterGrid.append(compBypassBtn, clipBypassBtn, limBypassBtn, holdButton('SHIFT', 'shift', false));
   el.append(lfoGrid, masterGrid);
   return el;
 }
@@ -146,9 +149,9 @@ export function buildRightButtons(): HTMLElement {
     release: () => { setHeld('track', false); if (!morphUsed) toggleMorph(); },
     state: () => ui.morph,
   }, morphBtn);
-  // SHIFT — на месте прежней RANDOM; что она делает, ещё не определено (пока неактивна).
-  const shift = h('div', 'btn disabled', 'SHIFT');
-  el.append(morphBtn, shift, holdButton('FX', 'fx'), holdButton('MOD', 'mod'));
+  // Вверху FX и MOD, внизу MORPH и SHIFT. SHIFT — удержание, даёт дополнительные действия:
+  // с тапом по ручке дорожки снимает все её p-lock, при MST — RATIO на месте BYPASS COMP.
+  el.append(holdButton('FX', 'fx'), holdButton('MOD', 'mod'), morphBtn, holdButton('SHIFT', 'shift'));
   return el;
 }
 
@@ -167,8 +170,11 @@ export function renderButtons() {
   setClass(lfoGrid, 'hidden', master);
   setClass(masterGrid, 'hidden', !master);
   if (master) {
-    setText(ratioBtn, `RATIO\n${RATIOS[doc.ratio]}:1`);
-    setClass(compBypassBtn, 'active', doc.cmpBypass);
+    // С зажатой SHIFT на месте BYPASS COMP — RATIO компрессора.
+    const ratio = ui.held.shift;
+    setText(compBypassBtn, ratio ? `RATIO\n${RATIOS[doc.ratio]}:1` : 'BYPASS\nCOMP');
+    setClass(compBypassBtn, 'ratio-btn', ratio);
+    setClass(compBypassBtn, 'active', !ratio && doc.cmpBypass);
     setClass(clipBypassBtn, 'active', doc.clipBypass);
     setClass(limBypassBtn, 'active', doc.limBypass);
   }

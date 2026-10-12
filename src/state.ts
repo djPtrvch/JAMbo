@@ -169,7 +169,7 @@ export interface Doc {
 export type GridMode = 'track' | 'fx' | 'mod' | 'mix' | 'master';
 /** Что выбрано в строке дорожек: дорожка, канал микшера MIX или мастер MST. */
 export type Channel = 'track' | 'mix' | 'master';
-export type HoldButton = 'lfo1' | 'lfo2' | 'lfo3' | 'env' | 'track' | 'fx' | 'mod';
+export type HoldButton = 'lfo1' | 'lfo2' | 'lfo3' | 'env' | 'track' | 'fx' | 'mod' | 'shift';
 
 export interface HeldStep {
   index: number;
@@ -321,7 +321,7 @@ export const ui: Ui = {
   selectedTrack: 0,
   channel: 'track',
   viewPage: 0,
-  held: { lfo1: false, lfo2: false, lfo3: false, env: false, track: false, fx: false, mod: false },
+  held: { lfo1: false, lfo2: false, lfo3: false, env: false, track: false, fx: false, mod: false, shift: false },
   modeOrder: [],
   lastLfo: 1,
   heldSteps: new Map(),
@@ -918,6 +918,16 @@ export function addTrack() {
 }
 
 /** Шаги последовательности (и всех её паттернов). */
+/**
+ * SHIFT + тап по ручке дорожки: снять все p-lock параметров со всех шагов активного паттерна дорожки
+ * (свой звук шага остаётся). Отмена — UNDO.
+ */
+export function clearTrackLocks(i: number) {
+  const t = doc.tracks[i];
+  if (!t) return;
+  edit(() => { t.pages.forEach((pg) => pg.forEach((s) => { s.locks = {}; })); });
+}
+
 function forEachStep(t: Track, fn: (s: Step) => void) {
   for (const p of [t, ...t.slots.filter((x): x is Pattern => !!x)]) p.pages.forEach((pg) => pg.forEach(fn));
 }

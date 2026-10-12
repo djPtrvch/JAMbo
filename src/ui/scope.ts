@@ -2,9 +2,9 @@
 // мастера — после громкости выхода: точки L/R,
 // повёрнутые на 45° — вертикаль mid, горизонталь side, с послесвечением), под ним до кнопок
 // осциллоскоп как в Drambo (бегущая форма волны L+R за ~1 с, без чисел).
-// Кнопки SAT, COMP, CLIP, LIM — включают и выключают точки съёма осциллоскопа (после сатуратора,
-// компрессора, клиппера, лимитера; формы волны накладываются разными цветами) — на месте MORPH,
-// SHIFT, FX, MOD. Анализаторы работают, только пока скоп виден.
+// Сигнал после сатуратора (белый) виден всегда; кнопки COMP, CLIP, LIM включают и выключают точки съёма
+// после компрессора, клиппера, лимитера (формы волны накладываются разными цветами) — на месте FX, MOD,
+// MORPH. Анализаторы работают, только пока скоп виден.
 
 import { masterGonio, masterScope, setMasterScope } from '../audio/engine';
 import { ui } from '../state';
@@ -22,8 +22,11 @@ let gonio: HTMLCanvasElement;
 let osc: HTMLCanvasElement;
 let btnGrid: HTMLElement;
 const btns: HTMLElement[] = [];
-/** Включённые точки съёма (кнопки переключаются независимо); по умолчанию — LIM; в проекте не хранится. */
-const on = [false, false, false, true];
+/**
+ * Включённые точки съёма: SAT (после сатуратора, белая) видна всегда; COMP, CLIP, LIM — кнопками
+ * (переключаются независимо; по умолчанию — LIM); в проекте не хранится.
+ */
+const on = [true, false, false, true];
 /** Цвета форм волны: SAT белая, COMP жёлтая, CLIP оранжевая, LIM красная (цвета темы). */
 const TRACE_COLORS = ['--ink', '--plock', '--gr', '--rec'];
 /** Прозрачность форм волны (наложение). */
@@ -51,15 +54,18 @@ export function buildScope(): HTMLElement {
   return root;
 }
 
-/** Кнопки точек съёма: сетка 2×2 на месте MORPH, SHIFT, FX, MOD (видна только при MST). */
+/** Кнопки точек съёма COMP, CLIP, LIM: сетка 2×2 на месте FX, MOD, MORPH (видна только при MST; SHIFT — слева). */
 export function buildScopeButtons(): HTMLElement {
   btnGrid = h('div', 'btn-grid hidden');
   POINTS.forEach((name, i) => {
+    if (i === 0) return;
     const b = h('div', 'btn master-btn', name);
     b.addEventListener('pointerdown', (e) => { e.preventDefault(); on[i] = !on[i]; });
-    btns.push(b);
+    btns[i] = b;
     btnGrid.append(b);
   });
+  // Четвёртое место пустое (SAT виден всегда, SHIFT при MST — слева под окном).
+  btnGrid.append(h('div', 'btn-spacer'));
   return btnGrid;
 }
 
@@ -195,7 +201,7 @@ export function renderScope(sampleRate: number) {
   btns.forEach((b, i) => {
     // Включённая кнопка — цветом своей формы волны.
     b.style.background = on[i] ? color(TRACE_COLORS[i]) : '';
-    b.style.color = on[i] ? color(i === 0 ? '--bg' : '--on-accent') : '';
+    b.style.color = on[i] ? color('--on-accent') : '';
   });
   drawGonio(masterGonio(GL, GR));
   drawOsc(sampleRate);
