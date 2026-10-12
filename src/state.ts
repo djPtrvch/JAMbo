@@ -409,9 +409,17 @@ export function endGesture() {
 
 /** Вернуть проект к снимку; необязательные поля, которых в снимке нет, убираются. */
 function restoreDoc(snap: string) {
+  // Что играет сейчас, остаётся играть: UNDO отменяет правки, а не запуск паттернов.
+  const play = doc.tracks.map((t) => ({ slot: t.slot, stopped: t.stopped }));
   const d = JSON.parse(snap) as Doc;
   for (const k of Object.keys(doc) as (keyof Doc)[]) if (!(k in d)) delete doc[k];
   Object.assign(doc, d);
+  doc.tracks.forEach((t, i) => {
+    const p = play[i];
+    if (!p) return;
+    if (p.slot === t.slot || t.slots[p.slot]) { swapSlot(t, p.slot); t.stopped = p.stopped; }
+    else t.stopped = true; // паттерна, который играл, в восстановленном проекте нет
+  });
 }
 
 export function undo() {
@@ -1160,18 +1168,24 @@ function putPattern(t: Track, p: Pattern) {
 export const slotFilled = (t: Track, k: number) => k === t.slot || t.slots[k] !== null;
 
 /** Сделать ячейку k активной: текущий паттерн уходит в свою ячейку, паттерн k загружается. */
+/** Сделать ячейку k активной у дорожки t (без записи в UNDO). */
+function swapSlot(t: Track, k: number) {
+  if (k === t.slot) return;
+  t.slots[t.slot] = takePattern(t);
+  const next = t.slots[k];
+  if (next) putPattern(t, next);
+  t.slots[k] = null;
+  t.slot = k;
+}
+
+/**
+ * Запуск и остановка паттернов — игра, а не правка: в UNDO не записываются (иначе UNDO
+ * переключал бы паттерны, в том числе переходы строк во время проигрывания).
+ */
 export function activateSlot(i: number, k: number) {
-  edit(() => {
-    const t = doc.tracks[i];
-    if (k !== t.slot) {
-      t.slots[t.slot] = takePattern(t);
-      const next = t.slots[k];
-      if (next) putPattern(t, next);
-      t.slots[k] = null;
-      t.slot = k;
-    }
-    t.stopped = false;
-  });
+  const t = doc.tracks[i];
+  swapSlot(t, k);
+  t.stopped = false;
   if (i === ui.selectedTrack) {
     ui.heldSteps.clear();
     clampView();
@@ -1179,7 +1193,7 @@ export function activateSlot(i: number, k: number) {
 }
 
 export function stopTrack(i: number) {
-  edit(() => { doc.tracks[i].stopped = true; });
+  doc.tracks[i].stopped = true;
 }
 
 /** Новый паттерн в пустой ячейке: копия звука дорожки, пустая последовательность. */
