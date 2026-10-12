@@ -947,3 +947,7 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 .knob-meter { position: absolute; top: 12%; bottom: 12%; right: calc(50% + min(50cqh, 50cqw) * 0.8 + 8px); display: flex; gap: 3px; pointer-events: none; }
 .knob-meter.hidden { display: none; }
 .knob-meter.muted .vbar.yellow .vbar-fill { background: var(--mute-grey); }
+
+/* Все надписи DELETE — красным. */
+.popup-btn.danger, .mm-act.danger { color: var(--rec); }
+.popup-btn.danger:disabled, .mm-act.danger.disabled { color: var(--off); }

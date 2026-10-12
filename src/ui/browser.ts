@@ -95,7 +95,7 @@ async function open(n: LibNode) {
   fill();
 }
 
-const trackName = (i: number) => `T${i + 1}`;
+const trackName = (i: number) => `Track ${doc.tracks[i]?.name ?? i + 1}`;
 
 /** Звук дорожки сейчас — этот узел (подсветка в списке). */
 function isCurrent(n: LibNode): boolean {

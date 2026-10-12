@@ -248,7 +248,7 @@ function newEq(): Eq {
   return { on: true, bands: Array(EQ_BANDS).fill(null) };
 }
 
-function newTrack(i: number, name = `T${i + 1}`): Track {
+function newTrack(i: number, name = `${i + 1}`): Track {
   return {
     name,
     sample: '',
@@ -1601,6 +1601,8 @@ export function normalizeDoc(raw: unknown): Doc {
   const count = Math.min(MAX_TRACKS, Math.max(TRACK_COUNT, d.tracks?.length ?? 0));
   d.tracks = Array.from({ length: count }, (_, i) => {
     const t = { ...newTrack(i), ...(d.tracks?.[i] ?? {}) } as Track;
+    // Имена по умолчанию — только номер (прежние «T1»… становятся «1»…).
+    if (/^T\d{1,2}$/.test(t.name)) t.name = t.name.slice(1);
     fixParams(t);
     t.slots = Array.from({ length: PATTERN_SLOTS }, (_, k) => t.slots?.[k] ?? null);
     t.slots.forEach((p) => { if (p) fixParams(p); });

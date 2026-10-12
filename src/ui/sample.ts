@@ -287,7 +287,7 @@ export function buildSample(): HTMLElement {
   // две полосы, моно — одна, выше 0 dB — красный; заглушённая дорожка — серая; снижение
   // громкости от sidechain — оранжевым сверху. Положение регуляторов видно на самих ручках.
   mixPanel = h('div', 'master-panel mix-panel hidden');
-  for (let i = 0; i < MAX_TRACKS; i++) mixBars.push(vbar(`T${i + 1}`, 'yellow', true));
+  for (let i = 0; i < MAX_TRACKS; i++) mixBars.push(vbar(`${i + 1}`, 'yellow', true));
   // Пока уровни видны у ручек громкости — полосы в окне сэмпла скрыты (остаётся заголовок).
   const mixRow = wrap(mixBars);
   mixRow.classList.add('hidden');

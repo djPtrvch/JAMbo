@@ -270,6 +270,7 @@ function render() {
     const act = (label: string, fn: () => void, off = false) => {
       const el = row(label, '');
       el.classList.add('mm-act');
+      if (/^delete/i.test(label)) el.classList.add('danger');
       if (off) el.classList.add('disabled');
       else el.addEventListener('pointerup', fn);
       return el;

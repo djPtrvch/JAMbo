@@ -86,6 +86,8 @@ export function openInput(anchor: Element, value: string, done: (v: string) => v
 
 export function popupButton(label: string, onTap: () => void): HTMLButtonElement {
   const b = h('button', 'popup-btn', label);
+  // Все надписи DELETE — красным.
+  if (/^delete/i.test(label)) b.classList.add('danger');
   b.addEventListener('pointerup', () => { if (!b.disabled) onTap(); });
   return b;
 }

@@ -246,7 +246,7 @@ export const FX_GRID: Slot[] = grid([
   [
     smooth('sc.attack', 'SC Attack', 0.1, 100, 5, ms, { exp: true }),
     smooth('sc.release', 'SC Release', 10, 1000, 150, ms, { exp: true }),
-    stepped('sc.source', 'SC Source', Array.from({ length: MAX_TRACKS }, (_, i) => `T${i + 1}`)),
+    stepped('sc.source', 'SC Source', Array.from({ length: MAX_TRACKS }, (_, i) => `${i + 1}`)),
   ],
 ]);
 
@@ -268,7 +268,7 @@ export const fmtVol = volDb;
 export const MIX_SLOTS = 16;
 
 export const MIX_GRID: Slot[] = Array.from({ length: MIX_SLOTS }, (_, i) =>
-  i < MAX_TRACKS ? smooth(`mix.vol${i + 1}`, `T${i + 1}`, VOL_MIN_DB, 0, VOL_DEF_DB, volDb) : null);
+  i < MAX_TRACKS ? smooth(`mix.vol${i + 1}`, `${i + 1}`, VOL_MIN_DB, 0, VOL_DEF_DB, volDb) : null);
 
 // ---------- Мастер: компрессор (колонка 3) и лимитер (колонка 4), Ratio — отдельной кнопкой ----------
 
