@@ -61,7 +61,10 @@ main.append(left, center, right, meter);
 const topbar = buildTopbar();
 const [leftGroup, ...fields] = [...topbar.children];
 const topMid = h('div', 'top-mid');
-topMid.append(...fields, ...buildTransportButtons().children, buildEqButton());
+// Между REDO и EQ — кнопка автоматизации (значок; пока неактивна, как SHIFT).
+const autoBtn = h('div', 'btn disabled tb-auto');
+autoBtn.innerHTML = '<svg class="tr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17L8 9L13 14L21 6"/><circle cx="8" cy="9" r="1.8" fill="currentColor"/><circle cx="13" cy="14" r="1.8" fill="currentColor"/><circle cx="21" cy="6" r="1.8" fill="currentColor"/><path d="M3 21H21" opacity="0.4"/></svg>';
+topMid.append(...fields, ...buildTransportButtons().children, autoBtn, buildEqButton());
 const topRight = h('div', 'top-right');
 // Справа от EQ, над измерителем уровня — загрузка процессора.
 const cpu = h('div', 'cpu', 'CPU\n–');

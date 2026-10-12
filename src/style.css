@@ -157,6 +157,7 @@ html, body {
 .top-mid > .tb-play { grid-column: 4; grid-row: 1; }
 .top-mid > .tb-rec { grid-column: 5; grid-row: 1; }
 .top-mid > .tb-redo { grid-column: 6; grid-row: 1; }
+.top-mid > .tb-auto { grid-column: 7; grid-row: 1; }
 .top-mid > .eq-btn { grid-column: 8; grid-row: 1; }
 .tr-icon { width: 22px; height: 22px; }
 .btn.rec-btn:not(.rec) { color: var(--rec); }
