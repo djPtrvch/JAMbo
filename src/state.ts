@@ -153,7 +153,7 @@ export interface Doc {
   arrEnd?: 'loop' | 'stop';
   /** Что делает «+» под строками: пустая строка или копии играющих паттернов (по умолчанию). */
   plusMode?: 'empty' | 'copy';
-  /** LOOP ROW: играющая строка повторяется бесконечно (повторы не считаются). */
+  /** LOOP ROW: играющая строка повторяется бесконечно (повторы не считаются); нет поля — включён (по умолчанию). */
   rowLoop?: boolean;
   /** Эквалайзеры дорожек и мастера. */
   eqs: Eq[];
@@ -1681,8 +1681,11 @@ export function addSceneRow() {
   });
 }
 
+/** LOOP ROW включён (по умолчанию — да: в проекте без поля строка повторяется). */
+export const rowLoopOn = () => doc.rowLoop !== false;
+
 export function toggleRowLoop() {
-  edit(() => { doc.rowLoop = !doc.rowLoop; });
+  edit(() => { doc.rowLoop = !rowLoopOn(); });
 }
 
 export function setPlusMode(m: 'empty' | 'copy') {

@@ -5,6 +5,7 @@ import { clickAt, triggerTrack } from './audio/engine';
 import { PARAM_BY_ID, SEQ_MIX, SEQ_MST, STEPS_PER_PAGE, fromNorm } from './params';
 import {
   triggerEnv, endRecTake, activateSlot, audible, doc, inTransition, visibleRows, modulatedNorm, playRange, rowFilled, rt, seqAt, slotFilled, stepAt, stopTrack, ui,
+  rowLoopOn,
 } from './state';
 
 /** Шаги планируются заранее, чтобы звук и щелчок метронома попадали точно в долю. */
@@ -132,7 +133,7 @@ function playStep(time: number) {
   else if (rt.scene) {
     const reps = doc.scenes[rt.scene.row].repeats;
     // Одна строка в сетке играет по кругу (как с LOOP ROW).
-    if (reps > 0 && !doc.rowLoop && visibleRows() > 1 && tick - rt.scene.start >= reps * rt.scene.len) {
+    if (reps > 0 && !rowLoopOn() && visibleRows() > 1 && tick - rt.scene.start >= reps * rt.scene.len) {
       const n = nextScene(rt.scene.row);
       if (n !== null) startScene(n, tick);
       // Строки кончились: STOP — останавливается всё (и дорожки, запущенные по отдельности),

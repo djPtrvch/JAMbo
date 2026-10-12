@@ -13,7 +13,7 @@
 import { MAX_TRACKS, PATTERN_SLOTS, STEPS_PER_PAGE } from '../params';
 import {
   crossfade, inTransition, isPrevPlaceholder, rowFilled, sceneName, setCrossfade, setScene, transitionMoves,
-  addSceneRow, canAddRow, copyRow, deleteRow, duplicateRow, pasteRow, setArrangement, setPlusMode, toggleRowLoop, visibleRows,
+  addSceneRow, canAddRow, copyRow, deleteRow, duplicateRow, pasteRow, setArrangement, rowLoopOn, setPlusMode, toggleRowLoop, visibleRows,
   copyPattern, createPattern, dropPattern, deletePattern, doc, duplicatePattern, freeSlotAfter, hasLocks, pastePattern,
   playRange, rt, selectTrack, slotFilled, ui, type Pattern,
 } from '../state';
@@ -245,7 +245,7 @@ function openArrangeMenu() {
   }
   // LOOP ROW — играющая строка повторяется бесконечно.
   const loop = popupButton('LOOP ROW', () => { toggleRowLoop(); openArrangeMenu(); });
-  loop.classList.toggle('current', !!doc.rowLoop);
+  loop.classList.toggle('current', rowLoopOn());
   loop.classList.add('arrange-loop');
   const scroll = arrMenu.isOpen() ? arrMenu.box.scrollTop : 0;
   arrMenu.box.replaceChildren(
@@ -479,7 +479,7 @@ export function renderPatternGrid() {
     const playing = rt.scene?.row === k && ui.playing;
     setText(c.name, sceneName(k));
     // Повторы: у играющей строки — номер прохода.
-    setText(c.reps, playing && doc.rowLoop ? '∞' : playing && prog && sc.repeats > 0 ? `${Math.min(prog.pass + 1, sc.repeats)}/${sc.repeats}` : fmtReps(sc.repeats));
+    setText(c.reps, playing && rowLoopOn() ? '∞' : playing && prog && sc.repeats > 0 ? `${Math.min(prog.pass + 1, sc.repeats)}/${sc.repeats}` : fmtReps(sc.repeats));
     setClass(c.root, 'filled', rowFilled(k));
     setClass(c.root, 'active', rt.scene?.row === k);
     setClass(c.root, 'queued', rt.sceneQueued === k);
