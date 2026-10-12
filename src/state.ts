@@ -1668,6 +1668,45 @@ export function duplicateRow(k: number) {
   rt.queued.forEach((q, i) => { if (typeof q === 'number' && q > k) rt.queued[i] = q + 1; });
 }
 
+/**
+ * DELETE строки: её паттерны убираются, строки ниже сдвигаются вверх. Дорожка, игравшая эту строку,
+ * останавливается (стоит на паттерне, вставшем на её место, или на любом своём).
+ */
+export function deleteRow(k: number) {
+  if (transition) return;
+  const n = visibleRows();
+  edit(() => {
+    for (const t of doc.tracks) {
+      const rows = rowsOf(t);
+      const cur = rows[t.slot]!;
+      rows.splice(k, 1);
+      rows.push(null);
+      let active = t.slot > k ? t.slot - 1 : t.slot;
+      if (t.slot === k) {
+        // Остановленная дорожка стоит на паттерне, вставшем на место строки, или на любом своём;
+        // если паттернов не осталось — пустой паттерн со звуком дорожки в пределах оставшихся строк.
+        active = rows[k] ? k : rows.findIndex((r) => r !== null);
+        if (active < 0) { active = Math.min(k, Math.max(0, n - 2)); rows[active] = emptyLike(cur); }
+        t.stopped = true;
+      }
+      setRows(t, rows, active);
+    }
+    doc.scenes.splice(k, 1);
+    doc.scenes.push({ name: '', repeats: 0 });
+    doc.rows = Math.max(1, n - 1);
+    const st = doc.arrStart ?? 0;
+    if (st > k || st >= doc.rows) doc.arrStart = Math.max(0, st - 1);
+  });
+  if (rt.scene) {
+    if (rt.scene.row === k) rt.scene = null;
+    else if (rt.scene.row > k) rt.scene.row--;
+  }
+  if (rt.sceneQueued !== null) rt.sceneQueued = rt.sceneQueued === k ? null : rt.sceneQueued > k ? rt.sceneQueued - 1 : rt.sceneQueued;
+  rt.queued.forEach((q, i) => { if (typeof q === 'number') rt.queued[i] = q === k ? null : q > k ? q - 1 : q; });
+  ui.heldSteps.clear();
+  clampView();
+}
+
 export function copyRow(k: number) {
   ui.rowClipboard = { patterns: doc.tracks.map((t) => patternAt(t, k)), scene: clone(doc.scenes[k]) };
 }

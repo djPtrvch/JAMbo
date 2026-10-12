@@ -13,7 +13,7 @@
 import { MAX_TRACKS, PATTERN_SLOTS, STEPS_PER_PAGE } from '../params';
 import {
   crossfade, inTransition, isPrevPlaceholder, rowFilled, sceneName, setCrossfade, setScene, transitionMoves,
-  addSceneRow, canAddRow, copyRow, duplicateRow, pasteRow, setArrangement, setPlusMode, visibleRows,
+  addSceneRow, canAddRow, copyRow, deleteRow, duplicateRow, pasteRow, setArrangement, setPlusMode, visibleRows,
   copyPattern, createPattern, dropPattern, deletePattern, doc, duplicatePattern, freeSlotAfter, hasLocks, pastePattern,
   playRange, rt, selectTrack, slotFilled, ui, type Pattern,
 } from '../state';
@@ -56,7 +56,7 @@ function buildSceneMenu() {
     sceneMenu.close();
   };
   sceneInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') done(); });
-  // DUPLICATE (копия строки сразу под ней), COPY, PASTE.
+  // DUPLICATE (копия строки сразу под ней), COPY, PASTE, DELETE (строки ниже сдвигаются вверх).
   const acts = h('div', 'scene-acts');
   const act = (label: string, fn: (k: number) => void) => {
     const b = popupButton(label, () => { const k = sceneRow; sceneInput.blur(); sceneMenu.close(); if (k >= 0) fn(k); });
@@ -66,6 +66,7 @@ function buildSceneMenu() {
   act('DUPLICATE', duplicateRow);
   act('COPY', copyRow);
   act('PASTE', pasteRow);
+  act('DELETE', deleteRow);
   sceneMenu.box.append(sceneInput, row, acts, popupButton('OK', done));
 }
 
@@ -80,6 +81,7 @@ function openSceneMenu(k: number) {
   showReps();
   rowActs.DUPLICATE.disabled = !canAddRow() || inTransition();
   rowActs.PASTE.disabled = !ui.rowClipboard;
+  rowActs.DELETE.disabled = inTransition();
   // Меню строки — шириной от колонки строк до правого края первой дорожки.
   openSpan(sceneMenu, sceneCells[k].root, sceneCells[k].root, cells[0][k].root);
 }
