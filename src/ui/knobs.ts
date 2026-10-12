@@ -230,7 +230,7 @@ function onDown(slot: number, e: PointerEvent) {
       }
     }, RENAME_HOLD_MS);
   } else if (mode === 'mix' && canDeleteTrack(slot) && held === null) {
-    // Добавленная дорожка (9–12): удержание ручки без движения — DELETE TRACK.
+    // Дорожек больше 8: удержание ручки любой дорожки без движения — DELETE TRACK (правые сдвигаются).
     const anchor = views[slot].root;
     g.holdTimer = window.setTimeout(() => {
       if (!g.moved && gestures.get(e.pointerId) === g) {

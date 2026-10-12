@@ -850,8 +850,8 @@ export function selectTrack(i: number) {
 // ---------- Число дорожек: 8 по умолчанию, до 12 ----------
 
 export const canAddTrack = () => doc.tracks.length < MAX_TRACKS;
-/** Удалить можно только добавленную дорожку (первые 8 есть всегда). */
-export const canDeleteTrack = (i: number) => i >= TRACK_COUNT && i < doc.tracks.length;
+/** Удалить можно любую дорожку, пока их больше 8 (меньше 8 не бывает); правые сдвигаются влево. */
+export const canDeleteTrack = (i: number) => doc.tracks.length > TRACK_COUNT && i >= 0 && i < doc.tracks.length;
 
 /** Новая дорожка в конце строки (громкость по умолчанию, свой EQ и папка). Отмена — UNDO. */
 export function addTrack() {
@@ -873,7 +873,7 @@ function forEachStep(t: Track, fn: (s: Step) => void) {
 const MIX_LOCK_SEQS = () => [doc.chanSeqs[0]];
 
 /**
- * Удалить дорожку i (только добавленную): дорожки правее сдвигаются влево — вместе с ними их
+ * Удалить дорожку i (любую, если дорожек больше 8): дорожки правее сдвигаются влево — вместе с ними их
  * громкость (и p-lock громкости на шагах MIX), источник sidechain и динамических полос EQ,
  * назначения LFO/ENV на FX. Отмена — UNDO.
  */

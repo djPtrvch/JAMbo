@@ -71,8 +71,8 @@ const VEL_MIN = 0.2;
 
 let pianoMenu: Popup | null = null;
 /**
- * Меню бутерброда под CHORD: снизу вверх от кнопки, не выше секвенсора шагов, шириной не больше
- * 4 шагов; что не помещается — прокрутка (как во всех меню).
+ * Меню бутерброда под CHORD: снизу вверх от кнопки, правее неё (на ширину CHORD — бутерброд виден),
+ * не выше секвенсора шагов, шириной 4 шага; что не помещается — прокрутка (как во всех меню).
  */
 function openPianoMenu(anchor: HTMLElement) {
   pianoMenu ??= makePopup('piano-menu-pop');
@@ -90,7 +90,8 @@ function openPianoMenu(anchor: HTMLElement) {
   );
   const steps = document.querySelectorAll<HTMLElement>('.step');
   const a = anchor.getBoundingClientRect();
-  const s0 = steps[0]?.getBoundingClientRect(), s3 = steps[3]?.getBoundingClientRect();
+  // От второго шага (сдвиг на ширину CHORD — бутерброд остаётся виден), шириной 4 шага.
+  const s0 = steps[1]?.getBoundingClientRect(), s3 = steps[4]?.getBoundingClientRect();
   const left = s0 ? s0.left : a.left;
   const width = s0 && s3 ? s3.right - s0.left : 4 * a.width;
   const top = s0 ? s0.top : 8;
