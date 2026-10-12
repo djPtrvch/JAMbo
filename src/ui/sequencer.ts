@@ -121,7 +121,8 @@ export function renderSequencer() {
     const s = stepAt(t, index);
     const on = !!s?.on;
     setClass(cell, 'on', on);
-    setClass(cell, 'plock', on && hasLocks(s!));
+    // Жёлтый — p-lock; шаг со своим звуком (сэмпл, пресет) не заливается жёлтым — у него только белая обводка.
+    setClass(cell, 'plock', on && !s!.sound && hasLocks(s!));
     // P-lock без ноты — жёлтая обводка.
     setClass(cell, 'lock-only', !on && !!s && hasLocks(s));
     setClass(cell, 'tail', !on && tail.has(index));
