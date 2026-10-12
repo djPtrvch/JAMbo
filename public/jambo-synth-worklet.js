@@ -23,6 +23,8 @@ const BLOCK = 24;
 const SILENCE = 4800;
 const QUIET = 1e-5;
 /** Сглаживание ручек при смене на лету, с. */
+/** Плавный вход новой ноты (кроме DRUM), кадров: ~1,3 мс — короче минимальной атаки 2 мс. */
+const FADE_IN = 64;
 const SMOOTH = 0.005;
 const TAU = Math.PI * 2;
 
@@ -160,6 +162,8 @@ class Voice {
     this.hbPos = 0;
     // WTABLE: центр и два боковых голоса
     this.w0 = 0; this.wl = 0; this.wr = 0;
+    // Вход новой ноты (кадров с её начала, до FADE_IN — плавно с нуля).
+    this.fade = FADE_IN;
   }
 
   rand() {
@@ -194,6 +198,7 @@ class Voice {
     this.driftTo = this.drift;
     // WTABLE: центр с нуля, боковые — со случайной фазы (без скачка уровня при включении унисона).
     this.w0 = 0; this.wl = this.rand(); this.wr = this.rand();
+    this.fade = 0;
   }
 
   /** Сглаживание ручек на блок из n кадров. */
@@ -212,6 +217,12 @@ class Voice {
     else if (this.engine === FM) this.fm(out, pos, n);
     else if (this.engine === WTABLE) this.wtable(out, pos, n, table);
     else out.fill(0, pos, pos + n);
+    // Начало ноты ANALOG, FM, WTABLE — плавно за FADE_IN кадров (после фильтра децимации): скачок волны
+    // на старте (случайная фаза, пила) иначе приходит с задержкой фильтра, когда огибающая уже открыта, — тик.
+    // У DRUM свой старт (фаза 0, клик удара) — не трогаем.
+    if (this.fade < FADE_IN && this.engine !== DRUM) {
+      for (let i = pos; i < pos + n && this.fade < FADE_IN; i++) out[i] *= ++this.fade / FADE_IN;
+    }
   }
 
   // Синус со свипом высоты + шум через полосовой фильтр + клик → мягкий клиппер.

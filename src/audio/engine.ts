@@ -180,9 +180,14 @@ export const synthLoad = () => synthCpu.reduce((a, b) => a + b, 0);
 const MAX_VOICES = 48;
 
 // Узлы эффектов и мастера.
-let rev: { hpf: BiquadFilterNode; pre: DelayNode; conv: ConvolverNode };
+/**
+ * Смена импульса реверба и кривой overdrive — без щелчка: две копии (A/B) с усилениями, новое
+ * ставится в молчащую копию, и громкость плавно переходит к ней.
+ */
+interface XPair<T> { nodes: [T, T]; gains: [GainNode, GainNode]; cur: number; at: number }
+let rev: { hpf: BiquadFilterNode; pre: DelayNode; conv: XPair<ConvolverNode> };
 let dly: { hpf: BiquadFilterNode; l: DelayNode; r: DelayNode; fbL: GainNode; fbR: GainNode };
-let drv: { shaper: WaveShaperNode; tone: BiquadFilterNode };
+let drv: { shaper: XPair<WaveShaperNode>; tone: BiquadFilterNode; type: number };
 let mst: {
   eq: EqChain; satIn: GainNode; sat: AudioWorkletNode | null; glueIn: GainNode; glue: AudioWorkletNode | null; clipIn: GainNode; clip: AudioWorkletNode | null;
   limIn: GainNode; lim: AudioWorkletNode | null; outVol: GainNode;
@@ -421,8 +426,8 @@ function buildGraph(c: AudioContext) {
   const rhpf = c.createBiquadFilter();
   rhpf.type = 'highpass';
   const pre = c.createDelay(1);
-  const conv = c.createConvolver();
-  revIn.connect(rhpf).connect(pre).connect(conv).connect(masterIn);
+  revIn.connect(rhpf).connect(pre);
+  const conv = xPair(c, () => c.createConvolver(), pre, masterIn);
   rev = { hpf: rhpf, pre, conv };
 
   // Delay: HPF → две линии (L/R) с обратной связью, Stereo разносит время правой линии.
@@ -446,14 +451,18 @@ function buildGraph(c: AudioContext) {
 
   // Overdrive: шейпер → тон.
   const drvIn = c.createGain();
-  const shaper = c.createWaveShaper();
-  shaper.oversample = '2x';
   const tone = c.createBiquadFilter();
   tone.type = 'lowpass';
+  const shaper = xPair(c, () => {
+    const s = c.createWaveShaper();
+    s.oversample = '2x';
+    s.curve = driveCurve(0) as Float32Array<ArrayBuffer>;
+    return s;
+  }, drvIn, tone);
   const drvOut = c.createGain();
   drvOut.gain.value = 0.5;
-  drvIn.connect(shaper).connect(tone).connect(drvOut).connect(masterIn);
-  drv = { shaper, tone };
+  tone.connect(drvOut).connect(masterIn);
+  drv = { shaper, tone, type: 0 };
 
   busInputs = [revIn, dlyIn, drvIn];
 
@@ -563,6 +572,8 @@ export function triggerTrack(track: number, time: number, notes: number[], locks
     src.buffer = buf;
     src.playbackRate.value = rate;
     const amp = ctx.createGain();
+    // Край сэмпла (End или конец файла) — плавно за 4 мс: обрезанная волна не щёлкает.
+    const edge = ctx.createGain();
     const level = ctx.createGain();
     const filter = ctx.createBiquadFilter();
     const pan = ctx.createStereoPanner();
@@ -580,7 +591,7 @@ export function triggerTrack(track: number, time: number, notes: number[], locks
     applyFilter(filter, v('filter'), v('reso'), at, false);
     pan.pan.value = Math.max(-1, Math.min(1, v('pan') / 64));
 
-    src.connect(amp).connect(level).connect(filter).connect(pan).connect(ch.eq.input);
+    src.connect(edge).connect(amp).connect(level).connect(filter).connect(pan).connect(ch.eq.input);
     const sends = SENDS.map((id, k) => {
       const g = ctx!.createGain();
       g.gain.value = v(id) / 100;
@@ -589,19 +600,27 @@ export function triggerTrack(track: number, time: number, notes: number[], locks
     });
 
     const playDur = (endSec - startSec) / rate;
+    const fadeLen = Math.min(0.004, playDur / 4);
+    edge.gain.setValueAtTime(1, at + playDur - fadeLen);
+    edge.gain.linearRampToValueAtTime(0, at + playDur);
     src.start(at, startSec, Math.max(0.003, (endSec - startSec)));
-    // Живая нота звучит до отпускания (или до конца сэмпла); остальные — до конца Decay.
-    if (hold !== Infinity) src.stop(Math.min(at + playDur, hold + decay + 0.1));
+    // Живая нота звучит до отпускания (или до конца сэмпла); остальные — пока Decay не затих
+    // (8 постоянных времени, −70 dB: раньше обрыв на −40 dB при длинном Decay щёлкал).
+    if (hold !== Infinity) src.stop(Math.min(at + playDur, hold + Math.max(0.02, decay) * 2 + 0.05));
     const voice: Voice = { track, root, locks, note, at, src, synth: null, level, filter, pan, sends, ended: false };
     if (hold === Infinity) voice.held = { amp: amp.gain, decay, id: 0 };
     src.onended = () => {
       voice.ended = true;
-      for (const n of [src, amp, level, filter, pan, ...sends]) n.disconnect();
+      for (const n of [src, edge, amp, level, filter, pan, ...sends]) n.disconnect();
     };
     voices.push(voice);
     if (voices.length > MAX_VOICES) {
+      // Лишний голос гаснет за ~5 мс, а не обрывается.
       const old = voices.shift()!;
-      try { old.src?.stop(); } catch { /* уже остановлен */ }
+      if (old.src) {
+        old.level.gain.setTargetAtTime(0, ctx.currentTime, 0.0015);
+        try { old.src.stop(ctx.currentTime + 0.02); } catch { /* уже остановлен */ }
+      }
     }
   }
   sidechain(track, at);
@@ -652,11 +671,17 @@ function triggerSynth(track: number, engine: number, time: number, notes: number
     for (const vo of voices) if (vo.synth && vo.track === track && vo.synth.slot === slot) vo.ended = true;
     const start = steal ? at + 0.008 : at;
     const g = sl.amp.gain;
+    // Затухающие сами движки (и DRUM) с короткой атакой: огибающая слота не обнуляется — хвост прошлой
+    // ноты в слоте (резонатор ещё звучит) не обрывается скачком 1 → 0, новую ноту движок начинает сам.
+    const keep = (mono || (selfDecay && !steal)) && attack <= 0.0025;
     if (mono) {
       // Огибающая не обнуляется (хвост прошлого удара гасит сам движок); атака длиннее 2,5 мс — с нуля.
       if (g.cancelAndHoldAtTime) g.cancelAndHoldAtTime(start); else g.cancelScheduledValues(start);
       g.setValueAtTime(attack > 0.0025 ? 0 : 1, start);
       if (attack > 0.0025) g.linearRampToValueAtTime(1, start + attack);
+    } else if (keep) {
+      g.cancelScheduledValues(at);
+      g.setValueAtTime(1, start);
     } else {
       g.cancelScheduledValues(at);
       if (steal) g.setTargetAtTime(0, at, 0.0015);
@@ -668,10 +693,12 @@ function triggerSynth(track: number, engine: number, time: number, notes: number
       if (h > start + attack) g.setValueAtTime(1, h);
       g.setTargetAtTime(0, h, Math.max(0.005, decay / 4));
     }
-    sl.level.gain.setValueAtTime(levelGain(v('level')), start);
-    applyFilter(sl.filter, v('filter'), v('reso'), start, false);
-    sl.pan.pan.setValueAtTime(Math.max(-1, Math.min(1, v('pan') / 64)), start);
-    SENDS.forEach((id, k) => sl.sends[k].gain.setValueAtTime(v(id) / 100, start));
+    // На звучащем хвосте (keep) параметры слота меняются за ~1 мс, а не скачком.
+    const put = (p: AudioParam, x: number) => (keep ? p.setTargetAtTime(x, start, 0.001) : p.setValueAtTime(x, start));
+    put(sl.level.gain, levelGain(v('level')));
+    applyFilter(sl.filter, v('filter'), v('reso'), start, keep);
+    put(sl.pan.pan, Math.max(-1, Math.min(1, v('pan') / 64)));
+    SENDS.forEach((id, k) => put(sl.sends[k].gain, v(id) / 100));
     const stop = end + (start - at);
     sy.busyUntil[slot] = selfDecay ? start + attack + 0.3 + 4 * decay : live ? Infinity : stop;
     const id = ++noteId;
@@ -801,6 +828,26 @@ let irSig = '';
 let irTimer = 0;
 const curves = new Map<number, Float32Array>();
 
+/** Пара копий узла между input и output: звучит копия cur, другая молчит. */
+function xPair<T extends AudioNode>(c: AudioContext, make: () => T, input: AudioNode, output: AudioNode): XPair<T> {
+  const nodes = [make(), make()] as [T, T];
+  const gains = [c.createGain(), c.createGain()] as [GainNode, GainNode];
+  gains[1].gain.value = 0;
+  nodes.forEach((n, k) => { input.connect(n); n.connect(gains[k]).connect(output); });
+  return { nodes, gains, cur: 0, at: -1 };
+}
+
+/** Переход на вторую копию: setup настраивает её (пока молчит), затем кроссфейд (постоянная tau, с). */
+function xSwap<T extends AudioNode>(p: XPair<T>, ct: number, tau: number, setup: (n: T) => void) {
+  const next = 1 - p.cur;
+  setup(p.nodes[next]);
+  p.gains[p.cur].gain.setTargetAtTime(0, ct, tau);
+  p.gains[next].gain.cancelScheduledValues(ct);
+  p.gains[next].gain.setTargetAtTime(1, ct, tau);
+  p.cur = next;
+  p.at = ct;
+}
+
 /** Кривые overdrive: Soft, Hard, Tube, Fuzz. */
 function driveCurve(type: number): Float32Array {
   let curve = curves.get(type);
@@ -847,8 +894,12 @@ function updateFx(now: number) {
   const sig = `${fx['rev.decay'].toFixed(2)}|${Math.round(fx['rev.size'])}`;
   if (sig !== irSig) {
     if (!irTimer) irTimer = now;
-    if (now - irTimer > 150 || !rev.conv.buffer) {
-      rev.conv.buffer = buildIR(c, fx['rev.decay'], fx['rev.size']);
+    const first = !rev.conv.nodes[rev.conv.cur].buffer;
+    // Молчащая копия уже затихла (прошлый переход закончился) — новый импульс без щелчка.
+    if (first || (now - irTimer > 150 && ct - rev.conv.at > 0.25)) {
+      const ir = buildIR(c, fx['rev.decay'], fx['rev.size']);
+      if (first) rev.conv.nodes[rev.conv.cur].buffer = ir;
+      else xSwap(rev.conv, ct, 0.05, (n) => { n.buffer = ir; });
       irSig = sig;
       irTimer = 0;
     }
@@ -870,7 +921,12 @@ function updateFx(now: number) {
   dly.fbR.gain.setTargetAtTime(fx['dly.feedback'] / 100 * 0.95, fbAt, 0.02);
   set(dly.hpf.frequency, fx['dly.hpf']);
 
-  drv.shaper.curve = driveCurve(Math.round(fx['od.type'])) as Float32Array<ArrayBuffer>;
+  // Тип overdrive сменился — кроссфейд на вторую копию шейпера (кривую молчащего узла менять безопасно).
+  const odType = Math.round(fx['od.type']);
+  if (odType !== drv.type) {
+    drv.type = odType;
+    xSwap(drv.shaper, ct, 0.015, (n) => { n.curve = driveCurve(odType) as Float32Array<ArrayBuffer>; });
+  }
   set(drv.tone.frequency, 500 * Math.pow(24, fx['od.tone'] / 100));
 
   tracks.forEach((ch, i) => {
