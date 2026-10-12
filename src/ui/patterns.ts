@@ -355,7 +355,7 @@ function drawThumb(c: Cell, p: Pattern | null) {
   setAttr(c.thumb, 'viewBox', `0 0 ${STEPS_PER_PAGE} ${height}`);
   p.pages.forEach((pg, r) => pg.forEach((s, col) => {
     const outside = r * STEPS_PER_PAGE + col >= p.length;
-    const cls = s.on ? (hasLocks(s) ? 'pt-dot plock' : 'pt-dot on') : 'pt-dot';
+    const cls = s.on ? (hasLocks(s) ? 'pt-dot plock' : 'pt-dot on') : col % 4 === 0 ? 'pt-dot beat' : 'pt-dot';
     c.thumb.append(svg('rect', {
       x: col + 0.15, y: top + r + 0.15, width: 0.7, height: 0.7, class: outside ? `${cls} outside` : cls,
     }));
