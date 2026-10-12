@@ -1025,7 +1025,7 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 /* Меню бутерброда пианоролла: текст переносится, лишнее прокручивается. */
 .popup-box.piano-menu-pop .settings-note { font-size: 11px; line-height: 1.35; padding: 2px 4px; }
 /* Браузер: слева столбец предпрослушки (▶ у сэмпла и пресета), зона касания 44 px. */
-.lib-play { flex: none; width: 44px; align-self: stretch; margin: -6px 6px -6px -10px; display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--dim); border-right: 1px solid var(--line, rgba(128,128,128,0.25)); }
+.lib-play { flex: none; width: 44px; align-self: stretch; margin: -6px 4px -6px -10px; display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--dim); }
 .lib-play.on { color: var(--plock); }
 .lib-item.current .lib-play { color: var(--on-accent); }
 .lib-item .lib-name { flex: 1; }

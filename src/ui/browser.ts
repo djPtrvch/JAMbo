@@ -200,7 +200,9 @@ function libRow(n: LibNode): HTMLElement {
       window.setTimeout(() => play.classList.remove('on'), 200);
     });
   }
-  item.append(play, name, h('div', 'lib-detail', `${detail(n)}${n.kind === 'folder' ? '  ›' : ''}`));
+  // У папок (и таблиц) столбца нет — имя от левого края.
+  if (play.textContent) item.append(play);
+  item.append(name, h('div', 'lib-detail', `${detail(n)}${n.kind === 'folder' ? '  ›' : ''}`));
   item.classList.toggle('system', !!n.system);
   item.classList.toggle('current', (mode.kind === 'load' || tableMode()) && !picked && isCurrent(n));
   item.classList.toggle('picked', !!picked?.has(n.id));
