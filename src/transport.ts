@@ -166,7 +166,8 @@ function playStep(time: number) {
     const sub = dur / ratchet;
     for (let r = 0; r < ratchet; r++) {
       const at = time + offset + r * sub;
-      const noteDur = ratchet > 1 ? sub * 0.6 : s.len * dur * 0.9;
+      // Нота от 2 шагов держится до самого конца (до следующей ноты, без провала на стыке); в 1 шаг — как раньше.
+      const noteDur = ratchet > 1 ? sub * 0.6 : s.len >= 2 ? s.len * dur : dur * 0.9;
       // ENV запускается в момент ноты (запланирован заранее, как и сама нота): начальные
       // значения ноты берут ENV на этот момент, а не хвост предыдущей.
       triggerEnv(i, at, noteDur);

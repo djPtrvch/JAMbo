@@ -48,7 +48,14 @@ interface Voice {
   at: number;
   /** Сэмпл; у голоса синта — null (звучит слот synth). */
   src: AudioBufferSourceNode | null;
-  synth: { slot: number; engine: number; end: number } | null;
+  synth: { slot: number; engine: number; end: number; id: number } | null;
+  /** Конец удержания (контекст; Infinity — живая нота): до него нота держит уровень. */
+  hold: number;
+  /** Свой звук шага (или предпрослушка) — смена звука дорожки его не трогает. */
+  own: boolean;
+  /** Последние отправленные значения ручек: голос подхватывает поворот ручки, а не только следующую ноту. */
+  sig?: string;
+  vals?: number[];
   level: GainNode;
   filter: BiquadFilterNode;
   pan: StereoPannerNode;
@@ -545,14 +552,14 @@ const holdEnd = (at: number, attack: number, gate?: number) =>
   gate === undefined ? at + attack : gate === Infinity ? Infinity : at + Math.max(attack, gate);
 
 /** Запустить ноты дорожки в момент time (performance.now); gate — удержание ноты, с. */
-export function triggerTrack(track: number, time: number, notes: number[], locks: Record<string, number>, sound?: string, gate?: number) {
+export function triggerTrack(track: number, time: number, notes: number[], locks: Record<string, number>, sound?: string, gate?: number, retrig = false) {
   // Контекст может ещё просыпаться после первого касания — ноты всё равно ставим в план.
   if (!ctx || ctx.state === 'closed') return;
   const t = doc.tracks[track];
   // У шага может быть свой звук (сэмпл или движок) вместо звука дорожки.
   const key = sound || t.sample;
   const engine = synthEngine(key);
-  if (engine !== null) { triggerSynth(track, engine, time, notes, locks, gate); return; }
+  if (engine !== null) { triggerSynth(track, engine, time, notes, locks, gate, !!sound, retrig); return; }
   const buf = buffers.get(key);
   if (!buf) return;
   const at = toCtx(time);
@@ -568,6 +575,7 @@ export function triggerTrack(track: number, time: number, notes: number[], locks
   // Высота сэмпла определяется только для индикации: воспроизведение всегда от C3.
   const root = SAMPLE_ROOT;
 
+  legatoCut(track, notes, at, attack);
   for (const note of notes) {
     const rate = rateFor(note, root, v('pitch'));
     const src = ctx.createBufferSource();
@@ -609,7 +617,7 @@ export function triggerTrack(track: number, time: number, notes: number[], locks
     // Живая нота звучит до отпускания (или до конца сэмпла); остальные — пока Decay не затих
     // (8 постоянных времени, −70 dB: раньше обрыв на −40 dB при длинном Decay щёлкал).
     if (hold !== Infinity) src.stop(Math.min(at + playDur, hold + Math.max(0.02, decay) * 2 + 0.05));
-    const voice: Voice = { track, root, locks, note, at, src, synth: null, level, filter, pan, sends, ended: false };
+    const voice: Voice = { track, root, locks, note, at, src, synth: null, level, filter, pan, sends, ended: false, hold, own: !!sound };
     if (hold === Infinity) voice.held = { amp: amp.gain, decay, id: 0 };
     src.onended = () => {
       voice.ended = true;
@@ -625,11 +633,11 @@ export function triggerTrack(track: number, time: number, notes: number[], locks
       }
     }
   }
-  sidechain(track, at);
+  if (!retrig) sidechain(track, at);
 }
 
 /** Ноты синта: голоса по кругу, огибающая и параметры — на постоянной цепочке голоса. */
-function triggerSynth(track: number, engine: number, time: number, notes: number[], locks: Record<string, number>, gate?: number) {
+function triggerSynth(track: number, engine: number, time: number, notes: number[], locks: Record<string, number>, gate?: number, own = false, retrig = false) {
   const family = familyOf(engine);
   const sy = ensureSynth(track, family);
   const node = sy?.nodes[family];
@@ -654,6 +662,7 @@ function triggerSynth(track: number, engine: number, time: number, notes: number
   const end = selfDecay ? at + attack + 15 : live ? at + 60 : hold + tail;
   const sr = ctx!.sampleRate;
   const mono = engine === DRUM_ENGINE;
+  if (!mono) legatoCut(track, notes, at, attack);
   const events = (mono ? notes.slice(0, 1) : notes).map((note) => {
     // Свободный голос (затих к моменту ноты), иначе — самый старый по кругу. DRUM (бочка)
     // монофонична: всегда слот 0, новый удар обрывает прошлый (стык сглаживает AudioWorklet).
@@ -705,7 +714,8 @@ function triggerSynth(track: number, engine: number, time: number, notes: number
     sy.busyUntil[slot] = selfDecay ? start + attack + 0.3 + 4 * decay : live ? Infinity : stop;
     const id = ++noteId;
     voices.push({
-      track, root: 0, locks, note, at: start, src: null, synth: { slot, engine, end: stop }, level: sl.level, filter: sl.filter, pan: sl.pan, sends: sl.sends, ended: false,
+      track, root: 0, locks, note, at: start, src: null, synth: { slot, engine, end: stop, id }, level: sl.level, filter: sl.filter, pan: sl.pan, sends: sl.sends, ended: false,
+      hold: selfDecay ? start + attack : live ? Infinity : hold + (start - at), own,
       held: live ? { amp: g, decay, id } : undefined,
     });
     // Слот занимал голос другого семейства — тот замолкает в кадре новой ноты (огибающая уже погашена).
@@ -713,7 +723,7 @@ function triggerSynth(track: number, engine: number, time: number, notes: number
     return { type: 'note', id, slot, frame: Math.round(start * sr), end: Math.round(stop * sr), engine, note, ...synthParams(engine, v), accent: 0.8 };
   });
   node.port.postMessage(events);
-  sidechain(track, at);
+  if (!retrig) sidechain(track, at);
 }
 
 /** Живой наигрыш с пианоролла: ноты выбранной дорожки сейчас. */
@@ -735,6 +745,7 @@ export function releaseLive(track: number, notes: number[]) {
     const hd = vo.held;
     if (!hd || vo.track !== track || !notes.includes(vo.note)) continue;
     vo.held = undefined;
+    vo.hold = Math.max(ct, vo.at);
     if (vo.ended) continue;
     const t = Math.max(ct, vo.at);
     const g = hd.amp;
@@ -796,6 +807,68 @@ export function trackDeleted(i: number, last = MAX_TRACKS - 1) {
   }
 }
 
+/**
+ * Быстро погасить голос с момента t (постоянная tau, с): сэмпл — уровнем и остановкой, синт — огибающей
+ * слота и сообщением 'end' (только эта нота). Голос больше не модулируется.
+ */
+function fadeVoice(vo: Voice, t: number, tau: number) {
+  vo.ended = true;
+  vo.held = undefined;
+  vo.hold = Math.min(vo.hold, t);
+  const stop = t + tau * 8 + 0.005;
+  if (vo.src) {
+    vo.level.gain.cancelScheduledValues(t);
+    vo.level.gain.setTargetAtTime(0, t, tau);
+    try { vo.src.stop(stop); } catch { /* уже остановлен */ }
+    return;
+  }
+  const sy = synths[vo.track];
+  if (!vo.synth || !sy) return;
+  const g = sy.slots[vo.synth.slot].amp.gain;
+  if (g.cancelAndHoldAtTime) g.cancelAndHoldAtTime(t); else g.cancelScheduledValues(t);
+  g.setTargetAtTime(0, t, tau);
+  sy.busyUntil[vo.synth.slot] = Math.min(sy.busyUntil[vo.synth.slot], stop);
+  sy.nodes[familyOf(vo.synth.engine)]?.port.postMessage([{ type: 'end', id: vo.synth.id, slot: vo.synth.slot, end: Math.round(stop * ctx!.sampleRate) }]);
+}
+
+/**
+ * Нота той же высоты продолжает державшуюся (длинная нота до следующей, звук сменили): прежняя гаснет
+ * вместе с атакой новой — без провала и без удвоения уровня на стыке. Отпущенные раньше хвосты не трогаем.
+ */
+function legatoCut(track: number, notes: number[], at: number, attack: number) {
+  for (const vo of voices) {
+    if (vo.track !== track || vo.ended || vo.hold === Infinity || !notes.includes(vo.note)) continue;
+    if (vo.at < at && vo.hold >= at - 0.005) fadeVoice(vo, at, Math.max(0.0015, attack / 3));
+  }
+}
+
+/** Звук дорожки на прошлом кадре: сменили (движок, сэмпл, пресет, UNDO) — держащиеся ноты переходят на новый. */
+const lastSound: string[] = [];
+
+/**
+ * Смена звука дорожки: ноты, которые ещё держатся (живые и длинные ноты секвенсора), сразу звучат новым
+ * звуком — прежний голос гаснет за ~5 мс, новый начинается с той же нотой на оставшееся удержание
+ * (иначе новый движок слышен только со следующей ноты — у ноты на такт через 2 с). Свой звук шага не трогаем.
+ */
+function retrigger(track: number) {
+  const c = ctx!;
+  const now = c.currentTime;
+  const redo = new Map<string, { at: number; gate: number; locks: Record<string, number>; notes: number[] }>();
+  for (const vo of voices) {
+    if (vo.track !== track || vo.ended || vo.own) continue;
+    const t = Math.max(now, vo.at);
+    if (vo.hold <= t + 0.01) continue;
+    const gate = vo.hold === Infinity ? Infinity : vo.hold - t;
+    // Кроссфейд: прежний голос гаснет, когда вступает новый (у синта — через 12 мс, запас до AudioWorklet).
+    fadeVoice(vo, t + 0.012, 0.003);
+    const key = `${t}|${gate}|${JSON.stringify(vo.locks)}`;
+    const r = redo.get(key);
+    if (r) r.notes.push(vo.note); else redo.set(key, { at: t, gate, locks: vo.locks, notes: [vo.note] });
+  }
+  // Новые ноты — сразу, без sidechain (это не новый триг).
+  redo.forEach((r) => triggerTrack(track, performance.now() + (r.at - now) * 1000, r.notes, r.locks, undefined, r.gate, true));
+}
+
 /** Модуляция звучащих голосов (LFO/ENV) — каждый кадр. */
 function updateVoices() {
   const c = ctx!;
@@ -808,18 +881,28 @@ function updateVoices() {
     // Дорожки больше нет (удалили, UNDO сменил число дорожек) — голос не трогаем.
     const tr = doc.tracks[vo.track];
     if (!tr) continue;
-    const assigns = tr.assigns;
-    if (Object.keys(assigns).length === 0) continue;
+    // Модуляция (LFO/ENV) и повороты ручек меняют звучащие ноты сразу (p-lock шага держит своё значение):
+    // значение уходит в голос, когда изменилось с прошлого кадра.
     const v = (id: string) => value(vo.track, id, vo.locks);
     const now = c.currentTime;
-    if (vo.synth && (assigns.harm || assigns.timbre || assigns.morph || (assigns.decay && (SYNTH_ENGINES[vo.synth.engine].decay || isJambo(vo.synth.engine))))) {
-      synths[vo.track]?.nodes[familyOf(vo.synth.engine)]?.port.postMessage([{ type: 'mod', slot: vo.synth.slot, note: vo.note, ...synthParams(vo.synth.engine, v) }]);
+    if (vo.synth) {
+      const p = synthParams(vo.synth.engine, v);
+      const sig = Object.values(p).join(',');
+      if (vo.sig !== undefined && sig !== vo.sig) {
+        synths[vo.track]?.nodes[familyOf(vo.synth.engine)]?.port.postMessage([{ type: 'mod', slot: vo.synth.slot, note: vo.note, ...p }]);
+      }
+      vo.sig = sig;
     }
-    if (assigns.pitch && vo.src) vo.src.playbackRate.setTargetAtTime(rateFor(vo.note, vo.root, v('pitch')), now, 0.01);
-    if (assigns.level) vo.level.gain.setTargetAtTime(levelGain(v('level')), now, 0.01);
-    if (assigns.filter || assigns.reso) applyFilter(vo.filter, v('filter'), v('reso'), now, true);
-    if (assigns.pan) vo.pan.pan.setTargetAtTime(Math.max(-1, Math.min(1, v('pan') / 64)), now, 0.01);
-    SENDS.forEach((id, i) => { if (assigns[id]) vo.sends[i].gain.setTargetAtTime(v(id) / 100, now, 0.01); });
+    const vals = [v('pitch'), v('level'), v('filter'), v('reso'), v('pan'), ...SENDS.map((id) => v(id))];
+    const was = vo.vals;
+    vo.vals = vals;
+    if (!was) continue;
+    const ch = (k: number) => vals[k] !== was[k];
+    if (ch(0) && vo.src) vo.src.playbackRate.setTargetAtTime(rateFor(vo.note, vo.root, vals[0]), now, 0.01);
+    if (ch(1)) vo.level.gain.setTargetAtTime(levelGain(vals[1]), now, 0.01);
+    if (ch(2) || ch(3)) applyFilter(vo.filter, vals[2], vals[3], now, true);
+    if (ch(4)) vo.pan.pan.setTargetAtTime(Math.max(-1, Math.min(1, vals[4] / 64)), now, 0.01);
+    SENDS.forEach((_, i) => { if (ch(5 + i)) vo.sends[i].gain.setTargetAtTime(vals[5 + i] / 100, now, 0.01); });
   }
 }
 
@@ -994,6 +1077,8 @@ export function updateAudio(now: number) {
     const e = synthEngine(t.sample);
     if (e !== null) ensureSynth(i, familyOf(e));
     sendTable(i, t.table ?? '');
+    if (lastSound[i] !== undefined && lastSound[i] !== t.sample) retrigger(i);
+    lastSound[i] = t.sample;
   });
   updateVoices();
 }
