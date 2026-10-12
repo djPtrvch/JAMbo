@@ -19,7 +19,7 @@
 // Измерители уровня стоят на выходе каждой дорожки и в мастере (вход компрессора, вход и выход
 // лимитера): пиковый уровень по каналам и громкость в LUFS (K-взвешивание, окно ~400 мс).
 
-import { DELAY_DIVS, isAuto, OVER_PEAK, isJambo, SYNTH_ENGINES, synthEngine, PARAM_BY_ID, RATIOS, VOL_DEF_DB, volGain, SAMPLE_ROOT, MAX_TRACKS, filterFreq, fromNorm } from '../params';
+import { DELAY_DIVS, isAuto, OVER_PEAK, DRUM_ENGINE, isJambo, SYNTH_ENGINES, synthEngine, PARAM_BY_ID, RATIOS, VOL_DEF_DB, volGain, SAMPLE_ROOT, MAX_TRACKS, filterFreq, fromNorm } from '../params';
 import { audible, addSamplesQuiet, addSamplesToFolder, doc, setStepSound, triggerEnv, liveFx, liveMaster, liveMixer, modulatedNorm, ui } from '../state';
 import { detectRoot } from './pitch';
 import { encodeWav } from './wav';
@@ -607,16 +607,18 @@ function triggerSynth(track: number, engine: number, time: number, notes: number
   // Голос молчит после затухания огибающей (дальше движок не считается — экономия процессора).
   const end = selfDecay ? at + attack + 15 : at + attack + Math.max(0.02, decay) * 2 + 0.05;
   const sr = ctx!.sampleRate;
-  const events = notes.map((note) => {
-    // Свободный голос (затих к моменту ноты), иначе — самый старый по кругу.
-    let slot = -1;
-    for (let k = 0; k < SYNTH_SLOTS; k++) {
+  const mono = engine === DRUM_ENGINE;
+  const events = (mono ? notes.slice(0, 1) : notes).map((note) => {
+    // Свободный голос (затих к моменту ноты), иначе — самый старый по кругу. DRUM (бочка)
+    // монофонична: всегда слот 0, новый удар обрывает прошлый (стык сглаживает AudioWorklet).
+    let slot = mono ? 0 : -1;
+    for (let k = 0; slot < 0 && k < SYNTH_SLOTS; k++) {
       const c = (sy.next + k) % SYNTH_SLOTS;
       if (sy.busyUntil[c] <= at) { slot = c; break; }
     }
     const steal = slot < 0;
     if (steal) slot = sy.next;
-    sy.next = (slot + 1) % SYNTH_SLOTS;
+    if (!mono) sy.next = (slot + 1) % SYNTH_SLOTS;
     const sl = sy.slots[slot];
     const prevFamily = sy.slotFamily[slot];
     sy.slotFamily[slot] = family;
@@ -625,10 +627,17 @@ function triggerSynth(track: number, engine: number, time: number, notes: number
     for (const vo of voices) if (vo.synth && vo.track === track && vo.synth.slot === slot) vo.ended = true;
     const start = steal ? at + 0.008 : at;
     const g = sl.amp.gain;
-    g.cancelScheduledValues(at);
-    if (steal) g.setTargetAtTime(0, at, 0.0015);
-    g.setValueAtTime(0, start);
-    g.linearRampToValueAtTime(1, start + attack);
+    if (mono) {
+      // Огибающая не обнуляется (хвост прошлого удара гасит сам движок); атака длиннее 2,5 мс — с нуля.
+      if (g.cancelAndHoldAtTime) g.cancelAndHoldAtTime(start); else g.cancelScheduledValues(start);
+      g.setValueAtTime(attack > 0.0025 ? 0 : 1, start);
+      if (attack > 0.0025) g.linearRampToValueAtTime(1, start + attack);
+    } else {
+      g.cancelScheduledValues(at);
+      if (steal) g.setTargetAtTime(0, at, 0.0015);
+      g.setValueAtTime(0, start);
+      g.linearRampToValueAtTime(1, start + attack);
+    }
     if (!selfDecay) g.setTargetAtTime(0, start + attack, Math.max(0.005, decay / 4));
     sl.level.gain.setValueAtTime(levelGain(v('level')), start);
     applyFilter(sl.filter, v('filter'), v('reso'), start, false);

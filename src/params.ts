@@ -167,7 +167,9 @@ export const SYNTH_ENGINES: SynthEngine[] = [
   { name: 'SNARE', full: 'Analog snare', bank: 'drum', family: 'plaits', decay: true, harm: 'harmonics↔noise', timbre: 'mode balance', morph: 'OUT→AUX' },
   { name: 'HI-HAT', full: 'Analog hi-hat', bank: 'drum', family: 'plaits', decay: true, harm: 'metal↔noise', timbre: 'HPF cutoff', morph: 'OUT→AUX' },
   // Свои движки JAMbo (jambo-synth-worklet.js): ручки 1.1–1.3 — p1, p2, p3 (0..100 %), затухание — Decay в мс.
-  { name: 'DRUM', full: 'Drum', bank: 'jb', family: 'jambo', decay: true, harm: 'sweep', timbre: 'tone', morph: 'drive' },
+  // DRUM — бочка: высота ручкой PITCH (30–100 Гц), нота её не меняет; монофонична.
+  { name: 'DRUM', full: 'Drum', bank: 'jb', family: 'jambo', decay: true, harm: 'pitch', timbre: 'sweep', morph: 'drive',
+    harmFormat: (v) => `${Math.round(drumPitch(v / 100))} Hz` },
   { name: 'ANALOG', full: 'Analog', bank: 'jb', family: 'jambo', decay: false, harm: 'wave', timbre: 'detune', morph: 'sub' },
   { name: 'FM', full: 'FM', bank: 'jb', family: 'jambo', decay: false, harm: 'ratio', timbre: 'index', morph: 'contour',
     harmFormat: (v) => `×${fmRatio(v / 100).toFixed(2)}` },
@@ -177,6 +179,9 @@ export const SYNTH_ENGINES: SynthEngine[] = [
 export const DRUM_ENGINE = 16;
 export const WTABLE_ENGINE = 19;
 export const isJambo = (engine: number) => SYNTH_ENGINES[engine]?.family === 'jambo';
+
+/** Частота бочки DRUM по ручке PITCH 0..1: 30 → 100 Гц логарифмически (середина ≈ 55 Гц), как в worklet. */
+export const drumPitch = (n: number) => 30 * Math.pow(100 / 30, Math.min(1, Math.max(0, n)));
 
 /** Отношения частот FM, к которым ручка RATIO «прилипает» (±2 %). */
 const FM_SNAP = [0.5, 1, 1.5, 2, 3, 4, 5, 6, 7, 8];

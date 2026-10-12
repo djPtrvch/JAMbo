@@ -11,7 +11,8 @@
 //   { type: 'stop', slot, frame } — с кадра frame голос слота молчит (слот занял голос Plaits);
 //   { type: 'table', frames, levels: [{ size, data }] } — таблица WTABLE дорожки: frames кадров,
 //     мипмапы по октавам (уровень L — гармоники до 1024 >> L, data — frames × size отсчётов).
-// Голос, который затих сам (DRUM), перестаёт считаться раньше end.
+// Голос, который затих сам (DRUM), перестаёт считаться раньше end. DRUM — бочка: монофонична
+// (engine.ts ставит удары в один слот), высота — ручкой PITCH, а не нотой.
 // Высота — MIDI-нота (как у Plaits: 69 = A4 = 440 Гц), частота дискретизации — sampleRate узла.
 // Раз в ~0,5 с узел присылает { cpu: доля времени, ушедшая на расчёт голосов }.
 // В process() нет выделений памяти: все буферы — Float32Array, созданные заранее.
@@ -30,14 +31,17 @@ const FM = 18;
 const WTABLE = 19;
 
 // ---------- DRUM ----------
-/** Обертон мембраны (отношение частот) и Q полосового фильтра шума. */
-const DRUM_RATIO = 1.6;
-const DRUM_Q = 1.2;
+/** PITCH: диапазон частоты бочки, Гц (логарифмически; середина ручки ≈ 55 Гц). */
+const DRUM_PITCH_MIN = 30;
+const DRUM_PITCH_MAX = 100;
+/** Decay — время до −60 dB: постоянная экспоненты = Decay / DRUM_T60. */
+const DRUM_T60 = 6.9;
+/** Сглаживание стыка при ретриге (монофонично: новый удар обрывает прошлый), с. */
+const DRUM_DECLICK = 0.002;
 /** Длительность клика, с. */
 const DRUM_CLICK = 0.002;
-/** Уровень синуса (пик) и шума (RMS) до клиппера: запас под клик и насыщение. */
+/** Уровень синуса (пик) до клиппера: запас под клик и насыщение. */
 const DRUM_SINE = 0.7;
-const DRUM_NOISE_RMS = 0.45;
 /** Общий множитель после клиппера: пик не выше 0 dBFS. */
 const DRUM_OUT = 0.85;
 
@@ -144,7 +148,7 @@ class Voice {
     this.t = 0;
     this.rnd = 22222;
     // DRUM
-    this.p1 = 0; this.p2 = 0; this.ic1 = 0; this.ic2 = 0;
+    this.p1 = 0; this.p2 = 0; this.dc = 0; this.last = 0;
     // ANALOG
     this.a1 = 0; this.a2 = 0; this.as = 0; this.tri1 = 0; this.tri2 = 0; this.drift = 0; this.driftTo = 0;
     // FM
@@ -169,6 +173,8 @@ class Voice {
   }
 
   trigger(ev) {
+    // DRUM монофонична: новый удар в тот же слот, хвост прошлого гаснет за DRUM_DECLICK.
+    this.dc = ev.engine === DRUM && this.engine === DRUM ? this.last : 0;
     this.engine = ev.engine;
     this.set(ev);
     // Новая нота — ручки сразу на своих местах (сглаживание — только для смены на лету).
@@ -208,24 +214,14 @@ class Voice {
   // Синус со свипом высоты + шум через полосовой фильтр + клик → мягкий клиппер.
   drum(out, pos, n) {
     const sr = sampleRate;
-    const f0 = 440 * Math.pow(2, (this.note - 69) / 12);
+    // PITCH: 30 → 100 Гц логарифмически (середина ручки ≈ 55 Гц); нота высоту не меняет (бочка).
+    const f0 = DRUM_PITCH_MIN * Math.pow(DRUM_PITCH_MAX / DRUM_PITCH_MIN, this.s1);
+    // Decay — время затухания до −60 dB (постоянная экспоненты = Decay / 6.9).
     const decay = this.sd;
-    const tau = Math.max(0.001, decay / 1000);
-    // SWEEP: 0..+48 полутонов, время свипа = clamp(0.08 × decay, 6, 80 мс).
+    const tau = Math.max(0.001, decay / 1000 / DRUM_T60);
+    // SWEEP: 0..+48 полутонов, время свипа = clamp(0.08 × Decay, 6, 80 мс).
     const tauSweep = Math.min(0.08, Math.max(0.006, 0.08 * decay / 1000));
-    const semis = 48 * this.s1;
-    // TONE: синус ↔ шум равной мощности; до 50 % растёт доля обертона 1.6.
-    const x = this.s2;
-    const gs = Math.cos(x * Math.PI / 2), gn = Math.sin(x * Math.PI / 2);
-    const h2 = Math.min(1, x * 2) * 0.5;
-    const hNorm = 1 / Math.sqrt(1 + h2 * h2);
-    // Полосовой фильтр шума (TPT SVF): центр нота × 4, Q 1.2; уровень шума — к RMS DRUM_NOISE_RMS
-    // по эквивалентной полосе фильтра (белый шум ±1 — RMS 1/√3).
-    const fc = Math.min(f0 * 4, sr * 0.45);
-    const g = Math.tan(Math.PI * fc / sr), k = 1 / DRUM_Q;
-    const a1 = 1 / (1 + g * (g + k)), a2 = g * a1, a3 = g * a2;
-    const enbw = Math.PI / 2 * fc / DRUM_Q;
-    const nGain = DRUM_NOISE_RMS / ((1 / Math.sqrt(3)) * Math.sqrt(Math.min(1, enbw / (sr / 2))));
+    const semis = 48 * this.s2;
     // DRIVE: клик (до 1.0) и tanh (запас 1 → 12), компенсация — пик DRUM_SINE остаётся на месте.
     const dg = 1 + 11 * this.s3;
     const comp = DRUM_SINE / Math.tanh(dg * DRUM_SINE);
@@ -233,25 +229,23 @@ class Voice {
     const clickLen = DRUM_CLICK * sr;
     const dEnv = Math.exp(-1 / (tau * sr));
     const dSweep = Math.exp(-1 / (tauSweep * sr));
+    const dDc = Math.exp(-1 / (DRUM_DECLICK * sr));
     let t = this.t;
     let env = Math.exp(-t / (tau * sr));
     let sw = Math.exp(-t / (tauSweep * sr));
-    let p1 = this.p1, p2 = this.p2, ic1 = this.ic1, ic2 = this.ic2, rnd = this.rnd;
+    let p1 = this.p1, dc = this.dc, x = 0;
     for (let i = 0; i < n; i++) {
       const f = f0 * Math.pow(2, semis * sw / 12);
       p1 += f / sr; if (p1 >= 1) p1 -= 1;
-      p2 += f * DRUM_RATIO / sr; if (p2 >= 1) p2 -= 1;
-      const tonal = (Math.sin(TAU * p1) + h2 * Math.sin(TAU * p2)) * hNorm;
-      rnd ^= rnd << 13; rnd ^= rnd >>> 17; rnd ^= rnd << 5;
-      const wn = (rnd | 0) / 2147483648;
-      const v3 = wn - ic2, v1 = a1 * ic1 + a2 * v3, v2 = ic2 + a2 * ic1 + a3 * v3;
-      ic1 = 2 * v1 - ic1; ic2 = 2 * v2 - ic2;
-      let y = env * (gs * DRUM_SINE * tonal + gn * k * v1 * nGain);
-      if (t < clickLen) y += click * (1 - t / clickLen);
-      out[pos + i] = DRUM_OUT * comp * Math.tanh(dg * y);
-      env *= dEnv; sw *= dSweep; t++;
+      x = env * DRUM_SINE * Math.sin(TAU * p1);
+      if (t < clickLen) x += click * (1 - t / clickLen);
+      // Ретриг: хвост прошлого удара не обрывается скачком, а гаснет за ~2 мс — до клиппера,
+      // чтобы сумма с новым ударом не выходила за 0 dBFS.
+      x += dc;
+      out[pos + i] = DRUM_OUT * comp * Math.tanh(dg * x);
+      dc *= dDc; env *= dEnv; sw *= dSweep; t++;
     }
-    this.p1 = p1; this.p2 = p2; this.ic1 = flush(ic1); this.ic2 = flush(ic2); this.rnd = rnd; this.t = t;
+    this.p1 = p1; this.dc = flush(dc); this.last = x; this.t = t;
   }
 
   // Два осциллятора PolyBLEP (одна форма) + суб (квадрат −1 октава) + дрейф высоты; считается
@@ -458,6 +452,7 @@ class JamboProcessor extends AudioWorkletProcessor {
         if (q.length) n = Math.min(n, q[0].frame - now);
         if (now >= this.end[s]) {
           out.fill(0, pos, pos + n);
+          vo.last = 0;
         } else {
           vo.render(out, pos, n, this.table);
           let peak = 0;

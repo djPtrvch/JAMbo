@@ -154,9 +154,29 @@ for (const [engine, name] of [[16, 'DRUM'], [17, 'ANALOG'], [18, 'FM'], [19, 'WT
 
 // Уровень по ручке: DRUM TONE и ANALOG WAVE (RMS первых 100 мс / установившийся).
 {
-  const lv = [0, 0.25, 0.5, 0.75, 1].map((t) => rms(render({ engine: 16, note: C(2), p1: 0.5, p2: t, p3: 0, frames: 4800 }).out, 0, 4800));
-  const span = 20 * Math.log10(Math.max(...lv) / Math.min(...lv));
-  check(span < 2, `DRUM TONE 0→100 %: RMS ${lv.map(dbfs).join(' / ')} dBFS (spread ${span.toFixed(1)} dB)`);
+  // DRUM: PITCH по умолчанию (50 %) ≈ 55 Гц (без свипа), нота высоту не меняет.
+  const f = (note) => worstAlias(render({ engine: 16, note, p1: 0.5, p2: 0, p3: 0, decay: 4000, frames: 65536 }).out, 65536).f0;
+  const f1 = f(C(2)), f2 = f(C(5));
+  check(Math.abs(f1 - 55) <= 2 && f1 === f2, `DRUM PITCH 50 %: ${f1} Hz at C2, ${f2} Hz at C5 (expected ~55 Hz, note ignored)`);
+  // Decay — время до −60 dB.
+  const { out: dk } = render({ engine: 16, note: C(2), p1: 0.5, p2: 0, p3: 0, decay: 500, frames: 48000 });
+  const r0 = rms(dk, 0, 960), r1 = rms(dk, 24000 - 480, 24000 + 480);
+  check(Math.abs(20 * Math.log10(r1 / r0) + 60) < 6, `DRUM Decay 500 ms: level at 0.5 s ${(20 * Math.log10(r1 / r0)).toFixed(1)} dB (≈ −60)`);
+  // Частые удары с максимальным Decay и Drive: монофонично, без перегруза.
+  {
+    const node = new ctx.Proc({ processorOptions: { slots: 1 } });
+    const evs = [0, 6000, 12000, 18000].map((frame) => ({ type: 'note', slot: 0, frame, end: 1e12, engine: 16, note: 36, p1: 0.5, p2: 1, p3: 1, decay: 4000, accent: 0.8 }));
+    node.port.onmessage({ data: evs });
+    const buf = [[new Float32Array(128)]];
+    let pk = 0, jump = 0, prev = 0;
+    ctx.currentFrame = 0;
+    for (let fr = 0; fr < 48000; fr += 128) {
+      node.process([], buf);
+      for (const v of buf[0][0]) { pk = Math.max(pk, Math.abs(v)); jump = Math.max(jump, Math.abs(v - prev)); prev = v; }
+      ctx.currentFrame += 128;
+    }
+    check(pk <= 1, `DRUM retriggers (Decay max, Sweep max, Drive max): peak ${dbfs(pk)} dBFS, max sample step ${jump.toFixed(2)}`);
+  }
   const pk = [];
   for (let w = 0; w <= 1.0001; w += 0.05) pk.push(peak(render({ engine: 17, note: C(3), p1: w, p2: 0, p3: 0, frames: 9600 }).out.subarray(4800)));
   const pspan = 20 * Math.log10(Math.max(...pk) / Math.min(...pk));

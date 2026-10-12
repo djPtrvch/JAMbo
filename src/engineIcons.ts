@@ -152,12 +152,11 @@ Object.assign(ICONS,{
     for(let j=0;j<4;j++){if(j>0&&R()<v.h*.6)continue;const a0=j/4*L,a1=(j+1-.7*v.h)/4*L;
       rd+=`M${f1(ox+jx+Math.cos(ang)*a0)} ${f1(oy+Math.sin(ang)*a0)}L${f1(ox+jx+Math.cos(ang)*a1)} ${f1(oy+Math.sin(ang)*a1)}`;}}
   els.push({g:'htm',d:rd});return els;},
-// DRUM (свой движок): затухающая волна — в начале частота выше на SWEEP (h), шум вместо синуса по TONE (t),
-// насыщение по DRIVE (m), длина затухания по Decay (d).
-16:v=>{const R=rnd(29),d=dd(v),g=1+11*v.m,cmp=0.7/Math.tanh(g*0.7),k=4.5-3.5*d;let ph=0;
-  const w=fx(6,58,240,(x,u)=>{const f=1.2+9*v.h*Math.exp(-u*14);ph+=f*TAU/240*3;
-    const s=Math.cos(v.t*Math.PI/2)*0.7*Math.sin(ph)+Math.sin(v.t*Math.PI/2)*0.7*(R()*2-1);
-    return 32-22*cmp*Math.tanh(g*s*Math.exp(-u*k));});
+// DRUM (бочка): затухающая волна — частота по PITCH (h), в начале выше на SWEEP (t), насыщение по DRIVE (m),
+// длина затухания по Decay (d).
+16:v=>{const d=dd(v),g=1+11*v.m,cmp=0.7/Math.tanh(g*0.7),k=4.5-3.5*d;let ph=0;
+  const w=fx(6,58,240,(x,u)=>{const f=(0.8+0.9*v.h)*(1+9*v.t*Math.exp(-u*14));ph+=f*TAU/240*3;
+    return 32-22*cmp*Math.tanh(g*0.7*Math.sin(ph)*Math.exp(-u*k));});
   return[{g:'htmd',d:pts(w)},{g:'x',d:'M6 32H58',op:.25}];}
 });
 
