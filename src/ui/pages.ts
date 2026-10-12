@@ -26,16 +26,17 @@ const menuButtons: Record<string, HTMLButtonElement> = {};
 let drag: { id: number; from: number; to: number; timer: number; menu: boolean; f: number; t: number } | null = null;
 
 /**
- * Играющие страницы после протягивания: начали внутри обводки — она растягивается в сторону пальца
- * (вниз — нижний край до страницы под пальцем, вверх — верхний); начали снаружи — новые от и до.
+ * Играющие страницы после протягивания. Начали на верхней странице обводки — её верхний край
+ * идёт за пальцем (вверх — растягивается, вниз — сужается), на нижней — нижний край; начали внутри
+ * (или обводка из одной страницы) — вниз двигается нижний край, вверх — верхний, до страницы под
+ * пальцем. Начали снаружи — новые страницы от и до.
  */
 function dragRange(d: { from: number; to: number; f: number; t: number }): [number, number] {
-  if (d.from >= d.f && d.from <= d.t) {
-    if (d.to > d.from) return [d.f, Math.max(d.t, d.to)];
-    if (d.to < d.from) return [Math.min(d.f, d.to), d.t];
-    return [d.f, d.t];
-  }
-  return [Math.min(d.from, d.to), Math.max(d.from, d.to)];
+  if (d.from < d.f || d.from > d.t) return [Math.min(d.from, d.to), Math.max(d.from, d.to)];
+  if (d.to === d.from) return [d.f, d.t];
+  if (d.f !== d.t && d.from === d.f) return [Math.min(d.to, d.t), d.t];
+  if (d.f !== d.t && d.from === d.t) return [d.f, Math.max(d.to, d.f)];
+  return d.to > d.from ? [d.f, d.to] : [d.to, d.t];
 }
 /** Тап по миниатюре, который ждёт второго (двойной тап — меню). */
 let tapPage = -1;
