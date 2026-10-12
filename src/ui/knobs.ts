@@ -3,11 +3,14 @@
 
 import { fromNorm, toNorm, type ParamDef } from '../params';
 import {
-  assignFor, curSeq, fxModNorm, liveLocks, seqIndex,
+  audible, assignFor, curSeq, fxModNorm, liveLocks, seqIndex,
   beginGesture, clearLfoAssign, clearLock, doc, endGesture, firstHeldStep, gridFor, gridMode, heldLfo,
   lockValue, modulatedNorm, paramValue, type Mod, setLfoAmount, setLockNorm, setParamNorm, ui, type GridMode,
 } from '../state';
 import { markKnob } from '../midi';
+import { OVER_PEAK, TRACK_COUNT } from '../params';
+import { trackDuckDb, trackIsStereo, trackLevel } from '../audio/engine';
+import { levelFrac } from './meter';
 import { openRename } from './tracks';
 import { DOUBLE_TAP_MS, h, setAttr, setClass, setText, svg } from './dom';
 
@@ -48,6 +51,46 @@ interface KnobView {
   rangeArc: SVGPathElement;
   lockArc: SVGPathElement;
   pointer: SVGLineElement;
+  meter: KnobMeter;
+}
+
+/** MIX: метр дорожки слева от ручки громкости (после фейдера), в общем стиле метров. */
+interface KnobMeter { root: HTMLElement; chans: HTMLElement[]; fills: HTMLElement[]; holds: HTMLElement[]; grs: HTMLElement[] }
+
+function buildKnobMeter(): KnobMeter {
+  const root = h('div', 'knob-meter hidden');
+  const m: KnobMeter = { root, chans: [], fills: [], holds: [], grs: [] };
+  for (let ch = 0; ch < 2; ch++) {
+    const bar = h('div', 'vbar yellow');
+    const fill = h('div', 'vbar-fill');
+    const gr = h('div', 'vbar-gr hidden');
+    const hold = h('div', 'vbar-hold');
+    bar.append(fill, gr, hold);
+    root.append(bar);
+    m.chans.push(bar); m.fills.push(fill); m.grs.push(gr); m.holds.push(hold);
+  }
+  return m;
+}
+
+const pct = (v: number) => `${(Math.min(1, Math.max(0, v)) * 100).toFixed(1)}%`;
+
+/** Стерео — две полосы, моно — одна; выше 0 dB — красная; заглушённая — серая; sidechain — оранжевым сверху. */
+function renderKnobMeter(m: KnobMeter, track: number, now: number) {
+  const lv = trackLevel(track, now);
+  const stereo = trackIsStereo(track);
+  const peaks = stereo ? [lv.l, lv.r] : [Math.max(lv.l, lv.r)];
+  const holds = stereo ? [lv.holdL, lv.holdR] : [Math.max(lv.holdL, lv.holdR)];
+  const duck = trackDuckDb(track);
+  m.chans.forEach((c, i) => setClass(c, 'hidden', i >= peaks.length));
+  peaks.forEach((p, i) => {
+    setAttr(m.fills[i], 'style', `height:${pct(levelFrac(p))}`);
+    setClass(m.fills[i], 'over', p >= OVER_PEAK);
+    setClass(m.holds[i], 'hidden', levelFrac(holds[i]) <= 0.01);
+    setAttr(m.holds[i], 'style', `bottom:${pct(levelFrac(holds[i]))}`);
+    setClass(m.grs[i], 'hidden', duck > -0.1);
+    if (duck <= -0.1) setAttr(m.grs[i], 'style', `height:${pct(-duck / 24)}`);
+  });
+  setClass(m.root, 'muted', !audible(track));
 }
 
 interface Gesture {
@@ -83,7 +126,8 @@ function buildKnob(slot: number): KnobView {
   const value = h('div', 'knob-value');
   const label = h('div', 'knob-label');
   const dial = h('div', 'knob-dial');
-  dial.append(box, value);
+  const meter = buildKnobMeter();
+  dial.append(meter.root, box, value);
   root.append(dial, label);
 
   markKnob(root, slot);
@@ -91,7 +135,7 @@ function buildKnob(slot: number): KnobView {
   root.addEventListener('pointermove', (e) => onMove(e));
   root.addEventListener('pointerup', (e) => onUp(e));
   root.addEventListener('pointercancel', (e) => onUp(e));
-  return { root, label, value, valueArc, lfoArc, rangeArc, lockArc, pointer };
+  return { root, label, value, valueArc, lfoArc, rangeArc, lockArc, pointer, meter };
 }
 
 export function buildKnobGrid(): HTMLElement {
@@ -207,6 +251,9 @@ export function renderKnobs(now: number) {
 
   views.forEach((v, slot) => {
     const p = grid[slot];
+    const meter = mode === 'mix' && !!p && slot < TRACK_COUNT;
+    setClass(v.meter.root, 'hidden', !meter);
+    if (meter) renderKnobMeter(v.meter, slot, now);
     setClass(v.root, 'inactive', !p);
     if (!p) {
       setText(v.label, '');

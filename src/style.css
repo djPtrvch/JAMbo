@@ -941,3 +941,16 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 .mix-panel .vbar-box { gap: clamp(1px, 14%, 3px); }
 .mix-panel .vbar { flex: 0 1 9px; min-width: 2px; }
 .mix-panel .vbar-label { text-overflow: clip; }
+
+/* MIX: метр дорожки слева от ручки громкости (вплотную к кругу ручки), высотой с ручку. */
+.knob-dial { container-type: size; }
+.knob-meter { position: absolute; top: 12%; bottom: 12%; right: calc(50% + min(50cqh, 50cqw) * 0.8 + 2px); display: flex; gap: 3px; pointer-events: none; }
+.knob-meter.hidden { display: none; }
+.knob-meter.muted .vbar.yellow .vbar-fill { background: var(--mute-grey); }
+
+/* MIX: превью паттернов дорожек на месте миниатюр страниц — строка на дорожку. */
+.mix-preview { flex: 1; min-height: 0; display: grid; gap: 4px; }
+.mix-prev-row { display: flex; align-items: stretch; gap: 4px; min-height: 0; }
+.mix-prev-row.dim { opacity: 0.4; }
+.mix-prev-name { flex: none; width: 34px; align-self: center; font-size: 9px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: clip; }
+.mix-prev-row .thumb { flex: 1; min-width: 0; padding: 3px; }
