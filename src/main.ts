@@ -4,9 +4,9 @@ import { applyTheme } from './ui/theme';
 // Оформление до первой отрисовки (светлое или тёмное — по настройке или как в системе).
 applyTheme();
 import { setTrackCountParams } from './params';
-import { advanceLfos, doc, onGateChange, ui, updateTransition } from './state';
+import { advanceLfos, doc, onGateChange, onTrackDeleted, ui, updateTransition } from './state';
 import { attachDebug, markGate } from './ui/debug';
-import { applyAllGates, synthLoad, unlockAudio, updateAudio } from './audio/engine';
+import { applyAllGates, synthLoad, trackDeleted, unlockAudio, updateAudio } from './audio/engine';
 import { initProjects } from './project';
 import { initMidi, sendFeedback, setNoteHandler } from './midi';
 import { settings } from './settings';
@@ -74,6 +74,7 @@ attachDebug(cpu);
 
 // Mute/solo звучат сразу из жеста, не дожидаясь кадра.
 onGateChange(() => markGate(applyAllGates()));
+onTrackDeleted(trackDeleted);
 topbar.append(leftGroup, topMid, topRight);
 
 // Число столбцов дорожек: строка дорожек и сетка паттернов совпадают по ширине столбцов
@@ -126,6 +127,12 @@ function renderCpu(now: number) {
 
 let last = performance.now();
 function frame(now: number) {
+  // Следующий кадр — сразу: ошибка в кадре (пишется в консоль) не останавливает интерфейс и звук.
+  requestAnimationFrame(frame);
+  try { frameBody(now); } catch (e) { console.error('frame', e); }
+}
+
+function frameBody(now: number) {
   syncTrackCount();
   const t0 = performance.now();
   advanceLfos(Math.min(0.1, (now - last) / 1000));
@@ -160,7 +167,6 @@ function frame(now: number) {
   else tickMeter(now);
   busy += performance.now() - t0;
   renderCpu(now);
-  requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
 

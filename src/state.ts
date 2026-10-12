@@ -917,8 +917,13 @@ const MIX_LOCK_SEQS = () => [doc.chanSeqs[0]];
  * громкость (и p-lock громкости на шагах MIX), источник sidechain и динамических полос EQ,
  * назначения LFO/ENV на FX. Отмена — UNDO.
  */
+/** Движок гасит голоса удалённой дорожки и сдвинутых (state не импортирует движок). */
+let trackDeletedHook: (i: number) => void = () => {};
+export const onTrackDeleted = (f: (i: number) => void) => { trackDeletedHook = f; };
+
 export function deleteTrack(i: number) {
   if (!canDeleteTrack(i)) return;
+  trackDeletedHook(i);
   edit(() => {
     const n = doc.tracks.length;
     doc.tracks.splice(i, 1);

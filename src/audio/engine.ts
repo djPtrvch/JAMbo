@@ -682,6 +682,30 @@ function sidechain(source: number, at: number) {
   });
 }
 
+/**
+ * Удалена дорожка i: её голоса и голоса дорожек правее (они сдвинулись на номер левее, а звучат
+ * на цепочках прежних номеров) быстро гаснут (~5 мс) и больше не модулируются; новые ноты пойдут
+ * по новым номерам.
+ */
+export function trackDeleted(i: number) {
+  if (!ctx) return;
+  const ct = ctx.currentTime;
+  for (const vo of voices) {
+    if (vo.track < i || vo.ended) continue;
+    vo.ended = true;
+    if (vo.src) {
+      vo.level.gain.setTargetAtTime(0, ct, 0.0015);
+      try { vo.src.stop(ct + 0.03); } catch { /* уже остановлен */ }
+    }
+  }
+  for (let ch = i; ch < MAX_TRACKS; ch++) {
+    const sy = synths[ch];
+    if (!sy) continue;
+    sy.slots.forEach((sl) => { sl.amp.gain.cancelScheduledValues(ct); sl.amp.gain.setTargetAtTime(0, ct, 0.0015); });
+    sy.busyUntil.fill(0);
+  }
+}
+
 /** Модуляция звучащих голосов (LFO/ENV) — каждый кадр. */
 function updateVoices() {
   const c = ctx!;
@@ -691,7 +715,10 @@ function updateVoices() {
     if (vo.ended) { voices.splice(k, 1); continue; }
     // Нота ещё не началась (запланирована наперёд) — её начальные значения уже выставлены.
     if (vo.at > c.currentTime) continue;
-    const assigns = doc.tracks[vo.track].assigns;
+    // Дорожки больше нет (удалили, UNDO сменил число дорожек) — голос не трогаем.
+    const tr = doc.tracks[vo.track];
+    if (!tr) continue;
+    const assigns = tr.assigns;
     if (Object.keys(assigns).length === 0) continue;
     const v = (id: string) => value(vo.track, id, vo.locks);
     const now = c.currentTime;
