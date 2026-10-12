@@ -67,7 +67,7 @@ export function buildLeftButtons(): HTMLElement {
     b.addEventListener('pointerdown', (e) => { e.preventDefault(); fn(); });
     return b;
   };
-  // Вверху BYPASS SAT и BYPASS COMP (с зажатой SHIFT на её месте RATIO), внизу BYPASS CLIP и BYPASS LIM;
+  // Вверху BYPASS LIM и BYPASS COMP (с зажатой SHIFT на её месте RATIO), внизу BYPASS CLIP и BYPASS SAT;
   // включённый bypass — цветом своего модуля, как формы волны скопа (SAT белая, COMP жёлтая, CLIP оранжевая, LIM красная).
   satBypassBtn = tap('BYPASS\nSAT', toggleSatBypass);
   satBypassBtn.classList.add('byp-sat');
@@ -78,7 +78,7 @@ export function buildLeftButtons(): HTMLElement {
   limBypassBtn = tap('BYPASS\nLIM', toggleLimBypass);
   limBypassBtn.classList.add('byp-lim');
   masterGrid = h('div', 'btn-grid hidden');
-  masterGrid.append(satBypassBtn, compBypassBtn, clipBypassBtn, limBypassBtn);
+  masterGrid.append(limBypassBtn, compBypassBtn, clipBypassBtn, satBypassBtn);
   el.append(lfoGrid, masterGrid);
   return el;
 }
