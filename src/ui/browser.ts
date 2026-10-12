@@ -28,6 +28,8 @@ import { makePopup, openInput, popupButton, type Popup } from './popup';
 
 /** Кнопка SAVE HERE (к ней привязано окно «перезаписать или сохранить как»). */
 let saveHereBtn: HTMLElement;
+/** Имена в библиотеке — до 40 знаков (как в library.ts). */
+const LIB_NAME_MAX = 40;
 
 /** Что делает браузер: загрузка (в дорожку или на зажатые шаги) или сохранение пресета / сэмпла. */
 type Mode =
@@ -130,7 +132,7 @@ function libRow(n: LibNode): HTMLElement {
   const row = h('div', 'project-row lib-row');
   const acts = h('div', 'lib-acts');
   const edit = h('div', 'lib-act', 'EDIT');
-  edit.addEventListener('pointerup', () => openInput(edit, n.name, (v) => rename(n.id, v)));
+  edit.addEventListener('pointerup', () => openInput(edit, n.name, (v) => rename(n.id, v), false, LIB_NAME_MAX));
   const exp = h('div', 'lib-act', 'EXPORT');
   // EXPORT: окно «Поделиться» → «Сохранить в Файлы» (папка на iPad или в iCloud Drive).
   exp.addEventListener('pointerup', () => { void exportNode(n.id).catch(fail('Export')); });
@@ -247,7 +249,7 @@ export function buildBrowser(): HTMLElement {
   });
   pathText = h('div', 'lib-path');
   const newFolder = h('div', 'btn eq-tool', 'NEW FOLDER');
-  newFolder.addEventListener('pointerup', () => openInput(newFolder, 'New folder', (v) => { createFolder(folder, v); }));
+  newFolder.addEventListener('pointerup', () => openInput(newFolder, 'New folder', (v) => { createFolder(folder, v); }, false, LIB_NAME_MAX));
   // IMPORT — поле выбора файла прозрачно поверх кнопки (на iOS выбор файла — только прямым тапом).
   const importBtn = h('div', 'btn eq-tool sample-pick', 'IMPORT');
   const input = h('input', 'sample-file');
@@ -272,7 +274,7 @@ export function buildBrowser(): HTMLElement {
   saveBar = h('div', 'eq-bar lib-save hidden');
   nameInput = h('input', 'rename-input lib-name-input');
   nameInput.type = 'text';
-  nameInput.maxLength = 40;
+  nameInput.maxLength = LIB_NAME_MAX;
   const saveHere = h('div', 'btn eq-tool lib-save-btn', 'SAVE HERE');
   saveHereBtn = saveHere;
   saveHere.addEventListener('pointerup', () => save());
@@ -332,7 +334,7 @@ function askOverwrite(id: string, into: string, name: string) {
         const nm = v.trim() || freeName(into, name);
         const again = sameName(into, nm);
         if (again) askOverwrite(again.id, into, nm); else saveAs(into, nm);
-      });
+      }, false, LIB_NAME_MAX);
     }),
     popupButton('CANCEL', () => pop.close()),
   );

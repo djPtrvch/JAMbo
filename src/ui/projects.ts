@@ -48,8 +48,8 @@ function buildMenu() {
   actions.append(
     act('NEW', () => { menu.close(); void newProject().catch(fail('New project')); }),
     act('SAVE', () => { void saveProject().then(() => fillList()).catch(fail('Save')); }),
-    act('SAVE AS', () => { menu.close(); openInput(title, `${project.name} copy`, askSaveAs); }),
-    act('RENAME', () => { menu.close(); openInput(title, project.name, (n) => void renameProject(n).catch(fail('Rename'))); }),
+    act('SAVE AS', () => { menu.close(); openInput(title, `${project.name} copy`, askSaveAs, false, 24); }),
+    act('RENAME', () => { menu.close(); openInput(title, project.name, (n) => void renameProject(n).catch(fail('Rename')), false, 24); }),
     act('EXPORT', () => { menu.close(); void exportProject().catch(fail('Export')); }),
     importBtn,
   );
@@ -109,7 +109,7 @@ function projectRow(p: ProjectInfo): HTMLElement {
   const edit = h('div', 'project-edit', 'EDIT');
   edit.addEventListener('pointerup', () => {
     closeRow(row);
-    openInput(item, p.name, (n) => void renameById(p.id, n).then(() => fillList()).catch(fail('Rename')));
+    openInput(item, p.name, (n) => void renameById(p.id, n).then(() => fillList()).catch(fail('Rename')), false, 24);
   });
   const trash = h('div', 'project-trash');
   trash.innerHTML = '<svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';

@@ -54,7 +54,7 @@ let inputDone: ((v: string) => void) | null = null;
  * Поле ввода рядом с элементом anchor (имя дорожки, частота EQ). Своё, на странице: системный
  * window.prompt в Safari прерывает звук (аудиоконтекст становится «interrupted»).
  */
-export function openInput(anchor: Element, value: string, done: (v: string) => void, numeric = false) {
+export function openInput(anchor: Element, value: string, done: (v: string) => void, numeric = false, maxLen = 12) {
   if (!inputPopup) {
     const p = makePopup('rename');
     inputField = h('input', 'rename-input');
@@ -71,7 +71,8 @@ export function openInput(anchor: Element, value: string, done: (v: string) => v
   }
   inputDone = done;
   inputField.value = value;
-  inputField.maxLength = numeric ? 10 : 12;
+  // Не короче подставленного значения — иначе дописать в него ничего нельзя.
+  inputField.maxLength = Math.max(numeric ? 10 : maxLen, value.length);
   inputField.inputMode = numeric ? 'decimal' : 'text';
   inputPopup.openAt(anchor, 220);
   inputField.focus();
