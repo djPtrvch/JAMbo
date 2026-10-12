@@ -803,7 +803,7 @@ export function setEqScope(channel: number | 'master' | null) {
   if (!scopePre) {
     scopePre = ctx.createAnalyser();
     scopePost = ctx.createAnalyser();
-    for (const a of [scopePre, scopePost!]) { a.fftSize = 4096; a.smoothingTimeConstant = 0.8; a.minDecibels = -100; a.maxDecibels = 0; }
+    for (const a of [scopePre, scopePost!]) { a.fftSize = 4096; a.smoothingTimeConstant = 0.6; a.minDecibels = -100; a.maxDecibels = 0; }
   }
   if (scopeOn) {
     scopeOn.input.disconnect(scopePre);

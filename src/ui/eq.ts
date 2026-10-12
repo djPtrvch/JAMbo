@@ -463,10 +463,14 @@ const SPEC_STEP = 3;
 const SPEC_BAND = Math.pow(2, 1 / 12);
 /** Спад, dB/с (подъём — сразу). */
 const SPEC_FALL = 30;
+/** Разница «после − до» (действие EQ) сглаживается быстро: заливка сразу следует за полосами, с. */
+const SPEC_DIFF_TAU = 0.05;
 const cumPre = new Float64Array(2049);
 const cumPost = new Float64Array(2049);
 let dispPre = new Float32Array(0);
 let dispPost = new Float32Array(0);
+/** Сглаженная разница спектров после и до EQ, dB. */
+let dispDiff = new Float32Array(0);
 let specT = 0;
 
 /** Накопленная сумма мощности по бинам (для среднего по полосе). */
@@ -507,16 +511,20 @@ function drawSpectrum(g: CanvasRenderingContext2D) {
   cumulate(pre, cumPre);
   cumulate(post, cumPost);
   const n = Math.ceil(W / SPEC_STEP) + 1;
-  if (dispPre.length !== n) { dispPre = new Float32Array(n).fill(SPEC_BOT); dispPost = new Float32Array(n).fill(SPEC_BOT); }
+  if (dispPre.length !== n) { dispPre = new Float32Array(n).fill(SPEC_BOT); dispPost = new Float32Array(n).fill(SPEC_BOT); dispDiff = new Float32Array(n); }
   const yPre = new Float32Array(n);
   const yPost = new Float32Array(n);
   const fall = SPEC_FALL * dt;
+  const k = 1 - Math.exp(-dt / SPEC_DIFF_TAU);
   for (let i = 0; i < n; i++) {
     const f = freqAt(i * SPEC_STEP);
     const a = Math.max(SPEC_BOT, bandDb(cumPre, f / SPEC_BAND, f * SPEC_BAND, binHz));
     const b = Math.max(SPEC_BOT, bandDb(cumPost, f / SPEC_BAND, f * SPEC_BAND, binHz));
     dispPre[i] = a > dispPre[i] ? a : Math.max(a, dispPre[i] - fall);
-    dispPost[i] = b > dispPost[i] ? b : Math.max(b, dispPost[i] - fall);
+    // После EQ = линия до EQ + действие EQ (сглаженное быстро): при изменении полос заливка
+    // сразу следует за ними, а не опускается медленно вместе со спадом.
+    dispDiff[i] += (b - a - dispDiff[i]) * k;
+    dispPost[i] = Math.max(SPEC_BOT, dispPre[i] + dispDiff[i]);
     yPre[i] = yOfSpec(dispPre[i]);
     yPost[i] = yOfSpec(dispPost[i]);
   }
