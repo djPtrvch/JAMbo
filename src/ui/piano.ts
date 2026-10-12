@@ -114,7 +114,13 @@ export function buildPiano(): HTMLElement {
   up.addEventListener('pointerdown', (e) => { e.preventDefault(); setOctave(ui.octave + 1); });
   oct.append(up, down);
 
-  el.append(scaleBtn, keyRow, panel, oct);
+  // Под SCALE — кнопка-бутерброд (пока неактивна: что в ней, определим позже).
+  const menuBtn = h('div', 'btn piano-menu');
+  const lines = h('div', 'burger-lines');
+  lines.append(h('span'), h('span'), h('span'));
+  menuBtn.append(lines);
+
+  el.append(scaleBtn, menuBtn, keyRow, panel, oct);
   return el;
 }
 

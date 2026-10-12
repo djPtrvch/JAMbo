@@ -146,7 +146,7 @@ html, body {
 
 .topbar { display: flex; gap: var(--gap); }
 /* SCALE, ROOT, PLAY, REC, UNDO, REDO — шесть столбцов равной ширины. */
-.top-mid { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--gap); }
+.top-mid { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--gap); }
 /* Правый блок шириной с правую колонку; PATTERNS на месте бывшей кнопки PLAY. */
 .top-right { width: calc(220px + var(--gap) + var(--meter-w)); flex: none; display: flex; gap: var(--gap); }
 /* EQ кончается вместе с миниатюрами страниц (над измерителем — пусто). */
@@ -620,16 +620,19 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 .piano {
   display: grid;
   grid-template-columns: var(--channel-col) minmax(0, 1fr) var(--channel-col);
-  grid-template-rows: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) 44px;
   column-gap: 4px;
   row-gap: var(--gap);
   min-height: 0;
 }
-.piano > .scale-btn { grid-column: 1; grid-row: 1 / -1; }
-.piano > .keys { grid-column: 2; grid-row: 1; }
+.piano > .scale-btn { grid-column: 1; grid-row: 1; }
+.piano > .piano-menu { grid-column: 1; grid-row: 2; }
+.piano-menu.btn { opacity: 0.35; pointer-events: none; }
+.piano > .keys { grid-column: 2; grid-row: 1 / -1; }
+.piano.open > .keys { grid-row: 1; }
 .piano > .scale-panel { grid-column: 2; grid-row: 2; display: none; }
 .piano > .octave { grid-column: 3; grid-row: 1 / -1; }
-.piano.open { grid-template-rows: minmax(0, 1fr) 44px; }
+
 .piano.open > .scale-panel { display: grid; }
 /* Строка под клавишами: 14 столбцов шириной с шаг. */
 .scale-panel { grid-template-columns: repeat(14, minmax(0, 1fr)); gap: 4px; min-width: 0; }
@@ -972,3 +975,5 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 
 /* Заголовок всплывающего окна (вопрос перед кнопками). */
 .popup-title { padding: 6px 4px 8px; font-size: 13px; color: var(--text); text-align: center; overflow-wrap: anywhere; }
+.burger-lines { display: flex; flex-direction: column; gap: 5px; align-items: center; }
+.burger-lines span { width: 22px; height: 2px; background: var(--dim); border-radius: 1px; }

@@ -104,13 +104,13 @@ export function backHeader(title: HTMLElement, onBack: () => void): HTMLElement 
 
 /**
  * Меню «бутерброд» и его подменю (PROJECTS, SETTINGS, MIDI): вровень с кнопками верхней панели —
- * от левого края кнопки меню до правого края PLAY (первой кнопки сетки верхней панели).
+ * от левого края кнопки меню до правого края первого столбца сетки верхней панели (где была SCALE).
  */
 export function openMenuPanel(p: Popup, anchor: Element) {
   const a = anchor.getBoundingClientRect();
-  const play = document.querySelector('.top-mid > :first-child')?.getBoundingClientRect();
-  p.openAt(anchor, play ? play.right - a.left : 420);
-  // Размер всегда один: по ширине — от бутерброда до края PLAY, по высоте — от верхней панели до
+  const col = document.querySelector('.top-mid > :first-child')?.getBoundingClientRect();
+  p.openAt(anchor, col ? col.right - a.left : 420);
+  // Размер всегда один: по ширине — от бутерброда до края первого столбца, по высоте — от верхней панели до
   // строки дорожек (низ кнопок LFO3 и ENV). Не помещается — прокрутка пальцем вверх-вниз.
   const top = a.bottom + 6;
   const tracks = document.querySelector('.tracks')?.getBoundingClientRect();
