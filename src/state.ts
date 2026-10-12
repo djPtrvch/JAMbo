@@ -1137,13 +1137,19 @@ let recTake = -1;
 export const endRecTake = () => { recTake = -1; };
 
 /** Запись с REC: ноты на шаг index. merge — добавить к уже записанным на этом проходе. */
-export function recordNotes(trackIndex: number, index: number, notes: number[], merge: boolean) {
+export function recordNotes(trackIndex: number, index: number, notes: number[], merge: boolean, velocity?: number) {
   const write = () => {
     const s = stepAt(doc.tracks[trackIndex], index);
     if (!s) return;
-    s.notes = merge && s.on ? [...new Set([...s.notes, ...notes])].sort((a, b) => a - b) : [...notes];
+    const merged = merge && s.on;
+    s.notes = merged ? [...new Set([...s.notes, ...notes])].sort((a, b) => a - b) : [...notes];
     s.on = true;
     s.len = 1;
+    // VELOCITY: сила нажатия — p-lock Level шага (аккорд в один шаг — по самой сильной ноте).
+    if (velocity !== undefined) {
+      const lv = Math.round(doc.tracks[trackIndex].params.level * velocity);
+      s.locks.level = merged && typeof s.locks.level === 'number' ? Math.max(s.locks.level, lv) : lv;
+    }
   };
   // Продолжение дубля — без новой записи в UNDO: UNDO отменяет весь дубль сразу.
   if (recTake >= 0 && recTake === undoSerial) { write(); return; }

@@ -655,12 +655,12 @@ function triggerSynth(track: number, engine: number, time: number, notes: number
 }
 
 /** Живой наигрыш с пианоролла: ноты выбранной дорожки сейчас. */
-export function playNow(track: number, notes: number[], held = false) {
+export function playNow(track: number, notes: number[], held = false, velocity = 1) {
   // Живая нота тоже запускает ENV: гейт — пока держат клавишу (held, отпускание — releaseEnv),
-  // иначе (ноты с MIDI) — один шаг.
+  // иначе (ноты с MIDI) — один шаг. VELOCITY: Level ноты = Level дорожки × сила нажатия.
   const now = performance.now();
   triggerEnv(track, now, held ? 1e9 : 60000 / doc.bpm / 4);
-  triggerTrack(track, now, notes, {});
+  triggerTrack(track, now, notes, velocity < 1 ? { level: doc.tracks[track].params.level * velocity } : {});
 }
 
 /** Sidechain: триг дорожки-источника приглушает остальные на их Sidechain amount. */

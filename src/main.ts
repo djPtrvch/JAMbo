@@ -171,7 +171,9 @@ void initProjects();
 if (settings.mappings.length) void initMidi();
 
 // Ноты с MIDI-входов играют выбранную дорожку, как пианоролл (или дорожку по номеру канала).
-setNoteHandler((note, _vel, track) => {
-  if (track === null) press([note]);
-  else if (track < doc.tracks.length) press([note], track);
+setNoteHandler((note, vel, track) => {
+  // VELOCITY: сила ноты из сообщения MIDI (1–127).
+  const v = settings.velocity ? Math.max(1, vel) / 127 : 1;
+  if (track === null) press([note], null, false, v);
+  else if (track < doc.tracks.length) press([note], track, false, v);
 });

@@ -641,7 +641,6 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 }
 .piano > .scale-btn { grid-column: 1; grid-row: 1; }
 .piano > .piano-menu { grid-column: 1; grid-row: 2; }
-.piano-menu.btn { opacity: 0.35; pointer-events: none; }
 .piano > .keys { grid-column: 2; grid-row: 1 / -1; }
 .piano.open > .keys { grid-row: 1; }
 .piano > .scale-panel { grid-column: 2; grid-row: 2; display: none; }
@@ -1023,3 +1022,5 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 .source-menu .source-col .popup-btn { font-size: 9px; letter-spacing: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Заголовки колонок движков (SYNTH, MI SYNTH, MI DRUMS) — по центру колонки. */
 .source-col .source-title { text-align: center; padding-left: 0; padding-right: 0; }
+/* Меню бутерброда пианоролла: текст переносится, лишнее прокручивается. */
+.popup-box.piano-menu-pop .settings-note { font-size: 11px; line-height: 1.35; padding: 2px 4px; }

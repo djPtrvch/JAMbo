@@ -65,12 +65,18 @@ export interface Settings {
   midiPreset: string;
   /** Оформление: как в системе (светлое или тёмное по настройке iPad), светлое или тёмное. */
   theme: 'system' | 'light' | 'dark';
+  /**
+   * VELOCITY (меню бутерброда пианоролла): чувствительность клавиш к нажатию. На iPad сила пальца
+   * браузеру не видна — velocity берётся по месту касания на клавише (верх — тихо, низ — громко),
+   * у Apple Pencil — по давлению, у MIDI — из сообщения. Меняет Level ноты (при записи — p-lock Level).
+   */
+  velocity: boolean;
 }
 
 const KEY = 'jambo.settings';
 const DEFAULTS: Settings = {
   sampleRate: 0, bufferSize: 0, background: true, muteTails: false, outputId: '', inputId: '',
-  midiIn: '', midiFeedback: '', noteChannel: 0, noteRoute: 'selected', mappings: [], midiPreset: '', theme: 'system',
+  midiIn: '', midiFeedback: '', noteChannel: 0, noteRoute: 'selected', mappings: [], midiPreset: '', theme: 'system', velocity: false,
 };
 
 /** Маппинг с недостающими полями (старые настройки: общий режим энкодеров knobMode). */

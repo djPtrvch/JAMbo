@@ -14,6 +14,8 @@ import { releaseEnv,
 import { playNow, unlockAudio } from '../audio/engine';
 import { recStep } from '../transport';
 import { h, setClass, setText } from './dom';
+import { makePopup, popupButton, type Popup } from './popup';
+import { saveSettings, settings } from '../settings';
 import { choiceMenu, dragField } from './controls';
 
 const MAX_KEYS = 25;
@@ -38,15 +40,15 @@ const keyCount = () => Math.min(MAX_KEYS, SCALES[doc.scale].steps.length * 2 + 1
  * Нажатие ноты/аккорда: запись, редактирование шага или выбор (и ноты с MIDI-входов).
  * track — дорожка для нот с MIDI по каналам (без неё — выбранная).
  */
-export function press(notes: number[], track: number | null = null, held = false) {
+export function press(notes: number[], track: number | null = null, held = false, velocity = 1) {
   const ti = track ?? ui.selectedTrack;
-  // Живой наигрыш: нота сразу звучит звуком выбранной дорожки.
+  // Живой наигрыш: нота сразу звучит звуком выбранной дорожки (с VELOCITY — с силой нажатия).
   unlockAudio();
-  playNow(ti, notes, held);
+  playNow(ti, notes, held, velocity);
   if (ui.rec && ui.playing && ui.heldSteps.size === 0) {
     const now = performance.now();
     const at = recStep(ti, now);
-    if (at) recordNotes(ti, at.index, notes, at.merge);
+    if (at) recordNotes(ti, at.index, notes, at.merge, settings.velocity ? velocity : undefined);
     rt.flashUntil[ti] = now + 90;
     rt.noteFlash[ti] = { notes, until: now + 200 };
     return;
@@ -54,12 +56,57 @@ export function press(notes: number[], track: number | null = null, held = false
   if (ti === ui.selectedTrack) inputNotes();
 }
 
+/**
+ * Сила нажатия клавиши (0.2…1) при включённом VELOCITY: Apple Pencil — по давлению; палец (сила
+ * касания браузеру на iPad не видна) — по месту на клавише: верх — тихо, низ — громко.
+ */
+function touchVelocity(el: HTMLElement, e: PointerEvent): number {
+  if (!settings.velocity) return 1;
+  if (e.pointerType === 'pen' && e.pressure > 0) return Math.max(VEL_MIN, Math.min(1, e.pressure));
+  const r = el.getBoundingClientRect();
+  const y = Math.min(1, Math.max(0, (e.clientY - r.top) / Math.max(1, r.height)));
+  return VEL_MIN + (1 - VEL_MIN) * y;
+}
+const VEL_MIN = 0.2;
+
+let pianoMenu: Popup | null = null;
+/**
+ * Меню бутерброда под CHORD: снизу вверх от кнопки, не выше секвенсора шагов, шириной не больше
+ * 4 шагов; что не помещается — прокрутка (как во всех меню).
+ */
+function openPianoMenu(anchor: HTMLElement) {
+  pianoMenu ??= makePopup('piano-menu-pop');
+  const pop = pianoMenu;
+  const vel = popupButton(`VELOCITY · ${settings.velocity ? 'ON' : 'OFF'}`, () => {
+    saveSettings({ velocity: !settings.velocity });
+    openPianoMenu(anchor);
+  });
+  vel.classList.toggle('current', settings.velocity);
+  pop.box.replaceChildren(
+    vel,
+    h('div', 'settings-note', settings.velocity
+      ? 'Touch lower on a key — louder, higher — softer (Apple Pencil: pressure). Changes the note Level; REC writes it as a Level p-lock.'
+      : 'Keys play at the track Level.'),
+  );
+  const steps = document.querySelectorAll<HTMLElement>('.step');
+  const a = anchor.getBoundingClientRect();
+  const s0 = steps[0]?.getBoundingClientRect(), s3 = steps[3]?.getBoundingClientRect();
+  const left = s0 ? s0.left : a.left;
+  const width = s0 && s3 ? s3.right - s0.left : 4 * a.width;
+  const top = s0 ? s0.top : 8;
+  pop.openAt(anchor, width);
+  const box = pop.box;
+  box.style.left = `${left}px`;
+  box.style.maxHeight = `${a.bottom - top}px`;
+  box.style.top = `${Math.max(top, a.bottom - box.offsetHeight)}px`;
+}
+
 function pressHandlers(el: HTMLElement, notes: () => number[]) {
   el.addEventListener('pointerdown', (e) => {
     e.preventDefault();
     const n = notes();
     ui.pressedKeys.set(e.pointerId, n);
-    press(n, null, true);
+    press(n, null, true, touchVelocity(el, e));
   });
   // Отпущена последняя клавиша — у ENV начинается Release.
   const up = (e: PointerEvent) => {
@@ -111,11 +158,12 @@ export function buildPiano(): HTMLElement {
   up.addEventListener('pointerdown', (e) => { e.preventDefault(); setOctave(ui.octave + 1); });
   oct.append(up, down);
 
-  // Под SCALE — кнопка-бутерброд (пока неактивна: что в ней, определим позже).
+  // Под CHORD — бутерброд: меню пианоролла (VELOCITY).
   const menuBtn = h('div', 'btn piano-menu');
   const lines = h('div', 'burger-lines');
   lines.append(h('span'), h('span'), h('span'));
   menuBtn.append(lines);
+  menuBtn.addEventListener('pointerup', () => openPianoMenu(menuBtn));
 
   el.append(chordBtn, menuBtn, keyRow, panel, oct);
   return el;
