@@ -4,7 +4,7 @@
 import { clickAt, triggerTrack } from './audio/engine';
 import { PARAM_BY_ID, SEQ_MIX, SEQ_MST, STEPS_PER_PAGE, fromNorm } from './params';
 import {
-  triggerEnv, activateSlot, audible, doc, modulatedNorm, playRange, rowFilled, rt, seqAt, slotFilled, stepAt, stopTrack, ui,
+  triggerEnv, endRecTake, activateSlot, audible, doc, modulatedNorm, playRange, rowFilled, rt, seqAt, slotFilled, stepAt, stopTrack, ui,
 } from './state';
 
 /** Шаги планируются заранее, чтобы звук и щелчок метронома попадали точно в долю. */
@@ -19,6 +19,7 @@ export const stepMs = () => 60000 / doc.bpm / 4;
 
 export function setPlaying(on: boolean) {
   ui.playing = on;
+  endRecTake();
   flashes.length = 0;
   lockEvents.length = 0;
   rt.playLocks.forEach((l) => { l.until = 0; });

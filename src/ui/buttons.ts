@@ -2,7 +2,7 @@
 // PLAY, REC, UNDO, REDO, PATTERNS и EQ (в верхней панели справа).
 // LFO1/LFO2/LFO3/ENV/FX/MOD работают на удержание; MORPH — тап (режим) и удержание (+ UNDO).
 
-import { canRedo, canUndo, cycleRatio, redo, doc, gridMode, setHeld, toggleClipBypass, toggleCmpBypass, toggleLimBypass, toggleMorph, toggleView, ui, undo, undoTrackEdits, type HoldButton } from '../state';
+import { canRedo, canUndo, endRecTake, cycleRatio, redo, doc, gridMode, setHeld, toggleClipBypass, toggleCmpBypass, toggleLimBypass, toggleMorph, toggleView, ui, undo, undoTrackEdits, type HoldButton } from '../state';
 import { RATIOS } from '../params';
 import { registerAction } from '../midi';
 import { setPlaying } from '../transport';
@@ -84,7 +84,7 @@ export function buildTransportButtons(): HTMLElement {
   const el = h('div', 'transport');
   playBtn = tapButton('PLAY', () => setPlaying(!ui.playing), () => ui.playing);
   playBtn.classList.add('play-btn');
-  recBtn = tapButton('REC', () => { ui.rec = !ui.rec; }, () => ui.rec);
+  recBtn = tapButton('REC', () => { ui.rec = !ui.rec; endRecTake(); }, () => ui.rec);
   recBtn.classList.add('rec-btn');
   undoBtn = tapButton('UNDO', () => {
     if (ui.held.track) { morphUsed = true; undoTrackEdits(); } else undo();

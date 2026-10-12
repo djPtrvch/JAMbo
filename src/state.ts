@@ -354,7 +354,11 @@ let gestureSnapshot = '';
 
 const snapshot = () => JSON.stringify(doc);
 
+/** Растёт при каждом изменении стека UNDO (новая запись, UNDO, REDO) — для дубля записи. */
+let undoSerial = 0;
+
 function pushUndo(snap: string) {
+  undoSerial++;
   redoStack.length = 0;
   undoStack.push(snap);
   if (undoStack.length > UNDO_LIMIT) undoStack.shift();
@@ -381,6 +385,7 @@ export function endGesture() {
 export function undo() {
   const snap = undoStack.pop();
   if (!snap) return;
+  undoSerial++;
   redoStack.push(snapshot());
   Object.assign(doc, JSON.parse(snap) as Doc);
   clampView();
@@ -390,6 +395,7 @@ export function undo() {
 export function redo() {
   const snap = redoStack.pop();
   if (!snap) return;
+  undoSerial++;
   undoStack.push(snapshot());
   Object.assign(doc, JSON.parse(snap) as Doc);
   clampView();
@@ -962,15 +968,29 @@ export function inputNotes() {
   ui.selNotes = notes;
 }
 
+/**
+ * Дубль записи: все ноты, записанные с REC за один проход (пока горят REC и PLAY и между ними не было
+ * других действий), — одна запись в UNDO. Номер изменения стека UNDO после первой ноты дубля; −1 — дубля нет.
+ */
+let recTake = -1;
+/** REC или PLAY выключены — дубль закончен (следующая запись — новый пункт UNDO). */
+export const endRecTake = () => { recTake = -1; };
+
 /** Запись с REC: ноты на шаг index. merge — добавить к уже записанным на этом проходе. */
 export function recordNotes(trackIndex: number, index: number, notes: number[], merge: boolean) {
-  edit(() => {
+  const write = () => {
     const s = stepAt(doc.tracks[trackIndex], index);
     if (!s) return;
     s.notes = merge && s.on ? [...new Set([...s.notes, ...notes])].sort((a, b) => a - b) : [...notes];
     s.on = true;
     s.len = 1;
-  });
+  };
+  // Продолжение дубля — без новой записи в UNDO: UNDO отменяет весь дубль сразу.
+  if (recTake >= 0 && recTake === undoSerial) { write(); return; }
+  const before = undoSerial;
+  edit(write);
+  // Дубль начинается с первой ноты, которая что-то изменила (появилась запись в UNDO).
+  recTake = undoSerial !== before ? undoSerial : -1;
 }
 export function setRoot(v: number) { doc.root = ((Math.round(v) % NOTE_NAMES.length) + NOTE_NAMES.length) % NOTE_NAMES.length; }
 
