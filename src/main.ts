@@ -29,6 +29,7 @@ import { buildSample, buildSampleNav, renderSample } from './ui/sample';
 import { buildSequencer, renderSequencer } from './ui/sequencer';
 import { buildTopbar, renderTopbar } from './ui/topbar';
 import { buildTracks, renderTracks } from './ui/tracks';
+import { SCROLL_SEL } from './ui/scrollbar';
 
 const app = document.getElementById('app')!;
 
@@ -87,9 +88,9 @@ app.append(topbar, main, buildTracks(), buildSequencer(), buildPiano(), buildLea
 
 // Блокируем системные жесты Safari: масштаб двойным тапом и щипком, лупу, контекстное меню.
 // Всё управление идёт через pointer-события, поэтому touch-события можно гасить целиком.
-// Поля ввода и прокручиваемый список пресетов получают обычные касания.
+// Поля ввода и прокручиваемые меню и списки получают обычные касания.
 const allowNative = (e: Event) => e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement
-  || (e.target instanceof Element && e.target.closest('.preset-grid, .project-list') !== null);
+  || (e.target instanceof Element && e.target.closest(SCROLL_SEL) !== null);
 // touchend не гасим: в iOS именно отпускание пальца — действие пользователя, которое включает звук.
 // Масштаб двойным тапом отключён через CSS (touch-action: none на всех элементах).
 for (const type of ['touchstart', 'touchmove'] as const) {

@@ -82,8 +82,8 @@ function openSceneMenu(k: number) {
   rowActs.DUPLICATE.disabled = !canAddRow() || inTransition();
   rowActs.PASTE.disabled = !ui.rowClipboard;
   rowActs.DELETE.disabled = inTransition();
-  // Меню строки — шириной от колонки строк до правого края первой дорожки.
-  openSpan(sceneMenu, sceneCells[k].root, sceneCells[k].root, cells[0][k].root);
+  // Меню строки — шириной от колонки строк до правого края первой дорожки; может лечь на дорожки.
+  openSpan(sceneMenu, sceneCells[k].root, sceneCells[k].root, cells[0][k].root, true);
 }
 
 /** Ячейка строки (сцены) в колонке над MIX. */
@@ -187,17 +187,17 @@ function buildPlusRow(): HTMLElement {
 let arrBtn: HTMLElement;
 
 /** Открыть окно под (или над) anchor, по горизонтали — от левого края from до правого края to. */
-function openSpan(p: Popup, anchor: Element, from: Element, to: Element) {
+function openSpan(p: Popup, anchor: Element, from: Element, to: Element, overTracks = false) {
   const l = from.getBoundingClientRect().left;
   const r = to.getBoundingClientRect().right;
   p.box.style.maxHeight = '';
   p.openAt(anchor, r - l);
   p.box.style.left = `${l}px`;
-  // По высоте — между верхом сетки и строкой дорожек (их не перекрывает); что не помещается —
-  // прокрутка. Под ячейкой, если там хватает места (или его там больше), иначе над ней.
+  // По высоте — между верхом сетки и строкой дорожек (overTracks — в пределах окна, поверх дорожек);
+  // что не помещается — прокрутка. Под ячейкой, если там хватает места (или его там больше), иначе над ней.
   const a = anchor.getBoundingClientRect();
-  const top = sceneCells[0].root.getBoundingClientRect().top;
-  const bottom = (document.querySelector('.tracks')?.getBoundingClientRect().top ?? window.innerHeight) - 6;
+  const top = overTracks ? 8 : sceneCells[0].root.getBoundingClientRect().top;
+  const bottom = overTracks ? window.innerHeight - 8 : (document.querySelector('.tracks')?.getBoundingClientRect().top ?? window.innerHeight) - 6;
   const below = bottom - (a.bottom + 6);
   const above = a.top - 6 - top;
   const hgt = p.box.scrollHeight;

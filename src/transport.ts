@@ -93,10 +93,9 @@ export function queueScene(k: number) {
   rt.sceneQueued = rt.sceneQueued === k ? null : k;
 }
 
-/** Строка после k (среди видимых), в которой есть паттерны (или null). */
+/** Следующая видимая строка после k — и пустая (тогда дорожки молчат её проход), или null. */
 function nextScene(k: number): number | null {
-  for (let n = k + 1; n < visibleRows(); n++) if (rowFilled(n)) return n;
-  return null;
+  return k + 1 < visibleRows() ? k + 1 : null;
 }
 
 /** Пора ли запускать ожидающий паттерн дорожки на тике k. */
@@ -132,7 +131,8 @@ function playStep(time: number) {
   if (rt.sceneQueued !== null && tick % 16 === 0) startScene(rt.sceneQueued, tick);
   else if (rt.scene) {
     const reps = doc.scenes[rt.scene.row].repeats;
-    if (reps > 0 && !doc.rowLoop && tick - rt.scene.start >= reps * rt.scene.len) {
+    // Одна строка в сетке играет по кругу (как с LOOP ROW).
+    if (reps > 0 && !doc.rowLoop && visibleRows() > 1 && tick - rt.scene.start >= reps * rt.scene.len) {
       const n = nextScene(rt.scene.row);
       if (n !== null) startScene(n, tick);
       // Строки кончились: STOP — останавливается всё (и дорожки, запущенные по отдельности),
@@ -140,7 +140,7 @@ function playStep(time: number) {
       else if (doc.arrEnd === 'stop') { setPlaying(false); return; }
       else {
         const s = Math.min(doc.arrStart ?? 0, visibleRows() - 1);
-        if (rowFilled(s)) startScene(s, tick); else rt.scene.start = tick;
+        startScene(s, tick);
       }
     }
   }

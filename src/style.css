@@ -990,3 +990,14 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 .popup-box.scene-menu, .popup-box.arrange-menu { overflow-y: auto; touch-action: pan-y; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 .arrange-loop { width: 100%; }
 .popup-box.scene-menu > *, .popup-box.arrange-menu > * { flex-shrink: 0; }
+/* Прокручиваемые меню и списки: прокрутка пальцем (и по кнопкам в них); системная полоса скрыта —
+ * вместо неё своя, видимая всегда (scrollbar.ts). Специфичность :where() — нулевая, поэтому
+ * элементы со своим touch-action (графики, ручки) его сохраняют. */
+:where(.scrolly, .preset-grid, .project-list, .popup-box, .eq-scroll, .mm-body),
+:where(.scrolly, .preset-grid, .project-list, .popup-box, .eq-scroll, .mm-body) * { touch-action: pan-y; }
+:where(.scrolly, .preset-grid, .project-list, .popup-box, .eq-scroll, .mm-body) { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+:where(.scrolly, .preset-grid, .project-list, .popup-box, .eq-scroll, .mm-body)::-webkit-scrollbar { display: none; }
+.scroll-layer { position: fixed; inset: 0; pointer-events: none; z-index: 1000; }
+.scroll-thumb { position: absolute; width: 3px; border-radius: 2px; background: var(--text); opacity: 0.35; display: none; }
+/* Любое всплывающее меню выше окна прокручивается. */
+.popup-box { max-height: calc(100dvh - 16px); overflow-x: hidden; overflow-y: auto; }
