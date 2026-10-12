@@ -2,8 +2,9 @@
 // Тап по гамме и ноте открывает меню выбора.
 
 import { unlockAudio } from '../audio/engine';
-import { doc, enterBpm, rt, setBpm, ui } from '../state';
-import { dragField } from './controls';
+import { NOTE_NAMES, SCALES } from '../params';
+import { doc, enterBpm, rt, setBpm, setRoot, setScale, ui } from '../state';
+import { choiceMenu, dragField } from './controls';
 import { openMainMenu } from './settings';
 import { h, setClass } from './dom';
 import { openInput } from './popup';
@@ -37,8 +38,14 @@ export function buildTopbar(): HTMLElement {
     (el) => openInput(el, String(doc.bpm), (v) => { const n = parseFloat(v.replace(',', '.')); if (Number.isFinite(n)) enterBpm(n); }, true));
   bpm.classList.add('bpm-field');
   leftGroup.append(burger, bpm, metro);
-  // Гамма и нота — под пианороллом (кнопка SCALE).
-  el.append(leftGroup);
+  // Гамма и нота — той же ширины, что PLAY и REC.
+  const scaleMenu = choiceMenu(SCALES.map((sc) => sc.name), 3, () => doc.scale, setScale);
+  const rootMenu = choiceMenu(NOTE_NAMES, 4, () => doc.root, setRoot);
+  const scale = dragField('SCALE', () => doc.scale, setScale, () => SCALES[doc.scale].name, 24, scaleMenu);
+  const root = dragField('ROOT', () => doc.root, setRoot, () => NOTE_NAMES[doc.root], 24, rootMenu);
+  scale.classList.add('narrow-field');
+  root.classList.add('narrow-field');
+  el.append(leftGroup, scale, root);
   return el;
 }
 
