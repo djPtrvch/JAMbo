@@ -180,8 +180,43 @@ let scenePlus: HTMLElement;
 function buildPlusRow(): HTMLElement {
   scenePlus = h('div', 'pattern-cell plus-cell', '+');
   scenePlus.style.gridColumn = '1';
-  scenePlus.addEventListener('pointerdown', (e) => { e.preventDefault(); addSceneRow(); });
+  // Тап (отпустили до удержания, не сдвинув палец) — строка по настройке + ADDS; удержание — меню
+  // EMPTY ROW / COPY PLAYING (строку не добавляет, пока не выбрали).
+  let id = -1, x0 = 0, y0 = 0, timer = 0, held = false;
+  scenePlus.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    id = e.pointerId; x0 = e.clientX; y0 = e.clientY; held = false;
+    clearTimeout(timer);
+    timer = window.setTimeout(() => { held = true; openPlusMenu(); }, HOLD_MS);
+  });
+  scenePlus.addEventListener('pointermove', (e) => {
+    if (e.pointerId === id && Math.hypot(e.clientX - x0, e.clientY - y0) > 10) { clearTimeout(timer); id = -1; }
+  });
+  const end = (e: PointerEvent) => {
+    if (e.pointerId !== id) return;
+    id = -1;
+    clearTimeout(timer);
+    if (!held && e.type === 'pointerup') addSceneRow();
+  };
+  scenePlus.addEventListener('pointerup', end);
+  scenePlus.addEventListener('pointercancel', end);
+  plusMenu = makePopup('plus-menu');
   return scenePlus;
+}
+
+let plusMenu: Popup;
+
+/** Меню удержания «+»: добавить строку пустой или с копиями играющих паттернов (настройка + ADDS не меняется). */
+function openPlusMenu() {
+  const cur = doc.plusMode ?? 'copy';
+  const row = h('div', 'arrange-row');
+  for (const [v, label] of [['empty', 'EMPTY ROW'], ['copy', 'COPY PLAYING']] as const) {
+    const b = popupButton(label, () => { plusMenu.close(); addSceneRow(v); });
+    b.classList.toggle('current', v === cur);
+    row.append(b);
+  }
+  plusMenu.box.replaceChildren(h('div', 'popup-title', '+ ADDS'), row);
+  openSpan(plusMenu, scenePlus, scenePlus, cells[0][0].root, true);
 }
 
 let arrBtn: HTMLElement;

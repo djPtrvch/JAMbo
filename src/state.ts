@@ -1670,11 +1670,11 @@ export const canAddRow = () => visibleRows() < rowLimit();
  * «+» в колонке строк: новая строка — пустая или (по умолчанию) с копиями играющих паттернов дорожек
  * (остановленные и заглушённые — нет); что именно — в меню сетки.
  */
-export function addSceneRow() {
+export function addSceneRow(mode: 'empty' | 'copy' = doc.plusMode ?? 'copy') {
   if (!canAddRow()) return;
   const r = visibleRows();
   edit(() => {
-    if ((doc.plusMode ?? 'copy') === 'copy') {
+    if (mode === 'copy') {
       doc.tracks.forEach((t, i) => { if (!t.stopped && audible(i) && r !== t.slot) t.slots[r] = takePattern(t); });
     }
     doc.rows = r + 1;
