@@ -80,7 +80,8 @@ function openSceneMenu(k: number) {
   showReps();
   rowActs.DUPLICATE.disabled = !canAddRow() || inTransition();
   rowActs.PASTE.disabled = !ui.rowClipboard;
-  sceneMenu.openAt(sceneCells[k].root, 300);
+  // Меню строки — шириной от колонки строк до правого края первой дорожки.
+  openSpan(sceneMenu, sceneCells[k].root, sceneCells[k].root, cells[0][k].root);
 }
 
 /** Ячейка строки (сцены) в колонке над MIX. */
@@ -182,6 +183,14 @@ function buildPlusRow(): HTMLElement {
 }
 
 let arrBtn: HTMLElement;
+
+/** Открыть окно под (или над) anchor, по горизонтали — от левого края from до правого края to. */
+function openSpan(p: Popup, anchor: Element, from: Element, to: Element) {
+  const l = from.getBoundingClientRect().left;
+  const r = to.getBoundingClientRect().right;
+  p.openAt(anchor, r - l);
+  p.box.style.left = `${l}px`;
+}
 let arrMenu: Popup;
 
 /** Бутерброд справа от сетки: строка старта (с неё начинается PLAY) и что в конце строк — STOP или LOOP. */
@@ -224,7 +233,8 @@ function openArrangeMenu() {
     h('div', 'popup-title', 'AT THE END'), endRow,
     h('div', 'popup-title', '+ ADDS'), plusRow,
   );
-  arrMenu.openAt(arrBtn, 300);
+  // Меню сетки — от левого края последней дорожки до правого края бутерброда.
+  openSpan(arrMenu, arrBtn, cells[doc.tracks.length - 1][0].root, arrBtn);
 }
 
 // ---------- Кроссфейдер перехода между проектами (справа от сетки, над MST) ----------
