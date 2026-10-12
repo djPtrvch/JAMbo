@@ -416,9 +416,8 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 .pt-dot.beat { fill: var(--mute-grey); }
 .pt-dot.on { fill: var(--text); }
 .pt-dot.plock { fill: var(--plock); }
-/* Свой звук шага: без p-lock — полая белая (в светлой теме — чёрная) обводка, с p-lock — жёлтая с обводкой. */
-.pt-dot.own-sound { stroke: var(--ink); stroke-width: 0.14; }
-.pt-dot.on.own-sound { fill: transparent; }
+/* Свой звук шага — оранжевая обводка поверх обычной (белой/чёрной) или жёлтой заливки. */
+.pt-dot.own-sound { stroke: var(--gr); stroke-width: 0.16; }
 .pt-dot.outside { opacity: 0.2; }
 .pattern-bar { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--accent); }
 .pattern-cell.queued, .pattern-cell.stopping { animation: queued-blink 0.5s steps(2, jump-none) infinite; }
@@ -524,8 +523,7 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 .thumb-cell.beat { background: var(--mute-grey); }
 .thumb-cell.on { background: var(--text); }
 .thumb-cell.plock { background: var(--plock); }
-.thumb-cell.own-sound { box-shadow: inset 0 0 0 1px var(--ink); }
-.thumb-cell.on.own-sound:not(.plock) { background: transparent; }
+.thumb-cell.own-sound { box-shadow: inset 0 0 0 1px var(--gr); }
 .thumb-cell.lock-only { box-shadow: inset 0 0 0 1px var(--plock); }
 .thumb-cell.outside { opacity: 0.12; }
 .thumb-cell.pos { outline: 1px solid var(--accent); }
@@ -636,8 +634,8 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 /* Хвост длинной ноты — полупрозрачные ячейки той же ширины, что и шаг. */
 .step.tail .step-fill { background: var(--text); opacity: 0.4; }
 .step.lock-only { box-shadow: inset 0 0 0 1px var(--plock); }
-/* Шаг со своим звуком (сэмпл, пресет, движок) — белая обводка (в светлой теме — чёрная). */
-.step.own-sound { box-shadow: inset 0 0 0 1px var(--ink); }
+/* Шаг со своим звуком (сэмпл, пресет, движок) — оранжевая обводка (видна и на белой/чёрной, и на жёлтой заливке). */
+.step.own-sound { box-shadow: inset 0 0 0 1px var(--gr); }
 .step.held { box-shadow: inset 0 0 0 1px var(--text); }
 .step.playing { box-shadow: inset 0 0 0 1px var(--accent); }
 .step.outside { opacity: 0.3; }
