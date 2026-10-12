@@ -60,7 +60,9 @@ let navRow: HTMLElement;
  */
 type BarKind = 'yellow' | 'meter' | 'gr';
 interface VBar {
-  root: HTMLElement; chans: HTMLElement[]; fills: HTMLElement[]; holds: HTMLElement[]; gr: HTMLElement;
+  root: HTMLElement; chans: HTMLElement[]; fills: HTMLElement[]; holds: HTMLElement[];
+  /** Снижение громкости от sidechain — на каждой полосе своё (ширина полосы, у стерео — на обеих). */
+  grs: HTMLElement[];
   clipMark: HTMLElement; mark: HTMLElement; value: HTMLElement; label: HTMLElement; kind: BarKind;
 }
 const mixBars: VBar[] = [];
@@ -75,10 +77,13 @@ function vbar(label: string, kind: BarKind, valueOnTop = false): VBar {
   const chans: HTMLElement[] = [];
   const fills: HTMLElement[] = [];
   const holds: HTMLElement[] = [];
+  const grs: HTMLElement[] = [];
   for (let ch = 0; ch < (kind === 'gr' ? 1 : 2); ch++) {
     const bar = h('div', `vbar ${kind}`);
     const fill = h('div', 'vbar-fill');
-    bar.append(fill);
+    const g = h('div', 'vbar-gr hidden');
+    bar.append(fill, g);
+    grs.push(g);
     // У GR пик-холда нет (линии сверху не нужно).
     if (kind !== 'gr') {
       const hold = h('div', 'vbar-hold');
@@ -96,16 +101,14 @@ function vbar(label: string, kind: BarKind, valueOnTop = false): VBar {
       box.append(t);
     }
   }
-  // Снижение громкости от sidechain на метре дорожки — оранжевым сверху.
-  const gr = h('div', 'vbar-gr hidden');
   const mark = h('div', 'vbar-mark hidden');
-  box.append(gr, mark);
+  box.append(mark);
   const value = h('div', 'vbar-val');
   const lab = h('div', 'vbar-label', label);
   if (valueOnTop) root.append(value, clipMark, box, lab);
   else root.append(clipMark, box, value, lab);
   if (kind === 'gr') clipMark.classList.add('invisible');
-  return { root, chans, fills, holds, gr, clipMark, mark, value, label: lab, kind };
+  return { root, chans, fills, holds, grs, clipMark, mark, value, label: lab, kind };
 }
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
@@ -130,8 +133,12 @@ function setLevelBar(b: VBar, lv: Level, stereo: boolean, text: string, mark: nu
   setClass(b.clipMark, 'on', lv.clip);
   setClass(b.mark, 'hidden', mark === null);
   if (mark !== null) setAttr(b.mark, 'style', `bottom:${(clamp01(mark) * 100).toFixed(1)}%`);
-  setClass(b.gr, 'hidden', grDb > -0.1);
-  if (grDb <= -0.1) setAttr(b.gr, 'style', `height:${(clamp01(-grDb / 24) * 100).toFixed(1)}%`);
+  // Sidechain — оранжевым сверху, на каждой видимой полосе (стерео — на обеих).
+  b.grs.forEach((g, i) => {
+    const show = i < fr.length && grDb <= -0.1;
+    setClass(g, 'hidden', !show);
+    if (show) setAttr(g, 'style', `height:${(clamp01(-grDb / 24) * 100).toFixed(1)}%`);
+  });
   setText(b.value, text);
 }
 

@@ -65,7 +65,10 @@ class LevelBars {
   constructor(private o: BarsOptions) {
     this.el = h('div', 'vbar-group glue');
     this.canvas = h('canvas', 'glue-canvas');
-    this.el.append(h('div', 'vbar-title', o.title), this.canvas);
+    // Холст — абсолютно внутри обёртки: в Safari размер холста в flex иначе влияет на раскладку (дрожит).
+    const wrap = h('div', 'canvas-wrap');
+    wrap.append(this.canvas);
+    this.el.append(h('div', 'vbar-title', o.title), wrap);
   }
 
   private level(l: Level, v: number, dt: number, now: number) {

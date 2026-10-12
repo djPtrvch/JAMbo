@@ -40,7 +40,14 @@ export function buildScope(): HTMLElement {
   gonio.className = 'mscope-gonio';
   osc = document.createElement('canvas');
   osc.className = 'mscope-osc';
-  root.append(gonio, osc);
+  // Холсты — абсолютно внутри обёрток: в Safari размер холста в flex иначе влияет на раскладку.
+  const gw = h('div', 'canvas-wrap mscope-gonio');
+  const ow = h('div', 'canvas-wrap mscope-osc');
+  gonio.className = '';
+  osc.className = '';
+  gw.append(gonio);
+  ow.append(osc);
+  root.append(gw, ow);
   return root;
 }
 
