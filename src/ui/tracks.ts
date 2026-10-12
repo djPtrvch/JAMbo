@@ -42,20 +42,25 @@ export function buildTracks(): HTMLElement {
 
     let startY = 0;
     let id = -1;
+    /** Свайп уже сработал (mute/solo включаются, как только палец прошёл порог, не дожидаясь отпускания). */
+    let swiped = false;
     root.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       root.setPointerCapture(e.pointerId);
       id = e.pointerId;
       startY = e.clientY;
+      swiped = false;
+    });
+    root.addEventListener('pointermove', (e) => {
+      if (e.pointerId !== id || swiped) return;
+      const dy = e.clientY - startY;
+      if (Math.abs(dy) > SWIPE_PX) { swiped = true; swipeTrack(i, dy > 0 ? 'down' : 'up'); }
     });
     const finish = (e: PointerEvent, cancelled: boolean) => {
       if (e.pointerId !== id) return;
       id = -1;
-      if (cancelled) return;
-      const dy = e.clientY - startY;
-      if (dy > SWIPE_PX) swipeTrack(i, 'down');
-      else if (dy < -SWIPE_PX) swipeTrack(i, 'up');
-      else selectTrack(i);
+      if (cancelled || swiped) return;
+      selectTrack(i);
     };
     root.addEventListener('pointerup', (e) => finish(e, false));
     root.addEventListener('pointercancel', (e) => finish(e, true));

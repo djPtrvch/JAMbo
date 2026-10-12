@@ -342,9 +342,8 @@ function buildGraph(c: AudioContext) {
   // Громкость выхода (регулятор на измерителе справа при MST) — после лимитера, перед выходом.
   const outVol = c.createGain();
   eq.output.connect(satIn).connect(glueIn).connect(clipIn).connect(limIn).connect(outVol).connect(c.destination);
-  mSplit = mScopeL = mScopeR = null;
+  scopeTaps = [null, null, null, null];
   gSplit = gL = gR = null;
-  mTap = null;
   mst = { eq, satIn, sat: null, glueIn, glue: null, clipIn, clip: null, limIn, lim: null, outVol, outMeter: new Meter(c, outVol, true) };
   satSig = '';
   glueSig = '';
@@ -764,55 +763,57 @@ export function setEqScope(channel: number | 'master' | null) {
 
 // ---------- Скоп мастера (гониометр и осциллоскоп при MST) ----------
 
-let mScopeL: AnalyserNode | null = null;
-let mScopeR: AnalyserNode | null = null;
-let mSplit: ChannelSplitterNode | null = null;
-let mTap: AudioNode | null = null;
+/** Точки съёма осциллоскопа (0 сатуратор, 1 компрессор, 2 клиппер, 3 лимитер): узел и анализаторы L/R. */
+interface ScopeTap { node: AudioNode; split: ChannelSplitterNode; l: AnalyserNode; r: AnalyserNode }
+let scopeTaps: (ScopeTap | null)[] = [null, null, null, null];
 /** Гониометр — всегда конечный сигнал мастера (после громкости выхода). */
 let gSplit: ChannelSplitterNode | null = null;
 let gL: AnalyserNode | null = null;
 let gR: AnalyserNode | null = null;
 
+function stereoAnalysers(c: AudioContext): [ChannelSplitterNode, AnalyserNode, AnalyserNode] {
+  const split = c.createChannelSplitter(2);
+  const l = c.createAnalyser();
+  const r = c.createAnalyser();
+  for (const a of [l, r]) { a.fftSize = 4096; a.smoothingTimeConstant = 0; }
+  split.connect(l, 0);
+  split.connect(r, 1);
+  return [split, l, r];
+}
+
 /**
- * Точка съёма осциллоскопа: 0 после сатуратора, 1 компрессора, 2 клиппера, 3 лимитера; null — скоп
- * выключен. Гониометр подключён к конечному выходу мастера, пока скоп включён.
+ * Включённые точки съёма осциллоскопа (их сигналы рисуются одновременно); null — скоп выключен.
+ * Гониометр подключён к конечному выходу мастера, пока скоп включён.
  */
-export function setMasterScope(point: number | null) {
+export function setMasterScope(on: boolean[] | null) {
   if (!ctx || !mst) return;
-  if (point !== null && !gSplit) {
-    gSplit = ctx.createChannelSplitter(2);
-    gL = ctx.createAnalyser();
-    gR = ctx.createAnalyser();
-    for (const a of [gL, gR]) { a.fftSize = 4096; a.smoothingTimeConstant = 0; }
-    gSplit.connect(gL, 0);
-    gSplit.connect(gR, 1);
+  if (on && !gSplit) {
+    [gSplit, gL, gR] = stereoAnalysers(ctx);
     mst.outVol.connect(gSplit);
-  } else if (point === null && gSplit) {
+  } else if (!on && gSplit) {
     mst.outVol.disconnect(gSplit);
     gSplit = gL = gR = null;
   }
-  const nodes: (AudioNode | null)[] = [mst.glueIn, mst.clipIn, mst.limIn, mst.lim ?? mst.limIn];
   // Пока устройство не загружено, его выход — следующий вход (сигнал идёт мимо).
-  const tap = point === null ? null : nodes[point];
-  if (tap === mTap) return;
-  if (!mSplit) {
-    mSplit = ctx.createChannelSplitter(2);
-    mScopeL = ctx.createAnalyser();
-    mScopeR = ctx.createAnalyser();
-    for (const a of [mScopeL, mScopeR]) { a.fftSize = 4096; a.smoothingTimeConstant = 0; }
-    mSplit.connect(mScopeL, 0);
-    mSplit.connect(mScopeR, 1);
+  const nodes: AudioNode[] = [mst.glueIn, mst.clipIn, mst.limIn, mst.lim ?? mst.limIn];
+  for (let k = 0; k < 4; k++) {
+    const want = on?.[k] ? nodes[k] : null;
+    const cur = scopeTaps[k];
+    if ((cur?.node ?? null) === want) continue;
+    if (cur) { try { cur.node.disconnect(cur.split); } catch { /* связь уже снята */ } }
+    if (!want) { scopeTaps[k] = null; continue; }
+    const [split, l, r] = cur ? [cur.split, cur.l, cur.r] : stereoAnalysers(ctx);
+    want.connect(split);
+    scopeTaps[k] = { node: want, split, l, r };
   }
-  if (mTap) { try { mTap.disconnect(mSplit); } catch { /* связь уже снята */ } }
-  mTap = tap;
-  if (tap) tap.connect(mSplit);
 }
 
-/** Сигнал мастера в точке съёма (L и R, по 4096 отсчётов); false — скоп выключен. */
-export function masterScope(L: Float32Array<ArrayBuffer>, R: Float32Array<ArrayBuffer>): boolean {
-  if (!mTap || !mScopeL || !mScopeR) return false;
-  mScopeL.getFloatTimeDomainData(L);
-  mScopeR.getFloatTimeDomainData(R);
+/** Сигнал мастера в точке съёма k (L и R, по 4096 отсчётов); false — точка выключена. */
+export function masterScope(k: number, L: Float32Array<ArrayBuffer>, R: Float32Array<ArrayBuffer>): boolean {
+  const t = scopeTaps[k];
+  if (!t) return false;
+  t.l.getFloatTimeDomainData(L);
+  t.r.getFloatTimeDomainData(R);
   return true;
 }
 

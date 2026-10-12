@@ -30,7 +30,6 @@
   /* Индикация мастера (LevelBars). */
   --meter-track: #3a3a3a;
   --meter-ok: var(--plock);
-  --meter-warn: var(--gr);
   --meter-over: var(--rec);
   --meter-gr: var(--gr);
   --meter-thr: #ffffff;
@@ -65,7 +64,6 @@
   --accent: #f0b800;
   --meter-track: #cfcfcf;
   --meter-ok: var(--plock);
-  --meter-warn: var(--gr);
   --meter-over: var(--rec);
   --meter-gr: var(--gr);
   --meter-thr: #111111;

@@ -1,7 +1,7 @@
 // Боковая панель мастера (при MST — окно сэмпла): блоки COMP | CLIP | LIM в порядке цепочки — один
 // компонент LevelBars в стиле Drambo: три тонких стержня IN | GR | OUT одной высоты, сплошная заливка
 // без сегментов, шкал, чисел и peak hold. IN и OUT — снизу вверх, −48…0 dBFS, цвет всего стержня по
-// пику (жёлтый ниже −6 dB, оранжевый до 0, красный выше 0 — держится не меньше 300 ms); GR — сверху
+// пику (жёлтый до 0 dBFS, красный выше 0 — держится не меньше 300 ms); GR — сверху
 // вниз, оранжевый, шкала у компрессора 18 dB, у клиппера и лимитера 12 dB. Белая риска порога
 // (THRESHOLD / CEILING) — только на IN. Подъём мгновенный, спад 20 dB/s. В bypass стержни серые, GR ноль.
 // Кнопки RATIO и BYPASS — на месте LFO1–3/ENV под окном (buttons.ts). Цвета — из темы (--meter-*).
@@ -107,7 +107,7 @@ class LevelBars {
     const levelColor = (l: Level) => {
       if (bypass) return off;
       if (l.disp > 0 || now < l.overUntil) return color('--meter-over');
-      return l.disp >= -6 ? color('--meter-warn') : color('--meter-ok');
+      return color('--meter-ok');
     };
     const frac = (db: number) => Math.min(1, Math.max(0, (db - LEVEL_LO) / (LEVEL_HI - LEVEL_LO)));
     // IN и OUT — снизу вверх.

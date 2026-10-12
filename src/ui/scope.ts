@@ -2,8 +2,9 @@
 // мастера — после громкости выхода: точки L/R,
 // повёрнутые на 45° — вертикаль mid, горизонталь side, с послесвечением), под ним до кнопок
 // осциллоскоп как в Drambo (бегущая форма волны L+R за ~1 с, минимум и максимум окна).
-// Кнопки SAT, COMP, CLIP, LIM — точка съёма осциллоскопа (после сатуратора, компрессора, клиппера или
-// лимитера) — на месте MORPH, RANDOM, FX, MOD. Анализаторы работают, только пока скоп виден.
+// Кнопки SAT, COMP, CLIP, LIM — включают и выключают точки съёма осциллоскопа (после сатуратора,
+// компрессора, клиппера, лимитера; формы волны накладываются разными цветами) — на месте MORPH,
+// RANDOM, FX, MOD. Анализаторы работают, только пока скоп виден.
 
 import { masterGonio, masterScope, setMasterScope } from '../audio/engine';
 import { ui } from '../state';
@@ -21,8 +22,10 @@ let gonio: HTMLCanvasElement;
 let osc: HTMLCanvasElement;
 let btnGrid: HTMLElement;
 const btns: HTMLElement[] = [];
-/** Точка съёма; по умолчанию — после лимитера (в проекте не хранится). */
-let point = 3;
+/** Включённые точки съёма (кнопки переключаются независимо); по умолчанию — LIM; в проекте не хранится. */
+const on = [false, false, false, true];
+/** Цвета форм волны: SAT белая, COMP жёлтая, CLIP оранжевая, LIM красная (цвета темы). */
+const TRACE_COLORS = ['--ink', '--plock', '--gr', '--rec'];
 const L = new Float32Array(4096);
 const R = new Float32Array(4096);
 /** Гониометр — конечный сигнал мастера. */
@@ -39,12 +42,12 @@ export function buildScope(): HTMLElement {
   return root;
 }
 
-/** Кнопки точки съёма: сетка 2×2 на месте MORPH, RANDOM, FX, MOD (видна только при MST). */
+/** Кнопки точек съёма: сетка 2×2 на месте MORPH, RANDOM, FX, MOD (видна только при MST). */
 export function buildScopeButtons(): HTMLElement {
   btnGrid = h('div', 'btn-grid hidden');
   POINTS.forEach((name, i) => {
     const b = h('div', 'btn master-btn', name);
-    b.addEventListener('pointerdown', (e) => { e.preventDefault(); point = i; });
+    b.addEventListener('pointerdown', (e) => { e.preventDefault(); on[i] = !on[i]; });
     btns.push(b);
     btnGrid.append(b);
   });
@@ -101,72 +104,104 @@ function drawGonio(ok: boolean) {
 }
 
 // Осциллоскоп как в Drambo: бегущая форма волны за OSC_WINDOW с, по столбцу на пиксель
-// (штрих от минимума до максимума отрезка), слева вверху — минимум и максимум окна.
-let colMin = new Float32Array(0);
-let colMax = new Float32Array(0);
-let colPos = 0;
-/** Отсчёты, не уместившиеся в целый столбец (переходят в следующий кадр). */
-let carry = 0;
-let carryMin = 0;
-let carryMax = 0;
-let oscT = 0;
+// (штрих от минимума до максимума отрезка). Включённые точки съёма рисуются одна поверх другой своими
+// цветами (порядок цепочки: SAT снизу, LIM сверху) — видно, что срезает каждый модуль; слева вверху —
+// минимум и максимум окна у каждой.
 
-/** Новые отсчёты кадра (последние n из буфера анализатора) — в столбцы по spc отсчётов. */
-function pushOsc(n: number, spc: number) {
-  const W = colMin.length;
-  for (let i = L.length - n; i < L.length; i++) {
-    const v = (L[i] + R[i]) / 2;
-    if (carry === 0) { carryMin = v; carryMax = v; } else { if (v < carryMin) carryMin = v; if (v > carryMax) carryMax = v; }
-    if (++carry >= spc) {
-      colMin[colPos] = carryMin;
-      colMax[colPos] = carryMax;
-      colPos = (colPos + 1) % W;
-      carry = 0;
+/** История одной точки съёма: столбцы min/max по кругу. */
+class Trace {
+  min = new Float32Array(0);
+  max = new Float32Array(0);
+  pos = 0;
+  /** Отсчёты, не уместившиеся в целый столбец (переходят в следующий кадр). */
+  carry = 0;
+  cMin = 0;
+  cMax = 0;
+
+  resize(W: number) {
+    if (this.min.length === W) return;
+    this.min = new Float32Array(W);
+    this.max = new Float32Array(W);
+    this.pos = 0;
+    this.carry = 0;
+  }
+
+  /** Новые отсчёты кадра (последние n из буфера анализатора) — в столбцы по spc отсчётов. */
+  push(n: number, spc: number) {
+    const W = this.min.length;
+    for (let i = L.length - n; i < L.length; i++) {
+      const v = (L[i] + R[i]) / 2;
+      if (this.carry === 0) { this.cMin = v; this.cMax = v; } else { if (v < this.cMin) this.cMin = v; if (v > this.cMax) this.cMax = v; }
+      if (++this.carry >= spc) {
+        this.min[this.pos] = this.cMin;
+        this.max[this.pos] = this.cMax;
+        this.pos = (this.pos + 1) % W;
+        this.carry = 0;
+      }
     }
   }
+
+  clear() { this.min.fill(0); this.max.fill(0); }
 }
 
-function drawOsc(ok: boolean, sr: number) {
+const traces = POINTS.map(() => new Trace());
+let oscT = 0;
+
+function drawOsc(sr: number) {
   const [g, w, hh] = fit(osc);
   const W = Math.max(1, Math.round(w));
-  if (colMin.length !== W) { colMin = new Float32Array(W); colMax = new Float32Array(W); colPos = 0; carry = 0; }
   const now = performance.now();
   const dt = oscT ? Math.min(0.1, (now - oscT) / 1000) : 0;
   oscT = now;
-  if (ok) pushOsc(Math.min(L.length, Math.round(dt * sr)), Math.max(1, (OSC_WINDOW * sr) / W));
   g.fillStyle = color('--panel');
   g.fillRect(0, 0, w, hh);
   const cy = hh / 2;
   const amp = hh / 2 - 2;
   const y = (v: number) => cy - Math.max(-1, Math.min(1, v)) * amp;
-  g.fillStyle = color('--accent');
-  let lo = 0;
-  let hi = 0;
-  for (let x = 0; x < W; x++) {
-    const k = (colPos + x) % W;
-    const a = colMin[k];
-    const b = colMax[k];
-    if (a < lo) lo = a;
-    if (b > hi) hi = b;
-    const top = y(b);
-    g.fillRect(x, top, 1, Math.max(1, y(a) - top));
-  }
-  // Нулевая линия.
+  g.fillStyle = color('--grid-strong');
   g.fillRect(0, Math.round(cy), w, 1);
   g.font = '11px -apple-system, sans-serif';
   g.textBaseline = 'top';
-  g.fillText(`${lo.toFixed(2)} > ${hi.toFixed(2)}`, 6, 6);
+  const labels: [string, string][] = [];
+  traces.forEach((t, k) => {
+    t.resize(W);
+    if (!on[k]) { t.clear(); return; }
+    if (masterScope(k, L, R)) t.push(Math.min(L.length, Math.round(dt * sr)), Math.max(1, (OSC_WINDOW * sr) / W));
+    g.fillStyle = color(TRACE_COLORS[k]);
+    let lo = 0;
+    let hi = 0;
+    for (let x = 0; x < W; x++) {
+      const i = (t.pos + x) % W;
+      const a = t.min[i];
+      const b = t.max[i];
+      if (a < lo) lo = a;
+      if (b > hi) hi = b;
+      const top = y(b);
+      g.fillRect(x, top, 1, Math.max(1, y(a) - top));
+    }
+    labels.push([`${lo.toFixed(2)} > ${hi.toFixed(2)}`, TRACE_COLORS[k]]);
+  });
+  // Числа поверх форм волны — на подложке цвета панели, чтобы читались.
+  labels.forEach(([text, col], i) => {
+    const tw = g.measureText(text).width;
+    g.fillStyle = color('--panel');
+    g.fillRect(3, 4 + 14 * i, tw + 6, 14);
+    g.fillStyle = color(col);
+    g.fillText(text, 6, 6 + 14 * i);
+  });
 }
 
 export function renderScope(sampleRate: number) {
   const show = ui.channel === 'master';
   setClass(root, 'hidden', !show);
   setClass(btnGrid, 'hidden', !show);
-  setMasterScope(show ? point : null);
+  setMasterScope(show ? on : null);
   if (!show) return;
-  btns.forEach((b, i) => setClass(b, 'active', i === point));
-  const ok = masterScope(L, R);
-  if (!ok) { L.fill(0); R.fill(0); }
+  btns.forEach((b, i) => {
+    // Включённая кнопка — цветом своей формы волны.
+    b.style.background = on[i] ? color(TRACE_COLORS[i]) : '';
+    b.style.color = on[i] ? color(i === 0 ? '--bg' : '--on-accent') : '';
+  });
   drawGonio(masterGonio(GL, GR));
-  drawOsc(ok, sampleRate);
+  drawOsc(sampleRate);
 }

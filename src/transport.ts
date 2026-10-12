@@ -30,7 +30,9 @@ export function setPlaying(on: boolean) {
     if (rt.sceneQueued !== null) startScene(rt.sceneQueued, 0);
     if (rt.scene) rt.scene.start = 0;
     tick = 0;
-    nextTime = performance.now() + 30;
+    // Первый шаг — сразу, в момент нажатия (не в следующем кадре).
+    nextTime = performance.now();
+    updateTransport(nextTime);
   }
 }
 
