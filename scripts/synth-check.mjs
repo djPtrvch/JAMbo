@@ -22,6 +22,17 @@ const src = fs.readFileSync(new URL('../public/jambo-synth-worklet.js', import.m
 const tmp = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'jb-')), 'worklet.mjs');
 fs.writeFileSync(tmp, src);
 await import(pathToFileURL(tmp).href);
+// Таблицы WTABLE — из src/audio/wavetable.ts (типы снимает Node, хранилище не нужно — встроенные таблицы).
+{
+  const { stripTypeScriptTypes } = await import('node:module');
+  const ts = fs.readFileSync(new URL('../src/audio/wavetable.ts', import.meta.url), 'utf8')
+    .replace(/^import .*storage.*$/m, 'const getSample = async () => undefined;');
+  const wt = path.join(path.dirname(tmp), 'wavetable.mjs');
+  fs.writeFileSync(wt, stripTypeScriptTypes(ts));
+  ctx.wt = await import(pathToFileURL(wt).href);
+  const tb = await ctx.wt.getTable('');
+  ctx.testTable = { type: 'table', frames: tb.frames, levels: tb.levels };
+}
 Object.defineProperty(ctx, 'currentFrame', { get: () => globalThis.currentFrame, set: (v) => { globalThis.currentFrame = v; } });
 
 /** Узел с одним голосом: нота с параметрами, рендер n кадров (блоками по 128, как в браузере). */
@@ -117,16 +128,28 @@ const check = (ok, msg) => { console.log(`${ok ? 'OK  ' : 'FAIL'} ${msg}`); if (
   check(saw.worst < -60, `ANALOG saw C6: f0 ${saw.f0} Hz, worst non-harmonic ${saw.worst} dBc at ${saw.at} Hz`);
 }
 
+// WTABLE: встроенные таблицы звучат, алиасинг пилы (BASIC, позиция 50 %) на C6.
+{
+  for (const name of ctx.wt.BUILTIN_TABLES) {
+    const tb = await ctx.wt.getTable(ctx.wt.builtinKey(name));
+    const t = { type: 'table', frames: tb.frames, levels: tb.levels };
+    const pk = [0, 0.5, 1].map((p1) => peak(render({ engine: 19, note: C(3), p1, p2: 0, p3: 0, frames: 4800, table: t }).out));
+    check(Math.min(...pk) > 0.05 && Math.max(...pk) <= 1, `WTABLE ${name}: peak ${pk.map(dbfs).join(' / ')} dBFS (position 0 / 50 / 100 %)`);
+  }
+  const saw = worstAlias(render({ engine: 19, note: C(6), p1: 0.5, p2: 0, p3: 0, frames: 32768, table: ctx.testTable }).out);
+  check(saw.worst < -60, `WTABLE BASIC saw C6: worst non-harmonic ${saw.worst} dBc at ${saw.at} Hz`);
+}
+
 // Пики и NaN по сетке ручек.
 for (const [engine, name] of [[16, 'DRUM'], [17, 'ANALOG'], [18, 'FM'], [19, 'WTABLE']]) {
   let worst = 0, nan = false;
   for (const note of [C(1), C(3), C(5), C(7)]) for (const p1 of [0, 0.5, 1]) for (const p2 of [0, 0.5, 1]) for (const p3 of [0, 0.5, 1]) {
     const { out } = render({ engine, note, p1, p2, p3, frames: 4800, table: engine === 19 ? ctx.testTable : null });
-    worst = Math.max(worst, peak(out));
+    if (peak(out) > worst) { worst = peak(out); ctx.worstAt = { note, p1, p2, p3 }; }
     nan ||= hasNaN(out);
   }
   if (engine === 19 && !ctx.testTable) { console.log('skip WTABLE peaks (no table)'); continue; }
-  check(!nan && worst <= 1, `${name}: peak ${dbfs(worst)} dBFS over the knob grid, NaN: ${nan}`);
+  check(!nan && worst <= 1, `${name}: peak ${dbfs(worst)} dBFS over the knob grid (worst at ${JSON.stringify(ctx.worstAt)}), NaN: ${nan}`);
 }
 
 // Уровень по ручке: DRUM TONE и ANALOG WAVE (RMS первых 100 мс / установившийся).

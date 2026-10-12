@@ -26,6 +26,7 @@ import { encodeWav } from './wav';
 import { settings } from '../settings';
 import { getSample, putSample, sampleKey, type SampleRecord } from '../storage';
 import { EqChain, setEqDynReady, type DynSource } from './eq';
+import { getTable } from './wavetable';
 
 let ctx: AudioContext | null = null;
 const buffers = new Map<string, AudioBuffer>();
@@ -113,6 +114,17 @@ function ensureSynth(track: number, family: Family): Synth | null {
   sy.nodes[family] = node;
   if (family === 'jambo') sy.table = null;
   return sy;
+}
+
+/** Таблица WTABLE дорожки — в её узел JAMbo (когда сменилась или узел новый). Мипмапы — в основном потоке. */
+function sendTable(track: number, key: string) {
+  const sy = synths[track];
+  const node = sy?.nodes.jambo;
+  if (!sy || !node || sy.table === key) return;
+  sy.table = key;
+  void getTable(key).then((tb) => {
+    if (tb && sy.nodes.jambo === node && sy.table === key) node.port.postMessage({ type: 'table', frames: tb.frames, levels: tb.levels });
+  });
 }
 
 /** Постоянные цепочки голосов синта дорожки (огибающая, Level, фильтр, Pan, посылы). */
@@ -824,6 +836,7 @@ export function updateAudio(now: number) {
   doc.tracks.forEach((t, i) => {
     const e = synthEngine(t.sample);
     if (e !== null) ensureSynth(i, familyOf(e));
+    sendTable(i, t.table ?? '');
   });
   updateVoices();
 }

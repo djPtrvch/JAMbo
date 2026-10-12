@@ -6,6 +6,7 @@ import {
   FX_GRID, isAuto, MASTER_GRID, MAX_PAGES, MIX_GRID, MOD_GRID, PATTERN_SLOTS, RATIOS, STEPS_PER_PAGE, TRACK_COUNT, MAX_TRACKS, TRACK_GRID, OCTAVE_DEF, OCTAVE_MAX, OCTAVE_MIN,
   BPM_MAX, BPM_MIN, VOL_MIN_DB, VOL_DEF_DB, PARAM_BY_ID, PRESET_PARAMS, SEQ_COUNT, SEQ_MIX, SEQ_MST, SYNTH_ENGINES, SYNTH_GRID, synthEngine, synthGrid, synthKey, EQ_BANDS, EQ_BELL, eqHasGain, EQ_DYN_RANGE_MAX, EQ_DYN_THR_MIN, EQ_FREQ_MAX, EQ_FREQ_MIN, EQ_GAIN_MAX, EQ_Q_DEF, EQ_Q_MAX, EQ_Q_MIN, EQ_TYPES, NOTE_NAMES, PROGRESSIONS, SCALES, fromNorm, toNorm, type ParamDef, type Slot,
 } from './params';
+import { tableSampleKey } from './audio/wavetable';
 
 export interface Step {
   on: boolean;
@@ -72,6 +73,8 @@ export interface Track {
   slot: number;
   /** Дорожка остановлена в сетке паттернов (не играет). */
   stopped: boolean;
+  /** Таблица движка WTABLE ('' — встроенная BASIC; см. audio/wavetable.ts). */
+  table?: string;
 }
 
 /** Полоса эквалайзера. */
@@ -1816,6 +1819,8 @@ export function normalizeDoc(raw: unknown): Doc {
 export function sampleKeys(d: Doc): string[] {
   const keys = new Set<string>(Object.keys(d.files));
   const add = (k?: string) => { if (k && k.startsWith('s:')) keys.add(k); };
+  // Байты своих таблиц WTABLE хранятся как сэмплы (ключ по содержимому).
+  for (const t of d.tracks) add(tableSampleKey(t.table ?? '') ?? undefined);
   const pats = (t: Track) => [t, ...t.slots.filter((p): p is Pattern => !!p)];
   for (const t of d.tracks) {
     for (const p of pats(t)) {

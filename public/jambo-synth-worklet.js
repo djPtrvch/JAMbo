@@ -61,7 +61,7 @@ const HB_LEN = 63;
 // ---------- WTABLE ----------
 const WT_UNISON = 40;
 const WT_SIDE = 0.708;
-const WT_OUT = 0.7;
+const WT_OUT = 0.5;
 
 // Таблица синуса (FM): 4096 точек + 1 для линейной интерполяции.
 const SIN_N = 4096;
