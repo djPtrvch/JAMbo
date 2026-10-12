@@ -146,7 +146,8 @@ export function renderButtons() {
   const srcs = heldKnobSources();
   const SRC: Partial<Record<HoldButton, number>> = { lfo1: 1, lfo2: 2, lfo3: 3, env: 4 };
   for (const [el, btn] of holdViews) {
-    setClass(el, 'active', ui.held[btn]);
+    // MORPH белой не загорается: сразу показывает, каким станет режим (жёлтая — включён).
+    setClass(el, 'active', ui.held[btn] && btn !== 'track');
     setClass(el, 'mod-src', SRC[btn] !== undefined && srcs.has(SRC[btn] as 1 | 2 | 3 | 4));
     if (btn === 'fx' || btn === 'mod') setClass(el, 'mode', mode === btn);
   }
@@ -163,7 +164,8 @@ export function renderButtons() {
   setClass(patternsBtn, 'active', ui.patternView);
   setClass(eqBtn, 'active', ui.eqView);
   setClass(recBtn, 'rec', ui.rec);
-  setClass(morphBtn, 'morph-on', ui.morph);
+  // Пока MORPH держат (и UNDO не нажимали) — уже видно состояние после отпускания.
+  setClass(morphBtn, 'morph-on', ui.held.track && !morphUsed ? !ui.morph : ui.morph);
   setClass(redoBtn, 'disabled', !canRedo());
   setClass(undoBtn, 'disabled', ui.held.track ? !doc.tracks.some((t) => t.trackEdit) : !canUndo());
 }
