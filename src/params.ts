@@ -242,7 +242,8 @@ export const LFO_WAVES = ['Sine', 'Triangle', 'Saw', 'Square', 'Random'];
 function lfoColumn(n: 1 | 2 | 3): Slot[] {
   return [
     stepped(`lfo${n}.wave`, `LFO${n} Wave`, LFO_WAVES),
-    smooth(`lfo${n}.speed`, `LFO${n} Speed`, 0.05, 20, 1, lfoHz, { exp: true }),
+    // Скорость по умолчанию: LFO1 0.1 Гц, LFO2 0.5 Гц, LFO3 1 Гц.
+    smooth(`lfo${n}.speed`, `LFO${n} Speed`, 0.05, 20, [0.1, 0.5, 1][n - 1], lfoHz, { exp: true }),
     smooth(`lfo${n}.invert`, `LFO${n} Invert`, 0, 1, 0, (v) => { const p = Math.round((1 - 2 * v) * 100); return p === 0 ? 'flat' : `${p > 0 ? '+' : ''}${p}%`; }),
     // Полярность: 0 — биполярная (−1…+1 вокруг значения ручки), 1 — однополярная (0…+1, только вверх), между — плавно.
     smooth(`lfo${n}.polar`, `LFO${n} Polarity`, 0, 1, 0, (v) => (v < 0.005 ? 'BI' : v > 0.995 ? 'UNI' : `UNI ${Math.round(v * 100)}%`)),
@@ -253,8 +254,8 @@ function lfoColumn(n: 1 | 2 | 3): Slot[] {
 function envColumn(): Slot[] {
   return [
     smooth('env.attack', 'ENV Attack', 1, 4000, 10, ms, { exp: true }),
-    smooth('env.decay', 'ENV Decay', 1, 4000, 300, ms, { exp: true }),
-    smooth('env.sustain', 'ENV Sustain', 0, 100, 50, pct),
+    smooth('env.decay', 'ENV Decay', 1, 4000, 100, ms, { exp: true }),
+    smooth('env.sustain', 'ENV Sustain', 0, 100, 40, pct),
     smooth('env.release', 'ENV Release', 1, 4000, 300, ms, { exp: true }),
   ];
 }
