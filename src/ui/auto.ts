@@ -586,13 +586,18 @@ export function renderAuto() {
     g.lineWidth = 2;
     g.lineJoin = 'round';
     g.beginPath();
-    for (let px = 0; px <= W; px += 1) {
-      const y = evalAuto(a.points, pxToX(px), stepped, a.curve === 'line') ?? 0;
-      if (px === 0) g.moveTo(px, yToPx(y)); else g.lineTo(px, yToPx(y));
+    // Кривая — от первой точки до последней (вне их значение ручки).
+    const pts = a.points;
+    const one = pts.length === 1;
+    const p0 = one ? 0 : Math.max(0, Math.ceil(xToPx(pts[0].x)));
+    const p1 = one ? W : Math.min(W, Math.floor(xToPx(pts[pts.length - 1].x)));
+    for (let px = p0; px <= p1; px += 1) {
+      const y = px === p1 && !one ? pts[pts.length - 1].y : evalAuto(pts, pxToX(px), stepped, a.curve === 'line') ?? 0;
+      if (px === p0) g.moveTo(px, yToPx(y)); else g.lineTo(px, yToPx(y));
     }
     g.stroke();
-    g.lineTo(W, H);
-    g.lineTo(0, H);
+    g.lineTo(Math.max(p0, p1), H);
+    g.lineTo(p0, H);
     g.closePath();
     g.fillStyle = color('--grid');
     g.fill();

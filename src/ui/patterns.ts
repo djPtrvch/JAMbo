@@ -15,7 +15,7 @@ import {
   crossfade, inTransition, isPrevPlaceholder, rowFilled, sceneName, setCrossfade, setScene, transitionMoves,
   addSceneRow, canAddRow, copyRow, deleteRow, duplicateRow, pasteRow, setArrangement, rowLoopOn, setPlusMode, toggleRowLoop, visibleRows,
   copyPattern, createPattern, dropPattern, deletePattern, doc, duplicatePattern, freeSlotAfter, hasManualLocks, tailMask, pastePattern,
-  clipView, openSlot, outsideStep, passOffset, playLen, rt, selectTrack, slotFilled, ui, patternHasAuto,
+  clipView, openSlot, selectEmptySlot, outsideStep, passOffset, playLen, rt, selectTrack, slotFilled, ui, patternHasAuto,
 } from '../state';
 import { queuePattern, queueScene, sceneProgress } from '../transport';
 import { registerAction } from '../midi';
@@ -436,10 +436,12 @@ export function buildPatternGrid(): HTMLElement {
         held = false;
         clearTimeout(holdTimer);
         holdTimer = window.setTimeout(() => {
-          if (id !== e.pointerId || ghost || !slotFilled(doc.tracks[i], k) || isPrevPlaceholder(i, k)) return;
+          if (id !== e.pointerId || ghost || isPrevPlaceholder(i, k)) return;
           held = true;
           selectTrack(i);
-          if (!openSlot(i, k)) flashCell(root);
+          // Пустая ячейка — только выбирается (паттерн не создаётся); заполненная — правка без запуска.
+          if (!slotFilled(doc.tracks[i], k)) selectEmptySlot(i, k);
+          else if (!openSlot(i, k)) flashCell(root);
         }, HOLD_MS);
       });
       root.addEventListener('pointermove', (e) => {
@@ -449,7 +451,10 @@ export function buildPatternGrid(): HTMLElement {
         // Паттерн с ячейки «берётся» пальцем: копия ячейки едет за ним.
         if (Math.hypot(dx, dy) > DRAG_PX) clearTimeout(holdTimer);
         if (held) return;
-        if (!ghost && slotFilled(doc.tracks[i], k) && !isPrevPlaceholder(i, k) && Math.hypot(dx, dy) > DRAG_PX) ghost = liftCell(root);
+        // Быстрый свайп вверх (меню) ячейку не поднимает: пока не прошло FLICK_MS, движение вверх — ещё
+        // возможный свайп; дальше палец «берёт» паттерн.
+        const early = performance.now() - t0 < FLICK_MS && -dy > Math.abs(dx);
+        if (!ghost && !early && slotFilled(doc.tracks[i], k) && !isPrevPlaceholder(i, k) && Math.hypot(dx, dy) > DRAG_PX) ghost = liftCell(root);
         if (!ghost) return;
         ghost.style.transform = `translate(${dx}px, ${dy}px) scale(1.06)`;
         const target = cellAt(e.clientX, e.clientY);

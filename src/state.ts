@@ -1731,6 +1731,17 @@ export function openSlot(i: number, k: number): boolean {
   return true;
 }
 
+/**
+ * Удержание пустой ячейки: только выбор, паттерн не создаётся. Дорожка не играет — ячейка становится
+ * активной (пустой); играет — выбирается только дорожка.
+ */
+export function selectEmptySlot(i: number, k: number) {
+  const t = doc.tracks[i];
+  if (slotFilled(t, k) || (ui.playing && !t.stopped)) return;
+  swapSlot(t, k);
+  if (!t.stopped) stopTrack(i);
+}
+
 export function stopTrack(i: number) {
   doc.tracks[i].stopped = true;
   patternStopped(i);

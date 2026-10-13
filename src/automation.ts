@@ -75,15 +75,17 @@ function segIndex(pts: AutoPoint[], x: number): number {
 }
 
 /**
- * Значение кривой 0..1 в позиции x (шаги). До первой точки — её значение, после последней — значение
- * последней. stepped — ступенчатый параметр (все сегменты — hold); line — режим LINE (smooth — прямая).
+ * Значение кривой 0..1 в позиции x (шаги). Кривая действует только от первой точки до последней
+ * (до первой и с последней — null: значение ручки; так новые страницы дорожки без точек — без
+ * автоматизации); у одной точки — её значение везде. stepped — ступенчатый параметр (все сегменты —
+ * hold); line — режим LINE (smooth — прямая).
  */
 export function evalAuto(pts: AutoPoint[], x: number, stepped = false, line = false): number | null {
   const n = pts.length;
   if (!n) return null;
+  if (n === 1) return pts[0].y;
+  if (x < pts[0].x || x >= pts[n - 1].x) return null;
   const i = segIndex(pts, x);
-  if (i < 0) return pts[0].y;
-  if (i >= n - 1) return pts[n - 1].y;
   const a = pts[i];
   const b = pts[i + 1];
   const t = stepped ? 'hold' : line && a.type === 'smooth' ? 'linear' : a.type;
