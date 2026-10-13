@@ -7,7 +7,7 @@ import {
   BPM_MAX, BPM_MIN, VOL_MIN_DB, VOL_DEF_DB, PARAM_BY_ID, PRESET_PARAMS, SEQ_COUNT, SEQ_MIX, SEQ_MST, SYNTH_ENGINES, SYNTH_GRID, synthEngine, WTABLE_ENGINE, synthGrid, synthKey, EQ_BANDS, EQ_BELL, eqHasGain, EQ_DYN_RANGE_MAX, EQ_DYN_THR_MIN, EQ_FREQ_MAX, EQ_FREQ_MIN, EQ_GAIN_MAX, EQ_Q_DEF, EQ_Q_MAX, EQ_Q_MIN, EQ_TYPES, NOTE_NAMES, PROGRESSIONS, SCALES, fromNorm, toNorm, type ParamDef, type Slot,
 } from './params';
 import { tableSampleKey } from './audio/wavetable';
-import { AUTO_PARAMS, evalAuto, isStepped, segType, simplify, spliceRecording, type AutoPoint, type Automation, type SegType } from './automation';
+import { AUTO_PARAMS, evalAuto, isStepped, resampleGrid, segType, simplify, spliceRecording, type AutoPoint, type Automation, type SegType } from './automation';
 
 export interface Step {
   on: boolean;
@@ -2652,14 +2652,25 @@ export const autoRecording = () => rec !== null;
 /** Допуск упрощения: SIMPLIFY 0…100 % → 0…5 % диапазона (по умолчанию 20 % → 1 %). */
 const simplifyTol = () => (ui.autoSimplify / 100) * 0.05;
 
-function applyTake(base: AutoPoint[], pieces: AutoPoint[][], stepped: boolean): AutoPoint[] {
-  let pts = base.map((p) => ({ ...p }));
+/** Привязка X в окне AUTO (ui.autoSnapX — индекс): OFF, 1/16 (шаг), 1/4 (4 шага), 1 (16 шагов). */
+export const AUTO_SNAP_X = [0, 1, 4, 16];
+export const autoSnapStep = () => AUTO_SNAP_X[ui.autoSnapX] ?? 0;
+
+/**
+ * Записанный или нарисованный участок в кривую: привязка к сетке X (точка на каждом узле), упрощение
+ * по SIMPLIFY (0 % — все узлы остаются), вставка вместо точек участка.
+ */
+export function insertTake(base: AutoPoint[], raw: AutoPoint[], stepped: boolean, span: number): AutoPoint[] {
+  if (!raw.length) return base;
+  const q = autoSnapStep();
   const type: SegType = stepped ? 'hold' : 'smooth';
-  for (const piece of pieces) {
-    if (!piece.length) continue;
-    const s = simplify(piece, simplifyTol()).map((p) => ({ ...p, type }));
-    pts = spliceRecording(pts, s, stepped);
-  }
+  const s = simplify(resampleGrid(raw, q, stepped, span), simplifyTol()).map((p) => ({ ...p, type }));
+  return spliceRecording(base, s, stepped, q || 0.02);
+}
+
+function applyTake(base: AutoPoint[], pieces: AutoPoint[][], stepped: boolean, span: number): AutoPoint[] {
+  let pts = base.map((p) => ({ ...p }));
+  for (const piece of pieces) pts = insertTake(pts, piece, stepped, span);
   return pts;
 }
 
@@ -2699,7 +2710,7 @@ export function handUp(i: number, id: string) {
       if (!a) { a = { param: id, points: [], curve: ui.autoTool }; (t.auto ??= []).push(a); }
       const base = a.points.map((p) => ({ ...p }));
       lastTake = { track: i, slot: t.slot, id, base, pieces };
-      a.points = applyTake(base, pieces, isStepped(def));
+      a.points = applyTake(base, pieces, isStepped(def), autoSpan(t));
       if (i === ui.selectedTrack) ui.autoParam = id;
     }
     t.params[id] = rec.knob;
@@ -2744,7 +2755,7 @@ export function setAutoSimplify(v: number) {
   const t = selTrack();
   const a = autoOf(t, ui.autoParam);
   if (!a || !lastTake || lastTake.track !== ui.selectedTrack || lastTake.slot !== t.slot || lastTake.id !== a.param) return;
-  a.points = applyTake(lastTake.base, lastTake.pieces, isStepped(autoDef(t, a.param)));
+  a.points = applyTake(lastTake.base, lastTake.pieces, isStepped(autoDef(t, a.param)), autoSpan(t));
 }
 /** Есть запись, которую можно упростить заново. */
 export function canResimplify(): boolean {

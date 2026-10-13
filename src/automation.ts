@@ -109,7 +109,8 @@ export function sampleAuto(pts: AutoPoint[], from: number, to: number, count: nu
 
 /** Упрощение ломаной (Рамер — Дуглас — Пекер): оставляет точки, отклонение которых больше tol (по y). */
 export function simplify(pts: AutoPoint[], tol: number): AutoPoint[] {
-  if (pts.length <= 2) return pts.map((p) => ({ ...p }));
+  // Допуск 0 (SIMPLIFY 0 %) — все точки остаются, и на прямых участках тоже.
+  if (pts.length <= 2 || tol <= 0) return pts.map((p) => ({ ...p }));
   const keep = new Uint8Array(pts.length);
   keep[0] = 1;
   keep[pts.length - 1] = 1;
@@ -135,6 +136,31 @@ export function simplify(pts: AutoPoint[], tol: number): AutoPoint[] {
   return pts.filter((_, i) => keep[i]).map((p) => ({ ...p }));
 }
 
+/**
+ * Привязка записи к сетке X: q шагов (0 — без привязки). Точка на каждом узле сетки от первого до
+ * последнего отсчёта (округлённых к узлу), значение — записанная ломаная в этом месте (у ступенчатых —
+ * последнее значение до узла). x — в пределах 0…span.
+ */
+export function resampleGrid(raw: AutoPoint[], q: number, stepped: boolean, span: number): AutoPoint[] {
+  if (!q || !raw.length) return raw.map((p) => ({ ...p }));
+  const k0 = Math.max(0, Math.round(raw[0].x / q));
+  const k1 = Math.min(Math.floor(span / q + 1e-6), Math.round(raw[raw.length - 1].x / q));
+  const out: AutoPoint[] = [];
+  let j = 0;
+  for (let k = k0; k <= k1; k++) {
+    const x = k * q;
+    while (j < raw.length - 1 && raw[j + 1].x <= x) j++;
+    const a = raw[j];
+    const b = raw[Math.min(j + 1, raw.length - 1)];
+    let y = a.y;
+    if (x <= raw[0].x) y = raw[0].y;
+    else if (!stepped && b.x > a.x && x < b.x) y = a.y + ((b.y - a.y) * (x - a.x)) / (b.x - a.x);
+    else if (x >= b.x) y = b.y;
+    out.push({ x, y, type: a.type });
+  }
+  return out;
+}
+
 /** Параметр автоматизации (для формата значения и ступенчатости). */
 export const autoParam = (id: string, grid?: (ParamDef | null)[]): ParamDef | undefined =>
   grid?.find((p) => p?.id === id) ?? PARAM_BY_ID[id];
@@ -151,24 +177,24 @@ export function insertPoint(pts: AutoPoint[], p: AutoPoint): number {
 
 /**
  * Записанный участок [x0, x1] заменяет точки в этом диапазоне; на границах — точки со старым значением
- * кривой, чтобы она не прыгала. rec — записанные точки (по возрастанию x).
+ * кривой, чтобы она не прыгала (на расстоянии gap — при привязке X это шаг сетки). rec — записанные точки (по возрастанию x).
  */
-export function spliceRecording(pts: AutoPoint[], rec: AutoPoint[], stepped: boolean): AutoPoint[] {
+export function spliceRecording(pts: AutoPoint[], rec: AutoPoint[], stepped: boolean, gap = 0.02): AutoPoint[] {
   if (!rec.length) return pts;
   const x0 = rec[0].x;
   const x1 = rec[rec.length - 1].x;
   const out: AutoPoint[] = [];
   const before = pts.filter((p) => p.x < x0 - 1e-6);
   const after = pts.filter((p) => p.x > x1 + 1e-6);
-  const y0 = evalAuto(pts, x0 - 1e-4, stepped);
-  const y1 = evalAuto(pts, x1 + 1e-4, stepped);
+  const y0 = evalAuto(pts, x0 - gap, stepped);
+  const y1 = evalAuto(pts, x1 + gap, stepped);
   out.push(...before);
   // Граница слева: старое значение кривой чуть раньше записи (кривая не прыгает до начала записи).
-  if (y0 !== null && before.length && x0 - 0.02 > before[before.length - 1].x) out.push({ x: x0 - 0.02, y: y0, type: 'linear' });
+  if (y0 !== null && before.length && x0 - gap > before[before.length - 1].x + 1e-6) out.push({ x: x0 - gap, y: y0, type: 'linear' });
   out.push(...rec);
   // Граница справа: дальше кривая идёт, как шла (тип старого сегмента, который покрывал x1).
   const old = pts.filter((p) => p.x <= x1).pop();
-  if (y1 !== null && after.length && x1 + 0.02 < after[0].x) out.push({ x: x1 + 0.02, y: y1, type: old?.type ?? 'smooth' });
+  if (y1 !== null && after.length && x1 + gap < after[0].x - 1e-6) out.push({ x: x1 + gap, y: y1, type: old?.type ?? 'smooth' });
   out.push(...after);
   return out.slice(0, AUTO_MAX_POINTS);
 }

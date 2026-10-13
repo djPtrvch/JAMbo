@@ -7,10 +7,10 @@
 // линии 0/25/50/75/100 %, линия позиции. Тап по пустому месту — точка; тап по точке — выбор; удержание
 // и перетаскивание — двигает; двойной тап — удаление; удержание без движения — тип сегмента.
 
-import { AUTO_PARAMS, AUTO_MAX_POINTS, evalAuto, insertPoint, isStepped, segType, simplify, spliceRecording, type AutoPoint, type SegType } from '../automation';
+import { AUTO_PARAMS, AUTO_MAX_POINTS, evalAuto, insertPoint, isStepped, segType, type AutoPoint, type SegType } from '../automation';
 import { fromNorm, STEPS_PER_PAGE, synthEngine, synthGrid, TRACK_GRID, type ParamDef } from '../params';
 import {
-  addAuto, autoDef, autoList, autoPos, autoRecPieces, autoSpan, beginGesture, canResimplify, clearAuto, curAuto, deleteAuto,
+  addAuto, AUTO_SNAP_X, autoSnapStep, insertTake, autoDef, autoList, autoPos, autoRecPieces, autoSpan, beginGesture, canResimplify, clearAuto, curAuto, deleteAuto,
   editAuto, endGesture, selTrack, setAutoCurve, setAutoSimplify, toggleView, ui,
 } from '../state';
 import { DOUBLE_TAP_MS, h, setClass, setText } from './dom';
@@ -24,7 +24,6 @@ const HIT = 22;
 const HOLD_MS = 450;
 const MOVE_PX = 6;
 /** Привязка по X, шаги: выкл., 1/16 (шаг), 1/4 (4 шага), 1 (такт — 16 шагов). */
-const SNAP_X = [0, 1, 4, 16];
 const SNAP_X_NAMES = ['OFF', '1/16', '1/4', '1'];
 const SNAP_Y = [0, 0.1, 0.25];
 const SNAP_Y_NAMES = ['OFF', '10%', '25%'];
@@ -96,8 +95,9 @@ function local(e: PointerEvent): { px: number; py: number } {
 const curDef = (): ParamDef | undefined => { const a = curAuto(); return a ? autoDef(selTrack(), a.param) : undefined; };
 
 /** Привязка по X (доля шага) и Y (доля диапазона); у ступенчатой — к пунктам. */
+const clampX = (x: number) => Math.min(autoSpan(), Math.max(0, x));
 function snapX(x: number): number {
-  const q = SNAP_X[ui.autoSnapX];
+  const q = autoSnapStep();
   x = q ? Math.round(x / q) * q : x;
   return Math.min(autoSpan(), Math.max(0, x));
 }
@@ -168,7 +168,7 @@ function down(e: PointerEvent) {
     }, HOLD_MS);
   } else if (ui.autoFree) {
     // Свободное рисование: точки по ходу пальца, после отпускания — упрощение.
-    d.free = [{ x: snapX(pxToX(px)), y: snapY(pxToY(py), def), type: 'smooth' }];
+    d.free = [{ x: clampX(pxToX(px)), y: snapY(pxToY(py), def), type: 'smooth' }];
   } else {
     // Тап по пустому месту — новая точка (её же можно сразу тянуть).
     if (a.points.length >= AUTO_MAX_POINTS) return;
@@ -192,7 +192,8 @@ function move(e: PointerEvent) {
   if (!d.moved && Math.hypot(px - d.x0, py - d.y0) < MOVE_PX) return;
   if (!d.moved) { d.moved = true; clearTimeout(d.timer); }
   if (d.free) {
-    const p: AutoPoint = { x: snapX(pxToX(px)), y: snapY(pxToY(py), def), type: 'smooth' };
+    // Привязка X — после отпускания (точка на каждом узле сетки, insertTake).
+    const p: AutoPoint = { x: clampX(pxToX(px)), y: snapY(pxToY(py), def), type: 'smooth' };
     // Палец пошёл назад — перерисовывает уже нарисованное.
     while (d.free.length && d.free[d.free.length - 1].x >= p.x) d.free.pop();
     d.free.push(p);
@@ -224,10 +225,9 @@ function up(e: PointerEvent) {
     const def = curDef();
     if (free.length >= 2) {
       const stepped = isStepped(def);
-      const pts = simplify(free, (ui.autoSimplify / 100) * 0.05).map((p) => ({ ...p, type: segType(def, 'smooth') }));
-      editAuto((a) => { a.points = spliceRecording(a.points, pts, stepped); });
+      editAuto((a) => { a.points = insertTake(a.points, free, stepped, autoSpan()); });
     } else if (free.length === 1) {
-      editAuto((a) => { sel = insertPoint(a.points, { ...free[0], type: toolType(def) }); });
+      editAuto((a) => { sel = insertPoint(a.points, { ...free[0], x: snapX(free[0].x), type: toolType(def) }); });
     }
     return;
   }
@@ -328,7 +328,7 @@ export function buildAuto(): HTMLElement {
   // Карандаш — свободное рисование пальцем.
   toolBtns.free = tool('', () => { ui.autoFree = !ui.autoFree; }, 'sq');
   toolBtns.free.innerHTML = '<svg class="tr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1-4L16 5l3 3L8 19z"/><path d="M14 7l3 3"/></svg>';
-  snapXBtn = tool('', () => { ui.autoSnapX = (ui.autoSnapX + 1) % SNAP_X.length; });
+  snapXBtn = tool('', () => { ui.autoSnapX = (ui.autoSnapX + 1) % AUTO_SNAP_X.length; });
   snapYBtn = tool('', () => { ui.autoSnapY = (ui.autoSnapY + 1) % SNAP_Y.length; });
   // SIMPLIFY: палец вбок по полю (0…100 %) — упрощение последней записи заново.
   simpBox = h('div', 'btn eq-tool auto-simp');
