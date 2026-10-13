@@ -184,7 +184,8 @@ export function buildSampleEditor(): HTMLElement {
   const close = tool('CLOSE', () => toggleView('sample'));
   // LOAD и SAVE рядом, за ними правки.
   bar.append(nameText, h('div', 'sedit-space'), load, saveBtn, trimBtn, normBtn, monoBtn, close);
-  panel.append(plot, bar);
+  // Кнопки — над формой волны.
+  panel.append(bar, plot);
   return panel;
 }
 

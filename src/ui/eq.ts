@@ -324,7 +324,7 @@ export function buildEq(): HTMLElement {
     'TYPE', () => -EQ_TYPE_ORDER.indexOf(selectedBand()?.type ?? 0),
     (v) => setEqType(k(), EQ_TYPE_ORDER[((-v % EQ_TYPE_ORDER.length) + EQ_TYPE_ORDER.length) % EQ_TYPE_ORDER.length]),
     () => { const b = selectedBand(); return b ? EQ_TYPES[b.type].name + (eqIsCut(b.type) ? ` ${EQ_SLOPES[b.slope]}` : '') : '—'; },
-    30, (el) => { if (selectedBand()) { const r = el.getBoundingClientRect(), p = plot.getBoundingClientRect(); openBandMenu(k(), r.left + r.width / 2 - p.left, r.top - p.top); } },
+    30, (el) => { if (selectedBand()) { const r = el.getBoundingClientRect(), p = plot.getBoundingClientRect(); openBandMenu(k(), r.left + r.width / 2 - p.left, r.bottom - p.top); } },
   );
   const freqField = dragField(
     'FREQ', () => Math.round(Math.log2((selectedBand()?.freq ?? 1000) / EQ_FREQ_MIN) * 24),
@@ -376,7 +376,8 @@ export function buildEq(): HTMLElement {
   presetBtn.addEventListener('pointerup', () => openEqPresets(presetBtn));
   bar.append(nameText, typeField, freqField, gainField, qField, msField, dynField, presetBtn, bypassBtn);
 
-  panel.append(plot, bar);
+  // Кнопки — над полем эквалайзера.
+  panel.append(bar, plot);
   return panel;
 }
 
