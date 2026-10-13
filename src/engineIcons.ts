@@ -160,10 +160,10 @@ Object.assign(ICONS,{
   const w=fx(6,58,240,(x,u)=>{const f=(0.8+0.9*v.h)*(1+9*v.t*Math.exp(-u*14));ph+=f*TAU/240*3;
     return 32-22*cmp*Math.tanh(g*0.7*Math.sin(ph)*Math.exp(-u*k));});
   return[{g:'htmd',d:pts(w)},{g:'x',d:'M6 32H58',op:.25}];},
-// ANALOG: волна по WAVE (h: синус → треугольник → пила → квадрат, кроссфейд соседних), вторая копия
+// ANALOG: волна по WAVE (h, ступенчатая: синус, треугольник, пила, квадрат), вторая копия
 // расходится по фазе с DETUNE (t), снизу квадрат суба — размах по SUB (m).
 17:v=>{const shp=(k,p)=>{p-=Math.floor(p);return k===0?Math.sin(TAU*p):k===1?1-4*Math.abs(p<.75?p-.25:p-1.25):k===2?1-2*p:(p<.5?1:-1);};
-  const wave=(ph)=>{const s=clamp(v.h)*3,i=Math.min(2,Math.floor(s)),f=s-i,a=Math.cos(f*Math.PI/2),b=Math.sin(f*Math.PI/2);return(a*shp(i,ph)+b*shp(i+1,ph))/(a+b);};
+  const wave=(ph)=>shp(Math.min(3,Math.floor(clamp(v.h)*4)),ph);
   const els=[{g:'h',d:pts(fx(6,58,200,(x,u)=>24-13*wave(u*2)))}];
   if(v.t>.02)els.push({g:'ht',d:pts(fx(6,58,200,(x,u)=>24-13*wave(u*2*(1+.06*v.t*v.t)+.15*v.t*v.t))),op:.5});
   els.push({g:'x',d:'M6 51H58',op:.25});

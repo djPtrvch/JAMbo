@@ -175,8 +175,10 @@ export const SYNTH_ENGINES: SynthEngine[] = [
   { name: 'DRUM', full: 'Drum', bank: 'jb', family: 'jambo', decay: true, harm: 'pitch', timbre: 'sweep', morph: 'drive',
     harmFormat: (v) => `${Math.round(drumPitch(v / 100))} Hz`, decayMax: 1000 },
   { name: 'ANALOG', full: 'Analog', bank: 'jb', family: 'jambo', decay: false, harm: 'wave', timbre: 'detune', morph: 'sub',
+    // WAVE — ступенчатая: Sine, Triangle, Saw, Square.
+    options: ['Sine', 'Triangle', 'Saw', 'Square'],
     // По умолчанию — чистый синус: WAVE 0 % (sine), без DETUNE и SUB.
-    init: { harm: 0, timbre: 0, morph: 0 } },
+    init: { harm: 12.5, timbre: 0, morph: 0 } },
   { name: 'FM', full: 'FM', bank: 'jb', family: 'jambo', decay: false, harm: 'ratio', timbre: 'index', morph: 'contour',
     harmFormat: (v) => `×${fmRatio(v / 100).toFixed(2)}` },
   { name: 'WTABLE', full: 'Wavetable', bank: 'jb', family: 'jambo', decay: false, harm: 'position', timbre: 'warp', morph: 'unison' },

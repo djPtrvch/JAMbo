@@ -142,6 +142,19 @@ const WAVE_GAIN = new Float32Array(3 * (WAVE_STEPS + 1));
     }
   }
 }
+/** Усиление чистой формы (синус, треугольник, пила, квадрат) — пик к 1, как у смеси. */
+const SHAPE_GAIN = [WAVE_GAIN[0], WAVE_GAIN[WAVE_STEPS + 1], WAVE_GAIN[2 * (WAVE_STEPS + 1)], WAVE_GAIN[3 * (WAVE_STEPS + 1) - 1]];
+/** Кроссфейд форм при смене пункта WAVE на звучащей ноте, с. */
+const ANALOG_WAVE_XF = 0.005;
+/** Пункт WAVE (ручка 0..1, четыре пункта). */
+const waveIndex = (v) => Math.min(3, Math.max(0, Math.floor(v * 4)));
+/** Отсчёт формы k осциллятора с фазой a, шагом dt и треугольником tri (интеграл квадрата). */
+function shapeAt(k, a, dt, tri) {
+  if (k === 0) return sinT(a);
+  if (k === 1) return tri;
+  if (k === 2) return 1 - 2 * a + blep(a, dt);
+  return (a < 0.5 ? 1 : -1) + blep(a, dt) - blep(a < 0.5 ? a + 0.5 : a - 0.5, dt);
+}
 
 const flush = (x) => (x > 1e-20 || x < -1e-20 ? x : 0);
 
@@ -161,6 +174,7 @@ class Voice {
     this.p1 = 0; this.p2 = 0; this.dc = 0; this.last = 0;
     // ANALOG
     this.a1 = 0; this.a2 = 0; this.as = 0; this.tri1 = 0; this.tri2 = 0;
+    this.wCur = 0; this.wPrev = 0; this.wMix = 1;
     // FM
     this.pc = 0; this.pm = 0; this.m1 = 0; this.m2 = 0;
     this.hb = new Float32Array(HB_LEN * 2);
@@ -205,6 +219,7 @@ class Voice {
     this.a2 = frac(f * Math.pow(2, -det / 1200) * tau);
     this.as = frac(0.5 * f * tau);
     this.tri1 = triAt(this.a1); this.tri2 = triAt(this.a2);
+    this.wCur = this.wPrev = waveIndex(this.t1); this.wMix = 1;
     this.pc = frac(f * now); this.pm = frac(fmRatio(this.s1) * f * now);
     // WTABLE: центр — так же, боковые — со случайной фазы (без скачка уровня при включении унисона).
     this.w0 = frac(f * now); this.wl = this.rand(); this.wr = this.rand();
@@ -284,12 +299,14 @@ class Voice {
     const dt2 = Math.min(0.45, f0 * Math.pow(2, -det / 1200) / sr2);
     const dts = f0 * 0.5 / sr2;
     // WAVE: синус (0) → треугольник (1/3) → пила (2/3) → квадрат (1).
-    const seg = Math.min(2.9999, Math.max(0, this.s1 * 3));
-    const wi = seg | 0, wf = seg - wi;
-    const ca = Math.cos(wf * Math.PI / 2), cb = Math.sin(wf * Math.PI / 2);
-    const gx = wf * WAVE_STEPS, gi = gx | 0, gr = gx - gi, gb = wi * (WAVE_STEPS + 1) + gi;
-    const wg = WAVE_GAIN[gb] + (gi < WAVE_STEPS ? (WAVE_GAIN[gb + 1] - WAVE_GAIN[gb]) * gr : 0);
-    const wA = ca / (ca + cb) * wg, wB = cb / (ca + cb) * wg;
+    // WAVE — ступенчатая: синус, треугольник, пила, квадрат (пункт по ручке, без сглаживания);
+    // смена пункта на звучащей ноте — кроссфейд прежней и новой формы за ANALOG_WAVE_XF.
+    const idx = waveIndex(this.t1);
+    if (idx !== this.wCur) { this.wPrev = this.wCur; this.wCur = idx; this.wMix = 0; }
+    const cur = this.wCur, prev = this.wPrev;
+    const gCur = SHAPE_GAIN[cur], gPrev = SHAPE_GAIN[prev];
+    const xfStep = 1 / (ANALOG_WAVE_XF * sr2);
+    let wMix = this.wMix;
     // SUB: 0..100 % по амплитуде, общий уровень компенсируется.
     const sub = this.s3;
     const gain = ANALOG_OUT / (1 + 0.5 * sub);
@@ -302,18 +319,12 @@ class Voice {
         const b1 = a1 < 0.75 ? a1 + 0.25 : a1 - 0.75, b2 = a2 < 0.75 ? a2 + 0.25 : a2 - 0.75;
         tri1 = tri1 * leak + 4 * dt1 * ((b1 < 0.5 ? 1 : -1) + blep(b1, dt1) - blep(b1 < 0.5 ? b1 + 0.5 : b1 - 0.5, dt1));
         tri2 = tri2 * leak + 4 * dt2 * ((b2 < 0.5 ? 1 : -1) + blep(b2, dt2) - blep(b2 < 0.5 ? b2 + 0.5 : b2 - 0.5, dt2));
-        let x1A, x2A, x1B, x2B;
-        if (wi === 0) {
-          x1A = sinT(a1); x2A = sinT(a2); x1B = tri1; x2B = tri2;
-        } else if (wi === 1) {
-          x1A = tri1; x2A = tri2;
-          x1B = 1 - 2 * a1 + blep(a1, dt1); x2B = 1 - 2 * a2 + blep(a2, dt2);
-        } else {
-          x1A = 1 - 2 * a1 + blep(a1, dt1); x2A = 1 - 2 * a2 + blep(a2, dt2);
-          x1B = (a1 < 0.5 ? 1 : -1) + blep(a1, dt1) - blep(a1 < 0.5 ? a1 + 0.5 : a1 - 0.5, dt1);
-          x2B = (a2 < 0.5 ? 1 : -1) + blep(a2, dt2) - blep(a2 < 0.5 ? a2 + 0.5 : a2 - 0.5, dt2);
+        let osc = 0.5 * gCur * (shapeAt(cur, a1, dt1, tri1) + shapeAt(cur, a2, dt2, tri2));
+        if (wMix < 1) {
+          wMix = Math.min(1, wMix + xfStep);
+          const old = 0.5 * gPrev * (shapeAt(prev, a1, dt1, tri1) + shapeAt(prev, a2, dt2, tri2));
+          osc = old + (osc - old) * wMix;
         }
-        const osc = 0.5 * (wA * (x1A + x2A) + wB * (x1B + x2B));
         const sb = (as < 0.5 ? 1 : -1) + blep(as, dts) - blep(as < 0.5 ? as + 0.5 : as - 0.5, dts);
         const y = gain * (osc + sub * sb);
         hb[hp] = y; hb[hp + HB_LEN] = y;
@@ -326,6 +337,7 @@ class Voice {
       for (let q = 0; q < HB_N; q++) acc += HB_K[q] * hb[hp + HB_IDX[q]];
       out[pos + i] = acc;
     }
+    this.wMix = wMix;
     this.a1 = a1; this.a2 = a2; this.as = as; this.tri1 = flush(tri1); this.tri2 = flush(tri2); this.hbPos = hp;
     this.t += n;
   }
