@@ -2,6 +2,7 @@
 // PLAY, REC, UNDO, REDO, PATTERNS и EQ (в верхней панели справа).
 // LFO1/LFO2/LFO3/ENV/FX/MOD работают на удержание; MORPH — тап (режим) и удержание (+ UNDO).
 
+import { requestStop } from '../stems';
 import { canRedo, canUndo, endRecTake, cycleRatio, redo, doc, gridMode, setHeld, toggleClipBypass, toggleCmpBypass, toggleSatBypass, toggleLimBypass, toggleMorph, toggleView, ui, undo, undoTrackEdits, type HoldButton } from '../state';
 import { RATIOS } from '../params';
 import { registerAction } from '../midi';
@@ -93,6 +94,8 @@ export function buildTransportButtons(): HTMLElement {
     // Звук мог быть приостановлен (Safari): будим сразу, на касании, а не на отпускании.
     if (audioState() !== 'running') unlockAudio();
     if (!ui.playing && e) probeNextNote(markPlayNote);
+    // Идёт запись стемов: PLAY не останавливает сразу — паттерны доигрывают до конца прохода.
+    if (ui.playing && requestStop()) return;
     setPlaying(!ui.playing);
     if (ui.playing && e) markPlay(e.timeStamp);
   }, () => ui.playing);

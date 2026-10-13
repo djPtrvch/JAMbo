@@ -1650,24 +1650,31 @@ export const sampleRoot = (key: string): number | null => doc.roots[key] ?? null
 // ---------- Запись стемов ----------
 
 /** Идущие записи стемов: дорожка → узел-записчик и накопленные куски (L, R). */
-const stems = new Map<number, { node: AudioWorkletNode; L: Float32Array[]; R: Float32Array[]; done: Promise<void> }>();
+const stems = new Map<number, { node: AudioWorkletNode | null; L: Float32Array[]; R: Float32Array[]; done: Promise<void>; stopAt: number | null }>();
 let stemReady: Promise<void> | null = null;
 
 export const isStemRecording = (track: number) => stems.has(track);
 
+/** Загрузить узел записи заранее (при нажатии ●), чтобы запись с PLAY не теряла начало. */
+export function prepareStems() {
+  const c = ensureCtx();
+  stemReady ??= c.audioWorklet.addModule(new URL('stem-worklet.js', document.baseURI).href);
+}
+
 /**
- * Запись стема дорожки: выход дорожки после EQ, громкости микшера и mute/solo (то, что дорожка отдаёт
- * в мастер, без посылов Reverb, Delay и Drive), стерео.
+ * Запись стема дорожки с момента at (performance.now): выход дорожки после EQ, громкости микшера и
+ * mute/solo (то, что дорожка отдаёт в мастер, без посылов Reverb, Delay и Drive), стерео.
  */
-export async function startStem(track: number) {
+export async function startStem(track: number, at: number) {
   const c = ensureCtx();
   const ch = tracks[track];
   if (!ch || stems.has(track)) return;
+  const startFrame = Math.round(toCtx(at) * c.sampleRate);
   stemReady ??= c.audioWorklet.addModule(new URL('stem-worklet.js', document.baseURI).href);
-  const rec = { node: null as unknown as AudioWorkletNode, L: [] as Float32Array[], R: [] as Float32Array[], done: Promise.resolve() };
+  const rec = { node: null as AudioWorkletNode | null, L: [] as Float32Array[], R: [] as Float32Array[], done: Promise.resolve(), stopAt: null as number | null };
   stems.set(track, rec);
   await stemReady;
-  if (stems.get(track) !== rec) return;
+  if (stems.get(track) !== rec && rec.stopAt === null) return;
   const node = new AudioWorkletNode(c, 'stem-rec', { numberOfInputs: 1, numberOfOutputs: 1, channelCount: 2, channelCountMode: 'explicit' });
   // Узел должен быть в графе до выхода, иначе браузер его не считает: выход — через нулевое усиление.
   const sink = c.createGain();
@@ -1686,20 +1693,30 @@ export async function startStem(track: number) {
       }
     };
   });
-  node.port.postMessage(true);
+  node.port.postMessage({ start: startFrame });
+  // Остановку могли запросить, пока узел создавался.
+  if (rec.stopAt !== null) node.port.postMessage({ stop: rec.stopAt });
 }
 
-/** Закончить запись стема: WAV 24 бит в хранилище сэмплов; результат — ключ сэмпла (null — пусто). */
-export async function stopStem(track: number, name: string): Promise<string | null> {
+/**
+ * Закончить запись стема в момент at (performance.now; по умолчанию — сейчас): WAV 24 бит в хранилище
+ * сэмплов; результат — ключ сэмпла (null — пусто).
+ */
+export async function stopStem(track: number, name: string, at = performance.now()): Promise<string | null> {
   const rec = stems.get(track);
   if (!rec) return null;
   stems.delete(track);
-  if (!rec.node) return null;
-  rec.node.port.postMessage(false);
+  const c = ensureCtx();
+  rec.stopAt = Math.round(toCtx(at) * c.sampleRate);
+  // Узел ещё создаётся — дождаться его (он сам получит stop).
+  while (!rec.node) {
+    await new Promise((r) => setTimeout(r, 20));
+    if (!stemReady) return null;
+  }
+  rec.node.port.postMessage({ stop: rec.stopAt });
   await rec.done;
   const n = rec.L.reduce((a, x) => a + x.length, 0);
   if (n === 0) return null;
-  const c = ensureCtx();
   const buf = c.createBuffer(2, n, c.sampleRate);
   for (const [k, parts] of [rec.L, rec.R].entries()) {
     const d = buf.getChannelData(k);

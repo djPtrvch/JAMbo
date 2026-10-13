@@ -604,6 +604,8 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 .track-dot { position: absolute; bottom: 6px; left: 7px; width: 6px; height: 6px; border-radius: 50%; background: var(--plock); }
 .track-rec { position: absolute; top: 6px; left: 7px; width: 6px; height: 6px; border-radius: 50%; background: var(--rec); animation: rec-blink 1s steps(1) infinite; }
 .track-rec.hidden { display: none; }
+/* За 5 секунд до конца записи стема точка мигает чаще. */
+.track-rec.ending { animation-duration: 0.3s; }
 @keyframes rec-blink { 50% { opacity: 0; } }
 
 /* ---------- Секвенсор ---------- */
@@ -956,6 +958,8 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 .lib-act svg { width: 22px; height: 22px; }
 .lib-item { flex-direction: row; align-items: center; justify-content: space-between; background: var(--panel-2); }
 .lib-item.system .lib-name { color: var(--plock); }
+.lib-item.recordings .lib-name { color: var(--text); display: flex; align-items: center; gap: 10px; }
+.lib-rec-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--rec); flex: none; }
 .lib-name { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .lib-detail { font-size: 11px; color: var(--dim); letter-spacing: 0.04em; flex: none; padding-left: 12px; }
 .lib-empty { padding: 12px; }

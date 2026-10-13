@@ -188,6 +188,8 @@ function libRow(n: LibNode): HTMLElement {
   const actsW = ACT_W * acts.children.length;
   const item = h('div', 'popup-btn project-item lib-item');
   const name = h('div', 'lib-name', `${iconFor(n)}  ${n.name}`);
+  // RECORDINGS — обычным шрифтом, перед именем маленькая красная точка.
+  if (n.id === RECORDINGS) { name.textContent = n.name; name.prepend(h('span', 'lib-rec-dot')); }
   // Слева — столбец предпрослушки: ▶ у сэмпла и пресета (не загружает звук и не меняет выбор).
   const play = h('div', 'lib-play', n.kind === 'sample' || n.kind === 'preset' ? '▶' : '');
   if (play.textContent) {
@@ -204,6 +206,7 @@ function libRow(n: LibNode): HTMLElement {
   if (play.textContent) item.append(play);
   item.append(name, h('div', 'lib-detail', `${detail(n)}${n.kind === 'folder' ? '  ›' : ''}`));
   item.classList.toggle('system', !!n.system);
+  item.classList.toggle('recordings', n.id === RECORDINGS);
   item.classList.toggle('current', (mode.kind === 'load' || tableMode()) && !picked && isCurrent(n));
   item.classList.toggle('picked', !!picked?.has(n.id));
   row.append(acts, item);

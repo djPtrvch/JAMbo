@@ -2,6 +2,7 @@
 // ведёт метроном. Probability, Ratchet и Swing (с p-lock и LFO) влияют на звук и мигание.
 
 import { clickAt, triggerTrack } from './audio/engine';
+import { stemEndsAtBoundary, stemRecording, stemsOnPlay, stemsOnStep, stemsOnStop } from './stems';
 import { PARAM_BY_ID, SEQ_MIX, SEQ_MST, STEPS_PER_PAGE, fromNorm } from './params';
 import {
   triggerEnv, endRecTake, activateSlot, audible, doc, inTransition, visibleRows, modulatedNorm, playRange, rowFilled, rt, seqAt, slotFilled, stepAt, stopTrack, ui,
@@ -18,7 +19,9 @@ const lockEvents: { time: number; track: number; locks: Record<string, number>; 
 
 export const stepMs = () => 60000 / doc.bpm / 4;
 
-export function setPlaying(on: boolean) {
+/** at — момент остановки (performance.now; конец строк — граница такта впереди): там же кончаются стемы. */
+export function setPlaying(on: boolean, at = performance.now()) {
+  if (!on && ui.playing) stemsOnStop(at);
   ui.playing = on;
   endRecTake();
   flashes.length = 0;
@@ -40,6 +43,8 @@ export function setPlaying(on: boolean) {
     tick = 0;
     // Первый шаг — сразу, в момент нажатия (не в следующем кадре).
     nextTime = performance.now();
+    // Запись стемов готовых дорожек — с первого шага (его время — nextTime).
+    stemsOnPlay(nextTime);
     updateTransport(nextTime);
   }
 }
@@ -116,6 +121,17 @@ function playValue(trackIndex: number, id: string, locks: Record<string, number>
 
 function playStep(time: number) {
   const dur = stepMs();
+  // Строки и ожидающие паттерны — до записи стемов и звука: на этом тике паттерны уже сменились.
+  if (!advanceScenes(time)) return;
+  doc.tracks.forEach((_, i) => {
+    if (rt.queued[i] !== null && atBoundary(i, tick)) {
+      applyQueued(i, rt.queued[i]);
+      rt.trackStart[i] = tick;
+    }
+  });
+  // Стемы: на границе прохода повтор того же паттерна или остановка дорожки заканчивают запись;
+  // после PLAY во время записи — стоп, когда все стемы дописаны (паттерны доиграли до конца).
+  if (stemsOnStep(time, passStart)) { setPlaying(false); return; }
   if (tick % 4 === 0) {
     const accent = tick % 16 === 0;
     flashes.push({ time, track: -1, dur: 90, notes: [], noteDur: accent ? 1 : 0 });
@@ -128,28 +144,7 @@ function playStep(time: number) {
     const s = stepAt(seqAt(k), pos);
     if (s && Object.keys(s.locks).length > 0) lockEvents.push({ time, track: k, locks: s.locks, until: time + dur });
   }
-  // Строки: ожидающая — с начала такта; играющая с повторами — после N проходов следующая строка.
-  if (rt.sceneQueued !== null && tick % 16 === 0) startScene(rt.sceneQueued, tick);
-  else if (rt.scene) {
-    const reps = doc.scenes[rt.scene.row].repeats;
-    // Одна строка в сетке играет по кругу (как с LOOP ROW).
-    if (reps > 0 && !rowLoopOn() && visibleRows() > 1 && tick - rt.scene.start >= reps * rt.scene.len) {
-      const n = nextScene(rt.scene.row);
-      if (n !== null) startScene(n, tick);
-      // Строки кончились: STOP — останавливается всё (и дорожки, запущенные по отдельности),
-      // LOOP — снова с начала, со строки старта.
-      else if (doc.arrEnd === 'stop') { setPlaying(false); return; }
-      else {
-        const s = Math.min(doc.arrStart ?? 0, visibleRows() - 1);
-        startScene(s, tick);
-      }
-    }
-  }
   doc.tracks.forEach((t, i) => {
-    if (rt.queued[i] !== null && atBoundary(i, tick)) {
-      applyQueued(i, rt.queued[i]);
-      rt.trackStart[i] = tick;
-    }
     if (t.stopped) { rt.playPos[i] = -1; return; }
     const pos = posAt(i, tick);
     rt.playPos[i] = pos;
@@ -177,6 +172,54 @@ function playStep(time: number) {
     }
   });
   tick++;
+}
+
+/**
+ * Строки: ожидающая — с начала такта; играющая с повторами — после N проходов следующая строка.
+ * false — транспорт остановлен (строки кончились, AT THE END: STOP).
+ */
+function advanceScenes(time: number): boolean {
+  if (rt.sceneQueued !== null && tick % 16 === 0) startScene(rt.sceneQueued, tick);
+  else if (rt.scene && sceneEndsAt(tick)) {
+    const n = nextScene(rt.scene.row);
+    if (n !== null) startScene(n, tick);
+    // Строки кончились: STOP — останавливается всё (и дорожки, запущенные по отдельности),
+    // LOOP — снова с начала, со строки старта.
+    else if (doc.arrEnd === 'stop') { setPlaying(false, time); return false; }
+    else startScene(Math.min(doc.arrStart ?? 0, visibleRows() - 1), tick);
+  }
+  return true;
+}
+
+/** Играющая строка с повторами кончается на тике k (одна строка в сетке или LOOP ROW — играет по кругу). */
+function sceneEndsAt(k: number): boolean {
+  if (!rt.scene) return false;
+  const reps = doc.scenes[rt.scene.row].repeats;
+  return reps > 0 && !rowLoopOn() && visibleRows() > 1 && k - rt.scene.start >= reps * rt.scene.len;
+}
+
+/** Тик — начало прохода паттерна дорожки (в том числе только что запущенного). */
+function passStart(i: number): boolean {
+  const t = doc.tracks[i];
+  if (!t || t.stopped) return false;
+  const [a, b] = playRange(t);
+  return (tick - rt.trackStart[i]) % (b - a + 1) === 0;
+}
+
+/**
+ * Сколько осталось до конца записи стема дорожки, мс (null — не пишется или конец пока не виден):
+ * ближайшая граница прохода, если на ней стем кончится.
+ */
+export function stemEndIn(i: number, now: number): number | null {
+  const t = doc.tracks[i];
+  if (!t || !ui.playing || !stemRecording(i) || t.stopped) return null;
+  const [a, b] = playRange(t);
+  const len = b - a + 1;
+  const n = tick - rt.trackStart[i];
+  const at = rt.trackStart[i] + Math.max(1, Math.ceil(n / len)) * len;
+  const scene = rt.sceneQueued !== null || (!!rt.scene && sceneEndsAt(at));
+  if (!stemEndsAtBoundary(i, rt.queued[i], scene)) return null;
+  return (at - tick) * stepMs() + (nextTime - now);
 }
 
 /** Вызывается каждый кадр. */

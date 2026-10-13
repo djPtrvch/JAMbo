@@ -9,6 +9,7 @@ import { MAX_TRACKS } from '../params';
 import { audible, doc, renameTrack, rt, selectChannel, selectTrack, swipeTrack, ui, type Channel } from '../state';
 import { registerAction } from '../midi';
 import { stemRecording } from '../stems';
+import { stemEndIn } from '../transport';
 import { h, setClass, setText } from './dom';
 import { openInput } from './popup';
 import { markSwipe } from './debug';
@@ -99,6 +100,8 @@ export function renderTracks(now: number) {
     setClass(v.root, 'flash', now < rt.flashUntil[i]);
     setClass(v.dot, 'hidden', !t.trackEdit);
     setClass(v.rec, 'hidden', !stemRecording(i));
+    const left = stemEndIn(i, now);
+    setClass(v.rec, 'ending', left !== null && left <= 5000);
     setText(v.state, t.solo ? 'S' : t.mute ? 'M' : '');
   });
   for (const [el, c] of channels) setClass(el, 'selected', ui.channel === c);
