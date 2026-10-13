@@ -1793,10 +1793,35 @@ function putEmptyClip(t: Track, k: number): number {
     d.pages.push(emptyPage());
     fixLens(d);
   }
+  clearPageAuto(d, page);
   const c: Pattern = { playFrom: page, playTo: page, scale: doc.scale, root: doc.root, fx: clone(doc.fx) };
   if (k === t.slot) putPattern(t, c);
   else t.slots[k] = c;
   return page;
+}
+
+/**
+ * Точка автоматизации ровно на начале страницы p, если других точек на p нет, — конец кривой прежней
+ * страницы (так «+» ставил конец линии раньше): она переносится на прежнюю страницу (−0,001 шага), иначе
+ * страница p считалась бы автоматизированной.
+ */
+function fixPageEnds(a: Automation) {
+  for (const pt of a.points) {
+    if (pt.x <= 0 || pt.x % STEPS_PER_PAGE !== 0) continue;
+    const onPage = a.points.filter((q) => q.x >= pt.x && q.x < pt.x + STEPS_PER_PAGE);
+    const before = a.points.some((q) => q.x < pt.x);
+    if (onPage.length === 1 && before) pt.x -= 1e-3;
+  }
+}
+
+/** Новый или освобождённый паттерн — без автоматизации: точки на странице p убираются (концы кривых прежней страницы — переносятся на неё). */
+function clearPageAuto(d: { auto?: Automation[] }, p: number) {
+  if (!d.auto) return;
+  const a0 = p * STEPS_PER_PAGE;
+  for (const a of d.auto) {
+    fixPageEnds(a);
+    a.points = a.points.filter((q) => q.x < a0 || q.x >= a0 + STEPS_PER_PAGE);
+  }
 }
 
 /** Пустых ячеек нет: в видимых строках у каждой дорожки клип (нет — клип с пустым паттерном). */
@@ -2461,6 +2486,8 @@ export function normalizeDoc(raw: unknown): Doc {
     }
   });
   d.chanSeqs = base.chanSeqs.map((b, k) => ({ ...b, ...(d.chanSeqs?.[k] ?? {}) }));
+  // Конец кривой ровно на начале следующей страницы — на свою страницу (иначе та считалась бы автоматизированной).
+  for (const t of d.tracks) for (const x of [t, t.home, ...t.slots.map((c) => c?.src)]) x?.auto?.forEach(fixPageEnds);
   // Длина — своя у каждой страницы (в прежних проектах — одна на все: укорочена только последняя страница).
   for (const t of [...d.tracks, ...d.chanSeqs]) {
     for (const x of [t, t.home, ...t.slots.map((c) => c?.src)]) if (x) lensFromLength(x);
