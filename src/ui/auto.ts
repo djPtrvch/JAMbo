@@ -10,7 +10,7 @@
 import { AUTO_PARAMS, AUTO_MAX_POINTS, evalAuto, insertPoint, isStepped, segType, simplify, spliceRecording, type AutoPoint, type SegType } from '../automation';
 import { fromNorm, STEPS_PER_PAGE, synthEngine, synthGrid, TRACK_GRID, type ParamDef } from '../params';
 import {
-  addAuto, autoDef, setPlayPages, autoList, autoPos, autoRecPieces, autoSpan, beginGesture, canResimplify, clearAuto, curAuto, deleteAuto,
+  addAuto, autoDef, autoList, autoPos, autoRecPieces, autoSpan, beginGesture, canResimplify, clearAuto, curAuto, deleteAuto,
   editAuto, endGesture, selTrack, setAutoCurve, setAutoSimplify, toggleView, ui,
 } from '../state';
 import { closeButton, DOUBLE_TAP_MS, h, setClass, setText } from './dom';
@@ -49,7 +49,9 @@ let pointMenu: Popup;
 let W = 0;
 let H = 0;
 /** Страница поля (16 шагов); при игре — страница позиции. */
-let page = 0;
+/** Страницы, показанные в поле (выбор квадратиками; на игру не влияет); при игре — за позицией. */
+let viewFrom = 0;
+let viewTo = 0;
 let lastPlayPage = -1;
 /** Выбранная точка (индекс в открытой автоматизации; −1 — нет). */
 let sel = -1;
@@ -74,9 +76,11 @@ let lastTap = { point: -1, t: -1e9 };
 
 // ---------- Координаты ----------
 
-const pageX0 = () => page * STEPS_PER_PAGE;
-const xToPx = (x: number) => ((x - pageX0()) / STEPS_PER_PAGE) * W;
-const pxToX = (px: number) => pageX0() + (px / W) * STEPS_PER_PAGE;
+const pageX0 = () => viewFrom * STEPS_PER_PAGE;
+/** Шагов в поле: все показанные страницы. */
+const viewSteps = () => (viewTo - viewFrom + 1) * STEPS_PER_PAGE;
+const xToPx = (x: number) => ((x - pageX0()) / viewSteps()) * W;
+const pxToX = (px: number) => pageX0() + (px / W) * viewSteps();
 const yToPx = (y: number) => PAD + (1 - y) * (H - 2 * PAD);
 const pxToY = (py: number) => Math.min(1, Math.max(0, 1 - (py - PAD) / (H - 2 * PAD)));
 
@@ -394,9 +398,9 @@ export function toggleAuto() { toggleView('auto'); }
 // ---------- Отрисовка (каждый кадр, пока окно открыто) ----------
 
 // ---------- Страницы паттерна: квадратики в верхней панели ----------
-// Как миниатюры страниц дорожки, только по горизонтали: белая обводка — играющие страницы; тап — одна
-// страница (через 0,3 с, если не было второго тапа); протягивание — несколько; касание у края обводки
-// тянет этот край влево-вправо, в середине — переносит обводку целиком. Открытая в поле страница — светлее.
+// Какие страницы показаны в поле (на воспроизведение не влияет). Выделение — как у миниатюр страниц
+// дорожки, только по горизонтали: белая обводка — показанные страницы; тап — одна страница; протягивание —
+// несколько; касание у края обводки тянет этот край влево-вправо, в середине — переносит обводку целиком.
 
 const EDGE = 0.4;
 let pagesRow: HTMLElement;
@@ -404,7 +408,6 @@ let pageCells: HTMLElement[] = [];
 let pageOutline: HTMLElement;
 let pagesSig = '';
 let pdrag: { id: number; x0: number; from: number; mode: 'left' | 'right' | 'move' | 'new'; f: number; t: number; p0: number; moved: boolean; range: [number, number] | null } | null = null;
-let pageTapTimer = 0;
 
 function pageGeom() {
   const first = pageCells[0]?.getBoundingClientRect();
@@ -424,9 +427,9 @@ function buildPagesRow(): HTMLElement {
     const { left, pitch } = pageGeom();
     const pos = (e.clientX - left) / pitch;
     const i = Math.min(t.pages.length - 1, Math.max(0, Math.floor(pos)));
-    const mode = Math.abs(pos - t.playFrom) <= EDGE ? 'left' : Math.abs(pos - (t.playTo + 1)) <= EDGE ? 'right'
-      : pos > t.playFrom && pos < t.playTo + 1 ? 'move' : 'new';
-    pdrag = { id: e.pointerId, x0: e.clientX, from: i, mode, f: t.playFrom, t: t.playTo, p0: pos, moved: false, range: null };
+    const mode = Math.abs(pos - viewFrom) <= EDGE ? 'left' : Math.abs(pos - (viewTo + 1)) <= EDGE ? 'right'
+      : pos > viewFrom && pos < viewTo + 1 ? 'move' : 'new';
+    pdrag = { id: e.pointerId, x0: e.clientX, from: i, mode, f: viewFrom, t: viewTo, p0: pos, moved: false, range: null };
   });
   pagesRow.addEventListener('pointermove', (e) => {
     const d = pdrag;
@@ -455,17 +458,11 @@ function buildPagesRow(): HTMLElement {
     pdrag = null;
     if (e.type !== 'pointerup') return;
     if (d.moved) {
-      if (d.range && (d.range[0] !== d.f || d.range[1] !== d.t)) { setPlayPages(d.range[0], d.range[1]); page = d.range[0]; }
+      if (d.range) [viewFrom, viewTo] = d.range;
       return;
     }
-    // Тап: одна страница играет и открыта в поле.
-    clearTimeout(pageTapTimer);
-    const i = d.from;
-    pageTapTimer = window.setTimeout(() => {
-      if (i >= selTrack().pages.length) return;
-      setPlayPages(i, i);
-      page = i;
-    }, DOUBLE_TAP_MS);
+    // Тап: в поле — одна эта страница.
+    viewFrom = viewTo = d.from;
   };
   pagesRow.addEventListener('pointerup', end);
   pagesRow.addEventListener('pointercancel', end);
@@ -480,11 +477,11 @@ function renderPagesRow(isTrack: boolean) {
     pagesRow.replaceChildren(...pageCells, pageOutline);
     pagesSig = '';
   }
-  const [f, to] = pdrag?.range ?? [t.playFrom, t.playTo];
-  const sig = `${n}|${page}|${f}|${to}|${pagesRow.clientWidth}`;
+  const [f, to] = pdrag?.range ?? [viewFrom, viewTo];
+  const sig = `${n}|${f}|${to}|${pagesRow.clientWidth}`;
   if (sig === pagesSig) return;
   pagesSig = sig;
-  pageCells.forEach((c, k) => setClass(c, 'on', k === page));
+  pageCells.forEach((c, k) => setClass(c, 'on', k >= f && k <= to));
   setClass(pageOutline, 'hidden', !n);
   if (!n) return;
   const a = pageCells[Math.min(f, n - 1)];
@@ -510,11 +507,16 @@ export function renderAuto() {
   const pages = t.pages.length;
   // При игре поле следует за позицией (страница позиции).
   const pos = isTrack ? autoPos(ui.selectedTrack) : null;
+  // Позиция ушла за показанные страницы — поле переходит на её страницу (столько же страниц).
   if (pos !== null) {
     const pp = Math.floor(pos / STEPS_PER_PAGE);
-    if (pp !== lastPlayPage) { lastPlayPage = pp; page = pp; }
+    if (pp !== lastPlayPage && !pdrag) {
+      lastPlayPage = pp;
+      if (pp < viewFrom || pp > viewTo) { const len = viewTo - viewFrom; viewFrom = Math.max(0, Math.min(pp, pages - 1 - len)); viewTo = viewFrom + len; }
+    }
   } else lastPlayPage = -1;
-  page = Math.min(page, pages - 1);
+  viewTo = Math.min(viewTo, pages - 1);
+  viewFrom = Math.min(viewFrom, viewTo);
   renderPagesRow(isTrack);
 
   // Сверху: дорожка (жирным), под ней — параметр.
@@ -567,19 +569,23 @@ export function renderAuto() {
   g.clearRect(0, 0, W, H);
   if (!isTrack) return;
 
-  // Ячейки шагов (16 на страницу, как шаги секвенсора); доли — светлее; за длиной паттерна — затемнено.
-  const cw = W / STEPS_PER_PAGE;
-  const gap = 2;
-  for (let k = 0; k < STEPS_PER_PAGE; k++) {
+  // Сетка — вертикальные линии на границах шагов (сильнее — доли по 4 шага, ещё сильнее — границы
+  // страниц); больше страниц — сетка мельче. За длиной паттерна — затемнено.
+  const span = viewSteps();
+  const cw = W / span;
+  for (let k = 0; k <= span; k++) {
     const idx = pageX0() + k;
-    g.fillStyle = color(k % 4 === 0 ? '--panel-2' : '--panel');
-    g.globalAlpha = idx >= t.length ? 0.4 : 1;
-    g.fillRect(k * cw + gap / 2, 0, cw - gap, H);
+    const pageEdge = idx % STEPS_PER_PAGE === 0;
+    const beat = idx % 4 === 0;
+    if (!pageEdge && !beat && cw < 6) continue;
+    g.fillStyle = color(pageEdge && k > 0 && k < span ? '--dim' : beat ? '--grid-strong' : '--grid');
+    g.fillRect(Math.min(W - 1, Math.round(k * cw)) - (pageEdge && k > 0 && k < span ? 1 : 0), 0, pageEdge && k > 0 && k < span ? 2 : 1, H);
   }
-  g.globalAlpha = 1;
-  // Деления внутри шага: 1/2 и 1/4.
-  g.fillStyle = color('--grid');
-  for (let k = 0; k < STEPS_PER_PAGE; k++) for (const f of [0.25, 0.5, 0.75]) g.fillRect(Math.round((k + f) * cw), f === 0.5 ? 0 : H * 0.35, 1, f === 0.5 ? H : H * 0.3);
+  if (pageX0() + span > t.length) {
+    g.fillStyle = color('--scrim');
+    const x = xToPx(Math.max(pageX0(), t.length));
+    g.fillRect(x, 0, W - x, H);
+  }
   // Горизонтали 0/25/50/75/100 %; у двухполярных — линия нуля ярче.
   for (const y of [0, 0.25, 0.5, 0.75, 1]) {
     g.fillStyle = color(y === 0.5 && def?.bipolar ? '--grid-strong' : '--grid');
@@ -626,7 +632,7 @@ export function renderAuto() {
     g.fill();
   });
   // Линия позиции воспроизведения.
-  if (pos !== null && pos >= pageX0() && pos < pageX0() + STEPS_PER_PAGE) {
+  if (pos !== null && pos >= pageX0() && pos < pageX0() + viewSteps()) {
     g.fillStyle = color('--accent');
     g.fillRect(Math.round(xToPx(pos)) - 1, 0, 2, H);
   }

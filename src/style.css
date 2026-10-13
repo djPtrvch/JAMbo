@@ -1093,7 +1093,7 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 .auto-list { flex: 1; min-height: 0; display: grid; grid-auto-rows: 52px; align-content: start; gap: 6px; overflow: hidden; }
 .auto-list.hidden { display: none; }
 /* Кнопки списка: подпись крупнее или мельче по длине; из двух слов — в две строки. */
-.auto-item { padding: 0 6px; text-align: center; line-height: 1.15; white-space: normal; overflow-wrap: normal; word-break: keep-all; overflow: hidden; touch-action: none; }
+.auto-item { font-weight: 400; padding: 0 6px; text-align: center; line-height: 1.15; white-space: normal; overflow-wrap: normal; word-break: keep-all; overflow: hidden; touch-action: none; }
 .auto-item.current { background: var(--accent); color: var(--on-accent); }
 .auto-plus { font-size: 24px; }
 /* Страницы паттерна — квадратики в верхней панели окна AUTO; белая обводка — играющие. */
