@@ -15,7 +15,7 @@ import {
   crossfade, inTransition, isPrevPlaceholder, rowFilled, sceneName, setCrossfade, setScene, transitionMoves,
   addSceneRow, canAddRow, copyRow, deleteRow, duplicateRow, pasteRow, setArrangement, rowLoopOn, setPlusMode, toggleRowLoop, visibleRows,
   copyPattern, createPattern, dropPattern, deletePattern, doc, duplicatePattern, freeSlotAfter, hasManualLocks, tailMask, pastePattern,
-  clipView, openSlot, playRange, rt, selectTrack, slotFilled, ui, patternHasAuto,
+  clipView, openSlot, outsideStep, passOffset, playLen, rt, selectTrack, slotFilled, ui, patternHasAuto,
 } from '../state';
 import { queuePattern, queueScene, sceneProgress } from '../transport';
 import { registerAction } from '../midi';
@@ -491,7 +491,7 @@ export function buildPatternGrid(): HTMLElement {
 function drawThumb(c: Cell, p: ReturnType<typeof clipView>) {
   let sig = '';
   if (p) {
-    sig = `${p.pages.length}:${p.length}:${p.playFrom}:${p.playTo}:`;
+    sig = `${p.pages.length}:${p.lens.join(',')}:${p.playFrom}:${p.playTo}:`;
     p.pages.forEach((pg) => pg.forEach((s) => { sig += s.on ? (hasManualLocks(s) ? 'y' : 'x') + (s.sound ? 's' : '') + s.len : '.'; }));
   }
   if (sig === c.sig) return;
@@ -508,7 +508,7 @@ function drawThumb(c: Cell, p: ReturnType<typeof clipView>) {
   setAttr(c.thumb, 'viewBox', `0 0 ${STEPS_PER_PAGE} ${height}`);
   p.pages.slice(from, to + 1).forEach((pg, r) => pg.forEach((s, col) => {
     const index = (from + r) * STEPS_PER_PAGE + col;
-    const outside = index >= p.length;
+    const outside = outsideStep(p, index);
     // Жёлтая — ручные p-lock, обведённая — свой звук шага (сэмпл, пресет), полупрозрачная — хвост длинной ноты.
     const cls = s.on ? (hasManualLocks(s) ? 'pt-dot plock' : 'pt-dot on') + (s.sound ? ' own-sound' : '') : tails[index] ? 'pt-dot tail' : 'pt-dot';
     c.thumb.append(svg('rect', {
@@ -571,8 +571,7 @@ export function renderPatternGrid() {
       // Прогресс проигрывания активного паттерна.
       let progress = 0;
       if (active && !t.stopped && ui.playing && rt.playPos[i] >= 0) {
-        const [a, b] = playRange(t);
-        progress = (rt.playPos[i] - a + 1) / (b - a + 1);
+        progress = (passOffset(t, rt.playPos[i]) + 1) / playLen(t);
       }
       setAttr(c.bar, 'style', `width:${Math.round(progress * 100)}%`);
     });

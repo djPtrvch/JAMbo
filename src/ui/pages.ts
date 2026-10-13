@@ -8,6 +8,7 @@
 import { MAX_PAGES, STEPS_PER_PAGE } from '../params';
 import {
   addPage, clearPage, movePage, nudgePage, pageRange, copyPage, deletePage, duplicatePage, hasLocks, hasManualLocks, tailMask, pastePage, rt, curSeq, seqIndex, setPlayPages, ui, patternHasAuto,
+  pageLen,
 } from '../state';
 import { autoBadge, DOUBLE_TAP_MS, h, setClass } from './dom';
 import { makePopup, popupButton, type Popup } from './popup';
@@ -296,7 +297,7 @@ export function renderPages() {
       setClass(c, 'plock', s.on && hasManualLocks(s));
       setClass(c, 'own-sound', s.on && !!s.sound);
       setClass(c, 'lock-only', !s.on && hasLocks(s));
-      setClass(c, 'outside', index >= t.length);
+      setClass(c, 'outside', k >= pageLen(t, i));
       setClass(c, 'pos', index === pos);
     });
   });

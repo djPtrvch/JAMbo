@@ -5,7 +5,7 @@ import { clickAt, triggerTrack } from './audio/engine';
 import { stemEndsAtBoundary, stemRecording, stemsOnPlay, stemsOnStep, stemsOnStop } from './stems';
 import { PARAM_BY_ID, SEQ_MIX, SEQ_MST, STEPS_PER_PAGE, fromNorm } from './params';
 import {
-  triggerEnv, endRecTake, activateSlot, audible, doc, inTransition, visibleRows, modulatedNorm, playRange, rowFilled, rt, seqAt, slotFilled, stepAt, stopTrack, ui,
+  triggerEnv, endRecTake, activateSlot, audible, doc, inTransition, visibleRows, modulatedNorm, playIndex, playLen, rowFilled, rt, seqAt, slotFilled, stepAt, stopTrack, ui,
   rowLoopOn, baseValue, setAutoClock,
 } from './state';
 
@@ -52,10 +52,7 @@ export function setPlaying(on: boolean, at = performance.now()) {
 
 /** Шаг дорожки на глобальном тике: проигрываются только выбранные страницы. */
 function posAt(i: number, k: number): number {
-  const [a, b] = playRange(seqAt(i));
-  const n = k - rt.trackStart[i];
-  const len = b - a + 1;
-  return a + (((n % len) + len) % len);
+  return playIndex(seqAt(i), k - rt.trackStart[i]);
 }
 
 function applyQueued(i: number, q: number | 'stop' | null) {
@@ -84,8 +81,7 @@ function startScene(k: number, at: number) {
     rt.trackStart[i] = at;
     if (!slotFilled(t, k)) { stopTrack(i); return; }
     activateSlot(i, k);
-    const [a, b] = playRange(t);
-    len = Math.max(len, b - a + 1);
+    len = Math.max(len, playLen(t));
   });
   rt.scene = { row: k, start: at, len: len || 16 };
   rt.sceneQueued = null;
@@ -109,8 +105,7 @@ function nextScene(k: number): number | null {
 function atBoundary(i: number, k: number): boolean {
   const t = doc.tracks[i];
   if (t.stopped) return k % 16 === 0;
-  const [a, b] = playRange(t);
-  return (k - rt.trackStart[i]) % (b - a + 1) === 0;
+  return (k - rt.trackStart[i]) % playLen(t) === 0;
 }
 
 /** Значение параметра на шаге с учётом p-lock и LFO. */
@@ -127,10 +122,7 @@ setAutoClock((i, at) => {
   if (!ui.playing) return null;
   const t = doc.tracks[i];
   if (!t || t.stopped) return null;
-  const [a, b] = playRange(t);
-  const len = b - a + 1;
-  const n = tick + (at - nextTime) / stepMs() - rt.trackStart[i];
-  return a + (((n % len) + len) % len);
+  return playIndex(t, tick + (at - nextTime) / stepMs() - rt.trackStart[i]);
 });
 
 function playStep(time: number) {
@@ -223,8 +215,7 @@ function sceneEndsAt(k: number): boolean {
 function passStart(i: number): boolean {
   const t = doc.tracks[i];
   if (!t || t.stopped) return false;
-  const [a, b] = playRange(t);
-  return (tick - rt.trackStart[i]) % (b - a + 1) === 0;
+  return (tick - rt.trackStart[i]) % playLen(t) === 0;
 }
 
 /**
@@ -234,8 +225,7 @@ function passStart(i: number): boolean {
 export function stemEndIn(i: number, now: number): number | null {
   const t = doc.tracks[i];
   if (!t || !ui.playing || !stemRecording(i) || t.stopped) return null;
-  const [a, b] = playRange(t);
-  const len = b - a + 1;
+  const len = playLen(t);
   const n = tick - rt.trackStart[i];
   const at = rt.trackStart[i] + Math.max(1, Math.ceil(n / len)) * len;
   const scene = rt.sceneQueued !== null || (!!rt.scene && sceneEndsAt(at));

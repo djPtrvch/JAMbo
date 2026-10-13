@@ -5,6 +5,7 @@
 import { STEPS_PER_PAGE, noteName } from '../params';
 import {
   beginGesture, curSeq, endGesture, hasLocks, hasManualLocks, seqIndex, setNoteLength, setPatternLength, stepAt, toggleStep, ui, rt,
+  pageLen,
 } from '../state';
 import { DOUBLE_TAP_MS, h, setClass, setText } from './dom';
 
@@ -131,7 +132,9 @@ export function renderSequencer() {
     setText(labels[col], on ? (s!.notes.length > 1 ? 'POLY' : s!.notes.length === 1 ? noteName(s!.notes[0]) : '') : '');
     setClass(cell, 'held', heldIdx.has(index));
     setClass(cell, 'playing', index === playPos);
-    setClass(cell, 'outside', index >= t.length);
-    setClass(cell, 'last', index === t.length - 1);
+    // Своя длина у каждого паттерна (страницы): шаги за ней не играют, последний отмечен.
+    const len = pageLen(t, page);
+    setClass(cell, 'outside', col >= len);
+    setClass(cell, 'last', len < STEPS_PER_PAGE && col === len - 1);
   });
 }

@@ -12,6 +12,7 @@ import { fromNorm, STEPS_PER_PAGE, synthEngine, synthGrid, TRACK_GRID, type Para
 import {
   addAuto, AUTO_SNAP_X, autoSnapStep, insertTake, autoDef, autoList, autoPos, autoRecPieces, autoSpan, beginGesture, canResimplify, clearAuto, curAuto, deleteAuto,
   editAuto, endGesture, selTrack, setAutoCurve, setAutoSimplify, toggleView, ui,
+  pageLen,
 } from '../state';
 import { DOUBLE_TAP_MS, h, setClass, setText } from './dom';
 import { makePopup, popupButton, type Popup } from './popup';
@@ -559,10 +560,14 @@ export function renderAuto() {
     const lx = Math.max(0, Math.min(W - 1, Math.round(xToPx(pageX0() + k))));
     g.fillRect(lx - (pageEdge && k > 0 && k < span ? 1 : 0), 0, pageEdge && k > 0 && k < span ? 2 : 1, H);
   }
-  if (pageX0() + span > t.length) {
-    g.fillStyle = color('--scrim');
-    const x = xToPx(Math.max(pageX0(), t.length));
-    g.fillRect(x, 0, W - x, H);
+  // У каждого паттерна (страницы) своя длина: шаги за ней затемнены.
+  g.fillStyle = color('--scrim');
+  for (let pg = Math.floor(pageX0() / STEPS_PER_PAGE); pg * STEPS_PER_PAGE < pageX0() + span; pg++) {
+    const len = pg < t.pages.length ? pageLen(t, pg) : 0;
+    if (len >= STEPS_PER_PAGE) continue;
+    const x0 = xToPx(pg * STEPS_PER_PAGE + len);
+    const x1 = Math.min(W, xToPx((pg + 1) * STEPS_PER_PAGE));
+    if (x1 > x0) g.fillRect(x0, 0, x1 - x0, H);
   }
   // Горизонтали 0/25/50/75/100 %; у двухполярных — линия нуля ярче.
   for (const y of [0, 0.25, 0.5, 0.75, 1]) {
