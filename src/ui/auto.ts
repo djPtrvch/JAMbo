@@ -542,6 +542,19 @@ export function renderAuto() {
   setClass(note, 'hidden', !!a);
   setText(note, !isTrack ? 'Select a track to automate its knobs.' : 'No automation in this pattern — tap + to add one.');
 
+  // Поле по шагам секвенсора: от левого края 2-го шага до правого края 15-го (слева — колонка списка над 1-м).
+  const steps = document.querySelectorAll('.sequencer .step');
+  if (steps.length >= 15) {
+    const a2 = steps[1].getBoundingClientRect();
+    const a15 = steps[14].getBoundingClientRect();
+    const ml = `${Math.round(a2.left - side.getBoundingClientRect().right - 6)}px`;
+    const w = `${Math.round(a15.right - a2.left)}px`;
+    if (plot.style.width !== w || plot.style.marginLeft !== ml) {
+      plot.style.flex = 'none';
+      plot.style.width = w;
+      plot.style.marginLeft = ml;
+    }
+  }
   const dpr = window.devicePixelRatio || 1;
   W = plot.clientWidth;
   H = plot.clientHeight;
