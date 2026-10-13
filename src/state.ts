@@ -44,6 +44,14 @@ export interface Pattern {
   length: number;
   playFrom: number;
   playTo: number;
+  /**
+   * Гамма, корневая нота и общие эффекты FX паттерна: действуют значения паттерна, запущенного последним
+   * (см. «лидер» ниже); EQ дорожки — свой у паттерна (активного — doc.eqs[i]).
+   */
+  scale?: number;
+  root?: number;
+  fx?: Record<string, number>;
+  eq?: Eq;
 }
 
 /**
@@ -79,6 +87,10 @@ export interface Track {
   table?: string;
   /** Постоянный номер дорожки (не её место): по нему UNDO/REDO перестановки возвращает и состояние игры. */
   id?: number;
+  /** Гамма, нота и FX активного паттерна (см. Pattern). */
+  scale?: number;
+  root?: number;
+  fx?: Record<string, number>;
 }
 
 /** Полоса эквалайзера. */
@@ -972,9 +984,26 @@ function permuteRuntime(src: number[]) {
     const old = a.slice(0, src.length);
     src.forEach((s, j) => { a[j] = old[s]; });
   }
+  const oldStarted = started.slice();
+  src.forEach((s, j) => { started[j] = oldStarted[s]; });
+  if (lead < src.length) lead = src.indexOf(lead);
   const moved = src.map((s, j) => (s !== j ? j : -1)).filter((j) => j >= 0);
   if (moved.length) trackDeletedHook(Math.min(...moved), Math.max(...moved));
   if (ui.selectedTrack < src.length) ui.selectedTrack = src.indexOf(ui.selectedTrack);
+}
+
+/** FX и EQ дорожек во всех паттернах (и общие): в них номера дорожек — источник sidechain, источники DYN. */
+function allFxEqs(): { fxs: Record<string, number>[]; eqs: Eq[] } {
+  const fxs = [doc.fx];
+  const eqs = [...doc.eqs, doc.masterEq];
+  for (const t of doc.tracks) {
+    if (t.fx) fxs.push(t.fx);
+    for (const p of t.slots) {
+      if (p?.fx) fxs.push(p.fx);
+      if (p?.eq) eqs.push(p.eq);
+    }
+  }
+  return { fxs, eqs };
 }
 
 /**
@@ -1001,8 +1030,9 @@ export function moveTrack(from: number, to: number) {
     };
     moveVols(doc.mixer);
     for (const t of MIX_LOCK_SEQS()) forEachStep(t, (st) => moveVols(st.locks));
-    doc.fx['sc.source'] = map(Math.round(doc.fx['sc.source']));
-    for (const eq of [...doc.eqs, doc.masterEq]) {
+    const all = allFxEqs();
+    for (const fx of all.fxs) fx['sc.source'] = map(Math.round(fx['sc.source']));
+    for (const eq of all.eqs) {
       for (const b of eq.bands) if (b && b.dyn !== undefined && b.dyn >= 1) b.dyn = map(b.dyn - 1) + 1;
     }
     for (const id of Object.keys(doc.fxAssigns)) doc.fxAssigns[id].track = map(doc.fxAssigns[id].track);
@@ -1031,10 +1061,10 @@ export function deleteTrack(i: number) {
     doc.mixer[vol(n - 1)] = PARAM_BY_ID[vol(n - 1)].def;
     for (const t of MIX_LOCK_SEQS()) forEachStep(t, (st) => shiftVols(st.locks));
     // Источник sidechain: удалённый — T1.
-    const sc = Math.round(doc.fx['sc.source']);
-    doc.fx['sc.source'] = map(sc) ?? 0;
+    const all = allFxEqs();
+    for (const fx of all.fxs) fx['sc.source'] = map(Math.round(fx['sc.source'])) ?? 0;
     // Динамические полосы EQ: n — дорожка n (1…); удалённый источник — OFF.
-    for (const eq of [...doc.eqs, doc.masterEq]) {
+    for (const eq of all.eqs) {
       for (const b of eq.bands) {
         if (!b || b.dyn === undefined || b.dyn < 1) continue;
         const m = map(b.dyn - 1);
@@ -1055,6 +1085,8 @@ export function deleteTrack(i: number) {
       a.splice(MAX_TRACKS - 1, 0, x);
     }
     rt.queued[MAX_TRACKS - 1] = null;
+    started.splice(i, 1); started.push(0);
+    if (lead > i) lead--; else if (lead === i) lead = 0;
     if (ui.channel === 'track' && ui.selectedTrack >= i) ui.selectedTrack = Math.max(0, ui.selectedTrack - (ui.selectedTrack === i ? 0 : 1));
     ui.selectedTrack = Math.min(ui.selectedTrack, doc.tracks.length - 1);
   });
@@ -1386,12 +1418,90 @@ export function setRoot(v: number) { doc.root = ((Math.round(v) % NOTE_NAMES.len
 
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v));
 
+/**
+ * Документ, в котором лежат дорожки, с которыми сейчас работают паттерны (EQ активного паттерна —
+ * doc.eqs[i]); при переходе между проектами — новый документ, пока он ещё не стал текущим.
+ */
+let patDoc: Doc | null = null;
+function withDoc<T>(d: Doc, f: () => T): T {
+  const was = patDoc;
+  patDoc = d;
+  try { return f(); } finally { patDoc = was; }
+}
+/** Документ и место дорожки t (EQ её активного паттерна — d.eqs[i]). */
+function placeOf(t: Track): { d: Doc; i: number } | null {
+  for (const d of [patDoc, doc]) {
+    const i = d ? d.tracks.indexOf(t) : -1;
+    if (d && i >= 0) return { d, i };
+  }
+  return null;
+}
+
 function takePattern(t: Track): Pattern {
-  return clone({ sample: t.sample, params: t.params, assigns: t.assigns, pages: t.pages, length: t.length, playFrom: t.playFrom, playTo: t.playTo });
+  const at = placeOf(t);
+  return clone({
+    sample: t.sample, params: t.params, assigns: t.assigns, pages: t.pages, length: t.length, playFrom: t.playFrom, playTo: t.playTo,
+    scale: t.scale, root: t.root, fx: t.fx, eq: at ? at.d.eqs[at.i] : undefined,
+  });
 }
 
 function putPattern(t: Track, p: Pattern) {
-  Object.assign(t, clone(p));
+  const { eq, ...rest } = clone(p);
+  Object.assign(t, rest);
+  const at = placeOf(t);
+  if (eq && at) at.d.eqs[at.i] = eq;
+}
+
+// ---------- Гамма, нота и FX паттерна ----------
+
+/**
+ * Гамма, корневая нота и FX — общие (doc.scale, doc.root, doc.fx), но принадлежат паттернам: действуют
+ * значения «лидера» — паттерна, запущенного последним (из нескольких запущенных сразу — у выбранной
+ * дорожки, иначе самой левой); правка записывается в лидера. Остановили лидера — значения переходят
+ * к паттерну, запущенному перед ним и ещё играющему. Состояние игры — не в UNDO.
+ */
+let lead = 0;
+let startSeq = 0;
+const started: number[] = Array(MAX_TRACKS).fill(0);
+let pendingStarts: number[] = [];
+
+/** Значения лидера (его активного паттерна) — в общие. */
+function applyLead(i: number) {
+  const t = doc.tracks[i];
+  if (!t) return;
+  lead = i;
+  if (t.scale !== undefined) doc.scale = t.scale;
+  if (t.root !== undefined) doc.root = t.root;
+  if (t.fx) doc.fx = clone(t.fx);
+}
+
+/** Паттерн дорожки i запустили: после всех запусков этого момента (строка — сразу все дорожки) — новый лидер. */
+function patternStarted(i: number) {
+  started[i] = ++startSeq;
+  if (pendingStarts.length === 0) {
+    queueMicrotask(() => {
+      const list = pendingStarts;
+      pendingStarts = [];
+      applyLead(list.includes(ui.selectedTrack) ? ui.selectedTrack : Math.min(...list));
+    });
+  }
+  pendingStarts.push(i);
+}
+
+/** Дорожка остановлена: если это лидер — значения переходят к последнему из ещё играющих. */
+function patternStopped(i: number) {
+  if (i !== lead) return;
+  let best = -1;
+  doc.tracks.forEach((t, k) => { if (!t.stopped && k !== i && (best < 0 || started[k] > started[best])) best = k; });
+  if (best >= 0) applyLead(best);
+}
+
+/** Каждый кадр: правки гаммы, ноты и FX (ручками, MIDI, UNDO) записываются в паттерн лидера. */
+export function syncLead() {
+  const t = doc.tracks[lead] ?? doc.tracks[(lead = 0)];
+  if (t.scale !== doc.scale) t.scale = doc.scale;
+  if (t.root !== doc.root) t.root = doc.root;
+  if (!t.fx || Object.keys(doc.fx).some((k) => t.fx![k] !== doc.fx[k])) t.fx = { ...doc.fx };
 }
 
 /** Ячейка не пустая. Активная ячейка всегда занята. */
@@ -1416,6 +1526,7 @@ export function activateSlot(i: number, k: number) {
   const t = doc.tracks[i];
   swapSlot(t, k);
   t.stopped = false;
+  patternStarted(i);
   if (i === ui.selectedTrack) {
     ui.heldSteps.clear();
     clampView();
@@ -1424,6 +1535,7 @@ export function activateSlot(i: number, k: number) {
 
 export function stopTrack(i: number) {
   doc.tracks[i].stopped = true;
+  patternStopped(i);
 }
 
 /** Новый паттерн в пустой ячейке: копия звука дорожки, пустая последовательность. */
@@ -1433,6 +1545,7 @@ export function createPattern(i: number, k: number) {
     t.slots[k] = {
       sample: t.sample, params: clone(t.params), assigns: clone(t.assigns), pages: [emptyPage()],
       length: STEPS_PER_PAGE, playFrom: 0, playTo: 0,
+      scale: doc.scale, root: doc.root, fx: clone(doc.fx), eq: clone(doc.eqs[i]),
     };
   });
 }
@@ -1493,6 +1606,7 @@ export function deletePattern(i: number, k: number) {
     putPattern(t, { ...takePattern(t), pages: [emptyPage()], length: STEPS_PER_PAGE, playFrom: 0, playTo: 0 });
     t.stopped = true;
   });
+  if (k === t.slot) patternStopped(i);
   if (i === ui.selectedTrack) { ui.heldSteps.clear(); clampView(); }
 }
 
@@ -2063,12 +2177,21 @@ export function normalizeDoc(raw: unknown): Doc {
     t.slots.forEach((p) => { if (p) fixParams(p); });
     return t;
   });
+  for (const key of ['fx', 'mixer', 'master'] as const) d[key] = { ...base[key], ...d[key] };
+  d.eqs = Array.from({ length: count }, (_, k) => d.eqs?.[k] ?? newEq());
+  // Гамма, нота, FX и EQ дорожки — у каждого паттерна (в прежних проектах — общие: копии в каждый паттерн).
+  d.tracks.forEach((t, i) => {
+    for (const p of [t, ...t.slots.filter((x): x is Pattern => !!x)]) {
+      p.scale ??= d.scale;
+      p.root ??= d.root;
+      p.fx = { ...d.fx, ...(p.fx ?? {}) };
+      if (p !== t) (p as Pattern).eq ??= clone(d.eqs[i]);
+    }
+  });
   d.chanSeqs = base.chanSeqs.map((b, k) => ({ ...b, ...(d.chanSeqs?.[k] ?? {}) }));
   // Повторов строки не меньше 1 (прежнее ∞ — теперь кнопка LOOP ROW в меню сетки).
   d.scenes = base.scenes.map((b, k) => { const s = d.scenes?.[k] ?? b; return { ...s, repeats: Math.max(1, s.repeats) }; });
   d.folders = Array.from({ length: count }, (_, k) => d.folders?.[k] ?? { items: [], index: -1 });
-  d.eqs = Array.from({ length: count }, (_, k) => d.eqs?.[k] ?? newEq());
-  for (const key of ['fx', 'mixer', 'master'] as const) d[key] = { ...base[key], ...d[key] };
   // RATIO теперь 2:1, 4:1, 10:1 — прежние 8:1 и 20:1 становятся 10:1.
   d.ratio = Math.min(RATIOS.length - 1, Math.max(0, Math.round(d.ratio ?? 0)));
   // Значения мастера — в пределах нынешних шкал (у компрессора они стали другими).
@@ -2110,6 +2233,8 @@ export function loadDoc(d: Doc) {
   transition = null;
   xfade = null;
   Object.assign(doc, d);
+  lead = 0;
+  started.fill(0);
   resetUndo();
   resetUi();
   rt.queued.fill(null);
@@ -2121,8 +2246,9 @@ export function loadDoc(d: Doc) {
  * Переход между проектами во время игры: играющие паттерны старого проекта опускаются в нижнюю
  * строку сетки (строка 8, PREV) и доигрывают; строки 1–7 нового проекта стоят на своих местах,
  * его строка 8 временно скрыта. Когда в строке 8 больше ничего не играет, она возвращается.
- * Общие настройки (темп, гамма, FX, микшер, мастер, EQ) переходят от старого проекта к новому
- * вертикальным кроссфейдером справа от сетки паттернов (внизу — старый, вверху — новый).
+ * Общие настройки (темп, микшер, мастер, громкость выхода, EQ мастера) переходят от старого проекта к новому
+ * вертикальным кроссфейдером справа от сетки паттернов (внизу — старый, вверху — новый); гамма, нота, FX
+ * и EQ дорожек — у паттернов.
  */
 /** real[i] — в строке PREV дорожки настоящий старый паттерн (иначе пустая заглушка). */
 interface Transition { hidden: (Pattern | null)[]; origSlot: number[]; hiddenScene: Scene; real: boolean[] }
@@ -2150,7 +2276,8 @@ const emptyLike = (p: Pattern): Pattern => ({ ...clone(p), pages: [emptyPage()],
 
 // ---------- Кроссфейдер общих настроек ----------
 
-const GLOBAL_KEYS = ['bpm', 'scale', 'root', 'fx', 'mixer', 'master', 'ratio', 'limBypass', 'cmpBypass', 'clipBypass', 'satBypass', 'eqs', 'masterEq', 'outVol'] as const;
+// Кроссфейдер ведёт только темп, громкости (микшер, выход) и мастер; гамма, нота, FX и EQ дорожек — у паттернов.
+const GLOBAL_KEYS = ['bpm', 'mixer', 'master', 'ratio', 'limBypass', 'cmpBypass', 'clipBypass', 'satBypass', 'masterEq', 'outVol'] as const;
 type Globals = Pick<Doc, (typeof GLOBAL_KEYS)[number]>;
 const takeGlobals = (d: Doc): Globals => clone(Object.fromEntries(GLOBAL_KEYS.map((k) => [k, d[k]])) as Globals);
 
@@ -2158,7 +2285,7 @@ const takeGlobals = (d: Doc): Globals => clone(Object.fromEntries(GLOBAL_KEYS.ma
 let xfade: { from: Globals; to: Globals; pos: number } | null = null;
 export const crossfade = () => (xfade ? xfade.pos : null);
 
-/** Числа — плавно, ступенчатые и всё прочее (гамма, нота, Ratio, BYPASS, EQ) — на середине. */
+/** Числа — плавно, ступенчатые — на середине. */
 function blendRecord(a: Record<string, number>, b: Record<string, number>, t: number): Record<string, number> {
   const out: Record<string, number> = {};
   for (const id of Object.keys(b)) {
@@ -2202,9 +2329,6 @@ export function setCrossfade(pos: number) {
   const half = t < 0.5 ? a : b;
   doc.bpm = Math.round(a.bpm + (b.bpm - a.bpm) * t);
   doc.outVol = a.outVol + (b.outVol - a.outVol) * t;
-  doc.scale = half.scale;
-  doc.root = half.root;
-  doc.fx = blendRecord(a.fx, b.fx, t);
   doc.mixer = blendRecord(a.mixer, b.mixer, t);
   doc.master = blendRecord(a.master, b.master, t);
   doc.ratio = half.ratio;
@@ -2212,7 +2336,6 @@ export function setCrossfade(pos: number) {
   doc.cmpBypass = half.cmpBypass;
   doc.clipBypass = half.clipBypass;
   doc.satBypass = half.satBypass;
-  doc.eqs = Array.from({ length: Math.max(a.eqs.length, b.eqs.length) }, (_, i) => blendEq(a.eqs[i], b.eqs[i], t));
   doc.masterEq = blendEq(a.masterEq, b.masterEq, t);
   // У NEW — ровно настройки нового проекта. Кроссфейдер исчезает вместе со строкой PREV
   // (updateTransition), когда дорожки перешли на новые паттерны.
@@ -2238,7 +2361,9 @@ export function switchWithTransition(next: Doc) {
   const from = takeGlobals(doc);
   const tr: Transition = { hidden: [], origSlot: [], hiddenScene: next.scenes[LAST], real: [] };
   transitionMoves.length = 0;
-  next.tracks.forEach((t, i) => {
+  // Гамма, нота и FX остаются от старого лидера (его паттерн доигрывает в PREV), пока не запустят новый паттерн.
+  const live = { scale: doc.scale, root: doc.root, fx: clone(doc.fx) };
+  withDoc(next, () => next.tracks.forEach((t, i) => {
     const rows = rowsOf(t);
     tr.hidden[i] = rows[LAST];
     tr.origSlot[i] = t.slot;
@@ -2252,7 +2377,8 @@ export function switchWithTransition(next: Doc) {
     t.mute = o.mute;
     t.solo = o.solo;
     if (trigs) transitionMoves.push({ track: i, from: o.row });
-  });
+  }));
+  Object.assign(next, live);
   next.scenes = [...next.scenes.slice(0, LAST), { name: 'PREV', repeats: 0 }];
   const to = takeGlobals(next);
   Object.assign(doc, next);
@@ -2269,7 +2395,7 @@ export function switchWithTransition(next: Doc) {
 
 /** Вернуть строку 8 нового проекта вместо строки PREV в документе d. */
 function unshiftDoc(d: Doc, tr: Transition) {
-  d.tracks.forEach((t, i) => {
+  withDoc(d, () => d.tracks.forEach((t, i) => {
     const rows = [...rowsOf(t).slice(0, LAST), tr.hidden[i]];
     const fromPrev = t.slot === LAST;
     let active = fromPrev ? tr.origSlot[i] : t.slot;
@@ -2277,7 +2403,7 @@ function unshiftDoc(d: Doc, tr: Transition) {
     if (active < 0) { rows[0] = emptyLike(takePattern(t)); active = 0; }
     setRows(t, rows, active);
     if (fromPrev) t.stopped = true;
-  });
+  }));
   d.scenes = [...d.scenes.slice(0, LAST), tr.hiddenScene];
 }
 

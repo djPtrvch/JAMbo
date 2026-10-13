@@ -30,7 +30,7 @@ if (standalone) {
   }
 }
 import { setTrackCountParams, setTrackNameParams } from './params';
-import { advanceLfos, doc, onGateChange, onTrackDeleted, ui, updateTransition } from './state';
+import { advanceLfos, doc, onGateChange, onTrackDeleted, ui, updateTransition, syncLead } from './state';
 import { attachDebug, markGate } from './ui/debug';
 import { applyAllGates, synthLoad, trackDeleted, unlockAudio, updateAudio } from './audio/engine';
 import { initProjects } from './project';
@@ -169,6 +169,7 @@ function frameBody(now: number) {
   last = now;
   updateTransport(now);
   updateTransition();
+  syncLead();
   updateAudio(now);
   renderTopbar(now);
   renderFields();
