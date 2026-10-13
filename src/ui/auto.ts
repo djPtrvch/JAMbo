@@ -276,10 +276,16 @@ function openList(anchor: Element) {
     b.classList.toggle('current', a.param === ui.autoParam);
     return b;
   }));
-  // Высота — по числу автоматизаций (растёт вниз), не больше списка «+».
-  listMenu.openRect({ left: r.left, top: r.top, width: r.width, height: 0 });
-  listMenu.box.style.height = '';
-  listMenu.box.style.maxHeight = `${r.height}px`;
+  // Верх — по верхнему краю поля; высота — по числу автоматизаций, растёт вниз, а если внизу не
+  // помещается — вверх (не выше края окна; дальше — прокрутка).
+  const top0 = plot.getBoundingClientRect().top;
+  const bottom = window.innerHeight - 8;
+  listMenu.openRect({ left: r.left, top: top0, width: r.width, height: 0 });
+  const box = listMenu.box;
+  box.style.height = '';
+  box.style.maxHeight = `${bottom - 8}px`;
+  const hgt = box.offsetHeight;
+  box.style.top = `${Math.max(8, Math.min(top0, bottom - hgt))}px`;
 }
 
 /** «+»: выбор ручки дорожки (уже назначенная — просто открывается). */
