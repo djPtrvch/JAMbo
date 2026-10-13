@@ -20,7 +20,9 @@ export type MidiTarget = { kind: 'knob'; slot: number } | { kind: 'button'; name
 export type ControlType = 'momentary' | 'toggle' | 'abs' | 'rel';
 /** Как энкодер кодирует шаг: OFFSET (64 ± n: 65 вверх, 63 вниз), 2'S (1 вверх, 127 вниз), SIGNED (1 вверх, 65 вниз). */
 export type RelEnc = 'offset' | 'twos' | 'signed';
-export type MidiCond = 'global' | 'track' | 'clip';
+export type MidiCond = 'global' | 'page' | 'clip';
+/** Страница ручек условия 'page' (что показывает сетка ручек). */
+export type MidiPage = 'track' | 'fx' | 'mod' | 'mix' | 'master';
 export interface MidiMapping {
   src: MidiSource;
   target: MidiTarget;
@@ -32,14 +34,14 @@ export interface MidiMapping {
   /** Вход, с которого слушать: '' — любой, иначе id входа (Web MIDI или Bluetooth). */
   input: string;
   /**
-   * Когда маппинг работает: 'global' — всегда (на всех дорожках и вкладках); 'track' — только
-   * пока выбрана дорожка track (у каждой дорожки свои маппинги); 'clip' — только пока открыта
-   * сетка паттернов. Если источник назначен в нескольких условиях, действует самое точное:
-   * clip, затем track, затем global.
+   * Когда маппинг работает: 'global' — всегда (на всех дорожках и вкладках); 'page' — только
+   * пока сетка ручек показывает страницу page (дорожка, FX, MOD, MIX, MST); 'clip' — только пока
+   * открыта сетка паттернов. Если источник назначен в нескольких условиях, действует самое точное:
+   * clip, затем page, затем global.
    */
   cond: MidiCond;
-  /** Дорожка условия 'track'. */
-  track: number;
+  /** Страница условия 'page'. */
+  page: MidiPage;
   /** Порт обратной связи: '' — по умолчанию (DEVICES → FEEDBACK OUTPUT), 'none' — нет, иначе id выхода. */
   port: string;
 }
@@ -71,12 +73,16 @@ export interface Settings {
    * у Apple Pencil — по давлению, у MIDI — из сообщения. Меняет Level ноты (при записи — p-lock Level).
    */
   velocity: boolean;
+  /** Октав на пианоролле: 1 или 2 (по умолчанию 2). */
+  pianoOctaves: 1 | 2;
+  /** FX и MOD в режиме toggle (тап включает, следующий выключает) вместо удержания; SHIFT + двойной тап переключает. */
+  latch: { fx: boolean; mod: boolean };
 }
 
 const KEY = 'jambo.settings';
 const DEFAULTS: Settings = {
   sampleRate: 0, bufferSize: 0, background: true, muteTails: false, outputId: '', inputId: '',
-  midiIn: '', midiFeedback: '', noteChannel: 0, noteRoute: 'selected', mappings: [], midiPreset: '', theme: 'system', velocity: false,
+  midiIn: '', midiFeedback: '', noteChannel: 0, noteRoute: 'selected', mappings: [], midiPreset: '', theme: 'system', velocity: false, pianoOctaves: 2, latch: { fx: false, mod: false },
 };
 
 /** Маппинг с недостающими полями (старые настройки: общий режим энкодеров knobMode). */
@@ -85,8 +91,10 @@ export function fullMapping(m: Partial<MidiMapping> & Pick<MidiMapping, 'src' | 
   return {
     control: knob ? (knobMode === 'abs' ? 'abs' : 'rel') : 'momentary',
     enc: knobMode === 'rel2c' ? 'twos' : 'offset',
-    min: 0, max: 1, port: '', input: '', cond: 'global', track: 0,
+    min: 0, max: 1, port: '', input: '', cond: 'global', page: 'track',
     ...m,
+    // Прежнее условие Current track (дорожка) — теперь страница дорожки.
+    ...((m.cond as string) === 'track' ? { cond: 'page' as const, page: 'track' as const } : {}),
   };
 }
 

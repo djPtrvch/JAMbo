@@ -137,6 +137,9 @@ html, body {
 }
 .btn.active { background: var(--text); color: var(--bg); }
 .btn.mode { box-shadow: inset 0 0 0 1px var(--ink); }
+/* FX и MOD в режиме toggle: внутри кнопки — вторая, чёрная линия контура с небольшим отступом. */
+.btn.latch { position: relative; }
+.btn.latch::after { content: ''; position: absolute; inset: 4px; border: 1px solid #000; border-radius: calc(var(--radius) - 3px); pointer-events: none; }
 .btn.rec { background: var(--rec); color: #fff; }
 /* PLAY — зелёная окантовка, при игре горит зелёным; REC — красная окантовка, включена — красная. */
 .btn.play-btn { box-shadow: inset 0 0 0 1px var(--play); }

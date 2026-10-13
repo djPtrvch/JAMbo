@@ -9,12 +9,11 @@
 
 import {
   deleteMidiPreset, loadMidiPreset, midiPresets, presetModified, renameMidiPreset, saveMidiPreset, TWISTER_NAME,
-  condKey, pinned,
+  condKey, currentPage, pageName, pinned,
   clashFor, clearTarget, draftMapping, learn, mappingFor, midiDevices, midiOutputs, onLearnChanged, sameTarget,
   targetLabel, updateMapping,
 } from '../midi';
-import { settings, type ControlType, type MidiMapping, type MidiTarget, type RelEnc } from '../settings';
-import { ui } from '../state';
+import { settings, type ControlType, type MidiMapping, type MidiPage, type MidiTarget, type RelEnc } from '../settings';
 import { h, setAttr, svg } from './dom';
 import { openInput } from './popup';
 
@@ -48,8 +47,8 @@ const TITLES: Record<Page, string> = {
   channel: 'Channel', range: 'Range', feedback: 'Feedback port', cond: 'Condition', preset: 'Preset',
 };
 
-/** Подпись условия: Global, Current track (T3), Clip launcher. */
-const condName = (m: MidiMapping) => (m.cond === 'track' ? `Current track (T${m.track + 1})` : m.cond === 'clip' ? 'Clip launcher' : 'Global');
+/** Подпись условия: Global, Current page (FX), Clip launcher. */
+const condName = (m: MidiMapping) => (m.cond === 'page' ? `Current page (${pageName(m.page)})` : m.cond === 'clip' ? 'Clip launcher' : 'Global');
 
 const pct = (n: number) => Math.round(n * 100);
 const inputs = () => midiDevices().filter((d) => d.dir === 'in');
@@ -283,15 +282,15 @@ function render() {
     );
     body.replaceChildren(list, h('div', 'mm-note', 'Loading a preset replaces all current mappings.'), actions);
   } else if (page === 'cond') {
-    // Current track — дорожка, выбранная сейчас (у каждой дорожки свои маппинги).
-    const tr = ui.channel === 'track' ? ui.selectedTrack : cur.track;
+    // Current page — страница ручек, показанная сейчас (у маппинга с этим условием — уже выбранная).
+    const pg = cur.cond === 'page' ? cur.page : currentPage();
     const items: [string, string, string][] = [
-      ['global', 'Global', 'all tracks and views'],
-      [`track:${tr}`, `Current track (T${tr + 1})`, 'only while this track is selected'],
+      ['global', 'Global', 'all pages and views'],
+      [`page:${pg}`, `Current page (${pageName(pg)})`, `only while the ${pageName(pg)} page is shown`],
       ['clip', 'Clip launcher', 'only while PATTERNS is open'],
     ];
-    body.replaceChildren(options(items, condKey(cur), (v) => patch(v.startsWith('track:')
-      ? { cond: 'track', track: Number(v.slice(6)) } : { cond: v as MidiMapping['cond'] })));
+    body.replaceChildren(options(items, condKey(cur), (v) => patch(v.startsWith('page:')
+      ? { cond: 'page', page: v.slice(5) as MidiPage } : { cond: v as MidiMapping['cond'] })));
   } else if (page === 'event') {
     body.replaceChildren(options<'cc' | 'note'>([['cc', 'CC'], ['note', 'Note']], cur.src.type, (v) => patch({ src: { ...cur.src, type: v } })));
   } else if (page === 'control') {

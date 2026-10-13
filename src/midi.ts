@@ -16,7 +16,7 @@ import {
   assignFor, beginGesture, endGesture, ui, firstHeldStep, gridFor, gridMode, heldLfo, lockValue, paramValue,
   setLfoAmount, setLockNorm, setParamNorm, handPulse,
 } from './state';
-import { fullMapping, saveSettings, settings, type MidiMapping, type MidiSource, type MidiTarget } from './settings';
+import { fullMapping, saveSettings, settings, type MidiMapping, type MidiPage, type MidiSource, type MidiTarget } from './settings';
 
 // Web Bluetooth нет в стандартных типах TypeScript — только то, что здесь нужно.
 interface BleCharacteristic extends EventTarget { value: DataView | null; startNotifications(): Promise<unknown> }
@@ -97,21 +97,25 @@ const sameSource = (a: MidiSource, b: MidiSource) => a.type === b.type && a.ch =
 
 // ---------- Условия (Condition) ----------
 
-/** Ключ условия маппинга: 'global', 'clip' или 'track:N'. */
-export const condKey = (m: Pick<MidiMapping, 'cond' | 'track'>) => (m.cond === 'track' ? `track:${m.track}` : m.cond);
-/** Действующие сейчас условия, от самого точного: сетка паттернов, выбранная дорожка, global. */
+/** Ключ условия маппинга: 'global', 'clip' или 'page:<страница>'. */
+export const condKey = (m: Pick<MidiMapping, 'cond' | 'page'>) => (m.cond === 'page' ? `page:${m.page}` : m.cond);
+/** Страница ручек сейчас: дорожка, FX, MOD, MIX или MST. */
+export const currentPage = (): MidiPage => gridMode();
+/** Подпись страницы ручек. */
+export const pageName = (p: MidiPage) => ({ track: 'TRACK', fx: 'FX', mod: 'MOD', mix: 'MIX', master: 'MST' })[p] ?? p;
+/** Действующие сейчас условия, от самого точного: сетка паттернов, страница ручек, global. */
 function activeConds(): string[] {
   const out: string[] = [];
   if (ui.patternView) out.push('clip');
-  if (ui.channel === 'track') out.push(`track:${ui.selectedTrack}`);
+  out.push(`page:${currentPage()}`);
   out.push('global');
   return out;
 }
 /** Условие нового маппинга: в сетке паттернов — Clip launcher, иначе Global. */
-function defaultCond(): Pick<MidiMapping, 'cond' | 'track'> {
+function defaultCond(): Pick<MidiMapping, 'cond' | 'page'> {
   const p = pinned.cond;
-  if (p) return p.startsWith('track:') ? { cond: 'track', track: Number(p.slice(6)) } : { cond: p as MidiMapping['cond'], track: ui.selectedTrack };
-  return { cond: ui.patternView ? 'clip' : 'global', track: ui.selectedTrack };
+  if (p) return p.startsWith('page:') ? { cond: 'page', page: p.slice(5) as MidiPage } : { cond: p as MidiMapping['cond'], page: currentPage() };
+  return { cond: ui.patternView ? 'clip' : 'global', page: currentPage() };
 }
 
 /** Маппинги делят источник: тот же источник, то же условие и пересекающиеся входы. */

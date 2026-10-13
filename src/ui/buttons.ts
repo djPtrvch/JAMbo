@@ -7,7 +7,8 @@ import { canRedo, canUndo, endRecTake, cycleRatio, redo, doc, gridMode, setHeld,
 import { RATIOS } from '../params';
 import { registerAction } from '../midi';
 import { setPlaying } from '../transport';
-import { h, setClass, setText } from './dom';
+import { DOUBLE_TAP_MS, h, setClass, setText } from './dom';
+import { saveSettings, settings } from '../settings';
 import { heldKnobSources } from './knobs';
 import { markPlay, markPlayNote } from './debug';
 import { audioState, probeNextNote, unlockAudio } from '../audio/engine';
@@ -21,15 +22,36 @@ let morphBtn: HTMLElement;
 /** На удержании MORPH уже нажали UNDO — отпускание не переключает режим. */
 let morphUsed = false;
 
+/** FX и MOD в режиме toggle: тап включает страницу, следующий тап выключает (другую — выключает). */
+const latched = (btn: HoldButton): btn is 'fx' | 'mod' => (btn === 'fx' || btn === 'mod') && settings.latch[btn];
+function toggleLatched(btn: 'fx' | 'mod') {
+  const on = !ui.held[btn];
+  const other = btn === 'fx' ? 'mod' : 'fx';
+  if (on && latched(other)) setHeld(other, false);
+  setHeld(btn, on);
+}
+
 function holdButton(label: string, btn: HoldButton, midi = true): HTMLElement {
   const el = h('div', 'btn', label);
   const pointers = new Set<number>();
+  // SHIFT + двойной тап по FX или MOD — режим кнопки: удержание ↔ toggle.
+  let shiftTap = -1e9;
   const release = (e: PointerEvent) => {
-    pointers.delete(e.pointerId);
-    if (pointers.size === 0) setHeld(btn, false);
+    if (!pointers.delete(e.pointerId)) return;
+    if (pointers.size === 0 && !latched(btn)) setHeld(btn, false);
   };
   el.addEventListener('pointerdown', (e) => {
     e.preventDefault();
+    if ((btn === 'fx' || btn === 'mod') && ui.held.shift) {
+      const now = performance.now();
+      if (now - shiftTap < DOUBLE_TAP_MS) {
+        shiftTap = -1e9;
+        saveSettings({ latch: { ...settings.latch, [btn]: !settings.latch[btn] } });
+        setHeld(btn, false);
+      } else shiftTap = now;
+      return;
+    }
+    if (latched(btn)) { toggleLatched(btn); return; }
     el.setPointerCapture(e.pointerId);
     pointers.add(e.pointerId);
     setHeld(btn, true);
@@ -37,7 +59,14 @@ function holdButton(label: string, btn: HoldButton, midi = true): HTMLElement {
   el.addEventListener('pointerup', release);
   el.addEventListener('pointercancel', release);
   holdViews.push([el, btn]);
-  if (btn !== 'track' && midi) registerAction(label, { label, press: () => setHeld(btn, true), release: () => setHeld(btn, false), state: () => ui.held[btn] }, el);
+  if (btn !== 'track' && midi) {
+    registerAction(label, {
+      label,
+      press: () => { if (latched(btn)) toggleLatched(btn); else setHeld(btn, true); },
+      release: () => { if (!latched(btn)) setHeld(btn, false); },
+      state: () => ui.held[btn],
+    }, el);
+  }
   return el;
 }
 
@@ -172,7 +201,7 @@ export function renderButtons() {
     // MORPH белой не загорается: сразу показывает, каким станет режим (жёлтая — включён).
     setClass(el, 'active', ui.held[btn] && btn !== 'track');
     setClass(el, 'mod-src', SRC[btn] !== undefined && srcs.has(SRC[btn] as 1 | 2 | 3 | 4));
-    if (btn === 'fx' || btn === 'mod') setClass(el, 'mode', mode === btn);
+    if (btn === 'fx' || btn === 'mod') { setClass(el, 'mode', mode === btn); setClass(el, 'latch', settings.latch[btn]); }
   }
   const master = ui.channel === 'master';
   setClass(lfoGrid, 'hidden', master);

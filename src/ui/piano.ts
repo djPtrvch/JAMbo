@@ -33,8 +33,8 @@ let chipRow: HTMLElement;
 let rowW = 0;
 let sized = '';
 
-/** Клавиш на экране: две октавы гаммы + верхняя корневая нота. */
-const keyCount = () => Math.min(MAX_KEYS, SCALES[doc.scale].steps.length * 2 + 1);
+/** Клавиш на экране: одна или две октавы гаммы (меню пианоролла) + верхняя корневая нота. */
+const keyCount = (oct: number = settings.pianoOctaves) => Math.min(MAX_KEYS, SCALES[doc.scale].steps.length * oct + 1);
 
 /**
  * Нажатие ноты/аккорда: запись, редактирование шага или выбор (и ноты с MIDI-входов).
@@ -86,7 +86,15 @@ function openPianoMenu(anchor: HTMLElement) {
     openPianoMenu(anchor);
   });
   vel.classList.toggle('current', settings.velocity);
+  // Одна или две октавы на клавишах (высота пианоролла та же — клавиши шире).
+  const octRow = h('div', 'arrange-row');
+  for (const n of [1, 2] as const) {
+    const b = popupButton(n === 1 ? '1 OCTAVE' : '2 OCTAVES', () => { saveSettings({ pianoOctaves: n }); openPianoMenu(anchor); });
+    b.classList.toggle('current', settings.pianoOctaves === n);
+    octRow.append(b);
+  }
   pop.box.replaceChildren(
+    octRow,
     vel,
     h('div', 'settings-note', settings.velocity
       ? 'Touch lower on a key — louder, higher — softer (Apple Pencil: pressure). Changes the note Level; REC writes it as a Level p-lock.'
@@ -172,7 +180,7 @@ export function buildPiano(): HTMLElement {
   up.addEventListener('pointerdown', (e) => { e.preventDefault(); setOctave(ui.octave + 1); });
   oct.append(up, down);
 
-  // Под CHORD — бутерброд: меню пианоролла (VELOCITY).
+  // Под CHORD — бутерброд: меню пианоролла (октавы, VELOCITY).
   const menuBtn = h('div', 'btn piano-menu');
   const lines = h('div', 'burger-lines');
   lines.append(h('span'), h('span'), h('span'));
@@ -201,7 +209,8 @@ function sizeKeys(count: number) {
 
 export function renderPiano(now: number) {
   const count = keyCount();
-  sizeKeys(count);
+  // Размер клавиш и строка аккордов — по двум октавам: с одной октавой высота пианоролла та же, клавиши шире.
+  sizeKeys(keyCount(2));
   const notes = scaleNotes(count);
   const held = heldStepNotes();
   const pressed = new Set(pressedNotes());
