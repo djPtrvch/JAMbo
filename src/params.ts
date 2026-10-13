@@ -4,7 +4,7 @@
 /** Дорожек по умолчанию — и меньше нельзя. */
 export const TRACK_COUNT = 8;
 /** Дорожек самое большее (добавляются в MIX удержанием скрытой ручки). */
-export const MAX_TRACKS = 12;
+export const MAX_TRACKS = 16;
 /** Номера последовательностей: 0..MAX_TRACKS-1 — дорожки, затем свои у каналов MIX и MST. */
 export const SEQ_MIX = MAX_TRACKS;
 export const SEQ_MST = MAX_TRACKS + 1;
