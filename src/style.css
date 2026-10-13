@@ -1131,7 +1131,9 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 /* ---------- Окно лимитера мастера (тап по блоку LIM при MST) ---------- */
 
 .lim-strip { display: flex; gap: var(--gap); }
-.lim-strip .lim-cell { flex: 1; pointer-events: none; }
+.lim-strip .lim-cell, .lim-strip .lim-field { flex: 1; min-width: 0; padding: 2px 8px; }
+.lim-strip .lim-cell { pointer-events: none; }
+.lim-strip .eq-name { width: 64px; }
 .lim-cell.off .field-value, .lim-cell.off .field-label { color: var(--dim); opacity: 0.6; }
 .lim-panel .hot { box-shadow: inset 0 0 0 1px var(--accent); }
 .lim-mid { flex: 1; min-height: 0; display: flex; gap: var(--gap); }
@@ -1141,7 +1143,5 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 .lim-slider-value { position: absolute; bottom: 10px; left: 0; right: 0; text-align: center; font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .lim-plot { touch-action: none; }
 .lim-bars { width: 96px; flex: none; border-radius: var(--radius); background: var(--panel); padding: 8px 0 6px; }
-.lim-bottom { display: flex; gap: var(--gap); }
-.lim-bottom .lim-field { flex: 1; }
 .lim-btn { width: auto; flex: 1; }
 .lim-btn.active { background: var(--accent); color: var(--on-accent); }

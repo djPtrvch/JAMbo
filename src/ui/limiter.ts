@@ -1,11 +1,9 @@
 // Окно лимитера мастера (этап 7): тап по блоку LIM при MST. На месте EQ (от левого края до края миниатюр страниц,
 // справа — общий измеритель). Параметры — те же, что у ручек 4.1–4.4 в MST (и MIDI по позиции): окно и ручки
 // меняют одни значения. Сверху вниз:
-// — полоска значений (на месте верхней строки EQ): GAIN, CEILING, LOOKAHEAD, RELEASE — только показывает;
-//   ячейка параметра, который меняют (палец, ручка, Twister, UNDO), — в жёлтой рамке и ещё 400 ms; справа CLOSE;
+// — одна строка вверху (как ряд EQ): GAIN и CEILING (только показывают), поля LOOKAHEAD, RELEASE, LINK, кнопки
+//   BYPASS, UNITY, AUDIT, SCALE и крестик; параметр, который меняют (палец, ручка, Twister, UNDO), — в жёлтой рамке и ещё 400 ms;
 // — слева GAIN-слайдер, в центре дисплей уровня во времени (4 с), справа блок LIM (LevelBars, шкала по SCALE);
-// — вверху (как ряд кнопок EQ, той же высоты) поля LOOKAHEAD, RELEASE, LINK (палец вверх-вниз, удержание — ввод
-//   числом) и кнопки BYPASS, UNITY, AUDIT, SCALE; под ними полоска значений.
 // Дисплей: сетка dB; вход после GAIN — серая заливка; выход — красный контур и полупрозрачная заливка; GR — оранжевая
 // заливка сверху вниз; белая линия CEILING (тянется пальцем); подписи пиков GR; тап — HOLD (пауза).
 
@@ -15,7 +13,7 @@ import { beginGesture, doc, endGesture, paramValue, setParamNorm, toggleLimBypas
 import { saveSettings, settings } from '../settings';
 import { dragField } from './controls';
 import { LevelBars, limiterBars } from './dynamics';
-import { h, setClass, setText } from './dom';
+import { closeButton, h, setClass, setText } from './dom';
 import { openInput } from './popup';
 import { color } from './theme';
 
@@ -108,20 +106,18 @@ export function buildLimiterWindow(): HTMLElement {
   panel = h('div', 'eq-panel lim-panel hidden');
   anchor = h('div', 'eq-anchor');
 
-  // Полоска значений: на месте верхней строки EQ (тот же размер и поля), только показывает.
+  // Одна строка вверху, как ряд EQ (тот же размер и поля): MASTER LIM, GAIN и CEILING (только показывают —
+  // меняются слайдером и линией), поля LOOKAHEAD, RELEASE, LINK, кнопки BYPASS, UNITY, AUDIT, SCALE и крестик.
   const strip = h('div', 'eq-bar lim-strip');
   const head = h('div', 'eq-name', 'MASTER\nLIM');
   strip.append(head);
-  for (const [key, label] of [['lim.input', 'GAIN'], ['lim.ceiling', 'CEILING'], ['lim.lookahead', 'LOOKAHEAD'], ['lim.release', 'RELEASE']] as const) {
+  for (const [key, label] of [['lim.input', 'GAIN'], ['lim.ceiling', 'CEILING']] as const) {
     const root = h('div', 'field eq-field lim-cell');
     const value = h('div', 'field-value');
     root.append(h('div', 'field-label', label), value);
     cells.set(key, { root, value });
     strip.append(root);
   }
-  const close = h('div', 'btn eq-tool', 'CLOSE');
-  close.addEventListener('pointerdown', (e) => { e.preventDefault(); closeLimiterWindow(); });
-  strip.append(close);
 
   // GAIN-слайдер: палец вверх-вниз (ход как у ручек), удержание значения — ввод числом.
   slider = h('div', 'lim-slider');
@@ -189,8 +185,7 @@ export function buildLimiterWindow(): HTMLElement {
   const mid = h('div', 'lim-mid');
   mid.append(slider, plot, bars.el);
 
-  // Ряд кнопок (вверху, как у EQ): поля (как поля EQ) и кнопки.
-  const bottom = h('div', 'eq-bar lim-bottom');
+  // Поля (как поля EQ) и кнопки — в той же строке.
   const look = dragField('LOOKAHEAD', () => Math.round(val(P.lookahead) * 10), (v) => setVal(P.lookahead, v / 10), () => fmt(P.lookahead), 6,
     undefined, (el) => numInput(el, P.lookahead, num, val(P.lookahead).toFixed(1)));
   const rel = dragField('RELEASE', () => Math.round(toNorm(P.release, val(P.release)) * 200),
@@ -214,14 +209,14 @@ export function buildLimiterWindow(): HTMLElement {
     const k = SCALES.indexOf(settings.limScale);
     saveSettings({ limScale: SCALES[(k + 1) % SCALES.length] });
   });
-  bottom.append(look, rel, link, bypassBtn, unityBtn, auditBtn, scaleBtn);
+  // Крестик — как у остальных окон (редактор сэмпла, браузер).
+  strip.append(look, rel, link, bypassBtn, unityBtn, auditBtn, scaleBtn, closeButton(closeLimiterWindow));
 
-  // Кнопки и поля — вверху, как ряд кнопок EQ (той же высоты); под ними полоска значений.
-  panel.append(bottom, strip, mid, anchor);
+  panel.append(strip, mid, anchor);
   return panel;
 }
 
-/** CLOSE и выход из MST: окно закрывается, UNITY и AUDIT выключаются (toggleView). */
+/** Крестик и выход из MST: окно закрывается, UNITY и AUDIT выключаются (toggleView). */
 export function closeLimiterWindow() {
   if (ui.limView) toggleView('lim');
   hold = false;
