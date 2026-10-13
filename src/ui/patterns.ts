@@ -266,7 +266,7 @@ function openArrangeMenu() {
   // Что делает «+»: пустая строка или строка с копиями играющих паттернов.
   const plus = doc.plusMode ?? 'copy';
   const plusRow = h('div', 'arrange-row');
-  for (const [v, label] of [['empty', 'EMPTY ROW'], ['copy', 'COPY PLAYING']] as const) {
+  for (const [v, label] of [['empty', 'EMPTY ROW'], ['copy', 'NEW PATTERNS']] as const) {
     const b = popupButton(label, () => { setPlusMode(v); openArrangeMenu(); });
     b.classList.toggle('current', v === plus);
     plusRow.append(b);

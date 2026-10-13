@@ -1756,24 +1756,29 @@ const pageEmpty = (pg: Step[]) => pg.every((st) => !st.on && Object.keys(st.lock
  * Страница открывается в секвенсору — можно ставить шаги заново. Свободной страницы нет — false.
  */
 export function createPattern(i: number, k: number): boolean {
-  const t = doc.tracks[i];
-  if (t.home) return false;
+  let page = -1;
+  edit(() => { page = putEmptyClip(doc.tracks[i], k); });
+  if (page < 0) return false;
+  if (i === ui.selectedTrack) { ui.heldSteps.clear(); ui.viewPage = page; }
+  return true;
+}
+
+/** Клип с пустым паттерном в ячейку k (без записи в UNDO); страница клипа или −1 — свободной нет. */
+function putEmptyClip(t: Track, k: number): number {
+  if (t.home) return -1;
   const used = new Set<number>();
   t.slots.forEach((c, j) => { if (c && !c.src && j !== k) for (let p = c.playFrom; p <= c.playTo; p++) used.add(p); });
   if (!t.blank && t.slot !== k) for (let p = t.playFrom; p <= t.playTo; p++) used.add(p);
-  let page = t.pages.length < MAX_PAGES ? t.pages.length : t.pages.findIndex((pg, p) => !used.has(p) && pageEmpty(pg));
-  if (page < 0) return false;
-  edit(() => {
-    if (page === t.pages.length) {
-      t.pages.push(emptyPage());
-      fixLens(t);
-    }
-    const c: Pattern = { playFrom: page, playTo: page, scale: doc.scale, root: doc.root, fx: clone(doc.fx) };
-    if (k === t.slot) putPattern(t, c);
-    else t.slots[k] = c;
-  });
-  if (i === ui.selectedTrack) { ui.heldSteps.clear(); ui.viewPage = page; }
-  return true;
+  const page = t.pages.length < MAX_PAGES ? t.pages.length : t.pages.findIndex((pg, p) => !used.has(p) && pageEmpty(pg));
+  if (page < 0) return -1;
+  if (page === t.pages.length) {
+    t.pages.push(emptyPage());
+    fixLens(t);
+  }
+  const c: Pattern = { playFrom: page, playTo: page, scale: doc.scale, root: doc.root, fx: clone(doc.fx) };
+  if (k === t.slot) putPattern(t, c);
+  else t.slots[k] = c;
+  return page;
 }
 
 /** Копия клипа ячейки (null — пустая). */
@@ -2250,15 +2255,15 @@ export function visibleRows(): number {
 export const canAddRow = () => visibleRows() < rowLimit();
 
 /**
- * «+» в колонке строк: новая строка — пустая или (по умолчанию) с копиями играющих паттернов дорожек
- * (остановленные и заглушённые — нет); что именно — в меню сетки.
+ * «+» в колонке строк: новая строка — пустая или (по умолчанию) с пустыми паттернами у играющих дорожек
+ * (остановленные и заглушённые — нет): у каждой новый клип на новой пустой странице; что именно — в меню сетки.
  */
 export function addSceneRow(mode: 'empty' | 'copy' = doc.plusMode ?? 'copy') {
   if (!canAddRow()) return;
   const r = visibleRows();
   edit(() => {
     if (mode === 'copy') {
-      doc.tracks.forEach((t, i) => { if (!t.stopped && audible(i) && r !== t.slot) t.slots[r] = takePattern(t); });
+      doc.tracks.forEach((t, i) => { if (!t.stopped && audible(i) && r !== t.slot) putEmptyClip(t, r); });
     }
     doc.rows = r + 1;
   });
