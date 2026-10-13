@@ -411,8 +411,8 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 }
 .pattern-cell.selected-col { background: var(--panel-2); }
 .pattern-cell.filled { background: var(--panel-2); }
-.pattern-cell.filled.active { background: color-mix(in srgb, var(--panel-2) 72%, #000); }
-/* Индикация ячеек: играющая — чуть темнее, выбранная для правки — жёлтый контур (фон тот же). */
+.pattern-cell.filled:not(.active) { background: color-mix(in srgb, var(--panel-2) 72%, #000); }
+/* Индикация ячеек: не играющие клипы чуть темнее играющих, выбранная для правки — жёлтый контур (фон тот же). */
 .pattern-cell.editing { box-shadow: inset 0 0 0 1px var(--accent); }
 .pattern-thumb { flex: 1; width: 100%; height: 100%; }
 /* Шаги в превью паттерна — с тонкой обводкой (1 px при любом масштабе), чтобы были видны. */
