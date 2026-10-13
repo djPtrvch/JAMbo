@@ -7,7 +7,7 @@
 // Кнопки RATIO и BYPASS — на месте LFO1–3/ENV под окном (buttons.ts). Цвета — из темы (--meter-*).
 // Холст рисуется в общем кадре.
 import { clipperMeter, glueMeter, limiterMeter, type DynLevels } from '../audio/engine';
-import { doc, liveMaster } from '../state';
+import { doc, liveMaster, toggleView, ui } from '../state';
 import { h } from './dom';
 import { color } from './theme';
 
@@ -51,10 +51,14 @@ interface BarsOptions {
   grMax: number;
   /** Белая риска порога на IN (dB). */
   inMark: () => number;
+  /** Низ шкалы IN и OUT, dB (по умолчанию −48; в окне лимитера — по SCALE). */
+  levelLo?: () => number;
+  /** Тап по блоку (окно модуля мастера). */
+  onTap?: () => void;
 }
 
-/** LevelBars: общий компонент индикации компрессора, клиппера и лимитера. */
-class LevelBars {
+/** LevelBars: общий компонент индикации компрессора, клиппера и лимитера (и окна лимитера). */
+export class LevelBars {
   el: HTMLElement;
   private canvas: HTMLCanvasElement;
   private lIn: Level = { disp: -120, overUntil: 0 };
@@ -69,6 +73,7 @@ class LevelBars {
     const wrap = h('div', 'canvas-wrap');
     wrap.append(this.canvas);
     this.el.append(h('div', 'vbar-title', o.title), wrap);
+    if (o.onTap) this.el.addEventListener('pointerup', () => o.onTap!());
   }
 
   private level(l: Level, v: number, dt: number, now: number) {
@@ -114,7 +119,8 @@ class LevelBars {
       if (l.disp > 0 || now < l.overUntil) return color('--meter-over');
       return color('--meter-ok');
     };
-    const frac = (db: number) => Math.min(1, Math.max(0, (db - LEVEL_LO) / (LEVEL_HI - LEVEL_LO)));
+    const lo = o.levelLo?.() ?? LEVEL_LO;
+    const frac = (db: number) => Math.min(1, Math.max(0, (db - lo) / (LEVEL_HI - lo)));
     // Стержень со скруглёнными углами (как у измерителя справа): дорожка и заливка внутри одной формы.
     const bar = (k: number, fill: string, top: number, height: number) => {
       c.save();
@@ -166,10 +172,24 @@ export function buildClipper(): HTMLElement {
   return clip.el;
 }
 
-/** Лимитер: GR 0…−12 dB, риска CEILING на IN. */
+/** Лимитер: GR 0…−12 dB, риска CEILING на IN. При MST тап по блоку открывает окно лимитера. */
 export function buildLimiter(): HTMLElement {
-  lim = new LevelBars({ title: 'LIM', meter: limiterMeter, bypass: () => doc.limBypass, grMax: 12, inMark: () => liveMaster()['lim.ceiling'] });
+  lim = new LevelBars(limiterBars({ onTap: () => openMasterWindow('lim') }));
   return lim.el;
+}
+
+/** Настройки блока LIM — общие у боковой панели и окна лимитера (те же данные, цвета, баллистика). */
+export const limiterBars = (extra: Partial<BarsOptions> = {}): BarsOptions => ({
+  title: 'LIM', meter: limiterMeter, bypass: () => doc.limBypass, grMax: 12, inMark: () => liveMaster()['lim.ceiling'], ...extra,
+});
+
+/**
+ * Окно модуля мастера (тап по блоку при MST): пока есть только у лимитера; SAT, COMP, CLIP — отдельными задачами.
+ * Открывается на месте EQ (PATTERNS, EQ, редактор сэмпла и др. закрываются).
+ */
+export function openMasterWindow(name: 'lim' | 'comp' | 'clip' | 'sat') {
+  if (ui.channel !== 'master') return;
+  if (name === 'lim' && !ui.limView) toggleView('lim');
 }
 
 export function renderDynamics(now: number) {

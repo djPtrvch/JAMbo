@@ -6,7 +6,7 @@
 // сохраняет в тот проект, из которого она сделана. Всё хранится в браузере (storage.ts).
 
 import { ensureSamples, sampleRecords } from './audio/engine';
-import { docForSave, loadDoc, makeDoc, normalizeDoc, sampleKeys, switchWithTransition, type Doc } from './state';
+import { docForSave, loadDoc, makeDoc, normalizeDoc, sampleKeys, switchWithTransition, ui, type Doc } from './state';
 import {
   deleteProject, getProject, listProjects, newId, packProject, putProject, putSample, unpackProject,
   type ProjectInfo, type ProjectRecord,
@@ -70,6 +70,9 @@ function nextName(base = 'Project'): string {
  */
 async function show(d: Doc, mix = false) {
   await ensureSamples(sampleKeys(d));
+  // UNITY и AUDIT лимитера — только для прослушивания в окне, при загрузке проекта выключаются.
+  ui.limUnity = false;
+  ui.limAudit = false;
   if (mix) switchWithTransition(d);
   else loadDoc(d);
 }

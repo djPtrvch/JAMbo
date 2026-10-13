@@ -369,6 +369,11 @@ export const MASTER_GRID: Slot[] = grid([
   ],
 ]);
 
+/** Параметры мастера без ручки (окно лимитера): LINK — степень связи каналов лимитера, 100 % — прежний звук. */
+export const MASTER_EXTRA: ParamDef[] = [
+  smooth('lim.link', 'Link', 0, 100, 100, pct, CMP),
+];
+
 /** Нота, на которой сэмпл звучит в исходной высоте (C3). */
 export const SAMPLE_ROOT = 48;
 
@@ -432,7 +437,7 @@ export const REV_HPF_NEW = 120;
 export const DRIVE_LOWCUT_OFF = 25;
 export const DRIVE_LOWCUT_NEW = 80;
 
-export const ALL_PARAMS: ParamDef[] = [...TRACK_GRID, ...[SYNTH_GRID[0], SYNTH_GRID[4], SYNTH_GRID[8]], ...MOD_GRID, ...FX_GRID, ...HIDDEN_PARAMS, ...MIX_GRID, ...MASTER_GRID].filter((p): p is ParamDef => p !== null);
+export const ALL_PARAMS: ParamDef[] = [...TRACK_GRID, ...[SYNTH_GRID[0], SYNTH_GRID[4], SYNTH_GRID[8]], ...MOD_GRID, ...FX_GRID, ...HIDDEN_PARAMS, ...MIX_GRID, ...MASTER_GRID, ...MASTER_EXTRA].filter((p): p is ParamDef => p !== null);
 export const PARAM_BY_ID: Record<string, ParamDef> = Object.fromEntries(ALL_PARAMS.map((p) => [p.id, p]));
 
 /** Значение параметра → 0..1 (положение ручки). */

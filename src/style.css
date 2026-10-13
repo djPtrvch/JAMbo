@@ -39,6 +39,10 @@
   --meter-over: var(--rec);
   --meter-gr: var(--gr);
   --meter-thr: #ffffff;
+  /* Окно лимитера: вход (серая заливка), вход выше 0 dBFS, полупрозрачная заливка выхода. */
+  --lim-in: rgba(150, 150, 150, 0.32);
+  --lim-in-over: #bdbdbd;
+  --lim-out-fill: rgba(255, 43, 43, 0.2);
   --accent-soft: #3a2f0a;
   --accent-text: #ffc81e;
   --on-accent: #111111;
@@ -75,6 +79,9 @@
   --meter-over: var(--rec);
   --meter-gr: var(--gr);
   --meter-thr: #111111;
+  --lim-in: rgba(110, 110, 110, 0.28);
+  --lim-in-over: #8a8a8a;
+  --lim-out-fill: rgba(224, 20, 24, 0.18);
   --eq-mid: var(--rec);
   --eq-side: var(--gr);
   --accent-soft: #ffeaa0;
@@ -1121,3 +1128,21 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 /* Удержание паттерна, пока дорожка играет другой: короткая вспышка (открыть нельзя). */
 .pattern-cell.deny { animation: cell-deny 0.4s ease-out; }
 @keyframes cell-deny { 0% { box-shadow: inset 0 0 0 2px var(--rec); } 100% { box-shadow: inset 0 0 0 2px transparent; } }
+
+/* ---------- Окно лимитера мастера (тап по блоку LIM при MST) ---------- */
+
+.lim-strip { display: flex; gap: var(--gap); }
+.lim-strip .lim-cell { flex: 1; pointer-events: none; }
+.lim-cell.off .field-value, .lim-cell.off .field-label { color: var(--dim); opacity: 0.6; }
+.lim-panel .hot { box-shadow: inset 0 0 0 1px var(--accent); }
+.lim-mid { flex: 1; min-height: 0; display: flex; gap: var(--gap); }
+.lim-slider { position: relative; width: 64px; flex: none; border-radius: var(--radius); background: var(--panel); overflow: hidden; touch-action: none; }
+.lim-slider-fill { position: absolute; left: 0; right: 0; bottom: 0; background: var(--panel-2); }
+.lim-slider-label { position: absolute; top: 8px; left: 0; right: 0; text-align: center; font-size: 9px; letter-spacing: 0.08em; color: var(--dim); }
+.lim-slider-value { position: absolute; bottom: 10px; left: 0; right: 0; text-align: center; font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.lim-plot { touch-action: none; }
+.lim-bars { width: 96px; flex: none; border-radius: var(--radius); background: var(--panel); padding: 8px 0 6px; }
+.lim-bottom { height: 56px; display: flex; gap: var(--gap); }
+.lim-bottom .lim-field { flex: 1; }
+.lim-btn { width: auto; flex: 1; min-height: 44px; }
+.lim-btn.active { background: var(--accent); color: var(--on-accent); }

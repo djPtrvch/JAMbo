@@ -4,7 +4,12 @@
 // среднее того же окна (рампа: усиление достигает цели ровно к приходу пика) → задержанный
 // lookahead сигнал · g → жёсткий клип на CEILING (страховка). BYPASS — кроссфейд 10 ms с тем же
 // задержанным сигналом (задержка мастера не меняется). Смена LOOKAHEAD — кроссфейд задержек.
-// Для индикации ~60 раз в секунду уходит [true peak после GAIN, наибольший GR в dB, true peak выхода].
+// LINK (0–100 %): у каждого канала свой gain computer (свой true peak); GR канала в dB =
+// own_c + LINK·(linked − own_c), linked — общий computer по максимуму L и R (при LINK 100 % — ровно прежний звук).
+// UNITY: на выходе −GAIN dB (после лимитирования и страховочного клипа). AUDIT: вместо сигнала — разность задержанного
+// входа (после GAIN) и выхода лимитера (то, что срезано); включение — кроссфейд 10 ms. UNITY и AUDIT — только из окна.
+// Телеметрия (пока включена сообщением { meter: true }): раз в 256 отсчётов [true peak после GAIN, наибольший GR в dB
+// (по каналам), true peak выхода].
 
 // ---------- Константы (одно место) ----------
 const OVERSAMPLE = 4;
@@ -17,7 +22,9 @@ const BYPASS_MS = 10;
 const LOOKAHEAD_XFADE_MS = 20;
 /** Усиление держится ровным ещё HOLD отсчётов вокруг пика (меньше межсэмпловых пиков от модуляции). */
 const HOLD = 8;
-const METER_HZ = 60;
+/** Телеметрия: кадр раз в METER_FRAMES отсчётов. */
+const METER_FRAMES = 256;
+const AUDIT_MS = 10;
 const TINY = 1e-25;
 
 const coef = (ms, sr) => (ms <= 0 ? 0 : Math.exp(-1 / ((ms / 1000) * sr)));
@@ -68,6 +75,8 @@ class TruePeak {
     // Свежий отсчёт — по индексу p, старше — p-1, ...: читаем назад от p + TAPS_PER_PHASE.
     const base = p + TAPS_PER_PHASE;
     let m = 0;
+    let ml = 0;
+    let mr = 0;
     for (let ph = 0; ph < OVERSAMPLE; ph++) {
       const f = FIR.phases[ph];
       let sl = 0;
@@ -77,83 +86,45 @@ class TruePeak {
         sl += f[j] * this.hl[k];
         sr += f[j] * this.hr[k];
       }
-      const a = Math.max(Math.abs(sl), Math.abs(sr));
+      const al = Math.abs(sl);
+      const ar = Math.abs(sr);
+      if (al > ml) ml = al;
+      if (ar > mr) mr = ar;
+      const a = Math.max(al, ar);
       if (a > m) m = a;
     }
+    // Пики каналов — для gain computer каждого канала (LINK).
+    this.pl = ml;
+    this.pr = mr;
     return m;
   }
 }
 
-class LimiterProcessor extends AudioWorkletProcessor {
-  constructor() {
-    super();
-    const sr = sampleRate;
-    this.sr = sr;
-    this.p = { gain: 0, ceiling: -1, lookahead: 3, rel: 150, auto: false, bypass: false };
-    this.gainLin = 1;
-    this.ceil = Math.pow(10, -1 / 20);
-    this.kSmooth = coef(PARAM_SMOOTH_MS, sr);
-    this.wet = 1;
-    this.wetStep = 1 / ((BYPASS_MS / 1000) * sr);
-    this.kFast = coef(AUTO_FAST_MS, sr);
-    this.kSlow = coef(AUTO_SLOW_MS, sr);
-    this.kRel = coef(150, sr);
-    this.maxL = Math.ceil((MAX_LOOKAHEAD_MS / 1000) * sr) + HOLD + 2;
-    const size = this.maxL + FIR.delay + 8;
-    this.size = size;
-    // Задержанный сигнал (после GAIN и без него — для bypass).
-    this.dl = new Float32Array(size);
-    this.dr = new Float32Array(size);
-    this.xl = new Float32Array(size);
-    this.xr = new Float32Array(size);
-    this.w = 0;
-    // История целей и релиза (для скользящего минимума и среднего).
-    this.tHist = new Float64Array(this.maxL).fill(1);
-    this.eHist = new Float64Array(this.maxL).fill(1);
+/**
+ * Gain computer: цель g = min(1, Ceiling/Peak) → скользящий минимум за окно L + HOLD → релиз (вниз мгновенно,
+ * вверх — экспонента с ручки или AUTO) → скользящее среднее за окно L (рампа к цели). Состояние — своё у каждого.
+ */
+class GainComputer {
+  constructor(maxL, L) {
+    this.maxL = maxL;
+    this.tHist = new Float64Array(maxL).fill(1);
+    this.eHist = new Float64Array(maxL).fill(1);
     this.hpos = 0;
     // Монотонная очередь скользящего минимума: индексы отсчётов и значения.
-    this.qIdx = new Float64Array(this.maxL + 1);
-    this.qVal = new Float64Array(this.maxL + 1);
+    this.qIdx = new Float64Array(maxL + 1);
+    this.qVal = new Float64Array(maxL + 1);
     this.qHead = 0;
     this.qLen = 0;
     this.n = 0;
-    this.sum = 0;
     this.sumAge = 0;
     this.envF = 1;
     this.envS = 1;
-    this.pkPrev = 0;
-    this.detIn = new TruePeak();
-    this.detOut = new TruePeak();
-    this.L = this.lookSamples(3);
-    this.sum = this.L;
-    // Кроссфейд задержек при смене LOOKAHEAD.
-    this.oldDelay = -1;
-    this.xf = 1;
-    this.xfStep = 1 / ((LOOKAHEAD_XFADE_MS / 1000) * sr);
-    this.meterEvery = Math.max(128, Math.round(sr / METER_HZ));
-    this.meterN = 0;
-    this.mIn = 0;
-    this.mGr = 1;
-    this.mOut = 0;
-    this.port.onmessage = (e) => {
-      Object.assign(this.p, e.data);
-      this.kRel = coef(this.p.rel, this.sr);
-    };
-  }
-
-  lookSamples(ms) {
-    return Math.max(1, Math.min(this.maxL - HOLD - 1, Math.round((ms / 1000) * this.sr)));
-  }
-
-  /** Задержка звука относительно детектора для окна L (рампа кончается ровно на пике). */
-  delayFor(L) {
-    return L + FIR.delay + HOLD / 2;
+    this.L = L;
+    this.sum = L;
   }
 
   /** Новое окно L: очередь минимума и сумма пересобираются из истории. */
   setWindow(L) {
-    this.oldDelay = this.delayFor(this.L);
-    this.xf = 0;
     this.L = L;
     const M = this.maxL;
     this.qHead = 0;
@@ -188,6 +159,111 @@ class LimiterProcessor extends AudioWorkletProcessor {
     return this.qVal[this.qHead];
   }
 
+  /** Отсчёт: пик pk, потолок ceil; auto, kRel, kFast, kSlow — релиз. Возвращает усиление g. */
+  step(pk, ceil, auto, kRel, kFast, kSlow) {
+    const M = this.maxL;
+    const t = pk > ceil ? ceil / pk : 1;
+    const hp = this.hpos;
+    this.tHist[hp] = t;
+    const h = this.pushMin(this.n, t);
+    // Релиз: вниз мгновенно, вверх — экспонента с ручки (AUTO: быстрый и медленный этапы).
+    let e;
+    if (auto) {
+      this.envF = h < this.envF ? h : h + (this.envF - h) * kFast;
+      this.envS = h + (this.envS - h) * kSlow;
+      e = Math.min(this.envF, this.envS);
+    } else {
+      this.envF = h < this.envF ? h : h + (this.envF - h) * kRel;
+      this.envS = this.envF;
+      e = this.envF;
+    }
+    // Скользящее среднее за окно L (рампа к цели).
+    const old = this.eHist[(hp - this.L + 2 * M) % M];
+    this.eHist[hp] = e;
+    this.sum += e - old;
+    if (++this.sumAge >= 4096) {
+      // Пересчёт суммы — без накопления ошибки.
+      let s = 0;
+      for (let k = 0; k < this.L; k++) s += this.eHist[(hp - k + 2 * M) % M];
+      this.sum = s;
+      this.sumAge = 0;
+    }
+    this.hpos = (hp + 1) % M;
+    this.n++;
+    return Math.min(1, this.sum / this.L);
+  }
+}
+
+class LimiterProcessor extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    const sr = sampleRate;
+    this.sr = sr;
+    this.p = { gain: 0, ceiling: -1, lookahead: 3, rel: 150, auto: false, bypass: false, link: 100, unity: false, audit: false, meter: false };
+    this.gainLin = 1;
+    this.ceil = Math.pow(10, -1 / 20);
+    this.kSmooth = coef(PARAM_SMOOTH_MS, sr);
+    this.wet = 1;
+    this.wetStep = 1 / ((BYPASS_MS / 1000) * sr);
+    this.link = 1;
+    this.unityG = 1;
+    this.aud = 0;
+    this.audStep = 1 / ((AUDIT_MS / 1000) * sr);
+    this.kFast = coef(AUTO_FAST_MS, sr);
+    this.kSlow = coef(AUTO_SLOW_MS, sr);
+    this.kRel = coef(150, sr);
+    this.maxL = Math.ceil((MAX_LOOKAHEAD_MS / 1000) * sr) + HOLD + 2;
+    const size = this.maxL + FIR.delay + 8;
+    this.size = size;
+    // Задержанный сигнал (после GAIN и без него — для bypass).
+    this.dl = new Float32Array(size);
+    this.dr = new Float32Array(size);
+    this.xl = new Float32Array(size);
+    this.xr = new Float32Array(size);
+    this.w = 0;
+    this.pkPrev = 0;
+    this.pkPrevL = 0;
+    this.pkPrevR = 0;
+    this.detIn = new TruePeak();
+    this.detOut = new TruePeak();
+    this.L = this.lookSamples(3);
+    // Общий (по максимуму каналов — прежний) и по каналу (для LINK < 100 %).
+    this.gcLink = new GainComputer(this.maxL, this.L);
+    this.gcL = new GainComputer(this.maxL, this.L);
+    this.gcR = new GainComputer(this.maxL, this.L);
+    // Кроссфейд задержек при смене LOOKAHEAD.
+    this.oldDelay = -1;
+    this.xf = 1;
+    this.xfStep = 1 / ((LOOKAHEAD_XFADE_MS / 1000) * sr);
+    this.meterN = 0;
+    this.mIn = 0;
+    this.mGr = 1;
+    this.mOut = 0;
+    this.port.onmessage = (e) => {
+      Object.assign(this.p, e.data);
+      this.kRel = coef(this.p.rel, this.sr);
+    };
+  }
+
+  lookSamples(ms) {
+    return Math.max(1, Math.min(this.maxL - HOLD - 1, Math.round((ms / 1000) * this.sr)));
+  }
+
+  /** Задержка звука относительно детектора для окна L (рампа кончается ровно на пике). */
+  delayFor(L) {
+    return L + FIR.delay + HOLD / 2;
+  }
+
+  /** Новое окно L у всех gain computer; звук — кроссфейдом старой и новой задержки. */
+  setWindow(L) {
+    this.oldDelay = this.delayFor(this.L);
+    this.xf = 0;
+    this.L = L;
+    this.gcLink.setWindow(L);
+    this.gcL.setWindow(L);
+    this.gcR.setWindow(L);
+  }
+
   process(inputs, outputs) {
     const inp = inputs[0];
     const out = outputs[0];
@@ -201,16 +277,23 @@ class LimiterProcessor extends AudioWorkletProcessor {
     const gainT = Math.pow(10, p.gain / 20);
     const ceilT = Math.pow(10, p.ceiling / 20);
     const wetT = p.bypass ? 0 : 1;
-    const M = this.maxL;
+    const linkT = Math.max(0, Math.min(1, p.link / 100));
+    const unityT = p.unity ? 1 / gainT : 1;
+    const audT = p.audit ? 1 : 0;
     const S = this.size;
+    const auto = p.auto, kRel = this.kRel, kFast = this.kFast, kSlow = this.kSlow;
     // Новое окно lookahead — только после окончания прошлого кроссфейда.
     const Lt = this.lookSamples(p.lookahead);
     if (Lt !== this.L && this.xf >= 1) this.setWindow(Lt);
     for (let i = 0; i < n; i++) {
       this.gainLin = gainT + (this.gainLin - gainT) * ks;
       this.ceil = ceilT + (this.ceil - ceilT) * ks;
+      this.link = linkT + (this.link - linkT) * ks;
+      this.unityG = unityT + (this.unityG - unityT) * ks;
       if (this.wet < wetT) this.wet = Math.min(wetT, this.wet + this.wetStep);
       else if (this.wet > wetT) this.wet = Math.max(wetT, this.wet - this.wetStep);
+      if (this.aud < audT) this.aud = Math.min(audT, this.aud + this.audStep);
+      else if (this.aud > audT) this.aud = Math.max(audT, this.aud - this.audStep);
       const rawL = inL ? inL[i] : 0;
       const rawR = inR ? inR[i] : 0;
       const gl = rawL * this.gainLin;
@@ -222,40 +305,31 @@ class LimiterProcessor extends AudioWorkletProcessor {
       this.xr[w] = rawR;
       this.w = (w + 1) % S;
       // Детектор: true peak, межсэмпловый пик — на оба соседних отсчёта.
-      const pk0 = this.detIn.push(gl, gr);
+      const det = this.detIn;
+      const pk0 = det.push(gl, gr);
       const pk = Math.max(pk0, this.pkPrev);
       this.pkPrev = pk0;
       if (pk0 > this.mIn) this.mIn = pk0;
-      const t = pk > this.ceil ? this.ceil / pk : 1;
-      const hp = this.hpos;
-      this.tHist[hp] = t;
-      const h = this.pushMin(this.n, t);
-      // Релиз: вниз мгновенно, вверх — экспонента с ручки (AUTO: быстрый и медленный этапы).
-      let e;
-      if (p.auto) {
-        this.envF = h < this.envF ? h : h + (this.envF - h) * this.kFast;
-        this.envS = h + (this.envS - h) * this.kSlow;
-        e = Math.min(this.envF, this.envS);
-      } else {
-        this.envF = h < this.envF ? h : h + (this.envF - h) * this.kRel;
-        this.envS = this.envF;
-        e = this.envF;
+      const ceil = this.ceil;
+      const gLink = this.gcLink.step(pk, ceil, auto, kRel, kFast, kSlow);
+      // Свои каналы (LINK): считаются всегда — смена LINK без скачка.
+      const pkL = Math.max(det.pl, this.pkPrevL);
+      const pkR = Math.max(det.pr, this.pkPrevR);
+      this.pkPrevL = det.pl;
+      this.pkPrevR = det.pr;
+      const gOwnL = this.gcL.step(pkL, ceil, auto, kRel, kFast, kSlow);
+      const gOwnR = this.gcR.step(pkR, ceil, auto, kRel, kFast, kSlow);
+      // GR канала в dB: own + LINK·(linked − own) → усиление: own^(1−LINK) · linked^LINK.
+      const lk = this.link;
+      let gL = gLink;
+      let gR = gLink;
+      if (lk < 1) {
+        const lgl = Math.log(gLink);
+        gL = Math.exp((1 - lk) * Math.log(gOwnL) + lk * lgl);
+        gR = Math.exp((1 - lk) * Math.log(gOwnR) + lk * lgl);
       }
-      // Скользящее среднее за окно L (рампа к цели).
-      const old = this.eHist[(hp - this.L + 2 * M) % M];
-      this.eHist[hp] = e;
-      this.sum += e - old;
-      if (++this.sumAge >= 4096) {
-        // Пересчёт суммы — без накопления ошибки.
-        let s = 0;
-        for (let k = 0; k < this.L; k++) s += this.eHist[(hp - k + 2 * M) % M];
-        this.sum = s;
-        this.sumAge = 0;
-      }
-      this.hpos = (hp + 1) % M;
-      this.n++;
-      const g = Math.min(1, this.sum / this.L);
-      if (g < this.mGr) this.mGr = g;
+      const gMin = gL < gR ? gL : gR;
+      if (gMin < this.mGr) this.mGr = gMin;
       // Задержанный звук (при смене LOOKAHEAD — кроссфейд старой и новой задержки).
       const d = this.delayFor(this.L);
       const r = (w - d + S) % S;
@@ -272,24 +346,39 @@ class LimiterProcessor extends AudioWorkletProcessor {
         br = br * a + this.xr[ro] * (1 - a);
         this.xf = Math.min(1, this.xf + this.xfStep);
       }
-      yl *= g;
-      yr *= g;
+      // Задержанный вход после GAIN — для AUDIT (вход минус выход).
+      const preL = yl;
+      const preR = yr;
+      yl *= gL;
+      yr *= gR;
       // Страховка: жёсткий клип на CEILING.
       const c = this.ceil;
       if (yl > c) yl = c; else if (yl < -c) yl = -c;
       if (yr > c) yr = c; else if (yr < -c) yr = -c;
       const wt = this.wet;
-      const ol = yl * wt + bl * (1 - wt);
-      const or = yr * wt + br * (1 - wt);
-      outL[i] = ol;
-      if (outR !== outL) outR[i] = or;
+      let ol = yl * wt + bl * (1 - wt);
+      let or = yr * wt + br * (1 - wt);
+      // Индикация OUT — реальный выход лимитера (до UNITY и AUDIT).
       const po = this.detOut.push(ol, or);
       if (po > this.mOut) this.mOut = po;
+      // UNITY: −GAIN на выходе (только на обработанной ветке).
+      const u = this.unityG;
+      if (u !== 1) { ol = yl * wt * u + bl * (1 - wt); or = yr * wt * u + br * (1 - wt); }
+      // AUDIT: то, что срезано (задержанный вход − выход), кроссфейдом.
+      const au = this.aud;
+      if (au > 0) {
+        ol = ol * (1 - au) + (preL - yl) * wt * au;
+        or = or * (1 - au) + (preR - yr) * wt * au;
+      }
+      outL[i] = ol;
+      if (outR !== outL) outR[i] = or;
     }
     this.meterN += n;
-    if (this.meterN >= this.meterEvery) {
-      const grDb = this.wet > 0.5 ? -20 * Math.log10(Math.max(this.mGr, 1e-6)) : 0;
-      this.port.postMessage([this.mIn, grDb, this.mOut]);
+    if (this.meterN >= METER_FRAMES) {
+      if (p.meter) {
+        const grDb = this.wet > 0.5 ? -20 * Math.log10(Math.max(this.mGr, 1e-6)) : 0;
+        this.port.postMessage([this.mIn, grDb, this.mOut]);
+      }
       this.meterN = 0;
       this.mIn = 0;
       this.mGr = 1;

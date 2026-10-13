@@ -292,6 +292,30 @@ export const clipperMeter = () => clipLevels;
 export const limiterMeter = () => limLevels;
 
 /**
+ * Телеметрия лимитера: кадр раз в 256 отсчётов (вход после GAIN и выход — true peak, линейно; GR — dB ≥ 0),
+ * кольцевой буфер LIM_TELE кадров (окно лимитера рисует из него). Блок LIM — максимум последних кадров
+ * (≈ кадр экрана). Включена, пока виден блок LIM (MST) или окно лимитера.
+ */
+export const LIM_TELE = 2048;
+export const limTele = { in: new Float32Array(LIM_TELE), out: new Float32Array(LIM_TELE), gr: new Float32Array(LIM_TELE), n: 0, at: 0 };
+/** Кадров телеметрии на секунду. */
+export const limTeleRate = () => (ctx ? ctx.sampleRate / 256 : 187.5);
+function limFrame(i: number, g: number, o: number) {
+  const t = limTele;
+  const k = t.n % LIM_TELE;
+  t.in[k] = i; t.gr[k] = g; t.out[k] = o;
+  t.n++;
+  t.at = performance.now();
+  // Блок LIM: наибольшее за последние 3 кадра (~16 ms — кадр экрана), чтобы пики между кадрами не терялись.
+  let mi = 0, mg = 0, mo = 0;
+  for (let j = 0; j < 3 && j < t.n; j++) {
+    const q = (t.n - 1 - j) % LIM_TELE;
+    mi = Math.max(mi, t.in[q]); mg = Math.max(mg, t.gr[q]); mo = Math.max(mo, t.out[q]);
+  }
+  limLevels.in = mi; limLevels.gr = mg; limLevels.out = mo; limLevels.at = t.at;
+}
+
+/**
  * Загрузить модуль worklet и вставить устройство между узлами from и to (до этого сигнал идёт
  * мимо — без обработки). Индикация приходит сообщениями в levels.
  */
@@ -303,6 +327,7 @@ function loadDevice(c: AudioContext, file: string, name: string, from: GainNode,
     });
     node.port.onmessage = (e) => {
       const [i, g, o] = e.data as number[];
+      if (name === 'limiter') { limFrame(i, g, o); return; }
       levels.in = i; levels.gr = g; levels.out = o; levels.at = performance.now();
     };
     // Снимаем только обход (from → to): от from могут идти и другие связи (скоп мастера).
@@ -346,6 +371,9 @@ function sendDynamics() {
   if (mst.lim) {
     const msg = {
       gain: m['lim.input'], ceiling: m['lim.ceiling'], lookahead: m['lim.lookahead'], ...auto(m['lim.release']), bypass: doc.limBypass,
+      link: m['lim.link'] ?? 100,
+      // UNITY и AUDIT — только пока открыто окно лимитера; телеметрия — пока виден блок LIM (MST) или окно.
+      unity: ui.limView && ui.limUnity, audit: ui.limView && ui.limAudit, meter: ui.channel === 'master' || ui.limView,
     };
     const sig = JSON.stringify(msg);
     if (sig !== limSig) { limSig = sig; mst.lim.port.postMessage(msg); }
@@ -1137,7 +1165,7 @@ function updateFx(now: number) {
   // Глубины sidechain — от ручек дорожек (не входят в подпись FX): проверяются каждый кадр.
   updateDuckDepths(ct, Math.round(fx['sc.source']));
 
-  const fsig = JSON.stringify([fx, mixer, master, doc.ratio, doc.limBypass, doc.cmpBypass, doc.clipBypass, doc.satBypass, doc.bpm, doc.tracks.map((t) => +t.mute + 2 * +t.solo)]);
+  const fsig = JSON.stringify([fx, mixer, master, doc.ratio, doc.limBypass, doc.cmpBypass, doc.clipBypass, doc.satBypass, doc.bpm, ui.limView, ui.limUnity, ui.limAudit, ui.channel === 'master', doc.tracks.map((t) => +t.mute + 2 * +t.solo)]);
   if (fsig === fxSig) return;
   fxSig = fsig;
   rev.set(fx, ct);

@@ -41,6 +41,7 @@ import { updateTransport } from './transport';
 import { buildEqButton, buildLeftButtons, buildShiftButton, buildPatternsButton, buildRightButtons, buildTransportButtons, renderButtons } from './ui/buttons';
 import { renderFields } from './ui/controls';
 import { buildEq, renderEq } from './ui/eq';
+import { buildLimiterWindow, renderLimiterWindow } from './ui/limiter';
 import { buildSampleEditor, renderSampleEditor } from './ui/sampleedit';
 import { buildBrowser, renderBrowser } from './ui/browser';
 import { h, setClass, setText } from './ui/dom';
@@ -77,7 +78,7 @@ const main = h('div', 'main');
 // сэмпла (удержание окна сэмпла).
 const knobGrid = buildKnobGrid();
 const center = h('div', 'center');
-center.append(knobGrid, buildPatternGrid(), buildEq(), buildSampleEditor(), buildBrowser(), buildAuto());
+center.append(knobGrid, buildPatternGrid(), buildEq(), buildLimiterWindow(), buildSampleEditor(), buildBrowser(), buildAuto());
 // Справа с краю — измеритель уровня.
 const meter = buildMeter();
 main.append(left, center, right, meter);
@@ -179,11 +180,12 @@ function frameBody(now: number) {
   renderTopbar(now);
   renderFields();
   renderSample(now);
-  setClass(knobGrid, 'hidden', ui.patternView || ui.eqView || ui.sampleView || ui.browserView || ui.autoView);
+  setClass(knobGrid, 'hidden', ui.patternView || ui.eqView || ui.limView || ui.sampleView || ui.browserView || ui.autoView);
   // Сетка паттернов занимает всю ширину; эквалайзер — до края миниатюр страниц, справа измеритель.
   setClass(main, 'patterns', ui.patternView);
   // Редактор сэмпла — на том же месте, что эквалайзер.
-  setClass(main, 'eq', ui.eqView || ui.sampleView || ui.browserView || ui.autoView);
+  // Окно лимитера мастера — тоже на месте EQ.
+  setClass(main, 'eq', ui.eqView || ui.limView || ui.sampleView || ui.browserView || ui.autoView);
   // Окно AUTO — во всю ширину (над шагами 1–16), измеритель скрыт.
   setClass(main, 'auto-full', ui.autoView);
   setClass(autoBtn, 'active', ui.autoView);
@@ -192,6 +194,7 @@ function frameBody(now: number) {
   renderKnobs(now);
   renderPatternGrid();
   renderEq();
+  renderLimiterWindow(now);
   renderSampleEditor();
   renderBrowser();
   renderAuto();

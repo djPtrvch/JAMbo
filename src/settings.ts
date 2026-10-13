@@ -79,6 +79,8 @@ export interface Settings {
   latch: { fx: boolean; mod: boolean };
   /** SETTINGS → SIDECHAIN: приглушать ли вход посылов Reverb, Delay, Drive тем же sidechain, что и выход дорожки. */
   scSends: { rev: boolean; dly: boolean; drv: boolean };
+  /** Окно лимитера: SCALE дисплея и стержней IN/OUT — 48, 32 или 16 dB. */
+  limScale: 48 | 32 | 16;
 }
 
 const KEY = 'jambo.settings';
@@ -86,6 +88,7 @@ const DEFAULTS: Settings = {
   sampleRate: 0, bufferSize: 0, background: true, muteTails: false, outputId: '', inputId: '',
   midiIn: '', midiFeedback: '', noteChannel: 0, noteRoute: 'selected', mappings: [], midiPreset: '', theme: 'system', velocity: false, pianoOctaves: 2, latch: { fx: false, mod: false },
   scSends: { rev: false, dly: false, drv: true },
+  limScale: 48,
 };
 
 /** Маппинг с недостающими полями (старые настройки: общий режим энкодеров knobMode). */
