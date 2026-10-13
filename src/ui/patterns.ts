@@ -14,7 +14,7 @@ import { MAX_TRACKS, PATTERN_SLOTS, STEPS_PER_PAGE } from '../params';
 import {
   crossfade, inTransition, isPrevPlaceholder, rowFilled, sceneName, setCrossfade, setScene, transitionMoves,
   addSceneRow, canAddRow, copyRow, deleteRow, duplicateRow, pasteRow, setArrangement, rowLoopOn, setPlusMode, toggleRowLoop, visibleRows,
-  copyPattern, createPattern, dropPattern, deletePattern, doc, duplicatePattern, freeSlotAfter, hasManualLocks, pastePattern,
+  copyPattern, createPattern, dropPattern, deletePattern, doc, duplicatePattern, freeSlotAfter, hasManualLocks, tailMask, pastePattern,
   playRange, rt, selectTrack, slotFilled, ui, type Pattern,
 } from '../state';
 import { queuePattern, queueScene, sceneProgress } from '../transport';
@@ -481,22 +481,26 @@ export function buildPatternGrid(): HTMLElement {
 function drawThumb(c: Cell, p: Pattern | null) {
   let sig = '';
   if (p) {
-    sig = `${p.pages.length}:${p.length}:`;
-    p.pages.forEach((pg) => pg.forEach((s) => { sig += s.on ? (hasManualLocks(s) ? 'y' : 'x') + (s.sound ? 's' : '') : '.'; }));
+    sig = `${p.pages.length}:${p.length}:${p.playFrom}:${p.playTo}:`;
+    p.pages.forEach((pg) => pg.forEach((s) => { sig += s.on ? (hasManualLocks(s) ? 'y' : 'x') + (s.sound ? 's' : '') + s.len : '.'; }));
   }
   if (sig === c.sig) return;
   c.sig = sig;
   c.thumb.replaceChildren();
   if (!p) return;
-  // Не меньше 4 строк по высоте, чтобы точки одной страницы не растягивались; по центру.
-  const rows = p.pages.length;
+  // Только играющие страницы (как выбраны в миниатюрах дорожки). Не меньше 4 строк по высоте,
+  // чтобы точки одной страницы не растягивались; по центру.
+  const from = Math.min(p.playFrom, p.pages.length - 1), to = Math.min(Math.max(p.playTo, from), p.pages.length - 1);
+  const rows = to - from + 1;
+  const tails = tailMask(p.pages);
   const height = Math.max(rows, 4);
   const top = (height - rows) / 2;
   setAttr(c.thumb, 'viewBox', `0 0 ${STEPS_PER_PAGE} ${height}`);
-  p.pages.forEach((pg, r) => pg.forEach((s, col) => {
-    const outside = r * STEPS_PER_PAGE + col >= p.length;
-    // Жёлтая — ручные p-lock, обведённая — свой звук шага (сэмпл, пресет).
-    const cls = s.on ? (hasManualLocks(s) ? 'pt-dot plock' : 'pt-dot on') + (s.sound ? ' own-sound' : '') : col % 4 === 0 ? 'pt-dot beat' : 'pt-dot';
+  p.pages.slice(from, to + 1).forEach((pg, r) => pg.forEach((s, col) => {
+    const index = (from + r) * STEPS_PER_PAGE + col;
+    const outside = index >= p.length;
+    // Жёлтая — ручные p-lock, обведённая — свой звук шага (сэмпл, пресет), полупрозрачная — хвост длинной ноты.
+    const cls = s.on ? (hasManualLocks(s) ? 'pt-dot plock' : 'pt-dot on') + (s.sound ? ' own-sound' : '') : tails[index] ? 'pt-dot tail' : 'pt-dot';
     c.thumb.append(svg('rect', {
       x: col + 0.15, y: top + r + 0.15, width: 0.7, height: 0.7, class: outside ? `${cls} outside` : cls,
     }));

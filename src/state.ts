@@ -1106,6 +1106,14 @@ function changePages(t: Track, fn: () => void) {
 }
 
 /** Шаги, которые проигрываются: выбранные страницы, обрезанные длиной паттерна. */
+/** Хвосты длинных нот: шаги, которые держит нота с предыдущего шага (по всем страницам подряд). */
+export function tailMask(pages: Step[][]): boolean[] {
+  const flat = pages.flat();
+  const out = flat.map(() => false);
+  flat.forEach((s, i) => { if (s.on) for (let k = 1; k < s.len && i + k < flat.length; k++) out[i + k] = true; });
+  return out;
+}
+
 export function playRange(t: Track): [number, number] {
   const a = t.playFrom * STEPS_PER_PAGE;
   let b = (t.playTo + 1) * STEPS_PER_PAGE - 1;

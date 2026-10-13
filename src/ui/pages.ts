@@ -7,7 +7,7 @@
 
 import { MAX_PAGES, STEPS_PER_PAGE } from '../params';
 import {
-  addPage, clearPage, movePage, nudgePage, pageRange, copyPage, deletePage, duplicatePage, hasLocks, hasManualLocks, pastePage, rt, curSeq, seqIndex, setPlayPages, ui,
+  addPage, clearPage, movePage, nudgePage, pageRange, copyPage, deletePage, duplicatePage, hasLocks, hasManualLocks, tailMask, pastePage, rt, curSeq, seqIndex, setPlayPages, ui,
 } from '../state';
 import { DOUBLE_TAP_MS, h, setClass } from './dom';
 import { makePopup, popupButton, type Popup } from './popup';
@@ -122,7 +122,6 @@ export function buildPages(): HTMLElement {
     const cells: HTMLElement[] = [];
     for (let k = 0; k < STEPS_PER_PAGE; k++) {
       const c = h('div', 'thumb-cell');
-      if (k % 4 === 0) c.classList.add('beat');
       cells.push(c);
       root.append(c);
     }
@@ -258,6 +257,7 @@ export function renderPages() {
   // Обводка следует за пальцем, только когда протягивают по нескольким страницам; на касании
   // одной она не прыгает (тап переключит её при отпускании, удержание её не меняет).
   const [from, to] = drag?.moved && drag.range ? drag.range : [t.playFrom, t.playTo];
+  const tails = tailMask(t.pages);
   thumbs.forEach((th, i) => {
     const exists = i < t.pages.length;
     setClass(th.root, 'hidden', !exists);
@@ -267,6 +267,7 @@ export function renderPages() {
       const s = t.pages[i][k];
       const index = i * STEPS_PER_PAGE + k;
       setClass(c, 'on', s.on);
+      setClass(c, 'tail', !s.on && tails[index]);
       setClass(c, 'plock', s.on && hasManualLocks(s));
       setClass(c, 'own-sound', s.on && !!s.sound);
       setClass(c, 'lock-only', !s.on && hasLocks(s));
