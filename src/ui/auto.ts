@@ -530,11 +530,16 @@ export function renderAuto() {
   if (nameText.dataset.t !== title) {
     nameText.dataset.t = title;
     const [tn, pn] = title.split('\n');
-    nameText.replaceChildren(h('b', '', tn), h('span', '', pn));
+    const b = h('b', '', tn);
+    const sp = h('span', '', pn);
+    // Поле шириной с MIX: длинные имена — мельче.
+    b.style.fontSize = `${Math.min(13, labelSize(tn))}px`;
+    sp.style.fontSize = `${Math.min(13, labelSize(pn))}px`;
+    nameText.replaceChildren(b, sp);
   }
   // Боковые кнопки и имя — шириной с MIX в строке дорожек.
   const mixW = (document.querySelector('.track.channel') as HTMLElement | null)?.offsetWidth ?? 0;
-  if (mixW) { const w = `${mixW}px`; if (side.style.width !== w) { side.style.width = w; nameText.style.minWidth = w; } }
+  if (mixW) { const w = `${mixW}px`; if (side.style.width !== w) { side.style.width = w; nameText.style.width = w; } }
   const curve = a?.curve ?? 'spline';
   setClass(toolBtns.line, 'on', curve === 'line');
   setClass(toolBtns.spline, 'on', curve === 'spline');

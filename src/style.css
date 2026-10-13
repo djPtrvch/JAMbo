@@ -1080,7 +1080,7 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 .auto-bar .eq-tool.sq { flex: none; width: 48px; }
 .auto-bar .eq-tool.on { background: var(--accent); color: var(--on-accent); }
 .auto-bar .eq-tool.disabled { opacity: 0.35; }
-.eq-name.auto-name { width: auto; max-width: 200px; flex: none; flex-direction: column; align-items: flex-start; justify-content: center; text-align: left; padding: 0 6px; color: var(--text); overflow: hidden; font-size: 13px; letter-spacing: 0.04em; }
+.eq-name.auto-name { width: auto; flex: none; box-sizing: border-box; flex-direction: column; align-items: flex-start; justify-content: center; text-align: left; padding: 0 6px; color: var(--text); overflow: hidden; font-size: 13px; letter-spacing: 0.04em; }
 .auto-name b, .auto-name span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .auto-name b { font-weight: 700; }
 .auto-name span { font-weight: 400; }
