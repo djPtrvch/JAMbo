@@ -871,7 +871,9 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 .midi-rel { position: relative; }
 /* MIDI LEARN: назначенная цель — полупрозрачная жёлтая заливка поверх фона и тип маппинга в углу (N — нота, CC). */
 .midi-mapped { background-image: linear-gradient(color-mix(in srgb, var(--plock) 35%, transparent), color-mix(in srgb, var(--plock) 35%, transparent)); border-radius: var(--radius); }
-.midi-mapped::after { content: attr(data-midi-type); position: absolute; top: 2px; right: 4px; font-size: 9px; font-weight: 700; letter-spacing: 0.04em; color: var(--plock); pointer-events: none; z-index: 3; }
+.midi-mapped::after { content: attr(data-midi-type); position: absolute; top: 5px; right: 7px; font-size: 9px; font-weight: 400; letter-spacing: 0.02em; line-height: 1; white-space: nowrap; color: var(--plock); pointer-events: none; z-index: 3; }
+/* Маленькие кнопки M, S, ● у ручек MIX — метка рядом, справа от кнопки, а не в ней. */
+.msr-btn.midi-mapped::after { top: 50%; right: auto; left: calc(100% + 4px); transform: translateY(-50%); }
 .midi-target { outline: 3px solid var(--accent); outline-offset: -3px; }
 .midi-menu .settings-choice:has(> :nth-child(17)) { grid-auto-flow: row; grid-template-columns: repeat(9, 1fr); }
 .midi-maps { max-height: 220px; grid-auto-rows: 40px; flex: none; }

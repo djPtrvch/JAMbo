@@ -85,10 +85,10 @@ export function renderLearn() {
     const t = targetFromAttr(el.dataset.midi!);
     if (!t) continue;
     setClass(el, 'midi-target', JSON.stringify(t) === JSON.stringify(learn.target));
-    // Назначенные — полупрозрачная жёлтая заливка и тип маппинга: N (нота) или CC.
+    // Назначенные — полупрозрачная жёлтая заливка, тип маппинга и номер: «CC 20», «N 36».
     const m = mappingFor(t);
     setClass(el, 'midi-mapped', !!m);
-    if (m) el.dataset.midiType = m.src.type === 'cc' ? 'CC' : 'N'; else delete el.dataset.midiType;
+    if (m) el.dataset.midiType = `${m.src.type === 'cc' ? 'CC' : 'N'} ${m.src.num}`; else delete el.dataset.midiType;
     // Метка ставится в угол элемента: ему нужен свой контекст позиционирования.
     if (m && !rel.has(el)) { rel.add(el); if (getComputedStyle(el).position === 'static') el.classList.add('midi-rel'); }
   }
