@@ -3,8 +3,8 @@
 // LFO1/LFO2/LFO3/ENV/FX/MOD работают на удержание; MORPH — тап (режим) и удержание (+ UNDO).
 
 import { requestStop } from '../stems';
-import { canRedo, canUndo, endRecTake, cycleRatio, redo, doc, gridMode, setHeld, toggleClipBypass, toggleCmpBypass, toggleSatBypass, toggleLimBypass, toggleMorph, toggleView, ui, undo, undoTrackEdits, type HoldButton } from '../state';
-import { RATIOS } from '../params';
+import { canRedo, canUndo, endRecTake, redo, doc, gridMode, setHeld, toggleClipBypass, toggleCmpBypass, toggleSatBypass, toggleLimBypass, toggleMorph, toggleView, ui, undo, undoTrackEdits, type HoldButton } from '../state';
+import { openMasterWindow } from './dynamics';
 import { registerAction } from '../midi';
 import { setPlaying } from '../transport';
 import { DOUBLE_TAP_MS, h, setClass, setText } from './dom';
@@ -85,8 +85,9 @@ let clipBypassBtn: HTMLElement;
 let limBypassBtn: HTMLElement;
 
 /**
- * Слева под окном сэмпла: LFO1, LFO2, LFO3, ENV. При MST на их месте (тот же размер и сетка)
- * BYPASS сатуратора, компрессора (с SHIFT — RATIO), клиппера и лимитера.
+ * Слева под окном сэмпла: LFO1, LFO2, LFO3, ENV. При MST на их месте (тот же размер и сетка) кнопки модулей
+ * мастера CLIP, COMP, SAT, LIM: тап открывает графическое окно модуля (пока есть только у LIM), с зажатой
+ * SHIFT кнопки становятся BYPASS и тап включает или выключает bypass модуля.
  */
 export function buildLeftButtons(): HTMLElement {
   const el = h('div', 'left-btns');
@@ -97,15 +98,16 @@ export function buildLeftButtons(): HTMLElement {
     b.addEventListener('pointerdown', (e) => { e.preventDefault(); fn(); });
     return b;
   };
-  // Вверху BYPASS CLIP и BYPASS COMP (с зажатой SHIFT на её месте RATIO), внизу BYPASS SAT и BYPASS LIM;
-  // включённый bypass — цветом своего модуля, как формы волны скопа (SAT белая, COMP жёлтая, CLIP оранжевая, LIM красная).
-  satBypassBtn = tap('BYPASS\nSAT', toggleSatBypass);
+  // Вверху CLIP и COMP, внизу SAT и LIM. С SHIFT — BYPASS; включённый bypass (виден только с SHIFT) — цветом
+  // своего модуля, как формы волны скопа (SAT белая, COMP жёлтая, CLIP оранжевая, LIM красная).
+  const mod = (name: 'sat' | 'comp' | 'clip' | 'lim', bypass: () => void) => () => (ui.held.shift ? bypass() : openMasterWindow(name));
+  satBypassBtn = tap('SAT', mod('sat', toggleSatBypass));
   satBypassBtn.classList.add('byp-sat');
-  compBypassBtn = tap('BYPASS\nCOMP', () => (ui.held.shift ? cycleRatio() : toggleCmpBypass()));
+  compBypassBtn = tap('COMP', mod('comp', toggleCmpBypass));
   compBypassBtn.classList.add('byp-comp');
-  clipBypassBtn = tap('BYPASS\nCLIP', toggleClipBypass);
+  clipBypassBtn = tap('CLIP', mod('clip', toggleClipBypass));
   clipBypassBtn.classList.add('byp-clip');
-  limBypassBtn = tap('BYPASS\nLIM', toggleLimBypass);
+  limBypassBtn = tap('LIM', mod('lim', toggleLimBypass));
   limBypassBtn.classList.add('byp-lim');
   masterGrid = h('div', 'btn-grid hidden');
   masterGrid.append(clipBypassBtn, compBypassBtn, satBypassBtn, limBypassBtn);
@@ -207,14 +209,13 @@ export function renderButtons() {
   setClass(lfoGrid, 'hidden', master);
   setClass(masterGrid, 'hidden', !master);
   if (master) {
-    // С зажатой SHIFT на месте BYPASS COMP — RATIO компрессора.
-    const ratio = ui.held.shift;
-    setText(compBypassBtn, ratio ? `RATIO\n${RATIOS[doc.ratio]}:1` : 'BYPASS\nCOMP');
-    setClass(compBypassBtn, 'ratio-btn', ratio);
-    setClass(compBypassBtn, 'active', !ratio && doc.cmpBypass);
-    setClass(clipBypassBtn, 'active', doc.clipBypass);
-    setClass(satBypassBtn, 'active', !!doc.satBypass);
-    setClass(limBypassBtn, 'active', doc.limBypass);
+    // Без SHIFT — имена модулей (тап — окно модуля); с SHIFT — BYPASS и его состояние цветом модуля.
+    const sh = ui.held.shift;
+    const rows: [HTMLElement, string, boolean][] = [[satBypassBtn, 'SAT', !!doc.satBypass], [compBypassBtn, 'COMP', doc.cmpBypass], [clipBypassBtn, 'CLIP', doc.clipBypass], [limBypassBtn, 'LIM', doc.limBypass]];
+    for (const [b, name, on] of rows) {
+      setText(b, sh ? `BYPASS\n${name}` : name);
+      setClass(b, 'active', sh && on);
+    }
   }
   setClass(playBtn, 'active', ui.playing);
   setClass(patternsBtn, 'active', ui.patternView);

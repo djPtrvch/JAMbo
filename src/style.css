@@ -331,7 +331,6 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 .master-btn.byp-sat.active { background: var(--ink); color: var(--bg); }
 .master-btn.byp-clip.active { background: var(--gr); color: var(--on-accent); }
 .master-btn.byp-lim.active { background: var(--rec); color: #fff; }
-.master-btn.ratio-btn { background: var(--plock); color: var(--on-accent); }
 
 .sample {
   flex: 1;
