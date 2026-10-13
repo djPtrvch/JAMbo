@@ -499,7 +499,7 @@ export function buildPatternGrid(): HTMLElement {
 function drawThumb(c: Cell, p: ReturnType<typeof clipView>) {
   let sig = '';
   if (p) {
-    sig = `${p.pages.length}:${p.lens.join(',')}:${p.playFrom}:${p.playTo}:`;
+    sig = `${p.pages.length}:${p.length}:${p.playFrom}:${p.playTo}:`;
     p.pages.forEach((pg) => pg.forEach((s) => { sig += s.on ? (hasManualLocks(s) ? 'y' : 'x') + (s.sound ? 's' : '') + s.len : '.'; }));
   }
   if (sig === c.sig) return;

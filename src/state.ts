@@ -45,8 +45,8 @@ export interface TrackData {
   params: Record<string, number>;
   assigns: Record<string, LfoAssign>;
   pages: Step[][];
-  /** Длина каждого паттерна (страницы), шагов 1..16. */
-  lens: number[];
+  /** Длина паттерна в шагах (1..pages*16): одна на дорожку, укорочена только страница с последним шагом. */
+  length: number;
   table?: string;
   /** Автоматизации параметров (одна на параметр); нет поля — нет автоматизаций. */
   auto?: Automation[];
@@ -79,8 +79,8 @@ export interface Track {
   params: Record<string, number>;
   assigns: Record<string, LfoAssign>;
   pages: Step[][];
-  /** Длина каждого паттерна (страницы) в шагах, 1..16 — своя у каждой миниатюры. */
-  lens: number[];
+  /** Длина паттерна в шагах (1..pages*16): одна на дорожку, страницы склеиваются подряд. */
+  length: number;
   /** Какие страницы играют: диапазон playFrom..playTo. */
   playFrom: number;
   playTo: number;
@@ -229,8 +229,6 @@ export interface Ui {
   rec: boolean;
   /** Скопированные страницы (одна или выбранный диапазон). */
   clipboard: Step[][] | null;
-  /** Длины скопированных страниц. */
-  clipboardLens: number[];
   pageMenu: number | null;
   patternClipboard: Pattern | null;
   /** Скопированная строка сетки паттернов (паттерны по дорожкам, имя и повторы). */
@@ -329,7 +327,7 @@ function newTrack(i: number, name = `${i + 1}`): Track {
     params: { ...defaults(TRACK_GRID), ...defaults(SYNTH_GRID), ...defaults(MOD_GRID) },
     assigns: {},
     pages: [emptyPage()],
-    lens: [STEPS_PER_PAGE],
+    length: STEPS_PER_PAGE,
     playFrom: 0,
     playTo: 0,
     mute: false,
@@ -383,7 +381,6 @@ export const ui: Ui = {
   playing: false,
   rec: false,
   clipboard: null,
-  clipboardLens: [],
   pageMenu: null,
   patternClipboard: null,
   rowClipboard: null,
@@ -888,14 +885,11 @@ export function heldStepSound(): string | null {
 }
 
 
-/** Длина паттерна (страницы) с шагом lastIndex: он становится последним шагом своей страницы. */
+/** Длина паттерна дорожки: шаг lastIndex становится последним (одна длина на все страницы). */
 export function setPatternLength(lastIndex: number) {
   edit(() => {
     const t = curSeq();
-    const p = Math.floor(lastIndex / STEPS_PER_PAGE);
-    if (p >= t.pages.length) return;
-    fixLens(t);
-    t.lens[p] = (lastIndex % STEPS_PER_PAGE) + 1;
+    t.length = Math.min(t.pages.length * STEPS_PER_PAGE, Math.max(1, lastIndex + 1));
   });
 }
 
@@ -1147,30 +1141,25 @@ export function deleteTrack(i: number) {
   });
 }
 
-/** Длины страниц — по одной на страницу (новые — 16 шагов). */
-function fixLens(t: { pages: Step[][]; lens?: number[] }) {
-  const l = (t.lens ??= []);
-  while (l.length < t.pages.length) l.push(STEPS_PER_PAGE);
-  l.length = t.pages.length;
-  for (let k = 0; k < l.length; k++) l[k] = Math.min(STEPS_PER_PAGE, Math.max(1, Math.round(l[k] || STEPS_PER_PAGE)));
-}
-
-/** Прежняя длина (одна на все страницы: последний шаг) — в длины страниц. */
-function lensFromLength(x: { pages: Step[][]; lens?: number[]; length?: number }) {
-  if (typeof x.length === 'number') {
+/** Длина в пределах 1..pages*16; прежние длины страниц (lens, вариант «б») — в одну длину по последней странице. */
+function fixLength(x: { pages: Step[][]; length?: number; lens?: number[] }) {
+  // lens есть — проект варианта «б» (length тогда — значение по умолчанию от newTrack).
+  if (Array.isArray(x.lens)) {
     const last = x.pages.length - 1;
-    x.lens = x.pages.map((_, p) => (p < last ? STEPS_PER_PAGE : x.length! - last * STEPS_PER_PAGE));
+    x.length = last * STEPS_PER_PAGE + (x.lens[last] ?? STEPS_PER_PAGE);
   }
-  delete x.length;
-  fixLens(x);
+  delete x.lens;
+  x.length = Math.min(x.pages.length * STEPS_PER_PAGE, Math.max(1, Math.round(x.length ?? x.pages.length * STEPS_PER_PAGE)));
 }
 
-/** Сохранить диапазон «на все страницы», если он был полным; длины страниц — по числу страниц. */
+/** Сохранить длину и диапазон «на все страницы», если они были полными. */
 function changePages(t: Track, fn: () => void) {
+  const full = t.length === t.pages.length * STEPS_PER_PAGE;
   const allPlay = t.playFrom === 0 && t.playTo === t.pages.length - 1;
   fn();
-  fixLens(t);
   const last = t.pages.length - 1;
+  const max = t.pages.length * STEPS_PER_PAGE;
+  t.length = full ? max : Math.min(t.length, max);
   if (allPlay) { t.playFrom = 0; t.playTo = last; }
   t.playTo = Math.min(t.playTo, last);
   t.playFrom = Math.min(t.playFrom, t.playTo);
@@ -1185,10 +1174,14 @@ export function tailMask(pages: Step[][]): boolean[] {
   return out;
 }
 
-/** Длина страницы p (шагов 1..16). */
-export const pageLen = (t: { lens?: number[] }, p: number) => t.lens?.[p] ?? STEPS_PER_PAGE;
-/** Шаг index (p·16 + s) за длиной своей страницы — не играет. */
-export const outsideStep = (t: { lens?: number[] }, index: number) => index % STEPS_PER_PAGE >= pageLen(t, Math.floor(index / STEPS_PER_PAGE));
+/**
+ * Шагов страницы p, которые играют (0..16): одна длина на дорожку, страницы склеиваются подряд; за длиной —
+ * не играет. Если длина кончается до первой играющей страницы, страницы играют целиком.
+ */
+export const pageLen = (t: { length: number; playFrom?: number }, p: number) =>
+  t.length > (t.playFrom ?? 0) * STEPS_PER_PAGE ? Math.max(0, Math.min(STEPS_PER_PAGE, t.length - p * STEPS_PER_PAGE)) : STEPS_PER_PAGE;
+/** Шаг index (p·16 + s) за длиной — не играет. */
+export const outsideStep = (t: { length: number; playFrom?: number }, index: number) => index % STEPS_PER_PAGE >= pageLen(t, Math.floor(index / STEPS_PER_PAGE));
 
 /** Шагов в проходе: сумма длин играющих страниц. */
 export function playLen(t: Track): number {
@@ -1250,8 +1243,6 @@ export function duplicatePage(i: number) {
   const n = b - a + 1;
   if (t.pages.length + n > MAX_PAGES) return;
   edit(() => changePages(t, () => {
-    fixLens(t);
-    t.lens.splice(b + 1, 0, ...t.lens.slice(a, b + 1));
     t.pages.splice(b + 1, 0, ...t.pages.slice(a, b + 1).map(clonePage));
     // Копии встали левее играющих страниц — играют те же страницы (номера сдвинулись).
     if (t.playFrom > b) { t.playFrom += n; t.playTo += n; }
@@ -1263,7 +1254,6 @@ export function copyPage(i: number) {
   const [a, b] = pageRange(i);
   const t = curSeq();
   ui.clipboard = t.pages.slice(a, b + 1).map(clonePage);
-  ui.clipboardLens = ui.clipboard.map((_, k) => pageLen(t, a + k));
 }
 
 /** PASTE: скопированные страницы встают с первой страницы диапазона (не хватает — добавляются, до 8). */
@@ -1273,11 +1263,9 @@ export function pastePage(i: number) {
   const t = curSeq();
   const [a] = pageRange(i);
   edit(() => changePages(t, () => {
-    fixLens(t);
     clip.forEach((pg, k) => {
-      const len = ui.clipboardLens[k] ?? STEPS_PER_PAGE;
-      if (a + k < t.pages.length) { t.pages[a + k] = clonePage(pg); t.lens[a + k] = len; }
-      else if (t.pages.length < MAX_PAGES) { t.pages.push(clonePage(pg)); t.lens.push(len); }
+      if (a + k < t.pages.length) t.pages[a + k] = clonePage(pg);
+      else if (t.pages.length < MAX_PAGES) t.pages.push(clonePage(pg));
     });
   }));
 }
@@ -1325,9 +1313,7 @@ export function movePage(from: number, to: number) {
   const n = t.pages.length;
   if (from === to || from < 0 || to < 0 || from >= n || to >= n) return;
   edit(() => {
-    fixLens(t);
     t.pages.splice(to, 0, ...t.pages.splice(from, 1));
-    t.lens.splice(to, 0, ...t.lens.splice(from, 1));
     if (t.playFrom === from && t.playTo === from) t.playFrom = t.playTo = to;
   });
   ui.viewPage = to;
@@ -1339,9 +1325,7 @@ export function deletePage(i: number) {
   const [a, b] = pageRange(i);
   if (t.pages.length - (b - a + 1) < 1) return;
   edit(() => changePages(t, () => {
-    fixLens(t);
     t.pages.splice(a, b - a + 1);
-    t.lens.splice(a, b - a + 1);
     // Играли удалённые — играет страница на их месте.
     if (t.playFrom >= a && t.playTo <= b) { t.playFrom = t.playTo = Math.min(a, t.pages.length - 1); }
     else if (t.playFrom > b) { t.playFrom -= b - a + 1; t.playTo -= b - a + 1; }
@@ -1531,8 +1515,7 @@ export function recordLength(trackIndex: number, index: number, len: number) {
     const t = doc.tracks[trackIndex];
     const s = t && stepAt(t, index);
     if (!s || !s.on) return;
-    const end = (t.pages.length - 1) * STEPS_PER_PAGE + pageLen(t, t.pages.length - 1);
-    s.len = Math.max(s.len, Math.min(len, end - index));
+    s.len = Math.max(s.len, Math.min(len, t.length - index));
   };
   if (recTake >= 0 && recTake === undoSerial) { write(); return; }
   edit(write);
@@ -1567,7 +1550,7 @@ function placeOf(t: Track): { d: Doc; i: number } | null {
 function takeData(t: Track): TrackData {
   const at = placeOf(t);
   return clone({
-    sample: t.sample, params: t.params, assigns: t.assigns, pages: t.pages, lens: t.lens, table: t.table,
+    sample: t.sample, params: t.params, assigns: t.assigns, pages: t.pages, length: t.length, table: t.table,
     auto: t.auto, eq: at ? at.d.eqs[at.i] : undefined,
   });
 }
@@ -1613,13 +1596,13 @@ function putPattern(t: Track, p: Pattern) {
  * Что показывать в ячейке k (миниатюра): страницы и длина данных клипа, его диапазон и автоматизации;
  * null — пустая ячейка.
  */
-export function clipView(t: Track, k: number): { pages: Step[][]; lens: number[]; playFrom: number; playTo: number; auto?: Automation[] } | null {
+export function clipView(t: Track, k: number): { pages: Step[][]; length: number; playFrom: number; playTo: number; auto?: Automation[] } | null {
   if (!slotFilled(t, k)) return null;
   if (k === t.slot) return t;
   const c = t.slots[k]!;
   const d = c.src ?? t.home ?? t;
   const playTo = Math.max(0, Math.min(c.playTo, d.pages.length - 1));
-  return { pages: d.pages, lens: d.lens, playFrom: Math.min(c.playFrom, playTo), playTo, auto: d.auto };
+  return { pages: d.pages, length: d.length, playFrom: Math.min(c.playFrom, playTo), playTo, auto: d.auto };
 }
 
 // ---------- Гамма, нота и FX паттерна ----------
@@ -1790,8 +1773,10 @@ function putEmptyClip(t: Track, k: number): number {
   if (page < 0) page = d.pages.findIndex(pageEmpty);
   if (page < 0) return -1;
   if (page === d.pages.length) {
+    // Полная длина растёт вместе со страницами (как при «+»).
+    const full = d.length === d.pages.length * STEPS_PER_PAGE;
     d.pages.push(emptyPage());
-    fixLens(d);
+    if (full) d.length = d.pages.length * STEPS_PER_PAGE;
   }
   clearPageAuto(d, page);
   const c: Pattern = { playFrom: page, playTo: page, scale: doc.scale, root: doc.root, fx: clone(doc.fx) };
@@ -1884,15 +1869,12 @@ export function pastePattern(i: number, k: number) {
 export function deletePattern(i: number, k: number) {
   const t = doc.tracks[i];
   edit(() => {
-    // Паттерн очищается: шаги его страниц пустые (ноты, триги, p-lock, звуки шагов; длина — 16); клип
+    // Паттерн очищается: шаги его страниц пустые (ноты, триги, p-lock, звуки шагов); клип
     // остаётся (пустых ячеек нет). У клипа PREV данные старого проекта не трогаем.
     const c = k === t.slot ? (t.blank || t.home ? null : t) : t.slots[k]?.src ? null : t.slots[k];
     // Неактивный клип, пока играет клип PREV: его страницы — в своих данных дорожки (t.home).
     const d = k !== t.slot && t.home ? t.home : t;
-    if (c) {
-      fixLens(d);
-      for (let p = c.playFrom; p <= Math.min(c.playTo, d.pages.length - 1); p++) { d.pages[p] = emptyPage(); d.lens[p] = STEPS_PER_PAGE; }
-    }
+    if (c) for (let p = c.playFrom; p <= Math.min(c.playTo, d.pages.length - 1); p++) d.pages[p] = emptyPage();
   });
   if (i === ui.selectedTrack) { ui.heldSteps.clear(); clampView(); }
 }
@@ -2488,9 +2470,9 @@ export function normalizeDoc(raw: unknown): Doc {
   d.chanSeqs = base.chanSeqs.map((b, k) => ({ ...b, ...(d.chanSeqs?.[k] ?? {}) }));
   // Конец кривой ровно на начале следующей страницы — на свою страницу (иначе та считалась бы автоматизированной).
   for (const t of d.tracks) for (const x of [t, t.home, ...t.slots.map((c) => c?.src)]) x?.auto?.forEach(fixPageEnds);
-  // Длина — своя у каждой страницы (в прежних проектах — одна на все: укорочена только последняя страница).
+  // Длина — одна на дорожку (проекты с длиной у каждой страницы — по длине последней страницы).
   for (const t of [...d.tracks, ...d.chanSeqs]) {
-    for (const x of [t, t.home, ...t.slots.map((c) => c?.src)]) if (x) lensFromLength(x);
+    for (const x of [t, t.home, ...t.slots.map((c) => c?.src)]) if (x) fixLength(x);
   }
   // Повторов строки не меньше 1 (прежнее ∞ — теперь кнопка LOOP ROW в меню сетки).
   d.scenes = base.scenes.map((b, k) => { const s = d.scenes?.[k] ?? b; return { ...s, repeats: Math.max(1, s.repeats) }; });
