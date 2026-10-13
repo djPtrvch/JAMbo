@@ -129,7 +129,34 @@ export function buildPages(): HTMLElement {
       cells.push(c);
       root.append(c);
     }
-    root.addEventListener('pointerdown', (e) => {
+    root.addEventListener('pointerdown', (e) => startDrag(e, i, root));
+    thumbs.push({ root, cells });
+    list.append(root);
+  }
+  plus = h('div', 'thumb plus', '+');
+  // «+» — новая страница по тапу (отпустили, не сдвинув палец). Касание у нижней границы обводки
+  // (обводка на последней странице) — это её край: протягивание тянет край, страница не добавляется.
+  let plusDown: { id: number; y0: number; moved: boolean } | null = null;
+  plus.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    const t = curSeq();
+    const last = t.pages.length - 1;
+    const { top, pitch } = geom();
+    if (t.playTo === last && (e.clientY - top) / pitch - (last + 1) <= EDGE_ZONE) { startDrag(e, last, thumbs[last].root); return; }
+    plusDown = { id: e.pointerId, y0: e.clientY, moved: false };
+  });
+  plus.addEventListener('pointermove', (e) => {
+    if (plusDown && e.pointerId === plusDown.id && Math.abs(e.clientY - plusDown.y0) > MOVE_PX) plusDown.moved = true;
+  });
+  plus.addEventListener('pointerup', (e) => {
+    if (plusDown && e.pointerId === plusDown.id && !plusDown.moved) addPage();
+    plusDown = null;
+  });
+  plus.addEventListener('pointercancel', () => { plusDown = null; });
+  list.append(plus);
+
+  /** Касание страницы i (или края обводки у «+»): край обводки, середина, страница снаружи; удержание. */
+  function startDrag(e: PointerEvent, i: number, root: HTMLElement) {
       e.preventDefault();
       if (drag) return;
       root.releasePointerCapture?.(e.pointerId);
@@ -160,13 +187,7 @@ export function buildPages(): HTMLElement {
           for (let k = 0; k < drag.n; k++) if (k !== i) thumbs[k].root.classList.add('thumb-shift');
         }, HOLD_MS),
       };
-    });
-    thumbs.push({ root, cells });
-    list.append(root);
   }
-  plus = h('div', 'thumb plus', '+');
-  plus.addEventListener('pointerdown', (e) => { e.preventDefault(); addPage(); });
-  list.append(plus);
 
   document.addEventListener('pointermove', (e) => {
     if (!drag || e.pointerId !== drag.id) return;

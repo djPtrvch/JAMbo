@@ -372,7 +372,7 @@ export function buildAuto(): HTMLElement {
 
   const body = h('div', 'auto-body');
   side = h('div', 'auto-side');
-  listBox = h('div', 'auto-list scrolly');
+  listBox = h('div', 'auto-list');
   pagesBox = h('div', 'auto-pages');
   side.append(listBox, pagesBox);
   plot = h('div', 'eq-plot');
@@ -414,6 +414,11 @@ export function renderAuto() {
   const isTrack = ui.channel === 'track';
   const t = selTrack();
   renderList();
+  // Кнопки списка не прокручиваются: если не помещаются — становятся ниже (до 52 px).
+  const n = listBox.children.length;
+  const rowH = n ? Math.max(20, Math.min(52, Math.floor((listBox.clientHeight - 6 * (n - 1)) / n))) : 52;
+  const rows = `${rowH}px`;
+  if (listBox.style.gridAutoRows !== rows) listBox.style.gridAutoRows = rows;
   setClass(listBox, 'hidden', !isTrack);
   const a = curAuto();
   const def = curDef();
