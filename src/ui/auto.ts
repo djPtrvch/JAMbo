@@ -276,7 +276,10 @@ function openList(anchor: Element) {
     b.classList.toggle('current', a.param === ui.autoParam);
     return b;
   }));
-  listMenu.openRect({ left: r.left, top: r.top, width: r.width, height: r.height });
+  // Высота — по числу автоматизаций (растёт вниз), не больше списка «+».
+  listMenu.openRect({ left: r.left, top: r.top, width: r.width, height: 0 });
+  listMenu.box.style.height = '';
+  listMenu.box.style.maxHeight = `${r.height}px`;
 }
 
 /** «+»: выбор ручки дорожки (уже назначенная — просто открывается). */

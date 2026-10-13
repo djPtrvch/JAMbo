@@ -2255,16 +2255,19 @@ export function visibleRows(): number {
 export const canAddRow = () => visibleRows() < rowLimit();
 
 /**
- * «+» в колонке строк: новая строка — пустая или (по умолчанию) с пустыми паттернами у играющих дорожек
- * (остановленные и заглушённые — нет): у каждой новый клип на новой пустой странице; что именно — в меню сетки.
+ * «+» в колонке строк: новая строка — с пустыми паттернами ('empty': у каждой играющей дорожки новый клип на
+ * новой пустой странице) или (по умолчанию) с копиями клипов играющих дорожек ('copy'); остановленные и
+ * заглушённые — нет; что именно — в меню сетки.
  */
 export function addSceneRow(mode: 'empty' | 'copy' = doc.plusMode ?? 'copy') {
   if (!canAddRow()) return;
   const r = visibleRows();
   edit(() => {
-    if (mode === 'copy') {
-      doc.tracks.forEach((t, i) => { if (!t.stopped && audible(i) && r !== t.slot) putEmptyClip(t, r); });
-    }
+    doc.tracks.forEach((t, i) => {
+      if (t.stopped || !audible(i) || r === t.slot) return;
+      if (mode === 'copy') t.slots[r] = takePattern(t);
+      else putEmptyClip(t, r);
+    });
     doc.rows = r + 1;
   });
 }
