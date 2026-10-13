@@ -1045,7 +1045,9 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 .arrange-row .popup-btn { min-width: 0; }
 /* Меню строки и сетки: не заходят на строку дорожек, лишнее прокручивается. */
 .popup-box.scene-menu, .popup-box.arrange-menu { overflow-y: auto; touch-action: pan-y; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
-.arrange-loop { width: 100%; }
+.row-loop-btn { display: flex; align-items: center; justify-content: center; min-height: 0; }
+.row-loop-btn svg { width: 22px; height: 22px; }
+.btn.row-loop-btn.on { background: var(--plock); color: var(--on-accent); }
 .popup-box.scene-menu > *, .popup-box.arrange-menu > * { flex-shrink: 0; }
 /* Прокручиваемые меню и списки: прокрутка пальцем (и по кнопкам в них); системная полоса скрыта —
  * вместо неё своя, видимая всегда (scrollbar.ts). Специфичность :where() — нулевая, поэтому
@@ -1111,3 +1113,7 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 /* AUTO с включённой записью автоматизации — красный контур (окно может быть закрыто). */
 .btn.tb-auto.auto-armed { box-shadow: inset 0 0 0 1px var(--rec); color: var(--rec); }
 .btn.tb-auto.auto-armed.active { color: var(--bg); }
+
+/* Удержание паттерна, пока дорожка играет другой: короткая вспышка (открыть нельзя). */
+.pattern-cell.deny { animation: cell-deny 0.4s ease-out; }
+@keyframes cell-deny { 0% { box-shadow: inset 0 0 0 2px var(--rec); } 100% { box-shadow: inset 0 0 0 2px transparent; } }

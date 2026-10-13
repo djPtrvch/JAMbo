@@ -1579,6 +1579,23 @@ export function activateSlot(i: number, k: number) {
   }
 }
 
+/**
+ * Удержание ячейки: паттерн открывается в секвенсоре для правки без запуска (дорожка остановлена).
+ * Пока дорожка играет другой паттерн, его не подменить (секвенсор правит тот, что звучит) — false.
+ */
+export function openSlot(i: number, k: number): boolean {
+  const t = doc.tracks[i];
+  if (k === t.slot) return true;
+  if (ui.playing && !t.stopped) return false;
+  swapSlot(t, k);
+  if (!t.stopped) stopTrack(i);
+  if (i === ui.selectedTrack) {
+    ui.heldSteps.clear();
+    clampView();
+  }
+  return true;
+}
+
 export function stopTrack(i: number) {
   doc.tracks[i].stopped = true;
   patternStopped(i);
@@ -2298,7 +2315,8 @@ export function loadDoc(d: Doc) {
  * и EQ дорожек — у паттернов.
  */
 /** real[i] — в строке PREV дорожки настоящий старый паттерн (иначе пустая заглушка). */
-interface Transition { hidden: (Pattern | null)[]; origSlot: number[]; hiddenScene: Scene; real: boolean[] }
+/** count — число дорожек нового проекта (лишние дорожки старого убираются в конце перехода). */
+interface Transition { hidden: (Pattern | null)[]; origSlot: number[]; hiddenScene: Scene; real: boolean[]; count: number }
 let transition: Transition | null = null;
 export const inTransition = () => transition !== null;
 /** Ячейка строки PREV без старого паттерна (рисуется пустой). */
@@ -2397,8 +2415,10 @@ export function switchWithTransition(next: Doc) {
     const trigs = t.pages.some((pg) => pg.some((st) => st.on));
     return { trigs, playing: ui.playing && !t.stopped && rt.queued[i] !== 'stop' && trigs, pattern: takePattern(t), row: t.slot, mute: t.mute, solo: t.solo };
   });
-  // Дорожек у проектов может быть разное число: новый дополняется до числа старого (старые
-  // паттерны доигрывают на своих дорожках); у дорожек без старого паттерна PREV пустая.
+  // Дорожек у проектов может быть разное число: число дорожек — как у нового. Пока идёт переход,
+  // новый дополняется до числа старого (старые паттерны доигрывают на своих дорожках, у дорожек без
+  // старого паттерна PREV пустая); лишние дорожки убираются в конце перехода (unshiftDoc).
+  const count = next.tracks.length;
   while (next.tracks.length < old.length) {
     next.tracks.push(newTrack(next.tracks.length));
     next.folders.push({ items: [], index: -1 });
@@ -2406,7 +2426,7 @@ export function switchWithTransition(next: Doc) {
   }
   const none = { trigs: false, playing: false, pattern: null, row: 0, mute: false, solo: false };
   const from = takeGlobals(doc);
-  const tr: Transition = { hidden: [], origSlot: [], hiddenScene: next.scenes[LAST], real: [] };
+  const tr: Transition = { hidden: [], origSlot: [], hiddenScene: next.scenes[LAST], real: [], count };
   transitionMoves.length = 0;
   // Гамма, нота и FX остаются от старого лидера (его паттерн доигрывает в PREV), пока не запустят новый паттерн.
   const live = { scale: doc.scale, root: doc.root, fx: clone(doc.fx) };
@@ -2452,6 +2472,19 @@ function unshiftDoc(d: Doc, tr: Transition) {
     if (fromPrev) t.stopped = true;
   }));
   d.scenes = [...d.scenes.slice(0, LAST), tr.hiddenScene];
+  // Дорожки сверх числа нового проекта (были только для старых паттернов) убираются — с конца,
+  // пока на них нет своих паттернов (созданных во время перехода).
+  let n = d.tracks.length;
+  while (n > Math.max(tr.count, TRACK_COUNT) && !rowsOf(d.tracks[n - 1]).some((p) => p && p.pages.some((pg) => pg.some((st) => st.on)))) n--;
+  if (n < d.tracks.length) {
+    for (let j = n; j < d.tracks.length; j++) {
+      const v = `mix.vol${j + 1}`;
+      d.mixer[v] = PARAM_BY_ID[v].def;
+    }
+    d.tracks.length = n;
+    d.folders.length = n;
+    d.eqs.length = n;
+  }
 }
 
 /** Документ для сохранения: без строки PREV и с общими настройками нового проекта. */
@@ -2476,6 +2509,8 @@ export function updateTransition() {
     || rt.scene?.row === LAST || rt.sceneQueued === LAST;
   if (busy) return;
   unshiftDoc(doc, tr);
+  for (let j = doc.tracks.length; j < MAX_TRACKS; j++) rt.queued[j] = null;
+  if (ui.selectedTrack >= doc.tracks.length) ui.selectedTrack = doc.tracks.length - 1;
   transition = null;
   xfade = null;
   resetUndo();

@@ -15,7 +15,7 @@ import {
   crossfade, inTransition, isPrevPlaceholder, rowFilled, sceneName, setCrossfade, setScene, transitionMoves,
   addSceneRow, canAddRow, copyRow, deleteRow, duplicateRow, pasteRow, setArrangement, rowLoopOn, setPlusMode, toggleRowLoop, visibleRows,
   copyPattern, createPattern, dropPattern, deletePattern, doc, duplicatePattern, freeSlotAfter, hasManualLocks, tailMask, pastePattern,
-  playRange, rt, selectTrack, slotFilled, ui, type Pattern, patternHasAuto,
+  openSlot, playRange, rt, selectTrack, slotFilled, ui, type Pattern, patternHasAuto,
 } from '../state';
 import { queuePattern, queueScene, sceneProgress } from '../transport';
 import { registerAction } from '../midi';
@@ -126,6 +126,14 @@ let menu: Popup;
 let menuCell: [number, number] | null = null;
 const menuButtons: Record<string, HTMLButtonElement> = {};
 
+/** Короткая вспышка ячейки: действие сейчас недоступно. */
+function flashCell(root: HTMLElement) {
+  root.classList.remove('deny');
+  void root.offsetWidth;
+  root.classList.add('deny');
+  window.setTimeout(() => root.classList.remove('deny'), 400);
+}
+
 function tapCell(i: number, k: number) {
   const t = doc.tracks[i];
   // Пустая заглушка строки PREV не запускается.
@@ -180,46 +188,36 @@ let scenePlus: HTMLElement;
 function buildPlusRow(): HTMLElement {
   scenePlus = h('div', 'pattern-cell plus-cell', '+');
   scenePlus.style.gridColumn = '1';
-  // Тап (отпустили до удержания, не сдвинув палец) — строка по настройке + ADDS; удержание — меню
-  // EMPTY ROW / COPY PLAYING (строку не добавляет, пока не выбрали).
-  let id = -1, x0 = 0, y0 = 0, timer = 0, held = false;
+  // Тап (отпустили, не сдвинув палец) — строка по настройке + ADDS (меню сетки).
+  let id = -1, x0 = 0, y0 = 0;
   scenePlus.addEventListener('pointerdown', (e) => {
     e.preventDefault();
-    id = e.pointerId; x0 = e.clientX; y0 = e.clientY; held = false;
-    clearTimeout(timer);
-    timer = window.setTimeout(() => { held = true; openPlusMenu(); }, HOLD_MS);
+    id = e.pointerId; x0 = e.clientX; y0 = e.clientY;
   });
   scenePlus.addEventListener('pointermove', (e) => {
-    if (e.pointerId === id && Math.hypot(e.clientX - x0, e.clientY - y0) > 10) { clearTimeout(timer); id = -1; }
+    if (e.pointerId === id && Math.hypot(e.clientX - x0, e.clientY - y0) > 10) id = -1;
   });
   const end = (e: PointerEvent) => {
     if (e.pointerId !== id) return;
     id = -1;
-    clearTimeout(timer);
-    if (!held && e.type === 'pointerup') addSceneRow();
+    if (e.type === 'pointerup') addSceneRow();
   };
   scenePlus.addEventListener('pointerup', end);
   scenePlus.addEventListener('pointercancel', end);
-  plusMenu = makePopup('plus-menu');
   return scenePlus;
 }
 
-let plusMenu: Popup;
-
-/** Меню удержания «+»: добавить строку пустой или с копиями играющих паттернов (настройка + ADDS не меняется). */
-function openPlusMenu() {
-  const cur = doc.plusMode ?? 'copy';
-  const row = h('div', 'arrange-row');
-  for (const [v, label] of [['empty', 'EMPTY ROW'], ['copy', 'COPY PLAYING']] as const) {
-    const b = popupButton(label, () => { plusMenu.close(); addSceneRow(v); });
-    b.classList.toggle('current', v === cur);
-    row.append(b);
-  }
-  plusMenu.box.replaceChildren(h('div', 'popup-title', '+ ADDS'), row);
-  openSpan(plusMenu, scenePlus, scenePlus, cells[0][0].root, true);
-}
-
 let arrBtn: HTMLElement;
+let loopBtn: HTMLElement;
+
+/** Под бутербродом — LOOP ROW (значок лупа): играющая строка повторяется бесконечно; жёлтая, пока включена. */
+function buildLoopButton(): HTMLElement {
+  loopBtn = h('div', 'btn row-loop-btn');
+  loopBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l3 3-3 3"/><path d="M4 11V9a4 4 0 0 1 4-4h12"/><path d="M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 0 1-4 4H4"/></svg>';
+  loopBtn.style.gridRow = '2';
+  loopBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); toggleRowLoop(); });
+  return loopBtn;
+}
 
 /** Открыть окно под (или над) anchor, по горизонтали — от левого края from до правого края to. */
 function openSpan(p: Popup, anchor: Element, from: Element, to: Element, overTracks = false) {
@@ -278,13 +276,8 @@ function openArrangeMenu() {
     b.classList.toggle('current', v === end);
     endRow.append(b);
   }
-  // LOOP ROW — играющая строка повторяется бесконечно.
-  const loop = popupButton('LOOP ROW', () => { toggleRowLoop(); openArrangeMenu(); });
-  loop.classList.toggle('current', rowLoopOn());
-  loop.classList.add('arrange-loop');
   const scroll = arrMenu.isOpen() ? arrMenu.box.scrollTop : 0;
   arrMenu.box.replaceChildren(
-    loop,
     h('div', 'popup-title', 'START FROM ROW'), startRow,
     h('div', 'popup-title', 'AT THE END'), endRow,
     h('div', 'popup-title', '+ ADDS'), plusRow,
@@ -405,7 +398,7 @@ export function buildPatternGrid(): HTMLElement {
   buildMenu();
   buildSceneMenu();
   grid = h('div', 'pattern-grid hidden');
-  grid.append(buildCrossfader(), buildArrangeButton(), buildPlusRow());
+  grid.append(buildCrossfader(), buildArrangeButton(), buildLoopButton(), buildPlusRow());
   for (let k = 0; k < PATTERN_SLOTS; k++) grid.append(buildSceneCell(k));
   for (let k = 0; k < PATTERN_SLOTS; k++) {
     for (let i = 0; i < MAX_TRACKS; i++) {
@@ -428,6 +421,9 @@ export function buildPatternGrid(): HTMLElement {
       let y0 = 0;
       let t0 = 0;
       let ghost: HTMLElement | null = null;
+      // Удержание паттерна без движения — открыть его для правки без запуска.
+      let holdTimer = 0;
+      let held = false;
       root.addEventListener('pointerdown', (e) => {
         e.preventDefault();
         root.setPointerCapture(e.pointerId);
@@ -436,12 +432,22 @@ export function buildPatternGrid(): HTMLElement {
         y0 = e.clientY;
         t0 = performance.now();
         ghost = null;
+        held = false;
+        clearTimeout(holdTimer);
+        holdTimer = window.setTimeout(() => {
+          if (id !== e.pointerId || ghost || !slotFilled(doc.tracks[i], k) || isPrevPlaceholder(i, k)) return;
+          held = true;
+          selectTrack(i);
+          if (!openSlot(i, k)) flashCell(root);
+        }, HOLD_MS);
       });
       root.addEventListener('pointermove', (e) => {
         if (e.pointerId !== id) return;
         const dx = e.clientX - x0;
         const dy = e.clientY - y0;
         // Паттерн с ячейки «берётся» пальцем: копия ячейки едет за ним.
+        if (Math.hypot(dx, dy) > DRAG_PX) clearTimeout(holdTimer);
+        if (held) return;
         if (!ghost && slotFilled(doc.tracks[i], k) && !isPrevPlaceholder(i, k) && Math.hypot(dx, dy) > DRAG_PX) ghost = liftCell(root);
         if (!ghost) return;
         ghost.style.transform = `translate(${dx}px, ${dy}px) scale(1.06)`;
@@ -451,6 +457,8 @@ export function buildPatternGrid(): HTMLElement {
       const finish = (e: PointerEvent, cancelled: boolean) => {
         if (e.pointerId !== id) return;
         id = -1;
+        clearTimeout(holdTimer);
+        if (held) return;
         const target = dropTarget;
         setDropTarget(null);
         const dx = e.clientX - x0;
@@ -531,9 +539,12 @@ export function renderPatternGrid() {
   const last = doc.tracks.length + 2;
   // При переходе MIX бутерброда нет — кроссфейдер во всю высоту, как раньше.
   const mixing = crossfade() !== null;
-  setAttr(xf, 'style', `grid-column:${last};grid-row:${mixing ? 1 : 2} / ${PATTERN_SLOTS + 1}`);
+  setAttr(xf, 'style', `grid-column:${last};grid-row:${mixing ? 1 : 3} / ${PATTERN_SLOTS + 1}`);
   arrBtn.style.gridColumn = String(last);
   setClass(arrBtn, 'hidden', mixing);
+  loopBtn.style.gridColumn = String(last);
+  setClass(loopBtn, 'hidden', mixing);
+  setClass(loopBtn, 'on', rowLoopOn());
   if (mixing && arrMenu.isOpen()) arrMenu.close();
   // Видны строки 1…visibleRows (при переходе MIX — и строка PREV внизу), под ними — «+».
   const rows = visibleRows();
