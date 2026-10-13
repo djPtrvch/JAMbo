@@ -12,7 +12,7 @@ import { AUTO_PARAMS } from '../automation';
 import { markKnob, registerAction } from '../midi';
 import { stemArmed, stemRecording, toggleStem } from '../stems';
 import { MAX_TRACKS, OVER_PEAK } from '../params';
-import { trackDuckDb, trackIsStereo, trackLevel } from '../audio/engine';
+import { nextReverbVariant, reverbVariant, trackDuckDb, trackIsStereo, trackLevel } from '../audio/engine';
 import { levelFrac } from './meter';
 import { openRename } from './tracks';
 import { makePopup, popupButton, type Popup } from './popup';
@@ -153,6 +153,9 @@ interface TrackDrag {
 const views: KnobView[] = [];
 const gestures = new Map<number, Gesture>();
 const lastTap: number[] = Array(16).fill(-1e9);
+/** Место кнопки пробы вариантов реверба: 3.3 (пустое в FX). */
+const REV_VARIANT_SLOT = 10;
+let revBtn: HTMLElement | null = null;
 
 function buildKnob(slot: number): KnobView {
   const root = h('div', 'knob');
@@ -172,6 +175,13 @@ function buildKnob(slot: number): KnobView {
   const meter = buildKnobMeter();
   const { msr, msrBtns } = buildMsr(slot);
   dial.append(meter.root, box, value, msr);
+  if (slot === REV_VARIANT_SLOT) {
+    // Проба: вариант пространства реверба (A / B / C) — на пустом месте 3.3 в FX; после выбора уберём.
+    revBtn = h('div', 'btn rev-variant hidden');
+    revBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); nextReverbVariant(); });
+    for (const ev of ['pointermove', 'pointerup', 'pointercancel']) revBtn.addEventListener(ev, (e) => e.stopPropagation());
+    root.append(revBtn);
+  }
   root.append(dial, label);
 
   markKnob(root, slot);
@@ -421,6 +431,11 @@ export function renderKnobs(now: number) {
   const playLocks = liveLocks(seqIndex(), now) ?? undefined;
   const lfoHeld = mode === 'track' || mode === 'fx' ? heldLfo() : null;
 
+  if (revBtn) {
+    setClass(revBtn, 'hidden', mode !== 'fx');
+    setClass(views[REV_VARIANT_SLOT].root, 'rev-slot', mode === 'fx');
+    setText(revBtn, `REV ${reverbVariant()}`);
+  }
   views.forEach((v, slot) => {
     const p = grid[slot];
     const meter = mode === 'mix' && !!p && slot < doc.tracks.length;

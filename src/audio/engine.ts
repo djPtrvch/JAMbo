@@ -201,6 +201,18 @@ export const synthLoad = () => synthCpu.reduce((a, b) => a + b, 0) + [...fxCpu.v
 interface Reverb { node: AudioWorkletNode | null; set: (fx: Record<string, number>, ct: number) => void }
 
 let reverbModule: Promise<void> | null = null;
+/** Вариант пространства реверба A / B / C — на пробу (кнопка в FX), хранится в браузере. */
+const REV_VARIANT_KEY = 'jambo.revVariant';
+export const REV_VARIANTS = ['A', 'B', 'C'] as const;
+let revVariant: string = (() => { try { return localStorage.getItem(REV_VARIANT_KEY) ?? 'B'; } catch { return 'B'; } })();
+if (!(REV_VARIANTS as readonly string[]).includes(revVariant)) revVariant = 'B';
+export const reverbVariant = () => revVariant;
+/** Следующий вариант по кругу A → B → C. */
+export function nextReverbVariant() {
+  revVariant = REV_VARIANTS[(REV_VARIANTS.indexOf(revVariant as 'A') + 1) % REV_VARIANTS.length];
+  try { localStorage.setItem(REV_VARIANT_KEY, revVariant); } catch { /* без хранилища — до перезагрузки */ }
+  rev?.node?.port.postMessage({ variant: revVariant });
+}
 function createReverb(c: AudioContext, input: AudioNode, output: AudioNode): Reverb {
   const r: Reverb = {
     node: null,
@@ -222,6 +234,7 @@ function createReverb(c: AudioContext, input: AudioNode, output: AudioNode): Rev
       numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2], channelCount: 2, channelCountMode: 'explicit',
     });
     node.port.onmessage = (e) => { if (typeof e.data?.cpu === 'number') fxCpu.set(r, e.data.cpu); };
+    node.port.postMessage({ variant: revVariant });
     input.connect(node).connect(output);
     r.node = node;
     // Текущие значения сразу (иначе первый блок — значения по умолчанию).

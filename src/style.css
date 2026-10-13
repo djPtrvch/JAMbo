@@ -1121,3 +1121,8 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 /* Удержание паттерна, пока дорожка играет другой: короткая вспышка (открыть нельзя). */
 .pattern-cell.deny { animation: cell-deny 0.4s ease-out; }
 @keyframes cell-deny { 0% { box-shadow: inset 0 0 0 2px var(--rec); } 100% { box-shadow: inset 0 0 0 2px transparent; } }
+
+/* Проба вариантов реверба (A / B / C) на месте 3.3 в FX — временно, после выбора уберём. */
+.knob.rev-slot .knob-dial { visibility: hidden; }
+.rev-variant { position: absolute; z-index: 3; left: 50%; top: 50%; transform: translate(-50%, -50%); min-width: 72px; height: 44px; padding: 0 12px; font-size: 13px; }
+.rev-variant.hidden { display: none; }
