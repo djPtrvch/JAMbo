@@ -15,7 +15,7 @@ import {
   crossfade, inTransition, isPrevPlaceholder, rowFilled, sceneName, setCrossfade, setScene, transitionMoves,
   addSceneRow, canAddRow, copyRow, deleteRow, duplicateRow, pasteRow, setArrangement, rowLoopOn, setPlusMode, toggleRowLoop, visibleRows,
   copyPattern, createPattern, dropPattern, deletePattern, doc, duplicatePattern, freeSlotAfter, hasManualLocks, tailMask, pastePattern,
-  clipView, openSlot, selectEmptySlot, outsideStep, passOffset, playLen, rt, selectTrack, slotFilled, ui, patternHasAuto,
+  clipView, openSlot, selectEmptySlot, setEditSlot, outsideStep, passOffset, playLen, rt, selectTrack, slotFilled, ui, patternHasAuto,
 } from '../state';
 import { queuePattern, queueScene, sceneProgress } from '../transport';
 import { registerAction } from '../midi';
@@ -139,6 +139,7 @@ function tapCell(i: number, k: number) {
   // Пустая заглушка строки PREV не запускается.
   if (isPrevPlaceholder(i, k)) return;
   selectTrack(i);
+  setEditSlot(i, k);
   if (!slotFilled(t, k)) {
     // Новый клип — пустой паттерн (новая страница), сразу открыт в секвенсоре; страниц больше нет — вспышка.
     if (!createPattern(i, k)) { flashCell(cells[i][k].root); return; }
@@ -440,8 +441,9 @@ export function buildPatternGrid(): HTMLElement {
           held = true;
           selectTrack(i);
           // Пустая ячейка — только выбирается (паттерн не создаётся); заполненная — правка без запуска.
-          if (!slotFilled(doc.tracks[i], k)) selectEmptySlot(i, k);
+          if (!slotFilled(doc.tracks[i], k)) { selectEmptySlot(i, k); ui.editSlot = k; }
           else if (!openSlot(i, k)) flashCell(root);
+          else ui.editSlot = k;
         }, HOLD_MS);
       });
       root.addEventListener('pointermove', (e) => {
@@ -571,8 +573,11 @@ export function renderPatternGrid() {
       setClass(c.root, 'queued', q === k);
       setClass(c.root, 'stopping', active && q === 'stop');
       setClass(c.root, 'selected-col', i === ui.selectedTrack);
+      // Выбранная для правки — белая обводка и светлее; клип с пустым паттерном — пунктир.
+      setClass(c.root, 'editing', i === ui.selectedTrack && ui.channel === 'track' && k === ui.editSlot && !isPrevPlaceholder(i, k));
       const view = filled ? clipView(t, k) : null;
       drawThumb(c, view);
+      setClass(c.root, 'empty-pattern', !!view && !view.pages.slice(view.playFrom, view.playTo + 1).some((pg) => pg.some((s) => s.on)));
       setClass(c.wave, 'hidden', !view || !patternHasAuto(view));
       // Прогресс проигрывания активного паттерна.
       let progress = 0;

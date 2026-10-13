@@ -217,6 +217,8 @@ export interface Ui {
   selectedTrack: number;
   channel: Channel;
   viewPage: number;
+  /** Ячейка сетки паттернов выбранной дорожки, выбранная для правки (тап или удержание). */
+  editSlot: number;
   held: Record<HoldButton, boolean>;
   /** Порядок нажатия FX/MOD: побеждает нажатая последней. */
   modeOrder: ('fx' | 'mod')[];
@@ -373,6 +375,7 @@ export const ui: Ui = {
   selectedTrack: 0,
   channel: 'track',
   viewPage: 0,
+  editSlot: 0,
   held: { lfo1: false, lfo2: false, lfo3: false, env: false, track: false, fx: false, mod: false, shift: false },
   modeOrder: [],
   lastLfo: 1,
@@ -937,6 +940,7 @@ function clampView() {
 
 export function selectTrack(i: number) {
   if (i >= doc.tracks.length) return;
+  if (i !== ui.selectedTrack || ui.channel !== 'track') ui.editSlot = doc.tracks[i].slot;
   ui.selectedTrack = i;
   ui.channel = 'track';
   ui.heldSteps.clear();
@@ -1742,6 +1746,14 @@ export function selectEmptySlot(i: number, k: number) {
   if (!t.stopped) stopTrack(i);
 }
 
+/** Ячейку k дорожки i выбрали для правки (тап или удержание): её клип открыт в секвенсоре. */
+export function setEditSlot(i: number, k: number) {
+  if (i !== ui.selectedTrack) return;
+  ui.editSlot = k;
+  const v = clipView(doc.tracks[i], k);
+  if (v) { ui.viewPage = v.playFrom; ui.heldSteps.clear(); }
+}
+
 export function stopTrack(i: number) {
   doc.tracks[i].stopped = true;
   patternStopped(i);
@@ -1833,6 +1845,13 @@ export function pastePattern(i: number, k: number) {
 export function deletePattern(i: number, k: number) {
   const t = doc.tracks[i];
   edit(() => {
+    // Паттерн очищается: шаги его страниц пустые (ноты, триги, p-lock, звуки шагов; длина — 16) — пустую
+    // страницу потом возьмёт новый клип; ячейка пустеет. У клипа PREV данные старого проекта не трогаем.
+    const c = k === t.slot ? (t.blank || t.home ? null : t) : t.slots[k]?.src ? null : t.slots[k];
+    if (c) {
+      fixLens(t);
+      for (let p = c.playFrom; p <= Math.min(c.playTo, t.pages.length - 1); p++) { t.pages[p] = emptyPage(); t.lens[p] = STEPS_PER_PAGE; }
+    }
     if (k !== t.slot) { t.slots[k] = null; return; }
     goHome(t);
     t.blank = true;
