@@ -3,11 +3,12 @@
 
 import { fromNorm, toNorm, type ParamDef } from '../params';
 import {
-  addTrack, audible, toggleArm, toggleMute, toggleSolo, assignFor, clearTrackLocks, canAddTrack, canDeleteTrack, copyTrack, deleteTrack, hasTrackClip, moveTrack, pasteTrack, curSeq, fxModNorm, liveLocks, seqIndex,
+  addTrack, audible, toggleMute, toggleSolo, assignFor, clearTrackLocks, canAddTrack, canDeleteTrack, copyTrack, deleteTrack, hasTrackClip, moveTrack, pasteTrack, curSeq, fxModNorm, liveLocks, seqIndex,
   beginGesture, clearLfoAssign, clearLock, doc, endGesture, firstHeldStep, gridFor, gridMode, heldLfo,
   lockValue, modulatedNorm, paramValue, type Mod, setLfoAmount, setLockNorm, setParamNorm, ui, type GridMode,
 } from '../state';
 import { markKnob, registerAction } from '../midi';
+import { stemRecording, toggleStem } from '../stems';
 import { MAX_TRACKS, OVER_PEAK } from '../params';
 import { trackDuckDb, trackIsStereo, trackLevel } from '../audio/engine';
 import { levelFrac } from './meter';
@@ -62,7 +63,7 @@ function buildMsr(slot: number): { msr: HTMLElement; msrBtns: HTMLElement[] } {
   const defs: [string, string, string, () => void, () => boolean][] = [
     ['M', 'MUTE', 'msr-mute', () => toggleMute(slot), () => !!doc.tracks[slot]?.mute],
     ['S', 'SOLO', 'msr-solo', () => toggleSolo(slot), () => !!doc.tracks[slot]?.solo],
-    ['', 'ARM', 'msr-arm', () => toggleArm(slot), () => !!doc.tracks[slot]?.arm],
+    ['', 'ARM', 'msr-arm', () => toggleStem(slot), () => stemRecording(slot)],
   ];
   const msrBtns = defs.map(([text, name, cls, fn, state]) => {
     const b = h('div', `btn msr-btn ${cls}`, text);
@@ -416,7 +417,7 @@ export function renderKnobs(now: number) {
       const t = doc.tracks[slot];
       setClass(v.msrBtns[0], 'on', t.mute);
       setClass(v.msrBtns[1], 'on', t.solo);
-      setClass(v.msrBtns[2], 'on', !!t.arm);
+      setClass(v.msrBtns[2], 'on', stemRecording(slot));
     }
     setClass(v.root, 'inactive', !p);
     if (!p) {

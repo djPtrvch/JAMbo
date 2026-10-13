@@ -87,8 +87,6 @@ export interface Track {
   table?: string;
   /** Постоянный номер дорожки (не её место): по нему UNDO/REDO перестановки возвращает и состояние игры. */
   id?: number;
-  /** Готовность к записи (кнопка ● в MIX). */
-  arm?: boolean;
   /** Гамма, нота и FX активного паттерна (см. Pattern). */
   scale?: number;
   root?: number;
@@ -1270,8 +1268,6 @@ export function swipeTrack(i: number, dir: 'up' | 'down') {
 /** Кнопки M и S в MIX (и с MIDI): то же, что свайпы; mute и solo вместе не включаются. */
 export function toggleMute(i: number) { const t = doc.tracks[i]; if (t) setMuteSolo(i, !t.mute, false); }
 export function toggleSolo(i: number) { const t = doc.tracks[i]; if (t) setMuteSolo(i, false, !t.solo); }
-/** Кнопка ● в MIX: дорожка готова к записи. */
-export function toggleArm(i: number) { const t = doc.tracks[i]; if (t) edit(() => { t.arm = !t.arm; }); }
 
 /** Mute и solo дорожки: гейты сразу (из обработчика касания), запись в UNDO — после звука. */
 function setMuteSolo(i: number, mute: boolean, solo: boolean) {

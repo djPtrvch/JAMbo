@@ -8,6 +8,7 @@
 import { MAX_TRACKS } from '../params';
 import { audible, doc, renameTrack, rt, selectChannel, selectTrack, swipeTrack, ui, type Channel } from '../state';
 import { registerAction } from '../midi';
+import { stemRecording } from '../stems';
 import { h, setClass, setText } from './dom';
 import { openInput } from './popup';
 import { markSwipe } from './debug';
@@ -15,7 +16,7 @@ import { markSwipe } from './debug';
 const SWIPE_PX = 24;
 const RAW = 'onpointerrawupdate' in window;
 
-interface TrackView { root: HTMLElement; name: HTMLElement; state: HTMLElement; dot: HTMLElement }
+interface TrackView { root: HTMLElement; name: HTMLElement; state: HTMLElement; dot: HTMLElement; rec: HTMLElement }
 const views: TrackView[] = [];
 /** Окно переименования дорожки i рядом с элементом anchor (подписью ручки громкости в MIX). */
 export function openRename(i: number, anchor: Element) {
@@ -40,7 +41,9 @@ export function buildTracks(): HTMLElement {
     const name = h('div', 'track-name');
     const state = h('div', 'track-state');
     const dot = h('div', 'track-dot');
-    root.append(name, state, dot);
+    // Идёт запись стема — мигающая красная точка в левом верхнем углу.
+    const rec = h('div', 'track-rec hidden');
+    root.append(name, state, dot, rec);
 
     let startY = 0;
     let downT = 0;
@@ -76,7 +79,7 @@ export function buildTracks(): HTMLElement {
 
     // С MIDI — выбор дорожки (T1…T8 — по номеру, не по имени).
     registerAction(`T${i + 1}`, { label: `TRACK ${i + 1}`, press: () => selectTrack(i), state: () => ui.channel === 'track' && ui.selectedTrack === i }, root);
-    views.push({ root, name, state, dot });
+    views.push({ root, name, state, dot, rec });
     el.append(root);
   }
   el.append(channelCell('MST', 'master'));
@@ -95,6 +98,7 @@ export function renderTracks(now: number) {
     setClass(v.root, 'silent', !audible(i));
     setClass(v.root, 'flash', now < rt.flashUntil[i]);
     setClass(v.dot, 'hidden', !t.trackEdit);
+    setClass(v.rec, 'hidden', !stemRecording(i));
     setText(v.state, t.solo ? 'S' : t.mute ? 'M' : '');
   });
   for (const [el, c] of channels) setClass(el, 'selected', ui.channel === c);

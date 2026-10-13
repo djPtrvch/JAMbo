@@ -1646,3 +1646,69 @@ export function trackIsStereo(i: number): boolean {
 
 /** Определённая высота сэмпла (MIDI) или null. */
 export const sampleRoot = (key: string): number | null => doc.roots[key] ?? null;
+
+// ---------- Запись стемов ----------
+
+/** Идущие записи стемов: дорожка → узел-записчик и накопленные куски (L, R). */
+const stems = new Map<number, { node: AudioWorkletNode; L: Float32Array[]; R: Float32Array[]; done: Promise<void> }>();
+let stemReady: Promise<void> | null = null;
+
+export const isStemRecording = (track: number) => stems.has(track);
+
+/**
+ * Запись стема дорожки: выход дорожки после EQ, громкости микшера и mute/solo (то, что дорожка отдаёт
+ * в мастер, без посылов Reverb, Delay и Drive), стерео.
+ */
+export async function startStem(track: number) {
+  const c = ensureCtx();
+  const ch = tracks[track];
+  if (!ch || stems.has(track)) return;
+  stemReady ??= c.audioWorklet.addModule(new URL('stem-worklet.js', document.baseURI).href);
+  const rec = { node: null as unknown as AudioWorkletNode, L: [] as Float32Array[], R: [] as Float32Array[], done: Promise.resolve() };
+  stems.set(track, rec);
+  await stemReady;
+  if (stems.get(track) !== rec) return;
+  const node = new AudioWorkletNode(c, 'stem-rec', { numberOfInputs: 1, numberOfOutputs: 1, channelCount: 2, channelCountMode: 'explicit' });
+  // Узел должен быть в графе до выхода, иначе браузер его не считает: выход — через нулевое усиление.
+  const sink = c.createGain();
+  sink.gain.value = 0;
+  node.connect(sink).connect(c.destination);
+  ch.gate.connect(node);
+  rec.node = node;
+  rec.done = new Promise((resolve) => {
+    node.port.onmessage = (e) => {
+      if (Array.isArray(e.data)) { rec.L.push(e.data[0]); rec.R.push(e.data[1]); return; }
+      if (e.data?.done) {
+        try { ch.gate.disconnect(node); } catch { /* уже отключён */ }
+        node.disconnect();
+        sink.disconnect();
+        resolve();
+      }
+    };
+  });
+  node.port.postMessage(true);
+}
+
+/** Закончить запись стема: WAV 24 бит в хранилище сэмплов; результат — ключ сэмпла (null — пусто). */
+export async function stopStem(track: number, name: string): Promise<string | null> {
+  const rec = stems.get(track);
+  if (!rec) return null;
+  stems.delete(track);
+  if (!rec.node) return null;
+  rec.node.port.postMessage(false);
+  await rec.done;
+  const n = rec.L.reduce((a, x) => a + x.length, 0);
+  if (n === 0) return null;
+  const c = ensureCtx();
+  const buf = c.createBuffer(2, n, c.sampleRate);
+  for (const [k, parts] of [rec.L, rec.R].entries()) {
+    const d = buf.getChannelData(k);
+    let o = 0;
+    for (const p of parts) { d.set(p, o); o += p.length; }
+  }
+  const bytes = encodeWav(buf);
+  const key = await sampleKey(bytes);
+  buffers.set(key, buf);
+  await putSample({ key, name: `${name}.wav`, bytes });
+  return key;
+}

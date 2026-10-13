@@ -601,7 +601,10 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 /* Solo — дорожка подсвечена полупрозрачным жёлтым (виден жёлтый контур выбранной дорожки). */
 .track.soloed { background: color-mix(in srgb, var(--plock) 35%, var(--track-bg)); }
 .track.soloed.flash { background: color-mix(in srgb, var(--plock) 55%, var(--track-bg)); }
-.track-dot { position: absolute; top: 6px; left: 7px; width: 6px; height: 6px; border-radius: 50%; background: var(--plock); }
+.track-dot { position: absolute; bottom: 6px; left: 7px; width: 6px; height: 6px; border-radius: 50%; background: var(--plock); }
+.track-rec { position: absolute; top: 6px; left: 7px; width: 6px; height: 6px; border-radius: 50%; background: var(--rec); animation: rec-blink 1s steps(1) infinite; }
+.track-rec.hidden { display: none; }
+@keyframes rec-blink { 50% { opacity: 0; } }
 
 /* ---------- Секвенсор ---------- */
 
