@@ -62,9 +62,9 @@ export function buildScopeButtons(shift: HTMLElement): HTMLElement {
     const b = h('div', 'btn master-btn', name);
     b.addEventListener('pointerdown', (e) => { e.preventDefault(); on[i] = !on[i]; });
     btns[i] = b;
-    btnGrid.append(b);
   });
-  btnGrid.append(shift);
+  // Вверху COMP и CLIP, внизу SHIFT (на своём месте, слева) и LIM.
+  btnGrid.append(btns[1], btns[2], shift, btns[3]);
   return btnGrid;
 }
 
