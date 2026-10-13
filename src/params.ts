@@ -62,6 +62,17 @@ const filterFormat = (v: number) => {
   const f = filterFreq(v);
   return f.type === 'off' ? 'OFF' : `${f.type === 'lp' ? 'LP' : 'HP'} ${hz(f.hz)}`;
 };
+/** FILTER дилея (−100…+100): влево — low pass 20 кГц → 500 Гц, вправо — high pass 20 → 1500 Гц, в центре выключен. */
+export function delayFilterFreq(v: number): { type: 'off' | 'lp' | 'hp'; hz: number } {
+  const a = Math.abs(v) / 100;
+  if (a < 0.02) return { type: 'off', hz: 0 };
+  if (v < 0) return { type: 'lp', hz: 20000 * Math.pow(500 / 20000, a) };
+  return { type: 'hp', hz: 20 * Math.pow(1500 / 20, a) };
+}
+const delayFilterFormat = (v: number) => {
+  const f = delayFilterFreq(v);
+  return f.type === 'off' ? 'OFF' : `${f.type === 'lp' ? 'LP' : 'HP'} ${hz(f.hz)}`;
+};
 const opt = (options: string[]) => (v: number) => options[Math.round(v)] ?? '';
 
 /** Время Delay в долях такта по темпу: подпись и длительность в долях (четвертях). */
@@ -275,10 +286,11 @@ export const FX_GRID: Slot[] = grid([
     smooth('rev.hpf', 'Rev Low Cut', 20, 2000, 20, hz, { exp: true }),
   ],
   [
-    smooth('dly.feedback', 'Dly Feedback', 0, 100, 40, pct),
+    // Delay (delay-worklet.js): время по темпу, обратная связь, фильтр в петле, разнос / ping-pong.
     stepped('dly.time', 'Dly Time', DELAY_DIVS.map((d) => d.name), DELAY_DIVS.findIndex((d) => d.name === '1/8')),
-    smooth('dly.hpf', 'Dly HPF', 20, 2000, 20, hz, { exp: true }),
-    smooth('dly.stereo', 'Dly Stereo', 0, 100, 0, pct),
+    smooth('dly.feedback', 'Dly Feedback', 0, 100, 40, pct),
+    smooth('dly.filter', 'Dly Filter', -100, 100, 0, delayFilterFormat, { bipolar: true }),
+    smooth('dly.spread', 'Dly Spread', 0, 100, 0, pct),
   ],
   [
     stepped('od.type', 'OD Type', ['Soft', 'Hard', 'Tube', 'Fuzz']),

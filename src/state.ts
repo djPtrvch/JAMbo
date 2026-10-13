@@ -2422,10 +2422,33 @@ export function resetUndo() {
 }
 
 /**
+ * Прежний Delay → новый: dly.hpf (20–2000 Гц) → dly.filter = +100·ln(hpf/20)/ln(75) (≤ 25 Гц — 0, не больше +100),
+ * dly.stereo → dly.spread = stereo / 2. Везде, где ключи встречаются: FX клипов и общие, p-lock шагов (и данные
+ * дорожек PREV), назначения LFO/ENV на FX (ключи doc.fxAssigns).
+ */
+function migrateDelayKeys(node: unknown, depth = 0) {
+  if (!node || typeof node !== 'object' || depth > 12) return;
+  if (Array.isArray(node)) { for (const x of node) migrateDelayKeys(x, depth + 1); return; }
+  const o = node as Record<string, unknown>;
+  const hpf = o['dly.hpf'], stereo = o['dly.stereo'];
+  if (hpf !== undefined) {
+    if (typeof hpf === 'number') o['dly.filter'] = hpf <= 25 ? 0 : Math.min(100, (100 * Math.log(hpf / 20)) / Math.log(75));
+    else o['dly.filter'] = hpf; // назначение LFO/ENV — переезжает как есть
+    delete o['dly.hpf'];
+  }
+  if (stereo !== undefined) {
+    o['dly.spread'] = typeof stereo === 'number' ? stereo / 2 : stereo;
+    delete o['dly.stereo'];
+  }
+  for (const k of Object.keys(o)) if (o[k] && typeof o[k] === 'object') migrateDelayKeys(o[k], depth + 1);
+}
+
+/**
  * Привести сохранённый документ к текущему формату: недостающие поля берутся из нового
  * проекта (в том числе новые параметры дорожек и паттернов).
  */
 export function normalizeDoc(raw: unknown): Doc {
+  migrateDelayKeys(raw);
   const base = makeDoc();
   const d = { ...base, ...(raw as Partial<Doc>) } as Doc;
   const trackDefaults = base.tracks[0].params;

@@ -19,7 +19,7 @@
 // Измерители уровня стоят на выходе каждой дорожки и в мастере (вход компрессора, вход и выход
 // лимитера): пиковый уровень по каналам и громкость в LUFS (K-взвешивание, окно ~400 мс).
 
-import { DELAY_DIVS, isAuto, OVER_PEAK, DRUM_ENGINE, isJambo, SYNTH_ENGINES, synthEngine, PARAM_BY_ID, RATIOS, VOL_DEF_DB, volGain, SAMPLE_ROOT, MAX_TRACKS, filterFreq, fromNorm } from '../params';
+import { BPM_MIN, DELAY_DIVS, isAuto, OVER_PEAK, DRUM_ENGINE, isJambo, SYNTH_ENGINES, synthEngine, PARAM_BY_ID, RATIOS, VOL_DEF_DB, volGain, SAMPLE_ROOT, MAX_TRACKS, filterFreq, fromNorm } from '../params';
 import { audible, addSamplesQuiet, addSamplesToFolder, doc, setStepSound, triggerEnv, liveFx, liveMaster, liveMixer, modulatedNorm, ui, baseValue, autoLive } from '../state';
 import { detectRoot } from './pitch';
 import { encodeWav } from './wav';
@@ -200,6 +200,28 @@ export const synthLoad = () => synthCpu.reduce((a, b) => a + b, 0) + [...fxCpu.v
  */
 interface Reverb { node: AudioWorkletNode | null; set: (fx: Record<string, number>, ct: number) => void }
 
+/** Эффект на AudioWorklet (шина посыла): узел появляется, когда модуль загружен. */
+interface FxNode { node: AudioWorkletNode | null }
+const fxModules = new Map<string, Promise<void>>();
+/** Загрузить worklet-эффект (file, name) между input и output; состояние — в инстансе, их может быть сколько угодно. */
+function createFx(c: AudioContext, file: string, name: string, input: AudioNode, output: AudioNode, options: Record<string, unknown> = {}): FxNode {
+  const fx: FxNode = { node: null };
+  let mod = fxModules.get(file);
+  if (!mod) { mod = c.audioWorklet.addModule(new URL(file, document.baseURI).href); fxModules.set(file, mod); }
+  void mod.then(() => {
+    if (c !== ctx) return;
+    const node = new AudioWorkletNode(c, name, {
+      numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2], channelCount: 2, channelCountMode: 'explicit', processorOptions: options,
+    });
+    node.port.onmessage = (e) => { if (typeof e.data?.cpu === 'number') fxCpu.set(fx, e.data.cpu); };
+    input.connect(node).connect(output);
+    fx.node = node;
+    // Текущие значения сразу (иначе первый блок — значения по умолчанию).
+    fxSig = '';
+  }).catch((e) => console.error(name, e));
+  return fx;
+}
+
 let reverbModule: Promise<void> | null = null;
 function createReverb(c: AudioContext, input: AudioNode, output: AudioNode): Reverb {
   const r: Reverb = {
@@ -239,7 +261,8 @@ const MAX_VOICES = 48;
 interface XPair<T> { nodes: [T, T]; gains: [GainNode, GainNode]; cur: number; at: number }
 /** Реверб (reverb-worklet.js): узел появляется, когда модуль загружен (до этого хвоста нет). */
 let rev: Reverb;
-let dly: { hpf: BiquadFilterNode; l: DelayNode; r: DelayNode; fbL: GainNode; fbR: GainNode };
+/** Delay (delay-worklet.js): узел появляется, когда модуль загружен (до этого эха нет). */
+let dly: FxNode;
 let drv: { shaper: XPair<WaveShaperNode>; tone: BiquadFilterNode; type: number };
 let mst: {
   eq: EqChain; satIn: GainNode; sat: AudioWorkletNode | null; glueIn: GainNode; glue: AudioWorkletNode | null; clipIn: GainNode; clip: AudioWorkletNode | null;
@@ -249,7 +272,8 @@ let mst: {
 
 const SENDS = ['reverb', 'delay', 'drive'] as const;
 /** Наибольшее время Delay, с (1 такт при 40 BPM — 6 с, со Stereo — до 9 с). */
-const MAX_DELAY = 9;
+/** Наибольшее время Delay, с: 1 такт (4 доли) при наименьшем темпе. */
+const MAX_DELAY = (4 * 60) / BPM_MIN;
 
 // ---------- Сатуратор, компрессор (glue), клиппер и лимитер мастера — AudioWorklet ----------
 
@@ -369,6 +393,7 @@ export async function restartAudio() {
   fxSig = '';
   reverbModule = null;
   fxCpu.clear();
+  fxModules.clear();
   tailUntil = 0;
   gateOpen.length = 0;
   unlockAudio();
@@ -481,24 +506,9 @@ function buildGraph(c: AudioContext) {
   const revIn = c.createGain();
   rev = createReverb(c, revIn, masterIn);
 
-  // Delay: HPF → две линии (L/R) с обратной связью, Stereo разносит время правой линии.
+  // Delay: AudioWorklet (две линии, фильтр и сатурация в петле, spread / ping-pong); шина отдаёт только эхо.
   const dlyIn = c.createGain();
-  const dhpf = c.createBiquadFilter();
-  dhpf.type = 'highpass';
-  const l = c.createDelay(MAX_DELAY);
-  const r = c.createDelay(MAX_DELAY);
-  const fbL = c.createGain();
-  const fbR = c.createGain();
-  const merger = c.createChannelMerger(2);
-  dlyIn.connect(dhpf);
-  dhpf.connect(l);
-  dhpf.connect(r);
-  l.connect(fbL).connect(l);
-  r.connect(fbR).connect(r);
-  l.connect(merger, 0, 0);
-  r.connect(merger, 0, 1);
-  merger.connect(masterIn);
-  dly = { hpf: dhpf, l, r, fbL, fbR };
+  dly = createFx(c, 'delay-worklet.js', 'delay', dlyIn, masterIn, { maxTime: MAX_DELAY });
 
   // Overdrive: шейпер → тон.
   const drvIn = c.createGain();
@@ -1117,14 +1127,16 @@ function updateFx(now: number) {
   rev.set(fx, ct);
 
   // Время Delay привязано к темпу: доля такта × длительность четверти.
-  const time = Math.min(MAX_DELAY, DELAY_DIVS[Math.round(fx['dly.time'])].beats * 60 / doc.bpm);
-  set(dly.l.delayTime, time);
-  set(dly.r.delayTime, Math.min(MAX_DELAY, time * (1 + (fx['dly.stereo'] / 100) * 0.5)));
-  // Пока идёт MUTE TAILS, обратная связь возвращается не раньше его конца.
-  const fbAt = Math.max(ct, tailUntil);
-  dly.fbL.gain.setTargetAtTime(fx['dly.feedback'] / 100 * 0.95, fbAt, 0.02);
-  dly.fbR.gain.setTargetAtTime(fx['dly.feedback'] / 100 * 0.95, fbAt, 0.02);
-  set(dly.hpf.frequency, fx['dly.hpf']);
+  const dn = dly.node;
+  if (dn) {
+    const dp = (name: string) => dn.parameters.get(name)!;
+    // Скольжение времени и сглаживание — в worklet; сюда — цели.
+    dp('time').setValueAtTime(Math.min(MAX_DELAY, DELAY_DIVS[Math.round(fx['dly.time'])].beats * 60 / doc.bpm), ct);
+    // Пока идёт MUTE TAILS, обратная связь возвращается не раньше его конца.
+    dp('feedback').setValueAtTime(fx['dly.feedback'] / 100, Math.max(ct, tailUntil));
+    dp('filter').setValueAtTime(fx['dly.filter'] / 100, ct);
+    dp('spread').setValueAtTime(fx['dly.spread'] / 100, ct);
+  }
 
   // Тип overdrive сменился — кроссфейд на вторую копию шейпера (кривую молчащего узла менять безопасно).
   const odType = Math.round(fx['od.type']);
@@ -1165,8 +1177,9 @@ function gateTrack(i: number, vol: number, ct: number) {
 function cutDelayTail(i: number, ct: number) {
   const sends = (k: number) => (doc.tracks[k]?.params.delay ?? 0) > 0;
   if (!sends(i) || doc.tracks.some((_, k) => k !== i && audible(k) && sends(k))) return;
-  const fb = doc.fx['dly.feedback'] / 100 * 0.95;
-  for (const g of [dly.fbL.gain, dly.fbR.gain]) {
+  const fb = doc.fx['dly.feedback'] / 100;
+  const fbp = dly.node?.parameters.get('feedback');
+  for (const g of fbp ? [fbp] : []) {
     g.cancelScheduledValues(ct);
     g.setTargetAtTime(0, ct, GATE_TAU);
     g.setTargetAtTime(fb, ct + TAIL_CUT, 0.005);

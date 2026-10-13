@@ -197,6 +197,7 @@ const init = () => {
     await fxRun('FX reverb size changes', (t) => { t.params.reverb = 60; }, (t, k) => { S.doc.fx['rev.size'] = (k * 37) % 100; S.doc.fx['rev.decay'] = 1 + (k % 4); });
     await fxRun('FX delay static', (t) => { t.params.delay = 50; });
     await fxRun('FX delay time changes', (t) => { t.params.delay = 50; }, () => { S.doc.fx['dly.time'] = Math.floor(Math.random() * 8); }, 300);
+    await fxRun('FX delay filter + spread changes', (t) => { t.params.delay = 50; }, (t, k) => { S.doc.fx['dly.filter'] = ((k * 53) % 200) - 100; S.doc.fx['dly.spread'] = (k * 37) % 100; S.doc.fx['dly.feedback'] = 60; }, 200);
     await fxRun('FX drive static', (t) => { t.params.drive = 60; });
     await fxRun('FX drive type changes', (t) => { t.params.drive = 60; }, (t, k) => { S.doc.fx['od.type'] = k % 4; }, 150);
     await fxRun('FX drive + other fx edits', (t) => { t.params.drive = 60; }, (t, k) => { S.doc.fx['dly.feedback'] = 20 + (k % 5); }, 50);
