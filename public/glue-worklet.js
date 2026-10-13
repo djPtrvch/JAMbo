@@ -1,4 +1,4 @@
-// Компрессор мастер-шины «glue» (по мотивам Ableton Glue Compressor и FabFilter Pro-C 2).
+// Компрессор мастер-шины «glue».
 // Стерео, нулевая задержка, без lookahead. Детектор stereo-linked: смесь пика и RMS (RMS приведён
 // к пику синуса) по сигналу после high-pass 90 Hz; мягкое колено 6 dB; GR сглаживается в dB
 // (Attack/Release с ручек, AUTO — два релиза: быстрый и медленный). Выход = вход · GR · Makeup.
