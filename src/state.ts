@@ -1736,17 +1736,33 @@ export function stopTrack(i: number) {
   patternStopped(i);
 }
 
+/** Страница пустая: ни тригов, ни p-lock. */
+const pageEmpty = (pg: Step[]) => pg.every((st) => !st.on && Object.keys(st.locks).length === 0 && !st.sound);
+
 /**
- * Новый клип в пустой ячейке: ничего не копирует — запоминает играющие страницы дорожки (белую обводку
- * миниатюр), текущие гамму, ноту и FX.
+ * Новый клип в пустой ячейке — пустой паттерн: новая пустая страница дорожки (в конце миниатюр; если их
+ * уже 8 — первая пустая страница, на которую не ссылается ни один клип); текущие гамма, нота и FX.
+ * Страница открывается в секвенсору — можно ставить шаги заново. Свободной страницы нет — false.
  */
-export function createPattern(i: number, k: number) {
+export function createPattern(i: number, k: number): boolean {
+  const t = doc.tracks[i];
+  if (t.home) return false;
+  const used = new Set<number>();
+  t.slots.forEach((c, j) => { if (c && !c.src && j !== k) for (let p = c.playFrom; p <= c.playTo; p++) used.add(p); });
+  if (!t.blank && t.slot !== k) for (let p = t.playFrom; p <= t.playTo; p++) used.add(p);
+  let page = t.pages.length < MAX_PAGES ? t.pages.length : t.pages.findIndex((pg, p) => !used.has(p) && pageEmpty(pg));
+  if (page < 0) return false;
   edit(() => {
-    const t = doc.tracks[i];
-    const c: Pattern = { playFrom: t.playFrom, playTo: t.playTo, scale: doc.scale, root: doc.root, fx: clone(doc.fx) };
+    if (page === t.pages.length) {
+      t.pages.push(emptyPage());
+      fixLens(t);
+    }
+    const c: Pattern = { playFrom: page, playTo: page, scale: doc.scale, root: doc.root, fx: clone(doc.fx) };
     if (k === t.slot) putPattern(t, c);
     else t.slots[k] = c;
   });
+  if (i === ui.selectedTrack) { ui.heldSteps.clear(); ui.viewPage = page; }
+  return true;
 }
 
 /** Копия клипа ячейки (null — пустая). */

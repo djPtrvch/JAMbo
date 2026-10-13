@@ -267,12 +267,16 @@ const autoLabel = (id: string) => autoDef(selTrack(), id).label;
 function openList(anchor: Element) {
   const list = autoList();
   if (!list.length) { openPick(plusBtn); return; }
+  // Размер и место — как у списка ручек «+» (меряем его, открыв у той же кнопки).
+  openPick(anchor);
+  const r = pickMenu.box.getBoundingClientRect();
+  pickMenu.close();
   listMenu.box.replaceChildren(...list.map((a) => {
     const b = popupButton(autoLabel(a.param), () => { listMenu.close(); ui.autoParam = a.param; sel = -1; });
     b.classList.toggle('current', a.param === ui.autoParam);
     return b;
   }));
-  listMenu.openAt(anchor, 200);
+  listMenu.openRect({ left: r.left, top: r.top, width: r.width, height: r.height });
 }
 
 /** «+»: выбор ручки дорожки (уже назначенная — просто открывается). */

@@ -186,9 +186,9 @@ export function buildRightButtons(): HTMLElement {
     release: () => { setHeld('track', false); if (!morphUsed) toggleMorph(); },
     state: () => ui.morph,
   }, morphBtn);
-  // Вверху FX и MOD, внизу MORPH и SHIFT. SHIFT — удержание, даёт дополнительные действия:
+  // Вверху FX и MORPH, внизу MOD и SHIFT. SHIFT — удержание, даёт дополнительные действия:
   // с тапом по ручке дорожки снимает все её p-lock, при MST — RATIO на месте BYPASS COMP.
-  el.append(holdButton('FX', 'fx'), holdButton('MOD', 'mod'), morphBtn, holdButton('SHIFT', 'shift'));
+  el.append(holdButton('FX', 'fx'), morphBtn, holdButton('MOD', 'mod'), holdButton('SHIFT', 'shift'));
   return el;
 }
 

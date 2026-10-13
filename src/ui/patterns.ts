@@ -140,7 +140,8 @@ function tapCell(i: number, k: number) {
   if (isPrevPlaceholder(i, k)) return;
   selectTrack(i);
   if (!slotFilled(t, k)) {
-    createPattern(i, k);
+    // Новый клип — пустой паттерн (новая страница), сразу открыт в секвенсоре; страниц больше нет — вспышка.
+    if (!createPattern(i, k)) { flashCell(cells[i][k].root); return; }
     queuePattern(i, k);
   } else if (k === t.slot && !t.stopped) {
     queuePattern(i, 'stop');
