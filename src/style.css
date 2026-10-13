@@ -933,6 +933,8 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 .sedit-note { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--dim); font-size: 14px; pointer-events: none; }
 .sedit-note.hidden { display: none; }
 .eq-tool.disabled { opacity: 0.35; }
+/* Квадратные кнопки со значком: ▶ (прослушать) и ✕ (закрыть) — ширина равна высоте ряда. */
+.eq-tool.sq { width: 48px; padding: 0; }
 .eq-tool.busy { opacity: 0.6; }
 .sedit .eq-canvas { touch-action: none; }
 .meter-lufs { cursor: pointer; padding: 4px 0; margin: -4px 0; }

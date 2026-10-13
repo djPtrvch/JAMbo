@@ -6,11 +6,11 @@
 // TRIM, NORMALIZE и MONO сразу ставят на дорожку отредактированную копию (в папке — на месте
 // исходного сэмпла); UNDO в верхней панели возвращает исходный.
 
-import { addEditedSample, sampleBuffer } from '../audio/engine';
+import { addEditedSample, previewSample, previewing, sampleBuffer, stopPreview } from '../audio/engine';
 import { openBrowser } from './browser';
 import { synthEngine } from '../params';
 import { doc, replaceSample, sampleName, toggleView, ui } from '../state';
-import { h, setClass, setText } from './dom';
+import { closeButton, h, setClass, setText } from './dom';
 import { color } from './theme';
 
 /** NORMALIZE: пик сэмпла, dBFS (чуть ниже 0 dB — метры не горят красным). */
@@ -26,6 +26,7 @@ let trimBtn: HTMLElement;
 let normBtn: HTMLElement;
 let monoBtn: HTMLElement;
 let saveBtn: HTMLElement;
+let playBtn: HTMLElement;
 const tools: HTMLElement[] = [];
 
 /** Маркеры обрезки (доля длины 0..1) для сэмпла key. */
@@ -181,9 +182,19 @@ export function buildSampleEditor(): HTMLElement {
   monoBtn = tool('MONO', mono);
   // SAVE — сэмпл в библиотеку (папку выбирают в браузере); WAV в «Файлы» — EXPORT в браузере.
   saveBtn = tool('SAVE', () => openBrowser({ kind: 'save-sample', key: currentKey() }));
-  const close = tool('CLOSE', () => toggleView('sample'));
+  // ▶ — прослушать выделение (без выделения — весь сэмпл) в исходной высоте; повторный тап — стоп.
+  playBtn = tool('', () => {
+    const key = currentKey();
+    if (!key) return;
+    if (previewing()) { stopPreview(); return; }
+    const sel = mark.key === key ? mark : { a: 0, b: 1 };
+    void previewSample(key, sel.a, sel.b);
+  });
+  playBtn.classList.add('sq');
+  playBtn.innerHTML = '<svg class="tr-icon" viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z" fill="currentColor"/></svg>';
+  const close = closeButton(() => toggleView('sample'));
   // LOAD и SAVE рядом, за ними правки.
-  bar.append(nameText, h('div', 'sedit-space'), load, saveBtn, trimBtn, normBtn, monoBtn, close);
+  bar.append(nameText, h('div', 'sedit-space'), playBtn, load, saveBtn, trimBtn, normBtn, monoBtn, close);
   // Кнопки — над формой волны.
   panel.append(bar, plot);
   return panel;

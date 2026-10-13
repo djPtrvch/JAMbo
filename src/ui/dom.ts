@@ -41,3 +41,11 @@ export function setClass(el: Element, name: string, on: boolean) {
 
 /** Двойной тап: два касания без движения в пределах 300 мс. */
 export const DOUBLE_TAP_MS = 300;
+
+/** Квадратная кнопка закрытия с крестиком (редактор сэмпла, браузер библиотеки). */
+export function closeButton(fn: () => void): HTMLElement {
+  const el = h('div', 'btn eq-tool sq close-x');
+  el.innerHTML = '<svg class="tr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+  el.addEventListener('pointerdown', (e) => { e.preventDefault(); fn(); });
+  return el;
+}

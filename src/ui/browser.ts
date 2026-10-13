@@ -30,7 +30,7 @@ import {
   sampleName, setStepSound, setTrackTable, toggleView, ui,
 } from '../state';
 import { putSample, sampleKey } from '../storage';
-import { h, setClass, setText } from './dom';
+import { closeButton, h, setClass, setText } from './dom';
 import { makePopup, openInput, popupButton, type Popup } from './popup';
 
 /** Кнопка SAVE HERE (к ней привязано окно «перезаписать или сохранить как»). */
@@ -324,8 +324,7 @@ export function buildBrowser(): HTMLElement {
       .catch(fail('Import'));
   });
   importBtn.append(input);
-  const close = h('div', 'btn eq-tool', 'CLOSE');
-  close.addEventListener('pointerdown', (e) => { e.preventDefault(); closeBrowser(); });
+  const close = closeButton(closeBrowser);
   head.append(upBtn, pathText, newFolder, importBtn, close);
 
   list = h('div', 'project-list lib-list');

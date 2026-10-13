@@ -1332,7 +1332,10 @@ export function stopPreview() {
  * Предпрослушка сэмпла: целиком, в исходной высоте, сразу в мастер (не зависит от ручек дорожки,
  * mute и solo). Новая предпрослушка обрывает прошлую.
  */
-export async function previewSample(key: string) {
+/** Идёт ли предпрослушка сэмпла (кнопка ▶ в редакторе сэмпла). */
+export const previewing = () => preview !== null;
+
+export async function previewSample(key: string, from = 0, to = 1) {
   const c = ensureCtx();
   unlockAudio();
   await ensureSamples([key]);
@@ -1345,7 +1348,10 @@ export async function previewSample(key: string) {
   gain.gain.value = PREVIEW_GAIN;
   src.connect(gain).connect(masterInput);
   src.onended = () => { src.disconnect(); gain.disconnect(); if (preview?.src === src) preview = null; };
-  src.start();
+  // Отрезок from..to (доли длины; редактор сэмпла — выделение маркерами).
+  const a = Math.max(0, Math.min(1, from)) * buf.duration;
+  const b = Math.max(0, Math.min(1, to)) * buf.duration;
+  src.start(c.currentTime, a, Math.max(0.003, b - a));
   preview = { src, gain };
 }
 
