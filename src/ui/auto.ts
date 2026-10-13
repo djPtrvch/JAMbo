@@ -79,8 +79,14 @@ let lastTap = { point: -1, t: -1e9 };
 const pageX0 = () => viewFrom * STEPS_PER_PAGE;
 /** Шагов в поле: все показанные страницы. */
 const viewSteps = () => (viewTo - viewFrom + 1) * STEPS_PER_PAGE;
-const xToPx = (x: number) => ((x - pageX0()) / viewSteps()) * W;
-const pxToX = (px: number) => pageX0() + (px / W) * viewSteps();
+/**
+ * Как шаги секвенсора: шаг — ячейка, между ячейками зазор STEP_GAP; граница шагов — середина зазора.
+ * На одной странице ячейки поля стоят ровно над шагами секвенсора.
+ */
+const STEP_GAP = 4;
+const pitch = () => (W + STEP_GAP) / viewSteps();
+const xToPx = (x: number) => (x - pageX0()) * pitch() - STEP_GAP / 2;
+const pxToX = (px: number) => pageX0() + (px + STEP_GAP / 2) / pitch();
 const yToPx = (y: number) => PAD + (1 - y) * (H - 2 * PAD);
 const pxToY = (py: number) => Math.min(1, Math.max(0, 1 - (py - PAD) / (H - 2 * PAD)));
 
@@ -544,13 +550,14 @@ export function renderAuto() {
   setClass(note, 'hidden', !!a);
   setText(note, !isTrack ? 'Select a track to automate its knobs.' : 'No automation in this pattern — tap + to add one.');
 
-  // Поле по шагам секвенсора: от левого края 2-го шага до правого края 15-го (слева — колонка списка над 1-м).
+  // Поле во всю ширину над шагами 1–16 секвенсора (список слева лежит поверх 1-го шага).
   const steps = document.querySelectorAll('.sequencer .step');
-  if (steps.length >= 15) {
-    const a2 = steps[1].getBoundingClientRect();
-    const a15 = steps[14].getBoundingClientRect();
-    const ml = `${Math.round(a2.left - side.getBoundingClientRect().right - 6)}px`;
-    const w = `${Math.round(a15.right - a2.left)}px`;
+  if (steps.length >= 16) {
+    const a1 = steps[0].getBoundingClientRect();
+    const a16 = steps[15].getBoundingClientRect();
+    const body = plot.parentElement!.getBoundingClientRect();
+    const ml = `${Math.round(a1.left - body.left)}px`;
+    const w = `${Math.round(a16.right - a1.left)}px`;
     if (plot.style.width !== w || plot.style.marginLeft !== ml) {
       plot.style.flex = 'none';
       plot.style.width = w;
@@ -572,14 +579,15 @@ export function renderAuto() {
   // Сетка — вертикальные линии на границах шагов (сильнее — доли по 4 шага, ещё сильнее — границы
   // страниц); больше страниц — сетка мельче. За длиной паттерна — затемнено.
   const span = viewSteps();
-  const cw = W / span;
+  const cw = pitch();
   for (let k = 0; k <= span; k++) {
     const idx = pageX0() + k;
     const pageEdge = idx % STEPS_PER_PAGE === 0;
     const beat = idx % 4 === 0;
     if (!pageEdge && !beat && cw < 6) continue;
     g.fillStyle = color(pageEdge && k > 0 && k < span ? '--dim' : beat ? '--grid-strong' : '--grid');
-    g.fillRect(Math.min(W - 1, Math.round(k * cw)) - (pageEdge && k > 0 && k < span ? 1 : 0), 0, pageEdge && k > 0 && k < span ? 2 : 1, H);
+    const lx = Math.max(0, Math.min(W - 1, Math.round(xToPx(pageX0() + k))));
+    g.fillRect(lx - (pageEdge && k > 0 && k < span ? 1 : 0), 0, pageEdge && k > 0 && k < span ? 2 : 1, H);
   }
   if (pageX0() + span > t.length) {
     g.fillStyle = color('--scrim');

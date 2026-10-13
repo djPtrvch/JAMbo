@@ -1088,8 +1088,14 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 .auto-simp-fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--off); opacity: 0.5; pointer-events: none; }
 .auto-simp.live .auto-simp-fill { background: var(--accent); opacity: 0.35; }
 .auto-simp-text { position: relative; font-size: 11px; letter-spacing: 0.04em; pointer-events: none; }
-.auto-body { flex: 1; min-height: 0; display: flex; gap: var(--gap); }
-.auto-side { width: 128px; flex: none; display: flex; flex-direction: column; gap: var(--gap); min-height: 0; }
+.main.auto-full { grid-template-areas: "center center center center"; }
+.main.auto-full > .meter { display: none; }
+/* Поле — во всю ширину; список слева — полупрозрачно поверх 1-го шага поля. */
+.auto-body { flex: 1; min-height: 0; display: flex; position: relative; }
+.auto-side { position: absolute; left: 0; top: 0; bottom: 0; z-index: 2; pointer-events: none; }
+.auto-side .auto-item, .auto-side .auto-plus { pointer-events: auto; background: color-mix(in srgb, var(--panel-2) 72%, transparent); }
+.auto-side .auto-item.current { background: color-mix(in srgb, var(--accent) 85%, transparent); }
+.auto-side { width: 128px; display: flex; flex-direction: column; min-height: 0; }
 .auto-list { flex: 1; min-height: 0; display: grid; grid-auto-rows: 52px; align-content: start; gap: 6px; overflow: hidden; }
 .auto-list.hidden { display: none; }
 /* Кнопки списка: подпись крупнее или мельче по длине; из двух слов — в две строки. */

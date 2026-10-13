@@ -184,6 +184,8 @@ function frameBody(now: number) {
   setClass(main, 'patterns', ui.patternView);
   // Редактор сэмпла — на том же месте, что эквалайзер.
   setClass(main, 'eq', ui.eqView || ui.sampleView || ui.browserView || ui.autoView);
+  // Окно AUTO — во всю ширину (над шагами 1–16), измеритель скрыт.
+  setClass(main, 'auto-full', ui.autoView);
   setClass(autoBtn, 'active', ui.autoView);
   // REC при игре: поворот ручки пишет автоматизацию — у кнопки AUTO красный контур.
   setClass(autoBtn, 'auto-armed', ui.rec && ui.playing);
