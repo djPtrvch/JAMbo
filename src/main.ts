@@ -30,11 +30,12 @@ if (standalone) {
   }
 }
 import { setTrackCountParams, setTrackNameParams } from './params';
-import { advanceLfos, doc, onGateChange, onTrackDeleted, ui, updateTransition, syncLead } from './state';
+import { advanceLfos, autoRecordFrame, doc, onGateChange, onTrackDeleted, ui, updateTransition, syncLead } from './state';
+import { buildAuto, renderAuto, toggleAuto } from './ui/auto';
 import { attachDebug, markGate } from './ui/debug';
 import { applyAllGates, synthLoad, trackDeleted, unlockAudio, updateAudio } from './audio/engine';
 import { initProjects } from './project';
-import { initMidi, sendFeedback, setNoteHandler } from './midi';
+import { initMidi, registerAction, sendFeedback, setNoteHandler } from './midi';
 import { settings } from './settings';
 import { updateTransport } from './transport';
 import { buildEqButton, buildLeftButtons, buildShiftButton, buildPatternsButton, buildRightButtons, buildTransportButtons, renderButtons } from './ui/buttons';
@@ -76,7 +77,7 @@ const main = h('div', 'main');
 // сэмпла (удержание окна сэмпла).
 const knobGrid = buildKnobGrid();
 const center = h('div', 'center');
-center.append(knobGrid, buildPatternGrid(), buildEq(), buildSampleEditor(), buildBrowser());
+center.append(knobGrid, buildPatternGrid(), buildEq(), buildSampleEditor(), buildBrowser(), buildAuto());
 // Справа с краю — измеритель уровня.
 const meter = buildMeter();
 main.append(left, center, right, meter);
@@ -87,8 +88,10 @@ main.append(left, center, right, meter);
 const topbar = buildTopbar();
 const [leftGroup, ...fields] = [...topbar.children];
 const topMid = h('div', 'top-mid');
-// Между REDO и EQ — кнопка автоматизации (значок; пока неактивна, как SHIFT).
-const autoBtn = h('div', 'btn disabled tb-auto');
+// Между REDO и EQ — кнопка AUTO: окно автоматизации на месте центра экрана (повторное нажатие — закрыть).
+const autoBtn = h('div', 'btn tb-auto');
+autoBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); toggleAuto(); });
+registerAction('AUTO', { label: 'AUTO', press: toggleAuto, state: () => ui.autoView }, autoBtn);
 autoBtn.innerHTML = '<svg class="tr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17L8 9L13 14L21 6"/><circle cx="8" cy="9" r="1.8" fill="currentColor"/><circle cx="13" cy="14" r="1.8" fill="currentColor"/><circle cx="21" cy="6" r="1.8" fill="currentColor"/><path d="M3 21H21" opacity="0.4"/></svg>';
 topMid.append(...fields, ...buildTransportButtons().children, autoBtn, buildEqButton());
 const topRight = h('div', 'top-right');
@@ -168,22 +171,28 @@ function frameBody(now: number) {
   advanceLfos(Math.min(0.1, (now - last) / 1000));
   last = now;
   updateTransport(now);
+  // Запись автоматизации: положение ручки — в кривую (~60 раз в секунду, позиция — по часам секвенсора).
+  autoRecordFrame(now);
   updateTransition();
   syncLead();
   updateAudio(now);
   renderTopbar(now);
   renderFields();
   renderSample(now);
-  setClass(knobGrid, 'hidden', ui.patternView || ui.eqView || ui.sampleView || ui.browserView);
+  setClass(knobGrid, 'hidden', ui.patternView || ui.eqView || ui.sampleView || ui.browserView || ui.autoView);
   // Сетка паттернов занимает всю ширину; эквалайзер — до края миниатюр страниц, справа измеритель.
   setClass(main, 'patterns', ui.patternView);
   // Редактор сэмпла — на том же месте, что эквалайзер.
-  setClass(main, 'eq', ui.eqView || ui.sampleView || ui.browserView);
+  setClass(main, 'eq', ui.eqView || ui.sampleView || ui.browserView || ui.autoView);
+  setClass(autoBtn, 'active', ui.autoView);
+  // REC автоматизации включена — красный контур (запись идёт и с закрытым окном).
+  setClass(autoBtn, 'auto-armed', ui.autoRec);
   renderKnobs(now);
   renderPatternGrid();
   renderEq();
   renderSampleEditor();
   renderBrowser();
+  renderAuto();
   renderTracks(now);
   renderSequencer();
   renderPiano(now);

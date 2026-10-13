@@ -15,11 +15,11 @@ import {
   crossfade, inTransition, isPrevPlaceholder, rowFilled, sceneName, setCrossfade, setScene, transitionMoves,
   addSceneRow, canAddRow, copyRow, deleteRow, duplicateRow, pasteRow, setArrangement, rowLoopOn, setPlusMode, toggleRowLoop, visibleRows,
   copyPattern, createPattern, dropPattern, deletePattern, doc, duplicatePattern, freeSlotAfter, hasManualLocks, tailMask, pastePattern,
-  playRange, rt, selectTrack, slotFilled, ui, type Pattern,
+  playRange, rt, selectTrack, slotFilled, ui, type Pattern, patternHasAuto,
 } from '../state';
 import { queuePattern, queueScene, sceneProgress } from '../transport';
 import { registerAction } from '../midi';
-import { h, setAttr, setClass, setText, svg } from './dom';
+import { autoBadge, h, setAttr, setClass, setText, svg } from './dom';
 import { makePopup, popupButton, type Popup } from './popup';
 
 const SWIPE_PX = 24;
@@ -119,7 +119,7 @@ function buildSceneCell(k: number): HTMLElement {
   return root;
 }
 
-interface Cell { root: HTMLElement; bar: HTMLElement; thumb: SVGSVGElement; sig: string }
+interface Cell { root: HTMLElement; bar: HTMLElement; thumb: SVGSVGElement; sig: string; wave: HTMLElement }
 const cells: Cell[][] = [];
 let grid: HTMLElement;
 let menu: Popup;
@@ -420,7 +420,9 @@ export function buildPatternGrid(): HTMLElement {
         state: () => !!doc.tracks[i] && doc.tracks[i].slot === k && !doc.tracks[i].stopped,
       }, root);
       const bar = h('div', 'pattern-bar');
-      root.append(thumb, bar);
+      // Значок волны: в паттерне есть автоматизация.
+      const wave = autoBadge();
+      root.append(thumb, bar, wave);
       let id = -1;
       let x0 = 0;
       let y0 = 0;
@@ -470,7 +472,7 @@ export function buildPatternGrid(): HTMLElement {
       };
       root.addEventListener('pointerup', (e) => finish(e, false));
       root.addEventListener('pointercancel', (e) => finish(e, true));
-      (cells[i] ??= []).push({ root, bar, thumb, sig: '' });
+      (cells[i] ??= []).push({ root, bar, thumb, sig: '', wave });
       grid.append(root);
     }
   }
@@ -553,6 +555,7 @@ export function renderPatternGrid() {
       setClass(c.root, 'stopping', active && q === 'stop');
       setClass(c.root, 'selected-col', i === ui.selectedTrack);
       drawThumb(c, !filled ? null : active ? t : t.slots[k]);
+      setClass(c.wave, 'hidden', !filled || !patternHasAuto(active ? t : t.slots[k]));
       // Прогресс проигрывания активного паттерна.
       let progress = 0;
       if (active && !t.stopped && ui.playing && rt.playPos[i] >= 0) {

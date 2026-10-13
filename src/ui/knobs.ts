@@ -6,7 +6,9 @@ import {
   addTrack, audible, toggleMute, toggleSolo, assignFor, clearTrackLocks, canAddTrack, canDeleteTrack, copyTrack, deleteTrack, hasTrackClip, moveTrack, pasteTrack, curSeq, fxModNorm, liveLocks, seqIndex,
   beginGesture, clearLfoAssign, clearLock, doc, endGesture, firstHeldStep, gridFor, gridMode, heldLfo,
   lockValue, modulatedNorm, paramValue, type Mod, setLfoAmount, setLockNorm, setParamNorm, ui, type GridMode,
+  autoCurve, baseValue, handDown, handUp,
 } from '../state';
+import { AUTO_PARAMS } from '../automation';
 import { markKnob, registerAction } from '../midi';
 import { stemArmed, stemRecording, toggleStem } from '../stems';
 import { MAX_TRACKS, OVER_PEAK } from '../params';
@@ -51,6 +53,8 @@ interface KnobView {
   rangeArc: SVGPathElement;
   lockArc: SVGPathElement;
   pointer: SVGLineElement;
+  /** Жёлтая риска на кольце: значение автоматизации (идёт за кривой в реальном времени). */
+  autoTick: SVGLineElement;
   meter: KnobMeter;
   /** MIX: справа от ручки громкости — M (mute), S (solo), ● (запись). */
   msr: HTMLElement;
@@ -132,6 +136,8 @@ interface Gesture {
   holdTimer?: number;
   /** MIX: ручку громкости подняли удержанием и перетаскивают (перестановка дорожек). */
   drag?: TrackDrag;
+  /** Ручка дорожки под пальцем: автоматизация перехвачена рукой (при REC — запись). */
+  hand?: { track: number; id: string };
 }
 
 interface TrackDrag {
@@ -158,7 +164,8 @@ function buildKnob(slot: number): KnobView {
   const lfoArc = svg('path', { class: 'k-lfo' });
   box.append(svg('circle', { cx: 50, cy: 50, r: 24, class: 'k-cap' }));
   const pointer = svg('line', { x1: 50, y1: 29, x2: 50, y2: 22, class: 'k-pointer' });
-  box.append(rangeArc, valueArc, lockArc, lfoArc, pointer);
+  const autoTick = svg('line', { x1: 50, y1: 18, x2: 50, y2: 8, class: 'k-auto hidden' });
+  box.append(rangeArc, valueArc, lockArc, lfoArc, pointer, autoTick);
   const value = h('div', 'knob-value');
   const label = h('div', 'knob-label');
   const dial = h('div', 'knob-dial');
@@ -172,7 +179,7 @@ function buildKnob(slot: number): KnobView {
   root.addEventListener('pointermove', (e) => onMove(e));
   root.addEventListener('pointerup', (e) => onUp(e));
   root.addEventListener('pointercancel', (e) => onUp(e));
-  return { root, label, value, valueArc, lfoArc, rangeArc, lockArc, pointer, meter, msr, msrBtns };
+  return { root, label, value, valueArc, lfoArc, rangeArc, lockArc, pointer, autoTick, meter, msr, msrBtns };
 }
 
 export function buildKnobGrid(): HTMLElement {
@@ -332,10 +339,16 @@ function onDown(slot: number, e: PointerEvent) {
   else if (kind === 'lfo') {
     const a = assignFor(mode, param);
     g.acc = a && a.lfo === g.lfo ? a.amount : 0;
-  } else g.acc = toNorm(param, paramValue(mode, param));
+  }
 
   gestures.set(e.pointerId, g);
   beginGesture();
+  // Ручка дорожки: пока палец на ней, значение — рукой (автоматизация перехвачена; при REC — пишется).
+  if (kind === 'base' && mode === 'track' && AUTO_PARAMS.has(param.id) && !g.consumed) {
+    g.hand = { track: ui.selectedTrack, id: param.id };
+    handDown(g.hand.track, g.hand.id);
+  }
+  if (kind === 'base') g.acc = toNorm(param, paramValue(mode, param));
 
   if (trackKnob && !g.consumed) {
     // Удержание ручки громкости без движения — ручка поднимается, её тащат на место другой дорожки.
@@ -382,6 +395,7 @@ function onUp(e: PointerEvent) {
   clearTimeout(g.holdTimer);
   if (g.drag) endDrag(g.drag, e.clientX, e.clientY);
   if (!g.moved && !g.consumed) lastTap[g.slot] = performance.now();
+  if (g.hand) handUp(g.hand.track, g.hand.id);
   endGesture();
 }
 
@@ -424,16 +438,21 @@ export function renderKnobs(now: number) {
       setText(v.label, '');
       setText(v.value, '');
       for (const a of [v.valueArc, v.lfoArc, v.rangeArc, v.lockArc]) setAttr(a, 'd', '');
+      setClass(v.autoTick, 'hidden', true);
       setAttr(v.pointer, 'transform', `rotate(${START} 50 50)`);
       return;
     }
     // В микшере подписи ручек — имена дорожек.
     setText(v.label, mode === 'mix' ? doc.tracks[slot]?.name ?? p.label : p.label);
 
-    const base = paramValue(mode, p);
+    // С автоматизацией база — значение кривой (ручка под пальцем — рука), дуга и стрелка — итог.
+    const base = mode === 'track' ? baseValue(ti, p.id, {}) : paramValue(mode, p);
     const baseN = toNorm(p, base);
     const origin = p.bipolar ? 0.5 : 0;
     setAttr(v.valueArc, 'd', arc(R_VALUE, origin, baseN));
+    const autoN = mode === 'track' ? autoCurve(ti, p.id, now) : null;
+    setClass(v.autoTick, 'hidden', autoN === null);
+    if (autoN !== null) setAttr(v.autoTick, 'transform', `rotate(${(START + SWEEP * autoN).toFixed(1)} 50 50)`);
 
     // P-lock удерживаемого шага — жёлтым.
     // Удерживаемый шаг, иначе — шаг, который сейчас играет.

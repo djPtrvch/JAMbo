@@ -7,7 +7,9 @@
 //   { type: 'note', slot, frame, end, engine, note, p1, p2, p3, decay, accent }
 //     — в кадре frame голос запускается, после кадра end молчит и не считается;
 //     p1, p2, p3 — ручки 1.1–1.3 (0..1), decay — ручка Decay (мс);
-//   { type: 'mod', slot, note, p1, p2, p3, decay } — модуляция звучащего голоса (сразу, со сглаживанием);
+//   { type: 'mod', slot, note, p1, p2, p3, decay, id?, frame? } — модуляция звучащего голоса (сразу, со сглаживанием);
+//     с frame — в свой кадр (расписание автоматизации; новое расписание слота заменяет старое с этого кадра),
+//     без frame — сразу и снимает расписание слота; с id — только голосу этой ноты;
 //   { type: 'end', id, slot, end } — новый конец ноты id (отпустили живую ноту; у note тоже есть id);
 //   { type: 'stop', slot, frame } — с кадра frame голос слота молчит (слот занял голос Plaits);
 //   { type: 'table', frames, levels: [{ size, data }] } — таблица WTABLE дорожки: frames кадров,
@@ -451,9 +453,11 @@ class JamboProcessor extends AudioWorkletProcessor {
     this.table = null;
     this.busy = 0;
     this.frames = 0;
+    this.mods = Array.from({ length: slots }, () => []);
     this.port.onmessage = (e) => {
       const data = e.data;
       if (data && data.type === 'table') { this.table = data; return; }
+      const seen = new Set();
       for (const ev of data) {
         if (ev.type === 'note' || ev.type === 'stop') {
           const q = this.pending[ev.slot];
@@ -464,10 +468,21 @@ class JamboProcessor extends AudioWorkletProcessor {
           if (this.id[ev.slot] === ev.id) this.end[ev.slot] = ev.end;
           for (const p of this.pending[ev.slot]) if (p.id === ev.id) p.end = ev.end;
         } else if (ev.type === 'mod') {
-          this.voices[ev.slot].set(ev);
+          // С кадром — расписание автоматизации: применяется в свой кадр (новое расписание слота заменяет
+          // старое с этого кадра); без кадра — сразу, и запланированные mod слота снимаются.
+          const m = this.mods[ev.slot];
+          if (ev.frame === undefined) { m.length = 0; this.mod(ev); continue; }
+          if (!seen.has(ev.slot)) { seen.add(ev.slot); while (m.length && m[m.length - 1].frame >= ev.frame) m.pop(); }
+          m.push(ev);
         }
       }
     };
+  }
+
+  /** Модуляция звучащего голоса (у голоса другой ноты — нет: слот уже занят новой нотой). */
+  mod(ev) {
+    if (ev.id !== undefined && this.id[ev.slot] !== ev.id) return;
+    this.voices[ev.slot].set(ev);
   }
 
   /** now — кадр, в котором нота начинается (запоздавшая — позже своего кадра). */
@@ -499,6 +514,8 @@ class JamboProcessor extends AudioWorkletProcessor {
         const now = currentFrame + pos;
         // Запуск ноты ровно в её кадре (запоздавшая — сразу).
         while (q.length && q[0].frame <= now) this.start(s, q.shift(), now);
+        const m = this.mods[s];
+        while (m.length && m[0].frame <= now) this.mod(m.shift());
         let n = Math.min(BLOCK, frames - pos);
         if (q.length) n = Math.min(n, q[0].frame - now);
         if (now >= this.end[s]) {

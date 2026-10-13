@@ -5,7 +5,9 @@
 // Сообщения из основного потока (массив событий):
 //   { type: 'note', slot, frame, end, engine, note, harmonics, timbre, morph, aux, accent }
 //     — в кадре frame голос запускается (триггер), после кадра end молчит и не считается;
-//   { type: 'mod', slot, note, harmonics, timbre, morph, aux } — модуляция звучащего голоса (сразу);
+//   { type: 'mod', slot, note, harmonics, timbre, morph, aux, id?, frame? } — модуляция звучащего голоса (сразу);
+//     с frame — в свой кадр (расписание автоматизации; новое расписание слота заменяет старое с этого кадра),
+//     без frame — сразу и снимает расписание слота; с id — только голосу этой ноты;
 //   { type: 'end', id, slot, end } — новый конец ноты id (отпустили живую ноту; у note тоже есть id);
 //   { type: 'stop', slot, frame } — с кадра frame голос слота молчит (слот занял голос другого семейства
 //     движков — свои движки JAMbo, jambo-synth-worklet.js).
@@ -37,7 +39,9 @@ class PlaitsProcessor extends AudioWorkletProcessor {
     this.noteShift = 12 * Math.log2(48000 / sampleRate);
     this.busy = 0;
     this.frames = 0;
+    this.mods = Array.from({ length: slots }, () => []);
     this.port.onmessage = (e) => {
+      const seen = new Set();
       for (const ev of e.data) {
         if (ev.type === 'note' || ev.type === 'stop') {
           const q = this.pending[ev.slot];
@@ -48,10 +52,21 @@ class PlaitsProcessor extends AudioWorkletProcessor {
           if (this.id[ev.slot] === ev.id) this.end[ev.slot] = ev.end;
           for (const p of this.pending[ev.slot]) if (p.id === ev.id) p.end = ev.end;
         } else if (ev.type === 'mod') {
-          this.w.set(ev.slot, this.engine[ev.slot], ev.note + this.noteShift, ev.harmonics, ev.timbre, ev.morph, 0.8, ev.aux);
+          // С кадром — расписание автоматизации: применяется в свой кадр (новое расписание слота заменяет
+          // старое с этого кадра); без кадра — сразу, и запланированные mod слота снимаются.
+          const m = this.mods[ev.slot];
+          if (ev.frame === undefined) { m.length = 0; this.mod(ev); continue; }
+          if (!seen.has(ev.slot)) { seen.add(ev.slot); while (m.length && m[m.length - 1].frame >= ev.frame) m.pop(); }
+          m.push(ev);
         }
       }
     };
+  }
+
+  /** Модуляция звучащего голоса (у голоса другой ноты — нет: слот уже занят новой нотой). */
+  mod(ev) {
+    if (ev.id !== undefined && this.id[ev.slot] !== ev.id) return;
+    this.w.set(ev.slot, this.engine[ev.slot], ev.note + this.noteShift, ev.harmonics, ev.timbre, ev.morph, 0.8, ev.aux);
   }
 
   start(slot, ev) {
@@ -76,6 +91,8 @@ class PlaitsProcessor extends AudioWorkletProcessor {
         const now = currentFrame + pos;
         // Запуск ноты ровно в её кадре (запоздавшая — сразу).
         while (q.length && q[0].frame <= now) this.start(s, q.shift());
+        const m = this.mods[s];
+        while (m.length && m[0].frame <= now) this.mod(m.shift());
         let n = Math.min(BLOCK, frames - pos);
         if (q.length) n = Math.min(n, q[0].frame - now);
         if (now >= this.end[s]) {

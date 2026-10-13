@@ -18,7 +18,7 @@ import { tableNodeName } from '../library';
 import { WTABLE_ENGINE, isJambo, LFO_WAVES, MAX_TRACKS, OVER_PEAK, SYNTH_ENGINES, noteName, synthEngine, synthGrid, synthKey } from '../params';
 import { levelFrac } from './meter';
 import { makePopup, popupButton } from './popup';
-import { audible, doc, firstHeldStep, heldStepSound, liveLocks, modulatedNorm, seqAt, setStepSound, folderItemName, folderPos, stepFolder, stepFolderOnSteps, setTrackSynth, envAt, envShape, liveParams, lfoShape, lfoShaped, rt, sampleName, selTrack, ui } from '../state';
+import { baseValue, audible, doc, firstHeldStep, heldStepSound, liveLocks, modulatedNorm, seqAt, setStepSound, folderItemName, folderPos, stepFolder, stepFolderOnSteps, setTrackSynth, envAt, envShape, liveParams, lfoShape, lfoShaped, rt, sampleName, selTrack, ui } from '../state';
 import { openSampleEditor } from './sampleedit';
 import { buildClipper, buildGlue, buildLimiter, renderDynamics } from './dynamics';
 import { iconView, renderIcon, type IconView } from './engineIcon';
@@ -408,11 +408,10 @@ function renderTableFrame(key: string, engine: number) {
   const tb = readyTable(key);
   if (!tb) { void getTable(key); return; }
   const i = ui.selectedTrack;
-  const t = doc.tracks[i];
   const grid = synthGrid(engine);
   const held = firstHeldStep();
   const locks = held !== null ? seqAt(i).pages[Math.floor(held / 16)]?.[held % 16]?.locks : liveLocks(i, performance.now()) ?? undefined;
-  const val = (slot: number) => { const p = grid[slot]!; return modulatedNorm(i, p, locks?.[p.id] ?? t.params[p.id]); };
+  const val = (slot: number) => { const p = grid[slot]!; return modulatedNorm(i, p, baseValue(i, p.id, locks ?? {})); };
   const pos = val(0), warp = val(4);
   const sig = `${key}|${pos.toFixed(3)}|${warp.toFixed(3)}|${BIG_ICON_PX}`;
   if (sig === bigIcon.key) return;

@@ -49,3 +49,10 @@ export function closeButton(fn: () => void): HTMLElement {
   el.addEventListener('pointerdown', (e) => { e.preventDefault(); fn(); });
   return el;
 }
+
+/** Значок волны: в паттерне есть автоматизация (сетка паттернов, миниатюры страниц). */
+export function autoBadge(): HTMLElement {
+  const el = h('div', 'auto-badge hidden');
+  el.innerHTML = '<svg viewBox="0 0 24 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M1 6c3-6 6-6 8 0s5 6 8 0 4-4 6-2"/></svg>';
+  return el;
+}

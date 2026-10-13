@@ -5,7 +5,7 @@
 
 import { iconSvg, type IconParam, type IconValues } from '../engineIcons';
 import { TRACK_GRID, stepIndex, synthEngine, synthGrid, type ParamDef } from '../params';
-import { doc, firstHeldStep, heldStepSound, liveLocks, modulatedNorm, seqAt, ui } from '../state';
+import { baseValue, doc, firstHeldStep, heldStepSound, liveLocks, modulatedNorm, seqAt, ui } from '../state';
 
 /** Ручки сетки: 1.1, 1.2, 1.3 и Decay 2.2. */
 const SLOTS: [IconParam, number][] = [['h', 0], ['t', 4], ['m', 8], ['d', 5]];
@@ -28,7 +28,7 @@ function iconFor(i: number, now: number): { id: string; v: IconValues } | null {
   const v: IconValues = { h: 0.5, t: 0.5, m: 0.5, d: 0.5 };
   for (const [k, slot] of SLOTS) {
     const p = grid[slot] as ParamDef;
-    let n = modulatedNorm(i, p, locks?.[p.id] ?? t.params[p.id]);
+    let n = modulatedNorm(i, p, baseValue(i, p.id, locks ?? {}));
     // Ступенчатая ручка — скачком по пункту.
     if (p.steps) n = (stepIndex(n, p.steps) + 0.5) / p.steps;
     v[k] = n;

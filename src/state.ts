@@ -7,6 +7,7 @@ import {
   BPM_MAX, BPM_MIN, VOL_MIN_DB, VOL_DEF_DB, PARAM_BY_ID, PRESET_PARAMS, SEQ_COUNT, SEQ_MIX, SEQ_MST, SYNTH_ENGINES, SYNTH_GRID, synthEngine, WTABLE_ENGINE, synthGrid, synthKey, EQ_BANDS, EQ_BELL, eqHasGain, EQ_DYN_RANGE_MAX, EQ_DYN_THR_MIN, EQ_FREQ_MAX, EQ_FREQ_MIN, EQ_GAIN_MAX, EQ_Q_DEF, EQ_Q_MAX, EQ_Q_MIN, EQ_TYPES, NOTE_NAMES, PROGRESSIONS, SCALES, fromNorm, toNorm, type ParamDef, type Slot,
 } from './params';
 import { tableSampleKey } from './audio/wavetable';
+import { AUTO_PARAMS, evalAuto, isStepped, segType, simplify, spliceRecording, type AutoPoint, type Automation, type SegType } from './automation';
 
 export interface Step {
   on: boolean;
@@ -52,6 +53,8 @@ export interface Pattern {
   root?: number;
   fx?: Record<string, number>;
   eq?: Eq;
+  /** Автоматизации параметров (одна на параметр); нет поля — нет автоматизаций. */
+  auto?: Automation[];
 }
 
 /**
@@ -91,6 +94,8 @@ export interface Track {
   scale?: number;
   root?: number;
   fx?: Record<string, number>;
+  /** Автоматизации активного паттерна (см. Pattern). */
+  auto?: Automation[];
 }
 
 /** Полоса эквалайзера. */
@@ -229,6 +234,23 @@ export interface Ui {
   sampleView: boolean;
   /** Браузер библиотеки сэмплов и пресетов на месте центра экрана. */
   browserView: boolean;
+  /** Окно автоматизации (кнопка AUTO) на месте центра экрана. */
+  autoView: boolean;
+  /**
+   * Открытая автоматизация (id параметра) и запись (REC окна автоматизации): пока REC включена, касание
+   * ручки этого параметра (на экране — окно AUTO можно закрыть, — или энкодером) пишет кривую.
+   */
+  autoParam: string;
+  autoRec: boolean;
+  /** Инструмент рисования: тип новых сегментов (FREE — свободное рисование, сегменты smooth). */
+  autoTool: 'line' | 'spline' | 'free';
+  /** Привязка по X (доля шага, 0 — нет) и по Y (доля диапазона, 0 — нет). */
+  autoSnapX: number;
+  autoSnapY: number;
+  /** SIMPLIFY: 0…100 % (допуск упрощения записи). */
+  autoSimplify: number;
+  /** Скопированные точки автоматизации. */
+  autoClipboard: AutoPoint[] | null;
   /** Выбранная полоса EQ (−1 — нет). */
   eqBand: number;
   /** Включён режим MORPH (временные изменения ручек). */
@@ -358,6 +380,14 @@ export const ui: Ui = {
   eqView: false,
   sampleView: false,
   browserView: false,
+  autoView: false,
+  autoParam: '',
+  autoRec: false,
+  autoTool: 'spline',
+  autoSnapX: 0,
+  autoSnapY: 0,
+  autoSimplify: 20,
+  autoClipboard: null,
   morph: false,
   eqBand: -1,
   lfoPreviewUntil: 0,
@@ -1459,13 +1489,15 @@ function takePattern(t: Track): Pattern {
   const at = placeOf(t);
   return clone({
     sample: t.sample, params: t.params, assigns: t.assigns, pages: t.pages, length: t.length, playFrom: t.playFrom, playTo: t.playTo,
-    scale: t.scale, root: t.root, fx: t.fx, eq: at ? at.d.eqs[at.i] : undefined,
+    scale: t.scale, root: t.root, fx: t.fx, eq: at ? at.d.eqs[at.i] : undefined, auto: t.auto,
   });
 }
 
 function putPattern(t: Track, p: Pattern) {
   const { eq, ...rest } = clone(p);
   Object.assign(t, rest);
+  // Автоматизации — только свои у паттерна (у паттерна без них — нет).
+  if (!rest.auto) delete t.auto;
   const at = placeOf(t);
   if (eq && at) at.d.eqs[at.i] = eq;
 }
@@ -1621,7 +1653,7 @@ export function deletePattern(i: number, k: number) {
   const t = doc.tracks[i];
   edit(() => {
     if (k !== t.slot) { t.slots[k] = null; return; }
-    putPattern(t, { ...takePattern(t), pages: [emptyPage()], length: STEPS_PER_PAGE, playFrom: 0, playTo: 0 });
+    putPattern(t, { ...takePattern(t), pages: [emptyPage()], length: STEPS_PER_PAGE, playFrom: 0, playTo: 0, auto: undefined });
     t.stopped = true;
   });
   if (k === t.slot) patternStopped(i);
@@ -1932,12 +1964,13 @@ export const selectedBand = (): EqBand | null => (ui.eqBand >= 0 ? eqTarget().ba
 const clampN = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
 /** Кнопки PATTERNS и EQ переключают центр экрана (одновременно открыт только один вид). */
-export function toggleView(v: 'patterns' | 'eq' | 'sample' | 'browser') {
-  const open = v === 'patterns' ? !ui.patternView : v === 'eq' ? !ui.eqView : v === 'sample' ? !ui.sampleView : !ui.browserView;
+export function toggleView(v: 'patterns' | 'eq' | 'sample' | 'browser' | 'auto') {
+  const open = v === 'patterns' ? !ui.patternView : v === 'eq' ? !ui.eqView : v === 'sample' ? !ui.sampleView : v === 'auto' ? !ui.autoView : !ui.browserView;
   ui.patternView = v === 'patterns' && open;
   ui.eqView = v === 'eq' && open;
   ui.sampleView = v === 'sample' && open;
   ui.browserView = v === 'browser' && open;
+  ui.autoView = v === 'auto' && open;
 }
 
 /** Новая bell-полоса (двойной тап по пустому месту); −1, если мест нет. */
@@ -2504,4 +2537,232 @@ export function deleteEqPreset(k: number) {
   if (!eqPresetList[k]) return;
   eqPresetList.splice(k, 1);
   storeEqPresets();
+}
+
+// ---------- Автоматизация (этап 6) ----------
+
+/**
+ * Позиция дорожки i в паттерне (шаги, дробная) в момент at (performance.now) — по часам секвенсора
+ * (transport.ts), а не по кадрам; null — не играет (стоп, дорожка остановлена).
+ */
+let autoClock: (i: number, at: number) => number | null = () => null;
+export const setAutoClock = (f: (i: number, at: number) => number | null) => { autoClock = f; };
+export const autoPos = (i: number, at = performance.now()) => autoClock(i, at);
+
+/** Ячейка ручки параметра id у дорожки t (у 1.1 движков — своя: ступенчатая, подпись, формат). */
+export function autoDef(t: Track, id: string): ParamDef {
+  const e = synthEngine(t.sample);
+  const grid = e !== null ? synthGrid(e) : TRACK_GRID;
+  return grid.find((p) => p?.id === id) ?? PARAM_BY_ID[id];
+}
+export const autoOf = (t: Track | undefined, id: string): Automation | undefined => t?.auto?.find((a) => a.param === id);
+/** В паттерне есть хотя бы одна автоматизация с точками (значок волны на паттерне). */
+export const patternHasAuto = (p: { auto?: Automation[] } | null | undefined) => !!p?.auto?.some((a) => a.points.length > 0);
+
+/** Значение кривой (0..1) у дорожки i в момент at — без перехвата рукой; null — нет или не играет. */
+export function autoCurve(i: number, id: string, at = performance.now()): number | null {
+  const t = doc.tracks[i];
+  if (!t?.auto || !ui.playing || t.stopped) return null;
+  const a = autoOf(t, id);
+  if (!a || !a.points.length) return null;
+  const x = autoClock(i, at);
+  if (x === null) return null;
+  return evalAuto(a.points, x, isStepped(autoDef(t, id)));
+}
+
+/**
+ * Ручка под пальцем (или энкодер крутится): значение — рукой, автоматизация не действует; отпустили —
+ * за HAND_GLIDE_MS значение плавно возвращается к кривой.
+ */
+interface Hand { held: boolean; t: number; from: number; knob?: number }
+const hands = new Map<string, Hand>();
+const HAND_GLIDE_MS = 200;
+const handKey = (i: number, id: string) => `${i}|${id}`;
+
+/** Значение автоматизации (0..1) с перехватом рукой; null — действует ручка (или p-lock). */
+export function autoNorm(i: number, id: string, at = performance.now()): number | null {
+  const y = autoCurve(i, id, at);
+  if (y === null) return null;
+  const hh = hands.get(handKey(i, id));
+  if (!hh) return y;
+  if (hh.held) return null;
+  const k = (at - hh.t) / HAND_GLIDE_MS;
+  if (k >= 1) {
+    if (performance.now() - hh.t >= HAND_GLIDE_MS) hands.delete(handKey(i, id));
+    return y;
+  }
+  return hh.from + (y - hh.from) * Math.max(0, k);
+}
+
+/**
+ * Базовое значение параметра дорожки: ручка → автоматизация (заменяет) → p-lock шага (заменяет на время
+ * шага). LFO добавляется сверху (modulatedNorm). at — момент (performance.now), по умолчанию сейчас.
+ */
+export function baseValue(i: number, id: string, locks: Record<string, number>, at?: number): number {
+  const l = locks[id];
+  if (l !== undefined) return l;
+  const t = doc.tracks[i];
+  if (!t.auto || !AUTO_PARAMS.has(id)) return t.params[id];
+  const n = autoNorm(i, id, at);
+  return n === null ? t.params[id] : fromNorm(autoDef(t, id), n);
+}
+
+/** Запись (REC окна автоматизации): куски по ходу времени (новый кусок — паттерн пошёл по кругу). */
+interface AutoRec { track: number; id: string; knob: number; pieces: AutoPoint[][] }
+let rec: AutoRec | null = null;
+/** Последняя запись: SIMPLIFY пересчитывает её упрощение заново. */
+let lastTake: { track: number; slot: number; id: string; base: AutoPoint[]; pieces: AutoPoint[][] } | null = null;
+export const autoRecPieces = (): AutoPoint[][] | null => rec?.pieces ?? null;
+export const autoRecording = () => rec !== null;
+/** Допуск упрощения: SIMPLIFY 0…100 % → 0…5 % диапазона (по умолчанию 20 % → 1 %). */
+const simplifyTol = () => (ui.autoSimplify / 100) * 0.05;
+
+function applyTake(base: AutoPoint[], pieces: AutoPoint[][], stepped: boolean): AutoPoint[] {
+  let pts = base.map((p) => ({ ...p }));
+  const type: SegType = stepped ? 'hold' : 'smooth';
+  for (const piece of pieces) {
+    if (!piece.length) continue;
+    const s = simplify(piece, simplifyTol()).map((p) => ({ ...p, type }));
+    pts = spliceRecording(pts, s, stepped);
+  }
+  return pts;
+}
+
+/** Палец лёг на ручку дорожки i (параметр id): перехват рукой, при REC — начало записи. */
+export function handDown(i: number, id: string) {
+  const t = doc.tracks[i];
+  if (!t || !AUTO_PARAMS.has(id)) return;
+  const n = autoNorm(i, id);
+  // Ручка начинает с того места, где сейчас кривая (без скачка к своему значению).
+  const def = autoDef(t, id);
+  const knob = t.params[id];
+  if (n !== null) t.params[id] = fromNorm(def, n);
+  // Автоматизация действует: поворот ручки временный — после отпускания ручка возвращается к прежнему значению.
+  hands.set(handKey(i, id), { held: true, t: 0, from: 0, knob: n === null ? undefined : knob });
+  const a = autoOf(t, id);
+  // Запись: ручка после неё вернётся к значению до касания (запись меняет только кривую).
+  if (ui.autoRec && ui.autoParam === id && i === ui.selectedTrack && a && autoPos(i) !== null) {
+    rec = { track: i, id, knob, pieces: [[]] };
+  }
+}
+
+/** Палец отпущен: запись упрощается и встаёт в кривую; ручка плавно возвращается к кривой. */
+export function handUp(i: number, id: string) {
+  const hh = hands.get(handKey(i, id));
+  if (!hh) return;
+  const t = doc.tracks[i];
+  if (!t) { hands.delete(handKey(i, id)); return; }
+  const def = autoDef(t, id);
+  hh.held = false;
+  hh.t = performance.now();
+  hh.from = toNorm(def, t.params[id]);
+  if (rec && rec.track === i && rec.id === id) {
+    autoRecordFrame(performance.now());
+    const a = autoOf(t, id);
+    const pieces = rec.pieces.filter((p) => p.length > 0);
+    if (a && pieces.length) {
+      const base = a.points.map((p) => ({ ...p }));
+      lastTake = { track: i, slot: t.slot, id, base, pieces };
+      a.points = applyTake(base, pieces, isStepped(def));
+    }
+    t.params[id] = rec.knob;
+    rec = null;
+  }
+  if (hh.knob !== undefined) t.params[id] = hh.knob;
+}
+
+/** Энкодер (MIDI) крутится: перехват рукой, пауза 300 мс — отпущен (вся запись — одна запись в UNDO). */
+const pulses = new Map<string, number>();
+export function handPulse(i: number, id: string) {
+  const key = handKey(i, id);
+  const timer = pulses.get(key);
+  if (timer === undefined) { beginGesture(); handDown(i, id); } else clearTimeout(timer);
+  pulses.set(key, window.setTimeout(() => { pulses.delete(key); handUp(i, id); endGesture(); }, 300));
+}
+
+/** Каждый кадр (~60 раз в секунду): идёт запись — положение ручки пишется в позицию x. */
+export function autoRecordFrame(now: number) {
+  if (!rec) return;
+  const t = doc.tracks[rec.track];
+  const x = t ? autoClock(rec.track, now) : null;
+  if (!t || x === null) return;
+  const y = toNorm(autoDef(t, rec.id), t.params[rec.id]);
+  let piece = rec.pieces[rec.pieces.length - 1];
+  const last = piece[piece.length - 1];
+  // Паттерн пошёл по кругу — новый кусок (он заменит точки своего участка).
+  if (last && x < last.x - 1e-3) { piece = []; rec.pieces.push(piece); }
+  const prev = piece[piece.length - 1];
+  if (!prev || x > prev.x + 1e-3) piece.push({ x: Math.min(x, (t.pages.length * STEPS_PER_PAGE)), y, type: 'smooth' });
+  else prev.y = y;
+}
+
+/** SIMPLIFY: упрощение последней записи заново (если открыта та же автоматизация). */
+export function setAutoSimplify(v: number) {
+  ui.autoSimplify = Math.min(100, Math.max(0, v));
+  const t = selTrack();
+  const a = autoOf(t, ui.autoParam);
+  if (!a || !lastTake || lastTake.track !== ui.selectedTrack || lastTake.slot !== t.slot || lastTake.id !== a.param) return;
+  a.points = applyTake(lastTake.base, lastTake.pieces, isStepped(autoDef(t, a.param)));
+}
+/** Есть запись, которую можно упростить заново. */
+export function canResimplify(): boolean {
+  const t = selTrack();
+  return !!lastTake && lastTake.track === ui.selectedTrack && lastTake.slot === t.slot && lastTake.id === ui.autoParam && !!autoOf(t, ui.autoParam);
+}
+
+/** Автоматизации активного паттерна выбранной дорожки. */
+export const autoList = (): Automation[] => (ui.channel === 'track' ? selTrack().auto ?? [] : []);
+/** Открытая автоматизация. */
+export const curAuto = (): Automation | undefined => (ui.channel === 'track' ? autoOf(selTrack(), ui.autoParam) : undefined);
+/** Длина поля автоматизации, шаги: все страницы паттерна. */
+export const autoSpan = (t: Track = selTrack()) => t.pages.length * STEPS_PER_PAGE;
+
+/** «+»: автоматизация параметра id (новая — линия на текущем значении ручки); есть — просто открыть. */
+export function addAuto(id: string) {
+  const t = selTrack();
+  if (!AUTO_PARAMS.has(id)) return;
+  ui.autoParam = id;
+  if (autoOf(t, id)) return;
+  edit(() => {
+    const def = autoDef(t, id);
+    const y = toNorm(def, t.params[id]);
+    const type = segType(def, ui.autoTool === 'line' ? 'linear' : 'smooth');
+    (t.auto ??= []).push({ param: id, points: [{ x: 0, y, type }, { x: autoSpan(t), y, type }] });
+  });
+}
+
+export function deleteAuto(id: string) {
+  const t = selTrack();
+  edit(() => {
+    t.auto = (t.auto ?? []).filter((a) => a.param !== id);
+    if (!t.auto.length) delete t.auto;
+  });
+  if (ui.autoParam === id) ui.autoParam = t.auto?.[0]?.param ?? '';
+}
+
+/** Правка открытой автоматизации — одна запись в UNDO. */
+export function editAuto(fn: (a: Automation, t: Track) => void) {
+  const t = selTrack();
+  const a = autoOf(t, ui.autoParam);
+  if (a) edit(() => fn(a, t));
+}
+
+export function copyAuto() {
+  const a = curAuto();
+  if (a) ui.autoClipboard = a.points.map((p) => ({ ...p }));
+}
+export function pasteAuto() {
+  const clip = ui.autoClipboard;
+  if (!clip) return;
+  editAuto((a, t) => {
+    const def = autoDef(t, a.param);
+    a.points = clip.map((p) => ({ ...p, type: segType(def, p.type) }));
+  });
+}
+export function clearAuto() { editAuto((a) => { a.points = []; }); }
+
+/** У дорожки i сейчас действует автоматизация (играет паттерн с кривыми): голоса — по расписанию. */
+export function autoLive(i: number): boolean {
+  const t = doc.tracks[i];
+  return !!t?.auto && ui.playing && !t.stopped && t.auto.some((a) => a.points.length > 0);
 }

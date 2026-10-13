@@ -10,10 +10,11 @@
 // затем движение контроллера. Значения ручек уходят на выход обратной связи (кольца энкодеров
 // Midi Fighter Twister). Маппинги и настройки — в settings.ts (общие для всех проектов).
 
+import { AUTO_PARAMS } from './automation';
 import { toNorm } from './params';
 import {
   assignFor, beginGesture, endGesture, ui, firstHeldStep, gridFor, gridMode, heldLfo, lockValue, paramValue,
-  setLfoAmount, setLockNorm, setParamNorm,
+  setLfoAmount, setLockNorm, setParamNorm, handPulse,
 } from './state';
 import { fullMapping, saveSettings, settings, type MidiMapping, type MidiSource, type MidiTarget } from './settings';
 
@@ -317,6 +318,8 @@ function knobInput(m: MidiMapping, slot: number, at: number | null, step: number
     setLfoAmount(p, lfo, n * 2 - 1, mode);
     return;
   }
+  // Ручка дорожки: пока энкодер крутится, автоматизация перехвачена (при REC окна автоматизации — пишется).
+  if ((held === null || p.noLock) && mode === 'track' && AUTO_PARAMS.has(p.id)) handPulse(ui.selectedTrack, p.id);
   const base = held !== null && !p.noLock ? lockValue(held, p) ?? paramValue(mode, p) : paramValue(mode, p);
   const n = at !== null ? m.min + at * (m.max - m.min) : Math.min(hi, Math.max(lo, toNorm(p, base) + (dir * step) / 128));
   if (held !== null && !p.noLock) setLockNorm(p, n);

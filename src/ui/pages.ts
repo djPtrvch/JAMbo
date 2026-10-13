@@ -7,9 +7,9 @@
 
 import { MAX_PAGES, STEPS_PER_PAGE } from '../params';
 import {
-  addPage, clearPage, movePage, nudgePage, pageRange, copyPage, deletePage, duplicatePage, hasLocks, hasManualLocks, tailMask, pastePage, rt, curSeq, seqIndex, setPlayPages, ui,
+  addPage, clearPage, movePage, nudgePage, pageRange, copyPage, deletePage, duplicatePage, hasLocks, hasManualLocks, tailMask, pastePage, rt, curSeq, seqIndex, setPlayPages, ui, patternHasAuto,
 } from '../state';
-import { DOUBLE_TAP_MS, h, setClass } from './dom';
+import { autoBadge, DOUBLE_TAP_MS, h, setClass } from './dom';
 import { makePopup, popupButton, type Popup } from './popup';
 
 const HOLD_MS = 450;
@@ -111,10 +111,14 @@ function dragRange(d: Drag, y: number): [number, number] {
 let tapPage = -1;
 let tapTimer = 0;
 
+let pageWave: HTMLElement;
+
 export function buildPages(): HTMLElement {
   list = h('div', 'pages');
   outline = h('div', 'play-outline');
-  list.append(outline);
+  // Значок волны: в паттерне есть автоматизация.
+  pageWave = autoBadge();
+  list.append(outline, pageWave);
   for (let i = 0; i < MAX_PAGES; i++) {
     const root = h('div', 'thumb');
     root.dataset.page = String(i);
@@ -283,4 +287,5 @@ export function renderPages() {
   outline.style.top = `${first.offsetTop - 3}px`;
   outline.style.height = `${last.offsetTop + last.offsetHeight - first.offsetTop + 6}px`;
   if (!menu.isOpen()) ui.pageMenu = null;
+  setClass(pageWave, 'hidden', !patternHasAuto(t));
 }

@@ -6,7 +6,7 @@ import { stemEndsAtBoundary, stemRecording, stemsOnPlay, stemsOnStep, stemsOnSto
 import { PARAM_BY_ID, SEQ_MIX, SEQ_MST, STEPS_PER_PAGE, fromNorm } from './params';
 import {
   triggerEnv, endRecTake, activateSlot, audible, doc, inTransition, visibleRows, modulatedNorm, playRange, rowFilled, rt, seqAt, slotFilled, stepAt, stopTrack, ui,
-  rowLoopOn,
+  rowLoopOn, baseValue, setAutoClock,
 } from './state';
 
 /** Шаги планируются заранее, чтобы звук и щелчок метронома попадали точно в долю. */
@@ -114,11 +114,24 @@ function atBoundary(i: number, k: number): boolean {
 }
 
 /** Значение параметра на шаге с учётом p-lock и LFO. */
-function playValue(trackIndex: number, id: string, locks: Record<string, number>): number {
+function playValue(trackIndex: number, id: string, locks: Record<string, number>, at?: number): number {
   const p = PARAM_BY_ID[id];
-  const base = locks[id] ?? doc.tracks[trackIndex].params[id];
-  return fromNorm(p, modulatedNorm(trackIndex, p, base));
+  return fromNorm(p, modulatedNorm(trackIndex, p, baseValue(trackIndex, id, locks, at), at));
 }
+
+/**
+ * Часы автоматизации: позиция дорожки i в паттерне (шаги, дробная) в момент at (performance.now) —
+ * от тика секвенсора, а не от кадров (кадр может опоздать или пропасть при сворачивании).
+ */
+setAutoClock((i, at) => {
+  if (!ui.playing) return null;
+  const t = doc.tracks[i];
+  if (!t || t.stopped) return null;
+  const [a, b] = playRange(t);
+  const len = b - a + 1;
+  const n = tick + (at - nextTime) / stepMs() - rt.trackStart[i];
+  return a + (((n % len) + len) % len);
+});
 
 function playStep(time: number) {
   const dur = stepMs();
@@ -155,9 +168,9 @@ function playStep(time: number) {
     // Заглушённая дорожка играет дальше (её выход глушит движок): уровень виден в MIX, она источник
     // sidechain и динамического EQ; не мигает.
     if (!s?.on) return;
-    if (Math.random() * 100 >= playValue(i, 'prob', s.locks)) return;
-    const ratchet = playValue(i, 'ratchet', s.locks) + 1;
-    const swing = playValue(i, 'swing', s.locks);
+    if (Math.random() * 100 >= playValue(i, 'prob', s.locks, time)) return;
+    const ratchet = playValue(i, 'ratchet', s.locks, time) + 1;
+    const swing = playValue(i, 'swing', s.locks, time);
     const offset = pos % 2 === 1 ? ((swing - 50) / 50) * dur : 0;
     const sub = dur / ratchet;
     for (let r = 0; r < ratchet; r++) {

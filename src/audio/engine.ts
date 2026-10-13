@@ -20,7 +20,7 @@
 // лимитера): пиковый уровень по каналам и громкость в LUFS (K-взвешивание, окно ~400 мс).
 
 import { DELAY_DIVS, isAuto, OVER_PEAK, DRUM_ENGINE, isJambo, SYNTH_ENGINES, synthEngine, PARAM_BY_ID, RATIOS, VOL_DEF_DB, volGain, SAMPLE_ROOT, MAX_TRACKS, filterFreq, fromNorm } from '../params';
-import { audible, addSamplesQuiet, addSamplesToFolder, doc, setStepSound, triggerEnv, liveFx, liveMaster, liveMixer, modulatedNorm, ui } from '../state';
+import { audible, addSamplesQuiet, addSamplesToFolder, doc, setStepSound, triggerEnv, liveFx, liveMaster, liveMixer, modulatedNorm, ui, baseValue, autoLive } from '../state';
 import { detectRoot } from './pitch';
 import { encodeWav } from './wav';
 import { settings } from '../settings';
@@ -56,6 +56,10 @@ interface Voice {
   /** Последние отправленные значения ручек: голос подхватывает поворот ручки, а не только следующую ноту. */
   sig?: string;
   vals?: number[];
+  /** Значения идут по расписанию наперёд (автоматизация): при выходе из него — сбросить расписание. */
+  sched?: boolean;
+  /** Конец расписания (время контекста). */
+  schedEnd?: number;
   level: GainNode;
   filter: BiquadFilterNode;
   pan: StereoPannerNode;
@@ -520,8 +524,8 @@ function toCtx(perf: number): number {
 /** Значение параметра голоса с p-lock и модуляцией; at — момент (performance.now) начала ноты. */
 function value(track: number, id: string, locks: Record<string, number>, at?: number): number {
   const p = PARAM_BY_ID[id];
-  const base = locks[id] ?? doc.tracks[track].params[id];
-  return fromNorm(p, modulatedNorm(track, p, base, at));
+  // Ручка → автоматизация → p-lock шага; LFO/ENV — сверху.
+  return fromNorm(p, modulatedNorm(track, p, baseValue(track, id, locks, at), at));
 }
 
 function applyFilter(f: BiquadFilterNode, v: number, reso: number, at: number, smooth: boolean) {
@@ -619,6 +623,8 @@ export function triggerTrack(track: number, time: number, notes: number[], locks
     if (hold !== Infinity) src.stop(Math.min(at + playDur, hold + Math.max(0.02, decay) * 2 + 0.05));
     const voice: Voice = { track, root, locks, note, at, src, synth: null, level, filter, pan, sends, ended: false, hold, own: !!sound };
     if (hold === Infinity) voice.held = { amp: amp.gain, decay, id: 0 };
+    // Автоматизация: значения голоса наперёд — с самого начала ноты.
+    if (autoLive(track)) scheduleVoice(voice, at);
     src.onended = () => {
       voice.ended = true;
       for (const n of [src, edge, amp, level, filter, pan, ...sends]) n.disconnect();
@@ -628,6 +634,7 @@ export function triggerTrack(track: number, time: number, notes: number[], locks
       // Лишний голос гаснет за ~5 мс, а не обрывается.
       const old = voices.shift()!;
       if (old.src) {
+        old.level.gain.cancelScheduledValues(ctx.currentTime);
         old.level.gain.setTargetAtTime(0, ctx.currentTime, 0.0015);
         try { old.src.stop(ctx.currentTime + 0.02); } catch { /* уже остановлен */ }
       }
@@ -705,6 +712,8 @@ function triggerSynth(track: number, engine: number, time: number, notes: number
       g.setTargetAtTime(0, h, Math.max(0.005, decay / 4));
     }
     // На звучащем хвосте (keep) параметры слота меняются за ~1 мс, а не скачком.
+    // Расписание автоматизации прошлого голоса слота (наперёд) с начала новой ноты не действует.
+    for (const p of [sl.level.gain, sl.filter.frequency, sl.filter.Q, sl.pan.pan, ...sl.sends.map((x) => x.gain)]) p.cancelScheduledValues(start);
     const put = (p: AudioParam, x: number) => (keep ? p.setTargetAtTime(x, start, 0.001) : p.setValueAtTime(x, start));
     put(sl.level.gain, levelGain(v('level')));
     applyFilter(sl.filter, v('filter'), v('reso'), start, keep);
@@ -713,11 +722,14 @@ function triggerSynth(track: number, engine: number, time: number, notes: number
     const stop = end + (start - at);
     sy.busyUntil[slot] = selfDecay ? start + attack + 0.3 + 4 * decay : live ? Infinity : stop;
     const id = ++noteId;
-    voices.push({
+    const voice: Voice = {
       track, root: 0, locks, note, at: start, src: null, synth: { slot, engine, end: stop, id }, level: sl.level, filter: sl.filter, pan: sl.pan, sends: sl.sends, ended: false,
       hold: selfDecay ? start + attack : live ? Infinity : hold + (start - at), own,
       held: live ? { amp: g, decay, id } : undefined,
-    });
+    };
+    voices.push(voice);
+    // Автоматизация: значения голоса наперёд — с самого начала ноты (mod — после самой ноты).
+    if (autoLive(track)) queueMicrotask(() => { if (!voice.ended) scheduleVoice(voice, start); });
     // Слот занимал голос другого семейства — тот замолкает в кадре новой ноты (огибающая уже погашена).
     if (prevFamily && prevFamily !== family) sy.nodes[prevFamily]?.port.postMessage([{ type: 'stop', slot, frame: Math.round(start * sr) }]);
     return { type: 'note', id, slot, frame: Math.round(start * sr), end: Math.round(stop * sr), engine, note, ...synthParams(engine, v), accent: 0.8 };
@@ -795,6 +807,7 @@ export function trackDeleted(i: number, last = MAX_TRACKS - 1) {
     if (vo.track < i || vo.track > last || vo.ended) continue;
     vo.ended = true;
     if (vo.src) {
+      vo.level.gain.cancelScheduledValues(ct);
       vo.level.gain.setTargetAtTime(0, ct, 0.0015);
       try { vo.src.stop(ct + 0.03); } catch { /* уже остановлен */ }
     }
@@ -869,6 +882,106 @@ function retrigger(track: number) {
   redo.forEach((r) => triggerTrack(track, performance.now() + (r.at - now) * 1000, r.notes, r.locks, undefined, r.gate, true));
 }
 
+/** Шаг расписания автоматизации, с, и сколько шагов наперёд (с запасом на опоздавший кадр). */
+const SCHED_DT = 0.005;
+const SCHED_N = 12;
+/**
+ * Расписание начинается не раньше чем через 8 мс: до этого времени звук, возможно, уже посчитан, и правка
+ * «задним числом» дала бы скачок. Точки — на общей сетке времени (кратны SCHED_DT): новое расписание
+ * подхватывает точку прошлого ровно в её момент — без скачка.
+ */
+const SCHED_LEAD = 0.008;
+const schedVals: number[][] = Array.from({ length: SCHED_N + 1 }, () => []);
+
+/** Живые параметры голоса: Pitch, Level, Filter, Resonance, Pan и посылы. */
+function liveVals(vo: Voice, at: number, out: number[]) {
+  const v = (id: string) => value(vo.track, id, vo.locks, at);
+  out.length = 0;
+  out.push(v('pitch'), v('level'), v('filter'), v('reso'), v('pan'), ...SENDS.map((id) => v(id)));
+}
+
+/**
+ * Значение AudioParam — линейными отрезками по точкам расписания от anchor. Продолжение (cont) — точка
+ * прошлого расписания в момент anchor остаётся (с неё идут отрезки), иначе значение ставится в anchor.
+ */
+function rampParam(p: AudioParam, anchor: number, cont: boolean, val: (k: number) => number) {
+  p.cancelScheduledValues(anchor + 1e-4);
+  if (!cont) p.setValueAtTime(val(0), anchor);
+  for (let k = 1; k <= SCHED_N; k++) p.linearRampToValueAtTime(val(k), anchor + k * SCHED_DT);
+}
+
+/**
+ * Голос дорожки с автоматизацией: значения (с p-lock и LFO/ENV) считаются наперёд на ~60 мс с шагом 5 мс
+ * (200 раз в секунду) по часам секвенсора и уходят в AudioParam отрезками, а в AudioWorklet синта —
+ * сообщениями mod с кадром; каждый кадр расписание обновляется (кадр опоздал — звук не замирает).
+ */
+function scheduleVoice(vo: Voice, start?: number) {
+  const c = ctx!;
+  const ct = c.currentTime;
+  // Начало ноты: расписание — сразу от её начала (значения ноты совпадают с кривой, первый кадр продолжает).
+  const anchor = start ?? Math.ceil((ct + SCHED_LEAD) / SCHED_DT) * SCHED_DT;
+  // Прошлое расписание дотягивается до anchor — продолжаем с его точки; иначе (долгий кадр) — с нуля.
+  const cont = start === undefined && !!vo.sched && (vo.schedEnd ?? 0) >= anchor - 1e-6;
+  const perf = performance.now() + (anchor - ct) * 1000;
+  for (let k = 0; k <= SCHED_N; k++) liveVals(vo, perf + k * SCHED_DT * 1000, schedVals[k]);
+  if (vo.src) rampParam(vo.src.playbackRate, anchor, cont, (k) => rateFor(vo.note, vo.root, schedVals[k][0]));
+  rampParam(vo.level.gain, anchor, cont, (k) => levelGain(schedVals[k][1]));
+  // Фильтр: тип (LP/HP/выкл.) — по текущему значению, частота и резонанс — отрезками.
+  const ff = filterFreq(schedVals[0][2]);
+  const type: BiquadFilterType = ff.type === 'hp' ? 'highpass' : 'lowpass';
+  if (vo.filter.type !== type) vo.filter.type = type;
+  // Точка с другим типом (кривая прошла центр ручки) — край текущего типа: LP открыт (20 кГц), HP — 20 Гц.
+  rampParam(vo.filter.frequency, anchor, cont, (k) => {
+    const f = filterFreq(schedVals[k][2]);
+    if (f.type === ff.type) return ff.type === 'off' ? 20000 : f.hz;
+    return ff.type === 'hp' ? 20 : 20000;
+  });
+  rampParam(vo.filter.Q, anchor, cont, (k) => 0.7 + (schedVals[k][3] / 100) * 18);
+  rampParam(vo.pan.pan, anchor, cont, (k) => Math.max(-1, Math.min(1, schedVals[k][4] / 64)));
+  SENDS.forEach((_, i) => rampParam(vo.sends[i].gain, anchor, cont, (k) => schedVals[k][5 + i] / 100));
+  if (vo.synth) {
+    // Ручки 1.1–1.3 (и Decay) — сообщениями mod с кадром: AudioWorklet применяет их в своё время.
+    const sr = c.sampleRate;
+    const msgs: unknown[] = [];
+    for (let k = 0; k <= SCHED_N; k++) {
+      const at = perf + k * SCHED_DT * 1000;
+      const p = synthParams(vo.synth.engine, (id) => value(vo.track, id, vo.locks, at));
+      msgs.push({ type: 'mod', slot: vo.synth.slot, note: vo.note, id: vo.synth.id, frame: Math.round((anchor + k * SCHED_DT) * sr), ...p });
+    }
+    synths[vo.track]?.nodes[familyOf(vo.synth.engine)]?.port.postMessage(msgs);
+  }
+  vo.sched = true;
+  vo.schedEnd = anchor + SCHED_N * SCHED_DT;
+  vo.vals = schedVals[0].slice();
+  vo.sig = undefined;
+}
+
+/** Автоматизация кончилась (стоп, паттерн без неё): расписание наперёд снимается, значения — сейчас. */
+function unschedule(vo: Voice) {
+  const c = ctx!;
+  const anchor = Math.ceil((c.currentTime + SCHED_LEAD) / SCHED_DT) * SCHED_DT;
+  vo.sched = false;
+  const vals: number[] = [];
+  liveVals(vo, performance.now() + (anchor - c.currentTime) * 1000, vals);
+  const set = (p: AudioParam, x: number) => {
+    p.cancelScheduledValues(anchor + 1e-4);
+    p.setTargetAtTime(x, anchor, 0.005);
+  };
+  if (vo.src) set(vo.src.playbackRate, rateFor(vo.note, vo.root, vals[0]));
+  set(vo.level.gain, levelGain(vals[1]));
+  for (const p of [vo.filter.frequency, vo.filter.Q]) p.cancelScheduledValues(anchor + 1e-4);
+  applyFilter(vo.filter, vals[2], vals[3], anchor, true);
+  set(vo.pan.pan, Math.max(-1, Math.min(1, vals[4] / 64)));
+  SENDS.forEach((_, i) => set(vo.sends[i].gain, vals[5 + i] / 100));
+  vo.vals = vals;
+  if (vo.synth) {
+    // Сообщение без кадра снимает в AudioWorklet запланированные mod слота.
+    const p = synthParams(vo.synth.engine, (id) => value(vo.track, id, vo.locks));
+    synths[vo.track]?.nodes[familyOf(vo.synth.engine)]?.port.postMessage([{ type: 'mod', slot: vo.synth.slot, note: vo.note, id: vo.synth.id, ...p }]);
+    vo.sig = Object.values(p).join(',');
+  }
+}
+
 /** Модуляция звучащих голосов (LFO/ENV) — каждый кадр. */
 function updateVoices() {
   const c = ctx!;
@@ -883,6 +996,9 @@ function updateVoices() {
     if (!tr) continue;
     // Модуляция (LFO/ENV) и повороты ручек меняют звучащие ноты сразу (p-lock шага держит своё значение):
     // значение уходит в голос, когда изменилось с прошлого кадра.
+    // Автоматизация: значения наперёд по расписанию (чаще кадров — каждые 5 мс).
+    if (autoLive(vo.track)) { scheduleVoice(vo); continue; }
+    if (vo.sched) unschedule(vo);
     const v = (id: string) => value(vo.track, id, vo.locks);
     const now = c.currentTime;
     if (vo.synth) {

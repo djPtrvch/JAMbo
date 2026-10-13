@@ -1073,3 +1073,36 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 .lib-play.on { color: var(--plock); }
 .lib-item.current .lib-play { color: var(--on-accent); }
 .lib-item .lib-name { flex: 1; }
+
+/* ---------- Окно автоматизации (кнопка AUTO) ---------- */
+.auto-bar { gap: var(--gap); }
+.auto-bar .eq-tool { width: auto; flex: 1 1 64px; min-width: 44px; max-width: 84px; padding: 0 4px; font-size: 11px; letter-spacing: 0.04em; }
+.auto-bar .eq-tool.sq { flex: none; width: 48px; }
+.auto-bar .eq-tool.on { background: var(--accent); color: var(--on-accent); }
+.auto-bar .eq-tool.disabled { opacity: 0.35; }
+.eq-name.auto-name { width: 120px; justify-content: flex-start; text-align: left; padding: 0 6px; color: var(--text); overflow: hidden; }
+.auto-simp { position: relative; overflow: hidden; flex: 1 1 140px; max-width: 170px; min-width: 96px; width: auto; touch-action: none; }
+.auto-simp-fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--off); opacity: 0.5; pointer-events: none; }
+.auto-simp.live .auto-simp-fill { background: var(--accent); opacity: 0.35; }
+.auto-simp-text { position: relative; font-size: 11px; letter-spacing: 0.04em; pointer-events: none; }
+.auto-count { flex: none; width: 40px; display: flex; align-items: center; justify-content: center; text-align: center; white-space: pre; font-size: 11px; color: var(--dim); }
+.auto-body { flex: 1; min-height: 0; display: flex; gap: var(--gap); }
+.auto-side { width: 128px; flex: none; display: flex; flex-direction: column; gap: var(--gap); min-height: 0; }
+.auto-list { flex: 1; min-height: 0; display: grid; grid-auto-rows: 48px; align-content: start; gap: 4px; overflow-y: auto; background: var(--panel); border-radius: var(--radius); padding: 4px; }
+.auto-list.hidden { display: none; }
+.auto-item { justify-content: flex-start; padding: 0 10px; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; touch-action: none; }
+.auto-plus { font-size: 24px; }
+.auto-pages { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; flex: none; }
+.auto-page { height: 32px; font-size: 12px; }
+.auto-page.on { background: var(--text); color: var(--bg); }
+.auto .eq-canvas { touch-action: none; }
+/* Значок волны на паттерне с автоматизацией (сетка паттернов, миниатюры страниц). */
+.auto-badge { position: absolute; top: 2px; right: 3px; width: 16px; height: 8px; color: var(--accent); pointer-events: none; z-index: 2; }
+.auto-badge svg { width: 100%; height: 100%; display: block; }
+.auto-badge.hidden { display: none; }
+/* Жёлтая риска на кольце ручки: значение автоматизации. */
+.k-auto { stroke: var(--accent); stroke-width: 3; stroke-linecap: round; }
+.k-auto.hidden { display: none; }
+/* AUTO с включённой записью автоматизации — красный контур (окно может быть закрыто). */
+.btn.tb-auto.auto-armed { box-shadow: inset 0 0 0 1px var(--rec); color: var(--rec); }
+.btn.tb-auto.auto-armed.active { color: var(--bg); }

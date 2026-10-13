@@ -228,6 +228,16 @@ const init = () => {
     await sampleRun('SAMPLE decay 2000', (t) => { t.params.decay = 2000; });
     await sampleRun('SAMPLE end 70%', (t) => { t.params.end = 70; t.params.decay = 4000; });
     await sampleRun('SAMPLE + reverb size changes', (t) => { t.params.reverb = 60; t.params.decay = 1500; });
+
+    // Автоматизация (этап 6): кривые с резкими перепадами на Filter, Level, Pan и ручках движков —
+    // значения идут в звук по расписанию каждые 5 мс, щелчков быть не должно.
+    const AP = [{ x: 0, y: 0.15, type: 'smooth' }, { x: 3, y: 0.95, type: 'smooth' }, { x: 7, y: 0.05, type: 'linear' }, { x: 11, y: 0.8, type: 'smooth' }, { x: 16, y: 0.15, type: 'smooth' }];
+    const half = AP.map((q) => ({ ...q, y: q.y * 0.5 }));
+    await fxRun('AUTO filter ANALOG saw', (t) => { t.params.harm = 62.5; t.params.reso = 40; t.auto = [{ param: 'filter', points: half }]; });
+    await fxRun('AUTO level + pan + sends', (t) => { t.params.reverb = 30; t.auto = [{ param: 'level', points: AP }, { param: 'pan', points: AP }, { param: 'delay', points: AP }]; });
+    await fxRun('AUTO FM index + contour', (t) => { S.setTrackSynth(0, 18); t.auto = [{ param: 'timbre', points: AP }, { param: 'morph', points: AP }]; });
+    await fxRun('AUTO plaits VA harm + timbre', (t) => { S.setTrackSynth(0, 0); t.auto = [{ param: 'harm', points: AP }, { param: 'timbre', points: AP }]; });
+    await sampleRun('SAMPLE + AUTO filter', (t) => { t.params.decay = 1500; t.auto = [{ param: 'filter', points: half }]; });
     return out;
   }, ONLY);
   for (const [k, v] of Object.entries(res)) console.log(k.padEnd(30), JSON.stringify(v));
