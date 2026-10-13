@@ -73,6 +73,7 @@ async function show(d: Doc, mix = false) {
   // UNITY и AUDIT лимитера — только для прослушивания в окне, при загрузке проекта выключаются.
   ui.limUnity = false;
   ui.limAudit = false;
+  ui.compAudit = false;
   if (mix) switchWithTransition(d);
   else loadDoc(d);
 }

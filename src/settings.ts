@@ -109,7 +109,8 @@ function load(): Settings {
     const raw = JSON.parse(localStorage.getItem(KEY) ?? '{}');
     const s: Settings = { ...DEFAULTS, ...raw };
     s.scSends = { ...DEFAULTS.scSends, ...(raw.scSends ?? {}) };
-    s.mappings = (s.mappings ?? []).map((m) => fullMapping(m, raw.knobMode));
+    // Кнопки RATIO компрессора больше нет (RATIO — в окне компрессора): её маппинги снимаются.
+    s.mappings = (s.mappings ?? []).filter((m) => !(m.target?.kind === 'button' && m.target.name === 'RATIO')).map((m) => fullMapping(m, raw.knobMode));
     delete (s as Partial<Settings> & { knobMode?: string }).knobMode;
     return s;
   } catch { return { ...DEFAULTS }; }

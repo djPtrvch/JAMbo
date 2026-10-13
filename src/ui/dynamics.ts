@@ -4,7 +4,7 @@
 // пику (жёлтый до 0 dBFS, красный выше 0 — держится не меньше 300 ms); GR — сверху
 // вниз, оранжевый, шкала у компрессора 18 dB, у клиппера и лимитера 12 dB. Белая риска порога
 // (THRESHOLD / CEILING) — только на IN. Подъём мгновенный, спад 20 dB/s. В bypass стержни серые, GR ноль.
-// Кнопки RATIO и BYPASS — на месте LFO1–3/ENV под окном (buttons.ts). Цвета — из темы (--meter-*).
+// Кнопки модулей (тап — окно, с SHIFT — BYPASS) — на месте LFO1–3/ENV под окном (buttons.ts). Цвета — из темы (--meter-*).
 // Холст рисуется в общем кадре.
 import { clipperMeter, glueMeter, limiterMeter, type DynLevels } from '../audio/engine';
 import { doc, liveMaster, toggleView, ui } from '../state';
@@ -160,11 +160,16 @@ let glue: LevelBars;
 let clip: LevelBars;
 let lim: LevelBars;
 
-/** Компрессор: GR 0…−18 dB, риска THRESHOLD на IN. */
+/** Компрессор: GR 0…−18 dB, риска THRESHOLD на IN. При MST тап по блоку открывает окно компрессора. */
 export function buildGlue(): HTMLElement {
-  glue = new LevelBars({ title: 'COMP', meter: glueMeter, bypass: () => doc.cmpBypass, grMax: 18, inMark: () => liveMaster()['cmp.threshold'] });
+  glue = new LevelBars(glueBars({ onTap: () => openMasterWindow('comp') }));
   return glue.el;
 }
+
+/** Настройки блока COMP — общие у боковой панели и окна компрессора. */
+export const glueBars = (extra: Partial<BarsOptions> = {}): BarsOptions => ({
+  title: 'COMP', meter: glueMeter, bypass: () => doc.cmpBypass, grMax: 18, inMark: () => liveMaster()['cmp.threshold'], ...extra,
+});
 
 /** Клиппер: GR 0…−12 dB, риска CEILING на IN. */
 export function buildClipper(): HTMLElement {
@@ -184,12 +189,13 @@ export const limiterBars = (extra: Partial<BarsOptions> = {}): BarsOptions => ({
 });
 
 /**
- * Окно модуля мастера (тап по блоку при MST): пока есть только у лимитера; SAT, COMP, CLIP — отдельными задачами.
+ * Окно модуля мастера (тап по блоку при MST): есть у лимитера и компрессора; SAT и CLIP — отдельными задачами.
  * Открывается на месте EQ (PATTERNS, EQ, редактор сэмпла и др. закрываются).
  */
 export function openMasterWindow(name: 'lim' | 'comp' | 'clip' | 'sat') {
   if (ui.channel !== 'master') return;
   if (name === 'lim' && !ui.limView) toggleView('lim');
+  if (name === 'comp' && !ui.compView) toggleView('comp');
 }
 
 export function renderDynamics(now: number) {

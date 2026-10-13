@@ -158,8 +158,6 @@ export interface Doc {
   mixer: Record<string, number>;
   /** Компрессор и лимитер мастера. */
   master: Record<string, number>;
-  /** Индекс в RATIOS (кнопка RATIO). */
-  ratio: number;
   /** Лимитер мастера выключен (кнопка BYPASS). */
   limBypass: boolean;
   /** Громкость выхода мастера после лимитера, dB (VOL_MIN_DB — тишина; 0 — без ослабления). */
@@ -251,6 +249,9 @@ export interface Ui {
   limView: boolean;
   limUnity: boolean;
   limAudit: boolean;
+  /** Окно компрессора мастера (тап по блоку COMP при MST); AUDIT — только пока оно открыто, не в проекте. */
+  compView: boolean;
+  compAudit: boolean;
   /** Редактор сэмпла (удержание окна сэмпла) на месте центра экрана, как EQ. */
   sampleView: boolean;
   /** Браузер библиотеки сэмплов и пресетов на месте центра экрана. */
@@ -355,7 +356,6 @@ export function makeDoc(): Doc {
   fx: { ...defaults(FX_GRID), ...defaults(HIDDEN_PARAMS), 'rev.hpf': REV_HPF_NEW, 'od.lowcut': DRIVE_LOWCUT_NEW },
   mixer: defaults(MIX_GRID),
   master: { ...defaults(MASTER_GRID), ...defaults(MASTER_EXTRA) },
-  ratio: 0,
   limBypass: false,
   cmpBypass: false,
   clipBypass: false,
@@ -400,6 +400,8 @@ export const ui: Ui = {
   limView: false,
   limUnity: false,
   limAudit: false,
+  compView: false,
+  compAudit: false,
   sampleView: false,
   browserView: false,
   autoView: false,
@@ -1913,10 +1915,6 @@ export function toggleLimBypass() {
   edit(() => { doc.limBypass = !doc.limBypass; });
 }
 
-/** Кнопка RATIO мастера: следующее значение по кругу. */
-export function cycleRatio() {
-  edit(() => { doc.ratio = (doc.ratio + 1) % RATIOS.length; });
-}
 
 /** Поставить сэмпл на дорожку (активный паттерн). */
 export function setTrackSample(i: number, key: string, fileName?: string, root?: number | null) {
@@ -2190,14 +2188,16 @@ export const selectedBand = (): EqBand | null => (ui.eqBand >= 0 ? eqTarget().ba
 const clampN = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
 /** Кнопки PATTERNS и EQ переключают центр экрана (одновременно открыт только один вид). */
-export function toggleView(v: 'patterns' | 'eq' | 'sample' | 'browser' | 'auto' | 'lim') {
+export function toggleView(v: 'patterns' | 'eq' | 'sample' | 'browser' | 'auto' | 'lim' | 'comp') {
   const open = v === 'patterns' ? !ui.patternView : v === 'eq' ? !ui.eqView : v === 'sample' ? !ui.sampleView : v === 'auto' ? !ui.autoView
-    : v === 'lim' ? !ui.limView : !ui.browserView;
+    : v === 'lim' ? !ui.limView : v === 'comp' ? !ui.compView : !ui.browserView;
   ui.patternView = v === 'patterns' && open;
   ui.eqView = v === 'eq' && open;
   // Окно модуля мастера (лимитер): UNITY и AUDIT выключаются вместе с ним.
   ui.limView = v === 'lim' && open;
   if (!ui.limView) { ui.limUnity = false; ui.limAudit = false; }
+  ui.compView = v === 'comp' && open;
+  if (!ui.compView) ui.compAudit = false;
   ui.sampleView = v === 'sample' && open;
   ui.browserView = v === 'browser' && open;
   ui.autoView = v === 'auto' && open;
@@ -2495,6 +2495,12 @@ export function normalizeDoc(raw: unknown): Doc {
     if (t.home) fixParams(t.home);
     return t;
   });
+  // RATIO компрессора был индексом doc.ratio в RATIOS (2:1, 4:1, 10:1; прежние 8:1 и 20:1 — 10:1) — теперь cmp.ratio.
+  const old = d as Doc & { ratio?: number };
+  if (d.master && d.master['cmp.ratio'] === undefined && old.ratio !== undefined) {
+    d.master['cmp.ratio'] = RATIOS[Math.min(RATIOS.length - 1, Math.max(0, Math.round(old.ratio)))];
+  }
+  delete old.ratio;
   for (const key of ['fx', 'mixer', 'master'] as const) d[key] = { ...base[key], ...d[key] };
   d.eqs = Array.from({ length: count }, (_, k) => d.eqs?.[k] ?? newEq());
   // Гамма, нота и FX — у каждого клипа (в прежних проектах — общие: копии в каждый клип).
@@ -2515,10 +2521,8 @@ export function normalizeDoc(raw: unknown): Doc {
   // Повторов строки не меньше 1 (прежнее ∞ — теперь кнопка LOOP ROW в меню сетки).
   d.scenes = base.scenes.map((b, k) => { const s = d.scenes?.[k] ?? b; return { ...s, repeats: Math.max(1, s.repeats) }; });
   d.folders = Array.from({ length: count }, (_, k) => d.folders?.[k] ?? { items: [], index: -1 });
-  // RATIO теперь 2:1, 4:1, 10:1 — прежние 8:1 и 20:1 становятся 10:1.
-  d.ratio = Math.min(RATIOS.length - 1, Math.max(0, Math.round(d.ratio ?? 0)));
   // Значения мастера — в пределах нынешних шкал (у компрессора они стали другими).
-  for (const p of MASTER_GRID) if (p && !isAuto(d.master[p.id]) && !(p.offBottom && d.master[p.id] <= 0)) d.master[p.id] = Math.min(p.max, Math.max(p.min, d.master[p.id]));
+  for (const p of [...MASTER_GRID, ...MASTER_EXTRA]) if (p && !isAuto(d.master[p.id]) && !(p.offBottom && d.master[p.id] <= 0)) d.master[p.id] = Math.min(p.max, Math.max(p.min, d.master[p.id]));
   return d;
 }
 
@@ -2602,7 +2606,7 @@ function setRows(t: Track, rows: (Pattern | null)[], active: number) {
 // ---------- Кроссфейдер общих настроек ----------
 
 // Кроссфейдер ведёт только темп, громкости (микшер, выход) и мастер; гамма, нота, FX и EQ дорожек — у паттернов.
-const GLOBAL_KEYS = ['bpm', 'mixer', 'master', 'ratio', 'limBypass', 'cmpBypass', 'clipBypass', 'satBypass', 'masterEq', 'outVol'] as const;
+const GLOBAL_KEYS = ['bpm', 'mixer', 'master', 'limBypass', 'cmpBypass', 'clipBypass', 'satBypass', 'masterEq', 'outVol'] as const;
 type Globals = Pick<Doc, (typeof GLOBAL_KEYS)[number]>;
 const takeGlobals = (d: Doc): Globals => clone(Object.fromEntries(GLOBAL_KEYS.map((k) => [k, d[k]])) as Globals);
 
@@ -2656,7 +2660,8 @@ export function setCrossfade(pos: number) {
   doc.outVol = a.outVol + (b.outVol - a.outVol) * t;
   doc.mixer = blendRecord(a.mixer, b.mixer, t);
   doc.master = blendRecord(a.master, b.master, t);
-  doc.ratio = half.ratio;
+  // RATIO переключается на середине (как BYPASS).
+  doc.master['cmp.ratio'] = half.master['cmp.ratio'];
   doc.limBypass = half.limBypass;
   doc.cmpBypass = half.cmpBypass;
   doc.clipBypass = half.clipBypass;

@@ -372,13 +372,24 @@ export const MASTER_GRID: Slot[] = grid([
 /** Параметры мастера без ручки (окно лимитера): LINK — степень связи каналов лимитера, 100 % — прежний звук. */
 export const MASTER_EXTRA: ParamDef[] = [
   smooth('lim.link', 'Link', 0, 100, 100, pct, CMP),
+  // Окно компрессора (glue-worklet.js): RATIO — только в окне; значения по умолчанию — прежний звук.
+  smooth('cmp.ratio', 'Ratio', 1, 20, 2, (v) => `${v < 9.95 ? v.toFixed(1) : Math.round(v)}:1`, { ...CMP, exp: true, step: 0.01 }),
+  smooth('cmp.knee', 'Knee', 0, 24, 6, (v) => `${v.toFixed(1)} dB`, { ...CMP, step: 0.1 }),
+  smooth('cmp.range', 'Range', 1, 40, 40, (v) => (v >= CMP_RANGE_OFF ? 'OFF' : `${v.toFixed(1)} dB`), { ...CMP, step: 0.1 }),
+  smooth('cmp.hold', 'Hold', 0, 500, 0, (v) => `${Math.round(v)} ms`, CMP),
+  smooth('cmp.mix', 'Mix', 0, 100, 100, pct, CMP),
+  smooth('cmp.link', 'Link', 0, 100, 100, pct, CMP),
+  smooth('cmp.schpf', 'SC HPF', 20, 500, 90, (v) => (v <= CMP_SCHPF_OFF ? 'OFF' : `${Math.round(v)} Hz`), { ...CMP, exp: true }),
 ];
 
 /** Нота, на которой сэмпл звучит в исходной высоте (C3). */
 export const SAMPLE_ROOT = 48;
 
-/** Ratio компрессора мастера (кнопка RATIO перебирает по кругу). */
+/** Ratio компрессора мастера: прежние пункты (индекс doc.ratio в старых проектах) и пресеты тапа в окне. */
 export const RATIOS = [2, 4, 10];
+/** RANGE компрессора на максимуме — OFF (без ограничения GR); SC HPF на минимуме — OFF. */
+export const CMP_RANGE_OFF = 40;
+export const CMP_SCHPF_OFF = 20;
 
 // ---------- Верхняя панель ----------
 

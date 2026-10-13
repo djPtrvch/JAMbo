@@ -19,7 +19,7 @@
 // Измерители уровня стоят на выходе каждой дорожки и в мастере (вход компрессора, вход и выход
 // лимитера): пиковый уровень по каналам и громкость в LUFS (K-взвешивание, окно ~400 мс).
 
-import { BPM_MIN, DELAY_DIVS, isAuto, OVER_PEAK, DRUM_ENGINE, isJambo, SYNTH_ENGINES, synthEngine, PARAM_BY_ID, RATIOS, VOL_DEF_DB, volGain, SAMPLE_ROOT, MAX_TRACKS, filterFreq, fromNorm } from '../params';
+import { BPM_MIN, DELAY_DIVS, isAuto, OVER_PEAK, DRUM_ENGINE, isJambo, SYNTH_ENGINES, synthEngine, PARAM_BY_ID, VOL_DEF_DB, volGain, SAMPLE_ROOT, MAX_TRACKS, filterFreq, fromNorm } from '../params';
 import { audible, addSamplesQuiet, addSamplesToFolder, doc, setStepSound, triggerEnv, liveFx, liveMaster, liveMixer, modulatedNorm, ui, baseValue, autoLive } from '../state';
 import { detectRoot } from './pitch';
 import { encodeWav } from './wav';
@@ -297,22 +297,29 @@ export const limiterMeter = () => limLevels;
  * (≈ кадр экрана). Включена, пока виден блок LIM (MST) или окно лимитера.
  */
 export const LIM_TELE = 2048;
-export const limTele = { in: new Float32Array(LIM_TELE), out: new Float32Array(LIM_TELE), gr: new Float32Array(LIM_TELE), n: 0, at: 0 };
+/** Кольцевой буфер телеметрии: in, out — пик (линейно), gr — dB ≥ 0, det — уровень детектора (dB, у компрессора). */
+export interface Tele { in: Float32Array; out: Float32Array; gr: Float32Array; det: Float32Array; n: number; at: number }
+const makeTele = (): Tele => ({ in: new Float32Array(LIM_TELE), out: new Float32Array(LIM_TELE), gr: new Float32Array(LIM_TELE), det: new Float32Array(LIM_TELE), n: 0, at: 0 });
+export const limTele = makeTele();
+/**
+ * Телеметрия компрессора: [пик входа, уровень детектора (dB), GR (dB), пик выхода] раз в 256 отсчётов —
+ * окно компрессора; включена, пока виден блок COMP (MST) или окно.
+ */
+export const compTele = makeTele();
 /** Кадров телеметрии на секунду. */
 export const limTeleRate = () => (ctx ? ctx.sampleRate / 256 : 187.5);
-function limFrame(i: number, g: number, o: number) {
-  const t = limTele;
+function teleFrame(t: Tele, levels: DynLevels, i: number, g: number, o: number, d = -120) {
   const k = t.n % LIM_TELE;
-  t.in[k] = i; t.gr[k] = g; t.out[k] = o;
+  t.in[k] = i; t.gr[k] = g; t.out[k] = o; t.det[k] = d;
   t.n++;
   t.at = performance.now();
-  // Блок LIM: наибольшее за последние 3 кадра (~16 ms — кадр экрана), чтобы пики между кадрами не терялись.
+  // Блок LIM/COMP: наибольшее за последние 3 кадра (~16 ms — кадр экрана), чтобы пики между кадрами не терялись.
   let mi = 0, mg = 0, mo = 0;
   for (let j = 0; j < 3 && j < t.n; j++) {
     const q = (t.n - 1 - j) % LIM_TELE;
     mi = Math.max(mi, t.in[q]); mg = Math.max(mg, t.gr[q]); mo = Math.max(mo, t.out[q]);
   }
-  limLevels.in = mi; limLevels.gr = mg; limLevels.out = mo; limLevels.at = t.at;
+  levels.in = mi; levels.gr = mg; levels.out = mo; levels.at = t.at;
 }
 
 /**
@@ -326,8 +333,9 @@ function loadDevice(c: AudioContext, file: string, name: string, from: GainNode,
       numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2], channelCount: 2, channelCountMode: 'explicit',
     });
     node.port.onmessage = (e) => {
+      if (name === 'glue') { const [i, d, g, o] = e.data as number[]; teleFrame(compTele, levels, i, g, o, d); return; }
       const [i, g, o] = e.data as number[];
-      if (name === 'limiter') { limFrame(i, g, o); return; }
+      if (name === 'limiter') { teleFrame(limTele, levels, i, g, o); return; }
       levels.in = i; levels.gr = g; levels.out = o; levels.at = performance.now();
     };
     // Снимаем только обход (from → to): от from могут идти и другие связи (скоп мастера).
@@ -356,7 +364,11 @@ function sendDynamics() {
   if (mst.glue) {
     const msg = {
       thr: m['cmp.threshold'], att: m['cmp.attack'], ...auto(m['cmp.release']),
-      makeup: m['cmp.makeup'], ratio: RATIOS[doc.ratio] ?? 2, bypass: doc.cmpBypass,
+      makeup: m['cmp.makeup'], ratio: m['cmp.ratio'] ?? 2, bypass: doc.cmpBypass,
+      knee: m['cmp.knee'] ?? 6, range: m['cmp.range'] ?? 40, hold: m['cmp.hold'] ?? 0, mix: m['cmp.mix'] ?? 100,
+      link: m['cmp.link'] ?? 100, schpf: m['cmp.schpf'] ?? 90,
+      // AUDIT — только пока открыто окно компрессора; телеметрия — пока виден блок COMP (MST) или окно.
+      audit: ui.compView && ui.compAudit, meter: ui.channel === 'master' || ui.compView,
     };
     const sig = JSON.stringify(msg);
     if (sig !== glueSig) { glueSig = sig; mst.glue.port.postMessage(msg); }
@@ -1165,7 +1177,7 @@ function updateFx(now: number) {
   // Глубины sidechain — от ручек дорожек (не входят в подпись FX): проверяются каждый кадр.
   updateDuckDepths(ct, Math.round(fx['sc.source']));
 
-  const fsig = JSON.stringify([fx, mixer, master, doc.ratio, doc.limBypass, doc.cmpBypass, doc.clipBypass, doc.satBypass, doc.bpm, ui.limView, ui.limUnity, ui.limAudit, ui.channel === 'master', doc.tracks.map((t) => +t.mute + 2 * +t.solo)]);
+  const fsig = JSON.stringify([fx, mixer, master, doc.limBypass, doc.cmpBypass, doc.clipBypass, doc.satBypass, doc.bpm, ui.limView, ui.limUnity, ui.limAudit, ui.compView, ui.compAudit, ui.channel === 'master', doc.tracks.map((t) => +t.mute + 2 * +t.solo)]);
   if (fsig === fxSig) return;
   fxSig = fsig;
   rev.set(fx, ct);
