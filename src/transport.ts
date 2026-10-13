@@ -41,6 +41,7 @@ export function setPlaying(on: boolean, at = performance.now()) {
     }
     if (rt.scene) rt.scene.start = 0;
     tick = 0;
+    wrappedAt = -1;
     // Первый шаг — сразу, в момент нажатия (не в следующем кадре).
     nextTime = performance.now();
     // Запись стемов готовых дорожек — с первого шага (его время — nextTime).
@@ -131,7 +132,7 @@ function playStep(time: number) {
   });
   // Стемы: на границе прохода повтор того же паттерна или остановка дорожки заканчивают запись;
   // после PLAY во время записи — стоп, когда все стемы дописаны (паттерны доиграли до конца).
-  if (stemsOnStep(time, passStart)) { setPlaying(false); return; }
+  if (stemsOnStep(time, passStart, { on: arranged(), wrapped: wrappedAt === tick })) { setPlaying(false); return; }
   if (tick % 4 === 0) {
     const accent = tick % 16 === 0;
     flashes.push({ time, track: -1, dur: 90, notes: [], noteDur: accent ? 1 : 0 });
@@ -186,9 +187,16 @@ function advanceScenes(time: number): boolean {
     // Строки кончились: STOP — останавливается всё (и дорожки, запущенные по отдельности),
     // LOOP — снова с начала, со строки старта.
     else if (doc.arrEnd === 'stop') { setPlaying(false, time); return false; }
-    else startScene(Math.min(doc.arrStart ?? 0, visibleRows() - 1), tick);
+    else { startScene(Math.min(doc.arrStart ?? 0, visibleRows() - 1), tick); wrappedAt = tick; }
   }
   return true;
+}
+
+/** Тик, на котором строки пошли по кругу (AT THE END: LOOP) — там кончаются стемы. */
+let wrappedAt = -1;
+/** Строки идут по сетке: играет строка с повторами, строк больше одной и LOOP ROW выключена. */
+function arranged(): boolean {
+  return !!rt.scene && doc.scenes[rt.scene.row].repeats > 0 && !rowLoopOn() && visibleRows() > 1;
 }
 
 /** Играющая строка с повторами кончается на тике k (одна строка в сетке или LOOP ROW — играет по кругу). */
@@ -218,8 +226,13 @@ export function stemEndIn(i: number, now: number): number | null {
   const n = tick - rt.trackStart[i];
   const at = rt.trackStart[i] + Math.max(1, Math.ceil(n / len)) * len;
   const scene = rt.sceneQueued !== null || (!!rt.scene && sceneEndsAt(at));
-  if (!stemEndsAtBoundary(i, rt.queued[i], scene)) return null;
-  return (at - tick) * stepMs() + (nextTime - now);
+  if (stemEndsAtBoundary(i, rt.queued[i], arranged(), scene)) return (at - tick) * stepMs() + (nextTime - now);
+  // Строки по сетке: стем кончится, когда последняя строка доиграет (дальше — по кругу или STOP).
+  if (arranged() && rt.scene && nextScene(rt.scene.row) === null) {
+    const end = rt.scene.start + doc.scenes[rt.scene.row].repeats * rt.scene.len;
+    return (end - tick) * stepMs() + (nextTime - now);
+  }
+  return null;
 }
 
 /** Вызывается каждый кадр. */

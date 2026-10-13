@@ -1,8 +1,9 @@
 // Запись стемов. Кнопка ● у ручки громкости дорожки в MIX (и ARM n с MIDI) готовит дорожку к записи
 // (кнопка горит); запись всех готовых дорожек начинается с PLAY — с первого шага. Стем дорожки
-// идёт, пока её паттерны сменяются (строки сетки, запуски): на границе прохода, где дальше паттерн, уже
-// записанный в этот стем (повтор, строки пошли по кругу), стем кончается — каждый паттерн записан один
-// раз; остановилась дорожка (пустая ячейка строки) — тоже. PLAY во время записи не останавливает сразу: паттерны пишущихся дорожек доигрывают до конца
+// идёт по срабатыванию паттернов: если строки идут по сетке (повторы ×N, переходы), пишется всё как играет
+// (A ×3, потом B — A, A, A, B), конец — когда строки пошли по кругу; без строк (или одна строка, LOOP ROW)
+// паттерн по кругу пишется один раз; остановилась дорожка (пустая ячейка строки) — стем кончается там же.
+// Тап по ● во время записи — стем дорожки дописывается до конца прохода паттерна. PLAY во время записи не останавливает сразу: паттерны пишущихся дорожек доигрывают до конца
 // прохода, затем стоп. Стем (WAV 24 бит) ложится в папку RECORDINGS библиотеки, во вложенную папку
 // «проект дд.мм.гггг» (одна на проект и день), с именем «дорожка чч-мм-сс».
 // На пишущейся дорожке мигает красная точка, за 5 секунд до конца записи — чаще.
@@ -20,16 +21,18 @@ const slotOf = new Map<number, Set<number>>();
 const startAt = new Map<number, number>();
 /** PLAY во время записи: остановить транспорт, когда допишутся все стемы. */
 let stopAsked = false;
+/** Тап по ● во время записи: стем дорожки кончится на конце текущего прохода паттерна. */
+const finishAsked = new Set<number>();
 
 export const stemArmed = (i: number) => armed.has(i);
 export const stemRecording = (i: number) => isStemRecording(i);
 export const anyStemRecording = () => doc.tracks.some((_, i) => isStemRecording(i));
 export const stopRequested = () => stopAsked;
 
-/** Кнопка ●: готовность дорожки; во время записи — закончить её стем сейчас. */
+/** Кнопка ●: готовность дорожки; во время записи — стем дописывается до конца прохода паттерна. */
 export function toggleStem(i: number) {
   if (!doc.tracks[i]) return;
-  if (isStemRecording(i)) { finish(i, performance.now()); armed.delete(i); return; }
+  if (isStemRecording(i)) { finishAsked.add(i); armed.delete(i); return; }
   if (armed.has(i)) armed.delete(i); else { armed.add(i); prepareStems(); }
 }
 
@@ -57,14 +60,16 @@ export function requestStop(): boolean {
  * конец стема, если дорожка остановилась, дальше повтор того же паттерна или просили остановиться.
  * Результат — пора ли остановить транспорт (все стемы дописаны после PLAY).
  */
-export function stemsOnStep(at: number, boundary: (i: number) => boolean): boolean {
+export function stemsOnStep(at: number, boundary: (i: number) => boolean, arr: { on: boolean; wrapped: boolean }): boolean {
   for (let i = 0; i < doc.tracks.length; i++) {
     if (!isStemRecording(i)) continue;
     const t = doc.tracks[i];
     if (t.stopped) { finish(i, at); continue; }
     if (!boundary(i) || at <= (startAt.get(i) ?? -Infinity)) continue;
     const seen = slotOf.get(i)!;
-    if (stopAsked || seen.has(t.slot)) finish(i, at);
+    // Строки идут по сетке (повторы, переходы) — пишется всё, как срабатывает; конец — когда строки пошли
+    // по кругу. Без строк (или одна строка, LOOP ROW) — паттерн по кругу пишется один раз.
+    if (stopAsked || finishAsked.has(i) || (arr.on ? arr.wrapped : seen.has(t.slot))) finish(i, at);
     else seen.add(t.slot);
   }
   if (stopAsked && !anyStemRecording()) { stopAsked = false; return true; }
@@ -74,21 +79,24 @@ export function stemsOnStep(at: number, boundary: (i: number) => boolean): boole
 /** Транспорт остановили иначе (STOP в конце строк, новый проект): дописать всё сейчас. */
 export function stemsOnStop(at: number) {
   stopAsked = false;
+  finishAsked.clear();
   for (let i = 0; i < doc.tracks.length; i++) if (isStemRecording(i)) finish(i, at);
 }
 
 /**
  * Будет ли стем дорожки закончен на ближайшей границе прохода (для частого мигания за 5 с до конца):
- * просили остановиться, впереди остановка дорожки или повтор того же паттерна.
+ * просили остановиться (PLAY, ●), впереди остановка дорожки или (без строк) повтор того же паттерна.
  */
-export function stemEndsAtBoundary(i: number, queued: number | 'stop' | null, sceneChanges: boolean): boolean {
-  if (stopAsked || queued === 'stop') return true;
+export function stemEndsAtBoundary(i: number, queued: number | 'stop' | null, arranged: boolean, sceneChanges: boolean): boolean {
+  if (stopAsked || finishAsked.has(i) || queued === 'stop') return true;
+  if (arranged) return false;
   if (queued !== null) return !!slotOf.get(i)?.has(queued);
   return !sceneChanges;
 }
 
 function finish(i: number, at: number) {
   slotOf.delete(i);
+  finishAsked.delete(i);
   startAt.delete(i);
   const t = doc.tracks[i];
   const d = new Date();
