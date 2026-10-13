@@ -38,6 +38,9 @@ interface TrackChain {
   input: GainNode; duck: GainNode; vol: GainNode;
   /** Глубина sidechain: огибающая duck-worklet · (−amount) → duck.gain (значение 1). */
   duckDepth: GainNode;
+  /** Sidechain посылов: g посыла → sendDuck[k] (значение 1) → шина; глубина → sendFlag[k] (1 / 0 — переключатель SETTINGS) → sendDuck[k].gain. */
+  sendDuck: GainNode[];
+  sendFlag: GainNode[];
   /** Mute / solo: глушит выход дорожки (сухой и посылы); метр стоит до него — уровень виден и у заглушённой. */
   gate: GainNode; sends: GainNode[]; meter: Meter;
 }
@@ -536,9 +539,17 @@ function buildGraph(c: AudioContext) {
     const eq = new EqChain(c, dynSource);
     eq.output.connect(input);
     input.connect(duck).connect(vol).connect(gate).connect(masterIn);
-    const sends = busInputs.map((bus) => {
+    // Посылы: g → sendDuck → шина; sendDuck приглушается огибающей, если включён переключатель SETTINGS → SIDECHAIN.
+    const sendDuck = busInputs.map((bus) => { const d = c.createGain(); d.connect(bus); return d; });
+    const sendFlag = sendDuck.map((d, k) => {
+      const f = c.createGain();
+      f.gain.value = scSendOn(k) ? 1 : 0;
+      duckDepth.connect(f).connect(d.gain);
+      return f;
+    });
+    const sends = sendDuck.map((d) => {
       const g = c.createGain();
-      g.connect(bus);
+      g.connect(d);
       return g;
     });
     const sendEqs = sends.map((g) => {
@@ -547,7 +558,7 @@ function buildGraph(c: AudioContext) {
       e.output.connect(g);
       return e;
     });
-    return { eq, sendEqs, input, duck, duckDepth, vol, gate, sends, meter: new Meter(c, vol, true) };
+    return { eq, sendEqs, input, duck, duckDepth, sendDuck, sendFlag, vol, gate, sends, meter: new Meter(c, vol, true) };
   });
   // Sidechain: огибающая приглушения — один узел на проект (duck-worklet.js), её выход — в глубину каждой дорожки.
   void c.audioWorklet.addModule(new URL('duck-worklet.js', document.baseURI).href).then(() => {
@@ -856,6 +867,15 @@ function sidechain(source: number, at: number) {
     type: 'trig', frame: Math.round(at * ctx.sampleRate),
     attack: fx['sc.attack'], release: fx['sc.release'], curve: fx['sc.curve'] ?? 50,
   });
+}
+
+/** Переключатель SETTINGS → SIDECHAIN для посыла k (0 Reverb, 1 Delay, 2 Drive). */
+const scSendOn = (k: number) => [settings.scSends.rev, settings.scSends.dly, settings.scSends.drv][k] ?? false;
+/** Переключатели посылов сменились — плавно (~10 мс). */
+export function applySidechainSends() {
+  if (!ctx) return;
+  const ct = ctx.currentTime;
+  for (const ch of tracks) ch.sendFlag.forEach((f, k) => f.gain.setTargetAtTime(scSendOn(k) ? 1 : 0, ct, 0.01 / 3));
 }
 
 /** Остановка: будущие триги sidechain отменяются (возврат досчитывается). */

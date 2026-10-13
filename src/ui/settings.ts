@@ -1,9 +1,9 @@
 // Меню «бутерброд»: PROJECTS (проекты, ui/projects.ts), SETTINGS и MIDI (ui/midi.ts);
 // во вложенных меню стрелка назад возвращает сюда.
 // SETTINGS — вкладки AUDIO ENGINE (частота дискретизации, размер буфера), BACKGROUND (звук в фоне)
-// и OUTPUT (выход и вход аудиоинтерфейса).
+// OUTPUT (выход и вход аудиоинтерфейса) и SIDECHAIN (приглушение посылов эффектов, на пробу).
 
-import { applyOutput, audioInfo, canChooseOutput, restartAudio } from '../audio/engine';
+import { applyOutput, applySidechainSends, audioInfo, canChooseOutput, restartAudio } from '../audio/engine';
 import { BUFFER_SIZES, SAMPLE_RATES, saveSettings, settings } from '../settings';
 import { h, setText } from './dom';
 import { setTheme } from './theme';
@@ -11,7 +11,7 @@ import { backHeader, makePopup, openMenuPanel, popupButton, type Popup } from '.
 import { openMidi } from './midi';
 import { openProjectMenu } from './projects';
 
-type Tab = 'engine' | 'background' | 'output';
+type Tab = 'engine' | 'background' | 'output' | 'sidechain';
 
 let main: Popup;
 let panel: Popup;
@@ -39,7 +39,7 @@ export function openMainMenu(anchor: Element) {
 function buildPanel() {
   panel = makePopup('settings');
   const tabs = h('div', 'settings-tabs');
-  const names: [Tab, string][] = [['engine', 'AUDIO ENGINE'], ['background', 'BACKGROUND'], ['output', 'OUTPUT']];
+  const names: [Tab, string][] = [['engine', 'AUDIO ENGINE'], ['background', 'BACKGROUND'], ['output', 'OUTPUT'], ['sidechain', 'SIDECHAIN']];
   for (const [t, label] of names) {
     tabBtns[t] = popupButton(label, () => { tab = t; render(); });
     tabs.append(tabBtns[t]);
@@ -103,6 +103,21 @@ function renderEngine() {
     h('div', 'settings-info', engineInfo()),
     choice('MUTE TAILS', [false, true], settings.muteTails, (v) => (v ? 'ON' : 'OFF'), (v) => saveSettings({ muteTails: v })),
     note('OFF: muting a track cuts its sound and sends at once; Reverb and Delay tails ring out (as in Ableton). ON: if the muted track is the only one sending to Delay, the Delay repeats are cut too.'),
+  );
+}
+
+/** SIDECHAIN (на пробу): приглушать ли вход посылов Reverb, Delay, Drive тем же sidechain, что и выход дорожки. */
+function renderSidechain() {
+  const row = (label: string, key: 'rev' | 'dly' | 'drv') => choice(label, [false, true], settings.scSends[key], (v) => (v ? 'ON' : 'OFF'), (v) => {
+    saveSettings({ scSends: { ...settings.scSends, [key]: v } });
+    applySidechainSends();
+  });
+  body.append(
+    h('div', 'source-title', 'SIDECHAIN SENDS'),
+    row('REVERB', 'rev'),
+    row('DELAY', 'dly'),
+    row('DRIVE', 'drv'),
+    note('ON: the send level of the effect ducks with the sidechain. Effect tails keep playing. OFF: the send is not ducked.'),
   );
 }
 
@@ -170,5 +185,6 @@ function render() {
   body.replaceChildren();
   if (tab === 'engine') renderEngine();
   else if (tab === 'background') renderBackground();
+  else if (tab === 'sidechain') renderSidechain();
   else renderOutput();
 }

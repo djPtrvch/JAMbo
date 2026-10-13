@@ -51,6 +51,7 @@ const init = () => {
     const S = await import('/src/state.ts');
     const E = await import('/src/audio/engine.ts');
     const T = await import('/src/transport.ts');
+    const ST = await import('/src/settings.ts');
     const P = await import('/src/params.ts');
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     window.__dump = false;
@@ -209,6 +210,9 @@ const init = () => {
     };
     await fxRun('FX sidechain static', scSetup);
     await fxRun('FX sidechain source + curve changes', scSetup, (t, k) => { S.doc.fx['sc.source'] = 1 + (k % 2); S.doc.fx['sc.curve'] = (k * 41) % 100; }, 230);
+    await fxRun('FX sidechain sends toggles', (t) => { scSetup(t); t.params.drive = 60; t.params.reverb = 40; t.params.delay = 40; }, (t, k) => {
+      const v = k % 2 === 0; ST.saveSettings({ scSends: { rev: v, dly: v, drv: v } }); E.applySidechainSends();
+    }, 170);
     await fxRun('FX mute toggles', (t) => { t.params.reverb = 30; }, (t, k) => { S.swipeTrack(0, 'down'); }, 250);
     await fxRun('FX all sends', (t) => { t.params.reverb = 40; t.params.delay = 40; t.params.drive = 40; });
 

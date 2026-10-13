@@ -77,12 +77,15 @@ export interface Settings {
   pianoOctaves: 1 | 2;
   /** FX и MOD в режиме toggle (тап включает, следующий выключает) вместо удержания; SHIFT + двойной тап переключает. */
   latch: { fx: boolean; mod: boolean };
+  /** SETTINGS → SIDECHAIN: приглушать ли вход посылов Reverb, Delay, Drive тем же sidechain, что и выход дорожки. */
+  scSends: { rev: boolean; dly: boolean; drv: boolean };
 }
 
 const KEY = 'jambo.settings';
 const DEFAULTS: Settings = {
   sampleRate: 0, bufferSize: 0, background: true, muteTails: false, outputId: '', inputId: '',
   midiIn: '', midiFeedback: '', noteChannel: 0, noteRoute: 'selected', mappings: [], midiPreset: '', theme: 'system', velocity: false, pianoOctaves: 2, latch: { fx: false, mod: false },
+  scSends: { rev: false, dly: false, drv: true },
 };
 
 /** Маппинг с недостающими полями (старые настройки: общий режим энкодеров knobMode). */
@@ -102,6 +105,7 @@ function load(): Settings {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) ?? '{}');
     const s: Settings = { ...DEFAULTS, ...raw };
+    s.scSends = { ...DEFAULTS.scSends, ...(raw.scSends ?? {}) };
     s.mappings = (s.mappings ?? []).map((m) => fullMapping(m, raw.knobMode));
     delete (s as Partial<Settings> & { knobMode?: string }).knobMode;
     return s;
