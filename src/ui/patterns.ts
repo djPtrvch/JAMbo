@@ -15,7 +15,7 @@ import {
   crossfade, inTransition, isPrevPlaceholder, rowFilled, sceneName, setCrossfade, setScene, transitionMoves,
   addSceneRow, canAddRow, copyRow, deleteRow, duplicateRow, pasteRow, setArrangement, rowLoopOn, setPlusMode, toggleRowLoop, visibleRows,
   copyPattern, createPattern, dropPattern, deletePattern, doc, duplicatePattern, freeSlotAfter, hasManualLocks, tailMask, pastePattern,
-  openSlot, playRange, rt, selectTrack, slotFilled, ui, type Pattern, patternHasAuto,
+  clipView, openSlot, playRange, rt, selectTrack, slotFilled, ui, patternHasAuto,
 } from '../state';
 import { queuePattern, queueScene, sceneProgress } from '../transport';
 import { registerAction } from '../midi';
@@ -488,7 +488,7 @@ export function buildPatternGrid(): HTMLElement {
 }
 
 /** Миниатюра: строка на страницу, точка на триг (жёлтая — с ручными p-lock, обведённая — свой звук шага). */
-function drawThumb(c: Cell, p: Pattern | null) {
+function drawThumb(c: Cell, p: ReturnType<typeof clipView>) {
   let sig = '';
   if (p) {
     sig = `${p.pages.length}:${p.length}:${p.playFrom}:${p.playTo}:`;
@@ -565,8 +565,9 @@ export function renderPatternGrid() {
       setClass(c.root, 'queued', q === k);
       setClass(c.root, 'stopping', active && q === 'stop');
       setClass(c.root, 'selected-col', i === ui.selectedTrack);
-      drawThumb(c, !filled ? null : active ? t : t.slots[k]);
-      setClass(c.wave, 'hidden', !filled || !patternHasAuto(active ? t : t.slots[k]));
+      const view = filled ? clipView(t, k) : null;
+      drawThumb(c, view);
+      setClass(c.wave, 'hidden', !view || !patternHasAuto(view));
       // Прогресс проигрывания активного паттерна.
       let progress = 0;
       if (active && !t.stopped && ui.playing && rt.playPos[i] >= 0) {

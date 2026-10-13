@@ -35,31 +35,41 @@ export interface LfoAssign {
   amount: number;
 }
 
-/** Паттерн ячейки сетки 8×8: звук дорожки (параметры, LFO) и последовательность. */
-export interface Pattern {
+/**
+ * Данные дорожки, общие для всех её клипов: звук (сэмпл или синт, ручки, назначения LFO/ENV, таблица),
+ * паттерны (миниатюры страниц), длина, автоматизации и EQ дорожки.
+ */
+export interface TrackData {
   /** Сэмпл: 'file:<n>' — загруженный с iPad, '' — нет сэмпла. */
   sample: string;
   params: Record<string, number>;
   assigns: Record<string, LfoAssign>;
   pages: Step[][];
   length: number;
-  playFrom: number;
-  playTo: number;
-  /**
-   * Гамма, корневая нота и общие эффекты FX паттерна: действуют значения паттерна, запущенного последним
-   * (см. «лидер» ниже); EQ дорожки — свой у паттерна (активного — doc.eqs[i]).
-   */
-  scale?: number;
-  root?: number;
-  fx?: Record<string, number>;
-  eq?: Eq;
+  table?: string;
   /** Автоматизации параметров (одна на параметр); нет поля — нет автоматизаций. */
   auto?: Automation[];
+  eq?: Eq;
 }
 
 /**
- * Дорожка. Поля params…playTo — это активный паттерн (его играем и редактируем);
- * остальные паттерны столбца лежат в slots, при переключении они меняются местами.
+ * Клип — ячейка сетки паттернов: какие паттерны (миниатюры) дорожки играют — диапазон playFrom..playTo,
+ * и гамма, корневая нота и общие эффекты FX (действуют значения клипа, запущенного последним — см.
+ * «лидер» ниже). Звук, шаги и автоматизации — общие у дорожки. src — данные другой дорожки: только
+ * у клипов строки PREV при переходе MIX (старый проект со своим звуком и паттернами).
+ */
+export interface Pattern {
+  playFrom: number;
+  playTo: number;
+  scale?: number;
+  root?: number;
+  fx?: Record<string, number>;
+  src?: TrackData;
+}
+
+/**
+ * Дорожка: звук, паттерны (страницы) и автоматизации — общие у всех её клипов; playFrom, playTo, гамма,
+ * нота и FX — активного клипа (остальные клипы столбца лежат в slots, при переключении меняются местами).
  */
 export interface Track {
   name: string;
@@ -94,8 +104,12 @@ export interface Track {
   scale?: number;
   root?: number;
   fx?: Record<string, number>;
-  /** Автоматизации активного паттерна (см. Pattern). */
+  /** Автоматизации дорожки (по шагам её страниц). */
   auto?: Automation[];
+  /** Активная ячейка пустая (клип удалили): дорожка стоит, звук и паттерны остаются. */
+  blank?: boolean;
+  /** Играет клип PREV с данными старого проекта: здесь — свои данные дорожки, пока тот играет. */
+  home?: TrackData;
 }
 
 /** Полоса эквалайзера. */
@@ -983,7 +997,9 @@ export function clearTrackLocks(i: number) {
 }
 
 function forEachStep(t: Track, fn: (s: Step) => void) {
-  for (const p of [t, ...t.slots.filter((x): x is Pattern => !!x)]) p.pages.forEach((pg) => pg.forEach(fn));
+  // Свои паттерны дорожки и паттерны старого проекта у клипов PREV (и пока играет клип PREV — свои).
+  const datas: { pages: Step[][] }[] = [t, ...t.slots.map((x) => x?.src), t.home].filter((x): x is TrackData | Track => !!x);
+  for (const d of datas) d.pages.forEach((pg) => pg.forEach(fn));
 }
 const MIX_LOCK_SEQS = () => [doc.chanSeqs[0]];
 
@@ -1026,7 +1042,7 @@ function allFxEqs(): { fxs: Record<string, number>[]; eqs: Eq[] } {
     if (t.fx) fxs.push(t.fx);
     for (const p of t.slots) {
       if (p?.fx) fxs.push(p.fx);
-      if (p?.eq) eqs.push(p.eq);
+      if (p?.src?.eq) eqs.push(p.src.eq);
     }
   }
   return { fxs, eqs };
@@ -1481,21 +1497,63 @@ function placeOf(t: Track): { d: Doc; i: number } | null {
   return null;
 }
 
-function takePattern(t: Track): Pattern {
+/** Данные дорожки (звук, паттерны, автоматизации, EQ) — копия. */
+function takeData(t: Track): TrackData {
   const at = placeOf(t);
   return clone({
-    sample: t.sample, params: t.params, assigns: t.assigns, pages: t.pages, length: t.length, playFrom: t.playFrom, playTo: t.playTo,
-    scale: t.scale, root: t.root, fx: t.fx, eq: at ? at.d.eqs[at.i] : undefined, auto: t.auto,
+    sample: t.sample, params: t.params, assigns: t.assigns, pages: t.pages, length: t.length, table: t.table,
+    auto: t.auto, eq: at ? at.d.eqs[at.i] : undefined,
   });
 }
 
-function putPattern(t: Track, p: Pattern) {
-  const { eq, ...rest } = clone(p);
+function putData(t: Track, data: TrackData) {
+  const { eq, ...rest } = clone(data);
   Object.assign(t, rest);
-  // Автоматизации — только свои у паттерна (у паттерна без них — нет).
   if (!rest.auto) delete t.auto;
+  if (rest.table === undefined) delete t.table;
   const at = placeOf(t);
   if (eq && at) at.d.eqs[at.i] = eq;
+}
+
+/** Клип активной ячейки (копия); у клипа PREV — с данными старого проекта. */
+function takePattern(t: Track): Pattern {
+  const p: Pattern = clone({ playFrom: t.playFrom, playTo: t.playTo, scale: t.scale, root: t.root, fx: t.fx });
+  if (t.home) p.src = takeData(t);
+  return p;
+}
+
+/** Свои данные дорожки вернуть (играл клип PREV со старыми данными). */
+function goHome(t: Track) {
+  if (!t.home) return;
+  putData(t, t.home);
+  delete t.home;
+}
+
+/** Клип p — в активную ячейку: его диапазон, гамма, нота, FX; у клипа PREV — и его данные. */
+function putPattern(t: Track, p: Pattern) {
+  const { src, ...clip } = clone(p);
+  if (src) {
+    if (!t.home) t.home = takeData(t);
+    putData(t, src);
+  } else goHome(t);
+  Object.assign(t, clip);
+  for (const k of ['scale', 'root', 'fx'] as const) if (clip[k] === undefined) delete t[k];
+  t.blank = false;
+  t.playTo = Math.max(0, Math.min(t.playTo, t.pages.length - 1));
+  t.playFrom = Math.max(0, Math.min(t.playFrom, t.playTo));
+}
+
+/**
+ * Что показывать в ячейке k (миниатюра): страницы и длина данных клипа, его диапазон и автоматизации;
+ * null — пустая ячейка.
+ */
+export function clipView(t: Track, k: number): { pages: Step[][]; length: number; playFrom: number; playTo: number; auto?: Automation[] } | null {
+  if (!slotFilled(t, k)) return null;
+  if (k === t.slot) return t;
+  const c = t.slots[k]!;
+  const d = c.src ?? t.home ?? t;
+  const playTo = Math.max(0, Math.min(c.playTo, d.pages.length - 1));
+  return { pages: d.pages, length: d.length, playFrom: Math.min(c.playFrom, playTo), playTo, auto: d.auto };
 }
 
 // ---------- Гамма, нота и FX паттерна ----------
@@ -1550,16 +1608,19 @@ export function syncLead() {
   if (!t.fx || Object.keys(doc.fx).some((k) => t.fx![k] !== doc.fx[k])) t.fx = { ...doc.fx };
 }
 
-/** Ячейка не пустая. Активная ячейка всегда занята. */
-export const slotFilled = (t: Track, k: number) => k === t.slot || t.slots[k] !== null;
+/** Ячейка не пустая (активная — пока её клип не удалили). */
+export const slotFilled = (t: Track, k: number) => (k === t.slot ? !t.blank : t.slots[k] !== null);
 
-/** Сделать ячейку k активной: текущий паттерн уходит в свою ячейку, паттерн k загружается. */
-/** Сделать ячейку k активной у дорожки t (без записи в UNDO). */
+/**
+ * Сделать ячейку k активной у дорожки t (без записи в UNDO): клип активной ячейки уходит в свою ячейку,
+ * клип k встаёт активным (пустая k — активная ячейка пустая, звук и паттерны дорожки остаются).
+ */
 function swapSlot(t: Track, k: number) {
   if (k === t.slot) return;
-  t.slots[t.slot] = takePattern(t);
+  t.slots[t.slot] = t.blank ? null : takePattern(t);
   const next = t.slots[k];
   if (next) putPattern(t, next);
+  else { goHome(t); t.blank = true; }
   t.slots[k] = null;
   t.slot = k;
 }
@@ -1585,12 +1646,25 @@ export function activateSlot(i: number, k: number) {
  */
 export function openSlot(i: number, k: number): boolean {
   const t = doc.tracks[i];
-  if (k === t.slot) return true;
-  if (ui.playing && !t.stopped) return false;
-  swapSlot(t, k);
-  if (!t.stopped) stopTrack(i);
+  if (!slotFilled(t, k)) return false;
+  let first = t.playFrom;
+  if (k !== t.slot) {
+    const c = t.slots[k]!;
+    if (!ui.playing || t.stopped) {
+      // Дорожка не играет: клип встаёт активным (обводка — его страницы), без запуска.
+      swapSlot(t, k);
+      if (!t.stopped) stopTrack(i);
+      first = t.playFrom;
+    } else {
+      // Играет другой клип: паттерны общие — первая страница клипа открывается для правки, игра не меняется.
+      // Клип PREV (данные старого проекта) так не открыть.
+      if (c.src || t.home) return false;
+      first = Math.min(c.playFrom, t.pages.length - 1);
+    }
+  }
   if (i === ui.selectedTrack) {
     ui.heldSteps.clear();
+    ui.viewPage = first;
     clampView();
   }
   return true;
@@ -1601,21 +1675,22 @@ export function stopTrack(i: number) {
   patternStopped(i);
 }
 
-/** Новый паттерн в пустой ячейке: копия звука дорожки, пустая последовательность. */
+/**
+ * Новый клип в пустой ячейке: ничего не копирует — запоминает играющие страницы дорожки (белую обводку
+ * миниатюр), текущие гамму, ноту и FX.
+ */
 export function createPattern(i: number, k: number) {
   edit(() => {
     const t = doc.tracks[i];
-    t.slots[k] = {
-      sample: t.sample, params: clone(t.params), assigns: clone(t.assigns), pages: [emptyPage()],
-      length: STEPS_PER_PAGE, playFrom: 0, playTo: 0,
-      scale: doc.scale, root: doc.root, fx: clone(doc.fx), eq: clone(doc.eqs[i]),
-    };
+    const c: Pattern = { playFrom: t.playFrom, playTo: t.playTo, scale: doc.scale, root: doc.root, fx: clone(doc.fx) };
+    if (k === t.slot) putPattern(t, c);
+    else t.slots[k] = c;
   });
 }
 
-/** Копия паттерна ячейки (null — пустая). */
+/** Копия клипа ячейки (null — пустая). */
 export function patternAt(t: Track, k: number): Pattern | null {
-  if (k === t.slot) return takePattern(t);
+  if (k === t.slot) return t.blank ? null : takePattern(t);
   return t.slots[k] ? clone(t.slots[k]) : null;
 }
 
@@ -1661,12 +1736,13 @@ export function pastePattern(i: number, k: number) {
   if (i === ui.selectedTrack) clampView();
 }
 
-/** Удаление: ячейка пустеет; у активной очищаются шаги (звук остаётся) и дорожка останавливается. */
+/** Удаление клипа: ячейка пустеет (паттерны и звук дорожки остаются); у активной дорожка останавливается. */
 export function deletePattern(i: number, k: number) {
   const t = doc.tracks[i];
   edit(() => {
     if (k !== t.slot) { t.slots[k] = null; return; }
-    putPattern(t, { ...takePattern(t), pages: [emptyPage()], length: STEPS_PER_PAGE, playFrom: 0, playTo: 0, auto: undefined });
+    goHome(t);
+    t.blank = true;
     t.stopped = true;
   });
   if (k === t.slot) patternStopped(i);
@@ -2140,7 +2216,6 @@ export function deleteRow(k: number) {
   edit(() => {
     for (const t of doc.tracks) {
       const rows = rowsOf(t);
-      const cur = rows[t.slot]!;
       rows.splice(k, 1);
       rows.push(null);
       let active = t.slot > k ? t.slot - 1 : t.slot;
@@ -2148,7 +2223,7 @@ export function deleteRow(k: number) {
         // Остановленная дорожка стоит на паттерне, вставшем на место строки, или на любом своём;
         // если паттернов не осталось — пустой паттерн со звуком дорожки в пределах оставшихся строк.
         active = rows[k] ? k : rows.findIndex((r) => r !== null);
-        if (active < 0) { active = Math.min(k, Math.max(0, n - 2)); rows[active] = emptyLike(cur); }
+        if (active < 0) active = Math.min(k, Math.max(0, n - 2));
         t.stopped = true;
       }
       setRows(t, rows, active);
@@ -2237,19 +2312,24 @@ export function normalizeDoc(raw: unknown): Doc {
     // Имена по умолчанию — только номер (прежние «T1»… становятся «1»…).
     if (/^T\d{1,2}$/.test(t.name)) t.name = t.name.slice(1);
     fixParams(t);
-    t.slots = Array.from({ length: PATTERN_SLOTS }, (_, k) => t.slots?.[k] ?? null);
-    t.slots.forEach((p) => { if (p) fixParams(p); });
+    // Клипы: в прежних проектах у ячеек были свои паттерны со звуком — такие ячейки пустеют
+    // (остаётся активный паттерн дорожки — её звук и страницы).
+    t.slots = Array.from({ length: PATTERN_SLOTS }, (_, k) => {
+      const c = t.slots?.[k] as (Pattern & { pages?: unknown }) | null | undefined;
+      return c && !('pages' in c) ? c : null;
+    });
+    t.slots.forEach((p) => { if (p?.src) fixParams(p.src); });
+    if (t.home) fixParams(t.home);
     return t;
   });
   for (const key of ['fx', 'mixer', 'master'] as const) d[key] = { ...base[key], ...d[key] };
   d.eqs = Array.from({ length: count }, (_, k) => d.eqs?.[k] ?? newEq());
-  // Гамма, нота, FX и EQ дорожки — у каждого паттерна (в прежних проектах — общие: копии в каждый паттерн).
-  d.tracks.forEach((t, i) => {
+  // Гамма, нота и FX — у каждого клипа (в прежних проектах — общие: копии в каждый клип).
+  d.tracks.forEach((t) => {
     for (const p of [t, ...t.slots.filter((x): x is Pattern => !!x)]) {
       p.scale ??= d.scale;
       p.root ??= d.root;
       p.fx = { ...d.fx, ...(p.fx ?? {}) };
-      if (p !== t) (p as Pattern).eq ??= clone(d.eqs[i]);
     }
   });
   d.chanSeqs = base.chanSeqs.map((b, k) => ({ ...b, ...(d.chanSeqs?.[k] ?? {}) }));
@@ -2270,9 +2350,10 @@ export function sampleKeys(d: Doc): string[] {
   // Байты своих таблиц WTABLE хранятся как сэмплы (ключ по содержимому).
   for (const t of d.tracks) add(tableSampleKey(t.table ?? '') ?? undefined);
   d.folders.forEach((f) => f.items.forEach((it) => add('preset' in it ? tableSampleKey(it.preset.table ?? '') ?? undefined : undefined)));
-  const pats = (t: Track) => [t, ...t.slots.filter((p): p is Pattern => !!p)];
+  const pats = (t: Track) => [t, ...t.slots.map((p) => p?.src), t.home].filter((p): p is TrackData | Track => !!p);
   for (const t of d.tracks) {
     for (const p of pats(t)) {
+      add(tableSampleKey(p.table ?? '') ?? undefined);
       add(p.sample);
       p.pages.forEach((pg) => pg.forEach((st) => add(st.sound)));
     }
@@ -2331,13 +2412,12 @@ const rowsOf = (t: Track) => Array.from({ length: PATTERN_SLOTS }, (_, k) => pat
 
 /** Перестроить столбец дорожки: паттерны по строкам и активная строка. */
 function setRows(t: Track, rows: (Pattern | null)[], active: number) {
-  putPattern(t, rows[active]!);
+  const a = rows[active];
+  if (a) putPattern(t, a);
+  else { goHome(t); t.blank = true; }
   t.slots = rows.map((p, k) => (k === active ? null : p ? clone(p) : null));
   t.slot = active;
 }
-
-/** Пустой паттерн со звуком p (заглушка активной строки). */
-const emptyLike = (p: Pattern): Pattern => ({ ...clone(p), pages: [emptyPage()], length: STEPS_PER_PAGE, playFrom: 0, playTo: 0 });
 
 // ---------- Кроссфейдер общих настроек ----------
 
@@ -2408,12 +2488,13 @@ export function setCrossfade(pos: number) {
 }
 
 export function switchWithTransition(next: Doc) {
-  // В PREV ложатся все старые паттерны с тригами; играть продолжают только те, что звучали
+  // В PREV ложатся клипы старых дорожек с тригами — вместе с данными старой дорожки (звук, паттерны,
+  // автоматизации, EQ); играть продолжают только те, что звучали
   // (идёт проигрывание и дорожка не остановлена), остальные стоят незапущенными.
   // Дорожка, которая ждала остановки, тоже остаётся стоять.
   const old = doc.tracks.map((t, i) => {
     const trigs = t.pages.some((pg) => pg.some((st) => st.on));
-    return { trigs, playing: ui.playing && !t.stopped && rt.queued[i] !== 'stop' && trigs, pattern: takePattern(t), row: t.slot, mute: t.mute, solo: t.solo };
+    return { trigs, playing: ui.playing && !t.stopped && rt.queued[i] !== 'stop' && trigs, pattern: { ...takePattern(t), src: takeData(t) } as Pattern, row: t.slot, mute: t.mute, solo: t.solo };
   });
   // Дорожек у проектов может быть разное число: число дорожек — как у нового. Пока идёт переход,
   // новый дополняется до числа старого (старые паттерны доигрывают на своих дорожках, у дорожек без
@@ -2437,7 +2518,7 @@ export function switchWithTransition(next: Doc) {
     const o = old[i] ?? none;
     const { playing, trigs } = o;
     tr.real[i] = trigs;
-    const prev = trigs && o.pattern ? o.pattern : emptyLike(takePattern(t));
+    const prev = trigs && o.pattern ? o.pattern : null;
     setRows(t, [...rows.slice(0, LAST), prev], LAST);
     t.stopped = !playing;
     // Mute и solo дорожек переходят из старого проекта: заглушённая дорожка молчит и на новых паттернах.
@@ -2467,7 +2548,7 @@ function unshiftDoc(d: Doc, tr: Transition) {
     const fromPrev = t.slot === LAST;
     let active = fromPrev ? tr.origSlot[i] : t.slot;
     if (!rows[active]) active = rows.findIndex((p) => p);
-    if (active < 0) { rows[0] = emptyLike(takePattern(t)); active = 0; }
+    if (active < 0) active = 0;
     setRows(t, rows, active);
     if (fromPrev) t.stopped = true;
   }));
@@ -2475,7 +2556,7 @@ function unshiftDoc(d: Doc, tr: Transition) {
   // Дорожки сверх числа нового проекта (были только для старых паттернов) убираются — с конца,
   // пока на них нет своих паттернов (созданных во время перехода).
   let n = d.tracks.length;
-  while (n > Math.max(tr.count, TRACK_COUNT) && !rowsOf(d.tracks[n - 1]).some((p) => p && p.pages.some((pg) => pg.some((st) => st.on)))) n--;
+  while (n > Math.max(tr.count, TRACK_COUNT) && !d.tracks[n - 1].pages.some((pg) => pg.some((st) => st.on))) n--;
   if (n < d.tracks.length) {
     for (let j = n; j < d.tracks.length; j++) {
       const v = `mix.vol${j + 1}`;
