@@ -4,7 +4,8 @@
 // — полоска значений (на месте верхней строки EQ): GAIN, CEILING, LOOKAHEAD, RELEASE — только показывает;
 //   ячейка параметра, который меняют (палец, ручка, Twister, UNDO), — в жёлтой рамке и ещё 400 ms; справа CLOSE;
 // — слева GAIN-слайдер, в центре дисплей уровня во времени (4 с), справа блок LIM (LevelBars, шкала по SCALE);
-// — внизу поля LOOKAHEAD, RELEASE, LINK (палец вверх-вниз, удержание — ввод числом) и кнопки BYPASS, UNITY, AUDIT, SCALE.
+// — вверху (как ряд кнопок EQ, той же высоты) поля LOOKAHEAD, RELEASE, LINK (палец вверх-вниз, удержание — ввод
+//   числом) и кнопки BYPASS, UNITY, AUDIT, SCALE; под ними полоска значений.
 // Дисплей: сетка dB; вход после GAIN — серая заливка; выход — красный контур и полупрозрачная заливка; GR — оранжевая
 // заливка сверху вниз; белая линия CEILING (тянется пальцем); подписи пиков GR; тап — HOLD (пауза).
 
@@ -188,7 +189,7 @@ export function buildLimiterWindow(): HTMLElement {
   const mid = h('div', 'lim-mid');
   mid.append(slider, plot, bars.el);
 
-  // Нижняя панель: поля (как поля EQ) и кнопки.
+  // Ряд кнопок (вверху, как у EQ): поля (как поля EQ) и кнопки.
   const bottom = h('div', 'eq-bar lim-bottom');
   const look = dragField('LOOKAHEAD', () => Math.round(val(P.lookahead) * 10), (v) => setVal(P.lookahead, v / 10), () => fmt(P.lookahead), 6,
     undefined, (el) => numInput(el, P.lookahead, num, val(P.lookahead).toFixed(1)));
@@ -215,7 +216,8 @@ export function buildLimiterWindow(): HTMLElement {
   });
   bottom.append(look, rel, link, bypassBtn, unityBtn, auditBtn, scaleBtn);
 
-  panel.append(strip, mid, bottom, anchor);
+  // Кнопки и поля — вверху, как ряд кнопок EQ (той же высоты); под ними полоска значений.
+  panel.append(bottom, strip, mid, anchor);
   return panel;
 }
 

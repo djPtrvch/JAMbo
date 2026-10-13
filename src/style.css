@@ -1142,7 +1142,7 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 .lim-slider-value { position: absolute; bottom: 10px; left: 0; right: 0; text-align: center; font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .lim-plot { touch-action: none; }
 .lim-bars { width: 96px; flex: none; border-radius: var(--radius); background: var(--panel); padding: 8px 0 6px; }
-.lim-bottom { height: 56px; display: flex; gap: var(--gap); }
+.lim-bottom { display: flex; gap: var(--gap); }
 .lim-bottom .lim-field { flex: 1; }
-.lim-btn { width: auto; flex: 1; min-height: 44px; }
+.lim-btn { width: auto; flex: 1; }
 .lim-btn.active { background: var(--accent); color: var(--on-accent); }
