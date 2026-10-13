@@ -111,7 +111,10 @@ for (const tone of [-100, 0, 100]) {
 // 5. LOW CUT: синус 60 Hz и 1 kHz на входе — уровень хвоста при LOW CUT 20 и 300 Hz.
 {
   const sine = (hz) => (i) => { const v = 0.3 * Math.sin((2 * Math.PI * hz * i) / SR); return [v, v]; };
-  const lvl = (hz, lowcut) => rms(render(SR * 2, sine(hz), () => ({ lowcut }))[0], SR, SR * 2);
+  // Синус в поле мод реверба даёт разброс уровня: среднее по энергии на 5 частотах вокруг hz (±10 %).
+  // Фазы LFO линий — одни и те же в обоих замерах (Math.random с тем же зерном).
+  const fixed = () => { let z = 7; return () => { z = (z * 16807) % 2147483647; return z / 2147483647; }; };
+  const lvl = (hz, lowcut) => { const r0 = Math.random; Math.random = fixed(); const node = new ctx.Proc(); Math.random = r0; return Math.sqrt([0.9, 0.95, 1, 1.05, 1.1].reduce((a, k) => a + rms(render(SR * 2, sine(hz * k), () => ({ lowcut }), (node.reset(), node))[0], SR, SR * 2) ** 2, 0) / 5); };
   log(`LOW CUT 20 → 300 Hz: 60 Hz ${(db(lvl(60, 300)) - db(lvl(60, 20))).toFixed(1)} dB, 1 kHz ${(db(lvl(1000, 300)) - db(lvl(1000, 20))).toFixed(1)} dB; LOW CUT 120 Hz: 60 Hz ${(db(lvl(60, 120)) - db(lvl(60, 20))).toFixed(1)} dB`);
 }
 // 6. Уровень хвоста: шум на входе (RMS), выход при DECAY 2 с.

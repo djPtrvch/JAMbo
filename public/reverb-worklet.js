@@ -29,13 +29,18 @@ const REVERB_CONST = {
   returnDb: 0,
   /** Длины линий FDN при 48 кГц (взаимно простые), умножаются на масштаб SIZE. */
   fdnLengths: [1123, 1361, 1597, 1823, 2063, 2297, 2539, 2803],
+  /** Диффузия в петле: all-pass в каждой линии FDN (длины при 48 кГц, × масштаб SIZE) — плотнее и «больше» хвост. */
+  loopApLens: [211, 263, 307, 353, 401, 449, 503, 557],
+  loopApG: 0.5,
   /** Входная диффузия: длины all-pass при 48 кГц (L и R чуть разные) и коэффициенты Даттерро. */
   diffLensL: [229, 173, 611, 447],
   diffLensR: [241, 181, 593, 461],
   diffCoefs: [0.75, 0.75, 0.625, 0.625],
   /** Ранние отражения: времена отводов, мс (× масштаб SIZE), L и R. */
-  erTimesL: [3.1, 5.3, 7.9, 10.7, 13.3, 16.9, 19.7, 23.3, 27.1, 31.3, 35.9, 41.0],
-  erTimesR: [3.7, 4.9, 8.6, 11.3, 14.1, 15.8, 20.6, 24.2, 26.3, 32.8, 34.7, 43.1],
+  erTimesL: [7.1, 11.3, 17.9, 23.7, 29.3, 36.9, 43.7, 51.3, 58.1, 66.3, 74.9, 83.0],
+  erTimesR: [8.3, 13.9, 15.6, 26.3, 31.1, 34.8, 46.6, 49.2, 61.3, 63.8, 79.7, 86.1],
+  /** Спад усиления отводов от первого к последнему (множитель на отвод). */
+  erFall: 0.9,
   /** Пред-задержка от SIZE: 4 + 0.22 × SIZE мс. */
   preBaseMs: 4,
   prePerSize: 0.22,
@@ -51,8 +56,10 @@ const REVERB_CONST = {
   /** Сглаживание DECAY, TONE, LOW CUT и пред-задержки (время установления), мс; SIZE — скольжение длин. */
   smoothMs: 50,
   sizeGlideMs: 150,
-  /** Выходной уровень хвоста (подобран: шум на входе — хвост около −6 dB к входу при DECAY 2 с). */
-  lateGain: 0.35,
+  /** Выходной уровень хвоста (подобран: шум на входе — хвост около −1 dB к входу при DECAY 2 с). */
+  lateGain: 0.7,
+  /** Поправка времени затухания (потери интерполяции в петле): T60 по замеру ≈ DECAY. */
+  decayTrim: 1.2,
   /** Защита от денормалей. */
   tiny: 1e-18,
   /** Наибольшая пред-задержка, мс (от SIZE до 26 + дополнительная до 200). */
@@ -132,12 +139,12 @@ class ReverbProcessor extends AudioWorkletProcessor {
     this.preR = new Float32Array(this.preLen);
     this.preW = 0;
     // Ранние отражения читают из той же пред-задержки: буфер с запасом на отводы (до 43 мс × 2).
-    this.erLen = pow2(Math.ceil(0.1 * sr) + 8);
+    this.erLen = pow2(Math.ceil(0.2 * sr) + 8);
     this.erL = new Float32Array(this.erLen);
     this.erR = new Float32Array(this.erLen);
     this.erW = 0;
     // Отводы: знаки чередуются, усиления спадают; сумма модулей — 1.
-    const g = C.erTimesL.map((_, i) => Math.pow(0.85, i) * (i % 2 ? -1 : 1));
+    const g = C.erTimesL.map((_, i) => Math.pow(C.erFall, i) * (i % 2 ? -1 : 1));
     const sum = g.reduce((a, b) => a + Math.abs(b), 0);
     this.erGain = new Float32Array(g.map((x) => x / sum));
     // Входная диффузия: all-pass на канал.
@@ -151,6 +158,12 @@ class ReverbProcessor extends AudioWorkletProcessor {
     this.lines = Array.from({ length: N }, () => new Float32Array(this.lineSize));
     this.w = 0;
     this.base = new Float64Array(C.fdnLengths.map((l) => l * this.k));
+    // All-pass в петле: буферы на SIZE 100 %, длина скользит вместе с масштабом (чтение — линейно).
+    this.lapBase = new Float64Array(C.loopApLens.map((l) => l * this.k));
+    this.lapSize = pow2(Math.ceil(Math.max(...C.loopApLens) * (C.scaleMin + C.scaleRange) * this.k) + 4);
+    this.lapMask = this.lapSize - 1;
+    this.lap = Array.from({ length: N }, () => new Float32Array(this.lapSize));
+    this.lapW = 0;
     this.gain = new Float64Array(N);
     this.damp = new Float64Array(N);
     this.lp = new Float64Array(N);
@@ -194,9 +207,11 @@ class ReverbProcessor extends AudioWorkletProcessor {
     const r = this.toneR(this.tone);
     const c = Math.cos((2 * Math.PI * C.dampHz) / sr);
     for (let i = 0; i < N; i++) {
-      const L = this.base[i] * this.scale;
-      const g = Math.pow(10, (-3 * L) / (sr * this.decay));
-      const gHf = Math.pow(10, (-3 * L) / (sr * this.decay * r));
+      // Длина петли — линия плюс all-pass (его групповая задержка в среднем — своя длина).
+      const L = (this.base[i] + this.lapBase[i]) * this.scale;
+      const T = this.decay * C.decayTrim;
+      const g = Math.pow(10, (-3 * L) / (sr * T));
+      const gHf = Math.pow(10, (-3 * L) / (sr * T * r));
       this.gain[i] = Math.min(0.9995, g);
       // Однополюсный НЧ (DC — 1): |H(8 кГц)| = gHf / g.
       const k2 = Math.min(1, gHf / g) ** 2;
@@ -217,7 +232,7 @@ class ReverbProcessor extends AudioWorkletProcessor {
   }
 
   reset() {
-    for (const a of [this.preL, this.preR, this.erL, this.erR, ...this.lines]) a.fill(0);
+    for (const a of [this.preL, this.preR, this.erL, this.erR, ...this.lines, ...this.lap]) a.fill(0);
     for (const ap of [...this.apL, ...this.apR]) ap.buf.fill(0);
     for (const z of [this.zHp, this.zLp, this.zSh, this.lp]) z.fill(0);
   }
@@ -261,7 +276,8 @@ class ReverbProcessor extends AudioWorkletProcessor {
     const erG = this.erGain, erTL = C.erTimesL, erTR = C.erTimesR;
     const apL = this.apL, apR = this.apR, apG = this.apG;
     const lateGain = C.lateGain, early = C.early, width = C.width, ret = this.ret, tiny = C.tiny;
-    let w = this.w, pw = this.preW, ew = this.erW;
+    const lap = this.lap, lapBase = this.lapBase, lapMask = this.lapMask, lapG = C.loopApG;
+    let w = this.w, pw = this.preW, ew = this.erW, lw = this.lapW;
     let bad = false;
 
     for (let s = 0; s < n; s++) {
@@ -329,7 +345,14 @@ class ReverbProcessor extends AudioWorkletProcessor {
         const val = ((c3 * fr + c2) * fr + c1) * fr + y1;
         rd[i] = val;
         lp[i] = val + damp[i] * (lp[i] - val);
-        v[i] = lp[i] * gain[i];
+        // All-pass в петле (длина × масштаб, дробное чтение линейно).
+        const A = lap[i];
+        const ap = lw - lapBase[i] * scale + this.lapSize * 2;
+        const ai = Math.floor(ap), af = ap - ai;
+        const ao = A[ai & lapMask] + (A[(ai + 1) & lapMask] - A[ai & lapMask]) * af;
+        const ax = lp[i] + lapG * ao;
+        A[lw] = ax + tiny;
+        v[i] = (ao - lapG * ax) * gain[i];
         sum += v[i];
       }
       // Хаусхолдер: y = x − (2/8)·Σx; вход: L — в чётные линии, R — в нечётные.
@@ -337,6 +360,7 @@ class ReverbProcessor extends AudioWorkletProcessor {
       const inL = ul * 0.5, inR = ur * 0.5;
       for (let i = 0; i < N; i++) lines[i][w] = v[i] - h + (i & 1 ? inR : inL) + tiny;
       w = (w + 1) & mask;
+      lw = (lw + 1) & lapMask;
       // Выход: хвост (чётные линии — L, нечётные — R, знаки чередуются) + ранние отражения.
       let yl = (rd[0] - rd[2] + rd[4] - rd[6]) * lateGain + el * early;
       let yr = (rd[1] - rd[3] + rd[5] - rd[7]) * lateGain + er * early;
@@ -351,7 +375,7 @@ class ReverbProcessor extends AudioWorkletProcessor {
       if (oR !== oL) oR[s] = yr * ret;
       if (!(yl === yl && yr === yr) || Math.abs(yl) > 1e6) bad = true;
     }
-    this.w = w; this.preW = pw; this.erW = ew;
+    this.w = w; this.preW = pw; this.erW = ew; this.lapW = lw;
     // NaN или разнос — сброс состояния (тишина вместо шума).
     if (bad) { this.reset(); oL.fill(0); if (oR !== oL) oR.fill(0); }
 
