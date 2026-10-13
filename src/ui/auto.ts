@@ -1,7 +1,7 @@
 // Окно автоматизации (кнопка AUTO): на месте центра экрана, как EQ и редактор сэмпла.
-// Слева (шириной с MIX) — список автоматизаций активного паттерна выбранной дорожки (по подписи ручки;
-// выбранная — жёлтая; двойной тап — меню DELETE) и «+» (выбор ручки). Сверху — дорожка и параметр,
-// LINE | SPLINE (режим кривой), карандаш (свободное рисование), SIMPLIFY, SNAP по X и Y, CLEAR, закрытие.
+// Сверху: кнопка выбора (шириной с MIX: дорожка и параметр; тап — список автоматизаций паттерна),
+// «+» (выбор ручки), DELETE, LINE | SPLINE (режим кривой), карандаш (свободное рисование), SIMPLIFY,
+// SNAP по X и Y, CLEAR, страницы, закрытие. Поле — во всю ширину над шагами секвенсора.
 // Запись — основной кнопкой REC при игре: поворот ручки пишет её автоматизацию.
 // Поле: 16 ячеек шагов (страницы паттерна листаются, при игре — за позицией), деления 1/2 и 1/4 шага,
 // линии 0/25/50/75/100 %, линия позиции. Тап по пустому месту — точка; тап по точке — выбор; удержание
@@ -13,7 +13,7 @@ import {
   addAuto, autoDef, autoList, autoPos, autoRecPieces, autoSpan, beginGesture, canResimplify, clearAuto, curAuto, deleteAuto,
   editAuto, endGesture, selTrack, setAutoCurve, setAutoSimplify, toggleView, ui,
 } from '../state';
-import { closeButton, DOUBLE_TAP_MS, h, setClass, setText } from './dom';
+import { DOUBLE_TAP_MS, h, setClass, setText } from './dom';
 import { makePopup, popupButton, type Popup } from './popup';
 import { color } from './theme';
 
@@ -23,8 +23,9 @@ const PAD = 14;
 const HIT = 22;
 const HOLD_MS = 450;
 const MOVE_PX = 6;
-const SNAP_X = [0, 0.25, 0.5, 1];
-const SNAP_X_NAMES = ['OFF', '1/4', '1/2', '1'];
+/** Привязка по X, шаги: выкл., 1/16 (шаг), 1/4 (4 шага), 1 (такт — 16 шагов). */
+const SNAP_X = [0, 1, 4, 16];
+const SNAP_X_NAMES = ['OFF', '1/16', '1/4', '1'];
 const SNAP_Y = [0, 0.1, 0.25];
 const SNAP_Y_NAMES = ['OFF', '10%', '25%'];
 
@@ -34,8 +35,8 @@ let canvas: HTMLCanvasElement;
 let note: HTMLElement;
 let tip: HTMLElement;
 let nameText: HTMLElement;
-let listBox: HTMLElement;
-let side: HTMLElement;
+let plusBtn: HTMLElement;
+let delBtn: HTMLElement;
 let snapXBtn: HTMLElement;
 let snapYBtn: HTMLElement;
 let simpBox: HTMLElement;
@@ -52,13 +53,9 @@ let H = 0;
 /** Страницы, показанные в поле (выбор квадратиками; на игру не влияет); при игре — за позицией. */
 let viewFrom = 0;
 let viewTo = 0;
-let lastPlayPage = -1;
 /** Выбранная точка (индекс в открытой автоматизации; −1 — нет). */
 let sel = -1;
-/** Подпись списка: перестраивается при изменении. */
-let listSig = '';
 let listMenu: Popup;
-const listTap = { id: '', t: -1e9 };
 
 interface Drag {
   id: number;
@@ -265,34 +262,16 @@ function openPointMenu(i: number, x: number, y: number) {
 
 const autoLabel = (id: string) => autoDef(selTrack(), id).label;
 
-/** Размер шрифта кнопки списка — по длине подписи (длинная — мельче; из двух слов — в две строки). */
-function labelSize(label: string): number {
-  const longest = Math.max(...label.split(/\s+/).map((w) => w.length));
-  const n = label.includes(' ') ? longest : label.length;
-  return n <= 6 ? 14 : n <= 8 ? 12 : n <= 10 ? 11 : 10;
-}
-
-/** Кнопка списка: тап — открыть; двойной тап — меню DELETE. */
-function listRow(id: string): HTMLElement {
-  const label = autoLabel(id);
-  const item = h('div', 'btn auto-item', label);
-  item.style.fontSize = `${labelSize(label)}px`;
-  setClass(item, 'current', ui.autoParam === id);
-  item.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    const now = performance.now();
-    if (listTap.id === id && now - listTap.t < DOUBLE_TAP_MS) {
-      listTap.id = '';
-      listMenu.box.replaceChildren(popupButton('DELETE', () => { listMenu.close(); deleteAuto(id); listSig = ''; }));
-      listMenu.openAt(item, 160);
-      return;
-    }
-    listTap.id = id;
-    listTap.t = now;
-    ui.autoParam = id;
-    sel = -1;
-  });
-  return item;
+/** Кнопка выбора (шириной с MIX): тап — список добавленных автоматизаций, открытая — жёлтая. */
+function openList(anchor: Element) {
+  const list = autoList();
+  if (!list.length) { openPick(plusBtn); return; }
+  listMenu.box.replaceChildren(...list.map((a) => {
+    const b = popupButton(autoLabel(a.param), () => { listMenu.close(); ui.autoParam = a.param; sel = -1; });
+    b.classList.toggle('current', a.param === ui.autoParam);
+    return b;
+  }));
+  listMenu.openAt(anchor, 200);
 }
 
 /** «+»: выбор ручки дорожки (уже назначенная — просто открывается). */
@@ -308,22 +287,16 @@ function openPick(anchor: Element) {
   }
   const has = new Set(autoList().map((a) => a.param));
   pickMenu.box.replaceChildren(...params.map((p) => {
-    const b = popupButton(`${p.label}${has.has(p.id) ? '  •' : ''}`, () => { pickMenu.close(); addAuto(p.id); sel = -1; listSig = ''; });
+    const b = popupButton(`${p.label}${has.has(p.id) ? '  •' : ''}`, () => { pickMenu.close(); addAuto(p.id); sel = -1; });
     return b;
   }));
   pickMenu.openAt(anchor, 220);
 }
 
-function renderList() {
+/** Открытая автоматизация есть у паттерна (сменили дорожку или паттерн — первая из списка). */
+function syncOpen() {
   const list = autoList();
-  // Открытая автоматизация есть у паттерна (сменили дорожку или паттерн — первая из списка).
   if (!list.some((a) => a.param === ui.autoParam)) { ui.autoParam = list[0]?.param ?? ''; sel = -1; }
-  const sig = `${ui.selectedTrack}|${selTrack().slot}|${selTrack().sample}|${ui.autoParam}|${list.map((a) => a.param).join(',')}`;
-  if (sig === listSig) return;
-  listSig = sig;
-  const plus = h('div', 'btn auto-plus', '+');
-  plus.addEventListener('pointerdown', (e) => { e.preventDefault(); openPick(plus); });
-  listBox.replaceChildren(...list.map((a) => listRow(a.param)), plus);
 }
 
 // ---------- Построение ----------
@@ -344,7 +317,11 @@ export function buildAuto(): HTMLElement {
 
   listMenu = makePopup();
   const bar = h('div', 'eq-bar auto-bar');
-  nameText = h('div', 'eq-name auto-name');
+  nameText = h('div', 'btn auto-name');
+  nameText.addEventListener('pointerdown', (e) => { e.preventDefault(); if (ui.channel === 'track') openList(nameText); });
+  // «+» — новая автоматизация (выбор ручки); DELETE — удалить открытую (отмена — UNDO).
+  plusBtn = tool('+', () => openPick(plusBtn), 'sq auto-plus');
+  delBtn = tool('DELETE', () => { deleteAuto(ui.autoParam); sel = -1; }, 'auto-del');
   // LINE | SPLINE — режим кривой открытой автоматизации (LINE — все сегменты прямые).
   toolBtns.line = tool('LINE', () => setAutoCurve('line'));
   toolBtns.spline = tool('SPLINE', () => setAutoCurve('spline'));
@@ -376,13 +353,9 @@ export function buildAuto(): HTMLElement {
   simpBox.addEventListener('pointercancel', simpEnd);
   const clear = tool('CLEAR', () => { clearAuto(); sel = -1; });
   editBtns.push(clear, toolBtns.line, toolBtns.spline, toolBtns.free, snapXBtn, snapYBtn);
-  const close = closeButton(() => toggleView('auto'));
-  bar.append(nameText, toolBtns.line, toolBtns.spline, toolBtns.free, simpBox, snapXBtn, snapYBtn, clear, buildPagesRow(), close);
+  bar.append(nameText, plusBtn, delBtn, toolBtns.line, toolBtns.spline, toolBtns.free, simpBox, snapXBtn, snapYBtn, clear, buildPagesRow());
 
   const body = h('div', 'auto-body');
-  side = h('div', 'auto-side');
-  listBox = h('div', 'auto-list');
-  side.append(listBox);
   plot = h('div', 'eq-plot');
   canvas = document.createElement('canvas');
   canvas.className = 'eq-canvas auto-canvas';
@@ -393,7 +366,7 @@ export function buildAuto(): HTMLElement {
   canvas.addEventListener('pointermove', move);
   canvas.addEventListener('pointerup', up);
   canvas.addEventListener('pointercancel', up);
-  body.append(side, plot);
+  body.append(plot);
   panel.append(bar, body);
   return panel;
 }
@@ -501,26 +474,11 @@ export function renderAuto() {
   if (!ui.autoView) { if (pickMenu?.isOpen()) pickMenu.close(); return; }
   const isTrack = ui.channel === 'track';
   const t = selTrack();
-  renderList();
-  // Кнопки списка не прокручиваются: если не помещаются — становятся ниже (до 52 px).
-  const n = listBox.children.length;
-  const rowH = n ? Math.max(20, Math.min(52, Math.floor((listBox.clientHeight - 6 * (n - 1)) / n))) : 52;
-  const rows = `${rowH}px`;
-  if (listBox.style.gridAutoRows !== rows) listBox.style.gridAutoRows = rows;
-  setClass(listBox, 'hidden', !isTrack);
+  syncOpen();
   const a = curAuto();
   const def = curDef();
   const pages = t.pages.length;
-  // При игре поле следует за позицией (страница позиции).
   const pos = isTrack ? autoPos(ui.selectedTrack) : null;
-  // Позиция ушла за показанные страницы — поле переходит на её страницу (столько же страниц).
-  if (pos !== null) {
-    const pp = Math.floor(pos / STEPS_PER_PAGE);
-    if (pp !== lastPlayPage && !pdrag) {
-      lastPlayPage = pp;
-      if (pp < viewFrom || pp > viewTo) { const len = viewTo - viewFrom; viewFrom = Math.max(0, Math.min(pp, pages - 1 - len)); viewTo = viewFrom + len; }
-    }
-  } else lastPlayPage = -1;
   viewTo = Math.min(viewTo, pages - 1);
   viewFrom = Math.min(viewFrom, viewTo);
   renderPagesRow(isTrack);
@@ -530,16 +488,23 @@ export function renderAuto() {
   if (nameText.dataset.t !== title) {
     nameText.dataset.t = title;
     const [tn, pn] = title.split('\n');
-    const b = h('b', '', tn);
-    const sp = h('span', '', pn);
-    // Поле шириной с MIX: длинные имена — мельче.
-    b.style.fontSize = `${Math.min(13, labelSize(tn))}px`;
-    sp.style.fontSize = `${Math.min(13, labelSize(pn))}px`;
-    nameText.replaceChildren(b, sp);
+    nameText.replaceChildren(h('b', '', tn), h('span', '', pn));
+    nameText.dataset.fit = '';
   }
-  // Боковые кнопки и имя — шириной с MIX в строке дорожек.
+  // Длинное имя — шрифт мельче, чтобы влезло в ширину кнопки (высота строки та же).
+  if (!nameText.dataset.fit && nameText.clientWidth) {
+    nameText.dataset.fit = '1';
+    for (const el of nameText.children as HTMLCollectionOf<HTMLElement>) {
+      el.style.fontSize = '';
+      const avail = nameText.clientWidth - 16;
+      if (el.scrollWidth > avail) el.style.fontSize = `${Math.max(9, Math.floor((13 * avail) / el.scrollWidth))}px`;
+    }
+  }
+  // Кнопка выбора — шириной с MIX в строке дорожек.
   const mixW = (document.querySelector('.track.channel') as HTMLElement | null)?.offsetWidth ?? 0;
-  if (mixW) { const w = `${mixW}px`; if (side.style.width !== w) { side.style.width = w; nameText.style.width = w; } }
+  if (mixW && nameText.style.width !== `${mixW}px`) nameText.style.width = `${mixW}px`;
+  setClass(delBtn, 'disabled', !a);
+  setClass(plusBtn, 'disabled', !isTrack);
   const curve = a?.curve ?? 'spline';
   setClass(toolBtns.line, 'on', curve === 'line');
   setClass(toolBtns.spline, 'on', curve === 'spline');

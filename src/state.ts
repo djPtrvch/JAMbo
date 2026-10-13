@@ -242,7 +242,7 @@ export interface Ui {
   autoTool: 'line' | 'spline';
   /** Карандаш: свободное рисование пальцем (после отпускания — упрощение). */
   autoFree: boolean;
-  /** Привязка по X (доля шага, 0 — нет) и по Y (доля диапазона, 0 — нет). */
+  /** Привязка по X (индекс: выкл., 1/16, 1/4, 1 — шаг, 4 шага, такт) и по Y (индекс: выкл., 10 %, 25 %). */
   autoSnapX: number;
   autoSnapY: number;
   /** SIMPLIFY: 0…100 % (допуск упрощения записи). */
@@ -379,7 +379,7 @@ export const ui: Ui = {
   browserView: false,
   autoView: false,
   autoParam: '',
-  autoTool: 'spline',
+  autoTool: 'line',
   autoFree: false,
   autoSnapX: 0,
   autoSnapY: 0,
