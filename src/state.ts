@@ -3,7 +3,7 @@
 // ui — текущие удержания кнопок/шагов и выбор. rt — данные реального времени (LFO, проигрывание).
 
 import {
-  FX_GRID, isAuto, MASTER_GRID, MAX_PAGES, MIX_GRID, MOD_GRID, PATTERN_SLOTS, RATIOS, STEPS_PER_PAGE, TRACK_COUNT, MAX_TRACKS, TRACK_GRID, OCTAVE_DEF, OCTAVE_MAX, OCTAVE_MIN,
+  FX_GRID, HIDDEN_PARAMS, REV_HPF_NEW, isAuto, MASTER_GRID, MAX_PAGES, MIX_GRID, MOD_GRID, PATTERN_SLOTS, RATIOS, STEPS_PER_PAGE, TRACK_COUNT, MAX_TRACKS, TRACK_GRID, OCTAVE_DEF, OCTAVE_MAX, OCTAVE_MIN,
   BPM_MAX, BPM_MIN, VOL_MIN_DB, VOL_DEF_DB, PARAM_BY_ID, PRESET_PARAMS, SEQ_COUNT, SEQ_MIX, SEQ_MST, SYNTH_ENGINES, SYNTH_GRID, synthEngine, WTABLE_ENGINE, synthGrid, synthKey, EQ_BANDS, EQ_BELL, eqHasGain, EQ_DYN_RANGE_MAX, EQ_DYN_THR_MIN, EQ_FREQ_MAX, EQ_FREQ_MIN, EQ_GAIN_MAX, EQ_Q_DEF, EQ_Q_MAX, EQ_Q_MIN, EQ_TYPES, NOTE_NAMES, PROGRESSIONS, SCALES, fromNorm, toNorm, type ParamDef, type Slot,
 } from './params';
 import { tableSampleKey } from './audio/wavetable';
@@ -350,7 +350,7 @@ export function makeDoc(): Doc {
   scale: 0,
   root: 0,
   tracks: Array.from({ length: TRACK_COUNT }, (_, i) => newTrack(i)),
-  fx: defaults(FX_GRID),
+  fx: { ...defaults(FX_GRID), ...defaults(HIDDEN_PARAMS), 'rev.hpf': REV_HPF_NEW },
   mixer: defaults(MIX_GRID),
   master: defaults(MASTER_GRID),
   ratio: 0,

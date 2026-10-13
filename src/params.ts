@@ -268,10 +268,11 @@ export const MOD_GRID: Slot[] = grid([lfoColumn(1), lfoColumn(2), lfoColumn(3), 
 
 export const FX_GRID: Slot[] = grid([
   [
-    smooth('rev.size', 'Rev Size', 0, 100, 30, pct),
+    // Реверб (reverb-worklet.js): размер, время затухания, тон (тёмный ↔ яркий), срез низа хвоста.
+    smooth('rev.size', 'Rev Size', 0, 100, 50, pct),
     smooth('rev.decay', 'Rev Decay', 0.1, 20, 2, (v) => `${v.toFixed(1)}s`, { exp: true }),
-    smooth('rev.hpf', 'Rev HPF', 20, 2000, 20, hz, { exp: true }),
-    smooth('rev.predelay', 'Rev Predelay', 0, 200, 0, ms),
+    smooth('rev.tone', 'Rev Tone', -100, 100, 0, (v) => { const r = Math.round(v); return r > 0 ? `+${r}` : `${r}`; }, { bipolar: true }),
+    smooth('rev.hpf', 'Rev Low Cut', 20, 2000, 20, hz, { exp: true }),
   ],
   [
     smooth('dly.feedback', 'Dly Feedback', 0, 100, 40, pct),
@@ -403,7 +404,15 @@ export const MAX_PAGES = 8;
 /** Ячеек в столбце сетки паттернов. */
 export const PATTERN_SLOTS = 8;
 
-export const ALL_PARAMS: ParamDef[] = [...TRACK_GRID, ...[SYNTH_GRID[0], SYNTH_GRID[4], SYNTH_GRID[8]], ...MOD_GRID, ...FX_GRID, ...MIX_GRID, ...MASTER_GRID].filter((p): p is ParamDef => p !== null);
+/**
+ * Параметры без ручки в сетке: остаются в проекте (p-lock, MIDI-маппинг, прежние проекты).
+ * rev.predelay — дополнительная пред-задержка реверба (к своей, от Size).
+ */
+export const HIDDEN_PARAMS: ParamDef[] = [smooth('rev.predelay', 'Rev Predelay', 0, 200, 0, ms)];
+/** Low cut реверба в новом проекте (у ручки по умолчанию — 20 Hz, прежние проекты не меняются). */
+export const REV_HPF_NEW = 120;
+
+export const ALL_PARAMS: ParamDef[] = [...TRACK_GRID, ...[SYNTH_GRID[0], SYNTH_GRID[4], SYNTH_GRID[8]], ...MOD_GRID, ...FX_GRID, ...HIDDEN_PARAMS, ...MIX_GRID, ...MASTER_GRID].filter((p): p is ParamDef => p !== null);
 export const PARAM_BY_ID: Record<string, ParamDef> = Object.fromEntries(ALL_PARAMS.map((p) => [p.id, p]));
 
 /** Значение параметра → 0..1 (положение ручки). */

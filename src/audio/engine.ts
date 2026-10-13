@@ -186,17 +186,59 @@ function synthParams(engine: number, v: (id: string) => number) {
 
 // Нагрузка расчёта синтов: доля реального времени по каждой дорожке (присылает AudioWorklet).
 const synthCpu: number[] = Array(MAX_TRACKS).fill(0);
-/** Суммарная нагрузка расчёта синтов (доля 0..1). */
-export const synthLoad = () => synthCpu.reduce((a, b) => a + b, 0);
+/** Нагрузка эффектов в AudioWorklet (группа FX: реверб; по инстансу). */
+const fxCpu = new Map<object, number>();
+/** Суммарная нагрузка расчёта синтов и эффектов FX в AudioWorklet (доля 0..1). */
+export const synthLoad = () => synthCpu.reduce((a, b) => a + b, 0) + [...fxCpu.values()].reduce((a, b) => a + b, 0);
+
+// ---------- Реверб (AudioWorklet) ----------
+
+/**
+ * Инстанс реверба: вход → узел → выход. Состояние — в своём узле, без общих переменных, поэтому
+ * инстансов может быть сколько угодно (общий на шине или на каждой дорожке — сравнение на этапе 7).
+ * Параметры — AudioParam size, decay, tone, lowcut, predelay (внутри узла сглаживаются).
+ */
+interface Reverb { node: AudioWorkletNode | null; set: (fx: Record<string, number>, ct: number) => void }
+
+let reverbModule: Promise<void> | null = null;
+function createReverb(c: AudioContext, input: AudioNode, output: AudioNode): Reverb {
+  const r: Reverb = {
+    node: null,
+    set(fx, ct) {
+      const n = r.node;
+      if (!n) return;
+      const p = (name: string, v: number) => n.parameters.get(name)?.setTargetAtTime(v, ct, 0.01);
+      p('size', fx['rev.size']);
+      p('decay', fx['rev.decay']);
+      p('tone', fx['rev.tone'] ?? 0);
+      p('lowcut', fx['rev.hpf']);
+      p('predelay', fx['rev.predelay'] ?? 0);
+    },
+  };
+  reverbModule ??= c.audioWorklet.addModule(new URL('reverb-worklet.js', document.baseURI).href);
+  void reverbModule.then(() => {
+    if (c !== ctx) return;
+    const node = new AudioWorkletNode(c, 'reverb', {
+      numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2], channelCount: 2, channelCountMode: 'explicit',
+    });
+    node.port.onmessage = (e) => { if (typeof e.data?.cpu === 'number') fxCpu.set(r, e.data.cpu); };
+    input.connect(node).connect(output);
+    r.node = node;
+    // Текущие значения сразу (иначе первый блок — значения по умолчанию).
+    fxSig = '';
+  }).catch((e) => console.error('reverb', e));
+  return r;
+}
 const MAX_VOICES = 48;
 
 // Узлы эффектов и мастера.
 /**
- * Смена импульса реверба и кривой overdrive — без щелчка: две копии (A/B) с усилениями, новое
+ * Смена кривой overdrive — без щелчка: две копии (A/B) с усилениями, новое
  * ставится в молчащую копию, и громкость плавно переходит к ней.
  */
 interface XPair<T> { nodes: [T, T]; gains: [GainNode, GainNode]; cur: number; at: number }
-let rev: { hpf: BiquadFilterNode; pre: DelayNode; conv: XPair<ConvolverNode> };
+/** Реверб (reverb-worklet.js): узел появляется, когда модуль загружен (до этого хвоста нет). */
+let rev: Reverb;
 let dly: { hpf: BiquadFilterNode; l: DelayNode; r: DelayNode; fbL: GainNode; fbR: GainNode };
 let drv: { shaper: XPair<WaveShaperNode>; tone: BiquadFilterNode; type: number };
 let mst: {
@@ -325,7 +367,8 @@ export async function restartAudio() {
   outScope = null;
   scopeOn = null;
   fxSig = '';
-  irSig = '';
+  reverbModule = null;
+  fxCpu.clear();
   tailUntil = 0;
   gateOpen.length = 0;
   unlockAudio();
@@ -434,14 +477,9 @@ function buildGraph(c: AudioContext) {
   loadDevice(c, 'clipper-worklet.js', 'clipper', clipIn, limIn, clipLevels, (n) => { mst!.clip = n; }, os);
   loadDevice(c, 'limiter-worklet.js', 'limiter', limIn, outVol, limLevels, (n) => { mst!.lim = n; });
 
-  // Reverb: HPF → предзадержка → свёртка.
+  // Reverb: AudioWorklet (LOW CUT, пред-задержка, диффузия, FDN) — общий на шине посыла.
   const revIn = c.createGain();
-  const rhpf = c.createBiquadFilter();
-  rhpf.type = 'highpass';
-  const pre = c.createDelay(1);
-  revIn.connect(rhpf).connect(pre);
-  const conv = xPair(c, () => c.createConvolver(), pre, masterIn);
-  rev = { hpf: rhpf, pre, conv };
+  rev = createReverb(c, revIn, masterIn);
 
   // Delay: HPF → две линии (L/R) с обратной связью, Stereo разносит время правой линии.
   const dlyIn = c.createGain();
@@ -1025,8 +1063,6 @@ function updateVoices() {
 // ---------- Эффекты, микшер, мастер ----------
 
 let fxSig = '';
-let irSig = '';
-let irTimer = 0;
 const curves = new Map<number, Float32Array>();
 
 /** Пара копий узла между input и output: звучит копия cur, другая молчит. */
@@ -1066,22 +1102,6 @@ function driveCurve(type: number): Float32Array {
   return curve;
 }
 
-/** Импульс реверба: стереошум с экспоненциальным затуханием; Size — плотность начала. */
-function buildIR(c: AudioContext, decay: number, size: number): AudioBuffer {
-  const sec = Math.min(8, Math.max(0.1, decay));
-  const n = Math.round(c.sampleRate * sec);
-  const ir = c.createBuffer(2, n, c.sampleRate);
-  const fade = 0.002 + (size / 100) * 0.08;
-  for (let ch = 0; ch < 2; ch++) {
-    const d = ir.getChannelData(ch);
-    for (let i = 0; i < n; i++) {
-      const t = i / c.sampleRate;
-      d[i] = (Math.random() * 2 - 1) * Math.exp((-6.9 * t) / sec) * Math.min(1, t / fade);
-    }
-  }
-  return ir;
-}
-
 function updateFx(now: number) {
   const c = ctx!;
   // Значения с p-lock играющих шагов (FX — любой дорожки, микшер — MIX, мастер — MST).
@@ -1091,26 +1111,10 @@ function updateFx(now: number) {
   const ct = c.currentTime;
   const set = (p: AudioParam, v: number) => p.setTargetAtTime(v, ct, 0.02);
 
-  // Реверб: импульс пересчитываем, когда Size/Decay перестали меняться.
-  const sig = `${fx['rev.decay'].toFixed(2)}|${Math.round(fx['rev.size'])}`;
-  if (sig !== irSig) {
-    if (!irTimer) irTimer = now;
-    const first = !rev.conv.nodes[rev.conv.cur].buffer;
-    // Молчащая копия уже затихла (прошлый переход закончился) — новый импульс без щелчка.
-    if (first || (now - irTimer > 150 && ct - rev.conv.at > 0.25)) {
-      const ir = buildIR(c, fx['rev.decay'], fx['rev.size']);
-      if (first) rev.conv.nodes[rev.conv.cur].buffer = ir;
-      else xSwap(rev.conv, ct, 0.05, (n) => { n.buffer = ir; });
-      irSig = sig;
-      irTimer = 0;
-    }
-  }
-
   const fsig = JSON.stringify([fx, mixer, master, doc.ratio, doc.limBypass, doc.cmpBypass, doc.clipBypass, doc.satBypass, doc.bpm, doc.tracks.map((t) => +t.mute + 2 * +t.solo)]);
   if (fsig === fxSig) return;
   fxSig = fsig;
-  set(rev.hpf.frequency, fx['rev.hpf']);
-  set(rev.pre.delayTime, fx['rev.predelay'] / 1000);
+  rev.set(fx, ct);
 
   // Время Delay привязано к темпу: доля такта × длительность четверти.
   const time = Math.min(MAX_DELAY, DELAY_DIVS[Math.round(fx['dly.time'])].beats * 60 / doc.bpm);
