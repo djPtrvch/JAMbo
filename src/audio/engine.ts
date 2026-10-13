@@ -200,14 +200,16 @@ export const synthLoad = () => synthCpu.reduce((a, b) => a + b, 0) + [...fxCpu.v
  */
 interface Reverb { node: AudioWorkletNode | null; set: (fx: Record<string, number>, ct: number) => void }
 
+/** Выходное усиление шины Drive (как у прежнего Overdrive). */
+const DRIVE_OUT = 0.5;
 /** Эффект на AudioWorklet (шина посыла): узел появляется, когда модуль загружен. */
 interface FxNode { node: AudioWorkletNode | null }
 const fxModules = new Map<string, Promise<void>>();
 /** Загрузить worklet-эффект (file, name) между input и output; состояние — в инстансе, их может быть сколько угодно. */
-function createFx(c: AudioContext, file: string, name: string, input: AudioNode, output: AudioNode, options: Record<string, unknown> = {}): FxNode {
+function createFx(c: AudioContext, file: string, name: string, input: AudioNode, output: AudioNode, options: Record<string, unknown> = {}, after: Promise<unknown> = Promise.resolve()): FxNode {
   const fx: FxNode = { node: null };
   let mod = fxModules.get(file);
-  if (!mod) { mod = c.audioWorklet.addModule(new URL(file, document.baseURI).href); fxModules.set(file, mod); }
+  if (!mod) { mod = after.then(() => c.audioWorklet.addModule(new URL(file, document.baseURI).href)); fxModules.set(file, mod); }
   void mod.then(() => {
     if (c !== ctx) return;
     const node = new AudioWorkletNode(c, name, {
@@ -254,16 +256,12 @@ function createReverb(c: AudioContext, input: AudioNode, output: AudioNode): Rev
 const MAX_VOICES = 48;
 
 // Узлы эффектов и мастера.
-/**
- * Смена кривой overdrive — без щелчка: две копии (A/B) с усилениями, новое
- * ставится в молчащую копию, и громкость плавно переходит к ней.
- */
-interface XPair<T> { nodes: [T, T]; gains: [GainNode, GainNode]; cur: number; at: number }
 /** Реверб (reverb-worklet.js): узел появляется, когда модуль загружен (до этого хвоста нет). */
 let rev: Reverb;
 /** Delay (delay-worklet.js): узел появляется, когда модуль загружен (до этого эха нет). */
 let dly: FxNode;
-let drv: { shaper: XPair<WaveShaperNode>; tone: BiquadFilterNode; type: number };
+/** Drive (drive-worklet.js): узел появляется, когда модуль загружен. */
+let drv: FxNode;
 let mst: {
   eq: EqChain; satIn: GainNode; sat: AudioWorkletNode | null; glueIn: GainNode; glue: AudioWorkletNode | null; clipIn: GainNode; clip: AudioWorkletNode | null;
   limIn: GainNode; lim: AudioWorkletNode | null; outVol: GainNode;
@@ -510,20 +508,13 @@ function buildGraph(c: AudioContext) {
   const dlyIn = c.createGain();
   dly = createFx(c, 'delay-worklet.js', 'delay', dlyIn, masterIn, { maxTime: MAX_DELAY });
 
-  // Overdrive: шейпер → тон.
+  // Drive: AudioWorklet (LOW CUT → усиление → 4× нелинейность → DC → компенсация → TONE); шина отдаёт только
+  // обработанный сигнал. Сигналы дорожек суммируются до нелинейности (как aux-send) — уровень посыла влияет на силу.
   const drvIn = c.createGain();
-  const tone = c.createBiquadFilter();
-  tone.type = 'lowpass';
-  const shaper = xPair(c, () => {
-    const s = c.createWaveShaper();
-    s.oversample = '2x';
-    s.curve = driveCurve(0) as Float32Array<ArrayBuffer>;
-    return s;
-  }, drvIn, tone);
   const drvOut = c.createGain();
-  drvOut.gain.value = 0.5;
-  tone.connect(drvOut).connect(masterIn);
-  drv = { shaper, tone, type: 0 };
+  drvOut.gain.value = DRIVE_OUT;
+  drvOut.connect(masterIn);
+  drv = createFx(c, 'drive-worklet.js', 'drive', drvIn, drvOut, {}, os);
 
   busInputs = [revIn, dlyIn, drvIn];
 
@@ -1073,45 +1064,6 @@ function updateVoices() {
 // ---------- Эффекты, микшер, мастер ----------
 
 let fxSig = '';
-const curves = new Map<number, Float32Array>();
-
-/** Пара копий узла между input и output: звучит копия cur, другая молчит. */
-function xPair<T extends AudioNode>(c: AudioContext, make: () => T, input: AudioNode, output: AudioNode): XPair<T> {
-  const nodes = [make(), make()] as [T, T];
-  const gains = [c.createGain(), c.createGain()] as [GainNode, GainNode];
-  gains[1].gain.value = 0;
-  nodes.forEach((n, k) => { input.connect(n); n.connect(gains[k]).connect(output); });
-  return { nodes, gains, cur: 0, at: -1 };
-}
-
-/** Переход на вторую копию: setup настраивает её (пока молчит), затем кроссфейд (постоянная tau, с). */
-function xSwap<T extends AudioNode>(p: XPair<T>, ct: number, tau: number, setup: (n: T) => void) {
-  const next = 1 - p.cur;
-  setup(p.nodes[next]);
-  p.gains[p.cur].gain.setTargetAtTime(0, ct, tau);
-  p.gains[next].gain.cancelScheduledValues(ct);
-  p.gains[next].gain.setTargetAtTime(1, ct, tau);
-  p.cur = next;
-  p.at = ct;
-}
-
-/** Кривые overdrive: Soft, Hard, Tube, Fuzz. */
-function driveCurve(type: number): Float32Array {
-  let curve = curves.get(type);
-  if (curve) return curve;
-  const n = 2048;
-  curve = new Float32Array(n);
-  for (let i = 0; i < n; i++) {
-    const x = (i / (n - 1)) * 2 - 1;
-    curve[i] = type === 0 ? Math.tanh(3 * x)
-      : type === 1 ? Math.max(-0.7, Math.min(0.7, 2.5 * x)) / 0.7
-      : type === 2 ? (x < 0 ? Math.tanh(2 * x) : Math.tanh(5 * x) * 0.9)
-      : Math.sign(x) * (1 - Math.exp(-10 * Math.abs(x)));
-  }
-  curves.set(type, curve);
-  return curve;
-}
-
 function updateFx(now: number) {
   const c = ctx!;
   // Значения с p-lock играющих шагов (FX — любой дорожки, микшер — MIX, мастер — MST).
@@ -1139,12 +1091,15 @@ function updateFx(now: number) {
   }
 
   // Тип overdrive сменился — кроссфейд на вторую копию шейпера (кривую молчащего узла менять безопасно).
-  const odType = Math.round(fx['od.type']);
-  if (odType !== drv.type) {
-    drv.type = odType;
-    xSwap(drv.shaper, ct, 0.015, (n) => { n.curve = driveCurve(odType) as Float32Array<ArrayBuffer>; });
+  const vn = drv.node;
+  if (vn) {
+    // Сглаживание и кроссфейд TYPE — в worklet; сюда — цели.
+    const vp = (name: string) => vn.parameters.get(name)!;
+    vp('drive').setValueAtTime(fx['od.drive'] ?? 26, ct);
+    vp('type').setValueAtTime(Math.round(fx['od.type']), ct);
+    vp('tone').setValueAtTime(fx['od.tone'], ct);
+    vp('lowcut').setValueAtTime(fx['od.lowcut'] ?? 20, ct);
   }
-  set(drv.tone.frequency, 500 * Math.pow(24, fx['od.tone'] / 100));
 
   tracks.forEach((ch, i) => {
     const vol = volGain(mixer[`mix.vol${i + 1}`] ?? VOL_DEF_DB);

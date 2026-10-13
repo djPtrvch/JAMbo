@@ -293,8 +293,11 @@ export const FX_GRID: Slot[] = grid([
     smooth('dly.spread', 'Dly Spread', 0, 100, 0, pct),
   ],
   [
-    stepped('od.type', 'OD Type', ['Soft', 'Hard', 'Tube', 'Fuzz']),
-    smooth('od.tone', 'OD Tone', 0, 100, 50, pct),
+    // Drive (drive-worklet.js): сила, тип (индексы 0–3 — как у прежнего Overdrive), тон, срез низа до искажения.
+    smooth('od.drive', 'Drive', 0, 100, 26, pct),
+    stepped('od.type', 'Drive Type', ['Soft', 'Hard', 'Tube', 'Fuzz', 'Fold', 'Crush']),
+    smooth('od.tone', 'Drive Tone', 0, 100, 50, pct),
+    smooth('od.lowcut', 'Drive Low Cut', 20, 1000, 20, (v) => (v <= DRIVE_LOWCUT_OFF ? 'OFF' : hz(v)), { exp: true }),
   ],
   [
     smooth('sc.attack', 'SC Attack', 0.1, 100, 5, ms, { exp: true }),
@@ -423,6 +426,9 @@ export const PATTERN_SLOTS = 8;
 export const HIDDEN_PARAMS: ParamDef[] = [smooth('rev.predelay', 'Rev Predelay', 0, 200, 0, ms)];
 /** Low cut реверба в новом проекте (у ручки по умолчанию — 20 Hz, прежние проекты не меняются). */
 export const REV_HPF_NEW = 120;
+/** LOW CUT Drive: не выше — обход (OFF); в новом проекте — 80 Гц, в прежних — OFF (звучание не меняется). */
+export const DRIVE_LOWCUT_OFF = 25;
+export const DRIVE_LOWCUT_NEW = 80;
 
 export const ALL_PARAMS: ParamDef[] = [...TRACK_GRID, ...[SYNTH_GRID[0], SYNTH_GRID[4], SYNTH_GRID[8]], ...MOD_GRID, ...FX_GRID, ...HIDDEN_PARAMS, ...MIX_GRID, ...MASTER_GRID].filter((p): p is ParamDef => p !== null);
 export const PARAM_BY_ID: Record<string, ParamDef> = Object.fromEntries(ALL_PARAMS.map((p) => [p.id, p]));

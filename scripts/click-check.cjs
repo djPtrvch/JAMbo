@@ -199,7 +199,7 @@ const init = () => {
     await fxRun('FX delay time changes', (t) => { t.params.delay = 50; }, () => { S.doc.fx['dly.time'] = Math.floor(Math.random() * 8); }, 300);
     await fxRun('FX delay filter + spread changes', (t) => { t.params.delay = 50; }, (t, k) => { S.doc.fx['dly.filter'] = ((k * 53) % 200) - 100; S.doc.fx['dly.spread'] = (k * 37) % 100; S.doc.fx['dly.feedback'] = 60; }, 200);
     await fxRun('FX drive static', (t) => { t.params.drive = 60; });
-    await fxRun('FX drive type changes', (t) => { t.params.drive = 60; }, (t, k) => { S.doc.fx['od.type'] = k % 4; }, 150);
+    await fxRun('FX drive type changes', (t) => { t.params.drive = 60; }, (t, k) => { S.doc.fx['od.type'] = k % 6; S.doc.fx['od.drive'] = (k * 29) % 100; }, 150);
     await fxRun('FX drive + other fx edits', (t) => { t.params.drive = 60; }, (t, k) => { S.doc.fx['dly.feedback'] = 20 + (k % 5); }, 50);
     await fxRun('FX mute toggles', (t) => { t.params.reverb = 30; }, (t, k) => { S.swipeTrack(0, 'down'); }, 250);
     await fxRun('FX all sends', (t) => { t.params.reverb = 40; t.params.delay = 40; t.params.drive = 40; });
