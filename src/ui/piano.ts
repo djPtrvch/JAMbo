@@ -17,6 +17,7 @@ import { h, setClass, setText } from './dom';
 import { makePopup, popupButton, type Popup } from './popup';
 import { saveSettings, settings } from '../settings';
 import { choiceMenu, dragField } from './controls';
+import { registerAction } from '../midi';
 
 const MAX_KEYS = 25;
 const MAX_CHORDS = 8;
@@ -114,29 +115,45 @@ function openPianoMenu(anchor: HTMLElement) {
   box.style.top = `${Math.max(top, a.bottom - box.offsetHeight)}px`;
 }
 
-function pressHandlers(el: HTMLElement, notes: () => number[]) {
+/** Нажатие клавиши (палец — по pointerId; MIDI — по своему отрицательному id): ноты звучат и становятся выбранными. */
+function keyDown(id: number, n: number[], velocity: number) {
+  ui.pressedKeys.set(id, n);
+  const track = ui.selectedTrack;
+  const rec = press(n, null, true, velocity);
+  keyHolds.set(id, { track, notes: n, rec, t0: performance.now() });
+}
+/** Отпущена клавиша — её ноты гаснут (Decay); последняя — у ENV начинается Release. С REC длина записанной
+ *  ноты — по времени удержания. */
+function keyUp(id: number) {
+  if (!ui.pressedKeys.delete(id)) return;
+  const k = keyHolds.get(id);
+  keyHolds.delete(id);
+  if (k) {
+    releaseLive(k.track, k.notes);
+    if (k.rec) recordLength(k.rec.track, k.rec.index, recLength(performance.now() - k.t0));
+  }
+  if (ui.pressedKeys.size === 0) releaseEnv(ui.selectedTrack);
+}
+
+/**
+ * Касание клавиши или аккорда; name — действие для MIDI (KEY n, CHORD n): нажатие и отпускание — как палец
+ * (держится, пока держат; с REC пишется), id — свой, отрицательный (не путается с пальцами).
+ */
+function pressHandlers(el: HTMLElement, notes: () => number[] | null, name: string, label: string, id: number) {
   el.addEventListener('pointerdown', (e) => {
     e.preventDefault();
     const n = notes();
-    ui.pressedKeys.set(e.pointerId, n);
-    const track = ui.selectedTrack;
-    const rec = press(n, null, true, touchVelocity(el, e));
-    keyHolds.set(e.pointerId, { track, notes: n, rec, t0: performance.now() });
+    if (n) keyDown(e.pointerId, n, touchVelocity(el, e));
   });
-  // Отпущена клавиша — её ноты гаснут (Decay); последняя — у ENV начинается Release.
-  // С REC длина записанной ноты — по времени удержания.
-  const up = (e: PointerEvent) => {
-    if (!ui.pressedKeys.delete(e.pointerId)) return;
-    const k = keyHolds.get(e.pointerId);
-    keyHolds.delete(e.pointerId);
-    if (k) {
-      releaseLive(k.track, k.notes);
-      if (k.rec) recordLength(k.rec.track, k.rec.index, recLength(performance.now() - k.t0));
-    }
-    if (ui.pressedKeys.size === 0) releaseEnv(ui.selectedTrack);
-  };
+  const up = (e: PointerEvent) => keyUp(e.pointerId);
   el.addEventListener('pointerup', up);
   el.addEventListener('pointercancel', up);
+  registerAction(name, {
+    label,
+    press: () => { const n = notes(); if (n) keyDown(id, n, 1); },
+    release: () => keyUp(id),
+    state: () => ui.pressedKeys.has(id),
+  }, el);
 }
 
 export function buildPiano(): HTMLElement {
@@ -144,16 +161,20 @@ export function buildPiano(): HTMLElement {
   pianoEl = el;
 
   chordBtn = h('div', 'btn scale-btn chord-btn', 'CHORD');
-  chordBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); ui.chordMode = !ui.chordMode; });
+  const chordToggle = () => { ui.chordMode = !ui.chordMode; };
+  chordBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); chordToggle(); });
+  registerAction('CHORD', { label: 'CHORD', press: chordToggle, state: () => ui.chordMode }, chordBtn);
 
   const keyRow = h('div', 'keys');
   new ResizeObserver(() => { rowW = keyRow.clientWidth; }).observe(keyRow);
   for (let k = 0; k < MAX_KEYS; k++) {
     const key = h('div', 'key');
     key.append(h('span'));
+    // Клавиша по позиции (KEY 1 — левая); за числом клавиш на экране — нет.
     pressHandlers(
       key,
-      () => (ui.chordMode ? chordOnDegree(k) : [scaleNotes(1, k)[0]]),
+      () => (k >= keyCount() ? null : ui.chordMode ? chordOnDegree(k) : [scaleNotes(1, k)[0]]),
+      `KEY${k + 1}`, `KEY ${k + 1}`, -100 - k,
     );
     keys.push(key);
     keyRow.append(key);
@@ -167,7 +188,11 @@ export function buildPiano(): HTMLElement {
   chipRow = h('div', 'chips');
   for (let c = 0; c < MAX_CHORDS; c++) {
     const chip = h('div', 'chip');
-    pressHandlers(chip, () => chordOnDegree(PROGRESSIONS[ui.progression].degrees[c] ?? 0));
+    // Аккорд прогрессии по позиции (PROG 1 — левый); у прогрессии короче — нет; без CHORD — нет.
+    pressHandlers(chip, () => {
+      const d = PROGRESSIONS[ui.progression].degrees[c];
+      return d === undefined || !ui.chordMode ? null : chordOnDegree(d);
+    }, `PROG${c + 1}`, `PROG CHORD ${c + 1}`, -200 - c);
     chips.push(chip);
     chipRow.append(chip);
   }
@@ -178,6 +203,8 @@ export function buildPiano(): HTMLElement {
   const down = h('div', 'btn arrow', '▼');
   down.addEventListener('pointerdown', (e) => { e.preventDefault(); setOctave(ui.octave - 1); });
   up.addEventListener('pointerdown', (e) => { e.preventDefault(); setOctave(ui.octave + 1); });
+  registerAction('OCTUP', { label: 'OCTAVE ▲', press: () => setOctave(ui.octave + 1) }, up);
+  registerAction('OCTDOWN', { label: 'OCTAVE ▼', press: () => setOctave(ui.octave - 1) }, down);
   oct.append(up, down);
 
   // Под CHORD — бутерброд: меню пианоролла (октавы, VELOCITY).

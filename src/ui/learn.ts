@@ -3,7 +3,7 @@
 // Цель — голубая рамка, уже назначенные — полупрозрачная жёлтая заливка с типом маппинга (N или CC). Двойной тап по цели — окно настройки
 // маппинга (ui/mapedit.ts). UNMAP снимает маппинг цели, DONE — выход из режима.
 
-import { clearTarget, learn, isMapped, mappingFor, onLearnChanged, setLearn, sourceLabel, targetFromAttr, targetLabel, learnTarget } from '../midi';
+import { clearTarget, learn, isMapped, mappingFor, onLearnChanged, setLearn, sourceLabel, targetFromAttr, targetLabel, learnTarget, runAction } from '../midi';
 import { settings } from '../settings';
 import { DOUBLE_TAP_MS, h, setClass, setText } from './dom';
 import { isOpen, openMapEditor } from './mapedit';
@@ -60,6 +60,8 @@ export function buildLearnBar(): HTMLElement {
     lastTap.key = el.dataset.midi!;
     lastTap.at = now;
     learnTarget(t);
+    // PATTERNS ещё и переключает сетку паттернов — так в LEARN можно добраться до её ячеек и строк.
+    if (t.kind === 'button' && t.name === 'PATTERNS') runAction('PATTERNS');
     // Окно MIDI MAP открыто — переходит на новую цель.
     if (isOpen()) openMapEditor(t);
   }, true);

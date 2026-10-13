@@ -11,7 +11,7 @@ import {
   deleteMidiPreset, loadMidiPreset, midiPresets, presetModified, renameMidiPreset, saveMidiPreset, TWISTER_NAME,
   condKey, currentPage, pageName, pinned,
   clashFor, clearTarget, draftMapping, learn, mappingFor, midiDevices, midiOutputs, onLearnChanged, sameTarget,
-  targetLabel, updateMapping,
+  targetLabel, updateMapping, isContinuous, isClipTarget,
 } from '../midi';
 import { settings, type ControlType, type MidiMapping, type MidiPage, type MidiTarget, type RelEnc } from '../settings';
 import { h, setAttr, svg } from './dom';
@@ -221,7 +221,8 @@ function render() {
   // Черновик держим, пока цель не назначена (номер не прыгает при каждой отрисовке).
   if (mapped) cur = mapped;
   else if (!cur || !sameTarget(cur.target, t)) cur = draftMapping(t);
-  const knob = t.kind === 'knob';
+  // Ручка или регулятор (темп) — непрерывные типы управления и Range.
+  const knob = isContinuous(t);
 
   titleEl.textContent = page === 'main' ? targetLabel(t) : TITLES[page];
   // Unmap всегда на месте; без маппинга — серая.
@@ -284,7 +285,8 @@ function render() {
   } else if (page === 'cond') {
     // Current page — страница ручек, показанная сейчас (у маппинга с этим условием — уже выбранная).
     const pg = cur.cond === 'page' ? cur.page : currentPage();
-    const items: [string, string, string][] = [
+    // Ячейки и строки сетки паттернов — только Clip launcher.
+    const items: [string, string, string][] = isClipTarget(t) ? [['clip', 'Clip launcher', 'pattern grid cells and rows: only while PATTERNS is open']] : [
       ['global', 'Global', 'all pages and views'],
       [`page:${pg}`, `Current page (${pageName(pg)})`, `only while the ${pageName(pg)} page is shown`],
       ['clip', 'Clip launcher', 'only while PATTERNS is open'],

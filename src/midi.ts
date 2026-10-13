@@ -63,7 +63,11 @@ const changed = () => listeners.forEach((l) => l());
  * Действие кнопки для MIDI: нажатие и отпускание (у кнопок на удержание);
  * state — горит ли кнопка (для обратной связи: подсветка кнопки контроллера).
  */
-export interface MidiAction { label: string; press: () => void; release?: () => void; state?: () => boolean }
+export interface MidiAction {
+  label: string; press: () => void; release?: () => void; state?: () => boolean;
+  /** Непрерывное значение 0–1 (регулятор, например темп): маппится как ручка — ABSOLUTE/RELATIVE, Range. */
+  value?: { get: () => number; set: (n: number) => void };
+}
 const actions = new Map<string, MidiAction>();
 
 /** Интерфейс регистрирует кнопку; элемент помечается data-midi для MIDI LEARN. */
@@ -71,6 +75,16 @@ export function registerAction(name: string, action: MidiAction, el?: HTMLElemen
   actions.set(name, action);
   if (el) el.dataset.midi = `btn:${name}`;
 }
+
+/** Выполнить действие кнопки (LEARN: PATTERNS ещё и открывает сетку — иначе до её ячеек не добраться). */
+export function runAction(name: string) { actions.get(name)?.press(); }
+/** Действие по имени (нажатие, отпускание, значение). */
+export const midiAction = (name: string) => actions.get(name);
+
+/** Цель с непрерывным значением: ручка или регулятор (темп). */
+export const isContinuous = (t: MidiTarget) => t.kind === 'knob' || !!actions.get(t.name)?.value;
+/** Цели сетки паттернов (ячейки и строки) — их маппинги всегда в условии Clip launcher. */
+export const isClipTarget = (t: MidiTarget) => t.kind === 'button' && /^(CLIP|ROW)\d/.test(t.name);
 
 /** Ручка сетки (позиция 0–15) для MIDI LEARN. */
 export function markKnob(el: HTMLElement, slot: number) {
@@ -111,8 +125,9 @@ function activeConds(): string[] {
   out.push('global');
   return out;
 }
-/** Условие нового маппинга: в сетке паттернов — Clip launcher, иначе Global. */
-function defaultCond(): Pick<MidiMapping, 'cond' | 'page'> {
+/** Условие нового маппинга: ячейки и строки сетки — Clip launcher; в сетке паттернов — Clip launcher, иначе Global. */
+function defaultCond(t?: MidiTarget): Pick<MidiMapping, 'cond' | 'page'> {
+  if (t && isClipTarget(t)) return { cond: 'clip', page: currentPage() };
   const p = pinned.cond;
   if (p) return p.startsWith('page:') ? { cond: 'page', page: p.slice(5) as MidiPage } : { cond: p as MidiMapping['cond'], page: currentPage() };
   return { cond: ui.patternView ? 'clip' : 'global', page: currentPage() };
@@ -182,7 +197,7 @@ function freeSource(): MidiSource {
 }
 
 /** Черновик маппинга цели без маппинга (окно настройки до первого изменения). */
-export const draftMapping = (t: MidiTarget): MidiMapping => fullMapping({ src: freeSource(), target: t, ...defaultCond() });
+export const draftMapping = (t: MidiTarget): MidiMapping => fullMapping({ src: freeSource(), target: t, ...defaultCond(t) });
 
 /**
  * Изменить маппинг цели (окно настройки, LEARN): поля patch поверх нынешнего маппинга (или нового).
@@ -191,6 +206,8 @@ export const draftMapping = (t: MidiTarget): MidiMapping => fullMapping({ src: f
 export function updateMapping(t: MidiTarget, patch: Partial<MidiMapping>) {
   const cur = mappingFor(t) ?? draftMapping(t);
   const m: MidiMapping = { ...cur, ...patch, target: t };
+  // Ячейки и строки сетки паттернов — только Clip launcher.
+  if (isClipTarget(t)) m.cond = 'clip';
   // У цели в одном условии — один маппинг (прежний, и тот, что уже был в новом условии, уходят).
   const mine = (x: MidiMapping) => sameTarget(x.target, t) && (x === cur || condKey(x) === condKey(m));
   store([...settings.mappings.filter((x) => !mine(x) && !clash(x, m)), m]);
@@ -354,6 +371,16 @@ function apply(m: MidiMapping, isCc: boolean, value: number, on: boolean) {
     state = !toggled.get(key);
     toggled.set(key, state);
   }
+  const val = t.kind === 'button' ? actions.get(t.name)?.value : undefined;
+  if (val) {
+    // Регулятор (темп): как ручка — ABSOLUTE по диапазону, RELATIVE шагами, кнопочные типы — края диапазона.
+    const lo = Math.min(m.min, m.max), hi = Math.max(m.min, m.max), dir = m.max >= m.min ? 1 : -1;
+    touchGesture();
+    if (button) val.set(state ? m.max : m.min);
+    else if (m.control === 'abs') val.set(m.min + (value / 127) * (m.max - m.min));
+    else val.set(Math.min(hi, Math.max(lo, val.get() + (dir * relStep(m.enc, value)) / 128)));
+    return;
+  }
   if (t.kind === 'button') {
     // У кнопок ABSOLUTE и RELATIVE ведут себя как MOMENTARY.
     if (button || m.control === 'abs') buttonInput(t.name, state);
@@ -381,7 +408,7 @@ function handle(status: number, d1: number, d2: number, input: string) {
     if (learn.target) {
       const had = mappingFor(learn.target);
       // Вход — тот, с которого пришло сообщение (как Port в Drambo).
-      updateMapping(learn.target, had ? { src, input } : { src, input, control: learn.target.kind === 'knob' && isCc ? 'abs' : 'momentary' });
+      updateMapping(learn.target, had ? { src, input } : { src, input, control: isContinuous(learn.target) && isCc ? 'abs' : 'momentary' });
     }
     learnChanged();
     return;
@@ -446,7 +473,11 @@ export function sendFeedback(now: number) {
       const span = m.max - m.min;
       v = span ? Math.round(Math.min(1, Math.max(0, (n - m.min) / span)) * 127) : 0;
     } else {
-      v = actions.get(m.target.name)?.state?.() ? 127 : 0;
+      const a = actions.get(m.target.name);
+      if (a?.value) {
+        const span = m.max - m.min;
+        v = span ? Math.round(Math.min(1, Math.max(0, (a.value.get() - m.min) / span)) * 127) : 0;
+      } else v = a?.state?.() ? 127 : 0;
     }
     const key = `${out.id}:${m.src.type}:${m.src.ch}:${m.src.num}`;
     if (sent.get(key) === v) continue;

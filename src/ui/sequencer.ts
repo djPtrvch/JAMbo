@@ -7,6 +7,7 @@ import {
   beginGesture, curSeq, endGesture, hasLocks, hasManualLocks, seqIndex, setNoteLength, setPatternLength, stepAt, toggleStep, ui, rt,
   pageLen,
 } from '../state';
+import { registerAction } from '../midi';
 import { DOUBLE_TAP_MS, h, setClass, setText } from './dom';
 
 /** Дольше этого — уже удержание, триг не переключается. */
@@ -55,26 +56,39 @@ export function buildSequencer(): HTMLElement {
     cell.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       cell.releasePointerCapture?.(e.pointerId);
-      const index = ui.viewPage * STEPS_PER_PAGE + col;
-      const now = performance.now();
-      const first = firstStepHeld();
-      const secondary = !!first && col !== 0;
-      if (secondary && now - lastTap[col] < DOUBLE_TAP_MS) {
-        setPatternLength(index);
-        const h0 = ui.heldSteps.get(first!.id);
-        if (h0) h0.used = true;
-        lastTap[col] = -1e9;
-      }
-      presses.set(e.pointerId, { id: e.pointerId, col, index, t0: now, dragged: false, secondary });
-      ui.heldSteps.set(e.pointerId, { index, used: secondary });
-      beginGesture();
+      stepDown(e.pointerId, col);
     });
+    // MIDI: шаг открытой страницы по позиции — нажатие держит шаг (p-lock энкодерами), быстрое отпускание — триг.
+    const id = -300 - col;
+    registerAction(`STEP${col + 1}`, {
+      label: `STEP ${col + 1}`,
+      press: () => stepDown(id, col),
+      release: () => stepUp(id, false),
+      state: () => !!stepAt(curSeq(), ui.viewPage * STEPS_PER_PAGE + col)?.on,
+    }, cell);
   }
   // Движение и отпускание ловим на уровне документа: палец уходит с ячейки при протягивании.
   document.addEventListener('pointermove', onMove);
   document.addEventListener('pointerup', (e) => onUp(e, false));
   document.addEventListener('pointercancel', (e) => onUp(e, true));
   return grid;
+}
+
+/** Нажатие шага col (палец — pointerId, MIDI — свой отрицательный id). */
+function stepDown(id: number, col: number) {
+  const index = ui.viewPage * STEPS_PER_PAGE + col;
+  const now = performance.now();
+  const first = firstStepHeld();
+  const secondary = !!first && col !== 0;
+  if (secondary && now - lastTap[col] < DOUBLE_TAP_MS) {
+    setPatternLength(index);
+    const h0 = ui.heldSteps.get(first!.id);
+    if (h0) h0.used = true;
+    lastTap[col] = -1e9;
+  }
+  presses.set(id, { id, col, index, t0: now, dragged: false, secondary });
+  ui.heldSteps.set(id, { index, used: secondary });
+  beginGesture();
 }
 
 function onMove(e: PointerEvent) {
@@ -91,11 +105,16 @@ function onMove(e: PointerEvent) {
 }
 
 function onUp(e: PointerEvent, cancelled: boolean) {
-  const p = presses.get(e.pointerId);
+  stepUp(e.pointerId, cancelled);
+}
+
+/** Отпускание шага: быстрое и без других действий — триг ставится или снимается. */
+function stepUp(id: number, cancelled: boolean) {
+  const p = presses.get(id);
   if (!p) return;
-  presses.delete(e.pointerId);
-  const held = ui.heldSteps.get(e.pointerId);
-  ui.heldSteps.delete(e.pointerId);
+  presses.delete(id);
+  const held = ui.heldSteps.get(id);
+  ui.heldSteps.delete(id);
   endGesture();
   if (cancelled) return;
   const quick = performance.now() - p.t0 < TAP_MS;
