@@ -87,6 +87,8 @@ export interface Track {
   table?: string;
   /** Постоянный номер дорожки (не её место): по нему UNDO/REDO перестановки возвращает и состояние игры. */
   id?: number;
+  /** Готовность к записи (кнопка ● в MIX). */
+  arm?: boolean;
   /** Гамма, нота и FX активного паттерна (см. Pattern). */
   scale?: number;
   root?: number;
@@ -1259,12 +1261,24 @@ let gateHook: () => void = () => {};
 export const onGateChange = (f: () => void) => { gateHook = f; };
 
 export function swipeTrack(i: number, dir: 'up' | 'down') {
+  const t = doc.tracks[i];
+  if (t.mute || t.solo) setMuteSolo(i, false, false);
+  else if (dir === 'down') setMuteSolo(i, true, false);
+  else setMuteSolo(i, false, true);
+}
+
+/** Кнопки M и S в MIX (и с MIDI): то же, что свайпы; mute и solo вместе не включаются. */
+export function toggleMute(i: number) { const t = doc.tracks[i]; if (t) setMuteSolo(i, !t.mute, false); }
+export function toggleSolo(i: number) { const t = doc.tracks[i]; if (t) setMuteSolo(i, false, !t.solo); }
+/** Кнопка ● в MIX: дорожка готова к записи. */
+export function toggleArm(i: number) { const t = doc.tracks[i]; if (t) edit(() => { t.arm = !t.arm; }); }
+
+/** Mute и solo дорожки: гейты сразу (из обработчика касания), запись в UNDO — после звука. */
+function setMuteSolo(i: number, mute: boolean, solo: boolean) {
   const flags = doc.tracks.map((t) => [t.mute, t.solo] as const);
   const t = doc.tracks[i];
-  if (t.mute) t.mute = false;
-  else if (t.solo) t.solo = false;
-  else if (dir === 'down') t.mute = true;
-  else t.solo = true;
+  t.mute = mute;
+  t.solo = solo;
   gateHook();
   if (gestureDepth > 0) return;
   // UNDO — после звука, вне жеста: снимок документа с прежними флагами (JSON — не в обработчике касания).

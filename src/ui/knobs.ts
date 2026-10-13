@@ -3,11 +3,11 @@
 
 import { fromNorm, toNorm, type ParamDef } from '../params';
 import {
-  addTrack, audible, assignFor, clearTrackLocks, canAddTrack, canDeleteTrack, copyTrack, deleteTrack, hasTrackClip, moveTrack, pasteTrack, curSeq, fxModNorm, liveLocks, seqIndex,
+  addTrack, audible, toggleArm, toggleMute, toggleSolo, assignFor, clearTrackLocks, canAddTrack, canDeleteTrack, copyTrack, deleteTrack, hasTrackClip, moveTrack, pasteTrack, curSeq, fxModNorm, liveLocks, seqIndex,
   beginGesture, clearLfoAssign, clearLock, doc, endGesture, firstHeldStep, gridFor, gridMode, heldLfo,
   lockValue, modulatedNorm, paramValue, type Mod, setLfoAmount, setLockNorm, setParamNorm, ui, type GridMode,
 } from '../state';
-import { markKnob } from '../midi';
+import { markKnob, registerAction } from '../midi';
 import { MAX_TRACKS, OVER_PEAK } from '../params';
 import { trackDuckDb, trackIsStereo, trackLevel } from '../audio/engine';
 import { levelFrac } from './meter';
@@ -51,6 +51,30 @@ interface KnobView {
   lockArc: SVGPathElement;
   pointer: SVGLineElement;
   meter: KnobMeter;
+  /** MIX: справа от ручки громкости — M (mute), S (solo), ● (запись). */
+  msr: HTMLElement;
+  msrBtns: HTMLElement[];
+}
+
+/** Кнопки M, S, ● у ручки громкости дорожки slot (в MIX); с MIDI — MUTE n, SOLO n, ARM n. */
+function buildMsr(slot: number): { msr: HTMLElement; msrBtns: HTMLElement[] } {
+  const msr = h('div', 'knob-msr hidden');
+  const defs: [string, string, string, () => void, () => boolean][] = [
+    ['M', 'MUTE', 'msr-mute', () => toggleMute(slot), () => !!doc.tracks[slot]?.mute],
+    ['S', 'SOLO', 'msr-solo', () => toggleSolo(slot), () => !!doc.tracks[slot]?.solo],
+    ['', 'ARM', 'msr-arm', () => toggleArm(slot), () => !!doc.tracks[slot]?.arm],
+  ];
+  const msrBtns = defs.map(([text, name, cls, fn, state]) => {
+    const b = h('div', `btn msr-btn ${cls}`, text);
+    if (!text) b.innerHTML = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6" fill="currentColor"/></svg>';
+    // Своё касание: не крутит ручку и не открывает её меню.
+    b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); fn(); });
+    for (const ev of ['pointermove', 'pointerup', 'pointercancel']) b.addEventListener(ev, (e) => e.stopPropagation());
+    registerAction(`${name}${slot + 1}`, { label: `${name} ${slot + 1}`, press: fn, state }, b);
+    msr.append(b);
+    return b;
+  });
+  return { msr, msrBtns };
 }
 
 /** MIX: метр дорожки слева от ручки громкости (после фейдера), в общем стиле метров. */
@@ -138,7 +162,8 @@ function buildKnob(slot: number): KnobView {
   const label = h('div', 'knob-label');
   const dial = h('div', 'knob-dial');
   const meter = buildKnobMeter();
-  dial.append(meter.root, box, value);
+  const { msr, msrBtns } = buildMsr(slot);
+  dial.append(meter.root, box, value, msr);
   root.append(dial, label);
 
   markKnob(root, slot);
@@ -146,7 +171,7 @@ function buildKnob(slot: number): KnobView {
   root.addEventListener('pointermove', (e) => onMove(e));
   root.addEventListener('pointerup', (e) => onUp(e));
   root.addEventListener('pointercancel', (e) => onUp(e));
-  return { root, label, value, valueArc, lfoArc, rangeArc, lockArc, pointer, meter };
+  return { root, label, value, valueArc, lfoArc, rangeArc, lockArc, pointer, meter, msr, msrBtns };
 }
 
 export function buildKnobGrid(): HTMLElement {
@@ -386,6 +411,13 @@ export function renderKnobs(now: number) {
     const meter = mode === 'mix' && !!p && slot < doc.tracks.length;
     setClass(v.meter.root, 'hidden', !meter);
     if (meter) renderKnobMeter(v.meter, slot, now);
+    setClass(v.msr, 'hidden', !meter);
+    if (meter) {
+      const t = doc.tracks[slot];
+      setClass(v.msrBtns[0], 'on', t.mute);
+      setClass(v.msrBtns[1], 'on', t.solo);
+      setClass(v.msrBtns[2], 'on', !!t.arm);
+    }
     setClass(v.root, 'inactive', !p);
     if (!p) {
       setText(v.label, '');

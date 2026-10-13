@@ -1,9 +1,9 @@
 // MIDI LEARN (меню MIDI → MAPPING → LEARN): полоса внизу экрана, поверх пианоролла. Тап по ручке или кнопке выбирает
 // цель (обычное действие не выполняется), затем движение контроллера (CC или нота) назначает его.
-// Цель — голубая рамка, уже назначенные — голубой пунктир. Двойной тап по цели — окно настройки
+// Цель — голубая рамка, уже назначенные — полупрозрачная жёлтая заливка с типом маппинга (N или CC). Двойной тап по цели — окно настройки
 // маппинга (ui/mapedit.ts). UNMAP снимает маппинг цели, DONE — выход из режима.
 
-import { clearTarget, learn, isMapped, onLearnChanged, setLearn, sourceLabel, targetFromAttr, targetLabel, learnTarget } from '../midi';
+import { clearTarget, learn, isMapped, mappingFor, onLearnChanged, setLearn, sourceLabel, targetFromAttr, targetLabel, learnTarget } from '../midi';
 import { settings } from '../settings';
 import { DOUBLE_TAP_MS, h, setClass, setText } from './dom';
 import { isOpen, openMapEditor } from './mapedit';
@@ -12,6 +12,7 @@ let bar: HTMLElement;
 let text: HTMLElement;
 let clearBtn: HTMLElement;
 let marked: HTMLElement[] = [];
+const rel = new WeakSet<HTMLElement>();
 /** Касания, начатые на цели в режиме LEARN, — их отпускание тоже не доходит до кнопки. */
 const blocked = new Set<number>();
 /** Последний тап по цели (двойной тап — окно настройки). */
@@ -74,7 +75,7 @@ export function buildLearnBar(): HTMLElement {
 export function renderLearn() {
   if (!learn.on) {
     if (marked.length) {
-      for (const el of marked) { setClass(el, 'midi-target', false); setClass(el, 'midi-mapped', false); }
+      for (const el of marked) { setClass(el, 'midi-target', false); setClass(el, 'midi-mapped', false); delete el.dataset.midiType; }
       marked = [];
     }
     return;
@@ -84,6 +85,11 @@ export function renderLearn() {
     const t = targetFromAttr(el.dataset.midi!);
     if (!t) continue;
     setClass(el, 'midi-target', JSON.stringify(t) === JSON.stringify(learn.target));
-    setClass(el, 'midi-mapped', isMapped(t));
+    // Назначенные — полупрозрачная жёлтая заливка и тип маппинга: N (нота) или CC.
+    const m = mappingFor(t);
+    setClass(el, 'midi-mapped', !!m);
+    if (m) el.dataset.midiType = m.src.type === 'cc' ? 'CC' : 'N'; else delete el.dataset.midiType;
+    // Метка ставится в угол элемента: ему нужен свой контекст позиционирования.
+    if (m && !rel.has(el)) { rel.add(el); if (getComputedStyle(el).position === 'static') el.classList.add('midi-rel'); }
   }
 }
