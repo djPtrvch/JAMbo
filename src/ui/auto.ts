@@ -10,7 +10,7 @@
 import { AUTO_PARAMS, AUTO_MAX_POINTS, evalAuto, insertPoint, isStepped, segType, simplify, spliceRecording, type AutoPoint, type SegType } from '../automation';
 import { fromNorm, STEPS_PER_PAGE, synthEngine, synthGrid, TRACK_GRID, type ParamDef } from '../params';
 import {
-  addAuto, autoDef, autoList, autoPos, autoRecPieces, autoSpan, beginGesture, canResimplify, clearAuto, curAuto, deleteAuto,
+  addAuto, autoDef, setPlayPages, autoList, autoPos, autoRecPieces, autoSpan, beginGesture, canResimplify, clearAuto, curAuto, deleteAuto,
   editAuto, endGesture, selTrack, setAutoCurve, setAutoSimplify, toggleView, ui,
 } from '../state';
 import { closeButton, DOUBLE_TAP_MS, h, setClass, setText } from './dom';
@@ -35,7 +35,6 @@ let note: HTMLElement;
 let tip: HTMLElement;
 let nameText: HTMLElement;
 let listBox: HTMLElement;
-let pagesBox: HTMLElement;
 let side: HTMLElement;
 let snapXBtn: HTMLElement;
 let snapYBtn: HTMLElement;
@@ -368,13 +367,12 @@ export function buildAuto(): HTMLElement {
   const clear = tool('CLEAR', () => { clearAuto(); sel = -1; });
   editBtns.push(clear, toolBtns.line, toolBtns.spline, toolBtns.free, snapXBtn, snapYBtn);
   const close = closeButton(() => toggleView('auto'));
-  bar.append(nameText, toolBtns.line, toolBtns.spline, toolBtns.free, simpBox, snapXBtn, snapYBtn, clear, h('div', 'sedit-space'), close);
+  bar.append(nameText, toolBtns.line, toolBtns.spline, toolBtns.free, simpBox, snapXBtn, snapYBtn, clear, buildPagesRow(), close);
 
   const body = h('div', 'auto-body');
   side = h('div', 'auto-side');
   listBox = h('div', 'auto-list');
-  pagesBox = h('div', 'auto-pages');
-  side.append(listBox, pagesBox);
+  side.append(listBox);
   plot = h('div', 'eq-plot');
   canvas = document.createElement('canvas');
   canvas.className = 'eq-canvas auto-canvas';
@@ -395,17 +393,104 @@ export function toggleAuto() { toggleView('auto'); }
 
 // ---------- Отрисовка (каждый кадр, пока окно открыто) ----------
 
+// ---------- Страницы паттерна: квадратики в верхней панели ----------
+// Как миниатюры страниц дорожки, только по горизонтали: белая обводка — играющие страницы; тап — одна
+// страница (через 0,3 с, если не было второго тапа); протягивание — несколько; касание у края обводки
+// тянет этот край влево-вправо, в середине — переносит обводку целиком. Открытая в поле страница — светлее.
+
+const EDGE = 0.4;
+let pagesRow: HTMLElement;
+let pageCells: HTMLElement[] = [];
+let pageOutline: HTMLElement;
 let pagesSig = '';
-function renderPagesBox(n: number) {
-  const sig = `${n}|${page}`;
+let pdrag: { id: number; x0: number; from: number; mode: 'left' | 'right' | 'move' | 'new'; f: number; t: number; p0: number; moved: boolean; range: [number, number] | null } | null = null;
+let pageTapTimer = 0;
+
+function pageGeom() {
+  const first = pageCells[0]?.getBoundingClientRect();
+  const second = pageCells[1]?.getBoundingClientRect();
+  return { left: first?.left ?? 0, pitch: second && first ? second.left - first.left : (first?.width ?? 40) + 6 };
+}
+
+function buildPagesRow(): HTMLElement {
+  pagesRow = h('div', 'auto-pages');
+  pageOutline = h('div', 'auto-pages-outline');
+  pagesRow.append(pageOutline);
+  pagesRow.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    const t = selTrack();
+    if (pdrag || ui.channel !== 'track' || t.pages.length < 1) return;
+    pagesRow.setPointerCapture(e.pointerId);
+    const { left, pitch } = pageGeom();
+    const pos = (e.clientX - left) / pitch;
+    const i = Math.min(t.pages.length - 1, Math.max(0, Math.floor(pos)));
+    const mode = Math.abs(pos - t.playFrom) <= EDGE ? 'left' : Math.abs(pos - (t.playTo + 1)) <= EDGE ? 'right'
+      : pos > t.playFrom && pos < t.playTo + 1 ? 'move' : 'new';
+    pdrag = { id: e.pointerId, x0: e.clientX, from: i, mode, f: t.playFrom, t: t.playTo, p0: pos, moved: false, range: null };
+  });
+  pagesRow.addEventListener('pointermove', (e) => {
+    const d = pdrag;
+    if (!d || e.pointerId !== d.id) return;
+    if (!d.moved && Math.abs(e.clientX - d.x0) < MOVE_PX) return;
+    d.moved = true;
+    const n = selTrack().pages.length;
+    const { left, pitch } = pageGeom();
+    const pos = (e.clientX - left) / pitch;
+    const cl = (v: number) => Math.min(n - 1, Math.max(0, v));
+    // Край берёт страницу, когда зашёл в неё на треть.
+    if (d.mode === 'left') d.range = [Math.min(d.t, cl(Math.ceil(pos - 2 / 3))), d.t];
+    else if (d.mode === 'right') d.range = [d.f, Math.max(d.f, cl(Math.floor(pos - 1 / 3)))];
+    else if (d.mode === 'move') {
+      const len = d.t - d.f;
+      const f = Math.min(n - 1 - len, Math.max(0, d.f + Math.round(pos - d.p0)));
+      d.range = [f, f + len];
+    } else {
+      const k = cl(Math.floor(pos));
+      d.range = [Math.min(d.from, k), Math.max(d.from, k)];
+    }
+  });
+  const end = (e: PointerEvent) => {
+    const d = pdrag;
+    if (!d || e.pointerId !== d.id) return;
+    pdrag = null;
+    if (e.type !== 'pointerup') return;
+    if (d.moved) {
+      if (d.range && (d.range[0] !== d.f || d.range[1] !== d.t)) { setPlayPages(d.range[0], d.range[1]); page = d.range[0]; }
+      return;
+    }
+    // Тап: одна страница играет и открыта в поле.
+    clearTimeout(pageTapTimer);
+    const i = d.from;
+    pageTapTimer = window.setTimeout(() => {
+      if (i >= selTrack().pages.length) return;
+      setPlayPages(i, i);
+      page = i;
+    }, DOUBLE_TAP_MS);
+  };
+  pagesRow.addEventListener('pointerup', end);
+  pagesRow.addEventListener('pointercancel', end);
+  return pagesRow;
+}
+
+function renderPagesRow(isTrack: boolean) {
+  const t = selTrack();
+  const n = isTrack ? t.pages.length : 0;
+  if (pageCells.length !== n) {
+    pageCells = Array.from({ length: n }, (_, k) => h('div', 'auto-page', String(k + 1)));
+    pagesRow.replaceChildren(...pageCells, pageOutline);
+    pagesSig = '';
+  }
+  const [f, to] = pdrag?.range ?? [t.playFrom, t.playTo];
+  const sig = `${n}|${page}|${f}|${to}|${pagesRow.clientWidth}`;
   if (sig === pagesSig) return;
   pagesSig = sig;
-  if (n <= 1) { pagesBox.replaceChildren(); return; }
-  pagesBox.replaceChildren(...Array.from({ length: n }, (_, k) => {
-    const b = h('div', `btn auto-page${k === page ? ' on' : ''}`, String(k + 1));
-    b.addEventListener('pointerdown', (e) => { e.preventDefault(); page = k; });
-    return b;
-  }));
+  pageCells.forEach((c, k) => setClass(c, 'on', k === page));
+  setClass(pageOutline, 'hidden', !n);
+  if (!n) return;
+  const a = pageCells[Math.min(f, n - 1)];
+  const b = pageCells[Math.min(to, n - 1)];
+  pageOutline.style.left = `${a.offsetLeft - 3}px`;
+  pageOutline.style.width = `${b.offsetLeft + b.offsetWidth - a.offsetLeft + 6}px`;
 }
 
 export function renderAuto() {
@@ -430,7 +515,7 @@ export function renderAuto() {
     if (pp !== lastPlayPage) { lastPlayPage = pp; page = pp; }
   } else lastPlayPage = -1;
   page = Math.min(page, pages - 1);
-  renderPagesBox(isTrack ? pages : 1);
+  renderPagesRow(isTrack);
 
   // Сверху: дорожка (жирным), под ней — параметр.
   const title = `${isTrack ? t.name : ''}\n${a ? autoLabel(a.param) : 'Automation'}`;
