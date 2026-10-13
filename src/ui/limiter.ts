@@ -111,7 +111,7 @@ export function buildLimiterWindow(): HTMLElement {
   const strip = h('div', 'eq-bar lim-strip');
   const head = h('div', 'eq-name', 'MASTER\nLIM');
   strip.append(head);
-  for (const [key, label] of [['lim.input', 'GAIN'], ['lim.ceiling', 'CEILING']] as const) {
+  for (const [key, label] of [['lim.input', 'INPUT'], ['lim.ceiling', 'CEILING']] as const) {
     const root = h('div', 'field eq-field lim-cell');
     const value = h('div', 'field-value');
     root.append(h('div', 'field-label', label), value);
@@ -123,7 +123,7 @@ export function buildLimiterWindow(): HTMLElement {
   slider = h('div', 'lim-slider');
   sliderFill = h('div', 'lim-slider-fill');
   sliderValue = h('div', 'lim-slider-value');
-  slider.append(h('div', 'lim-slider-label', 'GAIN'), sliderFill, sliderValue);
+  slider.append(h('div', 'lim-slider-label', 'INPUT'), sliderFill, sliderValue);
   let sy = 0, sn = 0, sid = -1, sMoved = false, sTimer = 0;
   slider.addEventListener('pointerdown', (e) => {
     e.preventDefault();
