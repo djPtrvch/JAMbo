@@ -1,7 +1,8 @@
 // Окно автоматизации (кнопка AUTO): на месте центра экрана, как EQ и редактор сэмпла.
-// Слева — список автоматизаций активного паттерна выбранной дорожки (по подписи ручки; выбранная —
-// жёлтая; свайп влево — корзина, второй тап — удалить) и «+» (выбор ручки). Сверху — имя, инструмент
-// LINE | SPLINE | FREE, SNAP по X и Y, REC, SIMPLIFY и число точек, COPY, PASTE, CLEAR, закрытие.
+// Слева (шириной с MIX) — список автоматизаций активного паттерна выбранной дорожки (по подписи ручки;
+// выбранная — жёлтая; двойной тап — меню DELETE) и «+» (выбор ручки). Сверху — дорожка и параметр,
+// LINE | SPLINE (режим кривой), карандаш (свободное рисование), SIMPLIFY, SNAP по X и Y, CLEAR, закрытие.
+// Запись — основной кнопкой REC при игре: поворот ручки пишет её автоматизацию.
 // Поле: 16 ячеек шагов (страницы паттерна листаются, при игре — за позицией), деления 1/2 и 1/4 шага,
 // линии 0/25/50/75/100 %, линия позиции. Тап по пустому месту — точка; тап по точке — выбор; удержание
 // и перетаскивание — двигает; двойной тап — удаление; удержание без движения — тип сегмента.
@@ -9,8 +10,8 @@
 import { AUTO_PARAMS, AUTO_MAX_POINTS, evalAuto, insertPoint, isStepped, segType, simplify, spliceRecording, type AutoPoint, type SegType } from '../automation';
 import { fromNorm, STEPS_PER_PAGE, synthEngine, synthGrid, TRACK_GRID, type ParamDef } from '../params';
 import {
-  addAuto, autoDef, autoList, autoPos, autoRecPieces, autoSpan, beginGesture, canResimplify, clearAuto, copyAuto, curAuto, deleteAuto,
-  editAuto, endGesture, pasteAuto, selTrack, setAutoSimplify, toggleView, ui,
+  addAuto, autoDef, autoList, autoPos, autoRecPieces, autoSpan, beginGesture, canResimplify, clearAuto, curAuto, deleteAuto,
+  editAuto, endGesture, selTrack, setAutoCurve, setAutoSimplify, toggleView, ui,
 } from '../state';
 import { closeButton, DOUBLE_TAP_MS, h, setClass, setText } from './dom';
 import { makePopup, popupButton, type Popup } from './popup';
@@ -35,8 +36,7 @@ let tip: HTMLElement;
 let nameText: HTMLElement;
 let listBox: HTMLElement;
 let pagesBox: HTMLElement;
-let countText: HTMLElement;
-let recBtn: HTMLElement;
+let side: HTMLElement;
 let snapXBtn: HTMLElement;
 let snapYBtn: HTMLElement;
 let simpBox: HTMLElement;
@@ -56,7 +56,8 @@ let lastPlayPage = -1;
 let sel = -1;
 /** Подпись списка: перестраивается при изменении. */
 let listSig = '';
-let confirmDel = '';
+let listMenu: Popup;
+const listTap = { id: '', t: -1e9 };
 
 interface Drag {
   id: number;
@@ -104,7 +105,8 @@ function snapY(y: number, def: ParamDef | undefined): number {
   return q ? Math.round(y / q) * q : y;
 }
 
-const toolType = (def: ParamDef | undefined): SegType => segType(def, ui.autoTool === 'line' ? 'linear' : 'smooth');
+/** Тип новой точки: smooth (в режиме LINE рисуется прямой), у ступенчатых — hold. */
+const toolType = (def: ParamDef | undefined): SegType => segType(def, 'smooth');
 
 /** Значение для подсказки: в единицах ручки. */
 function fmtVal(def: ParamDef | undefined, y: number): string {
@@ -158,7 +160,7 @@ function down(e: PointerEvent) {
     d.timer = window.setTimeout(() => {
       if (drag === d && !d.moved) { drag = null; openPointMenu(point, e.clientX, e.clientY); }
     }, HOLD_MS);
-  } else if (ui.autoTool === 'free') {
+  } else if (ui.autoFree) {
     // Свободное рисование: точки по ходу пальца, после отпускания — упрощение.
     d.free = [{ x: snapX(pxToX(px)), y: snapY(pxToY(py), def), type: 'smooth' }];
   } else {
@@ -254,61 +256,34 @@ function openPointMenu(i: number, x: number, y: number) {
 
 const autoLabel = (id: string) => autoDef(selTrack(), id).label;
 
-/** Строка списка: тап — открыть; свайп влево — корзина (второй тап — удалить). */
+/** Размер шрифта кнопки списка — по длине подписи (длинная — мельче; из двух слов — в две строки). */
+function labelSize(label: string): number {
+  const longest = Math.max(...label.split(/\s+/).map((w) => w.length));
+  const n = label.includes(' ') ? longest : label.length;
+  return n <= 6 ? 14 : n <= 8 ? 12 : n <= 10 ? 11 : 10;
+}
+
+/** Кнопка списка: тап — открыть; двойной тап — меню DELETE. */
 function listRow(id: string): HTMLElement {
-  const row = h('div', 'project-row lib-row auto-row');
-  const acts = h('div', 'lib-acts');
-  const trash = h('div', 'lib-act lib-trash');
-  const icon = '<svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  trash.innerHTML = icon;
-  trash.addEventListener('pointerup', () => {
-    // Подтверждение — вторым тапом.
-    if (confirmDel !== id) { confirmDel = id; trash.textContent = 'DELETE?'; return; }
-    confirmDel = '';
-    deleteAuto(id);
-    listSig = '';
-  });
-  acts.append(trash);
-  const ACT = 72;
-  const item = h('div', 'popup-btn project-item lib-item auto-item', autoLabel(id));
+  const label = autoLabel(id);
+  const item = h('div', 'btn auto-item', label);
+  item.style.fontSize = `${labelSize(label)}px`;
   setClass(item, 'current', ui.autoParam === id);
-  row.append(acts, item);
-  let pid = -1;
-  let x0 = 0;
-  let base = 0;
-  let dx = 0;
-  const place = (x: number) => { item.style.width = x ? `calc(100% - ${-x}px)` : ''; };
   item.addEventListener('pointerdown', (e) => {
     e.preventDefault();
-    pid = e.pointerId;
-    x0 = e.clientX;
-    dx = 0;
-    base = row.classList.contains('open') ? -ACT : 0;
-    item.setPointerCapture(e.pointerId);
-  });
-  item.addEventListener('pointermove', (e) => {
-    if (e.pointerId !== pid) return;
-    dx = e.clientX - x0;
-    if (Math.abs(dx) > 6) place(Math.max(-ACT, Math.min(0, base + dx)));
-  });
-  const end = (e: PointerEvent) => {
-    if (e.pointerId !== pid) return;
-    pid = -1;
-    if (Math.abs(dx) <= 6) {
-      if (row.classList.contains('open')) { row.classList.remove('open'); place(0); return; }
-      ui.autoParam = id;
-      sel = -1;
+    const now = performance.now();
+    if (listTap.id === id && now - listTap.t < DOUBLE_TAP_MS) {
+      listTap.id = '';
+      listMenu.box.replaceChildren(popupButton('DELETE', () => { listMenu.close(); deleteAuto(id); listSig = ''; }));
+      listMenu.openAt(item, 160);
       return;
     }
-    const opened = base + dx < -ACT / 2;
-    listBox.querySelectorAll('.auto-row.open').forEach((r) => { if (r !== row) { r.classList.remove('open'); (r.querySelector('.auto-item') as HTMLElement).style.width = ''; } });
-    row.classList.toggle('open', opened);
-    if (!opened) { confirmDel = ''; trash.innerHTML = icon; }
-    place(opened ? -ACT : 0);
-  };
-  item.addEventListener('pointerup', end);
-  item.addEventListener('pointercancel', end);
-  return row;
+    listTap.id = id;
+    listTap.t = now;
+    ui.autoParam = id;
+    sel = -1;
+  });
+  return item;
 }
 
 /** «+»: выбор ручки дорожки (уже назначенная — просто открывается). */
@@ -337,7 +312,6 @@ function renderList() {
   const sig = `${ui.selectedTrack}|${selTrack().slot}|${selTrack().sample}|${ui.autoParam}|${list.map((a) => a.param).join(',')}`;
   if (sig === listSig) return;
   listSig = sig;
-  confirmDel = '';
   const plus = h('div', 'btn auto-plus', '+');
   plus.addEventListener('pointerdown', (e) => { e.preventDefault(); openPick(plus); });
   listBox.replaceChildren(...list.map((a) => listRow(a.param)), plus);
@@ -359,15 +333,17 @@ export function buildAuto(): HTMLElement {
   pickMenu = makePopup();
   pointMenu = makePopup();
 
+  listMenu = makePopup();
   const bar = h('div', 'eq-bar auto-bar');
   nameText = h('div', 'eq-name auto-name');
-  for (const [k, label] of [['line', 'LINE'], ['spline', 'SPLINE'], ['free', 'FREE']] as const) {
-    toolBtns[k] = tool(label, () => { ui.autoTool = k; });
-  }
+  // LINE | SPLINE — режим кривой открытой автоматизации (LINE — все сегменты прямые).
+  toolBtns.line = tool('LINE', () => setAutoCurve('line'));
+  toolBtns.spline = tool('SPLINE', () => setAutoCurve('spline'));
+  // Карандаш — свободное рисование пальцем.
+  toolBtns.free = tool('', () => { ui.autoFree = !ui.autoFree; }, 'sq');
+  toolBtns.free.innerHTML = '<svg class="tr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1-4L16 5l3 3L8 19z"/><path d="M14 7l3 3"/></svg>';
   snapXBtn = tool('', () => { ui.autoSnapX = (ui.autoSnapX + 1) % SNAP_X.length; });
   snapYBtn = tool('', () => { ui.autoSnapY = (ui.autoSnapY + 1) % SNAP_Y.length; });
-  recBtn = tool('', () => { ui.autoRec = !ui.autoRec; }, 'sq rec-btn');
-  recBtn.innerHTML = '<svg class="tr-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6" fill="currentColor"/></svg>';
   // SIMPLIFY: палец вбок по полю (0…100 %) — упрощение последней записи заново.
   simpBox = h('div', 'btn eq-tool auto-simp');
   simpFill = h('div', 'auto-simp-fill');
@@ -389,16 +365,13 @@ export function buildAuto(): HTMLElement {
   const simpEnd = () => { if (sx < 0) return; sx = -1; endGesture(); };
   simpBox.addEventListener('pointerup', simpEnd);
   simpBox.addEventListener('pointercancel', simpEnd);
-  countText = h('div', 'auto-count');
-  const copy = tool('COPY', copyAuto);
-  const paste = tool('PASTE', pasteAuto);
   const clear = tool('CLEAR', () => { clearAuto(); sel = -1; });
-  editBtns.push(copy, paste, clear, toolBtns.line, toolBtns.spline, toolBtns.free, snapXBtn, snapYBtn, recBtn);
+  editBtns.push(clear, toolBtns.line, toolBtns.spline, toolBtns.free, snapXBtn, snapYBtn);
   const close = closeButton(() => toggleView('auto'));
-  bar.append(nameText, toolBtns.line, toolBtns.spline, toolBtns.free, snapXBtn, snapYBtn, recBtn, simpBox, countText, copy, paste, clear, h('div', 'sedit-space'), close);
+  bar.append(nameText, toolBtns.line, toolBtns.spline, toolBtns.free, simpBox, snapXBtn, snapYBtn, clear, h('div', 'sedit-space'), close);
 
   const body = h('div', 'auto-body');
-  const side = h('div', 'auto-side');
+  side = h('div', 'auto-side');
   listBox = h('div', 'auto-list scrolly');
   pagesBox = h('div', 'auto-pages');
   side.append(listBox, pagesBox);
@@ -454,19 +427,28 @@ export function renderAuto() {
   page = Math.min(page, pages - 1);
   renderPagesBox(isTrack ? pages : 1);
 
-  setText(nameText, a ? `${autoLabel(a.param)}\n${t.name}` : isTrack ? `AUTOMATION\n${t.name}` : 'AUTOMATION');
-  for (const [k, b] of Object.entries(toolBtns)) setClass(b, 'on', ui.autoTool === k);
+  // Сверху: дорожка (жирным), под ней — параметр.
+  const title = `${isTrack ? t.name : ''}\n${a ? autoLabel(a.param) : 'Automation'}`;
+  if (nameText.dataset.t !== title) {
+    nameText.dataset.t = title;
+    const [tn, pn] = title.split('\n');
+    nameText.replaceChildren(h('b', '', tn), h('span', '', pn));
+  }
+  // Боковые кнопки и имя — шириной с MIX в строке дорожек.
+  const mixW = (document.querySelector('.track.channel') as HTMLElement | null)?.offsetWidth ?? 0;
+  if (mixW) { const w = `${mixW}px`; if (side.style.width !== w) { side.style.width = w; nameText.style.minWidth = w; } }
+  const curve = a?.curve ?? 'spline';
+  setClass(toolBtns.line, 'on', curve === 'line');
+  setClass(toolBtns.spline, 'on', curve === 'spline');
+  setClass(toolBtns.free, 'on', ui.autoFree);
   setText(snapXBtn, `X ${SNAP_X_NAMES[ui.autoSnapX]}`);
   setText(snapYBtn, `Y ${SNAP_Y_NAMES[ui.autoSnapY]}`);
   setClass(snapXBtn, 'on', ui.autoSnapX > 0);
   setClass(snapYBtn, 'on', ui.autoSnapY > 0);
-  setClass(recBtn, 'rec', ui.autoRec);
   for (const b of editBtns) setClass(b, 'disabled', !a);
-  setClass(editBtns[1], 'disabled', !a || !ui.autoClipboard);
   setText(simpText, `SIMPLIFY ${ui.autoSimplify}%`);
   simpFill.style.width = `${ui.autoSimplify}%`;
   setClass(simpBox, 'live', canResimplify());
-  setText(countText, a ? `${a.points.length}\npts` : '');
   setClass(note, 'hidden', !!a);
   setText(note, !isTrack ? 'Select a track to automate its knobs.' : 'No automation in this pattern — tap + to add one.');
 
@@ -509,7 +491,7 @@ export function renderAuto() {
     g.lineJoin = 'round';
     g.beginPath();
     for (let px = 0; px <= W; px += 1) {
-      const y = evalAuto(a.points, pxToX(px), stepped) ?? 0;
+      const y = evalAuto(a.points, pxToX(px), stepped, a.curve === 'line') ?? 0;
       if (px === 0) g.moveTo(px, yToPx(y)); else g.lineTo(px, yToPx(y));
     }
     g.stroke();

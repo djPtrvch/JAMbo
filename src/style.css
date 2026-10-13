@@ -1080,24 +1080,28 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 .auto-bar .eq-tool.sq { flex: none; width: 48px; }
 .auto-bar .eq-tool.on { background: var(--accent); color: var(--on-accent); }
 .auto-bar .eq-tool.disabled { opacity: 0.35; }
-.eq-name.auto-name { width: 120px; justify-content: flex-start; text-align: left; padding: 0 6px; color: var(--text); overflow: hidden; }
+.eq-name.auto-name { width: auto; max-width: 200px; flex: none; flex-direction: column; align-items: flex-start; justify-content: center; text-align: left; padding: 0 6px; color: var(--text); overflow: hidden; font-size: 13px; letter-spacing: 0.04em; }
+.auto-name b, .auto-name span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.auto-name b { font-weight: 700; }
+.auto-name span { font-weight: 400; }
 .auto-simp { position: relative; overflow: hidden; flex: 1 1 140px; max-width: 170px; min-width: 96px; width: auto; touch-action: none; }
 .auto-simp-fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--off); opacity: 0.5; pointer-events: none; }
 .auto-simp.live .auto-simp-fill { background: var(--accent); opacity: 0.35; }
 .auto-simp-text { position: relative; font-size: 11px; letter-spacing: 0.04em; pointer-events: none; }
-.auto-count { flex: none; width: 40px; display: flex; align-items: center; justify-content: center; text-align: center; white-space: pre; font-size: 11px; color: var(--dim); }
 .auto-body { flex: 1; min-height: 0; display: flex; gap: var(--gap); }
 .auto-side { width: 128px; flex: none; display: flex; flex-direction: column; gap: var(--gap); min-height: 0; }
-.auto-list { flex: 1; min-height: 0; display: grid; grid-auto-rows: 48px; align-content: start; gap: 4px; overflow-y: auto; background: var(--panel); border-radius: var(--radius); padding: 4px; }
+.auto-list { flex: 1; min-height: 0; display: grid; grid-auto-rows: 52px; align-content: start; gap: var(--gap); overflow-y: auto; }
 .auto-list.hidden { display: none; }
-.auto-item { justify-content: flex-start; padding: 0 10px; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; touch-action: none; }
+/* Кнопки списка: подпись крупнее или мельче по длине; из двух слов — в две строки. */
+.auto-item { padding: 0 6px; text-align: center; line-height: 1.15; white-space: normal; overflow-wrap: normal; word-break: keep-all; overflow: hidden; touch-action: none; }
+.auto-item.current { background: var(--accent); color: var(--on-accent); }
 .auto-plus { font-size: 24px; }
-.auto-pages { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; flex: none; }
+.auto-pages { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; flex: none; }
 .auto-page { height: 32px; font-size: 12px; }
 .auto-page.on { background: var(--text); color: var(--bg); }
 .auto .eq-canvas { touch-action: none; }
 /* Значок волны на паттерне с автоматизацией (сетка паттернов, миниатюры страниц). */
-.auto-badge { position: absolute; top: 2px; right: 3px; width: 16px; height: 8px; color: var(--accent); pointer-events: none; z-index: 2; }
+.auto-badge { position: absolute; top: 5px; right: 7px; width: 16px; height: 8px; color: var(--accent); pointer-events: none; z-index: 2; }
 .auto-badge svg { width: 100%; height: 100%; display: block; }
 .auto-badge.hidden { display: none; }
 /* Жёлтая риска на кольце ручки: значение автоматизации. */

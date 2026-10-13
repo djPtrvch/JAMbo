@@ -236,21 +236,18 @@ export interface Ui {
   browserView: boolean;
   /** Окно автоматизации (кнопка AUTO) на месте центра экрана. */
   autoView: boolean;
-  /**
-   * Открытая автоматизация (id параметра) и запись (REC окна автоматизации): пока REC включена, касание
-   * ручки этого параметра (на экране — окно AUTO можно закрыть, — или энкодером) пишет кривую.
-   */
+  /** Открытая автоматизация (id параметра). */
   autoParam: string;
-  autoRec: boolean;
-  /** Инструмент рисования: тип новых сегментов (FREE — свободное рисование, сегменты smooth). */
-  autoTool: 'line' | 'spline' | 'free';
+  /** LINE или SPLINE — режим новых автоматизаций (у открытой — её поле curve). */
+  autoTool: 'line' | 'spline';
+  /** Карандаш: свободное рисование пальцем (после отпускания — упрощение). */
+  autoFree: boolean;
   /** Привязка по X (доля шага, 0 — нет) и по Y (доля диапазона, 0 — нет). */
   autoSnapX: number;
   autoSnapY: number;
   /** SIMPLIFY: 0…100 % (допуск упрощения записи). */
   autoSimplify: number;
-  /** Скопированные точки автоматизации. */
-  autoClipboard: AutoPoint[] | null;
+
   /** Выбранная полоса EQ (−1 — нет). */
   eqBand: number;
   /** Включён режим MORPH (временные изменения ручек). */
@@ -382,12 +379,11 @@ export const ui: Ui = {
   browserView: false,
   autoView: false,
   autoParam: '',
-  autoRec: false,
   autoTool: 'spline',
+  autoFree: false,
   autoSnapX: 0,
   autoSnapY: 0,
   autoSimplify: 20,
-  autoClipboard: null,
   morph: false,
   eqBand: -1,
   lfoPreviewUntil: 0,
@@ -2567,7 +2563,7 @@ export function autoCurve(i: number, id: string, at = performance.now()): number
   if (!a || !a.points.length) return null;
   const x = autoClock(i, at);
   if (x === null) return null;
-  return evalAuto(a.points, x, isStepped(autoDef(t, id)));
+  return evalAuto(a.points, x, isStepped(autoDef(t, id)), a.curve === 'line');
 }
 
 /**
@@ -2607,8 +2603,12 @@ export function baseValue(i: number, id: string, locks: Record<string, number>, 
   return n === null ? t.params[id] : fromNorm(autoDef(t, id), n);
 }
 
-/** Запись (REC окна автоматизации): куски по ходу времени (новый кусок — паттерн пошёл по кругу). */
-interface AutoRec { track: number; id: string; knob: number; pieces: AutoPoint[][] }
+/**
+ * Запись автоматизации — основной кнопкой REC при игре: ручка дорожки под пальцем пишет кривую своего
+ * параметра (нет автоматизации — появится). Куски по ходу времени (новый кусок — паттерн пошёл по кругу);
+ * пока ручку не повернули, ничего не пишется.
+ */
+interface AutoRec { track: number; id: string; knob: number; start: number; pieces: AutoPoint[][]; moved: boolean }
 let rec: AutoRec | null = null;
 /** Последняя запись: SIMPLIFY пересчитывает её упрощение заново. */
 let lastTake: { track: number; slot: number; id: string; base: AutoPoint[]; pieces: AutoPoint[][] } | null = null;
@@ -2639,10 +2639,9 @@ export function handDown(i: number, id: string) {
   if (n !== null) t.params[id] = fromNorm(def, n);
   // Автоматизация действует: поворот ручки временный — после отпускания ручка возвращается к прежнему значению.
   hands.set(handKey(i, id), { held: true, t: 0, from: 0, knob: n === null ? undefined : knob });
-  const a = autoOf(t, id);
-  // Запись: ручка после неё вернётся к значению до касания (запись меняет только кривую).
-  if (ui.autoRec && ui.autoParam === id && i === ui.selectedTrack && a && autoPos(i) !== null) {
-    rec = { track: i, id, knob, pieces: [[]] };
+  // Запись (REC при игре): ручка после неё вернётся к значению до касания (запись меняет только кривую).
+  if (ui.rec && ui.playing && i === ui.selectedTrack && autoPos(i) !== null) {
+    rec = { track: i, id, knob, start: t.params[id], pieces: [[]], moved: false };
   }
 }
 
@@ -2658,12 +2657,15 @@ export function handUp(i: number, id: string) {
   hh.from = toNorm(def, t.params[id]);
   if (rec && rec.track === i && rec.id === id) {
     autoRecordFrame(performance.now());
-    const a = autoOf(t, id);
     const pieces = rec.pieces.filter((p) => p.length > 0);
-    if (a && pieces.length) {
+    if (rec.moved && pieces.length) {
+      // Нет автоматизации у параметра — запись её создаёт (режим — как у новых).
+      let a = autoOf(t, id);
+      if (!a) { a = { param: id, points: [], curve: ui.autoTool }; (t.auto ??= []).push(a); }
       const base = a.points.map((p) => ({ ...p }));
       lastTake = { track: i, slot: t.slot, id, base, pieces };
       a.points = applyTake(base, pieces, isStepped(def));
+      if (i === ui.selectedTrack) ui.autoParam = id;
     }
     t.params[id] = rec.knob;
     rec = null;
@@ -2687,6 +2689,11 @@ export function autoRecordFrame(now: number) {
   const x = t ? autoClock(rec.track, now) : null;
   if (!t || x === null) return;
   const y = toNorm(autoDef(t, rec.id), t.params[rec.id]);
+  // Пока ручку не повернули — не пишем (касание без поворота кривую не меняет).
+  if (!rec.moved) {
+    if (t.params[rec.id] === rec.start) return;
+    rec.moved = true;
+  }
   let piece = rec.pieces[rec.pieces.length - 1];
   const last = piece[piece.length - 1];
   // Паттерн пошёл по кругу — новый кусок (он заменит точки своего участка).
@@ -2726,8 +2733,8 @@ export function addAuto(id: string) {
   edit(() => {
     const def = autoDef(t, id);
     const y = toNorm(def, t.params[id]);
-    const type = segType(def, ui.autoTool === 'line' ? 'linear' : 'smooth');
-    (t.auto ??= []).push({ param: id, points: [{ x: 0, y, type }, { x: autoSpan(t), y, type }] });
+    const type = segType(def, 'smooth');
+    (t.auto ??= []).push({ param: id, points: [{ x: 0, y, type }, { x: autoSpan(t), y, type }], curve: ui.autoTool });
   });
 }
 
@@ -2747,17 +2754,10 @@ export function editAuto(fn: (a: Automation, t: Track) => void) {
   if (a) edit(() => fn(a, t));
 }
 
-export function copyAuto() {
-  const a = curAuto();
-  if (a) ui.autoClipboard = a.points.map((p) => ({ ...p }));
-}
-export function pasteAuto() {
-  const clip = ui.autoClipboard;
-  if (!clip) return;
-  editAuto((a, t) => {
-    const def = autoDef(t, a.param);
-    a.points = clip.map((p) => ({ ...p, type: segType(def, p.type) }));
-  });
+/** LINE / SPLINE: режим открытой автоматизации (и новых). */
+export function setAutoCurve(c: 'line' | 'spline') {
+  ui.autoTool = c;
+  editAuto((a) => { a.curve = c; });
 }
 export function clearAuto() { editAuto((a) => { a.points = []; }); }
 

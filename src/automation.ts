@@ -11,7 +11,8 @@ export const SEG_TYPES: SegType[] = ['linear', 'smooth', 'hold'];
 
 /** Точка: x — позиция в шагах секвенсора (дробная, от начала паттерна), y — положение ручки 0..1. */
 export interface AutoPoint { x: number; y: number; type: SegType }
-export interface Automation { param: string; points: AutoPoint[] }
+/** curve: 'line' — все сегменты прямые (smooth рисуется прямой), 'spline' (нет поля — тоже) — сплайны разрешены. */
+export interface Automation { param: string; points: AutoPoint[]; curve?: 'line' | 'spline' }
 
 /** Точек в одной автоматизации не больше. */
 export const AUTO_MAX_POINTS = 512;
@@ -75,9 +76,9 @@ function segIndex(pts: AutoPoint[], x: number): number {
 
 /**
  * Значение кривой 0..1 в позиции x (шаги). До первой точки — её значение, после последней — значение
- * последней. stepped — ступенчатый параметр (все сегменты — hold).
+ * последней. stepped — ступенчатый параметр (все сегменты — hold); line — режим LINE (smooth — прямая).
  */
-export function evalAuto(pts: AutoPoint[], x: number, stepped = false): number | null {
+export function evalAuto(pts: AutoPoint[], x: number, stepped = false, line = false): number | null {
   const n = pts.length;
   if (!n) return null;
   const i = segIndex(pts, x);
@@ -85,7 +86,7 @@ export function evalAuto(pts: AutoPoint[], x: number, stepped = false): number |
   if (i >= n - 1) return pts[n - 1].y;
   const a = pts[i];
   const b = pts[i + 1];
-  const t = stepped ? 'hold' : a.type;
+  const t = stepped ? 'hold' : line && a.type === 'smooth' ? 'linear' : a.type;
   if (t === 'hold') return a.y;
   const h = b.x - a.x;
   if (h <= 1e-9) return b.y;

@@ -92,7 +92,7 @@ const topMid = h('div', 'top-mid');
 const autoBtn = h('div', 'btn tb-auto');
 autoBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); toggleAuto(); });
 registerAction('AUTO', { label: 'AUTO', press: toggleAuto, state: () => ui.autoView }, autoBtn);
-autoBtn.innerHTML = '<svg class="tr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17L8 9L13 14L21 6"/><circle cx="8" cy="9" r="1.8" fill="currentColor"/><circle cx="13" cy="14" r="1.8" fill="currentColor"/><circle cx="21" cy="6" r="1.8" fill="currentColor"/><path d="M3 21H21" opacity="0.4"/></svg>';
+autoBtn.innerHTML = '<svg class="tr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 13c3-8 7-8 10 0s7 8 10 0"/><circle cx="2.5" cy="13" r="1.9" fill="currentColor"/><circle cx="7" cy="7" r="1.9" fill="currentColor"/><circle cx="17" cy="19" r="1.9" fill="currentColor"/><circle cx="21.5" cy="13" r="1.9" fill="currentColor"/></svg>';
 topMid.append(...fields, ...buildTransportButtons().children, autoBtn, buildEqButton());
 const topRight = h('div', 'top-right');
 // Справа от EQ, над измерителем уровня — загрузка процессора.
@@ -185,8 +185,8 @@ function frameBody(now: number) {
   // Редактор сэмпла — на том же месте, что эквалайзер.
   setClass(main, 'eq', ui.eqView || ui.sampleView || ui.browserView || ui.autoView);
   setClass(autoBtn, 'active', ui.autoView);
-  // REC автоматизации включена — красный контур (запись идёт и с закрытым окном).
-  setClass(autoBtn, 'auto-armed', ui.autoRec);
+  // REC при игре: поворот ручки пишет автоматизацию — у кнопки AUTO красный контур.
+  setClass(autoBtn, 'auto-armed', ui.rec && ui.playing);
   renderKnobs(now);
   renderPatternGrid();
   renderEq();
