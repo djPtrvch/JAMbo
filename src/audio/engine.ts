@@ -36,6 +36,8 @@ interface TrackChain {
   /** EQ сухого сигнала и копии EQ для посылов Reverb / Delay / Drive. */
   eq: EqChain; sendEqs: EqChain[];
   input: GainNode; duck: GainNode; vol: GainNode;
+  /** Глубина sidechain: огибающая duck-worklet · (−amount) → duck.gain (значение 1). */
+  duckDepth: GainNode;
   /** Mute / solo: глушит выход дорожки (сухой и посылы); метр стоит до него — уровень виден и у заглушённой. */
   gate: GainNode; sends: GainNode[]; meter: Meter;
 }
@@ -390,6 +392,9 @@ export async function restartAudio() {
   scopeOn = null;
   fxSig = '';
   reverbModule = null;
+  duckNode = null;
+  duckE = 0;
+  duckSig = '';
   fxCpu.clear();
   fxModules.clear();
   tailUntil = 0;
@@ -523,6 +528,9 @@ function buildGraph(c: AudioContext) {
   tracks = Array.from({ length: MAX_TRACKS }, () => {
     const input = c.createGain();
     const duck = c.createGain();
+    const duckDepth = c.createGain();
+    duckDepth.gain.value = 0;
+    duckDepth.connect(duck.gain);
     const vol = c.createGain();
     const gate = c.createGain();
     const eq = new EqChain(c, dynSource);
@@ -539,8 +547,20 @@ function buildGraph(c: AudioContext) {
       e.output.connect(g);
       return e;
     });
-    return { eq, sendEqs, input, duck, vol, gate, sends, meter: new Meter(c, vol, true) };
+    return { eq, sendEqs, input, duck, duckDepth, vol, gate, sends, meter: new Meter(c, vol, true) };
   });
+  // Sidechain: огибающая приглушения — один узел на проект (duck-worklet.js), её выход — в глубину каждой дорожки.
+  void c.audioWorklet.addModule(new URL('duck-worklet.js', document.baseURI).href).then(() => {
+    if (c !== ctx) return;
+    const node = new AudioWorkletNode(c, 'duck', { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [1] });
+    node.port.onmessage = (e) => {
+      if (typeof e.data?.e === 'number') duckE = e.data.e;
+      if (typeof e.data?.cpu === 'number') fxCpu.set(node, e.data.cpu);
+    };
+    for (const ch of tracks) node.connect(ch.duckDepth);
+    duckNode = node;
+    duckSig = '';
+  }).catch((e) => console.error('duck', e));
 }
 
 /** Экран отладки: следующая нота сообщает, насколько позже текущего времени звука она стоит (с). */
@@ -817,20 +837,41 @@ export function releaseLive(track: number, notes: number[]) {
   msgs.forEach((m, node) => node.port.postMessage(m));
 }
 
-/** Sidechain: триг дорожки-источника приглушает остальные на их Sidechain amount. */
+/** Sidechain: огибающая (duck-worklet.js), её последнее значение (индикация) и глубины дорожек. */
+let duckNode: AudioWorkletNode | null = null;
+let duckE = 0;
+let duckSig = '';
+const duckAmount: number[] = [];
+
+/**
+ * Sidechain: триг дорожки-источника — сообщение в огибающую (в точном кадре; ATTACK, RELEASE, CURVE — на момент
+ * трига). Только от источника и если хоть одна другая дорожка приглушается.
+ */
 function sidechain(source: number, at: number) {
+  if (!duckNode || !ctx) return;
   const fx = liveFx();
   if (source !== fx['sc.source']) return;
-  const atk = fx['sc.attack'] / 1000;
-  const rel = fx['sc.release'] / 1000;
-  doc.tracks.forEach((t, i) => {
-    if (i === source) return;
-    const amount = t.params.sidechain / 100;
-    if (amount <= 0) return;
-    const g = tracks[i].duck.gain;
-    g.cancelScheduledValues(at);
-    g.setTargetAtTime(1 - amount, at, Math.max(0.0005, atk / 3));
-    g.setTargetAtTime(1, at + atk, Math.max(0.005, rel / 3));
+  if (!doc.tracks.some((t, i) => i !== source && t.params.sidechain > 0)) return;
+  duckNode.port.postMessage({
+    type: 'trig', frame: Math.round(at * ctx.sampleRate),
+    attack: fx['sc.attack'], release: fx['sc.release'], curve: fx['sc.curve'] ?? 50,
+  });
+}
+
+/** Остановка: будущие триги sidechain отменяются (возврат досчитывается). */
+export function flushSidechain() {
+  duckNode?.port.postMessage({ type: 'flush' });
+}
+
+/** Глубины sidechain дорожек (−amount; у источника и несуществующих — 0): плавно, за ~10 мс, при изменении. */
+function updateDuckDepths(ct: number, source: number) {
+  const amounts = tracks.map((_, i) => (i === source || i >= doc.tracks.length ? 0 : Math.max(0, Math.min(1, doc.tracks[i].params.sidechain / 100))));
+  const sig = amounts.join(',');
+  if (sig === duckSig) return;
+  duckSig = sig;
+  amounts.forEach((a, i) => {
+    duckAmount[i] = a;
+    tracks[i].duckDepth.gain.setTargetAtTime(-a, ct, 0.01 / 3);
   });
 }
 
@@ -1072,6 +1113,9 @@ function updateFx(now: number) {
   const master = liveMaster(now);
   const ct = c.currentTime;
   const set = (p: AudioParam, v: number) => p.setTargetAtTime(v, ct, 0.02);
+
+  // Глубины sidechain — от ручек дорожек (не входят в подпись FX): проверяются каждый кадр.
+  updateDuckDepths(ct, Math.round(fx['sc.source']));
 
   const fsig = JSON.stringify([fx, mixer, master, doc.ratio, doc.limBypass, doc.cmpBypass, doc.clipBypass, doc.satBypass, doc.bpm, doc.tracks.map((t) => +t.mute + 2 * +t.solo)]);
   if (fsig === fxSig) return;
@@ -1697,9 +1741,9 @@ class Meter {
 
 const SILENT: Level = { l: 0, r: 0, lufs: -Infinity, lufsI: -Infinity, clip: false, holdL: 0, holdR: 0, max: 0 };
 
-/** Снижение громкости дорожки от sidechain, дБ (≤ 0). */
+/** Снижение громкости дорожки от sidechain, дБ (≤ 0): 1 − amount·e по последнему значению огибающей. */
 export function trackDuckDb(i: number): number {
-  const g = tracks[i]?.duck.gain.value ?? 1;
+  const g = 1 - (duckAmount[i] ?? 0) * duckE;
   return g < 0.999 ? 20 * Math.log10(Math.max(1e-4, g)) : 0;
 }
 

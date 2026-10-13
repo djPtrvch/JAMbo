@@ -201,6 +201,14 @@ const init = () => {
     await fxRun('FX drive static', (t) => { t.params.drive = 60; });
     await fxRun('FX drive type changes', (t) => { t.params.drive = 60; }, (t, k) => { S.doc.fx['od.type'] = k % 6; S.doc.fx['od.drive'] = (k * 29) % 100; }, 150);
     await fxRun('FX drive + other fx edits', (t) => { t.params.drive = 60; }, (t, k) => { S.doc.fx['dly.feedback'] = 20 + (k % 5); }, 50);
+    // Sidechain: дорожка 1 (синус, длинные ноты) приглушается тригами беззвучных дорожек 2 и 3 (16-е).
+    const scSetup = (t) => {
+      t.params.sidechain = 100;
+      for (const k of [1, 2]) { S.setTrackSynth(k, 17); const u = S.doc.tracks[k]; u.params.level = 0; u.pages = [S.emptyPage()]; u.pages[0].forEach((st, j) => { if (j % (k + 1) === 0) { st.on = true; st.notes = [60]; } }); }
+      S.doc.fx['sc.source'] = 1; S.doc.fx['sc.attack'] = 5; S.doc.fx['sc.release'] = 120;
+    };
+    await fxRun('FX sidechain static', scSetup);
+    await fxRun('FX sidechain source + curve changes', scSetup, (t, k) => { S.doc.fx['sc.source'] = 1 + (k % 2); S.doc.fx['sc.curve'] = (k * 41) % 100; }, 230);
     await fxRun('FX mute toggles', (t) => { t.params.reverb = 30; }, (t, k) => { S.swipeTrack(0, 'down'); }, 250);
     await fxRun('FX all sends', (t) => { t.params.reverb = 40; t.params.delay = 40; t.params.drive = 40; });
 

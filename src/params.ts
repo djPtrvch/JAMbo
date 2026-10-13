@@ -303,6 +303,8 @@ export const FX_GRID: Slot[] = grid([
     smooth('sc.attack', 'SC Attack', 0.1, 100, 5, ms, { exp: true }),
     smooth('sc.release', 'SC Release', 10, 1000, 150, ms, { exp: true }),
     stepped('sc.source', 'SC Source', Array.from({ length: MAX_TRACKS }, (_, i) => `${i + 1}`)),
+    // Форма возврата огибающей sidechain (duck-worklet.js): 50 % — как прежде, 100 % — быстрый возврат в начале, 0 % — долгое удержание.
+    smooth('sc.curve', 'SC Curve', 0, 100, 50, pct),
   ],
 ]);
 

@@ -1,7 +1,7 @@
 // Таймер по BPM: двигает шаги дорожек, запускает звук, мигает дорожками и нотами пианоролла,
 // ведёт метроном. Probability, Ratchet и Swing (с p-lock и LFO) влияют на звук и мигание.
 
-import { clickAt, triggerTrack } from './audio/engine';
+import { clickAt, flushSidechain, triggerTrack } from './audio/engine';
 import { stemEndsAtBoundary, stemRecording, stemsOnPlay, stemsOnStep, stemsOnStop } from './stems';
 import { PARAM_BY_ID, SEQ_MIX, SEQ_MST, STEPS_PER_PAGE, fromNorm } from './params';
 import {
@@ -22,6 +22,8 @@ export const stepMs = () => 60000 / doc.bpm / 4;
 /** at — момент остановки (performance.now; конец строк — граница такта впереди): там же кончаются стемы. */
 export function setPlaying(on: boolean, at = performance.now()) {
   if (!on && ui.playing) stemsOnStop(at);
+  // Стоп: будущие триги sidechain отменяются (возврат огибающей доходит до конца).
+  if (!on) flushSidechain();
   ui.playing = on;
   endRecTake();
   flashes.length = 0;
