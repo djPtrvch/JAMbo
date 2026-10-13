@@ -573,11 +573,10 @@ export function renderPatternGrid() {
       setClass(c.root, 'queued', q === k);
       setClass(c.root, 'stopping', active && q === 'stop');
       setClass(c.root, 'selected-col', i === ui.selectedTrack);
-      // Выбранная для правки — белая обводка и светлее; клип с пустым паттерном — пунктир.
+      // Выбранная для правки — светлее (играющая — темнее, см. style.css).
       setClass(c.root, 'editing', i === ui.selectedTrack && ui.channel === 'track' && k === ui.editSlot && !isPrevPlaceholder(i, k));
       const view = filled ? clipView(t, k) : null;
       drawThumb(c, view);
-      setClass(c.root, 'empty-pattern', !!view && !view.pages.slice(view.playFrom, view.playTo + 1).some((pg) => pg.some((s) => s.on)));
       setClass(c.wave, 'hidden', !view || !patternHasAuto(view));
       // Прогресс проигрывания активного паттерна.
       let progress = 0;

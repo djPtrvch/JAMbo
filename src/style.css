@@ -411,12 +411,9 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 }
 .pattern-cell.selected-col { background: var(--panel-2); }
 .pattern-cell.filled { background: var(--panel-2); }
-.pattern-cell.active { box-shadow: inset 0 0 0 1px var(--accent); }
-/* Ячейка, выбранная для правки: белая обводка (в светлой теме — чёрная) и светлее; играет и выбрана — жёлтая
- * снаружи, белая внутри. Клип с пустым паттерном — пунктирная рамка. */
-.pattern-cell.editing { background: var(--panel-3, var(--off)); box-shadow: inset 0 0 0 1px var(--text); }
-.pattern-cell.active.editing { box-shadow: inset 0 0 0 1px var(--accent), inset 0 0 0 3px var(--panel-2), inset 0 0 0 4px var(--text); }
-.pattern-cell.filled.empty-pattern { outline: 1px dashed var(--dim); outline-offset: -5px; }
+.pattern-cell.filled.active { background: color-mix(in srgb, var(--panel-2) 72%, #000); }
+/* Индикация ячеек — только заливкой, без контуров: играющая — чуть темнее, выбранная для правки — светлее. */
+.pattern-cell.editing { background: var(--off); }
 .pattern-thumb { flex: 1; width: 100%; height: 100%; }
 /* Шаги в превью паттерна — с тонкой обводкой (1 px при любом масштабе), чтобы были видны. */
 /* Как в миниатюрах страниц: без контура; триги белые, хвосты длинных нот — полупрозрачные, p-lock жёлтые. */
@@ -429,7 +426,6 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 .pt-dot.outside { opacity: 0.2; }
 .pattern-bar { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--accent); }
 .pattern-cell.queued, .pattern-cell.stopping { animation: queued-blink 0.5s steps(2, jump-none) infinite; }
-.pattern-cell.queued { box-shadow: inset 0 0 0 1px var(--accent); }
 @keyframes queued-blink { 50% { opacity: 0.35; } }
 
 /* ---------- Ручки ---------- */

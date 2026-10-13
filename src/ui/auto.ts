@@ -594,22 +594,26 @@ export function renderAuto() {
     g.strokeStyle = color('--ink');
     g.lineWidth = 2;
     g.lineJoin = 'round';
-    g.beginPath();
-    // Кривая — от первой точки до последней (вне их значение ручки).
+    // Кривая — только там, где действует (страницы с точками, от первой точки до последней): участками.
     const pts = a.points;
-    const one = pts.length === 1;
-    const p0 = one ? 0 : Math.max(0, Math.ceil(xToPx(pts[0].x)));
-    const p1 = one ? W : Math.min(W, Math.floor(xToPx(pts[pts.length - 1].x)));
-    for (let px = p0; px <= p1; px += 1) {
-      const y = px === p1 && !one ? pts[pts.length - 1].y : evalAuto(pts, pxToX(px), stepped, a.curve === 'line') ?? 0;
-      if (px === p0) g.moveTo(px, yToPx(y)); else g.lineTo(px, yToPx(y));
+    const runs: [number, number][][] = [];
+    let run: [number, number][] | null = null;
+    for (let px = 0; px <= W; px += 1) {
+      const y = evalAuto(pts, pxToX(px), stepped, a.curve === 'line');
+      if (y === null) { run = null; continue; }
+      if (!run) runs.push((run = []));
+      run.push([px, yToPx(y)]);
     }
-    g.stroke();
-    g.lineTo(Math.max(p0, p1), H);
-    g.lineTo(p0, H);
-    g.closePath();
     g.fillStyle = color('--grid');
-    g.fill();
+    for (const r of runs) {
+      g.beginPath();
+      r.forEach(([x, y], k) => (k ? g.lineTo(x, y) : g.moveTo(x, y)));
+      g.stroke();
+      g.lineTo(r[r.length - 1][0], H);
+      g.lineTo(r[0][0], H);
+      g.closePath();
+      g.fill();
+    }
   }
   // Запись: что пишется сейчас — красным.
   const drawRaw = (pts: AutoPoint[], c: string) => {

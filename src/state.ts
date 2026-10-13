@@ -7,7 +7,7 @@ import {
   BPM_MAX, BPM_MIN, VOL_MIN_DB, VOL_DEF_DB, PARAM_BY_ID, PRESET_PARAMS, SEQ_COUNT, SEQ_MIX, SEQ_MST, SYNTH_ENGINES, SYNTH_GRID, synthEngine, WTABLE_ENGINE, synthGrid, synthKey, EQ_BANDS, EQ_BELL, eqHasGain, EQ_DYN_RANGE_MAX, EQ_DYN_THR_MIN, EQ_FREQ_MAX, EQ_FREQ_MIN, EQ_GAIN_MAX, EQ_Q_DEF, EQ_Q_MAX, EQ_Q_MIN, EQ_TYPES, NOTE_NAMES, PROGRESSIONS, SCALES, fromNorm, toNorm, type ParamDef, type Slot,
 } from './params';
 import { tableSampleKey } from './audio/wavetable';
-import { AUTO_PARAMS, evalAuto, isStepped, resampleGrid, segType, simplify, spliceRecording, type AutoPoint, type Automation, type SegType } from './automation';
+import { AUTO_PARAMS, evalAuto, insertPoint, isStepped, resampleGrid, segType, simplify, spliceRecording, type AutoPoint, type Automation, type SegType } from './automation';
 
 export interface Step {
   on: boolean;
@@ -994,6 +994,7 @@ export function addTrack() {
     doc.eqs.push(newEq());
     doc.mixer[`mix.vol${i + 1}`] = PARAM_BY_ID[`mix.vol${i + 1}`].def;
     for (const k of MIX_LOCK_SEQS()) forEachStep(k, (st) => { delete st.locks[`mix.vol${i + 1}`]; });
+    fillRows();
   });
 }
 
@@ -1777,20 +1778,33 @@ export function createPattern(i: number, k: number): boolean {
 
 /** Клип с пустым паттерном в ячейку k (без записи в UNDO); страница клипа или −1 — свободной нет. */
 function putEmptyClip(t: Track, k: number): number {
-  if (t.home) return -1;
+  // Свои данные дорожки (пока играет клип PREV — они в t.home).
+  const d = t.home ?? t;
   const used = new Set<number>();
   t.slots.forEach((c, j) => { if (c && !c.src && j !== k) for (let p = c.playFrom; p <= c.playTo; p++) used.add(p); });
-  if (!t.blank && t.slot !== k) for (let p = t.playFrom; p <= t.playTo; p++) used.add(p);
-  const page = t.pages.length < MAX_PAGES ? t.pages.length : t.pages.findIndex((pg, p) => !used.has(p) && pageEmpty(pg));
+  if (!t.blank && !t.home && t.slot !== k) for (let p = t.playFrom; p <= t.playTo; p++) used.add(p);
+  // Пустая страница, на которую не ссылается другой клип; нет — новая в конце; страниц уже 8 — любая пустая
+  // (общая с другим пустым клипом).
+  let page = d.pages.findIndex((pg, p) => !used.has(p) && pageEmpty(pg));
+  if (page < 0 && d.pages.length < MAX_PAGES) page = d.pages.length;
+  if (page < 0) page = d.pages.findIndex(pageEmpty);
   if (page < 0) return -1;
-  if (page === t.pages.length) {
-    t.pages.push(emptyPage());
-    fixLens(t);
+  if (page === d.pages.length) {
+    d.pages.push(emptyPage());
+    fixLens(d);
   }
   const c: Pattern = { playFrom: page, playTo: page, scale: doc.scale, root: doc.root, fx: clone(doc.fx) };
   if (k === t.slot) putPattern(t, c);
   else t.slots[k] = c;
   return page;
+}
+
+/** Пустых ячеек нет: в видимых строках у каждой дорожки клип (нет — клип с пустым паттерном). */
+export function fillRows() {
+  const rows = visibleRows();
+  doc.tracks.forEach((t, i) => {
+    for (let k = 0; k < rows; k++) if (!slotFilled(t, k) && !isPrevPlaceholder(i, k)) putEmptyClip(t, k);
+  });
 }
 
 /** Копия клипа ячейки (null — пустая). */
@@ -1845,19 +1859,16 @@ export function pastePattern(i: number, k: number) {
 export function deletePattern(i: number, k: number) {
   const t = doc.tracks[i];
   edit(() => {
-    // Паттерн очищается: шаги его страниц пустые (ноты, триги, p-lock, звуки шагов; длина — 16) — пустую
-    // страницу потом возьмёт новый клип; ячейка пустеет. У клипа PREV данные старого проекта не трогаем.
+    // Паттерн очищается: шаги его страниц пустые (ноты, триги, p-lock, звуки шагов; длина — 16); клип
+    // остаётся (пустых ячеек нет). У клипа PREV данные старого проекта не трогаем.
     const c = k === t.slot ? (t.blank || t.home ? null : t) : t.slots[k]?.src ? null : t.slots[k];
+    // Неактивный клип, пока играет клип PREV: его страницы — в своих данных дорожки (t.home).
+    const d = k !== t.slot && t.home ? t.home : t;
     if (c) {
-      fixLens(t);
-      for (let p = c.playFrom; p <= Math.min(c.playTo, t.pages.length - 1); p++) { t.pages[p] = emptyPage(); t.lens[p] = STEPS_PER_PAGE; }
+      fixLens(d);
+      for (let p = c.playFrom; p <= Math.min(c.playTo, d.pages.length - 1); p++) { d.pages[p] = emptyPage(); d.lens[p] = STEPS_PER_PAGE; }
     }
-    if (k !== t.slot) { t.slots[k] = null; return; }
-    goHome(t);
-    t.blank = true;
-    t.stopped = true;
   });
-  if (k === t.slot) patternStopped(i);
   if (i === ui.selectedTrack) { ui.heldSteps.clear(); clampView(); }
 }
 
@@ -2373,8 +2384,8 @@ export function pasteRow(k: number) {
     doc.tracks.forEach((t, i) => {
       const p = clip.patterns[i];
       if (p) setPatternAt(t, k, p);
-      else if (k !== t.slot) t.slots[k] = null;
     });
+    fillRows();
     doc.scenes[k] = clone(clip.scene);
   });
   clampView();
@@ -2499,6 +2510,7 @@ export function loadDoc(d: Doc) {
   transition = null;
   xfade = null;
   Object.assign(doc, d);
+  fillRows();
   lead = 0;
   started.fill(0);
   resetUndo();
@@ -2652,6 +2664,7 @@ export function switchWithTransition(next: Doc) {
   const to = takeGlobals(next);
   Object.assign(doc, next);
   transition = tr;
+  fillRows();
   // Общие настройки пока старые — кроссфейдер внизу.
   xfade = { from, to, pos: 0 };
   setCrossfade(0);
@@ -2711,6 +2724,8 @@ export function updateTransition() {
     || rt.scene?.row === LAST || rt.sceneQueued === LAST;
   if (busy) return;
   unshiftDoc(doc, tr);
+  transition = null;
+  fillRows();
   for (let j = doc.tracks.length; j < MAX_TRACKS; j++) rt.queued[j] = null;
   if (ui.selectedTrack >= doc.tracks.length) ui.selectedTrack = doc.tracks.length - 1;
   transition = null;
@@ -2790,7 +2805,13 @@ export function autoDef(t: Track, id: string): ParamDef {
 }
 export const autoOf = (t: Track | undefined, id: string): Automation | undefined => t?.auto?.find((a) => a.param === id);
 /** В паттерне есть хотя бы одна автоматизация с точками (значок волны на паттерне). */
-export const patternHasAuto = (p: { auto?: Automation[] } | null | undefined) => !!p?.auto?.some((a) => a.points.length > 0);
+/** У клипа (его страниц playFrom…playTo) есть автоматизация — точки на его страницах. */
+export const patternHasAuto = (p: { auto?: Automation[]; playFrom: number; playTo: number } | null | undefined) => {
+  if (!p?.auto) return false;
+  const a = p.playFrom * STEPS_PER_PAGE;
+  const b = (p.playTo + 1) * STEPS_PER_PAGE;
+  return p.auto.some((au) => au.points.some((pt) => pt.x >= a && pt.x < b));
+};
 
 /** Значение кривой (0..1) у дорожки i в момент at — без перехвата рукой; null — нет или не играет. */
 export function autoCurve(i: number, id: string, at = performance.now()): number | null {
@@ -2977,12 +2998,19 @@ export function addAuto(id: string) {
   const t = selTrack();
   if (!AUTO_PARAMS.has(id)) return;
   ui.autoParam = id;
-  if (autoOf(t, id)) return;
+  // Автоматизация — у паттерна: линия на значении ручки по страницам клипа, выбранного для правки
+  // (от начала первой до конца последней); у других паттернов дорожки её нет.
+  const v = clipView(t, ui.editSlot) ?? t;
+  const x0 = v.playFrom * STEPS_PER_PAGE;
+  const x1 = (v.playTo + 1) * STEPS_PER_PAGE - 1e-3;
+  const a = autoOf(t, id);
+  if (a && a.points.some((p) => p.x >= x0 && p.x <= x1)) return;
   edit(() => {
     const def = autoDef(t, id);
     const y = toNorm(def, t.params[id]);
     const type = segType(def, 'smooth');
-    (t.auto ??= []).push({ param: id, points: [{ x: 0, y, type }, { x: autoSpan(t), y, type }], curve: ui.autoTool });
+    const pts = [{ x: x0, y, type }, { x: x1, y, type }];
+    if (a) { for (const p of pts) insertPoint(a.points, p); } else (t.auto ??= []).push({ param: id, points: pts, curve: ui.autoTool });
   });
 }
 

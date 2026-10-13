@@ -3,7 +3,7 @@
 // (монотонный кубический сплайн Фритча — Карлсона, прямая, ступенька), упрощение записи
 // (Рамер — Дуглас — Пекер) и правка списка точек.
 
-import { PARAM_BY_ID, type ParamDef } from './params';
+import { PARAM_BY_ID, STEPS_PER_PAGE, type ParamDef } from './params';
 
 /** Тип сегмента — от этой точки к следующей. */
 export type SegType = 'linear' | 'smooth' | 'hold';
@@ -74,15 +74,23 @@ function segIndex(pts: AutoPoint[], x: number): number {
   return lo;
 }
 
+/** На странице p (шаги p·16 … p·16+16) есть точка. */
+function pageHasPoint(pts: AutoPoint[], p: number): boolean {
+  const a = p * STEPS_PER_PAGE;
+  const i = segIndex(pts, a + STEPS_PER_PAGE - 1e-9);
+  return i >= 0 && pts[i].x >= a;
+}
+
 /**
- * Значение кривой 0..1 в позиции x (шаги). Кривая действует только от первой точки до последней
- * (до первой и с последней — null: значение ручки; так новые страницы дорожки без точек — без
- * автоматизации); у одной точки — её значение везде. stepped — ступенчатый параметр (все сегменты —
- * hold); line — режим LINE (smooth — прямая).
+ * Значение кривой 0..1 в позиции x (шаги). Автоматизация — у паттерна (страницы): действует только на
+ * страницах, где есть точки, и только от первой точки до последней (иначе null — значение ручки); так у
+ * новых и других паттернов дорожки без точек автоматизации нет. У одной точки — её значение на её
+ * странице. stepped — ступенчатый параметр (все сегменты — hold); line — режим LINE (smooth — прямая).
  */
 export function evalAuto(pts: AutoPoint[], x: number, stepped = false, line = false): number | null {
   const n = pts.length;
   if (!n) return null;
+  if (!pageHasPoint(pts, Math.floor(x / STEPS_PER_PAGE))) return null;
   if (n === 1) return pts[0].y;
   if (x < pts[0].x || x >= pts[n - 1].x) return null;
   const i = segIndex(pts, x);
