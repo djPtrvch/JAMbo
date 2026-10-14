@@ -7,6 +7,7 @@
 import { importAudioFiles } from './audio/engine';
 import { tableSampleKey } from './audio/wavetable';
 import { addPreset, addSample, children, createFolder, node, type LibNode } from './library';
+import { migratePreset } from './params';
 import type { Preset } from './state';
 import { getSample } from './storage';
 import { unzip, zip, type ZipEntry } from './zip';
@@ -89,7 +90,12 @@ function readPreset(data: Uint8Array, fallback: string): Preset | null {
   try {
     const j = JSON.parse(new TextDecoder().decode(data));
     const p = j?.preset;
-    if (p && typeof p.sound === 'string' && p.params) return { name: p.name || fallback, sound: p.sound, params: p.params };
+    if (p && typeof p.sound === 'string' && p.params) {
+      // Пресет прежнего формата (без fmt) — к текущему (SPEECH: три пункта вместо четырёх).
+      const out: Preset = { name: p.name || fallback, sound: p.sound, params: p.params, fmt: p.fmt };
+      migratePreset(out);
+      return out;
+    }
   } catch { /* не пресет */ }
   return null;
 }

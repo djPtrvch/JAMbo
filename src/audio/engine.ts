@@ -19,7 +19,7 @@
 // Измерители уровня стоят на выходе каждой дорожки и в мастере (вход компрессора, вход и выход
 // лимитера): пиковый уровень по каналам и громкость в LUFS (K-взвешивание, окно ~400 мс).
 
-import { BPM_MIN, DELAY_DIVS, isAuto, OVER_PEAK, DRUM_ENGINE, isJambo, SYNTH_ENGINES, synthEngine, PARAM_BY_ID, VOL_DEF_DB, volGain, SAMPLE_ROOT, MAX_TRACKS, filterFreq, fromNorm } from '../params';
+import { BPM_MIN, stepIndex, DELAY_DIVS, isAuto, OVER_PEAK, DRUM_ENGINE, isJambo, SYNTH_ENGINES, synthEngine, PARAM_BY_ID, VOL_DEF_DB, volGain, SAMPLE_ROOT, MAX_TRACKS, filterFreq, fromNorm } from '../params';
 import { audible, addSamplesQuiet, addSamplesToFolder, doc, setStepSound, triggerEnv, liveFx, liveMaster, liveMixer, modulatedNorm, ui, baseValue, autoLive } from '../state';
 import { detectRoot } from './pitch';
 import { encodeWav } from './wav';
@@ -183,7 +183,9 @@ const decayNorm = (ms: number) => Math.sqrt(Math.min(1, Math.max(0, ms / 4000)))
 function synthParams(engine: number, v: (id: string) => number) {
   // Свои движки: ручки 1.1–1.3 — p1, p2, p3 (0..1), Decay — в мс (без пересчёта для Plaits).
   if (isJambo(engine)) return { p1: v('harm') / 100, p2: v('timbre') / 100, p3: v('morph') / 100, decay: v('decay') };
-  const harmonics = v('harm') / 100;
+  // Ступенчатая 1.1 с привязкой (SPEECH): harmonics — точка пункта, а не положение ручки.
+  const pts = SYNTH_ENGINES[engine].harmPoints;
+  const harmonics = pts ? pts[stepIndex(v('harm') / 100, pts.length)] : v('harm') / 100;
   const timbre = v('timbre') / 100;
   if (SYNTH_ENGINES[engine].decay) return { harmonics, timbre, morph: decayNorm(v('decay')), aux: v('morph') / 100 };
   return { harmonics, timbre, morph: v('morph') / 100, aux: 0 };

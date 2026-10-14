@@ -53,10 +53,10 @@ const ICONS:Record<string,(v:IconValues)=>El[]>={
   const els=n.map((nn,i)=>dot(10+i*7,56-nn,2.6,'ht'));
   let wv=fx(40,60,60,(x,u)=>{let s=0,nm=0;const p=2-1.6*v.m;for(let q=1;q<=6;q++){s+=Math.sin(TAU*q*u)/Math.pow(q,p);nm+=1/Math.pow(q,p);}return 32-12*s/nm*1.3;});
   els.push({g:'m',d:pts(wv)});return els;},
-7:(v:IconValues):El[]=>{const m=v.m,e=2*Math.abs(m-.5),w=m<.5?6+ m/.5*7:13+(m-.5)/.5*9,hh=m<.5?8+m/.5*4:12-(m-.5)/.5*8,mode=Math.min(3,Math.floor(v.h*4));
+7:(v:IconValues):El[]=>{const m=v.m,e=2*Math.abs(m-.5),w=m<.5?6+ m/.5*7:13+(m-.5)/.5*9,hh=m<.5?8+m/.5*4:12-(m-.5)/.5*8,mode=Math.min(2,Math.floor(v.h*3));
   const mouth:number[][]=[];for(let i=0;i<=40;i++){const a=TAU*i/40;mouth.push([32+w*Math.cos(a),38+hh*Math.sin(a)]);}
   const els=[ring(32,32,27,'x',.5),dot(32-(5+v.t*9),20,2.2,'t'),dot(32+(5+v.t*9),20,2.2,'t'),{g:'m',d:pts(mouth)+'Z'}];
-  for(let i=0;i<4;i++)els.push(i===mode?dot(25+i*5,55.5,1.5,'h'):ring(25+i*5,55.5,1.5,'x',.6));return els;},
+  for(let i=0;i<3;i++)els.push(i===mode?dot(27+i*5,55.5,1.5,'h'):ring(27+i*5,55.5,1.5,'x',.6));return els;},
 8:(v:IconValues):El[]=>{const R=rnd(7),N=6+Math.round(v.t*28),els:El[]=[];const rx:number[]=[],ry:number[]=[];for(let i=0;i<40;i++){rx.push(R());ry.push(R());}
   for(let i=0;i<N;i++)els.push(ring(8+rx[i]*48,32+(ry[i]-.5)*2*(3+v.h*26),1.5+v.m*5.5,'htm',.9));return els;},
 9:(v:IconValues):El[]=>{const R=rnd(3),sw=1.2+(1-v.t)*7;const ns:number[][]=[];let x=6;while(x<58){const y=49+(R()-.5)*18;ns.push([x,y],[Math.min(58,x+sw),y]);x+=sw;}

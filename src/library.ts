@@ -5,6 +5,7 @@
 // Системная папка RECORDINGS — для стемов дорожек (запись появится позже); её нельзя удалить
 // или переименовать.
 
+import { migratePreset } from './params';
 import type { Preset } from './state';
 
 export interface LibNode {
@@ -43,6 +44,10 @@ function load(): LibNode[] {
       }
     }
   } catch { /* хранилище недоступно */ }
+  // Пресеты прежнего формата (без fmt) — один раз к текущему (SPEECH: три пункта вместо четырёх).
+  let migrated = false;
+  for (const n of list) if (n.kind === 'preset' && n.preset && migratePreset(n.preset)) migrated = true;
+  if (migrated) { try { localStorage.setItem(KEY, JSON.stringify(list)); } catch { /* хранилище недоступно */ } }
   if (!list.some((n) => n.id === RECORDINGS)) {
     list.unshift({ id: RECORDINGS, parent: ROOT, kind: 'folder', name: 'RECORDINGS', system: true, updated: Date.now() });
   }

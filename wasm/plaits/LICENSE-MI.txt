@@ -1,4 +1,9 @@
+Copyright 2012 Emilie Gillet.
+Copyright 2014 Emilie Gillet.
+Copyright 2015 Emilie Gillet.
 Copyright 2016 Emilie Gillet.
+Copyright 2017 Emilie Gillet.
+Copyright 2021 Emilie Gillet.
 
 Author: Emilie Gillet (emilie.o.gillet@gmail.com)
 

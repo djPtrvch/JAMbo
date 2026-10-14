@@ -3,6 +3,8 @@
 // в общей памяти (как в Plaits: движки делят один буфер, при смене движка — Reset).
 // Огибающую громкости, фильтр и панораму делает Web Audio; здесь — только звук движка
 // (LPG Plaits не используется). Частота дискретизации Plaits — 48 кГц.
+// Режим Words движка SPEECH отключён (данные LPC-слов из ПЗУ TI, лицензионный статус не подтверждён):
+// lpc_speech_synth_words.cc не собирается, вместо него пустые банки jambo_no_words.cc.
 //
 // Plaits и stmlib: Copyright Emilie Gillet, лицензия MIT (см. wasm/plaits/LICENSE-MI.txt).
 

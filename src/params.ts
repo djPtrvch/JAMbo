@@ -155,6 +155,8 @@ export interface SynthEngine {
   /** Семейство: 'plaits' — plaits.wasm (plaits-worklet.js), 'jambo' — свои движки (jambo-synth-worklet.js). */
   family: 'plaits' | 'jambo';
   harm: string; timbre: string; morph: string; options?: string[];
+  /** Ступенчатая 1.1: значение harmonics для движка по пункту (иначе — положение ручки 0..1). */
+  harmPoints?: number[];
   /** Свой формат ручки 1.1 (значение 0..100). */
   harmFormat?: (v: number) => string;
   /** Свой предел ручки Decay, мс (у DRUM — 1000). */
@@ -171,8 +173,10 @@ export const SYNTH_ENGINES: SynthEngine[] = [
   { name: 'WAVETABLE', full: 'Wavetable', bank: 'synth', family: 'plaits', decay: false, harm: 'bank', timbre: 'row', morph: 'column', options: ['A', 'B', 'C', 'D'] },
   { name: 'CHORDS', full: 'Chords', bank: 'synth', family: 'plaits', decay: false, harm: 'chord type', timbre: 'inversion', morph: 'waveform',
     options: ['oct', '5', 'sus4', 'm', 'm7', 'm9', 'm11', '6/9', 'M9', 'M7', 'M'] },
-  { name: 'SPEECH', full: 'Vowel & speech', bank: 'synth', family: 'plaits', decay: false, harm: 'mode', timbre: 'species', morph: 'phoneme / word',
-    options: ['Formant', 'SAM', 'LPC', 'Words'] },
+  // SPEECH: три режима речи (Words — слова LPC из ПЗУ TI — отключён, этап 12). harmPoints — значение harmonics
+  // для Plaits по пункту: 0 — group 0 (формантный синтез), 1/6 — group 1 (SAM-inspired фонемы), 1/3 — group 2 (LPC-фонемы).
+  { name: 'SPEECH', full: 'Vowel & speech', bank: 'synth', family: 'plaits', decay: false, harm: 'mode', timbre: 'species', morph: 'phoneme',
+    options: ['Formant', 'Phoneme', 'LPC'], harmPoints: [0, 1 / 6, 1 / 3] },
   { name: 'SWARM', full: 'Granular cloud', bank: 'drum', family: 'plaits', decay: false, harm: 'pitch spread', timbre: 'density', morph: 'grain length' },
   { name: 'NOISE', full: 'Filtered noise', bank: 'drum', family: 'plaits', decay: false, harm: 'LP→BP→HP', timbre: 'clock freq', morph: 'resonance' },
   { name: 'PARTICLE', full: 'Particle noise', bank: 'drum', family: 'plaits', decay: false, harm: 'freq spread', timbre: 'density', morph: 'all-pass→band-pass' },
@@ -194,6 +198,29 @@ export const SYNTH_ENGINES: SynthEngine[] = [
     harmFormat: (v) => `×${fmRatio(v / 100).toFixed(2)}` },
   { name: 'WTABLE', full: 'Wavetable', bank: 'jb', family: 'jambo', decay: false, harm: 'position', timbre: 'warp', morph: 'unison' },
 ];
+/** Номер движка SPEECH (Plaits 7). */
+export const SPEECH_ENGINE = 7;
+/**
+ * Версия формата проекта и пресетов: 1 — прежний (без поля), 2 — SPEECH с тремя пунктами (Formant, Phoneme, LPC;
+ * Words убран). Миграция — один раз при загрузке старой версии.
+ */
+export const FORMAT_VERSION = 2;
+/**
+ * Ручка 1.1 SPEECH из прежних четырёх пунктов (Formant, SAM, LPC, Words) в нынешние три — по названию пункта:
+ * Formant → Formant, SAM → Phoneme, LPC и Words → LPC; значение — середина нового пункта (16.7 / 50 / 83.3 %).
+ */
+export function speechHarmV1(v: number): number {
+  const i = Math.min(3, Math.max(0, Math.floor((v / 100) * 4)));
+  return ((([0, 1, 2, 2][i]) + 0.5) / 3) * 100;
+}
+/** Пресет прежнего формата (без fmt): harm SPEECH — по speechHarmV1; помечается текущей версией. true — изменён. */
+export function migratePreset(p: { sound: string; params: Record<string, number>; fmt?: number }): boolean {
+  if ((p.fmt ?? 1) >= FORMAT_VERSION) return false;
+  if (synthEngine(p.sound) === SPEECH_ENGINE && typeof p.params.harm === 'number') p.params.harm = speechHarmV1(p.params.harm);
+  p.fmt = FORMAT_VERSION;
+  return true;
+}
+
 /** Номера своих движков (ключ звука — 'mi:<n>', как у Plaits). */
 export const DRUM_ENGINE = 16;
 export const WTABLE_ENGINE = 19;

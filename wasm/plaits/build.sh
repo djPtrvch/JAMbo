@@ -21,9 +21,15 @@ fi
 P=$SRC/eurorack/plaits
 SOURCES=(
   jambo_voices.cc
+  jambo_no_words.cc
   $P/resources.cc
   $P/dsp/chords/chord_bank.cc
-  $P/dsp/speech/*.cc
+  # Речь без lpc_speech_synth_words.cc (слова из ПЗУ TI) — вместо него пустые банки jambo_no_words.cc.
+  $P/dsp/speech/lpc_speech_synth.cc
+  $P/dsp/speech/lpc_speech_synth_controller.cc
+  $P/dsp/speech/lpc_speech_synth_phonemes.cc
+  $P/dsp/speech/naive_speech_synth.cc
+  $P/dsp/speech/sam_speech_synth.cc
   $P/dsp/physical_modelling/*.cc
   $P/dsp/engine/*.cc
   $SRC/stmlib/dsp/units.cc

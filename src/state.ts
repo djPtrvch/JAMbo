@@ -3,6 +3,7 @@
 // ui — текущие удержания кнопок/шагов и выбор. rt — данные реального времени (LFO, проигрывание).
 
 import {
+  FORMAT_VERSION, SPEECH_ENGINE, speechHarmV1, migratePreset,
   FX_GRID, HIDDEN_PARAMS, MASTER_EXTRA, REV_HPF_NEW, DRIVE_LOWCUT_NEW, isAuto, MASTER_GRID, MAX_PAGES, MIX_GRID, MOD_GRID, PATTERN_SLOTS, RATIOS, STEPS_PER_PAGE, TRACK_COUNT, MAX_TRACKS, TRACK_GRID, OCTAVE_DEF, OCTAVE_MAX, OCTAVE_MIN,
   BPM_MAX, BPM_MIN, VOL_MIN_DB, VOL_DEF_DB, PARAM_BY_ID, PRESET_PARAMS, SEQ_COUNT, SEQ_MIX, SEQ_MST, SYNTH_ENGINES, SYNTH_GRID, synthEngine, WTABLE_ENGINE, synthGrid, synthKey, EQ_BANDS, EQ_BELL, eqHasGain, EQ_DYN_RANGE_MAX, EQ_DYN_THR_MIN, EQ_FREQ_MAX, EQ_FREQ_MIN, EQ_GAIN_MAX, EQ_Q_DEF, EQ_Q_MAX, EQ_Q_MIN, EQ_TYPES, NOTE_NAMES, PROGRESSIONS, SCALES, fromNorm, toNorm, type ParamDef, type Slot,
 } from './params';
@@ -149,6 +150,8 @@ export type FolderItem = { sample: string } | { preset: Preset };
 export interface Folder { items: FolderItem[]; index: number }
 
 export interface Doc {
+  /** Версия формата проекта (FORMAT_VERSION; нет поля — прежний, 1). */
+  version?: number;
   bpm: number;
   scale: number;
   root: number;
@@ -355,6 +358,7 @@ function newTrack(i: number, name = `${i + 1}`): Track {
 /** Новый пустой проект. */
 export function makeDoc(): Doc {
   return {
+  version: FORMAT_VERSION,
   bpm: 120,
   scale: 0,
   root: 0,
@@ -1954,6 +1958,8 @@ export function setTrackSynth(i: number, engine: number) {
 /** Пресет синта: движок и параметры звука (PRESET_PARAMS). */
 export interface Preset {
   name: string; sound: string; params: Record<string, number>;
+  /** Версия формата пресета (FORMAT_VERSION; нет поля — прежний, 1). */
+  fmt?: number;
   /** Таблица WTABLE (ключ, см. audio/wavetable.ts) — у пресетов движка WTABLE. */
   table?: string;
 }
@@ -1965,7 +1971,10 @@ let presetList: Preset[] = loadPresets();
 function loadPresets(): Preset[] {
   try {
     const list = JSON.parse(localStorage.getItem(PRESET_STORE) ?? '[]');
-    return Array.isArray(list) ? list : [];
+    if (!Array.isArray(list)) return [];
+    // Пресеты прежнего формата — к текущему (SPEECH: три пункта вместо четырёх).
+    if (list.map((p: Preset) => migratePreset(p)).some(Boolean)) localStorage.setItem(PRESET_STORE, JSON.stringify(list));
+    return list;
   } catch { return []; }
 }
 
@@ -1988,7 +1997,7 @@ export function savePreset(i: number, name: string) {
   if (synthEngine(t.sample) === null) return;
   const params: Record<string, number> = {};
   for (const id of PRESET_PARAMS) params[id] = t.params[id];
-  const p = { name: name.trim() || nextPresetName(i), sound: t.sample, params };
+  const p: Preset = { name: name.trim() || nextPresetName(i), sound: t.sample, params, fmt: FORMAT_VERSION };
   presetList.push(p);
   storePresets();
   edit(() => addItems(i, [{ preset: clone(p) }]));
@@ -2000,7 +2009,7 @@ export function presetFromTrack(i: number, name: string): Preset | null {
   if (synthEngine(t.sample) === null) return null;
   const params: Record<string, number> = {};
   for (const id of PRESET_PARAMS) params[id] = t.params[id];
-  const p: Preset = { name: name.trim() || nextPresetName(i), sound: t.sample, params };
+  const p: Preset = { name: name.trim() || nextPresetName(i), sound: t.sample, params, fmt: FORMAT_VERSION };
   if (synthEngine(t.sample) === WTABLE_ENGINE) p.table = t.table ?? '';
   return p;
 }
@@ -2472,6 +2481,8 @@ function migrateDelayKeys(node: unknown, depth = 0) {
  * проекта (в том числе новые параметры дорожек и паттернов).
  */
 export function normalizeDoc(raw: unknown): Doc {
+  // Версия формата прежнего документа (нет поля — 1): миграции ниже — один раз, по версии.
+  const fromVersion = (raw as { version?: number } | null)?.version ?? 1;
   migrateDelayKeys(raw);
   // Прежние проекты без Drive LOW CUT — OFF (20 Гц), а не 80 Гц нового проекта: звучание не меняется
   // (FX клипов дополняются общими FX — тоже OFF).
@@ -2536,7 +2547,33 @@ export function normalizeDoc(raw: unknown): Doc {
   d.folders = Array.from({ length: count }, (_, k) => d.folders?.[k] ?? { items: [], index: -1 });
   // Значения мастера — в пределах нынешних шкал (у компрессора они стали другими).
   for (const p of [...MASTER_GRID, ...MASTER_EXTRA]) if (p && !isAuto(d.master[p.id]) && !(p.offBottom && d.master[p.id] <= 0)) d.master[p.id] = Math.min(p.max, Math.max(p.min, d.master[p.id]));
+  if (fromVersion < 2) migrateSpeech(d);
+  d.version = FORMAT_VERSION;
   return d;
+}
+
+/**
+ * Версия 1 → 2: у SPEECH три пункта вместо четырёх (Words убран) — harm переводится по названию пункта
+ * (speechHarmV1): у дорожек и копий звука (PREV, home), в автоматизации harm, в p-lock harm шагов, которые звучат
+ * SPEECH (свой звук шага или звук дорожки), и в пресетах папок дорожек. Назначения LFO/ENV не меняются.
+ */
+function migrateSpeech(d: Doc) {
+  const isSpeech = (key?: string) => !!key && synthEngine(key) === SPEECH_ENGINE;
+  const fix = (x: TrackData | Track | undefined) => {
+    if (!x) return;
+    const speech = isSpeech(x.sample);
+    if (speech && typeof x.params.harm === 'number') x.params.harm = speechHarmV1(x.params.harm);
+    if (speech) x.auto?.forEach((a) => { if (a.param === 'harm') a.points.forEach((pt) => { pt.y = speechHarmV1(pt.y * 100) / 100; }); });
+    for (const page of x.pages) for (const st of page) {
+      if (typeof st.locks.harm === 'number' && isSpeech(st.sound ?? x.sample)) st.locks.harm = speechHarmV1(st.locks.harm);
+    }
+  };
+  for (const t of d.tracks) {
+    fix(t);
+    fix(t.home);
+    t.slots.forEach((c) => fix(c?.src));
+  }
+  d.folders.forEach((f) => f.items.forEach((it) => { if ('preset' in it) migratePreset(it.preset); }));
 }
 
 /** Ключи всех сэмплов, на которые ссылается документ. */
