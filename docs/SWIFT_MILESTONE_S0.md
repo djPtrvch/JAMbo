@@ -16,6 +16,7 @@
 ## Первый запуск на iPad (iPadOS 26.6.2, Playgrounds 4.7)
 - Собралось, но при запуске — «Loading… Crashed / Loading failed due to an error», без подробностей. Звук теперь запускается первым нажатием TONE (а не при старте), в консоль (Show Console) пишутся отметки запуска «JAMbo: …» — по ним видно, где остановилось.
 - Второй запуск — то же самое, до появления экрана. Вероятная причина — модуль Synchronization (Atomic): заменён запасным вариантом ТЗ 0.2 — SpinLock (os_unfair_lock на iPad, NSLock на Linux), аудиопоток берёт замок только tryLock; тесты 7/7.
+- Третий запуск — то же; в редакторе был виден только Package.swift (46 строк): Playgrounds не смог прочитать манифест и кода не видел. Вероятно — значок `.placeholder(icon: .music)` (такого значка нет); заменён на `.sparkle`. Запасной путь — новое приложение в Playgrounds и перенос папок Core, Audio, UI, Resources (его MyApp.swift и ContentView.swift удалить).
 
 ## Открыто
 - Сборка на iPad не проверена. Если Playgrounds не примет Package.swift (версия swift-tools, `.iOS("18.0")`, `swiftLanguageVersions`), создать в Playgrounds новое приложение «JAMbo» и перенести в него папки Core, Audio, UI, Resources — Package.swift останется тем, что создал Playgrounds.
