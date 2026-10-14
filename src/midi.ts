@@ -39,6 +39,11 @@ export interface MidiDevice { id: string; name: string; kind: 'midi' | 'bluetoot
 type NoteHandler = (note: number, velocity: number, track: number | null) => void;
 let onNote: NoteHandler = () => {};
 let access: MIDIAccess | null = null;
+/** Доступ Web MIDI (выходы клока — sync.ts). */
+export const midiAccess = () => access;
+/** Обработчик сообщений реального времени (0xF8–0xFF): байт и время (performance.now). */
+let realtime: ((status: number, at: number) => void) | null = null;
+export function setRealtimeHandler(fn: (status: number, at: number) => void) { realtime = fn; }
 const ble: { id: string; name: string; device: BluetoothDevice }[] = [];
 let listeners: (() => void)[] = [];
 
@@ -505,6 +510,8 @@ export async function initMidi(): Promise<void> {
       input.onmidimessage = (e) => {
         if (settings.midiIn && input.id !== settings.midiIn) return;
         const d = e.data;
+        // Системные реального времени (клок, Start, Stop, Continue) — синхронизации (sync.ts).
+        if (d && d.length >= 1 && d[0] >= 0xf8) { realtime?.(d[0], e.timeStamp || performance.now()); return; }
         if (d && d.length >= 3) handle(d[0], d[1], d[2], input.id);
       };
     });

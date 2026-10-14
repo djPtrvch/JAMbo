@@ -9,6 +9,7 @@ import { h, setText } from './dom';
 import { setTheme } from './theme';
 import { backHeader, makePopup, openMenuPanel, popupButton, type Popup } from './popup';
 import { openMidi } from './midi';
+import { openSync } from './sync';
 import { openProjectMenu } from './projects';
 
 type Tab = 'engine' | 'background' | 'output' | 'sidechain' | 'scale';
@@ -37,6 +38,7 @@ export function openMainMenu(anchor: Element) {
       section('PROJECT', popupButton('PROJECTS', () => { main.close(); openProjectMenu(anchorEl, back); })),
       section('APP', popupButton('SETTINGS', () => { main.close(); openSettings(anchorEl); })),
       section('CONTROLLERS', popupButton('MIDI', () => { main.close(); openMidi(anchorEl, back); })),
+      section('SYNC', popupButton('SYNC', () => { main.close(); openSync(anchorEl, back); })),
     );
   }
   openMenuPanel(main, anchor);

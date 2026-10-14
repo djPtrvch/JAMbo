@@ -83,6 +83,25 @@ export interface Settings {
   limScale: 48 | 32 | 16;
   /** Окно клиппера: вид дисплея — форма (WAVE) или уровень во времени (LEVEL). */
   clipDisplay: 'wave' | 'level';
+  /** Меню SYNC: квант (такты), MIDI-клок (вкл., отдаём или принимаем, порт выхода, старт/стоп), Ableton Link. */
+  sync: SyncSettings;
+}
+
+export interface SyncSettings {
+  /** SYNC QUANTUM — длина фразы для выравнивания старта, такты. */
+  quantum: 1 | 2 | 4 | 8;
+  /** MIDI CLOCK: синхронизация клока по MIDI. */
+  clock: boolean;
+  /** CLOCK SOURCE: 'send' — JAMbo ведущий (отдаёт клок), 'receive' — ведомый (принимает). */
+  source: 'send' | 'receive';
+  /** Выход клока ('' — все выходы). */
+  clockOut: string;
+  /** SYNC START/STOP по MIDI (Start, Stop, Continue). */
+  midiStartStop: boolean;
+  /** Ableton Link: вкл., уведомления о подключениях, SYNC START/STOP. */
+  link: boolean;
+  linkNotify: boolean;
+  linkStartStop: boolean;
 }
 
 const KEY = 'jambo.settings';
@@ -92,6 +111,7 @@ const DEFAULTS: Settings = {
   scSends: { rev: false, dly: false, drv: true },
   limScale: 48,
   clipDisplay: 'wave',
+  sync: { quantum: 1, clock: false, source: 'send', clockOut: '', midiStartStop: true, link: false, linkNotify: true, linkStartStop: false },
 };
 
 /** Маппинг с недостающими полями (старые настройки: общий режим энкодеров knobMode). */
@@ -112,6 +132,7 @@ function load(): Settings {
     const raw = JSON.parse(localStorage.getItem(KEY) ?? '{}');
     const s: Settings = { ...DEFAULTS, ...raw };
     s.scSends = { ...DEFAULTS.scSends, ...(raw.scSends ?? {}) };
+    s.sync = { ...DEFAULTS.sync, ...(raw.sync ?? {}) };
     // Кнопки RATIO компрессора больше нет (RATIO — в окне компрессора): её маппинги снимаются.
     s.mappings = (s.mappings ?? []).filter((m) => !(m.target?.kind === 'button' && m.target.name === 'RATIO')).map((m) => fullMapping(m, raw.knobMode));
     delete (s as Partial<Settings> & { knobMode?: string }).knobMode;

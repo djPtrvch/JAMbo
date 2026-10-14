@@ -38,6 +38,7 @@ import { initProjects } from './project';
 import { initMidi, registerAction, sendFeedback, setNoteHandler } from './midi';
 import { settings } from './settings';
 import { updateTransport } from './transport';
+import { initSync, updateSync } from './sync';
 import { buildEqButton, buildLeftButtons, buildShiftButton, buildPatternsButton, buildRightButtons, buildTransportButtons, renderButtons } from './ui/buttons';
 import { renderFields } from './ui/controls';
 import { buildEq, renderEq } from './ui/eq';
@@ -175,6 +176,7 @@ function frameBody(now: number) {
   advanceLfos(Math.min(0.1, (now - last) / 1000));
   last = now;
   updateTransport(now);
+  updateSync(now);
   // Запись автоматизации: положение ручки — в кривую (~60 раз в секунду, позиция — по часам секвенсора).
   autoRecordFrame(now);
   updateTransition();
@@ -226,6 +228,7 @@ void initProjects();
 
 // MIDI: если маппинги уже есть — подключаемся сразу (без открытия меню MIDI).
 if (settings.mappings.length) void initMidi();
+initSync();
 
 // Ноты с MIDI-входов играют выбранную дорожку, как пианоролл (или дорожку по номеру канала).
 setNoteHandler((note, vel, track) => {

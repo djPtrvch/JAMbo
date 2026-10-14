@@ -1,8 +1,8 @@
 // Окно компрессора мастера (этап 7): тап по блоку COMP при MST. На месте EQ (от левого края до края миниатюр
 // страниц, справа — общий измеритель). THRESHOLD, ATTACK, RELEASE, MAKEUP — те же параметры, что у ручек 2.1–2.4
 // в MST (и MIDI по позиции); RATIO, KNEE, RANGE, HOLD, MIX, LINK, SC HPF — только в окне. Сверху вниз:
-// — две строки вверху (как ряд EQ): поля THRESHOLD, ATTACK, RELEASE, MAKEUP | RATIO, кнопки AUDIT, BYPASS и крестик;
-//   ниже — KNEE, RANGE, HOLD, MIX, LINK, SC HPF; параметр, который меняют, — в жёлтой рамке и ещё 400 ms
+// — одна строка вверху (как ряд EQ): поля THRESHOLD, ATTACK, RELEASE, MAKEUP | RATIO, KNEE, RANGE, HOLD, MIX, LINK,
+//   SC HPF, кнопки AUDIT, BYPASS и крестик; параметр, который меняют, — в жёлтой рамке и ещё 400 ms
 //   (RATIO — только при изменении в окне); при BYPASS поля серые;
 // — TRANSFER (кривая передачи: точка порога тянется вдоль диагонали, кружок RATIO на правом краю) | LEVEL (уровень
 //   за 4 с: вход серый, выход после MAKEUP жёлтый, GR оранжевый сверху; пунктир THRESHOLD тянется, тап — FREEZE) |
@@ -179,7 +179,7 @@ export function buildCompWindow(): HTMLElement {
   const mid = h('div', 'lim-mid');
   mid.append(tBox, lBox, bars.el);
 
-  // Две строки вверху: поля (все — палец вверх-вниз, удержание — ввод), кнопки и крестик.
+  // Одна строка вверху: все поля (палец вверх-вниз, удержание — ввод), кнопки и крестик.
   const msInit = (p: ParamDef) => () => { const v = val(p); return v < 10 ? v.toFixed(1) : String(Math.round(v)); };
   const relInit = () => (isAuto(val(P.release)) ? 'AUTO' : String(Math.round(val(P.release))));
   const offParse = (off: number) => (t: string) => (/off/i.test(t) ? off : num(t));
@@ -204,20 +204,17 @@ export function buildCompWindow(): HTMLElement {
       setVal(P.ratio, nextRatio(val(P.ratio)));
       endGesture();
     }),
-    // BYPASS — рядом с крестиком (как во всех окнах модулей мастера).
-    auditBtn, bypassBtn, closeButton(closeCompWindow),
-  );
-  const strip2 = h('div', 'eq-bar lim-strip comp-strip2');
-  strip2.append(
     normField('KNEE', P.knee, num, () => val(P.knee).toFixed(1)),
     normField('RANGE', P.range, offParse(CMP_RANGE_OFF), () => (val(P.range) >= CMP_RANGE_OFF ? 'OFF' : val(P.range).toFixed(1))),
     normField('HOLD', P.hold, num, () => String(Math.round(val(P.hold)))),
     normField('MIX', P.mix, num, () => String(Math.round(val(P.mix)))),
     normField('LINK', P.link, num, () => String(Math.round(val(P.link)))),
     normField('SC HPF', P.schpf, offParse(CMP_SCHPF_OFF), () => (val(P.schpf) <= CMP_SCHPF_OFF ? 'OFF' : String(Math.round(val(P.schpf))))),
+    // BYPASS — рядом с крестиком (как во всех окнах модулей мастера).
+    auditBtn, bypassBtn, closeButton(closeCompWindow),
   );
 
-  panel.append(strip, strip2, mid, anchor);
+  panel.append(strip, mid, anchor);
   return panel;
 }
 /** Крестик и выход из MST: окно закрывается, AUDIT выключается (toggleView), FREEZE снимается. */

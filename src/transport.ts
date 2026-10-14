@@ -17,13 +17,30 @@ interface Flash { time: number; track: number; dur: number; notes: number[]; not
 const flashes: Flash[] = [];
 const lockEvents: { time: number; track: number; locks: Record<string, number>; until: number }[] = [];
 
-export const stepMs = () => 60000 / doc.bpm / 4;
+/** Темп внешнего клока (MIDI, sync.ts) — точнее целого BPM проекта; null — свой темп. */
+let tempoSource: () => number | null = () => null;
+/** Время тика (шага 1/16 от старта) по внешнему клоку — для подстройки фазы; null — нет. */
+let phaseSource: (tick: number) => number | null = () => null;
+/** Старт и стоп транспорта (момент) — для MIDI-клока (Start/Stop на выход). */
+let playListener: (on: boolean, at: number) => void = () => {};
+export function setSyncHooks(h: { tempo: () => number | null; phase: (tick: number) => number | null; onPlay: (on: boolean, at: number) => void }) {
+  tempoSource = h.tempo;
+  phaseSource = h.phase;
+  playListener = h.onPlay;
+}
+export const tempo = () => tempoSource() ?? doc.bpm;
+export const stepMs = () => 60000 / tempo() / 4;
 
-/** at — момент остановки (performance.now; конец строк — граница такта впереди): там же кончаются стемы. */
-export function setPlaying(on: boolean, at = performance.now()) {
+/**
+ * at — момент остановки (performance.now; конец строк — граница такта впереди): там же кончаются стемы.
+ * startAt — момент первого шага при старте (внешний Start по MIDI-клоку; по умолчанию — сейчас).
+ */
+export function setPlaying(on: boolean, at = performance.now(), startAt?: number) {
+  const was = ui.playing;
   if (!on && ui.playing) stemsOnStop(at);
   // Стоп: будущие триги sidechain отменяются (возврат огибающей доходит до конца).
   if (!on) flushSidechain();
+  if (!on && ui.playing) playListener(false, at);
   ui.playing = on;
   endRecTake();
   flashes.length = 0;
@@ -45,7 +62,8 @@ export function setPlaying(on: boolean, at = performance.now()) {
     tick = 0;
     wrappedAt = -1;
     // Первый шаг — сразу, в момент нажатия (не в следующем кадре).
-    nextTime = performance.now();
+    nextTime = startAt ?? performance.now();
+    if (!was) playListener(true, nextTime);
     // Запись стемов готовых дорожек — с первого шага (его время — nextTime).
     stemsOnPlay(nextTime);
     updateTransport(nextTime);
@@ -246,6 +264,12 @@ export function updateTransport(now: number) {
     // Если вкладка была в фоне — не догоняем пропущенные шаги.
     if (now - nextTime > 1000) nextTime = now;
     while (ui.playing && now + LOOKAHEAD_MS >= nextTime) {
+      // Ведомый по MIDI-клоку: шаг подтягивается к времени своего тика по клоку (фаза не уплывает).
+      const ref = phaseSource(tick);
+      if (ref !== null) {
+        const err = nextTime - ref;
+        if (Math.abs(err) < stepMs()) nextTime -= err * 0.25;
+      }
       playStep(nextTime);
       nextTime += stepMs();
     }
