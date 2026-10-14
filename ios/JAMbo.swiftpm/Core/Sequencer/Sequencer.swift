@@ -151,10 +151,11 @@ public final class Sequencer {
                 out.push(.step(track: t, pos: -1))
                 continue
             }
-            let pos = d.playIndex(t, slot: launcher.slot[t], tick - launcher.trackStart[t])
+            let k = launcher.slot[t]
+            let pos = d.playIndex(t, slot: k, tick - launcher.trackStart[t])
             out.push(.step(track: t, pos: pos))
-            let i = t * SeqData.maxSteps + pos
-            if d.on[i] == 0 { continue }
+            let i = d.stepIndex(t, slot: k, pos)
+            if i < 0 || d.on[i] == 0 { continue }
             if nextRandom() * 100 >= d.prob[i] { continue }
             let ratchet = Int(d.ratchet[i]) + 1
             let swing = Double(d.swing[i])

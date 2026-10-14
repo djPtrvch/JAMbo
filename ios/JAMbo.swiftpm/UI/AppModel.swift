@@ -46,7 +46,6 @@ final class AppModel {
     var pressedKeys: [Int: [Int]] = [:]
     /// Сетка паттернов открыта; ячейка для правки выбранной дорожки (жёлтый контур); верх окна строк.
     var patternView: Bool = false
-    var editSlot: Int = 0
     var gridTop: Int = 0
     /// Открытые меню сетки: ячейки (свайп вверх), строки (удержание), бутерброд сетки.
     var cellMenu: CellMenuState? = nil
@@ -228,7 +227,8 @@ final class AppModel {
             // Что играет, UNDO не меняет: активная ячейка и остановка — как сейчас.
             if let cur = project.tracks.first(where: { $0.id == p.tracks[i].id }) {
                 p.tracks[i].stopped = cur.stopped
-                if p.tracks[i].clipFilled(cur.slot) || cur.blank { p.tracks[i].activate(cur.slot) }
+                if p.tracks[i].clipFilled(cur.slot) || cur.blank { p.tracks[i].slot = cur.slot }
+                p.tracks[i].open = cur.open
             }
         }
         let bpmChanged = p.bpm != project.bpm
@@ -251,6 +251,26 @@ final class AppModel {
     }
 
     var track: Track { return project.tracks[selectedTrack] }
+
+    /// Ячейка для правки выбранной дорожки (жёлтый контур): её клип открыт в секвенсоре и миниатюрах страниц.
+    var editSlot: Int { return track.open }
+
+    /// Открыть клип k дорожки i для правки (не правка проекта — без UNDO).
+    func openClip(_ i: Int, _ k: Int) {
+        guard i < project.tracks.count, project.tracks[i].open != k else { return }
+        mutatePlay({ p in p.tracks[i].open = k }, publish: false)
+        if i == selectedTrack {
+            heldSteps.removeAll()
+            viewPage = project.tracks[i].clipRange(k)?.lowerBound ?? 0
+        }
+    }
+
+    /// Позиция играющего шага в открытом клипе выбранной дорожки (−1 — открыт не играющий клип).
+    var openPlayPos: Int {
+        let t = track
+        if t.open != t.slot { return -1 }
+        return live.playPos[selectedTrack]
+    }
 
     /// Ноты трига: выбранные в пианоролле (S1c), иначе корневая нота октавы.
     var trigNotes: [Int] {

@@ -59,7 +59,7 @@ extension AppModel {
         if let held = heldSteps.min() {
             lock = t.step(held)?.locks[p.id]
         } else if playing {
-            let pos = live.playPos[selectedTrack]
+            let pos = openPlayPos
             if pos >= 0 { lock = t.step(pos)?.locks[p.id] }
         }
         let v: Double = lock ?? base

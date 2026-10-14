@@ -180,7 +180,7 @@ struct StepInfo {
         } else {
             label = ""
         }
-        let pos: Int = model.playing && channelOn ? model.live.playPos[model.selectedTrack] : -1
+        let pos: Int = model.playing && channelOn ? model.openPlayPos : -1
         playing = pos == index
         held = model.heldSteps.contains(index)
         let len: Int = t.pageLen(page)

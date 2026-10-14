@@ -98,7 +98,8 @@ extension AppModel {
     var playingNotes: Set<Int> {
         let t = selectedTrack
         guard playing, live.flashing[t] else { return [] }
-        let pos = live.playPos[t]
+        let pos = openPlayPos
+        if pos < 0 { return [] }
         return Set(track.step(pos)?.notes ?? [])
     }
 
@@ -159,7 +160,9 @@ extension AppModel {
                                  quantize: settings.record.quantize)
         let merge: Bool = lastRec.track == ti && lastRec.tick == k
         lastRec = (ti, k)
-        let index = project.tracks[ti].playIndex(k - live.trackStart[ti])
+        let tr = project.tracks[ti]
+        guard let clip = tr.clips[tr.slot] else { return nil }
+        let index = clip.playIndex(k - live.trackStart[ti])
         let overdub = settings.record.overdub
         takeTracks.insert(ti)
         takeWritten.insert(ti * 1000 + index)
@@ -168,13 +171,14 @@ extension AppModel {
     }
 
     /// Правка дубля: первая нота — новая запись в UNDO, следующие (пока не было других действий) — в неё же.
+    /// Пишется в играющий клип дорожки, что бы ни было открыто в секвенсоре.
     private func writeTake(track ti: Int, _ change: (inout Track) -> Void) {
         if recTake >= 0 && recTake == history.serial {
-            applyInTake { p in change(&p.tracks[ti]) }
+            applyInTake { p in AppModel.inPlaying(&p.tracks[ti], change) }
             return
         }
         let before = history.serial
-        edit { p in change(&p.tracks[ti]) }
+        edit { p in AppModel.inPlaying(&p.tracks[ti], change) }
         recTake = history.serial != before ? history.serial : -1
         if recTake < 0 {
             takeTracks.removeAll()
@@ -194,8 +198,16 @@ extension AppModel {
     func recPassStep(_ ti: Int, _ pos: Int) {
         if settings.record.overdub || recTake < 0 || recTake != history.serial { return }
         if !takeTracks.contains(ti) || takeWritten.contains(ti * 1000 + pos) { return }
-        guard ti < project.tracks.count, let s = project.tracks[ti].step(pos) else { return }
+        guard ti < project.tracks.count else { return }
+        let tr = project.tracks[ti]
+        guard let s = tr.clips[tr.slot]?.step(pos) else { return }
         if !s.on && s.sound == nil && s.locks.isEmpty { return }
-        applyInTake { p in _ = p.tracks[ti].clearPassStep(pos) }
+        applyInTake { p in AppModel.inPlaying(&p.tracks[ti]) { t in _ = t.clearPassStep(pos) } }
+    }
+
+    /// Правка играющего клипа дорожки (запись с REC).
+    static func inPlaying(_ t: inout Track, _ change: (inout Track) -> Void) {
+        let k = t.slot
+        t.editing(k) { tr in change(&tr) }
     }
 }

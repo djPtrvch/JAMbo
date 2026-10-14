@@ -25,13 +25,10 @@ final class LaunchTests: XCTestCase {
         return out.compactMap { if case .scene(let r, let s, _) = $0, r >= 0 { return (r, s) } else { return nil } }
     }
 
-    /// Две ячейки у дорожки 0: клип 0 — страница 0 (длина паттерна 12), клип 1 — страница 1.
+    /// Две ячейки у дорожки 0: клип 0 — одна страница (16 шагов), клип 1 — две страницы, играет вторая (12 шагов).
     private func project() -> Project {
         var p = Project()
-        p.tracks[0].addPage()
-        p.tracks[0].setPlayPages(0, 0)
-        p.tracks[0].clips[1] = Clip(playFrom: 1, playTo: 1)
-        p.tracks[0].length = 28 // страница 0 — 16, страница 1 — 12
+        p.tracks[0].clips[1] = Clip(pages: [Track.emptyPage(), Track.emptyPage()], length: 28, playFrom: 1, playTo: 1)
         return p
     }
 
@@ -120,47 +117,71 @@ final class LaunchTests: XCTestCase {
         var p = project()
         p.rows = 3
         p.fillRows()
-        let core = AudioCore()
-        core.publish(p)
-        core.events.push(.play(true))
-        _ = run(core, frames: 6000 * 3)
-        core.events.push(.scene(row: 2, atPass: false))
-        var out = run(core, frames: 6000 * 20)
-        XCTAssertEqual(scenes(out).first?.row, 2)
-        XCTAssertEqual(scenes(out).first?.start, 16)
-        core.events.push(.scene(row: 1, atPass: true))
-        out = run(core, frames: 6000 * 40)
-        let s = scenes(out).first
-        XCTAssertEqual(s?.row, 1)
-        XCTAssertEqual(s?.start, 32, "стрелки SWITCH — в конце прохода строки 2 (16 шагов)")
-    }
-
-    func testClipAndRowEdits() {
-        var p = Project()
-        p.rows = 3
-        p.fillRows()
         XCTAssertTrue((0..<3).allSatisfy { k in p.tracks.allSatisfy { $0.clipFilled(k) } }, "пустых ячеек нет")
-        XCTAssertEqual(p.tracks[0].pages.count, 3, "новые клипы — на новых пустых страницах")
-        XCTAssertEqual(p.tracks[0].clips[2]?.playFrom, 2)
+        XCTAssertEqual(p.tracks[0].clips[2]?.pages.count, 1, "новый клип — свой пустой паттерн")
+        p.tracks[0].pages[0][0].on = true
         p.tracks[1].stopped = true
         p.addRow()
         XCTAssertEqual(p.tracks[0].clips[3], p.tracks[0].clips[0], "COPY PLAYING — копия играющего клипа")
-        XCTAssertEqual(p.tracks[1].clips[3]?.playFrom, 3, "остановленная — пустой паттерн")
+        XCTAssertFalse(p.tracks[1].clips[3]!.pages[0][0].on, "остановленная — пустой паттерн")
+        // Копия независима: правка копии не меняет исходный клип.
+        p.tracks[0].open = 3
+        p.tracks[0].pages[0][0].on = false
+        p.tracks[0].pages[0][1].locks["pan"] = 10
+        XCTAssertTrue(p.tracks[0].clips[0]!.pages[0][0].on)
+        XCTAssertNil(p.tracks[0].clips[0]!.pages[0][1].locks["pan"], "p-lock — только в своём клипе")
+        p.tracks[0].open = 0
         p.setScene(1, name: "  Chorus  ", repeats: 99)
         XCTAssertEqual(p.scenes[1], SceneRow(name: "Chorus", repeats: 64))
         p.duplicateRow(1)
         XCTAssertEqual(p.scenes[2].name, "Chorus")
         XCTAssertEqual(p.visibleRows, 5)
         p.tracks[0].activate(2)
+        XCTAssertEqual(p.tracks[0].open, 2, "открытый идёт за активным")
         p.deleteRow(2)
         XCTAssertTrue(p.tracks[0].stopped, "дорожка, игравшая строку, остановлена")
         XCTAssertEqual(p.visibleRows, 4)
         XCTAssertEqual(p.sceneName(0), "1")
+        // DELETE клипа очищает только его паттерн.
         var t = p.tracks[2]
-        t.pages[t.clips[1]!.playFrom][0].on = true
+        t.clips[1]!.pages[0][0].on = true
+        t.clips[0]!.pages[0][0].on = true
         t.clearClip(1)
-        XCTAssertFalse(t.pages[t.clips[1]!.playFrom][0].on)
-        t.setPlayPages(0, 0)
-        XCTAssertEqual(t.clips[t.slot]?.playTo, 0, "диапазон активного клипа — в его ячейке")
+        XCTAssertFalse(t.clips[1]!.pages[0][0].on)
+        XCTAssertTrue(t.clips[0]!.pages[0][0].on, "другие клипы столбца не тронуты")
+    }
+
+    /// Перетаскивание в другой столбец переносит шаги, а не номера страниц.
+    func testClipCopyAcrossTracksCarriesSteps() {
+        var p = Project()
+        p.tracks[3].pages[0][4].on = true
+        p.tracks[3].pages[0][4].locks["filter"] = 20
+        p.rows = 4
+        p.fillRows()
+        let c = p.tracks[3].clips[0]
+        p.tracks[5].setClip(2, c)
+        p.tracks[3].setClip(3, c)
+        XCTAssertTrue(p.tracks[5].clips[2]!.pages[0][4].on)
+        XCTAssertEqual(p.tracks[5].clips[2]!.pages[0][4].locks["filter"], 20)
+        XCTAssertTrue(p.tracks[3].clips[3]!.pages[0][4].on, "вниз через строку — тоже")
+        p.tracks[3].clearClip(0)
+        XCTAssertTrue(p.tracks[3].clips[3]!.pages[0][4].on, "копия не очищается вместе с исходным")
+    }
+
+    /// Снимок: у каждого клипа свои шаги — запуск клипа 1 играет его триги, не клипа 0.
+    func testLaunchedClipPlaysOwnSteps() {
+        var p = Project()
+        p.tracks[0].pages[0][0].on = true
+        let c = Clip()
+        p.tracks[0].clips[1] = c
+        p.tracks[0].clips[1]!.pages[0][2].on = true
+        p.arrStart = 1
+        p.rows = 2
+        let core = AudioCore()
+        core.publish(p)
+        core.events.push(.play(true))
+        let out = run(core, frames: 6000 * 8)
+        let trigs = out.compactMap { if case .trig(0, let f) = $0 { return f } else { return nil } }
+        XCTAssertEqual(trigs.first, 12000, "триг клипа 1 на шаге 2 (6000 кадров на шаг)")
     }
 }

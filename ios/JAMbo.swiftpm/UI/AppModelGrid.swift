@@ -8,7 +8,7 @@ struct CellRef: Equatable {
     let row: Int
 }
 
-/// Меню ячейки (быстрый свайп вверх): duplicate, copy, paste, delete.
+/// Меню ячейки (быстрый свайп вверх): copy, paste, delete.
 struct CellMenuState: Equatable {
     let cell: CellRef
     let anchor: CGRect
@@ -110,14 +110,9 @@ extension AppModel {
         setEditSlot(i, k)
         let t = project.tracks[i]
         if !t.clipFilled(k) {
-            var page = -1
             let s = project.scale, r = project.root
-            edit { p in page = p.tracks[i].putEmptyClip(k, scale: s, root: r) }
-            if page < 0 {
-                deny(CellRef(track: i, row: k))
-                return
-            }
-            viewPage = page
+            edit { p in p.tracks[i].putEmptyClip(k, scale: s, root: r) }
+            viewPage = 0
             queueClip(i, k)
         } else if k == t.slot && !t.stopped {
             queueClip(i, Launcher.stop)
@@ -130,29 +125,24 @@ extension AppModel {
     func holdCell(_ i: Int, _ k: Int) {
         guard i < project.tracks.count else { return }
         select(track: i)
-        editSlot = k
         let t = project.tracks[i]
         let idle: Bool = !playing || t.stopped
         if !t.clipFilled(k) {
             if idle { mutatePlay({ p in p.tracks[i].slot = k; p.tracks[i].stopped = true }, publish: true) }
+            openClip(i, k)
             return
         }
-        if k != t.slot {
-            if idle {
-                mutatePlay({ p in p.tracks[i].activate(k); p.tracks[i].stopped = true }, publish: true)
-            }
+        if k != t.slot && idle {
+            mutatePlay({ p in p.tracks[i].slot = k; p.tracks[i].stopped = true }, publish: true)
         }
+        openClip(i, k)
         viewPage = project.tracks[i].clipRange(k)?.lowerBound ?? 0
         heldSteps.removeAll()
     }
 
     func setEditSlot(_ i: Int, _ k: Int) {
         guard i == selectedTrack else { return }
-        editSlot = k
-        if let r = project.tracks[i].clipRange(k) {
-            viewPage = r.lowerBound
-            heldSteps.removeAll()
-        }
+        openClip(i, k)
     }
 
     func deny(_ c: CellRef) {
@@ -170,6 +160,7 @@ extension AppModel {
     func pasteClip(_ c: CellRef) {
         guard let clip = clipClipboard else { return }
         edit { p in p.tracks[c.track].setClip(c.row, clip) }
+        viewPage = min(viewPage, track.pages.count - 1)
     }
 
     func deleteClip(_ c: CellRef) {
@@ -177,11 +168,12 @@ extension AppModel {
         heldSteps.removeAll()
     }
 
-    /// Перетаскивание: копия клипа в другую ячейку (в другом столбце — страницы той дорожки).
+    /// Перетаскивание: независимая копия клипа (его паттерн, гамма, нота) в любую ячейку любого столбца.
     func dropClip(from a: CellRef, to b: CellRef) {
         if a == b { return }
         guard let clip = project.tracks[a.track].clips[a.row] else { return }
         edit { p in p.tracks[b.track].setClip(b.row, clip) }
+        viewPage = min(viewPage, track.pages.count - 1)
     }
 
     // MARK: — строки
@@ -266,6 +258,6 @@ extension AppModel {
 
     func togglePatterns() {
         patternView.toggle()
-        if patternView { editSlot = track.slot }
+        if patternView { openClip(selectedTrack, track.slot) }
     }
 }

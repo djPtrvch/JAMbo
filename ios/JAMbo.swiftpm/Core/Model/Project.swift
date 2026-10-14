@@ -22,15 +22,11 @@ public struct Track: Codable, Equatable, Sendable {
     public var name: String
     public var sample: String = ""
     public var params: [String: Double]
-    public var pages: [[Step]]
-    /// Длина паттерна в шагах (1…pages·16): одна на дорожку, укорочена только страница с последним шагом.
-    public var length: Int
-    /// Играющие страницы активного клипа: playFrom…playTo (копируются в clips[slot]).
-    public var playFrom: Int = 0 { didSet { syncClip() } }
-    public var playTo: Int = 0 { didSet { syncClip() } }
-    /// Клипы столбца сетки паттернов (nil — пустая ячейка) и активная ячейка.
+    /// Клипы столбца сетки паттернов (nil — пустая ячейка): у каждого свой паттерн (страницы, длина, играющие
+    /// страницы). Активная ячейка (играет или запустится) — slot; открытая в секвенсоре и миниатюрах — open.
     public var clips: [Clip?] = Track.firstClips()
     public var slot: Int = 0
+    public var open: Int = 0
     public var mute: Bool = false
     public var solo: Bool = false
     /// Остановлена в сетке паттернов.
@@ -40,77 +36,65 @@ public struct Track: Codable, Equatable, Sendable {
         id = Int.random(in: 0..<(1 << 31))
         name = "\(index + 1)"
         params = Params.defaults()
-        pages = [Track.emptyPage()]
-        length = Params.stepsPerPage
     }
 
     static func firstClips() -> [Clip?] {
         var c = [Clip?](repeating: nil, count: Params.patternSlots)
-        c[0] = Clip(playFrom: 0, playTo: 0)
+        c[0] = Clip()
         return c
     }
 
-    /// Активный клип пуст (его удалили): дорожка стоит, звук и паттерны остаются.
+    /// Активный клип пуст (его удалили): дорожка стоит, звук остаётся.
     public var blank: Bool { return clips[slot] == nil }
 
-    private mutating func syncClip() {
-        guard slot < clips.count, var c = clips[slot] else { return }
-        if c.playFrom == playFrom && c.playTo == playTo { return }
-        c.playFrom = playFrom
-        c.playTo = playTo
-        clips[slot] = c
+    private var openIndex: Int { return Swift.max(0, Swift.min(open, clips.count - 1)) }
+
+    /// Открытый клип (пустая ячейка — пустой паттерн).
+    public var openClip: Clip { return clips[openIndex] ?? Clip() }
+
+    /// Правка открытого клипа (пустой ячейки — создаёт клип). Ссылка в массиве снимается на время правки —
+    /// массивы страниц меняются на месте, без копии.
+    public mutating func withOpen(_ f: (inout Clip) -> Void) {
+        let k = openIndex
+        var c = clips[k] ?? Clip()
+        clips[k] = nil
+        f(&c)
+        clips[k] = c
+    }
+
+    /// Паттерн открытого клипа: страницы, длина (1…pages·16; укорочена только страница с последним шагом),
+    /// играющие страницы playFrom…playTo. Секвенсор, миниатюры и правки страниц работают с ним.
+    public var pages: [[Step]] {
+        get { return openClip.pages }
+        set { withOpen { $0.pages = newValue } }
+    }
+
+    public var length: Int {
+        get { return openClip.length }
+        set { withOpen { $0.length = newValue } }
+    }
+
+    public var playFrom: Int {
+        get { return openClip.playFrom }
+        set { withOpen { $0.playFrom = newValue } }
+    }
+
+    public var playTo: Int {
+        get { return openClip.playTo }
+        set { withOpen { $0.playTo = newValue } }
     }
 
     public static func emptyPage() -> [Step] {
         return [Step](repeating: Step(), count: Params.stepsPerPage)
     }
 
-    /// Шагов на странице p с учётом длины паттерна (как pageLen веба).
-    public func pageLen(_ p: Int) -> Int {
-        return pageLen(p, from: playFrom)
-    }
-
-    /// Шагов на странице p у клипа, который начинается со страницы from.
-    public func pageLen(_ p: Int, from: Int) -> Int {
-        let n = Params.stepsPerPage
-        if length > from * n { return Swift.max(0, Swift.min(n, length - p * n)) }
-        return n
-    }
-
-    /// Шагов в проходе: сумма длин играющих страниц.
-    public var playLen: Int {
-        return playLen(from: playFrom, to: playTo)
-    }
-
-    /// Шагов в проходе клипа from…to.
-    public func playLen(from: Int, to: Int) -> Int {
-        var n = 0
-        for p in from...Swift.max(from, to) { n += pageLen(p, from: from) }
-        return Swift.max(1, n)
-    }
-
-    /// Шаг (p·16 + s) на позиции n прохода, по кругу.
-    public func playIndex(_ n: Int) -> Int {
-        let len = playLen
-        var r = ((n % len) + len) % len
-        for p in playFrom...playTo {
-            let l = pageLen(p)
-            if r < l { return p * Params.stepsPerPage + r }
-            r -= l
-        }
-        return playFrom * Params.stepsPerPage
-    }
-
-    public func step(_ index: Int) -> Step? {
-        let p = index / Params.stepsPerPage
-        guard p >= 0, p < pages.count else { return nil }
-        return pages[p][index % Params.stepsPerPage]
-    }
-
-    /// Шаг за длиной паттерна — не играет.
-    public func outside(_ index: Int) -> Bool {
-        return index % Params.stepsPerPage >= pageLen(index / Params.stepsPerPage)
-    }
+    public func pageLen(_ p: Int) -> Int { return openClip.pageLen(p, from: openClip.playFrom) }
+    public func pageLen(_ p: Int, from: Int) -> Int { return openClip.pageLen(p, from: from) }
+    public var playLen: Int { return openClip.playLen }
+    public func playLen(from: Int, to: Int) -> Int { return openClip.playLen(from: from, to: to) }
+    public func playIndex(_ n: Int) -> Int { return openClip.playIndex(n) }
+    public func step(_ index: Int) -> Step? { return openClip.step(index) }
+    public func outside(_ index: Int) -> Bool { return openClip.outside(index) }
 
     /// Значение параметра на шаге: p-lock шага, иначе ручка дорожки.
     public func value(_ id: String, step: Step?) -> Double {
@@ -119,21 +103,72 @@ public struct Track: Codable, Equatable, Sendable {
     }
 }
 
-/// Клип — ячейка сетки паттернов: какие страницы дорожки играют (диапазон подряд), гамма, нота и общие FX.
-/// Звук, шаги, длина — у дорожки (общие для всех её клипов).
+/// Клип — ячейка сетки паттернов со своим паттерном: страницы (до 8), длина, играющие страницы (диапазон подряд),
+/// гамма, нота и общие FX. Звук и ручки — у дорожки (общие для всех её клипов). Копия клипа — независимая.
 public struct Clip: Codable, Equatable, Sendable {
+    public var pages: [[Step]]
+    public var length: Int
     public var playFrom: Int
     public var playTo: Int
     public var scale: Int?
     public var root: Int?
     public var fx: [String: Double]?
 
-    public init(playFrom: Int, playTo: Int, scale: Int? = nil, root: Int? = nil, fx: [String: Double]? = nil) {
+    public init(pages: [[Step]] = [Track.emptyPage()], length: Int = Params.stepsPerPage, playFrom: Int = 0,
+                playTo: Int = 0, scale: Int? = nil, root: Int? = nil, fx: [String: Double]? = nil) {
+        self.pages = pages
+        self.length = length
         self.playFrom = playFrom
         self.playTo = playTo
         self.scale = scale
         self.root = root
         self.fx = fx
+    }
+
+    /// Играющие страницы в пределах страниц клипа.
+    public var range: ClosedRange<Int> {
+        let to = Swift.max(0, Swift.min(playTo, pages.count - 1))
+        return Swift.min(Swift.max(0, playFrom), to)...to
+    }
+
+    /// Шагов на странице p у прохода, который начинается со страницы from (как pageLen веба).
+    public func pageLen(_ p: Int, from: Int) -> Int {
+        let n = Params.stepsPerPage
+        if length > from * n { return Swift.max(0, Swift.min(n, length - p * n)) }
+        return n
+    }
+
+    /// Шагов в проходе: сумма длин играющих страниц.
+    public var playLen: Int { return playLen(from: range.lowerBound, to: range.upperBound) }
+
+    public func playLen(from: Int, to: Int) -> Int {
+        var n = 0
+        for p in from...Swift.max(from, to) { n += pageLen(p, from: from) }
+        return Swift.max(1, n)
+    }
+
+    /// Шаг (p·16 + s) на позиции n прохода, по кругу.
+    public func playIndex(_ n: Int) -> Int {
+        let r0 = range
+        let len = playLen
+        var r = ((n % len) + len) % len
+        for p in r0 {
+            let l = pageLen(p, from: r0.lowerBound)
+            if r < l { return p * Params.stepsPerPage + r }
+            r -= l
+        }
+        return r0.lowerBound * Params.stepsPerPage
+    }
+
+    public func step(_ index: Int) -> Step? {
+        let p = index / Params.stepsPerPage
+        guard index >= 0, p < pages.count else { return nil }
+        return pages[p][index % Params.stepsPerPage]
+    }
+
+    /// Шаг за длиной паттерна — не играет.
+    public func outside(_ index: Int) -> Bool {
+        return index % Params.stepsPerPage >= pageLen(index / Params.stepsPerPage, from: range.lowerBound)
     }
 }
 

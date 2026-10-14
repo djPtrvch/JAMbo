@@ -82,7 +82,10 @@ struct ClipThumb: View {
 
     static func rows(_ t: Track, _ k: Int) -> [[ThumbCell]] {
         guard let r = t.clipRange(k) else { return [] }
-        return r.map { ThumbCell.page(t, page: $0) }
+        // Свой паттерн клипа: миниатюра читает его, как открытый.
+        var v = t
+        v.open = k
+        return r.map { ThumbCell.page(v, page: $0) }
     }
 
     var body: some View {

@@ -222,7 +222,8 @@ struct PageThumb: View {
     var body: some View {
         // Данные читаются здесь (в теле), а не в Canvas: так правки и ход игры перерисовывают миниатюру.
         let cells: [ThumbCell] = ThumbCell.page(model.track, page: page)
-        let pos: Int = model.playing ? model.live.playPos[model.selectedTrack] - page * Params.stepsPerPage : -1
+        let played: Int = model.openPlayPos
+        let pos: Int = model.playing && played >= 0 ? played - page * Params.stepsPerPage : -1
         let current: Bool = model.viewPage == page
         let colors: ThumbColors = ThumbColors(theme: theme)
         return Canvas { ctx, size in PageThumb.draw(ctx, size, cells, pos, colors) }

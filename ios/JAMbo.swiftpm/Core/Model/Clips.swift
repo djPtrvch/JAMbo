@@ -8,54 +8,34 @@ extension Track {
         return k >= 0 && k < clips.count && clips[k] != nil
     }
 
-    /// Сделать ячейку k активной: её диапазон страниц встаёт в playFrom…playTo (пустая — активная пустая).
+    /// Сделать ячейку k активной; открытый клип идёт за активным, если был им.
     public mutating func activate(_ k: Int) {
+        if open == slot { open = k }
         slot = k
-        guard let c = clips[k] else { return }
-        let last = pages.count - 1
-        let to = Swift.max(0, Swift.min(c.playTo, last))
-        playTo = to
-        playFrom = Swift.max(0, Swift.min(c.playFrom, to))
     }
 
-    /// Диапазон страниц клипа k в пределах страниц дорожки.
+    /// Правка клипа k (не открытого): например, запись с REC — в играющий клип, что бы ни было открыто.
+    public mutating func editing<R>(_ k: Int, _ f: (inout Track) -> R) -> R {
+        let saved = open
+        open = k
+        let r = f(&self)
+        open = saved
+        return r
+    }
+
+    /// Играющие страницы клипа k.
     public func clipRange(_ k: Int) -> ClosedRange<Int>? {
-        guard let c = clips[k] else { return nil }
-        let last = pages.count - 1
-        let to = Swift.max(0, Swift.min(c.playTo, last))
-        return Swift.min(c.playFrom, to)...to
+        return clips[k]?.range
     }
 
-    private static func pageEmpty(_ pg: [Step]) -> Bool {
-        return pg.allSatisfy { !$0.on && $0.locks.isEmpty && $0.sound == nil }
+    /// Клип с пустым паттерном (одна пустая страница) в ячейку k.
+    public mutating func putEmptyClip(_ k: Int, scale: Int?, root: Int?) {
+        clips[k] = Clip(scale: scale, root: root)
     }
 
-    /// Клип с пустым паттерном в ячейку k: пустая страница, на которую не ссылается другой клип; нет — новая в конце;
-    /// страниц уже 8 — любая пустая. Возвращает страницу или −1 (свободной нет).
-    @discardableResult
-    public mutating func putEmptyClip(_ k: Int, scale: Int?, root: Int?) -> Int {
-        var used = Set<Int>()
-        for (j, c) in clips.enumerated() where j != k {
-            if let c = c { for p in c.playFrom...Swift.max(c.playFrom, c.playTo) { used.insert(p) } }
-        }
-        var page: Int = pages.indices.first { !used.contains($0) && Track.pageEmpty(pages[$0]) } ?? -1
-        if page < 0 && pages.count < Params.maxPages { page = pages.count }
-        if page < 0 { page = pages.indices.first { Track.pageEmpty(pages[$0]) } ?? -1 }
-        if page < 0 { return -1 }
-        if page == pages.count {
-            let full: Bool = length == pages.count * Params.stepsPerPage
-            pages.append(Track.emptyPage())
-            if full { length = pages.count * Params.stepsPerPage }
-        }
-        clips[k] = Clip(playFrom: page, playTo: page, scale: scale, root: root)
-        if k == slot { activate(k) }
-        return page
-    }
-
-    /// Клип в ячейку k (вместо прежнего); активная — сразу его страницы.
+    /// Клип в ячейку k (вместо прежнего) — независимая копия.
     public mutating func setClip(_ k: Int, _ c: Clip?) {
         clips[k] = c
-        if k == slot && c != nil { activate(k) }
     }
 
     /// Ближайшая пустая ячейка ниже k (потом сверху), −1 — свободных нет.
@@ -67,10 +47,13 @@ extension Track {
         return -1
     }
 
-    /// DELETE клипа: шаги его страниц пустые (клип остаётся — пустых ячеек нет; звук дорожки остаётся).
+    /// DELETE клипа: шаги всех его страниц пустые (ноты, триги, p-lock, звуки шагов); клип, его страницы и длина
+    /// остаются (пустых ячеек нет), другие клипы и звук дорожки не меняются.
     public mutating func clearClip(_ k: Int) {
-        guard let r = clipRange(k) else { return }
-        for p in r { pages[p] = Track.emptyPage() }
+        guard var c = clips[k] else { return }
+        clips[k] = nil
+        for p in c.pages.indices { c.pages[p] = Track.emptyPage() }
+        clips[k] = c
     }
 }
 
@@ -135,6 +118,7 @@ extension Project {
             c.insert(c[k], at: k + 1)
             tracks[i].clips = Array(c.prefix(Params.patternSlots))
             if tracks[i].slot > k { tracks[i].slot += 1 }
+            if tracks[i].open > k { tracks[i].open += 1 }
         }
         scenes.insert(scenes[k], at: k + 1)
         scenes = Array(scenes.prefix(Params.patternSlots))
@@ -149,13 +133,16 @@ extension Project {
             c.remove(at: k)
             c.append(nil)
             let slot = tracks[i].slot
+            let fallback: Int = c[k] != nil ? k : (c.firstIndex { $0 != nil } ?? Swift.min(k, Swift.max(0, n - 2)))
             var active: Int = slot > k ? slot - 1 : slot
             if slot == k {
-                active = c[k] != nil ? k : (c.firstIndex { $0 != nil } ?? Swift.min(k, Swift.max(0, n - 2)))
+                active = fallback
                 tracks[i].stopped = true
             }
+            let open = tracks[i].open
             tracks[i].clips = c
-            tracks[i].activate(active)
+            tracks[i].slot = active
+            tracks[i].open = open == k ? fallback : (open > k ? open - 1 : open)
         }
         scenes.remove(at: k)
         scenes.append(SceneRow())

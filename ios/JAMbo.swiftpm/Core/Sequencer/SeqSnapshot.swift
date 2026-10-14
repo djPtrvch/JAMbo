@@ -3,18 +3,24 @@
 // (AudioCore.publish); прежний возвращается обратно и освобождается в основном потоке.
 
 /// Указатели снимка — простые значения: колбэк копирует их себе, не трогая счётчик ссылок.
+/// У каждого клипа (дорожка·slots + ячейка) свой паттерн: блок шагов (номер блока или −1 — ячейка пуста),
+/// длина и играющие страницы.
 public struct SeqData {
     public static let maxTracks = Params.maxTracks
     public static let maxSteps = Params.maxPages * Params.stepsPerPage
     public static let maxNotes = 8
+    public static let slots = Params.patternSlots
 
     public var trackCount: Int = 0
-    /// На дорожку: длина паттерна, играющие страницы, остановлена.
-    public var length: UnsafeMutablePointer<Int32>
-    public var playFrom: UnsafeMutablePointer<Int32>
-    public var playTo: UnsafeMutablePointer<Int32>
+    /// На дорожку: остановлена, активная ячейка (колбэк берёт их, пока транспорт стоит; при игре ими управляет сам).
     public var stopped: UnsafeMutablePointer<UInt8>
-    /// На шаг (дорожка·maxSteps + шаг): триг, длина, число нот и ноты (·maxNotes), Chance, Ratchet, Swing (с p-lock).
+    public var slot: UnsafeMutablePointer<Int32>
+    /// На клип: блок шагов (−1 — пусто), длина паттерна, страницы from…to.
+    public var clipBlock: UnsafeMutablePointer<Int32>
+    public var clipLength: UnsafeMutablePointer<Int32>
+    public var clipFrom: UnsafeMutablePointer<Int32>
+    public var clipTo: UnsafeMutablePointer<Int32>
+    /// На шаг (блок·maxSteps + шаг): триг, длина, число нот и ноты (·maxNotes), Chance, Ratchet, Swing (с p-lock).
     public var on: UnsafeMutablePointer<UInt8>
     public var len: UnsafeMutablePointer<Int32>
     public var noteCount: UnsafeMutablePointer<UInt8>
@@ -22,13 +28,6 @@ public struct SeqData {
     public var prob: UnsafeMutablePointer<Float>
     public var ratchet: UnsafeMutablePointer<Int32>
     public var swing: UnsafeMutablePointer<Float>
-    /// Клипы (дорожка·slots + ячейка): есть ли, страницы from…to. Активная ячейка и остановка — как в проекте
-    /// (колбэк берёт их, пока транспорт стоит; при игре ими управляет сам).
-    public static let slots = Params.patternSlots
-    public var clipFilled: UnsafeMutablePointer<UInt8>
-    public var clipFrom: UnsafeMutablePointer<Int32>
-    public var clipTo: UnsafeMutablePointer<Int32>
-    public var slot: UnsafeMutablePointer<Int32>
     /// Строки: видимых, повторы, строка старта, в конце — стоп, LOOP ROW.
     public var rows: Int = 1
     public var repeats: UnsafeMutablePointer<Int32>
@@ -37,23 +36,28 @@ public struct SeqData {
     public var rowLoop: Bool = true
 
     @inline(__always)
-    public func pageLen(_ t: Int, _ p: Int, from: Int) -> Int {
-        let n = Params.stepsPerPage
-        let length = Int(self.length[t])
-        if length > from * n { return max(0, min(n, length - p * n)) }
-        return n
+    private func ci(_ t: Int, _ k: Int) -> Int {
+        return t * SeqData.slots + max(0, min(SeqData.slots - 1, k))
     }
 
     @inline(__always)
     public func filled(_ t: Int, _ k: Int) -> Bool {
-        return k >= 0 && k < SeqData.slots && clipFilled[t * SeqData.slots + k] != 0
+        return k >= 0 && k < SeqData.slots && clipBlock[t * SeqData.slots + k] >= 0
     }
 
     /// Страницы клипа k дорожки t.
     @inline(__always)
     public func clip(_ t: Int, _ k: Int) -> (from: Int, to: Int) {
-        let i = t * SeqData.slots + max(0, min(SeqData.slots - 1, k))
+        let i = ci(t, k)
         return (Int(clipFrom[i]), Int(clipTo[i]))
+    }
+
+    @inline(__always)
+    public func pageLen(_ t: Int, _ k: Int, _ p: Int, from: Int) -> Int {
+        let n = Params.stepsPerPage
+        let length = Int(clipLength[ci(t, k)])
+        if length > from * n { return max(0, min(n, length - p * n)) }
+        return n
     }
 
     @inline(__always)
@@ -62,7 +66,7 @@ public struct SeqData {
         var n = 0
         var p = c.from
         while p <= c.to {
-            n += pageLen(t, p, from: c.from)
+            n += pageLen(t, k, p, from: c.from)
             p += 1
         }
         return max(1, n)
@@ -76,12 +80,20 @@ public struct SeqData {
         var r = ((n % total) + total) % total
         var p = c.from
         while p <= c.to {
-            let l = pageLen(t, p, from: c.from)
+            let l = pageLen(t, k, p, from: c.from)
             if r < l { return p * Params.stepsPerPage + r }
             r -= l
             p += 1
         }
         return c.from * Params.stepsPerPage
+    }
+
+    /// Индекс шага pos клипа k в массивах шагов; −1 — ячейка пуста.
+    @inline(__always)
+    public func stepIndex(_ t: Int, slot k: Int, _ pos: Int) -> Int {
+        let b = Int(clipBlock[ci(t, k)])
+        if b < 0 || pos < 0 || pos >= SeqData.maxSteps { return -1 }
+        return b * SeqData.maxSteps + pos
     }
 
     /// Для дорожки с активным клипом из проекта (тесты, интерфейс).
@@ -96,32 +108,26 @@ public final class SeqSnapshot: @unchecked Sendable {
 
     public init(_ project: Project) {
         let tracks = SeqData.maxTracks
-        let steps = tracks * SeqData.maxSteps
+        let cells = tracks * SeqData.slots
+        let used = min(project.tracks.count, tracks)
+        var blocks = 0
+        for t in 0..<used { blocks += project.tracks[t].clips.filter { $0 != nil }.count }
+        let steps = max(1, blocks) * SeqData.maxSteps
         var d = SeqData(
-            length: .allocate(capacity: tracks), playFrom: .allocate(capacity: tracks),
-            playTo: .allocate(capacity: tracks), stopped: .allocate(capacity: tracks),
+            stopped: .allocate(capacity: tracks), slot: .allocate(capacity: tracks),
+            clipBlock: .allocate(capacity: cells), clipLength: .allocate(capacity: cells),
+            clipFrom: .allocate(capacity: cells), clipTo: .allocate(capacity: cells),
             on: .allocate(capacity: steps), len: .allocate(capacity: steps),
             noteCount: .allocate(capacity: steps), notes: .allocate(capacity: steps * SeqData.maxNotes),
             prob: .allocate(capacity: steps), ratchet: .allocate(capacity: steps), swing: .allocate(capacity: steps),
-            clipFilled: .allocate(capacity: tracks * SeqData.slots), clipFrom: .allocate(capacity: tracks * SeqData.slots),
-            clipTo: .allocate(capacity: tracks * SeqData.slots), slot: .allocate(capacity: tracks),
             repeats: .allocate(capacity: SeqData.slots)
         )
-        d.clipFilled.initialize(repeating: 0, count: tracks * SeqData.slots)
-        d.clipFrom.initialize(repeating: 0, count: tracks * SeqData.slots)
-        d.clipTo.initialize(repeating: 0, count: tracks * SeqData.slots)
-        d.slot.initialize(repeating: 0, count: tracks)
-        d.repeats.initialize(repeating: 1, count: SeqData.slots)
-        d.rows = project.visibleRows
-        d.arrStart = min(project.arrStart, d.rows - 1)
-        d.arrEndStop = project.arrEndStop
-        d.rowLoop = project.rowLoop
-        for k in 0..<SeqData.slots { d.repeats[k] = Int32(project.scenes[k].repeats) }
-        d.trackCount = min(project.tracks.count, tracks)
-        d.length.initialize(repeating: 16, count: tracks)
-        d.playFrom.initialize(repeating: 0, count: tracks)
-        d.playTo.initialize(repeating: 0, count: tracks)
         d.stopped.initialize(repeating: 1, count: tracks)
+        d.slot.initialize(repeating: 0, count: tracks)
+        d.clipBlock.initialize(repeating: -1, count: cells)
+        d.clipLength.initialize(repeating: Int32(Params.stepsPerPage), count: cells)
+        d.clipFrom.initialize(repeating: 0, count: cells)
+        d.clipTo.initialize(repeating: 0, count: cells)
         d.on.initialize(repeating: 0, count: steps)
         d.len.initialize(repeating: 1, count: steps)
         d.noteCount.initialize(repeating: 0, count: steps)
@@ -129,29 +135,37 @@ public final class SeqSnapshot: @unchecked Sendable {
         d.prob.initialize(repeating: 100, count: steps)
         d.ratchet.initialize(repeating: 0, count: steps)
         d.swing.initialize(repeating: 50, count: steps)
-        for t in 0..<d.trackCount {
-            SeqSnapshot.fill(&d, t, project.tracks[t])
+        d.repeats.initialize(repeating: 1, count: SeqData.slots)
+        d.rows = project.visibleRows
+        d.arrStart = min(project.arrStart, d.rows - 1)
+        d.arrEndStop = project.arrEndStop
+        d.rowLoop = project.rowLoop
+        for k in 0..<SeqData.slots { d.repeats[k] = Int32(project.scenes[k].repeats) }
+        d.trackCount = used
+        var block = 0
+        for t in 0..<used {
+            let track = project.tracks[t]
+            d.stopped[t] = track.stopped || track.blank ? 1 : 0
+            d.slot[t] = Int32(track.slot)
+            for k in 0..<SeqData.slots {
+                guard let c = track.clips[k] else { continue }
+                SeqSnapshot.fill(&d, track, c, cell: t * SeqData.slots + k, block: block)
+                block += 1
+            }
         }
         data = d
         SeqSnapshot.liveCount += 1
     }
 
-    private static func fill(_ d: inout SeqData, _ t: Int, _ track: Track) {
-        d.length[t] = Int32(track.length)
-        d.playFrom[t] = Int32(track.playFrom)
-        d.playTo[t] = Int32(track.playTo)
-        d.stopped[t] = track.stopped || track.blank ? 1 : 0
-        d.slot[t] = Int32(track.slot)
-        for k in 0..<SeqData.slots {
-            guard let r = track.clipRange(k) else { continue }
-            let i = t * SeqData.slots + k
-            d.clipFilled[i] = 1
-            d.clipFrom[i] = Int32(r.lowerBound)
-            d.clipTo[i] = Int32(r.upperBound)
-        }
-        for (p, page) in track.pages.enumerated() where p < Params.maxPages {
+    private static func fill(_ d: inout SeqData, _ track: Track, _ c: Clip, cell: Int, block: Int) {
+        let r = c.range
+        d.clipBlock[cell] = Int32(block)
+        d.clipLength[cell] = Int32(c.length)
+        d.clipFrom[cell] = Int32(r.lowerBound)
+        d.clipTo[cell] = Int32(r.upperBound)
+        for (p, page) in c.pages.enumerated() where p < Params.maxPages {
             for (s, step) in page.enumerated() {
-                let i = t * SeqData.maxSteps + p * Params.stepsPerPage + s
+                let i = block * SeqData.maxSteps + p * Params.stepsPerPage + s
                 d.on[i] = step.on ? 1 : 0
                 d.len[i] = Int32(step.len)
                 let n = min(step.notes.count, SeqData.maxNotes)
@@ -166,10 +180,12 @@ public final class SeqSnapshot: @unchecked Sendable {
 
     deinit {
         SeqSnapshot.liveCount -= 1
-        data.length.deallocate()
-        data.playFrom.deallocate()
-        data.playTo.deallocate()
         data.stopped.deallocate()
+        data.slot.deallocate()
+        data.clipBlock.deallocate()
+        data.clipLength.deallocate()
+        data.clipFrom.deallocate()
+        data.clipTo.deallocate()
         data.on.deallocate()
         data.len.deallocate()
         data.noteCount.deallocate()
@@ -177,10 +193,6 @@ public final class SeqSnapshot: @unchecked Sendable {
         data.prob.deallocate()
         data.ratchet.deallocate()
         data.swing.deallocate()
-        data.clipFilled.deallocate()
-        data.clipFrom.deallocate()
-        data.clipTo.deallocate()
-        data.slot.deallocate()
         data.repeats.deallocate()
     }
 }
