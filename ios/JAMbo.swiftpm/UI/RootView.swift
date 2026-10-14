@@ -45,8 +45,27 @@ struct RootView: View {
         if menuOpen {
             MainMenu(model: model, isOpen: $menuOpen).padding(.top, 58).padding(.leading, 12)
         }
+        if let menu = model.pageMenu {
+            pageMenu(menu)
+        }
         if model.showDiagnostics {
             DiagnosticsView(model: model).padding(8)
+        }
+    }
+}
+
+extension RootView {
+    /// Меню страницы — слева от колонки миниатюр, на высоте страницы; тап мимо — закрыть.
+    func pageMenu(_ menu: PageMenuState) -> some View {
+        let top: CGFloat = 8 + Layout.topHeight + Layout.gap + min(max(0, menu.y - 8), 220)
+        let trailing: CGFloat = 12 + Layout.meterWidth + Layout.gap + Layout.leftColumn + 8
+        return ZStack(alignment: .topTrailing) {
+            Color.black.opacity(0.001)
+                .ignoresSafeArea()
+                .onTapGesture { model.pageMenu = nil }
+            PageMenu(model: model, page: menu.page) { model.pageMenu = nil }
+                .padding(.top, top)
+                .padding(.trailing, trailing)
         }
     }
 }

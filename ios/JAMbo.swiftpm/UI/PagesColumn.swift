@@ -9,7 +9,7 @@ struct PagesColumn: View {
     @State private var press: PagePress? = nil
     @State private var tapTask: Task<Void, Never>? = nil
     @State private var lastTap: (row: Int, at: Date)? = nil
-    @State private var menuPage: Int? = nil
+    @State private var rowStep: CGFloat = 50
     @Environment(\.theme) private var theme
 
     static let rows = 8
@@ -27,14 +27,9 @@ struct PagesColumn: View {
             }
             .contentShape(Rectangle())
             .gesture(drag(rowH: rowH + 4))
-            .popover(isPresented: menuShown, arrowEdge: .leading) {
-                PageMenu(model: model, page: menuPage ?? 0) { menuPage = nil }
-            }
+            .onAppear { rowStep = rowH + 4 }
+            .onChange(of: rowH) { _, h in rowStep = h + 4 }
         }
-    }
-
-    private var menuShown: Binding<Bool> {
-        Binding(get: { menuPage != nil }, set: { if !$0 { menuPage = nil } })
     }
 
     @ViewBuilder
@@ -125,7 +120,7 @@ struct PagesColumn: View {
         if let last = lastTap, last.row == r, Date().timeIntervalSince(last.at) < 0.3 {
             tapTask?.cancel()
             lastTap = nil
-            menuPage = r
+            model.pageMenu = PageMenuState(page: r, y: CGFloat(r) * rowStep)
             return
         }
         lastTap = (r, Date())
@@ -181,7 +176,8 @@ struct PageThumb: View {
                 ctx.stroke(path, with: .color(c.accent), lineWidth: 1)
             }
             if s == pos {
-                ctx.stroke(Path(roundedRect: rect.insetBy(dx: -1, dy: -1), cornerRadius: 2), with: .color(c.accent), lineWidth: 1)
+                // Контур внутри ячейки: снаружи его срезал бы край холста.
+                ctx.stroke(Path(roundedRect: rect.insetBy(dx: 0.75, dy: 0.75), cornerRadius: 2), with: .color(c.accent), lineWidth: 1.5)
             }
         }
     }
@@ -254,8 +250,9 @@ struct PageMenu: View {
         }
         .padding(10)
         .frame(width: 240)
-        .background(theme.bg)
-        .presentationCompactAdaptation(.popover)
+        .background(theme.bg, in: RoundedRectangle(cornerRadius: Layout.radius))
+        .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(theme.line, lineWidth: 1))
+        .shadow(color: .black.opacity(0.5), radius: 12, y: 4)
     }
 
     private func arrow(_ title: String, _ action: AppModel.PageAction) -> some View {
@@ -277,4 +274,10 @@ struct PageMenu: View {
         .buttonStyle(.plain)
         .disabled(!enabled)
     }
+}
+
+/// Открытое меню страницы: номер страницы и высота её миниатюры в колонке (меню встаёт рядом, слева).
+struct PageMenuState: Equatable {
+    let page: Int
+    let y: CGFloat
 }

@@ -28,6 +28,8 @@ final class AppModel {
     @ObservationIgnored var usedSteps: Set<Int> = []
     /// Зажата SHIFT.
     var shiftHeld: Bool = false
+    /// Открытое меню страницы (двойной тап по миниатюре).
+    var pageMenu: PageMenuState? = nil
     /// Скопированные страницы (copy в меню страницы).
     @ObservationIgnored var pageClipboard: [[Step]]? = nil
     /// Октава пианоролла (по умолчанию со второй: C2) — нота трига, пока нот не выбрали.
