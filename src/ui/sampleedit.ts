@@ -8,7 +8,7 @@
 // TRIM, NORMALIZE и MONO сразу ставят на дорожку отредактированную копию (в папке — на месте
 // исходного сэмпла); UNDO в верхней панели возвращает исходный.
 
-import { addEditedSample, previewSample, previewing, sampleBuffer, stopPreview } from '../audio/engine';
+import { addEditedSample, previewSample, previewing, sampleBuffer, samplePlayheads, stopPreview } from '../audio/engine';
 import { openBrowser } from './browser';
 import { noteName, synthEngine } from '../params';
 import { addSlice, beginGesture, deleteSlice, doc, endGesture, moveSlice, replaceSample, sampleName, sliceMarks, sliceNote, toggleView, ui } from '../state';
@@ -456,6 +456,12 @@ export function renderSampleEditor() {
     g.textAlign = 'left';
   });
   g.textBaseline = 'alphabetic';
+  // Полоса воспроизведения: звучащие голоса сэмпла — тонкие жёлтые линии.
+  g.fillStyle = color('--accent');
+  for (const f of samplePlayheads(ui.selectedTrack, key)) {
+    const x = toX(f);
+    if (x >= 0 && x <= W) g.fillRect(Math.round(x), TOP, 1, H - TOP);
+  }
   // Полоса прокрутки (при увеличении): видимая часть сэмпла — жёлтым.
   if (view.span < 1) {
     g.fillStyle = color('--meter-track');

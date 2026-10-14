@@ -52,6 +52,8 @@ interface Voice {
   note: number;
   /** Нота высоты: у нарезки (маркеры сэмпла) — исходная высота (root), иначе — note. */
   rateNote?: number;
+  /** Голос сэмпла: что играет (для полосы воспроизведения) — ключ, начало и конец (доли), скорость. */
+  play?: { key: string; a: number; b: number; dur: number; rate: number };
   /** Время начала ноты (контекст): до него модуляция голос не трогает. */
   at: number;
   /** Сэмпл; у голоса синта — null (звучит слот synth). */
@@ -786,7 +788,7 @@ export function triggerTrack(track: number, time: number, notes: number[], locks
     // Живая нота звучит до отпускания (или до конца сэмпла); остальные — пока Decay не затих
     // (8 постоянных времени, −70 dB: раньше обрыв на −40 dB при длинном Decay щёлкал).
     if (hold !== Infinity) src.stop(Math.min(at + playDur, hold + Math.max(0.02, decay) * 2 + 0.05));
-    const voice: Voice = { track, root, locks, note, rateNote: marks.length ? root : undefined, at, src, synth: null, level, filter, pan, sends, ended: false, hold, own: !!sound };
+    const voice: Voice = { track, root, locks, note, rateNote: marks.length ? root : undefined, play: { key, a: startSec / buf.duration, b: endSec / buf.duration, dur: buf.duration, rate }, at, src, synth: null, level, filter, pan, sends, ended: false, hold, own: !!sound };
     if (hold === Infinity) voice.held = { amp: amp.gain, decay, id: 0 };
     // Автоматизация: значения голоса наперёд — с самого начала ноты.
     if (autoLive(track)) scheduleVoice(voice, at);
@@ -901,6 +903,23 @@ function triggerSynth(track: number, engine: number, time: number, notes: number
   });
   node.port.postMessage(events);
   if (!retrig) sidechain(track, at);
+}
+
+/**
+ * Полоса воспроизведения: где сейчас звучащие голоса сэмпла key дорожки (доли длины). Позиция — от начала ноты
+ * по её скорости (модуляция Pitch не учитывается); голос, отпущенный и затихающий, ещё показывается, пока играет.
+ */
+export function samplePlayheads(track: number, key: string): number[] {
+  if (!ctx || !key) return [];
+  const now = ctx.currentTime - (ctx.outputLatency || 0);
+  const out: number[] = [];
+  for (const vo of voices) {
+    const pl = vo.play;
+    if (!pl || vo.ended || vo.track !== track || pl.key !== key || now < vo.at) continue;
+    const f = pl.a + ((now - vo.at) * pl.rate) / pl.dur;
+    if (f < pl.b) out.push(f);
+  }
+  return out;
 }
 
 /** Живой наигрыш с пианоролла: ноты выбранной дорожки сейчас. */

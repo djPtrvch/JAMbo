@@ -57,7 +57,9 @@ function buildPanel() {
   appearance = h('div', 'settings-choice');
   panel.box.append(
     backHeader(h('div', 'project-title', 'Settings'), () => { panel.close(); openMainMenu(anchorEl); }),
-    h('div', 'source-title', 'APPEARANCE'), appearance, tabs, body,
+    h('div', 'source-title', 'APPEARANCE'), appearance,
+    // Отступ от кнопок темы и подпись: ниже — меню разделов настроек.
+    h('div', 'source-title settings-tabs-title', 'SECTIONS'), tabs, body,
   );
 }
 
