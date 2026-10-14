@@ -1,6 +1,6 @@
 // Меню «бутерброд»: PROJECTS (проекты, ui/projects.ts), SETTINGS и MIDI (ui/midi.ts);
 // во вложенных меню стрелка назад возвращает сюда.
-// SETTINGS — вкладки AUDIO ENGINE (частота дискретизации, размер буфера), RECORD (квантизация, овердаб, запись автоматизации), SAMPLER (ноты маркеров нарезки), BACKGROUND (звук в фоне)
+// SETTINGS — разделы списком (прокрутка): AUDIO ENGINE (частота дискретизации, размер буфера), RECORD (квантизация, овердаб, запись автоматизации), SAMPLER (ноты маркеров нарезки), BACKGROUND (звук в фоне)
 // OUTPUT (выход и вход аудиоинтерфейса), SIDECHAIN (приглушение посылов эффектов, на пробу) и SCALE (шкала окон мастера).
 
 import { applyOutput, applySidechainSends, audioInfo, canChooseOutput, restartAudio } from '../audio/engine';
@@ -12,13 +12,10 @@ import { openMidi } from './midi';
 import { openSync } from './sync';
 import { openProjectMenu } from './projects';
 
-type Tab = 'engine' | 'record' | 'sampler' | 'background' | 'output' | 'sidechain' | 'scale';
 
 let main: Popup;
 let panel: Popup;
 let body: HTMLElement;
-let tab: Tab = 'engine';
-const tabBtns: Record<Tab, HTMLButtonElement> = {} as Record<Tab, HTMLButtonElement>;
 let anchorEl: Element;
 let infoTimer = 0;
 
@@ -46,18 +43,12 @@ export function openMainMenu(anchor: Element) {
 
 function buildPanel() {
   panel = makePopup('settings');
-  const tabs = h('div', 'settings-tabs');
-  const names: [Tab, string][] = [['engine', 'AUDIO ENGINE'], ['record', 'RECORD'], ['sampler', 'SAMPLER'], ['background', 'BACKGROUND'], ['output', 'OUTPUT'], ['sidechain', 'SIDECHAIN'], ['scale', 'SCALE']];
-  for (const [t, label] of names) {
-    tabBtns[t] = popupButton(label, () => { tab = t; render(); });
-    tabs.append(tabBtns[t]);
-  }
   body = h('div', 'settings-body');
-  // Оформление — над вкладками: как в системе, светлое, тёмное.
+  // Оформление — первым; дальше разделы списком (прокрутка пальцем), без вкладок.
   appearance = h('div', 'settings-choice');
   panel.box.append(
     backHeader(h('div', 'project-title', 'Settings'), () => { panel.close(); openMainMenu(anchorEl); }),
-    h('div', 'source-title', 'APPEARANCE'), appearance, tabs, body,
+    h('div', 'source-title', 'APPEARANCE'), appearance, body,
   );
 }
 
@@ -216,13 +207,14 @@ function render() {
     b.classList.toggle('current', settings.theme === t);
     return b;
   }));
-  for (const t of Object.keys(tabBtns) as Tab[]) tabBtns[t].classList.toggle('current', t === tab);
   body.replaceChildren();
-  if (tab === 'engine') renderEngine();
-  else if (tab === 'record') renderRecord();
-  else if (tab === 'sampler') renderSampler();
-  else if (tab === 'background') renderBackground();
-  else if (tab === 'sidechain') renderSidechain();
-  else if (tab === 'scale') renderScale();
-  else renderOutput();
+  // Разделы списком: заголовок раздела и черта между разделами.
+  const sections: [string, () => void][] = [
+    ['AUDIO ENGINE', renderEngine], ['RECORD', renderRecord], ['SAMPLER', renderSampler], ['BACKGROUND', renderBackground],
+    ['OUTPUT', renderOutput], ['SIDECHAIN', renderSidechain], ['SCALE', renderScale],
+  ];
+  for (const [title, fn] of sections) {
+    body.append(h('div', 'menu-head settings-head', title));
+    fn();
+  }
 }
