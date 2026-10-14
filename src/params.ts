@@ -379,6 +379,8 @@ export const MASTER_EXTRA: ParamDef[] = [
   smooth('cmp.hold', 'Hold', 0, 500, 0, (v) => `${Math.round(v)} ms`, CMP),
   smooth('cmp.mix', 'Mix', 0, 100, 100, pct, CMP),
   smooth('cmp.link', 'Link', 0, 100, 100, pct, CMP),
+  // Окно клиппера: MIX (параллельный срез), 100 % — прежний звук.
+  smooth('clip.mix', 'Mix', 0, 100, 100, pct, CMP),
   smooth('cmp.schpf', 'SC HPF', 20, 500, 90, (v) => (v <= CMP_SCHPF_OFF ? 'OFF' : `${Math.round(v)} Hz`), { ...CMP, exp: true }),
 ];
 

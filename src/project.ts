@@ -74,6 +74,8 @@ async function show(d: Doc, mix = false) {
   ui.limUnity = false;
   ui.limAudit = false;
   ui.compAudit = false;
+  ui.clipUnity = false;
+  ui.clipAudit = false;
   if (mix) switchWithTransition(d);
   else loadDoc(d);
 }

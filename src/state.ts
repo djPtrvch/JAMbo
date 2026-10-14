@@ -252,6 +252,10 @@ export interface Ui {
   /** Окно компрессора мастера (тап по блоку COMP при MST); AUDIT — только пока оно открыто, не в проекте. */
   compView: boolean;
   compAudit: boolean;
+  /** Окно клиппера мастера (тап по блоку CLIP при MST); UNITY и AUDIT — только пока оно открыто, не в проекте. */
+  clipView: boolean;
+  clipUnity: boolean;
+  clipAudit: boolean;
   /** Редактор сэмпла (удержание окна сэмпла) на месте центра экрана, как EQ. */
   sampleView: boolean;
   /** Браузер библиотеки сэмплов и пресетов на месте центра экрана. */
@@ -402,6 +406,9 @@ export const ui: Ui = {
   limAudit: false,
   compView: false,
   compAudit: false,
+  clipView: false,
+  clipUnity: false,
+  clipAudit: false,
   sampleView: false,
   browserView: false,
   autoView: false,
@@ -2188,9 +2195,9 @@ export const selectedBand = (): EqBand | null => (ui.eqBand >= 0 ? eqTarget().ba
 const clampN = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
 /** Кнопки PATTERNS и EQ переключают центр экрана (одновременно открыт только один вид). */
-export function toggleView(v: 'patterns' | 'eq' | 'sample' | 'browser' | 'auto' | 'lim' | 'comp') {
+export function toggleView(v: 'patterns' | 'eq' | 'sample' | 'browser' | 'auto' | 'lim' | 'comp' | 'clip') {
   const open = v === 'patterns' ? !ui.patternView : v === 'eq' ? !ui.eqView : v === 'sample' ? !ui.sampleView : v === 'auto' ? !ui.autoView
-    : v === 'lim' ? !ui.limView : v === 'comp' ? !ui.compView : !ui.browserView;
+    : v === 'lim' ? !ui.limView : v === 'comp' ? !ui.compView : v === 'clip' ? !ui.clipView : !ui.browserView;
   ui.patternView = v === 'patterns' && open;
   ui.eqView = v === 'eq' && open;
   // Окно модуля мастера (лимитер): UNITY и AUDIT выключаются вместе с ним.
@@ -2198,6 +2205,8 @@ export function toggleView(v: 'patterns' | 'eq' | 'sample' | 'browser' | 'auto' 
   if (!ui.limView) { ui.limUnity = false; ui.limAudit = false; }
   ui.compView = v === 'comp' && open;
   if (!ui.compView) ui.compAudit = false;
+  ui.clipView = v === 'clip' && open;
+  if (!ui.clipView) { ui.clipUnity = false; ui.clipAudit = false; }
   ui.sampleView = v === 'sample' && open;
   ui.browserView = v === 'browser' && open;
   ui.autoView = v === 'auto' && open;

@@ -171,11 +171,16 @@ export const glueBars = (extra: Partial<BarsOptions> = {}): BarsOptions => ({
   title: 'COMP', meter: glueMeter, bypass: () => doc.cmpBypass, grMax: 18, inMark: () => liveMaster()['cmp.threshold'], ...extra,
 });
 
-/** Клиппер: GR 0…−12 dB, риска CEILING на IN. */
+/** Клиппер: GR 0…−12 dB, риска CEILING на IN. При MST тап по блоку открывает окно клиппера. */
 export function buildClipper(): HTMLElement {
-  clip = new LevelBars({ title: 'CLIP', meter: clipperMeter, bypass: () => doc.clipBypass, grMax: 12, inMark: () => liveMaster()['clip.ceiling'] });
+  clip = new LevelBars(clipperBars({ onTap: () => openMasterWindow('clip') }));
   return clip.el;
 }
+
+/** Настройки блока CLIP — общие у боковой панели и окна клиппера. */
+export const clipperBars = (extra: Partial<BarsOptions> = {}): BarsOptions => ({
+  title: 'CLIP', meter: clipperMeter, bypass: () => doc.clipBypass, grMax: 12, inMark: () => liveMaster()['clip.ceiling'], ...extra,
+});
 
 /** Лимитер: GR 0…−12 dB, риска CEILING на IN. При MST тап по блоку открывает окно лимитера. */
 export function buildLimiter(): HTMLElement {
@@ -196,6 +201,7 @@ export function openMasterWindow(name: 'lim' | 'comp' | 'clip' | 'sat') {
   if (ui.channel !== 'master') return;
   if (name === 'lim' && !ui.limView) toggleView('lim');
   if (name === 'comp' && !ui.compView) toggleView('comp');
+  if (name === 'clip' && !ui.clipView) toggleView('clip');
 }
 
 export function renderDynamics(now: number) {

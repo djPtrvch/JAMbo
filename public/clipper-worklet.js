@@ -2,16 +2,24 @@
 // Вход · DRIVE → кроссовер Linkwitz-Riley 4-го порядка на частоте BASS (OFF — без деления) →
 // ВЧ-полоса: 4× оверсэмплинг (полифазный FIR, общий модуль oversampler.js) → нелинейность с мягким коленом (SOFTNESS) по CEILING
 // (с антипроизводной — меньше алиасинга) → обратно; НЧ-полоса — без обработки, с той же задержкой →
-// сумма. BYPASS — кроссфейд 10 ms с задержанным входом (задержка не меняется).
-// Для индикации ~60 раз в секунду уходит [пик после DRIVE, наибольший срез пика за окна 10 ms в dB,
-// пик выхода].
+// сумма → MIX (сухой — исходный вход с той же задержкой) → UNITY (−DRIVE dB). BYPASS — кроссфейд 10 ms
+// с задержанным входом (задержка не меняется). AUDIT — на выходе срезанное: вход после DRIVE (задержан) − выход.
+// Телеметрия (пока { meter: true }): раз в 256 отсчётов [пик после DRIVE, срез пика (dB; последнее окно 10 ms),
+// пик выхода]; пока { wave: true } — раз в ~33 ms снимок формы: 1024 отсчёта входа после DRIVE и выхода
+// (выровнены по задержке) вокруг наибольшего пика последних 2048 отсчётов, канал с большим пиком.
 
 // ---------- Константы (одно место) ----------
 const BASS_OFF_HZ = 0; // BASS = OFF приходит как 0
 const PARAM_SMOOTH_MS = 20;
 const BYPASS_MS = 10;
 const GR_WINDOW_MS = 10;
-const METER_HZ = 60;
+const METER_FRAMES = 256;
+const AUDIT_MS = 10;
+/** Снимки формы: кольцо, окно поиска пика, длина снимка, период. */
+const WAVE_RING = 4096;
+const WAVE_SEARCH = 2048;
+const WAVE_LEN = 1024;
+const WAVE_HZ = 30;
 const TINY = 1e-25;
 
 /** Оверсэмплер — общий модуль (oversampler.js, загружается раньше). */
@@ -74,6 +82,9 @@ class Channel {
     this.lfDelay = new Float64Array(LF_DELAY + 1);
     this.dryDelay = new Float64Array(LF_DELAY + 1);
     this.hfDelay = new Float64Array(LF_DELAY + 1); // ВЧ без среза — опора для GR
+    this.xDelay = new Float64Array(LF_DELAY + 1); // вход после DRIVE — для AUDIT и снимков
+    this.wIn = new Float32Array(WAVE_RING); // снимки: вход после DRIVE (задержан) и выход
+    this.wOut = new Float32Array(WAVE_RING);
     this.dpos = 0;
   }
 }
@@ -90,7 +101,17 @@ class ClipperProcessor extends AudioWorkletProcessor {
     super();
     const sr = sampleRate;
     this.sr = sr;
-    this.p = { drive: 0, ceiling: -1, softness: 30, bass: 0, bypass: false };
+    this.p = { drive: 0, ceiling: -1, softness: 30, bass: 0, bypass: false, mix: 100, unity: false, audit: false, meter: false, wave: false };
+    this.mix = 1;
+    this.unity = 1;
+    this.aud = 0;
+    this.audStep = 1 / ((AUDIT_MS / 1000) * sr);
+    this.wPos = 0;
+    this.waveEvery = Math.round(sr / WAVE_HZ);
+    this.waveN = 0;
+    /** Срез последнего завершённого окна (кадр без своего окна показывает его). */
+    this.lastGr = 0;
+    this.frameGr = -1;
     this.driveLin = 1;
     this.ceil = Math.pow(10, -1 / 20);
     this.knee = 1 - 0.6 * 0.3;
@@ -110,7 +131,7 @@ class ClipperProcessor extends AudioWorkletProcessor {
     this.engaged = false;
     this.winIn = 0;
     this.winOut = 0;
-    this.meterEvery = Math.max(128, Math.round(sr / METER_HZ));
+    this.meterEvery = METER_FRAMES;
     this.meterN = 0;
     this.mIn = 0;
     this.mGr = 0;
@@ -177,6 +198,9 @@ class ClipperProcessor extends AudioWorkletProcessor {
     const ceilT = Math.pow(10, p.ceiling / 20);
     const kneeT = 1 - 0.6 * (p.softness / 100);
     const wetT = p.bypass ? 0 : 1;
+    const mixT = Math.max(0, Math.min(1, (p.mix ?? 100) / 100));
+    const unityT = p.unity ? 1 / driveT : 1;
+    const audT = p.audit ? 1 : 0;
     const splitT = p.bass > BASS_OFF_HZ ? 1 : 0;
     // Частота кроссовера сглаживается по блокам; коэффициенты линейно интерполируются внутри блока.
     const fT = p.bass > BASS_OFF_HZ ? p.bass : this.freq;
@@ -199,6 +223,12 @@ class ClipperProcessor extends AudioWorkletProcessor {
       this.driveLin = driveT + (this.driveLin - driveT) * ks;
       this.ceil = ceilT + (this.ceil - ceilT) * ks;
       this.knee = kneeT + (this.knee - kneeT) * ks;
+      this.mix = mixT + (this.mix - mixT) * ks;
+      this.unity = unityT + (this.unity - unityT) * ks;
+      if (this.aud < audT) this.aud = Math.min(audT, this.aud + this.audStep);
+      else if (this.aud > audT) this.aud = Math.max(audT, this.aud - this.audStep);
+      const a0 = this.aud;
+      const au = a0 * a0 * (3 - 2 * a0);
       if (this.wet < wetT) this.wet = Math.min(wetT, this.wet + this.wetStep);
       else if (this.wet > wetT) this.wet = Math.max(wetT, this.wet - this.wetStep);
       if (this.split < splitT) this.split = Math.min(splitT, this.split + this.splitStep);
@@ -225,21 +255,30 @@ class ClipperProcessor extends AudioWorkletProcessor {
         const lfOut = c.lfDelay[r];
         const dryOut = c.dryDelay[r];
         const lin = lfOut + c.hfDelay[r];
+        const xOut = c.xDelay[r];
         c.lfDelay[dp] = lfIn;
         c.dryDelay[dp] = raw;
         c.hfDelay[dp] = hfIn;
+        c.xDelay[dp] = x;
         c.dpos = r;
         const wet = lfOut + yh;
+        // MIX — с исходным входом (до DRIVE) той же задержки; UNITY — −DRIVE dB после MIX.
+        let y1 = (dryOut + (wet - dryOut) * this.mix) * this.unity;
+        // AUDIT: срезанное — вход после DRIVE минус выход клиппера (до MIX).
+        if (au > 0) y1 += (xOut - wet - y1) * au;
         // В bypass клиппер отключён целиком (и DRIVE тоже): сухой — исходный сигнал с той же задержкой.
-        const y = this.wet * wet + (1 - this.wet) * dryOut;
+        const y = this.wet * y1 + (1 - this.wet) * dryOut;
         const o = out[k] || out[0];
         o[i] = y;
+        c.wIn[this.wPos] = xOut;
+        c.wOut[this.wPos] = y;
         // Опора для GR — тот же сигнал без среза (НЧ + ВЧ, с той же задержкой и фазой кроссовера).
         if (Math.abs(lin) > dryPk) dryPk = Math.abs(lin);
         if (Math.abs(wet) > outPk) outPk = Math.abs(wet);
         if (Math.abs(y) > this.mOut) this.mOut = Math.abs(y);
         if (!out[1]) break;
       }
+      this.wPos = (this.wPos + 1) & (WAVE_RING - 1);
       if (inPk > this.mIn) this.mIn = inPk;
       // Срез пика: самый большой пик выхода к самому большому пику того же сигнала без среза за 10 ms.
       if (dryPk > this.winIn) this.winIn = dryPk;
@@ -250,6 +289,8 @@ class ClipperProcessor extends AudioWorkletProcessor {
         if (gr < 0.1 || !this.engaged) gr = 0;
         this.engaged = false;
         if (gr > this.mGr) this.mGr = gr;
+        this.lastGr = gr;
+        this.frameGr = Math.max(this.frameGr, gr);
         this.grN = 0;
         this.winIn = 0;
         this.winOut = 0;
@@ -259,14 +300,49 @@ class ClipperProcessor extends AudioWorkletProcessor {
     this.cHp = hp1;
     this.meterN += n;
     if (this.meterN >= this.meterEvery) {
-      this.port.postMessage([this.mIn, this.mGr, this.mOut]);
+      // GR кадра — наибольшее из окон 10 ms, закончившихся в кадре; если ни одно не закончилось — последнее.
+      const gr = this.frameGr >= 0 ? this.frameGr : this.lastGr;
+      if (p.meter) this.port.postMessage([this.mIn, gr, this.mOut]);
       this.meterN = 0;
       this.mIn = 0;
       this.mGr = 0;
       this.mOut = 0;
+      this.frameGr = -1;
+    }
+    this.waveN += n;
+    if (this.waveN >= this.waveEvery) {
+      this.waveN = 0;
+      if (p.wave) this.sendWave();
     }
     return true;
   }
 }
+
+/** Снимок формы вокруг наибольшего пика последних WAVE_SEARCH отсчётов (канал с большим пиком). */
+ClipperProcessor.prototype.sendWave = function () {
+  const M = WAVE_RING - 1;
+  const end = this.wPos;
+  let best = -1, bestK = 0, bestAt = 0;
+  for (let k = 0; k < 2; k++) {
+    const w = this.ch[k].wIn;
+    for (let j = 1; j <= WAVE_SEARCH; j++) {
+      const q = (end - j) & M;
+      const a = Math.abs(w[q]);
+      if (a > best) { best = a; bestK = k; bestAt = j; }
+    }
+  }
+  // Окно WAVE_LEN с пиком в центре; сдвигается, чтобы целиком лежать в кольце (последние WAVE_RING отсчётов).
+  let back = bestAt + WAVE_LEN / 2; // начало окна — столько отсчётов назад
+  back = Math.max(WAVE_LEN, Math.min(WAVE_RING, back));
+  const c = this.ch[bestK];
+  const inp = new Float32Array(WAVE_LEN);
+  const outp = new Float32Array(WAVE_LEN);
+  for (let j = 0; j < WAVE_LEN; j++) {
+    const q = (end - back + j) & M;
+    inp[j] = c.wIn[q];
+    outp[j] = c.wOut[q];
+  }
+  this.port.postMessage({ wave: true, ch: bestK, inp, out: outp }, [inp.buffer, outp.buffer]);
+};
 
 registerProcessor('clipper', ClipperProcessor);

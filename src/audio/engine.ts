@@ -306,6 +306,10 @@ export const limTele = makeTele();
  * окно компрессора; включена, пока виден блок COMP (MST) или окно.
  */
 export const compTele = makeTele();
+/** Телеметрия клиппера: [пик после INPUT, срез (dB), пик выхода] — окно клиппера (LEVEL) и блок CLIP. */
+export const clipTele = makeTele();
+/** Снимок формы клиппера (вид WAVE): 1024 отсчёта входа после INPUT и выхода, канал (0 — L, 1 — R), время прихода. */
+export const clipWave = { inp: new Float32Array(1024), out: new Float32Array(1024), ch: 0, at: 0, n: 0 };
 /** Кадров телеметрии на секунду. */
 export const limTeleRate = () => (ctx ? ctx.sampleRate / 256 : 187.5);
 function teleFrame(t: Tele, levels: DynLevels, i: number, g: number, o: number, d = -120) {
@@ -334,8 +338,14 @@ function loadDevice(c: AudioContext, file: string, name: string, from: GainNode,
     });
     node.port.onmessage = (e) => {
       if (name === 'glue') { const [i, d, g, o] = e.data as number[]; teleFrame(compTele, levels, i, g, o, d); return; }
+      if (name === 'clipper' && e.data && (e.data as { wave?: boolean }).wave) {
+        const w = e.data as { inp: Float32Array<ArrayBuffer>; out: Float32Array<ArrayBuffer>; ch: number };
+        clipWave.inp = w.inp; clipWave.out = w.out; clipWave.ch = w.ch; clipWave.at = performance.now(); clipWave.n++;
+        return;
+      }
       const [i, g, o] = e.data as number[];
       if (name === 'limiter') { teleFrame(limTele, levels, i, g, o); return; }
+      if (name === 'clipper') { teleFrame(clipTele, levels, i, g, o); return; }
       levels.in = i; levels.gr = g; levels.out = o; levels.at = performance.now();
     };
     // Снимаем только обход (from → to): от from могут идти и другие связи (скоп мастера).
@@ -376,6 +386,10 @@ function sendDynamics() {
   if (mst.clip) {
     const msg = {
       drive: m['clip.drive'], ceiling: m['clip.ceiling'], softness: m['clip.softness'], bass: m['clip.bass'], bypass: doc.clipBypass,
+      mix: m['clip.mix'] ?? 100,
+      // UNITY и AUDIT — только пока открыто окно клиппера; кадры — пока виден блок CLIP (MST) или окно; снимки — вид WAVE окна.
+      unity: ui.clipView && ui.clipUnity, audit: ui.clipView && ui.clipAudit, meter: ui.channel === 'master' || ui.clipView,
+      wave: ui.clipView && settings.clipDisplay === 'wave',
     };
     const sig = JSON.stringify(msg);
     if (sig !== clipSig) { clipSig = sig; mst.clip.port.postMessage(msg); }
@@ -1177,7 +1191,7 @@ function updateFx(now: number) {
   // Глубины sidechain — от ручек дорожек (не входят в подпись FX): проверяются каждый кадр.
   updateDuckDepths(ct, Math.round(fx['sc.source']));
 
-  const fsig = JSON.stringify([fx, mixer, master, doc.limBypass, doc.cmpBypass, doc.clipBypass, doc.satBypass, doc.bpm, ui.limView, ui.limUnity, ui.limAudit, ui.compView, ui.compAudit, ui.channel === 'master', doc.tracks.map((t) => +t.mute + 2 * +t.solo)]);
+  const fsig = JSON.stringify([fx, mixer, master, doc.limBypass, doc.cmpBypass, doc.clipBypass, doc.satBypass, doc.bpm, ui.limView, ui.limUnity, ui.limAudit, ui.compView, ui.compAudit, ui.clipView, ui.clipUnity, ui.clipAudit, settings.clipDisplay, ui.channel === 'master', doc.tracks.map((t) => +t.mute + 2 * +t.solo)]);
   if (fsig === fxSig) return;
   fxSig = fsig;
   rev.set(fx, ct);

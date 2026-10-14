@@ -46,6 +46,9 @@
   /* Окно компрессора: заливка выхода (жёлтая, ~15 %) и GR (оранжевая, лёгкая). */
   --comp-out-fill: rgba(255, 200, 30, 0.15);
   --comp-gr-fill: rgba(255, 138, 61, 0.18);
+  /* Окно клиппера: срезанное (оранжевая ~25 %) и заливка выхода (~15 %). */
+  --clip-cut: rgba(255, 138, 61, 0.25);
+  --clip-out-fill: rgba(255, 138, 61, 0.15);
   --accent-soft: #3a2f0a;
   --accent-text: #ffc81e;
   --on-accent: #111111;
@@ -87,6 +90,8 @@
   --lim-out-fill: rgba(224, 20, 24, 0.18);
   --comp-out-fill: rgba(240, 184, 0, 0.18);
   --comp-gr-fill: rgba(240, 138, 36, 0.18);
+  --clip-cut: rgba(240, 138, 36, 0.25);
+  --clip-out-fill: rgba(240, 138, 36, 0.15);
   --eq-mid: var(--rec);
   --eq-side: var(--gr);
   --accent-soft: #ffeaa0;
@@ -1159,3 +1164,7 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 .comp-row { height: 46px; display: flex; gap: var(--gap); }
 .comp-row .comp-field { flex: 1; min-width: 0; padding: 2px 10px; }
 
+
+/* Окно клиппера: TRANSFER (не шире 35 %) | DISPLAY | блок CLIP; поля и кнопки — в верхней строке. */
+.clip-transfer { flex: 0 1 35%; max-width: 35%; touch-action: none; }
+.lim-strip .lim-field.off .field-value, .lim-strip .lim-field.off .field-label { color: var(--dim); opacity: 0.6; }

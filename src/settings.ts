@@ -81,6 +81,8 @@ export interface Settings {
   scSends: { rev: boolean; dly: boolean; drv: boolean };
   /** Окно лимитера: SCALE дисплея и стержней IN/OUT — 48, 32 или 16 dB. */
   limScale: 48 | 32 | 16;
+  /** Окно клиппера: вид дисплея — форма (WAVE) или уровень во времени (LEVEL). */
+  clipDisplay: 'wave' | 'level';
 }
 
 const KEY = 'jambo.settings';
@@ -89,6 +91,7 @@ const DEFAULTS: Settings = {
   midiIn: '', midiFeedback: '', noteChannel: 0, noteRoute: 'selected', mappings: [], midiPreset: '', theme: 'system', velocity: false, pianoOctaves: 2, latch: { fx: false, mod: false },
   scSends: { rev: false, dly: false, drv: true },
   limScale: 48,
+  clipDisplay: 'wave',
 };
 
 /** Маппинг с недостающими полями (старые настройки: общий режим энкодеров knobMode). */

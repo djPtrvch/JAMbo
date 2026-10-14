@@ -10,16 +10,15 @@
 //   BYPASS, AUDIT, SCALE.
 
 import { compTele, LIM_TELE } from '../audio/engine';
-import { CMP_RANGE_OFF, CMP_SCHPF_OFF, PARAM_BY_ID, RATIOS, isAuto, toNorm, type ParamDef } from '../params';
-import { beginGesture, doc, endGesture, setParamNorm, toggleCmpBypass, toggleView, ui } from '../state';
+import { CMP_RANGE_OFF, CMP_SCHPF_OFF, PARAM_BY_ID, RATIOS, isAuto, type ParamDef } from '../params';
+import { beginGesture, doc, endGesture, toggleCmpBypass, toggleView, ui } from '../state';
 import { saveSettings, settings } from '../settings';
-import { dragField } from './controls';
 import { LevelBars, glueBars } from './dynamics';
 import { closeButton, h, setClass, setText } from './dom';
 import { parseRelease } from './limiter';
 import {
   Freeze, HotTracker, LINE_HIT, SCALES, drawDbGrid, drawGrPeaks, drawPauseLabel, fitCanvas, historyColumns, mfmt as fmt, msetVal as setVal,
-  mval as val, num, numInputIn,
+  mval as val, num, numInputIn, paramField,
 } from './masterwin';
 import { color } from './theme';
 
@@ -27,9 +26,6 @@ import { color } from './theme';
 const PEAK_GAP_MS = 100;
 /** Кружок RATIO, px (диаметр). */
 const RATIO_HANDLE = 28;
-/** Делений поля на весь ход (240 px — как у ручек сетки). */
-const FIELD_UNITS = 200;
-const FIELD_PX = 1.2;
 
 const P = {
   threshold: PARAM_BY_ID['cmp.threshold'],
@@ -86,10 +82,8 @@ export const nextRatio = (r: number) => RATIOS.find((x) => x > r + 1e-3) ?? RATI
 
 /** Поле нижней панели по положению параметра (0..1): вертикальный ход 240 px на весь диапазон, удержание — ввод числом. */
 function normField(label: string, p: ParamDef, parse: (t: string) => number | null, init: () => string, onTap?: () => void) {
-  const f = dragField(label, () => Math.round(toNorm(p, val(p)) * FIELD_UNITS),
-    (v) => setParamNorm('master', p, Math.min(1, Math.max(0, v / FIELD_UNITS))), () => fmt(p), FIELD_PX,
-    onTap ? () => onTap() : undefined, (el) => numInput(el, p, parse, init()));
-  f.classList.add('eq-field', 'comp-field');
+  const f = paramField(label, p, numInput, parse, init, onTap);
+  f.classList.add('comp-field');
   fieldEls.set(p.id, f);
   return f;
 }

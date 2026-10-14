@@ -4,6 +4,7 @@
 import { LIM_TELE, limTeleRate, type Tele } from '../audio/engine';
 import { type ParamDef, toNorm } from '../params';
 import { beginGesture, endGesture, paramValue, setParamNorm } from '../state';
+import { dragField } from './controls';
 import { openInput } from './popup';
 import { color } from './theme';
 
@@ -67,6 +68,22 @@ export function numInputIn(panel: HTMLElement, anchor: HTMLElement, el: HTMLElem
     if (set) set(v); else msetVal(p, v);
     endGesture();
   }, true);
+}
+
+/** Делений поля на весь ход (240 px — как у ручек сетки). */
+const FIELD_UNITS = 200;
+const FIELD_PX = 1.2;
+/**
+ * Поле окна модуля по положению параметра (0..1): вертикальный ход 240 px на весь диапазон, удержание — ввод числом
+ * (input — окно ввода внутри окна модуля), тап без движения — onTap.
+ */
+export function paramField(label: string, p: ParamDef, input: (el: HTMLElement, p: ParamDef, parse: (t: string) => number | null, init: string) => void,
+  parse: (t: string) => number | null, init: () => string, onTap?: () => void): HTMLElement {
+  const f = dragField(label, () => Math.round(toNorm(p, mval(p)) * FIELD_UNITS),
+    (v) => setParamNorm('master', p, Math.min(1, Math.max(0, v / FIELD_UNITS))), () => mfmt(p), FIELD_PX,
+    onTap ? () => onTap() : undefined, (el) => input(el, p, parse, init()));
+  f.classList.add('eq-field');
+  return f;
 }
 
 /** FREEZE / HOLD: снимок кольцевого буфера телеметрии. */
