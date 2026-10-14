@@ -32,26 +32,33 @@ struct PatternMenus: View {
     }
 
     private var gridMenuWidth: CGFloat {
-        return min(geometry.size.width, geometry.trackW + Layout.gap + geometry.sceneW + 220)
+        let want: CGFloat = geometry.trackW + Layout.gap + geometry.sceneW + 220
+        return min(geometry.size.width, want)
     }
 
     /// Меню ячейки — под ней (не помещается — над ней).
     private func cellOffset(_ a: CGRect) -> CGSize {
         let w: CGFloat = 180
         let h: CGFloat = CellMenu.height
-        let x: CGFloat = min(max(0, a.midX - w / 2), geometry.size.width - w)
-        let y: CGFloat = a.maxY + 6 + h < geometry.size.height ? a.maxY + 6 : max(0, a.minY - 6 - h)
-        return CGSize(width: x, height: y)
+        let left: CGFloat = max(0, a.midX - w / 2)
+        let x: CGFloat = min(left, geometry.size.width - w)
+        let below: CGFloat = a.maxY + 6
+        let above: CGFloat = max(0, a.minY - 6 - h)
+        let fits: Bool = below + h < geometry.size.height
+        return CGSize(width: x, height: fits ? below : above)
     }
 
     /// Меню строки — под ячейкой строки (не помещается — над ней), от колонки строк до первой дорожки.
     private func rowOffset(_ k: Int) -> CGSize {
         let w = model.gridWindow
         let r: Int = w.rows.firstIndex(where: { $0 == k }) ?? 0
-        let top: CGFloat = CGFloat(r) * (geometry.rowH + PatternGrid.rowGap)
+        let pitch: CGFloat = geometry.rowH + PatternGrid.rowGap
+        let top: CGFloat = CGFloat(r) * pitch
         let h: CGFloat = RowMenu.height
-        let y: CGFloat = top + geometry.rowH + 6 + h < geometry.size.height ? top + geometry.rowH + 6 : max(0, top - 6 - h)
-        return CGSize(width: 0, height: y)
+        let below: CGFloat = top + geometry.rowH + 6
+        let above: CGFloat = max(0, top - 6 - h)
+        let fits: Bool = below + h < geometry.size.height
+        return CGSize(width: 0, height: fits ? below : above)
     }
 }
 
@@ -91,7 +98,8 @@ struct MenuItem: View {
 }
 
 struct CellMenu: View {
-    static let height: CGFloat = 4 * 40 + 3 * 6 + 16
+    /// 4 строки по 40, 3 зазора по 6, поля 16.
+    static let height: CGFloat = 194
     let model: AppModel
     let state: CellMenuState
 
@@ -117,7 +125,8 @@ struct CellMenu: View {
 
 /// Меню строки: имя (до 12 знаков), REPEATS − n +, DUPLICATE, COPY, PASTE, DELETE, OK.
 struct RowMenu: View {
-    static let height: CGFloat = 44 + 44 + 2 * 40 + 40 + 4 * 6 + 16
+    /// Имя 44, REPEATS 44, 3 строки по 40, 4 зазора по 6, поля 16.
+    static let height: CGFloat = 248
     let model: AppModel
     let row: Int
     @State private var name: String = ""

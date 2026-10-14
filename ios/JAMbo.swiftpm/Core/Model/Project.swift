@@ -138,7 +138,7 @@ public struct Clip: Codable, Equatable, Sendable {
 }
 
 /// Строка сетки (сцена): имя (пустое — номер) и число повторов до следующей строки.
-public struct Scene: Codable, Equatable, Sendable {
+public struct SceneRow: Codable, Equatable, Sendable {
     public var name: String = ""
     public var repeats: Int = 1
 
@@ -155,7 +155,7 @@ public struct Project: Codable, Equatable, Sendable {
     public var root: Int = 0
     public var tracks: [Track]
     /// Строки сетки паттернов: имена и повторы.
-    public var scenes: [Scene] = [Scene](repeating: Scene(), count: Params.patternSlots)
+    public var scenes: [SceneRow] = [SceneRow](repeating: SceneRow(), count: Params.patternSlots)
     /// Видимых строк (по умолчанию 1; заполненные видны всегда).
     public var rows: Int = 1
     /// Меню сетки: строка старта PLAY; в конце строк — STOP или LOOP.

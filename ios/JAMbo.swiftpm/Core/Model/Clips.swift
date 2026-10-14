@@ -77,7 +77,7 @@ extension Track {
 /// Скопированная строка: клипы дорожек и сцена.
 public struct RowClip: Sendable {
     public let clips: [Clip?]
-    public let scene: Scene
+    public let scene: SceneRow
 }
 
 extension Project {
@@ -158,7 +158,7 @@ extension Project {
             tracks[i].activate(active)
         }
         scenes.remove(at: k)
-        scenes.append(Scene())
+        scenes.append(SceneRow())
         rows = Swift.max(1, n - 1)
         if arrStart > k || arrStart >= rows { arrStart = Swift.max(0, arrStart - 1) }
     }
@@ -177,7 +177,7 @@ extension Project {
     }
 
     public mutating func setScene(_ k: Int, name: String, repeats: Int) {
-        scenes[k] = Scene(name: String(name.trimmingCharacters(in: .whitespaces).prefix(12)),
+        scenes[k] = SceneRow(name: String(name.trimmingCharacters(in: .whitespaces).prefix(12)),
                           repeats: Swift.max(1, Swift.min(64, repeats)))
     }
 

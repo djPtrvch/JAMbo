@@ -147,7 +147,7 @@ final class LaunchTests: XCTestCase {
         XCTAssertEqual(p.tracks[0].clips[3], p.tracks[0].clips[0], "COPY PLAYING — копия играющего клипа")
         XCTAssertEqual(p.tracks[1].clips[3]?.playFrom, 3, "остановленная — пустой паттерн")
         p.setScene(1, name: "  Chorus  ", repeats: 99)
-        XCTAssertEqual(p.scenes[1], Scene(name: "Chorus", repeats: 64))
+        XCTAssertEqual(p.scenes[1], SceneRow(name: "Chorus", repeats: 64))
         p.duplicateRow(1)
         XCTAssertEqual(p.scenes[2].name, "Chorus")
         XCTAssertEqual(p.visibleRows, 5)

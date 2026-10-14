@@ -16,8 +16,9 @@ struct ClipCellView: View {
         let filled: Bool = t?.clipFilled(cell.row) ?? false
         let active: Bool = filled && t?.slot == cell.row && !(t?.stopped ?? true)
         let editing: Bool = model.channel == .track && cell.track == model.selectedTrack && cell.row == model.editSlot
-        let queued: Bool = model.live.queued[cell.track] == cell.row
-            || (t?.slot == cell.row && model.live.queued[cell.track] == Launcher.stop)
+        let q: Int = model.live.queued[cell.track]
+        let isSlot: Bool = t?.slot == cell.row
+        let queued: Bool = q == cell.row || (isSlot && q == Launcher.stop)
         let denied: Bool = model.deniedCell == cell
         let bg: Color = !filled ? theme.panel : (active ? theme.panel2 : theme.panel2.opacity(0.62))
         let outline: Color = denied ? theme.rec : (target || editing ? theme.accent : Color.clear)
