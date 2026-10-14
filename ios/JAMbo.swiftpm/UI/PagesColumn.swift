@@ -92,20 +92,21 @@ struct PagesColumn: View {
             .onChanged { g in
                 if press == nil { begin(g.startLocation.y, step: rowH) }
                 guard var p = press else { return }
+                // Удержание страницы (она поднята) и протягивание — перенос: миниатюра идёт за пальцем, соседи сдвигаются.
+                if p.lifting {
+                    p.liftY = g.location.y
+                    let n: Int = model.track.pages.count
+                    p.liftTo = min(n - 1, max(0, Int(g.location.y / rowH)))
+                    if abs(g.translation.height) > 8 { p.moved = true }
+                    press = p
+                    return
+                }
                 if !p.moved && abs(g.translation.height) > 8 {
                     p.moved = true
                     press = p
                     model.beginGesture()
                 }
                 if p.moved && !p.plus && !p.held { follow(&p, y: g.location.y, step: rowH) }
-                // Удержание страницы и протягивание — перенос: миниатюра идёт за пальцем, соседи сдвигаются.
-                if p.moved && p.held && !p.plus {
-                    p.lifting = true
-                    p.liftY = g.location.y
-                    let n: Int = model.track.pages.count
-                    p.liftTo = min(n - 1, max(0, Int(g.location.y / rowH)))
-                    press = p
-                }
             }
             .onEnded { _ in end() }
     }
@@ -129,6 +130,10 @@ struct PagesColumn: View {
             try? await Task.sleep(nanoseconds: 450_000_000)
             guard var cur = press, cur.t0 == started, !cur.moved, !cur.plus, !nearEdge else { return }
             cur.held = true
+            // Страница открыта в секвенсоре и поднята: протягивание переносит её.
+            cur.lifting = cur.row < model.track.pages.count
+            cur.liftTo = cur.row
+            cur.liftY = cur.y0
             press = cur
             model.viewPage = cur.row
         }
@@ -185,9 +190,12 @@ struct PagesColumn: View {
     private func end() {
         guard let p = press else { return }
         press = nil
+        if p.lifting {
+            if p.liftTo != p.row { model.movePage(p.row, p.liftTo) }
+            return
+        }
         if p.moved {
             model.endGesture()
-            if p.lifting && p.liftTo != p.row { model.movePage(p.row, p.liftTo) }
             return
         }
         if p.held { return }
