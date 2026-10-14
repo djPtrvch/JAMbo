@@ -169,3 +169,69 @@ extension Track {
         return s.locks.keys.contains { !sound.contains($0) }
     }
 }
+
+extension Track {
+    /// Перенос страницы (удержание миниатюры и протягивание): страница from встаёт на место to, страницы между
+    /// ними сдвигаются. Играющие страницы остаются на своих местах, но если играла одна перенесённая — обводка идёт за ней.
+    public mutating func movePage(_ from: Int, _ to: Int) {
+        let n = pages.count
+        if from == to || from < 0 || to < 0 || from >= n || to >= n { return }
+        let single: Bool = playFrom == from && playTo == from
+        var pg = pages
+        let page = pg.remove(at: from)
+        pg.insert(page, at: to)
+        pages = pg
+        if single {
+            playFrom = to
+            playTo = to
+        }
+    }
+}
+
+extension Project {
+    public var canAddTrack: Bool { return tracks.count < Params.maxTracks }
+
+    /// Удалить можно любую дорожку, пока их больше 8.
+    public func canDeleteTrack(_ i: Int) -> Bool {
+        return tracks.count > Params.trackCount && i >= 0 && i < tracks.count
+    }
+
+    /// Новая дорожка в конце (громкость по умолчанию, своя папка); у неё клипы во всех видимых строках.
+    public mutating func addTrack() {
+        if !canAddTrack { return }
+        var t = Track(index: tracks.count)
+        t.stopped = true
+        tracks.append(t)
+        fillRows()
+    }
+
+    public mutating func deleteTrack(_ i: Int) {
+        if !canDeleteTrack(i) { return }
+        tracks.remove(at: i)
+    }
+
+    /// Перестановка: дорожка from встаёт на место to, дорожки между ними сдвигаются (со звуком, паттернами,
+    /// папкой, громкостью, mute и solo).
+    public mutating func moveTrack(_ from: Int, _ to: Int) {
+        let n = tracks.count
+        if from == to || from < 0 || to < 0 || from >= n || to >= n { return }
+        let t = tracks.remove(at: from)
+        tracks.insert(t, at: to)
+    }
+
+    /// PASTE дорожки на место i: всё как у скопированной; mute, solo и номер id — свои.
+    public mutating func pasteTrack(_ i: Int, _ c: Track) {
+        guard i >= 0 && i < tracks.count else { return }
+        let old = tracks[i]
+        var t = c
+        t.mute = old.mute
+        t.solo = old.solo
+        t.id = old.id
+        tracks[i] = t
+    }
+
+    public mutating func renameTrack(_ i: Int, _ name: String) {
+        let n = String(name.trimmingCharacters(in: .whitespaces).prefix(12))
+        if !n.isEmpty && i >= 0 && i < tracks.count { tracks[i].name = n }
+    }
+}

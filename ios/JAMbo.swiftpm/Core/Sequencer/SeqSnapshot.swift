@@ -28,6 +28,10 @@ public struct SeqData {
     public var prob: UnsafeMutablePointer<Float>
     public var ratchet: UnsafeMutablePointer<Int32>
     public var swing: UnsafeMutablePointer<Float>
+    /// Свой звук шага (ключ; 0 — звук дорожки) и p-lock параметров голоса (биты VoiceParam и значения).
+    public var sound: UnsafeMutablePointer<UInt64>
+    public var lockMask: UnsafeMutablePointer<UInt16>
+    public var lockVal: UnsafeMutablePointer<Float>
     /// Строки: видимых, повторы, строка старта, в конце — стоп, LOOP ROW.
     public var rows: Int = 1
     public var repeats: UnsafeMutablePointer<Int32>
@@ -120,6 +124,8 @@ public final class SeqSnapshot: @unchecked Sendable {
             on: .allocate(capacity: steps), len: .allocate(capacity: steps),
             noteCount: .allocate(capacity: steps), notes: .allocate(capacity: steps * SeqData.maxNotes),
             prob: .allocate(capacity: steps), ratchet: .allocate(capacity: steps), swing: .allocate(capacity: steps),
+            sound: .allocate(capacity: steps), lockMask: .allocate(capacity: steps),
+            lockVal: .allocate(capacity: steps * VoiceParam.count),
             repeats: .allocate(capacity: SeqData.slots)
         )
         d.stopped.initialize(repeating: 1, count: tracks)
@@ -135,6 +141,9 @@ public final class SeqSnapshot: @unchecked Sendable {
         d.prob.initialize(repeating: 100, count: steps)
         d.ratchet.initialize(repeating: 0, count: steps)
         d.swing.initialize(repeating: 50, count: steps)
+        d.sound.initialize(repeating: 0, count: steps)
+        d.lockMask.initialize(repeating: 0, count: steps)
+        d.lockVal.initialize(repeating: 0, count: steps * VoiceParam.count)
         d.repeats.initialize(repeating: 1, count: SeqData.slots)
         d.rows = project.visibleRows
         d.arrStart = min(project.arrStart, d.rows - 1)
@@ -157,6 +166,17 @@ public final class SeqSnapshot: @unchecked Sendable {
         SeqSnapshot.liveCount += 1
     }
 
+    /// Снимок паттернов тот же: шаги, клипы, строки и ручки Chance, Ratchet, Swing не менялись.
+    public static func same(_ a: Project, _ b: Project) -> Bool {
+        if a.tracks.count != b.tracks.count || a.scenes != b.scenes || a.rows != b.rows || a.arrStart != b.arrStart
+            || a.arrEndStop != b.arrEndStop || a.rowLoop != b.rowLoop { return false }
+        for (x, y) in zip(a.tracks, b.tracks) {
+            if x.slot != y.slot || x.stopped != y.stopped || x.clips != y.clips { return false }
+            for id in ["prob", "ratchet", "swing"] where x.params[id] != y.params[id] { return false }
+        }
+        return true
+    }
+
     private static func fill(_ d: inout SeqData, _ track: Track, _ c: Clip, cell: Int, block: Int) {
         let r = c.range
         d.clipBlock[cell] = Int32(block)
@@ -174,6 +194,16 @@ public final class SeqSnapshot: @unchecked Sendable {
                 d.prob[i] = Float(track.value("prob", step: step))
                 d.ratchet[i] = Int32(track.value("ratchet", step: step).rounded())
                 d.swing[i] = Float(track.value("swing", step: step))
+                if let snd = step.sound { d.sound[i] = SoundKey.hash(snd) }
+                if !step.locks.isEmpty {
+                    var mask: UInt16 = 0
+                    for (p, id) in VoiceParam.ids.enumerated() {
+                        guard let v = step.locks[id] else { continue }
+                        mask |= UInt16(1) << UInt16(p)
+                        d.lockVal[i * VoiceParam.count + p] = Float(v)
+                    }
+                    d.lockMask[i] = mask
+                }
             }
         }
     }
@@ -193,6 +223,9 @@ public final class SeqSnapshot: @unchecked Sendable {
         data.prob.deallocate()
         data.ratchet.deallocate()
         data.swing.deallocate()
+        data.sound.deallocate()
+        data.lockMask.deallocate()
+        data.lockVal.deallocate()
         data.repeats.deallocate()
     }
 }

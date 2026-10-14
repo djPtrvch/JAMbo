@@ -31,6 +31,10 @@ public struct Track: Codable, Equatable, Sendable {
     public var solo: Bool = false
     /// Остановлена в сетке паттернов.
     public var stopped: Bool = false
+    /// Папка звуков дорожки (стрелки ◀ ▶ под окном сэмпла), маркеры нарезки по ключу сэмпла, громкость микшера (dB).
+    public var folder: Folder = Folder()
+    public var slices: [String: [SliceMark]] = [:]
+    public var vol: Double = Params.volDef
 
     public init(index: Int) {
         id = Int.random(in: 0..<(1 << 31))
@@ -198,6 +202,9 @@ public struct Project: Codable, Equatable, Sendable {
     public var arrEndStop: Bool = false
     /// «+» под строками: true — копии играющих клипов (COPY PLAYING, по умолчанию), false — новые пустые.
     public var plusCopy: Bool = true
+    /// Имена сэмплов (ключ по содержимому → имя файла) и определённая высота (MIDI-нота, только для индикации).
+    public var files: [String: String] = [:]
+    public var roots: [String: Int] = [:]
     /// LOOP ROW: играющая строка повторяется бесконечно (по умолчанию включена).
     public var rowLoop: Bool = true
     /// Стрелки ▲ ▼: false — только прокрутка (VIEW), true — при игре ещё и переход строки (SWITCH).

@@ -1,6 +1,6 @@
 // Секвенсор в аудиоколбэке (как transport.ts веба, но без планирования наперёд): шаг k звучит в момент
 // timeAt(k/4) источника такта — с точностью до отсчёта. Chance, Ratchet и Swing (с p-lock) — как в вебе.
-// Звука нот пока нет (S2): сработавшие ноты уходят в интерфейс (мигание дорожек); метроном звучит.
+// Сработавшие ноты играет сэмплер (в своём кадре); в интерфейс уходят шаги и ноты (мигание дорожек).
 
 /// Сообщения из колбэка в интерфейс.
 public enum SeqOut: Sendable {
@@ -40,9 +40,18 @@ public final class Sequencer {
     private let tempo: InternalTempoSource
     private var wantedBpm: Double
     private var click: Click
-    /// Ноты, назначенные на будущее (рэтчеты и свинг): момент (кадры ядра) и дорожка.
+    /// Ноты, назначенные на будущее (рэтчеты и свинг): момент (кадры ядра), дорожка и копия данных шага —
+    /// ноты, p-lock голоса, свой звук, удержание (снимок к моменту ноты может смениться).
     private let pendingTime = UnsafeMutablePointer<Double>.allocate(capacity: Sequencer.pendingMax)
     private let pendingTrack = UnsafeMutablePointer<Int32>.allocate(capacity: Sequencer.pendingMax)
+    private let pendingNotes = UnsafeMutablePointer<Int16>.allocate(capacity: Sequencer.pendingMax * SeqData.maxNotes)
+    private let pendingCountN = UnsafeMutablePointer<Int32>.allocate(capacity: Sequencer.pendingMax)
+    private let pendingMask = UnsafeMutablePointer<UInt16>.allocate(capacity: Sequencer.pendingMax)
+    private let pendingVals = UnsafeMutablePointer<Float>.allocate(capacity: Sequencer.pendingMax * VoiceParam.count)
+    private let pendingSound = UnsafeMutablePointer<UInt64>.allocate(capacity: Sequencer.pendingMax)
+    private let pendingGate = UnsafeMutablePointer<Int64>.allocate(capacity: Sequencer.pendingMax)
+    /// Голоса сэмплера (задаёт AudioCore).
+    public var sampler: Sampler?
     private var pendingCount = 0
     private static let pendingMax = 512
     private var rng: UInt32 = 0x9E3779B9
@@ -55,11 +64,23 @@ public final class Sequencer {
         launcher = Launcher(out: out)
         pendingTime.initialize(repeating: 0, count: Sequencer.pendingMax)
         pendingTrack.initialize(repeating: 0, count: Sequencer.pendingMax)
+        pendingNotes.initialize(repeating: 0, count: Sequencer.pendingMax * SeqData.maxNotes)
+        pendingCountN.initialize(repeating: 0, count: Sequencer.pendingMax)
+        pendingMask.initialize(repeating: 0, count: Sequencer.pendingMax)
+        pendingVals.initialize(repeating: 0, count: Sequencer.pendingMax * VoiceParam.count)
+        pendingSound.initialize(repeating: 0, count: Sequencer.pendingMax)
+        pendingGate.initialize(repeating: -1, count: Sequencer.pendingMax)
     }
 
     deinit {
         pendingTime.deallocate()
         pendingTrack.deallocate()
+        pendingNotes.deallocate()
+        pendingCountN.deallocate()
+        pendingMask.deallocate()
+        pendingVals.deallocate()
+        pendingSound.deallocate()
+        pendingGate.deallocate()
     }
 
     public var bpm: Double { return tempo.tempo }
@@ -161,18 +182,40 @@ public final class Sequencer {
             let swing = Double(d.swing[i])
             let offset: Double = pos % 2 == 1 ? (swing - 50) / 50 * dur : 0
             let sub = dur / Double(ratchet)
+            // Нота от 2 шагов держится до своего конца (Decay — после); в 1 шаг и рэтчет — Decay сразу после атаки.
+            let gate: Int64 = ratchet == 1 && d.len[i] >= 2 ? Int64((Double(d.len[i]) * dur).rounded()) : -1
             for r in 0..<ratchet {
-                schedule(track: t, at: time + offset + Double(r) * sub)
+                schedule(track: t, at: time + offset + Double(r) * sub, d, i, gate)
             }
         }
         tick += 1
     }
 
-    private func schedule(track: Int, at time: Double) {
+    private func schedule(track: Int, at time: Double, _ d: SeqData, _ i: Int, _ gate: Int64) {
         if pendingCount >= Sequencer.pendingMax { return }
-        pendingTime[pendingCount] = time
-        pendingTrack[pendingCount] = Int32(track)
+        let k = pendingCount
+        pendingTime[k] = time
+        pendingTrack[k] = Int32(track)
+        let n = Int(d.noteCount[i])
+        pendingCountN[k] = Int32(n)
+        for j in 0..<n { pendingNotes[k * SeqData.maxNotes + j] = d.notes[i * SeqData.maxNotes + j] }
+        pendingMask[k] = d.lockMask[i]
+        for p in 0..<VoiceParam.count { pendingVals[k * VoiceParam.count + p] = d.lockVal[i * VoiceParam.count + p] }
+        pendingSound[k] = d.sound[i]
+        pendingGate[k] = gate
         pendingCount += 1
+    }
+
+    /// Ячейку k — на место последней (порядок неважен).
+    private func movePending(_ from: Int, _ to: Int) {
+        pendingTime[to] = pendingTime[from]
+        pendingTrack[to] = pendingTrack[from]
+        pendingCountN[to] = pendingCountN[from]
+        for j in 0..<SeqData.maxNotes { pendingNotes[to * SeqData.maxNotes + j] = pendingNotes[from * SeqData.maxNotes + j] }
+        pendingMask[to] = pendingMask[from]
+        for p in 0..<VoiceParam.count { pendingVals[to * VoiceParam.count + p] = pendingVals[from * VoiceParam.count + p] }
+        pendingSound[to] = pendingSound[from]
+        pendingGate[to] = pendingGate[from]
     }
 
     /// Ноты, момент которых наступил (раньше конца блока).
@@ -180,10 +223,14 @@ public final class Sequencer {
         var k = 0
         while k < pendingCount {
             if pendingTime[k] < end {
-                out.push(.trig(track: Int(pendingTrack[k]), frame: Int64(pendingTime[k].rounded(.down))))
+                let t = Int(pendingTrack[k])
+                let frame = Int64(pendingTime[k].rounded(.down))
+                out.push(.trig(track: t, frame: frame))
+                sampler?.trigger(track: t, at: frame, notes: pendingNotes + k * SeqData.maxNotes, count: Int(pendingCountN[k]),
+                                 mask: pendingMask[k], vals: pendingVals + k * VoiceParam.count, hash: pendingSound[k],
+                                 gate: pendingGate[k], own: pendingSound[k] != 0, liveId: -1)
                 pendingCount -= 1
-                pendingTime[k] = pendingTime[pendingCount]
-                pendingTrack[k] = pendingTrack[pendingCount]
+                if k != pendingCount { movePending(pendingCount, k) }
             } else {
                 k += 1
             }

@@ -112,6 +112,23 @@ public enum Params {
     public static let bpmMax = 240.0
     /// Сэмпл звучит в исходной высоте на C3.
     public static let sampleRoot = 48
+    /// Громкость дорожки в микшере, dB: от тишины (−∞ на минимуме) до 0 dB, по умолчанию −10.
+    public static let volMin = -60.0
+    public static let volDef = -10.0
+
+    /// Громкость (dB) → усиление; на минимуме — 0.
+    public static func volGain(_ db: Double) -> Double {
+        return db <= volMin + 0.05 ? 0 : pow(10, db / 20)
+    }
+
+    public static func volText(_ v: Double) -> String {
+        return v <= volMin + 0.05 ? "−∞\ndB" : String(format: "%.1f\ndB", v)
+    }
+
+    /// Ручки микшера (MIX): громкости дорожек 1…16 (id mix.vol1…16), несуществующие — серые.
+    public static let mixGrid: [ParamDef] = (0..<16).map { i in
+        ParamDef(id: "mix.vol\(i + 1)", label: "\(i + 1)", min: volMin, max: 0, def: volDef, format: volText)
+    }
     public static let noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
     public static func noteName(_ n: Int) -> String {

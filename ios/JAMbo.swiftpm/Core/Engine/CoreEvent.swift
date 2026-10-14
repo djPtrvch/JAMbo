@@ -17,4 +17,10 @@ public enum CoreEvent: Sendable {
     case scene(row: Int, atPass: Bool)
     /// Строки сетки переставили во время игры: активные ячейки и остановки — снова из снимка проекта.
     case adoptPlay
+    /// Живая нота с пианоролла (id — касание; velocity 1 — без p-lock Level) и её отпускание.
+    case noteOn(track: Int, note: Int, id: Int, velocity: Float)
+    case noteOff(track: Int, id: Int)
+    /// ▶ редактора сэмпла: отрезок a…b (доли) сэмпла hash; стоп.
+    case preview(hash: UInt64, a: Double, b: Double)
+    case previewStop
 }

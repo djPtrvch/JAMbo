@@ -138,11 +138,16 @@ final class SequencerTests: XCTestCase {
     func testSnapshotsAreReleased() {
         let before = SeqSnapshot.liveCount
         let core = AudioCore()
-        for _ in 0..<10 {
-            core.publish(Project())
+        for k in 0..<10 {
+            var p = Project()
+            p.tracks[0].pages[0][k].on = true
+            core.publish(p)
             _ = run(core, frames: 256)
         }
+        // Прежние снимки держатся keepAlive секунд (их сэмплы могут дочитывать гаснущие голоса).
         core.releaseRetired()
+        XCTAssertGreaterThan(SeqSnapshot.liveCount - before, 1)
+        core.releaseRetired(now: Date.timeIntervalSinceReferenceDate + 10)
         XCTAssertEqual(SeqSnapshot.liveCount - before, 1, "в памяти только текущий снимок")
         XCTAssertEqual(Params.noteName(48), "C3")
         XCTAssertEqual(Params.noteName(37), "C#2")

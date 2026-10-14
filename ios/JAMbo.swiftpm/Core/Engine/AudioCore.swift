@@ -1,3 +1,5 @@
+import Foundation
+
 /// Весь звук приложения: один render на блок, вызывается из колбэка AVAudioSourceNode (Audio/AudioHost.swift).
 /// В render — только то, что разрешено правилами колбэка (ios/CLAUDE.md): без выделений, блокировок, ARC и print.
 public final class AudioCore: @unchecked Sendable {
@@ -13,28 +15,54 @@ public final class AudioCore: @unchecked Sendable {
     public var framesRendered: Int { return frameCounter.load() }
 
     public let sequencer = Sequencer(sampleRate: AudioCore.sampleRate, bpm: 120)
-    /// Снимки паттернов: новые — в колбэк, прежние — обратно (освобождаются в основном потоке).
+    public let sampler = Sampler(sampleRate: AudioCore.sampleRate)
+    /// Снимки паттернов и звука: новые — в колбэк, прежние — обратно (освобождаются в основном потоке не раньше
+    /// чем через keepAlive с: голоса, которые гаснут, ещё читают их сэмплы).
     private let snapshots = SPSCQueue<Unmanaged<SeqSnapshot>?>(capacity: 64, filler: nil)
     private let retired = SPSCQueue<Unmanaged<SeqSnapshot>?>(capacity: 256, filler: nil)
     private var current: Unmanaged<SeqSnapshot>?
+    private let sounds = SPSCQueue<Unmanaged<SoundSnapshot>?>(capacity: 256, filler: nil)
+    private let retiredSounds = SPSCQueue<Unmanaged<SoundSnapshot>?>(capacity: 512, filler: nil)
+    private var currentSound: Unmanaged<SoundSnapshot>?
+    private var waiting: [(time: Double, seq: Unmanaged<SeqSnapshot>?, sound: Unmanaged<SoundSnapshot>?)] = []
+    public static let keepAlive: Double = 0.5
+    /// Последний снимок паттернов строится заново, только если изменилось то, что в него входит.
+    private var lastSeq: Project?
 
     private let tone = TestTone(sampleRate: AudioCore.sampleRate)
     /// Счётчик кадров колбэка — основа транспорта с точностью до отсчёта.
     public private(set) var sampleTime: Int64 = 0
 
-    public init() {}
-
-    /// Новый снимок паттернов (основной поток, после каждой правки).
-    public func publish(_ project: Project) {
-        releaseRetired()
-        let snap = Unmanaged.passRetained(SeqSnapshot(project))
-        if !snapshots.push(snap) { snap.release() }
+    public init() {
+        sequencer.sampler = sampler
     }
 
-    /// Освободить снимки, которые колбэк больше не использует (основной поток).
-    public func releaseRetired() {
-        while let item = retired.pop() {
-            item?.release()
+    /// Новые снимки (основной поток, после каждой правки): звук — всегда (дёшево), паттерны — если изменились.
+    /// samples — загруженные сэмплы по ключу, map — SLICE NOTES.
+    public func publish(_ project: Project, samples: [String: SampleData] = [:], map: SliceMap = .chromatic) {
+        releaseRetired()
+        if lastSeq == nil || !SeqSnapshot.same(lastSeq!, project) {
+            lastSeq = project
+            let snap = Unmanaged.passRetained(SeqSnapshot(project))
+            if !snapshots.push(snap) { snap.release() }
+        }
+        let snd = Unmanaged.passRetained(SoundSnapshot(project, samples: samples, map: map))
+        if !sounds.push(snd) { snd.release() }
+    }
+
+    /// Освободить снимки, которые колбэк больше не использует (основной поток; now — секунды, для задержки).
+    public func releaseRetired(now: Double = Date.timeIntervalSinceReferenceDate) {
+        while let item = retired.pop() { waiting.append((now, item, nil)) }
+        while let item = retiredSounds.pop() { waiting.append((now, nil, item)) }
+        var k = 0
+        while k < waiting.count {
+            if now - waiting[k].time >= AudioCore.keepAlive {
+                waiting[k].seq?.release()
+                waiting[k].sound?.release()
+                waiting.remove(at: k)
+            } else {
+                k += 1
+            }
         }
     }
 
@@ -50,6 +78,7 @@ public final class AudioCore: @unchecked Sendable {
         right.update(repeating: 0, count: frames)
         tone.render(frames: frames, left: left, right: right)
         sequencer.process(blockStart: sampleTime, frames: frames, left: left, right: right, host: host)
+        sampler.render(blockStart: sampleTime, frames: frames, left: left, right: right)
         sampleTime += Int64(frames)
         frameCounter.store(Int(sampleTime))
     }
@@ -61,6 +90,12 @@ public final class AudioCore: @unchecked Sendable {
             if let old = current { _ = retired.push(old) }
             current = snap
             sequencer.data = snap._withUnsafeGuaranteedRef { $0.data }
+        }
+        while let item = sounds.pop() {
+            guard let snap = item else { continue }
+            if let old = currentSound { _ = retiredSounds.push(old) }
+            currentSound = snap
+            sampler.adopt(snap._withUnsafeGuaranteedRef { $0.data }, now: sampleTime)
         }
     }
 
@@ -85,6 +120,14 @@ public final class AudioCore: @unchecked Sendable {
             sequencer.queueScene(row, atPass: atPass)
         case .adoptPlay:
             sequencer.adoptPlay()
+        case .noteOn(let t, let n, let id, let v):
+            sampler.noteOn(track: t, note: n, liveId: id, velocity: v, at: sampleTime)
+        case .noteOff(let t, let id):
+            sampler.release(track: t, liveId: id, at: sampleTime)
+        case .preview(let h, let a, let b):
+            sampler.preview(hash: h, a: a, b: b, at: sampleTime)
+        case .previewStop:
+            sampler.stopPreview()
         }
     }
 }
