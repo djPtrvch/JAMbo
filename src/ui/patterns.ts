@@ -113,8 +113,6 @@ function buildSceneCell(k: number): HTMLElement {
   };
   root.addEventListener('pointerup', (e) => finish(e, false));
   root.addEventListener('pointercancel', (e) => finish(e, true));
-  // MIDI: запуск строки (для Clip launcher).
-  registerAction(`ROW${k + 1}`, { label: `ROW ${k + 1}`, press: () => queueScene(k), state: () => rt.scene?.row === k }, root);
   sceneCells.push({ root, name, reps, bar });
   return root;
 }
@@ -245,16 +243,24 @@ function rowLayout() {
   return { at, plusRow, scroll: total > win, top, maxTop, win, rows };
 }
 
+/** Строка сетки на месте r (1…GRID_ROWS) окна строк или null (там «+» или пусто). */
+function windowRow(r: number): number | null {
+  const L = rowLayout();
+  for (let k = 0; k < PATTERN_SLOTS; k++) if (L.at(k) === r) return k;
+  return null;
+}
+
 /**
  * Стрелка ▲ (−1) или ▼ (+1): в режиме VIEW (меню сетки) — окно на строку выше или ниже; в режиме SWITCH при игре —
- * ещё и переход на строку выше или ниже играющей (с начала такта, как тап по строке), окно идёт за ней.
+ * ещё и переход на строку выше или ниже играющей (когда доиграет проход строки — самый длинный её паттерн), окно идёт за ней.
  */
 export function gridArrow(dir: -1 | 1) {
   const L = rowLayout();
   if ((doc.arrowMode ?? 'view') === 'switch' && ui.playing) {
     const cur = rt.sceneQueued ?? rt.scene?.row ?? 0;
     const k = Math.min(L.rows - 1, Math.max(0, cur + dir));
-    if (k !== cur) queueScene(k);
+    // Переход — когда доиграет проход играющей строки (самый длинный паттерн строки).
+    if (k !== cur) queueScene(k, true);
     if (k < ui.gridTop) ui.gridTop = k;
     else if (k >= ui.gridTop + L.win) ui.gridTop = k - L.win + 1;
     return;
@@ -467,6 +473,22 @@ export function buildPatternGrid(): HTMLElement {
   grid = h('div', 'pattern-grid hidden');
   grid.append(buildCrossfader(), buildArrangeButton(), buildLoopButton(), ...buildArrows(), buildPlusRow());
   for (let k = 0; k < PATTERN_SLOTS; k++) grid.append(buildSceneCell(k));
+  // MIDI (Clip launcher): ячейки и строки — по месту в окне строк (1…GRID_ROWS), как у контроллера с сеткой:
+  // окно сдвинулось (стрелки ▲ ▼) — те же кнопки контроллера управляют строками окна.
+  for (let r = 1; r <= GRID_ROWS; r++) {
+    registerAction(`ROW${r}`, {
+      label: `ROW ${r}`,
+      press: () => { const k = windowRow(r); if (k !== null && k < visibleRows()) queueScene(k); },
+      state: () => { const k = windowRow(r); return k !== null && rt.scene?.row === k; },
+    });
+    for (let i = 0; i < MAX_TRACKS; i++) {
+      registerAction(`CLIP${i + 1}.${r}`, {
+        label: `CLIP T${i + 1} · ${r}`,
+        press: () => { const k = windowRow(r); if (k !== null && i < doc.tracks.length) tapCell(i, k); },
+        state: () => { const k = windowRow(r); const t = doc.tracks[i]; return k !== null && !!t && t.slot === k && !t.stopped; },
+      });
+    }
+  }
   for (let k = 0; k < PATTERN_SLOTS; k++) {
     for (let i = 0; i < MAX_TRACKS; i++) {
       const root = h('div', 'pattern-cell');
@@ -474,11 +496,6 @@ export function buildPatternGrid(): HTMLElement {
       root.style.gridColumn = String(i + 2);
       root.style.gridRow = String(k + 1);
       const thumb = svg('svg', { class: 'pattern-thumb', preserveAspectRatio: 'none' });
-      // MIDI: ячейка как тап (запуск, остановка, новый паттерн) — для Clip launcher.
-      registerAction(`CLIP${i + 1}.${k + 1}`, {
-        label: `CLIP T${i + 1} · ${k + 1}`, press: () => tapCell(i, k),
-        state: () => !!doc.tracks[i] && doc.tracks[i].slot === k && !doc.tracks[i].stopped,
-      }, root);
       const bar = h('div', 'pattern-bar');
       // Значок волны: в паттерне есть автоматизация.
       const wave = autoBadge();
@@ -628,12 +645,14 @@ export function renderPatternGrid() {
   setClass(loopBtn, 'on', rowLoopOn());
   if (mixing && arrMenu.isOpen()) arrMenu.close();
   // Видны строки окна (при переходе MIX — и строка PREV внизу), под последней строкой — «+».
-  const place = (el: HTMLElement, row: number) => {
+  // MIDI LEARN: у видимой ячейки — цель по её месту в окне.
+  const place = (el: HTMLElement, row: number, midi?: string) => {
     setClass(el, 'hidden', row === 0);
     if (row && el.style.gridRow !== String(row)) el.style.gridRow = String(row);
+    if (midi && row && el.dataset.midi !== midi) el.dataset.midi = midi;
   };
-  sceneCells.forEach((c, k) => place(c.root, L.at(k)));
-  cells.forEach((col, i) => col.forEach((c, k) => place(c.root, i >= doc.tracks.length ? 0 : L.at(k))));
+  sceneCells.forEach((c, k) => { const r = L.at(k); place(c.root, r, `btn:ROW${r}`); });
+  cells.forEach((col, i) => col.forEach((c, k) => { const r = i >= doc.tracks.length ? 0 : L.at(k); place(c.root, r, `btn:CLIP${i + 1}.${r}`); }));
   place(scenePlus, L.plusRow);
   doc.tracks.forEach((t, i) => {
     const q = rt.queued[i];

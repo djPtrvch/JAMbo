@@ -123,9 +123,20 @@ function startScene(k: number, at: number) {
  * Тап по ячейке строки: без проигрывания строка запускается сразу, во время проигрывания —
  * с начала следующего такта (повторный тап по ожидающей — отмена).
  */
-export function queueScene(k: number) {
+export function queueScene(k: number, atPass = false) {
   if (!ui.playing) { startScene(k, 0); return; }
+  if (atPass) { rt.sceneQueued = k; sceneAtPass = true; return; }
   rt.sceneQueued = rt.sceneQueued === k ? null : k;
+  sceneAtPass = false;
+}
+
+/** Ожидающая строка запускается в конце прохода играющей строки (стрелки ▲ ▼ в режиме SWITCH), а не с начала такта. */
+let sceneAtPass = false;
+
+/** Пора ли запускать ожидающую строку на тике k: с начала такта или (стрелки) в конце прохода играющей строки. */
+function sceneDue(k: number): boolean {
+  if (sceneAtPass && rt.scene && rt.scene.len > 0) return k > rt.scene.start && (k - rt.scene.start) % rt.scene.len === 0;
+  return isBarStart(k / STEPS_PER_BEAT);
 }
 
 /** Следующая видимая строка после k — и пустая (тогда дорожки молчат её проход), или null. */
@@ -219,7 +230,7 @@ function playStep(time: number) {
  * false — транспорт остановлен (строки кончились, AT THE END: STOP).
  */
 function advanceScenes(time: number): boolean {
-  if (rt.sceneQueued !== null && isBarStart(tick / STEPS_PER_BEAT)) startScene(rt.sceneQueued, tick);
+  if (rt.sceneQueued !== null && sceneDue(tick)) { startScene(rt.sceneQueued, tick); sceneAtPass = false; }
   else if (rt.scene && sceneEndsAt(tick)) {
     const n = nextScene(rt.scene.row);
     if (n !== null) startScene(n, tick);
