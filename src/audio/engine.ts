@@ -906,27 +906,31 @@ function triggerSynth(track: number, engine: number, time: number, notes: number
 }
 
 /**
- * Полоса воспроизведения: где сейчас звучащие голоса сэмпла key дорожки (доли длины). Позиция — от начала ноты
- * по её скорости (модуляция Pitch не учитывается); голос, отпущенный и затихающий, ещё показывается, пока играет.
+ * Полоса воспроизведения: где сейчас звучащие голоса сэмпла key дорожки (f — доля длины) и непрозрачность (a:
+ * линия ноты тает по мере движения). Позиция — от начала ноты по её скорости (модуляция Pitch не учитывается).
  */
-export function samplePlayheads(track: number, key: string): number[] {
+export function samplePlayheads(track: number, key: string): { f: number; a: number }[] {
   if (!ctx || !key) return [];
   const now = ctx.currentTime - (ctx.outputLatency || 0);
-  const out: number[] = [];
-  // Предпрослушка (▶ редактора, библиотека) — тоже.
+  const out: { f: number; a: number }[] = [];
+  // Предпрослушка (▶ редактора, библиотека) — тоже, без затухания.
   const pv = preview;
   if (pv?.key === key && pv.at !== undefined && now >= pv.at) {
     const f = pv.a! + (now - pv.at) / pv.dur!;
-    if (f < pv.b!) out.push(f);
+    if (f < pv.b!) out.push({ f, a: 1 });
   }
   for (const vo of voices) {
     const pl = vo.play;
     if (!pl || vo.ended || vo.track !== track || pl.key !== key || now < vo.at) continue;
     const f = pl.a + ((now - vo.at) * pl.rate) / pl.dur;
-    if (f < pl.b) out.push(f);
+    // Линия ноты по мере движения становится прозрачнее (за PLAYHEAD_FADE с — совсем).
+    const a = 1 - (now - vo.at) / PLAYHEAD_FADE;
+    if (f < pl.b && a > 0.02) out.push({ f, a });
   }
   return out;
 }
+/** За сколько секунд линия воспроизведения ноты становится прозрачной. */
+const PLAYHEAD_FADE = 1.2;
 
 /** Живой наигрыш с пианоролла: ноты выбранной дорожки сейчас. */
 export function playNow(track: number, notes: number[], held = false, velocity = 1) {

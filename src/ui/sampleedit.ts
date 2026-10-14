@@ -318,7 +318,9 @@ let recMenu: Popup;
 /** Идёт запись: на какую дорожку, имя источника, начало (performance.now). */
 let rec: { track: number; name: string; start: number } | null = null;
 
-/** Пики пришедших кусков записи (по каналам): форма волны во время записи. */
+/** Отсчётов на точку формы волны во время записи. */
+const REC_BLOCK = 128;
+/** Пики пришедших кусков записи (по каналам, по блокам REC_BLOCK): форма волны во время записи. */
 const recPeaks = { n: 0, lo: [[], []] as number[][], hi: [[], []] as number[][] };
 
 const recTime = (ms: number) => { const s = Math.floor(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
@@ -466,17 +468,20 @@ function envelope(key: string, buf: AudioBuffer, w: number) {
 function drawRecording(g: CanvasRenderingContext2D) {
   const ch = captureChunks();
   if (!ch) return;
+  // Пики — по блокам REC_BLOCK отсчётов (куски записи по 4096 — слишком крупно: форма была бы квадратами).
   for (; recPeaks.n < ch.L.length; recPeaks.n++) {
     [ch.L[recPeaks.n], ch.R[recPeaks.n]].forEach((d, c) => {
-      let lo = 0;
-      let hi = 0;
-      for (let i = 0; i < d.length; i++) { const v = d[i]; if (v < lo) lo = v; if (v > hi) hi = v; }
-      recPeaks.lo[c].push(lo);
-      recPeaks.hi[c].push(hi);
+      for (let i0 = 0; i0 < d.length; i0 += REC_BLOCK) {
+        let lo = 0;
+        let hi = 0;
+        for (let i = i0; i < Math.min(d.length, i0 + REC_BLOCK); i++) { const v = d[i]; if (v < lo) lo = v; if (v > hi) hi = v; }
+        recPeaks.lo[c].push(lo);
+        recPeaks.hi[c].push(hi);
+      }
     });
   }
-  const n = recPeaks.n;
-  const span = Math.max(n, Math.ceil((5 * 48000) / 4096));
+  const n = recPeaks.lo[0].length;
+  const span = Math.max(n, Math.ceil((5 * 48000) / REC_BLOCK));
   const lh = (H - TOP) / 2;
   for (let c = 0; c < 2; c++) {
     const mid = TOP + lh * c + lh / 2;
@@ -612,10 +617,12 @@ export function renderSampleEditor() {
   g.textBaseline = 'alphabetic';
   // Полоса воспроизведения: звучащие голоса сэмпла — тонкие жёлтые линии.
   g.fillStyle = color('--accent');
-  for (const f of samplePlayheads(ui.selectedTrack, key)) {
+  for (const { f, a } of samplePlayheads(ui.selectedTrack, key)) {
     const x = toX(f);
+    g.globalAlpha = a;
     if (x >= 0 && x <= W) g.fillRect(Math.round(x) - 1, TOP, 2, H - TOP);
   }
+  g.globalAlpha = 1;
   // Полоса прокрутки (при увеличении): видимая часть сэмпла — жёлтым.
   if (view.span < 1) {
     g.fillStyle = color('--meter-track');

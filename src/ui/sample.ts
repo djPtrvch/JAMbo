@@ -45,7 +45,8 @@ let wavePath: SVGPathElement;
 let cutStart: SVGRectElement;
 let cutEnd: SVGRectElement;
 /** Полоса воспроизведения (тонкая линия на звучащей позиции, по каждому голосу). */
-let playLine: SVGPathElement;
+let playLine: SVGGElement;
+const playLines: SVGPathElement[] = [];
 let wavePeaksKey = '';
 let waveSvg: SVGSVGElement;
 let synthInfo: HTMLElement;
@@ -192,7 +193,7 @@ export function buildSample(): HTMLElement {
   wavePath = svg('path', { class: 'sample-wave-path' });
   cutStart = svg('rect', { x: 0, y: 0, height: WAVE_H, class: 'sample-cut' });
   cutEnd = svg('rect', { y: 0, height: WAVE_H, class: 'sample-cut' });
-  playLine = svg('path', { class: 'sample-playhead' });
+  playLine = svg('g');
   wave.append(wavePath, cutStart, cutEnd, playLine);
   // Тап по окну — меню звука. Оно закрывает всю левую колонку (окно сэмпла, стрелки, LFO и ENV),
   // пока выбирают звук: колонки SYNTH (свои движки), MI SYNTH (музыкальные Plaits), MI DRUMS
@@ -520,7 +521,14 @@ function renderWave() {
   setAttr(cutEnd, 'x', e.toFixed(1));
   setAttr(cutEnd, 'width', (WAVE_W - e).toFixed(1));
   // Звучащие голоса сэмпла — тонкие линии, бегут вправо (с маркерами — от маркера нажатой ноты).
-  setAttr(playLine, 'd', samplePlayheads(ui.selectedTrack, key).map((f) => `M${(f * WAVE_W).toFixed(1)} 0V${WAVE_H}`).join(''));
+  // Каждая линия — своя непрозрачность (тает по мере движения).
+  const heads = samplePlayheads(ui.selectedTrack, key);
+  while (playLines.length < heads.length) { const l = svg('path', { class: 'sample-playhead' }); playLine.append(l); playLines.push(l); }
+  playLines.forEach((l, k) => {
+    const hd = heads[k];
+    setAttr(l, 'd', hd ? `M${(hd.f * WAVE_W).toFixed(1)} 0V${WAVE_H}` : '');
+    setAttr(l, 'opacity', hd ? hd.a.toFixed(2) : '0');
+  });
 }
 
 function renderMaster(now: number) {
