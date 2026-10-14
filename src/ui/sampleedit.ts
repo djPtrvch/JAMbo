@@ -9,10 +9,12 @@
 // TRIM, NORMALIZE и MONO сразу ставят на дорожку отредактированную копию (в папке — на месте
 // исходного сэмпла); UNDO в верхней панели возвращает исходный.
 
-import { addEditedSample, previewSample, previewing, sampleBuffer, samplePlayheads, stopPreview } from '../audio/engine';
+import { addEditedSample, audioInputs, captureActive, previewSample, previewing, sampleBuffer, samplePlayheads, startCapture, stopCapture, stopPreview, type CaptureSource } from '../audio/engine';
+import { saveRecording } from '../stems';
+import { makePopup, popupButton, type Popup } from './popup';
 import { openBrowser } from './browser';
 import { noteName, synthEngine } from '../params';
-import { addSlice, beginGesture, deleteSlice, doc, endGesture, markNote, moveSlice, replaceSample, sampleName, setSliceNote, sliceMarks, toggleView, ui, type SliceMark } from '../state';
+import { addRecordedSample, addSlice, beginGesture, deleteSlice, doc, endGesture, markNote, moveSlice, replaceSample, sampleName, setSliceNote, sliceMarks, toggleView, ui, type SliceMark } from '../state';
 import { closeButton, h, setClass, setText } from './dom';
 import { color } from './theme';
 
@@ -306,6 +308,67 @@ function up(e: PointerEvent) {
   else addSlice(ui.selectedTrack, key, fracAt(x));
 }
 
+// ---------- Запись сэмпла (REC) ----------
+
+/** Наибольшая длина записи, с. */
+const REC_MAX_S = 60;
+let recBtn: HTMLElement;
+let recMenu: Popup;
+/** Идёт запись: на какую дорожку, имя источника, начало (performance.now). */
+let rec: { track: number; name: string; start: number } | null = null;
+
+const recTime = (ms: number) => { const s = Math.floor(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+
+async function beginRec(src: CaptureSource, name: string) {
+  recMenu.close();
+  if (rec || captureActive()) return;
+  const track = ui.selectedTrack;
+  rec = { track, name, start: performance.now() };
+  if (!(await startCapture(src))) {
+    rec = null;
+    window.alert(src.kind === 'input' ? 'No access to the audio input' : 'Could not start recording');
+    return;
+  }
+  const r = rec;
+  r.start = performance.now();
+  // Не дольше 60 с — и тогда, когда окно редактора закрыли.
+  window.setTimeout(() => { if (rec === r) void endRec(); }, REC_MAX_S * 1000);
+}
+
+async function endRec() {
+  const r = rec;
+  if (!r) return;
+  rec = null;
+  busy = true;
+  try {
+    const d = new Date();
+    const two = (x: number) => String(x).padStart(2, '0');
+    const name = `${r.name} ${two(d.getHours())}-${two(d.getMinutes())}-${two(d.getSeconds())}`;
+    const key = await stopCapture(name);
+    // Записанное — на дорожку (в её папку) и копия в RECORDINGS библиотеки; дальше его можно править здесь же.
+    if (key) { addRecordedSample(r.track, key, name); saveRecording(key, name); }
+  } finally {
+    busy = false;
+  }
+}
+
+/** Меню источника записи: входы (микрофон iPad, аудиоинтерфейс), дорожки (после своей обработки), мастер. */
+async function openRecMenu() {
+  recMenu ??= makePopup('rec-src-menu');
+  const box = recMenu.box;
+  box.replaceChildren(h('div', 'menu-head', 'RECORD FROM'));
+  const inputs = await audioInputs();
+  box.append(h('div', 'source-title', 'INPUT'));
+  const list = inputs.length ? inputs : [{ id: '', name: 'iPad microphone' }];
+  for (const d of list) box.append(popupButton(d.name, () => void beginRec({ kind: 'input', id: d.id }, d.name.split(' ')[0].toUpperCase() === 'IPAD' ? 'MIC' : d.name)));
+  box.append(h('div', 'source-title', 'TRACK'));
+  const grid = h('div', 'rec-src-grid');
+  doc.tracks.forEach((t, i) => grid.append(popupButton(t.name || String(i + 1), () => void beginRec({ kind: 'track', i }, t.name || String(i + 1)))));
+  box.append(grid, h('div', 'source-title', 'MASTER'), popupButton('MASTER', () => void beginRec({ kind: 'master' }, 'MASTER')));
+  box.append(h('div', 'settings-note', `Recording stops by tapping REC again or after ${REC_MAX_S} s. Tracks are recorded after their own processing, the master after the master effects.`));
+  recMenu.openAt(recBtn, 320);
+}
+
 // ---------- Построение ----------
 
 export function buildSampleEditor(): HTMLElement {
@@ -342,7 +405,16 @@ export function buildSampleEditor(): HTMLElement {
   playBtn.innerHTML = '<svg class="tr-icon" viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z" fill="currentColor"/></svg>';
   const close = closeButton(() => toggleView('sample'));
   // LOAD и SAVE рядом, за ними правки.
-  bar.append(nameText, h('div', 'sedit-space'), playBtn, load, saveBtn, trimBtn, normBtn, monoBtn, close);
+  // REC — запись сэмпла: тап — меню источника (вход, дорожка, мастер), во время записи — стоп (не больше 60 с).
+  recBtn = h('div', 'btn eq-tool sedit-rec');
+  recBtn.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    if (busy) return;
+    if (rec) { void endRec(); return; }
+    if (ui.channel !== 'track') return;
+    void openRecMenu();
+  });
+  bar.append(nameText, h('div', 'sedit-space'), recBtn, playBtn, load, saveBtn, trimBtn, normBtn, monoBtn, close);
   // Кнопки — над формой волны.
   panel.append(bar, plot);
   return panel;
@@ -392,9 +464,18 @@ export function renderSampleEditor() {
   setClass(saveBtn, 'disabled', !buf);
   for (const t of tools) setClass(t, 'busy', busy);
 
-  setClass(note, 'hidden', !!buf);
-  setText(note, ui.channel !== 'track' ? 'Select a track to edit its sample.'
-    : key ? 'Loading…' : 'No sample on this track — LOAD a file.');
+  // Запись: на кнопке время, в 60 с — стоп.
+  const recMs = rec ? performance.now() - rec.start : 0;
+  if (rec && recMs >= REC_MAX_S * 1000) void endRec();
+  setClass(recBtn, 'on', !!rec);
+  setClass(recBtn, 'disabled', !rec && ui.channel !== 'track');
+  const recHtml = rec ? `<span class="rec-sq"></span>${recTime(recMs)}` : '<span class="rec-dot"></span>REC';
+  if (recBtn.innerHTML !== recHtml) recBtn.innerHTML = recHtml;
+  setClass(note, 'rec', !!rec);
+  setClass(note, 'hidden', !!buf && !rec);
+  setText(note, rec ? `Recording ${rec.name} · ${recTime(recMs)} / 1:00`
+    : ui.channel !== 'track' ? 'Select a track to edit its sample.'
+    : key ? 'Loading…' : 'No sample on this track — LOAD a file or REC.');
   if (buf) {
     const sel = (mark.b - mark.a) * buf.duration;
     setText(nameText, `${sampleName(key)}\n${full ? fmtTime(buf.duration) : `${fmtTime(sel)} of ${fmtTime(buf.duration)}`}${buf.numberOfChannels > 1 ? ' · ST' : ' · M'}`);

@@ -18,7 +18,7 @@ import { tableNodeName } from '../library';
 import { WTABLE_ENGINE, isJambo, LFO_WAVES, MAX_TRACKS, OVER_PEAK, SYNTH_ENGINES, noteName, synthEngine, synthGrid, synthKey } from '../params';
 import { levelFrac } from './meter';
 import { makePopup, popupButton } from './popup';
-import { baseValue, audible, doc, firstHeldStep, heldStepSound, liveLocks, modulatedNorm, seqAt, setStepSound, folderItemName, folderPos, stepFolder, stepFolderOnSteps, setTrackSynth, envAt, envShape, liveParams, lfoShape, lfoShaped, rt, sampleName, selTrack, ui } from '../state';
+import { baseValue, audible, doc, firstHeldStep, heldStepSound, liveLocks, modulatedNorm, seqAt, setStepSound, folderItemName, folderPos, stepFolder, stepFolderOnSteps, setTrackSynth, setTrackSample, envAt, envShape, liveParams, lfoShape, lfoShaped, rt, sampleName, selTrack, ui } from '../state';
 import { openSampleEditor } from './sampleedit';
 import { masterStemArmed, masterStemRecording, toggleMasterStem } from '../stems';
 import { registerAction } from '../midi';
@@ -226,6 +226,11 @@ export function buildSample(): HTMLElement {
     else setTrackSynth(ui.selectedTrack, k);
     menu.close();
   }));
+  const samplerBtn = popupButton('SAMPLER', () => {
+    menu.close();
+    setTrackSample(ui.selectedTrack, '');
+    openSampleEditor();
+  });
   const group = (title: string, cols: number, items: HTMLElement[]) => {
     const g = h('div', `source-group cols-${cols}`);
     // Высота группы — по числу рядов: кнопки во всех группах одной высоты.
@@ -239,6 +244,8 @@ export function buildSample(): HTMLElement {
   for (const [title, bank] of [['SYNTH', 'jb'], ['MI SYNTH', 'synth'], ['MI DRUMS', 'drum']] as const) {
     const col = h('div', 'source-col');
     col.append(h('div', 'source-title', title), ...engineBtns.filter((_, k) => SYNTH_ENGINES[k].bank === bank));
+    // SAMPLER (под WTABLE) — чистое окно сэмплера: дорожка без звука, сразу редактор сэмпла (LOAD или REC).
+    if (bank === 'jb') col.append(samplerBtn);
     cols.append(col);
   }
   menu.box.append(cols);
@@ -287,6 +294,8 @@ export function buildSample(): HTMLElement {
     midiBtn.disabled = !step;
     saveBtn.disabled = step || cur === null;
     tableBtn.disabled = step || cur !== WTABLE_ENGINE;
+    samplerBtn.disabled = step;
+    samplerBtn.classList.toggle('current', !step && key === '');
     menu.openRect(menuRect());
   });
   stub.append(waveTitle, wave, synthInfo, stubName);

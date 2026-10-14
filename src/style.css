@@ -1212,3 +1212,12 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 /* Стрелки ▲ ▼ сетки паттернов (строк больше, чем видно) — под LOOP ROW. */
 .grid-arrow { display: flex; align-items: center; justify-content: center; min-height: 0; font-size: 16px; }
 .grid-arrow.disabled { opacity: 0.35; }
+
+/* Редактор сэмпла: REC — красная точка и красный текст; во время записи — красная кнопка с квадратом и временем. */
+.sedit-rec { color: var(--rec); box-shadow: inset 0 0 0 1px var(--rec); display: flex; align-items: center; justify-content: center; gap: 6px; }
+.sedit-rec .rec-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--rec); }
+.sedit-rec.on { background: var(--rec); color: #fff; }
+.sedit-rec .rec-sq { width: 9px; height: 9px; border-radius: 2px; background: #fff; }
+.sedit-note.rec { color: var(--rec); }
+.rec-src-menu { display: flex; flex-direction: column; gap: 6px; max-height: 70vh; overflow-y: auto; }
+.rec-src-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; }

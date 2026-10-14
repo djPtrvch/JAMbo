@@ -1951,6 +1951,55 @@ let stemReady: Promise<void> | null = null;
 export const isStemRecording = (track: number) => stems.has(track);
 /** Номер «дорожки» записи мастера (кнопка ● MASTER в MIX). */
 export const MASTER_STEM = -1;
+/** Номер записи сэмпла в редакторе (кнопка REC). */
+const CAPTURE = -2;
+
+/** Источник записи сэмпла: вход (микрофон iPad, аудиоинтерфейс — по deviceId), дорожка или мастер. */
+export type CaptureSource = { kind: 'input'; id: string } | { kind: 'track'; i: number } | { kind: 'master' };
+let captureStream: MediaStream | null = null;
+let captureIn: MediaStreamAudioSourceNode | null = null;
+
+/** Входы звука (микрофон iPad, подключённые интерфейсы); имена — после разрешения доступа. */
+export async function audioInputs(): Promise<{ id: string; name: string }[]> {
+  try {
+    const ds = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'audioinput');
+    return ds.map((d, k) => ({ id: d.deviceId, name: d.label || (k === 0 ? 'iPad microphone' : `Input ${k + 1}`) }));
+  } catch { return []; }
+}
+
+export const captureActive = () => stems.has(CAPTURE);
+
+/**
+ * Начать запись сэмпла: вход — без обработки (без эхоподавления и автоуровня), дорожка — её выход после её
+ * обработки и громкости микшера (как стем), мастер — после всех эффектов мастера и громкости выхода.
+ */
+export async function startCapture(src: CaptureSource): Promise<boolean> {
+  const c = ensureCtx();
+  if (stems.has(CAPTURE)) return false;
+  let node: AudioNode | undefined;
+  if (src.kind === 'input') {
+    try {
+      captureStream = await navigator.mediaDevices.getUserMedia({ audio: {
+        deviceId: src.id ? { exact: src.id } : undefined, echoCancellation: false, noiseSuppression: false, autoGainControl: false,
+      } });
+    } catch { return false; }
+    captureIn = c.createMediaStreamSource(captureStream);
+    node = captureIn;
+  } else node = src.kind === 'master' ? mst?.outVol : tracks[src.i]?.gate;
+  if (!node) return false;
+  await startStem(CAPTURE, performance.now(), node);
+  return true;
+}
+
+/** Закончить запись сэмпла: WAV в хранилище сэмплов, результат — ключ (null — пусто). */
+export async function stopCapture(name: string): Promise<string | null> {
+  const key = await stopStem(CAPTURE, name);
+  captureIn?.disconnect();
+  captureIn = null;
+  captureStream?.getTracks().forEach((t) => t.stop());
+  captureStream = null;
+  return key;
+}
 
 /** Загрузить узел записи заранее (при нажатии ●), чтобы запись с PLAY не теряла начало. */
 export function prepareStems() {
@@ -1963,10 +2012,10 @@ export function prepareStems() {
  * mute/solo (то, что дорожка отдаёт в мастер, без посылов Reverb, Delay и Drive), стерео; у мастера
  * (MASTER_STEM) — выход мастера после громкости выхода (с эффектами).
  */
-export async function startStem(track: number, at: number) {
+export async function startStem(track: number, at: number, from?: AudioNode) {
   const c = ensureCtx();
-  // Мастер (MASTER_STEM): конечный сигнал — после громкости выхода, то, что идёт на выход.
-  const src = track === MASTER_STEM ? mst?.outVol : tracks[track]?.gate;
+  // Мастер (MASTER_STEM): конечный сигнал — после громкости выхода, то, что идёт на выход; from — свой источник (запись сэмпла).
+  const src = from ?? (track === MASTER_STEM ? mst?.outVol : tracks[track]?.gate);
   if (!src || stems.has(track)) return;
   const startFrame = Math.round(toCtx(at) * c.sampleRate);
   stemReady ??= c.audioWorklet.addModule(new URL('stem-worklet.js', document.baseURI).href);

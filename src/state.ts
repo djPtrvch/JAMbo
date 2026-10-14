@@ -2142,6 +2142,15 @@ export function setFolder(i: number, items: FolderItem[]) {
 }
 
 /** Добавить сэмплы в папку, не меняя звук дорожки (выбор файла для зажатого шага). */
+/** Запись сэмпла (редактор, REC): новый сэмпл — в папку дорожки и на дорожку, с именем (одна запись в UNDO). */
+export function addRecordedSample(i: number, key: string, name: string) {
+  edit(() => {
+    doc.files[key] = name;
+    const at = addItems(i, [{ sample: key }]);
+    if (at >= 0) applyItem(i, doc.folders[i].items[at]);
+  });
+}
+
 export function addSamplesQuiet(i: number, keys: string[]) {
   const f = doc.folders[i];
   const index = f.index;

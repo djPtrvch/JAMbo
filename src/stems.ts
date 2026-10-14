@@ -167,3 +167,10 @@ function recordingsFolder(name: string): string {
   const have = children(RECORDINGS).find((n) => n.kind === 'folder' && n.name === name);
   return (have ?? createFolder(RECORDINGS, name)).id;
 }
+
+/** Запись сэмпла (редактор, REC): копия — в RECORDINGS библиотеки, в папку «проект дд.мм.гггг». */
+export function saveRecording(key: string, name: string) {
+  const d = new Date();
+  const two = (x: number) => String(x).padStart(2, '0');
+  addSample(recordingsFolder(`${project.name || 'Project'} ${two(d.getDate())}.${two(d.getMonth() + 1)}.${d.getFullYear()}`), key, name);
+}
