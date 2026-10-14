@@ -3,7 +3,7 @@
 Нативное приложение, App Project для Swift Playgrounds: `ios/JAMbo.swiftpm`, ветка `swift`. Поведение — как в веб-версии (корневой CLAUDE.md — эталон; веб заморожен, только исправления). Аудит и план вех — docs/SWIFT_AUDIT.md, итоги вех — docs/SWIFT_MILESTONE_Sx.md. Решение пользователя: переносим всё, что сделано в вебе (кроме чисто браузерного).
 
 ## Структура
-- `JAMbo.swiftpm/Core/` — DSP и модель, только Foundation и Synchronization (без Accelerate, SwiftUI, AVFoundation; Accelerate — только под `#if canImport(Accelerate)` с обычной реализацией рядом). Util/ — AtomicFloat, SPSCQueue, CPUMeter; Engine/ — AudioCore (весь звук), события CoreEvent.
+- `JAMbo.swiftpm/Core/` — DSP и модель, только Foundation (без Accelerate, SwiftUI, AVFoundation; Accelerate — только под `#if canImport(Accelerate)` с обычной реализацией рядом). Util/ — SpinLock, AtomicFloat, AtomicCounter, SPSCQueue, CPUMeter; Engine/ — AudioCore (весь звук), события CoreEvent.
 - `JAMbo.swiftpm/Audio/` — AVAudioSession (48 кГц, буфер 256) и один AVAudioSourceNode, колбэк зовёт `AudioCore.render`.
 - `JAMbo.swiftpm/UI/` — SwiftUI.
 - `JAMbo.swiftpm/Resources/` — таблицы Plaits (.bin), эталоны самотеста, лицензии.
@@ -17,7 +17,7 @@
 GitHub → ветка `swift` → Code → Download ZIP → «Файлы» → распаковать → папка `ios/JAMbo.swiftpm` открывается в Swift Playgrounds (тап по ней). Package.swift — в виде, который создаёт Playgrounds; после открытия правится только через Playgrounds (ТЗ 0.3).
 
 ## Правила кода
-- Swift 5 (не режим Swift 6), минимальная iPadOS 18 (модуль Synchronization). Только Swift и фреймворки Apple: без C, C++, Objective-C целей, сторонних пакетов, unsafeFlags, своих entitlements и ключей Info.plist (только редактор capabilities).
+- Swift 5 (не режим Swift 6), минимальная iPadOS 18. Модуль Synchronization не используется: с ним приложение падало при запуске в Playgrounds 4.7 (проверяется); обмен UI ↔ аудио — на os_unfair_lock, аудиопоток только tryLock (занято — пропуск до следующего блока; ТЗ 0.2). Только Swift и фреймворки Apple: без C, C++, Objective-C целей, сторонних пакетов, unsafeFlags, своих entitlements и ключей Info.plist (только редактор capabilities).
 - Файл не длиннее ~600 строк; большие функции разбивать. Тело SwiftUI-View короче ~40 строк, остальное — в подвиды; сложные выражения — на несколько строк с явными типами (иначе «expression too complex»).
 - Массивы-литералы не больше ~100 элементов; данные — из Resources.
 - Колбэк (AudioCore.render и всё, что он зовёт): без выделения памяти, блокировок, ARC-объектов, созданных в колбэке, вызовов Objective-C, print и Swift-коллекций, которые растут; только final-классы, UnsafeMutablePointer<Float>, @inline(__always) на горячих функциях; денормалы в обратных связях гасить вручную (+1e-18 или обнуление). Каждый новый вызов в колбэке проверять по этому списку.

@@ -1,5 +1,3 @@
-import Synchronization
-
 /// Весь звук приложения: один render на блок, вызывается из колбэка AVAudioSourceNode (Audio/AudioHost.swift).
 /// В render — только то, что разрешено правилами колбэка (ios/CLAUDE.md): без выделений, блокировок, ARC и print.
 public final class AudioCore: @unchecked Sendable {
@@ -11,8 +9,8 @@ public final class AudioCore: @unchecked Sendable {
     /// Нагрузка колбэка для индикатора CPU.
     public let cpu = CPUMeter(sampleRate: AudioCore.sampleRate)
     /// Сколько кадров посчитано с запуска (меняет только колбэк; UI читает для диагностики).
-    private let frameCounter = Atomic<Int>(0)
-    public var framesRendered: Int { return frameCounter.load(ordering: .relaxed) }
+    private let frameCounter = AtomicCounter()
+    public var framesRendered: Int { return frameCounter.load() }
 
     private let tone = TestTone(sampleRate: AudioCore.sampleRate)
     /// Счётчик кадров колбэка — основа транспорта с точностью до отсчёта.
@@ -27,7 +25,7 @@ public final class AudioCore: @unchecked Sendable {
         }
         tone.render(frames: frames, left: left, right: right)
         sampleTime += Int64(frames)
-        frameCounter.store(Int(sampleTime), ordering: .relaxed)
+        frameCounter.tryStore(Int(sampleTime))
     }
 
     @inline(__always)

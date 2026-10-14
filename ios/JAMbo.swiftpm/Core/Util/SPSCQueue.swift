@@ -1,16 +1,13 @@
-import Synchronization
-
-/// Кольцевая очередь «один писатель — один читатель» без блокировок и выделений после создания.
+/// Кольцевая очередь «один писатель — один читатель» без выделений после создания.
 /// T — простой тип без ссылок (enum или struct из чисел): элемент копируется в заранее выделенный буфер.
-/// Писатель — push (например, UI), читатель — pop (например, аудиоколбэк), и наоборот для измерений.
+/// Аудиопоток не ждёт: pop и tryPush при занятом замке сразу возвращаются (элемент заберётся в следующем блоке).
 public final class SPSCQueue<T>: @unchecked Sendable {
     private let buffer: UnsafeMutablePointer<T>
     private let capacity: Int
     private let mask: Int
-    /// Сколько всего записано (меняет только писатель).
-    private let head = Atomic<Int>(0)
-    /// Сколько всего прочитано (меняет только читатель).
-    private let tail = Atomic<Int>(0)
+    private let lock = SpinLock()
+    private var head: Int = 0
+    private var tail: Int = 0
 
     /// capacity округляется вверх до степени двойки; filler — начальное значение ячеек.
     public init(capacity: Int, filler: T) {
@@ -27,30 +24,50 @@ public final class SPSCQueue<T>: @unchecked Sendable {
         buffer.deallocate()
     }
 
-    /// Положить элемент; false — очередь полна (элемент не записан).
-    @inline(__always) @discardableResult
+    /// Положить элемент (ждёт замок — для UI); false — очередь полна.
+    @discardableResult
     public func push(_ value: T) -> Bool {
-        let h = head.load(ordering: .relaxed)
-        let t = tail.load(ordering: .acquiring)
-        if h - t >= capacity { return false }
-        buffer[h & mask] = value
-        head.store(h + 1, ordering: .releasing)
-        return true
+        lock.lock()
+        let ok = put(value)
+        lock.unlock()
+        return ok
     }
 
-    /// Взять элемент; nil — пусто.
+    /// Положить без ожидания (для аудиопотока); false — замок занят или очередь полна.
+    @inline(__always) @discardableResult
+    public func tryPush(_ value: T) -> Bool {
+        guard lock.tryLock() else { return false }
+        let ok = put(value)
+        lock.unlock()
+        return ok
+    }
+
+    /// Взять элемент без ожидания; nil — пусто или замок занят.
     @inline(__always)
     public func pop() -> T? {
-        let t = tail.load(ordering: .relaxed)
-        let h = head.load(ordering: .acquiring)
-        if t == h { return nil }
-        let value = buffer[t & mask]
-        tail.store(t + 1, ordering: .releasing)
-        return value
+        guard lock.tryLock() else { return nil }
+        var result: T? = nil
+        if tail != head {
+            result = buffer[tail & mask]
+            tail += 1
+        }
+        lock.unlock()
+        return result
     }
 
-    /// Сколько элементов ждёт (приблизительно, если другой поток работает).
+    /// Сколько элементов ждёт.
     public var count: Int {
-        return head.load(ordering: .acquiring) - tail.load(ordering: .acquiring)
+        lock.lock()
+        let n = head - tail
+        lock.unlock()
+        return n
+    }
+
+    @inline(__always)
+    private func put(_ value: T) -> Bool {
+        if head - tail >= capacity { return false }
+        buffer[head & mask] = value
+        head += 1
+        return true
     }
 }

@@ -2,7 +2,7 @@
 
 ## Сделано
 - `ios/JAMbo.swiftpm` — App Project для Swift Playgrounds: iPadOS 18, iPad, альбомная ориентация, Swift 5; цели AppModule (Core/, Audio/, UI/, Resources/).
-- Core (Foundation + Synchronization): AtomicFloat, SPSCQueue (без блокировок и выделений после создания), CPUMeter, CoreEvent, TestTone, AudioCore.render — единственная точка расчёта звука.
+- Core (Foundation): SpinLock, AtomicFloat, SPSCQueue (без выделений после создания, аудиопоток не ждёт), CPUMeter, CoreEvent, TestTone, AudioCore.render — единственная точка расчёта звука.
 - Audio: AudioHost — AVAudioSession (.playback, 48 кГц, буфер 256), AVAudioEngine с одним AVAudioSourceNode 48 кГц стерео, замер времени колбэка, перезапуск после прерывания и смены конфигурации, пауза в фоне.
 - UI: верхняя панель (бутерброд, TONE, CPU), меню (APPEARANCE SYSTEM / LIGHT / DARK, DIAGNOSTICS), окно DIAGNOSTICS со строкой «Now:» и ✕; цвета — токены веба (тёмная и светлая темы).
 - `ios/CoreTests` — Linux-пакет (Sources/Core → JAMbo.swiftpm/Core), 7 тестов XCTest.
@@ -15,6 +15,7 @@
 
 ## Первый запуск на iPad (iPadOS 26.6.2, Playgrounds 4.7)
 - Собралось, но при запуске — «Loading… Crashed / Loading failed due to an error», без подробностей. Звук теперь запускается первым нажатием TONE (а не при старте), в консоль (Show Console) пишутся отметки запуска «JAMbo: …» — по ним видно, где остановилось.
+- Второй запуск — то же самое, до появления экрана. Вероятная причина — модуль Synchronization (Atomic): заменён запасным вариантом ТЗ 0.2 — SpinLock (os_unfair_lock на iPad, NSLock на Linux), аудиопоток берёт замок только tryLock; тесты 7/7.
 
 ## Открыто
 - Сборка на iPad не проверена. Если Playgrounds не примет Package.swift (версия swift-tools, `.iOS("18.0")`, `swiftLanguageVersions`), создать в Playgrounds новое приложение «JAMbo» и перенести в него папки Core, Audio, UI, Resources — Package.swift останется тем, что создал Playgrounds.
