@@ -24,6 +24,8 @@ struct RootView: View {
             }
             .coordinateSpace(name: "root")
         }
+        // Клавиатура (имя дорожки, темп числом) не сдвигает экран: поля ввода — в верхней части.
+        .ignoresSafeArea(.keyboard)
         .fileImporter(isPresented: importing, allowedContentTypes: [.audio], allowsMultipleSelection: true) { result in
             if case .success(let urls) = result { model.importFiles(urls) } else { model.importTarget = nil }
         }

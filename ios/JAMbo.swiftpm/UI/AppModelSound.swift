@@ -36,7 +36,7 @@ extension AppModel {
     // MARK: — снимки звука
 
     func publishAudio() {
-        audio.core.publish(project, samples: store.samples, map: settings.sliceMap)
+        audio.core.publish(project, samples: store.samples, map: settings.sliceMap, octave: octave)
     }
 
     /// Голоса из колбэка → полоса воспроизведения.
@@ -270,7 +270,7 @@ extension AppModel {
     }
 
     var editorMarkNotes: [Int] {
-        return Slices.notes(editorMarks, map: settings.sliceMap, scale: project.scale, root: project.root)
+        return Slices.notes(editorMarks, map: settings.sliceMap, scale: project.scale, root: project.root, octave: octave)
     }
 
     func addSlice(at f: Double) {

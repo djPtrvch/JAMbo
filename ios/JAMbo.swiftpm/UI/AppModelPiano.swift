@@ -35,7 +35,11 @@ extension AppModel {
     }
 
     func setOctave(_ o: Int) {
-        octave = min(Scales.octaveMax, max(Scales.octaveMin, o))
+        let o2 = min(Scales.octaveMax, max(Scales.octaveMin, o))
+        if o2 == octave { return }
+        octave = o2
+        // Ноты маркеров нарезки идут от первой клавиши пианоролла.
+        publishAudio()
     }
 
     func setProgression(_ v: Int) {

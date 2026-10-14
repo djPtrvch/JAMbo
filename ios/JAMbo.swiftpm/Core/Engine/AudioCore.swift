@@ -39,14 +39,14 @@ public final class AudioCore: @unchecked Sendable {
 
     /// Новые снимки (основной поток, после каждой правки): звук — всегда (дёшево), паттерны — если изменились.
     /// samples — загруженные сэмплы по ключу, map — SLICE NOTES.
-    public func publish(_ project: Project, samples: [String: SampleData] = [:], map: SliceMap = .chromatic) {
+    public func publish(_ project: Project, samples: [String: SampleData] = [:], map: SliceMap = .chromatic, octave: Int = 3) {
         releaseRetired()
         if lastSeq == nil || !SeqSnapshot.same(lastSeq!, project) {
             lastSeq = project
             let snap = Unmanaged.passRetained(SeqSnapshot(project))
             if !snapshots.push(snap) { snap.release() }
         }
-        let snd = Unmanaged.passRetained(SoundSnapshot(project, samples: samples, map: map))
+        let snd = Unmanaged.passRetained(SoundSnapshot(project, samples: samples, map: map, octave: octave))
         if !sounds.push(snd) { snd.release() }
     }
 

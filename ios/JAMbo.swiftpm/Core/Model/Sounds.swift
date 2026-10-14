@@ -186,15 +186,15 @@ extension Track {
 }
 
 public enum Slices {
-    /// Нота по порядку маркера idx: CHROMATIC — C3, C#3…; SCALE — ступени гаммы от корневой ноты в 3-й октаве.
-    public static func note(_ idx: Int, map: SliceMap, scale: Int, root: Int) -> Int {
-        if map != .scale { return Params.sampleRoot + idx }
-        let steps = Scales.all[Swift.max(0, Swift.min(scale, Scales.all.count - 1))].steps
-        return Params.sampleRoot + root + 12 * (idx / steps.count) + steps[idx % steps.count]
+    /// Нота по порядку маркера idx — от первой клавиши пианоролла (корневая нота его октавы; решение пользователя,
+    /// в вебе — от C3): CHROMATIC — по полутону, SCALE — клавиши пианоролла по порядку (ступени гаммы).
+    public static func note(_ idx: Int, map: SliceMap, scale: Int, root: Int, octave: Int = 3) -> Int {
+        if map != .scale { return Scales.baseNote(root: root, octave: octave) + idx }
+        return Scales.note(scale: scale, root: root, octave: octave, degree: idx)
     }
 
     /// Ноты маркеров: назначенная — как есть; остальные — по порядку, занятая нота пропускается.
-    public static func notes(_ m: [SliceMark], map: SliceMap, scale: Int, root: Int) -> [Int] {
+    public static func notes(_ m: [SliceMark], map: SliceMap, scale: Int, root: Int, octave: Int = 3) -> [Int] {
         var taken = Set<Int>()
         for v in m { if let n = v.note { taken.insert(n) } }
         var j = 0
@@ -205,8 +205,8 @@ public enum Slices {
                 out.append(n)
                 continue
             }
-            while taken.contains(note(j, map: map, scale: scale, root: root)) { j += 1 }
-            out.append(note(j, map: map, scale: scale, root: root))
+            while taken.contains(note(j, map: map, scale: scale, root: root, octave: octave)) { j += 1 }
+            out.append(note(j, map: map, scale: scale, root: root, octave: octave))
             j += 1
         }
         return out

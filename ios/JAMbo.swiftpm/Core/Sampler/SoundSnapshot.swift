@@ -96,7 +96,7 @@ public final class SoundSnapshot: @unchecked Sendable {
     public static var liveCount = 0
 
     /// samples — загруженные сэмплы по ключу; map, scale, root — ноты маркеров по порядку (SLICE NOTES).
-    public init(_ project: Project, samples: [String: SampleData], map: SliceMap) {
+    public init(_ project: Project, samples: [String: SampleData], map: SliceMap, octave: Int = 3) {
         let tracks = SoundData.maxTracks
         let entries = SoundData.maxEntries
         let slices = SoundData.maxSlices
@@ -151,7 +151,7 @@ public final class SoundSnapshot: @unchecked Sendable {
                 d.eFrames[e] = s.frames
                 d.eChannels[e] = Int32(s.channels)
                 let marks = tr.sliceMarks(key)
-                let notes = Slices.notes(marks, map: map, scale: project.scale, root: project.root)
+                let notes = Slices.notes(marks, map: map, scale: project.scale, root: project.root, octave: octave)
                 d.eSliceStart[e] = Int32(sl)
                 var n = 0
                 for (k, m) in marks.enumerated() where sl + n < slices {

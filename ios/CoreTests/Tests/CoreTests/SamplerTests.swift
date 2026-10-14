@@ -126,6 +126,9 @@ final class SamplerTests: XCTestCase {
                        [49, 48, 51], "назначенная нота занимает своё место по порядку (как sliceNotes веба)")
         XCTAssertEqual(Slices.notes([SliceMark(at: 0), SliceMark(at: 0.3), SliceMark(at: 0.6)], map: .scale, scale: 1, root: 2),
                        [50, 52, 53], "SCALE: ступени минора от D3")
+        // От первой клавиши пианоролла: октава 2 — C2, C#2…; SCALE — клавиши по порядку.
+        XCTAssertEqual(Slices.notes([SliceMark(at: 0), SliceMark(at: 0.5)], map: .chromatic, scale: 0, root: 0, octave: 2), [36, 37])
+        XCTAssertEqual(Slices.notes([SliceMark(at: 0), SliceMark(at: 0.5)], map: .scale, scale: 0, root: 0, octave: 4), [60, 62])
     }
 
     func testVoiceLimitFadesOldest() {

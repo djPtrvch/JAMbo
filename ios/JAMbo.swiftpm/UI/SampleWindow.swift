@@ -143,6 +143,8 @@ struct WaveStrip: View {
         }
     }
 
+    /// Огибающая — сплошная фигура (верхний край слева направо, нижний обратно): тонкие штрихи с зазорами
+    /// давали рябь (муар).
     static func draw(_ ctx: GraphicsContext, _ size: CGSize, _ lanes: [[Float]], _ ink: Color) {
         if lanes.isEmpty { return }
         let laneH: CGFloat = size.height / CGFloat(lanes.count)
@@ -151,14 +153,25 @@ struct WaveStrip: View {
             let mid: CGFloat = laneH * (CGFloat(li) + 0.5)
             let amp: CGFloat = laneH / 2 * 0.9
             let n: Int = lane.count
+            if n == 0 { continue }
+            let dx: CGFloat = size.width / CGFloat(n)
+            path.move(to: CGPoint(x: 0, y: mid))
             for (i, v) in lane.enumerated() {
-                let x: CGFloat = (CGFloat(i) + 0.5) / CGFloat(n) * size.width
                 let h: CGFloat = max(0.5, CGFloat(v) * amp)
-                path.move(to: CGPoint(x: x, y: mid - h))
-                path.addLine(to: CGPoint(x: x, y: mid + h))
+                path.addLine(to: CGPoint(x: CGFloat(i) * dx, y: mid - h))
+                path.addLine(to: CGPoint(x: CGFloat(i + 1) * dx, y: mid - h))
             }
+            path.addLine(to: CGPoint(x: size.width, y: mid))
+            var i: Int = n - 1
+            while i >= 0 {
+                let h: CGFloat = max(0.5, CGFloat(lane[i]) * amp)
+                path.addLine(to: CGPoint(x: CGFloat(i + 1) * dx, y: mid + h))
+                path.addLine(to: CGPoint(x: CGFloat(i) * dx, y: mid + h))
+                i -= 1
+            }
+            path.closeSubpath()
         }
-        ctx.stroke(path, with: .color(ink), lineWidth: 1)
+        ctx.fill(path, with: .color(ink))
     }
 }
 
@@ -175,7 +188,7 @@ final class PeakCache {
         if sig == smallKey { return smallLanes }
         smallKey = sig
         smallLanes = (0..<s.channels).map { c in
-            SampleEdit.peaks(s, channel: c, from: 0, to: Double(s.frames), n: 100).map { max(abs($0.0), abs($0.1)) }
+            SampleEdit.peaks(s, channel: c, from: 0, to: Double(s.frames), n: 160).map { max(abs($0.0), abs($0.1)) }
         }
         return smallLanes
     }

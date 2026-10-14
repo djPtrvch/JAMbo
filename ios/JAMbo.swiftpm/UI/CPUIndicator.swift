@@ -13,9 +13,10 @@ struct CPUIndicator: View {
 
     private func label(percent: Int) -> some View {
         let high: Bool = percent >= 70
-        return VStack(spacing: 0) {
-            Text("CPU").font(.system(size: 9, weight: .bold))
-            Text("\(percent)%").font(.system(size: 13, weight: .bold)).monospacedDigit()
+        // Как в вебе: две строки мелким обычным шрифтом, цвет --dim (≥ 70 % — красный).
+        return VStack(spacing: 1) {
+            Text("CPU").font(.system(size: 9))
+            Text("\(percent)%").font(.system(size: 9)).monospacedDigit()
         }
         .foregroundStyle(high ? theme.rec : theme.dim)
         .frame(width: 48, height: 48)
