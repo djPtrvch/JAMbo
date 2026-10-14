@@ -120,7 +120,7 @@ struct PagesColumn: View {
         if let last = lastTap, last.row == r, Date().timeIntervalSince(last.at) < 0.3 {
             tapTask?.cancel()
             lastTap = nil
-            model.pageMenu = PageMenuState(page: r, y: CGFloat(r) * rowStep)
+            model.pageMenu = PageMenuState(page: r, y: CGFloat(r + 1) * rowStep)
             return
         }
         lastTap = (r, Date())
@@ -229,6 +229,7 @@ struct PlusThumb: View {
 /// Меню страницы: ◀ ▶ ▲ ▼ (окно не закрывается), duplicate, copy, paste, clear, delete.
 /// Действуют на все играющие страницы, если страница в белой обводке, иначе только на неё.
 struct PageMenu: View {
+    static let width: CGFloat = 184
     let model: AppModel
     let page: Int
     let close: () -> Void
@@ -248,8 +249,8 @@ struct PageMenu: View {
             item("clear", .clear, enabled: true)
             item("delete", .delete, enabled: model.canDelete(page), red: true)
         }
-        .padding(10)
-        .frame(width: 240)
+        .padding(8)
+        .frame(width: PageMenu.width)
         .background(theme.bg, in: RoundedRectangle(cornerRadius: Layout.radius))
         .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(theme.line, lineWidth: 1))
         .shadow(color: .black.opacity(0.5), radius: 12, y: 4)
@@ -276,7 +277,7 @@ struct PageMenu: View {
     }
 }
 
-/// Открытое меню страницы: номер страницы и высота её миниатюры в колонке (меню встаёт рядом, слева).
+/// Открытое меню страницы: номер страницы и низ её миниатюры в колонке (меню встаёт под ней, как в вебе).
 struct PageMenuState: Equatable {
     let page: Int
     let y: CGFloat
