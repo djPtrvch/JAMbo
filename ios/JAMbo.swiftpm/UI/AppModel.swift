@@ -50,9 +50,9 @@ final class AppModel {
         audio.start()
     }
 
-    /// Приложение стало активным: первый запуск или возврат из фона.
+    /// Приложение стало активным: возврат из фона (первый запуск звука — первым касанием, как в вебе).
     func activate() {
-        if audioStarted { audio.start() } else { ensureAudio() }
+        if audioStarted { audio.start() }
     }
 
     func pauseAudio() {
