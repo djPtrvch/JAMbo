@@ -10,6 +10,7 @@ struct PagesColumn: View {
     @State private var tapTask: Task<Void, Never>? = nil
     @State private var lastTap: (row: Int, at: Date)? = nil
     @State private var rowStep: CGFloat = 50
+    @State private var columnHeight: CGFloat = 400
     @Environment(\.theme) private var theme
 
     static let rows = 8
@@ -27,8 +28,14 @@ struct PagesColumn: View {
             }
             .contentShape(Rectangle())
             .gesture(drag(rowH: rowH + 4))
-            .onAppear { rowStep = rowH + 4 }
-            .onChange(of: rowH) { _, h in rowStep = h + 4 }
+            .onAppear {
+                rowStep = rowH + 4
+                columnHeight = geo.size.height
+            }
+            .onChange(of: geo.size.height) { _, h in
+                columnHeight = h
+                rowStep = (h - 4 * CGFloat(PagesColumn.rows - 1)) / CGFloat(PagesColumn.rows) + 4
+            }
         }
     }
 
@@ -120,7 +127,7 @@ struct PagesColumn: View {
         if let last = lastTap, last.row == r, Date().timeIntervalSince(last.at) < 0.3 {
             tapTask?.cancel()
             lastTap = nil
-            model.pageMenu = PageMenuState(page: r, y: CGFloat(r + 1) * rowStep)
+            model.pageMenu = PageMenuState(page: r, y: CGFloat(r + 1) * rowStep, maxY: columnHeight)
             return
         }
         lastTap = (r, Date())
@@ -192,6 +199,8 @@ struct ThumbCell {
 
     static func page(_ t: Track, page: Int) -> [ThumbCell] {
         let n: Int = Params.stepsPerPage
+        // Страницу могли только что удалить, а миниатюра ещё не убрана — пустые ячейки вместо падения.
+        if page >= t.pages.count { return [ThumbCell](repeating: ThumbCell(on: false, tail: false, lock: false, outside: false), count: n) }
         let len: Int = t.pageLen(page)
         return (0..<n).map { s in
             let st: Step = t.pages[page][s]
@@ -230,6 +239,9 @@ struct PlusThumb: View {
 /// Действуют на все играющие страницы, если страница в белой обводке, иначе только на неё.
 struct PageMenu: View {
     static let width: CGFloat = 184
+    static let rowHeight: CGFloat = 36
+    /// Высота всего меню: 6 строк по 36 и зазоры по 6, поля 8.
+    static let height: CGFloat = 6 * rowHeight + 5 * 6 + 16
     let model: AppModel
     let page: Int
     let close: () -> Void
@@ -257,7 +269,7 @@ struct PageMenu: View {
     }
 
     private func arrow(_ title: String, _ action: AppModel.PageAction) -> some View {
-        InkButton(title: title, height: 44) { model.pageAction(action, page: page) }
+        InkButton(title: title, height: PageMenu.rowHeight) { model.pageAction(action, page: page) }
     }
 
     private func item(_ title: String, _ action: AppModel.PageAction, enabled: Bool, red: Bool = false) -> some View {
@@ -269,7 +281,7 @@ struct PageMenu: View {
             Text(title.uppercased())
                 .font(.system(size: 13, weight: .bold))
                 .foregroundStyle(color)
-                .frame(maxWidth: .infinity, minHeight: 44)
+                .frame(maxWidth: .infinity, minHeight: PageMenu.rowHeight)
                 .background(theme.panel, in: RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
@@ -281,4 +293,6 @@ struct PageMenu: View {
 struct PageMenuState: Equatable {
     let page: Int
     let y: CGFloat
+    /// Низ колонки миниатюр (верх кнопок MORPH и FX): меню ниже не опускается.
+    let maxY: CGFloat
 }

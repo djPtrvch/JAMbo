@@ -57,7 +57,7 @@ struct RootView: View {
 extension RootView {
     /// Меню страницы — под её миниатюрой, по центру колонки миниатюр (как в вебе); тап мимо — закрыть.
     func pageMenu(_ menu: PageMenuState) -> some View {
-        let top: CGFloat = 8 + Layout.topHeight + Layout.gap + min(menu.y + 4, 230)
+        let top: CGFloat = 8 + Layout.topHeight + Layout.gap + max(0, min(menu.y + 4, menu.maxY - PageMenu.height))
         let trailing: CGFloat = 12 + Layout.meterWidth + Layout.gap + (Layout.leftColumn - PageMenu.width) / 2
         return ZStack(alignment: .topTrailing) {
             Color.black.opacity(0.001)
