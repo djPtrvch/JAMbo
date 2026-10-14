@@ -8,11 +8,11 @@
 ## Этап 8: движки Mutable
 
 ## Этап 9: Swift Playgrounds
+- Первым шагом — спайк Ableton Link (LinkKit в Swift Playgrounds: сборка, Local Network, entitlement multicast, подключение к Live); по его результату — Link (план — в CLAUDE.md, раздел «Ableton Link»).
 - Проверить MIDI-маппинг.
 - Оптимизация и переписывание кода под SwiftUI.
 
 ## Этап 10: релиз в App Store
-- Интеграция Ableton Link.
 - Оплата аккаунта.
 - Размещение.
 
