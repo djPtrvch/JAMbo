@@ -1,18 +1,18 @@
 // Меню «бутерброд»: PROJECTS (проекты, ui/projects.ts), SETTINGS и MIDI (ui/midi.ts);
 // во вложенных меню стрелка назад возвращает сюда.
-// SETTINGS — вкладки AUDIO ENGINE (частота дискретизации, размер буфера), BACKGROUND (звук в фоне)
+// SETTINGS — вкладки AUDIO ENGINE (частота дискретизации, размер буфера), RECORD (квантизация, овердаб, запись автоматизации), BACKGROUND (звук в фоне)
 // OUTPUT (выход и вход аудиоинтерфейса), SIDECHAIN (приглушение посылов эффектов, на пробу) и SCALE (шкала окон мастера).
 
 import { applyOutput, applySidechainSends, audioInfo, canChooseOutput, restartAudio } from '../audio/engine';
 import { BUFFER_SIZES, SAMPLE_RATES, saveSettings, settings } from '../settings';
 import { h, setText } from './dom';
 import { setTheme } from './theme';
-import { backHeader, makePopup, openMenuPanel, popupButton, type Popup } from './popup';
+import { backHeader, makePopup, openMenuPanel, popupButton, toggleRow, type Popup } from './popup';
 import { openMidi } from './midi';
 import { openSync } from './sync';
 import { openProjectMenu } from './projects';
 
-type Tab = 'engine' | 'background' | 'output' | 'sidechain' | 'scale';
+type Tab = 'engine' | 'record' | 'background' | 'output' | 'sidechain' | 'scale';
 
 let main: Popup;
 let panel: Popup;
@@ -47,7 +47,7 @@ export function openMainMenu(anchor: Element) {
 function buildPanel() {
   panel = makePopup('settings');
   const tabs = h('div', 'settings-tabs');
-  const names: [Tab, string][] = [['engine', 'AUDIO ENGINE'], ['background', 'BACKGROUND'], ['output', 'OUTPUT'], ['sidechain', 'SIDECHAIN'], ['scale', 'SCALE']];
+  const names: [Tab, string][] = [['engine', 'AUDIO ENGINE'], ['record', 'RECORD'], ['background', 'BACKGROUND'], ['output', 'OUTPUT'], ['sidechain', 'SIDECHAIN'], ['scale', 'SCALE']];
   for (const [t, label] of names) {
     tabBtns[t] = popupButton(label, () => { tab = t; render(); });
     tabs.append(tabBtns[t]);
@@ -109,14 +109,14 @@ function renderEngine() {
     }),
     note('Changing these restarts the audio engine. Safari may round the buffer size to what the device supports; the actual latency is shown below.'),
     h('div', 'settings-info', engineInfo()),
-    choice('MUTE TAILS', [false, true], settings.muteTails, (v) => (v ? 'ON' : 'OFF'), (v) => saveSettings({ muteTails: v })),
+    toggleRow('MUTE TAILS', settings.muteTails, (v) => saveSettings({ muteTails: v })),
     note('OFF: muting a track cuts its sound and sends at once; Reverb and Delay tails ring out. ON: if the muted track is the only one sending to Delay, the Delay repeats are cut too.'),
   );
 }
 
 /** SIDECHAIN (на пробу): приглушать ли вход посылов Reverb, Delay, Drive тем же sidechain, что и выход дорожки. */
 function renderSidechain() {
-  const row = (label: string, key: 'rev' | 'dly' | 'drv') => choice(label, [false, true], settings.scSends[key], (v) => (v ? 'ON' : 'OFF'), (v) => {
+  const row = (label: string, key: 'rev' | 'dly' | 'drv') => toggleRow(label, settings.scSends[key], (v) => {
     saveSettings({ scSends: { ...settings.scSends, [key]: v } });
     applySidechainSends();
   });
@@ -129,6 +129,19 @@ function renderSidechain() {
   );
 }
 
+/** RECORD: квантизация записи нот, овердаб, запись автоматизации (при REC). */
+function renderRecord() {
+  const set = (patch: Partial<typeof settings.record>) => saveSettings({ record: { ...settings.record, ...patch } });
+  body.append(
+    toggleRow('QUANTIZE', settings.record.quantize, (v) => set({ quantize: v })),
+    note('ON: a note played with REC lands on the nearest step. OFF: on the step where it was played.'),
+    toggleRow('OVERDUB', settings.record.overdub, (v) => set({ overdub: v })),
+    note('ON: new notes are added to the pattern. OFF: steps the recording passes over are cleared, only the new notes stay.'),
+    toggleRow('AUTOMATION RECORDING', settings.record.autoRec, (v) => set({ autoRec: v })),
+    note('ON: with REC and PLAY, turning a track knob records automation. OFF: only notes are recorded.'),
+  );
+}
+
 /** SCALE окон модулей мастера (компрессор, клиппер, лимитер, сатуратор): низ шкалы дисплеев и стержней IN/OUT. */
 function renderScale() {
   body.append(
@@ -138,11 +151,7 @@ function renderScale() {
 }
 
 function renderBackground() {
-  const b = popupButton(`BACKGROUND AUDIO: ${settings.background ? 'ON' : 'OFF'}`, () => {
-    saveSettings({ background: !settings.background });
-    render();
-  });
-  b.classList.toggle('current', settings.background);
+  const b = toggleRow('BACKGROUND AUDIO', settings.background, (v) => saveSettings({ background: v }), render);
   body.append(
     b,
     note(settings.background
@@ -200,6 +209,7 @@ function render() {
   for (const t of Object.keys(tabBtns) as Tab[]) tabBtns[t].classList.toggle('current', t === tab);
   body.replaceChildren();
   if (tab === 'engine') renderEngine();
+  else if (tab === 'record') renderRecord();
   else if (tab === 'background') renderBackground();
   else if (tab === 'sidechain') renderSidechain();
   else if (tab === 'scale') renderScale();

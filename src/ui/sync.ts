@@ -7,7 +7,7 @@ import { hasWebMidi, initMidi, midiOutputs, onDevicesChanged } from '../midi';
 import { saveSettings, settings, type SyncSettings } from '../settings';
 import { notify } from '../sync';
 import { h } from './dom';
-import { backHeader, makePopup, openMenuPanel, popupButton, type Popup } from './popup';
+import { backHeader, makePopup, openMenuPanel, popupButton, toggleRow, type Popup } from './popup';
 
 let panel: Popup;
 let body: HTMLElement;
@@ -54,7 +54,7 @@ function offset(label: string, get: () => number, put: (v: number) => void): HTM
   row.append(title(label), line);
   return row;
 }
-const onOff = (label: string, cur: boolean, pick: (v: boolean) => void) => choice(label, [false, true], cur, (v) => (v ? 'ON' : 'OFF'), pick);
+const onOff = (label: string, cur: boolean, pick: (v: boolean) => void, rerender = false) => toggleRow(label, cur, pick, rerender ? render : undefined);
 
 function build() {
   panel = makePopup('settings sync-menu');
@@ -75,7 +75,7 @@ function render() {
   // MIDI-клок.
   body.append(
     h('div', 'menu-head', 'MIDI CLOCK'),
-    onOff('MIDI CLOCK SYNC', s.clock, (v) => { set({ clock: v }); if (v) void initMidi().then(render); }),
+    onOff('MIDI CLOCK SYNC', s.clock, (v) => { set({ clock: v }); if (v) void initMidi().then(render); }, true),
     choice('CLOCK SOURCE', ['send', 'receive'] as const, s.source, (v) => (v === 'send' ? 'SEND' : 'RECEIVE'), (v) => set({ source: v })),
   );
   if (s.source === 'send') {

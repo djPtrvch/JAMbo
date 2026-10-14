@@ -99,6 +99,25 @@ export function popupButton(label: string, onTap: () => void): HTMLButtonElement
   return b;
 }
 
+/**
+ * Строка-переключатель ON/OFF (меню бутерброда): подпись слева, рычажок справа (как в iOS: жёлтый — ON,
+ * серый — OFF, бегунок переезжает с анимацией). Тап по строке переключает; after — перерисовать меню
+ * после анимации (если от значения зависят другие строки).
+ */
+export function toggleRow(label: string, on: boolean, pick: (v: boolean) => void, after?: () => void): HTMLElement {
+  const row = h('div', 'toggle-row');
+  const sw = h('div', `switch${on ? ' on' : ''}`);
+  row.append(h('div', 'toggle-label', label), sw);
+  let cur = on;
+  row.addEventListener('pointerup', () => {
+    cur = !cur;
+    sw.classList.toggle('on', cur);
+    pick(cur);
+    if (after) window.setTimeout(after, 220);
+  });
+  return row;
+}
+
 /** Заголовок вложенного меню: стрелка назад и название. */
 export function backHeader(title: HTMLElement, onBack: () => void): HTMLElement {
   const row = h('div', 'menu-header');

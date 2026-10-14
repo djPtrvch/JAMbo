@@ -83,6 +83,10 @@ export interface Settings {
   limScale: 48 | 32 | 16;
   /** Окно клиппера: вид дисплея — форма (WAVE) или уровень во времени (LEVEL). */
   clipDisplay: 'wave' | 'level';
+  /** SETTINGS → RECORD: запись нот с REC — к ближайшему шагу (QUANTIZE ON) или на шаг, где нажали (OFF);
+   * OVERDUB ON — новые ноты добавляются к старым, OFF — шаги, по которым прошла запись, очищаются;
+   * AUTOMATION RECORDING ON — при REC + PLAY поворот ручки пишет автоматизацию. */
+  record: { quantize: boolean; overdub: boolean; autoRec: boolean };
   /** Меню SYNC: квант (такты), MIDI-клок (вкл., отдаём или принимаем, порт выхода, старт/стоп), Ableton Link. */
   sync: SyncSettings;
 }
@@ -114,6 +118,7 @@ const DEFAULTS: Settings = {
   scSends: { rev: false, dly: false, drv: true },
   limScale: 48,
   clipDisplay: 'wave',
+  record: { quantize: true, overdub: false, autoRec: true },
   sync: { quantum: 1, clock: false, source: 'send', clockOut: '', midiStartStop: true, link: false, linkNotify: true, linkStartStop: false, midiOffset: 0, linkOffset: 0 },
 };
 
@@ -136,6 +141,7 @@ function load(): Settings {
     const s: Settings = { ...DEFAULTS, ...raw };
     s.scSends = { ...DEFAULTS.scSends, ...(raw.scSends ?? {}) };
     s.sync = { ...DEFAULTS.sync, ...(raw.sync ?? {}) };
+    s.record = { ...DEFAULTS.record, ...(raw.record ?? {}) };
     // Кнопки RATIO компрессора больше нет (RATIO — в окне компрессора): её маппинги снимаются.
     s.mappings = (s.mappings ?? []).filter((m) => !(m.target?.kind === 'button' && m.target.name === 'RATIO')).map((m) => fullMapping(m, raw.knobMode));
     delete (s as Partial<Settings> & { knobMode?: string }).knobMode;

@@ -4,8 +4,9 @@
 import { clickAt, flushSidechain, triggerTrack } from './audio/engine';
 import { stemEndsAtBoundary, stemRecording, stemsOnPlay, stemsOnStep, stemsOnStop } from './stems';
 import { PARAM_BY_ID, SEQ_MIX, SEQ_MST, STEPS_PER_PAGE, fromNorm } from './params';
+import { settings } from './settings';
 import {
-  triggerEnv, endRecTake, activateSlot, audible, doc, inTransition, visibleRows, modulatedNorm, playIndex, playLen, rowFilled, rt, seqAt, slotFilled, stepAt, stopTrack, ui,
+  triggerEnv, endRecTake, recPassStep, activateSlot, audible, doc, inTransition, visibleRows, modulatedNorm, playIndex, playLen, rowFilled, rt, seqAt, slotFilled, stepAt, stopTrack, ui,
   rowLoopOn, baseValue, setAutoClock,
 } from './state';
 
@@ -179,6 +180,8 @@ function playStep(time: number) {
     if (t.stopped) { rt.playPos[i] = -1; return; }
     const pos = posAt(i, tick);
     rt.playPos[i] = pos;
+    // OVERDUB OFF: шаг, по которому проходит запись, очищается (остаются ноты дубля).
+    recPassStep(i, pos);
     const s = stepAt(t, pos);
     // P-lock шага (и на шаге без ноты) показываем на ручках, пока идёт шаг.
     if (s && Object.keys(s.locks).length > 0) lockEvents.push({ time, track: i, locks: s.locks, until: time + dur });
@@ -309,7 +312,9 @@ export const recLength = (ms: number) => Math.max(1, Math.round(ms / stepMs()));
 
 export function recStep(trackIndex: number, now: number): { index: number; merge: boolean } | null {
   if (!ui.playing) return null;
-  const k = Math.max(0, tick + Math.round((now - nextTime) / stepMs()));
+  // QUANTIZE (SETTINGS → RECORD): ON — ближайший шаг, OFF — шаг, в котором нажали.
+  const d = (now - nextTime) / stepMs();
+  const k = Math.max(0, tick + (settings.record.quantize ? Math.round(d) : Math.floor(d)));
   const merge = lastRec.track === trackIndex && lastRec.tick === k;
   lastRec = { track: trackIndex, tick: k };
   return { index: posAt(trackIndex, k), merge };

@@ -8,6 +8,7 @@ import {
   BPM_MAX, BPM_MIN, VOL_MIN_DB, VOL_DEF_DB, PARAM_BY_ID, PRESET_PARAMS, SEQ_COUNT, SEQ_MIX, SEQ_MST, SYNTH_ENGINES, SYNTH_GRID, synthEngine, WTABLE_ENGINE, synthGrid, synthKey, EQ_BANDS, EQ_BELL, eqHasGain, EQ_DYN_RANGE_MAX, EQ_DYN_THR_MIN, EQ_FREQ_MAX, EQ_FREQ_MIN, EQ_GAIN_MAX, EQ_Q_DEF, EQ_Q_MAX, EQ_Q_MIN, EQ_TYPES, NOTE_NAMES, PROGRESSIONS, SCALES, fromNorm, toNorm, type ParamDef, type Slot,
 } from './params';
 import { tableSampleKey } from './audio/wavetable';
+import { settings } from './settings';
 import { AUTO_PARAMS, evalAuto, insertPoint, isStepped, resampleGrid, segType, simplify, spliceRecording, type AutoPoint, type Automation, type SegType } from './automation';
 
 export interface Step {
@@ -1504,15 +1505,36 @@ export function inputNotes() {
  * других действий), — одна запись в UNDO. Номер изменения стека UNDO после первой ноты дубля; −1 — дубля нет.
  */
 let recTake = -1;
+/** OVERDUB OFF: дорожки дубля и шаги, записанные в нём ('дорожка:шаг') — их проход записи не очищает. */
+const takeTracks = new Set<number>();
+const takeWritten = new Set<string>();
 /** REC или PLAY выключены — дубль закончен (следующая запись — новый пункт UNDO). */
-export const endRecTake = () => { recTake = -1; };
+export const endRecTake = () => { recTake = -1; takeTracks.clear(); takeWritten.clear(); };
+
+/**
+ * OVERDUB OFF (SETTINGS → RECORD): шаг pos дорожки i, по которому проходит запись (секвенсор ставит его в звук),
+ * очищается — триг, ноты, p-lock и свой звук; остаются только ноты этого дубля. Очистка — с первой записанной ноты
+ * дубля и только на его дорожках; в том же пункте UNDO, что и дубль.
+ */
+export function recPassStep(i: number, pos: number) {
+  if (settings.record.overdub || recTake < 0 || recTake !== undoSerial || !takeTracks.has(i) || takeWritten.has(`${i}:${pos}`)) return;
+  const s = stepAt(doc.tracks[i], pos);
+  if (!s || (!s.on && !s.sound && Object.keys(s.locks).length === 0)) return;
+  s.on = false;
+  s.notes = [];
+  s.len = 1;
+  s.locks = {};
+  delete s.sound;
+  delete s.soundLocks;
+}
 
 /** Запись с REC: ноты на шаг index. merge — добавить к уже записанным на этом проходе. */
 export function recordNotes(trackIndex: number, index: number, notes: number[], merge: boolean, velocity?: number) {
   const write = () => {
     const s = stepAt(doc.tracks[trackIndex], index);
     if (!s) return;
-    const merged = merge && s.on;
+    // OVERDUB ON — ноты добавляются к уже стоящим на шаге; OFF — заменяют (и в том же шаге одного дубля — аккорд).
+    const merged = (merge || settings.record.overdub) && s.on;
     s.notes = merged ? [...new Set([...s.notes, ...notes])].sort((a, b) => a - b) : [...notes];
     s.on = true;
     s.len = 1;
@@ -1522,12 +1544,15 @@ export function recordNotes(trackIndex: number, index: number, notes: number[], 
       s.locks.level = merged && typeof s.locks.level === 'number' ? Math.max(s.locks.level, lv) : lv;
     }
   };
+  takeTracks.add(trackIndex);
+  takeWritten.add(`${trackIndex}:${index}`);
   // Продолжение дубля — без новой записи в UNDO: UNDO отменяет весь дубль сразу.
   if (recTake >= 0 && recTake === undoSerial) { write(); return; }
   const before = undoSerial;
   edit(write);
   // Дубль начинается с первой ноты, которая что-то изменила (появилась запись в UNDO).
   recTake = undoSerial !== before ? undoSerial : -1;
+  if (recTake < 0) { takeTracks.clear(); takeWritten.clear(); }
 }
 /**
  * Запись с REC: отпустили клавишу — длина записанной ноты по времени удержания (в шагах, не меньше 1,
@@ -3011,7 +3036,8 @@ export function handDown(i: number, id: string) {
   // Автоматизация действует: поворот ручки временный — после отпускания ручка возвращается к прежнему значению.
   hands.set(handKey(i, id), { held: true, t: 0, from: 0, knob: n === null ? undefined : knob });
   // Запись (REC при игре): ручка после неё вернётся к значению до касания (запись меняет только кривую).
-  if (ui.rec && ui.playing && i === ui.selectedTrack && autoPos(i) !== null) {
+  // AUTOMATION RECORDING OFF (SETTINGS → RECORD) — при REC пишутся только ноты.
+  if (ui.rec && ui.playing && settings.record.autoRec && i === ui.selectedTrack && autoPos(i) !== null) {
     rec = { track: i, id, knob, start: t.params[id], pieces: [[]], moved: false };
   }
 }
