@@ -14,7 +14,7 @@ import { recordLength, releaseEnv,
 import { playNow, releaseLive, unlockAudio } from '../audio/engine';
 import { recLength, recStep } from '../transport';
 import { h, setClass, setText } from './dom';
-import { makePopup, popupButton, type Popup } from './popup';
+import { makePopup, popupButton, toggleRow, type Popup } from './popup';
 import { saveSettings, settings } from '../settings';
 import { choiceMenu, dragField } from './controls';
 import { registerAction } from '../midi';
@@ -82,11 +82,8 @@ let pianoMenu: Popup | null = null;
 function openPianoMenu(anchor: HTMLElement) {
   pianoMenu ??= makePopup('piano-menu-pop');
   const pop = pianoMenu;
-  const vel = popupButton(`VELOCITY · ${settings.velocity ? 'ON' : 'OFF'}`, () => {
-    saveSettings({ velocity: !settings.velocity });
-    openPianoMenu(anchor);
-  });
-  vel.classList.toggle('current', settings.velocity);
+  // VELOCITY — рычажок, как все вкл./выкл. в меню (после анимации меню перерисовывается — пояснение под ним).
+  const vel = toggleRow('VELOCITY', settings.velocity, (v) => saveSettings({ velocity: v }), () => openPianoMenu(anchor));
   // Одна или две октавы на клавишах (высота пианоролла та же — клавиши шире).
   const octRow = h('div', 'arrange-row');
   for (const n of [1, 2] as const) {
