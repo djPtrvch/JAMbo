@@ -99,14 +99,14 @@ final class SampleStore {
         let ratio: Double = AudioCore.sampleRate / src.sampleRate
         let cap = AVAudioFrameCount(Double(input.frameLength) * ratio) + 4096
         guard let out = AVAudioPCMBuffer(pcmFormat: fmt, frameCapacity: cap) else { return nil }
-        var fed = false
+        let fed = FeedFlag()
         var error: NSError?
         let status = conv.convert(to: out, error: &error) { _, state in
-            if fed {
+            if fed.done {
                 state.pointee = .endOfStream
                 return nil
             }
-            fed = true
+            fed.done = true
             state.pointee = .haveData
             return input
         }
@@ -127,4 +127,9 @@ final class SampleStore {
                                           interleaved: false) else { return }
         try? file.write(from: buf)
     }
+}
+
+/// Вход конвертера отдан (блок входа — @Sendable: флаг в классе, а не в захваченной переменной).
+final class FeedFlag: @unchecked Sendable {
+    var done = false
 }

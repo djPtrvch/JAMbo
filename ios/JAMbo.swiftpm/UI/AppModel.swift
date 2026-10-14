@@ -336,6 +336,7 @@ final class AppModel {
 
     /// Свайп по дорожке: вниз — mute, вверх — solo; включённый mute или solo выключается любым свайпом.
     func swipe(track i: Int, down: Bool) {
+        guard i < project.tracks.count else { return }
         edit { p in
             if p.tracks[i].mute || p.tracks[i].solo {
                 p.tracks[i].mute = false

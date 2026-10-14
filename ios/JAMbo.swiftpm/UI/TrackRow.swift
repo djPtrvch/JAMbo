@@ -45,7 +45,15 @@ struct TrackCell: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        let t: Track = model.project.tracks[index]
+        // Дорожку могли только что удалить, а ячейка ещё не убрана — пусто вместо падения.
+        if index < model.project.tracks.count {
+            cell(model.project.tracks[index])
+        } else {
+            Color.clear
+        }
+    }
+
+    private func cell(_ t: Track) -> some View {
         let selected: Bool = model.channel == .track && model.selectedTrack == index
         let border: Color = t.mute ? theme.rec : (selected ? theme.accent : Color.clear)
         return ZStack(alignment: .topTrailing) {
