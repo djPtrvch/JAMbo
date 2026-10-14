@@ -343,10 +343,10 @@ function openArrangeMenu() {
   }
   const scroll = arrMenu.isOpen() ? arrMenu.box.scrollTop : 0;
   arrMenu.box.replaceChildren(
-    h('div', 'menu-head', 'START FROM ROW'), startRow,
-    h('div', 'menu-head', 'AT THE END'), endRow,
-    h('div', 'menu-head', '+ ADDS'), plusRow,
-    h('div', 'menu-head', '▲ ▼ ARROWS'), arrowRow,
+    h('div', 'popup-title', 'START FROM ROW'), startRow,
+    h('div', 'popup-title', 'AT THE END'), endRow,
+    h('div', 'popup-title', '+ ADDS'), plusRow,
+    h('div', 'popup-title', '▲ ▼ ARROWS'), arrowRow,
   );
   // Меню сетки — от левого края последней дорожки до правого края бутерброда.
   openSpan(arrMenu, arrBtn, cells[doc.tracks.length - 1][0].root, arrBtn);
