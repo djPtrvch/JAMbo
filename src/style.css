@@ -1205,3 +1205,6 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 .eq-name.master-switch { cursor: pointer; }
 .toggle-row.disabled { cursor: default; opacity: 0.4; }
 .toggle-sub { font-size: 10px; font-weight: 400; letter-spacing: 0.04em; color: var(--dim); margin-top: 2px; }
+/* Стрелки ▲ ▼ сетки паттернов (строк больше, чем видно) — под LOOP ROW. */
+.grid-arrow { display: flex; align-items: center; justify-content: center; min-height: 0; font-size: 16px; }
+.grid-arrow.disabled { opacity: 0.35; }

@@ -195,6 +195,9 @@ export interface Doc {
   plusMode?: 'empty' | 'copy';
   /** LOOP ROW: играющая строка повторяется бесконечно (повторы не считаются); нет поля — включён (по умолчанию). */
   rowLoop?: boolean;
+  /** Стрелки ▲ ▼ сетки (строк больше, чем видно): 'view' — только прокрутка (по умолчанию), 'switch' — при игре
+   * ещё и переход на строку выше или ниже (с границы такта). */
+  arrowMode?: 'view' | 'switch';
   /** Эквалайзеры дорожек и мастера. */
   eqs: Eq[];
   masterEq: Eq;
@@ -247,6 +250,8 @@ export interface Ui {
   pressedKeys: Map<number, number[]>;
   /** Центр экрана: сетка паттернов 8×8 вместо ручек. */
   patternView: boolean;
+  /** Первая строка окна сетки паттернов (строк больше, чем видно; не в проекте). */
+  gridTop: number;
   /** Центр экрана: эквалайзер выбранной дорожки или мастера. */
   eqView: boolean;
   /** Окно лимитера мастера (тап по блоку LIM при MST); UNITY и AUDIT — только пока оно открыто, не в проекте. */
@@ -407,6 +412,7 @@ export const ui: Ui = {
   selNotes: [],
   pressedKeys: new Map(),
   patternView: false,
+  gridTop: 0,
   eqView: false,
   limView: false,
   limUnity: false,
@@ -2374,6 +2380,10 @@ export const rowLoopOn = () => doc.rowLoop !== false;
 
 export function toggleRowLoop() {
   edit(() => { doc.rowLoop = !rowLoopOn(); });
+}
+
+export function setArrowMode(m: 'view' | 'switch') {
+  edit(() => { doc.arrowMode = m; });
 }
 
 export function setPlusMode(m: 'empty' | 'copy') {

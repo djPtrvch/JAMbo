@@ -10,10 +10,10 @@
 // во время проигрывания — с начала такта), удержание — меню: имя строки и число повторов, после
 // которых играет следующая строка (∞ — без перехода).
 
-import { MAX_TRACKS, PATTERN_SLOTS, STEPS_PER_PAGE } from '../params';
+import { GRID_ROWS, MAX_TRACKS, PATTERN_SLOTS, STEPS_PER_PAGE } from '../params';
 import {
   crossfade, inTransition, isPrevPlaceholder, rowFilled, sceneName, setCrossfade, setScene, transitionMoves,
-  addSceneRow, canAddRow, copyRow, deleteRow, duplicateRow, pasteRow, setArrangement, rowLoopOn, setPlusMode, toggleRowLoop, visibleRows,
+  addSceneRow, canAddRow, copyRow, deleteRow, duplicateRow, pasteRow, setArrangement, rowLoopOn, setArrowMode, setPlusMode, toggleRowLoop, visibleRows,
   copyPattern, createPattern, dropPattern, deletePattern, doc, duplicatePattern, freeSlotAfter, hasManualLocks, tailMask, pastePattern,
   clipView, openSlot, selectEmptySlot, setEditSlot, outsideStep, passOffset, playLen, rt, selectTrack, slotFilled, ui, patternHasAuto,
 } from '../state';
@@ -202,7 +202,8 @@ function buildPlusRow(): HTMLElement {
   const end = (e: PointerEvent) => {
     if (e.pointerId !== id) return;
     id = -1;
-    if (e.type === 'pointerup') addSceneRow();
+    // Новая строка — внизу окна: окно прокручивается к ней (и «+» под ней остаётся виден).
+    if (e.type === 'pointerup') { addSceneRow(); ui.gridTop = PATTERN_SLOTS; }
   };
   scenePlus.addEventListener('pointerup', end);
   scenePlus.addEventListener('pointercancel', end);
@@ -221,6 +222,60 @@ function buildLoopButton(): HTMLElement {
   return loopBtn;
 }
 
+// ---------- Окно строк: больше GRID_ROWS строк — прокрутка стрелками ▲ ▼ под LOOP ROW ----------
+
+let upBtn: HTMLElement;
+let downBtn: HTMLElement;
+
+/**
+ * Какие строки видны и в какой строке сетки (1…GRID_ROWS; 0 — не видна): окно из GRID_ROWS строк (при переходе MIX —
+ * на одну меньше, внизу — PREV), «+» — тоже строка окна (под последней строкой).
+ */
+function rowLayout() {
+  const rows = visibleRows();
+  const mixing = inTransition();
+  const plus = canAddRow();
+  const win = mixing ? GRID_ROWS - 1 : GRID_ROWS;
+  const total = rows + (plus ? 1 : 0);
+  const maxTop = Math.max(0, total - win);
+  ui.gridTop = Math.min(Math.max(0, ui.gridTop), maxTop);
+  const top = ui.gridTop;
+  const at = (k: number) => (mixing && k === PATTERN_SLOTS - 1 ? GRID_ROWS : k < rows && k >= top && k < top + win ? k - top + 1 : 0);
+  const plusRow = plus && rows >= top && rows < top + win ? rows - top + 1 : 0;
+  return { at, plusRow, scroll: total > win, top, maxTop, win, rows };
+}
+
+/**
+ * Стрелка ▲ (−1) или ▼ (+1): в режиме VIEW (меню сетки) — окно на строку выше или ниже; в режиме SWITCH при игре —
+ * ещё и переход на строку выше или ниже играющей (с начала такта, как тап по строке), окно идёт за ней.
+ */
+export function gridArrow(dir: -1 | 1) {
+  const L = rowLayout();
+  if ((doc.arrowMode ?? 'view') === 'switch' && ui.playing) {
+    const cur = rt.sceneQueued ?? rt.scene?.row ?? 0;
+    const k = Math.min(L.rows - 1, Math.max(0, cur + dir));
+    if (k !== cur) queueScene(k);
+    if (k < ui.gridTop) ui.gridTop = k;
+    else if (k >= ui.gridTop + L.win) ui.gridTop = k - L.win + 1;
+    return;
+  }
+  ui.gridTop = Math.min(L.maxTop, Math.max(0, ui.gridTop + dir));
+}
+
+function buildArrows(): HTMLElement[] {
+  const make = (dir: -1 | 1) => {
+    const b = h('div', 'btn grid-arrow', dir < 0 ? '▲' : '▼');
+    b.style.gridRow = dir < 0 ? '3' : '4';
+    b.addEventListener('pointerdown', (e) => { e.preventDefault(); gridArrow(dir); });
+    // MIDI: стрелки сетки (как тап).
+    registerAction(dir < 0 ? 'GRIDUP' : 'GRIDDOWN', { label: dir < 0 ? 'GRID ▲' : 'GRID ▼', press: () => gridArrow(dir) }, b);
+    return b;
+  };
+  upBtn = make(-1);
+  downBtn = make(1);
+  return [upBtn, downBtn];
+}
+
 /** Открыть окно под (или над) anchor, по горизонтали — от левого края from до правого края to. */
 function openSpan(p: Popup, anchor: Element, from: Element, to: Element, overTracks = false) {
   const l = from.getBoundingClientRect().left;
@@ -231,7 +286,7 @@ function openSpan(p: Popup, anchor: Element, from: Element, to: Element, overTra
   // По высоте — между верхом сетки и строкой дорожек (overTracks — в пределах окна, поверх дорожек);
   // что не помещается — прокрутка. Под ячейкой, если там хватает места (или его там больше), иначе над ней.
   const a = anchor.getBoundingClientRect();
-  const top = overTracks ? 8 : sceneCells[0].root.getBoundingClientRect().top;
+  const top = overTracks ? 8 : grid.getBoundingClientRect().top;
   const bottom = overTracks ? window.innerHeight - 8 : (document.querySelector('.tracks')?.getBoundingClientRect().top ?? window.innerHeight) - 6;
   const below = bottom - (a.bottom + 6);
   const above = a.top - 6 - top;
@@ -278,11 +333,20 @@ function openArrangeMenu() {
     b.classList.toggle('current', v === end);
     endRow.append(b);
   }
+  // Стрелки ▲ ▼ (строк больше, чем видно): только прокрутка или при игре ещё и переход на строку.
+  const arrows = doc.arrowMode ?? 'view';
+  const arrowRow = h('div', 'arrange-row');
+  for (const [v, label] of [['view', 'VIEW'], ['switch', 'SWITCH']] as const) {
+    const b = popupButton(label, () => { setArrowMode(v); openArrangeMenu(); });
+    b.classList.toggle('current', v === arrows);
+    arrowRow.append(b);
+  }
   const scroll = arrMenu.isOpen() ? arrMenu.box.scrollTop : 0;
   arrMenu.box.replaceChildren(
     h('div', 'popup-title', 'START FROM ROW'), startRow,
     h('div', 'popup-title', 'AT THE END'), endRow,
     h('div', 'popup-title', '+ ADDS'), plusRow,
+    h('div', 'popup-title', '▲ ▼ ARROWS'), arrowRow,
   );
   // Меню сетки — от левого края последней дорожки до правого края бутерброда.
   openSpan(arrMenu, arrBtn, cells[doc.tracks.length - 1][0].root, arrBtn);
@@ -298,7 +362,7 @@ let xfFill: HTMLElement;
 /** Вертикальный кроссфейдер: внизу — общие настройки старого проекта, вверху — нового. */
 function buildCrossfader(): HTMLElement {
   xf = h('div', 'xfader hidden');
-  xf.style.gridRow = `1 / ${PATTERN_SLOTS + 1}`;
+  xf.style.gridRow = `1 / ${GRID_ROWS + 1}`;
   const track = h('div', 'xf-track');
   xfFill = h('div', 'xf-fill');
   xfThumb = h('div', 'xf-thumb');
@@ -338,14 +402,15 @@ function animateTransition() {
   const moves = transitionMoves.splice(0);
   if (!ui.patternView) return;
   const last = PATTERN_SLOTS - 1;
-  const pitch = cells[0][1].root.offsetTop - cells[0][0].root.offsetTop;
+  // Шаг строк сетки (строк на экране — GRID_ROWS, промежуток 4 px); строка — по окну (может быть и за ним).
+  const pitch = (grid.getBoundingClientRect().height + 4) / GRID_ROWS;
   const moved = new Set(moves.map((m) => m.track));
   cells.forEach((col, i) => col.forEach((c, k) => {
     if (k === last && moved.has(i)) return;
     c.root.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 450, easing: 'ease-out' });
   }));
   for (const m of moves) {
-    const dy = (m.from - last) * pitch;
+    const dy = (m.from - ui.gridTop + 1 - GRID_ROWS) * pitch;
     cells[m.track][last].root.animate(
       [{ transform: `translateY(${dy}px)`, zIndex: 2 }, { transform: 'none', zIndex: 2 }],
       { duration: 650, easing: 'cubic-bezier(.2,.8,.2,1)' },
@@ -400,7 +465,7 @@ export function buildPatternGrid(): HTMLElement {
   buildMenu();
   buildSceneMenu();
   grid = h('div', 'pattern-grid hidden');
-  grid.append(buildCrossfader(), buildArrangeButton(), buildLoopButton(), buildPlusRow());
+  grid.append(buildCrossfader(), buildArrangeButton(), buildLoopButton(), ...buildArrows(), buildPlusRow());
   for (let k = 0; k < PATTERN_SLOTS; k++) grid.append(buildSceneCell(k));
   for (let k = 0; k < PATTERN_SLOTS; k++) {
     for (let i = 0; i < MAX_TRACKS; i++) {
@@ -547,21 +612,29 @@ export function renderPatternGrid() {
   const last = doc.tracks.length + 2;
   // При переходе MIX бутерброда нет — кроссфейдер во всю высоту, как раньше.
   const mixing = crossfade() !== null;
-  setAttr(xf, 'style', `grid-column:${last};grid-row:${mixing ? 1 : 3} / ${PATTERN_SLOTS + 1}`);
+  const L = rowLayout();
+  // Стрелки ▲ ▼ — под LOOP ROW (строки 3 и 4), когда строк больше, чем видно; кроссфейдер перехода — тогда ниже них.
+  setAttr(xf, 'style', `grid-column:${last};grid-row:${L.scroll ? 5 : mixing ? 1 : 3} / ${GRID_ROWS + 1}`);
+  for (const [b, can] of [[upBtn, L.top > 0], [downBtn, L.top < L.maxTop]] as const) {
+    b.style.gridColumn = String(last);
+    setClass(b, 'hidden', !L.scroll);
+    // В режиме SWITCH при игре стрелки переключают строки — активны всегда.
+    setClass(b, 'disabled', !can && !((doc.arrowMode ?? 'view') === 'switch' && ui.playing));
+  }
   arrBtn.style.gridColumn = String(last);
   setClass(arrBtn, 'hidden', mixing);
   loopBtn.style.gridColumn = String(last);
   setClass(loopBtn, 'hidden', mixing);
   setClass(loopBtn, 'on', rowLoopOn());
   if (mixing && arrMenu.isOpen()) arrMenu.close();
-  // Видны строки 1…visibleRows (при переходе MIX — и строка PREV внизу), под ними — «+».
-  const rows = visibleRows();
-  const shown = (k: number) => k < rows || (inTransition() && k === PATTERN_SLOTS - 1);
-  sceneCells.forEach((c, k) => setClass(c.root, 'hidden', !shown(k)));
-  cells.forEach((col, i) => col.forEach((c, k) => setClass(c.root, 'hidden', i >= doc.tracks.length || !shown(k))));
-  const plus = canAddRow();
-  setClass(scenePlus, 'hidden', !plus);
-  scenePlus.style.gridRow = String(rows + 1);
+  // Видны строки окна (при переходе MIX — и строка PREV внизу), под последней строкой — «+».
+  const place = (el: HTMLElement, row: number) => {
+    setClass(el, 'hidden', row === 0);
+    if (row && el.style.gridRow !== String(row)) el.style.gridRow = String(row);
+  };
+  sceneCells.forEach((c, k) => place(c.root, L.at(k)));
+  cells.forEach((col, i) => col.forEach((c, k) => place(c.root, i >= doc.tracks.length ? 0 : L.at(k))));
+  place(scenePlus, L.plusRow);
   doc.tracks.forEach((t, i) => {
     const q = rt.queued[i];
     cells[i].forEach((c, k) => {

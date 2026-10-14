@@ -471,7 +471,10 @@ export const BPM_MAX = 240;
 export const STEPS_PER_PAGE = 16;
 export const MAX_PAGES = 8;
 /** Ячеек в столбце сетки паттернов. */
-export const PATTERN_SLOTS = 8;
+/** Строк сетки паттернов (до 16; при переходе MIX последняя — PREV). */
+export const PATTERN_SLOTS = 16;
+/** Строк сетки на экране: больше — окно прокручивается стрелками ▲ ▼ под LOOP ROW. */
+export const GRID_ROWS = 8;
 
 /**
  * Параметры без ручки в сетке: остаются в проекте (p-lock, MIDI-маппинг, прежние проекты).
