@@ -1158,4 +1158,4 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 .comp-bottom { flex: none; display: flex; flex-direction: column; gap: var(--gap); }
 .comp-row { height: 46px; display: flex; gap: var(--gap); }
 .comp-row .comp-field { flex: 1; min-width: 0; padding: 2px 10px; }
-.comp-row .comp-btn { flex: 1; min-width: 44px; }
+

@@ -109,7 +109,6 @@ export function buildCompWindow(): HTMLElement {
     cells.set(key, { root, value });
     strip.append(root);
   }
-  strip.append(closeButton(closeCompWindow));
 
   // TRANSFER: точка порога (палец — вдоль диагонали, значение по горизонтали) и кружок RATIO (вертикально).
   tBox = h('div', 'eq-plot comp-transfer');
@@ -201,7 +200,7 @@ export function buildCompWindow(): HTMLElement {
   const mid = h('div', 'lim-mid');
   mid.append(tBox, lBox, bars.el);
 
-  // Нижняя панель: две строки полей и кнопок.
+  // Нижняя панель: одна строка полей.
   const msInit = (p: ParamDef) => () => { const v = val(p); return v < 10 ? v.toFixed(1) : String(Math.round(v)); };
   const relInit = () => (isAuto(val(P.release)) ? 'AUTO' : String(Math.round(val(P.release))));
   const offParse = (off: number) => (t: string) => (/off/i.test(t) ? off : num(t));
@@ -220,8 +219,14 @@ export function buildCompWindow(): HTMLElement {
     normField('RANGE', P.range, offParse(CMP_RANGE_OFF), () => (val(P.range) >= CMP_RANGE_OFF ? 'OFF' : val(P.range).toFixed(1))),
     normField('HOLD', P.hold, num, () => String(Math.round(val(P.hold)))),
   );
+  row1.append(
+    normField('MIX', P.mix, num, () => String(Math.round(val(P.mix)))),
+    normField('LINK', P.link, num, () => String(Math.round(val(P.link)))),
+    normField('SC HPF', P.schpf, offParse(CMP_SCHPF_OFF), () => (val(P.schpf) <= CMP_SCHPF_OFF ? 'OFF' : String(Math.round(val(P.schpf))))),
+  );
+  // Кнопки — в строке вверху, за значениями, перед крестиком (как у остальных окон модулей).
   const btn = (label: string, fn: () => void) => {
-    const b = h('div', 'btn eq-tool lim-btn comp-btn', label);
+    const b = h('div', 'btn eq-tool lim-btn', label);
     b.addEventListener('pointerdown', (e) => { e.preventDefault(); fn(); });
     return b;
   };
@@ -231,15 +236,9 @@ export function buildCompWindow(): HTMLElement {
     const k = SCALES.indexOf(settings.limScale);
     saveSettings({ limScale: SCALES[(k + 1) % SCALES.length] });
   });
-  const row2 = h('div', 'comp-row');
-  row2.append(
-    normField('MIX', P.mix, num, () => String(Math.round(val(P.mix)))),
-    normField('LINK', P.link, num, () => String(Math.round(val(P.link)))),
-    normField('SC HPF', P.schpf, offParse(CMP_SCHPF_OFF), () => (val(P.schpf) <= CMP_SCHPF_OFF ? 'OFF' : String(Math.round(val(P.schpf))))),
-    bypassBtn, auditBtn, scaleBtn,
-  );
+  strip.append(bypassBtn, auditBtn, scaleBtn, closeButton(closeCompWindow));
   const bottom = h('div', 'comp-bottom');
-  bottom.append(row1, row2);
+  bottom.append(row1);
 
   panel.append(strip, mid, bottom, anchor);
   return panel;
