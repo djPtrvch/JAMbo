@@ -581,6 +581,8 @@ input::selection, textarea::selection { background: var(--select); color: var(--
   background: var(--panel);
   color: var(--text);
   font: inherit;
+  /* Кнопки всех меню — как в главном бутерброде: 15 px, полужирные (тесные места — свои размеры ниже). */
+  font-size: 15px;
   font-weight: 600;
   letter-spacing: 0.04em;
 }
@@ -764,7 +766,7 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 
 /* Меню звука поверх миниатюр страниц: группы SYNTH, DRUMS и SAMPLE · MIDI · PRESET. */
 .popup-box.source-menu { gap: 4px; overflow: hidden; }
-.source-title { font-size: 9px; letter-spacing: 0.1em; color: var(--dim); padding: 2px 2px 0; }
+.source-title { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: var(--dim); padding: 2px 2px 0; }
 .source-group { display: grid; gap: 4px; flex: 4 1 0; min-height: 0; grid-auto-rows: minmax(0, 1fr); }
 .source-group.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .source-group.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); flex: 1 1 0; }
@@ -810,7 +812,8 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 
 /* Меню звука на всю левую колонку: крупные кнопки. */
 .source-menu .popup-btn { font-size: 14px; }
-.source-menu .source-title { font-size: 10px; }
+/* Меню звука: заголовки колонок и групп — как заголовки разделов главного меню. */
+.source-menu .source-title { font-size: 12px; font-weight: 700; letter-spacing: 0.04em; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Последняя группа (SAMPLE, MIDI, SAVE, LOAD) — два ряда по две кнопки. */
 .source-menu .source-group:last-child { flex: 2 1 0; }
 .preset-grid { grid-auto-rows: 56px; }
@@ -1055,7 +1058,7 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 .popup-btn.danger:disabled, .mm-act.danger.disabled { color: var(--off); }
 
 /* Заголовок всплывающего окна (вопрос перед кнопками). */
-.popup-title { padding: 6px 4px 8px; font-size: 13px; color: var(--text); text-align: center; overflow-wrap: anywhere; }
+.popup-title { padding: 6px 4px 8px; font-size: 13px; font-weight: 600; color: var(--text); text-align: center; overflow-wrap: anywhere; }
 .burger-lines { display: flex; flex-direction: column; gap: 5px; align-items: center; }
 .burger-lines span { width: 22px; height: 2px; background: var(--dim); border-radius: 1px; }
 
@@ -1093,7 +1096,7 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 /* Заголовки колонок движков (SYNTH, MI SYNTH, MI DRUMS) — по центру колонки. */
 .source-col .source-title { text-align: center; padding-left: 0; padding-right: 0; }
 /* Меню бутерброда пианоролла: текст переносится, лишнее прокручивается. */
-.popup-box.piano-menu-pop .settings-note { font-size: 11px; line-height: 1.35; padding: 2px 4px; }
+.popup-box.piano-menu-pop .settings-note { padding: 2px 4px; }
 /* Браузер: слева столбец предпрослушки (▶ у сэмпла и пресета), зона касания 44 px. */
 .lib-play { flex: none; width: 44px; align-self: stretch; margin: -6px 4px -6px -10px; display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--dim); }
 .lib-play.on { color: var(--plock); }
@@ -1179,8 +1182,8 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 /* Меню SYNC: заголовки разделов. Строка уведомлений вверху экрана (IN-APP NOTIFICATIONS). */
 /* Заголовок раздела во всех меню (бутерброд, SYNC и др.) — один стиль: 12 px, жирный, цвет текста; подписи полей — .source-title. */
 .menu-head { font-size: 12px; font-weight: 700; letter-spacing: 0.1em; color: var(--text); padding: 2px 2px 0; }
-.sync-menu .menu-head { padding-top: 10px; border-top: 1px solid var(--line); }
-.sync-menu .menu-head:first-child { border-top: none; padding-top: 2px; }
+.sync-menu .menu-head, .arrange-menu .menu-head { padding-top: 10px; border-top: 1px solid var(--line); }
+.sync-menu .menu-head:first-child, .arrange-menu .menu-head:first-child { border-top: none; padding-top: 2px; }
 .sync-offset { display: grid; grid-template-columns: 1fr 1.4fr 1fr; gap: 4px; align-items: center; }
 .sync-offset-value { text-align: center; font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
 /* Полоса над BPM: доли фразы SYNC QUANTUM (4 на такт), пройденные — жёлтые. */
