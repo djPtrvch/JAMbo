@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Меню сетки паттернов: ячейки (duplicate, copy, paste, delete), строки (имя, повторы, duplicate, copy, paste, delete),
+/// Меню сетки паттернов: ячейки (copy, paste, delete), строки (имя, повторы, duplicate, copy, paste, delete),
 /// бутерброд сетки (START FROM ROW, AT THE END, + ADDS, ▲ ▼ ARROWS). Тап мимо — закрыть.
 struct PatternMenus: View {
     let model: AppModel
@@ -19,7 +19,7 @@ struct PatternMenus: View {
             if model.gridMenuOpen {
                 dismiss { model.gridMenuOpen = false }
                 GridMenu(model: model)
-                    .frame(width: gridMenuWidth)
+                    .frame(width: gridMenuWidth, height: geometry.size.height)
                     .offset(x: geometry.size.width - gridMenuWidth, y: 0)
             }
         }
@@ -31,8 +31,9 @@ struct PatternMenus: View {
             .onTapGesture { close() }
     }
 
+    /// От левого края ARRANGE до правого края экрана (ARRANGE, зазор, CPU — как в верхней панели).
     private var gridMenuWidth: CGFloat {
-        let want: CGFloat = geometry.trackW + Layout.gap + geometry.sceneW + 220
+        let want: CGFloat = Layout.topButton + Layout.gap + Layout.meterWidth
         return min(geometry.size.width, want)
     }
 
@@ -58,7 +59,7 @@ struct PatternMenus: View {
         let below: CGFloat = top + geometry.rowH + 6
         let above: CGFloat = max(0, top - 6 - h)
         let fits: Bool = below + h < geometry.size.height
-        return CGSize(width: 6, height: fits ? below : above)
+        return CGSize(width: 0, height: fits ? below : above)
     }
 }
 
@@ -98,8 +99,8 @@ struct MenuItem: View {
 }
 
 struct CellMenu: View {
-    /// 4 строки по 40, 3 зазора по 6, поля 16.
-    static let height: CGFloat = 194
+    /// 3 строки по 40, 2 зазора по 6, поля 16.
+    static let height: CGFloat = 148
     let model: AppModel
     let state: CellMenuState
 
@@ -108,7 +109,6 @@ struct CellMenu: View {
         let t: Track = model.project.tracks[min(c.track, model.project.tracks.count - 1)]
         let filled: Bool = t.clipFilled(c.row)
         return VStack(spacing: 6) {
-            MenuItem(title: "DUPLICATE", enabled: filled && t.freeSlot(after: c.row) >= 0) { run { model.duplicateClip(c) } }
             MenuItem(title: "COPY", enabled: filled) { run { model.copyClip(c) } }
             MenuItem(title: "PASTE", enabled: model.clipClipboard != nil) { run { model.pasteClip(c) } }
             MenuItem(title: "DELETE", enabled: filled, red: true) { run { model.deleteClip(c) } }
@@ -192,10 +192,10 @@ struct GridMenu: View {
     var body: some View {
         let p: Project = model.project
         let start: Int = min(p.arrStart, p.visibleRows - 1)
-        return ScrollView {
+        return MenuScroll {
             VStack(alignment: .leading, spacing: 6) {
                 title("START FROM ROW")
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 4), spacing: 6) {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 2), spacing: 6) {
                     ForEach(0..<p.visibleRows, id: \.self) { k in
                         MenuItem(title: p.sceneName(k), current: k == start) { model.setArrangement(start: k) }
                     }
@@ -207,8 +207,8 @@ struct GridMenu: View {
                 title("▲ ▼ ARROWS")
                 pair("VIEW", !p.arrowSwitch, "SWITCH", p.arrowSwitch) { model.setArrangement(arrowSwitch: !$0) }
             }
+            .padding(.trailing, 6)
         }
-        .frame(maxHeight: 420)
         .modifier(MenuPanel())
     }
 
@@ -216,11 +216,44 @@ struct GridMenu: View {
         Text(s).font(.system(size: 12, weight: .bold)).tracking(1.2).foregroundStyle(theme.text).padding(.top, 4)
     }
 
-    /// Два пункта: выбор левого — pick(true), правого — pick(false).
+    /// Два пункта (меню узкое — один под другим): выбор верхнего — pick(true), нижнего — pick(false).
     private func pair(_ a: String, _ aOn: Bool, _ b: String, _ bOn: Bool, pick: @escaping (Bool) -> Void) -> some View {
-        HStack(spacing: 6) {
+        VStack(spacing: 6) {
             MenuItem(title: a, current: aOn) { pick(true) }
             MenuItem(title: b, current: bOn) { pick(false) }
+        }
+    }
+}
+
+/// Прокрутка меню: содержимое не помещается — прокручивается пальцем, справа тонкая полупрозрачная полоса,
+/// видна всегда, пока есть что прокручивать (системная видна только во время прокрутки). Для всех меню.
+struct MenuScroll<Content: View>: View {
+    let content: Content
+    @State private var geo: ScrollGeometry? = nil
+    @Environment(\.theme) private var theme
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+
+    var body: some View {
+        ScrollView(.vertical, showsIndicators: false) { content }
+            .onScrollGeometryChange(for: ScrollGeometry.self, of: { $0 }) { _, g in geo = g }
+            .overlay(alignment: .topTrailing) { bar }
+    }
+
+    @ViewBuilder
+    private var bar: some View {
+        if let g = geo, g.contentSize.height > g.containerSize.height + 1 {
+            let box: CGFloat = g.containerSize.height
+            let total: CGFloat = g.contentSize.height
+            let thumb: CGFloat = max(24, box * box / total)
+            let range: CGFloat = max(1, total - box)
+            let at: CGFloat = min(1, max(0, (g.contentOffset.y + g.contentInsets.top) / range))
+            Capsule().fill(theme.text.opacity(0.35))
+                .frame(width: 3, height: thumb)
+                .offset(y: at * (box - thumb))
+                .allowsHitTesting(false)
         }
     }
 }

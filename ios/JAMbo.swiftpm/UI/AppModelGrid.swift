@@ -163,13 +163,6 @@ extension AppModel {
         }
     }
 
-    func duplicateClip(_ c: CellRef) {
-        let t = project.tracks[c.track]
-        let j = t.freeSlot(after: c.row)
-        guard j >= 0, let clip = t.clips[c.row] else { return }
-        edit { p in p.tracks[c.track].clips[j] = clip }
-    }
-
     func copyClip(_ c: CellRef) {
         clipClipboard = project.tracks[c.track].clips[c.row]
     }

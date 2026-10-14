@@ -79,6 +79,7 @@ struct PatternGrid: View {
         let hit = g.hit(p, window: model.gridWindow)
         var gp = GridPress(hit: hit, t0: Date())
         if case .cell(let c) = hit { gp.cell = c }
+        gp.top0 = model.gridWindow.top
         press = gp
         let started = gp.t0
         Task { @MainActor in
@@ -95,13 +96,27 @@ struct PatternGrid: View {
     }
 
     private func move(_ g: GridGeometry, _ v: DragGesture.Value) {
-        guard var p = press, !p.held else { return }
+        guard var p = press else { return }
         let dx: CGFloat = v.translation.width
         let dy: CGFloat = v.translation.height
         if hypot(dx, dy) > 8 { p.moved = true }
+        // Колонка строк: палец вверх-вниз прокручивает окно строк.
+        if p.cell == nil {
+            if !p.held && (p.scrolling || (p.moved && abs(dy) > abs(dx))) {
+                p.scrolling = true
+                let pitch: CGFloat = g.rowH + PatternGrid.rowGap
+                let rows: Int = Int((-dy / pitch).rounded())
+                let w = model.gridWindow
+                let top: Int = min(w.maxTop, max(0, p.top0 + rows))
+                if top != w.top { model.gridTop = top }
+            }
+            press = p
+            return
+        }
         press = p
+        // Клип тянется и после удержания (палец сначала замер — ячейка уже выбрана для правки).
         guard let c = p.cell, model.project.tracks[c.track].clipFilled(c.row) else { return }
-        let early: Bool = Date().timeIntervalSince(p.t0) < PatternGrid.flick && -dy > abs(dx)
+        let early: Bool = !p.held && Date().timeIntervalSince(p.t0) < PatternGrid.flick && -dy > abs(dx)
         if ghost == nil && (early || hypot(dx, dy) <= 8) { return }
         ghost = v.location
         if case .cell(let t) = g.hit(v.location, window: model.gridWindow), t != c { target = t } else { target = nil }
@@ -114,7 +129,11 @@ struct PatternGrid: View {
         let dragged: Bool = ghost != nil
         ghost = nil
         target = nil
-        if p.held { return }
+        if p.scrolling { return }
+        if p.held {
+            if dragged, let c = p.cell, let d = dropped { model.dropClip(from: c, to: d) }
+            return
+        }
         let dx: CGFloat = v.translation.width
         let dy: CGFloat = v.translation.height
         // Свайп вверх (копия ячейки не поднималась) — меню ячейки.
@@ -157,6 +176,9 @@ struct GridPress {
     var cell: CellRef? = nil
     var moved: Bool = false
     var held: Bool = false
+    /// Прокрутка строк по колонке строк: окно на старте и идёт ли прокрутка.
+    var top0: Int = 0
+    var scrolling: Bool = false
 }
 
 /// Геометрия сетки: те же столбцы, что у строки дорожек (MIX и MST — шириной шага, зазор 6), 8 строк с зазором 4.
