@@ -11,6 +11,8 @@ struct DiagnosticsView: View {
             TimelineView(.periodic(from: .now, by: 0.5)) { _ in
                 info
             }
+            InkButton(title: "TEST TONE 440 Hz", active: model.toneOn) { model.toggleTone() }
+                .frame(width: 220)
             MenuHead(title: "SELF-TEST")
             Text("No engines yet (S3a).").font(.system(size: 12)).foregroundStyle(theme.dim)
             Spacer()

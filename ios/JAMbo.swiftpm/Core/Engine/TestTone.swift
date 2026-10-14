@@ -27,14 +27,10 @@ public final class TestTone {
         increment = frequency / sampleRate
     }
 
-    /// Записать `frames` кадров в left и right (заменяет содержимое).
+    /// Прибавить `frames` кадров к left и right.
     @inline(__always)
     public func render(frames: Int, left: UnsafeMutablePointer<Float>, right: UnsafeMutablePointer<Float>) {
-        if gain == 0 && target == 0 {
-            left.update(repeating: 0, count: frames)
-            right.update(repeating: 0, count: frames)
-            return
-        }
+        if gain == 0 && target == 0 { return }
         var p = phase
         var g = gain
         let inc = increment
@@ -43,8 +39,8 @@ public final class TestTone {
         for i in 0..<frames {
             g += (t - g) * k
             let s = Float(sin(2 * Double.pi * p)) * g
-            left[i] = s
-            right[i] = s
+            left[i] += s
+            right[i] += s
             p += inc
             if p >= 1 { p -= 1 }
         }

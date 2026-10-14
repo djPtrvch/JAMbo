@@ -12,20 +12,54 @@ public final class AudioCore: @unchecked Sendable {
     private let frameCounter = AtomicCounter()
     public var framesRendered: Int { return frameCounter.load() }
 
+    public let sequencer = Sequencer(sampleRate: AudioCore.sampleRate, bpm: 120)
+    /// Снимки паттернов: новые — в колбэк, прежние — обратно (освобождаются в основном потоке).
+    private let snapshots = SPSCQueue<Unmanaged<SeqSnapshot>?>(capacity: 64, filler: nil)
+    private let retired = SPSCQueue<Unmanaged<SeqSnapshot>?>(capacity: 256, filler: nil)
+    private var current: Unmanaged<SeqSnapshot>?
+
     private let tone = TestTone(sampleRate: AudioCore.sampleRate)
     /// Счётчик кадров колбэка — основа транспорта с точностью до отсчёта.
     public private(set) var sampleTime: Int64 = 0
 
     public init() {}
 
+    /// Новый снимок паттернов (основной поток, после каждой правки).
+    public func publish(_ project: Project) {
+        releaseRetired()
+        let snap = Unmanaged.passRetained(SeqSnapshot(project))
+        if !snapshots.push(snap) { snap.release() }
+    }
+
+    /// Освободить снимки, которые колбэк больше не использует (основной поток).
+    public func releaseRetired() {
+        while let item = retired.pop() {
+            item?.release()
+        }
+    }
+
     @inline(__always)
     public func render(frames: Int, left: UnsafeMutablePointer<Float>, right: UnsafeMutablePointer<Float>) {
         while let event = events.pop() {
             apply(event)
         }
+        takeSnapshots()
+        left.update(repeating: 0, count: frames)
+        right.update(repeating: 0, count: frames)
         tone.render(frames: frames, left: left, right: right)
+        sequencer.process(blockStart: sampleTime, frames: frames, left: left, right: right)
         sampleTime += Int64(frames)
-        frameCounter.tryStore(Int(sampleTime))
+        frameCounter.store(Int(sampleTime))
+    }
+
+    @inline(__always)
+    private func takeSnapshots() {
+        while let item = snapshots.pop() {
+            guard let snap = item else { continue }
+            if let old = current { _ = retired.push(old) }
+            current = snap
+            sequencer.data = snap._withUnsafeGuaranteedRef { $0.data }
+        }
     }
 
     @inline(__always)
@@ -37,6 +71,12 @@ public final class AudioCore: @unchecked Sendable {
             tone.set(on: on)
         case .toneFrequency(let hz):
             tone.set(frequency: Double(hz))
+        case .play(let on):
+            sequencer.set(playing: on, at: sampleTime)
+        case .tempo(let bpm):
+            sequencer.set(bpm: bpm)
+        case .metronome(let on):
+            sequencer.metronome = on
         }
     }
 }

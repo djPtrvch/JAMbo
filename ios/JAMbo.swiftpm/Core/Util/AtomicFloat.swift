@@ -1,55 +1,37 @@
-/// Float, который пишет один поток и читает другой (UI ↔ аудио).
-/// Запись ждёт замок; чтение только пробует его взять — при занятом возвращает прошлое прочитанное значение.
+import Synchronization
+
+/// Float, который пишет один поток и читает другой (UI ↔ аудио), без блокировок: биты Float в Atomic<UInt32>.
 public final class AtomicFloat: @unchecked Sendable {
-    private let lock = SpinLock()
-    private var value: Float
-    private var lastRead: Float
+    private let bits: Atomic<UInt32>
 
     public init(_ value: Float) {
-        self.value = value
-        lastRead = value
+        bits = Atomic<UInt32>(value.bitPattern)
     }
 
     @inline(__always)
     public func load() -> Float {
-        if lock.tryLock() {
-            lastRead = value
-            lock.unlock()
-        }
-        return lastRead
+        return Float(bitPattern: bits.load(ordering: .relaxed))
     }
 
     @inline(__always)
-    public func store(_ newValue: Float) {
-        lock.lock()
-        value = newValue
-        lock.unlock()
+    public func store(_ value: Float) {
+        bits.store(value.bitPattern, ordering: .relaxed)
     }
 }
 
-/// То же для счётчиков (Int).
+/// Счётчик (Int), который пишет один поток и читает другой.
 public final class AtomicCounter: @unchecked Sendable {
-    private let lock = SpinLock()
-    private var value: Int = 0
-    private var lastRead: Int = 0
+    private let value = Atomic<Int>(0)
 
     public init() {}
 
     @inline(__always)
     public func load() -> Int {
-        if lock.tryLock() {
-            lastRead = value
-            lock.unlock()
-        }
-        return lastRead
+        return value.load(ordering: .relaxed)
     }
 
-    /// Запись без ожидания (для аудиопотока): замок занят — значение запишется в следующий раз.
     @inline(__always)
-    public func tryStore(_ newValue: Int) {
-        if lock.tryLock() {
-            value = newValue
-            lock.unlock()
-        }
+    public func store(_ newValue: Int) {
+        value.store(newValue, ordering: .relaxed)
     }
 }

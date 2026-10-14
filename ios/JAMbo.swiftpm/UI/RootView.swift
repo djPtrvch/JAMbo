@@ -1,46 +1,62 @@
 import SwiftUI
 
-/// Экран S0: верхняя панель (меню, тест-тон, CPU) и пустой центр.
+/// Главный экран (сверху вниз, как в вебе): верхняя панель, центр, строка дорожек, секвенсор, пианоролл.
+/// S1a: центр и пианоролл — заглушки (сетка ручек — S1b, пианоролл — S1c).
 struct RootView: View {
     let model: AppModel
     @State private var menuOpen: Bool = false
     @Environment(\.theme) private var theme
 
     var body: some View {
-        ZStack(alignment: .topLeading) {
-            theme.bg.ignoresSafeArea()
-            VStack(spacing: 6) {
-                topBar
-                center
+        GeometryReader { geo in
+            let layout: Layout = Layout(width: geo.size.width - 24)
+            ZStack(alignment: .topLeading) {
+                theme.bg.ignoresSafeArea()
+                screen(layout)
+                overlays
             }
-            .padding(6)
-            if menuOpen { MainMenu(model: model, isOpen: $menuOpen).padding(.top, 60).padding(.leading, 6) }
-            if model.showDiagnostics { DiagnosticsView(model: model).padding(6) }
         }
     }
 
-    private var topBar: some View {
-        HStack(spacing: 6) {
-            BurgerButton { menuOpen.toggle() }
-            InkButton(title: "TONE", active: model.toneOn) { model.toggleTone() }
-                .frame(width: 120)
-            Spacer()
-            CPUIndicator(meter: model.audio.core.cpu)
+    private func screen(_ layout: Layout) -> some View {
+        VStack(spacing: Layout.gap) {
+            TopBar(model: model, menuOpen: $menuOpen)
+            Placeholder(title: "KNOBS · S1b")
+            TrackRow(model: model, layout: layout)
+            SequencerRow(model: model)
+            Placeholder(title: "PIANO ROLL · S1c").frame(height: layout.pianoHeight)
         }
-        .frame(height: 48)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
     }
 
-    private var center: some View {
-        VStack(spacing: 8) {
-            Text("JAMbo").font(.system(size: 28, weight: .bold)).foregroundStyle(theme.text)
-            Text("S0 · test tone 440 Hz −12 dBFS").font(.system(size: 12)).foregroundStyle(theme.dim)
+    @ViewBuilder
+    private var overlays: some View {
+        if menuOpen {
+            MainMenu(model: model, isOpen: $menuOpen).padding(.top, 58).padding(.leading, 12)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(theme.panel, in: RoundedRectangle(cornerRadius: 10))
+        if model.showDiagnostics {
+            DiagnosticsView(model: model).padding(8)
+        }
     }
 }
 
-/// Меню бутерброда: APP — SETTINGS (тема, DIAGNOSTICS).
+/// Заглушка будущей части экрана.
+struct Placeholder: View {
+    let title: String
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        Text(title)
+            .font(.system(size: 12, weight: .semibold))
+            .tracking(1)
+            .foregroundStyle(theme.off)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(theme.panel, in: RoundedRectangle(cornerRadius: Layout.radius))
+    }
+}
+
+/// Меню бутерброда: APPEARANCE (тема) и DIAGNOSTICS.
 struct MainMenu: View {
     let model: AppModel
     @Binding var isOpen: Bool
@@ -63,7 +79,7 @@ struct MainMenu: View {
         }
         .padding(12)
         .frame(width: 330)
-        .background(theme.bg, in: RoundedRectangle(cornerRadius: 10))
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(theme.line, lineWidth: 1))
+        .background(theme.bg, in: RoundedRectangle(cornerRadius: Layout.radius))
+        .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(theme.line, lineWidth: 1))
     }
 }
