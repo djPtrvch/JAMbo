@@ -60,25 +60,11 @@ export function buildTopbar(): HTMLElement {
 
 let phaseBar: HTMLElement;
 let phaseKey = '';
-let alignKey = '';
 /** Полоса доль: при игре жёлтые — доли от начала фразы до текущей; стоп — все серые. */
 function renderPhase(now: number) {
   const n = 4 * settings.sync.quantum;
   const pos = beatPos(now);
   const lit = pos === null ? -1 : Math.floor(pos) % n;
-  // Полоса — ровно под надписью: от начала «BPM» до конца числа темпа.
-  const label = phaseBar.parentElement?.querySelector<HTMLElement>('.field-label');
-  const value = phaseBar.parentElement?.querySelector<HTMLElement>('.field-value');
-  // Пересчёт — когда сменилась ширина надписи (темп, шрифт загрузился).
-  const ak = label && value ? `${label.offsetWidth}:${value.offsetWidth}:${value.offsetLeft}` : '';
-  if (label && value && alignKey !== ak) {
-    alignKey = ak;
-    const f = phaseBar.parentElement!.getBoundingClientRect(), a = label.getBoundingClientRect(), b = value.getBoundingClientRect();
-    const left = `${Math.round(a.left - f.left)}px`;
-    const width = `${Math.round(b.right - a.left)}px`;
-    if (phaseBar.style.left !== left) phaseBar.style.left = left;
-    if (phaseBar.style.width !== width) phaseBar.style.width = width;
-  }
   const key = `${n}:${lit}`;
   if (key === phaseKey) return;
   phaseKey = key;

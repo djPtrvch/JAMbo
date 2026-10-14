@@ -1185,7 +1185,9 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 .sync-offset-value { text-align: center; font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
 /* Полоса над BPM: доли фразы SYNC QUANTUM (4 на такт), пройденные — жёлтые. */
 .bpm-field { position: relative; }
-.bpm-phase { position: absolute; left: 10px; bottom: 7px; height: 1px; display: flex; gap: 2px; pointer-events: none; }
+/* Надпись BPM и темп — по краям полосы фазы: «BPM» от её левого края, число — до правого. */
+.top-left-group .bpm-field { padding-left: 12px; padding-right: 12px; justify-content: space-between; }
+.bpm-phase { position: absolute; left: 12px; right: 12px; bottom: 7px; height: 1px; display: flex; gap: 2px; pointer-events: none; }
 .bpm-phase > span { flex: 1; border-radius: 0.5px; background: var(--meter-track); }
 .bpm-phase > span.on { background: var(--accent); }
 .sync-toast { position: fixed; top: 8px; left: 50%; transform: translate(-50%, -80px); z-index: 1000; padding: 10px 18px; border-radius: 10px;
