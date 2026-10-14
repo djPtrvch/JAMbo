@@ -11,4 +11,10 @@ public enum CoreEvent: Sendable {
     case tempo(Double)
     /// Метроном.
     case metronome(Bool)
+    /// Тап по ячейке сетки во время игры: ячейка или Launcher.stop.
+    case launch(track: Int, slot: Int)
+    /// Тап по строке во время игры; atPass — в конце прохода строки (стрелки SWITCH).
+    case scene(row: Int, atPass: Bool)
+    /// Строки сетки переставили во время игры: активные ячейки и остановки — снова из снимка проекта.
+    case adoptPlay
 }

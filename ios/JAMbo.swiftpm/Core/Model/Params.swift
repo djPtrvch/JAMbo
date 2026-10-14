@@ -104,6 +104,9 @@ public enum Params {
     public static let stepsPerPage = 16
     public static let maxPages = 8
     public static let trackCount = 8
+    /// Строк сетки паттернов (ячеек в столбце); на экране — gridRows.
+    public static let patternSlots = 16
+    public static let gridRows = 8
     public static let maxTracks = 16
     public static let bpmMin = 40.0
     public static let bpmMax = 240.0

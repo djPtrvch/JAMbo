@@ -11,6 +11,16 @@ public enum SeqOut: Sendable {
     case trig(track: Int, frame: Int64)
     /// Доля метронома (accent — начало такта).
     case beat(accent: Bool)
+    /// Дорожка играет клип slot (или остановлена) с тика start.
+    case clip(track: Int, slot: Int, stopped: Bool, start: Int)
+    /// Ожидание у дорожки: Launcher.none, Launcher.stop или ячейка.
+    case queue(track: Int, value: Int)
+    /// Играет строка row (−1 — нет) с тика start, проход len шагов.
+    case scene(row: Int, start: Int, len: Int)
+    /// Ожидающая строка (−1 — нет).
+    case sceneQueue(row: Int)
+    /// Транспорт остановился сам (строки кончились, AT THE END: STOP).
+    case ended
 }
 
 public final class Sequencer {
@@ -20,13 +30,16 @@ public final class Sequencer {
     public private(set) var playing = false
     public private(set) var tick = 0
     public var metronome = false
-    public var data: SeqData?
+    public var data: SeqData? {
+        didSet { if !playing, let d = data { launcher.adopt(d) } }
+    }
+    /// Запуск клипов и строк.
+    public let launcher: Launcher
 
     private let sampleRate: Double
     private let tempo: InternalTempoSource
     private var wantedBpm: Double
     private var click: Click
-    private let trackStart = UnsafeMutablePointer<Int>.allocate(capacity: SeqData.maxTracks)
     /// Ноты, назначенные на будущее (рэтчеты и свинг): момент (кадры ядра) и дорожка.
     private let pendingTime = UnsafeMutablePointer<Double>.allocate(capacity: Sequencer.pendingMax)
     private let pendingTrack = UnsafeMutablePointer<Int32>.allocate(capacity: Sequencer.pendingMax)
@@ -39,13 +52,12 @@ public final class Sequencer {
         tempo = InternalTempoSource(bpm: bpm)
         wantedBpm = bpm
         click = Click(sampleRate: sampleRate)
-        trackStart.initialize(repeating: 0, count: SeqData.maxTracks)
+        launcher = Launcher(out: out)
         pendingTime.initialize(repeating: 0, count: Sequencer.pendingMax)
         pendingTrack.initialize(repeating: 0, count: Sequencer.pendingMax)
     }
 
     deinit {
-        trackStart.deallocate()
         pendingTime.deallocate()
         pendingTrack.deallocate()
     }
@@ -63,14 +75,33 @@ public final class Sequencer {
         if on == playing { return }
         playing = on
         pendingCount = 0
-        for t in 0..<SeqData.maxTracks { trackStart[t] = 0 }
         if on {
             tick = 0
             tempo.set(wantedBpm)
             tempo.start(at: Double(at) / sampleRate)
+            if let d = data { launcher.start(d) }
         } else {
+            launcher.reset()
             for t in 0..<SeqData.maxTracks { out.push(.step(track: t, pos: -1)) }
+            out.push(.scene(row: -1, start: 0, len: 16))
+            out.push(.sceneQueue(row: -1))
         }
+    }
+
+    /// Тап по ячейке во время игры (без игры клип ставит сам интерфейс — снимком проекта).
+    public func queue(track t: Int, slot k: Int) {
+        if playing { launcher.queue(t, k) }
+    }
+
+    /// Строки переставили: активные ячейки и остановки — из снимка, ожидания и строка сбрасываются (ход дорожек — прежний).
+    public func adoptPlay() {
+        guard let d = data else { return }
+        launcher.adopt(d)
+        launcher.clearQueues()
+    }
+
+    public func queueScene(_ k: Int, atPass: Bool) {
+        if playing { launcher.queueScene(k, atPass: atPass) }
     }
 
     /// Кадр (дробный) шага k от старта.
@@ -104,6 +135,11 @@ public final class Sequencer {
     }
 
     private func playStep(_ d: SeqData, at time: Double) {
+        if !launcher.beforeStep(d, tick: tick) {
+            set(playing: false, at: Int64(time))
+            out.push(.ended)
+            return
+        }
         let dur: Double = 60 / tempo.tempo / TempoGrid.stepsPerBeat * sampleRate
         if tick % Int(TempoGrid.stepsPerBeat) == 0 {
             let accent = TempoGrid.isBarStart(Double(tick) / TempoGrid.stepsPerBeat)
@@ -111,11 +147,11 @@ public final class Sequencer {
             out.push(.beat(accent: accent))
         }
         for t in 0..<d.trackCount {
-            if d.stopped[t] != 0 {
+            if !launcher.plays(d, t) {
                 out.push(.step(track: t, pos: -1))
                 continue
             }
-            let pos = d.playIndex(t, tick - trackStart[t])
+            let pos = d.playIndex(t, slot: launcher.slot[t], tick - launcher.trackStart[t])
             out.push(.step(track: t, pos: pos))
             let i = t * SeqData.maxSteps + pos
             if d.on[i] == 0 { continue }

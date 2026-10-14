@@ -22,42 +22,71 @@ public struct SeqData {
     public var prob: UnsafeMutablePointer<Float>
     public var ratchet: UnsafeMutablePointer<Int32>
     public var swing: UnsafeMutablePointer<Float>
+    /// Клипы (дорожка·slots + ячейка): есть ли, страницы from…to. Активная ячейка и остановка — как в проекте
+    /// (колбэк берёт их, пока транспорт стоит; при игре ими управляет сам).
+    public static let slots = Params.patternSlots
+    public var clipFilled: UnsafeMutablePointer<UInt8>
+    public var clipFrom: UnsafeMutablePointer<Int32>
+    public var clipTo: UnsafeMutablePointer<Int32>
+    public var slot: UnsafeMutablePointer<Int32>
+    /// Строки: видимых, повторы, строка старта, в конце — стоп, LOOP ROW.
+    public var rows: Int = 1
+    public var repeats: UnsafeMutablePointer<Int32>
+    public var arrStart: Int = 0
+    public var arrEndStop: Bool = false
+    public var rowLoop: Bool = true
 
     @inline(__always)
-    public func pageLen(_ t: Int, _ p: Int) -> Int {
+    public func pageLen(_ t: Int, _ p: Int, from: Int) -> Int {
         let n = Params.stepsPerPage
         let length = Int(self.length[t])
-        if length > Int(playFrom[t]) * n { return max(0, min(n, length - p * n)) }
+        if length > from * n { return max(0, min(n, length - p * n)) }
         return n
     }
 
     @inline(__always)
-    public func playLen(_ t: Int) -> Int {
+    public func filled(_ t: Int, _ k: Int) -> Bool {
+        return k >= 0 && k < SeqData.slots && clipFilled[t * SeqData.slots + k] != 0
+    }
+
+    /// Страницы клипа k дорожки t.
+    @inline(__always)
+    public func clip(_ t: Int, _ k: Int) -> (from: Int, to: Int) {
+        let i = t * SeqData.slots + max(0, min(SeqData.slots - 1, k))
+        return (Int(clipFrom[i]), Int(clipTo[i]))
+    }
+
+    @inline(__always)
+    public func playLen(_ t: Int, slot k: Int) -> Int {
+        let c = clip(t, k)
         var n = 0
-        var p = Int(playFrom[t])
-        let to = Int(playTo[t])
-        while p <= to {
-            n += pageLen(t, p)
+        var p = c.from
+        while p <= c.to {
+            n += pageLen(t, p, from: c.from)
             p += 1
         }
         return max(1, n)
     }
 
-    /// Шаг (p·16 + s) на позиции n прохода, по кругу.
+    /// Шаг (p·16 + s) клипа k на позиции n прохода, по кругу.
     @inline(__always)
-    public func playIndex(_ t: Int, _ n: Int) -> Int {
-        let total = playLen(t)
+    public func playIndex(_ t: Int, slot k: Int, _ n: Int) -> Int {
+        let c = clip(t, k)
+        let total = playLen(t, slot: k)
         var r = ((n % total) + total) % total
-        var p = Int(playFrom[t])
-        let to = Int(playTo[t])
-        while p <= to {
-            let l = pageLen(t, p)
+        var p = c.from
+        while p <= c.to {
+            let l = pageLen(t, p, from: c.from)
             if r < l { return p * Params.stepsPerPage + r }
             r -= l
             p += 1
         }
-        return Int(playFrom[t]) * Params.stepsPerPage
+        return c.from * Params.stepsPerPage
     }
+
+    /// Для дорожки с активным клипом из проекта (тесты, интерфейс).
+    public func playLen(_ t: Int) -> Int { return playLen(t, slot: Int(slot[t])) }
+    public func playIndex(_ t: Int, _ n: Int) -> Int { return playIndex(t, slot: Int(slot[t]), n) }
 }
 
 public final class SeqSnapshot: @unchecked Sendable {
@@ -73,8 +102,21 @@ public final class SeqSnapshot: @unchecked Sendable {
             playTo: .allocate(capacity: tracks), stopped: .allocate(capacity: tracks),
             on: .allocate(capacity: steps), len: .allocate(capacity: steps),
             noteCount: .allocate(capacity: steps), notes: .allocate(capacity: steps * SeqData.maxNotes),
-            prob: .allocate(capacity: steps), ratchet: .allocate(capacity: steps), swing: .allocate(capacity: steps)
+            prob: .allocate(capacity: steps), ratchet: .allocate(capacity: steps), swing: .allocate(capacity: steps),
+            clipFilled: .allocate(capacity: tracks * SeqData.slots), clipFrom: .allocate(capacity: tracks * SeqData.slots),
+            clipTo: .allocate(capacity: tracks * SeqData.slots), slot: .allocate(capacity: tracks),
+            repeats: .allocate(capacity: SeqData.slots)
         )
+        d.clipFilled.initialize(repeating: 0, count: tracks * SeqData.slots)
+        d.clipFrom.initialize(repeating: 0, count: tracks * SeqData.slots)
+        d.clipTo.initialize(repeating: 0, count: tracks * SeqData.slots)
+        d.slot.initialize(repeating: 0, count: tracks)
+        d.repeats.initialize(repeating: 1, count: SeqData.slots)
+        d.rows = project.visibleRows
+        d.arrStart = min(project.arrStart, d.rows - 1)
+        d.arrEndStop = project.arrEndStop
+        d.rowLoop = project.rowLoop
+        for k in 0..<SeqData.slots { d.repeats[k] = Int32(project.scenes[k].repeats) }
         d.trackCount = min(project.tracks.count, tracks)
         d.length.initialize(repeating: 16, count: tracks)
         d.playFrom.initialize(repeating: 0, count: tracks)
@@ -98,7 +140,15 @@ public final class SeqSnapshot: @unchecked Sendable {
         d.length[t] = Int32(track.length)
         d.playFrom[t] = Int32(track.playFrom)
         d.playTo[t] = Int32(track.playTo)
-        d.stopped[t] = track.stopped ? 1 : 0
+        d.stopped[t] = track.stopped || track.blank ? 1 : 0
+        d.slot[t] = Int32(track.slot)
+        for k in 0..<SeqData.slots {
+            guard let r = track.clipRange(k) else { continue }
+            let i = t * SeqData.slots + k
+            d.clipFilled[i] = 1
+            d.clipFrom[i] = Int32(r.lowerBound)
+            d.clipTo[i] = Int32(r.upperBound)
+        }
         for (p, page) in track.pages.enumerated() where p < Params.maxPages {
             for (s, step) in page.enumerated() {
                 let i = t * SeqData.maxSteps + p * Params.stepsPerPage + s
@@ -127,5 +177,10 @@ public final class SeqSnapshot: @unchecked Sendable {
         data.prob.deallocate()
         data.ratchet.deallocate()
         data.swing.deallocate()
+        data.clipFilled.deallocate()
+        data.clipFrom.deallocate()
+        data.clipTo.deallocate()
+        data.slot.deallocate()
+        data.repeats.deallocate()
     }
 }

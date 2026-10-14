@@ -25,9 +25,12 @@ public struct Track: Codable, Equatable, Sendable {
     public var pages: [[Step]]
     /// Длина паттерна в шагах (1…pages·16): одна на дорожку, укорочена только страница с последним шагом.
     public var length: Int
-    /// Играющие страницы: playFrom…playTo.
-    public var playFrom: Int = 0
-    public var playTo: Int = 0
+    /// Играющие страницы активного клипа: playFrom…playTo (копируются в clips[slot]).
+    public var playFrom: Int = 0 { didSet { syncClip() } }
+    public var playTo: Int = 0 { didSet { syncClip() } }
+    /// Клипы столбца сетки паттернов (nil — пустая ячейка) и активная ячейка.
+    public var clips: [Clip?] = Track.firstClips()
+    public var slot: Int = 0
     public var mute: Bool = false
     public var solo: Bool = false
     /// Остановлена в сетке паттернов.
@@ -41,21 +44,48 @@ public struct Track: Codable, Equatable, Sendable {
         length = Params.stepsPerPage
     }
 
+    static func firstClips() -> [Clip?] {
+        var c = [Clip?](repeating: nil, count: Params.patternSlots)
+        c[0] = Clip(playFrom: 0, playTo: 0)
+        return c
+    }
+
+    /// Активный клип пуст (его удалили): дорожка стоит, звук и паттерны остаются.
+    public var blank: Bool { return clips[slot] == nil }
+
+    private mutating func syncClip() {
+        guard slot < clips.count, var c = clips[slot] else { return }
+        if c.playFrom == playFrom && c.playTo == playTo { return }
+        c.playFrom = playFrom
+        c.playTo = playTo
+        clips[slot] = c
+    }
+
     public static func emptyPage() -> [Step] {
         return [Step](repeating: Step(), count: Params.stepsPerPage)
     }
 
     /// Шагов на странице p с учётом длины паттерна (как pageLen веба).
     public func pageLen(_ p: Int) -> Int {
+        return pageLen(p, from: playFrom)
+    }
+
+    /// Шагов на странице p у клипа, который начинается со страницы from.
+    public func pageLen(_ p: Int, from: Int) -> Int {
         let n = Params.stepsPerPage
-        if length > playFrom * n { return Swift.max(0, Swift.min(n, length - p * n)) }
+        if length > from * n { return Swift.max(0, Swift.min(n, length - p * n)) }
         return n
     }
 
     /// Шагов в проходе: сумма длин играющих страниц.
     public var playLen: Int {
+        return playLen(from: playFrom, to: playTo)
+    }
+
+    /// Шагов в проходе клипа from…to.
+    public func playLen(from: Int, to: Int) -> Int {
         var n = 0
-        for p in playFrom...playTo { n += pageLen(p) }
+        for p in from...Swift.max(from, to) { n += pageLen(p, from: from) }
         return Swift.max(1, n)
     }
 
@@ -89,12 +119,54 @@ public struct Track: Codable, Equatable, Sendable {
     }
 }
 
+/// Клип — ячейка сетки паттернов: какие страницы дорожки играют (диапазон подряд), гамма, нота и общие FX.
+/// Звук, шаги, длина — у дорожки (общие для всех её клипов).
+public struct Clip: Codable, Equatable, Sendable {
+    public var playFrom: Int
+    public var playTo: Int
+    public var scale: Int?
+    public var root: Int?
+    public var fx: [String: Double]?
+
+    public init(playFrom: Int, playTo: Int, scale: Int? = nil, root: Int? = nil, fx: [String: Double]? = nil) {
+        self.playFrom = playFrom
+        self.playTo = playTo
+        self.scale = scale
+        self.root = root
+        self.fx = fx
+    }
+}
+
+/// Строка сетки (сцена): имя (пустое — номер) и число повторов до следующей строки.
+public struct Scene: Codable, Equatable, Sendable {
+    public var name: String = ""
+    public var repeats: Int = 1
+
+    public init(name: String = "", repeats: Int = 1) {
+        self.name = name
+        self.repeats = repeats
+    }
+}
+
 public struct Project: Codable, Equatable, Sendable {
     public var version: Int = 2
     public var bpm: Double = 120
     public var scale: Int = 0
     public var root: Int = 0
     public var tracks: [Track]
+    /// Строки сетки паттернов: имена и повторы.
+    public var scenes: [Scene] = [Scene](repeating: Scene(), count: Params.patternSlots)
+    /// Видимых строк (по умолчанию 1; заполненные видны всегда).
+    public var rows: Int = 1
+    /// Меню сетки: строка старта PLAY; в конце строк — STOP или LOOP.
+    public var arrStart: Int = 0
+    public var arrEndStop: Bool = false
+    /// «+» под строками: true — копии играющих клипов (COPY PLAYING, по умолчанию), false — новые пустые.
+    public var plusCopy: Bool = true
+    /// LOOP ROW: играющая строка повторяется бесконечно (по умолчанию включена).
+    public var rowLoop: Bool = true
+    /// Стрелки ▲ ▼: false — только прокрутка (VIEW), true — при игре ещё и переход строки (SWITCH).
+    public var arrowSwitch: Bool = false
 
     public init() {
         tracks = (0..<Params.trackCount).map { Track(index: $0) }

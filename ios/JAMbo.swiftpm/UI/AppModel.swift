@@ -44,6 +44,23 @@ final class AppModel {
     var selNotes: [[Int]] = [[Int]](repeating: [], count: Params.maxTracks)
     /// Зажатые клавиши и аккорды: касание → ноты.
     var pressedKeys: [Int: [Int]] = [:]
+    /// Сетка паттернов открыта; ячейка для правки выбранной дорожки (жёлтый контур); верх окна строк.
+    var patternView: Bool = false
+    var editSlot: Int = 0
+    var gridTop: Int = 0
+    /// Открытые меню сетки: ячейки (свайп вверх), строки (удержание), бутерброд сетки.
+    var cellMenu: CellMenuState? = nil
+    var rowMenu: Int? = nil
+    var gridMenuOpen: Bool = false
+    /// Ячейка коротко вспыхивает красным (действие недоступно).
+    var deniedCell: CellRef? = nil
+    @ObservationIgnored var clipClipboard: Clip? = nil
+    @ObservationIgnored var rowClipboard: RowClip? = nil
+    /// Лидер (клип, запущенный последним): его гамма и нота — общие; дорожки, запущенные в этом кадре.
+    @ObservationIgnored var lead: Int = 0
+    @ObservationIgnored var startOrder: [Int] = [Int](repeating: 0, count: Params.maxTracks)
+    @ObservationIgnored var startSeq: Int = 0
+    @ObservationIgnored var pendingStarts: [Int] = []
     /// Открытое меню выбора (SCALE, ROOT, PROGRESSION) и меню пианоролла.
     var choice: ChoiceState? = nil
     var pianoMenuOpen: Bool = false
@@ -96,9 +113,12 @@ final class AppModel {
     /// Сообщения колбэка → состояние интерфейса (60 раз в секунду).
     private func drain() {
         audio.core.releaseRetired()
-        live.drain(audio.core.sequencer.out, now: Date.timeIntervalSinceReferenceDate) { [weak self] t, pos in
+        defer { applyPendingLead() }
+        live.drain(audio.core.sequencer.out, now: Date.timeIntervalSinceReferenceDate, onStep: { [weak self] t, pos in
             self?.recPassStep(t, pos)
-        }
+        }, onPlay: { [weak self] e in
+            self?.playEvent(e)
+        })
     }
 
     // MARK: — транспорт
@@ -109,6 +129,35 @@ final class AppModel {
         endRecTake()
         live.stopped()
         audio.core.events.push(.play(playing))
+    }
+
+    /// Ход игры из колбэка: клип запущен или дорожка остановлена; транспорт остановился сам (AT THE END: STOP).
+    func playEvent(_ e: SeqOut) {
+        switch e {
+        case .clip(let t, let slot, let stopped, _):
+            guard t < project.tracks.count else { return }
+            mutatePlay({ p in
+                if p.tracks[t].slot != slot { p.tracks[t].activate(slot) }
+                p.tracks[t].stopped = stopped
+            }, publish: false)
+            if stopped {
+                leadStopped(t)
+            } else {
+                started(t)
+            }
+            if t == selectedTrack {
+                heldSteps.removeAll()
+                viewPage = min(viewPage, track.pages.count - 1)
+            }
+        case .ended:
+            if playing {
+                playing = false
+                endRecTake()
+                live.stopped()
+            }
+        default:
+            break
+        }
     }
 
     func toggleMetronome() {
@@ -138,6 +187,12 @@ final class AppModel {
         if project == before { return }
         history.record(before: before, after: project)
         changed()
+    }
+
+    /// Ход игры (активная ячейка, остановка, гамма лидера) — не правка: без UNDO.
+    func mutatePlay(_ change: (inout Project) -> Void, publish: Bool) {
+        change(&project)
+        if publish { audio.core.publish(project) }
     }
 
     /// Правка без новой записи в UNDO (продолжение дубля записи — UNDO отменяет весь дубль).
@@ -170,7 +225,11 @@ final class AppModel {
     private func restore(_ snap: Project) {
         var p = snap
         for i in 0..<p.tracks.count {
-            if let cur = project.tracks.first(where: { $0.id == p.tracks[i].id }) { p.tracks[i].stopped = cur.stopped }
+            // Что играет, UNDO не меняет: активная ячейка и остановка — как сейчас.
+            if let cur = project.tracks.first(where: { $0.id == p.tracks[i].id }) {
+                p.tracks[i].stopped = cur.stopped
+                if p.tracks[i].clipFilled(cur.slot) || cur.blank { p.tracks[i].activate(cur.slot) }
+            }
         }
         let bpmChanged = p.bpm != project.bpm
         project = p
@@ -266,17 +325,42 @@ final class LiveState {
     @ObservationIgnored private var flashUntil: [Double] = [Double](repeating: 0, count: Params.maxTracks)
     @ObservationIgnored private var beatUntil: Double = 0
 
-    func drain(_ queue: SPSCQueue<SeqOut>, now: Double, onStep: (Int, Int) -> Void) {
+    /// Ожидание у дорожек (Launcher.none / stop / ячейка), начало прохода, играющая и ожидающая строки.
+    private(set) var queued: [Int] = [Int](repeating: Launcher.none, count: Params.maxTracks)
+    @ObservationIgnored private(set) var trackStart: [Int] = [Int](repeating: 0, count: Params.maxTracks)
+    private(set) var sceneRow: Int = -1
+    @ObservationIgnored private(set) var sceneStart: Int = 0
+    @ObservationIgnored private(set) var sceneLen: Int = 16
+    private(set) var sceneQueued: Int = -1
+    /// Растёт, когда прошёл шаг (для полос хода в сетке паттернов).
+    private(set) var stepSerial: Int = 0
+
+    func drain(_ queue: SPSCQueue<SeqOut>, now: Double, onStep: (Int, Int) -> Void, onPlay: (SeqOut) -> Void) {
         while let e = queue.pop() {
             switch e {
             case .none:
                 break
             case .step(let t, let pos):
                 if playPos[t] != pos { playPos[t] = pos }
+                if t == 0 { stepSerial &+= 1 }
                 if pos >= 0 { onStep(t, pos) }
             case .trig(let t, _):
                 flashUntil[t] = now + 0.09
                 if !flashing[t] { flashing[t] = true }
+            case .clip(let t, _, _, let start):
+                trackStart[t] = start
+                if queued[t] != Launcher.none { queued[t] = Launcher.none }
+                onPlay(e)
+            case .queue(let t, let v):
+                queued[t] = v
+            case .scene(let row, let start, let len):
+                sceneRow = row
+                sceneStart = start
+                sceneLen = len
+            case .sceneQueue(let row):
+                sceneQueued = row
+            case .ended:
+                onPlay(e)
             case .beat(let accent):
                 beat += 1
                 beatAccent = accent
@@ -293,5 +377,16 @@ final class LiveState {
     func stopped() {
         beat = -1
         beatFlash = false
+        for t in 0..<Params.maxTracks {
+            queued[t] = Launcher.none
+            trackStart[t] = 0
+        }
+        sceneRow = -1
+        sceneQueued = -1
+    }
+
+    /// Без игры тап ставит ожидание сразу (интерфейс), чтобы мигание было видно до PLAY.
+    func setQueued(_ t: Int, _ v: Int) {
+        queued[t] = v
     }
 }

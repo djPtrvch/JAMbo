@@ -41,10 +41,11 @@ public final class AudioCore: @unchecked Sendable {
     @inline(__always)
     /// host — время хоста (с), когда этот блок начнёт звучать (для записи нот с REC); в тестах 0.
     public func render(frames: Int, left: UnsafeMutablePointer<Float>, right: UnsafeMutablePointer<Float>, host: Double = 0) {
+        // Сначала снимок проекта, потом команды: PLAY сразу после правки видит новые клипы и строки.
+        takeSnapshots()
         while let event = events.pop() {
             apply(event)
         }
-        takeSnapshots()
         left.update(repeating: 0, count: frames)
         right.update(repeating: 0, count: frames)
         tone.render(frames: frames, left: left, right: right)
@@ -78,6 +79,12 @@ public final class AudioCore: @unchecked Sendable {
             sequencer.set(bpm: bpm)
         case .metronome(let on):
             sequencer.metronome = on
+        case .launch(let t, let k):
+            sequencer.queue(track: t, slot: k)
+        case .scene(let row, let atPass):
+            sequencer.queueScene(row, atPass: atPass)
+        case .adoptPlay:
+            sequencer.adoptPlay()
         }
     }
 }

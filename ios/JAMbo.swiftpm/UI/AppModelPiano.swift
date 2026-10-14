@@ -26,12 +26,12 @@ extension AppModel {
 
     func setScale(_ v: Int) {
         let n = Scales.wrap(v, Scales.all.count)
-        if n != project.scale { edit { p in p.scale = n } }
+        if n != project.scale { edit { p in p.scale = n; writeLead(&p) } }
     }
 
     func setRoot(_ v: Int) {
         let n = Scales.wrap(v, 12)
-        if n != project.root { edit { p in p.root = n } }
+        if n != project.root { edit { p in p.root = n; writeLead(&p) } }
     }
 
     func setOctave(_ o: Int) {
@@ -159,7 +159,7 @@ extension AppModel {
                                  quantize: settings.record.quantize)
         let merge: Bool = lastRec.track == ti && lastRec.tick == k
         lastRec = (ti, k)
-        let index = project.tracks[ti].playIndex(k)
+        let index = project.tracks[ti].playIndex(k - live.trackStart[ti])
         let overdub = settings.record.overdub
         takeTracks.insert(ti)
         takeWritten.insert(ti * 1000 + index)

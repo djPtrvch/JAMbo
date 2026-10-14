@@ -42,7 +42,7 @@ struct TopBar: View {
 
     private var rightGroup: some View {
         HStack(spacing: Layout.gap) {
-            TopText(title: "PATTERNS").frame(width: Layout.topButton)
+            PatternsButton(model: model).frame(width: Layout.topButton)
             TopText(title: "ARRANGE").frame(width: Layout.topButton)
             CPUIndicator(meter: model.audio.core.cpu).frame(width: Layout.meterWidth)
         }
@@ -210,5 +210,23 @@ struct RecButton: View {
             .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(theme.rec, lineWidth: 1))
             .contentShape(Rectangle())
             .onTapGesture { model.toggleRec() }
+    }
+}
+
+/// PATTERNS: сетка паттернов на месте центра; горит, пока открыта.
+struct PatternsButton: View {
+    let model: AppModel
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let on: Bool = model.patternView
+        return Text("PATTERNS")
+            .font(.system(size: 13, weight: .semibold))
+            .tracking(1)
+            .foregroundStyle(on ? theme.bg : theme.text)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(on ? theme.text : theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
+            .contentShape(Rectangle())
+            .onTapGesture { model.togglePatterns() }
     }
 }

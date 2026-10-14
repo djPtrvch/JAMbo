@@ -28,7 +28,7 @@ struct RootView: View {
     private func screen(_ layout: Layout) -> some View {
         VStack(spacing: Layout.gap) {
             TopBar(model: model, menuOpen: $menuOpen)
-            center
+            center(layout)
             TrackRow(model: model, layout: layout)
             SequencerRow(model: model)
             PianoRoll(model: model, layout: layout)
@@ -37,13 +37,18 @@ struct RootView: View {
         .padding(.vertical, 8)
     }
 
-    /// Центр: левая колонка | сетка ручек | правая колонка | измеритель.
-    private var center: some View {
-        HStack(spacing: Layout.gap) {
-            LeftColumn().frame(width: Layout.leftColumn)
-            KnobGrid(model: model)
-            RightColumn(model: model).frame(width: Layout.leftColumn)
-            MeterColumn()
+    /// Центр: левая колонка | сетка ручек | правая колонка | измеритель; с PATTERNS — сетка паттернов во всю ширину.
+    @ViewBuilder
+    private func center(_ layout: Layout) -> some View {
+        if model.patternView {
+            PatternGrid(model: model, layout: layout)
+        } else {
+            HStack(spacing: Layout.gap) {
+                LeftColumn().frame(width: Layout.leftColumn)
+                KnobGrid(model: model)
+                RightColumn(model: model).frame(width: Layout.leftColumn)
+                MeterColumn()
+            }
         }
     }
 
