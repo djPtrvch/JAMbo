@@ -8,8 +8,8 @@
 import { MAX_TRACKS } from '../params';
 import { audible, doc, renameTrack, rt, selectChannel, selectTrack, swipeTrack, ui, type Channel } from '../state';
 import { registerAction } from '../midi';
-import { stemRecording } from '../stems';
-import { stemEndIn } from '../transport';
+import { masterStemRecording, stemRecording } from '../stems';
+import { masterEndIn, stemEndIn } from '../transport';
 import { h, setClass, setText } from './dom';
 import { openInput } from './popup';
 import { markSwipe } from './debug';
@@ -26,8 +26,12 @@ export function openRename(i: number, anchor: Element) {
 
 const channels: [HTMLElement, Channel][] = [];
 
+/** Точка записи мастера на MST (мигает, пока пишется; за 5 с до конца — чаще). */
+let mstRec: HTMLElement;
+
 function channelCell(label: string, c: Channel): HTMLElement {
   const el = h('div', 'track channel', label);
+  if (c === 'master') { mstRec = h('div', 'track-rec hidden'); el.append(mstRec); }
   el.addEventListener('pointerdown', (e) => { e.preventDefault(); selectChannel(c); });
   channels.push([el, c]);
   registerAction(label, { label, press: () => selectChannel(c), state: () => ui.channel === c }, el);
@@ -105,4 +109,7 @@ export function renderTracks(now: number) {
     setText(v.state, t.solo ? 'S' : t.mute ? 'M' : '');
   });
   for (const [el, c] of channels) setClass(el, 'selected', ui.channel === c);
+  setClass(mstRec, 'hidden', !masterStemRecording());
+  const left = masterEndIn(now);
+  setClass(mstRec, 'ending', left !== null && left <= 5000);
 }

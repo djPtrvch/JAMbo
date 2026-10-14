@@ -1949,6 +1949,8 @@ const stems = new Map<number, { node: AudioWorkletNode | null; L: Float32Array[]
 let stemReady: Promise<void> | null = null;
 
 export const isStemRecording = (track: number) => stems.has(track);
+/** Номер «дорожки» записи мастера (кнопка ● MASTER в MIX). */
+export const MASTER_STEM = -1;
 
 /** Загрузить узел записи заранее (при нажатии ●), чтобы запись с PLAY не теряла начало. */
 export function prepareStems() {
@@ -1958,12 +1960,14 @@ export function prepareStems() {
 
 /**
  * Запись стема дорожки с момента at (performance.now): выход дорожки после EQ, громкости микшера и
- * mute/solo (то, что дорожка отдаёт в мастер, без посылов Reverb, Delay и Drive), стерео.
+ * mute/solo (то, что дорожка отдаёт в мастер, без посылов Reverb, Delay и Drive), стерео; у мастера
+ * (MASTER_STEM) — выход мастера после громкости выхода (с эффектами).
  */
 export async function startStem(track: number, at: number) {
   const c = ensureCtx();
-  const ch = tracks[track];
-  if (!ch || stems.has(track)) return;
+  // Мастер (MASTER_STEM): конечный сигнал — после громкости выхода, то, что идёт на выход.
+  const src = track === MASTER_STEM ? mst?.outVol : tracks[track]?.gate;
+  if (!src || stems.has(track)) return;
   const startFrame = Math.round(toCtx(at) * c.sampleRate);
   stemReady ??= c.audioWorklet.addModule(new URL('stem-worklet.js', document.baseURI).href);
   const rec = { node: null as AudioWorkletNode | null, L: [] as Float32Array[], R: [] as Float32Array[], done: Promise.resolve(), stopAt: null as number | null };
@@ -1975,13 +1979,13 @@ export async function startStem(track: number, at: number) {
   const sink = c.createGain();
   sink.gain.value = 0;
   node.connect(sink).connect(c.destination);
-  ch.gate.connect(node);
+  src.connect(node);
   rec.node = node;
   rec.done = new Promise((resolve) => {
     node.port.onmessage = (e) => {
       if (Array.isArray(e.data)) { rec.L.push(e.data[0]); rec.R.push(e.data[1]); return; }
       if (e.data?.done) {
-        try { ch.gate.disconnect(node); } catch { /* уже отключён */ }
+        try { src.disconnect(node); } catch { /* уже отключён */ }
         node.disconnect();
         sink.disconnect();
         resolve();

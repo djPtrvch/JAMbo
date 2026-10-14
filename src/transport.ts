@@ -2,7 +2,7 @@
 // ведёт метроном. Probability, Ratchet и Swing (с p-lock и LFO) влияют на звук и мигание.
 
 import { clickAt, flushSidechain, triggerTrack } from './audio/engine';
-import { stemEndsAtBoundary, stemRecording, stemsOnPlay, stemsOnStep, stemsOnStop } from './stems';
+import { masterEndsAtEdge, masterStemRecording, stemEndsAtBoundary, stemRecording, stemsOnPlay, stemsOnStep, stemsOnStop } from './stems';
 import { PARAM_BY_ID, SEQ_MIX, SEQ_MST, STEPS_PER_PAGE, fromNorm } from './params';
 import { settings } from './settings';
 import { STEPS_PER_BEAT, isBarStart, tempo, tempoSource } from './tempo';
@@ -180,7 +180,7 @@ function playStep(time: number) {
   });
   // Стемы: на границе прохода повтор того же паттерна или остановка дорожки заканчивают запись;
   // после PLAY во время записи — стоп, когда все стемы дописаны (паттерны доиграли до конца).
-  if (stemsOnStep(time, passStart, { on: arranged(), wrapped: wrappedAt === tick })) { setPlaying(false); return; }
+  if (stemsOnStep(time, passStart, { on: arranged(), wrapped: wrappedAt === tick }, masterEdge(tick))) { setPlaying(false); return; }
   if (tick % STEPS_PER_BEAT === 0) {
     const accent = isBarStart(tick / STEPS_PER_BEAT);
     flashes.push({ time, track: -1, dur: 90, notes: [], noteDur: accent ? 1 : 0 });
@@ -254,6 +254,28 @@ function sceneEndsAt(k: number): boolean {
   if (!rt.scene) return false;
   const reps = doc.scenes[rt.scene.row].repeats;
   return reps > 0 && !rowLoopOn() && visibleRows() > 1 && k - rt.scene.start >= reps * rt.scene.len;
+}
+
+/** Самый длинный играющий паттерн (номер дорожки) или −1. */
+function longestTrack(): number {
+  let best = -1;
+  doc.tracks.forEach((t, i) => { if (!t.stopped && (best < 0 || playLen(t) > playLen(doc.tracks[best]))) best = i; });
+  return best;
+}
+
+/** Граница прохода для записи мастера: у строки — её проход (самый длинный паттерн), иначе — самого длинного играющего паттерна. */
+function masterEdge(k: number): boolean {
+  if (rt.scene) return (k - rt.scene.start) % rt.scene.len === 0;
+  const i = longestTrack();
+  return i >= 0 && (k - rt.trackStart[i]) % playLen(doc.tracks[i]) === 0;
+}
+
+/** Сколько осталось до конца записи мастера, мс (null — не пишется или конец пока не виден). */
+export function masterEndIn(now: number): number | null {
+  if (!ui.playing || !masterStemRecording() || !masterEndsAtEdge(arranged())) return null;
+  let k = tick;
+  while (!masterEdge(k) && k < tick + 4096) k++;
+  return (k - tick) * stepMs() + (nextTime - now);
 }
 
 /** Тик — начало прохода паттерна дорожки (в том числе только что запущенного). */

@@ -20,6 +20,10 @@ import { levelFrac } from './meter';
 import { makePopup, popupButton } from './popup';
 import { baseValue, audible, doc, firstHeldStep, heldStepSound, liveLocks, modulatedNorm, seqAt, setStepSound, folderItemName, folderPos, stepFolder, stepFolderOnSteps, setTrackSynth, envAt, envShape, liveParams, lfoShape, lfoShaped, rt, sampleName, selTrack, ui } from '../state';
 import { openSampleEditor } from './sampleedit';
+import { masterStemArmed, masterStemRecording, toggleMasterStem } from '../stems';
+import { registerAction } from '../midi';
+/** Кнопка ● MASTER в окне MIX. */
+let mstRecBtn: HTMLElement;
 import { buildClipper, buildGlue, buildLimiter, renderDynamics } from './dynamics';
 import { iconView, renderIcon, type IconView } from './engineIcon';
 import { openBrowser } from './browser';
@@ -305,7 +309,12 @@ export function buildSample(): HTMLElement {
   // Пока уровни видны у ручек громкости — полосы в окне сэмпла скрыты (остаётся заголовок).
   const mixRow = wrap(mixBars);
   mixRow.classList.add('hidden');
-  mixPanel.append(h('div', 'vbar-title', 'MIXER'), mixRow);
+  // ● MASTER — запись мастера (выход после громкости выхода; по тем же правилам, что стемы дорожек; точка — на MST).
+  mstRecBtn = h('div', 'btn msr-btn msr-arm mix-master-rec');
+  mstRecBtn.innerHTML = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6" fill="currentColor"/></svg><span>MASTER</span>';
+  mstRecBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); toggleMasterStem(); });
+  registerAction('ARMMST', { label: 'ARM MST', press: toggleMasterStem, state: () => masterStemArmed() || masterStemRecording() }, mstRecBtn);
+  mixPanel.append(mstRecBtn, h('div', 'vbar-title', 'MIXER'), mixRow);
   // Узкие столбцы (много дорожек): вместо имён — номера дорожек.
   new ResizeObserver(() => {
     const w = mixPanel.clientWidth;
@@ -510,6 +519,7 @@ function renderMaster(now: number) {
 }
 
 function renderMix(now: number) {
+  setClass(mstRecBtn, 'on', masterStemArmed() || masterStemRecording());
   mixBars.forEach((b, i) => {
     const t = doc.tracks[i];
     setClass(b.root, 'hidden', !t);

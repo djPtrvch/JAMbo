@@ -1031,6 +1031,8 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 
 /* MIX: полосы подстраиваются под ширину окна — при 16 дорожках и стерео всё помещается
    (полоса до 9 px, зазоры ужимаются); окно не раздвигается. */
+.mix-master-rec { position: absolute; top: 8px; left: 8px; right: 8px; height: 40px; flex: none; display: flex; gap: 6px; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; letter-spacing: 0.06em; }
+.mix-panel { position: relative; }
 .mix-panel { width: 100%; min-width: 0; overflow: hidden; padding-left: 8px; padding-right: 8px; }
 .mix-panel .vbar-row { gap: clamp(1px, 1.2%, 4px); }
 .mix-panel .vbar-box { gap: clamp(1px, 14%, 3px); }

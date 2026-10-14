@@ -269,13 +269,17 @@ function move(e: PointerEvent) {
  * Удержание маркера + клавиша (пианоролл, MIDI): маркеру назначается нота. true — нота ушла маркеру
  * (маркер держат, не двигая), иначе — обычная нота.
  */
+/** Отказ в назначении ноты (она у другого маркера): флажок красный до until. */
+let refused = { idx: -1, until: 0 };
+
 export function assignHeldSlice(note: number): boolean {
   if (!ui.sampleView) return false;
   const key = currentKey();
   for (const d of drags.values()) {
     if (d.kind !== 'slice' || d.moved || !key) continue;
-    setSliceNote(ui.selectedTrack, key, d.idx, note);
     d.assigned = true;
+    // Нота уже у другого маркера — не назначается: флажок коротко вспыхивает красным.
+    if (!setSliceNote(ui.selectedTrack, key, d.idx, note)) refused = { idx: d.idx, until: performance.now() + 500 };
     return true;
   }
   return false;
@@ -456,7 +460,7 @@ export function renderSampleEditor() {
     if (x < -60 || x > W + 60) return;
     const label = noteName(markNote(all, k));
     const r = flagRect(f, label);
-    const c = held.has(k) ? color('--accent') : color('--ink');
+    const c = refused.idx === k && performance.now() < refused.until ? color('--rec') : held.has(k) ? color('--accent') : color('--ink');
     g.fillStyle = c;
     // Линия от острия флажка до низа; флажок — пятиугольник острием вниз, нота внутри.
     const tip = TOP - 2;

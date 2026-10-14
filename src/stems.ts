@@ -7,8 +7,9 @@
 // прохода, затем стоп. Стем (WAV 24 бит) ложится в папку RECORDINGS библиотеки, во вложенную папку
 // «проект дд.мм.гггг» (одна на проект и день), с именем «дорожка чч-мм-сс».
 // На пишущейся дорожке мигает красная точка, за 5 секунд до конца записи — чаще.
+// Мастер — кнопка ● MASTER в окне MIX: выход мастера (после громкости выхода) по тем же правилам, точка — на MST.
 
-import { isStemRecording, prepareStems, startStem, stopStem } from './audio/engine';
+import { isStemRecording, MASTER_STEM, prepareStems, startStem, stopStem } from './audio/engine';
 import { addSample, children, createFolder, RECORDINGS } from './library';
 import { project } from './project';
 import { doc } from './state';
@@ -26,7 +27,45 @@ const finishAsked = new Set<number>();
 
 export const stemArmed = (i: number) => armed.has(i);
 export const stemRecording = (i: number) => isStemRecording(i);
-export const anyStemRecording = () => doc.tracks.some((_, i) => isStemRecording(i));
+export const anyStemRecording = () => isStemRecording(MASTER_STEM) || doc.tracks.some((_, i) => isStemRecording(i));
+
+// ---------- Мастер (кнопка ● MASTER в окне MIX): выход мастера, по тем же правилам ----------
+
+let masterArmed = false;
+/** Уже записанные в стем мастера паттерны играющих дорожек («дорожка:слот»). */
+let masterSeen = new Set<string>();
+let masterStart = -Infinity;
+let masterFinish = false;
+
+export const masterStemArmed = () => masterArmed;
+export const masterStemRecording = () => isStemRecording(MASTER_STEM);
+
+/** Паттерны, которые сейчас играют («дорожка:слот»). */
+const playingKeys = () => doc.tracks.flatMap((t, i) => (t.stopped ? [] : [`${i}:${t.slot}`]));
+
+/** Кнопка ● MASTER: готовность записи мастера; во время записи — дописать до конца прохода. */
+export function toggleMasterStem() {
+  if (isStemRecording(MASTER_STEM)) { masterFinish = true; masterArmed = false; return; }
+  masterArmed = !masterArmed;
+  if (masterArmed) prepareStems();
+}
+
+/** Кончится ли запись мастера на ближайшей границе прохода (для частого мигания). */
+export function masterEndsAtEdge(arranged: boolean): boolean {
+  if (stopAsked || masterFinish) return true;
+  return !arranged && playingKeys().every((k) => masterSeen.has(k));
+}
+
+function finishMaster(at: number) {
+  masterSeen = new Set();
+  masterStart = -Infinity;
+  masterFinish = false;
+  const d = new Date();
+  const two = (x: number) => String(x).padStart(2, '0');
+  const name = `MASTER ${two(d.getHours())}-${two(d.getMinutes())}-${two(d.getSeconds())}`;
+  const folder = `${project.name || 'Project'} ${two(d.getDate())}.${two(d.getMonth() + 1)}.${d.getFullYear()}`;
+  void stopStem(MASTER_STEM, name, at).then((key) => { if (key) addSample(recordingsFolder(folder), key, name); });
+}
 export const stopRequested = () => stopAsked;
 
 /** Кнопка ●: готовность дорожки; во время записи — стем дописывается до конца прохода паттерна. */
@@ -39,6 +78,12 @@ export function toggleStem(i: number) {
 /** PLAY: запись всех готовых и играющих дорожек — с первого шага (at). */
 export function stemsOnPlay(at: number) {
   stopAsked = false;
+  // Мастер — если что-то играет: с первого шага, как стемы дорожек.
+  if (masterArmed && playingKeys().length) {
+    masterSeen = new Set(playingKeys());
+    masterStart = at;
+    void startStem(MASTER_STEM, at);
+  }
   for (const i of armed) {
     const t = doc.tracks[i];
     if (!t || t.stopped) continue;
@@ -60,7 +105,17 @@ export function requestStop(): boolean {
  * конец стема, если дорожка остановилась, дальше повтор того же паттерна или просили остановиться.
  * Результат — пора ли остановить транспорт (все стемы дописаны после PLAY).
  */
-export function stemsOnStep(at: number, boundary: (i: number) => boolean, arr: { on: boolean; wrapped: boolean }): boolean {
+export function stemsOnStep(at: number, boundary: (i: number) => boolean, arr: { on: boolean; wrapped: boolean }, masterEdge = false): boolean {
+  // Мастер: граница прохода — у строки (её самый длинный паттерн) или у самого длинного играющего паттерна;
+  // конец — как у дорожек: строки пошли по кругу, без строк — все играющие паттерны уже записаны; всё остановилось.
+  if (isStemRecording(MASTER_STEM)) {
+    const keys = playingKeys();
+    if (!keys.length) finishMaster(at);
+    else if (masterEdge && at > masterStart) {
+      if (stopAsked || masterFinish || (arr.on ? arr.wrapped : keys.every((k) => masterSeen.has(k)))) finishMaster(at);
+      else keys.forEach((k) => masterSeen.add(k));
+    }
+  }
   for (let i = 0; i < doc.tracks.length; i++) {
     if (!isStemRecording(i)) continue;
     const t = doc.tracks[i];
@@ -81,6 +136,7 @@ export function stemsOnStop(at: number) {
   stopAsked = false;
   finishAsked.clear();
   for (let i = 0; i < doc.tracks.length; i++) if (isStemRecording(i)) finish(i, at);
+  if (isStemRecording(MASTER_STEM)) finishMaster(at);
 }
 
 /**

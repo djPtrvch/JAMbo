@@ -3210,15 +3210,25 @@ export function sliceNote(idx: number): number {
   return SAMPLE_ROOT + doc.root + 12 * Math.floor(idx / steps.length) + steps[idx % steps.length];
 }
 
-/** Нота маркера idx: назначенная или по порядку. */
-export const markNote = (m: SliceMark[], idx: number) => m[idx]?.note ?? sliceNote(idx);
-
-/** Маркер ноты note (−1 — нет): сначала маркер с назначенной нотой, потом — по порядку. */
-export function sliceOf(note: number, m: SliceMark[]): number {
-  const own = m.findIndex((v) => v.note === note);
-  if (own >= 0) return own;
-  return m.findIndex((v, k) => v.note === undefined && sliceNote(k) === note);
+/**
+ * Ноты маркеров (у каждого своя, двух одинаковых нет): назначенная — как есть; у остальных — по порядку
+ * (маркер k — sliceNote(k)), а если эта нота уже назначена другому маркеру — следующая свободная по порядку.
+ */
+export function sliceNotes(m: SliceMark[]): number[] {
+  const taken = new Set(m.flatMap((v) => (v.note === undefined ? [] : [v.note])));
+  let j = 0;
+  return m.map((v) => {
+    if (v.note !== undefined) { j++; return v.note; }
+    while (taken.has(sliceNote(j))) j++;
+    return sliceNote(j++);
+  });
 }
+
+/** Нота маркера idx. */
+export const markNote = (m: SliceMark[], idx: number) => sliceNotes(m)[idx];
+
+/** Маркер ноты note (−1 — нет). */
+export const sliceOf = (note: number, m: SliceMark[]) => sliceNotes(m).indexOf(note);
 
 function putMarks(t: Track, key: string, m: SliceMark[]) {
   const rest = { ...(t.slices ?? {}) };
@@ -3242,15 +3252,21 @@ export function deleteSlice(i: number, key: string, idx: number) {
   });
 }
 
-/** Назначить маркеру idx ноту note (удержание маркера + клавиша; одна запись в UNDO). */
-export function setSliceNote(i: number, key: string, idx: number, note: number) {
+/**
+ * Назначить маркеру idx ноту note (удержание маркера + клавиша; одна запись в UNDO). Нота уже у другого маркера —
+ * не назначается (false): у двух маркеров одной ноты не бывает.
+ */
+export function setSliceNote(i: number, key: string, idx: number, note: number): boolean {
+  const t = doc.tracks[i];
+  const m = sliceMarks(t, key);
+  if (!m[idx]) return false;
+  const notes = sliceNotes(m);
+  if (notes.some((n, k) => k !== idx && n === note)) return false;
   edit(() => {
-    const t = doc.tracks[i];
-    const m = sliceMarks(t, key);
-    if (!m[idx]) return;
     m[idx] = { ...m[idx], note };
     putMarks(t, key, m);
   });
+  return true;
 }
 
 /** Сдвинуть маркер idx (внутри жеста beginGesture/endGesture): между соседями. */
