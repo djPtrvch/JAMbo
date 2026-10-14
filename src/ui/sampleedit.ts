@@ -115,10 +115,12 @@ function mono() {
 
 /** Видимая часть сэмпла (доли длины): начало и ширина окна. */
 const view = { a: 0, span: 1 };
-/** Полоса прокрутки сверху (при увеличении), флажки маркеров — под ней. */
-const BAR_H = 4;
+/** Верхняя полоса (над формой волны): сверху полоса прокрутки (при увеличении), под ней флажки маркеров нарезки. */
+const TOP = 40;
+const BAR_H = 3;
+/** Флажок-пятиугольник: тело (с нотой) и острие вниз, к линии маркера. */
 const FLAG_Y = 8;
-const FLAG_H = 22;
+const FLAG_H = 18;
 /** Ручки маркеров обрезки — внизу. */
 const HANDLE = 22;
 /** Сдвиг пальца, после которого касание — жест (направление фиксируется), мм не тап. */
@@ -151,16 +153,15 @@ function marks(): number[] {
   return sliceMarks(doc.tracks[ui.selectedTrack], currentKey());
 }
 
-/** Прямоугольник флажка маркера (по x — от линии вправо; у правого края — влево). */
+/** Тело флажка маркера — по центру линии. */
 function flagRect(f: number, label: string): { x: number; w: number } {
-  const w = Math.max(30, label.length * 8 + 12);
-  const x = toX(f);
-  return { x: x + w > W ? x - w : x, w };
+  const w = Math.max(30, label.length * 8 + 10);
+  return { x: toX(f) - w / 2, w };
 }
 
 /** Флажок маркера под пальцем или −1. */
 function flagAt(x: number, y: number): number {
-  if (y > FLAG_Y + FLAG_H + 8) return -1;
+  if (y > TOP + 8) return -1;
   const m = marks();
   // Сверху — последний нарисованный (правее), зона попадания шире флажка на 6 px.
   for (let k = m.length - 1; k >= 0; k--) {
@@ -389,12 +390,17 @@ export function renderSampleEditor() {
   g.clearRect(0, 0, W, H);
   if (!buf) return;
 
+  // Верхняя полоса — под флажки маркеров и полосу прокрутки; форма волны — ниже.
+  g.fillStyle = color('--meter-track');
+  g.globalAlpha = 0.35;
+  g.fillRect(0, 0, W, TOP);
+  g.globalAlpha = 1;
   // Форма волны: каналы полосами (L сверху, R снизу), центр — линия.
   const e = envelope(key, buf, Math.max(1, Math.round(W)));
   const lanes = e.min.length;
-  const lh = H / lanes;
+  const lh = (H - TOP) / lanes;
   for (let c = 0; c < lanes; c++) {
-    const mid = lh * c + lh / 2;
+    const mid = TOP + lh * c + lh / 2;
     const amp = lh / 2 - 6;
     g.fillStyle = color('--ink');
     for (let x = 0; x < e.w; x++) {
@@ -407,19 +413,19 @@ export function renderSampleEditor() {
     if (lanes > 1) {
       g.fillStyle = color('--dim');
       g.font = '11px -apple-system, system-ui, sans-serif';
-      g.fillText(c ? 'R' : 'L', 8, lh * c + 16);
+      g.fillText(c ? 'R' : 'L', 8, TOP + lh * c + 16);
     }
   }
   // Отрезаемое — затемнено, маркеры обрезки — жёлтые линии с ручками внизу.
   const xa = toX(mark.a);
   const xb = toX(mark.b);
   g.fillStyle = color('--scrim');
-  if (xa > 0) g.fillRect(0, 0, Math.min(W, xa), H);
-  if (xb < W) g.fillRect(Math.max(0, xb), 0, W - Math.max(0, xb), H);
+  if (xa > 0) g.fillRect(0, TOP, Math.min(W, xa), H - TOP);
+  if (xb < W) g.fillRect(Math.max(0, xb), TOP, W - Math.max(0, xb), H - TOP);
   g.fillStyle = color('--accent');
   for (const [x, right] of [[xa, false], [xb, true]] as [number, boolean][]) {
     if (x < -HANDLE || x > W + HANDLE) continue;
-    g.fillRect(Math.round(x) - 1, 0, 2, H);
+    g.fillRect(Math.round(x) - 1, TOP, 2, H - TOP);
     g.fillRect(right ? x - HANDLE : x, H - HANDLE, HANDLE, HANDLE);
   }
   // Маркеры нарезки: линия и флажок с нотой (по SETTINGS → SAMPLER: хроматически или по гамме); тянут — жёлтый.
@@ -433,17 +439,28 @@ export function renderSampleEditor() {
     const r = flagRect(f, label);
     const c = held.has(k) ? color('--accent') : color('--ink');
     g.fillStyle = c;
-    g.fillRect(Math.round(x), FLAG_Y, 1, H - FLAG_Y);
-    g.fillRect(r.x, FLAG_Y, r.w, FLAG_H);
+    // Линия от острия флажка до низа; флажок — пятиугольник острием вниз, нота внутри.
+    const tip = TOP - 2;
+    g.fillRect(Math.round(x), tip, 1, H - tip);
+    g.beginPath();
+    g.moveTo(r.x, FLAG_Y);
+    g.lineTo(r.x + r.w, FLAG_Y);
+    g.lineTo(r.x + r.w, FLAG_Y + FLAG_H);
+    g.lineTo(x + 0.5, tip);
+    g.lineTo(r.x, FLAG_Y + FLAG_H);
+    g.closePath();
+    g.fill();
     g.fillStyle = color('--bg');
-    g.fillText(label, r.x + 6, FLAG_Y + FLAG_H / 2 + 1);
+    g.textAlign = 'center';
+    g.fillText(label, x + 0.5, FLAG_Y + FLAG_H / 2 + 1);
+    g.textAlign = 'left';
   });
   g.textBaseline = 'alphabetic';
   // Полоса прокрутки (при увеличении): видимая часть сэмпла — жёлтым.
   if (view.span < 1) {
     g.fillStyle = color('--meter-track');
-    g.fillRect(0, 0, W, BAR_H);
+    g.fillRect(0, 1, W, BAR_H);
     g.fillStyle = color('--accent');
-    g.fillRect(view.a * W, 0, Math.max(6, view.span * W), BAR_H);
+    g.fillRect(view.a * W, 1, Math.max(6, view.span * W), BAR_H);
   }
 }
