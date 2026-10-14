@@ -69,6 +69,7 @@ struct SequencerRow: View {
         }
         presses[id] = StepPress(col: col, index: index, t0: Date(), secondary: secondary)
         model.heldSteps.insert(index)
+        model.beginGesture()
     }
 
     private func move(_ id: SpatialEventCollection.Event.ID, _ p: StepPress, to col: Int) {
@@ -81,11 +82,16 @@ struct SequencerRow: View {
 
     private func finish(_ id: SpatialEventCollection.Event.ID, cancelled: Bool) {
         guard let p = presses.removeValue(forKey: id) else { return }
-        if !presses.values.contains(where: { $0.index == p.index }) { model.heldSteps.remove(p.index) }
+        let used: Bool = p.used || model.usedSteps.contains(p.index)
+        if !presses.values.contains(where: { $0.index == p.index }) {
+            model.heldSteps.remove(p.index)
+            model.usedSteps.remove(p.index)
+        }
+        defer { model.endGesture() }
         if cancelled { return }
         let quick: Bool = Date().timeIntervalSince(p.t0) < 0.35
         if quick && !p.dragged { lastTap[p.col] = Date() }
-        if quick && !p.dragged && !p.secondary && !p.used { model.toggleStep(p.index) }
+        if quick && !p.dragged && !p.secondary && !used { model.toggleStep(p.index) }
     }
 }
 

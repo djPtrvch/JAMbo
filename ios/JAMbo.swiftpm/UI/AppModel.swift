@@ -22,8 +22,14 @@ final class AppModel {
     private(set) var metronome: Bool = false
     private(set) var toneOn: Bool = false
     var showDiagnostics: Bool = false
-    /// Зажатые шаги (индекс p·16 + s) — белый контур.
+    /// Зажатые шаги (индекс p·16 + s) — белый контур; с ними ручки ставят p-lock.
     var heldSteps: Set<Int> = []
+    /// Зажатые шаги, на которых уже что-то сделали (p-lock) — триг на отпускании не переключается.
+    @ObservationIgnored var usedSteps: Set<Int> = []
+    /// Зажата SHIFT.
+    var shiftHeld: Bool = false
+    /// Скопированные страницы (copy в меню страницы).
+    @ObservationIgnored var pageClipboard: [[Step]]? = nil
     /// Октава пианоролла (по умолчанию со второй: C2) — нота трига, пока нот не выбрали.
     var octave: Int = 2
     private(set) var appearance: Appearance = AppModel.loadAppearance()
@@ -89,15 +95,69 @@ final class AppModel {
     func setBpm(_ value: Double) {
         let bpm: Double = min(Params.bpmMax, max(Params.bpmMin, (value * 10).rounded() / 10))
         if bpm == project.bpm { return }
-        project.bpm = bpm
+        edit { p in p.bpm = bpm }
         audio.core.events.push(.tempo(bpm))
     }
 
-    // MARK: — правки
+    // MARK: — правки и UNDO
 
-    private func edit(_ change: (inout Project) -> Void) {
+    @ObservationIgnored var history = History<Project>()
+    /// Есть что отменить или вернуть (для серых UNDO / REDO).
+    private(set) var canUndo: Bool = false
+    private(set) var canRedo: Bool = false
+
+    /// Дискретное действие: одна запись в UNDO (внутри жеста — запись в конце жеста).
+    func edit(_ change: (inout Project) -> Void) {
+        let before = project
         change(&project)
+        if project == before { return }
+        history.record(before: before, after: project)
+        changed()
+    }
+
+    /// Непрерывный жест (поворот ручки, протягивание, BPM): одна запись на весь жест.
+    func beginGesture() {
+        history.beginGesture(project)
+    }
+
+    func endGesture() {
+        history.endGesture(project)
+        refreshHistory()
+    }
+
+    func undo() {
+        guard let prev = history.undo(project) else { return }
+        restore(prev)
+    }
+
+    func redo() {
+        guard let next = history.redo(project) else { return }
+        restore(next)
+    }
+
+    /// Вернуть проект к снимку: что сейчас играет (остановленные дорожки), UNDO не меняет.
+    private func restore(_ snap: Project) {
+        var p = snap
+        for i in 0..<p.tracks.count {
+            if let cur = project.tracks.first(where: { $0.id == p.tracks[i].id }) { p.tracks[i].stopped = cur.stopped }
+        }
+        let bpmChanged = p.bpm != project.bpm
+        project = p
+        heldSteps.removeAll()
+        selectedTrack = min(selectedTrack, project.tracks.count - 1)
+        viewPage = min(viewPage, track.pages.count - 1)
+        if bpmChanged { audio.core.events.push(.tempo(project.bpm)) }
+        changed()
+    }
+
+    private func changed() {
         audio.core.publish(project)
+        refreshHistory()
+    }
+
+    private func refreshHistory() {
+        if canUndo != history.canUndo { canUndo = history.canUndo }
+        if canRedo != history.canRedo { canRedo = history.canRedo }
     }
 
     var track: Track { return project.tracks[selectedTrack] }
@@ -107,44 +167,10 @@ final class AppModel {
         return [12 * (octave + 1) + project.root]
     }
 
-    func toggleStep(_ index: Int) {
-        guard channel == .track else { return }
-        let notes = trigNotes
-        edit { p in
-            let pg = index / Params.stepsPerPage
-            let s = index % Params.stepsPerPage
-            var step = p.tracks[selectedTrack].pages[pg][s]
-            if step.on {
-                step = Step()
-            } else {
-                step.on = true
-                if step.notes.isEmpty { step.notes = notes }
-            }
-            p.tracks[selectedTrack].pages[pg][s] = step
-        }
-    }
-
-    /// Протягивание: триг на шаге index длиной len шагов.
-    func setNoteLength(_ index: Int, _ len: Int) {
-        guard channel == .track else { return }
-        let notes = trigNotes
-        edit { p in
-            let pg = index / Params.stepsPerPage
-            let s = index % Params.stepsPerPage
-            var step = p.tracks[selectedTrack].pages[pg][s]
-            if !step.on {
-                step.on = true
-                if step.notes.isEmpty { step.notes = notes }
-            }
-            step.len = max(1, len)
-            p.tracks[selectedTrack].pages[pg][s] = step
-        }
-    }
-
-    /// Удержание первого шага и двойной тап по другому: он становится последним шагом паттерна.
-    func setPatternLength(lastIndex: Int) {
-        guard channel == .track else { return }
-        edit { p in p.tracks[selectedTrack].length = lastIndex + 1 }
+    /// Правка выбранной дорожки.
+    func editTrack(_ change: (inout Track) -> Void) {
+        let i = selectedTrack
+        edit { p in change(&p.tracks[i]) }
     }
 
     func select(track i: Int) {

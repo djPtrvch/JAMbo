@@ -1,0 +1,121 @@
+import XCTest
+@testable import Core
+
+final class EditTests: XCTestCase {
+    func testHistoryUndoRedoAndGesture() {
+        var h = History<Int>()
+        var v = 1
+        h.record(before: v, after: 2); v = 2
+        h.record(before: v, after: 2) // без изменений — нет записи
+        h.beginGesture(v)
+        h.record(before: v, after: 3); v = 3 // внутри жеста — не пишется
+        v = 5
+        h.endGesture(v) // весь жест — одна запись (2 → 5)
+        XCTAssertEqual(h.undo(v), 2); v = 2
+        XCTAssertEqual(h.undo(v), 1); v = 1
+        XCTAssertNil(h.undo(v))
+        XCTAssertEqual(h.redo(v), 2); v = 2
+        h.record(before: v, after: 9); v = 9 // новое действие очищает REDO
+        XCTAssertFalse(h.canRedo)
+    }
+
+    func testHistoryLimit() {
+        var h = History<Int>()
+        for i in 0..<300 { h.record(before: i, after: i + 1) }
+        var v = 300
+        var n = 0
+        while let p = h.undo(v) { v = p; n += 1 }
+        XCTAssertEqual(n, 200)
+        XCTAssertEqual(v, 100)
+    }
+
+    private func trackWith(pages: Int) -> Track {
+        var t = Track(index: 0)
+        for _ in 1..<pages { t.addPage() }
+        return t
+    }
+
+    func testAddPageGrowsFullLengthAndPlayRange() {
+        var t = Track(index: 0)
+        t.addPage()
+        XCTAssertEqual(t.pages.count, 2)
+        XCTAssertEqual(t.length, 32, "при полной длине длина растёт")
+        XCTAssertEqual(t.playTo, 1, "играли все — играют все")
+        t.length = 20
+        t.setPlayPages(0, 0)
+        t.addPage()
+        XCTAssertEqual(t.length, 20)
+        XCTAssertEqual(t.playTo, 0)
+        for _ in 0..<10 { t.addPage() }
+        XCTAssertEqual(t.pages.count, Params.maxPages)
+    }
+
+    func testDuplicatePasteDelete() {
+        var t = trackWith(pages: 2)
+        t.pages[0][3].on = true
+        t.setPlayPages(0, 0)
+        XCTAssertTrue(t.duplicatePages(0))
+        XCTAssertEqual(t.pages.count, 3)
+        XCTAssertTrue(t.pages[1][3].on, "копия сразу за страницей")
+        let clip = t.copyPages(0)
+        t.pastePages(2, clip)
+        XCTAssertTrue(t.pages[2][3].on)
+        t.setPlayPages(1, 2)
+        XCTAssertTrue(t.deletePages(2), "удаляется весь играющий диапазон 1…2")
+        XCTAssertEqual(t.pages.count, 1)
+        XCTAssertEqual(t.playFrom, 0)
+        XCTAssertFalse(t.deletePages(0), "одна страница остаётся")
+    }
+
+    func testNudgeAcrossPagesAndOctave() {
+        var t = trackWith(pages: 2)
+        t.pages[0][15].on = true
+        t.pages[0][15].notes = [60]
+        t.setPlayPages(0, 1)
+        t.nudgePages(0, .right)
+        XCTAssertTrue(t.pages[1][0].on, "через границу страниц")
+        t.nudgePages(1, .left)
+        XCTAssertTrue(t.pages[0][15].on)
+        XCTAssertTrue(t.nudgePages(0, .up))
+        XCTAssertEqual(t.pages[0][15].notes, [72])
+        t.pages[0][15].notes = [120]
+        XCTAssertFalse(t.nudgePages(0, .up), "за 127 — без сдвига")
+        XCTAssertEqual(t.pages[0][15].notes, [120])
+    }
+
+    func testLocksAndToggle() {
+        var t = Track(index: 0)
+        t.toggleStep(2, notes: [36])
+        XCTAssertEqual(t.pages[0][2].notes, [36])
+        t.setLock(2, "filter", -40)
+        t.setLock(5, "pan", 10) // p-lock на пустом шаге
+        XCTAssertTrue(Track.hasManualLocks(t.pages[0][5]))
+        XCTAssertEqual(t.value("filter", step: t.pages[0][2]), -40)
+        t.clearLock(2, "filter")
+        XCTAssertEqual(t.value("filter", step: t.pages[0][2]), 0)
+        t.setLock(2, "pan", 5)
+        t.clearAllLocks()
+        XCTAssertTrue(t.pages[0][2].locks.isEmpty && t.pages[0][5].locks.isEmpty)
+        t.setLock(2, "pan", 5)
+        t.toggleStep(2, notes: [36])
+        XCTAssertEqual(t.pages[0][2], Step(), "снятый триг забывает p-lock")
+    }
+
+    func testTailAndParamScales() {
+        var t = trackWith(pages: 2)
+        t.pages[0][14].on = true
+        t.pages[0][14].len = 4
+        XCTAssertTrue(t.isTail(16), "хвост через границу страниц")
+        XCTAssertFalse(t.isTail(18))
+        let decay = Params.byId["decay"]!
+        XCTAssertEqual(decay.fromNorm(decay.toNorm(500)), 500, accuracy: 1e-9)
+        XCTAssertEqual(decay.fromNorm(0.5), 500, accuracy: 1e-9, "кубическая шкала: середина — 500 ms")
+        let ratchet = Params.byId["ratchet"]!
+        XCTAssertEqual(ratchet.fromNorm(0.4), 1)
+        XCTAssertEqual(ratchet.format(3), "4")
+        XCTAssertEqual(Params.byId["filter"]!.format(0), "OFF")
+        XCTAssertEqual(Params.byId["pan"]!.format(-10), "L10")
+        XCTAssertEqual(Params.trackGrid[0].id, "pitch")
+        XCTAssertEqual(Params.trackGrid[1].id, "attack", "сетка — ряд за рядом")
+    }
+}

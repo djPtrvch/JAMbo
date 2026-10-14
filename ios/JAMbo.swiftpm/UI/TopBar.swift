@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Верхняя панель: меню, BPM, метроном | SCALE, ROOT, UNDO, PLAY, REC, REDO, AUTO, EQ | PATTERNS, ARRANGE, CPU.
-/// В S1a работают меню, BPM, метроном и PLAY; остальные — на своих местах, серые (S1b–S5).
+/// Работают меню, BPM, метроном, UNDO, PLAY, REDO; остальные — на своих местах, серые (S1c–S5).
 struct TopBar: View {
     let model: AppModel
     @Binding var menuOpen: Bool
@@ -29,10 +29,12 @@ struct TopBar: View {
         return HStack(spacing: Layout.gap) {
             TopField(label: "SCALE", value: "Min").frame(width: Layout.topButton)
             TopField(label: "ROOT", value: "C")
-            TopIcon(symbol: "arrow.uturn.backward").frame(width: Layout.topButton)
+            HistoryButton(symbol: "arrow.uturn.backward", enabled: model.canUndo) { model.undo() }
+                .frame(width: Layout.topButton)
             PlayButton(model: model).frame(width: half)
             TopIcon(symbol: "circle.fill", tint: .rec).frame(width: half)
-            TopIcon(symbol: "arrow.uturn.forward").frame(width: Layout.topButton)
+            HistoryButton(symbol: "arrow.uturn.forward", enabled: model.canRedo) { model.redo() }
+                .frame(width: Layout.topButton)
             TopIcon(symbol: "waveform.path")
             TopText(title: "EQ").frame(width: Layout.topButton)
         }
@@ -143,5 +145,23 @@ struct MetronomeButton: View {
             .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(on ? theme.text : Color.clear, lineWidth: 1))
             .contentShape(Rectangle())
             .onTapGesture { model.toggleMetronome() }
+    }
+}
+
+/// UNDO / REDO: закруглённая стрелка; нечего отменять или возвращать — серая.
+struct HistoryButton: View {
+    let symbol: String
+    let enabled: Bool
+    let action: () -> Void
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        Image(systemName: symbol)
+            .font(.system(size: 18, weight: .semibold))
+            .foregroundStyle(enabled ? theme.text : theme.off)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
+            .contentShape(Rectangle())
+            .onTapGesture { action() }
     }
 }

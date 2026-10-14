@@ -17,7 +17,7 @@ struct Layout {
     let width: CGFloat
 
     /// Ширина шага секвенсора (16 шагов с зазором 4) — и столбцов MIX и MST.
-    var step: CGFloat { return (width - 15 * Layout.stepGap) / 16 }
+    var step: CGFloat { return max(1, (width - 15 * Layout.stepGap) / 16) }
     /// Высота пианоролла: квадратная клавиша + строка аккордов 44 px (S1c).
     var pianoHeight: CGFloat { return step + 50 }
 }

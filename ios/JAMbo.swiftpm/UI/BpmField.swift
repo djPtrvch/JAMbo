@@ -53,11 +53,13 @@ struct BpmField: View {
             .onEnded { _ in
                 start = nil
                 holdTask?.cancel()
+                model.endGesture()
             }
     }
 
     private func begin() {
         model.ensureAudio()
+        model.beginGesture()
         start = model.project.bpm
         moved = false
         holdTask?.cancel()

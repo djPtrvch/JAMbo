@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Главный экран (сверху вниз, как в вебе): верхняя панель, центр, строка дорожек, секвенсор, пианоролл.
-/// S1a: центр и пианоролл — заглушки (сетка ручек — S1b, пианоролл — S1c).
+/// Пианоролл — заглушка до S1c.
 struct RootView: View {
     let model: AppModel
     @State private var menuOpen: Bool = false
@@ -21,13 +21,23 @@ struct RootView: View {
     private func screen(_ layout: Layout) -> some View {
         VStack(spacing: Layout.gap) {
             TopBar(model: model, menuOpen: $menuOpen)
-            Placeholder(title: "KNOBS · S1b")
+            center
             TrackRow(model: model, layout: layout)
             SequencerRow(model: model)
             Placeholder(title: "PIANO ROLL · S1c").frame(height: layout.pianoHeight)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
+    }
+
+    /// Центр: левая колонка | сетка ручек | правая колонка | измеритель.
+    private var center: some View {
+        HStack(spacing: Layout.gap) {
+            LeftColumn().frame(width: Layout.leftColumn)
+            KnobGrid(model: model)
+            RightColumn(model: model).frame(width: Layout.leftColumn)
+            MeterColumn()
+        }
     }
 
     @ViewBuilder
