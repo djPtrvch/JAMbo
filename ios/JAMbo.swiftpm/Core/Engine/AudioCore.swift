@@ -39,7 +39,8 @@ public final class AudioCore: @unchecked Sendable {
     }
 
     @inline(__always)
-    public func render(frames: Int, left: UnsafeMutablePointer<Float>, right: UnsafeMutablePointer<Float>) {
+    /// host — время хоста (с), когда этот блок начнёт звучать (для записи нот с REC); в тестах 0.
+    public func render(frames: Int, left: UnsafeMutablePointer<Float>, right: UnsafeMutablePointer<Float>, host: Double = 0) {
         while let event = events.pop() {
             apply(event)
         }
@@ -47,7 +48,7 @@ public final class AudioCore: @unchecked Sendable {
         left.update(repeating: 0, count: frames)
         right.update(repeating: 0, count: frames)
         tone.render(frames: frames, left: left, right: right)
-        sequencer.process(blockStart: sampleTime, frames: frames, left: left, right: right)
+        sequencer.process(blockStart: sampleTime, frames: frames, left: left, right: right, host: host)
         sampleTime += Int64(frames)
         frameCounter.store(Int(sampleTime))
     }

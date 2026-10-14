@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Главный экран (сверху вниз, как в вебе): верхняя панель, центр, строка дорожек, секвенсор, пианоролл.
-/// Пианоролл — заглушка до S1c.
+
 struct RootView: View {
     let model: AppModel
     @State private var menuOpen: Bool = false
@@ -14,7 +14,14 @@ struct RootView: View {
                 theme.bg.ignoresSafeArea()
                 screen(layout)
                 overlays
+                if let c = model.choice {
+                    ChoiceMenu(model: model, state: c, screen: geo.size)
+                }
+                if model.pianoMenuOpen {
+                    PianoMenu(model: model, layout: layout, screen: geo.size)
+                }
             }
+            .coordinateSpace(name: "root")
         }
     }
 
@@ -24,7 +31,7 @@ struct RootView: View {
             center
             TrackRow(model: model, layout: layout)
             SequencerRow(model: model)
-            Placeholder(title: "PIANO ROLL · S1c").frame(height: layout.pianoHeight)
+            PianoRoll(model: model, layout: layout)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

@@ -15,6 +15,8 @@ public enum SeqOut: Sendable {
 
 public final class Sequencer {
     public let out = SPSCQueue<SeqOut>(capacity: 4096, filler: .none)
+    /// Ход транспорта для интерфейса (запись нот с REC).
+    public let clock = PlayClock()
     public private(set) var playing = false
     public private(set) var tick = 0
     public var metronome = false
@@ -78,7 +80,8 @@ public final class Sequencer {
     }
 
     /// Блок [blockStart, blockStart + frames): шаги, ноты и щелчки, попавшие в него; щелчок прибавляется к left/right.
-    public func process(blockStart: Int64, frames: Int, left: UnsafeMutablePointer<Float>, right: UnsafeMutablePointer<Float>) {
+    public func process(blockStart: Int64, frames: Int, left: UnsafeMutablePointer<Float>, right: UnsafeMutablePointer<Float>,
+                        host: Double = 0) {
         let end = Double(blockStart + Int64(frames))
         if playing, let d = data {
             var guardSteps = 0
@@ -90,6 +93,14 @@ public final class Sequencer {
         }
         firePending(before: end)
         click.render(blockStart: blockStart, frames: frames, left: left, right: right)
+        var st = PlayClock.State()
+        st.playing = playing
+        st.nextTick = tick
+        st.nextFrame = stepFrame(tick)
+        st.stepFrames = 60 / tempo.tempo / TempoGrid.stepsPerBeat * sampleRate
+        st.blockFrame = Double(blockStart)
+        st.blockHost = host
+        clock.write(st)
     }
 
     private func playStep(_ d: SeqData, at time: Double) {

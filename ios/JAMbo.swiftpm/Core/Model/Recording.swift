@@ -1,0 +1,52 @@
+// Запись нот с REC (как recordNotes, recordLength, recPassStep в state.ts веба) — правки шагов дорожки.
+
+extension Track {
+    /// Ноты на шаг index. merge — добавить к записанным на этом шаге в том же дубле; overdub — к стоящим.
+    /// velocity (0.2…1) — p-lock Level шага (аккорд в один шаг — по самой сильной ноте).
+    public mutating func recordNotes(_ index: Int, _ notes: [Int], merge: Bool, overdub: Bool, velocity: Double?) {
+        let level: Double = params["level"] ?? 127
+        withStep(index) { s in
+            let merged: Bool = (merge || overdub) && s.on
+            s.notes = merged ? Array(Set(s.notes + notes)).sorted() : notes
+            s.on = true
+            s.len = 1
+            if let v = velocity {
+                let lv: Double = (level * v).rounded()
+                if merged, let old = s.locks["level"] { s.locks["level"] = Swift.max(old, lv) } else { s.locks["level"] = lv }
+            }
+        }
+    }
+
+    /// Отпустили клавишу: длина записанной ноты (в шагах, не меньше 1, не дальше конца паттерна).
+    public mutating func recordLength(_ index: Int, _ len: Int) {
+        let maxLen = length - index
+        withStep(index) { s in
+            if !s.on { return }
+            s.len = Swift.max(s.len, Swift.min(len, maxLen))
+        }
+    }
+
+    /// OVERDUB OFF: шаг, по которому проходит запись, очищается (триг, ноты, p-lock, свой звук).
+    /// false — шаг и так пустой.
+    @discardableResult
+    public mutating func clearPassStep(_ index: Int) -> Bool {
+        guard let s = step(index), s.on || s.sound != nil || !s.locks.isEmpty else { return false }
+        withStep(index) { $0 = Step() }
+        return true
+    }
+}
+
+/// Шаг записи по времени: k = tick + (кадр − кадр следующего шага) / длина шага, с округлением (QUANTIZE)
+/// или вниз — на шаг, в котором нажали.
+public enum RecordClock {
+    public static func tick(frame: Double, nextTick: Int, nextFrame: Double, stepFrames: Double, quantize: Bool) -> Int {
+        let d: Double = (frame - nextFrame) / stepFrames
+        let k: Double = quantize ? d.rounded() : d.rounded(.down)
+        return Swift.max(0, nextTick + Int(k))
+    }
+
+    /// Длина ноты в шагах по времени удержания.
+    public static func length(seconds: Double, stepSeconds: Double) -> Int {
+        return Swift.max(1, Int((seconds / stepSeconds).rounded()))
+    }
+}

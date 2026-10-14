@@ -64,14 +64,18 @@ final class AudioHost {
         guard let format = AVAudioFormat(standardFormatWithSampleRate: AudioCore.sampleRate, channels: 2) else { return }
         let core = self.core
         let clock = HostClock()
-        let node = AVAudioSourceNode(format: format) { _, _, frameCount, bufferList -> OSStatus in
+        let node = AVAudioSourceNode(format: format) { _, timestamp, frameCount, bufferList -> OSStatus in
             let start = mach_absolute_time()
+            // Время хоста, когда блок начнёт звучать (без задержки выхода — её добавляет интерфейс).
+            let valid: Bool = timestamp.pointee.mFlags.contains(.hostTimeValid)
+            let hostTicks: UInt64 = valid ? timestamp.pointee.mHostTime : start
+            let host: Double = clock.nanoseconds(hostTicks) / 1e9
             let buffers = UnsafeMutableAudioBufferListPointer(bufferList)
             let frames = Int(frameCount)
             if buffers.count >= 2,
                let left = buffers[0].mData?.assumingMemoryBound(to: Float.self),
                let right = buffers[1].mData?.assumingMemoryBound(to: Float.self) {
-                core.render(frames: frames, left: left, right: right)
+                core.render(frames: frames, left: left, right: right, host: host)
             }
             let elapsed: UInt64 = mach_absolute_time() - start
             core.cpu.measure(ns: clock.nanoseconds(elapsed), frames: frames)
@@ -86,6 +90,15 @@ final class AudioHost {
         guard let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
               let type = AVAudioSession.InterruptionType(rawValue: raw) else { return }
         if type == .ended { start() }
+    }
+
+    /// Время хоста сейчас (с) и задержка выхода (с) — для записи нот: что слышно сейчас.
+    func hostNow() -> Double {
+        return HostClock().now()
+    }
+
+    var outputLatency: Double {
+        return AVAudioSession.sharedInstance().outputLatency
     }
 
     /// Фактическое состояние звука — строка «Now:» в DIAGNOSTICS.
@@ -103,6 +116,11 @@ final class AudioHost {
 
 /// Перевод тиков mach_absolute_time в наносекунды (без выделений — годится для колбэка).
 struct HostClock {
+    /// Сейчас, секунды хоста (та же шкала, что host у блока).
+    func now() -> Double {
+        return nanoseconds(mach_absolute_time()) / 1e9
+    }
+
     private let scale: Double
 
     init() {

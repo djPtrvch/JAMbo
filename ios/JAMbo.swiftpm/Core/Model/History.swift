@@ -7,6 +7,9 @@ public struct History<T: Equatable> {
     private var redoStack: [T] = []
     private var gestureDepth = 0
     private var gestureStart: T?
+    /// Растёт при каждом изменении стеков (новая запись, UNDO, REDO) — дубль записи с REC продолжается,
+    /// пока между нотами не было других действий.
+    public private(set) var serial: Int = 0
 
     public init() {}
 
@@ -38,12 +41,14 @@ public struct History<T: Equatable> {
     /// UNDO: вернуть прежнее состояние (current уходит в REDO); nil — нечего отменять.
     public mutating func undo(_ current: T) -> T? {
         guard let prev = undoStack.popLast() else { return nil }
+        serial += 1
         redoStack.append(current)
         return prev
     }
 
     public mutating func redo(_ current: T) -> T? {
         guard let next = redoStack.popLast() else { return nil }
+        serial += 1
         undoStack.append(current)
         return next
     }
@@ -57,6 +62,7 @@ public struct History<T: Equatable> {
     }
 
     private mutating func push(_ state: T) {
+        serial += 1
         redoStack.removeAll()
         undoStack.append(state)
         if undoStack.count > History.limit { undoStack.removeFirst() }

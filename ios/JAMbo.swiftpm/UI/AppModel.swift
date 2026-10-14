@@ -33,7 +33,27 @@ final class AppModel {
     /// Скопированные страницы (copy в меню страницы).
     @ObservationIgnored var pageClipboard: [[Step]]? = nil
     /// Октава пианоролла (по умолчанию со второй: C2) — нота трига, пока нот не выбрали.
-    var octave: Int = 2
+    var octave: Int = Scales.octaveDef
+    /// Настройки приложения (пианоролл, запись) — в UserDefaults, общие для проектов.
+    private(set) var settings: AppSettings = AppModel.loadSettings()
+    /// REC: ноты пианоролла пишутся в секвенсор, пока идёт игра.
+    var recOn: Bool = false
+    /// У каждой дорожки свои режим аккордов, прогрессия и выбранные ноты (не в проекте).
+    var chordMode: [Bool] = [Bool](repeating: false, count: Params.maxTracks)
+    var progression: [Int] = [Int](repeating: 0, count: Params.maxTracks)
+    var selNotes: [[Int]] = [[Int]](repeating: [], count: Params.maxTracks)
+    /// Зажатые клавиши и аккорды: касание → ноты.
+    var pressedKeys: [Int: [Int]] = [:]
+    /// Открытое меню выбора (SCALE, ROOT, PROGRESSION) и меню пианоролла.
+    var choice: ChoiceState? = nil
+    var pianoMenuOpen: Bool = false
+    /// Дубль записи: номер истории после первой ноты (−1 — дубля нет), дорожки и записанные шаги дубля.
+    @ObservationIgnored var recTake: Int = -1
+    @ObservationIgnored var takeTracks: Set<Int> = []
+    @ObservationIgnored var takeWritten: Set<Int> = []
+    @ObservationIgnored var lastRec: (track: Int, tick: Int) = (-1, -1)
+    /// Зажатые клавиши: дорожка, ноты, записанный шаг (длина — при отпускании) и время нажатия.
+    @ObservationIgnored var keyHolds: [Int: KeyHold] = [:]
     private(set) var appearance: Appearance = AppModel.loadAppearance()
     private var audioStarted: Bool = false
     @ObservationIgnored private var pump: Timer?
@@ -76,7 +96,9 @@ final class AppModel {
     /// Сообщения колбэка → состояние интерфейса (60 раз в секунду).
     private func drain() {
         audio.core.releaseRetired()
-        live.drain(audio.core.sequencer.out, now: Date.timeIntervalSinceReferenceDate)
+        live.drain(audio.core.sequencer.out, now: Date.timeIntervalSinceReferenceDate) { [weak self] t, pos in
+            self?.recPassStep(t, pos)
+        }
     }
 
     // MARK: — транспорт
@@ -84,6 +106,7 @@ final class AppModel {
     func togglePlay() {
         ensureAudio()
         playing.toggle()
+        endRecTake()
         live.stopped()
         audio.core.events.push(.play(playing))
     }
@@ -115,6 +138,12 @@ final class AppModel {
         if project == before { return }
         history.record(before: before, after: project)
         changed()
+    }
+
+    /// Правка без новой записи в UNDO (продолжение дубля записи — UNDO отменяет весь дубль).
+    func applyInTake(_ change: (inout Project) -> Void) {
+        change(&project)
+        audio.core.publish(project)
     }
 
     /// Непрерывный жест (поворот ручки, протягивание, BPM): одна запись на весь жест.
@@ -152,7 +181,7 @@ final class AppModel {
         changed()
     }
 
-    private func changed() {
+    func changed() {
         audio.core.publish(project)
         refreshHistory()
     }
@@ -166,7 +195,8 @@ final class AppModel {
 
     /// Ноты трига: выбранные в пианоролле (S1c), иначе корневая нота октавы.
     var trigNotes: [Int] {
-        return [12 * (octave + 1) + project.root]
+        let sel = selNotes[selectedTrack]
+        return sel.isEmpty ? [Scales.baseNote(root: project.root, octave: octave)] : sel.sorted()
     }
 
     /// Правка выбранной дорожки.
@@ -209,6 +239,15 @@ final class AppModel {
         UserDefaults.standard.set(value.rawValue, forKey: "appearance")
     }
 
+    func updateSettings(_ change: (inout AppSettings) -> Void) {
+        change(&settings)
+        UserDefaults.standard.set(settings.encode(), forKey: "settings")
+    }
+
+    private static func loadSettings() -> AppSettings {
+        return AppSettings.decode(UserDefaults.standard.data(forKey: "settings"))
+    }
+
     private static func loadAppearance() -> Appearance {
         let raw = UserDefaults.standard.string(forKey: "appearance") ?? ""
         return Appearance(rawValue: raw) ?? .system
@@ -227,13 +266,14 @@ final class LiveState {
     @ObservationIgnored private var flashUntil: [Double] = [Double](repeating: 0, count: Params.maxTracks)
     @ObservationIgnored private var beatUntil: Double = 0
 
-    func drain(_ queue: SPSCQueue<SeqOut>, now: Double) {
+    func drain(_ queue: SPSCQueue<SeqOut>, now: Double, onStep: (Int, Int) -> Void) {
         while let e = queue.pop() {
             switch e {
             case .none:
                 break
             case .step(let t, let pos):
                 if playPos[t] != pos { playPos[t] = pos }
+                if pos >= 0 { onStep(t, pos) }
             case .trig(let t, _):
                 flashUntil[t] = now + 0.09
                 if !flashing[t] { flashing[t] = true }

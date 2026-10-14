@@ -27,12 +27,12 @@ struct TopBar: View {
     private var middle: some View {
         let half: CGFloat = (Layout.topButton - Layout.gap) / 2
         return HStack(spacing: Layout.gap) {
-            TopField(label: "SCALE", value: "Min").frame(width: Layout.topButton)
-            TopField(label: "ROOT", value: "C")
+            ScaleField(model: model).frame(width: Layout.topButton)
+            RootField(model: model)
             HistoryButton(symbol: "arrow.uturn.backward", enabled: model.canUndo) { model.undo() }
                 .frame(width: Layout.topButton)
             PlayButton(model: model).frame(width: half)
-            TopIcon(symbol: "circle.fill", tint: .rec).frame(width: half)
+            RecButton(model: model).frame(width: half)
             HistoryButton(symbol: "arrow.uturn.forward", enabled: model.canRedo) { model.redo() }
                 .frame(width: Layout.topButton)
             TopIcon(symbol: "waveform.path")
@@ -163,5 +163,52 @@ struct HistoryButton: View {
             .background(theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
             .contentShape(Rectangle())
             .onTapGesture { action() }
+    }
+}
+
+/// SCALE: палец вверх-вниз — 24 px на гамму; тап — меню (3 столбца).
+struct ScaleField: View {
+    let model: AppModel
+
+    var body: some View {
+        let names: [String] = Scales.all.map { $0.name }
+        let i: Int = model.project.scale
+        return DragField(label: "SCALE", value: names[i], pxPerUnit: 24,
+                         get: { Double(model.project.scale) }, set: { model.setScale(Int($0)) },
+                         tap: { frame in model.choice = ChoiceState(options: names, columns: 3, current: i, anchor: frame,
+                                                                     pick: { model.setScale($0) }) },
+                         model: model)
+    }
+}
+
+/// ROOT: палец вверх-вниз — 24 px на полутон; тап — меню (4 столбца).
+struct RootField: View {
+    let model: AppModel
+
+    var body: some View {
+        let i: Int = model.project.root
+        return DragField(label: "ROOT", value: Params.noteNames[i], pxPerUnit: 24,
+                         get: { Double(model.project.root) }, set: { model.setRoot(Int($0)) },
+                         tap: { frame in model.choice = ChoiceState(options: Params.noteNames, columns: 4, current: i, anchor: frame,
+                                                                     pick: { model.setRoot($0) }) },
+                         model: model)
+    }
+}
+
+/// REC: красная точка, красная окантовка; включена — горит красным.
+struct RecButton: View {
+    let model: AppModel
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let on: Bool = model.recOn
+        return Image(systemName: "circle.fill")
+            .font(.system(size: 12, weight: .bold))
+            .foregroundStyle(on ? Color.white : theme.rec)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(on ? theme.rec : theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
+            .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(theme.rec, lineWidth: 1))
+            .contentShape(Rectangle())
+            .onTapGesture { model.toggleRec() }
     }
 }
