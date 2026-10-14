@@ -1168,3 +1168,8 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 /* Окно клиппера: TRANSFER (не шире 35 %) | DISPLAY | блок CLIP; поля и кнопки — в верхней строке. */
 .clip-transfer { flex: 0 1 35%; max-width: 35%; touch-action: none; }
 .lim-strip .lim-field.off .field-value, .lim-strip .lim-field.off .field-label { color: var(--dim); opacity: 0.6; }
+
+/* Окно сатуратора: TRANSFER (не шире 35 %) | DISPLAY — WAVE сверху, SPECTRUM снизу (равные половины). */
+.sat-transfer { flex: 0 1 35%; max-width: 35%; touch-action: none; }
+.sat-display { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--gap); }
+.sat-half { flex: 1; min-height: 120px; touch-action: none; }

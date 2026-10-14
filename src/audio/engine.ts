@@ -308,6 +308,14 @@ export const limTele = makeTele();
 export const compTele = makeTele();
 /** Телеметрия клиппера: [пик после INPUT, срез (dB), пик выхода] — окно клиппера (LEVEL) и блок CLIP. */
 export const clipTele = makeTele();
+/**
+ * Телеметрия сатуратора (только при открытом окне): раз в 256 отсчётов мин./макс. входа и выхода (WAVE) и точка
+ * TRANSFER (вход — отсчёт с наибольшим модулем, выход — кривая для него). Кольцо LIM_TELE кадров.
+ */
+export const satTele = {
+  inLo: new Float32Array(LIM_TELE), inHi: new Float32Array(LIM_TELE), outLo: new Float32Array(LIM_TELE), outHi: new Float32Array(LIM_TELE),
+  n: 0, at: 0, px: 0, py: 0,
+};
 /** Снимок формы клиппера (вид WAVE): 1024 отсчёта входа после INPUT и выхода, канал (0 — L, 1 — R), время прихода. */
 export const clipWave = { inp: new Float32Array(1024), out: new Float32Array(1024), ch: 0, at: 0, n: 0 };
 /** Кадров телеметрии на секунду. */
@@ -338,6 +346,15 @@ function loadDevice(c: AudioContext, file: string, name: string, from: GainNode,
     });
     node.port.onmessage = (e) => {
       if (name === 'glue') { const [i, d, g, o] = e.data as number[]; teleFrame(compTele, levels, i, g, o, d); return; }
+      if (name === 'saturator') {
+        const [a, b, c2, d, px, py] = e.data as number[];
+        const t = satTele;
+        const q = t.n % LIM_TELE;
+        t.inLo[q] = a; t.inHi[q] = b; t.outLo[q] = c2; t.outHi[q] = d; t.px = px; t.py = py;
+        t.n++;
+        t.at = performance.now();
+        return;
+      }
       if (name === 'clipper' && e.data && (e.data as { wave?: boolean }).wave) {
         const w = e.data as { inp: Float32Array<ArrayBuffer>; out: Float32Array<ArrayBuffer>; ch: number };
         clipWave.inp = w.inp; clipWave.out = w.out; clipWave.ch = w.ch; clipWave.at = performance.now(); clipWave.n++;
@@ -367,7 +384,12 @@ function sendDynamics() {
   const auto = (v: number) => (isAuto(v) ? { rel: 400, auto: true } : { rel: v, auto: false });
   if (mst.sat) {
     // BYPASS сатуратора — MIX 0: worklet за 20 мс уходит в сухой сигнал (с той же задержкой) — без щелчка.
-    const msg = { drive: m['sat.drive'], type: Math.round(m['sat.type']), tone: m['sat.tone'], mix: doc.satBypass ? 0 : m['sat.mix'] };
+    const msg = {
+      drive: m['sat.drive'], type: Math.round(m['sat.type']), tone: m['sat.tone'], mix: doc.satBypass ? 0 : m['sat.mix'],
+      bias: m['sat.bias'] ?? 0, focus: m['sat.focus'] ?? 20, out: m['sat.out'] ?? 0, auto: (m['sat.auto'] ?? 1) >= 0.5,
+      // Телеметрия — только пока открыто окно сатуратора.
+      meter: ui.satView,
+    };
     const sig = JSON.stringify(msg);
     if (sig !== satSig) { satSig = sig; mst.sat.port.postMessage(msg); }
   }
@@ -446,6 +468,7 @@ export async function restartAudio() {
   jamboReady = false;
   scopePre = scopePost = null;
   outScope = null;
+  satScope = null;
   scopeOn = null;
   fxSig = '';
   reverbModule = null;
@@ -1191,7 +1214,7 @@ function updateFx(now: number) {
   // Глубины sidechain — от ручек дорожек (не входят в подпись FX): проверяются каждый кадр.
   updateDuckDepths(ct, Math.round(fx['sc.source']));
 
-  const fsig = JSON.stringify([fx, mixer, master, doc.limBypass, doc.cmpBypass, doc.clipBypass, doc.satBypass, doc.bpm, ui.limView, ui.limUnity, ui.limAudit, ui.compView, ui.compAudit, ui.clipView, ui.clipUnity, ui.clipAudit, settings.clipDisplay, ui.channel === 'master', doc.tracks.map((t) => +t.mute + 2 * +t.solo)]);
+  const fsig = JSON.stringify([fx, mixer, master, doc.limBypass, doc.cmpBypass, doc.clipBypass, doc.satBypass, doc.bpm, ui.limView, ui.limUnity, ui.limAudit, ui.compView, ui.compAudit, ui.clipView, ui.clipUnity, ui.clipAudit, ui.satView, settings.clipDisplay, ui.channel === 'master', doc.tracks.map((t) => +t.mute + 2 * +t.solo)]);
   if (fsig === fxSig) return;
   fxSig = fsig;
   rev.set(fx, ct);
@@ -1413,6 +1436,29 @@ export function setOutScope(on: boolean) {
     outScope = null;
   }
 }
+/** Спектр входа и выхода сатуратора (окно сатуратора): анализаторы — только пока окно открыто. */
+let satScope: { pre: AnalyserNode; post: AnalyserNode } | null = null;
+export function setSatScope(on: boolean) {
+  if (!ctx || !mst) return;
+  if (on && !satScope) {
+    const mk = () => { const a = ctx!.createAnalyser(); a.fftSize = 4096; a.smoothingTimeConstant = 0.8; a.minDecibels = -120; a.maxDecibels = 0; return a; };
+    satScope = { pre: mk(), post: mk() };
+    // Вход — satIn, выход — glueIn (сатуратор стоит между ними).
+    mst.satIn.connect(satScope.pre);
+    mst.glueIn.connect(satScope.post);
+  } else if (!on && satScope) {
+    mst.satIn.disconnect(satScope.pre);
+    mst.glueIn.disconnect(satScope.post);
+    satScope = null;
+  }
+}
+export function satSpectrum(pre: Float32Array<ArrayBuffer>, post: Float32Array<ArrayBuffer>): boolean {
+  if (!satScope) return false;
+  satScope.pre.getFloatFrequencyData(pre);
+  satScope.post.getFloatFrequencyData(post);
+  return true;
+}
+
 export function outSpectrum(out: Float32Array<ArrayBuffer>): boolean {
   if (!outScope) return false;
   outScope.getFloatFrequencyData(out);

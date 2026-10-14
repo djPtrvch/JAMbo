@@ -3,7 +3,12 @@
 // (с антипроизводной — меньше алиасинга) ÷ компенсация громкости → обратно → фильтр DC (TUBE) →
 // TONE (low shelf + high shelf на 1 kHz) → смесь с сухим сигналом (MIX · smoothstep(DRIVE, 0…1 dB)).
 // Сухой сигнал задержан на задержку оверсэмплера (целое число отсчётов) — фазы совпадают при MIX.
-// Индикации нет.
+// Окно сатуратора: BIAS (u → u + b до кривой, после неё − кривая(b); при b ≠ 0 — фильтр DC у всех типов),
+// FOCUS (однополюсное разбиение x = LP + HP на частоте FOCUS: кривая — только на HP, LP добавляется чистым
+// с той же задержкой; 20 Hz — без разбиения), OUTPUT (после компенсации), AUTO (OFF — без компенсации).
+// Телеметрия (пока { meter: true }, только при открытом окне): раз в 256 отсчётов
+// [мин. входа, макс. входа, мин. выхода, макс. выхода, вход точки, выход точки] — точка: отсчёт входа
+// с наибольшим модулем и выход кривой для него (как на графике TRANSFER).
 
 // ---------- Константы (одно место) ----------
 const TUBE_BIAS = 0.35;
@@ -28,6 +33,9 @@ const TINY = 1e-25;
 /** Выход из покоя (DRIVE или MIX был 0): буферы оверсэмплера заполняются, потом обработка входит за WARM_RAMP_MS. */
 const WARM_SAMPLES = 40;
 const WARM_RAMP_MS = 5;
+/** FOCUS: на этой частоте и ниже — без разбиения на полосы. */
+const FOCUS_OFF_HZ = 20;
+const METER_FRAMES = 256;
 
 /** Оверсэмплер — общий модуль (oversampler.js, загружается раньше). */
 const { OVERSAMPLE, FIR_LEN, PHASE_LEN, PHASES, PH0_DELAY, PH0_GAIN, DEC_C, DEC_HALF, DEC_MID } = globalThis.JamboOversampler;
@@ -198,6 +206,8 @@ class Channel {
     this.dcY = 0;
     this.lo = new Float64Array(2);
     this.hi = new Float64Array(2);
+    this.lp = 0; // однополюсный ФНЧ FOCUS
+    this.lpDelay = new Float64Array(DRY_DELAY); // НЧ FOCUS — с задержкой обработанной ветки
   }
 }
 
@@ -206,7 +216,17 @@ class SaturatorProcessor extends AudioWorkletProcessor {
     super();
     const sr = sampleRate;
     this.sr = sr;
-    this.p = { drive: 0, type: 0, tone: 0, mix: 100 };
+    this.p = { drive: 0, type: 0, tone: 0, mix: 100, bias: 0, focus: FOCUS_OFF_HZ, out: 0, auto: true, meter: false };
+    this.bias = 0;
+    this.dcOn = 0; // доля фильтра DC от BIAS (у TUBE он есть всегда)
+    this.outDb = 0;
+    this.auto = 1;
+    this.focus = FOCUS_OFF_HZ;
+    this.split = 0; // доля разбиения FOCUS (0 — OFF)
+    this.kLp = 0;
+    this.splitStep = 1 / ((PARAM_SMOOTH_MS / 1000) * sr);
+    this.meterN = 0;
+    this.mInLo = 0; this.mInHi = 0; this.mOutLo = 0; this.mOutHi = 0; this.mPt = 0;
     this.driveDb = 0;
     this.mix = 1;
     this.toneDb = 0;
@@ -228,7 +248,7 @@ class SaturatorProcessor extends AudioWorkletProcessor {
   }
 
   /** Отсчёт (уже · g) → 4 отсчёта нелинейности (смесь кривых a — старая, b — новая) → децимация. */
-  wet(c, x, ta, tb, wa, wb, ca, cb) {
+  wet(c, x, ta, tb, wa, wb, ca, cb, b) {
     const hp = c.hpos;
     const hist = c.hist;
     hist[hp] = hist[hp + PHASE_LEN] = x;
@@ -243,10 +263,16 @@ class SaturatorProcessor extends AudioWorkletProcessor {
       u[p] = s;
     }
     const y = c.y;
+    if (b !== 0) for (let p = 0; p < OVERSAMPLE; p++) u[p] += b;
     if (wa > 0) {
       shapeAdaa(c, ta, u, y, wa / ca, false);
       shapeAdaa(c, tb, u, y, wb / cb, true);
     } else shapeAdaa(c, tb, u, y, 1 / cb, false);
+    if (b !== 0) {
+      // После кривой — минус кривая(b): рабочая точка сдвинута, тишина остаётся тишиной.
+      const sb = (wa > 0 ? (wa / ca) * SHAPE[ta](b) : 0) + (wb / cb) * SHAPE[tb](b);
+      for (let p = 0; p < OVERSAMPLE; p++) y[p] -= sb;
+    }
     c.prevU = u[OVERSAMPLE - 1];
     const os = c.os;
     const cb2 = c.corr;
@@ -295,8 +321,22 @@ class SaturatorProcessor extends AudioWorkletProcessor {
     const cHi = this.cHi;
     const kDc = this.kDc;
     const D = DRY_DELAY;
+    const biasT = Math.max(-1, Math.min(1, +p.bias || 0));
+    const outT = Math.max(-12, Math.min(12, +p.out || 0));
+    const autoT = p.auto === false || p.auto === 0 ? 0 : 1;
+    const dcT = biasT !== 0 ? 1 : 0;
+    // FOCUS: частота сглаживается по логарифму по блокам; на 20 Hz — разбиение выключается (плавно).
+    const fT = Math.max(FOCUS_OFF_HZ, Math.min(2000, +p.focus || FOCUS_OFF_HZ));
+    const splitT = fT > FOCUS_OFF_HZ + 1e-3 ? 1 : 0;
+    if (splitT) this.focus = Math.exp(Math.log(fT) + (Math.log(this.focus) - Math.log(fT)) * this.kBlock);
+    if (Math.abs(this.focus - fT) < 1e-3) this.focus = fT;
+    // Коэффициент ФНЧ — линейно внутри блока (без изломов на границах блоков при движении FOCUS).
+    const kLp0 = this.kLp;
+    this.kLp = 1 - Math.exp((-2 * Math.PI * this.focus) / this.sr);
+    const kLpStep = (this.kLp - kLp0) / n;
     // DRIVE 0 или MIX 0 — выход = сухой сигнал: обработку не считаем (история входа идёт дальше).
     if ((driveT === 0 && this.driveDb < 1e-4) || (mixT === 0 && this.mix < 1e-5)) {
+      this.bias = biasT; this.dcOn = dcT; this.outDb = outT; this.auto = autoT; this.split = splitT;
       this.driveDb = driveT;
       this.mix = mixT;
       this.fade = 1;
@@ -312,18 +352,24 @@ class SaturatorProcessor extends AudioWorkletProcessor {
           c.hist[hp] = c.hist[hp + PHASE_LEN] = x * g;
           c.hpos = hp + 1 === PHASE_LEN ? 0 : hp + 1;
           const dp = c.dpos;
-          o[i] = c.dry[dp];
+          const yd = c.dry[dp];
+          o[i] = yd;
           c.dry[dp] = x;
+          c.lp += (kLp0 + kLpStep * (i + 1)) * (x - c.lp);
+          c.lpDelay[dp] = this.split * c.lp;
           c.dpos = dp + 1 === D ? 0 : dp + 1;
+          if (p.meter) this.meterAdd(x, yd, x);
         }
         if (!out[1]) break;
       }
+      this.meterTick(n);
       return true;
     }
     if (this.idle) {
       // Из покоя: буферы обработки заполняются заново, обработанная ветка входит после них плавно.
       this.idle = false;
       for (const c of this.ch) {
+        c.prevU = 0;
         c.os.fill(0);
         c.corr.fill(0);
         c.prevU = 0;
@@ -337,6 +383,14 @@ class SaturatorProcessor extends AudioWorkletProcessor {
     for (let i = 0; i < n; i++) {
       this.driveDb = driveT + (this.driveDb - driveT) * ks;
       this.mix = mixT + (this.mix - mixT) * ks;
+      this.bias = biasT + (this.bias - biasT) * ks;
+      if (Math.abs(this.bias - biasT) < 1e-7) this.bias = biasT;
+      this.outDb = outT + (this.outDb - outT) * ks;
+      this.auto = autoT + (this.auto - autoT) * ks;
+      if (this.dcOn < dcT) this.dcOn = Math.min(dcT, this.dcOn + this.splitStep);
+      else if (this.dcOn > dcT) this.dcOn = Math.max(dcT, this.dcOn - this.splitStep);
+      if (this.split < splitT) this.split = Math.min(splitT, this.split + this.splitStep);
+      else if (this.split > splitT) this.split = Math.max(splitT, this.split - this.splitStep);
       if (this.fade < 1) this.fade = Math.min(1, this.fade + this.fadeStep);
       const dB = this.driveDb;
       const g = Math.exp(dB * 0.11512925464970229); // 10^(dB/20)
@@ -352,10 +406,17 @@ class SaturatorProcessor extends AudioWorkletProcessor {
       const tb = this.cur;
       const wb = this.fade;
       const wa = ta === tb ? 0 : 1 - wb;
-      const ca = COMP[ta][i0] + (COMP[ta][i0 + 1] - COMP[ta][i0]) * fr;
-      const cb = COMP[tb][i0] + (COMP[tb][i0 + 1] - COMP[tb][i0]) * fr;
-      // Доля TUBE — после неё фильтр DC.
-      const tube = (tb === 1 ? wb : 0) + (ta === 1 ? wa : 0);
+      // AUTO OFF — без компенсации (c = 1), переход плавный.
+      const au = this.auto;
+      const ca = 1 + au * (COMP[ta][i0] + (COMP[ta][i0 + 1] - COMP[ta][i0]) * fr - 1);
+      const cb = 1 + au * (COMP[tb][i0] + (COMP[tb][i0 + 1] - COMP[tb][i0]) * fr - 1);
+      // Доля TUBE — после неё фильтр DC; с BIAS ≠ 0 — у всех типов.
+      const tubeW = (tb === 1 ? wb : 0) + (ta === 1 ? wa : 0);
+      const tube = tubeW + (1 - tubeW) * this.dcOn;
+      const og = this.outDb === 0 ? 1 : Math.exp(this.outDb * 0.11512925464970229);
+      const b = this.bias;
+      const sp = this.split;
+      const kLp = kLp0 + kLpStep * (i + 1);
       for (let k = 0; k < 2; k++) {
         const c = this.ch[k];
         const src = inp[k] || inp[0];
@@ -364,20 +425,58 @@ class SaturatorProcessor extends AudioWorkletProcessor {
         const dp = c.dpos;
         const dry = c.dry[dp];
         c.dry[dp] = x;
+        // FOCUS: x = LP + HP; кривая — только на HP, LP — чистый, с той же задержкой (sp = 0 — без разбиения).
+        c.lp += kLp * (x - c.lp);
+        // В задержку — уже взвешенная НЧ: сумма с ветвью (x − sp·LP) точно равна x и во время перехода sp.
+        const lpOut = c.lpDelay[dp];
+        const lpS = sp * c.lp;
+        c.lpDelay[dp] = lpS;
         c.dpos = dp + 1 === D ? 0 : dp + 1;
-        let y = this.wet(c, x * g, ta, tb, wa, wb, ca, cb);
+        const xs = x - lpS;
+        let y = this.wet(c, xs * g, ta, tb, wa, wb, ca, cb, b);
         // Фильтр DC (high-pass 1-го порядка) — для TUBE.
         const hpY = kDc * (c.dcY + y - c.dcX) + TINY;
         c.dcX = y;
         c.dcY = hpY;
         y += tube * (hpY - y);
-        y = biquad(c.hi, cHi, biquad(c.lo, cLo, y));
+        y = biquad(c.hi, cHi, biquad(c.lo, cLo, y)) * og + lpOut;
         const o = out[k] || out[0];
-        o[i] = dry + w * (y - dry);
+        const yo = dry + w * (y - dry);
+        o[i] = yo;
+        if (p.meter) this.meterAdd(x, yo, xs);
         if (!out[1]) break;
       }
     }
+    this.meterTick(n);
     return true;
+  }
+
+  /** Телеметрия окна: мин./макс. входа и выхода, точка — отсчёт входа с наибольшим модулем. */
+  meterAdd(x, y, xs) {
+    if (x < this.mInLo) this.mInLo = x;
+    if (x > this.mInHi) this.mInHi = x;
+    if (y < this.mOutLo) this.mOutLo = y;
+    if (y > this.mOutHi) this.mOutHi = y;
+    if (Math.abs(xs) > Math.abs(this.mPt)) this.mPt = xs;
+  }
+
+  meterTick(n) {
+    this.meterN += n;
+    if (this.meterN < METER_FRAMES) return;
+    this.meterN = 0;
+    if (this.p.meter) {
+      // Выход точки — по кривой графика: (кривая(x·g + b) − кривая(b)) / c · OUTPUT (без TONE и MIX).
+      const dB = this.driveDb;
+      const g = Math.exp(dB * 0.11512925464970229);
+      const t = this.cur;
+      const ci = Math.min(COMP_N, dB / COMP_STEP_DB);
+      const i0 = Math.floor(ci);
+      const c = 1 + this.auto * (COMP[t][i0] + (COMP[t][i0 + 1] - COMP[t][i0]) * (ci - i0) - 1);
+      const og = Math.exp(this.outDb * 0.11512925464970229);
+      const py = ((SHAPE[t](this.mPt * g + this.bias) - SHAPE[t](this.bias)) / c) * og;
+      this.port.postMessage([this.mInLo, this.mInHi, this.mOutLo, this.mOutHi, this.mPt, py]);
+    }
+    this.mInLo = 0; this.mInHi = 0; this.mOutLo = 0; this.mOutHi = 0; this.mPt = 0;
   }
 }
 

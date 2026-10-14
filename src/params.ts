@@ -370,6 +370,8 @@ export const MASTER_GRID: Slot[] = grid([
 ]);
 
 /** Параметры мастера без ручки (окно лимитера): LINK — степень связи каналов лимитера, 100 % — прежний звук. */
+/** FOCUS сатуратора на минимуме (20 Hz) — OFF (кривая на всём сигнале). */
+export const SAT_FOCUS_OFF = 20;
 export const MASTER_EXTRA: ParamDef[] = [
   smooth('lim.link', 'Link', 0, 100, 100, pct, CMP),
   // Окно компрессора (glue-worklet.js): RATIO — только в окне; значения по умолчанию — прежний звук.
@@ -379,6 +381,11 @@ export const MASTER_EXTRA: ParamDef[] = [
   smooth('cmp.hold', 'Hold', 0, 500, 0, (v) => `${Math.round(v)} ms`, CMP),
   smooth('cmp.mix', 'Mix', 0, 100, 100, pct, CMP),
   smooth('cmp.link', 'Link', 0, 100, 100, pct, CMP),
+  // Окно сатуратора: значения по умолчанию — прежний звук.
+  smooth('sat.bias', 'Bias', -1, 1, 0, (v) => `${v > 0.004 ? '+' : ''}${v.toFixed(2)}`, { ...CMP, bipolar: true, step: 0.01 }),
+  smooth('sat.focus', 'Focus', SAT_FOCUS_OFF, 2000, SAT_FOCUS_OFF, (v) => (v <= SAT_FOCUS_OFF + 0.5 ? 'OFF' : hz(v)), { ...CMP, exp: true }),
+  smooth('sat.out', 'Output', -12, 12, 0, cmpDb, { ...CMP, step: 0.1, bipolar: true }),
+  { ...stepped('sat.auto', 'Auto', ['OFF', 'ON'], 1), ...CMP },
   // Окно клиппера: MIX (параллельный срез), 100 % — прежний звук.
   smooth('clip.mix', 'Mix', 0, 100, 100, pct, CMP),
   smooth('cmp.schpf', 'SC HPF', 20, 500, 90, (v) => (v <= CMP_SCHPF_OFF ? 'OFF' : `${Math.round(v)} Hz`), { ...CMP, exp: true }),

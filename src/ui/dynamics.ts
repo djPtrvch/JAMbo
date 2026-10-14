@@ -194,7 +194,7 @@ export const limiterBars = (extra: Partial<BarsOptions> = {}): BarsOptions => ({
 });
 
 /**
- * Окно модуля мастера (тап по блоку при MST): есть у лимитера и компрессора; SAT и CLIP — отдельными задачами.
+ * Окно модуля мастера (тап по блоку или кнопке модуля при MST): у сатуратора (только кнопкой SAT), компрессора, клиппера, лимитера.
  * Открывается на месте EQ (PATTERNS, EQ, редактор сэмпла и др. закрываются).
  */
 export function openMasterWindow(name: 'lim' | 'comp' | 'clip' | 'sat') {
@@ -202,6 +202,7 @@ export function openMasterWindow(name: 'lim' | 'comp' | 'clip' | 'sat') {
   if (name === 'lim' && !ui.limView) toggleView('lim');
   if (name === 'comp' && !ui.compView) toggleView('comp');
   if (name === 'clip' && !ui.clipView) toggleView('clip');
+  if (name === 'sat' && !ui.satView) toggleView('sat');
 }
 
 export function renderDynamics(now: number) {

@@ -256,6 +256,8 @@ export interface Ui {
   clipView: boolean;
   clipUnity: boolean;
   clipAudit: boolean;
+  /** Окно сатуратора мастера (тап по кнопке SAT при MST); не в проекте. */
+  satView: boolean;
   /** Редактор сэмпла (удержание окна сэмпла) на месте центра экрана, как EQ. */
   sampleView: boolean;
   /** Браузер библиотеки сэмплов и пресетов на месте центра экрана. */
@@ -409,6 +411,7 @@ export const ui: Ui = {
   clipView: false,
   clipUnity: false,
   clipAudit: false,
+  satView: false,
   sampleView: false,
   browserView: false,
   autoView: false,
@@ -2195,9 +2198,9 @@ export const selectedBand = (): EqBand | null => (ui.eqBand >= 0 ? eqTarget().ba
 const clampN = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
 /** Кнопки PATTERNS и EQ переключают центр экрана (одновременно открыт только один вид). */
-export function toggleView(v: 'patterns' | 'eq' | 'sample' | 'browser' | 'auto' | 'lim' | 'comp' | 'clip') {
+export function toggleView(v: 'patterns' | 'eq' | 'sample' | 'browser' | 'auto' | 'lim' | 'comp' | 'clip' | 'sat') {
   const open = v === 'patterns' ? !ui.patternView : v === 'eq' ? !ui.eqView : v === 'sample' ? !ui.sampleView : v === 'auto' ? !ui.autoView
-    : v === 'lim' ? !ui.limView : v === 'comp' ? !ui.compView : v === 'clip' ? !ui.clipView : !ui.browserView;
+    : v === 'lim' ? !ui.limView : v === 'comp' ? !ui.compView : v === 'clip' ? !ui.clipView : v === 'sat' ? !ui.satView : !ui.browserView;
   ui.patternView = v === 'patterns' && open;
   ui.eqView = v === 'eq' && open;
   // Окно модуля мастера (лимитер): UNITY и AUDIT выключаются вместе с ним.
@@ -2207,6 +2210,7 @@ export function toggleView(v: 'patterns' | 'eq' | 'sample' | 'browser' | 'auto' 
   if (!ui.compView) ui.compAudit = false;
   ui.clipView = v === 'clip' && open;
   if (!ui.clipView) { ui.clipUnity = false; ui.clipAudit = false; }
+  ui.satView = v === 'sat' && open;
   ui.sampleView = v === 'sample' && open;
   ui.browserView = v === 'browser' && open;
   ui.autoView = v === 'auto' && open;
