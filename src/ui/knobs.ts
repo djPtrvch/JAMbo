@@ -5,7 +5,7 @@ import { fromNorm, toNorm, type ParamDef } from '../params';
 import {
   addTrack, audible, toggleMute, toggleSolo, assignFor, clearTrackLocks, canAddTrack, canDeleteTrack, copyTrack, deleteTrack, hasTrackClip, moveTrack, pasteTrack, curSeq, fxModNorm, liveLocks, seqIndex,
   beginGesture, clearLfoAssign, clearLock, doc, endGesture, firstHeldStep, gridFor, gridMode, heldLfo,
-  lockValue, modulatedNorm, paramValue, type Mod, setLfoAmount, setLockNorm, setParamNorm, ui, type GridMode,
+  fxKnobTouch, lockValue, modulatedNorm, paramValue, type Mod, setLfoAmount, setLockNorm, setParamNorm, ui, type GridMode,
   autoCurve, baseValue, handDown, handUp,
 } from '../state';
 import { AUTO_PARAMS } from '../automation';
@@ -343,6 +343,8 @@ function onDown(slot: number, e: PointerEvent) {
 
   gestures.set(e.pointerId, g);
   beginGesture();
+  // Ручка эффекта (3.1–3.4, FX) — иконка эффекта в окне сэмпла, пока ручку держат и ещё 900 мс.
+  fxKnobTouch(mode, param.id, 'down');
   // Ручка дорожки: пока палец на ней, значение — рукой (автоматизация перехвачена; при REC — пишется).
   if (kind === 'base' && mode === 'track' && AUTO_PARAMS.has(param.id) && !g.consumed) {
     g.hand = { track: ui.selectedTrack, id: param.id };
@@ -396,6 +398,7 @@ function onUp(e: PointerEvent) {
   if (g.drag) endDrag(g.drag, e.clientX, e.clientY);
   if (!g.moved && !g.consumed) lastTap[g.slot] = performance.now();
   if (g.hand) handUp(g.hand.track, g.hand.id);
+  fxKnobTouch(g.mode, g.param.id, 'up');
   endGesture();
 }
 

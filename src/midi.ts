@@ -14,7 +14,7 @@ import { AUTO_PARAMS } from './automation';
 import { toNorm } from './params';
 import {
   assignFor, beginGesture, endGesture, ui, firstHeldStep, gridFor, gridMode, heldLfo, lockValue, paramValue,
-  setLfoAmount, setLockNorm, setParamNorm, handPulse,
+  setLfoAmount, setLockNorm, setParamNorm, handPulse, fxKnobTouch,
 } from './state';
 import { fullMapping, saveSettings, settings, type MidiMapping, type MidiPage, type MidiSource, type MidiTarget } from './settings';
 
@@ -336,6 +336,7 @@ function knobInput(m: MidiMapping, slot: number, at: number | null, step: number
   // Инвертированный диапазон — энкодер крутит в обратную сторону.
   const dir = m.max >= m.min ? 1 : -1;
   touchGesture();
+  fxKnobTouch(mode, p.id, 'change');
   if (held === null && lfo) {
     // Степень назначения −1…1: диапазон 0–1 растягивается на неё.
     const a = assignFor(mode, p);

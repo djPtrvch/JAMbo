@@ -282,6 +282,8 @@ export interface Ui {
   morph: boolean;
   /** Превью формы волны LFO в окне сэмпла. */
   lfoPreviewUntil: number;
+  /** Иконка эффекта в окне сэмпла (ручки 3.1–3.4 и FX): какой эффект, какой параметр тронули, до какого момента. */
+  fxFocus: FxFocus | null;
 }
 
 export interface Runtime {
@@ -424,6 +426,7 @@ export const ui: Ui = {
   morph: false,
   eqBand: -1,
   lfoPreviewUntil: 0,
+  fxFocus: null,
 };
 
 /**
@@ -690,6 +693,61 @@ export function setParamNorm(mode: GridMode, p: ParamDef, norm: number) {
   else if (mode === 'master') doc.master[p.id] = v;
   else for (const t of targetTracks(p.id, 'param')) t.params[p.id] = v;
   if (p.id.startsWith('lfo') || p.id.startsWith('env.')) ui.lfoPreviewUntil = performance.now() + 1500;
+}
+
+// ---------- Иконка эффекта в окне сэмпла ----------
+
+export type FxKind = 'rev' | 'dly' | 'drv' | 'sc';
+export interface FxFocus {
+  kind: FxKind;
+  /** Параметр, который тронули (его значение — в подписи), и режим сетки (дорожка или FX). */
+  param: string;
+  mode: GridMode;
+  /** Начало показа (наложение за FX_IN_MS) и конец (потом уходит за FX_OUT_MS); пока ручку держат — Infinity. */
+  shown: number;
+  until: number;
+  holds: number;
+}
+export const FX_HOLD_MS = 900;
+export const FX_IN_MS = 150;
+export const FX_OUT_MS = 250;
+const TRACK_FX: Record<string, FxKind> = { reverb: 'rev', delay: 'dly', drive: 'drv', sidechain: 'sc' };
+
+/** Непрозрачность иконки эффекта: появление за FX_IN_MS, уход за FX_OUT_MS после until. */
+export function fxAlpha(f: FxFocus | null, now: number): number {
+  if (!f) return 0;
+  return Math.max(0, Math.min(1, (now - f.shown) / FX_IN_MS, (f.until + FX_OUT_MS - now) / FX_OUT_MS));
+}
+
+/** Эффект ручки: посылы 3.1–3.4 дорожки и ручки FX по колонкам (rev., dly., od., sc.). */
+export function fxKindOf(mode: GridMode, id: string): FxKind | null {
+  if (mode === 'track') return TRACK_FX[id] ?? null;
+  if (mode !== 'fx') return null;
+  const pre = id.split('.')[0];
+  return pre === 'rev' ? 'rev' : pre === 'dly' ? 'dly' : pre === 'od' ? 'drv' : pre === 'sc' ? 'sc' : null;
+}
+
+/**
+ * Ручку эффекта тронули (палец, MIDI, p-lock, назначение LFO/ENV): down — палец лёг, up — отпущен,
+ * change — изменение без пальца (энкодер). Показывается эффект последней тронутой ручки.
+ */
+export function fxKnobTouch(mode: GridMode, id: string, phase: 'down' | 'up' | 'change', now = performance.now()) {
+  const kind = fxKindOf(mode, id);
+  if (!kind || ui.channel !== 'track') return;
+  const f = ui.fxFocus;
+  const holds = Math.max(0, (f?.holds ?? 0) + (phase === 'down' ? 1 : phase === 'up' ? -1 : 0));
+  if (phase === 'up' && (!f || f.param !== id || f.mode !== mode)) {
+    // Отпустили ручку, эффект которой уже не показан: только счёт пальцев.
+    if (f) { f.holds = holds; if (!holds && f.until === Infinity) f.until = now + FX_HOLD_MS; }
+    return;
+  }
+  ui.fxFocus = {
+    kind, param: id, mode,
+    // Наложение продолжается с текущей прозрачности (иконка уходила — возвращается без скачка).
+    shown: now - fxAlpha(f, now) * FX_IN_MS,
+    until: holds > 0 ? Infinity : now + FX_HOLD_MS,
+    holds,
+  };
 }
 
 // ---------- LFO ----------

@@ -21,7 +21,7 @@ import { makePopup, popupButton } from './popup';
 import { baseValue, audible, doc, firstHeldStep, heldStepSound, liveLocks, modulatedNorm, seqAt, setStepSound, folderItemName, folderPos, stepFolder, stepFolderOnSteps, setTrackSynth, envAt, envShape, liveParams, lfoShape, lfoShaped, rt, sampleName, selTrack, ui } from '../state';
 import { openSampleEditor } from './sampleedit';
 import { buildClipper, buildGlue, buildLimiter, renderDynamics } from './dynamics';
-import { iconView, renderIcon, type IconView } from './engineIcon';
+import { fxView, iconView, renderFxIcon, renderIcon, type FxView, type IconView } from './engineIcon';
 import { openBrowser } from './browser';
 import { h, setAttr, setClass, setText, svg } from './dom';
 
@@ -42,6 +42,8 @@ let cutStart: SVGRectElement;
 let cutEnd: SVGRectElement;
 let wavePeaksKey = '';
 let waveSvg: SVGSVGElement;
+let fxLayer: HTMLElement;
+let fxIcon: FxView;
 let synthInfo: HTMLElement;
 let synthFull: HTMLElement;
 let bigIcon: IconView;
@@ -283,6 +285,14 @@ export function buildSample(): HTMLElement {
     menu.openRect(menuRect());
   });
   stub.append(waveTitle, wave, synthInfo, stubName);
+  // Иконка эффекта (ручки 3.1–3.4 и FX): слой поверх окна — закрывает иконку движка или волну с подписями;
+  // касания проходят сквозь него (тап и удержание окна работают как обычно).
+  fxLayer = h('div', 'fx-layer hidden');
+  const fxIconEl = h('div', 'synth-icon engine-icon');
+  const fxLabel = h('div', 'synth-full fx-label');
+  fxLayer.append(fxIconEl, fxLabel);
+  fxIcon = fxView(fxIconEl, fxLabel, BIG_ICON_PX);
+  stub.append(fxLayer);
 
   // MST: слева компрессор «glue», справа лимитер — один компонент сегментных столбцов IN | GR | OUT
   // (dynamics.ts), под ними кнопки (у компрессора BYPASS и RATIO, у лимитера BYPASS).
@@ -524,6 +534,9 @@ export function renderSample(now: number) {
   setClass(mixPanel, 'hidden', panel !== 'mix');
   setClass(previews, 'hidden', panel !== 'mod');
   if (panel === 'wave') renderWave();
+  const fa = panel === 'wave' ? renderFxIcon(fxIcon, now) : 0;
+  setClass(fxLayer, 'hidden', fa <= 0);
+  if (fa > 0) fxLayer.style.opacity = fa.toFixed(3);
   if (panel === 'master') renderMaster(now);
   if (panel === 'mix') renderMix(now);
   const [pos, total] = folderPos(ui.selectedTrack);

@@ -777,6 +777,9 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 /* Иконка ужимается по высоте окна (Safari с панелями вкладок), текст под ней не наезжает. */
 .synth-icon svg { width: auto; height: 100%; max-height: 120px; }
 .synth-full, .synth-row { flex: none; }
+/* Иконка эффекта поверх окна сэмпла (наложение 150 ms, уход 250 ms — прозрачностью из кадра). */
+.fx-layer { position: absolute; inset: 0; z-index: 2; background: var(--panel); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 8px 12px; pointer-events: none; }
+.fx-layer .fx-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .synth-info { flex: 1; width: 100%; display: flex; flex-direction: column; justify-content: center; gap: 8px; padding: 0 6px; min-height: 0; }
 .synth-full { font-size: 17px; font-weight: 600; color: var(--accent-text); }
 .synth-row { font-size: 11px; letter-spacing: 0.04em; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1185,8 +1188,8 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 .sync-offset-value { text-align: center; font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
 /* Полоса над BPM: доли фразы SYNC QUANTUM (4 на такт), пройденные — жёлтые. */
 .bpm-field { position: relative; }
-.bpm-phase { position: absolute; left: 6px; right: 6px; top: 3px; height: 3px; display: flex; gap: 2px; pointer-events: none; }
-.bpm-phase > span { flex: 1; border-radius: 1.5px; background: var(--meter-track); }
+.bpm-phase { position: absolute; left: 6px; right: 6px; top: 5px; height: 2px; display: flex; gap: 2px; pointer-events: none; }
+.bpm-phase > span { flex: 1; border-radius: 1px; background: var(--meter-track); }
 .bpm-phase > span.on { background: var(--accent); }
 .sync-toast { position: fixed; top: 8px; left: 50%; transform: translate(-50%, -80px); z-index: 1000; padding: 10px 18px; border-radius: 10px;
   background: var(--panel-2); color: var(--text); font-size: 13px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35); transition: transform 0.25s ease; pointer-events: none; }

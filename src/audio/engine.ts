@@ -931,6 +931,16 @@ let duckE = 0;
 let duckSig = '';
 const duckAmount: number[] = [];
 
+/** Времена последних тригов источника sidechain (время AudioContext, в том числе запланированные). */
+const scTrigs: number[] = [];
+/** Сколько мс прошло с последнего наступившего трига sidechain (null — не было). */
+export function scTrigAgoMs(): number | null {
+  if (!ctx) return null;
+  const now = ctx.currentTime;
+  for (let k = scTrigs.length - 1; k >= 0; k--) if (scTrigs[k] <= now) return (now - scTrigs[k]) * 1000;
+  return null;
+}
+
 /**
  * Sidechain: триг дорожки-источника — сообщение в огибающую (в точном кадре; ATTACK, RELEASE, CURVE — на момент
  * трига). Только от источника и если хоть одна другая дорожка приглушается.
@@ -939,6 +949,9 @@ function sidechain(source: number, at: number) {
   if (!duckNode || !ctx) return;
   const fx = liveFx();
   if (source !== fx['sc.source']) return;
+  // Время трига — для точки в иконке SIDECHAIN (окно сэмпла); триги планируются заранее.
+  scTrigs.push(at);
+  if (scTrigs.length > 16) scTrigs.shift();
   if (!doc.tracks.some((t, i) => i !== source && t.params.sidechain > 0)) return;
   duckNode.port.postMessage({
     type: 'trig', frame: Math.round(at * ctx.sampleRate),
@@ -958,6 +971,8 @@ export function applySidechainSends() {
 /** Остановка: будущие триги sidechain отменяются (возврат досчитывается). */
 export function flushSidechain() {
   duckNode?.port.postMessage({ type: 'flush' });
+  // Отменённые будущие триги — и в иконке.
+  if (ctx) { const now = ctx.currentTime; while (scTrigs.length && scTrigs[scTrigs.length - 1] > now) scTrigs.pop(); }
 }
 
 /** Глубины sidechain дорожек (−amount; у источника и несуществующих — 0): плавно, за ~10 мс, при изменении. */
