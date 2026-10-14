@@ -16,8 +16,11 @@
 ## Как открыть на iPad
 GitHub → ветка `swift` → Code → Download ZIP → «Файлы» → распаковать → папка `ios/JAMbo.swiftpm` открывается в Swift Playgrounds (тап по ней). Package.swift — в виде, который создаёт Playgrounds; после открытия правится только через Playgrounds (ТЗ 0.3).
 
+## Package.swift
+Значок — только существующий `.placeholder(icon: …)` (с `.music` Playgrounds не читает манифест и показывает «Loading… Crashed» без кода). Устройство: iPadOS 26.6.2, Playgrounds 4.7 — S0 собирается.
+
 ## Правила кода
-- Swift 5 (не режим Swift 6), минимальная iPadOS 18. Модуль Synchronization не используется: с ним приложение падало при запуске в Playgrounds 4.7 (проверяется); обмен UI ↔ аудио — на os_unfair_lock, аудиопоток только tryLock (занято — пропуск до следующего блока; ТЗ 0.2). Только Swift и фреймворки Apple: без C, C++, Objective-C целей, сторонних пакетов, unsafeFlags, своих entitlements и ключей Info.plist (только редактор capabilities).
+- Swift 5 (не режим Swift 6), минимальная iPadOS 18. Модуль Synchronization пока не используется (вернуть и проверить в S1: прежние падения были из-за значка в Package.swift); обмен UI ↔ аудио — на os_unfair_lock, аудиопоток только tryLock (занято — пропуск до следующего блока; ТЗ 0.2). Только Swift и фреймворки Apple: без C, C++, Objective-C целей, сторонних пакетов, unsafeFlags, своих entitlements и ключей Info.plist (только редактор capabilities).
 - Файл не длиннее ~600 строк; большие функции разбивать. Тело SwiftUI-View короче ~40 строк, остальное — в подвиды; сложные выражения — на несколько строк с явными типами (иначе «expression too complex»).
 - Массивы-литералы не больше ~100 элементов; данные — из Resources.
 - Колбэк (AudioCore.render и всё, что он зовёт): без выделения памяти, блокировок, ARC-объектов, созданных в колбэке, вызовов Objective-C, print и Swift-коллекций, которые растут; только final-классы, UnsafeMutablePointer<Float>, @inline(__always) на горячих функциях; денормалы в обратных связях гасить вручную (+1e-18 или обнуление). Каждый новый вызов в колбэке проверять по этому списку.

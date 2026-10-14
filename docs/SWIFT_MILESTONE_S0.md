@@ -18,7 +18,12 @@
 - Второй запуск — то же самое, до появления экрана. Вероятная причина — модуль Synchronization (Atomic): заменён запасным вариантом ТЗ 0.2 — SpinLock (os_unfair_lock на iPad, NSLock на Linux), аудиопоток берёт замок только tryLock; тесты 7/7.
 - Третий запуск — то же; в редакторе был виден только Package.swift (46 строк): Playgrounds не смог прочитать манифест и кода не видел. Вероятно — значок `.placeholder(icon: .music)` (такого значка нет); заменён на `.sparkle`. Запасной путь — новое приложение в Playgrounds и перенос папок Core, Audio, UI, Resources (его MyApp.swift и ContentView.swift удалить).
 
+## Итог на iPad (iPadOS 26.6.2, Playgrounds 4.7) — S0 пройдена
+- Приложение собирается и запускается; TONE — тон 440 Гц звучит.
+- DIAGNOSTICS: «Now: 48.0 kHz · buffer 256 · output latency 11.0 ms · running», CPU 0–1 %.
+- Причина прежних падений — неверный значок в Package.swift (`.music`): Playgrounds не читал манифест.
+- Строка состояния iPad видна (statusBarHidden в Playgrounds не действует) — не мешает.
+
 ## Открыто
-- Сборка на iPad не проверена. Если Playgrounds не примет Package.swift (версия swift-tools, `.iOS("18.0")`, `swiftLanguageVersions`), создать в Playgrounds новое приложение «JAMbo» и перенести в него папки Core, Audio, UI, Resources — Package.swift останется тем, что создал Playgrounds.
+- Synchronization убран вместе с неверным значком; виноват был значок. Вернуть Atomic (ТЗ 3.3) и проверить на iPad в начале S1 — если запустится, замки (SpinLock) уйти в запас.
 - Есть ли в редакторе capabilities Playgrounds «Background Modes → Audio» — посмотреть; если есть, вернуть BACKGROUND AUDIO.
-- Нужна ли iPadOS 18 на устройстве — да (Synchronization); если Playgrounds не даст 18 — запасной вариант os_unfair_lock с tryLock (ТЗ 0.2).
