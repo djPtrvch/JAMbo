@@ -2142,12 +2142,30 @@ export function setFolder(i: number, items: FolderItem[]) {
 }
 
 /** Добавить сэмплы в папку, не меняя звук дорожки (выбор файла для зажатого шага). */
-/** Запись сэмпла (редактор, REC): новый сэмпл — в папку дорожки и на дорожку, с именем (одна запись в UNDO). */
+/**
+ * Запись сэмпла (редактор, REC): новый сэмпл — на дорожку, с именем (одна запись в UNDO). Был сэмпл — запись
+ * встаёт на его место (и в папке): повторная запись перезаписывает; не было — добавляется в папку.
+ */
 export function addRecordedSample(i: number, key: string, name: string) {
   edit(() => {
     doc.files[key] = name;
+    const t = doc.tracks[i];
+    const f = doc.folders[i];
+    const old = t.sample && synthEngine(t.sample) === null ? f.items.findIndex((it) => 'sample' in it && it.sample === t.sample) : -1;
+    if (old >= 0) { f.items[old] = { sample: key }; f.index = old; t.sample = key; return; }
     const at = addItems(i, [{ sample: key }]);
     if (at >= 0) applyItem(i, doc.folders[i].items[at]);
+  });
+}
+
+/** CLEAR в редакторе сэмпла: сэмпл убирается с дорожки и из её папки (дорожка без звука; отмена — UNDO). */
+export function clearTrackSample(i: number) {
+  edit(() => {
+    const t = doc.tracks[i];
+    const f = doc.folders[i];
+    const k = f.items.findIndex((it) => 'sample' in it && it.sample === t.sample);
+    if (k >= 0) { f.items.splice(k, 1); f.index = -1; }
+    t.sample = '';
   });
 }
 

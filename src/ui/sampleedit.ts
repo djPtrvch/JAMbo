@@ -9,12 +9,12 @@
 // TRIM, NORMALIZE и MONO сразу ставят на дорожку отредактированную копию (в папке — на месте
 // исходного сэмпла); UNDO в верхней панели возвращает исходный.
 
-import { addEditedSample, audioInputs, captureActive, previewSample, previewing, sampleBuffer, samplePlayheads, startCapture, stopCapture, stopPreview, type CaptureSource } from '../audio/engine';
+import { addEditedSample, audioInputs, captureActive, captureChunks, previewSample, previewing, sampleBuffer, samplePlayheads, startCapture, stopCapture, stopPreview, type CaptureSource } from '../audio/engine';
 import { saveRecording } from '../stems';
 import { makePopup, popupButton, type Popup } from './popup';
 import { openBrowser } from './browser';
 import { noteName, synthEngine } from '../params';
-import { addRecordedSample, addSlice, beginGesture, deleteSlice, doc, endGesture, markNote, moveSlice, replaceSample, sampleName, setSliceNote, sliceMarks, toggleView, ui, type SliceMark } from '../state';
+import { addRecordedSample, addSlice, clearTrackSample, beginGesture, deleteSlice, doc, endGesture, markNote, moveSlice, replaceSample, sampleName, setSliceNote, sliceMarks, toggleView, ui, type SliceMark } from '../state';
 import { closeButton, h, setClass, setText } from './dom';
 import { color } from './theme';
 
@@ -30,6 +30,7 @@ let tip: HTMLElement;
 let trimBtn: HTMLElement;
 let normBtn: HTMLElement;
 let monoBtn: HTMLElement;
+let clearBtn: HTMLElement;
 let saveBtn: HTMLElement;
 let playBtn: HTMLElement;
 const tools: HTMLElement[] = [];
@@ -317,6 +318,9 @@ let recMenu: Popup;
 /** Идёт запись: на какую дорожку, имя источника, начало (performance.now). */
 let rec: { track: number; name: string; start: number } | null = null;
 
+/** Пики пришедших кусков записи (по каналам): форма волны во время записи. */
+const recPeaks = { n: 0, lo: [[], []] as number[][], hi: [[], []] as number[][] };
+
 const recTime = (ms: number) => { const s = Math.floor(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 
 async function beginRec(src: CaptureSource, name: string) {
@@ -324,6 +328,9 @@ async function beginRec(src: CaptureSource, name: string) {
   if (rec || captureActive()) return;
   const track = ui.selectedTrack;
   rec = { track, name, start: performance.now() };
+  recPeaks.n = 0;
+  recPeaks.lo = [[], []];
+  recPeaks.hi = [[], []];
   if (!(await startCapture(src))) {
     rec = null;
     window.alert(src.kind === 'input' ? 'No access to the audio input' : 'Could not start recording');
@@ -414,7 +421,9 @@ export function buildSampleEditor(): HTMLElement {
     if (ui.channel !== 'track') return;
     void openRecMenu();
   });
-  bar.append(nameText, h('div', 'sedit-space'), recBtn, playBtn, load, saveBtn, trimBtn, normBtn, monoBtn, close);
+  // CLEAR — убрать сэмпл с дорожки и из её папки (отмена — UNDO).
+  clearBtn = tool('CLEAR', () => clearTrackSample(ui.selectedTrack));
+  bar.append(nameText, h('div', 'sedit-space'), recBtn, playBtn, load, saveBtn, trimBtn, normBtn, monoBtn, clearBtn, close);
   // Кнопки — над формой волны.
   panel.append(bar, plot);
   return panel;
@@ -450,6 +459,45 @@ function envelope(key: string, buf: AudioBuffer, w: number) {
   return env;
 }
 
+/**
+ * Форма волны во время записи: пики кусков (по 4096 кадров) по мере прихода; по ширине — записанное время
+ * (не меньше 5 с), L сверху, R снизу, справа — красная линия текущего места.
+ */
+function drawRecording(g: CanvasRenderingContext2D) {
+  const ch = captureChunks();
+  if (!ch) return;
+  for (; recPeaks.n < ch.L.length; recPeaks.n++) {
+    [ch.L[recPeaks.n], ch.R[recPeaks.n]].forEach((d, c) => {
+      let lo = 0;
+      let hi = 0;
+      for (let i = 0; i < d.length; i++) { const v = d[i]; if (v < lo) lo = v; if (v > hi) hi = v; }
+      recPeaks.lo[c].push(lo);
+      recPeaks.hi[c].push(hi);
+    });
+  }
+  const n = recPeaks.n;
+  const span = Math.max(n, Math.ceil((5 * 48000) / 4096));
+  const lh = (H - TOP) / 2;
+  for (let c = 0; c < 2; c++) {
+    const mid = TOP + lh * c + lh / 2;
+    const amp = lh / 2 - 6;
+    g.fillStyle = color('--line');
+    g.fillRect(0, mid, W, 1);
+    g.fillStyle = color('--ink');
+    for (let x = 0; x < W; x++) {
+      const k0 = Math.floor((x / W) * span);
+      const k1 = Math.max(k0 + 1, Math.floor(((x + 1) / W) * span));
+      if (k0 >= n) break;
+      let lo = 0;
+      let hi = 0;
+      for (let k = k0; k < Math.min(k1, n); k++) { lo = Math.min(lo, recPeaks.lo[c][k]); hi = Math.max(hi, recPeaks.hi[c][k]); }
+      g.fillRect(x, mid - hi * amp, 1, Math.max(1, (hi - lo) * amp));
+    }
+  }
+  g.fillStyle = color('--rec');
+  g.fillRect(Math.min(W - 2, (n / span) * W), TOP, 2, H - TOP);
+}
+
 export function renderSampleEditor() {
   setClass(panel, 'hidden', !ui.sampleView);
   if (!ui.sampleView) return;
@@ -472,14 +520,15 @@ export function renderSampleEditor() {
   const recHtml = rec ? `<span class="rec-sq"></span>${recTime(recMs)}` : '<span class="rec-dot"></span>REC';
   if (recBtn.innerHTML !== recHtml) recBtn.innerHTML = recHtml;
   setClass(note, 'rec', !!rec);
-  setClass(note, 'hidden', !!buf && !rec);
-  setText(note, rec ? `Recording ${rec.name} · ${recTime(recMs)} / 1:00`
-    : ui.channel !== 'track' ? 'Select a track to edit its sample.'
+  setClass(clearBtn, 'disabled', !buf || !!rec);
+  setClass(note, 'hidden', !!buf || !!rec);
+  setText(note, ui.channel !== 'track' ? 'Select a track to edit its sample.'
     : key ? 'Loading…' : 'No sample on this track — LOAD a file or REC.');
   if (buf) {
     const sel = (mark.b - mark.a) * buf.duration;
     setText(nameText, `${sampleName(key)}\n${full ? fmtTime(buf.duration) : `${fmtTime(sel)} of ${fmtTime(buf.duration)}`}${buf.numberOfChannels > 1 ? ' · ST' : ' · M'}`);
   } else setText(nameText, 'SAMPLE\nEDITOR');
+  if (rec) setText(nameText, `REC · ${rec.name}\n${recTime(recMs)} / 1:00`);
 
   const dpr = window.devicePixelRatio || 1;
   W = plot.clientWidth;
@@ -491,6 +540,7 @@ export function renderSampleEditor() {
   const g = canvas.getContext('2d')!;
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
   g.clearRect(0, 0, W, H);
+  if (rec) { drawRecording(g); return; }
   if (!buf) return;
 
   // Верхняя полоса — под флажки маркеров и полосу прокрутки; форма волны — ниже.
@@ -564,7 +614,7 @@ export function renderSampleEditor() {
   g.fillStyle = color('--accent');
   for (const f of samplePlayheads(ui.selectedTrack, key)) {
     const x = toX(f);
-    if (x >= 0 && x <= W) g.fillRect(Math.round(x), TOP, 1, H - TOP);
+    if (x >= 0 && x <= W) g.fillRect(Math.round(x) - 1, TOP, 2, H - TOP);
   }
   // Полоса прокрутки (при увеличении): видимая часть сэмпла — жёлтым.
   if (view.span < 1) {

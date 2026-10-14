@@ -913,6 +913,12 @@ export function samplePlayheads(track: number, key: string): number[] {
   if (!ctx || !key) return [];
   const now = ctx.currentTime - (ctx.outputLatency || 0);
   const out: number[] = [];
+  // Предпрослушка (▶ редактора, библиотека) — тоже.
+  const pv = preview;
+  if (pv?.key === key && pv.at !== undefined && now >= pv.at) {
+    const f = pv.a! + (now - pv.at) / pv.dur!;
+    if (f < pv.b!) out.push(f);
+  }
   for (const vo of voices) {
     const pl = vo.play;
     if (!pl || vo.ended || vo.track !== track || pl.key !== key || now < vo.at) continue;
@@ -1604,7 +1610,7 @@ export async function importAudioFiles(files: File[]): Promise<{ key: string; na
 
 /** Вход мастера (сюда идёт предпрослушка сэмпла). */
 let masterInput: GainNode | null = null;
-let preview: { src: AudioBufferSourceNode; gain: GainNode } | null = null;
+let preview: { src: AudioBufferSourceNode; gain: GainNode; key?: string; a?: number; b?: number; at?: number; dur?: number } | null = null;
 /** Громкость предпрослушки сэмпла (−3 dB). */
 const PREVIEW_GAIN = 0.7;
 
@@ -1641,7 +1647,8 @@ export async function previewSample(key: string, from = 0, to = 1) {
   const a = Math.max(0, Math.min(1, from)) * buf.duration;
   const b = Math.max(0, Math.min(1, to)) * buf.duration;
   src.start(c.currentTime, a, Math.max(0.003, b - a));
-  preview = { src, gain };
+  // Для полосы воспроизведения в редакторе: что и откуда играет.
+  preview = { src, gain, key, a: a / buf.duration, b: b / buf.duration, at: c.currentTime, dur: buf.duration };
 }
 
 /**
@@ -1968,6 +1975,11 @@ export async function audioInputs(): Promise<{ id: string; name: string }[]> {
 }
 
 export const captureActive = () => stems.has(CAPTURE);
+/** Идущая запись сэмпла: пришедшие куски (L и R) — для формы волны во время записи. */
+export function captureChunks(): { L: Float32Array[]; R: Float32Array[] } | null {
+  const r = stems.get(CAPTURE);
+  return r ? { L: r.L, R: r.R } : null;
+}
 
 /**
  * Начать запись сэмпла: вход — без обработки (без эхоподавления и автоуровня), дорожка — её выход после её
