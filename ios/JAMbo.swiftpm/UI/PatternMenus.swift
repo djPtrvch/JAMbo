@@ -20,7 +20,7 @@ struct PatternMenus: View {
                 dismiss { model.gridMenuOpen = false }
                 GridMenu(model: model)
                     .frame(width: gridMenuWidth, height: geometry.size.height)
-                    .offset(x: geometry.size.width - gridMenuWidth, y: 0)
+                    .offset(x: gridMenuX, y: 0)
             }
         }
     }
@@ -34,6 +34,13 @@ struct PatternMenus: View {
     /// Ширина двух столбцов дорожек (как два крайних паттерна), у правого края экрана.
     private var gridMenuWidth: CGFloat {
         return min(geometry.size.width, menuWidth)
+    }
+
+    /// Правый край меню бутерброда — по правому краю последнего столбца паттернов.
+    private var gridMenuX: CGFloat {
+        let last: Int = max(0, geometry.tracks - 1)
+        let right: CGFloat = geometry.origin(col: last, row: 0).width + geometry.trackW
+        return max(0, right - gridMenuWidth)
     }
 
     /// Меню строки и бутерброда — шириной два столбца дорожек с зазором между ними.
@@ -63,7 +70,9 @@ struct PatternMenus: View {
         let below: CGFloat = top + geometry.rowH + 6
         let above: CGFloat = max(0, top - 6 - h)
         let fits: Bool = below + h < geometry.size.height
-        return CGSize(width: 0, height: fits ? below : above)
+        // Левый край — по левому краю первого столбца паттернов.
+        let x: CGFloat = geometry.origin(col: 0, row: 0).width
+        return CGSize(width: x, height: fits ? below : above)
     }
 }
 
