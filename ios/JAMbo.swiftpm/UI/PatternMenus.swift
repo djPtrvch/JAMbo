@@ -14,7 +14,7 @@ struct PatternMenus: View {
             }
             if let k = model.rowMenu {
                 dismiss { model.rowMenu = nil }
-                RowMenu(model: model, row: k).offset(rowOffset(k))
+                RowMenu(model: model, row: k).frame(width: menuWidth).offset(rowOffset(k))
             }
             if model.gridMenuOpen {
                 dismiss { model.gridMenuOpen = false }
@@ -31,10 +31,14 @@ struct PatternMenus: View {
             .onTapGesture { close() }
     }
 
-    /// От левого края ARRANGE до правого края экрана (ARRANGE, зазор, CPU — как в верхней панели).
+    /// Ширина двух столбцов дорожек (как два крайних паттерна), у правого края экрана.
     private var gridMenuWidth: CGFloat {
-        let want: CGFloat = Layout.topButton + Layout.gap + Layout.meterWidth
-        return min(geometry.size.width, want)
+        return min(geometry.size.width, menuWidth)
+    }
+
+    /// Меню строки и бутерброда — шириной два столбца дорожек с зазором между ними.
+    private var menuWidth: CGFloat {
+        return 2 * geometry.trackW + Layout.gap
     }
 
     /// Меню ячейки — под ней (не помещается — над ней).
@@ -153,7 +157,7 @@ struct RowMenu: View {
             }
             MenuItem(title: "OK") { done() }
         }
-        .frame(width: 236)
+        .frame(maxWidth: .infinity)
         .modifier(MenuPanel())
         .onAppear {
             if loaded { return }
@@ -195,7 +199,7 @@ struct GridMenu: View {
         return MenuScroll {
             VStack(alignment: .leading, spacing: 6) {
                 title("START FROM ROW")
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 2), spacing: 6) {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 4), spacing: 6) {
                     ForEach(0..<p.visibleRows, id: \.self) { k in
                         MenuItem(title: p.sceneName(k), current: k == start) { model.setArrangement(start: k) }
                     }
@@ -216,9 +220,9 @@ struct GridMenu: View {
         Text(s).font(.system(size: 12, weight: .bold)).tracking(1.2).foregroundStyle(theme.text).padding(.top, 4)
     }
 
-    /// Два пункта (меню узкое — один под другим): выбор верхнего — pick(true), нижнего — pick(false).
+    /// Два пункта: выбор левого — pick(true), правого — pick(false).
     private func pair(_ a: String, _ aOn: Bool, _ b: String, _ bOn: Bool, pick: @escaping (Bool) -> Void) -> some View {
-        VStack(spacing: 6) {
+        HStack(spacing: 6) {
             MenuItem(title: a, current: aOn) { pick(true) }
             MenuItem(title: b, current: bOn) { pick(false) }
         }
