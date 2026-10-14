@@ -12,7 +12,7 @@ import { beginGesture, doc, endGesture, toggleClipBypass, toggleView, ui } from 
 import { saveSettings, settings } from '../settings';
 import { LevelBars, clipperBars } from './dynamics';
 import { closeButton, h, setClass, setText } from './dom';
-import {
+import { masterTitle,
   Freeze, HotTracker, LINE_HIT, drawDbGrid, drawGrPeaks, drawPauseLabel, fitCanvas, historyColumns, msetVal as setVal,
   mval as val, num, numInputIn, paramField, toDb,
 } from './masterwin';
@@ -78,7 +78,7 @@ export function buildClipWindow(): HTMLElement {
 
   // Строка вверху: поля (как у ручек 3.1–3.4), за чертой MIX, кнопки и крестик.
   const strip = h('div', 'eq-bar lim-strip clip-strip');
-  strip.append(h('div', 'eq-name', 'MASTER\nCLIP'));
+  strip.append(masterTitle('clip'));
   const field = (label: string, p: ParamDef, parse: (t: string) => number | null, init: () => string) => {
     const f = paramField(label, p, numInput, parse, init);
     f.classList.add('lim-field');

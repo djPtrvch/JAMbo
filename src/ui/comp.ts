@@ -15,7 +15,7 @@ import { settings } from '../settings';
 import { LevelBars, glueBars } from './dynamics';
 import { closeButton, h, setClass } from './dom';
 import { parseRelease } from './limiter';
-import {
+import { masterTitle,
   Freeze, HotTracker, LINE_HIT, drawDbGrid, drawGrPeaks, drawPauseLabel, fitCanvas, historyColumns, msetVal as setVal,
   mval as val, num, numInputIn, paramField,
 } from './masterwin';
@@ -192,7 +192,7 @@ export function buildCompWindow(): HTMLElement {
   auditBtn = btn('AUDIT', () => { ui.compAudit = !ui.compAudit; });
   const strip = h('div', 'eq-bar lim-strip comp-strip');
   strip.append(
-    h('div', 'eq-name', 'MASTER\nCOMP'),
+    masterTitle('comp'),
     normField('THRESHOLD', P.threshold, num, () => val(P.threshold).toFixed(1)),
     normField('ATTACK', P.attack, num, msInit(P.attack)),
     normField('RELEASE', P.release, (t) => parseRelease(t, P.release.max), relInit),

@@ -3,9 +3,10 @@
 
 import { LIM_TELE, limTeleRate, type Tele } from '../audio/engine';
 import { type ParamDef, toNorm } from '../params';
-import { beginGesture, endGesture, paramValue, setParamNorm } from '../state';
+import { beginGesture, endGesture, paramValue, setParamNorm, toggleView, ui } from '../state';
 import { dragField } from './controls';
-import { openInput } from './popup';
+import { h } from './dom';
+import { makePopup, openInput, popupButton, type Popup } from './popup';
 import { color } from './theme';
 
 /** Окно дисплея уровня, с. */
@@ -190,4 +191,30 @@ export function drawPauseLabel(g: CanvasRenderingContext2D, text: string) {
   g.textAlign = 'left';
   g.textBaseline = 'top';
   g.fillText(text, 30, 6);
+}
+
+type MasterWin = 'sat' | 'comp' | 'clip' | 'lim';
+const WINS: [MasterWin, string, keyof typeof ui][] = [['sat', 'SAT', 'satView'], ['comp', 'COMP', 'compView'], ['clip', 'CLIP', 'clipView'], ['lim', 'LIM', 'limView']];
+let switchMenu: Popup | null = null;
+/**
+ * Название окна модуля мастера (MASTER SAT / COMP / CLIP / LIM) слева в строке: тап — меню SAT, COMP, CLIP, LIM
+ * (по цепочке; открытое — жёлтое), выбор открывает окно этого модуля на месте текущего.
+ */
+export function masterTitle(cur: MasterWin): HTMLElement {
+  const name = WINS.find((w) => w[0] === cur)![1];
+  const el = h('div', 'eq-name master-switch', `MASTER\n${name} ▾`);
+  el.addEventListener('pointerup', () => {
+    if (!switchMenu) switchMenu = makePopup('master-switch-menu');
+    const menu = switchMenu;
+    menu.box.replaceChildren(...WINS.map(([w, label, flag]) => {
+      const b = popupButton(label, () => {
+        menu.close();
+        if (!ui[flag]) toggleView(w);
+      });
+      b.classList.toggle('current', w === cur);
+      return b;
+    }));
+    menu.openAt(el, 140);
+  });
+  return el;
 }

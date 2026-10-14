@@ -12,7 +12,7 @@ import { PARAM_BY_ID, SAT_FOCUS_OFF, toNorm, type ParamDef } from '../params';
 import { beginGesture, doc, endGesture, setParamNorm, toggleSatBypass, toggleView, ui } from '../state';
 import { settings } from '../settings';
 import { closeButton, h, setClass } from './dom';
-import {
+import { masterTitle,
   HotTracker, LINE_HIT, WINDOW_S, drawPauseLabel, fitCanvas, gridStep, msetVal as setVal, mval as val, num, numInputIn, paramField, toDb,
 } from './masterwin';
 import { color } from './theme';
@@ -115,7 +115,7 @@ export function buildSatWindow(): HTMLElement {
   anchor = h('div', 'eq-anchor');
 
   const strip = h('div', 'eq-bar lim-strip sat-strip');
-  strip.append(h('div', 'eq-name', 'MASTER\nSAT'));
+  strip.append(masterTitle('sat'));
   const field = (label: string, p: ParamDef, parse: (t: string) => number | null, init: () => string, onTap?: () => void) => {
     const f = paramField(label, p, numInput, parse, init, onTap);
     f.classList.add('lim-field');

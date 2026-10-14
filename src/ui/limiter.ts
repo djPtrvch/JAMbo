@@ -13,7 +13,7 @@ import { beginGesture, doc, endGesture, toggleLimBypass, toggleView, ui } from '
 import { settings } from '../settings';
 import { LevelBars, limiterBars } from './dynamics';
 import { closeButton, h, setClass } from './dom';
-import {
+import { masterTitle,
   Freeze, HotTracker, LINE_HIT, drawDbGrid, drawGrPeaks, drawPauseLabel, fitCanvas, historyColumns, msetVal as setVal,
   mval as val, num, numInputIn, paramField,
 } from './masterwin';
@@ -64,7 +64,7 @@ export function buildLimiterWindow(): HTMLElement {
   // Одна строка вверху, как ряд EQ (тот же размер и поля): MASTER LIM, поля INPUT, CEILING, LOOKAHEAD, RELEASE,
   // LINK, кнопки UNITY, AUDIT, BYPASS (рядом с крестиком) и крестик.
   const strip = h('div', 'eq-bar lim-strip');
-  strip.append(h('div', 'eq-name', 'MASTER\nLIM'));
+  strip.append(masterTitle('lim'));
 
   // Дисплей: линия CEILING тянется (±22 px), иначе тап — HOLD.
   plot = h('div', 'eq-plot lim-plot');

@@ -240,7 +240,7 @@ export function buildSample(): HTMLElement {
     menu.close();
     openBrowser({ kind: 'load-table' });
   });
-  group('LOAD · MIDI · PRESET', 2, [sampleBtn, midiBtn, saveBtn, tableBtn]);
+  group('LOAD SAMPLE · PRESET · MIDI', 2, [sampleBtn, midiBtn, saveBtn, tableBtn]);
   // Меню закрывает всю левую колонку (окно сэмпла, стрелки и кнопки LFO/ENV) — кнопки крупнее.
   const menuRect = () => {
     const side = (root.closest('.side') ?? root).getBoundingClientRect();
