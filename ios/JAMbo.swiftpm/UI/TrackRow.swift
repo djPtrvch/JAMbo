@@ -94,7 +94,6 @@ struct TrackCell: View {
                     touching = true
                     swiped = false
                     model.ensureAudio()
-                    model.select(track: index)
                 }
                 let dy: CGFloat = g.translation.height
                 if !swiped && abs(dy) >= 24 {
@@ -102,6 +101,10 @@ struct TrackCell: View {
                     model.swipe(track: index, down: dy > 0)
                 }
             }
-            .onEnded { _ in touching = false }
+            .onEnded { _ in
+                touching = false
+                // Выбор дорожки — тапом; свайп (mute/solo) выбор не меняет: окно MIX и выбранная дорожка остаются.
+                if !swiped { model.select(track: index) }
+            }
     }
 }
