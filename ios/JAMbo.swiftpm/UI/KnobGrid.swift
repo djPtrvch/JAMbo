@@ -2,28 +2,73 @@ import SwiftUI
 
 /// Сетка ручек 4×4: палец вверх-вниз (240 px — весь ход), мультитач. С зажатым шагом — p-lock (жёлтый),
 /// двойной тап с зажатым шагом — снять p-lock, SHIFT + двойной тап — снять все p-lock дорожки.
+/// MIX: громкости дорожек; справа от ручки — M, S, ● (стем — S10); двойной тап — меню дорожки (по серой — ADD TRACK);
+/// удержание ручки 0,5 с без движения и протягивание — перестановка дорожек.
 struct KnobGrid: View {
     let model: AppModel
     @State private var turns: [SpatialEventCollection.Event.ID: KnobTurn] = [:]
     @State private var lastTap: [Int: Date] = [:]
+    @State private var lift: TrackLift? = nil
+    @State private var gridSize: CGSize = .zero
 
     static let travel: CGFloat = 240
     static let dead: CGFloat = 4
+    static let spacing: CGFloat = 2
 
     var body: some View {
         GeometryReader { geo in
-            VStack(spacing: 2) {
-                ForEach(0..<4, id: \.self) { row in
-                    HStack(spacing: 2) {
-                        ForEach(0..<4, id: \.self) { col in
-                            KnobView(state: model.knobState(row * 4 + col))
+            ZStack(alignment: .topLeading) {
+                cells(geo.size)
+                    .contentShape(Rectangle())
+                    .gesture(touches(size: geo.size))
+                TrackMenus(model: model, size: geo.size)
+            }
+        }
+    }
+
+    private func cells(_ size: CGSize) -> some View {
+        let mix: Bool = model.channel == .mix
+        return VStack(spacing: KnobGrid.spacing) {
+            ForEach(0..<4, id: \.self) { row in
+                HStack(spacing: KnobGrid.spacing) {
+                    ForEach(0..<4, id: \.self) { col in
+                        let k: Int = row * 4 + col
+                        if mix {
+                            MixCell(model: model, slot: k)
+                                .offset(liftOffset(k, size))
+                                .scaleEffect(lift?.from == k ? 1.12 : 1)
+                                .zIndex(lift?.from == k ? 1 : 0)
+                                .animation(.easeOut(duration: 0.15), value: lift?.to)
+                        } else {
+                            KnobView(state: model.knobState(k))
                         }
                     }
                 }
             }
-            .contentShape(Rectangle())
-            .gesture(touches(size: geo.size))
         }
+    }
+
+    /// Центр ручки k (ряд за рядом).
+    static func center(_ k: Int, _ size: CGSize) -> CGPoint {
+        let cw: CGFloat = (size.width + spacing) / 4
+        let ch: CGFloat = (size.height + spacing) / 4
+        return CGPoint(x: (CGFloat(k % 4) + 0.5) * cw, y: (CGFloat(k / 4) + 0.5) * ch)
+    }
+
+    /// Перестановка: поднятая ручка — за пальцем, ручки между старым и новым местом — на место соседа.
+    private func liftOffset(_ k: Int, _ size: CGSize) -> CGSize {
+        guard let l = lift else { return .zero }
+        if k == l.from { return CGSize(width: l.cur.x - l.start.x, height: l.cur.y - l.start.y) }
+        let p: Int
+        if l.from < l.to {
+            p = k > l.from && k <= l.to ? k - 1 : k
+        } else {
+            p = k >= l.to && k < l.from ? k + 1 : k
+        }
+        if p == k { return .zero }
+        let c = KnobGrid.center(k, size)
+        let t = KnobGrid.center(p, size)
+        return CGSize(width: t.x - c.x, height: t.y - c.y)
     }
 
     private func slot(_ p: CGPoint, size: CGSize) -> Int {
@@ -38,7 +83,7 @@ struct KnobGrid: View {
                 for e in events {
                     switch e.phase {
                     case .active:
-                        if turns[e.id] == nil { down(e.id, at: e.location, size: size) } else { move(e.id, y: e.location.y) }
+                        if turns[e.id] == nil { down(e.id, at: e.location, size: size) } else { move(e.id, at: e.location) }
                     case .ended, .cancelled:
                         up(e.id)
                     @unknown default:
@@ -53,8 +98,18 @@ struct KnobGrid: View {
 
     private func down(_ id: SpatialEventCollection.Event.ID, at p: CGPoint, size: CGSize) {
         model.ensureAudio()
+        gridSize = size
         let s: Int = slot(p, size: size)
         var turn = KnobTurn(slot: s, startY: p.y, lastY: p.y, acc: model.knobStart(s))
+        // MIX: кнопки M, S, ● справа от ручки — тап сразу.
+        if model.channel == .mix, let b = MixLayout.button(at: p, slot: s, size: size), s < model.project.tracks.count {
+            if b == 0 { model.toggleMute(s) }
+            if b == 1 { model.toggleSolo(s) }
+            turn.consumed = true
+            turns[id] = turn
+            model.beginGesture()
+            return
+        }
         if let t = lastTap[s], Date().timeIntervalSince(t) < 0.35 {
             lastTap[s] = nil
             model.knobDoubleTap(s)
@@ -66,9 +121,28 @@ struct KnobGrid: View {
         if model.shiftHeld { turn.consumed = true }
         turns[id] = turn
         model.beginGesture()
+        if model.channel == .mix && s < model.project.tracks.count && !turn.consumed { armLift(id, s, p) }
     }
 
-    private func move(_ id: SpatialEventCollection.Event.ID, y: CGFloat) {
+    /// Удержание ручки громкости 0,5 с без движения — она поднимается (перестановка дорожек).
+    private func armLift(_ id: SpatialEventCollection.Event.ID, _ s: Int, _ p: CGPoint) {
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            guard var t = turns[id], !t.moved, !t.consumed, lift == nil else { return }
+            t.consumed = true
+            turns[id] = t
+            lift = TrackLift(id: id, from: s, to: s, start: p, cur: p)
+        }
+    }
+
+    private func move(_ id: SpatialEventCollection.Event.ID, at p: CGPoint) {
+        if var l = lift, l.id == id {
+            l.cur = p
+            l.to = nearestTrack(p)
+            lift = l
+            return
+        }
+        let y: CGFloat = p.y
         guard var t = turns[id], !t.consumed else { return }
         if !t.moved {
             if abs(y - t.startY) < KnobGrid.dead { return }
@@ -84,10 +158,38 @@ struct KnobGrid: View {
         model.setKnob(t.slot, norm: t.acc)
     }
 
+    /// Место для дорожки — ближайшая к пальцу ручка существующей дорожки.
+    private func nearestTrack(_ p: CGPoint) -> Int {
+        var best = 0
+        var bd = CGFloat.greatestFiniteMagnitude
+        for k in 0..<min(16, model.project.tracks.count) {
+            let c = KnobGrid.center(k, gridSize)
+            let d: CGFloat = (c.x - p.x) * (c.x - p.x) + (c.y - p.y) * (c.y - p.y)
+            if d < bd {
+                bd = d
+                best = k
+            }
+        }
+        return best
+    }
+
     private func up(_ id: SpatialEventCollection.Event.ID) {
         guard turns.removeValue(forKey: id) != nil else { return }
         model.endGesture()
+        if let l = lift, l.id == id {
+            lift = nil
+            if l.to != l.from { model.moveTrack(l.from, l.to) }
+        }
     }
+}
+
+/// Поднятая ручка громкости (перестановка дорожек в MIX).
+struct TrackLift {
+    let id: SpatialEventCollection.Event.ID
+    let from: Int
+    var to: Int
+    let start: CGPoint
+    var cur: CGPoint
 }
 
 /// Поворот ручки одним пальцем.

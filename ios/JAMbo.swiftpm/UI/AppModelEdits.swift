@@ -46,13 +46,20 @@ extension AppModel {
 
     /// Параметр ручки slot (0…15, ряд за рядом) в текущем режиме; nil — неактивная (MIX и MST — позже).
     func param(_ slot: Int) -> ParamDef? {
-        guard channel == .track else { return nil }
-        return Params.trackGrid[slot]
+        switch channel {
+        case .track: return Params.trackGrid[slot]
+        case .mix: return mixParam(slot)
+        case .master: return nil
+        }
     }
 
     /// Что показать на ручке: p-lock зажатого шага, иначе p-lock играющего шага (жёлтым), иначе ручка дорожки.
     func knobState(_ slot: Int) -> KnobState {
         guard let p = param(slot) else { return KnobState(param: nil, value: 0, norm: 0, baseNorm: 0, locked: false) }
+        if channel == .mix {
+            let v: Double = project.tracks[slot].vol
+            return KnobState(param: p, value: v, norm: p.toNorm(v), baseNorm: p.toNorm(v), locked: false)
+        }
         let t = track
         let base: Double = t.params[p.id] ?? p.def
         var lock: Double? = nil
@@ -69,6 +76,7 @@ extension AppModel {
     /// Начало поворота: положение, от которого считать (p-lock зажатого шага или ручка).
     func knobStart(_ slot: Int) -> Double {
         guard let p = param(slot) else { return 0 }
+        if channel == .mix { return p.toNorm(project.tracks[slot].vol) }
         if let held = heldSteps.min(), let v = track.step(held)?.locks[p.id] { return p.toNorm(v) }
         return p.toNorm(track.params[p.id] ?? p.def)
     }
@@ -77,6 +85,10 @@ extension AppModel {
     func setKnob(_ slot: Int, norm: Double) {
         guard let p = param(slot) else { return }
         let v: Double = p.fromNorm(norm)
+        if channel == .mix {
+            edit { pr in pr.tracks[slot].vol = v }
+            return
+        }
         let held = heldSteps
         if held.isEmpty {
             editTrack { t in t.params[p.id] = v }
@@ -90,6 +102,11 @@ extension AppModel {
 
     /// Двойной тап по ручке: с зажатым шагом — снять p-lock; с SHIFT — снять все p-lock дорожки.
     func knobDoubleTap(_ slot: Int) {
+        // MIX: двойной тап по ручке громкости — меню дорожки (COPY, PASTE, DELETE TRACK, RENAME), по серой — ADD TRACK.
+        if channel == .mix {
+            openTrackMenu(slot)
+            return
+        }
         guard let p = param(slot) else { return }
         if shiftHeld {
             editTrack { t in t.clearAllLocks() }

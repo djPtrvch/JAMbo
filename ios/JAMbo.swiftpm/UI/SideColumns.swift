@@ -1,26 +1,40 @@
 import SwiftUI
 
-/// Левая колонка: окно сэмпла (S2), стрелки звука, LFO1, LFO2, LFO3, ENV (S4) — пока на местах, серые.
+/// Левая колонка: окно сэмпла, стрелки звука (папка дорожки), LFO1, LFO2, LFO3, ENV (S4 — серые).
 struct LeftColumn: View {
+    let model: AppModel
     @Environment(\.theme) private var theme
 
     var body: some View {
         VStack(spacing: Layout.gap) {
-            Text("SAMPLE · S2")
-                .font(.system(size: 12, weight: .semibold))
-                .tracking(1)
-                .foregroundStyle(theme.off)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(theme.panel, in: RoundedRectangle(cornerRadius: Layout.radius))
-                .overlay(RoundedRectangle(cornerRadius: Layout.radius).strokeBorder(theme.line, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
-            HStack(spacing: Layout.gap) {
-                SideButton(title: "◀", enabled: false).frame(width: 56)
-                Text("— / —").font(.system(size: 11)).foregroundStyle(theme.dim).frame(maxWidth: .infinity)
-                SideButton(title: "▶", enabled: false).frame(width: 56)
+            SampleWindow(model: model)
+            if model.channel == .track {
+                FolderArrows(model: model).frame(height: 36)
             }
-            .frame(height: 36)
             ButtonPair(left: SideButton(title: "LFO1", enabled: false), right: SideButton(title: "LFO2", enabled: false))
             ButtonPair(left: SideButton(title: "LFO3", enabled: false), right: SideButton(title: "ENV", enabled: false))
+        }
+        .onGeometryChange(for: CGRect.self) { g in g.frame(in: .named("root")) } action: { r in
+            if model.leftFrame != r { model.leftFrame = r }
+        }
+    }
+}
+
+/// Стрелки ◀ ▶ под окном сэмпла: соседний звук папки дорожки (с зажатым шагом — звук шага); между ними n / всего.
+struct FolderArrows: View {
+    let model: AppModel
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let total: Int = model.track.folder.items.count
+        return HStack(spacing: Layout.gap) {
+            SideButton(title: "◀", enabled: total > 0).frame(width: 56)
+                .contentShape(Rectangle())
+                .onTapGesture { model.folderArrow(-1) }
+            Text(model.folderLabel).font(.system(size: 11)).monospacedDigit().foregroundStyle(theme.dim).frame(maxWidth: .infinity)
+            SideButton(title: "▶", enabled: total > 0).frame(width: 56)
+                .contentShape(Rectangle())
+                .onTapGesture { model.folderArrow(1) }
         }
     }
 }

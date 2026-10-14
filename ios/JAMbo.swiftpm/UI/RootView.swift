@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Главный экран (сверху вниз, как в вебе): верхняя панель, центр, строка дорожек, секвенсор, пианоролл.
 
@@ -23,6 +24,14 @@ struct RootView: View {
             }
             .coordinateSpace(name: "root")
         }
+        .fileImporter(isPresented: importing, allowedContentTypes: [.audio], allowsMultipleSelection: true) { result in
+            if case .success(let urls) = result { model.importFiles(urls) } else { model.importTarget = nil }
+        }
+    }
+
+    /// Выбор файлов (LOAD): «Файлы» iPad и iCloud Drive, можно сразу несколько.
+    private var importing: Binding<Bool> {
+        Binding(get: { model.importing }, set: { model.importing = $0 })
     }
 
     private func screen(_ layout: Layout) -> some View {
@@ -42,9 +51,15 @@ struct RootView: View {
     private func center(_ layout: Layout) -> some View {
         if model.patternView {
             PatternGrid(model: model, layout: layout)
+        } else if model.editorOpen {
+            // Редактор сэмпла — на месте центра (окно сэмпла, сетка ручек, правая колонка), справа измеритель.
+            HStack(spacing: Layout.gap) {
+                SampleEditor(model: model)
+                MeterColumn()
+            }
         } else {
             HStack(spacing: Layout.gap) {
-                LeftColumn().frame(width: Layout.leftColumn)
+                LeftColumn(model: model).frame(width: Layout.leftColumn)
                 KnobGrid(model: model)
                 RightColumn(model: model).frame(width: Layout.leftColumn)
                 MeterColumn()
@@ -60,6 +75,9 @@ struct RootView: View {
         if let menu = model.pageMenu {
             pageMenu(menu)
         }
+        if let m = model.soundMenu {
+            soundMenu(m)
+        }
         if model.showDiagnostics {
             DiagnosticsView(model: model).padding(8)
         }
@@ -67,6 +85,19 @@ struct RootView: View {
 }
 
 extension RootView {
+    /// Меню звука — на месте левой колонки; тап мимо — закрыть.
+    func soundMenu(_ m: SoundMenuState) -> some View {
+        let r: CGRect = model.leftFrame
+        return ZStack(alignment: .topLeading) {
+            Color.black.opacity(0.001)
+                .ignoresSafeArea()
+                .onTapGesture { model.soundMenu = nil }
+            SoundMenu(model: model, state: m)
+                .frame(width: r.width, height: r.height)
+                .offset(x: r.minX, y: r.minY)
+        }
+    }
+
     /// Меню страницы — под её миниатюрой, по центру колонки миниатюр (как в вебе); тап мимо — закрыть.
     func pageMenu(_ menu: PageMenuState) -> some View {
         let top: CGFloat = 8 + Layout.topHeight + Layout.gap + max(0, min(menu.y + 4, menu.maxY - PageMenu.height))
@@ -111,6 +142,15 @@ struct MainMenu: View {
                     InkButton(title: a.rawValue, active: model.appearance == a) { model.setAppearance(a) }
                 }
             }
+            Divider().overlay(theme.line)
+            MenuHead(title: "SAMPLER")
+            Text("SLICE NOTES").font(.system(size: 9)).foregroundStyle(theme.dim)
+            HStack(spacing: 6) {
+                InkButton(title: "CHROMATIC", active: model.settings.sliceMap == .chromatic) { model.setSliceMap(.chromatic) }
+                InkButton(title: "SCALE", active: model.settings.sliceMap == .scale) { model.setSliceMap(.scale) }
+            }
+            Text("Notes of slice markers in order: C3, C#3, D3… or steps of the scale from the root in octave 3.")
+                .font(.system(size: 12)).foregroundStyle(theme.dim)
             Divider().overlay(theme.line)
             MenuHead(title: "DIAGNOSTICS")
             InkButton(title: "DIAGNOSTICS") {

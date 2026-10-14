@@ -258,6 +258,9 @@ extension AppModel {
 
     func togglePatterns() {
         patternView.toggle()
-        if patternView { openClip(selectedTrack, track.slot) }
+        if patternView {
+            editorOpen = false
+            openClip(selectedTrack, track.slot)
+        }
     }
 }

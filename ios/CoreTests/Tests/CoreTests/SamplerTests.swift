@@ -152,6 +152,7 @@ final class SamplerTests: XCTestCase {
         core.publish(p, samples: samples)
         let o = render(core, frames: 4000)
         XCTAssertEqual(o.l[3000], center * 0.5, accuracy: 0.01, "держащаяся нота звучит новым звуком")
+        XCTAssertEqual(core.sampler.activeCount, 1, "один новый голос (прежний погас)")
         core.events.push(.noteOff(track: 0, id: 3))
         _ = render(core, frames: 48000)
         XCTAssertEqual(core.sampler.activeCount, 0, "отпускание действует и на новый голос")

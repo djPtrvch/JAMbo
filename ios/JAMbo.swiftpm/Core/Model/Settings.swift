@@ -21,6 +21,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
     /// Чувствительность клавиш к нажатию.
     public var velocity: Bool = false
     public var record = RecordSettings()
+    /// SETTINGS → SAMPLER → SLICE NOTES: ноты маркеров нарезки по порядку.
+    public var sliceMap: SliceMap = .chromatic
 
     public init() {}
 
@@ -34,7 +36,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         return try? JSONEncoder().encode(self)
     }
 
-    private enum Keys: String, CodingKey { case appearance, pianoOctaves, velocity, record }
+    private enum Keys: String, CodingKey { case appearance, pianoOctaves, velocity, record, sliceMap }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
@@ -42,5 +44,6 @@ public struct AppSettings: Codable, Equatable, Sendable {
         pianoOctaves = (try? c.decode(Int.self, forKey: .pianoOctaves)) ?? 2
         velocity = (try? c.decode(Bool.self, forKey: .velocity)) ?? false
         record = (try? c.decode(RecordSettings.self, forKey: .record)) ?? RecordSettings()
+        sliceMap = (try? c.decode(SliceMap.self, forKey: .sliceMap)) ?? .chromatic
     }
 }

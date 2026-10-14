@@ -21,7 +21,13 @@ struct PagesColumn: View {
             ZStack(alignment: .topLeading) {
                 VStack(spacing: 4) {
                     ForEach(0..<PagesColumn.rows, id: \.self) { r in
+                        let lifted: Bool = press?.lifting == true && press?.row == r
                         row(r).frame(height: rowH)
+                            .offset(y: pageOffset(r, step: rowH + 4))
+                            .scaleEffect(lifted ? 1.06 : 1)
+                            .shadow(color: .black.opacity(lifted ? 0.5 : 0), radius: 8)
+                            .zIndex(lifted ? 1 : 0)
+                            .animation(.easeOut(duration: 0.15), value: press?.liftTo)
                     }
                 }
                 outline(rowH: rowH)
@@ -66,6 +72,15 @@ struct PagesColumn: View {
         }
     }
 
+    /// Перенос страницы: поднятая — за пальцем, страницы между старым и новым местом — на соседнее.
+    private func pageOffset(_ r: Int, step: CGFloat) -> CGFloat {
+        guard let p = press, p.lifting else { return 0 }
+        if r == p.row { return p.liftY - p.y0 }
+        if p.row < p.liftTo && r > p.row && r <= p.liftTo { return -step }
+        if p.liftTo < p.row && r >= p.liftTo && r < p.row { return step }
+        return 0
+    }
+
     private func rowAt(_ y: CGFloat, step: CGFloat) -> Int {
         return max(0, Int(y / step))
     }
@@ -83,6 +98,14 @@ struct PagesColumn: View {
                     model.beginGesture()
                 }
                 if p.moved && !p.plus && !p.held { follow(&p, y: g.location.y, step: rowH) }
+                // Удержание страницы и протягивание — перенос: миниатюра идёт за пальцем, соседи сдвигаются.
+                if p.moved && p.held && !p.plus {
+                    p.lifting = true
+                    p.liftY = g.location.y
+                    let n: Int = model.track.pages.count
+                    p.liftTo = min(n - 1, max(0, Int(g.location.y / rowH)))
+                    press = p
+                }
             }
             .onEnded { _ in end() }
     }
@@ -164,6 +187,7 @@ struct PagesColumn: View {
         press = nil
         if p.moved {
             model.endGesture()
+            if p.lifting && p.liftTo != p.row { model.movePage(p.row, p.liftTo) }
             return
         }
         if p.held { return }
@@ -198,6 +222,10 @@ struct PagePress {
     let t0: Date = Date()
     var moved: Bool = false
     var held: Bool = false
+    /// Перенос страницы (удержание и протягивание): идёт ли, куда встанет, где палец.
+    var lifting: Bool = false
+    var liftTo: Int = 0
+    var liftY: CGFloat = 0
     var mode: PageDragMode = .range
     var y0: CGFloat = 0
     var from0: Int = 0

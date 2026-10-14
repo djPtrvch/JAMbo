@@ -365,7 +365,9 @@ public final class Sampler {
 
     private func retrigger(_ t: Int, _ now: Int64) {
         let edgeTol = Int64(0.01 * sr)
-        for v in 0..<Sampler.slots where active[v] != 0 && fading[v] == 0 && track[v] == t && own[v] == 0 {
+        // Новые голоса (созданные в этом же цикле) не перезапускаются.
+        let last = nextSerial
+        for v in 0..<Sampler.slots where active[v] != 0 && fading[v] == 0 && track[v] == t && own[v] == 0 && serial[v] <= last {
             let at = Swift.max(now, start[v])
             if holdEnd[v] != Int64.max && holdEnd[v] <= at + edgeTol { continue }
             let gate: Int64 = holdEnd[v] == Int64.max ? Int64.max : holdEnd[v] - at

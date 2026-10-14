@@ -110,6 +110,14 @@ extension AppModel {
         ensureAudio()
         pressedKeys[id] = notes
         let ti = selectedTrack
+        // Держат флажок маркера нарезки в редакторе: клавиша назначает ему ноту (и звучит).
+        if let first = notes.first, assignHeldSlice(first) {
+            keyHolds[id] = KeyHold(track: ti, notes: [first], recIndex: nil, t0: Date.timeIntervalSinceReferenceDate)
+            liveNoteOn(track: ti, notes: [first], id: id, velocity: velocity)
+            return
+        }
+        // Нажатая нота сразу звучит на выбранной дорожке (живой наигрыш); держится, пока держат клавишу.
+        liveNoteOn(track: ti, notes: notes, id: id, velocity: velocity)
         var recIndex: Int? = nil
         if recOn && playing && heldSteps.isEmpty && channel == .track {
             recIndex = record(track: ti, notes: notes, velocity: settings.velocity ? velocity : nil)
@@ -122,7 +130,9 @@ extension AppModel {
     /// Отпустили клавишу: с REC — длина записанной ноты по времени удержания.
     func keyUp(id: Int) {
         guard pressedKeys.removeValue(forKey: id) != nil else { return }
-        guard let k = keyHolds.removeValue(forKey: id), let index = k.recIndex else { return }
+        guard let k = keyHolds.removeValue(forKey: id) else { return }
+        liveNoteOff(track: k.track, id: id)
+        guard let index = k.recIndex else { return }
         let stepSeconds: Double = 60 / project.bpm / 4
         let len = RecordClock.length(seconds: Date.timeIntervalSinceReferenceDate - k.t0, stepSeconds: stepSeconds)
         writeTake(track: k.track) { t in t.recordLength(index, len) }

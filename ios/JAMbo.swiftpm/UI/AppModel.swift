@@ -71,12 +71,36 @@ final class AppModel {
     /// Зажатые клавиши: дорожка, ноты, записанный шаг (длина — при отпускании) и время нажатия.
     @ObservationIgnored var keyHolds: [Int: KeyHold] = [:]
     private(set) var appearance: Appearance = AppModel.loadAppearance()
+    /// Сэмплы (в памяти и на диске); растёт при загрузке — окна перерисовываются.
+    @ObservationIgnored let store = SampleStore()
+    var samplesVersion: Int = 0
+    /// Редактор сэмпла (на месте центра), меню звука (для дорожки или зажатых шагов), выбор файлов.
+    var editorOpen: Bool = false
+    var soundMenu: SoundMenuState? = nil
+    var importTarget: ImportTarget? = nil
+    var importing: Bool = false
+    /// Рамка левой колонки (меню звука ложится на неё).
+    var leftFrame: CGRect = .zero
+    /// Звучащие голоса сэмплов (полоса воспроизведения): из колбэка; число — чтобы включать анимацию.
+    @ObservationIgnored var heads: [Int: VoiceHead] = [:]
+    var headCount: Int = 0
+    var previewOn: Bool = false
+    /// Маркер нарезки, который держат в редакторе (не двигая): клавиша назначает ему ноту; отказ — красный.
+    var heldFlag: Int? = nil
+    /// Клавиша назначила ноту флажку, который держат (его отпускание — не тап).
+    @ObservationIgnored var flagUsed: Bool = false
+    var refusedFlag: (idx: Int, until: Double) = (-1, 0)
+    /// MIX: меню дорожки у ручки громкости, переименование, скопированная дорожка.
+    var trackMenu: TrackMenuState? = nil
+    var renaming: Int? = nil
+    @ObservationIgnored var trackClipboard: Track? = nil
+    var hasTrackClip: Bool = false
     private var audioStarted: Bool = false
     @ObservationIgnored private var pump: Timer?
 
     init() {
         trace("model init")
-        audio.core.publish(project)
+        publishAudio()
         audio.core.events.push(.tempo(project.bpm))
         let timer = Timer(timeInterval: 1.0 / 60, repeats: true) { [weak self] _ in
             self?.drain()
@@ -113,6 +137,12 @@ final class AppModel {
     private func drain() {
         audio.core.releaseRetired()
         defer { applyPendingLead() }
+        drainVoices()
+        let tracks = project.tracks.count
+        live.audible = { [weak self] t in
+            guard let s = self, t < tracks else { return false }
+            return s.project.audible(t)
+        }
         live.drain(audio.core.sequencer.out, now: Date.timeIntervalSinceReferenceDate, onStep: { [weak self] t, pos in
             self?.recPassStep(t, pos)
         }, onPlay: { [weak self] e in
@@ -191,13 +221,13 @@ final class AppModel {
     /// Ход игры (активная ячейка, остановка, гамма лидера) — не правка: без UNDO.
     func mutatePlay(_ change: (inout Project) -> Void, publish: Bool) {
         change(&project)
-        if publish { audio.core.publish(project) }
+        if publish { publishAudio() }
     }
 
     /// Правка без новой записи в UNDO (продолжение дубля записи — UNDO отменяет весь дубль).
     func applyInTake(_ change: (inout Project) -> Void) {
         change(&project)
-        audio.core.publish(project)
+        publishAudio()
     }
 
     /// Непрерывный жест (поворот ручки, протягивание, BPM): одна запись на весь жест.
@@ -241,7 +271,7 @@ final class AppModel {
     }
 
     func changed() {
-        audio.core.publish(project)
+        publishAudio()
         refreshHistory()
     }
 
@@ -282,6 +312,13 @@ final class AppModel {
     func editTrack(_ change: (inout Track) -> Void) {
         let i = selectedTrack
         edit { p in change(&p.tracks[i]) }
+    }
+
+    /// Номер выбранной дорожки после правки списка (удаление, перестановка).
+    func selectTrackIndex(_ i: Int) {
+        selectedTrack = max(0, min(i, project.tracks.count - 1))
+        heldSteps.removeAll()
+        viewPage = min(viewPage, track.pages.count - 1)
     }
 
     func select(track i: Int) {
@@ -344,6 +381,8 @@ final class LiveState {
     private(set) var beatAccent: Bool = false
     @ObservationIgnored private var flashUntil: [Double] = [Double](repeating: 0, count: Params.maxTracks)
     @ObservationIgnored private var beatUntil: Double = 0
+    /// Слышна ли дорожка (mute / solo) — задаёт модель.
+    @ObservationIgnored var audible: (Int) -> Bool = { _ in true }
 
     /// Ожидание у дорожек (Launcher.none / stop / ячейка), начало прохода, играющая и ожидающая строки.
     private(set) var queued: [Int] = [Int](repeating: Launcher.none, count: Params.maxTracks)
@@ -365,6 +404,8 @@ final class LiveState {
                 if t == 0 { stepSerial &+= 1 }
                 if pos >= 0 { onStep(t, pos) }
             case .trig(let t, _):
+                // Заглушённая дорожка играет дальше, но не мигает.
+                if !audible(t) { continue }
                 flashUntil[t] = now + 0.09
                 if !flashing[t] { flashing[t] = true }
             case .clip(let t, _, _, let start):
