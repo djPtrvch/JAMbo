@@ -148,6 +148,9 @@ struct StepInfo {
     let outside: Bool
     let last: Bool
     let channelOn: Bool
+    /// Ручные p-lock (заливка жёлтым), p-lock на пустом шаге или свой звук шага (жёлтая обводка).
+    let manualLock: Bool
+    let lockOutline: Bool
 
     init(model: AppModel, col: Int) {
         let t: Track = model.track
@@ -168,6 +171,10 @@ struct StepInfo {
             }
         }
         tail = isTail
+        manualLock = on && (s.map { Track.hasManualLocks($0) } ?? false)
+        let lockOnly: Bool = channelOn && !on && !(s?.locks.isEmpty ?? true)
+        let ownSound: Bool = on && s?.sound != nil
+        lockOutline = lockOnly || ownSound
         if on, let s = s {
             label = s.notes.count > 1 ? "POLY" : (s.notes.first.map { Params.noteName($0) } ?? "")
         } else {
@@ -182,13 +189,13 @@ struct StepInfo {
     }
 
     func fill(_ theme: Theme) -> Color {
-        if on { return theme.text }
+        if on { return manualLock ? theme.accent : theme.text }
         if tail { return theme.text.opacity(0.4) }
         return Color.clear
     }
 
     func outline(_ theme: Theme) -> Color {
-        if playing { return theme.accent }
+        if playing || lockOutline { return theme.accent }
         if held { return theme.text }
         return Color.clear
     }

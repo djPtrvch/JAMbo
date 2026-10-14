@@ -16,13 +16,21 @@ struct PatternGrid: View {
     var body: some View {
         GeometryReader { geo in
             let g = GridGeometry(size: geo.size, step: layout.step, tracks: model.project.tracks.count)
+            let w = model.gridWindow
             ZStack(alignment: .topLeading) {
-                cells(g)
-                ghostView(g)
+                // Жест сетки — только на ячейках (колонка строк и дорожки); кнопки справа и меню — свои касания.
+                ZStack(alignment: .topLeading) {
+                    cells(g)
+                    ghostView(g)
+                }
+                .frame(width: g.size.width - g.sceneW - Layout.gap, height: g.size.height, alignment: .topLeading)
+                .contentShape(Rectangle())
+                .gesture(touch(g))
+                GridSideButtons(model: model, scroll: w.maxTop > 0, canUp: w.top > 0, canDown: w.top < w.maxTop)
+                    .frame(width: g.sceneW, height: g.size.height)
+                    .offset(x: g.size.width - g.sceneW)
                 PatternMenus(model: model, geometry: g)
             }
-            .contentShape(Rectangle())
-            .gesture(touch(g))
         }
     }
 
@@ -41,8 +49,6 @@ struct PatternGrid: View {
                 PlusCell().frame(width: g.sceneW, height: g.rowH).offset(g.origin(col: -1, row: r))
             }
         }
-        GridSideButtons(model: model, scroll: w.maxTop > 0, canUp: w.top > 0, canDown: w.top < w.maxTop)
-            .frame(width: g.sceneW, height: g.size.height).offset(x: g.size.width - g.sceneW)
     }
 
     @ViewBuilder
@@ -92,11 +98,11 @@ struct PatternGrid: View {
         guard var p = press, !p.held else { return }
         let dx: CGFloat = v.translation.width
         let dy: CGFloat = v.translation.height
-        if hypot(dx, dy) > 12 { p.moved = true }
+        if hypot(dx, dy) > 8 { p.moved = true }
         press = p
         guard let c = p.cell, model.project.tracks[c.track].clipFilled(c.row) else { return }
         let early: Bool = Date().timeIntervalSince(p.t0) < PatternGrid.flick && -dy > abs(dx)
-        if ghost == nil && (early || hypot(dx, dy) <= 12) { return }
+        if ghost == nil && (early || hypot(dx, dy) <= 8) { return }
         ghost = v.location
         if case .cell(let t) = g.hit(v.location, window: model.gridWindow), t != c { target = t } else { target = nil }
     }
@@ -111,7 +117,8 @@ struct PatternGrid: View {
         if p.held { return }
         let dx: CGFloat = v.translation.width
         let dy: CGFloat = v.translation.height
-        let flick: Bool = Date().timeIntervalSince(p.t0) < PatternGrid.flick && -dy > 24 && abs(dx) < -dy
+        // Свайп вверх (копия ячейки не поднималась) — меню ячейки.
+        let flick: Bool = !dragged && -dy > 24 && abs(dx) < -dy
         if let c = p.cell {
             if flick {
                 model.cellMenu = CellMenuState(cell: c, anchor: g.frame(c, window: model.gridWindow))

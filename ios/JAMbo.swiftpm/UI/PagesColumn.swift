@@ -70,41 +70,93 @@ struct PagesColumn: View {
         return max(0, Int(y / step))
     }
 
+    /// Касание у границы обводки (0,4 высоты страницы по обе стороны) берёт этот край; в середине обводки —
+    /// перенос её целиком; снаружи — новые страницы от и до. Сдвиг больше 8 px — уже не тап.
     private func drag(rowH: CGFloat) -> some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { g in
-                let r: Int = rowAt(g.location.y, step: rowH)
-                if press == nil { begin(r) }
+                if press == nil { begin(g.startLocation.y, step: rowH) }
                 guard var p = press else { return }
                 if !p.moved && abs(g.translation.height) > 8 {
                     p.moved = true
                     press = p
                     model.beginGesture()
                 }
-                if p.moved && !p.plus && !p.held { selectRange(from: p.row, to: r) }
+                if p.moved && !p.plus && !p.held { follow(&p, y: g.location.y, step: rowH) }
             }
             .onEnded { _ in end() }
     }
 
-    private func begin(_ r: Int) {
+    private func begin(_ y: CGFloat, step: CGFloat) {
         model.ensureAudio()
         guard model.channel == .track else { return }
         let n: Int = model.track.pages.count
-        if r > n { return }
-        press = PagePress(row: r, plus: r == n)
-        let started: Date = Date()
+        let r: Int = rowAt(y, step: step)
+        let mode: PageDragMode = dragMode(y, step: step)
+        if r > n && mode == .range { return }
+        var p = PagePress(row: min(r, n), plus: r == n && mode == .range)
+        p.mode = mode
+        p.y0 = y
+        p.from0 = model.track.playFrom
+        p.to0 = model.track.playTo
+        press = p
+        let started: Date = p.t0
+        let nearEdge: Bool = edgeDistance(y, step: step) < 0.25 * (step - 4)
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 450_000_000)
-            guard var p = press, p.row == r, !p.moved, !p.plus, p.t0 <= started.addingTimeInterval(0.01) else { return }
-            p.held = true
-            press = p
-            model.viewPage = r
+            guard var cur = press, cur.t0 == started, !cur.moved, !cur.plus, !nearEdge else { return }
+            cur.held = true
+            press = cur
+            model.viewPage = cur.row
         }
     }
 
-    private func selectRange(from a: Int, to b0: Int) {
-        let b: Int = min(b0, model.track.pages.count - 1)
-        model.playPages(min(a, b), max(a, b))
+    /// Расстояние до ближайшей границы обводки.
+    private func edgeDistance(_ y: CGFloat, step: CGFloat) -> CGFloat {
+        let t: Track = model.track
+        let top: CGFloat = CGFloat(t.playFrom) * step
+        let bottom: CGFloat = CGFloat(t.playTo + 1) * step - 4
+        return min(abs(y - top), abs(y - bottom))
+    }
+
+    private func dragMode(_ y: CGFloat, step: CGFloat) -> PageDragMode {
+        let t: Track = model.track
+        let rowH: CGFloat = step - 4
+        let top: CGFloat = CGFloat(t.playFrom) * step
+        let bottom: CGFloat = CGFloat(t.playTo + 1) * step - 4
+        let grab: CGFloat = 0.4 * rowH
+        if abs(y - bottom) < grab && abs(y - bottom) <= abs(y - top) { return .bottom }
+        if abs(y - top) < grab { return .top }
+        if y > top && y < bottom { return .move }
+        return .range
+    }
+
+    /// Протягивание: край идёт за пальцем (страница берётся или отпускается, когда край зашёл в неё на треть),
+    /// обводка целиком — сдвигом на целые страницы, снаружи — диапазон от первой страницы до пальца.
+    private func follow(_ p: inout PagePress, y: CGFloat, step: CGFloat) {
+        let n: Int = model.track.pages.count
+        let rowH: CGFloat = step - 4
+        var from: Int = model.track.playFrom
+        var to: Int = model.track.playTo
+        switch p.mode {
+        case .top:
+            while from < to && y > CGFloat(from) * step + rowH / 3 { from += 1 }
+            while from > 0 && y < CGFloat(from - 1) * step + rowH * 2 / 3 { from -= 1 }
+        case .bottom:
+            while to > from && y < CGFloat(to) * step + rowH * 2 / 3 { to -= 1 }
+            while to < n - 1 && y > CGFloat(to + 1) * step + rowH / 3 { to += 1 }
+        case .move:
+            let len: Int = p.to0 - p.from0
+            let d: Int = Int(((y - p.y0) / step).rounded())
+            from = min(max(0, p.from0 + d), n - 1 - len)
+            to = from + len
+        case .range:
+            let r: Int = min(rowAt(y, step: step), n - 1)
+            let a: Int = min(p.row, n - 1)
+            from = min(a, r)
+            to = max(a, r)
+        }
+        if from != model.track.playFrom || to != model.track.playTo { model.playPages(from, to) }
     }
 
     private func end() {
@@ -119,7 +171,7 @@ struct PagesColumn: View {
             model.addPage()
             return
         }
-        tap(p.row)
+        if p.row < model.track.pages.count { tap(p.row) }
     }
 
     /// Тап: второй за 0,3 с — меню страницы; иначе через 0,3 с — эта страница играет.
@@ -146,6 +198,18 @@ struct PagePress {
     let t0: Date = Date()
     var moved: Bool = false
     var held: Bool = false
+    var mode: PageDragMode = .range
+    var y0: CGFloat = 0
+    var from0: Int = 0
+    var to0: Int = 0
+}
+
+/// Что тянет палец по миниатюрам: верхний или нижний край обводки, обводку целиком или новый диапазон.
+enum PageDragMode {
+    case top
+    case bottom
+    case move
+    case range
 }
 
 /// Миниатюра страницы: 16 ячеек (пустые серые, триги белые, хвосты полупрозрачные, p-lock жёлтые,

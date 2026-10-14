@@ -186,6 +186,9 @@ public final class Launcher {
         sceneStart = at
         sceneLen = len > 0 ? len : 16
         sceneQueued = -1
+        sceneAtPass = false
         out.push(.scene(row: k, start: at, len: sceneLen))
+        // Ожидание снято: строка больше не мигает.
+        out.push(.sceneQueue(row: -1))
     }
 }

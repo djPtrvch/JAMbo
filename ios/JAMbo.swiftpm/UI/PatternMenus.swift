@@ -58,7 +58,7 @@ struct PatternMenus: View {
         let below: CGFloat = top + geometry.rowH + 6
         let above: CGFloat = max(0, top - 6 - h)
         let fits: Bool = below + h < geometry.size.height
-        return CGSize(width: 0, height: fits ? below : above)
+        return CGSize(width: 6, height: fits ? below : above)
     }
 }
 
@@ -153,7 +153,7 @@ struct RowMenu: View {
             }
             MenuItem(title: "OK") { done() }
         }
-        .frame(width: 300)
+        .frame(width: 236)
         .modifier(MenuPanel())
         .onAppear {
             if loaded { return }
@@ -166,9 +166,9 @@ struct RowMenu: View {
     private var repeatsRow: some View {
         HStack(spacing: 6) {
             Text("REPEATS").font(.system(size: 10)).tracking(0.8).foregroundStyle(theme.dim).frame(maxWidth: .infinity, alignment: .leading)
-            MenuItem(title: "−") { reps = max(1, reps - 1) }.frame(width: 52)
-            Text("×\(reps)").font(.system(size: 17)).monospacedDigit().foregroundStyle(theme.text).frame(width: 48)
-            MenuItem(title: "+") { reps = min(64, reps + 1) }.frame(width: 52)
+            MenuItem(title: "−") { reps = max(1, reps - 1) }.frame(width: 44)
+            Text("×\(reps)").font(.system(size: 17)).monospacedDigit().foregroundStyle(theme.text).frame(width: 44)
+            MenuItem(title: "+") { reps = min(64, reps + 1) }.frame(width: 44)
         }
         .frame(height: 44)
     }
