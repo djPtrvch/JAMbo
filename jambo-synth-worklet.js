@@ -1,0 +1,546 @@
+// AudioWorklet: свои синт-движки JAMbo (чистый JS, без WASM) — DRUM, ANALOG, FM, WTABLE.
+// Протокол как у plaits-worklet.js: один узел = одна дорожка, у узла SLOTS моно-выходов —
+// по одному на голос; дальше каждый голос идёт через свою цепочку Web Audio (огибающая Attack/Decay,
+// Level, фильтр, Pan, посылы — engine.ts).
+//
+// Сообщения из основного потока (массив событий):
+//   { type: 'note', slot, frame, end, engine, note, p1, p2, p3, decay, accent }
+//     — в кадре frame голос запускается, после кадра end молчит и не считается;
+//     p1, p2, p3 — ручки 1.1–1.3 (0..1), decay — ручка Decay (мс);
+//   { type: 'mod', slot, note, p1, p2, p3, decay, id?, frame? } — модуляция звучащего голоса (сразу, со сглаживанием);
+//     с frame — в свой кадр (расписание автоматизации; новое расписание слота заменяет старое с этого кадра),
+//     без frame — сразу и снимает расписание слота; с id — только голосу этой ноты;
+//   { type: 'end', id, slot, end } — новый конец ноты id (отпустили живую ноту; у note тоже есть id);
+//   { type: 'stop', slot, frame } — с кадра frame голос слота молчит (слот занял голос Plaits);
+//   { type: 'table', frames, levels: [{ size, data }] } — таблица WTABLE дорожки: frames кадров,
+//     мипмапы по октавам (уровень L — гармоники до 1024 >> L, data — frames × size отсчётов).
+// Голос, который затих сам (DRUM), перестаёт считаться раньше end. DRUM — бочка: монофонична
+// (engine.ts ставит удары в один слот), высота — ручкой PITCH, а не нотой.
+// Высота — MIDI-нота (как у Plaits: 69 = A4 = 440 Гц), частота дискретизации — sampleRate узла.
+// Раз в ~0,5 с узел присылает { cpu: доля времени, ушедшая на расчёт голосов }.
+// В process() нет выделений памяти: все буферы — Float32Array, созданные заранее.
+
+const BLOCK = 24;
+/** Тишина дольше этого (кадров) после атаки — голос больше не считается (как у Plaits). */
+const SILENCE = 4800;
+const QUIET = 1e-5;
+/** Сглаживание ручек при смене на лету, с. */
+/** Плавный вход новой ноты (кроме DRUM), кадров: ~1,3 мс — короче минимальной атаки 2 мс. */
+const FADE_IN = 64;
+const SMOOTH = 0.005;
+const TAU = Math.PI * 2;
+
+const DRUM = 16;
+const ANALOG = 17;
+const FM = 18;
+const WTABLE = 19;
+
+// ---------- DRUM ----------
+/** PITCH: диапазон частоты бочки, Гц (логарифмически; середина ручки ≈ 55 Гц). */
+const DRUM_PITCH_MIN = 30;
+const DRUM_PITCH_MAX = 100;
+/** Decay — время до −60 dB: постоянная экспоненты = Decay / DRUM_T60. */
+const DRUM_T60 = 6.9;
+/** Предел Decay бочки, мс (ручка Decay у DRUM — 0…1000 мс). */
+const DRUM_DECAY_MAX = 1000;
+/** Сглаживание стыка при ретриге (монофонично: новый удар обрывает прошлый), с. */
+const DRUM_DECLICK = 0.002;
+/** Длительность клика, с. */
+const DRUM_CLICK = 0.002;
+/** Уровень синуса (пик) до клиппера: запас под клик и насыщение. */
+const DRUM_SINE = 0.7;
+/** Общий множитель после клиппера: пик не выше 0 dBFS. */
+const DRUM_OUT = 0.85;
+
+// ---------- ANALOG ----------
+/** Расстройка OSC1/OSC2 в сумме (центы) при ручке DETUNE 100 % (кривая x²). */
+const ANALOG_DETUNE = 60;
+/** Дрейф высоты (общий на дорожку — голоса одной ноты не расходятся по фазе): ± центов; новая случайная цель — в среднем раз в 1/ANALOG_DRIFT_RATE с, плавно за 0,7 с. */
+const ANALOG_DRIFT = 3;
+const ANALOG_DRIFT_RATE = 2;
+const ANALOG_OUT = 0.62;
+
+// ---------- FM ----------
+const FM_SNAP = [0.5, 1, 1.5, 2, 3, 4, 5, 6, 7, 8];
+const FM_INDEX = 10;
+/** Обратная связь модулятора (в долях периода) при нормированном индексе 1. */
+const FM_FEEDBACK = 0.35;
+const FM_OUT = 0.7;
+/** Полуполосный фильтр децимации ×2 (окно Блэкмана–Харриса), нечётная длина. */
+const HB_LEN = 63;
+
+// ---------- WTABLE ----------
+const WT_UNISON = 40;
+const WT_SIDE = 0.708;
+const WT_OUT = 0.5;
+
+// Таблица синуса (FM): 4096 точек + 1 для линейной интерполяции.
+const SIN_N = 4096;
+const SIN = new Float32Array(SIN_N + 1);
+for (let i = 0; i <= SIN_N; i++) SIN[i] = Math.sin(TAU * i / SIN_N);
+/** Синус по фазе в долях периода (любое число), таблица с линейной интерполяцией. */
+function frac(x) { return x - Math.floor(x); }
+/** Значение треугольника ANALOG (пик на φ = 0.25) в фазе φ. */
+function triAt(ph) { return 1 - 4 * Math.abs(ph < 0.75 ? ph - 0.25 : ph - 1.25); }
+function sinT(ph) {
+  let x = ph - Math.floor(ph);
+  x *= SIN_N;
+  const i = x | 0;
+  return SIN[i] + (SIN[i + 1] - SIN[i]) * (x - i);
+}
+
+// Коэффициенты полуполосного фильтра: только центр и нечётные отводы (чётные — нули).
+const HB_C = (HB_LEN - 1) / 2;
+const HB_TAPS = [];
+{
+  let sum = 0;
+  const all = new Float64Array(HB_LEN);
+  for (let n = 0; n < HB_LEN; n++) {
+    const k = n - HB_C;
+    const sinc = k === 0 ? 0.5 : Math.sin(Math.PI * k / 2) / (Math.PI * k);
+    const x = n / (HB_LEN - 1);
+    const w = 0.35875 - 0.48829 * Math.cos(TAU * x) + 0.14128 * Math.cos(2 * TAU * x) - 0.01168 * Math.cos(3 * TAU * x);
+    all[n] = sinc * w;
+    sum += all[n];
+  }
+  for (let n = 0; n < HB_LEN; n++) if ((n - HB_C) % 2 !== 0) HB_TAPS.push(n, all[n] / sum);
+  HB_TAPS.push(HB_C, all[HB_C] / sum);
+}
+const HB_IDX = new Int32Array(HB_TAPS.filter((_, i) => i % 2 === 0));
+const HB_K = new Float32Array(HB_TAPS.filter((_, i) => i % 2 === 1));
+const HB_N = HB_IDX.length;
+
+function fmRatio(n) {
+  const r = 0.5 * Math.pow(16, Math.min(1, Math.max(0, n)));
+  for (let i = 0; i < FM_SNAP.length; i++) if (Math.abs(r / FM_SNAP[i] - 1) <= 0.02) return FM_SNAP[i];
+  return r;
+}
+
+/** PolyBLEP: поправка у разрыва (t — фаза 0..1, dt — шаг фазы). */
+function blep(t, dt) {
+  if (t < dt) { t /= dt; return t + t - t * t - 1; }
+  if (t > 1 - dt) { t = (t - 1) / dt; return t * t + t + t + 1; }
+  return 0;
+}
+
+// ANALOG: формы совмещены по фазе (все положительны на первой половине периода): синус, треугольник
+// с пиком на четверти периода, нисходящая пила, квадрат. Пик смеси соседних форм (кроссфейд равной
+// мощности, нормированный по сумме амплитуд) заранее посчитан по сетке — делением на него пик не прыгает.
+const WAVE_STEPS = 64;
+const WAVE_GAIN = new Float32Array(3 * (WAVE_STEPS + 1));
+{
+  const shape = (k, ph) => (k === 0 ? Math.sin(TAU * ph) : k === 1 ? 1 - 4 * Math.abs(ph < 0.75 ? ph - 0.25 : ph - 1.25)
+    : k === 2 ? 1 - 2 * ph : ph < 0.5 ? 1 : -1);
+  for (let seg = 0; seg < 3; seg++) {
+    for (let st = 0; st <= WAVE_STEPS; st++) {
+      const wf = st / WAVE_STEPS;
+      const ca = Math.cos(wf * Math.PI / 2), cb = Math.sin(wf * Math.PI / 2);
+      let pk = 0;
+      for (let i = 0; i < 2048; i++) {
+        const ph = i / 2048;
+        pk = Math.max(pk, Math.abs((ca * shape(seg, ph) + cb * shape(seg + 1, ph)) / (ca + cb)));
+      }
+      WAVE_GAIN[seg * (WAVE_STEPS + 1) + st] = 1 / pk;
+    }
+  }
+}
+/** Усиление чистой формы (синус, треугольник, пила, квадрат) — пик к 1, как у смеси. */
+const SHAPE_GAIN = [WAVE_GAIN[0], WAVE_GAIN[WAVE_STEPS + 1], WAVE_GAIN[2 * (WAVE_STEPS + 1)], WAVE_GAIN[3 * (WAVE_STEPS + 1) - 1]];
+/** Кроссфейд форм при смене пункта WAVE на звучащей ноте, с. */
+const ANALOG_WAVE_XF = 0.005;
+/** Пункт WAVE (ручка 0..1, четыре пункта). */
+const waveIndex = (v) => Math.min(3, Math.max(0, Math.floor(v * 4)));
+/** Отсчёт формы k осциллятора с фазой a, шагом dt и треугольником tri (интеграл квадрата). */
+function shapeAt(k, a, dt, tri) {
+  if (k === 0) return sinT(a);
+  if (k === 1) return tri;
+  if (k === 2) return 1 - 2 * a + blep(a, dt);
+  return (a < 0.5 ? 1 : -1) + blep(a, dt) - blep(a < 0.5 ? a + 0.5 : a - 0.5, dt);
+}
+
+const flush = (x) => (x > 1e-20 || x < -1e-20 ? x : 0);
+
+/** Голос: состояние слота для всех движков (буферы — заранее). */
+class Voice {
+  constructor(proc) {
+    /** Узел дорожки: общий дрейф ANALOG. */
+    this.proc = proc;
+    this.engine = DRUM;
+    this.note = 48;
+    // Цели ручек и сглаженные значения.
+    this.t1 = 0.5; this.t2 = 0.5; this.t3 = 0.5; this.td = 500;
+    this.s1 = 0.5; this.s2 = 0.5; this.s3 = 0.5; this.sd = 500;
+    this.t = 0;
+    this.rnd = 22222;
+    // DRUM
+    this.p1 = 0; this.p2 = 0; this.dc = 0; this.last = 0;
+    // ANALOG
+    this.a1 = 0; this.a2 = 0; this.as = 0; this.tri1 = 0; this.tri2 = 0;
+    this.wCur = 0; this.wPrev = 0; this.wMix = 1;
+    // FM
+    this.pc = 0; this.pm = 0; this.m1 = 0; this.m2 = 0;
+    this.hb = new Float32Array(HB_LEN * 2);
+    this.hbPos = 0;
+    // WTABLE: центр и два боковых голоса
+    this.w0 = 0; this.wl = 0; this.wr = 0;
+    // Вход новой ноты (кадров с её начала, до FADE_IN — плавно с нуля).
+    this.fade = FADE_IN;
+  }
+
+  rand() {
+    let r = this.rnd;
+    r ^= r << 13; r ^= r >>> 17; r ^= r << 5;
+    this.rnd = r;
+    return (r >>> 0) / 4294967296;
+  }
+
+  set(ev) {
+    this.note = ev.note;
+    this.t1 = ev.p1; this.t2 = ev.p2; this.t3 = ev.p3;
+    if (ev.decay !== undefined) this.td = ev.decay;
+  }
+
+  /** now — кадр начала ноты, tau — время узла с учётом дрейфа (кадров) на этот кадр. */
+  trigger(ev, now, tau) {
+    // DRUM монофонична: новый удар в тот же слот, хвост прошлого гаснет за DRUM_DECLICK.
+    this.dc = ev.engine === DRUM && this.engine === DRUM ? this.last : 0;
+    this.engine = ev.engine;
+    this.set(ev);
+    // Новая нота — ручки сразу на своих местах (сглаживание — только для смены на лету).
+    this.s1 = this.t1; this.s2 = this.t2; this.s3 = this.t3; this.sd = this.td;
+    this.t = 0;
+    this.p1 = 0; this.p2 = 0;
+    this.m1 = 0; this.m2 = 0;
+    this.hb.fill(0);
+    // Фаза новой ноты — как у генератора, который бежит непрерывно (frac(f·t)): ноты одной высоты
+    // встают в фазу с хвостом прошлой и не гасят его (при случайной фазе уровень прыгал от ноты к ноте —
+    // на синусе звук «прерывистый»). Оба осциллятора ANALOG — из одной точки (в унисоне не гасят друг друга).
+    const f = 440 * Math.pow(2, (this.note - 69) / 12) / sampleRate;
+    const det = ANALOG_DETUNE / 2 * this.s2 * this.s2;
+    this.a1 = frac(f * Math.pow(2, det / 1200) * tau);
+    this.a2 = frac(f * Math.pow(2, -det / 1200) * tau);
+    this.as = frac(0.5 * f * tau);
+    this.tri1 = triAt(this.a1); this.tri2 = triAt(this.a2);
+    this.wCur = this.wPrev = waveIndex(this.t1); this.wMix = 1;
+    this.pc = frac(f * now); this.pm = frac(fmRatio(this.s1) * f * now);
+    // WTABLE: центр — так же, боковые — со случайной фазы (без скачка уровня при включении унисона).
+    this.w0 = frac(f * now); this.wl = this.rand(); this.wr = this.rand();
+    this.fade = 0;
+  }
+
+  /** Сглаживание ручек на блок из n кадров. */
+  smooth(n) {
+    const k = 1 - Math.exp(-n / (SMOOTH * sampleRate));
+    this.s1 += (this.t1 - this.s1) * k;
+    this.s2 += (this.t2 - this.s2) * k;
+    this.s3 += (this.t3 - this.s3) * k;
+    this.sd += (this.td - this.sd) * k;
+  }
+
+  render(out, pos, n, table) {
+    this.smooth(n);
+    if (this.engine === DRUM) this.drum(out, pos, n);
+    else if (this.engine === ANALOG) this.analog(out, pos, n);
+    else if (this.engine === FM) this.fm(out, pos, n);
+    else if (this.engine === WTABLE) this.wtable(out, pos, n, table);
+    else out.fill(0, pos, pos + n);
+    // Начало ноты ANALOG, FM, WTABLE — плавно за FADE_IN кадров (после фильтра децимации): скачок волны
+    // на старте (случайная фаза, пила) иначе приходит с задержкой фильтра, когда огибающая уже открыта, — тик.
+    // У DRUM свой старт (фаза 0, клик удара) — не трогаем.
+    if (this.fade < FADE_IN && this.engine !== DRUM) {
+      for (let i = pos; i < pos + n && this.fade < FADE_IN; i++) out[i] *= ++this.fade / FADE_IN;
+    }
+  }
+
+  // Синус со свипом высоты + шум через полосовой фильтр + клик → мягкий клиппер.
+  drum(out, pos, n) {
+    const sr = sampleRate;
+    // PITCH: 30 → 100 Гц логарифмически (середина ручки ≈ 55 Гц); нота высоту не меняет (бочка).
+    const f0 = DRUM_PITCH_MIN * Math.pow(DRUM_PITCH_MAX / DRUM_PITCH_MIN, this.s1);
+    // Decay — время затухания до −60 dB (постоянная экспоненты = Decay / 6.9), не больше DRUM_DECAY_MAX.
+    const decay = Math.min(DRUM_DECAY_MAX, this.sd);
+    const tau = Math.max(0.001, decay / 1000 / DRUM_T60);
+    // SWEEP: 0..+48 полутонов, время свипа = clamp(0.08 × Decay, 6, 80 мс).
+    const tauSweep = Math.min(0.08, Math.max(0.006, 0.08 * decay / 1000));
+    const semis = 48 * this.s2;
+    // DRIVE: клик (до 1.0) и tanh (запас 1 → 12), компенсация — пик DRUM_SINE остаётся на месте.
+    const dg = 1 + 11 * this.s3;
+    const comp = DRUM_SINE / Math.tanh(dg * DRUM_SINE);
+    const click = this.s3;
+    const clickLen = DRUM_CLICK * sr;
+    const dEnv = Math.exp(-1 / (tau * sr));
+    const dSweep = Math.exp(-1 / (tauSweep * sr));
+    const dDc = Math.exp(-1 / (DRUM_DECLICK * sr));
+    let t = this.t;
+    let env = Math.exp(-t / (tau * sr));
+    let sw = Math.exp(-t / (tauSweep * sr));
+    let p1 = this.p1, dc = this.dc, x = 0;
+    for (let i = 0; i < n; i++) {
+      const f = f0 * Math.pow(2, semis * sw / 12);
+      p1 += f / sr; if (p1 >= 1) p1 -= 1;
+      x = env * DRUM_SINE * Math.sin(TAU * p1);
+      if (t < clickLen) x += click * (1 - t / clickLen);
+      // Ретриг: хвост прошлого удара не обрывается скачком, а гаснет за ~2 мс — до клиппера,
+      // чтобы сумма с новым ударом не выходила за 0 dBFS.
+      x += dc;
+      out[pos + i] = DRUM_OUT * comp * Math.tanh(dg * x);
+      dc *= dDc; env *= dEnv; sw *= dSweep; t++;
+    }
+    this.p1 = p1; this.dc = flush(dc); this.last = x; this.t = t;
+  }
+
+  // Два осциллятора PolyBLEP (одна форма) + суб (квадрат −1 октава) + дрейф высоты; считается
+  // с передискретизацией ×2 и полуполосным фильтром (как FM) — алиасинг пилы и квадрата ниже −60 dBc.
+  analog(out, pos, n) {
+    const sr2 = sampleRate * 2;
+    // Дрейф — общий на узел (process): медленное блуждание ±ANALOG_DRIFT центов.
+    const f0 = 440 * Math.pow(2, (this.note - 69) / 12) * this.proc.ratio;
+    // DETUNE: OSC1 вверх, OSC2 вниз, в сумме 0..60 центов по кривой x².
+    const det = ANALOG_DETUNE / 2 * this.s2 * this.s2;
+    const dt1 = Math.min(0.45, f0 * Math.pow(2, det / 1200) / sr2);
+    const dt2 = Math.min(0.45, f0 * Math.pow(2, -det / 1200) / sr2);
+    const dts = f0 * 0.5 / sr2;
+    // WAVE: синус (0) → треугольник (1/3) → пила (2/3) → квадрат (1).
+    // WAVE — ступенчатая: синус, треугольник, пила, квадрат (пункт по ручке, без сглаживания);
+    // смена пункта на звучащей ноте — кроссфейд прежней и новой формы за ANALOG_WAVE_XF.
+    const idx = waveIndex(this.t1);
+    if (idx !== this.wCur) { this.wPrev = this.wCur; this.wCur = idx; this.wMix = 0; }
+    const cur = this.wCur, prev = this.wPrev;
+    const gCur = SHAPE_GAIN[cur], gPrev = SHAPE_GAIN[prev];
+    const xfStep = 1 / (ANALOG_WAVE_XF * sr2);
+    let wMix = this.wMix;
+    // SUB: 0..100 % по амплитуде, общий уровень компенсируется.
+    const sub = this.s3;
+    const gain = ANALOG_OUT / (1 + 0.5 * sub);
+    const leak = 1 - 20 / sr2;
+    let a1 = this.a1, a2 = this.a2, as = this.as, tri1 = this.tri1, tri2 = this.tri2, hp = this.hbPos;
+    const hb = this.hb;
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < 2; j++) {
+        // Треугольник — интеграл квадрата, сдвинутого на четверть периода (пик на φ = 0.25).
+        const b1 = a1 < 0.75 ? a1 + 0.25 : a1 - 0.75, b2 = a2 < 0.75 ? a2 + 0.25 : a2 - 0.75;
+        tri1 = tri1 * leak + 4 * dt1 * ((b1 < 0.5 ? 1 : -1) + blep(b1, dt1) - blep(b1 < 0.5 ? b1 + 0.5 : b1 - 0.5, dt1));
+        tri2 = tri2 * leak + 4 * dt2 * ((b2 < 0.5 ? 1 : -1) + blep(b2, dt2) - blep(b2 < 0.5 ? b2 + 0.5 : b2 - 0.5, dt2));
+        let osc = 0.5 * gCur * (shapeAt(cur, a1, dt1, tri1) + shapeAt(cur, a2, dt2, tri2));
+        if (wMix < 1) {
+          wMix = Math.min(1, wMix + xfStep);
+          const old = 0.5 * gPrev * (shapeAt(prev, a1, dt1, tri1) + shapeAt(prev, a2, dt2, tri2));
+          osc = old + (osc - old) * wMix;
+        }
+        const sb = (as < 0.5 ? 1 : -1) + blep(as, dts) - blep(as < 0.5 ? as + 0.5 : as - 0.5, dts);
+        const y = gain * (osc + sub * sb);
+        hb[hp] = y; hb[hp + HB_LEN] = y;
+        hp = hp + 1 === HB_LEN ? 0 : hp + 1;
+        a1 += dt1; if (a1 >= 1) a1 -= 1;
+        a2 += dt2; if (a2 >= 1) a2 -= 1;
+        as += dts; if (as >= 1) as -= 1;
+      }
+      let acc = 0;
+      for (let q = 0; q < HB_N; q++) acc += HB_K[q] * hb[hp + HB_IDX[q]];
+      out[pos + i] = acc;
+    }
+    this.wMix = wMix;
+    this.a1 = a1; this.a2 = a2; this.as = as; this.tri1 = flush(tri1); this.tri2 = flush(tri2); this.hbPos = hp;
+    this.t += n;
+  }
+
+  // Два оператора: несущая (ratio 1) и модулятор (RATIO) с обратной связью; ×2 передискретизация.
+  fm(out, pos, n) {
+    const sr = sampleRate;
+    const f0 = 440 * Math.pow(2, (this.note - 69) / 12);
+    const ratio = fmRatio(this.s1);
+    const idxNorm = Math.pow(this.s2, 1.5);
+    // Индекс в радианах → в долях периода (фазы считаются в периодах).
+    const index = FM_INDEX * idxNorm / TAU;
+    const fb = FM_FEEDBACK * idxNorm;
+    // CONTOUR: индекс спадает с постоянной времени от Decay: 0 % — постоянный, 50 % — как амплитуда
+    // (огибающая engine.ts: постоянная Decay / 4), 100 % — в 5 раз быстрее.
+    const m = this.s3;
+    const k = m < 0.5 ? 2 * m : 1 + 8 * (m - 0.5);
+    const tauA = Math.max(0.001, this.sd / 4000);
+    const rate = k / tauA;
+    const dt = f0 / (2 * sr);
+    let env = Math.exp(-this.t / sr * rate);
+    const dEnv = Math.exp(-rate / sr);
+    let pc = this.pc, pm = this.pm, m1 = this.m1, m2 = this.m2, hp = this.hbPos;
+    const hb = this.hb;
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < 2; j++) {
+        const mod = sinT(pm + fb * 0.5 * (m1 + m2));
+        m2 = m1; m1 = mod;
+        const y = sinT(pc + index * env * mod);
+        pm += ratio * dt; if (pm >= 1) pm -= Math.floor(pm);
+        pc += dt; if (pc >= 1) pc -= 1;
+        hb[hp] = y; hb[hp + HB_LEN] = y;
+        hp = hp + 1 === HB_LEN ? 0 : hp + 1;
+      }
+      // Децимация: свёртка с полуполосным фильтром (только ненулевые отводы).
+      let acc = 0;
+      for (let q = 0; q < HB_N; q++) acc += HB_K[q] * hb[hp + HB_IDX[q]];
+      out[pos + i] = FM_OUT * acc;
+      env *= dEnv;
+    }
+    this.pc = pc; this.pm = pm; this.m1 = m1; this.m2 = m2; this.hbPos = hp;
+    this.t += n;
+  }
+
+  // Чтение кадров таблицы (по фазе и между кадрами), мипмап по октаве, WARP и UNISON.
+  wtable(out, pos, n, table) {
+    if (!table) { out.fill(0, pos, pos + n); return; }
+    const sr = sampleRate;
+    const f0 = 440 * Math.pow(2, (this.note - 69) / 12);
+    const frames = table.frames;
+    const fpos = this.s1 * (frames - 1);
+    const fi = Math.min(frames - 2, Math.max(0, Math.floor(fpos)));
+    const ff = frames > 1 ? fpos - fi : 0;
+    // WARP: 0..50 % — изгиб фазы φ^(1+3w); 50..100 % — плюс синхронизация 1 → 4.
+    const w = this.s2;
+    const bend = 1 + 3 * Math.min(1, w * 2);
+    const sync = w > 0.5 ? 1 + 3 * (w - 0.5) * 2 : 1;
+    // UNISON: до 25 % — один голос; дальше три (боковые на −3 дБ), расстройка 0 → 40 центов.
+    const u = this.s3;
+    const side = u <= 0.25 ? 0 : WT_SIDE * Math.min(1, (u - 0.25) / 0.05);
+    const cents = u <= 0.25 ? 0 : WT_UNISON * (u - 0.25) / 0.75;
+    const norm = WT_OUT / Math.sqrt(1 + 2 * side * side);
+    const dt0 = f0 / sr;
+    const dtl = dt0 * Math.pow(2, -cents / 1200), dtr = dt0 * Math.pow(2, cents / 1200);
+    // Мипмап: уровень, где гармоники (с учётом синхронизации и изгиба) не выше Найквиста.
+    const fEff = f0 * Math.pow(2, cents / 1200) * sync * (1 + (bend - 1) * 0.5);
+    const lv = Math.min(table.levels.length - 1, Math.max(0, Math.ceil(Math.log2(1024 * fEff / (0.5 * sr)))));
+    const level = table.levels[lv];
+    const size = level.size, data = level.data;
+    const rowA = fi * size, rowB = (frames > 1 ? fi + 1 : fi) * size;
+    let w0 = this.w0, wl = this.wl, wr = this.wr;
+    const bent = bend !== 1;
+    for (let i = 0; i < n; i++) {
+      let y = 0;
+      for (let v = 0; v < 3; v++) {
+        if (v > 0 && side === 0) break;
+        let ph = v === 0 ? w0 : v === 1 ? wl : wr;
+        if (sync !== 1) { ph *= sync; ph -= Math.floor(ph); }
+        if (bent) ph = Math.pow(ph, bend);
+        const x = ph * size;
+        const j = x | 0, fr = x - j;
+        const j2 = j + 1 === size ? 0 : j + 1;
+        const a = data[rowA + j] + (data[rowA + j2] - data[rowA + j]) * fr;
+        const b = data[rowB + j] + (data[rowB + j2] - data[rowB + j]) * fr;
+        y += (v === 0 ? 1 : side) * (a + (b - a) * ff);
+      }
+      out[pos + i] = norm * y;
+      w0 += dt0; if (w0 >= 1) w0 -= 1;
+      wl += dtl; if (wl >= 1) wl -= 1;
+      wr += dtr; if (wr >= 1) wr -= 1;
+    }
+    this.w0 = w0; this.wl = wl; this.wr = wr;
+    this.t += n;
+  }
+}
+
+class JamboProcessor extends AudioWorkletProcessor {
+  constructor(options) {
+    super();
+    const { slots } = options.processorOptions;
+    this.slots = slots;
+    this.voices = Array.from({ length: slots }, () => new Voice(this));
+    // Дрейф ANALOG (общий на дорожку): центы, цель, множитель частоты и время узла с дрейфом (кадров).
+    this.drift = 0; this.driftTo = 0; this.ratio = 1; this.tau = 0;
+    this.rnd = 33333;
+    this.pending = Array.from({ length: slots }, () => []);
+    this.end = new Float64Array(slots);
+    this.id = new Float64Array(slots);
+    this.start0 = new Float64Array(slots);
+    this.quiet = new Float64Array(slots);
+    this.table = null;
+    this.busy = 0;
+    this.frames = 0;
+    this.mods = Array.from({ length: slots }, () => []);
+    this.port.onmessage = (e) => {
+      const data = e.data;
+      if (data && data.type === 'table') { this.table = data; return; }
+      const seen = new Set();
+      for (const ev of data) {
+        if (ev.type === 'note' || ev.type === 'stop') {
+          const q = this.pending[ev.slot];
+          q.push(ev);
+          q.sort((a, b) => a.frame - b.frame);
+        } else if (ev.type === 'end') {
+          // Новый конец ноты id (отпустили живую ноту): звучащей или ещё ждущей в очереди.
+          if (this.id[ev.slot] === ev.id) this.end[ev.slot] = ev.end;
+          for (const p of this.pending[ev.slot]) if (p.id === ev.id) p.end = ev.end;
+        } else if (ev.type === 'mod') {
+          // С кадром — расписание автоматизации: применяется в свой кадр (новое расписание слота заменяет
+          // старое с этого кадра); без кадра — сразу, и запланированные mod слота снимаются.
+          const m = this.mods[ev.slot];
+          if (ev.frame === undefined) { m.length = 0; this.mod(ev); continue; }
+          if (!seen.has(ev.slot)) { seen.add(ev.slot); while (m.length && m[m.length - 1].frame >= ev.frame) m.pop(); }
+          m.push(ev);
+        }
+      }
+    };
+  }
+
+  /** Модуляция звучащего голоса (у голоса другой ноты — нет: слот уже занят новой нотой). */
+  mod(ev) {
+    if (ev.id !== undefined && this.id[ev.slot] !== ev.id) return;
+    this.voices[ev.slot].set(ev);
+  }
+
+  /** now — кадр, в котором нота начинается (запоздавшая — позже своего кадра). */
+  start(slot, ev, now) {
+    if (ev.type === 'stop') { this.end[slot] = Math.min(this.end[slot], ev.frame); return; }
+    this.end[slot] = ev.end;
+    this.id[slot] = ev.id ?? 0;
+    this.start0[slot] = ev.frame;
+    this.quiet[slot] = 0;
+    this.voices[slot].trigger(ev, now, this.tau + (now - currentFrame) * this.ratio);
+  }
+
+  process(_inputs, outputs) {
+    const t0 = Date.now();
+    const frames = outputs[0][0].length;
+    let r = this.rnd; r ^= r << 13; r ^= r >>> 17; r ^= r << 5; this.rnd = r;
+    if ((r >>> 0) / 4294967296 < ANALOG_DRIFT_RATE * frames / sampleRate) {
+      r ^= r << 13; r ^= r >>> 17; r ^= r << 5; this.rnd = r;
+      this.driftTo = ((r >>> 0) / 4294967296 * 2 - 1) * ANALOG_DRIFT;
+    }
+    this.drift += (this.driftTo - this.drift) * frames / (0.7 * sampleRate);
+    this.ratio = Math.pow(2, this.drift / 1200);
+    for (let s = 0; s < this.slots; s++) {
+      const out = outputs[s][0];
+      const q = this.pending[s];
+      const vo = this.voices[s];
+      let pos = 0;
+      while (pos < frames) {
+        const now = currentFrame + pos;
+        // Запуск ноты ровно в её кадре (запоздавшая — сразу).
+        while (q.length && q[0].frame <= now) this.start(s, q.shift(), now);
+        const m = this.mods[s];
+        while (m.length && m[0].frame <= now) this.mod(m.shift());
+        let n = Math.min(BLOCK, frames - pos);
+        if (q.length) n = Math.min(n, q[0].frame - now);
+        if (now >= this.end[s]) {
+          out.fill(0, pos, pos + n);
+          vo.last = 0;
+        } else {
+          vo.render(out, pos, n, this.table);
+          let peak = 0;
+          for (let i = pos; i < pos + n; i++) { const a = out[i] < 0 ? -out[i] : out[i]; if (a > peak) peak = a; }
+          this.quiet[s] = peak < QUIET ? this.quiet[s] + n : 0;
+          if (this.quiet[s] > SILENCE && now - this.start0[s] > SILENCE) this.end[s] = now;
+        }
+        pos += n;
+      }
+    }
+    this.tau += frames * this.ratio;
+    this.busy += Date.now() - t0;
+    this.frames += frames;
+    if (this.frames >= sampleRate / 2) {
+      this.port.postMessage({ cpu: this.busy / (this.frames / sampleRate * 1000) });
+      this.busy = 0;
+      this.frames = 0;
+    }
+    return true;
+  }
+}
+
+registerProcessor('jambo-synth', JamboProcessor);
