@@ -29,6 +29,11 @@ export function setSyncHooks(h: { tempo: () => number | null; phase: (tick: numb
   playListener = h.onPlay;
 }
 export const tempo = () => tempoSource() ?? doc.bpm;
+/** Позиция в долях (четвертях) от старта на момент now; null — не играет. */
+export function beatPos(now: number): number | null {
+  if (!ui.playing) return null;
+  return Math.max(0, (tick + (now - nextTime) / stepMs()) / 4);
+}
 export const stepMs = () => 60000 / tempo() / 4;
 
 /**

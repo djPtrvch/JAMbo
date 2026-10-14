@@ -9,6 +9,8 @@ import { choiceMenu, dragField } from './controls';
 import { openMainMenu } from './settings';
 import { h, setClass } from './dom';
 import { openInput } from './popup';
+import { settings } from '../settings';
+import { beatPos } from '../transport';
 
 let metro: HTMLElement;
 
@@ -36,6 +38,9 @@ export function buildTopbar(): HTMLElement {
   const bpm = dragField('BPM', () => doc.bpm, setBpm, () => String(doc.bpm), 4, undefined,
     (el) => openInput(el, String(doc.bpm), (v) => { const n = parseFloat(v.replace(',', '.')); if (Number.isFinite(n)) enterBpm(n); }, true));
   bpm.classList.add('bpm-field');
+  // Полоса над BPM: доли фразы SYNC QUANTUM (по 4 на такт).
+  phaseBar = h('div', 'bpm-phase');
+  bpm.append(phaseBar);
   // MIDI: темп — регулятор (как ручка: ABSOLUTE по диапазону 40–240, RELATIVE — шагами).
   registerAction('BPM', {
     label: 'BPM', press: () => {},
@@ -53,7 +58,22 @@ export function buildTopbar(): HTMLElement {
   return el;
 }
 
+let phaseBar: HTMLElement;
+let phaseKey = '';
+/** Полоса доль: при игре жёлтые — доли от начала фразы до текущей; стоп — все серые. */
+function renderPhase(now: number) {
+  const n = 4 * settings.sync.quantum;
+  const pos = beatPos(now);
+  const lit = pos === null ? -1 : Math.floor(pos) % n;
+  const key = `${n}:${lit}`;
+  if (key === phaseKey) return;
+  phaseKey = key;
+  if (phaseBar.childElementCount !== n) phaseBar.replaceChildren(...Array.from({ length: n }, () => h('span')));
+  [...phaseBar.children].forEach((c, k) => c.classList.toggle('on', k <= lit));
+}
+
 export function renderTopbar(now: number) {
+  renderPhase(now);
   setClass(metro, 'on', ui.metronome);
   setClass(metro, 'beat', ui.playing && now < rt.beatUntil);
   setClass(metro, 'accent', rt.beatAccent);

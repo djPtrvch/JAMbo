@@ -41,8 +41,10 @@ function send(bytes: number[], at: number) {
 export function updateSync(now: number) {
   if (sending()) {
     if (!clockRunning || clockNext < now - 200) { clockNext = now; clockRunning = true; }
-    while (clockNext < now + LOOKAHEAD_MS) {
-      send([0xf8], clockNext);
+    // OFFSET MIDI: метки времени сдвинуты (плюс — позже); тики планируются по сдвинутому времени.
+    const off = settings.sync.midiOffset;
+    while (clockNext + off < now + LOOKAHEAD_MS) {
+      send([0xf8], clockNext + off);
       clockNext += 60000 / tempo() / 24;
     }
   } else clockRunning = false;
@@ -104,7 +106,8 @@ export function extTempo(): number | null {
 function phase(tick: number): number | null {
   if (extTempo() === null) return null;
   const clock = rx.origin + tick * 6;
-  return rx.last + (clock - rx.count) * rx.interval;
+  // OFFSET MIDI: свои шаги — на offset позже (плюс) или раньше тиков клока.
+  return rx.last + (clock - rx.count) * rx.interval + settings.sync.midiOffset;
 }
 
 function onPlay(on: boolean, at: number) {
@@ -113,8 +116,8 @@ function onPlay(on: boolean, at: number) {
       // Сетка тиков встаёт на старт: Start, затем первый тик в момент первого шага.
       clockNext = at;
       clockRunning = true;
-      if (settings.sync.midiStartStop) send([0xfa], at);
-    } else if (settings.sync.midiStartStop) send([0xfc], at);
+      if (settings.sync.midiStartStop) send([0xfa], at + settings.sync.midiOffset);
+    } else if (settings.sync.midiStartStop) send([0xfc], at + settings.sync.midiOffset);
   }
   // Старт своей кнопкой при входящем клоке — от ближайшего тика.
   if (on && receiving() && extTempo() !== null) rx.origin = rx.count + Math.round((at - rx.last) / rx.interval);

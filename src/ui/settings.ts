@@ -31,7 +31,7 @@ export function openMainMenu(anchor: Element) {
     // Пункты разделены: у каждого свой подзаголовок и отступ сверху.
     const section = (title: string, btn: HTMLElement) => {
       const el = h('div', 'main-menu-section');
-      el.append(h('div', 'source-title', title), btn);
+      el.append(h('div', 'menu-head', title), btn);
       return el;
     };
     main.box.append(

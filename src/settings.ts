@@ -102,6 +102,9 @@ export interface SyncSettings {
   link: boolean;
   linkNotify: boolean;
   linkStartStop: boolean;
+  /** Сдвиг по времени, ms (стрелки ◀ ▶): MIDI-клок и Ableton Link — отдельно. */
+  midiOffset: number;
+  linkOffset: number;
 }
 
 const KEY = 'jambo.settings';
@@ -111,7 +114,7 @@ const DEFAULTS: Settings = {
   scSends: { rev: false, dly: false, drv: true },
   limScale: 48,
   clipDisplay: 'wave',
-  sync: { quantum: 1, clock: false, source: 'send', clockOut: '', midiStartStop: true, link: false, linkNotify: true, linkStartStop: false },
+  sync: { quantum: 1, clock: false, source: 'send', clockOut: '', midiStartStop: true, link: false, linkNotify: true, linkStartStop: false, midiOffset: 0, linkOffset: 0 },
 };
 
 /** Маппинг с недостающими полями (старые настройки: общий режим энкодеров knobMode). */
