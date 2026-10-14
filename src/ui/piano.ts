@@ -18,6 +18,7 @@ import { makePopup, popupButton, toggleRow, type Popup } from './popup';
 import { saveSettings, settings } from '../settings';
 import { choiceMenu, dragField } from './controls';
 import { registerAction } from '../midi';
+import { assignHeldSlice } from './sampleedit';
 
 const MAX_KEYS = 25;
 const MAX_CHORDS = 8;
@@ -43,6 +44,8 @@ const keyCount = (oct: number = settings.pianoOctaves) => Math.min(MAX_KEYS, SCA
  */
 export function press(notes: number[], track: number | null = null, held = false, velocity = 1): { track: number; index: number } | null {
   const ti = track ?? ui.selectedTrack;
+  // Удерживают маркер нарезки в редакторе сэмпла: нота назначается маркеру (и сразу звучит его кусок).
+  if (track === null && assignHeldSlice(notes[0])) { unlockAudio(); playNow(ti, notes.slice(0, 1), held, velocity); return null; }
   // Живой наигрыш: нота сразу звучит звуком выбранной дорожки (с VELOCITY — с силой нажатия).
   unlockAudio();
   playNow(ti, notes, held, velocity);

@@ -53,8 +53,8 @@ export interface TrackData {
   /** Автоматизации параметров (одна на параметр); нет поля — нет автоматизаций. */
   auto?: Automation[];
   eq?: Eq;
-  /** Маркеры нарезки (доли длины 0..1, по возрастанию) по ключу сэмпла; нет поля — маркеров нет. */
-  slices?: Record<string, number[]>;
+  /** Маркеры нарезки по ключу сэмпла (по возрастанию at); нет поля — маркеров нет. */
+  slices?: Record<string, SliceMark[]>;
 }
 
 /**
@@ -112,7 +112,7 @@ export interface Track {
   /** Автоматизации дорожки (по шагам её страниц). */
   auto?: Automation[];
   /** Маркеры нарезки сэмплов дорожки (см. TrackData.slices). */
-  slices?: Record<string, number[]>;
+  slices?: Record<string, SliceMark[]>;
   /** Активная ячейка пустая (клип удалили): дорожка стоит, звук и паттерны остаются. */
   blank?: boolean;
   /** Играет клип PREV с данными старого проекта: здесь — свои данные дорожки, пока тот играет. */
@@ -3188,14 +3188,21 @@ export function autoLive(i: number): boolean {
 
 // ---------- Маркеры нарезки сэмпла (редактор сэмпла) ----------
 
-/** Маркеры нарезки сэмпла key на дорожке (доли длины по возрастанию); нет — пустой список. */
-export function sliceMarks(t: { slices?: Record<string, number[]> }, key: string): number[] {
-  return (key && t.slices?.[key]) || [];
+/**
+ * Маркер нарезки: доля длины сэмпла 0..1 и нота. Нет note — нота по порядку маркера (sliceNote: хроматически
+ * или по гамме, меняется с гаммой); note — назначена вручную (удержание маркера + клавиша), постоянная.
+ */
+export interface SliceMark { at: number; note?: number }
+
+/** Маркеры сэмпла key на дорожке (по возрастанию at; прежние проекты — числами); нет — пустой список. */
+export function sliceMarks(t: { slices?: Record<string, (SliceMark | number)[]> }, key: string): SliceMark[] {
+  const m = key ? t.slices?.[key] : undefined;
+  return m ? m.map((v) => (typeof v === 'number' ? { at: v } : v)) : [];
 }
 
 /**
- * Нота маркера idx: CHROMATIC — C3, C#3, D3… (по полутону), SCALE — ступени выбранной гаммы от корневой ноты
- * в 3-й октаве (SETTINGS → SAMPLER → SLICE NOTES).
+ * Нота по порядку маркера idx: CHROMATIC — C3, C#3, D3… (по полутону), SCALE — ступени выбранной гаммы от
+ * корневой ноты в 3-й октаве (SETTINGS → SAMPLER → SLICE NOTES).
  */
 export function sliceNote(idx: number): number {
   if (settings.sliceMap !== 'scale') return SAMPLE_ROOT + idx;
@@ -3203,18 +3210,27 @@ export function sliceNote(idx: number): number {
   return SAMPLE_ROOT + doc.root + 12 * Math.floor(idx / steps.length) + steps[idx % steps.length];
 }
 
-/** Маркер ноты note (−1 — у ноты маркера нет). */
-export function sliceOf(note: number, count: number): number {
-  for (let k = 0; k < count; k++) if (sliceNote(k) === note) return k;
-  return -1;
+/** Нота маркера idx: назначенная или по порядку. */
+export const markNote = (m: SliceMark[], idx: number) => m[idx]?.note ?? sliceNote(idx);
+
+/** Маркер ноты note (−1 — нет): сначала маркер с назначенной нотой, потом — по порядку. */
+export function sliceOf(note: number, m: SliceMark[]): number {
+  const own = m.findIndex((v) => v.note === note);
+  if (own >= 0) return own;
+  return m.findIndex((v, k) => v.note === undefined && sliceNote(k) === note);
 }
 
-/** Новый маркер на доле at сэмпла key (одна запись в UNDO). */
+function putMarks(t: Track, key: string, m: SliceMark[]) {
+  const rest = { ...(t.slices ?? {}) };
+  if (m.length) rest[key] = m; else delete rest[key];
+  if (Object.keys(rest).length) t.slices = rest; else delete t.slices;
+}
+
+/** Новый маркер на доле at сэмпла key (нота — по порядку; одна запись в UNDO). */
 export function addSlice(i: number, key: string, at: number) {
   edit(() => {
     const t = doc.tracks[i];
-    const m = [...sliceMarks(t, key), Math.min(1, Math.max(0, at))].sort((a, b) => a - b);
-    t.slices = { ...(t.slices ?? {}), [key]: m };
+    putMarks(t, key, [...sliceMarks(t, key), { at: Math.min(1, Math.max(0, at)) }].sort((a, b) => a.at - b.at));
   });
 }
 
@@ -3222,18 +3238,28 @@ export function addSlice(i: number, key: string, at: number) {
 export function deleteSlice(i: number, key: string, idx: number) {
   edit(() => {
     const t = doc.tracks[i];
-    const m = sliceMarks(t, key).filter((_, k) => k !== idx);
-    const rest = { ...(t.slices ?? {}) };
-    if (m.length) rest[key] = m; else delete rest[key];
-    if (Object.keys(rest).length) t.slices = rest; else delete t.slices;
+    putMarks(t, key, sliceMarks(t, key).filter((_, k) => k !== idx));
+  });
+}
+
+/** Назначить маркеру idx ноту note (удержание маркера + клавиша; одна запись в UNDO). */
+export function setSliceNote(i: number, key: string, idx: number, note: number) {
+  edit(() => {
+    const t = doc.tracks[i];
+    const m = sliceMarks(t, key);
+    if (!m[idx]) return;
+    m[idx] = { ...m[idx], note };
+    putMarks(t, key, m);
   });
 }
 
 /** Сдвинуть маркер idx (внутри жеста beginGesture/endGesture): между соседями. */
 export function moveSlice(i: number, key: string, idx: number, at: number, gap: number) {
-  const m = doc.tracks[i].slices?.[key];
-  if (!m || idx < 0 || idx >= m.length) return;
-  const lo = idx > 0 ? m[idx - 1] + gap : 0;
-  const hi = idx < m.length - 1 ? m[idx + 1] - gap : 1;
-  m[idx] = Math.min(hi, Math.max(lo, at));
+  const t = doc.tracks[i];
+  const m = sliceMarks(t, key);
+  if (idx < 0 || idx >= m.length) return;
+  const lo = idx > 0 ? m[idx - 1].at + gap : 0;
+  const hi = idx < m.length - 1 ? m[idx + 1].at - gap : 1;
+  m[idx] = { ...m[idx], at: Math.min(hi, Math.max(lo, at)) };
+  putMarks(t, key, m);
 }

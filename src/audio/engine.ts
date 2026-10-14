@@ -742,10 +742,10 @@ export function triggerTrack(track: number, time: number, notes: number[], locks
     let endSec = endSec0;
     let rate = rateFor(note, root, v('pitch'));
     if (marks.length) {
-      const k = sliceOf(note, marks.length);
+      const k = sliceOf(note, marks);
       if (k < 0) continue;
-      startSec = marks[k] * buf.duration;
-      endSec = (k + 1 < marks.length ? marks[k + 1] : 1) * buf.duration;
+      startSec = marks[k].at * buf.duration;
+      endSec = (k + 1 < marks.length ? marks[k + 1].at : 1) * buf.duration;
       if (endSec - startSec < 0.003) continue;
       rate = rateFor(root, root, v('pitch'));
     }

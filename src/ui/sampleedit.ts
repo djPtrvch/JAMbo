@@ -1,7 +1,8 @@
 // Редактор сэмпла: удержание окна сэмпла открывает его на месте центра экрана (как EQ, справа
 // остаётся измеритель уровня). Форма волны сэмпла выбранной дорожки (стерео — L и R), два маркера
 // обрезки (тянутся за ручки внизу, можно оба сразу двумя пальцами, над пальцем — время) и маркеры нарезки
-// (двойной тап — новый, флажок тянут, двойной тап по флажку — удалить; нота — по SETTINGS → SAMPLER).
+// (двойной тап — новый, флажок тянут, двойной тап по флажку — удалить; нота — по порядку (SETTINGS → SAMPLER),
+// удержание флажка + клавиша — своя нота маркера).
 // Палец по пустому месту: вверх-вниз — масштаб, влево-вправо — прокрутка (жёлтая полоса сверху).
 // Внизу: имя, длина и выделение; LOAD (браузер библиотеки), SAVE (в библиотеку; WAV в «Файлы» —
 // EXPORT в браузере), TRIM (оставить выделенное), NORMALIZE (пик −0.1 dBFS), MONO (среднее L и R), CLOSE.
@@ -11,7 +12,7 @@
 import { addEditedSample, previewSample, previewing, sampleBuffer, samplePlayheads, stopPreview } from '../audio/engine';
 import { openBrowser } from './browser';
 import { noteName, synthEngine } from '../params';
-import { addSlice, beginGesture, deleteSlice, doc, endGesture, moveSlice, replaceSample, sampleName, sliceMarks, sliceNote, toggleView, ui } from '../state';
+import { addSlice, beginGesture, deleteSlice, doc, endGesture, markNote, moveSlice, replaceSample, sampleName, setSliceNote, sliceMarks, toggleView, ui, type SliceMark } from '../state';
 import { closeButton, h, setClass, setText } from './dom';
 import { color } from './theme';
 
@@ -131,7 +132,7 @@ const DOUBLE_MS = 350;
 
 type Drag =
   | { kind: 'trim'; m: 'a' | 'b' }
-  | { kind: 'slice'; idx: number; x0: number; y0: number; moved: boolean }
+  | { kind: 'slice'; idx: number; x0: number; y0: number; moved: boolean; assigned?: boolean }
   | { kind: 'nav'; x0: number; y0: number; a0: number; span0: number; f0: number; axis: '' | 'x' | 'y' };
 const drags = new Map<number, Drag>();
 /** Последний тап по пустому месту или флажку — для двойного тапа. */
@@ -149,7 +150,7 @@ const clampView = () => {
 /** Наименьшее окно — 256 отсчётов (или весь сэмпл). */
 const minSpan = (buf: AudioBuffer) => Math.min(1, 256 / buf.length);
 
-function marks(): number[] {
+function marks(): SliceMark[] {
   return sliceMarks(doc.tracks[ui.selectedTrack], currentKey());
 }
 
@@ -165,7 +166,7 @@ function flagAt(x: number, y: number): number {
   const m = marks();
   // Сверху — последний нарисованный (правее), зона попадания шире флажка на 6 px.
   for (let k = m.length - 1; k >= 0; k--) {
-    const r = flagRect(m[k], noteName(sliceNote(k)));
+    const r = flagRect(m[k].at, noteName(markNote(m, k)));
     if (x >= r.x - 6 && x <= r.x + r.w + 6) return k;
   }
   return -1;
@@ -211,7 +212,7 @@ function down(e: PointerEvent) {
     if ([...drags.values()].some((v) => v.kind === 'nav')) return;
     d = { kind: 'nav', x0: x, y0: y, a0: view.a, span0: view.span, f0: fracAt(x), axis: '' };
   }
-  canvas.setPointerCapture(e.pointerId);
+  try { canvas.setPointerCapture(e.pointerId); } catch { /* указатель уже отпущен */ }
   drags.set(e.pointerId, d);
   if (d.kind === 'trim') move(e);
 }
@@ -241,7 +242,7 @@ function move(e: PointerEvent) {
     }
     moveSlice(ui.selectedTrack, key, d.idx, fracAt(x), 32 / buf.length);
     const m = marks();
-    showTip(e, `${noteName(sliceNote(d.idx))}\n${fmtTime((m[d.idx] ?? 0) * buf.duration)}`);
+    showTip(e, `${noteName(markNote(m, d.idx))}\n${fmtTime((m[d.idx]?.at ?? 0) * buf.duration)}`);
     return;
   }
   // Направление жеста фиксируется после SLOP px: вверх-вниз — масштаб, влево-вправо — прокрутка.
@@ -264,12 +265,29 @@ function move(e: PointerEvent) {
   clampView();
 }
 
+/**
+ * Удержание маркера + клавиша (пианоролл, MIDI): маркеру назначается нота. true — нота ушла маркеру
+ * (маркер держат, не двигая), иначе — обычная нота.
+ */
+export function assignHeldSlice(note: number): boolean {
+  if (!ui.sampleView) return false;
+  const key = currentKey();
+  for (const d of drags.values()) {
+    if (d.kind !== 'slice' || d.moved || !key) continue;
+    setSliceNote(ui.selectedTrack, key, d.idx, note);
+    d.assigned = true;
+    return true;
+  }
+  return false;
+}
+
 function up(e: PointerEvent) {
   const d = drags.get(e.pointerId);
   drags.delete(e.pointerId);
   if (![...drags.values()].some((v) => v.kind !== 'nav')) setClass(tip, 'hidden', true);
   if (!d || e.type === 'pointercancel') { if (d?.kind === 'slice' && d.moved) endGesture(); return; }
   if (d.kind === 'slice' && d.moved) { endGesture(); return; }
+  if (d.kind === 'slice' && d.assigned) return;
   const key = currentKey();
   const x = localX(e);
   const now = performance.now();
@@ -429,13 +447,14 @@ export function renderSampleEditor() {
     g.fillRect(right ? x - HANDLE : x, H - HANDLE, HANDLE, HANDLE);
   }
   // Маркеры нарезки: линия и флажок с нотой (по SETTINGS → SAMPLER: хроматически или по гамме); тянут — жёлтый.
-  const held = new Set([...drags.values()].map((d) => (d.kind === 'slice' && d.moved ? d.idx : -1)));
+  const held = new Set([...drags.values()].map((d) => (d.kind === 'slice' ? d.idx : -1)));
   g.font = '600 12px -apple-system, system-ui, sans-serif';
   g.textBaseline = 'middle';
-  marks().forEach((f, k) => {
+  const all = marks();
+  all.forEach(({ at: f }, k) => {
     const x = toX(f);
     if (x < -60 || x > W + 60) return;
-    const label = noteName(sliceNote(k));
+    const label = noteName(markNote(all, k));
     const r = flagRect(f, label);
     const c = held.has(k) ? color('--accent') : color('--ink');
     g.fillStyle = c;
