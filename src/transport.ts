@@ -5,6 +5,7 @@ import { clickAt, flushSidechain, triggerTrack } from './audio/engine';
 import { stemEndsAtBoundary, stemRecording, stemsOnPlay, stemsOnStep, stemsOnStop } from './stems';
 import { PARAM_BY_ID, SEQ_MIX, SEQ_MST, STEPS_PER_PAGE, fromNorm } from './params';
 import { settings } from './settings';
+import { STEPS_PER_BEAT, isBarStart, tempo, tempoSource } from './tempo';
 import {
   triggerEnv, endRecTake, recPassStep, activateSlot, audible, doc, inTransition, visibleRows, modulatedNorm, playIndex, playLen, rowFilled, rt, seqAt, slotFilled, stepAt, stopTrack, ui,
   rowLoopOn, baseValue, setAutoClock,
@@ -18,23 +19,26 @@ interface Flash { time: number; track: number; dur: number; notes: number[]; not
 const flashes: Flash[] = [];
 const lockEvents: { time: number; track: number; locks: Record<string, number>; until: number }[] = [];
 
-/** Темп внешнего клока (MIDI, sync.ts) — точнее целого BPM проекта; null — свой темп. */
-let tempoSource: () => number | null = () => null;
 /** Время тика (шага 1/16 от старта) по внешнему клоку — для подстройки фазы; null — нет. */
 let phaseSource: (tick: number) => number | null = () => null;
 /** Старт и стоп транспорта (момент) — для MIDI-клока (Start/Stop на выход). */
 let playListener: (on: boolean, at: number) => void = () => {};
 export function setSyncHooks(h: { tempo: () => number | null; phase: (tick: number) => number | null; onPlay: (on: boolean, at: number) => void }) {
-  tempoSource = h.tempo;
+  // Темп внешнего клока (MIDI, sync.ts) — точнее целого BPM проекта; null — свой темп.
+  tempoSource.external = h.tempo;
   phaseSource = h.phase;
   playListener = h.onPlay;
 }
-export const tempo = () => tempoSource() ?? doc.bpm;
-/** Позиция в долях (четвертях) от старта на момент now; null — не играет. */
+export { tempo };
+/** Момент шага k (от старта), ms: по доле источника такта (шаг = 1/4 доли). */
+const stepTime = (k: number) => tempoSource.timeAt(k / STEPS_PER_BEAT) * 1000;
+/** Позиция в долях (четвертях) от старта на момент now (ms); null — не играет. */
 export function beatPos(now: number): number | null {
   if (!ui.playing) return null;
-  return Math.max(0, (tick + (now - nextTime) / stepMs()) / 4);
+  return Math.max(0, tempoSource.beatAt(now / 1000));
 }
+// PLAY и STOP через источник такта (requestStart / requestStop) — тот же транспорт.
+tempoSource.starter = (on, at) => setPlaying(on, at !== undefined ? at * 1000 : undefined);
 export const stepMs = () => 60000 / tempo() / 4;
 
 /**
@@ -48,6 +52,7 @@ export function setPlaying(on: boolean, at = performance.now(), startAt?: number
   if (!on) flushSidechain();
   if (!on && ui.playing) playListener(false, at);
   ui.playing = on;
+  if (!on) tempoSource.stopped();
   endRecTake();
   flashes.length = 0;
   lockEvents.length = 0;
@@ -67,8 +72,9 @@ export function setPlaying(on: boolean, at = performance.now(), startAt?: number
     if (rt.scene) rt.scene.start = 0;
     tick = 0;
     wrappedAt = -1;
-    // Первый шаг — сразу, в момент нажатия (не в следующем кадре).
-    nextTime = startAt ?? performance.now();
+    // Первый шаг — сразу, в момент нажатия (не в следующем кадре): доля 0 источника такта — в этот момент.
+    tempoSource.started((startAt ?? performance.now()) / 1000);
+    nextTime = stepTime(0);
     if (!was) playListener(true, nextTime);
     // Запись стемов готовых дорожек — с первого шага (его время — nextTime).
     stemsOnPlay(nextTime);
@@ -130,7 +136,7 @@ function nextScene(k: number): number | null {
 /** Пора ли запускать ожидающий паттерн дорожки на тике k. */
 function atBoundary(i: number, k: number): boolean {
   const t = doc.tracks[i];
-  if (t.stopped) return k % 16 === 0;
+  if (t.stopped) return isBarStart(k / STEPS_PER_BEAT);
   return (k - rt.trackStart[i]) % playLen(t) === 0;
 }
 
@@ -164,8 +170,8 @@ function playStep(time: number) {
   // Стемы: на границе прохода повтор того же паттерна или остановка дорожки заканчивают запись;
   // после PLAY во время записи — стоп, когда все стемы дописаны (паттерны доиграли до конца).
   if (stemsOnStep(time, passStart, { on: arranged(), wrapped: wrappedAt === tick })) { setPlaying(false); return; }
-  if (tick % 4 === 0) {
-    const accent = tick % 16 === 0;
+  if (tick % STEPS_PER_BEAT === 0) {
+    const accent = isBarStart(tick / STEPS_PER_BEAT);
     flashes.push({ time, track: -1, dur: 90, notes: [], noteDur: accent ? 1 : 0 });
     if (ui.metronome) clickAt(time, accent);
   }
@@ -213,7 +219,7 @@ function playStep(time: number) {
  * false — транспорт остановлен (строки кончились, AT THE END: STOP).
  */
 function advanceScenes(time: number): boolean {
-  if (rt.sceneQueued !== null && tick % 16 === 0) startScene(rt.sceneQueued, tick);
+  if (rt.sceneQueued !== null && isBarStart(tick / STEPS_PER_BEAT)) startScene(rt.sceneQueued, tick);
   else if (rt.scene && sceneEndsAt(tick)) {
     const n = nextScene(rt.scene.row);
     if (n !== null) startScene(n, tick);
@@ -269,17 +275,21 @@ export function stemEndIn(i: number, now: number): number | null {
 /** Вызывается каждый кадр. */
 export function updateTransport(now: number) {
   if (ui.playing) {
-    // Если вкладка была в фоне — не догоняем пропущенные шаги.
-    if (now - nextTime > 1000) nextTime = now;
+    // Если вкладка была в фоне — не догоняем пропущенные шаги: фаза источника сдвигается к «сейчас».
+    if (now - nextTime > 1000) { tempoSource.shift((now - nextTime) / 1000); nextTime = stepTime(tick); }
     while (ui.playing && now + LOOKAHEAD_MS >= nextTime) {
       // Ведомый по MIDI-клоку: шаг подтягивается к времени своего тика по клоку (фаза не уплывает).
       const ref = phaseSource(tick);
       if (ref !== null) {
         const err = nextTime - ref;
-        if (Math.abs(err) < stepMs()) nextTime -= err * 0.25;
+        if (Math.abs(err) < stepMs()) { tempoSource.shift((-err * 0.25) / 1000); nextTime = stepTime(tick); }
       }
       playStep(nextTime);
-      nextTime += stepMs();
+      if (!ui.playing) break;
+      // Темп сменился — новый действует с только что сыгранного шага (доля не прыгает); время следующего шага —
+      // по доле источника такта.
+      tempoSource.retempo((tick - 1) / STEPS_PER_BEAT);
+      nextTime = stepTime(tick);
     }
   }
   for (let k = lockEvents.length - 1; k >= 0; k--) {

@@ -1203,3 +1203,5 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 .switch.on::after { transform: translateX(20px); }
 /* Название окна модуля мастера — тап открывает меню SAT · COMP · CLIP · LIM. */
 .eq-name.master-switch { cursor: pointer; }
+.toggle-row.disabled { cursor: default; opacity: 0.4; }
+.toggle-sub { font-size: 10px; font-weight: 400; letter-spacing: 0.04em; color: var(--dim); margin-top: 2px; }

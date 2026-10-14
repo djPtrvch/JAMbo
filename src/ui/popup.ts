@@ -104,10 +104,18 @@ export function popupButton(label: string, onTap: () => void): HTMLButtonElement
  * серый — OFF, бегунок переезжает с анимацией). Тап по строке переключает; after — перерисовать меню
  * после анимации (если от значения зависят другие строки).
  */
-export function toggleRow(label: string, on: boolean, pick: (v: boolean) => void, after?: () => void): HTMLElement {
+export function toggleRow(label: string, on: boolean, pick: (v: boolean) => void, after?: () => void, unavailable?: string): HTMLElement {
   const row = h('div', 'toggle-row');
   const sw = h('div', `switch${on ? ' on' : ''}`);
-  row.append(h('div', 'toggle-label', label), sw);
+  const text = h('div', 'toggle-label', label);
+  // Недоступен в этой сборке — серый, под подписью причина, тап ничего не делает.
+  if (unavailable) {
+    row.classList.add('disabled');
+    text.append(h('div', 'toggle-sub', unavailable));
+    row.append(text, sw);
+    return row;
+  }
+  row.append(text, sw);
   let cur = on;
   row.addEventListener('pointerup', () => {
     cur = !cur;

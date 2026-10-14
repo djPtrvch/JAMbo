@@ -54,7 +54,8 @@ function offset(label: string, get: () => number, put: (v: number) => void): HTM
   row.append(title(label), line);
   return row;
 }
-const onOff = (label: string, cur: boolean, pick: (v: boolean) => void, rerender = false) => toggleRow(label, cur, pick, rerender ? render : undefined);
+const onOff = (label: string, cur: boolean, pick: (v: boolean) => void, rerender = false, unavailable?: string) =>
+  toggleRow(label, cur, pick, rerender ? render : undefined, unavailable);
 
 function build() {
   panel = makePopup('settings sync-menu');
@@ -98,7 +99,8 @@ function render() {
   // Ableton Link.
   body.append(
     h('div', 'menu-head', 'ABLETON LINK'),
-    onOff('ABLETON LINK', s.link, (v) => { set({ link: v }); if (v) notify('Ableton Link: on'); }),
+    // Ableton Link — только в нативном приложении (этап 9): в веб-сборке пункт неактивен.
+    onOff('ABLETON LINK', false, () => {}, false, 'unavailable in this build'),
     onOff('IN-APP NOTIFICATIONS', s.linkNotify, (v) => { set({ linkNotify: v }); if (v) notify('Notifications on'); }),
     onOff('SYNC START/STOP', s.linkStartStop, (v) => set({ linkStartStop: v })),
     offset('LINK OFFSET', () => settings.sync.linkOffset, (v) => set({ linkOffset: v })),

@@ -20,6 +20,7 @@
 // лимитера): пиковый уровень по каналам и громкость в LUFS (K-взвешивание, окно ~400 мс).
 
 import { BPM_MIN, stepIndex, DELAY_DIVS, isAuto, OVER_PEAK, DRUM_ENGINE, isJambo, SYNTH_ENGINES, synthEngine, PARAM_BY_ID, VOL_DEF_DB, volGain, SAMPLE_ROOT, MAX_TRACKS, filterFreq, fromNorm } from '../params';
+import { tempo } from '../tempo';
 import { audible, addSamplesQuiet, addSamplesToFolder, doc, setStepSound, triggerEnv, liveFx, liveMaster, liveMixer, modulatedNorm, ui, baseValue, autoLive } from '../state';
 import { detectRoot } from './pitch';
 import { encodeWav } from './wav';
@@ -892,7 +893,7 @@ export function playNow(track: number, notes: number[], held = false, velocity =
   // Живая нота тоже запускает ENV: гейт — пока держат клавишу (held, отпускание — releaseEnv),
   // иначе (ноты с MIDI) — один шаг. VELOCITY: Level ноты = Level дорожки × сила нажатия.
   const now = performance.now();
-  triggerEnv(track, now, held ? 1e9 : 60000 / doc.bpm / 4);
+  triggerEnv(track, now, held ? 1e9 : 60000 / tempo() / 4);
   triggerTrack(track, now, notes, velocity < 1 ? { level: doc.tracks[track].params.level * velocity } : {}, undefined, held ? Infinity : undefined);
 }
 
@@ -1216,7 +1217,7 @@ function updateFx(now: number) {
   // Глубины sidechain — от ручек дорожек (не входят в подпись FX): проверяются каждый кадр.
   updateDuckDepths(ct, Math.round(fx['sc.source']));
 
-  const fsig = JSON.stringify([fx, mixer, master, doc.limBypass, doc.cmpBypass, doc.clipBypass, doc.satBypass, doc.bpm, ui.limView, ui.limUnity, ui.limAudit, ui.compView, ui.compAudit, ui.clipView, ui.clipUnity, ui.clipAudit, ui.satView, settings.clipDisplay, ui.channel === 'master', doc.tracks.map((t) => +t.mute + 2 * +t.solo)]);
+  const fsig = JSON.stringify([fx, mixer, master, doc.limBypass, doc.cmpBypass, doc.clipBypass, doc.satBypass, tempo(), ui.limView, ui.limUnity, ui.limAudit, ui.compView, ui.compAudit, ui.clipView, ui.clipUnity, ui.clipAudit, ui.satView, settings.clipDisplay, ui.channel === 'master', doc.tracks.map((t) => +t.mute + 2 * +t.solo)]);
   if (fsig === fxSig) return;
   fxSig = fsig;
   rev.set(fx, ct);
@@ -1226,7 +1227,7 @@ function updateFx(now: number) {
   if (dn) {
     const dp = (name: string) => dn.parameters.get(name)!;
     // Скольжение времени и сглаживание — в worklet; сюда — цели.
-    dp('time').setValueAtTime(Math.min(MAX_DELAY, DELAY_DIVS[Math.round(fx['dly.time'])].beats * 60 / doc.bpm), ct);
+    dp('time').setValueAtTime(Math.min(MAX_DELAY, DELAY_DIVS[Math.round(fx['dly.time'])].beats * 60 / tempo()), ct);
     // Пока идёт MUTE TAILS, обратная связь возвращается не раньше его конца.
     dp('feedback').setValueAtTime(fx['dly.feedback'] / 100, Math.max(ct, tailUntil));
     dp('filter').setValueAtTime(fx['dly.filter'] / 100, ct);

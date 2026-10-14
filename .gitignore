@@ -1,3 +1,8 @@
 node_modules
 dist
 wasm/plaits/.src
+
+# Ableton Link SDK (LinkKit) — не коммитить: берётся из приватного хранилища на сборке нативного приложения
+LinkKit.xcframework/
+LinkKit*.zip
+link-sdk/
