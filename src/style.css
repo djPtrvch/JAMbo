@@ -861,6 +861,7 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 .main-menu-section { display: flex; flex-direction: column; gap: 6px; padding-top: 14px; }
 .main-menu-section:first-child { padding-top: 4px; }
 .main-menu-section + .main-menu-section { border-top: 1px solid var(--line); margin-top: 10px; }
+.popup-box.settings .settings-body { margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
 .settings-tabs-title { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
 .settings-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
 .settings-body { display: flex; flex-direction: column; gap: 10px; padding-top: 6px; }
