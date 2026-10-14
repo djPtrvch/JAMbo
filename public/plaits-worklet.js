@@ -20,6 +20,11 @@ const BLOCK = 24;
 /** Тишина дольше этого (кадров) после атаки — голос больше не считается. */
 const SILENCE = 4800;
 const QUIET = 1e-5;
+/**
+ * Частота, на которую настроен Plaits: kCorrectedSampleRate в plaits/dsp/dsp.h (делитель тактовой частоты модуля,
+ * 47872,34 Гц вместо 48000 — ошибка 4,6 цента). Нота сдвигается так, чтобы A4 звучала 440 Гц на частоте контекста.
+ */
+const PLAITS_SR = 47872.34;
 
 class PlaitsProcessor extends AudioWorkletProcessor {
   constructor(options) {
@@ -36,7 +41,7 @@ class PlaitsProcessor extends AudioWorkletProcessor {
     this.start0 = new Float64Array(slots);
     this.quiet = new Float64Array(slots);
     this.engine = new Int32Array(slots);
-    this.noteShift = 12 * Math.log2(48000 / sampleRate);
+    this.noteShift = 12 * Math.log2(PLAITS_SR / sampleRate);
     this.busy = 0;
     this.frames = 0;
     this.mods = Array.from({ length: slots }, () => []);

@@ -47,6 +47,9 @@ export interface MidiMapping {
 }
 
 export interface Settings {
+  /** Версия настроек (SETTINGS_VERSION; нет поля — 1). */
+  v?: number;
+  /** SAMPLE RATE: 0 — AUTO, 44100, 48000 (по умолчанию 48000 — частота Plaits). */
   sampleRate: number;
   bufferSize: number;
   background: boolean;
@@ -112,8 +115,10 @@ export interface SyncSettings {
 }
 
 const KEY = 'jambo.settings';
+/** Версия настроек: 2 — SAMPLE RATE по умолчанию 48 kHz (прежнее AUTO один раз становится 48 kHz). */
+const SETTINGS_VERSION = 2;
 const DEFAULTS: Settings = {
-  sampleRate: 0, bufferSize: 0, background: true, muteTails: false, outputId: '', inputId: '',
+  sampleRate: 48000, bufferSize: 0, background: true, muteTails: false, outputId: '', inputId: '',
   midiIn: '', midiFeedback: '', noteChannel: 0, noteRoute: 'selected', mappings: [], midiPreset: '', theme: 'system', velocity: false, pianoOctaves: 2, latch: { fx: false, mod: false },
   scSends: { rev: false, dly: false, drv: true },
   limScale: 48,
@@ -139,6 +144,13 @@ function load(): Settings {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) ?? '{}');
     const s: Settings = { ...DEFAULTS, ...raw };
+    // Версия 1 → 2: SAMPLE RATE AUTO (0) один раз становится 48 kHz; дальше выбор не трогается.
+    if ((raw.v ?? 1) < 2 && Object.keys(raw).length) {
+      if (!raw.sampleRate) s.sampleRate = 48000;
+      s.v = SETTINGS_VERSION;
+      try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* хранилище недоступно */ }
+    }
+    s.v = SETTINGS_VERSION;
     s.scSends = { ...DEFAULTS.scSends, ...(raw.scSends ?? {}) };
     s.sync = { ...DEFAULTS.sync, ...(raw.sync ?? {}) };
     s.record = { ...DEFAULTS.record, ...(raw.record ?? {}) };

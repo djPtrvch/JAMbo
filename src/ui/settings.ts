@@ -93,7 +93,9 @@ function engineInfo(): string {
   const a = audioInfo();
   if (a.state === 'none') return 'Audio not started yet — tap the screen.';
   const ms = (s: number) => `${(s * 1000).toFixed(1)} ms`;
-  return `Now: ${a.sampleRate} Hz · ${a.state} · base latency ${ms(a.baseLatency)} · output latency ${ms(a.outputLatency)}`;
+  // Запрошена одна частота, а браузер дал другую — дописывается запрошенная.
+  const req = settings.sampleRate && settings.sampleRate !== a.sampleRate ? ` (${settings.sampleRate / 1000} kHz requested)` : '';
+  return `Now: ${a.sampleRate} Hz${req} · ${a.state} · base latency ${ms(a.baseLatency)} · output latency ${ms(a.outputLatency)}`;
 }
 
 function renderEngine() {
