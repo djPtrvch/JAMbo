@@ -1,6 +1,6 @@
 // Меню «бутерброд»: PROJECTS (проекты, ui/projects.ts), SETTINGS и MIDI (ui/midi.ts);
 // во вложенных меню стрелка назад возвращает сюда.
-// SETTINGS — вкладки AUDIO ENGINE (частота дискретизации, размер буфера), RECORD (квантизация, овердаб, запись автоматизации), BACKGROUND (звук в фоне)
+// SETTINGS — вкладки AUDIO ENGINE (частота дискретизации, размер буфера), RECORD (квантизация, овердаб, запись автоматизации), SAMPLER (ноты маркеров нарезки), BACKGROUND (звук в фоне)
 // OUTPUT (выход и вход аудиоинтерфейса), SIDECHAIN (приглушение посылов эффектов, на пробу) и SCALE (шкала окон мастера).
 
 import { applyOutput, applySidechainSends, audioInfo, canChooseOutput, restartAudio } from '../audio/engine';
@@ -12,7 +12,7 @@ import { openMidi } from './midi';
 import { openSync } from './sync';
 import { openProjectMenu } from './projects';
 
-type Tab = 'engine' | 'record' | 'background' | 'output' | 'sidechain' | 'scale';
+type Tab = 'engine' | 'record' | 'sampler' | 'background' | 'output' | 'sidechain' | 'scale';
 
 let main: Popup;
 let panel: Popup;
@@ -47,7 +47,7 @@ export function openMainMenu(anchor: Element) {
 function buildPanel() {
   panel = makePopup('settings');
   const tabs = h('div', 'settings-tabs');
-  const names: [Tab, string][] = [['engine', 'AUDIO ENGINE'], ['record', 'RECORD'], ['background', 'BACKGROUND'], ['output', 'OUTPUT'], ['sidechain', 'SIDECHAIN'], ['scale', 'SCALE']];
+  const names: [Tab, string][] = [['engine', 'AUDIO ENGINE'], ['record', 'RECORD'], ['sampler', 'SAMPLER'], ['background', 'BACKGROUND'], ['output', 'OUTPUT'], ['sidechain', 'SIDECHAIN'], ['scale', 'SCALE']];
   for (const [t, label] of names) {
     tabBtns[t] = popupButton(label, () => { tab = t; render(); });
     tabs.append(tabBtns[t]);
@@ -144,6 +144,14 @@ function renderRecord() {
   );
 }
 
+/** SAMPLER: ноты маркеров нарезки в редакторе сэмпла — по хроматической клавиатуре или по гамме. */
+function renderSampler() {
+  body.append(
+    choice('SLICE NOTES', ['chromatic', 'scale'] as const, settings.sliceMap, (v) => v.toUpperCase(), (v) => saveSettings({ sliceMap: v })),
+    note('Markers in the sample editor play their slice from a piano key. CHROMATIC: markers go up by semitone from C3 (C3, C#3, D3…). SCALE: markers follow the notes of the selected scale from its root note in octave 3; the marker notes change with the scale.'),
+  );
+}
+
 /** SCALE окон модулей мастера (компрессор, клиппер, лимитер, сатуратор): низ шкалы дисплеев и стержней IN/OUT. */
 function renderScale() {
   body.append(
@@ -212,6 +220,7 @@ function render() {
   body.replaceChildren();
   if (tab === 'engine') renderEngine();
   else if (tab === 'record') renderRecord();
+  else if (tab === 'sampler') renderSampler();
   else if (tab === 'background') renderBackground();
   else if (tab === 'sidechain') renderSidechain();
   else if (tab === 'scale') renderScale();

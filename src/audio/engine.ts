@@ -21,7 +21,7 @@
 
 import { BPM_MIN, stepIndex, DELAY_DIVS, isAuto, OVER_PEAK, DRUM_ENGINE, isJambo, SYNTH_ENGINES, synthEngine, PARAM_BY_ID, VOL_DEF_DB, volGain, SAMPLE_ROOT, MAX_TRACKS, filterFreq, fromNorm } from '../params';
 import { tempo } from '../tempo';
-import { audible, addSamplesQuiet, addSamplesToFolder, doc, setStepSound, triggerEnv, liveFx, liveMaster, liveMixer, modulatedNorm, ui, baseValue, autoLive } from '../state';
+import { audible, addSamplesQuiet, addSamplesToFolder, doc, setStepSound, triggerEnv, liveFx, liveMaster, liveMixer, modulatedNorm, ui, baseValue, autoLive, sliceMarks, sliceOf } from '../state';
 import { detectRoot } from './pitch';
 import { encodeWav } from './wav';
 import { settings } from '../settings';
@@ -50,6 +50,8 @@ interface Voice {
   root: number;
   locks: Record<string, number>;
   note: number;
+  /** Нота высоты: у нарезки (маркеры сэмпла) — исходная высота (root), иначе — note. */
+  rateNote?: number;
   /** Время начала ноты (контекст): до него модуляция голос не трогает. */
   at: number;
   /** Сэмпл; у голоса синта — null (звучит слот synth). */
@@ -721,9 +723,12 @@ export function triggerTrack(track: number, time: number, notes: number[], locks
   // Начальные значения — с модуляцией на момент ноты (ENV запущен на это время).
   const v = (id: string) => value(track, id, locks, time);
 
-  const startSec = (buf.duration * v('start')) / 100;
-  const endSec = (buf.duration * v('end')) / 100;
-  if (endSec - startSec < 0.003) return;
+  const startSec0 = (buf.duration * v('start')) / 100;
+  const endSec0 = (buf.duration * v('end')) / 100;
+  // Маркеры нарезки (редактор сэмпла): нота маркера играет от него до следующего (последний — до конца) в исходной
+  // высоте; нота без маркера молчит. Без маркеров — как прежде (Start/End, нота меняет высоту).
+  const marks = sliceMarks(t, key);
+  if (!marks.length && endSec0 - startSec0 < 0.003) return;
   const attack = v('attack') / 1000;
   const decay = v('decay') / 1000;
   // Высота сэмпла определяется только для индикации: воспроизведение всегда от C3.
@@ -731,7 +736,17 @@ export function triggerTrack(track: number, time: number, notes: number[], locks
 
   legatoCut(track, notes, at, attack);
   for (const note of notes) {
-    const rate = rateFor(note, root, v('pitch'));
+    let startSec = startSec0;
+    let endSec = endSec0;
+    let rate = rateFor(note, root, v('pitch'));
+    if (marks.length) {
+      const k = sliceOf(note, marks.length);
+      if (k < 0) continue;
+      startSec = marks[k] * buf.duration;
+      endSec = (k + 1 < marks.length ? marks[k + 1] : 1) * buf.duration;
+      if (endSec - startSec < 0.003) continue;
+      rate = rateFor(root, root, v('pitch'));
+    }
     const src = ctx.createBufferSource();
     src.buffer = buf;
     src.playbackRate.value = rate;
@@ -771,7 +786,7 @@ export function triggerTrack(track: number, time: number, notes: number[], locks
     // Живая нота звучит до отпускания (или до конца сэмпла); остальные — пока Decay не затих
     // (8 постоянных времени, −70 dB: раньше обрыв на −40 dB при длинном Decay щёлкал).
     if (hold !== Infinity) src.stop(Math.min(at + playDur, hold + Math.max(0.02, decay) * 2 + 0.05));
-    const voice: Voice = { track, root, locks, note, at, src, synth: null, level, filter, pan, sends, ended: false, hold, own: !!sound };
+    const voice: Voice = { track, root, locks, note, rateNote: marks.length ? root : undefined, at, src, synth: null, level, filter, pan, sends, ended: false, hold, own: !!sound };
     if (hold === Infinity) voice.held = { amp: amp.gain, decay, id: 0 };
     // Автоматизация: значения голоса наперёд — с самого начала ноты.
     if (autoLive(track)) scheduleVoice(voice, at);
@@ -1104,7 +1119,7 @@ function scheduleVoice(vo: Voice, start?: number) {
   const cont = start === undefined && !!vo.sched && (vo.schedEnd ?? 0) >= anchor - 1e-6;
   const perf = performance.now() + (anchor - ct) * 1000;
   for (let k = 0; k <= SCHED_N; k++) liveVals(vo, perf + k * SCHED_DT * 1000, schedVals[k]);
-  if (vo.src) rampParam(vo.src.playbackRate, anchor, cont, (k) => rateFor(vo.note, vo.root, schedVals[k][0]));
+  if (vo.src) rampParam(vo.src.playbackRate, anchor, cont, (k) => rateFor(vo.rateNote ?? vo.note, vo.root, schedVals[k][0]));
   rampParam(vo.level.gain, anchor, cont, (k) => levelGain(schedVals[k][1]));
   // Фильтр: тип (LP/HP/выкл.) — по текущему значению, частота и резонанс — отрезками.
   const ff = filterFreq(schedVals[0][2]);
@@ -1147,7 +1162,7 @@ function unschedule(vo: Voice) {
     p.cancelScheduledValues(anchor + 1e-4);
     p.setTargetAtTime(x, anchor, 0.005);
   };
-  if (vo.src) set(vo.src.playbackRate, rateFor(vo.note, vo.root, vals[0]));
+  if (vo.src) set(vo.src.playbackRate, rateFor(vo.rateNote ?? vo.note, vo.root, vals[0]));
   set(vo.level.gain, levelGain(vals[1]));
   for (const p of [vo.filter.frequency, vo.filter.Q]) p.cancelScheduledValues(anchor + 1e-4);
   applyFilter(vo.filter, vals[2], vals[3], anchor, true);
@@ -1194,7 +1209,7 @@ function updateVoices() {
     vo.vals = vals;
     if (!was) continue;
     const ch = (k: number) => vals[k] !== was[k];
-    if (ch(0) && vo.src) vo.src.playbackRate.setTargetAtTime(rateFor(vo.note, vo.root, vals[0]), now, 0.01);
+    if (ch(0) && vo.src) vo.src.playbackRate.setTargetAtTime(rateFor(vo.rateNote ?? vo.note, vo.root, vals[0]), now, 0.01);
     if (ch(1)) vo.level.gain.setTargetAtTime(levelGain(vals[1]), now, 0.01);
     if (ch(2) || ch(3)) applyFilter(vo.filter, vals[2], vals[3], now, true);
     if (ch(4)) vo.pan.pan.setTargetAtTime(Math.max(-1, Math.min(1, vals[4] / 64)), now, 0.01);

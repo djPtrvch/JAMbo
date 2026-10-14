@@ -1,6 +1,8 @@
 // Редактор сэмпла: удержание окна сэмпла открывает его на месте центра экрана (как EQ, справа
-// остаётся измеритель уровня). Форма волны сэмпла выбранной дорожки (стерео — L и R) и два маркера
-// обрезки: палец тянет ближайший маркер (можно оба сразу двумя пальцами), над пальцем — время.
+// остаётся измеритель уровня). Форма волны сэмпла выбранной дорожки (стерео — L и R), два маркера
+// обрезки (тянутся за ручки внизу, можно оба сразу двумя пальцами, над пальцем — время) и маркеры нарезки
+// (двойной тап — новый, флажок тянут, двойной тап по флажку — удалить; нота — по SETTINGS → SAMPLER).
+// Палец по пустому месту: вверх-вниз — масштаб, влево-вправо — прокрутка (жёлтая полоса сверху).
 // Внизу: имя, длина и выделение; LOAD (браузер библиотеки), SAVE (в библиотеку; WAV в «Файлы» —
 // EXPORT в браузере), TRIM (оставить выделенное), NORMALIZE (пик −0.1 dBFS), MONO (среднее L и R), CLOSE.
 // TRIM, NORMALIZE и MONO сразу ставят на дорожку отредактированную копию (в папке — на месте
@@ -8,8 +10,8 @@
 
 import { addEditedSample, previewSample, previewing, sampleBuffer, stopPreview } from '../audio/engine';
 import { openBrowser } from './browser';
-import { synthEngine } from '../params';
-import { doc, replaceSample, sampleName, toggleView, ui } from '../state';
+import { noteName, synthEngine } from '../params';
+import { addSlice, beginGesture, deleteSlice, doc, endGesture, moveSlice, replaceSample, sampleName, sliceMarks, sliceNote, toggleView, ui } from '../state';
 import { closeButton, h, setClass, setText } from './dom';
 import { color } from './theme';
 
@@ -31,13 +33,11 @@ const tools: HTMLElement[] = [];
 
 /** Маркеры обрезки (доля длины 0..1) для сэмпла key. */
 const mark = { key: '', a: 0, b: 1 };
-/** Какой палец какой маркер тянет. */
-const drags = new Map<number, 'a' | 'b'>();
 let busy = false;
 let W = 0;
 let H = 0;
 /** Огибающая для текущей ширины: min/max по пикселям, по каналам. */
-let env: { key: string; w: number; min: Float32Array[]; max: Float32Array[] } | null = null;
+let env: { key: string; w: number; a: number; span: number; min: Float32Array[]; max: Float32Array[] } | null = null;
 
 /** Сэмпл выбранной дорожки (не синт) или ''. */
 function currentKey(): string {
@@ -111,51 +111,176 @@ function mono() {
   void apply(key, [out], buf.sampleRate);
 }
 
-// ---------- Маркеры ----------
+// ---------- Жесты: обрезка, маркеры нарезки, масштаб и прокрутка ----------
 
-function frac(e: PointerEvent): number {
-  const r = canvas.getBoundingClientRect();
-  return Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+/** Видимая часть сэмпла (доли длины): начало и ширина окна. */
+const view = { a: 0, span: 1 };
+/** Полоса прокрутки сверху (при увеличении), флажки маркеров — под ней. */
+const BAR_H = 4;
+const FLAG_Y = 8;
+const FLAG_H = 22;
+/** Ручки маркеров обрезки — внизу. */
+const HANDLE = 22;
+/** Сдвиг пальца, после которого касание — жест (направление фиксируется), мм не тап. */
+const SLOP = 10;
+/** Вертикальный ход пальца на удвоение масштаба. */
+const ZOOM_PX = 110;
+const DOUBLE_MS = 350;
+
+type Drag =
+  | { kind: 'trim'; m: 'a' | 'b' }
+  | { kind: 'slice'; idx: number; x0: number; y0: number; moved: boolean }
+  | { kind: 'nav'; x0: number; y0: number; a0: number; span0: number; f0: number; axis: '' | 'x' | 'y' };
+const drags = new Map<number, Drag>();
+/** Последний тап по пустому месту или флажку — для двойного тапа. */
+let lastTap = { t: 0, x: 0, flag: -1 };
+
+const toX = (f: number) => ((f - view.a) / view.span) * W;
+const localX = (e: PointerEvent) => e.clientX - canvas.getBoundingClientRect().left;
+const localY = (e: PointerEvent) => e.clientY - canvas.getBoundingClientRect().top;
+const fracAt = (x: number) => Math.min(1, Math.max(0, view.a + (x / Math.max(1, W)) * view.span));
+const clampView = () => {
+  view.span = Math.min(1, view.span);
+  view.a = Math.min(1 - view.span, Math.max(0, view.a));
+};
+
+/** Наименьшее окно — 256 отсчётов (или весь сэмпл). */
+const minSpan = (buf: AudioBuffer) => Math.min(1, 256 / buf.length);
+
+function marks(): number[] {
+  return sliceMarks(doc.tracks[ui.selectedTrack], currentKey());
+}
+
+/** Прямоугольник флажка маркера (по x — от линии вправо; у правого края — влево). */
+function flagRect(f: number, label: string): { x: number; w: number } {
+  const w = Math.max(30, label.length * 8 + 12);
+  const x = toX(f);
+  return { x: x + w > W ? x - w : x, w };
+}
+
+/** Флажок маркера под пальцем или −1. */
+function flagAt(x: number, y: number): number {
+  if (y > FLAG_Y + FLAG_H + 8) return -1;
+  const m = marks();
+  // Сверху — последний нарисованный (правее), зона попадания шире флажка на 6 px.
+  for (let k = m.length - 1; k >= 0; k--) {
+    const r = flagRect(m[k], noteName(sliceNote(k)));
+    if (x >= r.x - 6 && x <= r.x + r.w + 6) return k;
+  }
+  return -1;
+}
+
+/** Ручка маркера обрезки под пальцем (внизу) или null. */
+function trimAt(x: number, y: number): 'a' | 'b' | null {
+  if (y < H - HANDLE - 10) return null;
+  const used = new Set([...drags.values()].map((d) => (d.kind === 'trim' ? d.m : '')));
+  const da = Math.abs(x - (toX(mark.a) + HANDLE / 2));
+  const db = Math.abs(x - (toX(mark.b) - HANDLE / 2));
+  const best: 'a' | 'b' = da <= db ? 'a' : 'b';
+  if (Math.min(da, db) > HANDLE) return null;
+  if (!used.has(best)) return best;
+  const other = best === 'a' ? 'b' : 'a';
+  return !used.has(other) && (other === 'a' ? da : db) <= HANDLE ? other : null;
+}
+
+function showTip(e: PointerEvent, text: string) {
+  const r = plot.getBoundingClientRect();
+  tip.style.left = `${Math.min(W - 50, Math.max(50, e.clientX - r.left))}px`;
+  tip.style.top = `${Math.max(4, e.clientY - r.top - 70)}px`;
+  setText(tip, text);
+  setClass(tip, 'hidden', false);
 }
 
 function down(e: PointerEvent) {
-  if (!currentKey()) return;
+  const key = currentKey();
+  const buf = sampleBuffer(key);
+  if (!buf) return;
   e.preventDefault();
+  // Ложные касания: ладонь (большое пятно) не считается.
+  if (e.pointerType === 'touch' && e.width > 60 && e.height > 60) return;
+  const x = localX(e);
+  const y = localY(e);
+  const tm = trimAt(x, y);
+  const fl = tm ? -1 : flagAt(x, y);
+  let d: Drag;
+  if (tm) d = { kind: 'trim', m: tm };
+  else if (fl >= 0) d = { kind: 'slice', idx: fl, x0: x, y0: y, moved: false };
+  else {
+    // Масштаб и прокрутка — одним пальцем; второй палец по пустому месту ничего не делает.
+    if ([...drags.values()].some((v) => v.kind === 'nav')) return;
+    d = { kind: 'nav', x0: x, y0: y, a0: view.a, span0: view.span, f0: fracAt(x), axis: '' };
+  }
   canvas.setPointerCapture(e.pointerId);
-  const x = frac(e);
-  const used = new Set(drags.values());
-  // Ближайший свободный маркер (второй палец берёт другой).
-  let m: 'a' | 'b' = Math.abs(x - mark.a) <= Math.abs(x - mark.b) ? 'a' : 'b';
-  if (used.has(m)) m = m === 'a' ? 'b' : 'a';
-  if (used.has(m)) return;
-  drags.set(e.pointerId, m);
-  move(e);
+  drags.set(e.pointerId, d);
+  if (d.kind === 'trim') move(e);
 }
 
 function move(e: PointerEvent) {
-  const m = drags.get(e.pointerId);
-  if (!m) return;
-  const buf = sampleBuffer(currentKey());
-  // Между маркерами — не меньше 64 сэмплов.
-  const gap = buf ? Math.min(0.5, 64 / buf.length) : 0.001;
-  const x = frac(e);
-  if (m === 'a') mark.a = Math.min(x, mark.b - gap);
-  else mark.b = Math.max(x, mark.a + gap);
-  mark.a = Math.max(0, mark.a);
-  mark.b = Math.min(1, mark.b);
-  // Подсказка над пальцем: время маркера.
-  if (buf) {
-    const r = plot.getBoundingClientRect();
-    tip.style.left = `${Math.min(W - 50, Math.max(50, e.clientX - r.left))}px`;
-    tip.style.top = `${Math.max(4, e.clientY - r.top - 70)}px`;
-    setText(tip, `${m === 'a' ? 'START' : 'END'}\n${fmtTime((m === 'a' ? mark.a : mark.b) * buf.duration)}`);
+  const d = drags.get(e.pointerId);
+  if (!d) return;
+  const key = currentKey();
+  const buf = sampleBuffer(key);
+  if (!buf) return;
+  const x = localX(e);
+  const y = localY(e);
+  if (d.kind === 'trim') {
+    // Между маркерами обрезки — не меньше 64 сэмплов.
+    const gap = Math.min(0.5, 64 / buf.length);
+    const f = fracAt(x);
+    if (d.m === 'a') mark.a = Math.max(0, Math.min(f, mark.b - gap));
+    else mark.b = Math.min(1, Math.max(f, mark.a + gap));
+    showTip(e, `${d.m === 'a' ? 'START' : 'END'}\n${fmtTime((d.m === 'a' ? mark.a : mark.b) * buf.duration)}`);
+    return;
   }
-  setClass(tip, 'hidden', !buf);
+  if (d.kind === 'slice') {
+    if (!d.moved) {
+      if (Math.hypot(x - d.x0, y - d.y0) < SLOP) return;
+      d.moved = true;
+      beginGesture();
+    }
+    moveSlice(ui.selectedTrack, key, d.idx, fracAt(x), 32 / buf.length);
+    const m = marks();
+    showTip(e, `${noteName(sliceNote(d.idx))}\n${fmtTime((m[d.idx] ?? 0) * buf.duration)}`);
+    return;
+  }
+  // Направление жеста фиксируется после SLOP px: вверх-вниз — масштаб, влево-вправо — прокрутка.
+  const dx = x - d.x0;
+  const dy = y - d.y0;
+  if (!d.axis) {
+    if (Math.hypot(dx, dy) < SLOP) return;
+    d.axis = Math.abs(dy) > Math.abs(dx) ? 'y' : 'x';
+    // Отсчёт — от точки, где жест определился: без скачка на SLOP.
+    d.x0 = x; d.y0 = y; d.a0 = view.a; d.span0 = view.span; d.f0 = fracAt(x);
+    return;
+  }
+  if (d.axis === 'y') {
+    // Палец вверх — крупнее; точка под пальцем остаётся на месте.
+    view.span = Math.min(1, Math.max(minSpan(buf), d.span0 * Math.pow(2, (y - d.y0) / ZOOM_PX)));
+    view.a = d.f0 - (d.x0 / Math.max(1, W)) * view.span;
+  } else {
+    view.a = d.a0 - (dx / Math.max(1, W)) * d.span0;
+  }
+  clampView();
 }
 
 function up(e: PointerEvent) {
+  const d = drags.get(e.pointerId);
   drags.delete(e.pointerId);
-  if (!drags.size) setClass(tip, 'hidden', true);
+  if (![...drags.values()].some((v) => v.kind !== 'nav')) setClass(tip, 'hidden', true);
+  if (!d || e.type === 'pointercancel') { if (d?.kind === 'slice' && d.moved) endGesture(); return; }
+  if (d.kind === 'slice' && d.moved) { endGesture(); return; }
+  const key = currentKey();
+  const x = localX(e);
+  const now = performance.now();
+  // Тап (без движения): одиночный ничего не делает, двойной — маркер (по пустому месту) или удаление (по флажку).
+  const tap = d.kind === 'slice' ? !d.moved : d.kind === 'nav' && !d.axis;
+  if (!tap || !key) return;
+  const flag = d.kind === 'slice' ? d.idx : -1;
+  const dbl = now - lastTap.t < DOUBLE_MS && Math.abs(x - lastTap.x) < 24 && lastTap.flag === flag;
+  if (!dbl) { lastTap = { t: now, x, flag }; return; }
+  lastTap = { t: 0, x: 0, flag: -1 };
+  if (flag >= 0) deleteSlice(ui.selectedTrack, key, flag);
+  else addSlice(ui.selectedTrack, key, fracAt(x));
 }
 
 // ---------- Построение ----------
@@ -208,15 +333,17 @@ export function openSampleEditor() {
 // ---------- Отрисовка (каждый кадр, пока открыт) ----------
 
 function envelope(key: string, buf: AudioBuffer, w: number) {
-  if (env && env.key === key && env.w === w) return env;
+  if (env && env.key === key && env.w === w && env.a === view.a && env.span === view.span) return env;
   const chans = Math.min(2, buf.numberOfChannels);
   const min = Array.from({ length: chans }, () => new Float32Array(w));
   const max = Array.from({ length: chans }, () => new Float32Array(w));
+  const n = buf.length;
   for (let c = 0; c < chans; c++) {
     const d = buf.getChannelData(c);
     for (let x = 0; x < w; x++) {
-      const i0 = Math.floor((x / w) * d.length);
-      const i1 = Math.max(i0 + 1, Math.floor(((x + 1) / w) * d.length));
+      // Окно view: при сильном увеличении на пиксель меньше отсчёта — берётся ближайший.
+      const i0 = Math.min(n - 1, Math.floor((view.a + (x / w) * view.span) * n));
+      const i1 = Math.min(n, Math.max(i0 + 1, Math.floor((view.a + ((x + 1) / w) * view.span) * n)));
       let lo = 0;
       let hi = 0;
       for (let i = i0; i < i1; i++) { const v = d[i]; if (v < lo) lo = v; if (v > hi) hi = v; }
@@ -224,7 +351,7 @@ function envelope(key: string, buf: AudioBuffer, w: number) {
       max[c][x] = hi;
     }
   }
-  env = { key, w, min, max };
+  env = { key, w, a: view.a, span: view.span, min, max };
   return env;
 }
 
@@ -233,7 +360,7 @@ export function renderSampleEditor() {
   if (!ui.sampleView) return;
   const key = currentKey();
   const buf = key ? sampleBuffer(key) : null;
-  if (key !== mark.key) { mark.key = key; mark.a = 0; mark.b = 1; drags.clear(); }
+  if (key !== mark.key) { mark.key = key; mark.a = 0; mark.b = 1; drags.clear(); view.a = 0; view.span = 1; }
 
   const full = mark.a <= 0 && mark.b >= 1;
   setClass(trimBtn, 'disabled', !buf || full);
@@ -283,17 +410,40 @@ export function renderSampleEditor() {
       g.fillText(c ? 'R' : 'L', 8, lh * c + 16);
     }
   }
-  // Отрезаемое — затемнено, маркеры — жёлтые линии с ручками сверху и снизу.
-  const xa = mark.a * W;
-  const xb = mark.b * W;
+  // Отрезаемое — затемнено, маркеры обрезки — жёлтые линии с ручками внизу.
+  const xa = toX(mark.a);
+  const xb = toX(mark.b);
   g.fillStyle = color('--scrim');
-  g.fillRect(0, 0, xa, H);
-  g.fillRect(xb, 0, W - xb, H);
+  if (xa > 0) g.fillRect(0, 0, Math.min(W, xa), H);
+  if (xb < W) g.fillRect(Math.max(0, xb), 0, W - Math.max(0, xb), H);
   g.fillStyle = color('--accent');
   for (const [x, right] of [[xa, false], [xb, true]] as [number, boolean][]) {
+    if (x < -HANDLE || x > W + HANDLE) continue;
     g.fillRect(Math.round(x) - 1, 0, 2, H);
-    const hx = right ? x - 22 : x;
-    g.fillRect(hx, 0, 22, 22);
-    g.fillRect(hx, H - 22, 22, 22);
+    g.fillRect(right ? x - HANDLE : x, H - HANDLE, HANDLE, HANDLE);
+  }
+  // Маркеры нарезки: линия и флажок с нотой (по SETTINGS → SAMPLER: хроматически или по гамме); тянут — жёлтый.
+  const held = new Set([...drags.values()].map((d) => (d.kind === 'slice' && d.moved ? d.idx : -1)));
+  g.font = '600 12px -apple-system, system-ui, sans-serif';
+  g.textBaseline = 'middle';
+  marks().forEach((f, k) => {
+    const x = toX(f);
+    if (x < -60 || x > W + 60) return;
+    const label = noteName(sliceNote(k));
+    const r = flagRect(f, label);
+    const c = held.has(k) ? color('--accent') : color('--ink');
+    g.fillStyle = c;
+    g.fillRect(Math.round(x), FLAG_Y, 1, H - FLAG_Y);
+    g.fillRect(r.x, FLAG_Y, r.w, FLAG_H);
+    g.fillStyle = color('--bg');
+    g.fillText(label, r.x + 6, FLAG_Y + FLAG_H / 2 + 1);
+  });
+  g.textBaseline = 'alphabetic';
+  // Полоса прокрутки (при увеличении): видимая часть сэмпла — жёлтым.
+  if (view.span < 1) {
+    g.fillStyle = color('--meter-track');
+    g.fillRect(0, 0, W, BAR_H);
+    g.fillStyle = color('--accent');
+    g.fillRect(view.a * W, 0, Math.max(6, view.span * W), BAR_H);
   }
 }

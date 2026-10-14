@@ -5,7 +5,7 @@
 import {
   FORMAT_VERSION, SPEECH_ENGINE, speechHarmV1, migratePreset,
   FX_GRID, HIDDEN_PARAMS, MASTER_EXTRA, REV_HPF_NEW, DRIVE_LOWCUT_NEW, isAuto, MASTER_GRID, MAX_PAGES, MIX_GRID, MOD_GRID, PATTERN_SLOTS, RATIOS, STEPS_PER_PAGE, TRACK_COUNT, MAX_TRACKS, TRACK_GRID, OCTAVE_DEF, OCTAVE_MAX, OCTAVE_MIN,
-  BPM_MAX, BPM_MIN, VOL_MIN_DB, VOL_DEF_DB, PARAM_BY_ID, PRESET_PARAMS, SEQ_COUNT, SEQ_MIX, SEQ_MST, SYNTH_ENGINES, SYNTH_GRID, synthEngine, WTABLE_ENGINE, synthGrid, synthKey, EQ_BANDS, EQ_BELL, eqHasGain, EQ_DYN_RANGE_MAX, EQ_DYN_THR_MIN, EQ_FREQ_MAX, EQ_FREQ_MIN, EQ_GAIN_MAX, EQ_Q_DEF, EQ_Q_MAX, EQ_Q_MIN, EQ_TYPES, NOTE_NAMES, PROGRESSIONS, SCALES, fromNorm, toNorm, type ParamDef, type Slot,
+  BPM_MAX, BPM_MIN, SAMPLE_ROOT, VOL_MIN_DB, VOL_DEF_DB, PARAM_BY_ID, PRESET_PARAMS, SEQ_COUNT, SEQ_MIX, SEQ_MST, SYNTH_ENGINES, SYNTH_GRID, synthEngine, WTABLE_ENGINE, synthGrid, synthKey, EQ_BANDS, EQ_BELL, eqHasGain, EQ_DYN_RANGE_MAX, EQ_DYN_THR_MIN, EQ_FREQ_MAX, EQ_FREQ_MIN, EQ_GAIN_MAX, EQ_Q_DEF, EQ_Q_MAX, EQ_Q_MIN, EQ_TYPES, NOTE_NAMES, PROGRESSIONS, SCALES, fromNorm, toNorm, type ParamDef, type Slot,
 } from './params';
 import { tableSampleKey } from './audio/wavetable';
 import { settings } from './settings';
@@ -53,6 +53,8 @@ export interface TrackData {
   /** Автоматизации параметров (одна на параметр); нет поля — нет автоматизаций. */
   auto?: Automation[];
   eq?: Eq;
+  /** Маркеры нарезки (доли длины 0..1, по возрастанию) по ключу сэмпла; нет поля — маркеров нет. */
+  slices?: Record<string, number[]>;
 }
 
 /**
@@ -109,6 +111,8 @@ export interface Track {
   fx?: Record<string, number>;
   /** Автоматизации дорожки (по шагам её страниц). */
   auto?: Automation[];
+  /** Маркеры нарезки сэмплов дорожки (см. TrackData.slices). */
+  slices?: Record<string, number[]>;
   /** Активная ячейка пустая (клип удалили): дорожка стоит, звук и паттерны остаются. */
   blank?: boolean;
   /** Играет клип PREV с данными старого проекта: здесь — свои данные дорожки, пока тот играет. */
@@ -1605,7 +1609,7 @@ function takeData(t: Track): TrackData {
   const at = placeOf(t);
   return clone({
     sample: t.sample, params: t.params, assigns: t.assigns, pages: t.pages, length: t.length, table: t.table,
-    auto: t.auto, eq: at ? at.d.eqs[at.i] : undefined,
+    auto: t.auto, slices: t.slices, eq: at ? at.d.eqs[at.i] : undefined,
   });
 }
 
@@ -1614,6 +1618,7 @@ function putData(t: Track, data: TrackData) {
   Object.assign(t, rest);
   if (!rest.auto) delete t.auto;
   if (rest.table === undefined) delete t.table;
+  if (!rest.slices) delete t.slices;
   const at = placeOf(t);
   if (eq && at) at.d.eqs[at.i] = eq;
 }
@@ -3179,4 +3184,56 @@ export function clearAuto() { editAuto((a) => { a.points = []; }); }
 export function autoLive(i: number): boolean {
   const t = doc.tracks[i];
   return !!t?.auto && ui.playing && !t.stopped && t.auto.some((a) => a.points.length > 0);
+}
+
+// ---------- Маркеры нарезки сэмпла (редактор сэмпла) ----------
+
+/** Маркеры нарезки сэмпла key на дорожке (доли длины по возрастанию); нет — пустой список. */
+export function sliceMarks(t: { slices?: Record<string, number[]> }, key: string): number[] {
+  return (key && t.slices?.[key]) || [];
+}
+
+/**
+ * Нота маркера idx: CHROMATIC — C3, C#3, D3… (по полутону), SCALE — ступени выбранной гаммы от корневой ноты
+ * в 3-й октаве (SETTINGS → SAMPLER → SLICE NOTES).
+ */
+export function sliceNote(idx: number): number {
+  if (settings.sliceMap !== 'scale') return SAMPLE_ROOT + idx;
+  const steps = SCALES[doc.scale].steps;
+  return SAMPLE_ROOT + doc.root + 12 * Math.floor(idx / steps.length) + steps[idx % steps.length];
+}
+
+/** Маркер ноты note (−1 — у ноты маркера нет). */
+export function sliceOf(note: number, count: number): number {
+  for (let k = 0; k < count; k++) if (sliceNote(k) === note) return k;
+  return -1;
+}
+
+/** Новый маркер на доле at сэмпла key (одна запись в UNDO). */
+export function addSlice(i: number, key: string, at: number) {
+  edit(() => {
+    const t = doc.tracks[i];
+    const m = [...sliceMarks(t, key), Math.min(1, Math.max(0, at))].sort((a, b) => a - b);
+    t.slices = { ...(t.slices ?? {}), [key]: m };
+  });
+}
+
+/** Удалить маркер idx сэмпла key (одна запись в UNDO). */
+export function deleteSlice(i: number, key: string, idx: number) {
+  edit(() => {
+    const t = doc.tracks[i];
+    const m = sliceMarks(t, key).filter((_, k) => k !== idx);
+    const rest = { ...(t.slices ?? {}) };
+    if (m.length) rest[key] = m; else delete rest[key];
+    if (Object.keys(rest).length) t.slices = rest; else delete t.slices;
+  });
+}
+
+/** Сдвинуть маркер idx (внутри жеста beginGesture/endGesture): между соседями. */
+export function moveSlice(i: number, key: string, idx: number, at: number, gap: number) {
+  const m = doc.tracks[i].slices?.[key];
+  if (!m || idx < 0 || idx >= m.length) return;
+  const lo = idx > 0 ? m[idx - 1] + gap : 0;
+  const hi = idx < m.length - 1 ? m[idx + 1] - gap : 1;
+  m[idx] = Math.min(hi, Math.max(lo, at));
 }

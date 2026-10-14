@@ -90,6 +90,8 @@ export interface Settings {
    * OVERDUB ON — новые ноты добавляются к старым, OFF — шаги, по которым прошла запись, очищаются;
    * AUTOMATION RECORDING ON — при REC + PLAY поворот ручки пишет автоматизацию. */
   record: { quantize: boolean; overdub: boolean; autoRec: boolean };
+  /** SETTINGS → SAMPLER: ноты маркеров нарезки — по хроматической клавиатуре (C3, C#3…) или по ступеням гаммы. */
+  sliceMap: 'chromatic' | 'scale';
   /** Меню SYNC: квант (такты), MIDI-клок (вкл., отдаём или принимаем, порт выхода, старт/стоп), Ableton Link. */
   sync: SyncSettings;
 }
@@ -124,6 +126,7 @@ const DEFAULTS: Settings = {
   limScale: 48,
   clipDisplay: 'wave',
   record: { quantize: true, overdub: false, autoRec: true },
+  sliceMap: 'chromatic',
   sync: { quantum: 1, clock: false, source: 'send', clockOut: '', midiStartStop: true, link: false, linkNotify: true, linkStartStop: false, midiOffset: 0, linkOffset: 0 },
 };
 
