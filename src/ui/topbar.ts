@@ -38,7 +38,7 @@ export function buildTopbar(): HTMLElement {
   const bpm = dragField('BPM', () => doc.bpm, setBpm, () => String(doc.bpm), 4, undefined,
     (el) => openInput(el, String(doc.bpm), (v) => { const n = parseFloat(v.replace(',', '.')); if (Number.isFinite(n)) enterBpm(n); }, true));
   bpm.classList.add('bpm-field');
-  // Полоса над BPM: доли фразы SYNC QUANTUM (по 4 на такт).
+  // Полоса внизу поля BPM: доли фразы SYNC QUANTUM (по 4 на такт).
   phaseBar = h('div', 'bpm-phase');
   bpm.append(phaseBar);
   // MIDI: темп — регулятор (как ручка: ABSOLUTE по диапазону 40–240, RELATIVE — шагами).
