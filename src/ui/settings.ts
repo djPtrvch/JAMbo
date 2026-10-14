@@ -1,7 +1,7 @@
 // Меню «бутерброд»: PROJECTS (проекты, ui/projects.ts), SETTINGS и MIDI (ui/midi.ts);
 // во вложенных меню стрелка назад возвращает сюда.
 // SETTINGS — вкладки AUDIO ENGINE (частота дискретизации, размер буфера), BACKGROUND (звук в фоне)
-// OUTPUT (выход и вход аудиоинтерфейса) и SIDECHAIN (приглушение посылов эффектов, на пробу).
+// OUTPUT (выход и вход аудиоинтерфейса), SIDECHAIN (приглушение посылов эффектов, на пробу) и SCALE (шкала окон мастера).
 
 import { applyOutput, applySidechainSends, audioInfo, canChooseOutput, restartAudio } from '../audio/engine';
 import { BUFFER_SIZES, SAMPLE_RATES, saveSettings, settings } from '../settings';
@@ -11,7 +11,7 @@ import { backHeader, makePopup, openMenuPanel, popupButton, type Popup } from '.
 import { openMidi } from './midi';
 import { openProjectMenu } from './projects';
 
-type Tab = 'engine' | 'background' | 'output' | 'sidechain';
+type Tab = 'engine' | 'background' | 'output' | 'sidechain' | 'scale';
 
 let main: Popup;
 let panel: Popup;
@@ -27,10 +27,16 @@ export function openMainMenu(anchor: Element) {
   if (!main) {
     main = makePopup('main-menu');
     const back = () => openMainMenu(anchorEl);
+    // Пункты разделены: у каждого свой подзаголовок и отступ сверху.
+    const section = (title: string, btn: HTMLElement) => {
+      const el = h('div', 'main-menu-section');
+      el.append(h('div', 'source-title', title), btn);
+      return el;
+    };
     main.box.append(
-      popupButton('PROJECTS', () => { main.close(); openProjectMenu(anchorEl, back); }),
-      popupButton('SETTINGS', () => { main.close(); openSettings(anchorEl); }),
-      popupButton('MIDI', () => { main.close(); openMidi(anchorEl, back); }),
+      section('PROJECT', popupButton('PROJECTS', () => { main.close(); openProjectMenu(anchorEl, back); })),
+      section('APP', popupButton('SETTINGS', () => { main.close(); openSettings(anchorEl); })),
+      section('CONTROLLERS', popupButton('MIDI', () => { main.close(); openMidi(anchorEl, back); })),
     );
   }
   openMenuPanel(main, anchor);
@@ -39,7 +45,7 @@ export function openMainMenu(anchor: Element) {
 function buildPanel() {
   panel = makePopup('settings');
   const tabs = h('div', 'settings-tabs');
-  const names: [Tab, string][] = [['engine', 'AUDIO ENGINE'], ['background', 'BACKGROUND'], ['output', 'OUTPUT'], ['sidechain', 'SIDECHAIN']];
+  const names: [Tab, string][] = [['engine', 'AUDIO ENGINE'], ['background', 'BACKGROUND'], ['output', 'OUTPUT'], ['sidechain', 'SIDECHAIN'], ['scale', 'SCALE']];
   for (const [t, label] of names) {
     tabBtns[t] = popupButton(label, () => { tab = t; render(); });
     tabs.append(tabBtns[t]);
@@ -121,6 +127,14 @@ function renderSidechain() {
   );
 }
 
+/** SCALE окон модулей мастера (компрессор, клиппер, лимитер, сатуратор): низ шкалы дисплеев и стержней IN/OUT. */
+function renderScale() {
+  body.append(
+    choice('MASTER WINDOWS SCALE', [48, 32, 16] as const, settings.limScale, (v) => `${v} dB`, (v) => saveSettings({ limScale: v })),
+    note('Range of the level displays and IN / OUT bars in the compressor, clipper and limiter windows (bottom of the scale, top is 0 dBFS), the saturator WAVE (−SCALE in the middle) and its SPECTRUM (down to −2 × SCALE).'),
+  );
+}
+
 function renderBackground() {
   const b = popupButton(`BACKGROUND AUDIO: ${settings.background ? 'ON' : 'OFF'}`, () => {
     saveSettings({ background: !settings.background });
@@ -186,5 +200,6 @@ function render() {
   if (tab === 'engine') renderEngine();
   else if (tab === 'background') renderBackground();
   else if (tab === 'sidechain') renderSidechain();
+  else if (tab === 'scale') renderScale();
   else renderOutput();
 }

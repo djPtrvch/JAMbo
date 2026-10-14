@@ -856,6 +856,10 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 /* ---------- Меню «бутерброд»: PROJECTS, SETTINGS ---------- */
 
 .popup-box.main-menu .popup-btn { height: 52px; font-size: 15px; }
+/* Главное меню: пункты разделены — подзаголовок и отступ над каждым, тонкая черта между разделами. */
+.main-menu-section { display: flex; flex-direction: column; gap: 6px; padding-top: 14px; }
+.main-menu-section:first-child { padding-top: 4px; }
+.main-menu-section + .main-menu-section { border-top: 1px solid var(--line); margin-top: 10px; }
 .settings-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
 .settings-body { display: flex; flex-direction: column; gap: 10px; padding-top: 6px; }
 .settings-row { display: flex; flex-direction: column; gap: 4px; }
@@ -1147,10 +1151,6 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 .lim-cell.off .field-value, .lim-cell.off .field-label { color: var(--dim); opacity: 0.6; }
 .lim-panel .hot { box-shadow: inset 0 0 0 1px var(--accent); }
 .lim-mid { flex: 1; min-height: 0; display: flex; gap: var(--gap); }
-.lim-slider { position: relative; width: 64px; flex: none; border-radius: var(--radius); background: var(--panel); overflow: hidden; touch-action: none; }
-.lim-slider-fill { position: absolute; left: 0; right: 0; bottom: 0; background: var(--panel-2); }
-.lim-slider-label { position: absolute; top: 8px; left: 0; right: 0; text-align: center; font-size: 9px; letter-spacing: 0.08em; color: var(--dim); }
-.lim-slider-value { position: absolute; bottom: 10px; left: 0; right: 0; text-align: center; font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .lim-plot { touch-action: none; }
 .lim-bars { width: 96px; flex: none; border-radius: var(--radius); background: var(--panel); padding: 8px 0 6px; }
 .lim-btn { width: auto; flex: 1; }
@@ -1160,9 +1160,6 @@ input::selection, textarea::selection { background: var(--select); color: var(--
 .comp-strip .comp-sep { width: 1px; flex: none; align-self: stretch; margin: 6px 0; background: var(--line); }
 .comp-transfer { flex: 0 1 40%; max-width: 40%; touch-action: none; }
 .comp-plot-title { position: absolute; right: 6px; bottom: 4px; font-size: 9px; letter-spacing: 0.08em; color: var(--dim); pointer-events: none; }
-.comp-bottom { flex: none; display: flex; flex-direction: column; gap: var(--gap); }
-.comp-row { height: 46px; display: flex; gap: var(--gap); }
-.comp-row .comp-field { flex: 1; min-width: 0; padding: 2px 10px; }
 
 
 /* Окно клиппера: TRANSFER (не шире 35 %) | DISPLAY | блок CLIP; поля и кнопки — в верхней строке. */

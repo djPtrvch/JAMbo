@@ -2,7 +2,7 @@
 // миниатюр страниц, справа — общий измеритель). INPUT, CEILING, SOFTNESS, BASS — те же параметры, что у ручек 3.1–3.4
 // в MST (и MIDI по позиции); MIX — только в окне. Нижней панели нет. Сверху вниз:
 // — строка (как ряд EQ): поля INPUT, CEILING, SOFTNESS, BASS | MIX (палец вверх-вниз, удержание — ввод числом),
-//   кнопки VIEW, BYPASS, UNITY, AUDIT, SCALE и крестик; поле, которое меняют, — в жёлтой рамке и ещё 400 ms;
+//   кнопки VIEW, UNITY, AUDIT, BYPASS и крестик; поле, которое меняют, — в жёлтой рамке и ещё 400 ms;
 // — TRANSFER (кривая передачи, −30…0 dB; угол тянется пальцем: по горизонтали INPUT, по вертикали CEILING) |
 //   DISPLAY (WAVE — форма вокруг пика, LEVEL — уровень за 4 с; линии потолка тянутся, тап — FREEZE) | блок CLIP.
 
@@ -13,7 +13,7 @@ import { saveSettings, settings } from '../settings';
 import { LevelBars, clipperBars } from './dynamics';
 import { closeButton, h, setClass, setText } from './dom';
 import {
-  Freeze, HotTracker, LINE_HIT, SCALES, drawDbGrid, drawGrPeaks, drawPauseLabel, fitCanvas, historyColumns, msetVal as setVal,
+  Freeze, HotTracker, LINE_HIT, drawDbGrid, drawGrPeaks, drawPauseLabel, fitCanvas, historyColumns, msetVal as setVal,
   mval as val, num, numInputIn, paramField, toDb,
 } from './masterwin';
 import { color } from './theme';
@@ -46,7 +46,6 @@ let viewBtn: HTMLElement;
 let bypassBtn: HTMLElement;
 let unityBtn: HTMLElement;
 let auditBtn: HTMLElement;
-let scaleBtn: HTMLElement;
 const fieldEls = new Map<string, HTMLElement>();
 
 const hotT = new HotTracker(Object.values(P));
@@ -103,11 +102,8 @@ export function buildClipWindow(): HTMLElement {
   bypassBtn = btn('BYPASS', () => toggleClipBypass());
   unityBtn = btn('UNITY', () => { ui.clipUnity = !ui.clipUnity; });
   auditBtn = btn('AUDIT', () => { ui.clipAudit = !ui.clipAudit; });
-  scaleBtn = btn('SCALE', () => {
-    const k = SCALES.indexOf(settings.limScale);
-    saveSettings({ limScale: SCALES[(k + 1) % SCALES.length] });
-  });
-  strip.append(viewBtn, bypassBtn, unityBtn, auditBtn, scaleBtn, closeButton(closeClipWindow));
+  // BYPASS — рядом с крестиком (как во всех окнах модулей мастера).
+  strip.append(viewBtn, unityBtn, auditBtn, bypassBtn, closeButton(closeClipWindow));
 
   // TRANSFER: только ручка-угол (x — INPUT, y — CEILING); SOFTNESS пальцем на кривой не меняется.
   tBox = h('div', 'eq-plot clip-transfer');
@@ -235,7 +231,6 @@ export function renderClipWindow(now: number) {
   setClass(bypassBtn, 'active', bypass);
   setClass(unityBtn, 'active', ui.clipUnity);
   setClass(auditBtn, 'active', ui.clipAudit);
-  setText(scaleBtn, `SCALE ${settings.limScale}`);
   bars.render(now);
   const live = now - clipTele.at < 300;
   drawTransfer(hot, live);

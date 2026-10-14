@@ -2,7 +2,7 @@
 // страниц, справа — общий измеритель). DRIVE, TYPE, TONE, MIX — те же параметры, что у ручек 1.1–1.4 в MST
 // (и MIDI по позиции); FOCUS, BIAS, OUTPUT, AUTO — только в окне. Нижней панели нет. Сверху вниз:
 // — строка (как ряд EQ): поля DRIVE, TYPE, TONE, MIX, FOCUS, BIAS, OUTPUT, AUTO (палец вверх-вниз, удержание —
-//   ввод; у TYPE и AUTO тап — следующее значение), кнопки BYPASS, SCALE и крестик;
+//   ввод; у TYPE и AUTO тап — следующее значение), кнопки BYPASS и крестик;
 // — TRANSFER (кривая формирователя после DRIVE, оси −1…+1: палец по вертикали — DRIVE, по горизонтали — BIAS) |
 //   DISPLAY: сверху WAVE (форма за 4 с: вход — серая заливка, выход — белый контур), снизу SPECTRUM (вход — серая
 //   заливка, выход — белый контур, линия FOCUS тянется по горизонтали); тап по любой половине — FREEZE.
@@ -10,10 +10,10 @@
 import { LIM_TELE, eqSampleRate, satSpectrum, satTele, setSatScope, limTeleRate } from '../audio/engine';
 import { PARAM_BY_ID, SAT_FOCUS_OFF, toNorm, type ParamDef } from '../params';
 import { beginGesture, doc, endGesture, setParamNorm, toggleSatBypass, toggleView, ui } from '../state';
-import { saveSettings, settings } from '../settings';
-import { closeButton, h, setClass, setText } from './dom';
+import { settings } from '../settings';
+import { closeButton, h, setClass } from './dom';
 import {
-  HotTracker, LINE_HIT, SCALES, WINDOW_S, drawPauseLabel, fitCanvas, gridStep, msetVal as setVal, mval as val, num, numInputIn, paramField, toDb,
+  HotTracker, LINE_HIT, WINDOW_S, drawPauseLabel, fitCanvas, gridStep, msetVal as setVal, mval as val, num, numInputIn, paramField, toDb,
 } from './masterwin';
 import { color } from './theme';
 
@@ -59,7 +59,6 @@ let wCanvas: HTMLCanvasElement;
 let sBox: HTMLElement;
 let sCanvas: HTMLCanvasElement;
 let bypassBtn: HTMLElement;
-let scaleBtn: HTMLElement;
 const fieldEls = new Map<string, HTMLElement>();
 const hotT = new HotTracker(Object.values(P));
 
@@ -142,11 +141,8 @@ export function buildSatWindow(): HTMLElement {
     return b;
   };
   bypassBtn = btn('BYPASS', () => toggleSatBypass());
-  scaleBtn = btn('SCALE', () => {
-    const k = SCALES.indexOf(settings.limScale);
-    saveSettings({ limScale: SCALES[(k + 1) % SCALES.length] });
-  });
-  strip.append(bypassBtn, scaleBtn, closeButton(closeSatWindow));
+  // BYPASS — рядом с крестиком (как во всех окнах модулей мастера).
+  strip.append(bypassBtn, closeButton(closeSatWindow));
 
   // TRANSFER: палец в любом месте поля — по вертикали DRIVE, по горизонтали BIAS (относительно касания).
   tBox = h('div', 'eq-plot sat-transfer');
@@ -250,7 +246,6 @@ export function renderSatWindow(now: number) {
   const bypass = !!doc.satBypass;
   for (const [id, f] of fieldEls) { setClass(f, 'hot', hot(id)); setClass(f, 'off', bypass); }
   setClass(bypassBtn, 'active', bypass);
-  setText(scaleBtn, `SCALE ${settings.limScale}`);
   const live = now - satTele.at < 300;
   drawTransfer(hot, live);
   drawWave(live);

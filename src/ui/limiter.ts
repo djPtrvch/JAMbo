@@ -1,27 +1,24 @@
 // Окно лимитера мастера (этап 7): тап по блоку LIM при MST. На месте EQ (от левого края до края миниатюр страниц,
 // справа — общий измеритель). Параметры — те же, что у ручек 4.1–4.4 в MST (и MIDI по позиции): окно и ручки
 // меняют одни значения. Сверху вниз:
-// — одна строка вверху (как ряд EQ): GAIN и CEILING (только показывают), поля LOOKAHEAD, RELEASE, LINK, кнопки
-//   BYPASS, UNITY, AUDIT, SCALE и крестик; параметр, который меняют (палец, ручка, Twister, UNDO), — в жёлтой рамке и ещё 400 ms;
-// — слева GAIN-слайдер, в центре дисплей уровня во времени (4 с), справа блок LIM (LevelBars, шкала по SCALE);
+// — одна строка вверху (как ряд EQ): поля INPUT, CEILING, LOOKAHEAD, RELEASE, LINK, кнопки UNITY, AUDIT, BYPASS
+//   и крестик; параметр, который меняют (палец, ручка, Twister, UNDO), — в жёлтой рамке и ещё 400 ms;
+// — дисплей уровня во времени (4 с), справа блок LIM (LevelBars, шкала — SCALE из SETTINGS);
 // Дисплей: сетка dB; вход после GAIN — серая заливка; выход — красный контур и полупрозрачная заливка; GR — оранжевая
 // заливка сверху вниз; белая линия CEILING (тянется пальцем); подписи пиков GR; тап — HOLD (пауза).
 
 import { limTele } from '../audio/engine';
-import { PARAM_BY_ID, isAuto, toNorm, type ParamDef } from '../params';
-import { beginGesture, doc, endGesture, setParamNorm, toggleLimBypass, toggleView, ui } from '../state';
-import { saveSettings, settings } from '../settings';
-import { dragField } from './controls';
+import { PARAM_BY_ID, isAuto, type ParamDef } from '../params';
+import { beginGesture, doc, endGesture, toggleLimBypass, toggleView, ui } from '../state';
+import { settings } from '../settings';
 import { LevelBars, limiterBars } from './dynamics';
-import { closeButton, h, setClass, setText } from './dom';
+import { closeButton, h, setClass } from './dom';
 import {
-  Freeze, HotTracker, LINE_HIT, SCALES, drawDbGrid, drawGrPeaks, drawPauseLabel, fitCanvas, historyColumns, mfmt as fmt, msetVal as setVal,
-  mval as val, num, numInputIn,
+  Freeze, HotTracker, LINE_HIT, drawDbGrid, drawGrPeaks, drawPauseLabel, fitCanvas, historyColumns, msetVal as setVal,
+  mval as val, num, numInputIn, paramField,
 } from './masterwin';
 import { color } from './theme';
 
-/** Ход ручки на весь диапазон, px (как у ручек сетки). */
-const TRAVEL_PX = 240;
 /** Подписи пиков GR: не чаще, ms. */
 const PEAK_GAP_MS = 80;
 /** Перегрузка выхода — точка, если выход выше CEILING больше чем на, dB. */
@@ -39,15 +36,10 @@ let panel: HTMLElement;
 let plot: HTMLElement;
 let canvas: HTMLCanvasElement;
 let anchor: HTMLElement;
-let slider: HTMLElement;
-let sliderFill: HTMLElement;
-let sliderValue: HTMLElement;
 let bars: LevelBars;
 let bypassBtn: HTMLElement;
 let unityBtn: HTMLElement;
 let auditBtn: HTMLElement;
-let scaleBtn: HTMLElement;
-const cells = new Map<string, { root: HTMLElement; value: HTMLElement }>();
 const fieldEls = new Map<string, HTMLElement>();
 
 const hotT = new HotTracker(Object.values(P));
@@ -69,42 +61,10 @@ export function buildLimiterWindow(): HTMLElement {
   panel = h('div', 'eq-panel lim-panel hidden');
   anchor = h('div', 'eq-anchor');
 
-  // Одна строка вверху, как ряд EQ (тот же размер и поля): MASTER LIM, GAIN и CEILING (только показывают —
-  // меняются слайдером и линией), поля LOOKAHEAD, RELEASE, LINK, кнопки BYPASS, UNITY, AUDIT, SCALE и крестик.
+  // Одна строка вверху, как ряд EQ (тот же размер и поля): MASTER LIM, поля INPUT, CEILING, LOOKAHEAD, RELEASE,
+  // LINK, кнопки UNITY, AUDIT, BYPASS (рядом с крестиком) и крестик.
   const strip = h('div', 'eq-bar lim-strip');
-  const head = h('div', 'eq-name', 'MASTER\nLIM');
-  strip.append(head);
-  for (const [key, label] of [['lim.input', 'INPUT'], ['lim.ceiling', 'CEILING']] as const) {
-    const root = h('div', 'field eq-field lim-cell');
-    const value = h('div', 'field-value');
-    root.append(h('div', 'field-label', label), value);
-    cells.set(key, { root, value });
-    strip.append(root);
-  }
-
-  // GAIN-слайдер: палец вверх-вниз (ход как у ручек), удержание значения — ввод числом.
-  slider = h('div', 'lim-slider');
-  sliderFill = h('div', 'lim-slider-fill');
-  sliderValue = h('div', 'lim-slider-value');
-  slider.append(h('div', 'lim-slider-label', 'INPUT'), sliderFill, sliderValue);
-  let sy = 0, sn = 0, sid = -1, sMoved = false, sTimer = 0;
-  slider.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    slider.setPointerCapture(e.pointerId);
-    sid = e.pointerId; sy = e.clientY; sn = toNorm(P.gain, val(P.gain)); sMoved = false;
-    hotT.hold(e.pointerId, 'lim.input');
-    beginGesture();
-    sTimer = window.setTimeout(() => { if (!sMoved && sid === e.pointerId) numInput(sliderValue, P.gain, num, val(P.gain).toFixed(1)); }, 500);
-  });
-  slider.addEventListener('pointermove', (e) => {
-    if (e.pointerId !== sid) return;
-    if (!sMoved && Math.abs(e.clientY - sy) < 4) return;
-    sMoved = true; clearTimeout(sTimer);
-    setParamNorm('master', P.gain, Math.min(1, Math.max(0, sn + (sy - e.clientY) / TRAVEL_PX)));
-  });
-  const sUp = (e: PointerEvent) => { if (e.pointerId !== sid) return; sid = -1; clearTimeout(sTimer); hotT.release(e.pointerId); endGesture(); };
-  slider.addEventListener('pointerup', sUp);
-  slider.addEventListener('pointercancel', sUp);
+  strip.append(h('div', 'eq-name', 'MASTER\nLIM'));
 
   // Дисплей: линия CEILING тянется (±22 px), иначе тап — HOLD.
   plot = h('div', 'eq-plot lim-plot');
@@ -146,20 +106,22 @@ export function buildLimiterWindow(): HTMLElement {
   bars.el.classList.add('lim-bars');
 
   const mid = h('div', 'lim-mid');
-  mid.append(slider, plot, bars.el);
+  mid.append(plot, bars.el);
 
   // Поля (как поля EQ) и кнопки — в той же строке.
-  const look = dragField('LOOKAHEAD', () => Math.round(val(P.lookahead) * 10), (v) => setVal(P.lookahead, v / 10), () => fmt(P.lookahead), 6,
-    undefined, (el) => numInput(el, P.lookahead, num, val(P.lookahead).toFixed(1)));
-  const rel = dragField('RELEASE', () => Math.round(toNorm(P.release, val(P.release)) * 200),
-    (v) => setParamNorm('master', P.release, Math.min(1, Math.max(0, v / 200))), () => fmt(P.release), 1.2,
-    undefined, (el) => numInput(el, P.release, (t) => parseRelease(t, P.release.max), isAuto(val(P.release)) ? 'AUTO' : String(Math.round(val(P.release)))));
-  const link = dragField('LINK', () => Math.round(val(P.link)), (v) => setVal(P.link, v), () => fmt(P.link), 2.4,
-    undefined, (el) => numInput(el, P.link, num, String(Math.round(val(P.link)))));
-  for (const [f, key] of [[look, 'lim.lookahead'], [rel, 'lim.release'], [link, 'lim.link']] as const) {
-    f.classList.add('eq-field', 'lim-field');
-    fieldEls.set(key, f);
-  }
+  const field = (label: string, p: ParamDef, parse: (t: string) => number | null, init: () => string) => {
+    const f = paramField(label, p, numInput, parse, init);
+    f.classList.add('lim-field');
+    fieldEls.set(p.id, f);
+    return f;
+  };
+  const fields = [
+    field('INPUT', P.gain, num, () => val(P.gain).toFixed(1)),
+    field('CEILING', P.ceiling, num, () => val(P.ceiling).toFixed(1)),
+    field('LOOKAHEAD', P.lookahead, num, () => val(P.lookahead).toFixed(1)),
+    field('RELEASE', P.release, (t) => parseRelease(t, P.release.max), () => (isAuto(val(P.release)) ? 'AUTO' : String(Math.round(val(P.release))))),
+    field('LINK', P.link, num, () => String(Math.round(val(P.link)))),
+  ];
   const btn = (label: string, fn: () => void) => {
     const b = h('div', 'btn eq-tool lim-btn', label);
     b.addEventListener('pointerdown', (e) => { e.preventDefault(); fn(); });
@@ -168,12 +130,8 @@ export function buildLimiterWindow(): HTMLElement {
   bypassBtn = btn('BYPASS', () => toggleLimBypass());
   unityBtn = btn('UNITY', () => { ui.limUnity = !ui.limUnity; });
   auditBtn = btn('AUDIT', () => { ui.limAudit = !ui.limAudit; });
-  scaleBtn = btn('SCALE', () => {
-    const k = SCALES.indexOf(settings.limScale);
-    saveSettings({ limScale: SCALES[(k + 1) % SCALES.length] });
-  });
-  // Крестик — как у остальных окон (редактор сэмпла, браузер).
-  strip.append(look, rel, link, bypassBtn, unityBtn, auditBtn, scaleBtn, closeButton(closeLimiterWindow));
+  // BYPASS — рядом с крестиком (как во всех окнах модулей мастера).
+  strip.append(...fields, unityBtn, auditBtn, bypassBtn, closeButton(closeLimiterWindow));
 
   panel.append(strip, mid, anchor);
   return panel;
@@ -201,20 +159,15 @@ export function renderLimiterWindow(now: number) {
   const hot = (id: string) => hotT.hot(id, now);
 
   const bypass = doc.limBypass;
-  for (const [id, c] of cells) {
-    setText(c.value, fmt(PARAM_BY_ID[id]));
-    setClass(c.root, 'hot', hot(id));
-    setClass(c.root, 'off', bypass);
+  for (const [id, f] of fieldEls) {
+    setClass(f, 'hot', hot(id));
+    // При BYPASS INPUT и CEILING серые (значения видны).
+    setClass(f, 'off', bypass && (id === 'lim.input' || id === 'lim.ceiling'));
   }
-  for (const [id, f] of fieldEls) setClass(f, 'hot', hot(id));
-  setClass(slider, 'hot', hot('lim.input'));
   setClass(plot, 'hot', hot('lim.ceiling'));
-  sliderFill.style.height = `${toNorm(P.gain, val(P.gain)) * 100}%`;
-  setText(sliderValue, fmt(P.gain));
   setClass(bypassBtn, 'active', bypass);
   setClass(unityBtn, 'active', ui.limUnity);
   setClass(auditBtn, 'active', ui.limAudit);
-  setText(scaleBtn, `SCALE ${settings.limScale}`);
   bars.render(now);
   draw(now);
 }

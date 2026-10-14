@@ -1,23 +1,22 @@
 // Окно компрессора мастера (этап 7): тап по блоку COMP при MST. На месте EQ (от левого края до края миниатюр
 // страниц, справа — общий измеритель). THRESHOLD, ATTACK, RELEASE, MAKEUP — те же параметры, что у ручек 2.1–2.4
 // в MST (и MIDI по позиции); RATIO, KNEE, RANGE, HOLD, MIX, LINK, SC HPF — только в окне. Сверху вниз:
-// — строка значений (как ряд EQ): THRESHOLD, ATTACK, RELEASE, MAKEUP | RATIO — только показ; параметр, который
-//   меняют, — в жёлтой рамке и ещё 400 ms (RATIO — только при изменении в окне); при BYPASS ячейки серые; крестик;
+// — две строки вверху (как ряд EQ): поля THRESHOLD, ATTACK, RELEASE, MAKEUP | RATIO, кнопки AUDIT, BYPASS и крестик;
+//   ниже — KNEE, RANGE, HOLD, MIX, LINK, SC HPF; параметр, который меняют, — в жёлтой рамке и ещё 400 ms
+//   (RATIO — только при изменении в окне); при BYPASS поля серые;
 // — TRANSFER (кривая передачи: точка порога тянется вдоль диагонали, кружок RATIO на правом краю) | LEVEL (уровень
 //   за 4 с: вход серый, выход после MAKEUP жёлтый, GR оранжевый сверху; пунктир THRESHOLD тянется, тап — FREEZE) |
-//   блок COMP (LevelBars, шкала по SCALE). Шкала у TRANSFER и LEVEL общая — линии на одной высоте;
-// — нижняя панель (две строки): поля ATTACK, RELEASE, MAKEUP, RATIO, KNEE, RANGE, HOLD, MIX, LINK, SC HPF и кнопки
-//   BYPASS, AUDIT, SCALE.
+//   блок COMP (LevelBars, шкала — SCALE из SETTINGS). Шкала у TRANSFER и LEVEL общая — линии на одной высоте.
 
 import { compTele, LIM_TELE } from '../audio/engine';
 import { CMP_RANGE_OFF, CMP_SCHPF_OFF, PARAM_BY_ID, RATIOS, isAuto, type ParamDef } from '../params';
 import { beginGesture, doc, endGesture, toggleCmpBypass, toggleView, ui } from '../state';
-import { saveSettings, settings } from '../settings';
+import { settings } from '../settings';
 import { LevelBars, glueBars } from './dynamics';
-import { closeButton, h, setClass, setText } from './dom';
+import { closeButton, h, setClass } from './dom';
 import { parseRelease } from './limiter';
 import {
-  Freeze, HotTracker, LINE_HIT, SCALES, drawDbGrid, drawGrPeaks, drawPauseLabel, fitCanvas, historyColumns, mfmt as fmt, msetVal as setVal,
+  Freeze, HotTracker, LINE_HIT, drawDbGrid, drawGrPeaks, drawPauseLabel, fitCanvas, historyColumns, msetVal as setVal,
   mval as val, num, numInputIn, paramField,
 } from './masterwin';
 import { color } from './theme';
@@ -50,8 +49,6 @@ let lCanvas: HTMLCanvasElement;
 let bars: LevelBars;
 let bypassBtn: HTMLElement;
 let auditBtn: HTMLElement;
-let scaleBtn: HTMLElement;
-const cells = new Map<string, { root: HTMLElement; value: HTMLElement }>();
 const fieldEls = new Map<string, HTMLElement>();
 
 // RATIO подсвечивается только при изменении в окне (внешних источников у него нет, UNDO не подсвечивает).
@@ -83,7 +80,7 @@ export const nextRatio = (r: number) => RATIOS.find((x) => x > r + 1e-3) ?? RATI
 /** Поле нижней панели по положению параметра (0..1): вертикальный ход 240 px на весь диапазон, удержание — ввод числом. */
 function normField(label: string, p: ParamDef, parse: (t: string) => number | null, init: () => string, onTap?: () => void) {
   const f = paramField(label, p, numInput, parse, init, onTap);
-  f.classList.add('comp-field');
+  f.classList.add('lim-field');
   fieldEls.set(p.id, f);
   return f;
 }
@@ -91,18 +88,6 @@ function normField(label: string, p: ParamDef, parse: (t: string) => number | nu
 export function buildCompWindow(): HTMLElement {
   panel = h('div', 'eq-panel lim-panel comp-panel hidden');
   anchor = h('div', 'eq-anchor');
-
-  // Строка значений вверху (как ряд EQ): только показ; RATIO — за чертой (не ручка); крестик справа.
-  const strip = h('div', 'eq-bar lim-strip comp-strip');
-  strip.append(h('div', 'eq-name', 'MASTER\nCOMP'));
-  for (const [key, label] of [['cmp.threshold', 'THRESHOLD'], ['cmp.attack', 'ATTACK'], ['cmp.release', 'RELEASE'], ['cmp.makeup', 'MAKEUP'], ['cmp.ratio', 'RATIO']] as const) {
-    if (key === 'cmp.ratio') strip.append(h('div', 'comp-sep'));
-    const root = h('div', 'field eq-field lim-cell');
-    const value = h('div', 'field-value');
-    root.append(h('div', 'field-label', label), value);
-    cells.set(key, { root, value });
-    strip.append(root);
-  }
 
   // TRANSFER: точка порога (палец — вдоль диагонали, значение по горизонтали) и кружок RATIO (вертикально).
   tBox = h('div', 'eq-plot comp-transfer');
@@ -194,31 +179,10 @@ export function buildCompWindow(): HTMLElement {
   const mid = h('div', 'lim-mid');
   mid.append(tBox, lBox, bars.el);
 
-  // Нижняя панель: одна строка полей.
+  // Две строки вверху: поля (все — палец вверх-вниз, удержание — ввод), кнопки и крестик.
   const msInit = (p: ParamDef) => () => { const v = val(p); return v < 10 ? v.toFixed(1) : String(Math.round(v)); };
   const relInit = () => (isAuto(val(P.release)) ? 'AUTO' : String(Math.round(val(P.release))));
   const offParse = (off: number) => (t: string) => (/off/i.test(t) ? off : num(t));
-  const row1 = h('div', 'comp-row');
-  row1.append(
-    normField('ATTACK', P.attack, num, msInit(P.attack)),
-    normField('RELEASE', P.release, (t) => parseRelease(t, P.release.max), relInit),
-    normField('MAKEUP', P.makeup, num, () => val(P.makeup).toFixed(1)),
-    normField('RATIO', P.ratio, num, () => val(P.ratio).toFixed(1), () => {
-      hotT.touch('cmp.ratio');
-      beginGesture();
-      setVal(P.ratio, nextRatio(val(P.ratio)));
-      endGesture();
-    }),
-    normField('KNEE', P.knee, num, () => val(P.knee).toFixed(1)),
-    normField('RANGE', P.range, offParse(CMP_RANGE_OFF), () => (val(P.range) >= CMP_RANGE_OFF ? 'OFF' : val(P.range).toFixed(1))),
-    normField('HOLD', P.hold, num, () => String(Math.round(val(P.hold)))),
-  );
-  row1.append(
-    normField('MIX', P.mix, num, () => String(Math.round(val(P.mix)))),
-    normField('LINK', P.link, num, () => String(Math.round(val(P.link)))),
-    normField('SC HPF', P.schpf, offParse(CMP_SCHPF_OFF), () => (val(P.schpf) <= CMP_SCHPF_OFF ? 'OFF' : String(Math.round(val(P.schpf))))),
-  );
-  // Кнопки — в строке вверху, за значениями, перед крестиком (как у остальных окон модулей).
   const btn = (label: string, fn: () => void) => {
     const b = h('div', 'btn eq-tool lim-btn', label);
     b.addEventListener('pointerdown', (e) => { e.preventDefault(); fn(); });
@@ -226,18 +190,36 @@ export function buildCompWindow(): HTMLElement {
   };
   bypassBtn = btn('BYPASS', () => toggleCmpBypass());
   auditBtn = btn('AUDIT', () => { ui.compAudit = !ui.compAudit; });
-  scaleBtn = btn('SCALE', () => {
-    const k = SCALES.indexOf(settings.limScale);
-    saveSettings({ limScale: SCALES[(k + 1) % SCALES.length] });
-  });
-  strip.append(bypassBtn, auditBtn, scaleBtn, closeButton(closeCompWindow));
-  const bottom = h('div', 'comp-bottom');
-  bottom.append(row1);
+  const strip = h('div', 'eq-bar lim-strip comp-strip');
+  strip.append(
+    h('div', 'eq-name', 'MASTER\nCOMP'),
+    normField('THRESHOLD', P.threshold, num, () => val(P.threshold).toFixed(1)),
+    normField('ATTACK', P.attack, num, msInit(P.attack)),
+    normField('RELEASE', P.release, (t) => parseRelease(t, P.release.max), relInit),
+    normField('MAKEUP', P.makeup, num, () => val(P.makeup).toFixed(1)),
+    h('div', 'comp-sep'),
+    normField('RATIO', P.ratio, num, () => val(P.ratio).toFixed(1), () => {
+      hotT.touch('cmp.ratio');
+      beginGesture();
+      setVal(P.ratio, nextRatio(val(P.ratio)));
+      endGesture();
+    }),
+    // BYPASS — рядом с крестиком (как во всех окнах модулей мастера).
+    auditBtn, bypassBtn, closeButton(closeCompWindow),
+  );
+  const strip2 = h('div', 'eq-bar lim-strip comp-strip2');
+  strip2.append(
+    normField('KNEE', P.knee, num, () => val(P.knee).toFixed(1)),
+    normField('RANGE', P.range, offParse(CMP_RANGE_OFF), () => (val(P.range) >= CMP_RANGE_OFF ? 'OFF' : val(P.range).toFixed(1))),
+    normField('HOLD', P.hold, num, () => String(Math.round(val(P.hold)))),
+    normField('MIX', P.mix, num, () => String(Math.round(val(P.mix)))),
+    normField('LINK', P.link, num, () => String(Math.round(val(P.link)))),
+    normField('SC HPF', P.schpf, offParse(CMP_SCHPF_OFF), () => (val(P.schpf) <= CMP_SCHPF_OFF ? 'OFF' : String(Math.round(val(P.schpf))))),
+  );
 
-  panel.append(strip, mid, bottom, anchor);
+  panel.append(strip, strip2, mid, anchor);
   return panel;
 }
-
 /** Крестик и выход из MST: окно закрывается, AUDIT выключается (toggleView), FREEZE снимается. */
 export function closeCompWindow() {
   if (ui.compView) toggleView('comp');
@@ -265,15 +247,9 @@ export function renderCompWindow(now: number) {
   hotT.update(now, [...fieldEls].filter(([, f]) => f.classList.contains('active')).map(([id]) => id));
   const hot = (id: string) => hotT.hot(id, now);
   const bypass = doc.cmpBypass;
-  for (const [id, c] of cells) {
-    setText(c.value, fmt(PARAM_BY_ID[id]));
-    setClass(c.root, 'hot', hot(id));
-    setClass(c.root, 'off', bypass);
-  }
-  for (const [id, f] of fieldEls) setClass(f, 'hot', hot(id));
+  for (const [id, f] of fieldEls) { setClass(f, 'hot', hot(id)); setClass(f, 'off', bypass); }
   setClass(bypassBtn, 'active', bypass);
   setClass(auditBtn, 'active', ui.compAudit);
-  setText(scaleBtn, `SCALE ${settings.limScale}`);
   bars.render(now);
   curve = { thr: val(P.threshold), ratio: val(P.ratio), knee: val(P.knee), range: val(P.range) };
   const live = now - compTele.at < 300;
