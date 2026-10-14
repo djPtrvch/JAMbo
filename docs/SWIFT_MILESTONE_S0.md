@@ -13,6 +13,9 @@
 - Linux (Swift 6.0.3, режим Swift 5): `swift test` — 7 из 7, без предупреждений: очередь (порядок, переполнение, кольцо, два потока — 200 000 элементов), AtomicFloat, тест-тон (−12,00 dB, 440 Гц, без скачков на включении и выключении, тишина через 200 мс), CPUMeter.
 - UI и Audio в облаке не собираются (нет SwiftUI и AVFoundation) — **проверка на iPad: открыть проект, собрать, нажать TONE — звучит 440 Гц; DIAGNOSTICS — строка «Now:» (48.0 kHz, buffer 256), CPU.**
 
+## Первый запуск на iPad (iPadOS 26.6.2, Playgrounds 4.7)
+- Собралось, но при запуске — «Loading… Crashed / Loading failed due to an error», без подробностей. Звук теперь запускается первым нажатием TONE (а не при старте), в консоль (Show Console) пишутся отметки запуска «JAMbo: …» — по ним видно, где остановилось.
+
 ## Открыто
 - Сборка на iPad не проверена. Если Playgrounds не примет Package.swift (версия swift-tools, `.iOS("18.0")`, `swiftLanguageVersions`), создать в Playgrounds новое приложение «JAMbo» и перенести в него папки Core, Audio, UI, Resources — Package.swift останется тем, что создал Playgrounds.
 - Есть ли в редакторе capabilities Playgrounds «Background Modes → Audio» — посмотреть; если есть, вернуть BACKGROUND AUDIO.

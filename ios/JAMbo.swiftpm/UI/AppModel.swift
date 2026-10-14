@@ -14,7 +14,26 @@ final class AppModel {
         UserDefaults.standard.set(value.rawValue, forKey: "appearance")
     }
 
+    /// Звук запускается первым нажатием TONE (S0: так интерфейс виден, даже если звук не стартует).
+    private var audioStarted: Bool = false
+
+    init() {
+        trace("model init")
+    }
+
+    func resumeAudio() {
+        if audioStarted { audio.start() }
+    }
+
+    func pauseAudio() {
+        if audioStarted { audio.stop() }
+    }
+
     func toggleTone() {
+        if !audioStarted {
+            audioStarted = true
+            audio.start()
+        }
         toneOn.toggle()
         audio.core.events.push(.tone(on: toneOn))
     }

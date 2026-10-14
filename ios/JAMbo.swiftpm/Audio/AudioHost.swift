@@ -27,12 +27,17 @@ final class AudioHost {
     /// Запуск звука (при старте приложения и возврате из фона).
     func start() {
         do {
+            trace("audio: session")
             try configureSession()
+            trace("audio: node")
             if source == nil { attachSource() }
+            trace("audio: engine start")
             if !engine.isRunning { try engine.start() }
+            trace("audio: running")
             lastError = ""
         } catch {
             lastError = error.localizedDescription
+            trace("audio error: \(lastError)")
         }
     }
 
