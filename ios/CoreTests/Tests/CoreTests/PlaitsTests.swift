@@ -29,4 +29,6 @@ final class PlaitsTests: XCTestCase {
     func testFM() { check(2) }
     func testGrain() { check(3) }
     func testAdditive() { check(4) }
+    func testWavetable() { check(5) }
+    func testChords() { check(6) }
 }
