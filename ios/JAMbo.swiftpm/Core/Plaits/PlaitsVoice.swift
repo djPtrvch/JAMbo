@@ -38,7 +38,7 @@ public final class PlaitsVoice {
         self.lut = lut
         engines = [
             VirtualAnalogEngine(lut), WaveshapingEngine(lut), FMEngine(lut), GrainEngine(lut),
-            AdditiveEngine(lut), WavetableEngine(lut), ChordEngine(lut),
+            AdditiveEngine(lut), WavetableEngine(lut), ChordEngine(lut), SpeechEngine(lut, random),
         ]
         while engines.count < Self.engineCount { engines.append(nil) }
         engines[0]?.reset()

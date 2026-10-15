@@ -31,4 +31,23 @@ final class PlaitsTests: XCTestCase {
     func testAdditive() { check(4) }
     func testWavetable() { check(5) }
     func testChords() { check(6) }
+    func testSpeech() { check(7) }
+}
+
+/// Нагрузка: 6 голосов × 1 с на каждом движке (печать; release-сборка: swift test -c release).
+final class PlaitsLoadTests: XCTestCase {
+    func testLoad() {
+        let lut = PlaitsTests.lut
+        for e in 0..<8 {
+            let voices = (0..<6).map { _ in PlaitsVoice(lut: lut) }
+            for (k, v) in voices.enumerated() {
+                v.set(engine: e, note: 48 + Float(k * 3), harmonics: 0.3, timbre: 0.6, morph: 0.4, accent: 0.8, aux: 0)
+                v.trigger()
+            }
+            let t0 = Date()
+            for _ in 0..<2000 { for v in voices { v.render(24); v.release() } }
+            let dt = Date().timeIntervalSince(t0)
+            print("plaits load engine \(e): \(String(format: "%.1f", dt * 100))% of one core for 6 voices")
+        }
+    }
 }
