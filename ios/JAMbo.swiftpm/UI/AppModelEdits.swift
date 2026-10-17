@@ -36,6 +36,20 @@ extension AppModel {
         }
     }
 
+    /// Зажат шаг a, тап по шагу b: b становится копией a (триг, ноты, длина, p-lock, свой звук).
+    /// Возвращает прежний шаг b (двойной тап при зажатом первом шаге отменяет копию и ставит длину паттерна).
+    func copyStep(from a: Int, to b: Int) -> Step? {
+        guard channel == .track, a != b, let src = track.step(a), let old = track.step(b) else { return nil }
+        editTrack { t in t.withStep(b) { s in s = src } }
+        return old
+    }
+
+    /// Вернуть шаг index (отмена копии).
+    func restoreStep(_ index: Int, _ step: Step) {
+        guard channel == .track else { return }
+        editTrack { t in t.withStep(index) { s in s = step } }
+    }
+
     /// Удержание первого шага и двойной тап по другому: он становится последним шагом паттерна.
     func setPatternLength(lastIndex: Int) {
         guard channel == .track else { return }
@@ -133,6 +147,7 @@ extension AppModel {
         guard channel == .track else { return }
         editTrack { t in t.setPlayPages(a, b) }
         viewPage = min(a, b)
+        spanView = true
     }
 
     enum PageAction { case left, right, up, down, duplicate, copy, paste, clear, delete }

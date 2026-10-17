@@ -142,6 +142,7 @@ struct PagesColumn: View {
             cur.liftY = cur.y0
             withAnimation(.easeOut(duration: 0.12)) { press = cur }
             model.viewPage = cur.row
+            model.spanView = false
         }
     }
 
@@ -283,7 +284,7 @@ struct PageThumb: View {
         let cells: [ThumbCell] = ThumbCell.page(model.track, page: page)
         let played: Int = model.openPlayPos
         let pos: Int = model.playing && played >= 0 ? played - page * Params.stepsPerPage : -1
-        let current: Bool = model.viewPage == page
+        let current: Bool = model.viewPages.contains(page)
         let colors: ThumbColors = ThumbColors(theme: theme)
         return Canvas { ctx, size in PageThumb.draw(ctx, size, cells, pos, colors) }
             .padding(4)

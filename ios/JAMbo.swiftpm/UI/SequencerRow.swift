@@ -1,35 +1,39 @@
 import SwiftUI
 
-/// 16 шагов открытой страницы. Тап — триг; нажатие и протягивание вправо — длина ноты;
-/// удержание первого шага + двойной тап по другому — последний шаг паттерна. Мультитач.
+/// Шаги открытой страницы — или всех играющих (16 × N в один ряд, шаги уже). Тап — триг; нажатие и протягивание
+/// вправо — длина ноты (через границы страниц); зажат шаг + тап по другому — копия шага; удержание первого шага +
+/// двойной тап по другому — последний шаг паттерна (первый тап копирует, второй отменяет копию). Мультитач.
 struct SequencerRow: View {
     let model: AppModel
     @State private var presses: [SpatialEventCollection.Event.ID: StepPress] = [:]
     @State private var lastTap: [Int: Date] = [:]
+    /// Последняя копия шага: куда, что там было (для отмены двойным тапом).
+    @State private var lastCopy: (index: Int, old: Step)? = nil
 
     var body: some View {
-        GeometryReader { geo in
-            HStack(spacing: Layout.stepGap) {
-                ForEach(0..<Params.stepsPerPage, id: \.self) { col in
-                    StepCell(model: model, col: col)
+        let pages: ClosedRange<Int> = model.viewPages
+        let look: SeqLook = SeqLook(pages: pages.count)
+        return GeometryReader { geo in
+            HStack(spacing: look.pageGap) {
+                ForEach(pages, id: \.self) { page in
+                    HStack(spacing: look.gap) {
+                        ForEach(0..<Params.stepsPerPage, id: \.self) { col in
+                            StepCell(model: model, page: page, col: col, look: look)
+                        }
+                    }
                 }
             }
             .contentShape(Rectangle())
-            .gesture(touches(width: geo.size.width))
+            .gesture(touches(width: geo.size.width, look: look, first: pages.lowerBound))
         }
         .frame(height: Layout.seqHeight)
     }
 
-    private func column(_ x: CGFloat, width: CGFloat) -> Int {
-        let cell: CGFloat = (width + Layout.stepGap) / CGFloat(Params.stepsPerPage)
-        return min(Params.stepsPerPage - 1, max(0, Int(x / cell)))
-    }
-
-    private func touches(width: CGFloat) -> some Gesture {
+    private func touches(width: CGFloat, look: SeqLook, first: Int) -> some Gesture {
         SpatialEventGesture(coordinateSpace: .local)
             .onChanged { events in
                 for e in events {
-                    handle(e, width: width)
+                    handle(e, col: look.column(e.location.x, width: width), first: first)
                 }
             }
             .onEnded { events in
@@ -39,14 +43,13 @@ struct SequencerRow: View {
             }
     }
 
-    private func handle(_ e: SpatialEventCollection.Event, width: CGFloat) {
-        let col: Int = column(e.location.x, width: width)
+    private func handle(_ e: SpatialEventCollection.Event, col: Int, first: Int) {
         switch e.phase {
         case .active:
             if let p = presses[e.id] {
                 move(e.id, p, to: col)
             } else {
-                down(e.id, col: col)
+                down(e.id, col: col, first: first)
             }
         case .ended:
             finish(e.id, cancelled: false)
@@ -57,12 +60,16 @@ struct SequencerRow: View {
         }
     }
 
-    private func down(_ id: SpatialEventCollection.Event.ID, col: Int) {
+    /// col — номер шага в ряду (0 — первый шаг первой показанной страницы).
+    private func down(_ id: SpatialEventCollection.Event.ID, col: Int, first: Int) {
         model.ensureAudio()
-        let index: Int = model.viewPage * Params.stepsPerPage + col
+        let index: Int = first * Params.stepsPerPage + col
         let firstHeld: Bool = presses.values.contains { $0.col == 0 }
         let secondary: Bool = firstHeld && col != 0
         if secondary, let t = lastTap[col], Date().timeIntervalSince(t) < 0.35 {
+            // Двойной тап: первый тап скопировал первый шаг — копия отменяется, шаг становится последним.
+            if let c = lastCopy, c.index == index { model.restoreStep(index, c.old) }
+            lastCopy = nil
             model.setPatternLength(lastIndex: index)
             for (k, v) in presses where v.col == 0 { presses[k]?.used = true }
             lastTap[col] = nil
@@ -91,7 +98,49 @@ struct SequencerRow: View {
         if cancelled { return }
         let quick: Bool = Date().timeIntervalSince(p.t0) < 0.35
         if quick && !p.dragged { lastTap[p.col] = Date() }
-        if quick && !p.dragged && !p.secondary && !used { model.toggleStep(p.index) }
+        if !quick || p.dragged || used { return }
+        // Зажат другой шаг (раньше нажатый) — копия его в этот.
+        let source: (key: SpatialEventCollection.Event.ID, value: StepPress)? = presses
+            .filter { $0.value.index != p.index && $0.value.t0 < p.t0 }
+            .min { $0.value.t0 < $1.value.t0 }
+        if let src = source {
+            if let old = model.copyStep(from: src.value.index, to: p.index) { lastCopy = (p.index, old) }
+            presses[src.key]?.used = true
+            return
+        }
+        if !p.secondary { model.toggleStep(p.index) }
+    }
+}
+
+/// Размеры ряда шагов по числу показанных страниц: зазоры между шагами и страницами, поля, надпись ноты.
+struct SeqLook {
+    let pages: Int
+    let gap: CGFloat
+    let pageGap: CGFloat
+    let inset: CGFloat
+    let dot: CGFloat
+    let showLabel: Bool
+
+    init(pages n: Int) {
+        pages = max(1, n)
+        switch pages {
+        case 1: gap = Layout.stepGap; pageGap = 0; inset = 5; dot = 6
+        case 2: gap = 2; pageGap = 6; inset = 3; dot = 5
+        case 3, 4: gap = 1; pageGap = 5; inset = 1; dot = 4
+        default: gap = 1; pageGap = 3; inset = 1; dot = 3
+        }
+        showLabel = pages <= 2
+    }
+
+    /// Шаг в ряду под x (0 … 16·pages − 1).
+    func column(_ x: CGFloat, width: CGFloat) -> Int {
+        let per: Int = Params.stepsPerPage
+        let pageW: CGFloat = (width - pageGap * CGFloat(pages - 1)) / CGFloat(pages)
+        let p: Int = min(pages - 1, max(0, Int(x / (pageW + pageGap))))
+        let x0: CGFloat = x - CGFloat(p) * (pageW + pageGap)
+        let cell: CGFloat = (pageW + gap) / CGFloat(per)
+        let c: Int = min(per - 1, max(0, Int(x0 / cell)))
+        return p * per + c
     }
 }
 
@@ -107,34 +156,51 @@ struct StepPress {
 }
 
 /// Шаг: триг (белый), хвост длинной ноты (полупрозрачный), нота или POLY, играющий — жёлтый контур,
-/// зажатый — белый контур, за длиной паттерна — бледный, последний — жёлтая черта справа.
+/// зажатый — белый контур, ручные p-lock — жёлтая точка в левом верхнем углу, свой звук шага — жёлтая обводка,
+/// за длиной паттерна — бледный, последний — жёлтая черта справа.
 struct StepCell: View {
     let model: AppModel
+    let page: Int
     let col: Int
+    let look: SeqLook
     @Environment(\.theme) private var theme
 
     var body: some View {
-        let info: StepInfo = StepInfo(model: model, col: col)
+        let info: StepInfo = StepInfo(model: model, page: page, col: col)
         return ZStack(alignment: .trailing) {
-            RoundedRectangle(cornerRadius: 4)
+            RoundedRectangle(cornerRadius: look.pages > 2 ? 2 : 4)
                 .fill(info.fill(theme))
                 .overlay(noteLabel(info))
-                .padding(5)
+                .padding(look.inset)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(col % 4 == 0 ? theme.panel2 : theme.panel, in: RoundedRectangle(cornerRadius: 6))
-                .overlay(RoundedRectangle(cornerRadius: 6).stroke(info.outline(theme), lineWidth: 1))
+                .background(col % 4 == 0 ? theme.panel2 : theme.panel, in: RoundedRectangle(cornerRadius: look.pages > 2 ? 3 : 6))
+                .overlay(RoundedRectangle(cornerRadius: look.pages > 2 ? 3 : 6).stroke(info.outline(theme), lineWidth: 1))
+                .overlay(alignment: .topLeading) { lockDot(info) }
             if info.last {
-                Rectangle().fill(theme.accent).frame(width: 2).padding(.vertical, 6).offset(x: 3)
+                Rectangle().fill(theme.accent).frame(width: 2).padding(.vertical, 6).offset(x: look.gap / 2 + 1)
             }
         }
         .opacity(info.outside ? 0.3 : 1)
     }
 
+    @ViewBuilder
     private func noteLabel(_ info: StepInfo) -> some View {
-        Text(info.label)
-            .font(.system(size: 11, weight: .bold))
-            .foregroundStyle(theme.bg)
-            .lineLimit(1)
+        if look.showLabel {
+            Text(info.label)
+                .font(.system(size: look.pages > 1 ? 10 : 11, weight: .bold))
+                .foregroundStyle(theme.bg)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        }
+    }
+
+    @ViewBuilder
+    private func lockDot(_ info: StepInfo) -> some View {
+        if info.manualLock {
+            Circle().fill(theme.accent)
+                .frame(width: look.dot, height: look.dot)
+                .padding(look.pages > 2 ? 1 : 2)
+        }
     }
 }
 
@@ -148,13 +214,12 @@ struct StepInfo {
     let outside: Bool
     let last: Bool
     let channelOn: Bool
-    /// Ручные p-lock (заливка жёлтым), p-lock на пустом шаге или свой звук шага (жёлтая обводка).
+    /// Ручные p-lock (на триге или пустом шаге) — жёлтая точка; свой звук шага — жёлтая обводка.
     let manualLock: Bool
-    let lockOutline: Bool
+    let ownSound: Bool
 
-    init(model: AppModel, col: Int) {
+    init(model: AppModel, page: Int, col: Int) {
         let t: Track = model.track
-        let page: Int = model.viewPage
         let index: Int = page * Params.stepsPerPage + col
         let s: Step? = t.step(index)
         channelOn = model.channel == .track
@@ -171,10 +236,8 @@ struct StepInfo {
             }
         }
         tail = isTail
-        manualLock = on && (s.map { Track.hasManualLocks($0) } ?? false)
-        let lockOnly: Bool = channelOn && !on && !(s?.locks.isEmpty ?? true)
-        let ownSound: Bool = on && s?.sound != nil
-        lockOutline = lockOnly || ownSound
+        manualLock = channelOn && (s.map { Track.hasManualLocks($0) } ?? false)
+        ownSound = on && s?.sound != nil
         if on, let s = s {
             label = s.notes.count > 1 ? "POLY" : (s.notes.first.map { Params.noteName($0) } ?? "")
         } else {
@@ -189,13 +252,13 @@ struct StepInfo {
     }
 
     func fill(_ theme: Theme) -> Color {
-        if on { return manualLock ? theme.accent : theme.text }
+        if on { return theme.text }
         if tail { return theme.text.opacity(0.4) }
         return Color.clear
     }
 
     func outline(_ theme: Theme) -> Color {
-        if playing || lockOutline { return theme.accent }
+        if playing || ownSound { return theme.accent }
         if held { return theme.text }
         return Color.clear
     }

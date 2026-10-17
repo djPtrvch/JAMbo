@@ -18,6 +18,8 @@ final class AppModel {
     private(set) var selectedTrack: Int = 0
     private(set) var channel: Channel = .track
     var viewPage: Int = 0
+    /// Секвенсор показывает все играющие страницы (если открытая среди них); удержание миниатюры — одну.
+    var spanView: Bool = true
     private(set) var playing: Bool = false
     private(set) var metronome: Bool = false
     private(set) var toneOn: Bool = false
@@ -286,6 +288,16 @@ final class AppModel {
     }
 
     var track: Track { return project.tracks[selectedTrack] }
+
+    /// Страницы в секвенсоре: несколько играющих — все подряд (16 × N шагов в один ряд), иначе открытая.
+    var viewPages: ClosedRange<Int> {
+        let t = track
+        let v: Int = max(0, min(viewPage, t.pages.count - 1))
+        if spanView && t.playTo > t.playFrom && t.playTo < t.pages.count && t.playFrom <= v && v <= t.playTo {
+            return t.playFrom...t.playTo
+        }
+        return v...v
+    }
 
     /// Ячейка для правки выбранной дорожки (жёлтый контур): её клип открыт в секвенсоре и миниатюрах страниц.
     var editSlot: Int { return track.open }
