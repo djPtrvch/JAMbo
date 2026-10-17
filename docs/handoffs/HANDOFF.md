@@ -58,4 +58,4 @@ S3a — Plaits: 8 движков, голоса синта в звуке, мен�
 - `docs/SWIFT_MILESTONE_S3.md` — после завершения вехи.
 
 ## 7. Точный следующий шаг
-Проверка #38 на iPad (звук, ручки, CPU), затем план окна синта с иконкой — по docs/ai/synth-engines.md и src/ui/sample.ts, src/engineIcons.ts.
+Показать пользователю план окна синта с иконкой движка (код не менять до подтверждения) — по docs/ai/synth-engines.md, src/ui/sample.ts, src/engineIcons.ts.
