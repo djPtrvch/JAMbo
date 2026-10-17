@@ -38,9 +38,22 @@ struct DiagnosticsView: View {
             row("Now", model.audio.statusLine)
             row("Core", "48.0 kHz · \(String(format: "%.1f", seconds)) s rendered")
             row("CPU", "\(Int((core.cpu.load * 100).rounded()))% avg · \(Int((core.cpu.peak * 100).rounded()))% peak block")
+            row("Build", DiagnosticsView.build)
             if !error.isEmpty { row("Error", error) }
         }
     }
+
+    /// Сборка: оптимизация компилятора (_isDebugAssertConfiguration — true при -Onone) и флаг DEBUG.
+    /// Нагрузка CPU в отладочной сборке в разы выше, чем в релизной (App Store).
+    static let build: String = {
+        let optimized: String = _isDebugAssertConfiguration() ? "Debug (no optimization)" : "Release (optimized)"
+        #if DEBUG
+        let flag = "DEBUG flag on"
+        #else
+        let flag = "DEBUG flag off"
+        #endif
+        return "\(optimized) · \(flag)"
+    }()
 
     private func row(_ name: String, _ value: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
