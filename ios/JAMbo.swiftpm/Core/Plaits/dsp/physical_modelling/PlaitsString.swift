@@ -98,7 +98,15 @@ final class PlaitsString {
 
         let apGain = -0.618 * nonLinearityAmount / (0.15 + abs(nonLinearityAmount))
 
-        for i in 0..<size {
+        // Состояние — в локальных переменных на время блока: в отладочной сборке (Playgrounds) каждый вызов метода
+        // структуры-свойства класса в цикле — проверка доступа, STRING перегружал процессор.
+        var string = self.string, stretch = self.stretch
+        var iirDampingFilter = self.iirDampingFilter, dcBlocker = self.dcBlocker
+        var dispersionNoise = self.dispersionNoise, curvedBridge = self.curvedBridge
+        var srcPhase = self.srcPhase, outSample0 = self.outSample0, outSample1 = self.outSample1
+        let random = self.random
+        var i = 0
+        while i < size {
             srcPhase += srcRatio
             if srcPhase > 1 {
                 srcPhase -= 1
@@ -146,6 +154,7 @@ final class PlaitsString {
                 outSample0 = s
             }
             out[i] += stmCrossfade(outSample1, outSample0, srcPhase)
+            i += 1
         }
         self.delay = delayModulation.value
         flushDenormal(&dispersionNoise)
@@ -154,6 +163,15 @@ final class PlaitsString {
         flushDenormal(&outSample1)
         iirDampingFilter.flush()
         dcBlocker.flush()
+        self.string = string
+        self.stretch = stretch
+        self.iirDampingFilter = iirDampingFilter
+        self.dcBlocker = dcBlocker
+        self.dispersionNoise = dispersionNoise
+        self.curvedBridge = curvedBridge
+        self.srcPhase = srcPhase
+        self.outSample0 = outSample0
+        self.outSample1 = outSample1
     }
 }
 

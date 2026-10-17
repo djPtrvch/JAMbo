@@ -73,6 +73,9 @@ public final class SynthVoices {
     /// Голос затухающего самого движка; keep — огибающая с 1 (без атаки), ручки звука — за ~1 мс.
     let selfDecay = UnsafeMutablePointer<UInt8>.allocate(capacity: slots)
     let keep = UnsafeMutablePointer<UInt8>.allocate(capacity: slots)
+    /// Сглаженные Timbre, Morph (у затухающих самих — от Decay) и доля AUX: в вебе (и jambo_voices.cc) они
+    /// приходят скачками — у MODAL с длинным Decay скачок добротности и микса OUT→AUX трещит.
+    let smooth = UnsafeMutablePointer<Float>.allocate(capacity: slots * 3)
     let quiet = UnsafeMutablePointer<Int>.allocate(capacity: slots)
     let lockMask = UnsafeMutablePointer<UInt16>.allocate(capacity: slots)
     let lockVal = UnsafeMutablePointer<Float>.allocate(capacity: slots * VoiceParam.count)
@@ -131,6 +134,7 @@ public final class SynthVoices {
         z.initialize(repeating: 0, count: s * 2)
         limiter.initialize(repeating: StmLimiter(), count: s)
         auxLimiter.initialize(repeating: StmLimiter(), count: s)
+        smooth.initialize(repeating: 0, count: s * 3)
         lockMask.initialize(repeating: 0, count: s)
         pMask.initialize(repeating: 0, count: s)
         lockVal.initialize(repeating: 0, count: s * VoiceParam.count)
@@ -147,7 +151,7 @@ public final class SynthVoices {
             as [UnsafeMutablePointer<Int>] { p.deallocate() }
         for p in [start, holdEnd, stopAt, pStart, pGate, fadeAt, busyUntil] as [UnsafeMutablePointer<Int64>] { p.deallocate() }
         for p in [attackF, decaySec, hz, qDb] as [UnsafeMutablePointer<Double>] { p.deallocate() }
-        for p in [decayK, env, fadeK, fadeG, level, pan, z, lockVal, pVal, outBuf, auxBuf, gains, auxGainsP, points]
+        for p in [decayK, env, fadeK, fadeG, level, pan, z, lockVal, pVal, outBuf, auxBuf, gains, auxGainsP, points, smooth]
             as [UnsafeMutablePointer<Float>] { p.deallocate() }
         coef.deallocate()
         limiter.deallocate()
@@ -427,16 +431,36 @@ public final class SynthVoices {
         let h = Float(val(VoiceParam.harm) / 100)
         let pc = pointCount[e]
         p.harmonics = pc > 0 ? points[e * 4 + Params.stepIndex(Double(h), pc)] : h
-        p.timbre = Float(val(VoiceParam.timbre) / 100)
+        let timbreT = Float(val(VoiceParam.timbre) / 100)
         let decaying = selfDecay[v] != 0
         // Затухающие сами: Morph Plaits — от Decay (decayNorm веба), ручка 1.3 — доля AUX.
-        var auxMix: Float = 0
+        var morphT: Float
+        var auxT: Float = 0
         if decaying {
-            p.morph = Float(Swift.min(1, Swift.max(0, val(VoiceParam.decay) / 4000)).squareRoot())
-            auxMix = Float(Swift.min(1, Swift.max(0, val(VoiceParam.morph) / 100)))
+            morphT = Float(Swift.min(1, Swift.max(0, val(VoiceParam.decay) / 4000)).squareRoot())
+            auxT = Float(Swift.min(1, Swift.max(0, val(VoiceParam.morph) / 100)))
         } else {
-            p.morph = Float(val(VoiceParam.morph) / 100)
+            morphT = Float(val(VoiceParam.morph) / 100)
         }
+        // Сглаживание 10 мс (как у Level и Pan); в начале ноты — сразу значения ноты. Harmonics не сглаживается:
+        // у ступенчатой (WAVETABLE, CHORDS, SPEECH) проскакивали бы соседние пункты.
+        let sb = v * 3
+        let aux0: Float
+        if triggered[v] == 0 {
+            smooth[sb] = timbreT
+            smooth[sb + 1] = morphT
+            smooth[sb + 2] = auxT
+            aux0 = auxT
+        } else {
+            let k = Float(1 - exp(-Double(m) / (0.01 * sr)))
+            aux0 = smooth[sb + 2]
+            smooth[sb] += (timbreT - smooth[sb]) * k
+            smooth[sb + 1] += (morphT - smooth[sb + 1]) * k
+            smooth[sb + 2] += (auxT - smooth[sb + 2]) * k
+        }
+        p.timbre = smooth[sb]
+        p.morph = smooth[sb + 1]
+        let aux1 = smooth[sb + 2]
         p.note = Float(note[v])
         p.accent = SynthVoices.accent
         p.trigger = triggered[v] == 0 ? (triggerRisingEdge | triggerHigh) : triggerLow
@@ -455,6 +479,8 @@ public final class SynthVoices {
         }
         var peak: Float = 0
         for j in 0..<m {
+            // Доля AUX — линейно внутри куска (без ступенек).
+            let auxMix = aux0 + (aux1 - aux0) * Float(j + 1) / Float(m)
             let mixed = outBuf[j] * gain * (1 - auxMix) + auxBuf[j] * auxGain * auxMix
             let x = Swift.min(1, Swift.max(-1, mixed))
             outBuf[j] = x

@@ -70,15 +70,25 @@ struct Particle {
                                            _ gain: Float, _ frequency: Float, _ spread: Float, _ q: Float,
                                            _ out: UnsafeMutablePointer<Float>, _ aux: UnsafeMutablePointer<Float>,
                                            _ size: Int) {
-        var u = random.getFloat()
+        // Генератор шума и фильтр — в локальных переменных на время блока (в отладочной сборке вызов метода класса
+        // на каждый отсчёт дорог); последовательность та же, что у StmRandom.getFloat.
+        var state = random.state
+        @inline(__always) func next() -> Float {
+            state = state &* 1664525 &+ 1013904223
+            return Float(state) / 4294967296.0
+        }
+        var filter = self.filter
+        var preGain = self.preGain
+        var u = next()
         if sync { u = density }
         var canRandomizeFrequency = true
-        for i in 0..<size {
+        var i = 0
+        while i < size {
             var s: Float = 0
             if u <= density {
                 s = u * gain
                 if canRandomizeFrequency {
-                    let v = 2 * random.getFloat() - 1
+                    let v = 2 * next() - 1
                     let f = min(r.semitonesToRatio(spread * v) * frequency, 0.25)
                     preGain = 0.5 / (q * f * density.squareRoot()).squareRoot()
                     filter.setFQ(f, q, .dirty)
@@ -87,9 +97,20 @@ struct Particle {
                 }
             }
             aux[i] += s
-            out[i] += filter.process(preGain * s, .bandPass)
-            u = random.getFloat()
+            // Svf, полосовой (process(…, .bandPass) без вызова метода).
+            let x = preGain * s
+            let hp = (x - filter.r * filter.state1 - filter.g * filter.state1 - filter.state2) * filter.h
+            let bp = filter.g * hp + filter.state1
+            filter.state1 = filter.g * hp + bp
+            let lp = filter.g * bp + filter.state2
+            filter.state2 = filter.g * bp + lp
+            out[i] += bp
+            u = next()
+            i += 1
         }
+        random.state = state
+        self.filter = filter
+        self.preGain = preGain
         filter.flush()
     }
 }

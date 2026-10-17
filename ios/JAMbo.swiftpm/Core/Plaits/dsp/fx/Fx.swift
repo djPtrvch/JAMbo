@@ -2,27 +2,29 @@
 // plaits/dsp/fx/diffuser.h (с fx_engine.h, формат 12 бит), overdrive.h.
 
 /// Diffuser: цепочка all-pass с модуляцией (PARTICLE). FxEngine<8192, FORMAT_12_BIT> развёрнут вручную:
-/// линии задержки — смещения base в общем кольце, длины 126, 180, 269, 444, 1653, 2010, 3411.
+/// линии задержки — смещения base в общем кольце, длины 126, 180, 269, 444, 1653, 2010, 3411. Кольцо хранит Float,
+/// уже квантованный как 12-битный формат (Clip16(int(x·4096)) / 4096) — те же числа, без распаковки при чтении:
+/// в отладочной сборке (Playgrounds) упаковка и распаковка Int16 на каждом обращении перегружали процессор.
 final class Diffuser {
-    private static let size: Int32 = 8192
-    private static let mask: Int32 = 8191
-    // base линий: ap1, ap2, ap3, ap4, dapa, dapb, del (base_k = base_{k−1} + length_{k−1} + 1).
-    private static let ap1: Int32 = 0, ap1Len: Int32 = 126
-    private static let ap2: Int32 = 127, ap2Len: Int32 = 180
-    private static let ap3: Int32 = 308, ap3Len: Int32 = 269
-    private static let ap4: Int32 = 578
-    private static let dapa: Int32 = 1023, dapaLen: Int32 = 1653
-    private static let dapb: Int32 = 2677, dapbLen: Int32 = 2010
-    private static let del: Int32 = 4688
+    private static let size = 8192
+    private static let mask = 8191
+    // base линий: ap1, ap2, ap3, ap4, dapa, dapb, del (base_k = base_{k−1} + length_{k−1} + 1); хвост — base + length − 1.
+    private static let ap1 = 0, ap1Tail = 125
+    private static let ap2 = 127, ap2Tail = 306
+    private static let ap3 = 308, ap3Tail = 576
+    private static let ap4 = 578
+    private static let dapa = 1023, dapaTail = 2675
+    private static let dapb = 2677, dapbTail = 4686
+    private static let del = 4688
 
-    private let buffer: UnsafeMutablePointer<UInt16>
-    private var writePtr: Int32 = 0
+    private let buffer: UnsafeMutablePointer<Float>
+    private var writePtr = 0
     private var lfo = CosineOscillator()
     private var lpDecay: Float = 0
 
     init() {
-        buffer = .allocate(capacity: Int(Diffuser.size))
-        buffer.initialize(repeating: 0, count: Int(Diffuser.size))
+        buffer = .allocate(capacity: Diffuser.size)
+        buffer.initialize(repeating: 0, count: Diffuser.size)
         lfo.initApproximate(0.3 / 48000 * 32)
         lpDecay = 0
     }
@@ -30,74 +32,83 @@ final class Diffuser {
     deinit { buffer.deallocate() }
 
     func reset() {
-        buffer.update(repeating: 0, count: Int(Diffuser.size))
+        buffer.update(repeating: 0, count: Diffuser.size)
         writePtr = 0
     }
 
-    @inline(__always) private func decompress(_ v: UInt16) -> Float { Float(Int16(bitPattern: v)) / 4096 }
-
-    @inline(__always) private func compress(_ v: Float) -> UInt16 {
-        UInt16(bitPattern: Int16(stmClip16(Int32(truncatingIfNeeded: stmInt(v * 4096)))))
+    /// DataType<FORMAT_12_BIT>: Decompress(Compress(v)) — отбросить дробь от v·4096, ограничить Int16, / 4096.
+    @inline(__always) private static func quantize(_ v: Float) -> Float {
+        var x = (v * 4096).rounded(.towardZero)
+        if x > 32767 { x = 32767 } else if x < -32768 { x = -32768 }
+        return x * (1 / 4096)
     }
 
     func process(_ amount: Float, _ rt: Float, _ inOut: UnsafeMutablePointer<Float>, _ size: Int) {
         let kap: Float = 0.625
         let klp: Float = 0.75
         let m = Diffuser.mask
+        let buf = buffer
         var lp = lpDecay
-        for i in 0..<size {
+        var wp = writePtr
+        var lfo = self.lfo
+        var i = 0
+        while i < size {
             // engine_.Start(&c).
-            writePtr -= 1
-            if writePtr < 0 { writePtr += Diffuser.size }
-            let wp = writePtr
+            wp -= 1
+            if wp < 0 { wp += Diffuser.size }
             let lfoValue = (wp & 31) == 0 ? lfo.next() : lfo.value
-            var acc: Float = 0
-            var previousRead: Float = 0
-
-            @inline(__always) func readTail(_ base: Int32, _ length: Int32, _ scale: Float) {
-                let r = decompress(buffer[Int((wp + base + length - 1) & m)])
-                previousRead = r
-                acc += r * scale
-            }
-            @inline(__always) func write(_ base: Int32, _ scale: Float) {
-                buffer[Int((wp + base) & m)] = compress(acc)
-                acc *= scale
-            }
-            @inline(__always) func writeAllPass(_ base: Int32, _ scale: Float) {
-                write(base, scale)
-                acc += previousRead
-            }
-            @inline(__always) func interpolate(_ base: Int32, _ offsetIn: Float, _ amplitude: Float, _ scale: Float) {
-                let offset = offsetIn + amplitude * lfoValue
-                let integral = Int32(truncatingIfNeeded: stmInt(offset))
-                let fractional = offset - Float(integral)
-                let a = decompress(buffer[Int((wp + integral + base) & m)])
-                let b = decompress(buffer[Int((wp + integral + base + 1) & m)])
-                let x = a + (b - a) * fractional
-                previousRead = x
-                acc += x * scale
-            }
-
-            acc += inOut[i]
-            readTail(Diffuser.ap1, Diffuser.ap1Len, kap)
-            writeAllPass(Diffuser.ap1, -kap)
-            readTail(Diffuser.ap2, Diffuser.ap2Len, kap)
-            writeAllPass(Diffuser.ap2, -kap)
-            readTail(Diffuser.ap3, Diffuser.ap3Len, kap)
-            writeAllPass(Diffuser.ap3, -kap)
-            interpolate(Diffuser.ap4, 400, 43, kap)
-            writeAllPass(Diffuser.ap4, -kap)
-            interpolate(Diffuser.del, 3070, 340, rt)
+            var acc: Float = inOut[i]
+            var r: Float
+            // ap1, ap2, ap3: Read(TAIL, kap), WriteAllPass(−kap).
+            r = buf[(wp + Diffuser.ap1Tail) & m]
+            acc += r * kap
+            buf[(wp + Diffuser.ap1) & m] = Diffuser.quantize(acc)
+            acc = acc * -kap + r
+            r = buf[(wp + Diffuser.ap2Tail) & m]
+            acc += r * kap
+            buf[(wp + Diffuser.ap2) & m] = Diffuser.quantize(acc)
+            acc = acc * -kap + r
+            r = buf[(wp + Diffuser.ap3Tail) & m]
+            acc += r * kap
+            buf[(wp + Diffuser.ap3) & m] = Diffuser.quantize(acc)
+            acc = acc * -kap + r
+            // ap4: Interpolate(400, LFO, 43, kap), WriteAllPass(−kap).
+            var offset: Float = 400 + 43 * lfoValue
+            var integral = stmInt(offset)
+            var fractional = offset - Float(integral)
+            var a = buf[(wp + integral + Diffuser.ap4) & m]
+            var b = buf[(wp + integral + Diffuser.ap4 + 1) & m]
+            r = a + (b - a) * fractional
+            acc += r * kap
+            buf[(wp + Diffuser.ap4) & m] = Diffuser.quantize(acc)
+            acc = acc * -kap + r
+            // del: Interpolate(3070, LFO, 340, rt), Lp.
+            offset = 3070 + 340 * lfoValue
+            integral = stmInt(offset)
+            fractional = offset - Float(integral)
+            a = buf[(wp + integral + Diffuser.del) & m]
+            b = buf[(wp + integral + Diffuser.del + 1) & m]
+            r = a + (b - a) * fractional
+            acc += r * rt
             lp += klp * (acc - lp)
             acc = lp
-            readTail(Diffuser.dapa, Diffuser.dapaLen, -kap)
-            writeAllPass(Diffuser.dapa, kap)
-            readTail(Diffuser.dapb, Diffuser.dapbLen, kap)
-            writeAllPass(Diffuser.dapb, -kap)
-            write(Diffuser.del, 2)
-            let wet = acc
+            // dapa: Read(TAIL, −kap), WriteAllPass(kap); dapb: Read(TAIL, kap), WriteAllPass(−kap).
+            r = buf[(wp + Diffuser.dapaTail) & m]
+            acc += r * -kap
+            buf[(wp + Diffuser.dapa) & m] = Diffuser.quantize(acc)
+            acc = acc * kap + r
+            r = buf[(wp + Diffuser.dapbTail) & m]
+            acc += r * kap
+            buf[(wp + Diffuser.dapb) & m] = Diffuser.quantize(acc)
+            acc = acc * -kap + r
+            // Write(del, 2), Write(wet, 0).
+            buf[(wp + Diffuser.del) & m] = Diffuser.quantize(acc)
+            let wet = acc * 2
             inOut[i] += amount * (wet - inOut[i])
+            i += 1
         }
+        writePtr = wp
+        self.lfo = lfo
         lpDecay = lp
         flushDenormal(&lpDecay)
     }
