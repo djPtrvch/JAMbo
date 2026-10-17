@@ -1,6 +1,6 @@
 import Foundation
 
-// Самотест своих движков JAMbo (DRUM, ANALOG, FM): сверка с эталонами Resources/golden/j*.i16
+// Самотест своих движков JAMbo (DRUM, ANALOG, FM, WTABLE): сверка с эталонами Resources/golden/j*.i16
 // (ios/tools/jambo/golden.mjs — рендер public/jambo-synth-worklet.js в Node). Узел worklet повторён: блоки process()
 // по 128 кадров (дрейф ANALOG — в начале блока, время дорожки — в конце), внутри — куски по 24 и до кадра
 // следующей ноты; тишина дольше 4800 кадров — голос молчит. Общий для CoreTests и DIAGNOSTICS → SELF-TEST.
@@ -16,6 +16,8 @@ public enum JamboSelfTest {
         public let p3: Double
         public let decay: Double
         public let retrig: Int
+        /// Таблица WTABLE (имя встроенной; у других движков — пусто).
+        public let table: String?
     }
 
     public struct Cases: Decodable, Sendable {
@@ -25,7 +27,7 @@ public enum JamboSelfTest {
         public let cases: [Case]
     }
 
-    public static let engineNames = [16: "DRUM", 17: "ANALOG", 18: "FM"]
+    public static let engineNames = [16: "DRUM", 17: "ANALOG", 18: "FM", 19: "WTABLE"]
 
     public static func loadCases(_ goldenDir: URL) throws -> Cases {
         let data = try Data(contentsOf: goldenDir.appendingPathComponent("jambo_cases.json"))
@@ -33,8 +35,12 @@ public enum JamboSelfTest {
     }
 
     /// Рендер как JamboProcessor с одним слотом.
-    static func render(_ c: Case, _ all: Cases, tables: JamboTables) -> [Float] {
+    static func render(_ c: Case, _ all: Cases, tables: JamboTables, wavetable: WtTable? = nil) -> [Float] {
         let sr = 48000.0
+        var ref = WtRef()
+        if let wt = wavetable {
+            ref = WtRef(frames: wt.frames, sizes: UnsafePointer(wt.sizes), data: UnsafePointer(wt.data))
+        }
         let voice = JamboVoice(tables: tables, sampleRate: sr)
         var drift = JamboDrift()
         var result = [Float](repeating: 0, count: all.frames)
@@ -66,7 +72,7 @@ public enum JamboSelfTest {
                 if now >= end {
                     voice.last = 0
                 } else {
-                    voice.render(buf, n, driftRatio: drift.ratio)
+                    voice.render(buf, n, driftRatio: drift.ratio, table: ref)
                     var peak: Float = 0
                     for i in 0..<n {
                         result[now + i] = buf[i]
@@ -85,8 +91,16 @@ public enum JamboSelfTest {
     }
 
     /// Один случай: рендер и сравнение (критерий и страховка — как у Plaits).
-    public static func run(_ c: Case, _ all: Cases, _ goldenDir: URL, tables: JamboTables) throws -> PlaitsSelfTest.Result {
-        let actual = render(c, all, tables: tables)
+    /// wavetables — кэш встроенных таблиц по имени (строятся при первом случае WTABLE).
+    public static func run(_ c: Case, _ all: Cases, _ goldenDir: URL, tables: JamboTables,
+                           wavetables: inout [String: WtTable]) throws -> PlaitsSelfTest.Result {
+        var wt: WtTable? = nil
+        if c.engine == Jambo.wtable {
+            let name = c.table ?? "BASIC"
+            if wavetables[name] == nil { wavetables[name] = WtTable.builtin(name) }
+            wt = wavetables[name]
+        }
+        let actual = render(c, all, tables: tables, wavetable: wt)
         let golden = try PlaitsSelfTest.loadGolden(goldenDir, c.file)
         let pc = PlaitsSelfTest.Case(file: c.file, engine: c.engine, set: c.set, note: Float(c.note), harmonics: Float(c.p1),
                                      timbre: Float(c.p2), morph: Float(c.p3), aux: nil)

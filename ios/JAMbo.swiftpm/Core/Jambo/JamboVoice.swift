@@ -1,6 +1,6 @@
 import Foundation
 
-// Голос своих движков JAMbo — DRUM, ANALOG, FM (перенос класса Voice из public/jambo-synth-worklet.js 1:1).
+// Голос своих движков JAMbo — DRUM, ANALOG, FM, WTABLE (перенос класса Voice из public/jambo-synth-worklet.js 1:1).
 // Состояние и арифметика — в Double (как JS), отсчёты выхода и буфер фильтра децимации — во Float (Float32Array).
 // Горячие циклы — без вызовов из других файлов, состояние — в локальных переменных (отладочная сборка Playgrounds).
 
@@ -43,6 +43,13 @@ import Foundation
 
 @_transparent private func jFlush(_ x: Double) -> Double { (x > 1e-20 || x < -1e-20) ? x : 0 }
 
+/// Таблица WTABLE для колбэка — только указатели (WtTable живёт в кэше и снимке звука).
+struct WtRef {
+    var frames = 0
+    var sizes: UnsafePointer<Int>? = nil
+    var data: UnsafePointer<UnsafeMutablePointer<Float>>? = nil
+}
+
 final class JamboVoice {
     private let tables: JamboTables
     private let sr: Double
@@ -64,8 +71,16 @@ final class JamboVoice {
     private var pc = 0.0, pm = 0.0, m1 = 0.0, m2 = 0.0
     private let hb: UnsafeMutablePointer<Float>
     private var hbPos = 0
+    // WTABLE: центр и два боковых голоса.
+    private var w0 = 0.0, wl = 0.0, wr = 0.0
     // Вход новой ноты (кадров с её начала).
     private var fade = Jambo.fadeIn
+
+    /// xorshift32 голоса (rand в worklet; состояние — Int 0…2³²−1).
+    private func rand() -> Double {
+        rnd = JamboDrift.xorshift(rnd)
+        return Double(rnd) / 4294967296
+    }
 
     init(tables: JamboTables, sampleRate: Double) {
         self.tables = tables
@@ -115,11 +130,15 @@ final class JamboVoice {
         wMix = 1
         pc = jFrac(f * now)
         pm = jFrac(Jambo.fmRatio(s1) * f * now)
+        // WTABLE: центр — так же, боковые — со случайной фазы.
+        w0 = jFrac(f * now)
+        wl = rand()
+        wr = rand()
         fade = 0
     }
 
     /// Кусок n кадров (n ≤ 24) в out; driftRatio — множитель дрейфа дорожки (ANALOG).
-    func render(_ out: UnsafeMutablePointer<Float>, _ n: Int, driftRatio: Double) {
+    func render(_ out: UnsafeMutablePointer<Float>, _ n: Int, driftRatio: Double, table: WtRef = WtRef()) {
         let k = 1 - exp(-Double(n) / (Jambo.smooth * sr))
         s1 += (t1 - s1) * k
         s2 += (t2 - s2) * k
@@ -131,10 +150,12 @@ final class JamboVoice {
             analog(out, n, driftRatio)
         } else if engine == Jambo.fm {
             fm(out, n)
+        } else if engine == Jambo.wtable {
+            wtable(out, n, table)
         } else {
             out.update(repeating: 0, count: n)
         }
-        // Начало ноты ANALOG и FM — плавно за fadeIn кадров (после фильтра децимации); у DRUM свой старт.
+        // Начало ноты ANALOG, FM, WTABLE — плавно за fadeIn кадров (после фильтра децимации); у DRUM свой старт.
         if fade < Jambo.fadeIn && engine != Jambo.drum {
             var i = 0
             while i < n && fade < Jambo.fadeIn {
@@ -322,6 +343,77 @@ final class JamboVoice {
         m1 = x1
         m2 = x2
         hbPos = hp
+        t += Double(n)
+    }
+
+    // MARK: — WTABLE: кадры таблицы по фазе и между кадрами, мипмап по октаве, WARP и UNISON.
+
+    @inline(__always) private func wtable(_ out: UnsafeMutablePointer<Float>, _ n: Int, _ tb: WtRef) {
+        guard tb.frames > 0, let sizes = tb.sizes, let levels = tb.data else {
+            out.update(repeating: 0, count: n)
+            return
+        }
+        let f0 = 440 * pow(2, (note - 69) / 12)
+        let frames = tb.frames
+        let fpos = s1 * Double(frames - 1)
+        let fi = Swift.min(frames - 2, Swift.max(0, Int(fpos.rounded(.down))))
+        let ff = frames > 1 ? fpos - Double(fi) : 0
+        // WARP: 0…50 % — изгиб фазы φ^(1+3w); 50…100 % — плюс синхронизация 1 → 4.
+        let w = s2
+        let bend = 1 + 3 * Swift.min(1, w * 2)
+        let sync = w > 0.5 ? 1 + 3 * (w - 0.5) * 2 : 1
+        // UNISON: до 25 % — один голос; дальше три (боковые на −3 дБ), расстройка 0 → 40 центов.
+        let u = s3
+        let side = u <= 0.25 ? 0 : Jambo.wtSide * Swift.min(1, (u - 0.25) / 0.05)
+        let cents = u <= 0.25 ? 0 : Jambo.wtUnison * (u - 0.25) / 0.75
+        let norm = Jambo.wtOut / (1 + 2 * side * side).squareRoot()
+        let dt0 = f0 / sr
+        let dtl = dt0 * pow(2, -cents / 1200), dtr = dt0 * pow(2, cents / 1200)
+        // Мипмап: уровень, где гармоники (с учётом синхронизации и изгиба) не выше Найквиста.
+        let fEff = f0 * pow(2, cents / 1200) * sync * (1 + (bend - 1) * 0.5)
+        let lvf = log2(1024 * fEff / (0.5 * sr)).rounded(.up)
+        let lv = Swift.min(WtTable.levelCount - 1, Swift.max(0, Int(Swift.max(-1, Swift.min(64, lvf)))))
+        let size = sizes[lv]
+        let data = levels[lv]
+        let rowA = fi * size, rowB = (frames > 1 ? fi + 1 : fi) * size
+        var c0 = w0, cl = wl, cr = wr
+        let bent = bend != 1
+        let sizeF = Double(size)
+        var i = 0
+        while i < n {
+            var y = 0.0
+            var v = 0
+            while v < 3 {
+                if v > 0 && side == 0 { break }
+                var ph = v == 0 ? c0 : (v == 1 ? cl : cr)
+                if sync != 1 {
+                    ph *= sync
+                    ph -= ph.rounded(.down)
+                }
+                if bent { ph = pow(ph, bend) }
+                let x = ph * sizeF
+                let j = Int(x)
+                let fr = x - Double(j)
+                let j2 = j + 1 == size ? 0 : j + 1
+                let a0 = Double(data[rowA + j]), a1 = Double(data[rowA + j2])
+                let b0 = Double(data[rowB + j]), b1 = Double(data[rowB + j2])
+                let a = a0 + (a1 - a0) * fr
+                let b = b0 + (b1 - b0) * fr
+                y += (v == 0 ? 1 : side) * (a + (b - a) * ff)
+                v += 1
+            }
+            out[i] = Float(norm * y)
+            c0 += dt0
+            if c0 >= 1 { c0 -= 1 }
+            cl += dtl
+            if cl >= 1 { cl -= 1 }
+            cr += dtr
+            if cr >= 1 { cr -= 1 }
+            i += 1
+        }
+        w0 = c0
+        wl = cl
+        wr = cr
         t += Double(n)
     }
 }

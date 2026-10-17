@@ -33,6 +33,11 @@ enum Jambo {
     static let analogOut = 0.62
     static let analogWaveXf = 0.005
 
+    // WTABLE
+    static let wtUnison = 40.0
+    static let wtSide = 0.708
+    static let wtOut = 0.5
+
     // FM
     /// Отношения, к которым ручка RATIO «прилипает» (±2 %); без массива — fmRatio зовётся в колбэке.
     @inline(__always) static func fmSnap(_ i: Int) -> Double {

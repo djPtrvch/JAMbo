@@ -42,9 +42,10 @@ final class SelfTestRunner {
             }
             if let jb = jambo {
                 let tables = JamboTables()
+                var wavetables: [String: WtTable] = [:]
                 for c in jb.cases {
                     do {
-                        let r = try JamboSelfTest.run(c, jb, golden, tables: tables)
+                        let r = try JamboSelfTest.run(c, jb, golden, tables: tables, wavetables: &wavetables)
                         await MainActor.run { self.results.append(r) }
                     } catch {
                         await MainActor.run { self.finish("Cannot read \(c.file).", start) }
