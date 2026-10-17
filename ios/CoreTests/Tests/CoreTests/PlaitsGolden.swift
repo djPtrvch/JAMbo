@@ -40,8 +40,8 @@ enum PlaitsGolden {
         return r
     }()
 
-    /// Сдвиг ноты в вебе (plaits-worklet.js на 48 кГц), как SHIFT в golden.mjs.
-    static let webNoteShift: Float = 12 * log2(kCorrectedSampleRate / kSampleRate)
+    /// Сдвиг ноты в вебе (plaits-worklet.js на 48 кГц), как SHIFT в golden.mjs: в Double, как в JS.
+    static let webNoteShift: Double = 12 * log2(47872.34 / 48000)
 
     static func loadCases() throws -> Cases {
         let data = try Data(contentsOf: resourcesDir.appendingPathComponent("golden/cases.json"))
@@ -68,7 +68,8 @@ enum PlaitsGolden {
         var auxLimiter = StmLimiter()
         engine.reset()
         var p = EngineParameters()
-        p.note = c.note + webNoteShift
+        // Нота + сдвиг — в Double и затем во Float, как JS передаёт в wasm.
+        p.note = Float(Double(c.note) + webNoteShift)
         p.harmonics = c.harmonics
         p.timbre = c.timbre
         p.morph = c.morph

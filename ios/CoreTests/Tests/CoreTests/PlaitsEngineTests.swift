@@ -1,18 +1,18 @@
 import XCTest
 @testable import Core
 
-/// Движок 0 (VA) по эталонам e0_*: усиления OUT и AUX — 0,8, как у VA в jambo_voices.cc.
-final class PlaitsVATests: XCTestCase {
-    func testVirtualAnalogMatchesGolden() throws {
+/// Движки Plaits по эталонам e<движок>_*; усиления OUT и AUX — как в jambo_voices.cc.
+final class PlaitsEngineTests: XCTestCase {
+    /// Все случаи движка: свежий экземпляр на каждый (как свежий wasm в эталоне), по отсчётам ≤ −60 dB.
+    private func checkGolden(engine index: Int, outGain: Float, auxGain: Float,
+                             make: (PlaitsResources) -> PlaitsEngine) throws {
         let resources = try XCTUnwrap(PlaitsGolden.resources, "нет таблиц Resources/plaits")
         let all = try PlaitsGolden.loadCases()
-        let cases = all.cases.filter { $0.engine == 0 }
+        let cases = all.cases.filter { $0.engine == index }
         XCTAssertEqual(cases.count, 6)
         for c in cases {
-            // Свежий движок на каждый случай, как свежий экземпляр wasm в эталоне.
-            let engine = VirtualAnalogEngine(resources: resources)
-            let actual = PlaitsGolden.render(engine, c, frames: all.frames, block: all.block, accent: all.accent,
-                                             outGain: 0.8, auxGain: 0.8)
+            let actual = PlaitsGolden.render(make(resources), c, frames: all.frames, block: all.block,
+                                             accent: all.accent, outGain: outGain, auxGain: auxGain)
             let golden = try PlaitsGolden.loadGolden(c.file)
             XCTAssertEqual(golden.count, all.frames, c.file)
             XCTAssertFalse(actual.contains { !$0.isFinite }, c.file)
@@ -25,10 +25,17 @@ final class PlaitsVATests: XCTestCase {
         }
     }
 
+    func testVirtualAnalog() throws {
+        try checkGolden(engine: 0, outGain: 0.8, auxGain: 0.8) { VirtualAnalogEngine(resources: $0) }
+    }
+
+    func testWaveshaping() throws {
+        try checkGolden(engine: 1, outGain: 0.7, auxGain: 0.6) { WaveshapingEngine(resources: $0) }
+    }
+
     /// В приложении a0 — 48 кГц без сдвига ноты: A4 (нота 69) = 440 Гц с точностью до шага таблицы (1/256 полутона).
     func testAppPitchA4() throws {
-        let golden = try XCTUnwrap(PlaitsGolden.resources)
-        var app = golden
+        var app = try XCTUnwrap(PlaitsGolden.resources)
         app.a0 = plaitsA0
         let hz = app.noteToFrequency(69) * kSampleRate
         XCTAssertEqual(Double(hz), 440, accuracy: 440 * 0.0003)
