@@ -20,7 +20,17 @@ final class PlaitsVATests: XCTestCase {
             print(String(format: "%@: samples %.1f dB, bands ±%.3f dB, rms %.1f dBFS",
                          c.file, r.sampleErrorDb, r.maxBandDiffDb, r.rmsDb))
             XCTAssertGreaterThan(r.rmsDb, -40, "\(c.file): почти тишина")
+            XCTAssertLessThanOrEqual(r.sampleErrorDb, -60, c.file)
             XCTAssertTrue(r.passes, "\(c.file): samples \(r.sampleErrorDb) dB, bands \(r.maxBandDiffDb) dB")
         }
+    }
+
+    /// В приложении a0 — 48 кГц без сдвига ноты: A4 (нота 69) = 440 Гц с точностью до шага таблицы (1/256 полутона).
+    func testAppPitchA4() throws {
+        let golden = try XCTUnwrap(PlaitsGolden.resources)
+        var app = golden
+        app.a0 = plaitsA0
+        let hz = app.noteToFrequency(69) * kSampleRate
+        XCTAssertEqual(Double(hz), 440, accuracy: 440 * 0.0003)
     }
 }

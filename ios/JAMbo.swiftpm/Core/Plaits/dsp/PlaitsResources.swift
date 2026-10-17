@@ -20,6 +20,9 @@ public struct PlaitsResources {
     /// Фонемы LPC: 12 значений на кадр (energy, period, k0…k9).
     let lpcPhonemes: UnsafePointer<Int16>
     let lpcPhonemeCount: Int
+    /// a0 для NoteToFrequency: в приложении — plaitsA0 (48 кГц, без сдвига ноты); тесты ставят a0 веба
+    /// (по kCorrectedSampleRate) и сдвигают ноту, чтобы сверять с эталонами почти бит в бит.
+    var a0: Float = plaitsA0
 
     /// Таблицы из папки dir; nil — нет какого-то файла или длина не та.
     public static func load(dir: URL) -> PlaitsResources? {
@@ -92,6 +95,6 @@ public struct PlaitsResources {
     @inline(__always) func noteToFrequency(_ midiNote: Float) -> Float {
         var note = midiNote - 9
         constrain(&note, -128, 127)
-        return plaitsA0 * 0.25 * semitonesToRatio(note)
+        return a0 * 0.25 * semitonesToRatio(note)
     }
 }

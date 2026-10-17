@@ -33,7 +33,15 @@ enum PlaitsGolden {
         .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         .deletingLastPathComponent().appendingPathComponent("JAMbo.swiftpm/Resources")
 
-    static let resources: PlaitsResources? = PlaitsResources.load(dir: resourcesDir.appendingPathComponent("plaits"))
+    /// Таблицы с a0 веба: эталоны — wasm с a0 по 47872,34 Гц и нотой, сдвинутой на webNoteShift.
+    static let resources: PlaitsResources? = {
+        var r = PlaitsResources.load(dir: resourcesDir.appendingPathComponent("plaits"))
+        r?.a0 = (440.0 / 8.0) / kCorrectedSampleRate
+        return r
+    }()
+
+    /// Сдвиг ноты в вебе (plaits-worklet.js на 48 кГц), как SHIFT в golden.mjs.
+    static let webNoteShift: Float = 12 * log2(kCorrectedSampleRate / kSampleRate)
 
     static func loadCases() throws -> Cases {
         let data = try Data(contentsOf: resourcesDir.appendingPathComponent("golden/cases.json"))
@@ -47,7 +55,8 @@ enum PlaitsGolden {
         }
     }
 
-    /// Рендер как render() в wasm/plaits/jambo_voices.cc: триггер (фронт и гейт) в первом блоке, затем гейт снят;
+    /// Рендер как render() в wasm/plaits/jambo_voices.cc (нота со сдвигом веба): триггер (фронт и гейт) в первом
+    /// блоке, затем гейт снят;
     /// после движка — Post (усиление, < 0 — лимитер); aux_mix 0 — только OUT, ограничение ±1; Int16 как в эталоне.
     static func render(_ engine: PlaitsEngine, _ c: Case, frames: Int, block: Int, accent: Float,
                        outGain: Float, auxGain: Float) -> [Float] {
@@ -59,7 +68,7 @@ enum PlaitsGolden {
         var auxLimiter = StmLimiter()
         engine.reset()
         var p = EngineParameters()
-        p.note = c.note
+        p.note = c.note + webNoteShift
         p.harmonics = c.harmonics
         p.timbre = c.timbre
         p.morph = c.morph
