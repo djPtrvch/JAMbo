@@ -29,8 +29,9 @@ public enum IconCmd: Equatable, Sendable {
     case vTo(Double)
     case hBy(Double)
     case vBy(Double)
-    /// Дуга окружности радиуса r до (x, y), по часовой (sweep 1); large — больше 180°.
-    case arc(r: Double, large: Bool, x: Double, y: Double)
+    /// Дуга окружности радиуса r до (x, y), по часовой (sweep 1); large — больше 180°. Для рисования — центр
+    /// и углы (градусы, от a0 к a1 по возрастанию).
+    case arc(r: Double, large: Bool, x: Double, y: Double, cx: Double, cy: Double, a0: Double, a1: Double)
     case close
 }
 
@@ -108,7 +109,7 @@ public enum EngineIcons {
     static func arc(_ cx: Double, _ cy: Double, _ r: Double, _ a0: Double, _ a1: Double) -> [IconCmd] {
         let p0 = pol(cx, cy, r, a0)
         let p1 = pol(cx, cy, r, a1)
-        return [.move(p0.0, p0.1), .arc(r: r, large: abs(a1 - a0) > 180, x: p1.0, y: p1.1)]
+        return [.move(p0.0, p0.1), .arc(r: r, large: abs(a1 - a0) > 180, x: p1.0, y: p1.1, cx: cx, cy: cy, a0: a0, a1: a1)]
     }
 
     static func fold(_ z: Double) -> Double { return (2 / Double.pi) * asin(sin(Double.pi / 2 * z)) }

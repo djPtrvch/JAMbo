@@ -2,7 +2,8 @@ import SwiftUI
 
 /// Окно сэмпла (левая колонка, как sample.ts веба): имя, определённая высота и ST/M, форма волны сэмпла выбранной
 /// дорожки (стерео — L и R), Start и End затемняют отрезанное, полосы воспроизведения звучащих нот.
-/// Тап — меню звука (с зажатым шагом — звук этих шагов); удержание 0,5 с (без зажатого шага) — редактор сэмпла.
+/// У синта — окно синта (SynthInfo: иконка движка, имя, ручки 1.1–1.3).
+/// Тап — меню звука (с зажатым шагом — звук этих шагов); удержание 0,5 с (без зажатого шага, не у синта) — редактор.
 /// MIX — заголовок MIXER и ● MASTER (запись мастера — S10); MST — индикация мастера (S5).
 struct SampleWindow: View {
     let model: AppModel
@@ -29,7 +30,16 @@ struct SampleWindow: View {
         }
     }
 
+    @ViewBuilder
     private var trackView: some View {
+        if let e = SynthKey.engine(model.shownSound) {
+            SynthInfo(model: model, engine: e)
+        } else {
+            sampleView
+        }
+    }
+
+    private var sampleView: some View {
         let key: String = model.shownSound
         let data: SampleData? = model.sample(key)
         let _ = model.samplesVersion
@@ -95,7 +105,7 @@ struct SampleWindow: View {
     private func begin() {
         heldOpen = false
         holdTask?.cancel()
-        guard model.channel == .track, model.heldSteps.isEmpty else { return }
+        guard model.channel == .track, model.heldSteps.isEmpty, SynthKey.engine(model.track.sample) == nil else { return }
         holdTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 500_000_000)
             if Task.isCancelled { return }

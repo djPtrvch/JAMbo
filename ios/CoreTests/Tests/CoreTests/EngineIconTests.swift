@@ -70,7 +70,7 @@ final class EngineIconTests: XCTestCase {
             case .vTo(let y): letters += "V"; nums.append(y)
             case .hBy(let x): letters += "h"; nums.append(x)
             case .vBy(let y): letters += "v"; nums.append(y)
-            case .arc(let r, let large, let x, let y): letters += "A"; nums += [r, r, 0, large ? 1 : 0, 1, x, y]
+            case .arc(let r, let large, let x, let y, _, _, _, _): letters += "A"; nums += [r, r, 0, large ? 1 : 0, 1, x, y]
             case .close: letters += "Z"
             }
         }

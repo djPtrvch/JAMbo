@@ -95,6 +95,31 @@ extension AppModel {
         return track.sample
     }
 
+    /// Значение ручки для окна синта и иконки: p-lock зажатого шага, при игре — играющего шага, иначе ручка дорожки
+    /// (как knobState).
+    func synthValue(_ p: ParamDef) -> Double {
+        let t = track
+        if let held = heldSteps.min() {
+            if let v = t.step(held)?.locks[p.id] { return v }
+        } else if playing {
+            let pos = openPlayPos
+            if pos >= 0, let v = t.step(pos)?.locks[p.id] { return v }
+        }
+        return t.params[p.id] ?? p.def
+    }
+
+    /// Значения иконки движка: ручки 1.1, 1.2, 1.3 и Decay 2.2 (0…1); ступенчатая — скачком по пункту.
+    func iconValues(_ engine: Int) -> IconValues {
+        let grid: [ParamDef] = Params.synthGrids[engine]
+        func norm(_ slot: Int) -> Double {
+            let p = grid[slot]
+            let n: Double = p.toNorm(synthValue(p))
+            if let s = p.steps { return (Double(Params.stepIndex(n, s)) + 0.5) / Double(s) }
+            return n
+        }
+        return IconValues(h: norm(0), t: norm(4), m: norm(8), d: norm(5))
+    }
+
     func sample(_ key: String) -> SampleData? {
         return key.isEmpty ? nil : store.data(key)
     }
