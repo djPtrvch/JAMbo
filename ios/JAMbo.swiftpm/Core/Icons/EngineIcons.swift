@@ -2,7 +2,8 @@ import Foundation
 
 // Иконки движков (стиль Ink): перенос src/engineIcons.ts веба (формы — как в вебе, включая перерисованные VA и
 // Chords). Поле 64×64; elements(engine, v) — элементы иконки по ручкам 1.1, 1.2, 1.3 и Decay (0…1).
-// Рисует UI (Canvas): один цвет темы, линия 1,4, скруглённые концы. Пока движки 0–7 (MI SYNTH).
+// Рисует UI (Canvas): один цвет темы, линия 1,4, скруглённые концы. Движки 0–7 (MI SYNTH) — здесь, 8–15 (MI DRUMS) —
+// в EngineIconsDrums.swift.
 
 /// Значения иконки 0…1: h — ручка 1.1, t — 1.2, m — 1.3, d — Decay 2.2; a — флаг a веба (у нас не задаётся).
 public struct IconValues: Equatable, Sendable {
@@ -32,6 +33,9 @@ public enum IconCmd: Equatable, Sendable {
     /// Дуга окружности радиуса r до (x, y), по часовой (sweep 1); large — больше 180°. Для рисования — центр
     /// и углы (градусы, от a0 к a1 по возрастанию).
     case arc(r: Double, large: Bool, x: Double, y: Double, cx: Double, cy: Double, a0: Double, a1: Double)
+    /// Относительная дуга эллипса «a rx ry 0 large sweep dx dy» — в иконках только половина эллипса (dy = 0,
+    /// |dx| = 2·rx): sweep false — против часовой на экране.
+    case arcBy(rx: Double, ry: Double, large: Bool, sweep: Bool, dx: Double, dy: Double)
     case close
 }
 
@@ -126,7 +130,7 @@ public enum EngineIcons {
     ]
     static let chordLabels = ["oct", "5", "sus4", "m", "m7", "m9", "m11", "6/9", "M9", "M7", "M"]
 
-    /// Элементы иконки движка (0–7); у других — пусто.
+    /// Элементы иконки движка (0–15); у других — пусто.
     public static func elements(_ engine: Int, _ v: IconValues) -> [IconElement] {
         switch engine {
         case 0: return va(v)
@@ -137,6 +141,14 @@ public enum EngineIcons {
         case 5: return wavetable(v)
         case 6: return chordIcon(v)
         case 7: return speech(v)
+        case 8: return swarm(v)
+        case 9: return noise(v)
+        case 10: return particle(v)
+        case 11: return string(v)
+        case 12: return modal(v)
+        case 13: return kick(v)
+        case 14: return snare(v)
+        case 15: return hiHat(v)
         default: return []
         }
     }

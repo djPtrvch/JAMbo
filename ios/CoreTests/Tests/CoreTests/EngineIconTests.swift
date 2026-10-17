@@ -1,7 +1,7 @@
 import XCTest
 @testable import Core
 
-/// Иконки движков 0–7 против эталона веба (ios/tools/icons/golden.mjs: SVG из src/engineIcons.ts).
+/// Иконки движков 0–15 против эталона веба (ios/tools/icons/golden.mjs: SVG из src/engineIcons.ts).
 /// Пути сравниваются по командам и числам: в вебе координаты округлены до 0,1 (toFixed), поэтому допуск 0,051.
 final class EngineIconTests: XCTestCase {
     private struct Golden: Decodable {
@@ -71,6 +71,8 @@ final class EngineIconTests: XCTestCase {
             case .hBy(let x): letters += "h"; nums.append(x)
             case .vBy(let y): letters += "v"; nums.append(y)
             case .arc(let r, let large, let x, let y, _, _, _, _): letters += "A"; nums += [r, r, 0, large ? 1 : 0, 1, x, y]
+            case .arcBy(let rx, let ry, let large, let sweep, let dx, let dy):
+                letters += "a"; nums += [rx, ry, 0, large ? 1 : 0, sweep ? 1 : 0, dx, dy]
             case .close: letters += "Z"
             }
         }
@@ -79,7 +81,7 @@ final class EngineIconTests: XCTestCase {
 
     func testIconsMatchWeb() throws {
         let cases = try JSONDecoder().decode([Golden].self, from: Data(contentsOf: EngineIconTests.goldenURL))
-        XCTAssertEqual(cases.count, 40)
+        XCTAssertEqual(cases.count, 80)
         for g in cases {
             let v = IconValues(h: g.v["h"] ?? 0.5, t: g.v["t"] ?? 0.5, m: g.v["m"] ?? 0.5, d: g.v["d"] ?? 0.5)
             let els = EngineIcons.elements(g.engine, v)

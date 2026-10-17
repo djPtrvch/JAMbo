@@ -126,6 +126,16 @@ struct SynthIcon: View {
                             startAngle: .degrees(a0), endAngle: .degrees(a1), clockwise: false)
                 x = CGFloat(ex) * k
                 y = CGFloat(ey) * k
+            case .arcBy(let rx, let ry, _, let sweep, let dx, _):
+                // Половина эллипса: центр — середина хорды; sweep false — угол убывает (против часовой на экране).
+                let cx: CGFloat = x + CGFloat(dx) * k / 2
+                let a0: Double = dx > 0 ? Double.pi : 0
+                let a1: Double = sweep ? a0 + Double.pi : a0 - Double.pi
+                for s in 1...24 {
+                    let a: Double = a0 + (a1 - a0) * Double(s) / 24
+                    path.addLine(to: CGPoint(x: cx + CGFloat(rx * cos(a)) * k, y: y + CGFloat(ry * sin(a)) * k))
+                }
+                x += CGFloat(dx) * k
             case .close:
                 path.closeSubpath()
             }

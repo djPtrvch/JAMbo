@@ -116,7 +116,7 @@ private struct SelfTestRow: View {
         let bands: String = String(format: "±%.3f dB", result.maxBandDiffDb)
         HStack(spacing: 12) {
             cell(name, 90, theme.text)
-            cell(result.file, 120, theme.dim)
+            cell(result.file, 150, theme.dim)
             cell(samples, 80, result.sampleErrorDb <= -60 ? theme.text : theme.dim)
             cell(bands, 90, result.maxBandDiffDb <= 0.5 ? theme.text : theme.dim)
             cell(result.ok ? "PASS" : "FAIL", 50, result.ok ? theme.text : theme.rec)

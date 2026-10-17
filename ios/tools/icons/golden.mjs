@@ -17,11 +17,13 @@ fs.writeFileSync(file, src);
 const { iconSvg } = await import(pathToFileURL(file).href);
 
 const SETS = [[0, 0, 0], [1, 1, 1], [0.5, 0.5, 0.5], [0.25, 0.75, 0.2], [0.8, 0.15, 0.85]];
+// Decay (d) — у движков 11–15 (у остальных не используется).
+const DECAYS = [0.5, 0, 1, 0.3, 0.9];
 const attr = (s, name) => { const m = s.match(new RegExp(` ${name}="([^"]*)"`)); return m ? m[1] : null; };
 const cases = [];
-for (let engine = 0; engine < 8; engine++) {
-  for (const [h, t, m] of SETS) {
-    const v = { h, t, m, d: 0.5 };
+for (let engine = 0; engine < 16; engine++) {
+  for (const [k, [h, t, m]] of SETS.entries()) {
+    const v = { h, t, m, d: DECAYS[k] };
     const svg = iconSvg(String(engine), v, 64);
     const els = [];
     for (const [, tag, body, text] of svg.matchAll(/<(path|circle|text)([^>]*?)(?:\/>|>([^<]*)<\/text>)/g)) {
