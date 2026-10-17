@@ -188,6 +188,12 @@ struct HysteresisQuantizer2 {
     return y
 }
 
+/// Денормалы в обратных связях (затухающие состояния) — в ноль: на x86 они в десятки раз медленнее.
+/// В оригинале нет (STM32 считает с flush-to-zero); порог 1e-20 ниже младшего бита Int16 на 300 dB.
+@inline(__always) func flushDenormal(_ x: inout Float) {
+    if abs(x) < 1e-20 { x = 0 }
+}
+
 /// Crossfade(a, b, fade).
 @inline(__always) func stmCrossfade(_ a: Float, _ b: Float, _ fade: Float) -> Float { a + (b - a) * fade }
 

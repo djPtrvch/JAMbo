@@ -5,6 +5,10 @@ import Foundation
 // через 8 мс. Plaits получает только триггер (первый кусок ноты), громкость — внешняя огибающая, как у сэмпла:
 // Attack (не меньше 2 мс) → удержание → Decay как Release. Движок → Post (усиление, < 0 — лимитер) → ±1 →
 // огибающая → Level → фильтр → Pan → шина дорожки (микшер — в Sampler). Куски по 24 отсчёта (BLOCK worklet).
+// Затухающие сами (STRING, MODAL, KICK, SNARE, HI-HAT): Morph Plaits — √(Decay / 4000 мс), ручка 1.3 — микс
+// OUT→AUX; огибающая только с атакой (без удержания и релиза), голос считается до тишины (не дольше 15 с), слот
+// занят до атаки + 0,3 с + 4·Decay; с атакой ≤ 2,5 мс в свободном слоте огибающая не обнуляется — хвост прошлой
+// ноты не обрывается скачком, ручки звука слота подстраиваются за ~1 мс.
 
 public final class SynthVoices {
     public static let perTrack = 6
@@ -23,10 +27,14 @@ public final class SynthVoices {
     let sr: Double
     let bank: SynthEngineBank
     // Таблицы для колбэка — указатели (Swift-массивы не читаем).
-    private let gains = UnsafeMutablePointer<Float>.allocate(capacity: 8)
+    static let engines = 16
+    private let gains = UnsafeMutablePointer<Float>.allocate(capacity: engines)
+    private let auxGainsP = UnsafeMutablePointer<Float>.allocate(capacity: engines)
+    /// 1 — движок затухает сам (SynthEngine.decay).
+    private let selfDecayE = UnsafeMutablePointer<UInt8>.allocate(capacity: engines)
     /// Точки harmonics по пункту (SPEECH: 3 точки), начиная с points[e * 4].
-    private let points = UnsafeMutablePointer<Float>.allocate(capacity: 8 * 4)
-    private let pointCount = UnsafeMutablePointer<Int>.allocate(capacity: 8)
+    private let points = UnsafeMutablePointer<Float>.allocate(capacity: engines * 4)
+    private let pointCount = UnsafeMutablePointer<Int>.allocate(capacity: engines)
 
     // Голос (по слоту: дорожка = слот / perTrack).
     let active = UnsafeMutablePointer<UInt8>.allocate(capacity: slots)
@@ -59,6 +67,12 @@ public final class SynthVoices {
     let coef = UnsafeMutablePointer<Biquad>.allocate(capacity: slots)
     let z = UnsafeMutablePointer<Float>.allocate(capacity: slots * 2)
     let limiter = UnsafeMutablePointer<StmLimiter>.allocate(capacity: slots)
+    let auxLimiter = UnsafeMutablePointer<StmLimiter>.allocate(capacity: slots)
+    /// Слот занят до (затухающие сами — атака + 0,3 с + 4·Decay; остальные — до stopAt).
+    let busyUntil = UnsafeMutablePointer<Int64>.allocate(capacity: slots)
+    /// Голос затухающего самого движка; keep — огибающая с 1 (без атаки), ручки звука — за ~1 мс.
+    let selfDecay = UnsafeMutablePointer<UInt8>.allocate(capacity: slots)
+    let keep = UnsafeMutablePointer<UInt8>.allocate(capacity: slots)
     let quiet = UnsafeMutablePointer<Int>.allocate(capacity: slots)
     let lockMask = UnsafeMutablePointer<UInt16>.allocate(capacity: slots)
     let lockVal = UnsafeMutablePointer<Float>.allocate(capacity: slots * VoiceParam.count)
@@ -79,21 +93,26 @@ public final class SynthVoices {
     private let outBuf = UnsafeMutablePointer<Float>.allocate(capacity: chunk)
     private let auxBuf = UnsafeMutablePointer<Float>.allocate(capacity: chunk)
 
-    /// Создаётся вне колбэка (≈ 100 голосов × 8 движков).
+    /// Создаётся вне колбэка (≈ 100 голосов × 16 движков).
     public init(resources: PlaitsResources, sampleRate: Double) {
         sr = sampleRate
         bank = SynthEngineBank(resources, count: SynthVoices.slots, perTrack: SynthVoices.perTrack)
-        gains.initialize(repeating: 1, count: 8)
-        points.initialize(repeating: 0, count: 8 * 4)
-        pointCount.initialize(repeating: 0, count: 8)
-        for e in 0..<Swift.min(8, SynthEngines.count) {
+        let ne = SynthVoices.engines
+        gains.initialize(repeating: 1, count: ne)
+        auxGainsP.initialize(repeating: 1, count: ne)
+        selfDecayE.initialize(repeating: 0, count: ne)
+        points.initialize(repeating: 0, count: ne * 4)
+        pointCount.initialize(repeating: 0, count: ne)
+        for e in 0..<Swift.min(ne, SynthEngines.count) {
             gains[e] = SynthVoices.outGains[e]
+            auxGainsP[e] = SynthVoices.auxGains[e]
+            selfDecayE[e] = SynthEngines.all[e].decay ? 1 : 0
             let pts = SynthEngines.all[e].harmPoints
             pointCount[e] = Swift.min(4, pts.count)
             for k in 0..<pointCount[e] { points[e * 4 + k] = pts[k] }
         }
         let s = SynthVoices.slots
-        for p in [active, fading, own, released, triggered, pActive, pOwn] as [UnsafeMutablePointer<UInt8>] {
+        for p in [active, fading, own, released, triggered, pActive, pOwn, selfDecay, keep] as [UnsafeMutablePointer<UInt8>] {
             p.initialize(repeating: 0, count: s)
         }
         for p in [trackId, note, serial, ftype, quiet, pNote] as [UnsafeMutablePointer<Int>] {
@@ -102,13 +121,16 @@ public final class SynthVoices {
         for p in [liveId, engine, slotEngine, pEngine, pLive] as [UnsafeMutablePointer<Int>] {
             p.initialize(repeating: -1, count: s)
         }
-        for p in [start, holdEnd, stopAt, pStart, pGate] as [UnsafeMutablePointer<Int64>] { p.initialize(repeating: 0, count: s) }
+        for p in [start, holdEnd, stopAt, pStart, pGate, busyUntil] as [UnsafeMutablePointer<Int64>] {
+            p.initialize(repeating: 0, count: s)
+        }
         fadeAt.initialize(repeating: Int64.max, count: s)
         for p in [attackF, decaySec, hz, qDb] as [UnsafeMutablePointer<Double>] { p.initialize(repeating: 0, count: s) }
         for p in [decayK, env, fadeK, fadeG, level, pan] as [UnsafeMutablePointer<Float>] { p.initialize(repeating: 0, count: s) }
         coef.initialize(repeating: Biquad(), count: s)
         z.initialize(repeating: 0, count: s * 2)
         limiter.initialize(repeating: StmLimiter(), count: s)
+        auxLimiter.initialize(repeating: StmLimiter(), count: s)
         lockMask.initialize(repeating: 0, count: s)
         pMask.initialize(repeating: 0, count: s)
         lockVal.initialize(repeating: 0, count: s * VoiceParam.count)
@@ -119,15 +141,17 @@ public final class SynthVoices {
     }
 
     deinit {
-        for p in [active, fading, own, released, triggered, pActive, pOwn] as [UnsafeMutablePointer<UInt8>] { p.deallocate() }
+        for p in [active, fading, own, released, triggered, pActive, pOwn, selfDecay, keep, selfDecayE]
+            as [UnsafeMutablePointer<UInt8>] { p.deallocate() }
         for p in [trackId, note, serial, ftype, quiet, pNote, liveId, engine, slotEngine, pEngine, pLive, next, pointCount]
             as [UnsafeMutablePointer<Int>] { p.deallocate() }
-        for p in [start, holdEnd, stopAt, pStart, pGate, fadeAt] as [UnsafeMutablePointer<Int64>] { p.deallocate() }
+        for p in [start, holdEnd, stopAt, pStart, pGate, fadeAt, busyUntil] as [UnsafeMutablePointer<Int64>] { p.deallocate() }
         for p in [attackF, decaySec, hz, qDb] as [UnsafeMutablePointer<Double>] { p.deallocate() }
-        for p in [decayK, env, fadeK, fadeG, level, pan, z, lockVal, pVal, outBuf, auxBuf, gains, points]
+        for p in [decayK, env, fadeK, fadeG, level, pan, z, lockVal, pVal, outBuf, auxBuf, gains, auxGainsP, points]
             as [UnsafeMutablePointer<Float>] { p.deallocate() }
         coef.deallocate()
         limiter.deallocate()
+        auxLimiter.deallocate()
         lockMask.deallocate()
         pMask.deallocate()
     }
@@ -170,7 +194,7 @@ public final class SynthVoices {
                 stopAt[v] = Swift.min(stopAt[v], pStart[v])
             } else {
                 pActive[v] = 0
-                setup(v, d, t, e, frame, n, gate, mask, vals, isOwn, live)
+                setup(v, d, t, e, frame, n, gate, mask, vals, isOwn, live, steal: false)
             }
         }
     }
@@ -183,7 +207,7 @@ public final class SynthVoices {
             let c = (next[t] + k) % pt
             let v = base + c
             if pActive[v] != 0 { continue }
-            if active[v] == 0 || stopAt[v] <= at {
+            if active[v] == 0 || Swift.min(stopAt[v], busyUntil[v]) <= at {
                 next[t] = (c + 1) % pt
                 return (v, false)
             }
@@ -194,12 +218,17 @@ public final class SynthVoices {
     }
 
     private func setup(_ v: Int, _ d: SoundData, _ t: Int, _ e: Int, _ frame: Int64, _ n: Int, _ gate: Int64,
-                       _ mask: UInt16, _ vals: UnsafePointer<Float>?, _ isOwn: Bool, _ live: Int) {
+                       _ mask: UInt16, _ vals: UnsafePointer<Float>?, _ isOwn: Bool, _ live: Int, steal: Bool) {
         if slotEngine[v] != e {
             bank.select(v, e)
             limiter[v].initialize()
+            auxLimiter[v].initialize()
             slotEngine[v] = e
         }
+        let decaying = selfDecayE[e] != 0
+        // Хвост прошлой ноты слота (тот же голос Plaits) не обрывается: огибающая с 1, ручки — за ~1 мс.
+        let wasActive = active[v] != 0
+        let keepEnv = decaying && !steal && pv(d, t, VoiceParam.attack, mask, vals) <= 2.5
         nextSerial += 1
         serial[v] = nextSerial
         active[v] = 1
@@ -220,10 +249,19 @@ public final class SynthVoices {
         attackF[v] = att
         decaySec[v] = decay
         decayK[v] = Float(exp(-1 / (Swift.max(0.005, decay / 4) * sr)))
-        if gate == Int64.max {
+        selfDecay[v] = decaying ? 1 : 0
+        keep[v] = keepEnv ? 1 : 0
+        if decaying {
+            // Удержания и релиза нет (физику движка не трогаем): голос — до тишины, не дольше 15 с.
+            holdEnd[v] = frame + Int64(att.rounded())
+            stopAt[v] = holdEnd[v] + Int64(15 * sr)
+            busyUntil[v] = holdEnd[v] + Int64((0.3 + 4 * decay) * sr)
+        } else if gate == Int64.max {
+            busyUntil[v] = Int64.max
             holdEnd[v] = Int64.max
             stopAt[v] = Int64.max
         } else {
+            busyUntil[v] = Int64.max
             let hold: Double = gate < 0 ? att : Swift.max(att, Double(gate))
             holdEnd[v] = frame + Int64(hold.rounded())
             stopAt[v] = holdEnd[v] + Int64((Swift.max(0.02, decay) * 2 + 0.05) * sr)
@@ -233,6 +271,8 @@ public final class SynthVoices {
         fadeAt[v] = Int64.max
         fadeG[v] = 1
         fadeK[v] = 1
+        // keep на звучащем хвосте: Level, Pan и фильтр слота не прыгают — подстраиваются в renderChunk.
+        if keepEnv && wasActive { return }
         level[v] = Float(pow(pv(d, t, VoiceParam.level, mask, vals) / 127, 1.5))
         pan[v] = Float(Swift.max(-1, Swift.min(1, pv(d, t, VoiceParam.pan, mask, vals) / 64)))
         let f = Biquad.knob(pv(d, t, VoiceParam.filter, mask, vals), reso: pv(d, t, VoiceParam.reso, mask, vals))
@@ -251,7 +291,7 @@ public final class SynthVoices {
         active[v] = 0
         if t >= d.trackCount { return }
         setup(v, d, t, pEngine[v], pStart[v], pNote[v], pGate[v], pMask[v], pVal + v * VoiceParam.count,
-              pOwn[v] != 0, pLive[v])
+              pOwn[v] != 0, pLive[v], steal: true)
     }
 
     private func fade(_ v: Int, at: Int64, tau: Double) {
@@ -388,21 +428,35 @@ public final class SynthVoices {
         let pc = pointCount[e]
         p.harmonics = pc > 0 ? points[e * 4 + Params.stepIndex(Double(h), pc)] : h
         p.timbre = Float(val(VoiceParam.timbre) / 100)
-        p.morph = Float(val(VoiceParam.morph) / 100)
+        let decaying = selfDecay[v] != 0
+        // Затухающие сами: Morph Plaits — от Decay (decayNorm веба), ручка 1.3 — доля AUX.
+        var auxMix: Float = 0
+        if decaying {
+            p.morph = Float(Swift.min(1, Swift.max(0, val(VoiceParam.decay) / 4000)).squareRoot())
+            auxMix = Float(Swift.min(1, Swift.max(0, val(VoiceParam.morph) / 100)))
+        } else {
+            p.morph = Float(val(VoiceParam.morph) / 100)
+        }
         p.note = Float(note[v])
         p.accent = SynthVoices.accent
         p.trigger = triggered[v] == 0 ? (triggerRisingEdge | triggerHigh) : triggerLow
         triggered[v] = 1
         bank.render(v, e, p, outBuf, auxBuf, m)
-        // Post (jambo_voices.cc): усиление, < 0 — лимитер; aux_mix 0 — только OUT; ±1.
+        // Post (jambo_voices.cc): усиление, < 0 — лимитер; микс OUT и AUX (aux_mix); ±1.
         var gain = gains[e]
         if gain < 0 {
             limiter[v].process(-gain, outBuf, m)
             gain = 1
         }
+        var auxGain = auxGainsP[e]
+        if auxGain < 0 {
+            auxLimiter[v].process(-auxGain, auxBuf, m)
+            auxGain = 1
+        }
         var peak: Float = 0
         for j in 0..<m {
-            let x = Swift.min(1, Swift.max(-1, outBuf[j] * gain))
+            let mixed = outBuf[j] * gain * (1 - auxMix) + auxBuf[j] * auxGain * auxMix
+            let x = Swift.min(1, Swift.max(-1, mixed))
             outBuf[j] = x
             peak = Swift.max(peak, abs(x))
         }
@@ -419,8 +473,10 @@ public final class SynthVoices {
             ftype[v] = fk.type
             hz[v] = fk.hz
         }
-        let ks: Double = 1 - exp(-Double(m) / (0.01 * sr))
-        let kf: Double = 1 - exp(-Double(m) / (0.015 * sr))
+        // keep: ручки слота на звучащем хвосте подстраиваются за ~1 мс (первые 10 мс ноты).
+        let fast = keep[v] != 0 && frame0 - start[v] < Int64(0.01 * sr)
+        let ks: Double = 1 - exp(-Double(m) / ((fast ? 0.001 : 0.01) * sr))
+        let kf: Double = 1 - exp(-Double(m) / ((fast ? 0.001 : 0.015) * sr))
         level[v] += (levelT - level[v]) * Float(ks)
         pan[v] += (panT - pan[v]) * Float(ks)
         let h0 = hz[v]
@@ -445,7 +501,14 @@ public final class SynthVoices {
             }
             // Огибающая: атака линейно, удержание, затем Decay как Release (экспонента, τ = Decay/4).
             var g: Float
-            if frame >= holdEnd[v] {
+            if keep[v] != 0 {
+                // Затухающий сам с короткой атакой: огибающая не обнуляется.
+                g = 1
+            } else if decaying {
+                // Только атака, дальше 1 — затухает сам движок.
+                let tt = Double(frame - start[v])
+                g = tt < attackF[v] ? Float(tt / attackF[v]) : 1
+            } else if frame >= holdEnd[v] {
                 if released[v] == 0 {
                     released[v] = 1
                     let tt = Double(frame - start[v])

@@ -163,6 +163,9 @@ final class HiHat {
 
         hpf.setFQ(cutoff, 0.5, .accurate)
         hpf.process(out, out, size, .highPass)
+        flushDenormal(&envelope)
+        noiseColorationSvf.flush()
+        hpf.flush()
     }
 }
 

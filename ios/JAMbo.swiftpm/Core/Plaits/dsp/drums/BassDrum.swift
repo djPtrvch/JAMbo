@@ -107,6 +107,13 @@ struct AnalogBassDrum {
             out[i] = toneLp
         }
         sustainGain = sustainGainMod.value
+        flushDenormal(&pulse)
+        flushDenormal(&pulseLp)
+        flushDenormal(&fmPulseLp)
+        flushDenormal(&retrigPulse)
+        flushDenormal(&lpOut)
+        flushDenormal(&toneLp)
+        resonator.flush()
     }
 }
 
@@ -247,5 +254,15 @@ struct SyntheticBassDrum {
         }
         f0 = f0Mod.value
         sustainGain = sustainGainMod.value
+        flushDenormal(&fm)
+        flushDenormal(&fmLp)
+        flushDenormal(&bodyEnv)
+        flushDenormal(&bodyEnvLp)
+        flushDenormal(&transientEnv)
+        flushDenormal(&transientEnvLp)
+        flushDenormal(&toneLp)
+        flushDenormal(&clickLp)
+        flushDenormal(&clickHp)
+        clickFilter.flush()
     }
 }

@@ -1,8 +1,10 @@
 // Движки синта (как SYNTH_ENGINES, synthKey, synthEngine в src/params.ts веба): звук дорожки или шага «mi:<n>».
-// Пока MI SYNTH — Plaits 0–7; MI DRUMS (8–15) и свои движки (16–19) — S3b.
+// MI SYNTH — Plaits 0–7, MI DRUMS — Plaits 8–15; свои движки (16–19) — S3b.
 
 /// Движок: короткое имя (меню), полное (окно синта), подписи ручек 1.1–1.3, пункты Harmonics и точки harmonics
 /// для Plaits по пункту (SPEECH: Formant, Phoneme, LPC — 0, 1/6, 1/3; Words отключён).
+/// decay — затухает сам (STRING, MODAL, KICK, SNARE, HI-HAT): Morph Plaits — от ручки Decay, ручка 1.3 — OUT→AUX,
+/// огибающая дорожки только с атакой.
 public struct SynthEngine: Sendable {
     public let name: String
     public let full: String
@@ -11,6 +13,7 @@ public struct SynthEngine: Sendable {
     public let morph: String
     public let options: [String]
     public let harmPoints: [Float]
+    public var decay = false
 }
 
 public enum SynthEngines {
@@ -31,7 +34,26 @@ public enum SynthEngines {
                     options: ["oct", "5", "sus4", "m", "m7", "m9", "m11", "6/9", "M9", "M7", "M"], harmPoints: []),
         SynthEngine(name: "SPEECH", full: "Vowel & speech", harm: "mode", timbre: "species", morph: "phoneme",
                     options: ["Formant", "Phoneme", "LPC"], harmPoints: [0, 0.16666667, 0.33333334]),
+        SynthEngine(name: "SWARM", full: "Granular cloud", harm: "pitch spread", timbre: "density",
+                    morph: "grain length", options: [], harmPoints: []),
+        SynthEngine(name: "NOISE", full: "Filtered noise", harm: "LP→BP→HP", timbre: "clock freq",
+                    morph: "resonance", options: [], harmPoints: []),
+        SynthEngine(name: "PARTICLE", full: "Particle noise", harm: "freq spread", timbre: "density",
+                    morph: "all-pass→band-pass", options: [], harmPoints: []),
+        SynthEngine(name: "STRING", full: "Inharmonic string", harm: "material (inharmonicity)",
+                    timbre: "excitation brightness", morph: "OUT→AUX", options: [], harmPoints: [], decay: true),
+        SynthEngine(name: "MODAL", full: "Modal resonator", harm: "material", timbre: "brightness & dust",
+                    morph: "OUT→AUX", options: [], harmPoints: [], decay: true),
+        SynthEngine(name: "KICK", full: "Analog bass drum", harm: "attack & overdrive", timbre: "brightness",
+                    morph: "OUT→AUX", options: [], harmPoints: [], decay: true),
+        SynthEngine(name: "SNARE", full: "Analog snare", harm: "harmonics↔noise", timbre: "mode balance",
+                    morph: "OUT→AUX", options: [], harmPoints: [], decay: true),
+        SynthEngine(name: "HI-HAT", full: "Analog hi-hat", harm: "metal↔noise", timbre: "HPF cutoff",
+                    morph: "OUT→AUX", options: [], harmPoints: [], decay: true),
     ]
+
+    /// Первый движок MI DRUMS (Plaits 8–15).
+    public static let firstDrum = 8
 
     public static var count: Int { return all.count }
 

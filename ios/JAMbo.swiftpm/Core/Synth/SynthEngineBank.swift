@@ -1,5 +1,5 @@
 // Ported from Mutable Instruments Plaits and stmlib (MIT), Copyright Emilie Gillet.
-// Движки Plaits голосов синта (как слоты jambo_voices.cc: у каждого голоса свои 8 движков, смена движка —
+// Движки Plaits голосов синта (как слоты jambo_voices.cc: у каждого голоса свои 16 движков, смена движка —
 // LoadUserData и Reset). Создаются вне колбэка; в колбэке — вызовы по номеру через switch (без коллекций).
 
 final class SynthEngineBank {
@@ -12,6 +12,14 @@ final class SynthEngineBank {
     private let wavetable: UnsafeMutablePointer<WavetableEngine>
     private let chord: UnsafeMutablePointer<ChordEngine>
     private let speech: UnsafeMutablePointer<SpeechEngine>
+    private let swarm: UnsafeMutablePointer<SwarmEngine>
+    private let noise: UnsafeMutablePointer<NoiseEngine>
+    private let particle: UnsafeMutablePointer<ParticleEngine>
+    private let string: UnsafeMutablePointer<StringEngine>
+    private let modal: UnsafeMutablePointer<ModalEngine>
+    private let bassDrum: UnsafeMutablePointer<BassDrumEngine>
+    private let snareDrum: UnsafeMutablePointer<SnareDrumEngine>
+    private let hiHat: UnsafeMutablePointer<HiHatEngine>
     /// Генератор шума stmlib: в вебе — один на экземпляр wasm (дорожку); здесь — на дорожку.
     private let randoms: [StmRandom]
 
@@ -28,6 +36,14 @@ final class SynthEngineBank {
         wavetable = .allocate(capacity: count)
         chord = .allocate(capacity: count)
         speech = .allocate(capacity: count)
+        swarm = .allocate(capacity: count)
+        noise = .allocate(capacity: count)
+        particle = .allocate(capacity: count)
+        string = .allocate(capacity: count)
+        modal = .allocate(capacity: count)
+        bassDrum = .allocate(capacity: count)
+        snareDrum = .allocate(capacity: count)
+        hiHat = .allocate(capacity: count)
         for v in 0..<count {
             (va + v).initialize(to: VirtualAnalogEngine(resources: r))
             (ws + v).initialize(to: WaveshapingEngine(resources: r))
@@ -36,7 +52,16 @@ final class SynthEngineBank {
             (additive + v).initialize(to: AdditiveEngine(resources: r))
             (wavetable + v).initialize(to: WavetableEngine(resources: r))
             (chord + v).initialize(to: ChordEngine(resources: r))
-            (speech + v).initialize(to: SpeechEngine(resources: r, random: randoms[v / perTrack]))
+            let random = randoms[v / perTrack]
+            (speech + v).initialize(to: SpeechEngine(resources: r, random: random))
+            (swarm + v).initialize(to: SwarmEngine(resources: r, random: random))
+            (noise + v).initialize(to: NoiseEngine(resources: r, random: random))
+            (particle + v).initialize(to: ParticleEngine(resources: r, random: random))
+            (string + v).initialize(to: StringEngine(resources: r, random: random))
+            (modal + v).initialize(to: ModalEngine(resources: r, random: random))
+            (bassDrum + v).initialize(to: BassDrumEngine(resources: r, random: random))
+            (snareDrum + v).initialize(to: SnareDrumEngine(resources: r, random: random))
+            (hiHat + v).initialize(to: HiHatEngine(resources: r, random: random))
         }
     }
 
@@ -49,6 +74,14 @@ final class SynthEngineBank {
         wavetable.deinitialize(count: count); wavetable.deallocate()
         chord.deinitialize(count: count); chord.deallocate()
         speech.deinitialize(count: count); speech.deallocate()
+        swarm.deinitialize(count: count); swarm.deallocate()
+        noise.deinitialize(count: count); noise.deallocate()
+        particle.deinitialize(count: count); particle.deallocate()
+        string.deinitialize(count: count); string.deallocate()
+        modal.deinitialize(count: count); modal.deallocate()
+        bassDrum.deinitialize(count: count); bassDrum.deallocate()
+        snareDrum.deinitialize(count: count); snareDrum.deallocate()
+        hiHat.deinitialize(count: count); hiHat.deallocate()
     }
 
     /// Выбор движка e в голосе v (set() в jambo_voices.cc): LoadUserData(nullptr), затем Reset.
@@ -62,7 +95,15 @@ final class SynthEngineBank {
         case 4: additive[v].loadUserData(); additive[v].reset()
         case 5: wavetable[v].loadUserData(); wavetable[v].reset()
         case 6: chord[v].loadUserData(); chord[v].reset()
-        default: speech[v].loadUserData(); speech[v].reset()
+        case 7: speech[v].loadUserData(); speech[v].reset()
+        case 8: swarm[v].loadUserData(); swarm[v].reset()
+        case 9: noise[v].loadUserData(); noise[v].reset()
+        case 10: particle[v].loadUserData(); particle[v].reset()
+        case 11: string[v].loadUserData(); string[v].reset()
+        case 12: modal[v].loadUserData(); modal[v].reset()
+        case 13: bassDrum[v].loadUserData(); bassDrum[v].reset()
+        case 14: snareDrum[v].loadUserData(); snareDrum[v].reset()
+        default: hiHat[v].loadUserData(); hiHat[v].reset()
         }
     }
 
@@ -78,7 +119,15 @@ final class SynthEngineBank {
         case 4: additive[v].render(p, out, aux, n, &enveloped)
         case 5: wavetable[v].render(p, out, aux, n, &enveloped)
         case 6: chord[v].render(p, out, aux, n, &enveloped)
-        default: speech[v].render(p, out, aux, n, &enveloped)
+        case 7: speech[v].render(p, out, aux, n, &enveloped)
+        case 8: swarm[v].render(p, out, aux, n, &enveloped)
+        case 9: noise[v].render(p, out, aux, n, &enveloped)
+        case 10: particle[v].render(p, out, aux, n, &enveloped)
+        case 11: string[v].render(p, out, aux, n, &enveloped)
+        case 12: modal[v].render(p, out, aux, n, &enveloped)
+        case 13: bassDrum[v].render(p, out, aux, n, &enveloped)
+        case 14: snareDrum[v].render(p, out, aux, n, &enveloped)
+        default: hiHat[v].render(p, out, aux, n, &enveloped)
         }
     }
 }

@@ -69,6 +69,9 @@ final class NoiseEngine: PlaitsEngine {
         previousF1 = f1Modulation.value
         previousQ = qModulation.value
         previousMode = modeModulation.value
+        lpHpFilter.flush()
+        bpFilter0.flush()
+        bpFilter1.flush()
     }
 }
 
@@ -126,6 +129,7 @@ final class ParticleEngine: PlaitsEngine {
 
         postFilter.setFQ(min(f0, 0.49), 0.5, .dirty)
         postFilter.process(out, out, size, .lowPass)
+        postFilter.flush()
 
         diffuser.process(0.8 * diffusion * diffusion, 0.5 * diffusion + 0.25, out, size)
     }

@@ -23,7 +23,8 @@ struct DelayLine {
     }
 
     @inline(__always) mutating func write(_ sample: Float) {
-        line[writePtr] = sample
+        // Денормалы не копятся в кольце (затухающая струна).
+        line[writePtr] = abs(sample) < 1e-20 ? 0 : sample
         writePtr = (writePtr - 1 + maxDelay) & mask
     }
 

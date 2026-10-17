@@ -135,6 +135,11 @@ final class AnalogSnareDrum {
             out[n] = noise + shell * (1 - snappy)
         }
         sustainGain = sustainGainMod.value
+        flushDenormal(&pulse)
+        flushDenormal(&pulseLp)
+        flushDenormal(&noiseEnvelope)
+        for i in 0..<kSnareNumModes { resonator[i].flush() }
+        noiseFilter.flush()
     }
 }
 
@@ -256,5 +261,11 @@ struct SyntheticSnareDrum {
             out[i] = snare + drum
         }
         sustainGain = sustainGainMod.value
+        flushDenormal(&drumAmplitude)
+        flushDenormal(&snareAmplitude)
+        flushDenormal(&fm)
+        drumLp.flush()
+        snareHp.flush()
+        snareLp.flush()
     }
 }

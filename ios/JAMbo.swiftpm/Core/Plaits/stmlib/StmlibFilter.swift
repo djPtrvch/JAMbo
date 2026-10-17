@@ -48,6 +48,8 @@ struct OnePole {
         gi = 1 / (1 + g)
     }
 
+    @inline(__always) mutating func flush() { flushDenormal(&state) }
+
     @inline(__always) mutating func process(_ input: Float, _ mode: FilterMode) -> Float {
         let lp = (g * input + state) * gi
         state = g * (input - lp) + lp
@@ -72,6 +74,11 @@ struct Svf {
         g = filterTan(f, approximation)
         r = 1 / resonance
         h = 1 / (1 + r * g + g * g)
+    }
+
+    @inline(__always) mutating func flush() {
+        flushDenormal(&state1)
+        flushDenormal(&state2)
     }
 
     @inline(__always) mutating func setGR(_ g: Float, _ r: Float) {
@@ -187,6 +194,11 @@ struct DCBlocker {
         x = 0
         y = 0
         self.pole = pole
+    }
+
+    @inline(__always) mutating func flush() {
+        flushDenormal(&x)
+        flushDenormal(&y)
     }
 
     @inline(__always) mutating func process(_ s: Float) -> Float {

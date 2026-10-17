@@ -148,6 +148,12 @@ final class PlaitsString {
             out[i] += stmCrossfade(outSample1, outSample0, srcPhase)
         }
         self.delay = delayModulation.value
+        flushDenormal(&dispersionNoise)
+        flushDenormal(&curvedBridge)
+        flushDenormal(&outSample0)
+        flushDenormal(&outSample1)
+        iirDampingFilter.flush()
+        dcBlocker.flush()
     }
 }
 
@@ -207,6 +213,7 @@ final class StringVoice {
         }
 
         excitationFilter.process(temp, temp, size, .lowPass)
+        excitationFilter.flush()
         for i in 0..<size { aux[i] += temp[i] }
 
         let nonLinearity: Float = structure < 0.24

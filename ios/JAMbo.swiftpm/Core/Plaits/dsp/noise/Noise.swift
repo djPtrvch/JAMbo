@@ -90,5 +90,6 @@ struct Particle {
             out[i] += filter.process(preGain * s, .bandPass)
             u = random.getFloat()
         }
+        filter.flush()
     }
 }

@@ -99,6 +99,7 @@ final class Diffuser {
             inOut[i] += amount * (wet - inOut[i])
         }
         lpDecay = lp
+        flushDenormal(&lpDecay)
     }
 }
 

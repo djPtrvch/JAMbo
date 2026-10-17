@@ -7,7 +7,8 @@ final class SynthTests: XCTestCase {
         XCTAssertEqual(SynthKey.key(6), "mi:6")
         XCTAssertEqual(SynthKey.engine("mi:0"), 0)
         XCTAssertEqual(SynthKey.engine("mi:7"), 7)
-        XCTAssertNil(SynthKey.engine("mi:8"))
+        XCTAssertEqual(SynthKey.engine("mi:15"), 15)
+        XCTAssertNil(SynthKey.engine("mi:16"))
         XCTAssertNil(SynthKey.engine("mi:x"))
         XCTAssertNil(SynthKey.engine(""))
         XCTAssertNil(SynthKey.engine("3f2a9c"))
@@ -29,6 +30,11 @@ final class SynthTests: XCTestCase {
         XCTAssertEqual(ch.format(ch.fromNorm(0.4)), "m7")
         XCTAssertEqual(ch.fromNorm(0), 100.0 / 22, accuracy: 1e-9)
         XCTAssertEqual(Params.grid(sound: "mi:7")[0].format(50), "Phoneme")
+        // MI DRUMS: 11–15 — ручка 1.3 «OUT→AUX», затухают сами.
+        XCTAssertEqual(Params.grid(sound: "mi:13")[0].label, "Attack & overdrive")
+        XCTAssertEqual(Params.grid(sound: "mi:13")[8].label, "OUT→AUX")
+        XCTAssertEqual(Params.grid(sound: "mi:8")[8].label, "Grain length")
+        XCTAssertEqual(SynthEngines.all.filter(\.decay).map(\.name), ["STRING", "MODAL", "KICK", "SNARE", "HI-HAT"])
     }
 
     func testDefaultsAndSetSynth() {
@@ -184,5 +190,88 @@ final class SynthTests: XCTestCase {
         print(String(format: "synth load: 48 voices — %.1f%% of one core", load * 100))
         XCTAssertEqual(c.sampler.synth?.activeCount, 48)
         XCTAssertFalse(x.contains { !$0.isFinite })
+    }
+
+    /// Нагрузка MI DRUMS: 8 дорожек × 6 голосов движков 8–15 (Decay 4000 мс — звучат всю секунду).
+    func testLoad48DrumVoices() throws {
+        var p = Project()
+        for t in 0..<8 {
+            p.tracks[t].setSynth(8 + t)
+            p.tracks[t].params["decay"] = 4000
+        }
+        let c = try core(p)
+        for t in 0..<8 {
+            for k in 0..<6 { c.events.push(.noteOn(track: t, note: 36 + k * 5, id: t * 10 + k, velocity: 1)) }
+        }
+        let t0 = Date()
+        let x = render(c, frames: 48000)
+        let load = Date().timeIntervalSince(t0)
+        print(String(format: "drum load: 48 voices — %.1f%% of one core", load * 100))
+        XCTAssertFalse(x.contains { !$0.isFinite })
+    }
+
+    // MARK: — MI DRUMS (#42)
+
+    private func peak(_ x: [Float], _ from: Int, _ to: Int) -> Float {
+        var m: Float = 0
+        for i in from..<to { m = max(m, abs(x[i])) }
+        return m
+    }
+
+    /// KICK затухает сам: живая нота держится, а звук гаснет по Decay; голос замолкает по тишине.
+    func testKickDecaysWhileHeld() throws {
+        let c = try core(synthProject(13, ["decay": 300]))
+        c.events.push(.noteOn(track: 0, note: 36, id: 1, velocity: 1))
+        let x = render(c, frames: 96000)
+        let hit = peak(x, 0, 4800)
+        XCTAssertGreaterThan(hit, 0.05)
+        XCTAssertLessThan(peak(x, 72000, 96000), hit * 0.01, "клавиша держится, но бочка затухла")
+        XCTAssertFalse(x.contains { !$0.isFinite })
+        c.events.push(.noteOff(track: 0, id: 1))
+        _ = render(c, frames: 24000)
+        XCTAssertEqual(c.sampler.synth?.activeCount, 0)
+    }
+
+    /// Decay → Morph Plaits: длинный Decay — хвост громче.
+    func testDecayKnobSetsLength() throws {
+        func tail(_ decay: Double) throws -> Float {
+            let c = try core(synthProject(13, ["decay": decay]))
+            c.events.push(.noteOn(track: 0, note: 36, id: 1, velocity: 1))
+            return rms(render(c, frames: 48000), 24000, 2400)
+        }
+        let short = try tail(100), long = try tail(4000)
+        XCTAssertGreaterThan(long, short * 10)
+    }
+
+    /// Ручка 1.3 у KICK — OUT→AUX: 0 — бочка 808 (OUT), 100 — синтетическая (AUX); 50 — смесь.
+    func testOutToAux() throws {
+        func hit(_ morph: Double) throws -> [Float] {
+            let c = try core(synthProject(13, ["morph": morph, "decay": 500]))
+            c.events.push(.noteOn(track: 0, note: 36, id: 1, velocity: 1))
+            return render(c, frames: 9600)
+        }
+        let out = try hit(0), aux = try hit(100), mix = try hit(50)
+        XCTAssertGreaterThan(peak(out, 0, 9600), 0.05)
+        XCTAssertGreaterThan(peak(aux, 0, 9600), 0.05)
+        var diff: Float = 0, mixErr: Float = 0
+        for i in 0..<9600 {
+            diff = max(diff, abs(out[i] - aux[i]))
+            mixErr = max(mixErr, abs(mix[i] - (out[i] + aux[i]) / 2))
+        }
+        XCTAssertGreaterThan(diff, 0.05, "OUT и AUX — разные бочки")
+        XCTAssertLessThan(mixErr, 1e-3, "50 % — половина OUT и половина AUX")
+    }
+
+    /// Все MI DRUMS звучат и без NaN (ноты 36 и 60, ручки по умолчанию).
+    func testAllDrumsSound() throws {
+        for e in 8..<16 {
+            for n in [36, 60] {
+                let c = try core(synthProject(e))
+                c.events.push(.noteOn(track: 0, note: n, id: 1, velocity: 1))
+                let x = render(c, frames: 24000)
+                XCTAssertFalse(x.contains { !$0.isFinite }, "\(SynthEngines.all[e].name) \(n)")
+                XCTAssertGreaterThan(peak(x, 0, 24000), 0.01, "\(SynthEngines.all[e].name) \(n)")
+            }
+        }
     }
 }

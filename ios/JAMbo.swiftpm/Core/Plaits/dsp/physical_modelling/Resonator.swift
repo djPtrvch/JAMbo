@@ -39,6 +39,8 @@ func resonatorSvfProcess(_ batch: Int, _ state1: UnsafeMutablePointer<Float>, _ 
     for i in 0..<batch {
         state1[i] = s1[i]
         state2[i] = s2[i]
+        flushDenormal(&state1[i])
+        flushDenormal(&state2[i])
     }
 }
 
