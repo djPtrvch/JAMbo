@@ -51,19 +51,80 @@ final class NoiseEngine: PlaitsEngine {
         var qModulation = ParameterInterpolator(previousQ, qTarget, size)
         var modeModulation = ParameterInterpolator(previousMode, parameters.harmonics, size)
 
-        for i in 0..<size {
-            let f0 = f0Modulation.next()
-            let f1 = f1Modulation.next()
-            let q = qModulation.next()
+        // Без вызовов на каждом отсчёте: интерполяторы, Svf.setFQ(.accurate) (у ФНЧ/ФВЧ и первого полосового — одни
+        // и те же f0 и q, коэффициенты считаются один раз) и шаги фильтров развёрнуты в том же порядке операций —
+        // в отладочной сборке (Playgrounds) вызовы дороже арифметики.
+        let piF = Float.pi
+        let accA = FilterK.accA, accB = FilterK.accB, accC = FilterK.accC, accD = FilterK.accD, accE = FilterK.accE
+        var vF0 = f0Modulation.value, vF1 = f1Modulation.value, vQ = qModulation.value, vMode = modeModulation.value
+        let iF0 = f0Modulation.increment, iF1 = f1Modulation.increment
+        let iQ = qModulation.increment, iMode = modeModulation.increment
+        var m1 = lpHpFilter.state1, m2 = lpHpFilter.state2
+        var p1 = bpFilter0.state1, p2 = bpFilter0.state2
+        var q1 = bpFilter1.state1, q2 = bpFilter1.state2
+        var g0: Float = 0, g1: Float = 0, rr: Float = 0, h0: Float = 0, h1: Float = 0
+        var i = 0
+        while i < size {
+            vF0 += iF0
+            vF1 += iF1
+            vQ += iQ
+            let f0 = vF0, f1 = vF1, q = vQ
             let gain = 1 / ((0.5 + q) * 40 * f0).squareRoot()
-            lpHpFilter.setFQ(f0, q, .accurate)
-            bpFilter0.setFQ(f0, q, .accurate)
-            bpFilter1.setFQ(f1, q, .accurate)
+            // tan<FREQUENCY_ACCURATE>(f): f · (π + f²(a + f²(b + f²(c + f²(d + f²·e))))).
+            let f0s = f0 * f0
+            g0 = f0 * (piF + f0s * (accA + f0s * (accB + f0s * (accC + f0s * (accD + f0s * accE)))))
+            let f1s = f1 * f1
+            g1 = f1 * (piF + f1s * (accA + f1s * (accB + f1s * (accC + f1s * (accD + f1s * accE)))))
+            rr = 1 / q
+            h0 = 1 / (1 + rr * g0 + g0 * g0)
+            h1 = 1 / (1 + rr * g1 + g1 * g1)
 
-            var input1 = aux[i] * gain
+            let input1 = aux[i] * gain
             let input2 = tempBuffer[i] * gain
-            lpHpFilter.processMultimodeLPtoHP(&input1, out + i, 1, modeModulation.next())
-            aux[i] = bpFilter0.process(input1, .bandPass) + bpFilter1.process(input2, .bandPass)
+            // ProcessMultimodeLPtoHP.
+            vMode += iMode
+            let mode = vMode
+            let hx = -mode * 2 + 1
+            let hpGain: Float = 0 < hx ? 0 : hx
+            let dm = mode - 0.5
+            let bpGain = 1 - 2 * (dm < 0 ? -dm : dm)
+            let lx = 1 - mode * 2
+            let lpGain: Float = 0 >= lx ? 0 : lx
+            let mhp = (input1 - rr * m1 - g0 * m1 - m2) * h0
+            let mbp = g0 * mhp + m1
+            m1 = g0 * mhp + mbp
+            let mlp = g0 * mbp + m2
+            m2 = g0 * mbp + mlp
+            out[i] = hpGain * mhp + bpGain * mbp + lpGain * mlp
+            // Два полосовых.
+            let php = (input1 - rr * p1 - g0 * p1 - p2) * h0
+            let pbp = g0 * php + p1
+            p1 = g0 * php + pbp
+            let plp = g0 * pbp + p2
+            p2 = g0 * pbp + plp
+            let qhp = (input2 - rr * q1 - g1 * q1 - q2) * h1
+            let qbp = g1 * qhp + q1
+            q1 = g1 * qhp + qbp
+            let qlp = g1 * qbp + q2
+            q2 = g1 * qbp + qlp
+            aux[i] = pbp + qbp
+            i += 1
+        }
+        f0Modulation.value = vF0
+        f1Modulation.value = vF1
+        qModulation.value = vQ
+        modeModulation.value = vMode
+        lpHpFilter.state1 = m1
+        lpHpFilter.state2 = m2
+        bpFilter0.state1 = p1
+        bpFilter0.state2 = p2
+        bpFilter1.state1 = q1
+        bpFilter1.state2 = q2
+        if size > 0 {
+            // Коэффициенты — как после последнего setFQ (Svf хранит их).
+            lpHpFilter.setGR(g0, rr)
+            bpFilter0.setGR(g0, rr)
+            bpFilter1.setGR(g1, rr)
         }
         previousF0 = f0Modulation.value
         previousF1 = f1Modulation.value

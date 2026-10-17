@@ -100,78 +100,132 @@ final class PlaitsString {
 
         // Состояние — в локальных переменных на время блока: в отладочной сборке (Playgrounds) каждый вызов метода
         // структуры-свойства класса в цикле — проверка доступа, STRING перегружал процессор.
-        var string = self.string, stretch = self.stretch
-        var iirDampingFilter = self.iirDampingFilter, dcBlocker = self.dcBlocker
-        var dispersionNoise = self.dispersionNoise, curvedBridge = self.curvedBridge
-        var srcPhase = self.srcPhase, outSample0 = self.outSample0, outSample1 = self.outSample1
-        let random = self.random
+        // Линии задержки (Read, ReadHermite, Write, Allpass), DC-блокер, ФНЧ затухания, шум, интерполятор задержки —
+        // развёрнуты, в том же порядке операций; состояние — в локальных переменных на блок.
+        let sLine = string.line, sMask = string.mask, sMax = string.maxDelay
+        var sWp = string.writePtr
+        let tLine = stretch.line, tMask = stretch.mask, tMax = stretch.maxDelay
+        var tWp = stretch.writePtr
+        let fg = iirDampingFilter.g, fr = iirDampingFilter.r, fh = iirDampingFilter.h
+        var fs1 = iirDampingFilter.state1, fs2 = iirDampingFilter.state2
+        let dcPole = dcBlocker.pole
+        var dcX = dcBlocker.x, dcY = dcBlocker.y
+        var lNoise = dispersionNoise, lBridge = curvedBridge
+        var lSrc = srcPhase, lOut0 = outSample0, lOut1 = outSample1
+        var dVal = delayModulation.value
+        let dInc = delayModulation.increment
+        var rnd = random.state
         var i = 0
         while i < size {
-            srcPhase += srcRatio
-            if srcPhase > 1 {
-                srcPhase -= 1
+            lSrc += srcRatio
+            if lSrc > 1 {
+                lSrc -= 1
 
-                var d = delayModulation.next()
+                dVal += dInc
+                var d = dVal
                 var s: Float = 0
 
                 if dispersion {
-                    let noise = random.getFloat() - 0.5
-                    onePole(&dispersionNoise, noise, noiseFilter)
-                    d *= 1 + dispersionNoise * noiseAmount
+                    rnd = rnd &* 1664525 &+ 1013904223
+                    let noise = Float(rnd) / 4294967296.0 - 0.5
+                    lNoise += noiseFilter * (noise - lNoise)
+                    d *= 1 + lNoise * noiseAmount
                 } else {
-                    d *= 1 - curvedBridge * bridgeCurving
+                    d *= 1 - lBridge * bridgeCurving
                 }
 
+                var hermite = true
                 if dispersion {
                     let apDelay = d * stretchPoint
                     let mainDelay = d - apDelay * (0.408 - stretchPoint * 0.308) * stretchCorrection
                     if apDelay >= 4 && mainDelay >= 4 {
-                        s = string.read(mainDelay)
-                        // Allpass(s, size_t delay, …): задержка отбрасывает дробную часть.
-                        s = stretch.allpass(s, stmInt(apDelay), apGain)
-                    } else {
-                        s = string.readHermite(d)
+                        hermite = false
+                        // string_.Read(mainDelay).
+                        let mi = (mainDelay > -2147483648 && mainDelay < 2147483648) ? Int(mainDelay) : 0
+                        let mf = mainDelay - Float(mi)
+                        let ma = sLine[(sWp + mi) & sMask]
+                        let mb = sLine[(sWp + mi + 1) & sMask]
+                        s = ma + (mb - ma) * mf
+                        // stretch_.Allpass(s, size_t(apDelay), apGain).
+                        let ai = (apDelay > -2147483648 && apDelay < 2147483648) ? Int(apDelay) : 0
+                        let read = tLine[(tWp + ai) & tMask]
+                        let w = s + apGain * read
+                        tLine[tWp] = (w < 0 ? -w : w) < 1e-20 ? 0 : w
+                        tWp = (tWp - 1 + tMax) & tMask
+                        s = -w * apGain + read
                     }
-                } else {
-                    s = string.readHermite(d)
+                }
+                if hermite {
+                    // string_.ReadHermite(d).
+                    let hi = (d > -2147483648 && d < 2147483648) ? Int(d) : 0
+                    let f = d - Float(hi)
+                    let t = sWp + hi + sMax
+                    let xm1 = sLine[(t - 1) & sMask]
+                    let x0 = sLine[t & sMask]
+                    let x1 = sLine[(t + 1) & sMask]
+                    let x2 = sLine[(t + 2) & sMask]
+                    let c = (x1 - xm1) * 0.5
+                    let v = x0 - x1
+                    let w = c + v
+                    let a = w + v + (x2 - x0) * 0.5
+                    let bNeg = w + a
+                    s = (((a * f) - bNeg) * f + c) * f + x0
                 }
 
                 if !dispersion {
-                    let value = abs(s) - 0.025
+                    let value = (s < 0 ? -s : s) - 0.025
                     let sign: Float = s > 0 ? 1 : -1.5
-                    curvedBridge = (abs(value) + value) * sign
+                    lBridge = ((value < 0 ? -value : value) + value) * sign
                 }
 
                 s += input[i]
-                constrain(&s, -20, 20)
+                if s < -20 { s = -20 } else if s > 20 { s = 20 }
 
-                s = dcBlocker.process(s)
+                // DCBlocker.
+                let oldX = dcX
+                dcX = s
+                dcY = dcY * dcPole + dcX - oldX
+                s = dcY
 
-                s = iirDampingFilter.process(s, .lowPass)
-                string.write(s)
+                // Svf ФНЧ.
+                let hp = (s - fr * fs1 - fg * fs1 - fs2) * fh
+                let bp = fg * hp + fs1
+                fs1 = fg * hp + bp
+                let lp = fg * bp + fs2
+                fs2 = fg * bp + lp
+                s = lp
 
-                outSample1 = outSample0
-                outSample0 = s
+                // string_.Write(s).
+                sLine[sWp] = (s < 0 ? -s : s) < 1e-20 ? 0 : s
+                sWp = (sWp - 1 + sMax) & sMask
+
+                lOut1 = lOut0
+                lOut0 = s
             }
-            out[i] += stmCrossfade(outSample1, outSample0, srcPhase)
+            out[i] += lOut1 + (lOut0 - lOut1) * lSrc
             i += 1
         }
-        self.delay = delayModulation.value
-        flushDenormal(&dispersionNoise)
-        flushDenormal(&curvedBridge)
-        flushDenormal(&outSample0)
-        flushDenormal(&outSample1)
-        iirDampingFilter.flush()
-        dcBlocker.flush()
-        self.string = string
-        self.stretch = stretch
-        self.iirDampingFilter = iirDampingFilter
-        self.dcBlocker = dcBlocker
-        self.dispersionNoise = dispersionNoise
-        self.curvedBridge = curvedBridge
-        self.srcPhase = srcPhase
-        self.outSample0 = outSample0
-        self.outSample1 = outSample1
+        random.state = rnd
+        self.delay = dVal
+        flushDenormal(&lNoise)
+        flushDenormal(&lBridge)
+        flushDenormal(&lOut0)
+        flushDenormal(&lOut1)
+        flushDenormal(&fs1)
+        flushDenormal(&fs2)
+        flushDenormal(&dcX)
+        flushDenormal(&dcY)
+        string.writePtr = sWp
+        stretch.writePtr = tWp
+        iirDampingFilter.state1 = fs1
+        iirDampingFilter.state2 = fs2
+        dcBlocker.x = dcX
+        dcBlocker.y = dcY
+        dispersionNoise = lNoise
+        curvedBridge = lBridge
+        srcPhase = lSrc
+        outSample0 = lOut0
+        outSample1 = lOut1
     }
 }
 

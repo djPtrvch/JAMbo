@@ -3,10 +3,10 @@
 // поэтому % max_delay беззнаковой арифметики оригинала — то же, что & (max_delay − 1)).
 
 struct DelayLine {
-    private let line: UnsafeMutablePointer<Float>
-    private let maxDelay: Int
-    private let mask: Int
-    private var writePtr = 0
+    let line: UnsafeMutablePointer<Float>
+    let maxDelay: Int
+    let mask: Int
+    var writePtr = 0
 
     /// Буфер выделяется здесь (в оригинале — из BufferAllocator движка).
     init(_ maxDelay: Int) {
