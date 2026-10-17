@@ -3,13 +3,13 @@
 Ветка `swift`, проект `ios/JAMbo.swiftpm`. Перед работой прочитать `CLAUDE.md`, `ios/CLAUDE.md` (раздел S3a — подробности и цифры сверки), `docs/ai/synth-engines.md`.
 
 ## 1. Текущая веха
-S3a — Plaits: 8 движков, голоса синта в звуке, меню MI SYNTH, окно синта, SELF-TEST. Задача #37 (перенос 8 движков с тестами) закрыта; следующая — #38 (голос синта).
+S3a — Plaits: 8 движков, голоса синта в звуке, меню MI SYNTH, окно синта, SELF-TEST. Задачи #37 (8 движков с тестами) и #38 (голос синта, меню MI SYNTH) сделаны; следующая — окно синта с иконкой.
 
 ## 2. Что уже сделано
 - stmlib и каркас Plaits; таблицы и эталоны (48 случаев: 8 движков × 3 набора × 2 ноты) из `public/plaits.wasm`.
 - Движки 0–7 перенесены 1:1 по `wasm/plaits/.src` (eurorack `08460a6`, stmlib `e3bd7c9`): VA, WAVESHAPE, FM, GRAIN, ADDITIVE, WAVETABLE, CHORDS, SPEECH; у каждого тест по 6 эталонам.
 - SELF-TEST в DIAGNOSTICS (RUN SELF-TEST, таблица 48 строк). Проверено на iPad: 48/48 PASS, 12,5 с, цифры совпадают с Linux.
-- CoreTests на Linux: 63 теста, все проходят (`. ios/tools/swift-env.sh && cd ios/CoreTests && swift test`).
+- CoreTests на Linux: 73 теста, все проходят (`. ios/tools/swift-env.sh && cd ios/CoreTests && swift test`).
 - Контроль размера CLAUDE.md: хук PostToolUse `.claude/hooks/check-claude-md.sh` (120 строк — предупреждение, 150 — остановка), раздел «Управление документацией» в CLAUDE.md.
 - #38: голоса синта (Core/Synth/SynthVoices, 6 на дорожку), звук «mi:<n>» у дорожки и шага, меню MI SYNTH и сетка ручек движка; 10 тестов синта.
 
@@ -37,7 +37,7 @@ S3a — Plaits: 8 движков, голоса синта в звуке, мен�
 - Колбэк не читает Swift-массивы: таблицы движков копируются в указатели в init; рабочие буферы выделяются в init.
 - `StmRandom` передаётся движку в init (SPEECH); начальное состояние 0x21.
 - Литералы длиннее ~100 элементов — в `Resources/plaits` через `export_tables.sh`.
-- Усиления OUT/AUX движков (< 0 — лимитер) — как в `wasm/plaits/jambo_voices.cc`; сейчас таблица в `PlaitsSelfTest`, для голоса — в обёртке #38.
+- Усиления OUT/AUX движков (< 0 — лимитер) — как в `wasm/plaits/jambo_voices.cc`; таблица — `SynthVoices.outGains` / `auxGains`, самотест берёт её оттуда.
 - SELF-TEST ищет таблицы и эталоны в bundle по имени файла (в корне или в подпапках `plaits`, `golden`).
 - Архив `JAMbo.swiftpm.zip` в репозиторий не кладём. Весь проект — `https://github.com/djptrvch/jambo/archive/refs/heads/swift.zip`.
 
@@ -53,7 +53,6 @@ S3a — Plaits: 8 движков, голоса синта в звуке, мен�
 
 ## 6. Что не сделано
 - Окно синта с иконкой движка (вместо «No sample»); удержание окна у синта не открывает редактор (как в вебе).
-- Меню MI SYNTH (кнопки VA … SPEECH сейчас серые), окно синта с иконкой движка, ручки HARMONICS / TIMBRE / MORPH.
 - S3b: MI DRUMS (8 движков) и свои движки DRUM, ANALOG, FM, WTABLE.
 - #39: жёлтая точка p-lock и рамка шага в секвенсоре. #40: плавная перетяжка миниатюр страниц.
 - `docs/SWIFT_MILESTONE_S3.md` — после завершения вехи.
