@@ -21,18 +21,24 @@ struct SquareNoise {
         let i0 = SquareNoise.increment(f0, 1.0), i1 = SquareNoise.increment(f0, 1.304)
         let i2 = SquareNoise.increment(f0, 1.466), i3 = SquareNoise.increment(f0, 1.787)
         let i4 = SquareNoise.increment(f0, 1.932), i5 = SquareNoise.increment(f0, 2.536)
-        for i in 0..<size {
-            phase0 &+= i0; phase1 &+= i1; phase2 &+= i2
-            phase3 &+= i3; phase4 &+= i4; phase5 &+= i5
-            var noise: UInt32 = 0
-            noise += phase0 >> 31
-            noise += phase1 >> 31
-            noise += phase2 >> 31
-            noise += phase3 >> 31
-            noise += phase4 >> 31
-            noise += phase5 >> 31
-            out[i] = 0.33 * Float(noise) - 1
+        var p0 = phase0, p1 = phase1, p2 = phase2, p3 = phase3, p4 = phase4, p5 = phase5
+        let high: UInt32 = 0x8000_0000
+        var i = 0
+        while i < size {
+            p0 &+= i0; p1 &+= i1; p2 &+= i2
+            p3 &+= i3; p4 &+= i4; p5 &+= i5
+            // Число старших битов — сразу во Float (Float(UInt32) в отладке — обобщённый вызов).
+            var noise: Float = 0
+            if p0 >= high { noise += 1 }
+            if p1 >= high { noise += 1 }
+            if p2 >= high { noise += 1 }
+            if p3 >= high { noise += 1 }
+            if p4 >= high { noise += 1 }
+            if p5 >= high { noise += 1 }
+            out[i] = 0.33 * noise - 1
+            i += 1
         }
+        phase0 = p0; phase1 = p1; phase2 = p2; phase3 = p3; phase4 = p4; phase5 = p5
     }
 }
 
@@ -135,18 +141,24 @@ final class HiHat {
         var noiseF = (noisiness * -16 + 32) * f0
         constrain(&noiseF, 0, 0.5)
 
-        for i in 0..<size {
+        // Состояние — в локальных переменных на время блока (в отладочной сборке обращение к свойству класса
+        // на каждом отсчёте — проверка доступа).
+        var noiseClock = self.noiseClock, noiseSample = self.noiseSample, envelope = self.envelope
+        var i = 0
+        while i < size {
             noiseClock += noiseF
             if noiseClock >= 1 {
                 noiseClock -= 1
                 noiseSample = random.getFloat() - 0.5
             }
             out[i] += noisiness * (noiseSample - out[i])
+            i += 1
         }
 
         // VCA.
         var sustainGainMod = ParameterInterpolator(sustainGain, accent * decay, size)
-        for i in 0..<size {
+        i = 0
+        while i < size {
             envelope *= envelope > 0.5 || !twoStageEnvelope ? envelopeDecay : cutDecay
             let gain = sustain ? sustainGainMod.next() : envelope
             if ringMod {
@@ -158,12 +170,16 @@ final class HiHat {
                 s = s / (1 + abs(s))
                 out[i] = (s + 0.1) * gain
             }
+            i += 1
         }
         sustainGain = sustainGainMod.value
+        self.noiseClock = noiseClock
+        self.noiseSample = noiseSample
+        self.envelope = envelope
 
         hpf.setFQ(cutoff, 0.5, .accurate)
         hpf.process(out, out, size, .highPass)
-        flushDenormal(&envelope)
+        flushDenormal(&self.envelope)
         noiseColorationSvf.flush()
         hpf.flush()
     }

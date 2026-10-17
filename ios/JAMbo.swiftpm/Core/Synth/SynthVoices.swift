@@ -519,43 +519,64 @@ public final class SynthVoices {
         let gs = sin(x * Float.pi / 2)
         let lv = level[v]
         let zb = v * 2
-        for j in 0..<m {
-            let frame = frame0 + Int64(j)
-            if frame >= stopAt[v] {
-                active[v] = 0
-                return
+        // Состояние голоса — в локальных переменных на кусок, кадр и время от начала ноты — счётчиками:
+        // в отладочной сборке (Playgrounds) преобразования Int64 → Double и обращения к указателям-свойствам
+        // на каждом отсчёте заметно дороже самой арифметики.
+        let stop = stopAt[v], hold = holdEnd[v], fadeFrom = fadeAt[v], att = attackF[v]
+        let keepEnv = keep[v] != 0
+        let dk = decayK[v], fadeKV = fadeK[v]
+        var envV = env[v], fadeV = fadeG[v], rel = released[v] != 0
+        var z0 = z[zb], z1 = z[zb + 1]
+        let b0 = c.b0, b1 = c.b1, b2 = c.b2, a1 = c.a1, a2 = c.a2
+        var frame = frame0
+        var tt = Double(frame0 - start[v])
+        var j = 0
+        var stopped = false
+        while j < m {
+            if frame >= stop {
+                stopped = true
+                break
             }
             // Огибающая: атака линейно, удержание, затем Decay как Release (экспонента, τ = Decay/4).
             var g: Float
-            if keep[v] != 0 {
+            if keepEnv {
                 // Затухающий сам с короткой атакой: огибающая не обнуляется.
                 g = 1
             } else if decaying {
                 // Только атака, дальше 1 — затухает сам движок.
-                let tt = Double(frame - start[v])
-                g = tt < attackF[v] ? Float(tt / attackF[v]) : 1
-            } else if frame >= holdEnd[v] {
-                if released[v] == 0 {
-                    released[v] = 1
-                    let tt = Double(frame - start[v])
-                    env[v] = tt < attackF[v] ? Float(tt / attackF[v]) : 1
+                g = tt < att ? Float(tt / att) : 1
+            } else if frame >= hold {
+                if !rel {
+                    rel = true
+                    envV = tt < att ? Float(tt / att) : 1
                 }
-                env[v] *= decayK[v]
-                g = env[v]
+                envV *= dk
+                g = envV
             } else {
-                let tt = Double(frame - start[v])
-                g = tt < attackF[v] ? Float(tt / attackF[v]) : 1
-                env[v] = g
+                g = tt < att ? Float(tt / att) : 1
+                envV = g
             }
-            if frame >= fadeAt[v] { fadeG[v] *= fadeK[v] }
-            g *= lv * fadeG[v]
+            if frame >= fadeFrom { fadeV *= fadeKV }
+            g *= lv * fadeV
             let a: Float = outBuf[j] * g
             // Фильтр (TDF II).
-            let y: Float = c.b0 * a + z[zb]
-            z[zb] = c.b1 * a - c.a1 * y + z[zb + 1]
-            z[zb + 1] = c.b2 * a - c.a2 * y
+            let y: Float = b0 * a + z0
+            z0 = b1 * a - a1 * y + z1
+            z1 = b2 * a - a2 * y
             bl[j] += y * gc
             br[j] += y * gs
+            frame += 1
+            tt += 1
+            j += 1
+        }
+        env[v] = envV
+        fadeG[v] = fadeV
+        released[v] = rel ? 1 : 0
+        z[zb] = z0
+        z[zb + 1] = z1
+        if stopped {
+            active[v] = 0
+            return
         }
         // Денормалы в состоянии фильтра.
         for k in 0..<2 where abs(z[zb + k]) < 1e-20 { z[zb + k] = 0 }

@@ -111,6 +111,6 @@ struct Particle {
         random.state = state
         self.filter = filter
         self.preGain = preGain
-        filter.flush()
+        self.filter.flush()
     }
 }

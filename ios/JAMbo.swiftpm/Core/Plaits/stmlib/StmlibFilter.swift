@@ -6,7 +6,7 @@ enum FilterMode { case lowPass, bandPass, bandPassNormalized, highPass }
 enum FrequencyApproximation { case exact, accurate, fast, dirty }
 
 /// Константы tan<approximation>: в C++ — float·M_PI_POW_n (double), результат приводится к float.
-private enum FilterK {
+enum FilterK {
     static let pi = Double.pi
     static let dirtyA = Float(Double(Float(3.736e-01)) * pi * pi * pi)
     static let fastA = Float(Double(Float(3.260e-01)) * pi * pi * pi)

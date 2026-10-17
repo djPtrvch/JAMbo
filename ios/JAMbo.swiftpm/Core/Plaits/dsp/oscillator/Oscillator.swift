@@ -55,11 +55,19 @@ struct Oscillator {
 
         var fm = ParameterInterpolator(frequency, frequencyTarget, size)
         var pwm = ParameterInterpolator(pw, pwTarget, size)
+        // Форма — числами и флажками до цикла: в отладочной сборке (Playgrounds) сравнение enum с raw value
+        // на каждом отсчёте — вызов обобщённого ==, это треть времени HI-HAT.
         let shapeIndex = shape.rawValue
+        let sawGroup = shapeIndex <= 1, slopeGroup = shapeIndex <= 3
+        let isSaw = shapeIndex == 1, isSlope = shapeIndex == 3
+        let fixedPw = shapeIndex == 7 || shapeIndex == 2
+        let isSquareTriangle = shapeIndex == 7, isSquareDark = shapeIndex == 6, isSquareBright = shapeIndex == 5
         var externalFm = externalFmIn
 
         var next = nextSample
-        for i in 0..<size {
+        var i = 0
+        while i < size {
+            defer { i += 1 }
             var thisSample = next
             next = 0
 
@@ -73,13 +81,13 @@ struct Oscillator {
                     constrain(&f, -kMaxFrequency, kMaxFrequency)
                 }
             }
-            var pwNow: Float = (shape == .squareTriangle || shape == .triangle) ? 0.5 : pwm.next()
+            var pwNow: Float = fixedPw ? 0.5 : pwm.next()
             if hasExternalFm {
                 constrain(&pwNow, abs(f) * 2, 1 - 2 * abs(f))
             }
             phase += f
 
-            if shapeIndex <= OscillatorShape.saw.rawValue {
+            if sawGroup {
                 if phase >= 1 {
                     phase -= 1
                     let t = phase / f
@@ -93,17 +101,17 @@ struct Oscillator {
                 }
                 next += phase
 
-                if shape == .saw {
+                if isSaw {
                     out[i] = 2 * thisSample - 1
                 } else {
                     lpState += 0.25 * ((hpState - thisSample) - lpState)
                     out[i] = 4 * lpState
                     hpState = thisSample
                 }
-            } else if shapeIndex <= OscillatorShape.slope.rawValue {
+            } else if slopeGroup {
                 var slopeUp: Float = 2
                 var slopeDown: Float = 2
-                if shape == .slope {
+                if isSlope {
                     slopeUp = 1 / pwNow
                     slopeDown = 1 / (1 - pwNow)
                 }
@@ -156,17 +164,17 @@ struct Oscillator {
                 }
                 next += phase < pwNow ? 0 : 1
 
-                if shape == .squareTriangle {
+                if isSquareTriangle {
                     let integratorCoefficient = f * 0.0625
                     thisSample = 128 * (thisSample - 0.5)
                     lpState += integratorCoefficient * (thisSample - lpState)
                     out[i] = lpState
-                } else if shape == .squareDark {
+                } else if isSquareDark {
                     let integratorCoefficient = f * 2
                     thisSample = 4 * (thisSample - 0.5)
                     lpState += integratorCoefficient * (thisSample - lpState)
                     out[i] = lpState
-                } else if shape == .squareBright {
+                } else if isSquareBright {
                     let integratorCoefficient = f * 2
                     thisSample = 2 * thisSample - 1
                     lpState += integratorCoefficient * (thisSample - lpState)

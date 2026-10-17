@@ -4,6 +4,15 @@ import Foundation
 
 // MARK: - dsp.h
 
+// abs, min, max для Float и Double без обобщений: в отладочной сборке (Playgrounds) Swift.abs/min/max — вызовы
+// обобщённых функций на каждом отсчёте. Семантика — как у стандартных (min: y < x ? y : x, max: y >= x ? y : x).
+@inline(__always) func abs(_ x: Float) -> Float { x.magnitude }
+@inline(__always) func abs(_ x: Double) -> Double { x.magnitude }
+@inline(__always) func min(_ x: Float, _ y: Float) -> Float { y < x ? y : x }
+@inline(__always) func max(_ x: Float, _ y: Float) -> Float { y >= x ? y : x }
+@inline(__always) func min(_ x: Double, _ y: Double) -> Double { y < x ? y : x }
+@inline(__always) func max(_ x: Double, _ y: Double) -> Double { y >= x ? y : x }
+
 /// static_cast<int32_t>(x): отбрасывание дробной части. Вне диапазона Int32 и NaN — 0 (в C++ — неопределённо;
 /// здесь без ловушки в аудиопотоке).
 @inline(__always) func stmInt(_ x: Float) -> Int {
