@@ -8,13 +8,13 @@
 - `JAMbo.swiftpm/UI/` — SwiftUI.
 - `JAMbo.swiftpm/Resources/` — таблицы Plaits (.bin), эталоны самотеста, лицензии.
 - `CoreTests/` — пакет для сборки и тестов Core на Linux и Mac (`Sources/Core` — символическая ссылка на `JAMbo.swiftpm/Core`).
-- `tools/` — make-zip.sh (архив JAMbo.swiftpm.zip для iPad), install-swift-linux.sh (Swift 6.0.3 из пакетов Ubuntu в /opt/swiftdeb: swift.org из облака недоступен), swift-env.sh.
+- `tools/` — install-swift-linux.sh (Swift 6.0.3 из пакетов Ubuntu в /opt/swiftdeb: swift.org из облака недоступен), swift-env.sh.
 
 ## Проверка в облаке
 `ios/tools/install-swift-linux.sh` (один раз на контейнер), затем `. ios/tools/swift-env.sh && cd ios/CoreTests && swift test`. UI и Audio на Linux не собираются (нет SwiftUI и AVFoundation) — их проверяет сборка на iPad.
 
 ## Как открыть на iPad
-`ios/JAMbo.swiftpm.zip` (GitHub → ветка `swift` → файл → Download raw) → «Файлы» → распаковать → папка `JAMbo.swiftpm` открывается в Swift Playgrounds (тап по ней). Или GitHub → Code → Download ZIP → папка `ios/JAMbo.swiftpm`. Архив пересобирается `ios/tools/make-zip.sh` в каждом коммите, который меняет `ios/JAMbo.swiftpm`. Package.swift — в виде, который создаёт Playgrounds; после открытия правится только через Playgrounds (ТЗ 0.3).
+GitHub → ветка `swift` → Code → Download ZIP → «Файлы» → распаковать → папка `ios/JAMbo.swiftpm` открывается в Swift Playgrounds (тап по ней). Package.swift — в виде, который создаёт Playgrounds; после открытия правится только через Playgrounds (ТЗ 0.3).
 
 ## Package.swift
 Значок — только существующий `.placeholder(icon: …)` (с `.music` Playgrounds не читает манифест и показывает «Loading… Crashed» без кода). Устройство: iPadOS 26.6.2, Playgrounds 4.7 — S0 собирается.
