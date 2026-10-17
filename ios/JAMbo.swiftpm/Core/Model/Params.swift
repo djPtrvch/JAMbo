@@ -25,14 +25,11 @@ public struct ParamDef: @unchecked Sendable {
     public let bipolar: Bool
     /// Подписи пунктов ступенчатой ручки (значение = индекс).
     public let options: [String]
-    /// Ступенчатая в процентах (1.1 движков WAVETABLE, CHORDS, SPEECH): значение min…max, ручка встаёт на середину
-    /// одного из steps пунктов (0 — плавная).
-    public let steps: Int
     public let format: (Double) -> String
 
     public init(id: String, label: String, alt: String? = nil, kind: KnobKind = .smooth, min: Double, max: Double, def: Double,
                 curve: Double? = nil, exp: Bool = false, bipolar: Bool = false, options: [String] = [],
-                steps: Int = 0, format: @escaping (Double) -> String) {
+                format: @escaping (Double) -> String) {
         self.id = id
         self.label = label
         self.alt = alt
@@ -44,7 +41,6 @@ public struct ParamDef: @unchecked Sendable {
         self.exp = exp
         self.bipolar = bipolar
         self.options = options
-        self.steps = steps
         self.format = format
     }
 
@@ -60,10 +56,6 @@ public struct ParamDef: @unchecked Sendable {
     public func fromNorm(_ n0: Double) -> Double {
         let n: Double = Swift.min(1, Swift.max(0, n0))
         if kind == .stepped { return (n * (max - min)).rounded() + min }
-        if steps > 0 {
-            let i = Swift.min(Double(steps - 1), (n * Double(steps)).rounded(.down))
-            return min + (i + 0.5) / Double(steps) * (max - min)
-        }
         if exp { return min * pow(max / min, n) }
         if let c = curve { return min + pow(n, c) * (max - min) }
         return min + n * (max - min)
@@ -190,28 +182,15 @@ public enum Params {
     /// Сетка 4×4 ряд за рядом (индекс = ряд·4 + столбец).
     public static let trackGrid: [ParamDef] = (0..<16).map { i in trackColumns[i % 4][i / 4] }
 
-    /// Ручки 1.1–1.3 синта (Harmonics, Timbre, Morph) — отдельные параметры дорожки, рядом с Pitch, Start, End.
-    public static let synthParams: [ParamDef] = [
-        ParamDef(id: "harm", label: "Harmonics", min: 0, max: 100, def: 50, format: Fmt.pct),
-        ParamDef(id: "timbre", label: "Timbre", min: 0, max: 100, def: 50, format: Fmt.pct),
-        ParamDef(id: "morph", label: "Morph", min: 0, max: 100, def: 50, format: Fmt.pct),
-    ]
-
     public static let byId: [String: ParamDef] = {
         var d: [String: ParamDef] = [:]
-        for p in trackGrid + synthParams { d[p.id] = p }
+        for p in trackGrid { d[p.id] = p }
         return d
     }()
 
     public static func defaults() -> [String: Double] {
         var d: [String: Double] = [:]
-        for p in trackGrid + synthParams { d[p.id] = p.def }
+        for p in trackGrid { d[p.id] = p.def }
         return d
-    }
-
-    /// Сетка ручек дорожки со звуком sound: у синта колонка 1 — ручки движка.
-    public static func grid(sound: String) -> [ParamDef] {
-        if let e = SynthEngines.engine(sound) { return SynthEngines.grid(e) }
-        return trackGrid
     }
 }

@@ -15,7 +15,7 @@ public final class AudioCore: @unchecked Sendable {
     public var framesRendered: Int { return frameCounter.load() }
 
     public let sequencer = Sequencer(sampleRate: AudioCore.sampleRate, bpm: 120)
-    public let sampler: Sampler
+    public let sampler = Sampler(sampleRate: AudioCore.sampleRate)
     /// Снимки паттернов и звука: новые — в колбэк, прежние — обратно (освобождаются в основном потоке не раньше
     /// чем через keepAlive с: голоса, которые гаснут, ещё читают их сэмплы).
     private let snapshots = SPSCQueue<Unmanaged<SeqSnapshot>?>(capacity: 64, filler: nil)
@@ -33,9 +33,7 @@ public final class AudioCore: @unchecked Sendable {
     /// Счётчик кадров колбэка — основа транспорта с точностью до отсчёта.
     public private(set) var sampleTime: Int64 = 0
 
-    /// plaits — таблицы Plaits (без них синт молчит).
-    public init(plaits: PlaitsLUT? = nil) {
-        sampler = Sampler(sampleRate: AudioCore.sampleRate, plaits: plaits)
+    public init() {
         sequencer.sampler = sampler
     }
 

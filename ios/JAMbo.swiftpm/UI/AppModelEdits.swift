@@ -47,7 +47,7 @@ extension AppModel {
     /// Параметр ручки slot (0…15, ряд за рядом) в текущем режиме; nil — неактивная (MIX и MST — позже).
     func param(_ slot: Int) -> ParamDef? {
         switch channel {
-        case .track: return Params.grid(sound: track.sample)[slot]
+        case .track: return Params.trackGrid[slot]
         case .mix: return mixParam(slot)
         case .master: return nil
         }
