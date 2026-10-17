@@ -29,6 +29,10 @@ public final class AudioCore: @unchecked Sendable {
     /// Последний снимок паттернов строится заново, только если изменилось то, что в него входит.
     private var lastSeq: Project?
 
+    /// Голоса синта: создаются в основном потоке (installSynth), колбэк забирает их один раз.
+    private let synthQueue = SPSCQueue<Unmanaged<SynthVoices>?>(capacity: 2, filler: nil)
+    private var synthInstalled = false
+
     private let tone = TestTone(sampleRate: AudioCore.sampleRate)
     /// Счётчик кадров колбэка — основа транспорта с точностью до отсчёта.
     public private(set) var sampleTime: Int64 = 0
@@ -48,6 +52,15 @@ public final class AudioCore: @unchecked Sendable {
         }
         let snd = Unmanaged.passRetained(SoundSnapshot(project, samples: samples, map: map, octave: octave))
         if !sounds.push(snd) { snd.release() }
+    }
+
+    /// Голоса синта Plaits (основной поток, один раз; таблицы — Resources/plaits). Повторный вызов ничего не делает:
+    /// прежние голоса освобождались бы в колбэке.
+    public func installSynth(_ resources: PlaitsResources) {
+        if synthInstalled { return }
+        synthInstalled = true
+        let s = Unmanaged.passRetained(SynthVoices(resources: resources, sampleRate: AudioCore.sampleRate))
+        if !synthQueue.push(s) { s.release() }
     }
 
     /// Освободить снимки, которые колбэк больше не использует (основной поток; now — секунды, для задержки).
@@ -85,6 +98,10 @@ public final class AudioCore: @unchecked Sendable {
 
     @inline(__always)
     private func takeSnapshots() {
+        while let item = synthQueue.pop() {
+            guard let s = item else { continue }
+            sampler.synth = s.takeRetainedValue()
+        }
         while let item = snapshots.pop() {
             guard let snap = item else { continue }
             if let old = current { _ = retired.push(old) }

@@ -1,0 +1,472 @@
+import Foundation
+
+// Голоса синта Plaits (в колбэке; как triggerSynth веба, plaits-worklet.js и jambo_voices.cc): 6 голосов на дорожку,
+// слот — по кругу (свободный: голос дозвучал), иначе крадётся следующий — гаснет за ~5 мс (τ 1,5 мс), новая нота —
+// через 8 мс. Plaits получает только триггер (первый кусок ноты), громкость — внешняя огибающая, как у сэмпла:
+// Attack (не меньше 2 мс) → удержание → Decay как Release. Движок → Post (усиление, < 0 — лимитер) → ±1 →
+// огибающая → Level → фильтр → Pan → шина дорожки (микшер — в Sampler). Куски по 24 отсчёта (BLOCK worklet).
+
+public final class SynthVoices {
+    public static let perTrack = 6
+    static let tracks = SoundData.maxTracks
+    static let slots = tracks * perTrack
+    static let chunk = kMaxBlockSize
+    /// Голос без звука дольше 4800 отсчётов (и с начала ноты прошло больше) замолкает (SILENCE worklet).
+    static let silence = 4800
+    static let accent: Float = 0.8
+    /// Усиления OUT и AUX движков 0–7 (< 0 — лимитер с предусилением), как в jambo_voices.cc.
+    public static let outGains: [Float] = [0.8, 0.7, 0.6, 0.7, 0.8, 0.6, 0.8, -0.7]
+    public static let auxGains: [Float] = [0.8, 0.6, 0.6, 0.6, 0.8, 0.6, 0.8, 0.8]
+
+    let sr: Double
+    let bank: SynthEngineBank
+    // Таблицы для колбэка — указатели (Swift-массивы не читаем).
+    private let gains = UnsafeMutablePointer<Float>.allocate(capacity: 8)
+    /// Точки harmonics по пункту (SPEECH: 3 точки), начиная с points[e * 4].
+    private let points = UnsafeMutablePointer<Float>.allocate(capacity: 8 * 4)
+    private let pointCount = UnsafeMutablePointer<Int>.allocate(capacity: 8)
+
+    // Голос (по слоту: дорожка = слот / perTrack).
+    let active = UnsafeMutablePointer<UInt8>.allocate(capacity: slots)
+    let fading = UnsafeMutablePointer<UInt8>.allocate(capacity: slots)
+    let own = UnsafeMutablePointer<UInt8>.allocate(capacity: slots)
+    let released = UnsafeMutablePointer<UInt8>.allocate(capacity: slots)
+    let triggered = UnsafeMutablePointer<UInt8>.allocate(capacity: slots)
+    let trackId = UnsafeMutablePointer<Int>.allocate(capacity: slots)
+    let note = UnsafeMutablePointer<Int>.allocate(capacity: slots)
+    let liveId = UnsafeMutablePointer<Int>.allocate(capacity: slots)
+    let serial = UnsafeMutablePointer<Int>.allocate(capacity: slots)
+    /// Движок ноты и движок, выбранный в слоте (−1 — ещё нет; смена — LoadUserData и Reset).
+    let engine = UnsafeMutablePointer<Int>.allocate(capacity: slots)
+    let slotEngine = UnsafeMutablePointer<Int>.allocate(capacity: slots)
+    let start = UnsafeMutablePointer<Int64>.allocate(capacity: slots)
+    let holdEnd = UnsafeMutablePointer<Int64>.allocate(capacity: slots)
+    let stopAt = UnsafeMutablePointer<Int64>.allocate(capacity: slots)
+    let fadeAt = UnsafeMutablePointer<Int64>.allocate(capacity: slots)
+    let attackF = UnsafeMutablePointer<Double>.allocate(capacity: slots)
+    let decaySec = UnsafeMutablePointer<Double>.allocate(capacity: slots)
+    let decayK = UnsafeMutablePointer<Float>.allocate(capacity: slots)
+    let env = UnsafeMutablePointer<Float>.allocate(capacity: slots)
+    let fadeK = UnsafeMutablePointer<Float>.allocate(capacity: slots)
+    let fadeG = UnsafeMutablePointer<Float>.allocate(capacity: slots)
+    let level = UnsafeMutablePointer<Float>.allocate(capacity: slots)
+    let pan = UnsafeMutablePointer<Float>.allocate(capacity: slots)
+    let hz = UnsafeMutablePointer<Double>.allocate(capacity: slots)
+    let qDb = UnsafeMutablePointer<Double>.allocate(capacity: slots)
+    let ftype = UnsafeMutablePointer<Int>.allocate(capacity: slots)
+    let coef = UnsafeMutablePointer<Biquad>.allocate(capacity: slots)
+    let z = UnsafeMutablePointer<Float>.allocate(capacity: slots * 2)
+    let limiter = UnsafeMutablePointer<StmLimiter>.allocate(capacity: slots)
+    let quiet = UnsafeMutablePointer<Int>.allocate(capacity: slots)
+    let lockMask = UnsafeMutablePointer<UInt16>.allocate(capacity: slots)
+    let lockVal = UnsafeMutablePointer<Float>.allocate(capacity: slots * VoiceParam.count)
+    // Нота, ждущая украденный слот (стартует через 8 мс, когда прежняя погаснет).
+    let pActive = UnsafeMutablePointer<UInt8>.allocate(capacity: slots)
+    let pStart = UnsafeMutablePointer<Int64>.allocate(capacity: slots)
+    let pNote = UnsafeMutablePointer<Int>.allocate(capacity: slots)
+    let pEngine = UnsafeMutablePointer<Int>.allocate(capacity: slots)
+    let pGate = UnsafeMutablePointer<Int64>.allocate(capacity: slots)
+    let pOwn = UnsafeMutablePointer<UInt8>.allocate(capacity: slots)
+    let pLive = UnsafeMutablePointer<Int>.allocate(capacity: slots)
+    let pMask = UnsafeMutablePointer<UInt16>.allocate(capacity: slots)
+    let pVal = UnsafeMutablePointer<Float>.allocate(capacity: slots * VoiceParam.count)
+    /// Следующий слот дорожки (по кругу).
+    let next = UnsafeMutablePointer<Int>.allocate(capacity: tracks)
+    private var nextSerial = 0
+
+    private let outBuf = UnsafeMutablePointer<Float>.allocate(capacity: chunk)
+    private let auxBuf = UnsafeMutablePointer<Float>.allocate(capacity: chunk)
+
+    /// Создаётся вне колбэка (≈ 100 голосов × 8 движков).
+    public init(resources: PlaitsResources, sampleRate: Double) {
+        sr = sampleRate
+        bank = SynthEngineBank(resources, count: SynthVoices.slots, perTrack: SynthVoices.perTrack)
+        gains.initialize(repeating: 1, count: 8)
+        points.initialize(repeating: 0, count: 8 * 4)
+        pointCount.initialize(repeating: 0, count: 8)
+        for e in 0..<Swift.min(8, SynthEngines.count) {
+            gains[e] = SynthVoices.outGains[e]
+            let pts = SynthEngines.all[e].harmPoints
+            pointCount[e] = Swift.min(4, pts.count)
+            for k in 0..<pointCount[e] { points[e * 4 + k] = pts[k] }
+        }
+        let s = SynthVoices.slots
+        for p in [active, fading, own, released, triggered, pActive, pOwn] as [UnsafeMutablePointer<UInt8>] {
+            p.initialize(repeating: 0, count: s)
+        }
+        for p in [trackId, note, serial, ftype, quiet, pNote] as [UnsafeMutablePointer<Int>] {
+            p.initialize(repeating: 0, count: s)
+        }
+        for p in [liveId, engine, slotEngine, pEngine, pLive] as [UnsafeMutablePointer<Int>] {
+            p.initialize(repeating: -1, count: s)
+        }
+        for p in [start, holdEnd, stopAt, pStart, pGate] as [UnsafeMutablePointer<Int64>] { p.initialize(repeating: 0, count: s) }
+        fadeAt.initialize(repeating: Int64.max, count: s)
+        for p in [attackF, decaySec, hz, qDb] as [UnsafeMutablePointer<Double>] { p.initialize(repeating: 0, count: s) }
+        for p in [decayK, env, fadeK, fadeG, level, pan] as [UnsafeMutablePointer<Float>] { p.initialize(repeating: 0, count: s) }
+        coef.initialize(repeating: Biquad(), count: s)
+        z.initialize(repeating: 0, count: s * 2)
+        limiter.initialize(repeating: StmLimiter(), count: s)
+        lockMask.initialize(repeating: 0, count: s)
+        pMask.initialize(repeating: 0, count: s)
+        lockVal.initialize(repeating: 0, count: s * VoiceParam.count)
+        pVal.initialize(repeating: 0, count: s * VoiceParam.count)
+        next.initialize(repeating: 0, count: SynthVoices.tracks)
+        outBuf.initialize(repeating: 0, count: SynthVoices.chunk)
+        auxBuf.initialize(repeating: 0, count: SynthVoices.chunk)
+    }
+
+    deinit {
+        for p in [active, fading, own, released, triggered, pActive, pOwn] as [UnsafeMutablePointer<UInt8>] { p.deallocate() }
+        for p in [trackId, note, serial, ftype, quiet, pNote, liveId, engine, slotEngine, pEngine, pLive, next, pointCount]
+            as [UnsafeMutablePointer<Int>] { p.deallocate() }
+        for p in [start, holdEnd, stopAt, pStart, pGate, fadeAt] as [UnsafeMutablePointer<Int64>] { p.deallocate() }
+        for p in [attackF, decaySec, hz, qDb] as [UnsafeMutablePointer<Double>] { p.deallocate() }
+        for p in [decayK, env, fadeK, fadeG, level, pan, z, lockVal, pVal, outBuf, auxBuf, gains, points]
+            as [UnsafeMutablePointer<Float>] { p.deallocate() }
+        coef.deallocate()
+        limiter.deallocate()
+        lockMask.deallocate()
+        pMask.deallocate()
+    }
+
+    /// Сколько голосов звучит или ждёт старта (тесты, диагностика).
+    public var activeCount: Int {
+        var n = 0
+        for v in 0..<SynthVoices.slots where active[v] != 0 || pActive[v] != 0 { n += 1 }
+        return n
+    }
+
+    // MARK: — запуск
+
+    @inline(__always)
+    private func pv(_ d: SoundData, _ t: Int, _ p: Int, _ mask: UInt16, _ vals: UnsafePointer<Float>?) -> Double {
+        if mask & (UInt16(1) << UInt16(p)) != 0, let v = vals { return Double(v[p]) }
+        return Double(d.param(t, p))
+    }
+
+    /// Ноты дорожки t движком e в кадре frame (gate — как у Sampler.trigger: −1 — нота в 1 шаг, Int64.max — живая).
+    func trigger(_ d: SoundData, track t: Int, engine e: Int, at frame: Int64, notes: UnsafePointer<Int16>, count: Int,
+                 mask: UInt16, vals: UnsafePointer<Float>?, gate: Int64, own isOwn: Bool, liveId live: Int, retrig: Bool) {
+        if t < 0 || t >= SynthVoices.tracks { return }
+        let attack: Double = pv(d, t, VoiceParam.attack, mask, vals) / 1000
+        if !retrig { legatoCut(t, notes, count, frame, attack) }
+        for k in 0..<count {
+            let n = Int(notes[k])
+            let (v, steal) = allocate(t, frame)
+            if steal {
+                fade(v, at: frame, tau: 0.0015)
+                pActive[v] = 1
+                pStart[v] = frame + Int64((0.008 * sr).rounded())
+                pNote[v] = n
+                pEngine[v] = e
+                pGate[v] = gate
+                pOwn[v] = isOwn ? 1 : 0
+                pLive[v] = live
+                pMask[v] = mask
+                for p in 0..<VoiceParam.count { pVal[v * VoiceParam.count + p] = vals.map { $0[p] } ?? 0 }
+                stopAt[v] = Swift.min(stopAt[v], pStart[v])
+            } else {
+                pActive[v] = 0
+                setup(v, d, t, e, frame, n, gate, mask, vals, isOwn, live)
+            }
+        }
+    }
+
+    /// Слот дорожки по кругу: свободный — голос дозвучал (stopAt); иначе крадётся следующий (steal).
+    private func allocate(_ t: Int, _ at: Int64) -> (Int, Bool) {
+        let base = t * SynthVoices.perTrack
+        let pt = SynthVoices.perTrack
+        for k in 0..<pt {
+            let c = (next[t] + k) % pt
+            let v = base + c
+            if pActive[v] != 0 { continue }
+            if active[v] == 0 || stopAt[v] <= at {
+                next[t] = (c + 1) % pt
+                return (v, false)
+            }
+        }
+        let c = next[t] % pt
+        next[t] = (c + 1) % pt
+        return (base + c, true)
+    }
+
+    private func setup(_ v: Int, _ d: SoundData, _ t: Int, _ e: Int, _ frame: Int64, _ n: Int, _ gate: Int64,
+                       _ mask: UInt16, _ vals: UnsafePointer<Float>?, _ isOwn: Bool, _ live: Int) {
+        if slotEngine[v] != e {
+            bank.select(v, e)
+            limiter[v].initialize()
+            slotEngine[v] = e
+        }
+        nextSerial += 1
+        serial[v] = nextSerial
+        active[v] = 1
+        fading[v] = 0
+        own[v] = isOwn ? 1 : 0
+        liveId[v] = live
+        trackId[v] = d.trackId[t]
+        note[v] = n
+        engine[v] = e
+        start[v] = frame
+        triggered[v] = 0
+        quiet[v] = 0
+        lockMask[v] = mask
+        for p in 0..<VoiceParam.count { lockVal[v * VoiceParam.count + p] = vals.map { $0[p] } ?? 0 }
+        let attack: Double = pv(d, t, VoiceParam.attack, mask, vals) / 1000
+        let decay: Double = pv(d, t, VoiceParam.decay, mask, vals) / 1000
+        let att: Double = Swift.max(0.002, attack) * sr
+        attackF[v] = att
+        decaySec[v] = decay
+        decayK[v] = Float(exp(-1 / (Swift.max(0.005, decay / 4) * sr)))
+        if gate == Int64.max {
+            holdEnd[v] = Int64.max
+            stopAt[v] = Int64.max
+        } else {
+            let hold: Double = gate < 0 ? att : Swift.max(att, Double(gate))
+            holdEnd[v] = frame + Int64(hold.rounded())
+            stopAt[v] = holdEnd[v] + Int64((Swift.max(0.02, decay) * 2 + 0.05) * sr)
+        }
+        released[v] = 0
+        env[v] = 0
+        fadeAt[v] = Int64.max
+        fadeG[v] = 1
+        fadeK[v] = 1
+        level[v] = Float(pow(pv(d, t, VoiceParam.level, mask, vals) / 127, 1.5))
+        pan[v] = Float(Swift.max(-1, Swift.min(1, pv(d, t, VoiceParam.pan, mask, vals) / 64)))
+        let f = Biquad.knob(pv(d, t, VoiceParam.filter, mask, vals), reso: pv(d, t, VoiceParam.reso, mask, vals))
+        ftype[v] = f.type
+        hz[v] = f.hz
+        qDb[v] = f.q
+        coef[v].set(type: f.type, hz: f.hz, qDb: f.q, sampleRate: sr)
+        z[v * 2] = 0
+        z[v * 2 + 1] = 0
+    }
+
+    /// Ждущая нота слота v становится голосом (прежняя погасла).
+    private func activatePending(_ v: Int, _ d: SoundData) {
+        pActive[v] = 0
+        let t = v / SynthVoices.perTrack
+        active[v] = 0
+        if t >= d.trackCount { return }
+        setup(v, d, t, pEngine[v], pStart[v], pNote[v], pGate[v], pMask[v], pVal + v * VoiceParam.count,
+              pOwn[v] != 0, pLive[v])
+    }
+
+    private func fade(_ v: Int, at: Int64, tau: Double) {
+        if active[v] == 0 || (fading[v] != 0 && fadeAt[v] <= at) { return }
+        fading[v] = 1
+        fadeAt[v] = at
+        fadeK[v] = Float(exp(-1 / (tau * sr)))
+        stopAt[v] = Swift.min(stopAt[v], at + Int64((tau * 8 + 0.005) * sr))
+    }
+
+    /// Та же нота продолжает державшуюся: прежняя гаснет вместе с атакой новой (legatoCut веба).
+    private func legatoCut(_ t: Int, _ notes: UnsafePointer<Int16>, _ count: Int, _ at: Int64, _ attack: Double) {
+        let tol = Int64(0.005 * sr)
+        let base = t * SynthVoices.perTrack
+        for v in base..<(base + SynthVoices.perTrack)
+        where active[v] != 0 && fading[v] == 0 && holdEnd[v] != Int64.max {
+            var same = false
+            for k in 0..<count where Int(notes[k]) == note[v] { same = true }
+            if !same { continue }
+            if start[v] < at && holdEnd[v] >= at - tol { fade(v, at: at, tau: Swift.max(0.0015, attack / 3)) }
+        }
+    }
+
+    /// Отпустили клавишу: живые ноты (liveId) — Decay как Release с кадра at.
+    func release(track t: Int, liveId id: Int, at: Int64) {
+        if t < 0 || t >= SynthVoices.tracks { return }
+        let base = t * SynthVoices.perTrack
+        for v in base..<(base + SynthVoices.perTrack) {
+            if active[v] != 0 && liveId[v] == id && holdEnd[v] == Int64.max {
+                holdEnd[v] = Swift.max(at, start[v])
+                stopAt[v] = holdEnd[v] + Int64((Swift.max(0.02, decaySec[v]) * 2 + 0.05) * sr)
+            }
+            if pActive[v] != 0 && pLive[v] == id && pGate[v] == Int64.max {
+                pGate[v] = at > pStart[v] ? at - pStart[v] : -1
+            }
+        }
+    }
+
+    // MARK: — новый снимок звука
+
+    /// Перестановка или удаление дорожек — голоса гаснут (как у сэмплера).
+    func adopt(_ d: SoundData, now: Int64) {
+        for v in 0..<SynthVoices.slots where active[v] != 0 || pActive[v] != 0 {
+            let t = v / SynthVoices.perTrack
+            if t >= d.trackCount || d.trackId[t] != trackId[v] {
+                pActive[v] = 0
+                fade(v, at: now, tau: 0.0015)
+            }
+        }
+    }
+
+    var lastSerial: Int { return nextSerial }
+
+    /// Держащиеся ноты дорожки t (не свой звук шага, созданные до serial last) — для перезапуска новым звуком:
+    /// голос гаснет за ~3 мс, body получает ноту, удержание, p-lock и liveId.
+    func retrigger(_ t: Int, _ now: Int64, upTo last: Int,
+                   _ body: (_ note: Int, _ at: Int64, _ gate: Int64, _ mask: UInt16, _ vals: UnsafePointer<Float>,
+                            _ live: Int) -> Void) {
+        if t < 0 || t >= SynthVoices.tracks { return }
+        let edgeTol = Int64(0.01 * sr)
+        let base = t * SynthVoices.perTrack
+        for v in base..<(base + SynthVoices.perTrack)
+        where active[v] != 0 && fading[v] == 0 && own[v] == 0 && serial[v] <= last {
+            let at = Swift.max(now, start[v])
+            if holdEnd[v] != Int64.max && holdEnd[v] <= at + edgeTol { continue }
+            let gate: Int64 = holdEnd[v] == Int64.max ? Int64.max : holdEnd[v] - at
+            fade(v, at: at, tau: 0.003)
+            body(note[v], at, gate, lockMask[v], lockVal + v * VoiceParam.count, liveId[v])
+        }
+    }
+
+    // MARK: — звук
+
+    /// Голоса в шины дорожек (bus + t·stride); used[t] — шина уже очищена в этом блоке.
+    func render(_ d: SoundData, blockStart: Int64, frames n: Int, busL: UnsafeMutablePointer<Float>,
+                busR: UnsafeMutablePointer<Float>, used: UnsafeMutablePointer<UInt8>, stride: Int) {
+        for v in 0..<SynthVoices.slots where active[v] != 0 || pActive[v] != 0 {
+            let t = v / SynthVoices.perTrack
+            if t >= d.trackCount {
+                active[v] = 0
+                pActive[v] = 0
+                continue
+            }
+            if used[t] == 0 {
+                (busL + t * stride).update(repeating: 0, count: n)
+                (busR + t * stride).update(repeating: 0, count: n)
+                used[t] = 1
+            }
+            renderSlot(v, d, t, blockStart, n, busL + t * stride, busR + t * stride)
+        }
+    }
+
+    private func renderSlot(_ v: Int, _ d: SoundData, _ t: Int, _ blockStart: Int64, _ n: Int,
+                            _ bl: UnsafeMutablePointer<Float>, _ br: UnsafeMutablePointer<Float>) {
+        var i = 0
+        while i < n {
+            let frame0 = blockStart + Int64(i)
+            if pActive[v] != 0 && pStart[v] <= frame0 { activatePending(v, d) }
+            if active[v] == 0 {
+                guard pActive[v] != 0 else { return }
+                let s = Int(pStart[v] - blockStart)
+                if s >= n { return }
+                i = Swift.max(i + 1, s)
+                continue
+            }
+            if start[v] > frame0 {
+                let s = Int(start[v] - blockStart)
+                if s >= n { return }
+                i = s
+                continue
+            }
+            var m = Swift.min(SynthVoices.chunk, n - i)
+            if pActive[v] != 0 && pStart[v] < frame0 + Int64(m) { m = Int(pStart[v] - frame0) }
+            if m <= 0 { continue }
+            renderChunk(v, d, t, frame0, m, bl + i, br + i)
+            i += m
+        }
+    }
+
+    @inline(__always)
+    private func renderChunk(_ v: Int, _ d: SoundData, _ t: Int, _ frame0: Int64, _ m: Int,
+                             _ bl: UnsafeMutablePointer<Float>, _ br: UnsafeMutablePointer<Float>) {
+        let mask = lockMask[v]
+        let base = v * VoiceParam.count
+        // Ручки дорожки меняют звучащую ноту сразу; p-lock шага держит своё.
+        @inline(__always) func val(_ p: Int) -> Double {
+            if mask & (UInt16(1) << UInt16(p)) != 0 { return Double(lockVal[base + p]) }
+            return Double(d.param(t, p))
+        }
+        let e = engine[v]
+        // Ручки → Plaits (synthParams веба): harmonics 0…1 (SPEECH — точка пункта), timbre, morph; accent 0,8.
+        var p = EngineParameters()
+        let h = Float(val(VoiceParam.harm) / 100)
+        let pc = pointCount[e]
+        p.harmonics = pc > 0 ? points[e * 4 + Params.stepIndex(Double(h), pc)] : h
+        p.timbre = Float(val(VoiceParam.timbre) / 100)
+        p.morph = Float(val(VoiceParam.morph) / 100)
+        p.note = Float(note[v])
+        p.accent = SynthVoices.accent
+        p.trigger = triggered[v] == 0 ? (triggerRisingEdge | triggerHigh) : triggerLow
+        triggered[v] = 1
+        bank.render(v, e, p, outBuf, auxBuf, m)
+        // Post (jambo_voices.cc): усиление, < 0 — лимитер; aux_mix 0 — только OUT; ±1.
+        var gain = gains[e]
+        if gain < 0 {
+            limiter[v].process(-gain, outBuf, m)
+            gain = 1
+        }
+        var peak: Float = 0
+        for j in 0..<m {
+            let x = Swift.min(1, Swift.max(-1, outBuf[j] * gain))
+            outBuf[j] = x
+            peak = Swift.max(peak, abs(x))
+        }
+        quiet[v] = peak < 1e-5 ? quiet[v] + m : 0
+        if quiet[v] > SynthVoices.silence && frame0 - start[v] > Int64(SynthVoices.silence) {
+            active[v] = 0
+            return
+        }
+        // Сглаживание ручек (setTargetAtTime веба: 10 мс, фильтр — 15 мс).
+        let levelT = Float(pow(val(VoiceParam.level) / 127, 1.5))
+        let panT = Float(Swift.max(-1, Swift.min(1, val(VoiceParam.pan) / 64)))
+        let fk = Biquad.knob(val(VoiceParam.filter), reso: val(VoiceParam.reso))
+        if fk.type != ftype[v] {
+            ftype[v] = fk.type
+            hz[v] = fk.hz
+        }
+        let ks: Double = 1 - exp(-Double(m) / (0.01 * sr))
+        let kf: Double = 1 - exp(-Double(m) / (0.015 * sr))
+        level[v] += (levelT - level[v]) * Float(ks)
+        pan[v] += (panT - pan[v]) * Float(ks)
+        let h0 = hz[v]
+        let q0 = qDb[v]
+        hz[v] += (fk.hz - hz[v]) * kf
+        qDb[v] += (fk.q - qDb[v]) * kf
+        if abs(hz[v] - h0) > 1e-6 || abs(qDb[v] - q0) > 1e-6 {
+            coef[v].set(type: ftype[v], hz: hz[v], qDb: qDb[v], sampleRate: sr)
+        }
+        let c = coef[v]
+        // StereoPanner, моно: cos/sin.
+        let x: Float = (pan[v] + 1) / 2
+        let gc = cos(x * Float.pi / 2)
+        let gs = sin(x * Float.pi / 2)
+        let lv = level[v]
+        let zb = v * 2
+        for j in 0..<m {
+            let frame = frame0 + Int64(j)
+            if frame >= stopAt[v] {
+                active[v] = 0
+                return
+            }
+            // Огибающая: атака линейно, удержание, затем Decay как Release (экспонента, τ = Decay/4).
+            var g: Float
+            if frame >= holdEnd[v] {
+                if released[v] == 0 {
+                    released[v] = 1
+                    let tt = Double(frame - start[v])
+                    env[v] = tt < attackF[v] ? Float(tt / attackF[v]) : 1
+                }
+                env[v] *= decayK[v]
+                g = env[v]
+            } else {
+                let tt = Double(frame - start[v])
+                g = tt < attackF[v] ? Float(tt / attackF[v]) : 1
+                env[v] = g
+            }
+            if frame >= fadeAt[v] { fadeG[v] *= fadeK[v] }
+            g *= lv * fadeG[v]
+            let a: Float = outBuf[j] * g
+            // Фильтр (TDF II).
+            let y: Float = c.b0 * a + z[zb]
+            z[zb] = c.b1 * a - c.a1 * y + z[zb + 1]
+            z[zb + 1] = c.b2 * a - c.a2 * y
+            bl[j] += y * gc
+            br[j] += y * gs
+        }
+        // Денормалы в состоянии фильтра.
+        for k in 0..<2 where abs(z[zb + k]) < 1e-20 { z[zb + k] = 0 }
+    }
+}

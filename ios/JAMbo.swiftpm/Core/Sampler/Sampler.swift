@@ -23,6 +23,10 @@ public final class Sampler {
 
     public let out = SPSCQueue<VoiceOut>(capacity: 2048, filler: .none)
     public var sound: SoundData?
+    /// Голоса синта (ставит AudioCore.installSynth); звук «mi:<n>» — ноты уходят туда, шины и микшер — общие.
+    public internal(set) var synth: SynthVoices?
+    /// Ключи звуков синта по движку (сравнение в колбэке без строк).
+    let synthHash = UnsafeMutablePointer<UInt64>.allocate(capacity: SynthEngines.count)
     let sr: Double
 
     // Голоса (по ячейке).
@@ -73,19 +77,19 @@ public final class Sampler {
     let gateCur = UnsafeMutablePointer<Float>.allocate(capacity: SoundData.maxTracks)
 
     // Предпрослушка (▶ редактора): сэмпл в исходной высоте сразу на выход.
-    private var pvL: UnsafeMutablePointer<Float>?
-    private var pvR: UnsafeMutablePointer<Float>?
-    private var pvPos: Double = 0
-    private var pvEnd: Double = 0
-    private var pvGain: Float = 0
-    private var pvStop: Bool = false
-    private var pvStereo = false
+    var pvL: UnsafeMutablePointer<Float>?
+    var pvR: UnsafeMutablePointer<Float>?
+    var pvPos: Double = 0
+    var pvEnd: Double = 0
+    var pvGain: Float = 0
+    var pvStop: Bool = false
+    var pvStereo = false
     /// Ячейка полосы предпрослушки в сообщениях VoiceOut.
     public static let previewVoice = 99
 
     // Ноты для retrigger и живых нот.
-    private let one = UnsafeMutablePointer<Int16>.allocate(capacity: 1)
-    private let scratch = UnsafeMutablePointer<Float>.allocate(capacity: VoiceParam.count)
+    let one = UnsafeMutablePointer<Int16>.allocate(capacity: 1)
+    let scratch = UnsafeMutablePointer<Float>.allocate(capacity: VoiceParam.count)
 
     public init(sampleRate: Double) {
         sr = sampleRate
@@ -134,6 +138,7 @@ public final class Sampler {
         gateCur.initialize(repeating: -1, count: SoundData.maxTracks)
         one.initialize(to: 0)
         scratch.initialize(repeating: 0, count: VoiceParam.count)
+        for e in 0..<SynthEngines.count { (synthHash + e).initialize(to: SoundKey.hash(SynthKey.key(e))) }
     }
 
     deinit {
@@ -149,7 +154,9 @@ public final class Sampler {
         coef.deallocate()
         lockMask.deallocate()
         one.deallocate()
+        synthHash.deallocate()
     }
+
 
     /// Сколько голосов звучит (для тестов и диагностики).
     public var activeCount: Int {
@@ -174,6 +181,12 @@ public final class Sampler {
                         retrig: Bool = false) {
         guard let d = sound, t >= 0, t < d.trackCount else { return }
         let h: UInt64 = hash != 0 ? hash : d.sound[t]
+        let se = synthEngine(h)
+        if se >= 0 {
+            synth?.trigger(d, track: t, engine: se, at: frame, notes: notes, count: count, mask: mask, vals: vals,
+                           gate: gate, own: isOwn, liveId: live, retrig: retrig)
+            return
+        }
         let e = d.entry(t, h)
         if e < 0 { return }
         let frames = d.eFrames[e]
@@ -322,6 +335,7 @@ public final class Sampler {
 
     /// Отпустили клавишу: живые ноты (liveId) — Decay как Release с кадра at.
     public func release(track t: Int, liveId id: Int, at: Int64) {
+        synth?.release(track: t, liveId: id, at: at)
         for v in 0..<Sampler.slots where active[v] != 0 && track[v] == t && liveId[v] == id && holdEnd[v] == Int64.max {
             holdEnd[v] = Swift.max(at, start[v])
             stopAt[v] = holdEnd[v] + Int64((Swift.max(0.02, decaySec[v]) * 2 + 0.05) * sr)
@@ -356,10 +370,13 @@ public final class Sampler {
             }
             if let l = srcL[v], !d.holds(l) { fade(v, at: now, tau: 0.0015) }
         }
+        synth?.adopt(d, now: now)
         guard let o = old else { return }
         let n = Swift.min(d.trackCount, o.trackCount)
+        let lastSynth = synth?.lastSerial ?? 0
         for t in 0..<n where d.trackId[t] == o.trackId[t] && d.sound[t] != o.sound[t] {
             retrigger(t, now)
+            retriggerSynth(t, now, lastSynth)
         }
     }
 
@@ -379,31 +396,6 @@ public final class Sampler {
                     own: false, liveId: liveId[v], retrig: true)
         }
     }
-
-    // MARK: — предпрослушка
-
-    /// ▶ редактора: сэмпл hash от a до b (доли) в исходной высоте сразу на выход; новая обрывает прошлую.
-    public func preview(hash: UInt64, a: Double, b: Double, at: Int64) {
-        guard let d = sound else { return }
-        let e = d.anyEntry(hash)
-        if e < 0 { return }
-        let f = Double(d.eFrames[e])
-        pvL = d.eLeft[e]
-        pvR = d.eRight[e]
-        pvStereo = d.eChannels[e] == 2
-        pvPos = Swift.max(0, Swift.min(1, a)) * f
-        pvEnd = Swift.max(0, Swift.min(1, b)) * f
-        pvGain = Sampler.previewGain
-        pvStop = false
-        _ = out.push(.start(voice: Sampler.previewVoice, track: -1, hash: hash, frame: at, a: pvPos / f, b: pvEnd / f,
-                            rate: 1, frames: d.eFrames[e]))
-    }
-
-    public func stopPreview() {
-        if pvL != nil { pvStop = true }
-    }
-
-    public var previewing: Bool { return pvL != nil }
 
     // MARK: — звук
 
@@ -436,6 +428,7 @@ public final class Sampler {
             }
             renderVoice(v, d, blockStart, n)
         }
+        synth?.render(d, blockStart: blockStart, frames: n, busL: busL, busR: busR, used: used, stride: Sampler.maxFrames)
         mix(d, n, left, right)
         renderPreview(n, left, right)
     }
@@ -467,28 +460,6 @@ public final class Sampler {
             }
             volCur[t] = vol
             gateCur[t] = gate
-        }
-    }
-
-    private func renderPreview(_ n: Int, _ left: UnsafeMutablePointer<Float>, _ right: UnsafeMutablePointer<Float>) {
-        guard let l = pvL, let r = pvR else { return }
-        let k = Float(exp(-1 / (0.005 * sr)))
-        for i in 0..<n {
-            if pvPos >= pvEnd || pvGain < 0.0005 {
-                pvL = nil
-                pvR = nil
-                _ = out.push(.end(voice: Sampler.previewVoice))
-                return
-            }
-            let j = Int(pvPos)
-            let remain = Float((pvEnd - pvPos) / (0.004 * sr))
-            let g = pvGain * Swift.min(1, remain)
-            let xl = l[j]
-            let xr = pvStereo ? r[j] : xl
-            left[i] += xl * g
-            right[i] += xr * g
-            pvPos += 1
-            if pvStop { pvGain *= k }
         }
     }
 

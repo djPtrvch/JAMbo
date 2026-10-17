@@ -36,9 +36,9 @@ public enum PlaitsSelfTest {
     }
 
     public static let engineNames = ["VA", "WAVESHAPE", "FM", "GRAIN", "ADDITIVE", "WAVETABLE", "CHORDS", "SPEECH"]
-    /// Усиления OUT и AUX (< 0 — лимитер), как в wasm/plaits/jambo_voices.cc.
-    static let outGains: [Float] = [0.8, 0.7, 0.6, 0.7, 0.8, 0.6, 0.8, -0.7]
-    static let auxGains: [Float] = [0.8, 0.6, 0.6, 0.6, 0.8, 0.6, 0.8, 0.8]
+    /// Усиления OUT и AUX (< 0 — лимитер) — те же, что у голоса синта (jambo_voices.cc).
+    static var outGains: [Float] { return SynthVoices.outGains }
+    static var auxGains: [Float] { return SynthVoices.auxGains }
 
     /// Сдвиг ноты в вебе (plaits-worklet.js на 48 кГц), как SHIFT в golden.mjs: в Double, как в JS.
     static let webNoteShift: Double = 12 * log2(47872.34 / 48000)
