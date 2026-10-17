@@ -1,5 +1,5 @@
 // Ported from Mutable Instruments Plaits and stmlib (MIT), Copyright Emilie Gillet.
-// stmlib/dsp/filter.h: OnePole, Svf, NaiveSvf (то, что нужно движкам Plaits).
+// stmlib/dsp/filter.h: OnePole, Svf, NaiveSvf, DCBlocker (то, что нужно движкам Plaits).
 import Foundation
 
 enum FilterMode { case lowPass, bandPass, bandPassNormalized, highPass }
@@ -105,6 +105,46 @@ struct Svf {
                                                _ size: Int, _ gain: Float, _ mode: FilterMode) {
         for i in 0..<size { out[i] += gain * process(input[i], mode) }
     }
+
+    /// Process<mode>(in, out, size); in и out могут совпадать.
+    @inline(__always) mutating func process(_ input: UnsafePointer<Float>, _ out: UnsafeMutablePointer<Float>,
+                                            _ size: Int, _ mode: FilterMode) {
+        for i in 0..<size { out[i] = process(input[i], mode) }
+    }
+
+    /// Process<mode_1, mode_2>(in, &out_1, &out_2): два выхода одного отсчёта.
+    @inline(__always) mutating func process(_ input: Float, _ mode1: FilterMode, _ mode2: FilterMode) -> (Float, Float) {
+        let hp = (input - r * state1 - g * state1 - state2) * h
+        let bp = g * hp + state1
+        state1 = g * hp + bp
+        let lp = g * bp + state2
+        state2 = g * bp + lp
+        @inline(__always) func pick(_ m: FilterMode) -> Float {
+            switch m {
+            case .lowPass: return lp
+            case .bandPass: return bp
+            case .bandPassNormalized: return bp * r
+            case .highPass: return hp
+            }
+        }
+        return (pick(mode1), pick(mode2))
+    }
+
+    /// ProcessMultimodeLPtoHP: mode 0 — ФНЧ, 0,5 — полосовой, 1 — ФВЧ.
+    @inline(__always) mutating func processMultimodeLPtoHP(_ input: UnsafePointer<Float>, _ out: UnsafeMutablePointer<Float>,
+                                                           _ size: Int, _ mode: Float) {
+        let hpGain = min(-mode * 2 + 1, 0)
+        let bpGain = 1 - 2 * abs(mode - 0.5)
+        let lpGain = max(1 - mode * 2, 0)
+        for i in 0..<size {
+            let hp = (input[i] - r * state1 - g * state1 - state2) * h
+            let bp = g * hp + state1
+            state1 = g * hp + bp
+            let lp = g * bp + state2
+            state2 = g * bp + lp
+            out[i] = hpGain * hp + bpGain * bp + lpGain * lp
+        }
+    }
 }
 
 struct NaiveSvf {
@@ -137,5 +177,22 @@ struct NaiveSvf {
         case .bandPassNormalized: return bpNormalized
         case .highPass: return hp
         }
+    }
+}
+
+struct DCBlocker {
+    var pole: Float = 0, x: Float = 0, y: Float = 0
+
+    mutating func initialize(_ pole: Float) {
+        x = 0
+        y = 0
+        self.pole = pole
+    }
+
+    @inline(__always) mutating func process(_ s: Float) -> Float {
+        let oldX = x
+        x = s
+        y = y * pole + x - oldX
+        return y
     }
 }

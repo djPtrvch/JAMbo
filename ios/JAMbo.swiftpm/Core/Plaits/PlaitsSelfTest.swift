@@ -12,6 +12,9 @@ public enum PlaitsSelfTest {
         public let harmonics: Float
         public let timbre: Float
         public let morph: Float
+        /// 1 — выход AUX (aux_mix 1, движки 11–15), иначе OUT.
+        public let aux: Int?
+        public var isAux: Bool { aux == 1 }
     }
 
     public struct Cases: Decodable, Sendable {
@@ -31,11 +34,13 @@ public enum PlaitsSelfTest {
         public let finite: Bool
         /// Критерий S3a: по отсчётам ≤ −60 dB ИЛИ полосы 20 Hz–20 kHz в пределах ±0,5 dB.
         public var passes: Bool { sampleErrorDb <= -60 || maxBandDiffDb <= 0.5 }
-        /// Итог: критерий + страховка (по отсчётам не хуже −40 dB — полярность, сдвиг), без NaN, не тишина.
-        public var ok: Bool { passes && finite && sampleErrorDb <= -40 && rmsDb > -40 }
+        /// Итог: критерий + страховка (по отсчётам не хуже −40 dB — полярность, сдвиг), без NaN, не тишина
+        /// (RMS выше −60 dBFS: у AUX струны и резонатора — короткое возбуждение, −42…−46 dBFS).
+        public var ok: Bool { passes && finite && sampleErrorDb <= -40 && rmsDb > -60 }
     }
 
-    public static let engineNames = ["VA", "WAVESHAPE", "FM", "GRAIN", "ADDITIVE", "WAVETABLE", "CHORDS", "SPEECH"]
+    public static let engineNames = ["VA", "WAVESHAPE", "FM", "GRAIN", "ADDITIVE", "WAVETABLE", "CHORDS", "SPEECH",
+                                     "SWARM", "NOISE", "PARTICLE", "STRING", "MODAL", "KICK", "SNARE", "HI-HAT"]
     /// Усиления OUT и AUX (< 0 — лимитер) — те же, что у голоса синта (jambo_voices.cc).
     static var outGains: [Float] { return SynthVoices.outGains }
     static var auxGains: [Float] { return SynthVoices.auxGains }
@@ -52,7 +57,15 @@ public enum PlaitsSelfTest {
         case 4: return AdditiveEngine(resources: r)
         case 5: return WavetableEngine(resources: r)
         case 6: return ChordEngine(resources: r)
-        default: return SpeechEngine(resources: r, random: StmRandom())
+        case 7: return SpeechEngine(resources: r, random: StmRandom())
+        case 8: return SwarmEngine(resources: r, random: StmRandom())
+        case 9: return NoiseEngine(resources: r, random: StmRandom())
+        case 10: return ParticleEngine(resources: r, random: StmRandom())
+        case 11: return StringEngine(resources: r, random: StmRandom())
+        case 12: return ModalEngine(resources: r, random: StmRandom())
+        case 13: return BassDrumEngine(resources: r, random: StmRandom())
+        case 14: return SnareDrumEngine(resources: r, random: StmRandom())
+        default: return HiHatEngine(resources: r, random: StmRandom())
         }
     }
 
@@ -101,7 +114,8 @@ public enum PlaitsSelfTest {
     }
 
     /// Рендер как render() в wasm/plaits/jambo_voices.cc: выбор движка (LoadUserData, Reset), триггер (фронт и гейт)
-    /// в первом блоке, затем гейт снят; после движка — Post (усиление, < 0 — лимитер); aux_mix 0 — OUT, ±1, Int16.
+    /// в первом блоке, затем гейт снят; после движка — Post (усиление, < 0 — лимитер); aux_mix 0 — OUT
+    /// (у случаев AUX — aux_mix 1: только AUX), ±1, Int16.
     static func render(_ engine: PlaitsEngine, _ c: Case, frames: Int, block: Int, accent: Float,
                        outGain: Float, auxGain: Float) -> [Float] {
         var result = [Float](repeating: 0, count: frames)
@@ -128,7 +142,7 @@ public enum PlaitsSelfTest {
             post(&limiter, outGain, out, n)
             post(&auxLimiter, auxGain, aux, n)
             for i in 0..<n {
-                let v = min(max(out[i], -1), 1)
+                let v = min(max(c.isAux ? aux[i] : out[i], -1), 1)
                 result[pos + i] = (v * 32767).rounded() / 32767
             }
             pos += n

@@ -175,3 +175,63 @@ struct HysteresisQuantizer2 {
         return q
     }
 }
+
+// MARK: - dsp/dsp.h, rsqrt.h
+
+/// fast_rsqrt_carmack.
+@inline(__always) func fastRsqrtCarmack(_ x: Float) -> Float {
+    var i = x.bitPattern
+    i = 0x5f3759df &- (i >> 1)
+    var y = Float(bitPattern: i)
+    let x2 = x * 0.5
+    y = y * (1.5 - (x2 * y * y))
+    return y
+}
+
+/// Crossfade(a, b, fade).
+@inline(__always) func stmCrossfade(_ a: Float, _ b: Float, _ fade: Float) -> Float { a + (b - a) * fade }
+
+/// Clip16.
+@inline(__always) func stmClip16(_ x: Int32) -> Int32 { x < -32768 ? -32768 : (x > 32767 ? 32767 : x) }
+
+// MARK: - dsp/cosine_oscillator.h
+
+/// CosineOscillator (режим APPROXIMATE — единственный, нужный Plaits).
+struct CosineOscillator {
+    private var y1: Float = 0
+    private var y0: Float = 0
+    private var iirCoefficient: Float = 0
+    private var initialAmplitude: Float = 0
+
+    mutating func initApproximate(_ frequencyIn: Float) {
+        var frequency = frequencyIn
+        var sign: Float = 16
+        frequency -= 0.25
+        if frequency < 0 {
+            frequency = -frequency
+        } else {
+            if frequency > 0.5 {
+                frequency -= 0.5
+            } else {
+                sign = -16
+            }
+        }
+        iirCoefficient = sign * frequency * (1 - 2 * frequency)
+        initialAmplitude = iirCoefficient * 0.25
+        start()
+    }
+
+    mutating func start() {
+        y1 = initialAmplitude
+        y0 = 0.5
+    }
+
+    @inline(__always) var value: Float { y1 + 0.5 }
+
+    @inline(__always) mutating func next() -> Float {
+        let temp = y0
+        y0 = iirCoefficient * y0 - y1
+        y1 = temp
+        return temp + 0.5
+    }
+}

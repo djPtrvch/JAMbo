@@ -14,9 +14,11 @@ public final class SynthVoices {
     /// Голос без звука дольше 4800 отсчётов (и с начала ноты прошло больше) замолкает (SILENCE worklet).
     static let silence = 4800
     static let accent: Float = 0.8
-    /// Усиления OUT и AUX движков 0–7 (< 0 — лимитер с предусилением), как в jambo_voices.cc.
-    public static let outGains: [Float] = [0.8, 0.7, 0.6, 0.7, 0.8, 0.6, 0.8, -0.7]
-    public static let auxGains: [Float] = [0.8, 0.6, 0.6, 0.6, 0.8, 0.6, 0.8, 0.8]
+    /// Усиления OUT и AUX движков 0–15 (< 0 — лимитер с предусилением), как в jambo_voices.cc.
+    public static let outGains: [Float] = [0.8, 0.7, 0.6, 0.7, 0.8, 0.6, 0.8, -0.7,
+                                           -3.0, -1.0, -2.0, -1.0, -1.0, 0.8, 0.8, 0.8]
+    public static let auxGains: [Float] = [0.8, 0.6, 0.6, 0.6, 0.8, 0.6, 0.8, 0.8,
+                                           1.0, -1.0, 1.0, 0.8, 0.8, 0.8, 0.8, 0.8]
 
     let sr: Double
     let bank: SynthEngineBank
