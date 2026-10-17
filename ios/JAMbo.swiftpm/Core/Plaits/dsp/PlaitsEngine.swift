@@ -1,11 +1,12 @@
 // Ported from Mutable Instruments Plaits and stmlib (MIT), Copyright Emilie Gillet.
 // plaits/dsp/dsp.h и plaits/dsp/engine/engine.h.
 
-/// Частота, на которую настроен Plaits (kCorrectedSampleRate: делитель тактовой частоты модуля, 4,6 цента ниже
-/// 48 кГц). a0 — по ней, как в оригинале; на 48 кГц голос сдвигает ноту на 12·log2(47872,34/48000), чтобы A4 = 440 Гц.
+/// kCorrectedSampleRate — частота модуля (делитель тактовой, 4,6 цента ниже 48 кГц); нужна LPC в SPEECH.
+/// a0 — по 48 кГц, без сдвига ноты (решение в ios/CLAUDE.md): A4 = 440 Гц, как в вебе со сдвигом
+/// 12·log2(47872,34/48000) при a0 оригинала.
 let kSampleRate: Float = 48000
 let kCorrectedSampleRate: Float = 47872.34
-let plaitsA0: Float = (440.0 / 8.0) / kCorrectedSampleRate
+let plaitsA0: Float = 0.00114583333
 let kMaxBlockSize = 24
 let kBlockSize = 12
 
