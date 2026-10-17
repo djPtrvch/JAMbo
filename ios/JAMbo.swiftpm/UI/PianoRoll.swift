@@ -107,8 +107,8 @@ struct KeyRow: View {
     }
 }
 
-/// Строка под клавишами (CHORD): PROGRESSION шириной 3 клавиши и аккорды прогрессии по 2 клавиши
-/// (не помещаются — делят оставшееся место поровну).
+/// Строка под клавишами (CHORD): PROGRESSION шириной 3 клавиши и аккорды прогрессии по 2 клавиши; с одной октавой
+/// (клавиши шире) — PROGRESSION в 2 клавиши, аккорды по одной. Не помещаются — делят оставшееся место поровну.
 struct ProgressionRow: View {
     let model: AppModel
     let layout: Layout
@@ -119,18 +119,20 @@ struct ProgressionRow: View {
         GeometryReader { geo in
             let count: Int = model.keyCount
             let keyW: CGFloat = (geo.size.width - KeyRow.gap * CGFloat(count - 1)) / CGFloat(count)
-            let progW: CGFloat = 3 * keyW + 2 * KeyRow.gap
+            let one: Bool = model.settings.pianoOctaves == 1
+            let progKeys: CGFloat = one ? 2 : 3
+            let progW: CGFloat = progKeys * keyW + (progKeys - 1) * KeyRow.gap
+            let chipW: CGFloat = one ? keyW : 2 * keyW + KeyRow.gap
             HStack(spacing: KeyRow.gap) {
                 ProgressionField(model: model).frame(width: progW)
-                chips(width: geo.size.width - progW - KeyRow.gap, keyW: keyW)
+                chips(width: geo.size.width - progW - KeyRow.gap, full: chipW)
             }
         }
     }
 
-    private func chips(width: CGFloat, keyW: CGFloat) -> some View {
+    private func chips(width: CGFloat, full: CGFloat) -> some View {
         let degrees: [Int] = model.progressionDegrees
         let n: Int = degrees.count
-        let full: CGFloat = 2 * keyW + KeyRow.gap
         let w: CGFloat = min(full, (width - KeyRow.gap * CGFloat(n - 1)) / CGFloat(n))
         let lit: Set<Int> = model.pressedNotes.union(model.playingNotes)
         return HStack(spacing: KeyRow.gap) {
