@@ -6,8 +6,9 @@ import Foundation
 
 /// Параметры голоса в снимках: номер в массиве (p-lock шагов — по тем же номерам).
 public enum VoiceParam {
-    public static let ids = ["pitch", "start", "end", "level", "attack", "decay", "filter", "reso", "pan"]
-    public static let count = 9
+    public static let ids = ["pitch", "start", "end", "level", "attack", "decay", "filter", "reso", "pan",
+                             "harm", "timbre", "morph"]
+    public static let count = 12
     public static let pitch = 0
     public static let start = 1
     public static let end = 2
@@ -17,6 +18,9 @@ public enum VoiceParam {
     public static let filter = 6
     public static let reso = 7
     public static let pan = 8
+    public static let harm = 9
+    public static let timbre = 10
+    public static let morph = 11
 }
 
 public struct SoundData {
@@ -32,6 +36,8 @@ public struct SoundData {
     public var gain: UnsafeMutablePointer<Float>
     public var open: UnsafeMutablePointer<UInt8>
     public var sound: UnsafeMutablePointer<UInt64>
+    /// Движок синта звука дорожки (−1 — сэмпл или нет звука).
+    public var engine: UnsafeMutablePointer<Int8>
     public var entryStart: UnsafeMutablePointer<Int32>
     public var entryCount: UnsafeMutablePointer<Int32>
     /// Сэмплы: ключ, данные, кадров, каналов, маркеры нарезки (отрезок таблицы slices; доля длины и нота).
@@ -104,6 +110,7 @@ public final class SoundSnapshot: @unchecked Sendable {
         var d = SoundData(
             trackId: .allocate(capacity: tracks), params: .allocate(capacity: tracks * pc),
             gain: .allocate(capacity: tracks), open: .allocate(capacity: tracks), sound: .allocate(capacity: tracks),
+            engine: .allocate(capacity: tracks),
             entryStart: .allocate(capacity: tracks + 1), entryCount: .allocate(capacity: tracks),
             eHash: .allocate(capacity: entries), eLeft: .allocate(capacity: entries), eRight: .allocate(capacity: entries),
             eFrames: .allocate(capacity: entries), eChannels: .allocate(capacity: entries),
@@ -115,6 +122,7 @@ public final class SoundSnapshot: @unchecked Sendable {
         d.gain.initialize(repeating: 0, count: tracks)
         d.open.initialize(repeating: 0, count: tracks)
         d.sound.initialize(repeating: 0, count: tracks)
+        d.engine.initialize(repeating: -1, count: tracks)
         d.entryStart.initialize(repeating: 0, count: tracks + 1)
         d.entryCount.initialize(repeating: 0, count: tracks)
         d.eHash.initialize(repeating: 0, count: entries)
@@ -139,6 +147,7 @@ public final class SoundSnapshot: @unchecked Sendable {
             d.gain[t] = Float(Params.volGain(tr.vol))
             d.open[t] = project.audible(t) ? 1 : 0
             d.sound[t] = SoundKey.hash(tr.sample)
+            d.engine[t] = Int8(SynthEngines.engine(tr.sample) ?? -1)
             d.entryStart[t] = Int32(e)
             var keys = tr.folder.items
             if !tr.sample.isEmpty && !keys.contains(tr.sample) { keys.append(tr.sample) }
@@ -178,6 +187,7 @@ public final class SoundSnapshot: @unchecked Sendable {
         data.gain.deallocate()
         data.open.deallocate()
         data.sound.deallocate()
+        data.engine.deallocate()
         data.entryStart.deallocate()
         data.entryCount.deallocate()
         data.eHash.deallocate()
