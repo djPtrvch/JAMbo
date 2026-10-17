@@ -7,6 +7,8 @@ import SwiftUI
 struct PagesColumn: View {
     let model: AppModel
     @State private var press: PagePress? = nil
+    /// Отпущенная перенесённая страница: уже на новом месте, плавно встаёт из-под пальца (сдвиг dy → 0).
+    @State private var landing: (row: Int, dy: CGFloat)? = nil
     @State private var tapTask: Task<Void, Never>? = nil
     @State private var lastTap: (row: Int, at: Date)? = nil
     @State private var rowStep: CGFloat = 50
@@ -21,13 +23,16 @@ struct PagesColumn: View {
             ZStack(alignment: .topLeading) {
                 VStack(spacing: 4) {
                     ForEach(0..<PagesColumn.rows, id: \.self) { r in
-                        let lifted: Bool = press?.lifting == true && press?.row == r
+                        let dragged: Bool = press?.lifting == true && press?.row == r
+                        let lifted: Bool = dragged || landing?.row == r
+                        // Поднятая идёт за пальцем без анимации (иначе отстаёт и прыгает на смене места);
+                        // плавно сдвигаются только соседи.
                         row(r).frame(height: rowH)
                             .offset(y: pageOffset(r, step: rowH + 4))
                             .scaleEffect(lifted ? 1.06 : 1)
                             .shadow(color: .black.opacity(lifted ? 0.5 : 0), radius: 8)
                             .zIndex(lifted ? 1 : 0)
-                            .animation(.easeOut(duration: 0.15), value: press?.liftTo)
+                            .animation(dragged ? nil : .easeOut(duration: 0.15), value: press?.liftTo)
                     }
                 }
                 outline(rowH: rowH)
@@ -74,6 +79,7 @@ struct PagesColumn: View {
 
     /// Перенос страницы: поднятая — за пальцем, страницы между старым и новым местом — на соседнее.
     private func pageOffset(_ r: Int, step: CGFloat) -> CGFloat {
+        if let l = landing, l.row == r { return l.dy }
         guard let p = press, p.lifting else { return 0 }
         if r == p.row { return p.liftY - p.y0 }
         if p.row < p.liftTo && r > p.row && r <= p.liftTo { return -step }
@@ -134,7 +140,7 @@ struct PagesColumn: View {
             cur.lifting = cur.row < model.track.pages.count
             cur.liftTo = cur.row
             cur.liftY = cur.y0
-            press = cur
+            withAnimation(.easeOut(duration: 0.12)) { press = cur }
             model.viewPage = cur.row
         }
     }
@@ -189,11 +195,11 @@ struct PagesColumn: View {
 
     private func end() {
         guard let p = press else { return }
-        press = nil
         if p.lifting {
-            if p.liftTo != p.row { model.movePage(p.row, p.liftTo) }
+            land(p)
             return
         }
+        press = nil
         if p.moved {
             model.endGesture()
             return
@@ -204,6 +210,23 @@ struct PagesColumn: View {
             return
         }
         if p.row < model.track.pages.count { tap(p.row) }
+    }
+
+    /// Отпустили перенесённую страницу: страницы встают на новые места без анимации (соседи уже там), а сама
+    /// страница — из-под пальца на своё место за 0,18 с (через кадр, чтобы сдвиг успел отрисоваться).
+    private func land(_ p: PagePress) {
+        let dy: CGFloat = p.liftY - p.y0 - CGFloat(p.liftTo - p.row) * rowStep
+        var t = Transaction()
+        t.disablesAnimations = true
+        withTransaction(t) {
+            press = nil
+            landing = (p.liftTo, dy)
+            if p.liftTo != p.row { model.movePage(p.row, p.liftTo) }
+        }
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 20_000_000)
+            withAnimation(.easeOut(duration: 0.18)) { landing = nil }
+        }
     }
 
     /// Тап: второй за 0,3 с — меню страницы; иначе через 0,3 с — эта страница играет.
