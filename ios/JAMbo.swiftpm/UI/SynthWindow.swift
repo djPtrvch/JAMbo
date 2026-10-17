@@ -16,9 +16,15 @@ struct SynthInfo: View {
                 .foregroundStyle(theme.text)
                 .lineLimit(1)
             VStack(alignment: .leading, spacing: 8) {
-                SynthIcon(engine: engine, values: model.iconValues(engine))
-                    .frame(maxWidth: .infinity, maxHeight: 120)
-                Text(e.full)
+                if engine == Jambo.wtable {
+                    SynthTableFrame(model: model, values: model.iconValues(engine))
+                        .frame(maxWidth: .infinity, maxHeight: 120)
+                } else {
+                    SynthIcon(engine: engine, values: model.iconValues(engine))
+                        .frame(maxWidth: .infinity, maxHeight: 120)
+                }
+                // У WTABLE вместо полного имени — имя таблицы дорожки.
+                Text(engine == Jambo.wtable ? WavetableKey.name(model.track.table) : e.full)
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(theme.accentText)
                     .lineLimit(1)
@@ -44,6 +50,26 @@ struct SynthInfo: View {
                     .lineLimit(1)
             }
         }
+    }
+}
+
+/// Кадр таблицы WTABLE (вместо иконки): POSITION и WARP — как у иконки (p-lock, игра); таблица ещё строится — пусто.
+struct SynthTableFrame: View {
+    let model: AppModel
+    let values: IconValues
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        // wavetableSerial — перерисовка, когда таблица достроилась.
+        let serial: Int = model.wavetableSerial
+        let table: WtTable? = model.wavetables.ready[model.track.table]
+        let els: [IconElement] = table.map { EngineIcons.tableFrame($0, position: values.h, warp: values.t) } ?? []
+        let ink: Color = theme.icon
+        return Canvas { ctx, size in
+            _ = serial
+            SynthIcon.draw(ctx, size, els, ink)
+        }
+        .aspectRatio(1, contentMode: .fit)
     }
 }
 

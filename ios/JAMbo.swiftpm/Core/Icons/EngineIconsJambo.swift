@@ -58,3 +58,28 @@ extension EngineIcons {
         return [IconElement(pts(modulator), op: 0.5), IconElement(pts(car)), IconElement(text: label, x: 49, y: 61, size: 8)]
     }
 }
+
+extension EngineIcons {
+    /// Кадр таблицы WTABLE в окне синта (renderTableFrame веба): POSITION — кадр (с интерполяцией между кадрами),
+    /// WARP — изгиб и синхронизация фазы; уровень 0 мипмапа, 129 точек, линия нуля.
+    public static func tableFrame(_ tb: WtTable, position pos: Double, warp: Double) -> [IconElement] {
+        let size = tb.sizes[0]
+        let data = tb.data[0]
+        let fpos = pos * Double(tb.frames - 1)
+        let fi = Swift.min(tb.frames - 2, Swift.max(0, Int(fpos.rounded(.down))))
+        let ff = tb.frames > 1 ? fpos - Double(fi) : 0
+        let rowB = tb.frames > 1 ? fi + 1 : fi
+        let bend = 1 + 3 * Swift.min(1, warp * 2)
+        let sync = warp > 0.5 ? 1 + 3 * (warp - 0.5) * 2 : 1
+        let n = 128
+        var pts: [(Double, Double)] = []
+        for k in 0...n {
+            var ph = Double(k) / Double(n) * sync
+            ph = pow(ph - ph.rounded(.down), bend)
+            let j = Swift.min(size - 1, Int((ph * Double(size)).rounded(.down)))
+            let a = Double(data[fi * size + j]), b = Double(data[rowB * size + j])
+            pts.append((4 + Double(k) / Double(n) * 56, 32 - 26 * (a + (b - a) * ff)))
+        }
+        return [IconElement([.move(4, 32), .hTo(60)], op: 0.25), IconElement(self.pts(pts))]
+    }
+}

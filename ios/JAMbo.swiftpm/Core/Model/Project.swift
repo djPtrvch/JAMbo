@@ -35,6 +35,8 @@ public struct Track: Codable, Equatable, Sendable {
     public var folder: Folder = Folder()
     public var slices: [String: [SliceMark]] = [:]
     public var vol: Double = Params.volDef
+    /// Таблица WTABLE дорожки ("" — BASIC, "builtin:NAME" — встроенная; свои WAV — S10).
+    public var table: String = ""
 
     public init(index: Int) {
         id = Int.random(in: 0..<(1 << 31))

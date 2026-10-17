@@ -475,7 +475,7 @@ public final class SynthVoices {
             } else {
                 bank.jamboSet(v, note: nt, q1, q2, q3, decay: dec)
             }
-            bank.jamboRender(v, outBuf, m, driftRatio: dr.ratio)
+            bank.jamboRender(v, outBuf, m, driftRatio: dr.ratio, table: d.tableRef[t])
             var j = 0
             while j < m {
                 let a = outBuf[j] < 0 ? -outBuf[j] : outBuf[j]

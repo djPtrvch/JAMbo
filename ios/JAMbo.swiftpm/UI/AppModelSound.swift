@@ -36,7 +36,25 @@ extension AppModel {
     // MARK: — снимки звука
 
     func publishAudio() {
-        audio.core.publish(project, samples: store.samples, map: settings.sliceMap, octave: octave)
+        // Таблицы WTABLE дорожек: готовые — в снимок, недостроенные — в фоне, по готовности снимок публикуется заново.
+        var tables: [String: WtTable] = [:]
+        for t in project.tracks {
+            let key = t.table
+            if tables[key] != nil { continue }
+            if let wt = wavetables.table(key, done: { [weak self] in
+                self?.wavetableSerial += 1
+                self?.publishAudio()
+            }) {
+                tables[key] = wt
+            }
+        }
+        audio.core.publish(project, samples: store.samples, map: settings.sliceMap, octave: octave, tables: tables)
+    }
+
+    /// TABLE: встроенная таблица WTABLE на дорожку (UNDO).
+    func pickTable(_ name: String) {
+        let key = WavetableKey.builtin(name)
+        editTrack { t in t.table = key }
     }
 
     /// Голоса из колбэка → полоса воспроизведения.

@@ -1,5 +1,5 @@
 // Движки синта (как SYNTH_ENGINES, synthKey, synthEngine в src/params.ts веба): звук дорожки или шага «mi:<n>».
-// MI SYNTH — Plaits 0–7, MI DRUMS — Plaits 8–15, свои (SYNTH) — DRUM, ANALOG, FM (16–18); WTABLE (19) — S3b #44.
+// MI SYNTH — Plaits 0–7, MI DRUMS — Plaits 8–15, свои (SYNTH) — DRUM, ANALOG, FM, WTABLE (16–19).
 
 /// Движок: короткое имя (меню), полное (окно синта), подписи ручек 1.1–1.3, пункты Harmonics и точки harmonics
 /// для Plaits по пункту (SPEECH: Formant, Phoneme, LPC — 0, 1/6, 1/3; Words отключён).
@@ -64,6 +64,9 @@ public enum SynthEngines {
                     initKnobs: [12.5, 0, 0]),
         SynthEngine(name: "FM", full: "FM", harm: "ratio", timbre: "index", morph: "contour", options: [],
                     harmPoints: [], jambo: true),
+        // WTABLE: таблица — у дорожки (Track.table), в окне синта вместо иконки — кадр таблицы.
+        SynthEngine(name: "WTABLE", full: "Wavetable", harm: "position", timbre: "warp", morph: "unison",
+                    options: [], harmPoints: [], jambo: true),
     ]
 
     /// Первый свой движок (DRUM).

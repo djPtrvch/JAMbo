@@ -156,8 +156,8 @@ final class SynthEngineBank {
     }
 
     @inline(__always)
-    func jamboRender(_ v: Int, _ out: UnsafeMutablePointer<Float>, _ n: Int, driftRatio: Double) {
-        jambo[v].render(out, n, driftRatio: driftRatio)
+    func jamboRender(_ v: Int, _ out: UnsafeMutablePointer<Float>, _ n: Int, driftRatio: Double, table: WtRef) {
+        jambo[v].render(out, n, driftRatio: driftRatio, table: table)
     }
 
     /// Голос молчал: хвоста DRUM для стыка нет (vo.last = 0 в worklet).

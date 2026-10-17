@@ -49,6 +49,8 @@ public struct SoundData {
     public var eSliceCount: UnsafeMutablePointer<Int32>
     public var sliceAt: UnsafeMutablePointer<Double>
     public var sliceNote: UnsafeMutablePointer<Int32>
+    /// Таблица WTABLE дорожки (указатели WtTable; кадров 0 — таблица ещё не готова, WTABLE молчит, как в вебе).
+    var tableRef: UnsafeMutablePointer<WtRef>
 
     @inline(__always)
     public func param(_ t: Int, _ p: Int) -> Float {
@@ -96,12 +98,15 @@ public struct SoundData {
 
 public final class SoundSnapshot: @unchecked Sendable {
     public let data: SoundData
-    /// Ссылки на сэмплы (колбэк их не трогает; освобождаются вместе со снимком в основном потоке).
+    /// Ссылки на сэмплы и таблицы (колбэк их не трогает; освобождаются вместе со снимком в основном потоке).
     private let keep: [SampleData]
+    private let keepTables: [WtTable]
     public static var liveCount = 0
 
     /// samples — загруженные сэмплы по ключу; map, scale, root — ноты маркеров по порядку (SLICE NOTES).
-    public init(_ project: Project, samples: [String: SampleData], map: SliceMap, octave: Int = 3) {
+    /// tables — готовые таблицы WTABLE по ключу (Track.table).
+    public init(_ project: Project, samples: [String: SampleData], map: SliceMap, octave: Int = 3,
+                tables: [String: WtTable] = [:]) {
         let tracks = SoundData.maxTracks
         let entries = SoundData.maxEntries
         let slices = SoundData.maxSlices
@@ -113,8 +118,11 @@ public final class SoundSnapshot: @unchecked Sendable {
             eHash: .allocate(capacity: entries), eLeft: .allocate(capacity: entries), eRight: .allocate(capacity: entries),
             eFrames: .allocate(capacity: entries), eChannels: .allocate(capacity: entries),
             eSliceStart: .allocate(capacity: entries), eSliceCount: .allocate(capacity: entries),
-            sliceAt: .allocate(capacity: slices), sliceNote: .allocate(capacity: slices)
+            sliceAt: .allocate(capacity: slices), sliceNote: .allocate(capacity: slices),
+            tableRef: .allocate(capacity: tracks)
         )
+        d.tableRef.initialize(repeating: WtRef(), count: tracks)
+        var keepTables: [WtTable] = []
         d.trackId.initialize(repeating: -1, count: tracks)
         d.params.initialize(repeating: 0, count: tracks * pc)
         d.gain.initialize(repeating: 0, count: tracks)
@@ -144,6 +152,10 @@ public final class SoundSnapshot: @unchecked Sendable {
             d.gain[t] = Float(Params.volGain(tr.vol))
             d.open[t] = project.audible(t) ? 1 : 0
             d.sound[t] = SoundKey.hash(tr.sample)
+            if let wt = tables[tr.table] {
+                keepTables.append(wt)
+                d.tableRef[t] = WtRef(frames: wt.frames, sizes: UnsafePointer(wt.sizes), data: UnsafePointer(wt.data))
+            }
             d.entryStart[t] = Int32(e)
             var keys = tr.folder.items
             if !tr.sample.isEmpty && !keys.contains(tr.sample) { keys.append(tr.sample) }
@@ -173,6 +185,7 @@ public final class SoundSnapshot: @unchecked Sendable {
         d.entryStart[d.trackCount] = Int32(e)
         data = d
         self.keep = keep
+        self.keepTables = keepTables
         SoundSnapshot.liveCount += 1
     }
 
@@ -194,5 +207,6 @@ public final class SoundSnapshot: @unchecked Sendable {
         data.eSliceCount.deallocate()
         data.sliceAt.deallocate()
         data.sliceNote.deallocate()
+        data.tableRef.deallocate()
     }
 }

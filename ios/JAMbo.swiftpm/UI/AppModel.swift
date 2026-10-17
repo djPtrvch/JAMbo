@@ -73,6 +73,10 @@ final class AppModel {
     private(set) var appearance: Appearance = AppModel.loadAppearance()
     /// Сэмплы (в памяти и на диске); растёт при загрузке — окна перерисовываются.
     @ObservationIgnored let store = SampleStore()
+    /// Таблицы WTABLE (строятся в фоне при первом использовании, дальше — из кэша).
+    @ObservationIgnored let wavetables = WavetableStore()
+    /// Таблица достроилась — перерисовать кадр в окне синта.
+    var wavetableSerial = 0
     var samplesVersion: Int = 0
     /// Редактор сэмпла (на месте центра), меню звука (для дорожки или зажатых шагов), выбор файлов.
     var editorOpen: Bool = false

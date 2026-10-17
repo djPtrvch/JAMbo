@@ -8,8 +8,8 @@ final class SynthTests: XCTestCase {
         XCTAssertEqual(SynthKey.engine("mi:0"), 0)
         XCTAssertEqual(SynthKey.engine("mi:7"), 7)
         XCTAssertEqual(SynthKey.engine("mi:15"), 15)
-        XCTAssertEqual(SynthKey.engine("mi:18"), 18)
-        XCTAssertNil(SynthKey.engine("mi:19"))
+        XCTAssertEqual(SynthKey.engine("mi:19"), 19)
+        XCTAssertNil(SynthKey.engine("mi:20"))
         XCTAssertNil(SynthKey.engine("mi:x"))
         XCTAssertNil(SynthKey.engine(""))
         XCTAssertNil(SynthKey.engine("3f2a9c"))
@@ -339,5 +339,39 @@ final class SynthTests: XCTestCase {
             XCTAssertFalse(y.contains { !$0.isFinite }, "\(e)")
             XCTAssertGreaterThan(peak(y, 4800, 9600), 0.05, "\(e)")
         }
+    }
+
+    // MARK: — WTABLE (#44)
+
+    /// WTABLE: без готовой таблицы молчит (как в вебе), с BASIC звучит; таблица — у дорожки.
+    func testWavetableOnTrack() throws {
+        var p = synthProject(19)
+        XCTAssertEqual(p.tracks[0].table, "")
+        let silent = try core(p)
+        silent.events.push(.noteOn(track: 0, note: 48, id: 1, velocity: 1))
+        XCTAssertLessThan(peak(render(silent, frames: 9600), 0, 9600), 1e-6)
+
+        let basic = WtTable.builtin("BASIC")
+        let c = AudioCore()
+        c.installSynth(try XCTUnwrap(SynthTests.appResources))
+        c.publish(p, tables: ["": basic])
+        c.events.push(.noteOn(track: 0, note: 48, id: 1, velocity: 1))
+        let x = render(c, frames: 9600)
+        XCTAssertFalse(x.contains { !$0.isFinite })
+        XCTAssertGreaterThan(peak(x, 4800, 9600), 0.05)
+
+        p.tracks[0].table = WavetableKey.builtin("METAL")
+        XCTAssertEqual(p.tracks[0].table, "builtin:METAL")
+        XCTAssertEqual(WavetableKey.name(p.tracks[0].table), "METAL")
+        XCTAssertEqual(WavetableKey.name(""), "BASIC")
+    }
+
+    /// Кадр таблицы в окне синта: BASIC, POSITION 0 — синус (четверть периода — пик, y = 32 − 26).
+    func testTableFrame() {
+        let els = EngineIcons.tableFrame(WtTable.builtin("BASIC"), position: 0, warp: 0)
+        XCTAssertEqual(els.count, 2)
+        guard case .line(let x, let y) = els[1].cmds[32] else { return XCTFail("нет точки") }
+        XCTAssertEqual(x, 18, accuracy: 1e-9)
+        XCTAssertEqual(y, 6, accuracy: 0.05)
     }
 }

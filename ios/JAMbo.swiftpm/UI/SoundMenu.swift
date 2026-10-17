@@ -1,13 +1,16 @@
 import SwiftUI
 
 /// Меню звука дорожки (тап по окну сэмпла, как в вебе): закрывает всю левую колонку, кнопки крупные.
-/// Три колонки движков — SYNTH (свои: DRUM, ANALOG, FM; WTABLE — S3b #44; под ними SAMPLER), MI SYNTH (Plaits 0–7) и
+/// Три колонки движков — SYNTH (свои: DRUM, ANALOG, FM, WTABLE; под ними SAMPLER), MI SYNTH (Plaits 0–7) и
 /// MI DRUMS (Plaits 8–15): тап — движок дорожки, с зажатыми шагами — их звук; группа LOAD SAMPLE · PRESET · MIDI: LOAD (выбор файлов), MIDI (выход — S11;
-/// для зажатых шагов на этом месте TRACK — вернуть звук дорожки), SAVE и TABLE (S3/S10).
+/// для зажатых шагов на этом месте TRACK — вернуть звук дорожки), SAVE (S10) и TABLE — у дорожки с WTABLE список встроенных
+/// таблиц (до браузера S10: решение пользователя).
 struct SoundMenu: View {
     let model: AppModel
     let state: SoundMenuState
     @Environment(\.theme) private var theme
+    /// TABLE: вместо колонок — список встроенных таблиц.
+    @State private var tables = false
 
     static let synth = ["DRUM", "ANALOG", "FM", "WTABLE"]
     static let miSynth = ["VA", "WAVESHAPE", "FM", "GRAIN", "ADDITIVE", "WAVETABLE", "CHORDS", "SPEECH"]
@@ -19,10 +22,14 @@ struct SoundMenu: View {
             if steps {
                 title("STEP " + state.steps.map { String($0 + 1) }.joined(separator: ", "))
             }
-            HStack(alignment: .top, spacing: 4) {
-                column("SYNTH", SoundMenu.synth, sampler: true, steps: steps, plaits: SynthEngines.firstJambo)
-                column("MI SYNTH", SoundMenu.miSynth, sampler: false, steps: steps, plaits: 0)
-                column("MI DRUMS", SoundMenu.miDrums, sampler: false, steps: steps, plaits: SynthEngines.firstDrum)
+            if tables {
+                tableList
+            } else {
+                HStack(alignment: .top, spacing: 4) {
+                    column("SYNTH", SoundMenu.synth, sampler: true, steps: steps, plaits: SynthEngines.firstJambo)
+                    column("MI SYNTH", SoundMenu.miSynth, sampler: false, steps: steps, plaits: 0)
+                    column("MI DRUMS", SoundMenu.miDrums, sampler: false, steps: steps, plaits: SynthEngines.firstDrum)
+                }
             }
             title("LOAD SAMPLE · PRESET · MIDI")
             loadGroup(steps)
@@ -94,9 +101,29 @@ struct SoundMenu: View {
             }
             HStack(spacing: 4) {
                 MenuItem(title: "SAVE", enabled: false) {}
-                MenuItem(title: "TABLE", enabled: false) {}
+                MenuItem(title: "TABLE", enabled: !steps && wtable, current: tables) { tables.toggle() }
             }
         }
+    }
+
+    /// Дорожка играет WTABLE (кнопка TABLE активна).
+    private var wtable: Bool {
+        SynthKey.engine(model.track.sample) == Jambo.wtable
+    }
+
+    /// Встроенные таблицы WTABLE (папка BUILT-IN TABLES браузера веба): тап — таблица на дорожку.
+    private var tableList: some View {
+        let current: String = WavetableKey.name(model.track.table)
+        return VStack(spacing: 4) {
+            title("BUILT-IN TABLES")
+            ForEach(WavetableKey.builtins, id: \.self) { name in
+                cell(name, enabled: true, current: name == current) {
+                    close()
+                    model.pickTable(name)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private func close() {
