@@ -6,8 +6,9 @@ import Foundation
 
 /// Параметры голоса в снимках: номер в массиве (p-lock шагов — по тем же номерам).
 public enum VoiceParam {
-    public static let ids = ["pitch", "start", "end", "level", "attack", "decay", "filter", "reso", "pan"]
-    public static let count = 9
+    public static let ids = ["pitch", "start", "end", "level", "attack", "decay", "filter", "reso", "pan",
+                             "harm", "timbre", "morph"]
+    public static let count = 12
     public static let pitch = 0
     public static let start = 1
     public static let end = 2
@@ -17,6 +18,10 @@ public enum VoiceParam {
     public static let filter = 6
     public static let reso = 7
     public static let pan = 8
+    /// Синт: ручки 1.1–1.3 (0…100).
+    public static let harm = 9
+    public static let timbre = 10
+    public static let morph = 11
 }
 
 public struct SoundData {
