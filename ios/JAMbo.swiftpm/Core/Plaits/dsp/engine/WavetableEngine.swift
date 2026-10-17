@@ -63,11 +63,6 @@ final class WavetableEngine: PlaitsEngine {
         }
     }
 
-    @inline(__always)
-    private func readWave(_ x: Int, _ y: Int, _ z: Int, _ phaseIntegral: Int, _ phaseFractional: Float) -> Float {
-        interpolateWaveHermite(resources.wavIntegratedWaves + waveMap[x + y * 8 + z * kNumWavesPerBank],
-                               phaseIntegral, phaseFractional)
-    }
 
     func render(_ parameters: EngineParameters, _ out: UnsafeMutablePointer<Float>, _ aux: UnsafeMutablePointer<Float>,
                 _ size: Int, _ alreadyEnveloped: inout Bool) {
@@ -100,7 +95,18 @@ final class WavetableEngine: PlaitsEngine {
         var zModulation = ParameterInterpolator(previousZ, Float(zIntegral) + zFractional, size)
         var f0Modulation = ParameterInterpolator(previousF0, f0Target, size)
 
-        for i in 0..<size {
+        // Состояние — в локальных переменных, чтение волн — без вызова метода (в отладочной сборке, Playgrounds,
+        // вызовы и обращения к свойствам класса на каждом отсчёте дороже арифметики).
+        let waves = resources.wavIntegratedWavesF
+        let map = waveMap
+        var xLp = self.xLp, yLp = self.yLp, zLp = self.zLp, phase = self.phase
+        var diffOut = self.diffOut
+        @_transparent func readWave(_ x: Int, _ y: Int, _ z: Int, _ phaseIntegral: Int, _ phaseFractional: Float) -> Float {
+            interpolateWaveHermite(waves + map[x + y * 8 + z * kNumWavesPerBank], phaseIntegral, phaseFractional)
+        }
+        var i = 0
+        while i < size {
+            defer { i += 1 }
             let f0 = f0Modulation.next()
 
             let gain = (1 / (f0 * 131072)) * (0.95 - f0)
@@ -155,6 +161,11 @@ final class WavetableEngine: PlaitsEngine {
             out[i] = mix
             aux[i] = Float(stmInt(mix * 32)) / 32
         }
+        self.xLp = xLp
+        self.yLp = yLp
+        self.zLp = zLp
+        self.phase = phase
+        self.diffOut = diffOut
         previousX = xModulation.value
         previousY = yModulation.value
         previousZ = zModulation.value

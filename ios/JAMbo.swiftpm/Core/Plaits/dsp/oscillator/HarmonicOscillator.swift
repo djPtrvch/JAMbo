@@ -41,7 +41,14 @@ final class HarmonicOscillator {
             amIncrement[i] = (amplitudes[i] * (1 - f * 2) - amplitude[i]) / Float(size)
         }
 
-        for s in 0..<size {
+        // Циклы — while, фаза — локально: в отладочной сборке (Playgrounds) итератор for-in по гармоникам на каждом
+        // отсчёте и обращения к свойству класса дороже арифметики.
+        let n = numHarmonics
+        let amV = amValue, amI = amIncrement
+        var phase = self.phase
+        var s = 0
+        while s < size {
+            defer { s += 1 }
             phase += fm.next()
             if phase >= 1 { phase -= 1 }
             let twoX = 2 * r.sineNoWrap(phase)
@@ -57,12 +64,14 @@ final class HarmonicOscillator {
             }
 
             var sum: Float = 0
-            for i in 0..<numHarmonics {
-                amValue[i] += amIncrement[i]
-                sum += amValue[i] * current
+            var i = 0
+            while i < n {
+                amV[i] += amI[i]
+                sum += amV[i] * current
                 let temp = current
                 current = twoX * current - previous
                 previous = temp
+                i += 1
             }
             if firstHarmonicIndex == 1 {
                 out[s] = sum
@@ -71,6 +80,7 @@ final class HarmonicOscillator {
             }
         }
 
+        self.phase = phase
         frequency = fm.value
         for i in 0..<numHarmonics { amplitude[i] = amValue[i] }
     }

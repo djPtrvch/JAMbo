@@ -26,7 +26,7 @@ struct WavetableOscillator {
     /// out — прибавляется.
     @inline(__always)
     mutating func render(_ frequencyIn: Float, _ amplitudeIn: Float, _ waveformIn: Float,
-                         _ wavetable: UnsafePointer<UnsafePointer<Int16>>,
+                         _ wavetable: UnsafePointer<UnsafePointer<Float>>,
                          _ out: UnsafeMutablePointer<Float>, _ size: Int) {
         var frequencyTarget = frequencyIn
         constrain(&frequencyTarget, 0.0000001, kMaxFrequency)
@@ -42,7 +42,9 @@ struct WavetableOscillator {
         let tableSizeF = Float(wavetableSize)
         var lpState = lp
         var ph = phase
-        for i in 0..<size {
+        var i = 0
+        while i < size {
+            defer { i += 1 }
             let f0 = frequencyModulation.next()
             let cutoff = min(tableSizeF * f0, 1)
             let scale: Float = approximateScale ? 1 : 1 / (f0 * 131072)

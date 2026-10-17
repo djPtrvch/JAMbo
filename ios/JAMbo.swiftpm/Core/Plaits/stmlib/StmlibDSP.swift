@@ -6,30 +6,36 @@ import Foundation
 
 // abs, min, max для Float и Double без обобщений: в отладочной сборке (Playgrounds) Swift.abs/min/max — вызовы
 // обобщённых функций на каждом отсчёте. Семантика — как у стандартных (min: y < x ? y : x, max: y >= x ? y : x).
-@inline(__always) func abs(_ x: Float) -> Float { x.magnitude }
-@inline(__always) func abs(_ x: Double) -> Double { x.magnitude }
-@inline(__always) func min(_ x: Float, _ y: Float) -> Float { y < x ? y : x }
-@inline(__always) func max(_ x: Float, _ y: Float) -> Float { y >= x ? y : x }
-@inline(__always) func min(_ x: Double, _ y: Double) -> Double { y < x ? y : x }
-@inline(__always) func max(_ x: Double, _ y: Double) -> Double { y >= x ? y : x }
+@_transparent func abs(_ x: Float) -> Float { x.magnitude }
+@_transparent func abs(_ x: Double) -> Double { x.magnitude }
+@_transparent func min(_ x: Float, _ y: Float) -> Float { y < x ? y : x }
+@_transparent func max(_ x: Float, _ y: Float) -> Float { y >= x ? y : x }
+@_transparent func min(_ x: Double, _ y: Double) -> Double { y < x ? y : x }
+@_transparent func max(_ x: Double, _ y: Double) -> Double { y >= x ? y : x }
 
 /// static_cast<int32_t>(x): отбрасывание дробной части. Вне диапазона Int32 и NaN — 0 (в C++ — неопределённо;
 /// здесь без ловушки в аудиопотоке).
-@inline(__always) func stmInt(_ x: Float) -> Int {
+@_transparent func stmInt(_ x: Float) -> Int {
     (x > -2147483648 && x < 2147483648) ? Int(x) : 0
 }
 
 /// static_cast<uint32_t>(x) для x ≥ 0 (фазы и инкременты); отрицательное и NaN — 0.
-@inline(__always) func stmU32(_ x: Float) -> UInt32 {
+@_transparent func stmU32(_ x: Float) -> UInt32 {
     (x >= 0 && x < 4294967296) ? UInt32(x) : 0
 }
 
+/// static_cast<uint32_t>(x) как Int 0…2³²−1: фазы в Int с маской 32 бита (в отладочной сборке преобразования
+/// UInt32 ↔ Int и UInt32 → Float — вызовы обобщённых функций).
+@_transparent func stmU32i(_ x: Float) -> Int {
+    (x >= 0 && x < 4294967296) ? Int(x) : 0
+}
+
 /// CONSTRAIN(x, lo, hi).
-@inline(__always) func constrain(_ x: inout Float, _ lo: Float, _ hi: Float) {
+@_transparent func constrain(_ x: inout Float, _ lo: Float, _ hi: Float) {
     if x < lo { x = lo } else if x > hi { x = hi }
 }
 
-@inline(__always) func stmInterpolate(_ table: UnsafePointer<Float>, _ index: Float, _ size: Float) -> Float {
+@_transparent func stmInterpolate(_ table: UnsafePointer<Float>, _ index: Float, _ size: Float) -> Float {
     let x = index * size
     let i = stmInt(x)
     let f = x - Float(i)
@@ -37,7 +43,7 @@ import Foundation
     return a + (b - a) * f
 }
 
-@inline(__always) func stmInterpolateHermite(_ table: UnsafePointer<Float>, _ index: Float, _ size: Float) -> Float {
+@_transparent func stmInterpolateHermite(_ table: UnsafePointer<Float>, _ index: Float, _ size: Float) -> Float {
     let x = index * size
     let i = stmInt(x)
     let f = x - Float(i)
@@ -50,7 +56,7 @@ import Foundation
     return (((a * f) - bNeg) * f + c) * f + x0
 }
 
-@inline(__always) func stmInterpolateWrap(_ table: UnsafePointer<Float>, _ index: Float, _ size: Float) -> Float {
+@_transparent func stmInterpolateWrap(_ table: UnsafePointer<Float>, _ index: Float, _ size: Float) -> Float {
     var x = index - Float(stmInt(index))
     x *= size
     let i = stmInt(x)
@@ -59,20 +65,20 @@ import Foundation
     return a + (b - a) * f
 }
 
-@inline(__always) func stmSmoothStep(_ v: Float) -> Float { v * v * (3 - 2 * v) }
+@_transparent func stmSmoothStep(_ v: Float) -> Float { v * v * (3 - 2 * v) }
 
 /// ONE_POLE(out, in, coefficient).
-@inline(__always) func onePole(_ out: inout Float, _ input: Float, _ c: Float) { out += c * (input - out) }
+@_transparent func onePole(_ out: inout Float, _ input: Float, _ c: Float) { out += c * (input - out) }
 
 /// SLOPE(out, in, positive, negative).
-@inline(__always) func slope(_ out: inout Float, _ input: Float, _ positive: Float, _ negative: Float) {
+@_transparent func slope(_ out: inout Float, _ input: Float, _ positive: Float, _ negative: Float) {
     let error = input - out
     out += (error > 0 ? positive : negative) * error
 }
 
-@inline(__always) func stmSoftLimit(_ x: Float) -> Float { x * (27 + x * x) / (27 + 9 * x * x) }
+@_transparent func stmSoftLimit(_ x: Float) -> Float { x * (27 + x * x) / (27 + 9 * x * x) }
 
-@inline(__always) func stmSoftClip(_ x: Float) -> Float {
+@_transparent func stmSoftClip(_ x: Float) -> Float {
     if x < -3 { return -1 }
     if x > 3 { return 1 }
     return stmSoftLimit(x)
@@ -80,21 +86,21 @@ import Foundation
 
 // MARK: - polyblep.h
 
-@inline(__always) func thisBlepSample(_ t: Float) -> Float { 0.5 * t * t }
+@_transparent func thisBlepSample(_ t: Float) -> Float { 0.5 * t * t }
 
-@inline(__always) func nextBlepSample(_ t0: Float) -> Float {
+@_transparent func nextBlepSample(_ t0: Float) -> Float {
     let t = 1 - t0
     return -0.5 * t * t
 }
 
-@inline(__always) func nextIntegratedBlepSample(_ t: Float) -> Float {
+@_transparent func nextIntegratedBlepSample(_ t: Float) -> Float {
     let t1 = 0.5 * t
     let t2 = t1 * t1
     let t4 = t2 * t2
     return 0.1875 - t1 + 1.5 * t2 - t4
 }
 
-@inline(__always) func thisIntegratedBlepSample(_ t: Float) -> Float { nextIntegratedBlepSample(1 - t) }
+@_transparent func thisIntegratedBlepSample(_ t: Float) -> Float { nextIntegratedBlepSample(1 - t) }
 
 // MARK: - parameter_interpolator.h
 
@@ -103,22 +109,22 @@ struct ParameterInterpolator {
     var value: Float
     let increment: Float
 
-    @inline(__always) init(_ state: Float, _ newValue: Float, _ size: Int) {
+    @_transparent init(_ state: Float, _ newValue: Float, _ size: Int) {
         value = state
         increment = (newValue - state) / Float(size)
     }
 
-    @inline(__always) init(_ state: Float, _ newValue: Float, step: Float) {
+    @_transparent init(_ state: Float, _ newValue: Float, step: Float) {
         value = state
         increment = (newValue - state) * step
     }
 
-    @inline(__always) mutating func next() -> Float {
+    @_transparent mutating func next() -> Float {
         value += increment
         return value
     }
 
-    @inline(__always) func subsample(_ t: Float) -> Float { value + increment * t }
+    @_transparent func subsample(_ t: Float) -> Float { value + increment * t }
 }
 
 // MARK: - utils/random.h
@@ -188,7 +194,7 @@ struct HysteresisQuantizer2 {
 // MARK: - dsp/dsp.h, rsqrt.h
 
 /// fast_rsqrt_carmack.
-@inline(__always) func fastRsqrtCarmack(_ x: Float) -> Float {
+@_transparent func fastRsqrtCarmack(_ x: Float) -> Float {
     var i = x.bitPattern
     i = 0x5f3759df &- (i >> 1)
     var y = Float(bitPattern: i)
@@ -199,15 +205,15 @@ struct HysteresisQuantizer2 {
 
 /// Денормалы в обратных связях (затухающие состояния) — в ноль: на x86 они в десятки раз медленнее.
 /// В оригинале нет (STM32 считает с flush-to-zero); порог 1e-20 ниже младшего бита Int16 на 300 dB.
-@inline(__always) func flushDenormal(_ x: inout Float) {
+@_transparent func flushDenormal(_ x: inout Float) {
     if abs(x) < 1e-20 { x = 0 }
 }
 
 /// Crossfade(a, b, fade).
-@inline(__always) func stmCrossfade(_ a: Float, _ b: Float, _ fade: Float) -> Float { a + (b - a) * fade }
+@_transparent func stmCrossfade(_ a: Float, _ b: Float, _ fade: Float) -> Float { a + (b - a) * fade }
 
 /// Clip16.
-@inline(__always) func stmClip16(_ x: Int32) -> Int32 { x < -32768 ? -32768 : (x > 32767 ? 32767 : x) }
+@_transparent func stmClip16(_ x: Int32) -> Int32 { x < -32768 ? -32768 : (x > 32767 ? 32767 : x) }
 
 // MARK: - dsp/cosine_oscillator.h
 
@@ -241,9 +247,9 @@ struct CosineOscillator {
         y0 = 0.5
     }
 
-    @inline(__always) var value: Float { y1 + 0.5 }
+    @_transparent var value: Float { y1 + 0.5 }
 
-    @inline(__always) mutating func next() -> Float {
+    @_transparent mutating func next() -> Float {
         let temp = y0
         y0 = iirCoefficient * y0 - y1
         y1 = temp

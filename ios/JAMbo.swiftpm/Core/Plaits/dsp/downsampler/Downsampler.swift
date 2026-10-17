@@ -10,17 +10,17 @@ struct Downsampler {
     private var tail: Float = 0
     private let fir: UnsafePointer<Float>
 
-    @inline(__always) init(_ state: Float, _ fir: UnsafePointer<Float>) {
+    @_transparent init(_ state: Float, _ fir: UnsafePointer<Float>) {
         head = state
         self.fir = fir
     }
 
-    @inline(__always) mutating func accumulate(_ i: Int, _ sample: Float) {
+    @_transparent mutating func accumulate(_ i: Int, _ sample: Float) {
         head += sample * fir[3 - (i & 3)]
         tail += sample * fir[i & 3]
     }
 
-    @inline(__always) mutating func read() -> Float {
+    @_transparent mutating func read() -> Float {
         let value = head
         head = tail
         tail = 0

@@ -7,9 +7,11 @@ final class FMEngine: PlaitsEngine {
     var postProcessing = PostProcessingSettings()
 
     private let resources: PlaitsResources
-    private var carrierPhase: UInt32 = 0
-    private var modulatorPhase: UInt32 = 0
-    private var subPhase: UInt32 = 0
+    // Фазы uint32_t оригинала — в Int по модулю 2³² (& 0xFFFF_FFFF): в отладочной сборке (Playgrounds)
+    // преобразования UInt32 — вызовы обобщённых функций.
+    private var carrierPhase = 0
+    private var modulatorPhase = 0
+    private var subPhase = 0
     private var previousCarrierFrequency: Float
     private var previousModulatorFrequency: Float
     private var previousAmount: Float = 0
@@ -54,29 +56,40 @@ final class FMEngine: PlaitsEngine {
         var subDownsampler = Downsampler(subFir, r.lut4xDownsamplerFir)
 
         let maxUInt32: Float = 4294967296.0
-        for i in 0..<size {
+        let mask = 0xFFFF_FFFF
+        var modulatorPhase = self.modulatorPhase, carrierPhase = self.carrierPhase, subPhase = self.subPhase
+        var previousSample = self.previousSample
+        var i = 0
+        while i < size {
             let amount = amountModulation.next()
             let feedback = feedbackModulation.next()
             let phaseFeedback: Float = feedback < 0 ? 0.5 * feedback * feedback : 0
-            let carrierIncrement = stmU32(maxUInt32 * carrierFrequency.next())
+            let carrierIncrement = stmU32i(maxUInt32 * carrierFrequency.next())
             let modFrequency = modulatorFrequency.next()
+            let modulatorFb: Float = feedback > 0 ? 0.25 * feedback * feedback : 0
 
-            for j in 0..<kOversampling {
-                modulatorPhase &+= stmU32(maxUInt32 * modFrequency * (1 + previousSample * phaseFeedback))
-                carrierPhase &+= carrierIncrement
-                subPhase &+= carrierIncrement >> 1
-                let modulatorFb: Float = feedback > 0 ? 0.25 * feedback * feedback : 0
-                let modulator = r.sinePM(modulatorPhase, modulatorFb * previousSample)
-                let carrier = r.sinePM(carrierPhase, amount * modulator)
-                let sub = r.sinePM(subPhase, amount * carrier * 0.25)
-                onePole(&previousSample, carrier, 0.05)
+            var j = 0
+            while j < kOversampling {
+                modulatorPhase = (modulatorPhase + stmU32i(maxUInt32 * modFrequency * (1 + previousSample * phaseFeedback))) & mask
+                carrierPhase = (carrierPhase + carrierIncrement) & mask
+                subPhase = (subPhase + (carrierIncrement >> 1)) & mask
+                let modulator = r.sinePMi(modulatorPhase, modulatorFb * previousSample)
+                let carrier = r.sinePMi(carrierPhase, amount * modulator)
+                let sub = r.sinePMi(subPhase, amount * carrier * 0.25)
+                previousSample += 0.05 * (carrier - previousSample)
                 carrierDownsampler.accumulate(j, carrier)
                 subDownsampler.accumulate(j, sub)
+                j += 1
             }
 
             out[i] = carrierDownsampler.read()
             aux[i] = subDownsampler.read()
+            i += 1
         }
+        self.modulatorPhase = modulatorPhase
+        self.carrierPhase = carrierPhase
+        self.subPhase = subPhase
+        self.previousSample = previousSample
         previousCarrierFrequency = carrierFrequency.value
         previousModulatorFrequency = modulatorFrequency.value
         previousAmount = amountModulation.value

@@ -16,6 +16,9 @@ public struct PlaitsResources {
     /// lookup_table_i16_table: inverse tan, inverse sin, linear, bump, double bump, double bump.
     let lookupTableI16: UnsafePointer<UnsafePointer<Int16>>
     let wavIntegratedWaves: UnsafePointer<Int16>
+    /// wav_integrated_waves во Float (Int16 → Float точно, при загрузке): в отладочной сборке (Playgrounds)
+    /// Float(Int16) на каждом чтении — вызов обобщённой функции.
+    let wavIntegratedWavesF: UnsafePointer<Float>
     let lutLpcExcitationPulse: UnsafePointer<Int8>
     /// Фонемы LPC: 12 значений на кадр (energy, period, k0…k9).
     let lpcPhonemes: UnsafePointer<Int16>
@@ -62,19 +65,23 @@ public struct PlaitsResources {
               let naive = load("naive_phonemes.u8", 250, UInt8.self),
               let sam = load("sam_phonemes.u8", 108, UInt8.self),
               let samAmp = load("sam_formant_amplitude.f32", 16, Float.self) else { return nil }
+        let wavesF = UnsafeMutablePointer<Float>.allocate(capacity: 25344 + 32)
+        wavesF.initialize(repeating: 0, count: 25344 + 32)
+        for i in 0..<25344 { wavesF[16 + i] = Float(waves[i]) }
         let table = UnsafeMutablePointer<UnsafePointer<Int16>>.allocate(capacity: 6)
         for (k, p) in [tan, sin, lin, bump, dbump, dbump].enumerated() { table[k] = p }
         return PlaitsResources(lutSine: sine, lutFmFrequencyQuantizer: fmq, lutFold: fold, lutFold2: fold2,
                                lutStiffness: stiffness, lutSvfShift: svf, lut4xDownsamplerFir: fir,
                                lutPitchRatioHigh: high, lutPitchRatioLow: low, lookupTableI16: UnsafePointer(table),
-                               wavIntegratedWaves: waves, lutLpcExcitationPulse: pulse, lpcPhonemes: phonemes,
+                               wavIntegratedWaves: waves, wavIntegratedWavesF: UnsafePointer(wavesF + 16),
+                               lutLpcExcitationPulse: pulse, lpcPhonemes: phonemes,
                                lpcPhonemeCount: 15, naivePhonemes: naive, samPhonemes: sam,
                                samFormantAmplitude: samAmp)
     }
 
     // MARK: stmlib/dsp/units.h
 
-    @inline(__always) func semitonesToRatio(_ semitones: Float) -> Float {
+    @_transparent func semitonesToRatio(_ semitones: Float) -> Float {
         let pitch = semitones + 128
         let i = stmInt(pitch)
         let f = pitch - Float(i)
@@ -83,11 +90,11 @@ public struct PlaitsResources {
 
     // MARK: plaits/dsp/oscillator/sine_oscillator.h (функции)
 
-    @inline(__always) func sine(_ phase: Float) -> Float { stmInterpolateWrap(lutSine, phase, 512) }
+    @_transparent func sine(_ phase: Float) -> Float { stmInterpolateWrap(lutSine, phase, 512) }
 
-    @inline(__always) func sineNoWrap(_ phase: Float) -> Float { stmInterpolate(lutSine, phase, 512) }
+    @_transparent func sineNoWrap(_ phase: Float) -> Float { stmInterpolate(lutSine, phase, 512) }
 
-    @inline(__always) func sinePM(_ phase: UInt32, _ pm: Float) -> Float {
+    @_transparent func sinePM(_ phase: UInt32, _ pm: Float) -> Float {
         let scale: Float = 4294967296.0 / 64
         let p = phase &+ (stmU32((pm + 32) * scale) &* 64)
         let i = Int(p >> 23)
@@ -96,12 +103,22 @@ public struct PlaitsResources {
         return a + (b - a) * f
     }
 
-    @inline(__always) func sineRaw(_ phase: UInt32) -> Float { lutSine[Int(phase >> 23)] }
+    /// SinePM с фазой в Int (0…2³²−1): та же арифметика по модулю 2³², без преобразований UInt32.
+    @_transparent func sinePMi(_ phase: Int, _ pm: Float) -> Float {
+        let scale: Float = 4294967296.0 / 64
+        let p = (phase + stmU32i((pm + 32) * scale) * 64) & 0xFFFF_FFFF
+        let i = p >> 23
+        let f = Float((p << 9) & 0xFFFF_FFFF) / 4294967296.0
+        let a = lutSine[i], b = lutSine[i + 1]
+        return a + (b - a) * f
+    }
+
+    @_transparent func sineRaw(_ phase: UInt32) -> Float { lutSine[Int(phase >> 23)] }
 
     // MARK: plaits/dsp/engine/engine.h
 
     /// NoteToFrequency: MIDI-нота → частота в долях частоты дискретизации.
-    @inline(__always) func noteToFrequency(_ midiNote: Float) -> Float {
+    @_transparent func noteToFrequency(_ midiNote: Float) -> Float {
         var note = midiNote - 9
         constrain(&note, -128, 127)
         return a0 * 0.25 * semitonesToRatio(note)

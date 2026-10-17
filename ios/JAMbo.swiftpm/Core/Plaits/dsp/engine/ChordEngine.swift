@@ -38,7 +38,7 @@ final class ChordEngine: PlaitsEngine {
     // Таблицы и рабочие буферы — указатели (колбэк не читает Swift-массивы).
     private let fadePoint: UnsafeMutablePointer<Float>
     private let registrations: UnsafeMutablePointer<Float>
-    private let wavetable: UnsafeMutablePointer<UnsafePointer<Int16>>
+    private let wavetable: UnsafeMutablePointer<UnsafePointer<Float>>
     private let harmonics: UnsafeMutablePointer<Float>
     private let noteAmplitudes: UnsafeMutablePointer<Float>
     private let ratios: UnsafeMutablePointer<Float>
@@ -51,9 +51,9 @@ final class ChordEngine: PlaitsEngine {
         for i in 0..<kChordNumVoices { fadePoint[i] = chordFadePoint[i] }
         registrations = plaitsAllocate(kRegistrationTableSize * kChordNumHarmonics * 2)
         for i in 0..<chordRegistrations.count { registrations[i] = chordRegistrations[i] }
-        wavetable = UnsafeMutablePointer<UnsafePointer<Int16>>.allocate(capacity: chordWaves.count)
+        wavetable = UnsafeMutablePointer<UnsafePointer<Float>>.allocate(capacity: chordWaves.count)
         for (i, w) in chordWaves.enumerated() {
-            wavetable[i] = resources.wavIntegratedWaves + (w.0 * 64 + w.1 * 8 + w.2) * 132
+            wavetable[i] = resources.wavIntegratedWavesF + (w.0 * 64 + w.1 * 8 + w.2) * 132
         }
         harmonics = plaitsAllocate(kChordNumHarmonics * 2 + 2)
         noteAmplitudes = plaitsAllocate(kChordNumVoices)

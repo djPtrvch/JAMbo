@@ -19,7 +19,7 @@ enum FilterK {
 }
 
 /// OnePole::tan<approximation>(f).
-@inline(__always) func filterTan(_ f: Float, _ approximation: FrequencyApproximation) -> Float {
+@_transparent func filterTan(_ f: Float, _ approximation: FrequencyApproximation) -> Float {
     let piF = Float.pi
     switch approximation {
     case .exact:
@@ -43,14 +43,14 @@ struct OnePole {
         state = 0
     }
 
-    @inline(__always) mutating func setF(_ f: Float, _ approximation: FrequencyApproximation) {
+    @_transparent mutating func setF(_ f: Float, _ approximation: FrequencyApproximation) {
         g = filterTan(f, approximation)
         gi = 1 / (1 + g)
     }
 
-    @inline(__always) mutating func flush() { flushDenormal(&state) }
+    @_transparent mutating func flush() { flushDenormal(&state) }
 
-    @inline(__always) mutating func process(_ input: Float, _ mode: FilterMode) -> Float {
+    @_transparent mutating func process(_ input: Float, _ mode: FilterMode) -> Float {
         let lp = (g * input + state) * gi
         state = g * (input - lp) + lp
         switch mode {
@@ -70,30 +70,30 @@ struct Svf {
         state2 = 0
     }
 
-    @inline(__always) mutating func setFQ(_ f: Float, _ resonance: Float, _ approximation: FrequencyApproximation) {
+    @_transparent mutating func setFQ(_ f: Float, _ resonance: Float, _ approximation: FrequencyApproximation) {
         g = filterTan(f, approximation)
         r = 1 / resonance
         h = 1 / (1 + r * g + g * g)
     }
 
-    @inline(__always) mutating func flush() {
+    @_transparent mutating func flush() {
         flushDenormal(&state1)
         flushDenormal(&state2)
     }
 
-    @inline(__always) mutating func setGR(_ g: Float, _ r: Float) {
+    @_transparent mutating func setGR(_ g: Float, _ r: Float) {
         self.g = g
         self.r = r
         h = 1 / (1 + r * g + g * g)
     }
 
-    @inline(__always) mutating func setGQ(_ g: Float, _ resonance: Float) {
+    @_transparent mutating func setGQ(_ g: Float, _ resonance: Float) {
         self.g = g
         r = 1 / resonance
         h = 1 / (1 + r * g + g * g)
     }
 
-    @inline(__always) mutating func process(_ input: Float, _ mode: FilterMode) -> Float {
+    @_transparent mutating func process(_ input: Float, _ mode: FilterMode) -> Float {
         let hp = (input - r * state1 - g * state1 - state2) * h
         let bp = g * hp + state1
         state1 = g * hp + bp
@@ -163,7 +163,7 @@ struct NaiveSvf {
         bp = 0
     }
 
-    @inline(__always) mutating func setFQ(_ freq: Float, _ resonance: Float, _ approximation: FrequencyApproximation) {
+    @_transparent mutating func setFQ(_ freq: Float, _ resonance: Float, _ approximation: FrequencyApproximation) {
         if approximation == .exact {
             f = 2 * Foundation.sin(Float.pi * (freq < 0.497 ? freq : 0.497))
         } else {
@@ -172,7 +172,7 @@ struct NaiveSvf {
         damp = 1 / resonance
     }
 
-    @inline(__always) mutating func process(_ input: Float, _ mode: FilterMode) -> Float {
+    @_transparent mutating func process(_ input: Float, _ mode: FilterMode) -> Float {
         let bpNormalized = bp * damp
         let notch = input - bpNormalized
         lp += f * bp
@@ -196,12 +196,12 @@ struct DCBlocker {
         self.pole = pole
     }
 
-    @inline(__always) mutating func flush() {
+    @_transparent mutating func flush() {
         flushDenormal(&x)
         flushDenormal(&y)
     }
 
-    @inline(__always) mutating func process(_ s: Float) -> Float {
+    @_transparent mutating func process(_ s: Float) -> Float {
         let oldX = x
         x = s
         y = y * pole + x - oldX
