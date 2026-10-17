@@ -206,9 +206,30 @@ public enum Params {
                 return ParamDef(id: p.id, label: label, kind: .stepped, min: p.min, max: p.max, def: p.def,
                                 steps: o.count) { v in o[stepIndex(v / 100, o.count)] }
             }
+            // Свой формат 1.1: PITCH у DRUM — Гц, RATIO у FM — ×2.00 (harmFormat веба).
+            if k == 0 && e.name == "DRUM" {
+                return ParamDef(id: p.id, label: label, min: p.min, max: p.max, def: p.def) { v in
+                    "\(Int(Jambo.drumPitch(v / 100).rounded())) Hz"
+                }
+            }
+            if k == 0 && e.jambo && e.name == "FM" {
+                return ParamDef(id: p.id, label: label, min: p.min, max: p.max, def: p.def) { v in
+                    "×" + String(format: "%.2f", Jambo.fmRatio(v / 100))
+                }
+            }
             return ParamDef(id: p.id, label: label, min: p.min, max: p.max, def: p.def, format: p.format)
         }
-        return (0..<16).map { i in i % 4 == 0 && i / 4 < 3 ? col[i / 4] : trackGrid[i] }
+        return (0..<16).map { i in
+            if i % 4 == 0 && i / 4 < 3 { return col[i / 4] }
+            let p = trackGrid[i]
+            // Свой предел Decay (у DRUM — 1000 мс).
+            if p.id == "decay", let max = e.decayMax {
+                return ParamDef(id: p.id, label: p.label, kind: p.kind, min: p.min, max: max, def: p.def,
+                                curve: p.curve, exp: p.exp, bipolar: p.bipolar, options: p.options, steps: p.steps,
+                                format: p.format)
+            }
+            return p
+        }
     }
 
     /// Сетка ручек дорожки по её звуку: синт — сетка движка, иначе сэмплер.

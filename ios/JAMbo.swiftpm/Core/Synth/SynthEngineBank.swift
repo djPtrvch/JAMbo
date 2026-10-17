@@ -24,8 +24,14 @@ final class SynthEngineBank {
     private let randoms: [StmRandom]
 
     /// count голосов; perTrack — голосов дорожки (общий генератор шума).
-    init(_ r: PlaitsResources, count: Int, perTrack: Int) {
+    /// Свои движки JAMbo (DRUM, ANALOG, FM): голос на слот, таблицы — общие.
+    let jamboTables = JamboTables()
+    private let jambo: UnsafeMutablePointer<JamboVoice>
+
+    init(_ r: PlaitsResources, count: Int, perTrack: Int, sampleRate: Double = 48000) {
         self.count = count
+        jambo = .allocate(capacity: count)
+        for v in 0..<count { (jambo + v).initialize(to: JamboVoice(tables: jamboTables, sampleRate: sampleRate)) }
         let tracks = (count + perTrack - 1) / perTrack
         randoms = (0..<tracks).map { _ in StmRandom() }
         va = .allocate(capacity: count)
@@ -66,6 +72,7 @@ final class SynthEngineBank {
     }
 
     deinit {
+        jambo.deinitialize(count: count); jambo.deallocate()
         va.deinitialize(count: count); va.deallocate()
         ws.deinitialize(count: count); ws.deallocate()
         fm.deinitialize(count: count); fm.deallocate()
@@ -103,7 +110,8 @@ final class SynthEngineBank {
         case 12: modal[v].loadUserData(); modal[v].reset()
         case 13: bassDrum[v].loadUserData(); bassDrum[v].reset()
         case 14: snareDrum[v].loadUserData(); snareDrum[v].reset()
-        default: hiHat[v].loadUserData(); hiHat[v].reset()
+        case 15: hiHat[v].loadUserData(); hiHat[v].reset()
+        default: break  // свои движки — trigger при ноте
         }
     }
 
@@ -127,7 +135,34 @@ final class SynthEngineBank {
         case 12: modal[v].render(p, out, aux, n, &enveloped)
         case 13: bassDrum[v].render(p, out, aux, n, &enveloped)
         case 14: snareDrum[v].render(p, out, aux, n, &enveloped)
-        default: hiHat[v].render(p, out, aux, n, &enveloped)
+        case 15: hiHat[v].render(p, out, aux, n, &enveloped)
+        default: break
         }
+    }
+
+    // MARK: — свои движки (номера ≥ SynthEngines.firstJambo)
+
+    /// Нота своего движка в голосе v (trigger в worklet); now — абсолютный кадр, tau — время дорожки с дрейфом.
+    @inline(__always)
+    func jamboTrigger(_ v: Int, _ e: Int, note: Double, _ p1: Double, _ p2: Double, _ p3: Double, decay: Double,
+                      now: Double, tau: Double) {
+        jambo[v].trigger(engine: e, note: note, p1, p2, p3, decay: decay, now: now, tau: tau)
+    }
+
+    /// Ручки звучащей ноты (mod в worklet; сглаживание — в голосе).
+    @inline(__always)
+    func jamboSet(_ v: Int, note: Double, _ p1: Double, _ p2: Double, _ p3: Double, decay: Double) {
+        jambo[v].set(note: note, p1, p2, p3, decay: decay)
+    }
+
+    @inline(__always)
+    func jamboRender(_ v: Int, _ out: UnsafeMutablePointer<Float>, _ n: Int, driftRatio: Double) {
+        jambo[v].render(out, n, driftRatio: driftRatio)
+    }
+
+    /// Голос молчал: хвоста DRUM для стыка нет (vo.last = 0 в worklet).
+    @inline(__always)
+    func jamboSilent(_ v: Int) {
+        jambo[v].last = 0
     }
 }

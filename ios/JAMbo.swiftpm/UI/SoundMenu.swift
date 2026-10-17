@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Меню звука дорожки (тап по окну сэмпла, как в вебе): закрывает всю левую колонку, кнопки крупные.
-/// Три колонки движков — SYNTH (свои: DRUM, ANALOG, FM, WTABLE — S3b; под ними SAMPLER), MI SYNTH (Plaits 0–7) и
+/// Три колонки движков — SYNTH (свои: DRUM, ANALOG, FM; WTABLE — S3b #44; под ними SAMPLER), MI SYNTH (Plaits 0–7) и
 /// MI DRUMS (Plaits 8–15): тап — движок дорожки, с зажатыми шагами — их звук; группа LOAD SAMPLE · PRESET · MIDI: LOAD (выбор файлов), MIDI (выход — S11;
 /// для зажатых шагов на этом месте TRACK — вернуть звук дорожки), SAVE и TABLE (S3/S10).
 struct SoundMenu: View {
@@ -20,7 +20,7 @@ struct SoundMenu: View {
                 title("STEP " + state.steps.map { String($0 + 1) }.joined(separator: ", "))
             }
             HStack(alignment: .top, spacing: 4) {
-                column("SYNTH", SoundMenu.synth, sampler: true, steps: steps)
+                column("SYNTH", SoundMenu.synth, sampler: true, steps: steps, plaits: SynthEngines.firstJambo)
                 column("MI SYNTH", SoundMenu.miSynth, sampler: false, steps: steps, plaits: 0)
                 column("MI DRUMS", SoundMenu.miDrums, sampler: false, steps: steps, plaits: SynthEngines.firstDrum)
             }
@@ -39,13 +39,13 @@ struct SoundMenu: View {
             .frame(maxWidth: .infinity)
     }
 
-    /// plaits — номер первого движка Plaits колонки (nil — свои движки, пока серые).
+    /// plaits — номер первого движка колонки; движка, которого ещё нет в таблице (WTABLE), — серая кнопка.
     private func column(_ name: String, _ items: [String], sampler: Bool, steps: Bool, plaits: Int? = nil) -> some View {
         let engine: Int = SynthKey.engine(model.track.sample) ?? -1
         return VStack(spacing: 4) {
             title(name)
             ForEach(items.indices, id: \.self) { k in
-                if let first = plaits {
+                if let first = plaits, first + k < SynthEngines.count {
                     cell(items[k], enabled: true, current: !steps && engine == first + k) {
                         let s = state.steps
                         close()

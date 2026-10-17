@@ -1,5 +1,5 @@
 // Эталон иконок движков для Swift-версии: SVG элементы из src/engineIcons.ts (как рисует веб) на наборах значений.
-// Импорт fmRatio (нужен только иконке 18) подменяется заглушкой; файл берётся во временную папку.
+// Импорт fmRatio (нужен только иконке 18) подменяется копией из src/params.ts; файл берётся во временную папку.
 // Запуск (Node 22): node --experimental-strip-types --no-warnings ios/tools/icons/golden.mjs
 // Выход: ios/tools/icons/engine_icons_golden.json — [{engine, v, els: [{d | c | tx, fill, op, dash}]}].
 import fs from 'node:fs';
@@ -10,7 +10,12 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../../..');
 const src = fs.readFileSync(path.join(root, 'src/engineIcons.ts'), 'utf8')
-  .replace("import { fmRatio } from './params';", 'const fmRatio = (n) => n;');
+  .replace("import { fmRatio } from './params';", `const FM_SNAP = [0.5, 1, 1.5, 2, 3, 4, 5, 6, 7, 8];
+function fmRatio(n) {
+  const r = 0.5 * Math.pow(16, Math.min(1, Math.max(0, n)));
+  for (const t of FM_SNAP) if (Math.abs(r / t - 1) <= 0.02) return t;
+  return r;
+}`);
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'icons-'));
 const file = path.join(tmp, 'engineIcons.ts');
 fs.writeFileSync(file, src);
@@ -21,7 +26,7 @@ const SETS = [[0, 0, 0], [1, 1, 1], [0.5, 0.5, 0.5], [0.25, 0.75, 0.2], [0.8, 0.
 const DECAYS = [0.5, 0, 1, 0.3, 0.9];
 const attr = (s, name) => { const m = s.match(new RegExp(` ${name}="([^"]*)"`)); return m ? m[1] : null; };
 const cases = [];
-for (let engine = 0; engine < 16; engine++) {
+for (let engine = 0; engine < 19; engine++) {
   for (const [k, [h, t, m]] of SETS.entries()) {
     const v = { h, t, m, d: DECAYS[k] };
     const svg = iconSvg(String(engine), v, 64);

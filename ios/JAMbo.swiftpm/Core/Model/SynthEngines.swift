@@ -1,5 +1,5 @@
 // Движки синта (как SYNTH_ENGINES, synthKey, synthEngine в src/params.ts веба): звук дорожки или шага «mi:<n>».
-// MI SYNTH — Plaits 0–7, MI DRUMS — Plaits 8–15; свои движки (16–19) — S3b.
+// MI SYNTH — Plaits 0–7, MI DRUMS — Plaits 8–15, свои (SYNTH) — DRUM, ANALOG, FM (16–18); WTABLE (19) — S3b #44.
 
 /// Движок: короткое имя (меню), полное (окно синта), подписи ручек 1.1–1.3, пункты Harmonics и точки harmonics
 /// для Plaits по пункту (SPEECH: Formant, Phoneme, LPC — 0, 1/6, 1/3; Words отключён).
@@ -14,6 +14,12 @@ public struct SynthEngine: Sendable {
     public let options: [String]
     public let harmPoints: [Float]
     public var decay = false
+    /// Свой движок JAMbo (Core/Jambo, jambo-synth-worklet.js веба): ручки 1.1–1.3 — p1–p3 (0…1), Decay — в мс.
+    public var jambo = false
+    /// Свой предел ручки Decay, мс (у DRUM — 1000).
+    public var decayMax: Double? = nil
+    /// Ручки 1.1–1.3 (harm, timbre, morph), которые ставятся при выборе движка на дорожку с другого звука.
+    public var initKnobs: [Double] = []
 }
 
 public enum SynthEngines {
@@ -50,7 +56,18 @@ public enum SynthEngines {
                     morph: "OUT→AUX", options: [], harmPoints: [], decay: true),
         SynthEngine(name: "HI-HAT", full: "Analog hi-hat", harm: "metal↔noise", timbre: "HPF cutoff",
                     morph: "OUT→AUX", options: [], harmPoints: [], decay: true),
+        // Свои движки: DRUM — бочка (высота — ручкой PITCH, монофонична), ANALOG — по умолчанию чистый синус.
+        SynthEngine(name: "DRUM", full: "Drum", harm: "pitch", timbre: "sweep", morph: "drive", options: [],
+                    harmPoints: [], decay: true, jambo: true, decayMax: 1000),
+        SynthEngine(name: "ANALOG", full: "Analog", harm: "wave", timbre: "detune", morph: "sub",
+                    options: ["Sine", "Triangle", "Saw", "Square"], harmPoints: [], jambo: true,
+                    initKnobs: [12.5, 0, 0]),
+        SynthEngine(name: "FM", full: "FM", harm: "ratio", timbre: "index", morph: "contour", options: [],
+                    harmPoints: [], jambo: true),
     ]
+
+    /// Первый свой движок (DRUM).
+    public static let firstJambo = 16
 
     /// Первый движок MI DRUMS (Plaits 8–15).
     public static let firstDrum = 8
@@ -75,8 +92,20 @@ public enum SynthKey {
 }
 
 extension Track {
-    /// Синт на дорожку (setTrackSynth веба): звук дорожки — «mi:<n>»; ручки Harmonics, Timbre, Morph остаются.
+    /// Синт на дорожку (setTrackSynth веба): звук дорожки — «mi:<n>»; ручки Harmonics, Timbre, Morph остаются,
+    /// кроме своих начальных у движка (ANALOG — синус без DETUNE и SUB) при переходе с другого звука; Decay больше
+    /// предела движка (DRUM — 1000 мс) — к пределу.
     public mutating func setSynth(_ engine: Int) {
-        sample = SynthKey.key(engine)
+        let key = SynthKey.key(engine)
+        let was = sample
+        sample = key
+        guard engine >= 0 && engine < SynthEngines.count else { return }
+        let e = SynthEngines.all[engine]
+        if e.initKnobs.count == 3 && was != key {
+            params["harm"] = e.initKnobs[0]
+            params["timbre"] = e.initKnobs[1]
+            params["morph"] = e.initKnobs[2]
+        }
+        if let max = e.decayMax, let d = params["decay"], d > max { params["decay"] = max }
     }
 }

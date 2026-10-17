@@ -11,7 +11,7 @@ struct SynthInfo: View {
     var body: some View {
         let e: SynthEngine = SynthEngines.all[engine]
         return VStack(alignment: .leading, spacing: 4) {
-            Text("MI · \(e.name)")
+            Text(e.jambo ? e.name : "MI · \(e.name)")
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(theme.text)
                 .lineLimit(1)

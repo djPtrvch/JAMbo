@@ -1,7 +1,7 @@
 import SwiftUI
 import Observation
 
-/// Прогон самотеста Plaits вне основного потока; результаты — по мере готовности.
+/// Прогон самотеста движков (Plaits и свои — DRUM, ANALOG, FM) вне основного потока; результаты — по мере готовности.
 @Observable
 final class SelfTestRunner {
     private(set) var results: [PlaitsSelfTest.Result] = []
@@ -28,7 +28,8 @@ final class SelfTestRunner {
                 await MainActor.run { self.finish("Resources not found (plaits tables or golden cases).", start) }
                 return
             }
-            let count = all.cases.count
+            let jambo = try? JamboSelfTest.loadCases(golden)
+            let count = all.cases.count + (jambo?.cases.count ?? 0)
             await MainActor.run { self.total = count }
             for c in all.cases {
                 do {
@@ -37,6 +38,18 @@ final class SelfTestRunner {
                 } catch {
                     await MainActor.run { self.finish("Cannot read \(c.file).", start) }
                     return
+                }
+            }
+            if let jb = jambo {
+                let tables = JamboTables()
+                for c in jb.cases {
+                    do {
+                        let r = try JamboSelfTest.run(c, jb, golden, tables: tables)
+                        await MainActor.run { self.results.append(r) }
+                    } catch {
+                        await MainActor.run { self.finish("Cannot read \(c.file).", start) }
+                        return
+                    }
                 }
             }
             await MainActor.run { self.finish("", start) }
@@ -66,7 +79,7 @@ struct SelfTestPanel: View {
                 .frame(width: 220)
                 summary
             }
-            Text("Plaits engines vs. web reference: samples ≤ −60 dB or 1/3-octave bands within ±0.5 dB.")
+            Text("Synth engines vs. web reference: samples ≤ −60 dB or 1/3-octave bands within ±0.5 dB.")
                 .font(.system(size: 12)).foregroundStyle(theme.dim)
             MenuScroll {
                 LazyVStack(alignment: .leading, spacing: 2) {
@@ -111,7 +124,8 @@ private struct SelfTestRow: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        let name: String = PlaitsSelfTest.engineNames[min(result.engine, PlaitsSelfTest.engineNames.count - 1)]
+        let name: String = result.engine < PlaitsSelfTest.engineNames.count
+            ? PlaitsSelfTest.engineNames[result.engine] : (JamboSelfTest.engineNames[result.engine] ?? "?")
         let samples: String = String(format: "%.1f dB", result.sampleErrorDb)
         let bands: String = String(format: "±%.3f dB", result.maxBandDiffDb)
         HStack(spacing: 12) {

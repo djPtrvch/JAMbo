@@ -8,7 +8,8 @@ final class SynthTests: XCTestCase {
         XCTAssertEqual(SynthKey.engine("mi:0"), 0)
         XCTAssertEqual(SynthKey.engine("mi:7"), 7)
         XCTAssertEqual(SynthKey.engine("mi:15"), 15)
-        XCTAssertNil(SynthKey.engine("mi:16"))
+        XCTAssertEqual(SynthKey.engine("mi:18"), 18)
+        XCTAssertNil(SynthKey.engine("mi:19"))
         XCTAssertNil(SynthKey.engine("mi:x"))
         XCTAssertNil(SynthKey.engine(""))
         XCTAssertNil(SynthKey.engine("3f2a9c"))
@@ -34,7 +35,17 @@ final class SynthTests: XCTestCase {
         XCTAssertEqual(Params.grid(sound: "mi:13")[0].label, "Attack & overdrive")
         XCTAssertEqual(Params.grid(sound: "mi:13")[8].label, "OUT→AUX")
         XCTAssertEqual(Params.grid(sound: "mi:8")[8].label, "Grain length")
-        XCTAssertEqual(SynthEngines.all.filter(\.decay).map(\.name), ["STRING", "MODAL", "KICK", "SNARE", "HI-HAT"])
+        XCTAssertEqual(SynthEngines.all.filter(\.decay).map(\.name), ["STRING", "MODAL", "KICK", "SNARE", "HI-HAT", "DRUM"])
+        // Свои движки: PITCH в Гц и Decay до 1000 мс у DRUM, WAVE ступенчатая у ANALOG, RATIO ×N.NN у FM.
+        let drum = Params.grid(sound: "mi:16")
+        XCTAssertEqual(drum[0].label, "Pitch")
+        XCTAssertEqual(drum[0].format(50), "55 Hz")
+        XCTAssertEqual(drum[5].id, "decay")
+        XCTAssertEqual(drum[5].max, 1000)
+        XCTAssertEqual(Params.grid(sound: "mi:17")[0].steps, 4)
+        XCTAssertEqual(Params.grid(sound: "mi:17")[0].format(12.5), "Sine")
+        XCTAssertEqual(Params.grid(sound: "mi:18")[0].format(25), "×1.00")
+        XCTAssertEqual(Params.grid(sound: "mi:18")[5].max, Params.grid(sound: "")[5].max)
     }
 
     func testDefaultsAndSetSynth() {
@@ -272,6 +283,61 @@ final class SynthTests: XCTestCase {
                 XCTAssertFalse(x.contains { !$0.isFinite }, "\(SynthEngines.all[e].name) \(n)")
                 XCTAssertGreaterThan(peak(x, 0, 24000), 0.01, "\(SynthEngines.all[e].name) \(n)")
             }
+        }
+    }
+
+    // MARK: — свои движки (#43)
+
+    /// ANALOG при выборе с другого звука — синус без DETUNE и SUB; DRUM подрезает Decay до 1000 мс.
+    func testSetSynthInitAndDecayMax() {
+        var t = Track(index: 0)
+        t.params["harm"] = 80
+        t.params["timbre"] = 70
+        t.params["decay"] = 3000
+        t.setSynth(17)
+        XCTAssertEqual(t.params["harm"], 12.5)
+        XCTAssertEqual(t.params["timbre"], 0)
+        XCTAssertEqual(t.params["morph"], 0)
+        t.params["harm"] = 60
+        t.setSynth(17)
+        XCTAssertEqual(t.params["harm"], 60, "тот же движок — ручки не сбрасываются")
+        XCTAssertEqual(t.params["decay"], 3000)
+        t.setSynth(16)
+        XCTAssertEqual(t.params["decay"], 1000)
+    }
+
+    /// ANALOG, синус: A4 = 440 Гц с точностью до дрейфа (±3 цента).
+    func testAnalogA4() throws {
+        var p = synthProject(17)
+        p.tracks[0].setSynth(17)
+        let c = try core(p)
+        c.events.push(.noteOn(track: 0, note: 69, id: 1, velocity: 1))
+        let x = render(c, frames: 48000)
+        var first = -1.0, last = -1.0, count = 0
+        for i in 12000..<47999 where x[i] <= 0 && x[i + 1] > 0 {
+            let t = Double(i) + Double(-x[i] / (x[i + 1] - x[i]))
+            if first < 0 { first = t }
+            last = t
+            count += 1
+        }
+        let hz = Double(count - 1) / ((last - first) / 48000)
+        XCTAssertEqual(hz, 440, accuracy: 440 * 0.0018)
+    }
+
+    /// DRUM монофонична: аккорд — один голос; все свои движки звучат и без NaN.
+    func testJamboEnginesSound() throws {
+        let c = try core(synthProject(16))
+        let chord: [Int16] = [36, 40, 43]
+        for (k, n) in chord.enumerated() { c.events.push(.noteOn(track: 0, note: Int(n), id: k + 1, velocity: 1)) }
+        let x = render(c, frames: 4800)
+        XCTAssertEqual(c.sampler.synth?.activeCount, 1)
+        XCTAssertGreaterThan(peak(x, 0, 4800), 0.05)
+        for e in [17, 18] {
+            let c = try core(synthProject(e))
+            c.events.push(.noteOn(track: 0, note: 48, id: 1, velocity: 1))
+            let y = render(c, frames: 9600)
+            XCTAssertFalse(y.contains { !$0.isFinite }, "\(e)")
+            XCTAssertGreaterThan(peak(y, 4800, 9600), 0.05, "\(e)")
         }
     }
 }

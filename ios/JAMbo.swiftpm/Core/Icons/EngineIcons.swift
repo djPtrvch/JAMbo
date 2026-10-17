@@ -130,7 +130,7 @@ public enum EngineIcons {
     ]
     static let chordLabels = ["oct", "5", "sus4", "m", "m7", "m9", "m11", "6/9", "M9", "M7", "M"]
 
-    /// Элементы иконки движка (0–15); у других — пусто.
+    /// Элементы иконки движка (0–18); у других — пусто.
     public static func elements(_ engine: Int, _ v: IconValues) -> [IconElement] {
         switch engine {
         case 0: return va(v)
@@ -149,6 +149,9 @@ public enum EngineIcons {
         case 13: return kick(v)
         case 14: return snare(v)
         case 15: return hiHat(v)
+        case 16: return drumIcon(v)
+        case 17: return analogIcon(v)
+        case 18: return fmIcon(v)
         default: return []
         }
     }
