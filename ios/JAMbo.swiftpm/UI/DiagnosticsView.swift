@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Окно DIAGNOSTICS: фактическое состояние звука («Now:»), нагрузка; SELF-TEST движков появится в S3a.
+/// Окно DIAGNOSTICS: фактическое состояние звука («Now:»), нагрузка, SELF-TEST движков Plaits.
 struct DiagnosticsView: View {
     let model: AppModel
     @Environment(\.theme) private var theme
@@ -14,8 +14,7 @@ struct DiagnosticsView: View {
             InkButton(title: "TEST TONE 440 Hz", active: model.toneOn) { model.toggleTone() }
                 .frame(width: 220)
             MenuHead(title: "SELF-TEST")
-            Text("No engines yet (S3a).").font(.system(size: 12)).foregroundStyle(theme.dim)
-            Spacer()
+            SelfTestPanel()
         }
         .padding(12)
         .frame(maxWidth: .infinity, maxHeight: .infinity)

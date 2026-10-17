@@ -1,62 +1,52 @@
 import XCTest
 @testable import Core
 
-/// Движки Plaits по эталонам e<движок>_*; усиления OUT и AUX — как в jambo_voices.cc.
+/// Движки Plaits по эталонам e<движок>_* (PlaitsSelfTest — тот же код, что SELF-TEST в DIAGNOSTICS).
 final class PlaitsEngineTests: XCTestCase {
-    /// Все случаи движка: свежий экземпляр на каждый (как свежий wasm в эталоне); критерий S3a (Result.passes).
-    private func checkGolden(engine index: Int, outGain: Float, auxGain: Float,
-                             make: (PlaitsResources) -> PlaitsEngine) throws {
+    /// Все случаи движка; итог — Result.ok (критерий S3a и страховка −40 dB).
+    private func checkGolden(engine index: Int) throws {
         let resources = try XCTUnwrap(PlaitsGolden.resources, "нет таблиц Resources/plaits")
-        let all = try PlaitsGolden.loadCases()
+        let all = try PlaitsSelfTest.loadCases(PlaitsGolden.goldenDir)
         let cases = all.cases.filter { $0.engine == index }
         XCTAssertEqual(cases.count, 6)
         for c in cases {
-            let actual = PlaitsGolden.render(make(resources), c, frames: all.frames, block: all.block,
-                                             accent: all.accent, outGain: outGain, auxGain: auxGain)
-            let golden = try PlaitsGolden.loadGolden(c.file)
-            XCTAssertEqual(golden.count, all.frames, c.file)
-            XCTAssertFalse(actual.contains { !$0.isFinite }, c.file)
-            let r = PlaitsGolden.compare(actual, golden)
+            let r = try PlaitsSelfTest.run(c, all, resources, PlaitsGolden.goldenDir)
             print(String(format: "%@: samples %.1f dB, bands ±%.3f dB, rms %.1f dBFS",
                          c.file, r.sampleErrorDb, r.maxBandDiffDb, r.rmsDb))
+            XCTAssertTrue(r.finite, c.file)
             XCTAssertGreaterThan(r.rmsDb, -40, "\(c.file): почти тишина")
             // Страховка от ошибок с тем же спектром (полярность, сдвиг на отсчёт): по отсчётам не хуже −40 dB.
             XCTAssertLessThanOrEqual(r.sampleErrorDb, -40, c.file)
             XCTAssertTrue(r.passes, "\(c.file): samples \(r.sampleErrorDb) dB, bands \(r.maxBandDiffDb) dB")
+            XCTAssertTrue(r.ok, c.file)
         }
     }
 
-    func testVirtualAnalog() throws {
-        try checkGolden(engine: 0, outGain: 0.8, auxGain: 0.8) { VirtualAnalogEngine(resources: $0) }
+    func testVirtualAnalog() throws { try checkGolden(engine: 0) }
+    func testWaveshaping() throws { try checkGolden(engine: 1) }
+    func testFM() throws { try checkGolden(engine: 2) }
+    func testGrain() throws { try checkGolden(engine: 3) }
+    func testAdditive() throws { try checkGolden(engine: 4) }
+    func testWavetable() throws { try checkGolden(engine: 5) }
+    func testChords() throws { try checkGolden(engine: 6) }
+    func testSpeech() throws { try checkGolden(engine: 7) }
+
+    /// Всего эталонов — 48 (8 движков × 3 набора × 2 ноты).
+    func testAllCasesListed() throws {
+        let all = try PlaitsSelfTest.loadCases(PlaitsGolden.goldenDir)
+        XCTAssertEqual(all.cases.count, 48)
+        XCTAssertEqual(Set(all.cases.map(\.engine)), Set(0..<8))
     }
 
-    func testWaveshaping() throws {
-        try checkGolden(engine: 1, outGain: 0.7, auxGain: 0.6) { WaveshapingEngine(resources: $0) }
-    }
-
-    func testFM() throws {
-        try checkGolden(engine: 2, outGain: 0.6, auxGain: 0.6) { FMEngine(resources: $0) }
-    }
-
-    func testGrain() throws {
-        try checkGolden(engine: 3, outGain: 0.7, auxGain: 0.6) { GrainEngine(resources: $0) }
-    }
-
-    func testAdditive() throws {
-        try checkGolden(engine: 4, outGain: 0.8, auxGain: 0.8) { AdditiveEngine(resources: $0) }
-    }
-
-    func testWavetable() throws {
-        try checkGolden(engine: 5, outGain: 0.6, auxGain: 0.6) { WavetableEngine(resources: $0) }
-    }
-
-    func testChords() throws {
-        try checkGolden(engine: 6, outGain: 0.8, auxGain: 0.8) { ChordEngine(resources: $0) }
-    }
-
-    /// SPEECH: OUT −0,7 — лимитер с предусилением 0,7; генератор шума — с начального состояния (свежий wasm).
-    func testSpeech() throws {
-        try checkGolden(engine: 7, outGain: -0.7, auxGain: 0.8) { SpeechEngine(resources: $0, random: StmRandom()) }
+    /// Поиск папок как в приложении: Resources как bundle, файлы — в подпапках plaits и golden.
+    func testBundleLookup() throws {
+        let bundle = try XCTUnwrap(Bundle(url: PlaitsGolden.resourcesDir))
+        let tables = try XCTUnwrap(PlaitsSelfTest.directory(of: "lut_sine.f32", in: bundle,
+                                                            subdirectories: ["plaits", "Resources/plaits"]))
+        let golden = try XCTUnwrap(PlaitsSelfTest.directory(of: "cases.json", in: bundle,
+                                                            subdirectories: ["golden", "Resources/golden"]))
+        XCTAssertNotNil(PlaitsSelfTest.webResources(tables))
+        XCTAssertEqual(try PlaitsSelfTest.loadCases(golden).cases.count, 48)
     }
 
     /// В приложении a0 — 48 кГц без сдвига ноты: A4 (нота 69) = 440 Гц с точностью до шага таблицы (1/256 полутона).
