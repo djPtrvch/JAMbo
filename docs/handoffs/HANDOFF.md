@@ -10,6 +10,7 @@ S3a — Plaits: 8 движков, голоса синта в звуке, мен�
 - Движки 0–7 перенесены 1:1 по `wasm/plaits/.src` (eurorack `08460a6`, stmlib `e3bd7c9`): VA, WAVESHAPE, FM, GRAIN, ADDITIVE, WAVETABLE, CHORDS, SPEECH; у каждого тест по 6 эталонам.
 - SELF-TEST в DIAGNOSTICS (RUN SELF-TEST, таблица 48 строк). Проверено на iPad: 48/48 PASS, 12,5 с, цифры совпадают с Linux.
 - CoreTests на Linux: 63 теста, все проходят (`. ios/tools/swift-env.sh && cd ios/CoreTests && swift test`).
+- Контроль размера CLAUDE.md: хук PostToolUse `.claude/hooks/check-claude-md.sh` (120 строк — предупреждение, 150 — остановка), раздел «Управление документацией» в CLAUDE.md.
 
 ## 3. Какие файлы изменены
 - `ios/JAMbo.swiftpm/Core/Plaits/`:
@@ -54,7 +55,6 @@ S3a — Plaits: 8 движков, голоса синта в звуке, мен�
 - Меню MI SYNTH (кнопки VA … SPEECH сейчас серые), окно синта с иконкой движка, ручки HARMONICS / TIMBRE / MORPH.
 - S3b: MI DRUMS (8 движков) и свои движки DRUM, ANALOG, FM, WTABLE.
 - #39: жёлтая точка p-lock и рамка шага в секвенсоре. #40: плавная перетяжка миниатюр страниц.
-- Контроль размера CLAUDE.md: план (хук PostToolUse `.claude/hooks/check-claude-md.sh`, пороги 120/150 строк, раздел «Управление документацией») показан, но не подтверждён и не выполнен.
 - `docs/SWIFT_MILESTONE_S3.md` — после завершения вехи.
 
 ## 7. Точный следующий шаг
