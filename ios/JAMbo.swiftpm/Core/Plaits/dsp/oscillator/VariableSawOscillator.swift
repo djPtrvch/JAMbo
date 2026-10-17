@@ -32,14 +32,36 @@ struct VariableSawOscillator {
         var pwm = ParameterInterpolator(pw, pwTarget, size)
         var waveshapeModulation = ParameterInterpolator(waveshape, waveshapeIn, size)
 
+        // Интерполяторы — значение и приращение локально, polyBLEP — формулами, константа — локально: в отладочной
+        // сборке (Playgrounds) вызовы и глобальные константы из других файлов на каждом отсчёте не встраиваются.
+        var fV = fm.value, pwV = pwm.value, shapeV = waveshapeModulation.value
+        let fI = fm.increment, pwI = pwm.increment, shapeI = waveshapeModulation.increment
+        let notchDepth = kVariableSawNotchDepth
+        @_transparent func thisBlep(_ t: Float) -> Float { 0.5 * t * t }
+        @_transparent func nextBlep(_ t0: Float) -> Float {
+            let t = 1 - t0
+            return -0.5 * t * t
+        }
+        @_transparent func nextIntBlep(_ t: Float) -> Float {
+            let t1 = 0.5 * t
+            let t2 = t1 * t1
+            let t4 = t2 * t2
+            return 0.1875 - t1 + 1.5 * t2 - t4
+        }
+        @_transparent func thisIntBlep(_ t: Float) -> Float { nextIntBlep(1 - t) }
         var next = nextSample
-        for i in 0..<size {
+        var i = 0
+        while i < size {
+            defer { i += 1 }
             var thisSample = next
             next = 0
 
-            let f = fm.next()
-            let pwNow = pwm.next()
-            let shape = waveshapeModulation.next()
+            fV += fI
+            pwV += pwI
+            shapeV += shapeI
+            let f = fV
+            let pwNow = pwV
+            let shape = shapeV
             let triangleAmount = shape
             let notchAmount = 1 - shape
             let slopeUp = 1 / pwNow
@@ -49,38 +71,38 @@ struct VariableSawOscillator {
 
             if !high && phase >= pwNow {
                 let triangleStep = (slopeUp + slopeDown) * f * triangleAmount
-                let notch = (kVariableSawNotchDepth + 1 - pwNow) * notchAmount
+                let notch = (notchDepth + 1 - pwNow) * notchAmount
                 let t = (phase - pwNow) / (previousPw - pwNow + f)
-                thisSample += notch * thisBlepSample(t)
-                next += notch * nextBlepSample(t)
-                thisSample -= triangleStep * thisIntegratedBlepSample(t)
-                next -= triangleStep * nextIntegratedBlepSample(t)
+                thisSample += notch * thisBlep(t)
+                next += notch * nextBlep(t)
+                thisSample -= triangleStep * thisIntBlep(t)
+                next -= triangleStep * nextIntBlep(t)
                 high = true
             } else if phase >= 1 {
                 phase -= 1
                 let triangleStep = (slopeUp + slopeDown) * f * triangleAmount
-                let notch = (kVariableSawNotchDepth + 1) * notchAmount
+                let notch = (notchDepth + 1) * notchAmount
                 let t = phase / f
-                thisSample -= notch * thisBlepSample(t)
-                next -= notch * nextBlepSample(t)
-                thisSample += triangleStep * thisIntegratedBlepSample(t)
-                next += triangleStep * nextIntegratedBlepSample(t)
+                thisSample -= notch * thisBlep(t)
+                next -= notch * nextBlep(t)
+                thisSample += triangleStep * thisIntBlep(t)
+                next += triangleStep * nextIntBlep(t)
                 high = false
             }
 
             next += naiveSample(phase, pwNow, slopeUp, slopeDown, triangleAmount, notchAmount)
             previousPw = pwNow
 
-            out[i] = (2 * thisSample - 1) / (1 + kVariableSawNotchDepth)
+            out[i] = (2 * thisSample - 1) / (1 + notchDepth)
         }
         nextSample = next
 
-        frequency = fm.value
-        pw = pwm.value
-        waveshape = waveshapeModulation.value
+        frequency = fV
+        pw = pwV
+        waveshape = shapeV
     }
 
-    @inline(__always)
+    @_transparent
     private func naiveSample(_ phase: Float, _ pw: Float, _ slopeUp: Float, _ slopeDown: Float,
                              _ triangleAmount: Float, _ notchAmount: Float) -> Float {
         let notchSaw = phase < pw ? phase : 1 + kVariableSawNotchDepth

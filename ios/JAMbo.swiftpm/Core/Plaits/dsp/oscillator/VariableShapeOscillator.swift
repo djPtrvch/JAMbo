@@ -56,8 +56,28 @@ struct VariableShapeOscillator {
         var waveshapeModulation = ParameterInterpolator(waveshape, waveshapeIn, size)
         var phaseModulationInterp = ParameterInterpolator(phaseModulation, phaseModulationAmount, size)
 
+        // Интерполяторы — значение и приращение в локальных переменных, polyBLEP — формулами: в отладочной сборке
+        // (Playgrounds) вызовы функций из других файлов на каждом отсчёте не встраиваются.
+        var masterFV = masterFm.value, slaveFV = fm.value, pwV = pwm.value, shapeV = waveshapeModulation.value
+        var pmV = phaseModulationInterp.value
+        let masterFI = masterFm.increment, slaveFI = fm.increment, pwI = pwm.increment
+        let shapeI = waveshapeModulation.increment, pmI = phaseModulationInterp.increment
+        @_transparent func thisBlep(_ t: Float) -> Float { 0.5 * t * t }
+        @_transparent func nextBlep(_ t0: Float) -> Float {
+            let t = 1 - t0
+            return -0.5 * t * t
+        }
+        @_transparent func nextIntBlep(_ t: Float) -> Float {
+            let t1 = 0.5 * t
+            let t2 = t1 * t1
+            let t4 = t2 * t2
+            return 0.1875 - t1 + 1.5 * t2 - t4
+        }
+        @_transparent func thisIntBlep(_ t: Float) -> Float { nextIntBlep(1 - t) }
         var next = nextSample
-        for i in 0..<size {
+        var i = 0
+        while i < size {
+            defer { i += 1 }
             var reset = false
             var transitionDuringReset = false
             var resetTime: Float = 0
@@ -65,13 +85,20 @@ struct VariableShapeOscillator {
             var thisSample = next
             next = 0
 
-            let masterF = masterFm.next()
-            let slaveF = fm.next()
-            let pwNow = pwm.next()
-            let shape = waveshapeModulation.next()
+            masterFV += masterFI
+            slaveFV += slaveFI
+            pwV += pwI
+            shapeV += shapeI
+            let masterF = masterFV
+            let slaveF = slaveFV
+            let pwNow = pwV
+            let shape = shapeV
 
-            let squareAmount = max(shape - 0.5, 0) * 2
-            let triangleAmount = max(1 - shape * 2, 0)
+            // max(x, 0): 0 >= x ? 0 : x.
+            let sq = shape - 0.5
+            let squareAmount = (0 >= sq ? 0 : sq) * 2
+            let tr = 1 - shape * 2
+            let triangleAmount: Float = 0 >= tr ? 0 : tr
 
             let slopeUp = 1 / pwNow
             let slopeDown = 1 / (1 - pwNow)
@@ -93,8 +120,8 @@ struct VariableShapeOscillator {
                     }
                     let value = naiveSample(slavePhaseAtReset, pwNow, slopeUp, slopeDown,
                                             triangleAmount, squareAmount)
-                    thisSample -= value * thisBlepSample(resetTime)
-                    next -= value * nextBlepSample(resetTime)
+                    thisSample -= value * thisBlep(resetTime)
+                    next -= value * nextBlep(resetTime)
                 }
             } else if outputPhase {
                 masterPhase += masterF
@@ -109,10 +136,10 @@ struct VariableShapeOscillator {
                     var triangleStep = (slopeUp + slopeDown) * slaveF
                     triangleStep *= triangleAmount
 
-                    thisSample += squareAmount * thisBlepSample(t)
-                    next += squareAmount * nextBlepSample(t)
-                    thisSample -= triangleStep * thisIntegratedBlepSample(t)
-                    next -= triangleStep * nextIntegratedBlepSample(t)
+                    thisSample += squareAmount * thisBlep(t)
+                    next += squareAmount * nextBlep(t)
+                    thisSample -= triangleStep * thisIntBlep(t)
+                    next -= triangleStep * nextIntBlep(t)
                     high = true
                 }
 
@@ -123,10 +150,10 @@ struct VariableShapeOscillator {
                     var triangleStep = (slopeUp + slopeDown) * slaveF
                     triangleStep *= triangleAmount
 
-                    thisSample -= (1 - triangleAmount) * thisBlepSample(t)
-                    next -= (1 - triangleAmount) * nextBlepSample(t)
-                    thisSample += triangleStep * thisIntegratedBlepSample(t)
-                    next += triangleStep * nextIntegratedBlepSample(t)
+                    thisSample -= (1 - triangleAmount) * thisBlep(t)
+                    next -= (1 - triangleAmount) * nextBlep(t)
+                    thisSample += triangleStep * thisIntBlep(t)
+                    next += triangleStep * nextIntBlep(t)
                     high = false
                 }
             }
@@ -149,7 +176,8 @@ struct VariableShapeOscillator {
                     let p2 = phasor * phasor
                     phasor += (p2 * p2 - phasor) * abs(pwNow - 0.5) * 2
                 }
-                out[i] = phasor + phaseModulationInterp.next() * thisSample
+                pmV += pmI
+                out[i] = phasor + pmV * thisSample
             } else {
                 out[i] = 2 * thisSample - 1
             }
@@ -157,14 +185,14 @@ struct VariableShapeOscillator {
         nextSample = next
 
         // Деструкторы ParameterInterpolator оригинала.
-        masterFrequency = masterFm.value
-        slaveFrequency = fm.value
-        pw = pwm.value
-        waveshape = waveshapeModulation.value
-        phaseModulation = phaseModulationInterp.value
+        masterFrequency = masterFV
+        slaveFrequency = slaveFV
+        pw = pwV
+        waveshape = shapeV
+        phaseModulation = pmV
     }
 
-    @inline(__always)
+    @_transparent
     private func naiveSample(_ phase: Float, _ pw: Float, _ slopeUp: Float, _ slopeDown: Float,
                              _ triangleAmount: Float, _ squareAmount: Float) -> Float {
         var saw = phase
