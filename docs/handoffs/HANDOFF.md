@@ -11,6 +11,7 @@ S3a — Plaits: 8 движков, голоса синта в звуке, мен�
 - SELF-TEST в DIAGNOSTICS (RUN SELF-TEST, таблица 48 строк). Проверено на iPad: 48/48 PASS, 12,5 с, цифры совпадают с Linux.
 - CoreTests на Linux: 63 теста, все проходят (`. ios/tools/swift-env.sh && cd ios/CoreTests && swift test`).
 - Контроль размера CLAUDE.md: хук PostToolUse `.claude/hooks/check-claude-md.sh` (120 строк — предупреждение, 150 — остановка), раздел «Управление документацией» в CLAUDE.md.
+- #38: голоса синта (Core/Synth/SynthVoices, 6 на дорожку), звук «mi:<n>» у дорожки и шага, меню MI SYNTH и сетка ручек движка; 10 тестов синта.
 
 ## 3. Какие файлы изменены
 - `ios/JAMbo.swiftpm/Core/Plaits/`:
@@ -51,11 +52,11 @@ S3a — Plaits: 8 движков, голоса синта в звуке, мен�
 - Хуки `.claude/settings.json` читаются при старте сессии.
 
 ## 6. Что не сделано
-- #38: голос синта по образцу `jambo_voices.cc` (выбор движка — LoadUserData и Reset, усиления, лимитер, aux_mix, ограничение ±1) и подключение к звуку дорожек (ноты секвенсора и пианоролла, p-lock).
+- Окно синта с иконкой движка (вместо «No sample»); удержание окна у синта не открывает редактор (как в вебе).
 - Меню MI SYNTH (кнопки VA … SPEECH сейчас серые), окно синта с иконкой движка, ручки HARMONICS / TIMBRE / MORPH.
 - S3b: MI DRUMS (8 движков) и свои движки DRUM, ANALOG, FM, WTABLE.
 - #39: жёлтая точка p-lock и рамка шага в секвенсоре. #40: плавная перетяжка миниатюр страниц.
 - `docs/SWIFT_MILESTONE_S3.md` — после завершения вехи.
 
 ## 7. Точный следующий шаг
-Показать пользователю план #38 (код не менять до подтверждения): по `wasm/plaits/jambo_voices.cc`, `docs/ai/synth-engines.md` и `docs/ai/sound-sampler.md` — структура голоса синта в Core (без выделений в колбэке), где голоса живут рядом с Sampler в AudioCore, какие поля дорожки и проекта нужны, тесты CoreTests.
+Проверка #38 на iPad (звук, ручки, CPU), затем план окна синта с иконкой — по docs/ai/synth-engines.md и src/ui/sample.ts, src/engineIcons.ts.
