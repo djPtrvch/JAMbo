@@ -46,6 +46,10 @@ final class PlaitsEngineTests: XCTestCase {
         try checkGolden(engine: 4, outGain: 0.8, auxGain: 0.8) { AdditiveEngine(resources: $0) }
     }
 
+    func testWavetable() throws {
+        try checkGolden(engine: 5, outGain: 0.6, auxGain: 0.6) { WavetableEngine(resources: $0) }
+    }
+
     /// В приложении a0 — 48 кГц без сдвига ноты: A4 (нота 69) = 440 Гц с точностью до шага таблицы (1/256 полутона).
     func testAppPitchA4() throws {
         var app = try XCTUnwrap(PlaitsGolden.resources)

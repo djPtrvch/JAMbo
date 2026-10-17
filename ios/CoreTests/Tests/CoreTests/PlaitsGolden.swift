@@ -66,6 +66,8 @@ enum PlaitsGolden {
         defer { out.deallocate(); aux.deallocate() }
         var limiter = StmLimiter()
         var auxLimiter = StmLimiter()
+        // Выбор движка в set() jambo_voices.cc: LoadUserData(nullptr), затем Reset.
+        engine.loadUserData()
         engine.reset()
         var p = EngineParameters()
         // Нота + сдвиг — в Double и затем во Float, как JS передаёт в wasm.
