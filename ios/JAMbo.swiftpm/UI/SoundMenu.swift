@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// Меню звука дорожки (тап по окну сэмпла, как в вебе): закрывает всю левую колонку, кнопки крупные.
-/// Три колонки движков — SYNTH (свои: DRUM, ANALOG, FM, WTABLE; под ними SAMPLER), MI SYNTH и MI DRUMS (Plaits) —
-/// движки появятся в S3 (пока серые); группа LOAD SAMPLE · PRESET · MIDI: LOAD (выбор файлов), MIDI (выход — S11;
+/// Три колонки движков — SYNTH (свои: DRUM, ANALOG, FM, WTABLE — S3b; под ними SAMPLER), MI SYNTH (Plaits 0–7:
+/// тап — движок дорожки, с зажатыми шагами — их звук) и MI DRUMS (S3b, серые); группа LOAD SAMPLE · PRESET · MIDI: LOAD (выбор файлов), MIDI (выход — S11;
 /// для зажатых шагов на этом месте TRACK — вернуть звук дорожки), SAVE и TABLE (S3/S10).
 struct SoundMenu: View {
     let model: AppModel
@@ -21,7 +21,7 @@ struct SoundMenu: View {
             }
             HStack(alignment: .top, spacing: 4) {
                 column("SYNTH", SoundMenu.synth, sampler: true, steps: steps)
-                column("MI SYNTH", SoundMenu.miSynth, sampler: false, steps: steps)
+                column("MI SYNTH", SoundMenu.miSynth, sampler: false, steps: steps, plaits: true)
                 column("MI DRUMS", SoundMenu.miDrums, sampler: false, steps: steps)
             }
             title("LOAD SAMPLE · PRESET · MIDI")
@@ -39,11 +39,20 @@ struct SoundMenu: View {
             .frame(maxWidth: .infinity)
     }
 
-    private func column(_ name: String, _ items: [String], sampler: Bool, steps: Bool) -> some View {
-        VStack(spacing: 4) {
+    private func column(_ name: String, _ items: [String], sampler: Bool, steps: Bool, plaits: Bool = false) -> some View {
+        let engine: Int = SynthKey.engine(model.track.sample) ?? -1
+        return VStack(spacing: 4) {
             title(name)
             ForEach(items.indices, id: \.self) { k in
-                cell(items[k], enabled: false) {}
+                if plaits {
+                    cell(items[k], enabled: true, current: !steps && engine == k) {
+                        let s = state.steps
+                        close()
+                        model.pickSynth(k, steps: s)
+                    }
+                } else {
+                    cell(items[k], enabled: false) {}
+                }
             }
             if sampler {
                 cell("SAMPLER", enabled: !steps, current: !steps && model.track.sample.isEmpty) {
@@ -68,7 +77,7 @@ struct SoundMenu: View {
     }
 
     private func loadGroup(_ steps: Bool) -> some View {
-        let hasSample: Bool = !model.track.sample.isEmpty
+        let hasSample: Bool = !model.track.sample.isEmpty && SynthKey.engine(model.track.sample) == nil
         return VStack(spacing: 4) {
             HStack(spacing: 4) {
                 MenuItem(title: "LOAD", current: !steps && hasSample) {

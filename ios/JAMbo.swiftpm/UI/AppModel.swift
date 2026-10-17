@@ -100,6 +100,7 @@ final class AppModel {
 
     init() {
         trace("model init")
+        installSynth()
         publishAudio()
         audio.core.events.push(.tempo(project.bpm))
         let timer = Timer(timeInterval: 1.0 / 60, repeats: true) { [weak self] _ in

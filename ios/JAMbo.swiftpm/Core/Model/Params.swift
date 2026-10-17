@@ -11,8 +11,6 @@ public enum KnobKind: Sendable {
 public struct ParamDef: @unchecked Sendable {
     public let id: String
     public let label: String
-    /// Подпись у синта (ручки 1.1–1.3 — позже по таблице движков).
-    public let alt: String?
     public let kind: KnobKind
     public let min: Double
     public let max: Double
@@ -30,12 +28,11 @@ public struct ParamDef: @unchecked Sendable {
     public let steps: Int?
     public let format: (Double) -> String
 
-    public init(id: String, label: String, alt: String? = nil, kind: KnobKind = .smooth, min: Double, max: Double, def: Double,
+    public init(id: String, label: String, kind: KnobKind = .smooth, min: Double, max: Double, def: Double,
                 curve: Double? = nil, exp: Bool = false, bipolar: Bool = false, options: [String] = [], steps: Int? = nil,
                 format: @escaping (Double) -> String) {
         self.id = id
         self.label = label
-        self.alt = alt
         self.kind = kind
         self.min = min
         self.max = max
@@ -142,9 +139,9 @@ public enum Params {
     }
 
     private static func smooth(_ id: String, _ label: String, _ min: Double, _ max: Double, _ def: Double,
-                               alt: String? = nil, curve: Double? = nil, bipolar: Bool = false,
+                               curve: Double? = nil, bipolar: Bool = false,
                                _ format: @escaping (Double) -> String) -> ParamDef {
-        return ParamDef(id: id, label: label, alt: alt, min: min, max: max, def: def, curve: curve, bipolar: bipolar, format: format)
+        return ParamDef(id: id, label: label, min: min, max: max, def: def, curve: curve, bipolar: bipolar, format: format)
     }
 
     private static func stepped(_ id: String, _ label: String, _ options: [String], def: Double = 0) -> ParamDef {
@@ -155,12 +152,12 @@ public enum Params {
         }
     }
 
-    /// Колонки сетки ручек дорожки (колонка 1 — сэмпл, 2 — огибающая и фильтр, 3 — посылы, 4 — Pan, Chance, Ratchet, Swing).
+    /// Колонки сетки ручек дорожки сэмплера (у синта колонка 1 — synthGrids; колонка 1 — сэмпл, 2 — огибающая и фильтр, 3 — посылы, 4 — Pan, Chance, Ratchet, Swing).
     public static let trackColumns: [[ParamDef]] = [
         [
-            smooth("pitch", "Pitch", -24, 24, 0, alt: "Harmonics", bipolar: true, Fmt.pitch),
-            smooth("start", "Start", 0, 100, 0, alt: "Timbre", Fmt.pct),
-            smooth("end", "End", 0, 100, 100, alt: "Morph", Fmt.pct),
+            smooth("pitch", "Pitch", -24, 24, 0, bipolar: true, Fmt.pitch),
+            smooth("start", "Start", 0, 100, 0, Fmt.pct),
+            smooth("end", "End", 0, 100, 100, Fmt.pct),
             // Level: на ручке — проценты; хранится 0…127.
             smooth("level", "Level", 0, 127, 127) { v in "\(Int((v / 127 * 100).rounded()))%" },
         ],
