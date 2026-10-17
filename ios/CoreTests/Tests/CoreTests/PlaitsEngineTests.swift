@@ -54,6 +54,11 @@ final class PlaitsEngineTests: XCTestCase {
         try checkGolden(engine: 6, outGain: 0.8, auxGain: 0.8) { ChordEngine(resources: $0) }
     }
 
+    /// SPEECH: OUT −0,7 — лимитер с предусилением 0,7; генератор шума — с начального состояния (свежий wasm).
+    func testSpeech() throws {
+        try checkGolden(engine: 7, outGain: -0.7, auxGain: 0.8) { SpeechEngine(resources: $0, random: StmRandom()) }
+    }
+
     /// В приложении a0 — 48 кГц без сдвига ноты: A4 (нота 69) = 440 Гц с точностью до шага таблицы (1/256 полутона).
     func testAppPitchA4() throws {
         var app = try XCTUnwrap(PlaitsGolden.resources)

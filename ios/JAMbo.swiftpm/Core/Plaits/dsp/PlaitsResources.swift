@@ -20,6 +20,11 @@ public struct PlaitsResources {
     /// Фонемы LPC: 12 значений на кадр (energy, period, k0…k9).
     let lpcPhonemes: UnsafePointer<Int16>
     let lpcPhonemeCount: Int
+    /// Formant (NaiveSpeechSynth): [фонема 5][регистр 5][форманта 5] × (frequency, amplitude).
+    let naivePhonemes: UnsafePointer<UInt8>
+    /// SAM: [фонема 17 + охранная][форманта 3] × (frequency, amplitude); амплитуды формант — 16 значений.
+    let samPhonemes: UnsafePointer<UInt8>
+    let samFormantAmplitude: UnsafePointer<Float>
     /// a0 для NoteToFrequency: в приложении — plaitsA0 (48 кГц, без сдвига ноты); тесты ставят a0 веба
     /// (по kCorrectedSampleRate) и сдвигают ноту, чтобы сверять с эталонами почти бит в бит.
     var a0: Float = plaitsA0
@@ -53,14 +58,18 @@ public struct PlaitsResources {
               let dbump = load("lut_ws_double_bump.i16", 257, Int16.self),
               let waves = load("wav_integrated_waves.i16", 25344, Int16.self),
               let pulse = load("lut_lpc_excitation_pulse.i8", 640, Int8.self),
-              let phonemes = load("lpc_phonemes.i16", 15 * 12, Int16.self) else { return nil }
+              let phonemes = load("lpc_phonemes.i16", 15 * 12, Int16.self),
+              let naive = load("naive_phonemes.u8", 250, UInt8.self),
+              let sam = load("sam_phonemes.u8", 108, UInt8.self),
+              let samAmp = load("sam_formant_amplitude.f32", 16, Float.self) else { return nil }
         let table = UnsafeMutablePointer<UnsafePointer<Int16>>.allocate(capacity: 6)
         for (k, p) in [tan, sin, lin, bump, dbump, dbump].enumerated() { table[k] = p }
         return PlaitsResources(lutSine: sine, lutFmFrequencyQuantizer: fmq, lutFold: fold, lutFold2: fold2,
                                lutStiffness: stiffness, lutSvfShift: svf, lut4xDownsamplerFir: fir,
                                lutPitchRatioHigh: high, lutPitchRatioLow: low, lookupTableI16: UnsafePointer(table),
                                wavIntegratedWaves: waves, lutLpcExcitationPulse: pulse, lpcPhonemes: phonemes,
-                               lpcPhonemeCount: 15)
+                               lpcPhonemeCount: 15, naivePhonemes: naive, samPhonemes: sam,
+                               samFormantAmplitude: samAmp)
     }
 
     // MARK: stmlib/dsp/units.h

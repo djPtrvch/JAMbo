@@ -4,9 +4,11 @@
 #include <cstdint>
 #include <cstdio>
 #include <string>
-// Таблица фонем — закрытый член класса контроллера; для выгрузки открываем.
+// Таблицы фонем — закрытые члены классов; для выгрузки открываем.
 #define private public
 #include "plaits/dsp/speech/lpc_speech_synth_controller.h"
+#include "plaits/dsp/speech/naive_speech_synth.h"
+#include "plaits/dsp/speech/sam_speech_synth.h"
 #include "plaits/resources.h"
 #include "stmlib/dsp/units.h"
 
@@ -50,6 +52,13 @@ int main(int argc, char** argv) {
     for (int k = 0; k < 12; ++k) frames[i * 12 + k] = v[k];
   }
   Dump("lpc_phonemes", "i16", frames, n * 12);
+  // Formant (NaiveSpeechSynth): [фонема 5][регистр 5][форманта 5] × (frequency, amplitude), u8.
+  Dump("naive_phonemes", "u8", &NaiveSpeechSynth::phonemes_[0][0].formant[0].frequency,
+       kNaiveSpeechNumPhonemes * kNaiveSpeechNumRegisters * kNaiveSpeechNumFormants * 2);
+  // SAM: [фонема 17 + охранная][форманта 3] × (frequency, amplitude), u8; амплитуды — 16 × f32.
+  Dump("sam_phonemes", "u8", &SAMSpeechSynth::phonemes_[0].formant[0].frequency,
+       (kSAMNumPhonemes + 1) * kSAMNumFormants * 2);
+  Dump("sam_formant_amplitude", "f32", SAMSpeechSynth::formant_amplitude_lut, 16);
   printf("tables: %s\n", out_dir.c_str());
   return 0;
 }

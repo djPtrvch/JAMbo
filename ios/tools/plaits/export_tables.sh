@@ -7,6 +7,8 @@ OUT=../../JAMbo.swiftpm/Resources/plaits
 mkdir -p "$OUT" build
 g++ -O1 -DTEST -I"$SRC/eurorack" -I"$SRC" -o build/export_tables export_tables.cc \
   "$SRC/eurorack/plaits/resources.cc" "$SRC/stmlib/dsp/units.cc" \
-  "$SRC/eurorack/plaits/dsp/speech/lpc_speech_synth_phonemes.cc"
+  "$SRC/eurorack/plaits/dsp/speech/lpc_speech_synth_phonemes.cc" \
+  "$SRC/eurorack/plaits/dsp/speech/naive_speech_synth.cc" "$SRC/eurorack/plaits/dsp/speech/sam_speech_synth.cc" \
+  "$SRC/stmlib/utils/random.cc"
 ./build/export_tables "$OUT"
 ls -l "$OUT"
