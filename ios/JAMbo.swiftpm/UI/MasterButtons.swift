@@ -37,11 +37,13 @@ struct MasterButton: View {
         let colors: [Color] = [theme.text, theme.accent, theme.gr, theme.rec]
         let shift: Bool = model.shiftHeld
         let on: Bool = shift && model.masterBypass(module)
-        let title: String = shift ? "BYPASS " + names[module] : names[module]
+        // С SHIFT — в две строки: BYPASS и имя модуля.
+        let title: String = shift ? "BYPASS\n" + names[module] : names[module]
         return Text(title)
             .font(.system(size: shift ? 11 : 13, weight: .semibold))
             .tracking(1)
-            .lineLimit(1)
+            .multilineTextAlignment(.center)
+            .lineLimit(2)
             .minimumScaleFactor(0.7)
             .foregroundStyle(on ? (module == MasterScope.sat ? theme.bg : theme.onAccent) : theme.text)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
