@@ -158,7 +158,7 @@ extension AppModel {
             editTrack { t in
                 for i in held {
                     t.withStep(i) { s in
-                        s.notes = notes
+                        s.setNotes(notes)
                         s.on = true
                     }
                 }

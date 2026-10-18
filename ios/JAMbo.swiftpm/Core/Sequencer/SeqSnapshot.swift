@@ -25,6 +25,10 @@ public struct SeqData {
     public var len: UnsafeMutablePointer<Int32>
     public var noteCount: UnsafeMutablePointer<UInt8>
     public var notes: UnsafeMutablePointer<Int16>
+    /// Ноты со своими длинами или velocity (S8): split шага, длина (шаги) и velocity (Level; −1 — без своей) ·maxNotes.
+    public var split: UnsafeMutablePointer<UInt8>
+    public var noteLen: UnsafeMutablePointer<Int32>
+    public var noteVel: UnsafeMutablePointer<Float>
     public var prob: UnsafeMutablePointer<Float>
     public var ratchet: UnsafeMutablePointer<Int32>
     public var swing: UnsafeMutablePointer<Float>
@@ -157,6 +161,8 @@ public final class SeqSnapshot: @unchecked Sendable {
             clipFrom: .allocate(capacity: cells), clipTo: .allocate(capacity: cells),
             on: .allocate(capacity: steps), len: .allocate(capacity: steps),
             noteCount: .allocate(capacity: steps), notes: .allocate(capacity: steps * SeqData.maxNotes),
+            split: .allocate(capacity: steps), noteLen: .allocate(capacity: steps * SeqData.maxNotes),
+            noteVel: .allocate(capacity: steps * SeqData.maxNotes),
             prob: .allocate(capacity: steps), ratchet: .allocate(capacity: steps), swing: .allocate(capacity: steps),
             sound: .allocate(capacity: steps), lockMask: .allocate(capacity: steps),
             lockVal: .allocate(capacity: steps * VoiceParam.count),
@@ -177,6 +183,9 @@ public final class SeqSnapshot: @unchecked Sendable {
         d.len.initialize(repeating: 1, count: steps)
         d.noteCount.initialize(repeating: 0, count: steps)
         d.notes.initialize(repeating: 0, count: steps * SeqData.maxNotes)
+        d.split.initialize(repeating: 0, count: steps)
+        d.noteLen.initialize(repeating: 1, count: steps * SeqData.maxNotes)
+        d.noteVel.initialize(repeating: -1, count: steps * SeqData.maxNotes)
         d.prob.initialize(repeating: 100, count: steps)
         d.ratchet.initialize(repeating: 0, count: steps)
         d.swing.initialize(repeating: 50, count: steps)
@@ -258,7 +267,12 @@ public final class SeqSnapshot: @unchecked Sendable {
                 d.len[i] = Int32(step.len)
                 let n = min(step.notes.count, SeqData.maxNotes)
                 d.noteCount[i] = UInt8(n)
-                for k in 0..<n { d.notes[i * SeqData.maxNotes + k] = Int16(step.notes[k]) }
+                for k in 0..<n {
+                    d.notes[i * SeqData.maxNotes + k] = Int16(step.notes[k])
+                    d.noteLen[i * SeqData.maxNotes + k] = Int32(step.noteLen(k))
+                    d.noteVel[i * SeqData.maxNotes + k] = Float(step.noteVel(k) ?? -1)
+                }
+                d.split[i] = step.lens != nil || step.vels != nil ? 1 : 0
                 d.prob[i] = Float(track.value("prob", step: step))
                 d.ratchet[i] = Int32(track.value("ratchet", step: step).rounded())
                 d.swing[i] = Float(track.value("swing", step: step))
@@ -302,6 +316,9 @@ public final class SeqSnapshot: @unchecked Sendable {
         data.len.deallocate()
         data.noteCount.deallocate()
         data.notes.deallocate()
+        data.split.deallocate()
+        data.noteLen.deallocate()
+        data.noteVel.deallocate()
         data.prob.deallocate()
         data.ratchet.deallocate()
         data.swing.deallocate()

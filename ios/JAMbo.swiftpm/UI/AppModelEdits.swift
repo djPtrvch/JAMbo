@@ -34,7 +34,7 @@ extension AppModel {
                     s.on = true
                     if s.notes.isEmpty { s.notes = notes }
                 }
-                s.len = max(1, len)
+                s.setAllLen(len)
             }
         }
     }

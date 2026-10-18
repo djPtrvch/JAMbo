@@ -2,17 +2,25 @@
 
 extension Track {
     /// Ноты на шаг index. merge — добавить к записанным на этом шаге в том же дубле; overdub — к стоящим.
-    /// velocity (0.2…1) — p-lock Level шага (аккорд в один шаг — по самой сильной ноте).
+    /// velocity (0.2…1) — velocity нот (Level ноты = Level дорожки × сила, S8; та же нота в дубле — по самой сильной).
     public mutating func recordNotes(_ index: Int, _ notes: [Int], merge: Bool, overdub: Bool, velocity: Double?) {
         let level: Double = params["level"] ?? 127
         withStep(index) { s in
             let merged: Bool = (merge || overdub) && s.on
-            s.notes = merged ? Array(Set(s.notes + notes)).sorted() : notes
+            if !merged {
+                s.lens = nil
+                s.vels = nil
+            }
+            s.setNotes(merged ? Array(Set(s.notes + notes)).sorted() : notes)
             s.on = true
-            s.len = 1
+            s.setAllLen(1)
             if let v = velocity {
                 let lv: Double = (level * v).rounded()
-                if merged, let old = s.locks["level"] { s.locks["level"] = Swift.max(old, lv) } else { s.locks["level"] = lv }
+                for n in notes {
+                    guard let k = s.notes.firstIndex(of: n) else { continue }
+                    let old: Double = merged ? (s.noteVel(k) ?? 0) : 0
+                    s.setNoteVel(k, Swift.max(old, lv))
+                }
             }
         }
     }
@@ -22,7 +30,7 @@ extension Track {
         let maxLen = length - index
         withStep(index) { s in
             if !s.on { return }
-            s.len = Swift.max(s.len, Swift.min(len, maxLen))
+            s.setAllLen(Swift.max(s.len, Swift.min(len, maxLen)))
         }
     }
 

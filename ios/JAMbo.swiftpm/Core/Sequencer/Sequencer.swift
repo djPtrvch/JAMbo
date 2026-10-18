@@ -255,7 +255,19 @@ public final class Sequencer {
             let gate: Int64 = ratchet == 1 && d.len[i] >= 2 ? Int64((Double(d.len[i]) * dur).rounded()) : -1
             let envGate: Int64 = Int64((ratchet > 1 ? sub * 0.6 : (d.len[i] >= 2 ? Double(d.len[i]) * dur : dur * 0.9)).rounded())
             for r in 0..<ratchet {
-                schedule(track: t, at: time + offset + Double(r) * sub, d, i, gate, envGate)
+                let at: Double = time + offset + Double(r) * sub
+                if d.split[i] == 0 {
+                    schedule(track: t, at: at, d, i, gate, envGate)
+                    continue
+                }
+                // Ноты со своими длинами и velocity (S8) — по одной; с конца, чтобы у DRUM осталась первая.
+                var j: Int = Int(d.noteCount[i]) - 1
+                while j >= 0 {
+                    let nl: Int32 = d.noteLen[i * SeqData.maxNotes + j]
+                    let ng: Int64 = ratchet == 1 && nl >= 2 ? Int64((Double(nl) * dur).rounded()) : -1
+                    scheduleNote(track: t, at: at, d, i, j, ng, envGate)
+                    j -= 1
+                }
             }
         }
         tick += 1
@@ -275,6 +287,22 @@ public final class Sequencer {
         pendingGate[k] = gate
         pendingEnv[k] = envGate
         pendingCount += 1
+    }
+
+    /// Одна нота j шага i; своя velocity — p-lock Level этой ноты.
+    private func scheduleNote(track: Int, at time: Double, _ d: SeqData, _ i: Int, _ j: Int, _ gate: Int64,
+                              _ envGate: Int64) {
+        if pendingCount >= Sequencer.pendingMax { return }
+        let k = pendingCount
+        schedule(track: track, at: time, d, i, gate, envGate)
+        if pendingCount == k { return }
+        pendingCountN[k] = 1
+        pendingNotes[k * SeqData.maxNotes] = d.notes[i * SeqData.maxNotes + j]
+        let v: Float = d.noteVel[i * SeqData.maxNotes + j]
+        if v >= 0 {
+            pendingMask[k] |= UInt16(1) << UInt16(VoiceParam.level)
+            pendingVals[k * VoiceParam.count + VoiceParam.level] = v
+        }
     }
 
     /// Ячейку k — на место последней (порядок неважен).

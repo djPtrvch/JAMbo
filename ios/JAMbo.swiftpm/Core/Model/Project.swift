@@ -21,6 +21,10 @@ public struct Step: Codable, Equatable, Sendable {
     public var len: Int = 1
     /// Ноты шага (MIDI). Несколько нот — POLY.
     public var notes: [Int] = []
+    /// Длины нот в шагах (параллельно notes; S8, пианоролл); nil — у всех len. При lens len — самая длинная.
+    public var lens: [Int]?
+    /// Velocity нот — Level ноты 0…127 (параллельно notes; −1 — без своей); nil — ни у одной своей нет.
+    public var vels: [Double]?
     /// P-lock: id параметра → значение. Может быть и на шаге без ноты.
     public var locks: [String: Double] = [:]
     /// Свой звук шага (S2).

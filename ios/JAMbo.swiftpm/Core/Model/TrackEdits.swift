@@ -143,13 +143,20 @@ extension Track {
     }
 
     public mutating func clearLock(_ index: Int, _ id: String) {
-        withStep(index) { s in s.locks[id] = nil }
+        withStep(index) { s in
+            s.locks[id] = nil
+            // Velocity нот привязана к Level (S8).
+            if id == "level" { s.clearVels() }
+        }
     }
 
     /// SHIFT + двойной тап по ручке: снять все p-lock со всех шагов дорожки (свой звук шага остаётся).
     public mutating func clearAllLocks() {
         for p in 0..<pages.count {
-            for s in 0..<pages[p].count { pages[p][s].locks = [:] }
+            for s in 0..<pages[p].count {
+                pages[p][s].locks = [:]
+                pages[p][s].clearVels()
+            }
         }
     }
 
@@ -163,8 +170,9 @@ extension Track {
         return false
     }
 
-    /// Ручной p-lock (не от пресета звука шага): шаг жёлтый.
+    /// Ручной p-lock (не от пресета звука шага) или velocity ноты (S8): шаг жёлтый.
     public static func hasManualLocks(_ s: Step) -> Bool {
+        if s.hasVel { return true }
         let sound = s.soundLocks ?? []
         return s.locks.keys.contains { !sound.contains($0) }
     }
