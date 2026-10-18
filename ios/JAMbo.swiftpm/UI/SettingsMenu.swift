@@ -51,7 +51,7 @@ struct SettingsPage: View {
     }
 }
 
-/// AUDIO ENGINE: фактическая частота, буфер и задержка (строка «Now:», раз в 0,5 с) и MUTE TAILS.
+/// AUDIO ENGINE: фактическая частота, буфер и задержка (строка «Now:», раз в 0,5 с).
 struct EngineSettings: View {
     let model: AppModel
 
@@ -61,8 +61,6 @@ struct EngineSettings: View {
                 SettingsNote(text: "Now: \(model.audio.statusLine)")
             }
             SettingsNote(text: "Always 48 kHz with a 256-sample buffer; iPadOS may choose another buffer.")
-            ToggleRow(title: "MUTE TAILS", isOn: model.settings.muteTails) { model.setMuteTails($0) }
-            SettingsNote(text: "OFF: muting a track cuts its sound and sends at once; Reverb and Delay tails ring out. ON: if the muted track is the only one sending to Delay, the Delay repeats are cut too.")
         }
     }
 }
@@ -97,7 +95,8 @@ struct SamplerSettings: View {
     }
 }
 
-/// SIDECHAIN: приглушаются ли посылы Reverb, Delay, Drive тем же Sidechain, что и выход дорожки.
+/// SIDECHAIN: приглушаются ли посылы Reverb, Delay, Drive тем же Sidechain, что и выход дорожки; MUTE CUTS DELAY
+/// (бывшая MUTE TAILS веба, решение пользователя — здесь и под этим именем).
 struct SidechainSettings: View {
     let model: AppModel
 
@@ -108,6 +107,9 @@ struct SidechainSettings: View {
             ToggleRow(title: "DELAY", isOn: model.scSend(1)) { model.setScSend(1, $0) }
             ToggleRow(title: "DRIVE", isOn: model.scSend(2)) { model.setScSend(2, $0) }
             SettingsNote(text: "ON: the send level of the effect ducks with the sidechain. Effect tails keep playing. OFF: the send is not ducked.")
+            FieldLabel(title: "MUTE").padding(.top, 8)
+            ToggleRow(title: "MUTE CUTS DELAY", isOn: model.settings.muteTails) { model.setMuteTails($0) }
+            SettingsNote(text: "OFF: when you mute a track, the echoes already in Delay keep ringing out. ON: if the muted track was the only one sending to Delay, its echoes stop at once. Reverb tails always ring out.")
         }
     }
 }

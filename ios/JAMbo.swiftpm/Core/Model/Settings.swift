@@ -34,7 +34,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var sliceMap: SliceMap = .chromatic
     /// SETTINGS → SIDECHAIN: посылы Reverb, Delay, Drive приглушаются огибающей.
     public var scSends = SidechainSends()
-    /// MUTE TAILS: заглушили единственный источник посыла Delay — его повторы гасятся.
+    /// SETTINGS → SIDECHAIN → MUTE CUTS DELAY (MUTE TAILS веба): заглушили единственный источник посыла Delay —
+    /// его повторы гасятся.
     public var muteTails: Bool = false
     /// FX и MOD в режиме toggle (SHIFT + двойной тап по кнопке): тап включает страницу, следующий — выключает.
     public var latchFx: Bool = false
