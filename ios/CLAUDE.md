@@ -152,6 +152,6 @@ S0 каркас (готов) → S1 секвенсор и экран → S2 сэ
 - Тесты: ModTests (формы, ADSR, LFO на Level, Chance, FX, ENV от секвенсора). Проверено на iPad.
 
 ## S4d (MORPH, toggle FX/MOD)
-- MORPH: Track.morphOrig / morphOrigAssign / morphEdited (как trackOrig веба); тап — режим, выключение возвращает всё на всех дорожках (одна запись UNDO); MORPH + UNDO — сброс без переключения; жёлтая точка на дорожке — в левом верхнем углу (отступ 7 × 6; тот же у точки p-lock на шаге при одной странице).
+- MORPH: Track.morphOrig / morphOrigAssign / morphEdited (как trackOrig веба); тап — режим, выключение возвращает всё на всех дорожках (одна запись UNDO); MORPH + UNDO — сброс без переключения; жёлтая точка на дорожке — в левом верхнем углу (отступ 7 × 6).
 - FX и MOD: SHIFT + двойной тап — режим toggle (AppSettings.latchFx / latchMod), вторая чёрная линия контура — концентрично контуру кнопки (отступ 3).
 - Тесты: MorphTests — 115 тестов.
