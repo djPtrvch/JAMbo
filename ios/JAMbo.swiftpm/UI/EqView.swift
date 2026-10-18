@@ -325,6 +325,8 @@ struct EqTool: View {
         let fg: Color = !enabled ? theme.off : (active ? theme.onAccent : theme.text)
         return Text(title)
             .font(.system(size: 12, weight: .bold)).tracking(0.8)
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
             .foregroundStyle(fg)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(active ? theme.accent : theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))

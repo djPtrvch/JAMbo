@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// Меню окна модуля мастера (поверх экрана; тап мимо — закрыть): модули SAT, COMP, CLIP, LIM (по цепочке, открытое —
-/// жёлтое) под названием; PRESETS — SAVE и список пресетов модуля под кнопкой (тап — загрузить, удержание — RENAME,
-/// DELETE). Меню не выходит за окно модуля.
+/// жёлтое) под названием; PRESETS — SAVE и список пресетов модуля под кнопкой (тап — загрузить, свайп влево —
+/// RENAME и DELETE). Меню не выходит за окно модуля.
 struct MasterMenuView: View {
     let model: AppModel
     let state: MasterMenuState
@@ -27,11 +27,6 @@ struct MasterMenuView: View {
                 .modifier(MenuPanel())
                 .frame(width: MasterPresetsMenu.width)
                 .offset(x: left(MasterPresetsMenu.width), y: state.anchor.maxY + 6)
-        case .actions(let k):
-            MasterPresetActions(model: model, index: k)
-                .modifier(MenuPanel())
-                .frame(width: 180)
-                .offset(x: left(180), y: state.anchor.maxY + 6)
         }
     }
 
@@ -41,120 +36,112 @@ struct MasterMenuView: View {
         return max(state.bounds.minX, x)
     }
 
-    /// Высота списка: от кнопки до низа окна (низ меню не ниже верха кнопок дорожек).
-    private var menuHeight: CGFloat {
-        let h: CGFloat = state.bounds.maxY - state.anchor.maxY - 6 - 16
-        return max(120, h)
-    }
-}
-
-struct MasterModulesMenu: View {
-    let model: AppModel
-
-    var body: some View {
-        let cur: Int = model.masterWin ?? -1
-        return VStack(spacing: 6) {
-            ForEach(0..<4, id: \.self) { m in
-                MenuItem(title: MasterPresetBook.titles[m], current: m == cur) {
-                    model.masterMenu = nil
-                    model.openMasterWindow(m)
-                }
-            }
-        }
-    }
-}
-
-/// PRESETS модуля: заголовок с числом, SAVE (имя — окном ввода), сетка пресетов в 2 столбца с прокруткой.
-struct MasterPresetsMenu: View {
-    static let width: CGFloat = 340
-    let model: AppModel
-    let maxHeight: CGFloat
-    @Environment(\.theme) private var theme
-
-    var body: some View {
-        let m: Int = model.masterWin ?? 0
-        let list: [MasterPreset] = model.masterPresets.list(m)
-        let title: String = "\(MasterPresetBook.titles[m]) PRESETS · \(list.count)"
-        return VStack(alignment: .leading, spacing: 8) {
-            MenuHead(title: title)
-            MenuItem(title: "SAVE") {
-                model.masterMenu = nil
-                model.masterInput = .save
-            }
-            if list.isEmpty {
-                Text("No \(MasterPresetBook.titles[m]) presets yet — save one with SAVE")
-                    .font(.system(size: 12)).foregroundStyle(theme.dim)
-            } else {
-                MenuScroll { grid(m, list) }
-                    .frame(height: listHeight(list.count))
-            }
-        }
-    }
-
-    /// Высота списка: все строки (40 + 6), но не выше места под заголовком и SAVE.
+    /// Высота списка: все строки (44 + 4), но не выше места под заголовком и SAVE.
     private func listHeight(_ n: Int) -> CGFloat {
-        let rows: CGFloat = CGFloat((n + 1) / 2)
-        let full: CGFloat = rows * 46 - 6
-        let room: CGFloat = max(46, maxHeight - 110)
+        let full: CGFloat = CGFloat(n) * 48 - 4
+        let room: CGFloat = max(48, maxHeight - 110)
         return min(full, room)
     }
 
-    private func grid(_ m: Int, _ list: [MasterPreset]) -> some View {
-        let cols: [GridItem] = Array(repeating: GridItem(.flexible(), spacing: 6), count: 2)
-        return LazyVGrid(columns: cols, spacing: 6) {
+    private func rows(_ m: Int, _ list: [MasterPreset]) -> some View {
+        VStack(spacing: 4) {
             ForEach(0..<list.count, id: \.self) { k in
-                PresetCell(title: list[k].name, tap: {
+                PresetRow(title: list[k].name, tap: {
                     model.masterMenu = nil
                     model.loadMasterPreset(m, k)
-                }, hold: { r in
-                    guard let s = model.masterMenu else { return }
-                    model.masterMenu = MasterMenuState(kind: .actions(k), anchor: r, bounds: s.bounds)
+                }, rename: {
+                    model.masterMenu = nil
+                    model.masterInput = .rename(k)
+                }, delete: {
+                    model.deleteMasterPreset(m, k)
                 })
+                // Другой список (удалили пресет) — строки закрыты заново.
+                .id("\(k)#\(list.count)#\(list[k].name)")
             }
         }
         .padding(.trailing, 6)
     }
 }
 
-/// Пресет в списке: тап — загрузить, удержание 0,5 с — действия (рамка ячейки — в hold).
-struct PresetCell: View {
+/// Пресет в списке (как строки списков iPad): тап — загрузить; свайп влево открывает справа кнопки — карандаш
+/// на сером (RENAME) и корзина на красном (DELETE); свайп вправо или тап по открытой строке — закрыть.
+struct PresetRow: View {
+    static let button: CGFloat = 52
+    static let reveal: CGFloat = 2 * PresetRow.button + 4
     let title: String
     let tap: () -> Void
-    let hold: (CGRect) -> Void
-    @State private var frame: CGRect = .zero
+    let rename: () -> Void
+    let delete: () -> Void
+    @State private var offset: CGFloat = 0
+    @State private var open: Bool = false
     @Environment(\.theme) private var theme
 
     var body: some View {
+        ZStack(alignment: .trailing) {
+            actions.opacity(offset < -1 ? 1 : 0)
+            label
+                .offset(x: offset)
+                .simultaneousGesture(swipe)
+                .onTapGesture {
+                    if open { close() } else { tap() }
+                }
+        }
+        .frame(height: 44)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var label: some View {
         Text(title)
             .font(.system(size: 13, weight: .bold)).lineLimit(1).minimumScaleFactor(0.7)
             .foregroundStyle(theme.text)
-            .padding(.horizontal, 8)
-            .frame(maxWidth: .infinity, minHeight: 40)
+            .padding(.horizontal, 12)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             .background(theme.panel, in: RoundedRectangle(cornerRadius: 8))
             .contentShape(Rectangle())
-            .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { frame = $0 }
-            .onTapGesture { tap() }
-            .onLongPressGesture(minimumDuration: 0.5) { hold(frame) }
     }
-}
 
-/// Действия с пресетом (удержание): RENAME (окно ввода), DELETE (красная).
-struct MasterPresetActions: View {
-    let model: AppModel
-    let index: Int
-
-    var body: some View {
-        let m: Int = model.masterWin ?? 0
-        let k: Int = index
-        return VStack(spacing: 6) {
-            MenuItem(title: "RENAME") {
-                model.masterMenu = nil
-                model.masterInput = .rename(k)
+    private var actions: some View {
+        HStack(spacing: 4) {
+            icon("pencil", Color(hex: 0x8e8e93)) {
+                close()
+                rename()
             }
-            MenuItem(title: "DELETE", red: true) {
-                model.masterMenu = nil
-                model.deleteMasterPreset(m, k)
+            icon("trash", theme.rec) {
+                close()
+                delete()
             }
         }
+    }
+
+    private func icon(_ name: String, _ bg: Color, _ act: @escaping () -> Void) -> some View {
+        Button(action: act) {
+            Image(systemName: name)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(Color.white)
+                .frame(width: PresetRow.button, height: 44)
+                .background(bg, in: RoundedRectangle(cornerRadius: 8))
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// Горизонтальный свайп (вертикальный — прокрутка списка).
+    private var swipe: some Gesture {
+        DragGesture(minimumDistance: 12)
+            .onChanged { g in
+                if abs(g.translation.width) < abs(g.translation.height) { return }
+                let base: CGFloat = open ? -PresetRow.reveal : 0
+                let x: CGFloat = base + g.translation.width
+                offset = min(0, max(-PresetRow.reveal - 24, x))
+            }
+            .onEnded { _ in
+                let show: Bool = offset < -PresetRow.reveal / 2
+                open = show
+                withAnimation(.easeOut(duration: 0.2)) { offset = show ? -PresetRow.reveal : 0 }
+            }
+    }
+
+    private func close() {
+        open = false
+        withAnimation(.easeOut(duration: 0.2)) { offset = 0 }
     }
 }

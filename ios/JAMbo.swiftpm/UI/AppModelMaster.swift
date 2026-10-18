@@ -1,12 +1,10 @@
 import Foundation
 
-/// Меню окна модуля мастера: выбор модуля (тап по названию), PRESETS, действия с пресетом (удержание) — у кнопки
-/// anchor; bounds — окно модуля (меню в нём помещается). Координаты «root».
+/// Меню окна модуля мастера: выбор модуля (тап по названию), PRESETS — у кнопки anchor; bounds — окно модуля (меню в нём помещается). Координаты «root».
 struct MasterMenuState: Equatable {
     enum Kind: Equatable {
         case modules
         case presets
-        case actions(Int)
     }
 
     let kind: Kind
