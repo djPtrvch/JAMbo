@@ -26,7 +26,7 @@ struct ChannelCell: View {
     var body: some View {
         let selected: Bool = model.channel == channel
         return Text(title)
-            .font(.system(size: 12, weight: selected ? .heavy : .bold))
+            .font(.system(size: 12, weight: .bold))
             .tracking(0.7)
             .foregroundStyle(selected ? theme.text : theme.dim)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -57,9 +57,9 @@ struct TrackCell: View {
         let selected: Bool = model.channel == .track && model.selectedTrack == index
         let border: Color = t.mute ? theme.rec : (selected ? theme.accent : Color.clear)
         return ZStack(alignment: .topTrailing) {
-            // Выбранная дорожка — шрифт чуть жирнее.
+            // Выбранная дорожка — имя заметно жирнее (у заглушённой рамка красная, выбор виден по шрифту).
             Text(t.name)
-                .font(.system(size: 15, weight: selected ? .bold : .semibold))
+                .font(.system(size: 15, weight: selected ? .heavy : .semibold))
                 .lineLimit(1)
                 .foregroundStyle(theme.text)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
