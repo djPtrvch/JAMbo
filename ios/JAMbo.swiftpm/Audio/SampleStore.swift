@@ -3,7 +3,7 @@ import CryptoKit
 import Foundation
 
 /// Сэмплы приложения: в памяти (SampleData по ключу) и на диске — Application Support/Samples/<ключ>.caf
-/// (float32, 48 кГц; проекты ссылаются на ключ — S6). Ключ — по содержимому файла (SHA-256), сэмпл хранится один раз.
+/// (float32, 48 кГц; проекты ссылаются на ключ — S9). Ключ — по содержимому файла (SHA-256), сэмпл хранится один раз.
 /// Декодирование — вне основного потока; регистрация и снимки — в основном.
 final class SampleStore {
     private(set) var samples: [String: SampleData] = [:]

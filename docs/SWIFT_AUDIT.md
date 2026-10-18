@@ -6,7 +6,7 @@
 ui/auto.ts (644), ui/sampleedit.ts (633), params.ts (565), ui/sample.ts (571).
 
 Решение: **П** — переносим, **О** — откладываем (после паритета, отдельным ТЗ), **Н** — не переносим.
-Строки, помеченные ⚠, расходятся с ТЗ или в ТЗ не упомянуты. **Решение пользователя: переносим всё, что сделано в вебе** (кроме чисто браузерного — Н); вехи сверх ТЗ — S8–S12 (раздел 6).
+Строки, помеченные ⚠, расходятся с ТЗ или в ТЗ не упомянуты. **Решение пользователя: переносим всё, что сделано в вебе** (кроме чисто браузерного — Н); вехи сверх ТЗ — S6–S13 (раздел 6).
 
 ## 1. Функции
 
@@ -16,9 +16,9 @@ ui/auto.ts (644), ui/sampleedit.ts (633), params.ts (565), ui/sample.ts (571).
 |---|---|---|---|
 | Plaits, 16 движков | public/plaits-worklet.js, public/plaits.wasm, wasm/plaits/ (jambo_voices.cc, build.sh), params.ts SYNTH_ENGINES | П (S3a, S3b) | ТЗ 4 |
 | SPEECH: Formant / Phoneme / LPC, harmPoints 0 / 1/6 / 1/3, без Words | params.ts (harmPoints), engine.ts synthParams, wasm/plaits/jambo_no_words.cc | П | ТЗ 4.4 |
-| Миграция SPEECH (версия формата 2) | state.ts migrateSpeech, params.ts speechHarmV1 | П (S10) | нужна для IMPORT .jambo из веба |
+| Миграция SPEECH (версия формата 2) | state.ts migrateSpeech, params.ts speechHarmV1 | П (S11) | нужна для IMPORT .jambo из веба |
 | ⚠ Свои движки DRUM, ANALOG, FM, WTABLE (номера 16–19) | public/jambo-synth-worklet.js (546), audio/wavetable.ts (304), engineIcons.ts | П (S3b) | решение: переносим всё, что есть в вебе; чистый JS |
-| ⚠ Таблицы WTABLE: встроенные 6 и свои WAV (clm, размер кадра) | audio/wavetable.ts, library.ts kind 'table', ui/browser.ts LOAD TABLE | П (S3b; свои WAV — через библиотеку S10) | |
+| ⚠ Таблицы WTABLE: встроенные 6 и свои WAV (clm, размер кадра) | audio/wavetable.ts, library.ts kind 'table', ui/browser.ts LOAD TABLE | П (S3b; свои WAV — через библиотеку S11) | |
 | Сэмплер: Start/End, Pitch, Attack/Decay, удержание длинных нот, legato | engine.ts triggerTrack, legatoCut, holdEnd | П (S2) | ТЗ 5.1 |
 | Определение высоты сэмпла (YIN, только индикация) | audio/pitch.ts | П (S2) | маленький, показывается в окне сэмпла |
 | Голос: Attack/Decay → Level → фильтр LP/HP + Reso → Pan; посылы | engine.ts triggerTrack, applyFilter | П (S2) | ТЗ 5.2 |
@@ -37,13 +37,13 @@ ui/auto.ts (644), ui/sampleedit.ts (633), params.ts (565), ui/sample.ts (571).
 | MUTE TAILS | engine.ts, settings.ts muteTails | П | |
 | Микшер: громкости дорожек −∞…0 dB, mute/solo с гейтами | engine.ts tracks[i].gate, state.ts | П (S2) | |
 | EQ дорожек и мастера: 8 полос, bell / cut 12-24-48 / shelf / notch | audio/eq.ts (279), ui/eq.ts (737) | П (S5) | свои биквады по RBJ (ТЗ 5.2) |
-| EQ: Dynamic, Mid/Side | public/eqdyn-worklet.js, audio/eq.ts | П (S9) | решение: всё из веба |
-| EQ: пресеты EQ | ui/eq.ts PRESETS, localStorage | П (S9) | |
-| Пресеты модулей мастера (PRESETS в окнах SAT / COMP / CLIP / LIM, как у EQ) | — (нет в вебе) | Н (S9) | решение пользователя |
+| EQ: Dynamic, Mid/Side | public/eqdyn-worklet.js, audio/eq.ts | П (S7) | решение: всё из веба |
+| EQ: пресеты EQ | ui/eq.ts PRESETS, localStorage | П (S7) | |
+| Пресеты модулей мастера (PRESETS в окнах SAT / COMP / CLIP / LIM, как у EQ) | — (нет в вебе) | Н (S6) | решение пользователя |
 | EQ: спектр до/после, спектр мастера | ui/eq.ts, AnalyserNode | П (S5) | свой FFT (Accelerate vDSP с запасным вариантом) |
 | Мастер: сатуратор (DRIVE, TYPE, TONE, MIX, FOCUS), glue (+ RATIO, KNEE, SC HPF, MIX), клиппер (INPUT, CEILING, SOFTNESS, BASS), лимитер (INPUT, CEILING, LOOKAHEAD, RELEASE); без BIAS, OUTPUT, AUTO, RANGE, HOLD, LINK, MIX клиппера, UNITY, AUDIT, SCALE (48 dB) — решение пользователя | public/saturator-, glue-, clipper-, limiter-worklet.js, oversampler.js | П упрощённо (S5a) | ТЗ 5.5 |
 | Bypass модулей мастера (SHIFT + кнопка) | ui/buttons.ts, engine.ts | П (S5) | |
-| ⚠ Графические окна SAT / COMP / CLIP / LIM | ui/saturator.ts, comp.ts, clipper.ts, limiter.ts, masterwin.ts (~1 800 строк) | П (S9) | до S9 параметры без ручек (BIAS, KNEE, LINK…) — значения по умолчанию |
+| ⚠ Графические окна SAT / COMP / CLIP / LIM | ui/saturator.ts, comp.ts, clipper.ts, limiter.ts, masterwin.ts (~1 800 строк) | П (S6) | до S6 параметры без ручек (BIAS, KNEE, LINK…) — значения по умолчанию |
 | Индикация мастера COMP / CLIP / LIM (LevelBars) | ui/dynamics.ts | П (S5) | ТЗ 1.2 |
 | Измеритель справа: пик, LUFS BS.1770, громкость выхода | ui/meter.ts, engine.ts Meter | П (S5) | |
 | Скоп мастера: гониометр, осциллоскоп, точки съёма | ui/scope.ts, engine.ts | П (S5) | |
@@ -68,7 +68,7 @@ ui/auto.ts (644), ui/sampleedit.ts (633), params.ts (565), ui/sample.ts (571).
 | Mute / solo свайпом и кнопками M S в MIX | ui/tracks.ts, ui/knobs.ts | П (S1/S2) | |
 | MOD: LFO1–3, ENV (ADSR), назначение, кольца, миниатюры | state.ts, ui/knobs.ts, ui/sample.ts renderLfo, renderEnv | П (S4) | ТЗ 6.2 |
 | FX/MOD toggle (SHIFT + двойной тап) | ui/buttons.ts, settings.latch | П (S4) | |
-| ⚠ Автоматизация (окно AUTO, запись с REC, LINE/SPLINE, SIMPLIFY) | automation.ts (210), ui/auto.ts (644), state.ts, engine.ts scheduleVoice | П (S8) | |
+| ⚠ Автоматизация (окно AUTO, запись с REC, LINE/SPLINE, SIMPLIFY) | automation.ts (210), ui/auto.ts (644), state.ts, engine.ts scheduleVoice | П (S13) | |
 | Свои последовательности MIX и MST (p-lock громкостей) | state.ts SEQ_MIX, SEQ_MST, transport.ts | П (S5) | |
 
 ### Сэмплы, окно сэмпла, редактор
@@ -80,24 +80,24 @@ ui/auto.ts (644), ui/sampleedit.ts (633), params.ts (565), ui/sample.ts (571).
 | Папка звуков дорожки, стрелки ◀ ▶, звук шага стрелками | state.ts folders, stepFolder | П (S2) | ТЗ 6.5: у дорожки своя папка |
 | Редактор: TRIM, NORMALIZE, MONO, ▶, CLEAR | ui/sampleedit.ts | П (S2) | ТЗ 1.2 |
 | ⚠ Редактор: масштаб и прокрутка, маркеры нарезки (slice) с нотами, SLICE NOTES, полоса воспроизведения | ui/sampleedit.ts, state.ts sliceMarks, engine.ts | П (S2) | |
-| ⚠ REC в редакторе (вход, дорожка, мастер, 60 с) | ui/sampleedit.ts, engine.ts startCapture | П (S10) | вход — AVAudioSession, дорожка и мастер — из колбэка |
-| ⚠ Запись стемов и мастера (● в MIX, RECORDINGS) | stems.ts (176), engine.ts startStem, public/stem-worklet.js | П (S10) | |
-| Пресеты синта (SAVE / LOAD) | state.ts presets, library.ts | П (S3; папки — S10) | |
-| Библиотека с папками, ZIP, EXPORT / IMPORT, предпрослушка, RECORDINGS | library.ts, libio.ts, zip.ts, ui/browser.ts (458) | П (S10) | файлы приложения + «Файлы» (fileImporter / fileExporter) |
+| ⚠ REC в редакторе (вход, дорожка, мастер, 60 с) | ui/sampleedit.ts, engine.ts startCapture | П (S11) | вход — AVAudioSession, дорожка и мастер — из колбэка |
+| ⚠ Запись стемов и мастера (● в MIX, RECORDINGS) | stems.ts (176), engine.ts startStem, public/stem-worklet.js | П (S11) | |
+| Пресеты синта (SAVE / LOAD) | state.ts presets, library.ts | П (S3; папки — S11) | |
+| Библиотека с папками, ZIP, EXPORT / IMPORT, предпрослушка, RECORDINGS | library.ts, libio.ts, zip.ts, ui/browser.ts (458) | П (S11) | файлы приложения + «Файлы» (fileImporter / fileExporter) |
 
 ### Проекты, настройки, прочее
 
 | Функция | Где в коде | Решение | Причина |
 |---|---|---|---|
-| Проекты: NEW, SAVE, SAVE AS, RENAME, DELETE, список, Autosave | project.ts, storage.ts (IndexedDB), ui/projects.ts | П (S6), JSON + FileManager | ТЗ 6.3 |
-| EXPORT / IMPORT .jambo | project.ts, libio.ts | П (S10) | перенос проектов из веба на iPad |
-| Переход MIX между проектами (PREV, кроссфейдер) | state.ts, ui/patterns.ts | П (S12) | |
+| Проекты: NEW, SAVE, SAVE AS, RENAME, DELETE, список, Autosave | project.ts, storage.ts (IndexedDB), ui/projects.ts | П (S9), JSON + FileManager | ТЗ 6.3 |
+| EXPORT / IMPORT .jambo | project.ts, libio.ts | П (S11) | перенос проектов из веба на iPad |
+| Переход MIX между проектами (PREV, кроссфейдер) | state.ts, ui/patterns.ts | П (S10) | |
 | Темы SYSTEM / LIGHT / DARK | ui/theme.ts, style.css токены | П (S1) | |
 | SETTINGS: SAMPLE RATE, BUFFER SIZE | settings.ts, ui/settings.ts | Н | всегда 48 кГц (ТЗ 3.1), буфер — система |
-| SETTINGS: OUTPUT / вход, BACKGROUND AUDIO | settings.ts, ui/settings.ts | П, если Playgrounds даст (вход — S10, фон — capability «Background Modes: Audio» в S0 проверить) | |
+| SETTINGS: OUTPUT / вход, BACKGROUND AUDIO | settings.ts, ui/settings.ts | П, если Playgrounds даст (вход — S11, фон — capability «Background Modes: Audio» в S0 проверить) | |
 | SETTINGS: RECORD, SAMPLER (SLICE NOTES), SIDECHAIN, SCALE | ui/settings.ts | П вместе со своими функциями | |
-| MIDI: устройства, маппинг, LEARN, MIDI MAP, Twister, ноты | midi.ts (582), ui/midi.ts, ui/learn.ts, ui/mapedit.ts | П (S11, CoreMIDI) | |
-| SYNC: MIDI-клок SEND / RECEIVE, офсеты, настройки Link | sync.ts, ui/sync.ts | П (S11) | Link — этап 9 по CLAUDE.md |
+| MIDI: устройства, маппинг, LEARN, MIDI MAP, Twister, ноты | midi.ts (582), ui/midi.ts, ui/learn.ts, ui/mapedit.ts | П (S12, CoreMIDI) | |
+| SYNC: MIDI-клок SEND / RECEIVE, офсеты, настройки Link | sync.ts, ui/sync.ts | П (S12) | Link — этап 9 по CLAUDE.md |
 | Экран отладки (задержки) | ui/debug.ts | Н | специфика браузера; CPU-индикатор остаётся |
 | PWA, HTML-аудиоэлемент для Safari, скрытие при неверном масштабе | main.ts | Н | ТЗ 1.2 |
 | Прокрутка меню своей полосой | ui/scrollbar.ts | Н | в SwiftUI ScrollView |
@@ -159,11 +159,11 @@ ui/auto.ts (644), ui/sampleedit.ts (633), params.ts (565), ui/sample.ts (571).
 
 ## 5. Решение
 
-Ответ пользователя на аудит: «Переносим все изменения, которые сделали в вебе». Все ⚠ — П: свои движки (S3b), FX и sidechain 1:1 по worklet’ам (S4), сетка 16 строк с окном 8 (S1), пианоролл и запись нот (S1), маркеры нарезки и масштаб (S2), автоматизация, окна мастера, библиотека, стемы, REC, MIDI, переходы — вехи S8–S12.
+Ответ пользователя на аудит: «Переносим все изменения, которые сделали в вебе». Все ⚠ — П: свои движки (S3b), FX и sidechain 1:1 по worklet’ам (S4), сетка 16 строк с окном 8 (S1), пианоролл и запись нот (S1), маркеры нарезки и масштаб (S2), автоматизация, окна мастера, библиотека, стемы, REC, MIDI, переходы — вехи S6–S13.
 
 ## 6. Вехи
 
-ТЗ: S0–S7. После паритета (S7 — оптимизация и App Store остаётся последней):
+Порядок и номера — решение пользователя (после S5). Прежние номера: S9a → S6, S9 → S7, S6 → S9, S12 → S10, S10 → S11, S11 → S12, S8 → S13, S7 → S14; S8 (пианоролл) — новая. В итогах прошлых вех (SWIFT_MILESTONE_S1…S5) номера будущих вех — прежние.
 
 | Веха | Что |
 |---|---|
@@ -173,11 +173,12 @@ ui/auto.ts (644), ui/sampleedit.ts (633), params.ts (565), ui/sample.ts (571).
 | S3a / S3b | Plaits 8 + 8, свои DRUM, ANALOG, FM, WTABLE, SELF-TEST |
 | S4 | FX (reverb, delay, drive, sidechain 1:1), MOD, MORPH |
 | S5 | мастер, EQ (8 полос), индикация, измеритель, LUFS, скоп |
-| S9a | окна SAT / COMP / CLIP / LIM (сразу после S5 — решение пользователя) |
-| S6 | проекты, автосохранение, настройки, LICENSES |
-| S8 | автоматизация (AUTO) |
-| S9 | EQ Dynamic и Mid/Side, пресеты EQ |
-| S10 | библиотека с папками, импорт/экспорт (.jambo, ZIP, WAV), стемы и запись мастера, REC в редакторе |
-| S11 | MIDI (CoreMIDI): маппинг, LEARN, MIDI MAP, Twister, клок |
-| S12 | переходы между проектами (MIX, PREV, кроссфейдер) |
-| S7 | оптимизация, App Store |
+| S6 | окна SAT / COMP / CLIP / LIM, пресеты модулей мастера |
+| S7 | EQ Dynamic и Mid/Side, пресеты EQ |
+| S8 | пианоролл (новое; состав — уточнить перед вехой) |
+| S9 | проекты, автосохранение, настройки, LICENSES |
+| S10 | переходы между проектами (MIX, PREV, кроссфейдер) |
+| S11 | библиотека с папками, импорт/экспорт (.jambo, ZIP, WAV), стемы и запись мастера, REC в редакторе |
+| S12 | MIDI (CoreMIDI): маппинг, LEARN, MIDI MAP, Twister, клок |
+| S13 | автоматизация (AUTO) |
+| S14 | оптимизация, App Store |

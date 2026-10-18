@@ -2,7 +2,7 @@ import Foundation
 
 // Телеметрия модулей мастера для индикации COMP / CLIP / LIM (как compTele, clipTele, limTele веба): кадр раз
 // в 256 отсчётов — пик входа и выхода (линейно), GR (dB ≥ 0), уровень детектора (dB, у компрессора). Колбэк
-// пишет кадры в кольцо (DynTele.capacity кадров — хватит и окнам модулей на S9), интерфейс читает новые.
+// пишет кадры в кольцо (DynTele.capacity кадров — хватит и окнам модулей, S6), интерфейс читает новые.
 
 public final class DynTele: @unchecked Sendable {
     public static let capacity = 2048

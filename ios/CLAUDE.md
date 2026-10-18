@@ -34,7 +34,7 @@
 - Частота: всё считается на 48 кГц (если устройство даёт другую, приводит системный микшер).
 - Plaits: a0 = (440/8)/48000, без сдвига ноты; эталоны — wasm веба со сдвигом ноты −0,0461 полутона. SPEECH: Formant, Phoneme, LPC, без Words.
 - FX — 1:1 по worklet’ам веба.
-- Мастер (S5a, отличие от веба): упрощён — сатуратор DRIVE, TYPE, TONE, MIX, FOCUS; компрессор THRESHOLD, ATTACK, RELEASE, MAKEUP, RATIO, KNEE, SC HPF, MIX; клиппер INPUT, CEILING, SOFTNESS, BASS; лимитер INPUT, CEILING, LOOKAHEAD, RELEASE. Без BIAS, OUTPUT, RANGE, HOLD, LINK, MIX клиппера, UNITY, AUDIT; SCALE — всегда 48 dB. Убранные параметры — на значениях по умолчанию (звук как в вебе). PRESETS модулей мастера — с S9a (решение пользователя): у каждого модуля свой список, общий для проектов (UserDefaults); SAVE, тап — загрузить (UNDO), свайп влево — карандаш на сером (RENAME) и корзина на красном (DELETE), как в списках iPad; так же — пресеты EQ (S9). Окна (S9a, отличия от веба): пауза дисплея везде FREEZE (в вебе у LIM — HOLD); ввод числом — системное окно, как у EQ; у CLIP шкала TRANSFER — та же, что у дисплея LEVEL (0…−48 dB, сетка 6 dB), как у COMP; у CLIP один дисплей — LEVEL с GR (без WAVE и кнопки VIEW); у SAT — TRANSFER и SPECTRUM (без WAVE и BIAS); поля — как в EQ, без жёлтой подсветки полей, линий и ручек; FREEZE — двойной тап по дисплею. Кнопки мастера при MST — по цепочке: COMP, CLIP сверху, SAT, LIM снизу (в вебе CLIP, LIM / SAT, COMP).
+- Мастер (S5a, отличие от веба): упрощён — сатуратор DRIVE, TYPE, TONE, MIX, FOCUS; компрессор THRESHOLD, ATTACK, RELEASE, MAKEUP, RATIO, KNEE, SC HPF, MIX; клиппер INPUT, CEILING, SOFTNESS, BASS; лимитер INPUT, CEILING, LOOKAHEAD, RELEASE. Без BIAS, OUTPUT, RANGE, HOLD, LINK, MIX клиппера, UNITY, AUDIT; SCALE — всегда 48 dB. Убранные параметры — на значениях по умолчанию (звук как в вебе). PRESETS модулей мастера — с S6 (решение пользователя): у каждого модуля свой список, общий для проектов (UserDefaults); SAVE, тап — загрузить (UNDO), свайп влево — карандаш на сером (RENAME) и корзина на красном (DELETE), как в списках iPad; так же — пресеты EQ (S7). Окна (S6, отличия от веба): пауза дисплея везде FREEZE (в вебе у LIM — HOLD); ввод числом — системное окно, как у EQ; у CLIP шкала TRANSFER — та же, что у дисплея LEVEL (0…−48 dB, сетка 6 dB), как у COMP; у CLIP один дисплей — LEVEL с GR (без WAVE и кнопки VIEW); у SAT — TRANSFER и SPECTRUM (без WAVE и BIAS); поля — как в EQ, без жёлтой подсветки полей, линий и ручек; FREEZE — двойной тап по дисплею. Кнопки мастера при MST — по цепочке: COMP, CLIP сверху, SAT, LIM снизу (в вебе CLIP, LIM / SAT, COMP).
 - Клипы (S1d, отличие от веба): у каждого клипа свой паттерн; копии независимы. Подробно — SWIFT_MILESTONE_S1.md.
 - Секвенсор и пианоролл (перед S4, отличие от веба): точка p-lock на шаге, 16 × N шагов в ряд, копия шага, 1 OCTAVE и др. Подробно — SWIFT_MILESTONE_S1.md.
 - EQ (S5b, отличия от веба): тап по имени у EQ дорожки — меню COMPARE (спектр другой дорожки после её EQ, прозрачнее, «vs имя»), у мастера — спектр выхода; строка EQ — имя под бутербродом, TYPE с края поля BPM; ввод частоты — только удержанием FREQ; двойной тап по точке — удалить, вкл./выкл. — ON/OFF в меню удержания. Подробно — SWIFT_MILESTONE_S5.md.
@@ -43,10 +43,10 @@
 - Фон: при уходе в фон звук останавливается (если редактор capabilities даст Background Modes → Audio — вернуть BACKGROUND AUDIO).
 
 ## Вехи
-S0 каркас → S1 секвенсор и экран → S2 сэмплер и редактор → S3 Plaits и свои движки, SELF-TEST → S4 FX, MOD, MORPH → S5 мастер, EQ, метры, скоп (S0–S5 готовы, проверены на iPad) → S9a окна модулей мастера (готова, проверена на iPad) → **S6 проекты и настройки (дальше)** → S8 автоматизация → S9 EQ Dynamic и M/S, пресеты → S10 библиотека, импорт и экспорт, стемы, REC → S11 MIDI → S12 переходы между проектами → S7 оптимизация и App Store. Подробно — docs/SWIFT_AUDIT.md, раздел 6.
+S0 каркас → S1 секвенсор и экран → S2 сэмплер и редактор → S3 Plaits и свои движки, SELF-TEST → S4 FX, MOD, MORPH → S5 мастер, EQ, метры, скоп → S6 окна модулей мастера (S0–S6 готовы, проверены на iPad) → **S7 EQ Dynamic и M/S, пресеты EQ (дальше)** → S8 пианоролл → S9 проекты и настройки → S10 переходы между проектами → S11 библиотека, импорт и экспорт, стемы, REC → S12 MIDI → S13 автоматизация → S14 оптимизация и App Store. Подробно — docs/SWIFT_AUDIT.md, раздел 6 (там же — соответствие прежним номерам).
 
-## Текущая веха (S6)
-- S9a готова (итог — docs/SWIFT_MILESTONE_S9a.md). Дальше — S6: проекты и настройки (см. docs/SWIFT_AUDIT.md, раздел 6).
+## Текущая веха (S7)
+- S6 готова (итог — docs/SWIFT_MILESTONE_S6.md). Дальше — S7: EQ Dynamic и Mid/Side, пресеты EQ (свайп влево — RENAME и DELETE, как у пресетов модулей мастера). Поведение — docs/ai/fx-eq.md.
 
 ## Где искать
 | Задача касается… | Файл |
@@ -57,4 +57,4 @@ S0 каркас → S1 секвенсор и экран → S2 сэмплер и
 | Plaits, голосов синта, своих движков, WTABLE, иконок, SELF-TEST | docs/SWIFT_MILESTONE_S3.md |
 | FX, посылов, Sidechain, MOD, MORPH | docs/SWIFT_MILESTONE_S4.md |
 | мастера, EQ, спектров, метров, скопа | docs/SWIFT_MILESTONE_S5.md |
-| окон модулей мастера, пресетов модулей | docs/SWIFT_MILESTONE_S9a.md |
+| окон модулей мастера, пресетов модулей | docs/SWIFT_MILESTONE_S6.md |

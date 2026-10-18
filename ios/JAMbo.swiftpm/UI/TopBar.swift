@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Верхняя панель: меню, BPM, метроном | SCALE, ROOT, UNDO, PLAY, REC, REDO, AUTO, EQ | PATTERNS, ARRANGE, CPU.
-/// Работают меню, BPM, метроном, SCALE, ROOT, UNDO, PLAY, REC, REDO, EQ, PATTERNS; AUTO и ARRANGE — серые (S8, позже).
+/// Работают меню, BPM, метроном, SCALE, ROOT, UNDO, PLAY, REC, REDO, EQ, PATTERNS; AUTO и ARRANGE — серые (S13, позже).
 struct TopBar: View {
     let model: AppModel
     @Binding var menuOpen: Bool

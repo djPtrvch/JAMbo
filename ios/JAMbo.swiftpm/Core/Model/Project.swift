@@ -1,4 +1,4 @@
-// Модель проекта (как Doc и Track в src/state.ts веба; имена полей те же — для импорта .jambo в S10).
+// Модель проекта (как Doc и Track в src/state.ts веба; имена полей те же — для импорта .jambo в S11).
 // Значения (struct): копия — снимок для UNDO.
 
 /// Назначение источника модуляции на ручку: lfo 1–3 — LFO1–3, 4 — ENV; amount −1…+1 (доля хода ручки).
@@ -49,7 +49,7 @@ public struct Track: Codable, Equatable, Sendable {
     public var folder: Folder = Folder()
     public var slices: [String: [SliceMark]] = [:]
     public var vol: Double = Params.volDef
-    /// Таблица WTABLE дорожки ("" — BASIC, "builtin:NAME" — встроенная; свои WAV — S10).
+    /// Таблица WTABLE дорожки ("" — BASIC, "builtin:NAME" — встроенная; свои WAV — S11).
     public var table: String = ""
     /// Назначения LFO1–3 / ENV на ручки дорожки (id параметра → источник и степень).
     public var assigns: [String: ModAssign] = [:]

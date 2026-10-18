@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Окно модуля мастера (S9a, на общей основе, как masterwin.ts веба): вверху строка 48 px — название (тап — меню
+/// Окно модуля мастера (S6, на общей основе, как masterwin.ts веба): вверху строка 48 px — название (тап — меню
 /// SAT, COMP, CLIP, LIM), поля параметров, PRESETS, BYPASS, ✕; ниже — дисплей модуля. Нижней панели нет.
 struct MasterWindowView: View {
     let model: AppModel

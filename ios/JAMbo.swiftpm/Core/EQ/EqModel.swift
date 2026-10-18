@@ -2,7 +2,7 @@ import Foundation
 
 // EQ канала (как Eq и EqBand в src/state.ts, константы — EQ_* в params.ts): 8 мест под полосы (nil — полосы нет).
 // EQ дорожки — Track.eq (один на все её клипы, переезжает вместе с дорожкой), EQ мастера — Project.masterEq.
-// Dynamic и M/S — S9.
+// Dynamic и M/S — S7.
 
 public struct EqBand: Codable, Equatable, Sendable {
     public var on: Bool = true

@@ -19,7 +19,7 @@ enum MasterInputTarget: Equatable {
     case rename(Int)
 }
 
-/// Окна модулей мастера SAT, COMP, CLIP, LIM (S9a, как openMasterWindow веба): на месте центра, справа измеритель;
+/// Окна модулей мастера SAT, COMP, CLIP, LIM (S6, как openMasterWindow веба): на месте центра, справа измеритель;
 /// кнопки мастера (тап без SHIFT) и блоки индикации COMP, CLIP, LIM. PATTERNS, EQ, редактор сэмпла и окно модуля
 /// не открыты одновременно; выход из MST закрывает окно. Параметры — те же, что у ручек MST.
 extension AppModel {

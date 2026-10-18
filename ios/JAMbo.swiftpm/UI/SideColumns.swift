@@ -54,7 +54,7 @@ struct FolderArrows: View {
     }
 }
 
-/// ● MASTER — запись мастера (выход после громкости выхода, по правилам стемов; ARM MST). Запись — S10: пока серая.
+/// ● MASTER — запись мастера (выход после громкости выхода, по правилам стемов; ARM MST). Запись — S11: пока серая.
 struct MasterRecButton: View {
     @Environment(\.theme) private var theme
 

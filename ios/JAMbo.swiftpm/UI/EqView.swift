@@ -86,7 +86,7 @@ struct EqView: View {
 
 /// Строка EQ: имя канала под бутербродом, TYPE, FREQ, GAIN, Q, STEREO, DYN, PRESETS, BYPASS — шириной столбцов
 /// 8 дорожек (при 9–16 дорожках не сужаются), TYPE — с левого края поля BPM (решение пользователя; в вебе — над
-/// дорожками 1…8). STEREO, DYN и PRESETS — S9 (серые).
+/// дорожками 1…8). STEREO, DYN и PRESETS — S7 (серые).
 struct EqBar: View {
     let model: AppModel
     let layout: Layout

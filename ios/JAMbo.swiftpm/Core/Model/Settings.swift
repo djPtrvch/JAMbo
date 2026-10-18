@@ -7,7 +7,7 @@ public struct RecordSettings: Codable, Equatable, Sendable {
     public var quantize: Bool = true
     /// OFF — шаги, по которым проходит запись, очищаются; ON — ноты добавляются.
     public var overdub: Bool = false
-    /// Запись автоматизации с REC (S8).
+    /// Запись автоматизации с REC (S13).
     public var autoRec: Bool = true
 
     public init() {}

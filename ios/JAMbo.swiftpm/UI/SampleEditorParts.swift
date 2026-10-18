@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Строка редактора сэмпла: имя и длина, REC (S10), ▶, LOAD, SAVE (S10), TRIM, NORMALIZE, MONO, CLEAR, ✕.
+/// Строка редактора сэмпла: имя и длина, REC (S11), ▶, LOAD, SAVE (S11), TRIM, NORMALIZE, MONO, CLEAR, ✕.
 struct EditorBar: View {
     let model: AppModel
     let key: String
@@ -37,7 +37,7 @@ struct EditorBar: View {
         return model.sampleName(key) + "\n" + len + (d.channels == 2 ? " · ST" : " · M")
     }
 
-    /// REC (запись сэмпла — S10): красная точка и красный текст, пока неактивна — серая.
+    /// REC (запись сэмпла — S11): красная точка и красный текст, пока неактивна — серая.
     private var recButton: some View {
         HStack(spacing: 6) {
             Circle().fill(theme.off).frame(width: 10, height: 10)

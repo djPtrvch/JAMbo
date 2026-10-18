@@ -92,7 +92,7 @@ struct MixCell: View {
             .offset(x: r.minX, y: r.minY)
     }
 
-    /// ● — готовность к записи стема (S10): пока серая.
+    /// ● — готовность к записи стема (S11): пока серая.
     private func dot(_ r: CGRect) -> some View {
         Circle().fill(theme.off).frame(width: 8, height: 8)
             .frame(width: r.width, height: r.height)
