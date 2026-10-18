@@ -95,8 +95,8 @@ struct SamplerSettings: View {
     }
 }
 
-/// SIDECHAIN: приглушаются ли посылы Reverb, Delay, Drive тем же Sidechain, что и выход дорожки; MUTE CUTS DELAY
-/// (бывшая MUTE TAILS веба, решение пользователя — здесь и под этим именем).
+/// SIDECHAIN: приглушаются ли посылы Reverb, Delay, Drive тем же Sidechain, что и выход дорожки; MUTE TAILS
+/// (в вебе — в AUDIO ENGINE; здесь — решение пользователя).
 struct SidechainSettings: View {
     let model: AppModel
 
@@ -108,7 +108,7 @@ struct SidechainSettings: View {
             ToggleRow(title: "DRIVE", isOn: model.scSend(2)) { model.setScSend(2, $0) }
             SettingsNote(text: "ON: the send level of the effect ducks with the sidechain. Effect tails keep playing. OFF: the send is not ducked.")
             FieldLabel(title: "MUTE").padding(.top, 8)
-            ToggleRow(title: "MUTE CUTS DELAY", isOn: model.settings.muteTails) { model.setMuteTails($0) }
+            ToggleRow(title: "MUTE TAILS", isOn: model.settings.muteTails) { model.setMuteTails($0) }
             SettingsNote(text: "OFF: when you mute a track, the echoes already in Delay keep ringing out. ON: if the muted track was the only one sending to Delay, its echoes stop at once. Reverb tails always ring out.")
         }
     }
