@@ -47,7 +47,7 @@ struct KeyRow: View {
     var body: some View {
         let count: Int = model.keyCount
         let shown: Set<Int> = model.shownNotes
-        let lit: Set<Int> = model.pressedNotes.union(model.playingNotes)
+        let lit: Set<Int> = model.pressedNotes.union(model.playingNotes).union(model.heldNotes)
         return GeometryReader { geo in
             HStack(spacing: KeyRow.gap) {
                 ForEach(0..<count, id: \.self) { k in
@@ -134,7 +134,7 @@ struct ProgressionRow: View {
         let degrees: [Int] = model.progressionDegrees
         let n: Int = degrees.count
         let w: CGFloat = min(full, (width - KeyRow.gap * CGFloat(n - 1)) / CGFloat(n))
-        let lit: Set<Int> = model.pressedNotes.union(model.playingNotes)
+        let lit: Set<Int> = model.pressedNotes.union(model.playingNotes).union(model.heldNotes)
         let shown: Set<Int> = model.shownNotes
         return HStack(spacing: KeyRow.gap) {
             ForEach(0..<n, id: \.self) { c in

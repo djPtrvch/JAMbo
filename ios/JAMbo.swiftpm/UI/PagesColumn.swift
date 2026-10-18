@@ -272,7 +272,7 @@ enum PageDragMode {
     case range
 }
 
-/// Миниатюра страницы: 16 ячеек (пустые серые, триги белые, хвосты полупрозрачные, p-lock жёлтые,
+/// Миниатюра страницы: 16 ячеек (пустые серые, триги белые, хвосты полупрозрачные, p-lock не отмечаются;
 /// играющий шаг — жёлтый контур, за длиной — бледные).
 struct PageThumb: View {
     let model: AppModel
@@ -299,14 +299,11 @@ struct PageThumb: View {
             let path = Path(roundedRect: rect, cornerRadius: 2)
             var color: Color = c.off
             if cell.on {
-                color = cell.lock ? c.accent : c.text
+                color = c.text
             } else if cell.tail {
                 color = c.text.opacity(0.45)
             }
             ctx.fill(path, with: .color(cell.outside ? color.opacity(0.12) : color))
-            if !cell.on && cell.lock {
-                ctx.stroke(path, with: .color(c.accent), lineWidth: 1)
-            }
             if s == pos {
                 // Контур внутри ячейки: снаружи его срезал бы край холста.
                 ctx.stroke(Path(roundedRect: rect.insetBy(dx: 0.75, dy: 0.75), cornerRadius: 2), with: .color(c.accent), lineWidth: 1.5)
@@ -319,18 +316,16 @@ struct PageThumb: View {
 struct ThumbCell {
     let on: Bool
     let tail: Bool
-    let lock: Bool
     let outside: Bool
 
     static func page(_ t: Track, page: Int) -> [ThumbCell] {
         let n: Int = Params.stepsPerPage
         // Страницу могли только что удалить, а миниатюра ещё не убрана — пустые ячейки вместо падения.
-        if page >= t.pages.count { return [ThumbCell](repeating: ThumbCell(on: false, tail: false, lock: false, outside: false), count: n) }
+        if page >= t.pages.count { return [ThumbCell](repeating: ThumbCell(on: false, tail: false, outside: false), count: n) }
         let len: Int = t.pageLen(page)
         return (0..<n).map { s in
             let st: Step = t.pages[page][s]
-            let lock: Bool = st.on ? Track.hasManualLocks(st) : !st.locks.isEmpty
-            return ThumbCell(on: st.on, tail: !st.on && t.isTail(page * n + s), lock: lock, outside: s >= len)
+            return ThumbCell(on: st.on, tail: !st.on && t.isTail(page * n + s), outside: s >= len)
         }
     }
 }

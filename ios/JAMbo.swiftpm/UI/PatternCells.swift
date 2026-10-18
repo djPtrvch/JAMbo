@@ -105,7 +105,7 @@ struct ClipThumb: View {
                 let rect = CGRect(x: CGFloat(s) * cw + cw * 0.12, y: top + CGFloat(r) * rh + rh * 0.12,
                                   width: cw * 0.76, height: rh * 0.76)
                 var color: Color = c.off
-                if cell.on { color = cell.lock ? c.accent : c.text } else if cell.tail { color = c.text.opacity(0.45) }
+                if cell.on { color = c.text } else if cell.tail { color = c.text.opacity(0.45) }
                 ctx.fill(Path(roundedRect: rect, cornerRadius: 1), with: .color(cell.outside ? color.opacity(0.2) : color))
             }
         }

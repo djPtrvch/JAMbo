@@ -91,6 +91,12 @@ extension AppModel {
         return all
     }
 
+    /// Ноты зажатого шага (триг) — подсвечены на клавишах и аккордах, как звучащие.
+    var heldNotes: Set<Int> {
+        guard channel == .track, let held = heldSteps.min(), let s = track.step(held), s.on else { return [] }
+        return Set(s.notes)
+    }
+
     /// Ноты, обведённые белым: ноты зажатого шага, иначе выбранные (нет выбранных — корневая).
     var shownNotes: Set<Int> {
         if let held = heldSteps.min() { return Set(track.step(held)?.notes ?? []) }
