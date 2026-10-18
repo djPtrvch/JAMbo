@@ -137,3 +137,10 @@ S0 каркас (готов) → S1 секвенсор и экран → S2 сэ
 - Core/FX: FxDelay, FxReverb, FxDrive (+ DriveTables — ядро 4× оверсэмплера, антипроизводные, компенсация; shared, строятся вне колбэка), FxDuck (очередь тригов — фиксированный массив) — перенос delay/reverb/drive/duck-worklet.js и oversampler.js 1:1 (расчёт в Double, буферы Float, параметры k-rate на блок).
 - FxRandom — mulberry32: в эталонах (ios/tools/fx/golden.mjs) Math.random заменён тем же генератором, модуляция сравнивается по отсчётам. Эталоны: 18 случаев (fx_*.i16, стерео) — −102…−315 dB.
 - Нагрузка в отладке (виртуалка, доля ядра): Delay 0,7, Reverb 5,5, Drive 17, Sidechain 0,6 %.
+
+## S4b (посылы, шины FX, Sidechain, страница FX)
+- Модель: Params.fxGrid (как FX_GRID веба) и rev.predelay; Project.fx (новый проект — LOW CUT реверба 120 Гц, Drive 80 Гц), FX клипа-лидера — как гамма и нота; AppSettings.scSends (по умолчанию Drive), muteTails (экран — S6).
+- Звук: посылы голоса (сэмплер и синт; VoiceParam reverb, delay, drive, с p-lock) — после Pan, в шины посылов дорожки → · громкость · mute/solo (· 1 − amount·e, если посыл приглушается) → FxRack (Reverb, Delay — время по темпу, Drive · 0,5). Sidechain: нота источника (удар рэтчета, живая нота) — триг в своём кадре, если есть кого приглушать; громкость дорожки = 1 − amount·e; стоп — flush. P-lock FX играющего шага любой дорожки (SeqData.fxMask/fxVal) — на время шага, значения FX — на блок.
+- Экран: FX (удержание) — сетка FX; без шага — значение в проект и клип-лидер, с шагом — p-lock FX; SC Source — имена дорожек.
+- Тесты: FxRoutingTests (посылы, mute, Sidechain, p-lock FX) — 108 тестов. MUTE TAILS — S6, индикация Sidechain в MIX — S5.
+- Проверено на iPad: посылы, эффекты, Sidechain, страница FX, p-lock FX.
