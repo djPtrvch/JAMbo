@@ -382,7 +382,7 @@ extension AppModel {
         publishAudio()
     }
 
-    // MARK: — живые ноты (пианоролл)
+    // MARK: — живые ноты (клавиатура)
 
     func liveNoteOn(track t: Int, notes: [Int], id: Int, velocity: Double) {
         ensureAudio()

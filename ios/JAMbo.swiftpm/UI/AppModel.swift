@@ -53,11 +53,11 @@ final class AppModel {
     var pageMenu: PageMenuState? = nil
     /// Скопированные страницы (copy в меню страницы).
     @ObservationIgnored var pageClipboard: [[Step]]? = nil
-    /// Октава пианоролла (по умолчанию со второй: C2) — нота трига, пока нот не выбрали.
+    /// Октава клавиатуры (по умолчанию со второй: C2) — нота трига, пока нот не выбрали.
     var octave: Int = Scales.octaveDef
-    /// Настройки приложения (пианоролл, запись) — в UserDefaults, общие для проектов.
+    /// Настройки приложения (клавиатура, запись) — в UserDefaults, общие для проектов.
     private(set) var settings: AppSettings = AppModel.loadSettings()
-    /// REC: ноты пианоролла пишутся в секвенсор, пока идёт игра.
+    /// REC: ноты клавиатуры пишутся в секвенсор, пока идёт игра.
     var recOn: Bool = false
     /// У каждой дорожки свои режим аккордов, прогрессия и выбранные ноты (не в проекте).
     var chordMode: [Bool] = [Bool](repeating: false, count: Params.maxTracks)
@@ -101,7 +101,7 @@ final class AppModel {
     @ObservationIgnored var startOrder: [Int] = [Int](repeating: 0, count: Params.maxTracks)
     @ObservationIgnored var startSeq: Int = 0
     @ObservationIgnored var pendingStarts: [Int] = []
-    /// Открытое меню выбора (SCALE, ROOT, PROGRESSION) и меню пианоролла.
+    /// Открытое меню выбора (SCALE, ROOT, PROGRESSION) и меню клавиатуры.
     var choice: ChoiceState? = nil
     var pianoMenuOpen: Bool = false
     /// Дубль записи: номер истории после первой ноты (−1 — дубля нет), дорожки и записанные шаги дубля.
@@ -393,14 +393,14 @@ final class AppModel {
         return trackPlayPos
     }
 
-    /// Позиция играющего шага в открытом клипе выбранной дорожки (и при MIX, MST — пианоролл, окно синта).
+    /// Позиция играющего шага в открытом клипе выбранной дорожки (и при MIX, MST — клавиатура, окно синта).
     var trackPlayPos: Int {
         let t = track
         if t.open != t.slot { return -1 }
         return live.playPos[selectedTrack]
     }
 
-    /// Ноты трига: выбранные в пианоролле (S1c), иначе корневая нота октавы.
+    /// Ноты трига: выбранные на клавиатуре (S1c), иначе корневая нота октавы.
     var trigNotes: [Int] {
         let sel = selNotes[selectedTrack]
         return sel.isEmpty ? [Scales.baseNote(root: project.root, octave: octave)] : sel.sorted()

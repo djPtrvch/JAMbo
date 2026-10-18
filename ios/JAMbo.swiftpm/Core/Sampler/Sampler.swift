@@ -391,7 +391,7 @@ public final class Sampler {
         }
     }
 
-    /// Живая нота с пианоролла: держится до release; level — сила нажатия (1 — без p-lock).
+    /// Живая нота с клавиатуры (и NOTE PREVIEW пианоролла): держится до release; level — сила нажатия (1 — без p-lock).
     public func noteOn(track t: Int, note n: Int, liveId id: Int, velocity: Float, at: Int64) {
         guard let d = sound, t < d.trackCount else { return }
         one.pointee = Int16(n)

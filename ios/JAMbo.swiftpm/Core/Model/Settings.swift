@@ -25,7 +25,7 @@ public struct SidechainSends: Codable, Equatable, Sendable {
 public struct AppSettings: Codable, Equatable, Sendable {
     /// SYSTEM, LIGHT или DARK.
     public var appearance: String = "SYSTEM"
-    /// Октав гаммы на клавишах пианоролла: 1 или 2.
+    /// Октав гаммы на клавишах клавиатуры: 1 или 2.
     public var pianoOctaves: Int = 2
     /// Чувствительность клавиш к нажатию.
     public var velocity: Bool = false

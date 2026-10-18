@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// Пианоролл: слева CHORD и бутерброд, клавиши гаммы (с CHORD — квадратные и строка прогрессии под ними),
+/// Клавиатура: слева CHORD и бутерброд, клавиши гаммы (с CHORD — квадратные и строка прогрессии под ними),
 /// справа ▲ ▼ октавы. Столбцы — как шаги секвенсора. Мультитач.
-struct PianoRoll: View {
+struct KeyboardPanel: View {
     let model: AppModel
     let layout: Layout
 

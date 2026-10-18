@@ -1,6 +1,6 @@
 import Foundation
 
-// Пианоролл, гамма и запись нот с REC (как piano.ts и recordNotes в вебе).
+// Клавиатура, гамма и запись нот с REC (как piano.ts и recordNotes в вебе).
 
 /// Зажатая клавиша: дорожка, ноты, записанный шаг (длина — при отпускании) и время нажатия (с).
 struct KeyHold {
@@ -38,7 +38,7 @@ extension AppModel {
         let o2 = min(Scales.octaveMax, max(Scales.octaveMin, o))
         if o2 == octave { return }
         octave = o2
-        // Ноты маркеров нарезки идут от первой клавиши пианоролла.
+        // Ноты маркеров нарезки идут от первой клавиши клавиатуры.
         publishAudio()
     }
 

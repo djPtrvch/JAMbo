@@ -1,7 +1,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Главный экран (сверху вниз, как в вебе): верхняя панель, центр, строка дорожек, секвенсор, пианоролл.
+/// Главный экран (сверху вниз, как в вебе): верхняя панель, центр, строка дорожек, секвенсор, клавиатура.
 
 struct RootView: View {
     let model: AppModel
@@ -42,7 +42,7 @@ struct RootView: View {
             center(layout)
             TrackRow(model: model, layout: layout)
             SequencerRow(model: model)
-            PianoRoll(model: model, layout: layout)
+            KeyboardPanel(model: model, layout: layout)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

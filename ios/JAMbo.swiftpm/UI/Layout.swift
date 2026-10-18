@@ -25,7 +25,7 @@ struct Layout {
         return max(20, (keys - 3 * (count - 1)) / count)
     }
 
-    /// Высота пианоролла: квадратная клавиша + строка аккордов 44 px (с зазором 6) — от CHORD не меняется.
+    /// Высота клавиатуры: квадратная клавиша + строка аккордов 44 px (с зазором 6) — от CHORD не меняется.
     func pianoHeight(_ scale: Int) -> CGFloat {
         return keySide(scale) + 50
     }

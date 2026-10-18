@@ -90,7 +90,7 @@ struct ChoiceMenu: View {
     }
 }
 
-/// Меню пианоролла (бутерброд под CHORD): 1 OCTAVE / 2 OCTAVES и VELOCITY; правее кнопки, снизу вверх,
+/// Меню клавиатуры (бутерброд под CHORD): 1 OCTAVE / 2 OCTAVES и VELOCITY; правее кнопки, снизу вверх,
 /// не выше строки шагов, шириной 4 шага.
 struct PianoMenu: View {
     let model: AppModel
@@ -127,7 +127,7 @@ struct PianoMenu: View {
             }
             ToggleRow(title: "VELOCITY", isOn: model.settings.velocity) { v in model.updateSettings { $0.velocity = v } }
             Text(model.settings.velocity
-                 ? "Touch lower on a key — louder, higher — softer. Changes the note Level; REC writes it as a Level p-lock."
+                 ? "Touch lower on a key — louder, higher — softer. Changes the note Level; REC writes it as the note velocity."
                  : "Keys play at the track Level.")
                 .font(.system(size: 11))
                 .foregroundStyle(theme.dim)

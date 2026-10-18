@@ -186,8 +186,8 @@ extension Track {
 }
 
 public enum Slices {
-    /// Нота по порядку маркера idx — от первой клавиши пианоролла (корневая нота его октавы; решение пользователя,
-    /// в вебе — от C3): CHROMATIC — по полутону, SCALE — клавиши пианоролла по порядку (ступени гаммы).
+    /// Нота по порядку маркера idx — от первой клавиши клавиатуры (корневая нота его октавы; решение пользователя,
+    /// в вебе — от C3): CHROMATIC — по полутону, SCALE — клавиши клавиатуры по порядку (ступени гаммы).
     public static func note(_ idx: Int, map: SliceMap, scale: Int, root: Int, octave: Int = 3) -> Int {
         if map != .scale { return Scales.baseNote(root: root, octave: octave) + idx }
         return Scales.note(scale: scale, root: root, octave: octave, degree: idx)

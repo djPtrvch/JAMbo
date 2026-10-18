@@ -1,4 +1,4 @@
-// Гаммы, прогрессии, ноты пианоролла и аккорды (как SCALES, PROGRESSIONS, scaleNotes, chordOnDegree в вебе).
+// Гаммы, прогрессии, ноты клавиатуры и аккорды (как SCALES, PROGRESSIONS, scaleNotes, chordOnDegree в вебе).
 
 public struct Scale: Sendable {
     public let name: String
@@ -37,7 +37,7 @@ public enum Scales {
         Progression(name: "Canon", degrees: [0, 4, 5, 2, 3, 0, 3, 4]),
     ]
 
-    /// Октава пианоролла: 0…7, по умолчанию 2 (C2).
+    /// Октава клавиатуры: 0…7, по умолчанию 2 (C2).
     public static let octaveMin = 0
     public static let octaveMax = 7
     public static let octaveDef = 2
@@ -48,7 +48,7 @@ public enum Scales {
         return ((v % n) + n) % n
     }
 
-    /// Нижняя нота пианоролла: корневая нота октавы.
+    /// Нижняя нота клавиатуры: корневая нота октавы.
     public static func baseNote(root: Int, octave: Int) -> Int {
         return 12 * (octave + 1) + root
     }
