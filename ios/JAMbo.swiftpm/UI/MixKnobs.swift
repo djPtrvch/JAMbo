@@ -63,15 +63,10 @@ struct MixCell: View {
         let t: Int = slot
         let stereo: Bool = model.trackStereo(t)
         let muted: Bool = !model.project.audible(t)
-        return TimelineView(.animation(minimumInterval: 1.0 / 60)) { _ in
-            Canvas { ctx, sz in
-                let data = model.meters.bars(t, stereo: stereo)
-                let w: CGFloat = MeterBars.span(data.count)
-                let db: Float = model.meters.duckDb(t)
-                let gr: CGFloat = db <= -0.1 ? CGFloat(-db / 24) : 0
-                MeterBars.draw(ctx, CGRect(x: sz.width - w, y: 0, width: w, height: sz.height), data, theme: theme,
-                               muted: muted, gr: gr)
-            }
+        // Значения кадра — параметрами вида (с временем кадра): иначе SwiftUI не перерисовывает Canvas.
+        return TimelineView(.animation(minimumInterval: 1.0 / 60)) { tl in
+            MixMeter(bars: model.meters.bars(t, stereo: stereo), duckDb: model.meters.duckDb(t), muted: muted,
+                     now: tl.date)
         }
         .frame(width: MixLayout.meterW, height: h)
         .offset(x: 2, y: (size.height - MixLayout.label - h) / 2)
@@ -192,5 +187,23 @@ struct TrackMenus: View {
     private func run(_ f: () -> Void) {
         model.trackMenu = nil
         f()
+    }
+}
+
+/// Метр ячейки MIX: полосы у ручки (справа), приглушение Sidechain от −0,1 dB (24 dB — вся высота).
+struct MixMeter: View {
+    let bars: [(level: Float, hold: Float)]
+    let duckDb: Float
+    let muted: Bool
+    let now: Date
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        Canvas { ctx, sz in
+            let w: CGFloat = MeterBars.span(bars.count)
+            let gr: CGFloat = duckDb <= -0.1 ? CGFloat(-duckDb / 24) : 0
+            MeterBars.draw(ctx, CGRect(x: sz.width - w, y: 0, width: w, height: sz.height), bars, theme: theme,
+                           muted: muted, gr: gr)
+        }
     }
 }

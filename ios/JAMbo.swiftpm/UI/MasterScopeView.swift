@@ -111,8 +111,9 @@ struct MasterScopeView: View {
     }
 
     private func panel(_ draw: @escaping (GraphicsContext, CGSize) -> Void) -> some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 60)) { _ in
-            Canvas { ctx, size in draw(ctx, size) }
+        // Время кадра — параметром вида: иначе SwiftUI не перерисовывает Canvas.
+        TimelineView(.animation(minimumInterval: 1.0 / 60)) { tl in
+            ScopeCanvas(now: tl.date, draw: draw)
         }
         .background(theme.panel, in: RoundedRectangle(cornerRadius: Layout.radius))
         .clipShape(RoundedRectangle(cornerRadius: Layout.radius))
@@ -173,6 +174,16 @@ struct MasterScopeView: View {
             }
             ctx.fill(bars, with: .color(colors[k].opacity(0.6)))
         }
+    }
+}
+
+/// Холст скопа на кадр (now — чтобы вид менялся каждый кадр).
+struct ScopeCanvas: View {
+    let now: Date
+    let draw: (GraphicsContext, CGSize) -> Void
+
+    var body: some View {
+        Canvas { ctx, size in draw(ctx, size) }
     }
 }
 
