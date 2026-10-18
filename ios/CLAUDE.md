@@ -12,6 +12,7 @@
 ## Проверка
 - Облако: `ios/tools/install-swift-linux.sh` (один раз), затем `. ios/tools/swift-env.sh && cd ios/CoreTests && swift test`. UI и Audio на Linux не собираются — их проверяет только сборка на iPad.
 - iPad: GitHub → ветка `swift` → Download ZIP (или архив из чата) → «Файлы» → распаковать → `ios/JAMbo.swiftpm` открыть в Swift Playgrounds.
+- «Пришли проект» / «пришли файл проекта» — полный zip ветки `swift` (`git archive`, как Download ZIP GitHub) в чат.
 - Package.swift — в виде, который создаёт Playgrounds; правится только через Playgrounds. Значок — только `.placeholder(icon: …)`. Устройство: iPadOS 26.6.2, Playgrounds 4.7.
 
 ## Правила кода
