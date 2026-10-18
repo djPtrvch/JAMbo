@@ -61,7 +61,7 @@ struct MasterModulesMenu: View {
 
 /// PRESETS модуля: заголовок с числом, SAVE (имя — окном ввода), список пресетов с прокруткой.
 struct MasterPresetsMenu: View {
-    static let width: CGFloat = 340
+    static let width: CGFloat = 260
     let model: AppModel
     let maxHeight: CGFloat
     @Environment(\.theme) private var theme
