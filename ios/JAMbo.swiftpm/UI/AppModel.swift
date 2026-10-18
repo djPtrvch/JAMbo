@@ -35,7 +35,8 @@ final class AppModel {
     private(set) var playing: Bool = false
     private(set) var metronome: Bool = false
     private(set) var toneOn: Bool = false
-    var showDiagnostics: Bool = false
+    /// Окно раздела APP поверх экрана: DIAGNOSTICS, SELF-TEST, LICENSES (nil — закрыто).
+    var appWindow: AppWindow? = nil
     /// Зажатые шаги (индекс p·16 + s) — белый контур; с ними ручки ставят p-lock.
     var heldSteps: Set<Int> = []
     /// Зажатые шаги, на которых уже что-то сделали (p-lock) — триг на отпускании не переключается.

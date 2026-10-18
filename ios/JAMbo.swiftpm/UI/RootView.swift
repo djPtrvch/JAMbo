@@ -113,8 +113,8 @@ struct RootView: View {
         if let m = model.masterMenu {
             MasterMenuView(model: model, state: m)
         }
-        if model.showDiagnostics {
-            DiagnosticsView(model: model).padding(8)
+        if let w = model.appWindow {
+            AppWindowView(model: model, window: w).padding(8)
         }
     }
 }
@@ -170,7 +170,7 @@ enum MenuPage {
     case settings
 }
 
-/// Меню бутерброда (как веб): разделы PROJECT (PROJECTS) и APP (SETTINGS, DIAGNOSTICS) — у каждого подзаголовок,
+/// Меню бутерброда (как веб): разделы PROJECT (PROJECTS) и APP (SETTINGS; DIAGNOSTICS, SELF-TEST, LICENSES — окна) — у каждого подзаголовок,
 /// между ними черта; CONTROLLERS (MIDI) и SYNC — с S12. Меню и подменю одного размера: по ширине — от левого края
 /// бутерброда до правого края поля SCALE, по высоте — до строки дорожек.
 struct MainMenu: View {
@@ -208,9 +208,11 @@ struct MainMenu: View {
             Divider().overlay(theme.line).padding(.vertical, 8)
             MenuHead(title: "APP")
             MenuItem(title: "SETTINGS") { page = .settings }
-            MenuItem(title: "DIAGNOSTICS") {
-                isOpen = false
-                model.showDiagnostics = true
+            ForEach(AppWindow.allCases, id: \.self) { w in
+                MenuItem(title: w.rawValue) {
+                    isOpen = false
+                    model.appWindow = w
+                }
             }
         }
         .padding(.top, 4)

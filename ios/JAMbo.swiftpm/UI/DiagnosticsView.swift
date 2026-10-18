@@ -1,32 +1,17 @@
 import SwiftUI
 
-/// Окно DIAGNOSTICS: фактическое состояние звука («Now:»), нагрузка, SELF-TEST движков Plaits.
+/// DIAGNOSTICS: фактическое состояние звука («Now:»), нагрузка, сборка, тест-тон (SELF-TEST — своё окно, S9e).
 struct DiagnosticsView: View {
     let model: AppModel
     @Environment(\.theme) private var theme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            header
             TimelineView(.periodic(from: .now, by: 0.5)) { _ in
                 info
             }
             InkButton(title: "TEST TONE 440 Hz", active: model.toneOn) { model.toggleTone() }
                 .frame(width: 220)
-            MenuHead(title: "SELF-TEST")
-            SelfTestPanel()
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(theme.bg, in: RoundedRectangle(cornerRadius: 10))
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(theme.line, lineWidth: 1))
-    }
-
-    private var header: some View {
-        HStack {
-            Text("DIAGNOSTICS").font(.system(size: 13, weight: .bold)).foregroundStyle(theme.text)
-            Spacer()
-            CloseButton { model.showDiagnostics = false }
         }
     }
 
