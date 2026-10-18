@@ -116,7 +116,8 @@ struct PageButton: View {
         let latch: Bool = model.latched(page)
         return SideButton(title: title, lit: model.pageOn(page))
             .overlay(
-                RoundedRectangle(cornerRadius: Layout.radius - 3)
+                // Концентрично контуру кнопки: тот же радиус минус отступ (inset уменьшает радиус сам).
+                RoundedRectangle(cornerRadius: Layout.radius)
                     .inset(by: 3)
                     .stroke(latch ? Color.black : Color.clear, lineWidth: 1)
             )
