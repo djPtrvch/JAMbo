@@ -28,6 +28,7 @@ extension AppModel {
         if eqView {
             patternView = false
             editorOpen = false
+            closeMasterWindow()
         }
     }
 

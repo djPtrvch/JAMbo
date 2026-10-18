@@ -49,7 +49,7 @@ struct RootView: View {
     }
 
     /// Центр: левая колонка | сетка ручек | правая колонка | измеритель; с PATTERNS — сетка паттернов во всю ширину;
-    /// с EQ — эквалайзер до края миниатюр страниц, справа измеритель.
+    /// с EQ и окном модуля мастера — до края миниатюр страниц, справа измеритель.
     @ViewBuilder
     private func center(_ layout: Layout) -> some View {
         if model.patternView {
@@ -57,6 +57,12 @@ struct RootView: View {
         } else if model.eqView {
             HStack(spacing: Layout.gap) {
                 EqView(model: model, layout: layout)
+                MeterColumn(model: model)
+            }
+        } else if let m = model.masterWin {
+            // Окно модуля мастера — на месте центра (как EQ), справа измеритель.
+            HStack(spacing: Layout.gap) {
+                MasterWindowView(model: model, module: m)
                 MeterColumn(model: model)
             }
         } else if model.editorOpen {
@@ -88,6 +94,9 @@ struct RootView: View {
         }
         if let m = model.eqMenu {
             EqBandMenu(model: model, state: m)
+        }
+        if let m = model.masterMenu {
+            MasterMenuView(model: model, state: m)
         }
         if model.showDiagnostics {
             DiagnosticsView(model: model).padding(8)

@@ -1,6 +1,6 @@
 import SwiftUI
 
-// Кнопки мастера: при MST на месте LFO1–3 и ENV (сетка 2×2: CLIP, LIM / SAT, COMP). Тап — окно модуля (S9);
+// Кнопки мастера: при MST на месте LFO1–3 и ENV (сетка 2×2: CLIP, LIM / SAT, COMP). Тап — окно модуля (S9a);
 // с зажатой SHIFT — BYPASS модуля (видно только с SHIFT: включённый bypass окрашен цветом модуля, как волны скопа).
 
 extension AppModel {
@@ -48,8 +48,8 @@ struct MasterButton: View {
             .background(on ? colors[module] : theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
             .contentShape(Rectangle())
             .onTapGesture {
-                // Без SHIFT — окно модуля (S9).
-                if model.shiftHeld { model.toggleMasterBypass(module) }
+                // Без SHIFT — окно модуля.
+                if model.shiftHeld { model.toggleMasterBypass(module) } else { model.openMasterWindow(module) }
             }
     }
 }

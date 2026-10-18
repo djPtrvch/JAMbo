@@ -138,6 +138,14 @@ final class AppModel {
     /// не хранится).
     @ObservationIgnored let scope = ScopeState()
     var scopeOn: [Bool] = [true, false, false, false]
+    /// Окно модуля мастера на месте центра (MasterScope.sat…lim; nil — закрыто) и его меню (название, PRESETS);
+    /// ввод числом или имени пресета; подсветка полей. Открытость и FREEZE не в проекте.
+    var masterWin: Int? = nil
+    var masterMenu: MasterMenuState? = nil
+    var masterInput: MasterInputTarget? = nil
+    @ObservationIgnored let masterHot = HotTracker()
+    /// Пресеты модулей мастера — общие для проектов (UserDefaults).
+    var masterPresets: MasterPresetBook = AppModel.loadMasterPresets()
 
     init() {
         trace("model init")
@@ -404,6 +412,7 @@ final class AppModel {
         guard i < project.tracks.count else { return }
         selectedTrack = i
         channel = .track
+        closeMasterWindow()
         heldSteps.removeAll()
         viewPage = min(viewPage, project.tracks[i].pages.count - 1)
     }
@@ -414,6 +423,8 @@ final class AppModel {
         viewPage = min(viewPage, seq.pages.count - 1)
         // При MST на месте LFO1–3 и ENV — кнопки мастера: удержание источника не остаётся висеть.
         if c == .master { heldSources.removeAll() }
+        // Выход из MST закрывает окно модуля мастера.
+        if c != .master { closeMasterWindow() }
     }
 
     /// Свайп по дорожке: вниз — mute, вверх — solo; включённый mute или solo выключается любым свайпом.

@@ -428,12 +428,31 @@ public enum Params {
         ],
     ]
 
+    /// Частота окна модуля мастера: «OFF» у нижнего края (FOCUS, SC HPF — 20 Hz), иначе Hz или kHz.
+    static func masterHz(_ v: Double) -> String {
+        if v <= 20.5 { return "OFF" }
+        if v >= 1000 { return String(format: "%.2f kHz", v / 1000) }
+        return "\(Int(v.rounded())) Hz"
+    }
+
+    /// Параметры окон модулей мастера без ручек (MASTER_EXTRA веба без убранных в S5a): только поля окна и пресеты,
+    /// p-lock и LFO/ENV не принимают.
+    public static let masterExtra: [ParamDef] = [
+        master("sat.focus", "Focus", 20, 2000, 20, exp: true, masterHz),
+        master("cmp.ratio", "Ratio", 1, 20, 2, exp: true, step: 0.01) { v in
+            v < 9.95 ? String(format: "%.1f:1", v) : "\(Int(v.rounded())):1"
+        },
+        master("cmp.knee", "Knee", 0, 24, 6, step: 0.1) { v in String(format: "%.1f dB", v) },
+        master("cmp.mix", "Mix", 0, 100, 100, Fmt.pct),
+        master("cmp.schpf", "SC HPF", 20, 500, 90, exp: true, masterHz),
+    ]
+
     /// Сетка MST 4×4 ряд за рядом.
     public static let masterGrid: [ParamDef] = (0..<16).map { i in masterColumns[i % 4][i / 4] }
 
     public static let byId: [String: ParamDef] = {
         var d: [String: ParamDef] = [:]
-        for p in trackGrid + synthColumn + modGrid + fxGrid + hiddenFx + masterGrid { d[p.id] = p }
+        for p in trackGrid + synthColumn + modGrid + fxGrid + hiddenFx + masterGrid + masterExtra { d[p.id] = p }
         return d
     }()
 

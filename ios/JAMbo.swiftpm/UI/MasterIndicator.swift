@@ -59,7 +59,7 @@ final class MasterMeters {
 /// Индикация мастера при MST в окне сэмпла (в стиле Drambo): блоки COMP | CLIP | LIM в порядке цепочки, в каждом
 /// стержни IN | GR | OUT (9 px, скругление 3, дорожка --meter-track, сплошная заливка): IN и OUT — снизу вверх,
 /// −48…0 dBFS, жёлтые, выше 0 — красные; GR — сверху вниз, оранжевый (COMP — 18 dB, CLIP и LIM — 12 dB); риска
-/// THRESHOLD / CEILING — только на IN; bypass — серые, GR ноль. Тап по блоку — окно модуля (S9).
+/// THRESHOLD / CEILING — только на IN; bypass — серые, GR ноль. Тап по блоку — окно модуля.
 struct MasterIndicator: View {
     let model: AppModel
     @Environment(\.theme) private var theme
@@ -76,8 +76,11 @@ struct MasterIndicator: View {
         let d: MasterMeters = model.dynMeters
         return HStack(spacing: 8) {
             block("COMP", d.comp, bypass: p.cmpBypass, grMax: 18, mark: value(p, "cmp.threshold", -10), now: now)
+                .onTapGesture { model.openMasterWindow(MasterScope.comp) }
             block("CLIP", d.clip, bypass: p.clipBypass, grMax: 12, mark: value(p, "clip.ceiling", -1), now: now)
+                .onTapGesture { model.openMasterWindow(MasterScope.clip) }
             block("LIM", d.lim, bypass: p.limBypass, grMax: 12, mark: value(p, "lim.ceiling", -1), now: now)
+                .onTapGesture { model.openMasterWindow(MasterScope.lim) }
         }
     }
 
@@ -94,6 +97,7 @@ struct MasterIndicator: View {
             }
         }
         .frame(maxWidth: .infinity)
+        .contentShape(Rectangle())
     }
 
     static let barW: CGFloat = 9

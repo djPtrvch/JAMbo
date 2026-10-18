@@ -263,6 +263,7 @@ extension AppModel {
         if patternView {
             editorOpen = false
             eqView = false
+            closeMasterWindow()
             openClip(selectedTrack, track.slot)
         }
     }
