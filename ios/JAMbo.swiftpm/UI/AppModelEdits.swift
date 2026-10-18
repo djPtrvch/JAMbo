@@ -61,7 +61,7 @@ extension AppModel {
     /// Параметр ручки slot (0…15, ряд за рядом) в текущем режиме; nil — неактивная (MIX и MST — позже).
     func param(_ slot: Int) -> ParamDef? {
         switch channel {
-        case .track: return Params.grid(sound: track.sample)[slot]
+        case .track: return fxMode ? fxParam(slot) : Params.grid(sound: track.sample)[slot]
         case .mix: return mixParam(slot)
         case .master: return nil
         }
@@ -75,7 +75,7 @@ extension AppModel {
             return KnobState(param: p, value: v, norm: p.toNorm(v), baseNorm: p.toNorm(v), locked: false)
         }
         let t = track
-        let base: Double = t.params[p.id] ?? p.def
+        let base: Double = fxMode ? fxValue(p) : t.params[p.id] ?? p.def
         var lock: Double? = nil
         if let held = heldSteps.min() {
             lock = t.step(held)?.locks[p.id]
@@ -92,6 +92,7 @@ extension AppModel {
         guard let p = param(slot) else { return 0 }
         if channel == .mix { return p.toNorm(project.tracks[slot].vol) }
         if let held = heldSteps.min(), let v = track.step(held)?.locks[p.id] { return p.toNorm(v) }
+        if fxMode { return p.toNorm(fxValue(p)) }
         return p.toNorm(track.params[p.id] ?? p.def)
     }
 
@@ -104,7 +105,9 @@ extension AppModel {
             return
         }
         let held = heldSteps
-        if held.isEmpty {
+        if held.isEmpty && fxMode {
+            setFx(p, v)
+        } else if held.isEmpty {
             editTrack { t in t.params[p.id] = v }
         } else {
             usedSteps.formUnion(held)

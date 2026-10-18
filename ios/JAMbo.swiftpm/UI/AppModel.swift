@@ -30,6 +30,8 @@ final class AppModel {
     @ObservationIgnored var usedSteps: Set<Int> = []
     /// Зажата SHIFT.
     var shiftHeld: Bool = false
+    /// Зажата FX: ручки — общие эффекты.
+    var fxHeld: Bool = false
     /// Открытое меню страницы (двойной тап по миниатюре).
     var pageMenu: PageMenuState? = nil
     /// Скопированные страницы (copy в меню страницы).

@@ -46,7 +46,9 @@ struct RightColumn: View {
     var body: some View {
         VStack(spacing: Layout.gap) {
             PagesColumn(model: model)
-            ButtonPair(left: SideButton(title: "MORPH", enabled: false), right: SideButton(title: "FX", enabled: false))
+            ButtonPair(left: SideButton(title: "MORPH", enabled: false), right: HoldButton(title: "FX", held: model.fxHeld) { on in
+                model.fxHeld = on
+            })
             ButtonPair(left: ShiftButton(model: model), right: SideButton(title: "MOD", enabled: false))
         }
     }
@@ -80,6 +82,23 @@ struct SideButton: View {
             .foregroundStyle(fg)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(lit ? theme.text : theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
+    }
+}
+
+/// Кнопка удержания (FX, позже MOD): пока зажата — белая (в светлой теме — чёрная).
+struct HoldButton: View {
+    let title: String
+    let held: Bool
+    let set: (Bool) -> Void
+
+    var body: some View {
+        SideButton(title: title, lit: held)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in if !held { set(true) } }
+                    .onEnded { _ in set(false) }
+            )
     }
 }
 
