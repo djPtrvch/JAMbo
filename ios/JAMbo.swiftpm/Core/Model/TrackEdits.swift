@@ -233,6 +233,7 @@ extension Project {
         tracks.remove(at: i)
         // P-lock громкостей на шагах MIX — за дорожками: удалённой снимаются, правые сдвигаются.
         chanSeqs[Project.mixSeq].remapMixLocks { k in k == i ? nil : (k > i ? k - 1 : k) }
+        remapEqDyn { k in k == i ? nil : (k > i ? k - 1 : k) }
     }
 
     /// Перестановка: дорожка from встаёт на место to, дорожки между ними сдвигаются (со звуком, паттернами,
@@ -242,12 +243,14 @@ extension Project {
         if from == to || from < 0 || to < 0 || from >= n || to >= n { return }
         let t = tracks.remove(at: from)
         tracks.insert(t, at: to)
-        chanSeqs[Project.mixSeq].remapMixLocks { k in
+        let map: (Int) -> Int? = { k in
             if k == from { return to }
             if from < to && k > from && k <= to { return k - 1 }
             if to < from && k >= to && k < from { return k + 1 }
             return k
         }
+        chanSeqs[Project.mixSeq].remapMixLocks(map)
+        remapEqDyn(map)
     }
 
     /// Номера последовательностей MIX и MST в chanSeqs.

@@ -5,7 +5,7 @@ import XCTest
 final class EqTests: XCTestCase {
     func testGolden() throws {
         let cases = try EqSelfTest.loadCases(PlaitsGolden.goldenDir)
-        XCTAssertEqual(cases.count, 17)
+        XCTAssertEqual(cases.count, 22)
         for c in cases {
             let r = try EqSelfTest.run(c, PlaitsGolden.goldenDir)
             print(String(format: "%@: samples %.1f dB, bands ±%.3f dB, rms %.1f dBFS",
@@ -104,9 +104,9 @@ final class EqRoutingTests: XCTestCase {
         let p = UnsafeMutablePointer<Double>.allocate(capacity: EqSpec.stride)
         defer { p.deallocate() }
         EqSpec.fill(p, e)
-        XCTAssertEqual(Array(UnsafeBufferPointer(start: p, count: 7)), [1, Double(EqSpec.lowCut), 4, 100, 0, 20 * log10(2.0), 0])
-        XCTAssertEqual(p[7], -1)
-        XCTAssertEqual(p[13 + 5], 2, "режим SIDE")
+        XCTAssertEqual(Array(UnsafeBufferPointer(start: p, count: 10)), [1, Double(EqSpec.lowCut), 4, 100, 0, 20 * log10(2.0), 0, -1, -24, -6])
+        XCTAssertEqual(p[1 + EqSpec.bandStride], -1)
+        XCTAssertEqual(p[1 + 2 * EqSpec.bandStride + 5], 2, "режим SIDE")
         e.on = false
         EqSpec.fill(p, e)
         XCTAssertEqual(p[1], -1)

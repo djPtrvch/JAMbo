@@ -42,10 +42,17 @@ extension EqUnit {
                 lane += 1
             }
         }
+        let dyn: Bool = det.src[i] >= 0 && det.live[i] != 0
+        let off = det.off + i * EqUnit.maxFrames
         var a = 0
         while a < n {
             let w0 = Swift.min(EqUnit.quantum, n - a)
-            if moving[i] == 0 {
+            let dq: Bool = dyn && EqUnit.nonZero(off + a, w0)
+            if moving[i] == 0 && !dq {
+                if det.dirty[i] != 0 {
+                    det.dirty[i] = 0
+                    EqCoeffs.coeffs(kind[i], tf[i], tg[i], tq[i], sr, cp)
+                }
                 lane = 0
                 while lane < lanes {
                     if live[lane] != 0 {
@@ -63,42 +70,64 @@ extension EqUnit {
                 continue
             }
             // Моно-узел: один отрезок траектории на квант.
+            let mov: Bool = moving[i] != 0
             let e0 = el[i]
-            el[i] += EqUnit.quantum
-            fresh[i] = 0
-            let dl = ramp
-            coeffsAt(i, Double(e0), cp)
-            var j = 0
-            while j < w0 {
-                let w = Swift.min(EqUnit.sub, w0 - j)
-                coeffsAt(i, Double(e0 + j + w), dl)
-                let inv: Double = 1 / Double(w)
-                var t = 0
-                while t < 5 {
-                    dl[t] = (dl[t] - cp[t]) * inv
-                    t += 1
-                }
+            if mov {
+                el[i] += EqUnit.quantum
+                fresh[i] = 0
+            }
+            if dq {
+                // Сдвиг Dynamic: коэффициенты на каждый отсчёт.
+                det.dirty[i] = 1
+                fillCoeffs(i, mov, e0, off + a, w0, dynL)
                 lane = 0
                 while lane < lanes {
                     if live[lane] != 0 {
-                        let x = (side ? sideBuf : midBuf) + lane * mf + a + j
+                        let x = (side ? sideBuf : midBuf) + lane * mf + a
                         let z = s0 + lane * laneStride
                         var s = 0
                         while s < stages {
-                            EqUnit.biquadRamp(x, w, cp, dl, z + s * 8)
+                            EqUnit.biquadVar(x, w0, dynL, z + s * 8)
                             s += 1
                         }
                     }
                     lane += 1
                 }
-                t = 0
-                while t < 5 {
-                    cp[t] += dl[t] * Double(w)
-                    t += 1
+            } else {
+                let dl = ramp
+                coeffsAt(i, Double(e0), cp)
+                var j = 0
+                while j < w0 {
+                    let w = Swift.min(EqUnit.sub, w0 - j)
+                    coeffsAt(i, Double(e0 + j + w), dl)
+                    let inv: Double = 1 / Double(w)
+                    var t = 0
+                    while t < 5 {
+                        dl[t] = (dl[t] - cp[t]) * inv
+                        t += 1
+                    }
+                    lane = 0
+                    while lane < lanes {
+                        if live[lane] != 0 {
+                            let x = (side ? sideBuf : midBuf) + lane * mf + a + j
+                            let z = s0 + lane * laneStride
+                            var s = 0
+                            while s < stages {
+                                EqUnit.biquadRamp(x, w, cp, dl, z + s * 8)
+                                s += 1
+                            }
+                        }
+                        lane += 1
+                    }
+                    t = 0
+                    while t < 5 {
+                        cp[t] += dl[t] * Double(w)
+                        t += 1
+                    }
+                    j += w
                 }
-                j += w
             }
-            if Double(el[i]) * decay < -16.2 {
+            if mov && Double(el[i]) * decay < -16.2 {
                 moving[i] = 0
                 EqCoeffs.coeffs(kind[i], tf[i], tg[i], tq[i], sr, cp)
             }

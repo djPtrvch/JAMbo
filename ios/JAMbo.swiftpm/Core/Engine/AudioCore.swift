@@ -22,6 +22,8 @@ public final class AudioCore: @unchecked Sendable {
     public let mod = ModEngine(sampleRate: AudioCore.sampleRate)
     /// EQ дорожек (сухой сигнал и посылы).
     public let trackEqs = TrackEqs(sampleRate: AudioCore.sampleRate)
+    /// Сдвиги динамических полос EQ для экрана.
+    public let eqDyn = EqDynLevels()
     /// Спектры EQ (до и после EQ показанного канала, сравниваемая дорожка, выход мастера).
     public let spectra = Spectra()
     /// Пики дорожек и выхода мастера, приглушение Sidechain, LUFS показанного канала (измеритель и метры MIX).
@@ -67,6 +69,12 @@ public final class AudioCore: @unchecked Sendable {
         sampler.spectra = spectra
         sampler.levels = levels
         self.master.spectra = spectra
+        // Источники T1…T16 динамических полос EQ мастера — выходы дорожек.
+        self.master.eq.trackL = sampler.outL
+        self.master.eq.trackR = sampler.outR
+        self.master.eq.trackStride = Sampler.maxFrames
+        sampler.eqDyn = eqDyn
+        self.master.eqDyn = eqDyn
         sequencer.mod = mod
     }
 

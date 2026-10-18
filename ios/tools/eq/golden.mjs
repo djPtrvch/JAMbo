@@ -21,6 +21,8 @@ const F = 48000;
 const band = (type, freq, gain, q, slope = 0, on = true) => ({ on, type, freq, gain, q, slope });
 /** Полоса с режимом M/S (S7a): 1 MID, 2 SIDE. */
 const msBand = (ms, type, freq, gain, q, slope = 0) => ({ ...band(type, freq, gain, q, slope), ms });
+/** Динамическая полоса (S7b): источник dyn (0 SELF, 1 — дорожка-источник случая), порог thr, сдвиг range, режим ms. */
+const dynBand = (type, freq, gain, q, dyn, thr, range, ms = 0) => ({ ...band(type, freq, gain, q), ms, dyn, thr, range });
 const eq = (...bands) => ({ on: true, bands: Array.from({ length: 8 }, (_, k) => bands[k] ?? null) });
 
 const CASES = [
@@ -63,6 +65,19 @@ const CASES = [
       { frame: 9984, eq: eq(msBand(1, 0, 220, 9, 2)) },
       { frame: 19968, eq: eq(msBand(2, 0, 220, 9, 2)) },
       { frame: 29952, eq: eq(msBand(2, 0, 220, 9, 2), msBand(1, 3, 200, 0, 1, 2)) },
+    ] },
+  // Dynamic (S7b): детектор eqdyn-worklet.js; source — вход дорожки-источника (dyn 1).
+  { name: 'dyn_self_bell', frames: F / 2, input: 'drums', eq: eq(dynBand(0, 100, 0, 1, 0, -30, -12)) },
+  { name: 'dyn_self_shelves', frames: F / 2, input: 'drums',
+    eq: eq(dynBand(2, 5000, 3, 1, 0, -40, 9), dynBand(1, 150, 2, 1, 0, -24, -9, 1)) },
+  { name: 'dyn_side', frames: F / 2, input: 'drums', eq: eq(dynBand(0, 220, 6, 2, 0, -40, -12, 2), band(0, 2000, -3, 1)) },
+  { name: 'dyn_track', frames: F / 2, input: 'noise', source: 'drums', eq: eq(dynBand(0, 100, 3, 0.7, 1, -30, -15)) },
+  { name: 'dyn_moves', frames: F, input: 'drums', eq: eq(dynBand(0, 120, 0, 1, 0, -30, -12)),
+    events: [
+      { frame: 9984, eq: eq(dynBand(0, 300, 3, 2, 0, -30, -12)) },
+      { frame: 19968, eq: eq(dynBand(0, 300, 3, 2, 0, -20, 6)) },
+      { frame: 29952, eq: eq(band(0, 300, 3, 2)) },
+      { frame: 35968, eq: eq(dynBand(0, 300, 3, 2, 0, -36, -12)) },
     ] },
 ];
 
@@ -122,7 +137,29 @@ execFileSync(path.join(root, 'node_modules/.bin/rolldown'), [path.join(root, 'sr
   '-o', path.join(tmp, 'eq.js')], { stdio: 'ignore' });
 
 // Страница: входы (как input() мастера + noise), рендер каждого случая; renderAll() — JSON { имя: base64 Int16 }.
+// Детектор (S7b): сообщение с порогом, сдвигом и M/S приходит в новый узел асинхронно и в OfflineAudioContext до рендера
+// не успевает (в живом вебе — за миллисекунды). Поэтому в эталонах начальные значения новому узлу передаются сразу —
+// через processorOptions (очередь __dyn в порядке полос, как makeDet создаёт детекторы).
+const dynSrc = fs.readFileSync(path.join(root, 'public/eqdyn-worklet.js'), 'utf8')
+  .replace('constructor() {\n    super();', 'constructor(options) {\n    super();')
+  .replace('this.p = { thr: -24, range: -6, ms: 0 };',
+    'this.p = { thr: -24, range: -6, ms: 0 };\n    Object.assign(this.p, (options && options.processorOptions) || {});');
+if (!dynSrc.includes('processorOptions')) throw new Error('eqdyn-worklet.js: patch failed');
 const page = `<!doctype html><html><body><script src="eq.js"></script><script>
+const DYN_SRC = ${JSON.stringify(dynSrc)};
+const dynUrl = URL.createObjectURL(new Blob([DYN_SRC], { type: 'application/javascript' }));
+let __dyn = [];
+const NativeAWN = AudioWorkletNode;
+window.AudioWorkletNode = class extends NativeAWN {
+  constructor(ctx, name, opts) {
+    super(ctx, name, name === 'eqdyn' ? { ...opts, processorOptions: __dyn.shift() } : opts);
+  }
+};
+/** Начальные значения детекторов для update(eq): динамические включённые полосы по порядку. */
+function queueDyn(eq) {
+  __dyn = eq.on ? eq.bands.filter((b) => b && b.on && b.type <= 2 && (b.dyn ?? -1) >= 0)
+    .map((b) => ({ thr: b.thr ?? -24, range: b.range ?? -6, ms: b.ms ?? 0 })) : [];
+}
 const SR = 48000;
 const CASES = ${JSON.stringify(CASES)};
 function mulberry32(seed) {
@@ -166,12 +203,29 @@ async function render(c) {
   buf.copyToChannel(R, 1);
   const src = ctx.createBufferSource();
   src.buffer = buf;
-  const chain = new EQ.EqChain(ctx);
+  let srcVol = null;
+  if (c.source) {
+    await ctx.audioWorklet.addModule(dynUrl);
+    const [sl, sr] = input(c.source, c.frames);
+    const sb = ctx.createBuffer(2, c.frames, SR);
+    sb.copyToChannel(sl, 0);
+    sb.copyToChannel(sr, 1);
+    const s2 = ctx.createBufferSource();
+    s2.buffer = sb;
+    srcVol = ctx.createGain();
+    s2.connect(srcVol);
+    s2.start(0);
+  } else if (JSON.stringify(c).includes('"dyn"')) {
+    await ctx.audioWorklet.addModule(dynUrl);
+  }
+  EQ.setEqDynReady(JSON.stringify(c).includes('"dyn"'));
+  const chain = new EQ.EqChain(ctx, (n) => (n === 1 ? srcVol : null));
   src.connect(chain.input);
   chain.output.connect(ctx.destination);
+  queueDyn(c.eq);
   chain.update(c.eq);
   for (const e of c.events || []) {
-    ctx.suspend(e.frame / SR).then(() => { chain.update(e.eq); ctx.resume(); });
+    ctx.suspend(e.frame / SR).then(() => { queueDyn(e.eq); chain.update(e.eq); ctx.resume(); });
   }
   src.start(0);
   const out = await ctx.startRendering();

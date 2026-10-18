@@ -61,7 +61,11 @@ extension Sampler {
 
     /// Дорожка t молчит: EQ без звука принимает набор полос и значения; спектры этой дорожки — тишина.
     func idleEq(_ t: Int, _ d: SoundData, _ n: Int) {
-        eqs?.unit(t).idle(params: d.eq + t * EqSpec.stride)
+        if let u = eqs?.unit(t) {
+            sources(u)
+            u.idle(params: d.eq + t * EqSpec.stride, frames: n)
+            eqDyn?.publish(t, u)
+        }
         guard let s = spectra else { return }
         if s.channel.load() == t {
             s.pre.pushSilence(n)
@@ -70,10 +74,19 @@ extension Sampler {
         if s.compareTrack.load() == t { s.compare.pushSilence(n) }
     }
 
+    /// Источники T1…T16 динамических полос — выходы дорожек.
+    @inline(__always)
+    func sources(_ u: EqUnit) {
+        u.trackL = outL
+        u.trackR = outR
+        u.trackStride = Sampler.maxFrames
+    }
+
     /// EQ дорожки t на месте: шина дорожки и (если есть шины эффектов) шины посылов.
     func trackEq(_ t: Int, _ d: SoundData, _ n: Int, sends: Bool) {
         guard let e = eqs else { return }
         let u = e.unit(t)
+        sources(u)
         let mf = Sampler.maxFrames
         u.laneL[0] = busL + t * mf
         u.laneR[0] = busR + t * mf
@@ -86,6 +99,7 @@ extension Sampler {
         let shown: Bool = spectra?.channel.load() == t
         if shown, let s = spectra { s.pre.push(busL + t * mf, busR + t * mf, n) }
         u.process(frames: n, params: d.eq + t * EqSpec.stride)
+        eqDyn?.publish(t, u)
         if shown, let s = spectra { s.post.push(busL + t * mf, busR + t * mf, n) }
         if let s = spectra, s.compareTrack.load() == t { s.compare.push(busL + t * mf, busR + t * mf, n) }
     }

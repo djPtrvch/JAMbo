@@ -1,7 +1,8 @@
 import Foundation
 
 // Микшер дорожек (вынесен из Sampler.swift): громкость, mute/solo, Sidechain, посылы; пики дорожек для метров
-// и сигнал показанной дорожки для LUFS (Levels).
+// и сигнал показанной дорожки для LUFS (Levels); выходы дорожек (outL, outR) — источники динамических полос EQ,
+// дорожки — в порядке SoundData.eqOrder.
 
 extension Sampler {
     /// Микшер: шина дорожки → EQ → · (1 − amount·e) · громкость · гейт → выход; посылы · громкость · гейт
@@ -39,7 +40,13 @@ extension Sampler {
         // Громкость с p-lock играющего шага MIX (как liveMixer веба).
         let lockMask: UInt16 = mixLockMask?.pointee ?? 0
         let lockGain: UnsafeMutablePointer<Float>? = mixLockGain
-        for t in 0..<d.trackCount {
+        let mf = Sampler.maxFrames
+        var oi = 0
+        while oi < d.trackCount {
+            let t: Int = d.eqOrder[oi]
+            oi += 1
+            let ol = outL + t * mf
+            let or = outR + t * mf
             var vt: Float = d.gain[t]
             if lockMask & (UInt16(1) << UInt16(t)) != 0, let g = lockGain { vt = g[t] }
             let gt: Float = d.open[t] != 0 ? 1 : 0
@@ -53,6 +60,8 @@ extension Sampler {
                 gateCur[t] = gt
                 duckCur[t] = at
                 meter?[2] = at * eMax
+                ol.update(repeating: 0, count: n)
+                or.update(repeating: 0, count: n)
                 idleEq(t, d, n)
                 continue
             }
@@ -66,7 +75,6 @@ extension Sampler {
             var pl: Float = 0, pr: Float = 0
             if let r = rack, let eb = eBuf {
                 let s0L = sendL + t * 3 * Sampler.maxFrames, s0R = sendR + t * 3 * Sampler.maxFrames
-                let mf = Sampler.maxFrames
                 let i0L = r.inL, i0R = r.inR
                 var i = 0
                 while i < n {
@@ -79,6 +87,8 @@ extension Sampler {
                     let pv: Float = vol * (1 - de)
                     let xl: Float = bl[i] * pv
                     let xr: Float = br[i] * pv
+                    ol[i] = xl
+                    or[i] = xr
                     left[i] += xl * gate
                     right[i] += xr * gate
                     let al: Float = xl < 0 ? -xl : xl
@@ -108,6 +118,8 @@ extension Sampler {
                     gate += (gt - gate) * gk
                     let xl: Float = bl[i] * vol
                     let xr: Float = br[i] * vol
+                    ol[i] = xl
+                    or[i] = xr
                     left[i] += xl * gate
                     right[i] += xr * gate
                     let al: Float = xl < 0 ? -xl : xl
@@ -130,6 +142,13 @@ extension Sampler {
                 m[2] = amt * eMax
             }
             if loud, let l = lv { l.loudness.process(UnsafePointer(ml), UnsafePointer(mr), n) }
+        }
+        // Дорожек нет — выходы молчат (источник удалённой дорожки не держит последний блок).
+        var t = d.trackCount
+        while t < SoundData.maxTracks {
+            (outL + t * mf).update(repeating: 0, count: n)
+            (outR + t * mf).update(repeating: 0, count: n)
+            t += 1
         }
     }
 }

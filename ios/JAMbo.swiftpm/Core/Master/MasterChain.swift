@@ -73,6 +73,8 @@ public final class MasterChain {
     public let clip: MasterClipper
     public let lim: MasterLimiter
     public let eq: EqUnit
+    /// Сдвиги динамических полос для экрана (ставит AudioCore).
+    public var eqDyn: EqDynLevels?
     /// Кадры индикации COMP / CLIP / LIM.
     public let compTele = DynTele()
     public let clipTele = DynTele()
@@ -108,6 +110,7 @@ public final class MasterChain {
             let shown: Bool = spectra?.channel.load() == EqSpec.masterChannel
             if shown, let s = spectra { s.pre.push(left, right, n) }
             eq.process(left: left, right: right, frames: n, params: e)
+            eqDyn?.publish(EqSpec.masterChannel, eq)
             if shown, let s = spectra { s.post.push(left, right, n) }
         }
         let satShown: Bool = satOn.load() != 0

@@ -75,6 +75,9 @@ public struct SoundData {
     public var master: UnsafeMutablePointer<Double>
     /// EQ каналов (EqSpec.fill): дорожки 0…maxTracks−1, мастер — EqSpec.masterChannel; по EqSpec.stride значений.
     public var eq: UnsafeMutablePointer<Double>
+    /// Порядок дорожек в микшере (S7b): источник динамической полосы EQ — раньше дорожки, которая его слушает
+    /// (выход — в этом же блоке, как в вебе); в кольце источников одна дорожка слышит прошлый блок.
+    public var eqOrder: UnsafeMutablePointer<Int>
 
     @inline(__always)
     public func param(_ t: Int, _ p: Int) -> Float {
@@ -151,7 +154,8 @@ public final class SoundSnapshot: @unchecked Sendable {
             fxAmt: .allocate(capacity: Params.fxCount), fxTrack: .allocate(capacity: Params.fxCount),
             fxScale: .allocate(capacity: Params.fxCount),
             master: .allocate(capacity: MasterChain.Index.count),
-            eq: .allocate(capacity: EqSpec.channels * EqSpec.stride)
+            eq: .allocate(capacity: EqSpec.channels * EqSpec.stride),
+            eqOrder: .allocate(capacity: tracks)
         )
         MasterChain.fill(d.master, project)
         for ch in 0..<EqSpec.channels {
@@ -199,6 +203,8 @@ public final class SoundSnapshot: @unchecked Sendable {
         var e = 0
         var sl = 0
         d.trackCount = Swift.min(project.tracks.count, tracks)
+        let order: [Int] = EqSpec.mixOrder(project, d.trackCount)
+        for t in 0..<tracks { d.eqOrder[t] = t < order.count ? order[t] : t }
         for t in 0..<d.trackCount {
             let tr = project.tracks[t]
             d.trackId[t] = tr.id
@@ -294,5 +300,6 @@ public final class SoundSnapshot: @unchecked Sendable {
         data.fxScale.deallocate()
         data.master.deallocate()
         data.eq.deallocate()
+        data.eqOrder.deallocate()
     }
 }

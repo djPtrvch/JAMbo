@@ -1,7 +1,8 @@
 import Foundation
 
 // Коэффициенты биквада полосы EQ — как Biquad::Set*Params в Blink/WebKit (формулы Web Audio: peaking, lowshelf и
-// highshelf с S = 1, highpass и lowpass с Q в dB, notch; частота — доля Найквиста, края 0 и 1 — как там же),
+// highshelf с S = 1, highpass и lowpass с Q в dB, notch, bandpass — фильтр детектора Dynamic, тип
+// EqDetectors.bandpass; частота — доля Найквиста, края 0 и 1 — как там же),
 // и АЧХ полосы для кривой EQ (как getFrequencyResponse; каскад — сумма ступеней).
 
 public enum EqCoeffs {
@@ -83,6 +84,20 @@ public enum EqCoeffs {
                 a1 = -2 * k
                 a2 = 1 - alpha
             } else if f > 0 && f < 1 {
+                b0 = 0
+            }
+        case EqDetectors.bandpass:
+            if f > 0 && f < 1 {
+                if q > 0 {
+                    let alpha: Double = sin(w0) / (2 * q)
+                    b0 = alpha
+                    b1 = 0
+                    b2 = -alpha
+                    a0 = 1 + alpha
+                    a1 = -2 * k
+                    a2 = 1 - alpha
+                }
+            } else {
                 b0 = 0
             }
         default:

@@ -907,6 +907,280 @@
      }
     }
    ]
+  },
+  {
+   "file": "eq_dyn_self_bell.i16",
+   "frames": 24000,
+   "input": "drums",
+   "eq": {
+    "on": true,
+    "bands": [
+     {
+      "on": true,
+      "type": 0,
+      "freq": 100,
+      "gain": 0,
+      "q": 1,
+      "slope": 0,
+      "ms": 0,
+      "dyn": 0,
+      "thr": -30,
+      "range": -12
+     },
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ]
+   },
+   "events": []
+  },
+  {
+   "file": "eq_dyn_self_shelves.i16",
+   "frames": 24000,
+   "input": "drums",
+   "eq": {
+    "on": true,
+    "bands": [
+     {
+      "on": true,
+      "type": 2,
+      "freq": 5000,
+      "gain": 3,
+      "q": 1,
+      "slope": 0,
+      "ms": 0,
+      "dyn": 0,
+      "thr": -40,
+      "range": 9
+     },
+     {
+      "on": true,
+      "type": 1,
+      "freq": 150,
+      "gain": 2,
+      "q": 1,
+      "slope": 0,
+      "ms": 1,
+      "dyn": 0,
+      "thr": -24,
+      "range": -9
+     },
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ]
+   },
+   "events": []
+  },
+  {
+   "file": "eq_dyn_side.i16",
+   "frames": 24000,
+   "input": "drums",
+   "eq": {
+    "on": true,
+    "bands": [
+     {
+      "on": true,
+      "type": 0,
+      "freq": 220,
+      "gain": 6,
+      "q": 2,
+      "slope": 0,
+      "ms": 2,
+      "dyn": 0,
+      "thr": -40,
+      "range": -12
+     },
+     {
+      "on": true,
+      "type": 0,
+      "freq": 2000,
+      "gain": -3,
+      "q": 1,
+      "slope": 0
+     },
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ]
+   },
+   "events": []
+  },
+  {
+   "file": "eq_dyn_track.i16",
+   "frames": 24000,
+   "input": "noise",
+   "source": "drums",
+   "eq": {
+    "on": true,
+    "bands": [
+     {
+      "on": true,
+      "type": 0,
+      "freq": 100,
+      "gain": 3,
+      "q": 0.7,
+      "slope": 0,
+      "ms": 0,
+      "dyn": 1,
+      "thr": -30,
+      "range": -15
+     },
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ]
+   },
+   "events": []
+  },
+  {
+   "file": "eq_dyn_moves.i16",
+   "frames": 48000,
+   "input": "drums",
+   "eq": {
+    "on": true,
+    "bands": [
+     {
+      "on": true,
+      "type": 0,
+      "freq": 120,
+      "gain": 0,
+      "q": 1,
+      "slope": 0,
+      "ms": 0,
+      "dyn": 0,
+      "thr": -30,
+      "range": -12
+     },
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ]
+   },
+   "events": [
+    {
+     "frame": 9984,
+     "eq": {
+      "on": true,
+      "bands": [
+       {
+        "on": true,
+        "type": 0,
+        "freq": 300,
+        "gain": 3,
+        "q": 2,
+        "slope": 0,
+        "ms": 0,
+        "dyn": 0,
+        "thr": -30,
+        "range": -12
+       },
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     }
+    },
+    {
+     "frame": 19968,
+     "eq": {
+      "on": true,
+      "bands": [
+       {
+        "on": true,
+        "type": 0,
+        "freq": 300,
+        "gain": 3,
+        "q": 2,
+        "slope": 0,
+        "ms": 0,
+        "dyn": 0,
+        "thr": -20,
+        "range": 6
+       },
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     }
+    },
+    {
+     "frame": 29952,
+     "eq": {
+      "on": true,
+      "bands": [
+       {
+        "on": true,
+        "type": 0,
+        "freq": 300,
+        "gain": 3,
+        "q": 2,
+        "slope": 0
+       },
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     }
+    },
+    {
+     "frame": 35968,
+     "eq": {
+      "on": true,
+      "bands": [
+       {
+        "on": true,
+        "type": 0,
+        "freq": 300,
+        "gain": 3,
+        "q": 2,
+        "slope": 0,
+        "ms": 0,
+        "dyn": 0,
+        "thr": -36,
+        "range": -12
+       },
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     }
+    }
+   ]
   }
  ]
 }

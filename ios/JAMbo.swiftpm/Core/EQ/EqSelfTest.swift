@@ -9,6 +9,8 @@ public enum EqSelfTest {
         public let file: String
         public let frames: Int
         public let input: String
+        /// Вход дорожки-источника динамических полос (dyn 1; nil — нет).
+        public let source: String?
         /// EQ с кадра 0 и события — [(кадр, EQ)].
         let eqs: [(frame: Int, eq: Eq)]
     }
@@ -27,6 +29,9 @@ public enum EqSelfTest {
             func num(_ key: String) -> Double { return (b[key] as? NSNumber)?.doubleValue ?? 0 }
             eq.bands[k] = EqBand(on: (b["on"] as? NSNumber)?.boolValue ?? true, type: Int(num("type")), freq: num("freq"),
                                  gain: num("gain"), q: num("q"), slope: Int(num("slope")), ms: Int(num("ms")))
+            if let d = b["dyn"] as? NSNumber { eq.bands[k]?.dyn = d.intValue }
+            if let v = b["thr"] as? NSNumber { eq.bands[k]?.thr = v.doubleValue }
+            if let v = b["range"] as? NSNumber { eq.bands[k]?.range = v.doubleValue }
         }
         return eq
     }
@@ -41,28 +46,38 @@ public enum EqSelfTest {
                 eqs.append(((e["frame"] as? NSNumber)?.intValue ?? 0, parseEq(e["eq"] as? [String: Any])))
             }
             return Case(file: c["file"] as? String ?? "", frames: (c["frames"] as? NSNumber)?.intValue ?? 0,
-                        input: c["input"] as? String ?? "", eqs: eqs)
+                        input: c["input"] as? String ?? "", source: c["source"] as? String, eqs: eqs)
         }
     }
 
     /// Рендер случая: L и R (Int16, как эталон).
     static func render(_ c: Case) -> ([Float], [Float]) {
         let (iL, iR) = MasterSelfTest.input(c.input, c.frames)
+        let (sL, sR) = c.source.map { MasterSelfTest.input($0, c.frames) } ?? ([], [])
         var outL = [Float](repeating: 0, count: c.frames)
         var outR = [Float](repeating: 0, count: c.frames)
         let n = block
         let bL = UnsafeMutablePointer<Float>.allocate(capacity: n)
         let bR = UnsafeMutablePointer<Float>.allocate(capacity: n)
         let p = UnsafeMutablePointer<Double>.allocate(capacity: EqSpec.stride)
-        defer { bL.deallocate(); bR.deallocate(); p.deallocate() }
+        let tL = UnsafeMutablePointer<Float>.allocate(capacity: n)
+        let tR = UnsafeMutablePointer<Float>.allocate(capacity: n)
+        defer { bL.deallocate(); bR.deallocate(); p.deallocate(); tL.deallocate(); tR.deallocate() }
         EqSpec.fill(p, Eq())
         let unit = EqUnit(sampleRate: 48000)
+        if c.source != nil {
+            unit.trackL = tL
+            unit.trackR = tR
+            unit.trackStride = n
+        }
         var f = 0
         while f < c.frames {
             for e in c.eqs where e.frame == f { EqSpec.fill(p, e.eq) }
             for i in 0..<n {
                 bL[i] = f + i < c.frames ? iL[f + i] : 0
                 bR[i] = f + i < c.frames ? iR[f + i] : 0
+                tL[i] = f + i < sL.count ? sL[f + i] : 0
+                tR[i] = f + i < sR.count ? sR[f + i] : 0
             }
             unit.process(left: bL, right: bR, frames: n, params: p)
             var i = 0

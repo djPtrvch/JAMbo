@@ -2,7 +2,7 @@ import Foundation
 
 // EQ канала (как Eq и EqBand в src/state.ts, константы — EQ_* в params.ts): 8 мест под полосы (nil — полосы нет).
 // EQ дорожки — Track.eq (один на все её клипы, переезжает вместе с дорожкой), EQ мастера — Project.masterEq.
-// M/S — S7a, Dynamic — S7b.
+// M/S — S7a, Dynamic — S7b (источник dyn: −1 OFF, 0 SELF, n — дорожка n, 1…; номер следует за дорожкой).
 
 public struct EqBand: Codable, Equatable, Sendable {
     public var on: Bool = true
@@ -15,6 +15,10 @@ public struct EqBand: Codable, Equatable, Sendable {
     public var slope: Int = 0
     /// Индекс в EqSpec.msModes: 0 STEREO, 1 MID, 2 SIDE.
     public var ms: Int = 0
+    /// Динамическая полоса (bell, shelf): источник −1 OFF, 0 SELF, n — дорожка n; порог, dBFS; сдвиг усиления, dB.
+    public var dyn: Int = -1
+    public var thr: Double = EqSpec.dynThrDef
+    public var range: Double = EqSpec.dynRangeDef
 
     public init(on: Bool = true, type: Int, freq: Double, gain: Double, q: Double, slope: Int = 0, ms: Int = 0) {
         self.on = on
@@ -49,6 +53,11 @@ public enum EqSpec {
     public static let slopes = [12, 24, 48]
     /// Режимы M/S (как EQ_MS веба): STEREO — оба канала, MID — только (L+R)/2, SIDE — только (L−R)/2.
     public static let msModes = ["STEREO", "MID", "SIDE"]
+    /// Dynamic (как EQ_DYN_* веба): порог −60…0 dBFS, сдвиг −18…+18 dB.
+    public static let dynThrDef: Double = -24
+    public static let dynThrMin: Double = -60
+    public static let dynRangeDef: Double = -6
+    public static let dynRangeMax: Double = 18
     public static let bands = 8
     public static let freqMin: Double = 20
     public static let freqMax: Double = 20000
@@ -61,6 +70,9 @@ public enum EqSpec {
     /// Усиление не применяется к cut и notch.
     public static func hasGain(_ type: Int) -> Bool { return type <= highShelf }
 
+    /// Полоса динамическая (как eqDynOn веба): bell или shelf с источником.
+    public static func dynOn(_ b: EqBand) -> Bool { return hasGain(b.type) && b.dyn >= 0 }
+
     /// Число биквадов в каскаде полосы.
     public static func stages(_ b: EqBand) -> Int {
         return isCut(b.type) ? slopes[Swift.max(0, Swift.min(b.slope, slopes.count - 1))] / 12 : 1
@@ -72,9 +84,36 @@ public enum EqSpec {
     }
 
     // Параметры EQ для колбэка (снимок звука): на канал stride значений Double — [0] включён ли EQ, затем на полосу
-    // [тип (−1 — нет или выключена), каскад, частота, усиление (0 у cut и notch), Q фильтра, режим M/S].
-    public static let bandStride = 6
+    // [тип (−1 — нет или выключена), каскад, частота, усиление (0 у cut и notch), Q фильтра, режим M/S,
+    // источник Dynamic (−1 — нет), порог, сдвиг].
+    public static let bandStride = 9
     public static let stride = 1 + bands * bandStride
+
+    /// Порядок дорожек в микшере: каждая — после дорожек, которые слушают её динамические полосы (по возможности
+    /// с меньшего номера); в кольце — дорожка с меньшим номером из оставшихся (она слышит прошлый блок).
+    public static func mixOrder(_ project: Project, _ count: Int) -> [Int] {
+        var deps = [[Int]](repeating: [], count: count)
+        for t in 0..<count {
+            let e: Eq = project.tracks[t].eq
+            if !e.on { continue }
+            for case let b? in e.bands where b.on && dynOn(b) && b.dyn >= 1 && b.dyn - 1 < count && b.dyn - 1 != t {
+                deps[t].append(b.dyn - 1)
+            }
+        }
+        var done = [Bool](repeating: false, count: count)
+        var order: [Int] = []
+        while order.count < count {
+            var pick = -1
+            for t in 0..<count where !done[t] && deps[t].allSatisfy({ done[$0] }) {
+                pick = t
+                break
+            }
+            if pick < 0 { pick = (0..<count).first { !done[$0] } ?? 0 }
+            done[pick] = true
+            order.append(pick)
+        }
+        return order
+    }
 
     /// Каналы снимка: дорожки 0…maxTracks−1, мастер — maxTracks.
     public static let channels = Params.maxTracks + 1
@@ -96,6 +135,9 @@ public enum EqSpec {
             p[o + 3] = hasGain(b.type) ? b.gain : 0
             p[o + 4] = filterQ(b)
             p[o + 5] = Double(Swift.max(0, Swift.min(b.ms, msModes.count - 1)))
+            p[o + 6] = dynOn(b) && b.dyn <= Params.maxTracks ? Double(b.dyn) : -1
+            p[o + 7] = b.thr
+            p[o + 8] = b.range
         }
     }
 }
@@ -162,6 +204,39 @@ extension Project {
             b.ms = Swift.max(0, Swift.min(ms, EqSpec.msModes.count - 1))
             e.bands[k] = b
         }
+    }
+
+    /// Источник динамической полосы: −1 OFF, 0 SELF, n — дорожка n.
+    public mutating func setEqDyn(_ ch: Int, _ k: Int, _ src: Int) {
+        withEq(ch) { e in
+            guard var b = e.band(k) else { return }
+            b.dyn = Swift.max(-1, Swift.min(src, Params.maxTracks))
+            e.bands[k] = b
+        }
+    }
+
+    /// Порог (dBFS) и сдвиг (dB) динамической полосы, с округлением до 0,1.
+    public mutating func setEqDynParams(_ ch: Int, _ k: Int, thr: Double? = nil, range: Double? = nil) {
+        withEq(ch) { e in
+            guard var b = e.band(k) else { return }
+            if let v = thr { b.thr = (Project.clamp(v, EqSpec.dynThrMin, 0) * 10).rounded() / 10 }
+            if let v = range { b.range = (Project.clamp(v, -EqSpec.dynRangeMax, EqSpec.dynRangeMax) * 10).rounded() / 10 }
+            e.bands[k] = b
+        }
+    }
+
+    /// Источники-дорожки динамических полос всех EQ после удаления или перестановки дорожек: map — новый номер
+    /// дорожки (0…) по старому, nil — удалена (источник — OFF).
+    mutating func remapEqDyn(_ map: (Int) -> Int?) {
+        func fix(_ e: inout Eq) {
+            for k in 0..<e.bands.count {
+                guard var b = e.bands[k], b.dyn >= 1 else { continue }
+                b.dyn = map(b.dyn - 1).map { $0 + 1 } ?? -1
+                e.bands[k] = b
+            }
+        }
+        for t in 0..<tracks.count { fix(&tracks[t].eq) }
+        fix(&masterEq)
     }
 
     /// Двойной тап по точке: включить или выключить полосу.

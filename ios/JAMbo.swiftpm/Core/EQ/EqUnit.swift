@@ -15,7 +15,10 @@ import Foundation
 // Линии — стерео-сигналы с одним EQ (дорожка: сухой сигнал и посылы Reverb, Delay, Drive — в вебе у каждого своя
 // копия EqChain с теми же событиями): коэффициенты считаются один раз, состояние и кроссфейд — у каждой линии.
 // Линия без сигнала, у которой хвост фильтров затих, не считается; молчащий канал — idle.
-// Полоса MID или SIDE (S7a) фильтрует один канал M/S — EqUnitMs.swift.
+// Полоса MID или SIDE (S7a) фильтрует один канал M/S — EqUnitMs.swift. Динамическая полоса (S7b): детектор
+// (EqDyn.swift) даёт сдвиг усиления на каждый отсчёт (в вебе — вход AudioParam gain): пока сдвиг не нулевой,
+// коэффициенты — точно на каждый отсчёт (EqUnitDyn.swift; линейно между краями кусков — до −21 dB ошибки на атаке).
+// Смена источника — новая цепочка.
 // Цепочки две (0 и 1): у каждой на полосу тип, каскад, режим M/S, цель, начало и ход сглаживания, коэффициенты.
 // Параметры — из снимка звука (EqSpec.fill). Всё в колбэке: память выделена при создании.
 
@@ -66,6 +69,17 @@ public final class EqUnit {
     /// Середина и бока линии для полос MID/SIDE: линия·maxFrames.
     let midBuf: UnsafeMutablePointer<Float>
     let sideBuf: UnsafeMutablePointer<Float>
+    /// Детекторы динамических полос; вход SELF (линия 0 до EQ) на этот блок.
+    let det: EqDetectors
+    let selfL: UnsafeMutablePointer<Float>
+    let selfR: UnsafeMutablePointer<Float>
+    /// Коэффициенты динамической полосы на каждый отсчёт кванта: L и R (128 × 5).
+    let dynL: UnsafeMutablePointer<Double>
+    let dynR: UnsafeMutablePointer<Double>
+    /// Выходы дорожек — источники T1…T16 (ставит владелец: дорожка t — trackL + t·trackStride; nil — тишина).
+    public var trackL: UnsafeMutablePointer<Float>? = nil
+    public var trackR: UnsafeMutablePointer<Float>? = nil
+    public var trackStride: Int = 0
     /// Сигналы линий на этот блок (ставит вызывающий; nil — линии нет), считается ли линия, звучит ли хвост.
     public let laneL: UnsafeMutablePointer<UnsafeMutablePointer<Float>?>
     public let laneR: UnsafeMutablePointer<UnsafeMutablePointer<Float>?>
@@ -115,6 +129,15 @@ public final class EqUnit {
         sideBuf = .allocate(capacity: lanes * EqUnit.maxFrames)
         midBuf.initialize(repeating: 0, count: lanes * EqUnit.maxFrames)
         sideBuf.initialize(repeating: 0, count: lanes * EqUnit.maxFrames)
+        det = EqDetectors(sampleRate: sampleRate)
+        selfL = .allocate(capacity: EqUnit.maxFrames)
+        selfR = .allocate(capacity: EqUnit.maxFrames)
+        selfL.initialize(repeating: 0, count: EqUnit.maxFrames)
+        selfR.initialize(repeating: 0, count: EqUnit.maxFrames)
+        dynL = .allocate(capacity: EqUnit.quantum * 5)
+        dynR = .allocate(capacity: EqUnit.quantum * 5)
+        dynL.initialize(repeating: 0, count: EqUnit.quantum * 5)
+        dynR.initialize(repeating: 0, count: EqUnit.quantum * 5)
         laneL = .allocate(capacity: lanes)
         laneR = .allocate(capacity: lanes)
         laneL.initialize(repeating: nil, count: lanes)
@@ -131,6 +154,10 @@ public final class EqUnit {
         msm.deallocate()
         midBuf.deallocate()
         sideBuf.deallocate()
+        selfL.deallocate()
+        selfR.deallocate()
+        dynL.deallocate()
+        dynR.deallocate()
         for p in [tf, tg, tq, sf, sg, sq, co, coR, ramp, st] { p.deallocate() }
         for p in [fresh, changed, moving, live, ring] { p.deallocate() }
         el.deallocate()
@@ -157,6 +184,15 @@ public final class EqUnit {
         let n = Swift.min(frames, EqUnit.maxFrames)
         if (fadePos < 0 || fadePos >= EqUnit.fadeFrames) && !same(p, cur) { startFade(p) }
         setTargets(p, cur)
+        if let l = laneL[0], let r = laneR[0] {
+            selfL.update(from: l, count: n)
+            selfR.update(from: r, count: n)
+        } else {
+            selfL.update(repeating: 0, count: n)
+            selfR.update(repeating: 0, count: n)
+        }
+        runDetectors(cur, n)
+        if fadePos >= 0 { runDetectors(1 - cur, n) }
         var any = false
         var k = 0
         while k < lanes {
@@ -190,7 +226,8 @@ public final class EqUnit {
 
     /// Канал молчит (вход — тишина, хвостов нет; Sampler не считает дорожку): набор полос и значения — сразу, без
     /// кроссфейда и сглаживания (в вебе кроссфейд прошёл бы в тишине).
-    public func idle(params p: UnsafePointer<Double>) {
+    /// Детекторы динамических полос слушают свои источники (SELF — тишина) frames отсчётов.
+    public func idle(params p: UnsafePointer<Double>, frames: Int = 0) {
         if fadePos >= 0 || !same(p, cur) {
             startFade(p)
             fadePos = -1
@@ -198,6 +235,12 @@ public final class EqUnit {
         }
         setTargets(p, cur)
         snap(cur)
+        let n = Swift.min(frames, EqUnit.maxFrames)
+        if n > 0 {
+            selfL.update(repeating: 0, count: n)
+            selfR.update(repeating: 0, count: n)
+            runDetectors(cur, n)
+        }
     }
 
     /// Набор полос цепочки c совпадает с параметрами (тип, каскад и режим M/S каждой полосы).
@@ -209,6 +252,7 @@ public final class EqUnit {
             if kind[c * EqUnit.bands + k] != t { return false }
             if t >= 0 && nst[c * EqUnit.bands + k] != Int(p[o + 1]) { return false }
             if t >= 0 && msm[c * EqUnit.bands + k] != Int(p[o + 5]) { return false }
+            if det.src[c * EqUnit.bands + k] != (t >= 0 ? Int(p[o + 6]) : -1) { return false }
             k += 1
         }
         return true
@@ -230,6 +274,7 @@ public final class EqUnit {
             moving[i] = 0
             changed[i] = 0
             if kind[i] >= 0 { EqCoeffs.coeffs(kind[i], tf[i], tg[i], tq[i], sr, co + i * 5) }
+            det.reset(i, p + o, kind[i], sr)
             k += 1
         }
         let m = EqUnit.bands * EqUnit.bandState
@@ -248,7 +293,9 @@ public final class EqUnit {
             let i = c * EqUnit.bands + k
             let o = 1 + k * EqSpec.bandStride
             let f = p[o + 2], g = p[o + 3], q = p[o + 4]
+            det.setLevels(i, p + o)
             if kind[i] >= 0 && kind[i] == Int(p[o]) && (f != tf[i] || g != tg[i] || q != tq[i]) {
+                det.retarget(i, p + o, kind[i], decay: decay)
                 // Новое сглаживание (setTargetAtTime): от значения, до которого дошло прежнее.
                 if moving[i] != 0 {
                     let e: Double = exp(Double(el[i]) * decay)
@@ -411,10 +458,17 @@ public final class EqUnit {
         let cr = coR + i * 5
         let laneStride = 2 * EqUnit.bands * EqUnit.bandState
         let s0 = st + (c * EqUnit.bands + k) * EqUnit.bandState
+        let dyn: Bool = det.src[i] >= 0 && det.live[i] != 0
+        let off = det.off + i * EqUnit.maxFrames
         var a = 0
         while a < n {
             let m = Swift.min(EqUnit.quantum, n - a)
-            if moving[i] == 0 {
+            let dq: Bool = dyn && EqUnit.nonZero(off + a, m)
+            if moving[i] == 0 && !dq {
+                if det.dirty[i] != 0 {
+                    det.dirty[i] = 0
+                    EqCoeffs.coeffs(kind[i], tf[i], tg[i], tq[i], sr, cp)
+                }
                 var lane = 0
                 while lane < lanes {
                     if let (l, r) = signal(lane, old) {
@@ -432,49 +486,74 @@ public final class EqUnit {
                 continue
             }
             // Отрезки траектории L и R в этом кванте.
+            let mov: Bool = moving[i] != 0
             let eL = el[i]
             let eR = fresh[i] != 0 ? eL : eL + EqUnit.quantum
-            el[i] += fresh[i] != 0 ? EqUnit.quantum : 2 * EqUnit.quantum
-            fresh[i] = 0
-            // Коэффициенты — точно на краях кусков sub, между ними — линейно по отсчётам.
-            let dl = ramp, dr = ramp + 5
-            coeffsAt(i, Double(eL), cp)
-            coeffsAt(i, Double(eR), cr)
-            var j = 0
-            while j < m {
-                let w = Swift.min(EqUnit.sub, m - j)
-                coeffsAt(i, Double(eL + j + w), dl)
-                coeffsAt(i, Double(eR + j + w), dr)
-                let inv: Double = 1 / Double(w)
-                var t = 0
-                while t < 5 {
-                    dl[t] = (dl[t] - cp[t]) * inv
-                    dr[t] = (dr[t] - cr[t]) * inv
-                    t += 1
-                }
+            if mov {
+                el[i] += fresh[i] != 0 ? EqUnit.quantum : 2 * EqUnit.quantum
+                fresh[i] = 0
+            }
+            if dq {
+                // Сдвиг Dynamic: коэффициенты на каждый отсчёт.
+                det.dirty[i] = 1
+                fillCoeffs(i, mov, eL, off + a, m, dynL)
+                let same: Bool = !mov || eR == eL
+                if !same { fillCoeffs(i, mov, eR, off + a, m, dynR) }
+                let cR = same ? dynL : dynR
                 var lane = 0
                 while lane < lanes {
                     if let (l, r) = signal(lane, old) {
                         let z = s0 + lane * laneStride
                         var s = 0
                         while s < stages {
-                            EqUnit.biquadRamp(l + a + j, w, cp, dl, z + s * 8)
-                            EqUnit.biquadRamp(r + a + j, w, cr, dr, z + s * 8 + 4)
+                            EqUnit.biquadVar(l + a, m, dynL, z + s * 8)
+                            EqUnit.biquadVar(r + a, m, cR, z + s * 8 + 4)
                             s += 1
                         }
                     }
                     lane += 1
                 }
-                t = 0
-                while t < 5 {
-                    cp[t] += dl[t] * Double(w)
-                    cr[t] += dr[t] * Double(w)
-                    t += 1
+            } else {
+                // Коэффициенты — точно на краях кусков sub, между ними — линейно по отсчётам.
+                let dl = ramp, dr = ramp + 5
+                coeffsAt(i, Double(eL), cp)
+                coeffsAt(i, Double(eR), cr)
+                var j = 0
+                while j < m {
+                    let w = Swift.min(EqUnit.sub, m - j)
+                    coeffsAt(i, Double(eL + j + w), dl)
+                    coeffsAt(i, Double(eR + j + w), dr)
+                    let inv: Double = 1 / Double(w)
+                    var t = 0
+                    while t < 5 {
+                        dl[t] = (dl[t] - cp[t]) * inv
+                        dr[t] = (dr[t] - cr[t]) * inv
+                        t += 1
+                    }
+                    var lane = 0
+                    while lane < lanes {
+                        if let (l, r) = signal(lane, old) {
+                            let z = s0 + lane * laneStride
+                            var s = 0
+                            while s < stages {
+                                EqUnit.biquadRamp(l + a + j, w, cp, dl, z + s * 8)
+                                EqUnit.biquadRamp(r + a + j, w, cr, dr, z + s * 8 + 4)
+                                s += 1
+                            }
+                        }
+                        lane += 1
+                    }
+                    t = 0
+                    while t < 5 {
+                        cp[t] += dl[t] * Double(w)
+                        cr[t] += dr[t] * Double(w)
+                        t += 1
+                    }
+                    j += w
                 }
-                j += w
             }
             // Разница с целью меньше 1e-7 — сглаживание кончилось.
-            if Double(el[i]) * decay < -16.2 {
+            if mov && Double(el[i]) * decay < -16.2 {
                 moving[i] = 0
                 EqCoeffs.coeffs(kind[i], tf[i], tg[i], tq[i], sr, cp)
             }
@@ -489,57 +568,5 @@ public final class EqUnit {
         let g: Double = tg[i] + (sg[i] - tg[i]) * x
         let q: Double = tq[i] + (sq[i] - tq[i]) * x
         EqCoeffs.coeffs(kind[i], f, g, q, sr, out)
-    }
-
-    /// Одна ступень (Direct Form I, как Biquad::Process): x — Float, y и состояние — Double, выход — Float.
-    @inline(__always)
-    static func biquad(_ x: UnsafeMutablePointer<Float>, _ n: Int, _ c: UnsafeMutablePointer<Double>,
-                       _ z: UnsafeMutablePointer<Double>) {
-        let b0 = c[0], b1 = c[1], b2 = c[2], a1 = c[3], a2 = c[4]
-        var x1 = z[0], x2 = z[1], y1 = z[2], y2 = z[3]
-        var i = 0
-        while i < n {
-            let xi = Double(x[i])
-            let y: Double = b0 * xi + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2
-            x[i] = Float(y)
-            x2 = x1
-            x1 = xi
-            y2 = y1
-            y1 = y
-            i += 1
-        }
-        z[0] = x1
-        z[1] = x2
-        z[2] = y1
-        z[3] = y2
-    }
-
-    /// Ступень с коэффициентами, которые меняются линейно: в отсчёте k — c + dc·k.
-    @inline(__always)
-    static func biquadRamp(_ x: UnsafeMutablePointer<Float>, _ n: Int, _ c: UnsafeMutablePointer<Double>,
-                           _ dc: UnsafeMutablePointer<Double>, _ z: UnsafeMutablePointer<Double>) {
-        var b0 = c[0], b1 = c[1], b2 = c[2], a1 = c[3], a2 = c[4]
-        let d0 = dc[0], d1 = dc[1], d2 = dc[2], d3 = dc[3], d4 = dc[4]
-        var x1 = z[0], x2 = z[1], y1 = z[2], y2 = z[3]
-        var i = 0
-        while i < n {
-            let xi = Double(x[i])
-            let y: Double = b0 * xi + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2
-            x[i] = Float(y)
-            x2 = x1
-            x1 = xi
-            y2 = y1
-            y1 = y
-            b0 += d0
-            b1 += d1
-            b2 += d2
-            a1 += d3
-            a2 += d4
-            i += 1
-        }
-        z[0] = x1
-        z[1] = x2
-        z[2] = y1
-        z[3] = y2
     }
 }

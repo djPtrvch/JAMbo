@@ -88,6 +88,11 @@ public final class Sampler {
     public var fx: FxRack?
     /// EQ дорожек (до Sidechain и громкости микшера; TrackEqs).
     public var eqs: TrackEqs?
+    /// Выходы дорожек после громкости микшера, до mute (дорожка·maxFrames) — источники динамических полос EQ.
+    public let outL = UnsafeMutablePointer<Float>.allocate(capacity: SoundData.maxTracks * maxFrames)
+    public let outR = UnsafeMutablePointer<Float>.allocate(capacity: SoundData.maxTracks * maxFrames)
+    /// Сдвиги динамических полос для экрана (ставит AudioCore).
+    public var eqDyn: EqDynLevels?
     /// P-lock громкостей играющего шага MIX (Sequencer.mixLockMask / mixLockGain; ставит AudioCore).
     public var mixLockMask: UnsafeMutablePointer<UInt16>?
     public var mixLockGain: UnsafeMutablePointer<Float>?
@@ -167,6 +172,8 @@ public final class Sampler {
         lockVal.initialize(repeating: 0, count: s * VoiceParam.count)
         busL.initialize(repeating: 0, count: SoundData.maxTracks * Sampler.maxFrames)
         busR.initialize(repeating: 0, count: SoundData.maxTracks * Sampler.maxFrames)
+        outL.initialize(repeating: 0, count: SoundData.maxTracks * Sampler.maxFrames)
+        outR.initialize(repeating: 0, count: SoundData.maxTracks * Sampler.maxFrames)
         used.initialize(repeating: 0, count: SoundData.maxTracks)
         volCur.initialize(repeating: -1, count: SoundData.maxTracks)
         gateCur.initialize(repeating: -1, count: SoundData.maxTracks)
@@ -181,7 +188,7 @@ public final class Sampler {
         for p in [track, trackId, note, liveId, serial, srcFrames, ftype] as [UnsafeMutablePointer<Int>] { p.deallocate() }
         for p in [pos, endPos, edge, noteRatio, rate, attackF, decaySec, hz, qDb] as [UnsafeMutablePointer<Double>] { p.deallocate() }
         for p in [start, holdEnd, stopAt, fadeAt] as [UnsafeMutablePointer<Int64>] { p.deallocate() }
-        for p in [decayK, env, fadeK, fadeG, level, pan, z, lockVal, busL, busR, volCur, gateCur, scratch] as [UnsafeMutablePointer<Float>] {
+        for p in [decayK, env, fadeK, fadeG, level, pan, z, lockVal, busL, busR, outL, outR, volCur, gateCur, scratch] as [UnsafeMutablePointer<Float>] {
             p.deallocate()
         }
         srcL.deallocate()
