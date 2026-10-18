@@ -60,6 +60,8 @@ public final class AudioCore: @unchecked Sendable {
         masterR.initialize(repeating: 0, count: AudioCore.maxFrames)
         sequencer.sampler = sampler
         sampler.fx = fx
+        sampler.mixLockMask = sequencer.mixLockMask
+        sampler.mixLockGain = sequencer.mixLockGain
         sampler.mod = mod
         sampler.eqs = trackEqs
         sampler.spectra = spectra

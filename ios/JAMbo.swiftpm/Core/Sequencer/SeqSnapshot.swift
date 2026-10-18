@@ -44,6 +44,14 @@ public struct SeqData {
     public var arrStart: Int = 0
     public var arrEndStop: Bool = false
     public var rowLoop: Bool = true
+    /// Последовательности MIX и MST (Project.chanSeqs): длина и играющие страницы; p-lock громкостей на шагах MIX —
+    /// биты дорожек и усиления (Params.volGain) по maxTracks на шаг.
+    public static let chans = 2
+    public var chanLength: UnsafeMutablePointer<Int32>
+    public var chanFrom: UnsafeMutablePointer<Int32>
+    public var chanTo: UnsafeMutablePointer<Int32>
+    public var mixMask: UnsafeMutablePointer<UInt16>
+    public var mixGain: UnsafeMutablePointer<Float>
 
     @inline(__always)
     private func ci(_ t: Int, _ k: Int) -> Int {
@@ -64,8 +72,12 @@ public struct SeqData {
 
     @inline(__always)
     public func pageLen(_ t: Int, _ k: Int, _ p: Int, from: Int) -> Int {
+        return SeqData.pageLen(Int(clipLength[ci(t, k)]), p, from: from)
+    }
+
+    @inline(__always)
+    static func pageLen(_ length: Int, _ p: Int, from: Int) -> Int {
         let n = Params.stepsPerPage
-        let length = Int(clipLength[ci(t, k)])
         if length > from * n { return max(0, min(n, length - p * n)) }
         return n
     }
@@ -73,10 +85,15 @@ public struct SeqData {
     @inline(__always)
     public func playLen(_ t: Int, slot k: Int) -> Int {
         let c = clip(t, k)
+        return SeqData.playLen(Int(clipLength[ci(t, k)]), c.from, c.to)
+    }
+
+    @inline(__always)
+    static func playLen(_ length: Int, _ from: Int, _ to: Int) -> Int {
         var n = 0
-        var p = c.from
-        while p <= c.to {
-            n += pageLen(t, k, p, from: c.from)
+        var p = from
+        while p <= to {
+            n += pageLen(length, p, from: from)
             p += 1
         }
         return max(1, n)
@@ -86,16 +103,27 @@ public struct SeqData {
     @inline(__always)
     public func playIndex(_ t: Int, slot k: Int, _ n: Int) -> Int {
         let c = clip(t, k)
-        let total = playLen(t, slot: k)
+        return SeqData.playIndex(Int(clipLength[ci(t, k)]), c.from, c.to, n)
+    }
+
+    /// Шаг последовательности MIX или MST (c — Project.mixSeq, mstSeq) на позиции n от PLAY, по кругу.
+    @inline(__always)
+    public func chanIndex(_ c: Int, _ n: Int) -> Int {
+        return SeqData.playIndex(Int(chanLength[c]), Int(chanFrom[c]), Int(chanTo[c]), n)
+    }
+
+    @inline(__always)
+    static func playIndex(_ length: Int, _ from: Int, _ to: Int, _ n: Int) -> Int {
+        let total = playLen(length, from, to)
         var r = ((n % total) + total) % total
-        var p = c.from
-        while p <= c.to {
-            let l = pageLen(t, k, p, from: c.from)
+        var p = from
+        while p <= to {
+            let l = pageLen(length, p, from: from)
             if r < l { return p * Params.stepsPerPage + r }
             r -= l
             p += 1
         }
-        return c.from * Params.stepsPerPage
+        return from * Params.stepsPerPage
     }
 
     /// Индекс шага pos клипа k в массивах шагов; −1 — ячейка пуста.
@@ -134,7 +162,10 @@ public final class SeqSnapshot: @unchecked Sendable {
             lockVal: .allocate(capacity: steps * VoiceParam.count),
             fxMask: .allocate(capacity: steps), fxVal: .allocate(capacity: steps * Params.fxCount),
             modMask: .allocate(capacity: steps), modVal: .allocate(capacity: steps * Params.modCount),
-            repeats: .allocate(capacity: SeqData.slots)
+            repeats: .allocate(capacity: SeqData.slots),
+            chanLength: .allocate(capacity: SeqData.chans), chanFrom: .allocate(capacity: SeqData.chans),
+            chanTo: .allocate(capacity: SeqData.chans), mixMask: .allocate(capacity: SeqData.maxSteps),
+            mixGain: .allocate(capacity: SeqData.maxSteps * tracks)
         )
         d.stopped.initialize(repeating: 1, count: tracks)
         d.slot.initialize(repeating: 0, count: tracks)
@@ -162,6 +193,15 @@ public final class SeqSnapshot: @unchecked Sendable {
         d.arrEndStop = project.arrEndStop
         d.rowLoop = project.rowLoop
         for k in 0..<SeqData.slots { d.repeats[k] = Int32(project.scenes[k].repeats) }
+        d.mixMask.initialize(repeating: 0, count: SeqData.maxSteps)
+        d.mixGain.initialize(repeating: 0, count: SeqData.maxSteps * tracks)
+        for c in 0..<SeqData.chans {
+            let clip: Clip = project.chanSeqs[c].openClip
+            d.chanLength[c] = Int32(clip.length)
+            d.chanFrom[c] = Int32(clip.range.lowerBound)
+            d.chanTo[c] = Int32(clip.range.upperBound)
+        }
+        SeqSnapshot.fillMix(&d, project.chanSeqs[Project.mixSeq].openClip)
         d.trackCount = used
         var block = 0
         for t in 0..<used {
@@ -180,13 +220,29 @@ public final class SeqSnapshot: @unchecked Sendable {
 
     /// Снимок паттернов тот же: шаги, клипы, строки и ручки Chance, Ratchet, Swing не менялись.
     public static func same(_ a: Project, _ b: Project) -> Bool {
-        if a.tracks.count != b.tracks.count || a.scenes != b.scenes || a.rows != b.rows || a.arrStart != b.arrStart
+        if a.tracks.count != b.tracks.count || a.chanSeqs != b.chanSeqs || a.scenes != b.scenes || a.rows != b.rows || a.arrStart != b.arrStart
             || a.arrEndStop != b.arrEndStop || a.rowLoop != b.rowLoop { return false }
         for (x, y) in zip(a.tracks, b.tracks) {
             if x.slot != y.slot || x.stopped != y.stopped || x.clips != y.clips { return false }
             for id in ["prob", "ratchet", "swing"] where x.params[id] != y.params[id] { return false }
         }
         return true
+    }
+
+    /// P-lock громкостей на шагах MIX: бит дорожки и усиление.
+    private static func fillMix(_ d: inout SeqData, _ c: Clip) {
+        for (p, page) in c.pages.enumerated() where p < Params.maxPages {
+            for (s, step) in page.enumerated() where !step.locks.isEmpty {
+                let i = p * Params.stepsPerPage + s
+                var mask: UInt16 = 0
+                for (id, v) in step.locks {
+                    guard let t = Params.mixTrack(id) else { continue }
+                    mask |= UInt16(1) << UInt16(t)
+                    d.mixGain[i * SeqData.maxTracks + t] = Float(Params.volGain(v))
+                }
+                d.mixMask[i] = mask
+            }
+        }
     }
 
     private static func fill(_ d: inout SeqData, _ track: Track, _ c: Clip, cell: Int, block: Int) {
@@ -257,5 +313,10 @@ public final class SeqSnapshot: @unchecked Sendable {
         data.modMask.deallocate()
         data.modVal.deallocate()
         data.repeats.deallocate()
+        data.chanLength.deallocate()
+        data.chanFrom.deallocate()
+        data.chanTo.deallocate()
+        data.mixMask.deallocate()
+        data.mixGain.deallocate()
     }
 }

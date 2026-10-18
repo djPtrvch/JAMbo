@@ -155,6 +155,11 @@ public enum Params {
     public static let mixGrid: [ParamDef] = (0..<16).map { i in
         ParamDef(id: "mix.vol\(i + 1)", label: "\(i + 1)", min: volMin, max: 0, def: volDef, format: volText)
     }
+    /// Дорожка ручки громкости MIX по id (mix.vol1 → 0), иначе nil.
+    public static func mixTrack(_ id: String) -> Int? {
+        guard id.hasPrefix("mix.vol"), let n = Int(id.dropFirst(7)), n >= 1 && n <= 16 else { return nil }
+        return n - 1
+    }
     public static let noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
     public static func noteName(_ n: Int) -> String {

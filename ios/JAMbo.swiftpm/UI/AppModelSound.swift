@@ -118,10 +118,10 @@ extension AppModel {
     /// (как knobState).
     func synthValue(_ p: ParamDef) -> Double {
         let t = track
-        if let held = heldSteps.min() {
+        if let held = firstHeld {
             if let v = t.step(held)?.locks[p.id] { return v }
         } else if playing {
-            let pos = openPlayPos
+            let pos = trackPlayPos
             if pos >= 0, let v = t.step(pos)?.locks[p.id] { return v }
         }
         return t.params[p.id] ?? p.def
@@ -442,7 +442,7 @@ extension AppModel {
         edit { p in p.pasteTrack(i, c) }
         if i == selectedTrack {
             heldSteps.removeAll()
-            viewPage = min(viewPage, track.pages.count - 1)
+            viewPage = min(viewPage, seq.pages.count - 1)
         }
     }
 
@@ -468,9 +468,8 @@ extension AppModel {
 
     /// Перенос страницы (удержание миниатюры и протягивание); открыта — перенесённая.
     func movePage(_ from: Int, _ to: Int) {
-        guard channel == .track else { return }
-        editTrack { t in t.movePage(from, to) }
-        viewPage = min(to, track.pages.count - 1)
+        editSeq { t in t.movePage(from, to) }
+        viewPage = min(to, seq.pages.count - 1)
         heldSteps.removeAll()
     }
 }

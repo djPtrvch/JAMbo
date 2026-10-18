@@ -99,7 +99,7 @@ extension AppModel {
 
     /// Ноты, обведённые белым: ноты зажатого шага, иначе выбранные (нет выбранных — корневая).
     var shownNotes: Set<Int> {
-        if let held = heldSteps.min() { return Set(track.step(held)?.notes ?? []) }
+        if channel == .track, let held = heldSteps.min() { return Set(track.step(held)?.notes ?? []) }
         let sel = selNotes[selectedTrack]
         return sel.isEmpty ? [keyNote(0)] : Set(sel)
     }
@@ -108,7 +108,7 @@ extension AppModel {
     var playingNotes: Set<Int> {
         let t = selectedTrack
         guard playing, live.flashing[t] else { return [] }
-        let pos = openPlayPos
+        let pos = trackPlayPos
         if pos < 0 { return [] }
         return Set(track.step(pos)?.notes ?? [])
     }

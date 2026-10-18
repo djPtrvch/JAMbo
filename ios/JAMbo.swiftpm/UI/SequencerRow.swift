@@ -221,9 +221,10 @@ struct StepInfo {
     let ownSound: Bool
 
     init(model: AppModel, page: Int, col: Int) {
-        let t: Track = model.track
+        let t: Track = model.seq
         let index: Int = page * Params.stepsPerPage + col
         let s: Step? = t.step(index)
+        // Ноты — только у дорожки; у MIX и MST — p-lock, длина и ход.
         channelOn = model.channel == .track
         on = channelOn && (s?.on ?? false)
         var isTail = false
@@ -238,19 +239,19 @@ struct StepInfo {
             }
         }
         tail = isTail
-        manualLock = channelOn && (s.map { Track.hasManualLocks($0) } ?? false)
+        manualLock = s.map { Track.hasManualLocks($0) } ?? false
         ownSound = on && s?.sound != nil
         if on, let s = s {
             label = s.notes.count > 1 ? "POLY" : (s.notes.first.map { Params.noteName($0) } ?? "")
         } else {
             label = ""
         }
-        let pos: Int = model.playing && channelOn ? model.openPlayPos : -1
+        let pos: Int = model.playing ? model.openPlayPos : -1
         playing = pos == index
         held = model.heldSteps.contains(index)
         let len: Int = t.pageLen(page)
-        outside = channelOn && col >= len
-        last = channelOn && len < Params.stepsPerPage && col == len - 1
+        outside = col >= len
+        last = len < Params.stepsPerPage && col == len - 1
     }
 
     func fill(_ theme: Theme) -> Color {

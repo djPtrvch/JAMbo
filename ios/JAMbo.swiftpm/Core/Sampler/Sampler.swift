@@ -88,6 +88,9 @@ public final class Sampler {
     public var fx: FxRack?
     /// EQ дорожек (до Sidechain и громкости микшера; TrackEqs).
     public var eqs: TrackEqs?
+    /// P-lock громкостей играющего шага MIX (Sequencer.mixLockMask / mixLockGain; ставит AudioCore).
+    public var mixLockMask: UnsafeMutablePointer<UInt16>?
+    public var mixLockGain: UnsafeMutablePointer<Float>?
     /// Точки съёма спектров EQ (ставит AudioCore).
     public var spectra: Spectra?
     /// Пики дорожек для измерителя и метров MIX, громкость показанной дорожки (ставит AudioCore).

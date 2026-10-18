@@ -66,6 +66,13 @@ public struct Track: Codable, Equatable, Sendable {
         params = Params.defaults()
     }
 
+    /// Последовательность MIX или MST.
+    static func channel(_ name: String) -> Track {
+        var t = Track(index: 0)
+        t.name = name
+        return t
+    }
+
     static func firstClips() -> [Clip?] {
         var c = [Clip?](repeating: nil, count: Params.patternSlots)
         c[0] = Clip()
@@ -232,6 +239,10 @@ public struct Project: Codable, Equatable, Sendable {
     /// EQ мастера (doc.masterEq) — первый в цепочке мастера.
     public var masterEq: Eq = Eq()
     public var tracks: [Track]
+    /// Свои последовательности MIX и MST (doc.chanSeqs веба): страницы и p-lock шагов (нот нет) — у MIX громкости
+    /// дорожек (mix.vol1…16), у MST — параметры мастера (ручки MST без p-lock — ставить нечего, как в вебе).
+    /// Один клип; играют с PLAY с первого шага, без сетки паттернов.
+    public var chanSeqs: [Track] = [Track.channel("MIX"), Track.channel("MST")]
     /// Строки сетки паттернов: имена и повторы.
     public var scenes: [SceneRow] = [SceneRow](repeating: SceneRow(), count: Params.patternSlots)
     /// Видимых строк (по умолчанию 1; заполненные видны всегда).

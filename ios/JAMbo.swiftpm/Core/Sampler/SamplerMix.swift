@@ -36,8 +36,12 @@ extension Sampler {
             }
         }
         let lv = levels
+        // Громкость с p-lock играющего шага MIX (как liveMixer веба).
+        let lockMask: UInt16 = mixLockMask?.pointee ?? 0
+        let lockGain: UnsafeMutablePointer<Float>? = mixLockGain
         for t in 0..<d.trackCount {
-            let vt: Float = d.gain[t]
+            var vt: Float = d.gain[t]
+            if lockMask & (UInt16(1) << UInt16(t)) != 0, let g = lockGain { vt = g[t] }
             let gt: Float = d.open[t] != 0 ? 1 : 0
             let at: Float = t == source ? 0 : Swift.max(0, Swift.min(1, d.scAmount[t] / 100))
             if volCur[t] < 0 { volCur[t] = vt }

@@ -52,29 +52,26 @@ struct PagesColumn: View {
 
     @ViewBuilder
     private func row(_ r: Int) -> some View {
-        let n: Int = model.channel == .track ? model.track.pages.count : 0
+        let n: Int = model.seq.pages.count
         if r < n {
             PageThumb(model: model, page: r)
-        } else if r == n && n < Params.maxPages && model.channel == .track {
+        } else if r == n && n < Params.maxPages {
             PlusThumb()
         } else {
             Color.clear
         }
     }
 
-    @ViewBuilder
     private func outline(rowH: CGFloat) -> some View {
-        if model.channel == .track {
-            let t: Track = model.track
-            let top: CGFloat = CGFloat(t.playFrom) * (rowH + 4) - 3
-            let h: CGFloat = CGFloat(t.playTo - t.playFrom + 1) * (rowH + 4) - 4 + 6
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(theme.text, lineWidth: 1)
-                .frame(height: h)
-                .padding(.horizontal, -3)
-                .offset(y: top)
-                .allowsHitTesting(false)
-        }
+        let t: Track = model.seq
+        let top: CGFloat = CGFloat(t.playFrom) * (rowH + 4) - 3
+        let h: CGFloat = CGFloat(t.playTo - t.playFrom + 1) * (rowH + 4) - 4 + 6
+        return RoundedRectangle(cornerRadius: 8)
+            .stroke(theme.text, lineWidth: 1)
+            .frame(height: h)
+            .padding(.horizontal, -3)
+            .offset(y: top)
+            .allowsHitTesting(false)
     }
 
     /// Перенос страницы: поднятая — за пальцем, страницы между старым и новым местом — на соседнее.
@@ -101,7 +98,7 @@ struct PagesColumn: View {
                 // Удержание страницы (она поднята) и протягивание — перенос: миниатюра идёт за пальцем, соседи сдвигаются.
                 if p.lifting {
                     p.liftY = g.location.y
-                    let n: Int = model.track.pages.count
+                    let n: Int = model.seq.pages.count
                     p.liftTo = min(n - 1, max(0, Int(g.location.y / rowH)))
                     if abs(g.translation.height) > 8 { p.moved = true }
                     press = p
@@ -119,16 +116,15 @@ struct PagesColumn: View {
 
     private func begin(_ y: CGFloat, step: CGFloat) {
         model.ensureAudio()
-        guard model.channel == .track else { return }
-        let n: Int = model.track.pages.count
+        let n: Int = model.seq.pages.count
         let r: Int = rowAt(y, step: step)
         let mode: PageDragMode = dragMode(y, step: step)
         if r > n && mode == .range { return }
         var p = PagePress(row: min(r, n), plus: r == n && mode == .range)
         p.mode = mode
         p.y0 = y
-        p.from0 = model.track.playFrom
-        p.to0 = model.track.playTo
+        p.from0 = model.seq.playFrom
+        p.to0 = model.seq.playTo
         press = p
         let started: Date = p.t0
         let nearEdge: Bool = edgeDistance(y, step: step) < 0.25 * (step - 4)
@@ -137,7 +133,7 @@ struct PagesColumn: View {
             guard var cur = press, cur.t0 == started, !cur.moved, !cur.plus, !nearEdge else { return }
             cur.held = true
             // Страница открыта в секвенсоре и поднята: протягивание переносит её.
-            cur.lifting = cur.row < model.track.pages.count
+            cur.lifting = cur.row < model.seq.pages.count
             cur.liftTo = cur.row
             cur.liftY = cur.y0
             withAnimation(.easeOut(duration: 0.12)) { press = cur }
@@ -148,14 +144,14 @@ struct PagesColumn: View {
 
     /// Расстояние до ближайшей границы обводки.
     private func edgeDistance(_ y: CGFloat, step: CGFloat) -> CGFloat {
-        let t: Track = model.track
+        let t: Track = model.seq
         let top: CGFloat = CGFloat(t.playFrom) * step
         let bottom: CGFloat = CGFloat(t.playTo + 1) * step - 4
         return min(abs(y - top), abs(y - bottom))
     }
 
     private func dragMode(_ y: CGFloat, step: CGFloat) -> PageDragMode {
-        let t: Track = model.track
+        let t: Track = model.seq
         let rowH: CGFloat = step - 4
         let top: CGFloat = CGFloat(t.playFrom) * step
         let bottom: CGFloat = CGFloat(t.playTo + 1) * step - 4
@@ -169,10 +165,10 @@ struct PagesColumn: View {
     /// Протягивание: край идёт за пальцем (страница берётся или отпускается, когда край зашёл в неё на треть),
     /// обводка целиком — сдвигом на целые страницы, снаружи — диапазон от первой страницы до пальца.
     private func follow(_ p: inout PagePress, y: CGFloat, step: CGFloat) {
-        let n: Int = model.track.pages.count
+        let n: Int = model.seq.pages.count
         let rowH: CGFloat = step - 4
-        var from: Int = model.track.playFrom
-        var to: Int = model.track.playTo
+        var from: Int = model.seq.playFrom
+        var to: Int = model.seq.playTo
         switch p.mode {
         case .top:
             while from < to && y > CGFloat(from) * step + rowH / 3 { from += 1 }
@@ -191,7 +187,7 @@ struct PagesColumn: View {
             from = min(a, r)
             to = max(a, r)
         }
-        if from != model.track.playFrom || to != model.track.playTo { model.playPages(from, to) }
+        if from != model.seq.playFrom || to != model.seq.playTo { model.playPages(from, to) }
     }
 
     private func end() {
@@ -210,7 +206,7 @@ struct PagesColumn: View {
             model.addPage()
             return
         }
-        if p.row < model.track.pages.count { tap(p.row) }
+        if p.row < model.seq.pages.count { tap(p.row) }
     }
 
     /// Отпустили перенесённую страницу: страницы встают на новые места без анимации (соседи уже там), а сама
@@ -281,7 +277,7 @@ struct PageThumb: View {
 
     var body: some View {
         // Данные читаются здесь (в теле), а не в Canvas: так правки и ход игры перерисовывают миниатюру.
-        let cells: [ThumbCell] = ThumbCell.page(model.track, page: page)
+        let cells: [ThumbCell] = ThumbCell.page(model.seq, page: page)
         let played: Int = model.openPlayPos
         let pos: Int = model.playing && played >= 0 ? played - page * Params.stepsPerPage : -1
         let current: Bool = model.viewPages.contains(page)

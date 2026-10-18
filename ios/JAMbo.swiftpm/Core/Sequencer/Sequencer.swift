@@ -5,7 +5,8 @@
 /// Сообщения из колбэка в интерфейс.
 public enum SeqOut: Sendable {
     case none
-    /// Шаг pos дорожки track начал играть (pos = p·16 + s; −1 — дорожка стоит).
+    /// Шаг pos дорожки track начал играть (pos = p·16 + s; −1 — дорожка стоит); track maxTracks + c —
+    /// последовательность MIX (c = 0) или MST (c = 1).
     case step(track: Int, pos: Int)
     /// Сработала нота дорожки (каждый удар рэтчета) в кадре frame.
     case trig(track: Int, frame: Int64)
@@ -60,6 +61,9 @@ public final class Sequencer {
     /// P-lock LFO/ENV играющего шага каждой дорожки (биты Params.modIds и значения): читает ModEngine.
     public let modLockMask = UnsafeMutablePointer<UInt16>.allocate(capacity: SeqData.maxTracks)
     public let modLockVal = UnsafeMutablePointer<Float>.allocate(capacity: SeqData.maxTracks * Params.modCount)
+    /// P-lock громкостей играющего шага MIX (биты дорожек и усиления): читает микшер (SamplerMix).
+    public let mixLockMask = UnsafeMutablePointer<UInt16>.allocate(capacity: 1)
+    public let mixLockGain = UnsafeMutablePointer<Float>.allocate(capacity: SeqData.maxTracks)
     /// Модуляция (ENV от нот; LFO/ENV на Chance, Ratchet, Swing) — задаёт AudioCore.
     public var mod: ModEngine?
     private var pendingCount = 0
@@ -85,6 +89,8 @@ public final class Sequencer {
         modLockVal.initialize(repeating: 0, count: SeqData.maxTracks * Params.modCount)
         fxLockMask.initialize(repeating: 0, count: SeqData.maxTracks)
         fxLockVal.initialize(repeating: 0, count: SeqData.maxTracks * Params.fxCount)
+        mixLockMask.initialize(to: 0)
+        mixLockGain.initialize(repeating: 0, count: SeqData.maxTracks)
     }
 
     deinit {
@@ -101,6 +107,8 @@ public final class Sequencer {
         pendingEnv.deallocate()
         modLockMask.deallocate()
         modLockVal.deallocate()
+        mixLockMask.deallocate()
+        mixLockGain.deallocate()
     }
 
     public var bpm: Double { return tempo.tempo }
@@ -125,7 +133,8 @@ public final class Sequencer {
             launcher.reset()
             fxLockMask.update(repeating: 0, count: SeqData.maxTracks)
             modLockMask.update(repeating: 0, count: SeqData.maxTracks)
-            for t in 0..<SeqData.maxTracks { out.push(.step(track: t, pos: -1)) }
+            mixLockMask.pointee = 0
+            for t in 0..<SeqData.maxTracks + SeqData.chans { out.push(.step(track: t, pos: -1)) }
             out.push(.scene(row: -1, start: 0, len: 16))
             out.push(.sceneQueue(row: -1))
         }
@@ -188,6 +197,24 @@ public final class Sequencer {
             let accent = TempoGrid.isBarStart(Double(tick) / TempoGrid.stepsPerBeat)
             if metronome { click.trigger(at: Int64(time), accent: accent) }
             out.push(.beat(accent: accent))
+        }
+        // Свои последовательности MIX и MST: только p-lock на время шага (громкости — у MIX), с PLAY с первого шага.
+        var c = 0
+        while c < SeqData.chans {
+            let pos = d.chanIndex(c, tick)
+            out.push(.step(track: SeqData.maxTracks + c, pos: pos))
+            if c == Project.mixSeq {
+                let m: UInt16 = pos >= 0 && pos < SeqData.maxSteps ? d.mixMask[pos] : 0
+                mixLockMask.pointee = m
+                if m != 0 {
+                    var t = 0
+                    while t < SeqData.maxTracks {
+                        mixLockGain[t] = d.mixGain[pos * SeqData.maxTracks + t]
+                        t += 1
+                    }
+                }
+            }
+            c += 1
         }
         for t in 0..<d.trackCount {
             if !launcher.plays(d, t) {

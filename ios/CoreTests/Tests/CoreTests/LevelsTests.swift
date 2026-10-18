@@ -88,6 +88,25 @@ final class LevelsTests: XCTestCase {
         XCTAssertLessThan(b, 1e-5)
     }
 
+    /// P-lock громкости на шаге MIX: пока шаг играет, громкость дорожки — из p-lock (здесь −∞ на всех шагах).
+    func testMixLockVolume() {
+        var rnd = FxRandom(3)
+        let noise = (0..<96000).map { _ in Float(rnd.next() * 2 - 1) * 0.3 }
+        let core = AudioCore()
+        var p = Project()
+        p.tracks[0].addSamples(["n"])
+        p.tracks[0].vol = 0
+        p.chanSeqs[Project.mixSeq].length = 1
+        p.chanSeqs[Project.mixSeq].setLock(0, "mix.vol1", Params.volMin)
+        core.publish(p, samples: ["n": SampleData(left: noise, right: nil)])
+        core.events.push(.noteOn(track: 0, note: 48, id: 1, velocity: 1))
+        render(core, frames: 24000)
+        XCTAssertGreaterThan(peak(core, 0).0, 0.05, "без PLAY p-lock не действует")
+        core.events.push(.play(true))
+        render(core, frames: 24000)
+        XCTAssertLessThan(peak(core, 0).0, 1e-4)
+    }
+
     /// Кадры индикации COMP / CLIP / LIM: раз в 256 отсчётов; клиппер с INPUT +12 dB срезает (GR > 0).
     func testDynTele() {
         let core = AudioCore()

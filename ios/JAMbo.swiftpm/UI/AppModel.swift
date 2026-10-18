@@ -219,7 +219,7 @@ final class AppModel {
             }
             if t == selectedTrack {
                 heldSteps.removeAll()
-                viewPage = min(viewPage, track.pages.count - 1)
+                viewPage = min(viewPage, seq.pages.count - 1)
             }
         case .ended:
             if playing {
@@ -308,7 +308,7 @@ final class AppModel {
         project = p
         heldSteps.removeAll()
         selectedTrack = min(selectedTrack, project.tracks.count - 1)
-        viewPage = min(viewPage, track.pages.count - 1)
+        viewPage = min(viewPage, seq.pages.count - 1)
         if bpmChanged { audio.core.events.push(.tempo(project.bpm)) }
         changed()
     }
@@ -325,9 +325,27 @@ final class AppModel {
 
     var track: Track { return project.tracks[selectedTrack] }
 
+    /// Последовательность в секвенсоре и миниатюрах: выбранная дорожка, при MIX и MST — их свои (Project.chanSeqs).
+    var seq: Track {
+        switch channel {
+        case .track: return track
+        case .mix: return project.chanSeqs[Project.mixSeq]
+        case .master: return project.chanSeqs[Project.mstSeq]
+        }
+    }
+
+    /// Правка показанной последовательности.
+    func editSeq(_ change: (inout Track) -> Void) {
+        switch channel {
+        case .track: editTrack(change)
+        case .mix: edit { p in change(&p.chanSeqs[Project.mixSeq]) }
+        case .master: edit { p in change(&p.chanSeqs[Project.mstSeq]) }
+        }
+    }
+
     /// Страницы в секвенсоре: несколько играющих — все подряд (16 × N шагов в один ряд), иначе открытая.
     var viewPages: ClosedRange<Int> {
-        let t = track
+        let t = seq
         let v: Int = max(0, min(viewPage, t.pages.count - 1))
         if spanView && t.playTo > t.playFrom && t.playTo < t.pages.count && t.playFrom <= v && v <= t.playTo {
             return t.playFrom...t.playTo
@@ -348,8 +366,16 @@ final class AppModel {
         }
     }
 
-    /// Позиция играющего шага в открытом клипе выбранной дорожки (−1 — открыт не играющий клип).
+    /// Позиция играющего шага в открытом клипе выбранной дорожки (−1 — открыт не играющий клип); при MIX и MST —
+    /// шаг их последовательности.
     var openPlayPos: Int {
+        if channel == .mix { return live.playPos[SeqData.maxTracks + Project.mixSeq] }
+        if channel == .master { return live.playPos[SeqData.maxTracks + Project.mstSeq] }
+        return trackPlayPos
+    }
+
+    /// Позиция играющего шага в открытом клипе выбранной дорожки (и при MIX, MST — пианоролл, окно синта).
+    var trackPlayPos: Int {
         let t = track
         if t.open != t.slot { return -1 }
         return live.playPos[selectedTrack]
@@ -371,7 +397,7 @@ final class AppModel {
     func selectTrackIndex(_ i: Int) {
         selectedTrack = max(0, min(i, project.tracks.count - 1))
         heldSteps.removeAll()
-        viewPage = min(viewPage, track.pages.count - 1)
+        viewPage = min(viewPage, seq.pages.count - 1)
     }
 
     func select(track i: Int) {
@@ -385,6 +411,7 @@ final class AppModel {
     func select(channel c: Channel) {
         channel = c
         heldSteps.removeAll()
+        viewPage = min(viewPage, seq.pages.count - 1)
         // При MST на месте LFO1–3 и ENV — кнопки мастера: удержание источника не остаётся висеть.
         if c == .master { heldSources.removeAll() }
     }
@@ -429,7 +456,8 @@ final class AppModel {
 /// Ход игры: позиция шага каждой дорожки, мигание дорожек, доля метронома.
 @Observable
 final class LiveState {
-    private(set) var playPos: [Int] = [Int](repeating: -1, count: Params.maxTracks)
+    /// Дорожки, затем последовательности MIX и MST (SeqData.maxTracks + c).
+    private(set) var playPos: [Int] = [Int](repeating: -1, count: Params.maxTracks + SeqData.chans)
     private(set) var flashing: [Bool] = [Bool](repeating: false, count: Params.maxTracks)
     /// Доля от старта (для полосы фазы и мигания метронома); −1 — стоп.
     private(set) var beat: Int = -1

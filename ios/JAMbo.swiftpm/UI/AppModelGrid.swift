@@ -162,7 +162,7 @@ extension AppModel {
     func pasteClip(_ c: CellRef) {
         guard let clip = clipClipboard else { return }
         edit { p in p.tracks[c.track].setClip(c.row, clip) }
-        viewPage = min(viewPage, track.pages.count - 1)
+        viewPage = min(viewPage, seq.pages.count - 1)
     }
 
     func deleteClip(_ c: CellRef) {
@@ -175,7 +175,7 @@ extension AppModel {
         if a == b { return }
         guard let clip = project.tracks[a.track].clips[a.row] else { return }
         edit { p in p.tracks[b.track].setClip(b.row, clip) }
-        viewPage = min(viewPage, track.pages.count - 1)
+        viewPage = min(viewPage, seq.pages.count - 1)
     }
 
     // MARK: — строки
@@ -194,7 +194,7 @@ extension AppModel {
         edit { p in p.deleteRow(k) }
         if playing { audio.core.events.push(.adoptPlay) }
         heldSteps.removeAll()
-        viewPage = min(viewPage, track.pages.count - 1)
+        viewPage = min(viewPage, seq.pages.count - 1)
     }
 
     func copyRow(_ k: Int) {

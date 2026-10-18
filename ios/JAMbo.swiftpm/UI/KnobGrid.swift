@@ -2,7 +2,8 @@ import SwiftUI
 
 /// Сетка ручек 4×4: палец вверх-вниз (240 px — весь ход), мультитач. С зажатым шагом — p-lock (жёлтый),
 /// двойной тап с зажатым шагом — снять p-lock, SHIFT + двойной тап — снять все p-lock дорожки.
-/// MIX: громкости дорожек; справа от ручки — M, S, ● (стем — S10); двойной тап — меню дорожки (по серой — ADD TRACK);
+/// MST: параметры мастера (без p-lock). MIX: громкости дорожек (с зажатым шагом — p-lock на шагах MIX); справа от
+/// ручки — M, S, ● (стем — S10); двойной тап — меню дорожки (по серой — ADD TRACK), с зажатым шагом — снять p-lock;
 /// удержание ручки 0,5 с без движения и протягивание — перестановка дорожек.
 struct KnobGrid: View {
     let model: AppModel
@@ -132,7 +133,10 @@ struct KnobGrid: View {
         if model.channel != .mix { model.knobFingers.insert(s) }
         turns[id] = turn
         model.beginGesture()
-        if model.channel == .mix && s < model.project.tracks.count && !turn.consumed { armLift(id, s, p) }
+        // С зажатым шагом ручка ставит p-lock — перестановки дорожек нет.
+        if model.channel == .mix && s < model.project.tracks.count && !turn.consumed && model.heldSteps.isEmpty {
+            armLift(id, s, p)
+        }
     }
 
     /// Удержание ручки громкости 0,5 с без движения — она поднимается (перестановка дорожек).

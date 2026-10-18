@@ -39,24 +39,22 @@ extension AppModel {
         }
     }
 
-    /// Зажат шаг a, тап по шагу b: b становится копией a (триг, ноты, длина, p-lock, свой звук).
+    /// Зажат шаг a, тап по шагу b: b становится копией a (триг, ноты, длина, p-lock, свой звук; у MIX и MST — p-lock).
     /// Возвращает прежний шаг b (двойной тап при зажатом первом шаге отменяет копию и ставит длину паттерна).
     func copyStep(from a: Int, to b: Int) -> Step? {
-        guard channel == .track, a != b, let src = track.step(a), let old = track.step(b) else { return nil }
-        editTrack { t in t.withStep(b) { s in s = src } }
+        guard a != b, let src = seq.step(a), let old = seq.step(b) else { return nil }
+        editSeq { t in t.withStep(b) { s in s = src } }
         return old
     }
 
     /// Вернуть шаг index (отмена копии).
     func restoreStep(_ index: Int, _ step: Step) {
-        guard channel == .track else { return }
-        editTrack { t in t.withStep(index) { s in s = step } }
+        editSeq { t in t.withStep(index) { s in s = step } }
     }
 
-    /// Удержание первого шага и двойной тап по другому: он становится последним шагом паттерна.
+    /// Удержание первого шага и двойной тап по другому: он становится последним шагом паттерна (и у MIX, MST).
     func setPatternLength(lastIndex: Int) {
-        guard channel == .track else { return }
-        editTrack { t in t.length = lastIndex + 1 }
+        editSeq { t in t.length = lastIndex + 1 }
     }
 
     // MARK: — ручки
@@ -76,8 +74,10 @@ extension AppModel {
     func knobState(_ slot: Int) -> KnobState {
         guard let p = param(slot) else { return KnobState(param: nil, value: 0, norm: 0, baseNorm: 0, locked: false) }
         if channel == .mix {
-            let v: Double = project.tracks[slot].vol
-            return KnobState(param: p, value: v, norm: p.toNorm(v), baseNorm: p.toNorm(v), locked: false)
+            let base: Double = project.tracks[slot].vol
+            let lock: Double? = seqLock(p)
+            let v: Double = lock ?? base
+            return KnobState(param: p, value: v, norm: p.toNorm(v), baseNorm: p.toNorm(base), locked: lock != nil)
         }
         if channel == .master {
             let v: Double = masterValue(p)
@@ -100,7 +100,10 @@ extension AppModel {
     /// Начало поворота: положение, от которого считать (p-lock зажатого шага или ручка).
     func knobStart(_ slot: Int) -> Double {
         guard let p = param(slot) else { return 0 }
-        if channel == .mix { return p.toNorm(project.tracks[slot].vol) }
+        if channel == .mix {
+            if let held = heldSteps.min(), let v = seq.step(held)?.locks[p.id] { return p.toNorm(v) }
+            return p.toNorm(project.tracks[slot].vol)
+        }
         if channel == .master { return p.toNorm(masterValue(p)) }
         if let held = heldSteps.min(), let v = track.step(held)?.locks[p.id] { return p.toNorm(v) }
         if fxMode { return p.toNorm(fxValue(p)) }
@@ -119,8 +122,17 @@ extension AppModel {
             }
         }
         let v: Double = p.fromNorm(norm)
+        // MIX: с зажатыми шагами — p-lock громкости на шагах последовательности MIX, иначе громкость дорожки.
         if channel == .mix {
-            edit { pr in pr.tracks[slot].vol = v }
+            let held = heldSteps
+            if held.isEmpty {
+                edit { pr in pr.tracks[slot].vol = v }
+            } else {
+                usedSteps.formUnion(held)
+                editSeq { t in
+                    for i in held { t.setLock(i, p.id, v) }
+                }
+            }
             return
         }
         // Мастер: без p-lock — с зажатым шагом крутится само значение (noLock, как в вебе).
@@ -147,9 +159,19 @@ extension AppModel {
 
     /// Двойной тап по ручке: с зажатым шагом — снять p-lock; с SHIFT — снять все p-lock дорожки.
     func knobDoubleTap(_ slot: Int) {
-        // MIX: двойной тап по ручке громкости — меню дорожки (COPY, PASTE, DELETE TRACK, RENAME), по серой — ADD TRACK.
+        // MIX: с зажатым шагом — снять p-lock громкости; без — меню дорожки (COPY, PASTE, DELETE TRACK, RENAME),
+        // по серой — ADD TRACK.
         if channel == .mix {
-            openTrackMenu(slot)
+            let held = heldSteps
+            if held.isEmpty || slot >= project.tracks.count {
+                openTrackMenu(slot)
+                return
+            }
+            usedSteps.formUnion(held)
+            let id: String = Params.mixGrid[slot].id
+            editSeq { t in
+                for i in held { t.clearLock(i, id) }
+            }
             return
         }
         guard let p = param(slot), channel == .track else { return }
@@ -165,6 +187,17 @@ extension AppModel {
         }
     }
 
+    /// P-lock ручки на показанной последовательности: зажатого шага, иначе играющего (жёлтым).
+    func seqLock(_ p: ParamDef) -> Double? {
+        let t = seq
+        if let held = heldSteps.min() { return t.step(held)?.locks[p.id] }
+        if playing {
+            let pos = openPlayPos
+            if pos >= 0 { return t.step(pos)?.locks[p.id] }
+        }
+        return nil
+    }
+
     /// Значение параметра мастера (нет в проекте — по умолчанию).
     func masterValue(_ p: ParamDef) -> Double {
         return project.master[p.id] ?? p.def
@@ -173,15 +206,14 @@ extension AppModel {
     // MARK: — страницы
 
     func addPage() {
-        guard channel == .track, track.pages.count < Params.maxPages else { return }
-        editTrack { t in t.addPage() }
-        viewPage = track.pages.count - 1
+        guard seq.pages.count < Params.maxPages else { return }
+        editSeq { t in t.addPage() }
+        viewPage = seq.pages.count - 1
     }
 
     /// Тап по миниатюре: эта страница играет и открыта в секвенсоре.
     func playPages(_ a: Int, _ b: Int) {
-        guard channel == .track else { return }
-        editTrack { t in t.setPlayPages(a, b) }
+        editSeq { t in t.setPlayPages(a, b) }
         viewPage = min(a, b)
         spanView = true
     }
@@ -189,31 +221,30 @@ extension AppModel {
     enum PageAction { case left, right, up, down, duplicate, copy, paste, clear, delete }
 
     func pageAction(_ action: PageAction, page i: Int) {
-        guard channel == .track else { return }
         switch action {
-        case .left: editTrack { t in _ = t.nudgePages(i, .left) }
-        case .right: editTrack { t in _ = t.nudgePages(i, .right) }
-        case .up: editTrack { t in _ = t.nudgePages(i, .up) }
-        case .down: editTrack { t in _ = t.nudgePages(i, .down) }
+        case .left: editSeq { t in _ = t.nudgePages(i, .left) }
+        case .right: editSeq { t in _ = t.nudgePages(i, .right) }
+        case .up: editSeq { t in _ = t.nudgePages(i, .up) }
+        case .down: editSeq { t in _ = t.nudgePages(i, .down) }
         case .duplicate:
-            let r = track.pageRange(i)
-            editTrack { t in _ = t.duplicatePages(i) }
-            viewPage = min(track.pages.count - 1, r.upperBound + 1)
-        case .copy: pageClipboard = track.copyPages(i)
+            let r = seq.pageRange(i)
+            editSeq { t in _ = t.duplicatePages(i) }
+            viewPage = min(seq.pages.count - 1, r.upperBound + 1)
+        case .copy: pageClipboard = seq.copyPages(i)
         case .paste:
-            if let clip = pageClipboard { editTrack { t in t.pastePages(i, clip) } }
-        case .clear: editTrack { t in t.clearPages(i) }
+            if let clip = pageClipboard { editSeq { t in t.pastePages(i, clip) } }
+        case .clear: editSeq { t in t.clearPages(i) }
         case .delete:
-            editTrack { t in _ = t.deletePages(i) }
-            viewPage = min(viewPage, track.pages.count - 1)
+            editSeq { t in _ = t.deletePages(i) }
+            viewPage = min(viewPage, seq.pages.count - 1)
         }
     }
 
     func canDuplicate(_ i: Int) -> Bool {
-        return track.pages.count + track.pageRange(i).count <= Params.maxPages
+        return seq.pages.count + seq.pageRange(i).count <= Params.maxPages
     }
 
     func canDelete(_ i: Int) -> Bool {
-        return track.pages.count - track.pageRange(i).count >= 1
+        return seq.pages.count - seq.pageRange(i).count >= 1
     }
 }

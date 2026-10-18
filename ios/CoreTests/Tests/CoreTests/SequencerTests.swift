@@ -153,4 +153,52 @@ final class SequencerTests: XCTestCase {
         XCTAssertEqual(Params.noteName(48), "C3")
         XCTAssertEqual(Params.noteName(37), "C#2")
     }
+
+    /// Последовательности MIX и MST: идут с PLAY с первого шага по своей длине; p-lock громкости на шаге MIX действует,
+    /// пока шаг играет.
+    func testChannelSequences() {
+        let core = AudioCore()
+        core.publish(project { p in
+            p.chanSeqs[Project.mixSeq].length = 4
+            p.chanSeqs[Project.mixSeq].setLock(1, "mix.vol2", -6)
+            p.chanSeqs[Project.mstSeq].length = 3
+        })
+        core.events.push(.play(true))
+        var mixPos: [Int] = []
+        var mstPos: [Int] = []
+        var masks: [UInt16] = []
+        var gains: [Float] = []
+        for _ in 0..<6 {
+            let r = run(core, frames: 6000, block: 250)
+            for e in r.out {
+                guard case .step(let t, let pos) = e else { continue }
+                if t == SeqData.maxTracks + Project.mixSeq { mixPos.append(pos) }
+                if t == SeqData.maxTracks + Project.mstSeq { mstPos.append(pos) }
+            }
+            masks.append(core.sequencer.mixLockMask.pointee)
+            gains.append(core.sequencer.mixLockGain[1])
+        }
+        XCTAssertEqual(mixPos, [0, 1, 2, 3, 0, 1])
+        XCTAssertEqual(mstPos, [0, 1, 2, 0, 1, 2])
+        XCTAssertEqual(masks, [0, 2, 0, 0, 0, 2])
+        XCTAssertEqual(gains[1], Float(Params.volGain(-6)), accuracy: 1e-6)
+        core.events.push(.play(false))
+        _ = run(core, frames: 256)
+        XCTAssertEqual(core.sequencer.mixLockMask.pointee, 0, "стоп — p-lock снят")
+    }
+
+    /// P-lock громкостей на шагах MIX переезжают с дорожками (удаление, перестановка).
+    func testMixLocksFollowTracks() {
+        var p = Project()
+        for _ in 0..<2 { p.addTrack() }
+        p.chanSeqs[Project.mixSeq].setLock(0, "mix.vol3", -1)
+        p.chanSeqs[Project.mixSeq].setLock(0, "mix.vol5", -2)
+        p.chanSeqs[Project.mixSeq].setLock(0, "mix.vol9", -3)
+        p.deleteTrack(2)
+        XCTAssertEqual(p.chanSeqs[Project.mixSeq].step(0)?.locks, ["mix.vol4": -2, "mix.vol8": -3])
+        p.moveTrack(3, 0)
+        XCTAssertEqual(p.chanSeqs[Project.mixSeq].step(0)?.locks, ["mix.vol1": -2, "mix.vol8": -3])
+        p.moveTrack(0, 7)
+        XCTAssertEqual(p.chanSeqs[Project.mixSeq].step(0)?.locks, ["mix.vol8": -2, "mix.vol7": -3])
+    }
 }

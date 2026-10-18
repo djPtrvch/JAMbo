@@ -171,6 +171,29 @@ extension Track {
 }
 
 extension Track {
+    /// P-lock громкостей (mix.vol1…16) на всех шагах: дорожка k → map(k) (nil — снять).
+    public mutating func remapMixLocks(_ map: (Int) -> Int?) {
+        for c in 0..<clips.count {
+            guard var clip = clips[c] else { continue }
+            for p in 0..<clip.pages.count {
+                for s in 0..<clip.pages[p].count {
+                    let locks = clip.pages[p][s].locks
+                    if locks.isEmpty { continue }
+                    var out: [String: Double] = [:]
+                    for (id, v) in locks {
+                        if let k = Params.mixTrack(id) {
+                            if let m = map(k) { out[Params.mixGrid[m].id] = v }
+                        } else {
+                            out[id] = v
+                        }
+                    }
+                    clip.pages[p][s].locks = out
+                }
+            }
+            clips[c] = clip
+        }
+    }
+
     /// Перенос страницы (удержание миниатюры и протягивание): страница from встаёт на место to, страницы между
     /// ними сдвигаются. Играющие страницы остаются на своих местах, но если играла одна перенесённая — обводка идёт за ней.
     public mutating func movePage(_ from: Int, _ to: Int) {
@@ -208,6 +231,8 @@ extension Project {
     public mutating func deleteTrack(_ i: Int) {
         if !canDeleteTrack(i) { return }
         tracks.remove(at: i)
+        // P-lock громкостей на шагах MIX — за дорожками: удалённой снимаются, правые сдвигаются.
+        chanSeqs[Project.mixSeq].remapMixLocks { k in k == i ? nil : (k > i ? k - 1 : k) }
     }
 
     /// Перестановка: дорожка from встаёт на место to, дорожки между ними сдвигаются (со звуком, паттернами,
@@ -217,7 +242,17 @@ extension Project {
         if from == to || from < 0 || to < 0 || from >= n || to >= n { return }
         let t = tracks.remove(at: from)
         tracks.insert(t, at: to)
+        chanSeqs[Project.mixSeq].remapMixLocks { k in
+            if k == from { return to }
+            if from < to && k > from && k <= to { return k - 1 }
+            if to < from && k >= to && k < from { return k + 1 }
+            return k
+        }
     }
+
+    /// Номера последовательностей MIX и MST в chanSeqs.
+    public static let mixSeq = 0
+    public static let mstSeq = 1
 
     /// PASTE дорожки на место i: всё как у скопированной; mute, solo и номер id — свои.
     public mutating func pasteTrack(_ i: Int, _ c: Track) {
