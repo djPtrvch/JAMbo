@@ -119,15 +119,17 @@ struct SeqLook {
     let pageGap: CGFloat
     let inset: CGFloat
     let dot: CGFloat
+    /// Отступ точки p-lock от угла ячейки.
+    let dotPad: CGFloat
     let showLabel: Bool
 
     init(pages n: Int) {
         pages = max(1, n)
         switch pages {
-        case 1: gap = Layout.stepGap; pageGap = 0; inset = 5; dot = 6
-        case 2: gap = 2; pageGap = 6; inset = 3; dot = 5
-        case 3, 4: gap = 1; pageGap = 5; inset = 1; dot = 4
-        default: gap = 1; pageGap = 3; inset = 1; dot = 3
+        case 1: gap = Layout.stepGap; pageGap = 0; inset = 5; dot = 6; dotPad = 10
+        case 2: gap = 2; pageGap = 6; inset = 3; dot = 5; dotPad = 6
+        case 3, 4: gap = 1; pageGap = 5; inset = 1; dot = 4; dotPad = 3
+        default: gap = 1; pageGap = 3; inset = 1; dot = 3; dotPad = 2
         }
         showLabel = pages <= 2
     }
@@ -199,7 +201,7 @@ struct StepCell: View {
         if info.manualLock {
             Circle().fill(theme.accent)
                 .frame(width: look.dot, height: look.dot)
-                .padding(look.pages > 2 ? 1 : 2)
+                .padding(look.dotPad)
         }
     }
 }

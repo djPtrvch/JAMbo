@@ -135,9 +135,10 @@ struct ProgressionRow: View {
         let n: Int = degrees.count
         let w: CGFloat = min(full, (width - KeyRow.gap * CGFloat(n - 1)) / CGFloat(n))
         let lit: Set<Int> = model.pressedNotes.union(model.playingNotes)
+        let shown: Set<Int> = model.shownNotes
         return HStack(spacing: KeyRow.gap) {
             ForEach(0..<n, id: \.self) { c in
-                chip(c, lit: lit).frame(width: w)
+                chip(c, lit: lit, shown: shown).frame(width: w)
             }
             Spacer(minLength: 0)
         }
@@ -145,14 +146,17 @@ struct ProgressionRow: View {
         .gesture(fingers(cell: w + KeyRow.gap, count: n))
     }
 
-    private func chip(_ c: Int, lit: Set<Int>) -> some View {
+    /// Аккорд: нажат или звучит — белая заливка; совпадает с нотами выбранными (или зажатого шага) — белый контур.
+    private func chip(_ c: Int, lit: Set<Int>, shown: Set<Int>) -> some View {
         let notes: [Int] = model.chipNotes(c) ?? []
         let on: Bool = !notes.isEmpty && notes.allSatisfy { lit.contains($0) }
+        let selected: Bool = notes.count > 1 && Set(notes) == shown
         return Text(model.chipName(c))
             .font(.system(size: 13, weight: .semibold))
             .foregroundStyle(on ? theme.bg : theme.text)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(on ? theme.text : theme.panel, in: RoundedRectangle(cornerRadius: 6))
+            .overlay(RoundedRectangle(cornerRadius: 6).stroke(selected && !on ? theme.text : Color.clear, lineWidth: 1))
     }
 
     private func fingers(cell: CGFloat, count: Int) -> some Gesture {
