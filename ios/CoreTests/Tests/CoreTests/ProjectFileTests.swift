@@ -322,6 +322,9 @@ final class MorphModesTests: XCTestCase {
         p.tracks[0].trim = -6
         let s = SoundSnapshot(p, samples: [:], map: .chromatic)
         XCTAssertEqual(Double(s.data.gain[0]), Params.volGain(-16), accuracy: 1e-6)
+        let abs = SoundSnapshot(p, samples: [:], map: .chromatic, levelRelative: false)
+        XCTAssertEqual(Double(abs.data.gain[0]), Params.volGain(-10), accuracy: 1e-6, "ABSOLUTE — ровно громкость MIX")
+        XCTAssertEqual(abs.data.trim[0], 1)
         p.tracks[0].trim = Params.volMin
         let q = SoundSnapshot(p, samples: [:], map: .chromatic)
         XCTAssertEqual(q.data.gain[0], 0)

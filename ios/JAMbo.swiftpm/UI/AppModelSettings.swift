@@ -46,6 +46,7 @@ extension AppModel {
 
     func setLevelRelative(_ on: Bool) {
         updateSettings { s in s.levelRelative = on }
+        publishAudio()
     }
 
     func setMorphAll(_ on: Bool) {

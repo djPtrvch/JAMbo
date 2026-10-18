@@ -4,7 +4,8 @@ import SwiftUI
 /// клиппинга, полосы (стерео — две, моно — одна; шкала −60…0 dB, пик-холд, выше 0 dB — красная, заглушённая
 /// дорожка — серая), снизу наибольший
 /// пик в dB (тап — сброс). Поверх полос — регулятор громкости (белая планка по той же шкале): у дорожки — её громкость
-/// в микшере (SETTINGS → LEVEL → RELATIVE — подстройка trim вниз от громкости MIX: верх — громкость MIX), при MIX
+/// в микшере (SETTINGS → LEVEL: ABSOLUTE — совпадает с MIX; RELATIVE — подстройка trim вниз от громкости MIX: верх —
+/// громкость MIX; при ABSOLUTE подстройка не действует), при MIX
 /// и MST — громкость выхода мастера (палец вверх-вниз; пока палец на нём — снизу VOL — итоговая громкость).
 struct MeterColumn: View {
     let model: AppModel
@@ -53,6 +54,7 @@ struct MeterColumn: View {
         if ch == Levels.master { return model.project.outVol }
         guard ch < model.project.tracks.count else { return Params.volDef }
         let t = model.project.tracks[ch]
+        if !model.settings.levelRelative { return t.vol }
         if t.trim <= Params.volMin + 0.05 { return Params.volMin }
         return max(Params.volMin, t.vol + t.trim)
     }

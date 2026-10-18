@@ -202,7 +202,7 @@ struct LevelSettings: View {
                 MenuItem(title: "ABSOLUTE", current: !model.settings.levelRelative) { model.setLevelRelative(false) }
                 MenuItem(title: "RELATIVE", current: model.settings.levelRelative) { model.setLevelRelative(true) }
             }
-            SettingsNote(text: "ABSOLUTE: the fader on the right is the track volume in MIX. RELATIVE: the fader trims the track down from its MIX volume — the top of the fader is the MIX volume (for example −10 dB), down to silence.")
+            SettingsNote(text: "ABSOLUTE: the fader on the right is the track volume in MIX. RELATIVE: the fader trims the track down from its MIX volume — the top of the fader is the MIX volume (for example −10 dB), down to silence. The trim is kept with the track and only works in RELATIVE.")
         }
     }
 }

@@ -54,7 +54,7 @@ public struct Track: Codable, Equatable, Sendable {
     public var slices: [String: [SliceMark]] = [:]
     public var vol: Double = Params.volDef
     /// SETTINGS → LEVEL RELATIVE (S9): подстройка громкости регулятором справа, dB вниз от громкости MIX
-    /// (0 — как в MIX, volMin — тишина); итог — vol + trim.
+    /// (0 — как в MIX, volMin — тишина); итог — vol + trim; при LEVEL ABSOLUTE не действует.
     public var trim: Double = 0
     /// Таблица WTABLE дорожки ("" — BASIC, "builtin:NAME" — встроенная; свои WAV — S11).
     public var table: String = ""

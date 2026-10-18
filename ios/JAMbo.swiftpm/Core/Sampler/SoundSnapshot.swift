@@ -39,7 +39,8 @@ public struct SoundData {
     public var trackId: UnsafeMutablePointer<Int>
     public var params: UnsafeMutablePointer<Float>
     public var gain: UnsafeMutablePointer<Float>
-    /// Подстройка громкости дорожки (LEVEL RELATIVE), множитель: и к громкости, и к p-lock громкости MIX.
+    /// Подстройка громкости дорожки (LEVEL RELATIVE; при ABSOLUTE — 1), множитель: и к громкости, и к p-lock
+    /// громкости MIX.
     public var trim: UnsafeMutablePointer<Float>
     public var open: UnsafeMutablePointer<UInt8>
     public var sound: UnsafeMutablePointer<UInt64>
@@ -137,7 +138,8 @@ public final class SoundSnapshot: @unchecked Sendable {
     /// samples — загруженные сэмплы по ключу; map, scale, root — ноты маркеров по порядку (SLICE NOTES).
     /// tables — готовые таблицы WTABLE по ключу (Track.table).
     public init(_ project: Project, samples: [String: SampleData], map: SliceMap, octave: Int = 3,
-                tables: [String: WtTable] = [:], scSends: SidechainSends = SidechainSends(), muteTails: Bool = false) {
+                tables: [String: WtTable] = [:], scSends: SidechainSends = SidechainSends(), muteTails: Bool = false,
+                levelRelative: Bool = true) {
         let tracks = SoundData.maxTracks
         let entries = SoundData.maxEntries
         let slices = SoundData.maxSlices
@@ -217,7 +219,8 @@ public final class SoundSnapshot: @unchecked Sendable {
             for (p, id) in VoiceParam.ids.enumerated() {
                 d.params[t * pc + p] = Float(tr.params[id] ?? Params.byId[id]?.def ?? 0)
             }
-            let tg: Float = Float(Params.volGain(tr.trim))
+            // LEVEL ABSOLUTE — громкость ровно как в MIX: подстройка не действует.
+            let tg: Float = levelRelative ? Float(Params.volGain(tr.trim)) : 1
             d.trim[t] = tg
             d.gain[t] = Float(Params.volGain(tr.vol)) * tg
             d.scAmount[t] = Float(tr.params["sidechain"] ?? 0)
