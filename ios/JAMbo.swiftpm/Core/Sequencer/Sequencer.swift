@@ -52,6 +52,9 @@ public final class Sequencer {
     private let pendingGate = UnsafeMutablePointer<Int64>.allocate(capacity: Sequencer.pendingMax)
     /// Голоса сэмплера (задаёт AudioCore).
     public var sampler: Sampler?
+    /// P-lock общих FX играющего шага каждой дорожки (биты Params.fxIds и значения; 0 — нет): читает FxRack.
+    public let fxLockMask = UnsafeMutablePointer<UInt32>.allocate(capacity: SeqData.maxTracks)
+    public let fxLockVal = UnsafeMutablePointer<Float>.allocate(capacity: SeqData.maxTracks * Params.fxCount)
     private var pendingCount = 0
     private static let pendingMax = 512
     private var rng: UInt32 = 0x9E3779B9
@@ -70,6 +73,8 @@ public final class Sequencer {
         pendingVals.initialize(repeating: 0, count: Sequencer.pendingMax * VoiceParam.count)
         pendingSound.initialize(repeating: 0, count: Sequencer.pendingMax)
         pendingGate.initialize(repeating: -1, count: Sequencer.pendingMax)
+        fxLockMask.initialize(repeating: 0, count: SeqData.maxTracks)
+        fxLockVal.initialize(repeating: 0, count: SeqData.maxTracks * Params.fxCount)
     }
 
     deinit {
@@ -81,6 +86,8 @@ public final class Sequencer {
         pendingVals.deallocate()
         pendingSound.deallocate()
         pendingGate.deallocate()
+        fxLockMask.deallocate()
+        fxLockVal.deallocate()
     }
 
     public var bpm: Double { return tempo.tempo }
@@ -103,6 +110,7 @@ public final class Sequencer {
             if let d = data { launcher.start(d) }
         } else {
             launcher.reset()
+            fxLockMask.update(repeating: 0, count: SeqData.maxTracks)
             for t in 0..<SeqData.maxTracks { out.push(.step(track: t, pos: -1)) }
             out.push(.scene(row: -1, start: 0, len: 16))
             out.push(.sceneQueue(row: -1))
@@ -170,12 +178,18 @@ public final class Sequencer {
         for t in 0..<d.trackCount {
             if !launcher.plays(d, t) {
                 out.push(.step(track: t, pos: -1))
+                fxLockMask[t] = 0
                 continue
             }
             let k = launcher.slot[t]
             let pos = d.playIndex(t, slot: k, tick - launcher.trackStart[t])
             out.push(.step(track: t, pos: pos))
             let i = d.stepIndex(t, slot: k, pos)
+            // P-lock FX — на время шага (и на шаге без ноты).
+            fxLockMask[t] = i >= 0 ? d.fxMask[i] : 0
+            if i >= 0 && d.fxMask[i] != 0 {
+                for p in 0..<Params.fxCount { fxLockVal[t * Params.fxCount + p] = d.fxVal[i * Params.fxCount + p] }
+            }
             if i < 0 || d.on[i] == 0 { continue }
             if nextRandom() * 100 >= d.prob[i] { continue }
             let ratchet = Int(d.ratchet[i]) + 1

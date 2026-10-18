@@ -7,8 +7,8 @@ import Foundation
 /// Параметры голоса в снимках: номер в массиве (p-lock шагов — по тем же номерам).
 public enum VoiceParam {
     public static let ids = ["pitch", "start", "end", "level", "attack", "decay", "filter", "reso", "pan",
-                             "harm", "timbre", "morph"]
-    public static let count = 12
+                             "harm", "timbre", "morph", "reverb", "delay", "drive"]
+    public static let count = 15
     public static let pitch = 0
     public static let start = 1
     public static let end = 2
@@ -22,6 +22,10 @@ public enum VoiceParam {
     public static let harm = 9
     public static let timbre = 10
     public static let morph = 11
+    /// Посылы Reverb, Delay, Drive (0…100; посыл голоса — после Pan).
+    public static let reverb = 12
+    public static let delay = 13
+    public static let drive = 14
 }
 
 public struct SoundData {
@@ -51,6 +55,11 @@ public struct SoundData {
     public var sliceNote: UnsafeMutablePointer<Int32>
     /// Таблица WTABLE дорожки (указатели WtTable; кадров 0 — таблица ещё не готова, WTABLE молчит, как в вебе).
     var tableRef: UnsafeMutablePointer<WtRef>
+    /// Общие FX (Params.fxIds, без p-lock), глубина Sidechain дорожки (0…100), переключатели SETTINGS → SIDECHAIN
+    /// (посылы Reverb, Delay, Drive: 1 — приглушаются).
+    public var fx: UnsafeMutablePointer<Float>
+    public var scAmount: UnsafeMutablePointer<Float>
+    public var scSend: UnsafeMutablePointer<Float>
 
     @inline(__always)
     public func param(_ t: Int, _ p: Int) -> Float {
@@ -106,7 +115,7 @@ public final class SoundSnapshot: @unchecked Sendable {
     /// samples — загруженные сэмплы по ключу; map, scale, root — ноты маркеров по порядку (SLICE NOTES).
     /// tables — готовые таблицы WTABLE по ключу (Track.table).
     public init(_ project: Project, samples: [String: SampleData], map: SliceMap, octave: Int = 3,
-                tables: [String: WtTable] = [:]) {
+                tables: [String: WtTable] = [:], scSends: SidechainSends = SidechainSends()) {
         let tracks = SoundData.maxTracks
         let entries = SoundData.maxEntries
         let slices = SoundData.maxSlices
@@ -119,8 +128,16 @@ public final class SoundSnapshot: @unchecked Sendable {
             eFrames: .allocate(capacity: entries), eChannels: .allocate(capacity: entries),
             eSliceStart: .allocate(capacity: entries), eSliceCount: .allocate(capacity: entries),
             sliceAt: .allocate(capacity: slices), sliceNote: .allocate(capacity: slices),
-            tableRef: .allocate(capacity: tracks)
+            tableRef: .allocate(capacity: tracks),
+            fx: .allocate(capacity: Params.fxCount), scAmount: .allocate(capacity: tracks), scSend: .allocate(capacity: 3)
         )
+        for (k, id) in Params.fxIds.enumerated() {
+            (d.fx + k).initialize(to: Float(project.fx[id] ?? Params.byId[id]?.def ?? 0))
+        }
+        d.scAmount.initialize(repeating: 0, count: tracks)
+        d.scSend[0] = scSends.rev ? 1 : 0
+        d.scSend[1] = scSends.dly ? 1 : 0
+        d.scSend[2] = scSends.drv ? 1 : 0
         d.tableRef.initialize(repeating: WtRef(), count: tracks)
         var keepTables: [WtTable] = []
         d.trackId.initialize(repeating: -1, count: tracks)
@@ -150,6 +167,7 @@ public final class SoundSnapshot: @unchecked Sendable {
                 d.params[t * pc + p] = Float(tr.params[id] ?? Params.byId[id]?.def ?? 0)
             }
             d.gain[t] = Float(Params.volGain(tr.vol))
+            d.scAmount[t] = Float(tr.params["sidechain"] ?? 0)
             d.open[t] = project.audible(t) ? 1 : 0
             d.sound[t] = SoundKey.hash(tr.sample)
             if let wt = tables[tr.table] {
@@ -208,5 +226,8 @@ public final class SoundSnapshot: @unchecked Sendable {
         data.sliceAt.deallocate()
         data.sliceNote.deallocate()
         data.tableRef.deallocate()
+        data.fx.deallocate()
+        data.scAmount.deallocate()
+        data.scSend.deallocate()
     }
 }

@@ -60,6 +60,8 @@ public final class SynthVoices {
     let fadeK = UnsafeMutablePointer<Float>.allocate(capacity: slots)
     let fadeG = UnsafeMutablePointer<Float>.allocate(capacity: slots)
     let level = UnsafeMutablePointer<Float>.allocate(capacity: slots)
+    /// Посылы слота (Reverb, Delay, Drive; 0…1, сглаженные).
+    let send = UnsafeMutablePointer<Float>.allocate(capacity: slots * 3)
     let pan = UnsafeMutablePointer<Float>.allocate(capacity: slots)
     let hz = UnsafeMutablePointer<Double>.allocate(capacity: slots)
     let qDb = UnsafeMutablePointer<Double>.allocate(capacity: slots)
@@ -79,6 +81,10 @@ public final class SynthVoices {
     let quiet = UnsafeMutablePointer<Int>.allocate(capacity: slots)
     let lockMask = UnsafeMutablePointer<UInt16>.allocate(capacity: slots)
     let lockVal = UnsafeMutablePointer<Float>.allocate(capacity: slots * VoiceParam.count)
+    /// Шины посылов на блок (ставит render).
+    var sendL: UnsafeMutablePointer<Float>?
+    var sendR: UnsafeMutablePointer<Float>?
+    var stride = 0
     // Нота, ждущая украденный слот (стартует через 8 мс, когда прежняя погаснет).
     let pActive = UnsafeMutablePointer<UInt8>.allocate(capacity: slots)
     let pStart = UnsafeMutablePointer<Int64>.allocate(capacity: slots)
@@ -137,6 +143,7 @@ public final class SynthVoices {
         fadeAt.initialize(repeating: Int64.max, count: s)
         for p in [attackF, decaySec, hz, qDb] as [UnsafeMutablePointer<Double>] { p.initialize(repeating: 0, count: s) }
         for p in [decayK, env, fadeK, fadeG, level, pan] as [UnsafeMutablePointer<Float>] { p.initialize(repeating: 0, count: s) }
+        send.initialize(repeating: 0, count: s * 3)
         coef.initialize(repeating: Biquad(), count: s)
         z.initialize(repeating: 0, count: s * 2)
         limiter.initialize(repeating: StmLimiter(), count: s)
@@ -158,6 +165,7 @@ public final class SynthVoices {
             as [UnsafeMutablePointer<Int>] { p.deallocate() }
         for p in [start, holdEnd, stopAt, pStart, pGate, fadeAt, busyUntil] as [UnsafeMutablePointer<Int64>] { p.deallocate() }
         for p in [attackF, decaySec, hz, qDb] as [UnsafeMutablePointer<Double>] { p.deallocate() }
+        send.deallocate()
         for p in [decayK, env, fadeK, fadeG, level, pan, z, lockVal, pVal, outBuf, auxBuf, gains, auxGainsP, points, smooth]
             as [UnsafeMutablePointer<Float>] { p.deallocate() }
         coef.deallocate()
@@ -298,6 +306,7 @@ public final class SynthVoices {
         if keepEnv && wasActive { return }
         level[v] = Float(pow(pv(d, t, VoiceParam.level, mask, vals) / 127, 1.5))
         pan[v] = Float(Swift.max(-1, Swift.min(1, pv(d, t, VoiceParam.pan, mask, vals) / 64)))
+        for k in 0..<3 { send[v * 3 + k] = Float(pv(d, t, VoiceParam.reverb + k, mask, vals) / 100) }
         let f = Biquad.knob(pv(d, t, VoiceParam.filter, mask, vals), reso: pv(d, t, VoiceParam.reso, mask, vals))
         ftype[v] = f.type
         hz[v] = f.hz
@@ -389,8 +398,13 @@ public final class SynthVoices {
     // MARK: — звук
 
     /// Голоса в шины дорожек (bus + t·stride); used[t] — шина уже очищена в этом блоке.
+    /// sendL/sendR — шины посылов ((дорожка·3 + посыл)·stride; очищаются вместе с шиной дорожки).
     func render(_ d: SoundData, blockStart: Int64, frames n: Int, busL: UnsafeMutablePointer<Float>,
-                busR: UnsafeMutablePointer<Float>, used: UnsafeMutablePointer<UInt8>, stride: Int) {
+                busR: UnsafeMutablePointer<Float>, sendL: UnsafeMutablePointer<Float>, sendR: UnsafeMutablePointer<Float>,
+                used: UnsafeMutablePointer<UInt8>, stride: Int) {
+        self.sendL = sendL
+        self.sendR = sendR
+        self.stride = stride
         // Дрейф ANALOG — в начале блока (process() узла worklet), время дорожки — в конце.
         self.blockStart = blockStart
         var t = 0
@@ -415,6 +429,12 @@ public final class SynthVoices {
             if used[t] == 0 {
                 (busL + t * stride).update(repeating: 0, count: n)
                 (busR + t * stride).update(repeating: 0, count: n)
+                var k = 0
+                while k < 3 {
+                    (sendL + (t * 3 + k) * stride).update(repeating: 0, count: n)
+                    (sendR + (t * 3 + k) * stride).update(repeating: 0, count: n)
+                    k += 1
+                }
                 used[t] = 1
             }
             renderSlot(v, d, t, blockStart, n, busL + t * stride, busR + t * stride)
@@ -443,14 +463,14 @@ public final class SynthVoices {
             var m = Swift.min(SynthVoices.chunk, n - i)
             if pActive[v] != 0 && pStart[v] < frame0 + Int64(m) { m = Int(pStart[v] - frame0) }
             if m <= 0 { continue }
-            renderChunk(v, d, t, frame0, m, bl + i, br + i)
+            renderChunk(v, d, t, frame0, m, bl + i, br + i, i)
             i += m
         }
     }
 
     @inline(__always)
     private func renderChunk(_ v: Int, _ d: SoundData, _ t: Int, _ frame0: Int64, _ m: Int,
-                             _ bl: UnsafeMutablePointer<Float>, _ br: UnsafeMutablePointer<Float>) {
+                             _ bl: UnsafeMutablePointer<Float>, _ br: UnsafeMutablePointer<Float>, _ off: Int) {
         let mask = lockMask[v]
         let base = v * VoiceParam.count
         // Ручки дорожки меняют звучащую ноту сразу; p-lock шага держит своё.
@@ -561,6 +581,14 @@ public final class SynthVoices {
         let kf: Double = 1 - exp(-Double(m) / ((fast ? 0.001 : 0.015) * sr))
         level[v] += (levelT - level[v]) * Float(ks)
         pan[v] += (panT - pan[v]) * Float(ks)
+        let sb = v * 3
+        send[sb] += (Float(val(VoiceParam.reverb) / 100) - send[sb]) * Float(ks)
+        send[sb + 1] += (Float(val(VoiceParam.delay) / 100) - send[sb + 1]) * Float(ks)
+        send[sb + 2] += (Float(val(VoiceParam.drive) / 100) - send[sb + 2]) * Float(ks)
+        let sg0 = send[sb], sg1 = send[sb + 1], sg2 = send[sb + 2]
+        let hasSend: Bool = sg0 > 1e-6 || sg1 > 1e-6 || sg2 > 1e-6
+        let st = stride
+        let s0L = sendL! + t * 3 * st + off, s0R = sendR! + t * 3 * st + off
         let h0 = hz[v]
         let q0 = qDb[v]
         hz[v] += (fk.hz - hz[v]) * kf
@@ -619,8 +647,19 @@ public final class SynthVoices {
             let y: Float = b0 * a + z0
             z0 = b1 * a - a1 * y + z1
             z1 = b2 * a - a2 * y
-            bl[j] += y * gc
-            br[j] += y * gs
+            let oa: Float = y * gc
+            let ob: Float = y * gs
+            bl[j] += oa
+            br[j] += ob
+            // Посылы слота — после Pan.
+            if hasSend {
+                s0L[j] += oa * sg0
+                s0R[j] += ob * sg0
+                s0L[st + j] += oa * sg1
+                s0R[st + j] += ob * sg1
+                s0L[2 * st + j] += oa * sg2
+                s0R[2 * st + j] += ob * sg2
+            }
             frame += 1
             tt += 1
             j += 1

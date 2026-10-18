@@ -13,6 +13,15 @@ public struct RecordSettings: Codable, Equatable, Sendable {
     public init() {}
 }
 
+/// SETTINGS → SIDECHAIN: какие посылы приглушаются вместе с дорожкой (по умолчанию только Drive).
+public struct SidechainSends: Codable, Equatable, Sendable {
+    public var rev: Bool = false
+    public var dly: Bool = false
+    public var drv: Bool = true
+
+    public init() {}
+}
+
 public struct AppSettings: Codable, Equatable, Sendable {
     /// SYSTEM, LIGHT или DARK.
     public var appearance: String = "SYSTEM"
@@ -23,6 +32,10 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var record = RecordSettings()
     /// SETTINGS → SAMPLER → SLICE NOTES: ноты маркеров нарезки по порядку.
     public var sliceMap: SliceMap = .chromatic
+    /// SETTINGS → SIDECHAIN: посылы Reverb, Delay, Drive приглушаются огибающей.
+    public var scSends = SidechainSends()
+    /// MUTE TAILS: заглушили единственный источник посыла Delay — его повторы гасятся.
+    public var muteTails: Bool = false
 
     public init() {}
 
@@ -36,7 +49,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         return try? JSONEncoder().encode(self)
     }
 
-    private enum Keys: String, CodingKey { case appearance, pianoOctaves, velocity, record, sliceMap }
+    private enum Keys: String, CodingKey { case appearance, pianoOctaves, velocity, record, sliceMap, scSends, muteTails }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
@@ -45,5 +58,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         velocity = (try? c.decode(Bool.self, forKey: .velocity)) ?? false
         record = (try? c.decode(RecordSettings.self, forKey: .record)) ?? RecordSettings()
         sliceMap = (try? c.decode(SliceMap.self, forKey: .sliceMap)) ?? .chromatic
+        scSends = (try? c.decode(SidechainSends.self, forKey: .scSends)) ?? SidechainSends()
+        muteTails = (try? c.decode(Bool.self, forKey: .muteTails)) ?? false
     }
 }

@@ -48,7 +48,8 @@ extension AppModel {
                 tables[key] = wt
             }
         }
-        audio.core.publish(project, samples: store.samples, map: settings.sliceMap, octave: octave, tables: tables)
+        audio.core.publish(project, samples: store.samples, map: settings.sliceMap, octave: octave, tables: tables,
+                           scSends: settings.scSends)
     }
 
     /// TABLE: встроенная таблица WTABLE на дорожку (UNDO).

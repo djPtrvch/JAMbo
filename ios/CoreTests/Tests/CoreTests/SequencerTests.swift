@@ -49,7 +49,8 @@ final class SequencerTests: XCTestCase {
         core.events.push(.play(true))
         let r = run(core, frames: 30000, block: 256)
         XCTAssertNotEqual(r.audio[1], 0, "первый щелчок — сразу")
-        XCTAssertEqual(r.audio[23999], 0, "между щелчками тишина")
+        // Тишина: Delay, как в вебе, добавляет 1e-18 против денормалов (ниже −240 dB).
+        XCTAssertEqual(r.audio[23999], 0, accuracy: 1e-12, "между щелчками тишина")
         XCTAssertNotEqual(r.audio[24001], 0, "вторая доля — ровно на 24000")
         // Акцент (начало такта) громче обычной доли.
         let first = r.audio[0..<200].map(abs).max()!

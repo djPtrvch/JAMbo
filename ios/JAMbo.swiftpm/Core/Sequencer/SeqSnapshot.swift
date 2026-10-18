@@ -32,6 +32,9 @@ public struct SeqData {
     public var sound: UnsafeMutablePointer<UInt64>
     public var lockMask: UnsafeMutablePointer<UInt16>
     public var lockVal: UnsafeMutablePointer<Float>
+    /// P-lock общих FX (биты Params.fxIds и значения): действуют, пока шаг играет.
+    public var fxMask: UnsafeMutablePointer<UInt32>
+    public var fxVal: UnsafeMutablePointer<Float>
     /// Строки: видимых, повторы, строка старта, в конце — стоп, LOOP ROW.
     public var rows: Int = 1
     public var repeats: UnsafeMutablePointer<Int32>
@@ -126,6 +129,7 @@ public final class SeqSnapshot: @unchecked Sendable {
             prob: .allocate(capacity: steps), ratchet: .allocate(capacity: steps), swing: .allocate(capacity: steps),
             sound: .allocate(capacity: steps), lockMask: .allocate(capacity: steps),
             lockVal: .allocate(capacity: steps * VoiceParam.count),
+            fxMask: .allocate(capacity: steps), fxVal: .allocate(capacity: steps * Params.fxCount),
             repeats: .allocate(capacity: SeqData.slots)
         )
         d.stopped.initialize(repeating: 1, count: tracks)
@@ -144,6 +148,8 @@ public final class SeqSnapshot: @unchecked Sendable {
         d.sound.initialize(repeating: 0, count: steps)
         d.lockMask.initialize(repeating: 0, count: steps)
         d.lockVal.initialize(repeating: 0, count: steps * VoiceParam.count)
+        d.fxMask.initialize(repeating: 0, count: steps)
+        d.fxVal.initialize(repeating: 0, count: steps * Params.fxCount)
         d.repeats.initialize(repeating: 1, count: SeqData.slots)
         d.rows = project.visibleRows
         d.arrStart = min(project.arrStart, d.rows - 1)
@@ -203,6 +209,13 @@ public final class SeqSnapshot: @unchecked Sendable {
                         d.lockVal[i * VoiceParam.count + p] = Float(v)
                     }
                     d.lockMask[i] = mask
+                    var fm: UInt32 = 0
+                    for (p, id) in Params.fxIds.enumerated() {
+                        guard let v = step.locks[id] else { continue }
+                        fm |= UInt32(1) << UInt32(p)
+                        d.fxVal[i * Params.fxCount + p] = Float(v)
+                    }
+                    d.fxMask[i] = fm
                 }
             }
         }
@@ -226,6 +239,8 @@ public final class SeqSnapshot: @unchecked Sendable {
         data.sound.deallocate()
         data.lockMask.deallocate()
         data.lockVal.deallocate()
+        data.fxMask.deallocate()
+        data.fxVal.deallocate()
         data.repeats.deallocate()
     }
 }

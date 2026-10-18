@@ -139,9 +139,10 @@ public enum Params {
     }
 
     private static func smooth(_ id: String, _ label: String, _ min: Double, _ max: Double, _ def: Double,
-                               curve: Double? = nil, bipolar: Bool = false,
+                               curve: Double? = nil, exp: Bool = false, bipolar: Bool = false,
                                _ format: @escaping (Double) -> String) -> ParamDef {
-        return ParamDef(id: id, label: label, min: min, max: max, def: def, curve: curve, bipolar: bipolar, format: format)
+        return ParamDef(id: id, label: label, min: min, max: max, def: def, curve: curve, exp: exp, bipolar: bipolar,
+                        format: format)
     }
 
     private static func stepped(_ id: String, _ label: String, _ options: [String], def: Double = 0) -> ParamDef {
@@ -238,9 +239,79 @@ public enum Params {
         return trackGrid
     }
 
+    // MARK: — FX (общие параметры, FX_GRID веба)
+
+    /// Время Delay в долях такта: подпись и длительность в четвертях.
+    public static let delayDivs: [(name: String, beats: Double)] = [
+        ("1/32", 0.125), ("1/16T", 1.0 / 6), ("1/16", 0.25), ("1/16D", 0.375), ("1/8T", 1.0 / 3), ("1/8", 0.5),
+        ("1/8D", 0.75), ("1/4T", 2.0 / 3), ("1/4", 1), ("1/4D", 1.5), ("1/2", 2), ("1 bar", 4),
+    ]
+    /// LOW CUT Drive не выше — обход (OFF); в новом проекте — 80 Гц, LOW CUT реверба — 120 Гц.
+    public static let driveLowCutOff = 25.0
+    public static let driveLowCutNew = 80.0
+    public static let revHpfNew = 120.0
+
+    /// FILTER дилея: влево — LP 20 кГц → 500 Гц, вправо — HP 20 → 1500 Гц, в центре выключен.
+    public static func delayFilterFreq(_ v: Double) -> (type: Int, hz: Double) {
+        let a = abs(v) / 100
+        if a < 0.02 { return (0, 0) }
+        if v < 0 { return (-1, 20000 * pow(500.0 / 20000, a)) }
+        return (1, 20 * pow(1500.0 / 20, a))
+    }
+
+    public static let fxColumns: [[ParamDef]] = [
+        [
+            smooth("rev.size", "Rev Size", 0, 100, 50, Fmt.pct),
+            smooth("rev.decay", "Rev Decay", 0.1, 20, 2, exp: true) { v in String(format: "%.1fs", v) },
+            smooth("rev.tone", "Rev Tone", -100, 100, 0, bipolar: true) { v in
+                let r = Int(v.rounded())
+                return r > 0 ? "+\(r)" : "\(r)"
+            },
+            smooth("rev.hpf", "Rev Low Cut", 20, 2000, 20, exp: true, Fmt.hz),
+        ],
+        [
+            stepped("dly.time", "Dly Time", delayDivs.map { $0.name }, def: 5),
+            smooth("dly.feedback", "Dly Feedback", 0, 100, 40, Fmt.pct),
+            smooth("dly.filter", "Dly Filter", -100, 100, 0, bipolar: true) { v in
+                let f = delayFilterFreq(v)
+                return f.type == 0 ? "OFF" : "\(f.type < 0 ? "LP" : "HP") \(Fmt.hz(f.hz))"
+            },
+            smooth("dly.spread", "Dly Spread", 0, 100, 0, Fmt.pct),
+        ],
+        [
+            smooth("od.drive", "Drive", 0, 100, 26, Fmt.pct),
+            stepped("od.type", "Drive Type", ["Soft", "Hard", "Tube", "Fuzz", "Fold", "Crush"]),
+            smooth("od.tone", "Drive Tone", 0, 100, 50, Fmt.pct),
+            smooth("od.lowcut", "Drive Low Cut", 20, 1000, 20, exp: true) { v in v <= driveLowCutOff ? "OFF" : Fmt.hz(v) },
+        ],
+        [
+            smooth("sc.attack", "SC Attack", 0.1, 100, 5, exp: true, Fmt.ms),
+            smooth("sc.release", "SC Release", 10, 1000, 150, exp: true, Fmt.ms),
+            stepped("sc.source", "SC Source", (0..<maxTracks).map { "\($0 + 1)" }),
+            smooth("sc.curve", "SC Curve", 0, 100, 50, Fmt.pct),
+        ],
+    ]
+
+    /// Сетка FX 4×4 ряд за рядом.
+    public static let fxGrid: [ParamDef] = (0..<16).map { i in fxColumns[i % 4][i / 4] }
+    /// Без ручки: дополнительная пред-задержка реверба (p-lock и MIDI по ключу работают).
+    public static let hiddenFx: [ParamDef] = [smooth("rev.predelay", "Rev Predelay", 0, 200, 0, Fmt.ms)]
+    /// Порядок FX в снимках для колбэка: сетка (ряд за рядом), затем пред-задержка.
+    public static let fxIds: [String] = (fxGrid + hiddenFx).map { $0.id }
+    public static let fxCount = 17
+
+    /// FX нового проекта (LOW CUT реверба 120 Гц, Drive 80 Гц).
+    public static func fxDefaults() -> [String: Double] {
+        var d: [String: Double] = [:]
+        for p in fxGrid + hiddenFx { d[p.id] = p.def }
+        d["rev.hpf"] = revHpfNew
+        d["od.lowcut"] = driveLowCutNew
+        return d
+    }
+
     public static let byId: [String: ParamDef] = {
         var d: [String: ParamDef] = [:]
-        for p in trackGrid + synthColumn { d[p.id] = p }
+        for p in trackGrid + synthColumn + fxGrid + hiddenFx { d[p.id] = p }
         return d
     }()
 

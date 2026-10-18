@@ -49,7 +49,8 @@ extension AppModel {
         mutatePlay({ p in
             if let s = c.scale { p.scale = s }
             if let r = c.root { p.root = r }
-        }, publish: false)
+            if let f = c.fx { p.fx.merge(f) { _, b in b } }
+        }, publish: true)
     }
 
     /// Правка гаммы и ноты записывается и в клип лидера.
@@ -59,6 +60,7 @@ extension AppModel {
         guard p.tracks[i].clips[k] != nil else { return }
         p.tracks[i].clips[k]?.scale = p.scale
         p.tracks[i].clips[k]?.root = p.root
+        p.tracks[i].clips[k]?.fx = p.fx
     }
 
     // MARK: — запуск

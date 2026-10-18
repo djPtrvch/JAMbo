@@ -60,6 +60,8 @@ public final class Sampler {
     let fadeG = UnsafeMutablePointer<Float>.allocate(capacity: slots)
     let level = UnsafeMutablePointer<Float>.allocate(capacity: slots)
     let pan = UnsafeMutablePointer<Float>.allocate(capacity: slots)
+    /// Посылы голоса (Reverb, Delay, Drive; 0…1, сглаженные).
+    let send = UnsafeMutablePointer<Float>.allocate(capacity: slots * 3)
     let hz = UnsafeMutablePointer<Double>.allocate(capacity: slots)
     let qDb = UnsafeMutablePointer<Double>.allocate(capacity: slots)
     let ftype = UnsafeMutablePointer<Int>.allocate(capacity: slots)
@@ -75,6 +77,17 @@ public final class Sampler {
     let used = UnsafeMutablePointer<UInt8>.allocate(capacity: SoundData.maxTracks)
     let volCur = UnsafeMutablePointer<Float>.allocate(capacity: SoundData.maxTracks)
     let gateCur = UnsafeMutablePointer<Float>.allocate(capacity: SoundData.maxTracks)
+    /// Шины посылов дорожек: (дорожка·3 + посыл)·maxFrames; sendUsed — шины дорожки очищены в этом блоке.
+    let sendL = UnsafeMutablePointer<Float>.allocate(capacity: SoundData.maxTracks * 3 * maxFrames)
+    let sendR = UnsafeMutablePointer<Float>.allocate(capacity: SoundData.maxTracks * 3 * maxFrames)
+    let sendUsed = UnsafeMutablePointer<UInt8>.allocate(capacity: SoundData.maxTracks)
+    /// Глубина Sidechain дорожки (сглаженная) и переключатели посылов.
+    let duckCur = UnsafeMutablePointer<Float>.allocate(capacity: SoundData.maxTracks)
+    let flagCur = UnsafeMutablePointer<Float>.allocate(capacity: 3)
+    /// Шины эффектов и Sidechain (ставит AudioCore; nil — без эффектов, как в тестах сэмплера).
+    public var fx: FxRack?
+    /// Темп (время Delay по долям такта) — ставит AudioCore на блок.
+    public var bpm: Double = 120
 
     // Предпрослушка (▶ редактора): сэмпл в исходной высоте сразу на выход.
     var pvL: UnsafeMutablePointer<Float>?
@@ -124,6 +137,12 @@ public final class Sampler {
         fadeG.initialize(repeating: 1, count: s)
         level.initialize(repeating: 1, count: s)
         pan.initialize(repeating: 0, count: s)
+        send.initialize(repeating: 0, count: s * 3)
+        sendL.initialize(repeating: 0, count: SoundData.maxTracks * 3 * Sampler.maxFrames)
+        sendR.initialize(repeating: 0, count: SoundData.maxTracks * 3 * Sampler.maxFrames)
+        sendUsed.initialize(repeating: 0, count: SoundData.maxTracks)
+        duckCur.initialize(repeating: 0, count: SoundData.maxTracks)
+        flagCur.initialize(repeating: -1, count: 3)
         hz.initialize(repeating: 20000, count: s)
         qDb.initialize(repeating: 0.7, count: s)
         ftype.initialize(repeating: -1, count: s)
@@ -142,7 +161,8 @@ public final class Sampler {
     }
 
     deinit {
-        for p in [active, fading, own, stereo, released, used] as [UnsafeMutablePointer<UInt8>] { p.deallocate() }
+        for p in [active, fading, own, stereo, released, used, sendUsed] as [UnsafeMutablePointer<UInt8>] { p.deallocate() }
+        for p in [send, sendL, sendR, duckCur, flagCur] { p.deallocate() }
         for p in [track, trackId, note, liveId, serial, srcFrames, ftype] as [UnsafeMutablePointer<Int>] { p.deallocate() }
         for p in [pos, endPos, edge, noteRatio, rate, attackF, decaySec, hz, qDb] as [UnsafeMutablePointer<Double>] { p.deallocate() }
         for p in [start, holdEnd, stopAt, fadeAt] as [UnsafeMutablePointer<Int64>] { p.deallocate() }
@@ -180,6 +200,8 @@ public final class Sampler {
                         vals: UnsafePointer<Float>?, hash: UInt64, gate: Int64, own isOwn: Bool, liveId live: Int,
                         retrig: Bool = false) {
         guard let d = sound, t >= 0, t < d.trackCount else { return }
+        // Sidechain: каждая нота источника (не перезапуск звука на держащейся ноте).
+        if !retrig { fx?.noteTrig(track: t, at: frame) }
         let h: UInt64 = hash != 0 ? hash : d.sound[t]
         let se = synthEngine(h)
         if se >= 0 {
@@ -269,6 +291,7 @@ public final class Sampler {
         fadeK[v] = 1
         level[v] = Float(pow(pv(d, t, VoiceParam.level, mask, vals) / 127, 1.5))
         pan[v] = Float(Swift.max(-1, Swift.min(1, pv(d, t, VoiceParam.pan, mask, vals) / 64)))
+        for k in 0..<3 { send[v * 3 + k] = Float(pv(d, t, VoiceParam.reverb + k, mask, vals) / 100) }
         let f = Biquad.knob(pv(d, t, VoiceParam.filter, mask, vals), reso: pv(d, t, VoiceParam.reso, mask, vals))
         ftype[v] = f.type
         hz[v] = f.hz
@@ -424,42 +447,107 @@ public final class Sampler {
             if used[t] == 0 {
                 (busL + t * Sampler.maxFrames).update(repeating: 0, count: n)
                 (busR + t * Sampler.maxFrames).update(repeating: 0, count: n)
+                clearSends(t, n)
                 used[t] = 1
             }
             renderVoice(v, d, blockStart, n)
         }
-        synth?.render(d, blockStart: blockStart, frames: n, busL: busL, busR: busR, used: used, stride: Sampler.maxFrames)
+        synth?.render(d, blockStart: blockStart, frames: n, busL: busL, busR: busR, sendL: sendL, sendR: sendR,
+                      used: used, stride: Sampler.maxFrames)
+        fx?.prepare(blockStart: blockStart, frames: n)
         mix(d, n, left, right)
+        fx?.process(frames: n, bpm: bpm, left: left, right: right)
         renderPreview(n, left, right)
     }
 
+    /// Шины посылов дорожки t — с нуля (n отсчётов).
+    @inline(__always)
+    private func clearSends(_ t: Int, _ n: Int) {
+        var k = 0
+        while k < 3 {
+            (sendL + (t * 3 + k) * Sampler.maxFrames).update(repeating: 0, count: n)
+            (sendR + (t * 3 + k) * Sampler.maxFrames).update(repeating: 0, count: n)
+            k += 1
+        }
+    }
+
+    /// Микшер: шина дорожки · (1 − amount·e) · громкость · гейт → выход; посылы · громкость · гейт
+    /// (· (1 − amount·e), если посыл приглушается — SETTINGS → SIDECHAIN) → входы шин эффектов.
     private func mix(_ d: SoundData, _ n: Int, _ left: UnsafeMutablePointer<Float>, _ right: UnsafeMutablePointer<Float>) {
-        // Гейт mute/solo — за ~5 мс (постоянная 1,5 мс), громкость — за ~10 мс.
+        // Гейт mute/solo — за ~5 мс (постоянная 1,5 мс), громкость — за ~10 мс, глубина Sidechain и переключатели
+        // посылов — за ~10 мс (постоянная 3,3 мс).
         let gk = Float(1 - exp(-1 / (0.0015 * sr)))
         let vk = Float(1 - exp(-1 / (0.01 * sr)))
+        let dk = Float(1 - exp(-1 / (0.0033 * sr)))
+        let rack = fx
+        let eBuf: UnsafeMutablePointer<Float>? = rack?.e
+        let source: Int = rack?.source ?? -1
+        // Переключатели посылов — общие для дорожек (сглаживание на блок).
+        var fl0: Float = 0, fl1: Float = 0, fl2: Float = 0
+        if rack != nil {
+            var k = 0
+            while k < 3 {
+                if flagCur[k] < 0 { flagCur[k] = d.scSend[k] }
+                flagCur[k] += (d.scSend[k] - flagCur[k]) * Swift.min(1, dk * Float(n))
+                k += 1
+            }
+            fl0 = flagCur[0]; fl1 = flagCur[1]; fl2 = flagCur[2]
+        }
         for t in 0..<d.trackCount {
             let vt: Float = d.gain[t]
             let gt: Float = d.open[t] != 0 ? 1 : 0
+            let at: Float = t == source ? 0 : Swift.max(0, Swift.min(1, d.scAmount[t] / 100))
             if volCur[t] < 0 { volCur[t] = vt }
             if gateCur[t] < 0 { gateCur[t] = gt }
             if used[t] == 0 {
                 volCur[t] = vt
                 gateCur[t] = gt
+                duckCur[t] = at
                 continue
             }
             let bl = busL + t * Sampler.maxFrames
             let br = busR + t * Sampler.maxFrames
             var vol = volCur[t]
             var gate = gateCur[t]
-            for i in 0..<n {
-                vol += (vt - vol) * vk
-                gate += (gt - gate) * gk
-                let g = vol * gate
-                left[i] += bl[i] * g
-                right[i] += br[i] * g
+            var amt = duckCur[t]
+            if let r = rack, let eb = eBuf {
+                let s0L = sendL + t * 3 * Sampler.maxFrames, s0R = sendR + t * 3 * Sampler.maxFrames
+                let mf = Sampler.maxFrames
+                let i0L = r.inL, i0R = r.inR
+                var i = 0
+                while i < n {
+                    vol += (vt - vol) * vk
+                    gate += (gt - gate) * gk
+                    amt += (at - amt) * dk
+                    let g: Float = vol * gate
+                    let de: Float = amt * eb[i]
+                    let gm: Float = g * (1 - de)
+                    left[i] += bl[i] * gm
+                    right[i] += br[i] * gm
+                    // Посылы Reverb, Delay, Drive.
+                    var gs: Float = g * (1 - fl0 * de)
+                    i0L[i] += s0L[i] * gs
+                    i0R[i] += s0R[i] * gs
+                    gs = g * (1 - fl1 * de)
+                    i0L[mf + i] += s0L[mf + i] * gs
+                    i0R[mf + i] += s0R[mf + i] * gs
+                    gs = g * (1 - fl2 * de)
+                    i0L[2 * mf + i] += s0L[2 * mf + i] * gs
+                    i0R[2 * mf + i] += s0R[2 * mf + i] * gs
+                    i += 1
+                }
+            } else {
+                for i in 0..<n {
+                    vol += (vt - vol) * vk
+                    gate += (gt - gate) * gk
+                    let g = vol * gate
+                    left[i] += bl[i] * g
+                    right[i] += br[i] * g
+                }
             }
             volCur[t] = vol
             gateCur[t] = gate
+            duckCur[t] = amt
         }
     }
 
@@ -475,6 +563,11 @@ public final class Sampler {
         }
         let rateT: Double = noteRatio[v] * pow(2, val(VoiceParam.pitch) / 12)
         let levelT = Float(pow(val(VoiceParam.level) / 127, 1.5))
+        let sb = v * 3
+        let send0T = Float(val(VoiceParam.reverb) / 100), send1T = Float(val(VoiceParam.delay) / 100)
+        let send2T = Float(val(VoiceParam.drive) / 100)
+        let sends0L = sendL + t * 3 * Sampler.maxFrames, sends0R = sendR + t * 3 * Sampler.maxFrames
+        let mf = Sampler.maxFrames
         let panT = Float(Swift.max(-1, Swift.min(1, val(VoiceParam.pan) / 64)))
         let fk = Biquad.knob(val(VoiceParam.filter), reso: val(VoiceParam.reso))
         if fk.type != ftype[v] {
@@ -494,6 +587,11 @@ public final class Sampler {
             rate[v] += (rateT - rate[v]) * ks
             level[v] += (levelT - level[v]) * Float(ks)
             pan[v] += (panT - pan[v]) * Float(ks)
+            send[sb] += (send0T - send[sb]) * Float(ks)
+            send[sb + 1] += (send1T - send[sb + 1]) * Float(ks)
+            send[sb + 2] += (send2T - send[sb + 2]) * Float(ks)
+            let sg0 = send[sb], sg1 = send[sb + 1], sg2 = send[sb + 2]
+            let hasSend: Bool = sg0 > 1e-6 || sg1 > 1e-6 || sg2 > 1e-6
             let h0 = hz[v]
             let q0 = qDb[v]
             hz[v] += (fk.hz - hz[v]) * kf
@@ -549,17 +647,31 @@ public final class Sampler {
                     b = yb
                 }
                 let k = t * Sampler.maxFrames + i + j
+                let oa: Float
+                let ob: Float
                 if st {
                     if pn <= 0 {
-                        busL[k] += a + b * gc
-                        busR[k] += b * gs
+                        oa = a + b * gc
+                        ob = b * gs
                     } else {
-                        busL[k] += a * gc
-                        busR[k] += b + a * gs
+                        oa = a * gc
+                        ob = b + a * gs
                     }
                 } else {
-                    busL[k] += a * gc
-                    busR[k] += a * gs
+                    oa = a * gc
+                    ob = a * gs
+                }
+                busL[k] += oa
+                busR[k] += ob
+                // Посылы голоса — после Pan.
+                if hasSend {
+                    let q = i + j
+                    sends0L[q] += oa * sg0
+                    sends0R[q] += ob * sg0
+                    sends0L[mf + q] += oa * sg1
+                    sends0R[mf + q] += ob * sg1
+                    sends0L[2 * mf + q] += oa * sg2
+                    sends0R[2 * mf + q] += ob * sg2
                 }
                 pos[v] += rt
             }

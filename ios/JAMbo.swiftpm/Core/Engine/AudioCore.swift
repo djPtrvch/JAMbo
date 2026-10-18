@@ -16,6 +16,8 @@ public final class AudioCore: @unchecked Sendable {
 
     public let sequencer = Sequencer(sampleRate: AudioCore.sampleRate, bpm: 120)
     public let sampler = Sampler(sampleRate: AudioCore.sampleRate)
+    /// Шины общих эффектов (Reverb, Delay, Drive) и Sidechain.
+    public let fx = FxRack(sampleRate: AudioCore.sampleRate)
     /// Снимки паттернов и звука: новые — в колбэк, прежние — обратно (освобождаются в основном потоке не раньше
     /// чем через keepAlive с: голоса, которые гаснут, ещё читают их сэмплы).
     private let snapshots = SPSCQueue<Unmanaged<SeqSnapshot>?>(capacity: 64, filler: nil)
@@ -39,19 +41,21 @@ public final class AudioCore: @unchecked Sendable {
 
     public init() {
         sequencer.sampler = sampler
+        sampler.fx = fx
     }
 
     /// Новые снимки (основной поток, после каждой правки): звук — всегда (дёшево), паттерны — если изменились.
     /// samples — загруженные сэмплы по ключу, map — SLICE NOTES.
     public func publish(_ project: Project, samples: [String: SampleData] = [:], map: SliceMap = .chromatic, octave: Int = 3,
-                        tables: [String: WtTable] = [:]) {
+                        tables: [String: WtTable] = [:], scSends: SidechainSends = SidechainSends()) {
         releaseRetired()
         if lastSeq == nil || !SeqSnapshot.same(lastSeq!, project) {
             lastSeq = project
             let snap = Unmanaged.passRetained(SeqSnapshot(project))
             if !snapshots.push(snap) { snap.release() }
         }
-        let snd = Unmanaged.passRetained(SoundSnapshot(project, samples: samples, map: map, octave: octave, tables: tables))
+        let snd = Unmanaged.passRetained(SoundSnapshot(project, samples: samples, map: map, octave: octave, tables: tables,
+                                                             scSends: scSends))
         if !sounds.push(snd) { snd.release() }
     }
 
@@ -85,6 +89,9 @@ public final class AudioCore: @unchecked Sendable {
     public func render(frames: Int, left: UnsafeMutablePointer<Float>, right: UnsafeMutablePointer<Float>, host: Double = 0) {
         // Сначала снимок проекта, потом команды: PLAY сразу после правки видит новые клипы и строки.
         takeSnapshots()
+        // FX на блок: значения клипа с p-lock играющих шагов, источник Sidechain.
+        if let d = sampler.sound { fx.begin(d, lockMask: sequencer.fxLockMask, lockVal: sequencer.fxLockVal) }
+        sampler.bpm = sequencer.bpm
         while let event = events.pop() {
             apply(event)
         }
@@ -128,6 +135,8 @@ public final class AudioCore: @unchecked Sendable {
             tone.set(frequency: Double(hz))
         case .play(let on):
             sequencer.set(playing: on, at: sampleTime)
+            // Стоп: будущие триги Sidechain отменяются.
+            if !on { fx.flush() }
         case .tempo(let bpm):
             sequencer.set(bpm: bpm)
         case .metronome(let on):

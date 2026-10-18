@@ -194,6 +194,8 @@ public struct Project: Codable, Equatable, Sendable {
     public var bpm: Double = 120
     public var scale: Int = 0
     public var root: Int = 0
+    /// Общие FX (сетка FX и пред-задержка): принадлежат клипам — действуют FX клипа, запущенного последним.
+    public var fx: [String: Double] = Params.fxDefaults()
     public var tracks: [Track]
     /// Строки сетки паттернов: имена и повторы.
     public var scenes: [SceneRow] = [SceneRow](repeating: SceneRow(), count: Params.patternSlots)
