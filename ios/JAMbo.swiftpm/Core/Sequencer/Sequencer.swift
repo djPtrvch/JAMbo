@@ -50,11 +50,18 @@ public final class Sequencer {
     private let pendingVals = UnsafeMutablePointer<Float>.allocate(capacity: Sequencer.pendingMax * VoiceParam.count)
     private let pendingSound = UnsafeMutablePointer<UInt64>.allocate(capacity: Sequencer.pendingMax)
     private let pendingGate = UnsafeMutablePointer<Int64>.allocate(capacity: Sequencer.pendingMax)
+    /// Гейт ENV ноты (кадров): рэтчет — 0,6 удара, от 2 шагов — длина ноты, иначе 0,9 шага.
+    private let pendingEnv = UnsafeMutablePointer<Int64>.allocate(capacity: Sequencer.pendingMax)
     /// Голоса сэмплера (задаёт AudioCore).
     public var sampler: Sampler?
     /// P-lock общих FX играющего шага каждой дорожки (биты Params.fxIds и значения; 0 — нет): читает FxRack.
     public let fxLockMask = UnsafeMutablePointer<UInt32>.allocate(capacity: SeqData.maxTracks)
     public let fxLockVal = UnsafeMutablePointer<Float>.allocate(capacity: SeqData.maxTracks * Params.fxCount)
+    /// P-lock LFO/ENV играющего шага каждой дорожки (биты Params.modIds и значения): читает ModEngine.
+    public let modLockMask = UnsafeMutablePointer<UInt16>.allocate(capacity: SeqData.maxTracks)
+    public let modLockVal = UnsafeMutablePointer<Float>.allocate(capacity: SeqData.maxTracks * Params.modCount)
+    /// Модуляция (ENV от нот; LFO/ENV на Chance, Ratchet, Swing) — задаёт AudioCore.
+    public var mod: ModEngine?
     private var pendingCount = 0
     private static let pendingMax = 512
     private var rng: UInt32 = 0x9E3779B9
@@ -73,6 +80,9 @@ public final class Sequencer {
         pendingVals.initialize(repeating: 0, count: Sequencer.pendingMax * VoiceParam.count)
         pendingSound.initialize(repeating: 0, count: Sequencer.pendingMax)
         pendingGate.initialize(repeating: -1, count: Sequencer.pendingMax)
+        pendingEnv.initialize(repeating: 0, count: Sequencer.pendingMax)
+        modLockMask.initialize(repeating: 0, count: SeqData.maxTracks)
+        modLockVal.initialize(repeating: 0, count: SeqData.maxTracks * Params.modCount)
         fxLockMask.initialize(repeating: 0, count: SeqData.maxTracks)
         fxLockVal.initialize(repeating: 0, count: SeqData.maxTracks * Params.fxCount)
     }
@@ -88,6 +98,9 @@ public final class Sequencer {
         pendingGate.deallocate()
         fxLockMask.deallocate()
         fxLockVal.deallocate()
+        pendingEnv.deallocate()
+        modLockMask.deallocate()
+        modLockVal.deallocate()
     }
 
     public var bpm: Double { return tempo.tempo }
@@ -111,6 +124,7 @@ public final class Sequencer {
         } else {
             launcher.reset()
             fxLockMask.update(repeating: 0, count: SeqData.maxTracks)
+            modLockMask.update(repeating: 0, count: SeqData.maxTracks)
             for t in 0..<SeqData.maxTracks { out.push(.step(track: t, pos: -1)) }
             out.push(.scene(row: -1, start: 0, len: 16))
             out.push(.sceneQueue(row: -1))
@@ -179,6 +193,7 @@ public final class Sequencer {
             if !launcher.plays(d, t) {
                 out.push(.step(track: t, pos: -1))
                 fxLockMask[t] = 0
+                modLockMask[t] = 0
                 continue
             }
             let k = launcher.slot[t]
@@ -190,22 +205,36 @@ public final class Sequencer {
             if i >= 0 && d.fxMask[i] != 0 {
                 for p in 0..<Params.fxCount { fxLockVal[t * Params.fxCount + p] = d.fxVal[i * Params.fxCount + p] }
             }
+            modLockMask[t] = i >= 0 ? d.modMask[i] : 0
+            if i >= 0 && d.modMask[i] != 0 {
+                for p in 0..<Params.modCount { modLockVal[t * Params.modCount + p] = d.modVal[i * Params.modCount + p] }
+            }
             if i < 0 || d.on[i] == 0 { continue }
-            if nextRandom() * 100 >= d.prob[i] { continue }
-            let ratchet = Int(d.ratchet[i]) + 1
-            let swing = Double(d.swing[i])
+            // Chance, Ratchet, Swing — с p-lock и LFO/ENV на момент шага.
+            var prob = Double(d.prob[i])
+            var ratchetV = Double(d.ratchet[i])
+            var swing = Double(d.swing[i])
+            if let m = mod, m.modulated(t) {
+                let f = Int64(time)
+                prob = m.value(t, ModTarget.prob, prob, f)
+                ratchetV = m.value(t, ModTarget.ratchet, ratchetV, f)
+                swing = m.value(t, ModTarget.swing, swing, f)
+            }
+            if Double(nextRandom()) * 100 >= prob { continue }
+            let ratchet = Int(ratchetV.rounded()) + 1
             let offset: Double = pos % 2 == 1 ? (swing - 50) / 50 * dur : 0
             let sub = dur / Double(ratchet)
             // Нота от 2 шагов держится до своего конца (Decay — после); в 1 шаг и рэтчет — Decay сразу после атаки.
             let gate: Int64 = ratchet == 1 && d.len[i] >= 2 ? Int64((Double(d.len[i]) * dur).rounded()) : -1
+            let envGate: Int64 = Int64((ratchet > 1 ? sub * 0.6 : (d.len[i] >= 2 ? Double(d.len[i]) * dur : dur * 0.9)).rounded())
             for r in 0..<ratchet {
-                schedule(track: t, at: time + offset + Double(r) * sub, d, i, gate)
+                schedule(track: t, at: time + offset + Double(r) * sub, d, i, gate, envGate)
             }
         }
         tick += 1
     }
 
-    private func schedule(track: Int, at time: Double, _ d: SeqData, _ i: Int, _ gate: Int64) {
+    private func schedule(track: Int, at time: Double, _ d: SeqData, _ i: Int, _ gate: Int64, _ envGate: Int64) {
         if pendingCount >= Sequencer.pendingMax { return }
         let k = pendingCount
         pendingTime[k] = time
@@ -217,6 +246,7 @@ public final class Sequencer {
         for p in 0..<VoiceParam.count { pendingVals[k * VoiceParam.count + p] = d.lockVal[i * VoiceParam.count + p] }
         pendingSound[k] = d.sound[i]
         pendingGate[k] = gate
+        pendingEnv[k] = envGate
         pendingCount += 1
     }
 
@@ -230,6 +260,7 @@ public final class Sequencer {
         for p in 0..<VoiceParam.count { pendingVals[to * VoiceParam.count + p] = pendingVals[from * VoiceParam.count + p] }
         pendingSound[to] = pendingSound[from]
         pendingGate[to] = pendingGate[from]
+        pendingEnv[to] = pendingEnv[from]
     }
 
     /// Ноты, момент которых наступил (раньше конца блока).
@@ -240,6 +271,8 @@ public final class Sequencer {
                 let t = Int(pendingTrack[k])
                 let frame = Int64(pendingTime[k].rounded(.down))
                 out.push(.trig(track: t, frame: frame))
+                // ENV запускается в кадре ноты — начальные значения ноты берут ENV на этот момент.
+                mod?.trig(track: t, at: frame, gate: pendingEnv[k])
                 sampler?.trigger(track: t, at: frame, notes: pendingNotes + k * SeqData.maxNotes, count: Int(pendingCountN[k]),
                                  mask: pendingMask[k], vals: pendingVals + k * VoiceParam.count, hash: pendingSound[k],
                                  gate: pendingGate[k], own: pendingSound[k] != 0, liveId: -1)

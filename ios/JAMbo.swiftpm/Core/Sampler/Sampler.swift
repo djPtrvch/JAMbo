@@ -86,6 +86,9 @@ public final class Sampler {
     let flagCur = UnsafeMutablePointer<Float>.allocate(capacity: 3)
     /// Шины эффектов и Sidechain (ставит AudioCore; nil — без эффектов, как в тестах сэмплера).
     public var fx: FxRack?
+    /// Модуляция LFO/ENV (ставит AudioCore); modFrame — кадр ноты, которую сейчас запускают.
+    public var mod: ModEngine?
+    var modFrame: Int64 = 0
     /// Темп (время Delay по долям такта) — ставит AudioCore на блок.
     public var bpm: Double = 120
 
@@ -190,8 +193,11 @@ public final class Sampler {
     /// Значение параметра p голоса: p-lock (mask, vals) или ручка дорожки t.
     @inline(__always)
     private func pv(_ d: SoundData, _ t: Int, _ p: Int, _ mask: UInt16, _ vals: UnsafePointer<Float>?) -> Double {
-        if mask & (UInt16(1) << UInt16(p)) != 0, let v = vals { return Double(v[p]) }
-        return Double(d.param(t, p))
+        var x: Double = Double(d.param(t, p))
+        if mask & (UInt16(1) << UInt16(p)) != 0, let v = vals { x = Double(v[p]) }
+        // LFO/ENV — сверху (ENV — на кадр ноты).
+        if let m = mod, m.modulated(t) { x = m.value(t, p, x, modFrame) }
+        return x
     }
 
     /// Ноты дорожки t в кадре frame. hash — свой звук шага (0 — звук дорожки); gate — удержание в кадрах
@@ -200,6 +206,7 @@ public final class Sampler {
                         vals: UnsafePointer<Float>?, hash: UInt64, gate: Int64, own isOwn: Bool, liveId live: Int,
                         retrig: Bool = false) {
         guard let d = sound, t >= 0, t < d.trackCount else { return }
+        modFrame = frame
         // Sidechain: каждая нота источника (не перезапуск звука на держащейся ноте).
         if !retrig { fx?.noteTrig(track: t, at: frame) }
         let h: UInt64 = hash != 0 ? hash : d.sound[t]
@@ -557,9 +564,12 @@ public final class Sampler {
         let mask = lockMask[v]
         let base = v * VoiceParam.count
         // Ручки дорожки меняют звучащую ноту сразу; p-lock шага держит своё.
+        let modE: ModEngine? = mod != nil && mod!.modulated(t) ? mod : nil
         @inline(__always) func val(_ p: Int) -> Double {
-            if mask & (UInt16(1) << UInt16(p)) != 0 { return Double(lockVal[base + p]) }
-            return Double(d.param(t, p))
+            var x: Double = Double(d.param(t, p))
+            if mask & (UInt16(1) << UInt16(p)) != 0 { x = Double(lockVal[base + p]) }
+            if let mm = modE { x = mm.value(t, p, x, blockStart) }
+            return x
         }
         let rateT: Double = noteRatio[v] * pow(2, val(VoiceParam.pitch) / 12)
         let levelT = Float(pow(val(VoiceParam.level) / 127, 1.5))

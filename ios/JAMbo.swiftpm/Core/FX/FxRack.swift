@@ -79,7 +79,8 @@ public final class FxRack {
 
     /// Начало блока: FX снимка с p-lock играющих шагов (дорожки по порядку — у последней приоритет), источник
     /// и есть ли кого приглушать.
-    public func begin(_ d: SoundData, lockMask: UnsafePointer<UInt32>, lockVal: UnsafePointer<Float>) {
+    public func begin(_ d: SoundData, lockMask: UnsafePointer<UInt32>, lockVal: UnsafePointer<Float>, mod: ModEngine? = nil,
+                      frame: Int64 = 0) {
         let c = Params.fxCount
         var p = 0
         while p < c {
@@ -97,6 +98,20 @@ public final class FxRack {
                 }
             }
             t += 1
+        }
+        // LFO/ENV на ручках FX: источник — дорожка, выбранная при назначении.
+        if let m = mod {
+            p = 0
+            while p < c {
+                let src = Int(d.fxSrc[p])
+                let tr = Int(d.fxTrack[p])
+                if src != 0 && tr < d.trackCount {
+                    let sc = d.fxScale[p]
+                    let n: Double = sc.toNorm(live[p]) + Double(d.fxAmt[p]) * m.source(tr, src, frame)
+                    live[p] = sc.fromNorm(Swift.min(1, Swift.max(0, n)))
+                }
+                p += 1
+            }
         }
         source = Int((live[FxRack.scSource]).rounded())
         anyDucked = false

@@ -60,6 +60,17 @@ public struct SoundData {
     public var fx: UnsafeMutablePointer<Float>
     public var scAmount: UnsafeMutablePointer<Float>
     public var scSend: UnsafeMutablePointer<Float>
+    /// MOD: параметры LFO/ENV дорожки (Params.modIds), назначения на цели (ModTarget: источник 0 — нет, 1–4; степень;
+    /// шкала ручки по звуку дорожки), есть ли у дорожки назначения; назначения на FX (Params.fxIds) и дорожка-источник.
+    public var mod: UnsafeMutablePointer<Float>
+    public var asSrc: UnsafeMutablePointer<Int8>
+    public var asAmt: UnsafeMutablePointer<Float>
+    public var scale: UnsafeMutablePointer<ParamScale>
+    public var asAny: UnsafeMutablePointer<UInt8>
+    public var fxSrc: UnsafeMutablePointer<Int8>
+    public var fxAmt: UnsafeMutablePointer<Float>
+    public var fxTrack: UnsafeMutablePointer<Int32>
+    public var fxScale: UnsafeMutablePointer<ParamScale>
 
     @inline(__always)
     public func param(_ t: Int, _ p: Int) -> Float {
@@ -129,8 +140,25 @@ public final class SoundSnapshot: @unchecked Sendable {
             eSliceStart: .allocate(capacity: entries), eSliceCount: .allocate(capacity: entries),
             sliceAt: .allocate(capacity: slices), sliceNote: .allocate(capacity: slices),
             tableRef: .allocate(capacity: tracks),
-            fx: .allocate(capacity: Params.fxCount), scAmount: .allocate(capacity: tracks), scSend: .allocate(capacity: 3)
+            fx: .allocate(capacity: Params.fxCount), scAmount: .allocate(capacity: tracks), scSend: .allocate(capacity: 3),
+            mod: .allocate(capacity: tracks * Params.modCount), asSrc: .allocate(capacity: tracks * ModTarget.count),
+            asAmt: .allocate(capacity: tracks * ModTarget.count), scale: .allocate(capacity: tracks * ModTarget.count),
+            asAny: .allocate(capacity: tracks), fxSrc: .allocate(capacity: Params.fxCount),
+            fxAmt: .allocate(capacity: Params.fxCount), fxTrack: .allocate(capacity: Params.fxCount),
+            fxScale: .allocate(capacity: Params.fxCount)
         )
+        d.mod.initialize(repeating: 0, count: tracks * Params.modCount)
+        d.asSrc.initialize(repeating: 0, count: tracks * ModTarget.count)
+        d.asAmt.initialize(repeating: 0, count: tracks * ModTarget.count)
+        d.scale.initialize(repeating: ParamScale(), count: tracks * ModTarget.count)
+        d.asAny.initialize(repeating: 0, count: tracks)
+        for (k, id) in Params.fxIds.enumerated() {
+            let a = project.fxAssigns[id]
+            (d.fxSrc + k).initialize(to: Int8(a?.lfo ?? 0))
+            (d.fxAmt + k).initialize(to: Float(a?.amount ?? 0))
+            (d.fxTrack + k).initialize(to: Int32(a?.track ?? 0))
+            (d.fxScale + k).initialize(to: Params.byId[id].map { ParamScale($0) } ?? ParamScale())
+        }
         for (k, id) in Params.fxIds.enumerated() {
             (d.fx + k).initialize(to: Float(project.fx[id] ?? Params.byId[id]?.def ?? 0))
         }
@@ -168,6 +196,21 @@ public final class SoundSnapshot: @unchecked Sendable {
             }
             d.gain[t] = Float(Params.volGain(tr.vol))
             d.scAmount[t] = Float(tr.params["sidechain"] ?? 0)
+            for (k, id) in Params.modIds.enumerated() {
+                d.mod[t * Params.modCount + k] = Float(tr.params[id] ?? Params.byId[id]?.def ?? 0)
+            }
+            // Шкалы целей — по сетке звука дорожки (у синта свои пределы и ступени).
+            var grid: [String: ParamDef] = [:]
+            for p in Params.grid(sound: tr.sample) { grid[p.id] = p }
+            for (j, id) in ModTarget.ids.enumerated() {
+                let i = t * ModTarget.count + j
+                if let def = grid[id] ?? Params.byId[id] { d.scale[i] = ParamScale(def) }
+                if let a = tr.assigns[id] {
+                    d.asSrc[i] = Int8(a.lfo)
+                    d.asAmt[i] = Float(a.amount)
+                    d.asAny[t] = 1
+                }
+            }
             d.open[t] = project.audible(t) ? 1 : 0
             d.sound[t] = SoundKey.hash(tr.sample)
             if let wt = tables[tr.table] {
@@ -229,5 +272,14 @@ public final class SoundSnapshot: @unchecked Sendable {
         data.fx.deallocate()
         data.scAmount.deallocate()
         data.scSend.deallocate()
+        data.mod.deallocate()
+        data.asSrc.deallocate()
+        data.asAmt.deallocate()
+        data.scale.deallocate()
+        data.asAny.deallocate()
+        data.fxSrc.deallocate()
+        data.fxAmt.deallocate()
+        data.fxTrack.deallocate()
+        data.fxScale.deallocate()
     }
 }

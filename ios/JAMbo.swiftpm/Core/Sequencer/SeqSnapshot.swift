@@ -35,6 +35,9 @@ public struct SeqData {
     /// P-lock общих FX (биты Params.fxIds и значения): действуют, пока шаг играет.
     public var fxMask: UnsafeMutablePointer<UInt32>
     public var fxVal: UnsafeMutablePointer<Float>
+    /// P-lock LFO/ENV дорожки (биты Params.modIds и значения): действуют, пока шаг играет.
+    public var modMask: UnsafeMutablePointer<UInt16>
+    public var modVal: UnsafeMutablePointer<Float>
     /// Строки: видимых, повторы, строка старта, в конце — стоп, LOOP ROW.
     public var rows: Int = 1
     public var repeats: UnsafeMutablePointer<Int32>
@@ -130,6 +133,7 @@ public final class SeqSnapshot: @unchecked Sendable {
             sound: .allocate(capacity: steps), lockMask: .allocate(capacity: steps),
             lockVal: .allocate(capacity: steps * VoiceParam.count),
             fxMask: .allocate(capacity: steps), fxVal: .allocate(capacity: steps * Params.fxCount),
+            modMask: .allocate(capacity: steps), modVal: .allocate(capacity: steps * Params.modCount),
             repeats: .allocate(capacity: SeqData.slots)
         )
         d.stopped.initialize(repeating: 1, count: tracks)
@@ -150,6 +154,8 @@ public final class SeqSnapshot: @unchecked Sendable {
         d.lockVal.initialize(repeating: 0, count: steps * VoiceParam.count)
         d.fxMask.initialize(repeating: 0, count: steps)
         d.fxVal.initialize(repeating: 0, count: steps * Params.fxCount)
+        d.modMask.initialize(repeating: 0, count: steps)
+        d.modVal.initialize(repeating: 0, count: steps * Params.modCount)
         d.repeats.initialize(repeating: 1, count: SeqData.slots)
         d.rows = project.visibleRows
         d.arrStart = min(project.arrStart, d.rows - 1)
@@ -216,6 +222,13 @@ public final class SeqSnapshot: @unchecked Sendable {
                         d.fxVal[i * Params.fxCount + p] = Float(v)
                     }
                     d.fxMask[i] = fm
+                    var mm: UInt16 = 0
+                    for (p, id) in Params.modIds.enumerated() {
+                        guard let v = step.locks[id] else { continue }
+                        mm |= UInt16(1) << UInt16(p)
+                        d.modVal[i * Params.modCount + p] = Float(v)
+                    }
+                    d.modMask[i] = mm
                 }
             }
         }
@@ -241,6 +254,8 @@ public final class SeqSnapshot: @unchecked Sendable {
         data.lockVal.deallocate()
         data.fxMask.deallocate()
         data.fxVal.deallocate()
+        data.modMask.deallocate()
+        data.modVal.deallocate()
         data.repeats.deallocate()
     }
 }

@@ -85,6 +85,9 @@ public final class SynthVoices {
     var sendL: UnsafeMutablePointer<Float>?
     var sendR: UnsafeMutablePointer<Float>?
     var stride = 0
+    /// Модуляция LFO/ENV (ставит AudioCore); modFrame — кадр ноты, которую сейчас запускают.
+    var mod: ModEngine?
+    var modFrame: Int64 = 0
     // Нота, ждущая украденный слот (стартует через 8 мс, когда прежняя погаснет).
     let pActive = UnsafeMutablePointer<UInt8>.allocate(capacity: slots)
     let pStart = UnsafeMutablePointer<Int64>.allocate(capacity: slots)
@@ -187,14 +190,18 @@ public final class SynthVoices {
 
     @inline(__always)
     private func pv(_ d: SoundData, _ t: Int, _ p: Int, _ mask: UInt16, _ vals: UnsafePointer<Float>?) -> Double {
-        if mask & (UInt16(1) << UInt16(p)) != 0, let v = vals { return Double(v[p]) }
-        return Double(d.param(t, p))
+        var x: Double = Double(d.param(t, p))
+        if mask & (UInt16(1) << UInt16(p)) != 0, let v = vals { x = Double(v[p]) }
+        // LFO/ENV — сверху (ENV — на кадр ноты).
+        if let m = mod, m.modulated(t) { x = m.value(t, p, x, modFrame) }
+        return x
     }
 
     /// Ноты дорожки t движком e в кадре frame (gate — как у Sampler.trigger: −1 — нота в 1 шаг, Int64.max — живая).
     func trigger(_ d: SoundData, track t: Int, engine e: Int, at frame: Int64, notes: UnsafePointer<Int16>, count: Int,
                  mask: UInt16, vals: UnsafePointer<Float>?, gate: Int64, own isOwn: Bool, liveId live: Int, retrig: Bool) {
         if t < 0 || t >= SynthVoices.tracks { return }
+        modFrame = frame
         // DRUM монофонична: удары дорожки — в первый голос дорожки, из аккорда — одна нота, без кражи
         // (хвост прошлого удара гаснет в самом движке за ~2 мс).
         if e == Jambo.drum {
@@ -474,9 +481,12 @@ public final class SynthVoices {
         let mask = lockMask[v]
         let base = v * VoiceParam.count
         // Ручки дорожки меняют звучащую ноту сразу; p-lock шага держит своё.
+        let modE: ModEngine? = mod != nil && mod!.modulated(t) ? mod : nil
         @inline(__always) func val(_ p: Int) -> Double {
-            if mask & (UInt16(1) << UInt16(p)) != 0 { return Double(lockVal[base + p]) }
-            return Double(d.param(t, p))
+            var x: Double = Double(d.param(t, p))
+            if mask & (UInt16(1) << UInt16(p)) != 0 { x = Double(lockVal[base + p]) }
+            if let mm = modE { x = mm.value(t, p, x, frame0) }
+            return x
         }
         let e = engine[v]
         let decaying = selfDecay[v] != 0

@@ -239,6 +239,42 @@ public enum Params {
         return trackGrid
     }
 
+    // MARK: — MOD: LFO1–3 и ENV (по дорожкам, MOD_GRID веба)
+
+    public static let lfoWaves = ["Sine", "Triangle", "Saw", "Square", "Random"]
+
+    static func lfoHz(_ v: Double) -> String { return v < 1 ? String(format: "%.2fHz", v) : String(format: "%.1fHz", v) }
+
+    static func lfoColumn(_ n: Int) -> [ParamDef] {
+        return [
+            stepped("lfo\(n).wave", "LFO\(n) Wave", lfoWaves),
+            smooth("lfo\(n).speed", "LFO\(n) Speed", 0.05, 20, [0.1, 0.5, 1][n - 1], exp: true, lfoHz),
+            smooth("lfo\(n).invert", "LFO\(n) Invert", 0, 1, 0) { v in
+                let p = Int(((1 - 2 * v) * 100).rounded())
+                return p == 0 ? "flat" : "\(p > 0 ? "+" : "")\(p)%"
+            },
+            // Полярность: 0 — биполярная (−1…+1 вокруг значения ручки), 1 — однополярная (0…+1), между — плавно.
+            smooth("lfo\(n).polar", "LFO\(n) Polarity", 0, 1, 0) { v in
+                v < 0.005 ? "BI" : (v > 0.995 ? "UNI" : "UNI \(Int((v * 100).rounded()))%")
+            },
+        ]
+    }
+
+    public static let modColumns: [[ParamDef]] = [
+        lfoColumn(1), lfoColumn(2), lfoColumn(3),
+        [
+            smooth("env.attack", "ENV Attack", 1, 4000, 10, exp: true, Fmt.ms),
+            smooth("env.decay", "ENV Decay", 1, 4000, 100, exp: true, Fmt.ms),
+            smooth("env.sustain", "ENV Sustain", 0, 100, 40, Fmt.pct),
+            smooth("env.release", "ENV Release", 1, 4000, 300, exp: true, Fmt.ms),
+        ],
+    ]
+
+    /// Сетка MOD 4×4 ряд за рядом; порядок в снимках для колбэка — modColumns подряд (LFO1, LFO2, LFO3, ENV).
+    public static let modGrid: [ParamDef] = (0..<16).map { i in modColumns[i % 4][i / 4] }
+    public static let modIds: [String] = modColumns.flatMap { $0 }.map { $0.id }
+    public static let modCount = 16
+
     // MARK: — FX (общие параметры, FX_GRID веба)
 
     /// Время Delay в долях такта: подпись и длительность в четвертях.
@@ -311,13 +347,13 @@ public enum Params {
 
     public static let byId: [String: ParamDef] = {
         var d: [String: ParamDef] = [:]
-        for p in trackGrid + synthColumn + fxGrid + hiddenFx { d[p.id] = p }
+        for p in trackGrid + synthColumn + modGrid + fxGrid + hiddenFx { d[p.id] = p }
         return d
     }()
 
     public static func defaults() -> [String: Double] {
         var d: [String: Double] = [:]
-        for p in trackGrid + synthColumn { d[p.id] = p.def }
+        for p in trackGrid + synthColumn + modGrid { d[p.id] = p.def }
         return d
     }
 }

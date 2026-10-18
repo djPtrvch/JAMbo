@@ -1,6 +1,20 @@
 // Модель проекта (как Doc и Track в src/state.ts веба; имена полей те же — для импорта .jambo в S10).
 // Значения (struct): копия — снимок для UNDO.
 
+/// Назначение источника модуляции на ручку: lfo 1–3 — LFO1–3, 4 — ENV; amount −1…+1 (доля хода ручки).
+public struct ModAssign: Codable, Equatable, Sendable {
+    public var lfo: Int
+    public var amount: Double
+    /// Назначение на ручку FX: дорожка-источник (LFO/ENV дорожки, выбранной при назначении).
+    public var track: Int?
+
+    public init(lfo: Int, amount: Double, track: Int? = nil) {
+        self.lfo = lfo
+        self.amount = amount
+        self.track = track
+    }
+}
+
 public struct Step: Codable, Equatable, Sendable {
     public var on: Bool = false
     /// Длина ноты в шагах.
@@ -37,6 +51,8 @@ public struct Track: Codable, Equatable, Sendable {
     public var vol: Double = Params.volDef
     /// Таблица WTABLE дорожки ("" — BASIC, "builtin:NAME" — встроенная; свои WAV — S10).
     public var table: String = ""
+    /// Назначения LFO1–3 / ENV на ручки дорожки (id параметра → источник и степень).
+    public var assigns: [String: ModAssign] = [:]
 
     public init(index: Int) {
         id = Int.random(in: 0..<(1 << 31))
@@ -196,6 +212,8 @@ public struct Project: Codable, Equatable, Sendable {
     public var root: Int = 0
     /// Общие FX (сетка FX и пред-задержка): принадлежат клипам — действуют FX клипа, запущенного последним.
     public var fx: [String: Double] = Params.fxDefaults()
+    /// Назначения LFO/ENV на ручки FX (источник — LFO/ENV дорожки track).
+    public var fxAssigns: [String: ModAssign] = [:]
     public var tracks: [Track]
     /// Строки сетки паттернов: имена и повторы.
     public var scenes: [SceneRow] = [SceneRow](repeating: SceneRow(), count: Params.patternSlots)

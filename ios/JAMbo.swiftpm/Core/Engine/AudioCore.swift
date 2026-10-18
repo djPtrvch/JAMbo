@@ -18,6 +18,8 @@ public final class AudioCore: @unchecked Sendable {
     public let sampler = Sampler(sampleRate: AudioCore.sampleRate)
     /// Шины общих эффектов (Reverb, Delay, Drive) и Sidechain.
     public let fx = FxRack(sampleRate: AudioCore.sampleRate)
+    /// LFO1–3 и ENV дорожек.
+    public let mod = ModEngine(sampleRate: AudioCore.sampleRate)
     /// Снимки паттернов и звука: новые — в колбэк, прежние — обратно (освобождаются в основном потоке не раньше
     /// чем через keepAlive с: голоса, которые гаснут, ещё читают их сэмплы).
     private let snapshots = SPSCQueue<Unmanaged<SeqSnapshot>?>(capacity: 64, filler: nil)
@@ -42,6 +44,8 @@ public final class AudioCore: @unchecked Sendable {
     public init() {
         sequencer.sampler = sampler
         sampler.fx = fx
+        sampler.mod = mod
+        sequencer.mod = mod
     }
 
     /// Новые снимки (основной поток, после каждой правки): звук — всегда (дёшево), паттерны — если изменились.
@@ -90,7 +94,10 @@ public final class AudioCore: @unchecked Sendable {
         // Сначала снимок проекта, потом команды: PLAY сразу после правки видит новые клипы и строки.
         takeSnapshots()
         // FX на блок: значения клипа с p-lock играющих шагов, источник Sidechain.
-        if let d = sampler.sound { fx.begin(d, lockMask: sequencer.fxLockMask, lockVal: sequencer.fxLockVal) }
+        if let d = sampler.sound {
+            mod.begin(d, frames: frames, lockMask: sequencer.modLockMask, lockVal: sequencer.modLockVal)
+            fx.begin(d, lockMask: sequencer.fxLockMask, lockVal: sequencer.fxLockVal, mod: mod, frame: sampleTime)
+        }
         sampler.bpm = sequencer.bpm
         while let event = events.pop() {
             apply(event)
@@ -100,6 +107,7 @@ public final class AudioCore: @unchecked Sendable {
         tone.render(frames: frames, left: left, right: right)
         sequencer.process(blockStart: sampleTime, frames: frames, left: left, right: right, host: host)
         sampler.render(blockStart: sampleTime, frames: frames, left: left, right: right)
+        mod.publish(frame: sampleTime + Int64(frames))
         sampleTime += Int64(frames)
         frameCounter.store(Int(sampleTime))
     }
@@ -108,7 +116,9 @@ public final class AudioCore: @unchecked Sendable {
     private func takeSnapshots() {
         while let item = synthQueue.pop() {
             guard let s = item else { continue }
-            sampler.synth = s.takeRetainedValue()
+            let v = s.takeRetainedValue()
+            v.mod = mod
+            sampler.synth = v
         }
         while let item = snapshots.pop() {
             guard let snap = item else { continue }
@@ -148,8 +158,10 @@ public final class AudioCore: @unchecked Sendable {
         case .adoptPlay:
             sequencer.adoptPlay()
         case .noteOn(let t, let n, let id, let v):
+            mod.liveOn(track: t, at: sampleTime)
             sampler.noteOn(track: t, note: n, liveId: id, velocity: v, at: sampleTime)
         case .noteOff(let t, let id):
+            mod.liveOff(track: t, at: sampleTime)
             sampler.release(track: t, liveId: id, at: sampleTime)
         case .preview(let h, let a, let b):
             sampler.preview(hash: h, a: a, b: b, at: sampleTime)
