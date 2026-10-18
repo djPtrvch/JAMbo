@@ -8,12 +8,12 @@ struct LeftColumn: View {
     var body: some View {
         VStack(spacing: Layout.gap) {
             SampleWindow(model: model)
-            // Строка под окном есть всегда — окно одного размера у дорожки, MIX и MST: у дорожки — стрелки папки,
-            // при MIX — ● MASTER (запись мастера), при MST — пусто.
-            switch model.channel {
-            case .track: FolderArrows(model: model).frame(height: 36)
-            case .mix: MasterRecButton().frame(height: 36)
-            case .master: Color.clear.frame(height: 36)
+            // Под окном: у дорожки — стрелки папки, при MIX — ● MASTER (окно размером как у дорожки); при MST строки нет —
+            // индикация мастера выше.
+            if model.channel == .track {
+                FolderArrows(model: model).frame(height: 36)
+            } else if model.channel == .mix {
+                MasterRecButton().frame(height: 36)
             }
             if model.channel == .master {
                 ButtonPair(left: MasterButton(model: model, module: MasterScope.clip),
