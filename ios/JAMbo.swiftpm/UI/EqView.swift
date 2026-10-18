@@ -338,8 +338,8 @@ struct EqTool: View {
 /// полем TYPE; тап мимо — закрыть.
 struct EqBandMenu: View {
     static let width: CGFloat = 390
-    /// 3 ряда по 44, зазоры 4, DELETE 44, поля 12.
-    static let height: CGFloat = 196
+    /// Типы — 2 ряда по 44, крутизна 44, ON/OFF и DELETE 44, зазоры 4, поля 12.
+    static let height: CGFloat = 200
     let model: AppModel
     let state: EqMenuState
     @Environment(\.theme) private var theme
