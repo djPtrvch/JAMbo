@@ -39,6 +39,8 @@ public struct SoundData {
     public var trackId: UnsafeMutablePointer<Int>
     public var params: UnsafeMutablePointer<Float>
     public var gain: UnsafeMutablePointer<Float>
+    /// Подстройка громкости дорожки (LEVEL RELATIVE), множитель: и к громкости, и к p-lock громкости MIX.
+    public var trim: UnsafeMutablePointer<Float>
     public var open: UnsafeMutablePointer<UInt8>
     public var sound: UnsafeMutablePointer<UInt64>
     public var entryStart: UnsafeMutablePointer<Int32>
@@ -142,7 +144,7 @@ public final class SoundSnapshot: @unchecked Sendable {
         let pc = VoiceParam.count
         var d = SoundData(
             trackId: .allocate(capacity: tracks), params: .allocate(capacity: tracks * pc),
-            gain: .allocate(capacity: tracks), open: .allocate(capacity: tracks), sound: .allocate(capacity: tracks),
+            gain: .allocate(capacity: tracks), trim: .allocate(capacity: tracks), open: .allocate(capacity: tracks), sound: .allocate(capacity: tracks),
             entryStart: .allocate(capacity: tracks + 1), entryCount: .allocate(capacity: tracks),
             eHash: .allocate(capacity: entries), eLeft: .allocate(capacity: entries), eRight: .allocate(capacity: entries),
             eFrames: .allocate(capacity: entries), eChannels: .allocate(capacity: entries),
@@ -189,6 +191,7 @@ public final class SoundSnapshot: @unchecked Sendable {
         d.trackId.initialize(repeating: -1, count: tracks)
         d.params.initialize(repeating: 0, count: tracks * pc)
         d.gain.initialize(repeating: 0, count: tracks)
+        d.trim.initialize(repeating: 1, count: tracks)
         d.open.initialize(repeating: 0, count: tracks)
         d.sound.initialize(repeating: 0, count: tracks)
         d.entryStart.initialize(repeating: 0, count: tracks + 1)
@@ -214,7 +217,9 @@ public final class SoundSnapshot: @unchecked Sendable {
             for (p, id) in VoiceParam.ids.enumerated() {
                 d.params[t * pc + p] = Float(tr.params[id] ?? Params.byId[id]?.def ?? 0)
             }
-            d.gain[t] = Float(Params.volGain(tr.vol))
+            let tg: Float = Float(Params.volGain(tr.trim))
+            d.trim[t] = tg
+            d.gain[t] = Float(Params.volGain(tr.vol)) * tg
             d.scAmount[t] = Float(tr.params["sidechain"] ?? 0)
             for (k, id) in Params.modIds.enumerated() {
                 d.mod[t * Params.modCount + k] = Float(tr.params[id] ?? Params.byId[id]?.def ?? 0)
@@ -275,6 +280,7 @@ public final class SoundSnapshot: @unchecked Sendable {
         data.trackId.deallocate()
         data.params.deallocate()
         data.gain.deallocate()
+        data.trim.deallocate()
         data.open.deallocate()
         data.sound.deallocate()
         data.entryStart.deallocate()

@@ -1,12 +1,17 @@
 import Foundation
 
-/// Вкладки SETTINGS (S9d; отличия от веба: без SAMPLE RATE и BUFFER SIZE, BACKGROUND и SCALE).
+/// Вкладки SETTINGS (S9d; отличия от веба: без SAMPLE RATE и BUFFER SIZE, BACKGROUND и SCALE; APPEARANCE — вкладка;
+/// новые MIX, MORPH, LEVEL — решение пользователя).
 enum SettingsTab: String, CaseIterable {
     case engine = "AUDIO ENGINE"
+    case output = "OUTPUT"
+    case appearance = "APPEARANCE"
     case record = "RECORD"
     case sampler = "SAMPLER"
     case sidechain = "SIDECHAIN"
-    case output = "OUTPUT"
+    case mix = "MIX"
+    case morph = "MORPH"
+    case level = "LEVEL"
 }
 
 /// Настройки приложения (общие для проектов, UserDefaults): применяются сразу.
@@ -37,5 +42,25 @@ extension AppModel {
     func scSend(_ k: Int) -> Bool {
         let s: SidechainSends = settings.scSends
         return k == 0 ? s.rev : (k == 1 ? s.dly : s.drv)
+    }
+
+    func setLevelRelative(_ on: Bool) {
+        updateSettings { s in s.levelRelative = on }
+    }
+
+    func setMorphAll(_ on: Bool) {
+        updateSettings { s in s.morphAll = on }
+    }
+
+    func setMorphReturn(_ k: Int) {
+        updateSettings { s in s.morphReturn = k }
+    }
+
+    func setMixKey(_ on: Bool) {
+        updateSettings { s in s.mixKey = on }
+    }
+
+    func setMixCrossfader(_ on: Bool) {
+        updateSettings { s in s.mixCrossfader = on }
     }
 }

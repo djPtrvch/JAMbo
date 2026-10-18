@@ -48,7 +48,7 @@ extension Sampler {
             let ol = outL + t * mf
             let or = outR + t * mf
             var vt: Float = d.gain[t]
-            if lockMask & (UInt16(1) << UInt16(t)) != 0, let g = lockGain { vt = g[t] }
+            if lockMask & (UInt16(1) << UInt16(t)) != 0, let g = lockGain { vt = g[t] * d.trim[t] }
             let gt: Float = d.open[t] != 0 ? 1 : 0
             if openPrev[t] == 1 && d.open[t] == 0 && d.muteTails, let r = rack, Sampler.onlyDelaySource(d, t) {
                 r.cutDelayTail()

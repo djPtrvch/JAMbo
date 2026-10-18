@@ -127,11 +127,6 @@ extension AppModel {
         return session.named(name, in: projectList)
     }
 
-    func renameProject(_ name: String) {
-        let store = projects
-        write { s in s.rename(name, store: store) }
-    }
-
     func renameProject(id: String, to name: String) {
         let store = projects
         write { s in s.rename(id: id, to: name, store: store) }

@@ -279,3 +279,60 @@ final class ProjectActionsTests: XCTestCase {
         XCTAssertEqual(ProjectSession.meta(i), "120 · C Min")
     }
 }
+
+/// S9: MORPH на все дорожки, возврат после выключения, подстройка громкости (trim).
+final class MorphModesTests: XCTestCase {
+    func testShiftAllTracksKeepsOffsets() throws {
+        var p = Project()
+        let f = try XCTUnwrap(Params.byId["filter"])
+        p.tracks[0].params["filter"] = f.fromNorm(0.5)
+        p.tracks[1].params["filter"] = f.fromNorm(0.2)
+        p.tracks[2].params["filter"] = f.fromNorm(0.9)
+        p.tracks[0].morphParam("filter")
+        p.tracks[0].params["filter"] = f.fromNorm(0.6)
+        p.morphShift(from: 0, id: "filter", norm: 0.6)
+        XCTAssertEqual(f.toNorm(p.tracks[1].params["filter"] ?? 0), 0.3, accuracy: 1e-6)
+        XCTAssertEqual(f.toNorm(p.tracks[2].params["filter"] ?? 0), 1.0, accuracy: 1e-6)
+        XCTAssertTrue(p.tracks[1].morphEdited)
+        // Вернули ручку — соотношение прежнее (у края не потерялось).
+        p.tracks[0].params["filter"] = f.fromNorm(0.5)
+        p.morphShift(from: 0, id: "filter", norm: 0.5)
+        XCTAssertEqual(f.toNorm(p.tracks[2].params["filter"] ?? 0), 0.9, accuracy: 1e-6)
+    }
+
+    func testReturnGlide() throws {
+        var p = Project()
+        let f = try XCTUnwrap(Params.byId["filter"])
+        p.tracks[0].params["filter"] = f.fromNorm(0.2)
+        p.tracks[0].morphParam("filter")
+        p.tracks[0].params["filter"] = f.fromNorm(0.8)
+        let pts = p.morphReturnPoints()
+        XCTAssertEqual(pts.count, 1)
+        p.applyMorphReturn(pts, 0.5)
+        XCTAssertEqual(f.toNorm(p.tracks[0].params["filter"] ?? 0), 0.5, accuracy: 1e-6)
+        p.applyMorphReturn(pts, 1)
+        XCTAssertEqual(p.tracks[0].params["filter"], f.fromNorm(0.2))
+        XCTAssertEqual(MorphReturn.seconds(3, bpm: 120), 2, accuracy: 1e-9)
+        XCTAssertEqual(MorphReturn.seconds(0, bpm: 120), 0)
+    }
+
+    func testTrimLowersTrackGain() {
+        var p = Project()
+        p.tracks[0].vol = -10
+        p.tracks[0].trim = -6
+        let s = SoundSnapshot(p, samples: [:], map: .chromatic)
+        XCTAssertEqual(Double(s.data.gain[0]), Params.volGain(-16), accuracy: 1e-6)
+        p.tracks[0].trim = Params.volMin
+        let q = SoundSnapshot(p, samples: [:], map: .chromatic)
+        XCTAssertEqual(q.data.gain[0], 0)
+    }
+
+    func testSettingsDefaults() {
+        let s = AppSettings.decode(Data("{\"morphReturn\":99}".utf8))
+        XCTAssertFalse(s.levelRelative)
+        XCTAssertFalse(s.morphAll)
+        XCTAssertEqual(s.morphReturn, 0)
+        XCTAssertTrue(s.mixKey)
+        XCTAssertTrue(s.mixCrossfader)
+    }
+}

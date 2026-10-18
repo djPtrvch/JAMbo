@@ -1,14 +1,13 @@
 import SwiftUI
 
-/// Что вводят в окне ввода меню PROJECTS: имя копии (SAVE AS), новое имя текущего (RENAME), проекта из списка.
+/// Что вводят в окне ввода меню PROJECTS: имя копии (SAVE AS), новое имя проекта из списка (карандаш).
 enum ProjectInput: Equatable {
     case saveAs
-    case rename
     case renameId(String)
 }
 
-/// Меню PROJECTS (S9c, как ui/projects.ts веба): стрелка назад и «имя · unsaved»; NEW, SAVE, SAVE AS, RENAME
-/// (EXPORT, IMPORT — S11); список проектов: тап — окно LOAD / MIX, свайп влево — карандаш и корзина (у Autosave —
+/// Меню PROJECTS (S9c, как ui/projects.ts веба): стрелка назад и «имя · unsaved»; NEW, SAVE, SAVE AS
+/// (переименование — карандашом в списке, решение пользователя; EXPORT, IMPORT — S11); список проектов: тап — окно LOAD / MIX, свайп влево — карандаш и корзина (у Autosave —
 /// только корзина). SAVE AS с именем существующего проекта спрашивает, перезаписать ли его.
 struct ProjectsPage: View {
     let model: AppModel
@@ -58,7 +57,6 @@ struct ProjectsPage: View {
             }
             MenuItem(title: "SAVE") { model.saveProject() }
             MenuItem(title: "SAVE AS") { ask(.saveAs, "\(model.session.name) copy") }
-            MenuItem(title: "RENAME") { ask(.rename, model.session.name) }
         }
     }
 
@@ -143,7 +141,7 @@ struct ProjectsPage: View {
     private var inputTitle: String {
         switch input {
         case .saveAs: return "SAVE AS"
-        case .rename, .renameId: return "RENAME"
+        case .renameId: return "RENAME"
         case nil: return ""
         }
     }
@@ -158,8 +156,6 @@ struct ProjectsPage: View {
             } else {
                 model.saveProjectAs(text, replace: nil)
             }
-        case .rename:
-            model.renameProject(text)
         case .renameId(let id):
             model.renameProject(id: id, to: text)
         case nil:

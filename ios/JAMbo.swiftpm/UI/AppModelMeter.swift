@@ -45,6 +45,13 @@ extension AppModel {
         edit { pr in pr.tracks[t].vol = v }
     }
 
+    /// LEVEL RELATIVE: подстройка дорожки вниз от громкости MIX, −∞…0 dB.
+    func setTrackTrim(_ t: Int, _ db: Double) {
+        guard t >= 0 && t < project.tracks.count else { return }
+        let v: Double = max(Params.volMin, min(0, db))
+        edit { pr in pr.tracks[t].trim = v }
+    }
+
     /// Регулятор на измерителе при MIX и MST: громкость выхода мастера (после лимитера), −∞…0 dB.
     func setOutVol(_ db: Double) {
         let v: Double = max(Params.volMin, min(0, db))

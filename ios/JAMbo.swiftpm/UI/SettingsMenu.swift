@@ -2,8 +2,8 @@ import AVFoundation
 import AVKit
 import SwiftUI
 
-/// SETTINGS (S9d, как ui/settings.ts веба): стрелка назад и «Settings»; подпись SECTIONS и вкладки; ниже — с чертой —
-/// APPEARANCE (тема); под ним открытая вкладка. Всё прокручивается пальцем.
+/// SETTINGS (S9d, как ui/settings.ts веба): стрелка назад и «Settings»; подпись SECTIONS и вкладки (APPEARANCE — тоже
+/// вкладка); ниже — с чертой — открытая вкладка. Всё прокручивается пальцем.
 struct SettingsPage: View {
     let model: AppModel
     let back: () -> Void
@@ -16,9 +16,7 @@ struct SettingsPage: View {
                 VStack(alignment: .leading, spacing: 8) {
                     FieldLabel(title: "SECTIONS")
                     tabs
-                    Divider().overlay(theme.line).padding(.top, 6)
-                    FieldLabel(title: "APPEARANCE")
-                    appearance
+                    Divider().overlay(theme.line).padding(.vertical, 6)
                     section
                 }
                 .padding(.trailing, 6)
@@ -37,14 +35,6 @@ struct SettingsPage: View {
         }
     }
 
-    private var appearance: some View {
-        HStack(spacing: 4) {
-            ForEach(Appearance.allCases, id: \.self) { a in
-                MenuItem(title: a.rawValue, current: model.appearance == a) { model.setAppearance(a) }
-            }
-        }
-    }
-
     @ViewBuilder
     private var section: some View {
         switch model.settingsTab {
@@ -53,6 +43,10 @@ struct SettingsPage: View {
         case .sampler: SamplerSettings(model: model)
         case .sidechain: SidechainSettings(model: model)
         case .output: OutputSettings(model: model)
+        case .appearance: AppearanceSettings(model: model)
+        case .mix: MixSettings(model: model)
+        case .morph: MorphSettings(model: model)
+        case .level: LevelSettings(model: model)
         }
     }
 }
@@ -144,6 +138,72 @@ struct OutputSettings: View {
         let outs: [AVAudioSessionPortDescription] = AVAudioSession.sharedInstance().currentRoute.outputs
         if outs.isEmpty { return "No output" }
         return outs.map { $0.portName }.joined(separator: ", ")
+    }
+}
+
+/// APPEARANCE: тема SYSTEM (как на iPad), LIGHT, DARK.
+struct AppearanceSettings: View {
+    let model: AppModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            FieldLabel(title: "THEME")
+            HStack(spacing: 4) {
+                ForEach(Appearance.allCases, id: \.self) { a in
+                    MenuItem(title: a.rawValue, current: model.appearance == a) { model.setAppearance(a) }
+                }
+            }
+            SettingsNote(text: "SYSTEM follows the iPad setting.")
+        }
+    }
+}
+
+/// MIX: переходы между проектами (действуют с переходами MIX, S10).
+struct MixSettings: View {
+    let model: AppModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ToggleRow(title: "CHANGE KEY", isOn: model.settings.mixKey) { model.setMixKey($0) }
+            SettingsNote(text: "ON: on a MIX transition the scale and root note change to the new project. OFF: the scale and root note stay as they are.")
+            ToggleRow(title: "CROSSFADER", isOn: model.settings.mixCrossfader) { model.setMixCrossfader($0) }
+            SettingsNote(text: "ON: the crossfader between projects sets the tempo (only the tempo). OFF: no crossfader; the tempo follows the old pattern.")
+        }
+    }
+}
+
+/// MORPH: ручки на все дорожки или на выбранную; возврат после выключения режима.
+struct MorphSettings: View {
+    let model: AppModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ToggleRow(title: "ALL TRACKS", isOn: model.settings.morphAll) { model.setMorphAll($0) }
+            SettingsNote(text: "ON: in MORPH a knob changes its parameter on every track that has it (each track moves by the same amount from its own value). OFF: only the selected track.")
+            FieldLabel(title: "RETURN")
+            HStack(spacing: 4) {
+                ForEach(0..<MorphReturn.names.count, id: \.self) { k in
+                    MenuItem(title: MorphReturn.names[k], current: model.settings.morphReturn == k) { model.setMorphReturn(k) }
+                }
+            }
+            SettingsNote(text: "How fast the knobs glide back when MORPH is turned off: OFF — at once, or over 1/4 bar to 2 bars at the current tempo.")
+        }
+    }
+}
+
+/// LEVEL: регулятор громкости справа у дорожки — ABSOLUTE или RELATIVE.
+struct LevelSettings: View {
+    let model: AppModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            FieldLabel(title: "TRACK LEVEL FADER")
+            HStack(spacing: 4) {
+                MenuItem(title: "ABSOLUTE", current: !model.settings.levelRelative) { model.setLevelRelative(false) }
+                MenuItem(title: "RELATIVE", current: model.settings.levelRelative) { model.setLevelRelative(true) }
+            }
+            SettingsNote(text: "ABSOLUTE: the fader on the right is the track volume in MIX. RELATIVE: the fader trims the track down from its MIX volume — the top of the fader is the MIX volume (for example −10 dB), down to silence.")
+        }
     }
 }
 

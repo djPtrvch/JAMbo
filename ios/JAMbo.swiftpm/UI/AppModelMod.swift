@@ -86,14 +86,51 @@ extension AppModel {
 
     // MARK: — MORPH
 
-    /// MORPH: тап включает режим; повторный — выключает и возвращает всё, что меняли, на всех дорожках.
+    /// MORPH: тап включает режим; повторный — выключает и возвращает всё, что меняли, на всех дорожках: сразу или
+    /// плавно (SETTINGS → MORPH → RETURN, по темпу). Включили снова во время возврата — ручки остаются, где были.
     func toggleMorph() {
-        if morph { undoMorphEdits() }
+        if morph {
+            let sec: Double = MorphReturn.seconds(settings.morphReturn, bpm: project.bpm)
+            let pts: [MorphPoint] = project.morphReturnPoints()
+            if sec > 0 && !pts.isEmpty {
+                morphGlide = MorphGlide(points: pts, start: Date.timeIntervalSinceReferenceDate, seconds: sec,
+                                        before: project)
+            } else {
+                undoMorphEdits()
+            }
+        } else {
+            stopMorphGlide()
+        }
         morph.toggle()
+    }
+
+    /// Шаг возврата (60 раз в секунду): ручки — к исходным; в конце — всё, что меняли (и назначения), одной записью UNDO.
+    func stepMorphGlide() {
+        guard let g = morphGlide else { return }
+        let f: Double = (Date.timeIntervalSinceReferenceDate - g.start) / g.seconds
+        if f < 1 {
+            mutatePlay({ p in p.applyMorphReturn(g.points, f) }, publish: true)
+            return
+        }
+        morphGlide = nil
+        mutatePlay({ p in
+            for i in p.tracks.indices where p.tracks[i].morphEdited { p.tracks[i].undoMorph() }
+        }, publish: false)
+        history.record(before: g.before, after: project)
+        changed()
+    }
+
+    /// Возврат прерван (MORPH снова включили, UNDO): ручки остаются, где были; пройденное — одна запись UNDO.
+    func stopMorphGlide() {
+        guard let g = morphGlide else { return }
+        morphGlide = nil
+        history.record(before: g.before, after: project)
+        changed()
     }
 
     /// Вернуть изменения режима MORPH на всех дорожках (одна запись в UNDO).
     func undoMorphEdits() {
+        stopMorphGlide()
         edit { p in
             for i in p.tracks.indices where p.tracks[i].morphEdited { p.tracks[i].undoMorph() }
         }
@@ -115,6 +152,7 @@ extension AppModel {
             morphUsed = true
             undoMorphEdits()
         } else {
+            stopMorphGlide()
             undo()
         }
     }
@@ -186,4 +224,12 @@ extension AppModel {
 enum GridPage {
     case fx
     case mod
+}
+
+/// Плавный возврат MORPH: точки, начало (с, системное время), длительность, проект до возврата (для UNDO).
+struct MorphGlide {
+    let points: [MorphPoint]
+    let start: Double
+    let seconds: Double
+    let before: Project
 }

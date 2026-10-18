@@ -4,7 +4,8 @@ import SwiftUI
 /// клиппинга, полосы (стерео — две, моно — одна; шкала −60…0 dB, пик-холд, выше 0 dB — красная, заглушённая
 /// дорожка — серая), снизу наибольший
 /// пик в dB (тап — сброс). Поверх полос — регулятор громкости (белая планка по той же шкале): у дорожки — её громкость
-/// в микшере, при MIX и MST — громкость выхода мастера (палец вверх-вниз; пока палец на нём — снизу VOL).
+/// в микшере (SETTINGS → LEVEL → RELATIVE — подстройка trim вниз от громкости MIX: верх — громкость MIX), при MIX
+/// и MST — громкость выхода мастера (палец вверх-вниз; пока палец на нём — снизу VOL — итоговая громкость).
 struct MeterColumn: View {
     let model: AppModel
     @Environment(\.theme) private var theme
@@ -47,16 +48,28 @@ struct MeterColumn: View {
         return MeterColumn.fmtDb(model.meters.maxPeak[ch]) + "\ndB"
     }
 
+    /// Итоговая громкость (подпись VOL): у дорожки — громкость MIX и подстройка.
     private func volValue(_ ch: Int) -> Double {
         if ch == Levels.master { return model.project.outVol }
-        return ch < model.project.tracks.count ? model.project.tracks[ch].vol : Params.volDef
+        guard ch < model.project.tracks.count else { return Params.volDef }
+        let t = model.project.tracks[ch]
+        if t.trim <= Params.volMin + 0.05 { return Params.volMin }
+        return max(Params.volMin, t.vol + t.trim)
+    }
+
+    /// Что двигает регулятор: громкость выхода, громкость MIX или (RELATIVE) подстройка дорожки.
+    private func faderValue(_ ch: Int) -> Double {
+        if ch == Levels.master { return model.project.outVol }
+        guard ch < model.project.tracks.count else { return Params.volDef }
+        let t = model.project.tracks[ch]
+        return model.settings.levelRelative ? t.trim : t.vol
     }
 
     private func bars(_ ch: Int) -> some View {
         let stereo: Bool = ch == Levels.master || model.trackStereo(ch)
         let data = model.meters.bars(ch, stereo: stereo)
         let track: Bool = ch < Levels.master
-        let vol: Double = volValue(ch)
+        let vol: Double = faderValue(ch)
         // Заглушённая дорожка — серым, как в MIX (отличие от веба).
         let muted: Bool = track && ch < model.project.tracks.count && !model.project.audible(ch)
         return GeometryReader { geo in
@@ -88,13 +101,19 @@ struct MeterColumn: View {
         DragGesture(minimumDistance: 0)
             .onChanged { g in
                 if start == nil {
-                    start = volValue(ch)
+                    start = faderValue(ch)
                     model.meters.volDrag = true
                     model.beginGesture()
                 }
                 let dy: Double = Double(-g.translation.height / MeterColumn.travel)
                 let v: Double = (start ?? 0) + dy * -Params.volMin
-                if ch == Levels.master { model.setOutVol(v) } else { model.setTrackVol(ch, v) }
+                if ch == Levels.master {
+                    model.setOutVol(v)
+                } else if model.settings.levelRelative {
+                    model.setTrackTrim(ch, v)
+                } else {
+                    model.setTrackVol(ch, v)
+                }
             }
             .onEnded { _ in
                 guard start != nil else { return }

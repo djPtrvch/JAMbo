@@ -56,6 +56,8 @@ final class AppModel {
     var morph: Bool = false
     var morphHeld: Bool = false
     var morphUsed: Bool = false
+    /// Плавный возврат после выключения MORPH (SETTINGS → MORPH → RETURN; nil — нет).
+    @ObservationIgnored var morphGlide: MorphGlide? = nil
     /// Последний тап по FX или MOD с зажатой SHIFT (двойной — режим toggle кнопки).
     @ObservationIgnored var lastPageTap: (page: GridPage, at: Date)? = nil
     /// Последний тап по LFO1–3 / ENV (двойной тап — снять назначение с удерживаемой ручки).
@@ -213,6 +215,7 @@ final class AppModel {
         audio.core.releaseRetired()
         defer { applyPendingLead() }
         if autosaveDue > 0 && Date.timeIntervalSinceReferenceDate >= autosaveDue { autosave() }
+        if morphGlide != nil { stepMorphGlide() }
         drainVoices()
         tickMeters()
         let tracks = project.tracks.count
@@ -361,6 +364,8 @@ final class AppModel {
         }
         endRecTake()
         live.stopped()
+        morphGlide = nil
+        morph = false
         closeEditor()
         closeMasterWindow()
         closeRoll()

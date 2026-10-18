@@ -145,9 +145,13 @@ extension AppModel {
             setFx(p, v)
         } else if held.isEmpty {
             let m = morph
-            editTrack { t in
-                if m { t.morphParam(p.id) }
-                t.params[p.id] = v
+            // MORPH на все дорожки (SETTINGS → MORPH): та же ручка у остальных — сдвиг на ту же долю хода.
+            let all: Bool = m && settings.morphAll
+            let i = selectedTrack
+            edit { pr in
+                if m { pr.tracks[i].morphParam(p.id) }
+                pr.tracks[i].params[p.id] = v
+                if all { pr.morphShift(from: i, id: p.id, norm: norm) }
             }
         } else {
             usedSteps.formUnion(held)

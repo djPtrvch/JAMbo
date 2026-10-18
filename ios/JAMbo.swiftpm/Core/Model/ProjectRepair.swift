@@ -64,6 +64,7 @@ extension Track {
         open = Project.clamp(open, 0, Params.patternSlots - 1)
         folder.index = Project.clamp(folder.index, -1, folder.items.count - 1)
         if !vol.isFinite { vol = Params.volDef }
+        trim = trim.isFinite ? Swift.min(0, Swift.max(Params.volMin, trim)) : 0
         eq.repair(tracks: n)
     }
 }

@@ -42,6 +42,17 @@ public struct AppSettings: Codable, Equatable, Sendable {
     /// Пианоролл (S8): GRID — шагов в клетке (1, 2, 4); звук ноты при нажатии.
     public var rollGrid: Int = Roll.gridDef
     public var rollSound: Bool = true
+    /// SETTINGS → LEVEL (S9): регулятор справа у дорожки — ABSOLUTE (громкость MIX) или RELATIVE (подстройка
+    /// Track.trim вниз от громкости MIX).
+    public var levelRelative: Bool = false
+    /// SETTINGS → MORPH (S9): ручки в режиме MORPH — на все дорожки (сдвиг на ту же величину) или на выбранную;
+    /// возврат после выключения — MorphReturn.beats[morphReturn] долей (0 — сразу).
+    public var morphAll: Bool = false
+    public var morphReturn: Int = 0
+    /// SETTINGS → MIX (S9, действуют с переходами S10): гамма и нота нового проекта при переходе; кроссфейдер
+    /// (ON — темп по кроссфейдеру, OFF — темп старого паттерна).
+    public var mixKey: Bool = true
+    public var mixCrossfader: Bool = true
 
     public init() {}
 
@@ -56,7 +67,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
     }
 
     private enum Keys: String, CodingKey { case appearance, pianoOctaves, velocity, record, sliceMap, scSends, muteTails, latchFx, latchMod, rollGrid,
-                                         rollSound }
+                                         rollSound, levelRelative, morphAll, morphReturn, mixKey, mixCrossfader }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
@@ -72,5 +83,11 @@ public struct AppSettings: Codable, Equatable, Sendable {
         let g: Int = (try? c.decode(Int.self, forKey: .rollGrid)) ?? Roll.gridDef
         rollGrid = Roll.grids.contains(g) ? g : Roll.gridDef
         rollSound = (try? c.decode(Bool.self, forKey: .rollSound)) ?? true
+        levelRelative = (try? c.decode(Bool.self, forKey: .levelRelative)) ?? false
+        morphAll = (try? c.decode(Bool.self, forKey: .morphAll)) ?? false
+        let mr: Int = (try? c.decode(Int.self, forKey: .morphReturn)) ?? 0
+        morphReturn = mr >= 0 && mr < MorphReturn.beats.count ? mr : 0
+        mixKey = (try? c.decode(Bool.self, forKey: .mixKey)) ?? true
+        mixCrossfader = (try? c.decode(Bool.self, forKey: .mixCrossfader)) ?? true
     }
 }
