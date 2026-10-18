@@ -38,8 +38,8 @@ extension RollMetrics {
 }
 
 /// Касания сетки пианоролла (S8c, S8d). Один палец: по пустому — сдвиг больше 8 px прокручивает, без сдвига — тап
-/// ставит ноту; тап по ноте — удалить; правый край ноты — длина по GRID; удержание ноты (0,3 с) — перетащить по GRID
-/// и по нотам гаммы (сдвиг до удержания — прокрутка). С VEL — только velocity: палец по ноте вверх-вниз (150 px —
+/// ставит ноту; тап по ноте — удалить; правый край ноты — длина по GRID; нота со сдвигом пальца больше 4 px — сразу
+/// перетаскивание по GRID и по нотам гаммы (прокрутка — только по пустому). С VEL — только velocity: палец по ноте вверх-вниз (150 px —
 /// весь диапазон), остальное — прокрутка. Два пальца — масштаб по одной оси: какая разошлась первой
 /// (больше 10 px) — по горизонтали ширина шага, по вертикали высота строки; точка между пальцами стоит на месте.
 final class RollTouches {
@@ -58,12 +58,11 @@ final class RollTouches {
     private var origin: RollNote? = nil
     private var emptyHit: (pos: Int, row: Int)? = nil
     private var soundId: Int? = nil
-    private var serial: Int = 0
     private var vel0: Double = 0
 
     static let slop: CGFloat = 8
     static let zoomSlop: CGFloat = 10
-    static let hold: Double = 0.3
+    static let dragSlop: CGFloat = 4
 
     /// Новые положения касаний; port — вид (прокрутка и масштаб), m — размеры до правки.
     func handle(_ events: SpatialEventCollection, port: inout RollPort, _ m: RollMetrics, _ notes: [RollNote],
@@ -88,10 +87,15 @@ final class RollTouches {
 
     private func step(_ p: [CGPoint], _ port: inout RollPort, _ m: RollMetrics, _ model: AppModel) {
         switch mode {
-        case .tap, .press:
+        case .tap:
             if hypot(p[0].x - start.x, p[0].y - start.y) > RollTouches.slop {
                 mode = .scroll
                 scroll(p[0], &port)
+            }
+        case .press:
+            if hypot(p[0].x - start.x, p[0].y - start.y) > RollTouches.dragSlop {
+                beginMove(model)
+                move(p[0], m, model)
             }
         case .scroll:
             scroll(p[0], &port)
@@ -114,7 +118,6 @@ final class RollTouches {
         base = resolved(m)
         note = nil
         emptyHit = nil
-        serial += 1
         if model.rollVel {
             beginVel(m.hit(p, notes), model)
             return
@@ -127,11 +130,7 @@ final class RollTouches {
         case .body(let n):
             note = n
             mode = .press
-            let s: Int = serial
-            DispatchQueue.main.asyncAfter(deadline: .now() + RollTouches.hold) { [weak self, weak model] in
-                guard let self = self, let model = model else { return }
-                self.held(s, model)
-            }
+            startSound(n, model)
         case .empty(let pos, let row):
             emptyHit = (pos, row)
             mode = .tap
@@ -140,13 +139,12 @@ final class RollTouches {
         }
     }
 
-    /// Удержание ноты без сдвига — перетаскивание (нота звучит, пока её держат).
-    private func held(_ s: Int, _ model: AppModel) {
-        guard s == serial, mode == .press, let n = note else { return }
+    /// Нота сдвинулась под пальцем — перетаскивание (нота звучит, пока её держат).
+    private func beginMove(_ model: AppModel) {
+        guard let n = note else { return }
         mode = .move
         origin = n
         model.beginGesture()
-        startSound(n, model)
     }
 
     /// Все пальцы отпущены.
@@ -165,7 +163,6 @@ final class RollTouches {
         mode = .idle
         note = nil
         origin = nil
-        serial += 1
     }
 
     private func move(_ p: CGPoint, _ m: RollMetrics, _ model: AppModel) {

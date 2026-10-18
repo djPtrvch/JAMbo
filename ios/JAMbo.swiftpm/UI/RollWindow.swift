@@ -22,6 +22,11 @@ struct RollWindow: View {
                 }
             }
         }
+        // Сменились выбранные страницы — снова все на ширину поля.
+        .onChange(of: model.rollClip.playLen) { _, _ in
+            port.colW = nil
+            port.x = 0
+        }
     }
 
     /// Меню бутерброда — у правого края сетки, шириной в три шага; тап мимо — закрыть.
@@ -38,8 +43,8 @@ struct RollWindow: View {
     }
 }
 
-/// Вид пианоролла: ширина шага и высота строки (масштаб), прокрутка (S8c). nil — по умолчанию: 16 шагов на ширину,
-/// снизу видна октава C2 гаммы.
+/// Вид пианоролла: ширина шага и высота строки (масштаб), прокрутка (S8c). nil — по умолчанию: все выбранные страницы
+/// на ширину поля, снизу видна октава C2 гаммы.
 struct RollPort {
     var colW: CGFloat? = nil
     var rowH: CGFloat = 40
@@ -61,7 +66,7 @@ struct RollMetrics {
         self.size = size
         self.rows = rows
         self.cols = cols
-        let cw: CGFloat = port.colW ?? size.width / 16
+        let cw: CGFloat = port.colW ?? size.width / CGFloat(max(16, cols))
         colW = max(4, cw)
         rowH = port.rowH
         let maxX: CGFloat = max(0, CGFloat(cols) * colW - size.width)
