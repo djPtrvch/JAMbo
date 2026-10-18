@@ -84,10 +84,11 @@ struct RollGrid: View {
             .onEnded { events in apply(events, size, rows, cols, root) }
     }
 
+    /// Ноты берутся на момент касания (после правки — уже новые).
     private func apply(_ events: SpatialEventCollection, _ size: CGSize, _ rows: [Int], _ cols: Int, _ root: Int) {
         let m = RollMetrics(size: size, port: port, rows: rows, cols: cols, root: root)
         var p: RollPort = port
-        _ = touches.handle(events, port: &p, m)
+        touches.handle(events, port: &p, m, Roll.notes(model.rollClip), model)
         let c = RollMetrics(size: size, port: p, rows: rows, cols: cols, root: root)
         let next = RollPort(colW: p.colW, rowH: c.rowH, x: c.x, y: p.y == nil ? nil : c.y)
         if next.colW != port.colW || next.rowH != port.rowH || next.x != port.x || next.y != port.y { port = next }

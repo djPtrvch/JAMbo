@@ -38,3 +38,40 @@ final class RollTests: XCTestCase {
         XCTAssertEqual(Roll.beatLabel(20), "2.2")
     }
 }
+
+/// S8d: правки нот из пианоролла.
+final class RollEditsTests: XCTestCase {
+    func testAddRemoveMove() {
+        var t = Track(index: 0)
+        t.pages[0][2].locks["filter"] = 50
+        t.pages[0][2].notes = [70]
+        t.addRollNote(2, pitch: 48, len: 2, vel: nil)
+        XCTAssertTrue(t.pages[0][2].on)
+        XCTAssertEqual(t.pages[0][2].notes, [48], "старые ноты снятого шага не возвращаются")
+        XCTAssertEqual(t.pages[0][2].len, 2)
+        XCTAssertEqual(t.pages[0][2].locks["filter"], 50, "p-lock остаётся")
+        t.addRollNote(2, pitch: 52, len: 1, vel: nil)
+        t.setRollNoteLen(2, pitch: 52, len: 4)
+        XCTAssertEqual(t.pages[0][2].lens, [2, 4])
+        t.pages[0][2].setNoteVel(0, 90)
+        t.moveRollNote(2, pitch: 48, to: 5, pitch: 55)
+        XCTAssertEqual(t.pages[0][2].notes, [52])
+        XCTAssertEqual(t.pages[0][5].notes, [55])
+        XCTAssertEqual(t.pages[0][5].len, 2, "длина переезжает с нотой")
+        XCTAssertEqual(t.pages[0][5].noteVel(0), 90, "velocity — тоже")
+        XCTAssertNil(t.pages[0][5].locks["filter"], "p-lock остаётся на шаге 2")
+        t.removeRollNote(2, pitch: 52)
+        XCTAssertFalse(t.pages[0][2].on)
+        XCTAssertEqual(t.pages[0][2].locks["filter"], 50)
+    }
+
+    func testSnap() {
+        XCTAssertEqual(Roll.snap(7, grid: 1), 7)
+        XCTAssertEqual(Roll.snap(7, grid: 2), 6)
+        XCTAssertEqual(Roll.snap(7, grid: 4), 4)
+        XCTAssertEqual(Roll.snapLen(steps: 2.6, grid: 1, pos: 0, cols: 16), 3)
+        XCTAssertEqual(Roll.snapLen(steps: 0.2, grid: 2, pos: 0, cols: 16), 2, "не короче клетки")
+        XCTAssertEqual(Roll.snapLen(steps: 5.1, grid: 2, pos: 0, cols: 16), 6)
+        XCTAssertEqual(Roll.snapLen(steps: 20, grid: 1, pos: 12, cols: 16), 4, "до конца прохода")
+    }
+}
