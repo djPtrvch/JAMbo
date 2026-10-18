@@ -63,12 +63,13 @@ struct RollGrid: View {
         let root: Int = model.project.root
         let grid: Int = model.settings.rollGrid
         let play: Int = model.rollPlayPos
+        let levels: [Double]? = model.rollVel ? notes.map { model.track.rollNoteLevel($0) } : nil
         return GeometryReader { geo in
             Canvas { ctx, size in
                 let m = RollMetrics(size: size, port: port, rows: rows, cols: clip.playLen, root: root)
                 drawRows(ctx, m, root)
                 drawColumns(ctx, m, grid, play)
-                drawNotes(ctx, m, notes)
+                drawNotes(ctx, m, notes, levels)
             }
             .contentShape(Rectangle())
             .gesture(touch(geo.size, rows, clip.playLen, root))
@@ -122,19 +123,37 @@ struct RollGrid: View {
         }
     }
 
-    /// Ноты: белые (в светлой теме — чёрные), ноты играющего шага — с обводкой; нота длиннее прохода — до его конца.
-    private func drawNotes(_ ctx: GraphicsContext, _ m: RollMetrics, _ notes: [RollNote]) {
+    /// Ноты: белые (в светлой теме — чёрные); нота длиннее прохода — до его конца. С VEL (levels) — нота
+    /// полупрозрачная, velocity — уровень снизу и число в процентах.
+    private func drawNotes(_ ctx: GraphicsContext, _ m: RollMetrics, _ notes: [RollNote], _ levels: [Double]?) {
         let span: ClosedRange<Int> = m.visibleCols
-        for note in notes where note.pos <= span.upperBound && note.pos + note.len >= span.lowerBound {
+        for (i, note) in notes.enumerated() where note.pos <= span.upperBound && note.pos + note.len >= span.lowerBound {
             guard let r = m.rows.firstIndex(of: note.pitch) else { continue }
             let end: Int = min(note.pos + note.len, m.cols)
             let x0: CGFloat = m.colX(note.pos) + 1
             let w: CGFloat = max(2, CGFloat(end - note.pos) * m.colW - 2)
             let rect = CGRect(x: x0, y: m.rowY(r) + 1, width: w, height: max(2, m.rowH - 3))
             let shape = Path(roundedRect: rect, cornerRadius: 3)
-            ctx.fill(shape, with: .color(theme.text))
+            if let lv = levels, i < lv.count {
+                drawLevel(ctx, rect, lv[i])
+            } else {
+                ctx.fill(shape, with: .color(theme.text))
+            }
             ctx.stroke(shape, with: .color(theme.bg), lineWidth: 1)
         }
+    }
+
+    private func drawLevel(_ ctx: GraphicsContext, _ rect: CGRect, _ level: Double) {
+        let k: CGFloat = CGFloat(max(0, min(127, level)) / 127)
+        ctx.fill(Path(roundedRect: rect, cornerRadius: 3), with: .color(theme.text.opacity(0.3)))
+        let h: CGFloat = rect.height * k
+        let bar = CGRect(x: rect.minX, y: rect.maxY - h, width: rect.width, height: h)
+        ctx.fill(Path(roundedRect: bar, cornerRadius: 3), with: .color(theme.text))
+        if rect.width < 34 || rect.height < 16 { return }
+        let pct: Int = Int((Double(k) * 100).rounded())
+        let label = SwiftUI.Text("\(pct)%").font(.system(size: 11, weight: .bold))
+            .foregroundColor(k > 0.5 ? theme.bg : theme.text)
+        ctx.draw(label, at: CGPoint(x: rect.minX + 4, y: rect.midY), anchor: .leading)
     }
 }
 

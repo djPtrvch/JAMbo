@@ -39,11 +39,12 @@ extension RollMetrics {
 
 /// Касания сетки пианоролла (S8c, S8d). Один палец: по пустому — сдвиг больше 8 px прокручивает, без сдвига — тап
 /// ставит ноту; тап по ноте — удалить; правый край ноты — длина по GRID; удержание ноты (0,3 с) — перетащить по GRID
-/// и по нотам гаммы (сдвиг до удержания — прокрутка). Два пальца — масштаб по одной оси: какая разошлась первой
+/// и по нотам гаммы (сдвиг до удержания — прокрутка). С VEL — только velocity: палец по ноте вверх-вниз (150 px —
+/// весь диапазон), остальное — прокрутка. Два пальца — масштаб по одной оси: какая разошлась первой
 /// (больше 10 px) — по горизонтали ширина шага, по вертикали высота строки; точка между пальцами стоит на месте.
 final class RollTouches {
     enum Axis { case h, v }
-    enum Mode { case idle, tap, press, scroll, zoom, move, resize }
+    enum Mode { case idle, tap, press, scroll, zoom, move, resize, vel }
 
     private var points: [SpatialEventCollection.Event.ID: CGPoint] = [:]
     private(set) var mode: Mode = .idle
@@ -58,6 +59,7 @@ final class RollTouches {
     private var emptyHit: (pos: Int, row: Int)? = nil
     private var soundId: Int? = nil
     private var serial: Int = 0
+    private var vel0: Double = 0
 
     static let slop: CGFloat = 8
     static let zoomSlop: CGFloat = 10
@@ -75,7 +77,7 @@ final class RollTouches {
         }
         if points.isEmpty { return }
         let p: [CGPoint] = Array(points.values)
-        if p.count >= 2 && mode != .zoom && mode != .move && mode != .resize {
+        if p.count >= 2 && mode != .zoom && mode != .move && mode != .resize && mode != .vel {
             stopSound(model)
             beginZoom(p[0], p[1], m)
         } else if p.count == 1 && mode == .idle {
@@ -99,6 +101,8 @@ final class RollTouches {
             move(p[0], m, model)
         case .resize:
             resize(p[0], m, model)
+        case .vel:
+            velocity(p[0], model)
         case .idle:
             break
         }
@@ -111,6 +115,10 @@ final class RollTouches {
         note = nil
         emptyHit = nil
         serial += 1
+        if model.rollVel {
+            beginVel(m.hit(p, notes), model)
+            return
+        }
         switch m.hit(p, notes) {
         case .edge(let n):
             note = n
@@ -148,7 +156,7 @@ final class RollTouches {
             if ended, let h = emptyHit, h.row < model.rollRows.count { model.rollAdd(pos: h.pos, pitch: model.rollRows[h.row]) }
         case .press:
             if ended, let n = note { model.rollRemove(n) }
-        case .move, .resize:
+        case .move, .resize, .vel:
             model.endGesture()
         default:
             break
@@ -184,6 +192,25 @@ final class RollTouches {
         if len == n.len { return }
         model.rollResize(n, len: len)
         note = RollNote(pos: n.pos, index: n.index, k: n.k, pitch: n.pitch, len: len, vel: n.vel)
+    }
+
+    /// VEL: касание ноты (тело или край) — правка velocity; мимо — только прокрутка.
+    private func beginVel(_ hit: RollHit, _ model: AppModel) {
+        switch hit {
+        case .body(let n), .edge(let n):
+            note = n
+            vel0 = model.track.rollNoteLevel(n)
+            mode = .vel
+            model.beginGesture()
+        default:
+            mode = .tap
+        }
+    }
+
+    private func velocity(_ p: CGPoint, _ model: AppModel) {
+        guard let n = note else { return }
+        let v: Double = vel0 - Double(p.y - start.y) / 150 * 127
+        model.rollSetVel(n, v)
     }
 
     private func startSound(_ n: RollNote, _ model: AppModel) {

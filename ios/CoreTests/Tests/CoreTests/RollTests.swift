@@ -75,3 +75,19 @@ final class RollEditsTests: XCTestCase {
         XCTAssertEqual(Roll.snapLen(steps: 20, grid: 1, pos: 12, cols: 16), 4, "до конца прохода")
     }
 }
+
+/// S8e: velocity ноты из пианоролла.
+final class RollVelTests: XCTestCase {
+    func testSetVelAndLevel() {
+        var t = Track(index: 0)
+        t.params["level"] = 100
+        t.addRollNote(0, pitch: 48, len: 1, vel: nil)
+        let n = Roll.notes(t.openClip)[0]
+        XCTAssertEqual(t.rollNoteLevel(n), 100, "без своей — Level дорожки")
+        t.setLock(0, "level", 80)
+        XCTAssertEqual(t.rollNoteLevel(n), 80, "или p-lock Level шага")
+        t.setRollNoteVel(0, pitch: 48, vel: 30)
+        XCTAssertEqual(t.rollNoteLevel(Roll.notes(t.openClip)[0]), 30)
+        XCTAssertTrue(Track.hasManualLocks(t.pages[0][0]))
+    }
+}

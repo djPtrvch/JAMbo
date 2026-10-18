@@ -70,6 +70,12 @@ extension AppModel {
         editTrack { t in t.setRollNoteLen(n.index, pitch: n.pitch, len: len) }
     }
 
+    /// VEL: velocity ноты (Level 0…127).
+    func rollSetVel(_ n: RollNote, _ v: Double) {
+        let lv: Double = max(0, min(127, v.rounded()))
+        editTrack { t in t.setRollNoteVel(n.index, pitch: n.pitch, vel: lv) }
+    }
+
     /// Перенос ноты на позицию pos и высоту pitch; там уже такая нота — не переносится (nil).
     func rollMove(_ n: RollNote, pos: Int, pitch: Int) -> RollNote? {
         let ps: [Int] = Roll.positions(rollClip)

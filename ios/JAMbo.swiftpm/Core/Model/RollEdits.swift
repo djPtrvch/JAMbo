@@ -29,6 +29,20 @@ extension Track {
         }
     }
 
+    /// Velocity ноты (Level 0…127; nil — снять свою).
+    public mutating func setRollNoteVel(_ index: Int, pitch: Int, vel: Double?) {
+        withStep(index) { s in
+            guard let k = s.notes.firstIndex(of: pitch) else { return }
+            s.setNoteVel(k, vel)
+        }
+    }
+
+    /// Velocity ноты для показа: своя, иначе Level шага (p-lock) или дорожки.
+    public func rollNoteLevel(_ n: RollNote) -> Double {
+        if let v = n.vel { return v }
+        return value("level", step: step(n.index))
+    }
+
     /// Перенести ноту (с её длиной и velocity) на другой шаг и высоту; p-lock и звук шагов остаются на месте.
     public mutating func moveRollNote(_ index: Int, pitch: Int, to dest: Int, pitch dp: Int) {
         guard let s = step(index), let k = s.notes.firstIndex(of: pitch) else { return }
