@@ -279,19 +279,18 @@ struct DynBlock: View {
 }
 
 /// Дисплей уровня за 4 с (LEVEL компрессора, дисплей лимитера): столбцы истории рисует draw; линия параметра line
-/// (THRESHOLD, CEILING) тянется пальцем (±22 px, приоритет над FREEZE), тап мимо линии — FREEZE.
+/// (THRESHOLD, CEILING) тянется пальцем (±22 px, приоритет над FREEZE), двойной тап мимо линии — FREEZE.
 struct LevelPlot: View {
     let model: AppModel
     let tele: DynTele
     let hist: TeleHistory
     let line: ParamDef
     let now: Double
-    /// Жёлтая рамка дисплея, пока линию меняют (у лимитера — как в вебе; у LEVEL компрессора нет).
-    var lit: Bool = true
     let draw: (GraphicsContext, CGSize, TeleHistory.Columns) -> Void
     @State private var touching: Bool = false
     @State private var lineStart: Double? = nil
     @State private var moved: Bool = false
+    @State private var lastTap: Date = .distantPast
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -306,7 +305,6 @@ struct LevelPlot: View {
         }
         .background(theme.panel)
         .clipShape(RoundedRectangle(cornerRadius: Layout.radius))
-        .overlay { if lit { HotFrame(model: model, id: line.id) } }
     }
 
     private func drag(_ h: CGFloat) -> some Gesture {
@@ -336,7 +334,14 @@ struct LevelPlot: View {
                     model.masterHot.release(line.id)
                     model.endGesture()
                 } else if !moved {
-                    hist.setFrozen(!hist.frozen, tele)
+                    // Двойной тап мимо линии — FREEZE.
+                    let t = Date()
+                    if t.timeIntervalSince(lastTap) < EqPlot.doubleTap {
+                        hist.setFrozen(!hist.frozen, tele)
+                        lastTap = .distantPast
+                    } else {
+                        lastTap = t
+                    }
                 }
                 touching = false
                 lineStart = nil

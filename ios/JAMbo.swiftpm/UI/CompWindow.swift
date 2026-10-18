@@ -17,7 +17,7 @@ struct CompDisplay: View {
                 HStack(spacing: Layout.gap) {
                     CompTransfer(model: model, hist: hist, now: now).frame(width: w)
                     LevelPlot(model: model, tele: model.audio.core.master.compTele, hist: hist, line: thrParam,
-                              now: now, lit: false) { ctx, size, c in drawLevel(ctx, size, c, now) }
+                              now: now) { ctx, size, c in drawLevel(ctx, size, c, now) }
                     DynBlock(model: model, module: MasterScope.comp, now: now)
                         .frame(width: 96)
                 }

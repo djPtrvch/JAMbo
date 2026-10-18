@@ -218,8 +218,8 @@ final class SatSpectrumState {
 }
 
 /// SPECTRUM: 20 Hz…20 kHz (логарифмически), уровень 0…−96 dB (2·SCALE); вход — серая заливка, выход — белый контур;
-/// белая линия FOCUS (на 20 Hz — у левого края, «FOCUS OFF») тянется по горизонтали (±22 px, 20…2000 Hz); тап мимо
-/// линии — FREEZE.
+/// белая линия FOCUS (на 20 Hz — у левого края, «FOCUS OFF») тянется по горизонтали (±22 px, 20…2000 Hz); двойной тап
+/// мимо линии — FREEZE.
 struct SatSpectrum: View {
     let model: AppModel
     let spec: SatSpectrumState
@@ -227,6 +227,7 @@ struct SatSpectrum: View {
     @State private var touching: Bool = false
     @State private var focusStart: CGFloat? = nil
     @State private var moved: Bool = false
+    @State private var lastTap: Date = .distantPast
     @Environment(\.theme) private var theme
 
     private var focusP: ParamDef { return Params.byId["sat.focus"] ?? Params.masterColumns[0][0] }
@@ -266,7 +267,14 @@ struct SatSpectrum: View {
                     model.masterHot.release(focusP.id)
                     model.endGesture()
                 } else if !moved {
-                    spec.frozen.toggle()
+                    // Двойной тап мимо линии — FREEZE.
+                    let t = Date()
+                    if t.timeIntervalSince(lastTap) < EqPlot.doubleTap {
+                        spec.frozen.toggle()
+                        lastTap = .distantPast
+                    } else {
+                        lastTap = t
+                    }
                 }
                 touching = false
                 focusStart = nil

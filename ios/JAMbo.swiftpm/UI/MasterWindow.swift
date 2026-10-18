@@ -162,9 +162,9 @@ struct MasterTitle: View {
     }
 }
 
-/// Поле окна модуля: подпись над значением; палец вверх-вниз — 240 px на весь диапазон, как у ручек (одна запись
-/// UNDO на жест); удержание 0,5 с без движения — ввод числом; тап без движения — tap (TYPE, RATIO — следующее значение);
-/// жёлтая рамка — параметр меняют (палец, ручка, UNDO) и ещё 400 мс.
+/// Поле окна модуля (как поля EQ, без рамки подсветки — решение пользователя): подпись над значением; палец
+/// вверх-вниз — 240 px на весь диапазон, как у ручек (одна запись UNDO на жест); удержание 0,5 с без движения — ввод
+/// числом; тап без движения — tap (TYPE, RATIO — следующее значение).
 struct MasterField: View {
     static let travel: CGFloat = 240
     let model: AppModel
@@ -184,13 +184,12 @@ struct MasterField: View {
         return VStack(alignment: .leading, spacing: 0) {
             Text(param.label.uppercased()).font(.system(size: 9)).tracking(0.8).foregroundStyle(theme.dim)
                 .lineLimit(1)
-            Text(value).font(.system(size: 15)).lineLimit(1).minimumScaleFactor(0.6)
+            Text(value).font(.system(size: 16)).lineLimit(1).minimumScaleFactor(0.6)
                 .foregroundStyle(gray ? theme.off : theme.text)
         }
-        .padding(.horizontal, 10)
+        .padding(.horizontal, 12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .background(start != nil ? theme.panel2 : theme.panel, in: RoundedRectangle(cornerRadius: Layout.radius))
-        .overlay(HotFrame(model: model, id: param.id))
         .contentShape(Rectangle())
         .gesture(drag)
     }
@@ -231,23 +230,5 @@ struct MasterField: View {
             held = true
             open()
         }
-    }
-}
-
-/// Жёлтая рамка поля или дисплея, пока параметр id подсвечен (HotTracker).
-struct HotFrame: View {
-    let model: AppModel
-    let id: String
-    @Environment(\.theme) private var theme
-
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30)) { tl in
-            let now: Double = tl.date.timeIntervalSinceReferenceDate
-            let lit: Bool = model.masterHotNow(id, now: now)
-            RoundedRectangle(cornerRadius: Layout.radius)
-                .stroke(theme.accent, lineWidth: 1)
-                .opacity(lit ? 1 : 0)
-        }
-        .allowsHitTesting(false)
     }
 }
