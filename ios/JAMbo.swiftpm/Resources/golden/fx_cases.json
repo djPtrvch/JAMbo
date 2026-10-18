@@ -196,6 +196,145 @@
      }
     }
    ]
+  },
+  {
+   "file": "fx_drv_soft.i16",
+   "proc": "drive",
+   "frames": 48000,
+   "seed": 1,
+   "input": "sine",
+   "params": {
+    "drive": 26,
+    "type": 0,
+    "tone": 50,
+    "lowcut": 20
+   },
+   "events": []
+  },
+  {
+   "file": "fx_drv_hard_hi.i16",
+   "proc": "drive",
+   "frames": 48000,
+   "seed": 1,
+   "input": "burst",
+   "params": {
+    "drive": 70,
+    "type": 1,
+    "tone": 80,
+    "lowcut": 80
+   },
+   "events": []
+  },
+  {
+   "file": "fx_drv_tube.i16",
+   "proc": "drive",
+   "frames": 48000,
+   "seed": 1,
+   "input": "sine",
+   "params": {
+    "drive": 60,
+    "type": 2,
+    "tone": 40,
+    "lowcut": 300
+   },
+   "events": []
+  },
+  {
+   "file": "fx_drv_fuzz.i16",
+   "proc": "drive",
+   "frames": 48000,
+   "seed": 1,
+   "input": "stereo",
+   "params": {
+    "drive": 85,
+    "type": 3,
+    "tone": 100,
+    "lowcut": 20
+   },
+   "events": []
+  },
+  {
+   "file": "fx_drv_fold.i16",
+   "proc": "drive",
+   "frames": 48000,
+   "seed": 1,
+   "input": "sine",
+   "params": {
+    "drive": 70,
+    "type": 4,
+    "tone": 60,
+    "lowcut": 20
+   },
+   "events": []
+  },
+  {
+   "file": "fx_drv_crush.i16",
+   "proc": "drive",
+   "frames": 48000,
+   "seed": 1,
+   "input": "sine",
+   "params": {
+    "drive": 100,
+    "type": 5,
+    "tone": 100,
+    "lowcut": 20
+   },
+   "events": []
+  },
+  {
+   "file": "fx_drv_moves.i16",
+   "proc": "drive",
+   "frames": 48000,
+   "seed": 1,
+   "input": "sine",
+   "params": {
+    "drive": 10,
+    "type": 0,
+    "tone": 50,
+    "lowcut": 20
+   },
+   "events": [
+    {
+     "frame": 2048,
+     "params": {
+      "type": 4
+     }
+    },
+    {
+     "frame": 4096,
+     "params": {
+      "drive": 90
+     }
+    },
+    {
+     "frame": 8192,
+     "params": {
+      "type": 5
+     }
+    },
+    {
+     "frame": 12032,
+     "params": {
+      "type": 1,
+      "lowcut": 500
+     }
+    },
+    {
+     "frame": 16000,
+     "params": {
+      "type": 2,
+      "tone": 0
+     }
+    },
+    {
+     "frame": 20096,
+     "params": {
+      "type": 3,
+      "lowcut": 20,
+      "tone": 100
+     }
+    }
+   ]
   }
  ]
 }

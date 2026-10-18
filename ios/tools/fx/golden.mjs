@@ -34,7 +34,7 @@ Object.assign(globalThis, {
   registerProcessor(name, cls) { procs[name] = cls; },
 });
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fx-'));
-for (const f of ['delay-worklet.js', 'reverb-worklet.js']) {
+for (const f of ['oversampler.js', 'delay-worklet.js', 'reverb-worklet.js', 'drive-worklet.js']) {
   const tmp = path.join(tmpDir, f.replace('.js', '.mjs'));
   fs.writeFileSync(tmp, fs.readFileSync(path.join(root, 'public', f), 'utf8'));
   await import(pathToFileURL(tmp).href);
@@ -88,6 +88,7 @@ function render(c) {
 
 const DLY = { proc: 'delay', options: { maxTime: 6 }, frames: 72000 };
 const REV = { proc: 'reverb', frames: 72000 };
+const DRV = { proc: 'drive', frames: 48000, seed: 1 };
 const CASES = [
   { name: 'dly_basic', ...DLY, seed: 1, input: 'burst', params: { time: 0.25, feedback: 0.5, filter: 0, spread: 0 } },
   { name: 'dly_lp', ...DLY, seed: 2, input: 'burst', params: { time: 0.1875, feedback: 0.7, filter: -0.6, spread: 0.3 } },
@@ -103,6 +104,16 @@ const CASES = [
     events: [{ frame: 12032, params: { size: 100 } }, { frame: 24064, params: { decay: 8, predelay: 120 } },
       { frame: 36096, params: { tone: 100 } }, { frame: 48000, params: { lowcut: 300, size: 30 } },
       { frame: 60032, params: { decay: 0.5, tone: 0 } }] },
+  { name: 'drv_soft', ...DRV, input: 'sine', params: { drive: 26, type: 0, tone: 50, lowcut: 20 } },
+  { name: 'drv_hard_hi', ...DRV, input: 'burst', params: { drive: 70, type: 1, tone: 80, lowcut: 80 } },
+  { name: 'drv_tube', ...DRV, input: 'sine', params: { drive: 60, type: 2, tone: 40, lowcut: 300 } },
+  { name: 'drv_fuzz', ...DRV, input: 'stereo', params: { drive: 85, type: 3, tone: 100, lowcut: 20 } },
+  { name: 'drv_fold', ...DRV, input: 'sine', params: { drive: 70, type: 4, tone: 60, lowcut: 20 } },
+  { name: 'drv_crush', ...DRV, input: 'sine', params: { drive: 100, type: 5, tone: 100, lowcut: 20 } },
+  { name: 'drv_moves', ...DRV, input: 'sine', params: { drive: 10, type: 0, tone: 50, lowcut: 20 },
+    events: [{ frame: 2048, params: { type: 4 } }, { frame: 4096, params: { drive: 90 } },
+      { frame: 8192, params: { type: 5 } }, { frame: 12032, params: { type: 1, lowcut: 500 } },
+      { frame: 16000, params: { type: 2, tone: 0 } }, { frame: 20096, params: { type: 3, lowcut: 20, tone: 100 } }] },
 ];
 
 const cases = [];
