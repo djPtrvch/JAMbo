@@ -2,16 +2,17 @@ import Foundation
 
 /// Вкладки SETTINGS (S9d; отличия от веба: без SAMPLE RATE и BUFFER SIZE, BACKGROUND и SCALE; APPEARANCE — вкладка;
 /// новые MIX, MORPH, LEVEL — решение пользователя).
+/// Порядок — решение пользователя: AUDIO ENGINE, OUTPUT, APPEARANCE — нижним рядом.
 enum SettingsTab: String, CaseIterable {
-    case engine = "AUDIO ENGINE"
-    case output = "OUTPUT"
-    case appearance = "APPEARANCE"
     case record = "RECORD"
     case sampler = "SAMPLER"
     case sidechain = "SIDECHAIN"
     case mix = "MIX"
     case morph = "MORPH"
     case level = "LEVEL"
+    case engine = "AUDIO ENGINE"
+    case output = "OUTPUT"
+    case appearance = "APPEARANCE"
 }
 
 /// Настройки приложения (общие для проектов, UserDefaults): применяются сразу.
