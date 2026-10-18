@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Какое значение полосы вводят числом (удержание FREQ, GAIN, Q).
 enum EqInput {
-    case freq, gain, q
+    case freq, gain, q, thr, range
 }
 
 /// EQ на месте центра (кнопка EQ): вверху строка полей ровной сеткой со строкой дорожек, под ней поле EQ.
@@ -33,7 +33,15 @@ struct EqView: View {
             model.eqBand = -1
             model.eqCompareMenu = false
             model.eqMsMenu = nil
+            model.eqDynMenu = nil
             model.syncSpectra()
+        }
+        // Ввод числом из меню DYN (THRESHOLD, RANGE).
+        .onChange(of: model.eqInputAsk) { _, f in
+            if let field = f {
+                model.eqInputAsk = nil
+                openInput(field)
+            }
         }
         .onAppear { model.syncSpectra() }
         .onDisappear { model.syncSpectra() }
@@ -53,6 +61,8 @@ struct EqView: View {
         case .freq: return "FREQ (Hz, 1.5k — kHz)"
         case .gain: return "GAIN (dB)"
         case .q: return "Q"
+        case .thr: return "THRESHOLD (dB)"
+        case .range: return "RANGE (dB)"
         case nil: return ""
         }
     }
@@ -65,6 +75,8 @@ struct EqView: View {
         case .freq: text = "\(Int(b.freq.rounded()))"
         case .gain: text = String(format: "%.1f", b.gain)
         case .q: text = String(format: "%.2f", b.q)
+        case .thr: text = String(format: "%.1f", b.thr)
+        case .range: text = String(format: "%.1f", b.range)
         }
         input = field
     }
@@ -78,6 +90,10 @@ struct EqView: View {
             if let v = EqFormat.parseNum(text) { model.setEqBand(k, gain: v) }
         case .q:
             if let v = EqFormat.parseNum(text), v > 0 { model.setEqBand(k, q: v) }
+        case .thr:
+            if let v = EqFormat.parseNum(text) { model.setEqDynParams(k, thr: v) }
+        case .range:
+            if let v = EqFormat.parseNum(text) { model.setEqDynParams(k, range: v) }
         case nil:
             break
         }
@@ -87,7 +103,7 @@ struct EqView: View {
 
 /// Строка EQ: имя канала под бутербродом, TYPE, FREQ, GAIN, Q, STEREO, DYN, PRESETS, BYPASS — шириной столбцов
 /// 8 дорожек (при 9–16 дорожках не сужаются), TYPE — с левого края поля BPM (решение пользователя; в вебе — над
-/// дорожками 1…8). M/S — S7a; DYN и PRESETS — S7b, S7d (серые).
+/// дорожками 1…8). PRESETS — S7d (серая).
 struct EqBar: View {
     let model: AppModel
     let layout: Layout
@@ -147,7 +163,7 @@ struct EqBar: View {
         case 2: gainField(b)
         case 3: qField(b)
         case 4: msField(b)
-        case 5: EqField(label: "DYN", value: b == nil ? "—" : "OFF", enabled: false, model: model)
+        case 5: dynField(b)
         case 6: EqTool(title: "PRESETS", enabled: false, active: false) {}
         default: EqTool(title: "BYPASS", enabled: true, active: !model.eqTarget.on) { model.toggleEqBypass() }
         }
@@ -237,6 +253,13 @@ struct EqBar: View {
                        },
                        tap: { f in model.eqMsMenu = f },
                        model: model)
+    }
+
+    /// DYN (как в вебе): только тап — меню источника с THRESHOLD и RANGE; у cut и notch — «—».
+    private func dynField(_ b: EqBand?) -> some View {
+        let has: Bool = b.map { EqSpec.hasGain($0.type) } ?? false
+        return EqField(label: "DYN", value: b.map { model.eqDynName($0) } ?? "—", enabled: has, pxPerUnit: 100000,
+                       tap: { f in model.eqDynMenu = f }, model: model)
     }
 
     /// Q: 3 px на 1/12 октавы; двойной тап — Q по умолчанию (1,0); удержание — ввод числом.

@@ -78,20 +78,24 @@ struct EqPlot: View {
         GeometryReader { geo in
             let g = EqGeometry(size: geo.size)
             let eq: Eq = model.eqTarget
-            let curves: EqCurves = EqPlot.curves(eq, g)
             ZStack(alignment: .topLeading) {
                 EqSpectrumLayer(model: model, display: spectrum)
-                Canvas { ctx, _ in
-                    drawGrid(ctx, g)
-                    drawCurves(ctx, curves, on: eq.on)
-                    drawPoints(ctx, eq, g)
+                // Динамические полосы: точки и кривая — с текущим сдвигом, 30 кадров в секунду (без них — пауза).
+                TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !model.eqHasDyn)) { _ in
+                    let offs: [Double] = model.eqDynOffsets()
+                    let curves: EqCurves = EqPlot.curves(eq, g, offs)
+                    Canvas { ctx, _ in
+                        drawGrid(ctx, g)
+                        drawCurves(ctx, curves, on: eq.on)
+                        drawPoints(ctx, eq, g, offs)
+                    }
                 }
                 tips(eq, g)
             }
             .contentShape(Rectangle())
             .gesture(touch(g))
             // Пока открыто меню (полосы, COMPARE), касания — только ему: тап по пункту не доходит до точек.
-            .allowsHitTesting(model.eqMenu == nil && !model.eqCompareMenu && model.eqMsMenu == nil)
+            .allowsHitTesting(model.eqMenu == nil && !model.eqCompareMenu && model.eqMsMenu == nil && model.eqDynMenu == nil)
         }
         .background(theme.panel, in: RoundedRectangle(cornerRadius: Layout.radius))
         .clipShape(RoundedRectangle(cornerRadius: Layout.radius))
@@ -99,15 +103,17 @@ struct EqPlot: View {
     }
 
     /// Суммарные кривые включённых полос через 2 px (как в вебе): стерео-полосы, середина (стерео + MID), бока
-    /// (стерео + SIDE).
-    static func curves(_ eq: Eq, _ g: EqGeometry) -> EqCurves {
+    /// (стерео + SIDE); у динамических полос — усиление со сдвигом offs (dB по полосам).
+    static func curves(_ eq: Eq, _ g: EqGeometry, _ offs: [Double]) -> EqCurves {
         let n: Int = Int(g.size.width / 2) + 1
         let freqs: [Double] = (0..<n).map { min(24000, g.freq(CGFloat($0) * 2)) }
         var st = [Double](repeating: 0, count: n)
         var mid = [Double](repeating: 0, count: n)
         var side = [Double](repeating: 0, count: n)
         var out = EqCurves()
-        for case let b? in eq.bands where b.on {
+        for k in 0..<eq.bands.count {
+            guard var b = eq.bands[k], b.on else { continue }
+            if k < offs.count && offs[k] != 0 { b.gain += offs[k] }
             let r: [Double] = EqCoeffs.response(b, hz: freqs)
             let ms: Int = b.ms
             if ms == 0 { out.hasStereo = true }
@@ -179,13 +185,21 @@ struct EqPlot: View {
     }
 
     /// Точки: цвета режима M/S с номерами, выбранная крупнее и жёлтая (MID/SIDE — с кольцом цвета режима),
-    /// выключенные серые.
-    private func drawPoints(_ ctx: GraphicsContext, _ eq: Eq, _ g: EqGeometry) {
+    /// выключенные серые; динамическая — с текущим сдвигом, на месте статического усиления — полое кольцо.
+    private func drawPoints(_ ctx: GraphicsContext, _ eq: Eq, _ g: EqGeometry, _ offs: [Double]) {
         for k in 0..<eq.bands.count {
             guard let b = eq.bands[k] else { continue }
             let sel: Bool = k == model.eqBand
             let r: CGFloat = sel ? 13 : 10
-            let c: CGPoint = g.point(b)
+            var moved: EqBand = b
+            if k < offs.count { moved.gain += offs[k] }
+            let c: CGPoint = g.point(moved)
+            if b.on && EqSpec.dynOn(b) {
+                let p0: CGPoint = g.point(b)
+                let rr: CGFloat = r - 1
+                let ring = Path(ellipseIn: CGRect(x: p0.x - rr, y: p0.y - rr, width: 2 * rr, height: 2 * rr))
+                ctx.stroke(ring, with: .color(msColor(b).opacity(0.7)), lineWidth: 1.5)
+            }
             let fill: Color = !b.on ? theme.muteGrey : (sel ? theme.accent : msColor(b))
             ctx.fill(Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r)), with: .color(fill))
             if sel && b.on && b.ms > 0 {

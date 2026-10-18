@@ -73,6 +73,9 @@ final class AppModel {
     var eqMenu: EqMenuState? = nil
     /// Меню STEREO / MID / SIDE: рамка поля M/S («root»); nil — закрыто.
     var eqMsMenu: CGRect? = nil
+    /// Меню DYN (источник, THRESHOLD, RANGE): рамка поля DYN; ввод числом из меню (EqView открывает окно).
+    var eqDynMenu: CGRect? = nil
+    var eqInputAsk: EqInput? = nil
     /// Спектр дорожки для сравнения (после её EQ; −1 — нет) и меню выбора; спектр выхода у EQ мастера.
     var eqCompare: Int = -1
     var eqCompareMenu: Bool = false

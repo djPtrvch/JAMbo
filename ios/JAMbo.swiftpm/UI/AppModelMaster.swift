@@ -30,6 +30,7 @@ extension AppModel {
         eqView = false
         eqMenu = nil
         eqMsMenu = nil
+        eqDynMenu = nil
         patternView = false
         editorOpen = false
     }

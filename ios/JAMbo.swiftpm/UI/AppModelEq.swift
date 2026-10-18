@@ -25,6 +25,7 @@ extension AppModel {
         eqView.toggle()
         eqMenu = nil
         eqMsMenu = nil
+        eqDynMenu = nil
         eqCompareMenu = false
         if eqView {
             patternView = false
@@ -90,6 +91,46 @@ extension AppModel {
     func setEqMs(_ k: Int, _ ms: Int) {
         let ch = eqChannel
         edit { $0.setEqMs(ch, k, ms) }
+    }
+
+    /// Источник динамической полосы k: −1 OFF, 0 SELF, n — дорожка n.
+    func setEqDyn(_ k: Int, _ src: Int) {
+        let ch = eqChannel
+        edit { $0.setEqDyn(ch, k, src) }
+    }
+
+    /// THRESHOLD и RANGE динамической полосы k (внутри жеста — одна запись UNDO на жест).
+    func setEqDynParams(_ k: Int, thr: Double? = nil, range: Double? = nil) {
+        let ch = eqChannel
+        edit { $0.setEqDynParams(ch, k, thr: thr, range: range) }
+    }
+
+    /// Сдвиги динамических полос показанного канала сейчас, dB (0 — полоса не динамическая или выключена).
+    func eqDynOffsets() -> [Double] {
+        let e: Eq = eqTarget
+        let ch: Int = eqChannel
+        let levels: EqDynLevels = audio.core.eqDyn
+        return (0..<EqSpec.bands).map { k in
+            guard e.on, let b = e.band(k), b.on, EqSpec.dynOn(b) else { return 0 }
+            return Double(levels.offset(ch, k))
+        }
+    }
+
+    /// Есть ли у показанного канала включённые динамические полосы (тогда точки и кривая двигаются).
+    var eqHasDyn: Bool {
+        let e: Eq = eqTarget
+        if !e.on { return false }
+        for case let b? in e.bands where b.on && EqSpec.dynOn(b) { return true }
+        return false
+    }
+
+    /// Подпись источника: — (cut, notch), OFF, SELF, имя дорожки.
+    func eqDynName(_ b: EqBand) -> String {
+        if !EqSpec.hasGain(b.type) { return "—" }
+        if !EqSpec.dynOn(b) { return "OFF" }
+        if b.dyn == 0 { return "SELF" }
+        let t: Int = b.dyn - 1
+        return t < project.tracks.count ? project.tracks[t].name : "T\(b.dyn)"
     }
 
     func setEqSlope(_ k: Int, _ slope: Int) {
