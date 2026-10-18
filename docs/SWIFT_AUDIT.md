@@ -39,8 +39,9 @@ ui/auto.ts (644), ui/sampleedit.ts (633), params.ts (565), ui/sample.ts (571).
 | EQ дорожек и мастера: 8 полос, bell / cut 12-24-48 / shelf / notch | audio/eq.ts (279), ui/eq.ts (737) | П (S5) | свои биквады по RBJ (ТЗ 5.2) |
 | EQ: Dynamic, Mid/Side | public/eqdyn-worklet.js, audio/eq.ts | П (S9) | решение: всё из веба |
 | EQ: пресеты EQ | ui/eq.ts PRESETS, localStorage | П (S9) | |
+| Пресеты модулей мастера (PRESETS в окнах SAT / COMP / CLIP / LIM, как у EQ) | — (нет в вебе) | Н (S9) | решение пользователя |
 | EQ: спектр до/после, спектр мастера | ui/eq.ts, AnalyserNode | П (S5) | свой FFT (Accelerate vDSP с запасным вариантом) |
-| Мастер: сатуратор, glue, клиппер, лимитер (с BIAS, FOCUS, KNEE, RANGE, HOLD, MIX, LINK, SC HPF, UNITY, AUDIT) | public/saturator-, glue-, clipper-, limiter-worklet.js, oversampler.js | П 1:1 (S5) | ТЗ 5.5 |
+| Мастер: сатуратор (DRIVE, TYPE, TONE, MIX, FOCUS), glue (+ RATIO, KNEE, SC HPF, MIX), клиппер (INPUT, CEILING, SOFTNESS, BASS), лимитер (INPUT, CEILING, LOOKAHEAD, RELEASE); без BIAS, OUTPUT, AUTO, RANGE, HOLD, LINK, MIX клиппера, UNITY, AUDIT, SCALE (48 dB) — решение пользователя | public/saturator-, glue-, clipper-, limiter-worklet.js, oversampler.js | П упрощённо (S5a) | ТЗ 5.5 |
 | Bypass модулей мастера (SHIFT + кнопка) | ui/buttons.ts, engine.ts | П (S5) | |
 | ⚠ Графические окна SAT / COMP / CLIP / LIM | ui/saturator.ts, comp.ts, clipper.ts, limiter.ts, masterwin.ts (~1 800 строк) | П (S9) | до S9 параметры без ручек (BIAS, KNEE, LINK…) — значения по умолчанию |
 | Индикация мастера COMP / CLIP / LIM (LevelBars) | ui/dynamics.ts | П (S5) | ТЗ 1.2 |
