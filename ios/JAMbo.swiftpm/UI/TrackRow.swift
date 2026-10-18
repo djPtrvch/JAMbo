@@ -64,6 +64,7 @@ struct TrackCell: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             stateLetter(t)
         }
+        .overlay(alignment: .bottomLeading) { morphDot(t) }
         .background(background(t), in: RoundedRectangle(cornerRadius: Layout.radius))
         .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(border, lineWidth: 1))
         .contentShape(Rectangle())
@@ -74,6 +75,14 @@ struct TrackCell: View {
         let flash: Bool = model.live.flashing[index] && !t.mute
         let base: Color = flash ? theme.flash : theme.trackBg
         return t.solo ? theme.accent.opacity(flash ? 0.55 : 0.35) : base
+    }
+
+    /// Жёлтая точка: параметры дорожки меняли в режиме MORPH.
+    @ViewBuilder
+    private func morphDot(_ t: Track) -> some View {
+        if t.morphEdited {
+            Circle().fill(theme.accent).frame(width: 6, height: 6).padding(.leading, 7).padding(.bottom, 6)
+        }
     }
 
     @ViewBuilder

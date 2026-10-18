@@ -53,6 +53,10 @@ public struct Track: Codable, Equatable, Sendable {
     public var table: String = ""
     /// Назначения LFO1–3 / ENV на ручки дорожки (id параметра → источник и степень).
     public var assigns: [String: ModAssign] = [:]
+    /// MORPH: значения ручек и назначений на момент включения режима (что меняли), дорожку меняли (жёлтая точка).
+    public var morphOrig: [String: Double] = [:]
+    public var morphOrigAssign: [String: ModAssign?] = [:]
+    public var morphEdited: Bool = false
 
     public init(index: Int) {
         id = Int.random(in: 0..<(1 << 31))

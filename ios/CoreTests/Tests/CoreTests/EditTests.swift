@@ -119,3 +119,26 @@ final class EditTests: XCTestCase {
         XCTAssertEqual(Params.trackGrid[1].id, "attack", "сетка — ряд за рядом")
     }
 }
+
+/// MORPH: изменения ручек и назначений запоминаются при первом изменении и возвращаются целиком.
+final class MorphTests: XCTestCase {
+    func testMorphRestoresParamsAndAssigns() {
+        var t = Track(index: 0)
+        t.assigns["pan"] = ModAssign(lfo: 1, amount: 0.5)
+        t.morphParam("filter")
+        t.params["filter"] = -40
+        t.morphParam("filter")
+        t.params["filter"] = -80
+        t.morphAssign("pan")
+        t.assigns["pan"] = ModAssign(lfo: 2, amount: -1)
+        t.morphAssign("level")
+        t.assigns["level"] = ModAssign(lfo: 4, amount: 0.3)
+        XCTAssertTrue(t.morphEdited)
+        t.undoMorph()
+        XCTAssertEqual(t.params["filter"], 0)
+        XCTAssertEqual(t.assigns["pan"], ModAssign(lfo: 1, amount: 0.5))
+        XCTAssertNil(t.assigns["level"])
+        XCTAssertFalse(t.morphEdited)
+        XCTAssertTrue(t.morphOrig.isEmpty)
+    }
+}

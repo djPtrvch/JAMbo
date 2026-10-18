@@ -29,7 +29,7 @@ struct TopBar: View {
         return HStack(spacing: Layout.gap) {
             ScaleField(model: model).frame(width: Layout.topButton)
             RootField(model: model)
-            HistoryButton(symbol: "arrow.uturn.backward", enabled: model.canUndo) { model.undo() }
+            HistoryButton(symbol: "arrow.uturn.backward", enabled: model.canUndo || model.morphHeld) { model.undoTapped() }
                 .frame(width: Layout.topButton)
             PlayButton(model: model).frame(width: half)
             RecButton(model: model).frame(width: half)

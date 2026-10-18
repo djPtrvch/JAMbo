@@ -122,7 +122,11 @@ extension AppModel {
         if held.isEmpty && fxMode {
             setFx(p, v)
         } else if held.isEmpty {
-            editTrack { t in t.params[p.id] = v }
+            let m = morph
+            editTrack { t in
+                if m { t.morphParam(p.id) }
+                t.params[p.id] = v
+            }
         } else {
             usedSteps.formUnion(held)
             editTrack { t in

@@ -48,12 +48,8 @@ struct RightColumn: View {
     var body: some View {
         VStack(spacing: Layout.gap) {
             PagesColumn(model: model)
-            ButtonPair(left: SideButton(title: "MORPH", enabled: false), right: HoldButton(title: "FX", held: model.fxHeld) { on in
-                model.setPageHeld(.fx, on)
-            })
-            ButtonPair(left: ShiftButton(model: model), right: HoldButton(title: "MOD", held: model.modHeld) { on in
-                model.setPageHeld(.mod, on)
-            })
+            ButtonPair(left: MorphButton(model: model), right: PageButton(model: model, title: "FX", page: .fx))
+            ButtonPair(left: ShiftButton(model: model), right: PageButton(model: model, title: "MOD", page: .mod))
         }
     }
 }
@@ -76,16 +72,68 @@ struct SideButton: View {
     let title: String
     var enabled: Bool = true
     var lit: Bool = false
+    /// Горит жёлтым (MORPH включён).
+    var accent: Bool = false
     @Environment(\.theme) private var theme
 
     var body: some View {
-        let fg: Color = lit ? theme.bg : (enabled ? theme.text : theme.off)
+        let fg: Color = accent ? theme.onAccent : (lit ? theme.bg : (enabled ? theme.text : theme.off))
+        let bg: Color = accent ? theme.accent : (lit ? theme.text : theme.panel2)
         return Text(title)
             .font(.system(size: 13, weight: .semibold))
             .tracking(1)
             .foregroundStyle(fg)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(lit ? theme.text : theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
+            .background(bg, in: RoundedRectangle(cornerRadius: Layout.radius))
+    }
+}
+
+/// MORPH: тап включает и выключает режим (жёлтая — включён; при касании сразу видно, каким станет режим, без белой
+/// подсветки); удержание + UNDO — сбросить изменения режима, отпускание тогда режим не переключает.
+struct MorphButton: View {
+    let model: AppModel
+
+    var body: some View {
+        let shown: Bool = model.morphHeld && !model.morphUsed ? !model.morph : model.morph
+        return SideButton(title: "MORPH", accent: shown)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in if !model.morphHeld { model.morphPress() } }
+                    .onEnded { _ in model.morphRelease() }
+            )
+    }
+}
+
+/// FX и MOD: удержание или (SHIFT + двойной тап) режим toggle — тогда внутри вторая чёрная линия контура.
+struct PageButton: View {
+    let model: AppModel
+    let title: String
+    let page: GridPage
+    @State private var pressed = false
+
+    var body: some View {
+        let latch: Bool = model.latched(page)
+        return SideButton(title: title, lit: model.pageOn(page))
+            .overlay(
+                RoundedRectangle(cornerRadius: Layout.radius - 3)
+                    .inset(by: 3)
+                    .stroke(latch ? Color.black : Color.clear, lineWidth: 1)
+            )
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in
+                        if !pressed {
+                            pressed = true
+                            model.pagePress(page)
+                        }
+                    }
+                    .onEnded { _ in
+                        pressed = false
+                        model.pageRelease(page)
+                    }
+            )
     }
 }
 

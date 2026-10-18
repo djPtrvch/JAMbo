@@ -36,6 +36,9 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var scSends = SidechainSends()
     /// MUTE TAILS: заглушили единственный источник посыла Delay — его повторы гасятся.
     public var muteTails: Bool = false
+    /// FX и MOD в режиме toggle (SHIFT + двойной тап по кнопке): тап включает страницу, следующий — выключает.
+    public var latchFx: Bool = false
+    public var latchMod: Bool = false
 
     public init() {}
 
@@ -49,7 +52,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         return try? JSONEncoder().encode(self)
     }
 
-    private enum Keys: String, CodingKey { case appearance, pianoOctaves, velocity, record, sliceMap, scSends, muteTails }
+    private enum Keys: String, CodingKey { case appearance, pianoOctaves, velocity, record, sliceMap, scSends, muteTails, latchFx, latchMod }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
@@ -60,5 +63,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         sliceMap = (try? c.decode(SliceMap.self, forKey: .sliceMap)) ?? .chromatic
         scSends = (try? c.decode(SidechainSends.self, forKey: .scSends)) ?? SidechainSends()
         muteTails = (try? c.decode(Bool.self, forKey: .muteTails)) ?? false
+        latchFx = (try? c.decode(Bool.self, forKey: .latchFx)) ?? false
+        latchMod = (try? c.decode(Bool.self, forKey: .latchMod)) ?? false
     }
 }

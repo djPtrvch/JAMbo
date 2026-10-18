@@ -39,6 +39,12 @@ final class AppModel {
     var lastSource: Int = 1
     /// Ручки, которые сейчас держит палец (обводка кнопок назначенных источников).
     var knobFingers: Set<Int> = []
+    /// MORPH: режим включён; кнопка зажата; на удержании нажали UNDO (отпускание не переключает режим).
+    var morph: Bool = false
+    var morphHeld: Bool = false
+    var morphUsed: Bool = false
+    /// Последний тап по FX или MOD с зажатой SHIFT (двойной — режим toggle кнопки).
+    @ObservationIgnored var lastPageTap: (page: GridPage, at: Date)? = nil
     /// Последний тап по LFO1–3 / ENV (двойной тап — снять назначение с удерживаемой ручки).
     @ObservationIgnored var lastSourceTap: (source: Int, at: Date)? = nil
     /// Миниатюры LFO/ENV в окне сэмпла после поворота ручки MOD (до этого момента).

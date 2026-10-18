@@ -235,3 +235,30 @@ extension Project {
         if !n.isEmpty && i >= 0 && i < tracks.count { tracks[i].name = n }
     }
 }
+
+// MARK: — MORPH (как targetTracks и undoTrackEdits веба)
+
+extension Track {
+    /// Ручку id меняют в режиме MORPH: исходное значение — при первом изменении.
+    public mutating func morphParam(_ id: String) {
+        morphEdited = true
+        if morphOrig[id] == nil { morphOrig[id] = params[id] ?? Params.byId[id]?.def ?? 0 }
+    }
+
+    /// Назначение LFO/ENV на ручку id меняют в режиме MORPH: исходное (или его отсутствие) — при первом изменении.
+    public mutating func morphAssign(_ id: String) {
+        morphEdited = true
+        if !morphOrigAssign.keys.contains(id) { morphOrigAssign[id] = .some(assigns[id]) }
+    }
+
+    /// Вернуть всё, что меняли в режиме MORPH (p-lock шагов не трогаются).
+    public mutating func undoMorph() {
+        for (id, v) in morphOrig { params[id] = v }
+        for (id, a) in morphOrigAssign {
+            if let x = a { assigns[id] = x } else { assigns.removeValue(forKey: id) }
+        }
+        morphOrig = [:]
+        morphOrigAssign = [:]
+        morphEdited = false
+    }
+}
