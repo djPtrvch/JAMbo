@@ -17,7 +17,7 @@ S5a — мастер в Core; S5b — EQ (Core, экран, спектры, COMP
 - Нагрузка в отладке (виртуалка, доля ядра): SAT 9,8, COMP 0,4, CLIP 8,6, LIM 6,9 %. Индикация (кадры IN / GR / OUT уже считаются) — S5c, ручки MST — S5d.
 
 ### S5b (EQ в Core)
-- Core/EQ: EqModel (Eq, EqBand — поля как в вебе; Track.eq — EQ дорожки, переезжает с ней; Project.masterEq; правки — addEqBand, setEqBand, setEqType, setEqSlope, toggleEqBand, deleteEqBand, toggleEq), EqCoeffs (формулы Biquad.cpp Blink/WebKit; АЧХ — для кривой), EqUnit, TrackEqs; снимок — SoundData.eq. Dynamic, M/S — S9.
+- Core/EQ: EqModel (Eq, EqBand — поля как в вебе; Track.eq — EQ дорожки, переезжает с ней; Project.masterEq; правки — addEqBand, setEqBand, setEqType, setEqSlope, toggleEqBand, deleteEqBand, toggleEq), EqCoeffs (формулы Biquad.cpp Blink/WebKit; АЧХ — для кривой), EqUnit, TrackEqs; снимок — SoundData.eq. Dynamic, M/S — S7.
 - Звук: EQ дорожки — до Sidechain и громкости, на сухом сигнале и посылах (как копии EqChain веба; коэффициенты общие); хвост фильтров звучит после голоса (до −180 dB); EQ мастера — перед SAT. Смена набора полос — кроссфейд 40 мс (усиление — до полос, как в вебе), у молчащей дорожки — сразу.
 - Особенность Web Audio (замерено в Chromium): у стерео BiquadFilterNode setTargetAtTime продвигается каждым каналом — сглаживание вдвое быстрее, L и R идут по разным отрезкам траектории; EqUnit повторяет это (коэффициенты точно раз в 32 отсчёта, между ними — линейно).
 - Эталоны (ios/tools/eq/golden.mjs — EqChain веба в OfflineAudioContext headless Chromium через протокол отладки): 13 случаев, −77…−105 dB по отсчётам. SELF-TEST — код 41, 184 случая; CoreTests — 135. Нагрузка в отладке: 8 полос — 0,7 %, в движении — 1,1 %.

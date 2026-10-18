@@ -58,3 +58,4 @@ S0 каркас → S1 секвенсор и экран → S2 сэмплер и
 | FX, посылов, Sidechain, MOD, MORPH | docs/SWIFT_MILESTONE_S4.md |
 | мастера, EQ, спектров, метров, скопа | docs/SWIFT_MILESTONE_S5.md |
 | окон модулей мастера, пресетов модулей | docs/SWIFT_MILESTONE_S6.md |
+| EQ Dynamic и M/S, пресетов EQ | docs/SWIFT_MILESTONE_S7.md |
