@@ -34,7 +34,7 @@ Object.assign(globalThis, {
   registerProcessor(name, cls) { procs[name] = cls; },
 });
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fx-'));
-for (const f of ['oversampler.js', 'delay-worklet.js', 'reverb-worklet.js', 'drive-worklet.js']) {
+for (const f of ['oversampler.js', 'delay-worklet.js', 'reverb-worklet.js', 'drive-worklet.js', 'duck-worklet.js']) {
   const tmp = path.join(tmpDir, f.replace('.js', '.mjs'));
   fs.writeFileSync(tmp, fs.readFileSync(path.join(root, 'public', f), 'utf8'));
   await import(pathToFileURL(tmp).href);
@@ -65,18 +65,26 @@ function render(c) {
   const Proc = procs[c.proc];
   const node = new Proc({ processorOptions: c.options ?? {} });
   const vals = {};
-  for (const d of Proc.parameterDescriptors) vals[d.name] = d.defaultValue;
-  Object.assign(vals, c.params);
+  for (const d of Proc.parameterDescriptors ?? []) vals[d.name] = d.defaultValue;
+  Object.assign(vals, c.params ?? {});
   const [iL, iR] = input(c.input, c.frames);
   const res = new Int16Array(c.frames * 2);
   const oL = new Float32Array(BLOCK), oR = new Float32Array(BLOCK);
   const bL = new Float32Array(BLOCK), bR = new Float32Array(BLOCK);
+  globalThis.currentFrame = 0;
   for (let f = 0; f < c.frames; f += BLOCK) {
-    for (const e of c.events ?? []) if (e.frame === f) Object.assign(vals, e.params);
+    for (const e of c.events ?? []) {
+      if (e.frame !== f) continue;
+      if (e.params) Object.assign(vals, e.params);
+      if (e.msg) node.port.onmessage({ data: e.msg });
+    }
     const params = {};
     for (const k of Object.keys(vals)) params[k] = new Float32Array([vals[k]]);
     bL.set(iL.subarray(f, f + BLOCK)); bR.set(iR.subarray(f, f + BLOCK));
-    node.process([[bL, bR]], [[oL, oR]], params);
+    if (c.proc === 'duck') {
+      node.process([], [[oL]], params);
+      oR.set(oL);
+    } else node.process([[bL, bR]], [[oL, oR]], params);
     for (let i = 0; i < BLOCK && f + i < c.frames; i++) {
       res[2 * (f + i)] = Math.max(-32767, Math.min(32767, Math.round(oL[i] * 32767)));
       res[2 * (f + i) + 1] = Math.max(-32767, Math.min(32767, Math.round(oR[i] * 32767)));
@@ -89,6 +97,8 @@ function render(c) {
 const DLY = { proc: 'delay', options: { maxTime: 6 }, frames: 72000 };
 const REV = { proc: 'reverb', frames: 72000 };
 const DRV = { proc: 'drive', frames: 48000, seed: 1 };
+const DUCK = { proc: 'duck', frames: 48000, seed: 1, input: 'none' };
+const trig = (frame, attack, release, curve) => ({ type: 'trig', frame, attack, release, curve });
 const CASES = [
   { name: 'dly_basic', ...DLY, seed: 1, input: 'burst', params: { time: 0.25, feedback: 0.5, filter: 0, spread: 0 } },
   { name: 'dly_lp', ...DLY, seed: 2, input: 'burst', params: { time: 0.1875, feedback: 0.7, filter: -0.6, spread: 0.3 } },
@@ -114,6 +124,12 @@ const CASES = [
     events: [{ frame: 2048, params: { type: 4 } }, { frame: 4096, params: { drive: 90 } },
       { frame: 8192, params: { type: 5 } }, { frame: 12032, params: { type: 1, lowcut: 500 } },
       { frame: 16000, params: { type: 2, tone: 0 } }, { frame: 20096, params: { type: 3, lowcut: 20, tone: 100 } }] },
+  // Sidechain: выход — e (в обоих каналах); триги приходят сообщениями заранее (msg — в начале блока frame).
+  { name: 'duck_single', ...DUCK, events: [{ frame: 0, msg: [trig(1000, 5, 200, 50)] }] },
+  { name: 'duck_curves', ...DUCK, events: [{ frame: 0, msg: [trig(0, 0.1, 100, 100), trig(9600, 10, 300, 0)] },
+    { frame: 29952, msg: [trig(30000, 1, 200, 50), trig(31000, 5, 400, 75)] }] },
+  { name: 'duck_flush_late', ...DUCK, events: [{ frame: 0, msg: [trig(0, 2, 150, 50), trig(6000, 2, 150, 50), trig(12000, 2, 150, 50), trig(18000, 2, 150, 50)] },
+    { frame: 7040, msg: [{ type: 'flush' }] }, { frame: 24064, msg: [trig(24000, 20, 1000, 30)] }] },
 ];
 
 const cases = [];

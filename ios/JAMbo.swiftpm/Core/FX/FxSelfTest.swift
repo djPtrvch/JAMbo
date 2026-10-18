@@ -11,13 +11,23 @@ public enum FxSelfTest {
         public let frames: Int
         public let seed: UInt32
         public let input: String
-        public let params: [String: Double]
+        public let params: [String: Double]?
         public let events: [Event]
     }
 
+    /// В начале блока frame: новые значения параметров и (Sidechain) сообщения trig / flush.
     public struct Event: Decodable, Sendable {
         public let frame: Int
-        public let params: [String: Double]
+        public let params: [String: Double]?
+        public let msg: [Msg]?
+    }
+
+    public struct Msg: Decodable, Sendable {
+        public let type: String
+        public let frame: Int64?
+        public let attack: Double?
+        public let release: Double?
+        public let curve: Double?
     }
 
     public struct Cases: Decodable, Sendable {
@@ -71,7 +81,7 @@ public enum FxSelfTest {
         let (iL, iR) = input(c.input, c.frames)
         var outL = [Float](repeating: 0, count: c.frames)
         var outR = [Float](repeating: 0, count: c.frames)
-        var vals: [String: Double] = c.params
+        var vals: [String: Double] = c.params ?? [:]
         let bL = UnsafeMutablePointer<Float>.allocate(capacity: block)
         let bR = UnsafeMutablePointer<Float>.allocate(capacity: block)
         let oL = UnsafeMutablePointer<Float>.allocate(capacity: block)
@@ -84,9 +94,18 @@ public enum FxSelfTest {
         let delay: FxDelay? = c.proc == "delay" ? FxDelay(sampleRate: 48000, maxTime: 6, seed: c.seed) : nil
         let reverb: FxReverb? = c.proc == "reverb" ? FxReverb(sampleRate: 48000, seed: c.seed) : nil
         let drive: FxDrive? = c.proc == "drive" ? FxDrive(sampleRate: 48000) : nil
+        let duck: FxDuck? = c.proc == "duck" ? FxDuck(sampleRate: 48000) : nil
         var f = 0
         while f < c.frames {
-            for e in c.events where e.frame == f { vals.merge(e.params) { _, b in b } }
+            for e in c.events where e.frame == f {
+                vals.merge(e.params ?? [:]) { _, b in b }
+                for m in e.msg ?? [] {
+                    if m.type == "flush" { duck?.flush() }
+                    if m.type == "trig" {
+                        duck?.trig(frame: m.frame ?? 0, attack: m.attack ?? 0, release: m.release ?? 0, curve: m.curve ?? 50)
+                    }
+                }
+            }
             for i in 0..<block {
                 bL[i] = f + i < c.frames ? iL[f + i] : 0
                 bR[i] = f + i < c.frames ? iR[f + i] : 0
@@ -102,6 +121,10 @@ public enum FxSelfTest {
             if let d = drive {
                 d.process(inL: bL, inR: bR, outL: oL, outR: oR, frames: block, drive: p("drive", 26), type: p("type", 0),
                           tone: p("tone", 50), lowcut: p("lowcut", 20))
+            }
+            if let d = duck {
+                d.process(blockStart: Int64(f), out: oL, frames: block)
+                oR.update(from: oL, count: block)
             }
             var i = 0
             while i < block && f + i < c.frames {

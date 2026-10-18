@@ -335,6 +335,136 @@
      }
     }
    ]
+  },
+  {
+   "file": "fx_duck_single.i16",
+   "proc": "duck",
+   "frames": 48000,
+   "seed": 1,
+   "input": "none",
+   "events": [
+    {
+     "frame": 0,
+     "msg": [
+      {
+       "type": "trig",
+       "frame": 1000,
+       "attack": 5,
+       "release": 200,
+       "curve": 50
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "file": "fx_duck_curves.i16",
+   "proc": "duck",
+   "frames": 48000,
+   "seed": 1,
+   "input": "none",
+   "events": [
+    {
+     "frame": 0,
+     "msg": [
+      {
+       "type": "trig",
+       "frame": 0,
+       "attack": 0.1,
+       "release": 100,
+       "curve": 100
+      },
+      {
+       "type": "trig",
+       "frame": 9600,
+       "attack": 10,
+       "release": 300,
+       "curve": 0
+      }
+     ]
+    },
+    {
+     "frame": 29952,
+     "msg": [
+      {
+       "type": "trig",
+       "frame": 30000,
+       "attack": 1,
+       "release": 200,
+       "curve": 50
+      },
+      {
+       "type": "trig",
+       "frame": 31000,
+       "attack": 5,
+       "release": 400,
+       "curve": 75
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "file": "fx_duck_flush_late.i16",
+   "proc": "duck",
+   "frames": 48000,
+   "seed": 1,
+   "input": "none",
+   "events": [
+    {
+     "frame": 0,
+     "msg": [
+      {
+       "type": "trig",
+       "frame": 0,
+       "attack": 2,
+       "release": 150,
+       "curve": 50
+      },
+      {
+       "type": "trig",
+       "frame": 6000,
+       "attack": 2,
+       "release": 150,
+       "curve": 50
+      },
+      {
+       "type": "trig",
+       "frame": 12000,
+       "attack": 2,
+       "release": 150,
+       "curve": 50
+      },
+      {
+       "type": "trig",
+       "frame": 18000,
+       "attack": 2,
+       "release": 150,
+       "curve": 50
+      }
+     ]
+    },
+    {
+     "frame": 7040,
+     "msg": [
+      {
+       "type": "flush"
+      }
+     ]
+    },
+    {
+     "frame": 24064,
+     "msg": [
+      {
+       "type": "trig",
+       "frame": 24000,
+       "attack": 20,
+       "release": 1000,
+       "curve": 30
+      }
+     ]
+    }
+   ]
   }
  ]
 }
