@@ -48,11 +48,17 @@ struct RootView: View {
         .padding(.vertical, 8)
     }
 
-    /// Центр: левая колонка | сетка ручек | правая колонка | измеритель; с PATTERNS — сетка паттернов во всю ширину.
+    /// Центр: левая колонка | сетка ручек | правая колонка | измеритель; с PATTERNS — сетка паттернов во всю ширину;
+    /// с EQ — эквалайзер до края миниатюр страниц, справа измеритель.
     @ViewBuilder
     private func center(_ layout: Layout) -> some View {
         if model.patternView {
             PatternGrid(model: model, layout: layout)
+        } else if model.eqView {
+            HStack(spacing: Layout.gap) {
+                EqView(model: model, layout: layout)
+                MeterColumn()
+            }
         } else if model.editorOpen {
             // Редактор сэмпла — на месте центра (окно сэмпла, сетка ручек, правая колонка), справа измеритель.
             HStack(spacing: Layout.gap) {
@@ -79,6 +85,9 @@ struct RootView: View {
         }
         if let m = model.soundMenu {
             soundMenu(m)
+        }
+        if let m = model.eqMenu {
+            EqBandMenu(model: model, state: m)
         }
         if model.showDiagnostics {
             DiagnosticsView(model: model).padding(8)

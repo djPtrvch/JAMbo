@@ -262,6 +262,7 @@ extension AppModel {
     func openEditor() {
         patternView = false
         editorOpen = true
+        eqView = false
     }
 
     func closeEditor() {

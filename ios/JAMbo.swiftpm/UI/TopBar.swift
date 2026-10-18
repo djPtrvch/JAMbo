@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Верхняя панель: меню, BPM, метроном | SCALE, ROOT, UNDO, PLAY, REC, REDO, AUTO, EQ | PATTERNS, ARRANGE, CPU.
-/// Работают меню, BPM, метроном, UNDO, PLAY, REDO; остальные — на своих местах, серые (S1c–S5).
+/// Работают меню, BPM, метроном, SCALE, ROOT, UNDO, PLAY, REC, REDO, EQ, PATTERNS; AUTO и ARRANGE — серые (S8, позже).
 struct TopBar: View {
     let model: AppModel
     @Binding var menuOpen: Bool
@@ -36,7 +36,7 @@ struct TopBar: View {
             HistoryButton(symbol: "arrow.uturn.forward", enabled: model.canRedo) { model.redo() }
                 .frame(width: Layout.topButton)
             TopIcon(symbol: "waveform.path")
-            TopText(title: "EQ").frame(width: Layout.topButton)
+            ViewButton(title: "EQ", on: model.eqView) { model.toggleEqView() }.frame(width: Layout.topButton)
         }
     }
 
@@ -216,17 +216,27 @@ struct RecButton: View {
 /// PATTERNS: сетка паттернов на месте центра; горит, пока открыта.
 struct PatternsButton: View {
     let model: AppModel
+
+    var body: some View {
+        ViewButton(title: "PATTERNS", on: model.patternView) { model.togglePatterns() }
+    }
+}
+
+/// Кнопка вида на месте центра (PATTERNS, EQ): горит, пока вид открыт.
+struct ViewButton: View {
+    let title: String
+    let on: Bool
+    let action: () -> Void
     @Environment(\.theme) private var theme
 
     var body: some View {
-        let on: Bool = model.patternView
-        return Text("PATTERNS")
+        Text(title)
             .font(.system(size: 13, weight: .semibold))
             .tracking(1)
             .foregroundStyle(on ? theme.bg : theme.text)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(on ? theme.text : theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
             .contentShape(Rectangle())
-            .onTapGesture { model.togglePatterns() }
+            .onTapGesture { action() }
     }
 }

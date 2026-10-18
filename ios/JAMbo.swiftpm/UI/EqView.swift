@@ -1,0 +1,317 @@
+import SwiftUI
+
+/// Какое значение полосы вводят числом (удержание FREQ, GAIN, Q; тап по FREQ).
+enum EqInput {
+    case freq, gain, q
+}
+
+/// EQ на месте центра (кнопка EQ): вверху строка полей ровной сеткой со строкой дорожек, под ней поле EQ.
+struct EqView: View {
+    let model: AppModel
+    let layout: Layout
+    @State private var plotFrame: CGRect = .zero
+    @State private var input: EqInput? = nil
+    @State private var inputBand: Int = -1
+    @State private var text: String = ""
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        VStack(spacing: Layout.gap) {
+            EqBar(model: model, layout: layout, plotFrame: plotFrame) { field in openInput(field) }
+                .frame(height: 48)
+            EqPlot(model: model)
+                .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { plotFrame = $0 }
+        }
+        // Другой канал — выбор полосы сбрасывается.
+        .onChange(of: model.eqChannel) { _, _ in model.eqBand = -1 }
+        .alert(inputTitle, isPresented: inputShown) {
+            TextField(inputTitle, text: $text).keyboardType(.numbersAndPunctuation)
+            Button("OK") { enter() }
+            Button("Cancel", role: .cancel) {}
+        }
+    }
+
+    private var inputShown: Binding<Bool> {
+        Binding(get: { input != nil }, set: { if !$0 { input = nil } })
+    }
+
+    private var inputTitle: String {
+        switch input {
+        case .freq: return "FREQ (Hz, 1.5k — kHz)"
+        case .gain: return "GAIN (dB)"
+        case .q: return "Q"
+        case nil: return ""
+        }
+    }
+
+    private func openInput(_ field: EqInput) {
+        guard let b = model.selectedBand else { return }
+        if field == .gain && !EqSpec.hasGain(b.type) { return }
+        inputBand = model.eqBand
+        switch field {
+        case .freq: text = "\(Int(b.freq.rounded()))"
+        case .gain: text = String(format: "%.1f", b.gain)
+        case .q: text = String(format: "%.2f", b.q)
+        }
+        input = field
+    }
+
+    private func enter() {
+        let k: Int = inputBand
+        switch input {
+        case .freq:
+            if let v = EqFormat.parseFreq(text) { model.setEqBand(k, freq: v) }
+        case .gain:
+            if let v = EqFormat.parseNum(text) { model.setEqBand(k, gain: v) }
+        case .q:
+            if let v = EqFormat.parseNum(text), v > 0 { model.setEqBand(k, q: v) }
+        case nil:
+            break
+        }
+        input = nil
+    }
+}
+
+/// Строка EQ: имя канала над MIX, TYPE, FREQ, GAIN, Q, STEREO, DYN, PRESETS, BYPASS — над дорожками 1…8 (по сетке
+/// 8 дорожек: при 9–16 дорожках не сужаются). STEREO, DYN и PRESETS — S9 (серые).
+struct EqBar: View {
+    let model: AppModel
+    let layout: Layout
+    let plotFrame: CGRect
+    let input: (EqInput) -> Void
+    @State private var lastQTap: Date = .distantPast
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let col: CGFloat = (layout.width - 2 * layout.step - 9 * Layout.gap) / 8
+        let x0: CGFloat = layout.step + Layout.gap
+        ZStack(alignment: .topLeading) {
+            name.frame(width: layout.step, height: 48)
+            ForEach(0..<8, id: \.self) { i in
+                item(i).frame(width: col, height: 48).offset(x: x0 + CGFloat(i) * (col + Layout.gap))
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+
+    private var name: some View {
+        Text("\(model.eqTargetName)\nEQ")
+            .font(.system(size: 11)).tracking(0.9)
+            .multilineTextAlignment(.center)
+            .lineLimit(2)
+            .minimumScaleFactor(0.7)
+            .foregroundStyle(theme.dim)
+    }
+
+    @ViewBuilder
+    private func item(_ i: Int) -> some View {
+        let b: EqBand? = model.selectedBand
+        switch i {
+        case 0: typeField(b)
+        case 1: freqField(b)
+        case 2: gainField(b)
+        case 3: qField(b)
+        case 4: EqField(label: "M/S", value: b == nil ? "—" : "STEREO", enabled: false, model: model)
+        case 5: EqField(label: "DYN", value: b == nil ? "—" : "OFF", enabled: false, model: model)
+        case 6: EqTool(title: "PRESETS", enabled: false, active: false) {}
+        default: EqTool(title: "BYPASS", enabled: true, active: !model.eqTarget.on) { model.toggleEqBypass() }
+        }
+    }
+
+    /// TYPE: палец вниз — следующий тип по порядку меню; тап — меню полосы.
+    private func typeField(_ b: EqBand?) -> some View {
+        let order: [Int] = EqSpec.typeOrder
+        let k: Int = model.eqBand
+        return EqField(label: "TYPE", value: b.map { EqFormat.type($0) } ?? "—", enabled: b != nil, pxPerUnit: 30,
+                       get: { -Double(order.firstIndex(of: model.selectedBand?.type ?? 0) ?? 0) },
+                       set: { v in
+                           let n: Int = order.count
+                           model.setEqType(k, order[((-Int(v)) % n + n) % n])
+                       },
+                       tap: { f in
+                           model.eqMenu = EqMenuState(band: k, anchor: CGPoint(x: f.midX, y: f.maxY), bounds: plotFrame)
+                       },
+                       model: model)
+    }
+
+    /// FREQ: 2 px на 1/24 октавы; тап и удержание (палец может сдвинуться до 14 px) — ввод числом.
+    private func freqField(_ b: EqBand?) -> some View {
+        let k: Int = model.eqBand
+        return EqField(label: "FREQ", value: b.map { EqFormat.hz($0.freq) } ?? "—", enabled: b != nil, pxPerUnit: 2,
+                       get: { (log2((model.selectedBand?.freq ?? 1000) / EqSpec.freqMin) * 24).rounded() },
+                       set: { v in model.setEqBand(k, freq: EqSpec.freqMin * pow(2, v / 24)) },
+                       tap: { _ in input(.freq) }, hold: { input(.freq) }, moveTol: 14, model: model)
+    }
+
+    /// GAIN: 1 px на 0,1 dB (у cut и notch — «—»); удержание — ввод числом.
+    private func gainField(_ b: EqBand?) -> some View {
+        let k: Int = model.eqBand
+        let has: Bool = b.map { EqSpec.hasGain($0.type) } ?? false
+        return EqField(label: "GAIN", value: has ? EqFormat.gain(b?.gain ?? 0) : "—", enabled: has, pxPerUnit: 1,
+                       get: { ((model.selectedBand?.gain ?? 0) * 10).rounded() },
+                       set: { v in model.setEqBand(k, gain: v / 10) },
+                       hold: { input(.gain) }, model: model)
+    }
+
+    /// Q: 3 px на 1/12 октавы; двойной тап — Q по умолчанию (1,0); удержание — ввод числом.
+    private func qField(_ b: EqBand?) -> some View {
+        let k: Int = model.eqBand
+        return EqField(label: "Q", value: b.map { String(format: "%.2f", $0.q) } ?? "—", enabled: b != nil, pxPerUnit: 3,
+                       get: { (log2(model.selectedBand?.q ?? 1) * 12).rounded() },
+                       set: { v in model.setEqBand(k, q: pow(2, v / 12)) },
+                       tap: { _ in
+                           let now = Date()
+                           if now.timeIntervalSince(lastQTap) < EqPlot.doubleTap {
+                               model.setEqBand(k, q: EqSpec.qDef)
+                               lastQTap = .distantPast
+                           } else {
+                               lastQTap = now
+                           }
+                       },
+                       hold: { input(.q) }, model: model)
+    }
+}
+
+/// Поле строки EQ: подпись над значением; палец вверх-вниз — pxPerUnit на пункт (одна запись UNDO на жест), тап,
+/// удержание 0,5 с без движения (до moveTol px); выключенное — серое, касаний нет.
+struct EqField: View {
+    let label: String
+    let value: String
+    var enabled: Bool = true
+    var pxPerUnit: CGFloat = 10
+    var get: () -> Double = { 0 }
+    var set: (Double) -> Void = { _ in }
+    var tap: ((CGRect) -> Void)? = nil
+    var hold: (() -> Void)? = nil
+    var moveTol: CGFloat = 10
+    let model: AppModel
+    @State private var start: Double? = nil
+    @State private var moved: Bool = false
+    @State private var held: Bool = false
+    @State private var holdTask: Task<Void, Never>? = nil
+    @State private var frame: CGRect = .zero
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(label).font(.system(size: 9)).tracking(0.8).foregroundStyle(theme.dim)
+            Text(value).font(.system(size: 16)).lineLimit(1).minimumScaleFactor(0.7)
+                .foregroundStyle(enabled ? theme.text : theme.off)
+        }
+        .padding(.horizontal, 12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .background(start != nil ? theme.panel2 : theme.panel, in: RoundedRectangle(cornerRadius: Layout.radius))
+        .contentShape(Rectangle())
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { frame = $0 }
+        .gesture(drag, including: enabled ? .all : .none)
+    }
+
+    private var drag: some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { g in
+                if start == nil { begin() }
+                let dy: CGFloat = g.translation.height
+                if !moved && !held && abs(dy) > moveTol {
+                    moved = true
+                    holdTask?.cancel()
+                }
+                if moved, let s = start { set(s + (-dy / pxPerUnit).rounded()) }
+            }
+            .onEnded { _ in
+                holdTask?.cancel()
+                model.endGesture()
+                start = nil
+                if !moved && !held { tap?(frame) }
+            }
+    }
+
+    private func begin() {
+        start = get()
+        moved = false
+        held = false
+        model.beginGesture()
+        guard let h = hold else { return }
+        holdTask?.cancel()
+        holdTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            if Task.isCancelled || moved || start == nil { return }
+            held = true
+            h()
+        }
+    }
+}
+
+/// Кнопка строки EQ (PRESETS, BYPASS): горит, когда active; выключенная — серая.
+struct EqTool: View {
+    let title: String
+    let enabled: Bool
+    let active: Bool
+    let action: () -> Void
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let fg: Color = !enabled ? theme.off : (active ? theme.onAccent : theme.text)
+        return Text(title)
+            .font(.system(size: 12, weight: .bold)).tracking(0.8)
+            .foregroundStyle(fg)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(active ? theme.accent : theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
+            .contentShape(Rectangle())
+            .onTapGesture { if enabled { action() } }
+    }
+}
+
+/// Меню полосы: типы (порядок меню), крутизна среза (только у cut), DELETE (красная). Внутри поля EQ у точки или под
+/// полем TYPE; тап мимо — закрыть.
+struct EqBandMenu: View {
+    static let width: CGFloat = 390
+    static let height: CGFloat = 3 * 44 + 2 * 4 + 12 + 44 + 4
+    let model: AppModel
+    let state: EqMenuState
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let r: CGRect = state.bounds
+        let w: CGFloat = EqBandMenu.width, h: CGFloat = EqBandMenu.height
+        let x: CGFloat = min(max(r.minX + 8, state.anchor.x - w / 2), r.maxX - w - 8)
+        let below: Bool = state.anchor.y + 8 + h <= r.maxY - 8
+        let y: CGFloat = below ? state.anchor.y + 8 : max(r.minY + 8, state.anchor.y - 8 - h)
+        return ZStack(alignment: .topLeading) {
+            Color.black.opacity(0.001).ignoresSafeArea().onTapGesture { model.eqMenu = nil }
+            content
+                .padding(6)
+                .frame(width: w)
+                .background(theme.bg, in: RoundedRectangle(cornerRadius: Layout.radius))
+                .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(theme.line, lineWidth: 1))
+                .shadow(color: .black.opacity(0.5), radius: 12, y: 4)
+                .offset(x: x, y: y)
+        }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        let b: EqBand? = model.eqTarget.band(state.band)
+        let cut: Bool = b.map { EqSpec.isCut($0.type) } ?? false
+        let cols: [GridItem] = Array(repeating: GridItem(.flexible(), spacing: 4), count: 3)
+        VStack(spacing: 4) {
+            LazyVGrid(columns: cols, spacing: 4) {
+                ForEach(EqSpec.typeOrder, id: \.self) { t in
+                    MenuItem(title: EqSpec.types[t].uppercased(), current: b?.type == t) { pick { model.setEqType(state.band, t) } }
+                        .frame(height: 44)
+                }
+                ForEach(0..<EqSpec.slopes.count, id: \.self) { s in
+                    MenuItem(title: "\(EqSpec.slopes[s]) dB/oct", enabled: cut, current: cut && b?.slope == s) {
+                        pick { model.setEqSlope(state.band, s) }
+                    }
+                    .frame(height: 44)
+                }
+            }
+            MenuItem(title: "DELETE", red: true) { pick { model.deleteEqBand(state.band) } }.frame(height: 44)
+        }
+    }
+
+    private func pick(_ act: () -> Void) {
+        act()
+        model.eqMenu = nil
+    }
+}

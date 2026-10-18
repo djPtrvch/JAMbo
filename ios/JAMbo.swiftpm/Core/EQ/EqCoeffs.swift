@@ -98,14 +98,22 @@ public enum EqCoeffs {
 
     /// АЧХ полосы на частоте hz, dB (для кривой EQ; каскад — сумма ступеней), как getFrequencyResponse.
     public static func response(_ b: EqBand, hz: Double, sampleRate: Double = 48000) -> Double {
+        return response(b, hz: [hz], sampleRate: sampleRate)[0]
+    }
+
+    /// АЧХ полосы на частотах hz, dB (коэффициенты — один раз на полосу).
+    public static func response(_ b: EqBand, hz: [Double], sampleRate: Double = 48000) -> [Double] {
         let c = UnsafeMutablePointer<Double>.allocate(capacity: 5)
         defer { c.deallocate() }
         coeffs(b.type, b.freq, EqSpec.hasGain(b.type) ? b.gain : 0, EqSpec.filterQ(b), sampleRate, c)
-        let w: Double = 2 * Double.pi * hz / sampleRate
-        let c1 = cos(w), s1 = sin(w), c2 = cos(2 * w), s2 = sin(2 * w)
-        let nr = c[0] + c[1] * c1 + c[2] * c2, ni = -(c[1] * s1 + c[2] * s2)
-        let dr = 1 + c[3] * c1 + c[4] * c2, di = -(c[3] * s1 + c[4] * s2)
-        let mag = ((nr * nr + ni * ni) / Swift.max(1e-30, dr * dr + di * di)).squareRoot()
-        return Double(EqSpec.stages(b)) * 20 * log10(Swift.max(1e-6, mag))
+        let n: Double = Double(EqSpec.stages(b))
+        return hz.map { f in
+            let w: Double = 2 * Double.pi * f / sampleRate
+            let c1 = cos(w), s1 = sin(w), c2 = cos(2 * w), s2 = sin(2 * w)
+            let nr = c[0] + c[1] * c1 + c[2] * c2, ni = -(c[1] * s1 + c[2] * s2)
+            let dr = 1 + c[3] * c1 + c[4] * c2, di = -(c[3] * s1 + c[4] * s2)
+            let mag = ((nr * nr + ni * ni) / Swift.max(1e-30, dr * dr + di * di)).squareRoot()
+            return n * 20 * log10(Swift.max(1e-6, mag))
+        }
     }
 }
