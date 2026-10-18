@@ -40,10 +40,9 @@ struct CompDisplay: View {
             MasterDraw.grPeaks(ctx, c.gr, size, gapMs: 100, theme)
         }
         let thr: Double = model.masterValue(thrParam)
-        let hot: Bool = model.masterHotNow(thrParam.id, now: now)
         let ty: CGFloat = MasterDraw.y(thr, h)
-        MasterDraw.dashed(ctx, CGPoint(x: 0, y: ty), CGPoint(x: size.width, y: ty), hot: hot, theme)
-        let col: Color = hot ? theme.accent : theme.meterThr
+        MasterDraw.dashed(ctx, CGPoint(x: 0, y: ty), CGPoint(x: size.width, y: ty), theme)
+        let col: Color = theme.meterThr
         let t = ctx.resolve(Text(String(format: "%.1f", thr)).font(.system(size: 11)).foregroundColor(col))
         let below: Bool = ty <= 16
         ctx.draw(t, at: CGPoint(x: size.width - 6, y: below ? ty + 3 : ty - 3), anchor: below ? .topTrailing : .bottomTrailing)
@@ -140,8 +139,6 @@ struct CompTransfer: View {
                 }
             }
             .onEnded { _ in
-                if kind == 1 { model.masterHot.release(thrP.id) }
-                if kind == 2 { model.masterHot.release(ratioP.id) }
                 if kind > 0 { model.endGesture() }
                 kind = -1
             }
@@ -156,11 +153,9 @@ struct CompTransfer: View {
         if dh <= MasterDraw.lineHit {
             kind = 2
             start = Double(hp.y)
-            model.masterHot.hold(ratioP.id)
         } else if dt <= MasterDraw.lineHit + 6 {
             kind = 1
             start = thr
-            model.masterHot.hold(thrP.id)
         } else {
             kind = 0
             return
@@ -196,14 +191,12 @@ struct CompTransfer: View {
         ctx.stroke(curvePath(w, h, from: 0, to: Int(w)), with: .color(bypass ? theme.dim : theme.text), lineWidth: 1.5)
         drawLive(ctx, size, bypass)
         // Пунктир порога по вертикали и горизонтали, точка порога.
-        let hot: Bool = model.masterHotNow(thrP.id, now: now)
         let tx: CGFloat = CompTransfer.x(c.thr, w)
         let ty: CGFloat = MasterDraw.y(c.thr, h)
-        MasterDraw.dashed(ctx, CGPoint(x: tx, y: 0), CGPoint(x: tx, y: h), hot: hot, theme)
-        MasterDraw.dashed(ctx, CGPoint(x: 0, y: ty), CGPoint(x: w, y: ty), hot: hot, theme)
-        let r: CGFloat = hot ? 6 : 5
-        ctx.fill(Path(ellipseIn: CGRect(x: tx - r, y: ty - r, width: 2 * r, height: 2 * r)),
-                 with: .color(hot ? theme.accent : theme.meterThr))
+        MasterDraw.dashed(ctx, CGPoint(x: tx, y: 0), CGPoint(x: tx, y: h), theme)
+        MasterDraw.dashed(ctx, CGPoint(x: 0, y: ty), CGPoint(x: w, y: ty), theme)
+        let r: CGFloat = 5
+        ctx.fill(Path(ellipseIn: CGRect(x: tx - r, y: ty - r, width: 2 * r, height: 2 * r)), with: .color(theme.meterThr))
         drawHandle(ctx, size, c.ratio)
         MasterDraw.title(ctx, "TRANSFER", size, theme)
     }
@@ -247,13 +240,12 @@ struct CompTransfer: View {
         }
     }
 
-    /// Кружок RATIO с числом (жёлтый, пока RATIO меняют в окне).
+    /// Кружок RATIO с числом.
     private func drawHandle(_ ctx: GraphicsContext, _ size: CGSize, _ ratio: Double) {
         let hp: CGPoint = handlePoint(size)
-        let hot: Bool = model.masterHotNow(ratioP.id, now: now)
         let rr: CGFloat = CompTransfer.handle / 2 - 1
         let circle = Path(ellipseIn: CGRect(x: hp.x - rr, y: hp.y - rr, width: 2 * rr, height: 2 * rr))
-        let col: Color = hot ? theme.accent : theme.text
+        let col: Color = theme.text
         ctx.fill(circle, with: .color(theme.panel))
         ctx.stroke(circle, with: .color(col), lineWidth: 1.5)
         let s: String = ratio < 9.95 ? String(format: "%.1f", ratio) : "\(Int(ratio.rounded()))"

@@ -39,8 +39,7 @@ struct ClipDisplay: View {
             ctx.fill(MasterDraw.grPath(c.gr, h), with: .color(theme.gr.opacity(0.25)))
             MasterDraw.grPeaks(ctx, c.gr, size, gapMs: 100, theme)
         }
-        let hot: Bool = model.masterHotNow(ceilingParam.id, now: now)
-        MasterDraw.line(ctx, model.masterValue(ceilingParam), size, theme, hot: hot)
+        MasterDraw.line(ctx, model.masterValue(ceilingParam), size, theme)
         MasterDraw.title(ctx, "LEVEL", size, theme)
         if hist.frozen { MasterDraw.pauseLabel(ctx, "FREEZE", theme) }
     }
@@ -98,8 +97,6 @@ struct ClipTransfer: View {
                     dragging = d <= MasterDraw.lineHit ? 1 : 0
                     if dragging == 1 {
                         model.beginGesture()
-                        model.masterHot.hold(inputP.id)
-                        model.masterHot.hold(ceilP.id)
                     }
                 }
                 if dragging != 1 { return }
@@ -112,8 +109,6 @@ struct ClipTransfer: View {
             }
             .onEnded { _ in
                 if dragging == 1 {
-                    model.masterHot.release(inputP.id)
-                    model.masterHot.release(ceilP.id)
                     model.endGesture()
                 }
                 dragging = -1
@@ -146,12 +141,10 @@ struct ClipTransfer: View {
         diag.addLine(to: CGPoint(x: w, y: 0))
         ctx.stroke(diag, with: .color(theme.dim), lineWidth: 1)
         ctx.stroke(curvePath(w, h, from: 0, to: Int(w)), with: .color(bypass ? theme.dim : theme.text), lineWidth: 1.5)
-        let ceilHot: Bool = model.masterHotNow(ceilP.id, now: now)
         let ty: CGFloat = MasterDraw.y(c.ceil, h)
-        MasterDraw.dashed(ctx, CGPoint(x: 0, y: ty), CGPoint(x: w, y: ty), hot: ceilHot, theme)
+        MasterDraw.dashed(ctx, CGPoint(x: 0, y: ty), CGPoint(x: w, y: ty), theme)
         if !bypass { drawLive(ctx, size, xk) }
-        let inHot: Bool = model.masterHotNow(inputP.id, now: now)
-        drawCorner(ctx, size, hot: ceilHot || inHot)
+        drawCorner(ctx, size)
         MasterDraw.title(ctx, "TRANSFER", size, theme)
     }
 
@@ -186,12 +179,12 @@ struct ClipTransfer: View {
         ctx.fill(Path(ellipseIn: CGRect(x: px - 3, y: py - 3, width: 6, height: 6)), with: .color(theme.text))
     }
 
-    /// Ручка-угол: кружок 28 px с точкой в центре (жёлтый, пока INPUT или CEILING меняют).
-    private func drawCorner(_ ctx: GraphicsContext, _ size: CGSize, hot: Bool) {
+    /// Ручка-угол: кружок 28 px с точкой в центре.
+    private func drawCorner(_ ctx: GraphicsContext, _ size: CGSize) {
         let cp: CGPoint = cornerPoint(size)
         let rr: CGFloat = ClipTransfer.handle / 2 - 1
         let circle = Path(ellipseIn: CGRect(x: cp.x - rr, y: cp.y - rr, width: 2 * rr, height: 2 * rr))
-        let col: Color = hot ? theme.accent : theme.text
+        let col: Color = theme.text
         ctx.fill(circle, with: .color(theme.panel))
         ctx.stroke(circle, with: .color(col), lineWidth: 1.5)
         ctx.fill(Path(ellipseIn: CGRect(x: cp.x - 3, y: cp.y - 3, width: 6, height: 6)), with: .color(col))

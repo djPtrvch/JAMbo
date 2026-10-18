@@ -52,7 +52,6 @@ struct SatTransfer: View {
                 if start == nil {
                     start = driveP.toNorm(model.masterValue(driveP))
                     model.beginGesture()
-                    model.masterHot.hold(driveP.id)
                 }
                 guard let s = start else { return }
                 let d: Double = Double(-g.translation.height / MasterField.travel)
@@ -60,7 +59,6 @@ struct SatTransfer: View {
             }
             .onEnded { _ in
                 if start != nil {
-                    model.masterHot.release(driveP.id)
                     model.endGesture()
                 }
                 start = nil
@@ -114,11 +112,10 @@ struct SatTransfer: View {
         ctx.fill(Path(ellipseIn: CGRect(x: q.x - 3, y: q.y - 3, width: 6, height: 6)), with: .color(theme.accent))
     }
 
-    /// Ручка на кривой при входе 0,5 с подписью DRIVE (жёлтая, пока DRIVE меняют).
+    /// Ручка на кривой при входе 0,5 с подписью DRIVE.
     private func drawHandle(_ ctx: GraphicsContext, _ size: CGSize) {
         let q: CGPoint = pt(0.5, curve(0.5), size)
-        let hot: Bool = model.masterHotNow(driveP.id, now: now)
-        let col: Color = hot ? theme.accent : theme.text
+        let col: Color = theme.text
         let rr: CGFloat = SatTransfer.handle / 2 - 1
         let circle = Path(ellipseIn: CGRect(x: q.x - rr, y: q.y - rr, width: 2 * rr, height: 2 * rr))
         ctx.fill(circle, with: .color(theme.panel))
@@ -253,7 +250,6 @@ struct SatSpectrum: View {
                     if abs(g.startLocation.x - fx) <= MasterDraw.lineHit {
                         focusStart = fx
                         model.beginGesture()
-                        model.masterHot.hold(focusP.id)
                     } else {
                         focusStart = nil
                     }
@@ -264,7 +260,6 @@ struct SatSpectrum: View {
             }
             .onEnded { _ in
                 if focusStart != nil {
-                    model.masterHot.release(focusP.id)
                     model.endGesture()
                 } else if !moved {
                     // Двойной тап мимо линии — FREEZE.
@@ -315,11 +310,10 @@ struct SatSpectrum: View {
         if spec.frozen { MasterDraw.pauseLabel(ctx, "FREEZE", theme) }
     }
 
-    /// Линия FOCUS (жёлтая, пока FOCUS меняют) с подписью.
+    /// Линия FOCUS с подписью.
     private func drawFocus(_ ctx: GraphicsContext, _ size: CGSize, _ geo: EqGeometry) {
         let v: Double = model.masterValue(focusP)
-        let hot: Bool = model.masterHotNow(focusP.id, now: now)
-        let col: Color = hot ? theme.accent : theme.meterThr
+        let col: Color = theme.meterThr
         let fx: CGFloat = max(1, geo.x(v).rounded())
         ctx.fill(Path(CGRect(x: fx - 1, y: 0, width: 2, height: size.height)), with: .color(col))
         let s: String = "FOCUS " + focusP.format(v)

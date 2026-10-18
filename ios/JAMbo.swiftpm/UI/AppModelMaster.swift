@@ -19,56 +19,12 @@ enum MasterInputTarget: Equatable {
     case rename(Int)
 }
 
-/// Подсветка полей окна модуля мастера (HotTracker веба): параметр меняли последние 400 мс (палец в окне, ручка,
-/// UNDO, пресет) или его держит палец. Значения сравниваются с прошлым кадром — источник изменения не важен; у RATIO
-/// (quiet) — только изменения из окна (палец, тап по полю).
-final class HotTracker {
-    static let hotTime: Double = 0.4
-    static let quiet: Set<String> = ["cmp.ratio"]
-    private var last: [String: Double] = [:]
-    private var changedAt: [String: Double] = [:]
-    private var held: [String: Int] = [:]
-
-    /// Открытие окна: прежние значения забыты (изменения при закрытом окне не подсвечиваются).
-    func reset() {
-        last.removeAll()
-        changedAt.removeAll()
-        held.removeAll()
-    }
-
-    func hold(_ id: String) {
-        held[id, default: 0] += 1
-    }
-
-    /// Палец отпущен: подсветка ещё 400 мс.
-    func release(_ id: String) {
-        let n: Int = (held[id] ?? 0) - 1
-        held[id] = n > 0 ? n : nil
-        touch(id)
-    }
-
-    /// Изменение из окна (тап по полю): подсветить и quiet-параметр.
-    func touch(_ id: String) {
-        changedAt[id] = Date.timeIntervalSinceReferenceDate
-    }
-
-    /// Кадр: значение id сравнивается с прошлым; true — поле подсвечено.
-    func hot(_ id: String, value: Double, now: Double) -> Bool {
-        if let w = last[id], w != value, !HotTracker.quiet.contains(id) { changedAt[id] = now }
-        last[id] = value
-        if (held[id] ?? 0) > 0 { return true }
-        let at: Double = changedAt[id] ?? -1e9
-        return now - at < HotTracker.hotTime
-    }
-}
-
 /// Окна модулей мастера SAT, COMP, CLIP, LIM (S9a, как openMasterWindow веба): на месте центра, справа измеритель;
 /// кнопки мастера (тап без SHIFT) и блоки индикации COMP, CLIP, LIM. PATTERNS, EQ, редактор сэмпла и окно модуля
 /// не открыты одновременно; выход из MST закрывает окно. Параметры — те же, что у ручек MST.
 extension AppModel {
     func openMasterWindow(_ m: Int) {
         guard channel == .master, m >= 0 && m < 4 else { return }
-        if masterWin != m { masterHot.reset() }
         masterWin = m
         masterMenu = nil
         eqView = false
@@ -98,7 +54,6 @@ extension AppModel {
     /// Тап по полю RATIO без движения: следующий пресет 2:1 → 4:1 → 10:1 → 2:1.
     func tapRatio() {
         guard let p = Params.byId["cmp.ratio"] else { return }
-        masterHot.touch(p.id)
         let next: Double = MasterGlue.nextRatio(masterValue(p))
         edit { pr in pr.master[p.id] = next }
     }
@@ -108,12 +63,6 @@ extension AppModel {
         let p: ParamDef = Params.masterColumns[0][1]
         let next: Double = Double((Int(masterValue(p).rounded()) + 1) % 3)
         edit { pr in pr.master[p.id] = next }
-    }
-
-    /// Подсветка поля id в кадре now.
-    func masterHotNow(_ id: String, now: Double) -> Bool {
-        let v: Double = project.master[id] ?? Params.byId[id]?.def ?? 0
-        return masterHot.hot(id, value: v, now: now)
     }
 
     // MARK: — пресеты модулей

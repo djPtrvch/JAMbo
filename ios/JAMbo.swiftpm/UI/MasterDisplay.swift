@@ -217,13 +217,13 @@ enum MasterDraw {
         }
     }
 
-    /// Пунктир (порог компрессора): жёлтый и толще, пока параметр меняют.
-    static func dashed(_ ctx: GraphicsContext, _ a: CGPoint, _ b: CGPoint, hot: Bool, _ theme: Theme) {
+    /// Пунктир (порог компрессора, CEILING на TRANSFER клиппера).
+    static func dashed(_ ctx: GraphicsContext, _ a: CGPoint, _ b: CGPoint, _ theme: Theme) {
         var p = Path()
         p.move(to: a)
         p.addLine(to: b)
-        let st = StrokeStyle(lineWidth: hot ? 1.5 : 1, dash: [4, 4])
-        ctx.stroke(p, with: .color(hot ? theme.accent : theme.meterThr), style: st)
+        let st = StrokeStyle(lineWidth: 1, dash: [4, 4])
+        ctx.stroke(p, with: .color(theme.meterThr), style: st)
     }
 
     /// Подпись дисплея справа внизу (TRANSFER, LEVEL).
@@ -232,10 +232,10 @@ enum MasterDraw {
         ctx.draw(t, at: CGPoint(x: size.width - 6, y: size.height - 4), anchor: .bottomTrailing)
     }
 
-    /// Линия потолка (2 px, --meter-thr; у клиппера — жёлтая, пока CEILING меняют) с числом справа.
-    static func line(_ ctx: GraphicsContext, _ db: Double, _ size: CGSize, _ theme: Theme, hot: Bool = false) {
+    /// Линия потолка (2 px, --meter-thr) с числом справа.
+    static func line(_ ctx: GraphicsContext, _ db: Double, _ size: CGSize, _ theme: Theme) {
         let cy: CGFloat = y(db, size.height).rounded()
-        let col: Color = hot ? theme.accent : theme.meterThr
+        let col: Color = theme.meterThr
         ctx.fill(Path(CGRect(x: 0, y: cy - 1, width: size.width, height: 2)), with: .color(col))
         let t = ctx.resolve(Text(String(format: "%.1f", db)).font(.system(size: 11)).foregroundColor(col))
         let below: Bool = cy <= 16
@@ -318,7 +318,6 @@ struct LevelPlot: View {
                     if abs(g.startLocation.y - cy) <= MasterDraw.lineHit {
                         lineStart = v
                         model.beginGesture()
-                        model.masterHot.hold(line.id)
                     } else {
                         lineStart = nil
                     }
@@ -331,7 +330,6 @@ struct LevelPlot: View {
             }
             .onEnded { _ in
                 if lineStart != nil {
-                    model.masterHot.release(line.id)
                     model.endGesture()
                 } else if !moved {
                     // Двойной тап мимо линии — FREEZE.

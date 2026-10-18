@@ -139,11 +139,10 @@ final class AppModel {
     @ObservationIgnored let scope = ScopeState()
     var scopeOn: [Bool] = [true, false, false, false]
     /// Окно модуля мастера на месте центра (MasterScope.sat…lim; nil — закрыто) и его меню (название, PRESETS);
-    /// ввод числом или имени пресета; подсветка полей. Открытость и FREEZE не в проекте.
+    /// ввод числом или имени пресета. Открытость и FREEZE не в проекте.
     var masterWin: Int? = nil
     var masterMenu: MasterMenuState? = nil
     var masterInput: MasterInputTarget? = nil
-    @ObservationIgnored let masterHot = HotTracker()
     /// Пресеты модулей мастера — общие для проектов (UserDefaults).
     var masterPresets: MasterPresetBook = AppModel.loadMasterPresets()
 

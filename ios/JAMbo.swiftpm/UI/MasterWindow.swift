@@ -209,7 +209,6 @@ struct MasterField: View {
             }
             .onEnded { _ in
                 holdTask?.cancel()
-                model.masterHot.release(param.id)
                 model.endGesture()
                 start = nil
                 if !moved && !held { tap?() }
@@ -221,7 +220,6 @@ struct MasterField: View {
         moved = false
         held = false
         model.beginGesture()
-        model.masterHot.hold(param.id)
         holdTask?.cancel()
         let open: () -> Void = input
         holdTask = Task { @MainActor in
