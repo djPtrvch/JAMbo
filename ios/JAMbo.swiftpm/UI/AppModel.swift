@@ -39,6 +39,8 @@ final class AppModel {
     var lastSource: Int = 1
     /// Ручки, которые сейчас держит палец (обводка кнопок назначенных источников).
     var knobFingers: Set<Int> = []
+    /// Последний тап по LFO1–3 / ENV (двойной тап — снять назначение с удерживаемой ручки).
+    @ObservationIgnored var lastSourceTap: (source: Int, at: Date)? = nil
     /// Миниатюры LFO/ENV в окне сэмпла после поворота ручки MOD (до этого момента).
     var modPreviewUntil: Date = .distantPast
     /// Открытое меню страницы (двойной тап по миниатюре).

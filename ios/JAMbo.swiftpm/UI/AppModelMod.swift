@@ -22,8 +22,25 @@ extension AppModel {
         if on {
             heldSources.insert(s)
             lastSource = s
+            sourceTapped(s)
         } else {
             heldSources.remove(s)
+        }
+    }
+
+    /// Палец держит ручку с назначением: тап по другому источнику — назначение переходит к нему с той же степенью,
+    /// двойной тап по назначенному источнику — назначение снимается.
+    private func sourceTapped(_ s: Int) {
+        let now = Date()
+        let double: Bool = lastSourceTap.map { $0.source == s && now.timeIntervalSince($0.at) < 0.35 } ?? false
+        lastSourceTap = double ? nil : (s, now)
+        for slot in knobFingers {
+            guard let a = assign(slot) else { continue }
+            if a.lfo != s {
+                setAssign(slot, lfo: s, amount: a.amount)
+            } else if double {
+                clearAssign(slot, lfo: s)
+            }
         }
     }
 
