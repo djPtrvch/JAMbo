@@ -89,6 +89,8 @@ struct RootView: View {
     @ViewBuilder
     private var overlays: some View {
         if menuOpen {
+            // Тап мимо меню закрывает его.
+            Color.black.opacity(0.001).ignoresSafeArea().onTapGesture { menuOpen = false }
             MainMenu(model: model, isOpen: $menuOpen, height: max(240, trackTop - 58 - Layout.gap))
                 .padding(.top, 58).padding(.leading, 12)
         }
