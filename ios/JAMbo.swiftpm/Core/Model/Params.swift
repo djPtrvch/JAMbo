@@ -26,10 +26,19 @@ public struct ParamDef: @unchecked Sendable {
     /// Пункты ступенчатой ручки с непрерывным значением (Harmonics у WAVETABLE, CHORDS, SPEECH): значение — середина
     /// пункта на min…max (как steps в params.ts веба).
     public let steps: Int?
+    /// Шаг значения (0,1 dB у мастера).
+    public let step: Double?
+    /// Последняя доля хода — AUTO (значение MasterChain.autoValue); шкала до неё — как обычно.
+    public let autoTop: Double?
+    /// Первая доля хода — OFF (значение 0); шкала после неё — как обычно.
+    public let offBottom: Double?
+    /// P-lock на ручку не ставится (ручки мастера): с зажатым шагом крутится само значение.
+    public let noLock: Bool
     public let format: (Double) -> String
 
     public init(id: String, label: String, kind: KnobKind = .smooth, min: Double, max: Double, def: Double,
                 curve: Double? = nil, exp: Bool = false, bipolar: Bool = false, options: [String] = [], steps: Int? = nil,
+                step: Double? = nil, autoTop: Double? = nil, offBottom: Double? = nil, noLock: Bool = false,
                 format: @escaping (Double) -> String) {
         self.id = id
         self.label = label
@@ -42,11 +51,23 @@ public struct ParamDef: @unchecked Sendable {
         self.bipolar = bipolar
         self.options = options
         self.steps = steps
+        self.step = step
+        self.autoTop = autoTop
+        self.offBottom = offBottom
+        self.noLock = noLock
         self.format = format
+    }
+
+    /// Та же шкала без AUTO, OFF и шага (как { ...p, autoTop: undefined } веба).
+    private var plain: ParamDef {
+        return ParamDef(id: id, label: label, kind: kind, min: min, max: max, def: def, curve: curve, exp: exp,
+                        bipolar: bipolar, options: options, steps: steps, format: format)
     }
 
     /// Значение → положение ручки 0…1.
     public func toNorm(_ v: Double) -> Double {
+        if let o = offBottom { return v <= 0 ? 0 : o + (1 - o) * plain.toNorm(Swift.max(min, v)) }
+        if let a = autoTop { return v >= MasterChain.autoValue ? 1 : (1 - a) * plain.toNorm(Swift.min(max, v)) }
         if exp { return log(v / min) / log(max / min) }
         let lin: Double = Swift.min(1, Swift.max(0, (v - min) / (max - min)))
         if let c = curve { return pow(lin, 1 / c) }
@@ -56,6 +77,9 @@ public struct ParamDef: @unchecked Sendable {
     /// Положение ручки 0…1 → значение (ступенчатые округляются).
     public func fromNorm(_ n0: Double) -> Double {
         let n: Double = Swift.min(1, Swift.max(0, n0))
+        if let o = offBottom { return n < o ? 0 : plain.fromNorm((n - o) / (1 - o)) }
+        if let a = autoTop { return n >= 1 - a ? MasterChain.autoValue : plain.fromNorm(n / (1 - a)) }
+        if let st = step { return (plain.fromNorm(n) / st).rounded() * st }
         if let s = steps { return min + (Double(Params.stepIndex(n, s)) + 0.5) / Double(s) * (max - min) }
         if kind == .stepped { return (n * (max - min)).rounded() + min }
         if exp { return min * pow(max / min, n) }
@@ -345,9 +369,65 @@ public enum Params {
         return d
     }
 
+    // MARK: — Мастер (MST, MASTER_GRID веба): колонки SAT, COMP, CLIP, LIM; без p-lock
+
+    /// dB мастера: знак «+» выше нуля, единица — второй строкой.
+    static func masterDb(_ v: Double) -> String {
+        return (v > 0.04 ? "+" : "") + String(format: "%.1f\ndB", v)
+    }
+
+    static func masterMs(_ v: Double) -> String {
+        if v >= MasterChain.autoValue { return "AUTO" }
+        if v >= 1000 { return String(format: "%.1f s", v / 1000) }
+        if v < 10 { return String(format: "%.1f ms", v) }
+        return "\(Int(v.rounded())) ms"
+    }
+
+    private static func master(_ id: String, _ label: String, _ min: Double, _ max: Double, _ def: Double,
+                               exp: Bool = false, step: Double? = nil, autoTop: Double? = nil, offBottom: Double? = nil,
+                               _ format: @escaping (Double) -> String) -> ParamDef {
+        return ParamDef(id: id, label: label, min: min, max: max, def: def, exp: exp, step: step, autoTop: autoTop,
+                        offBottom: offBottom, noLock: true, format: format)
+    }
+
+    public static let satTypes = ["TAPE", "TUBE", "EDGE"]
+
+    public static let masterColumns: [[ParamDef]] = [
+        [
+            master("sat.drive", "Drive", 0, 24, 0, step: 0.1, masterDb),
+            ParamDef(id: "sat.type", label: "Type", kind: .stepped, min: 0, max: 2, def: 0, options: satTypes,
+                     noLock: true) { v in satTypes[Swift.min(2, Swift.max(0, Int(v.rounded())))] },
+            master("sat.tone", "Tone", -100, 100, 0) { v in masterDb(v / 100 * 6) },
+            master("sat.mix", "Mix", 0, 100, 100, Fmt.pct),
+        ],
+        [
+            master("cmp.threshold", "Threshold", -40, 0, -10, step: 0.1, masterDb),
+            master("cmp.attack", "Attack", 0.1, 100, 10, exp: true, masterMs),
+            master("cmp.release", "Release", 20, 2000, 400, exp: true, autoTop: 0.08, masterMs),
+            master("cmp.makeup", "Makeup", 0, 18, 0, step: 0.1, masterDb),
+        ],
+        [
+            master("clip.drive", "Input", 0, 12, 0, step: 0.1, masterDb),
+            master("clip.ceiling", "Ceiling", -12, 0, -1, step: 0.1, masterDb),
+            master("clip.softness", "Softness", 0, 100, 30, Fmt.pct),
+            master("clip.bass", "Bass", 20, 300, 0, exp: true, offBottom: 0.05) { v in
+                v <= 0 ? "OFF" : "\(Int(v.rounded())) Hz"
+            },
+        ],
+        [
+            master("lim.input", "Input", 0, 24, 0, step: 0.1, masterDb),
+            master("lim.ceiling", "Ceiling", -24, 0, -1, step: 0.1, masterDb),
+            master("lim.lookahead", "Lookahead", 0.5, 6, 3) { v in String(format: "%.1f ms", v) },
+            master("lim.release", "Release", 10, 1000, 150, exp: true, autoTop: 0.08, masterMs),
+        ],
+    ]
+
+    /// Сетка MST 4×4 ряд за рядом.
+    public static let masterGrid: [ParamDef] = (0..<16).map { i in masterColumns[i % 4][i / 4] }
+
     public static let byId: [String: ParamDef] = {
         var d: [String: ParamDef] = [:]
-        for p in trackGrid + synthColumn + modGrid + fxGrid + hiddenFx { d[p.id] = p }
+        for p in trackGrid + synthColumn + modGrid + fxGrid + hiddenFx + masterGrid { d[p.id] = p }
         return d
     }()
 

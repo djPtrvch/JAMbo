@@ -61,14 +61,14 @@ extension AppModel {
 
     // MARK: — ручки
 
-    /// Параметр ручки slot (0…15, ряд за рядом) в текущем режиме; nil — неактивная (MIX и MST — позже).
+    /// Параметр ручки slot (0…15, ряд за рядом) в текущем режиме; nil — неактивная (MIX — несуществующая дорожка).
     func param(_ slot: Int) -> ParamDef? {
         switch channel {
         case .track:
             if modMode { return Params.modGrid[slot] }
             return fxMode ? fxParam(slot) : Params.grid(sound: track.sample)[slot]
         case .mix: return mixParam(slot)
-        case .master: return nil
+        case .master: return Params.masterGrid[slot]
         }
     }
 
@@ -77,6 +77,10 @@ extension AppModel {
         guard let p = param(slot) else { return KnobState(param: nil, value: 0, norm: 0, baseNorm: 0, locked: false) }
         if channel == .mix {
             let v: Double = project.tracks[slot].vol
+            return KnobState(param: p, value: v, norm: p.toNorm(v), baseNorm: p.toNorm(v), locked: false)
+        }
+        if channel == .master {
+            let v: Double = masterValue(p)
             return KnobState(param: p, value: v, norm: p.toNorm(v), baseNorm: p.toNorm(v), locked: false)
         }
         let t = track
@@ -97,6 +101,7 @@ extension AppModel {
     func knobStart(_ slot: Int) -> Double {
         guard let p = param(slot) else { return 0 }
         if channel == .mix { return p.toNorm(project.tracks[slot].vol) }
+        if channel == .master { return p.toNorm(masterValue(p)) }
         if let held = heldSteps.min(), let v = track.step(held)?.locks[p.id] { return p.toNorm(v) }
         if fxMode { return p.toNorm(fxValue(p)) }
         return p.toNorm(track.params[p.id] ?? p.def)
@@ -116,6 +121,11 @@ extension AppModel {
         let v: Double = p.fromNorm(norm)
         if channel == .mix {
             edit { pr in pr.tracks[slot].vol = v }
+            return
+        }
+        // Мастер: без p-lock — с зажатым шагом крутится само значение (noLock, как в вебе).
+        if channel == .master {
+            edit { pr in pr.master[p.id] = v }
             return
         }
         let held = heldSteps
@@ -142,7 +152,7 @@ extension AppModel {
             openTrackMenu(slot)
             return
         }
-        guard let p = param(slot) else { return }
+        guard let p = param(slot), channel == .track else { return }
         if shiftHeld {
             editTrack { t in t.clearAllLocks() }
             return
@@ -153,6 +163,11 @@ extension AppModel {
         editTrack { t in
             for i in held { t.clearLock(i, p.id) }
         }
+    }
+
+    /// Значение параметра мастера (нет в проекте — по умолчанию).
+    func masterValue(_ p: ParamDef) -> Double {
+        return project.master[p.id] ?? p.def
     }
 
     // MARK: — страницы

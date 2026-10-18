@@ -385,6 +385,8 @@ final class AppModel {
     func select(channel c: Channel) {
         channel = c
         heldSteps.removeAll()
+        // При MST на месте LFO1–3 и ENV — кнопки мастера: удержание источника не остаётся висеть.
+        if c == .master { heldSources.removeAll() }
     }
 
     /// Свайп по дорожке: вниз — mute, вверх — solo; включённый mute или solo выключается любым свайпом.

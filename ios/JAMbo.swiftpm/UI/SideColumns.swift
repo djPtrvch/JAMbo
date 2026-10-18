@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Левая колонка: окно сэмпла, стрелки звука (папка дорожки), LFO1, LFO2, LFO3, ENV (S4 — серые).
+/// Левая колонка: окно сэмпла, стрелки звука (папка дорожки), LFO1, LFO2, LFO3, ENV (при MST — кнопки мастера).
 struct LeftColumn: View {
     let model: AppModel
     @Environment(\.theme) private var theme
@@ -11,10 +11,17 @@ struct LeftColumn: View {
             if model.channel == .track {
                 FolderArrows(model: model).frame(height: 36)
             }
-            ButtonPair(left: SourceButton(model: model, title: "LFO1", source: 1),
-                       right: SourceButton(model: model, title: "LFO2", source: 2))
-            ButtonPair(left: SourceButton(model: model, title: "LFO3", source: 3),
-                       right: SourceButton(model: model, title: "ENV", source: 4))
+            if model.channel == .master {
+                ButtonPair(left: MasterButton(model: model, module: MasterScope.clip),
+                           right: MasterButton(model: model, module: MasterScope.lim))
+                ButtonPair(left: MasterButton(model: model, module: MasterScope.sat),
+                           right: MasterButton(model: model, module: MasterScope.comp))
+            } else {
+                ButtonPair(left: SourceButton(model: model, title: "LFO1", source: 1),
+                           right: SourceButton(model: model, title: "LFO2", source: 2))
+                ButtonPair(left: SourceButton(model: model, title: "LFO3", source: 3),
+                           right: SourceButton(model: model, title: "ENV", source: 4))
+            }
         }
         .onGeometryChange(for: CGRect.self) { g in g.frame(in: .named("root")) } action: { r in
             if model.leftFrame != r { model.leftFrame = r }

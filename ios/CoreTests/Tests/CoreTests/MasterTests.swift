@@ -131,4 +131,34 @@ final class MasterTests: XCTestCase {
         time("clip") { c.clip.process(inL: iL, inR: iR, outL: oL, outR: oR, frames: n, drive: 6, ceiling: -1, softness: 30, bass: 100, bypass: false) }
         time("lim") { c.lim.process(inL: iL, inR: iR, outL: oL, outR: oR, frames: n, gain: 6, ceiling: -1, lookahead: 3, rel: 150, auto: false, bypass: false) }
     }
+
+    /// Ручки MST: шкалы как MASTER_GRID веба (шаг 0,1 dB, AUTO в последних 8 % RELEASE, OFF в первых 5 % BASS),
+    /// id и значения по умолчанию — как у цепочки.
+    func testMasterKnobs() {
+        let byId: [String: ParamDef] = Dictionary(uniqueKeysWithValues: Params.masterGrid.map { ($0.id, $0) })
+        XCTAssertEqual(Params.masterGrid.count, 16)
+        let defs = MasterChain.defaultValues()
+        for p in Params.masterGrid {
+            XCTAssertTrue(p.noLock)
+            XCTAssertEqual(defs[p.id] ?? .nan, p.def, accuracy: 1e-9, p.id)
+        }
+        let rel = byId["cmp.release"]!
+        XCTAssertEqual(rel.fromNorm(1), MasterChain.autoValue)
+        XCTAssertEqual(rel.fromNorm(0.93), MasterChain.autoValue)
+        XCTAssertEqual(rel.toNorm(MasterChain.autoValue), 1)
+        XCTAssertEqual(rel.fromNorm(0.92 * rel.toNorm(400) / 0.92), 400, accuracy: 1e-6)
+        XCTAssertEqual(rel.fromNorm(0), 20, accuracy: 1e-9)
+        let bass = byId["clip.bass"]!
+        XCTAssertEqual(bass.fromNorm(0.04), 0)
+        XCTAssertEqual(bass.toNorm(0), 0)
+        XCTAssertEqual(bass.fromNorm(0.05), 20, accuracy: 1e-9)
+        XCTAssertEqual(bass.toNorm(300), 1, accuracy: 1e-9)
+        let thr = byId["cmp.threshold"]!
+        let v: Double = thr.fromNorm(0.123)
+        XCTAssertEqual((v * 10).rounded() / 10, v, accuracy: 1e-9)
+        XCTAssertEqual(thr.fromNorm(thr.toNorm(-10)), -10, accuracy: 1e-9)
+        XCTAssertEqual(byId["sat.type"]!.format(2), "EDGE")
+        XCTAssertEqual(Params.masterDb(1.25), "+1.2\ndB")
+        XCTAssertEqual(Params.masterMs(MasterChain.autoValue), "AUTO")
+    }
 }
