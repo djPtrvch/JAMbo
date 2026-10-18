@@ -1,0 +1,107 @@
+{
+ "block": 128,
+ "cases": [
+  {
+   "file": "fx_dly_basic.i16",
+   "proc": "delay",
+   "options": {
+    "maxTime": 6
+   },
+   "frames": 72000,
+   "seed": 1,
+   "input": "burst",
+   "params": {
+    "time": 0.25,
+    "feedback": 0.5,
+    "filter": 0,
+    "spread": 0
+   },
+   "events": []
+  },
+  {
+   "file": "fx_dly_lp.i16",
+   "proc": "delay",
+   "options": {
+    "maxTime": 6
+   },
+   "frames": 72000,
+   "seed": 2,
+   "input": "burst",
+   "params": {
+    "time": 0.1875,
+    "feedback": 0.7,
+    "filter": -0.6,
+    "spread": 0.3
+   },
+   "events": []
+  },
+  {
+   "file": "fx_dly_hp_pingpong.i16",
+   "proc": "delay",
+   "options": {
+    "maxTime": 6
+   },
+   "frames": 72000,
+   "seed": 3,
+   "input": "stereo",
+   "params": {
+    "time": 0.125,
+    "feedback": 0.6,
+    "filter": 0.5,
+    "spread": 1
+   },
+   "events": []
+  },
+  {
+   "file": "fx_dly_moves.i16",
+   "proc": "delay",
+   "options": {
+    "maxTime": 6
+   },
+   "frames": 72000,
+   "seed": 4,
+   "input": "sine",
+   "params": {
+    "time": 0.25,
+    "feedback": 0.8,
+    "filter": 0,
+    "spread": 0
+   },
+   "events": [
+    {
+     "frame": 12032,
+     "params": {
+      "time": 0.125
+     }
+    },
+    {
+     "frame": 24064,
+     "params": {
+      "filter": -1
+     }
+    },
+    {
+     "frame": 36096,
+     "params": {
+      "filter": 1,
+      "spread": 0.8
+     }
+    },
+    {
+     "frame": 48000,
+     "params": {
+      "time": 1,
+      "feedback": 1
+     }
+    },
+    {
+     "frame": 60032,
+     "params": {
+      "filter": 0.01,
+      "spread": 0.4
+     }
+    }
+   ]
+  }
+ ]
+}
