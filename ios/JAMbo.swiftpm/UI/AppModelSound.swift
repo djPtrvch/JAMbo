@@ -263,6 +263,7 @@ extension AppModel {
         patternView = false
         editorOpen = true
         eqView = false
+        closeRoll()
         closeMasterWindow()
     }
 

@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Верхняя панель: меню, BPM, метроном | SCALE, ROOT, UNDO, PLAY, REC, REDO, AUTO, EQ | PATTERNS, ARRANGE, CPU.
-/// Работают меню, BPM, метроном, SCALE, ROOT, UNDO, PLAY, REC, REDO, EQ, PATTERNS; AUTO и ARRANGE — серые (S13, позже).
+/// Верхняя панель: меню, BPM, метроном | SCALE, ROOT, UNDO, PLAY, REC, REDO, пианоролл, EQ | PATTERNS, ARRANGE, CPU.
+/// ARRANGE — серая (позже); пианоролл (S8) — на месте AUTO (автоматизация — S13, место решим позже).
 struct TopBar: View {
     let model: AppModel
     @Binding var menuOpen: Bool
@@ -35,7 +35,7 @@ struct TopBar: View {
             RecButton(model: model).frame(width: half)
             HistoryButton(symbol: "arrow.uturn.forward", enabled: model.canRedo) { model.redo() }
                 .frame(width: Layout.topButton)
-            TopIcon(symbol: "waveform.path")
+            RollButton(model: model)
             ViewButton(title: "EQ", on: model.eqView) { model.toggleEqView() }.frame(width: Layout.topButton)
         }
     }

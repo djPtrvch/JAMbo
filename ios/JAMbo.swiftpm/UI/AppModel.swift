@@ -67,6 +67,10 @@ final class AppModel {
     var pressedKeys: [Int: [Int]] = [:]
     /// Сетка паттернов открыта; ячейка для правки выбранной дорожки (жёлтый контур); верх окна строк.
     var patternView: Bool = false
+    /// Пианоролл на месте центра (S8): открыт, меню бутерброда, режим VEL.
+    var rollView: Bool = false
+    var rollMenuOpen: Bool = false
+    var rollVel: Bool = false
     /// EQ на месте центра (EQ выбранной дорожки, при MIX и MST — мастера); выбранная полоса (−1 — нет); меню полосы.
     var eqView: Bool = false
     var eqBand: Int = -1

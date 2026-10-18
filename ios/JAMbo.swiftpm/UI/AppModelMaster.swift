@@ -34,6 +34,7 @@ extension AppModel {
         eqPresetMenu = nil
         patternView = false
         editorOpen = false
+        closeRoll()
     }
 
     func closeMasterWindow() {

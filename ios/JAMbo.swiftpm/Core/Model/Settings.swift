@@ -39,6 +39,9 @@ public struct AppSettings: Codable, Equatable, Sendable {
     /// FX и MOD в режиме toggle (SHIFT + двойной тап по кнопке): тап включает страницу, следующий — выключает.
     public var latchFx: Bool = false
     public var latchMod: Bool = false
+    /// Пианоролл (S8): GRID — шагов в клетке (1, 2, 4); звук ноты при нажатии.
+    public var rollGrid: Int = Roll.gridDef
+    public var rollSound: Bool = true
 
     public init() {}
 
@@ -52,7 +55,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
         return try? JSONEncoder().encode(self)
     }
 
-    private enum Keys: String, CodingKey { case appearance, pianoOctaves, velocity, record, sliceMap, scSends, muteTails, latchFx, latchMod }
+    private enum Keys: String, CodingKey { case appearance, pianoOctaves, velocity, record, sliceMap, scSends, muteTails, latchFx, latchMod, rollGrid,
+                                         rollSound }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
@@ -65,5 +69,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
         muteTails = (try? c.decode(Bool.self, forKey: .muteTails)) ?? false
         latchFx = (try? c.decode(Bool.self, forKey: .latchFx)) ?? false
         latchMod = (try? c.decode(Bool.self, forKey: .latchMod)) ?? false
+        let g: Int = (try? c.decode(Int.self, forKey: .rollGrid)) ?? Roll.gridDef
+        rollGrid = Roll.grids.contains(g) ? g : Roll.gridDef
+        rollSound = (try? c.decode(Bool.self, forKey: .rollSound)) ?? true
     }
 }

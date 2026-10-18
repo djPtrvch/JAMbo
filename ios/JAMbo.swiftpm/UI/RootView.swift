@@ -52,7 +52,9 @@ struct RootView: View {
     /// с EQ и окном модуля мастера — до края миниатюр страниц, справа измеритель.
     @ViewBuilder
     private func center(_ layout: Layout) -> some View {
-        if model.patternView {
+        if model.rollView {
+            RollWindow(model: model, layout: layout)
+        } else if model.patternView {
             PatternGrid(model: model, layout: layout)
         } else if model.eqView {
             HStack(spacing: Layout.gap) {
