@@ -1,34 +1,36 @@
-# Handoff: JAMbo, Swift-версия — S5b
+# Handoff: JAMbo, Swift-версия — S5c
 
 ## 1. Контекст проекта
 Groovebox для iPad. Веб (`src/`, `public/`) — эталон, заморожен. Swift-перенос — ветка `swift`, `ios/JAMbo.swiftpm`. Правила — `CLAUDE.md`, `ios/CLAUDE.md`; план — `docs/SWIFT_AUDIT.md`.
 
 ## 2. Принятые решения
-- Переносим всё из веба (кроме браузерного); отличия — в «Решениях» `ios/CLAUDE.md`.
-- Мастер упрощён (решение пользователя): без BIAS, OUTPUT, AUTO, RANGE, HOLD, LINK, MIX клиппера, UNITY, AUDIT; SCALE — 48 dB; PRESETS модулей мастера — S9.
-- DSP сверяется с эталонами веба (рендер в Node, блоки по 128): по отсчётам ≤ −60 dB или полосы ±0,5 dB; каждый эталон — в SELF-TEST.
-- Разбивка S5: S5a — мастер в Core; S5b — EQ 8 полос; S5c — измеритель, LUFS, метры MIX, индикация COMP/CLIP/LIM, Sidechain в MIX, скоп, спектр EQ; S5d — ручки MST, последовательности MIX и MST, итог вехи.
+- Переносим всё из веба (кроме браузерного); отличия — в «Решениях» `ios/CLAUDE.md` (на S5b добавлены: COMPARE, строка EQ от края BPM, ввод частоты удержанием, двойной тап по точке — удалить, ON/OFF в меню).
+- DSP сверяется с эталонами веба: по отсчётам ≤ −60 dB или полосы ±0,5 dB; каждый эталон — в SELF-TEST. Эталоны Web Audio (BiquadFilterNode и т. п.) — настоящий код веба в headless Chromium через протокол отладки (`ios/tools/eq/golden.mjs` — образец).
+- Разбивка S5: S5a — мастер в Core (готов); S5b — EQ (готов, вместе со спектром EQ из S5c); S5c — измеритель, LUFS, метры MIX, индикация COMP/CLIP/LIM, Sidechain в MIX, скоп; S5d — ручки MST, громкость выхода, последовательности MIX и MST, итог вехи.
 
 ## 3. Текущая задача
-S5b — EQ дорожек и мастера: 8 полос (bell, low/high cut 12/24/48, low/high shelf, notch), биквады RBJ; эталоны; EQ мастера — первым в цепочке (MasterChain). Dynamic, M/S, пресеты EQ — S9.
+S5c — индикация: измеритель справа (пик, LUFS), метры MIX, индикация COMP/CLIP/LIM (кадры IN / GR / OUT в Core уже считаются), Sidechain в MIX, скоп мастера. Спектр EQ уже сделан.
 
 ## 4. Что уже решено
 - S0–S4 готовы и проверены на iPad.
-- S5a: Core/Master (SAT, COMP, CLIP, LIM, MasterChain), Project.master и BYPASS, AudioCore: дорожки и FX → мастер; 19 эталонов mst_* (−108…−122 dB); SELF-TEST 171; CoreTests 126.
+- S5a: мастер (SAT, COMP, CLIP, LIM), 19 эталонов.
+- S5b: Core/EQ — 8 полос, биквады Web Audio, каскады cut, сглаживание с особенностью стерео-узла Chromium, кроссфейд 40 мс; EQ дорожки (сухой сигнал и посылы, общие коэффициенты) и мастера (перед SAT); 13 эталонов (−77…−105 dB); SELF-TEST 184; CoreTests 139. Экран EQ (UI/EqView, EqPlot, EqSpectrum, AppModelEq), спектры (Core/EQ/Spectrum — съём в колбэке, анализ как AnalyserNode вне колбэка), COMPARE.
+- На iPad: сборка и экран EQ проверены (точки, меню, спектры, COMPARE).
 
 ## 5. Что осталось решить
-- S5a на iPad не проверен: сборка, SELF-TEST 171/171, звук, CPU.
-- Спектр EQ: FFT — Accelerate vDSP под `#if canImport(Accelerate)` с обычной реализацией.
-- В конце S5 сократить `ios/CLAUDE.md` (167 строк).
-- Отложено: MUTE TAILS — S6; ускорение Drive и мастера — S7; свои WAV-таблицы — S10.
+- На iPad не подтверждены: SELF-TEST 184/184, звук мастера и EQ на мастере, CPU.
+- FFT — своё (0,08 мс на спектр); vDSP — только если на iPad будет тяжело.
+- `ios/CLAUDE.md` — 178 строк, сократить в конце S5.
+- Отложено: M/S, Dynamic, пресеты EQ и модулей мастера — S9; MUTE TAILS — S6; ускорение — S7.
 
 ## 6. Важные ограничения
 - Колбэк: без выделений, блокировок, Swift-коллекций.
 - Только Swift и фреймворки Apple; файл ≤ ~600 строк.
+- Playgrounds: выражения — по шагам с явными типами (иначе «unable to type-check»); UI на Linux не собирается — проверка только на iPad.
 - Надписи — английские; комментарии и документы — русские.
 - Markdown: путь, причина, точный текст — затем подтверждение.
 - Тесты: `ios/tools/install-swift-linux.sh`, затем `. ios/tools/swift-env.sh && cd ios/CoreTests && swift test`.
 - PR — только по просьбе.
 
 ## 7. Первый запрос для нового чата
-«Прочитай docs/handoffs/HANDOFF.md, ios/CLAUDE.md (S5a) и docs/ai/fx-eq.md (EQ). Начни S5b: EQ 8 полос в Core с эталонами.»
+«Прочитай docs/handoffs/HANDOFF.md, ios/CLAUDE.md (S5a, S5b) и docs/ai/master-chain.md (индикация мастера). Начни S5c: измеритель и метры.»
