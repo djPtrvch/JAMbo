@@ -333,7 +333,8 @@ struct EqTool: View {
     }
 }
 
-/// Меню полосы: типы (порядок меню), крутизна среза (только у cut), DELETE (красная). Внутри поля EQ у точки или под
+/// Меню полосы: типы (порядок меню), крутизна среза (только у cut), ON/OFF (вкл./выкл. полосы — решение
+/// пользователя, в вебе это двойной тап), DELETE (красная). Внутри поля EQ у точки или под
 /// полем TYPE; тап мимо — закрыть.
 struct EqBandMenu: View {
     static let width: CGFloat = 390
@@ -373,12 +374,16 @@ struct EqBandMenu: View {
         let type: Int = b?.type ?? -1
         let slope: Int = b?.slope ?? -1
         let cols: [GridItem] = Array(repeating: GridItem(.flexible(), spacing: 4), count: 3)
+        let off: Bool = !(b?.on ?? true)
         VStack(spacing: 4) {
+            // Типы и крутизна — отдельными сетками: id пунктов в одной сетке не повторяются.
             LazyVGrid(columns: cols, spacing: 4) {
                 ForEach(EqSpec.typeOrder, id: \.self) { t in
                     MenuItem(title: EqSpec.types[t].uppercased(), current: type == t) { pick { model.setEqType(state.band, t) } }
                         .frame(height: 44)
                 }
+            }
+            LazyVGrid(columns: cols, spacing: 4) {
                 ForEach(0..<EqSpec.slopes.count, id: \.self) { s in
                     let on: Bool = cut && slope == s
                     MenuItem(title: "\(EqSpec.slopes[s]) dB/oct", enabled: cut, current: on) {
@@ -387,7 +392,10 @@ struct EqBandMenu: View {
                     .frame(height: 44)
                 }
             }
-            MenuItem(title: "DELETE", red: true) { pick { model.deleteEqBand(state.band) } }.frame(height: 44)
+            HStack(spacing: 4) {
+                MenuItem(title: off ? "ON" : "OFF") { pick { model.toggleEqBand(state.band) } }.frame(height: 44)
+                MenuItem(title: "DELETE", red: true) { pick { model.deleteEqBand(state.band) } }.frame(height: 44)
+            }
         }
     }
 

@@ -47,8 +47,8 @@ struct EqTouch {
 }
 
 /// Поле EQ: сетка, суммарная кривая, точки полос; мультитач (две точки сразу). Двойной тап по пустому месту — новая
-/// bell-полоса; точку тянут (у cut и notch — только частота); двойной тап по точке — вкл./выкл.; удержание — меню
-/// типа, крутизны, DELETE. Над пальцем, который держит точку, — частота (Гц и нота), усиление, Q. Под кривой —
+/// bell-полоса; точку тянут (у cut и notch — только частота); двойной тап по точке — удалить (решение пользователя; в
+/// вебе — вкл./выкл., здесь оно в меню); удержание — меню типа, крутизны, ON/OFF, DELETE. Над пальцем, который держит точку, — частота (Гц и нота), усиление, Q. Под кривой —
 /// спектры (EqSpectrumLayer).
 struct EqPlot: View {
     static let hitR: CGFloat = 24
@@ -299,7 +299,7 @@ extension EqPlot {
         if let l = lastTap, now.timeIntervalSince(l.at) < EqPlot.doubleTap, hypot(l.p.x - t.start.x, l.p.y - t.start.y) < 30,
            l.band == t.band {
             if t.band >= 0 {
-                model.toggleEqBand(t.band)
+                model.deleteEqBand(t.band)
             } else {
                 model.addEqBand(freq: g.freq(t.start.x), gain: g.gain(t.start.y))
             }
