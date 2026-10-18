@@ -60,6 +60,34 @@ final class LevelsTests: XCTestCase {
         XCTAssertLessThan(l, 1.01, "после лимитера")
     }
 
+    /// Громкость выхода мастера: после лимитера, пик мастера (и гониометр) — после неё; −6 dB — вдвое тише,
+    /// на минимуме — тишина (плавно, без щелчка).
+    func testOutVol() {
+        var rnd = FxRandom(5)
+        let noise = (0..<96000).map { _ in Float(rnd.next() * 2 - 1) * 0.3 }
+        let samples: [String: SampleData] = ["n": SampleData(left: noise, right: nil)]
+        func run(_ db: Double) -> (AudioCore, Project, Float) {
+            let core = AudioCore()
+            var p = Project()
+            p.tracks[0].addSamples(["n"])
+            p.tracks[0].vol = 0
+            p.outVol = db
+            core.publish(p, samples: samples)
+            core.events.push(.noteOn(track: 0, note: 48, id: 1, velocity: 1))
+            render(core, frames: 24000)
+            return (core, p, peak(core, Levels.master).0)
+        }
+        let a = run(0).2
+        var (core, p, b) = run(-6)
+        XCTAssertGreaterThan(a, 0.05)
+        XCTAssertEqual(b / a, Float(Params.volGain(-6)), accuracy: 0.01)
+        p.outVol = Params.volMin
+        core.publish(p, samples: samples)
+        render(core, frames: 24000)
+        b = peak(core, Levels.master).0
+        XCTAssertLessThan(b, 1e-5)
+    }
+
     /// Кадры индикации COMP / CLIP / LIM: раз в 256 отсчётов; клиппер с INPUT +12 dB срезает (GR > 0).
     func testDynTele() {
         let core = AudioCore()

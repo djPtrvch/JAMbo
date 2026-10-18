@@ -1,7 +1,7 @@
 import Foundation
 
 // Цепочка мастера (как engine.ts веба): сумма дорожек и эффектов → EQ мастера → сатуратор → компрессор →
-// клиппер → лимитер → [громкость выхода — S5d]. Параметры — плоский массив Double в порядке MasterChain.Index
+// клиппер → лимитер → громкость выхода. Параметры — плоский массив Double в порядке MasterChain.Index
 // (колбэк не читает Swift-коллекции): из снимка звука (Project.master) или из самотеста. BYPASS сатуратора — MIX 0
 // (как sendDynamics веба), у остальных — свой кроссфейд 10 мс. Всё в колбэке: буферы выделены при создании.
 
@@ -13,7 +13,9 @@ public final class MasterChain {
         public static let cmpMix = 13, cmpSchpf = 14, cmpBypass = 15
         public static let clipDrive = 16, clipCeiling = 17, clipSoftness = 18, clipBass = 19, clipBypass = 20
         public static let limGain = 21, limCeiling = 22, limLookahead = 23, limRel = 24, limAuto = 25, limBypass = 26
-        public static let count = 27
+        /// Громкость выхода — усиление (Params.volGain).
+        public static let outGain = 27
+        public static let count = 28
     }
 
     /// Значения по умолчанию (как ручки и поля веба; bypass выключены).
@@ -22,6 +24,7 @@ public final class MasterChain {
         -10, 10, 400, 0, 0, 2, 6, 100, 90, 0,
         0, -1, 30, 0, 0,
         0, -1, 3, 150, 0, 0,
+        1,
     ]
 
     /// Параметры мастера в проекте (id как в вебе) и их номера; RELEASE компрессора и лимитера ≥ autoValue — AUTO
@@ -59,6 +62,7 @@ public final class MasterChain {
         p[Index.cmpBypass] = project.cmpBypass ? 1 : 0
         p[Index.clipBypass] = project.clipBypass ? 1 : 0
         p[Index.limBypass] = project.limBypass ? 1 : 0
+        p[Index.outGain] = Params.volGain(project.outVol)
     }
 
     public let sat: MasterSaturator
@@ -75,7 +79,13 @@ public final class MasterChain {
     /// Точки съёма спектров EQ мастера (до и после EQ; ставит AudioCore).
     public var spectra: Spectra?
 
+    /// Громкость выхода: текущее усиление (−1 — ещё не задано: сразу целевое) и шаг сглаживания (10 мс, как громкость
+    /// дорожки в SamplerMix).
+    private var outCur: Float = -1
+    private let outK: Float
+
     public init(sampleRate: Double) {
+        outK = Float(1 - exp(-1 / (0.01 * sampleRate)))
         sat = MasterSaturator(sampleRate: sampleRate)
         glue = MasterGlue(sampleRate: sampleRate)
         clip = MasterClipper(sampleRate: sampleRate)
@@ -109,8 +119,38 @@ public final class MasterChain {
                     ceiling: p[I.limCeiling], lookahead: p[I.limLookahead], rel: p[I.limRel], auto: p[I.limAuto] >= 0.5,
                     bypass: p[I.limBypass] >= 0.5)
         scope.tap(MasterScope.lim, sm, left, right, n)
+        applyOut(left, right, n, Float(p[I.outGain]))
         compTele.push(frames: glue.frames, inPeak: glue.frameIn, gr: glue.frameGr, outPeak: glue.frameOut, det: glue.frameDet)
         clipTele.push(frames: clip.frames, inPeak: clip.frameIn, gr: clip.frameGr, outPeak: clip.frameOut, det: -240)
         limTele.push(frames: lim.frames, inPeak: lim.frameIn, gr: lim.frameGr, outPeak: lim.frameOut, det: -240)
+    }
+
+    /// Громкость выхода (после лимитера, до гониометра и измерителя): плавно к цели; на цели и при 1 — без умножения.
+    @inline(__always)
+    private func applyOut(_ l: UnsafeMutablePointer<Float>, _ r: UnsafeMutablePointer<Float>, _ n: Int, _ target: Float) {
+        var g: Float = outCur < 0 ? target : outCur
+        let k: Float = outK
+        if g == target {
+            outCur = g
+            if g == 1 { return }
+            var i = 0
+            while i < n {
+                l[i] *= g
+                r[i] *= g
+                i += 1
+            }
+            return
+        }
+        var i = 0
+        while i < n {
+            g += (target - g) * k
+            l[i] *= g
+            r[i] *= g
+            i += 1
+        }
+        // Остаток меньше 1e-6 — на цели (иначе умножение на каждом блоке навсегда).
+        let rest: Float = target - g
+        if rest < 1e-6 && rest > -1e-6 { g = target }
+        outCur = g
     }
 }

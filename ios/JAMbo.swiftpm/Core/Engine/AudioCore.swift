@@ -150,7 +150,7 @@ public final class AudioCore: @unchecked Sendable {
             sampler.render(blockStart: sampleTime, frames: n, left: masterL, right: masterR)
             master.process(left: masterL, right: masterR, frames: n, params: d.master,
                            eqParams: d.eq + EqSpec.masterChannel * EqSpec.stride)
-            // Конечный выход мастера (громкость выхода — S5d).
+            // Конечный выход мастера (после громкости выхода).
             if spectra.outOn.load() != 0 { spectra.out.push(masterL, masterR, n) }
             meterMaster(n)
             master.scope.gonio(masterL, masterR, n)

@@ -4,7 +4,7 @@ import SwiftUI
 /// клиппинга, полосы (стерео — две, моно — одна; шкала −60…0 dB, пик-холд, выше 0 dB — красная, заглушённая
 /// дорожка — серая), снизу наибольший
 /// пик в dB (тап — сброс). Поверх полос — регулятор громкости (белая планка по той же шкале): у дорожки — её громкость
-/// в микшере (палец вверх-вниз; пока палец на нём — снизу VOL); громкость выхода мастера (MIX, MST) — S5d.
+/// в микшере, при MIX и MST — громкость выхода мастера (палец вверх-вниз; пока палец на нём — снизу VOL).
 struct MeterColumn: View {
     let model: AppModel
     @Environment(\.theme) private var theme
@@ -43,11 +43,12 @@ struct MeterColumn: View {
     }
 
     private func bottomText(_ ch: Int) -> String {
-        if model.meters.volDrag, ch < Levels.master { return "VOL\n" + MeterColumn.fmtVol(volValue(ch)) }
+        if model.meters.volDrag { return "VOL\n" + MeterColumn.fmtVol(volValue(ch)) }
         return MeterColumn.fmtDb(model.meters.maxPeak[ch]) + "\ndB"
     }
 
     private func volValue(_ ch: Int) -> Double {
+        if ch == Levels.master { return model.project.outVol }
         return ch < model.project.tracks.count ? model.project.tracks[ch].vol : Params.volDef
     }
 
@@ -65,10 +66,10 @@ struct MeterColumn: View {
                     MeterBars.draw(ctx, CGRect(x: (size.width - w) / 2, y: 0, width: w, height: size.height), data, theme: theme,
                                    muted: muted)
                 }
-                if track { thumb(vol, geo.size) }
+                thumb(vol, geo.size)
             }
             .contentShape(Rectangle())
-            .gesture(drag(ch, enabled: track))
+            .gesture(drag(ch))
         }
     }
 
@@ -83,17 +84,17 @@ struct MeterColumn: View {
             .allowsHitTesting(false)
     }
 
-    private func drag(_ ch: Int, enabled: Bool) -> some Gesture {
+    private func drag(_ ch: Int) -> some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { g in
-                guard enabled else { return }
                 if start == nil {
                     start = volValue(ch)
                     model.meters.volDrag = true
                     model.beginGesture()
                 }
                 let dy: Double = Double(-g.translation.height / MeterColumn.travel)
-                model.setTrackVol(ch, (start ?? 0) + dy * -Params.volMin)
+                let v: Double = (start ?? 0) + dy * -Params.volMin
+                if ch == Levels.master { model.setOutVol(v) } else { model.setTrackVol(ch, v) }
             }
             .onEnded { _ in
                 guard start != nil else { return }

@@ -227,6 +227,8 @@ public struct Project: Codable, Equatable, Sendable {
     public var cmpBypass: Bool = false
     public var clipBypass: Bool = false
     public var limBypass: Bool = false
+    /// Громкость выхода мастера, dB (после лимитера; 0 — без ослабления, вниз до −∞ — Params.volMin).
+    public var outVol: Double = 0
     /// EQ мастера (doc.masterEq) — первый в цепочке мастера.
     public var masterEq: Eq = Eq()
     public var tracks: [Track]

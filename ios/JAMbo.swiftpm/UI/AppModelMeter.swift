@@ -45,6 +45,12 @@ extension AppModel {
         edit { pr in pr.tracks[t].vol = v }
     }
 
+    /// Регулятор на измерителе при MIX и MST: громкость выхода мастера (после лимитера), −∞…0 dB.
+    func setOutVol(_ db: Double) {
+        let v: Double = max(Params.volMin, min(0, db))
+        edit { pr in pr.outVol = v }
+    }
+
     func resetMeterPeak() {
         meters.resetPeak(meterChannel)
     }
