@@ -31,7 +31,9 @@ final class SelfTestRunner {
             let jambo = try? JamboSelfTest.loadCases(golden)
             let fx = try? FxSelfTest.loadCases(golden)
             let mst = try? MasterSelfTest.loadCases(golden)
+            let eqs = try? EqSelfTest.loadCases(golden)
             let count = all.cases.count + (jambo?.cases.count ?? 0) + (fx?.cases.count ?? 0) + (mst?.cases.count ?? 0)
+                + (eqs?.count ?? 0)
             await MainActor.run { self.total = count }
             for c in all.cases {
                 do {
@@ -77,6 +79,15 @@ final class SelfTestRunner {
                     }
                 }
             }
+            for c in eqs ?? [] {
+                do {
+                    let r = try EqSelfTest.run(c, golden)
+                    await MainActor.run { self.results.append(r) }
+                } catch {
+                    await MainActor.run { self.finish("Cannot read \(c.file).", start) }
+                    return
+                }
+            }
             await MainActor.run { self.finish("", start) }
         }
     }
@@ -104,7 +115,7 @@ struct SelfTestPanel: View {
                 .frame(width: 220)
                 summary
             }
-            Text("Synth engines and FX vs. web reference: samples ≤ −60 dB or 1/3-octave bands within ±0.5 dB.")
+            Text("Synth engines, FX, master and EQ vs. web reference: samples ≤ −60 dB or 1/3-octave bands within ±0.5 dB.")
                 .font(.system(size: 12)).foregroundStyle(theme.dim)
             MenuScroll {
                 LazyVStack(alignment: .leading, spacing: 2) {
@@ -148,11 +159,12 @@ private struct SelfTestRow: View {
     let result: PlaitsSelfTest.Result
     @Environment(\.theme) private var theme
 
-    /// Имя по коду: движки Plaits 0–15, свои 16–19, FX 32–35, мастер 36–40.
+    /// Имя по коду: движки Plaits 0–15, свои 16–19, FX 32–35, мастер 36–40, EQ 41.
     static func name(_ code: Int) -> String {
         if code < PlaitsSelfTest.engineNames.count { return PlaitsSelfTest.engineNames[code] }
         if let n = JamboSelfTest.engineNames[code] { return n }
         if let n = FxSelfTest.engineNames[code] { return n }
+        if let n = EqSelfTest.engineNames[code] { return n }
         return MasterSelfTest.engineNames[code] ?? "?"
     }
 

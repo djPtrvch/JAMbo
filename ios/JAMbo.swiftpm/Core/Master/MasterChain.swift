@@ -1,6 +1,6 @@
 import Foundation
 
-// Цепочка мастера (как engine.ts веба): сумма дорожек и эффектов → [EQ мастера — S5b] → сатуратор → компрессор →
+// Цепочка мастера (как engine.ts веба): сумма дорожек и эффектов → EQ мастера → сатуратор → компрессор →
 // клиппер → лимитер → [громкость выхода — S5d]. Параметры — плоский массив Double в порядке MasterChain.Index
 // (колбэк не читает Swift-коллекции): из снимка звука (Project.master) или из самотеста. BYPASS сатуратора — MIX 0
 // (как sendDynamics веба), у остальных — свой кроссфейд 10 мс. Всё в колбэке: буферы выделены при создании.
@@ -65,18 +65,21 @@ public final class MasterChain {
     public let glue: MasterGlue
     public let clip: MasterClipper
     public let lim: MasterLimiter
+    public let eq: EqUnit
 
     public init(sampleRate: Double) {
         sat = MasterSaturator(sampleRate: sampleRate)
         glue = MasterGlue(sampleRate: sampleRate)
         clip = MasterClipper(sampleRate: sampleRate)
         lim = MasterLimiter(sampleRate: sampleRate)
+        eq = EqUnit(sampleRate: sampleRate)
     }
 
-    /// Блок n отсчётов на месте (left, right), параметры p — MasterChain.Index.
+    /// Блок n отсчётов на месте (left, right), параметры p — MasterChain.Index, eqParams — EQ мастера (EqSpec.fill).
     public func process(left: UnsafeMutablePointer<Float>, right: UnsafeMutablePointer<Float>, frames n: Int,
-                        params p: UnsafePointer<Double>) {
+                        params p: UnsafePointer<Double>, eqParams: UnsafePointer<Double>? = nil) {
         let I = Index.self
+        if let e = eqParams { eq.process(left: left, right: right, frames: n, params: e) }
         sat.process(inL: left, inR: right, outL: left, outR: right, frames: n, drive: p[I.satDrive], type: p[I.satType],
                     tone: p[I.satTone], mix: p[I.satBypass] >= 0.5 ? 0 : p[I.satMix], focus: p[I.satFocus])
         glue.process(inL: left, inR: right, outL: left, outR: right, frames: n, thr: p[I.cmpThr], att: p[I.cmpAtt],

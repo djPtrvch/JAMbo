@@ -1,0 +1,206 @@
+import XCTest
+@testable import Core
+
+/// EQ по эталонам eq_* (EqChain веба в Chromium; EqSelfTest) и правки EQ.
+final class EqTests: XCTestCase {
+    func testGolden() throws {
+        let cases = try EqSelfTest.loadCases(PlaitsGolden.goldenDir)
+        XCTAssertEqual(cases.count, 13)
+        for c in cases {
+            let r = try EqSelfTest.run(c, PlaitsGolden.goldenDir)
+            print(String(format: "%@: samples %.1f dB, bands ±%.3f dB, rms %.1f dBFS",
+                         c.file, r.sampleErrorDb, r.maxBandDiffDb, r.rmsDb))
+            XCTAssertTrue(r.ok, "\(c.file): samples \(r.sampleErrorDb) dB, bands \(r.maxBandDiffDb) dB")
+        }
+    }
+}
+
+extension EqTests {
+    /// Нагрузка (отладочная сборка, доля одного ядра): 1 с шума блоками по 256 — 8 bell без изменений и 8 bell,
+    /// которые тянут каждый блок (сглаживание всё время); low cut 48 (4 ступени).
+    func testLoad() {
+        let n = 256, blocks = 48000 / 256
+        let l = UnsafeMutablePointer<Float>.allocate(capacity: n), r = UnsafeMutablePointer<Float>.allocate(capacity: n)
+        let p = UnsafeMutablePointer<Double>.allocate(capacity: EqSpec.stride)
+        defer { l.deallocate(); r.deallocate(); p.deallocate() }
+        var rnd = FxRandom(3)
+        func time(_ name: String, _ eqAt: (Int) -> Eq) {
+            let u = EqUnit(sampleRate: 48000)
+            let t0 = Date()
+            for b in 0..<blocks {
+                for i in 0..<n {
+                    l[i] = Float(rnd.next() - 0.5)
+                    r[i] = Float(rnd.next() - 0.5)
+                }
+                EqSpec.fill(p, eqAt(b))
+                u.process(left: l, right: r, frames: n, params: p)
+            }
+            print(String(format: "load %@: %.1f %%", name, Date().timeIntervalSince(t0) * 100))
+        }
+        func bells(_ f: Double) -> Eq {
+            var e = Eq()
+            for k in 0..<8 { e.bands[k] = EqBand(type: EqSpec.bell, freq: f * Double(k + 1), gain: 3, q: 1) }
+            return e
+        }
+        time("8 bells") { _ in bells(100) }
+        time("8 bells moving") { b in bells(100 + Double(b % 50)) }
+        time("low cut 48") { _ in
+            var e = Eq()
+            e.bands[0] = EqBand(type: EqSpec.lowCut, freq: 80, gain: 0, q: 1, slope: 2)
+            return e
+        }
+    }
+}
+
+/// Правки EQ (как state.ts веба), EQ в звуке: дорожка (сухой сигнал и посылы), мастер, хвост фильтров.
+final class EqRoutingTests: XCTestCase {
+    func testEdits() {
+        var p = Project()
+        let m = EqSpec.masterChannel
+        XCTAssertEqual(p.addEqBand(0, freq: 5, gain: 30), 0)
+        XCTAssertEqual(p.tracks[0].eq.bands[0], EqBand(type: EqSpec.bell, freq: 20, gain: 18, q: 1))
+        for k in 1..<8 { XCTAssertEqual(p.addEqBand(0, freq: 1000, gain: 0), k) }
+        XCTAssertEqual(p.addEqBand(0, freq: 1000, gain: 0), -1, "мест нет")
+        p.setEqBand(0, 0, freq: 30000, gain: -3.14159, q: 50)
+        XCTAssertEqual(p.tracks[0].eq.bands[0]?.freq, 20000)
+        XCTAssertEqual(p.tracks[0].eq.bands[0]?.gain, -3.1)
+        XCTAssertEqual(p.tracks[0].eq.bands[0]?.q, 18)
+        p.setEqType(0, 0, -1)
+        XCTAssertEqual(p.tracks[0].eq.bands[0]?.type, EqSpec.notch)
+        p.setEqSlope(0, 0, 5)
+        XCTAssertEqual(p.tracks[0].eq.bands[0]?.slope, 2)
+        p.toggleEqBand(0, 0)
+        XCTAssertEqual(p.tracks[0].eq.bands[0]?.on, false)
+        p.deleteEqBand(0, 3)
+        XCTAssertNil(p.tracks[0].eq.bands[3])
+        XCTAssertEqual(p.addEqBand(0, freq: 100, gain: 0), 3, "первое свободное место")
+        p.toggleEq(0)
+        XCTAssertFalse(p.tracks[0].eq.on)
+        XCTAssertEqual(p.addEqBand(m, freq: 100, gain: 6), 0)
+        XCTAssertEqual(p.masterEq.bands[0]?.gain, 6)
+        XCTAssertNil(p.tracks[1].eq.bands[0], "EQ дорожек свои")
+        // EQ переезжает и копируется вместе с дорожкой.
+        p.moveTrack(0, 2)
+        XCTAssertEqual(p.tracks[2].eq.bands[1]?.freq, 1000)
+    }
+
+    /// Снимок: выключенная полоса и BYPASS — «нет полосы»; у cut и notch усиление 0, Q среза — в dB.
+    func testFill() {
+        var e = Eq()
+        e.bands[0] = EqBand(type: EqSpec.lowCut, freq: 100, gain: 6, q: 2, slope: 2)
+        e.bands[1] = EqBand(on: false, type: EqSpec.bell, freq: 100, gain: 6, q: 2)
+        let p = UnsafeMutablePointer<Double>.allocate(capacity: EqSpec.stride)
+        defer { p.deallocate() }
+        EqSpec.fill(p, e)
+        XCTAssertEqual(Array(UnsafeBufferPointer(start: p, count: 6)), [1, Double(EqSpec.lowCut), 4, 100, 0, 20 * log10(2.0)])
+        XCTAssertEqual(p[6], -1)
+        e.on = false
+        EqSpec.fill(p, e)
+        XCTAssertEqual(p[1], -1)
+    }
+
+    /// АЧХ для кривой: bell +6 dB на своей частоте, notch — провал, high shelf −8 dB у 20 кГц, low cut 48 — 4 ступени.
+    func testResponse() {
+        XCTAssertEqual(EqCoeffs.response(EqBand(type: EqSpec.bell, freq: 1000, gain: 6, q: 1), hz: 1000), 6, accuracy: 1e-9)
+        XCTAssertLessThan(EqCoeffs.response(EqBand(type: EqSpec.notch, freq: 1000, gain: 0, q: 4), hz: 1000), -100)
+        XCTAssertEqual(EqCoeffs.response(EqBand(type: EqSpec.highShelf, freq: 6000, gain: -8, q: 1), hz: 20000), -8, accuracy: 0.3)
+        let one = EqCoeffs.response(EqBand(type: EqSpec.lowCut, freq: 1000, gain: 0, q: 1, slope: 0), hz: 200)
+        let four = EqCoeffs.response(EqBand(type: EqSpec.lowCut, freq: 1000, gain: 0, q: 1, slope: 2), hz: 200)
+        XCTAssertEqual(four, 4 * one, accuracy: 1e-9)
+    }
+
+    private func render(_ core: AudioCore, frames: Int) -> [Float] {
+        var out: [Float] = []
+        var bl = [Float](repeating: 0, count: 256), br = [Float](repeating: 0, count: 256)
+        while out.count < frames {
+            core.render(frames: 256, left: &bl, right: &br)
+            out += bl
+        }
+        return out
+    }
+
+    private func rms(_ x: ArraySlice<Float>) -> Double {
+        return sqrt(x.reduce(0.0) { $0 + Double($1) * Double($1) } / Double(max(1, x.count)))
+    }
+
+    /// Синус 100 Гц на дорожке 0 (1 с) с EQ edit; master — через мастер (EQ мастера).
+    private func run(master: Bool = false, sends: [String: Double] = [:], frames: Int = 36000,
+                     _ edit: (inout Project) -> Void) -> [Float] {
+        let core = AudioCore(master: master)
+        var p = Project()
+        p.tracks[0].addSamples(["s"])
+        p.tracks[0].vol = 0
+        for (id, v) in sends { p.tracks[0].params[id] = v }
+        edit(&p)
+        let s = SampleData(left: (0..<48000).map { Float(0.5 * sin(2 * Double.pi * 100 * Double($0) / 48000)) }, right: nil)
+        core.publish(p, samples: ["s": s])
+        // Кроссфейд введения полос (40 мс, как в вебе) — до ноты.
+        _ = render(core, frames: 4096)
+        core.events.push(.noteOn(track: 0, note: 48, id: 1, velocity: 1))
+        return render(core, frames: frames)
+    }
+
+    private func lowCut(_ e: inout Eq) {
+        e.bands[0] = EqBand(type: EqSpec.lowCut, freq: 4000, gain: 0, q: 0.7, slope: 2)
+    }
+
+    /// EQ дорожки — на сухом сигнале и на посыле (в вебе — копия EQ на каждом посыле).
+    func testTrackEqOnDryAndSends() {
+        let dry = rms(run { _ in }[12000..<24000])
+        let cut = rms(run { self.lowCut(&$0.tracks[0].eq) }[12000..<24000])
+        XCTAssertGreaterThan(dry, 0.1)
+        XCTAssertLessThan(20 * log10(cut / dry), -80)
+        // Delay 100 % (повторы через 0,25 с поверх ноты; окно — между повторами щелчка начала ноты, он проходит
+        // low cut): посыл тоже без 100 Гц.
+        let echo = rms(run(sends: ["delay": 100]) { _ in }[13000..<23000])
+        let echoCut = rms(run(sends: ["delay": 100]) { self.lowCut(&$0.tracks[0].eq) }[13000..<23000])
+        XCTAssertGreaterThan(echo, dry * 1.2, "повторы слышны")
+        XCTAssertLessThan(20 * log10(echoCut / echo), -80)
+        // BYPASS — как без EQ.
+        let byp = run { self.lowCut(&$0.tracks[0].eq); $0.tracks[0].eq.on = false }
+        let ref = run { _ in }
+        XCTAssertEqual(rms(byp[12000..<24000]), rms(ref[12000..<24000]), accuracy: 1e-6)
+    }
+
+    /// EQ мастера — перед SAT (весь сигнал дорожек).
+    func testMasterEq() {
+        let dry = rms(run(master: true) { _ in }[12000..<24000])
+        let cut = rms(run(master: true) { self.lowCut(&$0.masterEq) }[12000..<24000])
+        XCTAssertGreaterThan(dry, 0.1)
+        XCTAssertLessThan(20 * log10(cut / dry), -80)
+    }
+
+    /// Хвост фильтров звучит и после того, как голос дорожки кончился; затихнув, EQ больше не считается.
+    func testRingingTail() {
+        let core = AudioCore(master: false)
+        var p = Project()
+        p.tracks[0].addSamples(["k"])
+        p.tracks[0].vol = 0
+        p.tracks[0].params["decay"] = 0
+        p.tracks[0].eq.bands[0] = EqBand(type: EqSpec.bell, freq: 200, gain: 18, q: 18)
+        let s = SampleData(left: (0..<480).map { Float(sin(2 * Double.pi * 200 * Double($0) / 48000)) }, right: nil)
+        core.publish(p, samples: ["k": s])
+        // Кроссфейд введения полосы (40 мс) прошёл.
+        _ = render(core, frames: 4096)
+        core.events.push(.noteOn(track: 0, note: 48, id: 1, velocity: 1))
+        // Bell +18 dB, Q 18: спад ~6 dB за 53 мс, до порога −180 dB — около 1,6 с.
+        let o = render(core, frames: 144000)
+        let last = o.lastIndex { abs($0) > 1e-12 } ?? 0
+        XCTAssertGreaterThan(rms(o[9600..<14400]), 1e-3, "звон через 0,2 с после короткого сэмпла (голос уже кончился)")
+        XCTAssertFalse(core.trackEqs.ringing(0), "хвост затих")
+        XCTAssertGreaterThan(last, 48000)
+        XCTAssertLessThan(last, 120000, "затихло")
+    }
+}
+
+extension EqTests {
+    /// SELF-TEST: код EQ не занят движками, FX и мастером.
+    func testSelfTestName() {
+        let code = EqSelfTest.code
+        XCTAssertNotNil(EqSelfTest.engineNames[code])
+        XCTAssertNil(MasterSelfTest.engineNames[code])
+        XCTAssertNil(FxSelfTest.engineNames[code])
+        XCTAssertNil(JamboSelfTest.engineNames[code])
+        XCTAssertGreaterThanOrEqual(code, PlaitsSelfTest.engineNames.count)
+    }
+}

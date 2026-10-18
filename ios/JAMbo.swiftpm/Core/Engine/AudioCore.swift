@@ -20,7 +20,9 @@ public final class AudioCore: @unchecked Sendable {
     public let fx = FxRack(sampleRate: AudioCore.sampleRate)
     /// LFO1–3 и ENV дорожек.
     public let mod = ModEngine(sampleRate: AudioCore.sampleRate)
-    /// Цепочка мастера (сумма дорожек и FX → SAT → COMP → CLIP → LIM); тест-тон, метроном и прослушивание — мимо неё,
+    /// EQ дорожек (сухой сигнал и посылы).
+    public let trackEqs = TrackEqs(sampleRate: AudioCore.sampleRate)
+    /// Цепочка мастера (сумма дорожек и FX → EQ → SAT → COMP → CLIP → LIM); тест-тон, метроном и прослушивание — мимо неё,
     /// как в вебе. Без мастера (useMaster false) — тесты, которые сверяют выход по отсчётам.
     public let master = MasterChain(sampleRate: AudioCore.sampleRate)
     private let useMaster: Bool
@@ -55,6 +57,7 @@ public final class AudioCore: @unchecked Sendable {
         sequencer.sampler = sampler
         sampler.fx = fx
         sampler.mod = mod
+        sampler.eqs = trackEqs
         sequencer.mod = mod
     }
 
@@ -136,7 +139,8 @@ public final class AudioCore: @unchecked Sendable {
             masterL.update(repeating: 0, count: n)
             masterR.update(repeating: 0, count: n)
             sampler.render(blockStart: sampleTime, frames: n, left: masterL, right: masterR)
-            master.process(left: masterL, right: masterR, frames: n, params: d.master)
+            master.process(left: masterL, right: masterR, frames: n, params: d.master,
+                           eqParams: d.eq + EqSpec.masterChannel * EqSpec.stride)
             var i = 0
             while i < n {
                 left[i] += masterL[i]

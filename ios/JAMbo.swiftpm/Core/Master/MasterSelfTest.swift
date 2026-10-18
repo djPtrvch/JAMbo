@@ -65,7 +65,7 @@ public enum MasterSelfTest {
         }
     }
 
-    /// Вход случая (Float32) — как input() в golden.mjs.
+    /// Вход случая (Float32) — как input() в golden.mjs (noise — как в ios/tools/eq/golden.mjs).
     static func input(_ kind: String, _ frames: Int) -> ([Float], [Float]) {
         var l = [Float](repeating: 0, count: frames)
         var r = [Float](repeating: 0, count: frames)
@@ -93,6 +93,13 @@ public enum MasterSelfTest {
                 let hat: Double = 0.4 * exp(-th / 0.015) * (rnd.next() * 2 - 1)
                 l[i] = Float(kick + hat)
                 r[i] = Float(kick + hat + 0.2 * sin((2 * Double.pi * 220 * Double(i)) / sr))
+            }
+        case "noise":
+            // Белый шум ±0,3: L и R — свои зёрна (эталоны EQ).
+            var a = FxRandom(3), b = FxRandom(4)
+            for i in 0..<frames {
+                l[i] = Float((a.next() * 2 - 1) * 0.3)
+                r[i] = Float((b.next() * 2 - 1) * 0.3)
             }
         case "loud":
             for i in 0..<frames {

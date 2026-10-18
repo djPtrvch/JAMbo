@@ -86,6 +86,8 @@ public final class Sampler {
     let flagCur = UnsafeMutablePointer<Float>.allocate(capacity: 3)
     /// Шины эффектов и Sidechain (ставит AudioCore; nil — без эффектов, как в тестах сэмплера).
     public var fx: FxRack?
+    /// EQ дорожек (до Sidechain и громкости микшера; TrackEqs).
+    public var eqs: TrackEqs?
     /// Модуляция LFO/ENV (ставит AudioCore); modFrame — кадр ноты, которую сейчас запускают.
     public var mod: ModEngine?
     var modFrame: Int64 = 0
@@ -461,6 +463,7 @@ public final class Sampler {
         }
         synth?.render(d, blockStart: blockStart, frames: n, busL: busL, busR: busR, sendL: sendL, sendR: sendR,
                       used: used, stride: Sampler.maxFrames)
+        wakeEqs(d, n)
         fx?.prepare(blockStart: blockStart, frames: n)
         mix(d, n, left, right)
         fx?.process(frames: n, bpm: bpm, left: left, right: right)
@@ -477,7 +480,7 @@ public final class Sampler {
         }
     }
 
-    /// Микшер: шина дорожки · (1 − amount·e) · громкость · гейт → выход; посылы · громкость · гейт
+    /// Микшер: шина дорожки → EQ → · (1 − amount·e) · громкость · гейт → выход; посылы · громкость · гейт
     /// (· (1 − amount·e), если посыл приглушается — SETTINGS → SIDECHAIN) → входы шин эффектов.
     private func mix(_ d: SoundData, _ n: Int, _ left: UnsafeMutablePointer<Float>, _ right: UnsafeMutablePointer<Float>) {
         // Гейт mute/solo — за ~5 мс (постоянная 1,5 мс), громкость — за ~10 мс, глубина Sidechain и переключатели
@@ -509,8 +512,10 @@ public final class Sampler {
                 volCur[t] = vt
                 gateCur[t] = gt
                 duckCur[t] = at
+                idleEq(t, d)
                 continue
             }
+            trackEq(t, d, n, sends: rack != nil)
             let bl = busL + t * Sampler.maxFrames
             let br = busR + t * Sampler.maxFrames
             var vol = volCur[t]

@@ -73,6 +73,8 @@ public struct SoundData {
     public var fxScale: UnsafeMutablePointer<ParamScale>
     /// Мастер: значения в порядке MasterChain.Index (bypass — 1, RELEASE AUTO — отдельным флагом).
     public var master: UnsafeMutablePointer<Double>
+    /// EQ каналов (EqSpec.fill): дорожки 0…maxTracks−1, мастер — EqSpec.masterChannel; по EqSpec.stride значений.
+    public var eq: UnsafeMutablePointer<Double>
 
     @inline(__always)
     public func param(_ t: Int, _ p: Int) -> Float {
@@ -148,9 +150,14 @@ public final class SoundSnapshot: @unchecked Sendable {
             asAny: .allocate(capacity: tracks), fxSrc: .allocate(capacity: Params.fxCount),
             fxAmt: .allocate(capacity: Params.fxCount), fxTrack: .allocate(capacity: Params.fxCount),
             fxScale: .allocate(capacity: Params.fxCount),
-            master: .allocate(capacity: MasterChain.Index.count)
+            master: .allocate(capacity: MasterChain.Index.count),
+            eq: .allocate(capacity: EqSpec.channels * EqSpec.stride)
         )
         MasterChain.fill(d.master, project)
+        for ch in 0..<EqSpec.channels {
+            let eq: Eq? = ch == EqSpec.masterChannel ? project.masterEq : ch < project.tracks.count ? project.tracks[ch].eq : nil
+            EqSpec.fill(d.eq + ch * EqSpec.stride, eq)
+        }
         d.mod.initialize(repeating: 0, count: tracks * Params.modCount)
         d.asSrc.initialize(repeating: 0, count: tracks * ModTarget.count)
         d.asAmt.initialize(repeating: 0, count: tracks * ModTarget.count)
@@ -286,5 +293,6 @@ public final class SoundSnapshot: @unchecked Sendable {
         data.fxTrack.deallocate()
         data.fxScale.deallocate()
         data.master.deallocate()
+        data.eq.deallocate()
     }
 }

@@ -57,6 +57,8 @@ public struct Track: Codable, Equatable, Sendable {
     public var morphOrig: [String: Double] = [:]
     public var morphOrigAssign: [String: ModAssign?] = [:]
     public var morphEdited: Bool = false
+    /// EQ дорожки (doc.eqs[i] веба): один на все клипы, переезжает и копируется вместе с дорожкой.
+    public var eq: Eq = Eq()
 
     public init(index: Int) {
         id = Int.random(in: 0..<(1 << 31))
@@ -225,6 +227,8 @@ public struct Project: Codable, Equatable, Sendable {
     public var cmpBypass: Bool = false
     public var clipBypass: Bool = false
     public var limBypass: Bool = false
+    /// EQ мастера (doc.masterEq) — первый в цепочке мастера.
+    public var masterEq: Eq = Eq()
     public var tracks: [Track]
     /// Строки сетки паттернов: имена и повторы.
     public var scenes: [SceneRow] = [SceneRow](repeating: SceneRow(), count: Params.patternSlots)
