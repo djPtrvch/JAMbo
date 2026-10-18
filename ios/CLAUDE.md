@@ -43,10 +43,10 @@
 - Фон: при уходе в фон звук останавливается (если редактор capabilities даст Background Modes → Audio — вернуть BACKGROUND AUDIO).
 
 ## Вехи
-S0 каркас → S1 секвенсор и экран → S2 сэмплер и редактор → S3 Plaits и свои движки, SELF-TEST → S4 FX, MOD, MORPH → S5 мастер, EQ, метры, скоп (S0–S5 готовы, проверены на iPad) → **S9a окна модулей мастера (дальше)** → S6 проекты и настройки → S8 автоматизация → S9 EQ Dynamic и M/S, пресеты → S10 библиотека, импорт и экспорт, стемы, REC → S11 MIDI → S12 переходы между проектами → S7 оптимизация и App Store. Подробно — docs/SWIFT_AUDIT.md, раздел 6.
+S0 каркас → S1 секвенсор и экран → S2 сэмплер и редактор → S3 Plaits и свои движки, SELF-TEST → S4 FX, MOD, MORPH → S5 мастер, EQ, метры, скоп (S0–S5 готовы, проверены на iPad) → S9a окна модулей мастера (готова, проверена на iPad) → **S6 проекты и настройки (дальше)** → S8 автоматизация → S9 EQ Dynamic и M/S, пресеты → S10 библиотека, импорт и экспорт, стемы, REC → S11 MIDI → S12 переходы между проектами → S7 оптимизация и App Store. Подробно — docs/SWIFT_AUDIT.md, раздел 6.
 
-## Текущая веха (S9a)
-- S5 готова (итог — docs/SWIFT_MILESTONE_S5.md). Дальше — S9a (решение пользователя: раньше S6): графические окна SAT, COMP, CLIP, LIM (кнопки мастера, тап по блоку индикации); Dynamic и M/S EQ, пресеты EQ — в S9. Поведение — docs/ai/master-chain.md, docs/ai/master-clip-lim.md.
+## Текущая веха (S6)
+- S9a готова (итог — docs/SWIFT_MILESTONE_S9a.md). Дальше — S6: проекты и настройки (см. docs/SWIFT_AUDIT.md, раздел 6).
 
 ## Где искать
 | Задача касается… | Файл |
@@ -57,3 +57,4 @@ S0 каркас → S1 секвенсор и экран → S2 сэмплер и
 | Plaits, голосов синта, своих движков, WTABLE, иконок, SELF-TEST | docs/SWIFT_MILESTONE_S3.md |
 | FX, посылов, Sidechain, MOD, MORPH | docs/SWIFT_MILESTONE_S4.md |
 | мастера, EQ, спектров, метров, скопа | docs/SWIFT_MILESTONE_S5.md |
+| окон модулей мастера, пресетов модулей | docs/SWIFT_MILESTONE_S9a.md |
