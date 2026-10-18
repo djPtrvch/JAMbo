@@ -49,6 +49,13 @@ final class SampleStore {
         return Loaded(key: key, name: url.lastPathComponent, data: data, root: PitchDetect.root(data))
     }
 
+    /// Сэмпл проекта с диска по ключу (S9b); нет файла — nil (дорожка без звука).
+    static func read(key: String, dir: URL) -> SampleData? {
+        let url = dir.appendingPathComponent("\(key).caf")
+        guard let file = try? AVAudioFile(forReading: url) else { return nil }
+        return read(file)
+    }
+
     /// Отредактированная копия (TRIM, NORMALIZE, MONO): ключ по её отсчётам, копия на диске.
     static func store(_ data: SampleData, dir: URL) -> String {
         var hasher = SHA256()

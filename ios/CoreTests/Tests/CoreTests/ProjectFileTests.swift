@@ -153,3 +153,54 @@ final class ProjectFileTests: XCTestCase {
         XCTAssertNotEqual(ProjectStore.newId(), ProjectStore.newId())
     }
 }
+
+/// S9b: текущий проект, Autosave, пометка «unsaved».
+final class ProjectSessionTests: XCTestCase {
+    private func tempStore() -> ProjectStore {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("jambo-test-\(UUID().uuidString)")
+        addTeardownBlock { try? FileManager.default.removeItem(at: dir) }
+        return ProjectStore(dir: dir)
+    }
+
+    func testStartFresh() {
+        let store = tempStore()
+        XCTAssertTrue(store.save(Project(), info: ProjectInfo(id: "pa", name: "Project 1", updated: 1)))
+        let (s, p) = ProjectSession.start(store, last: nil)
+        XCTAssertEqual(s.name, "Project 2")
+        XCTAssertNotEqual(s.id, "pa")
+        XCTAssertTrue(s.unsaved(p))
+        XCTAssertTrue(s.needsAutosave(p))
+    }
+
+    func testStartFromAutosaveKeepsProject() {
+        let store = tempStore()
+        var saved = Project()
+        saved.bpm = 100
+        var work = saved
+        work.bpm = 130
+        XCTAssertTrue(store.save(saved, info: ProjectInfo(id: "pa", name: "Jam", updated: 1)))
+        let s0 = ProjectSession(id: "pa", name: "Jam")
+        XCTAssertTrue(store.save(work, info: s0.autosaveInfo(now: 2)))
+        let (s, p) = ProjectSession.start(store, last: "pa")
+        XCTAssertEqual(s.id, "pa")
+        XCTAssertEqual(s.name, "Jam")
+        XCTAssertEqual(p.bpm, 130)
+        XCTAssertTrue(s.unsaved(p))
+        XCTAssertFalse(s.needsAutosave(p))
+        var back = p
+        back.bpm = 100
+        XCTAssertFalse(s.unsaved(back))
+    }
+
+    func testStartFromLastProject() {
+        let store = tempStore()
+        var saved = Project()
+        saved.bpm = 90
+        XCTAssertTrue(store.save(saved, info: ProjectInfo(id: "pa", name: "Jam", updated: 1)))
+        let (s, p) = ProjectSession.start(store, last: "pa")
+        XCTAssertEqual(s.name, "Jam")
+        XCTAssertEqual(p.bpm, 90)
+        XCTAssertFalse(s.unsaved(p))
+        XCTAssertTrue(s.needsAutosave(p))
+    }
+}

@@ -159,7 +159,7 @@ struct Placeholder: View {
     }
 }
 
-/// Меню бутерброда: APPEARANCE (тема) и DIAGNOSTICS.
+/// Меню бутерброда: PROJECT (имя, «unsaved»; меню PROJECTS — S9c), APPEARANCE (тема), SAMPLER и DIAGNOSTICS.
 struct MainMenu: View {
     let model: AppModel
     @Binding var isOpen: Bool
@@ -167,6 +167,14 @@ struct MainMenu: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            MenuHead(title: "PROJECT")
+            HStack(spacing: 8) {
+                Text(model.session.name).font(.system(size: 13, weight: .bold)).foregroundStyle(theme.text)
+                if model.unsaved {
+                    Text("unsaved").font(.system(size: 12)).foregroundStyle(theme.dim)
+                }
+            }
+            Divider().overlay(theme.line)
             MenuHead(title: "APPEARANCE")
             HStack(spacing: 6) {
                 ForEach(Appearance.allCases, id: \.self) { a in

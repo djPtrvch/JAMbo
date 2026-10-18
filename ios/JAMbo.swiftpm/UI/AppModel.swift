@@ -14,7 +14,15 @@ final class AppModel {
     let audio = AudioHost()
     /// Ход игры из колбэка (позиции шагов, мигание) — отдельно, чтобы не перерисовывать всё.
     let live = LiveState()
-    private(set) var project = Project()
+    private(set) var project = Project() {
+        didSet { projectChanged() }
+    }
+    /// Проекты на диске; текущий проект (куда сохраняет SAVE, что сохранено); автосохранение — не раньше этого
+    /// времени (0 — изменений нет), запись на диск — в своей очереди.
+    @ObservationIgnored let projects = ProjectStore(dir: ProjectStore.appDir())
+    var session = ProjectSession(id: "", name: "")
+    @ObservationIgnored var autosaveDue: Double = 0
+    @ObservationIgnored let saveQueue = DispatchQueue(label: "jambo.save", qos: .utility)
     private(set) var selectedTrack: Int = 0
     private(set) var channel: Channel = .track
     var viewPage: Int = 0
@@ -160,6 +168,7 @@ final class AppModel {
 
     init() {
         trace("model init")
+        project = startProject()
         installSynth()
         publishAudio()
         audio.core.events.push(.tempo(project.bpm))
@@ -198,6 +207,7 @@ final class AppModel {
     private func drain() {
         audio.core.releaseRetired()
         defer { applyPendingLead() }
+        if autosaveDue > 0 && Date.timeIntervalSinceReferenceDate >= autosaveDue { autosave() }
         drainVoices()
         tickMeters()
         let tracks = project.tracks.count

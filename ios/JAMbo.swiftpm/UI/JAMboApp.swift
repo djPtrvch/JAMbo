@@ -17,7 +17,9 @@ struct JAMboApp: App {
         .onChange(of: phase) { _, newPhase in
             switch newPhase {
             case .active: model.activate()
-            case .background: model.pauseAudio()
+            case .background:
+                model.flushAutosave()
+                model.pauseAudio()
             default: break
             }
         }
