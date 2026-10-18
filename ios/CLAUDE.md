@@ -155,3 +155,6 @@ S0 каркас (готов) → S1 секвенсор и экран → S2 сэ
 - MORPH: Track.morphOrig / morphOrigAssign / morphEdited (как trackOrig веба); тап — режим, выключение возвращает всё на всех дорожках (одна запись UNDO); MORPH + UNDO — сброс без переключения; жёлтая точка на дорожке — в левом верхнем углу (отступ 7 × 6).
 - FX и MOD: SHIFT + двойной тап — режим toggle (AppSettings.latchFx / latchMod), вторая чёрная линия контура — концентрично контуру кнопки (отступ 3).
 - Тесты: MorphTests — 115 тестов.
+
+## S4e (итог S4)
+- SELF-TEST: эталоны FX (FxSelfTest, коды 32–35 — DELAY, REVERB, DRIVE, SIDECHAIN) — 152 случая. Итог вехи — docs/SWIFT_MILESTONE_S4.md. Дальше — S5 (мастер, EQ, метры, скоп).
