@@ -1,20 +1,37 @@
 import SwiftUI
 
-/// Клавиши пианоролла: ноты гаммы с подписями, корневая выделена, диезы чуть другим тоном.
+/// Клавиши пианоролла: ноты гаммы с подписями, корневая выделена, диезы чуть другим тоном; палец — прокрутка
+/// вверх-вниз.
 struct RollKeys: View {
     let model: AppModel
-    let port: RollPort
+    @Binding var port: RollPort
+    @State private var startY: CGFloat? = nil
     @Environment(\.theme) private var theme
 
     var body: some View {
         let rows: [Int] = model.rollRows
         let cols: Int = model.rollClip.playLen
         let root: Int = model.project.root
-        return Canvas { ctx, size in
-            let m = RollMetrics(size: size, port: port, rows: rows, cols: cols, root: root)
-            draw(ctx, m, root)
+        return GeometryReader { geo in
+            Canvas { ctx, size in
+                let m = RollMetrics(size: size, port: port, rows: rows, cols: cols, root: root)
+                draw(ctx, m, root)
+            }
+            .contentShape(Rectangle())
+            .gesture(drag(RollMetrics(size: geo.size, port: port, rows: rows, cols: cols, root: root)))
         }
         .clipShape(RoundedRectangle(cornerRadius: Layout.radius))
+    }
+
+    private func drag(_ m: RollMetrics) -> some Gesture {
+        DragGesture(minimumDistance: 4)
+            .onChanged { g in
+                let y0: CGFloat = startY ?? m.y
+                if startY == nil { startY = y0 }
+                port.y = y0 - g.translation.height
+                port.y = RollMetrics(size: m.size, port: port, rows: m.rows, cols: m.cols, root: model.project.root).y
+            }
+            .onEnded { _ in startY = nil }
     }
 
     private func draw(_ ctx: GraphicsContext, _ m: RollMetrics, _ root: Int) {
@@ -35,7 +52,8 @@ struct RollKeys: View {
 /// Сетка пианоролла: строки нот гаммы, линии по GRID (доли и такты — сильнее), подписи долей, ход, ноты.
 struct RollGrid: View {
     let model: AppModel
-    let port: RollPort
+    @Binding var port: RollPort
+    @State private var touches = RollTouches()
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -45,14 +63,34 @@ struct RollGrid: View {
         let root: Int = model.project.root
         let grid: Int = model.settings.rollGrid
         let play: Int = model.rollPlayPos
-        return Canvas { ctx, size in
-            let m = RollMetrics(size: size, port: port, rows: rows, cols: clip.playLen, root: root)
-            drawRows(ctx, m, root)
-            drawColumns(ctx, m, grid, play)
-            drawNotes(ctx, m, notes)
+        return GeometryReader { geo in
+            Canvas { ctx, size in
+                let m = RollMetrics(size: size, port: port, rows: rows, cols: clip.playLen, root: root)
+                drawRows(ctx, m, root)
+                drawColumns(ctx, m, grid, play)
+                drawNotes(ctx, m, notes)
+            }
+            .contentShape(Rectangle())
+            .gesture(touch(geo.size, rows, clip.playLen, root))
         }
         .background(theme.bg)
         .clipShape(RoundedRectangle(cornerRadius: Layout.radius))
+    }
+
+    /// Все касания сетки — одним жестом (мультитач): прокрутка и масштаб — RollTouches; вид — в пределах поля.
+    private func touch(_ size: CGSize, _ rows: [Int], _ cols: Int, _ root: Int) -> some Gesture {
+        SpatialEventGesture(coordinateSpace: .local)
+            .onChanged { events in apply(events, size, rows, cols, root) }
+            .onEnded { events in apply(events, size, rows, cols, root) }
+    }
+
+    private func apply(_ events: SpatialEventCollection, _ size: CGSize, _ rows: [Int], _ cols: Int, _ root: Int) {
+        let m = RollMetrics(size: size, port: port, rows: rows, cols: cols, root: root)
+        var p: RollPort = port
+        _ = touches.handle(events, port: &p, m)
+        let c = RollMetrics(size: size, port: p, rows: rows, cols: cols, root: root)
+        let next = RollPort(colW: p.colW, rowH: c.rowH, x: c.x, y: p.y == nil ? nil : c.y)
+        if next.colW != port.colW || next.rowH != port.rowH || next.x != port.x || next.y != port.y { port = next }
     }
 
     private func drawRows(_ ctx: GraphicsContext, _ m: RollMetrics, _ root: Int) {

@@ -13,8 +13,8 @@ struct RollWindow: View {
             let h: CGFloat = (geo.size.height - 7 * PatternGrid.rowGap) / 8
             ZStack(alignment: .topLeading) {
                 HStack(spacing: Layout.gap) {
-                    RollKeys(model: model, port: port).frame(width: layout.step)
-                    RollGrid(model: model, port: port)
+                    RollKeys(model: model, port: $port).frame(width: layout.step)
+                    RollGrid(model: model, port: $port)
                     RollSide(model: model, buttonH: h).frame(width: layout.step)
                 }
                 if model.rollMenuOpen {
