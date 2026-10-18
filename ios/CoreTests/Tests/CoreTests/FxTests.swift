@@ -16,6 +16,7 @@ final class FxTests: XCTestCase {
     }
 
     func testDelay() throws { try check("delay", count: 4) }
+    func testReverb() throws { try check("reverb", count: 4) }
 
     /// FxRandom — тот же mulberry32, что golden.mjs (первые значения seed 1).
     func testRandom() {

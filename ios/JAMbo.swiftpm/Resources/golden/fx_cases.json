@@ -102,6 +102,100 @@
      }
     }
    ]
+  },
+  {
+   "file": "fx_rev_basic.i16",
+   "proc": "reverb",
+   "frames": 72000,
+   "seed": 5,
+   "input": "burst",
+   "params": {
+    "size": 50,
+    "decay": 2,
+    "tone": 0,
+    "lowcut": 120,
+    "predelay": 0
+   },
+   "events": []
+  },
+  {
+   "file": "fx_rev_large.i16",
+   "proc": "reverb",
+   "frames": 72000,
+   "seed": 6,
+   "input": "burst",
+   "params": {
+    "size": 100,
+    "decay": 6,
+    "tone": 100,
+    "lowcut": 20,
+    "predelay": 30
+   },
+   "events": []
+  },
+  {
+   "file": "fx_rev_small_dark.i16",
+   "proc": "reverb",
+   "frames": 72000,
+   "seed": 7,
+   "input": "stereo",
+   "params": {
+    "size": 0,
+    "decay": 0.5,
+    "tone": -100,
+    "lowcut": 300,
+    "predelay": 0
+   },
+   "events": []
+  },
+  {
+   "file": "fx_rev_moves.i16",
+   "proc": "reverb",
+   "frames": 72000,
+   "seed": 8,
+   "input": "sine",
+   "params": {
+    "size": 0,
+    "decay": 2,
+    "tone": -100,
+    "lowcut": 20,
+    "predelay": 0
+   },
+   "events": [
+    {
+     "frame": 12032,
+     "params": {
+      "size": 100
+     }
+    },
+    {
+     "frame": 24064,
+     "params": {
+      "decay": 8,
+      "predelay": 120
+     }
+    },
+    {
+     "frame": 36096,
+     "params": {
+      "tone": 100
+     }
+    },
+    {
+     "frame": 48000,
+     "params": {
+      "lowcut": 300,
+      "size": 30
+     }
+    },
+    {
+     "frame": 60032,
+     "params": {
+      "decay": 0.5,
+      "tone": 0
+     }
+    }
+   ]
   }
  ]
 }

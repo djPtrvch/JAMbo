@@ -82,6 +82,7 @@ public enum FxSelfTest {
         // AudioParam — Float32 (как Float32Array в golden.mjs).
         func p(_ k: String, _ def: Double) -> Float { return Float(vals[k] ?? def) }
         let delay: FxDelay? = c.proc == "delay" ? FxDelay(sampleRate: 48000, maxTime: 6, seed: c.seed) : nil
+        let reverb: FxReverb? = c.proc == "reverb" ? FxReverb(sampleRate: 48000, seed: c.seed) : nil
         var f = 0
         while f < c.frames {
             for e in c.events where e.frame == f { vals.merge(e.params) { _, b in b } }
@@ -92,6 +93,10 @@ public enum FxSelfTest {
             if let d = delay {
                 d.process(inL: bL, inR: bR, outL: oL, outR: oR, frames: block, time: p("time", 0.25),
                           feedback: p("feedback", 0.4), filter: p("filter", 0), spread: p("spread", 0))
+            }
+            if let r = reverb {
+                r.process(inL: bL, inR: bR, outL: oL, outR: oR, frames: block, size: p("size", 50), decay: p("decay", 2),
+                          tone: p("tone", 0), lowcut: p("lowcut", 20), predelay: p("predelay", 0))
             }
             var i = 0
             while i < block && f + i < c.frames {

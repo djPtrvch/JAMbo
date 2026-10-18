@@ -34,7 +34,7 @@ Object.assign(globalThis, {
   registerProcessor(name, cls) { procs[name] = cls; },
 });
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fx-'));
-for (const f of ['delay-worklet.js']) {
+for (const f of ['delay-worklet.js', 'reverb-worklet.js']) {
   const tmp = path.join(tmpDir, f.replace('.js', '.mjs'));
   fs.writeFileSync(tmp, fs.readFileSync(path.join(root, 'public', f), 'utf8'));
   await import(pathToFileURL(tmp).href);
@@ -87,6 +87,7 @@ function render(c) {
 }
 
 const DLY = { proc: 'delay', options: { maxTime: 6 }, frames: 72000 };
+const REV = { proc: 'reverb', frames: 72000 };
 const CASES = [
   { name: 'dly_basic', ...DLY, seed: 1, input: 'burst', params: { time: 0.25, feedback: 0.5, filter: 0, spread: 0 } },
   { name: 'dly_lp', ...DLY, seed: 2, input: 'burst', params: { time: 0.1875, feedback: 0.7, filter: -0.6, spread: 0.3 } },
@@ -95,6 +96,13 @@ const CASES = [
     events: [{ frame: 12032, params: { time: 0.125 } }, { frame: 24064, params: { filter: -1 } },
       { frame: 36096, params: { filter: 1, spread: 0.8 } }, { frame: 48000, params: { time: 1, feedback: 1 } },
       { frame: 60032, params: { filter: 0.01, spread: 0.4 } }] },
+  { name: 'rev_basic', ...REV, seed: 5, input: 'burst', params: { size: 50, decay: 2, tone: 0, lowcut: 120, predelay: 0 } },
+  { name: 'rev_large', ...REV, seed: 6, input: 'burst', params: { size: 100, decay: 6, tone: 100, lowcut: 20, predelay: 30 } },
+  { name: 'rev_small_dark', ...REV, seed: 7, input: 'stereo', params: { size: 0, decay: 0.5, tone: -100, lowcut: 300, predelay: 0 } },
+  { name: 'rev_moves', ...REV, seed: 8, input: 'sine', params: { size: 0, decay: 2, tone: -100, lowcut: 20, predelay: 0 },
+    events: [{ frame: 12032, params: { size: 100 } }, { frame: 24064, params: { decay: 8, predelay: 120 } },
+      { frame: 36096, params: { tone: 100 } }, { frame: 48000, params: { lowcut: 300, size: 30 } },
+      { frame: 60032, params: { decay: 0.5, tone: 0 } }] },
 ];
 
 const cases = [];
