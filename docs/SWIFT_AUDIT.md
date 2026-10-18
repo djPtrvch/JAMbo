@@ -173,9 +173,10 @@ ui/auto.ts (644), ui/sampleedit.ts (633), params.ts (565), ui/sample.ts (571).
 | S3a / S3b | Plaits 8 + 8, свои DRUM, ANALOG, FM, WTABLE, SELF-TEST |
 | S4 | FX (reverb, delay, drive, sidechain 1:1), MOD, MORPH |
 | S5 | мастер, EQ (8 полос), индикация, измеритель, LUFS, скоп |
+| S9a | окна SAT / COMP / CLIP / LIM (сразу после S5 — решение пользователя) |
 | S6 | проекты, автосохранение, настройки, LICENSES |
 | S8 | автоматизация (AUTO) |
-| S9 | окна SAT / COMP / CLIP / LIM, EQ Dynamic и Mid/Side, пресеты EQ |
+| S9 | EQ Dynamic и Mid/Side, пресеты EQ |
 | S10 | библиотека с папками, импорт/экспорт (.jambo, ZIP, WAV), стемы и запись мастера, REC в редакторе |
 | S11 | MIDI (CoreMIDI): маппинг, LEARN, MIDI MAP, Twister, клок |
 | S12 | переходы между проектами (MIX, PREV, кроссфейдер) |
