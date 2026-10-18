@@ -53,12 +53,13 @@ final class TeleHistory {
         return now - lastAt < TeleHistory.liveTime
     }
 
-    /// Последний кадр модуля (живой, не снимок FREEZE): уровень детектора в dB и GR; nil — кадров нет.
-    func latest(_ t: DynTele, now: Double) -> (det: Float, gr: Float)? {
+    /// Последний кадр модуля (живой, не снимок FREEZE): пик входа (линейно), уровень детектора в dB и GR; nil — кадров
+    /// нет.
+    func latest(_ t: DynTele, now: Double) -> (inPeak: Float, det: Float, gr: Float)? {
         let w: Int = t.written.load()
         if w == 0 || !isLive(now) { return nil }
         let q: Int = (w - 1) & (DynTele.capacity - 1)
-        return (t.det[q], t.gr[q])
+        return (t.inPeak[q], t.det[q], t.gr[q])
     }
 
     /// Столбцы за 4 с: вход и выход в dB (−200 — нет сигнала), GR в dB ≥ 0.
@@ -231,11 +232,12 @@ enum MasterDraw {
         ctx.draw(t, at: CGPoint(x: size.width - 6, y: size.height - 4), anchor: .bottomTrailing)
     }
 
-    /// Линия потолка или порога (2 px, --meter-thr) с числом справа.
-    static func line(_ ctx: GraphicsContext, _ db: Double, _ size: CGSize, _ theme: Theme) {
+    /// Линия потолка (2 px, --meter-thr; у клиппера — жёлтая, пока CEILING меняют) с числом справа.
+    static func line(_ ctx: GraphicsContext, _ db: Double, _ size: CGSize, _ theme: Theme, hot: Bool = false) {
         let cy: CGFloat = y(db, size.height).rounded()
-        ctx.fill(Path(CGRect(x: 0, y: cy - 1, width: size.width, height: 2)), with: .color(theme.meterThr))
-        let t = ctx.resolve(Text(String(format: "%.1f", db)).font(.system(size: 11)).foregroundColor(theme.meterThr))
+        let col: Color = hot ? theme.accent : theme.meterThr
+        ctx.fill(Path(CGRect(x: 0, y: cy - 1, width: size.width, height: 2)), with: .color(col))
+        let t = ctx.resolve(Text(String(format: "%.1f", db)).font(.system(size: 11)).foregroundColor(col))
         let below: Bool = cy <= 16
         ctx.draw(t, at: CGPoint(x: size.width - 6, y: below ? cy + 3 : cy - 3), anchor: below ? .topTrailing : .bottomTrailing)
     }

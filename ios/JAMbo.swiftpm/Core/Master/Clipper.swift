@@ -187,6 +187,19 @@ public final class MasterClipper {
         return y
     }
 
+    /// Статическая кривая (окно клиппера, TRANSFER; clipCurve веба): выход в dB при уровне источника x dB (до INPUT),
+    /// по формуле клиппера — u = x·INPUT/CEILING, колено k = 1 − 0,6·SOFTNESS, выше колена tanh.
+    public static func staticOut(_ x: Double, input: Double, ceiling: Double, softness: Double) -> Double {
+        let k: Double = 1 - 0.6 * (softness / 100)
+        let u: Double = pow(10, (x + input - ceiling) / 20)
+        var y: Double = u
+        if u > k {
+            let s: Double = 1 - k
+            y = s > 1e-9 ? k + s * tanh((u - k) / s) : 1
+        }
+        return ceiling + 20 * log10(y)
+    }
+
     /// Блок n отсчётов (вход и выход могут совпадать). drive 0…12 dB, ceiling −12…0 dB, softness 0…100 %,
     /// bass 20…300 Гц (0 — OFF).
     public func process(inL: UnsafePointer<Float>, inR: UnsafePointer<Float>, outL: UnsafeMutablePointer<Float>,

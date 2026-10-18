@@ -33,6 +33,8 @@ struct MasterWindowView: View {
             LimiterDisplay(model: model)
         } else if module == MasterScope.comp {
             CompDisplay(model: model)
+        } else if module == MasterScope.clip {
+            ClipDisplay(model: model)
         } else {
             Placeholder(title: "DISPLAY — NEXT STEP")
         }

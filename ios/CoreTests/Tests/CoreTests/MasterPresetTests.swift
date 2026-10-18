@@ -123,3 +123,37 @@ final class GlueCurveTests: XCTestCase {
         XCTAssertEqual(MasterGlue.nextRatio(15), 2)
     }
 }
+
+/// Окно клиппера: статическая кривая TRANSFER совпадает с пиком выхода клиппера на синусе 200 Гц.
+final class ClipCurveTests: XCTestCase {
+    func testStaticCurveMatchesDsp() {
+        let sr: Double = 48000
+        let n: Int = 256
+        let l = UnsafeMutablePointer<Float>.allocate(capacity: n)
+        let r = UnsafeMutablePointer<Float>.allocate(capacity: n)
+        defer { l.deallocate(); r.deallocate() }
+        for (input, ceiling, soft) in [(0.0, -1.0, 30.0), (6.0, -3.0, 0.0), (12.0, -6.0, 100.0), (6.0, -1.0, 30.0)] {
+            let c = MasterClipper(sampleRate: sr)
+            var ph: Double = 0
+            var outPeak: Double = 0
+            var inPeak: Double = 0
+            for b in 0..<600 {
+                for i in 0..<n {
+                    let v = Float(0.5 * sin(ph))
+                    l[i] = v
+                    r[i] = v
+                    ph += 2 * Double.pi * 200 / sr
+                }
+                c.process(inL: l, inR: r, outL: l, outR: r, frames: n, drive: input, ceiling: ceiling,
+                          softness: soft, bass: 0, bypass: false)
+                if b > 400 {
+                    for i in 0..<n { outPeak = max(outPeak, Double(abs(l[i]))) }
+                    inPeak = max(inPeak, c.frameIn)
+                }
+            }
+            let x: Double = 20 * log10(inPeak) - input
+            let want: Double = MasterClipper.staticOut(x, input: input, ceiling: ceiling, softness: soft)
+            XCTAssertEqual(20 * log10(outPeak), want, accuracy: 0.1, "input \(input) ceiling \(ceiling) soft \(soft)")
+        }
+    }
+}
