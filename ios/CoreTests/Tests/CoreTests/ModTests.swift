@@ -81,6 +81,7 @@ final class ModTests: XCTestCase {
         var p = Project()
         p.tracks[0].params["lfo1.wave"] = 3
         p.tracks[0].params["lfo1.speed"] = 1
+        p.fx["rev.size"] = 50
         p.fxAssigns["rev.size"] = ModAssign(lfo: 1, amount: -0.5, track: 0)
         core.publish(p)
         _ = render(core, frames: 4096)

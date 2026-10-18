@@ -8,8 +8,12 @@ struct LeftColumn: View {
     var body: some View {
         VStack(spacing: Layout.gap) {
             SampleWindow(model: model)
-            if model.channel == .track {
-                FolderArrows(model: model).frame(height: 36)
+            // Строка под окном есть всегда — окно одного размера у дорожки, MIX и MST: у дорожки — стрелки папки,
+            // при MIX — ● MASTER (запись мастера), при MST — пусто.
+            switch model.channel {
+            case .track: FolderArrows(model: model).frame(height: 36)
+            case .mix: MasterRecButton().frame(height: 36)
+            case .master: Color.clear.frame(height: 36)
             }
             if model.channel == .master {
                 ButtonPair(left: MasterButton(model: model, module: MasterScope.clip),
@@ -45,6 +49,21 @@ struct FolderArrows: View {
                 .contentShape(Rectangle())
                 .onTapGesture { model.folderArrow(1) }
         }
+    }
+}
+
+/// ● MASTER — запись мастера (выход после громкости выхода, по правилам стемов; ARM MST). Запись — S10: пока серая.
+struct MasterRecButton: View {
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Circle().fill(theme.off).frame(width: 10, height: 10)
+            Text("MASTER").font(.system(size: 13, weight: .semibold)).tracking(1).foregroundStyle(theme.off)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
+        .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(theme.off, lineWidth: 1))
     }
 }
 

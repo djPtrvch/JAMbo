@@ -41,12 +41,15 @@ public final class MasterChain {
         ("lim.release", Index.limRel),
     ]
     public static let autoValue: Double = 1e9
+    /// ATTACK компрессора нового проекта — 30 мс (решение пользователя; в вебе 10). Эталоны считаются от defaults веба.
+    public static let newAttack: Double = 30
     /// RELEASE при AUTO (как sendDynamics веба: rel 400, auto true).
     static let autoRel: Double = 400
 
     public static func defaultValues() -> [String: Double] {
         var d: [String: Double] = [:]
         for (id, k) in ids { d[id] = defaults[k] }
+        d["cmp.attack"] = newAttack
         return d
     }
 

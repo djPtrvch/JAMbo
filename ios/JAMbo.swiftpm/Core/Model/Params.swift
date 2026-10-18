@@ -326,7 +326,8 @@ public enum Params {
 
     public static let fxColumns: [[ParamDef]] = [
         [
-            smooth("rev.size", "Rev Size", 0, 100, 50, Fmt.pct),
+            // По умолчанию 40 % (решение пользователя, в вебе — 50).
+            smooth("rev.size", "Rev Size", 0, 100, 40, Fmt.pct),
             smooth("rev.decay", "Rev Decay", 0.1, 20, 2, exp: true) { v in String(format: "%.1fs", v) },
             smooth("rev.tone", "Rev Tone", -100, 100, 0, bipolar: true) { v in
                 let r = Int(v.rounded())
@@ -407,7 +408,7 @@ public enum Params {
         ],
         [
             master("cmp.threshold", "Threshold", -40, 0, -10, step: 0.1, masterDb),
-            master("cmp.attack", "Attack", 0.1, 100, 10, exp: true, masterMs),
+            master("cmp.attack", "Attack", 0.1, 100, MasterChain.newAttack, exp: true, masterMs),
             master("cmp.release", "Release", 20, 2000, 400, exp: true, autoTop: 0.08, masterMs),
             master("cmp.makeup", "Makeup", 0, 18, 0, step: 0.1, masterDb),
         ],

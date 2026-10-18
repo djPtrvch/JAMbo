@@ -4,7 +4,7 @@ import SwiftUI
 /// дорожки (стерео — L и R), Start и End затемняют отрезанное, полосы воспроизведения звучащих нот.
 /// У синта — окно синта (SynthInfo: иконка движка, имя, ручки 1.1–1.3).
 /// Тап — меню звука (с зажатым шагом — звук этих шагов); удержание 0,5 с (без зажатого шага, не у синта) — редактор.
-/// MIX — заголовок MIXER и ● MASTER (запись мастера — S10); MST — индикация мастера (MasterIndicator).
+/// MIX — заголовок MIXER (● MASTER — под окном, LeftColumn); MST — индикация мастера (MasterIndicator).
 struct SampleWindow: View {
     let model: AppModel
     @State private var holdTask: Task<Void, Never>? = nil
@@ -68,13 +68,6 @@ struct SampleWindow: View {
 
     private var mixView: some View {
         VStack(spacing: 8) {
-            HStack(spacing: 6) {
-                Circle().fill(theme.off).frame(width: 10, height: 10)
-                Text("MASTER").font(.system(size: 11, weight: .semibold)).foregroundStyle(theme.off)
-            }
-            .padding(.horizontal, 10)
-            .frame(height: 30)
-            .overlay(RoundedRectangle(cornerRadius: 6).stroke(theme.off, lineWidth: 1))
             Text("MIXER").font(.system(size: 12, weight: .semibold)).tracking(1).foregroundStyle(theme.dim)
             Spacer(minLength: 0)
         }
