@@ -75,3 +75,84 @@ extension AppModel {
         publishAudio()
     }
 }
+
+// MARK: — меню PROJECTS (S9c)
+
+extension AppModel {
+    func refreshProjects() {
+        let store = projects
+        projectList = saveQueue.sync { store.list() }
+    }
+
+    private var now: Double { return Date().timeIntervalSince1970 }
+
+    /// Записи на диск — в очереди автосохранения (по порядку), с ожиданием. Затем Autosave пишется заново: в нём
+    /// id и имя проекта (иначе после RENAME или SAVE AS при запуске открылось бы прежнее имя).
+    /// Удаление Autosave не пересоздаёт (rewrite false): он появится при следующем изменении, как в вебе.
+    private func write(rewrite: Bool = true, _ f: (inout ProjectSession) -> Void) {
+        var s = session
+        saveQueue.sync { f(&s) }
+        if rewrite { s.lastAuto = nil }
+        session = s
+        UserDefaults.standard.set(s.id, forKey: AppModel.currentKey)
+        if rewrite { projectChanged() }
+        refreshProjects()
+    }
+
+    /// NEW: новый пустой проект (в список попадёт после SAVE).
+    func newProject() {
+        session = ProjectSession.fresh(projects)
+        UserDefaults.standard.set(session.id, forKey: AppModel.currentKey)
+        loadProject(Project())
+        projectChanged()
+    }
+
+    func saveProject() {
+        let p = project
+        let store = projects
+        let t = now
+        write { s in _ = s.save(p, store: store, now: t) }
+    }
+
+    /// SAVE AS: replace — проект с тем же именем (после вопроса о перезаписи).
+    func saveProjectAs(_ name: String, replace: ProjectInfo?) {
+        let p = project
+        let store = projects
+        let t = now
+        write { s in _ = s.saveAs(p, name: name, replace: replace, store: store, now: t) }
+    }
+
+    /// Проект с таким именем (кроме текущего и Autosave).
+    func projectNamed(_ name: String) -> ProjectInfo? {
+        return session.named(name, in: projectList)
+    }
+
+    func renameProject(_ name: String) {
+        let store = projects
+        write { s in s.rename(name, store: store) }
+    }
+
+    func renameProject(id: String, to name: String) {
+        let store = projects
+        write { s in s.rename(id: id, to: name, store: store) }
+    }
+
+    func deleteProject(id: String) {
+        let store = projects
+        write(rewrite: false) { s in s.delete(id: id, store: store) }
+    }
+
+    /// Открыть из списка (LOAD): проект — в том виде, в каком он сохранён SAVE; Autosave — в проект, из которого он.
+    func openProject(id: String) {
+        let store = projects
+        guard let f = saveQueue.sync(execute: { store.load(id) }) else {
+            refreshProjects()
+            return
+        }
+        session = ProjectSession.open(f, store: store)
+        UserDefaults.standard.set(session.id, forKey: AppModel.currentKey)
+        loadProject(f.doc)
+        projectChanged()
+        refreshProjects()
+    }
+}

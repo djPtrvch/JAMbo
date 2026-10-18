@@ -54,7 +54,7 @@ struct EqPresetsMenu: View {
     private func rows(_ list: [EqPreset]) -> some View {
         VStack(spacing: 4) {
             ForEach(0..<list.count, id: \.self) { k in
-                PresetRow(title: "\(list[k].name) · \(list[k].count)", tap: {
+                SwipeRow(title: "\(list[k].name) · \(list[k].count)", tap: {
                     model.eqPresetMenu = nil
                     model.loadEqPreset(k)
                 }, rename: {

@@ -96,7 +96,7 @@ struct MasterPresetsMenu: View {
     private func rows(_ m: Int, _ list: [MasterPreset]) -> some View {
         VStack(spacing: 4) {
             ForEach(0..<list.count, id: \.self) { k in
-                PresetRow(title: list[k].name, tap: {
+                SwipeRow(title: list[k].name, tap: {
                     model.masterMenu = nil
                     model.loadMasterPreset(m, k)
                 }, rename: {
@@ -110,88 +110,5 @@ struct MasterPresetsMenu: View {
             }
         }
         .padding(.trailing, 6)
-    }
-}
-
-/// Пресет в списке (как строки списков iPad): тап — загрузить; свайп влево открывает справа кнопки — карандаш
-/// на сером (RENAME) и корзина на красном (DELETE); свайп вправо или тап по открытой строке — закрыть.
-struct PresetRow: View {
-    static let button: CGFloat = 52
-    static let reveal: CGFloat = 2 * PresetRow.button + 4
-    let title: String
-    let tap: () -> Void
-    let rename: () -> Void
-    let delete: () -> Void
-    @State private var offset: CGFloat = 0
-    @State private var open: Bool = false
-    @Environment(\.theme) private var theme
-
-    var body: some View {
-        ZStack(alignment: .trailing) {
-            actions.opacity(offset < -1 ? 1 : 0)
-            label
-                .offset(x: offset)
-                .simultaneousGesture(swipe)
-                .onTapGesture {
-                    if open { close() } else { tap() }
-                }
-        }
-        .frame(height: 44)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-    }
-
-    private var label: some View {
-        Text(title)
-            .font(.system(size: 13, weight: .bold)).lineLimit(1).minimumScaleFactor(0.7)
-            .foregroundStyle(theme.text)
-            .padding(.horizontal, 12)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            .background(theme.panel, in: RoundedRectangle(cornerRadius: 8))
-            .contentShape(Rectangle())
-    }
-
-    private var actions: some View {
-        HStack(spacing: 4) {
-            icon("pencil", Color(hex: 0x8e8e93)) {
-                close()
-                rename()
-            }
-            icon("trash", theme.rec) {
-                close()
-                delete()
-            }
-        }
-    }
-
-    private func icon(_ name: String, _ bg: Color, _ act: @escaping () -> Void) -> some View {
-        Button(action: act) {
-            Image(systemName: name)
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(Color.white)
-                .frame(width: PresetRow.button, height: 44)
-                .background(bg, in: RoundedRectangle(cornerRadius: 8))
-        }
-        .buttonStyle(.plain)
-    }
-
-    /// Горизонтальный свайп (вертикальный — прокрутка списка).
-    private var swipe: some Gesture {
-        DragGesture(minimumDistance: 12)
-            .onChanged { g in
-                if abs(g.translation.width) < abs(g.translation.height) { return }
-                let base: CGFloat = open ? -PresetRow.reveal : 0
-                let x: CGFloat = base + g.translation.width
-                offset = min(0, max(-PresetRow.reveal - 24, x))
-            }
-            .onEnded { _ in
-                let show: Bool = offset < -PresetRow.reveal / 2
-                open = show
-                withAnimation(.easeOut(duration: 0.2)) { offset = show ? -PresetRow.reveal : 0 }
-            }
-    }
-
-    private func close() {
-        open = false
-        withAnimation(.easeOut(duration: 0.2)) { offset = 0 }
     }
 }

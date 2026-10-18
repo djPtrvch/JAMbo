@@ -77,3 +77,72 @@ public struct ProjectSession: Sendable {
         return (fresh(store), p)
     }
 }
+
+// Действия меню PROJECTS (S9c, как project.ts веба). Запись — сразу на диск; список перечитывает вызывающий.
+extension ProjectSession {
+    /// Длина имени проекта (CLAUDE.md: проекты — 24 знака).
+    public static let nameLimit = 24
+
+    /// Имя из поля ввода: без пробелов по краям, не длиннее 24.
+    public static func clean(_ name: String) -> String {
+        let t: String = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return String(t.prefix(nameLimit))
+    }
+
+    /// SAVE: записать в текущий проект.
+    @discardableResult
+    public mutating func save(_ p: Project, store: ProjectStore, now: Double) -> Bool {
+        if !store.save(p, info: info(now: now)) { return false }
+        saved = p
+        return true
+    }
+
+    /// SAVE AS: копия под новым именем (дальше работа в копии); replace — проект с тем же именем, который
+    /// перезаписывается после вопроса.
+    @discardableResult
+    public mutating func saveAs(_ p: Project, name: String, replace: ProjectInfo?, store: ProjectStore,
+                                now: Double) -> Bool {
+        let n: String = ProjectSession.clean(name)
+        id = replace?.id ?? ProjectStore.newId()
+        self.name = n.isEmpty ? ProjectSession.nextName(store.list()) : n
+        saved = nil
+        return save(p, store: store, now: now)
+    }
+
+    /// RENAME текущего: имя (у сохранённого — сразу и в списке).
+    public mutating func rename(_ name: String, store: ProjectStore) {
+        let n: String = ProjectSession.clean(name)
+        if n.isEmpty { return }
+        self.name = n
+        store.rename(id, to: n)
+    }
+
+    /// Переименовать проект из списка (карандаш); текущий — как RENAME.
+    public mutating func rename(id other: String, to name: String, store: ProjectStore) {
+        if other == id {
+            rename(name, store: store)
+            return
+        }
+        let n: String = ProjectSession.clean(name)
+        if !n.isEmpty { store.rename(other, to: n) }
+    }
+
+    /// Удалить запись из списка (корзина): работа на экране остаётся; удалили текущий — он снова не сохранён.
+    public mutating func delete(id other: String, store: ProjectStore) {
+        store.delete(other)
+        if other == id { saved = nil }
+    }
+
+    /// Проект с таким именем, кроме текущего и Autosave (вопрос о перезаписи в SAVE AS).
+    public func named(_ name: String, in list: [ProjectInfo]) -> ProjectInfo? {
+        let n: String = ProjectSession.clean(name)
+        return list.first { $0.name == n && $0.id != id && $0.id != ProjectStore.autosaveId }
+    }
+
+    /// Справа в строке списка: темп, корневая нота и гамма сокращённо («120 · C Min»).
+    public static func meta(_ i: ProjectInfo) -> String {
+        let scale: Int = Swift.min(Scales.all.count - 1, Swift.max(0, i.scale))
+        let note: String = Params.noteNames[((i.root % 12) + 12) % 12]
+        return "\(Int(i.bpm.rounded())) · \(note) \(Scales.all[scale].short)"
+    }
+}

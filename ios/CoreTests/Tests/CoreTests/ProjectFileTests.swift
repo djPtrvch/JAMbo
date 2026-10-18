@@ -204,3 +204,78 @@ final class ProjectSessionTests: XCTestCase {
         XCTAssertTrue(s.needsAutosave(p))
     }
 }
+
+/// S9c: NEW, SAVE, SAVE AS, RENAME, удаление из списка.
+final class ProjectActionsTests: XCTestCase {
+    private func tempStore() -> ProjectStore {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("jambo-test-\(UUID().uuidString)")
+        addTeardownBlock { try? FileManager.default.removeItem(at: dir) }
+        return ProjectStore(dir: dir)
+    }
+
+    func testSaveAndSaveAs() {
+        let store = tempStore()
+        var s = ProjectSession.fresh(store)
+        var p = Project()
+        p.bpm = 111
+        XCTAssertTrue(s.save(p, store: store, now: 5))
+        XCTAssertFalse(s.unsaved(p))
+        XCTAssertEqual(store.list().map { $0.name }, ["Project 1"])
+        let first = s.id
+        p.bpm = 122
+        XCTAssertTrue(s.unsaved(p))
+        XCTAssertTrue(s.saveAs(p, name: "  Copy of a very long project name here  ", replace: nil, store: store, now: 6))
+        XCTAssertNotEqual(s.id, first)
+        XCTAssertEqual(s.name, "Copy of a very long proj")
+        XCTAssertEqual(s.name.count, ProjectSession.nameLimit)
+        XCTAssertFalse(s.unsaved(p))
+        XCTAssertEqual(store.load(first)?.doc.bpm, 111)
+        XCTAssertEqual(store.load(s.id)?.doc.bpm, 122)
+        XCTAssertEqual(ProjectSession.nextName(store.list()), "Project 2")
+    }
+
+    func testSaveAsOverwrite() {
+        let store = tempStore()
+        var a = ProjectSession(id: "pa", name: "A")
+        XCTAssertTrue(a.save(Project(), store: store, now: 1))
+        var b = ProjectSession(id: "pb", name: "B")
+        var p = Project()
+        p.bpm = 140
+        XCTAssertNil(b.named("B", in: store.list()))
+        let same = b.named(" A ", in: store.list())
+        XCTAssertEqual(same?.id, "pa")
+        XCTAssertTrue(b.saveAs(p, name: "A", replace: same, store: store, now: 2))
+        XCTAssertEqual(b.id, "pa")
+        XCTAssertEqual(store.list().count, 1)
+        XCTAssertEqual(store.load("pa")?.doc.bpm, 140)
+    }
+
+    func testRenameAndDelete() {
+        let store = tempStore()
+        var s = ProjectSession(id: "pa", name: "A")
+        XCTAssertTrue(s.save(Project(), store: store, now: 1))
+        XCTAssertTrue(store.save(Project(), info: ProjectInfo(id: "pb", name: "B", updated: 2)))
+        s.rename("A2", store: store)
+        XCTAssertEqual(s.name, "A2")
+        XCTAssertEqual(store.load("pa")?.info.name, "A2")
+        s.rename("   ", store: store)
+        XCTAssertEqual(s.name, "A2")
+        s.rename(id: "pb", to: "B2", store: store)
+        XCTAssertEqual(store.load("pb")?.info.name, "B2")
+        XCTAssertEqual(s.name, "A2")
+        s.rename(id: "pa", to: "A3", store: store)
+        XCTAssertEqual(s.name, "A3")
+        s.delete(id: "pa", store: store)
+        XCTAssertNil(store.load("pa"))
+        XCTAssertTrue(s.unsaved(Project()))
+        XCTAssertEqual(s.name, "A3")
+    }
+
+    func testMeta() {
+        var i = ProjectInfo(id: "p", name: "x", updated: 0)
+        i.bpm = 119.6
+        i.root = 0
+        i.scale = 1
+        XCTAssertEqual(ProjectSession.meta(i), "120 · C Min")
+    }
+}

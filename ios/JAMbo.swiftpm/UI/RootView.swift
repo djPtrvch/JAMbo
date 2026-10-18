@@ -6,6 +6,8 @@ import UniformTypeIdentifiers
 struct RootView: View {
     let model: AppModel
     @State private var menuOpen: Bool = false
+    /// Верх строки дорожек (низ меню бутерброда).
+    @State private var trackTop: CGFloat = 600
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -41,6 +43,7 @@ struct RootView: View {
             TopBar(model: model, menuOpen: $menuOpen)
             center(layout)
             TrackRow(model: model, layout: layout)
+                .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("root")).minY } action: { trackTop = $0 }
             SequencerRow(model: model)
             KeyboardPanel(model: model, layout: layout)
         }
@@ -86,7 +89,8 @@ struct RootView: View {
     @ViewBuilder
     private var overlays: some View {
         if menuOpen {
-            MainMenu(model: model, isOpen: $menuOpen).padding(.top, 58).padding(.leading, 12)
+            MainMenu(model: model, isOpen: $menuOpen, height: max(240, trackTop - 58 - Layout.gap))
+                .padding(.top, 58).padding(.leading, 12)
         }
         if let menu = model.pageMenu {
             pageMenu(menu)
@@ -159,21 +163,37 @@ struct Placeholder: View {
     }
 }
 
-/// Меню бутерброда: PROJECT (имя, «unsaved»; меню PROJECTS — S9c), APPEARANCE (тема), SAMPLER и DIAGNOSTICS.
+/// Меню бутерброда: PROJECT (PROJECTS), APPEARANCE (тема), SAMPLER и DIAGNOSTICS. Меню и подменю одного размера:
+/// по высоте — до строки дорожек (раскладка разделов — S9d).
 struct MainMenu: View {
+    static let width: CGFloat = 380
     let model: AppModel
     @Binding var isOpen: Bool
+    let height: CGFloat
+    @State private var projectsOpen: Bool = false
     @Environment(\.theme) private var theme
 
     var body: some View {
+        page
+            .padding(12)
+            .frame(width: MainMenu.width, height: height, alignment: .topLeading)
+            .background(theme.bg, in: RoundedRectangle(cornerRadius: Layout.radius))
+            .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(theme.line, lineWidth: 1))
+    }
+
+    @ViewBuilder
+    private var page: some View {
+        if projectsOpen {
+            ProjectsPage(model: model, back: { projectsOpen = false }, close: { isOpen = false })
+        } else {
+            MenuScroll { mainItems }
+        }
+    }
+
+    private var mainItems: some View {
         VStack(alignment: .leading, spacing: 8) {
             MenuHead(title: "PROJECT")
-            HStack(spacing: 8) {
-                Text(model.session.name).font(.system(size: 13, weight: .bold)).foregroundStyle(theme.text)
-                if model.unsaved {
-                    Text("unsaved").font(.system(size: 12)).foregroundStyle(theme.dim)
-                }
-            }
+            MenuItem(title: "PROJECTS") { projectsOpen = true }
             Divider().overlay(theme.line)
             MenuHead(title: "APPEARANCE")
             HStack(spacing: 6) {
@@ -197,9 +217,6 @@ struct MainMenu: View {
                 model.showDiagnostics = true
             }
         }
-        .padding(12)
-        .frame(width: 330)
-        .background(theme.bg, in: RoundedRectangle(cornerRadius: Layout.radius))
-        .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(theme.line, lineWidth: 1))
+        .padding(.trailing, 6)
     }
 }
