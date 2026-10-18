@@ -94,15 +94,28 @@ struct EqBar: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        let col: CGFloat = (layout.width - 2 * layout.step - 9 * Layout.gap) / 8
-        let x0: CGFloat = layout.step + Layout.gap
+        let col: CGFloat = EqBar.column(layout)
         ZStack(alignment: .topLeading) {
             name.frame(width: layout.step, height: 48)
             ForEach(0..<8, id: \.self) { i in
-                item(i).frame(width: col, height: 48).offset(x: x0 + CGFloat(i) * (col + Layout.gap))
+                item(i).frame(width: col, height: 48).offset(x: EqBar.left(i, layout))
             }
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+
+    /// Ширина столбца: 8 столбцов с зазорами между MIX и MST.
+    static func column(_ layout: Layout) -> CGFloat {
+        let gaps: CGFloat = 9 * Layout.gap
+        let free: CGFloat = layout.width - 2 * layout.step - gaps
+        return free / 8
+    }
+
+    /// Левый край столбца i (0 — над первой дорожкой).
+    static func left(_ i: Int, _ layout: Layout) -> CGFloat {
+        let col: CGFloat = column(layout) + Layout.gap
+        let x0: CGFloat = layout.step + Layout.gap
+        return x0 + CGFloat(i) * col
     }
 
     /// Имя канала: тап — у дорожки меню дорожек для сравнения, у мастера — спектр выхода (надпись красная).
@@ -134,16 +147,53 @@ struct EqBar: View {
         }
     }
 
+    // Значения полей в пунктах движения пальца и обратно.
+    static func typeIndex(_ b: EqBand?) -> Double {
+        let t: Int = b?.type ?? 0
+        let i: Int = EqSpec.typeOrder.firstIndex(of: t) ?? 0
+        return -Double(i)
+    }
+
+    static func typeAt(_ v: Double) -> Int {
+        let n: Int = EqSpec.typeOrder.count
+        let i: Int = -Int(v)
+        let j: Int = ((i % n) + n) % n
+        return EqSpec.typeOrder[j]
+    }
+
+    static func freqUnits(_ b: EqBand?) -> Double {
+        let f: Double = b?.freq ?? 1000
+        let oct: Double = log2(f / EqSpec.freqMin)
+        return (oct * 24).rounded()
+    }
+
+    static func freqOf(_ v: Double) -> Double {
+        let oct: Double = v / 24
+        return EqSpec.freqMin * pow(2, oct)
+    }
+
+    static func gainUnits(_ b: EqBand?) -> Double {
+        let g: Double = b?.gain ?? 0
+        return (g * 10).rounded()
+    }
+
+    static func qUnits(_ b: EqBand?) -> Double {
+        let q: Double = b?.q ?? 1
+        let oct: Double = log2(q)
+        return (oct * 12).rounded()
+    }
+
+    static func qOf(_ v: Double) -> Double {
+        let oct: Double = v / 12
+        return pow(2, oct)
+    }
+
     /// TYPE: палец вниз — следующий тип по порядку меню; тап — меню полосы.
     private func typeField(_ b: EqBand?) -> some View {
-        let order: [Int] = EqSpec.typeOrder
         let k: Int = model.eqBand
         return EqField(label: "TYPE", value: b.map { EqFormat.type($0) } ?? "—", enabled: b != nil, pxPerUnit: 30,
-                       get: { -Double(order.firstIndex(of: model.selectedBand?.type ?? 0) ?? 0) },
-                       set: { v in
-                           let n: Int = order.count
-                           model.setEqType(k, order[((-Int(v)) % n + n) % n])
-                       },
+                       get: { EqBar.typeIndex(model.selectedBand) },
+                       set: { v in model.setEqType(k, EqBar.typeAt(v)) },
                        tap: { f in
                            model.eqMenu = EqMenuState(band: k, anchor: CGPoint(x: f.midX, y: f.maxY), bounds: plotFrame)
                        },
@@ -154,8 +204,8 @@ struct EqBar: View {
     private func freqField(_ b: EqBand?) -> some View {
         let k: Int = model.eqBand
         return EqField(label: "FREQ", value: b.map { EqFormat.hz($0.freq) } ?? "—", enabled: b != nil, pxPerUnit: 2,
-                       get: { (log2((model.selectedBand?.freq ?? 1000) / EqSpec.freqMin) * 24).rounded() },
-                       set: { v in model.setEqBand(k, freq: EqSpec.freqMin * pow(2, v / 24)) },
+                       get: { EqBar.freqUnits(model.selectedBand) },
+                       set: { v in model.setEqBand(k, freq: EqBar.freqOf(v)) },
                        tap: { _ in input(.freq) }, hold: { input(.freq) }, moveTol: 14, model: model)
     }
 
@@ -164,7 +214,7 @@ struct EqBar: View {
         let k: Int = model.eqBand
         let has: Bool = b.map { EqSpec.hasGain($0.type) } ?? false
         return EqField(label: "GAIN", value: has ? EqFormat.gain(b?.gain ?? 0) : "—", enabled: has, pxPerUnit: 1,
-                       get: { ((model.selectedBand?.gain ?? 0) * 10).rounded() },
+                       get: { EqBar.gainUnits(model.selectedBand) },
                        set: { v in model.setEqBand(k, gain: v / 10) },
                        hold: { input(.gain) }, model: model)
     }
@@ -173,8 +223,8 @@ struct EqBar: View {
     private func qField(_ b: EqBand?) -> some View {
         let k: Int = model.eqBand
         return EqField(label: "Q", value: b.map { String(format: "%.2f", $0.q) } ?? "—", enabled: b != nil, pxPerUnit: 3,
-                       get: { (log2(model.selectedBand?.q ?? 1) * 12).rounded() },
-                       set: { v in model.setEqBand(k, q: pow(2, v / 12)) },
+                       get: { EqBar.qUnits(model.selectedBand) },
+                       set: { v in model.setEqBand(k, q: EqBar.qOf(v)) },
                        tap: { _ in
                            let now = Date()
                            if now.timeIntervalSince(lastQTap) < EqPlot.doubleTap {
@@ -281,17 +331,23 @@ struct EqTool: View {
 /// полем TYPE; тап мимо — закрыть.
 struct EqBandMenu: View {
     static let width: CGFloat = 390
-    static let height: CGFloat = 3 * 44 + 2 * 4 + 12 + 44 + 4
+    /// 3 ряда по 44, зазоры 4, DELETE 44, поля 12.
+    static let height: CGFloat = 196
     let model: AppModel
     let state: EqMenuState
     @Environment(\.theme) private var theme
 
     var body: some View {
         let r: CGRect = state.bounds
-        let w: CGFloat = EqBandMenu.width, h: CGFloat = EqBandMenu.height
-        let x: CGFloat = min(max(r.minX + 8, state.anchor.x - w / 2), r.maxX - w - 8)
-        let below: Bool = state.anchor.y + 8 + h <= r.maxY - 8
-        let y: CGFloat = below ? state.anchor.y + 8 : max(r.minY + 8, state.anchor.y - 8 - h)
+        let w: CGFloat = EqBandMenu.width
+        let h: CGFloat = EqBandMenu.height
+        let left: CGFloat = state.anchor.x - w / 2
+        let maxX: CGFloat = r.maxX - w - 8
+        let x: CGFloat = min(max(r.minX + 8, left), maxX)
+        let bottom: CGFloat = state.anchor.y + 8 + h
+        let below: Bool = bottom <= r.maxY - 8
+        let above: CGFloat = max(r.minY + 8, state.anchor.y - 8 - h)
+        let y: CGFloat = below ? state.anchor.y + 8 : above
         return ZStack(alignment: .topLeading) {
             Color.black.opacity(0.001).ignoresSafeArea().onTapGesture { model.eqMenu = nil }
             content
@@ -308,15 +364,18 @@ struct EqBandMenu: View {
     private var content: some View {
         let b: EqBand? = model.eqTarget.band(state.band)
         let cut: Bool = b.map { EqSpec.isCut($0.type) } ?? false
+        let type: Int = b?.type ?? -1
+        let slope: Int = b?.slope ?? -1
         let cols: [GridItem] = Array(repeating: GridItem(.flexible(), spacing: 4), count: 3)
         VStack(spacing: 4) {
             LazyVGrid(columns: cols, spacing: 4) {
                 ForEach(EqSpec.typeOrder, id: \.self) { t in
-                    MenuItem(title: EqSpec.types[t].uppercased(), current: b?.type == t) { pick { model.setEqType(state.band, t) } }
+                    MenuItem(title: EqSpec.types[t].uppercased(), current: type == t) { pick { model.setEqType(state.band, t) } }
                         .frame(height: 44)
                 }
                 ForEach(0..<EqSpec.slopes.count, id: \.self) { s in
-                    MenuItem(title: "\(EqSpec.slopes[s]) dB/oct", enabled: cut, current: cut && b?.slope == s) {
+                    let on: Bool = cut && slope == s
+                    MenuItem(title: "\(EqSpec.slopes[s]) dB/oct", enabled: cut, current: on) {
                         pick { model.setEqSlope(state.band, s) }
                     }
                     .frame(height: 44)

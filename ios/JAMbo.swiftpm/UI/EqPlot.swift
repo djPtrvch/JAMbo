@@ -7,10 +7,27 @@ struct EqGeometry {
     static let octaves: Double = log2(EqSpec.freqMax / EqSpec.freqMin)
     let size: CGSize
 
-    func x(_ f: Double) -> CGFloat { return size.width * CGFloat(log2(f / EqSpec.freqMin) / EqGeometry.octaves) }
-    func freq(_ x: CGFloat) -> Double { return EqSpec.freqMin * pow(2, Double(x / max(1, size.width)) * EqGeometry.octaves) }
-    func y(_ g: Double) -> CGFloat { return size.height / 2 - CGFloat(g / EqGeometry.dbRange) * size.height / 2 }
-    func gain(_ y: CGFloat) -> Double { return Double((size.height / 2 - y) / max(1, size.height / 2)) * EqGeometry.dbRange }
+    func x(_ f: Double) -> CGFloat {
+        let u: Double = log2(f / EqSpec.freqMin) / EqGeometry.octaves
+        return size.width * CGFloat(u)
+    }
+
+    func freq(_ x: CGFloat) -> Double {
+        let u: Double = Double(x / max(1, size.width))
+        return EqSpec.freqMin * pow(2, u * EqGeometry.octaves)
+    }
+
+    func y(_ g: Double) -> CGFloat {
+        let half: CGFloat = size.height / 2
+        let u: CGFloat = CGFloat(g / EqGeometry.dbRange)
+        return half - u * half
+    }
+
+    func gain(_ y: CGFloat) -> Double {
+        let half: CGFloat = max(1, size.height / 2)
+        let u: Double = Double((half - y) / half)
+        return u * EqGeometry.dbRange
+    }
 
     /// Точка полосы: у cut и notch — на 0 dB.
     func point(_ b: EqBand) -> CGPoint {
@@ -134,6 +151,13 @@ struct EqPlot: View {
         }
     }
 
+    /// Центр подсказки: над пальцем, не за краями поля.
+    static func tipCenter(_ p: CGPoint, _ g: EqGeometry) -> CGPoint {
+        let x: CGFloat = max(60, min(g.size.width - 60, p.x))
+        let y: CGFloat = max(26, p.y - 68)
+        return CGPoint(x: x, y: y)
+    }
+
     /// Подсказки над пальцами, которые держат точки.
     @ViewBuilder
     private func tips(_ eq: Eq, _ g: EqGeometry) -> some View {
@@ -141,7 +165,7 @@ struct EqPlot: View {
         ForEach(0..<held.count, id: \.self) { i in
             if let b = eq.band(held[i].band) {
                 EqTip(band: b)
-                    .position(x: max(60, min(g.size.width - 60, held[i].at.x)), y: max(26, held[i].at.y - 68))
+                    .position(EqPlot.tipCenter(held[i].at, g))
                     .allowsHitTesting(false)
             }
         }
@@ -197,7 +221,8 @@ extension EqPlot {
         for k in 0..<eq.bands.count {
             guard let b = eq.bands[k] else { continue }
             let c: CGPoint = g.point(b)
-            let d: CGFloat = hypot(c.x - p.x, c.y - p.y) - (k == model.eqBand ? 6 : 0)
+            let bias: CGFloat = k == model.eqBand ? 6 : 0
+            let d: CGFloat = hypot(c.x - p.x, c.y - p.y) - bias
             if d < bestD {
                 bestD = d
                 best = k
@@ -236,7 +261,8 @@ extension EqPlot {
         if !t.moved && hypot(p.x - t.start.x, p.y - t.start.y) > EqPlot.moveTol { t.moved = true }
         touches[id] = t
         guard t.band >= 0, !t.menu, t.moved, let b = model.eqTarget.band(t.band) else { return }
-        let f: Double = t.f0 * pow(2, Double((p.x - t.start.x) / max(1, g.size.width)) * EqGeometry.octaves)
+        let dx: Double = Double((p.x - t.start.x) / max(1, g.size.width))
+        let f: Double = t.f0 * pow(2, dx * EqGeometry.octaves)
         if EqSpec.hasGain(b.type) {
             model.setEqBand(t.band, freq: f, gain: t.g0 + g.gain(p.y) - g.gain(t.start.y))
         } else {

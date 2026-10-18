@@ -76,7 +76,9 @@ final class SpectrumDisplay {
     }
 
     private func y(_ db: Float, _ size: CGSize) -> CGFloat {
-        return size.height * CGFloat((SpectrumDisplay.top - db) / (SpectrumDisplay.top - SpectrumDisplay.bottom))
+        let range: Float = SpectrumDisplay.top - SpectrumDisplay.bottom
+        let u: Float = (SpectrumDisplay.top - db) / range
+        return size.height * CGFloat(u)
     }
 
     /// Средняя мощность по 1/6 октавы вокруг частоты каждого столбца, dB (не ниже нижнего края шкалы).
@@ -88,13 +90,17 @@ final class SpectrumDisplay {
         func at(_ f: Double) -> Double {
             let p: Double = min(Double(bins), max(0, f / binHz + 0.5))
             let i: Int = min(bins - 1, Int(p))
-            return cum[i] + (cum[i + 1] - cum[i]) * (p - Double(i))
+            let a: Double = cum[i]
+            let b: Double = cum[i + 1]
+            return a + (b - a) * (p - Double(i))
         }
         return (0..<n).map { i in
             let f: Double = g.freq(CGFloat(i) * SpectrumDisplay.step)
-            let f0: Double = f / SpectrumDisplay.band, f1: Double = f * SpectrumDisplay.band
+            let f0: Double = f / SpectrumDisplay.band
+            let f1: Double = f * SpectrumDisplay.band
             let w: Double = max(1e-3, (f1 - f0) / binHz)
-            let db: Double = 10 * log10(max(1e-12, (at(f1) - at(f0)) / w))
+            let p: Double = (at(f1) - at(f0)) / w
+            let db: Double = 10 * log10(max(1e-12, p))
             return max(SpectrumDisplay.bottom, Float(db))
         }
     }

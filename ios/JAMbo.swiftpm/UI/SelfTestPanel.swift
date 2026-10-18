@@ -32,8 +32,11 @@ final class SelfTestRunner {
             let fx = try? FxSelfTest.loadCases(golden)
             let mst = try? MasterSelfTest.loadCases(golden)
             let eqs = try? EqSelfTest.loadCases(golden)
-            let count = all.cases.count + (jambo?.cases.count ?? 0) + (fx?.cases.count ?? 0) + (mst?.cases.count ?? 0)
-                + (eqs?.count ?? 0)
+            var count: Int = all.cases.count
+            count += jambo?.cases.count ?? 0
+            count += fx?.cases.count ?? 0
+            count += mst?.cases.count ?? 0
+            count += eqs?.count ?? 0
             await MainActor.run { self.total = count }
             for c in all.cases {
                 do {
