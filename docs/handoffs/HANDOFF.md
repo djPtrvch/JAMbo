@@ -20,7 +20,7 @@ S5c — индикация: измеритель справа (пик, LUFS), м
 ## 5. Что осталось решить
 - На iPad не подтверждены: SELF-TEST 184/184, звук мастера и EQ на мастере, CPU.
 - FFT — своё (0,08 мс на спектр); vDSP — только если на iPad будет тяжело.
-- `ios/CLAUDE.md` — 178 строк, сократить в конце S5.
+- `ios/CLAUDE.md` сокращён (подробности вех — в docs/SWIFT_MILESTONE_Sx.md).
 - Отложено: M/S, Dynamic, пресеты EQ и модулей мастера — S9; MUTE TAILS — S6; ускорение — S7.
 
 ## 6. Важные ограничения
@@ -33,4 +33,4 @@ S5c — индикация: измеритель справа (пик, LUFS), м
 - PR — только по просьбе.
 
 ## 7. Первый запрос для нового чата
-«Прочитай docs/handoffs/HANDOFF.md, ios/CLAUDE.md (S5a, S5b) и docs/ai/master-chain.md (индикация мастера). Начни S5c: измеритель и метры.»
+«Прочитай docs/handoffs/HANDOFF.md, ios/CLAUDE.md, docs/SWIFT_MILESTONE_S5.md и docs/ai/master-chain.md (индикация мастера). Начни S5c: измеритель и метры.»
