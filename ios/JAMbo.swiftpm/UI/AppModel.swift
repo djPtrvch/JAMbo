@@ -134,6 +134,9 @@ final class AppModel {
     @ObservationIgnored let meters = MeterState()
     /// Индикация COMP / CLIP / LIM при MST.
     @ObservationIgnored let dynMeters = MasterMeters()
+    /// Скоп мастера: точки съёма SAT (всегда), COMP, CLIP, LIM (по умолчанию — LIM; в проекте не хранится).
+    @ObservationIgnored let scope = ScopeState()
+    var scopeOn: [Bool] = [true, false, false, true]
 
     init() {
         trace("model init")

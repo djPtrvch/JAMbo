@@ -82,6 +82,28 @@ final class LevelsTests: XCTestCase {
         XCTAssertGreaterThan(m.compTele.peaks(since: 0).inPeak, 0.05)
     }
 
+    /// Скоп: пишутся только включённые точки; после лимитера — не выше CEILING; гониометр — выход мастера.
+    func testScopeTaps() {
+        let core = AudioCore()
+        var p = Project()
+        p.tracks[0].addSamples(["n"])
+        p.tracks[0].vol = 0
+        var rnd = FxRandom(11)
+        let noise = (0..<96000).map { _ in Float(rnd.next() * 2 - 1) }
+        core.publish(p, samples: ["n": SampleData(left: noise, right: nil)])
+        let sc = core.master.scope
+        sc.mask.store(1 << MasterScope.sat | 1 << MasterScope.lim | MasterScope.gonioBit)
+        core.events.push(.noteOn(track: 0, note: 48, id: 1, velocity: 1))
+        render(core, frames: 9600)
+        XCTAssertEqual(sc.taps[MasterScope.sat].written.load(), 9600)
+        XCTAssertEqual(sc.taps[MasterScope.comp].written.load(), 0, "выключена")
+        XCTAssertEqual(sc.gonioL.written.load(), 9600)
+        var buf = [Float](repeating: 0, count: 4096)
+        sc.taps[MasterScope.lim].read(into: &buf, count: 4096, end: 9600)
+        XCTAssertLessThan(buf.map { abs($0) }.max()!, 0.9)
+        XCTAssertGreaterThan(buf.map { abs($0) }.max()!, 0.1)
+    }
+
     /// АЧХ K-взвешивания на частоте hz (два биквада Loudness), разы.
     private func kGain(_ m: Loudness, _ hz: Double) -> Double {
         let w: Double = 2 * Double.pi * hz / 48000

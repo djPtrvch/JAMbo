@@ -70,6 +70,8 @@ public final class MasterChain {
     public let compTele = DynTele()
     public let clipTele = DynTele()
     public let limTele = DynTele()
+    /// Точки съёма скопа (после SAT, COMP, CLIP, LIM; гониометр пишет AudioCore).
+    public let scope = MasterScope()
     /// Точки съёма спектров EQ мастера (до и после EQ; ставит AudioCore).
     public var spectra: Spectra?
 
@@ -93,15 +95,20 @@ public final class MasterChain {
         }
         sat.process(inL: left, inR: right, outL: left, outR: right, frames: n, drive: p[I.satDrive], type: p[I.satType],
                     tone: p[I.satTone], mix: p[I.satBypass] >= 0.5 ? 0 : p[I.satMix], focus: p[I.satFocus])
+        let sm: Int = scope.mask.load()
+        scope.tap(MasterScope.sat, sm, left, right, n)
         glue.process(inL: left, inR: right, outL: left, outR: right, frames: n, thr: p[I.cmpThr], att: p[I.cmpAtt],
                      rel: p[I.cmpRel], auto: p[I.cmpAuto] >= 0.5, makeup: p[I.cmpMakeup], ratio: p[I.cmpRatio],
                      knee: p[I.cmpKnee], mix: p[I.cmpMix], schpf: p[I.cmpSchpf], bypass: p[I.cmpBypass] >= 0.5)
+        scope.tap(MasterScope.comp, sm, left, right, n)
         clip.process(inL: left, inR: right, outL: left, outR: right, frames: n, drive: p[I.clipDrive],
                      ceiling: p[I.clipCeiling], softness: p[I.clipSoftness], bass: p[I.clipBass],
                      bypass: p[I.clipBypass] >= 0.5)
+        scope.tap(MasterScope.clip, sm, left, right, n)
         lim.process(inL: left, inR: right, outL: left, outR: right, frames: n, gain: p[I.limGain],
                     ceiling: p[I.limCeiling], lookahead: p[I.limLookahead], rel: p[I.limRel], auto: p[I.limAuto] >= 0.5,
                     bypass: p[I.limBypass] >= 0.5)
+        scope.tap(MasterScope.lim, sm, left, right, n)
         compTele.push(frames: glue.frames, inPeak: glue.frameIn, gr: glue.frameGr, outPeak: glue.frameOut, det: glue.frameDet)
         clipTele.push(frames: clip.frames, inPeak: clip.frameIn, gr: clip.frameGr, outPeak: clip.frameOut, det: -240)
         limTele.push(frames: lim.frames, inPeak: lim.frameIn, gr: lim.frameGr, outPeak: lim.frameOut, det: -240)

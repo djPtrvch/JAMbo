@@ -153,6 +153,7 @@ public final class AudioCore: @unchecked Sendable {
             // Конечный выход мастера (громкость выхода — S5d).
             if spectra.outOn.load() != 0 { spectra.out.push(masterL, masterR, n) }
             meterMaster(n)
+            master.scope.gonio(masterL, masterR, n)
             var i = 0
             while i < n {
                 left[i] += masterL[i]

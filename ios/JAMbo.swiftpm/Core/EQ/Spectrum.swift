@@ -34,6 +34,20 @@ public final class SpectrumTap: @unchecked Sendable {
         written.store(w + n)
     }
 
+    /// Колбэк: n отсчётов одного канала (гониометр скопа — L и R в своих буферах).
+    @inline(__always)
+    public func push(_ x: UnsafePointer<Float>, _ n: Int) {
+        let b = buf
+        let m = SpectrumTap.mask
+        let w = written.load()
+        var i = 0
+        while i < n {
+            b[(w + i) & m] = x[i]
+            i += 1
+        }
+        written.store(w + n)
+    }
+
     /// Колбэк: n отсчётов тишины (канал молчит).
     @inline(__always)
     public func pushSilence(_ n: Int) {
@@ -46,6 +60,15 @@ public final class SpectrumTap: @unchecked Sendable {
             i += 1
         }
         written.store(w + n)
+    }
+
+    /// Интерфейс: count отсчётов, кончая отсчётом end (счётчик written; count ≤ 4096).
+    public func read(into out: UnsafeMutablePointer<Float>, count: Int, end w: Int) {
+        var i = 0
+        while i < count {
+            out[i] = buf[(w - count + i) & SpectrumTap.mask]
+            i += 1
+        }
     }
 
     /// Интерфейс: последние count отсчётов (count ≤ 4096).

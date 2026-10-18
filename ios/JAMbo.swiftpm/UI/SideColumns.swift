@@ -46,10 +46,20 @@ struct RightColumn: View {
     let model: AppModel
 
     var body: some View {
-        VStack(spacing: Layout.gap) {
-            PagesColumn(model: model)
-            ButtonPair(left: MorphButton(model: model), right: PageButton(model: model, title: "FX", page: .fx))
-            ButtonPair(left: ShiftButton(model: model), right: PageButton(model: model, title: "MOD", page: .mod))
+        // При MST — скоп на месте миниатюр, кнопки точек съёма COMP, CLIP, LIM на месте MORPH, FX, MOD.
+        if model.channel == .master {
+            VStack(spacing: Layout.gap) {
+                MasterScopeView(model: model)
+                ButtonPair(left: ScopeButton(model: model, tap: MasterScope.comp),
+                           right: ScopeButton(model: model, tap: MasterScope.clip))
+                ButtonPair(left: ShiftButton(model: model), right: ScopeButton(model: model, tap: MasterScope.lim))
+            }
+        } else {
+            VStack(spacing: Layout.gap) {
+                PagesColumn(model: model)
+                ButtonPair(left: MorphButton(model: model), right: PageButton(model: model, title: "FX", page: .fx))
+                ButtonPair(left: ShiftButton(model: model), right: PageButton(model: model, title: "MOD", page: .mod))
+            }
         }
     }
 }

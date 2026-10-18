@@ -12,6 +12,16 @@ extension AppModel {
         let now: Double = Date.timeIntervalSinceReferenceDate
         meters.tick(lv, now: now)
         dynMeters.tick(audio.core.master, project, now: now)
+        // Скоп — только пока виден (MST).
+        let sc: MasterScope = audio.core.master.scope
+        if channel == .master {
+            var m: Int = MasterScope.gonioBit
+            for k in 0..<4 where scopeOn[k] { m |= 1 << k }
+            sc.mask.store(m)
+            scope.tick(sc, on: scopeOn)
+        } else if sc.mask.load() != 0 {
+            sc.mask.store(0)
+        }
     }
 
     /// Стерео ли дорожка на метре (как trackIsStereo веба): стерео-сэмпл, панорама до края, панораму двигают
