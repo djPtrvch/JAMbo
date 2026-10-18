@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Какое значение полосы вводят числом (удержание FREQ, GAIN, Q; тап по FREQ).
+/// Какое значение полосы вводят числом (удержание FREQ, GAIN, Q).
 enum EqInput {
     case freq, gain, q
 }
@@ -205,13 +205,14 @@ struct EqBar: View {
                        model: model)
     }
 
-    /// FREQ: 2 px на 1/24 октавы; тап и удержание (палец может сдвинуться до 14 px) — ввод числом.
+    /// FREQ: 2 px на 1/24 октавы; удержание (палец может сдвинуться до 14 px) — ввод числом (решение пользователя:
+    /// тап — ничего, в вебе тап тоже открывает ввод).
     private func freqField(_ b: EqBand?) -> some View {
         let k: Int = model.eqBand
         return EqField(label: "FREQ", value: b.map { EqFormat.hz($0.freq) } ?? "—", enabled: b != nil, pxPerUnit: 2,
                        get: { EqBar.freqUnits(model.selectedBand) },
                        set: { v in model.setEqBand(k, freq: EqBar.freqOf(v)) },
-                       tap: { _ in input(.freq) }, hold: { input(.freq) }, moveTol: 14, model: model)
+                       hold: { input(.freq) }, moveTol: 14, model: model)
     }
 
     /// GAIN: 1 px на 0,1 dB (у cut и notch — «—»); удержание — ввод числом.
