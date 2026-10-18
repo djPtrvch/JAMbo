@@ -130,6 +130,8 @@ final class AppModel {
     var hasTrackClip: Bool = false
     private var audioStarted: Bool = false
     @ObservationIgnored private var pump: Timer?
+    /// Измеритель и метры MIX (читают виды по таймеру анимации; не наблюдается).
+    @ObservationIgnored let meters = MeterState()
 
     init() {
         trace("model init")
@@ -172,6 +174,7 @@ final class AppModel {
         audio.core.releaseRetired()
         defer { applyPendingLead() }
         drainVoices()
+        tickMeters()
         let tracks = project.tracks.count
         live.audible = { [weak self] t in
             guard let s = self, t < tracks else { return false }

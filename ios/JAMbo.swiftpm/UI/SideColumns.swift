@@ -183,17 +183,3 @@ struct ShiftButton: View {
             )
     }
 }
-
-/// Измеритель уровня справа (S5) — пока пустые полосы.
-struct MeterColumn: View {
-    @Environment(\.theme) private var theme
-
-    var body: some View {
-        HStack(spacing: 3) {
-            RoundedRectangle(cornerRadius: 3).fill(theme.meterTrack).frame(width: 9)
-            RoundedRectangle(cornerRadius: 3).fill(theme.meterTrack).frame(width: 9)
-        }
-        .padding(.vertical, 24)
-        .frame(width: Layout.meterWidth)
-    }
-}

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Раскладка ячейки MIX: слева метр (S5), ручка громкости, справа столбик M, S, ● (как в вебе).
+/// Раскладка ячейки MIX: слева метр, ручка громкости, справа столбик M, S, ● (как в вебе).
 enum MixLayout {
     static let meterW: CGFloat = 21
     static let buttonW: CGFloat = 26
@@ -33,7 +33,7 @@ enum MixLayout {
     }
 }
 
-/// Ячейка MIX: метр дорожки (S5 — пока дорожка метра), ручка громкости (подпись — имя дорожки), кнопки M, S, ●.
+/// Ячейка MIX: метр дорожки, ручка громкости (подпись — имя дорожки), кнопки M, S, ●.
 /// Дизайн кнопок — как REC: окантовка цветом (M и ● — красная, S — жёлтая), включена — горит этим цветом.
 struct MixCell: View {
     let model: AppModel
@@ -56,13 +56,26 @@ struct MixCell: View {
         }
     }
 
+    /// Метр дорожки (как в вебе): после громкости, стерео — две полосы, моно — одна (у ручки); выше 0 dB — красная,
+    /// заглушённая — серая, приглушение Sidechain — оранжевым сверху (24 dB — вся высота), пик-холд; без чисел.
     private func meter(_ size: CGSize) -> some View {
         let h: CGFloat = (size.height - MixLayout.label) * 0.8
-        return HStack(spacing: 3) {
-            RoundedRectangle(cornerRadius: 3).fill(theme.meterTrack).frame(width: 9, height: h)
-            RoundedRectangle(cornerRadius: 3).fill(theme.meterTrack).frame(width: 9, height: h)
+        let t: Int = slot
+        let stereo: Bool = model.trackStereo(t)
+        let muted: Bool = !model.project.audible(t)
+        return TimelineView(.animation(minimumInterval: 1.0 / 60)) { _ in
+            Canvas { ctx, sz in
+                let data = model.meters.bars(t, stereo: stereo)
+                let w: CGFloat = MeterBars.span(data.count)
+                let db: Float = model.meters.duckDb(t)
+                let gr: CGFloat = db <= -0.1 ? CGFloat(-db / 24) : 0
+                MeterBars.draw(ctx, CGRect(x: sz.width - w, y: 0, width: w, height: sz.height), data, theme: theme,
+                               muted: muted, gr: gr)
+            }
         }
+        .frame(width: MixLayout.meterW, height: h)
         .offset(x: 2, y: (size.height - MixLayout.label - h) / 2)
+        .allowsHitTesting(false)
     }
 
     private func buttons(_ frames: [CGRect]) -> some View {

@@ -57,20 +57,20 @@ struct RootView: View {
         } else if model.eqView {
             HStack(spacing: Layout.gap) {
                 EqView(model: model, layout: layout)
-                MeterColumn()
+                MeterColumn(model: model)
             }
         } else if model.editorOpen {
             // Редактор сэмпла — на месте центра (окно сэмпла, сетка ручек, правая колонка), справа измеритель.
             HStack(spacing: Layout.gap) {
                 SampleEditor(model: model)
-                MeterColumn()
+                MeterColumn(model: model)
             }
         } else {
             HStack(spacing: Layout.gap) {
                 LeftColumn(model: model).frame(width: Layout.leftColumn)
                 KnobGrid(model: model)
                 RightColumn(model: model).frame(width: Layout.leftColumn)
-                MeterColumn()
+                MeterColumn(model: model)
             }
         }
     }

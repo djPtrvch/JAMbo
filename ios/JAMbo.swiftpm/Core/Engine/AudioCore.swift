@@ -24,6 +24,8 @@ public final class AudioCore: @unchecked Sendable {
     public let trackEqs = TrackEqs(sampleRate: AudioCore.sampleRate)
     /// Спектры EQ (до и после EQ показанного канала, сравниваемая дорожка, выход мастера).
     public let spectra = Spectra()
+    /// Пики дорожек и выхода мастера, приглушение Sidechain, LUFS показанного канала (измеритель и метры MIX).
+    public let levels = Levels()
     /// Цепочка мастера (сумма дорожек и FX → EQ → SAT → COMP → CLIP → LIM); тест-тон, метроном и прослушивание — мимо неё,
     /// как в вебе. Без мастера (useMaster false) — тесты, которые сверяют выход по отсчётам.
     public let master = MasterChain(sampleRate: AudioCore.sampleRate)
@@ -61,6 +63,7 @@ public final class AudioCore: @unchecked Sendable {
         sampler.mod = mod
         sampler.eqs = trackEqs
         sampler.spectra = spectra
+        sampler.levels = levels
         self.master.spectra = spectra
         sequencer.mod = mod
     }
@@ -139,6 +142,8 @@ public final class AudioCore: @unchecked Sendable {
     private func renderMix(_ frames: Int, _ left: UnsafeMutablePointer<Float>, _ right: UnsafeMutablePointer<Float>) {
         guard let d = sampler.sound else { return }
         let n = Swift.min(frames, AudioCore.maxFrames)
+        _ = levels.begin()
+        defer { levels.commit(frames: n) }
         if useMaster {
             masterL.update(repeating: 0, count: n)
             masterR.update(repeating: 0, count: n)
@@ -147,6 +152,7 @@ public final class AudioCore: @unchecked Sendable {
                            eqParams: d.eq + EqSpec.masterChannel * EqSpec.stride)
             // Конечный выход мастера (громкость выхода — S5d).
             if spectra.outOn.load() != 0 { spectra.out.push(masterL, masterR, n) }
+            meterMaster(n)
             var i = 0
             while i < n {
                 left[i] += masterL[i]
@@ -157,6 +163,25 @@ public final class AudioCore: @unchecked Sendable {
             sampler.render(blockStart: sampleTime, frames: n, left: left, right: right)
         }
         sampler.renderPreview(n, left, right)
+    }
+
+    /// Пики выхода мастера в блоке и его громкость, если измеритель показывает мастер.
+    @inline(__always)
+    private func meterMaster(_ n: Int) {
+        let l = masterL, r = masterR
+        var pl: Float = 0, pr: Float = 0
+        var i = 0
+        while i < n {
+            let al: Float = l[i] < 0 ? -l[i] : l[i]
+            let ar: Float = r[i] < 0 ? -r[i] : r[i]
+            if al > pl { pl = al }
+            if ar > pr { pr = ar }
+            i += 1
+        }
+        let m = levels.current(Levels.master)
+        m[0] = pl
+        m[1] = pr
+        if levels.loudness.listens(Levels.master) { levels.loudness.process(UnsafePointer(l), UnsafePointer(r), n) }
     }
 
     @inline(__always)

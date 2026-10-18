@@ -1,0 +1,44 @@
+import Foundation
+
+/// Измеритель справа и метры MIX: канал, стерео или моно, громкость дорожки с измерителя.
+extension AppModel {
+    /// Канал измерителя: выбранная дорожка, при MIX и MST — выход мастера.
+    var meterChannel: Int { return channel == .track ? selectedTrack : Levels.master }
+
+    /// Кадр метров (drain, 60 раз в секунду): LUFS копится и при закрытом измерителе (сетка паттернов).
+    func tickMeters() {
+        let lv = audio.core.levels
+        meters.show(meterChannel, lv)
+        meters.tick(lv, now: Date.timeIntervalSinceReferenceDate)
+    }
+
+    /// Стерео ли дорожка на метре (как trackIsStereo веба): стерео-сэмпл, панорама до края, панораму двигают
+    /// LFO/ENV или p-lock шагов.
+    func trackStereo(_ t: Int) -> Bool {
+        guard t >= 0 && t < project.tracks.count else { return false }
+        let tr = project.tracks[t]
+        if (sample(tr.sample)?.channels ?? 1) > 1 { return true }
+        if abs(tr.params["pan"] ?? 0) >= 1 { return true }
+        if abs(tr.assigns["pan"]?.amount ?? 0) > 0 { return true }
+        for page in tr.pages {
+            for s in page where abs(s.locks["pan"] ?? 0) >= 1 { return true }
+        }
+        return false
+    }
+
+    /// Регулятор на измерителе: громкость дорожки в микшере (та же, что ручка в MIX), −∞…0 dB.
+    func setTrackVol(_ t: Int, _ db: Double) {
+        guard t >= 0 && t < project.tracks.count else { return }
+        let v: Double = max(Params.volMin, min(0, db))
+        edit { pr in pr.tracks[t].vol = v }
+    }
+
+    func resetMeterPeak() {
+        meters.resetPeak(meterChannel)
+    }
+
+    func resetLoudness() {
+        let l = audio.core.levels.loudness
+        l.resetRequests.store(l.resetRequests.load() + 1)
+    }
+}

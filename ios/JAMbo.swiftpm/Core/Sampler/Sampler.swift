@@ -90,6 +90,11 @@ public final class Sampler {
     public var eqs: TrackEqs?
     /// Точки съёма спектров EQ (ставит AudioCore).
     public var spectra: Spectra?
+    /// Пики дорожек для измерителя и метров MIX, громкость показанной дорожки (ставит AudioCore).
+    public var levels: Levels?
+    /// Сигнал показанной дорожки (после громкости, до mute/solo) — для LUFS.
+    let meterL = UnsafeMutablePointer<Float>.allocate(capacity: maxFrames)
+    let meterR = UnsafeMutablePointer<Float>.allocate(capacity: maxFrames)
     /// Модуляция LFO/ENV (ставит AudioCore); modFrame — кадр ноты, которую сейчас запускают.
     public var mod: ModEngine?
     var modFrame: Int64 = 0
@@ -169,7 +174,7 @@ public final class Sampler {
 
     deinit {
         for p in [active, fading, own, stereo, released, used, sendUsed] as [UnsafeMutablePointer<UInt8>] { p.deallocate() }
-        for p in [send, sendL, sendR, duckCur, flagCur] { p.deallocate() }
+        for p in [send, sendL, sendR, duckCur, flagCur, meterL, meterR] { p.deallocate() }
         for p in [track, trackId, note, liveId, serial, srcFrames, ftype] as [UnsafeMutablePointer<Int>] { p.deallocate() }
         for p in [pos, endPos, edge, noteRatio, rate, attackF, decaySec, hz, qDb] as [UnsafeMutablePointer<Double>] { p.deallocate() }
         for p in [start, holdEnd, stopAt, fadeAt] as [UnsafeMutablePointer<Int64>] { p.deallocate() }
@@ -479,88 +484,6 @@ public final class Sampler {
             (sendL + (t * 3 + k) * Sampler.maxFrames).update(repeating: 0, count: n)
             (sendR + (t * 3 + k) * Sampler.maxFrames).update(repeating: 0, count: n)
             k += 1
-        }
-    }
-
-    /// Микшер: шина дорожки → EQ → · (1 − amount·e) · громкость · гейт → выход; посылы · громкость · гейт
-    /// (· (1 − amount·e), если посыл приглушается — SETTINGS → SIDECHAIN) → входы шин эффектов.
-    private func mix(_ d: SoundData, _ n: Int, _ left: UnsafeMutablePointer<Float>, _ right: UnsafeMutablePointer<Float>) {
-        // Гейт mute/solo — за ~5 мс (постоянная 1,5 мс), громкость — за ~10 мс, глубина Sidechain и переключатели
-        // посылов — за ~10 мс (постоянная 3,3 мс).
-        let gk = Float(1 - exp(-1 / (0.0015 * sr)))
-        let vk = Float(1 - exp(-1 / (0.01 * sr)))
-        let dk = Float(1 - exp(-1 / (0.0033 * sr)))
-        let rack = fx
-        let eBuf: UnsafeMutablePointer<Float>? = rack?.e
-        let source: Int = rack?.source ?? -1
-        // Переключатели посылов — общие для дорожек (сглаживание на блок).
-        var fl0: Float = 0, fl1: Float = 0, fl2: Float = 0
-        if rack != nil {
-            var k = 0
-            while k < 3 {
-                if flagCur[k] < 0 { flagCur[k] = d.scSend[k] }
-                flagCur[k] += (d.scSend[k] - flagCur[k]) * Swift.min(1, dk * Float(n))
-                k += 1
-            }
-            fl0 = flagCur[0]; fl1 = flagCur[1]; fl2 = flagCur[2]
-        }
-        for t in 0..<d.trackCount {
-            let vt: Float = d.gain[t]
-            let gt: Float = d.open[t] != 0 ? 1 : 0
-            let at: Float = t == source ? 0 : Swift.max(0, Swift.min(1, d.scAmount[t] / 100))
-            if volCur[t] < 0 { volCur[t] = vt }
-            if gateCur[t] < 0 { gateCur[t] = gt }
-            if used[t] == 0 {
-                volCur[t] = vt
-                gateCur[t] = gt
-                duckCur[t] = at
-                idleEq(t, d, n)
-                continue
-            }
-            trackEq(t, d, n, sends: rack != nil)
-            let bl = busL + t * Sampler.maxFrames
-            let br = busR + t * Sampler.maxFrames
-            var vol = volCur[t]
-            var gate = gateCur[t]
-            var amt = duckCur[t]
-            if let r = rack, let eb = eBuf {
-                let s0L = sendL + t * 3 * Sampler.maxFrames, s0R = sendR + t * 3 * Sampler.maxFrames
-                let mf = Sampler.maxFrames
-                let i0L = r.inL, i0R = r.inR
-                var i = 0
-                while i < n {
-                    vol += (vt - vol) * vk
-                    gate += (gt - gate) * gk
-                    amt += (at - amt) * dk
-                    let g: Float = vol * gate
-                    let de: Float = amt * eb[i]
-                    let gm: Float = g * (1 - de)
-                    left[i] += bl[i] * gm
-                    right[i] += br[i] * gm
-                    // Посылы Reverb, Delay, Drive.
-                    var gs: Float = g * (1 - fl0 * de)
-                    i0L[i] += s0L[i] * gs
-                    i0R[i] += s0R[i] * gs
-                    gs = g * (1 - fl1 * de)
-                    i0L[mf + i] += s0L[mf + i] * gs
-                    i0R[mf + i] += s0R[mf + i] * gs
-                    gs = g * (1 - fl2 * de)
-                    i0L[2 * mf + i] += s0L[2 * mf + i] * gs
-                    i0R[2 * mf + i] += s0R[2 * mf + i] * gs
-                    i += 1
-                }
-            } else {
-                for i in 0..<n {
-                    vol += (vt - vol) * vk
-                    gate += (gt - gate) * gk
-                    let g = vol * gate
-                    left[i] += bl[i] * g
-                    right[i] += br[i] * g
-                }
-            }
-            volCur[t] = vol
-            gateCur[t] = gate
-            duckCur[t] = amt
         }
     }
 
