@@ -48,6 +48,19 @@ final class TeleHistory {
         sWritten = t.written.load()
     }
 
+    /// Кадры приходят (звук идёт); обновляется в columns.
+    func isLive(_ now: Double) -> Bool {
+        return now - lastAt < TeleHistory.liveTime
+    }
+
+    /// Последний кадр модуля (живой, не снимок FREEZE): уровень детектора в dB и GR; nil — кадров нет.
+    func latest(_ t: DynTele, now: Double) -> (det: Float, gr: Float)? {
+        let w: Int = t.written.load()
+        if w == 0 || !isLive(now) { return nil }
+        let q: Int = (w - 1) & (DynTele.capacity - 1)
+        return (t.det[q], t.gr[q])
+    }
+
     /// Столбцы за 4 с: вход и выход в dB (−200 — нет сигнала), GR в dB ≥ 0.
     func columns(_ t: DynTele, cols: Int, now: Double) -> Columns {
         let w: Int = t.written.load()
@@ -188,6 +201,36 @@ enum MasterDraw {
         return p
     }
 
+    /// Вход выше 0 dBFS — светлая полоса 3 px у верхней кромки.
+    static func overMarks(_ ctx: GraphicsContext, _ inDb: [Float], _ theme: Theme) {
+        var x: Int = 0
+        while x < inDb.count {
+            if inDb[x] > 0 {
+                var e: Int = x
+                while e + 1 < inDb.count && inDb[e + 1] > 0 { e += 1 }
+                let r = CGRect(x: CGFloat(x), y: 0, width: CGFloat(e - x + 1), height: 3)
+                ctx.fill(Path(r), with: .color(theme.text.opacity(0.7)))
+                x = e
+            }
+            x += 1
+        }
+    }
+
+    /// Пунктир (порог компрессора): жёлтый и толще, пока параметр меняют.
+    static func dashed(_ ctx: GraphicsContext, _ a: CGPoint, _ b: CGPoint, hot: Bool, _ theme: Theme) {
+        var p = Path()
+        p.move(to: a)
+        p.addLine(to: b)
+        let st = StrokeStyle(lineWidth: hot ? 1.5 : 1, dash: [4, 4])
+        ctx.stroke(p, with: .color(hot ? theme.accent : theme.meterThr), style: st)
+    }
+
+    /// Подпись дисплея справа внизу (TRANSFER, LEVEL).
+    static func title(_ ctx: GraphicsContext, _ text: String, _ size: CGSize, _ theme: Theme) {
+        let t = ctx.resolve(Text(text).font(.system(size: 9)).tracking(1).foregroundColor(theme.dim))
+        ctx.draw(t, at: CGPoint(x: size.width - 6, y: size.height - 4), anchor: .bottomTrailing)
+    }
+
     /// Линия потолка или порога (2 px, --meter-thr) с числом справа.
     static func line(_ ctx: GraphicsContext, _ db: Double, _ size: CGSize, _ theme: Theme) {
         let cy: CGFloat = y(db, size.height).rounded()
@@ -230,5 +273,71 @@ struct DynBlock: View {
             let mark: Float = Float(model.masterValue(cols[3][1]))
             MasterIndicator.draw(ctx, size, d.lim, bypass: bypass, grMax: 12, mark: mark, now: now, theme: theme)
         }
+    }
+}
+
+/// Дисплей уровня за 4 с (LEVEL компрессора, дисплей лимитера): столбцы истории рисует draw; линия параметра line
+/// (THRESHOLD, CEILING) тянется пальцем (±22 px, приоритет над FREEZE), тап мимо линии — FREEZE.
+struct LevelPlot: View {
+    let model: AppModel
+    let tele: DynTele
+    let hist: TeleHistory
+    let line: ParamDef
+    let now: Double
+    /// Жёлтая рамка дисплея, пока линию меняют (у лимитера — как в вебе; у LEVEL компрессора нет).
+    var lit: Bool = true
+    let draw: (GraphicsContext, CGSize, TeleHistory.Columns) -> Void
+    @State private var touching: Bool = false
+    @State private var lineStart: Double? = nil
+    @State private var moved: Bool = false
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        GeometryReader { geo in
+            Canvas { ctx, size in
+                let cols: Int = max(1, Int(size.width))
+                let c: TeleHistory.Columns = hist.columns(tele, cols: cols, now: now)
+                draw(ctx, size, c)
+            }
+            .contentShape(Rectangle())
+            .gesture(drag(geo.size.height))
+        }
+        .background(theme.panel)
+        .clipShape(RoundedRectangle(cornerRadius: Layout.radius))
+        .overlay { if lit { HotFrame(model: model, id: line.id) } }
+    }
+
+    private func drag(_ h: CGFloat) -> some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { g in
+                if !touching {
+                    touching = true
+                    moved = false
+                    let v: Double = model.masterValue(line)
+                    let cy: CGFloat = MasterDraw.y(v, h)
+                    if abs(g.startLocation.y - cy) <= MasterDraw.lineHit {
+                        lineStart = v
+                        model.beginGesture()
+                        model.masterHot.hold(line.id)
+                    } else {
+                        lineStart = nil
+                    }
+                }
+                if abs(g.translation.height) > 6 { moved = true }
+                guard let v0 = lineStart, h > 0 else { return }
+                // Линия идёт за пальцем по шкале дисплея.
+                let d: Double = Double(g.translation.height / h * MasterDraw.scale)
+                model.setMaster(line, v0 - d)
+            }
+            .onEnded { _ in
+                if lineStart != nil {
+                    model.masterHot.release(line.id)
+                    model.endGesture()
+                } else if !moved {
+                    hist.setFrozen(!hist.frozen, tele)
+                }
+                touching = false
+                lineStart = nil
+            }
     }
 }

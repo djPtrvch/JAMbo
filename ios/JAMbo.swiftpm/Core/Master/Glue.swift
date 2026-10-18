@@ -88,6 +88,24 @@ public final class MasterGlue {
         ha2 = (1 - al) / a0
     }
 
+    /// Статическая кривая (окно компрессора, TRANSFER): GR в dB ≥ 0 на уровне детектора level — та же формула, что
+    /// в process (staticGr веба без RANGE).
+    public static func staticGr(_ level: Double, thr: Double, ratio: Double, knee: Double) -> Double {
+        let slope: Double = 1 - 1 / Swift.max(1, Swift.min(20, ratio))
+        let k: Double = Swift.max(0, Swift.min(24, knee))
+        let over: Double = level - thr
+        let half: Double = k / 2
+        if over >= half { return over * slope }
+        if over > -half { return (slope * (over + half) * (over + half)) / (2 * k) }
+        return 0
+    }
+
+    /// Следующий пресет RATIO по тапу поля: 2 → 4 → 10 → 2 (выше 10 — 2; 3.3 — 4).
+    public static func nextRatio(_ r: Double) -> Double {
+        for x in [2.0, 4.0, 10.0] where x > r + 1e-3 { return x }
+        return 2
+    }
+
     /// Блок n отсчётов (вход и выход могут совпадать). thr −40…0 dB, att 0,1…100 мс, rel 20…2000 мс (auto — AUTO),
     /// makeup 0…18 dB, ratio 1…20, knee 0…24 dB, mix 0…100 %, schpf 20…500 Гц (20 — OFF).
     public func process(inL: UnsafePointer<Float>, inR: UnsafePointer<Float>, outL: UnsafeMutablePointer<Float>,

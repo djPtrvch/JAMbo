@@ -91,3 +91,35 @@ final class MasterInputTests: XCTestCase {
         XCTAssertEqual(MasterInput.text(p("sat.type"), 1), "TUBE")
     }
 }
+
+/// Окно компрессора: статическая кривая TRANSFER совпадает с GR компрессора на установившемся синусе.
+final class GlueCurveTests: XCTestCase {
+    func testStaticCurveMatchesDsp() {
+        let sr: Double = 48000
+        let n: Int = 256
+        let l = UnsafeMutablePointer<Float>.allocate(capacity: n)
+        let r = UnsafeMutablePointer<Float>.allocate(capacity: n)
+        defer { l.deallocate(); r.deallocate() }
+        for (amp, ratio, knee) in [(0.6, 4.0, 0.0), (0.3, 2.0, 6.0), (0.9, 10.0, 12.0), (0.1, 20.0, 24.0)] {
+            let g = MasterGlue(sampleRate: sr)
+            var ph: Double = 0
+            for _ in 0..<1500 {
+                for i in 0..<n {
+                    let v = Float(amp * sin(ph))
+                    l[i] = v
+                    r[i] = v
+                    ph += 2 * Double.pi * 1000 / sr
+                }
+                g.process(inL: l, inR: r, outL: l, outR: r, frames: n, thr: -20, att: 1, rel: 50, auto: false,
+                          makeup: 0, ratio: ratio, knee: knee, mix: 100, schpf: 20, bypass: false)
+            }
+            let want = MasterGlue.staticGr(g.frameDet, thr: -20, ratio: ratio, knee: knee)
+            XCTAssertEqual(g.frameGr, want, accuracy: 0.3, "amp \(amp) ratio \(ratio) knee \(knee)")
+        }
+        XCTAssertEqual(MasterGlue.staticGr(-4, thr: -12, ratio: 4, knee: 0), 6, accuracy: 1e-9)
+        XCTAssertEqual(MasterGlue.nextRatio(2), 4)
+        XCTAssertEqual(MasterGlue.nextRatio(3.3), 4)
+        XCTAssertEqual(MasterGlue.nextRatio(10), 2)
+        XCTAssertEqual(MasterGlue.nextRatio(15), 2)
+    }
+}

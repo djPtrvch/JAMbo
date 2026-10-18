@@ -31,6 +31,8 @@ struct MasterWindowView: View {
     private var display: some View {
         if module == MasterScope.lim {
             LimiterDisplay(model: model)
+        } else if module == MasterScope.comp {
+            CompDisplay(model: model)
         } else {
             Placeholder(title: "DISPLAY — NEXT STEP")
         }
@@ -103,7 +105,12 @@ struct MasterStrip: View {
             MasterTitle(model: model, module: module, bounds: bounds)
             ForEach(0..<fields.count, id: \.self) { i in
                 let p: ParamDef = fields[i]
-                MasterField(model: model, param: p, gray: bypass && grays(p), input: { input(.param(p.id)) })
+                // Поля без ручек (RATIO и дальше) — за тонкой чертой.
+                if p.id == "cmp.ratio" {
+                    Rectangle().fill(theme.line).frame(width: 1).padding(.vertical, 8)
+                }
+                MasterField(model: model, param: p, gray: bypass && grays(p), tap: tapAction(p),
+                            input: { input(.param(p.id)) })
             }
             EqTool(title: "PRESETS", enabled: true, active: model.masterMenu?.kind == .presets) {
                 model.masterMenu = MasterMenuState(kind: .presets, anchor: presetsFrame, bounds: bounds)
@@ -114,6 +121,11 @@ struct MasterStrip: View {
                 .frame(width: 100)
             CloseButton { model.closeMasterWindow() }
         }
+    }
+
+    private func tapAction(_ p: ParamDef) -> (() -> Void)? {
+        if p.id == "cmp.ratio" { return { model.tapRatio() } }
+        return nil
     }
 
     private func grays(_ p: ParamDef) -> Bool {
