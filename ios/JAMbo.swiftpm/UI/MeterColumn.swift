@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// Измеритель уровня справа (как ui/meter.ts веба): сверху интегральная громкость LUFS (тап — сброс), метка
-/// клиппинга, полосы (стерео — две, моно — одна; шкала −60…0 dB, пик-холд, выше 0 dB — красная), снизу наибольший
+/// клиппинга, полосы (стерео — две, моно — одна; шкала −60…0 dB, пик-холд, выше 0 dB — красная, заглушённая
+/// дорожка — серая), снизу наибольший
 /// пик в dB (тап — сброс). Поверх полос — регулятор громкости (белая планка по той же шкале): у дорожки — её громкость
 /// в микшере (палец вверх-вниз; пока палец на нём — снизу VOL); громкость выхода мастера (MIX, MST) — S5d.
 struct MeterColumn: View {
@@ -55,11 +56,14 @@ struct MeterColumn: View {
         let data = model.meters.bars(ch, stereo: stereo)
         let track: Bool = ch < Levels.master
         let vol: Double = volValue(ch)
+        // Заглушённая дорожка — серым, как в MIX (отличие от веба).
+        let muted: Bool = track && ch < model.project.tracks.count && !model.project.audible(ch)
         return GeometryReader { geo in
             ZStack(alignment: .topLeading) {
                 Canvas { ctx, size in
                     let w: CGFloat = MeterBars.span(data.count)
-                    MeterBars.draw(ctx, CGRect(x: (size.width - w) / 2, y: 0, width: w, height: size.height), data, theme: theme)
+                    MeterBars.draw(ctx, CGRect(x: (size.width - w) / 2, y: 0, width: w, height: size.height), data, theme: theme,
+                                   muted: muted)
                 }
                 if track { thumb(vol, geo.size) }
             }
