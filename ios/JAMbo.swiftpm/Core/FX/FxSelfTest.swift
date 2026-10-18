@@ -35,6 +35,10 @@ public enum FxSelfTest {
         public let cases: [Case]
     }
 
+    /// Коды эффектов в Result.engine (после движков 0–19) и их имена в SELF-TEST.
+    public static let codes = ["delay": 32, "reverb": 33, "drive": 34, "duck": 35]
+    public static let engineNames = [32: "DELAY", 33: "REVERB", 34: "DRIVE", 35: "SIDECHAIN"]
+
     public static func loadCases(_ goldenDir: URL) throws -> Cases {
         let data = try Data(contentsOf: goldenDir.appendingPathComponent("fx_cases.json"))
         return try JSONDecoder().decode(Cases.self, from: data)
@@ -153,7 +157,7 @@ public enum FxSelfTest {
         let a = PlaitsSelfTest.compare(pc, l, gl)
         let b = PlaitsSelfTest.compare(pc, r, gr)
         let worst: PlaitsSelfTest.Result = a.sampleErrorDb >= b.sampleErrorDb ? a : b
-        return PlaitsSelfTest.Result(file: c.file, engine: 0, sampleErrorDb: worst.sampleErrorDb,
+        return PlaitsSelfTest.Result(file: c.file, engine: codes[c.proc] ?? 0, sampleErrorDb: worst.sampleErrorDb,
                                      maxBandDiffDb: max(a.maxBandDiffDb, b.maxBandDiffDb),
                                      rmsDb: max(a.rmsDb, b.rmsDb), finite: a.finite && b.finite)
     }

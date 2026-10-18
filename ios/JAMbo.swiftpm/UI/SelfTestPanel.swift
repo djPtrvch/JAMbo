@@ -1,7 +1,7 @@
 import SwiftUI
 import Observation
 
-/// Прогон самотеста движков (Plaits и свои — DRUM, ANALOG, FM) вне основного потока; результаты — по мере готовности.
+/// Прогон самотеста движков (Plaits и свои — DRUM, ANALOG, FM, WTABLE) и эффектов вне основного потока; результаты — по мере готовности.
 @Observable
 final class SelfTestRunner {
     private(set) var results: [PlaitsSelfTest.Result] = []
@@ -29,7 +29,8 @@ final class SelfTestRunner {
                 return
             }
             let jambo = try? JamboSelfTest.loadCases(golden)
-            let count = all.cases.count + (jambo?.cases.count ?? 0)
+            let fx = try? FxSelfTest.loadCases(golden)
+            let count = all.cases.count + (jambo?.cases.count ?? 0) + (fx?.cases.count ?? 0)
             await MainActor.run { self.total = count }
             for c in all.cases {
                 do {
@@ -53,6 +54,17 @@ final class SelfTestRunner {
                     }
                 }
             }
+            if let fx = fx {
+                for c in fx.cases {
+                    do {
+                        let r = try FxSelfTest.run(c, fx, golden)
+                        await MainActor.run { self.results.append(r) }
+                    } catch {
+                        await MainActor.run { self.finish("Cannot read \(c.file).", start) }
+                        return
+                    }
+                }
+            }
             await MainActor.run { self.finish("", start) }
         }
     }
@@ -66,7 +78,7 @@ final class SelfTestRunner {
     var passed: Int { results.filter { $0.ok }.count }
 }
 
-/// SELF-TEST в DIAGNOSTICS: движки Plaits против эталонов веба (по отсчётам ≤ −60 dB или полосы ±0,5 dB).
+/// SELF-TEST в DIAGNOSTICS: движки синта и эффекты против эталонов веба (по отсчётам ≤ −60 dB или полосы ±0,5 dB).
 struct SelfTestPanel: View {
     @State private var runner = SelfTestRunner()
     @Environment(\.theme) private var theme
@@ -80,7 +92,7 @@ struct SelfTestPanel: View {
                 .frame(width: 220)
                 summary
             }
-            Text("Synth engines vs. web reference: samples ≤ −60 dB or 1/3-octave bands within ±0.5 dB.")
+            Text("Synth engines and FX vs. web reference: samples ≤ −60 dB or 1/3-octave bands within ±0.5 dB.")
                 .font(.system(size: 12)).foregroundStyle(theme.dim)
             MenuScroll {
                 LazyVStack(alignment: .leading, spacing: 2) {
@@ -126,12 +138,13 @@ private struct SelfTestRow: View {
 
     var body: some View {
         let name: String = result.engine < PlaitsSelfTest.engineNames.count
-            ? PlaitsSelfTest.engineNames[result.engine] : (JamboSelfTest.engineNames[result.engine] ?? "?")
+            ? PlaitsSelfTest.engineNames[result.engine]
+            : (JamboSelfTest.engineNames[result.engine] ?? FxSelfTest.engineNames[result.engine] ?? "?")
         let samples: String = String(format: "%.1f dB", result.sampleErrorDb)
         let bands: String = String(format: "±%.3f dB", result.maxBandDiffDb)
         HStack(spacing: 12) {
             cell(name, 90, theme.text)
-            cell(result.file, 150, theme.dim)
+            cell(result.file, 170, theme.dim)
             cell(samples, 80, result.sampleErrorDb <= -60 ? theme.text : theme.dim)
             cell(bands, 90, result.maxBandDiffDb <= 0.5 ? theme.text : theme.dim)
             cell(result.ok ? "PASS" : "FAIL", 50, result.ok ? theme.text : theme.rec)

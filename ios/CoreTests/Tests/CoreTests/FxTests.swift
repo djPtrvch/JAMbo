@@ -20,6 +20,18 @@ final class FxTests: XCTestCase {
     func testDrive() throws { try check("drive", count: 7) }
     func testDuck() throws { try check("duck", count: 3) }
 
+    /// SELF-TEST: у каждого случая — код эффекта и имя в строке.
+    func testSelfTestNames() throws {
+        let all = try FxSelfTest.loadCases(PlaitsGolden.goldenDir)
+        XCTAssertEqual(all.cases.count, 18)
+        for c in all.cases {
+            let code = try XCTUnwrap(FxSelfTest.codes[c.proc], c.file)
+            XCTAssertNotNil(FxSelfTest.engineNames[code])
+            XCTAssertNil(JamboSelfTest.engineNames[code])
+            XCTAssertGreaterThanOrEqual(code, PlaitsSelfTest.engineNames.count)
+        }
+    }
+
     /// Нагрузка (отладочная сборка тестов, доля одного ядра): 1 с шума через каждый эффект блоками по 256.
     func testLoad() {
         let n = 256, blocks = 48000 / 256
