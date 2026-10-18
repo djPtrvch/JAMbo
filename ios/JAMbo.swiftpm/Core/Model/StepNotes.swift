@@ -75,6 +75,17 @@ extension Step {
         normalize()
     }
 
+    /// Velocity ноты k, связанная с p-lock Level шага: p-lock — самая сильная нота; ноты без своей velocity
+    /// получают прежний Level шага (fallback), чтобы их звук не менялся.
+    public mutating func setVelLinked(_ k: Int, _ v: Double, fallback: Double) {
+        guard k >= 0, k < notes.count else { return }
+        let old: Double = locks["level"] ?? fallback
+        for j in 0..<notes.count where j != k && noteVel(j) == nil { setNoteVel(j, old) }
+        setNoteVel(k, v)
+        if let all = vels, let m = all.max(), m >= 0 { locks["level"] = m }
+        if let sl = soundLocks { soundLocks = sl.filter { $0 != "level" } }
+    }
+
     /// Снять velocity всех нот.
     public mutating func clearVels() {
         vels = nil

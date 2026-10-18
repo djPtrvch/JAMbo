@@ -88,6 +88,16 @@ final class RollVelTests: XCTestCase {
         XCTAssertEqual(t.rollNoteLevel(n), 80, "или p-lock Level шага")
         t.setRollNoteVel(0, pitch: 48, vel: 30)
         XCTAssertEqual(t.rollNoteLevel(Roll.notes(t.openClip)[0]), 30)
+        XCTAssertEqual(t.pages[0][0].locks["level"], 30, "velocity связана с p-lock Level")
         XCTAssertTrue(Track.hasManualLocks(t.pages[0][0]))
+        // Аккорд: правка одной ноты не меняет звук другой; p-lock — по самой сильной.
+        t.addRollNote(0, pitch: 52, len: 1, vel: nil)
+        t.setLock(0, "level", 70)
+        XCTAssertNil(t.pages[0][0].vels, "p-lock Level ручкой — velocity всех нот")
+        t.setRollNoteVel(0, pitch: 48, vel: 20)
+        XCTAssertEqual(t.pages[0][0].vels, [20, 70])
+        XCTAssertEqual(t.pages[0][0].locks["level"], 70)
+        t.setRollNoteVel(0, pitch: 52, vel: 90)
+        XCTAssertEqual(t.pages[0][0].locks["level"], 90)
     }
 }

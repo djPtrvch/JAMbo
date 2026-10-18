@@ -139,6 +139,8 @@ extension Track {
         withStep(index) { s in
             s.locks[id] = value
             if let sl = s.soundLocks { s.soundLocks = sl.filter { $0 != id } }
+            // P-lock Level шага — velocity всех его нот (S8): своих velocity больше нет.
+            if id == "level" { s.clearVels() }
         }
     }
 

@@ -2,7 +2,8 @@
 
 extension Track {
     /// Ноты на шаг index. merge — добавить к записанным на этом шаге в том же дубле; overdub — к стоящим.
-    /// velocity (0.2…1) — velocity нот (Level ноты = Level дорожки × сила, S8; та же нота в дубле — по самой сильной).
+    /// velocity (0.2…1) — velocity нот (Level ноты = Level дорожки × сила, S8; та же нота в дубле — по самой сильной),
+    /// связанная с p-lock Level шага (самая сильная нота).
     public mutating func recordNotes(_ index: Int, _ notes: [Int], merge: Bool, overdub: Bool, velocity: Double?) {
         let level: Double = params["level"] ?? 127
         withStep(index) { s in
@@ -19,7 +20,7 @@ extension Track {
                 for n in notes {
                     guard let k = s.notes.firstIndex(of: n) else { continue }
                     let old: Double = merged ? (s.noteVel(k) ?? 0) : 0
-                    s.setNoteVel(k, Swift.max(old, lv))
+                    s.setVelLinked(k, Swift.max(old, lv), fallback: level)
                 }
             }
         }

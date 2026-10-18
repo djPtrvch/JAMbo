@@ -29,11 +29,12 @@ extension Track {
         }
     }
 
-    /// Velocity ноты (Level 0…127; nil — снять свою).
-    public mutating func setRollNoteVel(_ index: Int, pitch: Int, vel: Double?) {
+    /// Velocity ноты (Level 0…127), связанная с p-lock Level шага (Step.setVelLinked).
+    public mutating func setRollNoteVel(_ index: Int, pitch: Int, vel: Double) {
+        let fallback: Double = params["level"] ?? 127
         withStep(index) { s in
             guard let k = s.notes.firstIndex(of: pitch) else { return }
-            s.setNoteVel(k, vel)
+            s.setVelLinked(k, vel, fallback: fallback)
         }
     }
 
