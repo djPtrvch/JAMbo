@@ -48,7 +48,12 @@
 S0 каркас → S1 секвенсор и экран → S2 сэмплер и редактор → S3 Plaits и свои движки, SELF-TEST → S4 FX, MOD, MORPH → S5 мастер, EQ, метры, скоп → S6 окна модулей мастера → S7 EQ Dynamic и M/S, пресеты EQ → S8 пианоролл (S0–S8 готовы, проверены на iPad) → **S9 проекты и настройки (дальше)** → S10 переходы между проектами → S11 библиотека, импорт и экспорт, стемы, REC → S12 MIDI → S13 автоматизация → S14 оптимизация и App Store. Подробно — docs/SWIFT_AUDIT.md, раздел 6 (там же — соответствие прежним номерам).
 
 ## Текущая веха (S9)
-- S8 готова (итог — docs/SWIFT_MILESTONE_S8.md). Дальше — S9 проекты, автосохранение, настройки, LICENSES (состав уточнить).
+- S8 готова (итог — docs/SWIFT_MILESTONE_S8.md). S9 — проекты, автосохранение, настройки, LICENSES; состав (решение пользователя):
+- S9a формат проекта: версия формата и миграция, сохраняются длина и velocity нот (Step.lens, Step.vels); проекты — Application Support/Projects/<id>.json, сэмплы — по ключу (Samples/<ключ>.caf); нет сэмпла — дорожка без звука, проект открывается. Сэмплы при удалении проектов не удаляются (чистка — с библиотекой, S11).
+- S9b автосохранение как в вебе (отдельная запись Autosave через ~1,5 с после изменений, после перезапуска — Autosave, «unsaved»); отличие: ещё и сразу при уходе в фон.
+- S9c PROJECTS как в вебе: NEW, SAVE, SAVE AS, RENAME, список (имя, время, «120 · C Min»; свайп влево — EDIT и корзина, у Autosave — только корзина). Тап — окно LOAD / MIX, MIX серая до S10. EXPORT, IMPORT — S11.
+- S9d бутерброд и SETTINGS как в вебе (разделы, вкладки, рычажки), отличия: без MIDI и SYNC до S12; AUDIO ENGINE — без SAMPLE RATE и BUFFER SIZE, только «Now:» и MUTE TAILS; без вкладок SCALE и BACKGROUND; RECORD — QUANTIZE, OVERDUB (AUTOMATION RECORDING — S13); OUTPUT — системная кнопка выбора выхода (AVRoutePickerView) и текущий выход.
+- S9e LICENSES (тексты Resources/licenses), DIAGNOSTICS и SELF-TEST — в разделе APP.
 
 ## Где искать
 | Задача касается… | Файл |

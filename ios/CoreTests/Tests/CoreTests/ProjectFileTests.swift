@@ -1,0 +1,155 @@
+import XCTest
+@testable import Core
+
+/// S9a: файл проекта, чтение прежних и неполных файлов, хранилище проектов.
+final class ProjectFileTests: XCTestCase {
+    private func sample() -> Project {
+        var p = Project()
+        p.bpm = 97
+        p.scale = 1
+        p.root = 9
+        p.outVol = -Double.infinity
+        p.master["cmp.release"] = MasterChain.autoValue
+        p.tracks[0].sample = "abc123"
+        p.tracks[0].folder = Folder(items: ["abc123", "mi:3"], index: 0)
+        p.tracks[0].slices["abc123"] = [SliceMark(at: 0.5, note: 62)]
+        p.tracks[0].assigns["filter"] = ModAssign(lfo: 2, amount: -0.5)
+        p.tracks[1].withStep(3) { s in
+            s.on = true
+            s.addNote(60, len: 3, vel: 100)
+            s.addNote(64, len: 1, vel: nil)
+            s.locks["filter"] = 40
+            s.sound = "def456"
+        }
+        p.tracks[2].clips[5] = Clip(pages: [Track.emptyPage(), Track.emptyPage()], length: 20, playFrom: 0, playTo: 1,
+                                    scale: 3, root: 2, fx: ["rev.size": 30])
+        var b = EqBand(type: EqSpec.bell, freq: 300, gain: -4, q: 2)
+        b.dyn = 2
+        p.tracks[3].eq.bands[1] = b
+        p.scenes[2] = SceneRow(name: "DROP", repeats: 4)
+        p.rows = 3
+        return p
+    }
+
+    private func info() -> ProjectInfo {
+        return ProjectInfo(id: "p1", name: "Jam", updated: 1000)
+    }
+
+    func testRoundTripKeepsEverything() throws {
+        let p = sample()
+        let data = try XCTUnwrap(ProjectFormat.encode(ProjectFile(info: info(), doc: p)))
+        let f = try XCTUnwrap(ProjectFormat.decode(data))
+        XCTAssertEqual(f.doc, p)
+        XCTAssertEqual(f.info.name, "Jam")
+        XCTAssertEqual(f.info.bpm, 97)
+        XCTAssertEqual(f.info.root, 9)
+        XCTAssertEqual(f.info.scale, 1)
+        let s = try XCTUnwrap(f.doc.tracks[1].step(3))
+        XCTAssertEqual(s.lens, [3, 1])
+        XCTAssertEqual(s.vels, [100, -1])
+        XCTAssertEqual(f.doc.outVol, -Double.infinity)
+    }
+
+    func testRepairKeepsValidProject() {
+        let ref = sample()
+        var p = ref
+        p.repair()
+        XCTAssertEqual(p, ref)
+        var q = Project()
+        q.repair()
+        XCTAssertEqual(q.tracks.count, Params.trackCount)
+        XCTAssertEqual(q.fx, Project().fx)
+    }
+
+    func testMissingFieldsGetDefaults() throws {
+        let json = """
+        {"format":"jambo-swift","version":1,"future":42,
+         "info":{"id":"x","name":"Old","updated":5},
+         "doc":{"bpm":999,"scale":77,"rows":0,"newField":{"a":1},
+                "tracks":[{"name":"KICK","vol":"loud","params":{"filter":12},
+                           "clips":[{"pages":[[{"on":true,"notes":[60,64],"lens":[2],"vels":[90,80]}]],
+                                     "length":500,"playTo":9}],
+                           "eq":{"bands":[{"type":0,"freq":200,"gain":3,"q":1,"dyn":40}]}}]}}
+        """
+        let f = try XCTUnwrap(ProjectFormat.decode(Data(json.utf8)))
+        let d = f.doc
+        XCTAssertEqual(d.bpm, Params.bpmMax)
+        XCTAssertEqual(d.scale, Scales.all.count - 1)
+        XCTAssertEqual(d.rows, 1)
+        XCTAssertEqual(d.tracks.count, Params.trackCount)
+        XCTAssertEqual(d.chanSeqs.map { $0.name }, ["MIX", "MST"])
+        XCTAssertEqual(d.scenes.count, Params.patternSlots)
+        XCTAssertEqual(d.master, MasterChain.defaultValues())
+        let t = d.tracks[0]
+        XCTAssertEqual(t.name, "KICK")
+        XCTAssertEqual(t.vol, Params.volDef)
+        XCTAssertEqual(t.params["filter"], 12)
+        XCTAssertEqual(t.params.count, Params.defaults().count)
+        XCTAssertEqual(t.clips.count, Params.patternSlots)
+        let c = try XCTUnwrap(t.clips[0])
+        XCTAssertEqual(c.pages[0].count, Params.stepsPerPage)
+        XCTAssertEqual(c.length, Params.stepsPerPage)
+        XCTAssertEqual(c.playTo, 0)
+        let s = c.pages[0][0]
+        XCTAssertTrue(s.on)
+        XCTAssertNil(s.lens)
+        XCTAssertEqual(s.vels, [90, 80])
+        XCTAssertEqual(t.eq.bands.count, EqSpec.bands)
+        XCTAssertEqual(t.eq.bands[0]?.dyn, -1)
+        XCTAssertEqual(t.eq.bands[0]?.freq, 200)
+    }
+
+    /// Каждое поле модели — в CodingKeys (иначе оно молча не сохранится).
+    func testCodingKeysCoverAllFields() {
+        func check<K: CaseIterable & RawRepresentable>(_ value: Any, _ keys: K.Type) where K.RawValue == String {
+            let fields = Set(Mirror(reflecting: value).children.compactMap { $0.label })
+            XCTAssertEqual(fields, Set(K.allCases.map { $0.rawValue }), "\(type(of: value))")
+        }
+        check(Project(), Project.CodingKeys.self)
+        check(Track(index: 0), Track.CodingKeys.self)
+        check(Clip(), Clip.CodingKeys.self)
+        check(Step(), Step.CodingKeys.self)
+        check(SceneRow(), SceneRow.CodingKeys.self)
+        check(ModAssign(lfo: 1, amount: 0), ModAssign.CodingKeys.self)
+        check(Eq(), Eq.CodingKeys.self)
+        check(EqBand(type: 0, freq: 100, gain: 0, q: 1), EqBand.CodingKeys.self)
+        check(Folder(), Folder.CodingKeys.self)
+        check(SliceMark(at: 0), SliceMark.CodingKeys.self)
+    }
+
+    func testNotAProject() {
+        XCTAssertNil(ProjectFormat.decode(Data("{\"format\":\"other\",\"version\":1}".utf8)))
+        XCTAssertNil(ProjectFormat.decode(Data("not json".utf8)))
+    }
+
+    func testSampleKeys() {
+        XCTAssertEqual(sample().sampleKeys, ["abc123", "def456"])
+    }
+
+    func testStore() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("jambo-test-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let store = ProjectStore(dir: dir)
+        XCTAssertTrue(store.list().isEmpty)
+        let a = sample()
+        XCTAssertTrue(store.save(a, info: ProjectInfo(id: "pa", name: "A", updated: 10)))
+        XCTAssertTrue(store.save(Project(), info: ProjectInfo(id: "pb", name: "B", updated: 20)))
+        XCTAssertTrue(store.save(Project(), info: ProjectInfo(id: ProjectStore.autosaveId, name: "Autosave", updated: 30,
+                                                            projectId: "pa", projectName: "A")))
+        XCTAssertFalse(store.save(Project(), info: ProjectInfo(id: "../x", name: "X", updated: 1)))
+        try Data("garbage".utf8).write(to: dir.appendingPathComponent("junk.json"))
+        XCTAssertEqual(store.list().map { $0.id }, [ProjectStore.autosaveId, "pb", "pa"])
+        XCTAssertEqual(store.list().last?.bpm, 97)
+        XCTAssertEqual(store.load("pa")?.doc, a)
+        XCTAssertEqual(store.load(ProjectStore.autosaveId)?.info.projectId, "pa")
+        XCTAssertTrue(store.rename("pa", to: "A2"))
+        XCTAssertEqual(store.load("pa")?.info.name, "A2")
+        XCTAssertEqual(store.load("pa")?.info.updated, 10)
+        XCTAssertEqual(store.find(name: "A2")?.id, "pa")
+        XCTAssertNil(store.find(name: "Autosave"))
+        store.delete("pb")
+        XCTAssertNil(store.load("pb"))
+        XCTAssertEqual(store.list().count, 2)
+        XCTAssertNotEqual(ProjectStore.newId(), ProjectStore.newId())
+    }
+}
