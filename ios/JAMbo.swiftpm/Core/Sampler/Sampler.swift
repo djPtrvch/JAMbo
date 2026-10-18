@@ -464,7 +464,6 @@ public final class Sampler {
         fx?.prepare(blockStart: blockStart, frames: n)
         mix(d, n, left, right)
         fx?.process(frames: n, bpm: bpm, left: left, right: right)
-        renderPreview(n, left, right)
     }
 
     /// Шины посылов дорожки t — с нуля (n отсчётов).

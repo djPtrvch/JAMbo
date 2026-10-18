@@ -71,6 +71,8 @@ public struct SoundData {
     public var fxAmt: UnsafeMutablePointer<Float>
     public var fxTrack: UnsafeMutablePointer<Int32>
     public var fxScale: UnsafeMutablePointer<ParamScale>
+    /// Мастер: значения в порядке MasterChain.Index (bypass — 1, RELEASE AUTO — отдельным флагом).
+    public var master: UnsafeMutablePointer<Double>
 
     @inline(__always)
     public func param(_ t: Int, _ p: Int) -> Float {
@@ -145,8 +147,10 @@ public final class SoundSnapshot: @unchecked Sendable {
             asAmt: .allocate(capacity: tracks * ModTarget.count), scale: .allocate(capacity: tracks * ModTarget.count),
             asAny: .allocate(capacity: tracks), fxSrc: .allocate(capacity: Params.fxCount),
             fxAmt: .allocate(capacity: Params.fxCount), fxTrack: .allocate(capacity: Params.fxCount),
-            fxScale: .allocate(capacity: Params.fxCount)
+            fxScale: .allocate(capacity: Params.fxCount),
+            master: .allocate(capacity: MasterChain.Index.count)
         )
+        MasterChain.fill(d.master, project)
         d.mod.initialize(repeating: 0, count: tracks * Params.modCount)
         d.asSrc.initialize(repeating: 0, count: tracks * ModTarget.count)
         d.asAmt.initialize(repeating: 0, count: tracks * ModTarget.count)
@@ -281,5 +285,6 @@ public final class SoundSnapshot: @unchecked Sendable {
         data.fxAmt.deallocate()
         data.fxTrack.deallocate()
         data.fxScale.deallocate()
+        data.master.deallocate()
     }
 }

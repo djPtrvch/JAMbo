@@ -30,7 +30,8 @@ final class SelfTestRunner {
             }
             let jambo = try? JamboSelfTest.loadCases(golden)
             let fx = try? FxSelfTest.loadCases(golden)
-            let count = all.cases.count + (jambo?.cases.count ?? 0) + (fx?.cases.count ?? 0)
+            let mst = try? MasterSelfTest.loadCases(golden)
+            let count = all.cases.count + (jambo?.cases.count ?? 0) + (fx?.cases.count ?? 0) + (mst?.cases.count ?? 0)
             await MainActor.run { self.total = count }
             for c in all.cases {
                 do {
@@ -58,6 +59,17 @@ final class SelfTestRunner {
                 for c in fx.cases {
                     do {
                         let r = try FxSelfTest.run(c, fx, golden)
+                        await MainActor.run { self.results.append(r) }
+                    } catch {
+                        await MainActor.run { self.finish("Cannot read \(c.file).", start) }
+                        return
+                    }
+                }
+            }
+            if let mst = mst {
+                for c in mst.cases {
+                    do {
+                        let r = try MasterSelfTest.run(c, mst, golden)
                         await MainActor.run { self.results.append(r) }
                     } catch {
                         await MainActor.run { self.finish("Cannot read \(c.file).", start) }
@@ -136,10 +148,16 @@ private struct SelfTestRow: View {
     let result: PlaitsSelfTest.Result
     @Environment(\.theme) private var theme
 
+    /// Имя по коду: движки Plaits 0–15, свои 16–19, FX 32–35, мастер 36–40.
+    static func name(_ code: Int) -> String {
+        if code < PlaitsSelfTest.engineNames.count { return PlaitsSelfTest.engineNames[code] }
+        if let n = JamboSelfTest.engineNames[code] { return n }
+        if let n = FxSelfTest.engineNames[code] { return n }
+        return MasterSelfTest.engineNames[code] ?? "?"
+    }
+
     var body: some View {
-        let name: String = result.engine < PlaitsSelfTest.engineNames.count
-            ? PlaitsSelfTest.engineNames[result.engine]
-            : (JamboSelfTest.engineNames[result.engine] ?? FxSelfTest.engineNames[result.engine] ?? "?")
+        let name: String = SelfTestRow.name(result.engine)
         let samples: String = String(format: "%.1f dB", result.sampleErrorDb)
         let bands: String = String(format: "±%.3f dB", result.maxBandDiffDb)
         HStack(spacing: 12) {

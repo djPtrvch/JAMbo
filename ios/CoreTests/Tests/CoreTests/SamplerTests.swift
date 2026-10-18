@@ -36,7 +36,7 @@ final class SamplerTests: XCTestCase {
     private let center: Float = Float(cos(Double.pi / 4))
 
     func testOneStepNoteAttackAndDecay() {
-        let core = AudioCore()
+        let core = AudioCore(master: false)
         var p = project()
         p.tracks[0].pages[0][0].on = true
         p.tracks[0].pages[0][0].notes = [48]
@@ -51,7 +51,7 @@ final class SamplerTests: XCTestCase {
     }
 
     func testLiveNoteHoldsUntilRelease() {
-        let core = AudioCore()
+        let core = AudioCore(master: false)
         core.publish(project(), samples: ["k": dc()])
         core.events.push(.noteOn(track: 0, note: 48, id: 7, velocity: 1))
         var o = render(core, frames: 12000)
@@ -62,7 +62,7 @@ final class SamplerTests: XCTestCase {
     }
 
     func testPitchStartEndAndVolume() {
-        let core = AudioCore()
+        let core = AudioCore(master: false)
         var p = project()
         p.tracks[0].params["start"] = 50
         p.tracks[0].params["decay"] = 4000
@@ -80,7 +80,7 @@ final class SamplerTests: XCTestCase {
     }
 
     func testVelocityLevelAndPan() {
-        let core = AudioCore()
+        let core = AudioCore(master: false)
         var p = project()
         p.tracks[0].params["pan"] = 64
         core.publish(p, samples: ["k": dc()])
@@ -92,7 +92,7 @@ final class SamplerTests: XCTestCase {
     }
 
     func testMuteGateClosesFast() {
-        let core = AudioCore()
+        let core = AudioCore(master: false)
         var p = project()
         let s = dc()
         core.publish(p, samples: ["k": s])
@@ -107,7 +107,7 @@ final class SamplerTests: XCTestCase {
     }
 
     func testSlicesPlayMarkedPart() {
-        let core = AudioCore()
+        let core = AudioCore(master: false)
         var p = project()
         // Первая половина — 0.5, вторая — 1.0.
         var l = [Float](repeating: 0.5, count: 48000)
@@ -132,7 +132,7 @@ final class SamplerTests: XCTestCase {
     }
 
     func testVoiceLimitFadesOldest() {
-        let core = AudioCore()
+        let core = AudioCore(master: false)
         core.publish(project(), samples: ["k": dc()])
         for k in 0..<60 { core.events.push(.noteOn(track: 0, note: 48 + k % 12, id: k, velocity: 1)) }
         _ = render(core, frames: 256)
@@ -142,7 +142,7 @@ final class SamplerTests: XCTestCase {
     }
 
     func testSoundChangeRetriggersHeldNote() {
-        let core = AudioCore()
+        let core = AudioCore(master: false)
         var p = project()
         p.tracks[0].addItems(["k2"])
         p.tracks[0].sample = "k"
@@ -162,7 +162,7 @@ final class SamplerTests: XCTestCase {
     }
 
     func testSequencerPlaysStepWithLockAndHold() {
-        let core = AudioCore()
+        let core = AudioCore(master: false)
         var p = project()
         p.tracks[0].pages[0][0].on = true
         p.tracks[0].pages[0][0].notes = [48]
@@ -178,7 +178,7 @@ final class SamplerTests: XCTestCase {
     }
 
     func testStepSoundPlaysOwnSample() {
-        let core = AudioCore()
+        let core = AudioCore(master: false)
         var p = project()
         p.tracks[0].addSamplesQuiet(["k2"])
         p.tracks[0].pages[0][0].on = true
@@ -273,7 +273,7 @@ final class SamplerTests: XCTestCase {
     }
 
     func testPreviewPlaysAndStops() {
-        let core = AudioCore()
+        let core = AudioCore(master: false)
         core.publish(project(), samples: ["k": dc()])
         core.events.push(.preview(hash: SoundKey.hash("k"), a: 0, b: 1))
         var o = render(core, frames: 1000)
@@ -288,7 +288,7 @@ final class SamplerTests: XCTestCase {
 final class SamplerLoadTests: XCTestCase {
     /// Нагрузка: 48 стерео-голосов с фильтром и сменой высоты, 2 с звука.
     func testLoad48Voices() {
-        let core = AudioCore()
+        let core = AudioCore(master: false)
         var p = Project()
         let l = (0..<480000).map { Float(sin(Double($0) * 0.05)) }
         let s = SampleData(left: l, right: l)

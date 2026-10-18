@@ -43,7 +43,7 @@ final class FxRoutingTests: XCTestCase {
     /// Хвост после конца ноты есть только с посылом (Reverb, Delay, Drive — у Drive хвоста нет, зато сигнал громче).
     func testSendsReachEffects() {
         func tail(_ sends: [String: Double]) -> Double {
-            let core = AudioCore()
+            let core = AudioCore(master: false)
             core.publish(project(sends: sends), samples: ["k": burst()])
             core.events.push(.noteOn(track: 0, note: 48, id: 1, velocity: 1))
             let o = render(core, frames: 30000)
@@ -56,7 +56,7 @@ final class FxRoutingTests: XCTestCase {
 
     /// Посылы — после громкости и mute: заглушённая дорожка в эффекты не посылает.
     func testMutedTrackDoesNotSend() {
-        let core = AudioCore()
+        let core = AudioCore(master: false)
         var p = project(sends: ["reverb": 100])
         p.tracks[0].mute = true
         core.publish(p, samples: ["k": burst()])
@@ -67,7 +67,7 @@ final class FxRoutingTests: XCTestCase {
 
     /// Sidechain: нота источника (дорожка 1, заглушена) приглушает дорожку 2 и отпускает за RELEASE.
     func testSidechainDucksOtherTrack() {
-        let core = AudioCore()
+        let core = AudioCore(master: false)
         var p = Project()
         p.tracks[0].addSamples(["k"])
         p.tracks[0].mute = true
@@ -91,7 +91,7 @@ final class FxRoutingTests: XCTestCase {
 
     /// P-lock FX играющего шага (любой дорожки) действует на время шага.
     func testFxLockWhileStepPlays() {
-        let core = AudioCore()
+        let core = AudioCore(master: false)
         var p = Project()
         p.tracks[0].pages[0][0].locks["rev.size"] = 10
         core.publish(p)

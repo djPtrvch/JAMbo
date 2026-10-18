@@ -20,6 +20,13 @@ public final class AudioCore: @unchecked Sendable {
     public let fx = FxRack(sampleRate: AudioCore.sampleRate)
     /// LFO1–3 и ENV дорожек.
     public let mod = ModEngine(sampleRate: AudioCore.sampleRate)
+    /// Цепочка мастера (сумма дорожек и FX → SAT → COMP → CLIP → LIM); тест-тон, метроном и прослушивание — мимо неё,
+    /// как в вебе. Без мастера (useMaster false) — тесты, которые сверяют выход по отсчётам.
+    public let master = MasterChain(sampleRate: AudioCore.sampleRate)
+    private let useMaster: Bool
+    private let masterL = UnsafeMutablePointer<Float>.allocate(capacity: AudioCore.maxFrames)
+    private let masterR = UnsafeMutablePointer<Float>.allocate(capacity: AudioCore.maxFrames)
+    static let maxFrames = 4096
     /// Снимки паттернов и звука: новые — в колбэк, прежние — обратно (освобождаются в основном потоке не раньше
     /// чем через keepAlive с: голоса, которые гаснут, ещё читают их сэмплы).
     private let snapshots = SPSCQueue<Unmanaged<SeqSnapshot>?>(capacity: 64, filler: nil)
@@ -41,11 +48,19 @@ public final class AudioCore: @unchecked Sendable {
     /// Счётчик кадров колбэка — основа транспорта с точностью до отсчёта.
     public private(set) var sampleTime: Int64 = 0
 
-    public init() {
+    public init(master: Bool = true) {
+        useMaster = master
+        masterL.initialize(repeating: 0, count: AudioCore.maxFrames)
+        masterR.initialize(repeating: 0, count: AudioCore.maxFrames)
         sequencer.sampler = sampler
         sampler.fx = fx
         sampler.mod = mod
         sequencer.mod = mod
+    }
+
+    deinit {
+        masterL.deallocate()
+        masterR.deallocate()
     }
 
     /// Новые снимки (основной поток, после каждой правки): звук — всегда (дёшево), паттерны — если изменились.
@@ -106,10 +121,32 @@ public final class AudioCore: @unchecked Sendable {
         right.update(repeating: 0, count: frames)
         tone.render(frames: frames, left: left, right: right)
         sequencer.process(blockStart: sampleTime, frames: frames, left: left, right: right, host: host)
-        sampler.render(blockStart: sampleTime, frames: frames, left: left, right: right)
+        renderMix(frames, left, right)
         mod.publish(frame: sampleTime + Int64(frames))
         sampleTime += Int64(frames)
         frameCounter.store(Int(sampleTime))
+    }
+
+    /// Дорожки и FX → мастер → выход (к тону и метроному); затем прослушивание (мимо мастера).
+    @inline(__always)
+    private func renderMix(_ frames: Int, _ left: UnsafeMutablePointer<Float>, _ right: UnsafeMutablePointer<Float>) {
+        guard let d = sampler.sound else { return }
+        let n = Swift.min(frames, AudioCore.maxFrames)
+        if useMaster {
+            masterL.update(repeating: 0, count: n)
+            masterR.update(repeating: 0, count: n)
+            sampler.render(blockStart: sampleTime, frames: n, left: masterL, right: masterR)
+            master.process(left: masterL, right: masterR, frames: n, params: d.master)
+            var i = 0
+            while i < n {
+                left[i] += masterL[i]
+                right[i] += masterR[i]
+                i += 1
+            }
+        } else {
+            sampler.render(blockStart: sampleTime, frames: n, left: left, right: right)
+        }
+        sampler.renderPreview(n, left, right)
     }
 
     @inline(__always)

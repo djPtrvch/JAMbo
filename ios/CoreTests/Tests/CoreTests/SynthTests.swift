@@ -63,7 +63,7 @@ final class SynthTests: XCTestCase {
     private static let appResources: PlaitsResources? = PlaitsResources.load(dir: PlaitsGolden.tablesDir)
 
     private func core(_ p: Project) throws -> AudioCore {
-        let c = AudioCore()
+        let c = AudioCore(master: false)
         c.installSynth(try XCTUnwrap(SynthTests.appResources))
         c.publish(p)
         return c
@@ -352,7 +352,7 @@ final class SynthTests: XCTestCase {
         XCTAssertLessThan(peak(render(silent, frames: 9600), 0, 9600), 1e-6)
 
         let basic = WtTable.builtin("BASIC")
-        let c = AudioCore()
+        let c = AudioCore(master: false)
         c.installSynth(try XCTUnwrap(SynthTests.appResources))
         c.publish(p, tables: ["": basic])
         c.events.push(.noteOn(track: 0, note: 48, id: 1, velocity: 1))

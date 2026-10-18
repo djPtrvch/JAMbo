@@ -1,0 +1,538 @@
+{
+ "block": 128,
+ "cases": [
+  {
+   "file": "mst_sat_tape.i16",
+   "proc": "saturator",
+   "frames": 48000,
+   "input": "drums",
+   "msg": {
+    "drive": 12,
+    "type": 0,
+    "tone": 0,
+    "mix": 100,
+    "focus": 20
+   },
+   "events": []
+  },
+  {
+   "file": "mst_sat_tube_tone.i16",
+   "proc": "saturator",
+   "frames": 48000,
+   "input": "sine",
+   "msg": {
+    "drive": 18,
+    "type": 1,
+    "tone": 60,
+    "mix": 100,
+    "focus": 20
+   },
+   "events": []
+  },
+  {
+   "file": "mst_sat_edge_mix.i16",
+   "proc": "saturator",
+   "frames": 48000,
+   "input": "loud",
+   "msg": {
+    "drive": 6,
+    "type": 2,
+    "tone": -40,
+    "mix": 60,
+    "focus": 20
+   },
+   "events": []
+  },
+  {
+   "file": "mst_sat_focus.i16",
+   "proc": "saturator",
+   "frames": 48000,
+   "input": "drums",
+   "msg": {
+    "drive": 18,
+    "type": 0,
+    "tone": 0,
+    "mix": 100,
+    "focus": 500
+   },
+   "events": []
+  },
+  {
+   "file": "mst_sat_moves.i16",
+   "proc": "saturator",
+   "frames": 48000,
+   "input": "drums",
+   "msg": {
+    "drive": 0,
+    "type": 0,
+    "tone": 0,
+    "mix": 100,
+    "focus": 20
+   },
+   "events": [
+    {
+     "frame": 4096,
+     "msg": {
+      "drive": 12
+     }
+    },
+    {
+     "frame": 8192,
+     "msg": {
+      "type": 1
+     }
+    },
+    {
+     "frame": 12032,
+     "msg": {
+      "type": 2,
+      "tone": 100
+     }
+    },
+    {
+     "frame": 16000,
+     "msg": {
+      "focus": 800
+     }
+    },
+    {
+     "frame": 20096,
+     "msg": {
+      "mix": 0
+     }
+    },
+    {
+     "frame": 26112,
+     "msg": {
+      "mix": 100,
+      "focus": 20,
+      "drive": 24
+     }
+    },
+    {
+     "frame": 32000,
+     "msg": {
+      "drive": 0
+     }
+    },
+    {
+     "frame": 40064,
+     "msg": {
+      "drive": 6,
+      "type": 0
+     }
+    }
+   ]
+  },
+  {
+   "file": "mst_cmp_default.i16",
+   "proc": "glue",
+   "frames": 48000,
+   "input": "drums",
+   "msg": {
+    "thr": -10,
+    "att": 10,
+    "rel": 400,
+    "auto": false,
+    "makeup": 0,
+    "ratio": 2,
+    "bypass": false,
+    "knee": 6,
+    "mix": 100,
+    "schpf": 90
+   },
+   "events": []
+  },
+  {
+   "file": "mst_cmp_hard_auto.i16",
+   "proc": "glue",
+   "frames": 48000,
+   "input": "drums",
+   "msg": {
+    "thr": -24,
+    "att": 0.5,
+    "rel": 400,
+    "auto": true,
+    "makeup": 6,
+    "ratio": 10,
+    "bypass": false,
+    "knee": 0,
+    "mix": 100,
+    "schpf": 20
+   },
+   "events": []
+  },
+  {
+   "file": "mst_cmp_mix_knee.i16",
+   "proc": "glue",
+   "frames": 48000,
+   "input": "loud",
+   "msg": {
+    "thr": -18,
+    "att": 30,
+    "rel": 80,
+    "auto": false,
+    "makeup": 3,
+    "ratio": 4,
+    "bypass": false,
+    "knee": 24,
+    "mix": 50,
+    "schpf": 300
+   },
+   "events": []
+  },
+  {
+   "file": "mst_cmp_moves.i16",
+   "proc": "glue",
+   "frames": 48000,
+   "input": "drums",
+   "msg": {
+    "thr": -10,
+    "att": 10,
+    "rel": 400,
+    "auto": false,
+    "makeup": 0,
+    "ratio": 2,
+    "bypass": false,
+    "knee": 6,
+    "mix": 100,
+    "schpf": 90
+   },
+   "events": [
+    {
+     "frame": 6016,
+     "msg": {
+      "thr": -30,
+      "ratio": 20
+     }
+    },
+    {
+     "frame": 12032,
+     "msg": {
+      "bypass": true
+     }
+    },
+    {
+     "frame": 18048,
+     "msg": {
+      "bypass": false,
+      "knee": 0,
+      "schpf": 20
+     }
+    },
+    {
+     "frame": 24064,
+     "msg": {
+      "rel": 400,
+      "auto": true,
+      "att": 100
+     }
+    },
+    {
+     "frame": 30080,
+     "msg": {
+      "mix": 20,
+      "makeup": 12
+     }
+    },
+    {
+     "frame": 36096,
+     "msg": {
+      "schpf": 500,
+      "ratio": 1
+     }
+    }
+   ]
+  },
+  {
+   "file": "mst_clip_default.i16",
+   "proc": "clipper",
+   "frames": 48000,
+   "input": "drums",
+   "msg": {
+    "drive": 6,
+    "ceiling": -1,
+    "softness": 30,
+    "bass": 0,
+    "bypass": false
+   },
+   "events": []
+  },
+  {
+   "file": "mst_clip_bass_hard.i16",
+   "proc": "clipper",
+   "frames": 48000,
+   "input": "drums",
+   "msg": {
+    "drive": 12,
+    "ceiling": -1,
+    "softness": 0,
+    "bass": 120,
+    "bypass": false
+   },
+   "events": []
+  },
+  {
+   "file": "mst_clip_soft_low.i16",
+   "proc": "clipper",
+   "frames": 48000,
+   "input": "loud",
+   "msg": {
+    "drive": 3,
+    "ceiling": -6,
+    "softness": 100,
+    "bass": 0,
+    "bypass": false
+   },
+   "events": []
+  },
+  {
+   "file": "mst_clip_moves.i16",
+   "proc": "clipper",
+   "frames": 48000,
+   "input": "drums",
+   "msg": {
+    "drive": 6,
+    "ceiling": -1,
+    "softness": 30,
+    "bass": 0,
+    "bypass": false
+   },
+   "events": [
+    {
+     "frame": 6016,
+     "msg": {
+      "bass": 200
+     }
+    },
+    {
+     "frame": 12032,
+     "msg": {
+      "bass": 60,
+      "softness": 0
+     }
+    },
+    {
+     "frame": 18048,
+     "msg": {
+      "bypass": true
+     }
+    },
+    {
+     "frame": 24064,
+     "msg": {
+      "bypass": false,
+      "bass": 0,
+      "ceiling": -9
+     }
+    },
+    {
+     "frame": 30080,
+     "msg": {
+      "drive": 12,
+      "softness": 100
+     }
+    }
+   ]
+  },
+  {
+   "file": "mst_lim_gain.i16",
+   "proc": "limiter",
+   "frames": 48000,
+   "input": "drums",
+   "msg": {
+    "gain": 12,
+    "ceiling": -1,
+    "lookahead": 3,
+    "rel": 150,
+    "auto": false,
+    "bypass": false
+   },
+   "events": []
+  },
+  {
+   "file": "mst_lim_auto.i16",
+   "proc": "limiter",
+   "frames": 48000,
+   "input": "loud",
+   "msg": {
+    "gain": 6,
+    "ceiling": -1,
+    "lookahead": 3,
+    "rel": 150,
+    "auto": true,
+    "bypass": false
+   },
+   "events": []
+  },
+  {
+   "file": "mst_lim_short.i16",
+   "proc": "limiter",
+   "frames": 48000,
+   "input": "drums",
+   "msg": {
+    "gain": 18,
+    "ceiling": -3,
+    "lookahead": 1,
+    "rel": 40,
+    "auto": false,
+    "bypass": false
+   },
+   "events": []
+  },
+  {
+   "file": "mst_lim_moves.i16",
+   "proc": "limiter",
+   "frames": 48000,
+   "input": "drums",
+   "msg": {
+    "gain": 12,
+    "ceiling": -1,
+    "lookahead": 3,
+    "rel": 150,
+    "auto": false,
+    "bypass": false
+   },
+   "events": [
+    {
+     "frame": 6016,
+     "msg": {
+      "lookahead": 6
+     }
+    },
+    {
+     "frame": 12032,
+     "msg": {
+      "lookahead": 0.5,
+      "ceiling": -6
+     }
+    },
+    {
+     "frame": 18048,
+     "msg": {
+      "bypass": true
+     }
+    },
+    {
+     "frame": 24064,
+     "msg": {
+      "bypass": false,
+      "rel": 1000
+     }
+    },
+    {
+     "frame": 30080,
+     "msg": {
+      "rel": 400,
+      "auto": true,
+      "gain": 24
+     }
+    }
+   ]
+  },
+  {
+   "file": "mst_chain_default.i16",
+   "proc": "chain",
+   "frames": 48000,
+   "input": "drums",
+   "msg": {
+    "sat": {
+     "drive": 0,
+     "type": 0,
+     "tone": 0,
+     "mix": 100,
+     "focus": 20
+    },
+    "glue": {
+     "thr": -10,
+     "att": 10,
+     "rel": 400,
+     "auto": false,
+     "makeup": 0,
+     "ratio": 2,
+     "bypass": false,
+     "knee": 6,
+     "mix": 100,
+     "schpf": 90
+    },
+    "clip": {
+     "drive": 0,
+     "ceiling": -1,
+     "softness": 30,
+     "bass": 0,
+     "bypass": false
+    },
+    "lim": {
+     "gain": 0,
+     "ceiling": -1,
+     "lookahead": 3,
+     "rel": 150,
+     "auto": false,
+     "bypass": false
+    }
+   },
+   "events": []
+  },
+  {
+   "file": "mst_chain_hot.i16",
+   "proc": "chain",
+   "frames": 48000,
+   "input": "drums",
+   "msg": {
+    "sat": {
+     "drive": 9,
+     "type": 1,
+     "tone": 20,
+     "mix": 80,
+     "focus": 120
+    },
+    "glue": {
+     "thr": -20,
+     "att": 3,
+     "rel": 400,
+     "auto": true,
+     "makeup": 6,
+     "ratio": 4,
+     "bypass": false,
+     "knee": 6,
+     "mix": 100,
+     "schpf": 90
+    },
+    "clip": {
+     "drive": 4,
+     "ceiling": -1.5,
+     "softness": 30,
+     "bass": 100,
+     "bypass": false
+    },
+    "lim": {
+     "gain": 6,
+     "ceiling": -0.3,
+     "lookahead": 3,
+     "rel": 150,
+     "auto": true,
+     "bypass": false
+    }
+   },
+   "events": [
+    {
+     "frame": 24064,
+     "msg": {
+      "sat": {
+       "mix": 0
+      },
+      "glue": {
+       "bypass": true
+      },
+      "clip": {
+       "bypass": true
+      },
+      "lim": {
+       "bypass": true
+      }
+     }
+    }
+   ]
+  }
+ ]
+}

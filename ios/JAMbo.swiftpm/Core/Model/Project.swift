@@ -218,6 +218,13 @@ public struct Project: Codable, Equatable, Sendable {
     public var fx: [String: Double] = Params.fxDefaults()
     /// Назначения LFO/ENV на ручки FX (источник — LFO/ENV дорожки track).
     public var fxAssigns: [String: ModAssign] = [:]
+    /// Мастер (как doc.master веба, без убранных в Swift параметров — MasterChain.ids): RELEASE AUTO — значение
+    /// MasterChain.autoValue; BYPASS модулей — отдельно.
+    public var master: [String: Double] = MasterChain.defaultValues()
+    public var satBypass: Bool = false
+    public var cmpBypass: Bool = false
+    public var clipBypass: Bool = false
+    public var limBypass: Bool = false
     public var tracks: [Track]
     /// Строки сетки паттернов: имена и повторы.
     public var scenes: [SceneRow] = [SceneRow](repeating: SceneRow(), count: Params.patternSlots)
