@@ -19,6 +19,8 @@ const F = 48000;
 
 /** Полоса: тип (индекс EQ_TYPES: 0 Bell, 1 Low Shelf, 2 High Shelf, 3 Low Cut, 4 High Cut, 5 Notch), частота, усиление, Q, крутизна. */
 const band = (type, freq, gain, q, slope = 0, on = true) => ({ on, type, freq, gain, q, slope });
+/** Полоса с режимом M/S (S7a): 1 MID, 2 SIDE. */
+const msBand = (ms, type, freq, gain, q, slope = 0) => ({ ...band(type, freq, gain, q, slope), ms });
 const eq = (...bands) => ({ on: true, bands: Array.from({ length: 8 }, (_, k) => bands[k] ?? null) });
 
 const CASES = [
@@ -46,6 +48,21 @@ const CASES = [
       { frame: 19968, eq: eq(band(1, 1000, 6, 1), band(4, 3000, 0, 1, 2)) },
       { frame: 29952, eq: eq(band(1, 1000, 6, 1, 0, false), band(4, 3000, 0, 1, 2)) },
       { frame: 39936, eq: { ...eq(band(1, 1000, 6, 1), band(4, 3000, 0, 1, 2)), on: false } },
+    ] },
+  // M/S (S7a): полоса MID или SIDE фильтрует только свой канал.
+  { name: 'ms_mid', frames: F / 2, input: 'drums', eq: eq(msBand(1, 0, 220, 12, 2), msBand(2, 3, 400, 0, 1, 1)) },
+  { name: 'ms_side', frames: F / 2, input: 'noise', eq: eq(band(0, 800, -6, 1), msBand(2, 2, 4000, 9, 1), msBand(1, 4, 6000, 0, 1, 2)) },
+  { name: 'ms_moves', frames: F, input: 'noise', eq: eq(msBand(1, 0, 500, 9, 1), msBand(2, 1, 300, -9, 1)),
+    events: [
+      { frame: 12032, eq: eq(msBand(1, 0, 4000, -9, 1), msBand(2, 1, 300, -9, 1)) },
+      { frame: 24064, eq: eq(msBand(1, 0, 4000, -9, 6), msBand(2, 1, 2000, 6, 1)) },
+      { frame: 36096, eq: eq(msBand(1, 0, 150, 12, 0.3), msBand(2, 1, 100, -3, 1)) },
+    ] },
+  { name: 'ms_switch', frames: F, input: 'drums', eq: eq(band(0, 220, 9, 2)),
+    events: [
+      { frame: 9984, eq: eq(msBand(1, 0, 220, 9, 2)) },
+      { frame: 19968, eq: eq(msBand(2, 0, 220, 9, 2)) },
+      { frame: 29952, eq: eq(msBand(2, 0, 220, 9, 2), msBand(1, 3, 200, 0, 1, 2)) },
     ] },
 ];
 
@@ -93,7 +110,10 @@ async function renderInChrome(url) {
     if (typeof v !== 'string') throw new Error(`render failed: ${JSON.stringify(msg).slice(0, 300)}`);
     return v;
   } finally {
+    // Профиль удаляется после выхода Chromium (иначе он ещё пишет в него).
+    const exited = proc.exitCode !== null ? Promise.resolve() : new Promise((r) => proc.once('exit', r));
     proc.kill();
+    await exited;
   }
 }
 
@@ -174,7 +194,7 @@ async function renderAll() {
 </script></body></html>`;
 fs.writeFileSync(path.join(tmp, 'index.html'), page);
 const results = JSON.parse(await renderInChrome(`file://${path.join(tmp, 'index.html')}`));
-fs.rmSync(tmp, { recursive: true });
+fs.rmSync(tmp, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
 
 const cases = [];
 for (const c of CASES) {

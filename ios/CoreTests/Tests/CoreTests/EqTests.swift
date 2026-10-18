@@ -5,7 +5,7 @@ import XCTest
 final class EqTests: XCTestCase {
     func testGolden() throws {
         let cases = try EqSelfTest.loadCases(PlaitsGolden.goldenDir)
-        XCTAssertEqual(cases.count, 13)
+        XCTAssertEqual(cases.count, 17)
         for c in cases {
             let r = try EqSelfTest.run(c, PlaitsGolden.goldenDir)
             print(String(format: "%@: samples %.1f dB, bands ±%.3f dB, rms %.1f dBFS",
@@ -44,6 +44,13 @@ extension EqTests {
         }
         time("8 bells") { _ in bells(100) }
         time("8 bells moving") { b in bells(100 + Double(b % 50)) }
+        func msBells(_ f: Double) -> Eq {
+            var e = bells(f)
+            for k in 0..<8 { e.bands[k]?.ms = 1 + k % 2 }
+            return e
+        }
+        time("8 bells M/S") { _ in msBells(100) }
+        time("8 bells M/S moving") { b in msBells(100 + Double(b % 50)) }
         time("low cut 48") { _ in
             var e = Eq()
             e.bands[0] = EqBand(type: EqSpec.lowCut, freq: 80, gain: 0, q: 1, slope: 2)
@@ -69,6 +76,10 @@ final class EqRoutingTests: XCTestCase {
         XCTAssertEqual(p.tracks[0].eq.bands[0]?.type, EqSpec.notch)
         p.setEqSlope(0, 0, 5)
         XCTAssertEqual(p.tracks[0].eq.bands[0]?.slope, 2)
+        p.setEqMs(0, 0, 1)
+        XCTAssertEqual(p.tracks[0].eq.bands[0]?.ms, 1)
+        p.setEqMs(0, 0, 7)
+        XCTAssertEqual(p.tracks[0].eq.bands[0]?.ms, 2)
         p.toggleEqBand(0, 0)
         XCTAssertEqual(p.tracks[0].eq.bands[0]?.on, false)
         p.deleteEqBand(0, 3)
@@ -89,11 +100,13 @@ final class EqRoutingTests: XCTestCase {
         var e = Eq()
         e.bands[0] = EqBand(type: EqSpec.lowCut, freq: 100, gain: 6, q: 2, slope: 2)
         e.bands[1] = EqBand(on: false, type: EqSpec.bell, freq: 100, gain: 6, q: 2)
+        e.bands[2] = EqBand(type: EqSpec.bell, freq: 100, gain: 6, q: 2, ms: 2)
         let p = UnsafeMutablePointer<Double>.allocate(capacity: EqSpec.stride)
         defer { p.deallocate() }
         EqSpec.fill(p, e)
-        XCTAssertEqual(Array(UnsafeBufferPointer(start: p, count: 6)), [1, Double(EqSpec.lowCut), 4, 100, 0, 20 * log10(2.0)])
-        XCTAssertEqual(p[6], -1)
+        XCTAssertEqual(Array(UnsafeBufferPointer(start: p, count: 7)), [1, Double(EqSpec.lowCut), 4, 100, 0, 20 * log10(2.0), 0])
+        XCTAssertEqual(p[7], -1)
+        XCTAssertEqual(p[13 + 5], 2, "режим SIDE")
         e.on = false
         EqSpec.fill(p, e)
         XCTAssertEqual(p[1], -1)

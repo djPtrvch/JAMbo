@@ -32,6 +32,7 @@ struct EqView: View {
         .onChange(of: model.eqChannel) { _, _ in
             model.eqBand = -1
             model.eqCompareMenu = false
+            model.eqMsMenu = nil
             model.syncSpectra()
         }
         .onAppear { model.syncSpectra() }
@@ -86,7 +87,7 @@ struct EqView: View {
 
 /// Строка EQ: имя канала под бутербродом, TYPE, FREQ, GAIN, Q, STEREO, DYN, PRESETS, BYPASS — шириной столбцов
 /// 8 дорожек (при 9–16 дорожках не сужаются), TYPE — с левого края поля BPM (решение пользователя; в вебе — над
-/// дорожками 1…8). STEREO, DYN и PRESETS — S7 (серые).
+/// дорожками 1…8). M/S — S7a; DYN и PRESETS — S7b, S7d (серые).
 struct EqBar: View {
     let model: AppModel
     let layout: Layout
@@ -145,7 +146,7 @@ struct EqBar: View {
         case 1: freqField(b)
         case 2: gainField(b)
         case 3: qField(b)
-        case 4: EqField(label: "M/S", value: b == nil ? "—" : "STEREO", enabled: false, model: model)
+        case 4: msField(b)
         case 5: EqField(label: "DYN", value: b == nil ? "—" : "OFF", enabled: false, model: model)
         case 6: EqTool(title: "PRESETS", enabled: false, active: false) {}
         default: EqTool(title: "BYPASS", enabled: true, active: !model.eqTarget.on) { model.toggleEqBypass() }
@@ -223,6 +224,19 @@ struct EqBar: View {
                        get: { EqBar.gainUnits(model.selectedBand) },
                        set: { v in model.setEqBand(k, gain: v / 10) },
                        hold: { input(.gain) }, model: model)
+    }
+
+    /// M/S (как в вебе): палец вниз — следующий режим (30 px на режим), тап — меню STEREO / MID / SIDE.
+    private func msField(_ b: EqBand?) -> some View {
+        let k: Int = model.eqBand
+        return EqField(label: "M/S", value: b.map { EqFormat.ms($0) } ?? "—", enabled: b != nil, pxPerUnit: 30,
+                       get: { -Double(model.selectedBand?.ms ?? 0) },
+                       set: { v in
+                           let i: Int = -Int(v)
+                           model.setEqMs(k, ((i % 3) + 3) % 3)
+                       },
+                       tap: { f in model.eqMsMenu = f },
+                       model: model)
     }
 
     /// Q: 3 px на 1/12 октавы; двойной тап — Q по умолчанию (1,0); удержание — ввод числом.
@@ -404,5 +418,37 @@ struct EqBandMenu: View {
     private func pick(_ act: () -> Void) {
         act()
         model.eqMenu = nil
+    }
+}
+
+/// Меню STEREO / MID / SIDE (тап по M/S): под полем, один столбец; тап мимо — закрыть.
+struct EqMsMenu: View {
+    static let width: CGFloat = 200
+    let model: AppModel
+    let anchor: CGRect
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let ms: Int = model.selectedBand?.ms ?? -1
+        let k: Int = model.eqBand
+        return ZStack(alignment: .topLeading) {
+            Color.black.opacity(0.001).ignoresSafeArea().onTapGesture { model.eqMsMenu = nil }
+            VStack(alignment: .leading, spacing: 6) {
+                Text("CHANNEL").font(.system(size: 12, weight: .bold)).tracking(1.2).foregroundStyle(theme.text)
+                ForEach(0..<EqSpec.msModes.count, id: \.self) { i in
+                    MenuItem(title: EqSpec.msModes[i], current: ms == i) {
+                        model.setEqMs(k, i)
+                        model.eqMsMenu = nil
+                    }
+                    .frame(height: 44)
+                }
+            }
+            .padding(8)
+            .frame(width: EqMsMenu.width)
+            .background(theme.bg, in: RoundedRectangle(cornerRadius: Layout.radius))
+            .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(theme.line, lineWidth: 1))
+            .shadow(color: .black.opacity(0.5), radius: 12, y: 4)
+            .offset(x: anchor.minX, y: anchor.maxY + 4)
+        }
     }
 }

@@ -26,7 +26,7 @@ public enum EqSelfTest {
             guard let b = v as? [String: Any] else { continue }
             func num(_ key: String) -> Double { return (b[key] as? NSNumber)?.doubleValue ?? 0 }
             eq.bands[k] = EqBand(on: (b["on"] as? NSNumber)?.boolValue ?? true, type: Int(num("type")), freq: num("freq"),
-                                 gain: num("gain"), q: num("q"), slope: Int(num("slope")))
+                                 gain: num("gain"), q: num("q"), slope: Int(num("slope")), ms: Int(num("ms")))
         }
         return eq
     }

@@ -50,6 +50,16 @@ struct EqTouch {
 /// bell-полоса; точку тянут (у cut и notch — только частота); двойной тап по точке — удалить (решение пользователя; в
 /// вебе — вкл./выкл., здесь оно в меню); удержание — меню типа, крутизны, ON/OFF, DELETE. Над пальцем, который держит точку, — частота (Гц и нота), усиление, Q. Под кривой —
 /// спектры (EqSpectrumLayer).
+/// Кривые EQ на экране (координаты y через 2 px) и какие из них рисовать.
+struct EqCurves {
+    var stereo: [CGFloat] = []
+    var mid: [CGFloat] = []
+    var side: [CGFloat] = []
+    var hasStereo: Bool = false
+    var hasMid: Bool = false
+    var hasSide: Bool = false
+}
+
 struct EqPlot: View {
     static let hitR: CGFloat = 24
     static let moveTol: CGFloat = 8
@@ -68,12 +78,12 @@ struct EqPlot: View {
         GeometryReader { geo in
             let g = EqGeometry(size: geo.size)
             let eq: Eq = model.eqTarget
-            let curve: [CGFloat] = EqPlot.curve(eq, g)
+            let curves: EqCurves = EqPlot.curves(eq, g)
             ZStack(alignment: .topLeading) {
                 EqSpectrumLayer(model: model, display: spectrum)
                 Canvas { ctx, _ in
                     drawGrid(ctx, g)
-                    drawCurve(ctx, curve, on: eq.on)
+                    drawCurves(ctx, curves, on: eq.on)
                     drawPoints(ctx, eq, g)
                 }
                 tips(eq, g)
@@ -81,24 +91,39 @@ struct EqPlot: View {
             .contentShape(Rectangle())
             .gesture(touch(g))
             // Пока открыто меню (полосы, COMPARE), касания — только ему: тап по пункту не доходит до точек.
-            .allowsHitTesting(model.eqMenu == nil && !model.eqCompareMenu)
+            .allowsHitTesting(model.eqMenu == nil && !model.eqCompareMenu && model.eqMsMenu == nil)
         }
         .background(theme.panel, in: RoundedRectangle(cornerRadius: Layout.radius))
         .clipShape(RoundedRectangle(cornerRadius: Layout.radius))
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { frame = $0 }
     }
 
-    /// Суммарная кривая включённых полос, dB, через 2 px.
-    static func curve(_ eq: Eq, _ g: EqGeometry) -> [CGFloat] {
+    /// Суммарные кривые включённых полос через 2 px (как в вебе): стерео-полосы, середина (стерео + MID), бока
+    /// (стерео + SIDE).
+    static func curves(_ eq: Eq, _ g: EqGeometry) -> EqCurves {
         let n: Int = Int(g.size.width / 2) + 1
         let freqs: [Double] = (0..<n).map { min(24000, g.freq(CGFloat($0) * 2)) }
-        var sum = [Double](repeating: 0, count: n)
+        var st = [Double](repeating: 0, count: n)
+        var mid = [Double](repeating: 0, count: n)
+        var side = [Double](repeating: 0, count: n)
+        var out = EqCurves()
         for case let b? in eq.bands where b.on {
             let r: [Double] = EqCoeffs.response(b, hz: freqs)
-            for i in 0..<n { sum[i] += r[i] }
+            let ms: Int = b.ms
+            if ms == 0 { out.hasStereo = true }
+            if ms == 1 { out.hasMid = true }
+            if ms == 2 { out.hasSide = true }
+            for i in 0..<n {
+                if ms == 0 { st[i] += r[i] }
+                if ms != 2 { mid[i] += r[i] }
+                if ms != 1 { side[i] += r[i] }
+            }
         }
         let lim: Double = EqGeometry.dbRange * 1.2
-        return sum.map { g.y(max(-lim, min(lim, $0))) }
+        out.stereo = st.map { g.y(max(-lim, min(lim, $0))) }
+        if out.hasMid { out.mid = mid.map { g.y(max(-lim, min(lim, $0))) } }
+        if out.hasSide { out.side = side.map { g.y(max(-lim, min(lim, $0))) } }
+        return out
     }
 
     // MARK: — отрисовка
@@ -132,23 +157,42 @@ struct EqPlot: View {
         return Text(s).font(.system(size: 11)).foregroundColor(theme.dim)
     }
 
-    private func drawCurve(_ ctx: GraphicsContext, _ ys: [CGFloat], on: Bool) {
+    /// Белая — стерео-полосы (и когда полос MID/SIDE нет); середина — красная, бока — оранжевая.
+    private func drawCurves(_ ctx: GraphicsContext, _ c: EqCurves, on: Bool) {
+        let a: Double = on ? 1 : 0.35
+        if c.hasStereo || (!c.hasMid && !c.hasSide) { drawCurve(ctx, c.stereo, theme.text.opacity(a)) }
+        if c.hasMid { drawCurve(ctx, c.mid, theme.rec.opacity(a)) }
+        if c.hasSide { drawCurve(ctx, c.side, theme.gr.opacity(a)) }
+    }
+
+    private func drawCurve(_ ctx: GraphicsContext, _ ys: [CGFloat], _ color: Color) {
         guard let first = ys.first else { return }
         var p = Path()
         p.move(to: CGPoint(x: 0, y: first))
         for i in 1..<ys.count { p.addLine(to: CGPoint(x: CGFloat(i) * 2, y: ys[i])) }
-        ctx.stroke(p, with: .color(theme.text.opacity(on ? 1 : 0.35)), lineWidth: 2)
+        ctx.stroke(p, with: .color(color), lineWidth: 2)
     }
 
-    /// Точки: белые с номерами, выбранная крупнее и жёлтая, выключенные серые.
+    /// Цвет точки по режиму: STEREO — белая, MID — красная, SIDE — оранжевая.
+    private func msColor(_ b: EqBand) -> Color {
+        return b.ms == 1 ? theme.rec : (b.ms == 2 ? theme.gr : theme.text)
+    }
+
+    /// Точки: цвета режима M/S с номерами, выбранная крупнее и жёлтая (MID/SIDE — с кольцом цвета режима),
+    /// выключенные серые.
     private func drawPoints(_ ctx: GraphicsContext, _ eq: Eq, _ g: EqGeometry) {
         for k in 0..<eq.bands.count {
             guard let b = eq.bands[k] else { continue }
             let sel: Bool = k == model.eqBand
             let r: CGFloat = sel ? 13 : 10
             let c: CGPoint = g.point(b)
-            let fill: Color = !b.on ? theme.muteGrey : (sel ? theme.accent : theme.text)
+            let fill: Color = !b.on ? theme.muteGrey : (sel ? theme.accent : msColor(b))
             ctx.fill(Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r)), with: .color(fill))
+            if sel && b.on && b.ms > 0 {
+                let rr: CGFloat = r + 2.5
+                let ring = Path(ellipseIn: CGRect(x: c.x - rr, y: c.y - rr, width: 2 * rr, height: 2 * rr))
+                ctx.stroke(ring, with: .color(msColor(b)), lineWidth: 3)
+            }
             let num: Text = Text("\(k + 1)").font(.system(size: sel ? 13 : 11, weight: .semibold))
                 .foregroundColor(sel ? theme.onAccent : theme.bg)
             ctx.draw(num, at: CGPoint(x: c.x, y: c.y + 0.5), anchor: .center)

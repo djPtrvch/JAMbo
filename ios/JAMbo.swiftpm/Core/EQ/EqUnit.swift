@@ -8,13 +8,15 @@ import Foundation
 // идёт по отрезку траектории (2q − 1)·128, R — 2q·128, в первом кванте оба — с начала; так — у первого изменения
 // полосы после создания цепочки, у следующих L — 2q·128, R — (2q + 1)·128 (замерено в Chromium). На время
 // сглаживания у L и R свои коэффициенты: точные на краях кусков sub отсчётов, между ними — линейно по отсчётам
-// (Web Audio считает их на каждый отсчёт). Смена набора полос (включение, тип, крутизна, BYPASS) — новая цепочка
+// (Web Audio считает их на каждый отсчёт). Смена набора полос (включение, тип, крутизна, M/S, BYPASS) — новая цепочка
 // с пустым состоянием и линейный кроссфейд 40 мс (как в вебе: усиление цепочки — до её полос); смена во время
-// кроссфейда ждёт его конца.
+// кроссфейда ждёт его конца. После кроссфейда хвост фильтров прежней цепочки звучит до затухания (в вебе её узлы
+// живут ещё ~150 мс, хвост — после усиления); новая смена в это время хвост обрывает.
 // Линии — стерео-сигналы с одним EQ (дорожка: сухой сигнал и посылы Reverb, Delay, Drive — в вебе у каждого своя
 // копия EqChain с теми же событиями): коэффициенты считаются один раз, состояние и кроссфейд — у каждой линии.
 // Линия без сигнала, у которой хвост фильтров затих, не считается; молчащий канал — idle.
-// Цепочки две (0 и 1): у каждой на полосу тип, каскад, цель, начало и ход сглаживания, коэффициенты.
+// Полоса MID или SIDE (S7a) фильтрует один канал M/S — EqUnitMs.swift.
+// Цепочки две (0 и 1): у каждой на полосу тип, каскад, режим M/S, цель, начало и ход сглаживания, коэффициенты.
 // Параметры — из снимка звука (EqSpec.fill). Всё в колбэке: память выделена при создании.
 
 public final class EqUnit {
@@ -37,6 +39,8 @@ public final class EqUnit {
     // На цепочку c и полосу k — индекс c·8 + k.
     let kind: UnsafeMutablePointer<Int>
     let nst: UnsafeMutablePointer<Int>
+    /// Режим M/S: 0 STEREO, 1 MID, 2 SIDE.
+    let msm: UnsafeMutablePointer<Int>
     let tf: UnsafeMutablePointer<Double>
     let tg: UnsafeMutablePointer<Double>
     let tq: UnsafeMutablePointer<Double>
@@ -59,13 +63,16 @@ public final class EqUnit {
     /// Вход прежней цепочки на время кроссфейда: линия·maxFrames.
     let oldL: UnsafeMutablePointer<Float>
     let oldR: UnsafeMutablePointer<Float>
+    /// Середина и бока линии для полос MID/SIDE: линия·maxFrames.
+    let midBuf: UnsafeMutablePointer<Float>
+    let sideBuf: UnsafeMutablePointer<Float>
     /// Сигналы линий на этот блок (ставит вызывающий; nil — линии нет), считается ли линия, звучит ли хвост.
     public let laneL: UnsafeMutablePointer<UnsafeMutablePointer<Float>?>
     public let laneR: UnsafeMutablePointer<UnsafeMutablePointer<Float>?>
     let live: UnsafeMutablePointer<UInt8>
     let ring: UnsafeMutablePointer<UInt8>
     var cur = 0
-    /// Отсчётов кроссфейда пройдено; −1 — кроссфейда нет.
+    /// Отсчётов кроссфейда пройдено (fadeFrames — звучит хвост прежней цепочки); −1 — кроссфейда нет.
     var fadePos = -1
 
     public init(sampleRate: Double, lanes: Int = 1) {
@@ -77,6 +84,8 @@ public final class EqUnit {
         kind.initialize(repeating: -1, count: n)
         nst = .allocate(capacity: n)
         nst.initialize(repeating: 1, count: n)
+        msm = .allocate(capacity: n)
+        msm.initialize(repeating: 0, count: n)
         tf = .allocate(capacity: n)
         tg = .allocate(capacity: n)
         tq = .allocate(capacity: n)
@@ -102,6 +111,10 @@ public final class EqUnit {
         oldR = .allocate(capacity: lanes * EqUnit.maxFrames)
         oldL.initialize(repeating: 0, count: lanes * EqUnit.maxFrames)
         oldR.initialize(repeating: 0, count: lanes * EqUnit.maxFrames)
+        midBuf = .allocate(capacity: lanes * EqUnit.maxFrames)
+        sideBuf = .allocate(capacity: lanes * EqUnit.maxFrames)
+        midBuf.initialize(repeating: 0, count: lanes * EqUnit.maxFrames)
+        sideBuf.initialize(repeating: 0, count: lanes * EqUnit.maxFrames)
         laneL = .allocate(capacity: lanes)
         laneR = .allocate(capacity: lanes)
         laneL.initialize(repeating: nil, count: lanes)
@@ -115,6 +128,9 @@ public final class EqUnit {
     deinit {
         kind.deallocate()
         nst.deallocate()
+        msm.deallocate()
+        midBuf.deallocate()
+        sideBuf.deallocate()
         for p in [tf, tg, tq, sf, sg, sq, co, coR, ramp, st] { p.deallocate() }
         for p in [fresh, changed, moving, live, ring] { p.deallocate() }
         el.deallocate()
@@ -139,7 +155,7 @@ public final class EqUnit {
     /// Блок n отсчётов на месте во всех линиях (laneL, laneR); p — параметры канала (EqSpec.stride значений).
     public func process(frames: Int, params p: UnsafePointer<Double>) {
         let n = Swift.min(frames, EqUnit.maxFrames)
-        if fadePos < 0 && !same(p, cur) { startFade(p) }
+        if (fadePos < 0 || fadePos >= EqUnit.fadeFrames) && !same(p, cur) { startFade(p) }
         setTargets(p, cur)
         var any = false
         var k = 0
@@ -184,7 +200,7 @@ public final class EqUnit {
         snap(cur)
     }
 
-    /// Набор полос цепочки c совпадает с параметрами (тип и каскад каждой полосы).
+    /// Набор полос цепочки c совпадает с параметрами (тип, каскад и режим M/S каждой полосы).
     private func same(_ p: UnsafePointer<Double>, _ c: Int) -> Bool {
         var k = 0
         while k < EqUnit.bands {
@@ -192,6 +208,7 @@ public final class EqUnit {
             let t = Int(p[o])
             if kind[c * EqUnit.bands + k] != t { return false }
             if t >= 0 && nst[c * EqUnit.bands + k] != Int(p[o + 1]) { return false }
+            if t >= 0 && msm[c * EqUnit.bands + k] != Int(p[o + 5]) { return false }
             k += 1
         }
         return true
@@ -209,6 +226,7 @@ public final class EqUnit {
             tf[i] = p[o + 2]
             tg[i] = p[o + 3]
             tq[i] = p[o + 4]
+            msm[i] = Int(p[o + 5])
             moving[i] = 0
             changed[i] = 0
             if kind[i] >= 0 { EqCoeffs.coeffs(kind[i], tf[i], tg[i], tq[i], sr, co + i * 5) }
@@ -335,16 +353,30 @@ public final class EqUnit {
         }
     }
 
-    /// Кроссфейд кончился — состояние прежней цепочки обнуляется.
+    /// Кроссфейд кончился и хвост прежней цепочки затих — её состояние обнуляется.
     private func endFade(_ n: Int) {
         let pos = fadePos + n
         if pos < EqUnit.fadeFrames {
             fadePos = pos
             return
         }
-        fadePos = -1
+        fadePos = EqUnit.fadeFrames
         let m = EqUnit.bands * EqUnit.bandState
+        var peak: Double = 0
         var lane = 0
+        while lane < lanes {
+            let s = st + (lane * 2 + 1 - cur) * m
+            var i = 0
+            while i < m {
+                let v = Swift.abs(s[i])
+                if v > peak { peak = v }
+                i += 1
+            }
+            lane += 1
+        }
+        if peak >= EqUnit.quiet { return }
+        fadePos = -1
+        lane = 0
         while lane < lanes {
             (st + (lane * 2 + 1 - cur) * m).update(repeating: 0, count: m)
             lane += 1
@@ -356,14 +388,16 @@ public final class EqUnit {
         var k = 0
         while k < EqUnit.bands {
             let i = c * EqUnit.bands + k
-            if kind[i] >= 0 { runBand(c, i, n, old) }
+            if kind[i] >= 0 {
+                if msm[i] == 0 { runBand(c, i, n, old) } else { runMsBand(c, i, n, old) }
+            }
             k += 1
         }
     }
 
     /// Сигнал линии lane для цепочки (old — вход прежней цепочки).
     @inline(__always)
-    private func signal(_ lane: Int, _ old: Bool) -> (UnsafeMutablePointer<Float>, UnsafeMutablePointer<Float>)? {
+    func signal(_ lane: Int, _ old: Bool) -> (UnsafeMutablePointer<Float>, UnsafeMutablePointer<Float>)? {
         if live[lane] == 0 { return nil }
         if old { return (oldL + lane * EqUnit.maxFrames, oldR + lane * EqUnit.maxFrames) }
         guard let l = laneL[lane], let r = laneR[lane] else { return nil }
@@ -449,7 +483,7 @@ public final class EqUnit {
     }
 
     /// Коэффициенты полосы i по значениям траектории сглаживания в отсчёте e от его начала.
-    private func coeffsAt(_ i: Int, _ e: Double, _ out: UnsafeMutablePointer<Double>) {
+    func coeffsAt(_ i: Int, _ e: Double, _ out: UnsafeMutablePointer<Double>) {
         let x: Double = exp(e * decay)
         let f: Double = tf[i] + (sf[i] - tf[i]) * x
         let g: Double = tg[i] + (sg[i] - tg[i]) * x

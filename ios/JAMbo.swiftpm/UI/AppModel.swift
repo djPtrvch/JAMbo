@@ -71,6 +71,8 @@ final class AppModel {
     var eqView: Bool = false
     var eqBand: Int = -1
     var eqMenu: EqMenuState? = nil
+    /// Меню STEREO / MID / SIDE: рамка поля M/S («root»); nil — закрыто.
+    var eqMsMenu: CGRect? = nil
     /// Спектр дорожки для сравнения (после её EQ; −1 — нет) и меню выбора; спектр выхода у EQ мастера.
     var eqCompare: Int = -1
     var eqCompareMenu: Bool = false

@@ -24,6 +24,7 @@ extension AppModel {
     func toggleEqView() {
         eqView.toggle()
         eqMenu = nil
+        eqMsMenu = nil
         eqCompareMenu = false
         if eqView {
             patternView = false
@@ -85,6 +86,12 @@ extension AppModel {
         edit { $0.setEqType(ch, k, type) }
     }
 
+    /// Режим M/S полосы k: 0 STEREO, 1 MID, 2 SIDE.
+    func setEqMs(_ k: Int, _ ms: Int) {
+        let ch = eqChannel
+        edit { $0.setEqMs(ch, k, ms) }
+    }
+
     func setEqSlope(_ k: Int, _ slope: Int) {
         let ch = eqChannel
         edit { $0.setEqSlope(ch, k, slope) }
@@ -121,6 +128,11 @@ enum EqFormat {
 
     static func note(_ f: Double) -> String {
         return Params.noteName(max(0, Int((69 + 12 * log2(f / 440)).rounded())))
+    }
+
+    /// M/S: STEREO, MID, SIDE.
+    static func ms(_ b: EqBand) -> String {
+        return EqSpec.msModes[max(0, min(b.ms, EqSpec.msModes.count - 1))]
     }
 
     /// TYPE: имя типа, у cut — с крутизной.

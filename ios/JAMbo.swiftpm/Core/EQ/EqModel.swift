@@ -2,7 +2,7 @@ import Foundation
 
 // EQ канала (как Eq и EqBand в src/state.ts, константы — EQ_* в params.ts): 8 мест под полосы (nil — полосы нет).
 // EQ дорожки — Track.eq (один на все её клипы, переезжает вместе с дорожкой), EQ мастера — Project.masterEq.
-// Dynamic и M/S — S7.
+// M/S — S7a, Dynamic — S7b.
 
 public struct EqBand: Codable, Equatable, Sendable {
     public var on: Bool = true
@@ -13,14 +13,17 @@ public struct EqBand: Codable, Equatable, Sendable {
     public var q: Double
     /// Индекс в EqSpec.slopes (low cut, high cut).
     public var slope: Int = 0
+    /// Индекс в EqSpec.msModes: 0 STEREO, 1 MID, 2 SIDE.
+    public var ms: Int = 0
 
-    public init(on: Bool = true, type: Int, freq: Double, gain: Double, q: Double, slope: Int = 0) {
+    public init(on: Bool = true, type: Int, freq: Double, gain: Double, q: Double, slope: Int = 0, ms: Int = 0) {
         self.on = on
         self.type = type
         self.freq = freq
         self.gain = gain
         self.q = q
         self.slope = slope
+        self.ms = ms
     }
 }
 
@@ -44,6 +47,8 @@ public enum EqSpec {
     public static let typeOrder = [0, 3, 4, 1, 2, 5]
     /// Крутизна среза, dB/окт (каскад из 1, 2 или 4 биквадов).
     public static let slopes = [12, 24, 48]
+    /// Режимы M/S (как EQ_MS веба): STEREO — оба канала, MID — только (L+R)/2, SIDE — только (L−R)/2.
+    public static let msModes = ["STEREO", "MID", "SIDE"]
     public static let bands = 8
     public static let freqMin: Double = 20
     public static let freqMax: Double = 20000
@@ -67,8 +72,8 @@ public enum EqSpec {
     }
 
     // Параметры EQ для колбэка (снимок звука): на канал stride значений Double — [0] включён ли EQ, затем на полосу
-    // [тип (−1 — нет или выключена), каскад, частота, усиление (0 у cut и notch), Q фильтра].
-    public static let bandStride = 5
+    // [тип (−1 — нет или выключена), каскад, частота, усиление (0 у cut и notch), Q фильтра, режим M/S].
+    public static let bandStride = 6
     public static let stride = 1 + bands * bandStride
 
     /// Каналы снимка: дорожки 0…maxTracks−1, мастер — maxTracks.
@@ -90,6 +95,7 @@ public enum EqSpec {
             p[o + 2] = b.freq
             p[o + 3] = hasGain(b.type) ? b.gain : 0
             p[o + 4] = filterQ(b)
+            p[o + 5] = Double(Swift.max(0, Swift.min(b.ms, msModes.count - 1)))
         }
     }
 }
@@ -145,6 +151,15 @@ extension Project {
         withEq(ch) { e in
             guard var b = e.band(k) else { return }
             b.slope = Swift.max(0, Swift.min(slope, EqSpec.slopes.count - 1))
+            e.bands[k] = b
+        }
+    }
+
+    /// Режим M/S полосы: 0 STEREO, 1 MID, 2 SIDE.
+    public mutating func setEqMs(_ ch: Int, _ k: Int, _ ms: Int) {
+        withEq(ch) { e in
+            guard var b = e.band(k) else { return }
+            b.ms = Swift.max(0, Swift.min(ms, EqSpec.msModes.count - 1))
             e.bands[k] = b
         }
     }
