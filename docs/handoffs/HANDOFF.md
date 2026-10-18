@@ -1,4 +1,4 @@
-# Handoff: JAMbo, Swift-версия — проверка S7 на iPad, затем S8
+# Handoff: JAMbo, Swift-версия — S8 (пианоролл)
 
 ## 1. Контекст проекта
 Groovebox для iPad. Веб (`src/`, `public/`) — эталон, заморожен. Swift-перенос — ветка `swift`, `ios/JAMbo.swiftpm`. Правила — `CLAUDE.md`, `ios/CLAUDE.md`; план и вехи — `docs/SWIFT_AUDIT.md` (раздел 6, там же соответствие прежним номерам).
@@ -10,10 +10,10 @@ Groovebox для iPad. Веб (`src/`, `public/`) — эталон, заморо
 - Пресеты EQ (решения пользователя): один общий список, только полосы (без BYPASS), источник DYN несуществующей дорожки — OFF.
 
 ## 3. Текущая задача
-S7a–S7d сделаны и запушены (итог — docs/SWIFT_MILESTONE_S7.md, раздел «Проверить на iPad»), UI ещё не собирался. Ждём проверки пользователем на iPad: ошибки сборки и замечания — исправить. После проверки — отметить S7 готовой (корневой CLAUDE.md «Состояние вех», «Вехи» и «Текущая веха» в ios/CLAUDE.md, «(идёт)» в SWIFT_MILESTONE_S7.md), затем S8.
+S8: пианоролл (новое). Сначала уточнить у пользователя состав S8, затем разбивка и план.
 
 ## 4. Что уже решено
-- S0–S6 готовы и проверены на iPad. S7: M/S (EqUnitMs), Dynamic (EqDyn, EqUnitDyn — коэффициенты на каждый отсчёт; источники SELF и дорожки, порядок микшера SoundData.eqOrder), экран DYN (EqDynMenu, анимация в EqPlot), пресеты (EqPresets, EqPresetsMenu). CoreTests — 166; эталонов EQ — 22; SELF-TEST должен быть 193.
+- S0–S7 готовы и проверены на iPad. S7: M/S (EqUnitMs), Dynamic (EqDyn, EqUnitDyn — коэффициенты на каждый отсчёт; источники SELF и дорожки, порядок микшера SoundData.eqOrder), экран DYN (EqDynMenu, анимация в EqPlot), пресеты (EqPresets, EqPresetsMenu). CoreTests — 166; эталонов EQ — 22; SELF-TEST — 193.
 - Особенности Chromium в эталонах: SIDE в первом кванте новой цепочки — тишина; хвост прежней цепочки после кроссфейда; начальные значения детектора — через processorOptions.
 
 ## 5. Что осталось решить
@@ -30,4 +30,4 @@ S7a–S7d сделаны и запушены (итог — docs/SWIFT_MILESTONE_
 - «Пришли проект» — полный zip ветки `swift` (`git archive`) в чат. PR — только по просьбе.
 
 ## 7. Первый запрос для нового чата
-«Прочитай docs/handoffs/HANDOFF.md, ios/CLAUDE.md и docs/SWIFT_MILESTONE_S7.md. Вот результаты проверки S7 на iPad: …»
+«Прочитай docs/handoffs/HANDOFF.md и ios/CLAUDE.md. Состав S8 (пианоролл): …»

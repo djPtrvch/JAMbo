@@ -1,4 +1,4 @@
-# Веха S7 — EQ Dynamic и M/S, пресеты EQ (идёт)
+# Веха S7 — EQ Dynamic и M/S, пресеты EQ (готова)
 
 S7a — M/S; S7b — Dynamic EQ (ядро); S7c — Dynamic EQ (экран); S7d — пресеты EQ. Поведение — docs/ai/fx-eq.md.
 
@@ -25,5 +25,5 @@ S7a — M/S; S7b — Dynamic EQ (ядро); S7c — Dynamic EQ (экран); S7d
 - Core/Model/EqPresets: EqPresetBook — один список, общий для дорожек, мастера и проектов (UserDefaults «eqPresets»); пресет — полосы со всеми полями, без BYPASS (решение пользователя); имя до 40 знаков, новое — «EQ n»; Project.applyEqPreset — источник DYN несуществующей дорожки — OFF (решение пользователя).
 - Экран: PRESETS (UI/EqPresetsMenu) — «EQ PRESETS · n», SAVE (окно ввода), строки «имя · число полос», тап — загрузить (одна запись UNDO, выбор полосы сброшен), свайп влево — RENAME и DELETE, как у пресетов модулей мастера. CoreTests — 166.
 
-## Проверить на iPad
-- Сборка; SELF-TEST 193/193; M/S (поле, меню CHANNEL, цвета точек и кривых); DYN (SELF, источник-дорожка, в том числе заглушённая; THRESHOLD и RANGE пальцем и числом; движение точки, полое кольцо); пресеты (SAVE, загрузка, RENAME, DELETE, после перезапуска).
+## Проверено
+- На iPad: сборка, SELF-TEST, M/S (поле, меню CHANNEL, цвета точек и кривых), DYN (SELF, источник-дорожка, THRESHOLD и RANGE, анимация), пресеты EQ (SAVE, загрузка, RENAME, DELETE, после перезапуска) — всё работает.
