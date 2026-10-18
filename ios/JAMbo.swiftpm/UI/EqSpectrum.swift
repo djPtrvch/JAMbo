@@ -169,56 +169,70 @@ struct EqSpectrumLayer: View {
     }
 }
 
-/// Меню дорожек для сравнения (тап по имени у EQ дорожки): полупрозрачное, под строкой, над полем EQ; OFF и
-/// дорожки (своя — серая); тап мимо — закрыть.
+/// Меню дорожек для сравнения (тап по имени у EQ дорожки): под строкой, над полем EQ; OFF и дорожки (своя — серая)
+/// в 2 столбца; тап мимо — закрыть. Кнопки по 44; если не помещаются — меню ровно по высоте поля EQ, кнопки ниже.
 struct EqCompareMenu: View {
+    static let rowH: CGFloat = 44
+    static let gap: CGFloat = 4
+    /// Заголовок с зазором и поля сверху и снизу (примерно; для выбора, помещаются ли кнопки по 44).
+    static let chrome: CGFloat = 40
     let model: AppModel
     let width: CGFloat
-    /// Высота поля EQ: меню в нём помещается, кнопки при многих дорожках ниже 44.
+    /// Высота поля EQ.
     let height: CGFloat
     @Environment(\.theme) private var theme
 
     var body: some View {
-        let cols: [GridItem] = Array(repeating: GridItem(.flexible(), spacing: 4), count: 2)
-        let rh: CGFloat = rowHeight()
+        let rows: Int = (model.project.tracks.count + 2) / 2
+        let need: CGFloat = CGFloat(rows) * EqCompareMenu.rowH + CGFloat(rows - 1) * EqCompareMenu.gap + EqCompareMenu.chrome
+        let fits: Bool = need <= height
         return ZStack(alignment: .topLeading) {
             Color.black.opacity(0.001).onTapGesture { model.eqCompareMenu = false }
-            VStack(alignment: .leading, spacing: 6) {
-                Text("COMPARE").font(.system(size: 12, weight: .bold)).tracking(1.2).foregroundStyle(theme.text)
-                LazyVGrid(columns: cols, spacing: 4) {
-                    item("OFF", -1, enabled: true, height: rh)
-                    ForEach(0..<model.project.tracks.count, id: \.self) { t in
-                        item(model.project.tracks[t].name, t, enabled: t != model.selectedTrack, height: rh)
-                    }
-                }
-            }
-            .padding(8)
-            .frame(width: width)
-            .background(theme.bg.opacity(0.72), in: RoundedRectangle(cornerRadius: Layout.radius))
-            .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(theme.line, lineWidth: 1))
-            .padding(.top, 48 + Layout.gap)
+            box(rows, fits: fits)
+                .padding(.top, 48 + Layout.gap)
         }
     }
 
-    /// Высота кнопки: OFF и дорожки в 2 столбца — в поле EQ (заголовок 16, поля 16 + 8, зазоры 4 и 6).
-    private func rowHeight() -> CGFloat {
-        let items: Int = model.project.tracks.count + 1
-        let rows: Int = (items + 1) / 2
-        let gaps: CGFloat = CGFloat(rows - 1) * 4
-        let free: CGFloat = height - 16 - 6 - 16 - 8 - gaps
-        let h: CGFloat = free / CGFloat(max(1, rows))
-        return max(24, min(44, h))
+    private func box(_ rows: Int, fits: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("COMPARE").font(.system(size: 12, weight: .bold)).tracking(1.2).foregroundStyle(theme.text)
+            VStack(spacing: EqCompareMenu.gap) {
+                ForEach(0..<rows, id: \.self) { r in
+                    HStack(spacing: EqCompareMenu.gap) {
+                        cell(2 * r - 1)
+                        cell(2 * r)
+                    }
+                    .frame(height: fits ? EqCompareMenu.rowH : nil)
+                    .frame(maxHeight: fits ? nil : .infinity)
+                }
+            }
+        }
+        .padding(8)
+        .frame(width: width, height: fits ? nil : height, alignment: .top)
+        .background(theme.bg, in: RoundedRectangle(cornerRadius: Layout.radius))
+        .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(theme.line, lineWidth: 1))
     }
 
-    private func item(_ title: String, _ t: Int, enabled: Bool, height h: CGFloat) -> some View {
+    /// Пункт i: −1 — OFF, 0… — дорожки; за последней дорожкой — пусто.
+    @ViewBuilder
+    private func cell(_ i: Int) -> some View {
+        if i < 0 {
+            item("OFF", -1, enabled: true)
+        } else if i < model.project.tracks.count {
+            item(model.project.tracks[i].name, i, enabled: i != model.selectedTrack)
+        } else {
+            Color.clear.frame(maxWidth: .infinity)
+        }
+    }
+
+    private func item(_ title: String, _ t: Int, enabled: Bool) -> some View {
         let cur: Bool = t < 0 ? model.eqCompareShown == nil : model.eqCompareShown == t
         let fg: Color = !enabled ? theme.off : (cur ? theme.onAccent : theme.text)
         return Text(title)
             .font(.system(size: 13, weight: .bold)).lineLimit(1).minimumScaleFactor(0.7)
             .foregroundStyle(fg)
-            .frame(maxWidth: .infinity)
-            .frame(height: h)
-            .background(cur ? theme.accent : theme.panel.opacity(0.7), in: RoundedRectangle(cornerRadius: 8))
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(cur ? theme.accent : theme.panel, in: RoundedRectangle(cornerRadius: 8))
             .contentShape(Rectangle())
             .onTapGesture { if enabled { model.setEqCompare(t) } }
     }
