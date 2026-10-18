@@ -184,13 +184,19 @@ struct EqCompareMenu: View {
 
     var body: some View {
         let rows: Int = (model.project.tracks.count + 2) / 2
-        let need: CGFloat = CGFloat(rows) * EqCompareMenu.rowH + CGFloat(rows - 1) * EqCompareMenu.gap + EqCompareMenu.chrome
-        let fits: Bool = need <= height
+        let fits: Bool = EqCompareMenu.need(rows) <= height
         return ZStack(alignment: .topLeading) {
             Color.black.opacity(0.001).onTapGesture { model.eqCompareMenu = false }
             box(rows, fits: fits)
                 .padding(.top, 48 + Layout.gap)
         }
+    }
+
+    /// Высота меню с кнопками по 44.
+    static func need(_ rows: Int) -> CGFloat {
+        let buttons: CGFloat = CGFloat(rows) * rowH
+        let gaps: CGFloat = CGFloat(rows - 1) * gap
+        return buttons + gaps + chrome
     }
 
     private func box(_ rows: Int, fits: Bool) -> some View {
