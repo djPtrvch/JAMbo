@@ -10,6 +10,9 @@ struct KnobState {
     /// Положение ручки дорожки (без p-lock) — белая дуга.
     let baseNorm: Double
     let locked: Bool
+    /// Назначенный LFO/ENV и удерживаемый источник (виден весь ход, на ручке — степень).
+    var assign: ModAssign? = nil
+    var heldSource: Int? = nil
 }
 
 extension AppModel {
@@ -61,7 +64,9 @@ extension AppModel {
     /// Параметр ручки slot (0…15, ряд за рядом) в текущем режиме; nil — неактивная (MIX и MST — позже).
     func param(_ slot: Int) -> ParamDef? {
         switch channel {
-        case .track: return fxMode ? fxParam(slot) : Params.grid(sound: track.sample)[slot]
+        case .track:
+            if modMode { return Params.modGrid[slot] }
+            return fxMode ? fxParam(slot) : Params.grid(sound: track.sample)[slot]
         case .mix: return mixParam(slot)
         case .master: return nil
         }
@@ -84,7 +89,8 @@ extension AppModel {
             if pos >= 0 { lock = t.step(pos)?.locks[p.id] }
         }
         let v: Double = lock ?? base
-        return KnobState(param: p, value: v, norm: p.toNorm(v), baseNorm: p.toNorm(base), locked: lock != nil)
+        return KnobState(param: p, value: v, norm: p.toNorm(v), baseNorm: p.toNorm(base), locked: lock != nil,
+                         assign: assign(slot), heldSource: canAssign ? heldSource : nil)
     }
 
     /// Начало поворота: положение, от которого считать (p-lock зажатого шага или ручка).
@@ -99,6 +105,14 @@ extension AppModel {
     /// Поворот: с зажатыми шагами — p-lock на всех, иначе ручка дорожки.
     func setKnob(_ slot: Int, norm: Double) {
         guard let p = param(slot) else { return }
+        if modMode {
+            modPreviewUntil = Date().addingTimeInterval(1.5)
+            // Через 1,5 с окно сэмпла возвращается (перерисовка — по записи в наблюдаемое поле).
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 1_600_000_000)
+                if Date() >= self.modPreviewUntil { self.modPreviewUntil = .distantPast }
+            }
+        }
         let v: Double = p.fromNorm(norm)
         if channel == .mix {
             edit { pr in pr.tracks[slot].vol = v }

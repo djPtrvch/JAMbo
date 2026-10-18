@@ -11,8 +11,10 @@ struct LeftColumn: View {
             if model.channel == .track {
                 FolderArrows(model: model).frame(height: 36)
             }
-            ButtonPair(left: SideButton(title: "LFO1", enabled: false), right: SideButton(title: "LFO2", enabled: false))
-            ButtonPair(left: SideButton(title: "LFO3", enabled: false), right: SideButton(title: "ENV", enabled: false))
+            ButtonPair(left: SourceButton(model: model, title: "LFO1", source: 1),
+                       right: SourceButton(model: model, title: "LFO2", source: 2))
+            ButtonPair(left: SourceButton(model: model, title: "LFO3", source: 3),
+                       right: SourceButton(model: model, title: "ENV", source: 4))
         }
         .onGeometryChange(for: CGRect.self) { g in g.frame(in: .named("root")) } action: { r in
             if model.leftFrame != r { model.leftFrame = r }
@@ -47,9 +49,11 @@ struct RightColumn: View {
         VStack(spacing: Layout.gap) {
             PagesColumn(model: model)
             ButtonPair(left: SideButton(title: "MORPH", enabled: false), right: HoldButton(title: "FX", held: model.fxHeld) { on in
-                model.fxHeld = on
+                model.setPageHeld(.fx, on)
             })
-            ButtonPair(left: ShiftButton(model: model), right: SideButton(title: "MOD", enabled: false))
+            ButtonPair(left: ShiftButton(model: model), right: HoldButton(title: "MOD", held: model.modHeld) { on in
+                model.setPageHeld(.mod, on)
+            })
         }
     }
 }
@@ -85,7 +89,21 @@ struct SideButton: View {
     }
 }
 
-/// Кнопка удержания (FX, позже MOD): пока зажата — белая (в светлой теме — чёрная).
+/// LFO1–3, ENV — удержание (назначение на ручки); белый контур — пока палец держит ручку с этим источником.
+struct SourceButton: View {
+    let model: AppModel
+    let title: String
+    let source: Int
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let outlined: Bool = model.fingerSources.contains(source)
+        return HoldButton(title: title, held: model.heldSources.contains(source)) { on in model.setSource(source, held: on) }
+            .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(outlined ? theme.text : Color.clear, lineWidth: 1))
+    }
+}
+
+/// Кнопка удержания (FX, MOD, LFO, ENV): пока зажата — белая (в светлой теме — чёрная).
 struct HoldButton: View {
     let title: String
     let held: Bool

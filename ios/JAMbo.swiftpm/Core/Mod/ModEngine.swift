@@ -79,6 +79,9 @@ public final class ModEngine {
     var data: SoundData?
     /// Выходы источников для интерфейса (кольца): дорожка·4 + (LFO1–3, ENV) — на начало блока.
     public let outs: [AtomicFloat]
+    /// Для миниатюр: фазы LFO (дорожка·3 + n), ENV — мс от запуска (−1 — нет) и гейт в мс (живая — 1e9).
+    public let phaseOuts: [AtomicFloat]
+    public let envOuts: [AtomicFloat]
 
     public init(sampleRate: Double, seed: UInt32 = FxRandom.seed()) {
         sr = sampleRate
@@ -99,6 +102,8 @@ public final class ModEngine {
         envGateEnd.initialize(repeating: 0, count: n)
         live.initialize(repeating: 0, count: n)
         outs = (0..<(n * 4)).map { _ in AtomicFloat(0) }
+        phaseOuts = (0..<(n * 3)).map { _ in AtomicFloat(0) }
+        envOuts = (0..<(n * 2)).map { _ in AtomicFloat(-1) }
         for t in 0..<n {
             for (k, id) in Params.modIds.enumerated() { p[t * Params.modCount + k] = Params.byId[id]?.def ?? 0 }
         }
@@ -154,6 +159,7 @@ public final class ModEngine {
                 }
                 phase[j] = ph
                 outs[t * 4 + l].store(Float(lfo[j]))
+                phaseOuts[j].store(Float(phase[j]))
                 l += 1
             }
             t += 1
@@ -166,6 +172,10 @@ public final class ModEngine {
         var t = 0
         while t < d.trackCount {
             outs[t * 4 + 3].store(Float(env(t, frame)))
+            let s0 = envStart[t]
+            let ms: Double = 1000 / sr
+            envOuts[t * 2].store(s0 < 0 ? -1 : Float(Double(frame - s0) * ms))
+            envOuts[t * 2 + 1].store(envGateEnd[t] == Int64.max ? 1e9 : Float(Double(envGateEnd[t] - s0) * ms))
             t += 1
         }
     }

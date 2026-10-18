@@ -5,7 +5,7 @@ import Foundation
 
 extension AppModel {
     /// Ручки показывают FX: зажата FX на дорожке.
-    var fxMode: Bool { return fxHeld && channel == .track }
+    var fxMode: Bool { return fxHeld && channel == .track && (!modHeld || lastPage == .fx) }
 
     /// Параметр ручки FX; SC Source — только среди существующих дорожек, подписи — имена дорожек.
     func fxParam(_ slot: Int) -> ParamDef {

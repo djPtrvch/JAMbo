@@ -32,7 +32,9 @@ struct SampleWindow: View {
 
     @ViewBuilder
     private var trackView: some View {
-        if let e = SynthKey.engine(model.shownSound) {
+        if model.modPreview {
+            ModPreview(model: model)
+        } else if let e = SynthKey.engine(model.shownSound) {
             SynthInfo(model: model, engine: e)
         } else {
             sampleView

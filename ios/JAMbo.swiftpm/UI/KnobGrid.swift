@@ -40,7 +40,7 @@ struct KnobGrid: View {
                                 .zIndex(lift?.from == k ? 1 : 0)
                                 .animation(.easeOut(duration: 0.15), value: lift?.to)
                         } else {
-                            KnobView(state: model.knobState(k))
+                            KnobCell(model: model, slot: k)
                         }
                     }
                 }
@@ -112,13 +112,24 @@ struct KnobGrid: View {
         }
         if let t = lastTap[s], Date().timeIntervalSince(t) < 0.35 {
             lastTap[s] = nil
-            model.knobDoubleTap(s)
+            if model.heldSteps.isEmpty && model.canAssign, let src = model.heldSource {
+                model.clearAssign(s, lfo: src)
+            } else {
+                model.knobDoubleTap(s)
+            }
             turn.consumed = true
         } else {
             lastTap[s] = Date()
         }
         // С зажатой SHIFT ручки не крутятся.
         if model.shiftHeld { turn.consumed = true }
+        // Удерживаемый LFO/ENV (без зажатого шага) — степень назначения −1…+1.
+        if model.heldSteps.isEmpty && model.canAssign, let src = model.heldSource {
+            turn.lfo = src
+            let a = model.assign(s)
+            turn.acc = a?.lfo == src ? a!.amount : 0
+        }
+        if model.channel != .mix { model.knobFingers.insert(s) }
         turns[id] = turn
         model.beginGesture()
         if model.channel == .mix && s < model.project.tracks.count && !turn.consumed { armLift(id, s, p) }
@@ -153,6 +164,12 @@ struct KnobGrid: View {
         }
         let d: Double = Double((t.lastY - y) / KnobGrid.travel)
         t.lastY = y
+        if let src = t.lfo {
+            t.acc = min(1, max(-1, t.acc + d))
+            turns[id] = t
+            model.setAssign(t.slot, lfo: src, amount: t.acc)
+            return
+        }
         t.acc = min(1, max(0, t.acc + d))
         turns[id] = t
         model.setKnob(t.slot, norm: t.acc)
@@ -174,7 +191,8 @@ struct KnobGrid: View {
     }
 
     private func up(_ id: SpatialEventCollection.Event.ID) {
-        guard turns.removeValue(forKey: id) != nil else { return }
+        guard let turn = turns.removeValue(forKey: id) else { return }
+        if !turns.values.contains(where: { $0.slot == turn.slot }) { model.knobFingers.remove(turn.slot) }
         model.endGesture()
         if let l = lift, l.id == id {
             lift = nil
@@ -201,12 +219,34 @@ struct KnobTurn {
     var acc: Double
     var moved: Bool = false
     var consumed: Bool = false
+    /// Назначение источника (1–4): накопитель — степень −1…+1.
+    var lfo: Int? = nil
+}
+
+/// Ручка сетки: с назначенным LFO/ENV — перерисовка каждый кадр (кольцо модуляции идёт за источником).
+struct KnobCell: View {
+    let model: AppModel
+    let slot: Int
+
+    var body: some View {
+        let st: KnobState = model.knobState(slot)
+        return Group {
+            if st.assign != nil {
+                TimelineView(.animation) { _ in KnobView(state: st, mod: model.modulatedNorm(st)) }
+            } else {
+                KnobView(state: st)
+            }
+        }
+    }
 }
 
 /// Ручка: кольцо (серое), дуга значения (белая; у двухполярных — от центра), p-lock — жёлтая дуга внутри
-/// и жёлтая стрелка, значение в центре, подпись под ручкой. Геометрия как в вебе (поле 100×100).
+/// и жёлтая стрелка, значение в центре, подпись под ручкой; LFO/ENV — кольцо снаружи от значения до текущего
+/// (LFO1–3 — своя прозрачность, ENV — пунктир), пока держат источник — вся зона воздействия. Геометрия как в вебе.
 struct KnobView: View {
     let state: KnobState
+    /// Положение с модуляцией (0…1); nil — без назначения.
+    var mod: Double? = nil
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -225,7 +265,15 @@ struct KnobView: View {
     }
 
     private var valueText: some View {
-        let text: String = state.param.map { $0.format(state.value) } ?? ""
+        var text: String = state.param.map { $0.format(state.value) } ?? ""
+        if let p = state.param, let a = state.assign {
+            if let h = state.heldSource, h == a.lfo {
+                let pct = Int((a.amount * 100).rounded())
+                text = (h == 4 ? "ENV" : "L\(h)") + " " + (pct > 0 ? "+" : "") + "\(pct)%"
+            } else if let m = mod {
+                text = p.format(p.fromNorm(m))
+            }
+        }
         return Text(text)
             .font(.system(size: 11))
             .monospacedDigit()
@@ -250,12 +298,32 @@ struct KnobView: View {
             ctx.stroke(KnobView.arc(c, 28 * k, origin, state.norm), with: .color(theme.accent),
                        style: StrokeStyle(lineWidth: 5 * k, lineCap: .round))
         }
-        let a: Double = KnobView.angle(state.norm)
+        if let am = state.assign {
+            drawMod(ctx, c, k, am)
+        }
+        let a: Double = KnobView.angle(mod ?? state.norm)
         var pointer = Path()
         pointer.move(to: KnobView.polar(c, 21 * k, a))
         pointer.addLine(to: KnobView.polar(c, 28 * k, a))
         ctx.stroke(pointer, with: .color(state.locked ? theme.accent : theme.text),
                    style: StrokeStyle(lineWidth: 3 * k, lineCap: .round))
+    }
+
+    /// Кольцо модуляции (r 45) от значения до текущего; зона воздействия — пока держат этот источник.
+    private func drawMod(_ ctx: GraphicsContext, _ c: CGPoint, _ k: CGFloat, _ am: ModAssign) {
+        let n: Double = state.norm
+        if let h = state.heldSource, h == am.lfo {
+            let op: Double = h == 1 ? 0.18 : (h == 2 ? 0.09 : 0.12)
+            let r: Path = KnobView.arc(c, 45 * k, Swift.max(0, n - abs(am.amount)), Swift.min(1, n + abs(am.amount)))
+            ctx.stroke(r, with: .color(theme.text.opacity(op)), style: StrokeStyle(lineWidth: 8 * k))
+        }
+        guard let m = mod else { return }
+        let ops: [Double] = [0.95, 0.4, 0.65, 0.85]
+        let op: Double = ops[Swift.max(0, Swift.min(3, am.lfo - 1))]
+        let style: StrokeStyle = am.lfo == 4
+            ? StrokeStyle(lineWidth: 4 * k, lineCap: .butt, dash: [3 * k, 3 * k])
+            : StrokeStyle(lineWidth: 4 * k, lineCap: .round)
+        ctx.stroke(KnobView.arc(c, 45 * k, n, m), with: .color(theme.text.opacity(op)), style: style)
     }
 
     /// Угол положения n (0…1): от −135° до +135° (0° — вверх), в радианах для CGPoint.

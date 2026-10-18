@@ -30,8 +30,17 @@ final class AppModel {
     @ObservationIgnored var usedSteps: Set<Int> = []
     /// Зажата SHIFT.
     var shiftHeld: Bool = false
-    /// Зажата FX: ручки — общие эффекты.
+    /// Зажата FX: ручки — общие эффекты; MOD — LFO1–3 и ENV дорожки; из двух — нажатая последней.
     var fxHeld: Bool = false
+    var modHeld: Bool = false
+    var lastPage: GridPage = .fx
+    /// Зажатые LFO1–3 (1–3) и ENV (4); нажатая последней.
+    var heldSources: Set<Int> = []
+    var lastSource: Int = 1
+    /// Ручки, которые сейчас держит палец (обводка кнопок назначенных источников).
+    var knobFingers: Set<Int> = []
+    /// Миниатюры LFO/ENV в окне сэмпла после поворота ручки MOD (до этого момента).
+    var modPreviewUntil: Date = .distantPast
     /// Открытое меню страницы (двойной тап по миниатюре).
     var pageMenu: PageMenuState? = nil
     /// Скопированные страницы (copy в меню страницы).
