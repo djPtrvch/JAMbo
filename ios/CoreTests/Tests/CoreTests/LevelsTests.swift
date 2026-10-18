@@ -60,6 +60,28 @@ final class LevelsTests: XCTestCase {
         XCTAssertLessThan(l, 1.01, "после лимитера")
     }
 
+    /// Кадры индикации COMP / CLIP / LIM: раз в 256 отсчётов; клиппер с INPUT +12 dB срезает (GR > 0).
+    func testDynTele() {
+        let core = AudioCore()
+        var p = Project()
+        p.tracks[0].addSamples(["n"])
+        p.tracks[0].vol = 0
+        p.master["clip.drive"] = 12
+        var rnd = FxRandom(9)
+        let noise = (0..<96000).map { _ in Float(rnd.next() * 2 - 1) * 0.5 }
+        core.publish(p, samples: ["n": SampleData(left: noise, right: nil)])
+        core.events.push(.noteOn(track: 0, note: 48, id: 1, velocity: 1))
+        render(core, frames: 24000)
+        let m = core.master
+        XCTAssertEqual(m.limTele.written.load(), 24000 / 256 - 1, accuracy: 2)
+        let c = m.clipTele.peaks(since: 0)
+        XCTAssertGreaterThan(c.inPeak, 1, "после INPUT +12 dB")
+        XCTAssertGreaterThan(c.gr, 1)
+        let l = m.limTele.peaks(since: 0)
+        XCTAssertLessThan(l.outPeak, 1.01)
+        XCTAssertGreaterThan(m.compTele.peaks(since: 0).inPeak, 0.05)
+    }
+
     /// АЧХ K-взвешивания на частоте hz (два биквада Loudness), разы.
     private func kGain(_ m: Loudness, _ hz: Double) -> Double {
         let w: Double = 2 * Double.pi * hz / 48000

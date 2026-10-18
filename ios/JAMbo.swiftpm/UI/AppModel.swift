@@ -132,6 +132,8 @@ final class AppModel {
     @ObservationIgnored private var pump: Timer?
     /// Измеритель и метры MIX (читают виды по таймеру анимации; не наблюдается).
     @ObservationIgnored let meters = MeterState()
+    /// Индикация COMP / CLIP / LIM при MST.
+    @ObservationIgnored let dynMeters = MasterMeters()
 
     init() {
         trace("model init")

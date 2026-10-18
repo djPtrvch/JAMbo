@@ -19,6 +19,8 @@ struct Theme {
     let rec: Color
     let gr: Color
     let meterTrack: Color
+    /// Риска порога на индикации мастера (--meter-thr).
+    let meterThr: Color
     /// Акцентный текст (--accent-text): полное имя движка в окне синта.
     let accentText: Color
     /// Иконки движков (--icon).
@@ -33,7 +35,7 @@ struct Theme {
         flash: Color(hex: 0x4a4a4a), accentSoft: Color(hex: 0x3a2f0a), root: Color(hex: 0x303030), line: Color(hex: 0x333333),
         text: Color(hex: 0xececec), dim: Color(hex: 0x8a8a8a), off: Color(hex: 0x3d3d3d),
         accent: Color(hex: 0xffc81e), onAccent: Color(hex: 0x111111), rec: Color(hex: 0xff2b2b),
-        gr: Color(hex: 0xff8a3d), meterTrack: Color(hex: 0x3a3a3a),
+        gr: Color(hex: 0xff8a3d), meterTrack: Color(hex: 0x3a3a3a), meterThr: Color(hex: 0xffffff),
         accentText: Color(hex: 0xffc81e), icon: Color(hex: 0xe8e8e8),
         grid: Color.white.opacity(0.06), gridStrong: Color.white.opacity(0.18), muteGrey: Color(hex: 0x6b6b6b)
     )
@@ -43,7 +45,7 @@ struct Theme {
         flash: Color(hex: 0xd6d5d0), accentSoft: Color(hex: 0xffeaa0), root: Color(hex: 0xe9e8e3), line: Color(hex: 0xcfceca),
         text: Color(hex: 0x161616), dim: Color(hex: 0x77766f), off: Color(hex: 0xc4c3be),
         accent: Color(hex: 0xf0b800), onAccent: Color(hex: 0x161616), rec: Color(hex: 0xe01418),
-        gr: Color(hex: 0xf08a24), meterTrack: Color(hex: 0xcfcfcf),
+        gr: Color(hex: 0xf08a24), meterTrack: Color(hex: 0xcfcfcf), meterThr: Color(hex: 0x111111),
         accentText: Color(hex: 0x8a6a00), icon: Color(hex: 0x161616),
         grid: Color.black.opacity(0.07), gridStrong: Color.black.opacity(0.2), muteGrey: Color(hex: 0xa3a29d)
     )

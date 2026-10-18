@@ -9,7 +9,9 @@ extension AppModel {
     func tickMeters() {
         let lv = audio.core.levels
         meters.show(meterChannel, lv)
-        meters.tick(lv, now: Date.timeIntervalSinceReferenceDate)
+        let now: Double = Date.timeIntervalSinceReferenceDate
+        meters.tick(lv, now: now)
+        dynMeters.tick(audio.core.master, project, now: now)
     }
 
     /// Стерео ли дорожка на метре (как trackIsStereo веба): стерео-сэмпл, панорама до края, панораму двигают

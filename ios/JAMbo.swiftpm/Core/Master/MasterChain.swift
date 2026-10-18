@@ -66,6 +66,10 @@ public final class MasterChain {
     public let clip: MasterClipper
     public let lim: MasterLimiter
     public let eq: EqUnit
+    /// Кадры индикации COMP / CLIP / LIM.
+    public let compTele = DynTele()
+    public let clipTele = DynTele()
+    public let limTele = DynTele()
     /// Точки съёма спектров EQ мастера (до и после EQ; ставит AudioCore).
     public var spectra: Spectra?
 
@@ -98,5 +102,8 @@ public final class MasterChain {
         lim.process(inL: left, inR: right, outL: left, outR: right, frames: n, gain: p[I.limGain],
                     ceiling: p[I.limCeiling], lookahead: p[I.limLookahead], rel: p[I.limRel], auto: p[I.limAuto] >= 0.5,
                     bypass: p[I.limBypass] >= 0.5)
+        compTele.push(frames: glue.frames, inPeak: glue.frameIn, gr: glue.frameGr, outPeak: glue.frameOut, det: glue.frameDet)
+        clipTele.push(frames: clip.frames, inPeak: clip.frameIn, gr: clip.frameGr, outPeak: clip.frameOut, det: -240)
+        limTele.push(frames: lim.frames, inPeak: lim.frameIn, gr: lim.frameGr, outPeak: lim.frameOut, det: -240)
     }
 }
