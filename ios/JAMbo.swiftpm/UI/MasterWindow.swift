@@ -36,7 +36,7 @@ struct MasterWindowView: View {
         } else if module == MasterScope.clip {
             ClipDisplay(model: model)
         } else {
-            Placeholder(title: "DISPLAY — NEXT STEP")
+            SatDisplay(model: model)
         }
     }
 
@@ -127,6 +127,7 @@ struct MasterStrip: View {
 
     private func tapAction(_ p: ParamDef) -> (() -> Void)? {
         if p.id == "cmp.ratio" { return { model.tapRatio() } }
+        if p.id == "sat.type" { return { model.tapSatType() } }
         return nil
     }
 
@@ -162,7 +163,7 @@ struct MasterTitle: View {
 }
 
 /// Поле окна модуля: подпись над значением; палец вверх-вниз — 240 px на весь диапазон, как у ручек (одна запись
-/// UNDO на жест); удержание 0,5 с без движения — ввод числом; тап без движения — tap (TYPE, RATIO — S9a-2, S9a-4);
+/// UNDO на жест); удержание 0,5 с без движения — ввод числом; тап без движения — tap (TYPE, RATIO — следующее значение);
 /// жёлтая рамка — параметр меняют (палец, ручка, UNDO) и ещё 400 мс.
 struct MasterField: View {
     static let travel: CGFloat = 240

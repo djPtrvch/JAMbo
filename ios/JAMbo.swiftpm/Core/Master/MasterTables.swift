@@ -51,6 +51,25 @@ public final class MasterTables: @unchecked Sendable {
 
     static func edgeY(_ u: Double) -> Double { return u / sqrt(sqrt(1 + u * u * u * u)) }
 
+    /// Кривая окна сатуратора (TRANSFER, curveFn веба без BIAS и OUTPUT): выход нелинейности type при входе x и DRIVE
+    /// driveDb, делённый на компенсацию громкости c (та же таблица, что в колбэке). Без TONE и MIX.
+    public func satCurve(_ type: Int, driveDb: Double, _ x: Double) -> Double {
+        let top: Double = Double(MasterTables.compN) * MasterTables.compStepDb
+        let dB: Double = Swift.max(0, Swift.min(top, driveDb))
+        let g: Double = pow(10, dB / 20)
+        let ci: Double = dB / MasterTables.compStepDb
+        let i0: Int = Swift.min(MasterTables.compN, Int(ci.rounded(.down)))
+        let fr: Double = ci - Double(i0)
+        let tp: Int = Swift.max(0, Swift.min(2, type))
+        let base: Int = tp * (MasterTables.compN + 2)
+        let c: Double = comp[base + i0] + (comp[base + i0 + 1] - comp[base + i0]) * fr
+        let u: Double = x * g
+        var y: Double = MasterTables.edgeY(u)
+        if tp == 0 { y = tanh(u) }
+        if tp == 1 { y = (tanh(u + MasterTables.tubeBias) - d.tb) / d.td }
+        return y / Swift.max(1e-9, c)
+    }
+
     /// c = пик выхода кривой на синусе refPeak · g (постоянная составляющая убрана), делённый на refPeak.
     static func makeComp(_ t: UnsafeMutablePointer<Double>, _ f: (Double) -> Double) {
         let P = 512

@@ -105,6 +105,13 @@ extension AppModel {
         edit { pr in pr.master[p.id] = next }
     }
 
+    /// Тап по полю TYPE сатуратора: следующий тип TAPE → TUBE → EDGE → TAPE.
+    func tapSatType() {
+        let p: ParamDef = Params.masterColumns[0][1]
+        let next: Double = Double((Int(masterValue(p).rounded()) + 1) % 3)
+        edit { pr in pr.master[p.id] = next }
+    }
+
     /// Подсветка поля id в кадре now.
     func masterHotNow(_ id: String, now: Double) -> Bool {
         let v: Double = project.master[id] ?? Params.byId[id]?.def ?? 0

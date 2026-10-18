@@ -157,3 +157,42 @@ final class ClipCurveTests: XCTestCase {
         }
     }
 }
+
+/// Окно сатуратора: кривая TRANSFER с компенсацией — пик синуса −12 dBFS сохраняется при любом DRIVE.
+final class SatCurveTests: XCTestCase {
+    func testCompensatedCurve() {
+        let t = MasterTables.shared
+        for type in 0..<3 {
+            XCTAssertEqual(t.satCurve(type, driveDb: 0, 0), 0, accuracy: 1e-9)
+            for drive in [0.0, 6.0, 12.0, 24.0] where type != 1 {
+                XCTAssertEqual(t.satCurve(type, driveDb: drive, 0.25), 0.25, accuracy: 0.01, "type \(type) drive \(drive)")
+            }
+            XCTAssertLessThan(t.satCurve(type, driveDb: 24, 1), t.satCurve(type, driveDb: 0, 1) * 1.5 + 1)
+        }
+        // TUBE несимметричен: пик без постоянной составляющей — около 0,25 (между +x и −x).
+        let up = MasterTables.shared.satCurve(1, driveDb: 12, 0.25)
+        let dn = MasterTables.shared.satCurve(1, driveDb: 12, -0.25)
+        XCTAssertEqual((up - dn) / 2, 0.25, accuracy: 0.03)
+    }
+
+    func testTapsOnlyWhenShown() {
+        let m = MasterChain(sampleRate: 48000)
+        let n = 256
+        let l = UnsafeMutablePointer<Float>.allocate(capacity: n)
+        let r = UnsafeMutablePointer<Float>.allocate(capacity: n)
+        defer { l.deallocate(); r.deallocate() }
+        l.initialize(repeating: 0.1, count: n)
+        r.initialize(repeating: 0.1, count: n)
+        var p = MasterChain.defaults
+        p.withUnsafeMutableBufferPointer { b in
+            m.process(left: l, right: r, frames: n, params: UnsafePointer(b.baseAddress!))
+        }
+        XCTAssertEqual(m.satIn.written.load(), 0)
+        m.satOn.store(1)
+        p.withUnsafeMutableBufferPointer { b in
+            m.process(left: l, right: r, frames: n, params: UnsafePointer(b.baseAddress!))
+        }
+        XCTAssertEqual(m.satIn.written.load(), n)
+        XCTAssertEqual(m.satOut.written.load(), n)
+    }
+}

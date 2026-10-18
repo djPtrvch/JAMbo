@@ -79,6 +79,10 @@ public final class MasterChain {
     public let limTele = DynTele()
     /// Точки съёма скопа (после SAT, COMP, CLIP, LIM; гониометр пишет AudioCore).
     public let scope = MasterScope()
+    /// Спектр окна сатуратора: вход и выход сатуратора (моно), пишутся, только пока satOn ≠ 0 (окно SAT открыто).
+    public let satIn = SpectrumTap()
+    public let satOut = SpectrumTap()
+    public let satOn = AtomicCounter()
     /// Точки съёма спектров EQ мастера (до и после EQ; ставит AudioCore).
     public var spectra: Spectra?
 
@@ -106,8 +110,11 @@ public final class MasterChain {
             eq.process(left: left, right: right, frames: n, params: e)
             if shown, let s = spectra { s.post.push(left, right, n) }
         }
+        let satShown: Bool = satOn.load() != 0
+        if satShown { satIn.push(left, right, n) }
         sat.process(inL: left, inR: right, outL: left, outR: right, frames: n, drive: p[I.satDrive], type: p[I.satType],
                     tone: p[I.satTone], mix: p[I.satBypass] >= 0.5 ? 0 : p[I.satMix], focus: p[I.satFocus])
+        if satShown { satOut.push(left, right, n) }
         let sm: Int = scope.mask.load()
         scope.tap(MasterScope.sat, sm, left, right, n)
         glue.process(inL: left, inR: right, outL: left, outR: right, frames: n, thr: p[I.cmpThr], att: p[I.cmpAtt],
