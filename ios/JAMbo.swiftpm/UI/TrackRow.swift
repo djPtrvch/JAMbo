@@ -55,9 +55,10 @@ struct TrackCell: View {
 
     private func cell(_ t: Track) -> some View {
         let selected: Bool = model.channel == .track && model.selectedTrack == index
-        let border: Color = t.mute ? theme.rec : (selected ? theme.accent : Color.clear)
+        // Выбранная — всегда жёлтая рамка (и заглушённая: о mute говорит красная M), остальные заглушённые — красная.
+        let border: Color = selected ? theme.accent : (t.mute ? theme.rec : Color.clear)
         return ZStack(alignment: .topTrailing) {
-            // Выбранная дорожка — имя заметно жирнее (у заглушённой рамка красная, выбор виден по шрифту).
+            // Выбранная дорожка — имя заметно жирнее.
             Text(t.name)
                 .font(.system(size: 15, weight: selected ? .heavy : .semibold))
                 .lineLimit(1)
