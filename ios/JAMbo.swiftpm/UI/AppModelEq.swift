@@ -8,6 +8,12 @@ struct EqMenuState: Equatable {
     let bounds: CGRect
 }
 
+/// Меню PRESETS EQ: кнопка, под которой открыть, и низ поля EQ (координаты «root»).
+struct EqPresetMenuState: Equatable {
+    let anchor: CGRect
+    let bottom: CGFloat
+}
+
 /// EQ на месте центра (кнопка EQ, как src/ui/eq.ts веба): канал — выбранная дорожка, при MIX и MST — мастер.
 extension AppModel {
     /// Канал EQ: дорожка или EqSpec.masterChannel.
@@ -26,6 +32,7 @@ extension AppModel {
         eqMenu = nil
         eqMsMenu = nil
         eqDynMenu = nil
+        eqPresetMenu = nil
         eqCompareMenu = false
         if eqView {
             patternView = false
@@ -147,6 +154,40 @@ extension AppModel {
         let ch = eqChannel
         edit { $0.deleteEqBand(ch, k) }
         if eqBand == k { eqBand = -1 }
+    }
+
+    // MARK: — пресеты EQ (UserDefaults «eqPresets»)
+
+    func saveEqPreset(name: String) {
+        eqPresets.save(name: name, eq: eqTarget)
+        storeEqPresets()
+    }
+
+    /// Загрузить пресет k в EQ показанного канала (одна запись UNDO); выбор полосы сбрасывается.
+    func loadEqPreset(_ k: Int) {
+        guard k >= 0 && k < eqPresets.list.count else { return }
+        let ch = eqChannel
+        let p: EqPreset = eqPresets.list[k]
+        edit { $0.applyEqPreset(ch, p) }
+        eqBand = -1
+    }
+
+    func renameEqPreset(_ k: Int, to name: String) {
+        eqPresets.rename(k, to: name)
+        storeEqPresets()
+    }
+
+    func deleteEqPreset(_ k: Int) {
+        eqPresets.delete(k)
+        storeEqPresets()
+    }
+
+    private func storeEqPresets() {
+        UserDefaults.standard.set(eqPresets.encode(), forKey: "eqPresets")
+    }
+
+    static func loadEqPresets() -> EqPresetBook {
+        return EqPresetBook.decode(UserDefaults.standard.data(forKey: "eqPresets"))
     }
 
     /// BYPASS: выключение EQ канала.

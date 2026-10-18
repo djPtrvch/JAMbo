@@ -1,8 +1,11 @@
 import SwiftUI
 
 /// Какое значение полосы вводят числом (удержание FREQ, GAIN, Q).
-enum EqInput {
+enum EqInput: Equatable {
     case freq, gain, q, thr, range
+    /// Имя нового пресета EQ (SAVE) и новое имя пресета k (RENAME).
+    case save
+    case rename(Int)
 }
 
 /// EQ на месте центра (кнопка EQ): вверху строка полей ровной сеткой со строкой дорожек, под ней поле EQ.
@@ -34,6 +37,7 @@ struct EqView: View {
             model.eqCompareMenu = false
             model.eqMsMenu = nil
             model.eqDynMenu = nil
+            model.eqPresetMenu = nil
             model.syncSpectra()
         }
         // Ввод числом из меню DYN (THRESHOLD, RANGE).
@@ -46,9 +50,17 @@ struct EqView: View {
         .onAppear { model.syncSpectra() }
         .onDisappear { model.syncSpectra() }
         .alert(inputTitle, isPresented: inputShown) {
-            TextField(inputTitle, text: $text).keyboardType(.numbersAndPunctuation)
+            TextField(inputTitle, text: $text).keyboardType(isName ? .default : .numbersAndPunctuation)
             Button("OK") { enter() }
             Button("Cancel", role: .cancel) {}
+        }
+    }
+
+    /// Ввод имени пресета (не числа).
+    private var isName: Bool {
+        switch input {
+        case .save, .rename: return true
+        default: return false
         }
     }
 
@@ -63,11 +75,26 @@ struct EqView: View {
         case .q: return "Q"
         case .thr: return "THRESHOLD (dB)"
         case .range: return "RANGE (dB)"
+        case .save: return "SAVE EQ PRESET"
+        case .rename: return "RENAME EQ PRESET"
         case nil: return ""
         }
     }
 
     private func openInput(_ field: EqInput) {
+        switch field {
+        case .save:
+            text = model.eqPresets.nextName()
+            input = field
+            return
+        case .rename(let k):
+            let list: [EqPreset] = model.eqPresets.list
+            text = k < list.count ? list[k].name : ""
+            input = field
+            return
+        default:
+            break
+        }
         guard let b = model.selectedBand else { return }
         if field == .gain && !EqSpec.hasGain(b.type) { return }
         inputBand = model.eqBand
@@ -77,6 +104,7 @@ struct EqView: View {
         case .q: text = String(format: "%.2f", b.q)
         case .thr: text = String(format: "%.1f", b.thr)
         case .range: text = String(format: "%.1f", b.range)
+        case .save, .rename: break
         }
         input = field
     }
@@ -94,6 +122,10 @@ struct EqView: View {
             if let v = EqFormat.parseNum(text) { model.setEqDynParams(k, thr: v) }
         case .range:
             if let v = EqFormat.parseNum(text) { model.setEqDynParams(k, range: v) }
+        case .save:
+            model.saveEqPreset(name: text)
+        case .rename(let i):
+            model.renameEqPreset(i, to: text)
         case nil:
             break
         }
@@ -103,13 +135,14 @@ struct EqView: View {
 
 /// Строка EQ: имя канала под бутербродом, TYPE, FREQ, GAIN, Q, STEREO, DYN, PRESETS, BYPASS — шириной столбцов
 /// 8 дорожек (при 9–16 дорожках не сужаются), TYPE — с левого края поля BPM (решение пользователя; в вебе — над
-/// дорожками 1…8). PRESETS — S7d (серая).
+/// дорожками 1…8).
 struct EqBar: View {
     let model: AppModel
     let layout: Layout
     let plotFrame: CGRect
     let input: (EqInput) -> Void
     @State private var lastQTap: Date = .distantPast
+    @State private var presetsFrame: CGRect = .zero
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -164,9 +197,17 @@ struct EqBar: View {
         case 3: qField(b)
         case 4: msField(b)
         case 5: dynField(b)
-        case 6: EqTool(title: "PRESETS", enabled: false, active: false) {}
+        case 6: presetsButton
         default: EqTool(title: "BYPASS", enabled: true, active: !model.eqTarget.on) { model.toggleEqBypass() }
         }
+    }
+
+    /// PRESETS: меню пресетов EQ под кнопкой (горит, пока открыто).
+    private var presetsButton: some View {
+        EqTool(title: "PRESETS", enabled: true, active: model.eqPresetMenu != nil) {
+            model.eqPresetMenu = model.eqPresetMenu == nil ? EqPresetMenuState(anchor: presetsFrame, bottom: plotFrame.maxY) : nil
+        }
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { presetsFrame = $0 }
     }
 
     // Значения полей в пунктах движения пальца и обратно.

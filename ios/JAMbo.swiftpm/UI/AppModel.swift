@@ -76,6 +76,9 @@ final class AppModel {
     /// Меню DYN (источник, THRESHOLD, RANGE): рамка поля DYN; ввод числом из меню (EqView открывает окно).
     var eqDynMenu: CGRect? = nil
     var eqInputAsk: EqInput? = nil
+    /// Меню PRESETS EQ (рамка кнопки и низ поля EQ, «root»); пресеты EQ — общие для каналов и проектов.
+    var eqPresetMenu: EqPresetMenuState? = nil
+    var eqPresets: EqPresetBook = AppModel.loadEqPresets()
     /// Спектр дорожки для сравнения (после её EQ; −1 — нет) и меню выбора; спектр выхода у EQ мастера.
     var eqCompare: Int = -1
     var eqCompareMenu: Bool = false

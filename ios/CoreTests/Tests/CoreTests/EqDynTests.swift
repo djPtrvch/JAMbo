@@ -159,3 +159,42 @@ final class EqDynTests: XCTestCase {
         print(String(format: "load 8 dynamic bells: %.1f %%", Date().timeIntervalSince(t0) * 100))
     }
 }
+
+/// Пресеты EQ (S7d): имя, сохранение, загрузка без BYPASS, источник DYN несуществующей дорожки — OFF, JSON.
+final class EqPresetTests: XCTestCase {
+    func testBook() {
+        var p = Project()
+        p.addEqBand(0, freq: 100, gain: 3)
+        p.addEqBand(0, freq: 1000, gain: -3)
+        p.setEqMs(0, 1, 2)
+        p.setEqDyn(0, 1, Params.maxTracks)
+        p.setEqDynParams(0, 1, thr: -30, range: 9)
+        var book = EqPresetBook()
+        XCTAssertEqual(book.nextName(), "EQ 1")
+        book.save(name: "  ", eq: p.tracks[0].eq)
+        XCTAssertEqual(book.list[0].name, "EQ 1")
+        XCTAssertEqual(book.list[0].count, 2)
+        book.save(name: String(repeating: "x", count: 50), eq: p.masterEq)
+        XCTAssertEqual(book.list[1].name.count, 40)
+        XCTAssertEqual(book.list[1].count, 0)
+        book.rename(1, to: "Flat")
+        XCTAssertEqual(book.list[1].name, "Flat")
+        XCTAssertEqual(book.nextName(), "EQ 3")
+        // Загрузка в мастер: полосы как в пресете, BYPASS не меняется; дорожки 16 нет — DYN OFF.
+        p.toggleEq(EqSpec.masterChannel)
+        p.applyEqPreset(EqSpec.masterChannel, book.list[0])
+        XCTAssertFalse(p.masterEq.on)
+        XCTAssertEqual(p.masterEq.bands[0], p.tracks[0].eq.bands[0])
+        XCTAssertEqual(p.masterEq.bands[1]?.ms, 2)
+        XCTAssertEqual(p.masterEq.bands[1]?.thr, -30)
+        XCTAssertEqual(p.masterEq.bands[1]?.dyn, -1)
+        // Пустой пресет очищает полосы.
+        p.applyEqPreset(EqSpec.masterChannel, book.list[1])
+        XCTAssertEqual(p.masterEq.bands.compactMap { $0 }.count, 0)
+        // JSON туда и обратно; повреждённый — пустой список.
+        XCTAssertEqual(EqPresetBook.decode(book.encode()), book)
+        XCTAssertEqual(EqPresetBook.decode(Data("{".utf8)).list.count, 0)
+        book.delete(0)
+        XCTAssertEqual(book.list.map { $0.name }, ["Flat"])
+    }
+}

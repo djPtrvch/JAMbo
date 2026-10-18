@@ -101,6 +101,9 @@ struct RootView: View {
         if let f = model.eqDynMenu {
             EqDynMenu(model: model, anchor: f)
         }
+        if let m = model.eqPresetMenu {
+            EqPresetsMenu(model: model, state: m)
+        }
         if let m = model.masterMenu {
             MasterMenuView(model: model, state: m)
         }
