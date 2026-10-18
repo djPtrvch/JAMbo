@@ -77,6 +77,8 @@ public final class Sampler {
     let used = UnsafeMutablePointer<UInt8>.allocate(capacity: SoundData.maxTracks)
     let volCur = UnsafeMutablePointer<Float>.allocate(capacity: SoundData.maxTracks)
     let gateCur = UnsafeMutablePointer<Float>.allocate(capacity: SoundData.maxTracks)
+    /// Была ли дорожка слышна в прошлом блоке (MUTE TAILS: 2 — ещё неизвестно).
+    let openPrev = UnsafeMutablePointer<UInt8>.allocate(capacity: SoundData.maxTracks)
     /// Шины посылов дорожек: (дорожка·3 + посыл)·maxFrames; sendUsed — шины дорожки очищены в этом блоке.
     let sendL = UnsafeMutablePointer<Float>.allocate(capacity: SoundData.maxTracks * 3 * maxFrames)
     let sendR = UnsafeMutablePointer<Float>.allocate(capacity: SoundData.maxTracks * 3 * maxFrames)
@@ -177,13 +179,14 @@ public final class Sampler {
         used.initialize(repeating: 0, count: SoundData.maxTracks)
         volCur.initialize(repeating: -1, count: SoundData.maxTracks)
         gateCur.initialize(repeating: -1, count: SoundData.maxTracks)
+        openPrev.initialize(repeating: 2, count: SoundData.maxTracks)
         one.initialize(to: 0)
         scratch.initialize(repeating: 0, count: VoiceParam.count)
         for e in 0..<SynthEngines.count { (synthHash + e).initialize(to: SoundKey.hash(SynthKey.key(e))) }
     }
 
     deinit {
-        for p in [active, fading, own, stereo, released, used, sendUsed] as [UnsafeMutablePointer<UInt8>] { p.deallocate() }
+        for p in [active, fading, own, stereo, released, used, sendUsed, openPrev] as [UnsafeMutablePointer<UInt8>] { p.deallocate() }
         for p in [send, sendL, sendR, duckCur, flagCur, meterL, meterR] { p.deallocate() }
         for p in [track, trackId, note, liveId, serial, srcFrames, ftype] as [UnsafeMutablePointer<Int>] { p.deallocate() }
         for p in [pos, endPos, edge, noteRatio, rate, attackF, decaySec, hz, qDb] as [UnsafeMutablePointer<Double>] { p.deallocate() }

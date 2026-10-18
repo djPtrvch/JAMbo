@@ -23,6 +23,8 @@ final class AppModel {
     var session = ProjectSession(id: "", name: "")
     @ObservationIgnored var autosaveDue: Double = 0
     @ObservationIgnored let saveQueue = DispatchQueue(label: "jambo.save", qos: .utility)
+    /// Открытая вкладка SETTINGS (не в настройках: при запуске — AUDIO ENGINE).
+    var settingsTab: SettingsTab = .engine
     /// Список проектов в меню PROJECTS (перечитывается при открытии меню и после действий).
     var projectList: [ProjectInfo] = []
     private(set) var selectedTrack: Int = 0

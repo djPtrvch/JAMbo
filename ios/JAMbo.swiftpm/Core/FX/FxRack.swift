@@ -30,6 +30,10 @@ public final class FxRack {
     let sendFlag: UnsafeMutablePointer<Float>
     var source = 0
     var anyDucked = false
+    /// MUTE TAILS: сколько кадров ещё погашена обратная связь Delay (заглушили его единственный источник).
+    var tailLeft: Int = 0
+    /// На столько секунд гасится обратная связь (TAIL_CUT веба).
+    static let tailCut: Double = 0.1
     let maxFrames: Int
     /// Время Delay по пунктам (четверти) — копия Params.delayDivs (колбэк не читает Swift-массивы).
     let delayBeats: UnsafeMutablePointer<Double>
@@ -140,6 +144,12 @@ public final class FxRack {
         }
     }
 
+    /// MUTE TAILS (cutDelayTail веба): повторы Delay обрываются — обратная связь гаснет на 100 мс
+    /// (сглаживание обратной связи в FxDelay — 20 мс).
+    public func cutDelayTail() {
+        tailLeft = Int(FxRack.tailCut * sr)
+    }
+
     /// Эффекты: входы шин → выход (прибавляется к left/right). bpm — для времени Delay.
     public func process(frames n: Int, bpm: Double, left: UnsafeMutablePointer<Float>, right: UnsafeMutablePointer<Float>) {
         let lv = live
@@ -149,8 +159,10 @@ public final class FxRack {
         add(n, 1, left, right)
         let di = Swift.max(0, Swift.min(delayDivs - 1, Int(lv[FxRack.dlyTime].rounded())))
         let time: Double = Swift.min(FxRack.maxDelay, delayBeats[di] * 60 / Swift.max(1, bpm))
+        let fb: Float = tailLeft > 0 ? 0 : Float(lv[FxRack.dlyFeedback] / 100)
+        if tailLeft > 0 { tailLeft -= n }
         delay.process(inL: inL + maxFrames, inR: inR + maxFrames, outL: outL, outR: outR, frames: n, time: Float(time),
-                      feedback: Float(lv[FxRack.dlyFeedback] / 100), filter: Float(lv[FxRack.dlyFilter] / 100),
+                      feedback: fb, filter: Float(lv[FxRack.dlyFilter] / 100),
                       spread: Float(lv[FxRack.dlySpread] / 100))
         add(n, 1, left, right)
         drive.process(inL: inL + 2 * maxFrames, inR: inR + 2 * maxFrames, outL: outL, outR: outR, frames: n,

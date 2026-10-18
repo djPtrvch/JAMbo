@@ -49,7 +49,7 @@ extension AppModel {
             }
         }
         audio.core.publish(project, samples: store.samples, map: settings.sliceMap, octave: octave, tables: tables,
-                           scSends: settings.scSends)
+                           scSends: settings.scSends, muteTails: settings.muteTails)
     }
 
     /// TABLE: встроенная таблица WTABLE на дорожку (UNDO).

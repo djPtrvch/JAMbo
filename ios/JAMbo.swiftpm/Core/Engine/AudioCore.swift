@@ -86,7 +86,8 @@ public final class AudioCore: @unchecked Sendable {
     /// Новые снимки (основной поток, после каждой правки): звук — всегда (дёшево), паттерны — если изменились.
     /// samples — загруженные сэмплы по ключу, map — SLICE NOTES.
     public func publish(_ project: Project, samples: [String: SampleData] = [:], map: SliceMap = .chromatic, octave: Int = 3,
-                        tables: [String: WtTable] = [:], scSends: SidechainSends = SidechainSends()) {
+                        tables: [String: WtTable] = [:], scSends: SidechainSends = SidechainSends(),
+                        muteTails: Bool = false) {
         releaseRetired()
         if lastSeq == nil || !SeqSnapshot.same(lastSeq!, project) {
             lastSeq = project
@@ -94,7 +95,7 @@ public final class AudioCore: @unchecked Sendable {
             if !snapshots.push(snap) { snap.release() }
         }
         let snd = Unmanaged.passRetained(SoundSnapshot(project, samples: samples, map: map, octave: octave, tables: tables,
-                                                             scSends: scSends))
+                                                             scSends: scSends, muteTails: muteTails))
         if !sounds.push(snd) { snd.release() }
     }
 

@@ -47,15 +47,7 @@ struct ProjectsPage: View {
     }
 
     private var header: some View {
-        HStack(spacing: 4) {
-            Button(action: back) {
-                Image(systemName: "chevron.left").font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(theme.text).frame(width: 40, height: 40).contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            Text(model.unsaved ? "\(model.session.name) · unsaved" : model.session.name)
-                .font(.system(size: 17, weight: .semibold)).lineLimit(1).foregroundStyle(theme.text)
-        }
+        MenuBackHeader(title: model.unsaved ? "\(model.session.name) · unsaved" : model.session.name, back: back)
     }
 
     private var actions: some View {

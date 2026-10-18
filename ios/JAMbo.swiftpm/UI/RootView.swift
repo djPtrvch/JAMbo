@@ -163,18 +163,26 @@ struct Placeholder: View {
     }
 }
 
-/// Меню бутерброда: PROJECT (PROJECTS), APPEARANCE (тема), SAMPLER и DIAGNOSTICS. Меню и подменю одного размера:
-/// по высоте — до строки дорожек (раскладка разделов — S9d).
+/// Пункт бутерброда.
+enum MenuPage {
+    case main
+    case projects
+    case settings
+}
+
+/// Меню бутерброда (как веб): разделы PROJECT (PROJECTS) и APP (SETTINGS, DIAGNOSTICS) — у каждого подзаголовок,
+/// между ними черта; CONTROLLERS (MIDI) и SYNC — с S12. Меню и подменю одного размера: по ширине — от левого края
+/// бутерброда до правого края поля SCALE, по высоте — до строки дорожек.
 struct MainMenu: View {
-    static let width: CGFloat = 380
+    static let width: CGFloat = Layout.leftColumn + Layout.gap + Layout.topButton
     let model: AppModel
     @Binding var isOpen: Bool
     let height: CGFloat
-    @State private var projectsOpen: Bool = false
+    @State private var page: MenuPage = .main
     @Environment(\.theme) private var theme
 
     var body: some View {
-        page
+        content
             .padding(12)
             .frame(width: MainMenu.width, height: height, alignment: .topLeading)
             .background(theme.bg, in: RoundedRectangle(cornerRadius: Layout.radius))
@@ -182,41 +190,30 @@ struct MainMenu: View {
     }
 
     @ViewBuilder
-    private var page: some View {
-        if projectsOpen {
-            ProjectsPage(model: model, back: { projectsOpen = false }, close: { isOpen = false })
-        } else {
+    private var content: some View {
+        switch page {
+        case .projects:
+            ProjectsPage(model: model, back: { page = .main }, close: { isOpen = false })
+        case .settings:
+            SettingsPage(model: model, back: { page = .main })
+        case .main:
             MenuScroll { mainItems }
         }
     }
 
     private var mainItems: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             MenuHead(title: "PROJECT")
-            MenuItem(title: "PROJECTS") { projectsOpen = true }
-            Divider().overlay(theme.line)
-            MenuHead(title: "APPEARANCE")
-            HStack(spacing: 6) {
-                ForEach(Appearance.allCases, id: \.self) { a in
-                    InkButton(title: a.rawValue, active: model.appearance == a) { model.setAppearance(a) }
-                }
-            }
-            Divider().overlay(theme.line)
-            MenuHead(title: "SAMPLER")
-            Text("SLICE NOTES").font(.system(size: 9)).foregroundStyle(theme.dim)
-            HStack(spacing: 6) {
-                InkButton(title: "CHROMATIC", active: model.settings.sliceMap == .chromatic) { model.setSliceMap(.chromatic) }
-                InkButton(title: "SCALE", active: model.settings.sliceMap == .scale) { model.setSliceMap(.scale) }
-            }
-            Text("Notes of slice markers in order: C3, C#3, D3… or steps of the scale from the root in octave 3.")
-                .font(.system(size: 12)).foregroundStyle(theme.dim)
-            Divider().overlay(theme.line)
-            MenuHead(title: "DIAGNOSTICS")
-            InkButton(title: "DIAGNOSTICS") {
+            MenuItem(title: "PROJECTS") { page = .projects }
+            Divider().overlay(theme.line).padding(.vertical, 8)
+            MenuHead(title: "APP")
+            MenuItem(title: "SETTINGS") { page = .settings }
+            MenuItem(title: "DIAGNOSTICS") {
                 isOpen = false
                 model.showDiagnostics = true
             }
         }
+        .padding(.top, 4)
         .padding(.trailing, 6)
     }
 }

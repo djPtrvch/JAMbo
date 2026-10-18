@@ -60,6 +60,8 @@ public struct SoundData {
     public var fx: UnsafeMutablePointer<Float>
     public var scAmount: UnsafeMutablePointer<Float>
     public var scSend: UnsafeMutablePointer<Float>
+    /// SETTINGS → AUDIO ENGINE → MUTE TAILS.
+    public var muteTails: Bool = false
     /// MOD: параметры LFO/ENV дорожки (Params.modIds), назначения на цели (ModTarget: источник 0 — нет, 1–4; степень;
     /// шкала ручки по звуку дорожки), есть ли у дорожки назначения; назначения на FX (Params.fxIds) и дорожка-источник.
     public var mod: UnsafeMutablePointer<Float>
@@ -133,7 +135,7 @@ public final class SoundSnapshot: @unchecked Sendable {
     /// samples — загруженные сэмплы по ключу; map, scale, root — ноты маркеров по порядку (SLICE NOTES).
     /// tables — готовые таблицы WTABLE по ключу (Track.table).
     public init(_ project: Project, samples: [String: SampleData], map: SliceMap, octave: Int = 3,
-                tables: [String: WtTable] = [:], scSends: SidechainSends = SidechainSends()) {
+                tables: [String: WtTable] = [:], scSends: SidechainSends = SidechainSends(), muteTails: Bool = false) {
         let tracks = SoundData.maxTracks
         let entries = SoundData.maxEntries
         let slices = SoundData.maxSlices
@@ -181,6 +183,7 @@ public final class SoundSnapshot: @unchecked Sendable {
         d.scSend[0] = scSends.rev ? 1 : 0
         d.scSend[1] = scSends.dly ? 1 : 0
         d.scSend[2] = scSends.drv ? 1 : 0
+        d.muteTails = muteTails
         d.tableRef.initialize(repeating: WtRef(), count: tracks)
         var keepTables: [WtTable] = []
         d.trackId.initialize(repeating: -1, count: tracks)
