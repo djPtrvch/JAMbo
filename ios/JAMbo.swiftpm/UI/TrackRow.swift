@@ -26,7 +26,8 @@ struct ChannelCell: View {
     var body: some View {
         let selected: Bool = model.channel == channel
         return Text(title)
-            .font(.system(size: 12, weight: .bold))
+            // Жирность — как у дорожек: выбранная heavy, остальные semibold.
+            .font(.system(size: 12, weight: selected ? .heavy : .semibold))
             .tracking(0.7)
             .foregroundStyle(selected ? theme.text : theme.dim)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
