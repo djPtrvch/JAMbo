@@ -3,7 +3,8 @@ import Foundation
 // EQ дорожек в колбэке (как engine.ts веба: EQ стоит до эффектов — у сухого сигнала и у каждого посыла голоса своя
 // копия EQ дорожки с теми же полосами): на дорожку один EqUnit с 4 линиями — шина дорожки и шины посылов Reverb,
 // Delay, Drive; дальше — Sidechain, громкость микшера, mute/solo (Sampler.mix). Дорожка без голосов, у которой
-// хвост фильтров ещё звучит, считается дальше (тишина на входе). Экземпляры создаются вне колбэка.
+// хвост фильтров ещё звучит, считается дальше (тишина на входе). Спектры EQ (Spectra) — шина дорожки до и после
+// её EQ. Экземпляры создаются вне колбэка.
 
 public final class TrackEqs {
     public static let lanes = 4
@@ -58,9 +59,15 @@ extension Sampler {
         }
     }
 
-    /// Дорожка t молчит: EQ без звука принимает набор полос и значения.
-    func idleEq(_ t: Int, _ d: SoundData) {
+    /// Дорожка t молчит: EQ без звука принимает набор полос и значения; спектры этой дорожки — тишина.
+    func idleEq(_ t: Int, _ d: SoundData, _ n: Int) {
         eqs?.unit(t).idle(params: d.eq + t * EqSpec.stride)
+        guard let s = spectra else { return }
+        if s.channel.load() == t {
+            s.pre.pushSilence(n)
+            s.post.pushSilence(n)
+        }
+        if s.compareTrack.load() == t { s.compare.pushSilence(n) }
     }
 
     /// EQ дорожки t на месте: шина дорожки и (если есть шины эффектов) шины посылов.
@@ -76,6 +83,10 @@ extension Sampler {
             u.laneR[k + 1] = sends ? sendR + (t * 3 + k) * mf : nil
             k += 1
         }
+        let shown: Bool = spectra?.channel.load() == t
+        if shown, let s = spectra { s.pre.push(busL + t * mf, busR + t * mf, n) }
         u.process(frames: n, params: d.eq + t * EqSpec.stride)
+        if shown, let s = spectra { s.post.push(busL + t * mf, busR + t * mf, n) }
+        if let s = spectra, s.compareTrack.load() == t { s.compare.push(busL + t * mf, busR + t * mf, n) }
     }
 }

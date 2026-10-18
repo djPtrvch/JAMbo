@@ -22,6 +22,8 @@ public final class AudioCore: @unchecked Sendable {
     public let mod = ModEngine(sampleRate: AudioCore.sampleRate)
     /// EQ дорожек (сухой сигнал и посылы).
     public let trackEqs = TrackEqs(sampleRate: AudioCore.sampleRate)
+    /// Спектры EQ (до и после EQ показанного канала, сравниваемая дорожка, выход мастера).
+    public let spectra = Spectra()
     /// Цепочка мастера (сумма дорожек и FX → EQ → SAT → COMP → CLIP → LIM); тест-тон, метроном и прослушивание — мимо неё,
     /// как в вебе. Без мастера (useMaster false) — тесты, которые сверяют выход по отсчётам.
     public let master = MasterChain(sampleRate: AudioCore.sampleRate)
@@ -58,6 +60,8 @@ public final class AudioCore: @unchecked Sendable {
         sampler.fx = fx
         sampler.mod = mod
         sampler.eqs = trackEqs
+        sampler.spectra = spectra
+        self.master.spectra = spectra
         sequencer.mod = mod
     }
 
@@ -141,6 +145,8 @@ public final class AudioCore: @unchecked Sendable {
             sampler.render(blockStart: sampleTime, frames: n, left: masterL, right: masterR)
             master.process(left: masterL, right: masterR, frames: n, params: d.master,
                            eqParams: d.eq + EqSpec.masterChannel * EqSpec.stride)
+            // Конечный выход мастера (громкость выхода — S5d).
+            if spectra.outOn.load() != 0 { spectra.out.push(masterL, masterR, n) }
             var i = 0
             while i < n {
                 left[i] += masterL[i]

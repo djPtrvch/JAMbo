@@ -71,6 +71,10 @@ final class AppModel {
     var eqView: Bool = false
     var eqBand: Int = -1
     var eqMenu: EqMenuState? = nil
+    /// Спектр дорожки для сравнения (после её EQ; −1 — нет) и меню выбора; спектр выхода у EQ мастера.
+    var eqCompare: Int = -1
+    var eqCompareMenu: Bool = false
+    var eqOutOn: Bool = false
     var gridTop: Int = 0
     /// Открытые меню сетки: ячейки (свайп вверх), строки (удержание), бутерброд сетки.
     var cellMenu: CellMenuState? = nil

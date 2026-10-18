@@ -24,10 +24,45 @@ extension AppModel {
     func toggleEqView() {
         eqView.toggle()
         eqMenu = nil
+        eqCompareMenu = false
         if eqView {
             patternView = false
             editorOpen = false
         }
+    }
+
+    /// Сравниваемая дорожка, если её спектр сейчас показан (у EQ дорожки, не она сама).
+    var eqCompareShown: Int? {
+        let c: Int = eqCompare
+        if !eqView || channel != .track || c < 0 || c == selectedTrack || c >= project.tracks.count { return nil }
+        return c
+    }
+
+    /// Спектр выхода показан (EQ мастера, включён тапом по надписи).
+    var eqOutShown: Bool { return eqView && channel != .track && eqOutOn }
+
+    /// Тап по имени канала: у дорожки — меню дорожек для сравнения, у мастера — спектр выхода (как в вебе).
+    func eqNameTapped() {
+        if channel == .track {
+            eqCompareMenu.toggle()
+        } else {
+            eqOutOn.toggle()
+            syncSpectra()
+        }
+    }
+
+    func setEqCompare(_ t: Int) {
+        eqCompare = t
+        eqCompareMenu = false
+        syncSpectra()
+    }
+
+    /// Что слушают точки съёма спектров: канал EQ на экране, сравниваемая дорожка, выход мастера.
+    func syncSpectra() {
+        let s: Spectra = audio.core.spectra
+        s.channel.store(eqView ? eqChannel : -1)
+        s.compareTrack.store(eqCompareShown ?? -1)
+        s.outOn.store(eqOutShown ? 1 : 0)
     }
 
     /// Двойной тап по пустому месту: новая bell-полоса, она же выбрана.

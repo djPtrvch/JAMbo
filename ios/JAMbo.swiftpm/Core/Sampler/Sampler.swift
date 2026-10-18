@@ -88,6 +88,8 @@ public final class Sampler {
     public var fx: FxRack?
     /// EQ дорожек (до Sidechain и громкости микшера; TrackEqs).
     public var eqs: TrackEqs?
+    /// Точки съёма спектров EQ (ставит AudioCore).
+    public var spectra: Spectra?
     /// Модуляция LFO/ENV (ставит AudioCore); modFrame — кадр ноты, которую сейчас запускают.
     public var mod: ModEngine?
     var modFrame: Int64 = 0
@@ -512,7 +514,7 @@ public final class Sampler {
                 volCur[t] = vt
                 gateCur[t] = gt
                 duckCur[t] = at
-                idleEq(t, d)
+                idleEq(t, d, n)
                 continue
             }
             trackEq(t, d, n, sends: rack != nil)

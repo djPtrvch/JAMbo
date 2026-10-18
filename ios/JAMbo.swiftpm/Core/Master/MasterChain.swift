@@ -66,6 +66,8 @@ public final class MasterChain {
     public let clip: MasterClipper
     public let lim: MasterLimiter
     public let eq: EqUnit
+    /// Точки съёма спектров EQ мастера (до и после EQ; ставит AudioCore).
+    public var spectra: Spectra?
 
     public init(sampleRate: Double) {
         sat = MasterSaturator(sampleRate: sampleRate)
@@ -79,7 +81,12 @@ public final class MasterChain {
     public func process(left: UnsafeMutablePointer<Float>, right: UnsafeMutablePointer<Float>, frames n: Int,
                         params p: UnsafePointer<Double>, eqParams: UnsafePointer<Double>? = nil) {
         let I = Index.self
-        if let e = eqParams { eq.process(left: left, right: right, frames: n, params: e) }
+        if let e = eqParams {
+            let shown: Bool = spectra?.channel.load() == EqSpec.masterChannel
+            if shown, let s = spectra { s.pre.push(left, right, n) }
+            eq.process(left: left, right: right, frames: n, params: e)
+            if shown, let s = spectra { s.post.push(left, right, n) }
+        }
         sat.process(inL: left, inR: right, outL: left, outR: right, frames: n, drive: p[I.satDrive], type: p[I.satType],
                     tone: p[I.satTone], mix: p[I.satBypass] >= 0.5 ? 0 : p[I.satMix], focus: p[I.satFocus])
         glue.process(inL: left, inR: right, outL: left, outR: right, frames: n, thr: p[I.cmpThr], att: p[I.cmpAtt],

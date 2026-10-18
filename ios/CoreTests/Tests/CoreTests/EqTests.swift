@@ -204,3 +204,70 @@ extension EqTests {
         XCTAssertGreaterThanOrEqual(code, PlaitsSelfTest.engineNames.count)
     }
 }
+
+/// Спектры EQ: БПФ против прямого ДПФ, синус — пик в своём бине (как AnalyserNode), съём в колбэке.
+final class SpectrumTests: XCTestCase {
+    func testRealFFTMatchesDFT() {
+        let n = 256
+        var rnd = FxRandom(9)
+        let x: [Float] = (0..<n).map { _ in Float(rnd.next() * 2 - 1) }
+        let fft = RealFFT(size: n)
+        let re = UnsafeMutablePointer<Float>.allocate(capacity: n / 2), im = UnsafeMutablePointer<Float>.allocate(capacity: n / 2)
+        defer { re.deallocate(); im.deallocate() }
+        x.withUnsafeBufferPointer { fft.forward($0.baseAddress!, re, im) }
+        for k in 0..<n / 2 {
+            var sr: Double = 0, si: Double = 0
+            for i in 0..<n {
+                let a = -2 * Double.pi * Double(k * i) / Double(n)
+                sr += Double(x[i]) * cos(a)
+                si += Double(x[i]) * sin(a)
+            }
+            XCTAssertEqual(Double(re[k]), sr, accuracy: 1e-3, "re \(k)")
+            XCTAssertEqual(Double(im[k]), si, accuracy: 1e-3, "im \(k)")
+        }
+    }
+
+    /// Синус 1 кГц амплитуды 1 на бине: |X|/N с окном Блэкмана = 0,42/2 → −13,6 dB (как у AnalyserNode).
+    func testSineBin() {
+        let a = SpectrumAnalyzer()
+        let bin = 100
+        let f: Double = Double(bin) * 48000 / 4096
+        let x: [Float] = (0..<4096).map { Float(sin(2 * Double.pi * f * Double($0) / 48000)) }
+        for _ in 0..<40 { a.analyze(x) }
+        XCTAssertEqual(Double(a.db[bin]), 20 * log10(0.21), accuracy: 0.01)
+        XCTAssertLessThan(a.db[bin + 10], -100)
+    }
+
+    /// Съём: EQ дорожки 0 на экране — до и после EQ; low cut 4 кГц на синусе 100 Гц — после EQ тихо.
+    func testTapsInCallback() {
+        let core = AudioCore(master: true)
+        var p = Project()
+        p.tracks[0].addSamples(["s"])
+        p.tracks[0].eq.bands[0] = EqBand(type: EqSpec.lowCut, freq: 4000, gain: 0, q: 0.7, slope: 2)
+        let s = SampleData(left: (0..<48000).map { Float(0.5 * sin(2 * Double.pi * 100 * Double($0) / 48000)) }, right: nil)
+        core.publish(p, samples: ["s": s])
+        core.spectra.channel.store(0)
+        core.spectra.outOn.store(1)
+        var bl = [Float](repeating: 0, count: 256), br = [Float](repeating: 0, count: 256)
+        for _ in 0..<16 { core.render(frames: 256, left: &bl, right: &br) }
+        core.events.push(.noteOn(track: 0, note: 48, id: 1, velocity: 1))
+        for _ in 0..<40 { core.render(frames: 256, left: &bl, right: &br) }
+        func peak(_ tap: SpectrumTap) -> Float {
+            let a = SpectrumAnalyzer()
+            a.analyze(tap)
+            return (0..<SpectrumAnalyzer.bins).map { a.db[$0] }.max() ?? -240
+        }
+        XCTAssertGreaterThan(peak(core.spectra.pre), -40)
+        XCTAssertLessThan(peak(core.spectra.post), -100)
+        XCTAssertLessThan(peak(core.spectra.out), -100, "через мастер — тоже после EQ дорожки")
+    }
+
+    /// Нагрузка анализа (отладочная сборка): 4 спектра — как кадр EQ с основным, сравнением и выходом.
+    func testAnalyzeLoad() {
+        let a = SpectrumAnalyzer()
+        let tap = SpectrumTap()
+        let t0 = Date()
+        for _ in 0..<120 { a.analyze(tap) }
+        print(String(format: "spectrum: %.2f ms на спектр", Date().timeIntervalSince(t0) * 1000 / 120))
+    }
+}

@@ -16,14 +16,25 @@ struct EqView: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        VStack(spacing: Layout.gap) {
-            EqBar(model: model, layout: layout, plotFrame: plotFrame) { field in openInput(field) }
-                .frame(height: 48)
-            EqPlot(model: model)
-                .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { plotFrame = $0 }
+        ZStack(alignment: .topLeading) {
+            VStack(spacing: Layout.gap) {
+                EqBar(model: model, layout: layout, plotFrame: plotFrame) { field in openInput(field) }
+                    .frame(height: 48)
+                EqPlot(model: model)
+                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { plotFrame = $0 }
+            }
+            if model.eqCompareMenu {
+                EqCompareMenu(model: model, width: 2 * layout.step + Layout.gap)
+            }
         }
-        // Другой канал — выбор полосы сбрасывается.
-        .onChange(of: model.eqChannel) { _, _ in model.eqBand = -1 }
+        // Другой канал — выбор полосы сбрасывается, точки съёма спектров — на новый канал.
+        .onChange(of: model.eqChannel) { _, _ in
+            model.eqBand = -1
+            model.eqCompareMenu = false
+            model.syncSpectra()
+        }
+        .onAppear { model.syncSpectra() }
+        .onDisappear { model.syncSpectra() }
         .alert(inputTitle, isPresented: inputShown) {
             TextField(inputTitle, text: $text).keyboardType(.numbersAndPunctuation)
             Button("OK") { enter() }
@@ -94,13 +105,18 @@ struct EqBar: View {
         .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
+    /// Имя канала: тап — у дорожки меню дорожек для сравнения, у мастера — спектр выхода (надпись красная).
     private var name: some View {
-        Text("\(model.eqTargetName)\nEQ")
+        let lit: Bool = model.eqOutShown || model.eqCompareShown != nil
+        return Text("\(model.eqTargetName)\nEQ")
             .font(.system(size: 11)).tracking(0.9)
             .multilineTextAlignment(.center)
             .lineLimit(2)
             .minimumScaleFactor(0.7)
-            .foregroundStyle(theme.dim)
+            .foregroundStyle(model.eqOutShown ? theme.rec : (lit ? theme.text : theme.dim))
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contentShape(Rectangle())
+            .onTapGesture { model.eqNameTapped() }
     }
 
     @ViewBuilder

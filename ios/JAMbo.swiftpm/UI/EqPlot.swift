@@ -31,7 +31,8 @@ struct EqTouch {
 
 /// Поле EQ: сетка, суммарная кривая, точки полос; мультитач (две точки сразу). Двойной тап по пустому месту — новая
 /// bell-полоса; точку тянут (у cut и notch — только частота); двойной тап по точке — вкл./выкл.; удержание — меню
-/// типа, крутизны, DELETE. Над пальцем, который держит точку, — частота (Гц и нота), усиление, Q. Спектр — S5c.
+/// типа, крутизны, DELETE. Над пальцем, который держит точку, — частота (Гц и нота), усиление, Q. Под кривой —
+/// спектры (EqSpectrumLayer).
 struct EqPlot: View {
     static let hitR: CGFloat = 24
     static let moveTol: CGFloat = 8
@@ -41,6 +42,7 @@ struct EqPlot: View {
     @State private var touches: [SpatialEventCollection.Event.ID: EqTouch] = [:]
     @State private var lastTap: (at: Date, p: CGPoint, band: Int)? = nil
     @State private var frame: CGRect = .zero
+    @State private var spectrum = SpectrumDisplay()
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -49,6 +51,7 @@ struct EqPlot: View {
             let eq: Eq = model.eqTarget
             let curve: [CGFloat] = EqPlot.curve(eq, g)
             ZStack(alignment: .topLeading) {
+                EqSpectrumLayer(model: model, display: spectrum)
                 Canvas { ctx, _ in
                     drawGrid(ctx, g)
                     drawCurve(ctx, curve, on: eq.on)
