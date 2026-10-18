@@ -57,6 +57,8 @@ struct EqPlot: View {
     static let doubleTap: Double = 0.32
     let model: AppModel
     @State private var touches: [SpatialEventCollection.Event.ID: EqTouch] = [:]
+    /// Пальцы, снятые при открытии меню удержанием: их дальнейшие события не считаются.
+    @State private var dropped: Set<SpatialEventCollection.Event.ID> = []
     @State private var lastTap: (at: Date, p: CGPoint, band: Int)? = nil
     @State private var frame: CGRect = .zero
     @State private var spectrum = SpectrumDisplay()
@@ -78,6 +80,8 @@ struct EqPlot: View {
             }
             .contentShape(Rectangle())
             .gesture(touch(g))
+            // Пока открыто меню (полосы, COMPARE), касания — только ему: тап по пункту не доходит до точек.
+            .allowsHitTesting(model.eqMenu == nil && !model.eqCompareMenu)
         }
         .background(theme.panel, in: RoundedRectangle(cornerRadius: Layout.radius))
         .clipShape(RoundedRectangle(cornerRadius: Layout.radius))
@@ -196,6 +200,10 @@ extension EqPlot {
         SpatialEventGesture(coordinateSpace: .local)
             .onChanged { events in
                 for e in events {
+                    if dropped.contains(e.id) {
+                        if e.phase != .active { dropped.remove(e.id) }
+                        continue
+                    }
                     switch e.phase {
                     case .active:
                         if touches[e.id] == nil { down(e.id, e.location, g) } else { move(e.id, e.location, g) }
@@ -209,7 +217,10 @@ extension EqPlot {
                 }
             }
             .onEnded { events in
-                for e in events { up(e.id, e.location, g, tap: e.phase != .cancelled) }
+                for e in events {
+                    if dropped.remove(e.id) != nil { continue }
+                    up(e.id, e.location, g, tap: e.phase != .cancelled)
+                }
             }
     }
 
@@ -245,11 +256,8 @@ extension EqPlot {
             model.beginGesture()
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: UInt64(EqPlot.hold * 1e9))
-                guard var cur = touches[id], !cur.moved, cur.band == k else { return }
-                cur.menu = true
-                touches[id] = cur
-                model.eqMenu = EqMenuState(band: k, anchor: CGPoint(x: frame.minX + cur.at.x, y: frame.minY + cur.at.y),
-                                           bounds: frame)
+                guard let cur = touches[id], !cur.moved, cur.band == k else { return }
+                openMenu(k, at: cur.at)
             }
         }
         touches[id] = t
@@ -268,6 +276,19 @@ extension EqPlot {
         } else {
             model.setEqBand(t.band, freq: f)
         }
+    }
+
+    /// Меню полосы (удержание): все пальцы снимаются сразу (жесты UNDO закрываются) — поле до закрытия меню касаний не
+    /// получает, и конца касания может не прийти.
+    private func openMenu(_ k: Int, at p: CGPoint) {
+        for (id, t) in touches {
+            if t.band >= 0 { model.endGesture() }
+            dropped.insert(id)
+        }
+        touches.removeAll()
+        lastTap = nil
+        let anchor = CGPoint(x: frame.minX + p.x, y: frame.minY + p.y)
+        model.eqMenu = EqMenuState(band: k, anchor: anchor, bounds: frame)
     }
 
     private func up(_ id: SpatialEventCollection.Event.ID, _ p: CGPoint, _ g: EqGeometry, tap: Bool) {

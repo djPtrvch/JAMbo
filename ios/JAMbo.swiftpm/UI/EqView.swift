@@ -16,15 +16,16 @@ struct EqView: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        ZStack(alignment: .topLeading) {
-            VStack(spacing: Layout.gap) {
-                EqBar(model: model, layout: layout, plotFrame: plotFrame) { field in openInput(field) }
-                    .frame(height: 48)
-                EqPlot(model: model)
-                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { plotFrame = $0 }
-            }
+        VStack(spacing: Layout.gap) {
+            EqBar(model: model, layout: layout, plotFrame: plotFrame) { field in openInput(field) }
+                .frame(height: 48)
+            EqPlot(model: model)
+                .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { plotFrame = $0 }
+        }
+        // Меню COMPARE — поверх, раскладку не меняет: помещается в поле EQ (кнопки ужимаются).
+        .overlay(alignment: .topLeading) {
             if model.eqCompareMenu {
-                EqCompareMenu(model: model, width: 2 * layout.step + Layout.gap)
+                EqCompareMenu(model: model, width: 2 * layout.step + Layout.gap, height: plotFrame.height)
             }
         }
         // Другой канал — выбор полосы сбрасывается, точки съёма спектров — на новый канал.
@@ -83,8 +84,9 @@ struct EqView: View {
     }
 }
 
-/// Строка EQ: имя канала над MIX, TYPE, FREQ, GAIN, Q, STEREO, DYN, PRESETS, BYPASS — над дорожками 1…8 (по сетке
-/// 8 дорожек: при 9–16 дорожках не сужаются). STEREO, DYN и PRESETS — S9 (серые).
+/// Строка EQ: имя канала под бутербродом, TYPE, FREQ, GAIN, Q, STEREO, DYN, PRESETS, BYPASS — шириной столбцов
+/// 8 дорожек (при 9–16 дорожках не сужаются), TYPE — с левого края поля BPM (решение пользователя; в вебе — над
+/// дорожками 1…8). STEREO, DYN и PRESETS — S9 (серые).
 struct EqBar: View {
     let model: AppModel
     let layout: Layout
@@ -96,7 +98,7 @@ struct EqBar: View {
     var body: some View {
         let col: CGFloat = EqBar.column(layout)
         ZStack(alignment: .topLeading) {
-            name.frame(width: layout.step, height: 48)
+            name.frame(width: EqBar.nameWidth, height: 48)
             ForEach(0..<8, id: \.self) { i in
                 item(i).frame(width: col, height: 48).offset(x: EqBar.left(i, layout))
             }
@@ -111,10 +113,13 @@ struct EqBar: View {
         return free / 8
     }
 
-    /// Левый край столбца i (0 — над первой дорожкой).
+    /// Имя канала — под бутербродом верхней панели (его ширина).
+    static let nameWidth: CGFloat = 52
+
+    /// Левый край столбца i: TYPE — с левого края поля BPM (решение пользователя), дальше — шагом столбцов дорожек.
     static func left(_ i: Int, _ layout: Layout) -> CGFloat {
         let col: CGFloat = column(layout) + Layout.gap
-        let x0: CGFloat = layout.step + Layout.gap
+        let x0: CGFloat = EqBar.nameWidth + Layout.gap
         return x0 + CGFloat(i) * col
     }
 

@@ -174,18 +174,21 @@ struct EqSpectrumLayer: View {
 struct EqCompareMenu: View {
     let model: AppModel
     let width: CGFloat
+    /// Высота поля EQ: меню в нём помещается, кнопки при многих дорожках ниже 44.
+    let height: CGFloat
     @Environment(\.theme) private var theme
 
     var body: some View {
         let cols: [GridItem] = Array(repeating: GridItem(.flexible(), spacing: 4), count: 2)
+        let rh: CGFloat = rowHeight()
         return ZStack(alignment: .topLeading) {
             Color.black.opacity(0.001).onTapGesture { model.eqCompareMenu = false }
             VStack(alignment: .leading, spacing: 6) {
                 Text("COMPARE").font(.system(size: 12, weight: .bold)).tracking(1.2).foregroundStyle(theme.text)
                 LazyVGrid(columns: cols, spacing: 4) {
-                    item("OFF", -1, enabled: true)
+                    item("OFF", -1, enabled: true, height: rh)
                     ForEach(0..<model.project.tracks.count, id: \.self) { t in
-                        item(model.project.tracks[t].name, t, enabled: t != model.selectedTrack)
+                        item(model.project.tracks[t].name, t, enabled: t != model.selectedTrack, height: rh)
                     }
                 }
             }
@@ -197,13 +200,24 @@ struct EqCompareMenu: View {
         }
     }
 
-    private func item(_ title: String, _ t: Int, enabled: Bool) -> some View {
+    /// Высота кнопки: OFF и дорожки в 2 столбца — в поле EQ (заголовок 16, поля 16 + 8, зазоры 4 и 6).
+    private func rowHeight() -> CGFloat {
+        let items: Int = model.project.tracks.count + 1
+        let rows: Int = (items + 1) / 2
+        let gaps: CGFloat = CGFloat(rows - 1) * 4
+        let free: CGFloat = height - 16 - 6 - 16 - 8 - gaps
+        let h: CGFloat = free / CGFloat(max(1, rows))
+        return max(24, min(44, h))
+    }
+
+    private func item(_ title: String, _ t: Int, enabled: Bool, height h: CGFloat) -> some View {
         let cur: Bool = t < 0 ? model.eqCompareShown == nil : model.eqCompareShown == t
         let fg: Color = !enabled ? theme.off : (cur ? theme.onAccent : theme.text)
         return Text(title)
             .font(.system(size: 13, weight: .bold)).lineLimit(1).minimumScaleFactor(0.7)
             .foregroundStyle(fg)
-            .frame(maxWidth: .infinity, minHeight: 44)
+            .frame(maxWidth: .infinity)
+            .frame(height: h)
             .background(cur ? theme.accent : theme.panel.opacity(0.7), in: RoundedRectangle(cornerRadius: 8))
             .contentShape(Rectangle())
             .onTapGesture { if enabled { model.setEqCompare(t) } }
