@@ -148,8 +148,10 @@ struct MasterTitle: View {
             .font(.system(size: 11)).tracking(0.9)
             .multilineTextAlignment(.center)
             .lineLimit(2)
+            .minimumScaleFactor(0.7)
             .foregroundStyle(theme.dim)
-            .frame(width: EqBar.nameWidth + 12)
+            // Под бутербродом, как имя в строке EQ: первое поле — с левого края поля BPM.
+            .frame(width: EqBar.nameWidth)
             .frame(maxHeight: .infinity)
             .contentShape(Rectangle())
             .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { frame = $0 }

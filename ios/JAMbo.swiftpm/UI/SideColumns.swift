@@ -16,10 +16,12 @@ struct LeftColumn: View {
                 MasterRecButton().frame(height: 36)
             }
             if model.channel == .master {
-                ButtonPair(left: MasterButton(model: model, module: MasterScope.clip),
-                           right: MasterButton(model: model, module: MasterScope.lim))
+                // По цепочке (решение пользователя, в вебе CLIP, LIM / SAT, COMP): SAT снизу слева, над ним COMP,
+                // справа от него CLIP, под CLIP — LIM.
+                ButtonPair(left: MasterButton(model: model, module: MasterScope.comp),
+                           right: MasterButton(model: model, module: MasterScope.clip))
                 ButtonPair(left: MasterButton(model: model, module: MasterScope.sat),
-                           right: MasterButton(model: model, module: MasterScope.comp))
+                           right: MasterButton(model: model, module: MasterScope.lim))
             } else {
                 ButtonPair(left: SourceButton(model: model, title: "LFO1", source: 1),
                            right: SourceButton(model: model, title: "LFO2", source: 2))

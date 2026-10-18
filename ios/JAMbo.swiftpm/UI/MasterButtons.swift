@@ -1,6 +1,6 @@
 import SwiftUI
 
-// Кнопки мастера: при MST на месте LFO1–3 и ENV (сетка 2×2: CLIP, LIM / SAT, COMP). Тап — окно модуля (S9a);
+// Кнопки мастера: при MST на месте LFO1–3 и ENV (сетка 2×2: COMP, CLIP / SAT, LIM). Тап — окно модуля (S9a);
 // с зажатой SHIFT — BYPASS модуля (видно только с SHIFT: включённый bypass окрашен цветом модуля, как волны скопа).
 
 extension AppModel {
