@@ -8,8 +8,6 @@ final class AudioHost {
     private var source: AVAudioSourceNode?
     private var observers: [NSObjectProtocol] = []
     private(set) var lastError: String = ""
-    /// REC с входа (S11e): сессия в режиме записи, пока пишется вход.
-    var inputMode = false
     /// Запись входа (tap на узле входа) — Audio/InputCapture.swift.
     let input = InputCapture()
 
@@ -58,9 +56,10 @@ final class AudioHost {
 
     func configureSession() throws {
         let session = AVAudioSession.sharedInstance()
-        if inputMode {
-            // Запись входа: без эхоподавления, шумоподавления и автоуровня (measurement); выход — в динамик.
-            try session.setCategory(.playAndRecord, mode: .measurement, options: [.defaultToSpeaker, .allowBluetoothA2DP])
+        if InputCapture.granted {
+            // Доступ к входу дан (S11e, решение пользователя): сессия всегда в режиме записи — REC без перерыва звука,
+            // внешние входы видны в меню. Выход — в динамик (или подключённое устройство).
+            try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetoothA2DP])
         } else {
             try session.setCategory(.playback, mode: .default, options: [])
         }

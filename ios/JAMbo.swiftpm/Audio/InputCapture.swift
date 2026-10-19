@@ -2,13 +2,13 @@ import AVFoundation
 import Foundation
 import Synchronization
 
-// REC с входа (S11e, как startCapture веба для входа): микрофон iPad, аудиоинтерфейс или другое устройство.
-// Сессия переходит в режим записи только на время записи (решение пользователя): выбрали INPUT — короткий
-// перерыв звука, ■ — обратно в режим воспроизведения. Вход на выход не идёт (узел входа ни к чему не подключён).
-// Звук входа — tap на узле входа отдельного AVAudioEngine только на время записи (узел входа основного движка
-// не трогается: после него основной движок в режиме воспроизведения не запускается); не колбэк AudioCore —
-// блокировка и выделения допустимы; не дольше 60 с;
-// на ■ — пересчёт в 48 кГц (AVAudioConverter), если вход работает на другой частоте.
+// REC с входа (S11e, как startCapture веба для входа): микрофон iPad, аудиоинтерфейс, USB или другое устройство.
+// Сессия в режиме записи всегда, как только дан доступ к микрофону (решение пользователя: REC без перерыва звука;
+// перерыв — один раз, при первом разрешении). Вход на выход не идёт. Звук входа — tap на узле входа отдельного
+// AVAudioEngine только на время записи (узел входа основного движка не трогается: после него основной движок
+// в режиме воспроизведения не запускался); не колбэк AudioCore — блокировка и выделения допустимы; не дольше 60 с;
+// на ■ — пересчёт в 48 кГц (AVAudioConverter), если вход работает на другой частоте. У многоканального
+// интерфейса пишутся входы 1 и 2.
 
 /// Вход звука в меню RECORD FROM: uid порта ("" — вход по умолчанию) и имя записи (встроенный микрофон — MIC).
 struct InputPort: Identifiable, Equatable {
@@ -42,15 +42,21 @@ final class InputCapture: @unchecked Sendable {
         return Bundle.main.object(forInfoDictionaryKey: "NSMicrophoneUsageDescription") != nil
     }
 
+    /// Доступ к входу уже дан (сессия — в режиме записи).
+    static var granted: Bool {
+        return allowed && AVAudioApplication.shared.recordPermission == .granted
+    }
+
     /// Разрешение доступа к микрофону (спрашивается один раз).
     static func requestAccess() async -> Bool {
         if !allowed { return false }
         return await AVAudioApplication.requestRecordPermission()
     }
 
-    /// Входы для меню: что знает сессия; пока сессия не в режиме записи, список пуст — тогда вход по умолчанию.
+    /// Входы для меню (встроенный микрофон, USB, аудиоинтерфейс, гарнитура); до разрешения доступа iOS их не
+    /// показывает — тогда один пункт, вход по умолчанию.
     static func ports() -> [InputPort] {
-        let list: [AVAudioSessionPortDescription] = AVAudioSession.sharedInstance().availableInputs ?? []
+        let list: [AVAudioSessionPortDescription] = granted ? (AVAudioSession.sharedInstance().availableInputs ?? []) : []
         if list.isEmpty { return [InputPort(uid: "", label: "iPad microphone", name: "MIC")] }
         return list.map { p in
             let mic: Bool = p.portType == .builtInMic
@@ -153,39 +159,32 @@ final class InputCapture: @unchecked Sendable {
 }
 
 extension AudioHost {
-    /// REC с входа: разрешение, сессия в режим записи (выбранный вход), движок входа. false — нет доступа или вход
-    /// не открылся.
+    /// REC с входа: разрешение (первый раз — сессия переходит в режим записи), выбранный вход, движок входа.
+    /// false — нет доступа или вход не открылся.
     @MainActor
     func beginInput(_ uid: String) async -> Bool {
         if !(await InputCapture.requestAccess()) { return false }
-        inputMode = true
         do {
-            engine.stop()
-            try configureSession()
             let s = AVAudioSession.sharedInstance()
-            if !uid.isEmpty, let p = (s.availableInputs ?? []).first(where: { $0.uid == uid }) {
+            if s.category != .playAndRecord {
+                engine.stop()
+                try configureSession()
+                try engine.start()
+            }
+            if !uid.isEmpty, s.preferredInput?.uid != uid,
+               let p = (s.availableInputs ?? []).first(where: { $0.uid == uid }) {
                 try s.setPreferredInput(p)
             }
-            try engine.start()
             if try input.start() { return true }
         } catch {
             trace("input error: \(error.localizedDescription)")
         }
-        endInputMode()
+        _ = input.stop()
         return false
     }
 
-    /// ■: движок входа — стоп, сессия обратно в режим воспроизведения; записанное (48 кГц) или nil.
+    /// ■: движок входа — стоп; записанное (48 кГц) или nil. Сессия остаётся в режиме записи.
     func endInput() -> (left: [Float], right: [Float]?)? {
-        let out = input.stop()
-        endInputMode()
-        return out
-    }
-
-    private func endInputMode() {
-        _ = input.stop()
-        inputMode = false
-        try? AVAudioSession.sharedInstance().setPreferredInput(nil)
-        restart()
+        return input.stop()
     }
 }

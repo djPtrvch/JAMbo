@@ -69,7 +69,8 @@ struct RecSourceMenu: View {
         let ports: CGFloat = CGFloat(model.sampleRec.ports.count)
         let rows: CGFloat = CGFloat((model.project.tracks.count + 1) / 2)
         let labels: CGFloat = 3 * 20
-        return labels + ports * 46 + rows * 44 + 6 + 46 + 64
+        let hint: CGFloat = InputCapture.granted ? 0 : 40
+        return labels + ports * 46 + rows * 44 + 6 + 46 + 64 + hint
     }
 
     private var items: some View {
@@ -80,6 +81,9 @@ struct RecSourceMenu: View {
             label("INPUT")
             ForEach(ports) { p in
                 MenuItem(title: p.label) { model.beginRec(.input(uid: p.uid), name: p.name) }
+            }
+            if !InputCapture.granted {
+                SettingsNote(text: "USB devices and audio interfaces appear here after access to the input is allowed.")
             }
             label("TRACK")
             LazyVGrid(columns: cols, spacing: 4) {

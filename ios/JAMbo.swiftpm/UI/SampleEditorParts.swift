@@ -23,7 +23,8 @@ struct EditorBar: View {
                 .frame(width: infoW > 0 ? infoW : nil, alignment: .leading)
                 .frame(maxWidth: infoW > 0 ? nil : .infinity, alignment: .leading)
             SampleRecButton(model: model)
-            ToolButton(title: "▶", enabled: data != nil, lit: model.previewOn, width: play.width > 0 ? play.width : 48) {
+            // ▶ без жёлтой подсветки (решение пользователя); во время прослушивания — ■.
+            ToolButton(title: model.previewOn ? "■" : "▶", enabled: data != nil, width: play.width > 0 ? play.width : 48) {
                 model.togglePreview(sel.a, sel.b)
             }
             ToolButton(title: "LOAD", width: nil) { model.openBrowser(.load(steps: [])) }
