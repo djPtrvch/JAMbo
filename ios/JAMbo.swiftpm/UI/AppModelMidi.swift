@@ -52,6 +52,7 @@ extension AppModel {
         }
         let r = ms.resolve(src, input: source, midiContext)
         if r.mapped {
+            midiRun.feedbackHold[src] = Date.timeIntervalSinceReferenceDate
             let press: Bool = isCc ? msg.data2 >= 64 : on
             for m in r.active { applyMapping(m, isCc: isCc, value: msg.data2, press: press) }
             return
@@ -99,6 +100,8 @@ extension AppModel {
                 // Кроссфейдер — только во время перехода MIX.
                 guard let tr = mix else { return }
                 setCrossfade(input.knobValue(m, cur: tr.pos))
+            } else if m.control == .latch {
+                for p in input.presses(press: press) { midiLatch(n, p) }
             } else {
                 for p in input.presses(press: press) { midiButton(n, p) }
             }

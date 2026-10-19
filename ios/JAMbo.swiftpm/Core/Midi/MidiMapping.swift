@@ -65,11 +65,13 @@ public enum MidiTarget: Codable, Equatable, Hashable, Sendable {
     }
 }
 
-/// Тип управления: кнопка (MOMENTARY — пока нажата, TOGGLE — нажатие включает, следующее выключает),
+/// Тип управления: кнопка (MOMENTARY — пока нажата, TOGGLE — нажатие включает, следующее выключает, LATCH —
+/// переключатель на контроллере: 127 — включено, 0 — выключено, кнопка приложения принимает это состояние),
 /// ABSOLUTE — значение 0–127, RELATIVE — энкодер шлёт шаги.
 public enum MidiControl: String, Codable, CaseIterable, Sendable {
     case momentary
     case toggle
+    case latch
     case abs
     case rel
 
@@ -77,6 +79,7 @@ public enum MidiControl: String, Codable, CaseIterable, Sendable {
         switch self {
         case .momentary: return "Button momentary"
         case .toggle: return "Button toggle"
+        case .latch: return "Button latch"
         case .abs: return "Continuous absolute"
         case .rel: return "Continuous relative"
         }

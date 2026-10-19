@@ -145,9 +145,10 @@ public struct MidiToggles: Sendable {
     }
 
     /// Значение сообщения. isCc — CC (иначе нота); value — CC или сила ноты; press — нажатие (CC ≥ 64, Note On).
-    /// Кнопочные типы (и ноты): MOMENTARY — пока нажата; TOGGLE — нажатие переключает, отпускание не важно (nil).
+    /// Кнопочные типы (и ноты): MOMENTARY и LATCH — нажата / отпущена (у LATCH это состояние переключателя
+    /// контроллера); TOGGLE — нажатие переключает, отпускание не важно (nil).
     public mutating func input(_ m: MidiMapping, isCc: Bool, value: Int, press: Bool) -> MidiInput? {
-        let button: Bool = m.control == .momentary || m.control == .toggle || !isCc
+        let button: Bool = m.control == .momentary || m.control == .toggle || m.control == .latch || !isCc
         if !button {
             if m.control == .abs { return .value(m.value(at: Double(value) / 127)) }
             return .step(m.relStep(value))

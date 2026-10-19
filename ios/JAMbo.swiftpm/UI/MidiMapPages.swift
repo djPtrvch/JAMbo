@@ -54,7 +54,7 @@ struct MidiMapOptions: View {
             return [opt("cc", "CC", m.src.type == .cc) { $0.src.type = .cc },
                     opt("note", "Note", m.src.type == .note) { $0.src.type = .note }]
         case .control:
-            let all: [MidiControl] = model.midiContinuous(m.target) ? MidiControl.allCases : [.momentary, .toggle]
+            let all: [MidiControl] = model.midiContinuous(m.target) ? MidiControl.allCases : [.momentary, .toggle, .latch]
             return all.map { c in opt(c.rawValue, c.title, m.control == c) { $0.control = c } }
         case .encoder:
             return MidiEncoder.allCases.map { e in

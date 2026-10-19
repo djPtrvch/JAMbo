@@ -1,13 +1,12 @@
 import Foundation
 
-/// Обратная связь MIDI (S13d, как sendFeedback веба): по таймеру UI (drain), не чаще раза в 30 мс. Ручка шлёт значение,
+/// Обратная связь MIDI (S13d, как sendFeedback веба): по таймеру UI (drain), каждый кадр (60 Гц; в вебе — 30 мс:
+/// по Bluetooth фейдер контроллера шёл ступеньками). Ручка шлёт значение,
 /// которое показывает экран (p-lock зажатого или играющего шага, ручка GLOBAL — параметр своего места), в своём
 /// диапазоне Range; регуляторы BPM, LEVEL, XFADER — так же; кнопка — 127, когда горит, иначе 0. Только изменения.
 extension AppModel {
     func tickMidiFeedback() {
         let now: Double = Date.timeIntervalSinceReferenceDate
-        if now - midiRun.feedbackAt < 0.03 { return }
-        midiRun.feedbackAt = now
         let ms: MidiSettings = settings.midi
         if ms.mappings.isEmpty || !midi.started { return }
         if midiRun.feedbackGen != midi.generation {
@@ -20,6 +19,9 @@ extension AppModel {
             guard let dst = m.feedbackDest(default: ms.feedback), midi.hasDestination(dst) else { continue }
             // Один источник на выходе — одно значение (маппинги с разных входов не спорят).
             if !seen.insert(MidiFeedback.key(dest: dst, src: m.src)).inserted { continue }
+            // Фейдер (ABSOLUTE), который сейчас двигают на контроллере, — без эха: старое значение, пришедшее
+            // обратно с задержкой, дёргало бы его. Энкодеры (RELATIVE) — с кольцом, пока крутят.
+            if m.control == .abs, let t = midiRun.feedbackHold[m.src], now - t < 0.3 { continue }
             guard let v = midiFeedbackValue(m) else { continue }
             if !midiRun.feedback.change(dest: dst, src: m.src, value: v) { continue }
             out[dst, default: []].append(MidiFeedback.word(m.src, value: v))
@@ -80,6 +82,22 @@ extension AppModel {
             if p.id.isEmpty { return nil }
             return p.toNorm(t.params[p.id] ?? p.def)
         }
+    }
+
+    /// Button latch (переключатель на контроллере): кнопки удержания (LFO1–3, ENV, FX, MOD, шаги, клавиши, аккорды)
+    /// держатся, пока включено; кнопки с состоянием (PLAY, MUTE, ячейки…) нажимаются, только если горят не так, как
+    /// переключатель; кнопки без состояния (UNDO, OCTAVE, стрелки) — нажатие при включении.
+    func midiLatch(_ name: String, _ on: Bool) {
+        let holds: [String] = ["LFO1", "LFO2", "LFO3", "ENV", "FX", "MOD"]
+        let prefixes: [String] = ["STEP ", "KEY ", "PROG CHORD "]
+        if holds.contains(name) || prefixes.contains(where: { name.hasPrefix($0) }) {
+            midiButton(name, on)
+            return
+        }
+        let stateless: [String] = ["UNDO", "REDO", "OCTAVE ▲", "OCTAVE ▼", "GRID ▲", "GRID ▼"]
+        if stateless.contains(name) ? !on : midiLit(name) == on { return }
+        midiButton(name, true)
+        midiButton(name, false)
     }
 
     /// Кнопка горит (как на экране; у кнопок без состояния — UNDO, OCTAVE, стрелки сетки — никогда).

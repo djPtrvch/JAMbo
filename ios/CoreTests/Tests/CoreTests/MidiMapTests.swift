@@ -136,6 +136,11 @@ final class MidiMapTests: XCTestCase {
         XCTAssertEqual(t.input(m, isCc: true, value: 127, press: true), .button(true))
         XCTAssertNil(t.input(m, isCc: true, value: 0, press: false))
         XCTAssertEqual(t.input(m, isCc: true, value: 127, press: true), .button(false))
+        // LATCH (переключатель на контроллере): 127 — включено, 0 — выключено, каждое сообщение — состояние.
+        m.control = .latch
+        XCTAssertEqual(t.input(m, isCc: true, value: 127, press: true), .button(true))
+        XCTAssertEqual(t.input(m, isCc: true, value: 0, press: false), .button(false))
+        XCTAssertEqual(MidiControl.latch.title, "Button latch")
         // Кнопка: ABSOLUTE — как MOMENTARY; RELATIVE — шаг вверх жмёт и отпускает.
         XCTAssertEqual(MidiInput.value(0.9).presses(press: true), [true])
         XCTAssertEqual(MidiInput.step(1.0 / 128).presses(press: true), [true, false])
