@@ -77,6 +77,12 @@ struct PatternGrid: View {
     private func touch(_ g: GridGeometry) -> some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { v in
+                // Новое касание, а прежнее не закончилось (SwiftUI прервал жест без onEnded) — прежнее забыть.
+                if let p = press, p.start != v.startLocation {
+                    press = nil
+                    ghost = nil
+                    target = nil
+                }
                 if press == nil { begin(g, at: v.startLocation) }
                 move(g, v)
             }
@@ -86,7 +92,7 @@ struct PatternGrid: View {
     private func begin(_ g: GridGeometry, at p: CGPoint) {
         model.ensureAudio()
         let hit = g.hit(p, window: model.gridWindow)
-        var gp = GridPress(hit: hit, t0: Date())
+        var gp = GridPress(hit: hit, t0: Date(), start: p)
         if case .cell(let c) = hit { gp.cell = c }
         gp.top0 = model.gridWindow.top
         press = gp
@@ -182,6 +188,8 @@ enum GridHit: Equatable {
 struct GridPress {
     let hit: GridHit
     let t0: Date
+    /// Точка начала касания (новое касание — другая точка).
+    let start: CGPoint
     var cell: CellRef? = nil
     var moved: Bool = false
     var held: Bool = false

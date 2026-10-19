@@ -185,3 +185,49 @@ final class LaunchTests: XCTestCase {
         XCTAssertEqual(trigs.first, 12000, "триг клипа 1 на шаге 2 (6000 кадров на шаг)")
     }
 }
+
+extension LaunchTests {
+    private func runMix(_ core: AudioCore, frames: Int) -> [SeqOut] {
+        var l = [Float](repeating: 0, count: 256)
+        var r = [Float](repeating: 0, count: 256)
+        var out: [SeqOut] = []
+        var pos = 0
+        while pos < frames {
+            let n = min(256, frames - pos)
+            core.render(frames: n, left: &l, right: &r)
+            while let e = core.sequencer.out.pop() { out.append(e) }
+            pos += n
+        }
+        return out
+    }
+
+    /// Переход MIX во время игры: клипы нового проекта и PREV запускаются тапом.
+    func testLaunchesDuringMix() {
+        let last = Params.patternSlots - 1
+        var old = Project()
+        for t in 0..<3 { old.tracks[t].clips[0]!.pages[0][0].on = true }
+        old.tracks[2].stopped = true
+        var next = Project()
+        for t in 0..<8 { next.tracks[t].clips[0]!.pages[0][4].on = true }
+        let core = AudioCore()
+        core.publish(old)
+        core.events.push(.play(true))
+        _ = runMix(core, frames: 6000 * 5)
+        let made = old.mixed(into: next, playing: true, leaving: [])
+        core.publish(made.0)
+        core.events.push(.adoptPlay)
+        _ = runMix(core, frames: 6000 * 3)
+        // Дорожка 0 (играет PREV) → клип 0; дорожка 2 (стоит в PREV) → PREV; дорожка 5 (без PREV) → клип 0.
+        core.events.push(.launch(track: 0, slot: 0))
+        core.events.push(.launch(track: 2, slot: last))
+        core.events.push(.launch(track: 5, slot: 0))
+        let out = runMix(core, frames: 6000 * 40)
+        for (t, k) in [(0, 0), (2, last), (5, 0)] {
+            let c = out.compactMap { e -> (Int, Bool)? in
+                if case .clip(let tt, let s, let st, _) = e, tt == t { return (s, st) } else { return nil }
+            }
+            XCTAssertEqual(c.first?.0, k, "дорожка \(t)")
+            XCTAssertEqual(c.first?.1, false, "дорожка \(t)")
+        }
+    }
+}
