@@ -96,14 +96,14 @@ struct KeyRow: View {
         guard let notes = model.keyNotes(k) else { return }
         let id: Int = e.id.hashValue
         touches[e.id] = id
-        // Сила (VELOCITY): палец — по месту на клавише (верх — тихо, низ — громко).
+        // Сила (KEY VELOCITY): по толчку iPad (акселерометр); без датчика — по месту на клавише (верх — тихо, низ — громко).
         let y: Double = Double(min(1, max(0, e.location.y / max(1, height))))
-        model.keyDown(id: id, notes: notes, velocity: 0.2 + 0.8 * y)
+        model.keyPress(id: id, notes: notes, fallback: 0.2 + 0.8 * y)
     }
 
     private func up(_ eid: SpatialEventCollection.Event.ID) {
         guard let id = touches.removeValue(forKey: eid) else { return }
-        model.keyUp(id: id)
+        model.keyRelease(id: id)
     }
 }
 
@@ -169,16 +169,17 @@ struct ProgressionRow: View {
                             guard c >= 0 && c < count, let notes = model.chipNotes(c) else { continue }
                             let id: Int = e.id.hashValue
                             chipTouches[e.id] = id
-                            model.keyDown(id: id, notes: notes, velocity: 1)
+                            // Аккорды прогрессии — с той же силой по толчку (без датчика — полная).
+                            model.keyPress(id: id, notes: notes, fallback: 1)
                         }
                     } else if let id = chipTouches.removeValue(forKey: e.id) {
-                        model.keyUp(id: id)
+                        model.keyRelease(id: id)
                     }
                 }
             }
             .onEnded { events in
                 for e in events {
-                    if let id = chipTouches.removeValue(forKey: e.id) { model.keyUp(id: id) }
+                    if let id = chipTouches.removeValue(forKey: e.id) { model.keyRelease(id: id) }
                 }
             }
     }

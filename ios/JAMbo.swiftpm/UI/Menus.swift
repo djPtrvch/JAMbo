@@ -127,7 +127,7 @@ struct PianoMenu: View {
             }
             ToggleRow(title: "KEY VELOCITY", isOn: model.settings.velocity) { v in model.updateSettings { $0.velocity = v } }
             Text(model.settings.velocity
-                 ? "Touch lower on a key — louder, higher — softer. Scales the track Velocity; REC writes it as the note velocity."
+                 ? "Tap harder — louder: the iPad motion sensor feels each tap. Scales the track Velocity; REC writes it as the note velocity."
                  : "Keys play at the track Velocity.")
                 .font(.system(size: 11))
                 .foregroundStyle(theme.dim)

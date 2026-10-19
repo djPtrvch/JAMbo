@@ -58,6 +58,8 @@ final class AppModel {
     var morphUsed: Bool = false
     /// Плавный возврат после выключения MORPH (SETTINGS → MORPH → RETURN; nil — нет).
     @ObservationIgnored var morphGlide: MorphGlide? = nil
+    /// KEY VELOCITY (S12): толчки iPad (акселерометр).
+    @ObservationIgnored let tapSensor = TapSensor()
     /// Последний тап по FX или MOD с зажатой SHIFT (двойной — режим toggle кнопки).
     @ObservationIgnored var lastPageTap: (page: GridPage, at: Date)? = nil
     /// Последний тап по LFO1–3 / ENV (двойной тап — снять назначение с удерживаемой ручки).
@@ -213,6 +215,7 @@ final class AppModel {
         trace("model init")
         project = startProject()
         installSynth()
+        syncTapSensor()
         publishAudio()
         audio.core.events.push(.tempo(project.bpm))
         let timer = Timer(timeInterval: 1.0 / 60, repeats: true) { [weak self] _ in
@@ -583,6 +586,12 @@ final class AppModel {
     func updateSettings(_ change: (inout AppSettings) -> Void) {
         change(&settings)
         UserDefaults.standard.set(settings.encode(), forKey: "settings")
+        syncTapSensor()
+    }
+
+    /// Акселерометр работает, только пока KEY VELOCITY включён.
+    func syncTapSensor() {
+        if settings.velocity { tapSensor.start() } else { tapSensor.stop() }
     }
 
     private static func loadSettings() -> AppSettings {

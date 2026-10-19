@@ -24,8 +24,17 @@ struct DiagnosticsView: View {
             row("Core", "48.0 kHz · \(String(format: "%.1f", seconds)) s rendered")
             row("CPU", "\(Int((core.cpu.load * 100).rounded()))% avg · \(Int((core.cpu.peak * 100).rounded()))% peak block")
             row("Build", DiagnosticsView.build)
+            row("Tap", tapLine)
             if !error.isEmpty { row("Error", error) }
         }
+    }
+
+    /// KEY VELOCITY: последний толчок (g) и сила; подбор порогов TapVelocity.gMin / gMax.
+    private var tapLine: String {
+        let s: TapSensor = model.tapSensor
+        if !s.available { return "no accelerometer — key position" }
+        if !s.running { return "off (KEY VELOCITY)" }
+        return String(format: "last tap %.3f g → %d%%", s.lastPeak, Int((s.lastVelocity * 100).rounded()))
     }
 
     /// Сборка: оптимизация компилятора (_isDebugAssertConfiguration — true при -Onone) и флаг DEBUG.

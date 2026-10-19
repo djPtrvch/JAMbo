@@ -115,6 +115,30 @@ extension AppModel {
 
     // MARK: — нажатия клавиш
 
+    /// Касание клавиши (S12): с KEY VELOCITY и работающим акселерометром нота звучит через 15 мс — сила по толчку
+    /// iPad в окне касания; без датчика — по месту касания (fallback).
+    func keyPress(id: Int, notes: [Int], fallback: Double) {
+        guard settings.velocity && tapSensor.running else {
+            keyDown(id: id, notes: notes, velocity: fallback)
+            return
+        }
+        let at: Double = ProcessInfo.processInfo.systemUptime
+        DispatchQueue.main.asyncAfter(deadline: .now() + TapVelocity.after) { [weak self] in
+            guard let self = self else { return }
+            let v: Double = self.tapSensor.velocity(at: at) ?? fallback
+            self.keyDown(id: id, notes: notes, velocity: v)
+        }
+    }
+
+    /// Клавишу отпустили: с задержкой нажатия — после него (тот же сдвиг 15 мс).
+    func keyRelease(id: Int) {
+        guard settings.velocity && tapSensor.running else {
+            keyUp(id: id)
+            return
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + TapVelocity.after) { [weak self] in self?.keyUp(id: id) }
+    }
+
     /// Нажатие клавиши или аккорда (id — касание): с REC при игре — запись; иначе выбор нот или замена нот зажатых шагов.
     func keyDown(id: Int, notes: [Int], velocity: Double) {
         ensureAudio()
