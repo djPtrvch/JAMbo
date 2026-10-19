@@ -32,6 +32,7 @@ struct TopBar: View {
             HistoryButton(symbol: "arrow.uturn.backward", enabled: model.canUndo || model.morphHeld) { model.undoTapped() }
                 .frame(width: Layout.topButton)
             PlayButton(model: model).frame(width: half)
+                .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { model.sampleRec.playFrame = $0 }
             RecButton(model: model).frame(width: half)
             HistoryButton(symbol: "arrow.uturn.forward", enabled: model.canRedo) { model.redo() }
                 .frame(width: Layout.topButton)

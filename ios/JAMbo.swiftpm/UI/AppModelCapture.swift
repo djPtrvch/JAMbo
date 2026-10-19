@@ -19,8 +19,9 @@ struct RecTake: Equatable {
     var start: Double
     /// Вход ещё открывается (сессия переходит в режим записи) — тап не останавливает.
     var opening: Bool = false
-    /// Нажали ■ — ждём конец записи из колбэка.
+    /// Нажали ■ — ждём конец записи из колбэка (с момента stopAt).
     var stopping: Bool = false
+    var stopAt: Double = 0
 }
 
 @Observable
@@ -34,6 +35,8 @@ final class SampleRec {
     var peaks = RecPeaks()
     /// Ошибка начала записи (окно с сообщением).
     var error: String? = nil
+    /// Рамка PLAY верхней панели («root»): ▶ редактора — под ней, той же ширины.
+    var playFrame: CGRect = .zero
 }
 
 extension AppModel {
@@ -87,6 +90,7 @@ extension AppModel {
             if let o = out { recDone(SampleData(left: o.left, right: o.right)) } else { sampleRec.take = nil }
         } else {
             sampleRec.take?.stopping = true
+            sampleRec.take?.stopAt = Date.timeIntervalSinceReferenceDate
             audio.core.events.push(.captureStop)
         }
     }
@@ -94,7 +98,18 @@ extension AppModel {
     /// 60 раз в секунду (drain): время, предел 60 с, пики формы волны.
     func tickRec() {
         guard let t = sampleRec.take, !t.opening else { return }
-        let el: Double = Date.timeIntervalSinceReferenceDate - t.start
+        let now: Double = Date.timeIntervalSinceReferenceDate
+        // Звук не идёт (колбэк не дописал запись за секунду) — запись не зависает, кнопка снова работает.
+        if t.stopping {
+            if now - t.stopAt > 1 { sampleRec.take = nil }
+            return
+        }
+        let el: Double = now - t.start
+        if !t.input && el > 1 && !stems.recording.contains(StemRing.capture) {
+            sampleRec.take = nil
+            sampleRec.error = "Recording did not start — no audio."
+            return
+        }
         let s = Int(el)
         if s != sampleRec.seconds { sampleRec.seconds = min(s, Capture.maxSeconds) }
         if t.input {

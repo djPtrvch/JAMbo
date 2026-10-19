@@ -5,7 +5,9 @@ import Synchronization
 // REC с входа (S11e, как startCapture веба для входа): микрофон iPad, аудиоинтерфейс или другое устройство.
 // Сессия переходит в режим записи только на время записи (решение пользователя): выбрали INPUT — короткий
 // перерыв звука, ■ — обратно в режим воспроизведения. Вход на выход не идёт (узел входа ни к чему не подключён).
-// Звук входа — tap на узле входа (не колбэк AudioCore: блокировка и выделения допустимы), не дольше 60 с;
+// Звук входа — tap на узле входа отдельного AVAudioEngine только на время записи (узел входа основного движка
+// не трогается: после него основной движок в режиме воспроизведения не запускается); не колбэк AudioCore —
+// блокировка и выделения допустимы; не дольше 60 с;
 // на ■ — пересчёт в 48 кГц (AVAudioConverter), если вход работает на другой частоте.
 
 /// Вход звука в меню RECORD FROM: uid порта ("" — вход по умолчанию) и имя записи (встроенный микрофон — MIC).
@@ -26,7 +28,9 @@ final class InputCapture: @unchecked Sendable {
 
     private let buf = Mutex(Buf())
     private(set) var rate: Double = 48000
-    private(set) var running = false
+    /// Движок входа — только пока идёт запись.
+    private var engine: AVAudioEngine?
+    var running: Bool { return engine != nil }
 
     /// Записанное до сих пор (форма волны во время записи).
     func withBuffer(_ body: ([Float], [Float]) -> Void) {
@@ -54,9 +58,10 @@ final class InputCapture: @unchecked Sendable {
         }
     }
 
-    /// Начать: tap на узле входа (сессия уже в режиме записи).
-    func start(_ engine: AVAudioEngine) -> Bool {
-        let node: AVAudioInputNode = engine.inputNode
+    /// Начать: свой движок, tap на узле входа (сессия уже в режиме записи).
+    func start() throws -> Bool {
+        let e = AVAudioEngine()
+        let node: AVAudioInputNode = e.inputNode
         let format: AVAudioFormat = node.outputFormat(forBus: 0)
         if format.channelCount == 0 || format.sampleRate <= 0 { return false }
         rate = format.sampleRate
@@ -72,7 +77,13 @@ final class InputCapture: @unchecked Sendable {
         node.installTap(onBus: 0, bufferSize: 4096, format: format) { [weak self] pcm, _ in
             self?.append(pcm)
         }
-        running = true
+        do {
+            try e.start()
+        } catch {
+            node.removeTap(onBus: 0)
+            throw error
+        }
+        engine = e
         return true
     }
 
@@ -89,9 +100,12 @@ final class InputCapture: @unchecked Sendable {
     }
 
     /// Стоп: снять tap; записанное — в 48 кГц (моно вход — моно сэмпл). nil — ничего не записано.
-    func stop(_ engine: AVAudioEngine) -> (left: [Float], right: [Float]?)? {
-        if running { engine.inputNode.removeTap(onBus: 0) }
-        running = false
+    func stop() -> (left: [Float], right: [Float]?)? {
+        if let e = engine {
+            e.inputNode.removeTap(onBus: 0)
+            e.stop()
+        }
+        engine = nil
         let b: Buf = buf.withLock { b in
             let out = b
             b = Buf()
@@ -139,21 +153,21 @@ final class InputCapture: @unchecked Sendable {
 }
 
 extension AudioHost {
-    /// REC с входа: разрешение, сессия в режим записи (выбранный вход), tap. false — нет доступа или вход не открылся.
+    /// REC с входа: разрешение, сессия в режим записи (выбранный вход), движок входа. false — нет доступа или вход
+    /// не открылся.
     @MainActor
     func beginInput(_ uid: String) async -> Bool {
         if !(await InputCapture.requestAccess()) { return false }
         inputMode = true
-        engine.stop()
         do {
+            engine.stop()
             try configureSession()
             let s = AVAudioSession.sharedInstance()
             if !uid.isEmpty, let p = (s.availableInputs ?? []).first(where: { $0.uid == uid }) {
                 try s.setPreferredInput(p)
             }
-            let ok: Bool = input.start(engine)
             try engine.start()
-            if ok { return true }
+            if try input.start() { return true }
         } catch {
             trace("input error: \(error.localizedDescription)")
         }
@@ -161,15 +175,15 @@ extension AudioHost {
         return false
     }
 
-    /// ■: снять tap, сессия обратно в режим воспроизведения; записанное (48 кГц) или nil.
+    /// ■: движок входа — стоп, сессия обратно в режим воспроизведения; записанное (48 кГц) или nil.
     func endInput() -> (left: [Float], right: [Float]?)? {
-        let out = input.stop(engine)
+        let out = input.stop()
         endInputMode()
         return out
     }
 
     private func endInputMode() {
-        if input.running { _ = input.stop(engine) }
+        _ = input.stop()
         inputMode = false
         try? AVAudioSession.sharedInstance().setPreferredInput(nil)
         restart()

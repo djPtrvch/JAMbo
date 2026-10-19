@@ -8,26 +8,33 @@ struct EditorBar: View {
     let sel: EditorSelection
     @Environment(\.theme) private var theme
 
+    @State private var barX: CGFloat = 0
+
     var body: some View {
-        HStack(spacing: Layout.gap) {
+        let play: CGRect = model.sampleRec.playFrame
+        // ▶ — под PLAY верхней панели, той же ширины: имя слева занимает место до REC.
+        let infoW: CGFloat = play.width > 0 ? max(60, play.minX - barX - 76 - 2 * Layout.gap) : 0
+        return HStack(spacing: Layout.gap) {
             Text(info)
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(theme.text)
                 .lineLimit(2)
-                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 10)
+                .frame(width: infoW > 0 ? infoW : nil, alignment: .leading)
+                .frame(maxWidth: infoW > 0 ? nil : .infinity, alignment: .leading)
             SampleRecButton(model: model)
-            ToolButton(title: "▶", enabled: data != nil, lit: model.previewOn, width: 48) {
+            ToolButton(title: "▶", enabled: data != nil, lit: model.previewOn, width: play.width > 0 ? play.width : 48) {
                 model.togglePreview(sel.a, sel.b)
             }
-            ToolButton(title: "LOAD", width: 76) { model.openBrowser(.load(steps: [])) }
-            ToolButton(title: "SAVE", enabled: data != nil, width: 76) { model.openBrowser(.saveSample(key)) }
-            ToolButton(title: "TRIM", enabled: data != nil && !sel.full, width: 76) { model.trimSample(sel.a, sel.b) }
-            ToolButton(title: "NORMALIZE", enabled: data != nil, width: 104) { model.normalizeSample() }
-            ToolButton(title: "MONO", enabled: (data?.channels ?? 1) == 2, width: 76) { model.monoSample() }
-            ToolButton(title: "CLEAR", enabled: data != nil && model.sampleRec.take == nil, width: 76) { model.clearSample() }
+            ToolButton(title: "LOAD", width: nil) { model.openBrowser(.load(steps: [])) }
+            ToolButton(title: "SAVE", enabled: data != nil, width: nil) { model.openBrowser(.saveSample(key)) }
+            ToolButton(title: "TRIM", enabled: data != nil && !sel.full, width: nil) { model.trimSample(sel.a, sel.b) }
+            ToolButton(title: "NORMALIZE", enabled: data != nil, width: nil) { model.normalizeSample() }
+            ToolButton(title: "MONO", enabled: (data?.channels ?? 1) == 2, width: nil) { model.monoSample() }
+            ToolButton(title: "CLEAR", enabled: data != nil && model.sampleRec.take == nil, width: nil) { model.clearSample() }
             ToolButton(title: "✕", width: 48) { model.closeEditor() }
         }
+        .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("root")).minX } action: { barX = $0 }
     }
 
     private var info: String {
@@ -42,12 +49,12 @@ struct EditorBar: View {
     }
 }
 
-/// Кнопка строки окна (как кнопки EQ): тап — действие; неактивная — серая; lit — жёлтая.
+/// Кнопка строки окна (как кнопки EQ): тап — действие; неактивная — серая; lit — жёлтая; ширина nil — по месту.
 struct ToolButton: View {
     let title: String
     var enabled: Bool = true
     var lit: Bool = false
-    var width: CGFloat = 76
+    var width: CGFloat? = 76
     let action: () -> Void
     @Environment(\.theme) private var theme
 
@@ -57,7 +64,7 @@ struct ToolButton: View {
             Text(title).font(.system(size: 13, weight: .bold)).lineLimit(1).minimumScaleFactor(0.7)
                 .foregroundStyle(fg)
                 .frame(width: width)
-                .frame(maxHeight: .infinity)
+                .frame(maxWidth: width == nil ? .infinity : nil, maxHeight: .infinity)
                 .background(lit ? theme.accent : theme.panel2, in: RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
