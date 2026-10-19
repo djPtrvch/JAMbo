@@ -21,7 +21,7 @@ extension AppModel {
         case .mix: page = .mix
         case .track: page = modMode ? .mod : (fxMode ? .fx : .track)
         }
-        return MidiContext(clipOpen: patternView, page: page)
+        return MidiContext(clipOpen: patternView, page: page, track: selectedTrack)
     }
 
     func midiMessage(_ msg: MidiMessage, source: Int32) {
@@ -119,6 +119,15 @@ extension AppModel {
 
     /// Значение на ручку — как палец: с зажатым шагом p-lock (внутри setKnob), с зажатым LFO/ENV — степень назначения.
     func midiKnob(_ s: Int, _ m: MidiMapping, _ input: MidiInput) {
+        // GLOBAL — параметр своего места, что бы ни было на экране.
+        if let place = m.place, !place.matches(midiContext) {
+            ensureAudio()
+            midiGesture()
+            withKnobPlace(place) {
+                if param(s) != nil { setKnob(s, norm: input.knobValue(m, cur: knobStart(s))) }
+            }
+            return
+        }
         guard param(s) != nil else { return }
         ensureAudio()
         midiGesture()

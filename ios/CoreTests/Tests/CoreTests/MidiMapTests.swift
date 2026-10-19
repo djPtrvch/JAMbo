@@ -68,6 +68,35 @@ final class MidiMapTests: XCTestCase {
         XCTAssertTrue(r.active.isEmpty)
     }
 
+    /// GLOBAL на ручке — параметр места, где назначили (громкость T3 в MIX — только она); на другом месте у той же
+    /// ручки свой маппинг, источник — у одной цели.
+    func testGlobalKnobPlace() {
+        var s = MidiSettings()
+        let mix = MidiContext(clipOpen: false, page: .mix, track: 0)
+        s.learn(.knob(2), src: cc20, input: 1, continuous: true, mix)
+        let m = s.mappings[0]
+        XCTAssertEqual(m.place, MidiPlace(page: .mix, track: 0))
+        // В MIX у другой выбранной дорожки — тот же параметр; на странице дорожки ручка 1.3 — не он.
+        XCTAssertNotNil(s.mapping(for: .knob(2), MidiContext(clipOpen: false, page: .mix, track: 5)))
+        XCTAssertNil(s.mapping(for: .knob(2), track))
+        // Источник действует отовсюду (параметр — свой).
+        XCTAssertEqual(s.resolve(cc20, input: 1, fx).active.count, 1)
+        // На странице дорожки T2 та же ручка — свой маппинг; источник CC 21.
+        let t2 = MidiContext(clipOpen: false, page: .track, track: 1)
+        let cc21 = MidiSource(type: .cc, ch: 0, num: 21)
+        s.learn(.knob(2), src: cc21, input: 1, continuous: true, t2)
+        XCTAssertEqual(s.mappings.count, 2)
+        XCTAssertEqual(s.mapping(for: .knob(2), t2)?.src, cc21)
+        XCTAssertNil(s.mapping(for: .knob(2), MidiContext(clipOpen: false, page: .track, track: 0)))
+        // Тот же CC 20 на T2 — уходит от MIX (один источник — одна цель).
+        s.learn(.knob(2), src: cc20, input: 1, continuous: true, t2)
+        XCTAssertEqual(s.mappings.count, 1)
+        XCTAssertEqual(s.mappings[0].place, MidiPlace(page: .track, track: 1))
+        // Current page — без места.
+        s.update(.knob(2), continuous: true, t2) { $0.cond = .page }
+        XCTAssertNil(s.mappings[0].place)
+    }
+
     func testEncodersAndRange() {
         XCTAssertEqual(MidiEncoder.offset.step(65), 1)
         XCTAssertEqual(MidiEncoder.offset.step(63), -1)

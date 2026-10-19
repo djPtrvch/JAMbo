@@ -472,6 +472,28 @@ final class AppModel {
 
     var track: Track { return project.tracks[selectedTrack] }
 
+    /// Действие ручки на другом месте (глобальный MIDI-маппинг, S13): на время body сетка ручек «показывает» place —
+    /// страницу и дорожку, без зажатых шагов (p-lock не ставится) и MORPH; затем всё возвращается. Интерфейс видит
+    /// только итог (всё — в одном проходе главного потока).
+    func withKnobPlace(_ place: MidiPlace, _ body: () -> Void) {
+        guard place.page == .mix || place.page == .master || place.track < project.tracks.count else { return }
+        let saved = (selectedTrack, channel, fxHeld, modHeld, lastPage, heldSteps, morph)
+        switch place.page {
+        case .mix: channel = .mix
+        case .master: channel = .master
+        default:
+            channel = .track
+            selectedTrack = place.track
+        }
+        fxHeld = place.page == .fx
+        modHeld = place.page == .mod
+        lastPage = place.page == .mod ? .mod : .fx
+        heldSteps = []
+        morph = false
+        body()
+        (selectedTrack, channel, fxHeld, modHeld, lastPage, heldSteps, morph) = saved
+    }
+
     /// Последовательность в секвенсоре и миниатюрах: выбранная дорожка, при MIX и MST — их свои (Project.chanSeqs).
     var seq: Track {
         switch channel {

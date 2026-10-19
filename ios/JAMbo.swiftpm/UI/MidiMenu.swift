@@ -137,7 +137,8 @@ struct MidiMappingTab: View {
             FieldLabel(title: "MAPPINGS (\(maps.count))")
             if maps.isEmpty { SettingsNote(text: "No mappings yet.") }
             ForEach(0..<maps.count, id: \.self) { k in
-                MidiMapRow(mapping: maps[k], open: {
+                MidiMapRow(mapping: maps[k], device: model.midiPortName(maps[k].input, inputs: true, none: "ANY INPUT"),
+                           place: model.placeLabel(maps[k]), open: {
                     close()
                     model.openMapFromList(k)
                 }, remove: { model.removeMapping(k) })
@@ -150,6 +151,8 @@ struct MidiMappingTab: View {
 /// Строка маппинга: источник → цель, тип управления и условие; ✕ — удалить.
 struct MidiMapRow: View {
     let mapping: MidiMapping
+    let device: String
+    let place: String?
     let open: () -> Void
     let remove: () -> Void
     @Environment(\.theme) private var theme
@@ -157,7 +160,8 @@ struct MidiMapRow: View {
     var body: some View {
         HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(mapping.src.label).font(.system(size: 12, weight: .bold)).foregroundStyle(theme.text)
+                Text(mapping.src.label + "  ·  " + device).font(.system(size: 12, weight: .bold)).foregroundStyle(theme.text)
+                    .lineLimit(1)
                 Text(detail).font(.system(size: 11)).foregroundStyle(theme.dim).lineLimit(1)
             }
             Spacer(minLength: 0)
@@ -167,10 +171,16 @@ struct MidiMapRow: View {
         .onTapGesture { open() }
     }
 
+    /// Цель (у глобальной ручки — и параметр места), тип управления, условие: GLOBAL, PAGE, CLIPS.
     private var detail: String {
-        var s: String = mapping.target.label + "  ·  " + mapping.control.title
-        if mapping.cond == .page { s += "  ·  " + mapping.page.title }
-        if mapping.cond == .clip { s += "  ·  CLIPS" }
+        var s: String = mapping.target.label
+        if let p = place { s += " (" + p + ")" }
+        s += "  ·  " + mapping.control.title
+        switch mapping.cond {
+        case .global: s += "  ·  GLOBAL"
+        case .page: s += "  ·  PAGE"
+        case .clip: s += "  ·  CLIPS"
+        }
         return s
     }
 }

@@ -112,6 +112,25 @@ extension AppModel {
 }
 
 extension AppModel {
+    /// Параметр места глобального маппинга ручки: «Pitch · T1», «T3 · MIX», «Cutoff · MST».
+    func placeLabel(_ m: MidiMapping) -> String? {
+        guard let p = m.place, case .knob(let s) = m.target else { return nil }
+        let tr: [Track] = project.tracks
+        switch p.page {
+        case .mix:
+            return s < tr.count ? tr[s].name + " · MIX" : "MIX"
+        case .master:
+            return Params.masterGrid[s].label + " · MST"
+        case .mod:
+            return Params.modGrid[s].label + " · MOD T\(p.track + 1)"
+        case .fx:
+            return Params.fxGrid[s].label + " · FX T\(p.track + 1)"
+        case .track:
+            guard p.track < tr.count else { return "T\(p.track + 1)" }
+            return Params.grid(sound: tr[p.track].sample)[s].label + " · T\(p.track + 1)"
+        }
+    }
+
     /// Имя устройства по uniqueID (nil — none); отключённое — «Not connected».
     func midiPortName(_ id: Int32?, inputs: Bool, none: String) -> String {
         guard let id = id else { return none }

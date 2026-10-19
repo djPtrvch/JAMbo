@@ -7,10 +7,13 @@ import Foundation
 public struct MidiContext: Equatable, Sendable {
     public var clipOpen: Bool
     public var page: MidiPage
+    /// Выбранная дорожка (место глобальных маппингов ручек).
+    public var track: Int
 
-    public init(clipOpen: Bool, page: MidiPage) {
+    public init(clipOpen: Bool, page: MidiPage, track: Int = 0) {
         self.clipOpen = clipOpen
         self.page = page
+        self.track = track
     }
 
     /// Действующие условия, от самого точного: сетка паттернов, страница ручек, global.
@@ -35,7 +38,7 @@ extension MidiSettings {
     public func mapping(for t: MidiTarget, _ ctx: MidiContext, pinned: String? = nil) -> MidiMapping? {
         let conds: [String] = pinned.map { [$0] } ?? ctx.conds
         for c in conds {
-            if let m = mappings.first(where: { $0.target == t && $0.condKey == c }) { return m }
+            if let m = mappings.first(where: { $0.target == t && $0.condKey == c && $0.fits(ctx) }) { return m }
         }
         return nil
     }
@@ -94,12 +97,13 @@ extension MidiSettings {
         change(&m)
         m.target = t
         if t.isClip { m.cond = .clip }
+        m.fixPlace(ctx, force: false)
         let curIndex: Int? = cur.flatMap { c in mappings.firstIndex(where: { $0 == c }) }
         var kept: [MidiMapping] = []
         var i: Int = 0
         while i < mappings.count {
             let x: MidiMapping = mappings[i]
-            let mine: Bool = x.target == t && (i == curIndex || x.condKey == m.condKey)
+            let mine: Bool = x.target == t && (i == curIndex || (x.condKey == m.condKey && x.place == m.place))
             if !mine && !x.clashes(m) { kept.append(x) }
             i += 1
         }
@@ -117,6 +121,8 @@ extension MidiSettings {
             m.src = src
             m.input = input
             if !had { m.control = continuous && src.type == .cc ? .abs : .momentary }
+            // LEARN на экране — параметр, который сейчас показывает ручка.
+            m.fixPlace(ctx, force: true)
         }
     }
 

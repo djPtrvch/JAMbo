@@ -111,6 +111,24 @@ public enum MidiPage: String, Codable, CaseIterable, Sendable {
     public var title: String { return self == .master ? "MST" : rawValue.uppercased() }
 }
 
+/// Место параметра глобального маппинга ручки (решение пользователя, S13): страница и дорожка, где назначили. GLOBAL —
+/// всегда этот параметр (громкость T3 в MIX — только она, что бы ни было на экране); у MIX и MST дорожка не важна.
+public struct MidiPlace: Codable, Equatable, Hashable, Sendable {
+    public var page: MidiPage
+    public var track: Int
+
+    public init(page: MidiPage, track: Int) {
+        self.page = page
+        self.track = track
+    }
+
+    /// Сетка ручек показывает этот параметр сейчас.
+    public func matches(_ ctx: MidiContext) -> Bool {
+        if page != ctx.page { return false }
+        return page == .mix || page == .master || track == ctx.track
+    }
+}
+
 /// Порт обратной связи: по умолчанию (DEVICES → FEEDBACK OUTPUT), нет или выход по uniqueID.
 public enum MidiPort: Codable, Equatable, Sendable {
     case standard
@@ -141,6 +159,8 @@ public struct MidiMapping: Codable, Equatable, Sendable {
     public var port: MidiPort = .standard
     /// Только у цели PRESS.
     public var press: MidiPressAction = .reset
+    /// Ручка в условии GLOBAL — параметр этого места (nil — у остальных).
+    public var place: MidiPlace? = nil
 
     public init(src: MidiSource, target: MidiTarget, continuous: Bool) {
         self.src = src
@@ -148,7 +168,7 @@ public struct MidiMapping: Codable, Equatable, Sendable {
         self.control = continuous ? .abs : .momentary
     }
 
-    private enum Keys: String, CodingKey { case src, target, control, enc, min, max, input, cond, page, port, press }
+    private enum Keys: String, CodingKey { case src, target, control, enc, min, max, input, cond, page, port, press, place }
 
     /// Недостающие поля — по умолчанию; без источника или цели — ошибка (маппинг пропускается).
     public init(from decoder: Decoder) throws {
@@ -164,11 +184,27 @@ public struct MidiMapping: Codable, Equatable, Sendable {
         page = (try? c.decode(MidiPage.self, forKey: .page)) ?? .track
         port = (try? c.decode(MidiPort.self, forKey: .port)) ?? .standard
         press = (try? c.decode(MidiPressAction.self, forKey: .press)) ?? .reset
+        place = try? c.decode(MidiPlace.self, forKey: .place)
         if target.isClip { cond = .clip }
     }
 
     /// Ключ условия: global, clip или page:<страница>.
     public var condKey: String { return cond == .page ? "page:" + page.rawValue : cond.rawValue }
+
+    /// Маппинг относится к цели в этом контексте: у глобальной ручки — только на своём месте.
+    public func fits(_ ctx: MidiContext) -> Bool {
+        guard let p = place else { return true }
+        return p.matches(ctx)
+    }
+
+    /// Ручка GLOBAL — параметр места ctx; другие условия места не хранят.
+    mutating func fixPlace(_ ctx: MidiContext, force: Bool) {
+        guard case .knob = target, cond == .global else {
+            place = nil
+            return
+        }
+        if force || place == nil { place = MidiPlace(page: ctx.page, track: ctx.track) }
+    }
 
     /// Маппинги делят источник: тот же источник, то же условие и пересекающиеся входы.
     public func clashes(_ o: MidiMapping) -> Bool {
