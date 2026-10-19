@@ -26,7 +26,7 @@ Groovebox для iPad. Веб (`src/`, `public/`) — эталон, заморо
 S13f — Bluetooth MIDI: CONNECT и ADVERTISE (CABTMIDICentralViewController и CABTMIDILocalPeripheralViewController; capability Bluetooth добавляет пользователь), итог SWIFT_MILESTONE_S13.md.
 
 ## 4. Что уже решено
-- S0–S12 готовы и проверены на iPad; S13a–d проверены на iPad (обратная связь — с TouchOSC по Bluetooth). CoreTests — 283.
+- S0–S12 готовы и проверены на iPad; S13a–d проверены на iPad (обратная связь — с TouchOSC по Bluetooth). CoreTests — 291.
 - Core/Midi: MidiMessage (разбор UMP MIDI 1.0), MidiSettings (вход, выход, ноты, mappings, preset, pressTouch), MidiMapping (цели, типы, энкодеры, условия, MidiPlace), MidiMapper (условия, LEARN, правка, MidiToggles), MidiPresets, MidiFeedback (действующие маппинги, значение в Range, только изменения), SyncSettings (меню SYNC). Core/Sequencer: ClockPlan (клок SEND), ClockFollower (клок RECEIVE); Sequencer.start(at:) и clockPhase, InternalTempoSource.shift. Тесты — MidiTests, MidiMapTests, MidiPresetTests, MidiFeedbackTests.
 - Audio/MidiHost.swift — клиент CoreMIDI, все источники, списки устройств; сообщения — на главный поток; выходной порт и send (обратная связь).
 - UI: AppModelMidi (разбор, ручки, PRESS, BPM, LEVEL, XFADER), AppModelMidiMap (окно, пресеты, подписи), MidiButtons (имена и действия кнопок), MidiLearnState, MidiLearnViews (полоса LEARN, метки), MidiMenu (DEVICES, MAPPING, NOTES), MidiMapWindow и MidiMapPages. withKnobPlace (AppModel.swift) — действие ручки на другом месте. AppModelMidiFeedback — обратная связь (из drain), Button latch, состояние кнопок (midiLit). SyncMenu (меню SYNC), AppModelSync (клок SEND и RECEIVE из drain, midiRealtime).
