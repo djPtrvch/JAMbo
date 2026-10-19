@@ -13,6 +13,8 @@ struct LibRow: View {
     let delete: () -> Void
     @State private var offset: CGFloat = 0
     @State private var open: Bool = false
+    /// Удержание сработало — отпускание пальца не тап.
+    @State private var held: Bool = false
     @Environment(\.theme) private var theme
 
     private var reveal: CGFloat { return 2 * LibRow.button + 4 + (confirm ? 40 : 0) }
@@ -23,15 +25,17 @@ struct LibRow: View {
             actions.opacity(offset < -1 ? 1 : 0)
             HStack(spacing: 0) {
                 if playable { playButton }
+                // Удержание — одновременным жестом: onLongPressGesture в ScrollView держит начало прокрутки.
                 label
                     .simultaneousGesture(swipe)
+                    .simultaneousGesture(hold)
                     .onTapGesture { tapped() }
-                    .onLongPressGesture(minimumDuration: 0.5) { model.libHold(node) }
             }
             .padding(.trailing, max(0, -offset))
         }
         .frame(height: LibRow.height)
         .clipShape(RoundedRectangle(cornerRadius: 8))
+        .onChange(of: model.libPicked == nil) { _, none in if none { held = false } }
         .onChange(of: confirm) { _, c in if c && open { withAnimation(.easeOut(duration: 0.2)) { offset = -reveal } } }
     }
 
@@ -133,11 +137,26 @@ struct LibRow: View {
     }
 
     private func tapped() {
+        if held {
+            held = false
+            return
+        }
         if open {
             close()
             return
         }
         model.libTap(node)
+    }
+
+    /// Удержание сэмпла или пресета (0,5 с без сдвига) — выбор нескольких.
+    private var hold: some Gesture {
+        LongPressGesture(minimumDuration: 0.5, maximumDistance: 10)
+            .onEnded { _ in
+                guard node.kind == .sample || node.kind == .preset, model.browser == .load(steps: []),
+                      model.libPicked == nil, !open else { return }
+                held = true
+                model.libHold(node)
+            }
     }
 
     /// Горизонтальный свайп (вертикальный — прокрутка списка); у системных и в выборе нескольких — нет.
