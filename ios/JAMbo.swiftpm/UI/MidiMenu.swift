@@ -66,6 +66,23 @@ struct MidiDevicesTab: View {
                 model.setMidi { $0.feedback = id }
             }
             SettingsNote(text: "Knob values are sent back to this output, so encoder LED rings (Midi Fighter Twister) follow the screen.")
+            bluetooth
+        }
+    }
+
+    /// BLUETOOTH MIDI (S13f): CONNECT и ADVERTISE — системные окна; без capability Bluetooth — неактивны.
+    @ViewBuilder
+    private var bluetooth: some View {
+        let on: Bool = BluetoothMidi.available
+        FieldLabel(title: "BLUETOOTH MIDI")
+        HStack(spacing: 4) {
+            MenuItem(title: "CONNECT", enabled: on) { BluetoothMidi.connect() }
+            MenuItem(title: "ADVERTISE", enabled: on) { BluetoothMidi.advertise() }
+        }
+        if on {
+            SettingsNote(text: "CONNECT: find and connect Bluetooth MIDI devices (tap a connected one to disconnect). ADVERTISE: make this iPad visible to other devices as a Bluetooth MIDI device. Connected devices appear in the lists above.")
+        } else {
+            SettingsNote(text: "Bluetooth access is not enabled in this build.")
         }
     }
 }
