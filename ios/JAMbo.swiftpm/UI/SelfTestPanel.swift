@@ -1,7 +1,7 @@
 import SwiftUI
 import Observation
 
-/// Прогон самотеста своих движков (DRUM, ANALOG, FM, WTABLE), эффектов, мастера и EQ вне основного потока; результаты — по мере готовности.
+/// Прогон самотеста своих движков (KICK, ANALOG, FM, WTABLE), эффектов, мастера и EQ вне основного потока; результаты — по мере готовности.
 @Observable
 final class SelfTestRunner {
     private(set) var results: [Golden.Result] = []
@@ -28,7 +28,7 @@ final class SelfTestRunner {
             let fx = try? FxSelfTest.loadCases(golden)
             let mst = try? MasterSelfTest.loadCases(golden)
             let eqs = try? EqSelfTest.loadCases(golden)
-            var count: Int = jambo?.cases.count ?? 0
+            var count: Int = jambo.map { JamboSelfTest.usable($0).count } ?? 0
             count += fx?.cases.count ?? 0
             count += mst?.cases.count ?? 0
             count += eqs?.count ?? 0
@@ -36,7 +36,7 @@ final class SelfTestRunner {
             if let jb = jambo {
                 let tables = JamboTables()
                 var wavetables: [String: WtTable] = [:]
-                for c in jb.cases {
+                for c in JamboSelfTest.usable(jb) {
                     do {
                         let r = try JamboSelfTest.run(c, jb, golden, tables: tables, wavetables: &wavetables)
                         await MainActor.run { self.results.append(r) }

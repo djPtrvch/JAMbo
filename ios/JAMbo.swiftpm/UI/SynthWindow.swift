@@ -41,7 +41,7 @@ struct SynthInfo: View {
         let grid: [ParamDef] = Params.synthGrids[engine]
         let params: [String: Double] = model.track.params
         return VStack(alignment: .leading, spacing: 8) {
-            ForEach([0, 4, 8], id: \.self) { slot in
+            ForEach([0, 4, 8, 12], id: \.self) { slot in
                 let p: ParamDef = grid[slot]
                 Text("\(p.label) · \(p.format(params[p.id] ?? p.def))")
                     .font(.system(size: 11))

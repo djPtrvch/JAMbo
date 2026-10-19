@@ -1,7 +1,8 @@
 import Foundation
 
-// Самотест своих движков JAMbo (DRUM, ANALOG, FM, WTABLE): сверка с эталонами Resources/golden/j*.i16
-// (ios/tools/jambo/golden.mjs — рендер public/jambo-synth-worklet.js в Node). Узел worklet повторён: блоки process()
+// Самотест своих движков JAMbo (KICK, ANALOG, FM, WTABLE): сверка с эталонами Resources/golden/j*.i16
+// (ios/tools/jambo/golden.mjs — рендер public/jambo-synth-worklet.js в Node). Ручки случая (до S12) переводятся
+// SynthMigration; случаи, где звук после S12 другой (суб ANALOG, клик KICK не на 50 %), не сравниваются. Узел worklet повторён: блоки process()
 // по 128 кадров (дрейф ANALOG — в начале блока, время дорожки — в конце), внутри — куски по 24 и до кадра
 // следующей ноты; тишина дольше 4800 кадров — голос молчит. Общий для CoreTests и DIAGNOSTICS → SELF-TEST.
 
@@ -27,7 +28,19 @@ public enum JamboSelfTest {
         public let cases: [Case]
     }
 
-    public static let engineNames = [16: "DRUM", 17: "ANALOG", 18: "FM", 19: "WTABLE"]
+    public static let engineNames = [16: "KICK", 17: "ANALOG", 18: "FM", 19: "WTABLE"]
+
+    /// Звук случая после S12 тот же, что у эталона веба.
+    public static func comparable(_ c: Case) -> Bool {
+        if c.engine == Jambo.analog { return c.p3 == 0 }
+        if c.engine == Jambo.drum { return abs(c.p3 - 0.5) < 1e-9 }
+        return true
+    }
+
+    /// Случаи для сверки (comparable).
+    public static func usable(_ all: Cases) -> [Case] {
+        return all.cases.filter { comparable($0) }
+    }
 
     public static func loadCases(_ goldenDir: URL) throws -> Cases {
         let data = try Data(contentsOf: goldenDir.appendingPathComponent("jambo_cases.json"))
@@ -64,7 +77,9 @@ public enum JamboSelfTest {
                     end = Int.max
                     start0 = f
                     quiet = 0
-                    voice.trigger(engine: c.engine, note: c.note, c.p1, c.p2, c.p3, decay: c.decay,
+                    let k = SynthMigration.knobs(c.engine, c.p1 * 100, c.p2 * 100, c.p3 * 100)
+                    voice.trigger(engine: c.engine, note: c.note, k.h / 100, k.t / 100, k.m / 100, k.p4 / 100,
+                                  decay: c.decay,
                                   now: Double(now), tau: drift.tau + Double(now - blockStart) * drift.ratio)
                 }
                 var n = min(all.chunk, frames - pos)

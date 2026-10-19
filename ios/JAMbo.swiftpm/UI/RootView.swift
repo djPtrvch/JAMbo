@@ -33,6 +33,15 @@ struct RootView: View {
         .alert(model.sampleRec.error ?? "", isPresented: recError) {
             Button("OK") { model.sampleRec.error = nil }
         }
+        .alert(model.project.notice ?? "", isPresented: projectNotice) {
+            Button("OK") { model.clearNotice() }
+        }
+    }
+
+    /// Сообщение при открытии проекта (перевод старой версии: пропавший суб ANALOG, S12).
+    private var projectNotice: Binding<Bool> {
+        Binding(get: { model.project.notice != nil && model.sampleRec.error == nil },
+                set: { if !$0 { model.clearNotice() } })
     }
 
     /// REC: запись не началась (нет доступа к входу) — окно с сообщением.

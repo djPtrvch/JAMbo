@@ -4,18 +4,20 @@ import Foundation
 // по ручкам 1.1, 1.2, 1.3 и Decay (0…1). Рисует UI (Canvas): один цвет темы, линия 1,4, скруглённые концы.
 // Здесь — общие примитивы, формы своих движков — в EngineIconsJambo.swift.
 
-/// Значения иконки 0…1: h — ручка 1.1, t — 1.2, m — 1.3, d — Decay 2.2; a — флаг a веба (у нас не задаётся).
+/// Значения иконки 0…1: h — ручка 1.1, t — 1.2, m — 1.3, q — 1.4 (S12), d — Decay 2.2; a — флаг a веба (не задаётся).
 public struct IconValues: Equatable, Sendable {
     public var h: Double
     public var t: Double
     public var m: Double
+    public var q: Double
     public var d: Double
     public var a: Bool
 
-    public init(h: Double = 0.5, t: Double = 0.5, m: Double = 0.5, d: Double = 0.5, a: Bool = false) {
+    public init(h: Double = 0.5, t: Double = 0.5, m: Double = 0.5, q: Double = 0.5, d: Double = 0.5, a: Bool = false) {
         self.h = h
         self.t = t
         self.m = m
+        self.q = q
         self.d = d
         self.a = a
     }
@@ -140,7 +142,7 @@ public enum EngineIcons {
     /// Math.round веба (половина — вверх).
     static func round(_ x: Double) -> Int { return Int((x + 0.5).rounded(.down)) }
 
-    /// Элементы иконки своего движка (DRUM, ANALOG, FM); у других — пусто (у WTABLE — кадр таблицы).
+    /// Элементы иконки своего движка (KICK, ANALOG, FM); у других — пусто (у WTABLE — кадр таблицы).
     public static func elements(_ engine: Int, _ v: IconValues) -> [IconElement] {
         switch engine {
         case 16: return drumIcon(v)

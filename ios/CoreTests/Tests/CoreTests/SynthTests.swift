@@ -22,11 +22,23 @@ final class SynthTests: XCTestCase {
     func testSynthGrid() {
         let an = Params.grid(sound: "mi:17")
         XCTAssertEqual(an[0].id, "harm")
-        XCTAssertEqual(an[0].label, "Wave")
+        XCTAssertEqual(an[0].label, "Wave A")
         XCTAssertEqual(an[4].id, "timbre")
-        XCTAssertEqual(an[4].label, "Detune")
+        XCTAssertEqual(an[4].label, "Wave B")
+        XCTAssertEqual(an[4].steps, 4)
         XCTAssertEqual(an[8].id, "morph")
-        XCTAssertEqual(an[12].id, "", "1.4 — четвёртая ручка движка (этап 2), пока пустая")
+        XCTAssertEqual(an[8].label, "Detune")
+        XCTAssertEqual(an[12].id, "p4")
+        XCTAssertEqual(an[12].label, "Mix")
+        XCTAssertEqual(Params.grid(sound: "mi:16")[12].label, "Click")
+        XCTAssertEqual(Params.grid(sound: "mi:16")[8].label, "Drive")
+        XCTAssertEqual(Params.grid(sound: "mi:18")[12].label, "Feedback")
+        let wt = Params.grid(sound: "mi:19")
+        XCTAssertEqual(wt[8].label, "Unison")
+        XCTAssertEqual(wt[8].steps, 3)
+        XCTAssertEqual(wt[8].format(50), "3")
+        XCTAssertEqual(wt[12].label, "Detune")
+        XCTAssertEqual(wt[12].format(50), "30 ct")
         XCTAssertEqual(an[15].id, "level")
         XCTAssertEqual(an[15].label, "Velocity")
         XCTAssertEqual(an[1].id, "attack")
@@ -34,7 +46,7 @@ final class SynthTests: XCTestCase {
         XCTAssertEqual(Params.grid(sound: "mi:3")[0].id, "pitch", "звук без движка — не синт")
         XCTAssertEqual(SynthEngines.all.map(\.id), [16, 17, 18, 19])
         XCTAssertEqual(SynthEngines.count, 20)
-        XCTAssertEqual(SynthEngines.all.filter(\.decay).map(\.name), ["DRUM"])
+        XCTAssertEqual(SynthEngines.all.filter(\.decay).map(\.name), ["KICK"])
         // Свои движки: PITCH в Гц и Decay до 1000 мс у DRUM, WAVE ступенчатая у ANALOG, RATIO ×N.NN у FM.
         let drum = Params.grid(sound: "mi:16")
         XCTAssertEqual(drum[0].label, "Pitch")
@@ -234,7 +246,7 @@ final class SynthTests: XCTestCase {
         return m
     }
 
-    /// ANALOG при выборе с другого звука — синус без DETUNE и SUB; DRUM подрезает Decay до 1000 мс.
+    /// ANALOG при выборе с другого звука — синусы A и B без DETUNE, MIX 50 %; KICK подрезает Decay до 1000 мс.
     func testSetSynthInitAndDecayMax() {
         var t = Track(index: 0)
         t.params["harm"] = 80
@@ -242,8 +254,9 @@ final class SynthTests: XCTestCase {
         t.params["decay"] = 3000
         t.setSynth(17)
         XCTAssertEqual(t.params["harm"], 12.5)
-        XCTAssertEqual(t.params["timbre"], 0)
+        XCTAssertEqual(t.params["timbre"], 12.5)
         XCTAssertEqual(t.params["morph"], 0)
+        XCTAssertEqual(t.params["p4"], 50)
         t.params["harm"] = 60
         t.setSynth(17)
         XCTAssertEqual(t.params["harm"], 60, "тот же движок — ручки не сбрасываются")

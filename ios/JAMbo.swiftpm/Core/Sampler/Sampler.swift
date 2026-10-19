@@ -67,7 +67,7 @@ public final class Sampler {
     let ftype = UnsafeMutablePointer<Int>.allocate(capacity: slots)
     let coef = UnsafeMutablePointer<Biquad>.allocate(capacity: slots)
     let z = UnsafeMutablePointer<Float>.allocate(capacity: slots * 4)
-    let lockMask = UnsafeMutablePointer<UInt16>.allocate(capacity: slots)
+    let lockMask = UnsafeMutablePointer<VoiceMask>.allocate(capacity: slots)
     let lockVal = UnsafeMutablePointer<Float>.allocate(capacity: slots * VoiceParam.count)
     private var nextSerial = 0
 
@@ -218,9 +218,9 @@ public final class Sampler {
 
     /// Значение параметра p голоса: p-lock (mask, vals) или ручка дорожки t.
     @inline(__always)
-    private func pv(_ d: SoundData, _ t: Int, _ p: Int, _ mask: UInt16, _ vals: UnsafePointer<Float>?) -> Double {
+    private func pv(_ d: SoundData, _ t: Int, _ p: Int, _ mask: VoiceMask, _ vals: UnsafePointer<Float>?) -> Double {
         var x: Double = Double(d.param(t, p))
-        if mask & (UInt16(1) << UInt16(p)) != 0, let v = vals { x = Double(v[p]) }
+        if mask & (VoiceMask(1) << VoiceMask(p)) != 0, let v = vals { x = Double(v[p]) }
         // LFO/ENV — сверху (ENV — на кадр ноты).
         if let m = mod, m.modulated(t) { x = m.value(t, p, x, modFrame) }
         return x
@@ -228,7 +228,7 @@ public final class Sampler {
 
     /// Ноты дорожки t в кадре frame. hash — свой звук шага (0 — звук дорожки); gate — удержание в кадрах
     /// (−1 — нота в 1 шаг: Decay сразу после атаки; Int64.max — живая нота до release).
-    public func trigger(track t: Int, at frame: Int64, notes: UnsafePointer<Int16>, count: Int, mask: UInt16,
+    public func trigger(track t: Int, at frame: Int64, notes: UnsafePointer<Int16>, count: Int, mask: VoiceMask,
                         vals: UnsafePointer<Float>?, hash: UInt64, gate: Int64, own isOwn: Bool, liveId live: Int,
                         retrig: Bool = false) {
         guard let d = sound, t >= 0, t < d.trackCount else { return }
@@ -282,7 +282,7 @@ public final class Sampler {
 
     private func setupVoice(_ v: Int, _ d: SoundData, _ t: Int, _ e: Int, _ frame: Int64, _ a: Double, _ b: Double,
                             _ ratio: Double, _ n: Int, _ attack: Double, _ decay: Double, _ gate: Int64,
-                            _ mask: UInt16, _ vals: UnsafePointer<Float>?) {
+                            _ mask: VoiceMask, _ vals: UnsafePointer<Float>?) {
         active[v] = 1
         fading[v] = 0
         track[v] = t
@@ -402,9 +402,9 @@ public final class Sampler {
     public func noteOn(track t: Int, note n: Int, liveId id: Int, velocity: Float, at: Int64) {
         guard let d = sound, t < d.trackCount else { return }
         one.pointee = Int16(n)
-        var mask: UInt16 = 0
+        var mask: VoiceMask = 0
         if velocity < 1 {
-            mask = UInt16(1) << UInt16(VoiceParam.level)
+            mask = VoiceMask(1) << VoiceMask(VoiceParam.level)
             scratch[VoiceParam.level] = d.param(t, VoiceParam.level) * velocity
         }
         trigger(track: t, at: at, notes: one, count: 1, mask: mask, vals: scratch, hash: 0, gate: Int64.max,
@@ -513,7 +513,7 @@ public final class Sampler {
         let modE: ModEngine? = mod != nil && mod!.modulated(t) ? mod : nil
         @inline(__always) func val(_ p: Int) -> Double {
             var x: Double = Double(d.param(t, p))
-            if mask & (UInt16(1) << UInt16(p)) != 0 { x = Double(lockVal[base + p]) }
+            if mask & (VoiceMask(1) << VoiceMask(p)) != 0 { x = Double(lockVal[base + p]) }
             if let mm = modE { x = mm.value(t, p, x, blockStart) }
             return x
         }

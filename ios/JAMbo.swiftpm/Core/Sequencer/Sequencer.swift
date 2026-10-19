@@ -47,7 +47,7 @@ public final class Sequencer {
     private let pendingTrack = UnsafeMutablePointer<Int32>.allocate(capacity: Sequencer.pendingMax)
     private let pendingNotes = UnsafeMutablePointer<Int16>.allocate(capacity: Sequencer.pendingMax * SeqData.maxNotes)
     private let pendingCountN = UnsafeMutablePointer<Int32>.allocate(capacity: Sequencer.pendingMax)
-    private let pendingMask = UnsafeMutablePointer<UInt16>.allocate(capacity: Sequencer.pendingMax)
+    private let pendingMask = UnsafeMutablePointer<VoiceMask>.allocate(capacity: Sequencer.pendingMax)
     private let pendingVals = UnsafeMutablePointer<Float>.allocate(capacity: Sequencer.pendingMax * VoiceParam.count)
     private let pendingSound = UnsafeMutablePointer<UInt64>.allocate(capacity: Sequencer.pendingMax)
     private let pendingGate = UnsafeMutablePointer<Int64>.allocate(capacity: Sequencer.pendingMax)
@@ -310,7 +310,7 @@ public final class Sequencer {
         pendingNotes[k * SeqData.maxNotes] = d.notes[i * SeqData.maxNotes + j]
         let v: Float = d.noteVel[i * SeqData.maxNotes + j]
         if v >= 0 {
-            pendingMask[k] |= UInt16(1) << UInt16(VoiceParam.level)
+            pendingMask[k] |= VoiceMask(1) << VoiceMask(VoiceParam.level)
             pendingVals[k * VoiceParam.count + VoiceParam.level] = v
         }
     }

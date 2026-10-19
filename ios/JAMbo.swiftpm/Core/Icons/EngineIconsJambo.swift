@@ -1,10 +1,11 @@
 import Foundation
 
-// Иконки своих движков DRUM, ANALOG, FM (16–18): перенос src/engineIcons.ts. d — Decay (у DRUM — его своя шкала).
+// Иконки своих движков KICK, ANALOG, FM (16–18): перенос src/engineIcons.ts; KICK и ANALOG — с ручкой 1.4 (S12).
+// d — Decay (у KICK — его своя шкала).
 
 extension EngineIcons {
-    /// DRUM: затухающая волна — частота по PITCH (1.1), в начале выше на SWEEP (1.2), насыщение по DRIVE (1.3),
-    /// длина затухания по Decay.
+    /// KICK: затухающая волна — частота по PITCH (1.1), в начале выше на SWEEP (1.2), насыщение по DRIVE (1.3),
+    /// длина затухания по Decay; в начале — пик клика по CLICK (1.4).
     static func drumIcon(_ v: IconValues) -> [IconElement] {
         let d = v.d
         let g = 1 + 11 * v.m, cmp = 0.7 / tanh(g * 0.7), k = 4.5 - 3.5 * d
@@ -14,11 +15,16 @@ extension EngineIcons {
             ph += f * tau / 240 * 3
             return 32 - 22 * cmp * tanh(g * 0.7 * sin(ph) * exp(-u * k))
         }
-        return [IconElement(pts(w)), IconElement([.move(6, 32), .hTo(58)], op: 0.25)]
+        var els: [IconElement] = [IconElement(pts(w)), IconElement([.move(6, 32), .hTo(58)], op: 0.25)]
+        if v.q > 0.02 {
+            let c = clamp(v.q)
+            els.append(IconElement(pts([(6, 32), (6 + 3 * (1.5 - c), 32 - 26 * c), (6 + 6 * (1.5 - c), 32)])))
+        }
+        return els
     }
 
-    /// ANALOG: волна по WAVE (1.1, пункт: синус, треугольник, пила, квадрат), копия расходится по фазе с DETUNE (1.2),
-    /// снизу квадрат суба — размах по SUB (1.3).
+    /// ANALOG: сверху волна A (пункт WAVE A, 1.1), снизу — B (WAVE B, 1.2), расходится по фазе с DETUNE (1.3);
+    /// прозрачность A и B — по MIX (1.4): у преобладающего осциллятора — полная.
     static func analogIcon(_ v: IconValues) -> [IconElement] {
         func shp(_ k: Int, _ p0: Double) -> Double {
             let p = p0 - p0.rounded(.down)
@@ -27,18 +33,16 @@ extension EngineIcons {
             if k == 2 { return 1 - 2 * p }
             return p < 0.5 ? 1 : -1
         }
-        let kind = Swift.min(3, Int((clamp(v.h) * 4).rounded(.down)))
-        var els: [IconElement] = [IconElement(pts(fx(6, 58, 200) { _, u in 24 - 13 * shp(kind, u * 2) }))]
-        if v.t > 0.02 {
-            let tt = v.t * v.t
-            els.append(IconElement(pts(fx(6, 58, 200) { _, u in 24 - 13 * shp(kind, u * 2 * (1 + 0.06 * tt) + 0.15 * tt) }),
-                                   op: 0.5))
-        }
-        els.append(IconElement([.move(6, 51), .hTo(58)], op: 0.25))
-        if v.m > 0.02 {
-            els.append(IconElement(pts(fx(6, 58, 200) { _, u in 51 - 6 * v.m * shp(3, u) })))
-        }
-        return els
+        let ka = Swift.min(3, Int((clamp(v.h) * 4).rounded(.down)))
+        let kb = Swift.min(3, Int((clamp(v.t) * 4).rounded(.down)))
+        let ang = clamp(v.q) * Double.pi / 2
+        let ga = cos(ang), gb = sin(ang)
+        let opA = 0.15 + 0.85 * ga / Swift.max(ga, gb), opB = 0.15 + 0.85 * gb / Swift.max(ga, gb)
+        let dd = v.m * v.m
+        let a = fx(6, 58, 200) { _, u in 20 - 10 * shp(ka, u * 2) }
+        let b = fx(6, 58, 200) { _, u in 44 - 10 * shp(kb, u * 2 * (1 + 0.06 * dd) + 0.15 * dd) }
+        return [IconElement(pts(a), op: opA < 0.999 ? opA : nil), IconElement(pts(b), op: opB < 0.999 ? opB : nil),
+                IconElement([.move(6, 32), .hTo(58)], op: 0.25)]
     }
 
     /// FM: сверху модулятор (частота по RATIO, 1.1), ниже несущая с фазовой модуляцией: глубина по INDEX (1.2),

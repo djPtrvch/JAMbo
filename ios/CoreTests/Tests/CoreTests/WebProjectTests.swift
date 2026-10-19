@@ -87,7 +87,7 @@ final class WebProjectTests: XCTestCase {
         XCTAssertEqual(t.clips[5]?.scale, 2)
         XCTAssertEqual(t.slices[kick], [SliceMark(at: 0.5, note: 62), SliceMark(at: 0.75)])
         // Папка: сэмплы и пресет синта (S11b), звучит snare. Пресет движка Mutable Instruments (mi:2) — пустой (S12).
-        let bell = SynthPreset(name: "Bell", sound: "", params: ["harm": 30], fmt: 2)
+        let bell = SynthPreset(name: "Bell", sound: "", params: ["harm": 30], fmt: 3)
         XCTAssertEqual(t.folder, Folder(items: [FolderItem(sample: kick), FolderItem(preset: bell), FolderItem(sample: snare)],
                                         index: 2))
         let q = t.eq.bands[1]

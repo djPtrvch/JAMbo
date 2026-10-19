@@ -129,7 +129,7 @@ extension AppModel {
         return t.params[p.id] ?? p.def
     }
 
-    /// Значения иконки движка: ручки 1.1, 1.2, 1.3 и Decay 2.2 (0…1); ступенчатая — скачком по пункту.
+    /// Значения иконки движка: ручки 1.1–1.4 и Decay 2.2 (0…1); ступенчатая — скачком по пункту.
     func iconValues(_ engine: Int) -> IconValues {
         let grid: [ParamDef] = Params.synthGrids[engine]
         func norm(_ slot: Int) -> Double {
@@ -138,7 +138,7 @@ extension AppModel {
             if let s = p.steps { return (Double(Params.stepIndex(n, s)) + 0.5) / Double(s) }
             return n
         }
-        return IconValues(h: norm(0), t: norm(4), m: norm(8), d: norm(5))
+        return IconValues(h: norm(0), t: norm(4), m: norm(8), q: norm(12), d: norm(5))
     }
 
     func sample(_ key: String) -> SampleData? {

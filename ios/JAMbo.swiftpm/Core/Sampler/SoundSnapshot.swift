@@ -5,10 +5,13 @@ import Foundation
 // (дёшево: без шагов); держит ссылки на SampleData, пока колбэк может их читать.
 
 /// Параметры голоса в снимках: номер в массиве (p-lock шагов — по тем же номерам).
+/// Маска p-lock голоса: бит на VoiceParam.
+public typealias VoiceMask = UInt32
+
 public enum VoiceParam {
     public static let ids = ["pitch", "start", "end", "level", "attack", "decay", "filter", "reso", "pan",
-                             "harm", "timbre", "morph", "reverb", "delay", "drive"]
-    public static let count = 15
+                             "harm", "timbre", "morph", "reverb", "delay", "drive", "play", "p4"]
+    public static let count = 17
     public static let pitch = 0
     public static let start = 1
     public static let end = 2
@@ -26,6 +29,9 @@ public enum VoiceParam {
     public static let reverb = 12
     public static let delay = 13
     public static let drive = 14
+    /// 1.4: PLAY сэмплера (S12) и четвёртая ручка синта.
+    public static let play = 15
+    public static let p4 = 16
 }
 
 public struct SoundData {

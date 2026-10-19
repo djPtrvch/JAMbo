@@ -119,8 +119,8 @@ final class LibraryPreviewTests: XCTestCase {
 
     func testNoteLocksFromPreset() {
         var l = NoteLocks(["harm": 30, "decay": 900, "unknown": 1])
-        XCTAssertEqual(l.mask, (UInt16(1) << UInt16(VoiceParam.ids.firstIndex(of: "harm")!))
-                       | (UInt16(1) << UInt16(VoiceParam.decay)))
+        XCTAssertEqual(l.mask, (VoiceMask(1) << VoiceMask(VoiceParam.ids.firstIndex(of: "harm")!))
+                       | (VoiceMask(1) << VoiceMask(VoiceParam.decay)))
         let decay: Float = withUnsafeBytes(of: &l.vals) { $0.bindMemory(to: Float.self)[VoiceParam.decay] }
         XCTAssertEqual(decay, 900)
     }

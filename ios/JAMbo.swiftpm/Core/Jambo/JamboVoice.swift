@@ -1,6 +1,7 @@
 import Foundation
 
-// Голос своих движков JAMbo — DRUM, ANALOG, FM, WTABLE (перенос класса Voice из public/jambo-synth-worklet.js 1:1).
+// Голос своих движков JAMbo — KICK, ANALOG, FM, WTABLE (перенос класса Voice из public/jambo-synth-worklet.js;
+// ручки 1.4 и новые режимы — S12).
 // Состояние и арифметика — в Double (как JS), отсчёты выхода и буфер фильтра децимации — во Float (Float32Array).
 // Горячие циклы — без вызовов из других файлов, состояние — в локальных переменных (отладочная сборка Playgrounds).
 
@@ -56,23 +57,24 @@ final class JamboVoice {
     private(set) var engine = Jambo.drum
     private var note = 48.0
     // Цели ручек и сглаженные значения.
-    private var t1 = 0.5, t2 = 0.5, t3 = 0.5, td = 500.0
-    private var s1 = 0.5, s2 = 0.5, s3 = 0.5, sd = 500.0
+    private var t1 = 0.5, t2 = 0.5, t3 = 0.5, t4 = 0.5, td = 500.0
+    private var s1 = 0.5, s2 = 0.5, s3 = 0.5, s4 = 0.5, sd = 500.0
     private var t = 0.0
     private var rnd = 22222
     // DRUM
     private var p1 = 0.0, dc = 0.0
     /// Последний отсчёт DRUM до клиппера (сглаживание стыка при ретриге); 0 — голос молчал.
     var last = 0.0
-    // ANALOG
-    private var a1 = 0.0, a2 = 0.0, aSub = 0.0, tri1 = 0.0, tri2 = 0.0
+    // ANALOG: осцилляторы A и B, у каждого своя форма (смена — кроссфейд).
+    private var a1 = 0.0, a2 = 0.0, tri1 = 0.0, tri2 = 0.0
     private var wCur = 0, wPrev = 0, wMix = 1.0
+    private var bCur = 0, bPrev = 0, bMix = 1.0
     // FM
     private var pc = 0.0, pm = 0.0, m1 = 0.0, m2 = 0.0
     private let hb: UnsafeMutablePointer<Float>
     private var hbPos = 0
-    // WTABLE: центр и два боковых голоса.
-    private var w0 = 0.0, wl = 0.0, wr = 0.0
+    // WTABLE: центр и до четырёх боковых голосов (±DETUNE, ±DETUNE/2).
+    private var w0 = 0.0, wl = 0.0, wr = 0.0, wl2 = 0.0, wr2 = 0.0
     // Вход новой ноты (кадров с её начала).
     private var fade = Jambo.fadeIn
 
@@ -91,26 +93,28 @@ final class JamboVoice {
 
     deinit { hb.deallocate() }
 
-    /// Ручки (mod): p1–p3 — 0…1, decay — мс.
-    @inline(__always) func set(note n: Double, _ q1: Double, _ q2: Double, _ q3: Double, decay: Double) {
+    /// Ручки (mod): p1–p4 — 0…1, decay — мс.
+    @inline(__always) func set(note n: Double, _ q1: Double, _ q2: Double, _ q3: Double, _ q4: Double, decay: Double) {
         note = n
         t1 = q1
         t2 = q2
         t3 = q3
+        t4 = q4
         td = decay
     }
 
     /// Нота в кадре now (абсолютный кадр), tau — время дорожки с дрейфом на этот кадр.
-    func trigger(engine e: Int, note n: Double, _ q1: Double, _ q2: Double, _ q3: Double, decay: Double,
+    func trigger(engine e: Int, note n: Double, _ q1: Double, _ q2: Double, _ q3: Double, _ q4: Double, decay: Double,
                  now: Double, tau: Double) {
         // DRUM монофонична: новый удар в тот же слот, хвост прошлого гаснет за drumDeclick.
         dc = e == Jambo.drum && engine == Jambo.drum ? last : 0
         engine = e
-        set(note: n, q1, q2, q3, decay: decay)
+        set(note: n, q1, q2, q3, q4, decay: decay)
         // Новая нота — ручки сразу на своих местах (сглаживание — только для смены на лету).
         s1 = t1
         s2 = t2
         s3 = t3
+        s4 = t4
         sd = td
         t = 0
         p1 = 0
@@ -119,21 +123,26 @@ final class JamboVoice {
         hb.update(repeating: 0, count: Jambo.hbLen * 2)
         // Фаза новой ноты — как у генератора, который бежит непрерывно (frac(f·t)); оба осциллятора ANALOG — из одной точки.
         let f = 440 * pow(2, (note - 69) / 12) / sr
-        let det = Jambo.analogDetune / 2 * s2 * s2
+        // ANALOG: DETUNE — ручка 1.3 (S12).
+        let det = Jambo.analogDetune / 2 * s3 * s3
         a1 = jFrac(f * pow(2, det / 1200) * tau)
         a2 = jFrac(f * pow(2, -det / 1200) * tau)
-        aSub = jFrac(0.5 * f * tau)
         tri1 = jTriAt(a1)
         tri2 = jTriAt(a2)
         wCur = Jambo.waveIndex(t1)
         wPrev = wCur
         wMix = 1
+        bCur = Jambo.waveIndex(t2)
+        bPrev = bCur
+        bMix = 1
         pc = jFrac(f * now)
         pm = jFrac(Jambo.fmRatio(s1) * f * now)
         // WTABLE: центр — так же, боковые — со случайной фазы.
         w0 = jFrac(f * now)
         wl = rand()
         wr = rand()
+        wl2 = rand()
+        wr2 = rand()
         fade = 0
     }
 
@@ -143,6 +152,7 @@ final class JamboVoice {
         s1 += (t1 - s1) * k
         s2 += (t2 - s2) * k
         s3 += (t3 - s3) * k
+        s4 += (t4 - s4) * k
         sd += (td - sd) * k
         if engine == Jambo.drum {
             drum(out, n)
@@ -166,7 +176,7 @@ final class JamboVoice {
         }
     }
 
-    // MARK: — DRUM: синус со свипом высоты + клик → мягкий клиппер.
+    // MARK: — KICK: синус со свипом высоты + клик → мягкий клиппер.
 
     @inline(__always) private func drum(_ out: UnsafeMutablePointer<Float>, _ n: Int) {
         let tauSec = 2 * Double.pi
@@ -178,11 +188,11 @@ final class JamboVoice {
         // SWEEP: 0…+48 полутонов, время свипа = clamp(0.08 × Decay, 6, 80 мс).
         let tauSweep = Swift.min(0.08, Swift.max(0.006, 0.08 * decay / 1000))
         let semis = 48 * s2
-        // DRIVE: клик (до 1.0) и tanh (запас 1 → 12), компенсация.
+        // DRIVE: tanh (запас 1 → 12), компенсация. CLICK (S12): уровень клика 0 → 1.0, длина 3 → 1 мс.
         let dg = 1 + 11 * s3
         let comp = Jambo.drumSine / tanh(dg * Jambo.drumSine)
-        let click = s3
-        let clickLen = Jambo.drumClick * sr
+        let click = s4
+        let clickLen = Jambo.drumClick * (1.5 - s4) * sr
         let dEnv = exp(-1 / (tauE * sr))
         let dSweep = exp(-1 / (tauSweep * sr))
         let dDc = exp(-1 / (Jambo.drumDeclick * sr))
@@ -213,33 +223,40 @@ final class JamboVoice {
         t = tt
     }
 
-    // MARK: — ANALOG: два осциллятора PolyBLEP + суб, ×2 передискретизация и полуполосный фильтр.
+    // MARK: — ANALOG: осцилляторы A и B (PolyBLEP, своя форма у каждого), ×2 передискретизация и полуполосный фильтр.
 
     @inline(__always) private func analog(_ out: UnsafeMutablePointer<Float>, _ n: Int, _ ratio: Double) {
         let sr2 = sr * 2
         let sine = UnsafePointer(tables.sine)
         let f0 = 440 * pow(2, (note - 69) / 12) * ratio
-        // DETUNE: OSC1 вверх, OSC2 вниз, в сумме 0…60 центов по кривой x².
-        let det = Jambo.analogDetune / 2 * s2 * s2
+        // DETUNE (1.3): A вверх, B вниз, в сумме 0…60 центов по кривой x².
+        let det = Jambo.analogDetune / 2 * s3 * s3
         let dt1 = Swift.min(0.45, f0 * pow(2, det / 1200) / sr2)
         let dt2 = Swift.min(0.45, f0 * pow(2, -det / 1200) / sr2)
-        let dts = f0 * 0.5 / sr2
-        // WAVE — ступенчатая (пункт по ручке, без сглаживания); смена пункта — кроссфейд форм за 5 мс.
-        let idx = Jambo.waveIndex(t1)
-        if idx != wCur {
+        // WAVE A и WAVE B — ступенчатые (пункт по ручке, без сглаживания); смена пункта — кроссфейд форм за 5 мс.
+        let ia = Jambo.waveIndex(t1)
+        if ia != wCur {
             wPrev = wCur
-            wCur = idx
+            wCur = ia
             wMix = 0
         }
-        let cur = wCur, prev = wPrev
-        let gCur = Double(tables.shapeGain[cur]), gPrev = Double(tables.shapeGain[prev])
+        let ib = Jambo.waveIndex(t2)
+        if ib != bCur {
+            bPrev = bCur
+            bCur = ib
+            bMix = 0
+        }
+        let ca = wCur, pa = wPrev, cb = bCur, pb = bPrev
+        let gA = Double(tables.shapeGain[ca]), gAp = Double(tables.shapeGain[pa])
+        let gB = Double(tables.shapeGain[cb]), gBp = Double(tables.shapeGain[pb])
         let xfStep = 1 / (Jambo.analogWaveXf * sr2)
-        var mix = wMix
-        // SUB: 0…100 % по амплитуде, общий уровень компенсируется.
-        let sub = s3
-        let gain = Jambo.analogOut / (1 + 0.5 * sub)
+        var mixA = wMix, mixB = bMix
+        // MIX (1.4): доли по постоянной мощности (cos/sin), нормированные на сумму — пик не растёт; 50 % — поровну.
+        let ang = s4 * Double.pi / 2
+        let ka = cos(ang), kb = sin(ang)
+        let wa = Jambo.analogOut * ka / (ka + kb), wb = Jambo.analogOut * kb / (ka + kb)
         let leak = 1 - 20 / sr2
-        var o1 = a1, o2 = a2, os = aSub, tr1 = tri1, tr2 = tri2, hp = hbPos
+        var o1 = a1, o2 = a2, tr1 = tri1, tr2 = tri2, hp = hbPos
         let buf = hb, len = Jambo.hbLen
         let kIdx = tables.hbIdx, kK = tables.hbK, kN = tables.hbN
         var i = 0
@@ -250,14 +267,19 @@ final class JamboVoice {
                 let b1 = o1 < 0.75 ? o1 + 0.25 : o1 - 0.75, b2 = o2 < 0.75 ? o2 + 0.25 : o2 - 0.75
                 tr1 = tr1 * leak + 4 * dt1 * ((b1 < 0.5 ? 1 : -1) + jBlep(b1, dt1) - jBlep(b1 < 0.5 ? b1 + 0.5 : b1 - 0.5, dt1))
                 tr2 = tr2 * leak + 4 * dt2 * ((b2 < 0.5 ? 1 : -1) + jBlep(b2, dt2) - jBlep(b2 < 0.5 ? b2 + 0.5 : b2 - 0.5, dt2))
-                var osc = 0.5 * gCur * (jShapeAt(sine, cur, o1, dt1, tr1) + jShapeAt(sine, cur, o2, dt2, tr2))
-                if mix < 1 {
-                    mix = Swift.min(1, mix + xfStep)
-                    let old = 0.5 * gPrev * (jShapeAt(sine, prev, o1, dt1, tr1) + jShapeAt(sine, prev, o2, dt2, tr2))
-                    osc = old + (osc - old) * mix
+                var xa = gA * jShapeAt(sine, ca, o1, dt1, tr1)
+                if mixA < 1 {
+                    mixA = Swift.min(1, mixA + xfStep)
+                    let old = gAp * jShapeAt(sine, pa, o1, dt1, tr1)
+                    xa = old + (xa - old) * mixA
                 }
-                let sb = (os < 0.5 ? 1 : -1) + jBlep(os, dts) - jBlep(os < 0.5 ? os + 0.5 : os - 0.5, dts)
-                let y = Float(gain * (osc + sub * sb))
+                var xb = gB * jShapeAt(sine, cb, o2, dt2, tr2)
+                if mixB < 1 {
+                    mixB = Swift.min(1, mixB + xfStep)
+                    let old = gBp * jShapeAt(sine, pb, o2, dt2, tr2)
+                    xb = old + (xb - old) * mixB
+                }
+                let y = Float(wa * xa + wb * xb)
                 buf[hp] = y
                 buf[hp + len] = y
                 hp = hp + 1 == len ? 0 : hp + 1
@@ -265,8 +287,6 @@ final class JamboVoice {
                 if o1 >= 1 { o1 -= 1 }
                 o2 += dt2
                 if o2 >= 1 { o2 -= 1 }
-                os += dts
-                if os >= 1 { os -= 1 }
                 j += 1
             }
             var acc = 0.0
@@ -278,10 +298,10 @@ final class JamboVoice {
             out[i] = Float(acc)
             i += 1
         }
-        wMix = mix
+        wMix = mixA
+        bMix = mixB
         a1 = o1
         a2 = o2
-        aSub = os
         tri1 = jFlush(tr1)
         tri2 = jFlush(tr2)
         hbPos = hp
@@ -297,7 +317,8 @@ final class JamboVoice {
         let idxNorm = pow(s2, 1.5)
         // Индекс в радианах → в долях периода.
         let index = Jambo.fmIndex * idxNorm / (2 * Double.pi)
-        let fb = Jambo.fmFeedback * idxNorm
+        // FEEDBACK (1.4, S12): 50 % — как прежде.
+        let fb = Jambo.fmFeedback * idxNorm * s4 * 2
         // CONTOUR: индекс спадает с постоянной от Decay: 0 % — постоянный, 50 % — как амплитуда, 100 % — в 5 раз быстрее.
         let m = s3
         let k = m < 0.5 ? 2 * m : 1 + 8 * (m - 0.5)
@@ -362,13 +383,15 @@ final class JamboVoice {
         let w = s2
         let bend = 1 + 3 * Swift.min(1, w * 2)
         let sync = w > 0.5 ? 1 + 3 * (w - 0.5) * 2 : 1
-        // UNISON: до 25 % — один голос; дальше три (боковые на −3 дБ), расстройка 0 → 40 центов.
-        let u = s3
-        let side = u <= 0.25 ? 0 : Jambo.wtSide * Swift.min(1, (u - 0.25) / 0.05)
-        let cents = u <= 0.25 ? 0 : Jambo.wtUnison * (u - 0.25) / 0.75
-        let norm = Jambo.wtOut / (1 + 2 * side * side).squareRoot()
+        // UNISON (1.3, ступенчатая): 1 / 3 / 5 голосов; DETUNE (1.4): 0 → 60 центов — боковые на ±DETUNE
+        // (у пяти — ещё ±DETUNE/2), на −3 дБ; громкость нормируется по числу голосов.
+        let un = t3 < 1.0 / 3 ? 1 : (t3 < 2.0 / 3 ? 3 : 5)
+        let side = Jambo.wtSide
+        let cents = un == 1 ? 0 : Jambo.wtDetune * s4
+        let norm = Jambo.wtOut / (1 + Double(un - 1) * side * side).squareRoot()
         let dt0 = f0 / sr
         let dtl = dt0 * pow(2, -cents / 1200), dtr = dt0 * pow(2, cents / 1200)
+        let dtl2 = dt0 * pow(2, -cents / 2400), dtr2 = dt0 * pow(2, cents / 2400)
         // Мипмап: уровень, где гармоники (с учётом синхронизации и изгиба) не выше Найквиста.
         let fEff = f0 * pow(2, cents / 1200) * sync * (1 + (bend - 1) * 0.5)
         let lvf = log2(1024 * fEff / (0.5 * sr)).rounded(.up)
@@ -376,16 +399,15 @@ final class JamboVoice {
         let size = sizes[lv]
         let data = levels[lv]
         let rowA = fi * size, rowB = (frames > 1 ? fi + 1 : fi) * size
-        var c0 = w0, cl = wl, cr = wr
+        var c0 = w0, cl = wl, cr = wr, cl2 = wl2, cr2 = wr2
         let bent = bend != 1
         let sizeF = Double(size)
         var i = 0
         while i < n {
             var y = 0.0
             var v = 0
-            while v < 3 {
-                if v > 0 && side == 0 { break }
-                var ph = v == 0 ? c0 : (v == 1 ? cl : cr)
+            while v < un {
+                var ph = v == 0 ? c0 : (v == 1 ? cl : (v == 2 ? cr : (v == 3 ? cl2 : cr2)))
                 if sync != 1 {
                     ph *= sync
                     ph -= ph.rounded(.down)
@@ -409,11 +431,17 @@ final class JamboVoice {
             if cl >= 1 { cl -= 1 }
             cr += dtr
             if cr >= 1 { cr -= 1 }
+            cl2 += dtl2
+            if cl2 >= 1 { cl2 -= 1 }
+            cr2 += dtr2
+            if cr2 >= 1 { cr2 -= 1 }
             i += 1
         }
         w0 = c0
         wl = cl
         wr = cr
+        wl2 = cl2
+        wr2 = cr2
         t += Double(n)
     }
 }

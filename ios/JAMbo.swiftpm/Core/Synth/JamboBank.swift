@@ -1,4 +1,4 @@
-// Голоса своих движков JAMbo (DRUM, ANALOG, FM, WTABLE): голос на слот, таблицы — общие. Создаются вне колбэка.
+// Голоса своих движков JAMbo (KICK, ANALOG, FM, WTABLE): голос на слот, таблицы — общие. Создаются вне колбэка.
 
 final class JamboBank {
     let count: Int
@@ -18,15 +18,15 @@ final class JamboBank {
 
     /// Нота своего движка в голосе v (trigger в worklet); now — абсолютный кадр, tau — время дорожки с дрейфом.
     @inline(__always)
-    func jamboTrigger(_ v: Int, _ e: Int, note: Double, _ p1: Double, _ p2: Double, _ p3: Double, decay: Double,
-                      now: Double, tau: Double) {
-        jambo[v].trigger(engine: e, note: note, p1, p2, p3, decay: decay, now: now, tau: tau)
+    func jamboTrigger(_ v: Int, _ e: Int, note: Double, _ p1: Double, _ p2: Double, _ p3: Double, _ p4: Double,
+                      decay: Double, now: Double, tau: Double) {
+        jambo[v].trigger(engine: e, note: note, p1, p2, p3, p4, decay: decay, now: now, tau: tau)
     }
 
     /// Ручки звучащей ноты (mod в worklet; сглаживание — в голосе).
     @inline(__always)
-    func jamboSet(_ v: Int, note: Double, _ p1: Double, _ p2: Double, _ p3: Double, decay: Double) {
-        jambo[v].set(note: note, p1, p2, p3, decay: decay)
+    func jamboSet(_ v: Int, note: Double, _ p1: Double, _ p2: Double, _ p3: Double, _ p4: Double, decay: Double) {
+        jambo[v].set(note: note, p1, p2, p3, p4, decay: decay)
     }
 
     @inline(__always)
@@ -34,7 +34,7 @@ final class JamboBank {
         jambo[v].render(out, n, driftRatio: driftRatio, table: table)
     }
 
-    /// Голос молчал: хвоста DRUM для стыка нет (vo.last = 0 в worklet).
+    /// Голос молчал: хвоста KICK для стыка нет (vo.last = 0 в worklet).
     @inline(__always)
     func jamboSilent(_ v: Int) {
         jambo[v].last = 0

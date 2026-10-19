@@ -1,35 +1,41 @@
 // Движки синта (как SYNTH_ENGINES, synthKey, synthEngine в src/params.ts веба): звук дорожки или шага «mi:<n>».
-// Свои движки DRUM, ANALOG, FM, WTABLE (16–19); движков Mutable Instruments (0–15) нет.
+// Свои движки KICK, ANALOG, FM, WTABLE (16–19); движков Mutable Instruments (0–15) нет.
 
-/// Движок: номер (ключ звука mi:<n>), короткое имя (меню), полное (окно синта), подписи ручек 1.1–1.3 и пункты
-/// ступенчатой 1.1. decay — затухает сам (DRUM): огибающая дорожки только с атакой.
+/// Движок: номер (ключ звука mi:<n>), короткое имя (меню), полное (окно синта), подписи ручек 1.1–1.4 и пункты
+/// ступенчатых ручек (пустой список — плавная). decay — затухает сам (KICK): огибающая дорожки только с атакой.
 public struct SynthEngine: Sendable {
     public let id: Int
     public let name: String
     public let full: String
-    public let harm: String
-    public let timbre: String
-    public let morph: String
-    public let options: [String]
+    /// Подписи ручек 1.1–1.4 (harm, timbre, morph, p4).
+    public let knobs: [String]
+    /// Пункты ступенчатых ручек 1.1–1.4.
+    public let options: [[String]]
     public var decay = false
-    /// Свой предел ручки Decay, мс (у DRUM — 1000).
+    /// Свой предел ручки Decay, мс (у KICK — 1000).
     public var decayMax: Double? = nil
-    /// Ручки 1.1–1.3 (harm, timbre, morph), которые ставятся при выборе движка на дорожку с другого звука.
+    /// Ручки 1.1–1.4, которые ставятся при выборе движка на дорожку с другого звука.
     public var initKnobs: [Double] = []
 }
 
 public enum SynthEngines {
+    /// Ручки 1.1–1.4 синта в проекте.
+    public static let knobIds: [String] = ["harm", "timbre", "morph", "p4"]
+    static let waves: [String] = ["Sine", "Triangle", "Saw", "Square"]
+
     /// Свои движки JAMbo (Core/Jambo). Номера 0–15 (движки Mutable Instruments) не заняты: такие звуки — пустые.
     public static let all: [SynthEngine] = [
-        // DRUM — бочка (высота — ручкой PITCH, монофонична), ANALOG — по умолчанию чистый синус.
-        SynthEngine(id: 16, name: "DRUM", full: "Drum", harm: "pitch", timbre: "sweep", morph: "drive", options: [],
-                    decay: true, decayMax: 1000),
-        SynthEngine(id: 17, name: "ANALOG", full: "Analog", harm: "wave", timbre: "detune", morph: "sub",
-                    options: ["Sine", "Triangle", "Saw", "Square"], initKnobs: [12.5, 0, 0]),
-        SynthEngine(id: 18, name: "FM", full: "FM", harm: "ratio", timbre: "index", morph: "contour", options: []),
+        // KICK — бочка (ключ звука прежний, mi:16; высота — ручкой PITCH, монофонична).
+        SynthEngine(id: 16, name: "KICK", full: "Kick", knobs: ["pitch", "sweep", "drive", "click"],
+                    options: [[], [], [], []], decay: true, decayMax: 1000),
+        // ANALOG: два осциллятора A и B; при выборе — синусы без DETUNE, MIX 50 %.
+        SynthEngine(id: 17, name: "ANALOG", full: "Analog", knobs: ["wave A", "wave B", "detune", "mix"],
+                    options: [waves, waves, [], []], initKnobs: [12.5, 12.5, 0, 50]),
+        SynthEngine(id: 18, name: "FM", full: "FM", knobs: ["ratio", "index", "contour", "feedback"],
+                    options: [[], [], [], []]),
         // WTABLE: таблица — у дорожки (Track.table), в окне синта вместо иконки — кадр таблицы.
-        SynthEngine(id: 19, name: "WTABLE", full: "Wavetable", harm: "position", timbre: "warp", morph: "unison",
-                    options: []),
+        SynthEngine(id: 19, name: "WTABLE", full: "Wavetable", knobs: ["position", "warp", "unison", "detune"],
+                    options: [[], [], ["1", "3", "5"], []]),
     ]
 
     /// Размер таблиц по номеру движка (наибольший номер + 1).
@@ -65,18 +71,16 @@ public enum SynthKey {
 }
 
 extension Track {
-    /// Синт на дорожку (setTrackSynth веба): звук дорожки — «mi:<n>»; ручки Harmonics, Timbre, Morph остаются,
-    /// кроме своих начальных у движка (ANALOG — синус без DETUNE и SUB) при переходе с другого звука; Decay больше
-    /// предела движка (DRUM — 1000 мс) — к пределу.
+    /// Синт на дорожку (setTrackSynth веба): звук дорожки — «mi:<n>»; ручки 1.1–1.4 остаются, кроме своих начальных
+    /// у движка (ANALOG — синусы без DETUNE, MIX 50 %) при переходе с другого звука; Decay больше предела движка
+    /// (KICK — 1000 мс) — к пределу.
     public mutating func setSynth(_ engine: Int) {
         let key = SynthKey.key(engine)
         let was = sample
         sample = key
         guard let e = SynthEngines.engine(engine) else { return }
-        if e.initKnobs.count == 3 && was != key {
-            params["harm"] = e.initKnobs[0]
-            params["timbre"] = e.initKnobs[1]
-            params["morph"] = e.initKnobs[2]
+        if e.initKnobs.count == 4 && was != key {
+            for k in 0..<4 { params[SynthEngines.knobIds[k]] = e.initKnobs[k] }
         }
         if let max = e.decayMax, let d = params["decay"], d > max { params["decay"] = max }
     }

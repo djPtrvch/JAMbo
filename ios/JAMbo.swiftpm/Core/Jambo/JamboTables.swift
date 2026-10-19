@@ -22,6 +22,7 @@ enum Jambo {
     static let drumT60 = 6.9
     static let drumDecayMax = 1000.0
     static let drumDeclick = 0.002
+    /// Длина клика при CLICK 50 % (S12: CLICK 0 → 100 % — 3 → 1 мс).
     static let drumClick = 0.002
     static let drumSine = 0.7
     static let drumOut = 0.85
@@ -34,7 +35,10 @@ enum Jambo {
     static let analogWaveXf = 0.005
 
     // WTABLE
-    static let wtUnison = 40.0
+    /// Расстройка UNISON до S12 (по ручке 1.3, 25…100 % → 0…40 центов) — для перевода старых проектов.
+    static let wtUnisonOld = 40.0
+    /// DETUNE (1.4, S12): 0 → 60 центов.
+    static let wtDetune = 60.0
     static let wtSide = 0.708
     static let wtOut = 0.5
 

@@ -3,7 +3,7 @@ import Foundation
 // Пресет синта и звук папки дорожки (S11b, как Preset и FolderItem в state.ts веба). Пресет — движок (ключ звука
 // «mi:<n>»), ручки звука (presetParams) и у WTABLE — таблица. В папке дорожки — сэмплы и пресеты (копии).
 
-/// Пресет синта: имя, движок, ручки; fmt — версия формата веба.
+/// Пресет синта: имя, движок, ручки; fmt — версия формата (веб — 2; 3 — S12, ручки 1.4 своих движков).
 public struct SynthPreset: Codable, Equatable, Sendable {
     public var name: String
     public var sound: String
@@ -12,7 +12,7 @@ public struct SynthPreset: Codable, Equatable, Sendable {
     /// Таблица WTABLE ("" — BASIC, «builtin:…», своя — «wt:<ключ>:<кадр>»); nil — не WTABLE.
     public var table: String?
 
-    public init(name: String, sound: String, params: [String: Double], fmt: Int? = 2, table: String? = nil) {
+    public init(name: String, sound: String, params: [String: Double], fmt: Int? = 3, table: String? = nil) {
         self.name = name
         self.sound = sound
         self.params = params
@@ -21,7 +21,7 @@ public struct SynthPreset: Codable, Equatable, Sendable {
     }
 
     /// Ручки звука, которые хранит пресет (PRESET_PARAMS веба).
-    public static let params: [String] = ["harm", "timbre", "morph", "level", "attack", "decay", "filter", "reso"]
+    public static let params: [String] = ["harm", "timbre", "morph", "p4", "level", "attack", "decay", "filter", "reso"]
 
     enum CodingKeys: String, CodingKey, CaseIterable { case name, sound, params, fmt, table }
 
@@ -33,6 +33,11 @@ public struct SynthPreset: Codable, Equatable, Sendable {
         sound = SynthKey.isRemoved(snd) ? "" : snd
         params = c.value(.params, [String: Double]())
         fmt = c.optional(.fmt)
+        // fmt < 3 — до S12: ручки своих движков по SynthMigration (1.4).
+        if (fmt ?? 1) < 3 {
+            SynthMigration.params(sound, &params)
+            fmt = 3
+        }
         table = c.optional(.table)
     }
 }

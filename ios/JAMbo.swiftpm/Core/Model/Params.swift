@@ -226,6 +226,7 @@ public enum Params {
         smooth("harm", "Harmonics", 0, 100, 50, Fmt.pct),
         smooth("timbre", "Timbre", 0, 100, 50, Fmt.pct),
         smooth("morph", "Morph", 0, 100, 50, Fmt.pct),
+        smooth("p4", "Knob 4", 0, 100, 50, Fmt.pct),
     ]
 
     /// Пункт ступенчатой ручки по положению 0…1.
@@ -233,34 +234,39 @@ public enum Params {
         return Swift.min(steps - 1, Swift.max(0, Int((n * Double(steps)).rounded(.down))))
     }
 
-    /// Сетка синта по номеру движка (ENGINE_GRIDS): подписи 1.1–1.3 из таблицы движков, у ANALOG 1.1 ступенчатая
-    /// (пункты движка); у незанятого номера — пустая.
+    /// Сетка синта по номеру движка (ENGINE_GRIDS): подписи 1.1–1.4 из таблицы движков, ступенчатые — по пунктам
+    /// движка (значение — середина пункта); у незанятого номера — пустая.
     public static let synthGrids: [[ParamDef]] = SynthEngines.byId.map { eo in
         guard let e = eo else { return [] }
         let col: [ParamDef] = synthColumn.enumerated().map { k, p in
-            let label = SynthEngines.capitalized([e.harm, e.timbre, e.morph][k])
-            if k == 0 && !e.options.isEmpty {
-                let o = e.options
+            let label = SynthEngines.capitalized(e.knobs[k])
+            let o: [String] = e.options[k]
+            if !o.isEmpty {
                 return ParamDef(id: p.id, label: label, kind: .stepped, min: p.min, max: p.max, def: p.def,
                                 steps: o.count) { v in o[stepIndex(v / 100, o.count)] }
             }
-            // Свой формат 1.1: PITCH у DRUM — Гц, RATIO у FM — ×2.00 (harmFormat веба).
-            if k == 0 && e.name == "DRUM" {
+            // Свой формат: PITCH у KICK — Гц, RATIO у FM — ×2.00, DETUNE у WTABLE — центы.
+            if k == 0 && e.id == Jambo.drum {
                 return ParamDef(id: p.id, label: label, min: p.min, max: p.max, def: p.def) { v in
                     "\(Int(Jambo.drumPitch(v / 100).rounded())) Hz"
                 }
             }
-            if k == 0 && e.name == "FM" {
+            if k == 0 && e.id == Jambo.fm {
                 return ParamDef(id: p.id, label: label, min: p.min, max: p.max, def: p.def) { v in
                     "×" + String(format: "%.2f", Jambo.fmRatio(v / 100))
+                }
+            }
+            if k == 3 && e.id == Jambo.wtable {
+                return ParamDef(id: p.id, label: label, min: p.min, max: p.max, def: p.def) { v in
+                    "\(Int((v / 100 * Jambo.wtDetune).rounded())) ct"
                 }
             }
             return ParamDef(id: p.id, label: label, min: p.min, max: p.max, def: p.def, format: p.format)
         }
         return (0..<16).map { i in
-            if i % 4 == 0 && i / 4 < 3 { return col[i / 4] }
+            if i % 4 == 0 { return col[i / 4] }
             let p = trackGrid[i]
-            // Свой предел Decay (у DRUM — 1000 мс).
+            // Свой предел Decay (у KICK — 1000 мс).
             if p.id == "decay", let max = e.decayMax {
                 return ParamDef(id: p.id, label: p.label, kind: p.kind, min: p.min, max: max, def: p.def,
                                 curve: p.curve, exp: p.exp, bipolar: p.bipolar, options: p.options, steps: p.steps,

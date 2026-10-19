@@ -23,6 +23,13 @@ extension AppModel {
     /// Есть изменения, не сохранённые кнопкой SAVE (пометка «unsaved»).
     var unsaved: Bool { return session.unsaved(savedProject) }
 
+    /// Сообщение при открытии проекта прочитано: убрать (без UNDO; автосохранение запомнит).
+    func clearNotice() {
+        if project.notice == nil { return }
+        mutatePlay({ p in p.notice = nil }, publish: false)
+        projectChanged()
+    }
+
     /// Проект изменился: автосохранение — через ~1,5 с после первого изменения (как интервал веба).
     func projectChanged() {
         if autosaveDue == 0 { autosaveDue = Date.timeIntervalSinceReferenceDate + ProjectSession.autosaveDelay }

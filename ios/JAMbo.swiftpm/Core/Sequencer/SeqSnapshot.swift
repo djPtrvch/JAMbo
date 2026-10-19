@@ -34,7 +34,7 @@ public struct SeqData {
     public var swing: UnsafeMutablePointer<Float>
     /// Свой звук шага (ключ; 0 — звук дорожки) и p-lock параметров голоса (биты VoiceParam и значения).
     public var sound: UnsafeMutablePointer<UInt64>
-    public var lockMask: UnsafeMutablePointer<UInt16>
+    public var lockMask: UnsafeMutablePointer<VoiceMask>
     public var lockVal: UnsafeMutablePointer<Float>
     /// P-lock общих FX (биты Params.fxIds и значения): действуют, пока шаг играет.
     public var fxMask: UnsafeMutablePointer<UInt32>
@@ -278,10 +278,10 @@ public final class SeqSnapshot: @unchecked Sendable {
                 d.swing[i] = Float(track.params["swing"] ?? Params.swing.def)
                 if let snd = step.sound { d.sound[i] = SoundKey.hash(snd) }
                 if !step.locks.isEmpty {
-                    var mask: UInt16 = 0
+                    var mask: VoiceMask = 0
                     for (p, id) in VoiceParam.ids.enumerated() {
                         guard let v = step.locks[id] else { continue }
-                        mask |= UInt16(1) << UInt16(p)
+                        mask |= VoiceMask(1) << VoiceMask(p)
                         d.lockVal[i * VoiceParam.count + p] = Float(v)
                     }
                     d.lockMask[i] = mask

@@ -4,7 +4,7 @@ import Foundation
 // (свободный: голос дозвучал), иначе крадётся следующий — гаснет за ~5 мс (τ 1,5 мс), новая нота — через 8 мс.
 // Громкость — внешняя огибающая, как у сэмпла: Attack (не меньше 2 мс) → удержание → Decay как Release.
 // Движок → огибающая → Level → фильтр → Pan → шина дорожки (микшер — в Sampler). Куски по 24 отсчёта (BLOCK worklet).
-// Затухающие сами (DRUM): огибающая только с атакой (без удержания и релиза), голос считается до тишины (не дольше
+// Затухающие сами (KICK): огибающая только с атакой (без удержания и релиза), голос считается до тишины (не дольше
 // 15 с), слот занят до атаки + 0,3 с + 4·Decay; с атакой ≤ 2,5 мс в свободном слоте огибающая не обнуляется — хвост
 // прошлой ноты не обрывается скачком, ручки звука слота подстраиваются за ~1 мс.
 
@@ -60,7 +60,7 @@ public final class SynthVoices {
     let selfDecay = UnsafeMutablePointer<UInt8>.allocate(capacity: slots)
     let keep = UnsafeMutablePointer<UInt8>.allocate(capacity: slots)
     let quiet = UnsafeMutablePointer<Int>.allocate(capacity: slots)
-    let lockMask = UnsafeMutablePointer<UInt16>.allocate(capacity: slots)
+    let lockMask = UnsafeMutablePointer<VoiceMask>.allocate(capacity: slots)
     let lockVal = UnsafeMutablePointer<Float>.allocate(capacity: slots * VoiceParam.count)
     /// Шины посылов на блок (ставит render).
     var sendL: UnsafeMutablePointer<Float>?
@@ -77,7 +77,7 @@ public final class SynthVoices {
     let pGate = UnsafeMutablePointer<Int64>.allocate(capacity: slots)
     let pOwn = UnsafeMutablePointer<UInt8>.allocate(capacity: slots)
     let pLive = UnsafeMutablePointer<Int>.allocate(capacity: slots)
-    let pMask = UnsafeMutablePointer<UInt16>.allocate(capacity: slots)
+    let pMask = UnsafeMutablePointer<VoiceMask>.allocate(capacity: slots)
     let pVal = UnsafeMutablePointer<Float>.allocate(capacity: slots * VoiceParam.count)
     /// Следующий слот дорожки (по кругу).
     let next = UnsafeMutablePointer<Int>.allocate(capacity: tracks)
@@ -148,9 +148,9 @@ public final class SynthVoices {
     // MARK: — запуск
 
     @inline(__always)
-    private func pv(_ d: SoundData, _ t: Int, _ p: Int, _ mask: UInt16, _ vals: UnsafePointer<Float>?) -> Double {
+    private func pv(_ d: SoundData, _ t: Int, _ p: Int, _ mask: VoiceMask, _ vals: UnsafePointer<Float>?) -> Double {
         var x: Double = Double(d.param(t, p))
-        if mask & (UInt16(1) << UInt16(p)) != 0, let v = vals { x = Double(v[p]) }
+        if mask & (VoiceMask(1) << VoiceMask(p)) != 0, let v = vals { x = Double(v[p]) }
         // LFO/ENV — сверху (ENV — на кадр ноты).
         if let m = mod, m.modulated(t) { x = m.value(t, p, x, modFrame) }
         return x
@@ -158,10 +158,10 @@ public final class SynthVoices {
 
     /// Ноты дорожки t движком e в кадре frame (gate — как у Sampler.trigger: −1 — нота в 1 шаг, Int64.max — живая).
     func trigger(_ d: SoundData, track t: Int, engine e: Int, at frame: Int64, notes: UnsafePointer<Int16>, count: Int,
-                 mask: UInt16, vals: UnsafePointer<Float>?, gate: Int64, own isOwn: Bool, liveId live: Int, retrig: Bool) {
+                 mask: VoiceMask, vals: UnsafePointer<Float>?, gate: Int64, own isOwn: Bool, liveId live: Int, retrig: Bool) {
         if t < 0 || t >= SynthVoices.tracks { return }
         modFrame = frame
-        // DRUM монофонична: удары дорожки — в первый голос дорожки, из аккорда — одна нота, без кражи
+        // KICK монофонична: удары дорожки — в первый голос дорожки, из аккорда — одна нота, без кражи
         // (хвост прошлого удара гаснет в самом движке за ~2 мс).
         if e == Jambo.drum {
             guard count > 0 else { return }
@@ -213,12 +213,12 @@ public final class SynthVoices {
     }
 
     private func setup(_ v: Int, _ d: SoundData, _ t: Int, _ e: Int, _ frame: Int64, _ n: Int, _ gate: Int64,
-                       _ mask: UInt16, _ vals: UnsafePointer<Float>?, _ isOwn: Bool, _ live: Int, steal: Bool) {
+                       _ mask: VoiceMask, _ vals: UnsafePointer<Float>?, _ isOwn: Bool, _ live: Int, steal: Bool) {
         let decaying = selfDecayE[e] != 0
         // Хвост прошлой ноты слота (тот же голос) не обрывается: огибающая с 1, ручки — за ~1 мс.
         let wasActive = active[v] != 0
         let keepEnv = decaying && !steal && pv(d, t, VoiceParam.attack, mask, vals) <= 2.5
-        // Голос молчал — у DRUM нет хвоста для стыка.
+        // Голос молчал — у KICK нет хвоста для стыка.
         if !wasActive { bank.jamboSilent(v) }
         nextSerial += 1
         serial[v] = nextSerial
@@ -340,7 +340,7 @@ public final class SynthVoices {
     /// Держащиеся ноты дорожки t (не свой звук шага, созданные до serial last) — для перезапуска новым звуком:
     /// голос гаснет за ~3 мс, body получает ноту, удержание, p-lock и liveId.
     func retrigger(_ t: Int, _ now: Int64, upTo last: Int,
-                   _ body: (_ note: Int, _ at: Int64, _ gate: Int64, _ mask: UInt16, _ vals: UnsafePointer<Float>,
+                   _ body: (_ note: Int, _ at: Int64, _ gate: Int64, _ mask: VoiceMask, _ vals: UnsafePointer<Float>,
                             _ live: Int) -> Void) {
         if t < 0 || t >= SynthVoices.tracks { return }
         let edgeTol = Int64(0.01 * sr)
@@ -437,25 +437,25 @@ public final class SynthVoices {
         let modE: ModEngine? = mod != nil && mod!.modulated(t) ? mod : nil
         @inline(__always) func val(_ p: Int) -> Double {
             var x: Double = Double(d.param(t, p))
-            if mask & (UInt16(1) << UInt16(p)) != 0 { x = Double(lockVal[base + p]) }
+            if mask & (VoiceMask(1) << VoiceMask(p)) != 0 { x = Double(lockVal[base + p]) }
             if let mm = modE { x = mm.value(t, p, x, frame0) }
             return x
         }
         let e = engine[v]
         let decaying = selfDecay[v] != 0
         var peak: Float = 0
-        // Свои движки (jambo-synth-worklet.js): p1–p3 — ручки 1.1–1.3 / 100, Decay — мс; сглаживание — в голосе
-        // (5 мс), без Post и ±1 (как выход узла worklet).
+        // Свои движки (jambo-synth-worklet.js): p1–p4 — ручки 1.1–1.4 / 100, Decay — мс; сглаживание — в голосе (5 мс).
         let q1 = val(VoiceParam.harm) / 100, q2 = val(VoiceParam.timbre) / 100, q3 = val(VoiceParam.morph) / 100
+        let q4 = val(VoiceParam.p4) / 100
         let dec = val(VoiceParam.decay)
         let nt = Double(note[v])
         let dr = drift[t]
         if triggered[v] == 0 {
-            bank.jamboTrigger(v, e, note: nt, q1, q2, q3, decay: dec, now: Double(Int(frame0)),
+            bank.jamboTrigger(v, e, note: nt, q1, q2, q3, q4, decay: dec, now: Double(Int(frame0)),
                               tau: dr.tau + Double(Int(frame0 - blockStart)) * dr.ratio)
             triggered[v] = 1
         } else {
-            bank.jamboSet(v, note: nt, q1, q2, q3, decay: dec)
+            bank.jamboSet(v, note: nt, q1, q2, q3, q4, decay: dec)
         }
         bank.jamboRender(v, outBuf, m, driftRatio: dr.ratio, table: d.tableRef[d.s(t)])
         var q = 0
