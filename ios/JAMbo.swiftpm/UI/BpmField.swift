@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Темп: палец вверх-вниз — 4 px на 1 BPM; удержание без движения (0,5 с) — ввод числом.
-/// Внизу — полоса фазы: 4 отрезка на такт, при игре загораются до текущей доли.
+/// Внизу — полоса фазы: 4 отрезка на такт × SYNC QUANTUM, при игре загораются до текущей доли фразы.
 struct BpmField: View {
     let model: AppModel
     @State private var start: Double? = nil
@@ -20,7 +20,7 @@ struct BpmField: View {
             }
             .padding(.horizontal, 12)
             .frame(maxHeight: .infinity)
-            PhaseBar(beat: model.live.beat).padding(.horizontal, 12).padding(.bottom, 7)
+            PhaseBar(beat: model.live.beat, sync: model.settings.sync).padding(.horizontal, 12).padding(.bottom, 7)
         }
         .background(start != nil ? theme.panel2 : theme.panel, in: RoundedRectangle(cornerRadius: Layout.radius))
         .contentShape(Rectangle())
@@ -80,14 +80,17 @@ struct BpmField: View {
 /// Полоса фазы: 4 отрезка на такт; горят отрезки до текущей доли (−1 — стоп, все серые).
 struct PhaseBar: View {
     let beat: Int
+    /// Отрезков — 4 на такт × SYNC QUANTUM (S13e).
+    let sync: SyncSettings
     @Environment(\.theme) private var theme
 
     var body: some View {
-        let lit: Int = beat < 0 ? -1 : beat % 4
+        let lit: Int = sync.phaseLit(beat: beat)
+        let n: Int = sync.phaseSegments
         return HStack(spacing: 2) {
-            ForEach(0..<4, id: \.self) { i in
+            ForEach(0..<n, id: \.self) { i in
                 Rectangle()
-                    .fill(i <= lit ? theme.accent : theme.meterTrack)
+                    .fill(i < lit ? theme.accent : theme.meterTrack)
                     .frame(height: 1)
             }
         }

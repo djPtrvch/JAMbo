@@ -140,13 +140,19 @@ struct PianoMenu: View {
 struct ToggleRow: View {
     let title: String
     let isOn: Bool
+    /// Неактивный рычажок (серый) с пояснением под подписью (ABLETON LINK — «unavailable in this build»).
+    var unavailable: String? = nil
     let change: (Bool) -> Void
     @Environment(\.theme) private var theme
 
     var body: some View {
         Toggle(isOn: Binding(get: { isOn }, set: { change($0) })) {
-            Text(title).font(.system(size: 13, weight: .bold)).foregroundStyle(theme.text)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.system(size: 13, weight: .bold)).foregroundStyle(unavailable == nil ? theme.text : theme.dim)
+                if let u = unavailable { Text(u).font(.system(size: 9)).foregroundStyle(theme.dim) }
+            }
         }
+        .disabled(unavailable != nil)
         .tint(theme.accent)
         .frame(minHeight: 48)
         .padding(.horizontal, 4)

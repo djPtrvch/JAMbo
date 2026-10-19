@@ -13,6 +13,11 @@ extension AppModel {
         midiRun.toggles.reset()
     }
 
+    /// Бутерброд → SYNC (S13e).
+    func setSync(_ change: (inout SyncSettings) -> Void) {
+        updateSettings { s in change(&s.sync) }
+    }
+
     /// Условия сейчас: открыта ли сетка паттернов, какую страницу показывает сетка ручек.
     var midiContext: MidiContext {
         let page: MidiPage

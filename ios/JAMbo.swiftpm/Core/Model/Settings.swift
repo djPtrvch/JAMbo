@@ -64,6 +64,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
     /// SETTINGS → RECORD → STEP SWIPE (S13, решение пользователя): палец по шагам — длинная нота от первого шага
     /// (LENGTH, по умолчанию) или триг на каждом пройденном шаге (PAINT).
     public var stepPaint: Bool = false
+    /// Бутерброд → SYNC (S13e): квант, MIDI-клок, настройки Ableton Link.
+    public var sync = SyncSettings()
 
     public init() {}
 
@@ -79,7 +81,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
 
     private enum Keys: String, CodingKey { case appearance, pianoOctaves, velocity, record, sliceMap, scSends, muteTails, latchFx, latchMod, rollGrid,
                                          rollSound, levelRelative, morphAll, morphReturn, mixKey, mixCrossfader,
-                                         clearSampleLocks, pitchSemitones, midi, stepPaint }
+                                         clearSampleLocks, pitchSemitones, midi, stepPaint, sync }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
@@ -105,5 +107,6 @@ public struct AppSettings: Codable, Equatable, Sendable {
         pitchSemitones = (try? c.decode(Bool.self, forKey: .pitchSemitones)) ?? true
         midi = (try? c.decode(MidiSettings.self, forKey: .midi)) ?? MidiSettings()
         stepPaint = (try? c.decode(Bool.self, forKey: .stepPaint)) ?? false
+        sync = (try? c.decode(SyncSettings.self, forKey: .sync)) ?? SyncSettings()
     }
 }
