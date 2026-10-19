@@ -309,7 +309,7 @@ struct GridSideButtons: View {
                     arrow("▼", enabled: canDown || (model.project.arrowSwitch && model.playing)) { model.gridArrow(1) }.frame(height: h).midiTarget(model, "GRID ▼")
                 }
                 if fader {
-                    MixFader(model: model).frame(maxHeight: .infinity)
+                    MixFader(model: model).frame(maxHeight: .infinity).midiTarget(model, MidiButtons.xfader)
                 } else {
                     Spacer(minLength: 0)
                 }

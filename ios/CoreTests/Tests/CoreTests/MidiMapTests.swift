@@ -66,6 +66,14 @@ final class MidiMapTests: XCTestCase {
         let r = s.resolve(n61, input: 1, track)
         XCTAssertTrue(r.mapped)
         XCTAssertTrue(r.active.isEmpty)
+        // GLOBAL у ячейки — запуск и при закрытой сетке; Current page у ячеек не бывает.
+        s.update(.button("CLIP 1.1"), continuous: false, clips) { $0.cond = .global }
+        XCTAssertEqual(s.resolve(n61, input: 1, track).active.map { $0.target }, [.button("CLIP 1.1")])
+        s.update(.button("CLIP 1.1"), continuous: false, track) { $0.cond = .page }
+        XCTAssertEqual(s.mapping(for: .button("CLIP 1.1"), clips)?.cond, .clip)
+        // Кроссфейдер по умолчанию — GLOBAL, даже из сетки паттернов.
+        s.learn(MidiTarget.crossfader, src: MidiSource(type: .cc, ch: 0, num: 30), input: 1, continuous: true, clips)
+        XCTAssertEqual(s.mapping(for: MidiTarget.crossfader, track)?.cond, .global)
     }
 
     /// GLOBAL на ручке — параметр места, где назначили (громкость T3 в MIX — только она); на другом месте у той же

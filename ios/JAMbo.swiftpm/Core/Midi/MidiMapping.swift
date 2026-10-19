@@ -45,7 +45,11 @@ public enum MidiTarget: Codable, Equatable, Hashable, Sendable {
         return "KNOB \(s % 4 + 1).\(s / 4 + 1)"
     }
 
-    /// Ячейки, строки и стрелки сетки паттернов — их маппинги всегда в условии Clip launcher.
+    /// Кроссфейдер перехода MIX (S13, решение пользователя): строка, закреплённая в списке маппингов; по умолчанию GLOBAL.
+    public static let crossfader = MidiTarget.button("XFADER")
+
+    /// Ячейки, строки и стрелки сетки паттернов — их маппинги в условии Clip launcher (по умолчанию) или GLOBAL
+    /// (запуск паттернов и при закрытой сетке; решение пользователя), без Current page.
     public var isClip: Bool {
         guard case .button(let n) = self else { return false }
         return n.hasPrefix("CLIP ") || n.hasPrefix("ROW ") || n.hasPrefix("GRID ")
@@ -185,7 +189,7 @@ public struct MidiMapping: Codable, Equatable, Sendable {
         port = (try? c.decode(MidiPort.self, forKey: .port)) ?? .standard
         press = (try? c.decode(MidiPressAction.self, forKey: .press)) ?? .reset
         place = try? c.decode(MidiPlace.self, forKey: .place)
-        if target.isClip { cond = .clip }
+        if target.isClip && cond == .page { cond = .clip }
     }
 
     /// Ключ условия: global, clip или page:<страница>.

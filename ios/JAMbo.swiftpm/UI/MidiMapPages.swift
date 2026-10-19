@@ -80,10 +80,13 @@ struct MidiMapOptions: View {
         let key: String = m.condKey
         var clip = opt("clip", "Clip launcher", key == "clip") { $0.cond = .clip }
         clip.hint = "only while PATTERNS is open"
-        if m.target.isClip { return [clip] }
-        let pg: MidiPage = m.cond == .page ? m.page : model.midiContext.page
         var global = opt("global", "Global", key == "global") { $0.cond = .global }
         global.hint = "all pages and views"
+        if m.target.isClip {
+            global.hint = "launch patterns with PATTERNS closed too"
+            return [global, clip]
+        }
+        let pg: MidiPage = m.cond == .page ? m.page : model.midiContext.page
         var page = opt("page", "Current page", key == "page:" + pg.rawValue) { mm in
             mm.cond = .page
             mm.page = pg

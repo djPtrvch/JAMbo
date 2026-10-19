@@ -95,6 +95,10 @@ extension AppModel {
                 midiBpm(m, input)
             } else if n == MidiButtons.level {
                 midiLevel(m, input)
+            } else if n == MidiButtons.xfader {
+                // Кроссфейдер — только во время перехода MIX.
+                guard let tr = mix else { return }
+                setCrossfade(input.knobValue(m, cur: tr.pos))
             } else {
                 for p in input.presses(press: press) { midiButton(n, p) }
             }

@@ -55,10 +55,11 @@ extension MidiSettings {
         return (true, [])
     }
 
-    /// Условие нового маппинга: ячейки и строки сетки — Clip launcher; закреплённое окном; в сетке паттернов —
-    /// Clip launcher, иначе Global.
+    /// Условие нового маппинга: ячейки и строки сетки — Clip launcher (или GLOBAL, закреплённое окном); кроссфейдер —
+    /// Global; закреплённое окном; в сетке паттернов — Clip launcher, иначе Global.
     func defaultCond(_ t: MidiTarget, _ ctx: MidiContext, pinned: String?) -> (MidiCond, MidiPage) {
-        if t.isClip { return (.clip, ctx.page) }
+        if t.isClip { return (pinned == "global" ? .global : .clip, ctx.page) }
+        if t == MidiTarget.crossfader && pinned == nil { return (.global, ctx.page) }
         if let p = pinned {
             if p.hasPrefix("page:"), let page = MidiPage(rawValue: String(p.dropFirst(5))) { return (.page, page) }
             if let c = MidiCond(rawValue: p) { return (c, ctx.page) }
@@ -96,7 +97,7 @@ extension MidiSettings {
         var m: MidiMapping = cur ?? draft(t, continuous: continuous, ctx, pinned: pinned)
         change(&m)
         m.target = t
-        if t.isClip { m.cond = .clip }
+        if t.isClip && m.cond == .page { m.cond = .clip }
         m.fixPlace(ctx, force: false)
         let curIndex: Int? = cur.flatMap { c in mappings.firstIndex(where: { $0 == c }) }
         var kept: [MidiMapping] = []

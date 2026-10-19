@@ -6,11 +6,13 @@ enum MidiButtons {
     static let bpm = "BPM"
     /// Регулятор громкости на измерителе справа (как ручка; дорожка — выбранная, при MIX и MST — выход).
     static let level = "LEVEL"
+    /// Кроссфейдер перехода MIX (0 — старый проект, 1 — новый).
+    static let xfader = "XFADER"
     /// Цели с непрерывным значением (маппятся как ручка).
-    static let continuous: [String] = [bpm, level]
+    static let continuous: [String] = [bpm, level, xfader]
     static let fixed: [String] = ["PLAY", "REC", "PATTERNS", "EQ", "ROLL", "UNDO", "REDO", "METRONOME", "CHORD", "OCTAVE ▲",
                                   "OCTAVE ▼", "LFO1", "LFO2", "LFO3", "ENV", "FX", "MOD", "MORPH", "MIX", "MST",
-                                  "ARM MST", "GRID ▲", "GRID ▼", bpm, level]
+                                  "ARM MST", "GRID ▲", "GRID ▼", bpm, level, xfader]
 
     /// Все имена (список действий нажатия ручки в окне MIDI MAP): постоянные, затем с номерами.
     static var all: [String] {
