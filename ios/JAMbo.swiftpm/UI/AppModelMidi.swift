@@ -4,7 +4,7 @@ import Foundation
 /// играют как клавиатура (с REC — записываются, длина — по Note Off); клок — S13e.
 extension AppModel {
     func startMidi() {
-        midi.onMessage = { [weak self] msg, source in self?.midiMessage(msg, source: source) }
+        midi.onMessage = { [weak self] msg, source, at in self?.midiMessage(msg, source: source, at: at) }
         midi.start()
     }
 
@@ -29,10 +29,14 @@ extension AppModel {
         return MidiContext(clipOpen: patternView, page: page, track: selectedTrack)
     }
 
-    func midiMessage(_ msg: MidiMessage, source: Int32) {
+    func midiMessage(_ msg: MidiMessage, source: Int32, at: Double = 0) {
         let ms: MidiSettings = settings.midi
         guard ms.accepts(source: source) else { return }
-        if msg.isRealtime { return }
+        // Клок, Start, Continue, Stop — мимо маппингов (S13e).
+        if msg.isRealtime {
+            midiRealtime(msg.kind, at: at)
+            return
+        }
         let isCc: Bool = msg.kind == .cc
         let on: Bool = msg.kind == .noteOn
         let src = MidiSource(type: isCc ? .cc : .note, ch: msg.channel, num: msg.data1)

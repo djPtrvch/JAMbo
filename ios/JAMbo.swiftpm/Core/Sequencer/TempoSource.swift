@@ -55,6 +55,11 @@ public final class InternalTempoSource: TempoSource {
         tempo = bpm
     }
 
+    /// Сдвиг фазы: все доли на dt секунд позже (подстройка к MIDI-клоку).
+    public func shift(_ dt: Double) {
+        t0 += dt
+    }
+
     /// Темп без игры — сразу.
     public func set(_ bpm: Double) {
         tempo = bpm

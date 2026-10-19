@@ -76,6 +76,10 @@ struct MidiRuntime {
     var feedback = MidiFeedback()
     var feedbackHold: [MidiSource: Double] = [:]
     var feedbackGen: Int = -1
-    /// MIDI-клок SEND (S13e).
+    /// MIDI-клок (S13e): SEND — планировщик; RECEIVE — входящий клок, шаг последней поправки фазы, игра на
+    /// прошлом кадре (старт своей кнопкой — шаг 0 на ближайшем тике).
     var clockPlan = ClockPlan()
+    var follower = ClockFollower()
+    var clockRefStep: Int = -1
+    var clockWasPlaying: Bool = false
 }

@@ -26,8 +26,8 @@ final class MidiHost {
     /// Буфер отправки (один, на главном потоке): один пакет на 64 слова.
     @ObservationIgnored private let sendList = UnsafeMutablePointer<MIDIEventList>.allocate(capacity: 1)
     @ObservationIgnored private(set) var started: Bool = false
-    /// Сообщение и uniqueID источника — на главном потоке.
-    @ObservationIgnored var onMessage: ((MidiMessage, Int32) -> Void)? = nil
+    /// Сообщение, uniqueID источника и время прихода (секунды хоста, метка пакета) — на главном потоке.
+    @ObservationIgnored var onMessage: ((MidiMessage, Int32, Double) -> Void)? = nil
 
     func start() {
         if started { return }
@@ -106,20 +106,24 @@ final class MidiHost {
     /// Поток CoreMIDI: разбор пакетов, сообщения — на главный поток одним блоком.
     private func receive(_ list: UnsafePointer<MIDIEventList>, _ ref: UnsafeMutableRawPointer?) {
         let source: Int32 = Int32(truncatingIfNeeded: Int(bitPattern: ref))
-        var msgs: [MidiMessage] = []
+        let clock = HostClock()
+        var msgs: [(MidiMessage, Double)] = []
         for packet in list.unsafeSequence() {
+            // Метка 0 — «сейчас».
+            let stamp: UInt64 = packet.pointee.timeStamp
+            let at: Double = stamp > 0 ? clock.nanoseconds(stamp) / 1e9 : clock.now()
             let count: Int = Int(packet.pointee.wordCount)
             var words = packet.pointee.words
             withUnsafeBytes(of: &words) { raw in
                 let all = raw.bindMemory(to: UInt32.self)
                 let used = UnsafeBufferPointer<UInt32>(rebasing: all[0..<min(count, all.count)])
-                msgs.append(contentsOf: MidiMessage.parse(words: used))
+                for m in MidiMessage.parse(words: used) { msgs.append((m, at)) }
             }
         }
         if msgs.isEmpty { return }
         DispatchQueue.main.async { [weak self] in
             guard let self = self, let handler = self.onMessage else { return }
-            for msg in msgs { handler(msg, source) }
+            for (msg, at) in msgs { handler(msg, source, at) }
         }
     }
 

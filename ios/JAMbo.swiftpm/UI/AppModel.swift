@@ -267,6 +267,7 @@ final class AppModel {
         tickMeters()
         tickMidiFeedback()
         tickMidiClock()
+        tickClockFollow()
         let tracks = project.tracks.count
         live.audible = { [weak self] t in
             guard let s = self, t < tracks else { return false }
@@ -293,6 +294,16 @@ final class AppModel {
         live.stopped()
         audio.core.events.push(.play(playing))
         if !playing { releaseHolds() }
+    }
+
+    /// Старт по MIDI-клоку (S13e): шаг 0 — в кадре frame.
+    func startPlay(atFrame frame: Int64) {
+        if playing { return }
+        ensureAudio()
+        playing = true
+        endRecTake()
+        live.stopped()
+        audio.core.events.push(.playAt(frame: frame))
     }
 
     /// Ход игры из колбэка: клип запущен или дорожка остановлена; транспорт остановился сам (AT THE END: STOP).
@@ -329,6 +340,13 @@ final class AppModel {
         ensureAudio()
         metronome.toggle()
         audio.core.events.push(.metronome(metronome))
+    }
+
+    /// Темп с MIDI-клока (S13e): BPM проекта — округлённый темп клока, без UNDO (звук идёт по точному — его шлёт
+    /// AppModelSync).
+    func setClockBpm(_ bpm: Double) {
+        let b: Double = min(Params.bpmMax, max(Params.bpmMin, bpm.rounded()))
+        if b != project.bpm { project.bpm = b }
     }
 
     func setBpm(_ value: Double) {

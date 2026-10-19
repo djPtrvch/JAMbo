@@ -7,6 +7,10 @@ public enum CoreEvent: Sendable {
     case toneFrequency(Float)
     /// PLAY: старт с начала следующего блока или стоп.
     case play(Bool)
+    /// PLAY по MIDI-клоку (S13e): шаг 0 — в кадре frame (может быть чуть в прошлом — сетка встаёт на тик).
+    case playAt(frame: Int64)
+    /// Шаг step по MIDI-клоку должен звучать в кадре frame: фаза подтягивается на 25 % ошибки.
+    case clockPhase(step: Int, frame: Double)
     /// Темп, BPM.
     case tempo(Double)
     /// Метроном.

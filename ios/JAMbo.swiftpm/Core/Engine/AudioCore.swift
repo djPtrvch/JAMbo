@@ -261,6 +261,10 @@ public final class AudioCore: @unchecked Sendable {
             sequencer.set(playing: on, at: sampleTime)
             // Стоп: будущие триги Sidechain отменяются.
             if !on { fx.flush() }
+        case .playAt(let frame):
+            sequencer.start(at: frame, now: sampleTime)
+        case .clockPhase(let step, let frame):
+            sequencer.clockPhase(step: step, frame: frame)
         case .tempo(let bpm):
             sequencer.set(bpm: bpm)
         case .metronome(let on):

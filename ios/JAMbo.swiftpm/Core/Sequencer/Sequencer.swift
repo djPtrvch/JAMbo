@@ -145,6 +145,24 @@ public final class Sequencer {
         }
     }
 
+    /// Старт по MIDI-клоку (S13e): шаг 0 — в кадре frame. В прошлом не дальше 0,9 шага — опоздает только шаг 0.
+    public func start(at frame: Int64, now: Int64) {
+        if playing { return }
+        let step: Double = 60 / wantedBpm / TempoGrid.stepsPerBeat * sampleRate
+        let earliest: Int64 = now - Int64(step * 0.9)
+        set(playing: true, at: Swift.max(frame, earliest))
+    }
+
+    /// Ведомый по MIDI-клоку: следующий шаг step должен звучать в кадре frame — фаза сдвигается на 25 % ошибки
+    /// (ошибка больше шага — пропуск, как в вебе).
+    public func clockPhase(step: Int, frame: Double) {
+        guard playing && step == tick else { return }
+        let err: Double = stepFrame(step) - frame
+        let len: Double = 60 / tempo.tempo / TempoGrid.stepsPerBeat * sampleRate
+        if abs(err) >= len { return }
+        tempo.shift(-err * 0.25 / sampleRate)
+    }
+
     /// Тап по ячейке во время игры (без игры клип ставит сам интерфейс — снимком проекта).
     public func queue(track t: Int, slot k: Int) {
         if playing { launcher.queue(t, k) }

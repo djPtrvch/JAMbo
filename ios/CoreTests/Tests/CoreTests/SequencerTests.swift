@@ -42,6 +42,46 @@ final class SequencerTests: XCTestCase {
         XCTAssertEqual(trigs(r.out), [0, 24000, 48000, 72000, 96000])
     }
 
+    /// MIDI-клок (S13e): старт в заданном кадре; фаза шагов подтягивается к тикам клока на 25 % за шаг.
+    func testClockStartAndPhase() {
+        let core = AudioCore()
+        core.publish(project { p in
+            for s in 0..<16 { p.tracks[0].pages[0][s].on = true }
+        })
+        core.events.push(.playAt(frame: 1000))
+        // Клок на 300 кадров позже своей сетки: шаг k — в 1300 + 6000·k.
+        var trigList: [Int64] = []
+        var pos = 0
+        var sent = -1
+        var left = [Float](repeating: 0, count: 256)
+        var right = [Float](repeating: 0, count: 256)
+        while pos < 6000 * 40 {
+            left.withUnsafeMutableBufferPointer { l in
+                right.withUnsafeMutableBufferPointer { r in core.render(frames: 256, left: l.baseAddress!, right: r.baseAddress!) }
+            }
+            while let e = core.sequencer.out.pop() { if case .trig(_, let f) = e { trigList.append(f) } }
+            // Как в приложении: поправка — один раз на шаг.
+            let k: Int = core.sequencer.clock.read().nextTick
+            if k != sent {
+                core.events.push(.clockPhase(step: k, frame: Double(1300 + 6000 * k)))
+                sent = k
+            }
+            pos += 256
+        }
+        // Шаг 0 — в кадре старта (с первой поправкой — на четверть ближе к клоку).
+        XCTAssertEqual(trigList.first, 1075)
+        // Через 30 шагов ошибка — меньше 2 кадров.
+        XCTAssertEqual(Double(trigList[30]), Double(1300 + 6000 * 30), accuracy: 2)
+        XCTAssertEqual(Double(trigList[39]), Double(1300 + 6000 * 39), accuracy: 2)
+        // Старт далеко в прошлом — не раньше 0,9 шага (опаздывает только шаг 0).
+        let late = AudioCore()
+        late.publish(project { p in p.tracks[0].pages[0][0].on = true })
+        _ = run(late, frames: 48000)
+        late.events.push(.playAt(frame: 0))
+        let r = run(late, frames: 512)
+        XCTAssertEqual(trigs(r.out).first, 48000 - 5400)
+    }
+
     func testMetronomeClickStartsOnBeat() {
         let core = AudioCore()
         core.publish(Project())
