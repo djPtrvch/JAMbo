@@ -38,7 +38,7 @@ public final class Sequencer {
     public let launcher: Launcher
 
     private let sampleRate: Double
-    private let tempo: InternalTempoSource
+    let tempo: InternalTempoSource
     private var wantedBpm: Double
     private var click: Click
     /// Ноты, назначенные на будущее (рэтчеты и свинг): момент (кадры ядра), дорожка и копия данных шага —
@@ -66,6 +66,9 @@ public final class Sequencer {
     public let mixLockGain = UnsafeMutablePointer<Float>.allocate(capacity: SeqData.maxTracks)
     /// Модуляция (ENV от нот; LFO/ENV на Chance, Ratchet, Swing) — задаёт AudioCore.
     public var mod: ModEngine?
+    /// Запись стемов (S11d): звук — в кольцо, правила начала и конца — SequencerStems.swift.
+    public let stemRing = StemRing()
+    let stemRules = StemRules()
     private var pendingCount = 0
     private static let pendingMax = 512
     private var rng: UInt32 = 0x9E3779B9
@@ -130,6 +133,8 @@ public final class Sequencer {
             tempo.start(at: Double(at) / sampleRate)
             if let d = data { launcher.start(d) }
         } else {
+            // Стемы дописываются в кадре остановки (STOP в конце строк, стоп из интерфейса, другой проект).
+            stemsStopped(at: at)
             launcher.reset()
             fxLockMask.update(repeating: 0, count: SeqData.maxTracks)
             modLockMask.update(repeating: 0, count: SeqData.maxTracks)
@@ -158,7 +163,7 @@ public final class Sequencer {
 
     /// Кадр (дробный) шага k от старта.
     @inline(__always)
-    private func stepFrame(_ k: Int) -> Double {
+    func stepFrame(_ k: Int) -> Double {
         return tempo.timeAt(Double(k) / TempoGrid.stepsPerBeat) * sampleRate
     }
 
@@ -188,6 +193,12 @@ public final class Sequencer {
 
     private func playStep(_ d: SeqData, at time: Double) {
         if !launcher.beforeStep(d, tick: tick) {
+            set(playing: false, at: Int64(time))
+            out.push(.ended)
+            return
+        }
+        // Стемы — после смены строк и клипов на этом тике; PLAY во время записи — стоп, когда всё дописано.
+        if stemsStep(d, at: time) {
             set(playing: false, at: Int64(time))
             out.push(.ended)
             return

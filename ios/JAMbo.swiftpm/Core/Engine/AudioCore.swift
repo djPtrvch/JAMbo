@@ -157,6 +157,8 @@ public final class AudioCore: @unchecked Sendable {
     private func renderMix(_ frames: Int, _ left: UnsafeMutablePointer<Float>, _ right: UnsafeMutablePointer<Float>) {
         guard let d = sampler.sound else { return }
         let n = Swift.min(frames, AudioCore.maxFrames)
+        let ring = sequencer.stemRing
+        sampler.stemGate = ring.capturing ? ring.gate : nil
         _ = levels.begin()
         defer { levels.commit(frames: n) }
         if useMaster {
@@ -165,6 +167,7 @@ public final class AudioCore: @unchecked Sendable {
             sampler.render(blockStart: sampleTime, frames: n, left: masterL, right: masterR)
             master.process(left: masterL, right: masterR, frames: n, params: d.master,
                            eqParams: d.eq + EqSpec.masterChannel * EqSpec.stride)
+            if sampler.stemGate != nil { captureStems(ring, n, masterL, masterR) }
             // Конечный выход мастера (после громкости выхода).
             if spectra.outOn.load() != 0 { spectra.out.push(masterL, masterR, n) }
             meterMaster(n)
@@ -177,8 +180,23 @@ public final class AudioCore: @unchecked Sendable {
             }
         } else {
             sampler.render(blockStart: sampleTime, frames: n, left: left, right: right)
+            if sampler.stemGate != nil { captureStems(ring, n, left, right) }
         }
         sampler.renderPreview(n, left, right)
+    }
+
+    /// Стемы блока: выходы дорожек после громкости · гейт mute/solo (без посылов), мастер — конечный выход.
+    @inline(__always)
+    private func captureStems(_ ring: StemRing, _ n: Int, _ ml: UnsafeMutablePointer<Float>,
+                              _ mr: UnsafeMutablePointer<Float>) {
+        let mf = Sampler.maxFrames
+        var t = 0
+        while t < SeqData.maxTracks {
+            ring.capture(t, UnsafePointer(sampler.outL + t * mf), UnsafePointer(sampler.outR + t * mf),
+                         UnsafePointer(ring.gate + t * mf), blockStart: sampleTime, frames: n)
+            t += 1
+        }
+        ring.capture(StemRing.master, UnsafePointer(ml), UnsafePointer(mr), nil, blockStart: sampleTime, frames: n)
     }
 
     /// Пики выхода мастера в блоке и его громкость, если измеритель показывает мастер.
@@ -257,6 +275,18 @@ public final class AudioCore: @unchecked Sendable {
             sampler.stopPreview()
         case .presetNote(let t, let n, let h, let locks):
             sampler.presetNote(track: t, note: n, hash: h, locks: locks, at: sampleTime)
+        case .stemArm(let c, let on):
+            sequencer.armStem(c, on)
+        case .stemFinish(let c):
+            sequencer.finishStem(c)
+        case .stopAfterStems:
+            if !sequencer.requestStemStop() {
+                let was = sequencer.playing
+                sequencer.set(playing: false, at: sampleTime)
+                fx.flush()
+                // Интерфейс ждал конца записи — транспорт остановился сразу.
+                if was { sequencer.out.push(.ended) }
+            }
         }
     }
 }

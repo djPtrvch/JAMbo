@@ -41,6 +41,10 @@ extension Sampler {
         let lockMask: UInt16 = mixLockMask?.pointee ?? 0
         let lockGain: UnsafeMutablePointer<Float>? = mixLockGain
         let mf = Sampler.maxFrames
+        // Запись стемов: гейт mute/solo по отсчётам (стем — выход дорожки · гейт).
+        let stemG: UnsafeMutablePointer<Float>? = stemGate
+        let cap: Bool = stemG != nil
+        let gw0: UnsafeMutablePointer<Float> = stemG ?? meterL
         var oi = 0
         while oi < d.trackCount {
             let t: Int = d.eqOrder[oi]
@@ -73,6 +77,7 @@ extension Sampler {
             let bl = busL + t * Sampler.maxFrames
             let br = busR + t * Sampler.maxFrames
             let ml = meterL, mr = meterR
+            let gw = gw0 + (cap ? t * mf : 0)
             var vol = volCur[t]
             var gate = gateCur[t]
             var amt = duckCur[t]
@@ -95,6 +100,7 @@ extension Sampler {
                     or[i] = xr
                     left[i] += xl * gate
                     right[i] += xr * gate
+                    if cap { gw[i] = gate }
                     let al: Float = xl < 0 ? -xl : xl
                     let ar: Float = xr < 0 ? -xr : xr
                     if al > pl { pl = al }
@@ -126,6 +132,7 @@ extension Sampler {
                     or[i] = xr
                     left[i] += xl * gate
                     right[i] += xr * gate
+                    if cap { gw[i] = gate }
                     let al: Float = xl < 0 ? -xl : xl
                     let ar: Float = xr < 0 ? -xr : xr
                     if al > pl { pl = al }

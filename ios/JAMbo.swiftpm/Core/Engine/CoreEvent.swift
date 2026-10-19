@@ -25,6 +25,11 @@ public enum CoreEvent: Sendable {
     case previewStop
     /// ▶ пресета в библиотеке (S11b): одна нота дорожки звуком hash (движок пресета) с p-lock его ручек.
     case presetNote(track: Int, note: Int, hash: UInt64, locks: NoteLocks)
+    /// Запись стемов (S11d): готовность канала (дорожка или StemRing.master); тап по ● во время записи — дописать
+    /// до конца прохода; PLAY во время записи — дописать всё и остановиться (ничего не пишется — стоп сразу).
+    case stemArm(channel: Int, on: Bool)
+    case stemFinish(channel: Int)
+    case stopAfterStems
 }
 
 /// P-lock ноты без коллекций: маска по VoiceParam и значения (15 — VoiceParam.count).

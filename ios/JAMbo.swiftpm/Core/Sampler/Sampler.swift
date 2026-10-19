@@ -102,6 +102,8 @@ public final class Sampler {
     public var spectra: Spectra?
     /// Пики дорожек для измерителя и метров MIX, громкость показанной дорожки (ставит AudioCore).
     public var levels: Levels?
+    /// Запись стемов (S11d): гейт mute/solo по отсчётам (дорожка·maxFrames) — пишет микшер; nil — запись не идёт.
+    var stemGate: UnsafeMutablePointer<Float>?
     /// Сигнал показанной дорожки (после громкости, до mute/solo) — для LUFS.
     let meterL = UnsafeMutablePointer<Float>.allocate(capacity: maxFrames)
     let meterR = UnsafeMutablePointer<Float>.allocate(capacity: maxFrames)

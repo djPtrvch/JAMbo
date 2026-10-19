@@ -21,6 +21,8 @@ public final class Launcher {
     /// Ожидающая строка (−1 — нет); atPass — в конце прохода играющей строки (стрелки SWITCH).
     public private(set) var sceneQueued = -1
     var sceneAtPass = false
+    /// Тик, на котором строки пошли по кругу (AT THE END: LOOP) — там кончаются стемы (−1 — не было).
+    public private(set) var wrappedAt = -1
 
     init(out: SPSCQueue<SeqOut>) {
         self.out = out
@@ -65,6 +67,7 @@ public final class Launcher {
         sceneRow = -1
         sceneQueued = -1
         sceneAtPass = false
+        wrappedAt = -1
     }
 
     /// Старт транспорта (тик 0): ожидающие клипы — сразу; ожидающая строка или строка старта (если в ней что-то есть).
@@ -116,6 +119,7 @@ public final class Launcher {
                 return false
             } else {
                 startScene(d, min(d.arrStart, d.rows - 1), at: tick)
+                wrappedAt = tick
             }
         }
         for t in 0..<d.trackCount where queued[t] != Launcher.none && atBoundary(d, t, tick) {
@@ -145,7 +149,7 @@ public final class Launcher {
     }
 
     /// Строка с повторами кончилась (одна строка или LOOP ROW — играет по кругу).
-    private func sceneEnds(_ d: SeqData, _ tick: Int) -> Bool {
+    func sceneEnds(_ d: SeqData, _ tick: Int) -> Bool {
         let reps = Int(d.repeats[max(0, min(SeqData.slots - 1, sceneRow))])
         return reps > 0 && !d.rowLoop && d.rows > 1 && tick - sceneStart >= reps * sceneLen
     }
