@@ -63,7 +63,7 @@ extension Sampler {
     func idleEq(_ t: Int, _ d: SoundData, _ n: Int) {
         if let u = eqs?.unit(t) {
             sources(u)
-            u.idle(params: d.eq + t * EqSpec.stride, frames: n)
+            u.idle(params: d.eqParams(t), frames: n)
             eqDyn?.publish(t, u)
         }
         guard let s = spectra else { return }
@@ -98,7 +98,7 @@ extension Sampler {
         }
         let shown: Bool = spectra?.channel.load() == t
         if shown, let s = spectra { s.pre.push(busL + t * mf, busR + t * mf, n) }
-        u.process(frames: n, params: d.eq + t * EqSpec.stride)
+        u.process(frames: n, params: d.eqParams(t))
         eqDyn?.publish(t, u)
         if shown, let s = spectra { s.post.push(busL + t * mf, busR + t * mf, n) }
         if let s = spectra, s.compareTrack.load() == t { s.compare.push(busL + t * mf, busR + t * mf, n) }

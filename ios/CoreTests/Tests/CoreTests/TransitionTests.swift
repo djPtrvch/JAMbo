@@ -122,3 +122,38 @@ final class TransitionTests: XCTestCase {
         XCTAssertTrue(p.sampleKeys.contains("new0"))
     }
 }
+
+extension TransitionTests {
+    /// Снимок звука: второй звук дорожки (клип PREV) действует, пока в колбэке активна ячейка PREV.
+    func testSnapshotSoundBySlot() {
+        let last = Params.patternSlots - 1
+        var old = Project()
+        old.tracks[0].clips[0]!.pages[0][0].on = true
+        old.tracks[0].params["pitch"] = 7
+        old.tracks[0].sample = "mi:0"
+        var next = Project()
+        next.tracks[0].params["pitch"] = -3
+        let (p, _) = old.mixed(into: next, playing: true, leaving: [])
+        let slots = UnsafeMutablePointer<Int>.allocate(capacity: Params.maxTracks)
+        defer { slots.deallocate() }
+        slots.initialize(repeating: 0, count: Params.maxTracks)
+        let snap = SoundSnapshot(p, samples: [:], map: .chromatic, slots: slots)
+        let d = snap.data
+        XCTAssertEqual(d.alt[0], 1)
+        XCTAssertEqual(d.alt[1], 0)
+        XCTAssertEqual(d.param(0, VoiceParam.pitch), -3)
+        XCTAssertEqual(d.sound[d.s(0)], SoundKey.hash(""))
+        slots[0] = last
+        XCTAssertEqual(d.param(0, VoiceParam.pitch), 7)
+        XCTAssertEqual(d.sound[d.s(0)], SoundKey.hash("mi:0"))
+        // Без второго звука ячейка PREV ничего не меняет.
+        slots[1] = last
+        XCTAssertEqual(d.s(1), 1)
+        // После конца перехода второго звука нет.
+        var q = p
+        q.endMix(MixTransition(from: MixGlobals(p), to: MixGlobals(p)))
+        let snap2 = SoundSnapshot(q, samples: [:], map: .chromatic, slots: slots)
+        XCTAssertEqual(snap2.data.alt[0], 0)
+        XCTAssertEqual(snap2.data.param(0, VoiceParam.pitch), -3)
+    }
+}

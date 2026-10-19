@@ -54,7 +54,7 @@ extension Sampler {
                 r.cutDelayTail()
             }
             openPrev[t] = d.open[t] != 0 ? 1 : 0
-            let at: Float = t == source ? 0 : Swift.max(0, Swift.min(1, d.scAmount[t] / 100))
+            let at: Float = t == source ? 0 : Swift.max(0, Swift.min(1, d.scAmount[d.s(t)] / 100))
             if volCur[t] < 0 { volCur[t] = vt }
             if gateCur[t] < 0 { gateCur[t] = gt }
             let meter: UnsafeMutablePointer<Float>? = lv?.current(t)

@@ -231,7 +231,7 @@ public final class Sampler {
         modFrame = frame
         // Sidechain: каждая нота источника (не перезапуск звука на держащейся ноте).
         if !retrig { fx?.noteTrig(track: t, at: frame) }
-        let h: UInt64 = hash != 0 ? hash : d.sound[t]
+        let h: UInt64 = hash != 0 ? hash : d.sound[d.s(t)]
         let se = synthEngine(h)
         if se >= 0 {
             synth?.trigger(d, track: t, engine: se, at: frame, notes: notes, count: count, mask: mask, vals: vals,
@@ -426,7 +426,7 @@ public final class Sampler {
         guard let o = old else { return }
         let n = Swift.min(d.trackCount, o.trackCount)
         let lastSynth = synth?.lastSerial ?? 0
-        for t in 0..<n where d.trackId[t] == o.trackId[t] && d.sound[t] != o.sound[t] {
+        for t in 0..<n where d.trackId[t] == o.trackId[t] && d.sound[d.s(t)] != o.sound[o.s(t)] {
             retrigger(t, now)
             retriggerSynth(t, now, lastSynth)
         }

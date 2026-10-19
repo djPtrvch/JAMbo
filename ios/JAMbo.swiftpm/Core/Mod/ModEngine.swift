@@ -139,10 +139,12 @@ public final class ModEngine {
         var t = 0
         while t < d.trackCount {
             let m = lockMask[t]
+            // Переход MIX: параметры LFO/ENV — звука, который сейчас действует (клип PREV — старой дорожки).
+            let su = d.s(t) * c
             var k = 0
             while k < c {
                 let i = t * c + k
-                p[i] = m & (UInt16(1) << UInt16(k)) != 0 ? Double(lockVal[i]) : Double(d.mod[i])
+                p[i] = m & (UInt16(1) << UInt16(k)) != 0 ? Double(lockVal[i]) : Double(d.mod[su + k])
                 k += 1
             }
             var l = 0
@@ -230,7 +232,7 @@ public final class ModEngine {
     @inline(__always)
     public func value(_ t: Int, _ j: Int, _ base: Double, _ frame: Int64) -> Double {
         guard let d = data else { return base }
-        let i = t * ModTarget.count + j
+        let i = d.s(t) * ModTarget.count + j
         let src = Int(d.asSrc[i])
         if src == 0 { return base }
         let sc = d.scale[i]
@@ -242,6 +244,6 @@ public final class ModEngine {
     @inline(__always)
     public func modulated(_ t: Int) -> Bool {
         guard let d = data else { return false }
-        return d.asAny[t] != 0
+        return d.asAny[d.s(t)] != 0
     }
 }

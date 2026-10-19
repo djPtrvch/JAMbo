@@ -34,6 +34,13 @@ public struct SoundData {
     public static let maxSlices = 8192
 
     public var trackCount: Int = 0
+    /// Переход MIX (S10): у дорожки t второй звук — для клипа PREV (звук старой дорожки), на номере t + maxTracks
+    /// в таблицах звука (ручки, звук, сэмплы, таблица, MOD, Sidechain, EQ дорожки). Какой звук действует — по клипу,
+    /// который сейчас играет в колбэке (slotRef — Launcher.slot): ячейка PREV — второй.
+    public var alt: UnsafeMutablePointer<UInt8>
+    public var slotRef: UnsafeMutablePointer<Int>
+    /// Сэмплов в таблице entries (оба звука).
+    public var entryTotal: Int = 0
     /// На дорожку: постоянный номер (перестановка — голоса гаснут), ручки голоса, громкость, слышна ли (mute/solo),
     /// звук дорожки (ключ; 0 — нет), сэмплы дорожки — отрезок таблицы entries.
     public var trackId: UnsafeMutablePointer<Int>
@@ -84,17 +91,34 @@ public struct SoundData {
     /// (выход — в этом же блоке, как в вебе); в кольце источников одна дорожка слышит прошлый блок.
     public var eqOrder: UnsafeMutablePointer<Int>
 
+    public static let prevSlot = Params.patternSlots - 1
+
+    /// Номер звука дорожки t в таблицах звука: t или t + maxTracks (играет клип PREV со вторым звуком).
+    @inline(__always)
+    public func s(_ t: Int) -> Int {
+        return alt[t] != 0 && slotRef[t] == SoundData.prevSlot ? t + SoundData.maxTracks : t
+    }
+
+    /// Параметры EQ дорожки t (второй звук — за каналами EqSpec.channels).
+    @inline(__always)
+    public func eqParams(_ t: Int) -> UnsafeMutablePointer<Double> {
+        let u = s(t)
+        let ch: Int = u == t ? t : EqSpec.channels + t
+        return eq + ch * EqSpec.stride
+    }
+
     @inline(__always)
     public func param(_ t: Int, _ p: Int) -> Float {
-        return params[t * VoiceParam.count + p]
+        return params[s(t) * VoiceParam.count + p]
     }
 
     /// Сэмпл дорожки t с ключом hash (−1 — нет).
     @inline(__always)
     public func entry(_ t: Int, _ hash: UInt64) -> Int {
         if hash == 0 || t < 0 || t >= trackCount { return -1 }
-        let a = Int(entryStart[t])
-        let n = Int(entryCount[t])
+        let u = s(t)
+        let a = Int(entryStart[u])
+        let n = Int(entryCount[u])
         var k = 0
         while k < n {
             if eHash[a + k] == hash { return a + k }
@@ -118,7 +142,7 @@ public struct SoundData {
     /// Есть ли в снимке буфер data (голос, который его читает, может звучать дальше).
     @inline(__always)
     public func holds(_ data: UnsafeMutablePointer<Float>) -> Bool {
-        let n = Int(entryStart[trackCount])
+        let n = entryTotal
         var k = 0
         while k < n {
             if eLeft[k] == data { return true }
@@ -133,46 +157,73 @@ public final class SoundSnapshot: @unchecked Sendable {
     /// Ссылки на сэмплы и таблицы (колбэк их не трогает; освобождаются вместе со снимком в основном потоке).
     private let keep: [SampleData]
     private let keepTables: [WtTable]
+    /// Свой буфер slotRef (снимок без ядра — в тестах).
+    private let ownSlots: UnsafeMutablePointer<Int>?
     public static var liveCount = 0
 
     /// samples — загруженные сэмплы по ключу; map, scale, root — ноты маркеров по порядку (SLICE NOTES).
-    /// tables — готовые таблицы WTABLE по ключу (Track.table).
+    /// tables — готовые таблицы WTABLE по ключу (Track.table). slots — активные ячейки дорожек в колбэке
+    /// (Launcher.slot; nil — свой буфер, все на первой ячейке).
     public init(_ project: Project, samples: [String: SampleData], map: SliceMap, octave: Int = 3,
                 tables: [String: WtTable] = [:], scSends: SidechainSends = SidechainSends(), muteTails: Bool = false,
-                levelRelative: Bool = true) {
+                levelRelative: Bool = true, slots: UnsafeMutablePointer<Int>? = nil) {
         let tracks = SoundData.maxTracks
+        let tracks2 = tracks * 2
+        var own: UnsafeMutablePointer<Int>? = nil
+        if slots == nil {
+            let b = UnsafeMutablePointer<Int>.allocate(capacity: tracks)
+            b.initialize(repeating: 0, count: tracks)
+            own = b
+        }
+        let slotRef: UnsafeMutablePointer<Int> = slots ?? own!
         let entries = SoundData.maxEntries
         let slices = SoundData.maxSlices
         let pc = VoiceParam.count
         var d = SoundData(
-            trackId: .allocate(capacity: tracks), params: .allocate(capacity: tracks * pc),
-            gain: .allocate(capacity: tracks), trim: .allocate(capacity: tracks), open: .allocate(capacity: tracks), sound: .allocate(capacity: tracks),
-            entryStart: .allocate(capacity: tracks + 1), entryCount: .allocate(capacity: tracks),
+            alt: .allocate(capacity: tracks), slotRef: slotRef,
+            trackId: .allocate(capacity: tracks), params: .allocate(capacity: tracks2 * pc),
+            gain: .allocate(capacity: tracks), trim: .allocate(capacity: tracks), open: .allocate(capacity: tracks), sound: .allocate(capacity: tracks2),
+            entryStart: .allocate(capacity: tracks2), entryCount: .allocate(capacity: tracks2),
             eHash: .allocate(capacity: entries), eLeft: .allocate(capacity: entries), eRight: .allocate(capacity: entries),
             eFrames: .allocate(capacity: entries), eChannels: .allocate(capacity: entries),
             eSliceStart: .allocate(capacity: entries), eSliceCount: .allocate(capacity: entries),
             sliceAt: .allocate(capacity: slices), sliceNote: .allocate(capacity: slices),
-            tableRef: .allocate(capacity: tracks),
-            fx: .allocate(capacity: Params.fxCount), scAmount: .allocate(capacity: tracks), scSend: .allocate(capacity: 3),
-            mod: .allocate(capacity: tracks * Params.modCount), asSrc: .allocate(capacity: tracks * ModTarget.count),
-            asAmt: .allocate(capacity: tracks * ModTarget.count), scale: .allocate(capacity: tracks * ModTarget.count),
-            asAny: .allocate(capacity: tracks), fxSrc: .allocate(capacity: Params.fxCount),
+            tableRef: .allocate(capacity: tracks2),
+            fx: .allocate(capacity: Params.fxCount), scAmount: .allocate(capacity: tracks2), scSend: .allocate(capacity: 3),
+            mod: .allocate(capacity: tracks2 * Params.modCount), asSrc: .allocate(capacity: tracks2 * ModTarget.count),
+            asAmt: .allocate(capacity: tracks2 * ModTarget.count), scale: .allocate(capacity: tracks2 * ModTarget.count),
+            asAny: .allocate(capacity: tracks2), fxSrc: .allocate(capacity: Params.fxCount),
             fxAmt: .allocate(capacity: Params.fxCount), fxTrack: .allocate(capacity: Params.fxCount),
             fxScale: .allocate(capacity: Params.fxCount),
             master: .allocate(capacity: MasterChain.Index.count),
-            eq: .allocate(capacity: EqSpec.channels * EqSpec.stride),
+            eq: .allocate(capacity: (EqSpec.channels + tracks) * EqSpec.stride),
             eqOrder: .allocate(capacity: tracks)
         )
         MasterChain.fill(d.master, project)
-        for ch in 0..<EqSpec.channels {
-            let eq: Eq? = ch == EqSpec.masterChannel ? project.masterEq : ch < project.tracks.count ? project.tracks[ch].eq : nil
+        // Звук дорожки для остальных клипов (side 0) и для клипа PREV (side 1; нет — второго звука нет).
+        let n0 = Swift.min(project.tracks.count, tracks)
+        var sounds: [TrackSound?] = []
+        for side in 0..<2 {
+            for t in 0..<tracks { sounds.append(t < n0 ? project.tracks[t].sound(prev: side == 1) : nil) }
+        }
+        d.alt.initialize(repeating: 0, count: tracks)
+        for t in 0..<n0 where project.prevRow && sounds[tracks + t] != nil { d.alt[t] = 1 }
+        for ch in 0..<(EqSpec.channels + tracks) {
+            var eq: Eq? = nil
+            if ch == EqSpec.masterChannel {
+                eq = project.masterEq
+            } else if ch < tracks {
+                eq = sounds[ch]?.eq
+            } else if ch >= EqSpec.channels {
+                eq = sounds[tracks + ch - EqSpec.channels]?.eq
+            }
             EqSpec.fill(d.eq + ch * EqSpec.stride, eq)
         }
-        d.mod.initialize(repeating: 0, count: tracks * Params.modCount)
-        d.asSrc.initialize(repeating: 0, count: tracks * ModTarget.count)
-        d.asAmt.initialize(repeating: 0, count: tracks * ModTarget.count)
-        d.scale.initialize(repeating: ParamScale(), count: tracks * ModTarget.count)
-        d.asAny.initialize(repeating: 0, count: tracks)
+        d.mod.initialize(repeating: 0, count: tracks2 * Params.modCount)
+        d.asSrc.initialize(repeating: 0, count: tracks2 * ModTarget.count)
+        d.asAmt.initialize(repeating: 0, count: tracks2 * ModTarget.count)
+        d.scale.initialize(repeating: ParamScale(), count: tracks2 * ModTarget.count)
+        d.asAny.initialize(repeating: 0, count: tracks2)
         for (k, id) in Params.fxIds.enumerated() {
             let a = project.fxAssigns[id]
             (d.fxSrc + k).initialize(to: Int8(a?.lfo ?? 0))
@@ -183,21 +234,21 @@ public final class SoundSnapshot: @unchecked Sendable {
         for (k, id) in Params.fxIds.enumerated() {
             (d.fx + k).initialize(to: Float(project.fx[id] ?? Params.byId[id]?.def ?? 0))
         }
-        d.scAmount.initialize(repeating: 0, count: tracks)
+        d.scAmount.initialize(repeating: 0, count: tracks2)
         d.scSend[0] = scSends.rev ? 1 : 0
         d.scSend[1] = scSends.dly ? 1 : 0
         d.scSend[2] = scSends.drv ? 1 : 0
         d.muteTails = muteTails
-        d.tableRef.initialize(repeating: WtRef(), count: tracks)
+        d.tableRef.initialize(repeating: WtRef(), count: tracks2)
         var keepTables: [WtTable] = []
         d.trackId.initialize(repeating: -1, count: tracks)
-        d.params.initialize(repeating: 0, count: tracks * pc)
+        d.params.initialize(repeating: 0, count: tracks2 * pc)
         d.gain.initialize(repeating: 0, count: tracks)
         d.trim.initialize(repeating: 1, count: tracks)
         d.open.initialize(repeating: 0, count: tracks)
-        d.sound.initialize(repeating: 0, count: tracks)
-        d.entryStart.initialize(repeating: 0, count: tracks + 1)
-        d.entryCount.initialize(repeating: 0, count: tracks)
+        d.sound.initialize(repeating: 0, count: tracks2)
+        d.entryStart.initialize(repeating: 0, count: tracks2)
+        d.entryCount.initialize(repeating: 0, count: tracks2)
         d.eHash.initialize(repeating: 0, count: entries)
         d.eLeft.initialize(repeating: nil, count: entries)
         d.eRight.initialize(repeating: nil, count: entries)
@@ -216,38 +267,43 @@ public final class SoundSnapshot: @unchecked Sendable {
         for t in 0..<d.trackCount {
             let tr = project.tracks[t]
             d.trackId[t] = tr.id
-            for (p, id) in VoiceParam.ids.enumerated() {
-                d.params[t * pc + p] = Float(tr.params[id] ?? Params.byId[id]?.def ?? 0)
-            }
             // LEVEL ABSOLUTE — громкость ровно как в MIX: подстройка не действует.
             let tg: Float = levelRelative ? Float(Params.volGain(tr.trim)) : 1
             d.trim[t] = tg
             d.gain[t] = Float(Params.volGain(tr.vol)) * tg
-            d.scAmount[t] = Float(tr.params["sidechain"] ?? 0)
+            d.open[t] = project.audible(t) ? 1 : 0
+        }
+        for u in 0..<tracks2 {
+            let t = u % tracks
+            guard t < d.trackCount, let snd = sounds[u] else { continue }
+            if u >= tracks && d.alt[t] == 0 { continue }
+            for (p, id) in VoiceParam.ids.enumerated() {
+                d.params[u * pc + p] = Float(snd.params[id] ?? Params.byId[id]?.def ?? 0)
+            }
+            d.scAmount[u] = Float(snd.params["sidechain"] ?? 0)
             for (k, id) in Params.modIds.enumerated() {
-                d.mod[t * Params.modCount + k] = Float(tr.params[id] ?? Params.byId[id]?.def ?? 0)
+                d.mod[u * Params.modCount + k] = Float(snd.params[id] ?? Params.byId[id]?.def ?? 0)
             }
             // Шкалы целей — по сетке звука дорожки (у синта свои пределы и ступени).
             var grid: [String: ParamDef] = [:]
-            for p in Params.grid(sound: tr.sample) { grid[p.id] = p }
+            for p in Params.grid(sound: snd.sample) { grid[p.id] = p }
             for (j, id) in ModTarget.ids.enumerated() {
-                let i = t * ModTarget.count + j
+                let i = u * ModTarget.count + j
                 if let def = grid[id] ?? Params.byId[id] { d.scale[i] = ParamScale(def) }
-                if let a = tr.assigns[id] {
+                if let a = snd.assigns[id] {
                     d.asSrc[i] = Int8(a.lfo)
                     d.asAmt[i] = Float(a.amount)
-                    d.asAny[t] = 1
+                    d.asAny[u] = 1
                 }
             }
-            d.open[t] = project.audible(t) ? 1 : 0
-            d.sound[t] = SoundKey.hash(tr.sample)
-            if let wt = tables[tr.table] {
+            d.sound[u] = SoundKey.hash(snd.sample)
+            if let wt = tables[snd.table] {
                 keepTables.append(wt)
-                d.tableRef[t] = WtRef(frames: wt.frames, sizes: UnsafePointer(wt.sizes), data: UnsafePointer(wt.data))
+                d.tableRef[u] = WtRef(frames: wt.frames, sizes: UnsafePointer(wt.sizes), data: UnsafePointer(wt.data))
             }
-            d.entryStart[t] = Int32(e)
-            var keys = tr.folder.items
-            if !tr.sample.isEmpty && !keys.contains(tr.sample) { keys.append(tr.sample) }
+            d.entryStart[u] = Int32(e)
+            var keys = snd.folder.items
+            if !snd.sample.isEmpty && !keys.contains(snd.sample) { keys.append(snd.sample) }
             for key in keys where e < entries {
                 guard let s = samples[key] else { continue }
                 keep.append(s)
@@ -256,7 +312,7 @@ public final class SoundSnapshot: @unchecked Sendable {
                 d.eRight[e] = s.right
                 d.eFrames[e] = s.frames
                 d.eChannels[e] = Int32(s.channels)
-                let marks = tr.sliceMarks(key)
+                let marks: [SliceMark] = key.isEmpty ? [] : (snd.slices[key] ?? [])
                 let notes = Slices.notes(marks, map: map, scale: project.scale, root: project.root, octave: octave)
                 d.eSliceStart[e] = Int32(sl)
                 var n = 0
@@ -269,17 +325,20 @@ public final class SoundSnapshot: @unchecked Sendable {
                 sl += n
                 e += 1
             }
-            d.entryCount[t] = Int32(e) - d.entryStart[t]
+            d.entryCount[u] = Int32(e) - d.entryStart[u]
         }
-        d.entryStart[d.trackCount] = Int32(e)
+        d.entryTotal = e
         data = d
         self.keep = keep
         self.keepTables = keepTables
+        ownSlots = own
         SoundSnapshot.liveCount += 1
     }
 
     deinit {
         SoundSnapshot.liveCount -= 1
+        ownSlots?.deallocate()
+        data.alt.deallocate()
         data.trackId.deallocate()
         data.params.deallocate()
         data.gain.deallocate()

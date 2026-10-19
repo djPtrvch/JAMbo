@@ -121,7 +121,7 @@ public final class FxRack {
         anyDucked = false
         t = 0
         while t < d.trackCount {
-            if t != source && d.scAmount[t] > 0 { anyDucked = true }
+            if t != source && d.scAmount[d.s(t)] > 0 { anyDucked = true }
             t += 1
         }
     }

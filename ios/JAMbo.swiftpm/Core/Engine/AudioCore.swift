@@ -96,7 +96,8 @@ public final class AudioCore: @unchecked Sendable {
         }
         let snd = Unmanaged.passRetained(SoundSnapshot(project, samples: samples, map: map, octave: octave, tables: tables,
                                                              scSends: scSends, muteTails: muteTails,
-                                                             levelRelative: levelRelative))
+                                                             levelRelative: levelRelative,
+                                                             slots: sequencer.launcher.slot))
         if !sounds.push(snd) { snd.release() }
     }
 
