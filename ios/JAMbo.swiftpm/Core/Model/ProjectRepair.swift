@@ -40,13 +40,13 @@ extension Project {
         var keys = Set<String>()
         for t in tracks {
             keys.insert(t.sample)
-            keys.formUnion(t.folder.items)
+            keys.formUnion(t.folder.sampleKeys)
             keys.formUnion(t.slices.keys)
             // Переход MIX: звук старой дорожки у клипа PREV и свой звук дорожки, пока играет PREV.
             for snd in ([t.home] + t.clips.map { $0?.src }) {
                 guard let snd = snd else { continue }
                 keys.insert(snd.sample)
-                keys.formUnion(snd.folder.items)
+                keys.formUnion(snd.folder.sampleKeys)
                 keys.formUnion(snd.slices.keys)
             }
             for c in t.clips {

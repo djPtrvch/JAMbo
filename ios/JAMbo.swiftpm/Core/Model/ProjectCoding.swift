@@ -171,7 +171,7 @@ extension Folder {
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        items = c.value(.items, [String]())
+        items = c.value(.items, [FolderItem]())
         index = c.value(.index, -1)
     }
 }

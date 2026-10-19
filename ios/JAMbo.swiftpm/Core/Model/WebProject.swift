@@ -4,10 +4,10 @@ import Foundation
 // - паттерны: в вебе страницы и длина — у дорожки (общие для всех клипов), клип — только playFrom, playTo, гамма,
 //   нота, FX (активный — в полях дорожки, остальные — в slots); в Swift у каждого клипа свой паттерн — копия страниц;
 // - громкости: doc.mixer['mix.volN'] → Track.vol; EQ дорожек: doc.eqs[i] → Track.eq; папки: doc.folders[i] → Track.folder
-//   (только сэмплы — пресетов синта в папках Swift-версии пока нет);
+//   (сэмплы и пресеты синта);
 // - ключи сэмплов: 's:<hex>' → '<hex>' (тот же SHA-256 исходного файла, SampleStore.key);
 // - не переносятся (решения пользователя, S11): автоматизация (auto), миграция SPEECH; свои таблицы WTABLE ('wt:…')
-//   — BASIC до библиотеки (S11b); убранные в Swift параметры мастера; MORPH-снимки (trackOrig) и переход MIX (home, src).
+//   — BASIC до S11b4; убранные в Swift параметры мастера; MORPH-снимки (trackOrig) и переход MIX (home, src).
 // Сборка — словарь в формате Project, затем обычное чтение (ProjectCoding) и repair.
 
 public enum WebProject {
@@ -24,6 +24,11 @@ public enum WebProject {
     /// Ключ звука веба → Swift: сэмпл без 's:', синты ('mi:…') и встроенные таблицы — как есть.
     static func key(_ k: String) -> String {
         return k.hasPrefix("s:") ? String(k.dropFirst(2)) : k
+    }
+
+    /// Таблица WTABLE: встроенная — как есть; своя ('wt:s:<hex>:<кадр>') — до S11b4 BASIC.
+    static func table(_ t: String) -> String {
+        return t.hasPrefix("builtin:") ? t : ""
     }
 
     static func project(_ d: [String: Any]) -> [String: Any] {
@@ -71,8 +76,7 @@ public enum WebProject {
         }
         tr["sample"] = key(t["sample"] as? String ?? "")
         tr["params"] = filtered(t["params"], Set(Params.byId.keys))
-        let table: String = t["table"] as? String ?? ""
-        tr["table"] = table.hasPrefix("builtin:") ? table : ""
+        tr["table"] = table(t["table"] as? String ?? "")
         if let sl = t["slices"] as? [String: Any] { tr["slices"] = rekeyed(sl) }
         let pages: [Any] = convertPages(t["pages"])
         let length: Any = t["length"] ?? Params.stepsPerPage
@@ -132,17 +136,19 @@ public enum WebProject {
         return out
     }
 
-    /// Папка: только сэмплы; номер звучащего — среди оставшихся (звучал пресет — −1).
+    /// Папка: сэмплы (ключ без 's:') и пресеты синта — как есть (таблица пресета — как у дорожки).
     static func folder(_ f: [String: Any]) -> [String: Any] {
-        let index: Int = ProjectPack.number(f["index"]) ?? -1
-        var items: [String] = []
-        var newIndex: Int = -1
-        for (k, item) in (f["items"] as? [Any] ?? []).enumerated() {
-            guard let it = item as? [String: Any], let s = it["sample"] as? String else { continue }
-            if k == index { newIndex = items.count }
-            items.append(key(s))
+        var items: [Any] = []
+        for item in f["items"] as? [Any] ?? [] {
+            guard let it = item as? [String: Any] else { continue }
+            if let s = it["sample"] as? String {
+                items.append(["sample": key(s)])
+            } else if var p = it["preset"] as? [String: Any] {
+                if let t = p["table"] as? String { p["table"] = table(t) }
+                items.append(["preset": p])
+            }
         }
-        return ["items": items, "index": newIndex]
+        return ["items": items, "index": f["index"] ?? -1]
     }
 
     static func filtered(_ v: Any?, _ keys: Set<String>) -> [String: Any] {

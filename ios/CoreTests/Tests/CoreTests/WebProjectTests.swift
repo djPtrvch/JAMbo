@@ -86,8 +86,10 @@ final class WebProjectTests: XCTestCase {
         // Без гаммы в вебе — гамма проекта (normalizeDoc).
         XCTAssertEqual(t.clips[5]?.scale, 2)
         XCTAssertEqual(t.slices[kick], [SliceMark(at: 0.5, note: 62), SliceMark(at: 0.75)])
-        // Папка: пресет убран, звучащий (snare) — второй из оставшихся.
-        XCTAssertEqual(t.folder, Folder(items: [kick, snare], index: 1))
+        // Папка: сэмплы и пресет синта (S11b), звучит snare.
+        let bell = SynthPreset(name: "Bell", sound: "mi:2", params: ["harm": 30], fmt: 2)
+        XCTAssertEqual(t.folder, Folder(items: [FolderItem(sample: kick), FolderItem(preset: bell), FolderItem(sample: snare)],
+                                        index: 2))
         let q = t.eq.bands[1]
         XCTAssertEqual(q?.ms, 1)
         XCTAssertEqual(q?.dyn, 2)

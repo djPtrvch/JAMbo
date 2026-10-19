@@ -306,7 +306,7 @@ public final class SoundSnapshot: @unchecked Sendable {
                 d.tableRef[u] = WtRef(frames: wt.frames, sizes: UnsafePointer(wt.sizes), data: UnsafePointer(wt.data))
             }
             d.entryStart[u] = Int32(e)
-            var keys = snd.folder.items
+            var keys = snd.folder.sampleKeys
             if !snd.sample.isEmpty && !keys.contains(snd.sample) { keys.append(snd.sample) }
             for key in keys where e < entries {
                 guard let s = samples[key] else { continue }
