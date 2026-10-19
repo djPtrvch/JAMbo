@@ -182,14 +182,20 @@ public enum Params {
         }
     }
 
-    /// Колонки сетки ручек дорожки сэмплера (у синта колонка 1 — synthGrids; колонка 1 — сэмпл, 2 — огибающая и фильтр, 3 — посылы, 4 — Pan, Chance, Ratchet, Swing).
+    /// Пустая ячейка сетки (id ""): неактивная серая ручка.
+    public static let empty = ParamDef(id: "", label: "", min: 0, max: 1, def: 0) { _ in "" }
+
+    /// Swing дорожки (S12): не на сетке — ползунок в меню клавиатуры; без p-lock и LFO/ENV.
+    public static let swing = ParamDef(id: "swing", label: "Swing", min: 50, max: 75, def: 50, format: Fmt.pct)
+
+    /// Колонки сетки ручек дорожки сэмплера (у синта колонка 1 — synthGrids; колонка 1 — сэмпл, 2 — огибающая и фильтр,
+    /// 3 — посылы, 4 — Pan, Chance, Ratchet, Velocity). 1.4 — PLAY (S12, этап 2), пока пустая.
     public static let trackColumns: [[ParamDef]] = [
         [
             smooth("pitch", "Pitch", -24, 24, 0, bipolar: true, Fmt.pitch),
             smooth("start", "Start", 0, 100, 0, Fmt.pct),
             smooth("end", "End", 0, 100, 100, Fmt.pct),
-            // Level: на ручке — проценты; хранится 0…127.
-            smooth("level", "Level", 0, 127, 127) { v in "\(Int((v / 127 * 100).rounded()))%" },
+            empty,
         ],
         [
             smooth("attack", "Attack", 0, 2000, 0, curve: 3, Fmt.ms),
@@ -207,7 +213,8 @@ public enum Params {
             smooth("pan", "Pan", -64, 63, 0, bipolar: true, Fmt.pan),
             smooth("prob", "Chance", 0, 100, 100, Fmt.pct),
             stepped("ratchet", "Ratchet", ["1", "2", "3", "4"]),
-            smooth("swing", "Swing", 50, 75, 50, Fmt.pct),
+            // Velocity (S12; прежний Level, id тот же): множитель уровня нот дорожки, на ручке — проценты, хранится 0…127.
+            smooth("level", "Velocity", 0, 127, 127) { v in "\(Int((v / 127 * 100).rounded()))%" },
         ],
     ]
 
@@ -453,13 +460,13 @@ public enum Params {
 
     public static let byId: [String: ParamDef] = {
         var d: [String: ParamDef] = [:]
-        for p in trackGrid + synthColumn + modGrid + fxGrid + hiddenFx + masterGrid + masterExtra { d[p.id] = p }
+        for p in trackGrid + synthColumn + modGrid + fxGrid + hiddenFx + masterGrid + masterExtra where !p.id.isEmpty { d[p.id] = p }
         return d
     }()
 
     public static func defaults() -> [String: Double] {
         var d: [String: Double] = [:]
-        for p in trackGrid + synthColumn + modGrid { d[p.id] = p.def }
+        for p in trackGrid + synthColumn + modGrid + [swing] where !p.id.isEmpty { d[p.id] = p.def }
         return d
     }
 }

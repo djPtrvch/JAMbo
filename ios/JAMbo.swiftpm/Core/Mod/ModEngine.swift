@@ -50,13 +50,12 @@ public struct ParamScale {
     }
 }
 
-/// Цели модуляции дорожки: параметры голоса (VoiceParam), затем Chance, Ratchet, Swing.
+/// Цели модуляции дорожки: параметры голоса (VoiceParam), затем Chance, Ratchet (Swing — без LFO/ENV, S12).
 public enum ModTarget {
     public static let prob = VoiceParam.count
     public static let ratchet = VoiceParam.count + 1
-    public static let swing = VoiceParam.count + 2
-    public static let count = VoiceParam.count + 3
-    public static let ids: [String] = VoiceParam.ids + ["prob", "ratchet", "swing"]
+    public static let count = VoiceParam.count + 2
+    public static let ids: [String] = VoiceParam.ids + ["prob", "ratchet"]
 }
 
 public final class ModEngine {

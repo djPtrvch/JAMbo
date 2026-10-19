@@ -72,6 +72,38 @@ final class SequencerTests: XCTestCase {
         XCTAssertEqual(trigs(r.out), [0, 1500, 3000, 4500, 9000])
     }
 
+    /// S12: Swing — значение дорожки; p-lock swing на шаге (старый проект до миграции) не действует.
+    func testSwingIgnoresStepLock() {
+        let core = AudioCore()
+        core.publish(project { p in
+            p.tracks[0].pages[0][0].on = true
+            p.tracks[0].pages[0][1].on = true
+            p.tracks[0].pages[0][1].locks["swing"] = 75
+        })
+        core.events.push(.play(true))
+        let r = run(core, frames: 12000)
+        XCTAssertEqual(trigs(r.out), [0, 6000])
+    }
+
+    /// Версия 3 (S12): p-lock swing и назначения LFO/ENV на swing снимаются, значение дорожки остаётся.
+    func testSwingMigration() throws {
+        var p = Project()
+        p.version = 2
+        p.tracks[0].params["swing"] = 66
+        p.tracks[0].assigns["swing"] = ModAssign(lfo: 1, amount: 0.5)
+        p.tracks[0].assigns["pan"] = ModAssign(lfo: 2, amount: 0.3)
+        p.tracks[0].pages[0][3].locks = ["swing": 70, "level": 90]
+        p.tracks[0].pages[0][3].soundLocks = ["swing", "level"]
+        p.repair()
+        XCTAssertEqual(p.version, 3)
+        XCTAssertEqual(p.tracks[0].params["swing"], 66)
+        XCTAssertNil(p.tracks[0].assigns["swing"])
+        XCTAssertNotNil(p.tracks[0].assigns["pan"])
+        XCTAssertEqual(p.tracks[0].pages[0][3].locks, ["level": 90], "p-lock Velocity (level) остаётся")
+        XCTAssertEqual(p.tracks[0].pages[0][3].soundLocks, ["level"])
+        XCTAssertEqual(Project().version, 3)
+    }
+
     func testChanceZeroNeverPlays() {
         let core = AudioCore()
         core.publish(project { p in

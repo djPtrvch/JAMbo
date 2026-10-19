@@ -31,7 +31,7 @@ extension Project {
         let o0: Double = tracks[sel].morphOrig[id] ?? tracks[sel].params[id] ?? p0.def
         let delta: Double = norm - p0.toNorm(o0)
         for i in tracks.indices where i != sel {
-            let defs: [ParamDef] = Params.grid(sound: tracks[i].sample) + Params.modGrid
+            let defs: [ParamDef] = (Params.grid(sound: tracks[i].sample) + Params.modGrid).filter { !$0.id.isEmpty }
             guard let p = defs.first(where: { $0.id == id }) else { continue }
             tracks[i].morphParam(id)
             let o: Double = tracks[i].morphOrig[id] ?? p.def

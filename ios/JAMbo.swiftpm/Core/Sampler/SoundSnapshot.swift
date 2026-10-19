@@ -315,7 +315,7 @@ public final class SoundSnapshot: @unchecked Sendable {
             }
             // Шкалы целей — по сетке звука дорожки (у синта свои пределы и ступени).
             var grid: [String: ParamDef] = [:]
-            for p in Params.grid(sound: snd.sample) { grid[p.id] = p }
+            for p in Params.grid(sound: snd.sample) where !p.id.isEmpty { grid[p.id] = p }
             for (j, id) in ModTarget.ids.enumerated() {
                 let i = u * ModTarget.count + j
                 if let def = grid[id] ?? Params.byId[id] { d.scale[i] = ParamScale(def) }

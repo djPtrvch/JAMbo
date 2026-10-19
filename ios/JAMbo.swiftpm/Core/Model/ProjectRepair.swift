@@ -5,6 +5,8 @@ import Foundation
 
 extension Project {
     public mutating func repair() {
+        if version < 3 { migrateSwing() }
+        version = Swift.max(version, 3)
         if !bpm.isFinite { bpm = 120 }
         bpm = Swift.min(Params.bpmMax, Swift.max(Params.bpmMin, bpm))
         scale = Project.clamp(scale, 0, Scales.all.count - 1)
@@ -28,6 +30,28 @@ extension Project {
         for k in 0..<scenes.count { scenes[k].repeats = Swift.max(1, scenes[k].repeats) }
         rows = Project.clamp(rows, 1, Params.patternSlots)
         arrStart = Project.clamp(arrStart, 0, Params.patternSlots - 1)
+    }
+
+    /// Версия 3 (S12): Swing — значение дорожки; p-lock swing на шагах и назначения LFO/ENV на swing снимаются
+    /// (у дорожек, MIX и MST, звуков перехода MIX). Velocity — прежний level, переносить нечего.
+    mutating func migrateSwing() {
+        let strip: (inout Track) -> Void = { t in
+            t.assigns["swing"] = nil
+            if t.home != nil { t.home!.assigns["swing"] = nil }
+            for k in 0..<t.clips.count {
+                guard var c = t.clips[k] else { continue }
+                if c.src != nil { c.src!.assigns["swing"] = nil }
+                for p in 0..<c.pages.count {
+                    for s in 0..<c.pages[p].count {
+                        c.pages[p][s].locks["swing"] = nil
+                        if let sl = c.pages[p][s].soundLocks { c.pages[p][s].soundLocks = sl.filter { $0 != "swing" } }
+                    }
+                }
+                t.clips[k] = c
+            }
+        }
+        for i in 0..<tracks.count { strip(&tracks[i]) }
+        for i in 0..<chanSeqs.count { strip(&chanSeqs[i]) }
     }
 
     static func clamp(_ v: Int, _ lo: Int, _ hi: Int) -> Int {

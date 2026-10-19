@@ -248,15 +248,14 @@ public final class Sequencer {
                 for p in 0..<Params.modCount { modLockVal[t * Params.modCount + p] = d.modVal[i * Params.modCount + p] }
             }
             if i < 0 || d.on[i] == 0 { continue }
-            // Chance, Ratchet, Swing — с p-lock и LFO/ENV на момент шага.
+            // Chance, Ratchet — с p-lock и LFO/ENV на момент шага; Swing — значение дорожки.
             var prob = Double(d.prob[i])
             var ratchetV = Double(d.ratchet[i])
-            var swing = Double(d.swing[i])
+            let swing = Double(d.swing[i])
             if let m = mod, m.modulated(t) {
                 let f = Int64(time)
                 prob = m.value(t, ModTarget.prob, prob, f)
                 ratchetV = m.value(t, ModTarget.ratchet, ratchetV, f)
-                swing = m.value(t, ModTarget.swing, swing, f)
             }
             if Double(nextRandom()) * 100 >= prob { continue }
             let ratchet = Int(ratchetV.rounded()) + 1

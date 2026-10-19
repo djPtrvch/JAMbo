@@ -90,7 +90,7 @@ struct ChoiceMenu: View {
     }
 }
 
-/// Меню клавиатуры (бутерброд под CHORD): 1 OCTAVE / 2 OCTAVES и VELOCITY; правее кнопки, снизу вверх,
+/// Меню клавиатуры (бутерброд под CHORD): 1 OCTAVE / 2 OCTAVES, KEY VELOCITY и SWING; правее кнопки, снизу вверх,
 /// не выше строки шагов, шириной 4 шага.
 struct PianoMenu: View {
     let model: AppModel
@@ -125,12 +125,13 @@ struct PianoMenu: View {
                     model.updateSettings { $0.pianoOctaves = 2 }
                 }
             }
-            ToggleRow(title: "VELOCITY", isOn: model.settings.velocity) { v in model.updateSettings { $0.velocity = v } }
+            ToggleRow(title: "KEY VELOCITY", isOn: model.settings.velocity) { v in model.updateSettings { $0.velocity = v } }
             Text(model.settings.velocity
-                 ? "Touch lower on a key — louder, higher — softer. Changes the note Level; REC writes it as the note velocity."
-                 : "Keys play at the track Level.")
+                 ? "Touch lower on a key — louder, higher — softer. Scales the track Velocity; REC writes it as the note velocity."
+                 : "Keys play at the track Velocity.")
                 .font(.system(size: 11))
                 .foregroundStyle(theme.dim)
+            SwingSlider(model: model)
         }
     }
 }
@@ -149,5 +150,60 @@ struct ToggleRow: View {
         .tint(theme.accent)
         .frame(minHeight: 48)
         .padding(.horizontal, 4)
+    }
+}
+
+/// SWING дорожки (S12): ползунок с процентами (50–75 %), палец вбок; один жест — одна запись в UNDO.
+struct SwingSlider: View {
+    let model: AppModel
+    @Environment(\.theme) private var theme
+    @State private var dragging: Bool = false
+
+    var body: some View {
+        let p: ParamDef = Params.swing
+        let v: Double = model.trackSwing
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("SWING").font(.system(size: 13, weight: .bold)).foregroundStyle(theme.text)
+                Spacer()
+                Text(p.format(v)).font(.system(size: 13, weight: .bold)).monospacedDigit().foregroundStyle(theme.text)
+            }
+            GeometryReader { g in
+                bar(g.size.width, p.toNorm(v))
+                    .contentShape(Rectangle())
+                    .gesture(drag(g.size.width))
+            }
+            .frame(height: 24)
+        }
+        .padding(.horizontal, 4)
+        .padding(.vertical, 6)
+    }
+
+    private func bar(_ w: CGFloat, _ n: Double) -> some View {
+        let x: CGFloat = w * CGFloat(n)
+        return ZStack(alignment: .leading) {
+            Capsule().fill(theme.meterTrack).frame(height: 6)
+            Capsule().fill(theme.accent).frame(width: max(6, x), height: 6)
+            Circle().fill(Color.white).frame(width: 22, height: 22)
+                .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
+                .offset(x: min(max(0, x - 11), w - 22))
+        }
+        .frame(maxHeight: .infinity)
+    }
+
+    private func drag(_ w: CGFloat) -> some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { g in
+                if !dragging {
+                    dragging = true
+                    model.beginGesture()
+                }
+                let n: Double = Double(min(max(0, g.location.x / max(1, w)), 1))
+                model.setSwing(Params.swing.fromNorm(n).rounded())
+            }
+            .onEnded { _ in
+                dragging = false
+                model.endGesture()
+            }
     }
 }

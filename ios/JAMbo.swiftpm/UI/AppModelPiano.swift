@@ -230,4 +230,15 @@ extension AppModel {
         let k = t.slot
         t.editing(k) { tr in change(&tr) }
     }
+
+    // MARK: — SWING (S12): значение дорожки, без p-lock и LFO/ENV
+
+    var trackSwing: Double {
+        return track.params["swing"] ?? Params.swing.def
+    }
+
+    func setSwing(_ v: Double) {
+        let x: Double = min(Params.swing.max, max(Params.swing.min, v))
+        editTrack { t in t.params["swing"] = x }
+    }
 }

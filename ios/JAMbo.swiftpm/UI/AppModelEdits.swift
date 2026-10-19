@@ -64,7 +64,9 @@ extension AppModel {
         switch channel {
         case .track:
             if modMode { return Params.modGrid[slot] }
-            return fxMode ? fxParam(slot) : Params.grid(sound: track.sample)[slot]
+            if fxMode { return fxParam(slot) }
+            let p: ParamDef = Params.grid(sound: track.sample)[slot]
+            return p.id.isEmpty ? nil : p
         case .mix: return mixParam(slot)
         case .master: return Params.masterGrid[slot]
         }

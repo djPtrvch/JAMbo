@@ -230,7 +230,8 @@ public struct SceneRow: Codable, Equatable, Sendable {
 }
 
 public struct Project: Codable, Equatable, Sendable {
-    public var version: Int = 2
+    /// Версия формата: 3 — S12 (Swing без p-lock и LFO/ENV).
+    public var version: Int = 3
     public var bpm: Double = 120
     public var scale: Int = 0
     public var root: Int = 0

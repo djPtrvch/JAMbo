@@ -117,6 +117,16 @@ final class EditTests: XCTestCase {
         XCTAssertEqual(Params.byId["pan"]!.format(-10), "L10")
         XCTAssertEqual(Params.trackGrid[0].id, "pitch")
         XCTAssertEqual(Params.trackGrid[1].id, "attack", "сетка — ряд за рядом")
+        // S12: 1.4 пустая (PLAY — этап 2), 4.4 Velocity (прежний level), Swing не на сетке.
+        XCTAssertEqual(Params.trackGrid[12].id, "")
+        XCTAssertEqual(Params.trackGrid[15].id, "level")
+        XCTAssertEqual(Params.trackGrid[15].label, "Velocity")
+        XCTAssertEqual(Params.trackGrid[15].format(127), "100%")
+        XCTAssertFalse(Params.trackGrid.contains { $0.id == "swing" })
+        XCTAssertNil(Params.byId[""])
+        XCTAssertEqual(Params.defaults()["swing"], 50)
+        XCTAssertNil(Params.defaults()[""])
+        XCTAssertFalse(ModTarget.ids.contains("swing"))
     }
 }
 

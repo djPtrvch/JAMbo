@@ -275,7 +275,7 @@ public final class SeqSnapshot: @unchecked Sendable {
                 d.split[i] = step.lens != nil || step.vels != nil ? 1 : 0
                 d.prob[i] = Float(track.value("prob", step: step))
                 d.ratchet[i] = Int32(track.value("ratchet", step: step).rounded())
-                d.swing[i] = Float(track.value("swing", step: step))
+                d.swing[i] = Float(track.params["swing"] ?? Params.swing.def)
                 if let snd = step.sound { d.sound[i] = SoundKey.hash(snd) }
                 if !step.locks.isEmpty {
                     var mask: UInt16 = 0
