@@ -53,7 +53,7 @@
 S0 каркас → S1 секвенсор и экран → S2 сэмплер и редактор → S3 Plaits и свои движки, SELF-TEST → S4 FX, MOD, MORPH → S5 мастер, EQ, метры, скоп → S6 окна модулей мастера → S7 EQ Dynamic и M/S, пресеты EQ → S8 пианоролл → S9 проекты и настройки → S10 переходы между проектами (S0–S10 готовы, проверены на iPad) → S11 библиотека, импорт и экспорт, стемы, REC (готов) → **S12 движки синта (новые; движки Mutable Instruments убираются; дальше)** → S13 MIDI → S14 оптимизация и App Store → S15 автоматизация. Подробно — docs/SWIFT_AUDIT.md, раздел 6 (там же — соответствие прежним номерам).
 
 ## Текущая веха (S12)
-- Этапы: 0 — убрать Plaits; 1 — сетка ручек (Velocity на 4.4, Swing в меню клавиатуры, Level убран); 2 — ручка 1.4 (PLAY сэмплера, Pitch по полутонам, KICK CLICK, ANALOG A/B, FM FEEDBACK, WTABLE UNISON/DETUNE); 3 — ударные SNARE, HAT, CLAP, PERC; 4 — SUB.
+- Этапы: 0 — убрать Plaits; 1 — сетка ручек (Velocity на 4.4, Swing в меню клавиатуры, Level убран); 2 — ручка 1.4 (Pitch по полутонам, KICK CLICK, ANALOG A/B, FM FEEDBACK, WTABLE UNISON/DETUNE; PLAY сэмплера отложен); 3 — ударные SNARE, HAT, CLAP, PERC; 4 — SUB.
 
 ## Где искать
 | Задача касается… | Файл |
