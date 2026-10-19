@@ -103,6 +103,26 @@ final class MidiHost {
         MIDISendEventList(outPort, dst, sendList)
     }
 
+    /// Поток CoreMIDI: разбор пакетов, сообщения — на главный поток одним блоком.
+    private func receive(_ list: UnsafePointer<MIDIEventList>, _ ref: UnsafeMutableRawPointer?) {
+        let source: Int32 = Int32(truncatingIfNeeded: Int(bitPattern: ref))
+        var msgs: [MidiMessage] = []
+        for packet in list.unsafeSequence() {
+            let count: Int = Int(packet.pointee.wordCount)
+            var words = packet.pointee.words
+            withUnsafeBytes(of: &words) { raw in
+                let all = raw.bindMemory(to: UInt32.self)
+                let used = UnsafeBufferPointer<UInt32>(rebasing: all[0..<min(count, all.count)])
+                msgs.append(contentsOf: MidiMessage.parse(words: used))
+            }
+        }
+        if msgs.isEmpty { return }
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self, let handler = self.onMessage else { return }
+            for msg in msgs { handler(msg, source) }
+        }
+    }
+
     private static func uniqueID(_ obj: MIDIObjectRef) -> Int32 {
         var v: Int32 = 0
         MIDIObjectGetIntegerProperty(obj, kMIDIPropertyUniqueID, &v)
