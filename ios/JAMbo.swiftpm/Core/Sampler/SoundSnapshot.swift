@@ -286,6 +286,22 @@ public final class SoundSnapshot: @unchecked Sendable {
             d.gain[t] = Float(Params.volGain(tr.vol)) * tg
             d.open[t] = project.audible(t) ? 1 : 0
         }
+        // Сэмплы — свой звук шагов дорожек (во всех клипах).
+        var stepSounds: [[String]] = [[String]](repeating: [], count: tracks)
+        for t in 0..<d.trackCount {
+            var seen = Set<String>()
+            for c in project.tracks[t].clips {
+                guard let c = c else { continue }
+                for page in c.pages {
+                    for st in page {
+                        if let k = st.sound, !k.isEmpty, !k.contains(":"), !seen.contains(k) {
+                            seen.insert(k)
+                            stepSounds[t].append(k)
+                        }
+                    }
+                }
+            }
+        }
         for u in 0..<tracks2 {
             let t = u % tracks
             guard t < d.trackCount, let snd = sounds[u] else { continue }
@@ -317,6 +333,8 @@ public final class SoundSnapshot: @unchecked Sendable {
             d.entryStart[u] = Int32(e)
             var keys = snd.folder.sampleKeys
             if !snd.sample.isEmpty && !keys.contains(snd.sample) { keys.append(snd.sample) }
+            // Свой звук шагов (S11b): сэмпл может быть уже не в папке (библиотека заменяет папку) — звучит дальше.
+            for k in stepSounds[t] where !keys.contains(k) { keys.append(k) }
             for key in keys where e < entries {
                 guard let s = samples[key] else { continue }
                 keep.append(s)

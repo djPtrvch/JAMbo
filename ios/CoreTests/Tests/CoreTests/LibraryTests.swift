@@ -200,3 +200,20 @@ final class UserWavetableTests: XCTestCase {
         XCTAssertEqual(p.tableKeys, ["aa", "bb"])
     }
 }
+
+/// Звук шага, которого уже нет в папке дорожки (папку заменила библиотека), остаётся в снимке звука.
+final class StepSoundSnapshotTests: XCTestCase {
+    func testStepSampleOutsideFolderStaysInSnapshot() {
+        var p = Project()
+        p.tracks[0].addSamples(["a", "b"])
+        p.tracks[0].withStep(2) { $0.on = true }
+        p.tracks[0].setStepSound([2], "b")
+        p.tracks[0].setFolder([FolderItem(sample: "c")])
+        let s = SampleData(left: [Float](repeating: 0.1, count: 10), right: nil)
+        let snap = SoundSnapshot(p, samples: ["a": s, "b": s, "c": s], map: .chromatic)
+        defer { withExtendedLifetime(snap) {} }
+        XCTAssertGreaterThanOrEqual(snap.data.entry(0, SoundKey.hash("b")), 0)
+        XCTAssertGreaterThanOrEqual(snap.data.entry(0, SoundKey.hash("c")), 0)
+        XCTAssertEqual(snap.data.entry(0, SoundKey.hash("a")), -1)
+    }
+}
