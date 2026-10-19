@@ -46,25 +46,25 @@ final class LaunchTests: XCTestCase {
         XCTAssertTrue(steps.contains(16), "играет страница 1 (шаг 16)")
     }
 
-    /// PASTE на новую (остановленную) дорожку во время игры: она играет вставленный клип в такт с исходной.
-    func testPasteTrackDuringPlayFollowsSource() {
+    /// PASTE дорожки: только настройки скопированной (звук, ручки, имя), клипы сетки и ход игры — свои.
+    func testPasteTrackKeepsOwnPatterns() {
         var p = project()
         p.tracks[0].pages[0][0].on = true
+        p.tracks[0].sample = "kick"
+        p.tracks[0].params["pan"] = 30
+        p.tracks[0].name = "Kick"
         p.addTrack()
-        let core = AudioCore()
-        core.publish(p)
-        core.events.push(.play(true))
-        _ = run(core, frames: 6000 * 5)
-        p.pasteTrack(8, p.tracks[0])
-        core.publish(p)
-        core.events.push(.adoptTrack(track: 8, like: 0))
-        let out = run(core, frames: 6000 * 20)
-        let c = clips(out, track: 8)
-        XCTAssertEqual(c.first?.slot, 0)
-        XCTAssertEqual(c.first?.stopped, false, "вставленная дорожка играет")
-        XCTAssertEqual(c.first?.start, 0, "ход — как у исходной (с тика 0)")
-        let steps: [Int] = out.compactMap { if case .step(8, let pos) = $0 { return pos } else { return nil } }
-        XCTAssertTrue(steps.contains(0), "играет свой паттерн")
+        p.tracks[8].pages[0][5].on = true
+        let copy = p.tracks[0]
+        p.pasteTrack(8, copy)
+        let t = p.tracks[8]
+        XCTAssertEqual(t.sample, "kick")
+        XCTAssertEqual(t.params["pan"], 30)
+        XCTAssertEqual(t.name, "Kick")
+        XCTAssertTrue(t.pages[0][5].on, "свой паттерн остался")
+        XCTAssertFalse(t.pages[0][0].on, "паттерн исходной не скопирован")
+        XCTAssertEqual(t.clips[1]?.pages.count, 1, "клипы сетки — свои (у исходной в строке 2 — две страницы)")
+        XCTAssertTrue(t.stopped, "ход игры — свой")
     }
 
     func testStoppedTrackStartsAtBar() {

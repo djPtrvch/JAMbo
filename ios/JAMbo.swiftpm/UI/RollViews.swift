@@ -154,8 +154,9 @@ struct RollGrid: View {
         ctx.fill(Path(roundedRect: bar, cornerRadius: 3), with: .color(theme.text))
         if !pct || rect.width < 34 || rect.height < 16 { return }
         let pct: Int = Int((Double(k) * 100).rounded())
+        // Число velocity — всегда чёрное.
         let label = SwiftUI.Text("\(pct)%").font(.system(size: 11, weight: .bold))
-            .foregroundColor(k > 0.5 ? theme.panel : theme.text)
+            .foregroundColor(Color.black)
         ctx.draw(label, at: CGPoint(x: rect.minX + 4, y: rect.midY), anchor: .leading)
     }
 }

@@ -3,9 +3,9 @@ import SwiftUI
 /// Сетка паттернов (PATTERNS): колонка строк над MIX, столбцы дорожек ровно над дорожками, справа (над MST) —
 /// бутерброд сетки, LOOP ROW и стрелки окна строк. На экране 8 строк. Жесты — на всю сетку, у каждого пальца своё
 /// касание (тапы по нескольким ячейкам сразу — запуск и остановка вместе); перетаскивается один клип или одна строка.
-/// Ячейка: свайп вверх — меню, удержание (0,5 с) и перенос — копия клипа в другую ячейку, свайп вниз — ничего.
-/// Строка: быстрый свайп вверх — меню строки, удержание и перенос — строка на другое место, остальное движение
-/// пальцем вверх-вниз — прокрутка окна строк.
+/// Ячейка: свайп вверх — меню, удержание (0,35 с) и перенос — копия клипа в другую ячейку, свайп вниз — ничего.
+/// Строка: быстрый свайп вверх — меню строки, удержание и перенос — строка целиком (колонка строк и клипы) едет за
+/// пальцем, строки между ней и пальцем плавно сдвигаются; остальное движение пальцем вверх-вниз — прокрутка окна строк.
 struct PatternGrid: View {
     let model: AppModel
     let layout: Layout
@@ -18,7 +18,7 @@ struct PatternGrid: View {
     @State private var rowTarget: Int? = nil
 
     static let rowGap: CGFloat = 4
-    static let hold: Double = 0.5
+    static let hold: Double = 0.35
     /// Свайп вверх по строке — не дольше этого (дольше — прокрутка).
     static let flick: Double = 0.28
 
@@ -48,10 +48,13 @@ struct PatternGrid: View {
         let w = model.gridWindow
         ForEach(0..<Params.gridRows, id: \.self) { r in
             if let k = w.rows[r] {
-                SceneCellView(model: model, row: k, target: rowTarget == k && dragRow != k).frame(width: g.sceneW, height: g.rowH)
-                    .opacity(dragRow == k && ghost != nil ? 0.35 : 1)
+                let lifted: Bool = dragRow == k && ghost != nil
+                SceneCellView(model: model, row: k).frame(width: g.sceneW, height: g.rowH)
+                    .opacity(lifted ? 0 : 1)
                     .midiMarks(model, [.button("ROW \(r + 1)")])
                     .offset(g.origin(col: -1, row: r))
+                    .offset(y: rowShift(g, k))
+                    .animation(.easeInOut(duration: 0.2), value: rowTarget)
                 ForEach(0..<g.tracks, id: \.self) { i in
                     ClipCellView(model: model, cell: CellRef(track: i, row: k), lifted: dragCell == CellRef(track: i, row: k) && ghost != nil,
                                  target: target == CellRef(track: i, row: k))
@@ -60,11 +63,23 @@ struct PatternGrid: View {
                         .offset(g.origin(col: i, row: r))
                         .offset(y: dropLift(g, track: i, row: k))
                         .animation(.easeInOut(duration: 0.45), value: model.mixDropDone)
+                        .opacity(lifted ? 0 : 1)
+                        .offset(y: rowShift(g, k))
+                        .animation(.easeInOut(duration: 0.2), value: rowTarget)
                 }
             } else if w.plusRow == r {
                 PlusCell().frame(width: g.sceneW, height: g.rowH).offset(g.origin(col: -1, row: r))
             }
         }
+    }
+
+    /// Перенос строки: строки между поднятой и местом под пальцем сдвигаются на её место (на строку вверх или вниз).
+    private func rowShift(_ g: GridGeometry, _ k: Int) -> CGFloat {
+        guard let a = dragRow, let b = rowTarget, a != b, k != a else { return 0 }
+        let pitch: CGFloat = g.rowH + PatternGrid.rowGap
+        if a < b && k > a && k <= b { return -pitch }
+        if b < a && k >= b && k < a { return pitch }
+        return 0
     }
 
     /// MIX: клип PREV сначала стоит на строке, откуда опустился, затем съезжает вниз.
@@ -77,12 +92,18 @@ struct PatternGrid: View {
     @ViewBuilder
     private func ghostView(_ g: GridGeometry) -> some View {
         if let p = ghost, let k = dragRow {
-            SceneCellView(model: model, row: k, target: false)
-                .frame(width: g.sceneW, height: g.rowH)
-                .scaleEffect(1.06)
-                .shadow(color: .black.opacity(0.5), radius: 10)
-                .offset(x: 0, y: p.y - g.rowH / 2)
-                .allowsHitTesting(false)
+            // Строка целиком: колонка строк и клипы всех дорожек.
+            ZStack(alignment: .topLeading) {
+                SceneCellView(model: model, row: k).frame(width: g.sceneW, height: g.rowH)
+                ForEach(0..<g.tracks, id: \.self) { i in
+                    ClipCellView(model: model, cell: CellRef(track: i, row: k), lifted: false, target: false)
+                        .frame(width: g.trackW, height: g.rowH)
+                        .offset(x: g.origin(col: i, row: 0).width)
+                }
+            }
+            .shadow(color: .black.opacity(0.5), radius: 10)
+            .offset(x: 0, y: p.y - g.rowH / 2)
+            .allowsHitTesting(false)
         } else if let p = ghost, let c = dragCell {
             ClipCellView(model: model, cell: c, lifted: false, target: false)
                 .frame(width: g.trackW, height: g.rowH)
@@ -205,18 +226,25 @@ struct PatternGrid: View {
         guard let p = presses.removeValue(forKey: id) else { return }
         var dropped: CellRef? = nil
         var droppedRow: Int? = nil
+        // Конец переноса — без анимации: сдвинутые строки встают на новые места сразу, вместе с правкой проекта.
+        var still = Transaction()
+        still.disablesAnimations = true
         if dragId == id {
             dropped = target
             droppedRow = rowTarget
-            dragId = nil
-            ghost = nil
-            target = nil
-            rowTarget = nil
+            withTransaction(still) {
+                dragId = nil
+                ghost = nil
+                target = nil
+                rowTarget = nil
+            }
         }
         if cancelled || p.scrolling || p.flicked { return }
         if p.held {
             if let c = p.cell, let d = dropped { model.dropClip(from: c, to: d) }
-            if case .scene(let k) = p.hit, let r = droppedRow { model.moveRow(k, to: r) }
+            if case .scene(let k) = p.hit, let r = droppedRow {
+                withTransaction(still) { model.moveRow(k, to: r) }
+            }
             return
         }
         let dx: CGFloat = loc.x - p.start.x

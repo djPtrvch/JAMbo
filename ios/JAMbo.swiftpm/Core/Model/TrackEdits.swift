@@ -267,14 +267,29 @@ extension Project {
     public static let mixSeq = 0
     public static let mstSeq = 1
 
-    /// PASTE дорожки на место i: всё как у скопированной; mute, solo и номер id — свои.
+    /// PASTE дорожки на место i: только настройки скопированной (звук, ручки, назначения LFO/ENV, имя, EQ, папка,
+    /// громкость); клипы сетки, ход игры, mute, solo и номер id — свои (решение пользователя, S14; в вебе — с паттернами).
     public mutating func pasteTrack(_ i: Int, _ c: Track) {
         guard i >= 0 && i < tracks.count else { return }
         let old = tracks[i]
+        // Переход MIX: свой звук скопированной — home, если она играла клип PREV.
+        let own: TrackSound = c.home ?? c.sound
         var t = c
+        t.clips = old.clips
+        t.slot = old.slot
+        t.open = old.open
+        t.stopped = old.stopped
         t.mute = old.mute
         t.solo = old.solo
         t.id = old.id
+        if old.home != nil {
+            // Дорожка играет клип PREV: звучит старая дорожка, вставленное станет её звуком после PREV.
+            t.sound = old.sound
+            t.home = own
+        } else {
+            t.sound = own
+            t.home = nil
+        }
         tracks[i] = t
     }
 

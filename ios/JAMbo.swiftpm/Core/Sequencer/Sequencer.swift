@@ -175,12 +175,6 @@ public final class Sequencer {
         launcher.clearQueues()
     }
 
-    /// PASTE дорожки во время игры: ход вставленной дорожки — как у исходной (играют в такт).
-    public func adoptTrack(_ t: Int, like s: Int) {
-        guard playing, let d = data else { return }
-        launcher.adoptTrack(d, t, like: s)
-    }
-
     public func queueScene(_ k: Int, atPass: Bool) {
         if playing { launcher.queueScene(k, atPass: atPass) }
     }

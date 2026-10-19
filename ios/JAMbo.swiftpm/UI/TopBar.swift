@@ -186,7 +186,7 @@ struct ScaleField: View {
     }
 }
 
-/// ROOT: палец вверх-вниз — 24 px на полутон; тап — квинтовый круг.
+/// ROOT: палец вверх-вниз — 24 px на полутон; тап — меню (4 столбца).
 struct RootField: View {
     let model: AppModel
 
@@ -194,50 +194,61 @@ struct RootField: View {
         let i: Int = model.project.root
         return DragField(label: "ROOT", value: Params.noteNames[i], pxPerUnit: 24,
                          get: { Double(model.project.root) }, set: { model.setRoot(Int($0)) },
-                         tap: { frame in model.rootWheel = frame },
+                         tap: { frame in model.choice = ChoiceState(options: Params.noteNames, columns: 4, current: i, anchor: frame,
+                                                                     pick: { model.setRoot($0) }) },
                          model: model)
     }
 }
 
 /// REC: красная точка, красная окантовка; включена — горит красным. SHIFT + тап — запись мастера (как ● MASTER при MIX,
-/// общее состояние): готова — внутри красный контур 3 px, пишет — контур мигает, как точка на MST (на горящей REC — белый).
+/// общее состояние): готова — точка крупнее и в ней буква M, пишет — она мигает, как точка на MST.
 struct RecButton: View {
     let model: AppModel
     @Environment(\.theme) private var theme
 
     var body: some View {
         let on: Bool = model.recOn
-        return Image(systemName: "circle.fill")
-            .font(.system(size: 12, weight: .bold))
-            .foregroundStyle(on ? Color.white : theme.rec)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(on ? theme.rec : theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
-            .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(theme.rec, lineWidth: 1))
-            .overlay(MasterRecContour(model: model, color: on ? Color.white : theme.rec))
-            .contentShape(Rectangle())
-            .onTapGesture {
-                if model.shiftHeld { model.stemTap(StemRing.master) } else { model.toggleRec() }
+        let master: Bool = model.stemLit(StemRing.master)
+        return ZStack {
+            if master {
+                MasterRecDot(model: model, color: on ? Color.white : theme.rec, letter: on ? theme.rec : Color.white)
+            } else {
+                Image(systemName: "circle.fill")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(on ? Color.white : theme.rec)
             }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(on ? theme.rec : theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
+        .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(theme.rec, lineWidth: 1))
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if model.shiftHeld { model.stemTap(StemRing.master) } else { model.toggleRec() }
+        }
     }
 }
 
-/// Контур записи мастера внутри REC: готова — горит, пишет — мигает (за 5 с до конца — чаще), как StemRecDot.
-struct MasterRecContour: View {
+/// Крупная точка REC с буквой M — запись мастера: готова — горит, пишет — мигает (за 5 с до конца — чаще), как StemRecDot.
+struct MasterRecDot: View {
     let model: AppModel
     let color: Color
+    let letter: Color
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: Layout.radius).inset(by: 1)
         if model.stemRecording.contains(StemRing.master) {
             TimelineView(.periodic(from: .now, by: 0.05)) { tl in
                 let period: Double = model.stemDot(StemRing.master).ending ? 0.3 : 1
                 let phase: Double = tl.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: period)
-                shape.strokeBorder(color, lineWidth: 3).opacity(phase < period / 2 ? 1 : 0)
+                dot.opacity(phase < period / 2 ? 1 : 0)
             }
-            .allowsHitTesting(false)
-        } else if model.stemArmed.contains(StemRing.master) {
-            shape.strokeBorder(color, lineWidth: 3).allowsHitTesting(false)
+        } else {
+            dot
         }
+    }
+
+    private var dot: some View {
+        Circle().fill(color).frame(width: 22, height: 22)
+            .overlay(Text("M").font(.system(size: 12, weight: .heavy)).foregroundStyle(letter))
     }
 }
 

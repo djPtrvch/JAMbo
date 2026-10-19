@@ -275,8 +275,6 @@ public final class AudioCore: @unchecked Sendable {
             sequencer.queueScene(row, atPass: atPass)
         case .adoptPlay:
             sequencer.adoptPlay()
-        case .adoptTrack(let t, let like):
-            sequencer.adoptTrack(t, like: like)
         case .noteOn(let t, let n, let id, let v):
             mod.liveOn(track: t, at: sampleTime)
             sampler.noteOn(track: t, note: n, liveId: id, velocity: v, at: sampleTime)

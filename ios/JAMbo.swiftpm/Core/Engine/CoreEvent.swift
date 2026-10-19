@@ -21,8 +21,6 @@ public enum CoreEvent: Sendable {
     case scene(row: Int, atPass: Bool)
     /// Строки сетки переставили во время игры: активные ячейки и остановки — снова из снимка проекта.
     case adoptPlay
-    /// PASTE дорожки t во время игры: её активная ячейка и остановка — из снимка, ход — как у дорожки like (−1 — прежний).
-    case adoptTrack(track: Int, like: Int)
     /// Живая нота с клавиатуры (id — касание; velocity 1 — без p-lock Level) и её отпускание.
     case noteOn(track: Int, note: Int, id: Int, velocity: Float)
     case noteOff(track: Int, id: Int)

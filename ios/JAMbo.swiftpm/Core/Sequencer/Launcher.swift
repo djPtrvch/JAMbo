@@ -47,19 +47,6 @@ public final class Launcher {
         }
     }
 
-    /// Одна дорожка (PASTE во время игры): активная ячейка и остановка — из снимка, начало прохода — как у дорожки s.
-    func adoptTrack(_ d: SeqData, _ t: Int, like s: Int) {
-        guard t >= 0 && t < d.trackCount else { return }
-        if queued[t] != Launcher.none {
-            queued[t] = Launcher.none
-            out.push(.queue(track: t, value: Launcher.none))
-        }
-        slot[t] = Int(d.slot[t])
-        stopped[t] = d.stopped[t] != 0
-        if s >= 0 && s < d.trackCount && s != t { trackStart[t] = trackStart[s] }
-        out.push(.clip(track: t, slot: slot[t], stopped: stopped[t], start: trackStart[t]))
-    }
-
     /// Ожидания и строка сбрасываются (начала проходов дорожек — прежние).
     func clearQueues() {
         for t in 0..<SeqData.maxTracks where queued[t] != Launcher.none {
