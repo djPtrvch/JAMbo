@@ -189,9 +189,11 @@ extension RootView {
     /// Меню страницы — под её миниатюрой, по рамке колонки миниатюр (как меню звука — по левой колонке); тап мимо — закрыть.
     func pageMenu(_ menu: PageMenuState) -> some View {
         let r: CGRect = model.pagesFrame
-        // Верх — на нижней линии обводки страницы (на 2 px выше следующей миниатюры), чтобы линия не выглядывала;
-        // не выше и не ниже обводки миниатюр вместе с её линией (по 4 px за край колонки).
-        let dy: CGFloat = max(-4, min(menu.y - 2, menu.maxY + 4 - PageMenu.height))
+        // Помещается под страницей — верх на нижней линии её обводки (на 2 px выше следующей миниатюры); не помещается —
+        // от верха колонки и на 4 px выше (над обводкой с её линией): меню закрывает обводку целиком, а не встаёт
+        // на её середину.
+        let below: CGFloat = menu.y - 2
+        let dy: CGFloat = below + PageMenu.height <= menu.maxY + 4 ? below : -4
         let x: CGFloat = r.midX - PageMenu.width / 2
         return ZStack(alignment: .topLeading) {
             Color.black.opacity(0.001)
