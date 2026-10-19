@@ -1,11 +1,14 @@
 import SwiftUI
 
 /// Сетка паттернов (PATTERNS): колонка строк над MIX, столбцы дорожек ровно над дорожками, справа (над MST) —
-/// бутерброд сетки, LOOP ROW и стрелки окна строк. На экране 8 строк. Жесты — одним касанием на всю сетку.
+/// бутерброд сетки, LOOP ROW и стрелки окна строк. На экране 8 строк. Жесты — на всю сетку, у каждого пальца своё
+/// касание (тапы по нескольким ячейкам сразу — запуск и остановка вместе); перетаскивается один клип.
 struct PatternGrid: View {
     let model: AppModel
     let layout: Layout
-    @State private var press: GridPress? = nil
+    @State private var presses: [SpatialEventCollection.Event.ID: GridPress] = [:]
+    /// Палец, который тянет клип (копия под пальцем — ghost, ячейка под ним — target).
+    @State private var dragId: SpatialEventCollection.Event.ID? = nil
     @State private var ghost: CGPoint? = nil
     @State private var target: CellRef? = nil
 
@@ -41,7 +44,7 @@ struct PatternGrid: View {
             if let k = w.rows[r] {
                 SceneCellView(model: model, row: k).frame(width: g.sceneW, height: g.rowH).offset(g.origin(col: -1, row: r))
                 ForEach(0..<g.tracks, id: \.self) { i in
-                    ClipCellView(model: model, cell: CellRef(track: i, row: k), lifted: press?.cell == CellRef(track: i, row: k) && ghost != nil,
+                    ClipCellView(model: model, cell: CellRef(track: i, row: k), lifted: dragCell == CellRef(track: i, row: k) && ghost != nil,
                                  target: target == CellRef(track: i, row: k))
                         .frame(width: g.trackW, height: g.rowH).offset(g.origin(col: i, row: r))
                         .offset(y: dropLift(g, track: i, row: k))
@@ -62,7 +65,7 @@ struct PatternGrid: View {
 
     @ViewBuilder
     private func ghostView(_ g: GridGeometry) -> some View {
-        if let p = ghost, let c = press?.cell {
+        if let p = ghost, let c = dragCell {
             ClipCellView(model: model, cell: c, lifted: false, target: false)
                 .frame(width: g.trackW, height: g.rowH)
                 .scaleEffect(1.06)
@@ -74,34 +77,45 @@ struct PatternGrid: View {
 
     // MARK: — жесты
 
-    private func touch(_ g: GridGeometry) -> some Gesture {
-        DragGesture(minimumDistance: 0)
-            .onChanged { v in
-                // Новое касание, а прежнее не закончилось (SwiftUI прервал жест без onEnded) — прежнее забыть.
-                if let p = press, p.start != v.startLocation {
-                    press = nil
-                    ghost = nil
-                    target = nil
-                }
-                if press == nil { begin(g, at: v.startLocation) }
-                move(g, v)
-            }
-            .onEnded { v in end(g, v) }
+    private var dragCell: CellRef? {
+        guard let id = dragId else { return nil }
+        return presses[id]?.cell
     }
 
-    private func begin(_ g: GridGeometry, at p: CGPoint) {
+    private func touch(_ g: GridGeometry) -> some Gesture {
+        SpatialEventGesture(coordinateSpace: .local)
+            .onChanged { events in
+                for e in events {
+                    switch e.phase {
+                    case .active:
+                        if presses[e.id] == nil { begin(g, e.id, at: e.location) } else { move(g, e.id, e.location) }
+                    case .ended:
+                        end(g, e.id, e.location, cancelled: false)
+                    case .cancelled:
+                        end(g, e.id, e.location, cancelled: true)
+                    @unknown default:
+                        break
+                    }
+                }
+            }
+            .onEnded { events in
+                for e in events { end(g, e.id, e.location, cancelled: e.phase == .cancelled) }
+            }
+    }
+
+    private func begin(_ g: GridGeometry, _ id: SpatialEventCollection.Event.ID, at p: CGPoint) {
         model.ensureAudio()
         let hit = g.hit(p, window: model.gridWindow)
         var gp = GridPress(hit: hit, t0: Date(), start: p)
         if case .cell(let c) = hit { gp.cell = c }
         gp.top0 = model.gridWindow.top
-        press = gp
+        presses[id] = gp
         let started = gp.t0
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: UInt64(PatternGrid.hold * 1e9))
-            guard var cur = press, cur.t0 == started, !cur.moved, ghost == nil else { return }
+            guard var cur = presses[id], cur.t0 == started, !cur.moved, dragId != id else { return }
             cur.held = true
-            press = cur
+            presses[id] = cur
             switch cur.hit {
             case .cell(let c): model.holdCell(c.track, c.row)
             case .scene(let k): if !model.isPrev(k) { model.rowMenu = k }
@@ -110,10 +124,10 @@ struct PatternGrid: View {
         }
     }
 
-    private func move(_ g: GridGeometry, _ v: DragGesture.Value) {
-        guard var p = press else { return }
-        let dx: CGFloat = v.translation.width
-        let dy: CGFloat = v.translation.height
+    private func move(_ g: GridGeometry, _ id: SpatialEventCollection.Event.ID, _ loc: CGPoint) {
+        guard var p = presses[id] else { return }
+        let dx: CGFloat = loc.x - p.start.x
+        let dy: CGFloat = loc.y - p.start.y
         if hypot(dx, dy) > 8 { p.moved = true }
         // Колонка строк: палец вверх-вниз прокручивает окно строк.
         if p.cell == nil {
@@ -125,32 +139,38 @@ struct PatternGrid: View {
                 let top: Int = min(w.maxTop, max(0, p.top0 + rows))
                 if top != w.top { model.gridTop = top }
             }
-            press = p
+            presses[id] = p
             return
         }
-        press = p
-        // Клип тянется и после удержания (палец сначала замер — ячейка уже выбрана для правки).
+        presses[id] = p
+        // Клип тянется и после удержания (палец сначала замер — ячейка уже выбрана для правки); тянет один палец.
         guard let c = p.cell, model.project.tracks[c.track].clipFilled(c.row) else { return }
+        if let d = dragId, d != id { return }
         let early: Bool = !p.held && Date().timeIntervalSince(p.t0) < PatternGrid.flick && -dy > abs(dx)
-        if ghost == nil && (early || hypot(dx, dy) <= 8) { return }
-        ghost = v.location
-        if case .cell(let t) = g.hit(v.location, window: model.gridWindow), t != c { target = t } else { target = nil }
+        if dragId == nil && (early || hypot(dx, dy) <= 8) { return }
+        dragId = id
+        ghost = loc
+        if case .cell(let t) = g.hit(loc, window: model.gridWindow), t != c { target = t } else { target = nil }
     }
 
-    private func end(_ g: GridGeometry, _ v: DragGesture.Value) {
-        guard let p = press else { return }
-        press = nil
-        let dropped = target
-        let dragged: Bool = ghost != nil
-        ghost = nil
-        target = nil
-        if p.scrolling { return }
+    private func end(_ g: GridGeometry, _ id: SpatialEventCollection.Event.ID, _ loc: CGPoint, cancelled: Bool) {
+        guard let p = presses.removeValue(forKey: id) else { return }
+        var dropped: CellRef? = nil
+        var dragged: Bool = false
+        if dragId == id {
+            dropped = target
+            dragged = true
+            dragId = nil
+            ghost = nil
+            target = nil
+        }
+        if cancelled || p.scrolling { return }
         if p.held {
             if dragged, let c = p.cell, let d = dropped { model.dropClip(from: c, to: d) }
             return
         }
-        let dx: CGFloat = v.translation.width
-        let dy: CGFloat = v.translation.height
+        let dx: CGFloat = loc.x - p.start.x
+        let dy: CGFloat = loc.y - p.start.y
         // Свайп вверх (копия ячейки не поднималась) — меню ячейки.
         let flick: Bool = !dragged && -dy > 24 && abs(dx) < -dy
         if let c = p.cell {
