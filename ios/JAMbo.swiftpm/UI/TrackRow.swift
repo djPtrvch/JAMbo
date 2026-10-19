@@ -62,11 +62,12 @@ struct TrackCell: View {
         // Как в вебе: выбранная — жёлтый контур, заглушённая — красный (перекрывает выбор) и красная заливка.
         let border: Color = t.mute ? theme.rec : (selected ? theme.accent : Color.clear)
         return ZStack(alignment: .topTrailing) {
-            // Выбранная дорожка — имя заметно жирнее.
+            // Выбранная дорожка — имя крупнее и жирнее; невыбранные — как MIX и MST (12, semibold, разрядка, цвет dim).
             Text(t.name)
-                .font(.system(size: 15, weight: selected ? .heavy : .semibold))
+                .font(.system(size: selected ? 15 : 12, weight: selected ? .heavy : .semibold))
+                .tracking(selected ? 0 : 0.7)
                 .lineLimit(1)
-                .foregroundStyle(theme.text)
+                .foregroundStyle(selected ? theme.text : theme.dim)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             stateLetter(t)
         }
