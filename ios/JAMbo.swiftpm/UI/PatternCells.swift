@@ -34,12 +34,12 @@ struct ClipCellView: View {
         .modifier(Blink(on: queued && model.playing))
     }
 
-    /// Доля прохода клипа: (тик − начало прохода) mod длина.
+    /// Доля прохода клипа: (тик − начало прохода) mod проход в тиках (со скоростью клипа).
     private func progress(_ t: Track?) -> CGFloat {
         _ = model.live.stepSerial
-        guard let t = t else { return 0 }
+        guard let t = t, let c = t.clips[cell.row] else { return 0 }
         let tick: Int = model.audio.core.sequencer.clock.read().nextTick - 1
-        let len: Int = t.playLen
+        let len: Int = c.passTicks
         let n: Int = ((tick - model.live.trackStart[cell.track]) % len + len) % len
         return CGFloat(n + 1) / CGFloat(len)
     }

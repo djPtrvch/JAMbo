@@ -20,6 +20,8 @@ public struct SeqData {
     public var clipLength: UnsafeMutablePointer<Int32>
     public var clipFrom: UnsafeMutablePointer<Int32>
     public var clipTo: UnsafeMutablePointer<Int32>
+    /// Скорость клипа (Clip.rate: 1 — ×2, 0 — ×1, −1…−4 — 1/2…1/16).
+    public var clipRate: UnsafeMutablePointer<Int8>
     /// На шаг (блок·maxSteps + шаг): триг, длина, число нот и ноты (·maxNotes), Chance, Ratchet, Swing (с p-lock).
     public var on: UnsafeMutablePointer<UInt8>
     public var len: UnsafeMutablePointer<Int32>
@@ -103,6 +105,23 @@ public struct SeqData {
         return max(1, n)
     }
 
+    @inline(__always)
+    public func rate(_ t: Int, slot k: Int) -> Int {
+        return Int(clipRate[ci(t, k)])
+    }
+
+    /// Проход клипа в тиках транспорта: ×2 — вдвое меньше (с округлением вверх), медленнее — в 2…16 раз больше.
+    @inline(__always)
+    public func tickLen(_ t: Int, slot k: Int) -> Int {
+        return SeqData.passTicks(playLen(t, slot: k), rate(t, slot: k))
+    }
+
+    @inline(__always)
+    public static func passTicks(_ len: Int, _ rate: Int) -> Int {
+        if rate > 0 { return max(1, (len + 1) / 2) }
+        return len << (-rate)
+    }
+
     /// Шаг (p·16 + s) клипа k на позиции n прохода, по кругу.
     @inline(__always)
     public func playIndex(_ t: Int, slot k: Int, _ n: Int) -> Int {
@@ -158,7 +177,7 @@ public final class SeqSnapshot: @unchecked Sendable {
         var d = SeqData(
             stopped: .allocate(capacity: tracks), slot: .allocate(capacity: tracks),
             clipBlock: .allocate(capacity: cells), clipLength: .allocate(capacity: cells),
-            clipFrom: .allocate(capacity: cells), clipTo: .allocate(capacity: cells),
+            clipFrom: .allocate(capacity: cells), clipTo: .allocate(capacity: cells), clipRate: .allocate(capacity: cells),
             on: .allocate(capacity: steps), len: .allocate(capacity: steps),
             noteCount: .allocate(capacity: steps), notes: .allocate(capacity: steps * SeqData.maxNotes),
             split: .allocate(capacity: steps), noteLen: .allocate(capacity: steps * SeqData.maxNotes),
@@ -179,6 +198,7 @@ public final class SeqSnapshot: @unchecked Sendable {
         d.clipLength.initialize(repeating: Int32(Params.stepsPerPage), count: cells)
         d.clipFrom.initialize(repeating: 0, count: cells)
         d.clipTo.initialize(repeating: 0, count: cells)
+        d.clipRate.initialize(repeating: 0, count: cells)
         d.on.initialize(repeating: 0, count: steps)
         d.len.initialize(repeating: 1, count: steps)
         d.noteCount.initialize(repeating: 0, count: steps)
@@ -260,6 +280,7 @@ public final class SeqSnapshot: @unchecked Sendable {
         d.clipLength[cell] = Int32(c.length)
         d.clipFrom[cell] = Int32(r.lowerBound)
         d.clipTo[cell] = Int32(r.upperBound)
+        d.clipRate[cell] = Int8(Swift.max(-4, Swift.min(1, c.speed)))
         for (p, page) in c.pages.enumerated() where p < Params.maxPages {
             for (s, step) in page.enumerated() {
                 let i = block * SeqData.maxSteps + p * Params.stepsPerPage + s
@@ -312,6 +333,7 @@ public final class SeqSnapshot: @unchecked Sendable {
         data.clipLength.deallocate()
         data.clipFrom.deallocate()
         data.clipTo.deallocate()
+        data.clipRate.deallocate()
         data.on.deallocate()
         data.len.deallocate()
         data.noteCount.deallocate()

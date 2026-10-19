@@ -159,6 +159,24 @@ public struct Clip: Codable, Equatable, Sendable {
     public var fx: [String: Double]?
     /// Переход MIX (S10, src веба): только у клипа строки PREV — звук старой дорожки (старый проект).
     public var src: TrackSound?
+    /// Скорость паттерна (S14): степень двойки — 1 (×2), 0 или nil (×1), −1…−4 (1/2…1/16).
+    public var rate: Int?
+
+    public static let rates: [Int] = [1, 0, -1, -2, -3, -4]
+    public static let rateNames: [String] = ["2", "1", "1/2", "1/4", "1/8", "1/16"]
+
+    public var speed: Int { return rate ?? 0 }
+
+    /// Проход в тиках транспорта (шестнадцатых) с учётом скорости.
+    public var passTicks: Int { return SeqData.passTicks(playLen, speed) }
+
+    /// Позиция прохода, которая звучит на тике o от начала клипа (×2 — первая из двух).
+    public func localStep(_ o: Int) -> Int {
+        let pass: Int = passTicks
+        let r: Int = ((o % pass) + pass) % pass
+        if speed > 0 { return r * 2 }
+        return r >> (-speed)
+    }
 
     public init(pages: [[Step]] = [Track.emptyPage()], length: Int = Params.stepsPerPage, playFrom: Int = 0,
                 playTo: Int = 0, scale: Int? = nil, root: Int? = nil, fx: [String: Double]? = nil) {

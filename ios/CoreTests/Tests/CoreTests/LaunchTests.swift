@@ -67,6 +67,41 @@ final class LaunchTests: XCTestCase {
         XCTAssertTrue(t.stopped, "ход игры — свой")
     }
 
+    /// Скорость клипа (S14): 1/2 — шаг раз в два тика, ×2 — шаг каждые полтика; проход для запуска — в тиках.
+    func testClipSpeed() {
+        func trigs(_ rate: Int?) -> [Int64] {
+            var p = project()
+            for i in 0..<16 { p.tracks[0].pages[0][i].on = true }
+            p.tracks[0].clips[0]!.rate = rate
+            let core = AudioCore()
+            core.publish(p)
+            core.events.push(.play(true))
+            let out = run(core, frames: 6000 * 12)
+            return out.compactMap { if case .trig(0, let f) = $0 { return f } else { return nil } }
+        }
+        let normal = trigs(nil)
+        let half = trigs(-1)
+        let double = trigs(1)
+        XCTAssertEqual(normal[1] - normal[0], 6000, "×1 — шаг 6000 кадров (120 BPM)")
+        XCTAssertEqual(half[1] - half[0], 12000, "1/2 — вдвое реже")
+        XCTAssertEqual(double[1] - double[0], 3000, "×2 — вдвое чаще")
+        XCTAssertEqual(double.count, 2 * normal.count - 1, accuracy: 1)
+        let sixteenth = trigs(-4)
+        XCTAssertEqual(sixteenth.count, 1, "1/16 — шаг раз в такт")
+    }
+
+    func testQueuedClipAfterSlowClip() {
+        var p = project()
+        p.tracks[0].clips[0]!.rate = -1
+        let core = AudioCore()
+        core.publish(p)
+        core.events.push(.play(true))
+        _ = run(core, frames: 6000 * 3)
+        core.events.push(.launch(track: 0, slot: 1))
+        let out = run(core, frames: 6000 * 40)
+        XCTAssertEqual(clips(out, track: 0).first?.start, 32, "16 шагов на 1/2 — проход 32 тика")
+    }
+
     func testStoppedTrackStartsAtBar() {
         var p = project()
         p.tracks[0].stopped = true

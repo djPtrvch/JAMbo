@@ -156,7 +156,7 @@ public final class Launcher {
 
     private func atBoundary(_ d: SeqData, _ t: Int, _ tick: Int) -> Bool {
         if !plays(d, t) { return TempoGrid.isBarStart(Double(tick) / TempoGrid.stepsPerBeat) }
-        return (tick - trackStart[t]) % d.playLen(t, slot: slot[t]) == 0
+        return (tick - trackStart[t]) % d.tickLen(t, slot: slot[t]) == 0
     }
 
     private func apply(_ t: Int, _ q: Int, tick: Int) {
@@ -180,7 +180,7 @@ public final class Launcher {
             if d.filled(t, k) {
                 slot[t] = k
                 stopped[t] = false
-                len = max(len, d.playLen(t, slot: k))
+                len = max(len, d.tickLen(t, slot: k))
             } else {
                 stopped[t] = true
             }

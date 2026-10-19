@@ -246,6 +246,12 @@ extension AppModel {
 
     enum PageAction { case left, right, up, down, duplicate, copy, paste, clear, delete }
 
+    /// Скорость открытого клипа выбранной дорожки (меню страницы, S14): Clip.rates — 2, 1, 1/2…1/16 (UNDO).
+    func setClipRate(_ r: Int) {
+        guard channel == .track, Clip.rates.contains(r) else { return }
+        editTrack { t in t.withOpen { c in c.rate = r == 0 ? nil : r } }
+    }
+
     func pageAction(_ action: PageAction, page i: Int) {
         switch action {
         case .left: editSeq { t in _ = t.nudgePages(i, .left) }

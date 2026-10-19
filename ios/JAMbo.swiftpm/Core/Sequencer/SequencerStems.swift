@@ -105,7 +105,7 @@ extension Sequencer {
                 t += 1
                 continue
             }
-            let len = d.playLen(t, slot: launcher.slot[t])
+            let len = d.tickLen(t, slot: launcher.slot[t])
             let boundary = len > 0 && (tick - launcher.trackStart[t]) % len == 0
             if boundary && tick > s.startTick[t] {
                 let bit = UInt16(1) << UInt16(launcher.slot[t])
@@ -224,7 +224,7 @@ extension Sequencer {
         var t = 0
         while t < d.trackCount {
             if launcher.plays(d, t) {
-                let len = d.playLen(t, slot: launcher.slot[t])
+                let len = d.tickLen(t, slot: launcher.slot[t])
                 if best < 0 || len > bestLen {
                     best = t
                     bestLen = len
@@ -257,7 +257,7 @@ extension Sequencer {
     private func stemsTrackEndTick(_ d: SeqData, _ t: Int, _ arranged: Bool) -> Int {
         if t >= d.trackCount || !launcher.plays(d, t) { return -1 }
         let s = stemRules
-        let len = d.playLen(t, slot: launcher.slot[t])
+        let len = d.tickLen(t, slot: launcher.slot[t])
         if len <= 0 { return -1 }
         let start = launcher.trackStart[t]
         let at = start + ((tick - start) / len + 1) * len

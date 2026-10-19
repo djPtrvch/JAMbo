@@ -142,6 +142,7 @@ extension Clip {
         playFrom = Project.clamp(playFrom, 0, playTo)
         if let s = scale { scale = Project.clamp(s, 0, Scales.all.count - 1) }
         if let r = root { root = Project.clamp(r, 0, 11) }
+        if let r = rate { rate = r == 0 ? nil : Project.clamp(r, -4, 1) }
     }
 }
 

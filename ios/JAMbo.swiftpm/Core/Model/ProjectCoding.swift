@@ -76,7 +76,7 @@ extension Track {
 }
 
 extension Clip {
-    enum CodingKeys: String, CodingKey, CaseIterable { case pages, length, playFrom, playTo, scale, root, fx, src }
+    enum CodingKeys: String, CodingKey, CaseIterable { case pages, length, playFrom, playTo, scale, root, fx, src, rate }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -88,6 +88,7 @@ extension Clip {
         root = c.optional(.root)
         fx = c.optional(.fx)
         src = c.optional(.src)
+        rate = c.optional(.rate)
     }
 }
 

@@ -356,8 +356,8 @@ struct PlusThumb: View {
 struct PageMenu: View {
     static let width: CGFloat = 184
     static let rowHeight: CGFloat = 36
-    /// Высота всего меню: 6 строк по 36 и зазоры по 6, поля 8.
-    static let height: CGFloat = 6 * rowHeight + 5 * 6 + 16
+    /// Высота всего меню: 6 строк по 36, SPEED — подпись 11 и две строки по 30, зазоры по 6, поля 8.
+    static let height: CGFloat = 6 * rowHeight + 11 + 2 * 30 + 8 * 6 + 16
     let model: AppModel
     let page: Int
     let close: () -> Void
@@ -376,12 +376,32 @@ struct PageMenu: View {
             item("paste", .paste, enabled: model.pageClipboard != nil)
             item("clear", .clear, enabled: true)
             item("delete", .delete, enabled: model.canDelete(page), red: true)
+            if model.channel == .track { speed }
         }
         .padding(8)
         .frame(width: PageMenu.width)
         .background(theme.bg, in: RoundedRectangle(cornerRadius: Layout.radius))
         .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(theme.line, lineWidth: 1))
         .shadow(color: .black.opacity(0.5), radius: 12, y: 4)
+    }
+
+    /// SPEED открытого клипа: 2, 1, 1/2 / 1/4, 1/8, 1/16 (выбранная — жёлтая); меню не закрывает.
+    private var speed: some View {
+        let cur: Int = model.seq.openClip.speed
+        return VStack(spacing: 6) {
+            Text("SPEED").font(.system(size: 9)).foregroundStyle(theme.dim)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            ForEach(0..<2, id: \.self) { row in
+                HStack(spacing: 6) {
+                    ForEach(0..<3, id: \.self) { col in
+                        let k: Int = row * 3 + col
+                        InkButton(title: Clip.rateNames[k], active: Clip.rates[k] == cur, height: 30) {
+                            model.setClipRate(Clip.rates[k])
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private func arrow(_ title: String, _ action: AppModel.PageAction) -> some View {

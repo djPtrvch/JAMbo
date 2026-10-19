@@ -211,7 +211,8 @@ extension AppModel {
         lastRec = (ti, k)
         let tr = project.tracks[ti]
         guard let clip = tr.clips[tr.slot] else { return nil }
-        let index = clip.playIndex(k - live.trackStart[ti])
+        // Скорость клипа (S14): позиция прохода на тике k.
+        let index = clip.playIndex(clip.localStep(k - live.trackStart[ti]))
         let overdub = settings.record.overdub
         takeTracks.insert(ti)
         takeWritten.insert(ti * 1000 + index)

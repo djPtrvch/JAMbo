@@ -252,53 +252,82 @@ public final class Sequencer {
                 modLockMask[t] = 0
                 continue
             }
+            // Скорость клипа (S14): ×2 — два шага за тик (второй — через полшага), медленнее — шаг раз в 2…16 тиков
+            // (на остальных тиках играющий шаг продолжается: p-lock FX и LFO/ENV остаются).
             let k = launcher.slot[t]
-            let pos = d.playIndex(t, slot: k, tick - launcher.trackStart[t])
-            out.push(.step(track: t, pos: pos))
-            let i = d.stepIndex(t, slot: k, pos)
-            // P-lock FX — на время шага (и на шаге без ноты).
-            fxLockMask[t] = i >= 0 ? d.fxMask[i] : 0
-            if i >= 0 && d.fxMask[i] != 0 {
-                for p in 0..<Params.fxCount { fxLockVal[t * Params.fxCount + p] = d.fxVal[i * Params.fxCount + p] }
+            let len: Int = d.playLen(t, slot: k)
+            let rate: Int = d.rate(t, slot: k)
+            let pass: Int = d.tickLen(t, slot: k)
+            let o: Int = ((tick - launcher.trackStart[t]) % pass + pass) % pass
+            var n: Int = o
+            var count: Int = 1
+            if rate > 0 {
+                n = o * 2
+                count = 2
+            } else if rate < 0 {
+                let div: Int = 1 << (-rate)
+                if o % div != 0 { continue }
+                n = o / div
             }
-            modLockMask[t] = i >= 0 ? d.modMask[i] : 0
-            if i >= 0 && d.modMask[i] != 0 {
-                for p in 0..<Params.modCount { modLockVal[t * Params.modCount + p] = d.modVal[i * Params.modCount + p] }
-            }
-            if i < 0 || d.on[i] == 0 { continue }
-            // Chance, Ratchet — с p-lock и LFO/ENV на момент шага; Swing — значение дорожки.
-            var prob = Double(d.prob[i])
-            var ratchetV = Double(d.ratchet[i])
-            let swing = Double(d.swing[i])
-            if let m = mod, m.modulated(t) {
-                let f = Int64(time)
-                prob = m.value(t, ModTarget.prob, prob, f)
-                ratchetV = m.value(t, ModTarget.ratchet, ratchetV, f)
-            }
-            if Double(nextRandom()) * 100 >= prob { continue }
-            let ratchet = Int(ratchetV.rounded()) + 1
-            let offset: Double = pos % 2 == 1 ? (swing - 50) / 50 * dur : 0
-            let sub = dur / Double(ratchet)
-            // Нота от 2 шагов держится до своего конца (Decay — после); в 1 шаг и рэтчет — Decay сразу после атаки.
-            let gate: Int64 = ratchet == 1 && d.len[i] >= 2 ? Int64((Double(d.len[i]) * dur).rounded()) : -1
-            let envGate: Int64 = Int64((ratchet > 1 ? sub * 0.6 : (d.len[i] >= 2 ? Double(d.len[i]) * dur : dur * 0.9)).rounded())
-            for r in 0..<ratchet {
-                let at: Double = time + offset + Double(r) * sub
-                if d.split[i] == 0 {
-                    schedule(track: t, at: at, d, i, gate, envGate)
-                    continue
+            let stepDur: Double = rate > 0 ? dur / 2 : dur * Double(1 << max(0, -rate))
+            var h = 0
+            while h < count && n + h < len {
+                let pos = d.playIndex(t, slot: k, n + h)
+                let i = d.stepIndex(t, slot: k, pos)
+                if h == 0 {
+                    out.push(.step(track: t, pos: pos))
+                    // P-lock FX и LFO/ENV — на время шага (и на шаге без ноты); при ×2 — первого из двух.
+                    fxLockMask[t] = i >= 0 ? d.fxMask[i] : 0
+                    if i >= 0 && d.fxMask[i] != 0 {
+                        for p in 0..<Params.fxCount { fxLockVal[t * Params.fxCount + p] = d.fxVal[i * Params.fxCount + p] }
+                    }
+                    modLockMask[t] = i >= 0 ? d.modMask[i] : 0
+                    if i >= 0 && d.modMask[i] != 0 {
+                        for p in 0..<Params.modCount { modLockVal[t * Params.modCount + p] = d.modVal[i * Params.modCount + p] }
+                    }
                 }
-                // Ноты со своими длинами и velocity (S8) — по одной; с конца, чтобы у DRUM осталась первая.
-                var j: Int = Int(d.noteCount[i]) - 1
-                while j >= 0 {
-                    let nl: Int32 = d.noteLen[i * SeqData.maxNotes + j]
-                    let ng: Int64 = ratchet == 1 && nl >= 2 ? Int64((Double(nl) * dur).rounded()) : -1
-                    scheduleNote(track: t, at: at, d, i, j, ng, envGate)
-                    j -= 1
+                if i >= 0 && d.on[i] != 0 {
+                    trig(d, t, i, pos, at: time + Double(h) * stepDur, dur: stepDur)
                 }
+                h += 1
             }
         }
         tick += 1
+    }
+
+    /// Триг шага i дорожки t в момент time; dur — длительность шага с учётом скорости клипа.
+    private func trig(_ d: SeqData, _ t: Int, _ i: Int, _ pos: Int, at time: Double, dur: Double) {
+        // Chance, Ratchet — с p-lock и LFO/ENV на момент шага; Swing — значение дорожки.
+        var prob = Double(d.prob[i])
+        var ratchetV = Double(d.ratchet[i])
+        let swing = Double(d.swing[i])
+        if let m = mod, m.modulated(t) {
+            let f = Int64(time)
+            prob = m.value(t, ModTarget.prob, prob, f)
+            ratchetV = m.value(t, ModTarget.ratchet, ratchetV, f)
+        }
+        if Double(nextRandom()) * 100 >= prob { return }
+        let ratchet = Int(ratchetV.rounded()) + 1
+        let offset: Double = pos % 2 == 1 ? (swing - 50) / 50 * dur : 0
+        let sub = dur / Double(ratchet)
+        // Нота от 2 шагов держится до своего конца (Decay — после); в 1 шаг и рэтчет — Decay сразу после атаки.
+        let gate: Int64 = ratchet == 1 && d.len[i] >= 2 ? Int64((Double(d.len[i]) * dur).rounded()) : -1
+        let envGate: Int64 = Int64((ratchet > 1 ? sub * 0.6 : (d.len[i] >= 2 ? Double(d.len[i]) * dur : dur * 0.9)).rounded())
+        for r in 0..<ratchet {
+            let at: Double = time + offset + Double(r) * sub
+            if d.split[i] == 0 {
+                schedule(track: t, at: at, d, i, gate, envGate)
+                continue
+            }
+            // Ноты со своими длинами и velocity (S8) — по одной; с конца, чтобы у DRUM осталась первая.
+            var j: Int = Int(d.noteCount[i]) - 1
+            while j >= 0 {
+                let nl: Int32 = d.noteLen[i * SeqData.maxNotes + j]
+                let ng: Int64 = ratchet == 1 && nl >= 2 ? Int64((Double(nl) * dur).rounded()) : -1
+                scheduleNote(track: t, at: at, d, i, j, ng, envGate)
+                j -= 1
+            }
+        }
     }
 
     private func schedule(track: Int, at time: Double, _ d: SeqData, _ i: Int, _ gate: Int64, _ envGate: Int64) {
