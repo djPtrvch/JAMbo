@@ -9,14 +9,14 @@ struct KeyboardPanel: View {
     var body: some View {
         HStack(spacing: Layout.stepGap) {
             VStack(spacing: Layout.gap) {
-                ChordButton(model: model).frame(height: layout.keySide(model.project.scale))
+                ChordButton(model: model).frame(height: layout.keySide(model.project.scale)).midiTarget(model, "CHORD")
                 BurgerButton { model.pianoMenuOpen.toggle() }.frame(maxHeight: .infinity)
             }
             .frame(width: layout.step)
             keyArea
             VStack(spacing: Layout.stepGap) {
-                OctaveButton(title: "▲") { model.setOctave(model.octave + 1) }
-                OctaveButton(title: "▼") { model.setOctave(model.octave - 1) }
+                OctaveButton(title: "▲") { model.setOctave(model.octave + 1) }.midiTarget(model, "OCTAVE ▲")
+                OctaveButton(title: "▼") { model.setOctave(model.octave - 1) }.midiTarget(model, "OCTAVE ▼")
             }
             .frame(width: layout.step)
         }
@@ -51,7 +51,7 @@ struct KeyRow: View {
         return GeometryReader { geo in
             HStack(spacing: KeyRow.gap) {
                 ForEach(0..<count, id: \.self) { k in
-                    key(k, shown: shown, lit: lit)
+                    key(k, shown: shown, lit: lit).midiMarks(model, [.button("KEY \(k + 1)")])
                 }
             }
             .contentShape(Rectangle())
@@ -93,6 +93,12 @@ struct KeyRow: View {
     private func down(_ e: SpatialEventCollection.Event, width: CGFloat, height: CGFloat, count: Int) {
         let cell: CGFloat = (width + KeyRow.gap) / CGFloat(max(1, count))
         let k: Int = min(count - 1, max(0, Int(e.location.x / cell)))
+        // MIDI LEARN: тап выбирает клавишу целью (нота не звучит).
+        if model.midiLearn.on {
+            touches[e.id] = Int.min
+            model.learnTap(.button("KEY \(k + 1)"))
+            return
+        }
         guard let notes = model.keyNotes(k) else { return }
         let id: Int = e.id.hashValue
         touches[e.id] = id
@@ -138,7 +144,7 @@ struct ProgressionRow: View {
         let shown: Set<Int> = model.shownNotes
         return HStack(spacing: KeyRow.gap) {
             ForEach(0..<n, id: \.self) { c in
-                chip(c, lit: lit, shown: shown).frame(width: w)
+                chip(c, lit: lit, shown: shown).frame(width: w).midiMarks(model, [.button("PROG CHORD \(c + 1)")])
             }
             Spacer(minLength: 0)
         }
@@ -167,6 +173,11 @@ struct ProgressionRow: View {
                         if chipTouches[e.id] == nil {
                             let c: Int = Int(e.location.x / cell)
                             guard c >= 0 && c < count, let notes = model.chipNotes(c) else { continue }
+                            if model.midiLearn.on {
+                                chipTouches[e.id] = Int.min
+                                model.learnTap(.button("PROG CHORD \(c + 1)"))
+                                continue
+                            }
                             let id: Int = e.id.hashValue
                             chipTouches[e.id] = id
                             // Аккорды прогрессии — с той же силой по толчку (без датчика — полная).

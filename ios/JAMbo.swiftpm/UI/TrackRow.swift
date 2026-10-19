@@ -7,11 +7,11 @@ struct TrackRow: View {
 
     var body: some View {
         HStack(spacing: Layout.gap) {
-            ChannelCell(model: model, title: "MIX", channel: .mix).frame(width: layout.step)
+            ChannelCell(model: model, title: "MIX", channel: .mix).frame(width: layout.step).midiTarget(model, "MIX")
             ForEach(0..<model.project.tracks.count, id: \.self) { i in
-                TrackCell(model: model, index: i)
+                TrackCell(model: model, index: i).midiTarget(model, "T\(i + 1)")
             }
-            ChannelCell(model: model, title: "MST", channel: .master).frame(width: layout.step)
+            ChannelCell(model: model, title: "MST", channel: .master).frame(width: layout.step).midiTarget(model, "MST")
         }
         .frame(height: Layout.trackHeight)
     }

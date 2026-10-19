@@ -36,12 +36,13 @@ struct KnobGrid: View {
                         let k: Int = row * 4 + col
                         if mix {
                             MixCell(model: model, slot: k)
+                                .midiMarks(model, [.knob(k), .press(k)])
                                 .offset(liftOffset(k, size))
                                 .scaleEffect(lift?.from == k ? 1.12 : 1)
                                 .zIndex(lift?.from == k ? 1 : 0)
                                 .animation(.easeOut(duration: 0.15), value: lift?.to)
                         } else {
-                            KnobCell(model: model, slot: k)
+                            KnobCell(model: model, slot: k).midiMarks(model, [.knob(k), .press(k)])
                         }
                     }
                 }
@@ -102,6 +103,19 @@ struct KnobGrid: View {
         gridSize = size
         let s: Int = slot(p, size: size)
         var turn = KnobTurn(slot: s, startY: p.y, lastY: p.y, acc: model.knobStart(s))
+        // MIDI LEARN: тап выбирает цель — ручку (TURN / PRESS) или кнопку M, S, ● в MIX; действие не выполняется.
+        if model.midiLearn.on {
+            if model.channel == .mix, let b = MixLayout.button(at: p, slot: s, size: size) {
+                let names: [String] = ["MUTE", "SOLO", "ARM"]
+                model.learnTap(.button("\(names[b]) \(s + 1)"))
+            } else {
+                model.learnKnob(s)
+            }
+            turn.consumed = true
+            turns[id] = turn
+            model.beginGesture()
+            return
+        }
         // MIX: кнопки M, S, ● справа от ручки — тап сразу.
         if model.channel == .mix, let b = MixLayout.button(at: p, slot: s, size: size), s < model.project.tracks.count {
             if b == 0 { model.toggleMute(s) }

@@ -23,6 +23,12 @@ struct RootView: View {
                 if model.pianoMenuOpen {
                     PianoMenu(model: model, layout: layout, screen: geo.size)
                 }
+                if model.midiLearn.on {
+                    LearnBar(model: model)
+                        .frame(maxWidth: geo.size.width - 32)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                        .padding(.bottom, 8)
+                }
             }
             .coordinateSpace(name: "root")
         }
@@ -240,7 +246,7 @@ struct MainMenu: View {
         case .settings:
             SettingsPage(model: model, back: { page = .main })
         case .midi:
-            MidiPage(model: model, back: { page = .main })
+            MidiPage(model: model, back: { page = .main }, close: { isOpen = false })
         case .main:
             MenuScroll { mainItems }
         }

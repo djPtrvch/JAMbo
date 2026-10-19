@@ -42,11 +42,15 @@ struct PatternGrid: View {
         let w = model.gridWindow
         ForEach(0..<Params.gridRows, id: \.self) { r in
             if let k = w.rows[r] {
-                SceneCellView(model: model, row: k).frame(width: g.sceneW, height: g.rowH).offset(g.origin(col: -1, row: r))
+                SceneCellView(model: model, row: k).frame(width: g.sceneW, height: g.rowH)
+                    .midiMarks(model, [.button("ROW \(r + 1)")])
+                    .offset(g.origin(col: -1, row: r))
                 ForEach(0..<g.tracks, id: \.self) { i in
                     ClipCellView(model: model, cell: CellRef(track: i, row: k), lifted: dragCell == CellRef(track: i, row: k) && ghost != nil,
                                  target: target == CellRef(track: i, row: k))
-                        .frame(width: g.trackW, height: g.rowH).offset(g.origin(col: i, row: r))
+                        .frame(width: g.trackW, height: g.rowH)
+                        .midiMarks(model, [.button(MidiButtons.clip(i, r))])
+                        .offset(g.origin(col: i, row: r))
                         .offset(y: dropLift(g, track: i, row: k))
                         .animation(.easeInOut(duration: 0.45), value: model.mixDropDone)
                 }
@@ -106,6 +110,11 @@ struct PatternGrid: View {
     private func begin(_ g: GridGeometry, _ id: SpatialEventCollection.Event.ID, at p: CGPoint) {
         model.ensureAudio()
         let hit = g.hit(p, window: model.gridWindow)
+        // MIDI LEARN: тап выбирает ячейку или строку (по месту в окне строк) целью.
+        if model.midiLearn.on {
+            if let t = learnTarget(hit) { model.learnTap(t) }
+            return
+        }
         var gp = GridPress(hit: hit, t0: Date(), start: p)
         if case .cell(let c) = hit { gp.cell = c }
         gp.top0 = model.gridWindow.top
@@ -185,6 +194,21 @@ struct PatternGrid: View {
         }
         if hypot(dx, dy) > 12 { return }
         tap(p.hit)
+    }
+
+    /// Цель MIDI под пальцем: ячейка «CLIP t.r» или строка «ROW r» (r — место в окне строк 1–8).
+    private func learnTarget(_ hit: GridHit) -> MidiTarget? {
+        let rows: [Int?] = model.gridWindow.rows
+        switch hit {
+        case .cell(let c):
+            guard let r = rows.firstIndex(of: c.row) else { return nil }
+            return .button(MidiButtons.clip(c.track, r))
+        case .scene(let k):
+            guard let r = rows.firstIndex(of: k) else { return nil }
+            return .button("ROW \(r + 1)")
+        default:
+            return nil
+        }
     }
 
     private func tap(_ hit: GridHit) {
@@ -281,8 +305,8 @@ struct GridSideButtons: View {
                     loopButton.frame(height: h)
                 }
                 if scroll {
-                    arrow("▲", enabled: canUp || (model.project.arrowSwitch && model.playing)) { model.gridArrow(-1) }.frame(height: h)
-                    arrow("▼", enabled: canDown || (model.project.arrowSwitch && model.playing)) { model.gridArrow(1) }.frame(height: h)
+                    arrow("▲", enabled: canUp || (model.project.arrowSwitch && model.playing)) { model.gridArrow(-1) }.frame(height: h).midiTarget(model, "GRID ▲")
+                    arrow("▼", enabled: canDown || (model.project.arrowSwitch && model.playing)) { model.gridArrow(1) }.frame(height: h).midiTarget(model, "GRID ▼")
                 }
                 if fader {
                     MixFader(model: model).frame(maxHeight: .infinity)

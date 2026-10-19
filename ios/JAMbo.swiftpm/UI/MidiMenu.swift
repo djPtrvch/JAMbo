@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// Вкладки меню MIDI (MAPPING — S13b).
+/// Вкладки меню MIDI.
 enum MidiTab: String, CaseIterable {
     case devices = "DEVICES"
+    case mapping = "MAPPING"
     case notes = "NOTES"
 }
 
@@ -10,6 +11,7 @@ enum MidiTab: String, CaseIterable {
 struct MidiPage: View {
     let model: AppModel
     let back: () -> Void
+    let close: () -> Void
     @State private var tab: MidiTab = .devices
     @Environment(\.theme) private var theme
 
@@ -20,12 +22,21 @@ struct MidiPage: View {
                 VStack(alignment: .leading, spacing: 8) {
                     tabs
                     Divider().overlay(theme.line).padding(.vertical, 6)
-                    if tab == .devices { MidiDevicesTab(model: model) } else { MidiNotesTab(model: model) }
+                    section
                 }
                 .padding(.trailing, 6)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    @ViewBuilder
+    private var section: some View {
+        switch tab {
+        case .devices: MidiDevicesTab(model: model)
+        case .mapping: MidiMappingTab(model: model, close: close)
+        case .notes: MidiNotesTab(model: model)
+        }
     }
 
     private var tabs: some View {
@@ -104,5 +115,53 @@ struct MidiNotesTab: View {
                 MenuItem(title: c == 0 ? "ALL" : "\(c)", current: current == c) { model.setMidi { $0.noteChannel = c } }
             }
         }
+    }
+}
+
+/// MAPPING: MIDI LEARN (меню закрывается, внизу — полоса LEARN), список маппингов (✕ — удалить), CLEAR ALL.
+struct MidiMappingTab: View {
+    let model: AppModel
+    let close: () -> Void
+
+    var body: some View {
+        let maps: [MidiMapping] = model.settings.midi.mappings
+        return VStack(alignment: .leading, spacing: 8) {
+            MenuItem(title: "MIDI LEARN") {
+                close()
+                model.setLearn(true)
+            }
+            SettingsNote(text: "MIDI LEARN: tap a knob or button on screen, then move a control. Knobs are mapped by position in the 4×4 grid and follow the current mode (track, FX, MOD, MIX, MST); switch to PRESS to map a knob’s push button. Hold a step to p-lock, hold LFO/ENV to set modulation.")
+            FieldLabel(title: "MAPPINGS (\(maps.count))")
+            if maps.isEmpty { SettingsNote(text: "No mappings yet.") }
+            ForEach(0..<maps.count, id: \.self) { k in
+                MidiMapRow(mapping: maps[k]) { model.removeMapping(k) }
+            }
+            MenuItem(title: "CLEAR ALL", enabled: !maps.isEmpty, red: !maps.isEmpty) { model.clearMappings() }
+        }
+    }
+}
+
+/// Строка маппинга: источник → цель, тип управления и условие; ✕ — удалить.
+struct MidiMapRow: View {
+    let mapping: MidiMapping
+    let remove: () -> Void
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(mapping.src.label).font(.system(size: 12, weight: .bold)).foregroundStyle(theme.text)
+                Text(detail).font(.system(size: 11)).foregroundStyle(theme.dim).lineLimit(1)
+            }
+            Spacer(minLength: 0)
+            MenuItem(title: "✕", red: true, action: remove).frame(width: 40)
+        }
+    }
+
+    private var detail: String {
+        var s: String = mapping.target.label + "  ·  " + mapping.control.title
+        if mapping.cond == .page { s += "  ·  " + mapping.page.title }
+        if mapping.cond == .clip { s += "  ·  CLIPS" }
+        return s
     }
 }

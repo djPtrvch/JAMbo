@@ -18,8 +18,8 @@ struct TopBar: View {
     private var leftGroup: some View {
         HStack(spacing: Layout.gap) {
             BurgerButton { menuOpen.toggle() }.frame(width: 52)
-            BpmField(model: model)
-            MetronomeButton(model: model).frame(width: 52)
+            BpmField(model: model).midiTarget(model, MidiButtons.bpm)
+            MetronomeButton(model: model).frame(width: 52).midiTarget(model, "METRONOME")
         }
         .frame(width: Layout.leftColumn)
     }
@@ -31,19 +31,22 @@ struct TopBar: View {
             RootField(model: model)
             HistoryButton(symbol: "arrow.uturn.backward", enabled: model.canUndo || model.morphHeld) { model.undoTapped() }
                 .frame(width: Layout.topButton)
+                .midiTarget(model, "UNDO")
             PlayButton(model: model).frame(width: half)
+                .midiTarget(model, "PLAY")
                 .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { model.sampleRec.playFrame = $0 }
-            RecButton(model: model).frame(width: half)
+            RecButton(model: model).frame(width: half).midiTarget(model, "REC")
             HistoryButton(symbol: "arrow.uturn.forward", enabled: model.canRedo) { model.redo() }
                 .frame(width: Layout.topButton)
-            RollButton(model: model)
+            RollButton(model: model).midiTarget(model, "ROLL")
             ViewButton(title: "EQ", on: model.eqView) { model.toggleEqView() }.frame(width: Layout.topButton)
+                .midiTarget(model, "EQ")
         }
     }
 
     private var rightGroup: some View {
         HStack(spacing: Layout.gap) {
-            PatternsButton(model: model).frame(width: Layout.topButton)
+            PatternsButton(model: model).frame(width: Layout.topButton).midiTarget(model, "PATTERNS")
             TopText(title: "ARRANGE").frame(width: Layout.topButton)
             CPUIndicator(meter: model.audio.core.cpu).frame(width: Layout.meterWidth)
         }

@@ -19,6 +19,7 @@ struct SequencerRow: View {
                     HStack(spacing: look.gap) {
                         ForEach(0..<Params.stepsPerPage, id: \.self) { col in
                             StepCell(model: model, page: page, col: col, look: look)
+                                .midiMarks(model, page == pages.lowerBound ? [.button("STEP \(col + 1)")] : [])
                         }
                     }
                 }
@@ -63,6 +64,11 @@ struct SequencerRow: View {
     /// col — номер шага в ряду (0 — первый шаг первой показанной страницы).
     private func down(_ id: SpatialEventCollection.Event.ID, col: Int, first: Int) {
         model.ensureAudio()
+        // MIDI LEARN: тап выбирает шаг открытой страницы целью (STEP 1…16).
+        if model.midiLearn.on {
+            model.learnTap(.button("STEP \(col % Params.stepsPerPage + 1)"))
+            return
+        }
         let index: Int = first * Params.stepsPerPage + col
         let firstHeld: Bool = presses.values.contains { $0.col == 0 }
         let secondary: Bool = firstHeld && col != 0

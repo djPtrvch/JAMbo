@@ -13,7 +13,7 @@ struct LeftColumn: View {
             if model.channel == .track {
                 FolderArrows(model: model).frame(height: 36)
             } else if model.channel == .mix {
-                MasterRecButton(model: model).frame(height: 36)
+                MasterRecButton(model: model).frame(height: 36).midiTarget(model, "ARM MST")
             }
             if model.channel == .master {
                 // По цепочке (решение пользователя, в вебе CLIP, LIM / SAT, COMP): SAT снизу слева, над ним COMP,
@@ -23,10 +23,10 @@ struct LeftColumn: View {
                 ButtonPair(left: MasterButton(model: model, module: MasterScope.sat),
                            right: MasterButton(model: model, module: MasterScope.lim))
             } else {
-                ButtonPair(left: SourceButton(model: model, title: "LFO1", source: 1),
-                           right: SourceButton(model: model, title: "LFO2", source: 2))
-                ButtonPair(left: SourceButton(model: model, title: "LFO3", source: 3),
-                           right: SourceButton(model: model, title: "ENV", source: 4))
+                ButtonPair(left: SourceButton(model: model, title: "LFO1", source: 1).midiTarget(model, "LFO1"),
+                           right: SourceButton(model: model, title: "LFO2", source: 2).midiTarget(model, "LFO2"))
+                ButtonPair(left: SourceButton(model: model, title: "LFO3", source: 3).midiTarget(model, "LFO3"),
+                           right: SourceButton(model: model, title: "ENV", source: 4).midiTarget(model, "ENV"))
             }
         }
         .onGeometryChange(for: CGRect.self) { g in g.frame(in: .named("root")) } action: { r in
@@ -91,8 +91,10 @@ struct RightColumn: View {
         } else {
             VStack(spacing: Layout.gap) {
                 PagesColumn(model: model)
-                ButtonPair(left: MorphButton(model: model), right: PageButton(model: model, title: "FX", page: .fx))
-                ButtonPair(left: ShiftButton(model: model), right: PageButton(model: model, title: "MOD", page: .mod))
+                ButtonPair(left: MorphButton(model: model).midiTarget(model, "MORPH"),
+                           right: PageButton(model: model, title: "FX", page: .fx).midiTarget(model, "FX"))
+                ButtonPair(left: ShiftButton(model: model),
+                           right: PageButton(model: model, title: "MOD", page: .mod).midiTarget(model, "MOD"))
             }
         }
     }

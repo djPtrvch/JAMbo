@@ -62,6 +62,8 @@ final class AppModel {
     @ObservationIgnored let tapSensor = TapSensor()
     /// MIDI (S13): CoreMIDI, устройства.
     let midi = MidiHost()
+    let midiLearn = MidiLearnState()
+    @ObservationIgnored var midiRun = MidiRuntime()
     /// Последний тап по FX или MOD с зажатой SHIFT (двойной — режим toggle кнопки).
     @ObservationIgnored var lastPageTap: (page: GridPage, at: Date)? = nil
     /// Последний тап по LFO1–3 / ENV (двойной тап — снять назначение с удерживаемой ручки).
