@@ -4,22 +4,24 @@ import Foundation
 // (0…1 по шкале ручки). Стиль — как у своих движков (одна линия, без подсветки частей).
 
 extension EngineIcons {
-    /// SNARE: снизу затухающая волна корпуса — сумма двух тонов f и 1.8·f (частота по TUNE, начало выше на PUNCH),
-    /// сверху шумовая полоса
-    /// (размах — SNAPPY, мелкость — TONE); длина — по Decay.
+    /// SNARE: сверху шумовая полоса (размах — SNAPPY, мелкость — TONE), ниже две затухающие волны корпуса — тон f
+    /// и тон 1.8·f, тише (частота по TUNE, начало выше на PUNCH); длина — по Decay.
     static func snareIcon(_ v: IconValues) -> [IconElement] {
         let k = 4.5 - 3.5 * v.d
-        var ph = 0.0
-        let body = fx(6, 58, 300) { _, u in
-            let f = (3 + 4 * v.h) * (1 + 2 * v.q * exp(-u * 18))
-            ph += f * tau / 300
-            let two = (sin(ph) + 0.5 * sin(1.8 * ph)) / 1.5
-            return 44 - 13 * (1 - 0.4 * v.t) * two * exp(-u * k)
+        let amp = 8 * (1 - 0.4 * v.t)
+        func body(_ y0: Double, _ mul: Double, _ a: Double) -> [(Double, Double)] {
+            var ph = 0.0
+            return fx(6, 58, 300) { _, u in
+                let f = (2 + 3 * v.h) * mul * (1 + 2 * v.q * exp(-u * 18))
+                ph += f * tau / 300
+                return y0 - a * sin(ph) * exp(-u * k)
+            }
         }
         var rnd = IconRandom(7)
         let steps = 16 + Int(60 * clamp(v.m))
-        let noise = fx(6, 58, steps) { _, u in 18 + 10 * v.t * (rnd.next() * 2 - 1) * exp(-u * k * 0.8) }
-        return [IconElement(pts(body)), IconElement(pts(noise)), IconElement([.move(6, 44), .hTo(58)], op: 0.25)]
+        let noise = fx(6, 58, steps) { _, u in 14 + 9 * v.t * (rnd.next() * 2 - 1) * exp(-u * k * 0.8) }
+        return [IconElement(pts(noise)), IconElement(pts(body(34, 1, amp))), IconElement(pts(body(52, 1.8, amp * 0.7))),
+                IconElement([.move(6, 34), .hTo(58)], op: 0.25), IconElement([.move(6, 52), .hTo(58)], op: 0.25)]
     }
 
     /// HAT: шесть вертикальных линий — частоты ряда 808 (положение — TUNE и SPREAD), при NOISE линии рвутся;

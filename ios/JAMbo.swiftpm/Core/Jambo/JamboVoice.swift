@@ -137,13 +137,15 @@ final class JamboVoice {
         bCur = Jambo.waveIndex(t2)
         bPrev = bCur
         bMix = 1
-        // SUB: Key Reset — фазы обоих осцилляторов с нуля (бас одинаков на каждой ноте).
+        // SUB: Key Reset — фазы обоих осцилляторов с одной точки (бас одинаков на каждой ноте): там, где волна
+        // проходит ноль (треугольник — 0, пила — середина периода), иначе нота начиналась бы с пика (щелчок).
         if e == Jambo.sub {
-            a1 = 0
-            a2 = 0
+            wCur = Swift.min(2, Int(t1 * 3)) + 1
+            let p0: Double = wCur == 2 ? 0.5 : 0
+            a1 = p0
+            a2 = p0
             tri1 = 0
             tri2 = 0
-            wCur = Swift.min(2, Int(t1 * 3)) + 1
             wPrev = wCur
             hx = 0
             hy = 0

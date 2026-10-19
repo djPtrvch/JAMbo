@@ -366,8 +366,8 @@ public enum Params {
     public static let fxColumns: [[ParamDef]] = [
         [
             // По умолчанию 40 % (решение пользователя, в вебе — 50).
-            smooth("rev.size", "Rev Size", 0, 100, 40, Fmt.pct),
-            smooth("rev.decay", "Rev Decay", 0.1, 20, 2, exp: true) { v in String(format: "%.1fs", v) },
+            smooth("rev.size", "Rev Size", 0, 100, 30, Fmt.pct),
+            smooth("rev.decay", "Rev Decay", 0.1, 20, 1.5, exp: true) { v in String(format: "%.1fs", v) },
             smooth("rev.tone", "Rev Tone", -100, 100, 0, bipolar: true) { v in
                 let r = Int(v.rounded())
                 return r > 0 ? "+\(r)" : "\(r)"

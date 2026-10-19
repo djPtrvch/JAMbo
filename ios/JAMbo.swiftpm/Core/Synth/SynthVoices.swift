@@ -502,6 +502,7 @@ public final class SynthVoices {
         let s0L = sendL! + t * 3 * st + off, s0R = sendR! + t * 3 * st + off
         let h0 = hz[v]
         let q0 = qDb[v]
+        let cPrev = coef[v]
         hz[v] += (fk.hz - hz[v]) * kf
         qDb[v] += (fk.q - qDb[v]) * kf
         if abs(hz[v] - h0) > 1e-6 || abs(qDb[v] - q0) > 1e-6 {
@@ -523,7 +524,12 @@ public final class SynthVoices {
         let dk = decayK[v], fadeKV = fadeK[v]
         var envV = env[v], fadeV = fadeG[v], rel = released[v] != 0
         var z0 = z[zb], z1 = z[zb + 1]
-        let b0 = c.b0, b1 = c.b1, b2 = c.b2, a1 = c.a1, a2 = c.a2
+        // Коэффициенты фильтра — плавно от прежних к новым внутри куска (иначе ступеньки раз в 24 отсчёта при ENV/LFO
+        // на фильтре звучат призвуком ~2 кГц).
+        var b0 = cPrev.b0, b1 = cPrev.b1, b2 = cPrev.b2, a1 = cPrev.a1, a2 = cPrev.a2
+        let im: Float = 1 / Float(m)
+        let db0 = (c.b0 - b0) * im, db1 = (c.b1 - b1) * im, db2 = (c.b2 - b2) * im
+        let da1 = (c.a1 - a1) * im, da2 = (c.a2 - a2) * im
         var frame = frame0
         var tt = Double(frame0 - start[v])
         var j = 0
@@ -555,6 +561,11 @@ public final class SynthVoices {
             if frame >= fadeFrom { fadeV *= fadeKV }
             g *= lv * fadeV
             let a: Float = outBuf[j] * g
+            b0 += db0
+            b1 += db1
+            b2 += db2
+            a1 += da1
+            a2 += da2
             // Фильтр (TDF II).
             let y: Float = b0 * a + z0
             z0 = b1 * a - a1 * y + z1

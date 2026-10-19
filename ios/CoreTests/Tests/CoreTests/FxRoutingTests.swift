@@ -119,7 +119,8 @@ final class FxRoutingTests: XCTestCase {
         _ = render(core, frames: 512)
         XCTAssertEqual(core.fx.live[FxRack.revSize], 10, accuracy: 1e-6, "шаг 1 с p-lock")
         _ = render(core, frames: 6000)
-        XCTAssertEqual(core.fx.live[FxRack.revSize], 40, accuracy: 1e-6, "шаг 2 — значение клипа (по умолчанию 40 %)")
+        XCTAssertEqual(core.fx.live[FxRack.revSize], 30, accuracy: 1e-6, "шаг 2 — значение клипа (по умолчанию 30 %)")
+        XCTAssertEqual(Params.fxDefaults()["rev.decay"], 1.5)
         XCTAssertEqual(core.fx.live[FxRack.revHpf], Params.revHpfNew, accuracy: 1e-6, "новый проект — LOW CUT 120 Гц")
     }
 }

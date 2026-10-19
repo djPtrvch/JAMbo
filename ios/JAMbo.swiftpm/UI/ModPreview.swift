@@ -12,15 +12,17 @@ struct ModPreview: View {
     static let randomSteps: [Double] = [0.6, -0.3, 0.9, -0.8, 0.2, -0.5, 0.75, -0.1]
 
     var body: some View {
-        TimelineView(.animation) { _ in
+        TimelineView(.animation) { tl in
             VStack(spacing: 4) {
-                ForEach(1..<5, id: \.self) { n in mini(n) }
+                ForEach(1..<5, id: \.self) { n in mini(n, tl.date) }
             }
             .padding(6)
         }
     }
 
-    private func mini(_ n: Int) -> some View {
+    /// date — кадр таймлайна: без него во входе Canvas не перерисовывается и точка стоит, пока не тронут ручки.
+    private func mini(_ n: Int, _ date: Date) -> some View {
+        let frame: Double = date.timeIntervalSinceReferenceDate
         let p: [String: Double] = model.track.params
         let t: Int = model.selectedTrack
         let title: String = n == 4 ? envTitle(p) : lfoTitle(p, n)
@@ -31,6 +33,7 @@ struct ModPreview: View {
         return VStack(alignment: .leading, spacing: 2) {
             Text(title).font(.system(size: 10)).foregroundStyle(theme.dim).lineLimit(1)
             Canvas { ctx, size in
+                _ = frame
                 if n < 4 {
                     ModPreview.drawLfo(ctx, size, p, n, lfoPhase, colors)
                 } else {

@@ -10,15 +10,15 @@ extension EngineIcons {
         let d = v.d
         let g = 1 + 11 * v.m, cmp = 0.7 / tanh(g * 0.7), k = 4.5 - 3.5 * d
         var ph = 0.0
+        // Ось ниже середины, размах волны 16: клик на 100 % — до верха поля (почти в три раза выше волны).
         let w = fx(6, 58, 240) { _, u in
             let f = (0.8 + 0.9 * v.h) * (1 + 9 * v.t * exp(-u * 14))
             ph += f * tau / 240 * 3
-            return 32 - 22 * cmp * tanh(g * 0.7 * sin(ph) * exp(-u * k))
+            return 44 - 16 * cmp * tanh(g * 0.7 * sin(ph) * exp(-u * k))
         }
-        var els: [IconElement] = [IconElement(pts(w)), IconElement([.move(6, 32), .hTo(58)], op: 0.25)]
+        var els: [IconElement] = [IconElement(pts(w)), IconElement([.move(6, 44), .hTo(58)], op: 0.25)]
         if v.q > 0.02 {
-            // На 100 % — до верха поля (выше волны).
-            els.append(IconElement([.move(6, 32), .vTo(32 - 30 * clamp(v.q))]))
+            els.append(IconElement([.move(6, 44), .vTo(44 - 42 * clamp(v.q))]))
         }
         return els
     }
