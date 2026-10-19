@@ -48,6 +48,9 @@ struct PagesColumn: View {
                 rowStep = (h - 4 * CGFloat(PagesColumn.rows - 1)) / CGFloat(PagesColumn.rows) + 4
             }
         }
+        .onGeometryChange(for: CGRect.self) { g in g.frame(in: .named("root")) } action: { r in
+            if model.pagesFrame != r { model.pagesFrame = r }
+        }
     }
 
     @ViewBuilder

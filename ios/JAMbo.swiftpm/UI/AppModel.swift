@@ -176,6 +176,8 @@ final class AppModel {
     @ObservationIgnored let libraryStore = LibraryStore(url: LibraryStore.appFile())
     /// Рамка левой колонки (меню звука ложится на неё).
     var leftFrame: CGRect = .zero
+    /// Колонка миниатюр страниц (в координатах «root») — по ней встаёт меню страницы.
+    var pagesFrame: CGRect = .zero
     /// Звучащие голоса сэмплов (полоса воспроизведения): из колбэка; число — чтобы включать анимацию.
     @ObservationIgnored var heads: [Int: VoiceHead] = [:]
     var headCount: Int = 0

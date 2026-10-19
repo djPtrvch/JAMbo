@@ -186,19 +186,19 @@ extension RootView {
         }
     }
 
-    /// Меню страницы — под её миниатюрой, по центру колонки миниатюр (как в вебе); тап мимо — закрыть.
+    /// Меню страницы — под её миниатюрой, по рамке колонки миниатюр (как меню звука — по левой колонке); тап мимо — закрыть.
     func pageMenu(_ menu: PageMenuState) -> some View {
+        let r: CGRect = model.pagesFrame
         // Верх — на нижней линии обводки страницы (на 2 px выше следующей миниатюры), чтобы линия не выглядывала;
         // не выше и не ниже обводки миниатюр вместе с её линией (по 4 px за край колонки).
-        let top: CGFloat = 8 + Layout.topHeight + Layout.gap + max(-4, min(menu.y - 2, menu.maxY + 4 - PageMenu.height))
-        let trailing: CGFloat = 12 + Layout.meterWidth + Layout.gap + (Layout.leftColumn - PageMenu.width) / 2
-        return ZStack(alignment: .topTrailing) {
+        let dy: CGFloat = max(-4, min(menu.y - 2, menu.maxY + 4 - PageMenu.height))
+        let x: CGFloat = r.midX - PageMenu.width / 2
+        return ZStack(alignment: .topLeading) {
             Color.black.opacity(0.001)
                 .ignoresSafeArea()
                 .onTapGesture { model.pageMenu = nil }
             PageMenu(model: model, page: menu.page) { model.pageMenu = nil }
-                .padding(.top, top)
-                .padding(.trailing, trailing)
+                .offset(x: x, y: r.minY + dy)
         }
     }
 }
