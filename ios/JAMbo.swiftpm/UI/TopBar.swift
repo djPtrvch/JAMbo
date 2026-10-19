@@ -186,7 +186,8 @@ struct ScaleField: View {
     }
 }
 
-/// ROOT: палец вверх-вниз — 24 px на полутон; тап — меню (4 столбца).
+/// ROOT: палец вверх-вниз — 24 px на полутон; тап — меню (4 столбца) от левого края ROOT до правого края REDO
+/// (справа от ROOT: UNDO, PLAY и REC по половине, REDO — 3 кнопки и 3 зазора).
 struct RootField: View {
     let model: AppModel
 
@@ -194,8 +195,11 @@ struct RootField: View {
         let i: Int = model.project.root
         return DragField(label: "ROOT", value: Params.noteNames[i], pxPerUnit: 24,
                          get: { Double(model.project.root) }, set: { model.setRoot(Int($0)) },
-                         tap: { frame in model.choice = ChoiceState(options: Params.noteNames, columns: 4, current: i, anchor: frame,
-                                                                     pick: { model.setRoot($0) }) },
+                         tap: { frame in
+                             let w: CGFloat = frame.width + 3 * Layout.gap + 3 * Layout.topButton
+                             model.choice = ChoiceState(options: Params.noteNames, columns: 4, current: i, anchor: frame,
+                                                        pick: { model.setRoot($0) }, width: w)
+                         },
                          model: model)
     }
 }

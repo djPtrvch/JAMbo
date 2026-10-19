@@ -17,6 +17,8 @@ struct ChoiceState {
     let current: Int
     let anchor: CGRect
     let pick: (Int) -> Void
+    /// Ширина меню (nil — по столбцам, 104 на столбец); меню — от левого края anchor.
+    var width: CGFloat? = nil
 }
 
 extension AppModel {

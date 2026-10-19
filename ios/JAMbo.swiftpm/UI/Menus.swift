@@ -59,7 +59,7 @@ struct ChoiceMenu: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        let width: CGFloat = CGFloat(state.columns) * 104
+        let width: CGFloat = state.width ?? CGFloat(state.columns) * 104
         let rows: Int = (state.options.count + state.columns - 1) / state.columns
         let height: CGFloat = CGFloat(rows) * 48 + 12
         let x: CGFloat = min(max(8, state.anchor.minX), screen.width - width - 8)
