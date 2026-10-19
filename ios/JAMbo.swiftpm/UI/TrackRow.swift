@@ -80,6 +80,8 @@ struct TrackCell: View {
     private func background(_ t: Track) -> Color {
         let flash: Bool = model.live.flashing[index] && !t.mute
         let base: Color = flash ? theme.flash : theme.trackBg
+        // Mute — красная заливка, solo — жёлтая (35 % поверх фона дорожки, при мигании solo — 55 %).
+        if t.mute { return theme.rec.opacity(0.35) }
         return t.solo ? theme.accent.opacity(flash ? 0.55 : 0.35) : base
     }
 

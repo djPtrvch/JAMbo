@@ -113,20 +113,31 @@ public struct Library: Codable, Equatable, Sendable {
         return t.isEmpty ? "Untitled" : t
     }
 
+    /// Расширения аудиофайлов: «kick.wav» из IMPORT и «kick» из SAVE — одно имя.
+    static let audioExts: Set<String> = ["wav", "wave", "aif", "aiff", "caf", "mp3", "m4a", "aac", "flac"]
+
+    /// Имя для сравнения: без расширения аудиофайла, без учёта регистра.
+    static func bare(_ name: String) -> String {
+        let ext: String = (name as NSString).pathExtension.lowercased()
+        let base: String = audioExts.contains(ext) ? (name as NSString).deletingPathExtension : name
+        return base.lowercased()
+    }
+
     /// Имя без повтора в папке: «Name», «Name 2», …
     public func uniqueName(_ parent: String, _ name: String, except: String? = nil) -> String {
         let base: String = Library.clean(name)
-        let taken = Set(nodes.filter { $0.parent == parent && $0.id != except }.map { $0.name })
-        if !taken.contains(base) { return base }
+        let taken = Set(nodes.filter { $0.parent == parent && $0.id != except }.map { Library.bare($0.name) })
+        if !taken.contains(Library.bare(base)) { return base }
         var k = 2
-        while taken.contains("\(base) \(k)") { k += 1 }
+        while taken.contains(Library.bare("\(base) \(k)")) { k += 1 }
         return "\(base) \(k)"
     }
 
     /// Сэмпл или пресет с таким же именем в папке (вопрос при сохранении: перезаписать или сохранить как).
     public func sameName(_ parent: String, _ name: String) -> LibNode? {
         let base: String = Library.clean(name)
-        return nodes.first { $0.parent == parent && $0.kind != .folder && $0.name == base }
+        let b: String = Library.bare(base)
+        return nodes.first { $0.parent == parent && $0.kind != .folder && Library.bare($0.name) == b }
     }
 
     /// Сколько всего внутри папки (с вложенными).

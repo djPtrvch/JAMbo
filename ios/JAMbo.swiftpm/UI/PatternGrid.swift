@@ -2,7 +2,9 @@ import SwiftUI
 
 /// Сетка паттернов (PATTERNS): колонка строк над MIX, столбцы дорожек ровно над дорожками, справа (над MST) —
 /// бутерброд сетки, LOOP ROW и стрелки окна строк. На экране 8 строк. Жесты — на всю сетку, у каждого пальца своё
-/// касание (тапы по нескольким ячейкам сразу — запуск и остановка вместе); перетаскивается один клип.
+/// касание (тапы по нескольким ячейкам сразу — запуск и остановка вместе); перетаскивается один клип или одна строка.
+/// Ячейка и строка: свайп вверх — меню, удержание (0,5 с) и перенос — перетаскивание (клип — копия в другую ячейку,
+/// строка — на другое место), свайп вниз — ничего.
 struct PatternGrid: View {
     let model: AppModel
     let layout: Layout
@@ -11,10 +13,11 @@ struct PatternGrid: View {
     @State private var dragId: SpatialEventCollection.Event.ID? = nil
     @State private var ghost: CGPoint? = nil
     @State private var target: CellRef? = nil
+    /// Перетаскиваемая строка — строка окна под пальцем, куда она встанет.
+    @State private var rowTarget: Int? = nil
 
     static let rowGap: CGFloat = 4
     static let hold: Double = 0.5
-    static let flick: Double = 0.28
 
     var body: some View {
         GeometryReader { geo in
@@ -42,7 +45,8 @@ struct PatternGrid: View {
         let w = model.gridWindow
         ForEach(0..<Params.gridRows, id: \.self) { r in
             if let k = w.rows[r] {
-                SceneCellView(model: model, row: k).frame(width: g.sceneW, height: g.rowH)
+                SceneCellView(model: model, row: k, target: rowTarget == k && dragRow != k).frame(width: g.sceneW, height: g.rowH)
+                    .opacity(dragRow == k && ghost != nil ? 0.35 : 1)
                     .midiMarks(model, [.button("ROW \(r + 1)")])
                     .offset(g.origin(col: -1, row: r))
                 ForEach(0..<g.tracks, id: \.self) { i in
@@ -69,7 +73,14 @@ struct PatternGrid: View {
 
     @ViewBuilder
     private func ghostView(_ g: GridGeometry) -> some View {
-        if let p = ghost, let c = dragCell {
+        if let p = ghost, let k = dragRow {
+            SceneCellView(model: model, row: k, target: false)
+                .frame(width: g.sceneW, height: g.rowH)
+                .scaleEffect(1.06)
+                .shadow(color: .black.opacity(0.5), radius: 10)
+                .offset(x: 0, y: p.y - g.rowH / 2)
+                .allowsHitTesting(false)
+        } else if let p = ghost, let c = dragCell {
             ClipCellView(model: model, cell: c, lifted: false, target: false)
                 .frame(width: g.trackW, height: g.rowH)
                 .scaleEffect(1.06)
@@ -84,6 +95,12 @@ struct PatternGrid: View {
     private var dragCell: CellRef? {
         guard let id = dragId else { return nil }
         return presses[id]?.cell
+    }
+
+    /// Строка, которую тянет палец.
+    private var dragRow: Int? {
+        guard let id = dragId, let p = presses[id], case .scene(let k) = p.hit else { return nil }
+        return k
     }
 
     private func touch(_ g: GridGeometry) -> some Gesture {
@@ -117,7 +134,6 @@ struct PatternGrid: View {
         }
         var gp = GridPress(hit: hit, t0: Date(), start: p)
         if case .cell(let c) = hit { gp.cell = c }
-        gp.top0 = model.gridWindow.top
         presses[id] = gp
         let started = gp.t0
         Task { @MainActor in
@@ -127,7 +143,13 @@ struct PatternGrid: View {
             presses[id] = cur
             switch cur.hit {
             case .cell(let c): model.holdCell(c.track, c.row)
-            case .scene(let k): if !model.isPrev(k) { model.rowMenu = k }
+            // Строка: удержание поднимает её для переноса (меню — свайпом вверх).
+            case .scene(let k):
+                if !model.isPrev(k) && dragId == nil {
+                    dragId = id
+                    ghost = cur.start
+                    rowTarget = k
+                }
             default: break
             }
         }
@@ -138,25 +160,18 @@ struct PatternGrid: View {
         let dx: CGFloat = loc.x - p.start.x
         let dy: CGFloat = loc.y - p.start.y
         if hypot(dx, dy) > 8 { p.moved = true }
-        // Колонка строк: палец вверх-вниз прокручивает окно строк.
+        presses[id] = p
+        // Строка тянется только после удержания (палец замер на 0,5 с); строки между ней и пальцем — цель.
         if p.cell == nil {
-            if !p.held && (p.scrolling || (p.moved && abs(dy) > abs(dx))) {
-                p.scrolling = true
-                let pitch: CGFloat = g.rowH + PatternGrid.rowGap
-                let rows: Int = Int((-dy / pitch).rounded())
-                let w = model.gridWindow
-                let top: Int = min(w.maxTop, max(0, p.top0 + rows))
-                if top != w.top { model.gridTop = top }
-            }
-            presses[id] = p
+            guard dragId == id else { return }
+            ghost = CGPoint(x: g.sceneW / 2, y: loc.y)
+            rowTarget = rowUnder(g, loc.y)
             return
         }
-        presses[id] = p
-        // Клип тянется и после удержания (палец сначала замер — ячейка уже выбрана для правки); тянет один палец.
-        guard let c = p.cell, model.project.tracks[c.track].clipFilled(c.row) else { return }
+        // Клип тянется только после удержания (ячейка уже выбрана для правки); свайп без удержания клип не трогает.
+        guard p.held, let c = p.cell, model.project.tracks[c.track].clipFilled(c.row) else { return }
         if let d = dragId, d != id { return }
-        let early: Bool = !p.held && Date().timeIntervalSince(p.t0) < PatternGrid.flick && -dy > abs(dx)
-        if dragId == nil && (early || hypot(dx, dy) <= 8) { return }
+        if dragId == nil && hypot(dx, dy) <= 8 { return }
         dragId = id
         ghost = loc
         if case .cell(let t) = g.hit(loc, window: model.gridWindow), t != c { target = t } else { target = nil }
@@ -165,35 +180,43 @@ struct PatternGrid: View {
     private func end(_ g: GridGeometry, _ id: SpatialEventCollection.Event.ID, _ loc: CGPoint, cancelled: Bool) {
         guard let p = presses.removeValue(forKey: id) else { return }
         var dropped: CellRef? = nil
-        var dragged: Bool = false
+        var droppedRow: Int? = nil
         if dragId == id {
             dropped = target
-            dragged = true
+            droppedRow = rowTarget
             dragId = nil
             ghost = nil
             target = nil
+            rowTarget = nil
         }
-        if cancelled || p.scrolling { return }
+        if cancelled { return }
         if p.held {
-            if dragged, let c = p.cell, let d = dropped { model.dropClip(from: c, to: d) }
+            if let c = p.cell, let d = dropped { model.dropClip(from: c, to: d) }
+            if case .scene(let k) = p.hit, let r = droppedRow { model.moveRow(k, to: r) }
             return
         }
         let dx: CGFloat = loc.x - p.start.x
         let dy: CGFloat = loc.y - p.start.y
-        // Свайп вверх (копия ячейки не поднималась) — меню ячейки.
-        let flick: Bool = !dragged && -dy > 24 && abs(dx) < -dy
-        if let c = p.cell {
-            if flick {
-                model.cellMenu = CellMenuState(cell: c, anchor: g.frame(c, window: model.gridWindow))
-                return
+        // Свайп вверх — меню ячейки или строки; свайп вниз — ничего.
+        let flick: Bool = -dy > 24 && abs(dx) < -dy
+        if flick {
+            switch p.hit {
+            case .cell(let c): model.cellMenu = CellMenuState(cell: c, anchor: g.frame(c, window: model.gridWindow))
+            case .scene(let k): if !model.isPrev(k) { model.rowMenu = k }
+            default: break
             }
-            if dragged {
-                if let d = dropped { model.dropClip(from: c, to: d) }
-                return
-            }
+            return
         }
         if hypot(dx, dy) > 12 { return }
         tap(p.hit)
+    }
+
+    /// Строка проекта под пальцем (по высоте), куда встанет перетаскиваемая строка: только видимые строки, без PREV.
+    private func rowUnder(_ g: GridGeometry, _ y: CGFloat) -> Int? {
+        let pitch: CGFloat = g.rowH + PatternGrid.rowGap
+        let r: Int = min(Params.gridRows - 1, max(0, Int(y / pitch)))
+        guard let k = model.gridWindow.rows[r], !model.isPrev(k), k < model.project.visibleRows else { return nil }
+        return k
     }
 
     /// Цель MIDI под пальцем: ячейка «CLIP t.r» или строка «ROW r» (r — место в окне строк 1–8).
@@ -237,9 +260,6 @@ struct GridPress {
     var cell: CellRef? = nil
     var moved: Bool = false
     var held: Bool = false
-    /// Прокрутка строк по колонке строк: окно на старте и идёт ли прокрутка.
-    var top0: Int = 0
-    var scrolling: Bool = false
 }
 
 /// Геометрия сетки: те же столбцы, что у строки дорожек (MIX и MST — шириной шага, зазор 6), 8 строк с зазором 4.

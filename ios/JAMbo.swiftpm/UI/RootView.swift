@@ -20,6 +20,9 @@ struct RootView: View {
                 if let c = model.choice {
                     ChoiceMenu(model: model, state: c, screen: geo.size)
                 }
+                if let a = model.rootWheel {
+                    RootWheel(model: model, anchor: a, screen: geo.size)
+                }
                 if model.pianoMenuOpen {
                     PianoMenu(model: model, layout: layout, screen: geo.size)
                 }

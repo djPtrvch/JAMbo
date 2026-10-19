@@ -134,6 +134,8 @@ final class AppModel {
     var mixDropDone: Bool = true
     /// Открытое меню выбора (SCALE, ROOT, PROGRESSION) и меню клавиатуры.
     var choice: ChoiceState? = nil
+    /// Квинтовый круг выбора ROOT (рамка поля ROOT) или nil.
+    var rootWheel: CGRect? = nil
     var pianoMenuOpen: Bool = false
     /// Дубль записи: номер истории после первой ноты (−1 — дубля нет), дорожки и записанные шаги дубля.
     @ObservationIgnored var recTake: Int = -1

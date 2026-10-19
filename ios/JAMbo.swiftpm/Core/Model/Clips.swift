@@ -163,6 +163,32 @@ extension Project {
         if arrStart > k || arrStart >= rows { arrStart = Swift.max(0, arrStart - 1) }
     }
 
+    /// Перенос строки (удержание и перетаскивание по колонке строк): строка a со всеми клипами, именем и повторами
+    /// встаёт на место b, строки между ними сдвигаются; активные и открытые ячейки дорожек и строка старта идут за
+    /// своими строками. Только среди видимых строк (строка PREV перехода MIX не двигается).
+    public mutating func moveRow(_ a: Int, to b: Int) {
+        let n = visibleRows
+        guard a != b, a >= 0, b >= 0, a < n, b < n else { return }
+        // Новое место прежнего номера строки k.
+        func moved(_ k: Int) -> Int {
+            if k == a { return b }
+            if a < b && k > a && k <= b { return k - 1 }
+            if b < a && k >= b && k < a { return k + 1 }
+            return k
+        }
+        for i in tracks.indices {
+            var c = tracks[i].clips
+            let clip = c.remove(at: a)
+            c.insert(clip, at: b)
+            tracks[i].clips = c
+            tracks[i].slot = moved(tracks[i].slot)
+            tracks[i].open = moved(tracks[i].open)
+        }
+        let scene = scenes.remove(at: a)
+        scenes.insert(scene, at: b)
+        arrStart = moved(arrStart)
+    }
+
     public func copyRow(_ k: Int) -> RowClip {
         return RowClip(clips: tracks.map { $0.clips[k] }, scene: scenes[k])
     }

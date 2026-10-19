@@ -210,6 +210,13 @@ extension AppModel {
         if playing { audio.core.events.push(.adoptPlay) }
     }
 
+    /// Перенос строки удержанием: строка со всеми клипами, именем и повторами — на место b.
+    func moveRow(_ a: Int, to b: Int) {
+        if a == b || isPrev(a) || isPrev(b) { return }
+        edit { p in p.moveRow(a, to: b) }
+        if playing { audio.core.events.push(.adoptPlay) }
+    }
+
     func deleteRow(_ k: Int) {
         edit { p in p.deleteRow(k) }
         if playing { audio.core.events.push(.adoptPlay) }

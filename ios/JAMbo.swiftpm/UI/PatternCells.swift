@@ -116,6 +116,8 @@ struct ClipThumb: View {
 struct SceneCellView: View {
     let model: AppModel
     let row: Int
+    /// Сюда встанет перетаскиваемая строка — жёлтый контур.
+    var target: Bool = false
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -135,6 +137,7 @@ struct SceneCellView: View {
             if playing { ProgressBar(fraction: pass.frac) }
         }
         .background(filled ? theme.panel2 : theme.panel, in: RoundedRectangle(cornerRadius: 6))
+        .overlay(RoundedRectangle(cornerRadius: 6).stroke(target ? theme.accent : Color.clear, lineWidth: 1))
         .clipShape(RoundedRectangle(cornerRadius: 6))
         .modifier(Blink(on: model.playing && model.live.sceneQueued == row))
     }

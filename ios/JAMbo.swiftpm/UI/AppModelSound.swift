@@ -438,9 +438,14 @@ extension AppModel {
         hasTrackClip = true
     }
 
+    /// PASTE: дорожка целиком (звук, все паттерны сетки, имя, EQ, папка, громкость); во время игры — ход как у исходной.
     func pasteTrack(_ i: Int) {
         guard let c = trackClipboard else { return }
         edit { p in p.pasteTrack(i, c) }
+        if playing {
+            let like: Int = project.tracks.firstIndex { $0.id == c.id } ?? -1
+            audio.core.events.push(.adoptTrack(track: i, like: like))
+        }
         if i == selectedTrack {
             heldSteps.removeAll()
             viewPage = min(viewPage, seq.pages.count - 1)

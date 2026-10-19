@@ -46,6 +46,27 @@ final class LaunchTests: XCTestCase {
         XCTAssertTrue(steps.contains(16), "играет страница 1 (шаг 16)")
     }
 
+    /// PASTE на новую (остановленную) дорожку во время игры: она играет вставленный клип в такт с исходной.
+    func testPasteTrackDuringPlayFollowsSource() {
+        var p = project()
+        p.tracks[0].pages[0][0].on = true
+        p.addTrack()
+        let core = AudioCore()
+        core.publish(p)
+        core.events.push(.play(true))
+        _ = run(core, frames: 6000 * 5)
+        p.pasteTrack(8, p.tracks[0])
+        core.publish(p)
+        core.events.push(.adoptTrack(track: 8, like: 0))
+        let out = run(core, frames: 6000 * 20)
+        let c = clips(out, track: 8)
+        XCTAssertEqual(c.first?.slot, 0)
+        XCTAssertEqual(c.first?.stopped, false, "вставленная дорожка играет")
+        XCTAssertEqual(c.first?.start, 0, "ход — как у исходной (с тика 0)")
+        let steps: [Int] = out.compactMap { if case .step(8, let pos) = $0 { return pos } else { return nil } }
+        XCTAssertTrue(steps.contains(0), "играет свой паттерн")
+    }
+
     func testStoppedTrackStartsAtBar() {
         var p = project()
         p.tracks[0].stopped = true
@@ -149,6 +170,33 @@ final class LaunchTests: XCTestCase {
         t.clearClip(1)
         XCTAssertFalse(t.clips[1]!.pages[0][0].on)
         XCTAssertTrue(t.clips[0]!.pages[0][0].on, "другие клипы столбца не тронуты")
+    }
+
+    /// Перенос строки: клипы, имя и повторы едут вместе, активные ячейки и строка старта — за своими строками.
+    func testMoveRow() {
+        var p = Project()
+        p.rows = 4
+        p.fillRows()
+        for k in 0..<4 { p.tracks[0].clips[k]!.pages[0][k].on = true }
+        p.setScene(0, name: "A", repeats: 2)
+        p.setScene(3, name: "D", repeats: 1)
+        p.tracks[0].activate(0)
+        p.tracks[1].activate(2)
+        p.arrStart = 3
+        p.moveRow(0, to: 2)
+        XCTAssertEqual(p.scenes[2], SceneRow(name: "A", repeats: 2))
+        XCTAssertTrue(p.tracks[0].clips[2]!.pages[0][0].on, "клип строки A — на новом месте")
+        XCTAssertTrue(p.tracks[0].clips[0]!.pages[0][1].on, "строки между сдвинулись вверх")
+        XCTAssertEqual(p.tracks[0].slot, 2, "активная ячейка — за своей строкой")
+        XCTAssertEqual(p.tracks[0].open, 2)
+        XCTAssertEqual(p.tracks[1].slot, 1)
+        XCTAssertEqual(p.arrStart, 3, "строка старта вне переноса — на месте")
+        p.moveRow(3, to: 0)
+        XCTAssertEqual(p.scenes[0].name, "D")
+        XCTAssertEqual(p.arrStart, 0, "строка старта — за своей строкой")
+        XCTAssertEqual(p.tracks[0].slot, 3)
+        p.moveRow(1, to: 9)
+        XCTAssertEqual(p.scenes[0].name, "D", "за пределы видимых строк — без изменений")
     }
 
     /// Перетаскивание в другой столбец переносит шаги, а не номера страниц.

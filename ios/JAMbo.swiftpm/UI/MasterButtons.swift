@@ -1,7 +1,7 @@
 import SwiftUI
 
 // Кнопки мастера: при MST на месте LFO1–3 и ENV (сетка 2×2: COMP, CLIP / SAT, LIM). Тап — окно модуля (S6);
-// с зажатой SHIFT — BYPASS модуля (видно только с SHIFT: включённый bypass окрашен цветом модуля, как волны скопа).
+// с зажатой SHIFT — BYPASS модуля (с SHIFT включённый bypass залит цветом модуля, как волны скопа; без SHIFT — рамка этого цвета).
 
 extension AppModel {
     /// Bypass модуля мастера (номер — как MasterScope: SAT 0, COMP 1, CLIP 2, LIM 3).
@@ -36,7 +36,8 @@ struct MasterButton: View {
         let names: [String] = ["SAT", "COMP", "CLIP", "LIM"]
         let colors: [Color] = [theme.text, theme.accent, theme.gr, theme.rec]
         let shift: Bool = model.shiftHeld
-        let on: Bool = shift && model.masterBypass(module)
+        let bypass: Bool = model.masterBypass(module)
+        let on: Bool = shift && bypass
         // С SHIFT — в две строки: BYPASS и имя модуля.
         let title: String = shift ? "BYPASS\n" + names[module] : names[module]
         return Text(title)
@@ -48,6 +49,7 @@ struct MasterButton: View {
             .foregroundStyle(on ? (module == MasterScope.sat ? theme.bg : theme.onAccent) : theme.text)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(on ? colors[module] : theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
+            .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(bypass ? colors[module] : Color.clear, lineWidth: 1))
             .contentShape(Rectangle())
             .onTapGesture {
                 // Без SHIFT — окно модуля.

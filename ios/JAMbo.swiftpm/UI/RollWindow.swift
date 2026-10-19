@@ -112,10 +112,11 @@ struct RollMetrics {
     }
 }
 
-/// Цвет строки: корневая — выделена, диезы — чуть другим тоном.
+/// Цвета пианоролла — как у окна EQ: фон поля theme.panel, линии сетки theme.grid / gridStrong; выделение белым
+/// (в светлой теме — чёрным): корневая строка — лёгкая подсветка, диезы — чуть темнее.
 enum RollColors {
     static func row(_ n: Int, root: Int, _ theme: Theme) -> Color {
-        if Roll.isRoot(n, root: root) { return theme.root }
-        return Roll.isSharp(n) ? theme.panel : theme.panel2
+        if Roll.isRoot(n, root: root) { return theme.text.opacity(0.1) }
+        return Roll.isSharp(n) ? Color.black.opacity(0.18) : Color.clear
     }
 }

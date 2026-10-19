@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// Меню звука дорожки (тап по окну сэмпла, как в вебе): закрывает всю левую колонку, кнопки крупные.
+/// Меню звука дорожки (тап по окну сэмпла, как в вебе): закрывает всю левую колонку — от верха окна сэмпла до низа
+/// кнопок LFO; кнопки движков делят свободную высоту поровну (в колонке SYNTH под SAMPLER — пустое место кнопки).
 /// Две колонки движков: DRUMS (KICK, SNARE, HAT, CLAP, PERC) и SYNTH (ANALOG, FM, WTABLE; под ними SAMPLER): тап —
 /// движок дорожки, с зажатыми шагами — их звук; группа LOAD SAMPLE · PRESET · MIDI:
 /// LOAD (браузер библиотеки, S11b), MIDI (выход — S12; для зажатых шагов на этом месте TRACK — вернуть звук дорожки),
@@ -21,10 +22,12 @@ struct SoundMenu: View {
                 column("DRUMS", SynthEngines.drums, sampler: false, steps: steps)
                 column("SYNTH", SynthEngines.synths, sampler: true, steps: steps)
             }
+            .frame(maxHeight: .infinity)
             title("LOAD SAMPLE · PRESET · MIDI")
             loadGroup(steps)
         }
         .padding(6)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(theme.bg, in: RoundedRectangle(cornerRadius: Layout.radius))
         .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(theme.line, lineWidth: 1))
         .shadow(color: .black.opacity(0.5), radius: 12, y: 4)
@@ -55,6 +58,12 @@ struct SoundMenu: View {
                     model.cleanSampler()
                 }
             }
+            // Колонки одной высоты по рядам: недостающие ряды — пустые места кнопок.
+            let rows: Int = max(SynthEngines.drums.count, SynthEngines.synths.count + 1)
+            let filled: Int = ids.count + (sampler ? 1 : 0)
+            ForEach(filled..<max(filled, rows), id: \.self) { _ in
+                Color.clear.frame(maxWidth: .infinity, minHeight: 30, maxHeight: .infinity)
+            }
         }
         .frame(maxWidth: .infinity)
     }
@@ -62,9 +71,9 @@ struct SoundMenu: View {
     private func cell(_ label: String, enabled: Bool, current: Bool = false, _ action: @escaping () -> Void) -> some View {
         let fg: Color = !enabled ? theme.off : (current ? theme.onAccent : theme.text)
         return Button(action: action) {
-            Text(label).font(.system(size: 10, weight: .bold)).lineLimit(1).minimumScaleFactor(0.6)
+            Text(label).font(.system(size: 12, weight: .bold)).lineLimit(1).minimumScaleFactor(0.6)
                 .foregroundStyle(fg)
-                .frame(maxWidth: .infinity, minHeight: 30)
+                .frame(maxWidth: .infinity, minHeight: 30, maxHeight: .infinity)
                 .background(current ? theme.accent : theme.panel, in: RoundedRectangle(cornerRadius: 6))
         }
         .buttonStyle(.plain)

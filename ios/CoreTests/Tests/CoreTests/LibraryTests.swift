@@ -31,6 +31,16 @@ final class LibraryTests: XCTestCase {
         XCTAssertEqual(lib.nodes.count, 2)
     }
 
+    /// SAVE сэмпла: имя из IMPORT с расширением («kick.wav») и имя без него («kick») — одно имя: вопрос OVERWRITE / SAVE AS.
+    func testSameNameIgnoresAudioExtension() {
+        var lib = Library()
+        _ = lib.addSample(Library.root, key: "a", name: "Kick.wav")
+        XCTAssertEqual(lib.sameName(Library.root, "Kick")?.key, "a")
+        XCTAssertEqual(lib.sameName(Library.root, "kick")?.key, "a", "регистр не важен")
+        XCTAssertNil(lib.sameName(Library.root, "Kick.txt"))
+        XCTAssertEqual(lib.uniqueName(Library.root, "Kick"), "Kick 2", "подсказка SAVE AS — свободное имя")
+    }
+
     func testOverwriteAndStore() throws {
         var lib = Library()
         let s = lib.addSample(Library.root, key: "a", name: "Pad")
