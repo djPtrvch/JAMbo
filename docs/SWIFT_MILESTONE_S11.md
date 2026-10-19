@@ -7,4 +7,4 @@
 - IMPORT: сэмплы — в Samples/<ключ>.caf (уже лежащий не трогается), проект — новой записью («имя (imported)», если имя занято), затем окно LOAD / MIX. EXPORT: savedProject (без PREV) и его .caf — во временный файл, системное окно переносит его в «Файлы».
 - Меню PROJECTS: второй ряд — EXPORT, IMPORT.
 - Эталон: ios/tools/webproject/golden.mjs (настоящие normalizeDoc и packProject веба) → web_project.jambo; тесты — WebProjectTests, ProjectPackTests.
-- Проверено: CoreTests 218 (облако). iPad — не проверено.
+- Проверено: CoreTests 218 (облако); на iPad — EXPORT и IMPORT своего файла, IMPORT проекта веба, LOAD и MIX, отказ на чужом файле.
