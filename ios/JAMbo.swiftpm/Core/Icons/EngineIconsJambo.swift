@@ -17,7 +17,8 @@ extension EngineIcons {
         }
         var els: [IconElement] = [IconElement(pts(w)), IconElement([.move(6, 32), .hTo(58)], op: 0.25)]
         if v.q > 0.02 {
-            els.append(IconElement([.move(6, 32), .vTo(32 - 26 * clamp(v.q))]))
+            // На 100 % — до верха поля (выше волны).
+            els.append(IconElement([.move(6, 32), .vTo(32 - 30 * clamp(v.q))]))
         }
         return els
     }

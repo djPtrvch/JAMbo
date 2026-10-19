@@ -4,15 +4,17 @@ import Foundation
 // (0…1 по шкале ручки). Стиль — как у своих движков (одна линия, без подсветки частей).
 
 extension EngineIcons {
-    /// SNARE: снизу затухающая волна корпуса (частота по TUNE, начало выше на PUNCH), сверху шумовая полоса
+    /// SNARE: снизу затухающая волна корпуса — сумма двух тонов f и 1.8·f (частота по TUNE, начало выше на PUNCH),
+    /// сверху шумовая полоса
     /// (размах — SNAPPY, мелкость — TONE); длина — по Decay.
     static func snareIcon(_ v: IconValues) -> [IconElement] {
-        let k = 5.5 - 4 * v.d
+        let k = 4.5 - 3.5 * v.d
         var ph = 0.0
-        let body = fx(6, 58, 240) { _, u in
-            let f = (1.5 + 2.5 * v.h) * (1 + 3 * v.q * exp(-u * 18))
-            ph += f * tau / 240
-            return 44 - 12 * (1 - 0.5 * v.t) * sin(ph) * exp(-u * k)
+        let body = fx(6, 58, 300) { _, u in
+            let f = (3 + 4 * v.h) * (1 + 2 * v.q * exp(-u * 18))
+            ph += f * tau / 300
+            let two = (sin(ph) + 0.5 * sin(1.8 * ph)) / 1.5
+            return 44 - 13 * (1 - 0.4 * v.t) * two * exp(-u * k)
         }
         var rnd = IconRandom(7)
         let steps = 16 + Int(60 * clamp(v.m))
