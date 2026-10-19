@@ -7,8 +7,9 @@ enum ProjectInput: Equatable {
 }
 
 /// Меню PROJECTS (S9c, как ui/projects.ts веба): стрелка назад и «имя · unsaved»; NEW, SAVE, SAVE AS
-/// (переименование — карандашом в списке, решение пользователя; EXPORT, IMPORT — S11); список проектов: тап — окно LOAD / MIX, свайп влево — карандаш и корзина (у Autosave —
-/// только корзина). SAVE AS с именем существующего проекта спрашивает, перезаписать ли его.
+/// (переименование — карандашом в списке, решение пользователя), EXPORT, IMPORT (S11a, файл .jambo — AppModelFiles);
+/// список проектов: тап — окно LOAD / MIX, свайп влево — карандаш и корзина (у Autosave — только корзина).
+/// SAVE AS с именем существующего проекта спрашивает, перезаписать ли его. IMPORT кончается окном LOAD / MIX.
 struct ProjectsPage: View {
     let model: AppModel
     let back: () -> Void
@@ -17,6 +18,9 @@ struct ProjectsPage: View {
     @State private var text: String = ""
     @State private var overwrite: ProjectInfo? = nil
     @State private var opening: ProjectInfo? = nil
+    /// EXPORT: готовый временный файл (окно сохранения в «Файлы»); ошибка EXPORT или IMPORT.
+    @State private var exported: URL? = nil
+    @State private var failure: String? = nil
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -28,7 +32,10 @@ struct ProjectsPage: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .overlay { openPanel }
-        .onAppear { model.refreshProjects() }
+        .onAppear {
+            model.refreshProjects()
+            imported(model.projectImport)
+        }
         .onChange(of: text) { old, new in
             if new.count > ProjectSession.nameLimit && new.count > old.count { text = old }
         }
@@ -37,6 +44,9 @@ struct ProjectsPage: View {
             Button("OK") { enter() }
             Button("Cancel", role: .cancel) {}
         }
+        .fileMover(isPresented: exportShown, file: exported) { _ in exported = nil }
+        .onChange(of: model.projectImport) { _, r in imported(r) }
+        .alert(failure ?? "", isPresented: failureShown) { Button("OK", role: .cancel) {} }
         .alert("Overwrite", isPresented: overwriteShown) {
             Button("CANCEL", role: .cancel) {}
             Button("OVERWRITE", role: .destructive) { confirmOverwrite() }
@@ -49,15 +59,48 @@ struct ProjectsPage: View {
         MenuBackHeader(title: model.unsaved ? "\(model.session.name) · unsaved" : model.session.name, back: back)
     }
 
+    /// Два ряда: NEW, SAVE, SAVE AS; EXPORT, IMPORT.
     private var actions: some View {
-        HStack(spacing: 4) {
-            MenuItem(title: "NEW") {
-                close()
-                model.newProject()
+        VStack(spacing: 4) {
+            HStack(spacing: 4) {
+                MenuItem(title: "NEW") {
+                    close()
+                    model.newProject()
+                }
+                MenuItem(title: "SAVE") { model.saveProject() }
+                MenuItem(title: "SAVE AS") { ask(.saveAs, "\(model.session.name) copy") }
             }
-            MenuItem(title: "SAVE") { model.saveProject() }
-            MenuItem(title: "SAVE AS") { ask(.saveAs, "\(model.session.name) copy") }
+            HStack(spacing: 4) {
+                MenuItem(title: "EXPORT") { export() }
+                MenuItem(title: "IMPORT") { model.chooseProjectFile() }
+            }
         }
+    }
+
+    // MARK: — EXPORT, IMPORT (S11a)
+
+    private func export() {
+        model.exportProjectFile { url in
+            if let u = url { exported = u } else { failure = "Can’t export the project." }
+        }
+    }
+
+    /// Итог IMPORT: новый проект — окно LOAD / MIX, ошибка — сообщение.
+    private func imported(_ r: ProjectImport?) {
+        guard let r = r else { return }
+        model.projectImport = nil
+        switch r {
+        case .done(let info): opening = info
+        case .failed(let text): failure = text
+        }
+    }
+
+    private var exportShown: Binding<Bool> {
+        Binding(get: { exported != nil }, set: { if !$0 { exported = nil } })
+    }
+
+    private var failureShown: Binding<Bool> {
+        Binding(get: { failure != nil }, set: { if !$0 { failure = nil } })
     }
 
     @ViewBuilder

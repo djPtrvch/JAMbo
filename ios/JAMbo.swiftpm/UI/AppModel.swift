@@ -149,6 +149,9 @@ final class AppModel {
     var soundMenu: SoundMenuState? = nil
     var importTarget: ImportTarget? = nil
     var importing: Bool = false
+    /// Выбор файла — для IMPORT проекта (.jambo), а не сэмплов; итог IMPORT (меню PROJECTS показывает LOAD / MIX).
+    var importingProject: Bool = false
+    var projectImport: ProjectImport? = nil
     /// Рамка левой колонки (меню звука ложится на неё).
     var leftFrame: CGRect = .zero
     /// Звучащие голоса сэмплов (полоса воспроизведения): из колбэка; число — чтобы включать анимацию.

@@ -145,4 +145,21 @@ extension ProjectSession {
         let note: String = Params.noteNames[((i.root % 12) + 12) % 12]
         return "\(Int(i.bpm.rounded())) · \(note) \(Scales.all[scale].short)"
     }
+
+    /// IMPORT (S11a, как importProject веба): имя занято — «имя (imported)»; длиннее 24 — можно (подставленное).
+    public static func importedName(_ name: String, in list: [ProjectInfo]) -> String {
+        let n: String = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let base: String = n.isEmpty ? nextName(list) : n
+        return list.contains { $0.name == base } ? "\(base) (imported)" : base
+    }
+
+    /// EXPORT: имя файла .jambo — буквы, цифры, «-», «_» и пробел, прочее — «_» (как exportProject веба).
+    public static func exportFileName(_ name: String) -> String {
+        var out: String = ""
+        for ch in name {
+            let ok: Bool = ch.isLetter || ch.isNumber || ch == "-" || ch == "_" || ch == " "
+            out.append(ok ? ch : "_")
+        }
+        return (out.isEmpty ? "project" : out) + ".jambo"
+    }
 }

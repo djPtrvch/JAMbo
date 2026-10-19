@@ -56,6 +56,27 @@ final class SampleStore {
         return read(file)
     }
 
+    /// Сэмпл из файла проекта .jambo (S11a): байты исходного файла (веб) или своей копии .caf (Swift) — в
+    /// Samples/<ключ>.caf. Уже лежит — не трогается. Ключ — только буквы и цифры (имя файла), иначе false.
+    static func importPacked(_ s: PackSample, dir: URL) -> Bool {
+        if s.key.isEmpty || !s.key.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber) }) { return false }
+        let dest = dir.appendingPathComponent("\(s.key).caf")
+        if let file = try? AVAudioFile(forReading: dest), file.length > 0 { return true }
+        // AVAudioFile читает только файл: байты — во временный файл с расширением исходного.
+        let ext: String = (s.name as NSString).pathExtension.isEmpty ? "wav" : (s.name as NSString).pathExtension
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("import-\(s.key).\(ext)")
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        guard (try? s.bytes.write(to: tmp, options: .atomic)) != nil,
+              let file = try? AVAudioFile(forReading: tmp), let data = read(file) else { return false }
+        write(data, to: dest)
+        return true
+    }
+
+    /// Байты своей копии сэмпла (Samples/<ключ>.caf) для EXPORT; нет файла — nil.
+    static func packed(key: String, dir: URL) -> Data? {
+        return try? Data(contentsOf: dir.appendingPathComponent("\(key).caf"))
+    }
+
     /// Отредактированная копия (TRIM, NORMALIZE, MONO): ключ по её отсчётам, копия на диске.
     static func store(_ data: SampleData, dir: URL) -> String {
         var hasher = SHA256()

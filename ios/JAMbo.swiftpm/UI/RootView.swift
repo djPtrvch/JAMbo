@@ -28,12 +28,21 @@ struct RootView: View {
         }
         // Клавиатура (имя дорожки, темп числом) не сдвигает экран: поля ввода — в верхней части.
         .ignoresSafeArea(.keyboard)
-        .fileImporter(isPresented: importing, allowedContentTypes: [.audio], allowsMultipleSelection: true) { result in
-            if case .success(let urls) = result { model.importFiles(urls) } else { model.importTarget = nil }
-        }
+        .fileImporter(isPresented: importing, allowedContentTypes: model.importingProject ? [.data] : [.audio],
+                      allowsMultipleSelection: !model.importingProject) { result in picked(result) }
     }
 
-    /// Выбор файлов (LOAD): «Файлы» iPad и iCloud Drive, можно сразу несколько.
+    /// Выбранные файлы: проект (IMPORT, один .jambo) или сэмплы (LOAD).
+    private func picked(_ result: Result<[URL], Error>) {
+        if model.importingProject {
+            model.importingProject = false
+            if case .success(let urls) = result, let url = urls.first { model.importProjectFile(url) }
+            return
+        }
+        if case .success(let urls) = result { model.importFiles(urls) } else { model.importTarget = nil }
+    }
+
+    /// Выбор файлов (LOAD, IMPORT): «Файлы» iPad и iCloud Drive; сэмплов можно сразу несколько.
     private var importing: Binding<Bool> {
         Binding(get: { model.importing }, set: { model.importing = $0 })
     }

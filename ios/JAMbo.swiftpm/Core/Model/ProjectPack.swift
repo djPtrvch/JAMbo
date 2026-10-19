@@ -120,4 +120,21 @@ public struct ProjectPack: Equatable, Sendable {
         guard let data = try? JSONSerialization.data(withJSONObject: file, options: []) else { return nil }
         return ProjectFormat.decode(data)?.doc
     }
+
+    /// Проект из файла любого формата: веб — конвертер (WebProject), Swift — как есть; иначе nil.
+    public func project() -> Project? {
+        return isWeb ? WebProject.convert(doc) : swiftProject()
+    }
+
+    /// Сэмплы, нужные проекту p, с ключами Swift-версии (у веба — без 's:'); лишние (свои таблицы WTABLE) — нет.
+    public func samples(for p: Project) -> [PackSample] {
+        let need: Set<String> = p.sampleKeys
+        var out: [PackSample] = []
+        for s in samples {
+            var x = s
+            x.key = WebProject.key(s.key)
+            if need.contains(x.key) && !out.contains(where: { $0.key == x.key }) { out.append(x) }
+        }
+        return out
+    }
 }
