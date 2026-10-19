@@ -79,6 +79,11 @@ struct MixCell: View {
             small("M", on: t.mute, color: theme.rec, frame: frames[0])
             small("S", on: t.solo, color: theme.accent, frame: frames[1])
             dot(frames[2], on: model.stemLit(slot))
+            if model.midiLearn.on {
+                MidiSmallMark(model: model, target: .button("MUTE \(slot + 1)"), frame: frames[0])
+                MidiSmallMark(model: model, target: .button("SOLO \(slot + 1)"), frame: frames[1])
+                MidiSmallMark(model: model, target: .button("ARM \(slot + 1)"), frame: frames[2])
+            }
         }
     }
 

@@ -101,3 +101,32 @@ extension View {
         }
     }
 }
+
+/// Метка маленькой кнопки (M, S, ● в MIX) в режиме LEARN: заливка и рамка — на кнопке, источник — справа, рядом
+/// с кнопкой (как в вебе). Касания не принимает — цель выбирает сетка ручек.
+struct MidiSmallMark: View {
+    let model: AppModel
+    let target: MidiTarget
+    let frame: CGRect
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let m: MidiMapping? = model.midiMapping(target)
+        let picked: Bool = model.midiLearn.target == target
+        return ZStack(alignment: .topLeading) {
+            RoundedRectangle(cornerRadius: 5)
+                .fill(m == nil ? Color.clear : theme.accent.opacity(0.3))
+                .overlay(RoundedRectangle(cornerRadius: 5).stroke(picked ? learnBlue : Color.clear, lineWidth: 2))
+                .frame(width: frame.width, height: frame.height)
+                .offset(x: frame.minX, y: frame.minY)
+            if let m = m {
+                Text(MidiMark.short(m))
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(theme.text)
+                    .fixedSize()
+                    .offset(x: frame.maxX + 3, y: frame.midY - 6)
+            }
+        }
+        .allowsHitTesting(false)
+    }
+}

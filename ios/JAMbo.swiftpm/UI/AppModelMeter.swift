@@ -70,3 +70,27 @@ extension AppModel {
         l.resetRequests.store(l.resetRequests.load() + 1)
     }
 }
+
+/// Регулятор громкости на измерителе справа (палец и MIDI — цель LEVEL, S13b).
+extension AppModel {
+    /// Итоговая громкость канала измерителя (подпись VOL и положение регулятора): у дорожки — громкость MIX
+    /// (при RELATIVE — с подстройкой trim, выше громкости MIX не поднимается), у MIX и MST — громкость выхода.
+    func meterVol(_ ch: Int) -> Double {
+        if ch == Levels.master { return project.outVol }
+        guard ch < project.tracks.count else { return Params.volDef }
+        let t = project.tracks[ch]
+        if !settings.levelRelative { return t.vol }
+        if t.trim <= Params.volMin + 0.05 { return Params.volMin }
+        return max(Params.volMin, t.vol + t.trim)
+    }
+
+    func setMeterVol(_ ch: Int, _ v: Double) {
+        if ch == Levels.master {
+            setOutVol(v)
+        } else if settings.levelRelative {
+            setTrackLevel(ch, v)
+        } else {
+            setTrackVol(ch, v)
+        }
+    }
+}

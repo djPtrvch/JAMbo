@@ -69,7 +69,7 @@ extension AppModel {
         switch t {
         case .knob: return true
         case .press: return false
-        case .button(let n): return n == MidiButtons.bpm
+        case .button(let n): return MidiButtons.continuous.contains(n)
         }
     }
 
@@ -83,6 +83,8 @@ extension AppModel {
         case .button(let n):
             if n == MidiButtons.bpm {
                 midiBpm(m, input)
+            } else if n == MidiButtons.level {
+                midiLevel(m, input)
             } else {
                 for p in input.presses(press: press) { midiButton(n, p) }
             }
@@ -156,6 +158,15 @@ extension AppModel {
         let cur: Double = (project.bpm - lo) / (hi - lo)
         midiGesture()
         setBpm(lo + input.knobValue(m, cur: cur) * (hi - lo))
+    }
+
+    /// Регулятор громкости измерителя: как ручка — весь ход шкалы (−60…0 dB) по Range.
+    private func midiLevel(_ m: MidiMapping, _ input: MidiInput) {
+        let ch: Int = meterChannel
+        let lo: Double = Params.volMin
+        let cur: Double = (meterVol(ch) - lo) / -lo
+        midiGesture()
+        setMeterVol(ch, lo + input.knobValue(m, cur: cur) * -lo)
     }
 
     /// Кнопка по имени: нажатие и отпускание (отпускание — только той, что нажата с MIDI).

@@ -51,12 +51,7 @@ struct MeterColumn: View {
 
     /// Итоговая громкость (подпись VOL): у дорожки — громкость MIX и подстройка.
     private func volValue(_ ch: Int) -> Double {
-        if ch == Levels.master { return model.project.outVol }
-        guard ch < model.project.tracks.count else { return Params.volDef }
-        let t = model.project.tracks[ch]
-        if !model.settings.levelRelative { return t.vol }
-        if t.trim <= Params.volMin + 0.05 { return Params.volMin }
-        return max(Params.volMin, t.vol + t.trim)
+        return model.meterVol(ch)
     }
 
     /// Положение регулятора на шкале: громкость выхода или итоговая громкость дорожки (при RELATIVE — громкость MIX
@@ -84,6 +79,7 @@ struct MeterColumn: View {
             .contentShape(Rectangle())
             .gesture(drag(ch))
         }
+        .midiTarget(model, MidiButtons.level)
     }
 
     private func thumb(_ vol: Double, _ size: CGSize) -> some View {
@@ -107,13 +103,7 @@ struct MeterColumn: View {
                 }
                 let dy: Double = Double(-g.translation.height / MeterColumn.travel)
                 let v: Double = (start ?? 0) + dy * -Params.volMin
-                if ch == Levels.master {
-                    model.setOutVol(v)
-                } else if model.settings.levelRelative {
-                    model.setTrackLevel(ch, v)
-                } else {
-                    model.setTrackVol(ch, v)
-                }
+                model.setMeterVol(ch, v)
             }
             .onEnded { _ in
                 guard start != nil else { return }

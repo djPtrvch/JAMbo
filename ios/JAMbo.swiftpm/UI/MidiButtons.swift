@@ -4,13 +4,17 @@ import Foundation
 /// пользователя); ячейки и строки сетки паттернов — по месту в окне строк 1–8.
 enum MidiButtons {
     static let bpm = "BPM"
+    /// Регулятор громкости на измерителе справа (как ручка; дорожка — выбранная, при MIX и MST — выход).
+    static let level = "LEVEL"
+    /// Цели с непрерывным значением (маппятся как ручка).
+    static let continuous: [String] = [bpm, level]
     static let fixed: [String] = ["PLAY", "REC", "PATTERNS", "EQ", "ROLL", "UNDO", "METRONOME", "CHORD", "OCTAVE ▲",
                                   "OCTAVE ▼", "LFO1", "LFO2", "LFO3", "ENV", "FX", "MOD", "MORPH", "MIX", "MST",
-                                  "ARM MST", "GRID ▲", "GRID ▼", bpm]
+                                  "ARM MST", "GRID ▲", "GRID ▼", bpm, level]
 
     /// Все имена (список действий нажатия ручки в окне MIDI MAP): постоянные, затем с номерами.
     static var all: [String] {
-        var out: [String] = fixed.filter { $0 != bpm }
+        var out: [String] = fixed.filter { !continuous.contains($0) }
         for n in 1...Params.maxTracks { out.append("T\(n)") }
         for p in ["MUTE", "SOLO", "ARM"] {
             for n in 1...Params.maxTracks { out.append("\(p) \(n)") }
