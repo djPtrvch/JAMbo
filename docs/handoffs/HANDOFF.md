@@ -1,11 +1,11 @@
-# Handoff: JAMbo, Swift-версия — S13 (MIDI), дальше S13d
+# Handoff: JAMbo, Swift-версия — S13 (MIDI), дальше S13e
 
 ## 1. Контекст проекта
 Groovebox для iPad. Веб (`src/`, `public/`) — эталон, заморожен. Swift-перенос — ветка `swift`, `ios/JAMbo.swiftpm`. Правила — `CLAUDE.md`, `ios/CLAUDE.md`; план и вехи — `docs/SWIFT_AUDIT.md` (раздел 6); итоги вех — `docs/SWIFT_MILESTONE_Sx.md`. Поведение MIDI — `docs/ai/settings-midi-sync.md` (в ветке swift описывает Swift-версию).
 
 ## 2. Принятые решения
 - Порядок вех: S13 MIDI → S14 оптимизация и App Store → S15 автоматизация.
-- План S13: a — CoreMIDI, устройства, ноты (готово); b — маппинг и LEARN (готово); c — окно MIDI MAP и пресеты (готово); d — обратная связь; e — SYNC (меню, SYNC QUANTUM, MIDI-клок SEND / RECEIVE, офсеты, TempoSource; настройки Link только хранятся); f — Bluetooth MIDI (CONNECT и ADVERTISE — CABTMIDICentralViewController и CABTMIDILocalPeripheralViewController; capability Bluetooth добавляет пользователь), итог SWIFT_MILESTONE_S13.md.
+- План S13: a — CoreMIDI, устройства, ноты (готово); b — маппинг и LEARN (готово); c — окно MIDI MAP и пресеты (готово); d — обратная связь (готово); e — SYNC (меню, SYNC QUANTUM, MIDI-клок SEND / RECEIVE, офсеты, TempoSource; настройки Link только хранятся); f — Bluetooth MIDI (CONNECT и ADVERTISE — CABTMIDICentralViewController и CABTMIDILocalPeripheralViewController; capability Bluetooth добавляет пользователь), итог SWIFT_MILESTONE_S13.md.
 - Решения пользователя в S13:
   - Нота с MIDI держится до Note Off (в вебе — один шаг).
   - TWISTER PRESET и встроенный пресет Twister убраны (пользователь сохранит свой).
@@ -15,18 +15,21 @@ Groovebox для iPad. Веб (`src/`, `public/`) — эталон, заморо
   - Ячейки и строки сетки — Clip launcher или Global.
   - Рамка цели в LEARN — жёлтая; условие в списке — GLOBAL / PAGE / CLIPS; в списке — устройство.
   - Темп с MIDI — целыми BPM; имена пресетов маппингов — до 40 знаков.
+  - Тип Button latch — переключатель на контроллере (127 — вкл., 0 — выкл.; TouchOSC toggle); LEARN ставит momentary.
+  - Обратная связь — каждый кадр (60 Гц; в вебе 30 мс), фейдеру ABSOLUTE, который двигают, — без эха 0,3 с; нажатие ручки (PRESS) обратную связь не шлёт (у Twister этот источник — цвет подсветки).
+  - DONE на полосе LEARN закрывает и окно MIDI MAP.
   - SETTINGS → RECORD → STEP SWIPE: LENGTH / PAINT.
 - Ableton Link: LinkKit, -lc++ и entitlement multicast в Playgrounds невозможны — сам Link остаётся этапу 9 (спайк B0), в S13e — только меню и настройки.
 - Термины (CLAUDE.md): сэмпл-лок — шаг со своим сэмплом, пресет-лок — шаг со своим пресетом синта.
 
 ## 3. Текущая задача
-S13d — обратная связь: значения ручек уходят на выход (в своём диапазоне Range, только изменения), кольца Twister повторяют экран; кнопки шлют 127, когда горят (PLAY играет, REC, PATTERNS, EQ, зажатые LFO/ENV/FX/MOD, MORPH, выбранная дорожка, MUTE/SOLO/ARM, триг на STEP), иначе 0; Feedback port маппинга — Default (DEVICES → FEEDBACK OUTPUT), None или выход. Отправка — MIDISendEventList, вне колбэка, по таймеру UI.
+S13e — SYNC: меню SYNC, SYNC QUANTUM, MIDI-клок SEND / RECEIVE, MIDI OFFSET и LINK OFFSET, TempoSource (как src/tempoSource.ts веба); настройки Ableton Link только хранятся (сам Link — этап 9).
 
 ## 4. Что уже решено
-- S0–S12 готовы и проверены на iPad; S13a–c проверены на iPad. CoreTests — 278.
-- Core/Midi: MidiMessage (разбор UMP MIDI 1.0), MidiSettings (вход, выход, ноты, mappings, preset, pressTouch), MidiMapping (цели, типы, энкодеры, условия, MidiPlace), MidiMapper (условия, LEARN, правка, MidiToggles), MidiPresets. Тесты — MidiTests, MidiMapTests, MidiPresetTests.
-- Audio/MidiHost.swift — клиент CoreMIDI, все источники, списки устройств; сообщения — на главный поток.
-- UI: AppModelMidi (разбор, ручки, PRESS, BPM, LEVEL, XFADER), AppModelMidiMap (окно, пресеты, подписи), MidiButtons (имена и действия кнопок), MidiLearnState, MidiLearnViews (полоса LEARN, метки), MidiMenu (DEVICES, MAPPING, NOTES), MidiMapWindow и MidiMapPages. withKnobPlace (AppModel.swift) — действие ручки на другом месте.
+- S0–S12 готовы и проверены на iPad; S13a–d проверены на iPad (обратная связь — с TouchOSC по Bluetooth). CoreTests — 283.
+- Core/Midi: MidiMessage (разбор UMP MIDI 1.0), MidiSettings (вход, выход, ноты, mappings, preset, pressTouch), MidiMapping (цели, типы, энкодеры, условия, MidiPlace), MidiMapper (условия, LEARN, правка, MidiToggles), MidiPresets, MidiFeedback (действующие маппинги, значение в Range, только изменения). Тесты — MidiTests, MidiMapTests, MidiPresetTests, MidiFeedbackTests.
+- Audio/MidiHost.swift — клиент CoreMIDI, все источники, списки устройств; сообщения — на главный поток; выходной порт и send (обратная связь).
+- UI: AppModelMidi (разбор, ручки, PRESS, BPM, LEVEL, XFADER), AppModelMidiMap (окно, пресеты, подписи), MidiButtons (имена и действия кнопок), MidiLearnState, MidiLearnViews (полоса LEARN, метки), MidiMenu (DEVICES, MAPPING, NOTES), MidiMapWindow и MidiMapPages. withKnobPlace (AppModel.swift) — действие ручки на другом месте. AppModelMidiFeedback — обратная связь (из drain), Button latch, состояние кнопок (midiLit).
 - Настройки — AppSettings.midi (UserDefaults "settings"), пресеты маппингов — UserDefaults "midiPresets".
 
 ## 5. Что осталось решить
@@ -53,4 +56,4 @@ S13d — обратная связь: значения ручек уходят �
 - Звуковые ошибки (щелчки) — воспроизводить сценой пользователя в тесте Core и мерить; при сомнении — стенд-страница с AudioWorklet (как SUB Bench в S12).
 
 ## 7. Первый запрос для нового чата
-«Прочитай docs/handoffs/HANDOFF.md и ios/CLAUDE.md. Продолжаем S13: S13d — обратная связь»
+«Прочитай docs/handoffs/HANDOFF.md и ios/CLAUDE.md. Продолжаем S13: S13e — SYNC»
