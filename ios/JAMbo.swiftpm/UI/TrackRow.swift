@@ -29,7 +29,7 @@ struct ChannelCell: View {
             // Жирность — как у дорожек: выбранная heavy, остальные semibold.
             .font(.system(size: 12, weight: selected ? .heavy : .semibold))
             .tracking(0.7)
-            .foregroundStyle(selected ? theme.text : theme.dim)
+            .foregroundStyle(theme.text)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .overlay(alignment: .topLeading) {
                 if channel == .master { StemRecDot(model: model, channel: StemRing.master) }
@@ -62,12 +62,12 @@ struct TrackCell: View {
         // Как в вебе: выбранная — жёлтый контур, заглушённая — красный (перекрывает выбор) и красная заливка.
         let border: Color = t.mute ? theme.rec : (selected ? theme.accent : Color.clear)
         return ZStack(alignment: .topTrailing) {
-            // Выбранная дорожка — имя крупнее и жирнее; невыбранные — как MIX и MST (12, semibold, разрядка, цвет dim).
+            // Выбранная дорожка — имя крупнее и жирнее; невыбранные — как MIX и MST (12, semibold, разрядка); цвет — белый.
             Text(t.name)
                 .font(.system(size: selected ? 15 : 12, weight: selected ? .heavy : .semibold))
                 .tracking(selected ? 0 : 0.7)
                 .lineLimit(1)
-                .foregroundStyle(selected ? theme.text : theme.dim)
+                .foregroundStyle(theme.text)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             stateLetter(t)
         }
