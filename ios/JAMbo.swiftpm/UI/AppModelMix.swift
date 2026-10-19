@@ -34,6 +34,7 @@ extension AppModel {
         for m in tr.moves { drop[m.track] = min(Params.gridRows - 1, max(0, m.from - top)) }
         resetForProject()
         keyHold = playing && !settings.mixKey
+        bpmHold = playing && !settings.mixCrossfader ? next.bpm : nil
         mix = tr
         mutatePlay({ p in p = made.0 }, publish: false)
         applyMix(tr.pos)
@@ -62,7 +63,9 @@ extension AppModel {
         guard var tr = mix else { return }
         tr.pos = pos
         mix = tr
-        let b: MixBlend = tr.blend(pos)
+        var b: MixBlend = tr.blend(pos)
+        // CROSSFADER OFF во время игры: темп — старого проекта.
+        if bpmHold != nil { b.globals.bpm = tr.from.bpm }
         let bpm0: Double = project.bpm
         mutatePlay({ p in b.globals.apply(to: &p) }, publish: false)
         mixMaster = pos >= 1 ? nil : b.master
@@ -88,8 +91,23 @@ extension AppModel {
         trace("mix end")
     }
 
-    /// Проект для записи на диск: во время перехода — новый проект без PREV.
-    var savedProject: Project { return project.forSave(mix) }
+    /// Проект для записи на диск: во время перехода — новый проект без PREV; темп старого проекта не пишется.
+    var savedProject: Project {
+        var p = project.forSave(mix)
+        if let b = bpmHold { p.bpm = b }
+        return p
+    }
+
+    /// Игра остановилась: гамма и нота больше не держатся, темп — нового проекта.
+    func releaseHolds() {
+        keyHold = false
+        guard let b = bpmHold else { return }
+        bpmHold = nil
+        if project.bpm != b {
+            mutatePlay({ p in p.bpm = b }, publish: true)
+            audio.core.events.push(.tempo(b))
+        }
+    }
 
     /// Ячейка строки PREV (во время перехода): пустую не создать, в неё не вставить и не перетащить.
     func isPrev(_ k: Int) -> Bool {

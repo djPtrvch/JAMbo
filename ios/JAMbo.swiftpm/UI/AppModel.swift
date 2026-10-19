@@ -121,6 +121,8 @@ final class AppModel {
     var mix: MixTransition? = nil
     @ObservationIgnored var mixMaster: [Double]? = nil
     @ObservationIgnored var keyHold: Bool = false
+    /// CROSSFADER OFF: темп старого проекта держится, пока идёт игра; здесь — темп нового проекта (для записи).
+    @ObservationIgnored var bpmHold: Double? = nil
     /// Анимация MIX: клипы опускаются в PREV из строк окна (дорожка → строка окна), пока mixDropDone false.
     var mixDrop: [Int: Int] = [:]
     var mixDropDone: Bool = true
@@ -246,8 +248,8 @@ final class AppModel {
         playing.toggle()
         endRecTake()
         live.stopped()
-        if !playing { keyHold = false }
         audio.core.events.push(.play(playing))
+        if !playing { releaseHolds() }
     }
 
     /// Ход игры из колбэка: клип запущен или дорожка остановлена; транспорт остановился сам (AT THE END: STOP).
@@ -271,7 +273,7 @@ final class AppModel {
         case .ended:
             if playing {
                 playing = false
-                keyHold = false
+                releaseHolds()
                 endRecTake()
                 live.stopped()
             }
@@ -289,6 +291,7 @@ final class AppModel {
     func setBpm(_ value: Double) {
         let bpm: Double = min(Params.bpmMax, max(Params.bpmMin, (value * 10).rounded() / 10))
         if bpm == project.bpm { return }
+        bpmHold = nil
         edit { p in p.bpm = bpm }
         audio.core.events.push(.tempo(bpm))
     }
@@ -378,6 +381,7 @@ final class AppModel {
         mix = nil
         mixMaster = nil
         keyHold = false
+        bpmHold = nil
         mixDrop = [:]
         live.stopped()
         resetForProject()
