@@ -234,18 +234,12 @@ extension AppModel {
         editTrack { t in t.setStepSound(steps, nil) }
     }
 
-    /// Голоса синта Plaits: таблицы — Resources/plaits (в bundle — в корне или в подпапке).
+    /// Голоса синта.
     func installSynth() {
-        guard let dir = PlaitsSelfTest.directory(of: "lut_sine.f32", in: Bundle.main,
-                                                 subdirectories: ["plaits", "Resources/plaits"]),
-              let r = PlaitsResources.load(dir: dir) else {
-            trace("plaits tables not found")
-            return
-        }
-        audio.core.installSynth(r)
+        audio.core.installSynth()
     }
 
-    /// MI SYNTH: движок на дорожку (setTrackSynth веба) или, с зажатыми шагами, — их свой звук.
+    /// SYNTH: движок на дорожку (setTrackSynth веба) или, с зажатыми шагами, — их свой звук.
     func pickSynth(_ engine: Int, steps: [Int]) {
         let key = SynthKey.key(engine)
         if steps.isEmpty {

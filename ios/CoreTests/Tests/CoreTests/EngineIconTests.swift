@@ -80,8 +80,10 @@ final class EngineIconTests: XCTestCase {
     }
 
     func testIconsMatchWeb() throws {
-        let cases = try JSONDecoder().decode([Golden].self, from: Data(contentsOf: EngineIconTests.goldenURL))
-        XCTAssertEqual(cases.count, 95)
+        // В эталоне веба есть и иконки движков Mutable Instruments (0–15) — их в приложении нет (S12).
+        let all = try JSONDecoder().decode([Golden].self, from: Data(contentsOf: EngineIconTests.goldenURL))
+        let cases = all.filter { SynthEngines.engine($0.engine) != nil }
+        XCTAssertEqual(cases.count, 15)
         for g in cases {
             let v = IconValues(h: g.v["h"] ?? 0.5, t: g.v["t"] ?? 0.5, m: g.v["m"] ?? 0.5, d: g.v["d"] ?? 0.5)
             let els = EngineIcons.elements(g.engine, v)

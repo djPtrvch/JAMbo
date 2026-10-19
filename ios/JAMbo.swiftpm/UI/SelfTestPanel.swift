@@ -1,10 +1,10 @@
 import SwiftUI
 import Observation
 
-/// Прогон самотеста движков (Plaits и свои — DRUM, ANALOG, FM, WTABLE) и эффектов вне основного потока; результаты — по мере готовности.
+/// Прогон самотеста своих движков (DRUM, ANALOG, FM, WTABLE), эффектов, мастера и EQ вне основного потока; результаты — по мере готовности.
 @Observable
 final class SelfTestRunner {
-    private(set) var results: [PlaitsSelfTest.Result] = []
+    private(set) var results: [Golden.Result] = []
     private(set) var total: Int = 0
     private(set) var running: Bool = false
     private(set) var seconds: Double = 0
@@ -19,34 +19,20 @@ final class SelfTestRunner {
         Task.detached(priority: .userInitiated) {
             let start = Date()
             let bundle = Bundle.main
-            guard let tables = PlaitsSelfTest.directory(of: "lut_sine.f32", in: bundle,
-                                                        subdirectories: ["plaits", "Resources/plaits"]),
-                  let golden = PlaitsSelfTest.directory(of: "cases.json", in: bundle,
-                                                        subdirectories: ["golden", "Resources/golden"]),
-                  let resources = PlaitsSelfTest.webResources(tables),
-                  let all = try? PlaitsSelfTest.loadCases(golden) else {
-                await MainActor.run { self.finish("Resources not found (plaits tables or golden cases).", start) }
+            guard let golden = Golden.directory(of: "jambo_cases.json", in: bundle,
+                                                subdirectories: ["golden", "Resources/golden"]) else {
+                await MainActor.run { self.finish("Resources not found (golden cases).", start) }
                 return
             }
             let jambo = try? JamboSelfTest.loadCases(golden)
             let fx = try? FxSelfTest.loadCases(golden)
             let mst = try? MasterSelfTest.loadCases(golden)
             let eqs = try? EqSelfTest.loadCases(golden)
-            var count: Int = all.cases.count
-            count += jambo?.cases.count ?? 0
+            var count: Int = jambo?.cases.count ?? 0
             count += fx?.cases.count ?? 0
             count += mst?.cases.count ?? 0
             count += eqs?.count ?? 0
             await MainActor.run { self.total = count }
-            for c in all.cases {
-                do {
-                    let r = try PlaitsSelfTest.run(c, all, resources, golden)
-                    await MainActor.run { self.results.append(r) }
-                } catch {
-                    await MainActor.run { self.finish("Cannot read \(c.file).", start) }
-                    return
-                }
-            }
             if let jb = jambo {
                 let tables = JamboTables()
                 var wavetables: [String: WtTable] = [:]
@@ -159,12 +145,11 @@ extension SelfTestPanel {
 
 /// Строка таблицы: движок, случай, ошибка по отсчётам, полосы, итог.
 private struct SelfTestRow: View {
-    let result: PlaitsSelfTest.Result
+    let result: Golden.Result
     @Environment(\.theme) private var theme
 
-    /// Имя по коду: движки Plaits 0–15, свои 16–19, FX 32–35, мастер 36–40, EQ 41.
+    /// Имя по коду: свои движки 16–19, FX 32–35, мастер 36–40, EQ 41.
     static func name(_ code: Int) -> String {
-        if code < PlaitsSelfTest.engineNames.count { return PlaitsSelfTest.engineNames[code] }
         if let n = JamboSelfTest.engineNames[code] { return n }
         if let n = FxSelfTest.engineNames[code] { return n }
         if let n = EqSelfTest.engineNames[code] { return n }

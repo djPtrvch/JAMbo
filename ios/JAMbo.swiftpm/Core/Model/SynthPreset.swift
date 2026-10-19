@@ -3,7 +3,7 @@ import Foundation
 // Пресет синта и звук папки дорожки (S11b, как Preset и FolderItem в state.ts веба). Пресет — движок (ключ звука
 // «mi:<n>»), ручки звука (presetParams) и у WTABLE — таблица. В папке дорожки — сэмплы и пресеты (копии).
 
-/// Пресет синта: имя, движок, ручки; fmt — версия формата веба (миграции SPEECH нет — решение пользователя).
+/// Пресет синта: имя, движок, ручки; fmt — версия формата веба.
 public struct SynthPreset: Codable, Equatable, Sendable {
     public var name: String
     public var sound: String
@@ -28,7 +28,9 @@ public struct SynthPreset: Codable, Equatable, Sendable {
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         name = c.value(.name, "")
-        sound = c.value(.sound, "")
+        // Пресет движка, которого нет (Mutable Instruments, mi:0…mi:15), — пустой (S12).
+        let snd: String = c.value(.sound, "")
+        sound = SynthKey.isRemoved(snd) ? "" : snd
         params = c.value(.params, [String: Double]())
         fmt = c.optional(.fmt)
         table = c.optional(.table)

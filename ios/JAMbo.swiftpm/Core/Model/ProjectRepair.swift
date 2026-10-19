@@ -84,6 +84,12 @@ extension Track {
     /// Дорожка (или MIX, MST) проекта из n дорожек.
     mutating func repair(tracks n: Int) {
         params = Params.defaults().merging(params) { _, v in v }
+        // Звук движка, которого нет (Mutable Instruments, mi:0…mi:15), — пустой (S12).
+        if SynthKey.isRemoved(sample) { sample = "" }
+        if let h = home, SynthKey.isRemoved(h.sample) { home!.sample = "" }
+        for k in 0..<clips.count {
+            if let s = clips[k]?.src, SynthKey.isRemoved(s.sample) { clips[k]!.src!.sample = "" }
+        }
         if clips.count > Params.patternSlots { clips.removeLast(clips.count - Params.patternSlots) }
         while clips.count < Params.patternSlots { clips.append(nil) }
         for k in 0..<clips.count where clips[k] != nil { clips[k]!.repair() }
@@ -118,6 +124,12 @@ extension Step {
     /// Длины и velocity нот — параллельно notes (иначе снимаются); при lens len — самая длинная.
     mutating func repair() {
         len = Swift.max(1, len)
+        // Пресет-лок движка, которого нет, снимается вместе с его p-lock: шаг играет звук дорожки.
+        if let snd = sound, SynthKey.isRemoved(snd) {
+            for k in soundLocks ?? [] { locks[k] = nil }
+            sound = nil
+            soundLocks = nil
+        }
         if let l = lens {
             if l.count == notes.count && !l.isEmpty {
                 let fixed: [Int] = l.map { Swift.max(1, $0) }

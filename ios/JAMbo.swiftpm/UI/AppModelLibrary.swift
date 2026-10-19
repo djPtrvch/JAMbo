@@ -376,7 +376,7 @@ extension AppModel {
         switch b {
         case .savePreset:
             let e: Int? = SynthKey.engine(track.sample)
-            let base: String = e.map { SynthEngines.all[$0].name } ?? "PRESET"
+            let base: String = e.flatMap { SynthEngines.engine($0)?.name } ?? "PRESET"
             let n: Int = library.nodes.filter { $0.kind == .preset && $0.name.hasPrefix(base) }.count
             return "\(base) \(n + 1)"
         case .saveSample(let key):

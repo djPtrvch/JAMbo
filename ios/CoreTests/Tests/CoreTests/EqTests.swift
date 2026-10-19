@@ -4,10 +4,10 @@ import XCTest
 /// EQ по эталонам eq_* (EqChain веба в Chromium; EqSelfTest) и правки EQ.
 final class EqTests: XCTestCase {
     func testGolden() throws {
-        let cases = try EqSelfTest.loadCases(PlaitsGolden.goldenDir)
+        let cases = try EqSelfTest.loadCases(GoldenPaths.goldenDir)
         XCTAssertEqual(cases.count, 22)
         for c in cases {
-            let r = try EqSelfTest.run(c, PlaitsGolden.goldenDir)
+            let r = try EqSelfTest.run(c, GoldenPaths.goldenDir)
             print(String(format: "%@: samples %.1f dB, bands ±%.3f dB, rms %.1f dBFS",
                          c.file, r.sampleErrorDb, r.maxBandDiffDb, r.rmsDb))
             XCTAssertTrue(r.ok, "\(c.file): samples \(r.sampleErrorDb) dB, bands \(r.maxBandDiffDb) dB")
@@ -214,7 +214,7 @@ extension EqTests {
         XCTAssertNil(MasterSelfTest.engineNames[code])
         XCTAssertNil(FxSelfTest.engineNames[code])
         XCTAssertNil(JamboSelfTest.engineNames[code])
-        XCTAssertGreaterThanOrEqual(code, PlaitsSelfTest.engineNames.count)
+        XCTAssertGreaterThanOrEqual(code, SynthEngines.count)
     }
 }
 

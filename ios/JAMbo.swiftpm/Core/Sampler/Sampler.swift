@@ -184,7 +184,9 @@ public final class Sampler {
         openPrev.initialize(repeating: 2, count: SoundData.maxTracks)
         one.initialize(to: 0)
         scratch.initialize(repeating: 0, count: VoiceParam.count)
-        for e in 0..<SynthEngines.count { (synthHash + e).initialize(to: SoundKey.hash(SynthKey.key(e))) }
+        // Незанятые номера (движки Mutable Instruments) — 0: такой звук не синт и не сэмпл (пустой).
+        synthHash.initialize(repeating: 0, count: SynthEngines.count)
+        for e in SynthEngines.all { synthHash[e.id] = SoundKey.hash(SynthKey.key(e.id)) }
     }
 
     deinit {

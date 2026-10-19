@@ -45,7 +45,7 @@ final class LibraryFilesTests: XCTestCase {
     }
 
     func testPresetFile() throws {
-        let p = SynthPreset(name: "Bell", sound: "mi:2", params: ["harm": 30], table: "wt:abc:512")
+        let p = SynthPreset(name: "Bell", sound: "mi:18", params: ["harm": 30], table: "wt:abc:512")
         XCTAssertEqual(PresetFile.decode(PresetFile.encode(p), fallback: "x"), p)
         // Файл веба: своя таблица с 's:', без имени — имя файла.
         let web = Data(#"{"jambo":"preset","preset":{"name":"","sound":"mi:19","params":{"harm":1},"table":"wt:s:ab12:2048"}}"#.utf8)
@@ -60,7 +60,7 @@ final class LibraryFilesTests: XCTestCase {
         let kit = lib.createFolder(Library.root, "Kit")
         _ = lib.createFolder(kit.id, "Empty")
         _ = lib.addSample(kit.id, key: "k1", name: "Kick.aif")
-        _ = lib.addPreset(kit.id, SynthPreset(name: "Bell", sound: "mi:2", params: ["harm": 30]))
+        _ = lib.addPreset(kit.id, SynthPreset(name: "Bell", sound: "mi:18", params: ["harm": 30]))
         _ = lib.addTable(kit.id, key: "wt:t1:2048", name: "Wave")
         _ = lib.addSample(kit.id, key: "gone", name: "Lost")
         let bytes = LibraryBytes(sample: { $0 == "k1" ? Data([1]) : nil }, table: { $0 == "t1" ? Data([2]) : nil })

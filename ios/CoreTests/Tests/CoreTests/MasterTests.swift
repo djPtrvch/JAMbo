@@ -4,11 +4,11 @@ import XCTest
 /// Мастер по эталонам mst_* (рендер worklet'ов веба; MasterSelfTest).
 final class MasterTests: XCTestCase {
     private func check(_ proc: String, count: Int) throws {
-        let all = try MasterSelfTest.loadCases(PlaitsGolden.goldenDir)
+        let all = try MasterSelfTest.loadCases(GoldenPaths.goldenDir)
         let cases = all.cases.filter { $0.proc == proc }
         XCTAssertEqual(cases.count, count)
         for c in cases {
-            let r = try MasterSelfTest.run(c, all, PlaitsGolden.goldenDir)
+            let r = try MasterSelfTest.run(c, all, GoldenPaths.goldenDir)
             print(String(format: "%@: samples %.1f dB, bands ±%.3f dB, rms %.1f dBFS",
                          c.file, r.sampleErrorDb, r.maxBandDiffDb, r.rmsDb))
             XCTAssertTrue(r.ok, "\(c.file): samples \(r.sampleErrorDb) dB, bands \(r.maxBandDiffDb) dB")
@@ -23,7 +23,7 @@ final class MasterTests: XCTestCase {
 
     /// SELF-TEST: у каждого случая — код и имя, не занятые движками и FX.
     func testSelfTestNames() throws {
-        let all = try MasterSelfTest.loadCases(PlaitsGolden.goldenDir)
+        let all = try MasterSelfTest.loadCases(GoldenPaths.goldenDir)
         XCTAssertEqual(all.cases.count, 19)
         for c in all.cases {
             let code = try XCTUnwrap(MasterSelfTest.codes[c.proc], c.file)

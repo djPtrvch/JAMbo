@@ -92,21 +92,20 @@ public enum EqSelfTest {
         return (q(outL), q(outR))
     }
 
-    /// Один случай: L и R сравниваются отдельно, итог — худший из каналов (критерий — как у Plaits).
-    public static func run(_ c: Case, _ goldenDir: URL) throws -> PlaitsSelfTest.Result {
+    /// Один случай: L и R сравниваются отдельно, итог — худший из каналов (критерий — Golden).
+    public static func run(_ c: Case, _ goldenDir: URL) throws -> Golden.Result {
         let (l, r) = render(c)
-        let g = try PlaitsSelfTest.loadGolden(goldenDir, c.file)
+        let g = try Golden.load(goldenDir, c.file)
         var gl = [Float](repeating: 0, count: g.count / 2)
         var gr = [Float](repeating: 0, count: g.count / 2)
         for i in 0..<gl.count {
             gl[i] = g[2 * i]
             gr[i] = g[2 * i + 1]
         }
-        let pc = PlaitsSelfTest.Case(file: c.file, engine: 0, set: 0, note: 0, harmonics: 0, timbre: 0, morph: 0, aux: nil)
-        let a = PlaitsSelfTest.compare(pc, l, gl)
-        let b = PlaitsSelfTest.compare(pc, r, gr)
-        let worst: PlaitsSelfTest.Result = a.sampleErrorDb >= b.sampleErrorDb ? a : b
-        return PlaitsSelfTest.Result(file: c.file, engine: code, sampleErrorDb: worst.sampleErrorDb,
+        let a = Golden.compare(c.file, 0, l, gl)
+        let b = Golden.compare(c.file, 0, r, gr)
+        let worst: Golden.Result = a.sampleErrorDb >= b.sampleErrorDb ? a : b
+        return Golden.Result(file: c.file, engine: code, sampleErrorDb: worst.sampleErrorDb,
                                      maxBandDiffDb: max(a.maxBandDiffDb, b.maxBandDiffDb),
                                      rmsDb: max(a.rmsDb, b.rmsDb), finite: a.finite && b.finite)
     }

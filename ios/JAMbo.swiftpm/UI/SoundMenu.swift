@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// Меню звука дорожки (тап по окну сэмпла, как в вебе): закрывает всю левую колонку, кнопки крупные.
-/// Три колонки движков — SYNTH (свои: DRUM, ANALOG, FM, WTABLE; под ними SAMPLER), MI SYNTH (Plaits 0–7) и
-/// MI DRUMS (Plaits 8–15): тап — движок дорожки, с зажатыми шагами — их звук; группа LOAD SAMPLE · PRESET · MIDI:
+/// Колонка движков SYNTH (DRUM, ANALOG, FM, WTABLE; под ними SAMPLER): тап — движок дорожки, с зажатыми шагами —
+/// их звук; группа LOAD SAMPLE · PRESET · MIDI:
 /// LOAD (браузер библиотеки, S11b), MIDI (выход — S12; для зажатых шагов на этом месте TRACK — вернуть звук дорожки),
 /// SAVE (пресет синта в библиотеку) и TABLE (у дорожки с WTABLE — браузер в LOAD TABLE).
 struct SoundMenu: View {
@@ -10,9 +10,8 @@ struct SoundMenu: View {
     let state: SoundMenuState
     @Environment(\.theme) private var theme
 
-    static let synth = ["DRUM", "ANALOG", "FM", "WTABLE"]
-    static let miSynth = ["VA", "WAVESHAPE", "FM", "GRAIN", "ADDITIVE", "WAVETABLE", "CHORDS", "SPEECH"]
-    static let miDrums = ["SWARM", "NOISE", "PARTICLE", "STRING", "MODAL", "KICK", "SNARE", "HI-HAT"]
+    /// Номера движков колонки SYNTH.
+    static let synth: [Int] = [16, 17, 18, 19]
 
     var body: some View {
         let steps: Bool = !state.steps.isEmpty
@@ -21,9 +20,7 @@ struct SoundMenu: View {
                 title("STEP " + state.steps.map { String($0 + 1) }.joined(separator: ", "))
             }
             HStack(alignment: .top, spacing: 4) {
-                column("SYNTH", SoundMenu.synth, sampler: true, steps: steps, plaits: SynthEngines.firstJambo)
-                column("MI SYNTH", SoundMenu.miSynth, sampler: false, steps: steps, plaits: 0)
-                column("MI DRUMS", SoundMenu.miDrums, sampler: false, steps: steps, plaits: SynthEngines.firstDrum)
+                column("SYNTH", SoundMenu.synth, sampler: true, steps: steps)
             }
             title("LOAD SAMPLE · PRESET · MIDI")
             loadGroup(steps)
@@ -40,20 +37,17 @@ struct SoundMenu: View {
             .frame(maxWidth: .infinity)
     }
 
-    /// plaits — номер первого движка колонки; движка, которого ещё нет в таблице (WTABLE), — серая кнопка.
-    private func column(_ name: String, _ items: [String], sampler: Bool, steps: Bool, plaits: Int? = nil) -> some View {
+    /// ids — номера движков колонки (имена — из таблицы движков).
+    private func column(_ name: String, _ ids: [Int], sampler: Bool, steps: Bool) -> some View {
         let engine: Int = SynthKey.engine(model.track.sample) ?? -1
         return VStack(spacing: 4) {
             title(name)
-            ForEach(items.indices, id: \.self) { k in
-                if let first = plaits, first + k < SynthEngines.count {
-                    cell(items[k], enabled: true, current: !steps && engine == first + k) {
-                        let s = state.steps
-                        close()
-                        model.pickSynth(first + k, steps: s)
-                    }
-                } else {
-                    cell(items[k], enabled: false) {}
+            ForEach(ids, id: \.self) { id in
+                let label: String = SynthEngines.engine(id)?.name ?? "?"
+                cell(label, enabled: true, current: !steps && engine == id) {
+                    let s = state.steps
+                    close()
+                    model.pickSynth(id, steps: s)
                 }
             }
             if sampler {

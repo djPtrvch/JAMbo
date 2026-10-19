@@ -96,9 +96,9 @@ struct LibRow: View {
         case .sample:
             return "sample"
         case .preset:
+            // Пресет движка, которого нет (Mutable Instruments), — просто «preset».
             guard let e = node.preset.flatMap({ SynthKey.engine($0.sound) }) else { return "preset" }
-            // У движков Plaits — с префиксом MI, у своих — без него.
-            return (e < SynthEngines.firstJambo ? "MI " : "") + SynthEngines.all[e].name
+            return SynthEngines.engine(e)?.name ?? "preset"
         }
     }
 

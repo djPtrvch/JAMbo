@@ -90,10 +90,10 @@ public enum JamboSelfTest {
         return result.map { (min(max($0, -1), 1) * 32767).rounded() / 32767 }
     }
 
-    /// Один случай: рендер и сравнение (критерий и страховка — как у Plaits).
+    /// Один случай: рендер и сравнение (критерий и страховка — Golden).
     /// wavetables — кэш встроенных таблиц по имени (строятся при первом случае WTABLE).
     public static func run(_ c: Case, _ all: Cases, _ goldenDir: URL, tables: JamboTables,
-                           wavetables: inout [String: WtTable]) throws -> PlaitsSelfTest.Result {
+                           wavetables: inout [String: WtTable]) throws -> Golden.Result {
         var wt: WtTable? = nil
         if c.engine == Jambo.wtable {
             let name = c.table ?? "BASIC"
@@ -101,9 +101,7 @@ public enum JamboSelfTest {
             wt = wavetables[name]
         }
         let actual = render(c, all, tables: tables, wavetable: wt)
-        let golden = try PlaitsSelfTest.loadGolden(goldenDir, c.file)
-        let pc = PlaitsSelfTest.Case(file: c.file, engine: c.engine, set: c.set, note: Float(c.note), harmonics: Float(c.p1),
-                                     timbre: Float(c.p2), morph: Float(c.p3), aux: nil)
-        return PlaitsSelfTest.compare(pc, actual, golden)
+        let golden = try Golden.load(goldenDir, c.file)
+        return Golden.compare(c.file, c.engine, actual, golden)
     }
 }

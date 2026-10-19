@@ -55,7 +55,9 @@ extension Track {
     /// Звук из папки на дорожку (applyItem веба): пресет — движок, его ручки и таблица.
     public mutating func applyItem(_ it: FolderItem) {
         guard let p = it.preset else {
-            sample = it.sample ?? ""
+            // Прежняя папка (строки): ключ движка, которого нет, — пустой звук (S12).
+            let k: String = it.sample ?? ""
+            sample = SynthKey.isRemoved(k) ? "" : k
             return
         }
         sample = p.sound

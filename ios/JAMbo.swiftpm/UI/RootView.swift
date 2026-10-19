@@ -203,7 +203,7 @@ enum MenuPage {
     case settings
 }
 
-/// Меню бутерброда (как веб): разделы PROJECT (PROJECTS) и APP (SETTINGS; DIAGNOSTICS, SELF-TEST, LICENSES — окна) — у каждого подзаголовок,
+/// Меню бутерброда (как веб): разделы PROJECT (PROJECTS) и APP (SETTINGS; DIAGNOSTICS, SELF-TEST — окна) — у каждого подзаголовок,
 /// между ними черта; CONTROLLERS (MIDI) и SYNC — с S12. Меню и подменю одного размера: по ширине — от левого края
 /// бутерброда до правого края поля SCALE, по высоте — до строки дорожек.
 struct MainMenu: View {

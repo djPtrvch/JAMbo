@@ -103,12 +103,12 @@ public final class AudioCore: @unchecked Sendable {
         if !sounds.push(snd) { snd.release() }
     }
 
-    /// Голоса синта Plaits (основной поток, один раз; таблицы — Resources/plaits). Повторный вызов ничего не делает:
-    /// прежние голоса освобождались бы в колбэке.
-    public func installSynth(_ resources: PlaitsResources) {
+    /// Голоса синта (основной поток, один раз). Повторный вызов ничего не делает: прежние голоса освобождались
+    /// бы в колбэке.
+    public func installSynth() {
         if synthInstalled { return }
         synthInstalled = true
-        let s = Unmanaged.passRetained(SynthVoices(resources: resources, sampleRate: AudioCore.sampleRate))
+        let s = Unmanaged.passRetained(SynthVoices(sampleRate: AudioCore.sampleRate))
         if !synthQueue.push(s) { s.release() }
     }
 

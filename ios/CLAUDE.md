@@ -3,11 +3,11 @@
 Нативное приложение, App Project для Swift Playgrounds: `ios/JAMbo.swiftpm`, ветка `swift`. Поведение — как в веб-версии (корневой CLAUDE.md — эталон; веб заморожен, только исправления). Решение пользователя: переносим всё, что сделано в вебе (кроме чисто браузерного). Аудит и план вех — docs/SWIFT_AUDIT.md; что сделано и как устроено — docs/SWIFT_MILESTONE_Sx.md (см. «Где искать»).
 
 ## Структура
-- `JAMbo.swiftpm/Core/` — DSP и модель, только Foundation и Synchronization (Accelerate — только под `#if canImport(Accelerate)` с обычной реализацией рядом). Util/ (атомарные значения, очереди, CPU), Engine/ (AudioCore — весь звук), Model/ (Params, Project, правки, UNDO), Sequencer/, Sampler/, Synth/, Plaits/, Jambo/, FX/, Mod/, Master/, EQ/, Icons/.
+- `JAMbo.swiftpm/Core/` — DSP и модель, только Foundation и Synchronization (Accelerate — только под `#if canImport(Accelerate)` с обычной реализацией рядом). Util/ (атомарные значения, очереди, CPU), Engine/ (AudioCore — весь звук), Model/ (Params, Project, правки, UNDO), Sequencer/, Sampler/, Synth/, Jambo/, FX/, Mod/, Master/, EQ/, Icons/.
 - `JAMbo.swiftpm/Audio/` — AVAudioSession (48 кГц, буфер 256), один AVAudioSourceNode → `AudioCore.render`; хранилище сэмплов.
-- `JAMbo.swiftpm/UI/` — SwiftUI. `JAMbo.swiftpm/Resources/` — таблицы Plaits, эталоны самотеста, лицензии.
+- `JAMbo.swiftpm/UI/` — SwiftUI. `JAMbo.swiftpm/Resources/` — эталоны самотеста, лицензии.
 - `CoreTests/` — сборка и тесты Core на Linux и Mac (`Sources/Core` — ссылка на `JAMbo.swiftpm/Core`).
-- `tools/` — install-swift-linux.sh, swift-env.sh; генераторы эталонов (plaits, jambo, fx, master, eq, icons).
+- `tools/` — install-swift-linux.sh, swift-env.sh; генераторы эталонов (jambo, fx, master, eq, icons).
 
 ## Проверка
 - Облако: `ios/tools/install-swift-linux.sh` (один раз), затем `. ios/tools/swift-env.sh && cd ios/CoreTests && swift test`. UI и Audio на Linux не собираются — их проверяет только сборка на iPad.
@@ -26,13 +26,13 @@
 - DSP — сверка с эталонами веба (по отсчётам ≤ −60 dB или третьоктавные полосы ±0,5 dB), каждый эталон — в SELF-TEST. Эталоны Web Audio (узлы браузера) — настоящий код веба в headless Chromium через протокол отладки (образец — tools/eq/golden.mjs).
 - UI: ручки, шаги, сетки, метры, спектры — Canvas; состояние — @Observable; без перерисовки всего экрана каждый кадр. Вид с индексом читает данные с проверкой границ. Общий DragGesture от 0 px на контейнере перехватывает кнопки внутри — кнопки и меню держать вне него. Пока открыто меню поверх поля с жестами, поле касаний не принимает.
 - Меню: низ не ниже верха кнопок дорожек; что не помещается — прокрутка пальцем (MenuScroll) с тонкой полосой справа.
-- Надписи — на английском, комментарии и документы — по-русски. Окна закрываются квадратным ✕. В переносе из Plaits — строка лицензии MIT (Emilie Gillet), тексты — Resources/licenses.
+- Надписи — на английском, комментарии и документы — по-русски. Окна закрываются квадратным ✕.
 - Swift-файлы из bash через heredoc в кавычках ('EOF') — с одинарной обратной косой: `\(x)`.
 - Каждая веха — docs/SWIFT_MILESTONE_Sx.md: что сделано, что проверено, что открыто, подробности устройства.
 
 ## Решения
 - Частота: всё считается на 48 кГц (если устройство даёт другую, приводит системный микшер).
-- Plaits: a0 = (440/8)/48000, без сдвига ноты; эталоны — wasm веба со сдвигом ноты −0,0461 полутона. SPEECH: Formant, Phoneme, LPC, без Words; миграции SPEECH нет (решение пользователя, S11) — проекты и пресеты веба прежнего формата импортируются как есть.
+- Движки синта (S12, решения пользователя): движков Mutable Instruments (Plaits) нет — звук mi:0…mi:15 загружается пустым (docs/ai/synth-engines.md); docs/ai в ветке swift описывает Swift-версию (веб — в main).
 - FX — 1:1 по worklet’ам веба.
 - Мастер (S5a, отличие от веба): упрощён — сатуратор DRIVE, TYPE, TONE, MIX, FOCUS; компрессор THRESHOLD, ATTACK, RELEASE, MAKEUP, RATIO, KNEE, SC HPF, MIX; клиппер INPUT, CEILING, SOFTNESS, BASS; лимитер INPUT, CEILING, LOOKAHEAD, RELEASE. Без BIAS, OUTPUT, RANGE, HOLD, LINK, MIX клиппера, UNITY, AUDIT; SCALE — всегда 48 dB. Убранные параметры — на значениях по умолчанию (звук как в вебе). PRESETS модулей мастера — с S6 (решение пользователя): у каждого модуля свой список, общий для проектов (UserDefaults); SAVE, тап — загрузить (UNDO), свайп влево — карандаш на сером (RENAME) и корзина на красном (DELETE), как в списках iPad; так же — пресеты EQ (S7). Окна (S6, отличия от веба): пауза дисплея везде FREEZE (в вебе у LIM — HOLD); ввод числом — системное окно, как у EQ; у CLIP шкала TRANSFER — та же, что у дисплея LEVEL (0…−48 dB, сетка 6 dB), как у COMP; у CLIP один дисплей — LEVEL с GR (без WAVE и кнопки VIEW); у SAT — TRANSFER и SPECTRUM (без WAVE и BIAS); поля — как в EQ, без жёлтой подсветки полей, линий и ручек; FREEZE — двойной тап по дисплею. Кнопки мастера при MST — по цепочке: COMP, CLIP сверху, SAT, LIM снизу (в вебе CLIP, LIM / SAT, COMP).
 - Клипы (S1d, отличие от веба): у каждого клипа свой паттерн; копии независимы. Подробно — SWIFT_MILESTONE_S1.md.
@@ -52,8 +52,8 @@
 ## Вехи
 S0 каркас → S1 секвенсор и экран → S2 сэмплер и редактор → S3 Plaits и свои движки, SELF-TEST → S4 FX, MOD, MORPH → S5 мастер, EQ, метры, скоп → S6 окна модулей мастера → S7 EQ Dynamic и M/S, пресеты EQ → S8 пианоролл → S9 проекты и настройки → S10 переходы между проектами (S0–S10 готовы, проверены на iPad) → S11 библиотека, импорт и экспорт, стемы, REC (готов) → **S12 движки синта (новые; движки Mutable Instruments убираются; дальше)** → S13 MIDI → S14 оптимизация и App Store → S15 автоматизация. Подробно — docs/SWIFT_AUDIT.md, раздел 6 (там же — соответствие прежним номерам).
 
-## Текущая веха (S11)
-- S11a (EXPORT / IMPORT .jambo), S11b (библиотека), S11c (ZIP, WAV, .jambopreset), S11d (стемы и запись мастера), S11e (REC в редакторе сэмпла) готовы, проверены на iPad. Дальше — S12 движки синта.
+## Текущая веха (S12)
+- Этапы: 0 — убрать Plaits; 1 — сетка ручек (Velocity на 4.4, Swing в меню клавиатуры, Level убран); 2 — ручка 1.4 (PLAY сэмплера, Pitch по полутонам, KICK CLICK, ANALOG A/B, FM FEEDBACK, WTABLE UNISON/DETUNE); 3 — ударные SNARE, HAT, CLAP, PERC; 4 — SUB.
 
 ## Где искать
 | Задача касается… | Файл |

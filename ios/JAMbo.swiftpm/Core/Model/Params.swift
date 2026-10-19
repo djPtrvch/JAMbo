@@ -23,7 +23,7 @@ public struct ParamDef: @unchecked Sendable {
     public let bipolar: Bool
     /// Подписи пунктов ступенчатой ручки (значение = индекс).
     public let options: [String]
-    /// Пункты ступенчатой ручки с непрерывным значением (Harmonics у WAVETABLE, CHORDS, SPEECH): значение — середина
+    /// Пункты ступенчатой ручки с непрерывным значением (WAVE у ANALOG): значение — середина
     /// пункта на min…max (как steps в params.ts веба).
     public let steps: Int?
     /// Шаг значения (0,1 dB у мастера).
@@ -226,9 +226,10 @@ public enum Params {
         return Swift.min(steps - 1, Swift.max(0, Int((n * Double(steps)).rounded(.down))))
     }
 
-    /// Сетка синта движка e (ENGINE_GRIDS): подписи 1.1–1.3 из таблицы движков, у WAVETABLE, CHORDS, SPEECH
-    /// Harmonics ступенчатая (пункты движка).
-    public static let synthGrids: [[ParamDef]] = SynthEngines.all.map { e in
+    /// Сетка синта по номеру движка (ENGINE_GRIDS): подписи 1.1–1.3 из таблицы движков, у ANALOG 1.1 ступенчатая
+    /// (пункты движка); у незанятого номера — пустая.
+    public static let synthGrids: [[ParamDef]] = SynthEngines.byId.map { eo in
+        guard let e = eo else { return [] }
         let col: [ParamDef] = synthColumn.enumerated().map { k, p in
             let label = SynthEngines.capitalized([e.harm, e.timbre, e.morph][k])
             if k == 0 && !e.options.isEmpty {
@@ -242,7 +243,7 @@ public enum Params {
                     "\(Int(Jambo.drumPitch(v / 100).rounded())) Hz"
                 }
             }
-            if k == 0 && e.jambo && e.name == "FM" {
+            if k == 0 && e.name == "FM" {
                 return ParamDef(id: p.id, label: label, min: p.min, max: p.max, def: p.def) { v in
                     "×" + String(format: "%.2f", Jambo.fmRatio(v / 100))
                 }

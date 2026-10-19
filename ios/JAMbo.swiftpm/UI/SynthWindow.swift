@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Окно синта (на месте формы волны, как synth-info в sample.ts веба): заголовок MI · <движок>, живая иконка
+/// Окно синта (на месте формы волны, как synth-info в sample.ts веба): заголовок — имя движка, живая иконка
 /// движка (до 120 pt, ужимается по высоте окна), полное имя и ручки 1.1–1.3 «подпись · значение» (значение ручки
 /// дорожки, как в вебе). Пока зажат шаг со своим звуком — его движок.
 struct SynthInfo: View {
@@ -9,9 +9,9 @@ struct SynthInfo: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        let e: SynthEngine = SynthEngines.all[engine]
+        let e: SynthEngine? = SynthEngines.engine(engine)
         return VStack(alignment: .leading, spacing: 4) {
-            Text(e.jambo ? e.name : "MI · \(e.name)")
+            Text(e?.name ?? "")
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(theme.text)
                 .lineLimit(1)
@@ -24,7 +24,7 @@ struct SynthInfo: View {
                         .frame(maxWidth: .infinity, maxHeight: 120)
                 }
                 // У WTABLE вместо полного имени — имя таблицы дорожки.
-                Text(engine == Jambo.wtable ? WavetableKey.name(model.track.table) : e.full)
+                Text(engine == Jambo.wtable ? WavetableKey.name(model.track.table) : e?.full ?? "")
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(theme.accentText)
                     .lineLimit(1)

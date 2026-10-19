@@ -7,11 +7,11 @@ final class JamboEngineTests: XCTestCase {
     private static var wavetables: [String: WtTable] = [:]
 
     private func check(engine index: Int, count: Int) throws {
-        let all = try JamboSelfTest.loadCases(PlaitsGolden.goldenDir)
+        let all = try JamboSelfTest.loadCases(GoldenPaths.goldenDir)
         let cases = all.cases.filter { $0.engine == index }
         XCTAssertEqual(cases.count, count)
         for c in cases {
-            let r = try JamboSelfTest.run(c, all, PlaitsGolden.goldenDir, tables: JamboEngineTests.tables,
+            let r = try JamboSelfTest.run(c, all, GoldenPaths.goldenDir, tables: JamboEngineTests.tables,
                                           wavetables: &JamboEngineTests.wavetables)
             print(String(format: "%@: samples %.1f dB, bands ±%.3f dB, rms %.1f dBFS",
                          c.file, r.sampleErrorDb, r.maxBandDiffDb, r.rmsDb))
@@ -28,7 +28,7 @@ final class JamboEngineTests: XCTestCase {
     func testBuiltinTables() throws {
         struct Level: Decodable { let level: Int; let size: Int; let values: [Float] }
         struct Check: Decodable { let frames: Int; let levels: [Level] }
-        let url = PlaitsGolden.goldenDir.appendingPathComponent("jambo_tables.json")
+        let url = GoldenPaths.goldenDir.appendingPathComponent("jambo_tables.json")
         let checks = try JSONDecoder().decode([String: Check].self, from: Data(contentsOf: url))
         XCTAssertEqual(Set(checks.keys), Set(WavetableKey.builtins))
         for name in WavetableKey.builtins {

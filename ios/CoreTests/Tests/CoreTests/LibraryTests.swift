@@ -14,7 +14,7 @@ final class LibraryTests: XCTestCase {
         XCTAssertEqual(lib.addSample(drums.id, key: "k10", name: "Other").id, k10.id)
         XCTAssertEqual(lib.addSample(drums.id, key: "k11", name: "Kick 10").name, "Kick 10 2")
         let sub = lib.createFolder(drums.id, "Sub")
-        _ = lib.addPreset(drums.id, SynthPreset(name: "Bell", sound: "mi:2", params: [:]))
+        _ = lib.addPreset(drums.id, SynthPreset(name: "Bell", sound: "mi:18", params: [:]))
         XCTAssertEqual(lib.children(Library.root).map { $0.name }, ["RECORDINGS", "Bass", "Drums"])
         XCTAssertEqual(lib.children(drums.id).map { $0.name }, ["Sub", "Bell", "Kick 2", "Kick 10", "Kick 10 2"])
         XCTAssertEqual(lib.path(sub.id).map { $0.name }, ["Drums", "Sub"])
@@ -34,7 +34,7 @@ final class LibraryTests: XCTestCase {
     func testOverwriteAndStore() throws {
         var lib = Library()
         let s = lib.addSample(Library.root, key: "a", name: "Pad")
-        lib.overwrite(s.id, with: FolderItem(preset: SynthPreset(name: "x", sound: "mi:5", params: ["harm": 10])))
+        lib.overwrite(s.id, with: FolderItem(preset: SynthPreset(name: "x", sound: "mi:17", params: ["harm": 10])))
         XCTAssertEqual(lib.node(s.id)?.kind, .preset)
         XCTAssertEqual(lib.node(s.id)?.preset?.name, "Pad")
         lib.overwrite(s.id, with: FolderItem(sample: "b"))
@@ -54,12 +54,12 @@ final class LibraryTests: XCTestCase {
         var t = Track(index: 0)
         t.addSamples(["s1"])
         t.params["harm"] = 77
-        let bell = SynthPreset(name: "Bell", sound: "mi:2", params: ["harm": 30, "decay": 900])
+        let bell = SynthPreset(name: "Bell", sound: "mi:18", params: ["harm": 30, "decay": 900])
         t.addItems([FolderItem(preset: bell)])
         t.stepFolder(1)
         XCTAssertEqual(t.sample, "s1")
         t.stepFolder(1)
-        XCTAssertEqual(t.sample, "mi:2")
+        XCTAssertEqual(t.sample, "mi:18")
         XCTAssertEqual(t.params["harm"], 30)
         XCTAssertEqual(t.params["decay"], 900)
         XCTAssertEqual(t.presetName, "Bell")
@@ -69,7 +69,7 @@ final class LibraryTests: XCTestCase {
         // Шаг + стрелка: звук шага — пресет и p-lock его ручек.
         t.withStep(0) { $0.on = true }
         t.stepFolderOnSteps([0], 1)
-        XCTAssertEqual(t.step(0)?.sound, "mi:2")
+        XCTAssertEqual(t.step(0)?.sound, "mi:18")
         XCTAssertEqual(t.step(0)?.locks["harm"], 30)
         XCTAssertEqual(t.step(0)?.soundLocks?.sorted(), ["decay", "harm"])
         // Пресет из синта дорожки; у WTABLE — с таблицей.
@@ -81,7 +81,7 @@ final class LibraryTests: XCTestCase {
         XCTAssertEqual(p?.params.count, SynthPreset.params.count)
         t.setFolder([FolderItem(preset: bell), FolderItem(sample: "s2")])
         XCTAssertEqual(t.folder.index, 0)
-        XCTAssertEqual(t.sample, "mi:2")
+        XCTAssertEqual(t.sample, "mi:18")
         XCTAssertEqual(t.folder.sampleKeys, ["s2"])
     }
 
@@ -91,7 +91,7 @@ final class LibraryTests: XCTestCase {
         let f = try JSONDecoder().decode(Folder.self, from: old)
         XCTAssertEqual(f.items, ["abc", "mi:3"])
         var g = f
-        g.items.append(FolderItem(preset: SynthPreset(name: "P", sound: "mi:1", params: ["timbre": 2])))
+        g.items.append(FolderItem(preset: SynthPreset(name: "P", sound: "mi:16", params: ["timbre": 2])))
         let data = try JSONEncoder().encode(g)
         XCTAssertEqual(try JSONDecoder().decode(Folder.self, from: data), g)
         let text = String(decoding: data, as: UTF8.self)
@@ -225,17 +225,17 @@ final class SampleLockTests: XCTestCase {
         t.clips[3] = Clip()
         t.withStep(1) { $0.on = true }
         t.setStepSound([1], "kick")
-        t.addItems([FolderItem(preset: SynthPreset(name: "B", sound: "mi:2", params: ["harm": 10]))])
+        t.addItems([FolderItem(preset: SynthPreset(name: "B", sound: "mi:18", params: ["harm": 10]))])
         t.withStep(2) { $0.on = true }
         t.stepFolderOnSteps([2], 1)
-        XCTAssertEqual(t.step(2)?.sound, "mi:2")
+        XCTAssertEqual(t.step(2)?.sound, "mi:18")
         t.open = 3
         t.withStep(0) { $0.on = true }
         t.setStepSound([0], "snare")
         t.clearSampleLocks()
         XCTAssertNil(t.clips[3]?.pages[0][0].sound)
         XCTAssertNil(t.clips[0]?.pages[0][1].sound)
-        XCTAssertEqual(t.clips[0]?.pages[0][2].sound, "mi:2")
+        XCTAssertEqual(t.clips[0]?.pages[0][2].sound, "mi:18")
         XCTAssertEqual(t.clips[0]?.pages[0][2].locks["harm"], 10)
         XCTAssertTrue(t.clips[0]?.pages[0][1].on ?? false)
     }

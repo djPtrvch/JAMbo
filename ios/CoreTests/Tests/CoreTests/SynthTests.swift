@@ -4,10 +4,14 @@ import XCTest
 /// Синт на дорожке (#38): ключи «mi:<n>», сетка ручек движка.
 final class SynthTests: XCTestCase {
     func testSynthKey() {
-        XCTAssertEqual(SynthKey.key(6), "mi:6")
-        XCTAssertEqual(SynthKey.engine("mi:0"), 0)
-        XCTAssertEqual(SynthKey.engine("mi:7"), 7)
-        XCTAssertEqual(SynthKey.engine("mi:15"), 15)
+        XCTAssertEqual(SynthKey.key(17), "mi:17")
+        // Движков Mutable Instruments (0–15) нет: такие ключи — не синт.
+        XCTAssertNil(SynthKey.engine("mi:0"))
+        XCTAssertNil(SynthKey.engine("mi:15"))
+        XCTAssertTrue(SynthKey.isRemoved("mi:3"))
+        XCTAssertFalse(SynthKey.isRemoved("mi:17"))
+        XCTAssertFalse(SynthKey.isRemoved(""))
+        XCTAssertEqual(SynthKey.engine("mi:16"), 16)
         XCTAssertEqual(SynthKey.engine("mi:19"), 19)
         XCTAssertNil(SynthKey.engine("mi:20"))
         XCTAssertNil(SynthKey.engine("mi:x"))
@@ -16,26 +20,19 @@ final class SynthTests: XCTestCase {
     }
 
     func testSynthGrid() {
-        let va = Params.grid(sound: "mi:0")
-        XCTAssertEqual(va[0].id, "harm")
-        XCTAssertEqual(va[0].label, "Detune")
-        XCTAssertEqual(va[4].id, "timbre")
-        XCTAssertEqual(va[4].label, "Pulse width")
-        XCTAssertEqual(va[8].id, "morph")
-        XCTAssertEqual(va[12].id, "level")
-        XCTAssertEqual(va[1].id, "attack")
+        let an = Params.grid(sound: "mi:17")
+        XCTAssertEqual(an[0].id, "harm")
+        XCTAssertEqual(an[0].label, "Wave")
+        XCTAssertEqual(an[4].id, "timbre")
+        XCTAssertEqual(an[4].label, "Detune")
+        XCTAssertEqual(an[8].id, "morph")
+        XCTAssertEqual(an[12].id, "level")
+        XCTAssertEqual(an[1].id, "attack")
         XCTAssertEqual(Params.grid(sound: "")[0].id, "pitch")
-        // CHORDS: Harmonics — 11 пунктов, значение — середина пункта.
-        let ch = Params.grid(sound: "mi:6")[0]
-        XCTAssertEqual(ch.steps, 11)
-        XCTAssertEqual(ch.format(ch.fromNorm(0.4)), "m7")
-        XCTAssertEqual(ch.fromNorm(0), 100.0 / 22, accuracy: 1e-9)
-        XCTAssertEqual(Params.grid(sound: "mi:7")[0].format(50), "Phoneme")
-        // MI DRUMS: 11–15 — ручка 1.3 «OUT→AUX», затухают сами.
-        XCTAssertEqual(Params.grid(sound: "mi:13")[0].label, "Attack & overdrive")
-        XCTAssertEqual(Params.grid(sound: "mi:13")[8].label, "OUT→AUX")
-        XCTAssertEqual(Params.grid(sound: "mi:8")[8].label, "Grain length")
-        XCTAssertEqual(SynthEngines.all.filter(\.decay).map(\.name), ["STRING", "MODAL", "KICK", "SNARE", "HI-HAT", "DRUM"])
+        XCTAssertEqual(Params.grid(sound: "mi:3")[0].id, "pitch", "звук без движка — не синт")
+        XCTAssertEqual(SynthEngines.all.map(\.id), [16, 17, 18, 19])
+        XCTAssertEqual(SynthEngines.count, 20)
+        XCTAssertEqual(SynthEngines.all.filter(\.decay).map(\.name), ["DRUM"])
         // Свои движки: PITCH в Гц и Decay до 1000 мс у DRUM, WAVE ступенчатая у ANALOG, RATIO ×N.NN у FM.
         let drum = Params.grid(sound: "mi:16")
         XCTAssertEqual(drum[0].label, "Pitch")
@@ -52,19 +49,47 @@ final class SynthTests: XCTestCase {
         var t = Track(index: 0)
         XCTAssertEqual(t.params["harm"], 50)
         XCTAssertEqual(t.params["morph"], 50)
-        t.setSynth(3)
-        XCTAssertEqual(t.sample, "mi:3")
-        XCTAssertEqual(Params.grid(sound: t.sample)[0].label, "Formant ratio")
+        t.setSynth(18)
+        XCTAssertEqual(t.sample, "mi:18")
+        XCTAssertEqual(Params.grid(sound: t.sample)[0].label, "Ratio")
+    }
+
+    /// Проект и пресеты со звуками движков Mutable Instruments загружаются пустыми (S12); свои движки остаются.
+    func testRemovedEnginesLoadEmpty() throws {
+        var p = Project()
+        p.tracks[0].sample = "mi:3"
+        p.tracks[0].params["harm"] = 70
+        p.tracks[1].sample = "mi:17"
+        var st = Step()
+        st.on = true
+        st.notes = [60]
+        st.sound = "mi:12"
+        st.locks = ["harm": 20, "decay": 300]
+        st.soundLocks = ["harm"]
+        p.tracks[1].clips[0]!.pages[0][0] = st
+        p.tracks[1].folder = Folder(items: [FolderItem(preset: SynthPreset(name: "Old", sound: "mi:5", params: [:])),
+                                            FolderItem(preset: SynthPreset(name: "New", sound: "mi:18", params: [:]))])
+        let data = try JSONEncoder().encode(p)
+        var q = try JSONDecoder().decode(Project.self, from: data)
+        q.repair()
+        XCTAssertEqual(q.tracks[0].sample, "")
+        XCTAssertEqual(q.tracks[0].params["harm"], 70, "ручки дорожки остаются")
+        XCTAssertEqual(q.tracks[1].sample, "mi:17")
+        let s0 = try XCTUnwrap(q.tracks[1].clips[0]?.pages[0][0])
+        XCTAssertNil(s0.sound, "пресет-лок снят — шаг играет звук дорожки")
+        XCTAssertNil(s0.soundLocks)
+        XCTAssertEqual(s0.locks, ["decay": 300], "p-lock пресета сняты, ручной остался")
+        XCTAssertEqual(q.tracks[1].folder.items.map { $0.preset?.sound }, ["", "mi:18"])
+        var t = Track(index: 2)
+        t.applyItem(FolderItem(sample: "mi:9"))
+        XCTAssertEqual(t.sample, "", "прежняя папка: ключ без движка — пустой звук")
     }
 
     // MARK: — голоса синта (звук)
 
-    /// Таблицы с a0 приложения (55/48000, без сдвига ноты).
-    private static let appResources: PlaitsResources? = PlaitsResources.load(dir: PlaitsGolden.tablesDir)
-
     private func core(_ p: Project) throws -> AudioCore {
         let c = AudioCore(master: false)
-        c.installSynth(try XCTUnwrap(SynthTests.appResources))
+        c.installSynth()
         c.publish(p)
         return c
     }
@@ -98,28 +123,11 @@ final class SynthTests: XCTestCase {
         return (s / Float(2 * half)).squareRoot()
     }
 
-    /// Почти синус: ADDITIVE с одной гармоникой (центр — первая, крутизна наибольшая).
-    private let sine: [String: Double] = ["harm": 0, "timbre": 0, "morph": 100]
-
-    func testA4Is440() throws {
-        let c = try core(synthProject(4, sine))
-        c.events.push(.noteOn(track: 0, note: 69, id: 1, velocity: 1))
-        let x = render(c, frames: 48000)
-        // Частота по переходам через ноль (с интерполяцией) на 0,25…1 с.
-        var first = -1.0, last = -1.0, count = 0
-        for i in 12000..<47999 where x[i] <= 0 && x[i + 1] > 0 {
-            let t = Double(i) + Double(-x[i] / (x[i + 1] - x[i]))
-            if first < 0 { first = t }
-            last = t
-            count += 1
-        }
-        let hz = Double(count - 1) / ((last - first) / 48000)
-        XCTAssertEqual(hz, 440, accuracy: 0.2)
-        XCTAssertFalse(x.contains { !$0.isFinite })
-    }
+    /// Синус: ANALOG по умолчанию (WAVE Sine, без DETUNE и SUB).
+    private let sine: [String: Double] = [:]
 
     func testAttackAndRelease() throws {
-        let c = try core(synthProject(4, sine.merging(["attack": 200, "decay": 400]) { $1 }))
+        let c = try core(synthProject(17, sine.merging(["attack": 200, "decay": 400]) { $1 }))
         c.events.push(.noteOn(track: 0, note: 60, id: 1, velocity: 1))
         var x = render(c, frames: 24000)
         let held = rms(x, 20000)
@@ -134,7 +142,7 @@ final class SynthTests: XCTestCase {
     }
 
     func testSeventhNoteSteals() throws {
-        let c = try core(synthProject(0))
+        let c = try core(synthProject(17))
         for k in 0..<7 { c.events.push(.noteOn(track: 0, note: 48 + k, id: k + 1, velocity: 1)) }
         _ = render(c, frames: 4800)
         let s = try XCTUnwrap(c.sampler.synth)
@@ -145,39 +153,51 @@ final class SynthTests: XCTestCase {
     }
 
     func testStepNoteStopsAndStepSound() throws {
-        // Дорожка без звука, у шага — свой звук «mi:2» (FM).
+        // Дорожка без звука, у шага — свой звук «mi:18» (FM).
         var p = Project()
         p.tracks[0].vol = 0
         p.tracks[0].params["decay"] = 100
         p.tracks[0].pages[0][0].on = true
         p.tracks[0].pages[0][0].notes = [60]
-        p.tracks[0].pages[0][0].sound = "mi:2"
+        p.tracks[0].pages[0][0].sound = "mi:18"
         p.tracks[0].length = 64
         let c = try core(p)
         c.events.push(.play(true))
         let x = render(c, frames: 14000)
         XCTAssertGreaterThan(rms(x, 1200), 0.01, "свой звук шага — синт")
         XCTAssertEqual(c.sampler.synth?.activeCount, 0, "нота в 1 шаг: атака, Decay 100 мс, хвост 0,25 с — тишина")
-        XCTAssertEqual(c.sampler.synth?.engine[0], 2)
+        XCTAssertEqual(c.sampler.synth?.engine[0], 18)
+    }
+
+    /// Звук движка, которого нет (mi:3 — Mutable Instruments): тишина, голоса синта не заняты.
+    func testRemovedEngineSilent() throws {
+        var p = Project()
+        p.tracks[0].vol = 0
+        p.tracks[0].sample = "mi:3"
+        let c = try core(p)
+        c.events.push(.noteOn(track: 0, note: 60, id: 1, velocity: 1))
+        let x = render(c, frames: 4800)
+        XCTAssertEqual(c.sampler.synth?.activeCount, 0)
+        XCTAssertLessThan(peak(x, 0, 4800), 1e-6)
     }
 
     func testEngineChangeRetriggersHeldNote() throws {
-        var p = synthProject(0)
+        var p = synthProject(17)
         let c = try core(p)
         c.events.push(.noteOn(track: 0, note: 57, id: 3, velocity: 1))
         _ = render(c, frames: 4800)
-        p.tracks[0].setSynth(3)
+        p.tracks[0].setSynth(18)
         c.publish(p)
         let x = render(c, frames: 4800)
         let s = try XCTUnwrap(c.sampler.synth)
         var engines: [Int] = []
         for v in 0..<SynthVoices.perTrack where s.active[v] != 0 { engines.append(s.engine[v]) }
-        XCTAssertEqual(engines, [3], "держащаяся нота звучит новым движком, прежний голос погас")
+        XCTAssertEqual(engines, [18], "держащаяся нота звучит новым движком, прежний голос погас")
         XCTAssertGreaterThan(rms(x, 4000), 0.01)
     }
 
     func testMuteSilences() throws {
-        var p = synthProject(1)
+        var p = synthProject(18)
         let c = try core(p)
         c.events.push(.noteOn(track: 0, note: 60, id: 1, velocity: 1))
         _ = render(c, frames: 4800)
@@ -190,7 +210,8 @@ final class SynthTests: XCTestCase {
     /// Нагрузка: 8 дорожек × 6 голосов (живые ноты), 1 с звука; печатает долю реального времени.
     func testLoad48SynthVoices() throws {
         var p = Project()
-        for t in 0..<8 { p.tracks[t].setSynth(t) }
+        // ANALOG и FM по очереди (WTABLE без таблицы молчит, DRUM монофонична).
+        for t in 0..<8 { p.tracks[t].setSynth(t % 2 == 0 ? 17 : 18) }
         let c = try core(p)
         for t in 0..<8 {
             for k in 0..<6 { c.events.push(.noteOn(track: t, note: 48 + k * 3, id: t * 10 + k, velocity: 1)) }
@@ -203,90 +224,13 @@ final class SynthTests: XCTestCase {
         XCTAssertFalse(x.contains { !$0.isFinite })
     }
 
-    /// Нагрузка MI DRUMS: 8 дорожек × 6 голосов движков 8–15 (Decay 4000 мс — звучат всю секунду).
-    func testLoad48DrumVoices() throws {
-        var p = Project()
-        for t in 0..<8 {
-            p.tracks[t].setSynth(8 + t)
-            p.tracks[t].params["decay"] = 4000
-        }
-        let c = try core(p)
-        for t in 0..<8 {
-            for k in 0..<6 { c.events.push(.noteOn(track: t, note: 36 + k * 5, id: t * 10 + k, velocity: 1)) }
-        }
-        let t0 = Date()
-        let x = render(c, frames: 48000)
-        let load = Date().timeIntervalSince(t0)
-        print(String(format: "drum load: 48 voices — %.1f%% of one core", load * 100))
-        XCTAssertFalse(x.contains { !$0.isFinite })
-    }
-
-    // MARK: — MI DRUMS (#42)
+    // MARK: — свои движки (#43)
 
     private func peak(_ x: [Float], _ from: Int, _ to: Int) -> Float {
         var m: Float = 0
         for i in from..<to { m = max(m, abs(x[i])) }
         return m
     }
-
-    /// KICK затухает сам: живая нота держится, а звук гаснет по Decay; голос замолкает по тишине.
-    func testKickDecaysWhileHeld() throws {
-        let c = try core(synthProject(13, ["decay": 300]))
-        c.events.push(.noteOn(track: 0, note: 36, id: 1, velocity: 1))
-        let x = render(c, frames: 96000)
-        let hit = peak(x, 0, 4800)
-        XCTAssertGreaterThan(hit, 0.05)
-        XCTAssertLessThan(peak(x, 72000, 96000), hit * 0.01, "клавиша держится, но бочка затухла")
-        XCTAssertFalse(x.contains { !$0.isFinite })
-        c.events.push(.noteOff(track: 0, id: 1))
-        _ = render(c, frames: 24000)
-        XCTAssertEqual(c.sampler.synth?.activeCount, 0)
-    }
-
-    /// Decay → Morph Plaits: длинный Decay — хвост громче.
-    func testDecayKnobSetsLength() throws {
-        func tail(_ decay: Double) throws -> Float {
-            let c = try core(synthProject(13, ["decay": decay]))
-            c.events.push(.noteOn(track: 0, note: 36, id: 1, velocity: 1))
-            return rms(render(c, frames: 48000), 24000, 2400)
-        }
-        let short = try tail(100), long = try tail(4000)
-        XCTAssertGreaterThan(long, short * 10)
-    }
-
-    /// Ручка 1.3 у KICK — OUT→AUX: 0 — бочка 808 (OUT), 100 — синтетическая (AUX); 50 — смесь.
-    func testOutToAux() throws {
-        func hit(_ morph: Double) throws -> [Float] {
-            let c = try core(synthProject(13, ["morph": morph, "decay": 500]))
-            c.events.push(.noteOn(track: 0, note: 36, id: 1, velocity: 1))
-            return render(c, frames: 9600)
-        }
-        let out = try hit(0), aux = try hit(100), mix = try hit(50)
-        XCTAssertGreaterThan(peak(out, 0, 9600), 0.05)
-        XCTAssertGreaterThan(peak(aux, 0, 9600), 0.05)
-        var diff: Float = 0, mixErr: Float = 0
-        for i in 0..<9600 {
-            diff = max(diff, abs(out[i] - aux[i]))
-            mixErr = max(mixErr, abs(mix[i] - (out[i] + aux[i]) / 2))
-        }
-        XCTAssertGreaterThan(diff, 0.05, "OUT и AUX — разные бочки")
-        XCTAssertLessThan(mixErr, 1e-3, "50 % — половина OUT и половина AUX")
-    }
-
-    /// Все MI DRUMS звучат и без NaN (ноты 36 и 60, ручки по умолчанию).
-    func testAllDrumsSound() throws {
-        for e in 8..<16 {
-            for n in [36, 60] {
-                let c = try core(synthProject(e))
-                c.events.push(.noteOn(track: 0, note: n, id: 1, velocity: 1))
-                let x = render(c, frames: 24000)
-                XCTAssertFalse(x.contains { !$0.isFinite }, "\(SynthEngines.all[e].name) \(n)")
-                XCTAssertGreaterThan(peak(x, 0, 24000), 0.01, "\(SynthEngines.all[e].name) \(n)")
-            }
-        }
-    }
-
-    // MARK: — свои движки (#43)
 
     /// ANALOG при выборе с другого звука — синус без DETUNE и SUB; DRUM подрезает Decay до 1000 мс.
     func testSetSynthInitAndDecayMax() {
@@ -353,7 +297,7 @@ final class SynthTests: XCTestCase {
 
         let basic = WtTable.builtin("BASIC")
         let c = AudioCore(master: false)
-        c.installSynth(try XCTUnwrap(SynthTests.appResources))
+        c.installSynth()
         c.publish(p, tables: ["": basic])
         c.events.push(.noteOn(track: 0, note: 48, id: 1, velocity: 1))
         let x = render(c, frames: 9600)

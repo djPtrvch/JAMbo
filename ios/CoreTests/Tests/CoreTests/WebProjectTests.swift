@@ -86,8 +86,8 @@ final class WebProjectTests: XCTestCase {
         // Без гаммы в вебе — гамма проекта (normalizeDoc).
         XCTAssertEqual(t.clips[5]?.scale, 2)
         XCTAssertEqual(t.slices[kick], [SliceMark(at: 0.5, note: 62), SliceMark(at: 0.75)])
-        // Папка: сэмплы и пресет синта (S11b), звучит snare.
-        let bell = SynthPreset(name: "Bell", sound: "mi:2", params: ["harm": 30], fmt: 2)
+        // Папка: сэмплы и пресет синта (S11b), звучит snare. Пресет движка Mutable Instruments (mi:2) — пустой (S12).
+        let bell = SynthPreset(name: "Bell", sound: "", params: ["harm": 30], fmt: 2)
         XCTAssertEqual(t.folder, Folder(items: [FolderItem(sample: kick), FolderItem(preset: bell), FolderItem(sample: snare)],
                                         index: 2))
         let q = t.eq.bands[1]
@@ -99,7 +99,7 @@ final class WebProjectTests: XCTestCase {
     func testBlankStoppedTablesAndChannels() throws {
         let (_, p) = try load()
         let t1 = p.tracks[1]
-        XCTAssertEqual(t1.sample, "mi:3")
+        XCTAssertEqual(t1.sample, "", "звук движка Mutable Instruments (mi:3) — пустой (S12)")
         XCTAssertEqual(t1.slot, 1)
         XCTAssertTrue(t1.blank)
         XCTAssertTrue(t1.stopped)

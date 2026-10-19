@@ -1,40 +1,27 @@
 import Foundation
 
-// Голоса синта Plaits (в колбэке; как triggerSynth веба, plaits-worklet.js и jambo_voices.cc): 6 голосов на дорожку,
-// слот — по кругу (свободный: голос дозвучал), иначе крадётся следующий — гаснет за ~5 мс (τ 1,5 мс), новая нота —
-// через 8 мс. Plaits получает только триггер (первый кусок ноты), громкость — внешняя огибающая, как у сэмпла:
-// Attack (не меньше 2 мс) → удержание → Decay как Release. Движок → Post (усиление, < 0 — лимитер) → ±1 →
-// огибающая → Level → фильтр → Pan → шина дорожки (микшер — в Sampler). Куски по 24 отсчёта (BLOCK worklet).
-// Затухающие сами (STRING, MODAL, KICK, SNARE, HI-HAT): Morph Plaits — √(Decay / 4000 мс), ручка 1.3 — микс
-// OUT→AUX; огибающая только с атакой (без удержания и релиза), голос считается до тишины (не дольше 15 с), слот
-// занят до атаки + 0,3 с + 4·Decay; с атакой ≤ 2,5 мс в свободном слоте огибающая не обнуляется — хвост прошлой
-// ноты не обрывается скачком, ручки звука слота подстраиваются за ~1 мс.
+// Голоса синта (в колбэке; как triggerSynth веба и jambo-synth-worklet.js): 6 голосов на дорожку, слот — по кругу
+// (свободный: голос дозвучал), иначе крадётся следующий — гаснет за ~5 мс (τ 1,5 мс), новая нота — через 8 мс.
+// Громкость — внешняя огибающая, как у сэмпла: Attack (не меньше 2 мс) → удержание → Decay как Release.
+// Движок → огибающая → Level → фильтр → Pan → шина дорожки (микшер — в Sampler). Куски по 24 отсчёта (BLOCK worklet).
+// Затухающие сами (DRUM): огибающая только с атакой (без удержания и релиза), голос считается до тишины (не дольше
+// 15 с), слот занят до атаки + 0,3 с + 4·Decay; с атакой ≤ 2,5 мс в свободном слоте огибающая не обнуляется — хвост
+// прошлой ноты не обрывается скачком, ручки звука слота подстраиваются за ~1 мс.
 
 public final class SynthVoices {
     public static let perTrack = 6
     static let tracks = SoundData.maxTracks
     static let slots = tracks * perTrack
-    static let chunk = kMaxBlockSize
+    static let chunk = 24
     /// Голос без звука дольше 4800 отсчётов (и с начала ноты прошло больше) замолкает (SILENCE worklet).
     static let silence = 4800
-    static let accent: Float = 0.8
-    /// Усиления OUT и AUX движков 0–15 (< 0 — лимитер с предусилением), как в jambo_voices.cc.
-    public static let outGains: [Float] = [0.8, 0.7, 0.6, 0.7, 0.8, 0.6, 0.8, -0.7,
-                                           -3.0, -1.0, -2.0, -1.0, -1.0, 0.8, 0.8, 0.8]
-    public static let auxGains: [Float] = [0.8, 0.6, 0.6, 0.6, 0.8, 0.6, 0.8, 0.8,
-                                           1.0, -1.0, 1.0, 0.8, 0.8, 0.8, 0.8, 0.8]
 
     let sr: Double
-    let bank: SynthEngineBank
+    let bank: JamboBank
     // Таблицы для колбэка — указатели (Swift-массивы не читаем).
     static let engines = SynthEngines.count
-    private let gains = UnsafeMutablePointer<Float>.allocate(capacity: engines)
-    private let auxGainsP = UnsafeMutablePointer<Float>.allocate(capacity: engines)
     /// 1 — движок затухает сам (SynthEngine.decay).
     private let selfDecayE = UnsafeMutablePointer<UInt8>.allocate(capacity: engines)
-    /// Точки harmonics по пункту (SPEECH: 3 точки), начиная с points[e * 4].
-    private let points = UnsafeMutablePointer<Float>.allocate(capacity: engines * 4)
-    private let pointCount = UnsafeMutablePointer<Int>.allocate(capacity: engines)
 
     // Голос (по слоту: дорожка = слот / perTrack).
     let active = UnsafeMutablePointer<UInt8>.allocate(capacity: slots)
@@ -46,9 +33,8 @@ public final class SynthVoices {
     let note = UnsafeMutablePointer<Int>.allocate(capacity: slots)
     let liveId = UnsafeMutablePointer<Int>.allocate(capacity: slots)
     let serial = UnsafeMutablePointer<Int>.allocate(capacity: slots)
-    /// Движок ноты и движок, выбранный в слоте (−1 — ещё нет; смена — LoadUserData и Reset).
+    /// Движок ноты.
     let engine = UnsafeMutablePointer<Int>.allocate(capacity: slots)
-    let slotEngine = UnsafeMutablePointer<Int>.allocate(capacity: slots)
     let start = UnsafeMutablePointer<Int64>.allocate(capacity: slots)
     let holdEnd = UnsafeMutablePointer<Int64>.allocate(capacity: slots)
     let stopAt = UnsafeMutablePointer<Int64>.allocate(capacity: slots)
@@ -68,16 +54,11 @@ public final class SynthVoices {
     let ftype = UnsafeMutablePointer<Int>.allocate(capacity: slots)
     let coef = UnsafeMutablePointer<Biquad>.allocate(capacity: slots)
     let z = UnsafeMutablePointer<Float>.allocate(capacity: slots * 2)
-    let limiter = UnsafeMutablePointer<StmLimiter>.allocate(capacity: slots)
-    let auxLimiter = UnsafeMutablePointer<StmLimiter>.allocate(capacity: slots)
     /// Слот занят до (затухающие сами — атака + 0,3 с + 4·Decay; остальные — до stopAt).
     let busyUntil = UnsafeMutablePointer<Int64>.allocate(capacity: slots)
     /// Голос затухающего самого движка; keep — огибающая с 1 (без атаки), ручки звука — за ~1 мс.
     let selfDecay = UnsafeMutablePointer<UInt8>.allocate(capacity: slots)
     let keep = UnsafeMutablePointer<UInt8>.allocate(capacity: slots)
-    /// Сглаженные Timbre, Morph (у затухающих самих — от Decay) и доля AUX: в вебе (и jambo_voices.cc) они
-    /// приходят скачками — у MODAL с длинным Decay скачок добротности и микса OUT→AUX трещит.
-    let smooth = UnsafeMutablePointer<Float>.allocate(capacity: slots * 3)
     let quiet = UnsafeMutablePointer<Int>.allocate(capacity: slots)
     let lockMask = UnsafeMutablePointer<UInt16>.allocate(capacity: slots)
     let lockVal = UnsafeMutablePointer<Float>.allocate(capacity: slots * VoiceParam.count)
@@ -106,30 +87,14 @@ public final class SynthVoices {
     private var nextSerial = 0
 
     private let outBuf = UnsafeMutablePointer<Float>.allocate(capacity: chunk)
-    private let auxBuf = UnsafeMutablePointer<Float>.allocate(capacity: chunk)
 
-    /// Создаётся вне колбэка (≈ 100 голосов × 16 движков).
-    public init(resources: PlaitsResources, sampleRate: Double) {
+    /// Создаётся вне колбэка (≈ 100 голосов).
+    public init(sampleRate: Double) {
         sr = sampleRate
-        bank = SynthEngineBank(resources, count: SynthVoices.slots, perTrack: SynthVoices.perTrack, sampleRate: sampleRate)
+        bank = JamboBank(count: SynthVoices.slots, sampleRate: sampleRate)
         drift.initialize(repeating: JamboDrift(), count: SynthVoices.tracks)
-        let ne = SynthVoices.engines
-        gains.initialize(repeating: 1, count: ne)
-        auxGainsP.initialize(repeating: 1, count: ne)
-        selfDecayE.initialize(repeating: 0, count: ne)
-        points.initialize(repeating: 0, count: ne * 4)
-        pointCount.initialize(repeating: 0, count: ne)
-        for e in 0..<Swift.min(ne, SynthEngines.count) {
-            // Усиления — только у Plaits (свои движки без Post).
-            if e < SynthVoices.outGains.count {
-                gains[e] = SynthVoices.outGains[e]
-                auxGainsP[e] = SynthVoices.auxGains[e]
-            }
-            selfDecayE[e] = SynthEngines.all[e].decay ? 1 : 0
-            let pts = SynthEngines.all[e].harmPoints
-            pointCount[e] = Swift.min(4, pts.count)
-            for k in 0..<pointCount[e] { points[e * 4 + k] = pts[k] }
-        }
+        selfDecayE.initialize(repeating: 0, count: SynthVoices.engines)
+        for e in SynthEngines.all { selfDecayE[e.id] = e.decay ? 1 : 0 }
         let s = SynthVoices.slots
         for p in [active, fading, own, released, triggered, pActive, pOwn, selfDecay, keep] as [UnsafeMutablePointer<UInt8>] {
             p.initialize(repeating: 0, count: s)
@@ -137,7 +102,7 @@ public final class SynthVoices {
         for p in [trackId, note, serial, ftype, quiet, pNote] as [UnsafeMutablePointer<Int>] {
             p.initialize(repeating: 0, count: s)
         }
-        for p in [liveId, engine, slotEngine, pEngine, pLive] as [UnsafeMutablePointer<Int>] {
+        for p in [liveId, engine, pEngine, pLive] as [UnsafeMutablePointer<Int>] {
             p.initialize(repeating: -1, count: s)
         }
         for p in [start, holdEnd, stopAt, pStart, pGate, busyUntil] as [UnsafeMutablePointer<Int64>] {
@@ -149,32 +114,26 @@ public final class SynthVoices {
         send.initialize(repeating: 0, count: s * 3)
         coef.initialize(repeating: Biquad(), count: s)
         z.initialize(repeating: 0, count: s * 2)
-        limiter.initialize(repeating: StmLimiter(), count: s)
-        auxLimiter.initialize(repeating: StmLimiter(), count: s)
-        smooth.initialize(repeating: 0, count: s * 3)
         lockMask.initialize(repeating: 0, count: s)
         pMask.initialize(repeating: 0, count: s)
         lockVal.initialize(repeating: 0, count: s * VoiceParam.count)
         pVal.initialize(repeating: 0, count: s * VoiceParam.count)
         next.initialize(repeating: 0, count: SynthVoices.tracks)
         outBuf.initialize(repeating: 0, count: SynthVoices.chunk)
-        auxBuf.initialize(repeating: 0, count: SynthVoices.chunk)
     }
 
     deinit {
         for p in [active, fading, own, released, triggered, pActive, pOwn, selfDecay, keep, selfDecayE]
             as [UnsafeMutablePointer<UInt8>] { p.deallocate() }
-        for p in [trackId, note, serial, ftype, quiet, pNote, liveId, engine, slotEngine, pEngine, pLive, next, pointCount]
+        for p in [trackId, note, serial, ftype, quiet, pNote, liveId, engine, pEngine, pLive, next]
             as [UnsafeMutablePointer<Int>] { p.deallocate() }
         for p in [start, holdEnd, stopAt, pStart, pGate, fadeAt, busyUntil] as [UnsafeMutablePointer<Int64>] { p.deallocate() }
         for p in [attackF, decaySec, hz, qDb] as [UnsafeMutablePointer<Double>] { p.deallocate() }
         send.deallocate()
-        for p in [decayK, env, fadeK, fadeG, level, pan, z, lockVal, pVal, outBuf, auxBuf, gains, auxGainsP, points, smooth]
+        for p in [decayK, env, fadeK, fadeG, level, pan, z, lockVal, pVal, outBuf]
             as [UnsafeMutablePointer<Float>] { p.deallocate() }
         coef.deallocate()
         drift.deallocate()
-        limiter.deallocate()
-        auxLimiter.deallocate()
         lockMask.deallocate()
         pMask.deallocate()
     }
@@ -255,18 +214,12 @@ public final class SynthVoices {
 
     private func setup(_ v: Int, _ d: SoundData, _ t: Int, _ e: Int, _ frame: Int64, _ n: Int, _ gate: Int64,
                        _ mask: UInt16, _ vals: UnsafePointer<Float>?, _ isOwn: Bool, _ live: Int, steal: Bool) {
-        if slotEngine[v] != e {
-            bank.select(v, e)
-            limiter[v].initialize()
-            auxLimiter[v].initialize()
-            slotEngine[v] = e
-        }
         let decaying = selfDecayE[e] != 0
-        // Хвост прошлой ноты слота (тот же голос Plaits) не обрывается: огибающая с 1, ручки — за ~1 мс.
+        // Хвост прошлой ноты слота (тот же голос) не обрывается: огибающая с 1, ручки — за ~1 мс.
         let wasActive = active[v] != 0
         let keepEnv = decaying && !steal && pv(d, t, VoiceParam.attack, mask, vals) <= 2.5
         // Голос молчал — у DRUM нет хвоста для стыка.
-        if !wasActive && e >= SynthEngines.firstJambo { bank.jamboSilent(v) }
+        if !wasActive { bank.jamboSilent(v) }
         nextSerial += 1
         serial[v] = nextSerial
         active[v] = 1
@@ -491,86 +444,25 @@ public final class SynthVoices {
         let e = engine[v]
         let decaying = selfDecay[v] != 0
         var peak: Float = 0
-        if e >= SynthEngines.firstJambo {
-            // Свои движки (jambo-synth-worklet.js): p1–p3 — ручки 1.1–1.3 / 100, Decay — мс; сглаживание — в голосе
-            // (5 мс), без Post и ±1 (как выход узла worklet).
-            let q1 = val(VoiceParam.harm) / 100, q2 = val(VoiceParam.timbre) / 100, q3 = val(VoiceParam.morph) / 100
-            let dec = val(VoiceParam.decay)
-            let nt = Double(note[v])
-            let dr = drift[t]
-            if triggered[v] == 0 {
-                bank.jamboTrigger(v, e, note: nt, q1, q2, q3, decay: dec, now: Double(Int(frame0)),
-                                  tau: dr.tau + Double(Int(frame0 - blockStart)) * dr.ratio)
-                triggered[v] = 1
-            } else {
-                bank.jamboSet(v, note: nt, q1, q2, q3, decay: dec)
-            }
-            bank.jamboRender(v, outBuf, m, driftRatio: dr.ratio, table: d.tableRef[d.s(t)])
-            var j = 0
-            while j < m {
-                let a = outBuf[j] < 0 ? -outBuf[j] : outBuf[j]
-                if a > peak { peak = a }
-                j += 1
-            }
-        } else {
-            // Ручки → Plaits (synthParams веба): harmonics 0…1 (SPEECH — точка пункта), timbre, morph; accent 0,8.
-            var p = EngineParameters()
-            let h = Float(val(VoiceParam.harm) / 100)
-            let pc = pointCount[e]
-            p.harmonics = pc > 0 ? points[e * 4 + Params.stepIndex(Double(h), pc)] : h
-            let timbreT = Float(val(VoiceParam.timbre) / 100)
-            // Затухающие сами: Morph Plaits — от Decay (decayNorm веба), ручка 1.3 — доля AUX.
-            var morphT: Float
-            var auxT: Float = 0
-            if decaying {
-                morphT = Float(Swift.min(1, Swift.max(0, val(VoiceParam.decay) / 4000)).squareRoot())
-                auxT = Float(Swift.min(1, Swift.max(0, val(VoiceParam.morph) / 100)))
-            } else {
-                morphT = Float(val(VoiceParam.morph) / 100)
-            }
-            // Сглаживание 10 мс (как у Level и Pan); в начале ноты — сразу значения ноты. Harmonics не сглаживается:
-            // у ступенчатой (WAVETABLE, CHORDS, SPEECH) проскакивали бы соседние пункты.
-            let sb = v * 3
-            let aux0: Float
-            if triggered[v] == 0 {
-                smooth[sb] = timbreT
-                smooth[sb + 1] = morphT
-                smooth[sb + 2] = auxT
-                aux0 = auxT
-            } else {
-                let k = Float(1 - exp(-Double(m) / (0.01 * sr)))
-                aux0 = smooth[sb + 2]
-                smooth[sb] += (timbreT - smooth[sb]) * k
-                smooth[sb + 1] += (morphT - smooth[sb + 1]) * k
-                smooth[sb + 2] += (auxT - smooth[sb + 2]) * k
-            }
-            p.timbre = smooth[sb]
-            p.morph = smooth[sb + 1]
-            let aux1 = smooth[sb + 2]
-            p.note = Float(note[v])
-            p.accent = SynthVoices.accent
-            p.trigger = triggered[v] == 0 ? (triggerRisingEdge | triggerHigh) : triggerLow
+        // Свои движки (jambo-synth-worklet.js): p1–p3 — ручки 1.1–1.3 / 100, Decay — мс; сглаживание — в голосе
+        // (5 мс), без Post и ±1 (как выход узла worklet).
+        let q1 = val(VoiceParam.harm) / 100, q2 = val(VoiceParam.timbre) / 100, q3 = val(VoiceParam.morph) / 100
+        let dec = val(VoiceParam.decay)
+        let nt = Double(note[v])
+        let dr = drift[t]
+        if triggered[v] == 0 {
+            bank.jamboTrigger(v, e, note: nt, q1, q2, q3, decay: dec, now: Double(Int(frame0)),
+                              tau: dr.tau + Double(Int(frame0 - blockStart)) * dr.ratio)
             triggered[v] = 1
-            bank.render(v, e, p, outBuf, auxBuf, m)
-            // Post (jambo_voices.cc): усиление, < 0 — лимитер; микс OUT и AUX (aux_mix); ±1.
-            var gain = gains[e]
-            if gain < 0 {
-                limiter[v].process(-gain, outBuf, m)
-                gain = 1
-            }
-            var auxGain = auxGainsP[e]
-            if auxGain < 0 {
-                auxLimiter[v].process(-auxGain, auxBuf, m)
-                auxGain = 1
-            }
-                for j in 0..<m {
-                // Доля AUX — линейно внутри куска (без ступенек).
-                let auxMix = aux0 + (aux1 - aux0) * Float(j + 1) / Float(m)
-                let mixed = outBuf[j] * gain * (1 - auxMix) + auxBuf[j] * auxGain * auxMix
-                let x = Swift.min(1, Swift.max(-1, mixed))
-                outBuf[j] = x
-                peak = Swift.max(peak, abs(x))
-            }
+        } else {
+            bank.jamboSet(v, note: nt, q1, q2, q3, decay: dec)
+        }
+        bank.jamboRender(v, outBuf, m, driftRatio: dr.ratio, table: d.tableRef[d.s(t)])
+        var q = 0
+        while q < m {
+            let a = outBuf[q] < 0 ? -outBuf[q] : outBuf[q]
+            if a > peak { peak = a }
+            q += 1
         }
         quiet[v] = peak < 1e-5 ? quiet[v] + m : 0
         if quiet[v] > SynthVoices.silence && frame0 - start[v] > Int64(SynthVoices.silence) {

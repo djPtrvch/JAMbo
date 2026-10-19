@@ -130,7 +130,7 @@ extension TransitionTests {
         var old = Project()
         old.tracks[0].clips[0]!.pages[0][0].on = true
         old.tracks[0].params["pitch"] = 7
-        old.tracks[0].sample = "mi:0"
+        old.tracks[0].sample = "mi:17"
         var next = Project()
         next.tracks[0].params["pitch"] = -3
         let (p, _) = old.mixed(into: next, playing: true, leaving: [])
@@ -145,7 +145,7 @@ extension TransitionTests {
         XCTAssertEqual(d.sound[d.s(0)], SoundKey.hash(""))
         slots[0] = last
         XCTAssertEqual(d.param(0, VoiceParam.pitch), 7)
-        XCTAssertEqual(d.sound[d.s(0)], SoundKey.hash("mi:0"))
+        XCTAssertEqual(d.sound[d.s(0)], SoundKey.hash("mi:17"))
         // Без второго звука ячейка PREV ничего не меняет.
         slots[1] = last
         XCTAssertEqual(d.s(1), 1)
