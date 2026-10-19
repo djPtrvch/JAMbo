@@ -24,6 +24,24 @@ extension AppModel {
         editTrack { t in t.toggleStep(index, notes: notes) }
     }
 
+    /// STEP SWIPE = PAINT: триги на шагах from…to (стоящие не трогаются; ноты — как у нового трига).
+    func paintSteps(_ from: Int, _ to: Int) {
+        guard channel == .track, from <= to else { return }
+        let notes = trigNotes
+        editTrack { t in
+            var i: Int = from
+            while i <= to {
+                t.withStep(i) { s in
+                    if !s.on {
+                        s.on = true
+                        if s.notes.isEmpty { s.notes = notes }
+                    }
+                }
+                i += 1
+            }
+        }
+    }
+
     /// Протягивание: триг на шаге index длиной len шагов.
     func setNoteLength(_ index: Int, _ len: Int) {
         guard channel == .track else { return }

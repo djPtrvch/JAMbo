@@ -123,7 +123,7 @@ struct MidiMapMain: View {
             line("Control type", m.control.title, .control)
             if continuous && m.control == .rel { line("Encoder", MidiMapOptions.encName(m.enc), .encoder) }
             if showsRange { line("Range", "\(pct(m.min)) – \(pct(m.max)) %", .range) }
-            if case .press = m.target { line("Action", MidiMapOptions.actionName(m.press), .action) }
+            if case .press = m.target { actionLine }
             line("Condition", MidiMapOptions.condName(m), .cond)
             Divider().overlay(theme.line).padding(.vertical, 6)
             line("Input port", model.midiPortName(m.input, inputs: true, none: "Any"), .port)
@@ -133,9 +133,19 @@ struct MidiMapMain: View {
 
     private var continuous: Bool { return model.midiContinuous(m.target) }
 
+    /// Action нажатия ручки; при KNOB PRESS = TOUCH (MIDI → MAPPING) — как палец, без выбора.
+    @ViewBuilder
+    private var actionLine: some View {
+        if model.settings.midi.pressTouch {
+            MidiMapLine(label: "Action", value: "Touch (tap, double tap)")
+        } else {
+            line("Action", MidiMapOptions.actionName(m.press), .action)
+        }
+    }
+
     /// Range — у ручек и регуляторов, у нажатия ручки — с действием PARAM.
     private var showsRange: Bool {
-        if case .press = m.target { return m.press == .param }
+        if case .press = m.target { return m.press == .param && !model.settings.midi.pressTouch }
         return continuous
     }
 

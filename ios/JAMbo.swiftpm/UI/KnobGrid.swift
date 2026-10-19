@@ -36,13 +36,13 @@ struct KnobGrid: View {
                         let k: Int = row * 4 + col
                         if mix {
                             MixCell(model: model, slot: k)
-                                .midiMarks(model, [.knob(k), .press(k)])
+                                .midiMarks(model, [model.midiLearn.press ? .press(k) : .knob(k)])
                                 .offset(liftOffset(k, size))
                                 .scaleEffect(lift?.from == k ? 1.12 : 1)
                                 .zIndex(lift?.from == k ? 1 : 0)
                                 .animation(.easeOut(duration: 0.15), value: lift?.to)
                         } else {
-                            KnobCell(model: model, slot: k).midiMarks(model, [.knob(k), .press(k)])
+                            KnobCell(model: model, slot: k).midiMarks(model, [model.midiLearn.press ? .press(k) : .knob(k)])
                         }
                     }
                 }

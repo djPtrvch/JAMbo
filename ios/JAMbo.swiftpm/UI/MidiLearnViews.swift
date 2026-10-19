@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// Голубая рамка цели в режиме LEARN (как в вебе).
-let learnBlue = Color(red: 0.25, green: 0.62, blue: 1.0)
 
 /// Полоса MIDI LEARN (S13b, как ui/learn.ts веба): внизу экрана по центру, поверх клавиатуры; цель и её источники,
 /// TURN / PRESS (что выбирает тап по ручке), UNMAP, DONE.
@@ -42,7 +40,7 @@ struct LearnBar: View {
     }
 }
 
-/// Метки целей в режиме LEARN: голубая рамка у выбранной, полупрозрачная жёлтая заливка у назначенных и в правом
+/// Метки целей в режиме LEARN: жёлтая рамка у выбранной (решение пользователя; в вебе голубая), полупрозрачная жёлтая заливка у назначенных и в правом
 /// верхнем углу — источник («CC 20», «N 36»; нажатие ручки — «P 36»).
 struct MidiMark: View {
     let model: AppModel
@@ -64,7 +62,7 @@ struct MidiMark: View {
             }
             .padding(4)
         }
-        .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(picked ? learnBlue : Color.clear, lineWidth: 2))
+        .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(picked ? theme.accent : Color.clear, lineWidth: 2))
     }
 
     static func short(_ m: MidiMapping) -> String {
@@ -116,7 +114,7 @@ struct MidiSmallMark: View {
         return ZStack(alignment: .topLeading) {
             RoundedRectangle(cornerRadius: 5)
                 .fill(m == nil ? Color.clear : theme.accent.opacity(0.3))
-                .overlay(RoundedRectangle(cornerRadius: 5).stroke(picked ? learnBlue : Color.clear, lineWidth: 2))
+                .overlay(RoundedRectangle(cornerRadius: 5).stroke(picked ? theme.accent : Color.clear, lineWidth: 2))
                 .frame(width: frame.width, height: frame.height)
                 .offset(x: frame.minX, y: frame.minY)
             if let m = m {

@@ -8,7 +8,7 @@ enum MidiButtons {
     static let level = "LEVEL"
     /// Цели с непрерывным значением (маппятся как ручка).
     static let continuous: [String] = [bpm, level]
-    static let fixed: [String] = ["PLAY", "REC", "PATTERNS", "EQ", "ROLL", "UNDO", "METRONOME", "CHORD", "OCTAVE ▲",
+    static let fixed: [String] = ["PLAY", "REC", "PATTERNS", "EQ", "ROLL", "UNDO", "REDO", "METRONOME", "CHORD", "OCTAVE ▲",
                                   "OCTAVE ▼", "LFO1", "LFO2", "LFO3", "ENV", "FX", "MOD", "MORPH", "MIX", "MST",
                                   "ARM MST", "GRID ▲", "GRID ▼", bpm, level]
 
@@ -120,6 +120,7 @@ extension AppModel {
         case "EQ": toggleEqView()
         case "ROLL": toggleRoll()
         case "UNDO": undoTapped()
+        case "REDO": redo()
         case "METRONOME": toggleMetronome()
         case "CHORD": toggleChord()
         case "OCTAVE ▲": setOctave(octave + 1)

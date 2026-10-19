@@ -70,4 +70,6 @@ struct MidiRuntime {
     var gesture: DispatchWorkItem? = nil
     /// STEP n: момент нажатия по индексу шага (быстрое отпускание ставит или снимает триг).
     var stepDown: [Int: Double] = [:]
+    /// Последнее нажатие ручки по позиции (двойное — двойной тап).
+    var pressTap: [Int: Double] = [:]
 }

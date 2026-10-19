@@ -131,6 +131,8 @@ struct MidiMappingTab: View {
                 close()
                 model.setLearn(true)
             }
+            ToggleRow(title: "KNOB PRESS = TOUCH", isOn: model.settings.midi.pressTouch) { on in model.setMidi { $0.pressTouch = on } }
+            SettingsNote(text: "ON: a knob’s push button works like a finger on the knob — press to touch, press twice for a double tap. OFF: it runs the Action set in MIDI MAP.")
             SettingsNote(text: "MIDI LEARN: tap a knob or button on screen, then move a control. Knobs are mapped by position in the 4×4 grid and follow the current mode (track, FX, MOD, MIX, MST); switch to PRESS to map a knob’s push button. Double-tap a target to open MIDI MAP; tap a mapping below to edit it. Hold a step to p-lock, hold LFO/ENV to set modulation.")
             FieldLabel(title: "MAPPINGS (\(maps.count))")
             if maps.isEmpty { SettingsNote(text: "No mappings yet.") }

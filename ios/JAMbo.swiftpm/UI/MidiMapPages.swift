@@ -84,11 +84,11 @@ struct MidiMapOptions: View {
         let pg: MidiPage = m.cond == .page ? m.page : model.midiContext.page
         var global = opt("global", "Global", key == "global") { $0.cond = .global }
         global.hint = "all pages and views"
-        var page = opt("page", "Current page (\(pg.title))", key == "page:" + pg.rawValue) { mm in
+        var page = opt("page", "Current page", key == "page:" + pg.rawValue) { mm in
             mm.cond = .page
             mm.page = pg
         }
-        page.hint = "only while \(pg.title) is shown"
+        page.hint = "only on this knob page"
         return [global, page, clip]
     }
 
@@ -138,7 +138,7 @@ struct MidiMapOptions: View {
     static func condName(_ m: MidiMapping) -> String {
         switch m.cond {
         case .global: return "Global"
-        case .page: return "Current page (\(m.page.title))"
+        case .page: return "Current page"
         case .clip: return "Clip launcher"
         }
     }

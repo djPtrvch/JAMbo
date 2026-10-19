@@ -75,6 +75,12 @@ struct RecordSettingsView: View {
             SettingsNote(text: "ON: a note played with REC lands on the nearest step. OFF: on the step where it was played.")
             ToggleRow(title: "OVERDUB", isOn: model.settings.record.overdub) { model.setOverdub($0) }
             SettingsNote(text: "ON: new notes are added to the pattern. OFF: steps the recording passes over are cleared, only the new notes stay.")
+            FieldLabel(title: "STEP SWIPE")
+            HStack(spacing: 4) {
+                MenuItem(title: "LENGTH", current: !model.settings.stepPaint) { model.updateSettings { $0.stepPaint = false } }
+                MenuItem(title: "PAINT", current: model.settings.stepPaint) { model.updateSettings { $0.stepPaint = true } }
+            }
+            SettingsNote(text: "Sliding a finger along the steps: LENGTH — one long note from the first step. PAINT — a trig on every step you pass.")
         }
     }
 }

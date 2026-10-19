@@ -81,5 +81,14 @@ final class MidiTests: XCTestCase {
         XCTAssertTrue(old.velocity)
         let bad = AppSettings.decode(Data("{\"midi\":{\"noteChannel\":40}}".utf8))
         XCTAssertEqual(bad.midi.noteChannel, 0)
+        // Нажатие ручки как касание и STEP SWIPE: по умолчанию ON и LENGTH, сохраняются.
+        XCTAssertTrue(old.midi.pressTouch)
+        XCTAssertFalse(old.stepPaint)
+        var b = AppSettings()
+        b.midi.pressTouch = false
+        b.stepPaint = true
+        let c = AppSettings.decode(b.encode())
+        XCTAssertFalse(c.midi.pressTouch)
+        XCTAssertTrue(c.stepPaint)
     }
 }

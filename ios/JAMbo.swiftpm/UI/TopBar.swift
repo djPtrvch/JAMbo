@@ -38,6 +38,7 @@ struct TopBar: View {
             RecButton(model: model).frame(width: half).midiTarget(model, "REC")
             HistoryButton(symbol: "arrow.uturn.forward", enabled: model.canRedo) { model.redo() }
                 .frame(width: Layout.topButton)
+                .midiTarget(model, "REDO")
             RollButton(model: model).midiTarget(model, "ROLL")
             ViewButton(title: "EQ", on: model.eqView) { model.toggleEqView() }.frame(width: Layout.topButton)
                 .midiTarget(model, "EQ")

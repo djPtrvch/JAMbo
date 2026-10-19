@@ -61,6 +61,9 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var pitchSemitones: Bool = true
     /// Бутерброд → MIDI (S13): вход, обратная связь, ноты.
     public var midi = MidiSettings()
+    /// SETTINGS → RECORD → STEP SWIPE (S13, решение пользователя): палец по шагам — длинная нота от первого шага
+    /// (LENGTH, по умолчанию) или триг на каждом пройденном шаге (PAINT).
+    public var stepPaint: Bool = false
 
     public init() {}
 
@@ -76,7 +79,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
 
     private enum Keys: String, CodingKey { case appearance, pianoOctaves, velocity, record, sliceMap, scSends, muteTails, latchFx, latchMod, rollGrid,
                                          rollSound, levelRelative, morphAll, morphReturn, mixKey, mixCrossfader,
-                                         clearSampleLocks, pitchSemitones, midi }
+                                         clearSampleLocks, pitchSemitones, midi, stepPaint }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
@@ -101,5 +104,6 @@ public struct AppSettings: Codable, Equatable, Sendable {
         clearSampleLocks = (try? c.decode(Bool.self, forKey: .clearSampleLocks)) ?? true
         pitchSemitones = (try? c.decode(Bool.self, forKey: .pitchSemitones)) ?? true
         midi = (try? c.decode(MidiSettings.self, forKey: .midi)) ?? MidiSettings()
+        stepPaint = (try? c.decode(Bool.self, forKey: .stepPaint)) ?? false
     }
 }

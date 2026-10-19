@@ -36,6 +36,8 @@ extension AppModel {
         if (midiLearn.on || midiLearn.mapTarget != nil) && (isCc || on) {
             midiLearn.last = src.label
             if let t = midiLearn.mapTarget ?? midiLearn.target {
+                // Тот же источник уже назначен — без записи настроек на каждое сообщение (поток CC при повороте).
+                if let had = midiMapping(t), had.src == src && had.input == source { return }
                 let ctx: MidiContext = midiContext
                 let cont: Bool = midiContinuous(t)
                 let pin: String? = t == midiLearn.mapTarget ? midiLearn.pinned : nil
@@ -130,8 +132,13 @@ extension AppModel {
         setKnob(s, norm: input.knobValue(m, cur: knobStart(s)))
     }
 
-    /// Нажатие ручки (PRESS): действие из окна MIDI MAP — сброс (по умолчанию), параметр позиции или кнопка.
+    /// Нажатие ручки (PRESS): как палец на ручке (MIDI → MAPPING → KNOB PRESS = TOUCH, по умолчанию) или действие
+    /// из окна MIDI MAP — сброс, параметр позиции или кнопка.
     private func midiPress(_ s: Int, _ m: MidiMapping, _ down: Bool) {
+        if settings.midi.pressTouch {
+            midiTouch(s, down)
+            return
+        }
         switch m.press {
         case .reset:
             if down { midiReset(s) }
@@ -140,6 +147,28 @@ extension AppModel {
         case .button(let n):
             midiButton(n, down)
         }
+    }
+
+    /// Касание ручки с MIDI, как палец (KnobGrid): нажатие — ручка «под пальцем» (тап по LFO/ENV переносит
+    /// назначение), двойное нажатие за 0,35 с — двойной тап (снять назначение, снять p-lock, меню дорожки в MIX).
+    private func midiTouch(_ s: Int, _ down: Bool) {
+        guard down else {
+            knobFingers.remove(s)
+            return
+        }
+        ensureAudio()
+        let now: Double = Date.timeIntervalSinceReferenceDate
+        if let t = midiRun.pressTap[s], now - t < 0.35 {
+            midiRun.pressTap[s] = nil
+            if heldSteps.isEmpty && canAssign, let src = heldSource {
+                clearAssign(s, lfo: src)
+            } else {
+                knobDoubleTap(s)
+            }
+        } else {
+            midiRun.pressTap[s] = now
+        }
+        if channel != .mix { knobFingers.insert(s) }
     }
 
     /// Сброс ручки: с зажатым LFO/ENV — снять назначение, с зажатым шагом или SHIFT — снять p-lock (как двойной тап),
@@ -165,7 +194,8 @@ extension AppModel {
         let hi: Double = Params.bpmMax
         let cur: Double = (project.bpm - lo) / (hi - lo)
         midiGesture()
-        setBpm(lo + input.knobValue(m, cur: cur) * (hi - lo))
+        // Темп с MIDI — целыми BPM (решение пользователя).
+        setBpm((lo + input.knobValue(m, cur: cur) * (hi - lo)).rounded())
     }
 
     /// Регулятор громкости измерителя: как ручка — весь ход шкалы (−60…0 dB) по Range.

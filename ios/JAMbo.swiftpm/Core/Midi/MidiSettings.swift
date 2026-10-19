@@ -21,10 +21,13 @@ public struct MidiSettings: Codable, Equatable, Sendable {
     public var mappings: [MidiMapping] = []
     /// Пресет маппингов, загруженный или сохранённый последним ("" — нет; S13c).
     public var preset: String = ""
+    /// Нажатие ручки (KNOB c.r PRESS) — как палец на ручке: нажатие — касание, двойное — двойной тап (по умолчанию);
+    /// OFF — действие из окна MIDI MAP (Action). Решение пользователя.
+    public var pressTouch: Bool = true
 
     public init() {}
 
-    private enum Keys: String, CodingKey { case input, feedback, noteChannel, noteRoute, mappings, preset }
+    private enum Keys: String, CodingKey { case input, feedback, noteChannel, noteRoute, mappings, preset, pressTouch }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
@@ -36,6 +39,7 @@ public struct MidiSettings: Codable, Equatable, Sendable {
         let maps: [LossyMapping] = (try? c.decode([LossyMapping].self, forKey: .mappings)) ?? []
         mappings = maps.compactMap { $0.value }
         preset = (try? c.decode(String.self, forKey: .preset)) ?? ""
+        pressTouch = (try? c.decode(Bool.self, forKey: .pressTouch)) ?? true
     }
 
     /// Слушать ли источник (uniqueID).
