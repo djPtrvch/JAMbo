@@ -13,7 +13,7 @@ struct LeftColumn: View {
             if model.channel == .track {
                 FolderArrows(model: model).frame(height: 36)
             } else if model.channel == .mix {
-                MasterRecButton().frame(height: 36)
+                MasterRecButton(model: model).frame(height: 36)
             }
             if model.channel == .master {
                 // По цепочке (решение пользователя, в вебе CLIP, LIM / SAT, COMP): SAT снизу слева, над ним COMP,
@@ -54,18 +54,24 @@ struct FolderArrows: View {
     }
 }
 
-/// ● MASTER — запись мастера (выход после громкости выхода, по правилам стемов; ARM MST). Запись — S11: пока серая.
+/// ● MASTER — запись мастера (S11d: конечный выход после громкости выхода, по правилам стемов; ARM MST — S12).
+/// Дизайн как у ●: красная окантовка, горит, пока готова или пишет.
 struct MasterRecButton: View {
+    let model: AppModel
     @Environment(\.theme) private var theme
 
     var body: some View {
-        HStack(spacing: 8) {
-            Circle().fill(theme.off).frame(width: 10, height: 10)
-            Text("MASTER").font(.system(size: 13, weight: .semibold)).tracking(1).foregroundStyle(theme.off)
+        let on: Bool = model.stemLit(StemRing.master)
+        return HStack(spacing: 8) {
+            Circle().fill(on ? Color.white : theme.rec).frame(width: 10, height: 10)
+            Text("MASTER").font(.system(size: 13, weight: .semibold)).tracking(1)
+                .foregroundStyle(on ? Color.white : theme.rec)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
-        .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(theme.off, lineWidth: 1))
+        .background(on ? theme.rec : theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
+        .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(theme.rec, lineWidth: 1))
+        .contentShape(Rectangle())
+        .onTapGesture { model.stemTap(StemRing.master) }
     }
 }
 

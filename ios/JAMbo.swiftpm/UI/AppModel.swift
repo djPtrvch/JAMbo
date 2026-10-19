@@ -173,6 +173,11 @@ final class AppModel {
     /// Звучащие голоса сэмплов (полоса воспроизведения): из колбэка; число — чтобы включать анимацию.
     @ObservationIgnored var heads: [Int: VoiceHead] = [:]
     var headCount: Int = 0
+    /// Запись стемов (S11d): готовые и пишущиеся каналы (дорожки, StemRing.master) — не в проекте и не в UNDO.
+    var stemArmed: Set<Int> = []
+    var stemRecording: Set<Int> = []
+    @ObservationIgnored let stems = StemCollector()
+    @ObservationIgnored var stemNames: [Int: String] = [:]
     var previewOn: Bool = false
     /// Маркер нарезки, который держат в редакторе (не двигая): клавиша назначает ему ноту; отказ — красный.
     var heldFlag: Int? = nil
@@ -247,6 +252,7 @@ final class AppModel {
         if morphGlide != nil { stepMorphGlide() }
         if mix != nil { updateMix() }
         drainVoices()
+        drainStems()
         tickMeters()
         let tracks = project.tracks.count
         live.audible = { [weak self] t in
@@ -264,6 +270,11 @@ final class AppModel {
 
     func togglePlay() {
         ensureAudio()
+        // PLAY во время записи стемов: клипы доигрывают проход, стемы дописываются, затем стоп (.ended).
+        if playing && !stemRecording.isEmpty {
+            audio.core.events.push(.stopAfterStems)
+            return
+        }
         playing.toggle()
         endRecTake()
         live.stopped()

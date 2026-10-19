@@ -248,3 +248,18 @@ final class SampleLockTests: XCTestCase {
         XCTAssertFalse(AppSettings.decode(s.encode()).clearSampleLocks)
     }
 }
+
+final class RecordingNamesTests: XCTestCase {
+    func testRecordingFolderAndNames() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "UTC")!
+        let date = Date(timeIntervalSince1970: 1_760_000_000) // 09.10.2025 08:53:20 UTC
+        XCTAssertEqual(Library.recordingFolderName(project: "Song", date: date, calendar: cal), "Song 09.10.2025")
+        XCTAssertEqual(Library.recordingFolderName(project: " ", date: date, calendar: cal), "Project 09.10.2025")
+        XCTAssertEqual(Library.recordingName("Kick", date: date, calendar: cal), "Kick 08-53-20")
+        var lib = Library()
+        let a = lib.recordingsFolder("Song 09.10.2025")
+        XCTAssertEqual(lib.recordingsFolder("Song 09.10.2025"), a, "одна папка на проект и день")
+        XCTAssertEqual(lib.node(a)?.parent, Library.recordings)
+    }
+}

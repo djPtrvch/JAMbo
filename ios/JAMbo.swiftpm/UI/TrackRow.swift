@@ -31,6 +31,9 @@ struct ChannelCell: View {
             .tracking(0.7)
             .foregroundStyle(selected ? theme.text : theme.dim)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .overlay(alignment: .topLeading) {
+                if channel == .master { StemRecDot(model: model, channel: StemRing.master) }
+            }
             .background(theme.trackBg, in: RoundedRectangle(cornerRadius: Layout.radius))
             .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(selected ? theme.accent : Color.clear, lineWidth: 1))
             .contentShape(Rectangle())
@@ -80,11 +83,13 @@ struct TrackCell: View {
         return t.solo ? theme.accent.opacity(flash ? 0.55 : 0.35) : base
     }
 
-    /// Жёлтая точка: параметры дорожки меняли в режиме MORPH.
-    @ViewBuilder
+    /// Жёлтая точка: параметры дорожки меняли в режиме MORPH; красная мигающая — пишется стем (жёлтая — правее).
     private func morphDot(_ t: Track) -> some View {
-        if t.morphEdited {
-            Circle().fill(theme.accent).frame(width: 6, height: 6).padding(.leading, 7).padding(.top, 6)
+        HStack(spacing: 4) {
+            StemRecDot(model: model, channel: index)
+            if t.morphEdited {
+                Circle().fill(theme.accent).frame(width: 6, height: 6).padding(.leading, 7).padding(.top, 6)
+            }
         }
     }
 
@@ -118,5 +123,26 @@ struct TrackCell: View {
                 // Выбор дорожки — тапом; свайп (mute/solo) выбор не меняет: окно MIX и выбранная дорожка остаются.
                 if !swiped { model.select(track: index) }
             }
+    }
+}
+
+/// Мигающая красная точка в левом верхнем углу дорожки (MST — запись мастера): идёт запись; за 5 с до конца — чаще.
+struct StemRecDot: View {
+    let model: AppModel
+    let channel: Int
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        if model.stemRecording.contains(channel) {
+            TimelineView(.periodic(from: .now, by: 0.05)) { tl in
+                let dot = model.stemDot(channel)
+                let period: Double = dot.ending ? 0.3 : 1
+                let phase: Double = tl.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: period)
+                Circle().fill(theme.rec).frame(width: 6, height: 6)
+                    .opacity(phase < period / 2 ? 1 : 0)
+                    .padding(.leading, 7).padding(.top, 6)
+            }
+            .allowsHitTesting(false)
+        }
     }
 }

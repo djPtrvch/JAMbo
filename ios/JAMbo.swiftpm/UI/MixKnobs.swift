@@ -78,7 +78,7 @@ struct MixCell: View {
         return ZStack(alignment: .topLeading) {
             small("M", on: t.mute, color: theme.rec, frame: frames[0])
             small("S", on: t.solo, color: theme.accent, frame: frames[1])
-            dot(frames[2])
+            dot(frames[2], on: model.stemLit(slot))
         }
     }
 
@@ -92,11 +92,12 @@ struct MixCell: View {
             .offset(x: r.minX, y: r.minY)
     }
 
-    /// ● — готовность к записи стема (S11): пока серая.
-    private func dot(_ r: CGRect) -> some View {
-        Circle().fill(theme.off).frame(width: 8, height: 8)
+    /// ● — запись стема (S11d): горит красным, пока дорожка готова к записи или пишется.
+    private func dot(_ r: CGRect, on: Bool) -> some View {
+        Circle().fill(on ? Color.white : theme.rec).frame(width: 8, height: 8)
             .frame(width: r.width, height: r.height)
-            .overlay(RoundedRectangle(cornerRadius: 5).stroke(theme.off, lineWidth: 1))
+            .background(on ? theme.rec : Color.clear, in: RoundedRectangle(cornerRadius: 5))
+            .overlay(RoundedRectangle(cornerRadius: 5).stroke(theme.rec, lineWidth: 1))
             .offset(x: r.minX, y: r.minY)
     }
 }

@@ -106,6 +106,7 @@ struct KnobGrid: View {
         if model.channel == .mix, let b = MixLayout.button(at: p, slot: s, size: size), s < model.project.tracks.count {
             if b == 0 { model.toggleMute(s) }
             if b == 1 { model.toggleSolo(s) }
+            if b == 2 { model.stemTap(s) }
             turn.consumed = true
             turns[id] = turn
             model.beginGesture()

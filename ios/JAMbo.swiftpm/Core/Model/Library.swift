@@ -258,3 +258,29 @@ public enum LibraryBuiltins {
                 system: true, updated: 0)
     }
 }
+
+// MARK: — записи (S11d)
+
+extension Library {
+    /// Папка записей проекта и дня в RECORDINGS: «проект дд.мм.гггг» (без имени — Project).
+    public static func recordingFolderName(project: String, date: Date, calendar: Calendar = .current) -> String {
+        let c: DateComponents = calendar.dateComponents([.day, .month, .year], from: date)
+        let d: String = String(format: "%02d.%02d.%04d", c.day ?? 1, c.month ?? 1, c.year ?? 2000)
+        let p: String = project.trimmingCharacters(in: .whitespaces)
+        return (p.isEmpty ? "Project" : p) + " " + d
+    }
+
+    /// Имя записи: «дорожка чч-мм-сс», «MASTER чч-мм-сс».
+    public static func recordingName(_ base: String, date: Date, calendar: Calendar = .current) -> String {
+        let c: DateComponents = calendar.dateComponents([.hour, .minute, .second], from: date)
+        return base + " " + String(format: "%02d-%02d-%02d", c.hour ?? 0, c.minute ?? 0, c.second ?? 0)
+    }
+
+    /// Папка записей с этим именем в RECORDINGS (одна на проект и день; создаётся при первой записи) — id.
+    public mutating func recordingsFolder(_ name: String) -> String {
+        if let have = nodes.first(where: { $0.parent == Library.recordings && $0.kind == .folder && $0.name == name }) {
+            return have.id
+        }
+        return createFolder(Library.recordings, name).id
+    }
+}
