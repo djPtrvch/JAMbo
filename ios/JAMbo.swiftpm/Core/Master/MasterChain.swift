@@ -116,21 +116,21 @@ public final class MasterChain {
         let satShown: Bool = satOn.load() != 0
         if satShown { satIn.push(left, right, n) }
         sat.process(inL: left, inR: right, outL: left, outR: right, frames: n, drive: p[I.satDrive], type: p[I.satType],
-                    tone: p[I.satTone], mix: p[I.satBypass] >= 0.5 ? 0 : p[I.satMix], focus: p[I.satFocus])
+                    tone: p[I.satTone], mix: p[I.satMix] * (1 - p[I.satBypass]), focus: p[I.satFocus])
         if satShown { satOut.push(left, right, n) }
         let sm: Int = scope.mask.load()
         scope.tap(MasterScope.sat, sm, left, right, n)
         glue.process(inL: left, inR: right, outL: left, outR: right, frames: n, thr: p[I.cmpThr], att: p[I.cmpAtt],
                      rel: p[I.cmpRel], auto: p[I.cmpAuto] >= 0.5, makeup: p[I.cmpMakeup], ratio: p[I.cmpRatio],
-                     knee: p[I.cmpKnee], mix: p[I.cmpMix], schpf: p[I.cmpSchpf], bypass: p[I.cmpBypass] >= 0.5)
+                     knee: p[I.cmpKnee], mix: p[I.cmpMix], schpf: p[I.cmpSchpf], bypass: p[I.cmpBypass])
         scope.tap(MasterScope.comp, sm, left, right, n)
         clip.process(inL: left, inR: right, outL: left, outR: right, frames: n, drive: p[I.clipDrive],
                      ceiling: p[I.clipCeiling], softness: p[I.clipSoftness], bass: p[I.clipBass],
-                     bypass: p[I.clipBypass] >= 0.5)
+                     bypass: p[I.clipBypass])
         scope.tap(MasterScope.clip, sm, left, right, n)
         lim.process(inL: left, inR: right, outL: left, outR: right, frames: n, gain: p[I.limGain],
                     ceiling: p[I.limCeiling], lookahead: p[I.limLookahead], rel: p[I.limRel], auto: p[I.limAuto] >= 0.5,
-                    bypass: p[I.limBypass] >= 0.5)
+                    bypass: p[I.limBypass])
         scope.tap(MasterScope.lim, sm, left, right, n)
         applyOut(left, right, n, Float(p[I.outGain]))
         compTele.push(frames: glue.frames, inPeak: glue.frameIn, gr: glue.frameGr, outPeak: glue.frameOut, det: glue.frameDet)

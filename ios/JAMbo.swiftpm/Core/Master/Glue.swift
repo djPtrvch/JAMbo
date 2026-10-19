@@ -111,14 +111,15 @@ public final class MasterGlue {
     public func process(inL: UnsafePointer<Float>, inR: UnsafePointer<Float>, outL: UnsafeMutablePointer<Float>,
                         outR: UnsafeMutablePointer<Float>, frames n: Int, thr thrT: Double, att: Double, rel: Double,
                         auto: Bool, makeup mkT: Double, ratio: Double, knee kIn: Double, mix mIn0: Double,
-                        schpf hpIn: Double, bypass: Bool) {
+                        schpf hpIn: Double, bypass: Double) {
         if att != attSig { attSig = att; kAtt = MasterGlue.coef(att, sr) }
         if rel != relSig { relSig = rel; kRel = MasterGlue.coef(rel, sr) }
         let ks: Double = kSmooth
         let slopeT: Double = 1 - 1 / Swift.max(1, Swift.min(20, ratio))
         let kneeT: Double = Swift.max(0, Swift.min(24, kIn))
         let mixT: Double = Swift.max(0, Swift.min(1, mIn0 / 100))
-        let wetT: Double = bypass ? 0 : 1
+        // bypass — доля глушения 0…1 (переход MIX ведёт её плавно; кнопка — 0 или 1).
+        let wetT: Double = 1 - Swift.max(0, Swift.min(1, bypass))
         // SC HPF — по блокам (по логарифму частоты); на 20 Гц и ниже — обход.
         let hpT: Double = Swift.max(MasterGlue.scHpfOff, Swift.min(500, hpIn))
         let kb: Double = pow(ks, Double(n))

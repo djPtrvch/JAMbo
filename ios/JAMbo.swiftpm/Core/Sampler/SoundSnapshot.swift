@@ -163,10 +163,11 @@ public final class SoundSnapshot: @unchecked Sendable {
 
     /// samples — загруженные сэмплы по ключу; map, scale, root — ноты маркеров по порядку (SLICE NOTES).
     /// tables — готовые таблицы WTABLE по ключу (Track.table). slots — активные ячейки дорожек в колбэке
-    /// (Launcher.slot; nil — свой буфер, все на первой ячейке).
+    /// (Launcher.slot; nil — свой буфер, все на первой ячейке). master — параметры мастера кроссфейдера перехода MIX
+    /// (MixBlend.master; nil — из проекта).
     public init(_ project: Project, samples: [String: SampleData], map: SliceMap, octave: Int = 3,
                 tables: [String: WtTable] = [:], scSends: SidechainSends = SidechainSends(), muteTails: Bool = false,
-                levelRelative: Bool = true, slots: UnsafeMutablePointer<Int>? = nil) {
+                levelRelative: Bool = true, slots: UnsafeMutablePointer<Int>? = nil, master: [Double]? = nil) {
         let tracks = SoundData.maxTracks
         let tracks2 = tracks * 2
         var own: UnsafeMutablePointer<Int>? = nil
@@ -200,6 +201,9 @@ public final class SoundSnapshot: @unchecked Sendable {
             eqOrder: .allocate(capacity: tracks)
         )
         MasterChain.fill(d.master, project)
+        if let m = master, m.count == MasterChain.Index.count {
+            for k in 0..<m.count { d.master[k] = m[k] }
+        }
         // Звук дорожки для остальных клипов (side 0) и для клипа PREV (side 1; нет — второго звука нет).
         let n0 = Swift.min(project.tracks.count, tracks)
         var sounds: [TrackSound?] = []

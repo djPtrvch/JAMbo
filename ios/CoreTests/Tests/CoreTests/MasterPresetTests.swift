@@ -111,7 +111,7 @@ final class GlueCurveTests: XCTestCase {
                     ph += 2 * Double.pi * 1000 / sr
                 }
                 g.process(inL: l, inR: r, outL: l, outR: r, frames: n, thr: -20, att: 1, rel: 50, auto: false,
-                          makeup: 0, ratio: ratio, knee: knee, mix: 100, schpf: 20, bypass: false)
+                          makeup: 0, ratio: ratio, knee: knee, mix: 100, schpf: 20, bypass: 0)
             }
             let want = MasterGlue.staticGr(g.frameDet, thr: -20, ratio: ratio, knee: knee)
             XCTAssertEqual(g.frameGr, want, accuracy: 0.3, "amp \(amp) ratio \(ratio) knee \(knee)")
@@ -145,7 +145,7 @@ final class ClipCurveTests: XCTestCase {
                     ph += 2 * Double.pi * 200 / sr
                 }
                 c.process(inL: l, inR: r, outL: l, outR: r, frames: n, drive: input, ceiling: ceiling,
-                          softness: soft, bass: 0, bypass: false)
+                          softness: soft, bass: 0, bypass: 0)
                 if b > 400 {
                     for i in 0..<n { outPeak = max(outPeak, Double(abs(l[i]))) }
                     inPeak = max(inPeak, c.frameIn)

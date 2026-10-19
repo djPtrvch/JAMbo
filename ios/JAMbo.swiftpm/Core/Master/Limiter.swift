@@ -242,7 +242,7 @@ public final class MasterLimiter {
     /// rel 10…1000 мс (auto — AUTO).
     public func process(inL: UnsafePointer<Float>, inR: UnsafePointer<Float>, outL: UnsafeMutablePointer<Float>,
                         outR: UnsafeMutablePointer<Float>, frames n: Int, gain: Double, ceiling: Double,
-                        lookahead: Double, rel: Double, auto: Bool, bypass: Bool) {
+                        lookahead: Double, rel: Double, auto: Bool, bypass: Double) {
         if rel != relSig {
             relSig = rel
             kRel = rel <= 0 ? 0 : exp(-1 / ((rel / 1000) * sr))
@@ -250,7 +250,8 @@ public final class MasterLimiter {
         let ks: Double = kSmooth
         let gainT: Double = pow(10, gain / 20)
         let ceilT: Double = pow(10, ceiling / 20)
-        let wetT: Double = bypass ? 0 : 1
+        // bypass — доля глушения 0…1 (переход MIX ведёт её плавно; кнопка — 0 или 1).
+        let wetT: Double = 1 - Swift.max(0, Swift.min(1, bypass))
         let S = size
         let kRel = self.kRel, kFast = self.kFast, kSlow = self.kSlow
         // Новое окно lookahead — только после окончания прошлого кроссфейда.

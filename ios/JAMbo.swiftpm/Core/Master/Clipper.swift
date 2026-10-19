@@ -204,12 +204,13 @@ public final class MasterClipper {
     /// bass 20…300 Гц (0 — OFF).
     public func process(inL: UnsafePointer<Float>, inR: UnsafePointer<Float>, outL: UnsafeMutablePointer<Float>,
                         outR: UnsafeMutablePointer<Float>, frames n: Int, drive: Double, ceiling: Double,
-                        softness: Double, bass: Double, bypass: Bool) {
+                        softness: Double, bass: Double, bypass: Double) {
         let ks: Double = kSmooth
         let driveT: Double = pow(10, drive / 20)
         let ceilT: Double = pow(10, ceiling / 20)
         let kneeT: Double = 1 - 0.6 * (softness / 100)
-        let wetT: Double = bypass ? 0 : 1
+        // bypass — доля глушения 0…1 (переход MIX ведёт её плавно; кнопка — 0 или 1).
+        let wetT: Double = 1 - Swift.max(0, Swift.min(1, bypass))
         let splitT: Double = bass > 0 ? 1 : 0
         // Частота кроссовера — по блокам; коэффициенты линейно внутри блока.
         let fT: Double = bass > 0 ? bass : freq

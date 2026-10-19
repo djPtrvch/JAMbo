@@ -149,15 +149,15 @@ public enum MasterSelfTest {
                 chain.glue.process(inL: bL, inR: bR, outL: bL, outR: bR, frames: block, thr: p[I.cmpThr], att: p[I.cmpAtt],
                                    rel: p[I.cmpRel], auto: p[I.cmpAuto] >= 0.5, makeup: p[I.cmpMakeup],
                                    ratio: p[I.cmpRatio], knee: p[I.cmpKnee], mix: p[I.cmpMix], schpf: p[I.cmpSchpf],
-                                   bypass: p[I.cmpBypass] >= 0.5)
+                                   bypass: p[I.cmpBypass])
             case "clipper":
                 chain.clip.process(inL: bL, inR: bR, outL: bL, outR: bR, frames: block, drive: p[I.clipDrive],
                                    ceiling: p[I.clipCeiling], softness: p[I.clipSoftness], bass: p[I.clipBass],
-                                   bypass: p[I.clipBypass] >= 0.5)
+                                   bypass: p[I.clipBypass])
             case "limiter":
                 chain.lim.process(inL: bL, inR: bR, outL: bL, outR: bR, frames: block, gain: p[I.limGain],
                                   ceiling: p[I.limCeiling], lookahead: p[I.limLookahead], rel: p[I.limRel],
-                                  auto: p[I.limAuto] >= 0.5, bypass: p[I.limBypass] >= 0.5)
+                                  auto: p[I.limAuto] >= 0.5, bypass: p[I.limBypass])
             default:
                 chain.process(left: bL, right: bR, frames: block, params: p)
             }

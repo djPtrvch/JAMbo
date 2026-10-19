@@ -48,7 +48,7 @@ final class MasterTests: XCTestCase {
                 r[i] = v
             }
             lim.process(inL: l, inR: r, outL: l, outR: r, frames: n, gain: 6, ceiling: -1, lookahead: 3, rel: 150,
-                        auto: false, bypass: false)
+                        auto: false, bypass: 0)
             if b > 10 { for i in 0..<n { peak = max(peak, abs(l[i])) } }
         }
         XCTAssertLessThanOrEqual(20 * log10(Double(peak)), -1.0 + 1e-3)
@@ -126,10 +126,10 @@ final class MasterTests: XCTestCase {
         time("sat") { c.sat.process(inL: iL, inR: iR, outL: oL, outR: oR, frames: n, drive: 12, type: 0, tone: 0, mix: 100, focus: 20) }
         time("glue") {
             c.glue.process(inL: iL, inR: iR, outL: oL, outR: oR, frames: n, thr: -10, att: 10, rel: 400, auto: false,
-                           makeup: 0, ratio: 2, knee: 6, mix: 100, schpf: 90, bypass: false)
+                           makeup: 0, ratio: 2, knee: 6, mix: 100, schpf: 90, bypass: 0)
         }
-        time("clip") { c.clip.process(inL: iL, inR: iR, outL: oL, outR: oR, frames: n, drive: 6, ceiling: -1, softness: 30, bass: 100, bypass: false) }
-        time("lim") { c.lim.process(inL: iL, inR: iR, outL: oL, outR: oR, frames: n, gain: 6, ceiling: -1, lookahead: 3, rel: 150, auto: false, bypass: false) }
+        time("clip") { c.clip.process(inL: iL, inR: iR, outL: oL, outR: oR, frames: n, drive: 6, ceiling: -1, softness: 30, bass: 100, bypass: 0) }
+        time("lim") { c.lim.process(inL: iL, inR: iR, outL: oL, outR: oR, frames: n, gain: 6, ceiling: -1, lookahead: 3, rel: 150, auto: false, bypass: 0) }
     }
 
     /// Ручки MST: шкалы как MASTER_GRID веба (шаг 0,1 dB, AUTO в последних 8 % RELEASE, OFF в первых 5 % BASS),
