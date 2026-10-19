@@ -16,7 +16,7 @@ ui/auto.ts (644), ui/sampleedit.ts (633), params.ts (565), ui/sample.ts (571).
 |---|---|---|---|
 | Plaits, 16 движков | public/plaits-worklet.js, public/plaits.wasm, wasm/plaits/ (jambo_voices.cc, build.sh), params.ts SYNTH_ENGINES | П (S3a, S3b) | ТЗ 4 |
 | SPEECH: Formant / Phoneme / LPC, harmPoints 0 / 1/6 / 1/3, без Words | params.ts (harmPoints), engine.ts synthParams, wasm/plaits/jambo_no_words.cc | П | ТЗ 4.4 |
-| Миграция SPEECH (версия формата 2) | state.ts migrateSpeech, params.ts speechHarmV1 | П (S11) | нужна для IMPORT .jambo из веба |
+| Миграция SPEECH (версия формата 2) | state.ts migrateSpeech, params.ts speechHarmV1 | отменена (решение пользователя, S11) | нужна для IMPORT .jambo из веба |
 | ⚠ Свои движки DRUM, ANALOG, FM, WTABLE (номера 16–19) | public/jambo-synth-worklet.js (546), audio/wavetable.ts (304), engineIcons.ts | П (S3b) | решение: переносим всё, что есть в вебе; чистый JS |
 | ⚠ Таблицы WTABLE: встроенные 6 и свои WAV (clm, размер кадра) | audio/wavetable.ts, library.ts kind 'table', ui/browser.ts LOAD TABLE | П (S3b; свои WAV — через библиотеку S11) | |
 | Сэмплер: Start/End, Pitch, Attack/Decay, удержание длинных нот, legato | engine.ts triggerTrack, legatoCut, holdEnd | П (S2) | ТЗ 5.1 |
