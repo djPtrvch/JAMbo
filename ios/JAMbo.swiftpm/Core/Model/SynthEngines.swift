@@ -36,7 +36,20 @@ public enum SynthEngines {
         // WTABLE: таблица — у дорожки (Track.table), в окне синта вместо иконки — кадр таблицы.
         SynthEngine(id: 19, name: "WTABLE", full: "Wavetable", knobs: ["position", "warp", "unison", "detune"],
                     options: [[], [], ["1", "3", "5"], []]),
+        // Ударные (этап 3): затухают сами, монофоничны; Decay — длина звука, своя шкала (предел — decayMax).
+        SynthEngine(id: 20, name: "SNARE", full: "Snare", knobs: ["tune", "snappy", "tone", "punch"],
+                    options: [[], [], [], []], decay: true, decayMax: 800),
+        SynthEngine(id: 21, name: "HAT", full: "Hi-hat", knobs: ["tune", "spread", "tone", "noise"],
+                    options: [[], [], [], []], decay: true, decayMax: 1500),
+        SynthEngine(id: 22, name: "CLAP", full: "Clap", knobs: ["tone", "bursts", "spread", "tail"],
+                    options: [[], ["1", "2", "3", "4", "5", "6"], [], []], decay: true, decayMax: 1200),
+        SynthEngine(id: 23, name: "PERC", full: "Percussion", knobs: ["tune", "material", "bend", "hit"],
+                    options: [[], [], [], []], decay: true, decayMax: 2000),
     ]
+
+    /// Колонки меню звука: DRUMS и SYNTH (номера движков).
+    public static let drums: [Int] = [16, 20, 21, 22, 23]
+    public static let synths: [Int] = [17, 18, 19]
 
     /// Размер таблиц по номеру движка (наибольший номер + 1).
     public static let count: Int = (all.map { $0.id }.max() ?? -1) + 1

@@ -28,7 +28,8 @@ public enum JamboSelfTest {
         public let cases: [Case]
     }
 
-    public static let engineNames = [16: "KICK", 17: "ANALOG", 18: "FM", 19: "WTABLE"]
+    public static let engineNames = [16: "KICK", 17: "ANALOG", 18: "FM", 19: "WTABLE", 20: "SNARE", 21: "HAT", 22: "CLAP",
+                                      23: "PERC"]
 
     /// Звук случая после S12 тот же, что у эталона веба.
     public static func comparable(_ c: Case) -> Bool {

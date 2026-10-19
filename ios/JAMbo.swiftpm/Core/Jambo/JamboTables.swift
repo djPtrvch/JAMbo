@@ -8,6 +8,68 @@ enum Jambo {
     static let analog = 17
     static let fm = 18
     static let wtable = 19
+    /// Ударные (S12, этап 3).
+    static let snare = 20
+    static let hat = 21
+    static let clap = 22
+    static let perc = 23
+
+    /// Ударный движок: затухает сам, монофоничен (слот 0) — KICK и 20–23.
+    @inline(__always) static func mono(_ e: Int) -> Bool { return e == drum || (e >= snare && e <= perc) }
+
+    // HAT: средний тон ряда 808 (геометрическое среднее шести частот), уровень выхода.
+    static let hatMean = 416.4
+    static let hatOut = 1.4
+    // CLAP: интервал вспышек, мс; уровень выхода.
+    static let clapGapMin = 2.0
+    static let clapGapMax = 25.0
+    static let clapOut = 2.4
+
+    /// TONE CLAP: 700 → 3000 Гц, кривая x^1.69 (на 50 % ≈ 1.1 кГц).
+    static func clapTone(_ n: Double) -> Double {
+        return 700 * pow(3000.0 / 700, pow(Swift.min(1, Swift.max(0, n)), 1.69))
+    }
+
+    /// TUNE SNARE (120–400 Гц), HAT (±1 октава к 808), PERC (60 Гц–2 кГц) по ручке 0…1.
+    static func snareTune(_ n: Double) -> Double { return 120 * pow(400.0 / 120, n) }
+    static func percTune(_ n: Double) -> Double { return 60 * pow(2000.0 / 60, n) }
+
+    /// Мода k набора PERC: 0 — мембрана, 1 — брусок, 2 — металл (808 cowbell 540 + 800 Гц и нечётные гармоники);
+    /// отношение частоты и уровень. Без коллекций — зовётся в колбэке.
+    @inline(__always) static func percMode(_ set: Int, _ k: Int) -> (r: Double, a: Double) {
+        switch set * 6 + k {
+        case 0: return (1, 1)
+        case 1: return (1.59, 0.7)
+        case 2: return (2.14, 0.5)
+        case 3: return (2.30, 0.4)
+        case 4: return (2.65, 0.3)
+        case 5: return (2.92, 0.25)
+        case 6: return (1, 1)
+        case 7: return (2.76, 0.5)
+        case 8: return (5.40, 0.3)
+        case 9: return (8.93, 0.2)
+        case 10: return (13.34, 0.1)
+        case 11: return (18.64, 0.06)
+        case 12: return (1, 1)
+        case 13: return (1.4815, 0.9)
+        case 14: return (3, 0.33)
+        case 15: return (4.4444, 0.3)
+        case 16: return (5, 0.2)
+        default: return (7.4074, 0.18)
+        }
+    }
+
+    /// Мода k PERC по MATERIAL m (0 — мембрана, 0.5 — брусок, 1 — металл; между — плавно, отношения — в логарифме)
+    /// и уровень с учётом HIT (палка — ярче высокие моды).
+    @inline(__always) static func percModeAt(_ m: Double, _ hit: Double, _ k: Int) -> (r: Double, a: Double) {
+        let x = Swift.min(1, Swift.max(0, m))
+        let set = x < 0.5 ? 0 : 1
+        let u = x < 0.5 ? x * 2 : (x - 0.5) * 2
+        let lo = percMode(set, k), hi = percMode(set + 1, k)
+        let r = exp(log(lo.r) + (log(hi.r) - log(lo.r)) * u)
+        let a = (lo.a + (hi.a - lo.a) * u) * pow(0.55 + 0.45 * hit, Double(k))
+        return (r, a)
+    }
 
     /// Кусок голоса (BLOCK worklet), кадров.
     static let block = 24

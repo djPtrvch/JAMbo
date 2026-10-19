@@ -161,9 +161,9 @@ public final class SynthVoices {
                  mask: VoiceMask, vals: UnsafePointer<Float>?, gate: Int64, own isOwn: Bool, liveId live: Int, retrig: Bool) {
         if t < 0 || t >= SynthVoices.tracks { return }
         modFrame = frame
-        // KICK монофонична: удары дорожки — в первый голос дорожки, из аккорда — одна нота, без кражи
-        // (хвост прошлого удара гаснет в самом движке за ~2 мс).
-        if e == Jambo.drum {
+        // Ударные (KICK, SNARE, HAT, CLAP, PERC) монофоничны: удары дорожки — в первый голос дорожки, из аккорда —
+        // одна нота, без кражи (хвост прошлого удара гаснет в самом движке за ~2 мс).
+        if Jambo.mono(e) {
             guard count > 0 else { return }
             let v = t * SynthVoices.perTrack
             pActive[v] = 0

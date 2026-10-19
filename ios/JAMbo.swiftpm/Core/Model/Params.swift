@@ -256,6 +256,31 @@ public enum Params {
                     "×" + String(format: "%.2f", Jambo.fmRatio(v / 100))
                 }
             }
+            // Ударные: высота и TONE — в Гц, SPREAD CLAP — мс, TUNE HAT — в полутонах от 808.
+            if k == 0 && (e.id == Jambo.snare || e.id == Jambo.perc) {
+                let snare: Bool = e.id == Jambo.snare
+                return ParamDef(id: p.id, label: label, min: p.min, max: p.max, def: p.def) { v in
+                    let hz: Double = snare ? Jambo.snareTune(v / 100) : Jambo.percTune(v / 100)
+                    return "\(Int(hz.rounded())) Hz"
+                }
+            }
+            if k == 0 && e.id == Jambo.hat {
+                return ParamDef(id: p.id, label: label, min: p.min, max: p.max, def: p.def, bipolar: true) { v in
+                    let st: Int = Int((v / 100 * 24 - 12).rounded())
+                    return st > 0 ? "+\(st) st" : "\(st) st"
+                }
+            }
+            if k == 0 && e.id == Jambo.clap {
+                return ParamDef(id: p.id, label: label, min: p.min, max: p.max, def: p.def) { v in
+                    "\(Int(Jambo.clapTone(v / 100).rounded())) Hz"
+                }
+            }
+            if k == 2 && e.id == Jambo.clap {
+                return ParamDef(id: p.id, label: label, min: p.min, max: p.max, def: p.def) { v in
+                    let ms: Double = Jambo.clapGapMin + (Jambo.clapGapMax - Jambo.clapGapMin) * pow(v / 100, 1.2)
+                    return String(format: "%.1f ms", ms)
+                }
+            }
             if k == 3 && e.id == Jambo.wtable {
                 return ParamDef(id: p.id, label: label, min: p.min, max: p.max, def: p.def) { v in
                     "\(Int((v / 100 * Jambo.wtDetune).rounded())) ct"
