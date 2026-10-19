@@ -203,6 +203,20 @@ extension Track {
         sample = new
     }
 
+    /// REC (addRecordedSample веба): был на дорожке сэмпл — запись встаёт на его место (и в папке), так повторная
+    /// запись перезаписывает прежнюю; не было (пусто, синт или сэмпла нет в папке) — добавляется в папку и звучит.
+    public mutating func addRecordedSample(_ key: String) {
+        let old: String = sample
+        if !old.isEmpty && SynthKey.engine(old) == nil,
+           let k = folder.items.firstIndex(where: { $0.sample == old }) {
+            folder.items[k] = FolderItem(sample: key)
+            folder.index = k
+            sample = key
+            return
+        }
+        addSamples([key])
+    }
+
     // MARK: — маркеры нарезки
 
     public func sliceMarks(_ key: String) -> [SliceMark] {

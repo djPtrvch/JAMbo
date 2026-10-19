@@ -16,9 +16,10 @@ public struct StemMsg: Sendable {
 }
 
 public final class StemRing: @unchecked Sendable {
-    /// Каналы: дорожки 0…maxTracks−1 и мастер.
-    public static let channels = SeqData.maxTracks + 1
+    /// Каналы: дорожки 0…maxTracks−1, мастер и REC редактора сэмпла (S11e).
+    public static let channels = SeqData.maxTracks + 2
     public static let master = SeqData.maxTracks
+    public static let capture = SeqData.maxTracks + 1
     /// Отсчётов в кольце (стерео подряд): 2^22 — около 43 с стерео на всех; хватает и 17 каналам на секунду с лишним.
     static let capacity = 1 << 22
 
@@ -39,6 +40,8 @@ public final class StemRing: @unchecked Sendable {
     public let gate = UnsafeMutablePointer<Float>.allocate(capacity: SeqData.maxTracks * Sampler.maxFrames)
     /// Пишется ли хоть один канал (микшер заполняет gate).
     public private(set) var capturing = false
+    /// Источник REC (канал capture): дорожка или StemRing.master; −1 — нет (только колбэк).
+    var captureSource = -1
 
     public init() {
         active.initialize(repeating: false, count: StemRing.channels)
@@ -72,12 +75,12 @@ public final class StemRing: @unchecked Sendable {
 
     // MARK: — колбэк
 
-    /// Начать запись канала с кадра at.
-    func begin(_ ch: Int, at: Int64) {
+    /// Начать запись канала с кадра at; limit — наибольшая длина в кадрах (REC — 60 с).
+    func begin(_ ch: Int, at: Int64, limit: Int64 = Int64.max) {
         if !isReady || active[ch] { return }
         active[ch] = true
         startF[ch] = at
-        endF[ch] = Int64.max
+        endF[ch] = limit == Int64.max ? Int64.max : at + limit
         count[ch] = 0
         dropped[ch] = 0
         capturing = true
@@ -88,6 +91,11 @@ public final class StemRing: @unchecked Sendable {
     func end(_ ch: Int, at: Int64) {
         if !active[ch] { return }
         endF[ch] = Swift.max(at, startF[ch])
+    }
+
+    /// Пишется ли канал (колбэк).
+    func isActive(_ ch: Int) -> Bool {
+        return active[ch]
     }
 
     /// Ожидаемый конец записи (для частого мигания за 5 с до конца); −1 — не виден.
@@ -177,6 +185,11 @@ public final class StemCollector {
     public private(set) var endAt: [Int: Int64] = [:]
 
     public init() {}
+
+    /// Записанное каналом до сих пор (форма волны REC во время записи).
+    public func withBuffer(_ ch: Int, _ body: ([Float], [Float]) -> Void) {
+        body(left[ch], right[ch])
+    }
 
     /// Готовые стемы: канал, звук и пропущено ли что-то (кольцо было полно).
     public func poll(_ ring: StemRing) -> [(channel: Int, data: SampleData, dropped: Int)] {

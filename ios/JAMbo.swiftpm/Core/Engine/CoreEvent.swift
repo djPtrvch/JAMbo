@@ -30,6 +30,10 @@ public enum CoreEvent: Sendable {
     case stemArm(channel: Int, on: Bool)
     case stemFinish(channel: Int)
     case stopAfterStems
+    /// REC редактора сэмпла (S11e): запись выхода дорожки или мастера (StemRing.master) — канал StemRing.capture,
+    /// не дольше Capture.maxFrames; стоп.
+    case captureStart(source: Int)
+    case captureStop
 }
 
 /// P-lock ноты без коллекций: маска по VoiceParam и значения (15 — VoiceParam.count).

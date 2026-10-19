@@ -197,6 +197,14 @@ public final class AudioCore: @unchecked Sendable {
             t += 1
         }
         ring.capture(StemRing.master, UnsafePointer(ml), UnsafePointer(mr), nil, blockStart: sampleTime, frames: n)
+        // REC редактора: тот же звук, что у стема источника.
+        let src = ring.captureSource
+        if src == StemRing.master {
+            ring.capture(StemRing.capture, UnsafePointer(ml), UnsafePointer(mr), nil, blockStart: sampleTime, frames: n)
+        } else if src >= 0 && src < SeqData.maxTracks {
+            ring.capture(StemRing.capture, UnsafePointer(sampler.outL + src * mf), UnsafePointer(sampler.outR + src * mf),
+                         UnsafePointer(ring.gate + src * mf), blockStart: sampleTime, frames: n)
+        }
     }
 
     /// Пики выхода мастера в блоке и его громкость, если измеритель показывает мастер.
@@ -287,6 +295,14 @@ public final class AudioCore: @unchecked Sendable {
                 // Интерфейс ждал конца записи — транспорт остановился сразу.
                 if was { sequencer.out.push(.ended) }
             }
+        case .captureStart(let src):
+            let ring = sequencer.stemRing
+            if ring.isReady && !ring.isActive(StemRing.capture) {
+                ring.captureSource = src
+                ring.begin(StemRing.capture, at: sampleTime, limit: Capture.maxFrames)
+            }
+        case .captureStop:
+            sequencer.stemRing.end(StemRing.capture, at: sampleTime)
         }
     }
 }
