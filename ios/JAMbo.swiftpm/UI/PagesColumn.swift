@@ -354,8 +354,10 @@ struct PlusThumb: View {
 /// Меню страницы: ◀ ▶ ▲ ▼ (окно не закрывается), duplicate, copy, paste, clear, delete.
 /// Действуют на все играющие страницы, если страница в белой обводке, иначе только на неё.
 struct PageMenu: View {
-    /// Ширина — как у белой обводки миниатюр (колонка и по 3 px за край с каждой стороны).
-    static let width: CGFloat = Layout.leftColumn + 6
+    /// Ширина — по белой обводке миниатюр вместе с её линией (колонка и по 4 px с каждой стороны), скругление 9 —
+    /// обводка под меню не видна.
+    static let width: CGFloat = Layout.leftColumn + 8
+    static let radius: CGFloat = 9
     static let rowHeight: CGFloat = 36
     /// Высота всего меню: 6 строк по 36, SPEED — подпись 11 и две строки по 30, зазоры по 6, поля 8.
     static let height: CGFloat = 6 * rowHeight + 11 + 2 * 30 + 8 * 6 + 16
@@ -381,8 +383,8 @@ struct PageMenu: View {
         }
         .padding(8)
         .frame(width: PageMenu.width)
-        .background(theme.bg, in: RoundedRectangle(cornerRadius: Layout.radius))
-        .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(theme.line, lineWidth: 1))
+        .background(theme.bg, in: RoundedRectangle(cornerRadius: PageMenu.radius))
+        .overlay(RoundedRectangle(cornerRadius: PageMenu.radius).stroke(theme.line, lineWidth: 1))
         .shadow(color: .black.opacity(0.5), radius: 12, y: 4)
     }
 
