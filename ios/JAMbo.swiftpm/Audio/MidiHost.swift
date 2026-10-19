@@ -10,6 +10,7 @@ struct MidiEndpoint: Identifiable, Equatable {
 
 /// CoreMIDI (S13a): клиент, вход со всех источников (USB, сеть, Bluetooth — всё, что видит система), список
 /// устройств. Сообщения приходят в потоке CoreMIDI и уходят на главный поток (ноты, CC); клок — в S13e.
+/// Обратная связь (S13d) — send с главного потока, по таймеру UI (вне колбэка).
 @Observable
 final class MidiHost {
     /// Входы и выходы — для меню DEVICES (обновляются при подключении и отключении).
@@ -17,7 +18,13 @@ final class MidiHost {
     private(set) var outputs: [MidiEndpoint] = []
     @ObservationIgnored private var client = MIDIClientRef()
     @ObservationIgnored private var inPort = MIDIPortRef()
+    @ObservationIgnored private var outPort = MIDIPortRef()
     @ObservationIgnored private var connected: [MIDIEndpointRef] = []
+    /// Выходы по uniqueID (обратная связь); растёт при каждом переподключении — значения шлются заново.
+    @ObservationIgnored private var destinations: [Int32: MIDIEndpointRef] = [:]
+    @ObservationIgnored private(set) var generation: Int = 0
+    /// Буфер отправки (один, на главном потоке): один пакет на 64 слова.
+    @ObservationIgnored private let sendList = UnsafeMutablePointer<MIDIEventList>.allocate(capacity: 1)
     @ObservationIgnored private(set) var started: Bool = false
     /// Сообщение и uniqueID источника — на главном потоке.
     @ObservationIgnored var onMessage: ((MidiMessage, Int32) -> Void)? = nil
@@ -33,6 +40,7 @@ final class MidiHost {
             self?.receive(list, ref)
         }
         guard port == noErr else { return }
+        _ = MIDIOutputPortCreate(client, "JAMbo Out" as CFString, &outPort)
         started = true
         reconnect()
     }
@@ -54,15 +62,49 @@ final class MidiHost {
             i += 1
         }
         var outs: [MidiEndpoint] = []
+        var dests: [Int32: MIDIEndpointRef] = [:]
         let m: Int = MIDIGetNumberOfDestinations()
         var j: Int = 0
         while j < m {
             let dst: MIDIEndpointRef = MIDIGetDestination(j)
-            outs.append(MidiEndpoint(id: MidiHost.uniqueID(dst), name: MidiHost.name(dst)))
+            let id: Int32 = MidiHost.uniqueID(dst)
+            outs.append(MidiEndpoint(id: id, name: MidiHost.name(dst)))
+            dests[id] = dst
             j += 1
         }
         inputs = ins
         outputs = outs
+        destinations = dests
+        generation += 1
+    }
+
+    /// Выход подключён (по uniqueID).
+    func hasDestination(_ id: Int32) -> Bool {
+        return destinations[id] != nil
+    }
+
+    /// Сообщения UMP (по слову) на выход: пакетами, полный пакет уходит сразу. Только с главного потока.
+    func send(_ words: [UInt32], to id: Int32) {
+        guard started, let dst = destinations[id], !words.isEmpty else { return }
+        let size: Int = MemoryLayout<MIDIEventList>.size
+        var packet: UnsafeMutablePointer<MIDIEventPacket> = MIDIEventListInit(sendList, ._1_0)
+        var count: Int = 0
+        for w in words {
+            var word: UInt32 = w
+            if let next = MIDIEventListAdd(sendList, size, packet, 0, 1, &word) {
+                packet = next
+                count += 1
+                continue
+            }
+            MIDISendEventList(outPort, dst, sendList)
+            packet = MIDIEventListInit(sendList, ._1_0)
+            count = 0
+            if let next = MIDIEventListAdd(sendList, size, packet, 0, 1, &word) {
+                packet = next
+                count = 1
+            }
+        }
+        if count > 0 { MIDISendEventList(outPort, dst, sendList) }
     }
 
     /// Поток CoreMIDI: разбор пакетов, сообщения — на главный поток одним блоком.

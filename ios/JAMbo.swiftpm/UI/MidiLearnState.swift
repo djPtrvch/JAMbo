@@ -72,4 +72,8 @@ struct MidiRuntime {
     var stepDown: [Int: Double] = [:]
     /// Последнее нажатие ручки по позиции (двойное — двойной тап).
     var pressTap: [Int: Double] = [:]
+    /// Обратная связь (S13d): отправленные значения, время последней отправки, поколение выходов MidiHost.
+    var feedback = MidiFeedback()
+    var feedbackAt: Double = 0
+    var feedbackGen: Int = -1
 }

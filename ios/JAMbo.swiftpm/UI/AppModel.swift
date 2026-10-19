@@ -265,6 +265,7 @@ final class AppModel {
         drainVoices()
         drainStems()
         tickMeters()
+        tickMidiFeedback()
         let tracks = project.tracks.count
         live.audible = { [weak self] t in
             guard let s = self, t < tracks else { return false }
