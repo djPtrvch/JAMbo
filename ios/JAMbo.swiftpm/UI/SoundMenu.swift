@@ -2,15 +2,13 @@ import SwiftUI
 
 /// Меню звука дорожки (тап по окну сэмпла, как в вебе): закрывает всю левую колонку, кнопки крупные.
 /// Три колонки движков — SYNTH (свои: DRUM, ANALOG, FM, WTABLE; под ними SAMPLER), MI SYNTH (Plaits 0–7) и
-/// MI DRUMS (Plaits 8–15): тап — движок дорожки, с зажатыми шагами — их звук; группа LOAD SAMPLE · PRESET · MIDI: LOAD (выбор файлов), MIDI (выход — S12;
-/// для зажатых шагов на этом месте TRACK — вернуть звук дорожки), SAVE (S11) и TABLE — у дорожки с WTABLE список встроенных
-/// таблиц (до браузера S11: решение пользователя).
+/// MI DRUMS (Plaits 8–15): тап — движок дорожки, с зажатыми шагами — их звук; группа LOAD SAMPLE · PRESET · MIDI:
+/// LOAD (браузер библиотеки, S11b), MIDI (выход — S12; для зажатых шагов на этом месте TRACK — вернуть звук дорожки),
+/// SAVE (пресет синта в библиотеку) и TABLE (у дорожки с WTABLE — браузер в LOAD TABLE).
 struct SoundMenu: View {
     let model: AppModel
     let state: SoundMenuState
     @Environment(\.theme) private var theme
-    /// TABLE: вместо колонок — список встроенных таблиц.
-    @State private var tables = false
 
     static let synth = ["DRUM", "ANALOG", "FM", "WTABLE"]
     static let miSynth = ["VA", "WAVESHAPE", "FM", "GRAIN", "ADDITIVE", "WAVETABLE", "CHORDS", "SPEECH"]
@@ -22,14 +20,10 @@ struct SoundMenu: View {
             if steps {
                 title("STEP " + state.steps.map { String($0 + 1) }.joined(separator: ", "))
             }
-            if tables {
-                tableList
-            } else {
-                HStack(alignment: .top, spacing: 4) {
-                    column("SYNTH", SoundMenu.synth, sampler: true, steps: steps, plaits: SynthEngines.firstJambo)
-                    column("MI SYNTH", SoundMenu.miSynth, sampler: false, steps: steps, plaits: 0)
-                    column("MI DRUMS", SoundMenu.miDrums, sampler: false, steps: steps, plaits: SynthEngines.firstDrum)
-                }
+            HStack(alignment: .top, spacing: 4) {
+                column("SYNTH", SoundMenu.synth, sampler: true, steps: steps, plaits: SynthEngines.firstJambo)
+                column("MI SYNTH", SoundMenu.miSynth, sampler: false, steps: steps, plaits: 0)
+                column("MI DRUMS", SoundMenu.miDrums, sampler: false, steps: steps, plaits: SynthEngines.firstDrum)
             }
             title("LOAD SAMPLE · PRESET · MIDI")
             loadGroup(steps)
@@ -90,8 +84,7 @@ struct SoundMenu: View {
             HStack(spacing: 4) {
                 MenuItem(title: "LOAD", current: !steps && hasSample) {
                     let s = state.steps
-                    close()
-                    model.chooseFiles(steps: s)
+                    model.openBrowser(.load(steps: s))
                 }
                 MenuItem(title: steps ? "TRACK" : "MIDI", enabled: steps) {
                     let s = state.steps
@@ -100,30 +93,20 @@ struct SoundMenu: View {
                 }
             }
             HStack(spacing: 4) {
-                MenuItem(title: "SAVE", enabled: false) {}
-                MenuItem(title: "TABLE", enabled: !steps && wtable, current: tables) { tables.toggle() }
+                MenuItem(title: "SAVE", enabled: !steps && synth) { model.openBrowser(.savePreset) }
+                MenuItem(title: "TABLE", enabled: !steps && wtable) { model.openBrowser(.loadTable) }
             }
         }
+    }
+
+    /// Дорожка играет синт (SAVE — пресет в библиотеку).
+    private var synth: Bool {
+        SynthKey.engine(model.track.sample) != nil
     }
 
     /// Дорожка играет WTABLE (кнопка TABLE активна).
     private var wtable: Bool {
         SynthKey.engine(model.track.sample) == Jambo.wtable
-    }
-
-    /// Встроенные таблицы WTABLE (папка BUILT-IN TABLES браузера веба): тап — таблица на дорожку.
-    private var tableList: some View {
-        let current: String = WavetableKey.name(model.track.table)
-        return VStack(spacing: 4) {
-            title("BUILT-IN TABLES")
-            ForEach(WavetableKey.builtins, id: \.self) { name in
-                cell(name, enabled: true, current: name == current) {
-                    close()
-                    model.pickTable(name)
-                }
-            }
-        }
-        .frame(maxWidth: .infinity)
     }
 
     private func close() {

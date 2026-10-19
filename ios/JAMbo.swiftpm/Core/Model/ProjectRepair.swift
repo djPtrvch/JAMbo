@@ -60,6 +60,26 @@ extension Project {
     }
 }
 
+extension Project {
+    /// Ключи WAV своих таблиц WTABLE (S11b4): у дорожек, в пресетах их папок, у звуков перехода MIX.
+    public var tableKeys: Set<String> {
+        var keys = Set<String>()
+        let add: (String?) -> Void = { t in
+            if let t = t, let u = WavetableKey.parseUser(t) { keys.insert(u.wav) }
+        }
+        for t in tracks {
+            var sounds: [TrackSound] = [t.sound]
+            if let h = t.home { sounds.append(h) }
+            for c in t.clips { if let s = c?.src { sounds.append(s) } }
+            for snd in sounds {
+                add(snd.table)
+                for it in snd.folder.items { add(it.preset?.table) }
+            }
+        }
+        return keys
+    }
+}
+
 extension Track {
     /// Дорожка (или MIX, MST) проекта из n дорожек.
     mutating func repair(tracks n: Int) {

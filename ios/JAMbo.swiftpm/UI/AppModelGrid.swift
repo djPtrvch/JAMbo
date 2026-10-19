@@ -285,6 +285,7 @@ extension AppModel {
     func togglePatterns() {
         patternView.toggle()
         if patternView {
+            browser = nil
             editorOpen = false
             eqView = false
             closeRoll()

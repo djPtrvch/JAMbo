@@ -6,8 +6,9 @@ import Foundation
 // - громкости: doc.mixer['mix.volN'] → Track.vol; EQ дорожек: doc.eqs[i] → Track.eq; папки: doc.folders[i] → Track.folder
 //   (сэмплы и пресеты синта);
 // - ключи сэмплов: 's:<hex>' → '<hex>' (тот же SHA-256 исходного файла, SampleStore.key);
-// - не переносятся (решения пользователя, S11): автоматизация (auto), миграция SPEECH; свои таблицы WTABLE ('wt:…')
-//   — BASIC до S11b4; убранные в Swift параметры мастера; MORPH-снимки (trackOrig) и переход MIX (home, src).
+// - свои таблицы WTABLE: 'wt:s:<hex>:<кадр>' → 'wt:<hex>:<кадр>', байты WAV — в Tables (S11b4);
+// - не переносятся (решения пользователя, S11): автоматизация (auto), миграция SPEECH; убранные в Swift параметры
+//   мастера; MORPH-снимки (trackOrig) и переход MIX (home, src).
 // Сборка — словарь в формате Project, затем обычное чтение (ProjectCoding) и repair.
 
 public enum WebProject {
@@ -26,9 +27,14 @@ public enum WebProject {
         return k.hasPrefix("s:") ? String(k.dropFirst(2)) : k
     }
 
-    /// Таблица WTABLE: встроенная — как есть; своя ('wt:s:<hex>:<кадр>') — до S11b4 BASIC.
+    /// Таблица WTABLE: встроенная — как есть; своя 'wt:s:<hex>:<кадр>' → 'wt:<hex>:<кадр>' (S11b4); прочее — BASIC.
     static func table(_ t: String) -> String {
-        return t.hasPrefix("builtin:") ? t : ""
+        if t.hasPrefix("builtin:") { return t }
+        if t.hasPrefix("wt:s:") {
+            let k: String = "wt:" + String(t.dropFirst(5))
+            if WavetableKey.parseUser(k) != nil { return k }
+        }
+        return ""
     }
 
     static func project(_ d: [String: Any]) -> [String: Any] {

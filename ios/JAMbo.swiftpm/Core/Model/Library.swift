@@ -247,3 +247,14 @@ public struct LibraryStore: Sendable {
         return (try? data.write(to: url, options: .atomic)) != nil
     }
 }
+
+/// Виртуальная папка встроенных таблиц WTABLE (в LOAD TABLE, в корне; в файле библиотеки её нет).
+public enum LibraryBuiltins {
+    public static let folderId = "builtin-tables"
+    public static let folder = LibNode(id: folderId, parent: Library.root, kind: .folder, name: "BUILT-IN TABLES",
+                                       system: true, updated: 0)
+    public static let tables: [LibNode] = WavetableKey.builtins.map { name in
+        LibNode(id: "bt:" + name, parent: folderId, kind: .table, name: name, key: WavetableKey.builtin(name),
+                system: true, updated: 0)
+    }
+}

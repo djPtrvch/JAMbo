@@ -41,6 +41,9 @@ public struct SoundData {
     public var slotRef: UnsafeMutablePointer<Int>
     /// Сэмплов в таблице entries (оба звука).
     public var entryTotal: Int = 0
+    /// Сэмплы предпрослушки библиотеки (S11b): записи extraStart ..< extraStart + extraCount, ни у одной дорожки.
+    public var extraStart: Int = 0
+    public var extraCount: Int = 0
     /// На дорожку: постоянный номер (перестановка — голоса гаснут), ручки голоса, громкость, слышна ли (mute/solo),
     /// звук дорожки (ключ; 0 — нет), сэмплы дорожки — отрезок таблицы entries.
     public var trackId: UnsafeMutablePointer<Int>
@@ -136,6 +139,11 @@ public struct SoundData {
             if e >= 0 { return e }
             t += 1
         }
+        var k = extraStart
+        while k < extraStart + extraCount {
+            if eHash[k] == hash { return k }
+            k += 1
+        }
         return -1
     }
 
@@ -164,10 +172,11 @@ public final class SoundSnapshot: @unchecked Sendable {
     /// samples — загруженные сэмплы по ключу; map, scale, root — ноты маркеров по порядку (SLICE NOTES).
     /// tables — готовые таблицы WTABLE по ключу (Track.table). slots — активные ячейки дорожек в колбэке
     /// (Launcher.slot; nil — свой буфер, все на первой ячейке). master — параметры мастера кроссфейдера перехода MIX
-    /// (MixBlend.master; nil — из проекта).
+    /// (MixBlend.master; nil — из проекта). extra — сэмплы предпрослушки библиотеки (вне дорожек).
     public init(_ project: Project, samples: [String: SampleData], map: SliceMap, octave: Int = 3,
                 tables: [String: WtTable] = [:], scSends: SidechainSends = SidechainSends(), muteTails: Bool = false,
-                levelRelative: Bool = true, slots: UnsafeMutablePointer<Int>? = nil, master: [Double]? = nil) {
+                levelRelative: Bool = true, slots: UnsafeMutablePointer<Int>? = nil, master: [Double]? = nil,
+                extra: [String] = []) {
         let tracks = SoundData.maxTracks
         let tracks2 = tracks * 2
         var own: UnsafeMutablePointer<Int>? = nil
@@ -331,6 +340,20 @@ public final class SoundSnapshot: @unchecked Sendable {
             }
             d.entryCount[u] = Int32(e) - d.entryStart[u]
         }
+        d.extraStart = e
+        for key in extra where e < entries {
+            guard let s = samples[key] else { continue }
+            keep.append(s)
+            d.eHash[e] = SoundKey.hash(key)
+            d.eLeft[e] = s.left
+            d.eRight[e] = s.right
+            d.eFrames[e] = s.frames
+            d.eChannels[e] = Int32(s.channels)
+            d.eSliceStart[e] = Int32(sl)
+            d.eSliceCount[e] = 0
+            e += 1
+        }
+        d.extraCount = e - d.extraStart
         d.entryTotal = e
         data = d
         self.keep = keep

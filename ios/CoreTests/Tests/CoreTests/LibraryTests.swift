@@ -98,3 +98,105 @@ final class LibraryTests: XCTestCase {
         XCTAssertTrue(text.contains(#"{"sample":"abc"}"#))
     }
 }
+
+/// S11b3: предпрослушка — сэмпл библиотеки в снимке вне дорожек, p-lock ручек пресета.
+final class LibraryPreviewTests: XCTestCase {
+    func testExtraEntryFoundOnlyForPreview() {
+        let p = Project()
+        let s = SampleData(left: [Float](repeating: 0.5, count: 100), right: nil)
+        let snap = SoundSnapshot(p, samples: ["lib": s], map: .chromatic, extra: ["lib", "missing"])
+        let plain = SoundSnapshot(p, samples: ["lib": s], map: .chromatic)
+        defer { withExtendedLifetime((snap, plain)) {} }
+        let d = snap.data
+        XCTAssertEqual(d.extraCount, 1)
+        let e = d.anyEntry(SoundKey.hash("lib"))
+        XCTAssertEqual(e, d.extraStart)
+        XCTAssertEqual(d.eFrames[e], 100)
+        // Дорожкам сэмпл не принадлежит.
+        XCTAssertEqual(d.entry(0, SoundKey.hash("lib")), -1)
+        XCTAssertEqual(plain.data.anyEntry(SoundKey.hash("lib")), -1)
+    }
+
+    func testNoteLocksFromPreset() {
+        var l = NoteLocks(["harm": 30, "decay": 900, "unknown": 1])
+        XCTAssertEqual(l.mask, (UInt16(1) << UInt16(VoiceParam.ids.firstIndex(of: "harm")!))
+                       | (UInt16(1) << UInt16(VoiceParam.decay)))
+        let decay: Float = withUnsafeBytes(of: &l.vals) { $0.bindMemory(to: Float.self)[VoiceParam.decay] }
+        XCTAssertEqual(decay, 900)
+    }
+}
+
+/// S11b4: свои таблицы WTABLE — разбор WAV, ключи, построение таблицы.
+final class UserWavetableTests: XCTestCase {
+    /// WAV: 16 бит моно (или float 32 стерео), необязательная метка 'clm '.
+    static func wav(_ x: [Float], float: Bool = false, stereo: Bool = false, clm: String? = nil) -> Data {
+        let ch = stereo ? 2 : 1
+        let bytes = float ? 4 : 2
+        var body = Data()
+        for v in x {
+            for _ in 0..<ch {
+                if float {
+                    withUnsafeBytes(of: v.bitPattern.littleEndian) { body.append(contentsOf: $0) }
+                } else {
+                    let s = Int16(max(-32768, min(32767, (v * 32768).rounded())))
+                    withUnsafeBytes(of: s.littleEndian) { body.append(contentsOf: $0) }
+                }
+            }
+        }
+        func u32(_ v: Int) -> [UInt8] { [UInt8(v & 255), UInt8((v >> 8) & 255), UInt8((v >> 16) & 255), UInt8(v >> 24)] }
+        func u16(_ v: Int) -> [UInt8] { [UInt8(v & 255), UInt8(v >> 8)] }
+        var fmt = Data(u16(float ? 3 : 1) + u16(ch) + u32(48000) + u32(48000 * ch * bytes) + u16(ch * bytes) + u16(bytes * 8))
+        fmt = Data("fmt ".utf8) + Data(u32(fmt.count)) + fmt
+        var chunks = fmt
+        if let c = clm {
+            var t = Data(c.utf8)
+            if t.count % 2 == 1 { t.append(0) }
+            chunks += Data("clm ".utf8) + Data(u32(t.count)) + t
+        }
+        chunks += Data("data".utf8) + Data(u32(body.count)) + body
+        return Data("RIFF".utf8) + Data(u32(4 + chunks.count)) + Data("WAVE".utf8) + chunks
+    }
+
+    func testParseAndFrameSize() throws {
+        let x: [Float] = (0..<1024).map { Float(sin(2 * Double.pi * Double($0) / 256)) * 0.5 }
+        let w = try XCTUnwrap(WtWav.parse(UserWavetableTests.wav(x)))
+        XCTAssertEqual(w.samples.count, 1024)
+        XCTAssertEqual(w.samples[64], 0.5, accuracy: 0.001)
+        XCTAssertNil(w.clm)
+        XCTAssertEqual(WtWav.autoFrameSize(w), 1024)
+        let f = try XCTUnwrap(WtWav.parse(UserWavetableTests.wav(x, float: true, stereo: true, clm: "<!>256 10000000")))
+        XCTAssertEqual(f.samples, x)
+        XCTAssertEqual(f.clm, 256)
+        XCTAssertEqual(WtWav.autoFrameSize(f), 256)
+        XCTAssertEqual(WtWav.framesFor(f, 256), 4)
+        XCTAssertNil(WtWav.parse(Data("RIFF....WAVEjunk".utf8)))
+    }
+
+    func testKeys() {
+        XCTAssertEqual(WavetableKey.user("abc1", frameSize: 512), "wt:abc1:512")
+        XCTAssertEqual(WavetableKey.parseUser("wt:abc1:512")?.wav, "abc1")
+        XCTAssertNil(WavetableKey.parseUser("wt:abc1:300"))
+        XCTAssertNil(WavetableKey.parseUser("wt:../x:512"))
+        XCTAssertNil(WavetableKey.parseUser("builtin:PWM"))
+    }
+
+    /// Синус на кадр 256 — в таблице синус кадра 2048 с пиком 1 (вся таблица к пику 1.0, как в вебе).
+    func testUserTableIsNormalizedSine() {
+        let x: [Float] = (0..<512).map { Float(sin(2 * Double.pi * Double($0) / 256)) * 0.25 }
+        let t = WtTable.user(x, frameSize: 256)
+        XCTAssertEqual(t.frames, 2)
+        let size = t.sizes[0]
+        XCTAssertEqual(size, 2048)
+        for j in stride(from: 0, to: size, by: 97) {
+            XCTAssertEqual(t.data[0][j], Float(sin(2 * Double.pi * Double(j) / Double(size))), accuracy: 0.001)
+        }
+    }
+
+    func testProjectTableKeys() {
+        var p = Project()
+        p.tracks[0].table = "wt:aa:2048"
+        p.tracks[1].folder.items = [FolderItem(preset: SynthPreset(name: "W", sound: "mi:19", params: [:], table: "wt:bb:256"))]
+        p.tracks[2].table = "builtin:PWM"
+        XCTAssertEqual(p.tableKeys, ["aa", "bb"])
+    }
+}

@@ -47,4 +47,17 @@ extension Sampler {
             if pvStop { pvGain *= k }
         }
     }
+
+    /// ▶ пресета: нота дорожки t звуком hash с p-lock ручек пресета, ~0,5 с (как звук шага).
+    public func presetNote(track t: Int, note n: Int, hash: UInt64, locks: NoteLocks, at: Int64) {
+        var l = locks
+        withUnsafeBytes(of: &l.vals) { raw in
+            let src = raw.bindMemory(to: Float.self)
+            for k in 0..<VoiceParam.count { scratch[k] = src[k] }
+        }
+        one.pointee = Int16(n)
+        let gate: Int64 = at + Int64(0.5 * sr)
+        trigger(track: t, at: at, notes: one, count: 1, mask: l.mask, vals: scratch, hash: hash, gate: gate, own: true,
+                liveId: -1)
+    }
 }

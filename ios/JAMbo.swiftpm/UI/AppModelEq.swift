@@ -35,6 +35,7 @@ extension AppModel {
         eqPresetMenu = nil
         eqCompareMenu = false
         if eqView {
+            browser = nil
             patternView = false
             editorOpen = false
             closeRoll()

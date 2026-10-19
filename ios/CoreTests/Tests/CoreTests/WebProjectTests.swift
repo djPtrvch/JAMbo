@@ -107,9 +107,10 @@ final class WebProjectTests: XCTestCase {
         XCTAssertNotNil(t1.clips[0])
         XCTAssertEqual(t1.table, "builtin:ORGAN")
         XCTAssertEqual(t1.vol, -60)
-        // Своя таблица WTABLE — BASIC (свои таблицы — с библиотекой, S11b).
+        // Своя таблица WTABLE (S11b4): ключ без 's:', WAV — отдельно от сэмплов.
         XCTAssertEqual(p.tracks[2].sample, "mi:19")
-        XCTAssertEqual(p.tracks[2].table, "")
+        XCTAssertEqual(p.tracks[2].table, "wt:b4ea7a86523069b0187961e4:2048")
+        XCTAssertEqual(p.tableKeys, ["b4ea7a86523069b0187961e4"])
         XCTAssertEqual(p.tracks[8].name, "9")
         XCTAssertEqual(p.chanSeqs.map { $0.name }, ["MIX", "MST"])
         XCTAssertEqual(p.chanSeqs[0].clips[0]?.pages[0][0].locks, ["mix.vol1": -12])
@@ -124,6 +125,13 @@ final class WebProjectTests: XCTestCase {
         XCTAssertEqual(s.map { $0.key }, [kick, snare])
         XCTAssertEqual(s.map { $0.name }, ["kick.wav", "snare.wav"])
         XCTAssertEqual(p.sampleKeys, [kick, snare])
+        let t = pack.tables(for: p)
+        XCTAssertEqual(t.map { $0.key }, ["b4ea7a86523069b0187961e4"])
+        // WAV таблицы — 2048 × 4 отсчётов, 4 кадра по 2048.
+        let w = try XCTUnwrap(WtWav.parse(t[0].bytes))
+        XCTAssertEqual(w.samples.count, 8192)
+        XCTAssertEqual(WtWav.autoFrameSize(w), 2048)
+        XCTAssertEqual(WtWav.framesFor(w, 2048), 4)
     }
 
     /// Импортированный проект сохраняется и читается обычным файлом Swift-версии без потерь.

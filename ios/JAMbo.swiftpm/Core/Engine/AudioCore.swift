@@ -87,7 +87,8 @@ public final class AudioCore: @unchecked Sendable {
     /// samples — загруженные сэмплы по ключу, map — SLICE NOTES.
     public func publish(_ project: Project, samples: [String: SampleData] = [:], map: SliceMap = .chromatic, octave: Int = 3,
                         tables: [String: WtTable] = [:], scSends: SidechainSends = SidechainSends(),
-                        muteTails: Bool = false, levelRelative: Bool = true, master: [Double]? = nil) {
+                        muteTails: Bool = false, levelRelative: Bool = true, master: [Double]? = nil,
+                        extra: [String] = []) {
         releaseRetired()
         if lastSeq == nil || !SeqSnapshot.same(lastSeq!, project) {
             lastSeq = project
@@ -97,7 +98,8 @@ public final class AudioCore: @unchecked Sendable {
         let snd = Unmanaged.passRetained(SoundSnapshot(project, samples: samples, map: map, octave: octave, tables: tables,
                                                              scSends: scSends, muteTails: muteTails,
                                                              levelRelative: levelRelative,
-                                                             slots: sequencer.launcher.slot, master: master))
+                                                             slots: sequencer.launcher.slot, master: master,
+                                                             extra: extra))
         if !sounds.push(snd) { snd.release() }
     }
 
@@ -253,6 +255,8 @@ public final class AudioCore: @unchecked Sendable {
             sampler.preview(hash: h, a: a, b: b, at: sampleTime)
         case .previewStop:
             sampler.stopPreview()
+        case .presetNote(let t, let n, let h, let locks):
+            sampler.presetNote(track: t, note: n, hash: h, locks: locks, at: sampleTime)
         }
     }
 }

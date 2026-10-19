@@ -23,4 +23,26 @@ public enum CoreEvent: Sendable {
     /// ▶ редактора сэмпла: отрезок a…b (доли) сэмпла hash; стоп.
     case preview(hash: UInt64, a: Double, b: Double)
     case previewStop
+    /// ▶ пресета в библиотеке (S11b): одна нота дорожки звуком hash (движок пресета) с p-lock его ручек.
+    case presetNote(track: Int, note: Int, hash: UInt64, locks: NoteLocks)
+}
+
+/// P-lock ноты без коллекций: маска по VoiceParam и значения (15 — VoiceParam.count).
+public struct NoteLocks: Sendable {
+    public var mask: UInt16 = 0
+    public var vals: (Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float,
+                      Float) = (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+
+    public init() {}
+
+    /// Ручки пресета (id → значение) в p-lock голоса (основной поток).
+    public init(_ params: [String: Double]) {
+        for (id, v) in params {
+            guard let k = VoiceParam.ids.firstIndex(of: id) else { continue }
+            mask |= UInt16(1) << UInt16(k)
+            withUnsafeMutableBytes(of: &vals) { raw in
+                raw.bindMemory(to: Float.self)[k] = Float(v)
+            }
+        }
+    }
 }

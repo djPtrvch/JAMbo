@@ -27,6 +27,7 @@ extension AppModel {
         guard channel == .master, m >= 0 && m < 4 else { return }
         masterWin = m
         masterMenu = nil
+        browser = nil
         eqView = false
         eqMenu = nil
         eqMsMenu = nil

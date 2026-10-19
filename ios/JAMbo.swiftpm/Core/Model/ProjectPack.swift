@@ -137,4 +137,16 @@ public struct ProjectPack: Equatable, Sendable {
         }
         return out
     }
+
+    /// WAV своих таблиц WTABLE проекта p (ключи без 's:'): в Tables, не в Samples.
+    public func tables(for p: Project) -> [PackSample] {
+        let need: Set<String> = p.tableKeys
+        var out: [PackSample] = []
+        for s in samples {
+            var x = s
+            x.key = WebProject.key(s.key)
+            if need.contains(x.key) && !out.contains(where: { $0.key == x.key }) { out.append(x) }
+        }
+        return out
+    }
 }

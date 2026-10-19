@@ -29,6 +29,12 @@ extension AppModel {
             guard let bytes = SampleStore.packed(key: key, dir: dir) else { continue }
             samples.append(PackSample(key: key, name: "\(key).caf", bytes: bytes))
         }
+        // Свои таблицы WTABLE — исходными WAV (S11b4).
+        let tables: URL = WtWav.appDir()
+        for key in p.tableKeys.sorted() {
+            guard let bytes = try? Data(contentsOf: WtWav.url(key, in: tables)) else { continue }
+            samples.append(PackSample(key: key, name: "\(key).wav", bytes: bytes))
+        }
         guard let pack = ProjectPack.swift(name: name, doc: p, samples: samples), let data = pack.encoded() else { return nil }
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("export", isDirectory: true)
         // Прежний файл (окно закрыли без сохранения) — убрать.
@@ -46,6 +52,7 @@ extension AppModel {
     /// IMPORT: системный выбор файла (тот же fileImporter, что у сэмплов, — режим проекта).
     func chooseProjectFile() {
         importingProject = true
+        importingLibrary = false
         importing = true
     }
 
@@ -73,6 +80,12 @@ extension AppModel {
         guard let pack = ProjectPack.decode(data), let p = pack.project() else { return .failed("Not a JAMbo project.") }
         // Сэмпл, который не прочитался, — дорожка без звука (как сэмпл, которого нет на диске).
         for s in pack.samples(for: p) { _ = SampleStore.importPacked(s, dir: dir) }
+        // Свои таблицы WTABLE — WAV как есть, в Tables (уже лежащий не трогается).
+        let tables: URL = WtWav.appDir()
+        for s in pack.tables(for: p) {
+            let u: URL = WtWav.url(s.key, in: tables)
+            if !FileManager.default.fileExists(atPath: u.path) { try? s.bytes.write(to: u, options: .atomic) }
+        }
         let name: String = ProjectSession.importedName(pack.name, in: list)
         let info = ProjectInfo(id: ProjectStore.newId(), name: name, updated: Date().timeIntervalSince1970)
         let ok: Bool = queue.sync { store.save(p, info: info) }

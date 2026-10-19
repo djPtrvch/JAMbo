@@ -9,6 +9,7 @@ extension AppModel {
             return
         }
         patternView = false
+        browser = nil
         editorOpen = false
         eqView = false
         eqMenu = nil

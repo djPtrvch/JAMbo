@@ -140,7 +140,7 @@ final class AppModel {
     /// Сэмплы (в памяти и на диске); растёт при загрузке — окна перерисовываются.
     @ObservationIgnored let store = SampleStore()
     /// Таблицы WTABLE (строятся в фоне при первом использовании, дальше — из кэша).
-    @ObservationIgnored let wavetables = WavetableStore()
+    @ObservationIgnored let wavetables = WavetableStore(userDir: WtWav.appDir())
     /// Таблица достроилась — перерисовать кадр в окне синта.
     var wavetableSerial = 0
     var samplesVersion: Int = 0
@@ -152,6 +152,20 @@ final class AppModel {
     /// Выбор файла — для IMPORT проекта (.jambo), а не сэмплов; итог IMPORT (меню PROJECTS показывает LOAD / MIX).
     var importingProject: Bool = false
     var projectImport: ProjectImport? = nil
+    /// Браузер библиотеки (S11b) на месте центра: режим (nil — закрыт), дерево, открытая папка, выбор нескольких
+    /// (nil — нет), строка внизу (что загружено, ошибка); выбор файлов — для IMPORT в библиотеку.
+    var browser: BrowserMode? = nil
+    var library: Library = Library()
+    var libFolder: String = Library.root
+    var libPicked: Set<String>? = nil
+    var libNote: String = ""
+    var importingLibrary: Bool = false
+    @ObservationIgnored var libraryLoaded: Bool = false
+    /// IMPORT таблиц WAV без метки размера кадра — по очереди спрашивается размер (S11b4).
+    var libTableAsk: [TableImport] = []
+    /// Сэмпл библиотеки на ▶ (в снимке звука — вне дорожек).
+    @ObservationIgnored var libPreviewKey: String? = nil
+    @ObservationIgnored let libraryStore = LibraryStore(url: LibraryStore.appFile())
     /// Рамка левой колонки (меню звука ложится на неё).
     var leftFrame: CGRect = .zero
     /// Звучащие голоса сэмплов (полоса воспроизведения): из колбэка; число — чтобы включать анимацию.
@@ -402,6 +416,7 @@ final class AppModel {
         closeEditor()
         closeMasterWindow()
         closeRoll()
+        closeBrowser()
         eqView = false
         eqMenu = nil
         eqMsMenu = nil

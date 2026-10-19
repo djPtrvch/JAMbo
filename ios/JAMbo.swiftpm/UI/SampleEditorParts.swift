@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Строка редактора сэмпла: имя и длина, REC (S11), ▶, LOAD, SAVE (S11), TRIM, NORMALIZE, MONO, CLEAR, ✕.
+/// Строка редактора сэмпла: имя и длина, REC (S11), ▶, LOAD и SAVE (браузер библиотеки, S11b), TRIM, NORMALIZE, MONO, CLEAR, ✕.
 struct EditorBar: View {
     let model: AppModel
     let key: String
@@ -20,8 +20,8 @@ struct EditorBar: View {
             ToolButton(title: "▶", enabled: data != nil, lit: model.previewOn, width: 48) {
                 model.togglePreview(sel.a, sel.b)
             }
-            ToolButton(title: "LOAD", width: 76) { model.chooseFiles(steps: []) }
-            ToolButton(title: "SAVE", enabled: false, width: 76) {}
+            ToolButton(title: "LOAD", width: 76) { model.openBrowser(.load(steps: [])) }
+            ToolButton(title: "SAVE", enabled: data != nil, width: 76) { model.openBrowser(.saveSample(key)) }
             ToolButton(title: "TRIM", enabled: data != nil && !sel.full, width: 76) { model.trimSample(sel.a, sel.b) }
             ToolButton(title: "NORMALIZE", enabled: data != nil, width: 104) { model.normalizeSample() }
             ToolButton(title: "MONO", enabled: (data?.channels ?? 1) == 2, width: 76) { model.monoSample() }

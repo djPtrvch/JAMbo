@@ -17,6 +17,18 @@ public enum WavetableKey {
         if key.hasPrefix("builtin:") { return String(key.dropFirst(8)) }
         return "TABLE"
     }
+
+    /// Своя таблица (S11b4, как userTableKey веба): «wt:<ключ WAV>:<размер кадра>»; ключ — без 's:' веба.
+    public static func user(_ wav: String, frameSize: Int) -> String { "wt:\(wav):\(frameSize)" }
+
+    /// Ключ WAV и размер кадра своей таблицы; иначе nil.
+    public static func parseUser(_ key: String) -> (wav: String, frameSize: Int)? {
+        let parts = key.split(separator: ":", omittingEmptySubsequences: false)
+        guard parts.count == 3, parts[0] == "wt", let size = Int(parts[2]), WtWav.frameSizes.contains(size) else { return nil }
+        let wav = String(parts[1])
+        if wav.isEmpty || !wav.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber) }) { return nil }
+        return (wav, size)
+    }
 }
 
 /// Таблица: кадров frames, 11 уровней мипмапа (размер и данные frames × size). Живёт, пока на неё ссылаются
@@ -255,8 +267,12 @@ public final class WtTable: @unchecked Sendable {
 public final class WavetableStore {
     public private(set) var ready: [String: WtTable] = [:]
     private var building: Set<String> = []
+    /// Папка своих таблиц (WAV по ключу, S11b4); nil — только встроенные.
+    public let userDir: URL?
 
-    public init() {}
+    public init(userDir: URL? = nil) {
+        self.userDir = userDir
+    }
 
     /// Таблица по ключу, если готова; иначе — построение в фоне, done — в основном потоке, когда готова.
     public func table(_ key: String, done: @escaping () -> Void) -> WtTable? {
@@ -264,12 +280,23 @@ public final class WavetableStore {
         if building.contains(key) { return nil }
         building.insert(key)
         let name = WavetableKey.name(key)
+        let user = WavetableKey.parseUser(key)
+        let dir = userDir
         DispatchQueue.global(qos: .userInitiated).async {
-            let t = WtTable.builtin(name)
+            var t: WtTable? = nil
+            if let u = user {
+                // Своя: WAV из папки таблиц; нет файла — таблицы нет (звучит BASIC, как без таблицы).
+                if let d = dir, let data = try? Data(contentsOf: WtWav.url(u.wav, in: d)), let w = WtWav.parse(data) {
+                    t = WtTable.user(w.samples, frameSize: u.frameSize)
+                }
+            } else {
+                t = WtTable.builtin(name)
+            }
+            let built: WtTable? = t
             DispatchQueue.main.async {
-                self.ready[key] = t
+                if let b = built { self.ready[key] = b }
                 self.building.remove(key)
-                done()
+                if built != nil { done() }
             }
         }
         return nil

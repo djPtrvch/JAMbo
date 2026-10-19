@@ -50,7 +50,8 @@ extension AppModel {
         }
         audio.core.publish(project, samples: store.samples, map: settings.sliceMap, octave: octave, tables: tables,
                            scSends: settings.scSends, muteTails: settings.muteTails,
-                           levelRelative: settings.levelRelative, master: mixMaster)
+                           levelRelative: settings.levelRelative, master: mixMaster,
+                           extra: libPreviewKey.map { [$0] } ?? [])
     }
 
     /// TABLE: встроенная таблица WTABLE на дорожку (UNDO).
@@ -158,6 +159,8 @@ extension AppModel {
     /// Меню звука → LOAD: системный выбор файлов («Файлы» iPad и iCloud Drive), можно сразу несколько.
     func chooseFiles(steps: [Int]) {
         importTarget = ImportTarget(track: selectedTrack, steps: steps)
+        importingProject = false
+        importingLibrary = false
         importing = true
     }
 
@@ -261,6 +264,7 @@ extension AppModel {
     // MARK: — редактор сэмпла
 
     func openEditor() {
+        browser = nil
         patternView = false
         editorOpen = true
         eqView = false

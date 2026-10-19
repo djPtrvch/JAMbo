@@ -34,6 +34,11 @@ struct RootView: View {
 
     /// Выбранные файлы: проект (IMPORT, один .jambo) или сэмплы (LOAD).
     private func picked(_ result: Result<[URL], Error>) {
+        if model.importingLibrary {
+            model.importingLibrary = false
+            if case .success(let urls) = result { model.libImport(urls) }
+            return
+        }
         if model.importingProject {
             model.importingProject = false
             if case .success(let urls) = result, let url = urls.first { model.importProjectFile(url) }
@@ -64,7 +69,13 @@ struct RootView: View {
     /// с EQ и окном модуля мастера — до края миниатюр страниц, справа измеритель.
     @ViewBuilder
     private func center(_ layout: Layout) -> some View {
-        if model.rollView {
+        if model.browser != nil {
+            // Браузер библиотеки — на месте центра (как EQ), справа измеритель.
+            HStack(spacing: Layout.gap) {
+                LibraryBrowser(model: model)
+                MeterColumn(model: model)
+            }
+        } else if model.rollView {
             RollWindow(model: model, layout: layout)
         } else if model.patternView {
             PatternGrid(model: model, layout: layout)
