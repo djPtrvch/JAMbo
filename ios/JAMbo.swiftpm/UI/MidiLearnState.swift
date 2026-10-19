@@ -76,4 +76,6 @@ struct MidiRuntime {
     var feedback = MidiFeedback()
     var feedbackHold: [MidiSource: Double] = [:]
     var feedbackGen: Int = -1
+    /// MIDI-клок SEND (S13e).
+    var clockPlan = ClockPlan()
 }

@@ -141,4 +141,10 @@ struct HostClock {
     func nanoseconds(_ ticks: UInt64) -> Double {
         return Double(ticks) * scale
     }
+
+    /// Секунды хоста → такты mach (метки времени CoreMIDI); прошлое — 0 (сразу).
+    func ticks(seconds: Double) -> UInt64 {
+        let t: Double = seconds * 1e9 / scale
+        return t > 0 ? UInt64(t) : 0
+    }
 }

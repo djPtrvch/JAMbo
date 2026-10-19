@@ -123,6 +123,43 @@ final class MidiHost {
         }
     }
 
+    /// Сообщения с метками времени (такты mach) на выход id или на все выходы (nil): по 16 на список.
+    func sendTimed(_ events: [(at: UInt64, word: UInt32)], to id: Int32?) {
+        guard started, !events.isEmpty else { return }
+        var dsts: [MIDIEndpointRef] = []
+        if let i = id {
+            if let d = destinations[i] { dsts.append(d) }
+        } else {
+            dsts = Array(destinations.values)
+        }
+        let size: Int = MemoryLayout<MIDIEventList>.size
+        for dst in dsts {
+            var packet: UnsafeMutablePointer<MIDIEventPacket> = MIDIEventListInit(sendList, ._1_0)
+            var count: Int = 0
+            for e in events {
+                if count == 16 {
+                    MIDISendEventList(outPort, dst, sendList)
+                    packet = MIDIEventListInit(sendList, ._1_0)
+                    count = 0
+                }
+                var word: UInt32 = e.word
+                packet = MIDIEventListAdd(sendList, size, packet, e.at, 1, &word)
+                count += 1
+            }
+            MIDISendEventList(outPort, dst, sendList)
+        }
+    }
+
+    /// Отменить отправленные, но ещё не ушедшие по времени сообщения (выход id или все).
+    func flush(_ id: Int32?) {
+        guard started else { return }
+        if let i = id {
+            if let dst = destinations[i] { MIDIFlushOutput(dst) }
+        } else {
+            MIDIFlushOutput(0)
+        }
+    }
+
     private static func uniqueID(_ obj: MIDIObjectRef) -> Int32 {
         var v: Int32 = 0
         MIDIObjectGetIntegerProperty(obj, kMIDIPropertyUniqueID, &v)
