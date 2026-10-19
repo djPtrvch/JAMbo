@@ -41,19 +41,27 @@ extension AppModel {
 
     /// Сообщения записи из колбэка (60 раз в секунду): начало, звук, конец — готовый стем сохраняется.
     func drainStems() {
+        tickRec()
         let done = stems.poll(audio.core.sequencer.stemRing)
-        let now: Set<Int> = stems.recording
+        // REC редактора (канал capture) — не стем.
+        let now: Set<Int> = stems.recording.subtracting([StemRing.capture])
         if now != stemRecording {
             // Имя дорожки — на момент начала записи.
             for c in now.subtracting(stemRecording) { stemNames[c] = stemBase(c) }
             stemRecording = now
         }
         for s in done {
+            if s.channel == StemRing.capture {
+                recFromCore(s.data)
+                continue
+            }
             let base: String = stemNames[s.channel] ?? stemBase(s.channel)
             stemNames[s.channel] = nil
             if s.dropped > 0 { trace("stem \(base): dropped \(s.dropped) frames") }
             saveStem(s.data, base: base)
         }
+        // ■ в REC, но записано ничего (стоп в первом же блоке) — запись просто кончается.
+        if let t = sampleRec.take, t.stopping, !stems.recording.contains(StemRing.capture) { sampleRec.take = nil }
     }
 
     private func stemBase(_ ch: Int) -> String {
@@ -72,15 +80,20 @@ extension AppModel {
             await MainActor.run {
                 self.store.add(key, data)
                 self.samplesVersion += 1
-                if !self.libraryLoaded {
-                    self.library = self.libraryStore.load()
-                    self.libraryLoaded = true
-                }
-                self.libEdit { lib in
-                    let id: String = lib.recordingsFolder(folder)
-                    _ = lib.addSample(id, key: key, name: name)
-                }
+                self.addRecording(key, name: name, folder: folder)
             }
+        }
+    }
+
+    /// Запись (стем или REC) — в RECORDINGS библиотеки, папка «проект дд.мм.гггг».
+    func addRecording(_ key: String, name: String, folder: String) {
+        if !libraryLoaded {
+            library = libraryStore.load()
+            libraryLoaded = true
+        }
+        libEdit { lib in
+            let id: String = lib.recordingsFolder(folder)
+            _ = lib.addSample(id, key: key, name: name)
         }
     }
 }

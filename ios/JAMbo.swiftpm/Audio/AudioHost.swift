@@ -4,10 +4,14 @@ import Foundation
 /// Аудиосессия 48 кГц и один AVAudioSourceNode, в колбэке которого считается весь звук (AudioCore.render).
 final class AudioHost {
     let core = AudioCore()
-    private let engine = AVAudioEngine()
+    let engine = AVAudioEngine()
     private var source: AVAudioSourceNode?
     private var observers: [NSObjectProtocol] = []
     private(set) var lastError: String = ""
+    /// REC с входа (S11e): сессия в режиме записи, пока пишется вход.
+    var inputMode = false
+    /// Запись входа (tap на узле входа) — Audio/InputCapture.swift.
+    let input = InputCapture()
 
     init() {
         let center = NotificationCenter.default
@@ -47,14 +51,19 @@ final class AudioHost {
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 
-    private func restart() {
+    func restart() {
         engine.stop()
         start()
     }
 
-    private func configureSession() throws {
+    func configureSession() throws {
         let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.playback, mode: .default, options: [])
+        if inputMode {
+            // Запись входа: без эхоподавления, шумоподавления и автоуровня (measurement); выход — в динамик.
+            try session.setCategory(.playAndRecord, mode: .measurement, options: [.defaultToSpeaker, .allowBluetoothA2DP])
+        } else {
+            try session.setCategory(.playback, mode: .default, options: [])
+        }
         try session.setPreferredSampleRate(AudioCore.sampleRate)
         try session.setPreferredIOBufferDuration(256.0 / AudioCore.sampleRate)
         try session.setActive(true)

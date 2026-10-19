@@ -30,6 +30,14 @@ struct RootView: View {
         .ignoresSafeArea(.keyboard)
         .fileImporter(isPresented: importing, allowedContentTypes: model.importingProject || model.importingLibrary ? [.data] : [.audio],
                       allowsMultipleSelection: !model.importingProject) { result in picked(result) }
+        .alert(model.sampleRec.error ?? "", isPresented: recError) {
+            Button("OK") { model.sampleRec.error = nil }
+        }
+    }
+
+    /// REC: запись не началась (нет доступа к входу) — окно с сообщением.
+    private var recError: Binding<Bool> {
+        Binding(get: { model.sampleRec.error != nil }, set: { if !$0 { model.sampleRec.error = nil } })
     }
 
     /// Выбранные файлы: проект (IMPORT, один .jambo) или сэмплы (LOAD).
@@ -134,6 +142,9 @@ struct RootView: View {
         }
         if let m = model.masterMenu {
             MasterMenuView(model: model, state: m)
+        }
+        if let f = model.sampleRec.menu {
+            RecSourceMenu(model: model, anchor: f, bottom: trackTop)
         }
         if let w = model.appWindow {
             AppWindowView(model: model, window: w).padding(8)

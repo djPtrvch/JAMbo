@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Строка редактора сэмпла: имя и длина, REC (S11), ▶, LOAD и SAVE (браузер библиотеки, S11b), TRIM, NORMALIZE, MONO, CLEAR, ✕.
+/// Строка редактора сэмпла: имя и длина (во время записи — «REC · источник» и время), REC (S11e), ▶, LOAD и SAVE (браузер библиотеки, S11b), TRIM, NORMALIZE, MONO, CLEAR, ✕.
 struct EditorBar: View {
     let model: AppModel
     let key: String
@@ -16,7 +16,7 @@ struct EditorBar: View {
                 .lineLimit(2)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 10)
-            recButton
+            RecButton(model: model)
             ToolButton(title: "▶", enabled: data != nil, lit: model.previewOn, width: 48) {
                 model.togglePreview(sel.a, sel.b)
             }
@@ -25,27 +25,20 @@ struct EditorBar: View {
             ToolButton(title: "TRIM", enabled: data != nil && !sel.full, width: 76) { model.trimSample(sel.a, sel.b) }
             ToolButton(title: "NORMALIZE", enabled: data != nil, width: 104) { model.normalizeSample() }
             ToolButton(title: "MONO", enabled: (data?.channels ?? 1) == 2, width: 76) { model.monoSample() }
-            ToolButton(title: "CLEAR", enabled: data != nil, width: 76) { model.clearSample() }
+            ToolButton(title: "CLEAR", enabled: data != nil && model.sampleRec.take == nil, width: 76) { model.clearSample() }
             ToolButton(title: "✕", width: 48) { model.closeEditor() }
         }
     }
 
     private var info: String {
+        if let t = model.sampleRec.take {
+            return "REC · " + t.name + "\n" + Capture.time(Double(model.sampleRec.seconds)) + " / "
+                + Capture.time(Double(Capture.maxSeconds))
+        }
         guard let d = data else { return "SAMPLE\nEDITOR" }
         let dur: Double = d.duration
         let len: String = sel.full ? EditorDraw.time(dur) : EditorDraw.time((sel.b - sel.a) * dur) + " of " + EditorDraw.time(dur)
         return model.sampleName(key) + "\n" + len + (d.channels == 2 ? " · ST" : " · M")
-    }
-
-    /// REC (запись сэмпла — S11): красная точка и красный текст, пока неактивна — серая.
-    private var recButton: some View {
-        HStack(spacing: 6) {
-            Circle().fill(theme.off).frame(width: 10, height: 10)
-            Text("REC").font(.system(size: 13, weight: .bold)).foregroundStyle(theme.off)
-        }
-        .frame(width: 76)
-        .frame(maxHeight: .infinity)
-        .background(theme.panel2, in: RoundedRectangle(cornerRadius: 8))
     }
 }
 

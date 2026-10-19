@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Редактор сэмпла (удержание окна сэмпла; как sampleedit.ts веба): на месте центра экрана, справа измеритель.
-/// Вверху — имя, длина (и выделение), ST/M, REC (S11), ▶, LOAD, SAVE (S11), TRIM, NORMALIZE, MONO, CLEAR, ✕.
+/// Вверху — имя, длина (и выделение), ST/M, REC (S11e; во время записи на поле — форма волны записи), ▶, LOAD, SAVE (S11), TRIM, NORMALIZE, MONO, CLEAR, ✕.
 /// Форма волны во всю ширину (стерео — L и R); маркеры обрезки — за ручки внизу (двумя пальцами — оба сразу);
 /// палец по пустому месту: вверх-вниз — масштаб, влево-вправо — прокрутка; двойной тап — маркер нарезки,
 /// флажок тянут, двойной тап по флажку — удалить, удержание флажка + клавиша — своя нота маркера.
@@ -47,7 +47,9 @@ struct SampleEditor: View {
 
     @ViewBuilder
     private func plot(_ key: String, _ data: SampleData?, _ size: CGSize) -> some View {
-        if let d = data {
+        if model.sampleRec.take != nil {
+            RecordingPlot(model: model)
+        } else if let d = data {
             ZStack(alignment: .topLeading) {
                 TimelineView(.animation(minimumInterval: 1.0 / 60, paused: model.headCount == 0)) { _ in
                     canvas(key, d, size)
@@ -65,7 +67,7 @@ struct SampleEditor: View {
             .contentShape(Rectangle())
             .gesture(fingers(d, size))
         } else {
-            Text(model.channel != .track ? "Select a track to edit its sample." : "No sample on this track — LOAD a file.")
+            Text(model.channel != .track ? "Select a track to edit its sample." : "No sample on this track — LOAD a file or REC.")
                 .font(.system(size: 13)).foregroundStyle(theme.dim)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }

@@ -178,6 +178,8 @@ final class AppModel {
     var stemRecording: Set<Int> = []
     @ObservationIgnored let stems = StemCollector()
     @ObservationIgnored var stemNames: [Int: String] = [:]
+    /// REC в редакторе сэмпла (S11e).
+    let sampleRec = SampleRec()
     var previewOn: Bool = false
     /// Маркер нарезки, который держат в редакторе (не двигая): клавиша назначает ему ноту; отказ — красный.
     var heldFlag: Int? = nil
@@ -235,6 +237,7 @@ final class AppModel {
     }
 
     func pauseAudio() {
+        endInputRecForBackground()
         if audioStarted { audio.stop() }
     }
 
