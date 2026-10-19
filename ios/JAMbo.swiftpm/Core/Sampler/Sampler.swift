@@ -1,9 +1,8 @@
 import Foundation
 
 // Голоса сэмплера и микшер дорожек (в колбэке; как triggerTrack, legatoCut, fadeVoice, retrigger, releaseLive и
-// gateTrack веба). Голос: сэмпл (Start/End или маркер нарезки, кубическая интерполяция, край — 4 мс; PLAY — ONE,
-// LOOP, REV, PING, S12) → Attack/Decay (длинная нота держит уровень до конца, Decay — как Release) → Velocity →
-// фильтр (LP/HP + Resonance, Web Audio) →
+// gateTrack веба). Голос: сэмпл (Start/End или маркер нарезки, кубическая интерполяция, край — 4 мс) → Attack/Decay
+// (длинная нота держит уровень до конца, Decay — как Release) → Velocity → фильтр (LP/HP + Resonance, Web Audio) →
 // Pan (StereoPanner) → шина дорожки → громкость микшера и гейт mute/solo → выход.
 // Без выделений памяти после создания: голоса — массивы указателей.
 
@@ -11,9 +10,7 @@ import Foundation
 public enum VoiceOut: Sendable {
     case none
     /// Голос v начал звучать в кадре frame: дорожка (−1 — предпрослушка), сэмпл, отрезок a…b (доли), скорость.
-    /// mode — PLAY (0 ONE, 1 LOOP, 2 REV, 3 PING), xf — стык петли LOOP, кадров сэмпла.
-    case start(voice: Int, track: Int, hash: UInt64, frame: Int64, a: Double, b: Double, rate: Double, frames: Int,
-               mode: Int, xf: Double)
+    case start(voice: Int, track: Int, hash: UInt64, frame: Int64, a: Double, b: Double, rate: Double, frames: Int)
     case end(voice: Int)
 }
 
@@ -49,11 +46,6 @@ public final class Sampler {
     let pos = UnsafeMutablePointer<Double>.allocate(capacity: slots)
     let endPos = UnsafeMutablePointer<Double>.allocate(capacity: slots)
     let edge = UnsafeMutablePointer<Double>.allocate(capacity: slots)
-    /// PLAY (S12): 0 ONE, 1 LOOP, 2 REV, 3 PING; начало куска, стык петли LOOP (кадров сэмпла), направление PING.
-    let mode = UnsafeMutablePointer<Int>.allocate(capacity: slots)
-    let loPos = UnsafeMutablePointer<Double>.allocate(capacity: slots)
-    let xfLen = UnsafeMutablePointer<Double>.allocate(capacity: slots)
-    let dir = UnsafeMutablePointer<Double>.allocate(capacity: slots)
     let noteRatio = UnsafeMutablePointer<Double>.allocate(capacity: slots)
     let rate = UnsafeMutablePointer<Double>.allocate(capacity: slots)
     let attackF = UnsafeMutablePointer<Double>.allocate(capacity: slots)
@@ -155,9 +147,6 @@ public final class Sampler {
         pos.initialize(repeating: 0, count: s)
         endPos.initialize(repeating: 0, count: s)
         edge.initialize(repeating: 1, count: s)
-        mode.initialize(repeating: 0, count: s)
-        for p in [loPos, xfLen] as [UnsafeMutablePointer<Double>] { p.initialize(repeating: 0, count: s) }
-        dir.initialize(repeating: 1, count: s)
         noteRatio.initialize(repeating: 1, count: s)
         rate.initialize(repeating: 1, count: s)
         attackF.initialize(repeating: 48, count: s)
@@ -203,10 +192,8 @@ public final class Sampler {
     deinit {
         for p in [active, fading, own, stereo, released, used, sendUsed, openPrev] as [UnsafeMutablePointer<UInt8>] { p.deallocate() }
         for p in [send, sendL, sendR, duckCur, flagCur, meterL, meterR] { p.deallocate() }
-        for p in [track, trackId, note, liveId, serial, srcFrames, ftype, mode] as [UnsafeMutablePointer<Int>] { p.deallocate() }
-        for p in [pos, endPos, edge, loPos, xfLen, dir, noteRatio, rate, attackF, decaySec, hz, qDb] as [UnsafeMutablePointer<Double>] {
-            p.deallocate()
-        }
+        for p in [track, trackId, note, liveId, serial, srcFrames, ftype] as [UnsafeMutablePointer<Int>] { p.deallocate() }
+        for p in [pos, endPos, edge, noteRatio, rate, attackF, decaySec, hz, qDb] as [UnsafeMutablePointer<Double>] { p.deallocate() }
         for p in [start, holdEnd, stopAt, fadeAt] as [UnsafeMutablePointer<Int64>] { p.deallocate() }
         for p in [decayK, env, fadeK, fadeG, level, pan, z, lockVal, busL, busR, outL, outR, volCur, gateCur, scratch] as [UnsafeMutablePointer<Float>] {
             p.deallocate()
@@ -310,11 +297,6 @@ public final class Sampler {
         let frames = srcFrames[v]
         let st = stereo[v] != 0
         let zb = v * 4
-        // PLAY: в цикле — локальные значения (без перечислений и вызовов из других файлов).
-        let md = mode[v]
-        let lo = loPos[v], hi = endPos[v], xf = xfLen[v]
-        let loopLen: Double = hi - lo - xf
-        let top: Double = Swift.max(lo, hi - 1)
         var i = 0
         while i < n {
             let m = Swift.min(sub, n - i)
@@ -345,12 +327,7 @@ public final class Sampler {
             for j in 0..<m {
                 let frame = blockStart + Int64(i + j)
                 if frame < start[v] { continue }
-                if frame >= stopAt[v] {
-                    finish(v)
-                    return
-                }
-                // ONE — до End, REV — до Start; LOOP и PING играют, пока держится нота (и Decay после неё).
-                if md == 0 && (pos[v] >= hi || pos[v] >= Double(frames)) || md == 2 && pos[v] < lo {
+                if frame >= stopAt[v] || pos[v] >= endPos[v] || pos[v] >= Double(frames) {
                     finish(v)
                     return
                 }
@@ -370,20 +347,11 @@ public final class Sampler {
                     env[v] = e
                 }
                 if frame >= fadeAt[v] { fadeG[v] *= fadeK[v] }
-                let ps: Double = pos[v]
-                var eg: Float = 1
-                if md == 0 { eg = Float(Swift.min(1, (hi - ps) / rt / edge[v])) }
-                if md == 2 { eg = Float(Swift.min(1, (ps - lo + 1) / rt / edge[v])) }
+                let remain: Double = (endPos[v] - pos[v]) / rt
+                let eg = Float(Swift.min(1, remain / edge[v]))
                 let g: Float = e * eg * lv * fadeG[v]
-                var a: Float = Sampler.cubic(l, frames, ps) * g
-                var b: Float = st ? Sampler.cubic(r, frames, ps) * g : 0
-                // LOOP: последние xf кадров куска смешиваются с его началом (после стыка — продолжение оттуда).
-                if md == 1 && xf > 0 && ps > hi - xf {
-                    let w = Float((ps - (hi - xf)) / xf)
-                    let q: Double = ps - loopLen
-                    a = a * (1 - w) + Sampler.cubic(l, frames, q) * g * w
-                    if st { b = b * (1 - w) + Sampler.cubic(r, frames, q) * g * w }
-                }
+                var a: Float = Sampler.cubic(l, frames, pos[v]) * g
+                var b: Float = st ? Sampler.cubic(r, frames, pos[v]) * g : 0
                 // Фильтр (TDF II).
                 let ya: Float = c.b0 * a + z[zb]
                 z[zb] = c.b1 * a - c.a1 * ya + z[zb + 1]
@@ -422,27 +390,7 @@ public final class Sampler {
                     sends0L[2 * mf + q] += oa * sg2
                     sends0R[2 * mf + q] += ob * sg2
                 }
-                // Ход по сэмплу: ONE и LOOP — вперёд (LOOP за End — на начало + стык), REV — назад, PING — отражение
-                // у краёв (крайние отсчёты не повторяются).
-                if md == 0 {
-                    pos[v] = ps + rt
-                } else if md == 1 {
-                    var p = ps + rt
-                    if p >= hi && loopLen > 0 { p -= loopLen }
-                    pos[v] = p
-                } else if md == 2 {
-                    pos[v] = ps - rt
-                } else {
-                    var p = ps + rt * dir[v]
-                    if p > top {
-                        p = Swift.max(lo, 2 * top - p)
-                        dir[v] = -1
-                    } else if p < lo {
-                        p = Swift.min(top, 2 * lo - p)
-                        dir[v] = 1
-                    }
-                    pos[v] = p
-                }
+                pos[v] += rt
             }
             // Денормалы в состоянии фильтра.
             for k in 0..<4 where abs(z[zb + k]) < 1e-20 { z[zb + k] = 0 }

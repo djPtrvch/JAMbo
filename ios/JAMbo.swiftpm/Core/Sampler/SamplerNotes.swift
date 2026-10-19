@@ -1,6 +1,6 @@
 import Foundation
 
-// Запуск и остановка голосов сэмплера (из Sampler.swift — по размеру файла): ноты дорожки, PLAY (S12), живые ноты,
+// Запуск и остановка голосов сэмплера (из Sampler.swift — по размеру файла): ноты дорожки, живые ноты,
 // новый снимок звука. Всё — в колбэке, без выделений памяти.
 
 extension Sampler {
@@ -66,7 +66,7 @@ extension Sampler {
             own[v] = isOwn ? 1 : 0
             liveId[v] = live
             _ = out.push(.start(voice: v, track: t, hash: h, frame: frame, a: a / Double(frames), b: b / Double(frames),
-                                rate: rate[v], frames: frames, mode: mode[v], xf: xfLen[v]))
+                                rate: rate[v], frames: frames))
         }
     }
 
@@ -83,13 +83,8 @@ extension Sampler {
         srcFrames[v] = d.eFrames[e]
         stereo[v] = d.eChannels[e] == 2 ? 1 : 0
         start[v] = frame
-        let md: Int = Swift.min(3, Swift.max(0, Int(pv(d, t, VoiceParam.play, mask, vals).rounded())))
-        mode[v] = md
-        loPos[v] = a
-        // REV — от End к Start (с последнего отсчёта куска).
-        pos[v] = md == 2 ? Swift.max(a, b - 1) : a
+        pos[v] = a
         endPos[v] = b
-        dir[v] = 1
         noteRatio[v] = ratio
         lockMask[v] = mask
         for p in 0..<VoiceParam.count {
@@ -97,11 +92,9 @@ extension Sampler {
         }
         let pitch: Double = pv(d, t, VoiceParam.pitch, mask, vals)
         rate[v] = ratio * pow(2, pitch / 12)
-        // Край сэмпла (End или конец файла; у REV — Start) гаснет за 4 мс (не больше четверти звучания).
+        // Край сэмпла (End или конец файла) гаснет за 4 мс (не больше четверти звучания).
         let playDur: Double = (b - a) / rate[v]
         edge[v] = Swift.max(1, Swift.min(0.004 * sr, playDur / 4))
-        // LOOP: стык — кроссфейд ~4 мс (в кадрах сэмпла, не больше половины куска).
-        xfLen[v] = Swift.min(0.004 * sr * rate[v], (b - a) / 2)
         let att: Double = Swift.max(0.001, attack) * sr
         attackF[v] = att
         decaySec[v] = decay

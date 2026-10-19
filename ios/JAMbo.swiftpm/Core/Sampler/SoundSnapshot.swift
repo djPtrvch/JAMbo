@@ -10,8 +10,8 @@ public typealias VoiceMask = UInt32
 
 public enum VoiceParam {
     public static let ids = ["pitch", "start", "end", "level", "attack", "decay", "filter", "reso", "pan",
-                             "harm", "timbre", "morph", "reverb", "delay", "drive", "play", "p4"]
-    public static let count = 17
+                             "harm", "timbre", "morph", "reverb", "delay", "drive", "p4"]
+    public static let count = 16
     public static let pitch = 0
     public static let start = 1
     public static let end = 2
@@ -29,9 +29,8 @@ public enum VoiceParam {
     public static let reverb = 12
     public static let delay = 13
     public static let drive = 14
-    /// 1.4: PLAY сэмплера (S12) и четвёртая ручка синта.
-    public static let play = 15
-    public static let p4 = 16
+    /// 1.4 синта (S12).
+    public static let p4 = 15
 }
 
 public struct SoundData {

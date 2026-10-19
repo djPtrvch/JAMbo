@@ -47,17 +47,10 @@ struct SampleWindow: View {
         let data: SampleData? = model.sample(key)
         let _ = model.samplesVersion
         return VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                Text(title(key, data))
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(theme.text)
-                    .lineLimit(1)
-                Spacer(minLength: 0)
-                // PLAY (S12): значок режима.
-                Image(systemName: WaveStrip.playSymbol(model.trackPlayMode))
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(theme.text)
-            }
+            Text(title(key, data))
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(theme.text)
+                .lineLimit(1)
             WaveStrip(model: model, key: key, data: data, cache: cache)
             Text("\(model.track.name) · tap to choose sound")
                 .font(.system(size: 10))
@@ -119,7 +112,7 @@ struct SampleWindow: View {
 }
 
 /// Форма волны окна сэмпла: огибающая (по 100 столбцов на канал), отрезанное Start/End затемнено, полосы
-/// воспроизведения — жёлтые линии (тают за 1,2 с), пока звучат голоса; у LOOP и PING — петля над Start…End.
+/// воспроизведения — жёлтые линии (тают за 1,2 с), пока звучат голоса.
 struct WaveStrip: View {
     let model: AppModel
     let key: String
@@ -139,7 +132,6 @@ struct WaveStrip: View {
         let start: Double = (p["start"] ?? 0) / 100
         let end: Double = max(start, (p["end"] ?? 100) / 100)
         let heads = model.playheads(track: model.selectedTrack, key: key)
-        let looped: Bool = model.trackPlayMode == 1 || model.trackPlayMode == 3
         let ink: Color = theme.text
         let accent: Color = theme.accent
         let scrim: Color = theme.bg.opacity(0.6)
@@ -149,36 +141,12 @@ struct WaveStrip: View {
                 ctx.fill(Path(CGRect(x: 0, y: 0, width: size.width * start, height: size.height)), with: .color(scrim))
                 let x1: CGFloat = size.width * end
                 ctx.fill(Path(CGRect(x: x1, y: 0, width: size.width - x1, height: size.height)), with: .color(scrim))
-                if looped { WaveStrip.loop(ctx, size.width * start, x1, ink) }
             }
             for h in heads {
                 let x: CGFloat = size.width * h.f
                 ctx.fill(Path(CGRect(x: x - 1, y: 0, width: 2, height: size.height)), with: .color(accent.opacity(h.a)))
             }
         }
-    }
-
-    /// Значок PLAY: ONE — вправо, LOOP — повтор, REV — влево, PING — туда и обратно.
-    static func playSymbol(_ mode: Int) -> String {
-        switch mode {
-        case 1: return "repeat"
-        case 2: return "arrow.left"
-        case 3: return "arrow.left.arrow.right"
-        default: return "arrow.right"
-        }
-    }
-
-    /// Петля LOOP и PING над формой волны: дуга от Start до End со стрелкой назад.
-    static func loop(_ ctx: GraphicsContext, _ x0: CGFloat, _ x1: CGFloat, _ ink: Color) {
-        if x1 - x0 < 8 { return }
-        var p = Path()
-        p.move(to: CGPoint(x: x0 + 1, y: 10))
-        p.addQuadCurve(to: CGPoint(x: x1 - 1, y: 10), control: CGPoint(x: (x0 + x1) / 2, y: -4))
-        p.move(to: CGPoint(x: x0 + 1, y: 10))
-        p.addLine(to: CGPoint(x: x0 + 6, y: 6))
-        p.move(to: CGPoint(x: x0 + 1, y: 10))
-        p.addLine(to: CGPoint(x: x0 + 7, y: 11))
-        ctx.stroke(p, with: .color(ink.opacity(0.8)), style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
     }
 
     /// Огибающая — сплошная фигура (верхний край слева направо, нижний обратно): тонкие штрихи с зазорами

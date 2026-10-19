@@ -5,7 +5,7 @@ import Foundation
 
 extension EngineIcons {
     /// KICK: затухающая волна — частота по PITCH (1.1), в начале выше на SWEEP (1.2), насыщение по DRIVE (1.3),
-    /// длина затухания по Decay; в начале — пик клика по CLICK (1.4).
+    /// длина затухания по Decay; в самом начале — вертикальная полоса клика, высота по CLICK (1.4).
     static func drumIcon(_ v: IconValues) -> [IconElement] {
         let d = v.d
         let g = 1 + 11 * v.m, cmp = 0.7 / tanh(g * 0.7), k = 4.5 - 3.5 * d
@@ -17,8 +17,7 @@ extension EngineIcons {
         }
         var els: [IconElement] = [IconElement(pts(w)), IconElement([.move(6, 32), .hTo(58)], op: 0.25)]
         if v.q > 0.02 {
-            let c = clamp(v.q)
-            els.append(IconElement(pts([(6, 32), (6 + 3 * (1.5 - c), 32 - 26 * c), (6 + 6 * (1.5 - c), 32)])))
+            els.append(IconElement([.move(6, 32), .vTo(32 - 26 * clamp(v.q))]))
         }
         return els
     }
