@@ -1,27 +1,26 @@
-# Handoff: JAMbo, Swift-версия — S12 (движки синта)
+# Handoff: JAMbo, Swift-версия — S13 (MIDI)
 
 ## 1. Контекст проекта
 Groovebox для iPad. Веб (`src/`, `public/`) — эталон, заморожен. Swift-перенос — ветка `swift`, `ios/JAMbo.swiftpm`. Правила — `CLAUDE.md`, `ios/CLAUDE.md`; план и вехи — `docs/SWIFT_AUDIT.md` (раздел 6); итоги вех — `docs/SWIFT_MILESTONE_Sx.md`.
 
 ## 2. Принятые решения
 - Переносим всё из веба (кроме браузерного); отличия — в «Решениях» `ios/CLAUDE.md` и в итогах вех.
-- Порядок вех: S12 движки синта → S13 MIDI → S14 оптимизация и App Store → S15 автоматизация.
-- S12 (SWIFT_AUDIT.md, раздел 6): движки Mutable Instruments (Plaits) убираются из кода, проекты с ними загружаются с пустым пресетом; новые движки — ТЗ в начале вехи.
-- Решения S11e (пользователь): после разрешения доступа к микрофону сессия всегда в режиме записи (REC без перерыва звука; оранжевая точка микрофона); в меню RECORD FROM — все входы (USB, аудиоинтерфейс); вход пишется отдельным AVAudioEngine; запись — CAF float 32; ▶ редактора — под PLAY верхней панели, без жёлтой подсветки; повторный REC встаёт на место текущего сэмпла дорожки (как в вебе).
+- Порядок вех: S13 MIDI → S14 оптимизация и App Store → S15 автоматизация.
+- S13 (SWIFT_AUDIT.md, раздел 6): MIDI на CoreMIDI — маппинг, LEARN, MIDI MAP, Twister, клок. Поведение — docs/ai/settings-midi-sync.md (эталон — веб: midi.ts, ui/midi.ts, ui/learn.ts, ui/mapedit.ts, sync.ts, ui/sync.ts). Ableton Link — отдельно (этап 9 корневого CLAUDE.md, спайк B0).
+- S12 (готова): движков Mutable Instruments нет; свои — KICK, SNARE, HAT, CLAP, PERC, ANALOG, SUB, FM, WTABLE; Level убран, Velocity на 4.4; KEY VELOCITY — по толчку iPad. Подробно — SWIFT_MILESTONE_S12.md.
 - Термины (CLAUDE.md): сэмпл-лок — шаг со своим сэмплом, пресет-лок — шаг со своим пресетом синта.
 
 ## 3. Текущая задача
-S12: движки синта. Сначала — ТЗ новых движков от пользователя (состав, параметры, иконки), затем план: что убирается вместе с Plaits (Core/Plaits, эталоны и SELF-TEST Plaits, Resources/plaits, лицензия MI, SPEECH и его режимы), как загружаются проекты и пресеты с движками MI (пустой пресет), что остаётся от своих движков (DRUM, ANALOG, FM, WTABLE).
+S13: MIDI. Сначала — сверка веба с docs/ai/settings-midi-sync.md и план S13 (этапы, что переносим 1:1, что отличается на iPad: CoreMIDI вместо Web MIDI, сеть/Bluetooth MIDI, хранение маппинга), согласовать с пользователем; затем этапы небольшими коммитами.
 
 ## 4. Что уже решено
-- S0–S11 готовы и проверены на iPad. CoreTests — 257.
-- REC (S11e): TRACK и MASTER — канал StemRing.capture из колбэка; INPUT — Audio/InputCapture.swift; модель — UI/AppModelCapture.swift, виды — UI/RecViews.swift. Capability Microphone — в Package.swift (purposeString из Playgrounds).
-- Нарезка сэмпла (S2): маркеры с нотами, SETTINGS → SAMPLER → SLICE NOTES (CHROMATIC / SCALE, от первой клавиши пианоролла).
-- Сэмплы — Samples/<ключ>.caf; библиотека — Library.json, RECORDINGS — системная папка; записи — «проект дд.мм.гггг» / «источник чч-мм-сс».
-- Новое поле модели проекта — в CodingKeys и init(from:) (ProjectCoding.swift); тест testCodingKeysCoverAllFields.
+- S0–S12 готовы и проверены на iPad. CoreTests — 264.
+- Velocity от MIDI-нот должен ложиться туда же, куда KEY VELOCITY (S12: TapVelocity) и velocity нот пианоролла (S8).
+- Новое поле модели проекта — в CodingKeys и init(from:) (ProjectCoding.swift); тест testCodingKeysCoverAllFields. Настройки, общие для проектов, — UserDefaults (как пресеты модулей мастера).
 
 ## 5. Что осталось решить
-- ТЗ новых движков S12.
+- План и отличия S13 от веба.
+- PLAY сэмплера на 1.4 — вернуться с новой реализацией (S12).
 - Номера готовых к записи дорожек при удалении или перестановке дорожек не пересчитываются (как в вебе).
 - Место кнопки AUTO — в S15.
 - Sampler.swift — больше ~600 строк, разделить при случае.
@@ -29,11 +28,11 @@ S12: движки синта. Сначала — ТЗ новых движков 
 - Чистка неиспользуемых сэмплов (Samples, Tables) — позже, по решению пользователя.
 
 ## 6. Важные ограничения
-- Колбэк: без выделений, блокировок, Swift-коллекций; запись из колбэка — через кольцевые буферы, файл пишется вне колбэка.
+- Колбэк: без выделений, блокировок, Swift-коллекций; MIDI → аудио — через SPSCQueue (CoreEvent), не из потока CoreMIDI напрямую в колбэк; клок — по меткам времени, а не по приходу в UI.
 - Только Swift и фреймворки Apple; файл ≤ ~600 строк; тело View ≤ ~40 строк.
 - Имена новых типов проверять на совпадение с уже существующими (Core и UI — один модуль; в S11e RecButton совпал с кнопкой верхней панели).
 - Playgrounds: выражения — по шагам с явными типами; UI на Linux не собирается — проверка только на iPad.
-- Package.swift — в виде Playgrounds; capabilities — только те, что пользователь добавил в Playgrounds.
+- Package.swift — в виде Playgrounds; capabilities — только те, что пользователь добавил в Playgrounds, и перед appCategory.
 - Жесты в прокручиваемых списках: удержание — simultaneousGesture(LongPressGesture), не onLongPressGesture.
 - Надписи — английские; комментарии и документы — русские. Окна закрываются квадратным ✕; меню закрываются тапом мимо.
 - Markdown: путь, причина, точный текст — затем подтверждение.
@@ -42,4 +41,4 @@ S12: движки синта. Сначала — ТЗ новых движков 
 - Скриншоты пользователя могут быть от старой сборки — сверять с последним коммитом.
 
 ## 7. Первый запрос для нового чата
-«Прочитай docs/handoffs/HANDOFF.md и ios/CLAUDE.md. Начинаем S12: …»
+«Прочитай docs/handoffs/HANDOFF.md и ios/CLAUDE.md. Начинаем S13: …»
