@@ -59,7 +59,8 @@ struct TrackCell: View {
 
     private func cell(_ t: Track) -> some View {
         let selected: Bool = model.channel == .track && model.selectedTrack == index
-        // Заглушённая — красный контур; выбранная — жёлтый, у заглушённой — внутри красного (не перекрывает его).
+        // Как в вебе: выбранная — жёлтый контур, заглушённая — красный (перекрывает выбор) и красная заливка.
+        let border: Color = t.mute ? theme.rec : (selected ? theme.accent : Color.clear)
         return ZStack(alignment: .topTrailing) {
             // Выбранная дорожка — имя заметно жирнее.
             Text(t.name)
@@ -71,9 +72,7 @@ struct TrackCell: View {
         }
         .overlay(alignment: .topLeading) { morphDot(t) }
         .background(background(t), in: RoundedRectangle(cornerRadius: Layout.radius))
-        .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(t.mute ? theme.rec : Color.clear, lineWidth: 1))
-        .overlay(RoundedRectangle(cornerRadius: Layout.radius).inset(by: t.mute ? 2 : 0)
-            .stroke(selected ? theme.accent : Color.clear, lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(border, lineWidth: 1))
         .contentShape(Rectangle())
         .gesture(touch)
     }

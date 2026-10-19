@@ -265,7 +265,7 @@ final class SamplerTests: XCTestCase {
         let copy = p.tracks[0]
         p.tracks[3].mute = true
         p.pasteTrack(3, copy)
-        XCTAssertEqual(p.tracks[3].name, "Bass")
+        XCTAssertEqual(p.tracks[3].name, "3", "имя — своё")
         XCTAssertTrue(p.tracks[3].mute, "mute — свой")
         XCTAssertTrue(p.canDeleteTrack(0))
         p.deleteTrack(0)

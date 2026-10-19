@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Меню звука дорожки (тап по окну сэмпла, как в вебе): закрывает всю левую колонку — от верха окна сэмпла до низа
-/// кнопок LFO; кнопки движков — высотой с LOAD (40), под кнопками — пустое место.
+/// кнопок LFO; кнопки движков — высотой с LOAD (40) сверху, группа LOAD · SAVE — внизу, между ними пустое место.
 /// Две колонки движков: DRUMS (KICK, SNARE, HAT, CLAP, PERC) и SYNTH (ANALOG, FM, WTABLE; под ними SAMPLER): тап —
 /// движок дорожки, с зажатыми шагами — их звук; группа LOAD SAMPLE · PRESET · MIDI:
 /// LOAD (браузер библиотеки, S11b), MIDI (выход — S12; для зажатых шагов на этом месте TRACK — вернуть звук дорожки),
@@ -22,6 +22,7 @@ struct SoundMenu: View {
                 column("DRUMS", SynthEngines.drums, sampler: false, steps: steps)
                 column("SYNTH", SynthEngines.synths, sampler: true, steps: steps)
             }
+            Spacer(minLength: 0)
             title("LOAD SAMPLE · PRESET · MIDI")
             loadGroup(steps)
         }

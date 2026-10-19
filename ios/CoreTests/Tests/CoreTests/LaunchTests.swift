@@ -46,7 +46,7 @@ final class LaunchTests: XCTestCase {
         XCTAssertTrue(steps.contains(16), "играет страница 1 (шаг 16)")
     }
 
-    /// PASTE дорожки: только настройки скопированной (звук, ручки, имя), клипы сетки и ход игры — свои.
+    /// PASTE дорожки: только настройки скопированной (звук, ручки), имя, клипы сетки и ход игры — свои.
     func testPasteTrackKeepsOwnPatterns() {
         var p = project()
         p.tracks[0].pages[0][0].on = true
@@ -60,7 +60,7 @@ final class LaunchTests: XCTestCase {
         let t = p.tracks[8]
         XCTAssertEqual(t.sample, "kick")
         XCTAssertEqual(t.params["pan"], 30)
-        XCTAssertEqual(t.name, "Kick")
+        XCTAssertEqual(t.name, "9", "имя — своё")
         XCTAssertTrue(t.pages[0][5].on, "свой паттерн остался")
         XCTAssertFalse(t.pages[0][0].on, "паттерн исходной не скопирован")
         XCTAssertEqual(t.clips[1]?.pages.count, 1, "клипы сетки — свои (у исходной в строке 2 — две страницы)")

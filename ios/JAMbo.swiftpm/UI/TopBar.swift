@@ -201,7 +201,7 @@ struct RootField: View {
 }
 
 /// REC: красная точка, красная окантовка; включена — горит красным. SHIFT + тап — запись мастера (как ● MASTER при MIX,
-/// общее состояние): готова — точка крупнее и в ней буква M, пишет — она мигает, как точка на MST.
+/// общее состояние): готова — точка крупнее, пишет — она мигает, как точка на MST.
 struct RecButton: View {
     let model: AppModel
     @Environment(\.theme) private var theme
@@ -211,7 +211,7 @@ struct RecButton: View {
         let master: Bool = model.stemLit(StemRing.master)
         return ZStack {
             if master {
-                MasterRecDot(model: model, color: on ? Color.white : theme.rec, letter: on ? theme.rec : Color.white)
+                MasterRecDot(model: model, color: on ? Color.white : theme.rec)
             } else {
                 Image(systemName: "circle.fill")
                     .font(.system(size: 12, weight: .bold))
@@ -228,11 +228,10 @@ struct RecButton: View {
     }
 }
 
-/// Крупная точка REC с буквой M — запись мастера: готова — горит, пишет — мигает (за 5 с до конца — чаще), как StemRecDot.
+/// Крупная точка REC — запись мастера: готова — горит, пишет — мигает (за 5 с до конца — чаще), как StemRecDot.
 struct MasterRecDot: View {
     let model: AppModel
     let color: Color
-    let letter: Color
 
     var body: some View {
         if model.stemRecording.contains(StemRing.master) {
@@ -247,8 +246,7 @@ struct MasterRecDot: View {
     }
 
     private var dot: some View {
-        Circle().fill(color).frame(width: 22, height: 22)
-            .overlay(Text("M").font(.system(size: 12, weight: .heavy)).foregroundStyle(letter))
+        Circle().fill(color).frame(width: 20, height: 20)
     }
 }
 

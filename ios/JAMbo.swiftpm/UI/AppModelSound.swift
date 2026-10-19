@@ -438,7 +438,7 @@ extension AppModel {
         hasTrackClip = true
     }
 
-    /// PASTE: только настройки дорожки (звук, ручки, имя, EQ, папка, громкость), паттерны — свои.
+    /// PASTE: только настройки дорожки (звук, ручки, EQ, папка, громкость), имя и паттерны — свои.
     func pasteTrack(_ i: Int) {
         guard let c = trackClipboard else { return }
         edit { p in p.pasteTrack(i, c) }
