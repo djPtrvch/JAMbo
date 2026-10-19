@@ -23,6 +23,9 @@ struct RootView: View {
                 if model.pianoMenuOpen {
                     PianoMenu(model: model, layout: layout, screen: geo.size)
                 }
+                if model.midiLearn.mapTarget != nil {
+                    MidiMapWindow(model: model, screen: geo.size)
+                }
                 if model.midiLearn.on {
                     LearnBar(model: model)
                         .frame(maxWidth: geo.size.width - 32)
@@ -39,6 +42,8 @@ struct RootView: View {
         .alert(model.sampleRec.error ?? "", isPresented: recError) {
             Button("OK") { model.sampleRec.error = nil }
         }
+        // Окно MIDI MAP открыли из списка маппингов — после закрытия снова меню MIDI (MAPPING).
+        .onChange(of: model.midiLearn.reopenMenu) { _, r in if r { menuOpen = true } }
         .alert(model.project.notice ?? "", isPresented: projectNotice) {
             Button("OK") { model.clearNotice() }
         }
@@ -230,12 +235,20 @@ struct MainMenu: View {
     @State private var page: MenuPage = .main
     @Environment(\.theme) private var theme
 
+    /// Возврат из окна MIDI MAP — сразу меню MIDI.
+    private func reopen() {
+        guard model.midiLearn.reopenMenu else { return }
+        model.midiLearn.reopenMenu = false
+        page = .midi
+    }
+
     var body: some View {
         content
             .padding(12)
             .frame(width: MainMenu.width, height: height, alignment: .topLeading)
             .background(theme.bg, in: RoundedRectangle(cornerRadius: Layout.radius))
             .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(theme.line, lineWidth: 1))
+            .onAppear { reopen() }
     }
 
     @ViewBuilder

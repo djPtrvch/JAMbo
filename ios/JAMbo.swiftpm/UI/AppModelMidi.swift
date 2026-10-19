@@ -31,12 +31,20 @@ extension AppModel {
         let isCc: Bool = msg.kind == .cc
         let on: Bool = msg.kind == .noteOn
         let src = MidiSource(type: isCc ? .cc : .note, ch: msg.channel, num: msg.data1)
-        if midiLearn.on && (isCc || on) {
+        // LEARN и открытое окно MIDI MAP: движение контроллера назначает источник цели (Number, Channel, Event type,
+        // Input port).
+        if (midiLearn.on || midiLearn.mapTarget != nil) && (isCc || on) {
             midiLearn.last = src.label
-            if let t = midiLearn.target {
+            if let t = midiLearn.mapTarget ?? midiLearn.target {
                 let ctx: MidiContext = midiContext
                 let cont: Bool = midiContinuous(t)
-                setMidi { $0.learn(t, src: src, input: source, continuous: cont, ctx) }
+                let pin: String? = t == midiLearn.mapTarget ? midiLearn.pinned : nil
+                var key: String = ""
+                setMidi { s in
+                    s.learn(t, src: src, input: source, continuous: cont, ctx, pinned: pin)
+                    key = s.mapping(for: t, ctx, pinned: pin)?.condKey ?? ""
+                }
+                if t == midiLearn.mapTarget && !key.isEmpty { midiLearn.pinned = key }
             }
             return
         }
@@ -195,26 +203,37 @@ extension AppModel {
         midiLearn.last = ""
     }
 
-    /// Тап по цели в LEARN. PATTERNS ещё и переключает сетку паттернов — так можно добраться до её ячеек и строк.
+    /// Тап по цели в LEARN: двойной — окно MIDI MAP; при открытом окне — окно переходит на цель. PATTERNS ещё и
+    /// переключает сетку паттернов — так можно добраться до её ячеек и строк.
     func learnTap(_ t: MidiTarget) {
+        let now: Double = Date.timeIntervalSinceReferenceDate
+        if let l = midiLearn.lastTap, l.target == t, now - l.at < 0.35 {
+            midiLearn.lastTap = nil
+            openMap(t)
+            return
+        }
+        midiLearn.lastTap = (t, now)
         learnPick(t)
         if t == .button("PATTERNS") { togglePatterns() }
+        if midiLearn.mapTarget != nil { openMap(t) }
     }
 
     /// Тап по ручке в LEARN: поворот или нажатие — по переключателю TURN / PRESS.
     func learnKnob(_ s: Int) {
-        learnPick(midiLearn.press ? .press(s) : .knob(s))
+        learnTap(midiLearn.press ? .press(s) : .knob(s))
     }
 
     func learnUnmap() {
         guard let t = midiLearn.target else { return }
         let ctx: MidiContext = midiContext
-        setMidi { $0.unmap(t, ctx) }
+        let pin: String? = t == midiLearn.mapTarget ? midiLearn.pinned : nil
+        setMidi { $0.unmap(t, ctx, pinned: pin) }
     }
 
-    /// Маппинг цели сейчас (метки в LEARN).
+    /// Маппинг цели сейчас (метки в LEARN; у цели окна MIDI MAP — в закреплённом условии).
     func midiMapping(_ t: MidiTarget) -> MidiMapping? {
-        return settings.midi.mapping(for: t, midiContext)
+        let pin: String? = t == midiLearn.mapTarget ? midiLearn.pinned : nil
+        return settings.midi.mapping(for: t, midiContext, pinned: pin)
     }
 
     func removeMapping(_ k: Int) {

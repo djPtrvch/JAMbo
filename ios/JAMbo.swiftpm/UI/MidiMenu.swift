@@ -12,8 +12,9 @@ struct MidiPage: View {
     let model: AppModel
     let back: () -> Void
     let close: () -> Void
-    @State private var tab: MidiTab = .devices
     @Environment(\.theme) private var theme
+
+    private var tab: MidiTab { return model.midiLearn.tab }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -42,7 +43,7 @@ struct MidiPage: View {
     private var tabs: some View {
         HStack(spacing: 4) {
             ForEach(MidiTab.allCases, id: \.self) { t in
-                MenuItem(title: t.rawValue, current: tab == t) { tab = t }
+                MenuItem(title: t.rawValue, current: tab == t) { model.midiLearn.tab = t }
             }
         }
     }
@@ -130,11 +131,14 @@ struct MidiMappingTab: View {
                 close()
                 model.setLearn(true)
             }
-            SettingsNote(text: "MIDI LEARN: tap a knob or button on screen, then move a control. Knobs are mapped by position in the 4×4 grid and follow the current mode (track, FX, MOD, MIX, MST); switch to PRESS to map a knob’s push button. Hold a step to p-lock, hold LFO/ENV to set modulation.")
+            SettingsNote(text: "MIDI LEARN: tap a knob or button on screen, then move a control. Knobs are mapped by position in the 4×4 grid and follow the current mode (track, FX, MOD, MIX, MST); switch to PRESS to map a knob’s push button. Double-tap a target to open MIDI MAP; tap a mapping below to edit it. Hold a step to p-lock, hold LFO/ENV to set modulation.")
             FieldLabel(title: "MAPPINGS (\(maps.count))")
             if maps.isEmpty { SettingsNote(text: "No mappings yet.") }
             ForEach(0..<maps.count, id: \.self) { k in
-                MidiMapRow(mapping: maps[k]) { model.removeMapping(k) }
+                MidiMapRow(mapping: maps[k], open: {
+                    close()
+                    model.openMapFromList(k)
+                }, remove: { model.removeMapping(k) })
             }
             MenuItem(title: "CLEAR ALL", enabled: !maps.isEmpty, red: !maps.isEmpty) { model.clearMappings() }
         }
@@ -144,6 +148,7 @@ struct MidiMappingTab: View {
 /// Строка маппинга: источник → цель, тип управления и условие; ✕ — удалить.
 struct MidiMapRow: View {
     let mapping: MidiMapping
+    let open: () -> Void
     let remove: () -> Void
     @Environment(\.theme) private var theme
 
@@ -156,6 +161,8 @@ struct MidiMapRow: View {
             Spacer(minLength: 0)
             MenuItem(title: "✕", red: true, action: remove).frame(width: 40)
         }
+        .contentShape(Rectangle())
+        .onTapGesture { open() }
     }
 
     private var detail: String {

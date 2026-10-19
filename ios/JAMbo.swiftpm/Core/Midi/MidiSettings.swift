@@ -19,10 +19,12 @@ public struct MidiSettings: Codable, Equatable, Sendable {
     public var noteRoute: MidiNoteRoute = .selected
     /// Маппинги (S13b; MidiMapper.swift — условия и правка).
     public var mappings: [MidiMapping] = []
+    /// Пресет маппингов, загруженный или сохранённый последним ("" — нет; S13c).
+    public var preset: String = ""
 
     public init() {}
 
-    private enum Keys: String, CodingKey { case input, feedback, noteChannel, noteRoute, mappings }
+    private enum Keys: String, CodingKey { case input, feedback, noteChannel, noteRoute, mappings, preset }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
@@ -33,6 +35,7 @@ public struct MidiSettings: Codable, Equatable, Sendable {
         noteRoute = (try? c.decode(MidiNoteRoute.self, forKey: .noteRoute)) ?? .selected
         let maps: [LossyMapping] = (try? c.decode([LossyMapping].self, forKey: .mappings)) ?? []
         mappings = maps.compactMap { $0.value }
+        preset = (try? c.decode(String.self, forKey: .preset)) ?? ""
     }
 
     /// Слушать ли источник (uniqueID).
