@@ -8,7 +8,8 @@ enum LibInput: Equatable {
     case saveAs
 }
 
-/// Браузер библиотеки (S11b, как ui/browser.ts веба) на месте центра: вверху ‹, путь, NEW FOLDER, IMPORT, ✕;
+/// Браузер библиотеки (S11b, как ui/browser.ts веба) на месте центра: вверху ‹, путь, NEW FOLDER, IMPORT, EXPORT (S11c:
+/// выбор — файл или .zip, иначе открытая папка .zip, в корне — вся библиотека), ✕;
 /// список (папки, потом сэмплы ∿ и пресеты ◆; слева ▶ — предпрослушка; свайп влево — карандаш и корзина);
 /// внизу — NAME и SAVE HERE (сохранение), выбор нескольких (LOAD, CANCEL) и строка «что загружено».
 struct LibraryBrowser: View {
@@ -18,6 +19,8 @@ struct LibraryBrowser: View {
     @State private var name: String = ""
     @State private var overwrite: LibNode? = nil
     @State private var confirmId: String = ""
+    /// EXPORT: готовый временный файл (окно сохранения в «Файлы»).
+    @State private var exported: URL? = nil
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -40,6 +43,7 @@ struct LibraryBrowser: View {
             Button("OK") { enter() }
             Button("Cancel", role: .cancel) {}
         }
+        .fileMover(isPresented: exportShown, file: exported) { _ in exported = nil }
         .confirmationDialog(tableTitle, isPresented: tableShown, titleVisibility: .visible) { tableButtons }
         .alert("“\(overwrite?.name ?? "")” already exists", isPresented: overwriteShown) {
             Button("OVERWRITE", role: .destructive) { confirmOverwrite() }
@@ -56,6 +60,7 @@ struct LibraryBrowser: View {
                 .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 6)
             ToolButton(title: "NEW FOLDER", width: 120) { ask(.newFolder, "New folder") }
             ToolButton(title: "IMPORT", width: 96) { model.chooseLibraryFiles() }
+            ToolButton(title: "EXPORT", enabled: model.libFolder != LibraryBuiltins.folderId, width: 96) { export() }
             ToolButton(title: "✕", width: 48) { model.closeBrowser() }
         }
     }
@@ -152,6 +157,16 @@ struct LibraryBrowser: View {
     }
 
     // MARK: — действия
+
+    private func export() {
+        model.libExport { url in
+            if let u = url { exported = u } else { model.libNote = "Nothing to export" }
+        }
+    }
+
+    private var exportShown: Binding<Bool> {
+        Binding(get: { exported != nil }, set: { if !$0 { exported = nil } })
+    }
 
     private func delete(_ n: LibNode) {
         // Непустая папка — второй тап подтверждает (DELETE?).

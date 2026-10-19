@@ -163,6 +163,8 @@ final class AppModel {
     @ObservationIgnored var libraryLoaded: Bool = false
     /// IMPORT таблиц WAV без метки размера кадра — по очереди спрашивается размер (S11b4).
     var libTableAsk: [TableImport] = []
+    /// IMPORT: сколько пресетов добавлено (для строки внизу).
+    @ObservationIgnored var libImportedPresets: Int = 0
     /// Сэмпл библиотеки на ▶ (в снимке звука — вне дорожек).
     @ObservationIgnored var libPreviewKey: String? = nil
     @ObservationIgnored let libraryStore = LibraryStore(url: LibraryStore.appFile())

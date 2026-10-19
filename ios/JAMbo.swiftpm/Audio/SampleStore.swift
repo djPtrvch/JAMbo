@@ -49,6 +49,31 @@ final class SampleStore {
         return Loaded(key: key, name: url.lastPathComponent, data: data, root: PitchDetect.root(data))
     }
 
+    /// Аудио из архива (S11c): байты файла name — как файл из «Файлов» (ключ по байтам, копия .caf); не аудио — nil.
+    static func decode(bytes: Data, name: String, dir: URL) -> Loaded? {
+        if bytes.isEmpty { return nil }
+        let key = SampleStore.key(bytes)
+        let dest = dir.appendingPathComponent("\(key).caf")
+        if let file = try? AVAudioFile(forReading: dest), let data = read(file) {
+            return Loaded(key: key, name: name, data: data, root: PitchDetect.root(data))
+        }
+        let ext: String = (name as NSString).pathExtension.isEmpty ? "wav" : (name as NSString).pathExtension
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("unzip-\(key).\(ext)")
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        guard (try? bytes.write(to: tmp, options: .atomic)) != nil,
+              let file = try? AVAudioFile(forReading: tmp), let data = read(file) else { return nil }
+        write(data, to: dest)
+        return Loaded(key: key, name: name, data: data, root: PitchDetect.root(data))
+    }
+
+    /// EXPORT (S11c): сэмпл — WAV 32-бит float 48 кГц (своя копия; исходный файл не хранится); нет — nil.
+    static func wav(key: String, dir: URL, cached: SampleData?) -> Data? {
+        guard let d = cached ?? read(key: key, dir: dir) else { return nil }
+        let l = Array(UnsafeBufferPointer(start: d.left, count: d.frames))
+        let r: [Float]? = d.channels == 2 ? Array(UnsafeBufferPointer(start: d.right, count: d.frames)) : nil
+        return WavFile.float32(left: l, right: r)
+    }
+
     /// Сэмпл проекта с диска по ключу (S9b); нет файла — nil (дорожка без звука).
     static func read(key: String, dir: URL) -> SampleData? {
         let url = dir.appendingPathComponent("\(key).caf")

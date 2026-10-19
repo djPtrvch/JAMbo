@@ -29,7 +29,7 @@ public enum WebProject {
 
     /// Таблица WTABLE: встроенная — как есть; своя 'wt:s:<hex>:<кадр>' → 'wt:<hex>:<кадр>' (S11b4); прочее — BASIC.
     static func table(_ t: String) -> String {
-        if t.hasPrefix("builtin:") { return t }
+        if t.hasPrefix("builtin:") || WavetableKey.parseUser(t) != nil { return t }
         if t.hasPrefix("wt:s:") {
             let k: String = "wt:" + String(t.dropFirst(5))
             if WavetableKey.parseUser(k) != nil { return k }

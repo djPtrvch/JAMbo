@@ -2,8 +2,9 @@ import Foundation
 
 // Библиотека (S11b, как ui/browser.ts веба): браузер на месте центра — из меню звука (LOAD, SAVE пресета, TABLE)
 // и редактора сэмпла (LOAD, SAVE сэмпла). Тап по сэмплу или пресету — звук дорожки (в её папке остаётся только он),
-// удержание — выбор нескольких (LOAD — все в папку дорожки), для зажатых шагов — их звук. IMPORT — аудио из «Файлов»
-// в открытую папку. SAVE HERE — пресет синта или сэмпл в открытую папку (имя занято — OVERWRITE / SAVE AS).
+// удержание — выбор нескольких (LOAD — все в папку дорожки), для зажатых шагов — их звук. IMPORT — аудио, .jambopreset и
+// .zip из «Файлов» в открытую папку; EXPORT — файл или .zip (S11c). SAVE HERE — пресет синта или сэмпл в открытую
+// папку (имя занято — OVERWRITE / SAVE AS).
 // Дерево — Library.json (запись в очереди сохранения), сэмплы — в Samples.
 
 /// Таблица WAV, для которой спрашивают размер кадра.
@@ -256,7 +257,8 @@ extension AppModel {
         importing = true
     }
 
-    /// Аудиофайлы — в открытую папку (сэмплы — в Samples); не аудио — пропускаются.
+    /// IMPORT в открытую папку (S11c, как importInto веба): аудио, пресеты .jambopreset и архивы .zip (папки
+    /// восстанавливаются); прочее — пропускается.
     func libImport(_ urls: [URL]) {
         if tableMode {
             libImportTables(urls)
@@ -265,19 +267,104 @@ extension AppModel {
         let into: String = libFolder == LibraryBuiltins.folderId ? Library.root : libFolder
         let dir: URL = store.dir
         Task.detached(priority: .userInitiated) {
-            var loaded: [SampleStore.Loaded] = []
+            var files: [(String, Data)] = []
             for u in urls {
-                if let l = SampleStore.decode(u, dir: dir) { loaded.append(l) }
+                let access = u.startAccessingSecurityScopedResource()
+                defer { if access { u.stopAccessingSecurityScopedResource() } }
+                if let d = try? Data(contentsOf: u) { files.append((u.lastPathComponent, d)) }
+            }
+            let read = files
+            // Дерево — в основном потоке (папки и пресеты сразу), аудио — декодируется в фоне.
+            let audio: [(String, String, Data)] = await MainActor.run { self.libPlaceFiles(read, into: into) }
+            var loaded: [(String, SampleStore.Loaded)] = []
+            for (folder, name, data) in audio {
+                if let l = SampleStore.decode(bytes: data, name: name, dir: dir) { loaded.append((folder, l)) }
             }
             let result = loaded
             await MainActor.run {
-                for l in result { self.store.add(l.key, l.data) }
+                for (_, l) in result { self.store.add(l.key, l.data) }
                 self.libEdit { lib in
-                    for l in result { lib.addSample(into, key: l.key, name: l.name) }
+                    for (folder, l) in result { lib.addSample(folder, key: l.key, name: l.name) }
                 }
-                self.libNote = result.isEmpty ? "Nothing to import: no audio files found"
-                    : "Imported \(result.count) file\(result.count == 1 ? "" : "s")"
+                let n: Int = result.count + self.libImportedPresets
+                self.libNote = n == 0 ? "Nothing to import: no audio, presets or folders found"
+                    : "Imported \(n) item\(n == 1 ? "" : "s")"
             }
+        }
+    }
+
+    /// Папки и пресеты — в дерево; аудио (папка, имя, байты) — на декодирование.
+    private func libPlaceFiles(_ files: [(String, Data)], into: String) -> [(String, String, Data)] {
+        var audio: [(String, String, Data)] = []
+        var presets = 0
+        libEdit { lib in
+            for (name, data) in files {
+                let lower: String = name.lowercased()
+                if lower.hasSuffix(".zip"), let entries = Zip.read(data) {
+                    let r = lib.importZip(entries, into: into)
+                    presets += r.presets
+                    audio += r.audio
+                } else if lower.hasSuffix("." + PresetFile.ext) {
+                    let base: String = String(name.dropLast(PresetFile.ext.count + 1))
+                    if let p = PresetFile.decode(data, fallback: base) {
+                        lib.addPreset(into, p)
+                        presets += 1
+                    }
+                } else {
+                    audio.append((into, name, data))
+                }
+            }
+        }
+        libImportedPresets = presets
+        return audio
+    }
+
+    // MARK: — EXPORT (S11c)
+
+    /// EXPORT: в выборе — отмеченные (один — файлом, несколько — .zip); иначе открытая папка (.zip), в корне — вся
+    /// библиотека (Library.zip). done — временный файл для окна сохранения в «Файлы» (nil — нечего или ошибка).
+    func libExport(_ done: @escaping @MainActor (URL?) -> Void) {
+        let lib: Library = library
+        let folder: String = libFolder
+        var picks: [LibNode] = []
+        if let picked = libPicked, !picked.isEmpty {
+            picks = lib.children(folder).filter { picked.contains($0.id) }
+        }
+        let nodes: [LibNode] = picks
+        let dir: URL = store.dir
+        let cache: [String: SampleData] = store.samples
+        Task.detached(priority: .userInitiated) {
+            let tables: URL = WtWav.appDir()
+            let bytes = LibraryBytes(sample: { SampleStore.wav(key: $0, dir: dir, cached: cache[$0]) },
+                                     table: { try? Data(contentsOf: WtWav.url($0, in: tables)) })
+            var name: String = ""
+            var data: Data? = nil
+            let here: LibNode? = lib.node(folder)
+            if nodes.count == 1, nodes[0].kind != .folder {
+                name = Library.fileName(nodes[0])
+                data = lib.file(nodes[0], bytes)
+            } else if !nodes.isEmpty {
+                var e: [ZipEntry] = []
+                for n in nodes { e += lib.entries(n, prefix: "", bytes) }
+                name = Library.safe(here?.name ?? "Library") + ".zip"
+                data = Zip.write(e)
+            } else if let h = here {
+                name = Library.fileName(h) + ".zip"
+                data = Zip.write(lib.entries(h, prefix: "", bytes))
+            } else if folder == Library.root {
+                name = "Library.zip"
+                data = Zip.write(lib.entries(inside: Library.root, bytes))
+            }
+            var url: URL? = nil
+            if let d = data {
+                let out = FileManager.default.temporaryDirectory.appendingPathComponent("libexport", isDirectory: true)
+                try? FileManager.default.removeItem(at: out)
+                try? FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
+                let u = out.appendingPathComponent(name)
+                if (try? d.write(to: u, options: .atomic)) != nil { url = u }
+            }
+            let result = url
+            await MainActor.run { done(result) }
         }
     }
 
