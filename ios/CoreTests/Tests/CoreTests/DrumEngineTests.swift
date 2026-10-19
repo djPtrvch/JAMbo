@@ -27,7 +27,7 @@ final class DrumEngineTests: XCTestCase {
 
     func testTable() {
         XCTAssertEqual(SynthEngines.drums, [16, 20, 21, 22, 23])
-        XCTAssertEqual(SynthEngines.synths, [17, 18, 19])
+        XCTAssertEqual(SynthEngines.synths, [17, 24, 18, 19])
         for e in drums {
             let eng = SynthEngines.engine(e)
             XCTAssertEqual(eng?.decay, true)
@@ -145,7 +145,7 @@ final class DrumEngineTests: XCTestCase {
 
     /// Иконки ударных: есть элементы, координаты конечны и в поле 64×64 (с запасом на штрих), меняются от ручек.
     func testIcons() {
-        for e in drums {
+        for e in drums + [Jambo.sub] {
             var seen = Set<String>()
             for a in [0.0, 0.5, 1] {
                 for b in [0.0, 1] {

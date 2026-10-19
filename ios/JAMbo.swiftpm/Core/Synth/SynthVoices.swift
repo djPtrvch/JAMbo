@@ -43,6 +43,8 @@ public final class SynthVoices {
     let decaySec = UnsafeMutablePointer<Double>.allocate(capacity: slots)
     let decayK = UnsafeMutablePointer<Float>.allocate(capacity: slots)
     let env = UnsafeMutablePointer<Float>.allocate(capacity: slots)
+    /// Уровень, с которого идёт атака (SUB: новая нота на звучащей — с текущего уровня огибающей, без провала).
+    let env0 = UnsafeMutablePointer<Float>.allocate(capacity: slots)
     let fadeK = UnsafeMutablePointer<Float>.allocate(capacity: slots)
     let fadeG = UnsafeMutablePointer<Float>.allocate(capacity: slots)
     let level = UnsafeMutablePointer<Float>.allocate(capacity: slots)
@@ -110,7 +112,7 @@ public final class SynthVoices {
         }
         fadeAt.initialize(repeating: Int64.max, count: s)
         for p in [attackF, decaySec, hz, qDb] as [UnsafeMutablePointer<Double>] { p.initialize(repeating: 0, count: s) }
-        for p in [decayK, env, fadeK, fadeG, level, pan] as [UnsafeMutablePointer<Float>] { p.initialize(repeating: 0, count: s) }
+        for p in [decayK, env, env0, fadeK, fadeG, level, pan] as [UnsafeMutablePointer<Float>] { p.initialize(repeating: 0, count: s) }
         send.initialize(repeating: 0, count: s * 3)
         coef.initialize(repeating: Biquad(), count: s)
         z.initialize(repeating: 0, count: s * 2)
@@ -130,7 +132,7 @@ public final class SynthVoices {
         for p in [start, holdEnd, stopAt, pStart, pGate, fadeAt, busyUntil] as [UnsafeMutablePointer<Int64>] { p.deallocate() }
         for p in [attackF, decaySec, hz, qDb] as [UnsafeMutablePointer<Double>] { p.deallocate() }
         send.deallocate()
-        for p in [decayK, env, fadeK, fadeG, level, pan, z, lockVal, pVal, outBuf]
+        for p in [decayK, env, env0, fadeK, fadeG, level, pan, z, lockVal, pVal, outBuf]
             as [UnsafeMutablePointer<Float>] { p.deallocate() }
         coef.deallocate()
         drift.deallocate()
@@ -161,13 +163,15 @@ public final class SynthVoices {
                  mask: VoiceMask, vals: UnsafePointer<Float>?, gate: Int64, own isOwn: Bool, liveId live: Int, retrig: Bool) {
         if t < 0 || t >= SynthVoices.tracks { return }
         modFrame = frame
-        // Ударные (KICK, SNARE, HAT, CLAP, PERC) монофоничны: удары дорожки — в первый голос дорожки, из аккорда —
-        // одна нота, без кражи (хвост прошлого удара гаснет в самом движке за ~2 мс).
+        // Ударные (KICK, SNARE, HAT, CLAP, PERC) и SUB монофоничны: ноты дорожки — в первый голос дорожки, из
+        // аккорда — нижняя нота, без кражи (хвост прошлой гаснет в самом движке за ~2 мс).
         if Jambo.mono(e) {
             guard count > 0 else { return }
             let v = t * SynthVoices.perTrack
+            var low = Int(notes[0])
+            for k in 1..<Swift.max(1, count) where Int(notes[k]) < low { low = Int(notes[k]) }
             pActive[v] = 0
-            setup(v, d, t, e, frame, Int(notes[0]), gate, mask, vals, isOwn, live, steal: false)
+            setup(v, d, t, e, frame, low, gate, mask, vals, isOwn, live, steal: false)
             return
         }
         let attack: Double = pv(d, t, VoiceParam.attack, mask, vals) / 1000
@@ -217,6 +221,9 @@ public final class SynthVoices {
         let decaying = selfDecayE[e] != 0
         // Хвост прошлой ноты слота (тот же голос) не обрывается: огибающая с 1, ручки — за ~1 мс.
         let wasActive = active[v] != 0
+        // SUB: новая нота на звучащей — атака с текущего уровня огибающей.
+        let legato: Bool = wasActive && !decaying && Jambo.mono(e) && fading[v] == 0
+        let prevEnv: Float = legato ? env[v] * fadeG[v] : 0
         let keepEnv = decaying && !steal && pv(d, t, VoiceParam.attack, mask, vals) <= 2.5
         // Голос молчал — у KICK нет хвоста для стыка.
         if !wasActive { bank.jamboSilent(v) }
@@ -258,12 +265,14 @@ public final class SynthVoices {
             stopAt[v] = holdEnd[v] + Int64((Swift.max(0.02, decay) * 2 + 0.05) * sr)
         }
         released[v] = 0
-        env[v] = 0
+        env[v] = prevEnv
+        env0[v] = prevEnv
         fadeAt[v] = Int64.max
         fadeG[v] = 1
         fadeK[v] = 1
-        // keep на звучащем хвосте: Level, Pan и фильтр слота не прыгают — подстраиваются в renderChunk.
-        if keepEnv && wasActive { return }
+        // keep на звучащем хвосте и SUB поверх звучащей ноты: Level, Pan и фильтр слота не прыгают — подстраиваются
+        // в renderChunk.
+        if (keepEnv || legato) && wasActive { return }
         level[v] = Float(pow(pv(d, t, VoiceParam.level, mask, vals) / 127, 1.5))
         pan[v] = Float(Swift.max(-1, Swift.min(1, pv(d, t, VoiceParam.pan, mask, vals) / 64)))
         for k in 0..<3 { send[v * 3 + k] = Float(pv(d, t, VoiceParam.reverb + k, mask, vals) / 100) }
@@ -510,6 +519,7 @@ public final class SynthVoices {
         // на каждом отсчёте заметно дороже самой арифметики.
         let stop = stopAt[v], hold = holdEnd[v], fadeFrom = fadeAt[v], att = attackF[v]
         let keepEnv = keep[v] != 0
+        let e0v = env0[v]
         let dk = decayK[v], fadeKV = fadeK[v]
         var envV = env[v], fadeV = fadeG[v], rel = released[v] != 0
         var z0 = z[zb], z1 = z[zb + 1]
@@ -523,7 +533,7 @@ public final class SynthVoices {
                 stopped = true
                 break
             }
-            // Огибающая: атака линейно, удержание, затем Decay как Release (экспонента, τ = Decay/4).
+            // Огибающая: атака линейно (с env0 — у SUB с текущего уровня), удержание, затем Decay как Release (τ = Decay/4).
             var g: Float
             if keepEnv {
                 // Затухающий сам с короткой атакой: огибающая не обнуляется.
@@ -534,12 +544,12 @@ public final class SynthVoices {
             } else if frame >= hold {
                 if !rel {
                     rel = true
-                    envV = tt < att ? Float(tt / att) : 1
+                    envV = tt < att ? e0v + (1 - e0v) * Float(tt / att) : 1
                 }
                 envV *= dk
                 g = envV
             } else {
-                g = tt < att ? Float(tt / att) : 1
+                g = tt < att ? e0v + (1 - e0v) * Float(tt / att) : 1
                 envV = g
             }
             if frame >= fadeFrom { fadeV *= fadeKV }

@@ -14,8 +14,14 @@ enum Jambo {
     static let clap = 22
     static let perc = 23
 
-    /// Ударный движок: затухает сам, монофоничен (слот 0) — KICK и 20–23.
-    @inline(__always) static func mono(_ e: Int) -> Bool { return e == drum || (e >= snare && e <= perc) }
+    /// SUB (этап 4): моно-бас.
+    static let sub = 24
+    static let subOut = 0.58
+    /// FAT: расстройка OSC2 до 35 центов.
+    static let subFat = 35.0
+
+    /// Монофоничный движок (слот 0): ударные (KICK, 20–23) и SUB.
+    @inline(__always) static func mono(_ e: Int) -> Bool { return e == drum || (e >= snare && e <= sub) }
 
     // HAT: средний тон ряда 808 (геометрическое среднее шести частот), уровень выхода.
     static let hatMean = 416.4

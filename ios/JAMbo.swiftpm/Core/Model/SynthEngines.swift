@@ -45,11 +45,14 @@ public enum SynthEngines {
                     options: [[], ["1", "2", "3", "4", "5", "6"], [], []], decay: true, decayMax: 1200),
         SynthEngine(id: 23, name: "PERC", full: "Percussion", knobs: ["tune", "material", "bend", "hit"],
                     options: [[], [], [], []], decay: true, decayMax: 2000),
+        // SUB (этап 4): моно-бас, OSC2 — октавой ниже; при выборе — треугольник, SUB 40 %, без FAT и GRIT.
+        SynthEngine(id: 24, name: "SUB", full: "Sub bass", knobs: ["wave", "sub", "fat", "grit"],
+                    options: [["Triangle", "Saw", "Square"], [], [], []], initKnobs: [100.0 / 6, 40, 0, 0]),
     ]
 
     /// Колонки меню звука: DRUMS и SYNTH (номера движков).
     public static let drums: [Int] = [16, 20, 21, 22, 23]
-    public static let synths: [Int] = [17, 18, 19]
+    public static let synths: [Int] = [17, 24, 18, 19]
 
     /// Размер таблиц по номеру движка (наибольший номер + 1).
     public static let count: Int = (all.map { $0.id }.max() ?? -1) + 1

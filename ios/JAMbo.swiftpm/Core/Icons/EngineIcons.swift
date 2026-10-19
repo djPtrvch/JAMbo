@@ -142,7 +142,7 @@ public enum EngineIcons {
     /// Math.round веба (половина — вверх).
     static func round(_ x: Double) -> Int { return Int((x + 0.5).rounded(.down)) }
 
-    /// Элементы иконки своего движка (KICK, ANALOG, FM, ударные 20–23); у других — пусто (у WTABLE — кадр таблицы).
+    /// Элементы иконки своего движка (KICK, ANALOG, FM, ударные 20–23, SUB); у других — пусто (у WTABLE — кадр таблицы).
     public static func elements(_ engine: Int, _ v: IconValues) -> [IconElement] {
         switch engine {
         case 16: return drumIcon(v)
@@ -152,6 +152,7 @@ public enum EngineIcons {
         case 21: return hatIcon(v)
         case 22: return clapIcon(v)
         case 23: return percIcon(v)
+        case 24: return subIcon(v)
         default: return []
         }
     }

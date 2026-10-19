@@ -33,7 +33,7 @@ final class JamboBank {
     @inline(__always)
     func jamboTrigger(_ v: Int, _ e: Int, note: Double, _ p1: Double, _ p2: Double, _ p3: Double, _ p4: Double,
                       decay: Double, now: Double, tau: Double) {
-        if e >= Jambo.snare {
+        if e >= Jambo.snare && e <= Jambo.perc {
             isDrum[v] = 1
             drums[v].trigger(engine: e, p1, p2, p3, p4, decay: decay)
             return

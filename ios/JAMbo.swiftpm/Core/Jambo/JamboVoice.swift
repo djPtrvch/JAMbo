@@ -69,6 +69,8 @@ final class JamboVoice {
     private var a1 = 0.0, a2 = 0.0, tri1 = 0.0, tri2 = 0.0
     private var wCur = 0, wPrev = 0, wMix = 1.0
     private var bCur = 0, bPrev = 0, bMix = 1.0
+    // SUB: фильтр постоянной составляющей после GRIT.
+    private var hx = 0.0, hy = 0.0
     // FM
     private var pc = 0.0, pm = 0.0, m1 = 0.0, m2 = 0.0
     private let hb: UnsafeMutablePointer<Float>
@@ -106,8 +108,8 @@ final class JamboVoice {
     /// Нота в кадре now (абсолютный кадр), tau — время дорожки с дрейфом на этот кадр.
     func trigger(engine e: Int, note n: Double, _ q1: Double, _ q2: Double, _ q3: Double, _ q4: Double, decay: Double,
                  now: Double, tau: Double) {
-        // DRUM монофонична: новый удар в тот же слот, хвост прошлого гаснет за drumDeclick.
-        dc = e == Jambo.drum && engine == Jambo.drum ? last : 0
+        // KICK и SUB монофоничны: новый удар (нота) в тот же слот, хвост прошлого гаснет за ~2 мс.
+        dc = (e == Jambo.drum && engine == Jambo.drum) || (e == Jambo.sub && engine == Jambo.sub) ? last : 0
         engine = e
         set(note: n, q1, q2, q3, q4, decay: decay)
         // Новая нота — ручки сразу на своих местах (сглаживание — только для смены на лету).
@@ -135,6 +137,17 @@ final class JamboVoice {
         bCur = Jambo.waveIndex(t2)
         bPrev = bCur
         bMix = 1
+        // SUB: Key Reset — фазы обоих осцилляторов с нуля (бас одинаков на каждой ноте).
+        if e == Jambo.sub {
+            a1 = 0
+            a2 = 0
+            tri1 = 0
+            tri2 = 0
+            wCur = Swift.min(2, Int(t1 * 3)) + 1
+            wPrev = wCur
+            hx = 0
+            hy = 0
+        }
         pc = jFrac(f * now)
         pm = jFrac(Jambo.fmRatio(s1) * f * now)
         // WTABLE: центр — так же, боковые — со случайной фазы.
@@ -162,11 +175,14 @@ final class JamboVoice {
             fm(out, n)
         } else if engine == Jambo.wtable {
             wtable(out, n, table)
+        } else if engine == Jambo.sub {
+            subBass(out, n)
         } else {
             out.update(repeating: 0, count: n)
         }
-        // Начало ноты ANALOG, FM, WTABLE — плавно за fadeIn кадров (после фильтра децимации); у DRUM свой старт.
-        if fade < Jambo.fadeIn && engine != Jambo.drum {
+        // Начало ноты ANALOG, FM, WTABLE — плавно за fadeIn кадров (после фильтра децимации); у KICK свой старт, у SUB —
+        // внутри движка (поверх идёт хвост прошлой ноты).
+        if fade < Jambo.fadeIn && engine != Jambo.drum && engine != Jambo.sub {
             var i = 0
             while i < n && fade < Jambo.fadeIn {
                 fade += 1
@@ -305,6 +321,100 @@ final class JamboVoice {
         tri1 = jFlush(tr1)
         tri2 = jFlush(tr2)
         hbPos = hp
+        t += Double(n)
+    }
+
+    // MARK: — SUB: OSC1 (нота) и OSC2 (октавой ниже, FAT), одна форма; GRIT (tanh), ×2 и полуполосный фильтр.
+
+    @inline(__always) private func subBass(_ out: UnsafeMutablePointer<Float>, _ n: Int) {
+        let sr2 = sr * 2
+        let sine = UnsafePointer(tables.sine)
+        let f0 = 440 * pow(2, (note - 69) / 12)
+        let dt1 = Swift.min(0.45, f0 / sr2)
+        let dt2 = Swift.min(0.45, 0.5 * f0 * pow(2, Jambo.subFat * s3 / 1200) / sr2)
+        // WAVE — ступенчатая: Triangle, Saw, Square (формы ANALOG 1–3); смена — кроссфейд за 5 мс.
+        let idx = Swift.min(2, Int(t1 * 3)) + 1
+        if idx != wCur {
+            wPrev = wCur
+            wCur = idx
+            wMix = 0
+        }
+        let cur = wCur, prev = wPrev
+        let gC = Double(tables.shapeGain[cur]), gP = Double(tables.shapeGain[prev])
+        let xfStep = 1 / (Jambo.analogWaveXf * sr2)
+        var mix = wMix
+        // SUB: OSC1 ↔ OSC2, доли по постоянной мощности, нормированные на сумму (пик не растёт).
+        let ang = s2 * Double.pi / 2
+        let ka = cos(ang), kb = sin(ang)
+        let w1 = ka / (ka + kb), w2 = kb / (ka + kb)
+        // GRIT: tanh с усилением 0 → +24 дБ, нормировка на tanh(усиления) — пик прежний; у нуля — прозрачно.
+        let gg = pow(10, 1.2 * s4)
+        let wg = Swift.min(1, s4 / 0.1)
+        let tg = tanh(gg)
+        let rHp = 1 - 2 * Double.pi * 3 / sr2
+        let leak = 1 - 20 / sr2
+        let dDc = exp(-1 / (0.002 * sr))
+        var o1 = a1, o2 = a2, tr1 = tri1, tr2 = tri2, hp = hbPos, x0 = hx, y0 = hy, d = dc, fd = fade
+        let fadeN = Jambo.fadeIn
+        let buf = hb, len = Jambo.hbLen
+        let kIdx = tables.hbIdx, kK = tables.hbK, kN = tables.hbN
+        let outG = Jambo.subOut
+        var i = 0
+        while i < n {
+            var j = 0
+            while j < 2 {
+                let b1 = o1 < 0.75 ? o1 + 0.25 : o1 - 0.75, b2 = o2 < 0.75 ? o2 + 0.25 : o2 - 0.75
+                tr1 = tr1 * leak + 4 * dt1 * ((b1 < 0.5 ? 1 : -1) + jBlep(b1, dt1) - jBlep(b1 < 0.5 ? b1 + 0.5 : b1 - 0.5, dt1))
+                tr2 = tr2 * leak + 4 * dt2 * ((b2 < 0.5 ? 1 : -1) + jBlep(b2, dt2) - jBlep(b2 < 0.5 ? b2 + 0.5 : b2 - 0.5, dt2))
+                var x = gC * (w1 * jShapeAt(sine, cur, o1, dt1, tr1) + w2 * jShapeAt(sine, cur, o2, dt2, tr2))
+                if mix < 1 {
+                    mix = Swift.min(1, mix + xfStep)
+                    let old = gP * (w1 * jShapeAt(sine, prev, o1, dt1, tr1) + w2 * jShapeAt(sine, prev, o2, dt2, tr2))
+                    x = old + (x - old) * mix
+                }
+                if wg > 0 { x = (1 - wg) * x + wg * tanh(gg * x) / tg }
+                // Постоянная составляющая — ФВЧ 3 Гц.
+                let y = x - x0 + rHp * y0
+                x0 = x
+                y0 = y
+                let z = Float(y)
+                buf[hp] = z
+                buf[hp + len] = z
+                hp = hp + 1 == len ? 0 : hp + 1
+                o1 += dt1
+                if o1 >= 1 { o1 -= 1 }
+                o2 += dt2
+                if o2 >= 1 { o2 -= 1 }
+                j += 1
+            }
+            var acc = 0.0
+            var q = 0
+            while q < kN {
+                acc += Double(kK[q]) * Double(buf[hp + kIdx[q]])
+                q += 1
+            }
+            // Вход ноты — за fadeIn кадров; хвост прошлой ноты (d) гаснет за ~2 мс.
+            var g = outG
+            if fd < fadeN {
+                fd += 1
+                g *= Double(fd) / Double(fadeN)
+            }
+            let o = g * acc + d
+            out[i] = Float(o)
+            last = o
+            d *= dDc
+            i += 1
+        }
+        wMix = mix
+        a1 = o1
+        a2 = o2
+        tri1 = jFlush(tr1)
+        tri2 = jFlush(tr2)
+        hbPos = hp
+        hx = x0
+        hy = jFlush(y0)
+        dc = jFlush(d)
+        fade = fd
         t += Double(n)
     }
 

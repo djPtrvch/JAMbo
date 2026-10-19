@@ -87,3 +87,28 @@ extension EngineIcons {
         return [IconElement([.move(4, 32), .hTo(60)], op: 0.25), IconElement(self.pts(pts))]
     }
 }
+
+extension EngineIcons {
+    /// SUB: сверху волна OSC1 по WAVE (1.1: треугольник, пила, квадрат), снизу OSC2 — вдвое медленнее (октава вниз),
+    /// расходится по фазе с FAT (1.3); прозрачность — по SUB (1.2), верхушки срезаются по GRIT (1.4).
+    static func subIcon(_ v: IconValues) -> [IconElement] {
+        func shp(_ k: Int, _ p0: Double) -> Double {
+            let p = p0 - p0.rounded(.down)
+            if k == 1 { return 1 - 4 * abs(p < 0.75 ? p - 0.25 : p - 1.25) }
+            if k == 2 { return 1 - 2 * p }
+            return p < 0.5 ? 1 : -1
+        }
+        let kind = Swift.min(2, Int(clamp(v.h) * 3)) + 1
+        let g = pow(10, 1.2 * clamp(v.q))
+        let wg = Swift.min(1, clamp(v.q) / 0.1)
+        func grit(_ x: Double) -> Double { return (1 - wg) * x + wg * tanh(g * x) / tanh(g) }
+        let ang = clamp(v.t) * Double.pi / 2
+        let ga = cos(ang), gb = sin(ang)
+        let opA = 0.15 + 0.85 * ga / Swift.max(ga, gb), opB = 0.15 + 0.85 * gb / Swift.max(ga, gb)
+        let fat = 0.12 * clamp(v.m)
+        let a = fx(6, 58, 200) { _, u in 20 - 10 * grit(shp(kind, u * 2)) }
+        let b = fx(6, 58, 200) { _, u in 46 - 10 * grit(shp(kind, u + fat * u)) }
+        return [IconElement(pts(a), op: opA < 0.999 ? opA : nil), IconElement(pts(b), op: opB < 0.999 ? opB : nil),
+                IconElement([.move(6, 33), .hTo(58)], op: 0.25)]
+    }
+}
