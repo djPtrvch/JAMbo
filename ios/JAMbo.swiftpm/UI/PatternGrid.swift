@@ -44,11 +44,20 @@ struct PatternGrid: View {
                     ClipCellView(model: model, cell: CellRef(track: i, row: k), lifted: press?.cell == CellRef(track: i, row: k) && ghost != nil,
                                  target: target == CellRef(track: i, row: k))
                         .frame(width: g.trackW, height: g.rowH).offset(g.origin(col: i, row: r))
+                        .offset(y: dropLift(g, track: i, row: k))
+                        .animation(.easeInOut(duration: 0.45), value: model.mixDropDone)
                 }
             } else if w.plusRow == r {
                 PlusCell().frame(width: g.sceneW, height: g.rowH).offset(g.origin(col: -1, row: r))
             }
         }
+    }
+
+    /// MIX: клип PREV сначала стоит на строке, откуда опустился, затем съезжает вниз.
+    private func dropLift(_ g: GridGeometry, track i: Int, row k: Int) -> CGFloat {
+        guard model.isPrev(k), !model.mixDropDone, let from = model.mixDrop[i] else { return 0 }
+        let rows: CGFloat = CGFloat(from - (Params.gridRows - 1))
+        return rows * (g.rowH + PatternGrid.rowGap)
     }
 
     @ViewBuilder
@@ -89,7 +98,7 @@ struct PatternGrid: View {
             press = cur
             switch cur.hit {
             case .cell(let c): model.holdCell(c.track, c.row)
-            case .scene(let k): model.rowMenu = k
+            case .scene(let k): if !model.isPrev(k) { model.rowMenu = k }
             default: break
             }
         }
@@ -225,7 +234,8 @@ struct GridGeometry {
     }
 }
 
-/// Колонка над MST: бутерброд сетки, LOOP ROW, стрелки ▲ ▼ окна строк (если строк больше, чем видно).
+/// Колонка над MST: бутерброд сетки, LOOP ROW, стрелки ▲ ▼ окна строк (если строк больше, чем видно). При переходе
+/// MIX (CROSSFADER ON) бутерброда и LOOP ROW нет — стрелки сверху, под ними кроссфейдер до низа сетки.
 struct GridSideButtons: View {
     let model: AppModel
     let scroll: Bool
@@ -236,14 +246,21 @@ struct GridSideButtons: View {
     var body: some View {
         GeometryReader { geo in
             let h: CGFloat = (geo.size.height - 7 * PatternGrid.rowGap) / 8
+            let fader: Bool = model.mix != nil && model.settings.mixCrossfader
             VStack(spacing: PatternGrid.rowGap) {
-                BurgerButton { model.gridMenuOpen = true }.frame(height: h)
-                loopButton.frame(height: h)
+                if !fader {
+                    BurgerButton { model.gridMenuOpen = true }.frame(height: h)
+                    loopButton.frame(height: h)
+                }
                 if scroll {
                     arrow("▲", enabled: canUp || (model.project.arrowSwitch && model.playing)) { model.gridArrow(-1) }.frame(height: h)
                     arrow("▼", enabled: canDown || (model.project.arrowSwitch && model.playing)) { model.gridArrow(1) }.frame(height: h)
                 }
-                Spacer(minLength: 0)
+                if fader {
+                    MixFader(model: model).frame(maxHeight: .infinity)
+                } else {
+                    Spacer(minLength: 0)
+                }
             }
         }
     }
@@ -266,5 +283,35 @@ struct GridSideButtons: View {
             .opacity(enabled ? 1 : 0.35)
             .contentShape(Rectangle())
             .onTapGesture { action() }
+    }
+}
+
+/// Кроссфейдер перехода MIX: вертикальный, без надписей; внизу — общие настройки старого проекта, вверху — нового.
+struct MixFader: View {
+    let model: AppModel
+    @Environment(\.theme) private var theme
+
+    static let thumbH: CGFloat = 28
+
+    var body: some View {
+        GeometryReader { geo in
+            let h: CGFloat = geo.size.height
+            let pos: CGFloat = CGFloat(model.mix?.pos ?? 0)
+            let travel: CGFloat = max(1, h - MixFader.thumbH)
+            ZStack(alignment: .top) {
+                RoundedRectangle(cornerRadius: 6).fill(theme.panel2)
+                Capsule().fill(theme.dim.opacity(0.5)).frame(width: 3).padding(.vertical, MixFader.thumbH / 2)
+                RoundedRectangle(cornerRadius: 5).fill(theme.accent)
+                    .frame(height: MixFader.thumbH)
+                    .padding(.horizontal, 4)
+                    .offset(y: (1 - pos) * travel)
+            }
+            .contentShape(Rectangle())
+            .gesture(DragGesture(minimumDistance: 0).onChanged { v in
+                let y: CGFloat = v.location.y - MixFader.thumbH / 2
+                let p: CGFloat = 1 - y / travel
+                model.setCrossfade(Double(min(1, max(0, p))))
+            })
+        }
     }
 }

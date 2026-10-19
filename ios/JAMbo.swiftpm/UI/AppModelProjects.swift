@@ -21,7 +21,7 @@ extension AppModel {
     }
 
     /// Есть изменения, не сохранённые кнопкой SAVE (пометка «unsaved»).
-    var unsaved: Bool { return session.unsaved(project) }
+    var unsaved: Bool { return session.unsaved(savedProject) }
 
     /// Проект изменился: автосохранение — через ~1,5 с после первого изменения (как интервал веба).
     func projectChanged() {
@@ -47,8 +47,9 @@ extension AppModel {
     }
 
     private func autosaveSnapshot() -> (Project, ProjectInfo)? {
-        if !session.needsAutosave(project) { return nil }
-        let snap = project
+        // Во время перехода MIX — новый проект без строки PREV (forSave).
+        let snap = savedProject
+        if !session.needsAutosave(snap) { return nil }
         session.lastAuto = snap
         return (snap, session.autosaveInfo(now: Date().timeIntervalSince1970))
     }
@@ -108,7 +109,7 @@ extension AppModel {
     }
 
     func saveProject() {
-        let p = project
+        let p = savedProject
         let store = projects
         let t = now
         write { s in _ = s.save(p, store: store, now: t) }
@@ -116,7 +117,7 @@ extension AppModel {
 
     /// SAVE AS: replace — проект с тем же именем (после вопроса о перезаписи).
     func saveProjectAs(_ name: String, replace: ProjectInfo?) {
-        let p = project
+        let p = savedProject
         let store = projects
         let t = now
         write { s in _ = s.saveAs(p, name: name, replace: replace, store: store, now: t) }

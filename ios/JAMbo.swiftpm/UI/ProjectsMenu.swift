@@ -89,7 +89,7 @@ struct ProjectsPage: View {
                         delete: { model.deleteProject(id: info.id) })
     }
 
-    /// LOAD или MIX (MIX — переход между проектами, S10: пока серая).
+    /// LOAD или MIX (переход между проектами, S10).
     @ViewBuilder
     private var openPanel: some View {
         if let info = opening {
@@ -99,6 +99,10 @@ struct ProjectsPage: View {
                     opening = nil
                     close()
                     model.openProject(id: info.id)
+                }, mix: {
+                    opening = nil
+                    close()
+                    model.mixProject(id: info.id)
                 })
             }
         }
@@ -170,10 +174,11 @@ struct ProjectsPage: View {
     }
 }
 
-/// Окно открытия проекта: текст, LOAD и MIX (серая до S10), пояснение.
+/// Окно открытия проекта: текст, LOAD и MIX, пояснение.
 struct OpenProjectPanel: View {
     let text: String
     let load: () -> Void
+    let mix: () -> Void
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -181,7 +186,7 @@ struct OpenProjectPanel: View {
             Text(text).font(.system(size: 14)).foregroundStyle(theme.text).padding(.horizontal, 6).padding(.top, 4)
             HStack(spacing: 4) {
                 MenuItem(title: "LOAD", action: load)
-                MenuItem(title: "MIX", enabled: false) {}
+                MenuItem(title: "MIX", action: mix)
             }
             Text("LOAD replaces the current project now. MIX keeps the playing patterns in the bottom row (PREV) and blends tempo and settings with the crossfader.")
                 .font(.system(size: 12)).foregroundStyle(theme.dim)

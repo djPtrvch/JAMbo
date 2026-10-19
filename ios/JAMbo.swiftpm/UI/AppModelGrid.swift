@@ -46,9 +46,11 @@ extension AppModel {
         lead = i
         let tr = project.tracks[i]
         guard let c = tr.clips[tr.slot] else { return }
+        // CHANGE KEY OFF (переход MIX): гамма и нота старого проекта держатся, пока идёт игра.
+        let hold: Bool = keyHold
         mutatePlay({ p in
-            if let s = c.scale { p.scale = s }
-            if let r = c.root { p.root = r }
+            if let s = c.scale, !hold { p.scale = s }
+            if let r = c.root, !hold { p.root = r }
             if let f = c.fx { p.fx.merge(f) { _, b in b } }
         }, publish: true)
     }
@@ -108,6 +110,8 @@ extension AppModel {
     /// Тап: пустая — новый клип с пустым паттерном и запуск; играющая — остановка; иначе — запуск.
     func tapCell(_ i: Int, _ k: Int) {
         guard i < project.tracks.count else { return }
+        // Пустая ячейка PREV (у дорожки не было старого паттерна) не нажимается.
+        if isPrev(k) && !project.tracks[i].clipFilled(k) { return }
         select(track: i)
         setEditSlot(i, k)
         let t = project.tracks[i]
@@ -126,16 +130,17 @@ extension AppModel {
     /// Удержание: пустая — только выбор (не играет — ячейка становится активной); заполненная — правка без запуска.
     func holdCell(_ i: Int, _ k: Int) {
         guard i < project.tracks.count else { return }
+        if isPrev(k) && !project.tracks[i].clipFilled(k) { return }
         select(track: i)
         let t = project.tracks[i]
         let idle: Bool = !playing || t.stopped
         if !t.clipFilled(k) {
-            if idle { mutatePlay({ p in p.tracks[i].slot = k; p.tracks[i].stopped = true }, publish: true) }
+            if idle { mutatePlay({ p in p.tracks[i].slot = k; p.tracks[i].settleSound(); p.tracks[i].stopped = true }, publish: true) }
             openClip(i, k)
             return
         }
         if k != t.slot && idle {
-            mutatePlay({ p in p.tracks[i].slot = k; p.tracks[i].stopped = true }, publish: true)
+            mutatePlay({ p in p.tracks[i].slot = k; p.tracks[i].settleSound(); p.tracks[i].stopped = true }, publish: true)
         }
         openClip(i, k)
         viewPage = project.tracks[i].clipRange(k)?.lowerBound ?? 0
@@ -155,17 +160,27 @@ extension AppModel {
         }
     }
 
+    /// Копия клипа PREV — только паттерн (звук старой дорожки остаётся в PREV).
     func copyClip(_ c: CellRef) {
         clipClipboard = project.tracks[c.track].clips[c.row]
+        clipClipboard?.src = nil
     }
 
     func pasteClip(_ c: CellRef) {
         guard let clip = clipClipboard else { return }
+        if isPrev(c.row) {
+            deny(c)
+            return
+        }
         edit { p in p.tracks[c.track].setClip(c.row, clip) }
         viewPage = min(viewPage, seq.pages.count - 1)
     }
 
     func deleteClip(_ c: CellRef) {
+        if isPrev(c.row) {
+            deny(c)
+            return
+        }
         edit { p in p.tracks[c.track].clearClip(c.row) }
         heldSteps.removeAll()
     }
@@ -173,7 +188,12 @@ extension AppModel {
     /// Перетаскивание: независимая копия клипа (его паттерн, гамма, нота) в любую ячейку любого столбца.
     func dropClip(from a: CellRef, to b: CellRef) {
         if a == b { return }
-        guard let clip = project.tracks[a.track].clips[a.row] else { return }
+        guard var clip = project.tracks[a.track].clips[a.row] else { return }
+        if isPrev(b.row) {
+            deny(b)
+            return
+        }
+        clip.src = nil
         edit { p in p.tracks[b.track].setClip(b.row, clip) }
         viewPage = min(viewPage, seq.pages.count - 1)
     }
@@ -226,11 +246,13 @@ extension AppModel {
     // MARK: — окно строк
 
     /// Окно строк: 8 строк сетки, «+» — тоже строка окна. Возвращает строки окна (nil — «+» или пусто) и можно ли листать.
+    /// Переход MIX: строк проекта в окне 7, восьмая — PREV (всегда внизу).
     var gridWindow: (rows: [Int?], plusRow: Int?, top: Int, maxTop: Int) {
         let n = project.visibleRows
         let plus = project.canAddRow
         let total = n + (plus ? 1 : 0)
-        let win = Params.gridRows
+        let prev: Bool = project.prevRow
+        let win = prev ? Params.gridRows - 1 : Params.gridRows
         let maxTop = max(0, total - win)
         let top = min(max(0, gridTop), maxTop)
         var rows: [Int?] = []
@@ -242,6 +264,7 @@ extension AppModel {
                 if plus && k == n { plusRow = r }
             }
         }
+        if prev { rows.append(AppModel.prevRow) }
         return (rows, plusRow, top, maxTop)
     }
 
@@ -252,7 +275,8 @@ extension AppModel {
             let cur = live.sceneQueued >= 0 ? live.sceneQueued : max(0, live.sceneRow)
             let k = min(project.visibleRows - 1, max(0, cur + dir))
             if k != cur { queueScene(k, atPass: true) }
-            if k < w.top { gridTop = k } else if k >= w.top + Params.gridRows { gridTop = k - Params.gridRows + 1 }
+            let win: Int = project.prevRow ? Params.gridRows - 1 : Params.gridRows
+            if k < w.top { gridTop = k } else if k >= w.top + win { gridTop = k - win + 1 }
             return
         }
         gridTop = min(w.maxTop, max(0, w.top + dir))

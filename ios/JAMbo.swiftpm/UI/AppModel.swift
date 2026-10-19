@@ -116,6 +116,14 @@ final class AppModel {
     @ObservationIgnored var startOrder: [Int] = [Int](repeating: 0, count: Params.maxTracks)
     @ObservationIgnored var startSeq: Int = 0
     @ObservationIgnored var pendingStarts: [Int] = []
+    /// Переход MIX (S10): состояние (nil — нет перехода), параметры мастера кроссфейдера для колбэка (BYPASS — долей),
+    /// CHANGE KEY OFF — гамма и нота старого проекта держатся, пока идёт игра.
+    var mix: MixTransition? = nil
+    @ObservationIgnored var mixMaster: [Double]? = nil
+    @ObservationIgnored var keyHold: Bool = false
+    /// Анимация MIX: клипы опускаются в PREV из строк окна (дорожка → строка окна), пока mixDropDone false.
+    var mixDrop: [Int: Int] = [:]
+    var mixDropDone: Bool = true
     /// Открытое меню выбора (SCALE, ROOT, PROGRESSION) и меню клавиатуры.
     var choice: ChoiceState? = nil
     var pianoMenuOpen: Bool = false
@@ -216,6 +224,7 @@ final class AppModel {
         defer { applyPendingLead() }
         if autosaveDue > 0 && Date.timeIntervalSinceReferenceDate >= autosaveDue { autosave() }
         if morphGlide != nil { stepMorphGlide() }
+        if mix != nil { updateMix() }
         drainVoices()
         tickMeters()
         let tracks = project.tracks.count
@@ -237,6 +246,7 @@ final class AppModel {
         playing.toggle()
         endRecTake()
         live.stopped()
+        if !playing { keyHold = false }
         audio.core.events.push(.play(playing))
     }
 
@@ -261,6 +271,7 @@ final class AppModel {
         case .ended:
             if playing {
                 playing = false
+                keyHold = false
                 endRecTake()
                 live.stopped()
             }
@@ -364,8 +375,21 @@ final class AppModel {
             playing = false
             audio.core.events.push(.play(false))
         }
-        endRecTake()
+        mix = nil
+        mixMaster = nil
+        keyHold = false
+        mixDrop = [:]
         live.stopped()
+        resetForProject()
+        project = p
+        audio.core.events.push(.tempo(p.bpm))
+        publishAudio()
+        loadSamples(p.sampleKeys)
+    }
+
+    /// Другой проект (LOAD, NEW, MIX): окна и меню закрываются, UNDO сбрасывается, выбрана первая дорожка.
+    func resetForProject() {
+        endRecTake()
         morphGlide = nil
         morph = false
         closeEditor()
@@ -381,7 +405,7 @@ final class AppModel {
         trackMenu = nil
         cellMenu = nil
         rowMenu = nil
-        project = p
+        gridMenuOpen = false
         history.reset()
         refreshHistory()
         selectedTrack = 0
@@ -393,12 +417,9 @@ final class AppModel {
         lead = 0
         startOrder = [Int](repeating: 0, count: Params.maxTracks)
         pendingStarts.removeAll()
-        audio.core.events.push(.tempo(p.bpm))
-        publishAudio()
-        loadSamples(p.sampleKeys)
     }
 
-    private func refreshHistory() {
+    func refreshHistory() {
         if canUndo != history.canUndo { canUndo = history.canUndo }
         if canRedo != history.canRedo { canRedo = history.canRedo }
     }
