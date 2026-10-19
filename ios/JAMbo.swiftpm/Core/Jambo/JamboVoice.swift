@@ -164,6 +164,12 @@ final class JamboVoice {
         wl2 = rand()
         wr2 = rand()
         fade = 0
+        // SUB на звучащей ноте: волна непрерывна — без плавного входа и без хвоста прошлой ноты (вместе они дают горб
+        // громкости на стыке).
+        if subGoesOn {
+            fade = Jambo.fadeIn
+            dc = 0
+        }
     }
 
     /// Кусок n кадров (n ≤ 24) в out; driftRatio — множитель дрейфа дорожки (ANALOG).

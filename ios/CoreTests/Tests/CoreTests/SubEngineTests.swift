@@ -149,6 +149,44 @@ final class SubEngineTests: XCTestCase {
         XCTAssertEqual(c.sampler.synth?.activeCount, 1, "моно: один голос")
     }
 
+    /// Секвенсор ставит ноты заранее (на будущий кадр): монофоничный голос доигрывает прошлую ноту до кадра новой,
+    /// а не молчит с вызова — иначе обрыв хвоста перед каждой нотой (щелчок, найден на iPad). Сцена с iPad: SUB,
+    /// треугольник, Attack 0, Decay 500 мс, ноты через 3–4 шага при 126 BPM.
+    func testNoGapBeforeSequencedNote() {
+        let c = AudioCore(master: false)
+        var p = Project()
+        p.bpm = 126
+        p.tracks[0].setSynth(24)
+        p.tracks[0].vol = 0
+        p.tracks[0].params["timbre"] = 36
+        p.tracks[0].params["morph"] = 43
+        p.tracks[0].params["attack"] = 0
+        p.tracks[0].params["decay"] = 500
+        for s in [4, 7, 10, 14] {
+            p.tracks[0].pages[0][s].on = true
+            p.tracks[0].pages[0][s].notes = [48]
+        }
+        c.installSynth()
+        c.publish(p)
+        c.events.push(.tempo(126))
+        c.events.push(.play(true))
+        var l = [Float](repeating: 0, count: 256), r = l
+        var y: [Float] = []
+        for _ in 0..<720 {
+            c.render(frames: 256, left: &l, right: &r)
+            y += l
+        }
+        // Верхние частоты — вторая разность: на стыках не больше, чем у атаки после тишины (первая нота).
+        var hf = [Float](repeating: 0, count: y.count)
+        for i in 2..<y.count { hf[i] = abs(y[i] - 2 * y[i - 1] + y[i - 2]) }
+        let step = Int((48000 * 60 / 126.0 / 4).rounded())
+        let first: Float = hf[(4 * step - 100)..<(4 * step + 400)].max() ?? 0
+        for s in [7, 10, 14, 20, 23, 26, 30] {
+            let w: Float = hf[(s * step - 500)..<(s * step + 400)].max() ?? 0
+            XCTAssertLessThanOrEqual(w, first * 1.2, "шаг \(s): стык без обрыва")
+        }
+    }
+
     /// Нагрузка: 8 голосов, 1 с.
     func testLoad() {
         let t0 = Date()

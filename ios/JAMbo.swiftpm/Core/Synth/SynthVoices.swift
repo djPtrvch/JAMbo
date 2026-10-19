@@ -78,6 +78,8 @@ public final class SynthVoices {
     let pEngine = UnsafeMutablePointer<Int>.allocate(capacity: slots)
     let pGate = UnsafeMutablePointer<Int64>.allocate(capacity: slots)
     let pOwn = UnsafeMutablePointer<UInt8>.allocate(capacity: slots)
+    /// Ждущая нота монофоничного движка: прежняя звучит до её кадра и не гасится (стык — в самом движке).
+    let pKeep = UnsafeMutablePointer<UInt8>.allocate(capacity: slots)
     let pLive = UnsafeMutablePointer<Int>.allocate(capacity: slots)
     let pMask = UnsafeMutablePointer<VoiceMask>.allocate(capacity: slots)
     let pVal = UnsafeMutablePointer<Float>.allocate(capacity: slots * VoiceParam.count)
@@ -98,7 +100,7 @@ public final class SynthVoices {
         selfDecayE.initialize(repeating: 0, count: SynthVoices.engines)
         for e in SynthEngines.all { selfDecayE[e.id] = e.decay ? 1 : 0 }
         let s = SynthVoices.slots
-        for p in [active, fading, own, released, triggered, pActive, pOwn, selfDecay, keep] as [UnsafeMutablePointer<UInt8>] {
+        for p in [active, fading, own, released, triggered, pActive, pOwn, pKeep, selfDecay, keep] as [UnsafeMutablePointer<UInt8>] {
             p.initialize(repeating: 0, count: s)
         }
         for p in [trackId, note, serial, ftype, quiet, pNote] as [UnsafeMutablePointer<Int>] {
@@ -125,7 +127,7 @@ public final class SynthVoices {
     }
 
     deinit {
-        for p in [active, fading, own, released, triggered, pActive, pOwn, selfDecay, keep, selfDecayE]
+        for p in [active, fading, own, released, triggered, pActive, pOwn, pKeep, selfDecay, keep, selfDecayE]
             as [UnsafeMutablePointer<UInt8>] { p.deallocate() }
         for p in [trackId, note, serial, ftype, quiet, pNote, liveId, engine, pEngine, pLive, next]
             as [UnsafeMutablePointer<Int>] { p.deallocate() }
@@ -170,7 +172,23 @@ public final class SynthVoices {
             let v = t * SynthVoices.perTrack
             var low = Int(notes[0])
             for k in 1..<Swift.max(1, count) where Int(notes[k]) < low { low = Int(notes[k]) }
+            // Голос звучит: новая нота — в свой кадр (ноты секвенсора приходят заранее), прежняя играет до него;
+            // иначе голос молчал бы от вызова до начала ноты — обрыв хвоста, щелчок.
+            if active[v] != 0 && fading[v] == 0 {
+                pActive[v] = 1
+                pKeep[v] = 1
+                pStart[v] = frame
+                pNote[v] = low
+                pEngine[v] = e
+                pGate[v] = gate
+                pOwn[v] = isOwn ? 1 : 0
+                pLive[v] = live
+                pMask[v] = mask
+                for p in 0..<VoiceParam.count { pVal[v * VoiceParam.count + p] = vals.map { $0[p] } ?? 0 }
+                return
+            }
             pActive[v] = 0
+            pKeep[v] = 0
             setup(v, d, t, e, frame, low, gate, mask, vals, isOwn, live, steal: false)
             return
         }
@@ -289,10 +307,13 @@ public final class SynthVoices {
     private func activatePending(_ v: Int, _ d: SoundData) {
         pActive[v] = 0
         let t = v / SynthVoices.perTrack
-        active[v] = 0
+        // Монофоничный: прежняя нота звучит до этого кадра — продолжение (огибающая с текущего уровня, стык в движке).
+        let keepOld: Bool = pKeep[v] != 0
+        pKeep[v] = 0
+        if !keepOld { active[v] = 0 }
         if t >= d.trackCount { return }
         setup(v, d, t, pEngine[v], pStart[v], pNote[v], pGate[v], pMask[v], pVal + v * VoiceParam.count,
-              pOwn[v] != 0, pLive[v], steal: true)
+              pOwn[v] != 0, pLive[v], steal: !keepOld)
     }
 
     private func fade(_ v: Int, at: Int64, tau: Double) {
