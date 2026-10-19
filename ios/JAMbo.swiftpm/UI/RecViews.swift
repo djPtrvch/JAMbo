@@ -3,7 +3,7 @@ import SwiftUI
 // REC в редакторе сэмпла (S11e): кнопка, меню RECORD FROM, форма волны во время записи.
 
 /// REC: красная точка, красный текст и окантовка; во время записи — красная, ■ и время; неактивная — серая.
-struct RecButton: View {
+struct SampleRecButton: View {
     let model: AppModel
     @State private var frame: CGRect = .zero
     @Environment(\.theme) private var theme

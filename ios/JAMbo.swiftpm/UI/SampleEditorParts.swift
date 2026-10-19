@@ -16,7 +16,7 @@ struct EditorBar: View {
                 .lineLimit(2)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 10)
-            RecButton(model: model)
+            SampleRecButton(model: model)
             ToolButton(title: "▶", enabled: data != nil, lit: model.previewOn, width: 48) {
                 model.togglePreview(sel.a, sel.b)
             }
