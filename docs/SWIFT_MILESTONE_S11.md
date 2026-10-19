@@ -26,3 +26,10 @@
 - ZIP (Core/Files/Zip.swift): запись без сжатия, имена в UTF-8; чтение — без сжатия и deflate (Inflate.swift — распаковка на Swift, без Compression: Core собирается и на Linux).
 - Эталон: ios/tools/zip/golden.py (архив со сжатием, Python zipfile) → deflated.zip. Тесты — LibraryFilesTests. Архив Swift-версии проверен стандартным zip.
 - Проверено: CoreTests 237 (облако); на iPad — EXPORT и IMPORT папок, файлов, всей библиотеки, архивов из «Файлов».
+
+## S11d — стемы и запись мастера
+- Как в вебе (docs/ai/tracks-mixer.md, «Запись стемов»): ● у ручки громкости в MIX, ● MASTER под окном при MIX; начало — с PLAY, конец — на границах проходов (строки по сетке, LOOP ROW, остановка дорожки, ● и PLAY во время записи — дописать до конца прохода); мигающая точка на дорожке и MST, за 5 с до конца — чаще.
+- Правила — в колбэке на каждом шаге (Sequencer/SequencerStems.swift), с точностью до отсчёта; звук — в кольцо без потерь (Engine/StemRing.swift, 2^22 отсчётов, выделяется при первом нажатии ●), основной поток собирает стемы (StemCollector) 60 раз в секунду. Стем дорожки — выход после EQ, громкости, Sidechain и гейта mute/solo (гейт по отсчётам пишет микшер), без посылов; мастер — после громкости выхода.
+- Отличие от веба (решение пользователя): стем — сэмпл CAF float 32 (Samples/<ключ>.caf, в вебе WAV 24 бит); EXPORT — WAV 32-бит float, как у сэмплов. ARM n и ARM MST — в S12 (MIDI).
+- Файлы: RECORDINGS → «проект дд.мм.гггг» → «дорожка чч-мм-сс», «MASTER чч-мм-сс» (Library.recordingsFolder).
+- Тесты — StemTests, RecordingNamesTests. CoreTests 251 (облако); на iPad — проверено.
