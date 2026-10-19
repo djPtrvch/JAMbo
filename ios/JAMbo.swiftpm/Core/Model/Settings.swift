@@ -59,6 +59,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var clearSampleLocks: Bool = true
     /// SETTINGS → SAMPLER → PITCH (S12): ручка Pitch сэмпла и её p-lock — по полутонам (по умолчанию) или плавно.
     public var pitchSemitones: Bool = true
+    /// Бутерброд → MIDI (S13): вход, обратная связь, ноты.
+    public var midi = MidiSettings()
 
     public init() {}
 
@@ -74,7 +76,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
 
     private enum Keys: String, CodingKey { case appearance, pianoOctaves, velocity, record, sliceMap, scSends, muteTails, latchFx, latchMod, rollGrid,
                                          rollSound, levelRelative, morphAll, morphReturn, mixKey, mixCrossfader,
-                                         clearSampleLocks, pitchSemitones }
+                                         clearSampleLocks, pitchSemitones, midi }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
@@ -98,5 +100,6 @@ public struct AppSettings: Codable, Equatable, Sendable {
         mixCrossfader = (try? c.decode(Bool.self, forKey: .mixCrossfader)) ?? true
         clearSampleLocks = (try? c.decode(Bool.self, forKey: .clearSampleLocks)) ?? true
         pitchSemitones = (try? c.decode(Bool.self, forKey: .pitchSemitones)) ?? true
+        midi = (try? c.decode(MidiSettings.self, forKey: .midi)) ?? MidiSettings()
     }
 }

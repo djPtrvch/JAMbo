@@ -140,12 +140,15 @@ extension AppModel {
     }
 
     /// Нажатие клавиши или аккорда (id — касание): с REC при игре — запись; иначе выбор нот или замена нот зажатых шагов.
-    func keyDown(id: Int, notes: [Int], velocity: Double) {
+    /// track — дорожка для нот с MIDI по каналам (S13a; без неё — выбранная; ноты другой дорожки не подсвечивают
+    /// клавиши и не становятся выбранными).
+    func keyDown(id: Int, notes: [Int], velocity: Double, track: Int? = nil) {
         ensureAudio()
-        pressedKeys[id] = notes
-        let ti = selectedTrack
+        let ti: Int = track ?? selectedTrack
+        let own: Bool = ti == selectedTrack
+        if own { pressedKeys[id] = notes }
         // Держат флажок маркера нарезки в редакторе: клавиша назначает ему ноту (и звучит).
-        if let first = notes.first, assignHeldSlice(first) {
+        if track == nil, let first = notes.first, assignHeldSlice(first) {
             keyHolds[id] = KeyHold(track: ti, notes: [first], recIndex: nil, t0: Date.timeIntervalSinceReferenceDate)
             liveNoteOn(track: ti, notes: [first], id: id, velocity: velocity)
             return
@@ -155,7 +158,7 @@ extension AppModel {
         var recIndex: Int? = nil
         if recOn && playing && heldSteps.isEmpty && channel == .track {
             recIndex = record(track: ti, notes: notes, velocity: settings.velocity ? velocity : nil)
-        } else {
+        } else if own {
             inputNotes()
         }
         keyHolds[id] = KeyHold(track: ti, notes: notes, recIndex: recIndex, t0: Date.timeIntervalSinceReferenceDate)
@@ -163,7 +166,7 @@ extension AppModel {
 
     /// Отпустили клавишу: с REC — длина записанной ноты по времени удержания.
     func keyUp(id: Int) {
-        guard pressedKeys.removeValue(forKey: id) != nil else { return }
+        pressedKeys.removeValue(forKey: id)
         guard let k = keyHolds.removeValue(forKey: id) else { return }
         liveNoteOff(track: k.track, id: id)
         guard let index = k.recIndex else { return }

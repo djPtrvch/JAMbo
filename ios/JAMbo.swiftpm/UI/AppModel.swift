@@ -60,6 +60,8 @@ final class AppModel {
     @ObservationIgnored var morphGlide: MorphGlide? = nil
     /// KEY VELOCITY (S12): толчки iPad (акселерометр).
     @ObservationIgnored let tapSensor = TapSensor()
+    /// MIDI (S13): CoreMIDI, устройства.
+    let midi = MidiHost()
     /// Последний тап по FX или MOD с зажатой SHIFT (двойной — режим toggle кнопки).
     @ObservationIgnored var lastPageTap: (page: GridPage, at: Date)? = nil
     /// Последний тап по LFO1–3 / ENV (двойной тап — снять назначение с удерживаемой ручки).
@@ -216,6 +218,7 @@ final class AppModel {
         project = startProject()
         installSynth()
         syncTapSensor()
+        startMidi()
         publishAudio()
         audio.core.events.push(.tempo(project.bpm))
         let timer = Timer(timeInterval: 1.0 / 60, repeats: true) { [weak self] _ in

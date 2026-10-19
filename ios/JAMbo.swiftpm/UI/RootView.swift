@@ -210,10 +210,11 @@ enum MenuPage {
     case main
     case projects
     case settings
+    case midi
 }
 
 /// Меню бутерброда (как веб): разделы PROJECT (PROJECTS) и APP (SETTINGS; DIAGNOSTICS, SELF-TEST — окна) — у каждого подзаголовок,
-/// между ними черта; CONTROLLERS (MIDI) и SYNC — с S12. Меню и подменю одного размера: по ширине — от левого края
+/// между ними черта; CONTROLLERS (MIDI, S13a) и SYNC — с S13e. Меню и подменю одного размера: по ширине — от левого края
 /// бутерброда до правого края поля SCALE, по высоте — до строки дорожек.
 struct MainMenu: View {
     static let width: CGFloat = Layout.leftColumn + Layout.gap + Layout.topButton
@@ -238,6 +239,8 @@ struct MainMenu: View {
             ProjectsPage(model: model, back: { page = .main }, close: { isOpen = false })
         case .settings:
             SettingsPage(model: model, back: { page = .main })
+        case .midi:
+            MidiPage(model: model, back: { page = .main })
         case .main:
             MenuScroll { mainItems }
         }
@@ -256,6 +259,9 @@ struct MainMenu: View {
                     model.appWindow = w
                 }
             }
+            Divider().overlay(theme.line).padding(.vertical, 8)
+            MenuHead(title: "CONTROLLERS")
+            MenuItem(title: "MIDI") { page = .midi }
         }
         .padding(.top, 4)
         .padding(.trailing, 6)
