@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// Меню звука дорожки (тап по окну сэмпла, как в вебе): закрывает всю левую колонку, кнопки крупные.
-/// Колонка движков SYNTH (KICK, ANALOG, FM, WTABLE; под ними SAMPLER): тап — движок дорожки, с зажатыми шагами —
-/// их звук; группа LOAD SAMPLE · PRESET · MIDI:
+/// Две колонки движков: DRUMS (KICK, SNARE, HAT, CLAP, PERC) и SYNTH (ANALOG, FM, WTABLE; под ними SAMPLER): тап —
+/// движок дорожки, с зажатыми шагами — их звук; группа LOAD SAMPLE · PRESET · MIDI:
 /// LOAD (браузер библиотеки, S11b), MIDI (выход — S12; для зажатых шагов на этом месте TRACK — вернуть звук дорожки),
 /// SAVE (пресет синта в библиотеку) и TABLE (у дорожки с WTABLE — браузер в LOAD TABLE).
 struct SoundMenu: View {
@@ -10,8 +10,6 @@ struct SoundMenu: View {
     let state: SoundMenuState
     @Environment(\.theme) private var theme
 
-    /// Номера движков колонки SYNTH.
-    static let synth: [Int] = [16, 17, 18, 19]
 
     var body: some View {
         let steps: Bool = !state.steps.isEmpty
@@ -20,7 +18,8 @@ struct SoundMenu: View {
                 title("STEP " + state.steps.map { String($0 + 1) }.joined(separator: ", "))
             }
             HStack(alignment: .top, spacing: 4) {
-                column("SYNTH", SoundMenu.synth, sampler: true, steps: steps)
+                column("DRUMS", SynthEngines.drums, sampler: false, steps: steps)
+                column("SYNTH", SynthEngines.synths, sampler: true, steps: steps)
             }
             title("LOAD SAMPLE · PRESET · MIDI")
             loadGroup(steps)

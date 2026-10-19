@@ -142,4 +142,29 @@ final class DrumEngineTests: XCTestCase {
             print(String(format: "drum %d: 8 hits — %.1f%% of one core", e, Date().timeIntervalSince(t0) * 100))
         }
     }
+
+    /// Иконки ударных: есть элементы, координаты конечны и в поле 64×64 (с запасом на штрих), меняются от ручек.
+    func testIcons() {
+        for e in drums {
+            var seen = Set<String>()
+            for a in [0.0, 0.5, 1] {
+                for b in [0.0, 1] {
+                    let els = EngineIcons.elements(e, IconValues(h: a, t: b, m: 1 - a, q: b, d: a))
+                    XCTAssertFalse(els.isEmpty, "\(e)")
+                    for el in els {
+                        for c in el.cmds {
+                            switch c {
+                            case .move(let x, let y), .line(let x, let y):
+                                XCTAssertTrue(x.isFinite && y.isFinite && x >= 0 && x <= 64 && y >= 0 && y <= 64, "\(e) \(x) \(y)")
+                            default:
+                                break
+                            }
+                        }
+                    }
+                    seen.insert("\(els.map { $0.cmds })")
+                }
+            }
+            XCTAssertGreaterThan(seen.count, 3, "иконка \(e) живая")
+        }
+    }
 }
