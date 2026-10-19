@@ -3,8 +3,9 @@ import SwiftUI
 /// Сетка паттернов (PATTERNS): колонка строк над MIX, столбцы дорожек ровно над дорожками, справа (над MST) —
 /// бутерброд сетки, LOOP ROW и стрелки окна строк. На экране 8 строк. Жесты — на всю сетку, у каждого пальца своё
 /// касание (тапы по нескольким ячейкам сразу — запуск и остановка вместе); перетаскивается один клип или одна строка.
-/// Ячейка и строка: свайп вверх — меню, удержание (0,5 с) и перенос — перетаскивание (клип — копия в другую ячейку,
-/// строка — на другое место), свайп вниз — ничего.
+/// Ячейка: свайп вверх — меню, удержание (0,5 с) и перенос — копия клипа в другую ячейку, свайп вниз — ничего.
+/// Строка: быстрый свайп вверх — меню строки, удержание и перенос — строка на другое место, остальное движение
+/// пальцем вверх-вниз — прокрутка окна строк.
 struct PatternGrid: View {
     let model: AppModel
     let layout: Layout
@@ -18,6 +19,8 @@ struct PatternGrid: View {
 
     static let rowGap: CGFloat = 4
     static let hold: Double = 0.5
+    /// Свайп вверх по строке — не дольше этого (дольше — прокрутка).
+    static let flick: Double = 0.28
 
     var body: some View {
         GeometryReader { geo in
@@ -134,6 +137,7 @@ struct PatternGrid: View {
         }
         var gp = GridPress(hit: hit, t0: Date(), start: p)
         if case .cell(let c) = hit { gp.cell = c }
+        gp.top0 = model.gridWindow.top
         presses[id] = gp
         let started = gp.t0
         Task { @MainActor in
@@ -163,9 +167,29 @@ struct PatternGrid: View {
         presses[id] = p
         // Строка тянется только после удержания (палец замер на 0,5 с); строки между ней и пальцем — цель.
         if p.cell == nil {
-            guard dragId == id else { return }
-            ghost = CGPoint(x: g.sceneW / 2, y: loc.y)
-            rowTarget = rowUnder(g, loc.y)
+            if dragId == id {
+                ghost = CGPoint(x: g.sceneW / 2, y: loc.y)
+                rowTarget = rowUnder(g, loc.y)
+                return
+            }
+            if p.held || p.flicked { return }
+            // Быстрый свайп вверх — меню строки; медленнее или вниз — прокрутка окна строк.
+            let early: Bool = Date().timeIntervalSince(p.t0) < PatternGrid.flick
+            if !p.scrolling && early && -dy > 24 && abs(dx) < -dy {
+                p.flicked = true
+                presses[id] = p
+                if case .scene(let k) = p.hit, !model.isPrev(k) { model.rowMenu = k }
+                return
+            }
+            if !p.scrolling && p.moved && abs(dy) > abs(dx) && !(early && dy < 0) { p.scrolling = true }
+            if p.scrolling {
+                presses[id] = p
+                let pitch: CGFloat = g.rowH + PatternGrid.rowGap
+                let rows: Int = Int((-dy / pitch).rounded())
+                let w = model.gridWindow
+                let top: Int = min(w.maxTop, max(0, p.top0 + rows))
+                if top != w.top { model.gridTop = top }
+            }
             return
         }
         // Клип тянется только после удержания (ячейка уже выбрана для правки); свайп без удержания клип не трогает.
@@ -189,7 +213,7 @@ struct PatternGrid: View {
             target = nil
             rowTarget = nil
         }
-        if cancelled { return }
+        if cancelled || p.scrolling || p.flicked { return }
         if p.held {
             if let c = p.cell, let d = dropped { model.dropClip(from: c, to: d) }
             if case .scene(let k) = p.hit, let r = droppedRow { model.moveRow(k, to: r) }
@@ -197,14 +221,9 @@ struct PatternGrid: View {
         }
         let dx: CGFloat = loc.x - p.start.x
         let dy: CGFloat = loc.y - p.start.y
-        // Свайп вверх — меню ячейки или строки; свайп вниз — ничего.
-        let flick: Bool = -dy > 24 && abs(dx) < -dy
-        if flick {
-            switch p.hit {
-            case .cell(let c): model.cellMenu = CellMenuState(cell: c, anchor: g.frame(c, window: model.gridWindow))
-            case .scene(let k): if !model.isPrev(k) { model.rowMenu = k }
-            default: break
-            }
+        // Свайп вверх по ячейке — меню ячейки; свайп вниз — ничего.
+        if let c = p.cell, -dy > 24 && abs(dx) < -dy {
+            model.cellMenu = CellMenuState(cell: c, anchor: g.frame(c, window: model.gridWindow))
             return
         }
         if hypot(dx, dy) > 12 { return }
@@ -260,6 +279,10 @@ struct GridPress {
     var cell: CellRef? = nil
     var moved: Bool = false
     var held: Bool = false
+    /// Колонка строк: окно на старте, идёт ли прокрутка, открыто ли меню свайпом вверх.
+    var top0: Int = 0
+    var scrolling: Bool = false
+    var flicked: Bool = false
 }
 
 /// Геометрия сетки: те же столбцы, что у строки дорожек (MIX и MST — шириной шага, зазор 6), 8 строк с зазором 4.
