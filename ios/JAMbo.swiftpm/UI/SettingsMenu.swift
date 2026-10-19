@@ -79,7 +79,8 @@ struct RecordSettingsView: View {
     }
 }
 
-/// SAMPLER: SLICE NOTES — ноты маркеров нарезки по хроматической клавиатуре или по гамме; CLEAR SAMPLE LOCKS (S11b).
+/// SAMPLER: SLICE NOTES — ноты маркеров нарезки по хроматической клавиатуре или по гамме; PITCH (S12);
+/// CLEAR SAMPLE LOCKS (S11b).
 struct SamplerSettings: View {
     let model: AppModel
 
@@ -91,6 +92,12 @@ struct SamplerSettings: View {
                 MenuItem(title: "SCALE", current: model.settings.sliceMap == .scale) { model.setSliceMap(.scale) }
             }
             SettingsNote(text: "Markers in the sample editor play their slice from a piano key. CHROMATIC: markers go up by semitone from C3 (C3, C#3, D3…). SCALE: markers follow the notes of the selected scale from its root note in octave 3; the marker notes change with the scale.")
+            FieldLabel(title: "PITCH")
+            HStack(spacing: 4) {
+                MenuItem(title: "SEMITONES", current: model.settings.pitchSemitones) { model.updateSettings { $0.pitchSemitones = true } }
+                MenuItem(title: "SMOOTH", current: !model.settings.pitchSemitones) { model.updateSettings { $0.pitchSemitones = false } }
+            }
+            SettingsNote(text: "Sample Pitch knob and its step locks: SEMITONES — whole semitones, SMOOTH — any value. LFO and ENV stay smooth.")
             ToggleRow(title: "CLEAR SAMPLE LOCKS", isOn: model.settings.clearSampleLocks) { model.setClearSampleLocks($0) }
             SettingsNote(text: "ON: loading sounds from the library onto a track removes its sample locks — those steps play the track sound at their own note. Preset locks stay. OFF: sample locks keep their samples.")
         }

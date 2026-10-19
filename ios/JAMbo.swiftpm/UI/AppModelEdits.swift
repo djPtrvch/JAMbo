@@ -123,7 +123,9 @@ extension AppModel {
                 if Date() >= self.modPreviewUntil { self.modPreviewUntil = .distantPast }
             }
         }
-        let v: Double = p.fromNorm(norm)
+        var v: Double = p.fromNorm(norm)
+        // Pitch сэмпла по полутонам (SETTINGS → SAMPLER → PITCH: SEMITONES).
+        if p.id == "pitch" && settings.pitchSemitones && channel == .track && !fxMode && !modMode { v = v.rounded() }
         // MIX: с зажатыми шагами — p-lock громкости на шагах последовательности MIX, иначе громкость дорожки.
         if channel == .mix {
             let held = heldSteps

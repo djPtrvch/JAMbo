@@ -189,13 +189,13 @@ public enum Params {
     public static let swing = ParamDef(id: "swing", label: "Swing", min: 50, max: 75, def: 50, format: Fmt.pct)
 
     /// Колонки сетки ручек дорожки сэмплера (у синта колонка 1 — synthGrids; колонка 1 — сэмпл, 2 — огибающая и фильтр,
-    /// 3 — посылы, 4 — Pan, Chance, Ratchet, Velocity). 1.4 — PLAY (S12, этап 2), пока пустая.
+    /// 3 — посылы, 4 — Pan, Chance, Ratchet, Velocity). 1.4 — PLAY (S12): ONE, LOOP, REV, PING.
     public static let trackColumns: [[ParamDef]] = [
         [
             smooth("pitch", "Pitch", -24, 24, 0, bipolar: true, Fmt.pitch),
             smooth("start", "Start", 0, 100, 0, Fmt.pct),
             smooth("end", "End", 0, 100, 100, Fmt.pct),
-            empty,
+            stepped("play", "Play", ["ONE", "LOOP", "REV", "PING"]),
         ],
         [
             smooth("attack", "Attack", 0, 2000, 0, curve: 3, Fmt.ms),

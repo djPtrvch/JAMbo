@@ -1,8 +1,9 @@
 import Foundation
 
 // Голоса сэмплера и микшер дорожек (в колбэке; как triggerTrack, legatoCut, fadeVoice, retrigger, releaseLive и
-// gateTrack веба). Голос: сэмпл (Start/End или маркер нарезки, кубическая интерполяция, край — 4 мс) → Attack/Decay
-// (длинная нота держит уровень до конца, Decay — как Release) → Level → фильтр (LP/HP + Resonance, Web Audio) →
+// gateTrack веба). Голос: сэмпл (Start/End или маркер нарезки, кубическая интерполяция, край — 4 мс; PLAY — ONE,
+// LOOP, REV, PING, S12) → Attack/Decay (длинная нота держит уровень до конца, Decay — как Release) → Velocity →
+// фильтр (LP/HP + Resonance, Web Audio) →
 // Pan (StereoPanner) → шина дорожки → громкость микшера и гейт mute/solo → выход.
 // Без выделений памяти после создания: голоса — массивы указателей.
 
@@ -10,7 +11,9 @@ import Foundation
 public enum VoiceOut: Sendable {
     case none
     /// Голос v начал звучать в кадре frame: дорожка (−1 — предпрослушка), сэмпл, отрезок a…b (доли), скорость.
-    case start(voice: Int, track: Int, hash: UInt64, frame: Int64, a: Double, b: Double, rate: Double, frames: Int)
+    /// mode — PLAY (0 ONE, 1 LOOP, 2 REV, 3 PING), xf — стык петли LOOP, кадров сэмпла.
+    case start(voice: Int, track: Int, hash: UInt64, frame: Int64, a: Double, b: Double, rate: Double, frames: Int,
+               mode: Int, xf: Double)
     case end(voice: Int)
 }
 
@@ -46,6 +49,11 @@ public final class Sampler {
     let pos = UnsafeMutablePointer<Double>.allocate(capacity: slots)
     let endPos = UnsafeMutablePointer<Double>.allocate(capacity: slots)
     let edge = UnsafeMutablePointer<Double>.allocate(capacity: slots)
+    /// PLAY (S12): 0 ONE, 1 LOOP, 2 REV, 3 PING; начало куска, стык петли LOOP (кадров сэмпла), направление PING.
+    let mode = UnsafeMutablePointer<Int>.allocate(capacity: slots)
+    let loPos = UnsafeMutablePointer<Double>.allocate(capacity: slots)
+    let xfLen = UnsafeMutablePointer<Double>.allocate(capacity: slots)
+    let dir = UnsafeMutablePointer<Double>.allocate(capacity: slots)
     let noteRatio = UnsafeMutablePointer<Double>.allocate(capacity: slots)
     let rate = UnsafeMutablePointer<Double>.allocate(capacity: slots)
     let attackF = UnsafeMutablePointer<Double>.allocate(capacity: slots)
@@ -69,7 +77,7 @@ public final class Sampler {
     let z = UnsafeMutablePointer<Float>.allocate(capacity: slots * 4)
     let lockMask = UnsafeMutablePointer<VoiceMask>.allocate(capacity: slots)
     let lockVal = UnsafeMutablePointer<Float>.allocate(capacity: slots * VoiceParam.count)
-    private var nextSerial = 0
+    var nextSerial = 0
 
     // Шины дорожек, микшер.
     let busL = UnsafeMutablePointer<Float>.allocate(capacity: SoundData.maxTracks * maxFrames)
@@ -147,6 +155,9 @@ public final class Sampler {
         pos.initialize(repeating: 0, count: s)
         endPos.initialize(repeating: 0, count: s)
         edge.initialize(repeating: 1, count: s)
+        mode.initialize(repeating: 0, count: s)
+        for p in [loPos, xfLen] as [UnsafeMutablePointer<Double>] { p.initialize(repeating: 0, count: s) }
+        dir.initialize(repeating: 1, count: s)
         noteRatio.initialize(repeating: 1, count: s)
         rate.initialize(repeating: 1, count: s)
         attackF.initialize(repeating: 48, count: s)
@@ -192,8 +203,10 @@ public final class Sampler {
     deinit {
         for p in [active, fading, own, stereo, released, used, sendUsed, openPrev] as [UnsafeMutablePointer<UInt8>] { p.deallocate() }
         for p in [send, sendL, sendR, duckCur, flagCur, meterL, meterR] { p.deallocate() }
-        for p in [track, trackId, note, liveId, serial, srcFrames, ftype] as [UnsafeMutablePointer<Int>] { p.deallocate() }
-        for p in [pos, endPos, edge, noteRatio, rate, attackF, decaySec, hz, qDb] as [UnsafeMutablePointer<Double>] { p.deallocate() }
+        for p in [track, trackId, note, liveId, serial, srcFrames, ftype, mode] as [UnsafeMutablePointer<Int>] { p.deallocate() }
+        for p in [pos, endPos, edge, loPos, xfLen, dir, noteRatio, rate, attackF, decaySec, hz, qDb] as [UnsafeMutablePointer<Double>] {
+            p.deallocate()
+        }
         for p in [start, holdEnd, stopAt, fadeAt] as [UnsafeMutablePointer<Int64>] { p.deallocate() }
         for p in [decayK, env, fadeK, fadeG, level, pan, z, lockVal, busL, busR, outL, outR, volCur, gateCur, scratch] as [UnsafeMutablePointer<Float>] {
             p.deallocate()
@@ -212,245 +225,6 @@ public final class Sampler {
         var n = 0
         for v in 0..<Sampler.slots where active[v] != 0 { n += 1 }
         return n
-    }
-
-    // MARK: — запуск
-
-    /// Значение параметра p голоса: p-lock (mask, vals) или ручка дорожки t.
-    @inline(__always)
-    private func pv(_ d: SoundData, _ t: Int, _ p: Int, _ mask: VoiceMask, _ vals: UnsafePointer<Float>?) -> Double {
-        var x: Double = Double(d.param(t, p))
-        if mask & (VoiceMask(1) << VoiceMask(p)) != 0, let v = vals { x = Double(v[p]) }
-        // LFO/ENV — сверху (ENV — на кадр ноты).
-        if let m = mod, m.modulated(t) { x = m.value(t, p, x, modFrame) }
-        return x
-    }
-
-    /// Ноты дорожки t в кадре frame. hash — свой звук шага (0 — звук дорожки); gate — удержание в кадрах
-    /// (−1 — нота в 1 шаг: Decay сразу после атаки; Int64.max — живая нота до release).
-    public func trigger(track t: Int, at frame: Int64, notes: UnsafePointer<Int16>, count: Int, mask: VoiceMask,
-                        vals: UnsafePointer<Float>?, hash: UInt64, gate: Int64, own isOwn: Bool, liveId live: Int,
-                        retrig: Bool = false) {
-        guard let d = sound, t >= 0, t < d.trackCount else { return }
-        modFrame = frame
-        // Sidechain: каждая нота источника (не перезапуск звука на держащейся ноте).
-        if !retrig { fx?.noteTrig(track: t, at: frame) }
-        let h: UInt64 = hash != 0 ? hash : d.sound[d.s(t)]
-        let se = synthEngine(h)
-        if se >= 0 {
-            synth?.trigger(d, track: t, engine: se, at: frame, notes: notes, count: count, mask: mask, vals: vals,
-                           gate: gate, own: isOwn, liveId: live, retrig: retrig)
-            return
-        }
-        let e = d.entry(t, h)
-        if e < 0 { return }
-        let frames = d.eFrames[e]
-        let start0: Double = Double(frames) * pv(d, t, VoiceParam.start, mask, vals) / 100
-        let end0: Double = Double(frames) * pv(d, t, VoiceParam.end, mask, vals) / 100
-        let sc = Int(d.eSliceCount[e])
-        let minLen: Double = 0.003 * sr
-        if sc == 0 && end0 - start0 < minLen { return }
-        let attack: Double = pv(d, t, VoiceParam.attack, mask, vals) / 1000
-        let decay: Double = pv(d, t, VoiceParam.decay, mask, vals) / 1000
-        if !retrig { legatoCut(t, notes, count, frame, attack) }
-        for k in 0..<count {
-            let n = Int(notes[k])
-            var a = start0
-            var b = end0
-            var ratio: Double = pow(2, Double(n - Params.sampleRoot) / 12)
-            if sc > 0 {
-                let s0 = Int(d.eSliceStart[e])
-                var idx = -1
-                for j in 0..<sc where Int(d.sliceNote[s0 + j]) == n {
-                    idx = j
-                    break
-                }
-                if idx < 0 { continue }
-                a = d.sliceAt[s0 + idx] * Double(frames)
-                b = (idx + 1 < sc ? d.sliceAt[s0 + idx + 1] : 1) * Double(frames)
-                if b - a < minLen { continue }
-                ratio = 1
-            }
-            let v = allocate(frame)
-            setupVoice(v, d, t, e, frame, a, b, ratio, n, attack, decay, gate, mask, vals)
-            own[v] = isOwn ? 1 : 0
-            liveId[v] = live
-            _ = out.push(.start(voice: v, track: t, hash: h, frame: frame, a: a / Double(frames), b: b / Double(frames),
-                                rate: rate[v], frames: frames))
-        }
-    }
-
-    private func setupVoice(_ v: Int, _ d: SoundData, _ t: Int, _ e: Int, _ frame: Int64, _ a: Double, _ b: Double,
-                            _ ratio: Double, _ n: Int, _ attack: Double, _ decay: Double, _ gate: Int64,
-                            _ mask: VoiceMask, _ vals: UnsafePointer<Float>?) {
-        active[v] = 1
-        fading[v] = 0
-        track[v] = t
-        trackId[v] = d.trackId[t]
-        note[v] = n
-        srcL[v] = d.eLeft[e]
-        srcR[v] = d.eRight[e]
-        srcFrames[v] = d.eFrames[e]
-        stereo[v] = d.eChannels[e] == 2 ? 1 : 0
-        start[v] = frame
-        pos[v] = a
-        endPos[v] = b
-        noteRatio[v] = ratio
-        lockMask[v] = mask
-        for p in 0..<VoiceParam.count {
-            lockVal[v * VoiceParam.count + p] = vals.map { $0[p] } ?? 0
-        }
-        let pitch: Double = pv(d, t, VoiceParam.pitch, mask, vals)
-        rate[v] = ratio * pow(2, pitch / 12)
-        // Край сэмпла (End или конец файла) гаснет за 4 мс (не больше четверти звучания).
-        let playDur: Double = (b - a) / rate[v]
-        edge[v] = Swift.max(1, Swift.min(0.004 * sr, playDur / 4))
-        let att: Double = Swift.max(0.001, attack) * sr
-        attackF[v] = att
-        decaySec[v] = decay
-        decayK[v] = Float(exp(-1 / (Swift.max(0.005, decay / 4) * sr)))
-        if gate == Int64.max {
-            holdEnd[v] = Int64.max
-            stopAt[v] = Int64.max
-        } else {
-            let hold: Double = gate < 0 ? att : Swift.max(att, Double(gate))
-            holdEnd[v] = frame + Int64(hold.rounded())
-            stopAt[v] = holdEnd[v] + Int64(((Swift.max(0.02, decay)) * 2 + 0.05) * sr)
-        }
-        released[v] = 0
-        env[v] = 0
-        fadeAt[v] = Int64.max
-        fadeG[v] = 1
-        fadeK[v] = 1
-        level[v] = Float(pow(pv(d, t, VoiceParam.level, mask, vals) / 127, 1.5))
-        pan[v] = Float(Swift.max(-1, Swift.min(1, pv(d, t, VoiceParam.pan, mask, vals) / 64)))
-        for k in 0..<3 { send[v * 3 + k] = Float(pv(d, t, VoiceParam.reverb + k, mask, vals) / 100) }
-        let f = Biquad.knob(pv(d, t, VoiceParam.filter, mask, vals), reso: pv(d, t, VoiceParam.reso, mask, vals))
-        ftype[v] = f.type
-        hz[v] = f.hz
-        qDb[v] = f.q
-        coef[v].set(type: f.type, hz: f.hz, qDb: f.q, sampleRate: sr)
-        for k in 0..<4 { z[v * 4 + k] = 0 }
-    }
-
-    /// Свободная ячейка; больше maxVoices звучащих — самый старый гаснет за ~5 мс.
-    private func allocate(_ frame: Int64) -> Int {
-        var free = -1
-        var live = 0
-        var oldest = -1
-        var oldestAny = -1
-        for v in 0..<Sampler.slots {
-            if active[v] == 0 {
-                if free < 0 { free = v }
-                continue
-            }
-            if oldestAny < 0 || serial[v] < serial[oldestAny] { oldestAny = v }
-            if fading[v] != 0 { continue }
-            live += 1
-            if oldest < 0 || serial[v] < serial[oldest] { oldest = v }
-        }
-        if live >= Sampler.maxVoices && oldest >= 0 {
-            fade(oldest, at: frame, tau: 0.0015)
-            stopAt[oldest] = Swift.min(stopAt[oldest], frame + Int64(0.02 * sr))
-        }
-        if free < 0 {
-            // Все ячейки заняты гаснущими — самая старая освобождается сразу.
-            free = Swift.max(0, oldestAny)
-            finish(free)
-        }
-        nextSerial += 1
-        serial[free] = nextSerial
-        return free
-    }
-
-    /// Быстро погасить голос с кадра at (постоянная tau, с).
-    private func fade(_ v: Int, at: Int64, tau: Double) {
-        if fading[v] != 0 && fadeAt[v] <= at { return }
-        fading[v] = 1
-        fadeAt[v] = at
-        fadeK[v] = Float(exp(-1 / (tau * sr)))
-        stopAt[v] = Swift.min(stopAt[v], at + Int64((tau * 8 + 0.005) * sr))
-    }
-
-    private func finish(_ v: Int) {
-        if active[v] == 0 { return }
-        active[v] = 0
-        _ = out.push(.end(voice: v))
-    }
-
-    /// Нота той же высоты продолжает державшуюся: прежняя гаснет вместе с атакой новой (без провала и удвоения).
-    private func legatoCut(_ t: Int, _ notes: UnsafePointer<Int16>, _ count: Int, _ at: Int64, _ attack: Double) {
-        let tol = Int64(0.005 * sr)
-        for v in 0..<Sampler.slots where active[v] != 0 && fading[v] == 0 && track[v] == t && holdEnd[v] != Int64.max {
-            var same = false
-            for k in 0..<count where Int(notes[k]) == note[v] { same = true }
-            if !same { continue }
-            if start[v] < at && holdEnd[v] >= at - tol { fade(v, at: at, tau: Swift.max(0.0015, attack / 3)) }
-        }
-    }
-
-    /// Отпустили клавишу: живые ноты (liveId) — Decay как Release с кадра at.
-    public func release(track t: Int, liveId id: Int, at: Int64) {
-        synth?.release(track: t, liveId: id, at: at)
-        for v in 0..<Sampler.slots where active[v] != 0 && track[v] == t && liveId[v] == id && holdEnd[v] == Int64.max {
-            holdEnd[v] = Swift.max(at, start[v])
-            stopAt[v] = holdEnd[v] + Int64((Swift.max(0.02, decaySec[v]) * 2 + 0.05) * sr)
-        }
-    }
-
-    /// Живая нота с клавиатуры (и NOTE PREVIEW пианоролла): держится до release; level — сила нажатия (1 — без p-lock).
-    public func noteOn(track t: Int, note n: Int, liveId id: Int, velocity: Float, at: Int64) {
-        guard let d = sound, t < d.trackCount else { return }
-        one.pointee = Int16(n)
-        var mask: VoiceMask = 0
-        if velocity < 1 {
-            mask = VoiceMask(1) << VoiceMask(VoiceParam.level)
-            scratch[VoiceParam.level] = d.param(t, VoiceParam.level) * velocity
-        }
-        trigger(track: t, at: at, notes: one, count: 1, mask: mask, vals: scratch, hash: 0, gate: Int64.max,
-                own: false, liveId: id)
-    }
-
-    // MARK: — новый снимок звука
-
-    /// Снимок звука сменился: перестановка дорожек и убранные сэмплы — голоса гаснут; сменился звук дорожки —
-    /// держащиеся ноты сразу звучат новым звуком (прежний голос гаснет за ~3 мс, новый — на оставшееся удержание).
-    public func adopt(_ d: SoundData, now: Int64) {
-        let old = sound
-        sound = d
-        for v in 0..<Sampler.slots where active[v] != 0 {
-            let t = track[v]
-            if t >= d.trackCount || d.trackId[t] != trackId[v] {
-                fade(v, at: now, tau: 0.0015)
-                continue
-            }
-            if let l = srcL[v], !d.holds(l) { fade(v, at: now, tau: 0.0015) }
-        }
-        synth?.adopt(d, now: now)
-        guard let o = old else { return }
-        let n = Swift.min(d.trackCount, o.trackCount)
-        let lastSynth = synth?.lastSerial ?? 0
-        for t in 0..<n where d.trackId[t] == o.trackId[t] && d.sound[d.s(t)] != o.sound[o.s(t)] {
-            retrigger(t, now)
-            retriggerSynth(t, now, lastSynth)
-        }
-    }
-
-    private func retrigger(_ t: Int, _ now: Int64) {
-        let edgeTol = Int64(0.01 * sr)
-        // Новые голоса (созданные в этом же цикле) не перезапускаются.
-        let last = nextSerial
-        for v in 0..<Sampler.slots where active[v] != 0 && fading[v] == 0 && track[v] == t && own[v] == 0 && serial[v] <= last {
-            let at = Swift.max(now, start[v])
-            if holdEnd[v] != Int64.max && holdEnd[v] <= at + edgeTol { continue }
-            let gate: Int64 = holdEnd[v] == Int64.max ? Int64.max : holdEnd[v] - at
-            fade(v, at: at, tau: 0.003)
-            one.pointee = Int16(note[v])
-            let base = v * VoiceParam.count
-            for p in 0..<VoiceParam.count { scratch[p] = lockVal[base + p] }
-            trigger(track: t, at: at, notes: one, count: 1, mask: lockMask[v], vals: scratch, hash: 0, gate: gate,
-                    own: false, liveId: liveId[v], retrig: true)
-        }
     }
 
     // MARK: — звук
@@ -536,6 +310,11 @@ public final class Sampler {
         let frames = srcFrames[v]
         let st = stereo[v] != 0
         let zb = v * 4
+        // PLAY: в цикле — локальные значения (без перечислений и вызовов из других файлов).
+        let md = mode[v]
+        let lo = loPos[v], hi = endPos[v], xf = xfLen[v]
+        let loopLen: Double = hi - lo - xf
+        let top: Double = Swift.max(lo, hi - 1)
         var i = 0
         while i < n {
             let m = Swift.min(sub, n - i)
@@ -566,7 +345,12 @@ public final class Sampler {
             for j in 0..<m {
                 let frame = blockStart + Int64(i + j)
                 if frame < start[v] { continue }
-                if frame >= stopAt[v] || pos[v] >= endPos[v] || pos[v] >= Double(frames) {
+                if frame >= stopAt[v] {
+                    finish(v)
+                    return
+                }
+                // ONE — до End, REV — до Start; LOOP и PING играют, пока держится нота (и Decay после неё).
+                if md == 0 && (pos[v] >= hi || pos[v] >= Double(frames)) || md == 2 && pos[v] < lo {
                     finish(v)
                     return
                 }
@@ -586,11 +370,20 @@ public final class Sampler {
                     env[v] = e
                 }
                 if frame >= fadeAt[v] { fadeG[v] *= fadeK[v] }
-                let remain: Double = (endPos[v] - pos[v]) / rt
-                let eg = Float(Swift.min(1, remain / edge[v]))
+                let ps: Double = pos[v]
+                var eg: Float = 1
+                if md == 0 { eg = Float(Swift.min(1, (hi - ps) / rt / edge[v])) }
+                if md == 2 { eg = Float(Swift.min(1, (ps - lo + 1) / rt / edge[v])) }
                 let g: Float = e * eg * lv * fadeG[v]
-                var a: Float = Sampler.cubic(l, frames, pos[v]) * g
-                var b: Float = st ? Sampler.cubic(r, frames, pos[v]) * g : 0
+                var a: Float = Sampler.cubic(l, frames, ps) * g
+                var b: Float = st ? Sampler.cubic(r, frames, ps) * g : 0
+                // LOOP: последние xf кадров куска смешиваются с его началом (после стыка — продолжение оттуда).
+                if md == 1 && xf > 0 && ps > hi - xf {
+                    let w = Float((ps - (hi - xf)) / xf)
+                    let q: Double = ps - loopLen
+                    a = a * (1 - w) + Sampler.cubic(l, frames, q) * g * w
+                    if st { b = b * (1 - w) + Sampler.cubic(r, frames, q) * g * w }
+                }
                 // Фильтр (TDF II).
                 let ya: Float = c.b0 * a + z[zb]
                 z[zb] = c.b1 * a - c.a1 * ya + z[zb + 1]
@@ -629,7 +422,27 @@ public final class Sampler {
                     sends0L[2 * mf + q] += oa * sg2
                     sends0R[2 * mf + q] += ob * sg2
                 }
-                pos[v] += rt
+                // Ход по сэмплу: ONE и LOOP — вперёд (LOOP за End — на начало + стык), REV — назад, PING — отражение
+                // у краёв (крайние отсчёты не повторяются).
+                if md == 0 {
+                    pos[v] = ps + rt
+                } else if md == 1 {
+                    var p = ps + rt
+                    if p >= hi && loopLen > 0 { p -= loopLen }
+                    pos[v] = p
+                } else if md == 2 {
+                    pos[v] = ps - rt
+                } else {
+                    var p = ps + rt * dir[v]
+                    if p > top {
+                        p = Swift.max(lo, 2 * top - p)
+                        dir[v] = -1
+                    } else if p < lo {
+                        p = Swift.min(top, 2 * lo - p)
+                        dir[v] = 1
+                    }
+                    pos[v] = p
+                }
             }
             // Денормалы в состоянии фильтра.
             for k in 0..<4 where abs(z[zb + k]) < 1e-20 { z[zb + k] = 0 }

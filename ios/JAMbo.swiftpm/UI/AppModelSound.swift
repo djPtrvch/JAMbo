@@ -13,6 +13,30 @@ struct VoiceHead {
     let b: Double
     let rate: Double
     let frames: Int
+    /// PLAY (0 ONE, 1 LOOP, 2 REV, 3 PING) и стык петли LOOP, кадров сэмпла.
+    let mode: Int
+    let xf: Double
+
+    /// Положение (доля длины сэмпла) через dt кадров; nil — кусок доигран (ONE, REV).
+    func at(_ dt: Double) -> Double? {
+        let n: Double = Double(max(1, frames))
+        let d: Double = dt * rate / n
+        let len: Double = b - a
+        switch mode {
+        case 1:
+            let loop: Double = len - xf / n
+            if d < len || loop <= 0 { return d < len ? a + d : nil }
+            return a + xf / n + (d - len).truncatingRemainder(dividingBy: loop)
+        case 2:
+            return d < len ? b - d : nil
+        case 3:
+            if len <= 0 { return nil }
+            let u: Double = d.truncatingRemainder(dividingBy: 2 * len)
+            return u < len ? a + u : b - (u - len)
+        default:
+            return a + d < b ? a + d : nil
+        }
+    }
 }
 
 /// Меню звука: для дорожки (steps пустой) или для зажатых шагов (запомнены при открытии).
@@ -65,8 +89,8 @@ extension AppModel {
         var changed = false
         while let e = audio.core.sampler.out.pop() {
             switch e {
-            case .start(let v, let t, let h, let f, let a, let b, let r, let n):
-                heads[v] = VoiceHead(track: t, hash: h, frame: f, a: a, b: b, rate: r, frames: n)
+            case .start(let v, let t, let h, let f, let a, let b, let r, let n, let m, let x):
+                heads[v] = VoiceHead(track: t, hash: h, frame: f, a: a, b: b, rate: r, frames: n, mode: m, xf: x)
                 changed = true
             case .end(let v):
                 heads[v] = nil
@@ -96,9 +120,8 @@ extension AppModel {
         for v in heads.values where v.hash == h && (v.track == track || v.track < 0) {
             let dt: Double = now - Double(v.frame)
             if dt < 0 { continue }
-            let f: Double = v.a + dt * v.rate / Double(max(1, v.frames))
             let alpha: Double = v.track < 0 ? 1 : 1 - dt / AudioCore.sampleRate / 1.2
-            if f < v.b && alpha > 0.02 { out.append((f, alpha)) }
+            if let f = v.at(dt), alpha > 0.02 { out.append((f, alpha)) }
         }
         return out
     }
@@ -127,6 +150,11 @@ extension AppModel {
             if pos >= 0, let v = t.step(pos)?.locks[p.id] { return v }
         }
         return t.params[p.id] ?? p.def
+    }
+
+    /// PLAY выбранной дорожки (0 ONE, 1 LOOP, 2 REV, 3 PING).
+    var trackPlayMode: Int {
+        return min(3, max(0, Int((track.params["play"] ?? 0).rounded())))
     }
 
     /// Значения иконки движка: ручки 1.1–1.4 и Decay 2.2 (0…1); ступенчатая — скачком по пункту.

@@ -17,7 +17,7 @@ extension Sampler {
         pvGain = Sampler.previewGain
         pvStop = false
         _ = out.push(.start(voice: Sampler.previewVoice, track: -1, hash: hash, frame: at, a: pvPos / f, b: pvEnd / f,
-                            rate: 1, frames: d.eFrames[e]))
+                            rate: 1, frames: d.eFrames[e], mode: 0, xf: 0))
     }
 
     public func stopPreview() {
