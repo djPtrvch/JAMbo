@@ -83,48 +83,24 @@ final class MidiHost {
         return destinations[id] != nil
     }
 
-    /// Сообщения UMP (по слову) на выход: пакетами, полный пакет уходит сразу. Только с главного потока.
+    /// Сообщения UMP (по слову) на выход: по 16 слов на список — помещается в MIDIEventList, даже если каждое слово
+    /// займёт свой пакет (MIDIEventListAdd без места вернул бы NULL). Только с главного потока.
     func send(_ words: [UInt32], to id: Int32) {
         guard started, let dst = destinations[id], !words.isEmpty else { return }
         let size: Int = MemoryLayout<MIDIEventList>.size
         var packet: UnsafeMutablePointer<MIDIEventPacket> = MIDIEventListInit(sendList, ._1_0)
         var count: Int = 0
         for w in words {
+            if count == 16 {
+                MIDISendEventList(outPort, dst, sendList)
+                packet = MIDIEventListInit(sendList, ._1_0)
+                count = 0
+            }
             var word: UInt32 = w
-            if let next = MIDIEventListAdd(sendList, size, packet, 0, 1, &word) {
-                packet = next
-                count += 1
-                continue
-            }
-            MIDISendEventList(outPort, dst, sendList)
-            packet = MIDIEventListInit(sendList, ._1_0)
-            count = 0
-            if let next = MIDIEventListAdd(sendList, size, packet, 0, 1, &word) {
-                packet = next
-                count = 1
-            }
+            packet = MIDIEventListAdd(sendList, size, packet, 0, 1, &word)
+            count += 1
         }
-        if count > 0 { MIDISendEventList(outPort, dst, sendList) }
-    }
-
-    /// Поток CoreMIDI: разбор пакетов, сообщения — на главный поток одним блоком.
-    private func receive(_ list: UnsafePointer<MIDIEventList>, _ ref: UnsafeMutableRawPointer?) {
-        let source: Int32 = Int32(truncatingIfNeeded: Int(bitPattern: ref))
-        var msgs: [MidiMessage] = []
-        for packet in list.unsafeSequence() {
-            let count: Int = Int(packet.pointee.wordCount)
-            var words = packet.pointee.words
-            withUnsafeBytes(of: &words) { raw in
-                let all = raw.bindMemory(to: UInt32.self)
-                let used = UnsafeBufferPointer<UInt32>(rebasing: all[0..<min(count, all.count)])
-                msgs.append(contentsOf: MidiMessage.parse(words: used))
-            }
-        }
-        if msgs.isEmpty { return }
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self, let handler = self.onMessage else { return }
-            for msg in msgs { handler(msg, source) }
-        }
+        MIDISendEventList(outPort, dst, sendList)
     }
 
     private static func uniqueID(_ obj: MIDIObjectRef) -> Int32 {
