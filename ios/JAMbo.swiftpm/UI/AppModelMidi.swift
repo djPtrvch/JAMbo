@@ -237,7 +237,12 @@ extension AppModel {
 
     // MARK: — LEARN
 
+    /// LEARN вкл. / выкл.; DONE закрывает и окно MIDI MAP (без возврата в меню MIDI).
     func setLearn(_ on: Bool) {
+        if !on {
+            midiLearn.mapBack = false
+            closeMap()
+        }
         midiLearn.on = on
         midiLearn.target = nil
         midiLearn.last = ""
