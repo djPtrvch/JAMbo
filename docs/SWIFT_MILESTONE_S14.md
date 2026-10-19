@@ -18,10 +18,14 @@
 ## Проверено
 S14v — на iPad. CoreTests — 296 (новые: testMoveRow, testPasteTrackKeepsOwnPatterns, testClipSpeed, testQueuedClipAfterSlowClip, testSameNameIgnoresAudioExtension).
 
-## Дальше
-- Оптимизация: замер по разделам колбэка (DIAGNOSTICS), тест «тяжёлый проект», горячие места, интерфейс и MIDI → аудио мимо главного потока (если «затормаживание» останется).
-- Проверка S13e на iPad (клок с внешним устройством) и описание в docs/ai/settings-midi-sync.md.
-- App Store: Ableton Link — по лицензии Ableton (этап 9: LinkKit, сборка в Xcode); privacy manifest (UserDefaults, mach_absolute_time); значок; App Store Connect.
+## План (подтверждён пользователем)
+- S14v — правки интерфейса (готово, проверено на iPad).
+- S14a — замеры: в колбэке — время по разделам (голоса, FX, EQ, мастер, метры и запись), среднее и пик блока — в DIAGNOSTICS; тест Core «тяжёлый проект» (8 дорожек, синт аккордами, сэмплы, FX, EQ Dynamic, весь мастер) — отладочная и релизная сборка на Linux; в DIAGNOSTICS — время кадра интерфейса и пропущенные кадры; пользователь делает один замер на iPad своим тяжёлым проектом — дальше чинить по цифрам.
+- S14b — оптимизация звука: только горячие места по замерам S14a, по правилам отладочной сборки Playgrounds; после каждой правки — сверка с эталонами (тесты и SELF-TEST).
+- S14c — интерфейс и MIDI: лишние перерисовки (наблюдаемое состояние, таймеры); задержка нот с MIDI — сначала спросить пользователя, осталась ли; если да — путь MIDI → звук мимо главного потока; разделить Sampler.swift.
+- S14d — проверка S13e на iPad (меню SYNC, клок SEND / RECEIVE с внешним устройством), затем описание Swift-версии в docs/ai/settings-midi-sync.md.
+- S14e — App Store: Ableton Link — по лицензии Ableton (решение пользователя): для App Store — бесплатная лицензия Ableton (запрос — пользователь, link-devs@ableton.com; руководство Link, проверка интеграции); LinkKit (C++) в Playgrounds не подключить — сборка в Xcode на Mac (этап 9, спайк B0); до этого раздел ABLETON LINK неактивен. Privacy manifest PrivacyInfo.xcprivacy (UserDefaults, mach_absolute_time) — через Resources, проверить пробной загрузкой. Значок — только в Playgrounds (сейчас .placeholder). App Store Connect — пользователь: Team ID, версия, шифрование (ответ при каждой загрузке), политика конфиденциальности (URL), возрастной рейтинг, скриншоты iPad 13", TestFlight.
+- Итог — docs/SWIFT_MILESTONE_S14.md (создан; в конце вехи обновить).
 
 ## Открыто
 - Тексты docs/ai и ios/CLAUDE.md по правкам S14v — предложены, ждут подтверждения.
