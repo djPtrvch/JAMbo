@@ -66,6 +66,8 @@ public struct Track: Codable, Equatable, Sendable {
     public var morphEdited: Bool = false
     /// EQ дорожки (doc.eqs[i] веба): один на все клипы, переезжает и копируется вместе с дорожкой.
     public var eq: Eq = Eq()
+    /// Переход MIX (S10, t.home веба): свой звук дорожки, пока она играет клип PREV со звуком старой дорожки.
+    public var home: TrackSound?
 
     public init(index: Int) {
         id = Int.random(in: 0..<(1 << 31))
@@ -155,6 +157,8 @@ public struct Clip: Codable, Equatable, Sendable {
     public var scale: Int?
     public var root: Int?
     public var fx: [String: Double]?
+    /// Переход MIX (S10, src веба): только у клипа строки PREV — звук старой дорожки (старый проект).
+    public var src: TrackSound?
 
     public init(pages: [[Step]] = [Track.emptyPage()], length: Int = Params.stepsPerPage, playFrom: Int = 0,
                 playTo: Int = 0, scale: Int? = nil, root: Int? = nil, fx: [String: Double]? = nil) {
@@ -266,6 +270,8 @@ public struct Project: Codable, Equatable, Sendable {
     public var rowLoop: Bool = true
     /// Стрелки ▲ ▼: false — только прокрутка (VIEW), true — при игре ещё и переход строки (SWITCH).
     public var arrowSwitch: Bool = false
+    /// Идёт переход MIX (S10): последняя строка сетки — PREV (клипы старого проекта), строк проекта — на одну меньше.
+    public var prevRow: Bool = false
 
     public init() {
         tracks = (0..<Params.trackCount).map { Track(index: $0) }

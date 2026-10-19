@@ -46,7 +46,7 @@ extension Step {
 extension Track {
     enum CodingKeys: String, CodingKey, CaseIterable {
         case id, name, sample, params, clips, slot, open, mute, solo, stopped, folder, slices, vol, trim, table, assigns,
-             morphOrig, morphOrigAssign, morphEdited, eq
+             morphOrig, morphOrigAssign, morphEdited, eq, home
     }
 
     public init(from decoder: Decoder) throws {
@@ -71,11 +71,12 @@ extension Track {
         morphOrigAssign = c.value(.morphOrigAssign, [String: ModAssign?]())
         morphEdited = c.value(.morphEdited, false)
         eq = c.value(.eq, Eq())
+        home = c.optional(.home)
     }
 }
 
 extension Clip {
-    enum CodingKeys: String, CodingKey, CaseIterable { case pages, length, playFrom, playTo, scale, root, fx }
+    enum CodingKeys: String, CodingKey, CaseIterable { case pages, length, playFrom, playTo, scale, root, fx, src }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -86,6 +87,7 @@ extension Clip {
         scale = c.optional(.scale)
         root = c.optional(.root)
         fx = c.optional(.fx)
+        src = c.optional(.src)
     }
 }
 
@@ -103,7 +105,7 @@ extension Project {
     enum CodingKeys: String, CodingKey, CaseIterable {
         case version, bpm, scale, root, fx, fxAssigns, master, satBypass, cmpBypass, clipBypass, limBypass, outVol,
              masterEq, tracks, chanSeqs, scenes, rows, arrStart, arrEndStop, plusCopy, files, roots, rowLoop,
-             arrowSwitch
+             arrowSwitch, prevRow
     }
 
     public init(from decoder: Decoder) throws {
@@ -132,6 +134,7 @@ extension Project {
         roots = c.value(.roots, [String: Int]())
         rowLoop = c.value(.rowLoop, true)
         arrowSwitch = c.value(.arrowSwitch, false)
+        prevRow = c.value(.prevRow, false)
     }
 }
 

@@ -8,10 +8,13 @@ extension Track {
         return k >= 0 && k < clips.count && clips[k] != nil
     }
 
-    /// Сделать ячейку k активной; открытый клип идёт за активным, если был им.
+    /// Сделать ячейку k активной; открытый клип идёт за активным, если был им. Переход MIX: клип PREV приносит
+    /// звук старой дорожки, другой клип возвращает свой (settleSound).
     public mutating func activate(_ k: Int) {
         if open == slot { open = k }
+        if home != nil && clips[slot]?.src != nil { clips[slot]!.src = sound }
         slot = k
+        settleSound()
     }
 
     /// Правка клипа k (не открытого): например, запись с REC — в играющий клип, что бы ни было открыто.
@@ -75,13 +78,17 @@ extension Project {
     }
 
     /// Видимых строк: заданное число, но не меньше, чем нужно для заполненных ячеек.
+    /// Строк проекта: при переходе MIX последняя строка — PREV (её нет среди строк проекта).
+    public var rowLimit: Int { return prevRow ? Params.patternSlots - 1 : Params.patternSlots }
+
     public var visibleRows: Int {
+        let lim = rowLimit
         var n = Swift.max(1, rows)
-        for k in 0..<Params.patternSlots where rowFilled(k) { n = Swift.max(n, k + 1) }
-        return Swift.min(n, Params.patternSlots)
+        for k in 0..<lim where rowFilled(k) { n = Swift.max(n, k + 1) }
+        return Swift.min(n, lim)
     }
 
-    public var canAddRow: Bool { return visibleRows < Params.patternSlots }
+    public var canAddRow: Bool { return visibleRows < rowLimit }
 
     /// Пустых ячеек нет: в видимых строках у каждой дорожки клип.
     public mutating func fillRows() {
@@ -102,6 +109,7 @@ extension Project {
             if t.clipFilled(r) { continue }
             if plusCopy && !t.stopped && !t.blank && audible(i) {
                 tracks[i].clips[r] = t.clips[t.slot]
+                tracks[i].clips[r]?.src = nil
             } else {
                 tracks[i].putEmptyClip(r, scale: scale, root: root)
             }
@@ -109,32 +117,37 @@ extension Project {
         rows = r + 1
     }
 
-    /// DUPLICATE строки: копия встаёт под ней, строки ниже сдвигаются вниз.
+    /// DUPLICATE строки: копия встаёт под ней, строки ниже сдвигаются вниз (строка PREV перехода MIX остаётся).
     public mutating func duplicateRow(_ k: Int) {
         if !canAddRow { return }
         let n = visibleRows
+        let lim = rowLimit
         for i in tracks.indices {
             var c = tracks[i].clips
             c.insert(c[k], at: k + 1)
-            tracks[i].clips = Array(c.prefix(Params.patternSlots))
-            if tracks[i].slot > k { tracks[i].slot += 1 }
-            if tracks[i].open > k { tracks[i].open += 1 }
+            c.remove(at: lim)
+            tracks[i].clips = c
+            if tracks[i].slot > k && tracks[i].slot < lim { tracks[i].slot += 1 }
+            if tracks[i].open > k && tracks[i].open < lim { tracks[i].open += 1 }
         }
         scenes.insert(scenes[k], at: k + 1)
-        scenes = Array(scenes.prefix(Params.patternSlots))
+        scenes.remove(at: lim)
         rows = n + 1
     }
 
     /// DELETE строки: её клипы убираются, строки ниже сдвигаются вверх; дорожка, игравшая её, останавливается.
+    /// Строка PREV перехода MIX остаётся на месте.
     public mutating func deleteRow(_ k: Int) {
         let n = visibleRows
+        let lim = rowLimit
         for i in tracks.indices {
             var c = tracks[i].clips
             c.remove(at: k)
-            c.append(nil)
+            c.insert(nil, at: lim - 1)
             let slot = tracks[i].slot
-            let fallback: Int = c[k] != nil ? k : (c.firstIndex { $0 != nil } ?? Swift.min(k, Swift.max(0, n - 2)))
-            var active: Int = slot > k ? slot - 1 : slot
+            let first: Int? = c.prefix(lim).firstIndex { $0 != nil }
+            let fallback: Int = c[k] != nil ? k : (first ?? Swift.min(k, Swift.max(0, n - 2)))
+            var active: Int = slot > k && slot < lim ? slot - 1 : slot
             if slot == k {
                 active = fallback
                 tracks[i].stopped = true
@@ -142,10 +155,10 @@ extension Project {
             let open = tracks[i].open
             tracks[i].clips = c
             tracks[i].slot = active
-            tracks[i].open = open == k ? fallback : (open > k ? open - 1 : open)
+            tracks[i].open = open == k ? fallback : (open > k && open < lim ? open - 1 : open)
         }
         scenes.remove(at: k)
-        scenes.append(SceneRow())
+        scenes.insert(SceneRow(), at: lim - 1)
         rows = Swift.max(1, n - 1)
         if arrStart > k || arrStart >= rows { arrStart = Swift.max(0, arrStart - 1) }
     }

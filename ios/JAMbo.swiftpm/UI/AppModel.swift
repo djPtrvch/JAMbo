@@ -339,6 +339,8 @@ final class AppModel {
                 p.tracks[i].stopped = cur.stopped
                 if p.tracks[i].clipFilled(cur.slot) || cur.blank { p.tracks[i].slot = cur.slot }
                 p.tracks[i].open = cur.open
+                // Переход MIX: звук — по активной ячейке (клип PREV — звук старой дорожки).
+                p.tracks[i].settleSound()
             }
         }
         let bpmChanged = p.bpm != project.bpm

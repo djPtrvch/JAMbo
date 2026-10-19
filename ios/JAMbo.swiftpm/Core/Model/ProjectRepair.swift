@@ -42,6 +42,13 @@ extension Project {
             keys.insert(t.sample)
             keys.formUnion(t.folder.items)
             keys.formUnion(t.slices.keys)
+            // Переход MIX: звук старой дорожки у клипа PREV и свой звук дорожки, пока играет PREV.
+            for snd in ([t.home] + t.clips.map { $0?.src }) {
+                guard let snd = snd else { continue }
+                keys.insert(snd.sample)
+                keys.formUnion(snd.folder.items)
+                keys.formUnion(snd.slices.keys)
+            }
             for c in t.clips {
                 guard let c = c else { continue }
                 for page in c.pages {
