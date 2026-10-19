@@ -110,6 +110,8 @@ final class JamboVoice {
                  now: Double, tau: Double) {
         // KICK и SUB монофоничны: новый удар (нота) в тот же слот, хвост прошлого гаснет за ~2 мс.
         dc = (e == Jambo.drum && engine == Jambo.drum) || (e == Jambo.sub && engine == Jambo.sub) ? last : 0
+        // SUB на звучащей ноте: фазы генераторов продолжаются (сброс на каждой ноте давал щелчок — проверено на стенде).
+        let subGoesOn: Bool = e == Jambo.sub && engine == Jambo.sub && last != 0
         engine = e
         set(note: n, q1, q2, q3, q4, decay: decay)
         // Новая нота — ручки сразу на своих местах (сглаживание — только для смены на лету).
@@ -122,24 +124,27 @@ final class JamboVoice {
         p1 = 0
         m1 = 0
         m2 = 0
-        hb.update(repeating: 0, count: Jambo.hbLen * 2)
         // Фаза новой ноты — как у генератора, который бежит непрерывно (frac(f·t)); оба осциллятора ANALOG — из одной точки.
         let f = 440 * pow(2, (note - 69) / 12) / sr
-        // ANALOG: DETUNE — ручка 1.3 (S12).
-        let det = Jambo.analogDetune / 2 * s3 * s3
-        a1 = jFrac(f * pow(2, det / 1200) * tau)
-        a2 = jFrac(f * pow(2, -det / 1200) * tau)
-        tri1 = jTriAt(a1)
-        tri2 = jTriAt(a2)
-        wCur = Jambo.waveIndex(t1)
-        wPrev = wCur
+        if !subGoesOn {
+            // Буфер децимации и фазы — заново; у продолжающегося SUB — как есть (иначе разрыв волны).
+            hb.update(repeating: 0, count: Jambo.hbLen * 2)
+            // ANALOG: DETUNE — ручка 1.3 (S12).
+            let det = Jambo.analogDetune / 2 * s3 * s3
+            a1 = jFrac(f * pow(2, det / 1200) * tau)
+            a2 = jFrac(f * pow(2, -det / 1200) * tau)
+            tri1 = jTriAt(a1)
+            tri2 = jTriAt(a2)
+            wCur = Jambo.waveIndex(t1)
+            wPrev = wCur
+        }
         wMix = 1
         bCur = Jambo.waveIndex(t2)
         bPrev = bCur
         bMix = 1
-        // SUB: Key Reset — фазы обоих осцилляторов с одной точки (бас одинаков на каждой ноте): там, где волна
-        // проходит ноль (треугольник — 0, пила — середина периода), иначе нота начиналась бы с пика (щелчок).
-        if e == Jambo.sub {
+        // SUB после тишины: фазы обоих осцилляторов — там, где волна проходит ноль (треугольник — 0, пила — середина
+        // периода), иначе нота начиналась бы с пика (щелчок); на звучащей ноте — продолжаются.
+        if e == Jambo.sub && !subGoesOn {
             wCur = Swift.min(2, Int(t1 * 3)) + 1
             let p0: Double = wCur == 2 ? 0.5 : 0
             a1 = p0

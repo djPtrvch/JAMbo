@@ -61,6 +61,29 @@ final class SubEngineTests: XCTestCase {
         XCTAssertLessThan(abs(a[0]), 0.01, "вход ноты плавный")
     }
 
+    /// Новая нота на звучащей SUB: фазы генераторов продолжаются (сброс давал щелчок), буфер децимации не сбрасывается —
+    /// стык на уровне движка без скачка.
+    func testPhaseGoesOn() {
+        let v = JamboVoice(tables: SubEngineTests.tables, sampleRate: 48000)
+        v.trigger(engine: Jambo.sub, note: 36, 0.5, 0.4, 0, 0, decay: 500, now: 0, tau: 0)
+        var out = [Float](repeating: 0, count: 12000)
+        out.withUnsafeMutableBufferPointer { b in
+            var pos = 0
+            while pos < 12000 {
+                if pos == 6000 { v.trigger(engine: Jambo.sub, note: 43, 0.5, 0.4, 0, 0, decay: 500, now: 0, tau: 0) }
+                let n = min(24, 12000 - pos)
+                v.render(b.baseAddress! + pos, n, driftRatio: 1)
+                pos += n
+            }
+        }
+        var steady: Float = 0
+        for i in 2000..<6000 { steady = max(steady, abs(out[i] - out[i - 1])) }
+        for i in 9000..<12000 { steady = max(steady, abs(out[i] - out[i - 1])) }
+        var seam: Float = 0
+        for i in 6000..<6200 { seam = max(seam, abs(out[i] - out[i - 1])) }
+        XCTAssertLessThanOrEqual(seam, steady * 1.2 + 1e-4)
+    }
+
     /// SUB 100 % — только нижний осциллятор: основная частота — октавой ниже.
     func testSubOctave() {
         func hz(_ x: [Float]) -> Double {
