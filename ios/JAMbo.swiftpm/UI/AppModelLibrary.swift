@@ -177,6 +177,7 @@ extension AppModel {
 
     /// LOAD выбора: в папке дорожки — только отмеченные (по порядку списка), первый звучит.
     func libLoadPicked() {
+        trace("library LOAD picked \(libPicked?.count ?? -1)")
         guard let picked = libPicked else { return }
         let list: [LibNode] = library.children(libFolder).filter { $0.kind != .folder && picked.contains($0.id) }
         let i: Int = selectedTrack

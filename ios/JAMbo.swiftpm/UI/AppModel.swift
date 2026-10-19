@@ -154,7 +154,14 @@ final class AppModel {
     var projectImport: ProjectImport? = nil
     /// Браузер библиотеки (S11b) на месте центра: режим (nil — закрыт), дерево, открытая папка, выбор нескольких
     /// (nil — нет), строка внизу (что загружено, ошибка); выбор файлов — для IMPORT в библиотеку.
-    var browser: BrowserMode? = nil
+    var browser: BrowserMode? = nil {
+        didSet {
+            // Отладка (закрытие браузера по LOAD выбора): кто закрыл — в консоль Playgrounds.
+            if browser == nil && oldValue != nil {
+                trace("browser closed:\n" + Thread.callStackSymbols.prefix(10).joined(separator: "\n"))
+            }
+        }
+    }
     var library: Library = Library()
     var libFolder: String = Library.root
     var libPicked: Set<String>? = nil
