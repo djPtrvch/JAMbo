@@ -79,7 +79,7 @@ struct RecordSettingsView: View {
     }
 }
 
-/// SAMPLER: SLICE NOTES — ноты маркеров нарезки по хроматической клавиатуре или по гамме.
+/// SAMPLER: SLICE NOTES — ноты маркеров нарезки по хроматической клавиатуре или по гамме; CLEAR SAMPLE LOCKS (S11b).
 struct SamplerSettings: View {
     let model: AppModel
 
@@ -91,6 +91,8 @@ struct SamplerSettings: View {
                 MenuItem(title: "SCALE", current: model.settings.sliceMap == .scale) { model.setSliceMap(.scale) }
             }
             SettingsNote(text: "Markers in the sample editor play their slice from a piano key. CHROMATIC: markers go up by semitone from C3 (C3, C#3, D3…). SCALE: markers follow the notes of the selected scale from its root note in octave 3; the marker notes change with the scale.")
+            ToggleRow(title: "CLEAR SAMPLE LOCKS", isOn: model.settings.clearSampleLocks) { model.setClearSampleLocks($0) }
+            SettingsNote(text: "ON: loading sounds from the library onto a track removes its sample locks — those steps play the track sound at their own note. Preset locks stay. OFF: sample locks keep their samples.")
         }
     }
 }

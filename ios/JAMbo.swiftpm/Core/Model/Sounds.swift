@@ -149,6 +149,24 @@ extension Track {
         }
     }
 
+    /// Снять сэмпл-локи (свой сэмпл шага) во всех клипах дорожки: шаги играют звук дорожки своей нотой.
+    /// Пресет-локи (свой синт шага, «mi:…») остаются.
+    public mutating func clearSampleLocks() {
+        for k in 0..<clips.count {
+            guard var c = clips[k] else { continue }
+            var changed = false
+            for p in 0..<c.pages.count {
+                for s in 0..<c.pages[p].count {
+                    guard let snd = c.pages[p][s].sound, !snd.contains(":") else { continue }
+                    Track.dropSoundLocks(&c.pages[p][s])
+                    c.pages[p][s].sound = nil
+                    changed = true
+                }
+            }
+            if changed { clips[k] = c }
+        }
+    }
+
     /// Свой звук шагов (nil — снова звук дорожки).
     public mutating func setStepSound(_ indices: [Int], _ key: String?) {
         for i in indices where step(i) != nil {

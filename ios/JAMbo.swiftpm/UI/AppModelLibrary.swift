@@ -153,9 +153,11 @@ extension AppModel {
         if n.kind == .sample, let key = n.key {
             libUseSamples([(key, n.name)]) { [weak self] ok in
                 guard let self = self, ok, i < self.project.tracks.count else { return }
+                let clear: Bool = self.settings.clearSampleLocks
                 self.edit { p in
                     if steps.isEmpty {
                         p.tracks[i].setFolder([FolderItem(sample: key)])
+                        if clear { p.tracks[i].clearSampleLocks() }
                     } else {
                         p.tracks[i].addSamplesQuiet([key])
                         p.tracks[i].setStepSound(steps, key)
@@ -164,7 +166,11 @@ extension AppModel {
                 self.libNote = (steps.isEmpty ? self.trackLabel(i) : AppModel.stepsLabel(steps)) + ": " + n.name
             }
         } else if n.kind == .preset, let p = n.preset, steps.isEmpty {
-            edit { pr in pr.tracks[i].setFolder([FolderItem(preset: p)]) }
+            let clear: Bool = settings.clearSampleLocks
+            edit { pr in
+                pr.tracks[i].setFolder([FolderItem(preset: p)])
+                if clear { pr.tracks[i].clearSampleLocks() }
+            }
             libNote = trackLabel(i) + ": " + n.name
         }
     }
@@ -175,9 +181,9 @@ extension AppModel {
         libPicked = [n.id]
     }
 
-    /// LOAD выбора: в папке дорожки — только отмеченные (по порядку списка), первый звучит.
+    /// LOAD выбора: в папке дорожки — только отмеченные (по порядку списка), первый звучит; SETTINGS → SAMPLER →
+    /// CLEAR SAMPLE LOCKS — сэмпл-локи дорожки снимаются. Затем браузер закрывается.
     func libLoadPicked() {
-        trace("library LOAD picked \(libPicked?.count ?? -1)")
         guard let picked = libPicked else { return }
         let list: [LibNode] = library.children(libFolder).filter { $0.kind != .folder && picked.contains($0.id) }
         let i: Int = selectedTrack
@@ -192,10 +198,15 @@ extension AppModel {
                 if n.kind == .sample, let k = n.key, self.store.data(k) != nil { items.append(FolderItem(sample: k)) }
                 if n.kind == .preset, let p = n.preset { items.append(FolderItem(preset: p)) }
             }
-            if items.isEmpty { return }
-            self.edit { p in p.tracks[i].setFolder(items) }
-            self.libNote = self.trackLabel(i) + ": \(items.count) sound\(items.count == 1 ? "" : "s") in the track folder"
             self.libPicked = nil
+            if items.isEmpty { return }
+            let clear: Bool = self.settings.clearSampleLocks
+            self.edit { p in
+                p.tracks[i].setFolder(items)
+                if clear { p.tracks[i].clearSampleLocks() }
+            }
+            // LOAD выбора закрывает браузер (решение пользователя; в вебе остаётся открытым).
+            self.closeBrowser()
         }
     }
 

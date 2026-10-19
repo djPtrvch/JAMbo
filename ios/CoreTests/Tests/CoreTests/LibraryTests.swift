@@ -217,3 +217,34 @@ final class StepSoundSnapshotTests: XCTestCase {
         XCTAssertEqual(snap.data.entry(0, SoundKey.hash("a")), -1)
     }
 }
+
+/// CLEAR SAMPLE LOCKS: сэмпл-локи снимаются во всех клипах, пресет-локи остаются.
+final class SampleLockTests: XCTestCase {
+    func testClearSampleLocksKeepsPresetLocks() {
+        var t = Track(index: 0)
+        t.clips[3] = Clip()
+        t.withStep(1) { $0.on = true }
+        t.setStepSound([1], "kick")
+        t.addItems([FolderItem(preset: SynthPreset(name: "B", sound: "mi:2", params: ["harm": 10]))])
+        t.withStep(2) { $0.on = true }
+        t.stepFolderOnSteps([2], 1)
+        XCTAssertEqual(t.step(2)?.sound, "mi:2")
+        t.open = 3
+        t.withStep(0) { $0.on = true }
+        t.setStepSound([0], "snare")
+        t.clearSampleLocks()
+        XCTAssertNil(t.clips[3]?.pages[0][0].sound)
+        XCTAssertNil(t.clips[0]?.pages[0][1].sound)
+        XCTAssertEqual(t.clips[0]?.pages[0][2].sound, "mi:2")
+        XCTAssertEqual(t.clips[0]?.pages[0][2].locks["harm"], 10)
+        XCTAssertTrue(t.clips[0]?.pages[0][1].on ?? false)
+    }
+
+    func testSettingDefaultsOn() {
+        XCTAssertTrue(AppSettings().clearSampleLocks)
+        XCTAssertTrue(AppSettings.decode(Data("{}".utf8)).clearSampleLocks)
+        var s = AppSettings()
+        s.clearSampleLocks = false
+        XCTAssertFalse(AppSettings.decode(s.encode()).clearSampleLocks)
+    }
+}

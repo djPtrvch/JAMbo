@@ -58,6 +58,10 @@ extension AppModel {
         updateSettings { s in s.morphReturn = k }
     }
 
+    func setClearSampleLocks(_ on: Bool) {
+        updateSettings { s in s.clearSampleLocks = on }
+    }
+
     func setMixKey(_ on: Bool) {
         updateSettings { s in s.mixKey = on }
     }
