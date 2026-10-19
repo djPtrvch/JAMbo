@@ -1,11 +1,11 @@
-# Handoff: JAMbo, Swift-версия — S13 (MIDI), дальше S13f
+# Handoff: JAMbo, Swift-версия — S13 (MIDI) готов, дальше S14
 
 ## 1. Контекст проекта
 Groovebox для iPad. Веб (`src/`, `public/`) — эталон, заморожен. Swift-перенос — ветка `swift`, `ios/JAMbo.swiftpm`. Правила — `CLAUDE.md`, `ios/CLAUDE.md`; план и вехи — `docs/SWIFT_AUDIT.md` (раздел 6); итоги вех — `docs/SWIFT_MILESTONE_Sx.md`. Поведение MIDI — `docs/ai/settings-midi-sync.md` (в ветке swift описывает Swift-версию).
 
 ## 2. Принятые решения
 - Порядок вех: S13 MIDI → S14 оптимизация и App Store → S15 автоматизация.
-- План S13: a — CoreMIDI, устройства, ноты (готово); b — маппинг и LEARN (готово); c — окно MIDI MAP и пресеты (готово); d — обратная связь (готово); e — SYNC (меню, SYNC QUANTUM, MIDI-клок SEND / RECEIVE, офсеты, TempoSource; настройки Link только хранятся; готово, на iPad не проверено); f — Bluetooth MIDI (CONNECT и ADVERTISE — CABTMIDICentralViewController и CABTMIDILocalPeripheralViewController; capability Bluetooth добавляет пользователь), итог SWIFT_MILESTONE_S13.md.
+- План S13: a — CoreMIDI, устройства, ноты (готово); b — маппинг и LEARN (готово); c — окно MIDI MAP и пресеты (готово); d — обратная связь (готово); e — SYNC (меню, SYNC QUANTUM, MIDI-клок SEND / RECEIVE, офсеты, TempoSource; настройки Link только хранятся; готово, на iPad не проверено); f — Bluetooth MIDI (CONNECT и ADVERTISE — CABTMIDICentralViewController и CABTMIDILocalPeripheralViewController; capability Bluetooth Always в Package.swift; готово, проверено на iPad). Итог — SWIFT_MILESTONE_S13.md.
 - Решения пользователя в S13:
   - Нота с MIDI держится до Note Off (в вебе — один шаг).
   - TWISTER PRESET и встроенный пресет Twister убраны (пользователь сохранит свой).
@@ -23,10 +23,10 @@ Groovebox для iPad. Веб (`src/`, `public/`) — эталон, заморо
 - Термины (CLAUDE.md): сэмпл-лок — шаг со своим сэмплом, пресет-лок — шаг со своим пресетом синта.
 
 ## 3. Текущая задача
-S13f — Bluetooth MIDI: CONNECT и ADVERTISE (CABTMIDICentralViewController и CABTMIDILocalPeripheralViewController; capability Bluetooth добавляет пользователь), итог SWIFT_MILESTONE_S13.md.
+S14 — оптимизация и App Store (план — в начале вехи); первым делом — проверка S13e на iPad (перенесена из S13).
 
 ## 4. Что уже решено
-- S0–S12 готовы и проверены на iPad; S13a–d проверены на iPad (обратная связь — с TouchOSC по Bluetooth). CoreTests — 291.
+- S0–S12 готовы и проверены на iPad; S13a–d и S13f проверены на iPad (обратная связь — с TouchOSC по Bluetooth); S13e — не проверен. CoreTests — 291.
 - Core/Midi: MidiMessage (разбор UMP MIDI 1.0), MidiSettings (вход, выход, ноты, mappings, preset, pressTouch), MidiMapping (цели, типы, энкодеры, условия, MidiPlace), MidiMapper (условия, LEARN, правка, MidiToggles), MidiPresets, MidiFeedback (действующие маппинги, значение в Range, только изменения), SyncSettings (меню SYNC). Core/Sequencer: ClockPlan (клок SEND), ClockFollower (клок RECEIVE); Sequencer.start(at:) и clockPhase, InternalTempoSource.shift. Тесты — MidiTests, MidiMapTests, MidiPresetTests, MidiFeedbackTests.
 - Audio/MidiHost.swift — клиент CoreMIDI, все источники, списки устройств; сообщения — на главный поток; выходной порт и send (обратная связь).
 - UI: AppModelMidi (разбор, ручки, PRESS, BPM, LEVEL, XFADER), AppModelMidiMap (окно, пресеты, подписи), MidiButtons (имена и действия кнопок), MidiLearnState, MidiLearnViews (полоса LEARN, метки), MidiMenu (DEVICES, MAPPING, NOTES), MidiMapWindow и MidiMapPages. withKnobPlace (AppModel.swift) — действие ручки на другом месте. AppModelMidiFeedback — обратная связь (из drain), Button latch, состояние кнопок (midiLit). SyncMenu (меню SYNC), AppModelSync (клок SEND и RECEIVE из drain, midiRealtime).
@@ -57,4 +57,4 @@ S13f — Bluetooth MIDI: CONNECT и ADVERTISE (CABTMIDICentralViewController и 
 - Звуковые ошибки (щелчки) — воспроизводить сценой пользователя в тесте Core и мерить; при сомнении — стенд-страница с AudioWorklet (как SUB Bench в S12).
 
 ## 7. Первый запрос для нового чата
-«Прочитай docs/handoffs/HANDOFF.md и ios/CLAUDE.md. Продолжаем S13: S13f — Bluetooth MIDI»
+«Прочитай docs/handoffs/HANDOFF.md и ios/CLAUDE.md. Начинаем S14: проверка S13e, затем оптимизация и App Store»
