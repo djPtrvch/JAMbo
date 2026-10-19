@@ -1,4 +1,4 @@
-# Handoff: JAMbo, Swift-версия — S10 (переходы между проектами)
+# Handoff: JAMbo, Swift-версия — S11 (библиотека, импорт и экспорт, стемы, REC)
 
 ## 1. Контекст проекта
 Groovebox для iPad. Веб (`src/`, `public/`) — эталон, заморожен. Swift-перенос — ветка `swift`, `ios/JAMbo.swiftpm`. Правила — `CLAUDE.md`, `ios/CLAUDE.md`; план и вехи — `docs/SWIFT_AUDIT.md` (раздел 6).
@@ -6,27 +6,29 @@ Groovebox для iPad. Веб (`src/`, `public/`) — эталон, заморо
 ## 2. Принятые решения
 - Переносим всё из веба (кроме браузерного); отличия — в «Решениях» `ios/CLAUDE.md`.
 - DSP сверяется с эталонами веба, каждый эталон — в SELF-TEST.
-- Порядок вех: S10 переходы между проектами → S11 библиотека и файлы → S12 MIDI → S13 автоматизация → S14 оптимизация и релиз.
-- Решения S9 для S10 (`ios/CLAUDE.md`, пункт SETTINGS): SETTINGS → MIX — CHANGE KEY (ON — гамма и нота нового проекта при переходе, OFF — остаются; по умолчанию ON) и CROSSFADER (ON — кроссфейдер управляет только темпом, в вебе — темпом и общими настройками; OFF — кроссфейдера нет, темп старого паттерна; по умолчанию ON). Сейчас они только хранятся (AppSettings.mixKey, mixCrossfader).
-- Окно открытия проекта (LOAD / MIX) уже есть, MIX серая (ProjectsMenu.swift, OpenProjectPanel). LOAD и NEW останавливают игру (AppModel.loadProject) — смена проекта во время игры — через MIX.
+- Порядок вех: S11 библиотека, импорт и экспорт, стемы, REC → S12 MIDI → S13 автоматизация → S14 оптимизация и релиз.
+- Переход MIX (S10) — `docs/SWIFT_MILESTONE_S10.md`: строка PREV, звук старой дорожки у клипа PREV, кроссфейдер ведёт всё плавно, CHANGE KEY и CROSSFADER OFF держат гамму, ноту и темп старого проекта, пока идёт игра; сохраняется новый проект без PREV (AppModel.savedProject). Сетка паттернов — мультитач.
 
 ## 3. Текущая задача
-S10: переход MIX между проектами (строка PREV, кроссфейдер). Сначала свериться с вебом (docs/ai/patterns-projects.md — «Переход между проектами», «Кроссфейдер»; state.ts — switchWithTransition, updateTransition, docForSave), уточнить у пользователя состав и отличия, затем разбивка и план.
+S11: библиотека с папками (сэмплы, пресеты, таблицы), EXPORT / IMPORT проекта (.jambo, перенос из веба), ZIP, WAV, запись стемов и мастера (● в MIX, RECORDINGS), REC в редакторе сэмпла (вход, дорожка, мастер). Сначала свериться с вебом (docs/ai/sound-sampler.md — библиотека; docs/ai/tracks-mixer.md — стемы; docs/ai/patterns-projects.md — проекты; library.ts, libio.ts, zip.ts, stems.ts, project.ts), уточнить у пользователя состав и отличия, затем разбивка и план.
 
 ## 4. Что уже решено
-- S0–S9 готовы и проверены на iPad. S9 — docs/SWIFT_MILESTONE_S9.md: формат проекта (ProjectCoding, ProjectRepair, ProjectStore), автосохранение (ProjectSession), PROJECTS, бутерброд и SETTINGS, MUTE TAILS, LICENSES, LEVEL (Track.trim), MORPH (ALL TRACKS, RETURN).
-- CoreTests — 196.
+- S0–S10 готовы и проверены на iPad. CoreTests — 209.
+- Проекты (S9): ProjectStore — Application Support/Projects/<id>.json; сэмплы — Samples/<ключ>.caf (при удалении проектов не удаляются — чистка с библиотекой, S11). Имена полей модели — как в вебе (для импорта .jambo).
+- IMPORT, как в вебе, должен предлагать LOAD или MIX (окно OpenProjectPanel, AppModel.startMix).
 - Новое поле модели проекта — добавлять в CodingKeys и init(from:) (ProjectCoding.swift); тест testCodingKeysCoverAllFields это проверяет.
 
 ## 5. Что осталось решить
-- Состав S10 и отличия от веба — уточнить у пользователя (сохранение во время перехода, как в docForSave веба; что делать с CHANGE KEY OFF; кроссфейдер только для темпа).
+- Состав S11 и отличия от веба — уточнить у пользователя (файлы приложения и «Файлы» iPad: fileImporter / fileExporter; формат ZIP; что из RECORDINGS).
 - Место кнопки AUTO — в S13.
 - Sampler.swift — 635 строк (больше ~600), разделить при случае.
+- Правки микшера и мастера во время перехода MIX в файл не попадают (открыто в S10).
 
 ## 6. Важные ограничения
 - Колбэк: без выделений, блокировок, Swift-коллекций.
 - Только Swift и фреймворки Apple; файл ≤ ~600 строк; тело View ≤ ~40 строк.
 - Playgrounds: выражения — по шагам с явными типами; UI на Linux не собирается — проверка только на iPad.
+- Жесты с несколькими пальцами — SpatialEventGesture (клавиатура, шаги, сетка паттернов).
 - Надписи — английские; комментарии и документы — русские. Окна закрываются квадратным ✕; меню закрываются тапом мимо.
 - Markdown: путь, причина, точный текст — затем подтверждение.
 - Тесты: `ios/tools/install-swift-linux.sh`, затем `. ios/tools/swift-env.sh && cd ios/CoreTests && swift test`.
@@ -34,4 +36,4 @@ S10: переход MIX между проектами (строка PREV, кро
 - Скриншоты пользователя могут быть от старой сборки — сверять с последним коммитом.
 
 ## 7. Первый запрос для нового чата
-«Прочитай docs/handoffs/HANDOFF.md и ios/CLAUDE.md. Состав S10: …»
+«Прочитай docs/handoffs/HANDOFF.md и ios/CLAUDE.md. Состав S11: …»
