@@ -259,7 +259,7 @@ struct MainMenu: View {
         case .settings:
             SettingsPage(model: model, back: { page = .main })
         case .midi:
-            MidiPage(model: model, back: { page = .main }, close: { isOpen = false })
+            MidiMenuPage(model: model, back: { page = .main }, close: { isOpen = false })
         case .main:
             MenuScroll { mainItems }
         }

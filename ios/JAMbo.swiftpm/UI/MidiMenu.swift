@@ -8,7 +8,7 @@ enum MidiTab: String, CaseIterable {
 }
 
 /// Бутерброд → MIDI (S13a, как ui/midi.ts веба): стрелка назад и «MIDI», вкладки, ниже — с чертой — открытая вкладка.
-struct MidiPage: View {
+struct MidiMenuPage: View {
     let model: AppModel
     let back: () -> Void
     let close: () -> Void
