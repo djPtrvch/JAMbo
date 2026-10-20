@@ -216,6 +216,9 @@ extension Sampler {
             }
             if let l = srcL[v], !d.holds(l) { fade(v, at: now, tau: 0.0015) }
         }
+        // Предпрослушка ▶ держит указатели прошлого снимка: сэмпла в новом нет — гаснет (~40 мс, прошлый снимок
+        // живёт ещё 0,5 с), иначе после выгрузки сэмпла колбэк читал бы освобождённую память.
+        if let l = pvL, !d.holds(l) { pvStop = true }
         synth?.adopt(d, now: now)
         guard let o = old else { return }
         let n = Swift.min(d.trackCount, o.trackCount)
