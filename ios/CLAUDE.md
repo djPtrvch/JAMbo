@@ -5,7 +5,7 @@
 ## Структура
 - `JAMbo.swiftpm/Core/` — DSP и модель, только Foundation и Synchronization (Accelerate — только под `#if canImport(Accelerate)` с обычной реализацией рядом). Util/ (атомарные значения, очереди, CPU), Engine/ (AudioCore — весь звук), Model/ (Params, Project, правки, UNDO), Sequencer/, Sampler/, Synth/, Jambo/, FX/, Mod/, Master/, EQ/, Icons/.
 - `JAMbo.swiftpm/Audio/` — AVAudioSession (48 кГц, буфер 256), один AVAudioSourceNode → `AudioCore.render`; хранилище сэмплов.
-- `JAMbo.swiftpm/UI/` — SwiftUI. `JAMbo.swiftpm/Resources/` — эталоны самотеста, лицензии.
+- `JAMbo.swiftpm/UI/` — SwiftUI. `JAMbo.swiftpm/Resources/` — эталоны самотеста, PrivacyInfo.xcprivacy.
 - `CoreTests/` — сборка и тесты Core на Linux и Mac (`Sources/Core` — ссылка на `JAMbo.swiftpm/Core`).
 - `tools/` — install-swift-linux.sh, swift-env.sh; генераторы эталонов (jambo, fx, master, eq, icons).
 

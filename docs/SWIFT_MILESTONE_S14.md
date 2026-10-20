@@ -24,8 +24,13 @@ S14v — на iPad. CoreTests — 296 (новые: testMoveRow, testPasteTrackKe
 - S14b — оптимизация звука: только горячие места по замерам S14a, по правилам отладочной сборки Playgrounds; после каждой правки — сверка с эталонами (тесты и SELF-TEST).
 - S14c — интерфейс и MIDI: лишние перерисовки (наблюдаемое состояние, таймеры); задержка нот с MIDI — сначала спросить пользователя, осталась ли; если да — путь MIDI → звук мимо главного потока; разделить Sampler.swift.
 - S14d — проверка S13e на iPad (меню SYNC, клок SEND / RECEIVE с внешним устройством), затем описание Swift-версии в docs/ai/settings-midi-sync.md.
-- S14e — App Store: Ableton Link — по лицензии Ableton (решение пользователя): для App Store — бесплатная лицензия Ableton (запрос — пользователь, link-devs@ableton.com; руководство Link, проверка интеграции); LinkKit (C++) в Playgrounds не подключить — сборка в Xcode на Mac (этап 9, спайк B0); до этого раздел ABLETON LINK неактивен. Privacy manifest PrivacyInfo.xcprivacy (UserDefaults, mach_absolute_time) — через Resources, проверить пробной загрузкой. Значок — только в Playgrounds (сейчас .placeholder). App Store Connect — пользователь: Team ID, версия, шифрование (ответ при каждой загрузке), политика конфиденциальности (URL), возрастной рейтинг, скриншоты iPad 13", TestFlight.
+- S14e — App Store: Ableton Link — по лицензии Ableton (решение пользователя): для App Store — бесплатная лицензия Ableton (запрос — пользователь, link-devs@ableton.com; руководство Link, проверка интеграции); LinkKit (C++) в Playgrounds не подключить — сборка в Xcode на Mac (этап 9, спайк B0); до этого раздел ABLETON LINK скрыт. Privacy manifest PrivacyInfo.xcprivacy (UserDefaults, mach_absolute_time) — через Resources, проверить пробной загрузкой. Значок — только в Playgrounds (сейчас .placeholder). App Store Connect — пользователь: Team ID, версия, шифрование (ответ при каждой загрузке), политика конфиденциальности (URL), возрастной рейтинг, скриншоты iPad 13", TestFlight.
 - Итог — docs/SWIFT_MILESTONE_S14.md (создан; в конце вехи обновить).
 
 ## Открыто
 - Тексты docs/ai и ios/CLAUDE.md по правкам S14v — предложены, ждут подтверждения.
+
+## Аудит перед App Store (готово)
+- Раздел ABLETON LINK скрыт; PrivacyInfo.xcprivacy (UserDefaults CA92.1, SystemBootTime 35F9.1) — в Resources, место в бандле видно в DIAGNOSTICS (строка Privacy) — проверить на iPad; TEST TONE и Tap в DIAGNOSTICS — только с DEBUG.
+- PlayClock — барьеры памяти в seqlock; предпрослушка ▶ гаснет, если сэмпла нет в новом снимке; Reverb — reset() без массива, денормали в all-pass и биквадах.
+- Открыто: значок и URL политики конфиденциальности (пользователь); пробная загрузка — privacy manifest и ориентация только альбомная; индикатор микрофона при .playAndRecord; trace/print в релизе; предел распаковки ZIP.
