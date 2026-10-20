@@ -15,14 +15,14 @@ struct SynthInfo: View {
         return VStack(alignment: .leading, spacing: 4) {
             SoundTitle(main: e?.name ?? "", detail: table)
             VStack(alignment: .leading, spacing: 8) {
+                // Иконка чуть выше своего места; ручки под ней не сдвигаются.
                 SynthIcon(model: model, engine: engine)
                     .frame(maxWidth: .infinity, maxHeight: 120)
+                    .offset(y: -12)
                 rows
             }
             .padding(.horizontal, 6)
-            .padding(.top, 4)
-            // Иконка и ручки — сразу под заголовком, свободное место — снизу.
-            .frame(maxHeight: .infinity, alignment: .top)
+            .frame(maxHeight: .infinity)
         }
         .padding(8)
     }
@@ -56,7 +56,8 @@ struct SoundTitle: View {
             t = t + Text(" — " + d).foregroundStyle(theme.text)
         }
         return t
-            .font(.system(size: 17, weight: .semibold))
+            // Как подписи движков в меню звука.
+            .font(.system(size: 13, weight: .bold))
             .lineLimit(1)
             .minimumScaleFactor(0.7)
     }
