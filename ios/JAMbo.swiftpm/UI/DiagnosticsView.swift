@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// DIAGNOSTICS: фактическое состояние звука («Now:»), нагрузка, сборка, место privacy manifest (SELF-TEST — своё окно,
-/// S9e). Тест-тон и строка Tap — только в отладочной сборке (S14: в App Store отладочных функций нет).
+/// DIAGNOSTICS: фактическое состояние звука («Now:»), нагрузка, время колбэка по разделам и кадры интерфейса (S14a:
+/// последняя секунда и худшее с RESET — замер идёт и при закрытом окне), сборка, место privacy manifest (SELF-TEST —
+/// своё окно, S9e). Тест-тон и строка Tap — только в отладочной сборке (S14: в App Store отладочных функций нет).
 struct DiagnosticsView: View {
     let model: AppModel
     @Environment(\.theme) private var theme
@@ -11,10 +12,17 @@ struct DiagnosticsView: View {
             TimelineView(.periodic(from: .now, by: 0.5)) { _ in
                 info
             }
-            #if DEBUG
-            InkButton(title: "TEST TONE 440 Hz", active: model.toneOn) { model.toggleTone() }
-                .frame(width: 220)
-            #endif
+            HStack(spacing: 12) {
+                InkButton(title: "RESET") {
+                    model.audio.core.profile.resetWorst()
+                    model.frameMeter.reset()
+                }
+                .frame(width: 120)
+                #if DEBUG
+                InkButton(title: "TEST TONE 440 Hz", active: model.toneOn) { model.toggleTone() }
+                    .frame(width: 220)
+                #endif
+            }
         }
     }
 
@@ -26,6 +34,8 @@ struct DiagnosticsView: View {
             row("Now", model.audio.statusLine)
             row("Core", "48.0 kHz · \(String(format: "%.1f", seconds)) s rendered")
             row("CPU", "\(Int((core.cpu.load * 100).rounded()))% avg · \(Int((core.cpu.peak * 100).rounded()))% peak block")
+            profileRows(core.profile.read())
+            uiRows(model.frameMeter)
             row("Build", DiagnosticsView.build)
             row("Privacy", DiagnosticsView.privacy)
             #if DEBUG
@@ -33,6 +43,44 @@ struct DiagnosticsView: View {
             #endif
             if !error.isEmpty { row("Error", error) }
         }
+    }
+
+    /// Время колбэка по разделам: доля блока (5,3 мс при буфере 256) — средняя и наибольшая за секунду звука, худшая
+    /// с RESET.
+    @ViewBuilder
+    private func profileRows(_ stats: RenderProfile.Stats?) -> some View {
+        if let s = stats {
+            ForEach(0...RenderProfile.count, id: \.self) { k in
+                let name: String = k < RenderProfile.count ? RenderProfile.names[k] : "Audio"
+                row(name, DiagnosticsView.share(s.avg[k], s.peak[k], s.worst[k]))
+            }
+        } else {
+            row("Audio", "measuring…")
+        }
+    }
+
+    /// «12.5% avg · 30.1% peak · 41.0% worst».
+    static func share(_ avg: Float, _ peak: Float, _ worst: Float) -> String {
+        let a: String = String(format: "%.1f", avg * 100)
+        let p: String = String(format: "%.1f", peak * 100)
+        let w: String = String(format: "%.1f", worst * 100)
+        return "\(a)% avg · \(p)% peak · \(w)% worst"
+    }
+
+    /// Кадры интерфейса за секунду и с RESET; drain — сообщения колбэка → состояние (главный поток).
+    @ViewBuilder
+    private func uiRows(_ m: FrameMeter) -> some View {
+        let w: FrameMeter.FrameStats = m.last
+        let fps: String = String(format: "%.0f", w.fps)
+        let avg: String = String(format: "%.1f", w.avgMs)
+        let worst: String = String(format: "%.1f", w.worstMs)
+        row("UI", "\(fps) fps · frame \(avg) ms avg · \(worst) ms worst · \(w.dropped) dropped")
+        let tw: String = String(format: "%.1f", m.totalWorstMs)
+        row("UI total", "\(m.totalDropped) dropped of \(m.totalFrames) · \(tw) ms worst")
+        let da: String = String(format: "%.2f", w.drainAvgMs)
+        let dp: String = String(format: "%.2f", w.drainPeakMs)
+        let dt: String = String(format: "%.2f", m.totalDrainMs)
+        row("Drain", "\(da) ms avg · \(dp) ms peak · \(dt) ms worst")
     }
 
     /// KEY VELOCITY: последний толчок (g) и сила; подбор порогов TapVelocity.gMin / gMax.
