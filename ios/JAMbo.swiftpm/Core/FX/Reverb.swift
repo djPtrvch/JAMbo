@@ -261,7 +261,10 @@ public final class FxReverb {
         erR.update(repeating: 0, count: erLen)
         lines.update(repeating: 0, count: lineSize * 8)
         apBuf.update(repeating: 0, count: apTotal)
-        for p in [zHp, zLp, zSh] { p.update(repeating: 0, count: 8) }
+        // По одному (без массива): reset() зовётся и из колбэка (NaN или разнос), выделять память нельзя.
+        zHp.update(repeating: 0, count: 8)
+        zLp.update(repeating: 0, count: 8)
+        zSh.update(repeating: 0, count: 8)
         lp.update(repeating: 0, count: 8)
     }
 
@@ -371,7 +374,7 @@ public final class FxReverb {
                 var ov = Double(b[(ow - apLen[j]) & apMask[j]])
                 var x: Double = ul + g * ov
                 ul = ov - g * x
-                b[ow] = Float(x)
+                b[ow] = Float(x + tiny)
                 apW[j] = (ow + 1) & apMask[j]
                 j = kk + 4
                 b = apBuf + apOff[j]
@@ -379,7 +382,7 @@ public final class FxReverb {
                 ov = Double(b[(ow - apLen[j]) & apMask[j]])
                 x = ur + g * ov
                 ur = ov - g * x
-                b[ow] = Float(x)
+                b[ow] = Float(x + tiny)
                 apW[j] = (ow + 1) & apMask[j]
                 kk += 1
             }
@@ -435,6 +438,15 @@ public final class FxReverb {
         self.w = w
         preW = pw
         erW = ew
+        // Денормали: состояния биквадов входа и TONE в тишине гаснут к нулю — обнулить раньше, чем значения
+        // (через Float пред-задержки и отражений) станут денормалями Float. All-pass — с добавкой tiny, как линии FDN.
+        var z = 0
+        while z < 8 {
+            if abs(zHp[z]) < 1e-30 { zHp[z] = 0 }
+            if abs(zLp[z]) < 1e-30 { zLp[z] = 0 }
+            if abs(zSh[z]) < 1e-30 { zSh[z] = 0 }
+            z += 1
+        }
         // NaN или разнос — сброс состояния (тишина вместо шума).
         if bad {
             reset()
