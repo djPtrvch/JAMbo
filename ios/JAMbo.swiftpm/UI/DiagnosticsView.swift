@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// DIAGNOSTICS: фактическое состояние звука («Now:»), нагрузка, сборка, тест-тон (SELF-TEST — своё окно, S9e).
+/// DIAGNOSTICS: фактическое состояние звука («Now:»), нагрузка, сборка, место privacy manifest (SELF-TEST — своё окно,
+/// S9e). Тест-тон и строка Tap — только в отладочной сборке (S14: в App Store отладочных функций нет).
 struct DiagnosticsView: View {
     let model: AppModel
     @Environment(\.theme) private var theme
@@ -10,8 +11,10 @@ struct DiagnosticsView: View {
             TimelineView(.periodic(from: .now, by: 0.5)) { _ in
                 info
             }
+            #if DEBUG
             InkButton(title: "TEST TONE 440 Hz", active: model.toneOn) { model.toggleTone() }
                 .frame(width: 220)
+            #endif
         }
     }
 
@@ -24,7 +27,10 @@ struct DiagnosticsView: View {
             row("Core", "48.0 kHz · \(String(format: "%.1f", seconds)) s rendered")
             row("CPU", "\(Int((core.cpu.load * 100).rounded()))% avg · \(Int((core.cpu.peak * 100).rounded()))% peak block")
             row("Build", DiagnosticsView.build)
+            row("Privacy", DiagnosticsView.privacy)
+            #if DEBUG
             row("Tap", tapLine)
+            #endif
             if !error.isEmpty { row("Error", error) }
         }
     }
@@ -47,6 +53,16 @@ struct DiagnosticsView: View {
         let flag = "DEBUG flag off"
         #endif
         return "\(optimized) · \(flag)"
+    }()
+
+    /// PrivacyInfo.xcprivacy (S14): App Store ищет его в корне бандла; Resources — проверить, куда его кладёт Playgrounds.
+    static let privacy: String = {
+        let b: Bundle = Bundle.main
+        if b.url(forResource: "PrivacyInfo", withExtension: "xcprivacy") != nil { return "manifest in bundle root" }
+        if b.url(forResource: "PrivacyInfo", withExtension: "xcprivacy", subdirectory: "Resources") != nil {
+            return "manifest in Resources/ (not root)"
+        }
+        return "manifest missing"
     }()
 
     private func row(_ name: String, _ value: String) -> some View {
