@@ -27,7 +27,10 @@ public final class PlayClock: @unchecked Sendable {
     @inline(__always)
     public func write(_ s: State) {
         let v = version.load(ordering: .relaxed)
-        version.store(v + 1, ordering: .releasing)
+        version.store(v + 1, ordering: .relaxed)
+        // Барьер: записи полей не уходят раньше нечётной версии (seqlock по Boehm; на ARM иначе читатель мог
+        // увидеть новые поля при старой чётной версии).
+        atomicMemoryFence(ordering: .releasing)
         playing.store(s.playing ? 1 : 0, ordering: .relaxed)
         nextTick.store(s.nextTick, ordering: .relaxed)
         nextFrame.store(s.nextFrame.bitPattern, ordering: .relaxed)
@@ -49,7 +52,9 @@ public final class PlayClock: @unchecked Sendable {
             s.stepFrames = Double(bitPattern: stepFrames.load(ordering: .relaxed))
             s.blockFrame = Double(bitPattern: blockFrame.load(ordering: .relaxed))
             s.blockHost = Double(bitPattern: blockHost.load(ordering: .relaxed))
-            if version.load(ordering: .acquiring) == v0 { return s }
+            // Барьер: чтения полей не уходят позже повторной проверки версии.
+            atomicMemoryFence(ordering: .acquiring)
+            if version.load(ordering: .relaxed) == v0 { return s }
         }
     }
 }
