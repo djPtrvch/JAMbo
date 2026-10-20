@@ -102,6 +102,8 @@ public final class Sampler {
     public var spectra: Spectra?
     /// Пики дорожек для измерителя и метров MIX, громкость показанной дорожки (ставит AudioCore).
     public var levels: Levels?
+    /// Замеры колбэка по разделам (S14a; задаёт AudioCore).
+    public var profile: RenderProfile?
     /// Запись стемов (S11d): гейт mute/solo по отсчётам (дорожка·maxFrames) — пишет микшер; nil — запись не идёт.
     var stemGate: UnsafeMutablePointer<Float>?
     /// Сигнал показанной дорожки (после громкости, до mute/solo) — для LUFS.
@@ -246,12 +248,19 @@ public final class Sampler {
             }
             renderVoice(v, d, blockStart, n)
         }
+        let pf: RenderProfile? = profile
+        pf?.lap(RenderProfile.voices)
         synth?.render(d, blockStart: blockStart, frames: n, busL: busL, busR: busR, sendL: sendL, sendR: sendR,
                       used: used, stride: Sampler.maxFrames)
+        pf?.lap(RenderProfile.synth)
         wakeEqs(d, n)
+        pf?.lap(RenderProfile.eq)
         fx?.prepare(blockStart: blockStart, frames: n)
+        pf?.lap(RenderProfile.fx)
         mix(d, n, left, right)
+        pf?.lap(RenderProfile.mix)
         fx?.process(frames: n, bpm: bpm, left: left, right: right)
+        pf?.lap(RenderProfile.fx)
     }
 
     /// Шины посылов дорожки t — с нуля (n отсчётов).

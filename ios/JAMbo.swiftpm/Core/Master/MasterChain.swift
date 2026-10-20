@@ -87,6 +87,8 @@ public final class MasterChain {
     public let satOn = AtomicCounter()
     /// Точки съёма спектров EQ мастера (до и после EQ; ставит AudioCore).
     public var spectra: Spectra?
+    /// Замеры колбэка по разделам (S14a; задаёт AudioCore): EQ мастера — в раздел EQ.
+    public var profile: RenderProfile?
 
     /// Громкость выхода: текущее усиление (−1 — ещё не задано: сразу целевое) и шаг сглаживания (10 мс, как громкость
     /// дорожки в SamplerMix).
@@ -112,6 +114,7 @@ public final class MasterChain {
             eq.process(left: left, right: right, frames: n, params: e)
             eqDyn?.publish(EqSpec.masterChannel, eq)
             if shown, let s = spectra { s.post.push(left, right, n) }
+            profile?.lap(RenderProfile.eq)
         }
         let satShown: Bool = satOn.load() != 0
         if satShown { satIn.push(left, right, n) }

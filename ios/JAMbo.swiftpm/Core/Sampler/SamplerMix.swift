@@ -45,6 +45,7 @@ extension Sampler {
         let stemG: UnsafeMutablePointer<Float>? = stemGate
         let cap: Bool = stemG != nil
         let gw0: UnsafeMutablePointer<Float> = stemG ?? meterL
+        let pf: RenderProfile? = profile
         var oi = 0
         while oi < d.trackCount {
             let t: Int = d.eqOrder[oi]
@@ -70,10 +71,14 @@ extension Sampler {
                 meter?[2] = at * eMax
                 ol.update(repeating: 0, count: n)
                 or.update(repeating: 0, count: n)
+                pf?.lap(RenderProfile.mix)
                 idleEq(t, d, n)
+                pf?.lap(RenderProfile.eq)
                 continue
             }
+            pf?.lap(RenderProfile.mix)
             trackEq(t, d, n, sends: rack != nil)
+            pf?.lap(RenderProfile.eq)
             let bl = busL + t * Sampler.maxFrames
             let br = busR + t * Sampler.maxFrames
             let ml = meterL, mr = meterR

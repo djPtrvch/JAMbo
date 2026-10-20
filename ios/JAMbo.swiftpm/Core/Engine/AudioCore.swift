@@ -10,6 +10,8 @@ public final class AudioCore: @unchecked Sendable {
     public let events = SPSCQueue<CoreEvent>(capacity: 1024, filler: .none)
     /// Нагрузка колбэка для индикатора CPU.
     public let cpu = CPUMeter(sampleRate: AudioCore.sampleRate)
+    /// Время колбэка по разделам (S14a): включает DIAGNOSTICS и тесты.
+    public let profile = RenderProfile(sampleRate: AudioCore.sampleRate)
     /// Сколько кадров посчитано с запуска (меняет только колбэк; UI читает для диагностики).
     private let frameCounter = AtomicCounter()
     public var framesRendered: Int { return frameCounter.load() }
@@ -68,7 +70,9 @@ public final class AudioCore: @unchecked Sendable {
         sampler.eqs = trackEqs
         sampler.spectra = spectra
         sampler.levels = levels
+        sampler.profile = profile
         self.master.spectra = spectra
+        self.master.profile = profile
         // Источники T1…T16 динамических полос EQ мастера — выходы дорожек.
         self.master.eq.trackL = sampler.outL
         self.master.eq.trackR = sampler.outR
@@ -131,6 +135,7 @@ public final class AudioCore: @unchecked Sendable {
     @inline(__always)
     /// host — время хоста (с), когда этот блок начнёт звучать (для записи нот с REC); в тестах 0.
     public func render(frames: Int, left: UnsafeMutablePointer<Float>, right: UnsafeMutablePointer<Float>, host: Double = 0) {
+        profile.begin()
         // Сначала снимок проекта, потом команды: PLAY сразу после правки видит новые клипы и строки.
         takeSnapshots()
         // FX на блок: значения клипа с p-lock играющих шагов, источник Sidechain.
@@ -146,10 +151,13 @@ public final class AudioCore: @unchecked Sendable {
         right.update(repeating: 0, count: frames)
         tone.render(frames: frames, left: left, right: right)
         sequencer.process(blockStart: sampleTime, frames: frames, left: left, right: right, host: host)
+        profile.lap(RenderProfile.seq)
         renderMix(frames, left, right)
         mod.publish(frame: sampleTime + Int64(frames))
         sampleTime += Int64(frames)
         frameCounter.store(Int(sampleTime))
+        profile.lap(RenderProfile.meters)
+        profile.end(frames: frames)
     }
 
     /// Дорожки и FX → мастер → выход (к тону и метроному); затем прослушивание (мимо мастера).
@@ -167,6 +175,7 @@ public final class AudioCore: @unchecked Sendable {
             sampler.render(blockStart: sampleTime, frames: n, left: masterL, right: masterR)
             master.process(left: masterL, right: masterR, frames: n, params: d.master,
                            eqParams: d.eq + EqSpec.masterChannel * EqSpec.stride)
+            profile.lap(RenderProfile.master)
             if sampler.stemGate != nil { captureStems(ring, n, masterL, masterR) }
             // Конечный выход мастера (после громкости выхода).
             if spectra.outOn.load() != 0 { spectra.out.push(masterL, masterR, n) }
@@ -182,7 +191,9 @@ public final class AudioCore: @unchecked Sendable {
             sampler.render(blockStart: sampleTime, frames: n, left: left, right: right)
             if sampler.stemGate != nil { captureStems(ring, n, left, right) }
         }
+        profile.lap(RenderProfile.meters)
         sampler.renderPreview(n, left, right)
+        profile.lap(RenderProfile.voices)
     }
 
     /// Стемы блока: выходы дорожек после громкости · гейт mute/solo (без посылов), мастер — конечный выход.
