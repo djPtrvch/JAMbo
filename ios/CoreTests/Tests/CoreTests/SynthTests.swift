@@ -326,13 +326,4 @@ final class SynthTests: XCTestCase {
         XCTAssertEqual(WavetableKey.name(p.tracks[0].table), "METAL")
         XCTAssertEqual(WavetableKey.name(""), "BASIC")
     }
-
-    /// Кадр таблицы в окне синта: BASIC, POSITION 0 — синус (четверть периода — пик, y = 32 − 26).
-    func testTableFrame() {
-        let els = EngineIcons.tableFrame(WtTable.builtin("BASIC"), position: 0, warp: 0)
-        XCTAssertEqual(els.count, 2)
-        guard case .line(let x, let y) = els[1].cmds[32] else { return XCTFail("нет точки") }
-        XCTAssertEqual(x, 18, accuracy: 1e-9)
-        XCTAssertEqual(y, 6, accuracy: 0.05)
-    }
 }

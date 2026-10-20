@@ -16,13 +16,8 @@ struct SynthInfo: View {
                 .foregroundStyle(theme.text)
                 .lineLimit(1)
             VStack(alignment: .leading, spacing: 8) {
-                if engine == Jambo.wtable {
-                    SynthTableFrame(model: model, values: model.iconValues(engine))
-                        .frame(maxWidth: .infinity, maxHeight: 120)
-                } else {
-                    SynthIcon(engine: engine, values: model.iconValues(engine))
-                        .frame(maxWidth: .infinity, maxHeight: 120)
-                }
+                SynthIcon(model: model, engine: engine)
+                    .frame(maxWidth: .infinity, maxHeight: 120)
                 // У WTABLE вместо полного имени — имя таблицы дорожки.
                 Text(engine == Jambo.wtable ? WavetableKey.name(model.track.table) : e?.full ?? "")
                     .font(.system(size: 17, weight: .semibold))
@@ -53,55 +48,90 @@ struct SynthInfo: View {
     }
 }
 
-/// Кадр таблицы WTABLE (вместо иконки): POSITION и WARP — как у иконки (p-lock, игра); таблица ещё строится — пусто.
-struct SynthTableFrame: View {
-    let model: AppModel
-    let values: IconValues
-    @Environment(\.theme) private var theme
-
-    var body: some View {
-        // wavetableSerial — перерисовка, когда таблица достроилась.
-        let serial: Int = model.wavetableSerial
-        let table: WtTable? = model.wavetables.ready[model.track.table]
-        let els: [IconElement] = table.map { EngineIcons.tableFrame($0, position: values.h, warp: values.t) } ?? []
-        let ink: Color = theme.icon
-        return Canvas { ctx, size in
-            _ = serial
-            SynthIcon.draw(ctx, size, els, ink)
-        }
-        .aspectRatio(1, contentMode: .fit)
-    }
-}
-
-/// Иконка движка: элементы EngineIcons (поле 64×64) на Canvas, один цвет темы, линия 1,4 (в единицах поля).
+/// Иконка движка: элементы EngineIcons (поле 64×64) на Canvas двумя цветами темы (icon — звук, icon2 — серый).
+/// Ручки сглажены (~90 мс, как в прототипе превью); у ударных по удару дорожки — подсветка, бегущая слева направо.
+/// У WTABLE — кадр таблицы дорожки (таблица ещё строится — пусто). Пока ничего не движется, кадры не идут.
 struct SynthIcon: View {
+    let model: AppModel
     let engine: Int
-    let values: IconValues
+    @State private var motion = IconMotion()
+    @State private var animating = false
+    @State private var stopTask: Task<Void, Never>? = nil
     @Environment(\.theme) private var theme
 
     var body: some View {
-        let els: [IconElement] = EngineIcons.elements(engine, values)
+        let target: IconValues = model.iconValues(engine)
+        let drum: Bool = engine == Jambo.drum || (engine >= Jambo.snare && engine <= Jambo.perc)
+        // Чтение flashing — подписка на удары; только у ударных.
+        let hit: Bool = drum && model.live.flashing[model.selectedTrack]
+        let frame: ((Double, Double) -> Double)? = tableSource
+        // Кадры идут, пока сглаживание не дошло до значений ручек или идёт подсветка.
+        let live: Bool = animating || motion.differs(target)
         let ink: Color = theme.icon
-        return Canvas { ctx, size in
-            SynthIcon.draw(ctx, size, els, ink)
+        let ink2: Color = theme.icon2
+        return TimelineView(.animation(paused: !live)) { tl in
+            Canvas { ctx, size in
+                let now: Double = tl.date.timeIntervalSinceReferenceDate
+                let v: IconValues = motion.step(target, now)
+                let els: [IconElement] = SynthIcon.elements(engine, v, motion.hx(now, drum && live), frame)
+                SynthIcon.draw(ctx, size, els, ink, ink2)
+            }
         }
         .aspectRatio(1, contentMode: .fit)
+        .onChange(of: target) { run(0.6) }
+        .onChange(of: hit) { _, on in
+            if on {
+                motion.hitAt = Date().timeIntervalSinceReferenceDate
+                run(0.9)
+            }
+        }
     }
 
-    static func draw(_ ctx: GraphicsContext, _ size: CGSize, _ els: [IconElement], _ ink: Color) {
+    /// Кадр таблицы WTABLE; wavetableSerial — перерисовка, когда таблица достроилась.
+    private var tableSource: ((Double, Double) -> Double)? {
+        guard engine == Jambo.wtable else { return nil }
+        _ = model.wavetableSerial
+        guard let tb: WtTable = model.wavetables.ready[model.track.table] else { return { _, _ in .nan } }
+        return EngineIcons.tableFrame(tb)
+    }
+
+    /// Кадры идут seconds после последнего изменения (сглаживание и подсветка успевают закончиться).
+    private func run(_ seconds: Double) {
+        animating = true
+        stopTask?.cancel()
+        stopTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: UInt64(seconds * 1e9))
+            if !Task.isCancelled { animating = false }
+        }
+    }
+
+    static func elements(_ engine: Int, _ v: IconValues, _ hx: Double?, _ frame: ((Double, Double) -> Double)?) -> [IconElement] {
+        if let f = frame {
+            // Таблица ещё строится (NaN) — пусто.
+            return f(0, 0).isNaN ? [] : EngineIcons.wtableIcon(v, f)
+        }
+        return EngineIcons.elements(engine, v, hx: hx)
+    }
+
+    static func draw(_ ctx: GraphicsContext, _ size: CGSize, _ els: [IconElement], _ ink: Color, _ ink2: Color) {
         let side: CGFloat = min(size.width, size.height)
         let k: CGFloat = side / CGFloat(EngineIcons.size)
         var g = ctx
         g.translateBy(x: (size.width - side) / 2, y: (size.height - side) / 2)
         let width: CGFloat = CGFloat(EngineIcons.stroke) * k
         for e in els {
-            let color: Color = ink.opacity(e.opacity ?? 1)
+            let base: Color = e.ink == .secondary ? ink2 : ink
+            let color: Color = base.opacity(e.opacity ?? 1)
             if let text = e.text {
                 let label = Text(text)
                     .font(.system(size: CGFloat(e.textSize) * k, weight: .semibold, design: .monospaced))
                     .foregroundColor(color)
                 // Подпись по центру, y — базовая линия (как text-anchor middle в SVG).
                 g.draw(label, at: CGPoint(x: CGFloat(e.textX) * k, y: CGFloat(e.textY) * k), anchor: UnitPoint(x: 0.5, y: 0.8))
+                continue
+            }
+            if !e.rects.isEmpty {
+                g.fill(rectsPath(e.rects, k), with: .color(color))
                 continue
             }
             let path: Path = e.circle.map { c in circlePath(c, k) } ?? cmdPath(e.cmds, k)
@@ -113,6 +143,15 @@ struct SynthIcon: View {
                          style: StrokeStyle(lineWidth: width, lineCap: .round, lineJoin: .round, dash: dash))
             }
         }
+    }
+
+    /// Колонки одним путём: перекрытия не темнеют (ненулевое правило, все прямоугольники в одну сторону).
+    static func rectsPath(_ rects: [IconRect], _ k: CGFloat) -> Path {
+        var path = Path()
+        for r in rects {
+            path.addRect(CGRect(x: CGFloat(r.x) * k, y: CGFloat(r.y) * k, width: CGFloat(r.w) * k, height: CGFloat(r.h) * k))
+        }
+        return path
     }
 
     static func circlePath(_ c: (Double, Double, Double), _ k: CGFloat) -> Path {
@@ -167,5 +206,51 @@ struct SynthIcon: View {
             }
         }
         return path
+    }
+}
+
+/// Сглаженные значения иконки (как k.v в прототипе: шаг 1 − exp(−dt / 0,09), dt не больше 0,05 с) и время удара.
+/// Класс, а не @State-значение: меняется при рисовании Canvas без перерисовки вида.
+final class IconMotion {
+    private var shown: IconValues? = nil
+    private var last: Double = 0
+    var hitAt: Double = -100
+
+    /// Сглаженное ещё не дошло до target.
+    func differs(_ target: IconValues) -> Bool {
+        return shown.map { $0 != target } ?? false
+    }
+
+    /// Следующее значение к target (первое — сразу target); почти дошло — ровно target.
+    func step(_ target: IconValues, _ now: Double) -> IconValues {
+        guard var s = shown else {
+            shown = target
+            last = now
+            return target
+        }
+        let dt: Double = min(0.05, max(0, now - last))
+        last = now
+        let a: Double = 1 - exp(-dt / 0.09)
+        s.h += (target.h - s.h) * a
+        s.t += (target.t - s.t) * a
+        s.m += (target.m - s.m) * a
+        s.q += (target.q - s.q) * a
+        s.d += (target.d - s.d) * a
+        var far: Double = abs(target.h - s.h)
+        far = max(far, abs(target.t - s.t))
+        far = max(far, abs(target.m - s.m))
+        far = max(far, abs(target.q - s.q))
+        far = max(far, abs(target.d - s.d))
+        if far < 0.0005 { s = target }
+        shown = s
+        return s
+    }
+
+    /// Центр подсветки удара (x на поле 64): 0,8 с слева направо после удара, потом nil.
+    func hx(_ now: Double, _ on: Bool) -> Double? {
+        let tau: Double = now - hitAt
+        guard on, tau >= 0, tau < 0.85 else { return nil }
+        let u: Double = min(1, tau / 0.8)
+        return -10 + 84 * u * u * (3 - 2 * u)
     }
 }

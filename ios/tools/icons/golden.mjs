@@ -1,48 +1,68 @@
-// Эталон иконок движков для Swift-версии: SVG элементы из src/engineIcons.ts (как рисует веб) на наборах значений.
-// Импорт fmRatio (нужен только иконке 18) подменяется копией из src/params.ts; файл берётся во временную папку.
-// Запуск (Node 22): node --experimental-strip-types --no-warnings ios/tools/icons/golden.mjs
-// Выход: ios/tools/icons/engine_icons_golden.json — [{engine, v, els: [{d | c | tx, fill, op, dash}]}].
+// Эталон превью-иконок движков для Swift-версии: функции draw из docs/icons/prototype/engine-previews-prototype.html
+// (секция «final mix», module.exports) на записывающем canvas — каждая заливка с цветом (p — c.icon, s — c.gray),
+// прозрачностью, прямоугольниками и контуром.
+// Запуск (Node 22): node ios/tools/icons/golden.mjs
+// Выход: ios/tools/icons/engine_previews_golden.json — [{engine, v: {h, t, m, q, d}, hx, ops: [{ink, a, r, poly, text}]}].
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import vm from 'node:vm';
+import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../../..');
-const src = fs.readFileSync(path.join(root, 'src/engineIcons.ts'), 'utf8')
-  .replace("import { fmRatio } from './params';", `const FM_SNAP = [0.5, 1, 1.5, 2, 3, 4, 5, 6, 7, 8];
-function fmRatio(n) {
-  const r = 0.5 * Math.pow(16, Math.min(1, Math.max(0, n)));
-  for (const t of FM_SNAP) if (Math.abs(r / t - 1) <= 0.02) return t;
-  return r;
-}`);
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'icons-'));
-const file = path.join(tmp, 'engineIcons.ts');
-fs.writeFileSync(file, src);
-const { iconSvg } = await import(pathToFileURL(file).href);
+const html = fs.readFileSync(path.join(root, 'docs/icons/prototype/engine-previews-prototype.html'), 'utf8');
+const script = html.slice(html.indexOf('<script>') + 8, html.lastIndexOf('</script>'));
+const sandbox = { module: { exports: {} }, Math, Float32Array, Array, Object, String, parseInt, parseFloat };
+vm.runInNewContext(script, sandbox);
+const { ENGINES } = sandbox.module.exports;
 
-const SETS = [[0, 0, 0], [1, 1, 1], [0.5, 0.5, 0.5], [0.25, 0.75, 0.2], [0.8, 0.15, 0.85]];
-// Decay (d) — у движков 11–15 (у остальных не используется).
-const DECAYS = [0.5, 0, 1, 0.3, 0.9];
-const attr = (s, name) => { const m = s.match(new RegExp(` ${name}="([^"]*)"`)); return m ? m[1] : null; };
+const ID = { KICK: 16, ANALOG: 17, FM: 18, WTABLE: 19, SNARE: 20, HAT: 21, CLAP: 22, PERC: 23, SUB: 24 };
+const r4 = (x) => Math.round(x * 1e4) / 1e4;
+
+/** Canvas 2D, который только записывает заливки. */
+function recorder() {
+  const ops = [];
+  let rects = [], poly = [];
+  const g = {
+    globalAlpha: 1, fillStyle: 'I', strokeStyle: 'I', lineWidth: 1, font: '', textAlign: '', lineCap: '', lineJoin: '',
+    beginPath() { rects = []; poly = []; },
+    rect(x, y, w, h) { rects.push([x, y, w, h].map(r4)); },
+    moveTo(x, y) { poly.push([r4(x), r4(y)]); },
+    lineTo(x, y) { poly.push([r4(x), r4(y)]); },
+    closePath() {},
+    fill() { ops.push({ ink: g.fillStyle === 'G' ? 's' : 'p', a: r4(g.globalAlpha), r: rects, poly }); },
+    fillRect(x, y, w, h) { ops.push({ ink: g.fillStyle === 'G' ? 's' : 'p', a: r4(g.globalAlpha), r: [[x, y, w, h].map(r4)], poly: [] }); },
+    fillText(t, x, y) { ops.push({ ink: 'p', a: r4(g.globalAlpha), r: [], poly: [], text: [t, x, y] }); },
+    stroke() { throw new Error('stroke в превью не ожидается'); },
+    setLineDash() {},
+  };
+  return { g, ops };
+}
+
+// Наборы ручек: по умолчанию, края, середина и смешанные; у ступенчатых — точные пункты (как в прототипе).
+const SETS = [
+  null,
+  [0, 0, 0, 0, 0],
+  [1, 1, 1, 1, 1],
+  [0.5, 0.5, 0.5, 0.5, 0.5],
+  [0.25, 0.75, 0.2, 0.6, 0.3],
+  [0.8, 0.15, 0.85, 0.1, 0.9],
+  [1 / 3, 2 / 3, 0.4, 0.95, 0.05],
+  [0.62, 0.38, 0.7, 0.33, 0.66],
+];
 const cases = [];
-for (let engine = 0; engine < 19; engine++) {
-  for (const [k, [h, t, m]] of SETS.entries()) {
-    const v = { h, t, m, d: DECAYS[k] };
-    const svg = iconSvg(String(engine), v, 64);
-    const els = [];
-    for (const [, tag, body, text] of svg.matchAll(/<(path|circle|text)([^>]*?)(?:\/>|>([^<]*)<\/text>)/g)) {
-      const op = attr(body, 'opacity');
-      const el = { fill: attr(body, 'fill') !== 'none', op: op === null ? null : Number(op), dash: attr(body, 'stroke-dasharray') !== null };
-      if (tag === 'path') el.d = attr(body, 'd');
-      else if (tag === 'circle') el.c = ['cx', 'cy', 'r'].map((k) => Number(attr(body, k)));
-      else el.tx = [text, ...['x', 'y', 'font-size'].map((k) => Number(attr(body, k)))];
-      els.push(el);
+for (const e of ENGINES) {
+  const id = ID[e.name];
+  if (id === undefined) continue;
+  for (const [k, set] of SETS.entries()) {
+    const s = set ? set.slice(0, 4) : e.knobs.map((x) => x.def);
+    const D = set ? set[4] : e.decay ? e.decay.def : 0.5;
+    for (const hx of e.kind === 'drum' && k < 3 ? [null, 22] : [null]) {
+      const { g, ops } = recorder();
+      e.draw(g, s, D, { T: 1.3, hx, reduced: true, icon: 'I', gray: 'G', bg: 'B', tA: 0, tB: 0, tm: 1 });
+      cases.push({ engine: id, v: { h: s[0], t: s[1], m: s[2], q: s[3], d: D }, hx, ops: ops.filter((o) => o.r.length || o.poly.length || o.text) });
     }
-    cases.push({ engine, v, els });
   }
 }
-fs.rmSync(tmp, { recursive: true });
-const out = path.join(here, 'engine_icons_golden.json');
-fs.writeFileSync(out, JSON.stringify(cases));
-console.log(`icons golden: ${cases.length} cases → ${out}`);
+fs.writeFileSync(path.join(here, 'engine_previews_golden.json'), JSON.stringify(cases));
+console.log(cases.length + ' cases');

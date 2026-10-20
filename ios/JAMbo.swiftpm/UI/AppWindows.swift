@@ -4,6 +4,10 @@ import SwiftUI
 enum AppWindow: String, CaseIterable {
     case diagnostics = "DIAGNOSTICS"
     case selfTest = "SELF-TEST"
+    #if DEBUG
+    /// Превью-иконки движков в обеих темах — сверка с прототипом (только отладочная сборка).
+    case icons = "ICONS"
+    #endif
 }
 
 struct AppWindowView: View {
@@ -31,6 +35,9 @@ struct AppWindowView: View {
         switch window {
         case .diagnostics: DiagnosticsView(model: model)
         case .selfTest: SelfTestPanel()
+        #if DEBUG
+        case .icons: IconGallery()
+        #endif
         }
     }
 }
