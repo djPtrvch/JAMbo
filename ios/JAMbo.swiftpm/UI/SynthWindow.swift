@@ -20,7 +20,9 @@ struct SynthInfo: View {
                 rows
             }
             .padding(.horizontal, 6)
-            .frame(maxHeight: .infinity)
+            .padding(.top, 4)
+            // Иконка и ручки — сразу под заголовком, свободное место — снизу.
+            .frame(maxHeight: .infinity, alignment: .top)
         }
         .padding(8)
     }

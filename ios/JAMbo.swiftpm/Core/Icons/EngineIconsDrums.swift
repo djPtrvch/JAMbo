@@ -85,7 +85,7 @@ extension EngineIcons {
     }
 
     /// HAT: спектр, а не время — шесть линий ряда 808 (сдвиг — TUNE, растяжение — SPREAD, рваные по NOISE),
-    /// высота линий — Decay (к верху бледнеют), серый горб полосового фильтра — TONE.
+    /// высота линий — Decay (линии сплошные, без градиента), серый горб полосового фильтра — TONE.
     static func hatIcon(_ v: IconValues, _ hx: Double?) -> [IconElement] {
         let base: [Double] = [205.3, 304.4, 369.6, 522.7, 540, 800]
         let spread = 2 * clamp(v.t), shift = (2 * clamp(v.h) - 1) * 0.5
@@ -97,7 +97,7 @@ extension EngineIcons {
             hump.append(.line(x, 59 - 3 - 11 * exp(-z * z)))
         }
         hump += [.line(60, 59), .close]
-        var els: [IconElement] = [IconElement(hump, fill: true, ink: .secondary)]
+        var lines: [IconRect] = []
         let q = clamp(v.q)
         let bottom = 46.0, hh = 8 + 30 * clamp(v.d), top = bottom - hh, len = 3 + 6 * (1 - q)
         for (i, f) in base.enumerated() {
@@ -113,18 +113,13 @@ extension EngineIcons {
             while y < bottom {
                 let dx = rnd(i * 40 + j, 11) * 3 * q
                 let y1 = Swift.min(bottom, y + len)
-                // Кусок линии — полосками по 2: прозрачность растёт сверху вниз.
-                var yy = y
-                while yy < y1 {
-                    let ye = Swift.min(y1, yy + 2)
-                    let tt = clamp((yy - top) / hh)
-                    els.append(IconElement(rects: [IconRect(x + dx - 0.6, yy, 1.2, ye - yy + 0.05)], op: 0.4 + 0.6 * tt))
-                    yy += 2
-                }
+                // Кусок линии — сплошной (в прототипе к верху бледнел — решение пользователя: без градиента).
+                lines.append(IconRect(x + dx - 0.6, y, 1.2, y1 - y + 0.05))
                 y += len + 2 * q
                 j += 1
             }
         }
+        let els: [IconElement] = [IconElement(hump, fill: true, ink: .secondary), IconElement(rects: lines)]
         return els
     }
 

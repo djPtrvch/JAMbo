@@ -39,6 +39,19 @@ function recorder() {
   return { g, ops };
 }
 
+// HAT в Swift — сплошные линии (решение пользователя: без градиента к верху): полоски прототипа по 2 склеиваются
+// в отрезки (mergeRuns), все линии — одна заливка без прозрачности.
+export function mergeRuns(rects) {
+  const out = [];
+  for (const r of rects) {
+    const p = out[out.length - 1];
+    if (p && Math.abs(p[0] - r[0]) < 1e-3 && r[1] <= p[1] + p[3] + 1e-3) p[3] = r4(Math.max(p[1] + p[3], r[1] + r[3]) - p[1]);
+    else out.push(r.slice());
+  }
+  return out;
+}
+const hatSolid = (ops) => [ops[0], { ink: 'p', a: 1, r: mergeRuns(ops.slice(1).flatMap((o) => o.r)), poly: [] }];
+
 // Наборы ручек: по умолчанию, края, середина и смешанные; у ступенчатых — точные пункты (как в прототипе).
 const SETS = [
   null,
@@ -60,7 +73,9 @@ for (const e of ENGINES) {
     for (const hx of e.kind === 'drum' && k < 3 ? [null, 22] : [null]) {
       const { g, ops } = recorder();
       e.draw(g, s, D, { T: 1.3, hx, reduced: true, icon: 'I', gray: 'G', bg: 'B', tA: 0, tB: 0, tm: 1 });
-      cases.push({ engine: id, v: { h: s[0], t: s[1], m: s[2], q: s[3], d: D }, hx, ops: ops.filter((o) => o.r.length || o.poly.length || o.text) });
+      let res = ops.filter((o) => o.r.length || o.poly.length || o.text);
+      if (id === 21) res = hatSolid(res);
+      cases.push({ engine: id, v: { h: s[0], t: s[1], m: s[2], q: s[3], d: D }, hx, ops: res });
     }
   }
 }

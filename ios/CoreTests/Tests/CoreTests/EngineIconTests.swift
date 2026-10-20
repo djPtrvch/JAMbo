@@ -56,7 +56,9 @@ final class EngineIconTests: XCTestCase {
         XCTAssertEqual(Set(all.map { $0.engine }), Set(EngineIconTests.engines))
         for g in all {
             let v = IconValues(h: g.v["h"]!, t: g.v["t"]!, m: g.v["m"]!, q: g.v["q"]!, d: g.v["d"]!)
-            let els = visible(EngineIcons.elements(g.engine, v, hx: g.hx))
+            var els = visible(EngineIcons.elements(g.engine, v, hx: g.hx))
+            // HAT: отрезки линий склеиваются тем же правилом, что в эталоне (mergeRuns в golden.mjs).
+            if g.engine == Jambo.hat, els.count == 2 { els[1].rects = mergeRuns(els[1].rects) }
             let name = "engine \(g.engine) \(g.v) hx \(String(describing: g.hx))"
             XCTAssertEqual(els.count, g.ops.count, name)
             for (k, (a, b)) in zip(els, g.ops).enumerated() {
@@ -83,6 +85,20 @@ final class EngineIconTests: XCTestCase {
                 }
             }
         }
+    }
+
+    /// Соседние прямоугольники с тем же x, касающиеся или перекрытые по y, — один (как mergeRuns в golden.mjs).
+    private func mergeRuns(_ rects: [IconRect]) -> [IconRect] {
+        var out: [IconRect] = []
+        for r in rects {
+            if var p = out.last, abs(p.x - r.x) < 1e-3, r.y <= p.y + p.h + 1e-3 {
+                p.h = max(p.y + p.h, r.y + r.h) - p.y
+                out[out.count - 1] = p
+            } else {
+                out.append(r)
+            }
+        }
+        return out
     }
 
     /// Всё конечно и внутри поля 64×64.
