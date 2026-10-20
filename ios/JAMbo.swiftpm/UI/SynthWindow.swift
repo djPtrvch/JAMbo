@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// Окно синта (на месте формы волны, как synth-info в sample.ts веба): заголовок — имя движка, живая иконка
-/// движка (до 120 pt, ужимается по высоте окна), полное имя и ручки 1.1–1.3 «подпись · значение» (значение ручки
-/// дорожки, как в вебе). Пока зажат шаг со своим звуком — его движок.
+/// Окно синта (на месте формы волны, как synth-info в sample.ts веба): заголовок — имя движка (у WTABLE — и имя
+/// таблицы), живая иконка движка (до 120 pt, ужимается по высоте окна) и ручки 1.1–1.4 «подпись · значение»
+/// (значение ручки дорожки, как в вебе). Пока зажат шаг со своим звуком — его движок.
 struct SynthInfo: View {
     let model: AppModel
     let engine: Int
@@ -10,20 +10,13 @@ struct SynthInfo: View {
 
     var body: some View {
         let e: SynthEngine? = SynthEngines.engine(engine)
+        // У WTABLE после имени движка — имя таблицы дорожки.
+        let table: String? = engine == Jambo.wtable ? SoundTitle.capitalized(WavetableKey.name(model.track.table)) : nil
         return VStack(alignment: .leading, spacing: 4) {
-            Text(e?.name ?? "")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(theme.text)
-                .lineLimit(1)
+            SoundTitle(main: e?.name ?? "", detail: table)
             VStack(alignment: .leading, spacing: 8) {
                 SynthIcon(model: model, engine: engine)
                     .frame(maxWidth: .infinity, maxHeight: 120)
-                // У WTABLE вместо полного имени — имя таблицы дорожки.
-                Text(engine == Jambo.wtable ? WavetableKey.name(model.track.table) : e?.full ?? "")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(theme.accentText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
                 rows
             }
             .padding(.horizontal, 6)
@@ -45,6 +38,31 @@ struct SynthInfo: View {
                     .lineLimit(1)
             }
         }
+    }
+}
+
+/// Заголовок окна звука — один стиль у движков и сэмплов: main заглавными жёлтым, после тире detail цветом текста
+/// (у WTABLE — имя таблицы, у сэмпла — нота и ST/M).
+struct SoundTitle: View {
+    let main: String
+    let detail: String?
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        var t: Text = Text(main.uppercased()).foregroundStyle(theme.accentText)
+        if let d = detail, !d.isEmpty {
+            t = t + Text(" — " + d).foregroundStyle(theme.text)
+        }
+        return t
+            .font(.system(size: 17, weight: .semibold))
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+    }
+
+    /// «METAL» → «Metal»: первая буква заглавная, остальные малые.
+    static func capitalized(_ s: String) -> String {
+        guard let first = s.first else { return s }
+        return String(first).uppercased() + s.dropFirst().lowercased()
     }
 }
 

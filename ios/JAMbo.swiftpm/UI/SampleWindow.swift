@@ -47,10 +47,7 @@ struct SampleWindow: View {
         let data: SampleData? = model.sample(key)
         let _ = model.samplesVersion
         return VStack(alignment: .leading, spacing: 4) {
-            Text(title(key, data))
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(theme.text)
-                .lineLimit(1)
+            SoundTitle(main: key.isEmpty ? "No sample" : model.sampleName(key), detail: detail(key, data))
             WaveStrip(model: model, key: key, data: data, cache: cache)
             Text("\(model.track.name) · tap to choose sound")
                 .font(.system(size: 10))
@@ -60,11 +57,12 @@ struct SampleWindow: View {
         .padding(8)
     }
 
-    private func title(_ key: String, _ data: SampleData?) -> String {
-        if key.isEmpty { return "No sample" }
+    /// После имени сэмпла: нота и ST/M.
+    private func detail(_ key: String, _ data: SampleData?) -> String? {
+        if key.isEmpty { return nil }
         let root: String = model.sampleRoot(key).map { Params.noteName($0) } ?? "—"
         let ch: String = data.map { $0.channels == 2 ? "ST" : "M" } ?? ""
-        return "\(model.sampleName(key)) · \(root) · \(ch)"
+        return ch.isEmpty ? root : "\(root) · \(ch)"
     }
 
     private var mixView: some View {
