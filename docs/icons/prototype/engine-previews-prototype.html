@@ -1,0 +1,1307 @@
+<title>Engine Previews Final</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+:root{
+  /* Layout: cards in a grid; each preview sits in a mock of the sample window, next to its own knobs */
+  --bg:#ecebe8; --panel:#ffffff; --win:#efeeea; --line:#d5d3ce; --text:#121212; --dim:#6b6b70;
+  --accent:#f2b705; --icon:#141414; --icon2:#9b9aa0; --thumb:#121212; --ring:#ff7a00; --track:#d5d3ce;
+  --sans:ui-sans-serif,system-ui,-apple-system,"SF Pro Text","Segoe UI",Roboto,sans-serif;
+  --sz:120px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0c0c0d; --panel:#141416; --win:#1c1c1e; --line:#2b2b2f; --text:#f1f1ee; --dim:#8d8d93;
+    --accent:#ffd60a; --icon:#ececec; --icon2:#6c6c72; --thumb:#f1f1ee; --ring:#ffd60a; --track:#34343a; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0c0c0d; --panel:#141416; --win:#1c1c1e; --line:#2b2b2f; --text:#f1f1ee; --dim:#8d8d93;
+  --accent:#ffd60a; --icon:#ececec; --icon2:#6c6c72; --thumb:#f1f1ee; --ring:#ffd60a; --track:#34343a; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{
+  background:var(--bg); color:var(--text); font-family:var(--sans); font-size:14px; line-height:1.45;
+  padding-block:24px 40px;
+  padding-left:max(16px,env(safe-area-inset-left,0px)); padding-right:max(16px,env(safe-area-inset-right,0px));
+}
+.wrap{max-width:1120px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+h1{font-size:26px;line-height:1.1;letter-spacing:-.01em;margin:0;text-wrap:balance}
+.lead{margin:6px 0 0;color:var(--dim);max-width:62ch}
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px 24px;margin:0;padding:0;list-style:none}
+.rules li{padding-top:10px;border-top:2px solid var(--text);font-size:13px}
+.rules b{display:block;font-size:11px;letter-spacing:.12em;text-transform:uppercase;margin-bottom:2px}
+.bar{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+.grp{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.grp>span{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-right:2px}
+.btn{font:600 11px var(--sans);letter-spacing:.08em;text-transform:uppercase;padding:9px 12px;min-height:36px;border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:8px;cursor:pointer}
+.btn[aria-pressed="true"]{background:var(--text);color:var(--bg);border-color:var(--text)}
+.btn:focus-visible,.win:focus-visible,summary:focus-visible,input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,500px),1fr));gap:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.card header{display:flex;align-items:baseline;gap:10px}
+.card h2{font-size:14px;letter-spacing:.14em;margin:0}
+.tag{font-size:11px;color:var(--dim);letter-spacing:.04em}
+.body{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start}.wins{display:flex;gap:10px}
+.win{width:calc(var(--sz) + 20px);padding:10px;border:0;border-radius:14px;background:var(--win);color:var(--text);cursor:pointer;display:flex;flex-direction:column;gap:7px;text-align:left;font-family:var(--sans)}
+.win canvas{display:block;border-radius:2px}
+.wt{display:flex;justify-content:space-between;gap:6px;font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vt{color:var(--dim);font-weight:500}.wf{font-size:10px;color:var(--dim);white-space:nowrap}
+.knobs{display:flex;flex-direction:column;gap:2px;flex:1 1 210px;min-width:210px}
+.kl{display:flex;justify-content:space-between;gap:8px;font-size:12px;align-items:baseline}
+.kl label{white-space:nowrap}
+.kl b{display:inline-block;min-width:22px;color:var(--dim);font-weight:600;font-variant-numeric:tabular-nums}
+.kl output{font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap}
+.kr.off{opacity:.35}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:26px;background:transparent;margin:0;cursor:pointer;touch-action:pan-y}
+input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:var(--track)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;margin-top:-7px;border-radius:50%;background:var(--thumb);border:3px solid var(--ring)}
+input[type=range]::-moz-range-track{height:4px;border-radius:2px;background:var(--track)}
+input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:var(--thumb);border:3px solid var(--ring)}
+details{font-size:12px;color:var(--dim)}
+summary{cursor:pointer;font-size:11px;letter-spacing:.1em;text-transform:uppercase;padding:4px 0}
+details ul{margin:6px 0 0;padding-left:16px;display:flex;flex-direction:column;gap:3px}
+.tbl{display:flex;flex-wrap:wrap;gap:6px}
+.pill{font:600 10px var(--sans);letter-spacing:.08em;padding:7px 9px;min-height:30px;border:1px solid var(--line);background:transparent;color:var(--dim);border-radius:999px;cursor:pointer}
+.pill[aria-pressed="true"]{background:var(--text);color:var(--bg);border-color:var(--text)}
+.pill:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.changes{border-top:2px solid var(--text);padding-top:12px}
+.changes h2{font-size:12px;letter-spacing:.12em;text-transform:uppercase;margin:0 0 8px}
+.changes ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:5px;max-width:78ch;font-size:13px}
+
+@media (prefers-reduced-motion: reduce){*{scroll-behavior:auto}}
+</style>
+<div class="wrap">
+  <header>
+    <h1>Engine Previews</h1>
+    <p class="lead">Итоговый набор: KICK, SNARE и PERC из v3 с гладкой отрисовкой как у CLAP, HAT и CLAP как сейчас, остальные из v3.</p>
+  </header>
+  <div class="bar" id="bar" role="toolbar" aria-label="Preview controls">
+    <div class="grp"><button class="btn" id="autoBtn" type="button" aria-pressed="true">Auto-sweep</button><button class="btn" id="resetBtn" type="button">Reset</button></div>
+    <div class="grp"><span>Hits</span>
+      <button class="btn" type="button" data-group="hits" data-value="tap" aria-pressed="true">Tap</button>
+      <button class="btn" type="button" data-group="hits" data-value="loop" aria-pressed="false">Loop</button></div>
+    <div class="grp"><span>Theme</span>
+      <button class="btn" type="button" data-group="theme" data-value="auto" aria-pressed="true">Auto</button>
+      <button class="btn" type="button" data-group="theme" data-value="dark" aria-pressed="false">Dark</button>
+      <button class="btn" type="button" data-group="theme" data-value="light" aria-pressed="false">Light</button></div>
+    <div class="grp"><span>Size</span>
+      <button class="btn" type="button" data-group="size" data-value="120" aria-pressed="true">120 px</button>
+      <button class="btn" type="button" data-group="size" data-value="180" aria-pressed="false">180 px</button></div>
+  </div>
+  <main class="grid" id="grid"></main>
+  <section class="changes">
+    <h2>Что вошло</h2>
+    <ul>
+      <li>KICK, SNARE, PERC: композиция v3 (одна волна), но симметричная колонка с серой осью, как у CLAP. Меньше шума. Decay показан серым хвостом, как у CLAP.</li>
+      <li>SNARE: шум при росте snappy стал медленнее и тише, без мелкой «пилы».</li>
+      <li>HAT и CLAP как в последнем раунде. ANALOG, FM, WTABLE, SUB как в v3.</li>
+    </ul>
+  </section>
+</div>
+<script>
+'use strict';
+/* ---------- helpers ---------- */
+const TAU = Math.PI * 2;
+const clamp = (x, a = 0, b = 1) => (x < a ? a : x > b ? b : x);
+const lerp = (a, b, t) => a + (b - a) * t;
+const sstep = (t) => t * t * (3 - 2 * t);
+const hash = (n) => { const v = Math.sin(n * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
+const rnd = (i, seed) => hash(i * 1.713 + seed * 9.31) * 2 - 1;
+
+/* Palette: c.icon (white on dark, black on light) = the sound itself; c.gray = what shapes it
+   (axis, decay envelope, second oscillator, filter, table frames); c.bg = window colour. */
+const COLS = 72, SUB = 6, NS = COLS * SUB, X0 = 4, X1 = 60;
+const NZ = Array.from({ length: 512 }, (_, i) => hash(i * 3.17 + 7) * 2 - 1);
+const nz = (i) => NZ[((i % 512) + 512) % 512];
+const nzi = (x) => { const i = Math.floor(x), f = x - i; return lerp(nz(i), nz(i + 1), f); };
+const gen = (cols, fn) => { const n = cols * SUB, a = new Float32Array(n + 1); for (let i = 0; i <= n; i++) a[i] = fn(i / n, i); return a; };
+
+/* Column renderer. Each column spans min..max of the signal inside it, always including the axis.
+   o.mirror: symmetric around the axis (envelopes). o.thin: no minimum thickness, silent columns are skipped,
+   so the gray axis shows through. */
+function lane(g, a, o, c) {
+  const cols = (a.length - 1) / SUB, x0 = o.x0 === undefined ? X0 : o.x0, x1 = o.x1 === undefined ? X1 : o.x1, w = (x1 - x0) / cols;
+  const half = o.thin ? 0 : 0.4;
+  g.globalAlpha = o.alpha === undefined ? 1 : o.alpha;
+  g.fillStyle = o.color || c.icon;
+  g.beginPath();
+  for (let i = 0; i < cols; i++) {
+    const xc = x0 + (i + 0.5) * w;
+    if (o.cut && (xc < o.cut[0] || xc > o.cut[1])) continue;
+    let mn = 0, mx = 0;
+    for (let k = 0; k <= SUB; k++) {
+      const v = a[i * SUB + k];
+      if (o.mirror) { const av = v < 0 ? -v : v; if (av > mx) mx = av; } else { if (v < mn) mn = v; if (v > mx) mx = v; }
+    }
+    if (o.mirror) mn = -mx;
+    const gain = c.hx == null ? 1 : 1 + 0.16 * Math.exp(-Math.pow((xc - c.hx) / 7, 2));
+    const e = o.ext ? o.ext(xc) : 0;
+    let top = o.y0 - (mx + e) * o.amp * gain - half, bot = o.y0 - (mn - e) * o.amp * gain + half;
+    if (o.thin && bot - top < 0.5) continue;
+    if (top < 1.5) top = 1.5;
+    if (bot > 62.5) bot = 62.5;
+    g.rect(x0 + i * w - 0.06, top, w + 0.12, bot - top);
+  }
+  g.fill();
+  g.globalAlpha = 1;
+}
+function axisG(g, c, y, x0 = X0, x1 = X1) { g.globalAlpha = 1; g.fillStyle = c.gray; g.fillRect(x0, y - 0.4, x1 - x0, 0.8); }
+function envLine(g, c, fn, y0, amp, x0 = X0, x1 = X1) {
+  g.globalAlpha = 1; g.strokeStyle = c.gray; g.lineWidth = 0.9; g.setLineDash([1.4, 1.6]);
+  for (const sg of [-1, 1]) {
+    g.beginPath();
+    for (let i = 0; i <= 60; i++) { const u = i / 60, x = lerp(x0, x1, u), y = y0 + sg * amp * fn(u); if (i) g.lineTo(x, y); else g.moveTo(x, y); }
+    g.stroke();
+  }
+  g.setLineDash([]);
+}
+
+/* shapes exactly as in EngineIconsJambo.swift: peak-aligned triangle, falling saw, 50% square */
+const SH = {
+  sine: (p) => Math.sin(TAU * p),
+  tri: (p) => { p -= Math.floor(p); return 1 - 4 * Math.abs(p < 0.75 ? p - 0.25 : p - 1.25); },
+  saw: (p) => { p -= Math.floor(p); return 1 - 2 * p; },
+  sq: (p) => { p -= Math.floor(p); return p < 0.5 ? 1 : -1; },
+};
+function morph(list, idx, p) {
+  idx = clamp(idx, 0, list.length - 1);
+  const i = Math.min(Math.floor(idx), list.length - 2);
+  return lerp(list[i](p), list[i + 1](p), sstep(idx - i));
+}
+const FM_SNAP = [0.5, 1, 1.5, 2, 3, 4, 5, 6, 7, 8];
+function fmRatio(v) {
+  const r = 0.5 * Math.pow(16, v);
+  for (const n of FM_SNAP) if (Math.abs(r / n - 1) < 0.02) return n;
+  return r;
+}
+const PERC_SETS = [
+  [[1, 1], [1.59, 0.7], [2.14, 0.5], [2.30, 0.4], [2.65, 0.3], [2.92, 0.25]],
+  [[1, 1], [2.76, 0.5], [5.40, 0.3], [8.93, 0.2], [13.34, 0.1], [18.64, 0.06]],
+  [[1, 1], [1.4815, 0.9], [3, 0.33], [4.4444, 0.3], [5, 0.2], [7.4074, 0.18]],
+];
+function percModeAt(m, hit, k) {
+  const x = clamp(m), set = x < 0.5 ? 0 : 1, u = x < 0.5 ? x * 2 : (x - 0.5) * 2;
+  const lo = PERC_SETS[set][k], hi = PERC_SETS[set + 1][k];
+  const r = Math.exp(Math.log(lo[0]) + (Math.log(hi[0]) - Math.log(lo[0])) * u);
+  const a = (lo[1] + (hi[1] - lo[1]) * u) * Math.pow(0.55 + 0.45 * hit, k);
+  return { r, a };
+}
+const HAT_MEAN = 416.4;
+
+/* ---------- wavetables (stand-ins for the built-in tables: f = frame 0..1, p = phase) ---------- */
+const VOWELS = [[800, 1150], [400, 2000], [300, 2500], [500, 900], [320, 800]];
+const TABLES = [
+  { name: 'BASIC', fn: (f, p) => (f < 0.5 ? lerp(SH.sine(p), SH.saw(p), sstep(f * 2)) : lerp(SH.saw(p), SH.sq(p), sstep((f - 0.5) * 2))) },
+  { name: 'PWM', fn: (f, p) => { const w = lerp(0.5, 0.06, f); p -= Math.floor(p); const dc = 2 * w - 1; return ((p < w ? 1 : -1) - dc) / (1 + Math.abs(dc)); } },
+  { name: 'ORGAN', fn: (f, p) => { let s = 0, n = 0; [1, 2, 3, 4, 6, 8].forEach((h, j) => { const a = 0.12 + 0.88 * Math.pow(Math.sin(Math.PI * (f * 1.3 + j * 0.19)), 2); s += a * Math.sin(TAU * h * p); n += a; }); return s / (n * 0.62); } },
+  { name: 'FORMANT', fn: (f, p) => {
+    const v = f * 4, i = Math.min(3, Math.floor(v)), u = sstep(v - i);
+    const F1 = lerp(VOWELS[i][0], VOWELS[i + 1][0], u), F2 = lerp(VOWELS[i][1], VOWELS[i + 1][1], u);
+    let s = 0, n = 0;
+    for (let h = 1; h <= 16; h++) { const fr = 110 * h, a = Math.exp(-Math.pow((fr - F1) / 220, 2)) + 0.7 * Math.exp(-Math.pow((fr - F2) / 320, 2)) + 0.02; s += a * Math.sin(TAU * h * p); n += a * a; }
+    return (s / Math.sqrt(n)) * 0.62;
+  } },
+  { name: 'DIGITAL', fn: (f, p) => { let s = 0, n = 0; for (let h = 1; h <= 10; h++) { const a = Math.abs(Math.sin(f * Math.PI * (0.5 + 0.8 * h) + h * 0.9)) / Math.pow(h, 0.7); s += a * Math.sin(TAU * h * p); n += a; } return s / (n * 0.55); } },
+  { name: 'METAL', fn: (f, p) => { let s = 0, n = 0; [1, 2, 3, 5, 7, 11, 13].forEach((k) => { const a = Math.abs(Math.sin(f * Math.PI * (0.6 + 0.37 * k) + k)) / Math.sqrt(k) + 0.05; s += a * Math.sin(TAU * k * p + k * k * 0.5); n += a; }); return s / (n * 0.6); } },
+  { name: 'USER.wav', fn: (f, p) => { let s = 0, n = 0; for (let h = 1; h <= 12; h++) { const a = Math.abs(Math.sin(h * 1.7 + f * (2 + h * 0.3))) / Math.pow(h, 0.9); s += a * Math.sin(TAU * h * p + h * h * 0.37); n += a; } return s / (n * 0.6); } },
+];
+
+/* every table is normalised to peak 1.0, as the app does for its tables */
+TABLES.forEach((t) => {
+  let pk = 0;
+  for (let f = 0; f <= 1.0001; f += 0.05) for (let p = 0; p < 1; p += 0.01) pk = Math.max(pk, Math.abs(t.fn(f, p)));
+  const raw = t.fn, k = 1 / (pk || 1);
+  t.fn = (f, p) => raw(f, p) * k;
+});
+
+/* ---------- formatting ---------- */
+const pct = (v) => Math.round(v * 100) + '%';
+const msRange = (a, b) => (v) => Math.round(lerp(a, b, v)) + ' ms';
+const hz = (h) => (h >= 1000 ? (h / 1000).toFixed(1) + ' kHz' : Math.round(h) + ' Hz');
+const logHz = (a, b) => (v) => hz(a * Math.pow(b / a, v));
+const stepNames = (names) => (v) => names[Math.round(v * (names.length - 1))];
+const signed = (x, unit) => (x > 0 ? '+' : '') + x + unit;
+const startSpike = (k, w) => (x) => k * Math.exp(-Math.pow((x - X0) / w, 2));
+
+/* ---------- engines ---------- */
+const WAVES4 = [SH.sine, SH.tri, SH.saw, SH.sq];
+const WAVES3 = [SH.tri, SH.saw, SH.sq];
+
+const ENGINES = [
+  {
+    name: 'Sample', num: null, kind: 'sample', ref: true,
+    knobs: [
+      { n: 'pitch', def: 0.5, fmt: (v) => signed(Math.round((v - 0.5) * 48), ' st') },
+      { n: 'start', def: 0.0, fmt: pct },
+      { n: 'end', def: 1.0, fmt: pct },
+      { n: '—', def: 0, disabled: true, fmt: () => '' },
+    ],
+    decay: null,
+    notes: ['это эталон: в приложении он не меняется, здесь нарисован для сравнения', 'start и end: маркеры, вне них волна бледная'],
+    draw(g, s, D, c) {
+      const [pq, st, en] = s;
+      const start = clamp(st, 0, 0.94), end = clamp(Math.max(en, start + 0.06), 0, 1);
+      const xS = X0 + 56 * start, xE = X0 + 56 * end;
+      const a = gen(COLS, (u, i) => Math.exp(-u * 3.4) * (1 + 0.45 * Math.exp(-u * 28)) * (0.4 + 0.6 * Math.abs(nzi(i / 3))) * (nzi(i / 2 + 60) > 0 ? 1 : -1) * 0.8);
+      const edge = start > 0.01 || end < 0.99;
+      lane(g, a, { y0: 32, amp: 28, alpha: edge ? 0.3 : 1 }, c);
+      if (edge) {
+        lane(g, a, { y0: 32, amp: 28, cut: [xS, xE] }, c);
+        g.strokeStyle = c.icon; g.lineWidth = 1.2;
+        g.beginPath(); g.moveTo(xS, 4); g.lineTo(xS, 60); g.moveTo(xE, 4); g.lineTo(xE, 60); g.stroke();
+      }
+    },
+  },
+  {
+    name: 'KICK', num: 16, kind: 'drum',
+    knobs: [
+      { n: 'pitch', def: 0.5, fmt: logHz(30, 100) },
+      { n: 'sweep', def: 0.5, fmt: (v) => '+' + Math.round(v * 48) + ' st' },
+      { n: 'drive', def: 0.3, fmt: pct },
+      { n: 'click', def: 0.5, fmt: pct },
+    ],
+    decay: { def: 0.5, fmt: msRange(0, 1000) },
+    notes: [
+      'белое: тело удара. Серый пунктир: огибающая затухания, волны вписаны в неё',
+      'pitch: сколько волн в теле',
+      'sweep: в начале частота выше, начало сливается в сплошной блок',
+      'drive: вершины волн сплющиваются в прямоугольники',
+      'click: узкий высокий всплеск в самом начале',
+      'Decay: как далеко тянется огибающая',
+    ],
+    draw(g, s, D, c) {
+      const [h, t, m, q] = s;
+      const gg = 1 + 11 * m, cmp = 0.7 / Math.tanh(gg * 0.7), k = 4.5 - 3.5 * D;
+      let ph = 0;
+      const a = gen(COLS, (u) => {
+        const f = (0.8 + 0.9 * h) * (1 + 9 * t * Math.exp(-u * 14));
+        ph += (f * TAU * 3) / NS;
+        return (cmp * Math.tanh(gg * 0.7 * Math.sin(ph) * Math.exp(-u * k))) / 0.7;
+      });
+      axisG(g, c, 32);
+      envLine(g, c, (u) => Math.exp(-u * k), 32, 17);
+      lane(g, a, { y0: 32, amp: 17, thin: true, ext: startSpike(0.62 * q, 1.3) }, c);
+    },
+  },
+  {
+    name: 'SNARE', num: 20, kind: 'drum',
+    knobs: [
+      { n: 'tune', def: 0.5, fmt: logHz(120, 400) },
+      { n: 'snappy', def: 0.5, fmt: pct },
+      { n: 'tone', def: 0.5, fmt: (v) => (0.8 * Math.pow(10, v)).toFixed(1) + ' kHz' },
+      { n: 'punch', def: 0.4, fmt: pct },
+    ],
+    decay: { def: 0.5, fmt: msRange(30, 800) },
+    notes: [
+      'сверху шумовая полоса («струны»): высота — snappy, мелкость — tone',
+      'снизу корпус: белая основная волна, серая вторая мода 1.8·f',
+      'tune: сколько волн в корпусе',
+      'punch: начало выше по высоте, всплеск в первой колонке',
+      'Decay: длина обоих',
+    ],
+    draw(g, s, D, c) {
+      const [h, t, m, q] = s;
+      const k = 4.5 - 3.5 * D, hold = 1 + 5 * (1 - clamp(m)), amp = 15 * (1 - 0.4 * t);
+      axisG(g, c, 15); axisG(g, c, 44);
+      const an = gen(COLS, (u, i) => Math.exp(-u * k * 0.8) * nzi(i / hold) * (0.1 + 0.9 * t));
+      lane(g, an, { y0: 15, amp: 9.5, thin: true }, c);
+      const mk = (mul) => { let p = 0; return gen(COLS, (u) => { const f = (2 + 3 * h) * mul * (1 + 2 * q * Math.exp(-u * 18)); p += (f * TAU) / NS; return Math.exp(-u * k) * Math.sin(p); }); };
+      lane(g, mk(1.8), { y0: 44, amp: amp * 0.6, thin: true, color: c.gray }, c);
+      lane(g, mk(1), { y0: 44, amp, thin: true, ext: startSpike(0.35 * q, 1.3) }, c);
+    },
+  },
+  {
+    name: 'HAT', num: 21, kind: 'drum',
+    knobs: [
+      { n: 'tune', def: 0.5, fmt: (v) => signed(+((v - 0.5) * 2).toFixed(1), ' oct') },
+      { n: 'spread', def: 0.5, fmt: pct },
+      { n: 'tone', def: 0.5, fmt: (v) => '×' + Math.pow(2, (v - 0.5) * 2).toFixed(2) },
+      { n: 'noise', def: 0.2, fmt: pct },
+    ],
+    decay: { def: 0.4, fmt: msRange(20, 1500) },
+    notes: [
+      'это спектр, а не время: шесть линий — частоты ряда 808',
+      'tune: все линии сдвигаются, spread сжимает или растягивает ряд',
+      'noise: линии рвутся на куски и расходятся в стороны',
+      'серый горб — полосовой фильтр, tone двигает его',
+      'серая полоска внизу — длина хвоста (Decay)',
+    ],
+    draw(g, s, D, c) {
+      const [h, t, m, q] = s;
+      const base = [205.3, 304.4, 369.6, 522.7, 540, 800];
+      const spread = 2 * clamp(t), shift = (2 * clamp(h) - 1) * 0.5;
+      /* filter hump: solid gray area */
+      const cc = 32 + 20 * (2 * clamp(m) - 1);
+      g.globalAlpha = 1; g.fillStyle = c.gray; g.beginPath(); g.moveTo(4, 57);
+      for (let i = 0; i <= 56; i++) { const x = 4 + i; g.lineTo(x, 57 - 3 - 11 * Math.exp(-Math.pow((x - cc) / 8, 2))); }
+      g.lineTo(60, 57); g.closePath(); g.fill();
+      g.fillRect(6, 59.6, 52 * clamp(D) + 0.5, 1.2);
+      g.fillStyle = c.icon;
+      const len = 3 + 6 * (1 - q);
+      base.forEach((f, i) => {
+        const lx = Math.log2(f / HAT_MEAN) * spread * 0.9 + shift;
+        const x = 32 + 22 * Math.max(-1, Math.min(1, lx / 1.4));
+        const sw = c.hx == null ? 0 : 3 * Math.exp(-Math.pow((x - c.hx) / 7, 2));
+        let y = 8 - sw, j = 0;
+        while (y < 40) {
+          const dx = rnd(i * 40 + j, 11) * 3 * q;
+          g.fillRect(x + dx - 0.6, y, 1.2, Math.min(40, y + len) - y);
+          y += len + 2 * q; j++;
+        }
+      });
+    },
+  },
+  {
+    name: 'CLAP', num: 22, kind: 'drum',
+    knobs: [
+      { n: 'tone', def: 0.5, fmt: (v) => hz(700 * Math.pow(3000 / 700, Math.pow(v, 1.69))) },
+      { n: 'bursts', def: 0.6, steps: 6, fmt: (v) => String(Math.round(v * 5) + 1) },
+      { n: 'spread', def: 0.5, fmt: (v) => Math.round(2 + 23 * v) + ' ms' },
+      { n: 'tail', def: 0.5, fmt: pct },
+    ],
+    decay: { def: 0.5, fmt: msRange(50, 1200) },
+    notes: [
+      'белые острые вспышки, за ними серый хвост «комнаты»',
+      'bursts: число вспышек, новая вырастает плавно',
+      'spread: промежутки, выше 60 % — неровные',
+      'tone: чем выше, тем уже вспышка',
+      'tail: высота хвоста, Decay — его длина',
+    ],
+    draw(g, s, D, c) {
+      const [h, t, m, q] = s;
+      const nEff = 1 + 5 * clamp(t), gap0 = 3 + 6 * Math.pow(clamp(m), 1.2);
+      const room = 30 / Math.max(1, nEff * 3 + (nEff - 1) * gap0 * 1.4), gap = gap0 * Math.min(1, room);
+      const jit = m > 0.6 ? (0.4 * (m - 0.6)) / 0.4 : 0, w = 3 - 2 * clamp(h);
+      const xs = [], ends = [5.5];
+      for (let k = 0; k < 6; k++) { xs.push(ends[k]); ends.push(ends[k] + w + gap * (1 + jit * rnd(k, 5))); }
+      const fl = Math.floor(nEff), fr = nEff - fl;
+      const xT = lerp(ends[fl], ends[Math.min(6, fl + 1)], fr);
+      const len = 10 + 40 * clamp(D), tb = 0.45 * w + 0.35;
+      const burst = gen(COLS, (u) => {
+        const x = X0 + u * (X1 - X0);
+        let env = 0;
+        for (let k = 0; k < 6; k++) {
+          const p = x - xs[k];
+          if (p < 0) continue;
+          const ak = sstep(clamp(nEff - k)) * (1 - 0.08 * k);
+          if (ak > 0) env = Math.max(env, ak * Math.exp(-p / tb));
+        }
+        return env;
+      });
+      const tail = gen(COLS, (u) => { const x = X0 + u * (X1 - X0); return x >= xT ? 0.92 * q * Math.exp((-4 * (x - xT)) / len) : 0; });
+      axisG(g, c, 32);
+      lane(g, tail, { y0: 32, amp: 26, mirror: true, thin: true, color: c.gray }, c);
+      lane(g, burst, { y0: 32, amp: 26, mirror: true, thin: true }, c);
+    },
+  },
+  {
+    name: 'PERC', num: 23, kind: 'drum',
+    knobs: [
+      { n: 'tune', def: 0.5, fmt: logHz(60, 2000) },
+      { n: 'material', def: 0.3, fmt: (v) => (v < 0.25 ? 'skin' : v < 0.75 ? 'wood' : 'metal') },
+      { n: 'bend', def: 0.3, fmt: pct },
+      { n: 'hit', def: 0.5, fmt: pct },
+    ],
+    decay: { def: 0.5, fmt: msRange(30, 2000) },
+    notes: [
+      'слева результат: волна удара. Справа составляющие: шесть мод',
+      'material: моды разъезжаются от кожи к дереву и металлу, волна из ровной становится ребристой',
+      'tune: сколько волн у основной моды, bend: в начале чаще',
+      'hit: мягкая колотушка даёт широкий низкий всплеск, палка — узкий высокий',
+      'Decay: длина, высокие моды гаснут быстрее',
+    ],
+    draw(g, s, D, c) {
+      const [h, t, m, q] = s;
+      const cols = Math.round((COLS * 34) / 56), N = cols * SUB;
+      const F0 = lerp(2, 5.5, h), k0 = 5 - 4 * D;
+      const modes = [0, 1, 2, 3, 4, 5].map((i) => percModeAt(t, q, i));
+      const norm = (1 / Math.max(1, modes.reduce((x, y) => x + y.a, 0))) * 1.6 / 1.3;
+      const fade = modes.map((md) => clamp((0.3 * N - F0 * md.r * (1 + m)) / 20));
+      const ph = [0, 0, 0, 0, 0, 0];
+      const a = gen(cols, (u) => {
+        const dr = 1 + m * Math.exp(-u * 10);
+        let sum = 0;
+        for (let j = 0; j < 6; j++) {
+          ph[j] += (F0 * modes[j].r * dr * TAU) / N;
+          sum += fade[j] * modes[j].a * Math.sin(ph[j]) * Math.exp(-u * k0 * Math.sqrt(modes[j].r));
+        }
+        return clamp(sum * norm, -1, 1);
+      });
+      axisG(g, c, 32, 4, 38); axisG(g, c, 32, 43, 60);
+      const A = 0.25 + 0.5 * q, W = lerp(5, 1.2, q);
+      lane(g, a, { y0: 32, amp: 25, x0: 4, x1: 38, thin: true, ext: (x) => 0.5 * A * Math.exp(-(x - 4) / W) }, c);
+      g.globalAlpha = 1; g.fillStyle = c.icon;
+      for (let i = 0; i < 6; i++) {
+        const x = 46 + (12 * Math.log(modes[i].r)) / Math.log(19), hh = 20 * modes[i].a;
+        g.fillRect(x - 0.6, 32 - hh, 1.2, 2 * hh);
+      }
+    },
+  },
+  {
+    name: 'ANALOG', num: 17, kind: 'synth',
+    knobs: [
+      { n: 'wave A', def: 0, steps: 4, fmt: stepNames(['Sine', 'Triangle', 'Saw', 'Square']) },
+      { n: 'wave B', def: 0, steps: 4, fmt: stepNames(['Sine', 'Triangle', 'Saw', 'Square']) },
+      { n: 'detune', def: 0.3, fmt: (v) => Math.round(60 * v * v) + ' ct' },
+      { n: 'mix', def: 0.5, fmt: pct },
+    ],
+    decay: null,
+    notes: [
+      'верхняя волна A, нижняя B, при смене пункта форма перетекает',
+      'detune: B уходит по фазе от A',
+      'mix: A и B гаснут до серого, у преобладающей — полная яркость',
+    ],
+    draw(g, s, D, c) {
+      const [h, t, m, q] = s;
+      const ang = (clamp(q) * Math.PI) / 2, ga = Math.cos(ang), gb = Math.sin(ang), mx = Math.max(ga, gb);
+      const dd = m * m, sc = c.T * 0.16;
+      axisG(g, c, 20); axisG(g, c, 44);
+      lane(g, gen(COLS, (u) => morph(WAVES4, h * 3, u * 2 - sc)), { y0: 20, amp: 10.5, thin: true, alpha: 0.3 + 0.7 * ga / mx }, c);
+      lane(g, gen(COLS, (u) => morph(WAVES4, t * 3, u * 2 * (1 + 0.06 * dd) + 0.15 * dd - sc)), { y0: 44, amp: 10.5, thin: true, alpha: 0.3 + 0.7 * gb / mx }, c);
+    },
+  },
+  {
+    name: 'FM', num: 18, kind: 'synth',
+    knobs: [
+      { n: 'ratio', def: 0.5, fmt: (v) => '×' + fmRatio(v).toFixed(2) },
+      { n: 'index', def: 0.4, fmt: (v) => (10 * Math.pow(v, 1.5)).toFixed(1) + ' rad' },
+      { n: 'contour', def: 0.5, fmt: pct },
+      { n: 'feedback', def: 0.5, fmt: pct },
+    ],
+    decay: { def: 0.5, fmt: pct },
+    notes: [
+      'серый модулятор сверху, белая несущая снизу, в углу число ×',
+      'ratio: частота модулятора',
+      'index: насколько несущая изгибается модулятором',
+      'contour + Decay: индекс спадает вдоль иконки',
+      'feedback: новое, в коде иконки его нет. Модулятор искажается сам по себе',
+    ],
+    draw(g, s, D, c) {
+      const [h, t, m, q] = s;
+      const r = 0.5 * Math.pow(16, h), idx = 2.5 * Math.pow(clamp(t), 1.5);
+      const k = m < 0.5 ? 2 * m : 1 + 8 * (m - 0.5), dec = k * (1.6 - 1.3 * D);
+      const fb = q * 1.4, sc = c.T * 0.2;
+      const modS = (u) => { const a = TAU * (u * 1.5 - sc) * r; return Math.sin(a + fb * Math.sin(a)); };
+      axisG(g, c, 13); axisG(g, c, 38);
+      lane(g, gen(COLS, (u) => modS(u)), { y0: 13, amp: 7, thin: true, color: c.gray }, c);
+      lane(g, gen(COLS, (u) => Math.sin(TAU * (u * 1.5 - sc) + idx * Math.exp(-u * dec) * modS(u))), { y0: 38, amp: 14, thin: true }, c);
+      const sn = fmRatio(h), whole = sn >= 1 && Math.abs(sn - Math.round(sn)) < 0.01;
+      g.globalAlpha = 1; g.fillStyle = c.icon; g.font = '600 8px ui-monospace, "DejaVu Sans Mono", monospace'; g.textAlign = 'center';
+      g.fillText(whole ? '×' + Math.round(sn) : '×' + sn.toFixed(1), 49, 61);
+    },
+  },
+  {
+    name: 'WTABLE', num: 19, kind: 'synth', tables: true,
+    knobs: [
+      { n: 'position', def: 0.3, fmt: (v) => 'frame ' + (Math.round(v * 63) + 1) },
+      { n: 'warp', def: 0.0, fmt: pct },
+      { n: 'unison', def: 0, steps: 3, fmt: stepNames(['1 voice', '3 voices', '5 voices']) },
+      { n: 'detune', def: 0.35, fmt: (v) => Math.round(60 * v) + ' ct' },
+    ],
+    decay: null,
+    notes: [
+      'это вся таблица: стопка кадров, серые — кадры таблицы, белый — текущий',
+      'position: белый кадр поднимается и опускается по стопке',
+      'warp: фаза изгибается у всех кадров сразу, выше 50 % добавляется синхронизация',
+      'unison и detune: за белым кадром появляются серые копии',
+      'смена таблицы: кадры перетекают в новые волной от переднего к заднему',
+    ],
+    draw(g, s, D, c) {
+      const [pos, warp, uni, det] = s;
+      const N = 14, PTS = 97, tmv = c.tm === undefined ? 1 : c.tm;
+      const bend = 1 + 3 * Math.min(1, warp * 2), sync = warp > 0.5 ? 1 + 3 * (warp - 0.5) * 2 : 1;
+      const wp = (p) => { let q = p * sync; q -= Math.floor(q); return Math.pow(q, bend); };
+      const TA = TABLES[c.tA || 0], TB = TABLES[c.tB || 0];
+      const val = (fi, f, p, off) => {
+        const ph = wp(p + off);
+        if (tmv >= 1) return TB.fn(f, ph);
+        const pr = sstep(clamp(tmv * 1.7 - fi * 0.7));
+        return lerp(TA.fn(f, ph), TB.fn(f, ph), pr) * (1 - 0.35 * Math.sin(Math.PI * pr));
+      };
+      const curve = (fi, f, y, x0, amp, off) => {
+        const pts = [];
+        for (let j = 0; j <= PTS; j++) { const u = j / PTS; pts.push([x0 + 46 * u, y - amp * clamp(val(fi, f, Math.min(u, 0.9999), off), -1.2, 1.2)]); }
+        return pts;
+      };
+      const path = (pts) => { g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (let j = 1; j < pts.length; j++) g.lineTo(pts[j][0], pts[j][1]); };
+      g.lineJoin = 'round'; g.lineCap = 'round';
+      for (let i = N - 1; i >= 0; i--) {
+        const fi = i / (N - 1), pts = curve(fi, fi, 55 - 2.9 * i, 6 + 0.5 * i, 5.2, 0);
+        path(pts); g.lineTo(pts[pts.length - 1][0], 64); g.lineTo(pts[0][0], 64); g.closePath();
+        g.globalAlpha = 1; g.fillStyle = c.bg; g.fill();
+        path(pts); g.strokeStyle = c.gray; g.lineWidth = 0.9; g.globalAlpha = 0.55 + 0.45 * Math.exp(-Math.pow((fi - pos) / 0.2, 2)); g.stroke();
+      }
+      g.globalAlpha = 1;
+      const yL = 55 - 2.9 * pos * (N - 1), xL = 6 + 0.5 * pos * (N - 1);
+      const a3 = clamp(uni * 2), a5 = clamp(uni * 2 - 1), d = det * 0.2 * (1 + 0.12 * Math.sin(c.T * 1.7));
+      const ghost = (off, al) => { if (al > 0.01) { path(curve(pos, pos, yL, xL, 8, off)); g.strokeStyle = c.gray; g.lineWidth = 1.2; g.globalAlpha = al; g.stroke(); } };
+      ghost(d, 0.9 * a3); ghost(-d, 0.9 * a3); ghost(d / 2, 0.9 * a5); ghost(-d / 2, 0.9 * a5);
+      const live = curve(pos, pos, yL, xL, 8, 0);
+      g.globalAlpha = 1;
+      path(live); g.strokeStyle = c.bg; g.lineWidth = 3.4; g.stroke();
+      path(live); g.strokeStyle = c.icon; g.lineWidth = 1.5; g.stroke();
+    },
+  },
+  {
+    name: 'SUB', num: 24, kind: 'synth',
+    knobs: [
+      { n: 'wave', def: 0.5, steps: 3, fmt: stepNames(['Triangle', 'Saw', 'Square']) },
+      { n: 'sub', def: 0.4, fmt: pct },
+      { n: 'fat', def: 0.25, fmt: (v) => Math.round(35 * v) + ' ct' },
+      { n: 'grit', def: 0.2, fmt: (v) => '+' + Math.round(24 * v) + ' dB' },
+    ],
+    decay: null,
+    notes: [
+      'верхняя волна — основной осциллятор, нижняя вдвое медленнее (октава вниз)',
+      'sub: баланс яркости, у преобладающей — полная',
+      'fat: нижняя медленно расходится по фазе с верхней',
+      'grit: верхушки обеих волн срезаются',
+    ],
+    draw(g, s, D, c) {
+      const [h, t, m, q] = s;
+      const gn = Math.pow(10, 1.2 * clamp(q)), wg = Math.min(1, clamp(q) / 0.1);
+      const grit = (x) => (1 - wg) * x + (wg * Math.tanh(gn * x)) / Math.tanh(gn);
+      const ang = (clamp(t) * Math.PI) / 2, ga = Math.cos(ang), gb = Math.sin(ang), mx = Math.max(ga, gb);
+      const fat = 0.12 * clamp(m), sc = c.T * 0.16, idx = h * 2;
+      axisG(g, c, 16); axisG(g, c, 44);
+      lane(g, gen(COLS, (u) => grit(morph(WAVES3, idx, u * 2 - sc))), { y0: 16, amp: 8, thin: true, alpha: 0.3 + 0.7 * ga / mx }, c);
+      lane(g, gen(COLS, (u) => grit(morph(WAVES3, idx, u + fat * u - sc / 2))), { y0: 44, amp: 16, thin: true, alpha: 0.3 + 0.7 * gb / mx }, c);
+    },
+  },
+];
+
+const V3 = (function(){
+'use strict';
+/* ---------- helpers ---------- */
+const TAU = Math.PI * 2;
+const clamp = (x, a = 0, b = 1) => (x < a ? a : x > b ? b : x);
+const lerp = (a, b, t) => a + (b - a) * t;
+const sstep = (t) => t * t * (3 - 2 * t);
+const hash = (n) => { const v = Math.sin(n * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
+const rnd = (i, seed) => hash(i * 1.713 + seed * 9.31) * 2 - 1;
+
+/* Column renderer: the same language as the sample preview.
+   72 solid columns on a 64x64 grid; each column spans min..max of the signal inside it, always including the axis,
+   with a minimum thickness, so a silent stretch becomes the thin centre line. */
+const COLS = 72, SUB = 6, NS = COLS * SUB, X0 = 4, X1 = 60;
+const NZ = Array.from({ length: 512 }, (_, i) => hash(i * 3.17 + 7) * 2 - 1);
+const nz = (i) => NZ[((i % 512) + 512) % 512];
+const nzi = (x) => { const i = Math.floor(x), f = x - i; return lerp(nz(i), nz(i + 1), f); };
+const gen = (fn) => { const a = new Float32Array(NS + 1); for (let i = 0; i <= NS; i++) a[i] = fn(i / NS, i); return a; };
+
+function lane(g, a, o, c) {
+  const x0 = o.x0 === undefined ? X0 : o.x0, x1 = o.x1 === undefined ? X1 : o.x1, w = (x1 - x0) / COLS;
+  g.globalAlpha = o.alpha === undefined ? 1 : o.alpha;
+  g.beginPath();
+  for (let i = 0; i < COLS; i++) {
+    const xc = x0 + (i + 0.5) * w;
+    if (o.cut && (xc < o.cut[0] || xc > o.cut[1])) continue;
+    let mn = 0, mx = 0;
+    for (let k = 0; k <= SUB; k++) { const v = a[i * SUB + k]; if (v < mn) mn = v; if (v > mx) mx = v; }
+    const gain = c.hx == null ? 1 : 1 + 0.16 * Math.exp(-Math.pow((xc - c.hx) / 7, 2));
+    const e = o.ext ? o.ext(xc) : 0;
+    let top = o.y0 - (mx + e) * o.amp * gain - 0.4, bot = o.y0 - (mn - e) * o.amp * gain + 0.4;
+    if (top < 1.5) top = 1.5;
+    if (bot > 62.5) bot = 62.5;
+    g.rect(x0 + i * w - 0.06, top, w + 0.12, bot - top);
+  }
+  g.fill();
+  g.globalAlpha = 1;
+}
+
+/* shapes exactly as in EngineIconsJambo.swift: peak-aligned triangle, falling saw, 50% square */
+const SH = {
+  sine: (p) => Math.sin(TAU * p),
+  tri: (p) => { p -= Math.floor(p); return 1 - 4 * Math.abs(p < 0.75 ? p - 0.25 : p - 1.25); },
+  saw: (p) => { p -= Math.floor(p); return 1 - 2 * p; },
+  sq: (p) => { p -= Math.floor(p); return p < 0.5 ? 1 : -1; },
+};
+function morph(list, idx, p) {
+  idx = clamp(idx, 0, list.length - 1);
+  const i = Math.min(Math.floor(idx), list.length - 2);
+  return lerp(list[i](p), list[i + 1](p), sstep(idx - i));
+}
+const FM_SNAP = [0.5, 1, 1.5, 2, 3, 4, 5, 6, 7, 8];
+function fmRatio(v) {
+  const r = 0.5 * Math.pow(16, v);
+  for (const n of FM_SNAP) if (Math.abs(r / n - 1) < 0.02) return n;
+  return r;
+}
+/* Jambo.percMode / percModeAt */
+const PERC_SETS = [
+  [[1, 1], [1.59, 0.7], [2.14, 0.5], [2.30, 0.4], [2.65, 0.3], [2.92, 0.25]],
+  [[1, 1], [2.76, 0.5], [5.40, 0.3], [8.93, 0.2], [13.34, 0.1], [18.64, 0.06]],
+  [[1, 1], [1.4815, 0.9], [3, 0.33], [4.4444, 0.3], [5, 0.2], [7.4074, 0.18]],
+];
+function percModeAt(m, hit, k) {
+  const x = clamp(m), set = x < 0.5 ? 0 : 1, u = x < 0.5 ? x * 2 : (x - 0.5) * 2;
+  const lo = PERC_SETS[set][k], hi = PERC_SETS[set + 1][k];
+  const r = Math.exp(Math.log(lo[0]) + (Math.log(hi[0]) - Math.log(lo[0])) * u);
+  const a = (lo[1] + (hi[1] - lo[1]) * u) * Math.pow(0.55 + 0.45 * hit, k);
+  return { r, a };
+}
+const HAT_MEAN = 416.4;
+
+/* ---------- formatting ---------- */
+const pct = (v) => Math.round(v * 100) + '%';
+const msRange = (a, b) => (v) => Math.round(lerp(a, b, v)) + ' ms';
+const hz = (h) => (h >= 1000 ? (h / 1000).toFixed(1) + ' kHz' : Math.round(h) + ' Hz');
+const logHz = (a, b) => (v) => hz(a * Math.pow(b / a, v));
+const stepNames = (names) => (v) => names[Math.round(v * (names.length - 1))];
+const signed = (x, unit) => (x > 0 ? '+' : '') + x + unit;
+const startSpike = (k, w) => (x) => k * Math.exp(-Math.pow((x - X0) / w, 2));
+
+/* ---------- engines ---------- */
+const WAVES4 = [SH.sine, SH.tri, SH.saw, SH.sq];
+const WAVES3 = [SH.tri, SH.saw, SH.sq];
+
+const ENGINES = [
+  {
+    name: 'Sample', num: null, kind: 'sample', ref: true,
+    knobs: [
+      { n: 'pitch', def: 0.5, fmt: (v) => signed(Math.round((v - 0.5) * 48), ' st') },
+      { n: 'start', def: 0.0, fmt: pct },
+      { n: 'end', def: 1.0, fmt: pct },
+      { n: '—', def: 0, disabled: true, fmt: () => '' },
+    ],
+    decay: null,
+    notes: [
+      'это эталон: в приложении он не меняется, здесь нарисован для сравнения',
+      'start и end: маркеры, вне них волна бледная',
+    ],
+    draw(g, s, D, c) {
+      const [pq, st, en] = s;
+      const start = clamp(st, 0, 0.94), end = clamp(Math.max(en, start + 0.06), 0, 1);
+      const xS = X0 + 56 * start, xE = X0 + 56 * end;
+      const a = gen((u, i) => Math.exp(-u * 3.4) * (1 + 0.45 * Math.exp(-u * 28)) * (0.4 + 0.6 * Math.abs(nzi(i / 3))) * (nzi(i / 2 + 60) > 0 ? 1 : -1) * 0.8);
+      const edge = start > 0.01 || end < 0.99;
+      lane(g, a, { y0: 32, amp: 28, alpha: edge ? 0.3 : 1 }, c);
+      if (edge) lane(g, a, { y0: 32, amp: 28, cut: [xS, xE] }, c);
+      if (edge) {
+        g.globalAlpha = 1; g.lineWidth = 1.2;
+        g.beginPath(); g.moveTo(xS, 4); g.lineTo(xS, 60); g.moveTo(xE, 4); g.lineTo(xE, 60); g.stroke();
+      }
+    },
+  },
+  {
+    name: 'KICK', num: 16, kind: 'drum',
+    knobs: [
+      { n: 'pitch', def: 0.5, fmt: logHz(30, 100) },
+      { n: 'sweep', def: 0.5, fmt: (v) => '+' + Math.round(v * 48) + ' st' },
+      { n: 'drive', def: 0.3, fmt: pct },
+      { n: 'click', def: 0.5, fmt: pct },
+    ],
+    decay: { def: 0.5, fmt: msRange(0, 1000) },
+    notes: [
+      'pitch: сколько волн в теле удара',
+      'sweep: в начале частота выше, начало сливается в сплошной блок и раскрывается в волны',
+      'drive: вершины волн сплющиваются в прямоугольники',
+      'click: узкий высокий всплеск в самом начале',
+      'Decay: как далеко тянется тело, дальше только осевая линия',
+    ],
+    draw(g, s, D, c) {
+      const [h, t, m, q] = s;
+      const gg = 1 + 11 * m, cmp = 0.7 / Math.tanh(gg * 0.7), k = 4.5 - 3.5 * D;
+      let ph = 0;
+      const a = gen((u) => {
+        const f = (0.8 + 0.9 * h) * (1 + 9 * t * Math.exp(-u * 14));
+        ph += (f * TAU * 3) / NS;
+        return (cmp * Math.tanh(gg * 0.7 * Math.sin(ph) * Math.exp(-u * k))) / 0.7;
+      });
+      lane(g, a, { y0: 32, amp: 18, ext: startSpike(0.55 * q, 1.3) }, c);
+    },
+  },
+  {
+    name: 'SNARE', num: 20, kind: 'drum',
+    knobs: [
+      { n: 'tune', def: 0.5, fmt: logHz(120, 400) },
+      { n: 'snappy', def: 0.5, fmt: pct },
+      { n: 'tone', def: 0.5, fmt: (v) => (0.8 * Math.pow(10, v)).toFixed(1) + ' kHz' },
+      { n: 'punch', def: 0.4, fmt: pct },
+    ],
+    decay: { def: 0.5, fmt: msRange(30, 800) },
+    notes: [
+      'корпус (две затухающие волны, f и 1.8·f) смешан с шумом',
+      'tune: сколько волн в корпусе',
+      'snappy: корпус или шум, шум даёт рваный край',
+      'tone: чем выше, тем гуще и ровнее шум, чем ниже, тем он крупнее',
+      'punch: начало выше по высоте, плюс всплеск в первой колонке',
+      'Decay: длина удара',
+    ],
+    draw(g, s, D, c) {
+      const [h, t, m, q] = s;
+      const k = 4.5 - 3.5 * D, wb = Math.cos((t * Math.PI) / 2), wn = Math.sin((t * Math.PI) / 2);
+      const hold = 1 + 5 * (1 - clamp(m));
+      let p1 = 0;
+      const a = gen((u, i) => {
+        const f = (2 + 3 * h) * (1 + 2 * q * Math.exp(-u * 18));
+        p1 += (f * TAU) / NS;
+        const body = (Math.exp(-u * k) * (0.62 * Math.sin(p1) + 0.34 * Math.sin(1.8 * p1))) / 0.96;
+        const noise = Math.exp(-u * k * 0.8) * nzi(i / hold);
+        return clamp(wb * body + wn * noise, -1, 1);
+      });
+      lane(g, a, { y0: 32, amp: 26, ext: startSpike(0.3 * q, 1.3) }, c);
+    },
+  },
+  {
+    name: 'HAT', num: 21, kind: 'drum',
+    knobs: [
+      { n: 'tune', def: 0.5, fmt: (v) => signed(+((v - 0.5) * 2).toFixed(1), ' oct') },
+      { n: 'spread', def: 0.5, fmt: pct },
+      { n: 'tone', def: 0.5, fmt: (v) => '×' + Math.pow(2, (v - 0.5) * 2).toFixed(2) },
+      { n: 'noise', def: 0.2, fmt: pct },
+    ],
+    decay: { def: 0.4, fmt: msRange(20, 1500) },
+    notes: [
+      'шесть тонов ряда 808 складываются в рваную форму',
+      'tune: все тоны выше или ниже, форма становится мельче или крупнее',
+      'spread: 0 — один чистый тон, 100 % — тоны разбегаются',
+      'tone: какие тоны громче, низкие или высокие',
+      'noise: к металлу добавляется шум, форма становится сплошной',
+      'Decay: закрытый хэт — короткий, открытый — длинный',
+    ],
+    draw(g, s, D, c) {
+      const [h, t, m, q] = s;
+      const base = [205.3, 304.4, 369.6, 522.7, 540, 800];
+      const ex = 2 * clamp(t), tf = Math.pow(2, (clamp(h) - 0.5) * 2), sl = (clamp(m) - 0.5) * 1.6;
+      const F = base.map((f) => 10 * Math.pow(f / HAT_MEAN, ex) * tf);
+      const wt = F.map((f) => Math.pow(f / 10, sl)), sw = wt.reduce((x, y) => x + y, 0);
+      const A = wt.map((w) => (2.2 * w) / sw);
+      const k = 7.5 - 6.5 * D, qa = (clamp(q) * Math.PI) / 2, cm = Math.cos(qa), sn = Math.sin(qa);
+      const a = gen((u, i) => {
+        let metal = 0;
+        for (let j = 0; j < 6; j++) metal += A[j] * Math.sin(TAU * F[j] * u);
+        const sig = cm * metal + sn * 0.9 * nz(i);
+        return clamp((Math.tanh(1.3 * sig) / Math.tanh(1.3)) * Math.exp(-u * k), -1, 1);
+      });
+      lane(g, a, { y0: 32, amp: 26 }, c);
+    },
+  },
+  {
+    name: 'CLAP', num: 22, kind: 'drum',
+    knobs: [
+      { n: 'tone', def: 0.5, fmt: (v) => hz(700 * Math.pow(3000 / 700, Math.pow(v, 1.69))) },
+      { n: 'bursts', def: 0.6, steps: 6, fmt: (v) => String(Math.round(v * 5) + 1) },
+      { n: 'spread', def: 0.5, fmt: (v) => Math.round(2 + 23 * v) + ' ms' },
+      { n: 'tail', def: 0.5, fmt: pct },
+    ],
+    decay: { def: 0.5, fmt: msRange(50, 1200) },
+    notes: [
+      'вспышки шума с резким началом, за ними хвост',
+      'bursts: число вспышек, новая вырастает плавно',
+      'spread: промежутки между вспышками, выше 60 % — неровные',
+      'tone: чем выше, тем короче каждая вспышка',
+      'tail: высота хвоста, Decay — его длина',
+    ],
+    draw(g, s, D, c) {
+      const [h, t, m, q] = s;
+      const nEff = 1 + 5 * clamp(t), gap0 = 3 + 6 * Math.pow(clamp(m), 1.2);
+      const room = 30 / Math.max(1, nEff * 3 + (nEff - 1) * gap0 * 1.4), gap = gap0 * Math.min(1, room);
+      const jit = m > 0.6 ? (0.4 * (m - 0.6)) / 0.4 : 0, w = 3 - 2 * clamp(h);
+      const xs = [], ends = [5.5];
+      for (let k = 0; k < 6; k++) { xs.push(ends[k]); ends.push(ends[k] + w + gap * (1 + jit * rnd(k, 5))); }
+      const fl = Math.floor(nEff), fr = nEff - fl;
+      const xT = lerp(ends[fl], ends[Math.min(6, fl + 1)], fr);
+      const len = 10 + 40 * clamp(D), tb = 0.45 * w + 0.35;
+      const a = gen((u, i) => {
+        const x = X0 + u * (X1 - X0);
+        let env = 0;
+        for (let k = 0; k < 6; k++) {
+          const p = x - xs[k];
+          if (p < 0) continue;
+          const ak = sstep(clamp(nEff - k)) * (1 - 0.08 * k);
+          if (ak > 0) env = Math.max(env, ak * Math.exp(-p / tb));
+        }
+        if (x >= xT) env = Math.max(env, 0.92 * q * Math.exp((-4 * (x - xT)) / len));
+        return env * nz(i);
+      });
+      lane(g, a, { y0: 32, amp: 26 }, c);
+    },
+  },
+  {
+    name: 'PERC', num: 23, kind: 'drum',
+    knobs: [
+      { n: 'tune', def: 0.5, fmt: logHz(60, 2000) },
+      { n: 'material', def: 0.3, fmt: (v) => (v < 0.25 ? 'skin' : v < 0.75 ? 'wood' : 'metal') },
+      { n: 'bend', def: 0.3, fmt: pct },
+      { n: 'hit', def: 0.5, fmt: pct },
+    ],
+    decay: { def: 0.5, fmt: msRange(30, 2000) },
+    notes: [
+      'шесть затухающих мод складываются в одну форму',
+      'tune: сколько волн у основной моды',
+      'material: набор мод от кожи к дереву и металлу, форма из ровной становится ребристой',
+      'bend: в начале волны чаще',
+      'hit: мягкая колотушка даёт широкий низкий всплеск, палка — узкий высокий',
+      'Decay: длина, высокие моды гаснут быстрее',
+    ],
+    draw(g, s, D, c) {
+      const [h, t, m, q] = s;
+      const F0 = lerp(2.5, 8, h), k0 = 5 - 4 * D;
+      const modes = [0, 1, 2, 3, 4, 5].map((i) => percModeAt(t, q, i));
+      const norm = (1 / Math.max(1, modes.reduce((x, y) => x + y.a, 0))) * 1.6 / 1.3;
+      const fade = modes.map((md) => clamp((150 - F0 * md.r * (1 + m)) / 30));
+      const ph = [0, 0, 0, 0, 0, 0];
+      const a = gen((u) => {
+        const dr = 1 + m * Math.exp(-u * 10);
+        let sum = 0;
+        for (let j = 0; j < 6; j++) {
+          ph[j] += (F0 * modes[j].r * dr * TAU) / NS;
+          sum += fade[j] * modes[j].a * Math.sin(ph[j]) * Math.exp(-u * k0 * Math.sqrt(modes[j].r));
+        }
+        return clamp(sum * norm, -1, 1);
+      });
+      const A = 0.25 + 0.5 * q, W = lerp(5, 1.2, q);
+      lane(g, a, { y0: 32, amp: 26, ext: (x) => A * Math.exp(-(x - X0) / W) * 0.5 }, c);
+    },
+  },
+  {
+    name: 'ANALOG', num: 17, kind: 'synth',
+    knobs: [
+      { n: 'wave A', def: 0, steps: 4, fmt: stepNames(['Sine', 'Triangle', 'Saw', 'Square']) },
+      { n: 'wave B', def: 0, steps: 4, fmt: stepNames(['Sine', 'Triangle', 'Saw', 'Square']) },
+      { n: 'detune', def: 0.3, fmt: (v) => Math.round(60 * v * v) + ' ct' },
+      { n: 'mix', def: 0.5, fmt: pct },
+    ],
+    decay: null,
+    notes: [
+      'верхняя волна A, нижняя B, при смене пункта форма перетекает',
+      'detune: B уходит по фазе от A',
+      'mix: прозрачность A и B, у преобладающей — полная',
+    ],
+    draw(g, s, D, c) {
+      const [h, t, m, q] = s;
+      const ang = (clamp(q) * Math.PI) / 2, ga = Math.cos(ang), gb = Math.sin(ang), mx = Math.max(ga, gb);
+      const dd = m * m, sc = c.T * 0.16;
+      lane(g, gen((u) => morph(WAVES4, h * 3, u * 2 - sc)), { y0: 20, amp: 10.5, alpha: 0.15 + 0.85 * ga / mx }, c);
+      lane(g, gen((u) => morph(WAVES4, t * 3, u * 2 * (1 + 0.06 * dd) + 0.15 * dd - sc)), { y0: 44, amp: 10.5, alpha: 0.15 + 0.85 * gb / mx }, c);
+    },
+  },
+  {
+    name: 'FM', num: 18, kind: 'synth',
+    knobs: [
+      { n: 'ratio', def: 0.5, fmt: (v) => '×' + fmRatio(v).toFixed(2) },
+      { n: 'index', def: 0.4, fmt: (v) => (10 * Math.pow(v, 1.5)).toFixed(1) + ' rad' },
+      { n: 'contour', def: 0.5, fmt: pct },
+      { n: 'feedback', def: 0.5, fmt: pct },
+    ],
+    decay: { def: 0.5, fmt: pct },
+    notes: [
+      'ratio: частота модулятора (сверху, бледнее), в углу число ×',
+      'index: насколько несущая (внизу) изгибается модулятором',
+      'contour + Decay: индекс спадает вдоль иконки',
+      'feedback: новое, в коде иконки его нет. Модулятор искажается сам по себе',
+    ],
+    draw(g, s, D, c) {
+      const [h, t, m, q] = s;
+      const r = 0.5 * Math.pow(16, h), idx = 2.5 * Math.pow(clamp(t), 1.5);
+      const k = m < 0.5 ? 2 * m : 1 + 8 * (m - 0.5), dec = k * (1.6 - 1.3 * D);
+      const fb = q * 1.4, sc = c.T * 0.2;
+      const modS = (u) => { const a = TAU * (u * 1.5 - sc) * r; return Math.sin(a + fb * Math.sin(a)); };
+      lane(g, gen((u) => modS(u)), { y0: 13, amp: 7, alpha: 0.5 }, c);
+      lane(g, gen((u) => { const ph = u * 1.5 - sc; return Math.sin(TAU * ph + idx * Math.exp(-u * dec) * modS(u)); }), { y0: 38, amp: 14 }, c);
+      const sn = fmRatio(h), whole = sn >= 1 && Math.abs(sn - Math.round(sn)) < 0.01;
+      g.globalAlpha = 1; g.font = '600 8px ui-monospace, "DejaVu Sans Mono", monospace'; g.textAlign = 'center';
+      g.fillText(whole ? '×' + Math.round(sn) : '×' + sn.toFixed(1), 49, 61);
+    },
+  },
+  {
+    name: 'WTABLE', num: 19, kind: 'synth',
+    knobs: [
+      { n: 'position', def: 0.3, fmt: (v) => 'frame ' + (Math.round(v * 63) + 1) },
+      { n: 'warp', def: 0.0, fmt: pct },
+      { n: 'unison', def: 0, steps: 3, fmt: stepNames(['1 voice', '3 voices', '5 voices']) },
+      { n: 'detune', def: 0.35, fmt: (v) => Math.round(60 * v) + ' ct' },
+    ],
+    decay: null,
+    notes: [
+      'как в окне синта: один текущий кадр таблицы (здесь встроенная BASIC)',
+      'position: кадр плавно переходит от синуса к пиле и квадрату',
+      'warp: фаза изгибается, выше 50 % добавляется синхронизация',
+      'unison: к главной волне добавляются бледные копии (3 или 5)',
+      'detune: копии расходятся по фазе и «дышат»',
+    ],
+    draw(g, s, D, c) {
+      const [pos, warp, uni, det] = s;
+      const sc = c.T * 0.2, cyc = 1.5;
+      const frame = (pp, p) => {
+        pp = clamp(pp);
+        return pp < 0.5 ? lerp(SH.sine(p), SH.saw(p), sstep(pp * 2)) : lerp(SH.saw(p), SH.sq(p), sstep((pp - 0.5) * 2));
+      };
+      const warpP = (p) => {
+        p -= Math.floor(p);
+        const a = clamp(warp * 2), sy = warp <= 0.5 ? 1 : 1 + (warp - 0.5) * 6;
+        return Math.pow(p, 1 + 3 * a) * sy;
+      };
+      const mk = (off) => gen((u) => frame(pos, warpP(cyc * u - sc - off)));
+      const a3 = clamp(uni * 2), a5 = clamp(uni * 2 - 1), d = det * 0.2 * (1 + 0.12 * Math.sin(c.T * 1.7));
+      const ghost = (off, al) => { if (al > 0.01) lane(g, mk(off), { y0: 32, amp: 22, alpha: al }, c); };
+      ghost(d, 0.3 * a3); ghost(-d, 0.3 * a3); ghost(d / 2, 0.3 * a5); ghost(-d / 2, 0.3 * a5);
+      lane(g, mk(0), { y0: 32, amp: 22 }, c);
+    },
+  },
+  {
+    name: 'SUB', num: 24, kind: 'synth',
+    knobs: [
+      { n: 'wave', def: 0.5, steps: 3, fmt: stepNames(['Triangle', 'Saw', 'Square']) },
+      { n: 'sub', def: 0.4, fmt: pct },
+      { n: 'fat', def: 0.25, fmt: (v) => Math.round(35 * v) + ' ct' },
+      { n: 'grit', def: 0.2, fmt: (v) => '+' + Math.round(24 * v) + ' dB' },
+    ],
+    decay: null,
+    notes: [
+      'верхняя волна — основной осциллятор, нижняя вдвое медленнее (октава вниз)',
+      'sub: прозрачность, у преобладающей волны — полная',
+      'fat: нижняя медленно расходится по фазе с верхней',
+      'grit: верхушки обеих волн срезаются',
+    ],
+    draw(g, s, D, c) {
+      const [h, t, m, q] = s;
+      const gn = Math.pow(10, 1.2 * clamp(q)), wg = Math.min(1, clamp(q) / 0.1);
+      const grit = (x) => (1 - wg) * x + (wg * Math.tanh(gn * x)) / Math.tanh(gn);
+      const ang = (clamp(t) * Math.PI) / 2, ga = Math.cos(ang), gb = Math.sin(ang), mx = Math.max(ga, gb);
+      const fat = 0.12 * clamp(m), sc = c.T * 0.16, idx = h * 2;
+      lane(g, gen((u) => grit(morph(WAVES3, idx, u * 2 - sc))), { y0: 20, amp: 10, alpha: 0.15 + 0.85 * ga / mx }, c);
+      lane(g, gen((u) => grit(morph(WAVES3, idx, u + fat * u - sc / 2))), { y0: 46, amp: 10, alpha: 0.15 + 0.85 * gb / mx }, c);
+    },
+  },
+];
+
+return ENGINES;
+})();
+/* ---------- v5: SNARE, HAT, PERC, WTABLE redrawn; the previous draw stays as e.prev ---------- */
+const hex2rgb = (h) => { h = String(h).trim().replace('#', ''); if (h.length === 3) h = h.split('').map((x) => x + x).join(''); return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]; };
+const mixHex = (a, b, t) => { const A = hex2rgb(a), B = hex2rgb(b); return 'rgb(' + A.map((v, i) => Math.round(lerp(v, B[i], t))).join(',') + ')'; };
+
+const PATCH = {
+  SNARE: {
+    notes: [
+      'три слоя, у каждого свои ручки',
+      'верх, шум («струны»): высота — snappy, мелкость — tone',
+      'середина, корпус: сколько волн — tune, начало выше и всплеск — punch',
+      'низ, серая вторая мода корпуса 1.8·f',
+      'Decay: длина всех трёх',
+    ],
+    draw(g, s, D, c) {
+      const [h, t, m, q] = s;
+      const k = 4.5 - 3.5 * D, hold = 1 + 5 * (1 - clamp(m)), ab = 1 - 0.45 * t;
+      axisG(g, c, 12); axisG(g, c, 33); axisG(g, c, 54);
+      lane(g, gen(COLS, (u, i) => Math.exp(-u * k * 0.8) * nzi(i / hold) * (0.08 + 0.92 * t)), { y0: 12, amp: 8.5, thin: true }, c);
+      const mk = (mul) => { let p = 0; return gen(COLS, (u) => { const f = (2 + 3 * h) * mul * (1 + 2 * q * Math.exp(-u * 18)); p += (f * TAU) / NS; return Math.exp(-u * k) * Math.sin(p); }); };
+      lane(g, mk(1), { y0: 33, amp: 9.5 * ab, thin: true, ext: startSpike(0.3 * q, 1.3) }, c);
+      lane(g, mk(1.8), { y0: 54, amp: 6 * ab, thin: true, color: c.gray }, c);
+    },
+  },
+  HAT: {
+    notes: [
+      'это спектр, а не время: шесть линий — частоты ряда 808',
+      'tune: все линии сдвигаются, spread сжимает или растягивает ряд',
+      'noise: линии рвутся на куски и расходятся в стороны',
+      'Decay: высота линий. Короткий хэт — низкие, открытый — высокие, к верху линии бледнеют',
+      'серый горб — полосовой фильтр, tone двигает его',
+    ],
+    draw(g, s, D, c) {
+      const [h, t, m, q] = s;
+      const base = [205.3, 304.4, 369.6, 522.7, 540, 800];
+      const spread = 2 * clamp(t), shift = (2 * clamp(h) - 1) * 0.5;
+      const cc = 32 + 20 * (2 * clamp(m) - 1);
+      g.globalAlpha = 1; g.fillStyle = c.gray; g.beginPath(); g.moveTo(4, 59);
+      for (let i = 0; i <= 56; i++) { const x = 4 + i; g.lineTo(x, 59 - 3 - 11 * Math.exp(-Math.pow((x - cc) / 8, 2))); }
+      g.lineTo(60, 59); g.closePath(); g.fill();
+      const bottom = 46, H = 8 + 30 * clamp(D), top = bottom - H, len = 3 + 6 * (1 - q);
+      g.fillStyle = c.icon;
+      base.forEach((f, i) => {
+        const lx = Math.log2(f / HAT_MEAN) * spread * 0.9 + shift;
+        const x = 32 + 22 * Math.max(-1, Math.min(1, lx / 1.4));
+        const sw = c.hx == null ? 0 : 3 * Math.exp(-Math.pow((x - c.hx) / 7, 2));
+        let y = top - sw, j = 0;
+        while (y < bottom) {
+          const dx = rnd(i * 40 + j, 11) * 3 * q, y1 = Math.min(bottom, y + len);
+          for (let yy = y; yy < y1; yy += 2) {
+            const ye = Math.min(y1, yy + 2), tt = clamp((yy - top) / H);
+            g.globalAlpha = 0.4 + 0.6 * tt;
+            g.fillRect(x + dx - 0.6, yy, 1.2, ye - yy + 0.05);
+          }
+          y += len + 2 * q; j++;
+        }
+      });
+      g.globalAlpha = 1;
+    },
+  },
+  PERC: {
+    notes: [
+      'шесть мод, каждая своей волной сверху вниз, основная — первая',
+      'tune: сколько волн у основной моды, остальные идут вместе с ней',
+      'material: частоты мод разъезжаются от кожи к дереву и металлу',
+      'hit: верхние моды ярче и крупнее (палка) или тусклее и мельче (мягкая колотушка)',
+      'bend: в начале все моды чаще',
+      'Decay: длина, высокие моды гаснут быстрее',
+    ],
+    draw(g, s, D, c) {
+      const [h, t, m, q] = s;
+      const F0 = lerp(2, 5, h), k0 = 5 - 4 * D;
+      for (let i = 0; i < 6; i++) {
+        const y0 = 8 + i * 9.6, md = percModeAt(t, q, i), sa = Math.sqrt(md.a);
+        axisG(g, c, y0);
+        const cyc = F0 * Math.pow(md.r, 0.55), kk = k0 * Math.sqrt(md.r);
+        let ph = 0;
+        const a = gen(COLS, (u) => { ph += (cyc * (1 + m * Math.exp(-u * 10)) * TAU) / NS; return Math.exp(-u * kk) * Math.sin(ph); });
+        lane(g, a, { y0, amp: 4.4 * (0.35 + 0.65 * sa), thin: true, alpha: 0.4 + 0.6 * sa }, c);
+      }
+    },
+  },
+  WTABLE: {
+    notes: [
+      'вся таблица сплошными слоями: серые — кадры, белый — текущий, он лежит в стопке на своей глубине',
+      'position: белый кадр поднимается и опускается по стопке, кадры спереди его перекрывают',
+      'warp: фаза изгибается у всех кадров сразу, выше 50 % добавляется синхронизация',
+      'unison и detune: за белым кадром появляются полупрозрачные копии',
+      'смена таблицы: кадры перетекают в новые волной от переднего к заднему',
+    ],
+    draw(g, s, D, c) {
+      const [pos, warp, uni, det] = s;
+      const N = 14, PTS = 97, tmv = c.tm === undefined ? 1 : c.tm;
+      const bend = 1 + 3 * Math.min(1, warp * 2), sync = warp > 0.5 ? 1 + 3 * (warp - 0.5) * 2 : 1;
+      const wp = (p) => { let q = p * sync; q -= Math.floor(q); return Math.pow(q, bend); };
+      const TA = TABLES[c.tA || 0], TB = TABLES[c.tB || 0];
+      const val = (fi, f, p, off) => {
+        const ph = wp(p + off);
+        if (tmv >= 1) return TB.fn(f, ph);
+        const pr = sstep(clamp(tmv * 1.7 - fi * 0.7));
+        return lerp(TA.fn(f, ph), TB.fn(f, ph), pr) * (1 - 0.35 * Math.sin(Math.PI * pr));
+      };
+      const curve = (fi, f, y, x0, amp, off) => {
+        const pts = [];
+        for (let j = 0; j <= PTS; j++) { const u = j / PTS; pts.push([x0 + 46 * u, y - amp * clamp(val(fi, f, Math.min(u, 0.9999), off), -1.2, 1.2)]); }
+        return pts;
+      };
+      const path = (pts) => { g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (let j = 1; j < pts.length; j++) g.lineTo(pts[j][0], pts[j][1]); };
+      const solid = (pts, fill, alpha) => {
+        path(pts); g.lineTo(pts[pts.length - 1][0], 64); g.lineTo(pts[0][0], 64); g.closePath();
+        g.globalAlpha = alpha; g.fillStyle = fill; g.fill();
+        g.globalAlpha = 1; path(pts); g.strokeStyle = c.bg; g.lineWidth = 0.8; g.stroke();
+      };
+      g.lineJoin = 'round'; g.lineCap = 'round';
+      const L = pos * (N - 1);
+      const frame = (i) => { const fi = i / (N - 1); solid(curve(fi, fi, 55 - 2.9 * i, 6 + 0.5 * i, 5.2, 0), mixHex(c.bg, c.gray, 0.3 + 0.7 * (1 - fi)), 1); };
+      for (let i = N - 1; i > L; i--) frame(i);
+      const yL = 55 - 2.9 * L, xL = 6 + 0.5 * L;
+      const a3 = clamp(uni * 2), a5 = clamp(uni * 2 - 1), d = det * 0.2 * (1 + 0.12 * Math.sin(c.T * 1.7));
+      const ghost = (off, al) => { if (al > 0.01) solid(curve(pos, pos, yL, xL, 8, off), c.icon, al); };
+      ghost(d, 0.28 * a3); ghost(-d, 0.28 * a3); ghost(d / 2, 0.28 * a5); ghost(-d / 2, 0.28 * a5);
+      solid(curve(pos, pos, yL, xL, 8, 0), c.icon, 1);
+      for (let i = Math.floor(L); i >= 0; i--) frame(i);
+      g.globalAlpha = 1;
+    },
+  },
+};
+for (const e of ENGINES) { if (!e.ref && !PATCH[e.name]) e.prev = V3.find((x) => x.name === e.name).draw; }
+for (const n of Object.keys(PATCH)) {
+  const e = ENGINES.find((x) => x.name === n);
+  e.prev = V3.find((x) => x.name === n).draw;
+  Object.assign(e, PATCH[n]);
+}
+
+
+/* ---------- final mix: v3 compositions for KICK/SNARE/PERC/ANALOG/FM/WTABLE/SUB, mirrored smooth render like CLAP; HAT and CLAP as now ---------- */
+(function () {
+  const v3 = (n) => V3.find((x) => x.name === n);
+  const cur = (n) => ENGINES.find((x) => x.name === n);
+  const mirrorLane = (g, a, y0, o, c) => { axisG(g, c, y0); lane(g, a, Object.assign({ y0, mirror: true, thin: true }, o), c); };
+  const K = v3('KICK');
+  K.draw = function (g, s, D, c) {
+    const [h, t, m, q] = s;
+    const gg = 1 + 11 * m, cmp = 0.7 / Math.tanh(gg * 0.7);
+    const mk = (k) => { let ph = 0; return gen(COLS, (u) => {
+      const f = (0.8 + 0.9 * h) * (1 + 9 * t * Math.exp(-u * 14));
+      ph += (f * TAU * 3) / NS;
+      return (cmp * Math.tanh(gg * 0.7 * Math.sin(ph) * Math.exp(-u * k))) / 0.7;
+    }); };
+    axisG(g, c, 32);
+    lane(g, mk(4.5 - 3.5 * D), { y0: 32, amp: 26, mirror: true, thin: true, color: c.gray }, c);
+    lane(g, mk(9), { y0: 32, amp: 26, mirror: true, thin: true, ext: startSpike(0.55 * q, 1.3) }, c);
+  };
+  K.notes = ['pitch: сколько волн в теле удара', 'sweep: в начале частота выше, начало плотнее', 'drive: вершины сплющиваются, тело становится плотнее', 'click: узкий всплеск в начале', 'белое — сам удар, серый хвост — Decay, чем он больше, тем дальше хвост'];
+  const S = v3('SNARE');
+  S.draw = function (g, s, D, c) {
+    const [h, t, m, q] = s;
+    const wb = Math.cos((t * Math.PI) / 2), wn = Math.sin((t * Math.PI) / 2);
+    const hold = SUB * (1.5 + 2.5 * (1 - clamp(m)));
+    const mk = (k) => { let p1 = 0; return gen(COLS, (u, i) => {
+      const f = (2 + 3 * h) * (1 + 2 * q * Math.exp(-u * 18));
+      p1 += (f * TAU) / NS;
+      const body = (Math.exp(-u * k) * (0.62 * Math.sin(p1) + 0.34 * Math.sin(1.8 * p1))) / 0.96;
+      const noise = 0.75 * Math.exp(-u * k * 0.8) * nzi(i / hold);
+      return clamp(wb * body + wn * noise, -1, 1);
+    }); };
+    axisG(g, c, 32);
+    lane(g, mk(4.5 - 3.5 * D), { y0: 32, amp: 26, mirror: true, thin: true, color: c.gray }, c);
+    lane(g, mk(9), { y0: 32, amp: 26, mirror: true, thin: true, ext: startSpike(0.3 * q, 1.3) }, c);
+  };
+  S.notes = ['корпус (f и 1.8·f) смешан с шумом в одну волну', 'tune: сколько волн в корпусе', 'snappy: от корпуса к шуму, шум даёт неровный край', 'tone: чем выше, тем мельче и ровнее шум', 'punch: начало выше, плюс всплеск', 'белое — сам удар, серый хвост — Decay'];
+  const P = v3('PERC');
+  P.draw = function (g, s, D, c) {
+    const [h, t, m, q] = s;
+    const F0 = lerp(2.5, 8, h);
+    const modes = [0, 1, 2, 3, 4, 5].map((i) => percModeAt(t, q, i));
+    const norm = (1 / Math.max(1, modes.reduce((x, y) => x + y.a, 0))) * 1.6 / 1.3;
+    const fade = modes.map((md) => clamp((150 - F0 * md.r * (1 + m)) / 30));
+    const mk = (k0) => { const ph = [0, 0, 0, 0, 0, 0]; return gen(COLS, (u) => {
+      const dr = 1 + m * Math.exp(-u * 10);
+      let sum = 0;
+      for (let j = 0; j < 6; j++) {
+        ph[j] += (F0 * modes[j].r * dr * TAU) / NS;
+        sum += fade[j] * modes[j].a * Math.sin(ph[j]) * Math.exp(-u * k0 * Math.sqrt(modes[j].r));
+      }
+      return clamp(sum * norm, -1, 1);
+    }); };
+    const A = 0.25 + 0.5 * q, W = lerp(5, 1.2, q);
+    axisG(g, c, 32);
+    lane(g, mk(5 - 4 * D), { y0: 32, amp: 26, mirror: true, thin: true, color: c.gray }, c);
+    lane(g, mk(9), { y0: 32, amp: 26, mirror: true, thin: true, ext: (x) => A * Math.exp(-(x - X0) / W) * 0.5 }, c);
+  };
+  const order = ['Sample', 'KICK', 'SNARE', 'HAT', 'CLAP', 'PERC', 'ANALOG', 'FM', 'WTABLE', 'SUB'];
+  const pick = { Sample: cur('Sample'), KICK: K, SNARE: S, HAT: cur('HAT'), CLAP: cur('CLAP'), PERC: P, ANALOG: v3('ANALOG'), FM: v3('FM'), WTABLE: v3('WTABLE'), SUB: v3('SUB') };
+  order.forEach((n, i) => { const e = pick[n]; delete e.prev; ENGINES[i] = e; });
+  ENGINES.forEach((e) => { delete e.prev; });
+})();
+
+if (typeof module !== 'undefined') module.exports = { ENGINES, TABLES };
+/* ---------- UI ---------- */
+if (typeof document !== 'undefined') {
+  (function () {
+    const root = document.documentElement;
+    const reduceMQ = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let reduced = reduceMQ.matches;
+    reduceMQ.addEventListener && reduceMQ.addEventListener('change', (e) => { reduced = e.matches; });
+    let auto = true, T = 0, size = 120, hitMode = 'tap';
+    const dpr = () => Math.min(window.devicePixelRatio || 1, 3);
+    const grid = document.getElementById('grid');
+    const cards = [];
+
+    ENGINES.forEach((eng, ei) => {
+      const el = document.createElement('article');
+      el.className = 'card';
+      const knobs = eng.knobs.map((kd, ki) => ({
+        d: kd, v: kd.def, t: kd.def, auto: !eng.ref, steps: kd.steps || 0,
+        rate: 0.06 + 0.045 * ((ei * 7 + ki * 3) % 5), ph: hash(ei * 10 + ki) * TAU,
+      }));
+      const dk = eng.decay ? { d: { n: 'Decay', def: eng.decay.def, fmt: eng.decay.fmt }, v: eng.decay.def, t: eng.decay.def, auto: true, steps: 0, rate: 0.05 + 0.02 * (ei % 4), ph: hash(ei + 90) * TAU } : null;
+      const all = dk ? knobs.concat([dk]) : knobs;
+      const label = (k, i) => (k === dk ? '2.2' : '1.' + (i + 1));
+      const winHtml = (lab) => '<button class="win" type="button" aria-label="Preview ' + eng.name + (lab ? ' ' + lab : '') + '"><span class="wt"><span>' + eng.name + '</span>' + (lab ? '<span class="vt">' + lab + '</span>' : '') + '</span><canvas aria-hidden="true"></canvas><span class="wf">' + (eng.tables ? TABLES[0].name : 'tap to choose sound') + '</span></button>';
+      const kind = eng.kind === 'drum' ? 'drum · id ' + eng.num : eng.kind === 'synth' ? 'synth · id ' + eng.num : '';
+      const tag = eng.ref ? 'эталон' : eng.prev ? kind + ' · сравнение' : kind;
+      el.innerHTML =
+        '<header><h2>' + eng.name + '</h2><span class="tag">' + tag + '</span></header>' +
+        '<div class="body"><div class="wins">' + (eng.prev ? winHtml('v3') + winHtml('сейчас') : winHtml('')) + '</div><div class="knobs">' +
+        all.map((k, i) =>
+          '<div class="kr' + (k.d.disabled ? ' off' : '') + '"><div class="kl"><label for="k' + ei + '_' + i + '"><b>' + (k.d.disabled ? '1.4' : label(k, i)) + '</b> ' + k.d.n + '</label><output></output></div>' +
+          '<input type="range" id="k' + ei + '_' + i + '" min="0" max="1" step="' + (k.steps ? 1 / (k.steps - 1) : 0.001) + '" value="' + k.d.def + '"' + (k.d.disabled ? ' disabled' : '') + '></div>').join('') +
+        '</div></div>' +
+        (eng.tables ? '<div class="tbl" role="group" aria-label="Wavetable">' + TABLES.map((tb, i) => '<button type="button" class="pill" data-i="' + i + '" aria-pressed="' + (i === 0) + '">' + tb.name + '</button>').join('') + '</div>' : '') +
+        '<details><summary>Как читать</summary><ul>' + eng.notes.map((n) => '<li>' + n + '</li>').join('') + '</ul></details>';
+      grid.appendChild(el);
+      const wins = [...el.querySelectorAll('.win')].map((w, wi) => ({ cv: w.querySelector('canvas'), g: w.querySelector('canvas').getContext('2d'), wf: w.querySelector('.wf'), fn: eng.prev && wi === 0 ? eng.prev : eng.draw }));
+      const card = { eng, el, wins, knobs, dk, all, trigT: -100, visible: true, drawn: false, tA: 0, tB: 0, tT0: -100, tAuto: true, tLast: 0 };
+      el.querySelectorAll('.kr').forEach((row, i) => {
+        const k = all[i]; k.el = row.querySelector('input'); k.out = row.querySelector('output');
+        k.out.textContent = k.d.fmt(k.t);
+        k.el.addEventListener('input', () => { k.auto = false; k.t = parseFloat(k.el.value); });
+      });
+      el.querySelectorAll('.win').forEach((w) => w.addEventListener('click', () => { card.trigT = T; }));
+      if (eng.tables) {
+        const pills = el.querySelectorAll('.pill');
+        card.setTable = (i, manual) => {
+          if (i === card.tB) return;
+          card.tA = card.tB; card.tB = i; card.tT0 = T; card.tLast = T;
+          if (manual) card.tAuto = false;
+          pills.forEach((p, j) => p.setAttribute('aria-pressed', String(j === i)));
+          wins.forEach((w) => { w.wf.textContent = TABLES[i].name; });
+        };
+        pills.forEach((p) => p.addEventListener('click', () => card.setTable(parseInt(p.dataset.i, 10), true)));
+      }
+      cards.push(card);
+    });
+
+    function sizeCanvases() {
+      cards.forEach((c) => c.wins.forEach((w) => {
+        w.cv.style.width = size + 'px'; w.cv.style.height = size + 'px';
+        w.cv.width = Math.round(size * dpr()); w.cv.height = Math.round(size * dpr());
+      }));
+      root.style.setProperty('--sz', size + 'px');
+    }
+    sizeCanvases();
+
+    if ('IntersectionObserver' in window) {
+      const io = new IntersectionObserver((es) => es.forEach((e) => { const c = cards.find((x) => x.el === e.target); if (c) c.visible = e.isIntersecting; }), { rootMargin: '80px' });
+      cards.forEach((c) => io.observe(c.el));
+    }
+
+    const bar = document.getElementById('bar');
+    function pressGroup(group, value) {
+      bar.querySelectorAll('[data-group="' + group + '"]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.value === value)));
+    }
+    const autoBtn = document.getElementById('autoBtn');
+    function setAuto(on) {
+      auto = on; autoBtn.setAttribute('aria-pressed', String(on));
+      if (on) cards.forEach((c) => { if (!c.eng.ref) c.all.forEach((k) => { k.auto = true; }); c.tAuto = true; c.tLast = T; });
+    }
+    autoBtn.addEventListener('click', () => setAuto(!auto));
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      setAuto(false);
+      cards.forEach((c) => { c.all.forEach((k) => { k.t = k.d.def; k.el.value = k.d.def; k.auto = false; }); c.tAuto = false; });
+    });
+    bar.querySelectorAll('[data-group="theme"]').forEach((b) => b.addEventListener('click', () => {
+      if (b.dataset.value === 'auto') root.removeAttribute('data-theme'); else root.setAttribute('data-theme', b.dataset.value);
+      pressGroup('theme', b.dataset.value);
+    }));
+    bar.querySelectorAll('[data-group="size"]').forEach((b) => b.addEventListener('click', () => {
+      size = parseInt(b.dataset.value, 10); sizeCanvases(); pressGroup('size', b.dataset.value);
+    }));
+    bar.querySelectorAll('[data-group="hits"]').forEach((b) => b.addEventListener('click', () => {
+      hitMode = b.dataset.value; pressGroup('hits', b.dataset.value);
+    }));
+
+    let last = performance.now();
+    function frame(now) {
+      const dt = Math.min(0.05, (now - last) / 1000); last = now;
+      if (!reduced) T += dt;
+      const a = 1 - Math.exp(-dt / 0.09);
+      const cs = getComputedStyle(root);
+      const icon = cs.getPropertyValue('--icon').trim() || '#fff', gray = cs.getPropertyValue('--icon2').trim() || '#777', bg = cs.getPropertyValue('--win').trim() || '#1c1c1e';
+      for (const c of cards) {
+        for (const k of c.all) {
+          if (auto && k.auto && !k.d.disabled) {
+            let t = 0.5 + 0.5 * Math.sin(TAU * k.rate * T + k.ph);
+            if (k.steps) t = Math.round(t * (k.steps - 1)) / (k.steps - 1);
+            k.t = t; k.el.value = String(t);
+          }
+          k.v += (k.t - k.v) * a;
+          const txt = k.d.fmt(k.t);
+          if (k.out.textContent !== txt) k.out.textContent = txt;
+        }
+        if (c.setTable && auto && c.tAuto && !reduced && T - c.tLast > 7) c.setTable((c.tB + 1) % TABLES.length, false);
+        if (!c.visible && c.drawn) continue;
+        c.drawn = true;
+        if (hitMode === 'loop' && T - c.trigT > 2.4) c.trigT = T;
+        const tau = T - c.trigT;
+        const hx = !reduced && c.eng.kind === 'drum' && tau < 0.85 ? -10 + 84 * sstep(clamp(tau / 0.8)) : null;
+        const tm = reduced ? 1 : clamp((T - c.tT0) / 1.1);
+        const vals = c.knobs.map((x) => x.v), dv = c.dk ? c.dk.v : 0.5;
+        for (const w of c.wins) {
+          const g = w.g, k = w.cv.width / 64;
+          g.setTransform(k, 0, 0, k, 0, 0);
+          g.clearRect(0, 0, 64, 64);
+          g.strokeStyle = icon; g.fillStyle = icon; g.lineCap = 'butt'; g.lineJoin = 'round'; g.globalAlpha = 1;
+          w.fn(g, vals, dv, { T: reduced ? 1.3 : T, hx, reduced, icon, gray, bg, tA: c.tA, tB: c.tB, tm });
+          g.globalAlpha = 1;
+        }
+      }
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  })();
+}
+
+</script>
