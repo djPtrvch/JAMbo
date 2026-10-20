@@ -72,7 +72,8 @@ struct SoundTitle: View {
 }
 
 /// Иконка движка: элементы EngineIcons (поле 64×64) на Canvas двумя цветами темы (icon — звук, icon2 — серый).
-/// Ручки сглажены (~90 мс, как в прототипе превью); у ударных по удару дорожки — подсветка, бегущая слева направо.
+/// Ручки сглажены (~90 мс, как в прототипе превью). Подсветки по удару нет (решение пользователя: иконки не пульсируют
+/// в такт).
 /// У WTABLE — кадр таблицы дорожки (таблица ещё строится — пусто). Пока ничего не движется, кадры не идут.
 struct SynthIcon: View {
     let model: AppModel
@@ -84,11 +85,8 @@ struct SynthIcon: View {
 
     var body: some View {
         let target: IconValues = model.iconValues(engine)
-        let drum: Bool = engine == Jambo.drum || (engine >= Jambo.snare && engine <= Jambo.perc)
-        // Чтение flashing — подписка на удары; только у ударных.
-        let hit: Bool = drum && model.live.flashing[model.selectedTrack]
         let frame: ((Double, Double) -> Double)? = tableSource
-        // Кадры идут, пока сглаживание не дошло до значений ручек или идёт подсветка.
+        // Кадры идут, пока сглаживание не дошло до значений ручек.
         let live: Bool = animating || motion.differs(target)
         let ink: Color = theme.icon
         let ink2: Color = theme.icon2
@@ -96,18 +94,12 @@ struct SynthIcon: View {
             Canvas { ctx, size in
                 let now: Double = tl.date.timeIntervalSinceReferenceDate
                 let v: IconValues = motion.step(target, now)
-                let els: [IconElement] = SynthIcon.elements(engine, v, motion.hx(now, drum && live), frame)
+                let els: [IconElement] = SynthIcon.elements(engine, v, frame)
                 SynthIcon.draw(ctx, size, els, ink, ink2)
             }
         }
         .aspectRatio(1, contentMode: .fit)
         .onChange(of: target) { run(0.6) }
-        .onChange(of: hit) { _, on in
-            if on {
-                motion.hitAt = Date().timeIntervalSinceReferenceDate
-                run(0.9)
-            }
-        }
     }
 
     /// Кадр таблицы WTABLE; wavetableSerial — перерисовка, когда таблица достроилась.
@@ -118,7 +110,7 @@ struct SynthIcon: View {
         return EngineIcons.tableFrame(tb)
     }
 
-    /// Кадры идут seconds после последнего изменения (сглаживание и подсветка успевают закончиться).
+    /// Кадры идут seconds после последнего изменения (сглаживание успевает закончиться).
     private func run(_ seconds: Double) {
         animating = true
         stopTask?.cancel()
@@ -128,12 +120,12 @@ struct SynthIcon: View {
         }
     }
 
-    static func elements(_ engine: Int, _ v: IconValues, _ hx: Double?, _ frame: ((Double, Double) -> Double)?) -> [IconElement] {
+    static func elements(_ engine: Int, _ v: IconValues, _ frame: ((Double, Double) -> Double)?) -> [IconElement] {
         if let f = frame {
             // Таблица ещё строится (NaN) — пусто.
             return f(0, 0).isNaN ? [] : EngineIcons.wtableIcon(v, f)
         }
-        return EngineIcons.elements(engine, v, hx: hx)
+        return EngineIcons.elements(engine, v)
     }
 
     static func draw(_ ctx: GraphicsContext, _ size: CGSize, _ els: [IconElement], _ ink: Color, _ ink2: Color) {
@@ -232,12 +224,11 @@ struct SynthIcon: View {
     }
 }
 
-/// Сглаженные значения иконки (как k.v в прототипе: шаг 1 − exp(−dt / 0,09), dt не больше 0,05 с) и время удара.
+/// Сглаженные значения иконки (как k.v в прототипе: шаг 1 − exp(−dt / 0,09), dt не больше 0,05 с).
 /// Класс, а не @State-значение: меняется при рисовании Canvas без перерисовки вида.
 final class IconMotion {
     private var shown: IconValues? = nil
     private var last: Double = 0
-    var hitAt: Double = -100
 
     /// Сглаженное ещё не дошло до target.
     func differs(_ target: IconValues) -> Bool {
@@ -267,13 +258,5 @@ final class IconMotion {
         if far < 0.0005 { s = target }
         shown = s
         return s
-    }
-
-    /// Центр подсветки удара (x на поле 64): 0,8 с слева направо после удара, потом nil.
-    func hx(_ now: Double, _ on: Bool) -> Double? {
-        let tau: Double = now - hitAt
-        guard on, tau >= 0, tau < 0.85 else { return nil }
-        let u: Double = min(1, tau / 0.8)
-        return -10 + 84 * u * u * (3 - 2 * u)
     }
 }

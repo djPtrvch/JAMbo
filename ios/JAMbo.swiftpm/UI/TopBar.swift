@@ -29,14 +29,14 @@ struct TopBar: View {
         return HStack(spacing: Layout.gap) {
             ScaleField(model: model).frame(width: Layout.topButton)
             RootField(model: model)
-            HistoryButton(symbol: "arrow.uturn.backward", enabled: model.canUndo || model.morphHeld) { model.undoTapped() }
+            HistoryButton(symbol: "arrow.turn.up.left", enabled: model.canUndo || model.morphHeld) { model.undoTapped() }
                 .frame(width: Layout.topButton)
                 .midiTarget(model, "UNDO")
             PlayButton(model: model).frame(width: half)
                 .midiTarget(model, "PLAY")
                 .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { model.sampleRec.playFrame = $0 }
             RecButton(model: model).frame(width: half).midiTarget(model, "REC")
-            HistoryButton(symbol: "arrow.uturn.forward", enabled: model.canRedo) { model.redo() }
+            HistoryButton(symbol: "arrow.turn.up.right", enabled: model.canRedo) { model.redo() }
                 .frame(width: Layout.topButton)
                 .midiTarget(model, "REDO")
             RollButton(model: model).midiTarget(model, "ROLL")
@@ -153,7 +153,8 @@ struct MetronomeButton: View {
     }
 }
 
-/// UNDO / REDO: закруглённая стрелка; нечего отменять или возвращать — серая.
+/// UNDO / REDO: стрелка с поворотом (arrow.turn.up — в одном стиле с repeat у LOOP ROW сетки паттернов); нечего
+/// отменять или возвращать — серая.
 struct HistoryButton: View {
     let symbol: String
     let enabled: Bool

@@ -76,8 +76,11 @@ final class AppModel {
     var pageMenu: PageMenuState? = nil
     /// Скопированные страницы (copy в меню страницы).
     @ObservationIgnored var pageClipboard: [[Step]]? = nil
-    /// Октава клавиатуры (по умолчанию со второй: C2) — нота трига, пока нот не выбрали.
-    var octave: Int = Scales.octaveDef
+    /// Октава клавиатуры у каждой дорожки своя (по умолчанию у всех одна — со второй: C2; не в проекте) — нота трига,
+    /// пока нот не выбрали; от неё же — ноты маркеров нарезки дорожки.
+    var octaves: [Int] = [Int](repeating: Scales.octaveDef, count: Params.maxTracks)
+    /// Октава клавиатуры выбранной дорожки.
+    var octave: Int { return octaves[selectedTrack] }
     /// Настройки приложения (клавиатура, запись) — в UserDefaults, общие для проектов.
     private(set) var settings: AppSettings = AppModel.loadSettings()
     /// REC: ноты клавиатуры пишутся в секвенсор, пока идёт игра.

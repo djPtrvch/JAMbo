@@ -178,7 +178,8 @@ public final class SoundSnapshot: @unchecked Sendable {
     /// tables — готовые таблицы WTABLE по ключу (Track.table). slots — активные ячейки дорожек в колбэке
     /// (Launcher.slot; nil — свой буфер, все на первой ячейке). master — параметры мастера кроссфейдера перехода MIX
     /// (MixBlend.master; nil — из проекта). extra — сэмплы предпрослушки библиотеки (вне дорожек).
-    public init(_ project: Project, samples: [String: SampleData], map: SliceMap, octave: Int = 3,
+    /// octaves — октава клавиатуры каждой дорожки (ноты маркеров нарезки идут от её первой клавиши); нет — octave.
+    public init(_ project: Project, samples: [String: SampleData], map: SliceMap, octave: Int = 3, octaves: [Int] = [],
                 tables: [String: WtTable] = [:], scSends: SidechainSends = SidechainSends(), muteTails: Bool = false,
                 levelRelative: Bool = true, slots: UnsafeMutablePointer<Int>? = nil, master: [Double]? = nil,
                 extra: [String] = []) {
@@ -349,7 +350,8 @@ public final class SoundSnapshot: @unchecked Sendable {
                 d.eFrames[e] = s.frames
                 d.eChannels[e] = Int32(s.channels)
                 let marks: [SliceMark] = key.isEmpty ? [] : (snd.slices[key] ?? [])
-                let notes = Slices.notes(marks, map: map, scale: project.scale, root: project.root, octave: octave)
+                let oct: Int = t < octaves.count ? octaves[t] : octave
+                let notes = Slices.notes(marks, map: map, scale: project.scale, root: project.root, octave: oct)
                 d.eSliceStart[e] = Int32(sl)
                 var n = 0
                 for (k, m) in marks.enumerated() where sl + n < slices {

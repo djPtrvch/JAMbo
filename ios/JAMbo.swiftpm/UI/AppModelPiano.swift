@@ -39,7 +39,7 @@ extension AppModel {
     func setOctave(_ o: Int) {
         let o2 = min(Scales.octaveMax, max(Scales.octaveMin, o))
         if o2 == octave { return }
-        octave = o2
+        octaves[selectedTrack] = o2
         // Ноты маркеров нарезки идут от первой клавиши клавиатуры.
         publishAudio()
     }
