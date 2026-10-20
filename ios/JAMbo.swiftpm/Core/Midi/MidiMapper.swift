@@ -127,6 +127,29 @@ extension MidiSettings {
         }
     }
 
+    /// APPLY TO ALL PAGES (решение пользователя): маппинги 16 ручек (только .knob) в условии Current page страницы
+    /// page — копией на все остальные страницы сетки ручек (TRACK, FX, MOD, MIX, MST), с теми же источником, типом,
+    /// диапазоном и портами. Ручка на каждой странице управляет параметром своей позиции на этой странице. Копия
+    /// заменяет маппинг той же ручки на странице и маппинги других целей с тем же источником в её условии.
+    /// Возвращает число скопированных ручек.
+    @discardableResult
+    public mutating func applyKnobsToAllPages(from page: MidiPage) -> Int {
+        let knobs: [MidiMapping] = mappings.filter { m in
+            guard case .knob = m.target else { return false }
+            return m.cond == .page && m.page == page
+        }
+        for pg in MidiPage.allCases where pg != page {
+            for k in knobs {
+                var c: MidiMapping = k
+                c.page = pg
+                c.place = nil
+                mappings.removeAll { x in (x.target == c.target && x.condKey == c.condKey) || x.clashes(c) }
+                mappings.append(c)
+            }
+        }
+        return knobs.count
+    }
+
     /// Снять маппинг цели в нынешнем контексте (UNMAP).
     public mutating func unmap(_ t: MidiTarget, _ ctx: MidiContext, pinned: String? = nil) {
         guard let cur = mapping(for: t, ctx, pinned: pinned), let i = mappings.firstIndex(of: cur) else { return }

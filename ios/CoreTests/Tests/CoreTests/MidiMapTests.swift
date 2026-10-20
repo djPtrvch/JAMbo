@@ -162,4 +162,35 @@ final class MidiMapTests: XCTestCase {
         XCTAssertEqual(s.midi.mappings[0].target, .knob(2))
         XCTAssertEqual(s.midi.mappings[0].control, .momentary)
     }
+
+    /// APPLY TO ALL PAGES: ручки страницы TRACK (Current page) — на всех страницах, кнопки и Global не трогаются;
+    /// на другой странице копия заменяет ручку и забирает источник у другой цели.
+    func testApplyKnobsToAllPages() {
+        var s = MidiSettings()
+        let track = MidiContext(clipOpen: false, page: .track)
+        for k in 0..<16 {
+            s.update(.knob(k), continuous: true, track, pinned: "page:track") { m in
+                m.src = MidiSource(type: .cc, ch: 0, num: 20 + k)
+                m.control = .rel
+            }
+        }
+        s.update(.button("PLAY"), continuous: false, track, pinned: "page:track") { $0.src = MidiSource(type: .cc, ch: 0, num: 5) }
+        let fx = MidiContext(clipOpen: false, page: .fx)
+        s.update(.knob(0), continuous: true, fx, pinned: "page:fx") { $0.src = MidiSource(type: .cc, ch: 0, num: 99) }
+        s.update(.knob(15), continuous: true, fx, pinned: "page:fx") { $0.src = MidiSource(type: .cc, ch: 0, num: 21) }
+        XCTAssertEqual(s.applyKnobsToAllPages(from: .track), 16)
+        for page in MidiPage.allCases {
+            let ctx = MidiContext(clipOpen: false, page: page, track: 3)
+            for k in 0..<16 {
+                let m = s.mapping(for: .knob(k), ctx)
+                XCTAssertEqual(m?.src.num, 20 + k, "\(page) \(k)")
+                XCTAssertEqual(m?.control, .rel)
+                XCTAssertEqual(m?.condKey, "page:" + page.rawValue)
+            }
+            let r = s.resolve(MidiSource(type: .cc, ch: 0, num: 21), input: 1, ctx)
+            XCTAssertEqual(r.active.map { $0.target }, [.knob(1)], "\(page)")
+        }
+        XCTAssertEqual(s.mappings.filter { $0.target == .button("PLAY") }.count, 1)
+        XCTAssertEqual(s.mappings.count, 16 * 5 + 1)
+    }
 }

@@ -48,6 +48,13 @@ extension AppModel {
         midiLearn.pinned = key
     }
 
+    /// APPLY TO ALL PAGES: ручки страницы маппинга окна (Current page) — на все страницы сетки ручек.
+    func mapApplyAllPages() {
+        guard let m = mapCurrent, m.cond == .page else { return }
+        let page: MidiPage = m.page
+        setMidi { s in _ = s.applyKnobsToAllPages(from: page) }
+    }
+
     func mapUnmap() {
         guard let t = midiLearn.mapTarget else { return }
         let ctx: MidiContext = midiContext

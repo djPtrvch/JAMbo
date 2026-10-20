@@ -128,6 +128,26 @@ struct MidiMapMain: View {
             Divider().overlay(theme.line).padding(.vertical, 6)
             line("Input port", model.midiPortName(m.input, inputs: true, none: "Any"), .port)
             line("Feedback port", feedbackName, .feedback)
+            if allPages { applyAll }
+        }
+    }
+
+    /// APPLY TO ALL PAGES — у назначенной ручки в условии Current page.
+    private var allPages: Bool {
+        guard case .knob = m.target else { return false }
+        return m.cond == .page && model.mapMapped
+    }
+
+    private var applyAll: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Divider().overlay(theme.line).padding(.vertical, 6)
+            Text("Apply to all pages")
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(theme.accentText)
+                .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
+                .contentShape(Rectangle())
+                .onTapGesture { model.mapApplyAllPages() }
+            SettingsNote(text: "All 16 knobs mapped on this page get the same controls on TRACK, FX, MOD, MIX and MST; on each page they set that page's parameters.")
         }
     }
 
