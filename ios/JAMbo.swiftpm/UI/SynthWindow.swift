@@ -16,10 +16,10 @@ struct SynthInfo: View {
             SoundTitle(main: e?.name ?? "", detail: table)
                 .padding(.top, 6)
             VStack(alignment: .leading, spacing: 8) {
-                // Иконка чуть выше своего места; ручки под ней не сдвигаются.
+                // Поле иконки 64×64 — по центру своего места (сдвиг на 3 pt вниз — по проверке на iPad).
                 SynthIcon(model: model, engine: engine)
                     .frame(maxWidth: .infinity, maxHeight: 144)
-                    .offset(y: -12)
+                    .offset(y: 3)
                 rows
                     .padding(.top, 14)
             }
