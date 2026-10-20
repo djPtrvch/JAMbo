@@ -140,7 +140,7 @@ struct PianoMenu: View {
 struct ToggleRow: View {
     let title: String
     let isOn: Bool
-    /// Неактивный рычажок (серый) с пояснением под подписью (ABLETON LINK — «unavailable in this build»).
+    /// Неактивный рычажок (серый) с пояснением под подписью (был у ABLETON LINK; раздел скрыт до этапа 9).
     var unavailable: String? = nil
     let change: (Bool) -> Void
     @Environment(\.theme) private var theme

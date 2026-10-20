@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// Бутерброд → SYNC (S13e, как ui/sync.ts веба): GENERAL — SYNC QUANTUM; MIDI CLOCK — вкл./выкл., SEND / RECEIVE,
-/// выход клока, SYNC START/STOP, MIDI OFFSET; ABLETON LINK — неактивен до этапа 9, остальные настройки хранятся.
+/// выход клока, SYNC START/STOP, MIDI OFFSET. Раздел ABLETON LINK скрыт до этапа 9 (S14, перед App Store: неработающей
+/// функции на виду быть не должно); настройки Link по-прежнему хранятся в SyncSettings.
 struct SyncMenuPage: View {
     let model: AppModel
     let back: () -> Void
@@ -17,8 +18,6 @@ struct SyncMenuPage: View {
                     general
                     Divider().overlay(theme.line).padding(.vertical, 6)
                     SyncClockSection(model: model)
-                    Divider().overlay(theme.line).padding(.vertical, 6)
-                    link
                 }
                 .padding(.trailing, 6)
             }
@@ -35,18 +34,7 @@ struct SyncMenuPage: View {
                     MenuItem(title: q > 1 ? "\(q) BARS" : "1 BAR", current: s.quantum == q) { model.setSync { $0.quantum = q } }
                 }
             }
-            SettingsNote(text: "Phrase length in bars for lining up the start with other devices (Ableton Link).")
-        }
-    }
-
-    private var link: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            MenuHead(title: "ABLETON LINK")
-            ToggleRow(title: "ABLETON LINK", isOn: false, unavailable: "unavailable in this build") { _ in }
-            ToggleRow(title: "IN-APP NOTIFICATIONS", isOn: s.linkNotify) { on in model.setSync { $0.linkNotify = on } }
-            ToggleRow(title: "SYNC START/STOP", isOn: s.linkStartStop) { on in model.setSync { $0.linkStartStop = on } }
-            SyncOffsetRow(title: "LINK OFFSET", value: s.linkOffset) { d in model.setSync { $0.linkOffset = SyncSettings.clampOffset($0.linkOffset + d) } }
-            SettingsNote(text: "Ableton Link is not in this build yet; these settings are only stored. Notifications show a line at the top when a device joins or leaves the session.")
+            SettingsNote(text: "Phrase length in bars for lining up the start with other devices.")
         }
     }
 }
