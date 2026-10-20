@@ -15,8 +15,27 @@
 - Меню страницы (двойной тап по миниатюре): шириной 228 (обводка миниатюр с её линией), скругление 9; ставится по рамке колонки миниатюр (pagesFrame): помещается под страницей — под ней (на нижней линии обводки), иначе — от верха колонки на 4 px выше, закрывая обводку.
 - SPEED клипа (меню страницы, внизу): 2, 1, 1/2, 1/4, 1/8, 1/16 — Clip.rate (степень двойки: 1, nil, −1…−4; в файле проекта, копируется с клипом; UNDO); у MIX и MST нет. Колбэк: SeqData.clipRate, tickLen — проход в тиках (×2 — вдвое меньше с округлением вверх, медленнее — в 2…16 раз больше); ×2 — два шага за тик (второй — через полшага), медленнее — шаг раз в 2…16 тиков (между шагами p-lock FX и LFO/ENV держатся). Длина нот, свинг, рэтчеты — по длине шага со скоростью. Запуск клипов, строки и стемы — по tickLen; запись с REC — Clip.localStep; полоса хода — Clip.passTicks. При ×2 p-lock FX и LFO/ENV пары — от первого шага, подсветка — каждого второго.
 
+## S14a — замеры (сделано; замер на iPad — ждём)
+- Колбэк: RenderProfile (Core/Util) — метки на уровне блока (не на отсчёт), время от прошлой метки — в раздел: Seq (снимки, команды, транспорт, начало MOD и FX), Samples (голоса сэмплера, прослушивание), Synth, EQ (дорожки и мастер), Mix, FX, Master (SAT, COMP, CLIP, LIM, выход), Meters (метры, скоп, спектры, стемы). За секунду звука — средняя и наибольшая доля блока, с RESET — худшая (seqlock). Часы — DispatchTime (на Apple — mach_absolute_time), ~25 чтений на блок.
+- Интерфейс: FrameMeter (UI) — CADisplayLink: fps, средний и худший кадр, пропущенные кадры (промежуток > 1,5 кадра); время drain (главный поток, 60 раз в секунду). Перерыв дольше 0,5 с (фон) — не пропуск.
+- DIAGNOSTICS: строки разделов и Audio («avg · peak · worst»), UI, UI total, Drain; кнопка RESET. Замер идёт всё время (окно закрывает экран): RESET → закрыть → играть → открыть.
+- Тест Core «тяжёлый проект» (HeavyLoadTests): 4 синта (ANALOG, FM) аккордами по 4 ноты, 4 стерео-сэмпла на каждом шаге с фильтром, посылы во все FX, Sidechain, EQ с динамической полосой на всех дорожках и мастере, весь мастер. Linux, доля блока 256 (avg / пик):
+
+| Раздел | Отладочная | Релизная |
+|---|---|---|
+| Samples | 58 % | 6,4 % |
+| Synth | 40 % | 8,3 % |
+| EQ | 22 % | 6,7 % |
+| FX | 29 % | 5,0 % |
+| Master | 42 % | 6,0 % |
+| Seq, Mix, Meters | ~3 % | ~0,5 % |
+| Всего | 194 % (пик 293 %) | 33 % (пик 57 %) |
+
+- Релизная сборка на Linux (`swift test -c release -Xswiftc -enable-testing`): Swift 6.0.3 падал при -O на Drive.wet и Saturator.wet (index_addr в цикле) — позиции колец децимации перенесены в локальные переменные; эталоны FX и мастера проходят в обеих сборках.
+- Дальше: замер на iPad тяжёлым проектом пользователя → S14b по цифрам.
+
 ## Проверено
-S14v — на iPad. CoreTests — 296 (новые: testMoveRow, testPasteTrackKeepsOwnPatterns, testClipSpeed, testQueuedClipAfterSlowClip, testSameNameIgnoresAudioExtension).
+S14v — на iPad. S14a — тесты Core (HeavyLoadTests), DIAGNOSTICS на iPad — ждём. CoreTests — 298 (S14a: testHeavyProjectProfile, testProfileOffAndOn); 296 (новые: testMoveRow, testPasteTrackKeepsOwnPatterns, testClipSpeed, testQueuedClipAfterSlowClip, testSameNameIgnoresAudioExtension).
 
 ## План (подтверждён пользователем)
 - S14v — правки интерфейса (готово, проверено на iPad).
