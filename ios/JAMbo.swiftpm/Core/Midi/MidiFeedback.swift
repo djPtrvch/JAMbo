@@ -54,7 +54,9 @@ extension MidiMapping {
 }
 
 extension MidiSettings {
-    /// Действующие маппинги для обратной связи: у источника (с входом) — самое точное из действующих условий.
+    /// Действующие маппинги для обратной связи: у источника — самое точное из действующих условий, как при управлении
+    /// (resolve): маппинги источника с разных входов (Any и порт) не спорят по порядку в списке — иначе старый GLOBAL
+    /// ручки с другим входом слал бы значение дорожки поверх Current page на MIX, MOD, FX, MST.
     /// Нажатие ручки (PRESS) не шлёт ничего: у энкодеров с кнопкой (Twister) этот источник задаёт цвет подсветки.
     public func feedbackMappings(_ ctx: MidiContext) -> [MidiMapping] {
         let conds: [String] = ctx.conds
@@ -63,8 +65,7 @@ extension MidiSettings {
         for m in mappings {
             if case .press = m.target { continue }
             guard let r = conds.firstIndex(of: m.condKey) else { continue }
-            let input: String = m.input.map { String($0) } ?? "*"
-            let k: String = input + ":" + MidiFeedback.key(dest: 0, src: m.src)
+            let k: String = MidiFeedback.key(dest: 0, src: m.src)
             if let b = best[k] {
                 if r < b.rank { best[k] = (r, m) }
             } else {

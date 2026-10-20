@@ -73,4 +73,20 @@ final class MidiFeedbackTests: XCTestCase {
         let onFx = s.feedbackMappings(fx)
         XCTAssertEqual(onFx.map { $0.target }, [.knob(1), .button("PLAY")])
     }
+
+    /// GLOBAL ручки с одним входом и Current page MIX с другим (Any): на MIX обратная связь — от маппинга MIX, как
+    /// управление (resolve), а не от того, что раньше в списке.
+    func testFeedbackFollowsResolveAcrossInputs() {
+        var s = MidiSettings()
+        s.learn(.knob(0), src: cc20, input: 7, continuous: true, track)
+        let mix = MidiContext(clipOpen: false, page: .mix)
+        s.update(.knob(0), continuous: true, mix, pinned: "page:mix") { m in
+            m.src = self.cc20
+            m.input = nil
+        }
+        XCTAssertEqual(s.mappings.count, 2)
+        XCTAssertEqual(s.resolve(cc20, input: 7, mix).active.map { $0.condKey }, ["page:mix"])
+        XCTAssertEqual(s.feedbackMappings(mix).map { $0.condKey }, ["page:mix"])
+        XCTAssertEqual(s.feedbackMappings(track).map { $0.condKey }, ["global"])
+    }
 }
