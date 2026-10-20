@@ -213,22 +213,25 @@ public final class FxDrive {
         let cb = c + FxDrive.oCorr, os = c + FxDrive.oOs
         let cl = FxDrive.corrLen, fl = DriveTables.firLen
         let k0: Double = -1.0 / 128, k1: Double = 9.0 / 128, k2: Double = -37.0 / 128, k3: Double = 93.0 / 128
+        // Позиции колец — в локальных переменных (Swift 6.0.3 на Linux с -O падал на ic[1] в цикле).
+        var cp: Int = ic[1]
+        var op: Int = ic[2]
         p = 0
         while p < 4 {
-            let cp = ic[1]
             cb[cp] = y[p]
             cb[cp + cl] = y[p]
-            ic[1] = cp + 1 == cl ? 0 : cp + 1
             let e = cp + cl
+            cp = cp + 1 == cl ? 0 : cp + 1
             let yc: Double = k0 * (cb[e] + cb[e - 7]) + k1 * (cb[e - 1] + cb[e - 6]) + k2 * (cb[e - 2] + cb[e - 5])
                 + k3 * (cb[e - 3] + cb[e - 4])
-            let op = ic[2]
             os[op] = yc
             os[op + fl] = yc
-            ic[2] = op + 1 == fl ? 0 : op + 1
+            op = op + 1 == fl ? 0 : op + 1
             p += 1
         }
-        let ob = ic[2] + fl - 1
+        ic[1] = cp
+        ic[2] = op
+        let ob = op + fl - 1
         let dc = DriveTables.decC
         var out: Double = t.decMid * os[ob - dc]
         let lst = ob - (fl - 1)
