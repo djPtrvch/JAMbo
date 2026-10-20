@@ -2,18 +2,20 @@ import Foundation
 
 // Голос своих движков JAMbo — KICK, ANALOG, FM, WTABLE (перенос класса Voice из public/jambo-synth-worklet.js;
 // ручки 1.4 и новые режимы — S12).
-// Состояние и арифметика — в Double (как JS), отсчёты выхода и буфер фильтра децимации — во Float (Float32Array).
+// Состояние и арифметика — в Double (как JS), отсчёты выхода и буфер фильтра децимации — значения Float (Float32Array;
+// буфер хранит их в Double — без преобразования на каждом отводе).
 // Горячие циклы — без вызовов из других файлов, состояние — в локальных переменных (отладочная сборка Playgrounds).
 
 /// frac(x) = x − floor(x).
 @_transparent private func jFrac(_ x: Double) -> Double { x - x.rounded(.down) }
 
-/// Синус по фазе в периодах (таблица 4096 с линейной интерполяцией), как sinT в worklet.
-@_transparent private func jSin(_ table: UnsafePointer<Float>, _ ph: Double) -> Double {
+/// Синус по фазе в периодах (таблица 4096 с линейной интерполяцией), как sinT в worklet; таблица — sineD (значения
+/// Float в Double).
+@_transparent private func jSin(_ table: UnsafePointer<Double>, _ ph: Double) -> Double {
     var x = ph - ph.rounded(.down)
     x *= 4096
     let i = Int(x)
-    let a = Double(table[i]), b = Double(table[i + 1])
+    let a = table[i], b = table[i + 1]
     return a + (b - a) * (x - Double(i))
 }
 
@@ -34,12 +36,34 @@ import Foundation
 @_transparent private func jTriAt(_ ph: Double) -> Double { 1 - 4 * abs(ph < 0.75 ? ph - 0.25 : ph - 1.25) }
 
 /// Отсчёт формы k осциллятора с фазой a, шагом dt и треугольником tri.
-@_transparent private func jShapeAt(_ sine: UnsafePointer<Float>, _ k: Int, _ a: Double, _ dt: Double,
+@_transparent private func jShapeAt(_ sine: UnsafePointer<Double>, _ k: Int, _ a: Double, _ dt: Double,
                                     _ tri: Double) -> Double {
     if k == 0 { return jSin(sine, a) }
     if k == 1 { return tri }
     if k == 2 { return 1 - 2 * a + jBlep(a, dt) }
     return (a < 0.5 ? 1 : -1) + jBlep(a, dt) - jBlep(a < 0.5 ? a + 0.5 : a - 0.5, dt)
+}
+
+/// Полуполосный фильтр децимации (63 отвода, S14b): x — центр окна, k — hbHK (пары центр ∓ (2j + 1)), kc — центр;
+/// без цикла (в отладочной сборке счётчик и индексы цикла дороже самих умножений).
+@_transparent private func jHalf(_ x: UnsafeMutablePointer<Double>, _ k: UnsafeMutablePointer<Double>, _ kc: Double) -> Double {
+    var a: Double = k[0] * (x[-1] + x[1])
+    a += k[1] * (x[-3] + x[3])
+    a += k[2] * (x[-5] + x[5])
+    a += k[3] * (x[-7] + x[7])
+    a += k[4] * (x[-9] + x[9])
+    a += k[5] * (x[-11] + x[11])
+    a += k[6] * (x[-13] + x[13])
+    a += k[7] * (x[-15] + x[15])
+    a += k[8] * (x[-17] + x[17])
+    a += k[9] * (x[-19] + x[19])
+    a += k[10] * (x[-21] + x[21])
+    a += k[11] * (x[-23] + x[23])
+    a += k[12] * (x[-25] + x[25])
+    a += k[13] * (x[-27] + x[27])
+    a += k[14] * (x[-29] + x[29])
+    a += k[15] * (x[-31] + x[31])
+    return a + kc * x[0]
 }
 
 @_transparent private func jFlush(_ x: Double) -> Double { (x > 1e-20 || x < -1e-20) ? x : 0 }
@@ -73,7 +97,7 @@ final class JamboVoice {
     private var hx = 0.0, hy = 0.0
     // FM
     private var pc = 0.0, pm = 0.0, m1 = 0.0, m2 = 0.0
-    private let hb: UnsafeMutablePointer<Float>
+    private let hb: UnsafeMutablePointer<Double>
     private var hbPos = 0
     // WTABLE: центр и до четырёх боковых голосов (±DETUNE, ±DETUNE/2).
     private var w0 = 0.0, wl = 0.0, wr = 0.0, wl2 = 0.0, wr2 = 0.0
@@ -175,33 +199,39 @@ final class JamboVoice {
     /// Кусок n кадров (n ≤ 24) в out; driftRatio — множитель дрейфа дорожки (ANALOG).
     func render(_ out: UnsafeMutablePointer<Float>, _ n: Int, driftRatio: Double, table: WtRef = WtRef()) {
         let k = 1 - exp(-Double(n) / (Jambo.smooth * sr))
-        s1 += (t1 - s1) * k
-        s2 += (t2 - s2) * k
-        s3 += (t3 - s3) * k
-        s4 += (t4 - s4) * k
-        sd += (td - sd) * k
-        if engine == Jambo.drum {
+        // Свойства — через локальные (в отладочной сборке каждое обращение к свойству класса — проверка доступа).
+        let v1: Double = s1, v2: Double = s2, v3: Double = s3, v4: Double = s4, vd: Double = sd
+        s1 = v1 + (t1 - v1) * k
+        s2 = v2 + (t2 - v2) * k
+        s3 = v3 + (t3 - v3) * k
+        s4 = v4 + (t4 - v4) * k
+        sd = vd + (td - vd) * k
+        let e: Int = engine
+        if e == Jambo.drum {
             drum(out, n)
-        } else if engine == Jambo.analog {
+        } else if e == Jambo.analog {
             analog(out, n, driftRatio)
-        } else if engine == Jambo.fm {
+        } else if e == Jambo.fm {
             fm(out, n)
-        } else if engine == Jambo.wtable {
+        } else if e == Jambo.wtable {
             wtable(out, n, table)
-        } else if engine == Jambo.sub {
+        } else if e == Jambo.sub {
             subBass(out, n)
         } else {
             out.update(repeating: 0, count: n)
         }
         // Начало ноты ANALOG, FM, WTABLE — плавно за fadeIn кадров (после фильтра децимации); у KICK свой старт, у SUB —
         // внутри движка (поверх идёт хвост прошлой ноты).
-        if fade < Jambo.fadeIn && engine != Jambo.drum && engine != Jambo.sub {
+        let fadeIn: Int = Jambo.fadeIn
+        var fd: Int = fade
+        if fd < fadeIn && e != Jambo.drum && e != Jambo.sub {
             var i = 0
-            while i < n && fade < Jambo.fadeIn {
-                fade += 1
-                out[i] = Float(Double(out[i]) * Double(fade) / Double(Jambo.fadeIn))
+            while i < n && fd < fadeIn {
+                fd += 1
+                out[i] = Float(Double(out[i]) * Double(fd) / Double(fadeIn))
                 i += 1
             }
+            fade = fd
         }
     }
 
@@ -256,7 +286,7 @@ final class JamboVoice {
 
     @inline(__always) private func analog(_ out: UnsafeMutablePointer<Float>, _ n: Int, _ ratio: Double) {
         let sr2 = sr * 2
-        let sine = UnsafePointer(tables.sine)
+        let sine = UnsafePointer(tables.sineD)
         let f0 = 440 * pow(2, (note - 69) / 12) * ratio
         // DETUNE (1.3): A вверх, B вниз, в сумме 0…60 центов по кривой x².
         let det = Jambo.analogDetune / 2 * s3 * s3
@@ -287,7 +317,7 @@ final class JamboVoice {
         let leak = 1 - 20 / sr2
         var o1 = a1, o2 = a2, tr1 = tri1, tr2 = tri2, hp = hbPos
         let buf = hb, len = Jambo.hbLen
-        let kIdx = tables.hbIdx, kK = tables.hbK, kN = tables.hbN
+        let hk = tables.hbHK, kC = tables.hbCK, mid = Jambo.hbLen / 2
         var i = 0
         while i < n {
             var j = 0
@@ -308,7 +338,7 @@ final class JamboVoice {
                     let old = gBp * jShapeAt(sine, pb, o2, dt2, tr2)
                     xb = old + (xb - old) * mixB
                 }
-                let y = Float(wa * xa + wb * xb)
+                let y = Double(Float(wa * xa + wb * xb))
                 buf[hp] = y
                 buf[hp + len] = y
                 hp = hp + 1 == len ? 0 : hp + 1
@@ -318,12 +348,7 @@ final class JamboVoice {
                 if o2 >= 1 { o2 -= 1 }
                 j += 1
             }
-            var acc = 0.0
-            var q = 0
-            while q < kN {
-                acc += Double(kK[q]) * Double(buf[hp + kIdx[q]])
-                q += 1
-            }
+            let acc: Double = jHalf(buf + hp + mid, hk, kC)
             out[i] = Float(acc)
             i += 1
         }
@@ -341,7 +366,7 @@ final class JamboVoice {
 
     @inline(__always) private func subBass(_ out: UnsafeMutablePointer<Float>, _ n: Int) {
         let sr2 = sr * 2
-        let sine = UnsafePointer(tables.sine)
+        let sine = UnsafePointer(tables.sineD)
         let f0 = 440 * pow(2, (note - 69) / 12)
         let dt1 = Swift.min(0.45, f0 / sr2)
         let dt2 = Swift.min(0.45, 0.5 * f0 * pow(2, Jambo.subFat * s3 / 1200) / sr2)
@@ -370,7 +395,7 @@ final class JamboVoice {
         var o1 = a1, o2 = a2, tr1 = tri1, tr2 = tri2, hp = hbPos, x0 = hx, y0 = hy, d = dc, fd = fade
         let fadeN = Jambo.fadeIn
         let buf = hb, len = Jambo.hbLen
-        let kIdx = tables.hbIdx, kK = tables.hbK, kN = tables.hbN
+        let hk = tables.hbHK, kC = tables.hbCK, mid = Jambo.hbLen / 2
         let outG = Jambo.subOut
         var i = 0
         while i < n {
@@ -390,7 +415,7 @@ final class JamboVoice {
                 let y = x - x0 + rHp * y0
                 x0 = x
                 y0 = y
-                let z = Float(y)
+                let z = Double(Float(y))
                 buf[hp] = z
                 buf[hp + len] = z
                 hp = hp + 1 == len ? 0 : hp + 1
@@ -400,12 +425,7 @@ final class JamboVoice {
                 if o2 >= 1 { o2 -= 1 }
                 j += 1
             }
-            var acc = 0.0
-            var q = 0
-            while q < kN {
-                acc += Double(kK[q]) * Double(buf[hp + kIdx[q]])
-                q += 1
-            }
+            let acc: Double = jHalf(buf + hp + mid, hk, kC)
             // Вход ноты — за fadeIn кадров; хвост прошлой ноты (d) гаснет за ~2 мс.
             var g = outG
             if fd < fadeN {
@@ -434,7 +454,7 @@ final class JamboVoice {
     // MARK: — FM: несущая (ratio 1) и модулятор (RATIO) с обратной связью, ×2 передискретизация.
 
     @inline(__always) private func fm(_ out: UnsafeMutablePointer<Float>, _ n: Int) {
-        let sine = UnsafePointer(tables.sine)
+        let sine = UnsafePointer(tables.sineD)
         let f0 = 440 * pow(2, (note - 69) / 12)
         let ratio = Jambo.fmRatio(s1)
         let idxNorm = pow(s2, 1.5)
@@ -452,7 +472,7 @@ final class JamboVoice {
         let dEnv = exp(-rate / sr)
         var c = pc, md = pm, x1 = m1, x2 = m2, hp = hbPos
         let buf = hb, len = Jambo.hbLen
-        let kIdx = tables.hbIdx, kK = tables.hbK, kN = tables.hbN
+        let hk = tables.hbHK, kC = tables.hbCK, mid = Jambo.hbLen / 2
         let fmOut = Jambo.fmOut
         var i = 0
         while i < n {
@@ -461,7 +481,7 @@ final class JamboVoice {
                 let mod = jSin(sine, md + fb * 0.5 * (x1 + x2))
                 x2 = x1
                 x1 = mod
-                let y = Float(jSin(sine, c + index * env * mod))
+                let y = Double(Float(jSin(sine, c + index * env * mod)))
                 md += ratio * dt
                 if md >= 1 { md -= md.rounded(.down) }
                 c += dt
@@ -471,13 +491,8 @@ final class JamboVoice {
                 hp = hp + 1 == len ? 0 : hp + 1
                 j += 1
             }
-            // Децимация: свёртка с полуполосным фильтром (только ненулевые отводы).
-            var acc = 0.0
-            var q = 0
-            while q < kN {
-                acc += Double(kK[q]) * Double(buf[hp + kIdx[q]])
-                q += 1
-            }
+            // Децимация: свёртка с полуполосным фильтром (только ненулевые отводы; симметричные — парами, затем центр).
+            let acc: Double = jHalf(buf + hp + mid, hk, kC)
             out[i] = Float(fmOut * acc)
             env *= dEnv
             i += 1

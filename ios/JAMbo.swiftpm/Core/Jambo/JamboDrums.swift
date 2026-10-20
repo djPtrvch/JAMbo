@@ -4,12 +4,12 @@ import Foundation
 // обрывает прошлый — хвост гаснет за ~2 мс (добавкой последнего отсчёта, как у KICK). Выход — через tanh (пик < 0 dBFS).
 // Горячие циклы — без вызовов из других файлов, состояние — в локальных переменных (отладочная сборка Playgrounds).
 
-/// Синус по фазе в периодах (таблица 4096 с линейной интерполяцией).
-@_transparent private func dSin(_ table: UnsafePointer<Float>, _ ph: Double) -> Double {
+/// Синус по фазе в периодах (таблица 4096 с линейной интерполяцией; sineD — значения Float в Double).
+@_transparent private func dSin(_ table: UnsafePointer<Double>, _ ph: Double) -> Double {
     var x = ph - ph.rounded(.down)
     x *= 4096
     let i = Int(x)
-    let a = Double(table[i]), b = Double(table[i + 1])
+    let a = table[i], b = table[i + 1]
     return a + (b - a) * (x - Double(i))
 }
 
@@ -26,6 +26,28 @@ import Foundation
     return 0
 }
 
+/// Полуполосный фильтр децимации (63 отвода, S14b): x — центр окна, k — hbHK (пары центр ∓ (2j + 1)), kc — центр;
+/// без цикла (в отладочной сборке счётчик и индексы цикла дороже самих умножений).
+@_transparent private func dHalf(_ x: UnsafeMutablePointer<Double>, _ k: UnsafeMutablePointer<Double>, _ kc: Double) -> Double {
+    var a: Double = k[0] * (x[-1] + x[1])
+    a += k[1] * (x[-3] + x[3])
+    a += k[2] * (x[-5] + x[5])
+    a += k[3] * (x[-7] + x[7])
+    a += k[4] * (x[-9] + x[9])
+    a += k[5] * (x[-11] + x[11])
+    a += k[6] * (x[-13] + x[13])
+    a += k[7] * (x[-15] + x[15])
+    a += k[8] * (x[-17] + x[17])
+    a += k[9] * (x[-19] + x[19])
+    a += k[10] * (x[-21] + x[21])
+    a += k[11] * (x[-23] + x[23])
+    a += k[12] * (x[-25] + x[25])
+    a += k[13] * (x[-27] + x[27])
+    a += k[14] * (x[-29] + x[29])
+    a += k[15] * (x[-31] + x[31])
+    return a + kc * x[0]
+}
+
 @_transparent private func dFlush(_ x: Double) -> Double { (x > 1e-20 || x < -1e-20) ? x : 0 }
 
 /// xorshift32 (состояние — Int 0…2³²−1), как JamboDrift.xorshift — здесь, чтобы не звать другой файл на отсчёт.
@@ -35,6 +57,21 @@ import Foundation
     r ^= r >> 17
     r ^= (r << 5) & 0xFFFF_FFFF
     return r
+}
+
+/// Белый шум −1…1 (xorshift32) с состоянием в локальной переменной цикла (не свойство класса на каждом отсчёте).
+@_transparent private func dNoise(_ r: inout Int) -> Double {
+    r = dXor(r)
+    return Double(r) / 2147483648 - 1
+}
+
+/// Выход: стык ретрига (+ хвост прошлого удара) → tanh; возвращает отсчёт до округления (last — для следующего стыка).
+@_transparent private func dOut(_ out: UnsafeMutablePointer<Float>, _ i: Int, _ x: Double, _ d: inout Double,
+                                _ dDc: Double) -> Double {
+    let y = tanh(x + d)
+    out[i] = Float(y)
+    d *= dDc
+    return y
 }
 
 /// Коэффициенты фильтра состояний (TPT SVF): a1, a2, a3 и k = 1/Q.
@@ -70,7 +107,7 @@ final class JamboDrumVoice {
     // Фильтры: состояния ic1, ic2 (до 3 фильтров).
     private let ic: UnsafeMutablePointer<Double>
     // HAT: ×2 передискретизация — буфер полуполосного фильтра.
-    private let hb: UnsafeMutablePointer<Float>
+    private let hb: UnsafeMutablePointer<Double>
     private var hbPos = 0
     // CLAP: времена вспышек (кадры), их число; огибающие кластера и хвоста.
     private let burstAt: UnsafeMutablePointer<Double>
@@ -177,19 +214,10 @@ final class JamboDrumVoice {
         }
     }
 
-    /// Выход: стык ретрига (+ хвост прошлого удара) → tanh; last — для следующего стыка.
-    @inline(__always) private func finish(_ out: UnsafeMutablePointer<Float>, _ i: Int, _ x: Double, _ d: inout Double,
-                                          _ dDc: Double) {
-        let y = tanh(x + d)
-        out[i] = Float(y)
-        last = y
-        d *= dDc
-    }
-
     // MARK: — SNARE: два синуса корпуса (f, 1.8·f) с падением высоты + шум через полосовой.
 
     @inline(__always) private func snare(_ out: UnsafeMutablePointer<Float>, _ n: Int) {
-        let sine = UnsafePointer(tables.sine)
+        let sine = UnsafePointer(tables.sineD)
         let f = 120 * pow(400.0 / 120, s1)
         let dec = Swift.min(800, Swift.max(30, sd)) / 1000
         let tauN = dec / 6.9, tauB = tauN * 0.6
@@ -205,6 +233,7 @@ final class JamboDrumVoice {
         var envN = exp(-tt / (tauN * sr)), envB = exp(-tt / (tauB * sr)), sw = exp(-tt / (tauS * sr))
         var p0 = ph[0], p1 = ph[1], c1 = ic[0], c2 = ic[1], d = dc
         let ln2 = 0.057762265
+        var rn = rnd, ly = last
         var i = 0
         while i < n {
             let fb = f * exp(ln2 * semis * sw)
@@ -215,13 +244,13 @@ final class JamboDrumVoice {
             var body = envB * (dSin(sine, p0) + 0.5 * dSin(sine, p1)) / 1.5
             if tt < clickLen { body += click * (1 - tt / clickLen) }
             // Шум: полосовой (TPT SVF).
-            let x = noise()
+            let x = dNoise(&rn)
             let v3 = x - c2
             let v1 = fl.a1 * c1 + fl.a2 * v3
             let v2 = c2 + fl.a2 * c1 + fl.a3 * v3
             c1 = 2 * v1 - c1
             c2 = 2 * v2 - c2
-            finish(out, i, gB * body + gN * envN * v1, &d, dDc)
+            ly = dOut(out, i, gB * body + gN * envN * v1, &d, dDc)
             envN *= dEnvN
             envB *= dEnvB
             sw *= dSw
@@ -232,6 +261,8 @@ final class JamboDrumVoice {
         ph[1] = p1
         ic[0] = dFlush(c1)
         ic[1] = dFlush(c2)
+        rnd = rn
+        last = ly
         dc = dFlush(d)
         t = tt
     }
@@ -261,7 +292,8 @@ final class JamboDrumVoice {
         var c0 = ic[0], c1 = ic[1], c2 = ic[2], c3 = ic[3], c4 = ic[4], c5 = ic[5]
         var env = exp(-t / (dec / 6.9 * sr)), d = dc, hp = hbPos
         let buf = hb, len = Jambo.hbLen
-        let kIdx = tables.hbIdx, kK = tables.hbK, kN = tables.hbN
+        let hk = tables.hbHK, kC = tables.hbCK, mid = Jambo.hbLen / 2
+        var rn = rnd, ly = last
         var i = 0
         while i < n {
             var j = 0
@@ -272,7 +304,7 @@ final class JamboDrumVoice {
                 sq += (q3 < 0.5 ? 1.0 : -1.0) + dBlep(q3, dt3) - dBlep(q3 < 0.5 ? q3 + 0.5 : q3 - 0.5, dt3)
                 sq += (q4 < 0.5 ? 1.0 : -1.0) + dBlep(q4, dt4) - dBlep(q4 < 0.5 ? q4 + 0.5 : q4 - 0.5, dt4)
                 sq += (q5 < 0.5 ? 1.0 : -1.0) + dBlep(q5, dt5) - dBlep(q5 < 0.5 ? q5 + 0.5 : q5 - 0.5, dt5)
-                let x = gM * sq / 6 + gN * noise()
+                let x = gM * sq / 6 + gN * dNoise(&rn)
                 // Два полосовых параллельно, затем ФВЧ.
                 var v3 = x - c1
                 var v1 = b1.a1 * c0 + b1.a2 * v3
@@ -292,7 +324,7 @@ final class JamboDrumVoice {
                 c4 = 2 * v1 - c4
                 c5 = 2 * v2 - c5
                 let h = y - hpf.k * v1 - v2
-                let z = Float(h)
+                let z = Double(Float(h))
                 buf[hp] = z
                 buf[hp + len] = z
                 hp = hp + 1 == len ? 0 : hp + 1
@@ -310,13 +342,8 @@ final class JamboDrumVoice {
                 if q5 >= 1 { q5 -= 1 }
                 j += 1
             }
-            var acc = 0.0
-            var q = 0
-            while q < kN {
-                acc += Double(kK[q]) * Double(buf[hp + kIdx[q]])
-                q += 1
-            }
-            finish(out, i, Jambo.hatOut * env * acc, &d, dDc)
+            let acc: Double = dHalf(buf + hp + mid, hk, kC)
+            ly = dOut(out, i, Jambo.hatOut * env * acc, &d, dDc)
             env *= dEnv
             i += 1
         }
@@ -333,6 +360,8 @@ final class JamboDrumVoice {
         ic[4] = dFlush(c4)
         ic[5] = dFlush(c5)
         hbPos = hp
+        rnd = rn
+        last = ly
         dc = dFlush(d)
         t += Double(n)
     }
@@ -349,6 +378,7 @@ final class JamboDrumVoice {
         let lastAt = burstAt[nb - 1]
         var c1 = ic[0], c2 = ic[1], eC = envC, eT = envT, d = dc
         var tt = t
+        var rn = rnd, ly = last
         var i = 0
         while i < n {
             // Начало вспышки — огибающая кластера с 1; после последней — ещё и хвост.
@@ -358,13 +388,13 @@ final class JamboDrumVoice {
                 k += 1
             }
             if tt >= lastAt && tt < lastAt + 1 { eT = tail }
-            let x = noise()
+            let x = dNoise(&rn)
             let v3 = x - c2
             let v1 = fl.a1 * c1 + fl.a2 * v3
             let v2 = c2 + fl.a2 * c1 + fl.a3 * v3
             c1 = 2 * v1 - c1
             c2 = 2 * v2 - c2
-            finish(out, i, Jambo.clapOut * (eC + eT) * v1, &d, dDc)
+            ly = dOut(out, i, Jambo.clapOut * (eC + eT) * v1, &d, dDc)
             eC *= dC
             eT *= dT
             tt += 1
@@ -374,6 +404,8 @@ final class JamboDrumVoice {
         ic[1] = dFlush(c2)
         envC = dFlush(eC)
         envT = dFlush(eT)
+        rnd = rn
+        last = ly
         dc = dFlush(d)
         t = tt
     }
@@ -381,7 +413,7 @@ final class JamboDrumVoice {
     // MARK: — PERC: шесть затухающих синусов (моды по MATERIAL) + шумовой толчок (HIT), падение высоты (BEND).
 
     @inline(__always) private func perc(_ out: UnsafeMutablePointer<Float>, _ n: Int) {
-        let sine = UnsafePointer(tables.sine)
+        let sine = UnsafePointer(tables.sineD)
         let f = 60 * pow(2000.0 / 60, s1)
         let dec = Swift.min(2000, Swift.max(30, sd)) / 1000
         let tau0 = dec / 6.9
@@ -414,6 +446,7 @@ final class JamboDrumVoice {
         var p0 = ph[0], p1 = ph[1], p2 = ph[2], p3 = ph[3], p4 = ph[4], p5 = ph[5]
         var sw = exp(-tt0 / (0.020 * sr)), l = lp, d = dc, tt = tt0
         let ln2 = 0.057762265
+        var rn = rnd, ly = last
         var i = 0
         while i < n {
             let df = f * exp(ln2 * semis * sw) / sr
@@ -427,11 +460,11 @@ final class JamboDrumVoice {
             y += e3 * dSin(sine, p3) + e4 * dSin(sine, p4) + e5 * dSin(sine, p5)
             // Толчок: шум через однополюсный ФНЧ (мягкая — длинный тёмный, палка — короткий яркий) и щелчок.
             if tt < hitLen {
-                l += (noise() - l) * lpK
+                l += (dNoise(&rn) - l) * lpK
                 y += l * (1 - tt / hitLen) * (0.5 + 0.5 * hit)
                 if tt < 0.0003 * sr { y += 0.5 * hit }
             }
-            finish(out, i, norm * y, &d, dDc)
+            ly = dOut(out, i, norm * y, &d, dDc)
             e0 *= k0
             e1 *= k1
             e2 *= k2
@@ -449,6 +482,8 @@ final class JamboDrumVoice {
         ph[4] = p4 - p4.rounded(.down)
         ph[5] = p5 - p5.rounded(.down)
         lp = dFlush(l)
+        rnd = rn
+        last = ly
         dc = dFlush(d)
         t = tt
     }

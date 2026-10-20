@@ -91,6 +91,9 @@ public final class SynthVoices {
     private var nextSerial = 0
 
     private let outBuf = UnsafeMutablePointer<Float>.allocate(capacity: chunk)
+    /// Бит p-lock параметра p (1 << p): в отладочной сборке VoiceMask(p) — обобщённое преобразование, вызов на каждый
+    /// параметр каждого куска (S14b).
+    private let bit = UnsafeMutablePointer<VoiceMask>.allocate(capacity: VoiceParam.count)
 
     /// Создаётся вне колбэка (≈ 100 голосов).
     public init(sampleRate: Double) {
@@ -124,6 +127,7 @@ public final class SynthVoices {
         pVal.initialize(repeating: 0, count: s * VoiceParam.count)
         next.initialize(repeating: 0, count: SynthVoices.tracks)
         outBuf.initialize(repeating: 0, count: SynthVoices.chunk)
+        for p in 0..<VoiceParam.count { bit[p] = VoiceMask(1) << VoiceMask(p) }
     }
 
     deinit {
@@ -136,6 +140,7 @@ public final class SynthVoices {
         send.deallocate()
         for p in [decayK, env, env0, fadeK, fadeG, level, pan, z, lockVal, pVal, outBuf]
             as [UnsafeMutablePointer<Float>] { p.deallocate() }
+        bit.deallocate()
         coef.deallocate()
         drift.deallocate()
         lockMask.deallocate()
@@ -458,26 +463,32 @@ public final class SynthVoices {
         }
     }
 
+    /// Ручка p голоса: p-lock голоса или ручка дорожки (row — строка параметров дорожки), сверху LFO/ENV. Метод без
+    /// захвата (вложенная функция с захватом в отладочной сборке готовит контекст на каждый вызов — S14b).
+    @inline(__always)
+    private func knob(_ row: UnsafeMutablePointer<Float>, _ locks: UnsafeMutablePointer<Float>, _ mask: VoiceMask,
+                      _ modE: ModEngine?, _ t: Int, _ frame: Int64, _ p: Int) -> Double {
+        let x: Double = Double(mask & bit[p] != 0 ? locks[p] : row[p])
+        guard let mm = modE else { return x }
+        return mm.value(t, p, x, frame)
+    }
+
     @inline(__always)
     private func renderChunk(_ v: Int, _ d: SoundData, _ t: Int, _ frame0: Int64, _ m: Int,
                              _ bl: UnsafeMutablePointer<Float>, _ br: UnsafeMutablePointer<Float>, _ off: Int) {
         let mask = lockMask[v]
-        let base = v * VoiceParam.count
-        // Ручки дорожки меняют звучащую ноту сразу; p-lock шага держит своё.
+        // Ручки дорожки меняют звучащую ноту сразу; p-lock шага держит своё. Строка параметров дорожки, p-lock голоса
+        // и биты — указатели на кусок (без SoundData.param и преобразований на каждый параметр).
         let modE: ModEngine? = mod != nil && mod!.modulated(t) ? mod : nil
-        @inline(__always) func val(_ p: Int) -> Double {
-            var x: Double = Double(d.param(t, p))
-            if mask & (VoiceMask(1) << VoiceMask(p)) != 0 { x = Double(lockVal[base + p]) }
-            if let mm = modE { x = mm.value(t, p, x, frame0) }
-            return x
-        }
+        let row: UnsafeMutablePointer<Float> = d.params + d.s(t) * VoiceParam.count
+        let locks: UnsafeMutablePointer<Float> = lockVal + v * VoiceParam.count
         let e = engine[v]
         let decaying = selfDecay[v] != 0
         var peak: Float = 0
         // Свои движки (jambo-synth-worklet.js): p1–p4 — ручки 1.1–1.4 / 100, Decay — мс; сглаживание — в голосе (5 мс).
-        let q1 = val(VoiceParam.harm) / 100, q2 = val(VoiceParam.timbre) / 100, q3 = val(VoiceParam.morph) / 100
-        let q4 = val(VoiceParam.p4) / 100
-        let dec = val(VoiceParam.decay)
+        let q1 = knob(row, locks, mask, modE, t, frame0, VoiceParam.harm) / 100, q2 = knob(row, locks, mask, modE, t, frame0, VoiceParam.timbre) / 100, q3 = knob(row, locks, mask, modE, t, frame0, VoiceParam.morph) / 100
+        let q4 = knob(row, locks, mask, modE, t, frame0, VoiceParam.p4) / 100
+        let dec = knob(row, locks, mask, modE, t, frame0, VoiceParam.decay)
         let nt = Double(note[v])
         let dr = drift[t]
         if triggered[v] == 0 {
@@ -500,9 +511,9 @@ public final class SynthVoices {
             return
         }
         // Сглаживание ручек (setTargetAtTime веба: 10 мс, фильтр — 15 мс).
-        let levelT = Float(pow(val(VoiceParam.level) / 127, 1.5))
-        let panT = Float(Swift.max(-1, Swift.min(1, val(VoiceParam.pan) / 64)))
-        let fk = Biquad.knob(val(VoiceParam.filter), reso: val(VoiceParam.reso))
+        let levelT = Float(pow(knob(row, locks, mask, modE, t, frame0, VoiceParam.level) / 127, 1.5))
+        let panT = Float(Swift.max(-1, Swift.min(1, knob(row, locks, mask, modE, t, frame0, VoiceParam.pan) / 64)))
+        let fk = Biquad.knob(knob(row, locks, mask, modE, t, frame0, VoiceParam.filter), reso: knob(row, locks, mask, modE, t, frame0, VoiceParam.reso))
         if fk.type != ftype[v] {
             ftype[v] = fk.type
             hz[v] = fk.hz
@@ -514,9 +525,9 @@ public final class SynthVoices {
         level[v] += (levelT - level[v]) * Float(ks)
         pan[v] += (panT - pan[v]) * Float(ks)
         let sb = v * 3
-        send[sb] += (Float(val(VoiceParam.reverb) / 100) - send[sb]) * Float(ks)
-        send[sb + 1] += (Float(val(VoiceParam.delay) / 100) - send[sb + 1]) * Float(ks)
-        send[sb + 2] += (Float(val(VoiceParam.drive) / 100) - send[sb + 2]) * Float(ks)
+        send[sb] += (Float(knob(row, locks, mask, modE, t, frame0, VoiceParam.reverb) / 100) - send[sb]) * Float(ks)
+        send[sb + 1] += (Float(knob(row, locks, mask, modE, t, frame0, VoiceParam.delay) / 100) - send[sb + 1]) * Float(ks)
+        send[sb + 2] += (Float(knob(row, locks, mask, modE, t, frame0, VoiceParam.drive) / 100) - send[sb + 2]) * Float(ks)
         let sg0 = send[sb], sg1 = send[sb + 1], sg2 = send[sb + 2]
         let hasSend: Bool = sg0 > 1e-6 || sg1 > 1e-6 || sg2 > 1e-6
         let st = stride
@@ -526,7 +537,8 @@ public final class SynthVoices {
         let cPrev = coef[v]
         hz[v] += (fk.hz - hz[v]) * kf
         qDb[v] += (fk.q - qDb[v]) * kf
-        if abs(hz[v] - h0) > 1e-6 || abs(qDb[v] - q0) > 1e-6 {
+        let dh: Double = hz[v] - h0, dq: Double = qDb[v] - q0
+        if dh > 1e-6 || dh < -1e-6 || dq > 1e-6 || dq < -1e-6 {
             coef[v].set(type: ftype[v], hz: hz[v], qDb: qDb[v], sampleRate: sr)
         }
         let c = coef[v]
@@ -618,6 +630,7 @@ public final class SynthVoices {
             return
         }
         // Денормалы в состоянии фильтра.
-        for k in 0..<2 where abs(z[zb + k]) < 1e-20 { z[zb + k] = 0 }
+        if z0 < 1e-20 && z0 > -1e-20 { z[zb] = 0 }
+        if z1 < 1e-20 && z1 > -1e-20 { z[zb + 1] = 0 }
     }
 }

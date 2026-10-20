@@ -163,10 +163,12 @@ enum Jambo {
 public final class JamboTables {
     /// Синус 4096 + 1 точек (Float, как Float32Array).
     let sine: UnsafeMutablePointer<Float>
-    /// Отводы полуполосного фильтра: индексы и коэффициенты (нечётные и центр).
-    let hbIdx: UnsafeMutablePointer<Int>
-    let hbK: UnsafeMutablePointer<Float>
-    let hbN: Int
+    /// Те же значения в Double (S14b: в отладочной сборке Double(Float) на каждом отсчёте — вызов функции).
+    let sineD: UnsafeMutablePointer<Double>
+    /// Полуполосный фильтр: ненулевые отводы — центр и нечётные от него; симметричен — hbHK[j] при отводах
+    /// центр ∓ (2j + 1), j = 0…15, центр — hbCK (значения Float в Double; jHalf / dHalf — 16 слагаемых без цикла, S14b).
+    let hbHK: UnsafeMutablePointer<Double>
+    let hbCK: Double
     /// Нормировка пика смеси соседних форм ANALOG: [сегмент 0…2][шаг 0…64].
     let waveGain: UnsafeMutablePointer<Float>
     /// Нормировка чистых форм (синус, треугольник, пила, квадрат).
@@ -176,6 +178,8 @@ public final class JamboTables {
         let tau = Double.pi * 2
         sine = .allocate(capacity: Jambo.sinN + 1)
         for i in 0...Jambo.sinN { sine[i] = Float(sin(tau * Double(i) / Double(Jambo.sinN))) }
+        sineD = .allocate(capacity: Jambo.sinN + 1)
+        for i in 0...Jambo.sinN { sineD[i] = Double(sine[i]) }
 
         // Коэффициенты: sinc · окно, нормировка по сумме; только центр и нечётные отводы (чётные — нули).
         let len = Jambo.hbLen
@@ -198,13 +202,14 @@ public final class JamboTables {
         }
         idx.append(c)
         kk.append(Float(all[c] / sum))
-        hbN = idx.count
-        hbIdx = .allocate(capacity: hbN)
-        hbK = .allocate(capacity: hbN)
-        for i in 0..<hbN {
-            hbIdx[i] = idx[i]
-            hbK[i] = kk[i]
+        // Пары: коэффициент нижнего отвода c − (2j + 1) (верхний симметричен); развёрнутая свёртка — для 63 отводов.
+        let hbN: Int = idx.count
+        precondition(len == 63 && hbN == 33, "jHalf / dHalf развёрнуты для 63 отводов")
+        hbHK = .allocate(capacity: 16)
+        for i in 0..<(hbN - 1) where idx[i] < c {
+            hbHK[(c - idx[i] - 1) / 2] = Double(kk[i])
         }
+        hbCK = Double(kk[hbN - 1])
 
         // Пик смеси соседних форм (кроссфейд равной мощности, нормированный по сумме амплитуд) — по сетке.
         func shape(_ k: Int, _ ph: Double) -> Double {
@@ -236,8 +241,8 @@ public final class JamboTables {
 
     deinit {
         sine.deallocate()
-        hbIdx.deallocate()
-        hbK.deallocate()
+        sineD.deallocate()
+        hbHK.deallocate()
         waveGain.deallocate()
         shapeGain.deallocate()
     }
