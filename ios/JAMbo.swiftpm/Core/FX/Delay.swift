@@ -126,6 +126,14 @@ public final class FxDelay {
         cHp = FxDelay.svf(hp, sr)
     }
 
+    /// Покой (S14b, FxRack): линии и фильтры с нуля, ручки и время при пробуждении — сразу целевые (как новый Delay).
+    func sleep() {
+        reset()
+        started = false
+        dL = 0
+        dR = 0
+    }
+
     public func reset() {
         lineL.update(repeating: 0, count: len)
         lineR.update(repeating: 0, count: len)
@@ -246,8 +254,9 @@ public final class FxDelay {
             do {
                 let d: Double = Swift.min(maxD, Swift.max(1, dL + mod0))
                 let pos: Double = Double(w) - d + Double(len)
-                let fl: Double = pos.rounded(.down)
-                let ip = Int(fl)
+                // Позиция положительна: пол — через Int (rounded(.down) в отладочной сборке — медленный вызов; S14b).
+                let ip = Int(pos)
+                let fl: Double = Double(ip)
                 let fr: Double = pos - fl
                 let y0 = Double(lineL[(ip - 1) & mask]), y1 = Double(lineL[ip & mask])
                 let y2 = Double(lineL[(ip + 1) & mask]), y3 = Double(lineL[(ip + 2) & mask])
@@ -259,8 +268,9 @@ public final class FxDelay {
             do {
                 let d: Double = Swift.min(maxD, Swift.max(1, dR + mod1))
                 let pos: Double = Double(w) - d + Double(len)
-                let fl: Double = pos.rounded(.down)
-                let ip = Int(fl)
+                // Позиция положительна: пол — через Int (rounded(.down) в отладочной сборке — медленный вызов; S14b).
+                let ip = Int(pos)
+                let fl: Double = Double(ip)
                 let fr: Double = pos - fl
                 let y0 = Double(lineR[(ip - 1) & mask]), y1 = Double(lineR[ip & mask])
                 let y2 = Double(lineR[(ip + 1) & mask]), y3 = Double(lineR[(ip + 2) & mask])
@@ -320,7 +330,7 @@ public final class FxDelay {
             w = (w + 1) & mask
             outL[s] = Float(sL)
             outR[s] = Float(sR)
-            if !(yL == yL && yR == yR) || abs(yL) > 1e6 || abs(yR) > 1e6 { bad = true }
+            if !(yL == yL && yR == yR) || yL > 1e6 || yL < -1e6 || yR > 1e6 || yR < -1e6 { bad = true }
             s += 1
         }
         self.w = w

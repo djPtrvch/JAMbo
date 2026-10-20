@@ -8,6 +8,9 @@ import Foundation
 // Выход = вход·(1 − MIX) + вход·GR·Makeup·MIX; BYPASS — кроссфейд 10 мс. Параметры сглаживаются за 20 мс.
 // Индикация (S5c): за кадр 256 отсчётов — пик входа, уровень детектора (dB), GR (dB), пик выхода.
 
+/// |x| без обобщённого abs (в отладочной сборке — вызов через протоколы; S14b).
+@_transparent private func glueAbs(_ x: Double) -> Double { x < 0 ? -x : x }
+
 public final class MasterGlue {
     static let peakWeight: Double = 0.6
     static let rmsWeight: Double = 0.4
@@ -124,7 +127,7 @@ public final class MasterGlue {
         let hpT: Double = Swift.max(MasterGlue.scHpfOff, Swift.min(500, hpIn))
         let kb: Double = pow(ks, Double(n))
         schpf = exp(log(hpT) + (log(schpf) - log(hpT)) * kb)
-        if abs(schpf - hpT) < 1e-3 { schpf = hpT }
+        if glueAbs(schpf - hpT) < 1e-3 { schpf = hpT }
         let hpOn: Bool = schpf > MasterGlue.scHpfOff + 1e-6
         if hpOn { updateHpf(schpf) }
         let b0 = hb0, b1 = hb1, b2 = hb2, a1 = ha1, a2 = ha2
@@ -152,7 +155,7 @@ public final class MasterGlue {
                 hr = b0 * xr + b1 * zr1 + b2 * zr2 - a1 * zr3 - a2 * zr4 + tiny
                 zr2 = zr1; zr1 = xr; zr4 = zr3; zr3 = hr
             }
-            let al: Double = abs(hl), ar: Double = abs(hr)
+            let al: Double = glueAbs(hl), ar: Double = glueAbs(hr)
             let a: Double = al > ar ? al : ar
             // Детектор: пик + RMS → уровень (dB) → цель GR → сглаживание.
             pk = a > pk ? a : pk * kPk + tiny
@@ -178,9 +181,9 @@ public final class MasterGlue {
             let yl: Double = xl * f, yr: Double = xr * f
             outL[i] = Float(yl)
             outR[i] = Float(yr)
-            let ao: Double = Swift.max(abs(yl), abs(yr))
+            let ao: Double = Swift.max(glueAbs(yl), glueAbs(yr))
             if ao > mOut { mOut = ao }
-            let ai: Double = Swift.max(abs(xl), abs(xr))
+            let ai: Double = Swift.max(glueAbs(xl), glueAbs(xr))
             if ai > mIn { mIn = ai }
             if gr * wet > mGr { mGr = gr * wet }
             if ldb > mDet { mDet = ldb }

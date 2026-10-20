@@ -4,9 +4,15 @@ import Foundation
 // обрывает прошлый — хвост гаснет за ~2 мс (добавкой последнего отсчёта, как у KICK). Выход — через tanh (пик < 0 dBFS).
 // Горячие циклы — без вызовов из других файлов, состояние — в локальных переменных (отладочная сборка Playgrounds).
 
+/// floor(x) для |x| < 2⁶³ (rounded(.down) в отладочной сборке — медленный вызов; S14b).
+@_transparent private func dFloor(_ x: Double) -> Double {
+    let f = Double(Int(x))
+    return f > x ? f - 1 : f
+}
+
 /// Синус по фазе в периодах (таблица 4096 с линейной интерполяцией; sineD — значения Float в Double).
 @_transparent private func dSin(_ table: UnsafePointer<Double>, _ ph: Double) -> Double {
-    var x = ph - ph.rounded(.down)
+    var x = ph - dFloor(ph)
     x *= 4096
     let i = Int(x)
     let a = table[i], b = table[i + 1]

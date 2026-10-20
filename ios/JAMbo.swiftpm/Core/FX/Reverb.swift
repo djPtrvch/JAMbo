@@ -254,6 +254,13 @@ public final class FxReverb {
     /// Math.round: половина — вверх.
     static func jsRound(_ x: Double) -> Double { return (x + 0.5).rounded(.down) }
 
+    /// Покой (S14b, FxRack): линии и фильтры с нуля, ручки при пробуждении — сразу целевые (как новый Reverb).
+    func sleep() {
+        reset()
+        started = false
+        preMs = .nan
+    }
+
     public func reset() {
         preL.update(repeating: 0, count: preLen)
         preR.update(repeating: 0, count: preLen)
@@ -334,8 +341,9 @@ public final class FxReverb {
             preR[pw] = Float(xr)
             let pd: Double = Swift.max(1, (pre1 / 1000) * sr)
             let pp: Double = Double(pw) - pd + Double(preLen * 2)
-            let pfl: Double = pp.rounded(.down)
-            let pi = Int(pfl)
+            // Позиции чтения положительны: пол — через Int (rounded(.down) в отладочной сборке — медленный вызов; S14b).
+            let pi = Int(pp)
+            let pfl: Double = Double(pi)
             let pf: Double = pp - pfl
             let pl0 = Double(preL[pi & preMask]), pr0 = Double(preR[pi & preMask])
             let dl: Double = pl0 + (Double(preL[(pi + 1) & preMask]) - pl0) * pf
@@ -350,13 +358,13 @@ public final class FxReverb {
             var t = 0
             while t < 12 {
                 let ql: Double = Double(ew) - erTL[t] * ems + Double(erLen * 2)
-                let qfl: Double = ql.rounded(.down)
-                let qi = Int(qfl)
+                let qi = Int(ql)
+                let qfl: Double = Double(qi)
                 let a0 = Double(erL[qi & erMask])
                 el += erG[t] * (a0 + (Double(erL[(qi + 1) & erMask]) - a0) * (ql - qfl))
                 let qr: Double = Double(ew) - erTR[t] * ems + Double(erLen * 2)
-                let rfl: Double = qr.rounded(.down)
-                let ri = Int(rfl)
+                let ri = Int(qr)
+                let rfl: Double = Double(ri)
                 let b0 = Double(erR[ri & erMask])
                 er += erG[t] * (b0 + (Double(erR[(ri + 1) & erMask]) - b0) * (qr - rfl))
                 t += 1
@@ -395,8 +403,8 @@ public final class FxReverb {
                 ms[i] = sn
                 let d: Double = base[i] * scale + depth * sn
                 let pos: Double = Double(w) - d + Double(lineSize * 2)
-                let fl: Double = pos.rounded(.down)
-                let ip = Int(fl)
+                let ip = Int(pos)
+                let fl: Double = Double(ip)
                 let fr: Double = pos - fl
                 let L = lines + i * lineSize
                 let y0 = Double(L[(ip - 1) & mask]), y1 = Double(L[ip & mask])
@@ -432,7 +440,7 @@ public final class FxReverb {
             yr = y
             outL[s] = Float(yl * ret)
             outR[s] = Float(yr * ret)
-            if !(yl == yl && yr == yr) || abs(yl) > 1e6 { bad = true }
+            if !(yl == yl && yr == yr) || yl > 1e6 || yl < -1e6 { bad = true }
             s += 1
         }
         self.w = w
@@ -442,9 +450,9 @@ public final class FxReverb {
         // (через Float пред-задержки и отражений) станут денормалями Float. All-pass — с добавкой tiny, как линии FDN.
         var z = 0
         while z < 8 {
-            if abs(zHp[z]) < 1e-30 { zHp[z] = 0 }
-            if abs(zLp[z]) < 1e-30 { zLp[z] = 0 }
-            if abs(zSh[z]) < 1e-30 { zSh[z] = 0 }
+            if zHp[z] < 1e-30 && zHp[z] > -1e-30 { zHp[z] = 0 }
+            if zLp[z] < 1e-30 && zLp[z] > -1e-30 { zLp[z] = 0 }
+            if zSh[z] < 1e-30 && zSh[z] > -1e-30 { zSh[z] = 0 }
             z += 1
         }
         // NaN или разнос — сброс состояния (тишина вместо шума).

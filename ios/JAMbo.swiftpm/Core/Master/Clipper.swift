@@ -7,6 +7,62 @@ import Foundation
 // НЧ — без обработки, с задержкой 32 → сумма. BYPASS — кроссфейд 10 мс с входом той же задержки.
 // Индикация (S5c): за кадр 256 отсчётов — пик после DRIVE, срез (dB, окна 10 мс), пик выхода.
 
+/// Свёртка n отводов: acc + Σ k[j]·x[−j] (x — последний отсчёт окна). По 4 отвода со сдвигом указателей: в отладочной
+/// сборке счётчик и индексы цикла дороже самих умножений (S14b); порядок сложения тот же.
+@_transparent private func clipDot(_ acc: Double, _ k: UnsafePointer<Double>, _ x: UnsafePointer<Double>, _ n: Int) -> Double {
+    var s: Double = acc
+    var kp: UnsafePointer<Double> = k
+    var xp: UnsafePointer<Double> = x
+    var j: Int = n
+    while j >= 4 {
+        s += kp[0] * xp[0]
+        s += kp[1] * xp[-1]
+        s += kp[2] * xp[-2]
+        s += kp[3] * xp[-3]
+        kp += 4
+        xp -= 4
+        j -= 4
+    }
+    while j > 0 {
+        s += kp[0] * xp[0]
+        kp += 1
+        xp -= 1
+        j -= 1
+    }
+    return s
+}
+
+/// Симметричная свёртка: acc + Σ k[j]·(a[−j] + b[j]).
+@_transparent private func clipDotSym(_ acc: Double, _ k: UnsafePointer<Double>, _ a: UnsafePointer<Double>,
+                                       _ b: UnsafePointer<Double>, _ n: Int) -> Double {
+    var s: Double = acc
+    var kp: UnsafePointer<Double> = k
+    var ap: UnsafePointer<Double> = a
+    var bp: UnsafePointer<Double> = b
+    var j: Int = n
+    while j >= 4 {
+        s += kp[0] * (ap[0] + bp[0])
+        s += kp[1] * (ap[-1] + bp[1])
+        s += kp[2] * (ap[-2] + bp[2])
+        s += kp[3] * (ap[-3] + bp[3])
+        kp += 4
+        ap -= 4
+        bp += 4
+        j -= 4
+    }
+    while j > 0 {
+        s += kp[0] * (ap[0] + bp[0])
+        kp += 1
+        ap -= 1
+        bp += 1
+        j -= 1
+    }
+    return s
+}
+
+/// |x| без обобщённого abs (в отладочной сборке — вызов через протоколы; S14b).
+@_transparent private func clipAbs(_ x: Double) -> Double { x < 0 ? -x : x }
+
 public final class MasterClipper {
     static let smoothMs: Double = 20
     static let bypassMs: Double = 10
@@ -96,7 +152,7 @@ public final class MasterClipper {
 
     @inline(__always)
     func shape(_ u: Double, _ k: Double) -> Double {
-        let a: Double = abs(u)
+        let a: Double = clipAbs(u)
         if a <= k { return u }
         let s: Double = 1 - k
         let y: Double = s > 1e-9 ? k + s * tanh((a - k) / s) : 1
@@ -105,7 +161,7 @@ public final class MasterClipper {
 
     @inline(__always)
     func antideriv(_ u: Double, _ k: Double) -> Double {
-        let a: Double = abs(u)
+        let a: Double = clipAbs(u)
         if a <= k { return 0.5 * u * u }
         let s: Double = 1 - k
         let base: Double = 0.5 * k * k + k * (a - k)
@@ -136,24 +192,20 @@ public final class MasterClipper {
                 s = d.ph0Gain * hist[base - DriveTables.ph0Delay]
             } else {
                 let f = phases + p * pl
-                var j = 0
-                while j < pl {
-                    s += f[j] * hist[base - j]
-                    j += 1
-                }
+                s = clipDot(s, f, hist + base, pl)
             }
             // Антипроизводная первого порядка; ниже колена — среднее двух отсчётов.
             let u: Double = s * inv
             let u0: Double = c[MasterClipper.oPrevU]
             var y: Double
-            if abs(u) <= k && abs(u0) <= k {
+            if clipAbs(u) <= k && clipAbs(u0) <= k {
                 y = 0.5 * (u + u0)
                 c[MasterClipper.oPrevF] = 0.5 * u * u
             } else {
                 engaged = true
                 let F: Double = antideriv(u, k)
                 let du: Double = u - u0
-                y = abs(du) > 1e-6 ? (F - c[MasterClipper.oPrevF]) / du : shape(0.5 * (u + u0), k)
+                y = clipAbs(du) > 1e-6 ? (F - c[MasterClipper.oPrevF]) / du : shape(0.5 * (u + u0), k)
                 c[MasterClipper.oPrevF] = F
             }
             c[MasterClipper.oPrevU] = u
@@ -171,11 +223,7 @@ public final class MasterClipper {
         var out: Double = d.decMid * os[ob - dc]
         let lst = ob - (fl - 1)
         let dh = d.decHalf
-        var j = 0
-        while j < dc {
-            out += dh[j] * (os[ob - j] + os[lst + j])
-            j += 1
-        }
+        out = clipDotSym(out, dh, os + ob, os + lst, dc)
         return out + MasterClipper.tiny
     }
 
@@ -219,12 +267,16 @@ public final class MasterClipper {
         MasterClipper.butter(lp1, f1, sr, high: false)
         MasterClipper.butter(hp1, f1, sr, high: true)
         freq = f1
-        let moving: Bool = abs(f1 - fT) > 0.01 || lp0[0] != lp1[0]
+        let moving: Bool = clipAbs(f1 - fT) > 0.01 || lp0[0] != lp1[0]
         if !moving {
             lpc.update(from: lp1, count: 5)
             hpc.update(from: hp1, count: 5)
         }
         let R = MasterClipper.ring
+        // Состояние — в локальных на блок (в отладочной сборке каждое обращение к свойству — проверка доступа; S14b).
+        var dl: Double = driveLin, cl: Double = ceil, kn: Double = knee, wt: Double = wet, spl: Double = split
+        var mI: Double = mIn, mO: Double = mOut, wI: Double = winIn, wO: Double = winOut, gN: Int = grN
+        let wStep: Double = wetStep, sStep: Double = splitStep, gWin: Int = grWin
         var i = 0
         while i < n {
             if moving {
@@ -236,12 +288,12 @@ public final class MasterClipper {
                     q += 1
                 }
             }
-            driveLin = driveT + (driveLin - driveT) * ks
-            ceil = ceilT + (ceil - ceilT) * ks
-            knee = kneeT + (knee - kneeT) * ks
-            if wet < wetT { wet = Swift.min(wetT, wet + wetStep) } else if wet > wetT { wet = Swift.max(wetT, wet - wetStep) }
-            if split < splitT { split = Swift.min(splitT, split + splitStep) } else if split > splitT {
-                split = Swift.max(splitT, split - splitStep)
+            dl = driveT + (dl - driveT) * ks
+            cl = ceilT + (cl - ceilT) * ks
+            kn = kneeT + (kn - kneeT) * ks
+            if wt < wetT { wt = Swift.min(wetT, wt + wStep) } else if wt > wetT { wt = Swift.max(wetT, wt - wStep) }
+            if spl < splitT { spl = Swift.min(splitT, spl + sStep) } else if spl > splitT {
+                spl = Swift.max(splitT, spl - sStep)
             }
             var inPk: Double = 0, dryPk: Double = 0, outPk: Double = 0
             var k = 0
@@ -249,15 +301,16 @@ public final class MasterClipper {
                 let c = st + k * MasterClipper.chSize
                 let ic = ist + k * MasterClipper.iSize
                 let raw = Double(k == 0 ? inL[i] : inR[i])
-                let x: Double = raw * driveLin
-                if abs(x) > inPk { inPk = abs(x) }
+                let x: Double = raw * dl
+                let ax: Double = x < 0 ? -x : x
+                if ax > inPk { inPk = ax }
                 // Кроссовер LR4 (OFF — всё в ВЧ, с плавным переходом).
                 let lo: Double = biquad(c + MasterClipper.oLp + 2, lpc, biquad(c + MasterClipper.oLp, lpc, x))
                 let hi: Double = biquad(c + MasterClipper.oHp + 2, hpc, biquad(c + MasterClipper.oHp, hpc, x))
-                let sp: Double = split
+                let sp: Double = spl
                 let hfIn: Double = sp * hi + (1 - sp) * x
                 let lfIn: Double = sp * lo
-                let yh: Double = hf(c, ic, hfIn, ceil, knee)
+                let yh: Double = hf(c, ic, hfIn, cl, kn)
                 // НЧ и сухой сигнал — с той же задержкой.
                 let dp = ic[2]
                 let r = dp + 1 == R ? 0 : dp + 1
@@ -270,21 +323,42 @@ public final class MasterClipper {
                 ic[2] = r
                 let w: Double = lfOut + yh
                 // В bypass клиппер отключён целиком (и DRIVE): сухой — исходный сигнал с той же задержкой.
-                let y: Double = wet * w + (1 - wet) * dryOut
+                let y: Double = wt * w + (1 - wt) * dryOut
                 if k == 0 { outL[i] = Float(y) } else { outR[i] = Float(y) }
-                if abs(lin) > dryPk { dryPk = abs(lin) }
-                if abs(w) > outPk { outPk = abs(w) }
-                if abs(y) > mOut { mOut = abs(y) }
+                let al: Double = lin < 0 ? -lin : lin
+                let aw: Double = w < 0 ? -w : w
+                let ay: Double = y < 0 ? -y : y
+                if al > dryPk { dryPk = al }
+                if aw > outPk { outPk = aw }
+                if ay > mO { mO = ay }
                 k += 1
             }
-            if inPk > mIn { mIn = inPk }
+            if inPk > mI { mI = inPk }
             // Срез пика: наибольший пик выхода к наибольшему пику того же сигнала без среза за 10 мс.
-            if dryPk > winIn { winIn = dryPk }
-            if outPk > winOut { winOut = outPk }
-            grN += 1
-            if grN >= grWin { closeWindow() }
+            if dryPk > wI { wI = dryPk }
+            if outPk > wO { wO = outPk }
+            gN += 1
+            if gN >= gWin {
+                winIn = wI
+                winOut = wO
+                wet = wt
+                closeWindow()
+                wI = 0
+                wO = 0
+                gN = 0
+            }
             i += 1
         }
+        driveLin = dl
+        ceil = cl
+        knee = kn
+        wet = wt
+        split = spl
+        mIn = mI
+        mOut = mO
+        winIn = wI
+        winOut = wO
+        grN = gN
         lp0.update(from: lp1, count: 5)
         hp0.update(from: hp1, count: 5)
         meterN += n

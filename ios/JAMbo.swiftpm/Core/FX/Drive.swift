@@ -10,6 +10,95 @@ import Foundation
 // TONE и LOW CUT — по блокам; смена TYPE — кроссфейд 20 мс. Тишина дольше 200 мс — выход нули, расчёт пропускается.
 // Расчёт — Double, как JS. Состояния каналов — в одном буфере (указатели: без проверок доступа в отладке).
 
+/// Свёртка n отводов: acc + Σ k[j]·x[−j] (x — последний отсчёт окна). По 4 отвода со сдвигом указателей: в отладочной
+/// сборке счётчик и индексы цикла дороже самих умножений (S14b); порядок сложения тот же.
+@_transparent private func fxDot(_ acc: Double, _ k: UnsafePointer<Double>, _ x: UnsafePointer<Double>, _ n: Int) -> Double {
+    var s: Double = acc
+    var kp: UnsafePointer<Double> = k
+    var xp: UnsafePointer<Double> = x
+    var j: Int = n
+    while j >= 4 {
+        s += kp[0] * xp[0]
+        s += kp[1] * xp[-1]
+        s += kp[2] * xp[-2]
+        s += kp[3] * xp[-3]
+        kp += 4
+        xp -= 4
+        j -= 4
+    }
+    while j > 0 {
+        s += kp[0] * xp[0]
+        kp += 1
+        xp -= 1
+        j -= 1
+    }
+    return s
+}
+
+/// Симметричная свёртка: acc + Σ k[j]·(a[−j] + b[j]).
+@_transparent private func fxDotSym(_ acc: Double, _ k: UnsafePointer<Double>, _ a: UnsafePointer<Double>,
+                                       _ b: UnsafePointer<Double>, _ n: Int) -> Double {
+    var s: Double = acc
+    var kp: UnsafePointer<Double> = k
+    var ap: UnsafePointer<Double> = a
+    var bp: UnsafePointer<Double> = b
+    var j: Int = n
+    while j >= 4 {
+        s += kp[0] * (ap[0] + bp[0])
+        s += kp[1] * (ap[-1] + bp[1])
+        s += kp[2] * (ap[-2] + bp[2])
+        s += kp[3] * (ap[-3] + bp[3])
+        kp += 4
+        ap -= 4
+        bp += 4
+        j -= 4
+    }
+    while j > 0 {
+        s += kp[0] * (ap[0] + bp[0])
+        kp += 1
+        ap -= 1
+        bp += 1
+        j -= 1
+    }
+    return s
+}
+
+// Горячий путь shape (4 отсчёта на входной): те же формулы, что tableF, anti и shapeY, — функциями файла с
+// @_transparent (в отладочной сборке встраивается только он; @inline(__always) там — обычный вызов; S14b).
+
+/// F(|u|) по таблице (кубический Эрмит).
+@_transparent private func fxTableF(_ F: UnsafeMutablePointer<Double>, _ D: UnsafeMutablePointer<Double>, _ fmax: Double,
+                                    _ u: Double) -> Double {
+    let a: Double = u < 0 ? -u : u
+    if a >= 12 { return fmax + (a - 12) }
+    let x: Double = a * 32
+    let i = Int(x)
+    let tt: Double = x - Double(i), t2: Double = tt * tt, t3: Double = t2 * tt
+    let h: Double = 0.03125
+    return (2 * t3 - 3 * t2 + 1) * F[i] + (t3 - 2 * t2 + tt) * h * D[i] + (-2 * t3 + 3 * t2) * F[i + 1]
+        + (t3 - t2) * h * D[i + 1]
+}
+
+/// Антипроизводная type 0–3 (F, D, fmax — таблица кривой: tanh у 0 и 2, fuzz у 3).
+@_transparent private func fxAnti(_ type: Int, _ u: Double, _ F: UnsafeMutablePointer<Double>,
+                                  _ D: UnsafeMutablePointer<Double>, _ fmax: Double, _ lcB: Double, _ tb: Double,
+                                  _ td: Double) -> Double {
+    if type == 1 {
+        let a: Double = u < 0 ? -u : u
+        return a <= 1 ? 0.5 * u * u : a - 0.5
+    }
+    if type == 2 { return (fxTableF(F, D, fmax, u + 0.35) - lcB - u * tb) / td }
+    return fxTableF(F, D, fmax, u)
+}
+
+/// Кривая type 0–3.
+@_transparent private func fxShapeY(_ type: Int, _ u: Double, _ tb: Double, _ td: Double) -> Double {
+    if type == 0 { return tanh(u) }
+    if type == 1 { return u > 1 ? 1 : (u < -1 ? -1 : u) }
+    if type == 2 { return (tanh(u + 0.35) - tb) / td }
+    return u < 0 ? -(1 - exp(u)) : 1 - exp(-u)
+}
+
 public final class FxDrive {
     static let soft = 0, hard = 1, tube = 2, fuzz = 3, fold = 4, crush = 5
     static let smoothMs: Double = 20
@@ -158,12 +247,21 @@ public final class FxDrive {
             return
         }
         var F0: Double = c[FxDrive.oPrevF + type]
+        // Таблица кривой и константы — один раз на 4 отсчёта.
+        let tbl: DriveTables = t
+        let fuzz: Bool = type == 3
+        let tF: UnsafeMutablePointer<Double> = fuzz ? tbl.fuzzF : tbl.tanhF
+        let tD: UnsafeMutablePointer<Double> = fuzz ? tbl.fuzzD : tbl.tanhD
+        let tMax: Double = fuzz ? tbl.fuzzMax : tbl.tanhMax
+        let lcB: Double = tbl.lcB, tb: Double = tbl.tb, td: Double = tbl.td
+        let eps: Double = FxDrive.adaaEps
         var p = 0
         while p < 4 {
             let v: Double = u[p]
-            let F: Double = anti(type, v)
+            let F: Double = fxAnti(type, v, tF, tD, tMax, lcB, tb, td)
             let du: Double = v - u0
-            y[p] += k * (abs(du) < FxDrive.adaaEps ? shapeY(type, 0.5 * (v + u0)) : (F - F0) / du)
+            let near: Bool = du < eps && du > -eps
+            y[p] += k * (near ? fxShapeY(type, 0.5 * (v + u0), tb, td) : (F - F0) / du)
             u0 = v
             F0 = F
             p += 1
@@ -187,12 +285,7 @@ public final class FxDrive {
         var p = 1
         while p < 4 {
             let f = phases + p * pl
-            var s: Double = 0
-            var j = 0
-            while j < pl {
-                s += f[j] * hist[base - j]
-                j += 1
-            }
+            let s: Double = fxDot(0, f, hist + base, pl)
             u[p] = s
             p += 1
         }
@@ -200,15 +293,9 @@ public final class FxDrive {
         y[0] = 0; y[1] = 0; y[2] = 0; y[3] = 0
         if wa > 0 && ta != FxDrive.crush { shape(c, ta, wa / ka) }
         if wb > 0 && tb != FxDrive.crush { shape(c, tb, wb / kb) }
-        // Состояния кривых, которые сейчас не считались, — на текущий отсчёт (вход в них без скачка).
-        let last: Double = u[3]
-        var tt = 0
-        while tt < 4 {
-            if tt != ta && tt != tb { c[FxDrive.oPrevF + tt] = anti(tt, last) }
-            tt += 1
-        }
-        if ta != FxDrive.fold && tb != FxDrive.fold { c[FxDrive.oPrevS] = sin(last) }
-        c[FxDrive.oPrevU] = last
+        // Состояния кривых, которые сейчас не считались, не ведутся: при смене TYPE process ставит их от oPrevU — то же
+        // значение (S14b: прежде — 2–3 антипроизводные на отсчёт впустую).
+        c[FxDrive.oPrevU] = u[3]
         // Коррекция среднего (1 − sin⁸) и децимация.
         let cb = c + FxDrive.oCorr, os = c + FxDrive.oOs
         let cl = FxDrive.corrLen, fl = DriveTables.firLen
@@ -236,11 +323,7 @@ public final class FxDrive {
         var out: Double = t.decMid * os[ob - dc]
         let lst = ob - (fl - 1)
         let dh = t.decHalf
-        var j = 0
-        while j < dc {
-            out += dh[j] * (os[ob - j] + os[lst + j])
-            j += 1
-        }
+        out = fxDotSym(out, dh, os + ob, os + lst, dc)
         return out
     }
 

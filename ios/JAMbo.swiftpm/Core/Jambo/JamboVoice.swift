@@ -9,10 +9,16 @@ import Foundation
 /// frac(x) = x − floor(x).
 @_transparent private func jFrac(_ x: Double) -> Double { x - x.rounded(.down) }
 
+/// floor(x) для |x| < 2⁶³ (rounded(.down) в отладочной сборке — медленный вызов; S14b).
+@_transparent private func jFloor(_ x: Double) -> Double {
+    let f = Double(Int(x))
+    return f > x ? f - 1 : f
+}
+
 /// Синус по фазе в периодах (таблица 4096 с линейной интерполяцией), как sinT в worklet; таблица — sineD (значения
 /// Float в Double).
 @_transparent private func jSin(_ table: UnsafePointer<Double>, _ ph: Double) -> Double {
-    var x = ph - ph.rounded(.down)
+    var x = ph - jFloor(ph)
     x *= 4096
     let i = Int(x)
     let a = table[i], b = table[i + 1]
@@ -483,7 +489,7 @@ final class JamboVoice {
                 x1 = mod
                 let y = Double(Float(jSin(sine, c + index * env * mod)))
                 md += ratio * dt
-                if md >= 1 { md -= md.rounded(.down) }
+                if md >= 1 { md -= jFloor(md) }
                 c += dt
                 if c >= 1 { c -= 1 }
                 buf[hp] = y
@@ -548,7 +554,7 @@ final class JamboVoice {
                 var ph = v == 0 ? c0 : (v == 1 ? cl : (v == 2 ? cr : (v == 3 ? cl2 : cr2)))
                 if sync != 1 {
                     ph *= sync
-                    ph -= ph.rounded(.down)
+                    ph -= jFloor(ph)
                 }
                 if bent { ph = pow(ph, bend) }
                 let x = ph * sizeF

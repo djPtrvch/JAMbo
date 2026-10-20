@@ -8,6 +8,94 @@ import Foundation
 // DRIVE 0 или MIX 0 — выход = сухой с задержкой, обработка не считается; из покоя — 40 отсчётов и вход за 5 мс.
 // BYPASS — MIX 0 (за 20 мс в сухой, задержка та же). Расчёт — Double, как JS.
 
+// Горячий путь shape (4 отсчёта на входной): те же формулы, что tableF, anti и shapeY, — функциями файла с
+// @_transparent (в отладочной сборке встраивается только он; S14b).
+
+/// F(|u|) по таблице (кубический Эрмит); за 12: tanh — линейно, EDGE — с поправкой a − 1/(12a³).
+@_transparent private func satTableF(_ F: UnsafeMutablePointer<Double>, _ D: UnsafeMutablePointer<Double>, _ fmax: Double,
+                                     _ edge: Bool, _ u: Double) -> Double {
+    let a: Double = u < 0 ? -u : u
+    if a >= 12 {
+        let tail: Double = edge ? (1.0 / 1728 - 1 / (a * a * a)) / 12 : 0
+        return fmax + (a - 12) - tail
+    }
+    let x: Double = a * 32
+    let i = Int(x)
+    let tt: Double = x - Double(i), t2: Double = tt * tt, t3: Double = t2 * tt
+    let h: Double = 0.03125
+    return (2 * t3 - 3 * t2 + 1) * F[i] + (t3 - 2 * t2 + tt) * h * D[i] + (-2 * t3 + 3 * t2) * F[i + 1]
+        + (t3 - t2) * h * D[i + 1]
+}
+
+/// Антипроизводная type 0–2 (F, D, fmax — таблица кривой: tanh у 0 и 1, EDGE у 2).
+@_transparent private func satAnti(_ type: Int, _ u: Double, _ F: UnsafeMutablePointer<Double>,
+                                   _ D: UnsafeMutablePointer<Double>, _ fmax: Double, _ lcB: Double, _ tb: Double,
+                                   _ td: Double) -> Double {
+    if type == 0 { return satTableF(F, D, fmax, false, u) }
+    if type == 1 { return (satTableF(F, D, fmax, false, u + 0.35) - lcB - u * tb) / td }
+    return satTableF(F, D, fmax, true, u)
+}
+
+/// Кривая type 0–2.
+@_transparent private func satShapeY(_ type: Int, _ u: Double, _ tb: Double, _ td: Double) -> Double {
+    if type == 0 { return tanh(u) }
+    if type == 1 { return (tanh(u + 0.35) - tb) / td }
+    return u / sqrt(sqrt(1 + u * u * u * u))
+}
+
+/// Свёртка n отводов: acc + Σ k[j]·x[−j] (x — последний отсчёт окна). По 4 отвода со сдвигом указателей: в отладочной
+/// сборке счётчик и индексы цикла дороже самих умножений (S14b); порядок сложения тот же.
+@_transparent private func satDot(_ acc: Double, _ k: UnsafePointer<Double>, _ x: UnsafePointer<Double>, _ n: Int) -> Double {
+    var s: Double = acc
+    var kp: UnsafePointer<Double> = k
+    var xp: UnsafePointer<Double> = x
+    var j: Int = n
+    while j >= 4 {
+        s += kp[0] * xp[0]
+        s += kp[1] * xp[-1]
+        s += kp[2] * xp[-2]
+        s += kp[3] * xp[-3]
+        kp += 4
+        xp -= 4
+        j -= 4
+    }
+    while j > 0 {
+        s += kp[0] * xp[0]
+        kp += 1
+        xp -= 1
+        j -= 1
+    }
+    return s
+}
+
+/// Симметричная свёртка: acc + Σ k[j]·(a[−j] + b[j]).
+@_transparent private func satDotSym(_ acc: Double, _ k: UnsafePointer<Double>, _ a: UnsafePointer<Double>,
+                                       _ b: UnsafePointer<Double>, _ n: Int) -> Double {
+    var s: Double = acc
+    var kp: UnsafePointer<Double> = k
+    var ap: UnsafePointer<Double> = a
+    var bp: UnsafePointer<Double> = b
+    var j: Int = n
+    while j >= 4 {
+        s += kp[0] * (ap[0] + bp[0])
+        s += kp[1] * (ap[-1] + bp[1])
+        s += kp[2] * (ap[-2] + bp[2])
+        s += kp[3] * (ap[-3] + bp[3])
+        kp += 4
+        ap -= 4
+        bp += 4
+        j -= 4
+    }
+    while j > 0 {
+        s += kp[0] * (ap[0] + bp[0])
+        kp += 1
+        ap -= 1
+        bp += 1
+        j -= 1
+    }
+    return s
+}
+
 public final class MasterSaturator {
     static let fadeInDb: Double = 1
     static let toneHz: Double = 1000
@@ -138,12 +226,21 @@ public final class MasterSaturator {
         let u = c + MasterSaturator.oU, y = c + MasterSaturator.oY
         var u0: Double = c[MasterSaturator.oPrevU]
         var F0: Double = c[MasterSaturator.oPrevF + type]
+        // Таблица кривой и константы — один раз на 4 отсчёта.
+        let d: DriveTables = t.d
+        let edge: Bool = type >= 2
+        let tF: UnsafeMutablePointer<Double> = edge ? t.edgeF : d.tanhF
+        let tD: UnsafeMutablePointer<Double> = edge ? t.edgeD : d.tanhD
+        let tMax: Double = edge ? t.edgeMax : d.tanhMax
+        let lcB: Double = d.lcB, tb: Double = d.tb, td: Double = d.td
+        let eps: Double = MasterSaturator.adaaEps
         var p = 0
         while p < 4 {
             let v: Double = u[p]
-            let F: Double = anti(type, v)
+            let F: Double = satAnti(type, v, tF, tD, tMax, lcB, tb, td)
             let du: Double = v - u0
-            let r: Double = abs(du) < MasterSaturator.adaaEps ? shapeY(type, 0.5 * (v + u0)) : (F - F0) / du
+            let near: Bool = du < eps && du > -eps
+            let r: Double = near ? satShapeY(type, 0.5 * (v + u0), tb, td) : (F - F0) / du
             y[p] = add ? y[p] + k * r : k * r
             u0 = v
             F0 = F
@@ -169,12 +266,7 @@ public final class MasterSaturator {
         var p = 1
         while p < 4 {
             let f = phases + p * pl
-            var s: Double = 0
-            var j = 0
-            while j < pl {
-                s += f[j] * hist[base - j]
-                j += 1
-            }
+            let s: Double = satDot(0, f, hist + base, pl)
             u[p] = s
             p += 1
         }
@@ -212,11 +304,7 @@ public final class MasterSaturator {
         var out: Double = d.decMid * os[ob - dc]
         let lst = ob - (fl - 1)
         let dh = d.decHalf
-        var j = 0
-        while j < dc {
-            out += dh[j] * (os[ob - j] + os[lst + j])
-            j += 1
-        }
+        out = satDotSym(out, dh, os + ob, os + lst, dc)
         return out + MasterSaturator.tiny
     }
 
@@ -278,31 +366,41 @@ public final class MasterSaturator {
         let cn = MasterTables.compN + 2
         let kDc: Double = self.kDc, tiny: Double = MasterSaturator.tiny
         let cLo = self.cLo, cHi = self.cHi
+        // Состояние — в локальных на блок (в отладочной сборке каждое обращение к свойству — проверка доступа; S14b).
+        var dBv: Double = driveDb, mixv: Double = mix, spl: Double = split, fd: Double = fade
+        var warm: Int = warmN, rmp: Double = ramp
+        let sStep: Double = splitStep, fStep: Double = fadeStep, rStep: Double = rampStep
+        let ta = prev, tb = cur
+        // Усиление, мягкий вход и компенсация — пересчёт только при изменении DRIVE (exp и таблица на каждом отсчёте
+        // при устоявшейся ручке давали те же значения).
+        var lastDb: Double = -1, g: Double = 1, tt: Double = 0, ca: Double = 1, cb: Double = 1
         var i = 0
         while i < n {
-            driveDb = driveT + (driveDb - driveT) * ks
-            mix = mixT + (mix - mixT) * ks
-            if split < splitT { split = Swift.min(splitT, split + splitStep) } else if split > splitT {
-                split = Swift.max(splitT, split - splitStep)
+            dBv = driveT + (dBv - driveT) * ks
+            mixv = mixT + (mixv - mixT) * ks
+            if spl < splitT { spl = Swift.min(splitT, spl + sStep) } else if spl > splitT {
+                spl = Swift.max(splitT, spl - sStep)
             }
-            if fade < 1 { fade = Swift.min(1, fade + fadeStep) }
-            let dB: Double = driveDb
-            let g: Double = exp(dB * 0.11512925464970229)
-            let tt: Double = Swift.min(1, dB / MasterSaturator.fadeInDb)
-            if warmN > 0 { warmN -= 1 } else if ramp < 1 { ramp = Swift.min(1, ramp + rampStep) }
-            let w: Double = mix * tt * tt * (3 - 2 * tt) * ramp
-            let ci: Double = dB / MasterTables.compStepDb
-            let i0f: Double = ci.rounded(.down)
-            let i0 = Int(i0f)
-            let fr: Double = ci - i0f
-            let ta = prev, tb = cur
-            let wb: Double = fade
+            if fd < 1 { fd = Swift.min(1, fd + fStep) }
+            let dB: Double = dBv
+            if dB != lastDb {
+                lastDb = dB
+                g = exp(dB * 0.11512925464970229)
+                tt = Swift.min(1, dB / MasterSaturator.fadeInDb)
+                // dB ≥ 0: пол — через Int.
+                let ci: Double = dB / MasterTables.compStepDb
+                let i0 = Int(ci)
+                let fr: Double = ci - Double(i0)
+                ca = comp[ta * cn + i0] + (comp[ta * cn + i0 + 1] - comp[ta * cn + i0]) * fr
+                cb = comp[tb * cn + i0] + (comp[tb * cn + i0 + 1] - comp[tb * cn + i0]) * fr
+            }
+            if warm > 0 { warm -= 1 } else if rmp < 1 { rmp = Swift.min(1, rmp + rStep) }
+            let w: Double = mixv * tt * tt * (3 - 2 * tt) * rmp
+            let wb: Double = fd
             let wa: Double = ta == tb ? 0 : 1 - wb
-            let ca: Double = comp[ta * cn + i0] + (comp[ta * cn + i0 + 1] - comp[ta * cn + i0]) * fr
-            let cb: Double = comp[tb * cn + i0] + (comp[tb * cn + i0 + 1] - comp[tb * cn + i0]) * fr
             // Фильтр DC — на доле TUBE.
             let tube: Double = (tb == 1 ? wb : 0) + (ta == 1 ? wa : 0)
-            let sp: Double = split
+            let sp: Double = spl
             let kl: Double = kLp0 + kLpStep * Double(i + 1)
             var k = 0
             while k < 2 {
@@ -337,6 +435,12 @@ public final class MasterSaturator {
             }
             i += 1
         }
+        driveDb = dBv
+        mix = mixv
+        split = spl
+        fade = fd
+        warmN = warm
+        ramp = rmp
     }
 
     /// Покой (DRIVE 0 или MIX 0): выход — сухой с задержкой; история оверсэмплера и НЧ FOCUS идут дальше.

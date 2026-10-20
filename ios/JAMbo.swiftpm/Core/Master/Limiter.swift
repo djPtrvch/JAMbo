@@ -66,20 +66,27 @@ final class LimiterGain {
 
     @inline(__always)
     func pushMin(_ idx: Int, _ v: Double) -> Double {
+        // Голова и длина очереди — в локальных (в отладочной сборке каждое обращение к свойству — проверка доступа).
         let cap = maxL + 1
-        while qLen > 0 {
-            let tail = (qHead + qLen - 1) % cap
-            if qVal[tail] >= v { qLen -= 1 } else { break }
+        let qv = qVal, qi = qIdx
+        var head: Int = qHead
+        var len: Int = qLen
+        while len > 0 {
+            let tail = (head + len - 1) % cap
+            if qv[tail] >= v { len -= 1 } else { break }
         }
-        let at = (qHead + qLen) % cap
-        qIdx[at] = idx
-        qVal[at] = v
-        qLen += 1
-        while qIdx[qHead] <= idx - L - LimiterGain.hold {
-            qHead = (qHead + 1) % cap
-            qLen -= 1
+        let at = (head + len) % cap
+        qi[at] = idx
+        qv[at] = v
+        len += 1
+        let oldest: Int = idx - L - LimiterGain.hold
+        while qi[head] <= oldest {
+            head = (head + 1) % cap
+            len -= 1
         }
-        return qVal[qHead]
+        qHead = head
+        qLen = len
+        return qv[head]
     }
 
     /// Отсчёт: пик pk, потолок ceil → усиление g.
@@ -121,6 +128,9 @@ final class LimiterGain {
     }
 }
 
+/// |x| без обобщённого abs (в отладочной сборке — вызов через протоколы; S14b).
+@_transparent private func limAbs(_ x: Double) -> Double { x < 0 ? -x : x }
+
 public final class MasterLimiter {
     static let taps = MasterTables.limTaps
     static let maxLookaheadMs: Double = 6
@@ -148,8 +158,8 @@ public final class MasterLimiter {
     let xl: UnsafeMutablePointer<Float>
     let xr: UnsafeMutablePointer<Float>
     /// История true peak входа и выхода (L, R по 24 — двойной буфер).
-    let hIn: UnsafeMutablePointer<Float>
-    let hOut: UnsafeMutablePointer<Float>
+    let hIn: UnsafeMutablePointer<Double>
+    let hOut: UnsafeMutablePointer<Double>
     var posIn = 0
     var posOut = 0
     var w = 0
@@ -185,16 +195,18 @@ public final class MasterLimiter {
         xl = UnsafeMutablePointer<Float>.allocate(capacity: size)
         xr = UnsafeMutablePointer<Float>.allocate(capacity: size)
         for p in [dl, dr, xl, xr] { p.initialize(repeating: 0, count: size) }
-        hIn = UnsafeMutablePointer<Float>.allocate(capacity: 4 * MasterLimiter.taps)
+        hIn = UnsafeMutablePointer<Double>.allocate(capacity: 4 * MasterLimiter.taps)
         hIn.initialize(repeating: 0, count: 4 * MasterLimiter.taps)
-        hOut = UnsafeMutablePointer<Float>.allocate(capacity: 4 * MasterLimiter.taps)
+        hOut = UnsafeMutablePointer<Double>.allocate(capacity: 4 * MasterLimiter.taps)
         hOut.initialize(repeating: 0, count: 4 * MasterLimiter.taps)
         L = MasterLimiter.look(3, sampleRate, maxL)
         gc = LimiterGain(maxL: maxL, L: L)
     }
 
     deinit {
-        for p in [dl, dr, xl, xr, hIn, hOut] { p.deallocate() }
+        for p in [dl, dr, xl, xr] { p.deallocate() }
+        hIn.deallocate()
+        hOut.deallocate()
     }
 
     /// Окно lookahead в отсчётах (Math.round, как в вебе).
@@ -208,30 +220,52 @@ public final class MasterLimiter {
 
     /// True peak стереоотсчёта: история h (L — 0…23, R — 24…47), наибольший модуль из 4 фаз.
     @inline(__always)
-    func truePeak(_ h: UnsafeMutablePointer<Float>, _ pos: inout Int, _ l: Double, _ r: Double) -> Double {
+    func truePeak(_ h: UnsafeMutablePointer<Double>, _ pos: inout Int, _ l: Double, _ r: Double) -> Double {
         let T = MasterLimiter.taps
         let p = pos
-        let fl = Float(l), fr = Float(r)
+        // Значения Float (как Float32Array веба) хранятся в Double: без преобразования на каждом отводе (S14b).
+        let fl = Double(Float(l)), fr = Double(Float(r))
         h[p] = fl
         h[p + T] = fl
         h[2 * T + p] = fr
         h[2 * T + p + T] = fr
         pos = p + 1 == T ? 0 : p + 1
-        let base = p + T
+        let hl: UnsafeMutablePointer<Double> = h + p + T
+        let hr: UnsafeMutablePointer<Double> = h + 2 * T + p + T
         let ph = phases
         var m: Double = 0
         var q = 0
         while q < 4 {
-            let f = ph + q * T
+            // По 4 отвода со сдвигом указателей (порядок сложения тот же; в отладочной сборке счётчик и индексы цикла
+            // дороже умножений).
+            var kp: UnsafeMutablePointer<Double> = ph + q * T
+            var pa: UnsafeMutablePointer<Double> = hl
+            var pb: UnsafeMutablePointer<Double> = hr
             var sl: Double = 0, sr: Double = 0
-            var j = 0
-            while j < T {
-                let k = base - j
-                sl += f[j] * Double(h[k])
-                sr += f[j] * Double(h[2 * T + k])
-                j += 1
+            var j: Int = T
+            while j >= 4 {
+                sl += kp[0] * pa[0]
+                sr += kp[0] * pb[0]
+                sl += kp[1] * pa[-1]
+                sr += kp[1] * pb[-1]
+                sl += kp[2] * pa[-2]
+                sr += kp[2] * pb[-2]
+                sl += kp[3] * pa[-3]
+                sr += kp[3] * pb[-3]
+                kp += 4
+                pa -= 4
+                pb -= 4
+                j -= 4
             }
-            let a: Double = Swift.max(abs(sl), abs(sr))
+            while j > 0 {
+                sl += kp[0] * pa[0]
+                sr += kp[0] * pb[0]
+                kp += 1
+                pa -= 1
+                pb -= 1
+                j -= 1
+            }
+            let a: Double = Swift.max(limAbs(sl), limAbs(sr))
             if a > m { m = a }
             q += 1
         }
@@ -263,54 +297,71 @@ public final class MasterLimiter {
             gc.setWindow(Lt)
         }
         let dl = self.dl, dr = self.dr, xl = self.xl, xr = self.xr
+        // Состояние — в локальных на блок (в отладочной сборке каждое обращение к свойству — проверка доступа; S14b).
+        var gLin: Double = gainLin, cl: Double = ceil, wtv: Double = wet, wpos: Int = w, pkP: Double = pkPrev
+        var mI: Double = mIn, mG: Double = mGr, mO: Double = mOut, xfv: Double = xf
+        var pIn: Int = posIn, pOut: Int = posOut
+        let wStep: Double = wetStep, xStep: Double = xfStep, delay: Int = delayFor(L), od: Int = oldDelay
+        let gcv: LimiterGain = gc, hI = hIn, hO = hOut
         var i = 0
         while i < n {
-            gainLin = gainT + (gainLin - gainT) * ks
-            ceil = ceilT + (ceil - ceilT) * ks
-            if wet < wetT { wet = Swift.min(wetT, wet + wetStep) } else if wet > wetT { wet = Swift.max(wetT, wet - wetStep) }
+            gLin = gainT + (gLin - gainT) * ks
+            cl = ceilT + (cl - ceilT) * ks
+            if wtv < wetT { wtv = Swift.min(wetT, wtv + wStep) } else if wtv > wetT { wtv = Swift.max(wetT, wtv - wStep) }
             let rawL = Double(inL[i]), rawR = Double(inR[i])
-            let gl: Double = rawL * gainLin
-            let gr: Double = rawR * gainLin
-            let wi = w
+            let gl: Double = rawL * gLin
+            let gr: Double = rawR * gLin
+            let wi = wpos
             dl[wi] = Float(gl)
             dr[wi] = Float(gr)
             xl[wi] = Float(rawL)
             xr[wi] = Float(rawR)
-            w = (wi + 1) % S
+            wpos = (wi + 1) % S
             // Детектор: true peak; межсэмпловый пик — на оба соседних отсчёта.
-            let pk0: Double = truePeak(hIn, &posIn, gl, gr)
-            let pk: Double = Swift.max(pk0, pkPrev)
-            pkPrev = pk0
-            if pk0 > mIn { mIn = pk0 }
-            let c: Double = ceil
-            let g: Double = gc.step(pk, c, auto, kRel, kFast, kSlow)
-            if g < mGr { mGr = g }
-            let r = (wi - delayFor(L) + S) % S
+            let pk0: Double = truePeak(hI, &pIn, gl, gr)
+            let pk: Double = Swift.max(pk0, pkP)
+            pkP = pk0
+            if pk0 > mI { mI = pk0 }
+            let c: Double = cl
+            let g: Double = gcv.step(pk, c, auto, kRel, kFast, kSlow)
+            if g < mG { mG = g }
+            let r = (wi - delay + S) % S
             var yl = Double(dl[r]), yr = Double(dr[r])
             var bl = Double(xl[r]), br = Double(xr[r])
-            if xf < 1 {
-                let ro = (wi - oldDelay + S) % S
-                let a: Double = xf
+            if xfv < 1 {
+                let ro = (wi - od + S) % S
+                let a: Double = xfv
                 yl = yl * a + Double(dl[ro]) * (1 - a)
                 yr = yr * a + Double(dr[ro]) * (1 - a)
                 bl = bl * a + Double(xl[ro]) * (1 - a)
                 br = br * a + Double(xr[ro]) * (1 - a)
-                xf = Swift.min(1, xf + xfStep)
+                xfv = Swift.min(1, xfv + xStep)
             }
             yl *= g
             yr *= g
             // Страховка: жёсткий клип на CEILING.
             if yl > c { yl = c } else if yl < -c { yl = -c }
             if yr > c { yr = c } else if yr < -c { yr = -c }
-            let wt: Double = wet
+            let wt: Double = wtv
             let ol: Double = yl * wt + bl * (1 - wt)
             let orr: Double = yr * wt + br * (1 - wt)
-            let po: Double = truePeak(hOut, &posOut, ol, orr)
-            if po > mOut { mOut = po }
+            let po: Double = truePeak(hO, &pOut, ol, orr)
+            if po > mO { mO = po }
             outL[i] = Float(ol)
             outR[i] = Float(orr)
             i += 1
         }
+        gainLin = gLin
+        ceil = cl
+        wet = wtv
+        w = wpos
+        pkPrev = pkP
+        mIn = mI
+        mGr = mG
+        mOut = mO
+        xf = xfv
+        posIn = pIn
+        posOut = pOut
         meterN += n
         if meterN >= MasterLimiter.meterFrames {
             frameIn = mIn

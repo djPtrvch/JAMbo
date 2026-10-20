@@ -123,4 +123,29 @@ final class FxRoutingTests: XCTestCase {
         XCTAssertEqual(Params.fxDefaults()["rev.decay"], 1.5)
         XCTAssertEqual(core.fx.live[FxRack.revHpf], Params.revHpfNew, accuracy: 1e-6, "новый проект — LOW CUT 120 Гц")
     }
+
+    /// Покой (S14b): без входа Reverb и Delay засыпают после хвоста (ниже −120 dB), новый посыл будит их; звук хвоста
+    /// до засыпания — как обычно.
+    func testReverbAndDelaySleepAndWake() {
+        let core = AudioCore(master: false)
+        core.publish(project(sends: ["reverb": 100, "delay": 100]), samples: ["k": burst()])
+        XCTAssertFalse(core.fx.revIdle)
+        core.events.push(.noteOn(track: 0, note: 48, id: 1, velocity: 1))
+        var o = render(core, frames: 24000)
+        XCTAssertGreaterThan(rms(o.l[4800..<24000]), 1e-3, "хвост звучит")
+        XCTAssertFalse(core.fx.revIdle)
+        core.events.push(.noteOff(track: 0, id: 1))
+        // Reverb Decay 1,5 с: до −120 dB — около 3 с, затем 1 с тишины; Delay — до затухания повторов и 6,5 с.
+        _ = render(core, frames: 48000 * 8)
+        XCTAssertTrue(core.fx.revIdle, "Reverb спит")
+        _ = render(core, frames: 48000 * 12)
+        XCTAssertTrue(core.fx.dlyIdle, "Delay спит")
+        o = render(core, frames: 4800)
+        XCTAssertEqual(o.l.reduce(Float(0)) { max($0, abs($1)) }, 0, "тишина")
+        core.events.push(.noteOn(track: 0, note: 48, id: 2, velocity: 1))
+        o = render(core, frames: 24000)
+        XCTAssertFalse(core.fx.revIdle, "посыл будит Reverb")
+        XCTAssertFalse(core.fx.dlyIdle, "посыл будит Delay")
+        XCTAssertGreaterThan(rms(o.l[4800..<24000]), 1e-3)
+    }
 }
