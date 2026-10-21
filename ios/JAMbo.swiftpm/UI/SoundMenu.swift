@@ -16,7 +16,10 @@ struct SoundMenu: View {
         let steps: Bool = !state.steps.isEmpty
         return VStack(alignment: .leading, spacing: 6) {
             if steps {
-                title("STEP " + state.steps.map { String($0 + 1) }.joined(separator: ", "))
+                Text("STEP " + state.steps.map { String($0 + 1) }.joined(separator: ", "))
+                    .font(.system(size: 10, weight: .bold)).tracking(0.4).foregroundStyle(theme.dim)
+                    .lineLimit(1).minimumScaleFactor(0.7)
+                    .frame(maxWidth: .infinity)
             }
             HStack(alignment: .top, spacing: 4) {
                 column("DRUMS", SynthEngines.drums, sampler: false, steps: steps)
@@ -33,9 +36,12 @@ struct SoundMenu: View {
         .shadow(color: .black.opacity(0.5), radius: 12, y: 4)
     }
 
+    /// Заголовки одного размера: длинный LOAD SAMPLE · PRESET · MIDI помещается без ужатия (иначе он мельче DRUMS
+    /// и SYNTH).
     private func title(_ s: String) -> some View {
-        Text(s).font(.system(size: 10, weight: .bold)).tracking(0.8).foregroundStyle(theme.dim)
-            .lineLimit(1).minimumScaleFactor(0.7)
+        Text(s).font(.system(size: 10, weight: .bold)).tracking(0.4).foregroundStyle(theme.dim)
+            .lineLimit(1)
+            .fixedSize()
             .frame(maxWidth: .infinity)
     }
 
