@@ -51,11 +51,15 @@ struct SampleWindow: View {
         return VStack(alignment: .leading, spacing: 4) {
             SoundTitle(main: key.isEmpty ? "No sample" : model.sampleName(key), detail: nil)
                 .padding(.top, 6)
-            VStack(alignment: .leading, spacing: 8) {
+            // Три одинаковых промежутка (над волной, между волной и нотой, под нотой): волна ровно посередине
+            // между заголовком и нотой.
+            VStack(alignment: .leading, spacing: 0) {
+                Spacer(minLength: 8)
                 WaveStrip(model: model, key: key, data: data, cache: cache)
                     .frame(maxWidth: .infinity, maxHeight: 144)
+                Spacer(minLength: 8)
                 rows(key)
-                    .padding(.top, 14)
+                Spacer(minLength: 8)
             }
             .padding(.horizontal, 6)
             .frame(maxHeight: .infinity)
