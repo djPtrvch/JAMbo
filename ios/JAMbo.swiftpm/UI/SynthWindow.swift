@@ -46,7 +46,7 @@ struct SynthInfo: View {
 }
 
 /// Заголовок окна звука — один стиль у движков и сэмплов: main заглавными жёлтым, после тире detail цветом текста
-/// (у WTABLE — имя таблицы; у сэмпла detail нет — нота и каналы под формой волны).
+/// (у WTABLE — имя таблицы; у сэмпла detail нет — нота под формой волны).
 struct SoundTitle: View {
     let main: String
     let detail: String?

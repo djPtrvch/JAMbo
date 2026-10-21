@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Окно сэмпла (левая колонка): имя, форма волны сэмпла выбранной дорожки (стерео — L и R; Start и End затемняют
-/// отрезанное, полосы воспроизведения звучащих нот), под ней определённая высота и каналы.
+/// отрезанное, полосы воспроизведения звучащих нот), под ней определённая высота.
 /// У синта — окно синта (SynthInfo: иконка движка, имя, ручки 1.1–1.3).
 /// Тап — меню звука (с зажатым шагом — звук этих шагов); удержание 0,5 с (без зажатого шага, не у синта) — редактор.
 /// MIX — заголовок MIXER (● MASTER — под окном, LeftColumn); MST — индикация мастера (MasterIndicator).
@@ -43,7 +43,7 @@ struct SampleWindow: View {
     }
 
     /// Как окно синта: заголовок — только имя сэмпла (жёлтым), на месте иконки — форма волны, под ней строки
-    /// «подпись · значение» (нота и каналы); подписи внизу окна нет.
+    /// «подпись · значение» (нота); подписи внизу окна нет.
     private var sampleView: some View {
         let key: String = model.shownSound
         let data: SampleData? = model.sample(key)
@@ -54,7 +54,7 @@ struct SampleWindow: View {
             VStack(alignment: .leading, spacing: 8) {
                 WaveStrip(model: model, key: key, data: data, cache: cache)
                     .frame(maxWidth: .infinity, maxHeight: 144)
-                rows(key, data)
+                rows(key)
                     .padding(.top, 14)
             }
             .padding(.horizontal, 6)
@@ -63,21 +63,16 @@ struct SampleWindow: View {
         .padding(8)
     }
 
-    /// Под формой волны: нота и каналы, в стиле строк ручек окна синта.
+    /// Под формой волны: нота сэмпла, в стиле строк ручек окна синта.
     @ViewBuilder
-    private func rows(_ key: String, _ data: SampleData?) -> some View {
+    private func rows(_ key: String) -> some View {
         if !key.isEmpty {
             let root: String = model.sampleRoot(key).map { Params.noteName($0) } ?? "—"
-            let ch: String = data.map { $0.channels == 2 ? "Stereo" : "Mono" } ?? "—"
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(["Note · \(root)", "Channels · \(ch)"], id: \.self) { line in
-                    Text(line)
-                        .font(.system(size: 11))
-                        .tracking(0.44)
-                        .foregroundStyle(theme.text)
-                        .lineLimit(1)
-                }
-            }
+            Text("Note · \(root)")
+                .font(.system(size: 11))
+                .tracking(0.44)
+                .foregroundStyle(theme.text)
+                .lineLimit(1)
         }
     }
 
