@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Окно сэмпла (левая колонка, как sample.ts веба): имя, определённая высота и ST/M, форма волны сэмпла выбранной
-/// дорожки (стерео — L и R), Start и End затемняют отрезанное, полосы воспроизведения звучащих нот.
+/// Окно сэмпла (левая колонка): имя, форма волны сэмпла выбранной дорожки (стерео — L и R; Start и End затемняют
+/// отрезанное, полосы воспроизведения звучащих нот), под ней определённая высота и каналы.
 /// У синта — окно синта (SynthInfo: иконка движка, имя, ручки 1.1–1.3).
 /// Тап — меню звука (с зажатым шагом — звук этих шагов); удержание 0,5 с (без зажатого шага, не у синта) — редактор.
 /// MIX — заголовок MIXER (● MASTER — под окном, LeftColumn); MST — индикация мастера (MasterIndicator).
@@ -42,27 +42,43 @@ struct SampleWindow: View {
         }
     }
 
+    /// Как окно синта: заголовок — только имя сэмпла (жёлтым), на месте иконки — форма волны, под ней строки
+    /// «подпись · значение» (нота и каналы); подписи внизу окна нет.
     private var sampleView: some View {
         let key: String = model.shownSound
         let data: SampleData? = model.sample(key)
         let _ = model.samplesVersion
         return VStack(alignment: .leading, spacing: 4) {
-            SoundTitle(main: key.isEmpty ? "No sample" : model.sampleName(key), detail: detail(key, data))
-            WaveStrip(model: model, key: key, data: data, cache: cache)
-            Text("\(model.track.name) · tap to choose sound")
-                .font(.system(size: 10))
-                .foregroundStyle(theme.dim)
-                .lineLimit(1)
+            SoundTitle(main: key.isEmpty ? "No sample" : model.sampleName(key), detail: nil)
+                .padding(.top, 6)
+            VStack(alignment: .leading, spacing: 8) {
+                WaveStrip(model: model, key: key, data: data, cache: cache)
+                    .frame(maxWidth: .infinity, maxHeight: 144)
+                rows(key, data)
+                    .padding(.top, 14)
+            }
+            .padding(.horizontal, 6)
+            .frame(maxHeight: .infinity)
         }
         .padding(8)
     }
 
-    /// После имени сэмпла: нота и ST/M.
-    private func detail(_ key: String, _ data: SampleData?) -> String? {
-        if key.isEmpty { return nil }
-        let root: String = model.sampleRoot(key).map { Params.noteName($0) } ?? "—"
-        let ch: String = data.map { $0.channels == 2 ? "ST" : "M" } ?? ""
-        return ch.isEmpty ? root : "\(root) · \(ch)"
+    /// Под формой волны: нота и каналы, в стиле строк ручек окна синта.
+    @ViewBuilder
+    private func rows(_ key: String, _ data: SampleData?) -> some View {
+        if !key.isEmpty {
+            let root: String = model.sampleRoot(key).map { Params.noteName($0) } ?? "—"
+            let ch: String = data.map { $0.channels == 2 ? "Stereo" : "Mono" } ?? "—"
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(["Note · \(root)", "Channels · \(ch)"], id: \.self) { line in
+                    Text(line)
+                        .font(.system(size: 11))
+                        .tracking(0.44)
+                        .foregroundStyle(theme.text)
+                        .lineLimit(1)
+                }
+            }
+        }
     }
 
     private var mixView: some View {
