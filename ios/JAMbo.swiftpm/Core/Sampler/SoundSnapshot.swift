@@ -58,6 +58,8 @@ public struct SoundData {
     /// громкости MIX.
     public var trim: UnsafeMutablePointer<Float>
     public var open: UnsafeMutablePointer<UInt8>
+    /// MIDI OUT дорожки (меню звука → MIDI): 1 — ноты уходят на устройство, свой звук молчит.
+    public var midiOut: UnsafeMutablePointer<UInt8>
     public var sound: UnsafeMutablePointer<UInt64>
     public var entryStart: UnsafeMutablePointer<Int32>
     public var entryCount: UnsafeMutablePointer<Int32>
@@ -198,7 +200,8 @@ public final class SoundSnapshot: @unchecked Sendable {
         var d = SoundData(
             alt: .allocate(capacity: tracks), slotRef: slotRef,
             trackId: .allocate(capacity: tracks), params: .allocate(capacity: tracks2 * pc),
-            gain: .allocate(capacity: tracks), trim: .allocate(capacity: tracks), open: .allocate(capacity: tracks), sound: .allocate(capacity: tracks2),
+            gain: .allocate(capacity: tracks), trim: .allocate(capacity: tracks), open: .allocate(capacity: tracks),
+            midiOut: .allocate(capacity: tracks), sound: .allocate(capacity: tracks2),
             entryStart: .allocate(capacity: tracks2), entryCount: .allocate(capacity: tracks2),
             eHash: .allocate(capacity: entries), eLeft: .allocate(capacity: entries), eRight: .allocate(capacity: entries),
             eFrames: .allocate(capacity: entries), eChannels: .allocate(capacity: entries),
@@ -265,6 +268,7 @@ public final class SoundSnapshot: @unchecked Sendable {
         d.gain.initialize(repeating: 0, count: tracks)
         d.trim.initialize(repeating: 1, count: tracks)
         d.open.initialize(repeating: 0, count: tracks)
+        d.midiOut.initialize(repeating: 0, count: tracks)
         d.sound.initialize(repeating: 0, count: tracks2)
         d.entryStart.initialize(repeating: 0, count: tracks2)
         d.entryCount.initialize(repeating: 0, count: tracks2)
@@ -291,6 +295,7 @@ public final class SoundSnapshot: @unchecked Sendable {
             d.trim[t] = tg
             d.gain[t] = Float(Params.volGain(tr.vol)) * tg
             d.open[t] = project.audible(t) ? 1 : 0
+            d.midiOut[t] = tr.midi.sends ? 1 : 0
         }
         // Сэмплы — свой звук шагов дорожек (во всех клипах).
         var stepSounds: [[String]] = [[String]](repeating: [], count: tracks)
@@ -396,6 +401,7 @@ public final class SoundSnapshot: @unchecked Sendable {
         data.gain.deallocate()
         data.trim.deallocate()
         data.open.deallocate()
+        data.midiOut.deallocate()
         data.sound.deallocate()
         data.entryStart.deallocate()
         data.entryCount.deallocate()

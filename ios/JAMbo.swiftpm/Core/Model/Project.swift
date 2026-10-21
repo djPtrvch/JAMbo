@@ -68,6 +68,8 @@ public struct Track: Codable, Equatable, Sendable {
     public var eq: Eq = Eq()
     /// Переход MIX (S10, t.home веба): свой звук дорожки, пока она играет клип PREV со звуком старой дорожки.
     public var home: TrackSound?
+    /// MIDI дорожки: вход нот и выход (TrackMidi).
+    public var midi: TrackMidi = TrackMidi()
 
     public init(index: Int) {
         id = Int.random(in: 0..<(1 << 31))

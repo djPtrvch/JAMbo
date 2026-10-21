@@ -50,6 +50,46 @@ final class SamplerTests: XCTestCase {
         XCTAssertEqual(o.l[100], o.r[100], accuracy: 1e-6)
     }
 
+    /// MIDI OUT дорожки: свой звук молчит, ноты шага и живые — в очередь midiOut (длина, velocity — Level);
+    /// заглушённая дорожка молчит и в MIDI; стоп — «всё отпустить».
+    func testMidiOutTrackSendsNotesInsteadOfSound() {
+        let core = AudioCore(master: false)
+        var p = project()
+        p.tracks[0].midi.outDevice = 5
+        p.tracks[0].pages[0][0].on = true
+        p.tracks[0].pages[0][0].notes = [48]
+        p.tracks[0].pages[0][0].len = 2
+        core.publish(p, samples: ["k": dc()])
+        core.events.push(.play(true))
+        let o = render(core, frames: 2000)
+        XCTAssertLessThan(o.l.map { abs($0) }.max() ?? 1, 1e-6, "свой звук молчит")
+        let e = core.sampler.midiOut.pop()
+        XCTAssertEqual(e?.kind, MidiNoteOut.on)
+        XCTAssertEqual(e?.note, 48)
+        XCTAssertEqual(e?.frame, 0)
+        // 2 шага на 120 BPM — 12000 кадров; velocity — Level дорожки по умолчанию.
+        XCTAssertEqual(e?.length, 12000)
+        XCTAssertEqual(Double(e?.velocity ?? 0), Params.byId["level"]?.def ?? -1, accuracy: 0.5)
+        core.events.push(.noteOn(track: 0, note: 60, id: 9, velocity: 0.5))
+        core.events.push(.noteOff(track: 0, id: 9))
+        core.events.push(.play(false))
+        _ = render(core, frames: 256)
+        var kinds: [UInt8] = []
+        var live: MidiNoteOut? = nil
+        while let x = core.sampler.midiOut.pop() {
+            kinds.append(x.kind)
+            if x.kind == MidiNoteOut.on { live = x }
+        }
+        XCTAssertEqual(kinds, [MidiNoteOut.on, MidiNoteOut.release, MidiNoteOut.allOff])
+        XCTAssertEqual(live?.length, -1)
+        XCTAssertEqual(live?.liveId, 9)
+        p.tracks[0].mute = true
+        core.publish(p, samples: ["k": dc()])
+        core.events.push(.noteOn(track: 0, note: 60, id: 10, velocity: 1))
+        _ = render(core, frames: 256)
+        XCTAssertNil(core.sampler.midiOut.pop(), "заглушённая дорожка молчит и в MIDI")
+    }
+
     func testLiveNoteHoldsUntilRelease() {
         let core = AudioCore(master: false)
         core.publish(project(), samples: ["k": dc()])

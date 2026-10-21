@@ -66,22 +66,7 @@ extension AppModel {
             for m in r.active { applyMapping(m, isCc: isCc, value: msg.data2, press: press) }
             return
         }
-        midiNote(msg, ms)
-    }
-
-    /// Нота с входа (не назначенная): как клавиша.
-    private func midiNote(_ msg: MidiMessage, _ ms: MidiSettings) {
-        let id: Int = MidiSettings.keyId(channel: msg.channel, note: msg.data1)
-        if msg.kind == .noteOff {
-            keyUp(id: id)
-            return
-        }
-        guard msg.kind == .noteOn else { return }
-        guard let t = ms.noteTrack(msg, selected: selectedTrack, tracks: project.tracks.count) else { return }
-        // Повторный Note On без Note Off — прежняя нота отпускается.
-        if keyHolds[id] != nil { keyUp(id: id) }
-        let v: Double = MidiSettings.velocity(msg.data2, sensitive: settings.velocity)
-        keyDown(id: id, notes: [msg.data1], velocity: v, track: t)
+        midiNote(msg, source: source)
     }
 
     /// Цель с непрерывным значением: ручка или регулятор темпа.

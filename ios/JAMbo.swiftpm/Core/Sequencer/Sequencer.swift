@@ -135,6 +135,7 @@ public final class Sequencer {
         } else {
             // Стемы дописываются в кадре остановки (STOP в конце строк, стоп из интерфейса, другой проект).
             stemsStopped(at: at)
+            sampler?.midiAllOff(at: at)
             launcher.reset()
             fxLockMask.update(repeating: 0, count: SeqData.maxTracks)
             modLockMask.update(repeating: 0, count: SeqData.maxTracks)
@@ -385,6 +386,15 @@ public final class Sequencer {
                 out.push(.trig(track: t, frame: frame))
                 // ENV запускается в кадре ноты — начальные значения ноты берут ENV на этот момент.
                 mod?.trig(track: t, at: frame, gate: pendingEnv[k])
+                // MIDI OUT дорожки: нота на устройство (длина — как гейт ENV), голоса не звучат.
+                if let s = sampler, s.sendsMidi(t) {
+                    s.midiNotes(track: t, at: frame, notes: pendingNotes + k * SeqData.maxNotes, count: Int(pendingCountN[k]),
+                                mask: pendingMask[k], vals: pendingVals + k * VoiceParam.count, length: pendingEnv[k],
+                                liveId: -1)
+                    pendingCount -= 1
+                    if k != pendingCount { movePending(pendingCount, k) }
+                    continue
+                }
                 sampler?.trigger(track: t, at: frame, notes: pendingNotes + k * SeqData.maxNotes, count: Int(pendingCountN[k]),
                                  mask: pendingMask[k], vals: pendingVals + k * VoiceParam.count, hash: pendingSound[k],
                                  gate: pendingGate[k], own: pendingSound[k] != 0, liveId: -1)

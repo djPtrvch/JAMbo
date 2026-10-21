@@ -39,20 +39,39 @@ final class MidiTests: XCTestCase {
         XCTAssertEqual(out[0].data1, 36)
     }
 
-    func testNoteRouting() {
-        var s = MidiSettings()
-        let on = MidiMessage(kind: .noteOn, channel: 2, data1: 60, data2: 100)
-        XCTAssertEqual(s.noteTrack(on, selected: 5, tracks: 8), 5)
-        s.noteChannel = 4
-        XCTAssertNil(s.noteTrack(on, selected: 5, tracks: 8))
-        s.noteChannel = 3
-        XCTAssertEqual(s.noteTrack(on, selected: 5, tracks: 8), 5)
-        // CH 1–16 → TRACKS: канал 3 (индекс 2) — третья дорожка; канал без дорожки — мимо.
-        s.noteChannel = 0
-        s.noteRoute = .channel
-        XCTAssertEqual(s.noteTrack(on, selected: 5, tracks: 8), 2)
-        XCTAssertNil(s.noteTrack(on, selected: 0, tracks: 2))
-        XCTAssertNil(s.noteTrack(MidiMessage(kind: .cc, channel: 0, data1: 1, data2: 1), selected: 0, tracks: 8))
+    /// MIDI дорожки: канал ALL — только выбранная дорожка, канал 1–16 — всегда; устройство; вход выключен.
+    func testTrackNoteRouting() {
+        var p = Project()
+        while p.tracks.count < 4 { p.tracks.append(Track(index: p.tracks.count)) }
+        XCTAssertEqual(TrackMidi.tracks(p, source: 9, channel: 2, selected: 1), [1])
+        p.tracks[3].midi.inChannel = 3
+        XCTAssertEqual(TrackMidi.tracks(p, source: 9, channel: 2, selected: 1), [1, 3])
+        XCTAssertEqual(TrackMidi.tracks(p, source: 9, channel: 0, selected: 1), [1])
+        p.tracks[3].midi.inDevice = 77
+        XCTAssertEqual(TrackMidi.tracks(p, source: 9, channel: 2, selected: 1), [1])
+        XCTAssertEqual(TrackMidi.tracks(p, source: 77, channel: 2, selected: 3), [3])
+        p.tracks[1].midi.inOn = false
+        XCTAssertEqual(TrackMidi.tracks(p, source: 9, channel: 2, selected: 1), [])
+    }
+
+    /// MIDI дорожки сохраняется в проекте; прежние проекты без него — по умолчанию; плохой канал — по умолчанию.
+    func testTrackMidiCoding() throws {
+        var t = Track(index: 0)
+        t.midi.inDevice = -5
+        t.midi.inName = "Keys"
+        t.midi.inChannel = 10
+        t.midi.outDevice = 42
+        t.midi.outName = "Synth"
+        t.midi.outChannel = 16
+        let back = try JSONDecoder().decode(Track.self, from: try JSONEncoder().encode(t))
+        XCTAssertEqual(back.midi, t.midi)
+        XCTAssertTrue(back.midi.sends)
+        let old = try JSONDecoder().decode(Track.self, from: Data("{\"name\":\"1\"}".utf8))
+        XCTAssertEqual(old.midi, TrackMidi())
+        XCTAssertFalse(old.midi.sends)
+        let bad = try JSONDecoder().decode(TrackMidi.self, from: Data("{\"inChannel\":40,\"outChannel\":0}".utf8))
+        XCTAssertEqual(bad.inChannel, 0)
+        XCTAssertEqual(bad.outChannel, 1)
     }
 
     func testInputFilterAndVelocity() {
@@ -64,23 +83,23 @@ final class MidiTests: XCTestCase {
         XCTAssertEqual(MidiSettings.velocity(127, sensitive: true), 1)
         XCTAssertEqual(MidiSettings.velocity(0, sensitive: true), 1.0 / 127, accuracy: 1e-9)
         XCTAssertEqual(MidiSettings.velocity(20, sensitive: false), 1)
-        XCTAssertNotEqual(MidiSettings.keyId(channel: 0, note: 60), MidiSettings.keyId(channel: 1, note: 60))
-        XCTAssertLessThan(MidiSettings.keyId(channel: 15, note: 127), 0)
+        XCTAssertNotEqual(MidiSettings.keyId(track: 0, channel: 0, note: 60), MidiSettings.keyId(track: 0, channel: 1, note: 60))
+        XCTAssertNotEqual(MidiSettings.keyId(track: 0, channel: 1, note: 60), MidiSettings.keyId(track: 1, channel: 1, note: 60))
+        XCTAssertLessThan(MidiSettings.keyId(track: 15, channel: 15, note: 127), 0)
     }
 
     /// Настройки MIDI хранятся в AppSettings; старые настройки без них читаются со значениями по умолчанию.
     func testSettingsCoding() throws {
         var a = AppSettings()
         a.midi.input = -42
-        a.midi.noteChannel = 10
-        a.midi.noteRoute = .channel
         let back = AppSettings.decode(a.encode())
         XCTAssertEqual(back.midi, a.midi)
         let old = AppSettings.decode(Data("{\"velocity\":true}".utf8))
         XCTAssertEqual(old.midi, MidiSettings())
         XCTAssertTrue(old.velocity)
-        let bad = AppSettings.decode(Data("{\"midi\":{\"noteChannel\":40}}".utf8))
-        XCTAssertEqual(bad.midi.noteChannel, 0)
+        // Прежние noteChannel и noteRoute пропускаются.
+        let bad = AppSettings.decode(Data("{\"midi\":{\"noteChannel\":40,\"input\":5}}".utf8))
+        XCTAssertEqual(bad.midi.input, 5)
         // Нажатие ручки как касание и STEP SWIPE: по умолчанию ON и LENGTH, сохраняются.
         XCTAssertTrue(old.midi.pressTouch)
         XCTAssertFalse(old.stepPaint)

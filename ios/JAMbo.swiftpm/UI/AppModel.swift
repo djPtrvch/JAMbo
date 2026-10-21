@@ -66,6 +66,8 @@ final class AppModel {
     let midi = MidiHost()
     let midiLearn = MidiLearnState()
     @ObservationIgnored var midiRun = MidiRuntime()
+    /// MIDI OUT дорожек (свой поток; создаётся с первым выходом — AppModelTrackMidi).
+    @ObservationIgnored var midiOutPump: MidiOutPump? = nil
     /// Последний тап по FX или MOD с зажатой SHIFT (двойной — режим toggle кнопки).
     @ObservationIgnored var lastPageTap: (page: GridPage, at: Date)? = nil
     /// Последний тап по LFO1–3 / ENV (двойной тап — снять назначение с удерживаемой ручки).
@@ -280,6 +282,7 @@ final class AppModel {
         tickMidiFeedback()
         tickMidiClock()
         tickClockFollow()
+        tickMidiOut()
         let tracks = project.tracks.count
         live.audible = { [weak self] t in
             guard let s = self, t < tracks else { return false }

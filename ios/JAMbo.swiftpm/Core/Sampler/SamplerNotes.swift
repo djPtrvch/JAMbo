@@ -181,6 +181,7 @@ extension Sampler {
 
     /// Отпустили клавишу: живые ноты (liveId) — Decay как Release с кадра at.
     public func release(track t: Int, liveId id: Int, at: Int64) {
+        midiRelease(liveId: id, at: at)
         synth?.release(track: t, liveId: id, at: at)
         for v in 0..<Sampler.slots where active[v] != 0 && track[v] == t && liveId[v] == id && holdEnd[v] == Int64.max {
             holdEnd[v] = Swift.max(at, start[v])
@@ -196,6 +197,10 @@ extension Sampler {
         if velocity < 1 {
             mask = VoiceMask(1) << VoiceMask(VoiceParam.level)
             scratch[VoiceParam.level] = d.param(t, VoiceParam.level) * velocity
+        }
+        if sendsMidi(t) {
+            midiNotes(track: t, at: at, notes: one, count: 1, mask: mask, vals: scratch, length: -1, liveId: id)
+            return
         }
         trigger(track: t, at: at, notes: one, count: 1, mask: mask, vals: scratch, hash: 0, gate: Int64.max,
                 own: false, liveId: id)

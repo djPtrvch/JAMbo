@@ -22,6 +22,8 @@ public final class Sampler {
     public static let previewGain: Float = 0.7
 
     public let out = SPSCQueue<VoiceOut>(capacity: 2048, filler: .none)
+    /// Ноты дорожек с MIDI OUT (SamplerMidi.swift) — для MidiOutPump.
+    public let midiOut = SPSCQueue<MidiNoteOut>(capacity: 2048, filler: MidiNoteOut())
     public var sound: SoundData?
     /// Голоса синта (ставит AudioCore.installSynth); звук «mi:<n>» — ноты уходят туда, шины и микшер — общие.
     public internal(set) var synth: SynthVoices?

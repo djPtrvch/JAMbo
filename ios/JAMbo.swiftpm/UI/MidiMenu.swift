@@ -4,7 +4,6 @@ import SwiftUI
 enum MidiTab: String, CaseIterable {
     case devices = "DEVICES"
     case mapping = "MAPPING"
-    case notes = "NOTES"
 }
 
 /// Бутерброд → MIDI (S13a, как ui/midi.ts веба): стрелка назад и «MIDI», вкладки, ниже — с чертой — открытая вкладка.
@@ -36,7 +35,6 @@ struct MidiMenuPage: View {
         switch tab {
         case .devices: MidiDevicesTab(model: model)
         case .mapping: MidiMappingTab(model: model, close: close)
-        case .notes: MidiNotesTab(model: model)
         }
     }
 
@@ -102,35 +100,6 @@ struct MidiDeviceList: View {
             }
             if let c = current, !devices.contains(where: { $0.id == c }) {
                 MenuItem(title: "NOT CONNECTED", enabled: false, current: true) {}
-            }
-        }
-    }
-}
-
-/// NOTES: канал нот (ALL, 1–16) и куда идут ноты (выбранная дорожка или канал N → дорожка N).
-struct MidiNotesTab: View {
-    let model: AppModel
-
-    var body: some View {
-        let s: MidiSettings = model.settings.midi
-        let route: String = "CH 1–\(Params.maxTracks) → TRACKS"
-        return VStack(alignment: .leading, spacing: 8) {
-            FieldLabel(title: "NOTE CHANNEL")
-            channels(s.noteChannel)
-            FieldLabel(title: "NOTES PLAY")
-            HStack(spacing: 4) {
-                MenuItem(title: "SELECTED TRACK", current: s.noteRoute == .selected) { model.setMidi { $0.noteRoute = .selected } }
-                MenuItem(title: route, current: s.noteRoute == .channel) { model.setMidi { $0.noteRoute = .channel } }
-            }
-            SettingsNote(text: "Notes from MIDI inputs play like the keyboard (and are recorded with REC). With \(route), channel N plays track N.")
-        }
-    }
-
-    private func channels(_ current: Int) -> some View {
-        let cols: [GridItem] = Array(repeating: GridItem(.flexible(), spacing: 4), count: 6)
-        return LazyVGrid(columns: cols, spacing: 4) {
-            ForEach(0..<17, id: \.self) { c in
-                MenuItem(title: c == 0 ? "ALL" : "\(c)", current: current == c) { model.setMidi { $0.noteChannel = c } }
             }
         }
     }

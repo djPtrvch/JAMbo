@@ -25,6 +25,10 @@ final class MidiHost {
     @ObservationIgnored private(set) var generation: Int = 0
     /// Буфер отправки (один, на главном потоке): один пакет на 64 слова.
     @ObservationIgnored private let sendList = UnsafeMutablePointer<MIDIEventList>.allocate(capacity: 1)
+    /// Ноты MIDI OUT дорожек (MidiOutPump, свой поток): свой буфер; выходы — копией под замком.
+    @ObservationIgnored private let noteList = UnsafeMutablePointer<MIDIEventList>.allocate(capacity: 1)
+    @ObservationIgnored private let lock = NSLock()
+    @ObservationIgnored private var shared: [Int32: MIDIEndpointRef] = [:]
     @ObservationIgnored private(set) var started: Bool = false
     /// Сообщение, uniqueID источника и время прихода (секунды хоста, метка пакета) — на главном потоке.
     @ObservationIgnored var onMessage: ((MidiMessage, Int32, Double) -> Void)? = nil
@@ -75,6 +79,9 @@ final class MidiHost {
         inputs = ins
         outputs = outs
         destinations = dests
+        lock.lock()
+        shared = dests
+        lock.unlock()
         generation += 1
     }
 
@@ -151,6 +158,31 @@ final class MidiHost {
                 count += 1
             }
             MIDISendEventList(outPort, dst, sendList)
+        }
+    }
+
+    /// Ноты MIDI OUT дорожек с метками времени (такты mach) по выходам — только из потока MidiOutPump.
+    func sendNotes(_ byDest: [Int32: [(at: UInt64, word: UInt32)]]) {
+        guard started, !byDest.isEmpty else { return }
+        lock.lock()
+        let dests: [Int32: MIDIEndpointRef] = shared
+        lock.unlock()
+        let size: Int = MemoryLayout<MIDIEventList>.size
+        for (id, events) in byDest {
+            guard let dst = dests[id], !events.isEmpty else { continue }
+            var packet: UnsafeMutablePointer<MIDIEventPacket> = MIDIEventListInit(noteList, ._1_0)
+            var count: Int = 0
+            for e in events {
+                if count == 16 {
+                    MIDISendEventList(outPort, dst, noteList)
+                    packet = MIDIEventListInit(noteList, ._1_0)
+                    count = 0
+                }
+                var word: UInt32 = e.word
+                packet = MIDIEventListAdd(noteList, size, packet, e.at, 1, &word)
+                count += 1
+            }
+            MIDISendEventList(outPort, dst, noteList)
         }
     }
 
