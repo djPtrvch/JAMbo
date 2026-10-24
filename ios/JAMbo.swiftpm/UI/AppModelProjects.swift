@@ -168,7 +168,7 @@ extension AppModel {
             return 0
         }
         var n = 0
-        edit { p in n = p.importRows(from: f.doc) }
+        edit { p in n = p.importRows(from: f.doc, name: f.info.name) }
         if n > 0 { loadSamples(project.sampleKeys) }
         trace("import rows ← \(f.info.name): \(n)")
         return n

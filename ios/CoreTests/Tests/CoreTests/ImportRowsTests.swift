@@ -26,6 +26,15 @@ final class ImportRowsTests: XCTestCase {
         XCTAssertTrue(p.tracks[0].clips[0]!.hasTrigs, "своя строка не тронута")
     }
 
+    /// Строки называются именем проекта; несколько — с номером, до 12 знаков.
+    func testRowNamesFromProject() {
+        var p = project("a", trigsRows: [0])
+        p.importRows(from: project("b", trigsRows: [0, 1]), name: "Deep House Set")
+        XCTAssertEqual(p.scenes[1].name, "Deep House S")
+        XCTAssertEqual(p.scenes[2].name, "Deep House 2")
+        XCTAssertEqual(Project.importedRowName("Song", 0, 1), "Song")
+    }
+
     /// Пустая первая строка не занимается; свободные строки после заполненных — заняты.
     func testFreeRowsAfterLast() {
         var p = project("a", trigsRows: [])

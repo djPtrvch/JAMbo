@@ -33,9 +33,20 @@ extension Project {
         return out
     }
 
+    /// Имя импортированной строки j из n: имя проекта (решение пользователя), при нескольких — с номером
+    /// («Song 2»); до 12 знаков (номер не обрезается).
+    static func importedRowName(_ project: String, _ j: Int, _ n: Int) -> String {
+        let base: String = project.trimmingCharacters(in: .whitespaces)
+        if n <= 1 || j == 0 { return String(base.prefix(12)) }
+        let tail: String = " \(j + 1)"
+        let head: String = String(base.prefix(Swift.max(0, 12 - tail.count)))
+        return head + tail
+    }
+
     /// Импорт строк other: возвращает, сколько строк встало (0 — в other нет строк с тригами или нет места).
+    /// name — имя проекта other: строки называются им (пустое — имена строк other).
     @discardableResult
-    public mutating func importRows(from other: Project) -> Int {
+    public mutating func importRows(from other: Project, name: String = "") -> Int {
         let src: [Int] = (0..<other.visibleRows).filter { other.rowHasTrigs($0) }
         let dst: [Int] = importTargets(src.count)
         let n: Int = Swift.min(src.count, dst.count)
@@ -72,6 +83,7 @@ extension Project {
                 tracks[i].setClip(k, c)
             }
             scenes[k] = other.scenes[r]
+            if !name.trimmingCharacters(in: .whitespaces).isEmpty { scenes[k].name = Project.importedRowName(name, j, n) }
             rows = Swift.max(rows, k + 1)
         }
         // Имена сэмплов и их ноты — из other, если своих нет.
