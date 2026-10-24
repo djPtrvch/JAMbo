@@ -60,7 +60,8 @@ extension AppModel {
                            tables: tables,
                            scSends: settings.scSends, muteTails: settings.muteTails,
                            levelRelative: settings.levelRelative, master: mixMaster,
-                           extra: libPreviewKey.map { [$0] } ?? [], next: next)
+                           extra: libPreviewKey.map { [$0] } ?? [], next: next, rebind: rebindNext)
+        rebindNext = false
         ensureRoots()
     }
 

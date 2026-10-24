@@ -96,7 +96,7 @@ public final class AudioCore: @unchecked Sendable {
                         octaves: [Int] = [],
                         tables: [String: WtTable] = [:], scSends: SidechainSends = SidechainSends(),
                         muteTails: Bool = false, levelRelative: Bool = true, master: [Double]? = nil,
-                        extra: [String] = [], next: [Int] = []) {
+                        extra: [String] = [], next: [Int] = [], rebind: Bool = false) {
         releaseRetired()
         if lastSeq == nil || !SeqSnapshot.same(lastSeq!, project) {
             lastSeq = project
@@ -106,7 +106,7 @@ public final class AudioCore: @unchecked Sendable {
         let made = SoundSnapshot(project, samples: samples, map: map, octave: octave, octaves: octaves, tables: tables,
                                  scSends: scSends, muteTails: muteTails, levelRelative: levelRelative,
                                  slots: sequencer.launcher.slot, master: master, extra: extra,
-                                 next: next, keepAlt: altKeep)
+                                 next: next, keepAlt: altKeep, rebind: rebind)
         altKeep = made.altKeep
         let snd = Unmanaged.passRetained(made)
         if !sounds.push(snd) { snd.release() }

@@ -12,6 +12,9 @@ public struct TrackSound: Codable, Equatable, Sendable {
     public var table: String
     public var assigns: [String: ModAssign]
     public var eq: Eq
+    /// Громкость микшера (dB), с которой звучит клип со своим звуком (клип PREV при MIX без кроссфейдера — громкость
+    /// старой дорожки; решение пользователя); nil — громкость дорожки. В звук дорожки не переносится.
+    public var vol: Double? = nil
 }
 
 extension Track {
@@ -43,6 +46,12 @@ extension Track {
             sound = own
             home = nil
         }
+    }
+
+    /// Громкость (dB), с которой звучит клип k: своя у клипа со своим звуком (TrackSound.vol), иначе — дорожки.
+    public func vol(slot k: Int) -> Double {
+        if clipFilled(k), let v = clips[k]!.src?.vol { return v }
+        return vol
     }
 
     /// Звук, которым звучит клип k (для снимка звука: колбэк мог уже переключить клип, а дорожка в модели — нет).
@@ -79,8 +88,9 @@ public struct MixGlobals: Equatable, Sendable {
         masterEq = p.masterEq
     }
 
-    /// Модули мастера (параметры, BYPASS) и EQ мастера — из other (CROSSFADER OFF во время игры).
+    /// Громкость выхода, модули мастера (параметры, BYPASS) и EQ мастера — из other (CROSSFADER OFF во время игры).
     public mutating func holdMaster(_ other: MixGlobals) {
+        outVol = other.outVol
         master = other.master
         satBypass = other.satBypass
         cmpBypass = other.cmpBypass
@@ -136,7 +146,8 @@ extension Project {
     /// MIX: проект next открывается переходом от self. playing — идёт игра; leaving[i] — дорожка ждёт остановки.
     /// Играть продолжают только звучавшие дорожки (с тригами, не остановленные, не ждущие остановки).
     /// Mute и solo — старого проекта; гамма, нота и FX — старого лидера; общие настройки — старые (кроссфейдер у OLD).
-    public func mixed(into nextIn: Project, playing: Bool, leaving: [Bool]) -> (Project, MixTransition) {
+    /// clipVolumes (MIX без кроссфейдера) — клип PREV звучит с громкостью своей старой дорожки.
+    public func mixed(into nextIn: Project, playing: Bool, leaving: [Bool], clipVolumes: Bool = false) -> (Project, MixTransition) {
         let last = Project.prevIndex
         var next = nextIn
         // Новый проект без перехода: его прежний PREV не нужен (MIX во время перехода — от текущего вида).
@@ -160,6 +171,7 @@ extension Project {
                 var pc = c
                 // Звук, которым клип звучал (у клипа со своим звуком — его).
                 pc.src = tracks[i].sound
+                if clipVolumes { pc.src?.vol = tracks[i].vol(slot: tracks[i].slot) }
                 prev = pc
                 let wait: Bool = i < leaving.count && leaving[i]
                 sounding = playing && !tracks[i].stopped && !wait

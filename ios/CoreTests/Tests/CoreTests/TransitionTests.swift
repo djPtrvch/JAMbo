@@ -71,8 +71,29 @@ final class TransitionTests: XCTestCase {
         g.holdMaster(MixGlobals(a))
         XCTAssertEqual(g.vols[0], 0)
         XCTAssertEqual(g.master["sat.drive"], 9)
+        XCTAssertEqual(g.outVol, a.outVol, "громкость выхода — старого")
         XCTAssertTrue(g.limBypass)
         XCTAssertEqual(g.bpm, 120)
+    }
+
+    /// MIX без кроссфейдера: клип PREV звучит с громкостью старой дорожки, новый клип — с громкостью новой; громкость
+    /// не теряется при переключении клипов.
+    func testClipVolumes() {
+        var old = project("old", bpm: 100, trigs: [0])
+        old.tracks[0].vol = -20
+        var next = project("new", bpm: 120, trigs: [0])
+        next.tracks[0].vol = -3
+        var (p, tr) = old.mixed(into: next, playing: true, leaving: [], clipVolumes: true)
+        // CROSSFADER OFF: общие настройки — нового проекта (кроссфейдер у NEW).
+        tr.to.apply(to: &p)
+        XCTAssertEqual(p.tracks[0].vol(slot: last), -20)
+        XCTAssertEqual(p.tracks[0].vol(slot: 0), -3)
+        p.tracks[0].activate(0)
+        p.tracks[0].activate(last)
+        XCTAssertEqual(p.tracks[0].clips[last]?.src?.vol, -20)
+        let snap = SoundSnapshot(p, samples: [:], map: .chromatic, next: [0])
+        XCTAssertEqual(snap.data.gain[0], Float(Params.volGain(-20)), accuracy: 1e-6)
+        XCTAssertEqual(snap.data.gain[Params.maxTracks], Float(Params.volGain(-3)), accuracy: 1e-6)
     }
 
     func testNoPlayLeavesAllStopped() {

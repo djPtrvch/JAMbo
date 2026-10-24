@@ -19,7 +19,11 @@ extension Track {
     /// звук дорожки возвращается из home; у нового клипа со своим звуком он становится звуком дорожки, свой — в home.
     public mutating func moveSlot(_ k: Int) {
         if let own = home {
-            if clipFilled(slot) && clips[slot]!.src != nil { clips[slot]!.src = sound }
+            if clipFilled(slot), let old = clips[slot]!.src {
+                var cur: TrackSound = sound
+                cur.vol = old.vol
+                clips[slot]!.src = cur
+            }
             sound = own
             home = nil
         }
@@ -30,7 +34,11 @@ extension Track {
     /// Копия клипа k: у клипа со своим звуком — его звук сейчас (у активного правки ещё в звуке дорожки).
     public func clipCopy(_ k: Int) -> Clip? {
         guard clipFilled(k), var c = clips[k] else { return nil }
-        if k == slot && home != nil && c.src != nil { c.src = sound }
+        if k == slot && home != nil, let old = c.src {
+            var cur: TrackSound = sound
+            cur.vol = old.vol
+            c.src = cur
+        }
         return c
     }
 

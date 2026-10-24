@@ -359,10 +359,15 @@ public final class SynthVoices {
 
     // MARK: — новый снимок звука
 
-    /// Перестановка или удаление дорожек — голоса гаснут (как у сэмплера).
+    /// Перестановка или удаление дорожек — голоса гаснут (держащиеся ноты переставленной дорожки сэмплер уже завёл
+    /// заново на новом месте); переход MIX (rebind) — голоса остаются на своём месте.
     func adopt(_ d: SoundData, now: Int64) {
         for v in 0..<SynthVoices.slots where active[v] != 0 || pActive[v] != 0 {
             let t = v / SynthVoices.perTrack
+            if d.rebind && t < d.trackCount {
+                trackId[v] = d.trackId[t]
+                continue
+            }
             if t >= d.trackCount || d.trackId[t] != trackId[v] {
                 pActive[v] = 0
                 fade(v, at: now, tau: 0.0015)

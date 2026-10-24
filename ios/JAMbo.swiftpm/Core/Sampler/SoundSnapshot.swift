@@ -39,6 +39,9 @@ public struct SoundData {
     public static let maxSlices = 8192
 
     public var trackCount: Int = 0
+    /// Переход MIX: у дорожек нового проекта свои id, но на месте t играет то же (клип PREV старой дорожки t) —
+    /// голоса не гаснут, а переходят к новым id по месту.
+    public var rebind: Bool = false
     /// Звук у клипа (клип PREV перехода MIX, импортированные клипы): у дорожки t первый звук — активного клипа в
     /// модели, второй — клипа altSlot[t] (ожидающего запуска или следующей строки), на номере t + maxTracks в таблицах
     /// звука (ручки, звук, сэмплы, таблица, MOD, Sidechain, EQ дорожки). Какой звук действует — по клипу, который
@@ -189,7 +192,7 @@ public final class SoundSnapshot: @unchecked Sendable {
     public init(_ project: Project, samples: [String: SampleData], map: SliceMap, octave: Int = 3, octaves: [Int] = [],
                 tables: [String: WtTable] = [:], scSends: SidechainSends = SidechainSends(), muteTails: Bool = false,
                 levelRelative: Bool = true, slots: UnsafeMutablePointer<Int>? = nil, master: [Double]? = nil,
-                extra: [String] = [], next: [Int] = [], keepAlt: [Int: Int] = [:]) {
+                extra: [String] = [], next: [Int] = [], keepAlt: [Int: Int] = [:], rebind: Bool = false) {
         let tracks = SoundData.maxTracks
         let tracks2 = tracks * 2
         var own: UnsafeMutablePointer<Int>? = nil
@@ -205,7 +208,7 @@ public final class SoundSnapshot: @unchecked Sendable {
         var d = SoundData(
             alt: .allocate(capacity: tracks), altSlot: .allocate(capacity: tracks), slotRef: slotRef,
             trackId: .allocate(capacity: tracks), params: .allocate(capacity: tracks2 * pc),
-            gain: .allocate(capacity: tracks), trim: .allocate(capacity: tracks), open: .allocate(capacity: tracks),
+            gain: .allocate(capacity: tracks2), trim: .allocate(capacity: tracks), open: .allocate(capacity: tracks),
             midiOut: .allocate(capacity: tracks), sound: .allocate(capacity: tracks2),
             entryStart: .allocate(capacity: tracks2), entryCount: .allocate(capacity: tracks2),
             eHash: .allocate(capacity: entries), eLeft: .allocate(capacity: entries), eRight: .allocate(capacity: entries),
@@ -223,6 +226,7 @@ public final class SoundSnapshot: @unchecked Sendable {
             eq: .allocate(capacity: (EqSpec.channels + tracks) * EqSpec.stride),
             eqOrder: .allocate(capacity: tracks)
         )
+        d.rebind = rebind
         MasterChain.fill(d.master, project)
         if let m = master, m.count == MasterChain.Index.count {
             for k in 0..<m.count { d.master[k] = m[k] }
@@ -248,7 +252,7 @@ public final class SoundSnapshot: @unchecked Sendable {
                 sounds[tracks + t] = tr.sound
                 slotOf[tracks + t] = a
                 sounds[t] = nextSound ?? (tr.home ?? tr.sound)
-                slotOf[t] = q >= 0 ? q : a
+                slotOf[t] = q >= 0 ? q : -1
                 chosen[tr.id] = a
             } else {
                 sounds[t] = tr.sound
@@ -297,7 +301,7 @@ public final class SoundSnapshot: @unchecked Sendable {
         var keepTables: [WtTable] = []
         d.trackId.initialize(repeating: -1, count: tracks)
         d.params.initialize(repeating: 0, count: tracks2 * pc)
-        d.gain.initialize(repeating: 0, count: tracks)
+        d.gain.initialize(repeating: 0, count: tracks2)
         d.trim.initialize(repeating: 1, count: tracks)
         d.open.initialize(repeating: 0, count: tracks)
         d.midiOut.initialize(repeating: 0, count: tracks)
@@ -325,7 +329,9 @@ public final class SoundSnapshot: @unchecked Sendable {
             // LEVEL ABSOLUTE — громкость ровно как в MIX: подстройка не действует.
             let tg: Float = levelRelative ? Float(Params.volGain(tr.trim)) : 1
             d.trim[t] = tg
-            d.gain[t] = Float(Params.volGain(tr.vol)) * tg
+            // Громкость каждого из двух звуков — клипа, который им звучит (TrackSound.vol), иначе дорожки.
+            d.gain[t] = Float(Params.volGain(tr.vol(slot: slotOf[t]))) * tg
+            d.gain[tracks + t] = Float(Params.volGain(tr.vol(slot: slotOf[tracks + t]))) * tg
             d.open[t] = project.audible(t) ? 1 : 0
             d.midiOut[t] = tr.midi.sends ? 1 : 0
         }

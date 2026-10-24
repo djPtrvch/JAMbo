@@ -331,6 +331,62 @@ final class SamplerTests: XCTestCase {
         XCTAssertFalse(p.canDeleteTrack(0), "меньше 8 нельзя")
     }
 
+    /// Перестановка дорожки и переход MIX (новые id, rebind): звучащая нота не гаснет.
+    func testVoiceSurvivesMoveAndRebind() {
+        let k: SampleData = dc()
+        for mode in 0..<4 {
+            let core = AudioCore(master: false)
+            var p = project()
+            p.tracks[0].pages[0][0].on = true
+            p.tracks[0].pages[0][0].notes = [48]
+            p.tracks[0].pages[0][0].len = 16
+            core.publish(p, samples: ["k": k])
+            core.events.push(.play(true))
+            let a = render(core, frames: 3000)
+            XCTAssertGreaterThan(abs(a.l[2999]), 0.3)
+            if mode == 3 {
+                core.publish(p, samples: ["k": k])
+            } else if mode == 0 {
+                p.moveTrack(0, 3)
+                core.publish(p, samples: ["k": k])
+                core.events.push(.moveTrack(from: 0, to: 3))
+            } else {
+                for i in p.tracks.indices { p.tracks[i].id += 1000 }
+                core.publish(p, samples: ["k": k], rebind: mode == 1)
+            }
+            let b = render(core, frames: 1024)
+            if mode == 2 {
+                XCTAssertLessThan(abs(b.l[1023]), 0.01, "новые id без rebind — голос гаснет")
+            } else {
+                XCTAssertGreaterThan(abs(b.l[1023]), 0.3, "режим \(mode): нота звучит дальше")
+            }
+        }
+    }
+
+    /// Синт (ANALOG): после перестановки держащаяся нота звучит на новом месте сразу (заново), без паузы до трига.
+    func testSynthNoteMovesWithTrack() {
+        let core = AudioCore(master: false)
+        core.installSynth()
+        var p = Project()
+        p.tracks[0].sample = "mi:17"
+        p.tracks[0].vol = 0
+        p.tracks[0].pages[0][0].on = true
+        p.tracks[0].pages[0][0].notes = [60]
+        p.tracks[0].pages[0][0].len = 16
+        core.publish(p)
+        core.events.push(.play(true))
+        let a0 = render(core, frames: 3000)
+        let pk0: Float = Array(a0.l[2000..<3000]).map { abs($0) }.max() ?? 0
+        XCTAssertGreaterThan(pk0, 0.05, "до перестановки звучит")
+        p.moveTrack(0, 3)
+        core.publish(p)
+        core.events.push(.moveTrack(from: 0, to: 3))
+        let b = render(core, frames: 2048)
+        let tail: [Float] = Array(b.l[1024..<2048])
+        let peak: Float = tail.map { abs($0) }.max() ?? 0
+        XCTAssertGreaterThan(peak, 0.05, "нота синта звучит на новом месте")
+    }
+
     func testPreviewPlaysAndStops() {
         let core = AudioCore(master: false)
         core.publish(project(), samples: ["k": dc()])

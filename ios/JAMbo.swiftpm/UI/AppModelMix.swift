@@ -27,7 +27,9 @@ extension AppModel {
         let last = AppModel.prevRow
         let leaving: [Bool] = (0..<Params.maxTracks).map { live.queued[$0] == Launcher.stop }
         let top: Int = gridWindow.top
-        let made: (Project, MixTransition) = project.mixed(into: next, playing: playing, leaving: leaving)
+        // CROSSFADER OFF: клипы PREV звучат с громкостью своих старых дорожек (решение пользователя).
+        let made: (Project, MixTransition) = project.mixed(into: next, playing: playing, leaving: leaving,
+                                                           clipVolumes: !settings.mixCrossfader)
         var tr = made.1
         if !settings.mixCrossfader { tr.pos = 1 }
         // Откуда клипы опускаются (строка окна сетки; ниже окна — с нижней строки).
@@ -39,6 +41,8 @@ extension AppModel {
         globalsHold = playing && !settings.mixCrossfader ? tr.to : nil
         mix = tr
         mutatePlay({ p in p = made.0 }, publish: false)
+        // Голоса играют дальше на своих местах (у дорожек нового проекта свои id).
+        rebindNext = true
         applyMix(tr.pos)
         // Колбэк берёт активные ячейки из снимка: играющие дорожки продолжают свой клип уже из строки PREV.
         if playing { audio.core.events.push(.adoptPlay) }
@@ -66,8 +70,8 @@ extension AppModel {
         tr.pos = pos
         mix = tr
         var b: MixBlend = tr.blend(pos)
-        // CROSSFADER OFF во время игры: модули мастера (параметры, BYPASS) и EQ мастера — старого проекта,
-        // громкости и выход — нового (решение пользователя).
+        // CROSSFADER OFF во время игры: громкость выхода, модули мастера (параметры, BYPASS) и EQ мастера — старого
+        // проекта; громкости дорожек — у каждого клипа своего проекта (решение пользователя).
         let held: Bool = globalsHold != nil
         if held { b.globals.holdMaster(tr.from) }
         // CROSSFADER OFF во время игры: темп — старого проекта.

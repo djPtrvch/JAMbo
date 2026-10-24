@@ -208,19 +208,28 @@ extension Sampler {
 
     // MARK: — новый снимок звука
 
-    /// Снимок звука сменился: перестановка дорожек и убранные сэмплы — голоса гаснут; сменился звук дорожки —
-    /// держащиеся ноты сразу звучат новым звуком (прежний голос гаснет за ~3 мс, новый — на оставшееся удержание).
+    /// Снимок звука сменился: перестановка дорожек — голоса переезжают с дорожкой (сэмплы — без перерыва, синт —
+    /// держащиеся ноты заново на новом месте), удалённая дорожка и убранные сэмплы — голоса гаснут; переход MIX
+    /// (rebind) — голоса остаются на своём месте; сменился звук дорожки — держащиеся ноты сразу звучат новым звуком
+    /// (прежний голос гаснет за ~3 мс, новый — на оставшееся удержание).
     public func adopt(_ d: SoundData, now: Int64) {
         let old = sound
         sound = d
         for v in 0..<Sampler.slots where active[v] != 0 {
             let t = track[v]
-            if t >= d.trackCount || d.trackId[t] != trackId[v] {
-                fade(v, at: now, tau: 0.0015)
-                continue
+            if d.rebind && t < d.trackCount {
+                trackId[v] = d.trackId[t]
+            } else if t >= d.trackCount || d.trackId[t] != trackId[v] {
+                let t2: Int = Sampler.index(of: trackId[v], in: d)
+                if t2 < 0 {
+                    fade(v, at: now, tau: 0.0015)
+                    continue
+                }
+                track[v] = t2
             }
             if let l = srcL[v], !d.holds(l) { fade(v, at: now, tau: 0.0015) }
         }
+        if let o = old, !d.rebind { moveSynthNotes(o, d, now) }
         // Предпрослушка ▶ держит указатели прошлого снимка: сэмпла в новом нет — гаснет (~40 мс, прошлый снимок
         // живёт ещё 0,5 с), иначе после выгрузки сэмпла колбэк читал бы освобождённую память.
         if let l = pvL, !d.holds(l) { pvStop = true }
@@ -231,6 +240,38 @@ extension Sampler {
         for t in 0..<n where d.trackId[t] == o.trackId[t] && d.sound[d.s(t)] != o.sound[o.s(t)] {
             retrigger(t, now)
             retriggerSynth(t, now, lastSynth)
+        }
+    }
+
+    /// Место дорожки с id в снимке (−1 — нет).
+    static func index(of id: Int, in d: SoundData) -> Int {
+        var t: Int = 0
+        while t < d.trackCount {
+            if d.trackId[t] == id { return t }
+            t += 1
+        }
+        return -1
+    }
+
+    /// Перестановка: держащиеся ноты синта дорожки, которая сменила место, — заново на новом месте (голоса синта
+    /// привязаны к месту дорожки).
+    func moveSynthNotes(_ o: SoundData, _ d: SoundData, _ now: Int64) {
+        guard let s = synth else { return }
+        let last: Int = s.lastSerial
+        var t: Int = 0
+        while t < o.trackCount {
+            let id: Int = o.trackId[t]
+            let same: Bool = t < d.trackCount && d.trackId[t] == id
+            let t2: Int = same ? t : Sampler.index(of: id, in: d)
+            if !same && t2 >= 0 {
+                s.retrigger(t, now, upTo: last) { n, at, gate, mask, vals, live in
+                    one.pointee = Int16(n)
+                    for p in 0..<VoiceParam.count { scratch[p] = vals[p] }
+                    trigger(track: t2, at: at, notes: one, count: 1, mask: mask, vals: scratch, hash: 0, gate: gate,
+                            own: false, liveId: live, retrig: true)
+                }
+            }
+            t += 1
         }
     }
 
