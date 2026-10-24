@@ -21,8 +21,8 @@ extension AppModel {
         refreshProjects()
     }
 
-    /// Начать переход к next (и во время игры, и без неё). CROSSFADER OFF — без игры общие настройки сразу нового
-    /// проекта, при игре — старого, пока игра идёт (globalsHold, решение пользователя).
+    /// Начать переход к next (и во время игры, и без неё). CROSSFADER OFF — общие настройки сразу нового проекта, но
+    /// при игре модули мастера и EQ мастера — старого, пока игра идёт (globalsHold, решение пользователя).
     func startMix(_ next: Project) {
         let last = AppModel.prevRow
         let leaving: [Bool] = (0..<Params.maxTracks).map { live.queued[$0] == Launcher.stop }
@@ -65,9 +65,11 @@ extension AppModel {
         guard var tr = mix else { return }
         tr.pos = pos
         mix = tr
-        // CROSSFADER OFF во время игры: громкости, выход, мастер и EQ мастера — старого проекта.
+        var b: MixBlend = tr.blend(pos)
+        // CROSSFADER OFF во время игры: модули мастера (параметры, BYPASS) и EQ мастера — старого проекта,
+        // громкости и выход — нового (решение пользователя).
         let held: Bool = globalsHold != nil
-        var b: MixBlend = tr.blend(held ? 0 : pos)
+        if held { b.globals.holdMaster(tr.from) }
         // CROSSFADER OFF во время игры: темп — старого проекта.
         if bpmHold != nil { b.globals.bpm = tr.from.bpm }
         let bpm0: Double = project.bpm
@@ -98,19 +100,24 @@ extension AppModel {
     /// Проект для записи на диск: во время перехода — новый проект без PREV; темп старого проекта не пишется.
     var savedProject: Project {
         var p = project.forSave(mix)
-        if let g = globalsHold { g.apply(to: &p) }
+        if let g = globalsHold {
+            var cur = MixGlobals(p)
+            cur.holdMaster(g)
+            cur.apply(to: &p)
+        }
         if let b = bpmHold { p.bpm = b }
         return p
     }
 
-    /// Игра остановилась: гамма и нота больше не держатся; темп, громкости, выход, мастер и EQ мастера — нового
-    /// проекта.
+    /// Игра остановилась: гамма и нота больше не держатся; темп, мастер и EQ мастера — нового проекта.
     func releaseHolds() {
         keyHold = false
-        if var g = globalsHold {
+        if let g = globalsHold {
             globalsHold = nil
-            g.bpm = project.bpm
-            mutatePlay({ p in g.apply(to: &p) }, publish: true)
+            // Только мастер: громкости и выход уже нового проекта (правки во время игры остаются).
+            var cur = MixGlobals(project)
+            cur.holdMaster(g)
+            mutatePlay({ p in cur.apply(to: &p) }, publish: true)
         }
         guard let b = bpmHold else { return }
         bpmHold = nil

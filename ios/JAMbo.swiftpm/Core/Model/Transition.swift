@@ -79,6 +79,16 @@ public struct MixGlobals: Equatable, Sendable {
         masterEq = p.masterEq
     }
 
+    /// Модули мастера (параметры, BYPASS) и EQ мастера — из other (CROSSFADER OFF во время игры).
+    public mutating func holdMaster(_ other: MixGlobals) {
+        master = other.master
+        satBypass = other.satBypass
+        cmpBypass = other.cmpBypass
+        clipBypass = other.clipBypass
+        limBypass = other.limBypass
+        masterEq = other.masterEq
+    }
+
     /// Записать в проект (дорожкам сверх списка — их значения остаются).
     public func apply(to p: inout Project) {
         p.bpm = bpm

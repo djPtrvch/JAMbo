@@ -58,6 +58,23 @@ final class TransitionTests: XCTestCase {
         XCTAssertTrue(p.clipKey(0, slot: p.tracks[0].slot) == (5, 7), "новый клип — своя гамма")
     }
 
+    /// CROSSFADER OFF во время игры: держится только мастер (модули, BYPASS, EQ мастера), громкости — нового.
+    func testHoldMasterOnly() {
+        var a = project("old", bpm: 100, trigs: [])
+        a.tracks[0].vol = -12
+        a.master["sat.drive"] = 9
+        a.limBypass = true
+        var b = project("new", bpm: 120, trigs: [])
+        b.tracks[0].vol = 0
+        b.master["sat.drive"] = 1
+        var g = MixGlobals(b)
+        g.holdMaster(MixGlobals(a))
+        XCTAssertEqual(g.vols[0], 0)
+        XCTAssertEqual(g.master["sat.drive"], 9)
+        XCTAssertTrue(g.limBypass)
+        XCTAssertEqual(g.bpm, 120)
+    }
+
     func testNoPlayLeavesAllStopped() {
         let old = project("old", bpm: 100, trigs: [0])
         let (p, _) = old.mixed(into: project("new", bpm: 120, trigs: []), playing: false, leaving: [])

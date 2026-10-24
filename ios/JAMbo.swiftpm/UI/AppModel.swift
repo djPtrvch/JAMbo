@@ -141,8 +141,8 @@ final class AppModel {
     @ObservationIgnored var keyHold: Bool = false
     /// CROSSFADER OFF: темп старого проекта держится, пока идёт игра; здесь — темп нового проекта (для записи).
     @ObservationIgnored var bpmHold: Double? = nil
-    /// CROSSFADER OFF (решение пользователя): громкости, выход, мастер и EQ мастера старого проекта держатся, пока идёт
-    /// игра, — громкость не прыгает; здесь — настройки нового проекта (для записи и после остановки).
+    /// CROSSFADER OFF (решение пользователя): модули мастера и EQ мастера старого проекта держатся, пока идёт игра
+    /// (громкости и выход — сразу нового); здесь — настройки нового проекта (для записи и после остановки).
     @ObservationIgnored var globalsHold: MixGlobals? = nil
     /// Следующие клипы дорожек в последнем снимке звука (nextSlots).
     @ObservationIgnored var publishedNext: [Int] = []
