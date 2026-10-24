@@ -337,6 +337,9 @@ public final class SoundSnapshot: @unchecked Sendable {
                 }
             }
             d.sound[u] = SoundKey.hash(snd.sample)
+            // Гамма и нота нарезки — клипа, который играет этот звук (решение пользователя: своя у каждого клипа):
+            // второй звук — клипа PREV (старого проекта), свой — активного клипа дорожки.
+            let clipKey: (scale: Int, root: Int) = project.clipKey(t, prev: u >= tracks)
             if let wt = tables[snd.table] {
                 keepTables.append(wt)
                 d.tableRef[u] = WtRef(frames: wt.frames, sizes: UnsafePointer(wt.sizes), data: UnsafePointer(wt.data))
@@ -356,7 +359,7 @@ public final class SoundSnapshot: @unchecked Sendable {
                 d.eChannels[e] = Int32(s.channels)
                 let marks: [SliceMark] = key.isEmpty ? [] : (snd.slices[key] ?? [])
                 let oct: Int = t < octaves.count ? octaves[t] : octave
-                let notes = Slices.notes(marks, map: map, scale: project.scale, root: project.root, octave: oct)
+                let notes = Slices.notes(marks, map: map, scale: clipKey.scale, root: clipKey.root, octave: oct)
                 d.eSliceStart[e] = Int32(sl)
                 var n = 0
                 for (k, m) in marks.enumerated() where sl + n < slices {

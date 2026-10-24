@@ -21,7 +21,8 @@ extension AppModel {
         refreshProjects()
     }
 
-    /// Начать переход к next (и во время игры, и без неё). CROSSFADER OFF — общие настройки сразу нового проекта.
+    /// Начать переход к next (и во время игры, и без неё). CROSSFADER OFF — без игры общие настройки сразу нового
+    /// проекта, при игре — старого, пока игра идёт (globalsHold, решение пользователя).
     func startMix(_ next: Project) {
         let last = AppModel.prevRow
         let leaving: [Bool] = (0..<Params.maxTracks).map { live.queued[$0] == Launcher.stop }
@@ -35,6 +36,7 @@ extension AppModel {
         resetForProject()
         keyHold = playing && !settings.mixKey
         bpmHold = playing && !settings.mixCrossfader ? next.bpm : nil
+        globalsHold = playing && !settings.mixCrossfader ? tr.to : nil
         mix = tr
         mutatePlay({ p in p = made.0 }, publish: false)
         applyMix(tr.pos)
@@ -63,12 +65,14 @@ extension AppModel {
         guard var tr = mix else { return }
         tr.pos = pos
         mix = tr
-        var b: MixBlend = tr.blend(pos)
+        // CROSSFADER OFF во время игры: громкости, выход, мастер и EQ мастера — старого проекта.
+        let held: Bool = globalsHold != nil
+        var b: MixBlend = tr.blend(held ? 0 : pos)
         // CROSSFADER OFF во время игры: темп — старого проекта.
         if bpmHold != nil { b.globals.bpm = tr.from.bpm }
         let bpm0: Double = project.bpm
         mutatePlay({ p in b.globals.apply(to: &p) }, publish: false)
-        mixMaster = pos >= 1 ? nil : b.master
+        mixMaster = pos >= 1 || held ? nil : b.master
         publishAudio()
         if project.bpm != bpm0 { audio.core.events.push(.tempo(project.bpm)) }
     }
@@ -94,13 +98,20 @@ extension AppModel {
     /// Проект для записи на диск: во время перехода — новый проект без PREV; темп старого проекта не пишется.
     var savedProject: Project {
         var p = project.forSave(mix)
+        if let g = globalsHold { g.apply(to: &p) }
         if let b = bpmHold { p.bpm = b }
         return p
     }
 
-    /// Игра остановилась: гамма и нота больше не держатся, темп — нового проекта.
+    /// Игра остановилась: гамма и нота больше не держатся; темп, громкости, выход, мастер и EQ мастера — нового
+    /// проекта.
     func releaseHolds() {
         keyHold = false
+        if var g = globalsHold {
+            globalsHold = nil
+            g.bpm = project.bpm
+            mutatePlay({ p in g.apply(to: &p) }, publish: true)
+        }
         guard let b = bpmHold else { return }
         bpmHold = nil
         if project.bpm != b {

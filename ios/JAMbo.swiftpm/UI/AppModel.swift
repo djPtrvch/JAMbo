@@ -141,6 +141,9 @@ final class AppModel {
     @ObservationIgnored var keyHold: Bool = false
     /// CROSSFADER OFF: темп старого проекта держится, пока идёт игра; здесь — темп нового проекта (для записи).
     @ObservationIgnored var bpmHold: Double? = nil
+    /// CROSSFADER OFF (решение пользователя): громкости, выход, мастер и EQ мастера старого проекта держатся, пока идёт
+    /// игра, — громкость не прыгает; здесь — настройки нового проекта (для записи и после остановки).
+    @ObservationIgnored var globalsHold: MixGlobals? = nil
     /// Анимация MIX: клипы опускаются в PREV из строк окна (дорожка → строка окна), пока mixDropDone false.
     var mixDrop: [Int: Int] = [:]
     var mixDropDone: Bool = true
@@ -331,10 +334,12 @@ final class AppModel {
         switch e {
         case .clip(let t, let slot, let stopped, _):
             guard t < project.tracks.count else { return }
+            // Другой клип — снимок звука заново: нарезка звучит в гамме и ноте этого клипа.
+            let other: Bool = project.tracks[t].slot != slot
             mutatePlay({ p in
                 if p.tracks[t].slot != slot { p.tracks[t].activate(slot) }
                 p.tracks[t].stopped = stopped
-            }, publish: false)
+            }, publish: other)
             if stopped {
                 leadStopped(t)
             } else {
@@ -463,6 +468,7 @@ final class AppModel {
         mixMaster = nil
         keyHold = false
         bpmHold = nil
+        globalsHold = nil
         mixDrop = [:]
         live.stopped()
         resetForProject()

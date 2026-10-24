@@ -44,6 +44,21 @@ final class TransitionTests: XCTestCase {
         XCTAssertEqual(tr.to.bpm, 140)
     }
 
+    /// Гамма клипа: PREV — старого проекта, новый клип — свой (нарезка звучит в гамме своего клипа).
+    func testClipKeyPerClip() {
+        var old = project("old", bpm: 100, trigs: [0])
+        old.tracks[0].clips[0]!.scale = 3
+        old.tracks[0].clips[0]!.root = 2
+        var next = project("new", bpm: 120, trigs: [0])
+        next.tracks[0].clips[0]!.scale = 5
+        next.tracks[0].clips[0]!.root = 7
+        var (p, _) = old.mixed(into: next, playing: true, leaving: [])
+        XCTAssertTrue(p.clipKey(0, prev: true) == (3, 2), "PREV — гамма старого клипа")
+        XCTAssertTrue(p.clipKey(0, prev: false) == (p.scale, p.root), "играет PREV — свой звук без своего клипа")
+        p.tracks[0].activate(0)
+        XCTAssertTrue(p.clipKey(0, prev: false) == (5, 7), "новый клип — своя гамма")
+    }
+
     func testNoPlayLeavesAllStopped() {
         let old = project("old", bpm: 100, trigs: [0])
         let (p, _) = old.mixed(into: project("new", bpm: 120, trigs: []), playing: false, leaving: [])

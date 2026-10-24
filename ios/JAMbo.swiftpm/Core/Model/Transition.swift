@@ -224,6 +224,16 @@ extension Project {
         return p
     }
 
+    /// Гамма и нота клипа дорожки t: prev — клипа PREV, иначе активного (не PREV); без своих — проекта.
+    public func clipKey(_ t: Int, prev: Bool) -> (scale: Int, root: Int) {
+        guard t >= 0 && t < tracks.count else { return (scale, root) }
+        let tr = tracks[t]
+        let k: Int = prev ? Project.prevIndex : tr.slot
+        if !prev && prevRow && k == Project.prevIndex { return (scale, root) }
+        guard k >= 0 && k < tr.clips.count, let c = tr.clips[k] else { return (scale, root) }
+        return (c.scale ?? scale, c.root ?? root)
+    }
+
     /// Из строки PREV что-то играет (запуск, ждущий в колбэке, проверяет вызывающий).
     public var prevPlaying: Bool {
         if !prevRow { return false }

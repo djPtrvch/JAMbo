@@ -56,13 +56,14 @@ extension AppModel {
     }
 
     /// Правка гаммы и ноты записывается в клип лидера и в активные клипы остальных играющих дорожек: при PLAY и на
-    /// каждом круге строки лидером снова становится клип выбранной дорожки — со старой гаммой он возвращал её назад.
-    /// FX — только в клип лидера.
+    /// каждом круге строки лидером снова становится клип выбранной дорожки — со старой гаммой он возвращал её назад;
+    /// клипы PREV не трогаются (у каждого клипа своя гамма). FX — только в клип лидера.
     func writeLead(_ p: inout Project) {
         let i = min(lead, p.tracks.count - 1)
         for t in p.tracks.indices where t == i || !p.tracks[t].stopped {
             let k = p.tracks[t].slot
-            guard p.tracks[t].clips[k] != nil else { continue }
+            // Клипы PREV (старого проекта) держат свою гамму и ноту.
+            guard p.tracks[t].clips[k] != nil, !isPrev(k) else { continue }
             p.tracks[t].clips[k]?.scale = p.scale
             p.tracks[t].clips[k]?.root = p.root
         }
