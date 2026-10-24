@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// Меню PRESETS EQ (как пресеты EQ веба и модулей мастера): заголовок с числом, SAVE (имя — окном ввода), список
-/// «имя · число полос» с прокруткой: тап — загрузить в EQ показанного канала (UNDO), свайп влево — RENAME
-/// (карандаш на сером) и DELETE (корзина на красном). Правым краем к кнопке, не ниже поля EQ; тап мимо — закрыть.
+/// Меню PRESETS EQ (как пресеты EQ веба и модулей мастера): заголовок, SAVE (имя — окном ввода), список имён
+/// с прокруткой (без числа пресетов и полос — решение пользователя): тап — загрузить в EQ показанного канала (UNDO),
+/// свайп влево — RENAME (карандаш на сером) и DELETE (корзина на красном). Правым краем к кнопке, не ниже поля EQ; тап мимо — закрыть.
 struct EqPresetsMenu: View {
     static let width: CGFloat = 260
     let model: AppModel
@@ -29,7 +29,7 @@ struct EqPresetsMenu: View {
     private var content: some View {
         let list: [EqPreset] = model.eqPresets.list
         return VStack(alignment: .leading, spacing: 8) {
-            MenuHead(title: "EQ PRESETS · \(list.count)")
+            MenuHead(title: "EQ PRESETS")
             MenuItem(title: "SAVE") {
                 model.eqPresetMenu = nil
                 model.eqInputAsk = .save
@@ -54,7 +54,7 @@ struct EqPresetsMenu: View {
     private func rows(_ list: [EqPreset]) -> some View {
         VStack(spacing: 4) {
             ForEach(0..<list.count, id: \.self) { k in
-                SwipeRow(title: "\(list[k].name) · \(list[k].count)", tap: {
+                SwipeRow(title: list[k].name, tap: {
                     model.eqPresetMenu = nil
                     model.loadEqPreset(k)
                 }, rename: {

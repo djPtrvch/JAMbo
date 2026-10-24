@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Какое значение полосы вводят числом (удержание FREQ, GAIN, Q).
+/// Какое значение полосы вводят числом (двойной тап по FREQ, GAIN, Q).
 enum EqInput: Equatable {
     case freq, gain, q, thr, range
     /// Имя нового пресета EQ (SAVE) и новое имя пресета k (RENAME).
@@ -133,42 +133,45 @@ struct EqView: View {
     }
 }
 
-/// Строка EQ: имя канала под бутербродом, TYPE, FREQ, GAIN, Q, STEREO, DYN, PRESETS, BYPASS — шириной столбцов
-/// 8 дорожек (при 9–16 дорожках не сужаются), TYPE — с левого края поля BPM (решение пользователя; в вебе — над
-/// дорожками 1…8).
+/// Строка EQ: имя канала под бутербродом, TYPE, FREQ, GAIN, Q, STEREO, DYN, PRESETS, BYPASS — 8 равных столбцов
+/// до правого края поля EQ, TYPE — с левого края поля BPM (решения пользователя; в вебе — над дорожками 1…8).
 struct EqBar: View {
     let model: AppModel
     let layout: Layout
     let plotFrame: CGRect
     let input: (EqInput) -> Void
-    @State private var lastQTap: Date = .distantPast
     @State private var presetsFrame: CGRect = .zero
+    /// Ширина строки (поля EQ): столбцы тянутся до её правого края.
+    @State private var width: CGFloat = 0
     @Environment(\.theme) private var theme
 
     var body: some View {
-        let col: CGFloat = EqBar.column(layout)
-        ZStack(alignment: .topLeading) {
+        let col: CGFloat = EqBar.column(width)
+        return ZStack(alignment: .topLeading) {
             name.frame(width: EqBar.nameWidth, height: 48)
             ForEach(0..<8, id: \.self) { i in
-                item(i).frame(width: col, height: 48).offset(x: EqBar.left(i, layout))
+                item(i).frame(width: col, height: 48).offset(x: EqBar.left(i, col))
             }
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
     }
 
-    /// Ширина столбца: 8 столбцов с зазорами между MIX и MST.
-    static func column(_ layout: Layout) -> CGFloat {
-        let gaps: CGFloat = 9 * Layout.gap
-        let free: CGFloat = layout.width - 2 * layout.step - gaps
-        return free / 8
+    /// Ширина столбца: 8 столбцов от имени канала до правого края строки (решение пользователя: справа без пустого
+    /// места; прежде — по столбцам 8 дорожек).
+    static func column(_ width: CGFloat) -> CGFloat {
+        let x0: CGFloat = EqBar.nameWidth + Layout.gap
+        let gaps: CGFloat = 7 * Layout.gap
+        let free: CGFloat = width - x0 - gaps
+        return max(0, free / 8)
     }
 
     /// Имя канала — под бутербродом верхней панели (его ширина).
     static let nameWidth: CGFloat = 52
 
-    /// Левый край столбца i: TYPE — с левого края поля BPM (решение пользователя), дальше — шагом столбцов дорожек.
-    static func left(_ i: Int, _ layout: Layout) -> CGFloat {
-        let col: CGFloat = column(layout) + Layout.gap
+    /// Левый край столбца i: TYPE — с левого края поля BPM (решение пользователя), дальше — шагом столбцов.
+    static func left(_ i: Int, _ column: CGFloat) -> CGFloat {
+        let col: CGFloat = column + Layout.gap
         let x0: CGFloat = EqBar.nameWidth + Layout.gap
         return x0 + CGFloat(i) * col
     }
@@ -263,24 +266,24 @@ struct EqBar: View {
                        model: model)
     }
 
-    /// FREQ: 2 px на 1/24 октавы; удержание (палец может сдвинуться до 14 px) — ввод числом (решение пользователя:
-    /// тап — ничего, в вебе тап тоже открывает ввод).
+    /// FREQ: 2 px на 1/24 октавы; двойной тап (палец может сдвинуться до 14 px) — ввод числом (решение пользователя;
+    /// в вебе — тап или удержание).
     private func freqField(_ b: EqBand?) -> some View {
         let k: Int = model.eqBand
         return EqField(label: "FREQ", value: b.map { EqFormat.hz($0.freq) } ?? "—", enabled: b != nil, pxPerUnit: 2,
                        get: { EqBar.freqUnits(model.selectedBand) },
                        set: { v in model.setEqBand(k, freq: EqBar.freqOf(v)) },
-                       hold: { input(.freq) }, moveTol: 14, model: model)
+                       double: { input(.freq) }, moveTol: 14, model: model)
     }
 
-    /// GAIN: 1 px на 0,1 dB (у cut и notch — «—»); удержание — ввод числом.
+    /// GAIN: 1 px на 0,1 dB (у cut и notch — «—»); двойной тап — ввод числом.
     private func gainField(_ b: EqBand?) -> some View {
         let k: Int = model.eqBand
         let has: Bool = b.map { EqSpec.hasGain($0.type) } ?? false
         return EqField(label: "GAIN", value: has ? EqFormat.gain(b?.gain ?? 0) : "—", enabled: has, pxPerUnit: 1,
                        get: { EqBar.gainUnits(model.selectedBand) },
                        set: { v in model.setEqBand(k, gain: v / 10) },
-                       hold: { input(.gain) }, model: model)
+                       double: { input(.gain) }, model: model)
     }
 
     /// M/S (как в вебе): палец вниз — следующий режим (30 px на режим), тап — меню STEREO / MID / SIDE.
@@ -300,30 +303,25 @@ struct EqBar: View {
     private func dynField(_ b: EqBand?) -> some View {
         let has: Bool = b.map { EqSpec.hasGain($0.type) } ?? false
         return EqField(label: "DYN", value: b.map { model.eqDynName($0) } ?? "—", enabled: has, pxPerUnit: 100000,
-                       tap: { f in model.eqDynMenu = f }, model: model)
+                       tap: { f in
+                           model.eqDynShift = .zero
+                           model.eqDynMenu = f
+                       }, model: model)
     }
 
-    /// Q: 3 px на 1/12 октавы; двойной тап — Q по умолчанию (1,0); удержание — ввод числом.
+    /// Q: 3 px на 1/12 октавы; двойной тап — ввод числом (решение пользователя; прежде двойной тап сбрасывал Q к 1,0).
     private func qField(_ b: EqBand?) -> some View {
         let k: Int = model.eqBand
         return EqField(label: "Q", value: b.map { String(format: "%.2f", $0.q) } ?? "—", enabled: b != nil, pxPerUnit: 3,
                        get: { EqBar.qUnits(model.selectedBand) },
                        set: { v in model.setEqBand(k, q: EqBar.qOf(v)) },
-                       tap: { _ in
-                           let now = Date()
-                           if now.timeIntervalSince(lastQTap) < EqPlot.doubleTap {
-                               model.setEqBand(k, q: EqSpec.qDef)
-                               lastQTap = .distantPast
-                           } else {
-                               lastQTap = now
-                           }
-                       },
-                       hold: { input(.q) }, model: model)
+                       double: { input(.q) }, model: model)
     }
 }
 
 /// Поле строки EQ: подпись над значением; палец вверх-вниз — pxPerUnit на пункт (одна запись UNDO на жест), тап,
-/// удержание 0,5 с без движения (до moveTol px); выключенное — серое, касаний нет.
+/// двойной тап без движения (до moveTol px) — ввод числом (решение пользователя; прежде — удержание 0,5 с);
+/// выключенное — серое, касаний нет.
 struct EqField: View {
     let label: String
     let value: String
@@ -332,13 +330,12 @@ struct EqField: View {
     var get: () -> Double = { 0 }
     var set: (Double) -> Void = { _ in }
     var tap: ((CGRect) -> Void)? = nil
-    var hold: (() -> Void)? = nil
+    var double: (() -> Void)? = nil
     var moveTol: CGFloat = 10
     let model: AppModel
     @State private var start: Double? = nil
     @State private var moved: Bool = false
-    @State private var held: Bool = false
-    @State private var holdTask: Task<Void, Never>? = nil
+    @State private var lastTap: Date = .distantPast
     @State private var frame: CGRect = .zero
     @Environment(\.theme) private var theme
 
@@ -361,33 +358,32 @@ struct EqField: View {
             .onChanged { g in
                 if start == nil { begin() }
                 let dy: CGFloat = g.translation.height
-                if !moved && !held && abs(dy) > moveTol {
-                    moved = true
-                    holdTask?.cancel()
-                }
+                if !moved && abs(dy) > moveTol { moved = true }
                 if moved, let s = start { set(s + (-dy / pxPerUnit).rounded()) }
             }
             .onEnded { _ in
-                holdTask?.cancel()
                 model.endGesture()
                 start = nil
-                if !moved && !held { tap?(frame) }
+                if !moved { tapped() }
             }
     }
 
     private func begin() {
         start = get()
         moved = false
-        held = false
         model.beginGesture()
-        guard let h = hold else { return }
-        holdTask?.cancel()
-        holdTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 500_000_000)
-            if Task.isCancelled || moved || start == nil { return }
-            held = true
-            h()
+    }
+
+    /// Тап; второй тап подряд (быстрее EqPlot.doubleTap) — двойной.
+    private func tapped() {
+        let now = Date()
+        if let d = double, now.timeIntervalSince(lastTap) < EqPlot.doubleTap {
+            lastTap = .distantPast
+            d()
+            return
         }
+        lastTap = now
+        tap?(frame)
     }
 }
 

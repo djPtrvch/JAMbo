@@ -109,12 +109,15 @@ final class AppModel {
     var eqMsMenu: CGRect? = nil
     /// Меню DYN (источник, THRESHOLD, RANGE): рамка поля DYN; ввод числом из меню (EqView открывает окно).
     var eqDynMenu: CGRect? = nil
+    /// Сдвиг меню DYN пальцем (перетаскивание за заголовок); сбрасывается при открытии.
+    var eqDynShift: CGSize = .zero
     var eqInputAsk: EqInput? = nil
     /// Меню PRESETS EQ (рамка кнопки и низ поля EQ, «root»); пресеты EQ — общие для каналов и проектов.
     var eqPresetMenu: EqPresetMenuState? = nil
     var eqPresets: EqPresetBook = AppModel.loadEqPresets()
-    /// Спектр дорожки для сравнения (после её EQ; −1 — нет) и меню выбора; спектр выхода у EQ мастера.
-    var eqCompare: Int = -1
+    /// Сравнение у каждой дорожки своё: id дорожки → id сравниваемой (спектр после её EQ); меню выбора; спектр
+    /// выхода у EQ мастера.
+    var eqCompares: [Int: Int] = [:]
     var eqCompareMenu: Bool = false
     var eqOutOn: Bool = false
     var gridTop: Int = 0

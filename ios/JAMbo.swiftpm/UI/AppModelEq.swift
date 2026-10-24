@@ -43,6 +43,13 @@ extension AppModel {
         }
     }
 
+    /// Сравниваемая дорожка выбранной дорожки (номер; −1 — нет): у каждой дорожки своя, хранится по id дорожек
+    /// (перестановка не сбивает, удалённая — нет сравнения).
+    var eqCompare: Int {
+        guard selectedTrack < project.tracks.count, let id = eqCompares[project.tracks[selectedTrack].id] else { return -1 }
+        return project.tracks.firstIndex { $0.id == id } ?? -1
+    }
+
     /// Сравниваемая дорожка, если её спектр сейчас показан (у EQ дорожки, не она сама).
     var eqCompareShown: Int? {
         let c: Int = eqCompare
@@ -63,8 +70,12 @@ extension AppModel {
         }
     }
 
+    /// Сравнение выбранной дорожки: t — дорожка, −1 — OFF.
     func setEqCompare(_ t: Int) {
-        eqCompare = t
+        if selectedTrack < project.tracks.count {
+            let me: Int = project.tracks[selectedTrack].id
+            eqCompares[me] = t >= 0 && t < project.tracks.count ? project.tracks[t].id : nil
+        }
         eqCompareMenu = false
         syncSpectra()
     }
