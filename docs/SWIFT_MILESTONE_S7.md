@@ -18,12 +18,12 @@ S7a — M/S; S7b — Dynamic EQ (ядро); S7c — Dynamic EQ (экран); S7d
 - Эталоны: + dyn_self_bell, dyn_self_shelves, dyn_side, dyn_track, dyn_moves — −90…−104 dB. В генераторе начальные THRESHOLD, RANGE и M/S детектора передаются через processorOptions: в OfflineAudioContext сообщение новому узлу до рендера не доходит (в живом вебе — за миллисекунды). CoreTests — 165; SELF-TEST — 193. Нагрузка в отладке: 8 динамических полос со сдвигом в движении — 4,4 %.
 
 ### S7c (Dynamic EQ, экран)
-- Поле DYN (UI/EqView): OFF, SELF или имя дорожки (у cut и notch — «—»), только тап — меню DYNAMIC · SOURCE (UI/EqDynMenu) под полем: OFF, SELF, дорожки сеткой в два столбца (MenuScroll, до 240 px), выбор меню не закрывает; THRESHOLD и RANGE — поля как в строке EQ (3 px на 0,5 dB, одна запись UNDO на жест), удержание — ввод числом (в вебе его нет).
+- Поле DYN (UI/EqView): OFF, SELF или имя дорожки (у cut и notch — «—»), только тап — меню DYNAMIC · SOURCE (UI/EqDynMenu) под полем: OFF, SELF, дорожки сеткой в два столбца (MenuScroll, до 240 px), выбор меню не закрывает; THRESHOLD и RANGE — поля как в строке EQ (3 px на 0,5 dB, одна запись UNDO на жест), двойной тап — ввод числом (в вебе его нет); окно перетаскивается за заголовок (S14x).
 - Анимация (UI/EqPlot): точки и кривая динамических полос — с текущим сдвигом (EqDynLevels), 30 кадров в секунду, без динамических полос — пауза; на месте статического усиления — полое кольцо цвета режима M/S.
 
 ### S7d (пресеты EQ)
 - Core/Model/EqPresets: EqPresetBook — один список, общий для дорожек, мастера и проектов (UserDefaults «eqPresets»); пресет — полосы со всеми полями, без BYPASS (решение пользователя); имя до 40 знаков, новое — «EQ n»; Project.applyEqPreset — источник DYN несуществующей дорожки — OFF (решение пользователя).
-- Экран: PRESETS (UI/EqPresetsMenu) — «EQ PRESETS · n», SAVE (окно ввода), строки «имя · число полос», тап — загрузить (одна запись UNDO, выбор полосы сброшен), свайп влево — RENAME и DELETE, как у пресетов модулей мастера. CoreTests — 166.
+- Экран: PRESETS (UI/EqPresetsMenu) — «EQ PRESETS», SAVE (окно ввода), строки — только имя (S14x), тап — загрузить (одна запись UNDO, выбор полосы сброшен), свайп влево — RENAME и DELETE, как у пресетов модулей мастера. CoreTests — 166.
 
 ## Проверено
 - На iPad: сборка, SELF-TEST, M/S (поле, меню CHANNEL, цвета точек и кривых), DYN (SELF, источник-дорожка, THRESHOLD и RANGE, анимация), пресеты EQ (SAVE, загрузка, RENAME, DELETE, после перезапуска) — всё работает.
