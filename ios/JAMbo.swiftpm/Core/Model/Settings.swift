@@ -48,7 +48,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var levelRelative: Bool = false
     /// SETTINGS → MORPH (S9): ручки в режиме MORPH — на все дорожки (сдвиг на ту же величину) или на выбранную;
     /// возврат после выключения — MorphReturn.beats[morphReturn] долей (0 — сразу).
-    public var morphAll: Bool = false
+    /// По умолчанию — на все дорожки (решение пользователя).
+    public var morphAll: Bool = true
     public var morphReturn: Int = 0
     /// SETTINGS → MIX (S9, действуют с переходами S10): гамма и нота нового проекта при переходе; кроссфейдер
     /// (ON — темп по кроссфейдеру, OFF — темп старого паттерна).
@@ -98,7 +99,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         rollGrid = Roll.grids.contains(g) ? g : Roll.gridDef
         rollSound = (try? c.decode(Bool.self, forKey: .rollSound)) ?? true
         levelRelative = (try? c.decode(Bool.self, forKey: .levelRelative)) ?? false
-        morphAll = (try? c.decode(Bool.self, forKey: .morphAll)) ?? false
+        morphAll = (try? c.decode(Bool.self, forKey: .morphAll)) ?? true
         let mr: Int = (try? c.decode(Int.self, forKey: .morphReturn)) ?? 0
         morphReturn = mr >= 0 && mr < MorphReturn.beats.count ? mr : 0
         mixKey = (try? c.decode(Bool.self, forKey: .mixKey)) ?? true
