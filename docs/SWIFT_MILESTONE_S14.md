@@ -51,6 +51,13 @@
 - Пианоролл с VEL: палец по ноте вверх-вниз — velocity, вбок (что первым сдвинулось больше 4 px) — перетаскивание, как без VEL.
 - CoreTests — 319.
 
+## S14z — MIX и перестановка без пауз, громкости MIX, MORPH ALL TRACKS, имена строк IMPORT (готово, на iPad не проверено)
+- Голоса не гаснут при смене снимка звука: перестановка — голоса сэмплера переезжают на новое место дорожки (Sampler.adopt по id), держащиеся ноты синта (голоса синта привязаны к месту) заводятся заново на новом месте (moveSynthNotes); переход MIX — SoundData.rebind (AppModel.rebindNext на первом снимке после startMix): голоса остаются на своих местах и берут новые id. Удалённая дорожка и убранный сэмпл — голоса гаснут, как раньше.
+- MIX без кроссфейдера: Project.mixed(clipVolumes:) — у клипа PREV TrackSound.vol (громкость старой дорожки); в снимке громкость у каждого из двух звуков дорожки (gain[t], gain[t + maxTracks]) — клипа, который им звучит (Track.vol(slot:)); MixGlobals.holdMaster держит и outVol. moveSlot и clipCopy сохраняют vol клипа.
+- MORPH: SHIFT + двойной тап — settings.morphAll (ALL TRACKS) вкл./выкл.; нажатия с SHIFT режим MORPH не переключают; пока ALL TRACKS включён — чёрная линия контура внутри кнопки (как toggle FX и MOD).
+- IMPORT строк: строки называются именем проекта (Project.importedRowName: несколько — «имя 2», до 12 знаков).
+- CoreTests — 323 (testVoiceSurvivesMoveAndRebind, testSynthNoteMovesWithTrack, testClipVolumes, testRowNamesFromProject).
+
 ## S14a — замеры (готово, замер на iPad сделан)
 - Колбэк: RenderProfile (Core/Util) — метки на уровне блока (не на отсчёт), время от прошлой метки — в раздел: Seq (снимки, команды, транспорт, начало MOD и FX), Samples (голоса сэмплера, прослушивание), Synth, EQ (дорожки и мастер), Mix, FX, Master (SAT, COMP, CLIP, LIM, выход), Meters (метры, скоп, спектры, стемы). За секунду звука — средняя и наибольшая доля блока, с RESET — худшая (seqlock). Часы — DispatchTime (на Apple — mach_absolute_time), ~25 чтений на блок.
 - Интерфейс: FrameMeter (UI) — CADisplayLink: fps, средний и худший кадр, пропущенные кадры (промежуток > 1,5 кадра); время drain (главный поток, 60 раз в секунду). Перерыв дольше 0,5 с (фон) — не пропуск.
