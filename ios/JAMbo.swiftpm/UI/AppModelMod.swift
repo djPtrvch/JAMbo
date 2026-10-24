@@ -137,9 +137,20 @@ extension AppModel {
         }
     }
 
+    /// Нажатие MORPH. SHIFT + двойной тап — MORPH ALL TRACKS вкл./выкл. (как SETTINGS → MORPH → ALL TRACKS; решение
+    /// пользователя), сам режим MORPH при этом не переключается.
     func morphPress() {
         morphHeld = true
         morphUsed = false
+        guard shiftHeld else { return }
+        morphUsed = true
+        let now = Date()
+        if let l = lastMorphShiftTap, now.timeIntervalSince(l) < 0.35 {
+            lastMorphShiftTap = nil
+            setMorphAll(!settings.morphAll)
+        } else {
+            lastMorphShiftTap = now
+        }
     }
 
     func morphRelease() {
