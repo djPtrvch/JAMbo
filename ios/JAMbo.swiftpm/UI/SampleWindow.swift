@@ -83,7 +83,7 @@ struct SampleWindow: View {
     private var mixView: some View {
         VStack(spacing: 8) {
             Text("MIXER").font(.system(size: 12, weight: .semibold)).tracking(1).foregroundStyle(theme.dim)
-            Spacer(minLength: 0)
+            MixOverview(model: model)
         }
         .padding(10)
     }
@@ -120,6 +120,55 @@ struct SampleWindow: View {
             if Task.isCancelled { return }
             heldOpen = true
             model.openEditor()
+        }
+    }
+}
+
+/// Превью MIXER (решение пользователя): уровень каждой дорожки — одна полоса (стерео — наибольший из L и R),
+/// снизу вверх по шкале метров (−60…0 dBFS); 16 одинаковых мест на всю ширину (дорожек меньше — справа пусто);
+/// приглушение Duck не показывается; заглушённая — серая, выше 0 dBFS — красная.
+struct MixOverview: View {
+    let model: AppModel
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 60)) { tl in
+            MixOverviewBars(levels: levels, muted: muted, now: tl.date)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .allowsHitTesting(false)
+    }
+
+    private var levels: [Float] {
+        let n: Int = min(Params.maxTracks, model.project.tracks.count)
+        return (0..<n).map { t in model.meters.bars(t, stereo: false).first?.level ?? 0 }
+    }
+
+    private var muted: [Bool] {
+        let n: Int = min(Params.maxTracks, model.project.tracks.count)
+        return (0..<n).map { t in !model.project.audible(t) }
+    }
+}
+
+struct MixOverviewBars: View {
+    let levels: [Float]
+    let muted: [Bool]
+    let now: Date
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        Canvas { ctx, size in
+            let cell: CGFloat = size.width / 16
+            let w: CGFloat = MeterBars.width
+            for (t, lv) in levels.enumerated() {
+                let f: CGFloat = MeterState.frac(lv)
+                if f <= 0 { continue }
+                let h: CGFloat = f * size.height
+                let x: CGFloat = cell * (CGFloat(t) + 0.5) - w / 2
+                let r = CGRect(x: x, y: size.height - h, width: w, height: h)
+                let c: Color = t < muted.count && muted[t] ? theme.muteGrey : (lv >= MeterState.over ? theme.rec : theme.accent)
+                ctx.fill(Path(roundedRect: r, cornerRadius: 3), with: .color(c))
+            }
         }
     }
 }
