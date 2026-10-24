@@ -85,6 +85,8 @@ struct SynthIcon: View {
 
     var body: some View {
         let target: IconValues = model.iconValues(engine)
+        // Другая дорожка — сразу её значения, без доезда от прежней.
+        motion.follow(model.selectedTrack)
         let frame: ((Double, Double) -> Double)? = tableSource
         // Кадры идут, пока сглаживание не дошло до значений ручек.
         let live: Bool = animating || motion.differs(target)
@@ -313,6 +315,14 @@ struct SynthIcon: View {
 final class IconMotion {
     private var shown: IconValues? = nil
     private var last: Double = 0
+    private var key: Int = -1
+
+    /// Сменилась дорожка (key): сглаживание начинается заново — первое значение сразу.
+    func follow(_ k: Int) {
+        if k == key { return }
+        key = k
+        shown = nil
+    }
 
     /// Сглаженное ещё не дошло до target.
     func differs(_ target: IconValues) -> Bool {

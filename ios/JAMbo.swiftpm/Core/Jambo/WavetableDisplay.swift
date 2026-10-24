@@ -3,7 +3,8 @@ import Foundation
 /// Таблица показа встроенной таблицы WTABLE (только окно синта, звук не меняется): 256 кадров по 256 отсчётов
 /// (до 127 гармоник), каждый кадр — к пику 1.0, как в звуке. У звуковой таблицы 64 кадра: между ними форма
 /// смешивается, и крутой фронт (PWM) на иконке прыгает; здесь кадров больше — POSITION двигает форму плавно
-/// (решение пользователя).
+/// (решение пользователя). Гармоники — с окном Ланцоша (σ-фактор): без «звона» Гиббса у фронта, иначе его пик
+/// попадает между точками рисования, и верх волны дёргается при смене POSITION.
 public final class WtDisplay: @unchecked Sendable {
     public static let frames = 256
     public static let size = 256
@@ -27,10 +28,12 @@ public final class WtDisplay: @unchecked Sendable {
                 im[k] = 0
             }
             for n in 1...lim {
-                re[n] = sp.re[f][n]
-                im[n] = sp.im[f][n]
-                re[size - n] = sp.re[f][n]
-                im[size - n] = -sp.im[f][n]
+                let x: Double = Double.pi * Double(n) / Double(lim + 1)
+                let sigma: Double = sin(x) / x
+                re[n] = sp.re[f][n] * sigma
+                im[n] = sp.im[f][n] * sigma
+                re[size - n] = re[n]
+                im[size - n] = -im[n]
             }
             WtTable.fft(&re, &im, inverse: true)
             var pk: Double = 0
