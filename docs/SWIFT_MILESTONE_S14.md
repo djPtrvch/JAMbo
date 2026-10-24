@@ -38,6 +38,19 @@
 - IMPORT (окно LOAD / MIX): строки проекта с тригами (Project.importRows) — в свободные строки после последней заполненной (первая не занимается; при одной строке — новая), сколько поместится; столбец к столбцу; звук столбца другой — клип несёт свой; недостающие дорожки (до 16) — со звуком дорожки другого проекта; гамма, нота, FX клипа — свои (нет — другого проекта); имена и ноты сэмплов — из другого проекта; UNDO; игра не останавливается; ничего не встало — сообщение.
 - CoreTests — 317 (ImportRowsTests, testClipKeyPerClip, testHoldMasterOnly; testSnapshotSoundBySlot — по next и keepAlt).
 
+## S14y — правки интерфейса (готово, на iPad не проверено)
+- BPM: ввод числом — двойным тапом (BpmField; удержания нет).
+- OVERDUB — в меню клавиатуры (бутерброд под CHORD, после KEY VELOCITY); в SETTINGS → RECORD его нет.
+- Миниатюры LFO/ENV в окне сэмпла — пока держат MOD (modPreview = modMode), без 1,5 с после поворота.
+- Ступенчатые ручки с пунктами движков (ParamDef.steps): toNorm — i / (s − 1), fromNorm — ближайший пункт; значение — середина пункта, как раньше (звук и ModEngine не меняются).
+- Имена пресетов EQ и модулей мастера: SAVE с занятым именем (без учёта регистра) — OVERWRITE (замена на месте) / SAVE AS… / CANCEL, RENAME на занятое — RENAME… / CANCEL (NameClashAlert; EqPresetBook.index, MasterPresetBook.index, save(over:)).
+- UNDO мастера: поворот энкодера MIDI — новая запись при смене энкодера (midiGesture(key)); жест поля или дисплея мастера, отменённый системой, закрывает запись UNDO (GestureCancelGuard, через 60 мс после конца касания).
+- Перестановка дорожек при игре: CoreEvent.moveTrack → Launcher.move (активная ячейка, остановка, ожидание, начало прохода), LiveState.moveTrack; UNDO / REDO перестановки — followTrackOrder. Раньше сдвинутая дорожка играла ход чужой и вступала на границе (LaunchTests.testMoveTrackKeepsPlaying).
+- WTABLE в окне синта: встроенные — по таблице показа WtDisplay (256 кадров × 256, до 127 гармоник, WavetableStore.display — в фоне); фронт PWM идёт плавно (EngineIconTests.testDisplayPwmEdgeMovesSmoothly).
+- MIDI OFFSET: палец по значению вправо-влево — 1 ms на 3 px (SyncOffsetRow).
+- Пианоролл с VEL: палец по ноте вверх-вниз — velocity, вбок (что первым сдвинулось больше 4 px) — перетаскивание, как без VEL.
+- CoreTests — 319.
+
 ## S14a — замеры (готово, замер на iPad сделан)
 - Колбэк: RenderProfile (Core/Util) — метки на уровне блока (не на отсчёт), время от прошлой метки — в раздел: Seq (снимки, команды, транспорт, начало MOD и FX), Samples (голоса сэмплера, прослушивание), Synth, EQ (дорожки и мастер), Mix, FX, Master (SAT, COMP, CLIP, LIM, выход), Meters (метры, скоп, спектры, стемы). За секунду звука — средняя и наибольшая доля блока, с RESET — худшая (seqlock). Часы — DispatchTime (на Apple — mach_absolute_time), ~25 чтений на блок.
 - Интерфейс: FrameMeter (UI) — CADisplayLink: fps, средний и худший кадр, пропущенные кадры (промежуток > 1,5 кадра); время drain (главный поток, 60 раз в секунду). Перерыв дольше 0,5 с (фон) — не пропуск.
