@@ -284,6 +284,27 @@ final class SamplerTests: XCTestCase {
         XCTAssertNil(PitchDetect.root(SampleData(left: (0..<4800).map { _ in Float.random(in: -0.5...0.5) }, right: nil)))
     }
 
+    /// Короткий удар с высотой (конга, том): спад 30–60 мс, щелчок шума в начале, неровный обертон — нота есть.
+    func testPitchShortPercussion() {
+        func hit(_ f0: Double, tau: Double) -> SampleData {
+            var seed: UInt32 = 12345
+            var ph = 0.0, ph2 = 0.0
+            let x: [Float] = (0..<Int(0.7 * 48000)).map { i in
+                let t = Double(i) / 48000
+                ph += f0 / 48000
+                ph2 += f0 * 1.59 / 48000
+                var v: Double = (sin(2 * .pi * ph) + 0.4 * sin(2 * .pi * ph2) * exp(-t / (tau * 0.5))) * exp(-t / tau)
+                seed = seed &* 1664525 &+ 1013904223
+                if t < 0.008 { v += (Double(seed >> 8) / 8388608 - 1) * (1 - t / 0.008) }
+                return Float(0.5 * v)
+            }
+            return SampleData(left: x, right: nil)
+        }
+        XCTAssertEqual(PitchDetect.root(hit(196, tau: 0.03)), 55)
+        XCTAssertEqual(PitchDetect.root(hit(330, tau: 0.03)), 64)
+        XCTAssertEqual(PitchDetect.root(hit(440, tau: 0.06)), 69)
+    }
+
     func testFolderPagesAndTracks() {
         var t = Track(index: 0)
         t.addSamples(["a", "b"])

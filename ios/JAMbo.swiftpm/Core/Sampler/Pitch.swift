@@ -2,7 +2,8 @@ import Foundation
 
 // Определение высоты сэмпла при загрузке (YIN по нескольким окнам, как audio/pitch.ts веба) — только для индикации:
 // сэмпл всегда звучит в исходной высоте на C3. Шумные и ударные звуки без ясной высоты — nil. Короткие сэмплы
-// (от ~45 мс) — окном 1024 вместо 2048; верхняя граница — до C8 (выше 1500 Гц нота уходила на октаву вниз).
+// (от ~45 мс) и короткие удары — окном 1024 вместо 2048; окна — в громкой части звука; верхняя граница — до C8
+// (выше 1500 Гц нота уходила на октаву вниз).
 
 public enum PitchDetect {
     static let minHz: Double = 40
@@ -18,8 +19,8 @@ public enum PitchDetect {
         let step = 2
         let rate: Double = AudioCore.sampleRate / Double(step)
         let n = s.frames / step
-        let win: Int = n >= window * 2 ? window : shortWindow
-        if n < win { return nil }
+        var win: Int = n >= window * 2 ? window : shortWindow
+        if n < shortWindow { return nil }
         var data = [Float](repeating: 0, count: n)
         let k: Float = s.channels == 2 ? 0.5 : 1
         for i in 0..<n {
@@ -35,9 +36,21 @@ public enum PitchDetect {
             peakAt = i
         }
         if peak < 1e-4 { return nil }
+        // Громкая часть (до последнего отсчёта не тише 10 % пика, не дальше 1,5 с): окна — внутри неё, иначе у
+        // короткого удара с высотой (конга, том) почти все окна попадали в тишину и нота не находилась.
+        let start0: Int = Swift.min(n - 1, peakAt + Int(rate * 0.02))
+        var loudEnd: Int = start0
+        let limit: Int = Swift.min(n, start0 + Int(rate * 1.5) + window)
+        var i0: Int = start0
+        while i0 < limit {
+            if abs(data[i0]) >= peak * 0.1 { loudEnd = i0 }
+            i0 += 1
+        }
+        if loudEnd - start0 < window * 3 / 2 { win = shortWindow }
         let last: Int = n - win
-        let from = Swift.max(0, Swift.min(peakAt + Int(rate * 0.02), last))
-        let to = Swift.max(from, Swift.min(last, from + Int(rate * 1.5)))
+        if last < 0 { return nil }
+        let from = Swift.max(0, Swift.min(start0, last))
+        let to = Swift.max(from, Swift.min(last, loudEnd - win / 2))
         var notes: [Int] = []
         for w in 0..<8 {
             let start = from + (to - from) * w / 8
