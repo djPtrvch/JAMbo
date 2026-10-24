@@ -53,6 +53,7 @@ extension AppModel {
                            scSends: settings.scSends, muteTails: settings.muteTails,
                            levelRelative: settings.levelRelative, master: mixMaster,
                            extra: libPreviewKey.map { [$0] } ?? [])
+        ensureRoots()
     }
 
     /// TABLE: встроенная таблица WTABLE на дорожку (UNDO).

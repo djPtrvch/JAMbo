@@ -265,6 +265,25 @@ final class SamplerTests: XCTestCase {
         XCTAssertNil(PitchDetect.root(SampleData(left: (0..<48000).map { _ in Float.random(in: -0.5...0.5) }, right: nil)), "шум — без высоты")
     }
 
+    /// Короткий сэмпл (0,1 с) и высокие ноты (C7, пила с обертонами выше 12 кГц) — нота определяется; короткий шум — нет.
+    func testPitchShortAndHigh() {
+        func tone(_ midi: Int, _ sec: Double, saw: Bool) -> SampleData {
+            let f: Double = 440 * pow(2, Double(midi - 69) / 12)
+            let x: [Float] = (0..<Int(sec * 48000)).map { i in
+                let t = Double(i) / 48000
+                var v: Double = 0
+                for h in 1...(saw ? 12 : 1) { v += sin(2 * Double.pi * f * Double(h) * t) / Double(h) }
+                return Float(0.4 * v * exp(-t / (sec / 2)))
+            }
+            return SampleData(left: x, right: nil)
+        }
+        XCTAssertEqual(PitchDetect.root(tone(48, 0.1, saw: false)), 48)
+        XCTAssertEqual(PitchDetect.root(tone(64, 0.1, saw: true)), 64)
+        XCTAssertEqual(PitchDetect.root(tone(91, 1, saw: true)), 91)
+        XCTAssertEqual(PitchDetect.root(tone(96, 1, saw: true)), 96)
+        XCTAssertNil(PitchDetect.root(SampleData(left: (0..<4800).map { _ in Float.random(in: -0.5...0.5) }, right: nil)))
+    }
+
     func testFolderPagesAndTracks() {
         var t = Track(index: 0)
         t.addSamples(["a", "b"])

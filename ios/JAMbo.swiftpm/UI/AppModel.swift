@@ -68,6 +68,8 @@ final class AppModel {
     @ObservationIgnored var midiRun = MidiRuntime()
     /// MIDI OUT дорожек (свой поток; создаётся с первым выходом — AppModelTrackMidi).
     @ObservationIgnored var midiOutPump: MidiOutPump? = nil
+    /// Сэмплы, ноту которых уже определяли (AppModelRoots).
+    @ObservationIgnored var rootTried: Set<String> = []
     /// Последний тап по FX или MOD с зажатой SHIFT (двойной — режим toggle кнопки).
     @ObservationIgnored var lastPageTap: (page: GridPage, at: Date)? = nil
     /// Последний тап по LFO1–3 / ENV (двойной тап — снять назначение с удерживаемой ручки).

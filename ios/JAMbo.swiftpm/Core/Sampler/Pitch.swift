@@ -1,25 +1,31 @@
 import Foundation
 
 // Определение высоты сэмпла при загрузке (YIN по нескольким окнам, как audio/pitch.ts веба) — только для индикации:
-// сэмпл всегда звучит в исходной высоте на C3. Шумные и ударные звуки без ясной высоты — nil.
+// сэмпл всегда звучит в исходной высоте на C3. Шумные и ударные звуки без ясной высоты — nil. Короткие сэмплы
+// (от ~45 мс) — окном 1024 вместо 2048; верхняя граница — до C8 (выше 1500 Гц нота уходила на октаву вниз).
 
 public enum PitchDetect {
     static let minHz: Double = 40
-    static let maxHz: Double = 1500
+    static let maxHz: Double = 4200
     static let window = 2048
+    static let shortWindow = 1024
     static let threshold: Float = 0.15
 
     /// MIDI-нота сэмпла или nil.
     public static func root(_ s: SampleData) -> Int? {
-        // Моно с прореживанием до ~24 кГц.
+        // Моно с прореживанием до ~24 кГц: среднее пары отсчётов (простой ФНЧ — без него обертоны выше 12 кГц
+        // отражались вниз и сбивали высокие ноты).
         let step = 2
         let rate: Double = AudioCore.sampleRate / Double(step)
         let n = s.frames / step
-        if n < window * 2 { return nil }
+        let win: Int = n >= window * 2 ? window : shortWindow
+        if n < win { return nil }
         var data = [Float](repeating: 0, count: n)
         let k: Float = s.channels == 2 ? 0.5 : 1
         for i in 0..<n {
-            data[i] = s.channels == 2 ? (s.left[i * step] + s.right[i * step]) * k : s.left[i * step]
+            let j: Int = i * step
+            let l: Float = s.left[j] + s.left[j + 1]
+            data[i] = s.channels == 2 ? (l + s.right[j] + s.right[j + 1]) * k * 0.5 : l * 0.5
         }
         var peakAt = 0
         var peak: Float = 0
@@ -29,15 +35,16 @@ public enum PitchDetect {
             peakAt = i
         }
         if peak < 1e-4 { return nil }
-        let from = Swift.min(peakAt + Int(rate * 0.02), n - window * 2)
-        let to = Swift.min(n - window * 2, from + Int(rate * 1.5))
+        let last: Int = n - win
+        let from = Swift.max(0, Swift.min(peakAt + Int(rate * 0.02), last))
+        let to = Swift.max(from, Swift.min(last, from + Int(rate * 1.5)))
         var notes: [Int] = []
         for w in 0..<8 {
             let start = from + (to - from) * w / 8
             var e: Float = 0
-            for i in 0..<window { e = Swift.max(e, abs(data[start + i])) }
+            for i in 0..<win { e = Swift.max(e, abs(data[start + i])) }
             if e < peak * 0.05 { continue }
-            if let hz = yin(data, start, rate) {
+            if let hz = yin(data, start, rate, win) {
                 notes.append(Int((69 + 12 * log2(hz / 440)).rounded()))
             }
         }
@@ -55,9 +62,11 @@ public enum PitchDetect {
         return votes >= need ? Swift.min(108, Swift.max(12, best)) : nil
     }
 
-    static func yin(_ x: [Float], _ start: Int, _ rate: Double) -> Double? {
+    /// Окно win отсчётов с start; разности считаются по первой половине окна и дальше (не меньше половины окна).
+    static func yin(_ x: [Float], _ start: Int, _ rate: Double, _ win: Int) -> Double? {
+        let window: Int = win
         let minTau = Int(rate / maxHz)
-        let maxTau = Swift.min(Int(rate / minHz), window - 1)
+        let maxTau = Swift.min(Int(rate / minHz), window / 2)
         var d = [Float](repeating: 0, count: maxTau + 2)
         for tau in 1...maxTau {
             var s: Float = 0
