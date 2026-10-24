@@ -431,8 +431,22 @@ extension AppModel {
         }
     }
 
+    /// ADD TRACK: новая дорожка сразу играет свой пустой клип (решение пользователя; в вебе стоит) — при игре
+    /// с ближайшей границы, как тап по ячейке, без игры — запустится со стартом.
     func addTrack() {
         edit { p in p.addTrack() }
+        let i: Int = project.tracks.count - 1
+        guard i >= 0, project.tracks[i].clipFilled(newTrackRow) else { return }
+        queueClip(i, newTrackRow)
+    }
+
+    /// Строка клипа новой дорожки: играющая строка, иначе — ячейка, которую играет больше всего дорожек, иначе 1-я.
+    private var newTrackRow: Int {
+        if playing && live.sceneRow >= 0 && !isPrev(live.sceneRow) { return live.sceneRow }
+        var count: [Int: Int] = [:]
+        for t in project.tracks where !t.stopped && !t.blank && !isPrev(t.slot) { count[t.slot, default: 0] += 1 }
+        let best: Int? = count.max { a, b in a.value < b.value || (a.value == b.value && a.key > b.key) }?.key
+        return best ?? 0
     }
 
     func copyTrack(_ i: Int) {

@@ -16,7 +16,7 @@ struct MasterWindowView: View {
             display
         }
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { frame = $0 }
-        // Окно ввода открывают поле (удержание), SAVE и RENAME: текст — текущее значение или имя.
+        // Окно ввода открывают поле (двойной тап), SAVE и RENAME: текст — текущее значение или имя.
         .onChange(of: model.masterInput) { _, t in
             if let t = t { text = initialText(t) }
         }
@@ -163,8 +163,9 @@ struct MasterTitle: View {
 }
 
 /// Поле окна модуля (как поля EQ, без рамки подсветки — решение пользователя): подпись над значением; палец
-/// вверх-вниз — 240 px на весь диапазон, как у ручек (одна запись UNDO на жест); удержание 0,5 с без движения — ввод
-/// числом; тап без движения — tap (TYPE, RATIO — следующее значение).
+/// вверх-вниз — 240 px на весь диапазон, как у ручек (одна запись UNDO на жест); двойной тап без движения — ввод
+/// числом, как в EQ (решение пользователя; прежде — удержание 0,5 с); тап — tap (TYPE, RATIO — следующее значение;
+/// срабатывает, когда второго тапа не было за EqPlot.doubleTap).
 struct MasterField: View {
     static let travel: CGFloat = 240
     let model: AppModel
@@ -174,8 +175,9 @@ struct MasterField: View {
     let input: () -> Void
     @State private var start: Double? = nil
     @State private var moved: Bool = false
-    @State private var held: Bool = false
-    @State private var holdTask: Task<Void, Never>? = nil
+    @State private var lastTap: Date = .distantPast
+    /// Отложенный одиночный тап (ждёт, не будет ли второго).
+    @State private var tapTask: Task<Void, Never>? = nil
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -199,34 +201,40 @@ struct MasterField: View {
             .onChanged { g in
                 if start == nil { begin() }
                 let dy: CGFloat = g.translation.height
-                if !moved && !held && abs(dy) > 10 {
-                    moved = true
-                    holdTask?.cancel()
-                }
+                if !moved && abs(dy) > 10 { moved = true }
                 guard moved, let s = start else { return }
                 let d: Double = Double(-dy / MasterField.travel)
                 model.setMaster(param, param.fromNorm(s + d))
             }
             .onEnded { _ in
-                holdTask?.cancel()
                 model.endGesture()
                 start = nil
-                if !moved && !held { tap?() }
+                if !moved { tapped() }
             }
     }
 
     private func begin() {
         start = param.toNorm(model.masterValue(param))
         moved = false
-        held = false
         model.beginGesture()
-        holdTask?.cancel()
-        let open: () -> Void = input
-        holdTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 500_000_000)
-            if Task.isCancelled || moved || start == nil { return }
-            held = true
-            open()
+    }
+
+    /// Второй тап подряд — ввод числом; одиночный — tap (с задержкой на ожидание второго).
+    private func tapped() {
+        let now = Date()
+        tapTask?.cancel()
+        tapTask = nil
+        if now.timeIntervalSince(lastTap) < EqPlot.doubleTap {
+            lastTap = .distantPast
+            input()
+            return
+        }
+        lastTap = now
+        guard let t = tap else { return }
+        tapTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 330_000_000)
+            if Task.isCancelled { return }
+            t()
         }
     }
 }
