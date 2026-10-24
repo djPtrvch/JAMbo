@@ -142,8 +142,21 @@ extension EngineIcons {
         if o.mirror {
             el.contour = true
         } else {
-            // Волна генератора — линией по всем точкам сигнала: крутой фронт не прыгает между столбиками.
-            el.wave = a.map { v in Swift.min(62.5, Swift.max(1.5, o.y0 - v * o.amp)) }
+            // Волна генератора — сплошная фигура от оси до сигнала по всем точкам (с соседними — крутой фронт
+            // залит целиком), как огибающие ударных; не прыгает между столбиками.
+            let n: Int = a.count
+            var top = [Double](repeating: 0, count: n)
+            var bot = [Double](repeating: 0, count: n)
+            for i in 0..<n {
+                let p: Double = a[Swift.max(0, i - 1)]
+                let q: Double = a[Swift.min(n - 1, i + 1)]
+                let hi: Double = Swift.max(0, Swift.max(a[i], Swift.max(p, q)))
+                let lo: Double = Swift.min(0, Swift.min(a[i], Swift.min(p, q)))
+                top[i] = Swift.min(62.5, Swift.max(1.5, o.y0 - hi * o.amp - half))
+                bot[i] = Swift.min(62.5, Swift.max(1.5, o.y0 - lo * o.amp + half))
+            }
+            el.wave = top
+            el.waveBot = bot
             el.waveX0 = o.x0
             el.waveX1 = o.x1
         }

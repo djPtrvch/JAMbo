@@ -151,8 +151,7 @@ struct SynthIcon: View {
                 continue
             }
             if !e.wave.isEmpty {
-                g.stroke(wavePath(e, k), with: .color(color),
-                         style: StrokeStyle(lineWidth: width, lineCap: .round, lineJoin: .round))
+                g.fill(wavePath(e, k), with: .color(color))
                 continue
             }
             if !e.rects.isEmpty {
@@ -181,18 +180,28 @@ struct SynthIcon: View {
         return path
     }
 
-    /// Сигнал волны — ломаная по всем точкам (433 на ширину поля), сглаженная через середины отрезков.
+    /// Волна — сплошная фигура: верхний край слева направо, нижний обратно (433 точки на ширину поля), сглажено.
     static func wavePath(_ e: IconElement, _ k: CGFloat) -> Path {
-        let n: Int = e.wave.count
-        let dx: CGFloat = CGFloat(e.waveX1 - e.waveX0) * k / CGFloat(max(1, n - 1))
-        let x0: CGFloat = CGFloat(e.waveX0) * k
-        var pts: [CGPoint] = []
-        pts.reserveCapacity(n)
-        for (i, y) in e.wave.enumerated() { pts.append(CGPoint(x: x0 + CGFloat(i) * dx, y: CGFloat(y) * k)) }
+        let n: Int = min(e.wave.count, e.waveBot.count)
         var path = Path()
-        guard let first = pts.first else { return path }
-        path.move(to: first)
-        addSmooth(&path, pts)
+        if n < 2 { return path }
+        let dx: CGFloat = CGFloat(e.waveX1 - e.waveX0) * k / CGFloat(n - 1)
+        let x0: CGFloat = CGFloat(e.waveX0) * k
+        var top: [CGPoint] = []
+        var bot: [CGPoint] = []
+        top.reserveCapacity(n)
+        bot.reserveCapacity(n)
+        for i in 0..<n { top.append(CGPoint(x: x0 + CGFloat(i) * dx, y: CGFloat(e.wave[i]) * k)) }
+        var i: Int = n - 1
+        while i >= 0 {
+            bot.append(CGPoint(x: x0 + CGFloat(i) * dx, y: CGFloat(e.waveBot[i]) * k))
+            i -= 1
+        }
+        path.move(to: top[0])
+        addSmooth(&path, top)
+        path.addLine(to: bot[0])
+        addSmooth(&path, bot)
+        path.closeSubpath()
         return path
     }
 

@@ -192,7 +192,7 @@ final class EngineIconTests: XCTestCase {
                 var d: [String: Any] = ["ink": e.ink == .secondary ? "s" : "p", "a": e.opacity ?? 1]
                 d["r"] = e.rects.map { [$0.x, $0.y, $0.w, $0.h] }
                 d["poly"] = points(e.cmds).map { [$0.0, $0.1] }
-                if !e.wave.isEmpty { d["wave"] = [e.waveX0, e.waveX1] + e.wave }
+                if !e.wave.isEmpty { d["wave"] = [e.waveX0, e.waveX1] + e.wave + e.waveBot }
                 if e.contour { d["contour"] = true }
                 if let t = e.text { d["text"] = [t, e.textX, e.textY, e.textSize] }
                 return d
