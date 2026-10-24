@@ -192,13 +192,21 @@ extension AppModel {
             }
             return
         }
+        if channel == .master && !shiftHeld {
+            resetKnob(slot)
+            return
+        }
         guard let p = param(slot), channel == .track else { return }
         if shiftHeld {
             editTrack { t in t.clearAllLocks() }
             return
         }
         let held = heldSteps
-        if held.isEmpty { return }
+        // Без зажатого шага — сброс к своему значению по умолчанию (уже на нём — к заводскому).
+        if held.isEmpty {
+            resetKnob(slot)
+            return
+        }
         usedSteps.formUnion(held)
         editTrack { t in
             for i in held { t.clearLock(i, p.id) }

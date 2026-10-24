@@ -464,7 +464,11 @@ extension AppModel {
     /// ADD TRACK: новая дорожка сразу играет свой пустой клип (решение пользователя; в вебе стоит) — при игре
     /// с ближайшей границы, как тап по ячейке, без игры — запустится со стартом.
     func addTrack() {
-        edit { p in p.addTrack() }
+        let kd: KnobDefaults = knobDefaults
+        edit { p in
+            p.addTrack()
+            if let last = p.tracks.indices.last { kd.apply(to: &p.tracks[last]) }
+        }
         let i: Int = project.tracks.count - 1
         guard i >= 0, project.tracks[i].clipFilled(newTrackRow) else { return }
         queueClip(i, newTrackRow)

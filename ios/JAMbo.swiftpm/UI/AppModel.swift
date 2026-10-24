@@ -237,6 +237,9 @@ final class AppModel {
     var masterInput: MasterInputTarget? = nil
     /// Пресеты модулей мастера — общие для проектов (UserDefaults).
     var masterPresets: MasterPresetBook = AppModel.loadMasterPresets()
+    /// Свои значения ручек по умолчанию (UserDefaults) и ручка, на которой на секунду видно SAVED.
+    var knobDefaults: KnobDefaults = KnobDefaults.decode(UserDefaults.standard.data(forKey: AppModel.knobDefaultsKey))
+    var defaultFlash: Int? = nil
 
     init() {
         trace("model init")

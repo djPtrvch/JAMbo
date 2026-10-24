@@ -13,6 +13,7 @@ enum SettingsTab: String, CaseIterable {
     case engine = "AUDIO ENGINE"
     case output = "OUTPUT"
     case appearance = "APPEARANCE"
+    case defaults = "DEFAULTS"
 }
 
 /// Настройки приложения (общие для проектов, UserDefaults): применяются сразу.

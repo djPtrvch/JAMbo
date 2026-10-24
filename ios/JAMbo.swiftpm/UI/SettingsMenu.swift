@@ -47,6 +47,7 @@ struct SettingsPage: View {
         case .mix: MixSettings(model: model)
         case .morph: MorphSettings(model: model)
         case .level: LevelSettings(model: model)
+        case .defaults: DefaultsSettings(model: model)
         }
     }
 }
@@ -218,6 +219,23 @@ struct LevelSettings: View {
                 MenuItem(title: "RELATIVE", current: model.settings.levelRelative) { model.setLevelRelative(true) }
             }
             SettingsNote(text: "ABSOLUTE: the fader on the right is the track volume in MIX. RELATIVE: the fader trims the track down from its MIX volume — it cannot go above the MIX volume (for example −10 dB), down to silence; when the MIX volume changes, the trimmed level moves with it. The trim is kept with the track and only works in RELATIVE.")
+        }
+    }
+}
+
+/// DEFAULTS: свои значения ручек по умолчанию (KnobDefaults) — как запомнить и сбросить; забыть все.
+struct DefaultsSettings: View {
+    let model: AppModel
+
+    var body: some View {
+        let n: Int = model.knobDefaultsCount
+        return VStack(alignment: .leading, spacing: 8) {
+            FieldLabel(title: "KNOB DEFAULTS")
+            SettingsNote(text: "SHIFT + hold a knob: its value becomes the default (the knob shows SAVED). Double tap a knob: back to its default; double tap again: back to the factory value. Your defaults are used by NEW projects and ADD TRACK; saved projects stay as they are. Sound knobs keep their own defaults for the sampler and for each synth engine.")
+            SettingsNote(text: n == 0 ? "No saved defaults." : "Saved defaults: \(n).")
+            HStack(spacing: 4) {
+                MenuItem(title: "FORGET ALL", enabled: n > 0, red: true) { model.clearKnobDefaults() }
+            }
         }
     }
 }

@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// Сетка ручек 4×4: палец вверх-вниз (240 px — весь ход), мультитач. С зажатым шагом — p-lock (жёлтый),
-/// двойной тап с зажатым шагом — снять p-lock, SHIFT + двойной тап — снять все p-lock дорожки.
+/// двойной тап с зажатым шагом — снять p-lock, без шага — сброс к своему значению по умолчанию (уже на нём — к
+/// заводскому), SHIFT + удержание — запомнить значение по умолчанию, SHIFT + двойной тап — снять все p-lock дорожки.
 /// MST: параметры мастера (без p-lock). MIX: громкости дорожек (с зажатым шагом — p-lock на шагах MIX); справа от
 /// ручки — M, S, ● (стем — S11); двойной тап — меню дорожки (по серой — ADD TRACK), с зажатым шагом — снять p-lock;
 /// удержание ручки 0,5 с без движения и протягивание — перестановка дорожек.
@@ -138,8 +139,12 @@ struct KnobGrid: View {
             turn.consumed = true
         } else {
             lastTap[s] = Date()
-            // SHIFT + тап по Dly Time или Speed LFO — по темпу / свободно.
-            if model.shiftHeld { model.knobShiftTap(s) }
+            // SHIFT: короткий тап (при отпускании) — Dly Time и Speed LFO по темпу / свободно; удержание 0,6 с —
+            // значение ручки — своё по умолчанию.
+            if model.shiftHeld && model.channel != .mix {
+                turn.shiftTap = true
+                armSave(id, s)
+            }
         }
         // С зажатой SHIFT ручки не крутятся.
         if model.shiftHeld { turn.consumed = true }
@@ -155,6 +160,18 @@ struct KnobGrid: View {
         // С зажатым шагом ручка ставит p-lock — перестановки дорожек нет.
         if model.channel == .mix && s < model.project.tracks.count && !turn.consumed && model.heldSteps.isEmpty {
             armLift(id, s, p)
+        }
+    }
+
+    /// SHIFT + удержание ручки 0,6 с — запомнить её значение по умолчанию (тап при отпускании тогда не считается).
+    private func armSave(_ id: SpatialEventCollection.Event.ID, _ s: Int) {
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 600_000_000)
+            guard var t = turns[id], t.shiftTap, model.shiftHeld else { return }
+            t.shiftTap = false
+            turns[id] = t
+            lastTap[s] = nil
+            model.saveKnobDefault(s)
         }
     }
 
@@ -215,6 +232,7 @@ struct KnobGrid: View {
 
     private func up(_ id: SpatialEventCollection.Event.ID) {
         guard let turn = turns.removeValue(forKey: id) else { return }
+        if turn.shiftTap { model.knobShiftTap(turn.slot) }
         if !turns.values.contains(where: { $0.slot == turn.slot }) { model.knobFingers.remove(turn.slot) }
         model.endGesture()
         if let l = lift, l.id == id {
@@ -244,6 +262,8 @@ struct KnobTurn {
     var consumed: Bool = false
     /// Назначение источника (1–4): накопитель — степень −1…+1.
     var lfo: Int? = nil
+    /// SHIFT + касание: при отпускании до 0,6 с — тап (по темпу / свободно).
+    var shiftTap: Bool = false
 }
 
 /// Ручка сетки: с назначенным LFO/ENV — перерисовка каждый кадр (кольцо модуляции идёт за источником).
@@ -253,11 +273,12 @@ struct KnobCell: View {
 
     var body: some View {
         let st: KnobState = model.knobState(slot)
+        let saved: Bool = model.defaultFlash == slot
         return Group {
             if st.assign != nil {
-                TimelineView(.animation) { _ in KnobView(state: st, mod: model.modulatedNorm(st)) }
+                TimelineView(.animation) { _ in KnobView(state: st, mod: model.modulatedNorm(st), saved: saved) }
             } else {
-                KnobView(state: st)
+                KnobView(state: st, saved: saved)
             }
         }
     }
@@ -270,6 +291,8 @@ struct KnobView: View {
     let state: KnobState
     /// Положение с модуляцией (0…1); nil — без назначения.
     var mod: Double? = nil
+    /// Только что запомнено как значение по умолчанию — вместо значения SAVED.
+    var saved: Bool = false
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -297,8 +320,9 @@ struct KnobView: View {
                 text = p.format(p.fromNorm(m))
             }
         }
+        if saved { text = "SAVED" }
         return Text(text)
-            .font(.system(size: 11))
+            .font(.system(size: 11, weight: saved ? .bold : .regular))
             .monospacedDigit()
             .multilineTextAlignment(.center)
             .foregroundStyle(state.locked ? theme.accent : theme.text)

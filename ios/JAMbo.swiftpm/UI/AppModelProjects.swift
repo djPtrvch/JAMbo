@@ -111,7 +111,9 @@ extension AppModel {
     func newProject() {
         session = ProjectSession.fresh(projects)
         UserDefaults.standard.set(session.id, forKey: AppModel.currentKey)
-        loadProject(Project())
+        var p = Project()
+        knobDefaults.apply(to: &p)
+        loadProject(p)
         projectChanged()
     }
 
