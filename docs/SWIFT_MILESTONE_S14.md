@@ -58,6 +58,21 @@
 - IMPORT строк: строки называются именем проекта (Project.importedRowName: несколько — «имя 2», до 12 знаков).
 - CoreTests — 323 (testVoiceSurvivesMoveAndRebind, testSynthNoteMovesWithTrack, testClipVolumes, testRowNamesFromProject).
 
+## S14za — правки пользователя (готово, на iPad проверено частично)
+- Duck вместо Sidechain в подписях: ручка 3.4 Duck, FX Duck Attack / Release / Source / Curve, вкладка SETTINGS → DUCK (DUCK SENDS), SELF-TEST — DUCK; ключи sc.* и sidechain прежние. SC HPF компрессора мастера — не Duck, не менялся.
+- Delay: Dly Spread — 2.3, Dly Filter — 2.4; Params.fxIds — отдельный список в прежнем порядке (номера FxRack не зависят от сетки), fxCount 18. Dly Sync (скрытый FX dly.sync, по умолчанию 1): SHIFT + тап по Dly Time — по темпу или 10…2000 мс (Params.dlyFreeMs, ручка Params.dlyTimeFree — плавная, тот же ключ dly.time 0…11); время при переключении сохраняется.
+- LFO по темпу: lfoN.sync у звука дорожки (SoundData.lfoSync), SHIFT + тап по Speed; пункт — по месту на ходе ручки (Params.lfoDivs, 14 пунктов), ModEngine.begin(bpm:). SHIFT + тап срабатывает при отпускании; SHIFT + двойной тап по-прежнему снимает p-lock.
+- SAVE нового проекта: окно имени со случайным свободным именем (ProjectSession.randomName, прилагательное + существительное, ≤ 24).
+- Клавиатура: Scales.topOctave — октава не выше той, где верхняя нота (с CHORD — верх аккорда) ≤ 127; проверено тестом: ноты клавиш всех гамм, тоник и октав доходят до снимка секвенсора без изменений.
+- MORPH: ALL TRACKS по умолчанию ON; чёрная линия внутри кнопки — пока ALL TRACKS выключен.
+- Свои значения по умолчанию (KnobDefaults, UserDefaults): SHIFT + удержание ручки 0,6 с — запомнить (SAVED), двойной тап — сброс (ещё раз — к заводскому); области sampler, synthN, mod, fx, mst; действуют в NEW и ADD TRACK; SETTINGS → DEFAULTS — FORGET ALL.
+- Окно при MIX (MixOverview): без заголовка, уровень дорожек одной полосой на 16 местах, без приглушения Duck.
+- Иконки движков: волны ANALOG, FM, WTABLE, SUB — сплошная фигура от оси до сигнала по 433 точкам (IconElement.wave, waveBot), огибающие ударных — сглаженный контур (contour), штрихи и ось — скруглённые; rects — для сверки с прототипом. Окно ICONS убрано (IconGallery удалён).
+- WTABLE: таблица показа с окном Ланцоша (σ-фактор) — без звона Гиббса верх PWM не дёргается (было ±1,8 из 64, стало ±0,2); при смене дорожки иконка сразу на её значениях (IconMotion.follow).
+- Нота сэмпла: окна YIN — в громкой части (не тише 10 % пика, до 1,5 с), короткие удары — окном 1024. Проверка на синтетике: шум и металл 808 — 0 ложных из 64; тоны E1…E7 — 0 неверных из 300, 6 пропусков (E1, G1 со спадом 30 мс). По спектру ноту не угадываем — решение пользователя: точность важнее.
+- CoreTests — 331 (TempoSyncTests, ScaleRecordTests, KnobDefaultsTests, testPitchShortPercussion).
+- На iPad проверено: превью MIX, иконки, WTABLE PWM, нота конги; остальное — нет.
+
 ## S14a — замеры (готово, замер на iPad сделан)
 - Колбэк: RenderProfile (Core/Util) — метки на уровне блока (не на отсчёт), время от прошлой метки — в раздел: Seq (снимки, команды, транспорт, начало MOD и FX), Samples (голоса сэмплера, прослушивание), Synth, EQ (дорожки и мастер), Mix, FX, Master (SAT, COMP, CLIP, LIM, выход), Meters (метры, скоп, спектры, стемы). За секунду звука — средняя и наибольшая доля блока, с RESET — худшая (seqlock). Часы — DispatchTime (на Apple — mach_absolute_time), ~25 чтений на блок.
 - Интерфейс: FrameMeter (UI) — CADisplayLink: fps, средний и худший кадр, пропущенные кадры (промежуток > 1,5 кадра); время drain (главный поток, 60 раз в секунду). Перерыв дольше 0,5 с (фон) — не пропуск.
