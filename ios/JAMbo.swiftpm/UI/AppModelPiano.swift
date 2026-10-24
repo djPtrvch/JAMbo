@@ -37,7 +37,7 @@ extension AppModel {
     }
 
     func setOctave(_ o: Int) {
-        let o2 = min(Scales.octaveMax, max(Scales.octaveMin, o))
+        let o2 = min(topOctave, max(Scales.octaveMin, o))
         if o2 == octave { return }
         octaves[selectedTrack] = o2
         // Ноты маркеров нарезки идут от первой клавиши клавиатуры.
@@ -55,6 +55,12 @@ extension AppModel {
     func toggleRec() {
         recOn.toggle()
         endRecTake()
+    }
+
+    /// Верхняя октава клавиатуры выбранной дорожки (ноты не выше 127).
+    var topOctave: Int {
+        return Scales.topOctave(scale: project.scale, root: project.root, octaves: settings.pianoOctaves,
+                                chord: chordMode[selectedTrack])
     }
 
     var keyCount: Int {

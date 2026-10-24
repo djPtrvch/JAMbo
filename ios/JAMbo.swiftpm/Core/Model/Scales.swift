@@ -66,6 +66,15 @@ public enum Scales {
         return min(maxKeys, all[wrap(scale, all.count)].steps.count * octaves + 1)
     }
 
+    /// Верхняя октава клавиатуры, при которой самая высокая нота (с CHORD — верх аккорда верхней клавиши) не выше
+    /// 127: выше пианоролл её не показывает и MIDI не отправляет.
+    public static func topOctave(scale: Int, root: Int, octaves: Int, chord: Bool) -> Int {
+        let last: Int = keyCount(scale: scale, octaves: octaves) - 1 + (chord ? 4 : 0)
+        var o: Int = octaveMax
+        while o > octaveMin && note(scale: scale, root: root, octave: o, degree: last) > 127 { o -= 1 }
+        return o
+    }
+
     /// Трезвучие от ступени degree (ноты гаммы через одну).
     public static func chord(scale: Int, root: Int, octave: Int, degree: Int) -> [Int] {
         return [0, 2, 4].map { note(scale: scale, root: root, octave: octave, degree: degree + $0) }

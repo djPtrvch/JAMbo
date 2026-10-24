@@ -84,7 +84,8 @@ final class AppModel {
     /// пока нот не выбрали; от неё же — ноты маркеров нарезки дорожки.
     var octaves: [Int] = [Int](repeating: Scales.octaveDef, count: Params.maxTracks)
     /// Октава клавиатуры выбранной дорожки.
-    var octave: Int { return octaves[selectedTrack] }
+    /// Не выше topOctave: при смене ноты, гаммы, CHORD или числа октав — сама опускается.
+    var octave: Int { return min(octaves[selectedTrack], topOctave) }
     /// Настройки приложения (клавиатура, запись) — в UserDefaults, общие для проектов.
     private(set) var settings: AppSettings = AppModel.loadSettings()
     /// REC: ноты клавиатуры пишутся в секвенсор, пока идёт игра.
