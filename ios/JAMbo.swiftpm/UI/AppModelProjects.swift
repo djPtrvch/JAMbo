@@ -55,7 +55,7 @@ extension AppModel {
 
     private func autosaveSnapshot() -> (Project, ProjectInfo)? {
         // Во время перехода MIX — новый проект без строки PREV (forSave).
-        let snap = savedProject
+        let snap = autosavedProject
         if !session.needsAutosave(snap) { return nil }
         session.lastAuto = snap
         return (snap, session.autosaveInfo(now: Date().timeIntervalSince1970))

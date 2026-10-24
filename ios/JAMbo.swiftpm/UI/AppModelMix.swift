@@ -97,8 +97,22 @@ extension AppModel {
         trace("mix end")
     }
 
-    /// Проект для записи на диск: во время перехода — новый проект без PREV; темп старого проекта не пишется.
+    /// Проект для SAVE, SAVE AS, EXPORT и пометки unsaved: во время перехода — новый проект без PREV; темп старого
+    /// проекта не пишется. CROSSFADER OFF во время игры: мастер — тот, что звучит (старого проекта; решение
+    /// пользователя: сохранённые проекты сами не меняются).
     var savedProject: Project {
+        var p = project.forSave(mix)
+        if globalsHold != nil {
+            var cur = MixGlobals(p)
+            cur.holdMaster(MixGlobals(project))
+            cur.apply(to: &p)
+        }
+        if let b = bpmHold { p.bpm = b }
+        return p
+    }
+
+    /// Проект для autosave: мастер — нового проекта (каким станет после остановки).
+    var autosavedProject: Project {
         var p = project.forSave(mix)
         if let g = globalsHold {
             var cur = MixGlobals(p)
