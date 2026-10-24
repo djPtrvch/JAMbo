@@ -32,24 +32,24 @@ extension Track {
         }
     }
 
-    /// Звук по активной ячейке: клип PREV — звук старой дорожки (свой — в home), другой клип — свой.
+    /// Звук по активной ячейке (без смены ячейки): у клипа со своим звуком (src) — он (свой — в home), у клипа без
+    /// своего — звук дорожки. Пока home есть, звук дорожки — звук активного клипа (правки идут в него).
     public mutating func settleSound() {
-        let prev: TrackSound? = clips[slot]?.src
-        if let src = prev, home == nil {
+        let src: TrackSound? = clipFilled(slot) ? clips[slot]!.src : nil
+        if let s = src, home == nil {
             home = sound
-            sound = src
-        } else if prev == nil, let own = home {
-            if let k = clips.lastIndex(where: { $0?.src != nil }) { clips[k]!.src = sound }
+            sound = s
+        } else if src == nil, let own = home {
             sound = own
             home = nil
         }
     }
 
-    /// Звук для клипа PREV (prev) или для остальных клипов — для снимка звука, когда колбэк уже переключил клип,
-    /// а дорожка в модели ещё нет.
-    public func sound(prev: Bool) -> TrackSound? {
-        if home != nil { return prev ? sound : home }
-        return prev ? clips[Params.patternSlots - 1]?.src : sound
+    /// Звук, которым звучит клип k (для снимка звука: колбэк мог уже переключить клип, а дорожка в модели — нет).
+    public func sound(slot k: Int) -> TrackSound {
+        if k == slot { return sound }
+        if clipFilled(k), let s = clips[k]!.src { return s }
+        return home ?? sound
     }
 }
 
@@ -148,6 +148,7 @@ extension Project {
             if i < tracks.count, let c = tracks[i].clips[tracks[i].slot],
                c.pages.contains(where: { $0.contains { $0.on } }) {
                 var pc = c
+                // Звук, которым клип звучал (у клипа со своим звуком — его).
                 pc.src = tracks[i].sound
                 prev = pc
                 let wait: Bool = i < leaving.count && leaving[i]
@@ -190,11 +191,8 @@ extension Project {
                 t.stopped = true
             }
             t.clips[last] = tr.hidden[t.id]
-            if let own = t.home {
-                t.sound = own
-                t.home = nil
-            }
-            for k in t.clips.indices where t.clips[k]?.src != nil { t.clips[k]!.src = nil }
+            // Звук — по активной ячейке: у импортированного клипа — свой, иначе — звук дорожки.
+            t.settleSound()
             if t.open == last && t.clips[last] == nil { t.open = t.slot }
             tracks[i] = t
         }
@@ -224,13 +222,9 @@ extension Project {
         return p
     }
 
-    /// Гамма и нота клипа дорожки t: prev — клипа PREV, иначе активного (не PREV); без своих — проекта.
-    public func clipKey(_ t: Int, prev: Bool) -> (scale: Int, root: Int) {
-        guard t >= 0 && t < tracks.count else { return (scale, root) }
-        let tr = tracks[t]
-        let k: Int = prev ? Project.prevIndex : tr.slot
-        if !prev && prevRow && k == Project.prevIndex { return (scale, root) }
-        guard k >= 0 && k < tr.clips.count, let c = tr.clips[k] else { return (scale, root) }
+    /// Гамма и нота клипа k дорожки t; без своих — проекта.
+    public func clipKey(_ t: Int, slot k: Int) -> (scale: Int, root: Int) {
+        guard t >= 0 && t < tracks.count, tracks[t].clipFilled(k), let c = tracks[t].clips[k] else { return (scale, root) }
         return (c.scale ?? scale, c.root ?? root)
     }
 

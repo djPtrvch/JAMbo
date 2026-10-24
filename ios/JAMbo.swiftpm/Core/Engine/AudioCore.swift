@@ -89,22 +89,26 @@ public final class AudioCore: @unchecked Sendable {
 
     /// Новые снимки (основной поток, после каждой правки): звук — всегда (дёшево), паттерны — если изменились.
     /// samples — загруженные сэмплы по ключу, map — SLICE NOTES.
+    /// Ячейки второго звука дорожек в последнем снимке (id дорожки → ячейка; основной поток).
+    private var altKeep: [Int: Int] = [:]
+
     public func publish(_ project: Project, samples: [String: SampleData] = [:], map: SliceMap = .chromatic, octave: Int = 3,
                         octaves: [Int] = [],
                         tables: [String: WtTable] = [:], scSends: SidechainSends = SidechainSends(),
                         muteTails: Bool = false, levelRelative: Bool = true, master: [Double]? = nil,
-                        extra: [String] = []) {
+                        extra: [String] = [], next: [Int] = []) {
         releaseRetired()
         if lastSeq == nil || !SeqSnapshot.same(lastSeq!, project) {
             lastSeq = project
             let snap = Unmanaged.passRetained(SeqSnapshot(project))
             if !snapshots.push(snap) { snap.release() }
         }
-        let snd = Unmanaged.passRetained(SoundSnapshot(project, samples: samples, map: map, octave: octave, octaves: octaves, tables: tables,
-                                                             scSends: scSends, muteTails: muteTails,
-                                                             levelRelative: levelRelative,
-                                                             slots: sequencer.launcher.slot, master: master,
-                                                             extra: extra))
+        let made = SoundSnapshot(project, samples: samples, map: map, octave: octave, octaves: octaves, tables: tables,
+                                 scSends: scSends, muteTails: muteTails, levelRelative: levelRelative,
+                                 slots: sequencer.launcher.slot, master: master, extra: extra,
+                                 next: next, keepAlt: altKeep)
+        altKeep = made.altKeep
+        let snd = Unmanaged.passRetained(made)
         if !sounds.push(snd) { snd.release() }
     }
 

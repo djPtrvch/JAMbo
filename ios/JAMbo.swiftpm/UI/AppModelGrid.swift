@@ -142,12 +142,12 @@ extension AppModel {
         let t = project.tracks[i]
         let idle: Bool = !playing || t.stopped
         if !t.clipFilled(k) {
-            if idle { mutatePlay({ p in p.tracks[i].slot = k; p.tracks[i].settleSound(); p.tracks[i].stopped = true }, publish: true) }
+            if idle { mutatePlay({ p in p.tracks[i].moveSlot(k); p.tracks[i].stopped = true }, publish: true) }
             openClip(i, k)
             return
         }
         if k != t.slot && idle {
-            mutatePlay({ p in p.tracks[i].slot = k; p.tracks[i].settleSound(); p.tracks[i].stopped = true }, publish: true)
+            mutatePlay({ p in p.tracks[i].moveSlot(k); p.tracks[i].stopped = true }, publish: true)
         }
         openClip(i, k)
         viewPage = project.tracks[i].clipRange(k)?.lowerBound ?? 0
@@ -167,10 +167,11 @@ extension AppModel {
         }
     }
 
-    /// Копия клипа PREV — только паттерн (звук старой дорожки остаётся в PREV).
+    /// Копия клипа со своим звуком — с ним (звук привязан к клипу); копия клипа PREV — только паттерн (звук старой
+    /// дорожки остаётся в PREV).
     func copyClip(_ c: CellRef) {
-        clipClipboard = project.tracks[c.track].clips[c.row]
-        clipClipboard?.src = nil
+        clipClipboard = project.tracks[c.track].clipCopy(c.row)
+        if isPrev(c.row) { clipClipboard?.src = nil }
     }
 
     func pasteClip(_ c: CellRef) {
@@ -192,15 +193,15 @@ extension AppModel {
         heldSteps.removeAll()
     }
 
-    /// Перетаскивание: независимая копия клипа (его паттерн, гамма, нота) в любую ячейку любого столбца.
+    /// Перетаскивание: независимая копия клипа (его паттерн, гамма, нота, свой звук) в любую ячейку любого столбца.
     func dropClip(from a: CellRef, to b: CellRef) {
         if a == b { return }
-        guard var clip = project.tracks[a.track].clips[a.row] else { return }
+        guard var clip = project.tracks[a.track].clipCopy(a.row) else { return }
         if isPrev(b.row) {
             deny(b)
             return
         }
-        clip.src = nil
+        if isPrev(a.row) { clip.src = nil }
         edit { p in p.tracks[b.track].setClip(b.row, clip) }
         viewPage = min(viewPage, seq.pages.count - 1)
     }

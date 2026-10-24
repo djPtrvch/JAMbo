@@ -53,10 +53,9 @@ final class TransitionTests: XCTestCase {
         next.tracks[0].clips[0]!.scale = 5
         next.tracks[0].clips[0]!.root = 7
         var (p, _) = old.mixed(into: next, playing: true, leaving: [])
-        XCTAssertTrue(p.clipKey(0, prev: true) == (3, 2), "PREV — гамма старого клипа")
-        XCTAssertTrue(p.clipKey(0, prev: false) == (p.scale, p.root), "играет PREV — свой звук без своего клипа")
+        XCTAssertTrue(p.clipKey(0, slot: last) == (3, 2), "PREV — гамма старого клипа")
         p.tracks[0].activate(0)
-        XCTAssertTrue(p.clipKey(0, prev: false) == (5, 7), "новый клип — своя гамма")
+        XCTAssertTrue(p.clipKey(0, slot: p.tracks[0].slot) == (5, 7), "новый клип — своя гамма")
     }
 
     func testNoPlayLeavesAllStopped() {
@@ -93,12 +92,12 @@ final class TransitionTests: XCTestCase {
         XCTAssertEqual(p.tracks[0].sample, "new0")
         XCTAssertNil(p.tracks[0].home)
         XCTAssertNotEqual(p.tracks[0].params["smp.tune"], 5)
-        XCTAssertEqual(p.tracks[0].sound(prev: true)?.params["smp.tune"], 5)
-        XCTAssertEqual(p.tracks[0].sound(prev: false)?.sample, "new0")
+        XCTAssertEqual(p.tracks[0].sound(slot: last).params["smp.tune"], 5)
+        XCTAssertEqual(p.tracks[0].sound(slot: 0).sample, "new0")
         p.tracks[0].activate(last)
         XCTAssertEqual(p.tracks[0].sample, "old0")
         XCTAssertEqual(p.tracks[0].params["smp.tune"], 5)
-        XCTAssertEqual(p.tracks[0].sound(prev: false)?.sample, "new0")
+        XCTAssertEqual(p.tracks[0].sound(slot: 0).sample, "new0")
     }
 
     func testEndAndSave() {
@@ -152,20 +151,24 @@ extension TransitionTests {
         let slots = UnsafeMutablePointer<Int>.allocate(capacity: Params.maxTracks)
         defer { slots.deallocate() }
         slots.initialize(repeating: 0, count: Params.maxTracks)
-        let snap = SoundSnapshot(p, samples: [:], map: .chromatic, slots: slots)
+        // Играет PREV (звук старой дорожки), следующим запустится клип строки 1 (звук новой).
+        slots[0] = last
+        let snap = SoundSnapshot(p, samples: [:], map: .chromatic, slots: slots, next: [0, 0])
         let d = snap.data
         XCTAssertEqual(d.alt[0], 1)
-        XCTAssertEqual(d.alt[1], 0)
-        XCTAssertEqual(d.param(0, VoiceParam.pitch), -3)
-        XCTAssertEqual(d.sound[d.s(0)], SoundKey.hash(""))
-        slots[0] = last
+        XCTAssertEqual(d.alt[1], 0, "у дорожки 1 звук клипов одинаковый — второго нет")
         XCTAssertEqual(d.param(0, VoiceParam.pitch), 7)
         XCTAssertEqual(d.sound[d.s(0)], SoundKey.hash("mi:17"))
-        // Без второго звука ячейка PREV ничего не меняет.
-        slots[1] = last
-        XCTAssertEqual(d.s(1), 1)
-        // После конца перехода второго звука нет.
+        slots[0] = 0
+        XCTAssertEqual(d.param(0, VoiceParam.pitch), -3)
+        XCTAssertEqual(d.sound[d.s(0)], SoundKey.hash(""))
+        // Колбэк запустил клип 0, модель догнала: клип остаётся на втором звуке (без переключения посреди игры).
         var q = p
+        q.tracks[0].activate(0)
+        let snap1 = SoundSnapshot(q, samples: [:], map: .chromatic, slots: slots, keepAlt: snap.altKeep)
+        XCTAssertEqual(snap1.data.s(0), Params.maxTracks)
+        XCTAssertEqual(snap1.data.param(0, VoiceParam.pitch), -3)
+        // После конца перехода второго звука нет.
         q.endMix(MixTransition(from: MixGlobals(p), to: MixGlobals(p)))
         let snap2 = SoundSnapshot(q, samples: [:], map: .chromatic, slots: slots)
         XCTAssertEqual(snap2.data.alt[0], 0)

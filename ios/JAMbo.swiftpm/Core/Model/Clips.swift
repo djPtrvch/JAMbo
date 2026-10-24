@@ -8,13 +8,30 @@ extension Track {
         return k >= 0 && k < clips.count && clips[k] != nil
     }
 
-    /// Сделать ячейку k активной; открытый клип идёт за активным, если был им. Переход MIX: клип PREV приносит
-    /// звук старой дорожки, другой клип возвращает свой (settleSound).
+    /// Сделать ячейку k активной; открытый клип идёт за активным, если был им. Клип со своим звуком (src: клип PREV
+    /// перехода MIX, импортированный клип) приносит его, клип без своего — звук дорожки (moveSlot).
     public mutating func activate(_ k: Int) {
         if open == slot { open = k }
-        if home != nil && clips[slot]?.src != nil { clips[slot]!.src = sound }
+        moveSlot(k)
+    }
+
+    /// Активная ячейка — k (open не трогается). Звук прежнего клипа со своим звуком (правки) — обратно в его src,
+    /// звук дорожки возвращается из home; у нового клипа со своим звуком он становится звуком дорожки, свой — в home.
+    public mutating func moveSlot(_ k: Int) {
+        if let own = home {
+            if clipFilled(slot) && clips[slot]!.src != nil { clips[slot]!.src = sound }
+            sound = own
+            home = nil
+        }
         slot = k
         settleSound()
+    }
+
+    /// Копия клипа k: у клипа со своим звуком — его звук сейчас (у активного правки ещё в звуке дорожки).
+    public func clipCopy(_ k: Int) -> Clip? {
+        guard clipFilled(k), var c = clips[k] else { return nil }
+        if k == slot && home != nil && c.src != nil { c.src = sound }
+        return c
     }
 
     /// Правка клипа k (не открытого): например, запись с REC — в играющий клип, что бы ни было открыто.
@@ -38,7 +55,17 @@ extension Track {
 
     /// Клип в ячейку k (вместо прежнего) — независимая копия.
     public mutating func setClip(_ k: Int, _ c: Clip?) {
+        if k != slot {
+            clips[k] = c
+            return
+        }
+        // Активная ячейка: прежний свой звук клипа уходит, звук — нового клипа (или дорожки).
+        if let own = home {
+            sound = own
+            home = nil
+        }
         clips[k] = c
+        settleSound()
     }
 
     /// Ближайшая пустая ячейка ниже k (потом сверху), −1 — свободных нет.
@@ -108,8 +135,9 @@ extension Project {
             let t = tracks[i]
             if t.clipFilled(r) { continue }
             if plusCopy && !t.stopped && !t.blank && audible(i) {
-                tracks[i].clips[r] = t.clips[t.slot]
-                tracks[i].clips[r]?.src = nil
+                tracks[i].clips[r] = t.clipCopy(t.slot)
+                // Копия клипа PREV — только паттерн (звук старой дорожки остаётся в PREV).
+                if prevRow && t.slot == Project.prevIndex { tracks[i].clips[r]?.src = nil }
             } else {
                 tracks[i].putEmptyClip(r, scale: scale, root: root)
             }
@@ -124,7 +152,7 @@ extension Project {
         let lim = rowLimit
         for i in tracks.indices {
             var c = tracks[i].clips
-            c.insert(c[k], at: k + 1)
+            c.insert(tracks[i].clipCopy(k), at: k + 1)
             c.remove(at: lim)
             tracks[i].clips = c
             if tracks[i].slot > k && tracks[i].slot < lim { tracks[i].slot += 1 }
@@ -151,10 +179,16 @@ extension Project {
             if slot == k {
                 active = fallback
                 tracks[i].stopped = true
+                // Свой звук удалённого клипа уходит вместе с ним.
+                if let own = tracks[i].home {
+                    tracks[i].sound = own
+                    tracks[i].home = nil
+                }
             }
             let open = tracks[i].open
             tracks[i].clips = c
             tracks[i].slot = active
+            tracks[i].settleSound()
             tracks[i].open = open == k ? fallback : (open > k && open < lim ? open - 1 : open)
         }
         scenes.remove(at: k)
@@ -190,7 +224,7 @@ extension Project {
     }
 
     public func copyRow(_ k: Int) -> RowClip {
-        return RowClip(clips: tracks.map { $0.clips[k] }, scene: scenes[k])
+        return RowClip(clips: tracks.map { $0.clipCopy(k) }, scene: scenes[k])
     }
 
     /// PASTE строки: клипы дорожек (пустые ячейки копии — пустые), имя и повторы.

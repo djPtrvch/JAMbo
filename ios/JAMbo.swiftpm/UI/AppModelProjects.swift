@@ -158,4 +158,19 @@ extension AppModel {
         projectChanged()
         refreshProjects()
     }
+
+    /// IMPORT строк (решение пользователя): строки проекта id с тригами — в свободные строки текущего (UNDO), звук —
+    /// у клипов; игра не останавливается. Возвращает, сколько строк встало (0 — некуда или нечего).
+    func importProjectRows(id: String) -> Int {
+        let store = projects
+        guard let f = saveQueue.sync(execute: { store.load(id) }) else {
+            refreshProjects()
+            return 0
+        }
+        var n = 0
+        edit { p in n = p.importRows(from: f.doc) }
+        if n > 0 { loadSamples(project.sampleKeys) }
+        trace("import rows ← \(f.info.name): \(n)")
+        return n
+    }
 }

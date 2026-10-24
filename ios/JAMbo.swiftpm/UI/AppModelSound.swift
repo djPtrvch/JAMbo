@@ -36,10 +36,18 @@ extension AppModel {
     // MARK: — снимки звука
 
     func publishAudio() {
-        // Таблицы WTABLE дорожек: готовые — в снимок, недостроенные — в фоне, по готовности снимок публикуется заново.
+        // Таблицы WTABLE дорожек (и звуков клипов): готовые — в снимок, недостроенные — в фоне, по готовности снимок
+        // публикуется заново.
         var tables: [String: WtTable] = [:]
+        var keys: [String] = []
         for t in project.tracks {
-            let key = t.table
+            keys.append(t.table)
+            if let h = t.home { keys.append(h.table) }
+            for c in t.clips { if let s = c?.src { keys.append(s.table) } }
+        }
+        let next: [Int] = nextSlots
+        publishedNext = next
+        for key in keys {
             if tables[key] != nil { continue }
             if let wt = wavetables.table(key, done: { [weak self] in
                 self?.wavetableSerial += 1
@@ -52,8 +60,30 @@ extension AppModel {
                            tables: tables,
                            scSends: settings.scSends, muteTails: settings.muteTails,
                            levelRelative: settings.levelRelative, master: mixMaster,
-                           extra: libPreviewKey.map { [$0] } ?? [])
+                           extra: libPreviewKey.map { [$0] } ?? [], next: next)
         ensureRoots()
+    }
+
+    /// Клип, который дорожка, вероятно, запустит следующим (−1 — неизвестно): ожидающий, ожидающая строка, следующая
+    /// строка (строки идут дальше), без игры — строка старта.
+    var nextSlots: [Int] {
+        let rows: Int = project.visibleRows
+        var row: Int = -1
+        if live.sceneQueued >= 0 {
+            row = live.sceneQueued
+        } else if !playing {
+            row = min(project.arrStart, rows - 1)
+        } else if live.sceneRow >= 0 && !project.rowLoop {
+            if live.sceneRow + 1 < rows {
+                row = live.sceneRow + 1
+            } else if !project.arrEndStop {
+                row = min(project.arrStart, rows - 1)
+            }
+        }
+        return project.tracks.indices.map { t in
+            let q: Int = t < live.queued.count ? live.queued[t] : Launcher.none
+            return q >= 0 ? q : row
+        }
     }
 
     /// TABLE: встроенная таблица WTABLE на дорожку (UNDO).

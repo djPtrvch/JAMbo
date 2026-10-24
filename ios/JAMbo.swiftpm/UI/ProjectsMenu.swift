@@ -146,6 +146,13 @@ struct ProjectsPage: View {
                     opening = nil
                     close()
                     model.mixProject(id: info.id)
+                }, importRows: {
+                    opening = nil
+                    if model.importProjectRows(id: info.id) > 0 {
+                        close()
+                    } else {
+                        failure = "Nothing to import: the project has no patterns or the grid has no free rows."
+                    }
                 })
             }
         }
@@ -217,11 +224,12 @@ struct ProjectsPage: View {
     }
 }
 
-/// Окно открытия проекта: текст, LOAD и MIX, пояснение.
+/// Окно открытия проекта: текст, LOAD, MIX и IMPORT, пояснение.
 struct OpenProjectPanel: View {
     let text: String
     let load: () -> Void
     let mix: () -> Void
+    let importRows: () -> Void
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -230,8 +238,9 @@ struct OpenProjectPanel: View {
             HStack(spacing: 4) {
                 MenuItem(title: "LOAD", action: load)
                 MenuItem(title: "MIX", action: mix)
+                MenuItem(title: "IMPORT", action: importRows)
             }
-            Text("LOAD replaces the current project now. MIX keeps the playing patterns in the bottom row (PREV) and blends tempo and settings with the crossfader.")
+            Text("LOAD replaces the current project now. MIX keeps the playing patterns in the bottom row (PREV) and blends tempo and settings with the crossfader. IMPORT adds the project’s rows with their sounds to free rows of this grid.")
                 .font(.system(size: 12)).foregroundStyle(theme.dim)
         }
         .frame(width: 300)

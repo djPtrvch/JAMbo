@@ -39,10 +39,12 @@ public struct SoundData {
     public static let maxSlices = 8192
 
     public var trackCount: Int = 0
-    /// Переход MIX (S10): у дорожки t второй звук — для клипа PREV (звук старой дорожки), на номере t + maxTracks
-    /// в таблицах звука (ручки, звук, сэмплы, таблица, MOD, Sidechain, EQ дорожки). Какой звук действует — по клипу,
-    /// который сейчас играет в колбэке (slotRef — Launcher.slot): ячейка PREV — второй.
+    /// Звук у клипа (клип PREV перехода MIX, импортированные клипы): у дорожки t первый звук — активного клипа в
+    /// модели, второй — клипа altSlot[t] (ожидающего запуска или следующей строки), на номере t + maxTracks в таблицах
+    /// звука (ручки, звук, сэмплы, таблица, MOD, Sidechain, EQ дорожки). Какой звук действует — по клипу, который
+    /// сейчас играет в колбэке (slotRef — Launcher.slot): ячейка altSlot — второй (alt — второй звук есть).
     public var alt: UnsafeMutablePointer<UInt8>
+    public var altSlot: UnsafeMutablePointer<Int>
     public var slotRef: UnsafeMutablePointer<Int>
     /// Сэмплов в таблице entries (оба звука).
     public var entryTotal: Int = 0
@@ -101,12 +103,10 @@ public struct SoundData {
     /// (выход — в этом же блоке, как в вебе); в кольце источников одна дорожка слышит прошлый блок.
     public var eqOrder: UnsafeMutablePointer<Int>
 
-    public static let prevSlot = Params.patternSlots - 1
-
-    /// Номер звука дорожки t в таблицах звука: t или t + maxTracks (играет клип PREV со вторым звуком).
+    /// Номер звука дорожки t в таблицах звука: t или t + maxTracks (играет клип altSlot со вторым звуком).
     @inline(__always)
     public func s(_ t: Int) -> Int {
-        return alt[t] != 0 && slotRef[t] == SoundData.prevSlot ? t + SoundData.maxTracks : t
+        return alt[t] != 0 && slotRef[t] == altSlot[t] ? t + SoundData.maxTracks : t
     }
 
     /// Параметры EQ дорожки t (второй звук — за каналами EqSpec.channels).
@@ -174,6 +174,8 @@ public final class SoundSnapshot: @unchecked Sendable {
     private let keepTables: [WtTable]
     /// Свой буфер slotRef (снимок без ядра — в тестах).
     private let ownSlots: UnsafeMutablePointer<Int>?
+    /// Ячейки второго звука (id дорожки → ячейка) — keepAlt следующего снимка.
+    public private(set) var altKeep: [Int: Int] = [:]
     public static var liveCount = 0
 
     /// samples — загруженные сэмплы по ключу; map, scale, root — ноты маркеров по порядку (SLICE NOTES).
@@ -181,10 +183,13 @@ public final class SoundSnapshot: @unchecked Sendable {
     /// (Launcher.slot; nil — свой буфер, все на первой ячейке). master — параметры мастера кроссфейдера перехода MIX
     /// (MixBlend.master; nil — из проекта). extra — сэмплы предпрослушки библиотеки (вне дорожек).
     /// octaves — октава клавиатуры каждой дорожки (ноты маркеров нарезки идут от её первой клавиши); нет — octave.
+    /// next — клип, который дорожка, вероятно, запустит следующим (ожидает запуска или следующая строка; −1 или нет —
+    /// неизвестно). keepAlt — ячейка второго звука прошлого снимка (id дорожки → ячейка): если дорожка играет её, клип
+    /// остаётся на втором звуке (без переключения звука посреди игры).
     public init(_ project: Project, samples: [String: SampleData], map: SliceMap, octave: Int = 3, octaves: [Int] = [],
                 tables: [String: WtTable] = [:], scSends: SidechainSends = SidechainSends(), muteTails: Bool = false,
                 levelRelative: Bool = true, slots: UnsafeMutablePointer<Int>? = nil, master: [Double]? = nil,
-                extra: [String] = []) {
+                extra: [String] = [], next: [Int] = [], keepAlt: [Int: Int] = [:]) {
         let tracks = SoundData.maxTracks
         let tracks2 = tracks * 2
         var own: UnsafeMutablePointer<Int>? = nil
@@ -198,7 +203,7 @@ public final class SoundSnapshot: @unchecked Sendable {
         let slices = SoundData.maxSlices
         let pc = VoiceParam.count
         var d = SoundData(
-            alt: .allocate(capacity: tracks), slotRef: slotRef,
+            alt: .allocate(capacity: tracks), altSlot: .allocate(capacity: tracks), slotRef: slotRef,
             trackId: .allocate(capacity: tracks), params: .allocate(capacity: tracks2 * pc),
             gain: .allocate(capacity: tracks), trim: .allocate(capacity: tracks), open: .allocate(capacity: tracks),
             midiOut: .allocate(capacity: tracks), sound: .allocate(capacity: tracks2),
@@ -222,14 +227,41 @@ public final class SoundSnapshot: @unchecked Sendable {
         if let m = master, m.count == MasterChain.Index.count {
             for k in 0..<m.count { d.master[k] = m[k] }
         }
-        // Звук дорожки для остальных клипов (side 0) и для клипа PREV (side 1; нет — второго звука нет).
+        // Два звука дорожки: активного клипа и следующего (next). Активный клип остаётся на той стороне, где играл
+        // (keepAlt), следующий — на другой; клипы с одинаковым звуком — на первой стороне, второго звука нет.
         let n0 = Swift.min(project.tracks.count, tracks)
-        var sounds: [TrackSound?] = []
-        for side in 0..<2 {
-            for t in 0..<tracks { sounds.append(t < n0 ? project.tracks[t].sound(prev: side == 1) : nil) }
-        }
         d.alt.initialize(repeating: 0, count: tracks)
-        for t in 0..<n0 where project.prevRow && sounds[tracks + t] != nil { d.alt[t] = 1 }
+        d.altSlot.initialize(repeating: -1, count: tracks)
+        var slotOf: [Int] = [Int](repeating: 0, count: tracks * 2)
+        var sounds: [TrackSound?] = [TrackSound?](repeating: nil, count: tracks * 2)
+        var chosen: [Int: Int] = [:]
+        for t in 0..<n0 {
+            let tr: Track = project.tracks[t]
+            let a: Int = tr.slot
+            let q0: Int = t < next.count ? next[t] : -1
+            let q: Int = q0 != a && tr.clipFilled(q0) ? q0 : -1
+            let nextSound: TrackSound? = q >= 0 ? tr.sound(slot: q) : nil
+            if keepAlt[tr.id] == a {
+                // Активный клип уже на втором звуке: там и остаётся, следующий (или звук дорожки) — на первом.
+                d.alt[t] = 1
+                d.altSlot[t] = a
+                sounds[tracks + t] = tr.sound
+                slotOf[tracks + t] = a
+                sounds[t] = nextSound ?? (tr.home ?? tr.sound)
+                slotOf[t] = q >= 0 ? q : a
+                chosen[tr.id] = a
+            } else {
+                sounds[t] = tr.sound
+                slotOf[t] = a
+                if let ns = nextSound, ns != tr.sound {
+                    d.alt[t] = 1
+                    d.altSlot[t] = q
+                    sounds[tracks + t] = ns
+                    slotOf[tracks + t] = q
+                    chosen[tr.id] = q
+                }
+            }
+        }
         for ch in 0..<(EqSpec.channels + tracks) {
             var eq: Eq? = nil
             if ch == EqSpec.masterChannel {
@@ -337,9 +369,8 @@ public final class SoundSnapshot: @unchecked Sendable {
                 }
             }
             d.sound[u] = SoundKey.hash(snd.sample)
-            // Гамма и нота нарезки — клипа, который играет этот звук (решение пользователя: своя у каждого клипа):
-            // второй звук — клипа PREV (старого проекта), свой — активного клипа дорожки.
-            let clipKey: (scale: Int, root: Int) = project.clipKey(t, prev: u >= tracks)
+            // Гамма и нота нарезки — клипа, который играет этот звук (решение пользователя: своя у каждого клипа).
+            let clipKey: (scale: Int, root: Int) = project.clipKey(t, slot: slotOf[u])
             if let wt = tables[snd.table] {
                 keepTables.append(wt)
                 d.tableRef[u] = WtRef(frames: wt.frames, sizes: UnsafePointer(wt.sizes), data: UnsafePointer(wt.data))
@@ -392,6 +423,7 @@ public final class SoundSnapshot: @unchecked Sendable {
         self.keep = keep
         self.keepTables = keepTables
         ownSlots = own
+        altKeep = chosen
         SoundSnapshot.liveCount += 1
     }
 
@@ -399,6 +431,7 @@ public final class SoundSnapshot: @unchecked Sendable {
         SoundSnapshot.liveCount -= 1
         ownSlots?.deallocate()
         data.alt.deallocate()
+        data.altSlot.deallocate()
         data.trackId.deallocate()
         data.params.deallocate()
         data.gain.deallocate()

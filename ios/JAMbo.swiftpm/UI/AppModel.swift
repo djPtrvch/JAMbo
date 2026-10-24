@@ -144,6 +144,8 @@ final class AppModel {
     /// CROSSFADER OFF (решение пользователя): громкости, выход, мастер и EQ мастера старого проекта держатся, пока идёт
     /// игра, — громкость не прыгает; здесь — настройки нового проекта (для записи и после остановки).
     @ObservationIgnored var globalsHold: MixGlobals? = nil
+    /// Следующие клипы дорожек в последнем снимке звука (nextSlots).
+    @ObservationIgnored var publishedNext: [Int] = []
     /// Анимация MIX: клипы опускаются в PREV из строк окна (дорожка → строка окна), пока mixDropDone false.
     var mixDrop: [Int: Int] = [:]
     var mixDropDone: Bool = true
@@ -301,6 +303,8 @@ final class AppModel {
         }, onPlay: { [weak self] e in
             self?.playEvent(e)
         })
+        // Звук у клипа: колбэку — звук клипа, который дорожка запустит следующей (ожидание, строка).
+        if nextSlots != publishedNext { publishAudio() }
     }
 
     // MARK: — транспорт
@@ -437,9 +441,9 @@ final class AppModel {
             // Что играет, UNDO не меняет: активная ячейка и остановка — как сейчас.
             if let cur = project.tracks.first(where: { $0.id == p.tracks[i].id }) {
                 p.tracks[i].stopped = cur.stopped
-                if p.tracks[i].clipFilled(cur.slot) || cur.blank { p.tracks[i].slot = cur.slot }
+                if p.tracks[i].clipFilled(cur.slot) || cur.blank { p.tracks[i].moveSlot(cur.slot) }
                 p.tracks[i].open = cur.open
-                // Переход MIX: звук — по активной ячейке (клип PREV — звук старой дорожки).
+                // Звук — по активной ячейке (клип со своим звуком — его).
                 p.tracks[i].settleSound()
             }
         }
