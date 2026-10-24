@@ -138,7 +138,16 @@ extension EngineIcons {
             if bot > 62.5 { bot = 62.5 }
             rects.append(IconRect(o.x0 + Double(i) * w - 0.06, top, w + 0.12, bot - top))
         }
-        return IconElement(rects: rects, ink: o.ink, op: o.alpha < 1 ? o.alpha : nil)
+        var el = IconElement(rects: rects, ink: o.ink, op: o.alpha < 1 ? o.alpha : nil)
+        if o.mirror {
+            el.contour = true
+        } else {
+            // Волна генератора — линией по всем точкам сигнала: крутой фронт не прыгает между столбиками.
+            el.wave = a.map { v in Swift.min(62.5, Swift.max(1.5, o.y0 - v * o.amp)) }
+            el.waveX0 = o.x0
+            el.waveX1 = o.x1
+        }
+        return el
     }
 
     /// Серая ось на высоте y (axisG прототипа).

@@ -150,8 +150,13 @@ struct SynthIcon: View {
                 g.draw(label, at: CGPoint(x: CGFloat(e.textX) * k, y: CGFloat(e.textY) * k), anchor: UnitPoint(x: 0.5, y: 0.8))
                 continue
             }
+            if !e.wave.isEmpty {
+                g.stroke(wavePath(e, k), with: .color(color),
+                         style: StrokeStyle(lineWidth: width, lineCap: .round, lineJoin: .round))
+                continue
+            }
             if !e.rects.isEmpty {
-                g.fill(rectsPath(e.rects, k), with: .color(color))
+                g.fill(e.contour ? contourPath(e.rects, k) : rectsPath(e.rects, k), with: .color(color))
                 continue
             }
             let path: Path = e.circle.map { c in circlePath(c, k) } ?? cmdPath(e.cmds, k)
@@ -165,13 +170,78 @@ struct SynthIcon: View {
         }
     }
 
-    /// Колонки одним путём: перекрытия не темнеют (ненулевое правило, все прямоугольники в одну сторону).
+    /// Отдельные прямоугольники (ось, штрихи HAT) одним путём, со скруглёнными концами: перекрытия не темнеют.
     static func rectsPath(_ rects: [IconRect], _ k: CGFloat) -> Path {
         var path = Path()
         for r in rects {
-            path.addRect(CGRect(x: CGFloat(r.x) * k, y: CGFloat(r.y) * k, width: CGFloat(r.w) * k, height: CGFloat(r.h) * k))
+            let rc = CGRect(x: CGFloat(r.x) * k, y: CGFloat(r.y) * k, width: CGFloat(r.w) * k, height: CGFloat(r.h) * k)
+            let rad: CGFloat = min(rc.width, rc.height) / 2
+            path.addRoundedRect(in: rc, cornerSize: CGSize(width: rad, height: rad))
         }
         return path
+    }
+
+    /// Сигнал волны — ломаная по всем точкам (433 на ширину поля), сглаженная через середины отрезков.
+    static func wavePath(_ e: IconElement, _ k: CGFloat) -> Path {
+        let n: Int = e.wave.count
+        let dx: CGFloat = CGFloat(e.waveX1 - e.waveX0) * k / CGFloat(max(1, n - 1))
+        let x0: CGFloat = CGFloat(e.waveX0) * k
+        var pts: [CGPoint] = []
+        pts.reserveCapacity(n)
+        for (i, y) in e.wave.enumerated() { pts.append(CGPoint(x: x0 + CGFloat(i) * dx, y: CGFloat(y) * k)) }
+        var path = Path()
+        guard let first = pts.first else { return path }
+        path.move(to: first)
+        addSmooth(&path, pts)
+        return path
+    }
+
+    /// Огибающая из столбиков — сплошная фигура: верх по центрам столбиков слева направо, низ обратно, края
+    /// сглажены; разрывы (тихие столбики) — отдельные фигуры.
+    static func contourPath(_ rects: [IconRect], _ k: CGFloat) -> Path {
+        var path = Path()
+        var run: [IconRect] = []
+        func flush() {
+            guard let a = run.first, let b = run.last else { return }
+            if run.count == 1 {
+                path.addRect(CGRect(x: CGFloat(a.x) * k, y: CGFloat(a.y) * k, width: CGFloat(a.w) * k, height: CGFloat(a.h) * k))
+                run.removeAll()
+                return
+            }
+            var top: [CGPoint] = [CGPoint(x: CGFloat(a.x) * k, y: CGFloat(a.y) * k)]
+            var bot: [CGPoint] = [CGPoint(x: CGFloat(b.x + b.w) * k, y: CGFloat(b.y + b.h) * k)]
+            for r in run { top.append(CGPoint(x: CGFloat(r.x + r.w / 2) * k, y: CGFloat(r.y) * k)) }
+            top.append(CGPoint(x: CGFloat(b.x + b.w) * k, y: CGFloat(b.y) * k))
+            for r in run.reversed() { bot.append(CGPoint(x: CGFloat(r.x + r.w / 2) * k, y: CGFloat(r.y + r.h) * k)) }
+            bot.append(CGPoint(x: CGFloat(a.x) * k, y: CGFloat(a.y + a.h) * k))
+            path.move(to: top[0])
+            addSmooth(&path, top)
+            path.addLine(to: bot[0])
+            addSmooth(&path, bot)
+            path.closeSubpath()
+            run.removeAll()
+        }
+        for r in rects {
+            // Соседний столбик — вплотную справа (у столбиков lane — перекрытие 0,12).
+            if let p = run.last, abs(r.x - (p.x + p.w)) > 0.3 { flush() }
+            run.append(r)
+        }
+        flush()
+        return path
+    }
+
+    /// Плавно через точки (путь уже стоит в pts[0]): квадратичные кривые к серединам отрезков.
+    static func addSmooth(_ path: inout Path, _ pts: [CGPoint]) {
+        let n: Int = pts.count
+        if n < 2 { return }
+        var i = 1
+        while i < n - 1 {
+            let p: CGPoint = pts[i]
+            let q: CGPoint = pts[i + 1]
+            path.addQuadCurve(to: CGPoint(x: (p.x + q.x) / 2, y: (p.y + q.y) / 2), control: p)
+            i += 1
+        }
+        path.addLine(to: pts[n - 1])
     }
 
     static func circlePath(_ c: (Double, Double, Double), _ k: CGFloat) -> Path {

@@ -76,6 +76,13 @@ public struct IconElement: Sendable {
     public var fill = false
     public var opacity: Double? = nil
     public var dash = false
+    /// Плавное рисование (решение пользователя, вместо столбиков): wave — сам сигнал (y на поле 64 от waveX0 до
+    /// waveX1, рисуется линией), contour — столбики огибающей рисуются сглаженным контуром. rects остаются для
+    /// сверки с прототипом.
+    public var wave: [Double] = []
+    public var waveX0: Double = 4
+    public var waveX1: Double = 60
+    public var contour = false
 
     init(_ cmds: [IconCmd], op: Double? = nil, fill: Bool = false, dash: Bool = false, ink: IconInk = .primary) {
         self.cmds = cmds
