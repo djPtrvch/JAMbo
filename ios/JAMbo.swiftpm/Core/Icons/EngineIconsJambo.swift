@@ -106,4 +106,24 @@ extension EngineIcons {
             return va + (vb - va) * ff
         }
     }
+
+    /// Кадр таблицы показа (WtDisplay — 256 кадров) для wtableIcon: между кадрами и отсчётами — линейно.
+    public static func displayFrame(_ d: WtDisplay) -> (Double, Double) -> Double {
+        let frames: Int = WtDisplay.frames
+        let size: Int = WtDisplay.size
+        let data: [Float] = d.data
+        return { pos, p in
+            let fpos = clamp(pos) * Double(frames - 1)
+            let fi = Swift.min(frames - 2, Int(fpos.rounded(.down)))
+            let ff = fpos - Double(fi)
+            let x = frac(p) * Double(size)
+            let j = Swift.min(size - 1, Int(x.rounded(.down)))
+            let j1 = (j + 1) % size
+            let fj = x - Double(j)
+            func at(_ row: Int, _ k: Int) -> Double { return Double(data[row * size + k]) }
+            let va = at(fi, j) + (at(fi, j1) - at(fi, j)) * fj
+            let vb = at(fi + 1, j) + (at(fi + 1, j1) - at(fi + 1, j)) * fj
+            return va + (vb - va) * ff
+        }
+    }
 }

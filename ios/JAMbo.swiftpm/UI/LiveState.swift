@@ -67,6 +67,21 @@ final class LiveState {
         if beatFlash && now >= beatUntil { beatFlash = false }
     }
 
+    /// Дорожка from встала на место to: ход, ожидание и позиция шага переезжают с ней (как Launcher.move).
+    func moveTrack(_ from: Int, _ to: Int) {
+        let n: Int = Params.maxTracks
+        if from == to || from < 0 || to < 0 || from >= n || to >= n { return }
+        func mv<T>(_ a: inout [T]) {
+            let x: T = a.remove(at: from)
+            a.insert(x, at: to)
+        }
+        mv(&queued)
+        mv(&trackStart)
+        mv(&playPos)
+        mv(&flashing)
+        mv(&flashUntil)
+    }
+
     func stopped() {
         beat = -1
         beatFlash = false

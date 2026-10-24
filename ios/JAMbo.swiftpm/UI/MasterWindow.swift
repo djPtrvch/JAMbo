@@ -7,6 +7,8 @@ struct MasterWindowView: View {
     let module: Int
     @State private var frame: CGRect = .zero
     @State private var text: String = ""
+    /// Имя занято: SAVE — номер пресета с этим именем (OVERWRITE / SAVE AS), RENAME — (пресет, занятый).
+    @State private var clash: NameClash? = nil
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -25,6 +27,13 @@ struct MasterWindowView: View {
             Button("OK") { enter() }
             Button("Cancel", role: .cancel) {}
         }
+        .modifier(NameClashAlert(clash: $clash, overwrite: { k in
+            model.saveMasterPreset(module, name: text, over: k)
+        }, again: { c in
+            // Текст окна ставит onChange(of: masterInput).
+            let t: MasterInputTarget = c.renaming.map { MasterInputTarget.rename($0) } ?? MasterInputTarget.save
+            model.masterInput = t
+        }))
     }
 
     @ViewBuilder
@@ -81,8 +90,16 @@ struct MasterWindowView: View {
             guard let p = Params.byId[id], let v = MasterInput.parse(p, text) else { return }
             model.setMaster(p, v)
         case .save:
+            if let k = model.masterPresets.index(module, named: text) {
+                clash = NameClash(name: text, existing: k, renaming: nil)
+                return
+            }
             model.saveMasterPreset(module, name: text)
         case .rename(let k):
+            if model.masterPresets.index(module, named: text, except: k) != nil {
+                clash = NameClash(name: text, existing: -1, renaming: k)
+                return
+            }
             model.renameMasterPreset(module, k, to: text)
         case nil:
             break
@@ -194,6 +211,12 @@ struct MasterField: View {
         .background(start != nil ? theme.panel2 : theme.panel, in: RoundedRectangle(cornerRadius: Layout.radius))
         .contentShape(Rectangle())
         .gesture(drag)
+        .modifier(GestureCancelGuard {
+            if start != nil {
+                start = nil
+                model.endGesture()
+            }
+        })
     }
 
     private var drag: some Gesture {
@@ -207,7 +230,7 @@ struct MasterField: View {
                 model.setMaster(param, param.fromNorm(s + d))
             }
             .onEnded { _ in
-                model.endGesture()
+                if start != nil { model.endGesture() }
                 start = nil
                 if !moved { tapped() }
             }
@@ -236,5 +259,66 @@ struct MasterField: View {
             if Task.isCancelled { return }
             t()
         }
+    }
+}
+
+/// Имя пресета занято: SAVE — existing (номер пресета с этим именем), RENAME — renaming (номер переименуемого).
+struct NameClash: Equatable {
+    let name: String
+    let existing: Int
+    let renaming: Int?
+}
+
+/// Предупреждение «имя уже есть» (как в библиотеке и PROJECTS): SAVE — OVERWRITE / SAVE AS… / CANCEL,
+/// RENAME — RENAME… / CANCEL. again — снова окно ввода.
+struct NameClashAlert: ViewModifier {
+    @Binding var clash: NameClash?
+    let overwrite: (Int) -> Void
+    let again: (NameClash) -> Void
+
+    func body(content: Content) -> some View {
+        let shown = Binding<Bool>(get: { clash != nil }, set: { if !$0 { clash = nil } })
+        return content.alert("“\(clash?.name ?? "")” already exists", isPresented: shown) {
+            if let c = clash, c.renaming == nil {
+                Button("OVERWRITE", role: .destructive) {
+                    clash = nil
+                    overwrite(c.existing)
+                }
+                Button("SAVE AS…") { reopen(c) }
+            } else if let c = clash {
+                Button("RENAME…") { reopen(c) }
+            }
+            Button("CANCEL", role: .cancel) { clash = nil }
+        }
+    }
+
+    /// Окно ввода — после закрытия этого (два alert подряд в одном кадре SwiftUI не показывает).
+    private func reopen(_ c: NameClash) {
+        clash = nil
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            again(c)
+        }
+    }
+}
+
+/// Жест, который система отменила (onEnded не пришёл): cleanup закрывает его запись UNDO — иначе следующие правки
+/// сливаются с ней в одну отмену. После обычного конца жеста cleanup ничего не делает (флаги уже сброшены).
+struct GestureCancelGuard: ViewModifier {
+    @GestureState private var down: Bool = false
+    let cleanup: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .simultaneousGesture(DragGesture(minimumDistance: 0).updating($down) { _, s, _ in s = true })
+            .onChange(of: down) { _, d in
+                if d { return }
+                // Чуть позже: при обычном конце жеста сначала срабатывает его onEnded.
+                let c: () -> Void = cleanup
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 60_000_000)
+                    c()
+                }
+            }
     }
 }

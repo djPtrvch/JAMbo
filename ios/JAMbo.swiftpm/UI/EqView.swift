@@ -16,6 +16,7 @@ struct EqView: View {
     @State private var input: EqInput? = nil
     @State private var inputBand: Int = -1
     @State private var text: String = ""
+    @State private var clash: NameClash? = nil
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -54,6 +55,17 @@ struct EqView: View {
             Button("OK") { enter() }
             Button("Cancel", role: .cancel) {}
         }
+        .modifier(NameClashAlert(clash: $clash, overwrite: { k in
+            model.saveEqPreset(name: text, over: k)
+        }, again: { c in
+            if let k = c.renaming {
+                input = .rename(k)
+                text = c.name
+            } else {
+                input = .save
+                text = model.eqPresets.nextName()
+            }
+        }))
     }
 
     /// Ввод имени пресета (не числа).
@@ -123,8 +135,18 @@ struct EqView: View {
         case .range:
             if let v = EqFormat.parseNum(text) { model.setEqDynParams(k, range: v) }
         case .save:
+            if let k = model.eqPresets.index(named: text) {
+                input = nil
+                clash = NameClash(name: text, existing: k, renaming: nil)
+                return
+            }
             model.saveEqPreset(name: text)
         case .rename(let i):
+            if model.eqPresets.index(named: text, except: i) != nil {
+                input = nil
+                clash = NameClash(name: text, existing: -1, renaming: i)
+                return
+            }
             model.renameEqPreset(i, to: text)
         case nil:
             break

@@ -68,6 +68,8 @@ struct MidiRuntime {
     var toggles = MidiToggles()
     var down: Set<String> = []
     var gesture: DispatchWorkItem? = nil
+    /// Чей поворот идёт (энкодер) — другой начинает новую запись UNDO.
+    var gestureKey: String = ""
     /// STEP n: момент нажатия по индексу шага (быстрое отпускание ставит или снимает триг).
     var stepDown: [Int: Double] = [:]
     /// Последнее нажатие ручки по позиции (двойное — двойной тап).

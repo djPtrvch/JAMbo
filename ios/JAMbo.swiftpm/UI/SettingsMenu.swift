@@ -65,7 +65,7 @@ struct EngineSettings: View {
     }
 }
 
-/// RECORD: QUANTIZE, OVERDUB (AUTOMATION RECORDING — с автоматизацией, S13).
+/// RECORD: QUANTIZE, STEP SWIPE (OVERDUB — в меню клавиатуры; AUTOMATION RECORDING — с автоматизацией).
 struct RecordSettingsView: View {
     let model: AppModel
 
@@ -73,8 +73,6 @@ struct RecordSettingsView: View {
         VStack(alignment: .leading, spacing: 8) {
             ToggleRow(title: "QUANTIZE", isOn: model.settings.record.quantize) { model.setQuantize($0) }
             SettingsNote(text: "ON: a note played with REC lands on the nearest step. OFF: on the step where it was played.")
-            ToggleRow(title: "OVERDUB", isOn: model.settings.record.overdub) { model.setOverdub($0) }
-            SettingsNote(text: "ON: new notes are added to the pattern. OFF: steps the recording passes over are cleared, only the new notes stay.")
             FieldLabel(title: "STEP SWIPE")
             HStack(spacing: 4) {
                 MenuItem(title: "LENGTH", current: !model.settings.stepPaint) { model.updateSettings { $0.stepPaint = false } }

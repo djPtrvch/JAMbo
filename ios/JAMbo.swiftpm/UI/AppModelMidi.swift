@@ -102,13 +102,20 @@ extension AppModel {
         }
     }
 
-    /// Поворот энкодера — одна запись в UNDO, пока он крутится (пауза 0,3 с завершает жест).
-    private func midiGesture() {
+    /// Поворот энкодера — одна запись в UNDO, пока он крутится (пауза 0,3 с завершает жест); другой энкодер —
+    /// новая запись (решение пользователя: UNDO по одному параметру, не все сразу).
+    private func midiGesture(_ key: String) {
         if let g = midiRun.gesture {
             g.cancel()
+            if midiRun.gestureKey != key {
+                midiRun.gesture = nil
+                endGesture()
+                beginGesture()
+            }
         } else {
             beginGesture()
         }
+        midiRun.gestureKey = key
         let end = DispatchWorkItem { [weak self] in
             guard let self = self else { return }
             self.midiRun.gesture = nil
@@ -123,7 +130,7 @@ extension AppModel {
         // GLOBAL — параметр своего места, что бы ни было на экране.
         if let place = m.place, !place.matches(midiContext) {
             ensureAudio()
-            midiGesture()
+            midiGesture("knob \(s) \(String(describing: m.src))")
             withKnobPlace(place) {
                 if param(s) != nil { setKnob(s, norm: input.knobValue(m, cur: knobStart(s))) }
             }
@@ -131,7 +138,7 @@ extension AppModel {
         }
         guard param(s) != nil else { return }
         ensureAudio()
-        midiGesture()
+        midiGesture("knob \(s) \(String(describing: m.src))")
         if heldSteps.isEmpty && canAssign, let src = heldSource {
             let a = assign(s)
             let amount: Double = a?.lfo == src ? (a?.amount ?? 0) : 0
@@ -203,7 +210,7 @@ extension AppModel {
         let lo: Double = Params.bpmMin
         let hi: Double = Params.bpmMax
         let cur: Double = (project.bpm - lo) / (hi - lo)
-        midiGesture()
+        midiGesture("bpm")
         // Темп с MIDI — целыми BPM (решение пользователя).
         setBpm((lo + input.knobValue(m, cur: cur) * (hi - lo)).rounded())
     }
@@ -213,7 +220,7 @@ extension AppModel {
         let ch: Int = meterChannel
         let lo: Double = Params.volMin
         let cur: Double = (meterVol(ch) - lo) / -lo
-        midiGesture()
+        midiGesture("level \(ch)")
         setMeterVol(ch, lo + input.knobValue(m, cur: cur) * -lo)
     }
 

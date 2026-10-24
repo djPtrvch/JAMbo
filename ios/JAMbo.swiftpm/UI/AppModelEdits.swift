@@ -133,14 +133,6 @@ extension AppModel {
     /// Поворот: с зажатыми шагами — p-lock на всех, иначе ручка дорожки.
     func setKnob(_ slot: Int, norm: Double) {
         guard let p = param(slot) else { return }
-        if modMode {
-            modPreviewUntil = Date().addingTimeInterval(1.5)
-            // Через 1,5 с окно сэмпла возвращается (перерисовка — по записи в наблюдаемое поле).
-            Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 1_600_000_000)
-                if Date() >= self.modPreviewUntil { self.modPreviewUntil = .distantPast }
-            }
-        }
         var v: Double = p.fromNorm(norm)
         // Pitch сэмпла по полутонам (SETTINGS → SAMPLER → PITCH: SEMITONES).
         if p.id == "pitch" && settings.pitchSemitones && channel == .track && !fxMode && !modMode { v = v.rounded() }

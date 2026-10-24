@@ -167,9 +167,8 @@ extension AppModel {
         let grid: [ParamDef] = Params.synthGrids[engine]
         func norm(_ slot: Int) -> Double {
             let p = grid[slot]
-            let n: Double = p.toNorm(synthValue(p))
-            if let s = p.steps { return Double(Params.stepIndex(n, s)) / Double(Swift.max(1, s - 1)) }
-            return n
+            // Ступенчатая: toNorm — уже i / (s − 1).
+            return p.toNorm(synthValue(p))
         }
         return IconValues(h: norm(0), t: norm(4), m: norm(8), q: norm(12), d: norm(5))
     }
@@ -510,6 +509,11 @@ extension AppModel {
     func moveTrack(_ from: Int, _ to: Int) {
         let id = track.id
         edit { p in p.moveTrack(from, to) }
+        // Во время игры ход дорожек переезжает с ними — сдвинутые играют дальше без паузы.
+        if playing {
+            audio.core.events.push(.moveTrack(from: from, to: to))
+            live.moveTrack(from, to)
+        }
         if let k = project.tracks.firstIndex(where: { $0.id == id }) { selectTrackIndex(k) }
     }
 

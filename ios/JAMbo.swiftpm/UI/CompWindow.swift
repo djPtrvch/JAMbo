@@ -86,6 +86,10 @@ struct CompTransfer: View {
             Canvas { ctx, size in draw(ctx, size) }
                 .contentShape(Rectangle())
                 .gesture(drag(geo.size))
+                .modifier(GestureCancelGuard {
+                    if kind > 0 { model.endGesture() }
+                    kind = -1
+                })
         }
         .background(theme.panel)
         .clipShape(RoundedRectangle(cornerRadius: Layout.radius))

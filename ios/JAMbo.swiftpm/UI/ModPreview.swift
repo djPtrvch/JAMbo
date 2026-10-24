@@ -1,7 +1,7 @@
 import SwiftUI
 
-// Миниатюры LFO1–3 и ENV в окне сэмпла (как renderLfo, renderEnv в sample.ts веба): пока держат MOD или 1,5 с после
-// поворота ручки MOD. LFO — период формы с Polarity и Invert и точка на текущей фазе; ENV — форма ADSR (без ноты —
+// Миниатюры LFO1–3 и ENV в окне сэмпла (как renderLfo, renderEnv в sample.ts веба): пока держат MOD (отпустили —
+// сразу гаснут). LFO — период формы с Polarity и Invert и точка на текущей фазе; ENV — форма ADSR (без ноты —
 // условный гейт, видны все стадии; нота короче A+D — её настоящий гейт) и точка на кривой.
 
 struct ModPreview: View {

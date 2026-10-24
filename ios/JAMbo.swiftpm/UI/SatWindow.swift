@@ -41,6 +41,12 @@ struct SatTransfer: View {
             Canvas { ctx, size in draw(ctx, size) }
                 .contentShape(Rectangle())
                 .gesture(drag)
+                .modifier(GestureCancelGuard {
+                    if start != nil {
+                        start = nil
+                        model.endGesture()
+                    }
+                })
         }
         .background(theme.panel)
         .clipShape(RoundedRectangle(cornerRadius: Layout.radius))
@@ -234,6 +240,13 @@ struct SatSpectrum: View {
             Canvas { ctx, size in draw(ctx, size) }
                 .contentShape(Rectangle())
                 .gesture(drag(geo.size))
+                .modifier(GestureCancelGuard {
+                    if focusStart != nil {
+                        focusStart = nil
+                        model.endGesture()
+                    }
+                    touching = false
+                })
         }
         .background(theme.panel)
         .clipShape(RoundedRectangle(cornerRadius: Layout.radius))

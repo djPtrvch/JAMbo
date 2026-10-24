@@ -72,8 +72,8 @@ extension AppModel {
 
     // MARK: — пресеты модулей
 
-    func saveMasterPreset(_ m: Int, name: String) {
-        masterPresets.save(m, name: name, master: project.master)
+    func saveMasterPreset(_ m: Int, name: String, over: Int? = nil) {
+        masterPresets.save(m, name: name, master: project.master, over: over)
         storeMasterPresets()
     }
 

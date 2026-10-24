@@ -49,14 +49,27 @@ public struct MasterPresetBook: Codable, Equatable, Sendable {
         return t.isEmpty ? nil : t
     }
 
+    /// Пресет модуля m с тем же именем (без учёта регистра), кроме except; nil — имя свободно.
+    public func index(_ m: Int, named name: String, except: Int = -1) -> Int? {
+        guard let n = MasterPresetBook.clean(name)?.lowercased() else { return nil }
+        let l: [MasterPreset] = list(m)
+        return l.indices.first { $0 != except && l[$0].name.lowercased() == n }
+    }
+
     /// Сохранить параметры модуля m из значений мастера проекта (пустое имя — nextName).
-    public mutating func save(_ m: Int, name: String, master: [String: Double]) {
+    /// over — заменить пресет с этим номером (OVERWRITE).
+    public mutating func save(_ m: Int, name: String, master: [String: Double], over: Int? = nil) {
         guard m >= 0 && m < lists.count else { return }
         let defs: [String: Double] = MasterChain.defaultValues()
         var v: [String: Double] = [:]
         for id in MasterPresetBook.ids(m) { v[id] = master[id] ?? defs[id] ?? 0 }
         let n: String = MasterPresetBook.clean(name) ?? nextName(m)
-        lists[m].append(MasterPreset(name: n, values: v))
+        let p = MasterPreset(name: n, values: v)
+        if let k = over, k >= 0 && k < lists[m].count {
+            lists[m][k] = p
+        } else {
+            lists[m].append(p)
+        }
     }
 
     public mutating func rename(_ m: Int, _ k: Int, to name: String) {

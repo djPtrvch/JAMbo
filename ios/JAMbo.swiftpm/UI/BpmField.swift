@@ -1,12 +1,12 @@
 import SwiftUI
 
-/// Темп: палец вверх-вниз — 4 px на 1 BPM; удержание без движения (0,5 с) — ввод числом.
+/// Темп: палец вверх-вниз — 4 px на 1 BPM; двойной тап — ввод числом (решение пользователя; прежде — удержание).
 /// Внизу — полоса фазы: 4 отрезка на такт × SYNC QUANTUM, при игре загораются до текущей доли фразы.
 struct BpmField: View {
     let model: AppModel
     @State private var start: Double? = nil
     @State private var moved: Bool = false
-    @State private var holdTask: Task<Void, Never>? = nil
+    @State private var lastTap: Date = .distantPast
     @State private var input: Bool = false
     @State private var text: String = ""
     @Environment(\.theme) private var theme
@@ -42,18 +42,15 @@ struct BpmField: View {
             .onChanged { g in
                 if start == nil { begin() }
                 let dy: CGFloat = g.translation.height
-                if abs(dy) > 10 {
-                    moved = true
-                    holdTask?.cancel()
-                }
+                if abs(dy) > 10 { moved = true }
                 if moved, let s = start {
                     model.setBpm((s - Double(dy) / 4).rounded())
                 }
             }
             .onEnded { _ in
                 start = nil
-                holdTask?.cancel()
                 model.endGesture()
+                if !moved { tapped() }
             }
     }
 
@@ -62,12 +59,17 @@ struct BpmField: View {
         model.beginGesture()
         start = model.project.bpm
         moved = false
-        holdTask?.cancel()
-        holdTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 500_000_000)
-            if Task.isCancelled || moved || start == nil { return }
+    }
+
+    /// Второй тап подряд — окно ввода.
+    private func tapped() {
+        let now = Date()
+        if now.timeIntervalSince(lastTap) < EqPlot.doubleTap {
+            lastTap = .distantPast
             text = bpmText
             input = true
+        } else {
+            lastTap = now
         }
     }
 

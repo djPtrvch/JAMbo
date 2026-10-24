@@ -90,7 +90,8 @@ struct ChoiceMenu: View {
     }
 }
 
-/// Меню клавиатуры (бутерброд под CHORD): 1 OCTAVE / 2 OCTAVES, KEY VELOCITY и SWING; правее кнопки, снизу вверх,
+/// Меню клавиатуры (бутерброд под CHORD): 1 OCTAVE / 2 OCTAVES, KEY VELOCITY, OVERDUB (из SETTINGS → RECORD — решение
+/// пользователя) и SWING; правее кнопки, снизу вверх,
 /// не выше строки шагов, шириной 4 шага.
 struct PianoMenu: View {
     let model: AppModel
@@ -129,6 +130,12 @@ struct PianoMenu: View {
             Text(model.settings.velocity
                  ? "Tap harder — louder: the iPad motion sensor feels each tap. Scales the track Velocity; REC writes it as the note velocity."
                  : "Keys play at the track Velocity.")
+                .font(.system(size: 11))
+                .foregroundStyle(theme.dim)
+            ToggleRow(title: "OVERDUB", isOn: model.settings.record.overdub) { model.setOverdub($0) }
+            Text(model.settings.record.overdub
+                 ? "REC adds new notes to the pattern."
+                 : "REC clears the steps it passes over; only the new notes stay.")
                 .font(.system(size: 11))
                 .foregroundStyle(theme.dim)
             SwingSlider(model: model)

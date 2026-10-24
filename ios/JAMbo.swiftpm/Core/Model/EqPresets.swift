@@ -30,12 +30,24 @@ public struct EqPresetBook: Codable, Equatable, Sendable {
         return "EQ \(k)"
     }
 
-    /// Сохранить полосы EQ (пустое имя — nextName; длина — как у пресетов мастера, 40 знаков).
-    public mutating func save(name: String, eq: Eq) {
+    /// Пресет с тем же именем (без учёта регистра), кроме except; nil — имя свободно.
+    public func index(named name: String, except: Int = -1) -> Int? {
+        guard let n = MasterPresetBook.clean(name)?.lowercased() else { return nil }
+        return list.indices.first { $0 != except && list[$0].name.lowercased() == n }
+    }
+
+    /// Сохранить полосы EQ (пустое имя — nextName; длина — как у пресетов мастера, 40 знаков); over — заменить
+    /// пресет с этим номером (OVERWRITE).
+    public mutating func save(name: String, eq: Eq, over: Int? = nil) {
         let n: String = MasterPresetBook.clean(name) ?? nextName()
         var bands: [EqBand?] = eq.bands
         while bands.count < EqSpec.bands { bands.append(nil) }
-        list.append(EqPreset(name: n, bands: Array(bands.prefix(EqSpec.bands))))
+        let p = EqPreset(name: n, bands: Array(bands.prefix(EqSpec.bands)))
+        if let k = over, k >= 0 && k < list.count {
+            list[k] = p
+        } else {
+            list.append(p)
+        }
     }
 
     public mutating func rename(_ k: Int, to name: String) {

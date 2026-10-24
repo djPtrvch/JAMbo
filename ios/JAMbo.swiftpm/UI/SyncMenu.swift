@@ -71,11 +71,15 @@ struct SyncClockSection: View {
     }
 }
 
-/// OFFSET: ◀ значение ▶ — шаг 1 ms, удержание стрелки — повтор (через 0,35 с, каждые 50 мс).
+/// OFFSET: ◀ значение ▶ — шаг 1 ms, удержание стрелки — повтор (через 0,35 с, каждые 50 мс); палец по значению
+/// вправо-влево — быстро, 1 ms на 3 px (решение пользователя).
 struct SyncOffsetRow: View {
+    static let pxPerMs: CGFloat = 3
     let title: String
     let value: Int
     let step: (Int) -> Void
+    /// Сколько миллисекунд уже прибавлено текущим жестом (nil — пальца нет).
+    @State private var applied: Int? = nil
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -85,10 +89,24 @@ struct SyncOffsetRow: View {
                 RepeatArrow(title: "◀") { step(-1) }
                 Text((value > 0 ? "+" : "") + "\(value) ms")
                     .font(.system(size: 13, weight: .bold)).monospacedDigit().foregroundStyle(theme.text)
-                    .frame(width: 80)
+                    .frame(width: 100, height: 44)
+                    .background(applied != nil ? theme.panel2 : theme.panel, in: RoundedRectangle(cornerRadius: 8))
+                    .contentShape(Rectangle())
+                    .gesture(swipe)
                 RepeatArrow(title: "▶") { step(1) }
             }
         }
+    }
+
+    private var swipe: some Gesture {
+        DragGesture(minimumDistance: 4)
+            .onChanged { g in
+                let units: Int = Int((g.translation.width / SyncOffsetRow.pxPerMs).rounded())
+                let done: Int = applied ?? 0
+                if units != done { step(units - done) }
+                applied = units
+            }
+            .onEnded { _ in applied = nil }
     }
 }
 

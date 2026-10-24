@@ -9,8 +9,9 @@ extension AppModel {
     /// Ручки показывают MOD: зажата MOD на дорожке (из FX и MOD — нажатая последней).
     var modMode: Bool { return modHeld && channel == .track && (!fxHeld || lastPage == .mod) }
 
-    /// Окно сэмпла показывает миниатюры LFO/ENV: держат MOD или 1,5 с после поворота ручки MOD.
-    var modPreview: Bool { return modMode || Date() < modPreviewUntil }
+    /// Окно сэмпла показывает миниатюры LFO/ENV, пока держат MOD (решение пользователя: отпустили — сразу гаснут;
+    /// в вебе — ещё 1,5 с после поворота ручки MOD).
+    var modPreview: Bool { return modMode }
 
     /// Удерживаемый источник (1–3 — LFO, 4 — ENV): нажатый последним из зажатых.
     var heldSource: Int? {

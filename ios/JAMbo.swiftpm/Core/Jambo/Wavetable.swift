@@ -162,14 +162,15 @@ public final class WtTable: @unchecked Sendable {
     }
 
     /// Спектры из амплитуд (синусная фаза или своя): a·sin(nx + φ) → коэффициент (a/2)·e^{i(φ − π/2)}.
-    static func spectraFrom(_ frames: Int, _ amp: (Double, Int) -> Double,
+    /// limit — гармоник (таблица показа окна синта — меньше).
+    static func spectraFrom(_ frames: Int, limit: Int = harmonics, _ amp: (Double, Int) -> Double,
                             _ phase: (Double, Int) -> Double = { _, _ in 0 }) -> Spectra {
         var re: [[Double]] = [], im: [[Double]] = []
         for f in 0..<frames {
             let t = frames > 1 ? Double(f) / Double(frames - 1) : 0
-            var r = [Double](repeating: 0, count: harmonics + 1)
-            var i = [Double](repeating: 0, count: harmonics + 1)
-            for n in 1...harmonics {
+            var r = [Double](repeating: 0, count: limit + 1)
+            var i = [Double](repeating: 0, count: limit + 1)
+            for n in 1...limit {
                 let a = amp(t, n)
                 if a == 0 { continue }
                 let ph = phase(t, n) - Double.pi / 2
@@ -184,13 +185,14 @@ public final class WtTable: @unchecked Sendable {
 
     static func lerp(_ a: Double, _ b: Double, _ u: Double) -> Double { a + (b - a) * u }
 
-    /// Встроенные таблицы: 64 кадра × 2048.
-    static func builtinSpectra(_ name: String) -> Spectra {
-        let fr = builtinFrames
+    /// Встроенные таблицы: 64 кадра × 2048 (frames и limit — для таблицы показа, WtDisplay).
+    static func builtinSpectra(_ name: String, frames: Int = builtinFrames, limit: Int = harmonics) -> Spectra {
+        let fr = frames
+        let lim = limit
         switch name {
         case "PWM":
             // Импульс: ширина 50 % → 5 %.
-            return spectraFrom(fr, { t, n in
+            return spectraFrom(fr, limit: lim, { t, n in
                 (2 / (Double(n) * Double.pi)) * sin(Double(n) * Double.pi * lerp(0.5, 0.05, t))
             }, { _, _ in Double.pi / 2 })
         case "ORGAN":
@@ -200,7 +202,7 @@ public final class WtTable: @unchecked Sendable {
                 [8, 8, 0, 0, 0, 0, 0, 0, 0, 0], [8, 8, 8, 0, 0, 0, 0, 0, 0, 0], [8, 6, 8, 4, 0, 3, 0, 0, 0, 0],
                 [8, 8, 8, 8, 0, 0, 0, 0, 0, 8], [6, 8, 8, 6, 4, 4, 3, 2, 2, 4], [8, 8, 8, 8, 8, 8, 8, 8, 8, 8],
             ]
-            return spectraFrom(fr) { t, n in
+            return spectraFrom(fr, limit: lim) { t, n in
                 guard let k = bars.firstIndex(of: n) else { return 0 }
                 let x = t * Double(regs.count - 1)
                 let i = Swift.min(regs.count - 2, Int(x.rounded(.down)))
@@ -210,7 +212,7 @@ public final class WtTable: @unchecked Sendable {
             // Гласные A, E, I, O, U аддитивно: огибающая трёх формант (тон таблицы ~110 Гц).
             let v: [[Double]] = [[800, 1150, 2900], [400, 1600, 2700], [350, 2300, 3000], [450, 800, 2830], [325, 700, 2530]]
             let w: [Double] = [1, 0.6, 0.3]
-            return spectraFrom(fr) { t, n in
+            return spectraFrom(fr, limit: lim) { t, n in
                 let x = t * Double(v.count - 1)
                 let i = Swift.min(v.count - 2, Int(x.rounded(.down)))
                 let u = x - Double(i)
@@ -231,7 +233,7 @@ public final class WtTable: @unchecked Sendable {
                 s = (s &* 1664525 &+ 1013904223) & 0xFFFF_FFFF
                 ph[k] = Double(s) / 4294967296 * Double.pi * 2
             }
-            return spectraFrom(fr, { t, n in
+            return spectraFrom(fr, limit: lim, { t, n in
                 let top = 1 + Int((t * 63).rounded(.down))
                 if n > top * 4 { return 0 }
                 return (n & (1 + Int((t * 7).rounded(.down)))) != 0 || n == 1 ? 1 / Double(n).squareRoot() : 0
@@ -239,7 +241,7 @@ public final class WtTable: @unchecked Sendable {
         case "METAL":
             // Инхармонические партиалы (моды стержня), растянутые вверх с кадром — металлический тон.
             let modes: [Double] = [1, 2.756, 5.404, 8.933, 13.344, 18.64]
-            return spectraFrom(fr) { t, n in
+            return spectraFrom(fr, limit: lim) { t, n in
                 let base = lerp(2, 14, t)
                 var a = 0.0
                 for (k, m) in modes.enumerated() where jsRound(m * base) == n { a += 1 / Double(k + 1) }
@@ -247,7 +249,7 @@ public final class WtTable: @unchecked Sendable {
             }
         default:
             // BASIC: синус → пила (первая половина кадров) → квадрат (вторая).
-            return spectraFrom(fr) { t, n in
+            return spectraFrom(fr, limit: lim) { t, n in
                 let saw = 1 / Double(n), sq = n % 2 == 1 ? 1 / Double(n) : 0
                 if t < 0.5 {
                     let u = t * 2
@@ -267,6 +269,27 @@ public final class WtTable: @unchecked Sendable {
 public final class WavetableStore {
     public private(set) var ready: [String: WtTable] = [:]
     private var building: Set<String> = []
+    /// Таблицы показа встроенных таблиц (окно синта; WtDisplay).
+    public private(set) var displays: [String: WtDisplay] = [:]
+    private var buildingDisplay: Set<String> = []
+
+    /// Таблица показа встроенной таблицы key, если готова; иначе — в фоне, done — когда готова. Своя таблица — nil.
+    public func display(_ key: String, done: @escaping () -> Void) -> WtDisplay? {
+        if WavetableKey.parseUser(key) != nil { return nil }
+        if let d = displays[key] { return d }
+        if buildingDisplay.contains(key) { return nil }
+        buildingDisplay.insert(key)
+        let name = WavetableKey.name(key)
+        DispatchQueue.global(qos: .utility).async {
+            let d = WtDisplay.builtin(name)
+            DispatchQueue.main.async {
+                self.displays[key] = d
+                self.buildingDisplay.remove(key)
+                done()
+            }
+        }
+        return nil
+    }
     /// Папка своих таблиц (WAV по ключу, S11b4); nil — только встроенные.
     public let userDir: URL?
 

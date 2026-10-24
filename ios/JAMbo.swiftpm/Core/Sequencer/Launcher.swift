@@ -47,6 +47,33 @@ public final class Launcher {
         }
     }
 
+    /// Дорожка from встала на место to (дорожки между ними сдвинулись): ход дорожек переезжает с ними.
+    func move(_ from: Int, _ to: Int) {
+        let n: Int = SeqData.maxTracks
+        if from == to || from < 0 || to < 0 || from >= n || to >= n { return }
+        Launcher.rotate(slot, from, to)
+        Launcher.rotate(stopped, from, to)
+        Launcher.rotate(queued, from, to)
+        Launcher.rotate(trackStart, from, to)
+    }
+
+    static func rotate<T>(_ p: UnsafeMutablePointer<T>, _ a: Int, _ b: Int) {
+        let x: T = p[a]
+        var i: Int = a
+        if a < b {
+            while i < b {
+                p[i] = p[i + 1]
+                i += 1
+            }
+        } else {
+            while i > b {
+                p[i] = p[i - 1]
+                i -= 1
+            }
+        }
+        p[b] = x
+    }
+
     /// Ожидания и строка сбрасываются (начала проходов дорожек — прежние).
     func clearQueues() {
         for t in 0..<SeqData.maxTracks where queued[t] != Launcher.none {

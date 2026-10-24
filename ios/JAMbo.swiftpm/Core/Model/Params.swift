@@ -70,6 +70,9 @@ public struct ParamDef: @unchecked Sendable {
         if let a = autoTop { return v >= MasterChain.autoValue ? 1 : (1 - a) * plain.toNorm(Swift.min(max, v)) }
         if exp { return log(v / min) / log(max / min) }
         let lin: Double = Swift.min(1, Swift.max(0, (v - min) / (max - min)))
+        // Пункты ступенчатой ручки — от начала хода до конца: первый — 0, последний — 1 (решение пользователя;
+        // значение — середина пункта).
+        if let s = steps { return s > 1 ? Double(Params.stepIndex(lin, s)) / Double(s - 1) : 0 }
         if let c = curve { return pow(lin, 1 / c) }
         return lin
     }
@@ -80,7 +83,10 @@ public struct ParamDef: @unchecked Sendable {
         if let o = offBottom { return n < o ? 0 : plain.fromNorm((n - o) / (1 - o)) }
         if let a = autoTop { return n >= 1 - a ? MasterChain.autoValue : plain.fromNorm(n / (1 - a)) }
         if let st = step { return (plain.fromNorm(n) / st).rounded() * st }
-        if let s = steps { return min + (Double(Params.stepIndex(n, s)) + 0.5) / Double(s) * (max - min) }
+        if let s = steps {
+            let i: Int = s > 1 ? Int((n * Double(s - 1)).rounded()) : 0
+            return min + (Double(i) + 0.5) / Double(s) * (max - min)
+        }
         if kind == .stepped { return (n * (max - min)).rounded() + min }
         if exp { return min * pow(max / min, n) }
         if let c = curve { return min + pow(n, c) * (max - min) }

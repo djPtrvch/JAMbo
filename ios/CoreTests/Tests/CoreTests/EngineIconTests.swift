@@ -159,6 +159,26 @@ final class EngineIconTests: XCTestCase {
         }
     }
 
+    /// PWM в окне синта (таблица показа, 256 кадров): край импульса идёт за POSITION плавно и монотонно, без прыжков
+    /// на целую колонку.
+    func testDisplayPwmEdgeMovesSmoothly() {
+        let f = EngineIcons.displayFrame(WtDisplay.builtin("PWM"))
+        var edges: [Double] = []
+        for i in 0..<40 {
+            let pos: Double = 0.3 + Double(i) * 0.002
+            let r: [IconRect] = EngineIcons.wtableIcon(IconValues(h: pos, t: 0, m: 0, q: 0), f)[0].rects
+            let tops: [Double] = r.map { Swift.max(0, 32 - $0.y) / 22 }
+            var k = 1
+            while k < tops.count && !(tops[k - 1] > 0.5 && tops[k] <= 0.5) { k += 1 }
+            XCTAssertLessThan(k, tops.count)
+            edges.append(Double(k - 1) + (tops[k - 1] - 0.5) / (tops[k - 1] - tops[k]))
+        }
+        for i in 1..<edges.count {
+            XCTAssertLessThan(abs(edges[i] - edges[i - 1]), 0.3, "шаг \(i): \(edges[i - 1]) → \(edges[i])")
+        }
+        XCTAssertLessThan(edges.last!, edges.first! - 0.8, "край сдвинулся")
+    }
+
     /// Для снапшота (ios/tools/icons/snapshot.mjs): ICON_DUMP=путь — элементы на наборах ручек снапшота в JSON.
     func testDumpForSnapshot() throws {
         guard let out = ProcessInfo.processInfo.environment["ICON_DUMP"] else { return }

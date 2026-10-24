@@ -74,8 +74,6 @@ final class AppModel {
     @ObservationIgnored var lastPageTap: (page: GridPage, at: Date)? = nil
     /// Последний тап по LFO1–3 / ENV (двойной тап — снять назначение с удерживаемой ручки).
     @ObservationIgnored var lastSourceTap: (source: Int, at: Date)? = nil
-    /// Миниатюры LFO/ENV в окне сэмпла после поворота ручки MOD (до этого момента).
-    var modPreviewUntil: Date = .distantPast
     /// Открытое меню страницы (двойной тап по миниатюре).
     var pageMenu: PageMenuState? = nil
     /// Скопированные страницы (copy в меню страницы).
@@ -448,12 +446,28 @@ final class AppModel {
             }
         }
         let bpmChanged = p.bpm != project.bpm
+        let oldIds: [Int] = project.tracks.map { $0.id }
         project = p
+        if playing { followTrackOrder(oldIds) }
         heldSteps.removeAll()
         selectedTrack = min(selectedTrack, project.tracks.count - 1)
         viewPage = min(viewPage, seq.pages.count - 1)
         if bpmChanged { audio.core.events.push(.tempo(project.bpm)) }
         changed()
+    }
+
+    /// UNDO / REDO перестановки дорожек во время игры: ход дорожек в колбэке переезжает в новый порядок.
+    private func followTrackOrder(_ oldIds: [Int]) {
+        var cur: [Int] = oldIds
+        let want: [Int] = project.tracks.map { $0.id }
+        if cur.count != want.count || Set(cur) != Set(want) { return }
+        for i in 0..<want.count {
+            guard let j = cur.firstIndex(of: want[i]), j != i else { continue }
+            let x: Int = cur.remove(at: j)
+            cur.insert(x, at: i)
+            audio.core.events.push(.moveTrack(from: j, to: i))
+            live.moveTrack(j, i)
+        }
     }
 
     func changed() {

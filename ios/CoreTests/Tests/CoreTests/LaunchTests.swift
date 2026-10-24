@@ -32,6 +32,24 @@ final class LaunchTests: XCTestCase {
         return p
     }
 
+    /// Перестановка дорожки во время игры: её ход (играет, начало прохода) переезжает с ней — триги сразу на новом месте.
+    func testMoveTrackKeepsPlaying() {
+        var p = Project()
+        for i in 0..<16 { p.tracks[0].clips[0]!.pages[0][i].on = true }
+        for t in 1..<8 { p.tracks[t].clips[0] = nil }
+        let core = AudioCore()
+        core.publish(p)
+        core.events.push(.play(true))
+        _ = run(core, frames: 6000 * 2)
+        p.moveTrack(0, 3)
+        core.publish(p)
+        core.events.push(.moveTrack(from: 0, to: 3))
+        let out = run(core, frames: 6000 * 2)
+        let trigs: [Int] = out.compactMap { if case .trig(let t, _) = $0 { return t } else { return nil } }
+        XCTAssertFalse(trigs.isEmpty)
+        XCTAssertTrue(trigs.allSatisfy { $0 == 3 }, "играет дорожка на новом месте, без паузы")
+    }
+
     func testQueuedClipStartsAtEndOfPass() {
         let core = AudioCore()
         core.publish(project())

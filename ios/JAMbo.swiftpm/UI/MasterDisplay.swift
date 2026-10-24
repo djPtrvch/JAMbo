@@ -302,6 +302,13 @@ struct LevelPlot: View {
             }
             .contentShape(Rectangle())
             .gesture(drag(geo.size.height))
+            .modifier(GestureCancelGuard {
+                if lineStart != nil {
+                    lineStart = nil
+                    model.endGesture()
+                }
+                touching = false
+            })
         }
         .background(theme.panel)
         .clipShape(RoundedRectangle(cornerRadius: Layout.radius))

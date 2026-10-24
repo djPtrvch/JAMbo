@@ -171,8 +171,8 @@ extension AppModel {
 
     // MARK: — пресеты EQ (UserDefaults «eqPresets»)
 
-    func saveEqPreset(name: String) {
-        eqPresets.save(name: name, eq: eqTarget)
+    func saveEqPreset(name: String, over: Int? = nil) {
+        eqPresets.save(name: name, eq: eqTarget, over: over)
         storeEqPresets()
     }
 
