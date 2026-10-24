@@ -81,7 +81,7 @@ extension AppModel {
     func param(_ slot: Int) -> ParamDef? {
         switch channel {
         case .track:
-            if modMode { return Params.modGrid[slot] }
+            if modMode { return modParam(slot) }
             if fxMode { return fxParam(slot) }
             let p: ParamDef = Params.grid(sound: track.sample)[slot]
             return p.id.isEmpty ? nil : p

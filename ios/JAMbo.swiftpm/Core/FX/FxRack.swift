@@ -11,6 +11,10 @@ public final class FxRack {
     static let driveOut: Float = 0.5
     /// Наибольшее время Delay, с: 1 такт при наименьшем темпе.
     static let maxDelay: Double = 4 * 60 / Params.bpmMin
+    /// Время без синхронизации — копия Params.dlyFreeMin, dlyFreeMax / dlyFreeMin, dlyFreeTop.
+    static let freeMin: Double = Params.dlyFreeMin
+    static let freeRatio: Double = Params.dlyFreeMax / Params.dlyFreeMin
+    static let freeTop: Double = Params.dlyFreeTop
 
     let sr: Double
     public let reverb: FxReverb
@@ -85,11 +89,11 @@ public final class FxRack {
         delayBeats.deallocate()
     }
 
-    /// Номера FX в Params.fxIds (сетка ряд за рядом: индекс = ряд·4 + колонка).
+    /// Номера FX в Params.fxIds (прежний порядок сетки, затем скрытые).
     static let revSize = 0, dlyTime = 1, odDrive = 2, scAttack = 3
     static let revDecay = 4, dlyFeedback = 5, odType = 6, scRelease = 7
     static let revTone = 8, dlyFilter = 9, odTone = 10, scSource = 11
-    static let revHpf = 12, dlySpread = 13, odLowcut = 14, scCurve = 15, revPredelay = 16
+    static let revHpf = 12, dlySpread = 13, odLowcut = 14, scCurve = 15, revPredelay = 16, dlySync = 17
 
     /// Начало блока: FX снимка с p-lock играющих шагов (дорожки по порядку — у последней приоритет), источник
     /// и есть ли кого приглушать.
@@ -181,7 +185,11 @@ public final class FxRack {
             }
         }
         let di = Swift.max(0, Swift.min(delayDivs - 1, Int(lv[FxRack.dlyTime].rounded())))
-        let time: Double = Swift.min(FxRack.maxDelay, delayBeats[di] * 60 / Swift.max(1, bpm))
+        // Dly Sync выключен — время в мс (10…2000 по экспоненте, как Params.dlyFreeMs).
+        let synced: Bool = lv[FxRack.dlySync] >= 0.5
+        let freeX: Double = Swift.min(1, Swift.max(0, lv[FxRack.dlyTime] / FxRack.freeTop))
+        let freeSec: Double = FxRack.freeMin * pow(FxRack.freeRatio, freeX) / 1000
+        let time: Double = Swift.min(FxRack.maxDelay, synced ? delayBeats[di] * 60 / Swift.max(1, bpm) : freeSec)
         let fb: Float = tailLeft > 0 ? 0 : Float(lv[FxRack.dlyFeedback] / 100)
         if tailLeft > 0 { tailLeft -= n }
         let dlyIn: Float = peak(inL + maxFrames, inR + maxFrames, n)

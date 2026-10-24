@@ -71,6 +71,11 @@ public final class ModEngine {
     let lfo: UnsafeMutablePointer<Double>
     /// Параметры MOD дорожки на этот блок (с p-lock).
     let p: UnsafeMutablePointer<Double>
+    /// Скорость по темпу: периоды пунктов в четвертях — копия Params.lfoDivs (колбэк не читает Swift-массивы).
+    let divBeats: UnsafeMutablePointer<Double>
+    let divCount: Int
+    static let speedMin: Double = Params.lfoSpeedMin
+    static let speedLogRange: Double = log(Params.lfoSpeedMax / Params.lfoSpeedMin)
     /// ENV: кадр запуска (−1 — не запускалась), конец гейта; живых нот дорожки.
     let envStart: UnsafeMutablePointer<Int64>
     let envGateEnd: UnsafeMutablePointer<Int64>
@@ -90,6 +95,10 @@ public final class ModEngine {
         rnd = .allocate(capacity: n * 3)
         lfo = .allocate(capacity: n * 3)
         p = .allocate(capacity: n * Params.modCount)
+        let divs = Params.lfoDivs
+        divCount = divs.count
+        divBeats = .allocate(capacity: divs.count)
+        for (k, d) in divs.enumerated() { (divBeats + k).initialize(to: d.beats) }
         envStart = .allocate(capacity: n)
         envGateEnd = .allocate(capacity: n)
         live = .allocate(capacity: n)
@@ -113,6 +122,7 @@ public final class ModEngine {
         rnd.deallocate()
         lfo.deallocate()
         p.deallocate()
+        divBeats.deallocate()
         envStart.deallocate()
         envGateEnd.deallocate()
         live.deallocate()
@@ -131,7 +141,9 @@ public final class ModEngine {
     }
 
     /// Начало блока: параметры MOD с p-lock играющего шага, выход LFO и шаг фаз на n отсчётов.
-    public func begin(_ d: SoundData, frames n: Int, lockMask: UnsafePointer<UInt16>, lockVal: UnsafePointer<Float>) {
+    /// bpm — для LFO по темпу (SHIFT + тап по Speed).
+    public func begin(_ d: SoundData, frames n: Int, lockMask: UnsafePointer<UInt16>, lockVal: UnsafePointer<Float>,
+                      bpm: Double = 120) {
         data = d
         let c = Params.modCount
         let dt: Double = Double(n) / sr
@@ -139,7 +151,8 @@ public final class ModEngine {
         while t < d.trackCount {
             let m = lockMask[t]
             // Переход MIX: параметры LFO/ENV — звука, который сейчас действует (клип PREV — старой дорожки).
-            let su = d.s(t) * c
+            let u0 = d.s(t)
+            let su = u0 * c
             var k = 0
             while k < c {
                 let i = t * c + k
@@ -153,7 +166,15 @@ public final class ModEngine {
                 let s: Double = ModEngine.shape(Int(p[b].rounded()), phase[j], rnd[j])
                 let u: Double = p[b + 3]
                 lfo[j] = (s * (1 - u) + ((s + 1) / 2) * u) * (1 - 2 * p[b + 2])
-                var ph: Double = phase[j] + dt * p[b + 1]
+                var hz: Double = p[b + 1]
+                if d.lfoSync[u0 * 3 + l] != 0 {
+                    // Пункт — по месту на ходе ручки Speed (как Params.lfoDivIndex).
+                    let x: Double = log(Swift.max(ModEngine.speedMin, hz) / ModEngine.speedMin) / ModEngine.speedLogRange
+                    let top: Double = Double(divCount - 1)
+                    let k: Int = Swift.min(divCount - 1, Swift.max(0, Int((x * top).rounded())))
+                    hz = Swift.max(1, bpm) / 60 / divBeats[k]
+                }
+                var ph: Double = phase[j] + dt * hz
                 if ph >= 1 {
                     ph = ph.truncatingRemainder(dividingBy: 1)
                     rnd[j] = rng.next() * 2 - 1

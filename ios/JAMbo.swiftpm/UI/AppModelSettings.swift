@@ -6,7 +6,7 @@ import Foundation
 enum SettingsTab: String, CaseIterable {
     case record = "RECORD"
     case sampler = "SAMPLER"
-    case sidechain = "SIDECHAIN"
+    case sidechain = "DUCK"
     case mix = "MIX"
     case morph = "MORPH"
     case level = "LEVEL"

@@ -213,7 +213,7 @@ public enum Params {
             smooth("reverb", "Reverb", 0, 100, 0, Fmt.pct),
             smooth("delay", "Delay", 0, 100, 0, Fmt.pct),
             smooth("drive", "Drive", 0, 100, 0, Fmt.pct),
-            smooth("sidechain", "Sidechain", 0, 100, 0, Fmt.pct),
+            smooth("sidechain", "Duck", 0, 100, 0, Fmt.pct),
         ],
         [
             smooth("pan", "Pan", -64, 63, 0, bipolar: true, Fmt.pan),
@@ -317,12 +317,39 @@ public enum Params {
 
     public static let lfoWaves = ["Sine", "Triangle", "Saw", "Square", "Random"]
 
+    /// Скорость LFO по темпу (SHIFT + тап по Speed): период в четвертях, от медленного к быстрому — ход ручки Speed
+    /// делится на пункты поровну.
+    public static let lfoDivs: [(name: String, beats: Double)] = [
+        ("8 bars", 32), ("4 bars", 16), ("2 bars", 8), ("1 bar", 4), ("1/2", 2), ("1/4D", 1.5), ("1/4", 1),
+        ("1/4T", 2.0 / 3), ("1/8D", 0.75), ("1/8", 0.5), ("1/8T", 1.0 / 3), ("1/16", 0.25), ("1/16T", 1.0 / 6),
+        ("1/32", 0.125),
+    ]
+    /// Флажки синхронизации LFO1–3 (значения звука дорожки, 1 — по темпу; не на сетке, без p-lock).
+    public static let lfoSyncIds: [String] = ["lfo1.sync", "lfo2.sync", "lfo3.sync"]
+    public static let lfoSpeedMin = 0.05
+    public static let lfoSpeedMax = 20.0
+
+    /// Пункт lfoDivs для значения Speed (по месту на ходе ручки, шкала экспоненциальная).
+    public static func lfoDivIndex(_ v: Double) -> Int {
+        let x: Double = log(Swift.max(lfoSpeedMin, v) / lfoSpeedMin) / log(lfoSpeedMax / lfoSpeedMin)
+        let n: Int = lfoDivs.count
+        return Swift.min(n - 1, Swift.max(0, Int((x * Double(n - 1)).rounded())))
+    }
+
+    /// Ручка Speed LFOn по темпу: то же значение, подпись — пункт lfoDivs.
+    public static func lfoSpeedSync(_ n: Int) -> ParamDef {
+        let p: ParamDef = lfoColumn(n)[1]
+        return ParamDef(id: p.id, label: p.label, min: p.min, max: p.max, def: p.def, exp: true) { v in
+            lfoDivs[lfoDivIndex(v)].name
+        }
+    }
+
     static func lfoHz(_ v: Double) -> String { return v < 1 ? String(format: "%.2fHz", v) : String(format: "%.1fHz", v) }
 
     static func lfoColumn(_ n: Int) -> [ParamDef] {
         return [
             stepped("lfo\(n).wave", "LFO\(n) Wave", lfoWaves),
-            smooth("lfo\(n).speed", "LFO\(n) Speed", 0.05, 20, [0.1, 0.5, 1][n - 1], exp: true, lfoHz),
+            smooth("lfo\(n).speed", "LFO\(n) Speed", lfoSpeedMin, lfoSpeedMax, [0.1, 0.5, 1][n - 1], exp: true, lfoHz),
             smooth("lfo\(n).invert", "LFO\(n) Invert", 0, 1, 0) { v in
                 let p = Int(((1 - 2 * v) * 100).rounded())
                 return p == 0 ? "flat" : "\(p > 0 ? "+" : "")\(p)%"
@@ -383,11 +410,12 @@ public enum Params {
         [
             stepped("dly.time", "Dly Time", delayDivs.map { $0.name }, def: 5),
             smooth("dly.feedback", "Dly Feedback", 0, 100, 40, Fmt.pct),
+            // Spread и Filter поменяны местами (решение пользователя); порядок в снимках — fxIds.
+            smooth("dly.spread", "Dly Spread", 0, 100, 0, Fmt.pct),
             smooth("dly.filter", "Dly Filter", -100, 100, 0, bipolar: true) { v in
                 let f = delayFilterFreq(v)
                 return f.type == 0 ? "OFF" : "\(f.type < 0 ? "LP" : "HP") \(Fmt.hz(f.hz))"
             },
-            smooth("dly.spread", "Dly Spread", 0, 100, 0, Fmt.pct),
         ],
         [
             smooth("od.drive", "Drive", 0, 100, 26, Fmt.pct),
@@ -396,20 +424,65 @@ public enum Params {
             smooth("od.lowcut", "Drive Low Cut", 20, 1000, 20, exp: true) { v in v <= driveLowCutOff ? "OFF" : Fmt.hz(v) },
         ],
         [
-            smooth("sc.attack", "SC Attack", 0.1, 100, 5, exp: true, Fmt.ms),
-            smooth("sc.release", "SC Release", 10, 1000, 150, exp: true, Fmt.ms),
-            stepped("sc.source", "SC Source", (0..<maxTracks).map { "\($0 + 1)" }),
-            smooth("sc.curve", "SC Curve", 0, 100, 50, Fmt.pct),
+            smooth("sc.attack", "Duck Attack", 0.1, 100, 5, exp: true, Fmt.ms),
+            smooth("sc.release", "Duck Release", 10, 1000, 150, exp: true, Fmt.ms),
+            stepped("sc.source", "Duck Source", (0..<maxTracks).map { "\($0 + 1)" }),
+            smooth("sc.curve", "Duck Curve", 0, 100, 50, Fmt.pct),
         ],
     ]
 
     /// Сетка FX 4×4 ряд за рядом.
     public static let fxGrid: [ParamDef] = (0..<16).map { i in fxColumns[i % 4][i / 4] }
-    /// Без ручки: дополнительная пред-задержка реверба (p-lock и MIDI по ключу работают).
-    public static let hiddenFx: [ParamDef] = [smooth("rev.predelay", "Rev Predelay", 0, 200, 0, Fmt.ms)]
-    /// Порядок FX в снимках для колбэка: сетка (ряд за рядом), затем пред-задержка.
-    public static let fxIds: [String] = (fxGrid + hiddenFx).map { $0.id }
-    public static let fxCount = 17
+    /// Без ручки: дополнительная пред-задержка реверба (p-lock и MIDI по ключу работают); Dly Sync — время Delay
+    /// по темпу (1, по умолчанию) или в мс (0); переключает SHIFT + тап по Dly Time.
+    public static let hiddenFx: [ParamDef] = [
+        smooth("rev.predelay", "Rev Predelay", 0, 200, 0, Fmt.ms),
+        smooth("dly.sync", "Dly Sync", 0, 1, 1) { v in v >= 0.5 ? "SYNC" : "FREE" },
+    ]
+    /// Порядок FX в снимках для колбэка (номера FxRack): не зависит от места ручек на сетке.
+    public static let fxIds: [String] = [
+        "rev.size", "dly.time", "od.drive", "sc.attack", "rev.decay", "dly.feedback", "od.type", "sc.release",
+        "rev.tone", "dly.filter", "od.tone", "sc.source", "rev.hpf", "dly.spread", "od.lowcut", "sc.curve",
+        "rev.predelay", "dly.sync",
+    ]
+    public static let fxCount = 18
+
+    /// Время Delay без синхронизации: значение Dly Time 0…11 (ход ручки тот же) → 10…2000 мс по экспоненте.
+    public static let dlyFreeMin = 10.0
+    public static let dlyFreeMax = 2000.0
+    public static let dlyFreeTop = 11.0
+
+    public static func dlyFreeMs(_ v: Double) -> Double {
+        let x: Double = Swift.min(dlyFreeTop, Swift.max(0, v)) / dlyFreeTop
+        return dlyFreeMin * pow(dlyFreeMax / dlyFreeMin, x)
+    }
+
+    /// Значение Dly Time для времени ms без синхронизации.
+    public static func dlyFreeValue(ms: Double) -> Double {
+        let m: Double = Swift.min(dlyFreeMax, Swift.max(dlyFreeMin, ms))
+        return dlyFreeTop * log(m / dlyFreeMin) / log(dlyFreeMax / dlyFreeMin)
+    }
+
+    /// Ручка Dly Time без синхронизации: плавная, подпись — мс.
+    public static let dlyTimeFree: ParamDef = smooth("dly.time", "Dly Time", 0, dlyFreeTop, 5) { v in
+        let ms: Double = dlyFreeMs(v)
+        return ms >= 1000 ? String(format: "%.2fs", ms / 1000) : "\(Int(ms.rounded()))ms"
+    }
+
+    /// Ближайший пункт Delay (по времени) для ms при темпе bpm.
+    public static func nearestDelayDiv(ms: Double, bpm: Double) -> Int {
+        var best = 0
+        var bd = Double.greatestFiniteMagnitude
+        for (k, d) in delayDivs.enumerated() {
+            let t: Double = d.beats * 60000 / Swift.max(1, bpm)
+            let e: Double = abs(log(t / Swift.max(1, ms)))
+            if e < bd {
+                bd = e
+                best = k
+            }
+        }
+        return best
+    }
 
     /// FX нового проекта (LOW CUT реверба 120 Гц, Drive 80 Гц).
     public static func fxDefaults() -> [String: Double] {

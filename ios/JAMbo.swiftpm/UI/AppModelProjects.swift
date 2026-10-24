@@ -115,6 +115,12 @@ extension AppModel {
         projectChanged()
     }
 
+    /// Проект ещё не сохраняли кнопкой SAVE (его нет в списке): SAVE спрашивает имя.
+    var isNewProject: Bool {
+        let id: String = session.id
+        return session.saved == nil && !projectList.contains { $0.id == id }
+    }
+
     func saveProject() {
         let p = savedProject
         let store = projects

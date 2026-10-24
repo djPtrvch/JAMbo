@@ -128,6 +128,8 @@ struct KnobGrid: View {
         }
         if let t = lastTap[s], Date().timeIntervalSince(t) < 0.35 {
             lastTap[s] = nil
+            // SHIFT + двойной тап снимает p-lock: синхронизацию, переключённую первым тапом, — обратно.
+            if model.shiftHeld { model.knobShiftTap(s) }
             if model.heldSteps.isEmpty && model.canAssign, let src = model.heldSource {
                 model.clearAssign(s, lfo: src)
             } else {
@@ -136,6 +138,8 @@ struct KnobGrid: View {
             turn.consumed = true
         } else {
             lastTap[s] = Date()
+            // SHIFT + тап по Dly Time или Speed LFO — по темпу / свободно.
+            if model.shiftHeld { model.knobShiftTap(s) }
         }
         // С зажатой SHIFT ручки не крутятся.
         if model.shiftHeld { turn.consumed = true }

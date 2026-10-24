@@ -37,7 +37,7 @@ public enum FxSelfTest {
 
     /// Коды эффектов в Result.engine (после движков 0–19) и их имена в SELF-TEST.
     public static let codes = ["delay": 32, "reverb": 33, "drive": 34, "duck": 35]
-    public static let engineNames = [32: "DELAY", 33: "REVERB", 34: "DRIVE", 35: "SIDECHAIN"]
+    public static let engineNames = [32: "DELAY", 33: "REVERB", 34: "DRIVE", 35: "DUCK"]
 
     public static func loadCases(_ goldenDir: URL) throws -> Cases {
         let data = try Data(contentsOf: goldenDir.appendingPathComponent("fx_cases.json"))

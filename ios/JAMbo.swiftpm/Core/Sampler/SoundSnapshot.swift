@@ -90,6 +90,8 @@ public struct SoundData {
     /// MOD: параметры LFO/ENV дорожки (Params.modIds), назначения на цели (ModTarget: источник 0 — нет, 1–4; степень;
     /// шкала ручки по звуку дорожки), есть ли у дорожки назначения; назначения на FX (Params.fxIds) и дорожка-источник.
     public var mod: UnsafeMutablePointer<Float>
+    /// LFO1–3 по темпу (звук·3 + n; 1 — да).
+    public var lfoSync: UnsafeMutablePointer<UInt8>
     public var asSrc: UnsafeMutablePointer<Int8>
     public var asAmt: UnsafeMutablePointer<Float>
     public var scale: UnsafeMutablePointer<ParamScale>
@@ -217,7 +219,7 @@ public final class SoundSnapshot: @unchecked Sendable {
             sliceAt: .allocate(capacity: slices), sliceNote: .allocate(capacity: slices),
             tableRef: .allocate(capacity: tracks2),
             fx: .allocate(capacity: Params.fxCount), scAmount: .allocate(capacity: tracks2), scSend: .allocate(capacity: 3),
-            mod: .allocate(capacity: tracks2 * Params.modCount), asSrc: .allocate(capacity: tracks2 * ModTarget.count),
+            mod: .allocate(capacity: tracks2 * Params.modCount), lfoSync: .allocate(capacity: tracks2 * 3), asSrc: .allocate(capacity: tracks2 * ModTarget.count),
             asAmt: .allocate(capacity: tracks2 * ModTarget.count), scale: .allocate(capacity: tracks2 * ModTarget.count),
             asAny: .allocate(capacity: tracks2), fxSrc: .allocate(capacity: Params.fxCount),
             fxAmt: .allocate(capacity: Params.fxCount), fxTrack: .allocate(capacity: Params.fxCount),
@@ -278,6 +280,7 @@ public final class SoundSnapshot: @unchecked Sendable {
             EqSpec.fill(d.eq + ch * EqSpec.stride, eq)
         }
         d.mod.initialize(repeating: 0, count: tracks2 * Params.modCount)
+        d.lfoSync.initialize(repeating: 0, count: tracks2 * 3)
         d.asSrc.initialize(repeating: 0, count: tracks2 * ModTarget.count)
         d.asAmt.initialize(repeating: 0, count: tracks2 * ModTarget.count)
         d.scale.initialize(repeating: ParamScale(), count: tracks2 * ModTarget.count)
@@ -362,6 +365,7 @@ public final class SoundSnapshot: @unchecked Sendable {
             for (k, id) in Params.modIds.enumerated() {
                 d.mod[u * Params.modCount + k] = Float(snd.params[id] ?? Params.byId[id]?.def ?? 0)
             }
+            for (l, id) in Params.lfoSyncIds.enumerated() { d.lfoSync[u * 3 + l] = (snd.params[id] ?? 0) >= 0.5 ? 1 : 0 }
             // Шкалы целей — по сетке звука дорожки (у синта свои пределы и ступени).
             var grid: [String: ParamDef] = [:]
             for p in Params.grid(sound: snd.sample) where !p.id.isEmpty { grid[p.id] = p }
@@ -465,6 +469,7 @@ public final class SoundSnapshot: @unchecked Sendable {
         data.asAmt.deallocate()
         data.scale.deallocate()
         data.asAny.deallocate()
+        data.lfoSync.deallocate()
         data.fxSrc.deallocate()
         data.fxAmt.deallocate()
         data.fxTrack.deallocate()

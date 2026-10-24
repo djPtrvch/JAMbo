@@ -145,7 +145,7 @@ public final class AudioCore: @unchecked Sendable {
         takeSnapshots()
         // FX на блок: значения клипа с p-lock играющих шагов, источник Sidechain.
         if let d = sampler.sound {
-            mod.begin(d, frames: frames, lockMask: sequencer.modLockMask, lockVal: sequencer.modLockVal)
+            mod.begin(d, frames: frames, lockMask: sequencer.modLockMask, lockVal: sequencer.modLockVal, bpm: sequencer.bpm)
             fx.begin(d, lockMask: sequencer.fxLockMask, lockVal: sequencer.fxLockVal, mod: mod, frame: sampleTime)
         }
         sampler.bpm = sequencer.bpm

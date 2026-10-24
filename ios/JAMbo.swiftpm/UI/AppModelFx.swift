@@ -1,6 +1,6 @@
 import Foundation
 
-// Страница FX (удержание кнопки FX): ручки общих эффектов — Reverb, Delay, Drive, Sidechain (сетка FX).
+// Страница FX (удержание кнопки FX): ручки общих эффектов — Reverb, Delay, Drive, Duck (сетка FX).
 // Значения принадлежат клипу-лидеру (как гамма и нота); с зажатым шагом — p-lock FX на шаге (меняет FX на время шага).
 
 extension AppModel {
@@ -10,6 +10,7 @@ extension AppModel {
     /// Параметр ручки FX; SC Source — только среди существующих дорожек, подписи — имена дорожек.
     func fxParam(_ slot: Int) -> ParamDef {
         let p = Params.fxGrid[slot]
+        if p.id == "dly.time" && !delaySynced { return Params.dlyTimeFree }
         if p.id != "sc.source" { return p }
         let names: [String] = project.tracks.map { $0.name }
         return ParamDef(id: p.id, label: p.label, kind: .stepped, min: 0, max: Double(max(0, names.count - 1)), def: 0,
@@ -30,5 +31,58 @@ extension AppModel {
             pr.fx[p.id] = v
             writeLead(&pr)
         }
+    }
+
+    // MARK: — по темпу: SHIFT + тап по Dly Time и по Speed LFO
+
+    /// Время Delay по темпу (Dly Sync; по умолчанию — да).
+    var delaySynced: Bool {
+        return (project.fx["dly.sync"] ?? 1) >= 0.5
+    }
+
+    /// LFOn (0…2) выбранной дорожки по темпу.
+    func lfoSynced(_ l: Int) -> Bool {
+        return (track.params[Params.lfoSyncIds[l]] ?? 0) >= 0.5
+    }
+
+    /// Параметр ручки MOD: Speed LFO по темпу — подпись пунктом (1/4, 1 bar…).
+    func modParam(_ slot: Int) -> ParamDef {
+        let p: ParamDef = Params.modGrid[slot]
+        // Speed — второй ряд, столбцы LFO1–3 (ячейки 4…6).
+        let l: Int = slot - 4
+        if l >= 0 && l < 3 && lfoSynced(l) { return Params.lfoSpeedSync(l + 1) }
+        return p
+    }
+
+    /// SHIFT + тап по ручке: Dly Time и Speed LFO — по темпу или свободно; true — тап обработан.
+    @discardableResult
+    func knobShiftTap(_ slot: Int) -> Bool {
+        guard channel == .track else { return false }
+        if modMode {
+            let l: Int = slot - 4
+            guard l >= 0 && l < 3 else { return false }
+            let id: String = Params.lfoSyncIds[l]
+            let on: Bool = !lfoSynced(l)
+            editTrack { t in t.params[id] = on ? 1 : 0 }
+            return true
+        }
+        guard fxMode, Params.fxGrid[slot].id == "dly.time" else { return false }
+        // Время сохраняется: по темпу — ближайший пункт, свободно — те же мс.
+        let v: Double = fxValue(fxParam(slot))
+        let bpm: Double = project.bpm
+        let toSync: Bool = !delaySynced
+        let nv: Double
+        if toSync {
+            nv = Double(Params.nearestDelayDiv(ms: Params.dlyFreeMs(v), bpm: bpm))
+        } else {
+            let k: Int = min(Params.delayDivs.count - 1, max(0, Int(v.rounded())))
+            nv = Params.dlyFreeValue(ms: Params.delayDivs[k].beats * 60000 / max(1, bpm))
+        }
+        edit { pr in
+            pr.fx["dly.sync"] = toSync ? 1 : 0
+            pr.fx["dly.time"] = nv
+            writeLead(&pr)
+        }
+        return true
     }
 }

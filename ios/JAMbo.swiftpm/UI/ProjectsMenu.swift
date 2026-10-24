@@ -1,8 +1,10 @@
 import SwiftUI
 
-/// Что вводят в окне ввода меню PROJECTS: имя копии (SAVE AS), новое имя проекта из списка (карандаш).
+/// Что вводят в окне ввода меню PROJECTS: имя копии (SAVE AS), имя нового проекта при первом SAVE (подставлено
+/// случайное), новое имя проекта из списка (карандаш).
 enum ProjectInput: Equatable {
     case saveAs
+    case saveNew
     case renameId(String)
 }
 
@@ -67,7 +69,7 @@ struct ProjectsPage: View {
                     close()
                     model.newProject()
                 }
-                MenuItem(title: "SAVE") { model.saveProject() }
+                MenuItem(title: "SAVE") { save() }
                 MenuItem(title: "SAVE AS") { ask(.saveAs, "\(model.session.name) copy") }
             }
             HStack(spacing: 4) {
@@ -179,6 +181,15 @@ struct ProjectsPage: View {
 
     // MARK: — окна ввода
 
+    /// SAVE: новый (ещё не сохранённый) проект — окно имени со случайным именем, иначе запись сразу.
+    private func save() {
+        if model.isNewProject {
+            ask(.saveNew, ProjectSession.randomName(model.projectList))
+        } else {
+            model.saveProject()
+        }
+    }
+
     private func ask(_ what: ProjectInput, _ initial: String) {
         text = initial
         input = what
@@ -195,6 +206,7 @@ struct ProjectsPage: View {
     private var inputTitle: String {
         switch input {
         case .saveAs: return "SAVE AS"
+        case .saveNew: return "SAVE"
         case .renameId: return "RENAME"
         case nil: return ""
         }
@@ -204,7 +216,7 @@ struct ProjectsPage: View {
         let what: ProjectInput? = input
         input = nil
         switch what {
-        case .saveAs:
+        case .saveAs, .saveNew:
             if let same = model.projectNamed(text) {
                 overwrite = same
             } else {

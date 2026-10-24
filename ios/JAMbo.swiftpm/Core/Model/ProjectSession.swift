@@ -52,6 +52,33 @@ public struct ProjectSession: Sendable {
         return "Project \(n)"
     }
 
+    /// Случайное имя для первого SAVE: «Прилагательное Существительное», не занятое (иначе — с номером).
+    public static func randomName(_ list: [ProjectInfo], seed: UInt64? = nil) -> String {
+        var g = SplitMix(seed ?? UInt64.random(in: 0...UInt64.max))
+        let names = Set(list.map { $0.name })
+        var last = ""
+        for _ in 0..<20 {
+            let a: String = nameAdjectives[Int(g.next() % UInt64(nameAdjectives.count))]
+            let n: String = nameNouns[Int(g.next() % UInt64(nameNouns.count))]
+            last = "\(a) \(n)"
+            if !names.contains(last) { return last }
+        }
+        var k = 2
+        while names.contains("\(last) \(k)") { k += 1 }
+        return "\(last) \(k)"
+    }
+
+    static let nameAdjectives: [String] = [
+        "Velvet", "Neon", "Midnight", "Golden", "Electric", "Silent", "Cosmic", "Liquid", "Crystal", "Lazy", "Wild",
+        "Hidden", "Broken", "Lunar", "Solar", "Dusty", "Frozen", "Burning", "Purple", "Deep", "Hazy", "Rusty",
+        "Silver", "Analog", "Distant", "Funky", "Mellow", "Stormy", "Sleepy", "Magnetic",
+    ]
+    static let nameNouns: [String] = [
+        "Groove", "Echo", "Pulse", "Orbit", "Tide", "Comet", "Mirage", "Signal", "Drift", "Loop", "Garden",
+        "Engine", "Shadow", "Wave", "Circuit", "Horizon", "Ember", "Canyon", "Harbor", "Prism", "Rhythm", "Static",
+        "Tape", "Voltage", "Bloom", "Desert", "River", "Ritual", "Machine", "Sunset",
+    ]
+
     /// Новый проект (в список попадёт после SAVE).
     public static func fresh(_ store: ProjectStore) -> ProjectSession {
         return ProjectSession(id: ProjectStore.newId(), name: nextName(store.list()))
@@ -161,5 +188,22 @@ extension ProjectSession {
             out.append(ok ? ch : "_")
         }
         return (out.isEmpty ? "project" : out) + ".jambo"
+    }
+}
+
+/// Простой генератор для случайного имени (с seed — повторяемый, для тестов).
+struct SplitMix {
+    var state: UInt64
+
+    init(_ seed: UInt64) {
+        state = seed
+    }
+
+    mutating func next() -> UInt64 {
+        state &+= 0x9E37_79B9_7F4A_7C15
+        var z: UInt64 = state
+        z = (z ^ (z >> 30)) &* 0xBF58_476D_1CE4_E5B9
+        z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
+        return z ^ (z >> 31)
     }
 }
