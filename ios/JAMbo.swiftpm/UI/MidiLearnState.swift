@@ -84,4 +84,6 @@ struct MidiRuntime {
     var follower = ClockFollower()
     var clockRefStep: Int = -1
     var clockWasPlaying: Bool = false
+    /// AudioHost.restarts при последней привязке шагов к клоку.
+    var clockAudioRestarts: Int = 0
 }

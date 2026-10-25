@@ -78,8 +78,12 @@ extension AppModel {
             midiRun.clockRefStep = -1
             return
         }
-        // Своя игра началась или клок вернулся после пропажи (переподключили устройство) — шаг 0 к ближайшему тику.
-        if !midiRun.clockWasPlaying || !f.anchored {
+        // После перезапуска звука сетка — прежняя, пока колбэк не пошёл снова: привязывать по ней нельзя.
+        if midiRun.clockAudioRestarts != audio.restarts && g.time < now - 0.05 { return }
+        // Своя игра началась, клок вернулся после пропажи (переподключили устройство) или звук перезапускался
+        // (шаги отстали) — шаг 0 к ближайшему тику.
+        if !midiRun.clockWasPlaying || !f.anchored || midiRun.clockAudioRestarts != audio.restarts {
+            midiRun.clockAudioRestarts = audio.restarts
             let t0: Double = g.time - Double(g.step) * g.stepDur
             midiRun.follower.started(at: t0 - offset)
         }

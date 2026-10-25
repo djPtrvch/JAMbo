@@ -7,6 +7,9 @@ final class AudioHost {
     let engine = AVAudioEngine()
     private var source: AVAudioSourceNode?
     private var observers: [NSObjectProtocol] = []
+    private var restartWork: DispatchWorkItem? = nil
+    /// Счёт перезапусков движка: звук стоял — шаги секвенсора отстали от MIDI-клока (привязать заново).
+    private(set) var restarts: Int = 0
     private(set) var lastError: String = ""
     /// Запись входа (tap на узле входа) — Audio/InputCapture.swift.
     let input = InputCapture()
@@ -18,7 +21,7 @@ final class AudioHost {
             self?.handleInterruption(note)
         })
         observers.append(center.addObserver(forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main) { [weak self] _ in
-            self?.restart()
+            self?.scheduleRestart()
         })
     }
 
@@ -49,9 +52,28 @@ final class AudioHost {
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 
+    /// Смена конфигурации (подключили или отключили USB-аудио — Digitakt и т. п., наушники): уведомления приходят
+    /// пачкой, и перезапуск на каждое останавливал звук несколько раз подряд (секвенсор тормозил, экран замирал).
+    /// Перезапуск — один, через 0,3 с после последнего уведомления.
+    private func scheduleRestart() {
+        restartWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.restart() }
+        restartWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: work)
+    }
+
+    /// Только движок: сессия уже настроена (категория и частота те же). Не запустился — полная настройка.
     func restart() {
+        restartWork = nil
+        restarts += 1
         engine.stop()
-        start()
+        do {
+            if source == nil { attachSource() }
+            try engine.start()
+            lastError = ""
+        } catch {
+            start()
+        }
     }
 
     func configureSession() throws {
