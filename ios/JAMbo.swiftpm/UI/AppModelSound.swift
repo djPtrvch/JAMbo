@@ -276,7 +276,8 @@ extension AppModel {
     func pickSynth(_ engine: Int, steps: [Int]) {
         let key = SynthKey.key(engine)
         if steps.isEmpty {
-            editTrack { t in t.setSynth(engine) }
+            let kd: KnobDefaults = knobDefaults
+            editTrack { t in t.setSynth(engine, defaults: kd) }
         } else {
             editTrack { t in t.setStepSound(steps, key) }
         }
@@ -284,7 +285,13 @@ extension AppModel {
 
     /// SAMPLER: дорожка без звука и сразу чистое окно редактора сэмпла (LOAD).
     func cleanSampler() {
-        editTrack { t in t.sample = "" }
+        let kd: KnobDefaults = knobDefaults
+        editTrack { t in
+            // С синта на сэмплер — ручки сэмплера по своим значениям по умолчанию.
+            let fromSynth: Bool = SynthKey.engine(t.sample) != nil
+            t.sample = ""
+            if fromSynth { kd.applySound(to: &t) }
+        }
         openEditor()
     }
 

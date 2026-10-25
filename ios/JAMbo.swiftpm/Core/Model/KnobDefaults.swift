@@ -33,12 +33,17 @@ public struct KnobDefaults: Codable, Equatable, Sendable {
 
     /// Звук и MOD дорожки — по своим значениям.
     public func apply(to t: inout Track) {
+        applySound(to: &t)
+        for id in Params.modIds + Params.lfoSyncIds {
+            if let v = value("mod", id) { t.params[id] = v }
+        }
+    }
+
+    /// Ручки звука дорожки (сэмплер или движок синта) — по своим значениям его области.
+    public func applySound(to t: inout Track) {
         let scope: String = KnobDefaults.soundScope(t.sample)
         for p in Params.grid(sound: t.sample) where !p.id.isEmpty {
             if let v = value(scope, p.id) { t.params[p.id] = v }
-        }
-        for id in Params.modIds + Params.lfoSyncIds {
-            if let v = value("mod", id) { t.params[id] = v }
         }
     }
 

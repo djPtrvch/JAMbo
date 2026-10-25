@@ -90,7 +90,8 @@ extension Track {
     /// Синт на дорожку (setTrackSynth веба): звук дорожки — «mi:<n>»; ручки 1.1–1.4 остаются, кроме своих начальных
     /// у движка (ANALOG — синусы без DETUNE, MIX 50 %) при переходе с другого звука; Decay больше предела движка
     /// (KICK — 1000 мс) — к пределу.
-    public mutating func setSynth(_ engine: Int) {
+    /// defaults — свои значения ручек по умолчанию: при смене звука ручки движка встают на них (поверх initKnobs).
+    public mutating func setSynth(_ engine: Int, defaults: KnobDefaults? = nil) {
         let key = SynthKey.key(engine)
         let was = sample
         sample = key
@@ -98,6 +99,7 @@ extension Track {
         if e.initKnobs.count == 4 && was != key {
             for k in 0..<4 { params[SynthEngines.knobIds[k]] = e.initKnobs[k] }
         }
+        if was != key { defaults?.applySound(to: &self) }
         if let max = e.decayMax, let d = params["decay"], d > max { params["decay"] = max }
     }
 }
