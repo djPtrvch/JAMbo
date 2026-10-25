@@ -51,7 +51,9 @@ struct ArrMetrics {
         self.size = size
         self.tracks = tracks
         let w: CGFloat = max(1, size.width)
-        stepW = ArrMetrics.clampStep(port.stepW ?? w / CGFloat(16 * ArrMetrics.stepsPerBar), width: w)
+        let fit: CGFloat = w / 256
+        let want: CGFloat = port.stepW ?? fit
+        stepW = ArrMetrics.clampStep(want, width: w)
         rowH = ArrMetrics.clampRow(port.rowH)
         steps = max(end, 0) + 32 * ArrMetrics.stepsPerBar
         let maxX: CGFloat = max(0, CGFloat(steps) * stepW - w)
@@ -181,7 +183,10 @@ struct ArrDraw {
         lanes(p)
         gridLines(p)
         for t in 0..<p.tracks.count {
-            blocks(p, t, sel: sel, lift: lift, dim: !(t < following.count && following[t]) || !p.audible(t), names: names)
+            let on: Bool = t < following.count ? following[t] : true
+            let heard: Bool = p.audible(t)
+            let dim: Bool = !on || !heard
+            blocks(p, t, sel: sel, lift: lift, dim: dim, names: names)
         }
         if let l = lift { target(l) }
         ruler(p)
@@ -238,7 +243,9 @@ struct ArrDraw {
         var c = ctx
         c.clip(to: Path(r.insetBy(dx: 4, dy: 0)))
         let text = Text(s).font(.system(size: 11, weight: .bold)).foregroundStyle(ArrColors.text)
-        c.draw(text, at: CGPoint(x: max(r.minX, 0) + 6, y: r.minY + 4), anchor: .topLeading)
+        let x: CGFloat = max(r.minX, 0) + 6
+        let y: CGFloat = r.minY + 4
+        c.draw(text, at: CGPoint(x: x, y: y), anchor: .topLeading)
     }
 
     /// Куда встанет поднятый блок — контур.
@@ -277,15 +284,17 @@ struct ArrDraw {
         let list: [ArrMarker] = p.arrange.markers
         for (k, mk) in list.enumerated() {
             let x0: CGFloat = m.stepX(Double(mk.at))
-            let next: CGFloat = k + 1 < list.count ? m.stepX(Double(list[k + 1].at)) : m.size.width
+            var next: CGFloat = m.size.width
+            if k + 1 < list.count { next = m.stepX(Double(list[k + 1].at)) }
             if next < 0 || x0 > m.size.width { continue }
             let r = CGRect(x: x0, y: ArrMetrics.rulerH + 2, width: max(2, next - x0 - 2), height: ArrMetrics.markerH - 4)
             ctx.fill(Path(roundedRect: r, cornerRadius: 2), with: .color(ArrColors.color(mk.color)))
             var c = ctx
             c.clip(to: Path(r))
             let name: String = mk.name.isEmpty ? " " : mk.name
-            c.draw(Text(name).font(.system(size: 9, weight: .bold)).foregroundStyle(ArrColors.text),
-                   at: CGPoint(x: max(r.minX, 0) + 4, y: r.midY), anchor: .leading)
+            let tx: CGFloat = max(r.minX, 0) + 4
+            let text: Text = Text(name).font(.system(size: 9, weight: .bold)).foregroundStyle(ArrColors.text)
+            c.draw(text, at: CGPoint(x: tx, y: r.midY), anchor: .leading)
         }
     }
 

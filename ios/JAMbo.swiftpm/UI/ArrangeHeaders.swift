@@ -151,13 +151,16 @@ struct ArrFader: View {
 
     var body: some View {
         let v: Double = model.meterVol(track)
-        let f: CGFloat = CGFloat((v - Params.volMin) / -Params.volMin)
+        let range: Double = -Params.volMin
+        let f: CGFloat = CGFloat((v - Params.volMin) / range)
         return GeometryReader { geo in
+            let w: CGFloat = geo.size.width
+            let fill: CGFloat = max(0, f * w)
+            let knob: CGFloat = max(0, min(w - 6, fill - 3))
             ZStack(alignment: .leading) {
                 Capsule().fill(theme.meterTrack).frame(height: 4)
-                Capsule().fill(theme.text.opacity(0.5)).frame(width: max(0, f * geo.size.width), height: 4)
-                RoundedRectangle(cornerRadius: 2).fill(theme.text).frame(width: 6, height: 16)
-                    .offset(x: max(0, min(geo.size.width - 6, f * geo.size.width - 3)))
+                Capsule().fill(theme.text.opacity(0.5)).frame(width: fill, height: 4)
+                RoundedRectangle(cornerRadius: 2).fill(theme.text).frame(width: 6, height: 16).offset(x: knob)
             }
             .frame(maxHeight: .infinity)
             .contentShape(Rectangle())
@@ -173,7 +176,9 @@ struct ArrFader: View {
                     model.beginGesture()
                 }
                 let dx: Double = Double(g.translation.width / 120)
-                model.setMeterVol(track, (start ?? 0) + dx * -Params.volMin)
+                let s: Double = start ?? 0
+                let range: Double = -Params.volMin
+                model.setMeterVol(track, s + dx * range)
             }
             .onEnded { _ in
                 guard start != nil else { return }

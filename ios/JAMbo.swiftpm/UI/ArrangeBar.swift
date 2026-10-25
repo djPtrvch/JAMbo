@@ -58,7 +58,9 @@ struct ArrBarText: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
+        let lit: Bool = on && enabled
         let fg: Color = !enabled ? theme.off : (on ? theme.bg : theme.text)
+        let bg: Color = lit ? theme.text : theme.panel2
         return Text(title)
             .font(.system(size: 12, weight: .semibold))
             .tracking(1)
@@ -66,7 +68,7 @@ struct ArrBarText: View {
             .minimumScaleFactor(0.7)
             .foregroundStyle(fg)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(on && enabled ? theme.text : theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
+            .background(bg, in: RoundedRectangle(cornerRadius: Layout.radius))
             .contentShape(Rectangle())
             .onTapGesture { if enabled { action() } }
     }
@@ -81,10 +83,12 @@ struct ArrBarButton<Icon: View>: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
+        let lit: Bool = on && enabled
         let fg: Color = !enabled ? theme.off : (on ? theme.bg : theme.text)
+        let bg: Color = lit ? theme.text : theme.panel2
         return icon(fg)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(on && enabled ? theme.text : theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
+            .background(bg, in: RoundedRectangle(cornerRadius: Layout.radius))
             .contentShape(Rectangle())
             .onTapGesture { if enabled { action() } }
     }

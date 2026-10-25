@@ -74,7 +74,9 @@ final class ArrTouches {
         for (i, b) in blocks.enumerated() {
             let r: CGRect = m.rect(t, b)
             let ew: CGFloat = min(14, max(6, r.width / 4))
-            if p.x >= r.minX - 6 && p.x <= r.maxX + 6 && p.y >= r.minY && p.y <= r.maxY {
+            let inX: Bool = p.x >= r.minX - 6 && p.x <= r.maxX + 6
+            let inY: Bool = p.y >= r.minY && p.y <= r.maxY
+            if inX && inY {
                 hitIndex = i
                 hitBlock = b
                 if p.x <= r.minX + ew || p.x >= r.maxX - ew {
@@ -180,8 +182,12 @@ final class ArrTouches {
     /// Тап: по блоку — выбор; двойной — меню блока или места на дорожке.
     private func tapped(_ model: AppModel, _ m: ArrMetrics) {
         let now = Date()
-        let double: Bool = lastTap.map { now.timeIntervalSince($0.at) < ArrTouches.doubleTap
-            && hypot($0.point.x - start.x, $0.point.y - start.y) < 30 } ?? false
+        var double: Bool = false
+        if let l = lastTap {
+            let dt: Double = now.timeIntervalSince(l.at)
+            let d: CGFloat = hypot(l.point.x - start.x, l.point.y - start.y)
+            double = dt < ArrTouches.doubleTap && d < 30
+        }
         lastTap = double ? nil : (now, start)
         let t: Int = m.track(at: start.y)
         if hitBlock != nil {

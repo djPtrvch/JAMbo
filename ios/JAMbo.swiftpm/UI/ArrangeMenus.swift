@@ -24,21 +24,29 @@ struct ArrMenus: View {
             ArrBlockMenu(model: model, sel: ArrSel(track: t, block: i))
                 .offset(place(a, w: ArrBlockMenu.width, h: ArrBlockMenu.height))
         case .lane(let t, let x, let a):
-            let h: CGFloat = ArrLaneMenu.height(model.arrClips(t).count, size.height)
-            ArrLaneMenu(model: model, track: t, at: x)
-                .frame(height: h)
-                .offset(place(a, w: ArrLaneMenu.width, h: h))
+            laneMenu(t, x, a)
         case .track(let t, _):
             ArrTrackMenu(model: model, track: t).offset(trackPlace(t))
         }
     }
 
+    private func laneMenu(_ t: Int, _ x: Int, _ a: CGPoint) -> some View {
+        let n: Int = model.arrClips(t).count
+        let h: CGFloat = ArrLaneMenu.height(n, size.height)
+        let o: CGSize = place(a, w: ArrLaneMenu.width, h: h)
+        return ArrLaneMenu(model: model, track: t, at: x).frame(height: h).offset(o)
+    }
+
     /// Точка таймлайна → окно: меню под пальцем (не помещается — над ним), в пределах окна.
     private func place(_ a: CGPoint, w: CGFloat, h: CGFloat) -> CGSize {
         let ax: CGFloat = a.x + ArrMetrics.headerW + Layout.gap
-        let x: CGFloat = max(0, min(ax - w / 2, size.width - w))
+        let left: CGFloat = ax - w / 2
+        let right: CGFloat = size.width - w
+        let x: CGFloat = max(0, min(left, right))
         let below: CGFloat = a.y + 12
-        let y: CGFloat = below + h <= size.height ? below : max(0, a.y - 12 - h)
+        let above: CGFloat = max(0, a.y - 12 - h)
+        let fits: Bool = below + h <= size.height
+        let y: CGFloat = fits ? below : above
         return CGSize(width: x, height: y)
     }
 
@@ -84,7 +92,10 @@ struct ArrLaneMenu: View {
 
     static func height(_ clips: Int, _ limit: CGFloat) -> CGFloat {
         let rows: CGFloat = CGFloat(clips + 1)
-        return min(limit, rows * 40 + max(0, rows - 1) * 6 + 16)
+        let items: CGFloat = rows * 40
+        let gaps: CGFloat = max(0, rows - 1) * 6
+        let total: CGFloat = items + gaps + 16
+        return min(limit, total)
     }
 
     var body: some View {
@@ -112,8 +123,8 @@ struct ArrLaneMenu: View {
 /// Меню дорожки: COPY (все блоки), PASTE (заменяет блоки дорожки), DUPLICATE (ещё раз после последнего), палитра.
 struct ArrTrackMenu: View {
     static let width: CGFloat = 220
-    /// 3 строки по 40, палитра 4 ряда по 28, зазоры и поля.
-    static let height: CGFloat = 3 * 40 + 4 * 28 + 6 * 6 + 16
+    /// 3 строки по 40 (120), палитра 4 ряда по 28 (112), 6 зазоров по 6 (36), поля 16.
+    static let height: CGFloat = 284
     let model: AppModel
     let track: Int
     @Environment(\.theme) private var theme
