@@ -163,6 +163,9 @@ final class AppModel {
     @ObservationIgnored var lastRec: (track: Int, tick: Int) = (-1, -1)
     /// Зажатые клавиши: дорожка, ноты, записанный шаг (длина — при отпускании) и время нажатия.
     @ObservationIgnored var keyHolds: [Int: KeyHold] = [:]
+    /// Capture: ноты, сыгранные без REC, по дорожкам; ▲ ▼ мигают после Capture.
+    @ObservationIgnored var captureLog: [[CapturedKey]] = [[CapturedKey]](repeating: [], count: Params.maxTracks)
+    var captureFlash: Bool = false
     private(set) var appearance: Appearance = AppModel.loadAppearance()
     /// Сэмплы (в памяти и на диске); растёт при загрузке — окна перерисовываются.
     @ObservationIgnored let store = SampleStore()

@@ -169,6 +169,10 @@ extension AppModel {
         } else if own {
             inputNotes()
         }
+        // Capture: без REC и без зажатых шагов нажатие запоминается.
+        if !(recOn && playing) && heldSteps.isEmpty && channel == .track {
+            captureDown(id: id, track: ti, notes: notes, velocity: settings.velocity ? velocity : nil)
+        }
         keyHolds[id] = KeyHold(track: ti, notes: notes, recIndex: recIndex, t0: Date.timeIntervalSinceReferenceDate)
     }
 
@@ -177,6 +181,7 @@ extension AppModel {
         pressedKeys.removeValue(forKey: id)
         guard let k = keyHolds.removeValue(forKey: id) else { return }
         liveNoteOff(track: k.track, id: id)
+        captureUp(id: id, track: k.track)
         guard let index = k.recIndex else { return }
         let stepSeconds: Double = 60 / project.bpm / 4
         let len = RecordClock.length(seconds: Date.timeIntervalSinceReferenceDate - k.t0, stepSeconds: stepSeconds)
@@ -207,12 +212,7 @@ extension AppModel {
 
     /// Шаг, на который ложится нота сейчас: по ходу транспорта из колбэка с поправкой на задержку выхода.
     private func record(track ti: Int, notes: [Int], velocity: Double?) -> Int? {
-        let c = audio.core.sequencer.clock.read()
-        guard c.playing else { return nil }
-        let heard: Double = audio.hostNow() - audio.outputLatency
-        let frame: Double = c.blockFrame + (heard - c.blockHost) * AudioCore.sampleRate
-        let k = RecordClock.tick(frame: frame, nextTick: c.nextTick, nextFrame: c.nextFrame, stepFrames: c.stepFrames,
-                                 quantize: settings.record.quantize)
+        guard let k = heardTick() else { return nil }
         let merge: Bool = lastRec.track == ti && lastRec.tick == k
         lastRec = (ti, k)
         let tr = project.tracks[ti]
@@ -224,6 +224,16 @@ extension AppModel {
         takeWritten.insert(ti * 1000 + index)
         writeTake(track: ti) { t in t.recordNotes(index, notes, merge: merge, overdub: overdub, velocity: velocity) }
         return index
+    }
+
+    /// Тик транспорта, который слышен сейчас (с поправкой на задержку выхода; QUANTIZE — ближайший); nil — стоит.
+    func heardTick() -> Int? {
+        let c = audio.core.sequencer.clock.read()
+        guard c.playing else { return nil }
+        let heard: Double = audio.hostNow() - audio.outputLatency
+        let frame: Double = c.blockFrame + (heard - c.blockHost) * AudioCore.sampleRate
+        return RecordClock.tick(frame: frame, nextTick: c.nextTick, nextFrame: c.nextFrame, stepFrames: c.stepFrames,
+                                quantize: settings.record.quantize)
     }
 
     /// Правка дубля: первая нота — новая запись в UNDO, следующие (пока не было других действий) — в неё же.

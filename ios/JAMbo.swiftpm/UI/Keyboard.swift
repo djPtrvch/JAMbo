@@ -14,11 +14,7 @@ struct KeyboardPanel: View {
             }
             .frame(width: layout.step)
             keyArea
-            VStack(spacing: Layout.stepGap) {
-                OctaveButton(title: "▲") { model.setOctave(model.octave + 1) }.midiTarget(model, "OCTAVE ▲")
-                OctaveButton(title: "▼") { model.setOctave(model.octave - 1) }.midiTarget(model, "OCTAVE ▼")
-            }
-            .frame(width: layout.step)
+            OctavePair(model: model).frame(width: layout.step)
         }
         .frame(height: layout.pianoHeight(model.project.scale))
     }
@@ -229,18 +225,71 @@ struct ChordButton: View {
     }
 }
 
+/// Стрелки октавы ▲ ▼ (мультитач): одна стрелка меняет октаву при отпускании; нажали вторую, пока зажата первая, —
+/// Capture (октава не меняется).
+struct OctavePair: View {
+    let model: AppModel
+    /// Касание → стрелка (0 — ▲, 1 — ▼).
+    @State private var touches: [SpatialEventCollection.Event.ID: Int] = [:]
+    /// Оба пальца уже дали Capture — отпускание октаву не меняет.
+    @State private var captured: Bool = false
+
+    var body: some View {
+        GeometryReader { geo in
+            VStack(spacing: Layout.stepGap) {
+                OctaveButton(title: "▲", lit: model.captureFlash).midiTarget(model, "OCTAVE ▲")
+                OctaveButton(title: "▼", lit: model.captureFlash).midiTarget(model, "OCTAVE ▼")
+            }
+            .contentShape(Rectangle())
+            .gesture(fingers(height: geo.size.height))
+        }
+    }
+
+    private func fingers(height: CGFloat) -> some Gesture {
+        SpatialEventGesture(coordinateSpace: .local)
+            .onChanged { events in
+                for e in events {
+                    if case .active = e.phase {
+                        if touches[e.id] == nil { down(e, height: height) }
+                    } else {
+                        up(e.id)
+                    }
+                }
+            }
+            .onEnded { events in
+                for e in events { up(e.id) }
+            }
+    }
+
+    private func down(_ e: SpatialEventCollection.Event, height: CGFloat) {
+        if model.midiLearn.on { return }
+        let arrow: Int = e.location.y < height / 2 ? 0 : 1
+        if touches.values.contains(1 - arrow) {
+            captured = true
+            model.captureNotes()
+        }
+        touches[e.id] = arrow
+    }
+
+    private func up(_ eid: SpatialEventCollection.Event.ID) {
+        guard let arrow = touches.removeValue(forKey: eid) else { return }
+        if !captured {
+            model.setOctave(model.octave + (arrow == 0 ? 1 : -1))
+        }
+        if touches.isEmpty { captured = false }
+    }
+}
+
 struct OctaveButton: View {
     let title: String
-    let action: () -> Void
+    var lit: Bool = false
     @Environment(\.theme) private var theme
 
     var body: some View {
         Text(title)
             .font(.system(size: 14))
-            .foregroundStyle(theme.text)
+            .foregroundStyle(lit ? theme.bg : theme.text)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
-            .contentShape(Rectangle())
-            .onTapGesture { action() }
+            .background(lit ? theme.text : theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
     }
 }
