@@ -273,3 +273,26 @@ final class RecordingNamesTests: XCTestCase {
         XCTAssertEqual(lib.node(a)?.parent, Library.recordings)
     }
 }
+
+extension LibraryTests {
+    /// Несколько таблиц WTABLE в папке дорожки: стрелки меняют таблицу, ручки синта остаются; не WTABLE — nil.
+    func testTablePool() {
+        var t = Track(index: 0)
+        XCTAssertNil(Track.tableItem(t, "builtin:PWM", "PWM"))
+        t.sample = SynthKey.key(19)
+        let keys: [String] = ["builtin:PWM", "wt:abc:2048", ""]
+        let items: [FolderItem] = keys.compactMap { Track.tableItem(t, $0, $0.isEmpty ? "BASIC" : $0) }
+        XCTAssertEqual(items.count, 3)
+        t.setFolder(items)
+        XCTAssertEqual(t.table, "builtin:PWM")
+        XCTAssertEqual(t.presetName, "builtin:PWM")
+        t.params["timbre"] = 0.77
+        t.stepFolder(1)
+        XCTAssertEqual(t.table, "wt:abc:2048")
+        XCTAssertEqual(t.params["timbre"], 0.77, "ручки синта остаются")
+        XCTAssertEqual(t.sample, SynthKey.key(19))
+        t.stepFolder(1)
+        XCTAssertEqual(t.table, "")
+        XCTAssertEqual(t.presetName, "BASIC")
+    }
+}

@@ -142,7 +142,12 @@ extension AppModel {
             return
         }
         if tableMode {
-            if n.kind == .table, let key = n.key { libUseTable(key, name: n.name) }
+            guard n.kind == .table, let key = n.key else { return }
+            if libPicked != nil {
+                if libPicked!.contains(n.id) { libPicked!.remove(n.id) } else { libPicked!.insert(n.id) }
+                return
+            }
+            libUseTable(key, name: n.name)
             return
         }
         guard case .load(let steps) = browser, channel == .track else { return }
@@ -176,16 +181,21 @@ extension AppModel {
         }
     }
 
-    /// Удержание сэмпла или пресета — выбор нескольких (в загрузке на дорожку).
+    /// Удержание сэмпла или пресета — выбор нескольких (в загрузке на дорожку); в LOAD TABLE — таблиц.
     func libHold(_ n: LibNode) {
-        guard n.kind == .sample || n.kind == .preset, browser == .load(steps: []), libPicked == nil else { return }
-        libPicked = [n.id]
+        guard libPicked == nil else { return }
+        let ok: Bool = tableMode ? n.kind == .table : (n.kind == .sample || n.kind == .preset) && browser == .load(steps: [])
+        if ok { libPicked = [n.id] }
     }
 
     /// LOAD выбора: в папке дорожки — только отмеченные (по порядку списка), первый звучит; SETTINGS → SAMPLER →
     /// CLEAR SAMPLE LOCKS — сэмпл-локи дорожки снимаются. Затем браузер закрывается.
     func libLoadPicked() {
         guard let picked = libPicked else { return }
+        if tableMode {
+            libLoadPickedTables(picked)
+            return
+        }
         let list: [LibNode] = library.children(libFolder).filter { $0.kind != .folder && picked.contains($0.id) }
         let i: Int = selectedTrack
         var samples: [(String, String)] = []
@@ -544,10 +554,27 @@ extension AppModel {
     }
 
     /// Тап по таблице: на дорожку (UNDO).
+    /// Тап по таблице: в папке дорожки — только она (как тап по сэмплу), звучит на дорожке.
     func libUseTable(_ key: String, name: String) {
         guard channel == .track else { return }
-        editTrack { t in t.table = key }
+        editTrack { t in
+            if let it = Track.tableItem(t, key, name) { t.setFolder([it]) } else { t.table = key }
+        }
         libNote = trackLabel(selectedTrack) + ": table " + name
+    }
+
+    /// LOAD выбора таблиц: в папке дорожки — только отмеченные таблицы (по порядку списка), первая звучит; стрелки
+    /// под окном сэмпла переключают таблицы, ручки синта остаются. Затем браузер закрывается.
+    func libLoadPickedTables(_ picked: Set<String>) {
+        guard channel == .track else { return }
+        let list: [LibNode] = libItems.filter { $0.kind == .table && picked.contains($0.id) }
+        libPicked = nil
+        let t: Track = track
+        let items: [FolderItem] = list.compactMap { n in n.key.flatMap { Track.tableItem(t, $0, n.name) } }
+        if items.isEmpty { return }
+        editTrack { $0.setFolder(items) }
+        libNote = trackLabel(selectedTrack) + ": \(items.count) tables"
+        closeBrowser()
     }
 }
 

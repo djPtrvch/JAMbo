@@ -148,12 +148,13 @@ struct LibRow: View {
         model.libTap(node)
     }
 
-    /// Удержание сэмпла или пресета (0,5 с без сдвига) — выбор нескольких.
+    /// Удержание сэмпла или пресета (0,5 с без сдвига) — выбор нескольких; в LOAD TABLE — таблиц.
     private var hold: some Gesture {
         LongPressGesture(minimumDuration: 0.5, maximumDistance: 10)
             .onEnded { _ in
-                guard node.kind == .sample || node.kind == .preset, model.browser == .load(steps: []),
-                      model.libPicked == nil, !open else { return }
+                let kinds: Bool = model.tableMode ? node.kind == .table
+                    : (node.kind == .sample || node.kind == .preset) && model.browser == .load(steps: [])
+                guard kinds, model.libPicked == nil, !open else { return }
                 held = true
                 model.libHold(node)
             }

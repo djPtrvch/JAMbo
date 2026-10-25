@@ -87,6 +87,13 @@ extension Track {
         applyItem(first)
     }
 
+    /// Таблица WTABLE в папке дорожки: пресет только с движком и таблицей (без ручек — при переключении стрелками ручки
+    /// синта остаются), имя — имя таблицы. Дорожка не WTABLE — nil.
+    public static func tableItem(_ t: Track, _ key: String, _ name: String) -> FolderItem? {
+        guard SynthKey.engine(t.sample) == 19 else { return nil }
+        return FolderItem(preset: SynthPreset(name: name, sound: t.sample, params: [:], table: key))
+    }
+
     /// Пресет из синта дорожки (presetFromTrack веба); у сэмпла — nil.
     public func preset(named name: String) -> SynthPreset? {
         guard let e = SynthKey.engine(sample) else { return nil }

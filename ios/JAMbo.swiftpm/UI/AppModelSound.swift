@@ -42,6 +42,8 @@ extension AppModel {
         var keys: [String] = []
         for t in project.tracks {
             keys.append(t.table)
+            // Таблицы папки дорожки — заранее: стрелки переключают их без паузы на построение.
+            for it in t.folder.items { if let k = it.preset?.table { keys.append(k) } }
             if let h = t.home { keys.append(h.table) }
             for c in t.clips { if let s = c?.src { keys.append(s.table) } }
         }

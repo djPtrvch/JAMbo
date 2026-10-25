@@ -109,7 +109,7 @@ struct LibraryBrowser: View {
 
     private var pickBar: some View {
         HStack(spacing: Layout.gap) {
-            Text("\(model.libPicked?.count ?? 0) selected · tap samples and presets to add or remove")
+            Text("\(model.libPicked?.count ?? 0) selected · tap " + (model.tableMode ? "tables" : "samples and presets") + " to add or remove")
                 .font(.system(size: 12)).foregroundStyle(theme.text).lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 6)
             ToolButton(title: "LOAD", width: 110) { model.libLoadPicked() }
