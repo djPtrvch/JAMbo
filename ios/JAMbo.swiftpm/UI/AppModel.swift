@@ -116,6 +116,8 @@ final class AppModel {
     /// Меню PRESETS EQ (рамка кнопки и низ поля EQ, «root»); пресеты EQ — общие для каналов и проектов.
     var eqPresetMenu: EqPresetMenuState? = nil
     var eqPresets: EqPresetBook = AppModel.loadEqPresets()
+    /// DIAGNOSTICS: что сделал последний тап по пресету EQ (поиск ошибки загрузки).
+    var eqPresetLog: String = "—"
     /// Сравнение у каждой дорожки своё: id дорожки → id сравниваемой (спектр после её EQ); меню выбора; спектр
     /// выхода у EQ мастера.
     var eqCompares: [Int: Int] = [:]

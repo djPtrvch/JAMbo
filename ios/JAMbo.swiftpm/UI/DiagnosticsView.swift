@@ -38,6 +38,7 @@ struct DiagnosticsView: View {
             uiRows(model.frameMeter)
             row("Build", DiagnosticsView.build)
             row("Privacy", DiagnosticsView.privacy)
+            row("EQ preset", "\(model.eqPresets.list.count) saved · last tap: \(model.eqPresetLog)")
             #if DEBUG
             row("Tap", tapLine)
             #endif

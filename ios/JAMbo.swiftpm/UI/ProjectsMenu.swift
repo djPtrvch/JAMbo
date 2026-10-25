@@ -121,7 +121,6 @@ struct ProjectsPage: View {
                 row(info).id("\(info.id)#\(info.name)#\(info.updated)")
             }
         }
-        .padding(.trailing, 6)
     }
 
     private func row(_ info: ProjectInfo) -> some View {
