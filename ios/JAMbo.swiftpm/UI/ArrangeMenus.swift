@@ -31,6 +31,8 @@ struct ArrMenus: View {
             ArrMarkerWindow(model: model, index: k).offset(place(a, w: ArrMarkerWindow.width, h: ArrMarkerWindow.height))
         case .insert(let t, let x, let a):
             insertMenu(t, x, a)
+        case .range(let a):
+            ArrRangeMenu(model: model, anchor: a).offset(place(a, w: ArrRangeMenu.width, h: ArrRangeMenu.height))
         }
     }
 
@@ -263,5 +265,27 @@ struct ArrMarkerWindow: View {
         model.arrRenameMarker(index, name)
         model.arrMenu = nil
         f()
+    }
+}
+
+/// Меню выделенного диапазона (двойной тап по нему на линейке): LOOP — зациклить (горит, пока петля включена),
+/// SECTION — маркер секции в начале диапазона и окно с именем.
+struct ArrRangeMenu: View {
+    static let width: CGFloat = 180
+    /// 2 строки по 40, зазор 6, поля 16.
+    static let height: CGFloat = 102
+    let model: AppModel
+    let anchor: CGPoint
+
+    var body: some View {
+        VStack(spacing: 6) {
+            MenuItem(title: "LOOP", current: model.project.arrange.loop) {
+                model.arrMenu = nil
+                model.toggleArrLoop()
+            }
+            MenuItem(title: "SECTION") { model.arrSectionAtRange(anchor: anchor) }
+        }
+        .frame(width: ArrRangeMenu.width)
+        .modifier(MenuPanel())
     }
 }

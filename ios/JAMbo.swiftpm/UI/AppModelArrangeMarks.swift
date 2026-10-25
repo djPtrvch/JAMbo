@@ -13,12 +13,12 @@ extension AppModel {
         arrMenu = .marker(index: k, anchor: anchor)
     }
 
-    /// SECTION: маркер на позиции курсора и окно с именем.
-    func arrSection() {
-        let at: Int = arrNow
+    /// SECTION в меню диапазона: маркер в начале выделенного диапазона и окно с именем.
+    func arrSectionAtRange(anchor: CGPoint) {
+        let at: Int = project.arrange.loopFrom
         var k: Int = 0
         edit { p in k = p.addMarker(at: at, name: "") }
-        arrMenu = .marker(index: k, anchor: CGPoint(x: 0, y: ArrMetrics.top))
+        arrMenu = .marker(index: k, anchor: anchor)
     }
 
     /// Перетаскивание маркера (внутри жеста): новое место с магнитом; номер маркера после сортировки.

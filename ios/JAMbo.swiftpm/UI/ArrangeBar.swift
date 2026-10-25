@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Вторая строка кнопок под верхней панелью — пока открыт аранжировщик (S15c): сетка (значок и шаг) и магнит, SECTION,
+/// Вторая строка кнопок под верхней панелью — пока открыт аранжировщик (S15c): сетка (значок и шаг) и магнит,
 /// LOOP (значок, как LOOP ROW сетки паттернов), INSERT, STEPS, REF, A/B, AUTO (синусоида с точками), возврат всех
 /// дорожек к таймлайну (стрелка к черте, как в Logic Pro). Высота — как у строки окон EQ и модулей мастера.
 struct ArrangeBar: View {
@@ -12,7 +12,6 @@ struct ArrangeBar: View {
         return HStack(spacing: Layout.gap) {
             ArrGridField(model: model).frame(width: Layout.topButton)
             ArrBarButton(on: a.snap, enabled: true, action: { model.toggleArrSnap() }) { c in ArrMagnetIcon(color: c) }
-            ArrBarText(title: "SECTION", on: false, enabled: true) { model.arrSection() }
             ArrBarButton(on: a.loop, enabled: a.hasLoop, action: { model.toggleArrLoop() }) { c in
                 Image(systemName: "repeat").font(.system(size: 18, weight: .semibold)).foregroundStyle(c)
             }
@@ -36,7 +35,7 @@ struct ArrGridField: View {
     var body: some View {
         let a: Arrangement = model.project.arrange
         return HStack(spacing: 6) {
-            Image(systemName: "square.grid.3x3").font(.system(size: 16, weight: .semibold)).foregroundStyle(theme.text)
+            ArrGridIcon(color: theme.text)
             Text(ArrGrid.names[max(0, min(a.grid, ArrGrid.names.count - 1))])
                 .font(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text)
         }
@@ -165,5 +164,31 @@ struct ArrWaveIcon: View {
             }
         }
         .frame(width: 30, height: 24)
+    }
+}
+
+/// Значок сетки: квадрат, разделённый линиями (решётка), — не клетки паттернов.
+struct ArrGridIcon: View {
+    let color: Color
+
+    var body: some View {
+        Canvas { ctx, size in
+            let side: CGFloat = 18
+            let x0: CGFloat = (size.width - side) / 2
+            let y0: CGFloat = (size.height - side) / 2
+            let r = CGRect(x: x0, y: y0, width: side, height: side)
+            var p = Path(r)
+            var k: CGFloat = 1
+            while k < 3 {
+                let d: CGFloat = side * k / 3
+                p.move(to: CGPoint(x: x0 + d, y: y0))
+                p.addLine(to: CGPoint(x: x0 + d, y: y0 + side))
+                p.move(to: CGPoint(x: x0, y: y0 + d))
+                p.addLine(to: CGPoint(x: x0 + side, y: y0 + d))
+                k += 1
+            }
+            ctx.stroke(p, with: .color(color), lineWidth: 1.5)
+        }
+        .frame(width: 24, height: 24)
     }
 }

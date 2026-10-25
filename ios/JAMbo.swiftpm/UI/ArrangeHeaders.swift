@@ -41,7 +41,8 @@ struct ArrHeaderRow: View {
     let index: Int
     @State private var lastTap: Date? = nil
     @State private var touching: Bool = false
-    @State private var swiped: Bool = false
+    @State private var scrolled: Bool = false
+    @State private var baseY: CGFloat = 0
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -54,12 +55,15 @@ struct ArrHeaderRow: View {
 
     private func row(_ t: Track) -> some View {
         let selected: Bool = model.channel == .track && model.selectedTrack == index
+        // Цвет по умолчанию — заголовок как строка дорожек; свой цвет (меню дорожки) — заголовок целиком этим цветом.
+        let own: Bool = t.color != ArrPalette.defaultColor
+        let bg: Color = own ? ArrColors.color(t.color) : theme.trackBg
+        let fg: Color = own ? ArrColors.text : theme.text
         return HStack(spacing: 5) {
-            RoundedRectangle(cornerRadius: 2).fill(ArrColors.color(t.color)).frame(width: 5).padding(.vertical, 4)
             Text(t.name)
                 .font(.system(size: 12, weight: selected ? .heavy : .semibold))
                 .lineLimit(1)
-                .foregroundStyle(theme.text)
+                .foregroundStyle(fg)
                 .frame(maxWidth: .infinity, alignment: .leading)
             ArrToggle(title: "M", on: t.mute, color: theme.rec) { model.toggleMute(index) }
             ArrToggle(title: "S", on: t.solo, color: theme.accent) { model.toggleSolo(index) }
@@ -67,29 +71,28 @@ struct ArrHeaderRow: View {
             ArrFader(model: model, track: index).frame(width: 26)
         }
         .padding(.horizontal, 6)
-        .background(theme.trackBg, in: RoundedRectangle(cornerRadius: 6))
+        .background(bg, in: RoundedRectangle(cornerRadius: 6))
         .overlay(RoundedRectangle(cornerRadius: 6).stroke(selected ? theme.accent : Color.clear, lineWidth: 1))
         .contentShape(Rectangle())
         .gesture(touch)
     }
 
-    /// Как строка дорожек: свайп вниз — mute, вверх — solo (~24 px); без свайпа — тап.
+    /// Палец вверх-вниз — прокрутка дорожек (EXPANDED; свайпов mute и solo нет — решение пользователя); без сдвига — тап.
     private var touch: some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { g in
                 if !touching {
                     touching = true
-                    swiped = false
+                    scrolled = false
+                    baseY = model.arrPort.y
                 }
                 let dy: CGFloat = g.translation.height
-                if !swiped && abs(dy) >= 24 {
-                    swiped = true
-                    model.swipe(track: index, down: dy > 0)
-                }
+                if !scrolled && abs(dy) >= 8 { scrolled = true }
+                if scrolled && model.settings.arrangeExpanded { model.arrPort.y = max(0, baseY - dy) }
             }
             .onEnded { _ in
                 touching = false
-                if !swiped { tapped() }
+                if !scrolled { tapped() }
             }
     }
 

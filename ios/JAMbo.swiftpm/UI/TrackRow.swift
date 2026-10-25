@@ -116,7 +116,8 @@ struct TrackCell: View {
                     model.ensureAudio()
                 }
                 let dy: CGFloat = g.translation.height
-                if !swiped && abs(dy) >= 24 {
+                // В аранжировщике свайпов mute и solo нет (решение пользователя).
+                if !swiped && !model.arrangeView && abs(dy) >= 24 {
                     swiped = true
                     model.swipe(track: index, down: dy > 0)
                 }

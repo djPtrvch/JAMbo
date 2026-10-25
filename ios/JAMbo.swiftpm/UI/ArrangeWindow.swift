@@ -129,8 +129,11 @@ struct ArrTimeline: View {
         return GeometryReader { geo in
             let m = ArrMetrics(size: geo.size, port: port, tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded)
             ZStack(alignment: .topLeading) {
-                Canvas { ctx, _ in
-                    ArrDraw(ctx: ctx, m: m, theme: theme).draw(p, cursor: now, sel: sel, lift: lift, following: following,
+                Canvas { ctx, size in
+                    // Углы окна скруглены и у линейки (рисование — внутри скруглённой рамки).
+                    var c = ctx
+                    c.clip(to: Path(roundedRect: CGRect(origin: .zero, size: size), cornerRadius: Layout.radius))
+                    ArrDraw(ctx: c, m: m, theme: theme).draw(p, cursor: now, sel: sel, lift: lift, following: following,
                                                             names: { model.arrClipName($0) })
                 }
                 if let l = lift { liftedView(l, m, p) }
@@ -174,7 +177,9 @@ struct ArrTimeline: View {
         var port: ArrPort = model.arrPort
         touches.handle(events, port: &port, m, model, lift: $lift)
         let c = ArrMetrics(size: size, port: port, tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded)
-        let next = ArrPort(stepW: port.stepW == nil ? nil : c.stepW, x: c.x, rowH: c.rowH, y: c.y)
+        // COMPACT: высота строк — по окну, своя высота EXPANDED не теряется.
+        let rowH: CGFloat = c.expanded ? c.rowH : port.rowH
+        let next = ArrPort(stepW: port.stepW == nil ? nil : c.stepW, x: c.x, rowH: rowH, y: c.y)
         if next != model.arrPort { model.arrPort = next }
     }
 }
@@ -222,7 +227,7 @@ struct ArrDraw {
             if bar || fine {
                 let x: CGFloat = m.stepX(Double(s))
                 let c: Color = bar ? theme.gridStrong : theme.grid
-                ctx.fill(Path(CGRect(x: x, y: ArrMetrics.top, width: 1, height: h)), with: .color(c))
+                if x >= 1 { ctx.fill(Path(CGRect(x: x, y: ArrMetrics.top, width: 1, height: h)), with: .color(c)) }
             }
             s += max(1, g)
         }
@@ -270,7 +275,8 @@ struct ArrDraw {
         var bar: Int = firstBar - firstBar % every
         while bar <= lastBar {
             let x: CGFloat = m.stepX(Double(bar * ArrMetrics.stepsPerBar))
-            ctx.fill(Path(CGRect(x: x, y: 0, width: 1, height: ArrMetrics.rulerH)), with: .color(theme.gridStrong))
+            // Черта такта у самого края не рисуется — угол линейки остаётся скруглённым.
+            if x >= 1 { ctx.fill(Path(CGRect(x: x, y: 0, width: 1, height: ArrMetrics.rulerH)), with: .color(theme.gridStrong)) }
             let text = Text("\(bar + 1)").font(.system(size: 9)).monospacedDigit().foregroundStyle(theme.dim)
             ctx.draw(text, at: CGPoint(x: x + 3, y: 3), anchor: .topLeading)
             bar += every

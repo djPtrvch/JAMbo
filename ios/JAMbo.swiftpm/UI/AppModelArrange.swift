@@ -16,6 +16,8 @@ enum ArrMenuState: Equatable {
     case marker(index: Int, anchor: CGPoint)
     /// INSERT: клипы дорожки для вставки в точку at.
     case insert(track: Int, at: Int, anchor: CGPoint)
+    /// Выделенный на линейке диапазон: LOOP (зациклить), SECTION (секция с начала диапазона).
+    case range(anchor: CGPoint)
 }
 
 /// Вид таймлайна: ширина шага (nil — 16 тактов на ширину), прокрутка по X (pt), высота строки дорожки, прокрутка
