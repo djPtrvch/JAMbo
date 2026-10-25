@@ -22,7 +22,7 @@ struct EqView: View {
     var body: some View {
         VStack(spacing: Layout.gap) {
             EqBar(model: model, layout: layout, plotFrame: plotFrame) { field in openInput(field) }
-                .frame(height: 48)
+                .frame(height: model.barH)
             EqPlot(model: model)
                 .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { plotFrame = $0 }
         }
@@ -170,9 +170,9 @@ struct EqBar: View {
     var body: some View {
         let col: CGFloat = EqBar.column(width)
         return ZStack(alignment: .topLeading) {
-            name.frame(width: EqBar.nameWidth, height: 48)
+            name.frame(width: EqBar.nameWidth, height: model.barH)
             ForEach(0..<EqBar.columns, id: \.self) { i in
-                item(i).frame(width: col, height: 48).offset(x: EqBar.left(i, col))
+                item(i).frame(width: col, height: model.barH).offset(x: EqBar.left(i, col))
             }
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)

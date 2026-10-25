@@ -54,7 +54,7 @@ struct SettingsPage: View {
 }
 
 /// ARRANGE (S15): вид дорожек аранжировщика — EXPANDED (по умолчанию: 8 дорожек на высоту окна, больше — прокрутка) или
-/// COMPACT (все на высоту окна).
+/// COMPACT (все на высоту окна); GRID — шаг сетки таймлайна (1 BAR, 1/2, 1/4, 1 STEP).
 struct ArrangeSettings: View {
     let model: AppModel
 
@@ -67,6 +67,13 @@ struct ArrangeSettings: View {
                 MenuItem(title: "COMPACT", current: !on) { model.updateSettings { $0.arrangeCompact = true } }
             }
             SettingsNote(text: "EXPANDED: 8 tracks fill the arranger window, more tracks scroll. COMPACT: all tracks fit the arranger window.")
+            // Шаг сетки таймлайна (решение пользователя: из строки аранжировщика — сюда); у проекта, с UNDO.
+            FieldLabel(title: "GRID")
+            HStack(spacing: 4) {
+                ForEach(0..<ArrGrid.names.count, id: \.self) { k in
+                    MenuItem(title: ArrGrid.names[k], current: model.project.arrange.grid == k) { model.setArrGrid(k) }
+                }
+            }
         }
     }
 }

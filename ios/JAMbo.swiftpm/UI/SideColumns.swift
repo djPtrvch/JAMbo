@@ -7,14 +7,15 @@ struct LeftColumn: View {
 
     var body: some View {
         VStack(spacing: Layout.gap) {
-            SampleWindow(model: model)
-            // Под окном: у дорожки — стрелки папки, при MIX — ● MASTER (окно размером как у дорожки); при MST строки нет —
-            // индикация мастера выше.
+            // Над окном (решение пользователя: высотой с верхнюю миниатюру паттернов — строка кнопок, в аранжировщике её
+            // закрывают его кнопки): у дорожки — стрелки папки, при MIX — ● MASTER; при MST строки нет — индикация
+            // мастера выше.
             if model.channel == .track {
-                FolderArrows(model: model).frame(height: 36)
+                FolderArrows(model: model).frame(height: model.barH)
             } else if model.channel == .mix {
-                MasterRecButton(model: model).frame(height: 36).midiTarget(model, "ARM MST")
+                MasterRecButton(model: model).frame(height: model.barH).midiTarget(model, "ARM MST")
             }
+            SampleWindow(model: model)
             if model.channel == .master {
                 // По цепочке (решение пользователя, в вебе CLIP, LIM / SAT, COMP): SAT снизу слева, над ним COMP,
                 // справа от него CLIP, под CLIP — LIM.
@@ -120,8 +121,10 @@ struct ButtonPair<L: View, R: View>: View {
             left
             right
         }
-        .frame(height: 56)
+        .frame(height: ButtonPair.height)
     }
+
+    static let height: CGFloat = 56
 }
 
 struct SideButton: View {

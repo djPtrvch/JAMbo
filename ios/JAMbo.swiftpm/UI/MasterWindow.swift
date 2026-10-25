@@ -14,7 +14,7 @@ struct MasterWindowView: View {
     var body: some View {
         VStack(spacing: Layout.gap) {
             MasterStrip(model: model, module: module, bounds: frame, input: { t in openInput(t) })
-                .frame(height: 48)
+                .frame(height: model.barH)
             display
         }
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { frame = $0 }

@@ -1,84 +1,66 @@
 import SwiftUI
 
-/// Вторая строка кнопок под верхней панелью — пока открыт аранжировщик (S15c, решения пользователя): слева квадратные
-/// значки — сетка (ячейка; тап — меню шага), магнит, TRIM (ножницы); остальные — под кнопками верхней панели и той же
-/// ширины: KNOBS (ручки дорожки) — под UNDO, курсор в начало (стрелка к черте) — под PLAY, LOOP — под REC, STEPS — под
-/// REDO, AUTO (синусоида с точками) — под пианороллом, INSERT — под EQ, REF — под PATTERNS, A/B — под ARRANGE. Высота — как у строки окон EQ и модулей
-/// мастера.
+/// Строка кнопок аранжировщика (решения пользователя): высотой со строку папки над превью и верхнюю миниатюру
+/// паттернов (AppModel.barH) — и закрывает их. Слева, по ширине превью, — магнит, TRIM (ножницы), курсор в начало
+/// (стрелка к черте), LOOP; справа, по ширине колонки миниатюр, — KNOBS (окно ручек), STEPS (значок секвенсора), AUTO
+/// (синусоида с точками), REF. Шаг сетки — в SETTINGS → ARRANGE.
 struct ArrangeBar: View {
-    static let height: CGFloat = 48
     let model: AppModel
 
     var body: some View {
-        let side: CGFloat = ArrangeBar.height
-        return GeometryReader { geo in
-            let ox: CGFloat = geo.frame(in: .named("root")).minX
-            ZStack(alignment: .topLeading) {
-                HStack(spacing: Layout.gap) {
-                    ArrGridField(model: model).frame(width: side)
-                    ArrBarButton(on: a.snap, enabled: true, action: { model.toggleArrSnap() }) { c in ArrMagnetIcon(color: c) }
-                        .frame(width: side)
-                    ArrBarButton(on: false, enabled: true, action: { model.arrTrim() }) { c in
-                        Image(systemName: "scissors").font(.system(size: 18, weight: .semibold)).foregroundStyle(c)
-                    }
-                    .frame(width: side)
+        let a: Arrangement = model.project.arrange
+        return HStack(spacing: Layout.gap) {
+            HStack(spacing: Layout.gap) {
+                ArrBarButton(on: a.snap, enabled: true, action: { model.toggleArrSnap() }) { c in ArrMagnetIcon(color: c) }
+                ArrBarButton(on: false, enabled: true, action: { model.arrTrim() }) { c in
+                    Image(systemName: "scissors").font(.system(size: 18, weight: .semibold)).foregroundStyle(c)
                 }
-                under("UNDO", ox) {
-                    ArrBarButton(on: model.arrKnobs, enabled: true, action: { model.arrKnobs.toggle() }) { c in
-                        Image(systemName: "dial.medium").font(.system(size: 20, weight: .semibold)).foregroundStyle(c)
-                    }
+                ArrReturnAll(model: model)
+                ArrBarButton(on: a.loop, enabled: a.hasLoop, action: { model.toggleArrLoop() }) { c in
+                    Image(systemName: "repeat").font(.system(size: 18, weight: .semibold)).foregroundStyle(c)
                 }
-                under("PLAY", ox) { ArrReturnAll(model: model) }
-                under("REC", ox) {
-                    ArrBarButton(on: a.loop, enabled: a.hasLoop, action: { model.toggleArrLoop() }) { c in
-                        Image(systemName: "repeat").font(.system(size: 18, weight: .semibold)).foregroundStyle(c)
-                    }
-                }
-                under("REDO", ox) { ArrBarText(title: "STEPS", on: !a.hideSteps, enabled: true) { model.toggleArrSteps() } }
-                // Запись (REC + PLAY + AUTO) — красная обводка.
-                under("ROLL", ox) {
-                    ArrBarButton(on: model.arrAuto, enabled: true, ring: model.arrRecording, action: { model.toggleArrAuto() }) { c in
-                        ArrWaveIcon(color: c)
-                    }
-                }
-                under("EQ", ox) { ArrBarText(title: "INSERT", on: model.arrInsert, enabled: true) { model.toggleArrInsert() } }
-                under("PATTERNS", ox) { ArrBarText(title: "REF", on: false, enabled: false) {} }
-                under("ARRANGE", ox) { ArrBarText(title: "A/B", on: false, enabled: false) {} }
             }
-        }
-        .frame(height: ArrangeBar.height)
-    }
-
-    private var a: Arrangement { return model.project.arrange }
-
-    /// Кнопка под кнопкой верхней панели key (рамка — AppModel.topFrames), той же ширины; пока рамка неизвестна — нет.
-    @ViewBuilder
-    private func under<Content: View>(_ key: String, _ ox: CGFloat, @ViewBuilder _ content: () -> Content) -> some View {
-        if let f = model.topFrames[key], f.width > 0 {
-            content()
-                .frame(width: f.width, height: ArrangeBar.height)
-                .offset(x: f.minX - ox)
+            .frame(width: Layout.leftColumn)
+            Spacer(minLength: 0)
+            HStack(spacing: Layout.gap) {
+                ArrBarButton(on: model.arrKnobs, enabled: true, action: { model.arrKnobs.toggle() }) { c in
+                    Image(systemName: "dial.medium").font(.system(size: 20, weight: .semibold)).foregroundStyle(c)
+                }
+                ArrBarButton(on: !a.hideSteps, enabled: true, action: { model.toggleArrSteps() }) { c in ArrStepsIcon(color: c) }
+                // Запись (REC + PLAY + AUTO) — красная обводка.
+                ArrBarButton(on: model.arrAuto, enabled: true, ring: model.arrRecording, action: { model.toggleArrAuto() }) { c in
+                    ArrWaveIcon(color: c)
+                }
+                ArrBarText(title: "REF", on: false, enabled: false) {}
+            }
+            .frame(width: Layout.leftColumn)
+            // Место измерителя справа (как в окне дорожки).
+            Color.clear.frame(width: Layout.meterWidth)
         }
     }
 }
 
-/// Шаг сетки: тап — меню 1 BAR, 1/2, 1/4, 1 STEP.
-struct ArrGridField: View {
-    let model: AppModel
-    @State private var frame: CGRect = .zero
-    @Environment(\.theme) private var theme
+/// Значок STEPS: строка шагов секвенсора (квадратики, два горят).
+struct ArrStepsIcon: View {
+    let color: Color
 
     var body: some View {
-        let a: Arrangement = model.project.arrange
-        return ArrGridIcon(color: theme.text)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
-        .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { frame = $0 }
-        .contentShape(Rectangle())
-        .onTapGesture {
-            model.choice = ChoiceState(options: ArrGrid.names, columns: 4, current: a.grid, anchor: frame,
-                                       pick: { model.setArrGrid($0) })
+        Canvas { ctx, size in
+            let side: CGFloat = 5
+            let gap: CGFloat = 2
+            let n: Int = 4
+            let w: CGFloat = CGFloat(n) * side + CGFloat(n - 1) * gap
+            let x0: CGFloat = (size.width - w) / 2
+            let y: CGFloat = (size.height - side) / 2
+            var k: Int = 0
+            while k < n {
+                let r = CGRect(x: x0 + CGFloat(k) * (side + gap), y: y, width: side, height: side)
+                let p = Path(roundedRect: r, cornerRadius: 1)
+                if k % 2 == 0 { ctx.fill(p, with: .color(color)) } else { ctx.stroke(p, with: .color(color), lineWidth: 1) }
+                k += 1
+            }
         }
+        .frame(width: 30, height: 20)
     }
 }
 
@@ -200,13 +182,3 @@ struct ArrWaveIcon: View {
     }
 }
 
-/// Значок сетки: одна ячейка (квадрат), без надписи.
-struct ArrGridIcon: View {
-    let color: Color
-
-    var body: some View {
-        RoundedRectangle(cornerRadius: 2)
-            .stroke(color, lineWidth: 2)
-            .frame(width: 16, height: 16)
-    }
-}

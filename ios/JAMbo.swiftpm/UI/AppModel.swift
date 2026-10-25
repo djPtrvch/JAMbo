@@ -94,8 +94,6 @@ final class AppModel {
     var arrAuto: Bool = false
     /// Ручка, кривая которой открыта в окне AUTO (id параметра).
     var arrAutoId: String = ""
-    /// Рамки кнопок верхней панели (в координатах "root"): под ними — кнопки второй строки аранжировщика.
-    var topFrames: [String: CGRect] = [:]
     /// Запись ручек в аранжировку (S15f3): кусок на ручку (ключ — дорожка·ArrAutoTarget.count + цель), кривые под рукой,
     /// отложенный конец куска (энкодер MIDI — без касания).
     @ObservationIgnored var autoTakes: [Int: AutoTake] = [:]
@@ -122,6 +120,8 @@ final class AppModel {
     var arrKnobs: Bool = false
     /// Высота строки дорожек, секвенсора и клавиатуры: окно AUTO поверх низа аранжировщика при выключенной STEPS.
     var arrLowerH: CGFloat = 0
+    /// Высота строки кнопок (RootView.units): строка папки, вторая строка аранжировщика, верх EQ и окон мастера.
+    var barH: CGFloat = 40
     var arrMenu: ArrMenuState? = nil
     var arrPort: ArrPort = ArrPort()
     /// INSERT (S15d): режим вставки; только что вставленный блок (его правый край — длина со сдвигом).

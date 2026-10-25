@@ -16,10 +16,11 @@ struct PagesColumn: View {
     @Environment(\.theme) private var theme
 
     static let rows = 8
+    static let spacing: CGFloat = 4
 
     var body: some View {
         GeometryReader { geo in
-            let rowH: CGFloat = (geo.size.height - 4 * CGFloat(PagesColumn.rows - 1)) / CGFloat(PagesColumn.rows)
+            let rowH: CGFloat = (geo.size.height - PagesColumn.spacing * CGFloat(PagesColumn.rows - 1)) / CGFloat(PagesColumn.rows)
             ZStack(alignment: .topLeading) {
                 VStack(spacing: 4) {
                     ForEach(0..<PagesColumn.rows, id: \.self) { r in

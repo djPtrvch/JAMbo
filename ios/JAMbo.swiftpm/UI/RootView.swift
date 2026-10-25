@@ -16,14 +16,14 @@ struct RootView: View {
             // Одна высота строки на весь экран (решение пользователя): окно аранжировщика (под второй строкой) —
             // линейка и 8 строк дорожек; низ (строка дорожек, секвенсор, клавиатура) — ровно 3 строки, его верх — верх
             // шестой дорожки; клавиатура — на остаток.
-            let unit: CGFloat = RootView.rowUnit(geo.size.height)
+            let units: (bar: CGFloat, unit: CGFloat) = RootView.units(geo.size.height)
             // Низ — три строки и два зазора: его верх — верх шестой дорожки, над ним — зазор между пятой и шестой.
-            let lowerH: CGFloat = 3 * unit + 2 * Layout.gap
+            let lowerH: CGFloat = 3 * units.unit + 2 * Layout.gap
             let piano: CGFloat = lowerH - Layout.trackHeight - Layout.seqHeight - 2 * Layout.gap
             let layout: Layout = Layout(width: geo.size.width - 24, piano: piano)
             ZStack(alignment: .topLeading) {
                 theme.bg.ignoresSafeArea()
-                screen(layout, lowerH)
+                screen(layout, lowerH, units.bar)
                 arrangeMeter
                 overlays
                 if let c = model.choice {
@@ -89,39 +89,58 @@ struct RootView: View {
         Binding(get: { model.importing }, set: { model.importing = $0 })
     }
 
-    /// Высота строки дорожки аранжировщика (EXPANDED): окно от второй строки до низа экрана — линейка, 8 строк и 7
-    /// зазоров.
-    static func rowUnit(_ h: CGFloat) -> CGFloat {
-        let top: CGFloat = 8 + Layout.topHeight + Layout.gap + ArrangeBar.height + Layout.gap
-        let window: CGFloat = h - 8 - top
-        return max(20, (window - ArrMetrics.top - 7 * Layout.gap) / 8)
+    /// Строка кнопок (bar: строка папки над превью, верхняя миниатюра паттернов, вторая строка аранжировщика, верхние
+    /// строки EQ и окон мастера) и высота строки дорожки аранжировщика (unit). Аранжировщик — от низа строки кнопок до
+    /// низа экрана: линейка, 8 строк и 7 зазоров; низ экрана — 3 строки и 2 зазора; центр — над низом; миниатюры — 8
+    /// строк колонки над двумя парами кнопок. bar зависит от центра, центр — от unit, unit — от bar: решается
+    /// последовательными приближениями (сходится за несколько шагов).
+    static func units(_ h: CGFloat) -> (bar: CGFloat, unit: CGFloat) {
+        let g: CGFloat = Layout.gap
+        let centerTop: CGFloat = 8 + Layout.topHeight + g
+        let rows: CGFloat = CGFloat(PagesColumn.rows)
+        var bar: CGFloat = 40
+        var unit: CGFloat = 60
+        var k: Int = 0
+        while k < 12 {
+            let window: CGFloat = h - 8 - (centerTop + bar + g)
+            unit = max(20, (window - ArrMetrics.top - 7 * g) / 8)
+            let lowerH: CGFloat = 3 * unit + 2 * g
+            let center: CGFloat = h - 8 - centerTop - lowerH - g
+            let pages: CGFloat = center - 2 * ButtonPair.height - 2 * g
+            bar = max(24, (pages - PagesColumn.spacing * (rows - 1)) / rows)
+            k += 1
+        }
+        return (bar, unit)
     }
 
-    private func screen(_ layout: Layout, _ lowerH: CGFloat) -> some View {
+    private func screen(_ layout: Layout, _ lowerH: CGFloat, _ bar: CGFloat) -> some View {
         VStack(spacing: Layout.gap) {
             TopBar(model: model, menuOpen: $menuOpen)
             if model.arrangeView && model.browser == nil && !model.rollView && !model.patternView {
-                ArrangeBar(model: model)
-                arrangeArea(layout, lowerH)
+                arrangeArea(layout, lowerH, bar)
             } else {
-                if model.arrangeView { ArrangeBar(model: model) }
                 center(layout)
                 lower(layout).frame(height: lowerH)
             }
         }
         .onChange(of: lowerH, initial: true) { _, h in model.arrLowerH = h }
+        .onChange(of: bar, initial: true) { _, b in model.barH = b }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
     }
 
-    /// Аранжировщик (решения пользователя): окно — всегда во всю высоту (дорожки не схлопываются, прокрутка); STEPS —
-    /// строка дорожек, секвенсор и клавиатура поверх трёх нижних дорожек (от верха шестой); AUTO — на том же месте;
-    /// KNOBS — окно дорожки с ручками поверх линейки и пяти верхних дорожек.
-    private func arrangeArea(_ layout: Layout, _ lowerH: CGFloat) -> some View {
+    /// Аранжировщик (решения пользователя): строка кнопок (ArrangeBar) — сверху, слева на месте строки папки над
+    /// превью, справа — на месте верхней миниатюры; под ней окно — до низа экрана (дорожки не схлопываются, прокрутка);
+    /// STEPS — строка дорожек, секвенсор и клавиатура поверх трёх нижних дорожек (от верха шестой); AUTO — на том же
+    /// месте; KNOBS — окно дорожки с ручками в обычном масштабе поверх линейки и пяти верхних дорожек (строку папки и
+    /// верхнюю миниатюру закрывает строка кнопок).
+    private func arrangeArea(_ layout: Layout, _ lowerH: CGFloat, _ bar: CGFloat) -> some View {
         let steps: Bool = !model.project.arrange.hideSteps
         return GeometryReader { g in
             ZStack(alignment: .topLeading) {
                 ArrangeWindow(model: model)
+                    .frame(height: max(0, g.size.height - bar - Layout.gap))
+                    .offset(y: bar + Layout.gap)
                 if model.arrKnobs {
                     center(layout)
                         .frame(height: max(0, g.size.height - lowerH - Layout.gap))
@@ -132,6 +151,7 @@ struct RootView: View {
                 } else if steps {
                     lower(layout).frame(height: lowerH).offset(y: g.size.height - lowerH)
                 }
+                ArrangeBar(model: model).frame(height: bar)
             }
         }
     }
