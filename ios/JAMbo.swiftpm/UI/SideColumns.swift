@@ -121,10 +121,8 @@ struct ButtonPair<L: View, R: View>: View {
             left
             right
         }
-        .frame(height: ButtonPair.height)
+        .frame(height: Layout.pairHeight)
     }
-
-    static let height: CGFloat = 56
 }
 
 struct SideButton: View {

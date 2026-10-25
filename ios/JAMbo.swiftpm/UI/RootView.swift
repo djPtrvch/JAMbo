@@ -106,7 +106,7 @@ struct RootView: View {
             unit = max(20, (window - ArrMetrics.top - 7 * g) / 8)
             let lowerH: CGFloat = 3 * unit + 2 * g
             let center: CGFloat = h - 8 - centerTop - lowerH - g
-            let pages: CGFloat = center - 2 * ButtonPair.height - 2 * g
+            let pages: CGFloat = center - 2 * Layout.pairHeight - 2 * g
             bar = max(24, (pages - PagesColumn.spacing * (rows - 1)) / rows)
             k += 1
         }

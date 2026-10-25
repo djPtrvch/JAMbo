@@ -8,6 +8,8 @@ struct Layout {
     static let topHeight: CGFloat = 44
     static let trackHeight: CGFloat = 50
     static let seqHeight: CGFloat = 60
+    /// Пара кнопок боковых колонок (LFO1 · LFO2, MOD · FX…).
+    static let pairHeight: CGFloat = 56
     /// Ширина кнопок верхней панели (SCALE, UNDO, REDO, EQ, PATTERNS, ARRANGE).
     static let topButton: CGFloat = 107
     static let leftColumn: CGFloat = 220
