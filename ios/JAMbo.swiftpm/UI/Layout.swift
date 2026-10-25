@@ -15,6 +15,8 @@ struct Layout {
 
     /// Ширина рабочей области (без полей).
     let width: CGFloat
+    /// Высота клавиатуры (низ экрана — ровно 3 строки дорожек аранжировщика, RootView); 0 — по квадратной клавише.
+    var piano: CGFloat = 0
 
     /// Ширина шага секвенсора (16 шагов с зазором 4) — и столбцов MIX и MST.
     var step: CGFloat { return max(1, (width - 15 * Layout.stepGap) / 16) }
@@ -27,6 +29,11 @@ struct Layout {
 
     /// Высота клавиатуры: квадратная клавиша + строка аккордов 44 px (с зазором 6) — от CHORD не меняется.
     func pianoHeight(_ scale: Int) -> CGFloat {
-        return keySide(scale) + 50
+        return piano > 0 ? piano : keySide(scale) + 50
+    }
+
+    /// Высота клавиши (и CHORD): клавиатура без строки аккордов.
+    func keyHeight(_ scale: Int) -> CGFloat {
+        return max(20, pianoHeight(scale) - 50)
     }
 }

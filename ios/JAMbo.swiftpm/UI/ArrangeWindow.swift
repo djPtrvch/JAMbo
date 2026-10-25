@@ -72,10 +72,9 @@ struct ArrMetrics {
         let area: CGFloat = max(0, size.height - ArrMetrics.top)
         let seen: CGFloat = max(0, area - inset)
         let fitRow: CGFloat = seen / CGFloat(max(1, tracks))
-        // Решения пользователя: EXPANDED — 8 дорожек делят высоту окна поровну, больше — прокрутка; COMPACT — все дорожки
-        // на высоту окна. Масштаба по вертикали нет.
-        let fit8: CGFloat = area / CGFloat(min(max(1, tracks), 8))
-        rowH = expanded ? max(24, fit8) : max(16, fitRow)
+        // Решения пользователя: EXPANDED — высота строки — 1/8 окна (одна на весь экран: низ — 3 строки, RootView), больше
+        // 8 дорожек — прокрутка; COMPACT — все дорожки на видимую высоту окна. Масштаба по вертикали нет.
+        rowH = expanded ? max(20, area / 8) : max(16, fitRow)
         steps = max(end, 0) + 32 * ArrMetrics.stepsPerBar
         let maxX: CGFloat = max(0, CGFloat(steps) * stepW - w)
         x = min(maxX, max(0, port.x))

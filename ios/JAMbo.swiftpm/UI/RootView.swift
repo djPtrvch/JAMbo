@@ -1,7 +1,8 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Главный экран (сверху вниз, как в вебе): верхняя панель, центр, строка дорожек, секвенсор, клавиатура.
+/// Главный экран (сверху вниз, как в вебе): верхняя панель, центр, строка дорожек, секвенсор, клавиатура. Низ — ровно
+/// три строки дорожек аранжировщика (одна высота строки на весь экран — rowUnit).
 
 struct RootView: View {
     let model: AppModel
@@ -12,10 +13,16 @@ struct RootView: View {
 
     var body: some View {
         GeometryReader { geo in
-            let layout: Layout = Layout(width: geo.size.width - 24)
+            // Одна высота строки на весь экран (решение пользователя): окно аранжировщика (под второй строкой) —
+            // линейка и 8 строк дорожек; низ (строка дорожек, секвенсор, клавиатура) — ровно 3 строки, его верх — верх
+            // шестой дорожки; клавиатура — на остаток.
+            let unit: CGFloat = RootView.rowUnit(geo.size.height)
+            let lowerH: CGFloat = 3 * unit
+            let piano: CGFloat = lowerH - Layout.trackHeight - Layout.seqHeight - 2 * Layout.gap
+            let layout: Layout = Layout(width: geo.size.width - 24, piano: piano)
             ZStack(alignment: .topLeading) {
                 theme.bg.ignoresSafeArea()
-                screen(layout)
+                screen(layout, lowerH)
                 arrangeMeter
                 overlays
                 if let c = model.choice {
@@ -81,43 +88,61 @@ struct RootView: View {
         Binding(get: { model.importing }, set: { model.importing = $0 })
     }
 
-    private func screen(_ layout: Layout) -> some View {
-        let lowerH: CGFloat = Layout.trackHeight + Layout.seqHeight + layout.pianoHeight(model.project.scale) + 2 * Layout.gap
-        let over: Bool = model.arrStepsHidden && model.arrAutoPanel && !model.arrKnobs
-        return VStack(spacing: Layout.gap) {
+    /// Высота строки дорожки аранжировщика (EXPANDED): окно от второй строки до низа экрана — линейка и 8 строк.
+    static func rowUnit(_ h: CGFloat) -> CGFloat {
+        let top: CGFloat = 8 + Layout.topHeight + Layout.gap + ArrangeBar.height + Layout.gap
+        let window: CGFloat = h - 8 - top
+        return max(20, (window - ArrMetrics.top) / 8)
+    }
+
+    private func screen(_ layout: Layout, _ lowerH: CGFloat) -> some View {
+        VStack(spacing: Layout.gap) {
             TopBar(model: model, menuOpen: $menuOpen)
-            if model.arrangeView { ArrangeBar(model: model) }
-            center(layout)
-            lower(layout)
-        }
-        // STEPS выключена и AUTO (решение пользователя): окно AUTO — поверх низа аранжировщика, дорожки не сжимаются
-        // (их можно прокрутить из-под окна — ArrMetrics.inset).
-        .overlay(alignment: .bottom) {
-            if over { ArrAutoPanel(model: model).frame(height: lowerH) }
+            if model.arrangeView && model.browser == nil && !model.rollView && !model.patternView {
+                ArrangeBar(model: model)
+                arrangeArea(layout, lowerH)
+            } else {
+                if model.arrangeView { ArrangeBar(model: model) }
+                center(layout)
+                lower(layout).frame(height: lowerH)
+            }
         }
         .onChange(of: lowerH, initial: true) { _, h in model.arrLowerH = h }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
     }
 
-    /// Строка дорожек, секвенсор и клавиатура. STEPS в аранжировщике (решение пользователя): выключена — все три скрыты,
-    /// окно растёт на их высоту. Окно AUTO аранжировщика (S15f2) — поверх всех трёх; при выключенной STEPS — поверх низа
-    /// аранжировщика (screen).
-    @ViewBuilder
-    private func lower(_ layout: Layout) -> some View {
-        let auto: Bool = model.arrAutoPanel
-        // С окном ручек (KNOBS) окно AUTO — на своём месте внизу и при выключенной STEPS.
-        if !model.arrStepsHidden || (auto && model.arrKnobs) {
-            VStack(spacing: Layout.gap) {
-                TrackRow(model: model, layout: layout)
-                    .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("root")).minY } action: { trackTop = $0 }
-                SequencerRow(model: model)
-                KeyboardPanel(model: model, layout: layout)
+    /// Аранжировщик (решения пользователя): окно — всегда во всю высоту (дорожки не схлопываются, прокрутка); STEPS —
+    /// строка дорожек, секвенсор и клавиатура поверх трёх нижних дорожек (от верха шестой); AUTO — на том же месте;
+    /// KNOBS — окно дорожки с ручками поверх линейки и пяти верхних дорожек.
+    private func arrangeArea(_ layout: Layout, _ lowerH: CGFloat) -> some View {
+        let steps: Bool = !model.project.arrange.hideSteps
+        return GeometryReader { g in
+            ZStack(alignment: .topLeading) {
+                ArrangeWindow(model: model)
+                if model.arrKnobs {
+                    center(layout)
+                        .frame(height: max(0, g.size.height - lowerH - Layout.gap))
+                        .background(theme.bg)
+                }
+                if model.arrAutoPanel {
+                    ArrAutoPanel(model: model).frame(height: lowerH).offset(y: g.size.height - lowerH)
+                } else if steps {
+                    lower(layout).frame(height: lowerH).offset(y: g.size.height - lowerH)
+                }
             }
-            .opacity(auto ? 0 : 1)
-            .allowsHitTesting(!auto)
-            .overlay { if auto { ArrAutoPanel(model: model) } }
         }
+    }
+
+    /// Строка дорожек, секвенсор и клавиатура.
+    private func lower(_ layout: Layout) -> some View {
+        VStack(spacing: Layout.gap) {
+            TrackRow(model: model, layout: layout)
+                .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("root")).minY } action: { trackTop = $0 }
+            SequencerRow(model: model)
+            KeyboardPanel(model: model, layout: layout)
+        }
+        .background(theme.bg)
     }
 
     /// Центр: левая колонка | сетка ручек | правая колонка | измеритель; с PATTERNS — сетка паттернов во всю ширину;
@@ -134,8 +159,6 @@ struct RootView: View {
             RollWindow(model: model, layout: layout)
         } else if model.patternView {
             PatternGrid(model: model, layout: layout)
-        } else if model.arrangeView && !model.arrKnobs {
-            ArrangeWindow(model: model)
         } else if model.eqView {
             HStack(spacing: Layout.gap) {
                 EqView(model: model, layout: layout)

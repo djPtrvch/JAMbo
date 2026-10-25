@@ -9,7 +9,7 @@ struct KeyboardPanel: View {
     var body: some View {
         HStack(spacing: Layout.stepGap) {
             VStack(spacing: Layout.gap) {
-                ChordButton(model: model).frame(height: layout.keySide(model.project.scale)).midiTarget(model, "CHORD")
+                ChordButton(model: model).frame(height: layout.keyHeight(model.project.scale)).midiTarget(model, "CHORD")
                 BurgerButton { model.pianoMenuOpen.toggle() }.frame(maxHeight: .infinity)
             }
             .frame(width: layout.step)
@@ -23,7 +23,7 @@ struct KeyboardPanel: View {
     private var keyArea: some View {
         if model.chordMode[model.selectedTrack] {
             VStack(spacing: Layout.gap) {
-                KeyRow(model: model).frame(height: layout.keySide(model.project.scale))
+                KeyRow(model: model).frame(height: layout.keyHeight(model.project.scale))
                 ProgressionRow(model: model, layout: layout).frame(height: 44)
             }
         } else {
