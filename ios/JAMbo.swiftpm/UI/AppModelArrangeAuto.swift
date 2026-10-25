@@ -1,46 +1,36 @@
 import SwiftUI
 
-/// AUTO в аранжировщике (S15f2): под выбранной дорожкой — строки её кривых («+» — в заголовке дорожки).
-struct ArrAutoView: Equatable {
-    var track: Int = -1
-    var lanes: Int = 0
-}
-
+/// Окно AUTO в аранжировщике (S15f2, решения пользователя): на месте строки дорожек, секвенсора и клавиатуры; слева —
+/// 16 ячеек ручек сетки выбранной дорожки, справа — кривая выбранной ручки под таймлайном (тот же масштаб и прокрутка).
 extension AppModel {
-    /// Строки кривых: AUTO включён и выбрана дорожка — её кривые.
-    var arrAutoView: ArrAutoView {
-        guard arrAuto, channel == .track, selectedTrack < project.tracks.count else { return ArrAutoView() }
-        return ArrAutoView(track: selectedTrack, lanes: project.tracks[selectedTrack].autos.count)
+    /// Окно AUTO открыто: аранжировщик и AUTO.
+    var arrAutoPanel: Bool { return arrangeView && arrAuto }
+
+    /// Дорожка окна AUTO: выбранная (при MIX и MST — нет).
+    var arrAutoTrack: Int? {
+        guard channel == .track, selectedTrack < project.tracks.count else { return nil }
+        return selectedTrack
     }
 
-    /// Ручки сетки дорожки, которые можно автоматизировать: id и подпись (в порядке сетки).
-    func arrAutoKnobs(_ t: Int) -> [(id: String, label: String)] {
+    /// 16 ручек сетки дорожки (пустые места — id пустой).
+    func arrAutoSlots(_ t: Int) -> [ParamDef] {
         guard t >= 0 && t < project.tracks.count else { return [] }
-        let grid: [ParamDef] = Params.grid(sound: project.tracks[t].sample)
-        var out: [(id: String, label: String)] = []
-        for p in grid where !p.id.isEmpty && ArrAutoTarget.index(p.id) != nil { out.append((p.id, p.label)) }
-        return out
+        return Params.grid(sound: project.tracks[t].sample)
     }
 
-    func arrAutoLabel(_ t: Int, _ id: String) -> String {
-        for k in arrAutoKnobs(t) where k.id == id { return k.label }
-        return Params.byId[id]?.label ?? id
+    /// Ручка окна AUTO: выбранная (если она есть на сетке дорожки), иначе первая с кривой, иначе первая, которую можно
+    /// автоматизировать.
+    func arrAutoParam(_ t: Int) -> ParamDef? {
+        let slots: [ParamDef] = arrAutoSlots(t).filter { ArrAutoTarget.index($0.id) != nil }
+        if let p = slots.first(where: { $0.id == arrAutoId }) { return p }
+        if let p = slots.first(where: { project.tracks[t].autoLane($0.id) != nil }) { return p }
+        return slots.first
     }
 
-    /// «+»: кривая ручки id (пустая — точки ставят тапом); уже есть — ничего.
-    func arrAutoAdd(track t: Int, _ id: String) {
-        guard t >= 0 && t < project.tracks.count, project.tracks[t].autoLane(id) == nil else { return }
-        edit { p in p.tracks[t].setAuto(id, []) }
-    }
-
+    /// CLEAR: кривая ручки убирается.
     func arrAutoDelete(track t: Int, _ id: String) {
-        guard t >= 0 && t < project.tracks.count else { return }
+        guard t >= 0 && t < project.tracks.count, project.tracks[t].autoLane(id) != nil else { return }
         edit { p in p.tracks[t].deleteAuto(id) }
-    }
-
-    func arrAutoClear(track t: Int, _ id: String) {
-        guard t >= 0 && t < project.tracks.count else { return }
-        edit { p in p.tracks[t].setAuto(id, []) }
     }
 
     /// Точки кривой (тап, перетаскивание, удаление; при перетаскивании — внутри жеста, одна запись UNDO).

@@ -86,16 +86,27 @@ struct RootView: View {
             TopBar(model: model, menuOpen: $menuOpen)
             if model.arrangeView { ArrangeBar(model: model) }
             center(layout)
+            lower(layout)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+    }
+
+    /// Строка дорожек, секвенсор и клавиатура. STEPS в аранжировщике: секвенсор и клавиатура скрыты, окно растёт на их
+    /// высоту. Окно AUTO аранжировщика (S15f2) — поверх всех трёх (с ним STEPS не прячет их: окну нужна высота).
+    private func lower(_ layout: Layout) -> some View {
+        let auto: Bool = model.arrAutoPanel
+        return VStack(spacing: Layout.gap) {
             TrackRow(model: model, layout: layout)
                 .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("root")).minY } action: { trackTop = $0 }
-            // STEPS в аранжировщике: секвенсор и клавиатура скрыты, окно растёт на их высоту.
-            if !model.arrStepsHidden {
+            if !model.arrStepsHidden || auto {
                 SequencerRow(model: model)
                 KeyboardPanel(model: model, layout: layout)
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .opacity(auto ? 0 : 1)
+        .allowsHitTesting(!auto)
+        .overlay { if auto { ArrAutoPanel(model: model) } }
     }
 
     /// Центр: левая колонка | сетка ручек | правая колонка | измеритель; с PATTERNS — сетка паттернов во всю ширину;

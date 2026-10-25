@@ -8,7 +8,7 @@ import SwiftUI
 /// одной оси (какая разошлась первой): по горизонтали — время (точка между пальцами на месте), по вертикали — высота строк.
 final class ArrTouches {
     enum Axis { case h, v }
-    enum Mode { case idle, tap, press, lift, edge, scroll, ruler, zoom, autoPoint, autoTap }
+    enum Mode { case idle, tap, press, lift, edge, scroll, ruler, zoom }
 
     private var points: [SpatialEventCollection.Event.ID: CGPoint] = [:]
     private var mode: Mode = .idle
@@ -29,15 +29,6 @@ final class ArrTouches {
     private var lastTap: (at: Date, point: CGPoint)? = nil
     private var lastPoint: CGPoint = .zero
     private let ruler = ArrRulerTouches()
-    /// Строка кривой под пальцем (S15f2): дорожка, ручка, номер строки, точка (−1 — пусто), точки до жеста.
-    private var autoTrack: Int = -1
-    private var autoParam: String = ""
-    private var autoLaneK: Int = -1
-    private var autoIndex: Int = -1
-    private var autoBase: [ArrAutoPoint] = []
-    private var autoMoved: Bool = false
-    private var lastAutoTap: (at: Date, point: CGPoint)? = nil
-
     static let slop: CGFloat = 8
     static let zoomSlop: CGFloat = 10
     static let hold: Double = 0.35
@@ -73,11 +64,6 @@ final class ArrTouches {
         if p.y < ArrMetrics.top {
             mode = .ruler
             ruler.begin(p, m, model)
-            return
-        }
-        let lk: Int = m.lane(at: p.y)
-        if lk >= 0 {
-            beginAuto(lk, p, m, model)
             return
         }
         let t: Int = m.track(at: p.y)
@@ -138,17 +124,6 @@ final class ArrTouches {
             ruler.move(p[0], &port, m, model)
         case .scroll:
             scroll(p[0], &port, k: 1)
-        case .autoTap:
-            if moved {
-                mode = .scroll
-                scroll(p[0], &port, k: 1)
-            }
-        case .autoPoint:
-            if moved && !autoMoved {
-                autoMoved = true
-                model.beginGesture()
-            }
-            if autoMoved { dragPoint(p[0], m, model) }
         case .zoom:
             if p.count >= 2 { zoom(p[0], p[1], &port, m) }
         case .lift:
@@ -200,16 +175,6 @@ final class ArrTouches {
             model.endGesture()
             // Край без сдвига — как тап по блоку (выбор, двойной — меню).
             if ended && !edgeMoved { tapped(model, m) }
-        case .autoTap:
-            if ended { addPoint(m, model) }
-        case .autoPoint:
-            if autoMoved {
-                model.endGesture()
-            } else if ended && autoDouble() {
-                var pts: [ArrAutoPoint] = autoBase
-                if autoIndex >= 0 && autoIndex < pts.count { pts.remove(at: autoIndex) }
-                model.arrAutoSet(track: autoTrack, autoParam, pts)
-            }
         default:
             break
         }
@@ -304,63 +269,5 @@ final class ArrTouches {
             port.y = (base.y + my) / h0 * h - my
             port.x = base.x
         }
-    }
-
-    // MARK: — строки кривых (S15f2)
-
-    /// Палец в строке кривой: у точки (до 22 pt) — её перетаскивание или двойной тап (удалить), иначе — тап ставит
-    /// точку, сдвиг — прокрутка; строка «+» — только прокрутка.
-    private func beginAuto(_ k: Int, _ p: CGPoint, _ m: ArrMetrics, _ model: AppModel) {
-        mode = .tap
-        let t: Int = m.autoTrack
-        guard t >= 0 && t < model.project.tracks.count else { return }
-        let autos: [ArrAutoLane] = model.project.tracks[t].autos
-        if k >= autos.count { return }
-        autoTrack = t
-        autoParam = autos[k].param
-        autoLaneK = k
-        autoBase = autos[k].points
-        autoMoved = false
-        autoIndex = -1
-        var best: CGFloat = 22
-        for (i, pt) in autoBase.enumerated() {
-            let dx: CGFloat = m.stepX(pt.x) - p.x
-            let dy: CGFloat = m.laneY(k, value: pt.y) - p.y
-            let d: CGFloat = hypot(dx, dy)
-            if d < best {
-                best = d
-                autoIndex = i
-            }
-        }
-        mode = autoIndex >= 0 ? .autoPoint : .autoTap
-    }
-
-    /// Точка за пальцем: шаг — с привязкой (магнит — целый шаг), не дальше соседних точек.
-    private func dragPoint(_ p: CGPoint, _ m: ArrMetrics, _ model: AppModel) {
-        guard autoIndex >= 0 && autoIndex < autoBase.count else { return }
-        var x: Double = model.arrAutoSnap(m.step(at: p.x))
-        if autoIndex > 0 { x = max(x, autoBase[autoIndex - 1].x) }
-        if autoIndex + 1 < autoBase.count { x = min(x, autoBase[autoIndex + 1].x) }
-        var pts: [ArrAutoPoint] = autoBase
-        pts[autoIndex] = ArrAutoPoint(x: x, y: m.laneValue(autoLaneK, at: p.y))
-        model.arrAutoSet(track: autoTrack, autoParam, pts)
-    }
-
-    private func addPoint(_ m: ArrMetrics, _ model: AppModel) {
-        let x: Double = model.arrAutoSnap(m.step(at: start.x))
-        var pts: [ArrAutoPoint] = autoBase
-        pts.append(ArrAutoPoint(x: x, y: m.laneValue(autoLaneK, at: start.y)))
-        model.arrAutoSet(track: autoTrack, autoParam, pts)
-    }
-
-    /// Второй тап по точке за 0,3 с.
-    private func autoDouble() -> Bool {
-        let now = Date()
-        var double: Bool = false
-        if let l = lastAutoTap {
-            double = now.timeIntervalSince(l.at) < ArrTouches.doubleTap && hypot(l.point.x - start.x, l.point.y - start.y) < 30
-        }
-        lastAutoTap = double ? nil : (now, start)
-        return double
     }
 }
