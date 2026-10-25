@@ -2,8 +2,8 @@ import SwiftUI
 
 /// Строка кнопок аранжировщика (решения пользователя): высотой со строку папки над превью и верхнюю миниатюру
 /// паттернов (AppModel.barH) — и закрывает их. Слева, по ширине превью, — магнит, TRIM (ножницы), курсор в начало
-/// (стрелка к черте), LOOP; справа, по ширине колонки миниатюр, — KNOBS (окно ручек), STEPS (значок секвенсора), AUTO
-/// (синусоида с точками), REF. Шаг сетки — в SETTINGS → ARRANGE.
+/// (стрелка к черте), LOOP; справа, по ширине колонки миниатюр, — AUTO (синусоида с точками), STEPS (значок
+/// секвенсора), KNOBS (окно ручек), REF. Шаг сетки — в SETTINGS → ARRANGE.
 struct ArrangeBar: View {
     let model: AppModel
     @Environment(\.theme) private var theme
@@ -25,13 +25,13 @@ struct ArrangeBar: View {
             .background(cover)
             Spacer(minLength: 0)
             HStack(spacing: Layout.gap) {
-                ArrBarButton(on: model.arrKnobs, enabled: true, action: { model.arrKnobs.toggle() }) { c in
-                    Image(systemName: "dial.medium").font(.system(size: 20, weight: .semibold)).foregroundStyle(c)
-                }
-                ArrBarButton(on: !a.hideSteps, enabled: true, action: { model.toggleArrSteps() }) { c in ArrStepsIcon(color: c) }
                 // Запись (REC + PLAY + AUTO) — красная обводка.
                 ArrBarButton(on: model.arrAuto, enabled: true, ring: model.arrRecording, action: { model.toggleArrAuto() }) { c in
                     ArrWaveIcon(color: c)
+                }
+                ArrBarButton(on: !a.hideSteps, enabled: true, action: { model.toggleArrSteps() }) { c in ArrStepsIcon(color: c) }
+                ArrBarButton(on: model.arrKnobs, enabled: true, action: { model.arrKnobs.toggle() }) { c in
+                    Image(systemName: "dial.medium").font(.system(size: 20, weight: .semibold)).foregroundStyle(c)
                 }
                 ArrBarText(title: "REF", on: false, enabled: false) {}
             }
