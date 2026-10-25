@@ -61,22 +61,29 @@ struct ArrMetrics {
     /// SETTINGS → ARRANGE: COMPACT — строки делят высоту окна поровну (без прокрутки), EXPANDED — своя высота строк
     /// (масштаб двумя пальцами по вертикали) и прокрутка.
     let expanded: Bool
+    /// AUTO (S15f2): под дорожкой autoTrack — строки её кривых (lanes, последняя — «+»), высотой laneH.
+    let autoTrack: Int
+    let lanes: Int
+    static let laneH: CGFloat = 44
 
-    init(size: CGSize, port: ArrPort, tracks: Int, end: Int, expanded: Bool) {
+    init(size: CGSize, port: ArrPort, tracks: Int, end: Int, expanded: Bool, auto: ArrAutoView = ArrAutoView()) {
         self.size = size
         self.tracks = tracks
         self.expanded = expanded
+        autoTrack = auto.track >= 0 && auto.track < tracks ? auto.track : -1
+        lanes = autoTrack >= 0 ? auto.lanes : 0
         let w: CGFloat = max(1, size.width)
         let fit: CGFloat = w / 256
         let want: CGFloat = port.stepW ?? fit
         stepW = ArrMetrics.clampStep(want, width: w)
-        let lanes: CGFloat = max(0, size.height - ArrMetrics.top)
-        let fitRow: CGFloat = lanes / CGFloat(max(1, tracks))
+        let autoH: CGFloat = CGFloat(lanes) * ArrMetrics.laneH
+        let area: CGFloat = max(0, size.height - ArrMetrics.top)
+        let fitRow: CGFloat = max(0, area - autoH) / CGFloat(max(1, tracks))
         rowH = expanded ? ArrMetrics.clampRow(port.rowH) : max(16, fitRow)
         steps = max(end, 0) + 32 * ArrMetrics.stepsPerBar
         let maxX: CGFloat = max(0, CGFloat(steps) * stepW - w)
         x = min(maxX, max(0, port.x))
-        let maxY: CGFloat = max(0, CGFloat(tracks) * rowH - lanes)
+        let maxY: CGFloat = max(0, CGFloat(tracks) * rowH + autoH - area)
         y = min(maxY, max(0, port.y))
     }
 
@@ -96,7 +103,33 @@ struct ArrMetrics {
     }
 
     func rowY(_ t: Int) -> CGFloat {
-        return ArrMetrics.top + CGFloat(t) * rowH - y
+        let below: CGFloat = autoTrack >= 0 && t > autoTrack ? CGFloat(lanes) * ArrMetrics.laneH : 0
+        return ArrMetrics.top + CGFloat(t) * rowH + below - y
+    }
+
+    /// Верх строки кривой k (под дорожкой autoTrack).
+    func laneY(_ k: Int) -> CGFloat {
+        return rowY(autoTrack) + rowH + CGFloat(k) * ArrMetrics.laneH
+    }
+
+    /// Строка кривой под точкой (−1 — не строка кривой).
+    func lane(at py: CGFloat) -> Int {
+        if autoTrack < 0 || py < ArrMetrics.top { return -1 }
+        let y0: CGFloat = laneY(0)
+        if py < y0 { return -1 }
+        let k: Int = Int(((py - y0) / ArrMetrics.laneH).rounded(.down))
+        return k < lanes ? k : -1
+    }
+
+    /// Положение 0…1 в строке кривой k по точке (и обратно).
+    func laneValue(_ k: Int, at py: CGFloat) -> Double {
+        let top: CGFloat = laneY(k) + 6
+        let h: CGFloat = ArrMetrics.laneH - 12
+        return Double(min(1, max(0, 1 - (py - top) / h)))
+    }
+
+    func laneY(_ k: Int, value v: Double) -> CGFloat {
+        return laneY(k) + 6 + CGFloat(1 - v) * (ArrMetrics.laneH - 12)
     }
 
     /// Шаг под точкой (дробный).
@@ -107,7 +140,14 @@ struct ArrMetrics {
     /// Дорожка под точкой (−1 — не дорожка: линейка или ниже последней).
     func track(at py: CGFloat) -> Int {
         if py < ArrMetrics.top { return -1 }
-        let t: Int = Int(((py - ArrMetrics.top + y) / rowH).rounded(.down))
+        var cy: CGFloat = py - ArrMetrics.top + y
+        if autoTrack >= 0 {
+            let a0: CGFloat = CGFloat(autoTrack + 1) * rowH
+            let autoH: CGFloat = CGFloat(lanes) * ArrMetrics.laneH
+            if cy >= a0 && cy < a0 + autoH { return -1 }
+            if cy >= a0 + autoH { cy -= autoH }
+        }
+        let t: Int = Int((cy / rowH).rounded(.down))
         return t >= 0 && t < tracks ? t : -1
     }
 
@@ -139,7 +179,8 @@ struct ArrTimeline: View {
         let selTrack: Int = model.channel == .track ? model.selectedTrack : -1
         let following: [Bool] = (0..<p.tracks.count).map { model.arrFollowing($0) }
         return GeometryReader { geo in
-            let m = ArrMetrics(size: geo.size, port: port, tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded)
+            let m = ArrMetrics(size: geo.size, port: port, tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded,
+                           auto: model.arrAutoView)
             ZStack(alignment: .topLeading) {
                 Canvas { ctx, size in
                     // Левые углы прямые (к заголовкам дорожек), правые скруглены — решение пользователя.
@@ -184,10 +225,12 @@ struct ArrTimeline: View {
 
     private func apply(_ events: SpatialEventCollection, _ size: CGSize) {
         let p: Project = model.project
-        let m = ArrMetrics(size: size, port: model.arrPort, tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded)
+        let m = ArrMetrics(size: size, port: model.arrPort, tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded,
+                           auto: model.arrAutoView)
         var port: ArrPort = model.arrPort
         touches.handle(events, port: &port, m, model, lift: $lift)
-        let c = ArrMetrics(size: size, port: port, tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded)
+        let c = ArrMetrics(size: size, port: port, tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded,
+                           auto: model.arrAutoView)
         // COMPACT: высота строк — по окну, своя высота EXPANDED не теряется.
         let rowH: CGFloat = c.expanded ? c.rowH : port.rowH
         let next = ArrPort(stepW: port.stepW == nil ? nil : c.stepW, x: c.x, rowH: rowH, y: c.y)
@@ -211,6 +254,7 @@ struct ArrDraw {
             let dim: Bool = !on || !heard
             blocks(p, t, sel: sel, lift: lift, dim: dim)
         }
+        autoLanes(p)
         selectedLane(track)
         if let l = lift { target(l) }
         ruler(p)
@@ -244,6 +288,35 @@ struct ArrDraw {
             }
             s += max(1, g)
         }
+    }
+
+    /// Строки кривых под дорожкой (S15f2): фон темнее, кривая — жёлтая линия с точками (от первой точки до последней).
+    private func autoLanes(_ p: Project) {
+        let t: Int = m.autoTrack
+        if t < 0 || t >= p.tracks.count { return }
+        let autos: [ArrAutoLane] = p.tracks[t].autos
+        let h: CGFloat = ArrMetrics.laneH
+        for k in 0..<m.lanes {
+            let y0: CGFloat = m.laneY(k)
+            if y0 > m.size.height || y0 + h < ArrMetrics.top { continue }
+            ctx.fill(Path(CGRect(x: 0, y: y0, width: m.size.width, height: h)), with: .color(theme.bg.opacity(0.45)))
+            ctx.fill(Path(CGRect(x: 0, y: y0 + h - 1, width: m.size.width, height: 1)), with: .color(theme.line))
+            if k < autos.count { curve(autos[k].points, k) }
+        }
+    }
+
+    private func curve(_ pts: [ArrAutoPoint], _ k: Int) {
+        if pts.isEmpty { return }
+        var line = Path()
+        var dots = Path()
+        for (i, pt) in pts.enumerated() {
+            let x: CGFloat = m.stepX(pt.x)
+            let y: CGFloat = m.laneY(k, value: pt.y)
+            if i == 0 { line.move(to: CGPoint(x: x, y: y)) } else { line.addLine(to: CGPoint(x: x, y: y)) }
+            if x >= -4 && x <= m.size.width + 4 { dots.addEllipse(in: CGRect(x: x - 3, y: y - 3, width: 6, height: 6)) }
+        }
+        ctx.stroke(line, with: .color(theme.accent), lineWidth: 1.5)
+        ctx.fill(dots, with: .color(theme.accent))
     }
 
     /// Выбранная дорожка (решение пользователя): две жёлтые линии по всей длине строки — сверху и снизу (продолжают

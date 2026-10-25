@@ -33,7 +33,22 @@ struct ArrMenus: View {
             insertMenu(t, x, a)
         case .range(let a):
             ArrRangeMenu(model: model, anchor: a).offset(place(a, w: ArrRangeMenu.width, h: ArrRangeMenu.height))
+        case .autoAdd(let t, let y):
+            autoAddMenu(t, y)
+        case .autoLane(let t, let id, let y):
+            ArrAutoLaneMenu(model: model, track: t, param: id).offset(headerPlace(y, ArrAutoLaneMenu.height))
         }
+    }
+
+    private func autoAddMenu(_ t: Int, _ y: CGFloat) -> some View {
+        let h: CGFloat = ArrAutoAddMenu.height(model.arrAutoKnobs(t).count)
+        return ArrAutoAddMenu(model: model, track: t).offset(headerPlace(y, h))
+    }
+
+    /// Меню строки кривой — справа от заголовков, по высоте — от строки (в пределах окна).
+    private func headerPlace(_ y: CGFloat, _ h: CGFloat) -> CGSize {
+        let top: CGFloat = max(0, min(y, size.height - h))
+        return CGSize(width: ArrMetrics.headerW + Layout.gap, height: top)
     }
 
     private func laneMenu(_ t: Int, _ x: Int, _ a: CGPoint) -> some View {
@@ -65,7 +80,8 @@ struct ArrMenus: View {
 
     /// Меню дорожки — справа от её заголовка, по высоте — от строки дорожки.
     private func trackPlace(_ t: Int) -> CGSize {
-        let m = ArrMetrics(size: size, port: model.arrPort, tracks: model.project.tracks.count, end: 0, expanded: model.settings.arrangeExpanded)
+        let m = ArrMetrics(size: size, port: model.arrPort, tracks: model.project.tracks.count, end: 0, expanded: model.settings.arrangeExpanded,
+                           auto: model.arrAutoView)
         let h: CGFloat = ArrTrackMenu.height
         let y: CGFloat = max(0, min(m.rowY(t), size.height - h))
         return CGSize(width: ArrMetrics.headerW + Layout.gap, height: y)
@@ -296,5 +312,57 @@ struct ArrRangeMenu: View {
         }
         .frame(width: ArrRangeMenu.width)
         .modifier(MenuPanel())
+    }
+}
+
+/// «+» в строках кривых (S15f2): ручки сетки дорожки, 4 в ряд; у которых кривая есть — горят.
+struct ArrAutoAddMenu: View {
+    static let width: CGFloat = 400
+    let model: AppModel
+    let track: Int
+
+    static func height(_ n: Int) -> CGFloat {
+        let rows: CGFloat = CGFloat(max(1, (n + 3) / 4))
+        return rows * 40 + (rows - 1) * 6 + 16
+    }
+
+    var body: some View {
+        let knobs: [(id: String, label: String)] = model.arrAutoKnobs(track)
+        let have: [Bool] = knobs.map { model.project.tracks[track].autoLane($0.id) != nil }
+        let cols: [GridItem] = [GridItem](repeating: GridItem(.flexible(), spacing: 6), count: 4)
+        return LazyVGrid(columns: cols, spacing: 6) {
+            ForEach(0..<knobs.count, id: \.self) { i in
+                MenuItem(title: knobs[i].label, current: have[i]) {
+                    model.arrMenu = nil
+                    model.arrAutoAdd(track: track, knobs[i].id)
+                }
+            }
+        }
+        .frame(width: ArrAutoAddMenu.width)
+        .modifier(MenuPanel())
+    }
+}
+
+/// Меню строки кривой (двойной тап по её заголовку): CLEAR — точки убрать, DELETE — убрать кривую.
+struct ArrAutoLaneMenu: View {
+    static let width: CGFloat = 180
+    /// 2 строки по 40, зазор 6, поля 16.
+    static let height: CGFloat = 102
+    let model: AppModel
+    let track: Int
+    let param: String
+
+    var body: some View {
+        VStack(spacing: 6) {
+            MenuItem(title: "CLEAR") { run { model.arrAutoClear(track: track, param) } }
+            MenuItem(title: "DELETE", red: true) { run { model.arrAutoDelete(track: track, param) } }
+        }
+        .frame(width: ArrAutoLaneMenu.width)
+        .modifier(MenuPanel())
+    }
+
+    private func run(_ f: () -> Void) {
+        model.arrMenu = nil
+        f()
     }
 }

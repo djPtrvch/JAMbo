@@ -18,6 +18,9 @@ enum ArrMenuState: Equatable {
     case insert(track: Int, at: Int, anchor: CGPoint)
     /// Выделенный на линейке диапазон: LOOP (зациклить), SECTION (секция с начала диапазона).
     case range(anchor: CGPoint)
+    /// AUTO (S15f2): «+» — ручки дорожки для новой кривой; строка кривой — CLEAR, DELETE (y — верх строки).
+    case autoAdd(track: Int, y: CGFloat)
+    case autoLane(track: Int, param: String, y: CGFloat)
 }
 
 /// Вид таймлайна: ширина шага (nil — 16 тактов на ширину), прокрутка по X (pt), высота строки дорожки, прокрутка
