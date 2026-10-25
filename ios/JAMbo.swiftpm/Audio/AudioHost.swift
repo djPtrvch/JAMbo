@@ -11,6 +11,11 @@ final class AudioHost {
     /// Счёт перезапусков движка: звук стоял — шаги секвенсора отстали от MIDI-клока (привязать заново).
     private(set) var restarts: Int = 0
     private var latency: Double = -1
+    /// Диагностика тормозов с USB-аудио (строка «Now:»): смены маршрута; прошлый замер скорости колбэка.
+    private(set) var routeChanges: Int = 0
+    private var rateHost: Double = 0
+    private var rateFrames: Int = 0
+    private var speed: Double = 0
     private(set) var lastError: String = ""
     /// Запись входа (tap на узле входа) — Audio/InputCapture.swift.
     let input = InputCapture()
@@ -25,6 +30,7 @@ final class AudioHost {
             self?.scheduleRestart()
         })
         observers.append(center.addObserver(forName: AVAudioSession.routeChangeNotification, object: session, queue: .main) { [weak self] _ in
+            self?.routeChanges += 1
             self?.refreshLatency()
         })
     }
@@ -145,6 +151,21 @@ final class AudioHost {
         latency = AVAudioSession.sharedInstance().outputLatency
     }
 
+    /// Скорость колбэка: отсчётов за время с прошлого замера к 48 000 в секунду, % (100 — звук идёт вовремя; меньше —
+    /// колбэк зовут реже, секвенсор тормозит). Замер не чаще раза в 0,4 с.
+    private func renderSpeed() -> Int {
+        let now: Double = HostClock().now()
+        let frames: Int = core.framesRendered
+        if rateHost > 0 && now - rateHost >= 0.4 {
+            speed = Double(frames - rateFrames) / (now - rateHost) / AudioCore.sampleRate
+        }
+        if rateHost == 0 || now - rateHost >= 0.4 {
+            rateHost = now
+            rateFrames = frames
+        }
+        return Int((speed * 100).rounded())
+    }
+
     /// Фактическое состояние звука — строка «Now:» в DIAGNOSTICS.
     var statusLine: String {
         let s = AVAudioSession.sharedInstance()
@@ -157,6 +178,10 @@ final class AudioHost {
         let state = engine.isRunning ? "running" : "stopped"
         var line = "\(rate) · buffer \(buffer) · output latency \(lat) · \(state)"
         if abs(s.sampleRate - AudioCore.sampleRate) > 1 { line += " (48 kHz requested)" }
+        let out: String = s.currentRoute.outputs.map { $0.portName }.joined(separator: ", ")
+        let inp: String = s.currentRoute.inputs.map { $0.portName }.joined(separator: ", ")
+        line += " · out: \(out.isEmpty ? "-" : out) · in: \(inp.isEmpty ? "-" : inp)"
+        line += " · restarts \(restarts) · route changes \(routeChanges) · audio speed \(renderSpeed())%"
         return line
     }
 }
