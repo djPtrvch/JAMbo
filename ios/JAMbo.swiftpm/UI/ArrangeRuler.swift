@@ -28,7 +28,12 @@ final class ArrRulerTouches {
         }
         mode = .bars
         let a: Arrangement = model.project.arrange
-        if !a.hasLoop { return }
+        // Плейхед — во всю высоту линейки: у него (до 12 pt) палец берёт его, если не край диапазона.
+        let nearHead: Bool = abs(p.x - m.stepX(Double(model.arrNow))) <= ArrRulerTouches.edgeZone
+        if !a.hasLoop {
+            if nearHead { mode = .playhead }
+            return
+        }
         let x0: CGFloat = m.stepX(Double(a.loopFrom))
         let x1: CGFloat = m.stepX(Double(a.loopTo))
         let d0: CGFloat = abs(p.x - x0)
@@ -37,6 +42,8 @@ final class ArrRulerTouches {
         if d0 <= zone || d1 <= zone {
             mode = .edge
             leftEdge = d0 < d1
+        } else if nearHead {
+            mode = .playhead
         }
     }
 

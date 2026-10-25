@@ -73,6 +73,8 @@ struct ArrHeaderRow: View {
             }
         }
         .padding(.horizontal, 6)
+        // Заголовок — на всю высоту строки дорожки (как блоки).
+        .frame(maxHeight: .infinity)
         .background(bg, in: UnevenRoundedRectangle(topLeadingRadius: 6, bottomLeadingRadius: 6, bottomTrailingRadius: 0,
                                                     topTrailingRadius: 0))
         // Выбранная — две жёлтые линии сверху и снизу (продолжаются по всей строке таймлайна).

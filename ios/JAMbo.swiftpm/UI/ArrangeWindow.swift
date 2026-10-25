@@ -383,16 +383,17 @@ struct ArrDraw {
         let x: CGFloat = m.stepX(Double(pos))
         if x < -2 || x > m.size.width + 2 { return }
         ctx.fill(Path(CGRect(x: x - 1, y: 0, width: 2, height: m.size.height)), with: .color(theme.accent))
-        // Маркер плейхеда — жёлтый пятиугольник остриём вниз во всю высоту строки секций.
+        // Маркер плейхеда — жёлтый пятиугольник остриём вниз во всю высоту линейки и строки секций (решение
+        // пользователя).
         let w: CGFloat = 14
-        let top: CGFloat = ArrMetrics.rulerH
-        let h: CGFloat = ArrMetrics.markerH
+        let h: CGFloat = ArrMetrics.top
+        let side: CGFloat = h - 9
         var head = Path()
-        head.move(to: CGPoint(x: x - w / 2, y: top))
-        head.addLine(to: CGPoint(x: x + w / 2, y: top))
-        head.addLine(to: CGPoint(x: x + w / 2, y: top + h * 0.55))
-        head.addLine(to: CGPoint(x: x, y: top + h))
-        head.addLine(to: CGPoint(x: x - w / 2, y: top + h * 0.55))
+        head.move(to: CGPoint(x: x - w / 2, y: 0))
+        head.addLine(to: CGPoint(x: x + w / 2, y: 0))
+        head.addLine(to: CGPoint(x: x + w / 2, y: side))
+        head.addLine(to: CGPoint(x: x, y: h))
+        head.addLine(to: CGPoint(x: x - w / 2, y: side))
         head.closeSubpath()
         ctx.fill(head, with: .color(theme.accent))
     }

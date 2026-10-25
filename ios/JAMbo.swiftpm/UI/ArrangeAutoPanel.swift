@@ -1,117 +1,147 @@
 import SwiftUI
 
 /// Окно AUTO аранжировщика (S15f2, решения пользователя): на месте строки дорожек, секвенсора и клавиатуры. Слева, под
-/// заголовками дорожек, — 16 ячеек ручек сетки выбранной дорожки (4 × 4, как сетка ручек); справа, под таймлайном, —
-/// кривая выбранной ручки в том же масштабе и прокрутке. Тап по ячейке — её кривая; двойной тап по ячейке с кривой —
-/// CLEAR. В поле кривой: тап — точка, сдвиг точки — двигать, двойной тап по точке — удалить; сдвиг по пустому —
-/// прокрутка, два пальца — масштаб по времени.
+/// заголовками дорожек, — список кривых выбранной дорожки (строки, прокрутка) и под ним «+» (пунктир, как у миниатюр
+/// страниц): тап — ручки сетки дорожки, выбранная добавляется строкой. Справа, под таймлайном, — кривая выбранной строки
+/// в том же масштабе и прокрутке. Тап по строке — её кривая; двойной тап — CLEAR (точки), DELETE (строка). В поле кривой:
+/// тап — точка, сдвиг точки — двигать, двойной тап по точке — удалить; сдвиг по пустому — прокрутка, два пальца —
+/// масштаб по времени.
 struct ArrAutoPanel: View {
     let model: AppModel
-    @Environment(\.theme) private var theme
-
-    var body: some View {
-        HStack(spacing: 0) {
-            ArrAutoCells(model: model)
-                .padding(.trailing, Layout.gap)
-                .frame(width: ArrMetrics.headerW)
-            ArrAutoCurve(model: model)
-            // Место измерителя справа — как у окна аранжировщика (поле кривой ровно под таймлайном).
-            Color.clear.frame(width: Layout.meterWidth).padding(.leading, Layout.gap)
-        }
-        .background(theme.bg)
-        .contentShape(Rectangle())
-    }
-}
-
-/// 16 ячеек ручек: подпись ручки; выбранная — жёлтая рамка; с кривой — жёлтая волна; пустое место и ручка без
-/// автоматизации — серые, не нажимаются.
-struct ArrAutoCells: View {
-    let model: AppModel
-    @State private var lastTap: (at: Date, slot: Int)? = nil
-    @State private var menu: Int? = nil
+    @State private var adding: Bool = false
+    @State private var laneMenu: String? = nil
     @Environment(\.theme) private var theme
 
     var body: some View {
         let t: Int = model.arrAutoTrack ?? -1
-        let slots: [ParamDef] = model.arrAutoSlots(t)
-        let cur: String = model.arrAutoParam(t)?.id ?? ""
-        return GeometryReader { geo in
-            let gap: CGFloat = 4
-            let w: CGFloat = (geo.size.width - 3 * gap) / 4
-            let h: CGFloat = (geo.size.height - 3 * gap) / 4
-            ZStack(alignment: .topLeading) {
-                ForEach(0..<slots.count, id: \.self) { i in
-                    cell(t, i, slots[i], selected: slots[i].id == cur)
-                        .frame(width: w, height: h)
-                        .offset(x: CGFloat(i % 4) * (w + gap), y: CGFloat(i / 4) * (h + gap))
-                }
-                if let k = menu, k < slots.count { clearMenu(t, k, slots[k], w: w, h: h, gap: gap, size: geo.size) }
-            }
-        }
-    }
-
-    private func cell(_ t: Int, _ i: Int, _ p: ParamDef, selected: Bool) -> some View {
-        let on: Bool = !p.id.isEmpty && ArrAutoTarget.index(p.id) != nil
-        let has: Bool = on && ArrAutoCells.hasCurve(model.project, t, p.id)
-        let fg: Color = on ? theme.text : theme.off
-        return ZStack(alignment: .topTrailing) {
-            Text(p.id.isEmpty ? "" : ArrAutoCells.short(p.label))
-                .font(.system(size: 11, weight: selected ? .heavy : .semibold))
-                .lineLimit(1)
-                .foregroundStyle(fg)
-                .padding(.horizontal, 3)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            if has { ArrWaveIcon(color: theme.accent).scaleEffect(0.6).frame(width: 18, height: 14).padding(2) }
-        }
-        .background(theme.trackBg, in: RoundedRectangle(cornerRadius: 6))
-        .overlay(RoundedRectangle(cornerRadius: 6).stroke(selected ? theme.accent : Color.clear, lineWidth: 1))
-        .contentShape(Rectangle())
-        .onTapGesture { if on { tapped(t, i, p, has: has) } }
-    }
-
-    /// Тап — кривая ручки; второй тап за 0,3 с по ячейке с кривой — меню CLEAR.
-    private func tapped(_ t: Int, _ i: Int, _ p: ParamDef, has: Bool) {
-        let now = Date()
-        let double: Bool = lastTap.map { $0.slot == i && now.timeIntervalSince($0.at) < 0.3 } ?? false
-        lastTap = double ? nil : (now, i)
-        model.arrAutoId = p.id
-        menu = double && has ? i : nil
-    }
-
-    /// CLEAR — под ячейкой (внизу окна — над ней); тап мимо — закрыть.
-    private func clearMenu(_ t: Int, _ k: Int, _ p: ParamDef, w: CGFloat, h: CGFloat, gap: CGFloat, size: CGSize) -> some View {
-        let mw: CGFloat = 140
-        let mh: CGFloat = 56
-        let x: CGFloat = min(size.width - mw, CGFloat(k % 4) * (w + gap))
-        let below: CGFloat = CGFloat(k / 4 + 1) * (h + gap)
-        let y: CGFloat = below + mh <= size.height ? below : max(0, CGFloat(k / 4) * (h + gap) - mh - gap)
         return ZStack(alignment: .topLeading) {
-            Color.clear.contentShape(Rectangle()).onTapGesture { menu = nil }
-            MenuItem(title: "CLEAR") {
-                menu = nil
-                model.arrAutoDelete(track: t, p.id)
+            HStack(spacing: 0) {
+                ArrAutoList(model: model, adding: $adding, laneMenu: $laneMenu)
+                    .padding(.trailing, Layout.gap)
+                    .frame(width: ArrMetrics.headerW)
+                ArrAutoCurve(model: model)
+                // Место измерителя справа — как у окна аранжировщика (поле кривой ровно под таймлайном).
+                Color.clear.frame(width: Layout.meterWidth).padding(.leading, Layout.gap)
             }
-            .frame(width: mw - 16)
-            .modifier(MenuPanel())
-            .offset(x: x, y: y)
+            if adding || laneMenu != nil {
+                // Тап мимо меню закрывает его.
+                Color.black.opacity(0.001).contentShape(Rectangle()).onTapGesture { close() }
+            }
+            if adding && t >= 0 {
+                ArrAutoAddMenu(model: model, track: t) { close() }
+                    .offset(x: ArrMetrics.headerW, y: 0)
+            }
+            if let id = laneMenu, t >= 0 {
+                ArrAutoLaneMenu(model: model, track: t, param: id) { close() }
+                    .offset(x: ArrMetrics.headerW, y: 0)
+            }
         }
-        .frame(width: size.width, height: size.height, alignment: .topLeading)
+        .background(theme.bg)
+        .contentShape(Rectangle())
     }
 
-    /// Подписи ячеек — одного размера (решение пользователя): длинные — сокращены, чтобы влезали в одну строку.
-    static let shortNames: [String: String] = [
-        "Resonance": "Reso", "Velocity": "Vel", "Harmonics": "Harm", "Ratchet": "Ratch", "Position": "Pos",
-        "Material": "Mat", "Feedback": "Fdbk", "Contour": "Cont"
-    ]
+    private func close() {
+        adding = false
+        laneMenu = nil
+    }
+}
 
-    static func short(_ label: String) -> String {
-        if let s = shortNames[label] { return s }
-        return label.count > 6 ? String(label.prefix(5)) : label
+/// Список кривых дорожки: строка — имя ручки (выбранная — жёлтая рамка); под строками — «+».
+struct ArrAutoList: View {
+    static let rowH: CGFloat = 40
+    let model: AppModel
+    @Binding var adding: Bool
+    @Binding var laneMenu: String?
+    @State private var lastTap: (at: Date, id: String)? = nil
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let t: Int = model.arrAutoTrack ?? -1
+        let autos: [ArrAutoLane] = t >= 0 ? model.project.tracks[t].autos : []
+        let cur: String = model.arrAutoParam(t)?.id ?? ""
+        return MenuScroll {
+            VStack(spacing: 4) {
+                ForEach(0..<autos.count, id: \.self) { k in
+                    row(t, autos[k].param, selected: autos[k].param == cur)
+                }
+                if t >= 0 {
+                    PlusThumb()
+                        .frame(height: ArrAutoList.rowH)
+                        .contentShape(Rectangle())
+                        .onTapGesture { adding = true }
+                }
+            }
+        }
     }
 
-    static func hasCurve(_ p: Project, _ t: Int, _ id: String) -> Bool {
-        guard t >= 0 && t < p.tracks.count, let k = p.tracks[t].autoLane(id) else { return false }
-        return !p.tracks[t].autos[k].points.isEmpty
+    private func row(_ t: Int, _ id: String, selected: Bool) -> some View {
+        Text(model.arrAutoLabel(t, id))
+            .font(.system(size: 12, weight: selected ? .heavy : .semibold))
+            .lineLimit(1)
+            .foregroundStyle(theme.text)
+            .padding(.horizontal, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(height: ArrAutoList.rowH)
+            .background(theme.trackBg, in: RoundedRectangle(cornerRadius: 6))
+            .overlay(RoundedRectangle(cornerRadius: 6).stroke(selected ? theme.accent : Color.clear, lineWidth: 1))
+            .contentShape(Rectangle())
+            .onTapGesture { tapped(id) }
+    }
+
+    /// Тап — кривая строки; второй тап за 0,3 с — меню CLEAR, DELETE.
+    private func tapped(_ id: String) {
+        let now = Date()
+        let double: Bool = lastTap.map { $0.id == id && now.timeIntervalSince($0.at) < 0.3 } ?? false
+        lastTap = double ? nil : (now, id)
+        model.arrAutoId = id
+        if double { laneMenu = id }
+    }
+}
+
+/// «+»: ручки сетки дорожки, 4 в ряд (у которых строка есть — горят): новая строка — пустая кривая, точки ставят тапом.
+struct ArrAutoAddMenu: View {
+    static let width: CGFloat = 400
+    let model: AppModel
+    let track: Int
+    let done: () -> Void
+
+    var body: some View {
+        let knobs: [ParamDef] = model.arrAutoKnobs(track)
+        let have: [Bool] = knobs.map { model.project.tracks[track].autoLane($0.id) != nil }
+        let cols: [GridItem] = [GridItem](repeating: GridItem(.flexible(), spacing: 6), count: 4)
+        return LazyVGrid(columns: cols, spacing: 6) {
+            ForEach(0..<knobs.count, id: \.self) { i in
+                MenuItem(title: knobs[i].label, current: have[i]) {
+                    done()
+                    model.arrAutoAdd(track: track, knobs[i].id)
+                }
+            }
+        }
+        .frame(width: ArrAutoAddMenu.width)
+        .modifier(MenuPanel())
+    }
+}
+
+/// Меню строки (двойной тап): CLEAR — точки убрать, DELETE — убрать строку.
+struct ArrAutoLaneMenu: View {
+    let model: AppModel
+    let track: Int
+    let param: String
+    let done: () -> Void
+
+    var body: some View {
+        VStack(spacing: 6) {
+            MenuItem(title: "CLEAR") {
+                done()
+                model.arrAutoSet(track: track, param, [])
+            }
+            MenuItem(title: "DELETE", red: true) {
+                done()
+                model.arrAutoDelete(track: track, param)
+            }
+        }
+        .frame(width: 180)
+        .modifier(MenuPanel())
     }
 }
 
@@ -148,7 +178,7 @@ struct ArrAutoCurve: View {
     /// Слева сверху: дорожка и ручка (при MIX и MST — подсказка).
     private func title(_ p: Project, _ t: Int, _ param: ParamDef?) -> some View {
         let name: String = t >= 0 && t < p.tracks.count ? p.tracks[t].name : ""
-        let s: String = t < 0 ? "SELECT A TRACK" : name + " · " + (param?.label ?? "")
+        let s: String = t < 0 ? "SELECT A TRACK" : name + " · " + (param.map { model.arrAutoLabel(t, $0.id) } ?? "TAP + TO ADD")
         return Text(s)
             .font(.system(size: 11, weight: .semibold))
             .foregroundStyle(theme.dim)
@@ -364,8 +394,7 @@ final class ArrAutoTouches {
             } else if isDouble() {
                 var pts: [ArrAutoPoint] = orig
                 if index < pts.count { pts.remove(at: index) }
-                // Последняя точка — кривой больше нет.
-                if pts.isEmpty { model.arrAutoDelete(track: track, param) } else { model.arrAutoSet(track: track, param, pts) }
+                model.arrAutoSet(track: track, param, pts)
             }
         default:
             break
