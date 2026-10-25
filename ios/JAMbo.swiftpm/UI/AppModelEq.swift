@@ -29,6 +29,7 @@ extension AppModel {
     /// Кнопка EQ: центр экрана — EQ или обратно (PATTERNS и редактор сэмпла закрываются).
     func toggleEqView() {
         eqView.toggle()
+        stopEqListen()
         eqMenu = nil
         eqMsMenu = nil
         eqDynMenu = nil
@@ -253,5 +254,34 @@ enum EqFormat {
     /// Число (запятая — как точка); nil — не число.
     static func parseNum(_ text: String) -> Double? {
         return Double(text.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: "."))
+    }
+}
+
+/// Прослушивание полосы (как Alt + перетаскивание в FabFilter Pro-Q): SHIFT + палец на точке — канал звучит только в
+/// области полосы (EqListen), пока палец на точке; перетаскивание ведёт частоту фильтра.
+extension AppModel {
+    func startEqListen(_ k: Int) {
+        eqListenBand = k
+        syncEqListen()
+    }
+
+    /// Фильтр прослушивания — по текущим значениям полосы (после каждого сдвига точки).
+    func syncEqListen() {
+        let x: EqListen = audio.core.eqListen
+        guard eqListenBand >= 0, let b = eqTarget.band(eqListenBand) else {
+            x.channel.store(-1)
+            return
+        }
+        let f = EqListen.filter(b)
+        x.kind.store(f.kind)
+        x.q.store(Float(f.q))
+        x.freq.store(Float(b.freq))
+        x.ms.store(b.ms)
+        x.channel.store(eqChannel)
+    }
+
+    func stopEqListen() {
+        eqListenBand = -1
+        audio.core.eqListen.channel.store(-1)
     }
 }

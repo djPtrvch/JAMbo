@@ -97,6 +97,8 @@ public final class Sampler {
     public let outR = UnsafeMutablePointer<Float>.allocate(capacity: SoundData.maxTracks * maxFrames)
     /// Сдвиги динамических полос для экрана (ставит AudioCore).
     public var eqDyn: EqDynLevels?
+    /// Прослушивание полосы EQ дорожки (после её EQ, во всех линиях).
+    public var eqListen: EqListen?
     /// P-lock громкостей играющего шага MIX (Sequencer.mixLockMask / mixLockGain; ставит AudioCore).
     public var mixLockMask: UnsafeMutablePointer<UInt16>?
     public var mixLockGain: UnsafeMutablePointer<Float>?

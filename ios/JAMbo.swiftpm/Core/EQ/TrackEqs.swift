@@ -66,6 +66,7 @@ extension Sampler {
             u.idle(params: d.eqParams(t), frames: n)
             eqDyn?.publish(t, u)
         }
+        eqListen?.idle(t)
         guard let s = spectra else { return }
         if s.channel.load() == t {
             s.pre.pushSilence(n)
@@ -102,5 +103,7 @@ extension Sampler {
         eqDyn?.publish(t, u)
         if shown, let s = spectra { s.post.push(busL + t * mf, busR + t * mf, n) }
         if let s = spectra, s.compareTrack.load() == t { s.compare.push(busL + t * mf, busR + t * mf, n) }
+        // Прослушивание полосы — после спектров: на поле EQ остаётся сигнал после EQ.
+        eqListen?.process(t, u, n)
     }
 }

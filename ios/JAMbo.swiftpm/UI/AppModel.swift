@@ -105,6 +105,8 @@ final class AppModel {
     /// EQ на месте центра (EQ выбранной дорожки, при MIX и MST — мастера); выбранная полоса (−1 — нет); меню полосы.
     var eqView: Bool = false
     var eqBand: Int = -1
+    /// Полоса, которую слушают (SHIFT + точка; −1 — нет).
+    var eqListenBand: Int = -1
     var eqMenu: EqMenuState? = nil
     /// Меню STEREO / MID / SIDE: рамка поля M/S («root»); nil — закрыто.
     var eqMsMenu: CGRect? = nil

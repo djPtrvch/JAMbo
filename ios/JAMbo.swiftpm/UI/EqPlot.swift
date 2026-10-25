@@ -47,6 +47,8 @@ struct EqTouch {
     var g0: Double = 0
     var moved: Bool = false
     var menu: Bool = false
+    /// Палец слушает полосу (SHIFT при касании): без меню удержания и двойного тапа.
+    var listen: Bool = false
 }
 
 /// Поле EQ: сетка, суммарная кривая, точки полос; мультитач (две точки сразу). Двойной тап по пустому месту — новая
@@ -89,6 +91,7 @@ struct EqPlot: View {
                     let curves: EqCurves = EqPlot.curves(eq, g, offs)
                     Canvas { ctx, _ in
                         drawGrid(ctx, g)
+                        if let b = eq.band(model.eqListenBand) { drawListen(ctx, b, g) }
                         drawCurves(ctx, curves, on: eq.on)
                         drawPoints(ctx, eq, g, offs)
                     }
@@ -161,6 +164,24 @@ struct EqPlot: View {
         for db in [12, 0, -12] {
             ctx.draw(label(db > 0 ? "+\(db) dB" : "\(db) dB"), at: CGPoint(x: 6, y: g.y(Double(db)) - 8), anchor: .leading)
         }
+    }
+
+    /// Область прослушиваемой полосы: АЧХ фильтра EqListen жёлтой полупрозрачной заливкой (0 dB — верх поля,
+    /// −30 dB — низ).
+    private func drawListen(_ ctx: GraphicsContext, _ b: EqBand, _ g: EqGeometry) {
+        let n: Int = Int(g.size.width / 2) + 1
+        let freqs: [Double] = (0..<n).map { min(24000, g.freq(CGFloat($0) * 2)) }
+        let r: [Double] = EqListen.response(b, hz: freqs)
+        let h: CGFloat = g.size.height
+        var p = Path()
+        p.move(to: CGPoint(x: 0, y: h))
+        for i in 0..<n {
+            let u: Double = max(0, min(1, -r[i] / 30))
+            p.addLine(to: CGPoint(x: CGFloat(i) * 2, y: h * CGFloat(u)))
+        }
+        p.addLine(to: CGPoint(x: CGFloat(n - 1) * 2, y: h))
+        p.closeSubpath()
+        ctx.fill(p, with: .color(theme.accent.opacity(0.16)))
     }
 
     private func label(_ s: String) -> Text {
@@ -316,9 +337,13 @@ extension EqPlot {
             t.g0 = b.gain
             model.eqBand = k
             model.beginGesture()
+            if model.shiftHeld && model.eqListenBand < 0 {
+                t.listen = true
+                model.startEqListen(k)
+            }
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: UInt64(EqPlot.hold * 1e9))
-                guard let cur = touches[id], !cur.moved, cur.band == k else { return }
+                guard let cur = touches[id], !cur.moved, !cur.listen, cur.band == k else { return }
                 openMenu(k, at: cur.at)
             }
         }
@@ -338,6 +363,7 @@ extension EqPlot {
         } else {
             model.setEqBand(t.band, freq: f)
         }
+        if t.listen { model.syncEqListen() }
     }
 
     /// Меню полосы (удержание): все пальцы снимаются сразу (жесты UNDO закрываются) — поле до закрытия меню касаний не
@@ -345,6 +371,7 @@ extension EqPlot {
     private func openMenu(_ k: Int, at p: CGPoint) {
         for (id, t) in touches {
             if t.band >= 0 { model.endGesture() }
+            if t.listen { model.stopEqListen() }
             dropped.insert(id)
         }
         touches.removeAll()
@@ -356,7 +383,8 @@ extension EqPlot {
     private func up(_ id: SpatialEventCollection.Event.ID, _ p: CGPoint, _ g: EqGeometry, tap: Bool) {
         guard let t = touches.removeValue(forKey: id) else { return }
         if t.band >= 0 { model.endGesture() }
-        if t.moved || t.menu || !tap { return }
+        if t.listen { model.stopEqListen() }
+        if t.moved || t.menu || t.listen || !tap { return }
         let now = Date()
         if let l = lastTap, now.timeIntervalSince(l.at) < EqPlot.doubleTap, hypot(l.p.x - t.start.x, l.p.y - t.start.y) < 30,
            l.band == t.band {

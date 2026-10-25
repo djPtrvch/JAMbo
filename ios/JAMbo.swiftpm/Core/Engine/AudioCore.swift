@@ -26,6 +26,8 @@ public final class AudioCore: @unchecked Sendable {
     public let trackEqs = TrackEqs(sampleRate: AudioCore.sampleRate)
     /// Сдвиги динамических полос EQ для экрана.
     public let eqDyn = EqDynLevels()
+    /// Прослушивание полосы EQ (SHIFT + точка): фильтр после EQ канала.
+    public let eqListen = EqListen(sampleRate: AudioCore.sampleRate)
     /// Спектры EQ (до и после EQ показанного канала, сравниваемая дорожка, выход мастера).
     public let spectra = Spectra()
     /// Пики дорожек и выхода мастера, приглушение Sidechain, LUFS показанного канала (измеритель и метры MIX).
@@ -79,6 +81,8 @@ public final class AudioCore: @unchecked Sendable {
         self.master.eq.trackStride = Sampler.maxFrames
         sampler.eqDyn = eqDyn
         self.master.eqDyn = eqDyn
+        sampler.eqListen = eqListen
+        self.master.eqListen = eqListen
         sequencer.mod = mod
     }
 
