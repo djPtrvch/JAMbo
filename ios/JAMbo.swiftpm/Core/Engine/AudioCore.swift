@@ -147,6 +147,8 @@ public final class AudioCore: @unchecked Sendable {
         profile.begin()
         // Сначала снимок проекта, потом команды: PLAY сразу после правки видит новые клипы и строки.
         takeSnapshots()
+        // Автоматизация на таймлайне (S15f): кривые — вместо ручек, до модуляции, FX и голосов.
+        if let d = sampler.sound { sequencer.applyAuto(d, at: sampleTime) }
         // FX на блок: значения клипа с p-lock играющих шагов, источник Sidechain.
         if let d = sampler.sound {
             mod.begin(d, frames: frames, lockMask: sequencer.modLockMask, lockVal: sequencer.modLockVal, bpm: sequencer.bpm)
@@ -303,6 +305,8 @@ public final class AudioCore: @unchecked Sendable {
             sequencer.leaveArrange()
         case .seekArrange(let pos):
             sequencer.seekArrange(pos)
+        case .autoHold(let t, let j, let on):
+            sequencer.auto.setHold(track: t, target: j, on: on)
         case .moveTrack(let a, let b):
             sequencer.launcher.move(a, b)
         case .noteOn(let t, let n, let id, let v):

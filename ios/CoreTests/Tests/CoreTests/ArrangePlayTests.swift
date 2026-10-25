@@ -150,4 +150,52 @@ final class ArrangePlayTests: XCTestCase {
         XCTAssertEqual(Array(cursor(out).prefix(3)), [0, 1, 2], "курсор — в начало со следующего шага")
         XCTAssertEqual(Array(steps(out, track: 0).prefix(3)), [0, 1, 2], "клип — с места курсора")
     }
+
+    /// Автоматизация (S15f): значение кривой — вместо ручки, пока дорожка на таймлайне; рука и стоп — ручка.
+    func testAutomationOverridesKnob() {
+        var p = project()
+        p.tracks[0].placeBlock(ArrBlock(clip: 0, start: 0, length: 64))
+        p.tracks[0].setAuto("reverb", [ArrAutoPoint(x: 0, y: 0), ArrAutoPoint(x: 32, y: 1)])
+        p.tracks[0].setAuto("prob", [ArrAutoPoint(x: 0, y: 0), ArrAutoPoint(x: 64, y: 0)])
+        let core = start(p)
+        let rv: Int = VoiceParam.reverb
+        _ = run(core, steps: 16)
+        let mid: Float = core.sampler.sound!.params[rv]
+        XCTAssertEqual(mid, 50, accuracy: 2, "середина прямой 0…100 % на шаге 16")
+        // Chance 0 на всей кривой — ни одного трига.
+        let out = run(core, steps: 8)
+        XCTAssertFalse(out.contains { if case .trig(0, _) = $0 { return true } else { return false } })
+        core.events.push(.autoHold(track: 0, target: rv, on: true))
+        _ = run(core, steps: 1)
+        XCTAssertEqual(core.sampler.sound!.params[rv], 0, "палец на ручке — значение ручки")
+        core.events.push(.autoHold(track: 0, target: rv, on: false))
+        _ = run(core, steps: 1)
+        XCTAssertGreaterThan(core.sampler.sound!.params[rv], 70)
+        core.events.push(.play(false))
+        _ = run(core, steps: 1)
+        XCTAssertEqual(core.sampler.sound!.params[rv], 0, "стоп — значение ручки")
+    }
+
+    /// Дорожка играет сетку — кривая не действует.
+    func testAutomationOnlyOnTimeline() {
+        var p = project()
+        p.tracks[0].setAuto("reverb", [ArrAutoPoint(x: 0, y: 1), ArrAutoPoint(x: 32, y: 1)])
+        let core = AudioCore()
+        core.publish(p)
+        core.events.push(.play(true))
+        _ = run(core, steps: 4)
+        XCTAssertEqual(core.sampler.sound!.params[VoiceParam.reverb], 0)
+    }
+
+    func testLaneValue() {
+        let l = ArrAutoLane(param: "filter", points: [ArrAutoPoint(x: 4, y: 0.2), ArrAutoPoint(x: 8, y: 1)])
+        XCTAssertNil(l.value(at: 3.9))
+        XCTAssertEqual(l.value(at: 6)!, 0.6, accuracy: 1e-9)
+        XCTAssertNil(l.value(at: 8.1))
+        var t = Track(index: 0)
+        t.setAuto("filter", [ArrAutoPoint(x: 8, y: 2), ArrAutoPoint(x: 1, y: -1)])
+        XCTAssertEqual(t.autos[0].points, [ArrAutoPoint(x: 1, y: 0), ArrAutoPoint(x: 8, y: 1)])
+        t.setAuto("nope", [])
+        XCTAssertEqual(t.autos.count, 1)
+    }
 }

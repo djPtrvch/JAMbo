@@ -33,6 +33,8 @@ public struct SeqData {
     public var noteVel: UnsafeMutablePointer<Float>
     public var prob: UnsafeMutablePointer<Float>
     public var ratchet: UnsafeMutablePointer<Int32>
+    /// P-lock Chance и Ratchet на шаге (биты 1 и 2): автоматизация их на этом шаге не трогает.
+    public var probLock: UnsafeMutablePointer<UInt8>
     public var swing: UnsafeMutablePointer<Float>
     /// Свой звук шага (ключ; 0 — звук дорожки) и p-lock параметров голоса (биты VoiceParam и значения).
     public var sound: UnsafeMutablePointer<UInt64>
@@ -70,6 +72,39 @@ public struct SeqData {
     public var loopFrom: Int = 0
     public var loopTo: Int = 0
     public var loop: Bool = false
+    /// Автоматизация (S15f): кривая цели j (ArrAutoTarget) дорожки t — точки autoFirst[t·count + j] …
+    /// + autoCount − 1 (x — шаг таймлайна, y — 0…1); autoAny[t] — у дорожки есть кривые.
+    public var autoFirst: UnsafeMutablePointer<Int32>
+    public var autoCount: UnsafeMutablePointer<Int32>
+    public var autoX: UnsafeMutablePointer<Double>
+    public var autoY: UnsafeMutablePointer<Float>
+    public var autoAny: UnsafeMutablePointer<UInt8>
+
+    /// Значение 0…1 кривой цели j дорожки t на шаге x; −1 — кривой нет или x вне её точек.
+    @inline(__always)
+    public func auto(_ t: Int, _ j: Int, at x: Double) -> Double {
+        let k: Int = t * ArrAutoTarget.count + j
+        let n: Int = Int(autoCount[k])
+        if n == 0 { return -1 }
+        let first: Int = Int(autoFirst[k])
+        let lastI: Int = first + n - 1
+        if x < autoX[first] || x > autoX[lastI] { return -1 }
+        var lo: Int = first
+        var hi: Int = lastI
+        while hi - lo > 1 {
+            let mid: Int = (lo + hi) >> 1
+            if autoX[mid] <= x { lo = mid } else { hi = mid }
+        }
+        let ax: Double = autoX[lo]
+        let bx: Double = autoX[hi]
+        let ay: Double = Double(autoY[lo])
+        let by: Double = Double(autoY[hi])
+        if bx <= ax { return by }
+        var f: Double = (x - ax) / (bx - ax)
+        if f < 0 { f = 0 }
+        if f > 1 { f = 1 }
+        return ay + (by - ay) * f
+    }
 
     /// Блок дорожки t на позиции x аранжировки (номер в массивах блоков; −1 — нет).
     @inline(__always)
@@ -203,6 +238,9 @@ public final class SeqSnapshot: @unchecked Sendable {
         let steps = max(1, blocks) * SeqData.maxSteps
         var arrBlocks = 1
         for t in 0..<used { arrBlocks += project.tracks[t].blocks.count }
+        var autoPoints = 1
+        for t in 0..<used { for l in project.tracks[t].autos { autoPoints += l.points.count } }
+        let autoCells = tracks * ArrAutoTarget.count
         var d = SeqData(
             stopped: .allocate(capacity: tracks), slot: .allocate(capacity: tracks),
             clipBlock: .allocate(capacity: cells), clipLength: .allocate(capacity: cells),
@@ -211,7 +249,8 @@ public final class SeqSnapshot: @unchecked Sendable {
             noteCount: .allocate(capacity: steps), notes: .allocate(capacity: steps * SeqData.maxNotes),
             split: .allocate(capacity: steps), noteLen: .allocate(capacity: steps * SeqData.maxNotes),
             noteVel: .allocate(capacity: steps * SeqData.maxNotes),
-            prob: .allocate(capacity: steps), ratchet: .allocate(capacity: steps), swing: .allocate(capacity: steps),
+            prob: .allocate(capacity: steps), ratchet: .allocate(capacity: steps), probLock: .allocate(capacity: steps),
+            swing: .allocate(capacity: steps),
             sound: .allocate(capacity: steps), lockMask: .allocate(capacity: steps),
             lockVal: .allocate(capacity: steps * VoiceParam.count),
             fxMask: .allocate(capacity: steps), fxVal: .allocate(capacity: steps * Params.fxCount),
@@ -222,7 +261,9 @@ public final class SeqSnapshot: @unchecked Sendable {
             mixGain: .allocate(capacity: SeqData.maxSteps * tracks),
             arrFirst: .allocate(capacity: tracks), arrCount: .allocate(capacity: tracks),
             blkClip: .allocate(capacity: arrBlocks), blkStart: .allocate(capacity: arrBlocks),
-            blkLen: .allocate(capacity: arrBlocks), blkOff: .allocate(capacity: arrBlocks)
+            blkLen: .allocate(capacity: arrBlocks), blkOff: .allocate(capacity: arrBlocks),
+            autoFirst: .allocate(capacity: autoCells), autoCount: .allocate(capacity: autoCells),
+            autoX: .allocate(capacity: autoPoints), autoY: .allocate(capacity: autoPoints), autoAny: .allocate(capacity: tracks)
         )
         d.stopped.initialize(repeating: 1, count: tracks)
         d.slot.initialize(repeating: 0, count: tracks)
@@ -240,6 +281,7 @@ public final class SeqSnapshot: @unchecked Sendable {
         d.noteVel.initialize(repeating: -1, count: steps * SeqData.maxNotes)
         d.prob.initialize(repeating: 100, count: steps)
         d.ratchet.initialize(repeating: 0, count: steps)
+        d.probLock.initialize(repeating: 0, count: steps)
         d.swing.initialize(repeating: 50, count: steps)
         d.sound.initialize(repeating: 0, count: steps)
         d.lockMask.initialize(repeating: 0, count: steps)
@@ -281,6 +323,26 @@ public final class SeqSnapshot: @unchecked Sendable {
             }
             d.arrCount[t] = Int32(project.tracks[t].blocks.count)
         }
+        d.autoFirst.initialize(repeating: 0, count: autoCells)
+        d.autoCount.initialize(repeating: 0, count: autoCells)
+        d.autoX.initialize(repeating: 0, count: autoPoints)
+        d.autoY.initialize(repeating: 0, count: autoPoints)
+        d.autoAny.initialize(repeating: 0, count: tracks)
+        var na = 0
+        for t in 0..<used {
+            for l in project.tracks[t].autos where !l.points.isEmpty {
+                guard let j = ArrAutoTarget.index(l.param) else { continue }
+                let k: Int = t * ArrAutoTarget.count + j
+                d.autoFirst[k] = Int32(na)
+                d.autoCount[k] = Int32(l.points.count)
+                for p in l.points {
+                    d.autoX[na] = p.x
+                    d.autoY[na] = Float(p.y)
+                    na += 1
+                }
+                d.autoAny[t] = 1
+            }
+        }
         d.arrEnd = project.arrangeEnd
         d.loopFrom = project.arrange.loopFrom
         d.loopTo = project.arrange.loopTo
@@ -308,7 +370,8 @@ public final class SeqSnapshot: @unchecked Sendable {
         if a.arrange.loop != b.arrange.loop || a.arrange.loopFrom != b.arrange.loopFrom
             || a.arrange.loopTo != b.arrange.loopTo { return false }
         for (x, y) in zip(a.tracks, b.tracks) {
-            if x.slot != y.slot || x.stopped != y.stopped || x.clips != y.clips || x.blocks != y.blocks { return false }
+            if x.slot != y.slot || x.stopped != y.stopped || x.clips != y.clips || x.blocks != y.blocks
+                || x.autos != y.autos { return false }
             for id in ["prob", "ratchet", "swing"] where x.params[id] != y.params[id] { return false }
         }
         return true
@@ -373,8 +436,14 @@ public final class SeqSnapshot: @unchecked Sendable {
                     var fm: UInt32 = 0
                     var mm: UInt16 = 0
                     for (id, v) in locks {
-                        if id == "prob" { prob = v }
-                        if id == "ratchet" { ratchet = v }
+                        if id == "prob" {
+                            prob = v
+                            d.probLock[i] |= 1
+                        }
+                        if id == "ratchet" {
+                            ratchet = v
+                            d.probLock[i] |= 2
+                        }
                         if let k = voiceIndex[id] {
                             mask |= VoiceMask(1) << VoiceMask(k)
                             d.lockVal[i * vCount + k] = Float(v)
@@ -431,6 +500,7 @@ public final class SeqSnapshot: @unchecked Sendable {
         data.noteVel.deallocate()
         data.prob.deallocate()
         data.ratchet.deallocate()
+        data.probLock.deallocate()
         data.swing.deallocate()
         data.sound.deallocate()
         data.lockMask.deallocate()
@@ -451,5 +521,10 @@ public final class SeqSnapshot: @unchecked Sendable {
         data.blkStart.deallocate()
         data.blkLen.deallocate()
         data.blkOff.deallocate()
+        data.autoFirst.deallocate()
+        data.autoCount.deallocate()
+        data.autoX.deallocate()
+        data.autoY.deallocate()
+        data.autoAny.deallocate()
     }
 }

@@ -40,6 +40,8 @@ public final class Sequencer {
     }
     /// Запуск клипов и строк.
     public let launcher: Launcher
+    /// Автоматизация на таймлайне (S15f).
+    public let auto = ArrAutoPlay()
 
     private let sampleRate: Double
     let tempo: InternalTempoSource
@@ -213,6 +215,27 @@ public final class Sequencer {
         launcher.setFollow(all: false)
     }
 
+    /// Позиция курсора аранжировки в кадре frame (шаги, дробная; −1 — транспорт стоит): шаг курсора и доля до
+    /// следующего.
+    public func arrangePosition(at frame: Int64) -> Double {
+        if !playing { return -1 }
+        let pos: Double = Double(launcher.arrPos)
+        if tick <= 0 { return pos }
+        let a: Double = stepFrame(tick - 1)
+        let b: Double = stepFrame(tick)
+        if b <= a { return pos }
+        var f: Double = (Double(frame) - a) / (b - a)
+        if f < 0 { f = 0 }
+        if f > 0.999 { f = 0.999 }
+        return pos + f
+    }
+
+    /// Автоматизация на блок (до голосов): значения кривых — в снимок звука.
+    public func applyAuto(_ snd: SoundData, at frame: Int64) {
+        guard let d = data else { return }
+        auto.apply(d, snd, x: arrangePosition(at: frame), follow: launcher.follow)
+    }
+
     /// Кадр (дробный) шага k от старта.
     @inline(__always)
     func stepFrame(_ k: Int) -> Double {
@@ -335,6 +358,13 @@ public final class Sequencer {
         var prob = Double(d.prob[i])
         var ratchetV = Double(d.ratchet[i])
         let swing = Double(d.swing[i])
+        // Автоматизация Chance и Ratchet (S15f): дорожка на таймлайне, на шаге нет их p-lock.
+        if launcher.follow[t] && d.autoAny[t] != 0 {
+            let x: Double = Double(launcher.arrPos)
+            let snd: SoundData? = sampler?.sound
+            if d.probLock[i] & 1 == 0 { prob = auto.step(d, snd, t, ArrAutoTarget.prob, at: x, base: prob) }
+            if d.probLock[i] & 2 == 0 { ratchetV = auto.step(d, snd, t, ArrAutoTarget.ratchet, at: x, base: ratchetV) }
+        }
         if let m = mod, m.modulated(t) {
             let f = Int64(time)
             prob = m.value(t, ModTarget.prob, prob, f)

@@ -19,8 +19,11 @@ struct ArrangeBar: View {
                 Image(systemName: "repeat").font(.system(size: 18, weight: .semibold)).foregroundStyle(c)
             }
             .frame(width: side)
-            ArrBarButton(on: model.arrAuto, enabled: true, action: { model.toggleArrAuto() }) { c in ArrWaveIcon(color: c) }
-                .frame(width: side)
+            // Запись (REC + PLAY + AUTO) — красная обводка.
+            ArrBarButton(on: model.arrAuto, enabled: true, ring: model.arrRecording, action: { model.toggleArrAuto() }) { c in
+                ArrWaveIcon(color: c)
+            }
+            .frame(width: side)
             ArrReturnAll(model: model).frame(width: side)
             Spacer(minLength: 0)
             ArrBarText(title: "INSERT", on: model.arrInsert, enabled: true) { model.toggleArrInsert() }
@@ -84,6 +87,7 @@ struct ArrBarText: View {
 struct ArrBarButton<Icon: View>: View {
     let on: Bool
     let enabled: Bool
+    var ring: Bool = false
     let action: () -> Void
     let icon: (Color) -> Icon
     @Environment(\.theme) private var theme
@@ -95,6 +99,7 @@ struct ArrBarButton<Icon: View>: View {
         return icon(fg)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(bg, in: RoundedRectangle(cornerRadius: Layout.radius))
+            .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(ring ? theme.rec : Color.clear, lineWidth: 1))
             .contentShape(Rectangle())
             .onTapGesture { if enabled { action() } }
     }

@@ -28,6 +28,8 @@ public enum CoreEvent: Sendable {
     case leaveArrange
     /// Курсор аранжировки на позицию (шаги): при игре — со следующего шага.
     case seekArrange(Int)
+    /// Автоматизация (S15f): ручка цели target (ArrAutoTarget) дорожки под пальцем — кривая не действует.
+    case autoHold(track: Int, target: Int, on: Bool)
     /// Дорожку переставили (MIX) во время игры: ход дорожек (активная ячейка, остановка, ожидание, начало прохода)
     /// переезжает вместе с ними — играют дальше без паузы.
     case moveTrack(from: Int, to: Int)

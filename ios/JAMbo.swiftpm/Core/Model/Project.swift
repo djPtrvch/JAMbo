@@ -73,6 +73,8 @@ public struct Track: Codable, Equatable, Sendable {
     /// Аранжировщик (S15): блоки дорожки на таймлайне (по порядку, без перекрытий) и цвет (номер в ArrPalette).
     public var blocks: [ArrBlock] = []
     public var color: Int = ArrPalette.defaultColor
+    /// Автоматизация на таймлайне (S15f): кривые ручек сетки дорожки, по одной на ручку.
+    public var autos: [ArrAutoLane] = []
 
     public init(index: Int) {
         id = Int.random(in: 0..<(1 << 31))
