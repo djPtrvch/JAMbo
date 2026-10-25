@@ -56,6 +56,14 @@ extension AppModel {
         arrCursor = m.at
     }
 
+    /// SPLIT: блоки всех дорожек разрезаются по краям выделенного диапазона.
+    func arrSplitRange() {
+        let a: Arrangement = project.arrange
+        guard a.hasLoop else { return }
+        edit { p in p.splitArrange(a.loopFrom, a.loopTo) }
+        arrSel = nil
+    }
+
     // MARK: — петля
 
     /// Диапазон петли (внутри жеста протяжки): границы уже с магнитом; пустой — петля выключена.

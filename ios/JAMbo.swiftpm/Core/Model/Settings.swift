@@ -67,9 +67,10 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var stepPaint: Bool = false
     /// Бутерброд → SYNC (S13e): квант, MIDI-клок, настройки Ableton Link.
     public var sync = SyncSettings()
-    /// SETTINGS → ARRANGE (S15, решение пользователя): COMPACT — все дорожки на высоту окна; EXPANDED — строки выше,
-    /// дорожки прокручиваются.
-    public var arrangeExpanded: Bool = false
+    /// SETTINGS → ARRANGE (S15, решение пользователя): EXPANDED (по умолчанию) — строки выше, дорожки прокручиваются;
+    /// COMPACT — все дорожки на высоту окна.
+    public var arrangeCompact: Bool = false
+    public var arrangeExpanded: Bool { return !arrangeCompact }
 
     public init() {}
 
@@ -86,7 +87,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
     private enum Keys: String, CodingKey { case appearance, pianoOctaves, velocity, record, sliceMap, scSends, muteTails, latchFx, latchMod, rollGrid,
                                          rollSound, levelRelative, morphAll, morphReturn, mixKey, mixCrossfader,
                                          clearSampleLocks, pitchSemitones, midi, stepPaint, sync,
-                                         arrangeExpanded }
+                                         arrangeCompact }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
@@ -113,6 +114,6 @@ public struct AppSettings: Codable, Equatable, Sendable {
         midi = (try? c.decode(MidiSettings.self, forKey: .midi)) ?? MidiSettings()
         stepPaint = (try? c.decode(Bool.self, forKey: .stepPaint)) ?? false
         sync = (try? c.decode(SyncSettings.self, forKey: .sync)) ?? SyncSettings()
-        arrangeExpanded = (try? c.decode(Bool.self, forKey: .arrangeExpanded)) ?? false
+        arrangeCompact = (try? c.decode(Bool.self, forKey: .arrangeCompact)) ?? false
     }
 }

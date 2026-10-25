@@ -186,4 +186,13 @@ final class ArrangeTests: XCTestCase {
         XCTAssertEqual(bad.arrange.grid, 3)
         XCTAssertFalse(bad.arrange.loop)
     }
+
+    func testSplitRange() {
+        var p = Project()
+        p.tracks[0].placeBlock(ArrBlock(clip: 0, start: 0, length: 64))
+        p.tracks[1].placeBlock(ArrBlock(clip: 0, start: 16, length: 16))
+        p.splitArrange(16, 48)
+        XCTAssertEqual(spans(p.tracks[0]), [[0, 0, 16, 0], [0, 16, 32, 16], [0, 48, 16, 48]])
+        XCTAssertEqual(spans(p.tracks[1]), [[0, 16, 16, 0]], "граница на краю блока — без разреза")
+    }
 }

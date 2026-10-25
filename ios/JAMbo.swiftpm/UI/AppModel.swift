@@ -349,7 +349,10 @@ final class AppModel {
         endRecTake()
         // Аранжировщик (S15): PLAY в его окне — дорожки по таймлайну с курсора; стоп — курсор остаётся, где был.
         if playing {
-            audio.core.events.push(.arrange(on: arrangeView, from: arrCursor))
+            // Петля включена — PLAY в аранжировщике играет её сначала.
+            let a: Arrangement = project.arrange
+            let from: Int = arrangeView && a.loop && a.hasLoop ? a.loopFrom : arrCursor
+            audio.core.events.push(.arrange(on: arrangeView, from: from))
         } else {
             arrCursor = live.arrPos
         }

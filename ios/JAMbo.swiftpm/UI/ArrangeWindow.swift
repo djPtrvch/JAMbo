@@ -14,6 +14,8 @@ struct ArrangeWindow: View {
                 HStack(spacing: Layout.gap) {
                     ArrHeaders(model: model).frame(width: ArrMetrics.headerW)
                     ArrTimeline(model: model, lift: $lift)
+                    // Измеритель справа с регулятором — выбранной дорожки (как в окне дорожки).
+                    MeterColumn(model: model)
                 }
                 ArrMenus(model: model, size: geo.size)
             }
@@ -32,7 +34,7 @@ struct ArrLift: Equatable {
 
 /// Размеры и прокрутка таймлайна (общие у рисования и касаний).
 struct ArrMetrics {
-    static let headerW: CGFloat = 236
+    static let headerW: CGFloat = 200
     static let rulerH: CGFloat = 20
     static let markerH: CGFloat = 18
     static let top: CGFloat = rulerH + markerH
@@ -269,6 +271,14 @@ struct ArrDraw {
     /// Линейка: номера тактов, планка петли (жёлтая; выключенная петля — бледная).
     private func ruler(_ p: Project) {
         ctx.fill(Path(CGRect(x: 0, y: 0, width: m.size.width, height: ArrMetrics.top)), with: .color(theme.panel2))
+        // Выделенный диапазон (он же петля) — верхняя половина линейки залита жёлтым (петля включена — ярче).
+        let a = p.arrange
+        if a.hasLoop {
+            let x0: CGFloat = m.stepX(Double(a.loopFrom))
+            let x1: CGFloat = m.stepX(Double(a.loopTo))
+            let r = CGRect(x: x0, y: 0, width: max(2, x1 - x0), height: ArrMetrics.rulerH)
+            ctx.fill(Path(r), with: .color(theme.accent.opacity(a.loop ? 0.75 : 0.35)))
+        }
         let every: Int = m.barLabelEvery
         let firstBar: Int = max(0, Int(m.step(at: 0)) / ArrMetrics.stepsPerBar)
         let lastBar: Int = Int(m.step(at: m.size.width)) / ArrMetrics.stepsPerBar + 1
@@ -280,13 +290,6 @@ struct ArrDraw {
             let text = Text("\(bar + 1)").font(.system(size: 9)).monospacedDigit().foregroundStyle(theme.dim)
             ctx.draw(text, at: CGPoint(x: x + 3, y: 3), anchor: .topLeading)
             bar += every
-        }
-        let a = p.arrange
-        if a.hasLoop {
-            let x0: CGFloat = m.stepX(Double(a.loopFrom))
-            let x1: CGFloat = m.stepX(Double(a.loopTo))
-            let r = CGRect(x: x0, y: ArrMetrics.rulerH - 5, width: max(2, x1 - x0), height: 4)
-            ctx.fill(Path(roundedRect: r, cornerRadius: 2), with: .color(theme.accent.opacity(a.loop ? 1 : 0.35)))
         }
         ctx.fill(Path(CGRect(x: 0, y: ArrMetrics.top - 1, width: m.size.width, height: 1)), with: .color(theme.line))
     }

@@ -165,6 +165,12 @@ extension Track {
         for b in saved.sorted(by: { $0.start < $1.start }) { placeBlock(b) }
     }
 
+    /// Разрезать блок, через который проходит x (на краю блока — ничего).
+    public mutating func splitArrange(at x: Int) {
+        splitBlock(at: x)
+        sortBlocks()
+    }
+
     private mutating func splitBlock(at x: Int) {
         guard let k = blocks.firstIndex(where: { $0.start < x && $0.end > x }) else { return }
         let b: ArrBlock = blocks[k]
@@ -187,6 +193,14 @@ extension Project {
         guard tracks.indices.contains(i) else { return }
         tracks[i].blocks = []
         for b in list { tracks[i].placeBlock(b) }
+    }
+
+    /// SPLIT в меню диапазона: блоки всех дорожек разрезаются на границах [a, b) (правая часть продолжает клип).
+    public mutating func splitArrange(_ a: Int, _ b: Int) {
+        for i in tracks.indices {
+            tracks[i].splitArrange(at: a)
+            tracks[i].splitArrange(at: b)
+        }
     }
 
     public mutating func setTrackColor(_ i: Int, _ color: Int) {

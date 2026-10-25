@@ -204,7 +204,7 @@ struct ArrInsertMenu: View {
     }
 }
 
-/// Окно маркера: имя (до 12 знаков; новый маркер — сразу ввод), цвет, CURSOR HERE, DELETE, OK. Имя сохраняется
+/// Окно маркера: имя (до 12 знаков; клавиатура — по тапу в поле), цвет, CURSOR HERE, DELETE, OK. Имя сохраняется
 /// и при закрытии тапом мимо.
 struct ArrMarkerWindow: View {
     static let width: CGFloat = 240
@@ -247,7 +247,6 @@ struct ArrMarkerWindow: View {
         loaded = true
         let m: ArrMarker? = model.arrMarker(index)
         name = m?.name ?? ""
-        if name.isEmpty { focused = true }
     }
 
     private func done() {
@@ -268,8 +267,8 @@ struct ArrMarkerWindow: View {
     }
 }
 
-/// Меню выделенного диапазона (двойной тап по нему на линейке): LOOP — зациклить (горит, пока петля включена),
-/// SECTION — маркер секции в начале диапазона и окно с именем.
+/// Меню выделенного диапазона (двойной тап по нему на линейке): ADD SECTION — маркер секции в начале диапазона и окно
+/// с именем; SPLIT — блоки всех дорожек разрезаются по краям диапазона. Зациклить — кнопка LOOP.
 struct ArrRangeMenu: View {
     static let width: CGFloat = 180
     /// 2 строки по 40, зазор 6, поля 16.
@@ -279,11 +278,11 @@ struct ArrRangeMenu: View {
 
     var body: some View {
         VStack(spacing: 6) {
-            MenuItem(title: "LOOP", current: model.project.arrange.loop) {
+            MenuItem(title: "ADD SECTION") { model.arrSectionAtRange(anchor: anchor) }
+            MenuItem(title: "SPLIT") {
                 model.arrMenu = nil
-                model.toggleArrLoop()
+                model.arrSplitRange()
             }
-            MenuItem(title: "SECTION") { model.arrSectionAtRange(anchor: anchor) }
         }
         .frame(width: ArrRangeMenu.width)
         .modifier(MenuPanel())
