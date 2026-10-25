@@ -14,8 +14,13 @@ struct ArrangeWindow: View {
                 HStack(spacing: Layout.gap) {
                     ArrHeaders(model: model).frame(width: ArrMetrics.headerW)
                     ArrTimeline(model: model, lift: $lift)
-                    // Измеритель справа с регулятором — выбранной дорожки (как в окне дорожки).
-                    MeterColumn(model: model)
+                    // Измеритель справа с регулятором — выбранной дорожки: на месте измерителя окна дорожки (RootView);
+                    // пока его рамка неизвестна — здесь.
+                    if model.meterFrame == .zero {
+                        MeterColumn(model: model)
+                    } else {
+                        Color.clear.frame(width: Layout.meterWidth)
+                    }
                 }
                 ArrMenus(model: model, size: geo.size)
             }
@@ -157,10 +162,6 @@ struct ArrTimeline: View {
         return RoundedRectangle(cornerRadius: 4)
             .fill(color)
             .overlay(RoundedRectangle(cornerRadius: 4).stroke(theme.text, lineWidth: 1))
-            .overlay(alignment: .leading) {
-                Text(model.arrClipName(l.block.clip)).font(.system(size: 11, weight: .bold)).foregroundStyle(ArrColors.text)
-                    .lineLimit(1).padding(.leading, 6)
-            }
             .frame(width: w, height: h)
             .shadow(color: Color.black.opacity(0.5), radius: 8, y: 4)
             .position(x: cx, y: cy)
@@ -248,18 +249,36 @@ struct ArrDraw {
             let shape = Path(roundedRect: r, cornerRadius: 4)
             ctx.fill(shape, with: .color(color.opacity(dim ? 0.35 : 1)))
             if sel == ArrSel(track: t, block: i) { ctx.stroke(shape, with: .color(theme.text), lineWidth: 1) }
-            label(names(b.clip), r)
+            pattern(tr, b, r)
         }
     }
 
-    private func label(_ s: String, _ r: CGRect) {
-        if r.width < 18 { return }
-        var c = ctx
-        c.clip(to: Path(r.insetBy(dx: 4, dy: 0)))
-        let text = Text(s).font(.system(size: 11, weight: .bold)).foregroundStyle(ArrColors.text)
-        let x: CGFloat = max(r.minX, 0) + 6
-        let y: CGFloat = r.minY + 4
-        c.draw(text, at: CGPoint(x: x, y: y), anchor: .topLeading)
+    /// Паттерн клипа на блоке (решение пользователя: без цифр): триги играющих страниц по шагам, клип — по кругу
+    /// с места блока, как он звучит.
+    private func pattern(_ tr: Track, _ b: ArrBlock, _ r: CGRect) {
+        guard tr.clipFilled(b.clip), let c = tr.clips[b.clip] else { return }
+        let first: Int = max(b.start, Int(m.step(at: 0)))
+        let last: Int = min(b.end, Int(m.step(at: m.size.width)) + 1)
+        if last <= first { return }
+        let w: CGFloat = max(1, m.stepW * 0.6)
+        let h: CGFloat = max(2, r.height * 0.5)
+        let y: CGFloat = r.midY - h / 2
+        let len: Int = c.playLen
+        var path = Path()
+        var s: Int = first
+        while s < last {
+            let n: Int = c.localStep(s - b.start + b.offset)
+            if n < len {
+                let idx: Int = c.playIndex(n)
+                if let st = c.step(idx), st.on, !c.outside(idx) {
+                    path.addRect(CGRect(x: m.stepX(Double(s)) + 1, y: y, width: w, height: h))
+                }
+            }
+            s += 1
+        }
+        var cc = ctx
+        cc.clip(to: Path(r.insetBy(dx: 1, dy: 1)))
+        cc.fill(path, with: .color(ArrColors.text.opacity(0.55)))
     }
 
     /// Куда встанет поднятый блок — контур.
@@ -309,13 +328,18 @@ struct ArrDraw {
             var next: CGFloat = m.size.width
             if let e = p.sectionEnd(k) { next = m.stepX(Double(e)) }
             if next < 0 || x0 > m.size.width { continue }
-            let r = CGRect(x: x0, y: ArrMetrics.rulerH + 2, width: max(2, next - x0 - 2), height: ArrMetrics.markerH - 4)
-            ctx.fill(Path(roundedRect: r, cornerRadius: 2), with: .color(ArrColors.color(mk.color)))
+            // Ровно по сетке: от начала до конца секции, без зазоров. Цвет по умолчанию — как заголовок дорожки.
+            let r = CGRect(x: x0, y: ArrMetrics.rulerH + 1, width: max(2, next - x0), height: ArrMetrics.markerH - 2)
+            let own: Bool = mk.color != ArrPalette.defaultColor
+            let fill: Color = own ? ArrColors.color(mk.color) : theme.trackBg
+            ctx.fill(Path(r), with: .color(fill))
+            if x0 >= 1 { ctx.fill(Path(CGRect(x: x0, y: r.minY, width: 1, height: r.height)), with: .color(theme.text.opacity(0.5))) }
             var c = ctx
             c.clip(to: Path(r))
             let name: String = mk.name.isEmpty ? " " : mk.name
             let tx: CGFloat = max(r.minX, 0) + 4
-            let text: Text = Text(name).font(.system(size: 9, weight: .bold)).foregroundStyle(ArrColors.text)
+            let tcol: Color = own ? ArrColors.text : theme.text
+            let text: Text = Text(name).font(.system(size: 9, weight: .bold)).foregroundStyle(tcol)
             c.draw(text, at: CGPoint(x: tx, y: r.midY), anchor: .leading)
         }
     }

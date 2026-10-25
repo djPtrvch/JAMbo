@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Вторая строка кнопок под верхней панелью — пока открыт аранжировщик (S15c, решения пользователя): слева квадратные
 /// значки — сетка (ячейка; тап — меню шага), магнит, LOOP (как LOOP ROW сетки паттернов), AUTO (синусоида с точками),
-/// возврат всех дорожек к таймлайну (стрелка к черте, как в Logic Pro); справа — INSERT, STEPS, REF, A/B. Высота — как у
+/// курсор в начало таймлайна (стрелка к черте); справа — INSERT, STEPS, REF, A/B. Высота — как у
 /// строки окон EQ и модулей мастера.
 struct ArrangeBar: View {
     static let height: CGFloat = 48
@@ -99,20 +99,19 @@ struct ArrBarButton<Icon: View>: View {
     }
 }
 
-/// Все дорожки — к таймлайну: жёлтая, пока хоть одна играет сетку.
+/// Курсор в самое начало таймлайна (при игре — сразу).
 struct ArrReturnAll: View {
     let model: AppModel
     @Environment(\.theme) private var theme
 
     var body: some View {
-        let on: Bool = model.anyOffTimeline
-        return Image(systemName: "arrow.left.to.line")
-        .font(.system(size: 18, weight: .semibold))
-        .foregroundStyle(on ? theme.onAccent : theme.off)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(on ? theme.accent : theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
-        .contentShape(Rectangle())
-        .onTapGesture { model.returnToArrange(-1) }
+        Image(systemName: "arrow.left.to.line")
+            .font(.system(size: 18, weight: .semibold))
+            .foregroundStyle(theme.text)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
+            .contentShape(Rectangle())
+            .onTapGesture { model.arrToStart() }
     }
 }
 

@@ -27,6 +27,12 @@ extension Launcher {
         setFollow(t, true)
     }
 
+    /// Переход курсора (во время игры): следующий шаг — pos; дорожки на таймлайне пересчитывают ход.
+    func seek(_ pos: Int) {
+        arrPos = pos - 1
+        for t in 0..<SeqData.maxTracks where follow[t] { arrDirty[t] = true }
+    }
+
     /// Позиция курсора на тике tick (после старта — следующий шаг; петля). false — аранжировка кончилась.
     func arrangeStep(_ d: SeqData, tick: Int) -> Bool {
         if tick > 0 {

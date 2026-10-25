@@ -16,6 +16,7 @@ struct RootView: View {
             ZStack(alignment: .topLeading) {
                 theme.bg.ignoresSafeArea()
                 screen(layout)
+                arrangeMeter
                 overlays
                 if let c = model.choice {
                     ChoiceMenu(model: model, state: c, screen: geo.size)
@@ -136,7 +137,17 @@ struct RootView: View {
                 KnobGrid(model: model)
                 RightColumn(model: model).frame(width: Layout.leftColumn)
                 MeterColumn(model: model)
+                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { model.meterFrame = $0 }
             }
+        }
+    }
+
+    /// Аранжировщик: измеритель с регулятором — на месте и в размер измерителя окна дорожки (STEPS его не растягивает).
+    @ViewBuilder
+    private var arrangeMeter: some View {
+        let f: CGRect = model.meterFrame
+        if model.arrangeView && f != .zero {
+            MeterColumn(model: model).frame(width: f.width, height: f.height).offset(x: f.minX, y: f.minY)
         }
     }
 

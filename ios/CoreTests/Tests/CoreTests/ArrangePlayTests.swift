@@ -139,4 +139,15 @@ final class ArrangePlayTests: XCTestCase {
         XCTAssertFalse(out.contains { if case .ended = $0 { return true } else { return false } }, "MIX: не стоп в конце")
         XCTAssertEqual(Array(steps(out, track: 0).prefix(6)), [3, 4, 5, 6, 7, 8], "клип играет дальше за концом блока")
     }
+
+    func testSeekWhilePlaying() {
+        var p = project()
+        p.tracks[0].placeBlock(ArrBlock(clip: 0, start: 0, length: 64))
+        let core = start(p, from: 20)
+        _ = run(core, steps: 3)
+        core.events.push(.seekArrange(0))
+        let out = run(core, steps: 3)
+        XCTAssertEqual(Array(cursor(out).prefix(3)), [0, 1, 2], "курсор — в начало со следующего шага")
+        XCTAssertEqual(Array(steps(out, track: 0).prefix(3)), [0, 1, 2], "клип — с места курсора")
+    }
 }

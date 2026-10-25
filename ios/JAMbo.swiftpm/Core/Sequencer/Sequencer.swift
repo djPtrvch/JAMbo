@@ -190,6 +190,14 @@ public final class Sequencer {
         launcher.arrFrom = Swift.max(0, from)
     }
 
+    /// Курсор аранжировки на позицию pos во время игры (со следующего шага); без игры — позиция старта.
+    public func seekArrange(_ pos: Int) {
+        let p: Int = Swift.max(0, pos)
+        launcher.arrFrom = p
+        guard playing else { return }
+        launcher.seek(p)
+    }
+
     /// Возврат дорожки к таймлайну во время игры (track < 0 — всех).
     public func returnToArrange(track t: Int) {
         guard playing else { return }

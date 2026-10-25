@@ -26,6 +26,8 @@ public enum CoreEvent: Sendable {
     case arrange(on: Bool, from: Int)
     case returnToArrange(track: Int)
     case leaveArrange
+    /// Курсор аранжировки на позицию (шаги): при игре — со следующего шага.
+    case seekArrange(Int)
     /// Дорожку переставили (MIX) во время игры: ход дорожек (активная ячейка, остановка, ожидание, начало прохода)
     /// переезжает вместе с ними — играют дальше без паузы.
     case moveTrack(from: Int, to: Int)

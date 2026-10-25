@@ -170,7 +170,16 @@ struct ArrPaletteGrid: View {
         let cols: [GridItem] = [GridItem](repeating: GridItem(.flexible(), spacing: 6), count: 6)
         let list: [Int] = ArrPalette.choices
         return VStack(spacing: 6) {
-            MenuItem(title: "DEFAULT", current: current == ArrPalette.defaultColor) { pick(ArrPalette.defaultColor) }
+            // DEFAULT — цветом по умолчанию (как заголовок дорожки), выбранный — обводка, как у цветов.
+            Text("DEFAULT")
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(theme.text)
+                .frame(maxWidth: .infinity, minHeight: 40)
+                .background(theme.trackBg, in: RoundedRectangle(cornerRadius: 8))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(current == ArrPalette.defaultColor ? theme.text : Color.clear,
+                                                                lineWidth: 2))
+                .contentShape(Rectangle())
+                .onTapGesture { pick(ArrPalette.defaultColor) }
             LazyVGrid(columns: cols, spacing: 6) {
                 ForEach(list, id: \.self) { k in
                     RoundedRectangle(cornerRadius: 4)

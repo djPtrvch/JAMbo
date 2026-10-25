@@ -3,7 +3,7 @@ import SwiftUI
 /// Касания таймлайна аранжировщика (S15c). Один палец по дорожкам: тап по блоку — выбор (по пустому — ничего),
 /// двойной тап — меню блока или места; удержание блока 0,35 с — блок поднимается и едет за пальцем, при отпускании
 /// встаёт на место (с магнитом — на линию сетки); край блока — длина сразу; сдвиг по пустому (или по блоку до
-/// удержания) — прокрутка. Линейка и строка маркеров — ArrRulerTouches (S15d). INSERT: тап по дорожке — клип
+/// удержания) — прокрутка (по времени и, в EXPANDED, по дорожкам). Линейка и строка маркеров — ArrRulerTouches (S15d). INSERT: тап по дорожке — клип
 /// для вставки, правый край вставленного блока — длина со сдвигом. Два пальца — масштаб по
 /// одной оси (какая разошлась первой): по горизонтали — время (точка между пальцами на месте), по вертикали — высота строк.
 final class ArrTouches {
@@ -237,38 +237,24 @@ final class ArrTouches {
         base = ArrPort(stepW: m.stepW, x: m.x, rowH: m.rowH, y: m.y)
     }
 
-    /// Два пальца: разошлись или сошлись — масштаб; сдвинулись вместе — прокрутка (по времени и по дорожкам).
+    /// Два пальца (решение пользователя): разошлись или сошлись по горизонтали — масштаб времени (точка между пальцами
+    /// на месте), сдвинулись вместе вбок — прокрутка по времени; по вертикали — ничего.
     private func zoom(_ a: CGPoint, _ b: CGPoint, _ port: inout ArrPort, _ m: ArrMetrics) {
         let sx: CGFloat = abs(a.x - b.x)
-        let sy: CGFloat = abs(a.y - b.y)
         let cx: CGFloat = (a.x + b.x) / 2
-        let cy: CGFloat = (a.y + b.y) / 2
+        port.y = base.y
         if axis == nil {
             let dx: CGFloat = abs(sx - spread0.width)
-            let dy: CGFloat = abs(sy - spread0.height)
-            if max(dx, dy) < ArrTouches.zoomSlop {
+            if dx < ArrTouches.zoomSlop {
                 port.x = base.x - (cx - mid.x)
-                port.y = base.y - (cy - mid.y)
                 return
             }
-            // COMPACT: высота строк — по окну, масштаб только по времени.
-            axis = dx >= dy || !m.expanded ? .h : .v
+            axis = .h
         }
-        if axis == .h {
-            let w0: CGFloat = base.stepW ?? m.stepW
-            let k: CGFloat = sx / max(20, spread0.width)
-            let w: CGFloat = ArrMetrics.clampStep(w0 * k, width: m.size.width)
-            port.stepW = w
-            port.x = (base.x + mid.x) / w0 * w - cx
-            port.y = base.y
-        } else {
-            let h0: CGFloat = base.rowH
-            let k: CGFloat = sy / max(20, spread0.height)
-            let h: CGFloat = ArrMetrics.clampRow(h0 * k)
-            let my: CGFloat = mid.y - ArrMetrics.top
-            port.rowH = h
-            port.y = (base.y + my) / h0 * h - my
-            port.x = base.x
-        }
+        let w0: CGFloat = base.stepW ?? m.stepW
+        let k: CGFloat = sx / max(20, spread0.width)
+        let w: CGFloat = ArrMetrics.clampStep(w0 * k, width: m.size.width)
+        port.stepW = w
+        port.x = (base.x + mid.x) / w0 * w - cx
     }
 }

@@ -108,6 +108,8 @@ final class AppModel {
     var arrInsert: Bool = false
     var arrInserted: ArrSel? = nil
     @ObservationIgnored var arrBlockClipboard: ArrBlock? = nil
+    /// Рамка измерителя справа в окне дорожки («root»): в аранжировщике он стоит ровно там же и того же размера.
+    @ObservationIgnored var meterFrame: CGRect = .zero
     @ObservationIgnored var arrTrackClipboard: [ArrBlock]? = nil
     /// Пианоролл на месте центра (S8): открыт, меню бутерброда, режим VEL.
     var rollView: Bool = false

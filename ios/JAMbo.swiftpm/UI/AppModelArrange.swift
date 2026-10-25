@@ -82,6 +82,14 @@ extension AppModel {
     /// Тап по номерам тактов: курсор на ближайшую линию сетки (действует со следующего PLAY).
     func setArrCursor(_ x: Int) {
         arrCursor = project.arrange.snapped(x)
+        // Во время игры курсор переходит сразу (со следующего шага).
+        if playing { audio.core.events.push(.seekArrange(arrCursor)) }
+    }
+
+    /// Кнопка со стрелкой к черте: курсор в самое начало таймлайна.
+    func arrToStart() {
+        arrCursor = 0
+        if playing { audio.core.events.push(.seekArrange(0)) }
     }
 
     /// Возврат дорожки к таймлайну (t < 0 — всех), сразу с позиции курсора.

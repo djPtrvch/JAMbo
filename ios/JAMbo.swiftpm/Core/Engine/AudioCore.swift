@@ -301,6 +301,8 @@ public final class AudioCore: @unchecked Sendable {
             sequencer.returnToArrange(track: t)
         case .leaveArrange:
             sequencer.leaveArrange()
+        case .seekArrange(let pos):
+            sequencer.seekArrange(pos)
         case .moveTrack(let a, let b):
             sequencer.launcher.move(a, b)
         case .noteOn(let t, let n, let id, let v):

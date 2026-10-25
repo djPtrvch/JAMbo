@@ -13,11 +13,16 @@ struct ArrHeaders: View {
             let m = ArrMetrics(size: CGSize(width: geo.size.width, height: geo.size.height), port: port,
                                tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded)
             ZStack(alignment: .topLeading) {
-                ForEach(0..<p.tracks.count, id: \.self) { t in
-                    ArrHeaderRow(model: model, index: t, rowH: m.rowH)
-                        .frame(width: geo.size.width, height: m.rowH - 2)
-                        .offset(x: 0, y: m.rowY(t) + 1)
+                // Все строки — одним столбцом с одним сдвигом (прокрутка — без отставания строк от таймлайна).
+                VStack(spacing: 0) {
+                    ForEach(0..<p.tracks.count, id: \.self) { t in
+                        ArrHeaderRow(model: model, index: t, rowH: m.rowH)
+                            .padding(.vertical, 1)
+                            .frame(width: geo.size.width, height: m.rowH)
+                    }
                 }
+                .offset(x: 0, y: m.rowY(0))
+                .transaction { $0.animation = nil }
                 ArrHeaderMeters(model: model, metrics: m).allowsHitTesting(false)
             }
             .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
@@ -145,8 +150,10 @@ struct ArrHeaderMeters: View {
                 let x: CGFloat = size.width - 6 - MeterBars.width
                 var t: Int = 0
                 while t < n {
-                    let y: CGFloat = m.rowY(t) + 4
-                    let h: CGFloat = max(4, m.rowH - 10)
+                    // Отступ сверху и снизу: в EXPANDED — побольше.
+                    let pad: CGFloat = m.expanded ? 10 : 4
+                    let y: CGFloat = m.rowY(t) + pad
+                    let h: CGFloat = max(4, m.rowH - 2 * pad)
                     if y + h >= ArrMetrics.top && y <= size.height {
                         let data = model.meters.bars(t, stereo: false)
                         let muted: Bool = !model.project.audible(t)
