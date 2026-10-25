@@ -26,9 +26,9 @@ MidiFeedback: каждый кадр (60 Гц; в вебе 30 мс), только
 MIDI → DEVICES → BLUETOOTH MIDI: CONNECT (CABTMIDICentralViewController) и ADVERTISE (CABTMIDILocalPeripheralViewController) — системные окна листом с ✕ (BluetoothMidi.swift). Без capability Bluetooth (ключ NSBluetoothAlwaysUsageDescription) кнопки неактивны. Подключённое устройство появляется в списках само (msgSetupChanged).
 
 ## Проверено
-S13a–d и S13f — на iPad (обратная связь — с TouchOSC по Bluetooth). CoreTests — 291 (MidiTests, MidiMapTests, MidiPresetTests, MidiFeedbackTests и тесты клока).
+S13a–d и S13f — на iPad (обратная связь — с TouchOSC по Bluetooth). S13e — на iPad: RECEIVE и SYNC START/STOP, SEND — с Digitakt по USB (режим USB MIDI). CoreTests — 291 (MidiTests, MidiMapTests, MidiPresetTests, MidiFeedbackTests и тесты клока).
 
 ## Открыто
-- S13e — проверить на iPad (клок с внешним устройством); перенесено в S14.
+- Описание Swift-версии клока в docs/ai/settings-midi-sync.md (было в S14d).
 - Задержка нот с MIDI (через главный поток) — проверить после правки LEARN; если останется — путь MIDI → аудио мимо главного потока.
 - Ableton Link — этап 9 (спайк B0).
