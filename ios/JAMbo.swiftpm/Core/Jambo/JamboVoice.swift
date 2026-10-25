@@ -387,10 +387,8 @@ final class JamboVoice {
         let gC = Double(tables.shapeGain[cur]), gP = Double(tables.shapeGain[prev])
         let xfStep = 1 / (Jambo.analogWaveXf * sr2)
         var mix = wMix
-        // SUB: OSC1 ↔ OSC2, доли по постоянной мощности, нормированные на сумму (пик не растёт).
-        let ang = s2 * Double.pi / 2
-        let ka = cos(ang), kb = sin(ang)
-        let w1 = ka / (ka + kb), w2 = kb / (ka + kb)
+        // SUB: OSC2 подмешивается к OSC1 (0 — только основной, 100 % — оба поровну), нормировка на сумму (пик не растёт).
+        let w1 = 1 / (1 + s2), w2 = s2 / (1 + s2)
         // GRIT: tanh с усилением 0 → +24 дБ, нормировка на tanh(усиления) — пик прежний; у нуля — прозрачно.
         let gg = pow(10, 1.2 * s4)
         let wg = Swift.min(1, s4 / 0.1)

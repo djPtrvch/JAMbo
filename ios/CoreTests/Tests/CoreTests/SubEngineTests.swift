@@ -84,21 +84,23 @@ final class SubEngineTests: XCTestCase {
         XCTAssertLessThanOrEqual(seam, steady * 1.2 + 1e-4)
     }
 
-    /// SUB 100 % — только нижний осциллятор: основная частота — октавой ниже.
+    /// SUB подмешивает нижний осциллятор: 0 — только основной (110 Гц), 100 % — основной и октавой ниже (55 Гц).
     func testSubOctave() {
-        func hz(_ x: [Float]) -> Double {
-            var first = -1.0, last = -1.0, count = 0
-            for i in 4800..<(x.count - 1) where x[i] <= 0 && x[i + 1] > 0 {
-                let t = Double(i) + Double(-x[i] / (x[i + 1] - x[i]))
-                if first < 0 { first = t }
-                last = t
-                count += 1
+        func mag(_ x: [Float], _ f: Double) -> Double {
+            var re = 0.0, im = 0.0
+            for i in 4800..<x.count {
+                let a: Double = 2 * Double.pi * f * Double(i) / 48000
+                re += Double(x[i]) * cos(a)
+                im += Double(x[i]) * sin(a)
             }
-            return Double(count - 1) / ((last - first) / 48000)
+            return (re * re + im * im).squareRoot() / Double(x.count - 4800)
         }
         // Треугольник A2 (110 Гц): OSC1 — 110, OSC2 — 55.
-        XCTAssertEqual(hz(render(note: 45, [0.1, 0, 0, 0], frames: 48000)), 110, accuracy: 0.5)
-        XCTAssertEqual(hz(render(note: 45, [0.1, 1, 0, 0], frames: 48000)), 55, accuracy: 0.5)
+        let off = render(note: 45, [0.1, 0, 0, 0], frames: 48000)
+        let on = render(note: 45, [0.1, 1, 0, 0], frames: 48000)
+        XCTAssertLessThan(mag(off, 55), mag(off, 110) * 0.01, "SUB 0 — нижнего нет")
+        XCTAssertGreaterThan(mag(on, 55), mag(on, 110) * 0.5, "SUB 100 % — нижний подмешан")
+        XCTAssertGreaterThan(mag(on, 110), mag(off, 110) * 0.3, "основной остаётся")
     }
 
     /// GRIT: 0 — прозрачно (пик как без насыщения), 100 % — больше гармоник при том же пике.

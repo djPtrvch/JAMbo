@@ -553,7 +553,7 @@ const ENGINES = [
     decay: null,
     notes: [
       'верхняя волна — основной осциллятор, нижняя вдвое медленнее (октава вниз)',
-      'sub: баланс яркости, у преобладающей — полная',
+      'sub: нижняя подмешивается, верхняя всегда яркая',
       'fat: нижняя медленно расходится по фазе с верхней',
       'grit: верхушки обеих волн срезаются',
     ],
@@ -561,11 +561,11 @@ const ENGINES = [
       const [h, t, m, q] = s;
       const gn = Math.pow(10, 1.2 * clamp(q)), wg = Math.min(1, clamp(q) / 0.1);
       const grit = (x) => (1 - wg) * x + (wg * Math.tanh(gn * x)) / Math.tanh(gn);
-      const ang = (clamp(t) * Math.PI) / 2, ga = Math.cos(ang), gb = Math.sin(ang), mx = Math.max(ga, gb);
+      const gb = clamp(t); // SUB подмешивает нижний: основной всегда яркий
       const fat = 0.12 * clamp(m), sc = c.T * 0.16, idx = h * 2;
       axisG(g, c, 16); axisG(g, c, 44);
-      lane(g, gen(COLS, (u) => grit(morph(WAVES3, idx, u * 2 - sc))), { y0: 16, amp: 8, thin: true, alpha: 0.3 + 0.7 * ga / mx }, c);
-      lane(g, gen(COLS, (u) => grit(morph(WAVES3, idx, u + fat * u - sc / 2))), { y0: 44, amp: 16, thin: true, alpha: 0.3 + 0.7 * gb / mx }, c);
+      lane(g, gen(COLS, (u) => grit(morph(WAVES3, idx, u * 2 - sc))), { y0: 16, amp: 8, thin: true, alpha: 1 }, c);
+      lane(g, gen(COLS, (u) => grit(morph(WAVES3, idx, u + fat * u - sc / 2))), { y0: 44, amp: 16, thin: true, alpha: 0.3 + 0.7 * gb }, c);
     },
   },
 ];
@@ -951,7 +951,7 @@ const ENGINES = [
     decay: null,
     notes: [
       'верхняя волна — основной осциллятор, нижняя вдвое медленнее (октава вниз)',
-      'sub: прозрачность, у преобладающей волны — полная',
+      'sub: прозрачность нижней, верхняя всегда яркая',
       'fat: нижняя медленно расходится по фазе с верхней',
       'grit: верхушки обеих волн срезаются',
     ],
@@ -959,10 +959,10 @@ const ENGINES = [
       const [h, t, m, q] = s;
       const gn = Math.pow(10, 1.2 * clamp(q)), wg = Math.min(1, clamp(q) / 0.1);
       const grit = (x) => (1 - wg) * x + (wg * Math.tanh(gn * x)) / Math.tanh(gn);
-      const ang = (clamp(t) * Math.PI) / 2, ga = Math.cos(ang), gb = Math.sin(ang), mx = Math.max(ga, gb);
+      const gb = clamp(t); // SUB подмешивает нижний: основной всегда яркий
       const fat = 0.12 * clamp(m), sc = c.T * 0.16, idx = h * 2;
-      lane(g, gen((u) => grit(morph(WAVES3, idx, u * 2 - sc))), { y0: 20, amp: 10, alpha: 0.15 + 0.85 * ga / mx }, c);
-      lane(g, gen((u) => grit(morph(WAVES3, idx, u + fat * u - sc / 2))), { y0: 46, amp: 10, alpha: 0.15 + 0.85 * gb / mx }, c);
+      lane(g, gen((u) => grit(morph(WAVES3, idx, u * 2 - sc))), { y0: 20, amp: 10, alpha: 1 }, c);
+      lane(g, gen((u) => grit(morph(WAVES3, idx, u + fat * u - sc / 2))), { y0: 46, amp: 10, alpha: 0.15 + 0.85 * gb }, c);
     },
   },
 ];

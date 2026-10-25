@@ -42,19 +42,19 @@ extension EngineIcons {
     }
 
     /// SUB: сверху основной осциллятор (WAVE, 1.1: треугольник, пила, квадрат), снизу — вдвое медленнее (октава
-    /// вниз), расходится по фазе с FAT (1.3); прозрачность — по SUB (1.2), верхушки срезаются по GRIT (1.4).
+    /// вниз), расходится по фазе с FAT (1.3); основной — всегда яркий, прозрачность нижнего — по SUB (1.2, подмешивание),
+    /// верхушки срезаются по GRIT (1.4).
     static func subIcon(_ v: IconValues) -> [IconElement] {
         let q = clamp(v.q)
         let gn = pow(10, 1.2 * q), wg = Swift.min(1, q / 0.1)
         func grit(_ x: Double) -> Double { return (1 - wg) * x + (wg * tanh(gn * x)) / tanh(gn) }
-        let ang = clamp(v.t) * Double.pi / 2
-        let ga = cos(ang), gb = sin(ang), mx = Swift.max(ga, gb)
+        let gb = clamp(v.t)
         let fat = 0.12 * clamp(v.m), sc = still * 0.16, idx = v.h * 2
         let waves = [1, 2, 3]
         let a = gen { u, _ in grit(morph(waves, idx, u * 2 - sc)) }
         let b = gen { u, _ in grit(morph(waves, idx, u + fat * u - sc / 2)) }
-        return [lane(a, IconLane(y0: 20, amp: 10, alpha: 0.15 + 0.85 * ga / mx)),
-                lane(b, IconLane(y0: 46, amp: 10, alpha: 0.15 + 0.85 * gb / mx))]
+        return [lane(a, IconLane(y0: 20, amp: 10, alpha: 1)),
+                lane(b, IconLane(y0: 46, amp: 10, alpha: 0.15 + 0.85 * gb))]
     }
 }
 
