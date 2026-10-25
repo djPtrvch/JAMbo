@@ -238,10 +238,22 @@ struct GridMenu: View {
                 pair("NEW PATTERNS", !p.plusCopy, "COPY PLAYING", p.plusCopy) { model.setArrangement(plusCopy: !$0) }
                 title("▲ ▼ ARROWS")
                 pair("VIEW", !p.arrowSwitch, "SWITCH", p.arrowSwitch) { model.setArrangement(arrowSwitch: !$0) }
+                // S15e: что играло в сетке за последние 32 такта — в аранжировку.
+                title("SEND TO ARRANGE")
+                HStack(spacing: 6) {
+                    let any: Bool = !model.live.journal.isEmpty
+                    MenuItem(title: "END", enabled: any) { send(false) }
+                    MenuItem(title: "CURSOR", enabled: any) { send(true) }
+                }
             }
             .padding(.trailing, 6)
         }
         .modifier(MenuPanel())
+    }
+
+    private func send(_ cursor: Bool) {
+        model.gridMenuOpen = false
+        model.sendToArrange(atCursor: cursor)
     }
 
     private func title(_ s: String) -> some View {

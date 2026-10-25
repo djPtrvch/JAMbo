@@ -4,7 +4,7 @@
 
 ## План
 - S15a — данные (готово). S15b — игра в колбэке (готово). S15c — экран (готово). S15d — секции, петля, INSERT (готово). Правки S15c/S15d по проверке на iPad — несколько кругов, последний коммит 1055528 на iPad ещё не проверен.
-- S15e — перенос из сетки: e1 — TO ARRANGE в меню строки (готово: Project.rowToArrange, меню строки END / CURSOR, тест testRowToArrange); e2 — журнал и SEND TO ARRANGE; e3 — запись с AUTO.
+- S15e — перенос из сетки: e1 — TO ARRANGE в меню строки (готово: Project.rowToArrange, меню строки END / CURSOR, тест testRowToArrange); e2 — журнал и SEND TO ARRANGE (готово: Core/Model/ArrangeJournal.swift — ArrJournal, Project.sendToArrange; журнал и тик — в LiveState по сообщениям clip и step, begin при PLAY; бутерброд сетки END / CURSOR; тесты testJournalTake, testSendToArrange); e3 — запись с AUTO.
 - S15f — REF.
 
 ## S15a — данные (Core/Model/Arrange.swift, ArrangeEdits.swift)

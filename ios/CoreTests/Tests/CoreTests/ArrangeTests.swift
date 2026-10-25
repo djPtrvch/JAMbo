@@ -238,4 +238,43 @@ final class ArrangeTests: XCTestCase {
         // Пустая строка — ничего.
         XCTAssertNil(p.rowToArrange(5, at: nil))
     }
+
+    /// Журнал SEND TO ARRANGE: блоки от запусков, тишина — пропуск, окно 32 такта (offset — место в проходе).
+    func testJournalTake() {
+        var j = ArrJournal()
+        XCTAssertTrue(j.isEmpty)
+        j.record(track: 0, slot: 0, start: 0)
+        j.record(track: 0, slot: 1, start: 32)
+        j.record(track: 1, slot: 2, start: 16)
+        j.record(track: 1, slot: -1, start: 48)
+        var r = j.take(now: 60)
+        XCTAssertEqual(r.length, 64)
+        XCTAssertEqual(spans(blocks: r.blocks[0]), [[0, 0, 32, 0], [1, 32, 32, 0]])
+        XCTAssertEqual(spans(blocks: r.blocks[1]), [[2, 16, 32, 0]])
+        j.record(track: 0, slot: 3, start: 1000)
+        r = j.take(now: 1000)
+        XCTAssertEqual(r.length, 512)
+        XCTAssertEqual(spans(blocks: r.blocks[0]), [[1, 0, 504, 464], [3, 504, 8, 0]])
+        XCTAssertTrue(r.blocks[1].isEmpty, "тишина и то, что кончилось до окна, — без блоков")
+        j.move(0, 2)
+        XCTAssertEqual(j.entries[2].last, ArrJournal.Entry(slot: 3, start: 1000))
+    }
+
+    func testSendToArrange() {
+        var p = Project()
+        p.tracks[0].clips[1] = Clip(pages: [Track.emptyPage()], length: 16, playFrom: 0, playTo: 0)
+        p.tracks[0].placeBlock(ArrBlock(clip: 0, start: 0, length: 16))
+        p.tracks[1].placeBlock(ArrBlock(clip: 0, start: 0, length: 64))
+        let blocks: [[ArrBlock]] = [[ArrBlock(clip: 1, start: 0, length: 40, offset: 20)], [], []]
+        XCTAssertEqual(p.sendToArrange(blocks, length: 48, at: nil), 112)
+        XCTAssertEqual(spans(p.tracks[0]), [[0, 0, 16, 0], [1, 64, 40, 4]])
+        XCTAssertEqual(p.sendToArrange(blocks, length: 48, at: 8), 56)
+        XCTAssertEqual(spans(p.tracks[0]), [[0, 0, 8, 0], [1, 8, 40, 4], [1, 64, 40, 4]])
+        XCTAssertEqual(spans(p.tracks[1]), [[0, 0, 64, 0]], "дорожка без блоков журнала не меняется")
+        XCTAssertNil(p.sendToArrange([[], []], length: 48, at: nil))
+    }
+
+    private func spans(blocks: [ArrBlock]) -> [[Int]] {
+        return blocks.map { [$0.clip, $0.start, $0.length, $0.offset] }
+    }
 }

@@ -28,6 +28,9 @@ final class LiveState {
     /// Аранжировщик (S15): курсор (шаги) и дорожки, которые идут по таймлайну.
     private(set) var arrPos: Int = 0
     private(set) var following: [Bool] = [Bool](repeating: false, count: Params.maxTracks)
+    /// Тик транспорта от PLAY (шаги; −1 — ещё не было) и журнал запусков клипов в сетке (S15e, SEND TO ARRANGE).
+    @ObservationIgnored private(set) var tick: Int = -1
+    @ObservationIgnored private(set) var journal = ArrJournal()
 
     func drain(_ queue: SPSCQueue<SeqOut>, now: Double, onStep: (Int, Int) -> Void, onPlay: (SeqOut) -> Void) {
         while let e = queue.pop() {
@@ -35,6 +38,7 @@ final class LiveState {
             case .none:
                 break
             case .step(let t, let pos):
+                if t == SeqData.maxTracks { tick += 1 }
                 if playPos[t] != pos { playPos[t] = pos }
                 if t == 0 { stepSerial &+= 1 }
                 if pos >= 0 { onStep(t, pos) }
@@ -43,8 +47,11 @@ final class LiveState {
                 if !audible(t) { continue }
                 flashUntil[t] = now + 0.09
                 if !flashing[t] { flashing[t] = true }
-            case .clip(let t, _, _, let start):
+            case .clip(let t, let slot, let off, let start):
                 trackStart[t] = start
+                // Таймлайн и стоп — в журнале тишина.
+                let grid: Bool = !off && !(t < following.count && following[t])
+                journal.record(track: t, slot: grid ? slot : -1, start: start)
                 if queued[t] != Launcher.none { queued[t] = Launcher.none }
                 onPlay(e)
             case .queue(let t, let v):
@@ -88,6 +95,17 @@ final class LiveState {
         mv(&following)
         mv(&flashing)
         mv(&flashUntil)
+        journal.move(from, to)
+    }
+
+    /// PLAY (S15e): тик и журнал заново; в сетке — дорожки, которые играют свой клип с тика 0 (сообщений clip о них нет).
+    func begin(_ p: Project, arrange: Bool) {
+        tick = -1
+        journal.reset()
+        if arrange { return }
+        for t in p.tracks.indices where !p.tracks[t].stopped && p.tracks[t].clipFilled(p.tracks[t].slot) {
+            journal.record(track: t, slot: p.tracks[t].slot, start: 0)
+        }
     }
 
     func stopped() {

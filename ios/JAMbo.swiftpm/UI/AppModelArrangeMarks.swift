@@ -105,4 +105,13 @@ extension AppModel {
         arrSel = sel
         arrInserted = sel
     }
+
+    // MARK: — SEND TO ARRANGE (S15e)
+
+    /// Журнал запусков в сетке за последние 32 такта — блоками в конец аранжировки или с курсора; одна запись UNDO.
+    func sendToArrange(atCursor: Bool) {
+        let r = live.journal.take(now: max(0, live.tick))
+        let at: Int? = atCursor ? arrCursor : nil
+        edit { p in p.sendToArrange(r.blocks, length: r.length, at: at) }
+    }
 }

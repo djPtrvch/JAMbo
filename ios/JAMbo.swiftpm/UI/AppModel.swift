@@ -361,6 +361,7 @@ final class AppModel {
             arrCursor = live.arrPos
         }
         live.stopped()
+        if playing { live.begin(project, arrange: arrangeView) }
         audio.core.events.push(.play(playing))
         if !playing { releaseHolds() }
     }
@@ -372,6 +373,7 @@ final class AppModel {
         playing = true
         endRecTake()
         live.stopped()
+        live.begin(project, arrange: arrangeView)
         audio.core.events.push(.arrange(on: arrangeView, from: arrCursor))
         audio.core.events.push(.playAt(frame: frame))
     }
