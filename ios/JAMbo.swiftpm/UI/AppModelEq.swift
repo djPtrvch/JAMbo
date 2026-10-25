@@ -178,19 +178,11 @@ extension AppModel {
 
     /// Загрузить пресет k в EQ показанного канала (одна запись UNDO); выбор полосы сбрасывается.
     func loadEqPreset(_ k: Int) {
-        guard k >= 0 && k < eqPresets.list.count else {
-            eqPresetLog = "tap \(k): out of range (\(eqPresets.list.count) presets)"
-            return
-        }
+        guard k >= 0 && k < eqPresets.list.count else { return }
         let ch = eqChannel
         let p: EqPreset = eqPresets.list[k]
-        let before: Eq = project.eq(ch)
         edit { $0.applyEqPreset(ch, p) }
         eqBand = -1
-        let after: Eq = project.eq(ch)
-        let target: String = ch == EqSpec.masterChannel ? "MASTER" : "T\(ch + 1)"
-        let result: String = after == before ? "no change" : "applied"
-        eqPresetLog = "“\(p.name)” (\(p.count) bands) → \(target): \(result), now \(after.bands.filter { $0 != nil }.count) bands"
     }
 
     func renameEqPreset(_ k: Int, to name: String) {
