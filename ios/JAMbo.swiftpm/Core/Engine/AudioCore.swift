@@ -295,6 +295,12 @@ public final class AudioCore: @unchecked Sendable {
             sequencer.queueScene(row, atPass: atPass)
         case .adoptPlay:
             sequencer.adoptPlay()
+        case .arrange(let on, let from):
+            sequencer.setArrange(on: on, from: from)
+        case .returnToArrange(let t):
+            sequencer.returnToArrange(track: t)
+        case .leaveArrange:
+            sequencer.leaveArrange()
         case .moveTrack(let a, let b):
             sequencer.launcher.move(a, b)
         case .noteOn(let t, let n, let id, let v):

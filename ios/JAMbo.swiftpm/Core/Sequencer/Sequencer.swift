@@ -20,8 +20,12 @@ public enum SeqOut: Sendable {
     case scene(row: Int, start: Int, len: Int)
     /// Ожидающая строка (−1 — нет).
     case sceneQueue(row: Int)
-    /// Транспорт остановился сам (строки кончились, AT THE END: STOP).
+    /// Транспорт остановился сам (строки кончились, AT THE END: STOP; конец аранжировки).
     case ended
+    /// Курсор аранжировки на текущем шаге (S15), шаги от начала аранжировки.
+    case arrange(pos: Int)
+    /// Дорожка идёт по таймлайну аранжировки (on) или играет сетку паттернов.
+    case follow(track: Int, on: Bool)
 }
 
 public final class Sequencer {
@@ -178,6 +182,27 @@ public final class Sequencer {
 
     public func queueScene(_ k: Int, atPass: Bool) {
         if playing { launcher.queueScene(k, atPass: atPass) }
+    }
+
+    /// Аранжировщик (S15): PLAY в его окне (on) — все дорожки по таймлайну с позиции from; без игры — только задаётся.
+    public func setArrange(on: Bool, from: Int) {
+        launcher.arrangeMode = on
+        launcher.arrFrom = Swift.max(0, from)
+    }
+
+    /// Возврат дорожки к таймлайну во время игры (track < 0 — всех).
+    public func returnToArrange(track t: Int) {
+        guard playing else { return }
+        if t < 0 {
+            for k in 0..<SeqData.maxTracks { launcher.returnToArrange(k) }
+        } else {
+            launcher.returnToArrange(t)
+        }
+    }
+
+    /// Переход MIX: все дорожки — в сетку паттернов (играют свои клипы дальше).
+    public func leaveArrange() {
+        launcher.setFollow(all: false)
     }
 
     /// Кадр (дробный) шага k от старта.

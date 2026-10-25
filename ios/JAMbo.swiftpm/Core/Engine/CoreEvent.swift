@@ -21,6 +21,11 @@ public enum CoreEvent: Sendable {
     case scene(row: Int, atPass: Bool)
     /// Строки сетки переставили во время игры: активные ячейки и остановки — снова из снимка проекта.
     case adoptPlay
+    /// Аранжировщик (S15): PLAY в окне аранжировщика (on) с позиции from (шаги); возврат дорожки к таймлайну
+    /// (track < 0 — всех); переход MIX — все дорожки в сетку.
+    case arrange(on: Bool, from: Int)
+    case returnToArrange(track: Int)
+    case leaveArrange
     /// Дорожку переставили (MIX) во время игры: ход дорожек (активная ячейка, остановка, ожидание, начало прохода)
     /// переезжает вместе с ними — играют дальше без паузы.
     case moveTrack(from: Int, to: Int)

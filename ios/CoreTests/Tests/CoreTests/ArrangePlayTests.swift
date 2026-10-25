@@ -1,0 +1,142 @@
+import XCTest
+@testable import Core
+
+final class ArrangePlayTests: XCTestCase {
+    /// Шаг при 120 BPM, 48 кГц — 6000 кадров.
+    private let step = 6000
+
+    private func run(_ core: AudioCore, steps: Int) -> [SeqOut] {
+        var l = [Float](repeating: 0, count: 256)
+        var r = [Float](repeating: 0, count: 256)
+        var out: [SeqOut] = []
+        var pos = 0
+        let frames = steps * step
+        while pos < frames {
+            let n = min(256, frames - pos)
+            core.render(frames: n, left: &l, right: &r)
+            while let e = core.sequencer.out.pop() { out.append(e) }
+            pos += n
+        }
+        return out
+    }
+
+    private func clips(_ out: [SeqOut], track: Int) -> [[Int]] {
+        return out.compactMap {
+            if case .clip(let t, let s, let st, let start) = $0, t == track { return [s, st ? 1 : 0, start] }
+            return nil
+        }
+    }
+
+    /// Позиции шагов дорожки (pos = p·16 + s), по тикам.
+    private func steps(_ out: [SeqOut], track: Int) -> [Int] {
+        return out.compactMap { if case .step(let t, let p) = $0, t == track { return p } else { return nil } }
+    }
+
+    private func cursor(_ out: [SeqOut]) -> [Int] {
+        return out.compactMap { if case .arrange(let p) = $0 { return p } else { return nil } }
+    }
+
+    /// Дорожка 0: клип 0 — 16 шагов, клип 1 — 8 шагов; остальные дорожки пустые.
+    private func project() -> Project {
+        var p = Project()
+        p.tracks[0].clips[1] = Clip(pages: [Track.emptyPage()], length: 8)
+        for t in 1..<8 { p.tracks[t].clips[0] = nil }
+        return p
+    }
+
+    private func start(_ p: Project, from: Int = 0) -> AudioCore {
+        let core = AudioCore()
+        core.publish(p)
+        core.events.push(.arrange(on: true, from: from))
+        core.events.push(.play(true))
+        return core
+    }
+
+    func testBlocksPlayExactlyWithRepeatAndCut() {
+        var p = project()
+        // Клип 1 (8 шагов) с шага 4 длиной 12: повтор; клип 0 с шага 20 длиной 6: обрыв.
+        p.tracks[0].placeBlock(ArrBlock(clip: 1, start: 4, length: 12))
+        p.tracks[0].placeBlock(ArrBlock(clip: 0, start: 20, length: 6))
+        let out = run(start(p), steps: 30)
+        XCTAssertEqual(clips(out, track: 0), [[0, 1, 0], [1, 0, 4], [1, 1, 16], [0, 0, 20]])
+        let s = steps(out, track: 0)
+        XCTAssertEqual(Array(s[4..<16]), [0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3], "клип с начала блока, по кругу")
+        XCTAssertEqual(Array(s[16..<20]), [-1, -1, -1, -1], "между блоками — тишина")
+        XCTAssertEqual(Array(s[20..<26]), [0, 1, 2, 3, 4, 5])
+        XCTAssertEqual(s.count, 27, "на тике 26 (конец последнего блока) — стоп")
+        XCTAssertEqual(s[26], -1)
+    }
+
+    func testStopsAtEndAndStartsFromCursor() {
+        var p = project()
+        p.tracks[0].placeBlock(ArrBlock(clip: 0, start: 0, length: 32))
+        let out = run(start(p, from: 24), steps: 20)
+        XCTAssertEqual(cursor(out).first, 24)
+        XCTAssertEqual(steps(out, track: 0).first, 8, "с позиции курсора — середина клипа")
+        XCTAssertTrue(out.contains { if case .ended = $0 { return true } else { return false } })
+        XCTAssertEqual(cursor(out).last, 32, "стоп на конце последнего блока")
+    }
+
+    func testOffsetContinuesClip() {
+        var p = project()
+        p.tracks[0].placeBlock(ArrBlock(clip: 0, start: 0, length: 4, offset: 10))
+        let out = run(start(p), steps: 4)
+        XCTAssertEqual(Array(steps(out, track: 0).prefix(4)), [10, 11, 12, 13])
+    }
+
+    func testLoop() {
+        var p = project()
+        p.tracks[0].placeBlock(ArrBlock(clip: 0, start: 0, length: 64))
+        p.setLoop(4, 8)
+        p.arrange.loop = true
+        let out = run(start(p), steps: 14)
+        XCTAssertEqual(cursor(out).prefix(14).map { $0 }, [0, 1, 2, 3, 4, 5, 6, 7, 4, 5, 6, 7, 4, 5])
+        XCTAssertEqual(Array(steps(out, track: 0).prefix(12)), [0, 1, 2, 3, 4, 5, 6, 7, 4, 5, 6, 7], "клип идёт за курсором")
+        XCTAssertFalse(out.contains { if case .ended = $0 { return true } else { return false } })
+    }
+
+    func testGridClipLeavesTimelineAndReturn() {
+        var p = project()
+        p.tracks[1].clips[0] = Clip()
+        p.tracks[0].placeBlock(ArrBlock(clip: 0, start: 0, length: 64))
+        p.tracks[1].placeBlock(ArrBlock(clip: 0, start: 0, length: 64))
+        let core = start(p)
+        _ = run(core, steps: 4)
+        // Клип 1 из сетки на дорожке 0: стартует в конце прохода клипа 0 (тик 16), дорожка уходит с таймлайна.
+        core.events.push(.launch(track: 0, slot: 1))
+        var out = run(core, steps: 20)
+        XCTAssertTrue(out.contains { if case .follow(0, false) = $0 { return true } else { return false } })
+        XCTAssertFalse(out.contains { if case .follow(1, false) = $0 { return true } else { return false } })
+        XCTAssertEqual(clips(out, track: 0), [[1, 0, 16]])
+        // Возврат к таймлайну — сразу, с позиции курсора (тик 24 → шаг 8 клипа 0).
+        core.events.push(.returnToArrange(track: -1))
+        out = run(core, steps: 2)
+        XCTAssertTrue(out.contains { if case .follow(0, true) = $0 { return true } else { return false } })
+        XCTAssertEqual(clips(out, track: 0).first?[0], 0)
+        XCTAssertEqual(steps(out, track: 0).first, 8)
+    }
+
+    func testPatternsModeIgnoresTimeline() {
+        var p = project()
+        p.tracks[0].placeBlock(ArrBlock(clip: 1, start: 0, length: 4))
+        let core = AudioCore()
+        core.publish(p)
+        core.events.push(.play(true))
+        let out = run(core, steps: 20)
+        XCTAssertEqual(steps(out, track: 0).prefix(16).map { $0 }, Array(0..<16), "сетка: клип 0 строки старта")
+        XCTAssertFalse(out.contains { if case .ended = $0 { return true } else { return false } })
+        XCTAssertEqual(cursor(out).prefix(3).map { $0 }, [0, 1, 2], "курсор идёт и в сетке")
+    }
+
+    func testLeaveArrangeKeepsClipsPlaying() {
+        var p = project()
+        p.tracks[0].placeBlock(ArrBlock(clip: 0, start: 0, length: 8))
+        let core = start(p)
+        _ = run(core, steps: 3)
+        core.events.push(.leaveArrange)
+        let out = run(core, steps: 16)
+        XCTAssertTrue(out.contains { if case .follow(0, false) = $0 { return true } else { return false } })
+        XCTAssertFalse(out.contains { if case .ended = $0 { return true } else { return false } }, "MIX: не стоп в конце")
+        XCTAssertEqual(Array(steps(out, track: 0).prefix(6)), [3, 4, 5, 6, 7, 8], "клип играет дальше за концом блока")
+    }
+}

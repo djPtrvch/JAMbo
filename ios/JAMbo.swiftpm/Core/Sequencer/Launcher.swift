@@ -14,6 +14,13 @@ public final class Launcher {
     let stopped = UnsafeMutablePointer<Bool>.allocate(capacity: SeqData.maxTracks)
     let queued = UnsafeMutablePointer<Int>.allocate(capacity: SeqData.maxTracks)
     let trackStart = UnsafeMutablePointer<Int>.allocate(capacity: SeqData.maxTracks)
+    /// Аранжировка (S15, ArrangePlay.swift): дорожка идёт по таймлайну; ход дорожки пересчитать на ближайшем тике.
+    let follow = UnsafeMutablePointer<Bool>.allocate(capacity: SeqData.maxTracks)
+    let arrDirty = UnsafeMutablePointer<Bool>.allocate(capacity: SeqData.maxTracks)
+    /// Позиция курсора аранжировки на текущем тике (шаги); PLAY в окне аранжировщика и позиция старта.
+    public internal(set) var arrPos = 0
+    var arrangeMode = false
+    var arrFrom = 0
     /// Играющая строка (−1 — нет), её начало (тик) и проход (самый длинный клип строки).
     public private(set) var sceneRow = -1
     public private(set) var sceneStart = 0
@@ -30,6 +37,8 @@ public final class Launcher {
         stopped.initialize(repeating: false, count: SeqData.maxTracks)
         queued.initialize(repeating: Launcher.none, count: SeqData.maxTracks)
         trackStart.initialize(repeating: 0, count: SeqData.maxTracks)
+        follow.initialize(repeating: false, count: SeqData.maxTracks)
+        arrDirty.initialize(repeating: false, count: SeqData.maxTracks)
     }
 
     deinit {
@@ -37,6 +46,8 @@ public final class Launcher {
         stopped.deallocate()
         queued.deallocate()
         trackStart.deallocate()
+        follow.deallocate()
+        arrDirty.deallocate()
     }
 
     /// Транспорт стоит: активные ячейки и остановки — из снимка проекта.
@@ -55,6 +66,8 @@ public final class Launcher {
         Launcher.rotate(stopped, from, to)
         Launcher.rotate(queued, from, to)
         Launcher.rotate(trackStart, from, to)
+        Launcher.rotate(follow, from, to)
+        Launcher.rotate(arrDirty, from, to)
     }
 
     static func rotate<T>(_ p: UnsafeMutablePointer<T>, _ a: Int, _ b: Int) {
@@ -97,8 +110,16 @@ public final class Launcher {
         wrappedAt = -1
     }
 
-    /// Старт транспорта (тик 0): ожидающие клипы — сразу; ожидающая строка или строка старта (если в ней что-то есть).
+    /// Старт транспорта (тик 0): в окне аранжировщика — все дорожки по таймлайну с позиции arrFrom; иначе ожидающие
+    /// клипы — сразу; ожидающая строка или строка старта (если в ней что-то есть).
     func start(_ d: SeqData) {
+        arrPos = arrFrom
+        if arrangeMode {
+            for t in 0..<SeqData.maxTracks { queued[t] = Launcher.none }
+            setFollow(all: true)
+            return
+        }
+        setFollow(all: false)
         var anyQueued = false
         for t in 0..<d.trackCount where queued[t] != Launcher.none {
             anyQueued = true
@@ -136,6 +157,7 @@ public final class Launcher {
 
     /// Перед шагом tick: строки и ожидающие клипы. false — транспорт остановился (строки кончились, STOP).
     func beforeStep(_ d: SeqData, tick: Int) -> Bool {
+        if !arrangeStep(d, tick: tick) { return false }
         if sceneQueued >= 0 && sceneDue(tick) {
             startScene(d, sceneQueued, at: tick)
             sceneAtPass = false
@@ -152,6 +174,7 @@ public final class Launcher {
         for t in 0..<d.trackCount where queued[t] != Launcher.none && atBoundary(d, t, tick) {
             apply(t, queued[t], tick: tick)
         }
+        for t in 0..<d.trackCount where follow[t] { syncArrange(d, t, tick: tick) }
         return true
     }
 
@@ -188,6 +211,8 @@ public final class Launcher {
 
     private func apply(_ t: Int, _ q: Int, tick: Int) {
         queued[t] = Launcher.none
+        // Клип из сетки: дорожка уходит с таймлайна (как в Logic Pro).
+        setFollow(t, false)
         if q == Launcher.stop {
             stopped[t] = true
         } else {
@@ -203,6 +228,7 @@ public final class Launcher {
         var len = 0
         for t in 0..<d.trackCount {
             queued[t] = Launcher.none
+            setFollow(t, false)
             trackStart[t] = at
             if d.filled(t, k) {
                 slot[t] = k

@@ -58,6 +58,33 @@ public struct SeqData {
     public var chanTo: UnsafeMutablePointer<Int32>
     public var mixMask: UnsafeMutablePointer<UInt16>
     public var mixGain: UnsafeMutablePointer<Float>
+    /// Аранжировка (S15): блоки дорожки t — arrFirst[t] … arrFirst[t] + arrCount[t] − 1 (по порядку, без перекрытий):
+    /// клип, начало, длина и место в клипе (шаги транспорта); конец аранжировки, петля [loopFrom, loopTo).
+    public var arrFirst: UnsafeMutablePointer<Int32>
+    public var arrCount: UnsafeMutablePointer<Int32>
+    public var blkClip: UnsafeMutablePointer<Int32>
+    public var blkStart: UnsafeMutablePointer<Int32>
+    public var blkLen: UnsafeMutablePointer<Int32>
+    public var blkOff: UnsafeMutablePointer<Int32>
+    public var arrEnd: Int = 0
+    public var loopFrom: Int = 0
+    public var loopTo: Int = 0
+    public var loop: Bool = false
+
+    /// Блок дорожки t на позиции x аранжировки (номер в массивах блоков; −1 — нет).
+    @inline(__always)
+    public func block(_ t: Int, at x: Int) -> Int {
+        let first: Int = Int(arrFirst[t])
+        var j: Int = first + Int(arrCount[t]) - 1
+        while j >= first {
+            let s: Int = Int(blkStart[j])
+            if s <= x {
+                return x < s + Int(blkLen[j]) ? j : -1
+            }
+            j -= 1
+        }
+        return -1
+    }
 
     @inline(__always)
     private func ci(_ t: Int, _ k: Int) -> Int {
@@ -174,6 +201,8 @@ public final class SeqSnapshot: @unchecked Sendable {
         var blocks = 0
         for t in 0..<used { blocks += project.tracks[t].clips.filter { $0 != nil }.count }
         let steps = max(1, blocks) * SeqData.maxSteps
+        var arrBlocks = 1
+        for t in 0..<used { arrBlocks += project.tracks[t].blocks.count }
         var d = SeqData(
             stopped: .allocate(capacity: tracks), slot: .allocate(capacity: tracks),
             clipBlock: .allocate(capacity: cells), clipLength: .allocate(capacity: cells),
@@ -190,7 +219,10 @@ public final class SeqSnapshot: @unchecked Sendable {
             repeats: .allocate(capacity: SeqData.slots),
             chanLength: .allocate(capacity: SeqData.chans), chanFrom: .allocate(capacity: SeqData.chans),
             chanTo: .allocate(capacity: SeqData.chans), mixMask: .allocate(capacity: SeqData.maxSteps),
-            mixGain: .allocate(capacity: SeqData.maxSteps * tracks)
+            mixGain: .allocate(capacity: SeqData.maxSteps * tracks),
+            arrFirst: .allocate(capacity: tracks), arrCount: .allocate(capacity: tracks),
+            blkClip: .allocate(capacity: arrBlocks), blkStart: .allocate(capacity: arrBlocks),
+            blkLen: .allocate(capacity: arrBlocks), blkOff: .allocate(capacity: arrBlocks)
         )
         d.stopped.initialize(repeating: 1, count: tracks)
         d.slot.initialize(repeating: 0, count: tracks)
@@ -231,6 +263,28 @@ public final class SeqSnapshot: @unchecked Sendable {
             d.chanTo[c] = Int32(clip.range.upperBound)
         }
         SeqSnapshot.fillMix(&d, project.chanSeqs[Project.mixSeq].openClip)
+        d.arrFirst.initialize(repeating: 0, count: tracks)
+        d.arrCount.initialize(repeating: 0, count: tracks)
+        d.blkClip.initialize(repeating: 0, count: arrBlocks)
+        d.blkStart.initialize(repeating: 0, count: arrBlocks)
+        d.blkLen.initialize(repeating: 0, count: arrBlocks)
+        d.blkOff.initialize(repeating: 0, count: arrBlocks)
+        var nb = 0
+        for t in 0..<used {
+            d.arrFirst[t] = Int32(nb)
+            for b in project.tracks[t].blocks {
+                d.blkClip[nb] = Int32(b.clip)
+                d.blkStart[nb] = Int32(b.start)
+                d.blkLen[nb] = Int32(b.length)
+                d.blkOff[nb] = Int32(b.offset)
+                nb += 1
+            }
+            d.arrCount[t] = Int32(project.tracks[t].blocks.count)
+        }
+        d.arrEnd = project.arrangeEnd
+        d.loopFrom = project.arrange.loopFrom
+        d.loopTo = project.arrange.loopTo
+        d.loop = project.arrange.loop && project.arrange.hasLoop
         d.trackCount = used
         var block = 0
         for t in 0..<used {
@@ -251,8 +305,10 @@ public final class SeqSnapshot: @unchecked Sendable {
     public static func same(_ a: Project, _ b: Project) -> Bool {
         if a.tracks.count != b.tracks.count || a.chanSeqs != b.chanSeqs || a.scenes != b.scenes || a.rows != b.rows || a.arrStart != b.arrStart
             || a.arrEndStop != b.arrEndStop || a.rowLoop != b.rowLoop { return false }
+        if a.arrange.loop != b.arrange.loop || a.arrange.loopFrom != b.arrange.loopFrom
+            || a.arrange.loopTo != b.arrange.loopTo { return false }
         for (x, y) in zip(a.tracks, b.tracks) {
-            if x.slot != y.slot || x.stopped != y.stopped || x.clips != y.clips { return false }
+            if x.slot != y.slot || x.stopped != y.stopped || x.clips != y.clips || x.blocks != y.blocks { return false }
             for id in ["prob", "ratchet", "swing"] where x.params[id] != y.params[id] { return false }
         }
         return true
@@ -389,5 +445,11 @@ public final class SeqSnapshot: @unchecked Sendable {
         data.chanTo.deallocate()
         data.mixMask.deallocate()
         data.mixGain.deallocate()
+        data.arrFirst.deallocate()
+        data.arrCount.deallocate()
+        data.blkClip.deallocate()
+        data.blkStart.deallocate()
+        data.blkLen.deallocate()
+        data.blkOff.deallocate()
     }
 }

@@ -25,6 +25,9 @@ final class LiveState {
     private(set) var sceneQueued: Int = -1
     /// Растёт, когда прошёл шаг (для полос хода в сетке паттернов).
     private(set) var stepSerial: Int = 0
+    /// Аранжировщик (S15): курсор (шаги) и дорожки, которые идут по таймлайну.
+    private(set) var arrPos: Int = 0
+    private(set) var following: [Bool] = [Bool](repeating: false, count: Params.maxTracks)
 
     func drain(_ queue: SPSCQueue<SeqOut>, now: Double, onStep: (Int, Int) -> Void, onPlay: (SeqOut) -> Void) {
         while let e = queue.pop() {
@@ -54,6 +57,10 @@ final class LiveState {
                 sceneQueued = row
             case .ended:
                 onPlay(e)
+            case .arrange(let pos):
+                if arrPos != pos { arrPos = pos }
+            case .follow(let t, let on):
+                if t < following.count && following[t] != on { following[t] = on }
             case .beat(let accent):
                 beat += 1
                 beatAccent = accent
@@ -78,6 +85,7 @@ final class LiveState {
         mv(&queued)
         mv(&trackStart)
         mv(&playPos)
+        mv(&following)
         mv(&flashing)
         mv(&flashUntil)
     }
@@ -88,6 +96,7 @@ final class LiveState {
         for t in 0..<Params.maxTracks {
             queued[t] = Launcher.none
             trackStart[t] = 0
+            if following[t] { following[t] = false }
         }
         sceneRow = -1
         sceneQueued = -1
