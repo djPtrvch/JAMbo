@@ -49,22 +49,29 @@ final class MidiHost {
         reconnect()
     }
 
-    /// Подключить все источники заново и перечитать списки устройств.
+    /// Подключить новые источники, отключить пропавшие и перечитать списки устройств. Подключённые не трогаются:
+    /// при подключении USB система шлёт несколько уведомлений подряд, и переподключение всех входов на каждое
+    /// теряло тики клока (темп по ним проседал — секвенсор тормозил).
     private func reconnect() {
-        for src in connected { MIDIPortDisconnectSource(inPort, src) }
-        connected = []
         var ins: [MidiEndpoint] = []
+        var now: [MIDIEndpointRef] = []
         let n: Int = MIDIGetNumberOfSources()
         var i: Int = 0
         while i < n {
             let src: MIDIEndpointRef = MIDIGetSource(i)
             let id: Int32 = MidiHost.uniqueID(src)
-            // uniqueID источника — в refCon подключения: по нему фильтр входа (MIDI → DEVICES).
-            let ref: UnsafeMutableRawPointer? = UnsafeMutableRawPointer(bitPattern: Int(id))
-            if MIDIPortConnectSource(inPort, src, ref) == noErr { connected.append(src) }
+            if connected.contains(src) {
+                now.append(src)
+            } else {
+                // uniqueID источника — в refCon подключения: по нему фильтр входа (MIDI → DEVICES).
+                let ref: UnsafeMutableRawPointer? = UnsafeMutableRawPointer(bitPattern: Int(id))
+                if MIDIPortConnectSource(inPort, src, ref) == noErr { now.append(src) }
+            }
             ins.append(MidiEndpoint(id: id, name: MidiHost.name(src)))
             i += 1
         }
+        for src in connected where !now.contains(src) { MIDIPortDisconnectSource(inPort, src) }
+        connected = now
         var outs: [MidiEndpoint] = []
         var dests: [Int32: MIDIEndpointRef] = [:]
         let m: Int = MIDIGetNumberOfDestinations()

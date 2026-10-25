@@ -14,6 +14,9 @@ public struct ClockFollower: Sendable {
     public static let fitTicks: Int = 48
     public static let timeout: Double = 0.5
     public static let minTicks: Int = 4
+    /// Интервал больше стольких обычных — пропуск тиков.
+    public static let gapRatio: Double = 2.5
+    public static let gapMin: Double = 0.06
 
     private var times: [Double] = [Double](repeating: 0, count: ClockFollower.fitTicks)
     private var n: Int = 0
@@ -26,16 +29,33 @@ public struct ClockFollower: Sendable {
     /// Шаг 0 транспорта привязан к тику клока (started). После пропажи клока привязки нет: счёт тиков стоял, пока
     /// транспорт шёл, — шаги надо привязать заново к ближайшему тику.
     public private(set) var anchored: Bool = false
+    /// Интервал по полному окну (не меньше minTicks) — мерка пропуска, пока окно набирается заново.
+    private var good: Double = 0
 
     public init() {}
 
     /// Тик 0xF8 в момент at. Возвращает старт, если ждали первого тика после Start.
     public mutating func tick(at: Double) -> Action? {
+        // Пропуск тиков (переподключение входа, сбой USB): окно темпа — заново (иначе наклон по окну с дырой даёт
+        // темп в разы ниже), пропущенные тики досчитываются — шаги остаются привязаны. Пока окно не набралось,
+        // темпа нет — звук держит прежний.
+        let ref: Double = n >= ClockFollower.minTicks ? interval : good
+        if last > 0 && ref > 0 {
+            let gap: Double = at - last
+            // Не меньше 60 мс: дрожание Bluetooth MIDI — не пропуск (лишний счёт сдвинул бы шаги).
+            let limit: Double = Swift.max(ref * ClockFollower.gapRatio, ClockFollower.gapMin)
+            if gap > limit {
+                count += Int((gap / ref).rounded()) - 1
+                n = 0
+                interval = 0
+            }
+        }
         times[n % ClockFollower.fitTicks] = at
         n += 1
         last = at
         count += 1
         fit()
+        if n >= ClockFollower.minTicks { good = interval }
         if armed {
             armed = false
             count = 0
@@ -71,6 +91,7 @@ public struct ClockFollower: Sendable {
         n = 0
         last = 0
         interval = 0
+        good = 0
         armed = false
         anchored = false
     }

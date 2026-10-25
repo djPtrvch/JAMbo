@@ -98,4 +98,33 @@ final class ClockFollowerTests: XCTestCase {
         XCTAssertTrue(f.anchored)
         XCTAssertEqual(f.stepTime(0) ?? 0, last + iv, accuracy: 1e-6)
     }
+
+    /// Пропуск тиков (переподключение входа): темп не проседает, окно — заново (первые тики без темпа), шаги — по
+    /// прежней привязке (пропущенные тики досчитаны).
+    func testGap() {
+        var f = ClockFollower()
+        let iv: Double = 60 / (156.0 * 24)
+        var t: Double = 1
+        for _ in 0..<60 {
+            _ = f.tick(at: t)
+            t += iv
+        }
+        f.started(at: t - iv)
+        let s4: Double = f.stepTime(4) ?? 0
+        // Пропали 15 тиков.
+        t += iv * 15
+        _ = f.tick(at: t)
+        XCTAssertNil(f.tempo)
+        XCTAssertTrue(f.anchored)
+        for _ in 0..<10 {
+            t += iv
+            _ = f.tick(at: t)
+        }
+        XCTAssertEqual(f.tempo ?? 0, 156, accuracy: 0.01)
+        XCTAssertEqual(f.stepTime(4) ?? 0, s4, accuracy: 1e-6)
+        // Дрожание меньше 60 мс — не пропуск.
+        t += iv * 2
+        _ = f.tick(at: t)
+        XCTAssertNotNil(f.tempo)
+    }
 }
