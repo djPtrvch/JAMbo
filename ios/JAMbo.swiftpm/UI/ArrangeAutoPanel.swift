@@ -82,7 +82,8 @@ struct ArrAutoList: View {
             .padding(.horizontal, 10)
             .frame(maxWidth: .infinity, alignment: .leading)
             .frame(height: ArrAutoList.rowH)
-            .background(theme.trackBg, in: RoundedRectangle(cornerRadius: 6))
+            // Цветом поля кривой (решение пользователя).
+            .background(theme.panel, in: RoundedRectangle(cornerRadius: 6))
             .overlay(RoundedRectangle(cornerRadius: 6).stroke(selected ? theme.accent : Color.clear, lineWidth: 1))
             .contentShape(Rectangle())
             .onTapGesture { tapped(id) }

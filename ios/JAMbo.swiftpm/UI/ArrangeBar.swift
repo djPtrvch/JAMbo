@@ -114,7 +114,8 @@ struct ArrBarButton<Icon: View>: View {
         return icon(fg)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(bg, in: RoundedRectangle(cornerRadius: Layout.radius))
-            .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(ring ? theme.rec : Color.clear, lineWidth: 1))
+            // Запись — красный контур толще (решение пользователя: 3 pt, как запись мастера).
+            .overlay(RoundedRectangle(cornerRadius: Layout.radius).strokeBorder(ring ? theme.rec : Color.clear, lineWidth: 3))
             .contentShape(Rectangle())
             .onTapGesture { if enabled { action() } }
     }
