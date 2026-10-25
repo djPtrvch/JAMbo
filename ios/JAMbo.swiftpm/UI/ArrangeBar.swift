@@ -1,10 +1,10 @@
 import SwiftUI
 
-/// Вторая строка кнопок под верхней панелью — пока открыт аранжировщик (S15c): сетка и магнит, SECTION, LOOP, INSERT,
-/// STEPS, REF, A/B, AUTO (значок — синусоида с точками), возврат всех дорожек к таймлайну. SECTION, INSERT, REF, A/B
-/// и AUTO — серые до своих частей вехи (S15d–S15f).
+/// Вторая строка кнопок под верхней панелью — пока открыт аранжировщик (S15c): сетка (значок и шаг) и магнит, SECTION,
+/// LOOP (значок, как LOOP ROW сетки паттернов), INSERT, STEPS, REF, A/B, AUTO (синусоида с точками), возврат всех
+/// дорожек к таймлайну (стрелка к черте, как в Logic Pro). Высота — как у строки окон EQ и модулей мастера.
 struct ArrangeBar: View {
-    static let height: CGFloat = 36
+    static let height: CGFloat = 48
     let model: AppModel
 
     var body: some View {
@@ -12,9 +12,11 @@ struct ArrangeBar: View {
         return HStack(spacing: Layout.gap) {
             ArrGridField(model: model).frame(width: Layout.topButton)
             ArrBarButton(on: a.snap, enabled: true, action: { model.toggleArrSnap() }) { c in ArrMagnetIcon(color: c) }
-            ArrBarText(title: "SECTION", on: false, enabled: false) {}
-            ArrBarText(title: "LOOP", on: a.loop, enabled: a.hasLoop) { model.toggleArrLoop() }
-            ArrBarText(title: "INSERT", on: false, enabled: false) {}
+            ArrBarText(title: "SECTION", on: false, enabled: true) { model.arrSection() }
+            ArrBarButton(on: a.loop, enabled: a.hasLoop, action: { model.toggleArrLoop() }) { c in
+                Image(systemName: "repeat").font(.system(size: 18, weight: .semibold)).foregroundStyle(c)
+            }
+            ArrBarText(title: "INSERT", on: model.arrInsert, enabled: true) { model.toggleArrInsert() }
             ArrBarText(title: "STEPS", on: a.hideSteps, enabled: true) { model.toggleArrSteps() }
             ArrBarText(title: "REF", on: false, enabled: false) {}
             ArrBarText(title: "A/B", on: false, enabled: false) {}
@@ -34,7 +36,7 @@ struct ArrGridField: View {
     var body: some View {
         let a: Arrangement = model.project.arrange
         return HStack(spacing: 6) {
-            Text("GRID").font(.system(size: 9)).tracking(0.8).foregroundStyle(theme.dim)
+            Image(systemName: "square.grid.3x3").font(.system(size: 16, weight: .semibold)).foregroundStyle(theme.text)
             Text(ArrGrid.names[max(0, min(a.grid, ArrGrid.names.count - 1))])
                 .font(.system(size: 13, weight: .semibold)).foregroundStyle(theme.text)
         }
@@ -101,10 +103,8 @@ struct ArrReturnAll: View {
 
     var body: some View {
         let on: Bool = model.anyOffTimeline
-        return HStack(spacing: 4) {
-            Image(systemName: "arrow.uturn.backward").font(.system(size: 12, weight: .bold))
-            Text("ALL").font(.system(size: 12, weight: .semibold)).tracking(1)
-        }
+        return Image(systemName: "arrow.left.to.line")
+        .font(.system(size: 18, weight: .semibold))
         .foregroundStyle(on ? theme.onAccent : theme.off)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(on ? theme.accent : theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
@@ -113,24 +113,30 @@ struct ArrReturnAll: View {
     }
 }
 
-/// Значок магнита: подкова с полюсами.
+/// Значок магнита: подкова (дуга и две ножки) с полюсами-накладками на концах, наклонена, как 🧲.
 struct ArrMagnetIcon: View {
     let color: Color
 
     var body: some View {
         Canvas { ctx, size in
-            let c = CGPoint(x: size.width / 2, y: size.height / 2 + 1)
-            let r: CGFloat = 6
-            var p = Path()
-            p.move(to: CGPoint(x: c.x - r, y: c.y - 7))
-            p.addLine(to: CGPoint(x: c.x - r, y: c.y))
-            p.addArc(center: c, radius: r, startAngle: .degrees(180), endAngle: .degrees(0), clockwise: true)
-            p.addLine(to: CGPoint(x: c.x + r, y: c.y - 7))
-            ctx.stroke(p, with: .color(color), style: StrokeStyle(lineWidth: 4, lineCap: .butt))
-            ctx.fill(Path(CGRect(x: c.x - r - 2, y: c.y - 9, width: 4, height: 3)), with: .color(color))
-            ctx.fill(Path(CGRect(x: c.x + r - 2, y: c.y - 9, width: 4, height: 3)), with: .color(color))
+            let c = CGPoint(x: size.width / 2, y: size.height / 2 + 3)
+            let r: CGFloat = 6.5
+            let leg: CGFloat = 5
+            var body = Path()
+            body.move(to: CGPoint(x: c.x - r, y: c.y - leg))
+            body.addLine(to: CGPoint(x: c.x - r, y: c.y))
+            body.addArc(center: c, radius: r, startAngle: .degrees(180), endAngle: .degrees(0), clockwise: true)
+            body.addLine(to: CGPoint(x: c.x + r, y: c.y - leg))
+            ctx.stroke(body, with: .color(color), style: StrokeStyle(lineWidth: 5, lineCap: .butt))
+            let tipH: CGFloat = 4
+            let tipY: CGFloat = c.y - leg - tipH - 1.5
+            let left = CGRect(x: c.x - r - 2.5, y: tipY, width: 5, height: tipH)
+            let right = CGRect(x: c.x + r - 2.5, y: tipY, width: 5, height: tipH)
+            ctx.fill(Path(roundedRect: left, cornerRadius: 1), with: .color(color))
+            ctx.fill(Path(roundedRect: right, cornerRadius: 1), with: .color(color))
         }
-        .frame(width: 24, height: 24)
+        .frame(width: 28, height: 28)
+        .rotationEffect(.degrees(-45))
     }
 }
 

@@ -104,6 +104,9 @@ final class AppModel {
     var arrSel: ArrSel? = nil
     var arrMenu: ArrMenuState? = nil
     var arrPort: ArrPort = ArrPort()
+    /// INSERT (S15d): режим вставки; только что вставленный блок (его правый край — длина со сдвигом).
+    var arrInsert: Bool = false
+    var arrInserted: ArrSel? = nil
     @ObservationIgnored var arrBlockClipboard: ArrBlock? = nil
     @ObservationIgnored var arrTrackClipboard: [ArrBlock]? = nil
     /// Пианоролл на месте центра (S8): открыт, меню бутерброда, режим VEL.

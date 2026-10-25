@@ -14,6 +14,7 @@ enum SettingsTab: String, CaseIterable {
     case output = "OUTPUT"
     case appearance = "APPEARANCE"
     case defaults = "DEFAULTS"
+    case arrange = "ARRANGE"
 }
 
 /// Настройки приложения (общие для проектов, UserDefaults): применяются сразу.

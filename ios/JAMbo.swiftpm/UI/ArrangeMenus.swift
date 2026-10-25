@@ -27,6 +27,10 @@ struct ArrMenus: View {
             laneMenu(t, x, a)
         case .track(let t, _):
             ArrTrackMenu(model: model, track: t).offset(trackPlace(t))
+        case .marker(let k, let a):
+            ArrMarkerWindow(model: model, index: k).offset(place(a, w: ArrMarkerWindow.width, h: ArrMarkerWindow.height))
+        case .insert(let t, let x, let a):
+            insertMenu(t, x, a)
         }
     }
 
@@ -35,6 +39,13 @@ struct ArrMenus: View {
         let h: CGFloat = ArrLaneMenu.height(n, size.height)
         let o: CGSize = place(a, w: ArrLaneMenu.width, h: h)
         return ArrLaneMenu(model: model, track: t, at: x).frame(height: h).offset(o)
+    }
+
+    private func insertMenu(_ t: Int, _ x: Int, _ a: CGPoint) -> some View {
+        let n: Int = model.arrClips(t).count
+        let h: CGFloat = ArrLaneMenu.height(max(0, n - 1), size.height)
+        let o: CGSize = place(a, w: ArrLaneMenu.width, h: h)
+        return ArrInsertMenu(model: model, track: t, at: x).frame(height: h).offset(o)
     }
 
     /// Точка таймлайна → окно: меню под пальцем (не помещается — над ним), в пределах окна.
@@ -52,7 +63,7 @@ struct ArrMenus: View {
 
     /// Меню дорожки — справа от её заголовка, по высоте — от строки дорожки.
     private func trackPlace(_ t: Int) -> CGSize {
-        let m = ArrMetrics(size: size, port: model.arrPort, tracks: model.project.tracks.count, end: 0)
+        let m = ArrMetrics(size: size, port: model.arrPort, tracks: model.project.tracks.count, end: 0, expanded: model.settings.arrangeExpanded)
         let h: CGFloat = ArrTrackMenu.height
         let y: CGFloat = max(0, min(m.rowY(t), size.height - h))
         return CGSize(width: ArrMetrics.headerW + Layout.gap, height: y)
@@ -165,5 +176,92 @@ struct ArrPaletteGrid: View {
                     .onTapGesture { pick(k) }
             }
         }
+    }
+}
+
+/// INSERT: клипы дорожки — выбранный вставляется в точку, блоки дорожки правее сдвигаются.
+struct ArrInsertMenu: View {
+    let model: AppModel
+    let track: Int
+    let at: Int
+
+    var body: some View {
+        let clips: [Int] = model.arrClips(track)
+        return MenuScroll {
+            VStack(spacing: 6) {
+                ForEach(clips, id: \.self) { k in
+                    MenuItem(title: model.arrClipName(k)) {
+                        model.arrMenu = nil
+                        model.arrInsertBlock(track: track, clip: k, at: at)
+                    }
+                }
+            }
+        }
+        .frame(width: ArrLaneMenu.width)
+        .modifier(MenuPanel())
+    }
+}
+
+/// Окно маркера: имя (до 12 знаков; новый маркер — сразу ввод), цвет, CURSOR HERE, DELETE, OK. Имя сохраняется
+/// и при закрытии тапом мимо.
+struct ArrMarkerWindow: View {
+    static let width: CGFloat = 240
+    /// Имя 44, палитра 4 ряда по 28, 2 строки по 40, 3 зазора по 6, поля 16.
+    static let height: CGFloat = 278
+    let model: AppModel
+    let index: Int
+    @State private var name: String = ""
+    @State private var loaded: Bool = false
+    @State private var deleted: Bool = false
+    @FocusState private var focused: Bool
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let cur: Int = model.arrMarker(index)?.color ?? ArrPalette.defaultColor
+        return VStack(spacing: 6) {
+            TextField("name", text: $name)
+                .font(.system(size: 16))
+                .focused($focused)
+                .padding(.horizontal, 10)
+                .frame(height: 44)
+                .background(theme.panel, in: RoundedRectangle(cornerRadius: 6))
+                .onChange(of: name) { _, v in if v.count > 12 { name = String(v.prefix(12)) } }
+                .onSubmit { done() }
+            ArrPaletteGrid(current: cur) { c in model.arrSetMarkerColor(index, c) }
+            HStack(spacing: 6) {
+                MenuItem(title: "CURSOR HERE") { act { model.arrCursorToMarker(index) } }
+                MenuItem(title: "DELETE", red: true) { delete() }
+            }
+            MenuItem(title: "OK") { done() }
+        }
+        .frame(width: ArrMarkerWindow.width)
+        .modifier(MenuPanel())
+        .onAppear { load() }
+        .onDisappear { if !deleted { model.arrRenameMarker(index, name) } }
+    }
+
+    private func load() {
+        if loaded { return }
+        loaded = true
+        let m: ArrMarker? = model.arrMarker(index)
+        name = m?.name ?? ""
+        if name.isEmpty { focused = true }
+    }
+
+    private func done() {
+        model.arrMenu = nil
+    }
+
+    private func delete() {
+        deleted = true
+        model.arrMenu = nil
+        model.arrDeleteMarker(index)
+    }
+
+    /// Действие с маркером: сначала имя.
+    private func act(_ f: () -> Void) {
+        model.arrRenameMarker(index, name)
+        model.arrMenu = nil
+        f()
     }
 }

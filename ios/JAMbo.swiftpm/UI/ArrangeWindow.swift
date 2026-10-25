@@ -47,18 +47,24 @@ struct ArrMetrics {
     /// Шагов, до которых можно прокрутить.
     let steps: Int
 
-    init(size: CGSize, port: ArrPort, tracks: Int, end: Int) {
+    /// SETTINGS → ARRANGE: COMPACT — строки делят высоту окна поровну (без прокрутки), EXPANDED — своя высота строк
+    /// (масштаб двумя пальцами по вертикали) и прокрутка.
+    let expanded: Bool
+
+    init(size: CGSize, port: ArrPort, tracks: Int, end: Int, expanded: Bool) {
         self.size = size
         self.tracks = tracks
+        self.expanded = expanded
         let w: CGFloat = max(1, size.width)
         let fit: CGFloat = w / 256
         let want: CGFloat = port.stepW ?? fit
         stepW = ArrMetrics.clampStep(want, width: w)
-        rowH = ArrMetrics.clampRow(port.rowH)
+        let lanes: CGFloat = max(0, size.height - ArrMetrics.top)
+        let fitRow: CGFloat = lanes / CGFloat(max(1, tracks))
+        rowH = expanded ? ArrMetrics.clampRow(port.rowH) : max(16, fitRow)
         steps = max(end, 0) + 32 * ArrMetrics.stepsPerBar
         let maxX: CGFloat = max(0, CGFloat(steps) * stepW - w)
         x = min(maxX, max(0, port.x))
-        let lanes: CGFloat = max(0, size.height - ArrMetrics.top)
         let maxY: CGFloat = max(0, CGFloat(tracks) * rowH - lanes)
         y = min(maxY, max(0, port.y))
     }
@@ -71,7 +77,7 @@ struct ArrMetrics {
     }
 
     static func clampRow(_ h: CGFloat) -> CGFloat {
-        return min(96, max(28, h))
+        return min(120, max(44, h))
     }
 
     func stepX(_ s: Double) -> CGFloat {
@@ -121,7 +127,7 @@ struct ArrTimeline: View {
         let sel: ArrSel? = model.arrSel
         let following: [Bool] = (0..<p.tracks.count).map { model.arrFollowing($0) }
         return GeometryReader { geo in
-            let m = ArrMetrics(size: geo.size, port: port, tracks: p.tracks.count, end: p.arrangeEnd)
+            let m = ArrMetrics(size: geo.size, port: port, tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded)
             ZStack(alignment: .topLeading) {
                 Canvas { ctx, _ in
                     ArrDraw(ctx: ctx, m: m, theme: theme).draw(p, cursor: now, sel: sel, lift: lift, following: following,
@@ -164,10 +170,10 @@ struct ArrTimeline: View {
 
     private func apply(_ events: SpatialEventCollection, _ size: CGSize) {
         let p: Project = model.project
-        let m = ArrMetrics(size: size, port: model.arrPort, tracks: p.tracks.count, end: p.arrangeEnd)
+        let m = ArrMetrics(size: size, port: model.arrPort, tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded)
         var port: ArrPort = model.arrPort
         touches.handle(events, port: &port, m, model, lift: $lift)
-        let c = ArrMetrics(size: size, port: port, tracks: p.tracks.count, end: p.arrangeEnd)
+        let c = ArrMetrics(size: size, port: port, tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded)
         let next = ArrPort(stepW: port.stepW == nil ? nil : c.stepW, x: c.x, rowH: c.rowH, y: c.y)
         if next != model.arrPort { model.arrPort = next }
     }

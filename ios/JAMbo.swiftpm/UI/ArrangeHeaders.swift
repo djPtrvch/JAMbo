@@ -11,7 +11,7 @@ struct ArrHeaders: View {
         let port: ArrPort = model.arrPort
         return GeometryReader { geo in
             let m = ArrMetrics(size: CGSize(width: geo.size.width, height: geo.size.height), port: port,
-                               tracks: p.tracks.count, end: p.arrangeEnd)
+                               tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded)
             ZStack(alignment: .topLeading) {
                 ForEach(0..<p.tracks.count, id: \.self) { t in
                     ArrHeaderRow(model: model, index: t)
@@ -30,7 +30,7 @@ struct ArrHeaders: View {
 
     /// Верх строки t — как у таймлайна (прокрутка по Y — из вида с той же шириной таймлайна не зависит).
     private func rowTop(_ t: Int, _ port: ArrPort, _ size: CGSize) -> CGFloat {
-        let m = ArrMetrics(size: size, port: port, tracks: model.project.tracks.count, end: 0)
+        let m = ArrMetrics(size: size, port: port, tracks: model.project.tracks.count, end: 0, expanded: model.settings.arrangeExpanded)
         return m.rowY(t) + 1
     }
 }
@@ -40,6 +40,8 @@ struct ArrHeaderRow: View {
     let model: AppModel
     let index: Int
     @State private var lastTap: Date? = nil
+    @State private var touching: Bool = false
+    @State private var swiped: Bool = false
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -59,17 +61,36 @@ struct ArrHeaderRow: View {
                 .lineLimit(1)
                 .foregroundStyle(theme.text)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            ArrReturnButton(model: model, track: index)
             ArrToggle(title: "M", on: t.mute, color: theme.rec) { model.toggleMute(index) }
             ArrToggle(title: "S", on: t.solo, color: theme.accent) { model.toggleSolo(index) }
             ArrMeter(model: model, track: index).frame(width: MeterBars.width)
-            ArrFader(model: model, track: index).frame(width: 46)
+            ArrFader(model: model, track: index).frame(width: 26)
         }
         .padding(.horizontal, 6)
         .background(theme.trackBg, in: RoundedRectangle(cornerRadius: 6))
         .overlay(RoundedRectangle(cornerRadius: 6).stroke(selected ? theme.accent : Color.clear, lineWidth: 1))
         .contentShape(Rectangle())
-        .onTapGesture { tapped() }
+        .gesture(touch)
+    }
+
+    /// Как строка дорожек: свайп вниз — mute, вверх — solo (~24 px); без свайпа — тап.
+    private var touch: some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { g in
+                if !touching {
+                    touching = true
+                    swiped = false
+                }
+                let dy: CGFloat = g.translation.height
+                if !swiped && abs(dy) >= 24 {
+                    swiped = true
+                    model.swipe(track: index, down: dy > 0)
+                }
+            }
+            .onEnded { _ in
+                touching = false
+                if !swiped { tapped() }
+            }
     }
 
     /// Тап — выбор дорожки; второй тап за 0,3 с — меню дорожки.
@@ -105,24 +126,6 @@ struct ArrToggle: View {
     }
 }
 
-/// Возврат дорожки к таймлайну: активна при игре, когда дорожка играет сетку (жёлтая), иначе — серая.
-struct ArrReturnButton: View {
-    let model: AppModel
-    let track: Int
-    @Environment(\.theme) private var theme
-
-    var body: some View {
-        let off: Bool = model.playing && !model.arrFollowing(track)
-        return Image(systemName: "arrow.uturn.backward")
-            .font(.system(size: 11, weight: .bold))
-            .foregroundStyle(off ? theme.onAccent : theme.off)
-            .frame(width: 22, height: 20)
-            .background(off ? theme.accent : Color.clear, in: RoundedRectangle(cornerRadius: 4))
-            .contentShape(Rectangle())
-            .onTapGesture { model.returnToArrange(track) }
-    }
-}
-
 /// Измеритель дорожки — те же полосы, что у измерителя справа (моно, 9 px).
 struct ArrMeter: View {
     let model: AppModel
@@ -141,8 +144,8 @@ struct ArrMeter: View {
     }
 }
 
-/// Мини-фейдер: тот же регулятор, что справа у дорожки (SETTINGS → LEVEL: ABSOLUTE — громкость MIX, RELATIVE —
-/// подстройка); палец вбок — 120 pt на всю шкалу; одна запись UNDO на жест.
+/// Регулятор громкости — круглый (пока; решение пользователя): тот же регулятор, что справа у дорожки (SETTINGS →
+/// LEVEL: ABSOLUTE — громкость MIX, RELATIVE — подстройка); палец вверх-вниз — 120 pt на всю шкалу; одна запись UNDO.
 struct ArrFader: View {
     let model: AppModel
     let track: Int
@@ -152,20 +155,29 @@ struct ArrFader: View {
     var body: some View {
         let v: Double = model.meterVol(track)
         let range: Double = -Params.volMin
-        let f: CGFloat = CGFloat((v - Params.volMin) / range)
-        return GeometryReader { geo in
-            let w: CGFloat = geo.size.width
-            let fill: CGFloat = max(0, f * w)
-            let knob: CGFloat = max(0, min(w - 6, fill - 3))
-            ZStack(alignment: .leading) {
-                Capsule().fill(theme.meterTrack).frame(height: 4)
-                Capsule().fill(theme.text.opacity(0.5)).frame(width: fill, height: 4)
-                RoundedRectangle(cornerRadius: 2).fill(theme.text).frame(width: 6, height: 16).offset(x: knob)
-            }
-            .frame(maxHeight: .infinity)
-            .contentShape(Rectangle())
-            .gesture(drag)
+        let f: Double = max(0, min(1, (v - Params.volMin) / range))
+        return Canvas { ctx, size in
+            let d: CGFloat = min(size.width, size.height) - 4
+            let c = CGPoint(x: size.width / 2, y: size.height / 2)
+            let r: CGFloat = d / 2
+            let a0: Double = 135
+            let a1: Double = a0 + 270 * f
+            var track = Path()
+            track.addArc(center: c, radius: r, startAngle: .degrees(a0), endAngle: .degrees(405), clockwise: false)
+            ctx.stroke(track, with: .color(theme.meterTrack), style: StrokeStyle(lineWidth: 3, lineCap: .round))
+            var arc = Path()
+            arc.addArc(center: c, radius: r, startAngle: .degrees(a0), endAngle: .degrees(a1), clockwise: false)
+            ctx.stroke(arc, with: .color(theme.text), style: StrokeStyle(lineWidth: 3, lineCap: .round))
+            let rad: Double = a1 * Double.pi / 180
+            let px: CGFloat = c.x + CGFloat(cos(rad)) * (r - 4)
+            let py: CGFloat = c.y + CGFloat(sin(rad)) * (r - 4)
+            var tick = Path()
+            tick.move(to: c)
+            tick.addLine(to: CGPoint(x: px, y: py))
+            ctx.stroke(tick, with: .color(theme.text), style: StrokeStyle(lineWidth: 2, lineCap: .round))
         }
+        .contentShape(Rectangle())
+        .gesture(drag)
     }
 
     private var drag: some Gesture {
@@ -175,10 +187,10 @@ struct ArrFader: View {
                     start = model.meterVol(track)
                     model.beginGesture()
                 }
-                let dx: Double = Double(g.translation.width / 120)
+                let dy: Double = Double(-g.translation.height / 120)
                 let s: Double = start ?? 0
                 let range: Double = -Params.volMin
-                model.setMeterVol(track, s + dx * range)
+                model.setMeterVol(track, s + dy * range)
             }
             .onEnded { _ in
                 guard start != nil else { return }

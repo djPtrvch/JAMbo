@@ -3,11 +3,12 @@ import SwiftUI
 /// Касания таймлайна аранжировщика (S15c). Один палец по дорожкам: тап по блоку — выбор (по пустому — ничего),
 /// двойной тап — меню блока или места; удержание блока 0,35 с — блок поднимается и едет за пальцем, при отпускании
 /// встаёт на место (с магнитом — на линию сетки); край блока — длина сразу; сдвиг по пустому (или по блоку до
-/// удержания) — прокрутка. По линейке: тап — курсор, сдвиг вбок — быстрая прокрутка (×3). Два пальца — масштаб по
+/// удержания) — прокрутка. Линейка и строка маркеров — ArrRulerTouches (S15d). INSERT: тап по дорожке — клип
+/// для вставки, правый край вставленного блока — длина со сдвигом. Два пальца — масштаб по
 /// одной оси (какая разошлась первой): по горизонтали — время (точка между пальцами на месте), по вертикали — высота строк.
 final class ArrTouches {
     enum Axis { case h, v }
-    enum Mode { case idle, tap, press, lift, edge, scroll, ruler, rulerScroll, zoom }
+    enum Mode { case idle, tap, press, lift, edge, scroll, ruler, zoom }
 
     private var points: [SpatialEventCollection.Event.ID: CGPoint] = [:]
     private var mode: Mode = .idle
@@ -27,6 +28,7 @@ final class ArrTouches {
     private var serial: Int = 0
     private var lastTap: (at: Date, point: CGPoint)? = nil
     private var lastPoint: CGPoint = .zero
+    private let ruler = ArrRulerTouches()
 
     static let slop: CGFloat = 8
     static let zoomSlop: CGFloat = 10
@@ -62,6 +64,7 @@ final class ArrTouches {
         serial += 1
         if p.y < ArrMetrics.top {
             mode = .ruler
+            ruler.begin(p, m, model)
             return
         }
         let t: Int = m.track(at: p.y)
@@ -119,14 +122,9 @@ final class ArrTouches {
                 scroll(p[0], &port, k: 1)
             }
         case .ruler:
-            if moved {
-                mode = .rulerScroll
-                scroll(p[0], &port, k: 3)
-            }
+            ruler.move(p[0], &port, m, model)
         case .scroll:
             scroll(p[0], &port, k: 1)
-        case .rulerScroll:
-            scroll(p[0], &port, k: 3)
         case .zoom:
             if p.count >= 2 { zoom(p[0], p[1], &port, m) }
         case .lift:
@@ -150,6 +148,11 @@ final class ArrTouches {
     private func edge(_ p: CGPoint, _ m: ArrMetrics, _ model: AppModel) {
         guard let b = hitBlock else { return }
         let x: Int = Int(m.step(at: p.x).rounded())
+        // INSERT: правый край только что вставленного блока — длина вставки, блоки правее сдвигаются вслед.
+        if model.arrInsert && !leftEdge && model.arrInserted == ArrSel(track: hitTrack, block: hitIndex) {
+            model.arrResizeInserted(track: hitTrack, base: edgeBase, index: hitIndex, end: max(x, b.start + 1))
+            return
+        }
         if leftEdge {
             model.arrResizeBlock(track: hitTrack, base: edgeBase, index: hitIndex, start: min(x, b.end - 1), end: b.end)
         } else {
@@ -166,7 +169,7 @@ final class ArrTouches {
         case .tap, .press:
             if ended { tapped(model, m) }
         case .ruler:
-            if ended { model.setArrCursor(Int(m.step(at: start.x).rounded())) }
+            ruler.end(ended, m, model)
         case .lift:
             settle(model, lift: lift)
         case .edge:
@@ -190,6 +193,13 @@ final class ArrTouches {
         }
         lastTap = double ? nil : (now, start)
         let t: Int = m.track(at: start.y)
+        // INSERT: тап по дорожке — меню клипов для вставки в ближайшую линию сетки.
+        if model.arrInsert && t >= 0 {
+            let x: Int = Int(m.step(at: start.x).rounded())
+            model.select(track: t)
+            model.arrMenu = .insert(track: t, at: x, anchor: start)
+            return
+        }
         if hitBlock != nil {
             model.arrSel = ArrSel(track: hitTrack, block: hitIndex)
             if double { model.arrMenu = .block(track: hitTrack, block: hitIndex, anchor: start) }
@@ -234,7 +244,8 @@ final class ArrTouches {
             let dx: CGFloat = abs(sx - spread0.width)
             let dy: CGFloat = abs(sy - spread0.height)
             if max(dx, dy) < ArrTouches.zoomSlop { return }
-            axis = dx >= dy ? .h : .v
+            // COMPACT: высота строк — по окну, масштаб только по времени.
+            axis = dx >= dy || !m.expanded ? .h : .v
         }
         if axis == .h {
             let w0: CGFloat = base.stepW ?? m.stepW

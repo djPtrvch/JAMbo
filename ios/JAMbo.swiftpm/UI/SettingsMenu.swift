@@ -48,6 +48,24 @@ struct SettingsPage: View {
         case .morph: MorphSettings(model: model)
         case .level: LevelSettings(model: model)
         case .defaults: DefaultsSettings(model: model)
+        case .arrange: ArrangeSettings(model: model)
+        }
+    }
+}
+
+/// ARRANGE (S15): вид дорожек аранжировщика — COMPACT (все на высоту окна) или EXPANDED (выше, с прокруткой).
+struct ArrangeSettings: View {
+    let model: AppModel
+
+    var body: some View {
+        let on: Bool = model.settings.arrangeExpanded
+        return VStack(alignment: .leading, spacing: 8) {
+            FieldLabel(title: "TRACKS")
+            HStack(spacing: 4) {
+                MenuItem(title: "COMPACT", current: !on) { model.updateSettings { $0.arrangeExpanded = false } }
+                MenuItem(title: "EXPANDED", current: on) { model.updateSettings { $0.arrangeExpanded = true } }
+            }
+            SettingsNote(text: "COMPACT: all tracks fit the arranger window. EXPANDED: taller tracks; drag to scroll, pinch vertically to change their height.")
         }
     }
 }

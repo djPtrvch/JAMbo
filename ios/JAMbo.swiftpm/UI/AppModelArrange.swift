@@ -12,6 +12,10 @@ enum ArrMenuState: Equatable {
     case block(track: Int, block: Int, anchor: CGPoint)
     case lane(track: Int, at: Int, anchor: CGPoint)
     case track(track: Int, anchor: CGPoint)
+    /// Окно маркера (S15d): имя, цвет, курсор сюда, DELETE.
+    case marker(index: Int, anchor: CGPoint)
+    /// INSERT: клипы дорожки для вставки в точку at.
+    case insert(track: Int, at: Int, anchor: CGPoint)
 }
 
 /// Вид таймлайна: ширина шага (nil — 16 тактов на ширину), прокрутка по X (pt), высота строки дорожки, прокрутка
@@ -19,7 +23,7 @@ enum ArrMenuState: Equatable {
 struct ArrPort: Equatable {
     var stepW: CGFloat? = nil
     var x: CGFloat = 0
-    var rowH: CGFloat = 44
+    var rowH: CGFloat = 64
     var y: CGFloat = 0
 }
 
@@ -60,6 +64,8 @@ extension AppModel {
         arrangeView = false
         arrMenu = nil
         arrSel = nil
+        arrInsert = false
+        arrInserted = nil
     }
 
     /// Курсор на экране: при игре — из колбэка, без игры — поставленный.

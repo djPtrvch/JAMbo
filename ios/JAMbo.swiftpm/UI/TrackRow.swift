@@ -116,8 +116,7 @@ struct TrackCell: View {
                     model.ensureAudio()
                 }
                 let dy: CGFloat = g.translation.height
-                // В аранжировщике свайпы mute и solo не действуют (остаются кнопки M и S).
-                if !swiped && !model.arrangeView && abs(dy) >= 24 {
+                if !swiped && abs(dy) >= 24 {
                     swiped = true
                     model.swipe(track: index, down: dy > 0)
                 }

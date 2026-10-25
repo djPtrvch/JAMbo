@@ -241,7 +241,7 @@ extension Project {
         if !arrange.hasLoop { arrange.loop = false }
     }
 
-    static func markerName(_ s: String) -> String {
+    public static func markerName(_ s: String) -> String {
         return String(s.trimmingCharacters(in: .whitespaces).prefix(12))
     }
 }
