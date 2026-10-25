@@ -131,7 +131,7 @@ extension Project {
         rows = c.value(.rows, 1)
         arrStart = c.value(.arrStart, 0)
         arrEndStop = c.value(.arrEndStop, false)
-        plusCopy = c.value(.plusCopy, true)
+        plusCopy = c.value(.plusCopy, false)
         files = c.value(.files, [String: String]())
         roots = c.value(.roots, [String: Int]())
         rowLoop = c.value(.rowLoop, true)

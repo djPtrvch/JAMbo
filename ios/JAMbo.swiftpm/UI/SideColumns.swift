@@ -75,7 +75,8 @@ struct MasterRecButton: View {
     }
 }
 
-/// Правая колонка: миниатюры страниц, под ними MORPH и FX, SHIFT и MOD (MORPH, FX, MOD — S4).
+/// Правая колонка: миниатюры страниц (при MIX — пустое окно), под ними MOD и FX, SHIFT и MORPH (MORPH, FX, MOD — S4;
+/// MOD и MORPH поменяны местами — решение пользователя).
 struct RightColumn: View {
     let model: AppModel
 
@@ -90,13 +91,22 @@ struct RightColumn: View {
             }
         } else {
             VStack(spacing: Layout.gap) {
-                PagesColumn(model: model)
-                ButtonPair(left: MorphButton(model: model).midiTarget(model, "MORPH"),
+                if model.channel == .mix { MixPagesBlank() } else { PagesColumn(model: model) }
+                ButtonPair(left: PageButton(model: model, title: "MOD", page: .mod).midiTarget(model, "MOD"),
                            right: PageButton(model: model, title: "FX", page: .fx).midiTarget(model, "FX"))
                 ButtonPair(left: ShiftButton(model: model),
-                           right: PageButton(model: model, title: "MOD", page: .mod).midiTarget(model, "MOD"))
+                           right: MorphButton(model: model).midiTarget(model, "MORPH"))
             }
         }
+    }
+}
+
+/// Место миниатюр страниц при MIX: пустое окно без подписей.
+struct MixPagesBlank: View {
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: Layout.radius).fill(theme.panel)
     }
 }
 

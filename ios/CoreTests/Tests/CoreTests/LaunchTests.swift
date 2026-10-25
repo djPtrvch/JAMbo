@@ -195,6 +195,8 @@ final class LaunchTests: XCTestCase {
         XCTAssertEqual(p.tracks[0].clips[2]?.pages.count, 1, "новый клип — свой пустой паттерн")
         p.tracks[0].pages[0][0].on = true
         p.tracks[1].stopped = true
+        XCTAssertFalse(p.plusCopy, "по умолчанию «+» — NEW PATTERNS")
+        p.plusCopy = true
         p.addRow()
         XCTAssertEqual(p.tracks[0].clips[3], p.tracks[0].clips[0], "COPY PLAYING — копия играющего клипа")
         XCTAssertFalse(p.tracks[1].clips[3]!.pages[0][0].on, "остановленная — пустой паттерн")

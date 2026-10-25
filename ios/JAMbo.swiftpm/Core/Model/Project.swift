@@ -285,7 +285,7 @@ public struct Project: Codable, Equatable, Sendable {
     public var arrStart: Int = 0
     public var arrEndStop: Bool = false
     /// «+» под строками: true — копии играющих клипов (COPY PLAYING, по умолчанию), false — новые пустые.
-    public var plusCopy: Bool = true
+    public var plusCopy: Bool = false
     /// Имена сэмплов (ключ по содержимому → имя файла) и определённая высота (MIDI-нота, только для индикации).
     public var files: [String: String] = [:]
     public var roots: [String: Int] = [:]
