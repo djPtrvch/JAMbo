@@ -10,7 +10,7 @@ enum MidiButtons {
     static let xfader = "XFADER"
     /// Цели с непрерывным значением (маппятся как ручка).
     static let continuous: [String] = [bpm, level, xfader]
-    static let fixed: [String] = ["PLAY", "REC", "PATTERNS", "EQ", "ROLL", "UNDO", "REDO", "METRONOME", "CHORD", "OCTAVE ▲",
+    static let fixed: [String] = ["PLAY", "REC", "PATTERNS", "ARRANGE", "EQ", "ROLL", "UNDO", "REDO", "METRONOME", "CHORD", "OCTAVE ▲",
                                   "OCTAVE ▼", "LFO1", "LFO2", "LFO3", "ENV", "FX", "MOD", "MORPH", "MIX", "MST",
                                   "ARM MST", "GRID ▲", "GRID ▼", bpm, level, xfader]
 
@@ -119,6 +119,7 @@ extension AppModel {
         case "PLAY": togglePlay()
         case "REC": toggleRec()
         case "PATTERNS": togglePatterns()
+        case "ARRANGE": toggleArrange()
         case "EQ": toggleEqView()
         case "ROLL": toggleRoll()
         case "UNDO": undoTapped()

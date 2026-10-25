@@ -98,6 +98,14 @@ final class AppModel {
     var pressedKeys: [Int: [Int]] = [:]
     /// Сетка паттернов открыта; ячейка для правки выбранной дорожки (жёлтый контур); верх окна строк.
     var patternView: Bool = false
+    /// Аранжировщик (S15) на месте центра: открыт; курсор без игры (шаги); выбранный блок; меню; вид (масштаб, прокрутка).
+    var arrangeView: Bool = false
+    var arrCursor: Int = 0
+    var arrSel: ArrSel? = nil
+    var arrMenu: ArrMenuState? = nil
+    var arrPort: ArrPort = ArrPort()
+    @ObservationIgnored var arrBlockClipboard: ArrBlock? = nil
+    @ObservationIgnored var arrTrackClipboard: [ArrBlock]? = nil
     /// Пианоролл на месте центра (S8): открыт, меню бутерброда, режим VEL.
     var rollView: Bool = false
     var rollMenuOpen: Bool = false
@@ -336,6 +344,12 @@ final class AppModel {
         }
         playing.toggle()
         endRecTake()
+        // Аранжировщик (S15): PLAY в его окне — дорожки по таймлайну с курсора; стоп — курсор остаётся, где был.
+        if playing {
+            audio.core.events.push(.arrange(on: arrangeView, from: arrCursor))
+        } else {
+            arrCursor = live.arrPos
+        }
         live.stopped()
         audio.core.events.push(.play(playing))
         if !playing { releaseHolds() }
@@ -348,6 +362,7 @@ final class AppModel {
         playing = true
         endRecTake()
         live.stopped()
+        audio.core.events.push(.arrange(on: arrangeView, from: arrCursor))
         audio.core.events.push(.playAt(frame: frame))
     }
 
@@ -374,6 +389,7 @@ final class AppModel {
         case .ended:
             if playing {
                 playing = false
+                arrCursor = live.arrPos
                 releaseHolds()
                 endRecTake()
                 live.stopped()

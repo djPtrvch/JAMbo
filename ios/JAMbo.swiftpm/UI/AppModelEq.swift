@@ -40,6 +40,7 @@ extension AppModel {
             patternView = false
             editorOpen = false
             closeRoll()
+            closeArrange()
             closeMasterWindow()
         }
     }

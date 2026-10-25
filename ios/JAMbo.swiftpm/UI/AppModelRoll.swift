@@ -18,6 +18,7 @@ extension AppModel {
         eqPresetMenu = nil
         eqCompareMenu = false
         closeMasterWindow()
+        closeArrange()
         rollView = true
     }
 

@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Верхняя панель: меню, BPM, метроном | SCALE, ROOT, UNDO, PLAY, REC, REDO, пианоролл, EQ | PATTERNS, ARRANGE, CPU.
-/// ARRANGE — серая (позже); пианоролл (S8) — на месте AUTO (автоматизация — S13, место решим позже).
+/// ARRANGE (S15) — аранжировщик на месте центра; пианоролл (S8) — на месте AUTO (AUTO — во второй строке аранжировщика).
 struct TopBar: View {
     let model: AppModel
     @Binding var menuOpen: Bool
@@ -48,7 +48,8 @@ struct TopBar: View {
     private var rightGroup: some View {
         HStack(spacing: Layout.gap) {
             PatternsButton(model: model).frame(width: Layout.topButton).midiTarget(model, "PATTERNS")
-            TopText(title: "ARRANGE").frame(width: Layout.topButton)
+            ViewButton(title: "ARRANGE", on: model.arrangeView) { model.toggleArrange() }.frame(width: Layout.topButton)
+                .midiTarget(model, "ARRANGE")
             CPUIndicator(meter: model.audio.core.cpu).frame(width: Layout.meterWidth)
         }
     }

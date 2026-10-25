@@ -304,6 +304,7 @@ extension AppModel {
             editorOpen = false
             eqView = false
             closeRoll()
+            closeArrange()
             closeMasterWindow()
             openClip(selectedTrack, track.slot)
         }

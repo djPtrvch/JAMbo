@@ -83,11 +83,15 @@ struct RootView: View {
     private func screen(_ layout: Layout) -> some View {
         VStack(spacing: Layout.gap) {
             TopBar(model: model, menuOpen: $menuOpen)
+            if model.arrangeView { ArrangeBar(model: model) }
             center(layout)
             TrackRow(model: model, layout: layout)
                 .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("root")).minY } action: { trackTop = $0 }
-            SequencerRow(model: model)
-            KeyboardPanel(model: model, layout: layout)
+            // STEPS в аранжировщике: секвенсор и клавиатура скрыты, окно растёт на их высоту.
+            if !model.arrStepsHidden {
+                SequencerRow(model: model)
+                KeyboardPanel(model: model, layout: layout)
+            }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -107,6 +111,8 @@ struct RootView: View {
             RollWindow(model: model, layout: layout)
         } else if model.patternView {
             PatternGrid(model: model, layout: layout)
+        } else if model.arrangeView {
+            ArrangeWindow(model: model)
         } else if model.eqView {
             HStack(spacing: Layout.gap) {
                 EqView(model: model, layout: layout)

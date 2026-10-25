@@ -106,6 +106,7 @@ extension AppModel {
         case "PLAY": return playing
         case "REC": return recOn
         case "PATTERNS": return patternView
+        case "ARRANGE": return arrangeView
         case "EQ": return eqView
         case "ROLL": return rollView
         case "METRONOME": return metronome

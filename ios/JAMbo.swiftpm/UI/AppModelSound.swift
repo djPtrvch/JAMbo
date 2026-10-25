@@ -338,6 +338,7 @@ extension AppModel {
         editorOpen = true
         eqView = false
         closeRoll()
+        closeArrange()
         closeMasterWindow()
     }
 

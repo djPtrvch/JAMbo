@@ -24,6 +24,8 @@ extension AppModel {
     /// Начать переход к next (и во время игры, и без неё). CROSSFADER OFF — общие настройки сразу нового проекта, но
     /// при игре модули мастера и EQ мастера — старого, пока игра идёт (globalsHold, решение пользователя).
     func startMix(_ next: Project) {
+        // Аранжировщик (S15): переход MIX — все дорожки в сетку паттернов.
+        audio.core.events.push(.leaveArrange)
         let last = AppModel.prevRow
         let leaving: [Bool] = (0..<Params.maxTracks).map { live.queued[$0] == Launcher.stop }
         let top: Int = gridWindow.top
