@@ -49,10 +49,14 @@ extension AppModel {
         edit { p in p.tracks[t].setAuto(id, points) }
     }
 
-    /// Шаг точки: с магнитом — целый шаг, без — четверть шага.
+    /// Шаг точки: с магнитом — на ближайшей линии сетки таймлайна (1 BAR, 1/2, 1/4, 1 STEP), без — четверть шага.
     func arrAutoSnap(_ x: Double) -> Double {
-        let q: Double = project.arrange.snap ? 1 : 4
-        return max(0, (x * q).rounded() / q)
+        let a: Arrangement = project.arrange
+        if a.snap {
+            let g: Double = Double(max(1, a.gridSteps))
+            return max(0, (x / g).rounded() * g)
+        }
+        return max(0, (x * 4).rounded() / 4)
     }
 }
 
