@@ -6,6 +6,7 @@ import SwiftUI
 /// (синусоида с точками), REF. Шаг сетки — в SETTINGS → ARRANGE.
 struct ArrangeBar: View {
     let model: AppModel
+    @Environment(\.theme) private var theme
 
     var body: some View {
         let a: Arrangement = model.project.arrange
@@ -21,6 +22,7 @@ struct ArrangeBar: View {
                 }
             }
             .frame(width: Layout.leftColumn)
+            .background(cover)
             Spacer(minLength: 0)
             HStack(spacing: Layout.gap) {
                 ArrBarButton(on: model.arrKnobs, enabled: true, action: { model.arrKnobs.toggle() }) { c in
@@ -34,9 +36,16 @@ struct ArrangeBar: View {
                 ArrBarText(title: "REF", on: false, enabled: false) {}
             }
             .frame(width: Layout.leftColumn)
+            .background(cover)
             // Место измерителя справа (как в окне дорожки).
             Color.clear.frame(width: Layout.meterWidth)
         }
+    }
+
+    /// Ровный фон под кнопками (решение пользователя): закрывает строку папки, ● MASTER, верхнюю миниатюру и её обводку
+    /// (обводка — на 4 pt за миниатюрой), в том числе в зазорах между кнопками.
+    private var cover: some View {
+        Rectangle().fill(theme.bg).padding(-5)
     }
 }
 
