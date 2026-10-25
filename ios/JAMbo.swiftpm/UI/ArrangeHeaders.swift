@@ -77,7 +77,9 @@ struct ArrHeaderRow: View {
         }
         .padding(.horizontal, 6)
         .background(bg, in: RoundedRectangle(cornerRadius: 6))
-        .overlay(RoundedRectangle(cornerRadius: 6).stroke(selected ? theme.accent : Color.clear, lineWidth: 1))
+        // Выбранная — две жёлтые линии сверху и снизу (продолжаются по всей строке таймлайна).
+        .overlay(alignment: .top) { Rectangle().fill(selected ? theme.accent : Color.clear).frame(height: 1) }
+        .overlay(alignment: .bottom) { Rectangle().fill(selected ? theme.accent : Color.clear).frame(height: 1) }
         .contentShape(Rectangle())
         .gesture(touch)
     }

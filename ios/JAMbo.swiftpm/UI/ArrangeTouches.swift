@@ -237,24 +237,38 @@ final class ArrTouches {
         base = ArrPort(stepW: m.stepW, x: m.x, rowH: m.rowH, y: m.y)
     }
 
-    /// Два пальца (решение пользователя): разошлись или сошлись по горизонтали — масштаб времени (точка между пальцами
-    /// на месте), сдвинулись вместе вбок — прокрутка по времени; по вертикали — ничего.
+    /// Два пальца (решения пользователя): разошлись или сошлись — масштаб по той оси, что разошлась первой: по
+    /// горизонтали — время (точка между пальцами на месте), по вертикали — высота строк (только EXPANDED); сдвинулись
+    /// вместе вбок — прокрутка по времени; вместе вверх-вниз — ничего.
     private func zoom(_ a: CGPoint, _ b: CGPoint, _ port: inout ArrPort, _ m: ArrMetrics) {
         let sx: CGFloat = abs(a.x - b.x)
+        let sy: CGFloat = abs(a.y - b.y)
         let cx: CGFloat = (a.x + b.x) / 2
-        port.y = base.y
         if axis == nil {
             let dx: CGFloat = abs(sx - spread0.width)
-            if dx < ArrTouches.zoomSlop {
+            let dy: CGFloat = abs(sy - spread0.height)
+            if max(dx, dy) < ArrTouches.zoomSlop {
                 port.x = base.x - (cx - mid.x)
+                port.y = base.y
                 return
             }
-            axis = .h
+            axis = dx >= dy || !m.expanded ? .h : .v
         }
-        let w0: CGFloat = base.stepW ?? m.stepW
-        let k: CGFloat = sx / max(20, spread0.width)
-        let w: CGFloat = ArrMetrics.clampStep(w0 * k, width: m.size.width)
-        port.stepW = w
-        port.x = (base.x + mid.x) / w0 * w - cx
+        if axis == .h {
+            let w0: CGFloat = base.stepW ?? m.stepW
+            let k: CGFloat = sx / max(20, spread0.width)
+            let w: CGFloat = ArrMetrics.clampStep(w0 * k, width: m.size.width)
+            port.stepW = w
+            port.x = (base.x + mid.x) / w0 * w - cx
+            port.y = base.y
+        } else {
+            let h0: CGFloat = base.rowH
+            let k: CGFloat = sy / max(20, spread0.height)
+            let h: CGFloat = ArrMetrics.clampRow(h0 * k)
+            let my: CGFloat = mid.y - ArrMetrics.top
+            port.rowH = h
+            port.y = (base.y + my) / h0 * h - my
+            port.x = base.x
+        }
     }
 }

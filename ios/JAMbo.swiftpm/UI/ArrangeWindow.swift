@@ -132,6 +132,7 @@ struct ArrTimeline: View {
         let port: ArrPort = model.arrPort
         let now: Int = model.arrNow
         let sel: ArrSel? = model.arrSel
+        let selTrack: Int = model.channel == .track ? model.selectedTrack : -1
         let following: [Bool] = (0..<p.tracks.count).map { model.arrFollowing($0) }
         return GeometryReader { geo in
             let m = ArrMetrics(size: geo.size, port: port, tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded)
@@ -141,7 +142,7 @@ struct ArrTimeline: View {
                     var c = ctx
                     c.clip(to: Path(roundedRect: CGRect(origin: .zero, size: size), cornerRadius: Layout.radius))
                     ArrDraw(ctx: c, m: m, theme: theme).draw(p, cursor: now, sel: sel, lift: lift, following: following,
-                                                            names: { model.arrClipName($0) })
+                                                            track: selTrack)
                 }
                 if let l = lift { liftedView(l, m, p) }
             }
@@ -193,7 +194,7 @@ struct ArrDraw {
     let m: ArrMetrics
     let theme: Theme
 
-    func draw(_ p: Project, cursor: Int, sel: ArrSel?, lift: ArrLift?, following: [Bool], names: (Int) -> String) {
+    func draw(_ p: Project, cursor: Int, sel: ArrSel?, lift: ArrLift?, following: [Bool], track: Int) {
         lanes(p)
         gridLines(p)
         for t in 0..<p.tracks.count {
@@ -201,8 +202,9 @@ struct ArrDraw {
             let on: Bool = t < following.count ? following[t] : true
             let heard: Bool = p.audible(t)
             let dim: Bool = !on || !heard
-            blocks(p, t, sel: sel, lift: lift, dim: dim, names: names)
+            blocks(p, t, sel: sel, lift: lift, dim: dim)
         }
+        selectedLane(track)
         if let l = lift { target(l) }
         ruler(p)
         markers(p)
@@ -237,7 +239,17 @@ struct ArrDraw {
         }
     }
 
-    private func blocks(_ p: Project, _ t: Int, sel: ArrSel?, lift: ArrLift?, dim: Bool, names: (Int) -> String) {
+    /// Выбранная дорожка (решение пользователя): две жёлтые линии по всей длине строки — сверху и снизу (продолжают
+    /// линии заголовка).
+    private func selectedLane(_ t: Int) {
+        if t < 0 || t >= m.tracks { return }
+        let y: CGFloat = m.rowY(t)
+        if y > m.size.height || y + m.rowH < ArrMetrics.top { return }
+        ctx.fill(Path(CGRect(x: 0, y: y, width: m.size.width, height: 1)), with: .color(theme.accent))
+        ctx.fill(Path(CGRect(x: 0, y: y + m.rowH - 1, width: m.size.width, height: 1)), with: .color(theme.accent))
+    }
+
+    private func blocks(_ p: Project, _ t: Int, sel: ArrSel?, lift: ArrLift?, dim: Bool) {
         let tr: Track = p.tracks[t]
         let y: CGFloat = m.rowY(t)
         if y > m.size.height || y + m.rowH < ArrMetrics.top { return }
@@ -253,16 +265,15 @@ struct ArrDraw {
         }
     }
 
-    /// Паттерн клипа на блоке (решение пользователя: без цифр): триги играющих страниц по шагам, клип — по кругу
-    /// с места блока, как он звучит.
+    /// Паттерн клипа на блоке (решение пользователя: без цифр): триг в один шаг — квадратик, длинная нота — линия на всю
+    /// её длину; клип — по кругу с места блока, как он звучит.
     private func pattern(_ tr: Track, _ b: ArrBlock, _ r: CGRect) {
         guard tr.clipFilled(b.clip), let c = tr.clips[b.clip] else { return }
-        let first: Int = max(b.start, Int(m.step(at: 0)))
+        let first: Int = max(b.start, Int(m.step(at: 0)) - 16)
         let last: Int = min(b.end, Int(m.step(at: m.size.width)) + 1)
         if last <= first { return }
-        let w: CGFloat = max(1, m.stepW * 0.6)
-        let h: CGFloat = max(2, r.height * 0.5)
-        let y: CGFloat = r.midY - h / 2
+        let side: CGFloat = max(2, min(m.stepW * 0.7, r.height * 0.4))
+        let y: CGFloat = r.midY - side / 2
         let len: Int = c.playLen
         var path = Path()
         var s: Int = first
@@ -271,14 +282,21 @@ struct ArrDraw {
             if n < len {
                 let idx: Int = c.playIndex(n)
                 if let st = c.step(idx), st.on, !c.outside(idx) {
-                    path.addRect(CGRect(x: m.stepX(Double(s)) + 1, y: y, width: w, height: h))
+                    let pad: CGFloat = max(0.5, (m.stepW - side) / 2)
+                    let x: CGFloat = m.stepX(Double(s)) + pad
+                    var w: CGFloat = side
+                    if st.len >= 2 {
+                        let full: CGFloat = CGFloat(st.len) * m.stepW
+                        w = full - 2 * pad
+                    }
+                    path.addRect(CGRect(x: x, y: y, width: w, height: side))
                 }
             }
             s += 1
         }
         var cc = ctx
         cc.clip(to: Path(r.insetBy(dx: 1, dy: 1)))
-        cc.fill(path, with: .color(ArrColors.text.opacity(0.55)))
+        cc.fill(path, with: .color(ArrColors.text.opacity(0.6)))
     }
 
     /// Куда встанет поднятый блок — контур.
