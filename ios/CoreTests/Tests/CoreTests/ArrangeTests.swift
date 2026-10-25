@@ -212,4 +212,30 @@ final class ArrangeTests: XCTestCase {
         p.deleteMarker(0)
         XCTAssertTrue(p.arrange.markers.isEmpty)
     }
+
+    /// TO ARRANGE: N блоков длиной в свой клип, секция — имя строки на длину самого длинного × N; LOOP ROW — один проход.
+    func testRowToArrange() {
+        var p = Project()
+        for t in p.tracks.indices { p.tracks[t].clips[2] = nil }
+        p.tracks[0].clips[2] = Clip(pages: [Track.emptyPage()], length: 16, playFrom: 0, playTo: 0)
+        p.tracks[1].clips[2] = Clip(pages: [Track.emptyPage(), Track.emptyPage()], length: 32, playFrom: 0, playTo: 1)
+        p.setScene(2, name: "Drop", repeats: 2)
+        p.rowLoop = false
+        p.tracks[0].placeBlock(ArrBlock(clip: 0, start: 0, length: 16))
+        XCTAssertEqual(p.rowToArrange(2, at: nil), 80)
+        XCTAssertEqual(spans(p.tracks[0]), [[0, 0, 16, 0], [2, 16, 16, 0], [2, 32, 16, 0]])
+        XCTAssertEqual(spans(p.tracks[1]), [[2, 16, 32, 0], [2, 48, 32, 0]])
+        XCTAssertEqual(p.arrange.markers.map { [$0.at, $0.end ?? -1] }, [[16, 80]])
+        XCTAssertEqual(p.arrange.markers[0].name, "Drop")
+        // С курсора: заменяет блоки и секции этих дорожек на участке; LOOP ROW — один проход.
+        p.rowLoop = true
+        p.tracks[2].placeBlock(ArrBlock(clip: 0, start: 0, length: 64))
+        XCTAssertEqual(p.rowToArrange(2, at: 0), 32)
+        XCTAssertEqual(spans(p.tracks[0]), [[2, 0, 16, 0], [2, 32, 16, 0]])
+        XCTAssertEqual(spans(p.tracks[1]), [[2, 0, 32, 0], [2, 32, 16, 16], [2, 48, 32, 0]], "правее участка — остаток прежнего блока")
+        XCTAssertEqual(spans(p.tracks[2]), [[0, 0, 64, 0]], "дорожка без клипа в строке не меняется")
+        XCTAssertEqual(p.arrange.markers.map { [$0.at, $0.end ?? -1] }, [[0, 32]])
+        // Пустая строка — ничего.
+        XCTAssertNil(p.rowToArrange(5, at: nil))
+    }
 }

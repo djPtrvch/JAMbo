@@ -136,10 +136,10 @@ struct CellMenu: View {
     }
 }
 
-/// Меню строки: имя (до 12 знаков), REPEATS − n +, DUPLICATE, COPY, PASTE, DELETE, OK.
+/// Меню строки: имя (до 12 знаков), REPEATS − n +, TO ARRANGE (END, CURSOR), DUPLICATE, COPY, PASTE, DELETE, OK.
 struct RowMenu: View {
-    /// Имя 44, REPEATS 44, 3 строки по 40, 4 зазора по 6, поля 16.
-    static let height: CGFloat = 248
+    /// Имя 44, REPEATS 44, TO ARRANGE 54 (подпись 12, зазор 2, кнопки 40), 3 строки по 40, 5 зазоров по 6, поля 16.
+    static let height: CGFloat = 308
     let model: AppModel
     let row: Int
     @State private var name: String = ""
@@ -156,6 +156,7 @@ struct RowMenu: View {
                 .background(theme.panel, in: RoundedRectangle(cornerRadius: 6))
                 .onChange(of: name) { _, v in if v.count > 12 { name = String(v.prefix(12)) } }
             repeatsRow
+            arrangeRow
             HStack(spacing: 6) {
                 MenuItem(title: "DUPLICATE", enabled: model.project.canAddRow) { act { model.duplicateRow(row) } }
                 MenuItem(title: "COPY") { act { model.copyRow(row) } }
@@ -184,6 +185,24 @@ struct RowMenu: View {
             MenuItem(title: "+") { reps = min(64, reps + 1) }.frame(width: 44)
         }
         .frame(height: 44)
+    }
+
+    /// TO ARRANGE (S15e): блоки строки — в конец аранжировки или с курсора (имя и повторы — из этого окна).
+    private var arrangeRow: some View {
+        let filled: Bool = model.project.rowFilled(row)
+        return VStack(spacing: 2) {
+            Text("TO ARRANGE").font(.system(size: 9)).foregroundStyle(theme.dim)
+                .frame(maxWidth: .infinity, minHeight: 12, alignment: .leading)
+            HStack(spacing: 6) {
+                MenuItem(title: "END", enabled: filled) { toArrange(false) }
+                MenuItem(title: "CURSOR", enabled: filled) { toArrange(true) }
+            }
+        }
+    }
+
+    private func toArrange(_ cursor: Bool) {
+        model.rowMenu = nil
+        model.rowToArrange(row, name: name, repeats: reps, atCursor: cursor)
     }
 
     private func done() {

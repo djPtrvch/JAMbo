@@ -274,6 +274,34 @@ extension Project {
         if !arrange.hasLoop { arrange.loop = false }
     }
 
+    /// TO ARRANGE (S15e): строка k — в аранжировку с позиции at (nil — в конец аранжировки). Дорожки с клипом в строке
+    /// получают по N блоков подряд длиной в свой клип (N — повторы строки; LOOP ROW — один проход); участок
+    /// [начало, начало + длина строки) этих дорожек и секции в нём заменяются; секция — имя строки на длину строки
+    /// (самый длинный клип × N). Конец участка; nil — в строке нет клипов.
+    @discardableResult
+    public mutating func rowToArrange(_ k: Int, at: Int?) -> Int? {
+        guard k >= 0 && k < scenes.count else { return nil }
+        let reps: Int = rowLoop ? 1 : Swift.max(1, scenes[k].repeats)
+        var lens: [Int] = [Int](repeating: 0, count: tracks.count)
+        var longest: Int = 0
+        for t in tracks.indices where tracks[t].clipFilled(k) {
+            lens[t] = tracks[t].clipSteps(k)
+            longest = Swift.max(longest, lens[t])
+        }
+        if longest == 0 { return nil }
+        let start: Int = Swift.max(0, at ?? arrangeEnd)
+        let end: Int = start + longest * reps
+        for t in tracks.indices where lens[t] > 0 {
+            tracks[t].clearArrange(from: start, to: end)
+            for r in 0..<reps {
+                tracks[t].placeBlock(ArrBlock(clip: k, start: start + r * lens[t], length: lens[t]))
+            }
+        }
+        arrange.markers.removeAll { $0.at >= start && $0.at < end }
+        addMarker(at: start, name: sceneName(k), end: end)
+        return end
+    }
+
     public static func markerName(_ s: String) -> String {
         return String(s.trimmingCharacters(in: .whitespaces).prefix(12))
     }

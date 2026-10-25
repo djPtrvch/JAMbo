@@ -245,6 +245,15 @@ extension AppModel {
         edit { p in p.setScene(k, name: name, repeats: repeats) }
     }
 
+    /// TO ARRANGE в меню строки (S15e): имя и повторы из окна строки и перенос — одна запись UNDO.
+    func rowToArrange(_ k: Int, name: String, repeats: Int, atCursor: Bool) {
+        let at: Int? = atCursor ? arrCursor : nil
+        edit { p in
+            p.setScene(k, name: name, repeats: repeats)
+            p.rowToArrange(k, at: at)
+        }
+    }
+
     func setArrangement(start: Int? = nil, endStop: Bool? = nil, plusCopy: Bool? = nil, arrowSwitch: Bool? = nil) {
         edit { p in
             if let s = start { p.arrStart = s }
