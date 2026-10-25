@@ -142,8 +142,10 @@ struct RootView: View {
                     .frame(height: max(0, g.size.height - bar - Layout.gap))
                     .offset(y: bar + Layout.gap)
                 if model.arrKnobs {
+                    // Фон — и под зазором снизу (чёрная полоса, как между дорожками): из-под окна ничего не видно.
                     center(layout)
                         .frame(height: max(0, g.size.height - lowerH - Layout.gap))
+                        .frame(height: max(0, g.size.height - lowerH), alignment: .top)
                         .background(theme.bg)
                 }
                 if model.arrAutoPanel {
