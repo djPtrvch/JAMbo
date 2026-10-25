@@ -283,6 +283,9 @@ struct KnobCell: View {
         return Group {
             if st.assign != nil {
                 TimelineView(.animation) { _ in KnobView(state: st, mod: model.modulatedNorm(st), saved: saved) }
+            } else if st.autoNorm != nil {
+                // Кривая аранжировки: ручка идёт за ней каждый кадр.
+                TimelineView(.animation) { _ in KnobView(state: model.knobState(slot), saved: saved) }
             } else {
                 KnobView(state: st, saved: saved)
             }
@@ -353,6 +356,14 @@ struct KnobView: View {
         }
         if let am = state.assign {
             drawMod(ctx, c, k, am)
+        }
+        // Кривая аранжировки — жёлтая риска снаружи кольца (как в вебе).
+        if let an = state.autoNorm {
+            let aa: Double = KnobView.angle(an)
+            var tick = Path()
+            tick.move(to: KnobView.polar(c, 32 * k, aa))
+            tick.addLine(to: KnobView.polar(c, 42 * k, aa))
+            ctx.stroke(tick, with: .color(theme.accent), style: StrokeStyle(lineWidth: 3 * k, lineCap: .round))
         }
         let a: Double = KnobView.angle(mod ?? state.norm)
         var pointer = Path()

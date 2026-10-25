@@ -84,6 +84,12 @@ extension AppModel {
         return project.tracks[t].autos[k].value(at: arrNowX)
     }
 
+    /// Ручка id выбранной дорожки под рукой (палец, энкодер при записи): кривая на ней не действует.
+    func autoHand(_ id: String) -> Bool {
+        guard let key = autoKey(selectedTrack, id) else { return false }
+        return autoHeld.contains(key)
+    }
+
     /// Пишется ли поворот ручки id: REC + PLAY + AUTO, ручка дорожки (не FX).
     func autoRecording(_ id: String) -> Bool {
         return arrRecording && channel == .track && !fxMode && ArrAutoTarget.index(id) != nil
@@ -96,13 +102,15 @@ extension AppModel {
 
     /// Палец на ручке (или нажатие энкодера): её кривая не действует — слышна рука; отпустили — кусок записи кончился.
     func knobTouch(_ slot: Int, _ on: Bool) {
-        guard channel == .track, !fxMode, !modMode, let p = param(slot), let key = autoKey(selectedTrack, p.id) else { return }
-        if on {
-            autoHold(key, true)
-        } else {
+        if !on {
+            guard let key = autoSlotKeys.removeValue(forKey: slot) else { return }
             flushAutoTake(key)
             autoHold(key, false)
+            return
         }
+        guard channel == .track, !fxMode, !modMode, let p = param(slot), let key = autoKey(selectedTrack, p.id) else { return }
+        autoSlotKeys[slot] = key
+        autoHold(key, true)
     }
 
     private func autoHold(_ key: Int, _ on: Bool) {

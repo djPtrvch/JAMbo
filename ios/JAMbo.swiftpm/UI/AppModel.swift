@@ -96,6 +96,8 @@ final class AppModel {
     /// отложенный конец куска (энкодер MIDI — без касания).
     @ObservationIgnored var autoTakes: [Int: AutoTake] = [:]
     @ObservationIgnored var autoHeld: Set<Int> = []
+    /// Ручка под пальцем → её кривая (снять удержание и при смене режима до отпускания).
+    @ObservationIgnored var autoSlotKeys: [Int: Int] = [:]
     @ObservationIgnored var autoFlush: DispatchWorkItem? = nil
     /// У каждой дорожки свои режим аккордов, прогрессия и выбранные ноты (не в проекте).
     var chordMode: [Bool] = [Bool](repeating: false, count: Params.maxTracks)

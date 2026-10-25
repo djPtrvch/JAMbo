@@ -13,6 +13,8 @@ struct KnobState {
     /// Назначенный LFO/ENV и удерживаемый источник (виден весь ход, на ручке — степень).
     var assign: ModAssign? = nil
     var heldSource: Int? = nil
+    /// Кривая аранжировки, которая сейчас действует (0…1; S15f) — жёлтая риска снаружи кольца; nil — нет.
+    var autoNorm: Double? = nil
 }
 
 extension AppModel {
@@ -104,7 +106,13 @@ extension AppModel {
             return KnobState(param: p, value: v, norm: p.toNorm(v), baseNorm: p.toNorm(v), locked: false)
         }
         let t = track
-        let base: Double = fxMode ? fxValue(p) : t.params[p.id] ?? p.def
+        var base: Double = fxMode ? fxValue(p) : t.params[p.id] ?? p.def
+        // Кривая аранжировки (как в вебе): база — значение кривой (палец на ручке — рука), риска — кривая.
+        var autoN: Double? = nil
+        if !fxMode && !modMode, let cn = autoCurveNorm(selectedTrack, p.id) {
+            autoN = cn
+            if !autoHand(p.id) { base = p.fromNorm(cn) }
+        }
         var lock: Double? = nil
         if let held = heldSteps.min() {
             lock = t.step(held)?.locks[p.id]
@@ -114,7 +122,7 @@ extension AppModel {
         }
         let v: Double = lock ?? base
         return KnobState(param: p, value: v, norm: p.toNorm(v), baseNorm: p.toNorm(base), locked: lock != nil,
-                         assign: assign(slot), heldSource: canAssign ? heldSource : nil)
+                         assign: assign(slot), heldSource: canAssign ? heldSource : nil, autoNorm: autoN)
     }
 
     /// Начало поворота: положение, от которого считать (p-lock зажатого шага или ручка).
