@@ -198,4 +198,18 @@ final class ArrangePlayTests: XCTestCase {
         t.setAuto("nope", [])
         XCTAssertEqual(t.autos.count, 1)
     }
+
+    /// Запись ручки (S15f3): прямая упрощается до концов, кусок заменяет точки на своём участке.
+    func testRecordAuto() {
+        let line: [ArrAutoPoint] = (0...20).map { ArrAutoPoint(x: Double($0), y: Double($0) / 20) }
+        XCTAssertEqual(ArrAutoLane.simplify(line, tol: 0.01).count, 2)
+        let bend: [ArrAutoPoint] = [ArrAutoPoint(x: 0, y: 0), ArrAutoPoint(x: 1, y: 1), ArrAutoPoint(x: 2, y: 0)]
+        XCTAssertEqual(ArrAutoLane.simplify(bend, tol: 0.01).count, 3)
+        var t = Track(index: 0)
+        t.setAuto("filter", [ArrAutoPoint(x: 0, y: 0.5), ArrAutoPoint(x: 8, y: 0.5), ArrAutoPoint(x: 32, y: 0.5)])
+        t.recordAuto("filter", line.map { ArrAutoPoint(x: $0.x + 4, y: $0.y) })
+        XCTAssertEqual(t.autos[0].points.map { $0.x }, [0, 4, 24, 32])
+        t.recordAuto("pan", [ArrAutoPoint(x: 1, y: 0.2), ArrAutoPoint(x: 2, y: 0.3)])
+        XCTAssertEqual(t.autos.count, 2)
+    }
 }

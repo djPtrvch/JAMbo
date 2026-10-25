@@ -127,6 +127,8 @@ extension AppModel {
         if channel == .master { return p.toNorm(masterValue(p)) }
         if let held = heldSteps.min(), let v = track.step(held)?.locks[p.id] { return p.toNorm(v) }
         if fxMode { return p.toNorm(fxValue(p)) }
+        // Кривая аранжировки действует — ручка начинает с её значения (без скачка).
+        if !modMode, let v = autoCurveNorm(selectedTrack, p.id) { return v }
         return p.toNorm(track.params[p.id] ?? p.def)
     }
 
@@ -158,6 +160,10 @@ extension AppModel {
         if held.isEmpty && fxMode {
             setFx(p, v)
         } else if held.isEmpty {
+            // REC + PLAY + AUTO: поворот пишет кривую ручки (S15f3); сама ручка после записи — прежняя.
+            let rec: Bool = !modMode && autoRecording(p.id)
+            if rec { autoTakeBegin(slot, p) }
+            defer { if rec { autoTakePoint(p.id, norm) } }
             let m = morph
             // MORPH на все дорожки (SETTINGS → MORPH): та же ручка у остальных — сдвиг на ту же долю хода.
             let all: Bool = m && settings.morphAll

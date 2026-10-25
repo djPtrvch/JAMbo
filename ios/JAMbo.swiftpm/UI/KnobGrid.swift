@@ -154,7 +154,10 @@ struct KnobGrid: View {
             let a = model.assign(s)
             turn.acc = a?.lfo == src ? a!.amount : 0
         }
-        if model.channel != .mix { model.knobFingers.insert(s) }
+        if model.channel != .mix {
+            model.knobFingers.insert(s)
+            model.knobTouch(s, true)
+        }
         turns[id] = turn
         model.beginGesture()
         // С зажатым шагом ручка ставит p-lock — перестановки дорожек нет.
@@ -233,7 +236,10 @@ struct KnobGrid: View {
     private func up(_ id: SpatialEventCollection.Event.ID) {
         guard let turn = turns.removeValue(forKey: id) else { return }
         if turn.shiftTap { model.knobShiftTap(turn.slot) }
-        if !turns.values.contains(where: { $0.slot == turn.slot }) { model.knobFingers.remove(turn.slot) }
+        if !turns.values.contains(where: { $0.slot == turn.slot }) {
+            model.knobFingers.remove(turn.slot)
+            model.knobTouch(turn.slot, false)
+        }
         model.endGesture()
         if let l = lift, l.id == id {
             lift = nil

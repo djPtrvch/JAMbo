@@ -126,6 +126,7 @@ extension AppModel {
         } else if !want && live.recorder.active {
             let segs: [ArrRecorder.Seg] = live.finishRecord()
             if !segs.isEmpty { edit { p in p.applyRecording(segs) } }
+            flushAutoTakes(all: true)
         }
     }
 }

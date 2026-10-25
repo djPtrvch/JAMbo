@@ -92,6 +92,11 @@ final class AppModel {
     var recOn: Bool = false
     /// AUTO в аранжировщике (S15e): REC + PLAY + AUTO — запуски клипов в сетке пишутся блоками (ноты не пишутся).
     var arrAuto: Bool = false
+    /// Запись ручек в аранжировку (S15f3): кусок на ручку (ключ — дорожка·ArrAutoTarget.count + цель), кривые под рукой,
+    /// отложенный конец куска (энкодер MIDI — без касания).
+    @ObservationIgnored var autoTakes: [Int: AutoTake] = [:]
+    @ObservationIgnored var autoHeld: Set<Int> = []
+    @ObservationIgnored var autoFlush: DispatchWorkItem? = nil
     /// У каждой дорожки свои режим аккордов, прогрессия и выбранные ноты (не в проекте).
     var chordMode: [Bool] = [Bool](repeating: false, count: Params.maxTracks)
     var progression: [Int] = [Int](repeating: 0, count: Params.maxTracks)

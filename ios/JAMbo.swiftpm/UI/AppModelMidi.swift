@@ -171,6 +171,7 @@ extension AppModel {
     private func midiTouch(_ s: Int, _ down: Bool) {
         guard down else {
             knobFingers.remove(s)
+            knobTouch(s, false)
             return
         }
         ensureAudio()
@@ -185,7 +186,10 @@ extension AppModel {
         } else {
             midiRun.pressTap[s] = now
         }
-        if channel != .mix { knobFingers.insert(s) }
+        if channel != .mix {
+            knobFingers.insert(s)
+            knobTouch(s, true)
+        }
     }
 
     /// Сброс ручки: с зажатым LFO/ENV — снять назначение, с зажатым шагом или SHIFT — снять p-lock (как двойной тап),

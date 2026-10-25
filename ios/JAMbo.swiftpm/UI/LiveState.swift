@@ -30,6 +30,8 @@ final class LiveState {
     private(set) var following: [Bool] = [Bool](repeating: false, count: Params.maxTracks)
     /// Тик транспорта от PLAY (шаги; −1 — ещё не было) и журнал запусков клипов в сетке (S15e, SEND TO ARRANGE).
     @ObservationIgnored private(set) var tick: Int = -1
+    /// Когда курсор аранжировки встал на arrPos (для дробной позиции записи ручек).
+    @ObservationIgnored private(set) var arrPosTime: Double = 0
     @ObservationIgnored private(set) var journal = ArrJournal()
     /// Запись аранжировки с AUTO (S15e).
     @ObservationIgnored private(set) var recorder = ArrRecorder()
@@ -70,6 +72,7 @@ final class LiveState {
                 onPlay(e)
             case .arrange(let pos):
                 if arrPos != pos { arrPos = pos }
+                arrPosTime = now
                 recorder.step(pos)
             case .follow(let t, let on):
                 if t < following.count && following[t] != on { following[t] = on }

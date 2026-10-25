@@ -83,3 +83,53 @@ extension Track {
         autos.removeAll { $0.param == id }
     }
 }
+
+extension ArrAutoLane {
+    /// Упрощение записи (Рамер — Дуглас — Пекер по значению): точка уходит, если кривая без неё отклоняется не больше
+    /// tol (доля хода ручки); концы остаются.
+    public static func simplify(_ p: [ArrAutoPoint], tol: Double) -> [ArrAutoPoint] {
+        if p.count <= 2 { return p }
+        var keep: [Bool] = [Bool](repeating: false, count: p.count)
+        keep[0] = true
+        keep[p.count - 1] = true
+        var stack: [(Int, Int)] = [(0, p.count - 1)]
+        while let (a, b) = stack.popLast() {
+            if b - a < 2 { continue }
+            var worst: Double = -1
+            var at: Int = -1
+            let dx: Double = p[b].x - p[a].x
+            var i: Int = a + 1
+            while i < b {
+                let f: Double = dx > 0 ? (p[i].x - p[a].x) / dx : 0
+                let y: Double = p[a].y + (p[b].y - p[a].y) * f
+                let d: Double = abs(p[i].y - y)
+                if d > worst {
+                    worst = d
+                    at = i
+                }
+                i += 1
+            }
+            if worst > tol && at > 0 {
+                keep[at] = true
+                stack.append((a, at))
+                stack.append((at, b))
+            }
+        }
+        var out: [ArrAutoPoint] = []
+        for (i, pt) in p.enumerated() where keep[i] { out.append(pt) }
+        return out
+    }
+}
+
+extension Track {
+    /// Записанный кусок кривой ручки id (S15f3): точки на участке [первая, последняя] заменяются куском (упрощённым);
+    /// вне участка — не трогаются. Кривой нет — появляется.
+    public mutating func recordAuto(_ id: String, _ take: [ArrAutoPoint], tol: Double = 0.01) {
+        guard let a = take.first, let b = take.last, ArrAutoTarget.index(id) != nil else { return }
+        let piece: [ArrAutoPoint] = ArrAutoLane.simplify(take, tol: tol)
+        var pts: [ArrAutoPoint] = autoLane(id).map { autos[$0].points } ?? []
+        pts.removeAll { $0.x >= a.x && $0.x <= b.x }
+        pts.append(contentsOf: piece)
+        setAuto(id, pts)
+    }
+}
