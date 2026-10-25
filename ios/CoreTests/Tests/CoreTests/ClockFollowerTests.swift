@@ -64,4 +64,38 @@ final class ClockFollowerTests: XCTestCase {
         XCTAssertEqual(f.stepTime(0) ?? 0, last + iv * 2, accuracy: 1e-6)
         XCTAssertEqual(f.stepTime(1) ?? 0, last + iv * 8, accuracy: 1e-6)
     }
+
+    /// Клок пропал во время игры (устройство отключили) и вернулся: без новой привязки шаги не по тикам; первые тики —
+    /// без темпа; started — шаг снова на ближайшем тике.
+    func testReconnect() {
+        var f = ClockFollower()
+        let iv: Double = 60 / (120.0 * 24)
+        var t: Double = 1
+        for _ in 0..<30 {
+            _ = f.tick(at: t)
+            t += iv
+        }
+        f.started(at: t - iv)
+        XCTAssertTrue(f.anchored)
+        f.lose()
+        XCTAssertFalse(f.anchored)
+        // Через 3 с клок снова идёт.
+        t += 3
+        for _ in 0..<3 {
+            _ = f.tick(at: t)
+            t += iv
+        }
+        XCTAssertNil(f.tempo)
+        XCTAssertFalse(f.alive(now: t))
+        for _ in 0..<10 {
+            _ = f.tick(at: t)
+            t += iv
+        }
+        XCTAssertEqual(f.tempo ?? 0, 120, accuracy: 0.01)
+        XCTAssertTrue(f.alive(now: t))
+        let last: Double = t - iv
+        f.started(at: last + iv * 0.9)
+        XCTAssertTrue(f.anchored)
+        XCTAssertEqual(f.stepTime(0) ?? 0, last + iv, accuracy: 1e-6)
+    }
 }

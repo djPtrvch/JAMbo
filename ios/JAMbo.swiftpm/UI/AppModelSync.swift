@@ -78,7 +78,8 @@ extension AppModel {
             midiRun.clockRefStep = -1
             return
         }
-        if !midiRun.clockWasPlaying {
+        // Своя игра началась или клок вернулся после пропажи (переподключили устройство) — шаг 0 к ближайшему тику.
+        if !midiRun.clockWasPlaying || !f.anchored {
             let t0: Double = g.time - Double(g.step) * g.stepDur
             midiRun.follower.started(at: t0 - offset)
         }

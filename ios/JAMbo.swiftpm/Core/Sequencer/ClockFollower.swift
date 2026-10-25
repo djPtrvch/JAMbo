@@ -13,6 +13,7 @@ public struct ClockFollower: Sendable {
 
     public static let fitTicks: Int = 48
     public static let timeout: Double = 0.5
+    public static let minTicks: Int = 4
 
     private var times: [Double] = [Double](repeating: 0, count: ClockFollower.fitTicks)
     private var n: Int = 0
@@ -22,6 +23,9 @@ public struct ClockFollower: Sendable {
     private var count: Int = 0
     private var origin: Int = 0
     private var armed: Bool = false
+    /// Шаг 0 транспорта привязан к тику клока (started). После пропажи клока привязки нет: счёт тиков стоял, пока
+    /// транспорт шёл, — шаги надо привязать заново к ближайшему тику.
+    public private(set) var anchored: Bool = false
 
     public init() {}
 
@@ -59,7 +63,7 @@ public struct ClockFollower: Sendable {
 
     /// Клок идёт (последний тик не старше 0,5 с) и темп известен.
     public func alive(now: Double) -> Bool {
-        return last > 0 && interval > 0 && now - last <= ClockFollower.timeout
+        return tempo != nil && now - last <= ClockFollower.timeout
     }
 
     /// Клок пропал: темп и счёт забываются.
@@ -68,17 +72,20 @@ public struct ClockFollower: Sendable {
         last = 0
         interval = 0
         armed = false
+        anchored = false
     }
 
-    /// Темп клока, BPM (nil — неизвестен).
+    /// Темп клока, BPM (nil — неизвестен). Первые тики после появления клока (меньше minTicks) — без темпа: интервал
+    /// по одному-двум тикам дрожит (USB), звук бы дёргался.
     public var tempo: Double? {
-        return last > 0 && interval > 0 ? 60 / (interval * 24) : nil
+        return last > 0 && interval > 0 && n >= ClockFollower.minTicks ? 60 / (interval * 24) : nil
     }
 
     /// Транспорт стартовал (своей кнопкой, Continue или по Start) с шагом 0 в момент at: тик клока шага 0 — ближайший.
     public mutating func started(at: Double) {
         guard interval > 0 else { return }
         origin = count + Int(((at - last) / interval).rounded())
+        anchored = true
     }
 
     /// Момент шага step транспорта по клоку (без MIDI OFFSET); nil — темп неизвестен.
