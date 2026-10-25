@@ -213,6 +213,23 @@ final class ArrangeTests: XCTestCase {
         XCTAssertTrue(p.arrange.markers.isEmpty)
     }
 
+    /// Края секции: левый — не правее конца и не левее конца прежней; правый — не дальше следующей.
+    func testSectionEdges() {
+        var p = Project()
+        p.addMarker(at: 0, name: "A", end: 16)
+        p.addMarker(at: 32, name: "B", end: 64)
+        p.setMarkerStart(1, 8)
+        XCTAssertEqual(p.arrange.markers[1].at, 16, "не левее конца прежней")
+        p.setMarkerStart(1, 70)
+        XCTAssertEqual(p.arrange.markers[1].at, 63, "не правее своего конца")
+        p.setMarkerEnd(0, 100)
+        XCTAssertEqual(p.arrange.markers[0].end, 63, "не дальше следующей")
+        p.setMarkerEnd(0, -5)
+        XCTAssertEqual(p.arrange.markers[0].end, 1)
+        p.setMarkerEnd(1, 128)
+        XCTAssertEqual(p.arrange.markers[1].end, 128)
+    }
+
     /// TO ARRANGE: N блоков длиной в свой клип, секция — имя строки на длину самого длинного × N; LOOP ROW — один проход.
     func testRowToArrange() {
         var p = Project()

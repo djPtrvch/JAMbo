@@ -123,8 +123,6 @@ final class AppModel {
     @ObservationIgnored var arrBlockClipboard: ArrBlock? = nil
     /// Рамка измерителя справа в окне дорожки («root»): в аранжировщике он стоит ровно там же и того же размера.
     @ObservationIgnored var meterFrame: CGRect = .zero
-    /// Низ окна аранжировщика («root»): измеритель справа в аранжировщике тянется до него.
-    var arrBottom: CGFloat = 0
     @ObservationIgnored var arrTrackClipboard: [ArrBlock]? = nil
     /// Пианоролл на месте центра (S8): открыт, меню бутерброда, режим VEL.
     var rollView: Bool = false
@@ -368,7 +366,12 @@ final class AppModel {
         if playing {
             // Петля включена — PLAY в аранжировщике играет её сначала.
             let a: Arrangement = project.arrange
-            let from: Int = arrangeView && a.loop && a.hasLoop ? a.loopFrom : arrCursor
+            var from: Int = arrangeView && a.loop && a.hasLoop ? a.loopFrom : arrCursor
+            // Курсор за концом аранжировки (ушёл при игре из сетки) — с начала, иначе игра сразу кончается.
+            if arrangeView && !(a.loop && a.hasLoop) && project.arrangeEnd > 0 && from >= project.arrangeEnd {
+                from = 0
+                arrCursor = 0
+            }
             audio.core.events.push(.arrange(on: arrangeView, from: from))
             live.stopped()
             live.begin(project, arrange: arrangeView)

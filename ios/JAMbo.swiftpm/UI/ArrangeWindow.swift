@@ -20,10 +20,7 @@ struct ArrangeWindow: View {
                     if model.meterFrame == .zero {
                         MeterColumn(model: model).padding(.leading, Layout.gap)
                     } else {
-                        // Низ окна: измеритель тянется до него (STEPS растягивает окно — и измеритель).
-                        Color.clear.frame(width: Layout.meterWidth)
-                            .padding(.leading, Layout.gap)
-                            .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("root")).maxY } action: { model.arrBottom = $0 }
+                        Color.clear.frame(width: Layout.meterWidth).padding(.leading, Layout.gap)
                     }
                 }
                 ArrMenus(model: model, size: geo.size)
@@ -71,7 +68,14 @@ struct ArrMetrics {
         stepW = ArrMetrics.clampStep(want, width: w)
         let area: CGFloat = max(0, size.height - ArrMetrics.top)
         let fitRow: CGFloat = area / CGFloat(max(1, tracks))
-        rowH = expanded ? ArrMetrics.clampRow(port.rowH) : max(16, fitRow)
+        // EXPANDED (решение пользователя): по умолчанию 8 дорожек делят высоту окна поровну, больше — прокрутка; после
+        // масштаба двумя пальцами — своя высота.
+        let fit8: CGFloat = area / CGFloat(min(max(1, tracks), 8))
+        if expanded {
+            rowH = port.rowH.map { ArrMetrics.clampRow($0) } ?? max(24, fit8)
+        } else {
+            rowH = max(16, fitRow)
+        }
         steps = max(end, 0) + 32 * ArrMetrics.stepsPerBar
         let maxX: CGFloat = max(0, CGFloat(steps) * stepW - w)
         x = min(maxX, max(0, port.x))
@@ -194,8 +198,8 @@ struct ArrTimeline: View {
         var port: ArrPort = model.arrPort
         touches.handle(events, port: &port, m, model, lift: $lift)
         let c = ArrMetrics(size: size, port: port, tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded)
-        // COMPACT: высота строк — по окну, своя высота EXPANDED не теряется.
-        let rowH: CGFloat = c.expanded ? c.rowH : port.rowH
+        // COMPACT: высота строк — по окну, своя высота EXPANDED не теряется; без своей — по окну (nil).
+        let rowH: CGFloat? = port.rowH.map { c.expanded ? c.rowH : $0 }
         let next = ArrPort(stepW: port.stepW == nil ? nil : c.stepW, x: c.x, rowH: rowH, y: c.y)
         if next != model.arrPort { model.arrPort = next }
     }
@@ -351,30 +355,27 @@ struct ArrDraw {
         ctx.fill(Path(CGRect(x: 0, y: ArrMetrics.top - 1, width: m.size.width, height: 1)), with: .color(theme.line))
     }
 
-    /// Строка маркеров (решение пользователя: секции без цвета): у начала секции — жёлтая риска во всю высоту строки,
-    /// рядом имя; у конца секции (диапазон, из которого её сделали) — риска, если там не начинается следующая.
+    /// Строка маркеров (решения пользователя: секции без цвета): начало и конец секции — тонкие жёлтые линии во всю
+    /// высоту строки, имя — по центру секции (последняя без конца — у начала).
     private func markers(_ p: Project) {
         let list: [ArrMarker] = p.arrange.markers
         let top: CGFloat = ArrMetrics.rulerH + 1
         let h: CGFloat = ArrMetrics.markerH - 2
-        let starts: Set<Int> = Set(list.map { $0.at })
         for (k, mk) in list.enumerated() {
             let x0: CGFloat = m.stepX(Double(mk.at))
-            var next: CGFloat = m.size.width
-            if let e = p.sectionEnd(k) {
-                next = m.stepX(Double(e))
-                if mk.end != nil && !starts.contains(e) && next >= 0 && next <= m.size.width {
-                    ctx.fill(Path(CGRect(x: next - 1, y: top, width: 2, height: h)), with: .color(theme.accent))
-                }
-            }
-            if next < 0 || x0 > m.size.width { continue }
-            ctx.fill(Path(CGRect(x: x0 - 1, y: top, width: 2, height: h)), with: .color(theme.accent))
+            let end: Int? = p.sectionEnd(k)
+            let x1: CGFloat = end.map { m.stepX(Double($0)) } ?? m.size.width
+            if x1 < 0 || x0 > m.size.width { continue }
+            ctx.fill(Path(CGRect(x: x0, y: top, width: 1, height: h)), with: .color(theme.accent))
+            if end != nil { ctx.fill(Path(CGRect(x: x1 - 1, y: top, width: 1, height: h)), with: .color(theme.accent)) }
             var c = ctx
-            c.clip(to: Path(CGRect(x: x0, y: top, width: max(2, next - x0), height: h)))
-            let name: String = mk.name.isEmpty ? " " : mk.name
-            let tx: CGFloat = max(x0, 0) + 5
-            let text: Text = Text(name).font(.system(size: 9, weight: .bold)).foregroundStyle(theme.text)
-            c.draw(text, at: CGPoint(x: tx, y: top + h / 2), anchor: .leading)
+            c.clip(to: Path(CGRect(x: x0 + 1, y: top, width: max(1, x1 - x0 - 2), height: h)))
+            let text: Text = Text(mk.name.isEmpty ? " " : mk.name).font(.system(size: 9, weight: .bold)).foregroundStyle(theme.text)
+            if end != nil {
+                c.draw(text, at: CGPoint(x: (x0 + x1) / 2, y: top + h / 2), anchor: .center)
+            } else {
+                c.draw(text, at: CGPoint(x: max(x0, 0) + 5, y: top + h / 2), anchor: .leading)
+            }
         }
     }
 

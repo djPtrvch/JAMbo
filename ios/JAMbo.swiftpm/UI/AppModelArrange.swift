@@ -20,12 +20,12 @@ enum ArrMenuState: Equatable {
     case range(anchor: CGPoint)
 }
 
-/// Вид таймлайна: ширина шага (nil — 16 тактов на ширину), прокрутка по X (pt), высота строки дорожки, прокрутка
-/// по Y. Не хранится в проекте и не входит в UNDO.
+/// Вид таймлайна: ширина шага (nil — 16 тактов на ширину), прокрутка по X (pt), высота строки дорожки (nil — 8 дорожек
+/// на высоту окна), прокрутка по Y. Не хранится в проекте и не входит в UNDO.
 struct ArrPort: Equatable {
     var stepW: CGFloat? = nil
     var x: CGFloat = 0
-    var rowH: CGFloat = 64
+    var rowH: CGFloat? = nil
     var y: CGFloat = 0
 }
 

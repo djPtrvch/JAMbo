@@ -234,6 +234,27 @@ extension Project {
         return arrange.markers.firstIndex(of: m) ?? 0
     }
 
+    /// Левый край секции k — на x (решение пользователя: секция не перетаскивается, тянутся края): не левее конца
+    /// прежней секции (или её начала + 1) и не правее своего конца − 1.
+    public mutating func setMarkerStart(_ k: Int, _ x: Int) {
+        let list: [ArrMarker] = arrange.markers
+        guard list.indices.contains(k) else { return }
+        var lo: Int = 0
+        if k > 0 { lo = Swift.max(list[k - 1].at + 1, sectionEnd(k - 1) ?? 0) }
+        var hi: Int = Int.max
+        if let e = sectionEnd(k) { hi = e - 1 }
+        arrange.markers[k].at = Swift.min(hi, Swift.max(lo, x))
+    }
+
+    /// Правый край секции k — на x: не левее начала + 1 и не правее начала следующей секции.
+    public mutating func setMarkerEnd(_ k: Int, _ x: Int) {
+        let list: [ArrMarker] = arrange.markers
+        guard list.indices.contains(k) else { return }
+        var e: Int = Swift.max(list[k].at + 1, x)
+        if k + 1 < list.count { e = Swift.min(e, list[k + 1].at) }
+        arrange.markers[k].end = e
+    }
+
     public mutating func renameMarker(_ k: Int, _ name: String) {
         if arrange.markers.indices.contains(k) { arrange.markers[k].name = Project.markerName(name) }
     }

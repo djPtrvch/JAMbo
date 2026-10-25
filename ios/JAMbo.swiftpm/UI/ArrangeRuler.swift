@@ -3,10 +3,11 @@ import SwiftUI
 /// Касания линейки аранжировщика (S15d, решения пользователя). Номера тактов: тап — курсор на ближайшую линию сетки;
 /// протяжка — выделить диапазон (с магнитом; он же диапазон петли — LOOP зацикливает его); край выделенного диапазона —
 /// тянется; двойной тап внутри диапазона — меню LOOP / SECTION. Строка маркеров: двойной тап по маркеру — его окно
-/// (имя, цвет, DELETE), по пустому — ничего (секция — только из диапазона, ADD SECTION); маркер со сдвигом пальца —
-/// перетаскивание (с магнитом; блоки не двигаются). Протяжка и перетаскивание — одна запись UNDO.
+/// (имя, DELETE), по пустому — ничего (секция — только из диапазона, ADD SECTION); секция не перетаскивается — тянутся
+/// её края (с магнитом; блоки не двигаются); плейхед (жёлтый пятиугольник) — перетаскивается, курсор за пальцем.
+/// Протяжка и края — одна запись UNDO.
 final class ArrRulerTouches {
-    enum Mode { case bars, select, edge, marker, markerDrag, markerEmpty }
+    enum Mode { case bars, select, edge, marker, markerEdge, markerEmpty, playhead }
 
     private var mode: Mode = .bars
     private var start: CGPoint = .zero
@@ -22,8 +23,7 @@ final class ArrRulerTouches {
     func begin(_ p: CGPoint, _ m: ArrMetrics, _ model: AppModel) {
         start = p
         if p.y >= ArrMetrics.rulerH {
-            marker = hitMarker(p, m, model)
-            mode = marker >= 0 ? .marker : .markerEmpty
+            beginMarkers(p, m, model)
             return
         }
         mode = .bars
@@ -60,15 +60,14 @@ final class ArrRulerTouches {
             edgeDragging = true
             let a: Arrangement = model.project.arrange
             if leftEdge { model.arrSetLoop(v, a.loopTo) } else { model.arrSetLoop(a.loopFrom, v) }
-        case .marker:
-            if moved {
-                mode = .markerDrag
-                model.beginGesture()
-                marker = model.arrMoveMarker(marker, to: x)
-            }
-        case .markerDrag:
-            marker = model.arrMoveMarker(marker, to: x)
-        case .markerEmpty:
+        case .markerEdge:
+            if !moved && !edgeDragging { return }
+            if !edgeDragging { model.beginGesture() }
+            edgeDragging = true
+            model.arrMarkerEdge(marker, left: leftEdge, to: x)
+        case .playhead:
+            if v != model.arrCursor { model.setArrCursor(x) }
+        case .marker, .markerEmpty:
             break
         }
     }
@@ -81,8 +80,14 @@ final class ArrRulerTouches {
         edgeDragging = false
         let x: Int = Int(m.step(at: start.x).rounded())
         switch was {
-        case .select, .markerDrag:
+        case .select:
             model.endGesture()
+        case .markerEdge:
+            if dragged {
+                model.endGesture()
+            } else if ended && isDouble() {
+                model.arrMenu = .marker(index: marker, anchor: start)
+            }
         case .edge:
             if dragged {
                 model.endGesture()
@@ -93,9 +98,44 @@ final class ArrRulerTouches {
             if ended { tapBars(x, m, model) }
         case .marker:
             if ended && isDouble() { model.arrMenu = .marker(index: marker, anchor: start) }
-        case .markerEmpty:
+        case .markerEmpty, .playhead:
             break
         }
+    }
+
+    /// Строка секций: у плейхеда (до 12 pt) — он; у края секции — край (ближайший); внутри секции — она (двойной тап —
+    /// окно); иначе — пусто.
+    private func beginMarkers(_ p: CGPoint, _ m: ArrMetrics, _ model: AppModel) {
+        let zone: CGFloat = ArrRulerTouches.edgeZone
+        if abs(p.x - m.stepX(Double(model.arrNow))) <= zone {
+            mode = .playhead
+            return
+        }
+        let list: [ArrMarker] = model.project.arrange.markers
+        var best: CGFloat = zone
+        marker = -1
+        for k in 0..<list.count {
+            let d0: CGFloat = abs(p.x - m.stepX(Double(list[k].at)))
+            if d0 <= best {
+                best = d0
+                marker = k
+                leftEdge = true
+            }
+            if let e = model.project.sectionEnd(k) {
+                let d1: CGFloat = abs(p.x - m.stepX(Double(e)))
+                if d1 < best {
+                    best = d1
+                    marker = k
+                    leftEdge = false
+                }
+            }
+        }
+        if marker >= 0 {
+            mode = .markerEdge
+            return
+        }
+        marker = hitMarker(p, m, model)
+        mode = marker >= 0 ? .marker : .markerEmpty
     }
 
     /// Тап по номерам тактов: двойной внутри выделенного диапазона — меню диапазона, иначе — курсор.

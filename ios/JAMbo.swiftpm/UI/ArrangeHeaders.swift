@@ -24,7 +24,6 @@ struct ArrHeaders: View {
                 }
                 .offset(x: 0, y: m.rowY(0))
                 .transaction { $0.animation = nil }
-                ArrHeaderMeters(model: model, metrics: m).allowsHitTesting(false)
             }
             .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
             // Строки — только под линейкой таймлайна и в пределах окна.
@@ -36,7 +35,7 @@ struct ArrHeaders: View {
     }
 }
 
-/// Строка заголовка: имя (тап — выбор, двойной тап — меню дорожки), M над S, место метра; свой цвет — весь заголовок.
+/// Строка заголовка: имя (тап — выбор, двойной тап — меню дорожки), M и S рядом (решение пользователя: без метров).
 struct ArrHeaderRow: View {
     let model: AppModel
     let index: Int
@@ -66,14 +65,12 @@ struct ArrHeaderRow: View {
                 .lineLimit(1)
                 .foregroundStyle(fg)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            // M над S; в COMPACT (низкие строки) — меньше.
-            let side: CGFloat = max(10, min(20, (rowH - 8) / 2))
-            VStack(spacing: 2) {
+            // M и S рядом; в низких строках (COMPACT) — меньше.
+            let side: CGFloat = max(14, min(28, rowH - 12))
+            HStack(spacing: 4) {
                 ArrToggle(title: "M", on: t.mute, color: theme.rec, side: side) { model.toggleMute(index) }
                 ArrToggle(title: "S", on: t.solo, color: theme.accent, side: side) { model.toggleSolo(index) }
             }
-            // Место метра: все метры заголовков — один холст поверх строк (ArrHeaderMeters).
-            Color.clear.frame(width: MeterBars.width)
         }
         .padding(.horizontal, 6)
         .background(bg, in: UnevenRoundedRectangle(topLeadingRadius: 6, bottomLeadingRadius: 6, bottomTrailingRadius: 0,
@@ -136,41 +133,5 @@ struct ArrToggle: View {
             .overlay(RoundedRectangle(cornerRadius: 4).stroke(color, lineWidth: 1))
             .contentShape(Rectangle())
             .onTapGesture { action() }
-    }
-}
-
-/// Метры всех заголовков — один холст и один таймер (30 кадров в секунду): прокрутка дорожек не перерисовывает строки
-/// по отдельности. Полосы — как у измерителя справа (моно, 9 px), на месте метра в строке.
-struct ArrHeaderMeters: View {
-    let model: AppModel
-    let metrics: ArrMetrics
-    @Environment(\.theme) private var theme
-
-    var body: some View {
-        let n: Int = model.project.tracks.count
-        let m: ArrMetrics = metrics
-        return TimelineView(.animation(minimumInterval: 1.0 / 30)) { _ in
-            // Уровни читаются до Canvas: с новыми данными холст перерисовывается (иначе его замыкание то же — кадр
-            // пропускается).
-            let levels: [[(level: Float, hold: Float)]] = (0..<n).map { model.meters.bars($0, stereo: false) }
-            let audible: [Bool] = (0..<n).map { model.project.audible($0) }
-            Canvas { ctx, size in
-                let x: CGFloat = size.width - 6 - MeterBars.width
-                var t: Int = 0
-                while t < n {
-                    // Отступ сверху и снизу: в EXPANDED — побольше.
-                    let pad: CGFloat = m.expanded ? 10 : 4
-                    let y: CGFloat = m.rowY(t) + pad
-                    let h: CGFloat = max(4, m.rowH - 2 * pad)
-                    if y + h >= ArrMetrics.top && y <= size.height {
-                        let data = levels[t]
-                        let muted: Bool = !audible[t]
-                        MeterBars.draw(ctx, CGRect(x: x, y: y, width: MeterBars.width, height: h), data, theme: theme,
-                                       muted: muted)
-                    }
-                    t += 1
-                }
-            }
-        }
     }
 }

@@ -14,15 +14,16 @@ extension AppModel {
         arrMenu = .marker(index: k, anchor: anchor)
     }
 
-    /// Перетаскивание маркера (внутри жеста): новое место с магнитом; номер маркера после сортировки.
-    func arrMoveMarker(_ k: Int, to x: Int) -> Int {
+    /// Край секции k за пальцем (левый — начало, правый — конец; с магнитом; внутри жеста — одна запись UNDO).
+    func arrMarkerEdge(_ k: Int, left: Bool, to x: Int) {
         let list: [ArrMarker] = project.arrange.markers
-        guard k >= 0 && k < list.count else { return k }
-        let at: Int = project.arrange.snapped(x)
-        if list[k].at == at { return k }
-        var i: Int = k
-        edit { p in i = p.moveMarker(k, to: at) }
-        return i
+        guard k >= 0 && k < list.count else { return }
+        let v: Int = project.arrange.snapped(x)
+        if left {
+            if list[k].at != v { edit { p in p.setMarkerStart(k, v) } }
+        } else if project.sectionEnd(k) != v {
+            edit { p in p.setMarkerEnd(k, v) }
+        }
     }
 
     func arrMarker(_ k: Int) -> ArrMarker? {

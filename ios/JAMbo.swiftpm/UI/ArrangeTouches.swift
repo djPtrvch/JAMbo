@@ -261,7 +261,7 @@ final class ArrTouches {
             port.x = (base.x + mid.x) / w0 * w - cx
             port.y = base.y
         } else {
-            let h0: CGFloat = base.rowH
+            let h0: CGFloat = base.rowH ?? m.rowH
             let k: CGFloat = sy / max(20, spread0.height)
             let h: CGFloat = ArrMetrics.clampRow(h0 * k)
             let my: CGFloat = mid.y - ArrMetrics.top
