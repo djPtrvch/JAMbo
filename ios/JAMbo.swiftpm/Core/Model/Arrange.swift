@@ -1,0 +1,132 @@
+import Foundation
+
+// Аранжировщик (S15, docs/ai/arranger.md): данные таймлайна. Блоки — у дорожек (Track.blocks: переезжают,
+// удаляются и копируются вместе с дорожкой), остальное — Project.arrange. Позиции и длины — в шагах транспорта
+// (шестнадцатых, 16 на такт) от начала аранжировки.
+
+/// Блок на дорожке: ссылка на клип (ячейку столбца сетки паттернов), начало и длина в шагах; offset — с какого шага
+/// прохода клипа начинается блок (0 — с первого; правая часть блока, у которого заменили середину, — дальше).
+public struct ArrBlock: Codable, Equatable, Sendable {
+    public var clip: Int
+    public var start: Int
+    public var length: Int
+    public var offset: Int = 0
+
+    public init(clip: Int, start: Int, length: Int, offset: Int = 0) {
+        self.clip = clip
+        self.start = start
+        self.length = length
+        self.offset = offset
+    }
+
+    public var end: Int { return start + length }
+}
+
+/// Маркер секции: позиция в шагах, имя (до 12 знаков) и цвет (номер в палитре).
+public struct ArrMarker: Codable, Equatable, Sendable {
+    public var at: Int
+    public var name: String = ""
+    public var color: Int = ArrPalette.defaultColor
+
+    public init(at: Int, name: String = "", color: Int = ArrPalette.defaultColor) {
+        self.at = at
+        self.name = name
+        self.color = color
+    }
+}
+
+/// Палитра дорожек и маркеров: 20 цветов (сами цвета — в UI), по умолчанию Light grey.
+public enum ArrPalette {
+    public static let count = 20
+    public static let defaultColor = 17
+}
+
+/// Шаг сетки таймлайна: 1 BAR, 1/2, 1/4, 1 STEP.
+public enum ArrGrid {
+    public static let names: [String] = ["1 BAR", "1/2", "1/4", "1 STEP"]
+    public static let steps: [Int] = [16, 8, 4, 1]
+    public static let stepsPerBar = 16
+}
+
+/// Общие данные аранжировки (кроме блоков): маркеры, петля, сетка и магнит, STEPS.
+public struct Arrangement: Codable, Equatable, Sendable {
+    public var markers: [ArrMarker] = []
+    /// Петля: диапазон [loopFrom, loopTo) в шагах (запоминается и при выключенной), loop — зацикливание.
+    public var loopFrom: Int = 0
+    public var loopTo: Int = 0
+    public var loop: Bool = false
+    /// Номер шага сетки (ArrGrid), магнит (привязка к линиям сетки).
+    public var grid: Int = 0
+    public var snap: Bool = true
+    /// STEPS: секвенсор и клавиатура скрыты, окно аранжировщика выше.
+    public var hideSteps: Bool = false
+
+    public init() {}
+
+    /// Шаг сетки в шагах транспорта.
+    public var gridSteps: Int { return ArrGrid.steps[Swift.max(0, Swift.min(grid, ArrGrid.steps.count - 1))] }
+
+    /// Позиция с учётом магнита: ближайшая линия сетки (без магнита — как есть, точность — шаг).
+    public func snapped(_ x: Int) -> Int {
+        if !snap { return Swift.max(0, x) }
+        let g: Int = gridSteps
+        let r: Int = (Swift.max(0, x) + g / 2) / g
+        return r * g
+    }
+
+    public var hasLoop: Bool { return loopTo > loopFrom }
+}
+
+extension ArrBlock {
+    enum CodingKeys: String, CodingKey, CaseIterable { case clip, start, length, offset }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        clip = c.value(.clip, 0)
+        start = c.value(.start, 0)
+        length = c.value(.length, ArrGrid.stepsPerBar)
+        offset = c.value(.offset, 0)
+    }
+}
+
+extension ArrMarker {
+    enum CodingKeys: String, CodingKey, CaseIterable { case at, name, color }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        at = c.value(.at, 0)
+        name = c.value(.name, "")
+        color = c.value(.color, ArrPalette.defaultColor)
+    }
+}
+
+extension Arrangement {
+    enum CodingKeys: String, CodingKey, CaseIterable { case markers, loopFrom, loopTo, loop, grid, snap, hideSteps }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        markers = c.value(.markers, [ArrMarker]())
+        loopFrom = c.value(.loopFrom, 0)
+        loopTo = c.value(.loopTo, 0)
+        loop = c.value(.loop, false)
+        grid = c.value(.grid, 0)
+        snap = c.value(.snap, true)
+        hideSteps = c.value(.hideSteps, false)
+    }
+
+    /// После чтения: маркеры по порядку, в пределах; петля и сетка — в пределах.
+    public mutating func repair() {
+        for k in markers.indices {
+            markers[k].at = Swift.max(0, markers[k].at)
+            markers[k].name = String(markers[k].name.prefix(12))
+            if markers[k].color < 0 || markers[k].color >= ArrPalette.count { markers[k].color = ArrPalette.defaultColor }
+        }
+        markers.sort { $0.at < $1.at }
+        loopFrom = Swift.max(0, loopFrom)
+        if loopTo <= loopFrom {
+            loopTo = loopFrom
+            loop = false
+        }
+        grid = Swift.max(0, Swift.min(grid, ArrGrid.steps.count - 1))
+    }
+}

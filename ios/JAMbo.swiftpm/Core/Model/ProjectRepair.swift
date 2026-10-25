@@ -7,7 +7,7 @@ extension Project {
     public mutating func repair() {
         if version < 3 { migrateSwing() }
         if version < 4 { migrateSynthKnobs() }
-        version = Swift.max(version, 4)
+        version = Swift.max(version, 5)
         if !bpm.isFinite { bpm = 120 }
         bpm = Swift.min(Params.bpmMax, Swift.max(Params.bpmMin, bpm))
         scale = Project.clamp(scale, 0, Scales.all.count - 1)
@@ -31,6 +31,8 @@ extension Project {
         for k in 0..<scenes.count { scenes[k].repeats = Swift.max(1, scenes[k].repeats) }
         rows = Project.clamp(rows, 1, Params.patternSlots)
         arrStart = Project.clamp(arrStart, 0, Params.patternSlots - 1)
+        for i in tracks.indices { tracks[i].repairBlocks() }
+        arrange.repair()
     }
 
     /// Версия 3 (S12): Swing — значение дорожки; p-lock swing на шагах и назначения LFO/ENV на swing снимаются

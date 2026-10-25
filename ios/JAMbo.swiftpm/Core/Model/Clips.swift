@@ -165,6 +165,7 @@ extension Project {
             tracks[i].clips = c
             if tracks[i].slot > k && tracks[i].slot < lim { tracks[i].slot += 1 }
             if tracks[i].open > k && tracks[i].open < lim { tracks[i].open += 1 }
+            tracks[i].remapBlocks { c in c > k && c < lim ? c + 1 : c }
         }
         scenes.insert(scenes[k], at: k + 1)
         scenes.remove(at: lim)
@@ -198,6 +199,8 @@ extension Project {
             tracks[i].slot = active
             tracks[i].settleSound()
             tracks[i].open = open == k ? fallback : (open > k && open < lim ? open - 1 : open)
+            // Блоки удалённых клипов уходят, ниже — за своими строками.
+            tracks[i].remapBlocks { c in c == k ? nil : (c > k && c < lim ? c - 1 : c) }
         }
         scenes.remove(at: k)
         scenes.insert(SceneRow(), at: lim - 1)
@@ -225,6 +228,7 @@ extension Project {
             tracks[i].clips = c
             tracks[i].slot = moved(tracks[i].slot)
             tracks[i].open = moved(tracks[i].open)
+            tracks[i].remapBlocks { c in moved(c) }
         }
         let scene = scenes.remove(at: a)
         scenes.insert(scene, at: b)
@@ -238,7 +242,11 @@ extension Project {
     /// PASTE строки: клипы дорожек (пустые ячейки копии — пустые), имя и повторы.
     public mutating func pasteRow(_ k: Int, _ clip: RowClip) {
         for i in tracks.indices where i < clip.clips.count {
-            if let c = clip.clips[i] { tracks[i].setClip(k, c) }
+            if let c = clip.clips[i] {
+                tracks[i].setClip(k, c)
+                // Клип заменён: его блоки удаляются (docs/ai/arranger.md).
+                tracks[i].remapBlocks { b in b == k ? nil : b }
+            }
         }
         fillRows()
         scenes[k] = clip.scene

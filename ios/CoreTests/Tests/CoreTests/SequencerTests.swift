@@ -135,13 +135,13 @@ final class SequencerTests: XCTestCase {
         p.tracks[0].pages[0][3].locks = ["swing": 70, "level": 90]
         p.tracks[0].pages[0][3].soundLocks = ["swing", "level"]
         p.repair()
-        XCTAssertEqual(p.version, 4)
+        XCTAssertEqual(p.version, 5)
         XCTAssertEqual(p.tracks[0].params["swing"], 66)
         XCTAssertNil(p.tracks[0].assigns["swing"])
         XCTAssertNotNil(p.tracks[0].assigns["pan"])
         XCTAssertEqual(p.tracks[0].pages[0][3].locks, ["level": 90], "p-lock Velocity (level) остаётся")
         XCTAssertEqual(p.tracks[0].pages[0][3].soundLocks, ["level"])
-        XCTAssertEqual(Project().version, 4)
+        XCTAssertEqual(Project().version, 5)
     }
 
     func testChanceZeroNeverPlays() {

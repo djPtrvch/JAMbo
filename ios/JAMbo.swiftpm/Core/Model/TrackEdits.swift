@@ -283,6 +283,8 @@ extension Project {
         t.solo = old.solo
         t.id = old.id
         t.name = old.name
+        t.blocks = old.blocks
+        t.color = old.color
         if old.home != nil {
             // Дорожка играет клип PREV: звучит старая дорожка, вставленное станет её звуком после PREV.
             t.sound = old.sound

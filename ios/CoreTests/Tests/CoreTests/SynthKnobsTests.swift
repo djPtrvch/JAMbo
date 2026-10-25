@@ -37,7 +37,7 @@ final class SynthKnobsTests: XCTestCase {
         p.tracks[2].sample = "mi:17"
         p.tracks[2].params["morph"] = 0
         p.repair()
-        XCTAssertEqual(p.version, 4)
+        XCTAssertEqual(p.version, 5)
         let t = p.tracks[0]
         XCTAssertEqual(t.params["harm"], 62.5)
         XCTAssertEqual(t.params["timbre"], 62.5, "WAVE B — прежний WAVE")

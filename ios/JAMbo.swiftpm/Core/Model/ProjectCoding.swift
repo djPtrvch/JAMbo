@@ -46,7 +46,7 @@ extension Step {
 extension Track {
     enum CodingKeys: String, CodingKey, CaseIterable {
         case id, name, sample, params, clips, slot, open, mute, solo, stopped, folder, slices, vol, trim, table, assigns,
-             morphOrig, morphOrigAssign, morphEdited, eq, home, midi
+             morphOrig, morphOrigAssign, morphEdited, eq, home, midi, blocks, color
     }
 
     public init(from decoder: Decoder) throws {
@@ -73,6 +73,8 @@ extension Track {
         eq = c.value(.eq, Eq())
         home = c.optional(.home)
         midi = c.value(.midi, TrackMidi())
+        blocks = c.value(.blocks, [ArrBlock]())
+        color = c.value(.color, ArrPalette.defaultColor)
     }
 }
 
@@ -107,7 +109,7 @@ extension Project {
     enum CodingKeys: String, CodingKey, CaseIterable {
         case version, bpm, scale, root, fx, fxAssigns, master, satBypass, cmpBypass, clipBypass, limBypass, outVol,
              masterEq, tracks, chanSeqs, scenes, rows, arrStart, arrEndStop, plusCopy, files, roots, rowLoop,
-             arrowSwitch, prevRow, notice
+             arrowSwitch, prevRow, notice, arrange
     }
 
     public init(from decoder: Decoder) throws {
@@ -138,6 +140,7 @@ extension Project {
         arrowSwitch = c.value(.arrowSwitch, false)
         prevRow = c.value(.prevRow, false)
         notice = c.optional(.notice)
+        arrange = c.value(.arrange, Arrangement())
     }
 }
 

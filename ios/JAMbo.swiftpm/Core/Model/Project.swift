@@ -70,6 +70,9 @@ public struct Track: Codable, Equatable, Sendable {
     public var home: TrackSound?
     /// MIDI дорожки: вход нот и выход (TrackMidi).
     public var midi: TrackMidi = TrackMidi()
+    /// Аранжировщик (S15): блоки дорожки на таймлайне (по порядку, без перекрытий) и цвет (номер в ArrPalette).
+    public var blocks: [ArrBlock] = []
+    public var color: Int = ArrPalette.defaultColor
 
     public init(index: Int) {
         id = Int.random(in: 0..<(1 << 31))
@@ -250,8 +253,9 @@ public struct SceneRow: Codable, Equatable, Sendable {
 }
 
 public struct Project: Codable, Equatable, Sendable {
-    /// Версия формата: 3 — S12 (Swing без p-lock и LFO/ENV), 4 — S12 (ручки 1.4 своих движков, SynthMigration).
-    public var version: Int = 4
+    /// Версия формата: 3 — S12 (Swing без p-lock и LFO/ENV), 4 — S12 (ручки 1.4 своих движков, SynthMigration),
+    /// 5 — S15 (аранжировка: Track.blocks, Track.color, arrange; в старых — пустая).
+    public var version: Int = 5
     /// Сообщение при открытии проекта (перевод старой версии, например пропавший суб ANALOG); nil — нет.
     public var notice: String?
     public var bpm: Double = 120
@@ -295,6 +299,8 @@ public struct Project: Codable, Equatable, Sendable {
     public var arrowSwitch: Bool = false
     /// Идёт переход MIX (S10): последняя строка сетки — PREV (клипы старого проекта), строк проекта — на одну меньше.
     public var prevRow: Bool = false
+    /// Аранжировщик (S15): маркеры, петля, сетка и магнит, STEPS (блоки — у дорожек).
+    public var arrange: Arrangement = Arrangement()
 
     public init() {
         tracks = (0..<Params.trackCount).map { Track(index: $0) }
