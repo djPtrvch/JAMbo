@@ -274,6 +274,22 @@ public final class SeqSnapshot: @unchecked Sendable {
         }
     }
 
+    /// Номер параметра по id (p-lock голоса, FX, LFO/ENV): шаг перебирает только свои p-lock, а не все параметры.
+    private static let voiceIndex: [String: Int] = SeqSnapshot.indexMap(VoiceParam.ids)
+    private static let fxIndex: [String: Int] = SeqSnapshot.indexMap(Params.fxIds)
+    private static let modIndex: [String: Int] = SeqSnapshot.indexMap(Params.modIds)
+
+    private static func indexMap(_ ids: [String]) -> [String: Int] {
+        var m: [String: Int] = [:]
+        for (k, id) in ids.enumerated() where m[id] == nil { m[id] = k }
+        return m
+    }
+
+    /// Значение ручки дорожки без p-lock (как Track.value).
+    private static func trackValue(_ track: Track, _ id: String) -> Double {
+        return track.params[id] ?? Params.byId[id]?.def ?? 0
+    }
+
     private static func fill(_ d: inout SeqData, _ track: Track, _ c: Clip, cell: Int, block: Int) {
         let r = c.range
         d.clipBlock[cell] = Int32(block)
@@ -281,46 +297,62 @@ public final class SeqSnapshot: @unchecked Sendable {
         d.clipFrom[cell] = Int32(r.lowerBound)
         d.clipTo[cell] = Int32(r.upperBound)
         d.clipRate[cell] = Int8(Swift.max(-4, Swift.min(1, c.speed)))
+        // Ручки дорожки — один раз на клип; у шага — только его p-lock (S14: снимок строится в разы быстрее).
+        let probT: Double = trackValue(track, "prob")
+        let ratchetT: Double = trackValue(track, "ratchet")
+        let swingT: Float = Float(track.params["swing"] ?? Params.swing.def)
+        let maxNotes: Int = SeqData.maxNotes
+        let vCount: Int = VoiceParam.count
+        let fCount: Int = Params.fxCount
+        let mCount: Int = Params.modCount
         for (p, page) in c.pages.enumerated() where p < Params.maxPages {
             for (s, step) in page.enumerated() {
                 let i = block * SeqData.maxSteps + p * Params.stepsPerPage + s
-                d.on[i] = step.on ? 1 : 0
-                d.len[i] = Int32(step.len)
-                let n = min(step.notes.count, SeqData.maxNotes)
-                d.noteCount[i] = UInt8(n)
-                for k in 0..<n {
-                    d.notes[i * SeqData.maxNotes + k] = Int16(step.notes[k])
-                    d.noteLen[i * SeqData.maxNotes + k] = Int32(step.noteLen(k))
-                    d.noteVel[i * SeqData.maxNotes + k] = Float(step.noteVel(k) ?? -1)
-                }
-                d.split[i] = step.lens != nil || step.vels != nil ? 1 : 0
-                d.prob[i] = Float(track.value("prob", step: step))
-                d.ratchet[i] = Int32(track.value("ratchet", step: step).rounded())
-                d.swing[i] = Float(track.params["swing"] ?? Params.swing.def)
-                if let snd = step.sound { d.sound[i] = SoundKey.hash(snd) }
-                if !step.locks.isEmpty {
+                d.swing[i] = swingT
+                let locks: [String: Double] = step.locks
+                var prob: Double = probT
+                var ratchet: Double = ratchetT
+                if !locks.isEmpty {
                     var mask: VoiceMask = 0
-                    for (p, id) in VoiceParam.ids.enumerated() {
-                        guard let v = step.locks[id] else { continue }
-                        mask |= VoiceMask(1) << VoiceMask(p)
-                        d.lockVal[i * VoiceParam.count + p] = Float(v)
+                    var fm: UInt32 = 0
+                    var mm: UInt16 = 0
+                    for (id, v) in locks {
+                        if id == "prob" { prob = v }
+                        if id == "ratchet" { ratchet = v }
+                        if let k = voiceIndex[id] {
+                            mask |= VoiceMask(1) << VoiceMask(k)
+                            d.lockVal[i * vCount + k] = Float(v)
+                        }
+                        if let k = fxIndex[id] {
+                            fm |= UInt32(1) << UInt32(k)
+                            d.fxVal[i * fCount + k] = Float(v)
+                        }
+                        if let k = modIndex[id] {
+                            mm |= UInt16(1) << UInt16(k)
+                            d.modVal[i * mCount + k] = Float(v)
+                        }
                     }
                     d.lockMask[i] = mask
-                    var fm: UInt32 = 0
-                    for (p, id) in Params.fxIds.enumerated() {
-                        guard let v = step.locks[id] else { continue }
-                        fm |= UInt32(1) << UInt32(p)
-                        d.fxVal[i * Params.fxCount + p] = Float(v)
-                    }
                     d.fxMask[i] = fm
-                    var mm: UInt16 = 0
-                    for (p, id) in Params.modIds.enumerated() {
-                        guard let v = step.locks[id] else { continue }
-                        mm |= UInt16(1) << UInt16(p)
-                        d.modVal[i * Params.modCount + p] = Float(v)
-                    }
                     d.modMask[i] = mm
                 }
+                d.prob[i] = Float(prob)
+                d.ratchet[i] = Int32(ratchet.rounded())
+                // Пустой шаг — значения по умолчанию уже стоят.
+                if !step.on && step.notes.isEmpty && step.len == 1 && step.lens == nil && step.vels == nil && step.sound == nil {
+                    continue
+                }
+                d.on[i] = step.on ? 1 : 0
+                d.len[i] = Int32(step.len)
+                let n = min(step.notes.count, maxNotes)
+                d.noteCount[i] = UInt8(n)
+                for k in 0..<n {
+                    d.notes[i * maxNotes + k] = Int16(step.notes[k])
+                    d.noteLen[i * maxNotes + k] = Int32(step.noteLen(k))
+                    d.noteVel[i * maxNotes + k] = Float(step.noteVel(k) ?? -1)
+                }
+                d.split[i] = step.lens != nil || step.vels != nil ? 1 : 0
+                if let snd = step.sound { d.sound[i] = SoundKey.hash(snd) }
             }
         }
     }

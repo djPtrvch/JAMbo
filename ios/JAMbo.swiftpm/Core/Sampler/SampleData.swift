@@ -8,16 +8,26 @@ public final class SampleData: @unchecked Sendable {
     public let left: UnsafeMutablePointer<Float>
     public let right: UnsafeMutablePointer<Float>
 
-    public init(left l: [Float], right r: [Float]?) {
-        frames = Swift.max(1, l.count)
-        channels = r == nil ? 1 : 2
+    public convenience init(left l: [Float], right r: [Float]?) {
+        self.init(frames: l.count, stereo: r != nil)
+        // Копия блоком (поэлементный цикл в отладочной сборке Playgrounds медленный).
+        l.withUnsafeBufferPointer { b in if let a = b.baseAddress { left.update(from: a, count: b.count) } }
+        if let r = r {
+            r.withUnsafeBufferPointer { b in
+                if let a = b.baseAddress { right.update(from: a, count: Swift.min(b.count, frames)) }
+            }
+        }
+    }
+
+    /// Пустой сэмпл (тишина) на frames кадров — правки пишут прямо в буферы.
+    init(frames n: Int, stereo: Bool) {
+        frames = Swift.max(1, n)
+        channels = stereo ? 2 : 1
         left = .allocate(capacity: frames)
         left.initialize(repeating: 0, count: frames)
-        for i in 0..<l.count { left[i] = l[i] }
-        if let r = r {
+        if stereo {
             right = .allocate(capacity: frames)
             right.initialize(repeating: 0, count: frames)
-            for i in 0..<Swift.min(r.count, frames) { right[i] = r[i] }
         } else {
             right = left
         }
@@ -39,31 +49,69 @@ public final class SampleData: @unchecked Sendable {
 /// Правки сэмпла в редакторе (TRIM, NORMALIZE, MONO) и данные для рисования (как ui/sampleedit.ts веба).
 public enum SampleEdit {
     /// TRIM: оставить отрезок a…b (доли длины).
+    // Правки — прямо по буферам, циклы while без вызовов функций (отладочная сборка Playgrounds не оптимизирует).
+
     public static func trim(_ s: SampleData, _ a: Double, _ b: Double) -> SampleData {
         let i0 = Swift.max(0, Swift.min(s.frames - 1, Int((Swift.min(a, b) * Double(s.frames)).rounded())))
         let i1 = Swift.max(i0 + 1, Swift.min(s.frames, Int((Swift.max(a, b) * Double(s.frames)).rounded())))
-        let l = Array(UnsafeBufferPointer(start: s.left + i0, count: i1 - i0))
-        let r: [Float]? = s.channels == 2 ? Array(UnsafeBufferPointer(start: s.right + i0, count: i1 - i0)) : nil
-        return SampleData(left: l, right: r)
+        let out = SampleData(frames: i1 - i0, stereo: s.channels == 2)
+        out.left.update(from: s.left + i0, count: i1 - i0)
+        if s.channels == 2 { out.right.update(from: s.right + i0, count: i1 - i0) }
+        return out
     }
 
     /// NORMALIZE: пик −0.1 dBFS.
     public static func normalize(_ s: SampleData) -> SampleData {
+        let n: Int = s.frames
+        let stereo: Bool = s.channels == 2
+        let l = s.left, r = s.right
         var peak: Float = 0
-        for i in 0..<s.frames {
-            peak = Swift.max(peak, abs(s.left[i]), abs(s.right[i]))
+        var i = 0
+        while i < n {
+            let a: Float = l[i]
+            let m: Float = a < 0 ? -a : a
+            if m > peak { peak = m }
+            i += 1
+        }
+        if stereo {
+            i = 0
+            while i < n {
+                let a: Float = r[i]
+                let m: Float = a < 0 ? -a : a
+                if m > peak { peak = m }
+                i += 1
+            }
         }
         let g: Float = peak > 0 ? Float(pow(10.0, -0.1 / 20)) / peak : 1
-        let l = s.channel(0).map { $0 * g }
-        let r: [Float]? = s.channels == 2 ? s.channel(1).map { $0 * g } : nil
-        return SampleData(left: l, right: r)
+        let out = SampleData(frames: n, stereo: stereo)
+        let ol = out.left, or = out.right
+        i = 0
+        while i < n {
+            ol[i] = l[i] * g
+            i += 1
+        }
+        if stereo {
+            i = 0
+            while i < n {
+                or[i] = r[i] * g
+                i += 1
+            }
+        }
+        return out
     }
 
     /// MONO: среднее L и R.
     public static func mono(_ s: SampleData) -> SampleData {
-        var l = [Float](repeating: 0, count: s.frames)
-        for i in 0..<s.frames { l[i] = (s.left[i] + s.right[i]) * 0.5 }
-        return SampleData(left: l, right: nil)
+        let n: Int = s.frames
+        let l = s.left, r = s.right
+        let out = SampleData(frames: n, stereo: false)
+        let o = out.left
+        var i = 0
+        while i < n {
+            o[i] = (l[i] + r[i]) * 0.5
+            i += 1
+        }
+        return out
     }
 
     /// Огибающая для рисования: n столбцов на отрезке кадров from…to — наименьшее и наибольшее значение канала.
