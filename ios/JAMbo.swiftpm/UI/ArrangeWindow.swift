@@ -71,14 +71,17 @@ struct ArrMetrics {
         stepW = ArrMetrics.clampStep(want, width: w)
         let area: CGFloat = max(0, size.height - ArrMetrics.top)
         let seen: CGFloat = max(0, area - inset)
-        let fitRow: CGFloat = seen / CGFloat(max(1, tracks))
-        // Решения пользователя: EXPANDED — высота строки — 1/8 окна (одна на весь экран: низ — 3 строки, RootView), больше
-        // 8 дорожек — прокрутка; COMPACT — все дорожки на видимую высоту окна. Масштаба по вертикали нет.
-        rowH = expanded ? max(20, area / 8) : max(16, fitRow)
+        let n: CGFloat = CGFloat(max(1, tracks))
+        let g: CGFloat = ArrMetrics.gap
+        let fitRow: CGFloat = (seen - (n - 1) * g) / n
+        // Решения пользователя: строки дорожек — через чёрный зазор (как зазоры между окнами). EXPANDED — 8 строк и 7
+        // зазоров на высоту окна (одна высота строки на весь экран: низ — 3 строки и 2 зазора, RootView), больше 8 дорожек
+        // — прокрутка; COMPACT — все дорожки на видимую высоту окна. Масштаба по вертикали нет.
+        rowH = expanded ? max(20, (area - 7 * g) / 8) : max(16, fitRow)
         steps = max(end, 0) + 32 * ArrMetrics.stepsPerBar
         let maxX: CGFloat = max(0, CGFloat(steps) * stepW - w)
         x = min(maxX, max(0, port.x))
-        let maxY: CGFloat = max(0, CGFloat(tracks) * rowH - seen)
+        let maxY: CGFloat = max(0, n * (rowH + g) - g - seen)
         y = min(maxY, max(0, port.y))
     }
 
@@ -93,8 +96,14 @@ struct ArrMetrics {
         return CGFloat(s) * stepW - x
     }
 
+    /// Зазор между строками дорожек — как между окнами (чёрная линия).
+    static let gap: CGFloat = Layout.gap
+
+    /// Шаг строк: строка и зазор.
+    var pitch: CGFloat { return rowH + ArrMetrics.gap }
+
     func rowY(_ t: Int) -> CGFloat {
-        return ArrMetrics.top + CGFloat(t) * rowH - y
+        return ArrMetrics.top + CGFloat(t) * pitch - y
     }
 
     /// Строка заголовка с верхом y принимает касания, только если верх не ушёл под линейку: маска прячет строку, но не
@@ -112,12 +121,12 @@ struct ArrMetrics {
     func track(at py: CGFloat) -> Int {
         if py < ArrMetrics.top { return -1 }
         let cy: CGFloat = py - ArrMetrics.top + y
-        let t: Int = Int((cy / rowH).rounded(.down))
+        let t: Int = Int((cy / pitch).rounded(.down))
         return t >= 0 && t < tracks ? t : -1
     }
 
     func rect(_ t: Int, _ b: ArrBlock) -> CGRect {
-        return CGRect(x: stepX(Double(b.start)), y: rowY(t) + 2, width: max(2, CGFloat(b.length) * stepW), height: rowH - 4)
+        return CGRect(x: stepX(Double(b.start)), y: rowY(t) + 1, width: max(2, CGFloat(b.length) * stepW), height: rowH - 2)
     }
 
     /// Шаг подписей тактов: не теснее ~36 pt.
@@ -171,10 +180,10 @@ struct ArrTimeline: View {
     /// Поднятый блок — над дорожкой, с тенью; при отпускании плавно встаёт на место (анимация позиции).
     private func liftedView(_ l: ArrLift, _ m: ArrMetrics, _ p: Project) -> some View {
         let w: CGFloat = max(2, CGFloat(l.block.length) * m.stepW)
-        let h: CGFloat = m.rowH - 4
+        let h: CGFloat = m.rowH - 2
         let color: Color = l.track < p.tracks.count ? ArrColors.color(p.tracks[l.track].color) : ArrColors.color(0)
         let cx: CGFloat = m.stepX(l.at) + w / 2
-        let cy: CGFloat = m.rowY(l.track) + 2 + h / 2
+        let cy: CGFloat = m.rowY(l.track) + 1 + h / 2
         return RoundedRectangle(cornerRadius: 4)
             .fill(color)
             .overlay(RoundedRectangle(cornerRadius: 4).stroke(theme.text, lineWidth: 1))
@@ -211,8 +220,8 @@ struct ArrDraw {
 
     func draw(_ p: Project, cursor: Int, sel: ArrSel?, lift: ArrLift?, following: [Bool], track: Int, group: [ArrSel],
               marquee: CGRect?) {
-        lanes(p)
         gridLines(p)
+        lanes(p)
         for t in 0..<p.tracks.count {
             // Тускнеют блоки дорожки, которая играет сетку, и заглушённой.
             let on: Bool = t < following.count ? following[t] : true
@@ -232,8 +241,9 @@ struct ArrDraw {
         for t in 0..<p.tracks.count {
             let y: CGFloat = m.rowY(t)
             if y > m.size.height || y + m.rowH < ArrMetrics.top { continue }
-            let r = CGRect(x: 0, y: y + m.rowH - 1, width: m.size.width, height: 1)
-            ctx.fill(Path(r), with: .color(theme.line))
+            // Зазор под строкой — цветом фона (чёрная линия, как между окнами).
+            let r = CGRect(x: 0, y: y + m.rowH, width: m.size.width, height: ArrMetrics.gap)
+            ctx.fill(Path(r), with: .color(theme.bg))
         }
     }
 
@@ -262,9 +272,9 @@ struct ArrDraw {
         if t < 0 || t >= m.tracks { return }
         let y: CGFloat = m.rowY(t)
         if y > m.size.height || y + m.rowH < ArrMetrics.top { return }
-        // Те же высоты, что у линий заголовка (строка заголовка — с отступом 1 pt сверху и снизу): одна линия.
-        ctx.fill(Path(CGRect(x: 0, y: y + 1, width: m.size.width, height: 1)), with: .color(theme.accent))
-        ctx.fill(Path(CGRect(x: 0, y: y + m.rowH - 2, width: m.size.width, height: 1)), with: .color(theme.accent))
+        // Те же высоты, что у линий заголовка (края строки): одна линия.
+        ctx.fill(Path(CGRect(x: 0, y: y, width: m.size.width, height: 1)), with: .color(theme.accent))
+        ctx.fill(Path(CGRect(x: 0, y: y + m.rowH - 1, width: m.size.width, height: 1)), with: .color(theme.accent))
     }
 
     private func blocks(_ p: Project, _ t: Int, sel: ArrSel?, group: [ArrSel], lift: ArrLift?, dim: Bool) {

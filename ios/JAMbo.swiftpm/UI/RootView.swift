@@ -17,7 +17,8 @@ struct RootView: View {
             // линейка и 8 строк дорожек; низ (строка дорожек, секвенсор, клавиатура) — ровно 3 строки, его верх — верх
             // шестой дорожки; клавиатура — на остаток.
             let unit: CGFloat = RootView.rowUnit(geo.size.height)
-            let lowerH: CGFloat = 3 * unit
+            // Низ — три строки и два зазора: его верх — верх шестой дорожки, над ним — зазор между пятой и шестой.
+            let lowerH: CGFloat = 3 * unit + 2 * Layout.gap
             let piano: CGFloat = lowerH - Layout.trackHeight - Layout.seqHeight - 2 * Layout.gap
             let layout: Layout = Layout(width: geo.size.width - 24, piano: piano)
             ZStack(alignment: .topLeading) {
@@ -88,11 +89,12 @@ struct RootView: View {
         Binding(get: { model.importing }, set: { model.importing = $0 })
     }
 
-    /// Высота строки дорожки аранжировщика (EXPANDED): окно от второй строки до низа экрана — линейка и 8 строк.
+    /// Высота строки дорожки аранжировщика (EXPANDED): окно от второй строки до низа экрана — линейка, 8 строк и 7
+    /// зазоров.
     static func rowUnit(_ h: CGFloat) -> CGFloat {
         let top: CGFloat = 8 + Layout.topHeight + Layout.gap + ArrangeBar.height + Layout.gap
         let window: CGFloat = h - 8 - top
-        return max(20, (window - ArrMetrics.top) / 8)
+        return max(20, (window - ArrMetrics.top - 7 * Layout.gap) / 8)
     }
 
     private func screen(_ layout: Layout, _ lowerH: CGFloat) -> some View {

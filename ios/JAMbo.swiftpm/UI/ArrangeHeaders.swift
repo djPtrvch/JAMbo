@@ -15,10 +15,9 @@ struct ArrHeaders: View {
                            inset: model.arrInset)
             ZStack(alignment: .topLeading) {
                 // Все строки — одним столбцом с одним сдвигом (прокрутка — без отставания строк от таймлайна).
-                VStack(spacing: 0) {
+                VStack(spacing: ArrMetrics.gap) {
                     ForEach(0..<p.tracks.count, id: \.self) { t in
                         ArrHeaderRow(model: model, index: t, rowH: m.rowH)
-                            .padding(.vertical, 1)
                             .frame(width: geo.size.width, height: m.rowH)
                             .allowsHitTesting(m.tappable(m.rowY(t)))
                     }
