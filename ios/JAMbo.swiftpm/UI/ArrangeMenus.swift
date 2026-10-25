@@ -217,7 +217,7 @@ struct ArrInsertMenu: View {
     }
 }
 
-/// Окно маркера: имя (до 12 знаков; клавиатура — по тапу в поле), цвет, CURSOR HERE, DELETE, OK. Имя сохраняется
+/// Окно маркера: имя (до 12 знаков; клавиатура — по тапу в поле), цвет, DELETE, OK. Имя сохраняется
 /// и при закрытии тапом мимо.
 struct ArrMarkerWindow: View {
     static let width: CGFloat = 240
@@ -243,10 +243,7 @@ struct ArrMarkerWindow: View {
                 .onChange(of: name) { _, v in if v.count > 12 { name = String(v.prefix(12)) } }
                 .onSubmit { done() }
             ArrPaletteGrid(current: cur) { c in model.arrSetMarkerColor(index, c) }
-            HStack(spacing: 6) {
-                MenuItem(title: "CURSOR HERE") { act { model.arrCursorToMarker(index) } }
-                MenuItem(title: "DELETE", red: true) { delete() }
-            }
+            MenuItem(title: "DELETE", red: true) { delete() }
             MenuItem(title: "OK") { done() }
         }
         .frame(width: ArrMarkerWindow.width)

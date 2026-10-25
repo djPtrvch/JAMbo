@@ -11,15 +11,19 @@ struct ArrangeWindow: View {
     var body: some View {
         GeometryReader { geo in
             ZStack(alignment: .topLeading) {
-                HStack(spacing: Layout.gap) {
+                // Заголовки вплотную к таймлайну (решение пользователя: без зазора).
+                HStack(spacing: 0) {
                     ArrHeaders(model: model).frame(width: ArrMetrics.headerW)
                     ArrTimeline(model: model, lift: $lift)
                     // Измеритель справа с регулятором — выбранной дорожки: на месте измерителя окна дорожки (RootView);
                     // пока его рамка неизвестна — здесь.
                     if model.meterFrame == .zero {
-                        MeterColumn(model: model)
+                        MeterColumn(model: model).padding(.leading, Layout.gap)
                     } else {
+                        // Низ окна: измеритель тянется до него (STEPS растягивает окно — и измеритель).
                         Color.clear.frame(width: Layout.meterWidth)
+                            .padding(.leading, Layout.gap)
+                            .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("root")).maxY } action: { model.arrBottom = $0 }
                     }
                 }
                 ArrMenus(model: model, size: geo.size)
@@ -138,9 +142,9 @@ struct ArrTimeline: View {
             let m = ArrMetrics(size: geo.size, port: port, tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded)
             ZStack(alignment: .topLeading) {
                 Canvas { ctx, size in
-                    // Углы окна скруглены и у линейки (рисование — внутри скруглённой рамки).
+                    // Углы окна скруглены, кроме левого верхнего (линейка — с прямым углом, решение пользователя).
                     var c = ctx
-                    c.clip(to: Path(roundedRect: CGRect(origin: .zero, size: size), cornerRadius: Layout.radius))
+                    c.clip(to: ArrTimeline.frameShape.path(in: CGRect(origin: .zero, size: size)))
                     ArrDraw(ctx: c, m: m, theme: theme).draw(p, cursor: now, sel: sel, lift: lift, following: following,
                                                             track: selTrack)
                 }
@@ -150,8 +154,11 @@ struct ArrTimeline: View {
             .gesture(touch(geo.size))
         }
         .background(theme.panel)
-        .clipShape(RoundedRectangle(cornerRadius: Layout.radius))
+        .clipShape(ArrTimeline.frameShape)
     }
+
+    static let frameShape = UnevenRoundedRectangle(topLeadingRadius: 0, bottomLeadingRadius: Layout.radius,
+                                                   bottomTrailingRadius: Layout.radius, topTrailingRadius: Layout.radius)
 
     /// Поднятый блок — над дорожкой, с тенью; при отпускании плавно встаёт на место (анимация позиции).
     private func liftedView(_ l: ArrLift, _ m: ArrMetrics, _ p: Project) -> some View {
@@ -324,7 +331,7 @@ struct ArrDraw {
         var bar: Int = firstBar - firstBar % every
         while bar <= lastBar {
             let x: CGFloat = m.stepX(Double(bar * ArrMetrics.stepsPerBar))
-            // Черта такта у самого края не рисуется — угол линейки остаётся скруглённым.
+            // Черта такта у самого края не рисуется.
             if x >= 1 { ctx.fill(Path(CGRect(x: x, y: 0, width: 1, height: ArrMetrics.rulerH)), with: .color(theme.gridStrong)) }
             // В выделенном диапазоне при включённой петле (яркая заливка) — номера тактов чёрные.
             let s: Int = bar * ArrMetrics.stepsPerBar

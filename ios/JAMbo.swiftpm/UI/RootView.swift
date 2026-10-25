@@ -142,12 +142,14 @@ struct RootView: View {
         }
     }
 
-    /// Аранжировщик: измеритель с регулятором — на месте и в размер измерителя окна дорожки (STEPS его не растягивает).
+    /// Аранжировщик: измеритель с регулятором — на месте измерителя окна дорожки, низ — по низу окна аранжировщика
+    /// (STEPS растягивает окно — измеритель тянется вниз).
     @ViewBuilder
     private var arrangeMeter: some View {
         let f: CGRect = model.meterFrame
         if model.arrangeView && f != .zero {
-            MeterColumn(model: model).frame(width: f.width, height: f.height).offset(x: f.minX, y: f.minY)
+            let h: CGFloat = max(f.height, model.arrBottom - f.minY)
+            MeterColumn(model: model).frame(width: f.width, height: h).offset(x: f.minX, y: f.minY)
         }
     }
 

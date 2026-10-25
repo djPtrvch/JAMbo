@@ -51,12 +51,6 @@ extension AppModel {
         edit { p in p.deleteMarker(k) }
     }
 
-    /// «Курсор сюда»: курсор на маркер (со следующего PLAY).
-    func arrCursorToMarker(_ k: Int) {
-        guard let m = arrMarker(k) else { return }
-        arrCursor = m.at
-    }
-
     /// SPLIT: блоки выбранной дорожки разрезаются по краям выделенного диапазона.
     func arrSplitRange() {
         let a: Arrangement = project.arrange
