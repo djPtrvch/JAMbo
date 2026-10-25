@@ -274,10 +274,10 @@ extension Project {
         if !arrange.hasLoop { arrange.loop = false }
     }
 
-    /// TO ARRANGE (S15e): строка k — в аранжировку с позиции at (nil — в конец аранжировки). Дорожки с клипом в строке
-    /// получают по N блоков подряд длиной в свой клип (N — повторы строки; LOOP ROW — один проход); участок
-    /// [начало, начало + длина строки) этих дорожек и секции в нём заменяются; секция — имя строки на длину строки
-    /// (самый длинный клип × N). Конец участка; nil — в строке нет клипов.
+    /// TO ARRANGE (S15e): строка k — в аранжировку с позиции at (nil — в конец аранжировки). Длина строки — самый
+    /// длинный клип × N (N — повторы строки; LOOP ROW — один проход); дорожки с клипом в строке заполняют её блоками
+    /// длиной в свой клип (короткий повторяется, последний блок — до конца строки). Участок этих дорожек и секции в нём
+    /// заменяются; секция — имя строки на длину строки. Конец участка; nil — в строке нет клипов.
     @discardableResult
     public mutating func rowToArrange(_ k: Int, at: Int?) -> Int? {
         guard k >= 0 && k < scenes.count else { return nil }
@@ -293,8 +293,11 @@ extension Project {
         let end: Int = start + longest * reps
         for t in tracks.indices where lens[t] > 0 {
             tracks[t].clearArrange(from: start, to: end)
-            for r in 0..<reps {
-                tracks[t].placeBlock(ArrBlock(clip: k, start: start + r * lens[t], length: lens[t]))
+            var x: Int = start
+            while x < end {
+                let n: Int = Swift.min(lens[t], end - x)
+                tracks[t].placeBlock(ArrBlock(clip: k, start: x, length: n))
+                x += lens[t]
             }
         }
         arrange.markers.removeAll { $0.at >= start && $0.at < end }

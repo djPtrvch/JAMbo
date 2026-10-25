@@ -90,6 +90,8 @@ final class AppModel {
     private(set) var settings: AppSettings = AppModel.loadSettings()
     /// REC: ноты клавиатуры пишутся в секвенсор, пока идёт игра.
     var recOn: Bool = false
+    /// AUTO в аранжировщике (S15e): REC + PLAY + AUTO — запуски клипов в сетке пишутся блоками (ноты не пишутся).
+    var arrAuto: Bool = false
     /// У каждой дорожки свои режим аккордов, прогрессия и выбранные ноты (не в проекте).
     var chordMode: [Bool] = [Bool](repeating: false, count: Params.maxTracks)
     var progression: [Int] = [Int](repeating: 0, count: Params.maxTracks)
@@ -357,11 +359,14 @@ final class AppModel {
             let a: Arrangement = project.arrange
             let from: Int = arrangeView && a.loop && a.hasLoop ? a.loopFrom : arrCursor
             audio.core.events.push(.arrange(on: arrangeView, from: from))
+            live.stopped()
+            live.begin(project, arrange: arrangeView)
+            syncArrRecord(from: from)
         } else {
             arrCursor = live.arrPos
+            syncArrRecord()
+            live.stopped()
         }
-        live.stopped()
-        if playing { live.begin(project, arrange: arrangeView) }
         audio.core.events.push(.play(playing))
         if !playing { releaseHolds() }
     }
@@ -374,6 +379,7 @@ final class AppModel {
         endRecTake()
         live.stopped()
         live.begin(project, arrange: arrangeView)
+        syncArrRecord(from: arrCursor)
         audio.core.events.push(.arrange(on: arrangeView, from: arrCursor))
         audio.core.events.push(.playAt(frame: frame))
     }
@@ -402,6 +408,7 @@ final class AppModel {
             if playing {
                 playing = false
                 arrCursor = live.arrPos
+                syncArrRecord()
                 releaseHolds()
                 endRecTake()
                 live.stopped()

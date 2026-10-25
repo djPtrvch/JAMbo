@@ -31,6 +31,8 @@ final class LiveState {
     /// Тик транспорта от PLAY (шаги; −1 — ещё не было) и журнал запусков клипов в сетке (S15e, SEND TO ARRANGE).
     @ObservationIgnored private(set) var tick: Int = -1
     @ObservationIgnored private(set) var journal = ArrJournal()
+    /// Запись аранжировки с AUTO (S15e).
+    @ObservationIgnored private(set) var recorder = ArrRecorder()
 
     func drain(_ queue: SPSCQueue<SeqOut>, now: Double, onStep: (Int, Int) -> Void, onPlay: (SeqOut) -> Void) {
         while let e = queue.pop() {
@@ -52,6 +54,8 @@ final class LiveState {
                 // Таймлайн и стоп — в журнале тишина.
                 let grid: Bool = !off && !(t < following.count && following[t])
                 journal.record(track: t, slot: grid ? slot : -1, start: start)
+                let onTimeline: Bool = t < following.count && following[t]
+                recorder.clip(track: t, slot: onTimeline ? nil : (off ? -1 : slot))
                 if queued[t] != Launcher.none { queued[t] = Launcher.none }
                 onPlay(e)
             case .queue(let t, let v):
@@ -66,6 +70,7 @@ final class LiveState {
                 onPlay(e)
             case .arrange(let pos):
                 if arrPos != pos { arrPos = pos }
+                recorder.step(pos)
             case .follow(let t, let on):
                 if t < following.count && following[t] != on { following[t] = on }
             case .beat(let accent):
@@ -96,6 +101,27 @@ final class LiveState {
         mv(&flashing)
         mv(&flashUntil)
         journal.move(from, to)
+        recorder.move(from, to)
+    }
+
+    /// Начало записи с AUTO на позиции at: дорожки в сетке — их клип и место в проходе (стоит — тишина), дорожки
+    /// на таймлайне не пишутся; arrange — PLAY в окне аранжировщика (все дорожки пойдут по таймлайну).
+    func beginRecord(_ p: Project, at: Int, arrange: Bool) {
+        var states: [(slot: Int, offset: Int)?] = []
+        for t in 0..<Params.maxTracks {
+            if arrange || t >= p.tracks.count || following[t] {
+                states.append(nil)
+                continue
+            }
+            let tr: Track = p.tracks[t]
+            let k: Int = !tr.stopped && tr.clipFilled(tr.slot) ? tr.slot : -1
+            states.append((slot: k, offset: max(0, max(0, tick) - trackStart[t])))
+        }
+        recorder.begin(at: at, states: states)
+    }
+
+    func finishRecord() -> [ArrRecorder.Seg] {
+        return recorder.finish()
     }
 
     /// PLAY (S15e): тик и журнал заново; в сетке — дорожки, которые играют свой клип с тика 0 (сообщений clip о них нет).

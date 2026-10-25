@@ -223,7 +223,8 @@ final class ArrangeTests: XCTestCase {
         p.rowLoop = false
         p.tracks[0].placeBlock(ArrBlock(clip: 0, start: 0, length: 16))
         XCTAssertEqual(p.rowToArrange(2, at: nil), 80)
-        XCTAssertEqual(spans(p.tracks[0]), [[0, 0, 16, 0], [2, 16, 16, 0], [2, 32, 16, 0]])
+        XCTAssertEqual(spans(p.tracks[0]), [[0, 0, 16, 0], [2, 16, 16, 0], [2, 32, 16, 0], [2, 48, 16, 0], [2, 64, 16, 0]],
+                       "короткий клип повторяется до длины строки")
         XCTAssertEqual(spans(p.tracks[1]), [[2, 16, 32, 0], [2, 48, 32, 0]])
         XCTAssertEqual(p.arrange.markers.map { [$0.at, $0.end ?? -1] }, [[16, 80]])
         XCTAssertEqual(p.arrange.markers[0].name, "Drop")
@@ -231,7 +232,7 @@ final class ArrangeTests: XCTestCase {
         p.rowLoop = true
         p.tracks[2].placeBlock(ArrBlock(clip: 0, start: 0, length: 64))
         XCTAssertEqual(p.rowToArrange(2, at: 0), 32)
-        XCTAssertEqual(spans(p.tracks[0]), [[2, 0, 16, 0], [2, 32, 16, 0]])
+        XCTAssertEqual(spans(p.tracks[0]), [[2, 0, 16, 0], [2, 16, 16, 0], [2, 32, 16, 0], [2, 48, 16, 0], [2, 64, 16, 0]])
         XCTAssertEqual(spans(p.tracks[1]), [[2, 0, 32, 0], [2, 32, 16, 16], [2, 48, 32, 0]], "правее участка — остаток прежнего блока")
         XCTAssertEqual(spans(p.tracks[2]), [[0, 0, 64, 0]], "дорожка без клипа в строке не меняется")
         XCTAssertEqual(p.arrange.markers.map { [$0.at, $0.end ?? -1] }, [[0, 32]])
@@ -276,5 +277,30 @@ final class ArrangeTests: XCTestCase {
 
     private func spans(blocks: [ArrBlock]) -> [[Int]] {
         return blocks.map { [$0.clip, $0.start, $0.length, $0.offset] }
+    }
+
+    /// Запись с AUTO: запуск закрывает отрезок, тишина и таймлайн, скачок петли продолжает клип с того же места.
+    func testRecorder() {
+        var r = ArrRecorder()
+        r.begin(at: 32, states: [(slot: 0, offset: 5), (slot: -1, offset: 0), nil])
+        for p in 33...48 { r.step(p) }
+        r.clip(track: 1, slot: 2)
+        r.clip(track: 0, slot: -1)
+        for p in 49..<64 { r.step(p) }
+        r.step(32)
+        r.clip(track: 1, slot: nil)
+        r.step(33)
+        let segs = r.finish()
+        XCTAssertFalse(r.active)
+        let list: [[Int]] = segs.map { [$0.track, $0.slot, $0.start, $0.end, $0.offset] }
+        // Петля (64 → 32): отрезки продолжаются с места прохода 16; дорожка 1 ушла на таймлайн сразу — без отрезка.
+        XCTAssertEqual(list, [[1, -1, 32, 48, 0], [0, 0, 32, 48, 5], [0, -1, 48, 64, 0], [1, 2, 48, 64, 0],
+                              [0, -1, 32, 34, 16]])
+        var p = Project()
+        p.tracks[0].placeBlock(ArrBlock(clip: 0, start: 0, length: 128))
+        p.tracks[1].clips[2] = Clip(pages: [Track.emptyPage()], length: 16, playFrom: 0, playTo: 0)
+        p.applyRecording(segs)
+        XCTAssertEqual(spans(p.tracks[0]), [[0, 0, 32, 0], [0, 34, 14, 7], [0, 64, 64, 64]])
+        XCTAssertEqual(spans(p.tracks[1]), [[2, 48, 16, 0]])
     }
 }

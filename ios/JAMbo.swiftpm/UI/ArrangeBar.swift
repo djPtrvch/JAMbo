@@ -19,7 +19,8 @@ struct ArrangeBar: View {
                 Image(systemName: "repeat").font(.system(size: 18, weight: .semibold)).foregroundStyle(c)
             }
             .frame(width: side)
-            ArrBarButton(on: false, enabled: false, action: {}) { c in ArrWaveIcon(color: c) }.frame(width: side)
+            ArrBarButton(on: model.arrAuto, enabled: true, action: { model.toggleArrAuto() }) { c in ArrWaveIcon(color: c) }
+                .frame(width: side)
             ArrReturnAll(model: model).frame(width: side)
             Spacer(minLength: 0)
             ArrBarText(title: "INSERT", on: model.arrInsert, enabled: true) { model.toggleArrInsert() }

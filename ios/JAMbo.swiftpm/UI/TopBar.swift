@@ -48,7 +48,11 @@ struct TopBar: View {
     private var rightGroup: some View {
         HStack(spacing: Layout.gap) {
             PatternsButton(model: model).frame(width: Layout.topButton).midiTarget(model, "PATTERNS")
-            ViewButton(title: "ARRANGE", on: model.arrangeView) { model.toggleArrange() }.frame(width: Layout.topButton)
+            // Запись аранжировки при закрытом окне — красный контур.
+            ViewButton(title: "ARRANGE", on: model.arrangeView, ring: model.arrRecording && !model.arrangeView) {
+                model.toggleArrange()
+            }
+            .frame(width: Layout.topButton)
                 .midiTarget(model, "ARRANGE")
             CPUIndicator(meter: model.audio.core.cpu).frame(width: Layout.meterWidth)
         }
@@ -269,6 +273,7 @@ struct PatternsButton: View {
 struct ViewButton: View {
     let title: String
     let on: Bool
+    var ring: Bool = false
     let action: () -> Void
     @Environment(\.theme) private var theme
 
@@ -279,6 +284,7 @@ struct ViewButton: View {
             .foregroundStyle(on ? theme.bg : theme.text)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(on ? theme.text : theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
+            .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(ring ? theme.rec : Color.clear, lineWidth: 1))
             .contentShape(Rectangle())
             .onTapGesture { action() }
     }

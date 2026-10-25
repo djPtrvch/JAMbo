@@ -55,6 +55,7 @@ extension AppModel {
     func toggleRec() {
         recOn.toggle()
         endRecTake()
+        syncArrRecord()
     }
 
     /// Верхняя октава клавиатуры выбранной дорожки (ноты не выше 127).
@@ -164,7 +165,8 @@ extension AppModel {
         // Нажатая нота сразу звучит на выбранной дорожке (живой наигрыш); держится, пока держат клавишу.
         liveNoteOn(track: ti, notes: notes, id: id, velocity: velocity)
         var recIndex: Int? = nil
-        if recOn && playing && heldSteps.isEmpty && channel == .track {
+        // С AUTO запись — аранжировки, ноты в паттерн не пишутся.
+        if recOn && playing && !arrAuto && heldSteps.isEmpty && channel == .track {
             recIndex = record(track: ti, notes: notes, velocity: settings.velocity ? velocity : nil)
         } else if own {
             inputNotes()

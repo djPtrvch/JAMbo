@@ -114,4 +114,26 @@ extension AppModel {
         let at: Int? = atCursor ? arrCursor : nil
         edit { p in p.sendToArrange(r.blocks, length: r.length, at: at) }
     }
+
+    // MARK: — запись с AUTO (S15e)
+
+    /// Идёт запись аранжировки: REC + PLAY + AUTO.
+    var arrRecording: Bool { return recOn && playing && arrAuto }
+
+    func toggleArrAuto() {
+        arrAuto.toggle()
+        syncArrRecord()
+    }
+
+    /// Запись начинается и кончается по REC, PLAY и AUTO: from — позиция курсора на PLAY (иначе — текущая);
+    /// на конце отрезки ложатся в проект одной записью UNDO.
+    func syncArrRecord(from: Int? = nil) {
+        let want: Bool = arrRecording
+        if want && !live.recorder.active {
+            live.beginRecord(project, at: from ?? live.arrPos, arrange: from != nil && arrangeView)
+        } else if !want && live.recorder.active {
+            let segs: [ArrRecorder.Seg] = live.finishRecord()
+            if !segs.isEmpty { edit { p in p.applyRecording(segs) } }
+        }
+    }
 }
