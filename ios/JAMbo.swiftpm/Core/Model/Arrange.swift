@@ -45,7 +45,11 @@ public enum ArrPalette {
     public static let count = 20
     public static let defaultColor = 17
     public static let white = 16
-    public static var choices: [Int] { return (0..<count).filter { $0 != white && $0 != defaultColor } }
+    /// Убран из выбора (решение пользователя); дорожки с ним прежние так и рисуются.
+    public static let removed = 3
+    public static var choices: [Int] {
+        return (0..<count).filter { $0 != white && $0 != defaultColor && $0 != removed }
+    }
 }
 
 /// Шаг сетки таймлайна: 1 BAR, 1/2, 1/4, 1 STEP.

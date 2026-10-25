@@ -82,23 +82,32 @@ struct RootView: View {
     }
 
     private func screen(_ layout: Layout) -> some View {
-        VStack(spacing: Layout.gap) {
+        let lowerH: CGFloat = Layout.trackHeight + Layout.seqHeight + layout.pianoHeight(model.project.scale) + 2 * Layout.gap
+        let over: Bool = model.arrStepsHidden && model.arrAutoPanel && !model.arrKnobs
+        return VStack(spacing: Layout.gap) {
             TopBar(model: model, menuOpen: $menuOpen)
             if model.arrangeView { ArrangeBar(model: model) }
             center(layout)
             lower(layout)
         }
+        // STEPS выключена и AUTO (решение пользователя): окно AUTO — поверх низа аранжировщика, дорожки не сжимаются
+        // (их можно прокрутить из-под окна — ArrMetrics.inset).
+        .overlay(alignment: .bottom) {
+            if over { ArrAutoPanel(model: model).frame(height: lowerH) }
+        }
+        .onChange(of: lowerH, initial: true) { _, h in model.arrLowerH = h }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
     }
 
     /// Строка дорожек, секвенсор и клавиатура. STEPS в аранжировщике (решение пользователя): выключена — все три скрыты,
-    /// окно растёт на их высоту. Окно AUTO аранжировщика (S15f2) — поверх всех трёх (с ним они не скрываются: окну нужна
-    /// высота).
+    /// окно растёт на их высоту. Окно AUTO аранжировщика (S15f2) — поверх всех трёх; при выключенной STEPS — поверх низа
+    /// аранжировщика (screen).
     @ViewBuilder
     private func lower(_ layout: Layout) -> some View {
         let auto: Bool = model.arrAutoPanel
-        if !model.arrStepsHidden || auto {
+        // С окном ручек (KNOBS) окно AUTO — на своём месте внизу и при выключенной STEPS.
+        if !model.arrStepsHidden || (auto && model.arrKnobs) {
             VStack(spacing: Layout.gap) {
                 TrackRow(model: model, layout: layout)
                     .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("root")).minY } action: { trackTop = $0 }
@@ -125,7 +134,7 @@ struct RootView: View {
             RollWindow(model: model, layout: layout)
         } else if model.patternView {
             PatternGrid(model: model, layout: layout)
-        } else if model.arrangeView {
+        } else if model.arrangeView && !model.arrKnobs {
             ArrangeWindow(model: model)
         } else if model.eqView {
             HStack(spacing: Layout.gap) {
@@ -160,7 +169,7 @@ struct RootView: View {
     @ViewBuilder
     private var arrangeMeter: some View {
         let f: CGRect = model.meterFrame
-        if model.arrangeView && f != .zero {
+        if model.arrangeView && !model.arrKnobs && f != .zero {
             MeterColumn(model: model).frame(width: f.width, height: f.height).offset(x: f.minX, y: f.minY)
         }
     }

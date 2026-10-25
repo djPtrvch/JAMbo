@@ -118,6 +118,10 @@ final class AppModel {
     /// Выделение рамкой (S15, решение пользователя): блоки на разных дорожках (от двух) и рамка, пока её тянут.
     var arrGroup: [ArrSel] = []
     var arrMarquee: CGRect? = nil
+    /// KNOBS (под UNDO): в аранжировщике на месте таймлайна — окно дорожки с ручками (запись ручек — REC + PLAY + AUTO).
+    var arrKnobs: Bool = false
+    /// Высота строки дорожек, секвенсора и клавиатуры: окно AUTO поверх низа аранжировщика при выключенной STEPS.
+    var arrLowerH: CGFloat = 0
     var arrMenu: ArrMenuState? = nil
     var arrPort: ArrPort = ArrPort()
     /// INSERT (S15d): режим вставки; только что вставленный блок (его правый край — длина со сдвигом).

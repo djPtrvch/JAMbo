@@ -32,6 +32,7 @@ struct TopBar: View {
             HistoryButton(symbol: "arrow.turn.up.left", enabled: model.canUndo || model.morphHeld) { model.undoTapped() }
                 .frame(width: Layout.topButton)
                 .midiTarget(model, "UNDO")
+                .topFrame(model, "UNDO")
             PlayButton(model: model).frame(width: half)
                 .midiTarget(model, "PLAY")
                 .topFrame(model, "PLAY")

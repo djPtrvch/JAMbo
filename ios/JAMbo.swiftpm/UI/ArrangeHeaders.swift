@@ -11,7 +11,8 @@ struct ArrHeaders: View {
         let port: ArrPort = model.arrPort
         return GeometryReader { geo in
             let m = ArrMetrics(size: CGSize(width: geo.size.width, height: geo.size.height), port: port,
-                               tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded)
+                               tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded,
+                           inset: model.arrInset)
             ZStack(alignment: .topLeading) {
                 // Все строки — одним столбцом с одним сдвигом (прокрутка — без отставания строк от таймлайна).
                 VStack(spacing: 0) {
@@ -35,7 +36,7 @@ struct ArrHeaders: View {
     }
 }
 
-/// Строка заголовка: имя (тап — выбор, двойной тап — меню дорожки), M и S рядом (решение пользователя: без метров).
+/// Строка заголовка: имя (тап — выбор, двойной тап — меню дорожки), M над S (решение пользователя: без метров).
 struct ArrHeaderRow: View {
     let model: AppModel
     let index: Int
@@ -65,14 +66,15 @@ struct ArrHeaderRow: View {
                 .lineLimit(1)
                 .foregroundStyle(fg)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            // M и S рядом; в низких строках (COMPACT) — меньше.
-            let side: CGFloat = max(14, min(28, rowH - 12))
-            HStack(spacing: 4) {
+            // M над S (решение пользователя), размер — по высоте строки; от края — небольшой отступ.
+            let side: CGFloat = max(10, min(26, (rowH - 16) / 2))
+            VStack(spacing: 4) {
                 ArrToggle(title: "M", on: t.mute, color: theme.rec, side: side) { model.toggleMute(index) }
                 ArrToggle(title: "S", on: t.solo, color: theme.accent, side: side) { model.toggleSolo(index) }
             }
         }
-        .padding(.horizontal, 6)
+        .padding(.leading, 6)
+        .padding(.trailing, 10)
         // Заголовок — на всю высоту строки дорожки (как блоки).
         .frame(maxHeight: .infinity)
         .background(bg, in: UnevenRoundedRectangle(topLeadingRadius: 6, bottomLeadingRadius: 6, bottomTrailingRadius: 0,

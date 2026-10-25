@@ -122,6 +122,9 @@ extension AppModel {
         edit { p in p.arrange.hideSteps.toggle() }
     }
 
+    /// Сколько снизу окна аранжировщика закрыто окном AUTO (STEPS выключена): дорожки прокручиваются из-под него.
+    var arrInset: CGFloat { return arrStepsHidden && arrAutoPanel && !arrKnobs ? arrLowerH + Layout.gap : 0 }
+
     /// STEPS выключена: строка дорожек, секвенсор и клавиатура скрыты (только пока открыт аранжировщик).
     var arrStepsHidden: Bool { return arrangeView && project.arrange.hideSteps }
 

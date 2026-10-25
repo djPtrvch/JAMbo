@@ -2,8 +2,8 @@ import SwiftUI
 
 /// Вторая строка кнопок под верхней панелью — пока открыт аранжировщик (S15c, решения пользователя): слева квадратные
 /// значки — сетка (ячейка; тап — меню шага), магнит, TRIM (ножницы); остальные — под кнопками верхней панели и той же
-/// ширины: курсор в начало (стрелка к черте) — под PLAY, LOOP — под REC, INSERT — под REDO, AUTO (синусоида с точками) —
-/// под пианороллом, STEPS — под EQ, REF — под PATTERNS, A/B — под ARRANGE. Высота — как у строки окон EQ и модулей
+/// ширины: KNOBS (ручки дорожки) — под UNDO, курсор в начало (стрелка к черте) — под PLAY, LOOP — под REC, STEPS — под
+/// REDO, AUTO (синусоида с точками) — под пианороллом, INSERT — под EQ, REF — под PATTERNS, A/B — под ARRANGE. Высота — как у строки окон EQ и модулей
 /// мастера.
 struct ArrangeBar: View {
     static let height: CGFloat = 48
@@ -23,20 +23,25 @@ struct ArrangeBar: View {
                     }
                     .frame(width: side)
                 }
+                under("UNDO", ox) {
+                    ArrBarButton(on: model.arrKnobs, enabled: true, action: { model.arrKnobs.toggle() }) { c in
+                        Image(systemName: "dial.medium").font(.system(size: 20, weight: .semibold)).foregroundStyle(c)
+                    }
+                }
                 under("PLAY", ox) { ArrReturnAll(model: model) }
                 under("REC", ox) {
                     ArrBarButton(on: a.loop, enabled: a.hasLoop, action: { model.toggleArrLoop() }) { c in
                         Image(systemName: "repeat").font(.system(size: 18, weight: .semibold)).foregroundStyle(c)
                     }
                 }
-                under("REDO", ox) { ArrBarText(title: "INSERT", on: model.arrInsert, enabled: true) { model.toggleArrInsert() } }
+                under("REDO", ox) { ArrBarText(title: "STEPS", on: !a.hideSteps, enabled: true) { model.toggleArrSteps() } }
                 // Запись (REC + PLAY + AUTO) — красная обводка.
                 under("ROLL", ox) {
                     ArrBarButton(on: model.arrAuto, enabled: true, ring: model.arrRecording, action: { model.toggleArrAuto() }) { c in
                         ArrWaveIcon(color: c)
                     }
                 }
-                under("EQ", ox) { ArrBarText(title: "STEPS", on: !a.hideSteps, enabled: true) { model.toggleArrSteps() } }
+                under("EQ", ox) { ArrBarText(title: "INSERT", on: model.arrInsert, enabled: true) { model.toggleArrInsert() } }
                 under("PATTERNS", ox) { ArrBarText(title: "REF", on: false, enabled: false) {} }
                 under("ARRANGE", ox) { ArrBarText(title: "A/B", on: false, enabled: false) {} }
             }

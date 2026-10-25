@@ -60,7 +60,8 @@ struct ArrMetrics {
     /// SETTINGS → ARRANGE: COMPACT — строки делят высоту окна поровну (без прокрутки), EXPANDED — своя высота строк
     /// (масштаб двумя пальцами по вертикали) и прокрутка.
     let expanded: Bool
-    init(size: CGSize, port: ArrPort, tracks: Int, end: Int, expanded: Bool) {
+    /// inset — низ окна, закрытый окном AUTO (STEPS выключена): дорожки не сжимаются, прокрутка — до последней.
+    init(size: CGSize, port: ArrPort, tracks: Int, end: Int, expanded: Bool, inset: CGFloat = 0) {
         self.size = size
         self.tracks = tracks
         self.expanded = expanded
@@ -69,7 +70,8 @@ struct ArrMetrics {
         let want: CGFloat = port.stepW ?? fit
         stepW = ArrMetrics.clampStep(want, width: w)
         let area: CGFloat = max(0, size.height - ArrMetrics.top)
-        let fitRow: CGFloat = area / CGFloat(max(1, tracks))
+        let seen: CGFloat = max(0, area - inset)
+        let fitRow: CGFloat = seen / CGFloat(max(1, tracks))
         // Решения пользователя: EXPANDED — 8 дорожек делят высоту окна поровну, больше — прокрутка; COMPACT — все дорожки
         // на высоту окна. Масштаба по вертикали нет.
         let fit8: CGFloat = area / CGFloat(min(max(1, tracks), 8))
@@ -77,7 +79,7 @@ struct ArrMetrics {
         steps = max(end, 0) + 32 * ArrMetrics.stepsPerBar
         let maxX: CGFloat = max(0, CGFloat(steps) * stepW - w)
         x = min(maxX, max(0, port.x))
-        let maxY: CGFloat = max(0, CGFloat(tracks) * rowH - area)
+        let maxY: CGFloat = max(0, CGFloat(tracks) * rowH - seen)
         y = min(maxY, max(0, port.y))
     }
 
@@ -145,7 +147,8 @@ struct ArrTimeline: View {
         let selTrack: Int = model.channel == .track ? model.selectedTrack : -1
         let following: [Bool] = (0..<p.tracks.count).map { model.arrFollowing($0) }
         return GeometryReader { geo in
-            let m = ArrMetrics(size: geo.size, port: port, tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded)
+            let m = ArrMetrics(size: geo.size, port: port, tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded,
+                           inset: model.arrInset)
             ZStack(alignment: .topLeading) {
                 Canvas { ctx, size in
                     // Левые углы прямые (к заголовкам дорожек), правые скруглены — решение пользователя.
@@ -190,10 +193,12 @@ struct ArrTimeline: View {
 
     private func apply(_ events: SpatialEventCollection, _ size: CGSize) {
         let p: Project = model.project
-        let m = ArrMetrics(size: size, port: model.arrPort, tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded)
+        let m = ArrMetrics(size: size, port: model.arrPort, tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded,
+                           inset: model.arrInset)
         var port: ArrPort = model.arrPort
         touches.handle(events, port: &port, m, model, lift: $lift)
-        let c = ArrMetrics(size: size, port: port, tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded)
+        let c = ArrMetrics(size: size, port: port, tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded,
+                           inset: model.arrInset)
         let next = ArrPort(stepW: port.stepW == nil ? nil : c.stepW, x: c.x, y: c.y)
         if next != model.arrPort { model.arrPort = next }
     }

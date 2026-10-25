@@ -65,10 +65,12 @@ struct ArrMenus: View {
 
     /// Меню дорожки — справа от её заголовка, по высоте — от строки дорожки.
     private func trackPlace(_ t: Int) -> CGSize {
-        let m = ArrMetrics(size: size, port: model.arrPort, tracks: model.project.tracks.count, end: 0, expanded: model.settings.arrangeExpanded)
+        let m = ArrMetrics(size: size, port: model.arrPort, tracks: model.project.tracks.count, end: 0, expanded: model.settings.arrangeExpanded,
+                           inset: model.arrInset)
         let h: CGFloat = ArrTrackMenu.height
         let y: CGFloat = max(0, min(m.rowY(t), size.height - h))
-        return CGSize(width: ArrMetrics.headerW + Layout.gap, height: y)
+        // От начала таймлайна (решение пользователя).
+        return CGSize(width: ArrMetrics.headerW, height: y)
     }
 }
 
@@ -138,8 +140,8 @@ struct ArrLaneMenu: View {
 /// Меню дорожки: COPY (все блоки), PASTE (заменяет блоки дорожки), DUPLICATE (ещё раз после последнего), палитра.
 struct ArrTrackMenu: View {
     static let width: CGFloat = 220
-    /// 3 строки по 40 (120), палитра 4 ряда по 22 и 3 зазора (106), 3 зазора по 6 (18), поля 16.
-    static let height: CGFloat = 260
+    /// 3 строки по 40 (120), палитра 3 ряда по 22 и 2 зазора (78), 3 зазора по 6 (18), поля 16.
+    static let height: CGFloat = 232
     let model: AppModel
     let track: Int
     @Environment(\.theme) private var theme
