@@ -13,11 +13,12 @@ extension AppModel {
         arrMenu = .marker(index: k, anchor: anchor)
     }
 
-    /// SECTION в меню диапазона: маркер в начале выделенного диапазона и окно с именем.
+    /// ADD SECTION в меню диапазона: секция ровно на выделенный диапазон и окно с именем.
     func arrSectionAtRange(anchor: CGPoint) {
         let at: Int = project.arrange.loopFrom
+        let end: Int = project.arrange.loopTo
         var k: Int = 0
-        edit { p in k = p.addMarker(at: at, name: "") }
+        edit { p in k = p.addMarker(at: at, name: "", end: end) }
         arrMenu = .marker(index: k, anchor: anchor)
     }
 
@@ -56,11 +57,12 @@ extension AppModel {
         arrCursor = m.at
     }
 
-    /// SPLIT: блоки всех дорожек разрезаются по краям выделенного диапазона.
+    /// SPLIT: блоки выбранной дорожки разрезаются по краям выделенного диапазона.
     func arrSplitRange() {
         let a: Arrangement = project.arrange
-        guard a.hasLoop else { return }
-        edit { p in p.splitArrange(a.loopFrom, a.loopTo) }
+        guard a.hasLoop, channel == .track else { return }
+        let t: Int = selectedTrack
+        edit { p in p.splitArrange(track: t, a.loopFrom, a.loopTo) }
         arrSel = nil
     }
 

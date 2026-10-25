@@ -116,10 +116,10 @@ public final class Launcher {
         arrPos = arrFrom
         if arrangeMode {
             for t in 0..<SeqData.maxTracks { queued[t] = Launcher.none }
-            setFollow(all: true)
+            setFollow(all: true, force: true)
             return
         }
-        setFollow(all: false)
+        setFollow(all: false, force: true)
         var anyQueued = false
         for t in 0..<d.trackCount where queued[t] != Launcher.none {
             anyQueued = true

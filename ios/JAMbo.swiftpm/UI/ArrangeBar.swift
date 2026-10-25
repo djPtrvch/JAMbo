@@ -27,6 +27,8 @@ struct ArrangeBar: View {
             ArrBarText(title: "STEPS", on: a.hideSteps, enabled: true) { model.toggleArrSteps() }.frame(width: Layout.topButton)
             ArrBarText(title: "REF", on: false, enabled: false) {}.frame(width: Layout.topButton)
             ArrBarText(title: "A/B", on: false, enabled: false) {}.frame(width: Layout.topButton)
+            // Правый край — как у ARRANGE (над измерителем справа ничего нет).
+            Color.clear.frame(width: Layout.meterWidth)
         }
         .frame(height: ArrangeBar.height)
     }

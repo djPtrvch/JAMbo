@@ -237,13 +237,20 @@ final class ArrTouches {
         base = ArrPort(stepW: m.stepW, x: m.x, rowH: m.rowH, y: m.y)
     }
 
+    /// Два пальца: разошлись или сошлись — масштаб; сдвинулись вместе — прокрутка (по времени и по дорожкам).
     private func zoom(_ a: CGPoint, _ b: CGPoint, _ port: inout ArrPort, _ m: ArrMetrics) {
         let sx: CGFloat = abs(a.x - b.x)
         let sy: CGFloat = abs(a.y - b.y)
+        let cx: CGFloat = (a.x + b.x) / 2
+        let cy: CGFloat = (a.y + b.y) / 2
         if axis == nil {
             let dx: CGFloat = abs(sx - spread0.width)
             let dy: CGFloat = abs(sy - spread0.height)
-            if max(dx, dy) < ArrTouches.zoomSlop { return }
+            if max(dx, dy) < ArrTouches.zoomSlop {
+                port.x = base.x - (cx - mid.x)
+                port.y = base.y - (cy - mid.y)
+                return
+            }
             // COMPACT: высота строк — по окну, масштаб только по времени.
             axis = dx >= dy || !m.expanded ? .h : .v
         }
@@ -252,7 +259,7 @@ final class ArrTouches {
             let k: CGFloat = sx / max(20, spread0.width)
             let w: CGFloat = ArrMetrics.clampStep(w0 * k, width: m.size.width)
             port.stepW = w
-            port.x = (base.x + mid.x) / w0 * w - mid.x
+            port.x = (base.x + mid.x) / w0 * w - cx
             port.y = base.y
         } else {
             let h0: CGFloat = base.rowH

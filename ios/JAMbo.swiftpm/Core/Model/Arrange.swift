@@ -27,18 +27,25 @@ public struct ArrMarker: Codable, Equatable, Sendable {
     public var at: Int
     public var name: String = ""
     public var color: Int = ArrPalette.defaultColor
+    /// Конец секции (шаги; S15d, решение пользователя: секция из выделенного диапазона — ровно этот диапазон);
+    /// nil — до следующего маркера.
+    public var end: Int? = nil
 
-    public init(at: Int, name: String = "", color: Int = ArrPalette.defaultColor) {
+    public init(at: Int, name: String = "", color: Int = ArrPalette.defaultColor, end: Int? = nil) {
         self.at = at
         self.name = name
         self.color = color
+        self.end = end
     }
 }
 
-/// Палитра дорожек и маркеров: 20 цветов (сами цвета — в UI), по умолчанию Light grey.
+/// Палитра дорожек и маркеров: 20 цветов (сами цвета — в UI), по умолчанию Light grey; в меню выбора — без белого
+/// (Off-white) и без цвета по умолчанию (он — пункт DEFAULT).
 public enum ArrPalette {
     public static let count = 20
     public static let defaultColor = 17
+    public static let white = 16
+    public static var choices: [Int] { return (0..<count).filter { $0 != white && $0 != defaultColor } }
 }
 
 /// Шаг сетки таймлайна: 1 BAR, 1/2, 1/4, 1 STEP.
@@ -90,13 +97,14 @@ extension ArrBlock {
 }
 
 extension ArrMarker {
-    enum CodingKeys: String, CodingKey, CaseIterable { case at, name, color }
+    enum CodingKeys: String, CodingKey, CaseIterable { case at, name, color, end }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         at = c.value(.at, 0)
         name = c.value(.name, "")
         color = c.value(.color, ArrPalette.defaultColor)
+        end = c.optional(.end)
     }
 }
 
@@ -120,6 +128,7 @@ extension Arrangement {
             markers[k].at = Swift.max(0, markers[k].at)
             markers[k].name = String(markers[k].name.prefix(12))
             if markers[k].color < 0 || markers[k].color >= ArrPalette.count { markers[k].color = ArrPalette.defaultColor }
+            if let e = markers[k].end, e <= markers[k].at { markers[k].end = nil }
         }
         markers.sort { $0.at < $1.at }
         loopFrom = Swift.max(0, loopFrom)

@@ -136,8 +136,8 @@ struct ArrLaneMenu: View {
 /// Меню дорожки: COPY (все блоки), PASTE (заменяет блоки дорожки), DUPLICATE (ещё раз после последнего), палитра.
 struct ArrTrackMenu: View {
     static let width: CGFloat = 220
-    /// 3 строки по 40 (120), палитра 4 ряда по 28 (112), 6 зазоров по 6 (36), поля 16.
-    static let height: CGFloat = 284
+    /// 4 строки по 40 (160, с DEFAULT), палитра 3 ряда по 22 и 2 зазора (78), 4 зазора по 6 (24), поля 16.
+    static let height: CGFloat = 278
     let model: AppModel
     let track: Int
     @Environment(\.theme) private var theme
@@ -160,22 +160,26 @@ struct ArrTrackMenu: View {
     }
 }
 
-/// Палитра 20 цветов (5 × 4): выбранный — обводка цветом текста.
+/// Цвет: DEFAULT (цвет по умолчанию) и палитра без белого — 18 цветов, 6 × 3; выбранный — обводка цветом текста.
 struct ArrPaletteGrid: View {
     let current: Int
     let pick: (Int) -> Void
     @Environment(\.theme) private var theme
 
     var body: some View {
-        let cols: [GridItem] = [GridItem](repeating: GridItem(.flexible(), spacing: 6), count: 5)
-        return LazyVGrid(columns: cols, spacing: 6) {
-            ForEach(0..<ArrPalette.count, id: \.self) { k in
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(ArrColors.color(k))
-                    .frame(height: 22)
-                    .overlay(RoundedRectangle(cornerRadius: 4).stroke(k == current ? theme.text : Color.clear, lineWidth: 2))
-                    .contentShape(Rectangle())
-                    .onTapGesture { pick(k) }
+        let cols: [GridItem] = [GridItem](repeating: GridItem(.flexible(), spacing: 6), count: 6)
+        let list: [Int] = ArrPalette.choices
+        return VStack(spacing: 6) {
+            MenuItem(title: "DEFAULT", current: current == ArrPalette.defaultColor) { pick(ArrPalette.defaultColor) }
+            LazyVGrid(columns: cols, spacing: 6) {
+                ForEach(list, id: \.self) { k in
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(ArrColors.color(k))
+                        .frame(height: 22)
+                        .overlay(RoundedRectangle(cornerRadius: 4).stroke(k == current ? theme.text : Color.clear, lineWidth: 2))
+                        .contentShape(Rectangle())
+                        .onTapGesture { pick(k) }
+                }
             }
         }
     }
@@ -208,8 +212,8 @@ struct ArrInsertMenu: View {
 /// и при закрытии тапом мимо.
 struct ArrMarkerWindow: View {
     static let width: CGFloat = 240
-    /// Имя 44, палитра 4 ряда по 28, 2 строки по 40, 3 зазора по 6, поля 16.
-    static let height: CGFloat = 278
+    /// Имя 44, DEFAULT 40, палитра 78, 2 строки по 40, 5 зазоров по 6, поля 16.
+    static let height: CGFloat = 288
     let model: AppModel
     let index: Int
     @State private var name: String = ""

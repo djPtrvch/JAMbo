@@ -122,14 +122,14 @@ final class ArrRulerTouches {
         return double
     }
 
-    /// Маркер под пальцем: от его начала до следующего маркера (последний — 80 pt).
+    /// Маркер под пальцем: вся его секция (до её конца; последняя без конца — до края окна).
     private func hitMarker(_ p: CGPoint, _ m: ArrMetrics, _ model: AppModel) -> Int {
         let list: [ArrMarker] = model.project.arrange.markers
         var k: Int = list.count - 1
         while k >= 0 {
             let x0: CGFloat = m.stepX(Double(list[k].at))
-            var x1: CGFloat = x0 + 80
-            if k + 1 < list.count { x1 = m.stepX(Double(list[k + 1].at)) }
+            var x1: CGFloat = m.size.width
+            if let e = model.project.sectionEnd(k) { x1 = m.stepX(Double(e)) }
             let inside: Bool = p.x >= x0 - 4 && p.x < x1
             if inside { return k }
             k -= 1

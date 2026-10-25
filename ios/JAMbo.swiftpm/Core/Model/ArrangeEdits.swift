@@ -195,12 +195,11 @@ extension Project {
         for b in list { tracks[i].placeBlock(b) }
     }
 
-    /// SPLIT в меню диапазона: блоки всех дорожек разрезаются на границах [a, b) (правая часть продолжает клип).
-    public mutating func splitArrange(_ a: Int, _ b: Int) {
-        for i in tracks.indices {
-            tracks[i].splitArrange(at: a)
-            tracks[i].splitArrange(at: b)
-        }
+    /// SPLIT в меню диапазона: блоки дорожки t разрезаются на границах [a, b) (правая часть продолжает клип).
+    public mutating func splitArrange(track t: Int, _ a: Int, _ b: Int) {
+        guard tracks.indices.contains(t) else { return }
+        tracks[t].splitArrange(at: a)
+        tracks[t].splitArrange(at: b)
     }
 
     public mutating func setTrackColor(_ i: Int, _ color: Int) {
@@ -210,10 +209,12 @@ extension Project {
 
     /// Маркер секции на позиции at (на занятой позиции — заменяет прежний). Номер маркера.
     @discardableResult
-    public mutating func addMarker(at: Int, name: String) -> Int {
+    public mutating func addMarker(at: Int, name: String, end: Int? = nil) -> Int {
         let x: Int = Swift.max(0, at)
         arrange.markers.removeAll { $0.at == x }
-        let m = ArrMarker(at: x, name: Project.markerName(name))
+        var e: Int? = end
+        if let v = e, v <= x { e = nil }
+        let m = ArrMarker(at: x, name: Project.markerName(name), end: e)
         arrange.markers.append(m)
         arrange.markers.sort { $0.at < $1.at }
         return arrange.markers.firstIndex(of: m) ?? 0
@@ -223,7 +224,10 @@ extension Project {
     public mutating func moveMarker(_ k: Int, to at: Int) -> Int {
         guard arrange.markers.indices.contains(k) else { return k }
         var m: ArrMarker = arrange.markers.remove(at: k)
-        m.at = Swift.max(0, at)
+        let x: Int = Swift.max(0, at)
+        // Секция с концом переезжает целиком.
+        if let e = m.end { m.end = e + (x - m.at) }
+        m.at = x
         arrange.markers.removeAll { $0.at == m.at }
         arrange.markers.append(m)
         arrange.markers.sort { $0.at < $1.at }
@@ -243,9 +247,24 @@ extension Project {
         if arrange.markers.indices.contains(k) { arrange.markers.remove(at: k) }
     }
 
-    /// Секция на позиции x: последний маркер не правее x (nil — до первого маркера).
+    /// Секция на позиции x: последний маркер не правее x, если x до конца его секции (nil — секции нет).
     public func section(at x: Int) -> Int? {
-        return arrange.markers.lastIndex { $0.at <= x }
+        guard let k = arrange.markers.lastIndex(where: { $0.at <= x }) else { return nil }
+        let m: ArrMarker = arrange.markers[k]
+        if let e = sectionEnd(k), x >= e { return nil }
+        return m.at <= x ? k : nil
+    }
+
+    /// Конец секции k: свой конец (не дальше следующего маркера) или следующий маркер; nil — до конца.
+    public func sectionEnd(_ k: Int) -> Int? {
+        let list: [ArrMarker] = arrange.markers
+        guard k >= 0 && k < list.count else { return nil }
+        let next: Int? = k + 1 < list.count ? list[k + 1].at : nil
+        if let e = list[k].end {
+            if let n = next { return Swift.min(e, n) }
+            return e
+        }
+        return next
     }
 
     /// Диапазон петли (границы в любом порядке); пустой диапазон петлю выключает.

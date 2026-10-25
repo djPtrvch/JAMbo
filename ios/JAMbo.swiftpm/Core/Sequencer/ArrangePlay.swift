@@ -5,16 +5,17 @@
 
 extension Launcher {
     /// Дорожка t идёт по таймлайну (или в сетке); изменение уходит в интерфейс.
-    func setFollow(_ t: Int, _ on: Bool) {
+    func setFollow(_ t: Int, _ on: Bool, force: Bool = false) {
         if t < 0 || t >= SeqData.maxTracks { return }
         if on { arrDirty[t] = true }
-        if follow[t] == on { return }
+        if follow[t] == on && !force { return }
         follow[t] = on
         out.push(.follow(track: t, on: on))
     }
 
-    func setFollow(all on: Bool) {
-        for t in 0..<SeqData.maxTracks { setFollow(t, on) }
+    /// force — сообщение уходит и без изменения (старт: интерфейс сбросил своё состояние).
+    func setFollow(all on: Bool, force: Bool = false) {
+        for t in 0..<SeqData.maxTracks { setFollow(t, on, force: force) }
     }
 
     /// Возврат к таймлайну (во время игры): ожидание клипа снимается.

@@ -191,8 +191,25 @@ final class ArrangeTests: XCTestCase {
         var p = Project()
         p.tracks[0].placeBlock(ArrBlock(clip: 0, start: 0, length: 64))
         p.tracks[1].placeBlock(ArrBlock(clip: 0, start: 16, length: 16))
-        p.splitArrange(16, 48)
+        p.splitArrange(track: 0, 16, 48)
         XCTAssertEqual(spans(p.tracks[0]), [[0, 0, 16, 0], [0, 16, 32, 16], [0, 48, 16, 48]])
-        XCTAssertEqual(spans(p.tracks[1]), [[0, 16, 16, 0]], "граница на краю блока — без разреза")
+        p.tracks[1].placeBlock(ArrBlock(clip: 0, start: 40, length: 16))
+        p.splitArrange(track: 1, 16, 48)
+        XCTAssertEqual(spans(p.tracks[1]), [[0, 16, 16, 0], [0, 40, 8, 0], [0, 48, 8, 8]], "только эта дорожка; на краю — без разреза")
+    }
+
+    func testSectionWithEnd() {
+        var p = Project()
+        let k = p.addMarker(at: 32, name: "DROP", end: 64)
+        XCTAssertEqual(p.sectionEnd(k), 64)
+        XCTAssertEqual(p.section(at: 40), k)
+        XCTAssertNil(p.section(at: 64), "после конца секции — нет")
+        let j = p.moveMarker(k, to: 48)
+        XCTAssertEqual(p.arrange.markers[j].end, 80, "секция переезжает целиком")
+        p.addMarker(at: 64, name: "OUT")
+        XCTAssertEqual(p.sectionEnd(j), 64, "не дальше следующего маркера")
+        p.deleteMarker(1)
+        p.deleteMarker(0)
+        XCTAssertTrue(p.arrange.markers.isEmpty)
     }
 }

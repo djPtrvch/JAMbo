@@ -196,6 +196,7 @@ struct ArrDraw {
         lanes(p)
         gridLines(p)
         for t in 0..<p.tracks.count {
+            // Тускнеют блоки дорожки, которая играет сетку, и заглушённой.
             let on: Bool = t < following.count ? following[t] : true
             let heard: Bool = p.audible(t)
             let dim: Bool = !on || !heard
@@ -279,6 +280,7 @@ struct ArrDraw {
             let r = CGRect(x: x0, y: 0, width: max(2, x1 - x0), height: ArrMetrics.rulerH)
             ctx.fill(Path(r), with: .color(theme.accent.opacity(a.loop ? 0.75 : 0.35)))
         }
+        let loopOn: Bool = p.arrange.loop && p.arrange.hasLoop
         let every: Int = m.barLabelEvery
         let firstBar: Int = max(0, Int(m.step(at: 0)) / ArrMetrics.stepsPerBar)
         let lastBar: Int = Int(m.step(at: m.size.width)) / ArrMetrics.stepsPerBar + 1
@@ -287,7 +289,11 @@ struct ArrDraw {
             let x: CGFloat = m.stepX(Double(bar * ArrMetrics.stepsPerBar))
             // Черта такта у самого края не рисуется — угол линейки остаётся скруглённым.
             if x >= 1 { ctx.fill(Path(CGRect(x: x, y: 0, width: 1, height: ArrMetrics.rulerH)), with: .color(theme.gridStrong)) }
-            let text = Text("\(bar + 1)").font(.system(size: 9)).monospacedDigit().foregroundStyle(theme.dim)
+            // В выделенном диапазоне при включённой петле (яркая заливка) — номера тактов чёрные.
+            let s: Int = bar * ArrMetrics.stepsPerBar
+            let lit: Bool = loopOn && s >= p.arrange.loopFrom && s < p.arrange.loopTo
+            let tc: Color = lit ? theme.onAccent : theme.dim
+            let text = Text("\(bar + 1)").font(.system(size: 9)).monospacedDigit().foregroundStyle(tc)
             ctx.draw(text, at: CGPoint(x: x + 3, y: 3), anchor: .topLeading)
             bar += every
         }
@@ -299,8 +305,9 @@ struct ArrDraw {
         let list: [ArrMarker] = p.arrange.markers
         for (k, mk) in list.enumerated() {
             let x0: CGFloat = m.stepX(Double(mk.at))
+            // Секция — до своего конца (диапазон, из которого её сделали) или до следующего маркера.
             var next: CGFloat = m.size.width
-            if k + 1 < list.count { next = m.stepX(Double(list[k + 1].at)) }
+            if let e = p.sectionEnd(k) { next = m.stepX(Double(e)) }
             if next < 0 || x0 > m.size.width { continue }
             let r = CGRect(x: x0, y: ArrMetrics.rulerH + 2, width: max(2, next - x0 - 2), height: ArrMetrics.markerH - 4)
             ctx.fill(Path(roundedRect: r, cornerRadius: 2), with: .color(ArrColors.color(mk.color)))
