@@ -20,12 +20,11 @@ enum ArrMenuState: Equatable {
     case range(anchor: CGPoint)
 }
 
-/// Вид таймлайна: ширина шага (nil — 16 тактов на ширину), прокрутка по X (pt), высота строки дорожки (nil — 8 дорожек
-/// на высоту окна), прокрутка по Y. Не хранится в проекте и не входит в UNDO.
+/// Вид таймлайна: ширина шага (nil — 16 тактов на ширину), прокрутка по X и по Y (pt). Высота строки — по режиму
+/// (ArrMetrics). Не хранится в проекте и не входит в UNDO.
 struct ArrPort: Equatable {
     var stepW: CGFloat? = nil
     var x: CGFloat = 0
-    var rowH: CGFloat? = nil
     var y: CGFloat = 0
 }
 
@@ -180,6 +179,46 @@ extension AppModel {
         var i: Int = 0
         edit { p in i = p.tracks[s.track].duplicateBlock(s.block) }
         arrSel = ArrSel(track: s.track, block: i)
+    }
+
+    // MARK: — группа (выделение рамкой)
+
+    /// Блок s — в выделенной рамкой группе (от двух блоков).
+    func arrInGroup(_ s: ArrSel) -> Bool {
+        return arrGroup.count >= 2 && arrGroup.contains(s)
+    }
+
+    private var arrGroupList: [(track: Int, block: Int)] {
+        return arrGroup.map { (track: $0.track, block: $0.block) }
+    }
+
+    private func setGroup(_ list: [(track: Int, block: Int)]) {
+        arrGroup = list.map { ArrSel(track: $0.track, block: $0.block) }
+        arrSel = nil
+    }
+
+    /// Перенос группы (отпустили поднятый блок группы): сдвиг d шагов, одна запись UNDO.
+    func arrMoveGroup(by d: Int) {
+        if d == 0 || arrGroup.count < 2 { return }
+        let g = arrGroupList
+        var out: [(track: Int, block: Int)] = []
+        edit { p in out = p.moveBlocks(g, by: d) }
+        setGroup(out)
+    }
+
+    /// DUPLICATE группы: копии сразу за ней, выделены копии.
+    func arrDuplicateGroup() {
+        let g = arrGroupList
+        var out: [(track: Int, block: Int)] = []
+        edit { p in out = p.duplicateBlocks(g) }
+        setGroup(out)
+    }
+
+    func arrDeleteGroup() {
+        let g = arrGroupList
+        edit { p in p.deleteBlocks(g) }
+        arrGroup = []
+        arrSel = nil
     }
 
     func arrDeleteBlock(_ s: ArrSel) {

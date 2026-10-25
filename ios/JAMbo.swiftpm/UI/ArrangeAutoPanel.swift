@@ -200,7 +200,7 @@ struct ArrAutoCurve: View {
         var port: ArrPort = model.arrPort
         touches.handle(events, port: &port, m, model)
         let c = ArrMetrics(size: size, port: port, tracks: p.tracks.count, end: p.arrangeEnd, expanded: expanded)
-        let next = ArrPort(stepW: port.stepW == nil ? nil : c.stepW, x: c.x, rowH: port.rowH, y: port.y)
+        let next = ArrPort(stepW: port.stepW == nil ? nil : c.stepW, x: c.x, y: port.y)
         if next != model.arrPort { model.arrPort = next }
     }
 }
@@ -321,7 +321,7 @@ final class ArrAutoTouches {
 
     private func begin(_ p: CGPoint, _ m: ArrMetrics, _ model: AppModel) {
         start = p
-        base = ArrPort(stepW: m.stepW, x: m.x, rowH: model.arrPort.rowH, y: model.arrPort.y)
+        base = ArrPort(stepW: m.stepW, x: m.x, y: model.arrPort.y)
         moved = false
         index = -1
         mode = .tap
@@ -416,7 +416,7 @@ final class ArrAutoTouches {
         mode = .zoom
         spread0 = max(20, abs(a.x - b.x))
         mid = (a.x + b.x) / 2
-        base = ArrPort(stepW: m.stepW, x: m.x, rowH: base.rowH, y: base.y)
+        base = ArrPort(stepW: m.stepW, x: m.x, y: base.y)
     }
 
     private func zoom(_ a: CGPoint, _ b: CGPoint, _ port: inout ArrPort, _ m: ArrMetrics) {

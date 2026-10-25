@@ -36,6 +36,8 @@ struct ArrLift: Equatable {
     let block: ArrBlock
     var at: Double
     var target: Int
+    /// Блок выделенной рамкой группы: переезжает вся группа на тот же сдвиг.
+    var group: Bool = false
 }
 
 /// Размеры и прокрутка таймлайна (общие у рисования и касаний).
@@ -68,14 +70,10 @@ struct ArrMetrics {
         stepW = ArrMetrics.clampStep(want, width: w)
         let area: CGFloat = max(0, size.height - ArrMetrics.top)
         let fitRow: CGFloat = area / CGFloat(max(1, tracks))
-        // EXPANDED (решение пользователя): по умолчанию 8 дорожек делят высоту окна поровну, больше — прокрутка; после
-        // масштаба двумя пальцами — своя высота.
+        // Решения пользователя: EXPANDED — 8 дорожек делят высоту окна поровну, больше — прокрутка; COMPACT — все дорожки
+        // на высоту окна. Масштаба по вертикали нет.
         let fit8: CGFloat = area / CGFloat(min(max(1, tracks), 8))
-        if expanded {
-            rowH = port.rowH.map { ArrMetrics.clampRow($0) } ?? max(24, fit8)
-        } else {
-            rowH = max(16, fitRow)
-        }
+        rowH = expanded ? max(24, fit8) : max(16, fitRow)
         steps = max(end, 0) + 32 * ArrMetrics.stepsPerBar
         let maxX: CGFloat = max(0, CGFloat(steps) * stepW - w)
         x = min(maxX, max(0, port.x))
@@ -88,10 +86,6 @@ struct ArrMetrics {
         let lo: CGFloat = width / CGFloat(64 * stepsPerBar)
         let hi: CGFloat = width / CGFloat(4 * stepsPerBar)
         return min(hi, max(lo, s))
-    }
-
-    static func clampRow(_ h: CGFloat) -> CGFloat {
-        return min(120, max(44, h))
     }
 
     func stepX(_ s: Double) -> CGFloat {
@@ -146,6 +140,8 @@ struct ArrTimeline: View {
         let port: ArrPort = model.arrPort
         let now: Int = model.arrNow
         let sel: ArrSel? = model.arrSel
+        let group: [ArrSel] = model.arrGroup.count >= 2 ? model.arrGroup : []
+        let marquee: CGRect? = model.arrMarquee
         let selTrack: Int = model.channel == .track ? model.selectedTrack : -1
         let following: [Bool] = (0..<p.tracks.count).map { model.arrFollowing($0) }
         return GeometryReader { geo in
@@ -156,7 +152,7 @@ struct ArrTimeline: View {
                     var c = ctx
                     c.clip(to: ArrTimeline.frameShape.path(in: CGRect(origin: .zero, size: size)))
                     ArrDraw(ctx: c, m: m, theme: theme).draw(p, cursor: now, sel: sel, lift: lift, following: following,
-                                                            track: selTrack)
+                                                            track: selTrack, group: group, marquee: marquee)
                 }
                 if let l = lift { liftedView(l, m, p) }
             }
@@ -198,9 +194,7 @@ struct ArrTimeline: View {
         var port: ArrPort = model.arrPort
         touches.handle(events, port: &port, m, model, lift: $lift)
         let c = ArrMetrics(size: size, port: port, tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded)
-        // COMPACT: высота строк — по окну, своя высота EXPANDED не теряется; без своей — по окну (nil).
-        let rowH: CGFloat? = port.rowH.map { c.expanded ? c.rowH : $0 }
-        let next = ArrPort(stepW: port.stepW == nil ? nil : c.stepW, x: c.x, rowH: rowH, y: c.y)
+        let next = ArrPort(stepW: port.stepW == nil ? nil : c.stepW, x: c.x, y: c.y)
         if next != model.arrPort { model.arrPort = next }
     }
 }
@@ -211,7 +205,8 @@ struct ArrDraw {
     let m: ArrMetrics
     let theme: Theme
 
-    func draw(_ p: Project, cursor: Int, sel: ArrSel?, lift: ArrLift?, following: [Bool], track: Int) {
+    func draw(_ p: Project, cursor: Int, sel: ArrSel?, lift: ArrLift?, following: [Bool], track: Int, group: [ArrSel],
+              marquee: CGRect?) {
         lanes(p)
         gridLines(p)
         for t in 0..<p.tracks.count {
@@ -219,10 +214,11 @@ struct ArrDraw {
             let on: Bool = t < following.count ? following[t] : true
             let heard: Bool = p.audible(t)
             let dim: Bool = !on || !heard
-            blocks(p, t, sel: sel, lift: lift, dim: dim)
+            blocks(p, t, sel: sel, group: group, lift: lift, dim: dim)
         }
         selectedLane(track)
-        if let l = lift { target(l) }
+        if let l = lift { target(l, p, group) }
+        if let r = marquee { marqueeRect(r) }
         ruler(p)
         markers(p)
         cursorLine(cursor)
@@ -267,7 +263,7 @@ struct ArrDraw {
         ctx.fill(Path(CGRect(x: 0, y: y + m.rowH - 2, width: m.size.width, height: 1)), with: .color(theme.accent))
     }
 
-    private func blocks(_ p: Project, _ t: Int, sel: ArrSel?, lift: ArrLift?, dim: Bool) {
+    private func blocks(_ p: Project, _ t: Int, sel: ArrSel?, group: [ArrSel], lift: ArrLift?, dim: Bool) {
         let tr: Track = p.tracks[t]
         let y: CGFloat = m.rowY(t)
         if y > m.size.height || y + m.rowH < ArrMetrics.top { return }
@@ -278,7 +274,8 @@ struct ArrDraw {
             if r.maxX < 0 || r.minX > m.size.width { continue }
             let shape = Path(roundedRect: r, cornerRadius: 4)
             ctx.fill(shape, with: .color(color.opacity(dim ? 0.35 : 1)))
-            if sel == ArrSel(track: t, block: i) { ctx.stroke(shape, with: .color(theme.text), lineWidth: 1) }
+            let s = ArrSel(track: t, block: i)
+            if sel == s || group.contains(s) { ctx.stroke(shape, with: .color(theme.text), lineWidth: 1) }
             pattern(tr, b, r)
         }
     }
@@ -318,10 +315,26 @@ struct ArrDraw {
     }
 
     /// Куда встанет поднятый блок — контур.
-    private func target(_ l: ArrLift) {
-        let b = ArrBlock(clip: l.block.clip, start: l.target, length: l.block.length)
-        ctx.stroke(Path(roundedRect: m.rect(l.track, b), cornerRadius: 4), with: .color(theme.text.opacity(0.6)),
-                   style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+    private func target(_ l: ArrLift, _ p: Project, _ group: [ArrSel]) {
+        var list: [(track: Int, block: ArrBlock)] = [(l.track, l.block)]
+        if l.group {
+            list = []
+            for s in group where s.track < p.tracks.count && s.block < p.tracks[s.track].blocks.count {
+                list.append((s.track, p.tracks[s.track].blocks[s.block]))
+            }
+        }
+        let d: Int = l.target - l.block.start
+        for g in list {
+            let b = ArrBlock(clip: g.block.clip, start: g.block.start + d, length: g.block.length)
+            ctx.stroke(Path(roundedRect: m.rect(g.track, b), cornerRadius: 4), with: .color(theme.text.opacity(0.6)),
+                       style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+        }
+    }
+
+    /// Рамка выделения: бледная заливка и белый пунктир.
+    private func marqueeRect(_ r: CGRect) {
+        ctx.fill(Path(r), with: .color(theme.text.opacity(0.08)))
+        ctx.stroke(Path(r), with: .color(theme.text.opacity(0.8)), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
     }
 
     /// Линейка: номера тактов, планка петли (жёлтая; выключенная петля — бледная).

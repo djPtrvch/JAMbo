@@ -115,6 +115,9 @@ final class AppModel {
     var arrangeView: Bool = false
     var arrCursor: Int = 0
     var arrSel: ArrSel? = nil
+    /// Выделение рамкой (S15, решение пользователя): блоки на разных дорожках (от двух) и рамка, пока её тянут.
+    var arrGroup: [ArrSel] = []
+    var arrMarquee: CGRect? = nil
     var arrMenu: ArrMenuState? = nil
     var arrPort: ArrPort = ArrPort()
     /// INSERT (S15d): режим вставки; только что вставленный блок (его правый край — длина со сдвигом).
@@ -503,6 +506,7 @@ final class AppModel {
 
     /// Вернуть проект к снимку: что сейчас играет (остановленные дорожки), UNDO не меняет.
     private func restore(_ snap: Project) {
+        arrGroup = []
         var p = snap
         for i in 0..<p.tracks.count {
             // Что играет, UNDO не меняет: активная ячейка и остановка — как сейчас.

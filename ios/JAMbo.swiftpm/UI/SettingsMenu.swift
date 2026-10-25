@@ -53,7 +53,8 @@ struct SettingsPage: View {
     }
 }
 
-/// ARRANGE (S15): вид дорожек аранжировщика — EXPANDED (по умолчанию: выше, с прокруткой) или COMPACT (все на высоту окна).
+/// ARRANGE (S15): вид дорожек аранжировщика — EXPANDED (по умолчанию: 8 дорожек на высоту окна, больше — прокрутка) или
+/// COMPACT (все на высоту окна).
 struct ArrangeSettings: View {
     let model: AppModel
 
@@ -65,7 +66,7 @@ struct ArrangeSettings: View {
                 MenuItem(title: "EXPANDED", current: on) { model.updateSettings { $0.arrangeCompact = false } }
                 MenuItem(title: "COMPACT", current: !on) { model.updateSettings { $0.arrangeCompact = true } }
             }
-            SettingsNote(text: "EXPANDED: taller tracks; drag to scroll, pinch vertically to change their height. COMPACT: all tracks fit the arranger window.")
+            SettingsNote(text: "EXPANDED: 8 tracks fill the arranger window, more tracks scroll. COMPACT: all tracks fit the arranger window.")
         }
     }
 }

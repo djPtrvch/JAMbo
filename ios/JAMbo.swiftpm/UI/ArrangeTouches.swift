@@ -1,20 +1,20 @@
 import SwiftUI
 
-/// Касания таймлайна аранжировщика (S15c). Один палец по дорожкам: тап по блоку — выбор (по пустому — ничего),
-/// двойной тап — меню блока или места; удержание блока 0,35 с — блок поднимается и едет за пальцем, при отпускании
-/// встаёт на место (с магнитом — на линию сетки); край блока — длина сразу; сдвиг по пустому (или по блоку до
-/// удержания) — прокрутка (по времени и, в EXPANDED, по дорожкам). Линейка и строка маркеров — ArrRulerTouches (S15d). INSERT: тап по дорожке — клип
-/// для вставки, правый край вставленного блока — длина со сдвигом. Два пальца — масштаб по
-/// одной оси (какая разошлась первой): по горизонтали — время (точка между пальцами на месте), по вертикали — высота строк.
+/// Касания таймлайна аранжировщика (S15c). Один палец по дорожкам: тап по блоку — выбор (по пустому — снять выделение
+/// рамкой), двойной тап — меню блока или места; удержание блока 0,35 с — блок поднимается и едет за пальцем, при
+/// отпускании встаёт на место (с магнитом — на линию сетки; блок группы — переезжает вся группа); удержание по пустому —
+/// рамка выделения (блоки на разных дорожках); край блока — длина сразу; сдвиг по пустому (или по блоку до удержания) —
+/// прокрутка (по времени и, в EXPANDED, по дорожкам). Линейка и строка маркеров — ArrRulerTouches (S15d). INSERT: тап по
+/// дорожке — клип для вставки, правый край вставленного блока — длина со сдвигом. Два пальца — масштаб по времени (точка
+/// между пальцами на месте) и прокрутка; по вертикали масштаба нет (решение пользователя).
 final class ArrTouches {
-    enum Axis { case h, v }
-    enum Mode { case idle, tap, press, lift, edge, scroll, ruler, zoom }
+    enum Mode { case idle, tap, press, lift, edge, scroll, ruler, zoom, marquee }
 
     private var points: [SpatialEventCollection.Event.ID: CGPoint] = [:]
     private var mode: Mode = .idle
     private var start: CGPoint = .zero
     private var base = ArrPort()
-    private var axis: Axis? = nil
+    private var zooming: Bool = false
     private var spread0: CGSize = .zero
     private var mid: CGPoint = .zero
     /// Блок под пальцем (дорожка, номер, блок); край: левый (true) или правый; блоки дорожки до протяжки.
@@ -58,7 +58,7 @@ final class ArrTouches {
 
     private func begin(_ p: CGPoint, _ m: ArrMetrics, _ model: AppModel, lift: Binding<ArrLift?>) {
         start = p
-        base = ArrPort(stepW: m.stepW, x: m.x, rowH: m.rowH, y: m.y)
+        base = ArrPort(stepW: m.stepW, x: m.x, y: m.y)
         hitBlock = nil
         serial += 1
         if p.y < ArrMetrics.top {
@@ -69,6 +69,7 @@ final class ArrTouches {
         let t: Int = m.track(at: p.y)
         guard t >= 0, t < model.project.tracks.count else {
             mode = .tap
+            armMarquee(model)
             return
         }
         hitTrack = t
@@ -86,6 +87,7 @@ final class ArrTouches {
                     leftEdge = p.x <= r.minX + ew
                     edgeBase = blocks
                     edgeMoved = false
+                    model.arrGroup = []
                     model.beginGesture()
                     return
                 }
@@ -95,6 +97,34 @@ final class ArrTouches {
             }
         }
         mode = .tap
+        armMarquee(model)
+    }
+
+    /// Удержание по пустому без сдвига — рамка выделения от точки касания.
+    private func armMarquee(_ model: AppModel) {
+        if model.arrInsert { return }
+        let mine: Int = serial
+        DispatchQueue.main.asyncAfter(deadline: .now() + ArrTouches.hold) { [weak self] in
+            guard let self = self, self.serial == mine, self.mode == .tap else { return }
+            self.mode = .marquee
+            model.arrMenu = nil
+            model.arrSel = nil
+            model.arrGroup = []
+            model.arrMarquee = CGRect(origin: self.start, size: .zero)
+        }
+    }
+
+    /// Рамка до пальца: выделены блоки, которых она касается.
+    private func marquee(_ p: CGPoint, _ m: ArrMetrics, _ model: AppModel) {
+        let r = CGRect(x: min(start.x, p.x), y: min(start.y, p.y), width: abs(p.x - start.x), height: abs(p.y - start.y))
+        model.arrMarquee = r
+        var list: [ArrSel] = []
+        for (t, tr) in model.project.tracks.enumerated() {
+            for (i, b) in tr.blocks.enumerated() where m.rect(t, b).intersects(r) {
+                list.append(ArrSel(track: t, block: i))
+            }
+        }
+        if list != model.arrGroup { model.arrGroup = list }
     }
 
     /// Удержание без сдвига — блок поднимается.
@@ -104,10 +134,15 @@ final class ArrTouches {
             guard let self = self, self.serial == mine, self.mode == .press, let b = self.hitBlock else { return }
             self.mode = .lift
             model.arrMenu = nil
-            model.arrSel = ArrSel(track: self.hitTrack, block: self.hitIndex)
+            let s = ArrSel(track: self.hitTrack, block: self.hitIndex)
+            let group: Bool = model.arrInGroup(s)
+            if !group {
+                model.arrSel = s
+                model.arrGroup = []
+            }
             withAnimation(.easeOut(duration: 0.12)) {
                 lift.wrappedValue = ArrLift(track: self.hitTrack, index: self.hitIndex, block: b, at: Double(b.start),
-                                            target: b.start)
+                                            target: b.start, group: group)
             }
         }
     }
@@ -128,6 +163,8 @@ final class ArrTouches {
             if p.count >= 2 { zoom(p[0], p[1], &port, m) }
         case .lift:
             drag(p[0], m, model, lift: lift)
+        case .marquee:
+            marquee(p[0], m, model)
         case .edge:
             if moved { edgeMoved = true }
             if edgeMoved { edge(p[0], m, model) }
@@ -175,10 +212,17 @@ final class ArrTouches {
             model.endGesture()
             // Край без сдвига — как тап по блоку (выбор, двойной — меню).
             if ended && !edgeMoved { tapped(model, m) }
+        case .marquee:
+            // Один блок в рамке — обычный выбор.
+            model.arrMarquee = nil
+            if model.arrGroup.count == 1 {
+                model.arrSel = model.arrGroup[0]
+                model.arrGroup = []
+            }
         default:
             break
         }
-        axis = nil
+        zooming = false
     }
 
     /// Тап: по блоку — выбор; двойной — меню блока или места на дорожке.
@@ -200,10 +244,16 @@ final class ArrTouches {
             return
         }
         if hitBlock != nil {
-            model.arrSel = ArrSel(track: hitTrack, block: hitIndex)
+            // Блок группы — группа остаётся (двойной тап — меню группы); другой блок — обычный выбор.
+            let s = ArrSel(track: hitTrack, block: hitIndex)
+            if !model.arrInGroup(s) {
+                model.arrSel = s
+                model.arrGroup = []
+            }
             if double { model.arrMenu = .block(track: hitTrack, block: hitIndex, anchor: start) }
             return
         }
+        model.arrGroup = []
         if double && t >= 0 {
             let x: Int = Int(m.step(at: start.x).rounded(.down))
             model.arrMenu = .lane(track: t, at: x, anchor: start)
@@ -218,7 +268,11 @@ final class ArrTouches {
         let sel = ArrSel(track: l.track, block: l.index)
         let to: Int = l.target
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-            if to != l.block.start { model.arrMoveBlock(sel, to: to) }
+            if l.group {
+                model.arrMoveGroup(by: to - l.block.start)
+            } else if to != l.block.start {
+                model.arrMoveBlock(sel, to: to)
+            }
             lift.wrappedValue = nil
         }
     }
@@ -230,44 +284,29 @@ final class ArrTouches {
 
     private func beginZoom(_ a: CGPoint, _ b: CGPoint, _ m: ArrMetrics) {
         mode = .zoom
-        axis = nil
+        zooming = false
         spread0 = CGSize(width: abs(a.x - b.x), height: abs(a.y - b.y))
         mid = CGPoint(x: (a.x + b.x) / 2, y: (a.y + b.y) / 2)
-        base = ArrPort(stepW: m.stepW, x: m.x, rowH: m.rowH, y: m.y)
+        base = ArrPort(stepW: m.stepW, x: m.x, y: m.y)
     }
 
-    /// Два пальца (решения пользователя): разошлись или сошлись — масштаб по той оси, что разошлась первой: по
-    /// горизонтали — время (точка между пальцами на месте), по вертикали — высота строк (только EXPANDED); сдвинулись
-    /// вместе вбок — прокрутка по времени; вместе вверх-вниз — ничего.
+    /// Два пальца (решения пользователя): разошлись или сошлись по горизонтали — масштаб по времени (точка между
+    /// пальцами на месте); сдвинулись вместе вбок — прокрутка по времени.
     private func zoom(_ a: CGPoint, _ b: CGPoint, _ port: inout ArrPort, _ m: ArrMetrics) {
         let sx: CGFloat = abs(a.x - b.x)
-        let sy: CGFloat = abs(a.y - b.y)
         let cx: CGFloat = (a.x + b.x) / 2
-        if axis == nil {
-            let dx: CGFloat = abs(sx - spread0.width)
-            let dy: CGFloat = abs(sy - spread0.height)
-            if max(dx, dy) < ArrTouches.zoomSlop {
+        port.y = base.y
+        if !zooming {
+            if abs(sx - spread0.width) < ArrTouches.zoomSlop {
                 port.x = base.x - (cx - mid.x)
-                port.y = base.y
                 return
             }
-            axis = dx >= dy || !m.expanded ? .h : .v
+            zooming = true
         }
-        if axis == .h {
-            let w0: CGFloat = base.stepW ?? m.stepW
-            let k: CGFloat = sx / max(20, spread0.width)
-            let w: CGFloat = ArrMetrics.clampStep(w0 * k, width: m.size.width)
-            port.stepW = w
-            port.x = (base.x + mid.x) / w0 * w - cx
-            port.y = base.y
-        } else {
-            let h0: CGFloat = base.rowH ?? m.rowH
-            let k: CGFloat = sy / max(20, spread0.height)
-            let h: CGFloat = ArrMetrics.clampRow(h0 * k)
-            let my: CGFloat = mid.y - ArrMetrics.top
-            port.rowH = h
-            port.y = (base.y + my) / h0 * h - my
-            port.x = base.x
-        }
+        let w0: CGFloat = base.stepW ?? m.stepW
+        let k: CGFloat = sx / max(20, spread0.width)
+        let w: CGFloat = ArrMetrics.clampStep(w0 * k, width: m.size.width)
+        port.stepW = w
+        port.x = (base.x + mid.x) / w0 * w - cx
     }
 }

@@ -80,11 +80,13 @@ struct ArrBlockMenu: View {
     let sel: ArrSel
 
     var body: some View {
-        VStack(spacing: 6) {
-            MenuItem(title: "COPY") { run { model.arrCopyBlock(sel) } }
-            MenuItem(title: "PASTE", enabled: model.arrBlockClipboard != nil) { run { model.arrPasteBlock(after: sel) } }
-            MenuItem(title: "DUPLICATE") { run { model.arrDuplicateBlock(sel) } }
-            MenuItem(title: "DELETE", red: true) { run { model.arrDeleteBlock(sel) } }
+        // Блок группы (выделение рамкой): DUPLICATE и DELETE — всей группы, COPY и PASTE — только у одного блока.
+        let group: Bool = model.arrInGroup(sel)
+        return VStack(spacing: 6) {
+            MenuItem(title: "COPY", enabled: !group) { run { model.arrCopyBlock(sel) } }
+            MenuItem(title: "PASTE", enabled: !group && model.arrBlockClipboard != nil) { run { model.arrPasteBlock(after: sel) } }
+            MenuItem(title: "DUPLICATE") { run { if group { model.arrDuplicateGroup() } else { model.arrDuplicateBlock(sel) } } }
+            MenuItem(title: "DELETE", red: true) { run { if group { model.arrDeleteGroup() } else { model.arrDeleteBlock(sel) } } }
         }
         .frame(width: ArrBlockMenu.width)
         .modifier(MenuPanel())

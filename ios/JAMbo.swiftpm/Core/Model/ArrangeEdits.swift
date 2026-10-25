@@ -195,6 +195,68 @@ extension Project {
         for b in list { tracks[i].placeBlock(b) }
     }
 
+    // MARK: — группа блоков (выделение рамкой)
+
+    /// Блоки группы по дорожкам: (дорожка, номер); чужие номера пропускаются.
+    private func groupBlocks(_ sel: [(track: Int, block: Int)]) -> [(track: Int, block: ArrBlock)] {
+        var out: [(track: Int, block: ArrBlock)] = []
+        for s in sel where tracks.indices.contains(s.track) && tracks[s.track].blocks.indices.contains(s.block) {
+            out.append((s.track, tracks[s.track].blocks[s.block]))
+        }
+        return out
+    }
+
+    private mutating func removeGroup(_ sel: [(track: Int, block: Int)]) {
+        let sorted = sel.sorted { $0.track == $1.track ? $0.block > $1.block : $0.track < $1.track }
+        for s in sorted where tracks.indices.contains(s.track) { tracks[s.track].deleteBlock(s.block) }
+    }
+
+    /// Номера поставленных блоков после правки (по месту и клипу).
+    private func indices(_ list: [(track: Int, block: ArrBlock)]) -> [(track: Int, block: Int)] {
+        var out: [(track: Int, block: Int)] = []
+        for g in list {
+            if let i = tracks[g.track].blocks.firstIndex(of: g.block) { out.append((g.track, i)) }
+        }
+        return out
+    }
+
+    /// DELETE группы.
+    public mutating func deleteBlocks(_ sel: [(track: Int, block: Int)]) {
+        removeGroup(sel)
+    }
+
+    /// Перенос группы на d шагов (не левее нуля): блоки снимаются, затем ставятся на новые места. Номера после правки.
+    @discardableResult
+    public mutating func moveBlocks(_ sel: [(track: Int, block: Int)], by d0: Int) -> [(track: Int, block: Int)] {
+        let list = groupBlocks(sel)
+        guard let first = list.map({ $0.block.start }).min() else { return [] }
+        let d: Int = Swift.max(d0, -first)
+        removeGroup(sel)
+        var placed: [(track: Int, block: ArrBlock)] = []
+        for g in list {
+            var b: ArrBlock = g.block
+            b.start += d
+            tracks[g.track].placeBlock(b)
+            placed.append((g.track, b))
+        }
+        return indices(placed)
+    }
+
+    /// DUPLICATE группы: копии сразу за группой (сдвиг — длина группы от первого начала до последнего конца). Номера копий.
+    @discardableResult
+    public mutating func duplicateBlocks(_ sel: [(track: Int, block: Int)]) -> [(track: Int, block: Int)] {
+        let list = groupBlocks(sel)
+        guard let a = list.map({ $0.block.start }).min(), let e = list.map({ $0.block.end }).max() else { return [] }
+        var placed: [(track: Int, block: ArrBlock)] = []
+        for g in list {
+            var b: ArrBlock = g.block
+            b.start += e - a
+            tracks[g.track].placeBlock(b)
+            placed.append((g.track, b))
+        }
+        return indices(placed)
+    }
+
     /// SPLIT в меню диапазона: блоки дорожки t разрезаются на границах [a, b) (правая часть продолжает клип).
     public mutating func splitArrange(track t: Int, _ a: Int, _ b: Int) {
         guard tracks.indices.contains(t) else { return }

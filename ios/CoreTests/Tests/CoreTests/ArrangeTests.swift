@@ -213,6 +213,32 @@ final class ArrangeTests: XCTestCase {
         XCTAssertTrue(p.arrange.markers.isEmpty)
     }
 
+    /// Группа блоков: перенос (не левее нуля, блоки группы не затирают друг друга), DUPLICATE за группой, DELETE.
+    func testBlockGroup() {
+        var p = Project()
+        p.tracks[0].blocks = []
+        p.tracks[1].blocks = []
+        p.tracks[0].placeBlock(ArrBlock(clip: 0, start: 0, length: 16))
+        p.tracks[0].placeBlock(ArrBlock(clip: 0, start: 16, length: 16))
+        p.tracks[1].placeBlock(ArrBlock(clip: 0, start: 8, length: 16))
+        let sel: [(track: Int, block: Int)] = [(0, 0), (0, 1), (1, 0)]
+        let moved = p.moveBlocks(sel, by: 8)
+        XCTAssertEqual(p.tracks[0].blocks.map { $0.start }, [8, 24])
+        XCTAssertEqual(p.tracks[1].blocks.map { $0.start }, [16])
+        XCTAssertEqual(moved.count, 3)
+        p.moveBlocks(moved, by: -100)
+        XCTAssertEqual(p.tracks[0].blocks.map { $0.start }, [0, 16], "не левее нуля, сдвиг группы общий")
+        XCTAssertEqual(p.tracks[1].blocks.map { $0.start }, [8])
+        let all: [(track: Int, block: Int)] = [(0, 0), (0, 1), (1, 0)]
+        let copies = p.duplicateBlocks(all)
+        XCTAssertEqual(copies.count, 3)
+        XCTAssertEqual(p.tracks[0].blocks.map { $0.start }, [0, 16, 32, 48], "копии за группой: сдвиг 32")
+        XCTAssertEqual(p.tracks[1].blocks.map { $0.start }, [8, 40])
+        p.deleteBlocks(copies)
+        XCTAssertEqual(p.tracks[0].blocks.map { $0.start }, [0, 16])
+        XCTAssertEqual(p.tracks[1].blocks.map { $0.start }, [8])
+    }
+
     /// Края секции: левый — не правее конца и не левее конца прежней; правый — не дальше следующей.
     func testSectionEdges() {
         var p = Project()
