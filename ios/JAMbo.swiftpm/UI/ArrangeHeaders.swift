@@ -20,6 +20,7 @@ struct ArrHeaders: View {
                         ArrHeaderRow(model: model, index: t, rowH: m.rowH)
                             .padding(.vertical, 1)
                             .frame(width: geo.size.width, height: m.rowH)
+                            .allowsHitTesting(m.tappable(m.rowY(t)))
                         // AUTO (S15f2): под выбранной дорожкой — заголовки её кривых и «+».
                         if t == m.autoTrack {
                             ArrAutoHeaders(model: model, track: t, metrics: m)
@@ -194,10 +195,12 @@ struct ArrAutoHeaders: View {
                 row(model.arrAutoLabel(track, autos[k].param), dim: false) {
                     model.arrMenu = .autoLane(track: track, param: autos[k].param, y: metrics.laneY(k))
                 }
+                .allowsHitTesting(metrics.tappable(metrics.laneY(k)))
             }
             row("+", dim: true) {
                 model.arrMenu = .autoAdd(track: track, y: metrics.laneY(autos.count))
             }
+            .allowsHitTesting(metrics.tappable(metrics.laneY(autos.count)))
         }
     }
 

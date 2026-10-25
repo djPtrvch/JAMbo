@@ -107,6 +107,12 @@ struct ArrMetrics {
         return ArrMetrics.top + CGFloat(t) * rowH + below - y
     }
 
+    /// Строка заголовка с верхом y принимает касания, только если верх не ушёл под линейку: маска прячет строку, но не
+    /// касания — уехавшая вверх строка ловила тапы второй строки экрана (AUTO включал S дорожки).
+    func tappable(_ top: CGFloat) -> Bool {
+        return top >= ArrMetrics.top - 1 && top < size.height
+    }
+
     /// Верх строки кривой k (под дорожкой autoTrack).
     func laneY(_ k: Int) -> CGFloat {
         return rowY(autoTrack) + rowH + CGFloat(k) * ArrMetrics.laneH
