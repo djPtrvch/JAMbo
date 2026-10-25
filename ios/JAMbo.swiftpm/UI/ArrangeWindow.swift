@@ -142,7 +142,7 @@ struct ArrTimeline: View {
             let m = ArrMetrics(size: geo.size, port: port, tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded)
             ZStack(alignment: .topLeading) {
                 Canvas { ctx, size in
-                    // Углы окна скруглены, кроме левого верхнего (линейка — с прямым углом, решение пользователя).
+                    // Левые углы прямые (к заголовкам дорожек), правые скруглены — решение пользователя.
                     var c = ctx
                     c.clip(to: ArrTimeline.frameShape.path(in: CGRect(origin: .zero, size: size)))
                     ArrDraw(ctx: c, m: m, theme: theme).draw(p, cursor: now, sel: sel, lift: lift, following: following,
@@ -157,7 +157,7 @@ struct ArrTimeline: View {
         .clipShape(ArrTimeline.frameShape)
     }
 
-    static let frameShape = UnevenRoundedRectangle(topLeadingRadius: 0, bottomLeadingRadius: Layout.radius,
+    static let frameShape = UnevenRoundedRectangle(topLeadingRadius: 0, bottomLeadingRadius: 0,
                                                    bottomTrailingRadius: Layout.radius, topTrailingRadius: Layout.radius)
 
     /// Поднятый блок — над дорожкой, с тенью; при отпускании плавно встаёт на место (анимация позиции).
@@ -373,5 +373,17 @@ struct ArrDraw {
         let x: CGFloat = m.stepX(Double(pos))
         if x < -2 || x > m.size.width + 2 { return }
         ctx.fill(Path(CGRect(x: x - 1, y: 0, width: 2, height: m.size.height)), with: .color(theme.accent))
+        // Маркер плейхеда — жёлтый пятиугольник остриём вниз в строке секций.
+        let w: CGFloat = 14
+        let top: CGFloat = ArrMetrics.rulerH + 1
+        let h: CGFloat = ArrMetrics.markerH - 2
+        var head = Path()
+        head.move(to: CGPoint(x: x - w / 2, y: top))
+        head.addLine(to: CGPoint(x: x + w / 2, y: top))
+        head.addLine(to: CGPoint(x: x + w / 2, y: top + h * 0.55))
+        head.addLine(to: CGPoint(x: x, y: top + h))
+        head.addLine(to: CGPoint(x: x - w / 2, y: top + h * 0.55))
+        head.closeSubpath()
+        ctx.fill(head, with: .color(theme.accent))
     }
 }
