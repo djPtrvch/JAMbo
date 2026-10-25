@@ -10,6 +10,7 @@ final class AudioHost {
     private var restartWork: DispatchWorkItem? = nil
     /// Счёт перезапусков движка: звук стоял — шаги секвенсора отстали от MIDI-клока (привязать заново).
     private(set) var restarts: Int = 0
+    private var lastRestart: Double = 0
     private var latency: Double = -1
     /// Диагностика тормозов с USB-аудио (строка «Now:»): смены маршрута; прошлый замер скорости колбэка.
     private(set) var routeChanges: Int = 0
@@ -29,9 +30,8 @@ final class AudioHost {
         observers.append(center.addObserver(forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main) { [weak self] _ in
             self?.scheduleRestart()
         })
-        observers.append(center.addObserver(forName: AVAudioSession.routeChangeNotification, object: session, queue: .main) { [weak self] _ in
-            self?.routeChanges += 1
-            self?.refreshLatency()
+        observers.append(center.addObserver(forName: AVAudioSession.routeChangeNotification, object: session, queue: .main) { [weak self] note in
+            self?.routeChanged(note)
         })
     }
 
@@ -73,13 +73,36 @@ final class AudioHost {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: work)
     }
 
-    /// Только движок: сессия уже настроена (категория и частота те же). Не запустился — полная настройка.
+    /// Маршрут сменился. Новое устройство (USB-аудио — Digitakt): уведомления о смене конфигурации движка может не
+    /// быть — движок остаётся в формате прежнего выхода, система почти не зовёт колбэк и через пару секунд
+    /// возвращает звук в динамик, потом пробует снова (маршрут прыгал). Перезапуск движка под новый выход.
+    private func routeChanged(_ note: Notification) {
+        routeChanges += 1
+        refreshLatency()
+        guard let raw = note.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
+              let reason = AVAudioSession.RouteChangeReason(rawValue: raw) else { return }
+        switch reason {
+        case .newDeviceAvailable, .oldDeviceUnavailable, .override:
+            scheduleRestart()
+        case .routeConfigurationChange:
+            // Свой перезапуск тоже меняет конфигурацию — без петли.
+            if HostClock().now() - lastRestart > 1 { scheduleRestart() }
+        default:
+            break
+        }
+    }
+
+    /// Только движок: сессия уже настроена (категория и частота те же). Выход микшера соединяется заново — в формате
+    /// нынешнего устройства (каналы, частота). Не запустился — полная настройка.
     func restart() {
         restartWork = nil
         restarts += 1
+        lastRestart = HostClock().now()
         engine.stop()
         do {
             if source == nil { attachSource() }
+            engine.disconnectNodeOutput(engine.mainMixerNode)
+            engine.connect(engine.mainMixerNode, to: engine.outputNode, format: nil)
             try engine.start()
             refreshLatency()
             lastError = ""
