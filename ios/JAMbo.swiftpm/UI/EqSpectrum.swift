@@ -45,7 +45,7 @@ final class SpectrumDisplay {
         }
         let fall: Float = SpectrumDisplay.fall * Float(dt)
         let k: Float = Float(1 - exp(-dt / SpectrumDisplay.diffTau))
-        let g = EqGeometry(size: size)
+        let g = EqGeometry(size: size, low: EqGeometry.viewLow)
         pre.analyze(spectra.pre)
         post.analyze(spectra.post)
         let a: [Float] = bands(pre, n, g)

@@ -1,20 +1,23 @@
 import SwiftUI
 
-/// Координаты поля EQ (как в src/ui/eq.ts): частота 20 Гц — 20 кГц логарифмически по ширине, усиление ±21 dB на
-/// всю высоту.
+/// Координаты поля EQ (как в src/ui/eq.ts): частота low — 20 кГц логарифмически по ширине, усиление ±21 dB на
+/// всю высоту. Поле EQ — от 10 Гц (viewLow; полосы — от 20 Гц, срез у нижней точки виден слева), окно SAT — от 20 Гц.
 struct EqGeometry {
     static let dbRange: Double = 21
-    static let octaves: Double = log2(EqSpec.freqMax / EqSpec.freqMin)
+    static let viewLow: Double = 10
     let size: CGSize
+    var low: Double = EqSpec.freqMin
+
+    var octaves: Double { return log2(EqSpec.freqMax / low) }
 
     func x(_ f: Double) -> CGFloat {
-        let u: Double = log2(f / EqSpec.freqMin) / EqGeometry.octaves
+        let u: Double = log2(f / low) / octaves
         return size.width * CGFloat(u)
     }
 
     func freq(_ x: CGFloat) -> Double {
         let u: Double = Double(x / max(1, size.width))
-        return EqSpec.freqMin * pow(2, u * EqGeometry.octaves)
+        return low * pow(2, u * octaves)
     }
 
     func y(_ g: Double) -> CGFloat {
@@ -76,7 +79,7 @@ struct EqPlot: View {
 
     var body: some View {
         GeometryReader { geo in
-            let g = EqGeometry(size: geo.size)
+            let g = EqGeometry(size: geo.size, low: EqGeometry.viewLow)
             let eq: Eq = model.eqTarget
             ZStack(alignment: .topLeading) {
                 EqSpectrumLayer(model: model, display: spectrum)
@@ -140,7 +143,7 @@ struct EqPlot: View {
         while d <= 10000 {
             for m in 1...9 {
                 let f: Double = d * Double(m)
-                if f < EqSpec.freqMin || f > EqSpec.freqMax { continue }
+                if f < g.low || f > EqSpec.freqMax { continue }
                 let x: CGFloat = g.x(f).rounded() + 0.5
                 let p = Path { $0.move(to: CGPoint(x: x, y: 0)); $0.addLine(to: CGPoint(x: x, y: g.size.height)) }
                 ctx.stroke(p, with: .color(m == 1 ? theme.gridStrong : theme.grid), lineWidth: 1)
@@ -329,7 +332,7 @@ extension EqPlot {
         touches[id] = t
         guard t.band >= 0, !t.menu, t.moved, let b = model.eqTarget.band(t.band) else { return }
         let dx: Double = Double((p.x - t.start.x) / max(1, g.size.width))
-        let f: Double = t.f0 * pow(2, dx * EqGeometry.octaves)
+        let f: Double = t.f0 * pow(2, dx * g.octaves)
         if EqSpec.hasGain(b.type) {
             model.setEqBand(t.band, freq: f, gain: t.g0 + g.gain(p.y) - g.gain(t.start.y))
         } else {
