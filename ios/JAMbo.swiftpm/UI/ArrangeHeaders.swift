@@ -17,14 +17,16 @@ struct ArrHeaders: View {
                 // Все строки — одним столбцом с одним сдвигом (прокрутка — без отставания строк от таймлайна).
                 VStack(spacing: 0) {
                     ForEach(0..<p.tracks.count, id: \.self) { t in
-                        ArrHeaderRow(model: model, index: t, rowH: m.rowH)
+                        // «+» (AUTO) — в заголовке дорожки с кривыми; меню — под её последней кривой.
+                        let addY: CGFloat? = t == m.autoTrack ? m.laneY(m.lanes) : nil
+                        ArrHeaderRow(model: model, index: t, rowH: m.rowH, addY: addY)
                             .padding(.vertical, 1)
                             .frame(width: geo.size.width, height: m.rowH)
                             .allowsHitTesting(m.tappable(m.rowY(t)))
-                        // AUTO (S15f2): под выбранной дорожкой — заголовки её кривых и «+».
+                        // AUTO (S15f2): под выбранной дорожкой — заголовки её кривых.
                         if t == m.autoTrack {
                             ArrAutoHeaders(model: model, track: t, metrics: m)
-                                .frame(width: geo.size.width, height: CGFloat(m.lanes) * ArrMetrics.laneH)
+                                .frame(width: geo.size.width, height: CGFloat(m.lanes) * m.laneH)
                         }
                     }
                 }
@@ -47,6 +49,8 @@ struct ArrHeaderRow: View {
     let model: AppModel
     let index: Int
     let rowH: CGFloat
+    /// AUTO: «+» — новая кривая (меню ручек на этой высоте); nil — без «+».
+    var addY: CGFloat? = nil
     @State private var lastTap: Date? = nil
     @State private var touching: Bool = false
     @State private var scrolled: Bool = false
@@ -74,6 +78,11 @@ struct ArrHeaderRow: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             // M над S; в COMPACT (низкие строки) — меньше.
             let side: CGFloat = max(10, min(20, (rowH - 8) / 2))
+            if let y = addY {
+                ArrToggle(title: "+", on: false, color: theme.dim, side: side) {
+                    model.arrMenu = .autoAdd(track: index, y: y)
+                }
+            }
             VStack(spacing: 2) {
                 ArrToggle(title: "M", on: t.mute, color: theme.rec, side: side) { model.toggleMute(index) }
                 ArrToggle(title: "S", on: t.solo, color: theme.accent, side: side) { model.toggleSolo(index) }
@@ -181,7 +190,7 @@ struct ArrHeaderMeters: View {
     }
 }
 
-/// Заголовки строк кривых (S15f2): имя ручки (тап — CLEAR, DELETE), последняя — «+» (тап — ручки для новой кривой).
+/// Заголовки строк кривых (S15f2): имя ручки (тап — CLEAR, DELETE); «+» (новая кривая) — в заголовке дорожки.
 struct ArrAutoHeaders: View {
     let model: AppModel
     let track: Int
@@ -192,26 +201,22 @@ struct ArrAutoHeaders: View {
         let autos: [ArrAutoLane] = track < model.project.tracks.count ? model.project.tracks[track].autos : []
         return VStack(spacing: 0) {
             ForEach(0..<autos.count, id: \.self) { k in
-                row(model.arrAutoLabel(track, autos[k].param), dim: false) {
+                row(model.arrAutoLabel(track, autos[k].param)) {
                     model.arrMenu = .autoLane(track: track, param: autos[k].param, y: metrics.laneY(k))
                 }
                 .allowsHitTesting(metrics.tappable(metrics.laneY(k)))
             }
-            row("+", dim: true) {
-                model.arrMenu = .autoAdd(track: track, y: metrics.laneY(autos.count))
-            }
-            .allowsHitTesting(metrics.tappable(metrics.laneY(autos.count)))
         }
     }
 
-    private func row(_ title: String, dim: Bool, tap: @escaping () -> Void) -> some View {
+    private func row(_ title: String, tap: @escaping () -> Void) -> some View {
         Text(title)
-            .font(.system(size: dim ? 18 : 11, weight: .semibold))
+            .font(.system(size: 11, weight: .semibold))
             .lineLimit(1)
-            .foregroundStyle(dim ? theme.dim : theme.text)
+            .foregroundStyle(theme.text)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.leading, 18)
-            .frame(height: ArrMetrics.laneH)
+            .frame(height: metrics.laneH)
             .background(theme.panel)
             .overlay(alignment: .bottom) { Rectangle().fill(theme.line).frame(height: 1) }
             .contentShape(Rectangle())

@@ -1,16 +1,16 @@
 import SwiftUI
 
-/// AUTO в аранжировщике (S15f2): под выбранной дорожкой — строки её кривых и строка «+».
+/// AUTO в аранжировщике (S15f2): под выбранной дорожкой — строки её кривых («+» — в заголовке дорожки).
 struct ArrAutoView: Equatable {
     var track: Int = -1
     var lanes: Int = 0
 }
 
 extension AppModel {
-    /// Строки кривых: AUTO включён и выбрана дорожка — её кривые и «+».
+    /// Строки кривых: AUTO включён и выбрана дорожка — её кривые.
     var arrAutoView: ArrAutoView {
         guard arrAuto, channel == .track, selectedTrack < project.tracks.count else { return ArrAutoView() }
-        return ArrAutoView(track: selectedTrack, lanes: project.tracks[selectedTrack].autos.count + 1)
+        return ArrAutoView(track: selectedTrack, lanes: project.tracks[selectedTrack].autos.count)
     }
 
     /// Ручки сетки дорожки, которые можно автоматизировать: id и подпись (в порядке сетки).

@@ -61,10 +61,11 @@ struct ArrMetrics {
     /// SETTINGS → ARRANGE: COMPACT — строки делят высоту окна поровну (без прокрутки), EXPANDED — своя высота строк
     /// (масштаб двумя пальцами по вертикали) и прокрутка.
     let expanded: Bool
-    /// AUTO (S15f2): под дорожкой autoTrack — строки её кривых (lanes, последняя — «+»), высотой laneH.
+    /// AUTO (S15f2): под дорожкой autoTrack — строки её кривых (lanes), высотой laneH — как у строки дорожки (решение
+    /// пользователя; «+» — в заголовке дорожки).
     let autoTrack: Int
     let lanes: Int
-    static let laneH: CGFloat = 44
+    let laneH: CGFloat
 
     init(size: CGSize, port: ArrPort, tracks: Int, end: Int, expanded: Bool, auto: ArrAutoView = ArrAutoView()) {
         self.size = size
@@ -76,10 +77,11 @@ struct ArrMetrics {
         let fit: CGFloat = w / 256
         let want: CGFloat = port.stepW ?? fit
         stepW = ArrMetrics.clampStep(want, width: w)
-        let autoH: CGFloat = CGFloat(lanes) * ArrMetrics.laneH
         let area: CGFloat = max(0, size.height - ArrMetrics.top)
-        let fitRow: CGFloat = max(0, area - autoH) / CGFloat(max(1, tracks))
+        let fitRow: CGFloat = area / CGFloat(max(1, tracks + lanes))
         rowH = expanded ? ArrMetrics.clampRow(port.rowH) : max(16, fitRow)
+        laneH = rowH
+        let autoH: CGFloat = CGFloat(lanes) * rowH
         steps = max(end, 0) + 32 * ArrMetrics.stepsPerBar
         let maxX: CGFloat = max(0, CGFloat(steps) * stepW - w)
         x = min(maxX, max(0, port.x))
@@ -103,7 +105,7 @@ struct ArrMetrics {
     }
 
     func rowY(_ t: Int) -> CGFloat {
-        let below: CGFloat = autoTrack >= 0 && t > autoTrack ? CGFloat(lanes) * ArrMetrics.laneH : 0
+        let below: CGFloat = autoTrack >= 0 && t > autoTrack ? CGFloat(lanes) * laneH : 0
         return ArrMetrics.top + CGFloat(t) * rowH + below - y
     }
 
@@ -115,7 +117,7 @@ struct ArrMetrics {
 
     /// Верх строки кривой k (под дорожкой autoTrack).
     func laneY(_ k: Int) -> CGFloat {
-        return rowY(autoTrack) + rowH + CGFloat(k) * ArrMetrics.laneH
+        return rowY(autoTrack) + rowH + CGFloat(k) * laneH
     }
 
     /// Строка кривой под точкой (−1 — не строка кривой).
@@ -123,19 +125,19 @@ struct ArrMetrics {
         if autoTrack < 0 || py < ArrMetrics.top { return -1 }
         let y0: CGFloat = laneY(0)
         if py < y0 { return -1 }
-        let k: Int = Int(((py - y0) / ArrMetrics.laneH).rounded(.down))
+        let k: Int = Int(((py - y0) / laneH).rounded(.down))
         return k < lanes ? k : -1
     }
 
     /// Положение 0…1 в строке кривой k по точке (и обратно).
     func laneValue(_ k: Int, at py: CGFloat) -> Double {
         let top: CGFloat = laneY(k) + 6
-        let h: CGFloat = ArrMetrics.laneH - 12
+        let h: CGFloat = laneH - 12
         return Double(min(1, max(0, 1 - (py - top) / h)))
     }
 
     func laneY(_ k: Int, value v: Double) -> CGFloat {
-        return laneY(k) + 6 + CGFloat(1 - v) * (ArrMetrics.laneH - 12)
+        return laneY(k) + 6 + CGFloat(1 - v) * (laneH - 12)
     }
 
     /// Шаг под точкой (дробный).
@@ -149,7 +151,7 @@ struct ArrMetrics {
         var cy: CGFloat = py - ArrMetrics.top + y
         if autoTrack >= 0 {
             let a0: CGFloat = CGFloat(autoTrack + 1) * rowH
-            let autoH: CGFloat = CGFloat(lanes) * ArrMetrics.laneH
+            let autoH: CGFloat = CGFloat(lanes) * laneH
             if cy >= a0 && cy < a0 + autoH { return -1 }
             if cy >= a0 + autoH { cy -= autoH }
         }
@@ -301,7 +303,7 @@ struct ArrDraw {
         let t: Int = m.autoTrack
         if t < 0 || t >= p.tracks.count { return }
         let autos: [ArrAutoLane] = p.tracks[t].autos
-        let h: CGFloat = ArrMetrics.laneH
+        let h: CGFloat = m.laneH
         for k in 0..<m.lanes {
             let y0: CGFloat = m.laneY(k)
             if y0 > m.size.height || y0 + h < ArrMetrics.top { continue }
