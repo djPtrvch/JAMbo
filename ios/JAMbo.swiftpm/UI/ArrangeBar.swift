@@ -1,40 +1,59 @@
 import SwiftUI
 
 /// Вторая строка кнопок под верхней панелью — пока открыт аранжировщик (S15c, решения пользователя): слева квадратные
-/// значки — сетка (ячейка; тап — меню шага), магнит, LOOP (как LOOP ROW сетки паттернов), AUTO (синусоида с точками),
-/// курсор в начало таймлайна (стрелка к черте); справа — INSERT, STEPS, REF, A/B. Высота — как у
-/// строки окон EQ и модулей мастера.
+/// значки — сетка (ячейка; тап — меню шага), магнит, TRIM (ножницы); остальные — под кнопками верхней панели и той же
+/// ширины: курсор в начало (стрелка к черте) — под PLAY, LOOP — под REC, INSERT — под REDO, AUTO (синусоида с точками) —
+/// под пианороллом, STEPS — под EQ, REF — под PATTERNS, A/B — под ARRANGE. Высота — как у строки окон EQ и модулей
+/// мастера.
 struct ArrangeBar: View {
     static let height: CGFloat = 48
     let model: AppModel
 
     var body: some View {
-        let a: Arrangement = model.project.arrange
         let side: CGFloat = ArrangeBar.height
-        return HStack(spacing: Layout.gap) {
-            ArrGridField(model: model).frame(width: side)
-            ArrBarButton(on: a.snap, enabled: true, action: { model.toggleArrSnap() }) { c in ArrMagnetIcon(color: c) }
-                .frame(width: side)
-            ArrBarButton(on: a.loop, enabled: a.hasLoop, action: { model.toggleArrLoop() }) { c in
-                Image(systemName: "repeat").font(.system(size: 18, weight: .semibold)).foregroundStyle(c)
+        return GeometryReader { geo in
+            let ox: CGFloat = geo.frame(in: .named("root")).minX
+            ZStack(alignment: .topLeading) {
+                HStack(spacing: Layout.gap) {
+                    ArrGridField(model: model).frame(width: side)
+                    ArrBarButton(on: a.snap, enabled: true, action: { model.toggleArrSnap() }) { c in ArrMagnetIcon(color: c) }
+                        .frame(width: side)
+                    ArrBarButton(on: false, enabled: true, action: { model.arrTrim() }) { c in
+                        Image(systemName: "scissors").font(.system(size: 18, weight: .semibold)).foregroundStyle(c)
+                    }
+                    .frame(width: side)
+                }
+                under("PLAY", ox) { ArrReturnAll(model: model) }
+                under("REC", ox) {
+                    ArrBarButton(on: a.loop, enabled: a.hasLoop, action: { model.toggleArrLoop() }) { c in
+                        Image(systemName: "repeat").font(.system(size: 18, weight: .semibold)).foregroundStyle(c)
+                    }
+                }
+                under("REDO", ox) { ArrBarText(title: "INSERT", on: model.arrInsert, enabled: true) { model.toggleArrInsert() } }
+                // Запись (REC + PLAY + AUTO) — красная обводка.
+                under("ROLL", ox) {
+                    ArrBarButton(on: model.arrAuto, enabled: true, ring: model.arrRecording, action: { model.toggleArrAuto() }) { c in
+                        ArrWaveIcon(color: c)
+                    }
+                }
+                under("EQ", ox) { ArrBarText(title: "STEPS", on: !a.hideSteps, enabled: true) { model.toggleArrSteps() } }
+                under("PATTERNS", ox) { ArrBarText(title: "REF", on: false, enabled: false) {} }
+                under("ARRANGE", ox) { ArrBarText(title: "A/B", on: false, enabled: false) {} }
             }
-            .frame(width: side)
-            // Запись (REC + PLAY + AUTO) — красная обводка.
-            ArrBarButton(on: model.arrAuto, enabled: true, ring: model.arrRecording, action: { model.toggleArrAuto() }) { c in
-                ArrWaveIcon(color: c)
-            }
-            .frame(width: side)
-            ArrReturnAll(model: model).frame(width: side)
-            Spacer(minLength: 0)
-            ArrBarText(title: "INSERT", on: model.arrInsert, enabled: true) { model.toggleArrInsert() }
-                .frame(width: Layout.topButton)
-            ArrBarText(title: "STEPS", on: a.hideSteps, enabled: true) { model.toggleArrSteps() }.frame(width: Layout.topButton)
-            ArrBarText(title: "REF", on: false, enabled: false) {}.frame(width: Layout.topButton)
-            ArrBarText(title: "A/B", on: false, enabled: false) {}.frame(width: Layout.topButton)
-            // Правый край — как у ARRANGE (над измерителем справа ничего нет).
-            Color.clear.frame(width: Layout.meterWidth)
         }
         .frame(height: ArrangeBar.height)
+    }
+
+    private var a: Arrangement { return model.project.arrange }
+
+    /// Кнопка под кнопкой верхней панели key (рамка — AppModel.topFrames), той же ширины; пока рамка неизвестна — нет.
+    @ViewBuilder
+    private func under<Content: View>(_ key: String, _ ox: CGFloat, @ViewBuilder _ content: () -> Content) -> some View {
+        if let f = model.topFrames[key], f.width > 0 {
+            content()
+                .frame(width: f.width, height: ArrangeBar.height)
+                .offset(x: f.minX - ox)
+        }
     }
 }
 

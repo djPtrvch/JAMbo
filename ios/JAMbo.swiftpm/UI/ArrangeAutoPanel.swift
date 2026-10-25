@@ -55,11 +55,9 @@ struct ArrAutoCells: View {
         let has: Bool = on && ArrAutoCells.hasCurve(model.project, t, p.id)
         let fg: Color = on ? theme.text : theme.off
         return ZStack(alignment: .topTrailing) {
-            Text(p.id.isEmpty ? "" : p.label)
+            Text(p.id.isEmpty ? "" : ArrAutoCells.short(p.label))
                 .font(.system(size: 11, weight: selected ? .heavy : .semibold))
-                .lineLimit(2)
-                .minimumScaleFactor(0.7)
-                .multilineTextAlignment(.center)
+                .lineLimit(1)
                 .foregroundStyle(fg)
                 .padding(.horizontal, 3)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -98,6 +96,17 @@ struct ArrAutoCells: View {
             .offset(x: x, y: y)
         }
         .frame(width: size.width, height: size.height, alignment: .topLeading)
+    }
+
+    /// Подписи ячеек — одного размера (решение пользователя): длинные — сокращены, чтобы влезали в одну строку.
+    static let shortNames: [String: String] = [
+        "Resonance": "Reso", "Velocity": "Vel", "Harmonics": "Harm", "Ratchet": "Ratch", "Position": "Pos",
+        "Material": "Mat", "Feedback": "Fdbk", "Contour": "Cont"
+    ]
+
+    static func short(_ label: String) -> String {
+        if let s = shortNames[label] { return s }
+        return label.count > 6 ? String(label.prefix(5)) : label
     }
 
     static func hasCurve(_ p: Project, _ t: Int, _ id: String) -> Bool {

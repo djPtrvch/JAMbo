@@ -123,7 +123,7 @@ extension AppModel {
         edit { p in p.arrange.hideSteps.toggle() }
     }
 
-    /// STEPS: секвенсор и клавиатура скрыты (только пока открыт аранжировщик).
+    /// STEPS выключена: строка дорожек, секвенсор и клавиатура скрыты (только пока открыт аранжировщик).
     var arrStepsHidden: Bool { return arrangeView && project.arrange.hideSteps }
 
     // MARK: — блоки

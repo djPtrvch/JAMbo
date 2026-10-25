@@ -34,27 +34,41 @@ struct TopBar: View {
                 .midiTarget(model, "UNDO")
             PlayButton(model: model).frame(width: half)
                 .midiTarget(model, "PLAY")
+                .topFrame(model, "PLAY")
                 .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { model.sampleRec.playFrame = $0 }
-            RecButton(model: model).frame(width: half).midiTarget(model, "REC")
+            RecButton(model: model).frame(width: half).midiTarget(model, "REC").topFrame(model, "REC")
             HistoryButton(symbol: "arrow.turn.up.right", enabled: model.canRedo) { model.redo() }
                 .frame(width: Layout.topButton)
                 .midiTarget(model, "REDO")
-            RollButton(model: model).midiTarget(model, "ROLL")
+                .topFrame(model, "REDO")
+            RollButton(model: model).midiTarget(model, "ROLL").topFrame(model, "ROLL")
             ViewButton(title: "EQ", on: model.eqView) { model.toggleEqView() }.frame(width: Layout.topButton)
                 .midiTarget(model, "EQ")
+                .topFrame(model, "EQ")
         }
     }
 
     private var rightGroup: some View {
         HStack(spacing: Layout.gap) {
             PatternsButton(model: model).frame(width: Layout.topButton).midiTarget(model, "PATTERNS")
+                .topFrame(model, "PATTERNS")
             // Запись аранжировки при закрытом окне — красный контур.
             ViewButton(title: "ARRANGE", on: model.arrangeView, ring: model.arrRecording && !model.arrangeView) {
                 model.toggleArrange()
             }
             .frame(width: Layout.topButton)
                 .midiTarget(model, "ARRANGE")
+                .topFrame(model, "ARRANGE")
             CPUIndicator(meter: model.audio.core.cpu).frame(width: Layout.meterWidth)
+        }
+    }
+}
+
+extension View {
+    /// Рамка кнопки верхней панели — в AppModel.topFrames (вторая строка аранжировщика встаёт под неё).
+    func topFrame(_ model: AppModel, _ key: String) -> some View {
+        onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { f in
+            if model.topFrames[key] != f { model.topFrames[key] = f }
         }
     }
 }

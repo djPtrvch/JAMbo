@@ -258,8 +258,9 @@ struct ArrDraw {
         if t < 0 || t >= m.tracks { return }
         let y: CGFloat = m.rowY(t)
         if y > m.size.height || y + m.rowH < ArrMetrics.top { return }
-        ctx.fill(Path(CGRect(x: 0, y: y, width: m.size.width, height: 1)), with: .color(theme.accent))
-        ctx.fill(Path(CGRect(x: 0, y: y + m.rowH - 1, width: m.size.width, height: 1)), with: .color(theme.accent))
+        // Те же высоты, что у линий заголовка (строка заголовка — с отступом 1 pt сверху и снизу): одна линия.
+        ctx.fill(Path(CGRect(x: 0, y: y + 1, width: m.size.width, height: 1)), with: .color(theme.accent))
+        ctx.fill(Path(CGRect(x: 0, y: y + m.rowH - 2, width: m.size.width, height: 1)), with: .color(theme.accent))
     }
 
     private func blocks(_ p: Project, _ t: Int, sel: ArrSel?, lift: ArrLift?, dim: Bool) {
@@ -350,25 +351,30 @@ struct ArrDraw {
         ctx.fill(Path(CGRect(x: 0, y: ArrMetrics.top - 1, width: m.size.width, height: 1)), with: .color(theme.line))
     }
 
-    /// Строка маркеров: секция — от маркера до следующего, имя на цвете маркера.
+    /// Строка маркеров (решение пользователя: секции без цвета): у начала секции — жёлтая риска во всю высоту строки,
+    /// рядом имя; у конца секции (диапазон, из которого её сделали) — риска, если там не начинается следующая.
     private func markers(_ p: Project) {
         let list: [ArrMarker] = p.arrange.markers
+        let top: CGFloat = ArrMetrics.rulerH + 1
+        let h: CGFloat = ArrMetrics.markerH - 2
+        let starts: Set<Int> = Set(list.map { $0.at })
         for (k, mk) in list.enumerated() {
             let x0: CGFloat = m.stepX(Double(mk.at))
-            // Секция — до своего конца (диапазон, из которого её сделали) или до следующего маркера.
             var next: CGFloat = m.size.width
-            if let e = p.sectionEnd(k) { next = m.stepX(Double(e)) }
+            if let e = p.sectionEnd(k) {
+                next = m.stepX(Double(e))
+                if mk.end != nil && !starts.contains(e) && next >= 0 && next <= m.size.width {
+                    ctx.fill(Path(CGRect(x: next - 1, y: top, width: 2, height: h)), with: .color(theme.accent))
+                }
+            }
             if next < 0 || x0 > m.size.width { continue }
-            // Ровно по сетке: от начала до конца секции, без зазоров. У секции всегда цвет палитры (без «нет цвета»).
-            let r = CGRect(x: x0, y: ArrMetrics.rulerH + 1, width: max(2, next - x0), height: ArrMetrics.markerH - 2)
-            ctx.fill(Path(r), with: .color(ArrColors.color(mk.color)))
-            if x0 >= 1 { ctx.fill(Path(CGRect(x: x0, y: r.minY, width: 1, height: r.height)), with: .color(theme.text.opacity(0.5))) }
+            ctx.fill(Path(CGRect(x: x0 - 1, y: top, width: 2, height: h)), with: .color(theme.accent))
             var c = ctx
-            c.clip(to: Path(r))
+            c.clip(to: Path(CGRect(x: x0, y: top, width: max(2, next - x0), height: h)))
             let name: String = mk.name.isEmpty ? " " : mk.name
-            let tx: CGFloat = max(r.minX, 0) + 4
-            let text: Text = Text(name).font(.system(size: 9, weight: .bold)).foregroundStyle(ArrColors.text)
-            c.draw(text, at: CGPoint(x: tx, y: r.midY), anchor: .leading)
+            let tx: CGFloat = max(x0, 0) + 5
+            let text: Text = Text(name).font(.system(size: 9, weight: .bold)).foregroundStyle(theme.text)
+            c.draw(text, at: CGPoint(x: tx, y: top + h / 2), anchor: .leading)
         }
     }
 

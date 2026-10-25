@@ -52,6 +52,17 @@ extension AppModel {
         arrSel = nil
     }
 
+    /// TRIM (ножницы, решение пользователя): блок под курсором разрезается на две части — у выбранного блока (его
+    /// дорожка), иначе у выбранной дорожки.
+    func arrTrim() {
+        let t: Int = arrSel?.track ?? (channel == .track ? selectedTrack : -1)
+        guard t >= 0 && t < project.tracks.count else { return }
+        let x: Int = arrNow
+        guard project.tracks[t].blocks.contains(where: { $0.start < x && $0.end > x }) else { return }
+        edit { p in p.tracks[t].splitArrange(at: x) }
+        arrSel = nil
+    }
+
     // MARK: — петля
 
     /// Диапазон петли (внутри жеста протяжки): границы уже с магнитом; пустой — петля выключена.

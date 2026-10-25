@@ -92,21 +92,23 @@ struct RootView: View {
         .padding(.vertical, 8)
     }
 
-    /// Строка дорожек, секвенсор и клавиатура. STEPS в аранжировщике: секвенсор и клавиатура скрыты, окно растёт на их
-    /// высоту. Окно AUTO аранжировщика (S15f2) — поверх всех трёх (с ним STEPS не прячет их: окну нужна высота).
+    /// Строка дорожек, секвенсор и клавиатура. STEPS в аранжировщике (решение пользователя): выключена — все три скрыты,
+    /// окно растёт на их высоту. Окно AUTO аранжировщика (S15f2) — поверх всех трёх (с ним они не скрываются: окну нужна
+    /// высота).
+    @ViewBuilder
     private func lower(_ layout: Layout) -> some View {
         let auto: Bool = model.arrAutoPanel
-        return VStack(spacing: Layout.gap) {
-            TrackRow(model: model, layout: layout)
-                .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("root")).minY } action: { trackTop = $0 }
-            if !model.arrStepsHidden || auto {
+        if !model.arrStepsHidden || auto {
+            VStack(spacing: Layout.gap) {
+                TrackRow(model: model, layout: layout)
+                    .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("root")).minY } action: { trackTop = $0 }
                 SequencerRow(model: model)
                 KeyboardPanel(model: model, layout: layout)
             }
+            .opacity(auto ? 0 : 1)
+            .allowsHitTesting(!auto)
+            .overlay { if auto { ArrAutoPanel(model: model) } }
         }
-        .opacity(auto ? 0 : 1)
-        .allowsHitTesting(!auto)
-        .overlay { if auto { ArrAutoPanel(model: model) } }
     }
 
     /// Центр: левая колонка | сетка ручек | правая колонка | измеритель; с PATTERNS — сетка паттернов во всю ширину;

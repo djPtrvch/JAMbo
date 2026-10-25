@@ -221,8 +221,8 @@ struct ArrInsertMenu: View {
 /// и при закрытии тапом мимо.
 struct ArrMarkerWindow: View {
     static let width: CGFloat = 240
-    /// Имя 44, палитра 106, 2 строки по 40, 3 зазора по 6, поля 16.
-    static let height: CGFloat = 264
+    /// Имя 44, 2 строки по 40, 2 зазора по 6, поля 16 (цвета у секции нет — решение пользователя).
+    static let height: CGFloat = 152
     let model: AppModel
     let index: Int
     @State private var name: String = ""
@@ -232,8 +232,7 @@ struct ArrMarkerWindow: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        let cur: Int = model.arrMarker(index)?.color ?? ArrPalette.defaultColor
-        return VStack(spacing: 6) {
+        VStack(spacing: 6) {
             TextField("name", text: $name)
                 .font(.system(size: 16))
                 .focused($focused)
@@ -242,7 +241,6 @@ struct ArrMarkerWindow: View {
                 .background(theme.panel, in: RoundedRectangle(cornerRadius: 6))
                 .onChange(of: name) { _, v in if v.count > 12 { name = String(v.prefix(12)) } }
                 .onSubmit { done() }
-            ArrPaletteGrid(current: cur, none: false) { c in model.arrSetMarkerColor(index, c) }
             MenuItem(title: "DELETE", red: true) { delete() }
             MenuItem(title: "OK") { done() }
         }

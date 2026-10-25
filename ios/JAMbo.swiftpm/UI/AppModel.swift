@@ -94,6 +94,8 @@ final class AppModel {
     var arrAuto: Bool = false
     /// Ручка, кривая которой открыта в окне AUTO (id параметра).
     var arrAutoId: String = ""
+    /// Рамки кнопок верхней панели (в координатах "root"): под ними — кнопки второй строки аранжировщика.
+    var topFrames: [String: CGRect] = [:]
     /// Запись ручек в аранжировку (S15f3): кусок на ручку (ключ — дорожка·ArrAutoTarget.count + цель), кривые под рукой,
     /// отложенный конец куска (энкодер MIDI — без касания).
     @ObservationIgnored var autoTakes: [Int: AutoTake] = [:]
