@@ -71,3 +71,5 @@ S0 каркас → S1 секвенсор и экран → S2 сэмплер и
 | импорта и экспорта проекта, конвертера проекта веба, библиотеки, стемов, REC | docs/SWIFT_MILESTONE_S11.md |
 | движков синта S12 (ударные, SUB, ручка 1.4, KEY VELOCITY, Swing), щелчка монофонических нот | docs/SWIFT_MILESTONE_S12.md |
 | MIDI: CoreMIDI, маппинга, LEARN, MIDI MAP, обратной связи, SYNC и клока, Bluetooth MIDI | docs/SWIFT_MILESTONE_S13.md |
+| правок интерфейса, замеров и оптимизации (S14) | docs/SWIFT_MILESTONE_S14.md |
+| аранжировщика: данные, игра в колбэке, экран, секции, петля, INSERT | docs/SWIFT_MILESTONE_S15.md |
