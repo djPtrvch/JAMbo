@@ -101,17 +101,20 @@ extension AppModel {
     func setEqBand(_ k: Int, freq: Double? = nil, gain: Double? = nil, q: Double? = nil) {
         let ch = eqChannel
         edit { $0.setEqBand(ch, k, freq: freq, gain: gain, q: q) }
+        if eqListenBand >= 0 { syncEqListen() }
     }
 
     func setEqType(_ k: Int, _ type: Int) {
         let ch = eqChannel
         edit { $0.setEqType(ch, k, type) }
+        if eqListenBand >= 0 { syncEqListen() }
     }
 
     /// Режим M/S полосы k: 0 STEREO, 1 MID, 2 SIDE.
     func setEqMs(_ k: Int, _ ms: Int) {
         let ch = eqChannel
         edit { $0.setEqMs(ch, k, ms) }
+        if eqListenBand >= 0 { syncEqListen() }
     }
 
     /// Источник динамической полосы k: −1 OFF, 0 SELF, n — дорожка n.
@@ -168,6 +171,7 @@ extension AppModel {
         let ch = eqChannel
         edit { $0.deleteEqBand(ch, k) }
         if eqBand == k { eqBand = -1 }
+        if eqListenBand >= 0 { syncEqListen() }
     }
 
     // MARK: — пресеты EQ (UserDefaults «eqPresets»)
@@ -257,15 +261,17 @@ enum EqFormat {
     }
 }
 
-/// Прослушивание полосы (как Alt + перетаскивание в FabFilter Pro-Q): SHIFT + палец на точке — канал звучит только в
-/// области полосы (EqListen), пока палец на точке; перетаскивание ведёт частоту фильтра.
+/// Прослушивание полосы (как соло полосы в FabFilter Pro-Q): пока держат LISTEN, канал звучит только в области
+/// выбранной полосы (EqListen); правки полосы (точка, поля) сразу ведут фильтр.
 extension AppModel {
-    func startEqListen(_ k: Int) {
-        eqListenBand = k
+    /// LISTEN нажата (или, пока её держат, выбрана другая точка): слушать выбранную полосу.
+    func startEqListen() {
+        eqListenHeld = true
+        eqListenBand = selectedBand != nil ? eqBand : -1
         syncEqListen()
     }
 
-    /// Фильтр прослушивания — по текущим значениям полосы (после каждого сдвига точки).
+    /// Фильтр прослушивания — по текущим значениям полосы.
     func syncEqListen() {
         let x: EqListen = audio.core.eqListen
         guard eqListenBand >= 0, let b = eqTarget.band(eqListenBand) else {
@@ -281,6 +287,7 @@ extension AppModel {
     }
 
     func stopEqListen() {
+        eqListenHeld = false
         eqListenBand = -1
         audio.core.eqListen.channel.store(-1)
     }

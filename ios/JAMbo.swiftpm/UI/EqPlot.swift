@@ -47,8 +47,6 @@ struct EqTouch {
     var g0: Double = 0
     var moved: Bool = false
     var menu: Bool = false
-    /// Палец слушает полосу (SHIFT при касании): без меню удержания и двойного тапа.
-    var listen: Bool = false
 }
 
 /// Поле EQ: сетка, суммарная кривая, точки полос; мультитач (две точки сразу). Двойной тап по пустому месту — новая
@@ -337,13 +335,11 @@ extension EqPlot {
             t.g0 = b.gain
             model.eqBand = k
             model.beginGesture()
-            if model.shiftHeld && model.eqListenBand < 0 {
-                t.listen = true
-                model.startEqListen(k)
-            }
+            // LISTEN держат — слушается точка, которую взяли.
+            if model.eqListenHeld { model.startEqListen() }
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: UInt64(EqPlot.hold * 1e9))
-                guard let cur = touches[id], !cur.moved, !cur.listen, cur.band == k else { return }
+                guard let cur = touches[id], !cur.moved, cur.band == k else { return }
                 openMenu(k, at: cur.at)
             }
         }
@@ -363,7 +359,6 @@ extension EqPlot {
         } else {
             model.setEqBand(t.band, freq: f)
         }
-        if t.listen { model.syncEqListen() }
     }
 
     /// Меню полосы (удержание): все пальцы снимаются сразу (жесты UNDO закрываются) — поле до закрытия меню касаний не
@@ -371,7 +366,6 @@ extension EqPlot {
     private func openMenu(_ k: Int, at p: CGPoint) {
         for (id, t) in touches {
             if t.band >= 0 { model.endGesture() }
-            if t.listen { model.stopEqListen() }
             dropped.insert(id)
         }
         touches.removeAll()
@@ -383,8 +377,7 @@ extension EqPlot {
     private func up(_ id: SpatialEventCollection.Event.ID, _ p: CGPoint, _ g: EqGeometry, tap: Bool) {
         guard let t = touches.removeValue(forKey: id) else { return }
         if t.band >= 0 { model.endGesture() }
-        if t.listen { model.stopEqListen() }
-        if t.moved || t.menu || t.listen || !tap { return }
+        if t.moved || t.menu || !tap { return }
         let now = Date()
         if let l = lastTap, now.timeIntervalSince(l.at) < EqPlot.doubleTap, hypot(l.p.x - t.start.x, l.p.y - t.start.y) < 30,
            l.band == t.band {

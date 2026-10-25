@@ -26,7 +26,7 @@ public final class AudioCore: @unchecked Sendable {
     public let trackEqs = TrackEqs(sampleRate: AudioCore.sampleRate)
     /// Сдвиги динамических полос EQ для экрана.
     public let eqDyn = EqDynLevels()
-    /// Прослушивание полосы EQ (SHIFT + точка): фильтр после EQ канала.
+    /// Прослушивание полосы EQ (LISTEN): фильтр после EQ канала.
     public let eqListen = EqListen(sampleRate: AudioCore.sampleRate)
     /// Спектры EQ (до и после EQ показанного канала, сравниваемая дорожка, выход мастера).
     public let spectra = Spectra()

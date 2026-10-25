@@ -155,7 +155,7 @@ struct EqView: View {
     }
 }
 
-/// Строка EQ: имя канала под бутербродом, TYPE, FREQ, GAIN, Q, STEREO, DYN, PRESETS, BYPASS — 8 равных столбцов
+/// Строка EQ: имя канала под бутербродом, TYPE, FREQ, GAIN, Q, STEREO, DYN, LISTEN, PRESETS, BYPASS — 9 равных столбцов
 /// до правого края поля EQ, TYPE — с левого края поля BPM (решения пользователя; в вебе — над дорожками 1…8).
 struct EqBar: View {
     let model: AppModel
@@ -171,7 +171,7 @@ struct EqBar: View {
         let col: CGFloat = EqBar.column(width)
         return ZStack(alignment: .topLeading) {
             name.frame(width: EqBar.nameWidth, height: 48)
-            ForEach(0..<8, id: \.self) { i in
+            ForEach(0..<EqBar.columns, id: \.self) { i in
                 item(i).frame(width: col, height: 48).offset(x: EqBar.left(i, col))
             }
         }
@@ -179,13 +179,16 @@ struct EqBar: View {
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
     }
 
-    /// Ширина столбца: 8 столбцов от имени канала до правого края строки (решение пользователя: справа без пустого
+    /// Столбцов в строке (с LISTEN — 9; прежде 8).
+    static let columns = 9
+
+    /// Ширина столбца: столбцы от имени канала до правого края строки (решение пользователя: справа без пустого
     /// места; прежде — по столбцам 8 дорожек).
     static func column(_ width: CGFloat) -> CGFloat {
         let x0: CGFloat = EqBar.nameWidth + Layout.gap
-        let gaps: CGFloat = 7 * Layout.gap
+        let gaps: CGFloat = CGFloat(EqBar.columns - 1) * Layout.gap
         let free: CGFloat = width - x0 - gaps
-        return max(0, free / 8)
+        return max(0, free / CGFloat(EqBar.columns))
     }
 
     /// Имя канала — под бутербродом верхней панели (его ширина).
@@ -222,7 +225,8 @@ struct EqBar: View {
         case 3: qField(b)
         case 4: msField(b)
         case 5: dynField(b)
-        case 6: presetsButton
+        case 6: EqListenButton(model: model, enabled: b != nil)
+        case 7: presetsButton
         default: EqTool(title: "BYPASS", enabled: true, active: !model.eqTarget.on) { model.toggleEqBypass() }
         }
     }
@@ -428,6 +432,32 @@ struct EqTool: View {
             .background(active ? theme.accent : theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
             .contentShape(Rectangle())
             .onTapGesture { if enabled { action() } }
+    }
+}
+
+/// LISTEN — удержание: пока держат (горит жёлтым), канал звучит только в области выбранной полосы; взятая в это время
+/// точка становится слушаемой. Без выбранной полосы — серая.
+struct EqListenButton: View {
+    let model: AppModel
+    let enabled: Bool
+    @GestureState private var down: Bool = false
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let active: Bool = model.eqListenHeld && enabled
+        let fg: Color = !enabled ? theme.off : (active ? theme.onAccent : theme.text)
+        return Text("LISTEN")
+            .font(.system(size: 12, weight: .bold)).tracking(0.8)
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
+            .foregroundStyle(fg)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(active ? theme.accent : theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
+            .contentShape(Rectangle())
+            .gesture(DragGesture(minimumDistance: 0).updating($down) { _, s, _ in s = true })
+            .onChange(of: down) { _, v in
+                if v { model.startEqListen() } else { model.stopEqListen() }
+            }
     }
 }
 
