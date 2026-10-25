@@ -10,6 +10,7 @@ final class AudioHost {
     private var restartWork: DispatchWorkItem? = nil
     /// Счёт перезапусков движка: звук стоял — шаги секвенсора отстали от MIDI-клока (привязать заново).
     private(set) var restarts: Int = 0
+    private var latency: Double = -1
     private(set) var lastError: String = ""
     /// Запись входа (tap на узле входа) — Audio/InputCapture.swift.
     let input = InputCapture()
@@ -22,6 +23,9 @@ final class AudioHost {
         })
         observers.append(center.addObserver(forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main) { [weak self] _ in
             self?.scheduleRestart()
+        })
+        observers.append(center.addObserver(forName: AVAudioSession.routeChangeNotification, object: session, queue: .main) { [weak self] _ in
+            self?.refreshLatency()
         })
     }
 
@@ -38,6 +42,7 @@ final class AudioHost {
             if source == nil { attachSource() }
             trace("audio: engine start")
             if !engine.isRunning { try engine.start() }
+            refreshLatency()
             trace("audio: running")
             lastError = ""
         } catch {
@@ -70,6 +75,7 @@ final class AudioHost {
         do {
             if source == nil { attachSource() }
             try engine.start()
+            refreshLatency()
             lastError = ""
         } catch {
             start()
@@ -127,8 +133,16 @@ final class AudioHost {
         return HostClock().now()
     }
 
+    /// Задержка выхода для расчётов (клок, MIDI OUT, запись нот) — запомненная при запуске звука и смене маршрута:
+    /// система с USB-аудио (Digitakt) отдаёт то 1, то 11 мс, и моменты шагов дёргались бы на каждом кадре.
     var outputLatency: Double {
-        return AVAudioSession.sharedInstance().outputLatency
+        if latency < 0 { latency = AVAudioSession.sharedInstance().outputLatency }
+        return latency
+    }
+
+    /// Перечитать задержку выхода (маршрут сменился или звук перезапущен).
+    private func refreshLatency() {
+        latency = AVAudioSession.sharedInstance().outputLatency
     }
 
     /// Фактическое состояние звука — строка «Now:» в DIAGNOSTICS.
@@ -136,9 +150,12 @@ final class AudioHost {
         let s = AVAudioSession.sharedInstance()
         let rate = String(format: "%.1f kHz", s.sampleRate / 1000)
         let buffer = Int((s.ioBufferDuration * s.sampleRate).rounded())
-        let latency = String(format: "%.1f ms", s.outputLatency * 1000)
+        // Сейчас у системы и (в скобках, если другая) — по которой считаются клок и MIDI OUT.
+        var lat = String(format: "%.1f ms", s.outputLatency * 1000)
+        let used: Double = outputLatency
+        if abs(used - s.outputLatency) > 0.0005 { lat += String(format: " (using %.1f ms)", used * 1000) }
         let state = engine.isRunning ? "running" : "stopped"
-        var line = "\(rate) · buffer \(buffer) · output latency \(latency) · \(state)"
+        var line = "\(rate) · buffer \(buffer) · output latency \(lat) · \(state)"
         if abs(s.sampleRate - AudioCore.sampleRate) > 1 { line += " (48 kHz requested)" }
         return line
     }
