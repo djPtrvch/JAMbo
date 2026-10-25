@@ -56,10 +56,9 @@ struct ArrHeaderRow: View {
 
     private func row(_ t: Track) -> some View {
         let selected: Bool = model.channel == .track && model.selectedTrack == index
-        // Цвет по умолчанию — заголовок как строка дорожек; свой цвет (меню дорожки) — заголовок целиком этим цветом.
-        let own: Bool = t.color != ArrPalette.defaultColor
-        let bg: Color = own ? ArrColors.color(t.color) : theme.trackBg
-        let fg: Color = own ? ArrColors.text : theme.text
+        // Цвет дорожки (меню дорожки) — только у блоков; заголовок — как строка дорожек (решение пользователя).
+        let bg: Color = theme.trackBg
+        let fg: Color = theme.text
         return HStack(spacing: 5) {
             Text(t.name)
                 .font(.system(size: 12, weight: selected ? .heavy : .semibold))

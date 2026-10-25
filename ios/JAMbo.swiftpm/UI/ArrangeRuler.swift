@@ -3,7 +3,7 @@ import SwiftUI
 /// Касания линейки аранжировщика (S15d, решения пользователя). Номера тактов: тап — курсор на ближайшую линию сетки;
 /// протяжка — выделить диапазон (с магнитом; он же диапазон петли — LOOP зацикливает его); край выделенного диапазона —
 /// тянется; двойной тап внутри диапазона — меню LOOP / SECTION. Строка маркеров: двойной тап по маркеру — его окно
-/// (имя, цвет, DELETE), по пустому — новый маркер и окно с именем; маркер со сдвигом пальца —
+/// (имя, цвет, DELETE), по пустому — ничего (секция — только из диапазона, ADD SECTION); маркер со сдвигом пальца —
 /// перетаскивание (с магнитом; блоки не двигаются). Протяжка и перетаскивание — одна запись UNDO.
 final class ArrRulerTouches {
     enum Mode { case bars, select, edge, marker, markerDrag, markerEmpty }
@@ -94,7 +94,7 @@ final class ArrRulerTouches {
         case .marker:
             if ended && isDouble() { model.arrMenu = .marker(index: marker, anchor: start) }
         case .markerEmpty:
-            if ended && isDouble() { model.arrAddMarker(at: x, anchor: start) }
+            break
         }
     }
 

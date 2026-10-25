@@ -138,8 +138,9 @@ struct CellMenu: View {
 
 /// Меню строки: имя (до 12 знаков), REPEATS − n +, TO ARRANGE (END, CURSOR), DUPLICATE, COPY, PASTE, DELETE, OK.
 struct RowMenu: View {
-    /// Имя 44, REPEATS 44, TO ARRANGE 54 (подпись 12, зазор 2, кнопки 40), 3 строки по 40, 5 зазоров по 6, поля 16.
-    static let height: CGFloat = 308
+    /// Имя 44, REPEATS 44, TO ARRANGE 54 (подпись 12, зазор 2, кнопки 40) и отступы 8 сверху и снизу, 3 строки по 40,
+    /// 5 зазоров по 6, поля 16.
+    static let height: CGFloat = 324
     let model: AppModel
     let row: Int
     @State private var name: String = ""
@@ -198,6 +199,8 @@ struct RowMenu: View {
                 MenuItem(title: "CURSOR", enabled: filled) { toArrange(true) }
             }
         }
+        // Отступ — чтобы не сливался с кнопками окна (решение пользователя).
+        .padding(.vertical, 8)
     }
 
     private func toArrange(_ cursor: Bool) {

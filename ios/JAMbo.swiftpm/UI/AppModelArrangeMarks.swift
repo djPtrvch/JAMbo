@@ -5,14 +5,6 @@ import SwiftUI
 extension AppModel {
     // MARK: — маркеры
 
-    /// Тап по пустому месту строки маркеров: маркер на ближайшей линии сетки и сразу окно с именем.
-    func arrAddMarker(at x: Int, anchor: CGPoint) {
-        let at: Int = project.arrange.snapped(x)
-        var k: Int = 0
-        edit { p in k = p.addMarker(at: at, name: "") }
-        arrMenu = .marker(index: k, anchor: anchor)
-    }
-
     /// ADD SECTION в меню диапазона: секция ровно на выделенный диапазон и окно с именем.
     func arrSectionAtRange(anchor: CGPoint) {
         let at: Int = project.arrange.loopFrom
