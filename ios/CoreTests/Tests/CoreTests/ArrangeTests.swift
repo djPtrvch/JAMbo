@@ -234,7 +234,8 @@ final class ArrangeTests: XCTestCase {
         XCTAssertEqual(p.rowToArrange(2, at: 0), 32)
         XCTAssertEqual(spans(p.tracks[0]), [[2, 0, 16, 0], [2, 16, 16, 0], [2, 32, 16, 0], [2, 48, 16, 0], [2, 64, 16, 0]])
         XCTAssertEqual(spans(p.tracks[1]), [[2, 0, 32, 0], [2, 32, 16, 16], [2, 48, 32, 0]], "правее участка — остаток прежнего блока")
-        XCTAssertEqual(spans(p.tracks[2]), [[0, 0, 64, 0]], "дорожка без клипа в строке не меняется")
+        XCTAssertEqual(spans(p.tracks[2]), [[2, 0, 16, 0], [2, 16, 16, 0], [0, 32, 32, 32], [2, 64, 16, 0]],
+                       "пустая ячейка — блоки по такту (допишут паттерн — зазвучит)")
         XCTAssertEqual(p.arrange.markers.map { [$0.at, $0.end ?? -1] }, [[0, 32]])
         // Пустая строка — ничего.
         XCTAssertNil(p.rowToArrange(5, at: nil))

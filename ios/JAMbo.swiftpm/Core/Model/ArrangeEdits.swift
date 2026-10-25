@@ -275,18 +275,19 @@ extension Project {
     }
 
     /// TO ARRANGE (S15e): строка k — в аранжировку с позиции at (nil — в конец аранжировки). Длина строки — самый
-    /// длинный клип × N (N — повторы строки; LOOP ROW — один проход); дорожки с клипом в строке заполняют её блоками
-    /// длиной в свой клип (короткий повторяется, последний блок — до конца строки). Участок этих дорожек и секции в нём
-    /// заменяются; секция — имя строки на длину строки. Конец участка; nil — в строке нет клипов.
+    /// длинный клип × N (N — повторы строки; LOOP ROW — один проход); все дорожки заполняют её блоками длиной в свой
+    /// клип (короткий повторяется, последний блок — до конца строки; пустая ячейка — блоками по такту: допишут паттерн —
+    /// зазвучит). Участок дорожек и секции в нём заменяются; секция — имя строки на длину строки. Конец участка; nil —
+    /// в строке нет клипов.
     @discardableResult
     public mutating func rowToArrange(_ k: Int, at: Int?) -> Int? {
         guard k >= 0 && k < scenes.count else { return nil }
         let reps: Int = rowLoop ? 1 : Swift.max(1, scenes[k].repeats)
         var lens: [Int] = [Int](repeating: 0, count: tracks.count)
         var longest: Int = 0
-        for t in tracks.indices where tracks[t].clipFilled(k) {
+        for t in tracks.indices {
             lens[t] = tracks[t].clipSteps(k)
-            longest = Swift.max(longest, lens[t])
+            if tracks[t].clipFilled(k) { longest = Swift.max(longest, lens[t]) }
         }
         if longest == 0 { return nil }
         let start: Int = Swift.max(0, at ?? arrangeEnd)
