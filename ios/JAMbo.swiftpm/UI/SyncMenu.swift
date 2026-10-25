@@ -98,19 +98,19 @@ struct SyncOffsetRow: View {
         }
     }
 
-    private var swipe: some Gesture {
-        DragGesture(minimumDistance: 4)
-            .onChanged { g in
-                let units: Int = Int((g.translation.width / SyncOffsetRow.pxPerMs).rounded())
-                let done: Int = applied ?? 0
-                if units != done { step(units - done) }
-                applied = units
-            }
-            .onEnded { _ in applied = nil }
+    /// Сдвиг вбок (HorizontalSwipe: вертикальное движение — прокрутка меню).
+    private var swipe: HorizontalSwipe {
+        HorizontalSwipe(changed: { dx in
+            let units: Int = Int((dx / SyncOffsetRow.pxPerMs).rounded())
+            let done: Int = applied ?? 0
+            if units != done { step(units - done) }
+            applied = units
+        }, ended: { applied = nil })
     }
 }
 
-/// Стрелка с повтором при удержании.
+/// Стрелка с повтором при удержании: кнопка (нажатие — по isPressed стиля), а не DragGesture от 0 px — касание,
+/// с которого начали прокрутку меню, достаётся прокрутке.
 struct RepeatArrow: View {
     let title: String
     let action: () -> Void
@@ -123,12 +123,17 @@ struct RepeatArrow: View {
             .frame(width: 48, height: 36)
             .background(task != nil ? theme.panel2 : theme.panel, in: RoundedRectangle(cornerRadius: Layout.radius))
             .contentShape(Rectangle())
-            .gesture(DragGesture(minimumDistance: 0)
-                .onChanged { _ in if task == nil { begin() } }
-                .onEnded { _ in
-                    task?.cancel()
-                    task = nil
-                })
+            .overlay {
+                Button(action: {}) { Color.clear.contentShape(Rectangle()) }
+                    .buttonStyle(PressStyle { down in
+                        if down {
+                            if task == nil { begin() }
+                        } else {
+                            task?.cancel()
+                            task = nil
+                        }
+                    })
+            }
     }
 
     private func begin() {
@@ -140,5 +145,15 @@ struct RepeatArrow: View {
                 try? await Task.sleep(nanoseconds: 50_000_000)
             }
         }
+    }
+}
+
+/// Стиль кнопки, который сообщает о нажатии и отпускании (повтор при удержании); вид — как у содержимого.
+struct PressStyle: ButtonStyle {
+    let pressed: (Bool) -> Void
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .onChange(of: configuration.isPressed) { _, down in pressed(down) }
     }
 }

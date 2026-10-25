@@ -37,6 +37,7 @@ extension AppModel {
         libPicked = nil
         libNote = ""
         if !library.isFolder(libFolder) { libFolder = Library.root }
+        preloadFolderTables()
         patternView = false
         editorOpen = false
         eqView = false
@@ -88,6 +89,7 @@ extension AppModel {
     func libEnter(_ id: String) {
         if libPicked != nil { return }
         libFolder = id
+        preloadFolderTables()
     }
 
     func libUp() {
@@ -97,6 +99,7 @@ extension AppModel {
             libFolder = n.parent
         }
         libPicked = nil
+        preloadFolderTables()
     }
 
     /// Правка дерева: сразу на экране, запись файла — в очереди сохранения.

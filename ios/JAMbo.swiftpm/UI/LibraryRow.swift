@@ -27,7 +27,7 @@ struct LibRow: View {
                 if playable { playButton }
                 // Удержание — одновременным жестом: onLongPressGesture в ScrollView держит начало прокрутки.
                 label
-                    .simultaneousGesture(swipe)
+                    .gesture(swipe)
                     .simultaneousGesture(hold)
                     .onTapGesture { tapped() }
             }
@@ -160,22 +160,19 @@ struct LibRow: View {
             }
     }
 
-    /// Горизонтальный свайп (вертикальный — прокрутка списка); у системных и в выборе нескольких — нет.
-    private var swipe: some Gesture {
-        DragGesture(minimumDistance: 12)
-            .onChanged { g in
-                if node.isSystem || model.libPicked != nil { return }
-                if abs(g.translation.width) < abs(g.translation.height) { return }
-                let base: CGFloat = open ? -reveal : 0
-                let x: CGFloat = base + g.translation.width
-                offset = min(0, max(-reveal - 24, x))
-            }
-            .onEnded { _ in
-                if node.isSystem || model.libPicked != nil { return }
-                let show: Bool = offset < -reveal / 2
-                open = show
-                withAnimation(.easeOut(duration: 0.2)) { offset = show ? -reveal : 0 }
-            }
+    /// Горизонтальный свайп (вертикальный — прокрутка списка, HorizontalSwipe); у системных и в выборе нескольких — нет.
+    private var swipe: HorizontalSwipe {
+        HorizontalSwipe(changed: { dx in
+            if node.isSystem || model.libPicked != nil { return }
+            let base: CGFloat = open ? -reveal : 0
+            let x: CGFloat = base + dx
+            offset = min(0, max(-reveal - 24, x))
+        }, ended: {
+            if node.isSystem || model.libPicked != nil { return }
+            let show: Bool = offset < -reveal / 2
+            open = show
+            withAnimation(.easeOut(duration: 0.2)) { offset = show ? -reveal : 0 }
+        })
     }
 
     private func close() {

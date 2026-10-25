@@ -35,26 +35,59 @@ struct TrackMenuState: Equatable {
 extension AppModel {
     // MARK: — снимки звука
 
-    func publishAudio() {
-        // Таблицы WTABLE дорожек (и звуков клипов): готовые — в снимок, недостроенные — в фоне, по готовности снимок
-        // публикуется заново.
-        var tables: [String: WtTable] = [:]
+    /// Таблицы, нужные проекту: дорожек, их папок (стрелки переключают без паузы), звуков клипов.
+    var projectTableKeys: [String] {
         var keys: [String] = []
         for t in project.tracks {
             keys.append(t.table)
-            // Таблицы папки дорожки — заранее: стрелки переключают их без паузы на построение.
             for it in t.folder.items { if let k = it.preset?.table { keys.append(k) } }
             if let h = t.home { keys.append(h.table) }
             for c in t.clips { if let s = c?.src { keys.append(s.table) } }
         }
+        return keys
+    }
+
+    /// Браузер таблиц: свои таблицы открытой папки — заранее (тап звучит сразу); прочие свои, не нужные проекту, —
+    /// из кэша. Не больше preloadLimit таблиц папки (своя таблица до 256 кадров — до ~8 МБ).
+    func preloadFolderTables() {
+        guard tableMode else { return }
+        let folder: [String] = libItems.filter { $0.kind == .table }.compactMap { $0.key }
+        let list: [String] = Array(folder.prefix(AppModel.preloadLimit))
+        wavetables.prune(keep: Set(projectTableKeys).union(list))
+        wavetables.preload(list)
+    }
+
+    static let preloadLimit = 24
+
+    func publishAudio() {
+        // Таблицы WTABLE дорожек (и звуков клипов): готовые — в снимок, недостроенные — в фоне, по готовности снимок
+        // публикуется заново.
+        var tables: [String: WtTable] = [:]
+        let keys: [String] = projectTableKeys
+        // Таблица дорожки ещё строится — пока звучит прежняя таблица этой дорожки (не тишина и не BASIC).
+        for (i, t) in project.tracks.enumerated() {
+            if let wt = wavetables.ready[t.table] {
+                heldTables[i] = wt
+            } else if let h = heldTables[i] {
+                tables[t.table] = h
+            }
+        }
         let next: [Int] = nextSlots
         publishedNext = next
-        for key in keys {
-            if tables[key] != nil { continue }
+        for key in Set(keys) {
+            if let wt = wavetables.ready[key] {
+                tables[key] = wt
+                continue
+            }
+            // Строится — снимок публикуется заново по готовности (один раз на таблицу).
+            if pendingTables.contains(key) { continue }
+            pendingTables.insert(key)
             if let wt = wavetables.table(key, done: { [weak self] in
+                self?.pendingTables.remove(key)
                 self?.wavetableSerial += 1
                 self?.publishAudio()
             }) {
+                pendingTables.remove(key)
                 tables[key] = wt
             }
         }

@@ -265,10 +265,12 @@ public final class WtTable: @unchecked Sendable {
     static func jsRound(_ x: Double) -> Int { Int((x + 0.5).rounded(.down)) }
 }
 
-/// Кэш таблиц (основной поток): встроенные строятся вне основного потока и остаются в памяти.
+/// Кэш таблиц (основной поток): строятся вне основного потока; встроенные остаются в памяти, свои — пока нужны
+/// (prune). Предзагрузка (preload) — чтобы выбор таблицы звучал сразу, без паузы на построение.
 public final class WavetableStore {
     public private(set) var ready: [String: WtTable] = [:]
-    private var building: Set<String> = []
+    /// Строятся: кто ждёт готовности (у каждой таблицы — все, кто просил, а не только первый).
+    private var waiting: [String: [() -> Void]] = [:]
     /// Таблицы показа встроенных таблиц (окно синта; WtDisplay).
     public private(set) var displays: [String: WtDisplay] = [:]
     private var buildingDisplay: Set<String> = []
@@ -300,8 +302,11 @@ public final class WavetableStore {
     /// Таблица по ключу, если готова; иначе — построение в фоне, done — в основном потоке, когда готова.
     public func table(_ key: String, done: @escaping () -> Void) -> WtTable? {
         if let t = ready[key] { return t }
-        if building.contains(key) { return nil }
-        building.insert(key)
+        if waiting[key] != nil {
+            waiting[key]!.append(done)
+            return nil
+        }
+        waiting[key] = [done]
         let name = WavetableKey.name(key)
         let user = WavetableKey.parseUser(key)
         let dir = userDir
@@ -318,10 +323,29 @@ public final class WavetableStore {
             let built: WtTable? = t
             DispatchQueue.main.async {
                 if let b = built { self.ready[key] = b }
-                self.building.remove(key)
-                if built != nil { done() }
+                let list: [() -> Void] = self.waiting.removeValue(forKey: key) ?? []
+                if built != nil { for f in list { f() } }
             }
         }
         return nil
+    }
+
+    /// Построить заранее (в фоне), что ещё не готово.
+    public func preload(_ keys: [String]) {
+        for k in keys { _ = table(k, done: {}) }
+    }
+
+    /// Встроенные таблицы и их таблицы показа — заранее (при запуске).
+    public func preloadBuiltins() {
+        let keys: [String] = WavetableKey.builtins.map { WavetableKey.builtin($0) }
+        preload(keys)
+        for k in keys { _ = display(k, done: {}) }
+    }
+
+    /// Свои таблицы, которых нет в keep, — из кэша (снимки звука держат свои ссылки сами); встроенные остаются.
+    public func prune(keep: Set<String>) {
+        for k in Array(ready.keys) where WavetableKey.parseUser(k) != nil && !keep.contains(k) {
+            ready[k] = nil
+        }
     }
 }

@@ -174,6 +174,10 @@ final class AppModel {
     @ObservationIgnored let store = SampleStore()
     /// Таблицы WTABLE (строятся в фоне при первом использовании, дальше — из кэша).
     @ObservationIgnored let wavetables = WavetableStore(userDir: WtWav.appDir())
+    /// Последняя готовая таблица каждой дорожки (звучит, пока новая строится).
+    @ObservationIgnored var heldTables: [Int: WtTable] = [:]
+    /// Таблицы, по готовности которых снимок звука публикуется заново.
+    @ObservationIgnored var pendingTables: Set<String> = []
     /// Таблица достроилась — перерисовать кадр в окне синта.
     var wavetableSerial = 0
     var samplesVersion: Int = 0
@@ -251,6 +255,7 @@ final class AppModel {
         trace("model init")
         project = startProject()
         installSynth()
+        wavetables.preloadBuiltins()
         syncTapSensor()
         startMidi()
         publishAudio()
