@@ -164,22 +164,14 @@ struct EqPlot: View {
         }
     }
 
-    /// Область прослушиваемой полосы: АЧХ фильтра EqListen жёлтой полупрозрачной заливкой (0 dB — верх поля,
-    /// −30 dB — низ).
+    /// Область прослушиваемой полосы: жёлтая полупрозрачная полоса на всю высоту поля — у bell и notch шириной по Q
+    /// (EqListen.span), у low cut и low shelf — от левого края до частоты, у high cut и high shelf — от частоты до правого.
     private func drawListen(_ ctx: GraphicsContext, _ b: EqBand, _ g: EqGeometry) {
-        let n: Int = Int(g.size.width / 2) + 1
-        let freqs: [Double] = (0..<n).map { min(24000, g.freq(CGFloat($0) * 2)) }
-        let r: [Double] = EqListen.response(b, hz: freqs)
-        let h: CGFloat = g.size.height
-        var p = Path()
-        p.move(to: CGPoint(x: 0, y: h))
-        for i in 0..<n {
-            let u: Double = max(0, min(1, -r[i] / 30))
-            p.addLine(to: CGPoint(x: CGFloat(i) * 2, y: h * CGFloat(u)))
-        }
-        p.addLine(to: CGPoint(x: CGFloat(n - 1) * 2, y: h))
-        p.closeSubpath()
-        ctx.fill(p, with: .color(theme.accent.opacity(0.16)))
+        let s = EqListen.span(b)
+        let x0: CGFloat = s.lo > 0 ? max(0, g.x(s.lo)) : 0
+        let x1: CGFloat = s.hi.isFinite ? min(g.size.width, g.x(s.hi)) : g.size.width
+        let r = CGRect(x: x0, y: 0, width: max(1, x1 - x0), height: g.size.height)
+        ctx.fill(Path(r), with: .color(theme.accent.opacity(0.16)))
     }
 
     private func label(_ s: String) -> Text {

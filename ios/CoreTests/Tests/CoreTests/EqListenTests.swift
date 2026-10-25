@@ -92,3 +92,17 @@ final class EqListenTests: XCTestCase {
         XCTAssertEqual(x.active, 5)
     }
 }
+
+extension EqListenTests {
+    /// Полоса подсветки: ширина bell — f/Q, края по −3 dB (среднее геометрическое — частота); cut — до края.
+    func testSpan() {
+        let b = EqBand(type: EqSpec.bell, freq: 1000, gain: 0, q: 2)
+        let s = EqListen.span(b)
+        XCTAssertEqual(s.hi - s.lo, 500, accuracy: 1e-9)
+        XCTAssertEqual((s.lo * s.hi).squareRoot(), 1000, accuracy: 1e-9)
+        let low = EqListen.span(EqBand(type: EqSpec.lowCut, freq: 200, gain: 0, q: 0.71))
+        XCTAssertEqual(low.lo, 0)
+        XCTAssertEqual(low.hi, 200)
+        XCTAssertTrue(EqListen.span(EqBand(type: EqSpec.highShelf, freq: 5000, gain: 0, q: 0.71)).hi.isInfinite)
+    }
+}

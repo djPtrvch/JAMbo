@@ -76,20 +76,15 @@ public final class EqListen: @unchecked Sendable {
         EqCoeffs.coeffs(t, hz, 0, q, sr, out)
     }
 
-    /// АЧХ фильтра прослушивания полосы на частотах hz, dB (подсветка области на поле EQ).
-    public static func response(_ b: EqBand, hz: [Double], sampleRate: Double = 48000) -> [Double] {
+    /// Область прослушивания полосы, Гц (подсветка на поле EQ): у полосового — ширина по Q, края по −3 dB
+    /// (f·(√(1 + 1/(4Q²)) ∓ 1/(2Q)), ширина f/Q); у ФНЧ — от 0 до частоты, у ФВЧ — от частоты до бесконечности.
+    public static func span(_ b: EqBand) -> (lo: Double, hi: Double) {
         let f = filter(b)
-        let c = UnsafeMutablePointer<Double>.allocate(capacity: 5)
-        defer { c.deallocate() }
-        coeffs(f.kind, b.freq, f.q, sampleRate, c)
-        return hz.map { h in
-            let w: Double = 2 * Double.pi * h / sampleRate
-            let c1 = cos(w), s1 = sin(w), c2 = cos(2 * w), s2 = sin(2 * w)
-            let nr = c[0] + c[1] * c1 + c[2] * c2, ni = -(c[1] * s1 + c[2] * s2)
-            let dr = 1 + c[3] * c1 + c[4] * c2, di = -(c[3] * s1 + c[4] * s2)
-            let mag = ((nr * nr + ni * ni) / Swift.max(1e-30, dr * dr + di * di)).squareRoot()
-            return 20 * log10(Swift.max(1e-6, mag))
-        }
+        if f.kind == lowpass { return (0, b.freq) }
+        if f.kind == highpass { return (b.freq, Double.infinity) }
+        let h: Double = 1 / (2 * f.q)
+        let r: Double = (1 + h * h).squareRoot()
+        return (b.freq * (r - h), b.freq * (r + h))
     }
 
     /// Канал ch молчит в этом блоке (EQ без звука): если он звучал через фильтр — отпустить сразу.
