@@ -353,18 +353,15 @@ struct ArrDraw {
             var next: CGFloat = m.size.width
             if let e = p.sectionEnd(k) { next = m.stepX(Double(e)) }
             if next < 0 || x0 > m.size.width { continue }
-            // Ровно по сетке: от начала до конца секции, без зазоров. Цвет по умолчанию — как заголовок дорожки.
+            // Ровно по сетке: от начала до конца секции, без зазоров. У секции всегда цвет палитры (без «нет цвета»).
             let r = CGRect(x: x0, y: ArrMetrics.rulerH + 1, width: max(2, next - x0), height: ArrMetrics.markerH - 2)
-            let own: Bool = mk.color != ArrPalette.defaultColor
-            let fill: Color = own ? ArrColors.color(mk.color) : theme.trackBg
-            ctx.fill(Path(r), with: .color(fill))
+            ctx.fill(Path(r), with: .color(ArrColors.color(mk.color)))
             if x0 >= 1 { ctx.fill(Path(CGRect(x: x0, y: r.minY, width: 1, height: r.height)), with: .color(theme.text.opacity(0.5))) }
             var c = ctx
             c.clip(to: Path(r))
             let name: String = mk.name.isEmpty ? " " : mk.name
             let tx: CGFloat = max(r.minX, 0) + 4
-            let tcol: Color = own ? ArrColors.text : theme.text
-            let text: Text = Text(name).font(.system(size: 9, weight: .bold)).foregroundStyle(tcol)
+            let text: Text = Text(name).font(.system(size: 9, weight: .bold)).foregroundStyle(ArrColors.text)
             c.draw(text, at: CGPoint(x: tx, y: r.midY), anchor: .leading)
         }
     }
@@ -373,10 +370,10 @@ struct ArrDraw {
         let x: CGFloat = m.stepX(Double(pos))
         if x < -2 || x > m.size.width + 2 { return }
         ctx.fill(Path(CGRect(x: x - 1, y: 0, width: 2, height: m.size.height)), with: .color(theme.accent))
-        // Маркер плейхеда — жёлтый пятиугольник остриём вниз в строке секций.
+        // Маркер плейхеда — жёлтый пятиугольник остриём вниз во всю высоту строки секций.
         let w: CGFloat = 14
-        let top: CGFloat = ArrMetrics.rulerH + 1
-        let h: CGFloat = ArrMetrics.markerH - 2
+        let top: CGFloat = ArrMetrics.rulerH
+        let h: CGFloat = ArrMetrics.markerH
         var head = Path()
         head.move(to: CGPoint(x: x - w / 2, y: top))
         head.addLine(to: CGPoint(x: x + w / 2, y: top))

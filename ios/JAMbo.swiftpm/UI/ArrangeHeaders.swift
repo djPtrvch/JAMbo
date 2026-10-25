@@ -76,7 +76,8 @@ struct ArrHeaderRow: View {
             Color.clear.frame(width: MeterBars.width)
         }
         .padding(.horizontal, 6)
-        .background(bg, in: RoundedRectangle(cornerRadius: 6))
+        .background(bg, in: UnevenRoundedRectangle(topLeadingRadius: 6, bottomLeadingRadius: 6, bottomTrailingRadius: 0,
+                                                    topTrailingRadius: 0))
         // Выбранная — две жёлтые линии сверху и снизу (продолжаются по всей строке таймлайна).
         .overlay(alignment: .top) { Rectangle().fill(selected ? theme.accent : Color.clear).frame(height: 1) }
         .overlay(alignment: .bottom) { Rectangle().fill(selected ? theme.accent : Color.clear).frame(height: 1) }
@@ -148,6 +149,10 @@ struct ArrHeaderMeters: View {
         let n: Int = model.project.tracks.count
         let m: ArrMetrics = metrics
         return TimelineView(.animation(minimumInterval: 1.0 / 30)) { _ in
+            // Уровни читаются до Canvas: с новыми данными холст перерисовывается (иначе его замыкание то же — кадр
+            // пропускается).
+            let levels: [[(level: Float, hold: Float)]] = (0..<n).map { model.meters.bars($0, stereo: false) }
+            let audible: [Bool] = (0..<n).map { model.project.audible($0) }
             Canvas { ctx, size in
                 let x: CGFloat = size.width - 6 - MeterBars.width
                 var t: Int = 0
@@ -157,8 +162,8 @@ struct ArrHeaderMeters: View {
                     let y: CGFloat = m.rowY(t) + pad
                     let h: CGFloat = max(4, m.rowH - 2 * pad)
                     if y + h >= ArrMetrics.top && y <= size.height {
-                        let data = model.meters.bars(t, stereo: false)
-                        let muted: Bool = !model.project.audible(t)
+                        let data = levels[t]
+                        let muted: Bool = !audible[t]
                         MeterBars.draw(ctx, CGRect(x: x, y: y, width: MeterBars.width, height: h), data, theme: theme,
                                        muted: muted)
                     }

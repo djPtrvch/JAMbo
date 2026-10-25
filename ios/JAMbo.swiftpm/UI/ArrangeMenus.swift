@@ -136,8 +136,8 @@ struct ArrLaneMenu: View {
 /// Меню дорожки: COPY (все блоки), PASTE (заменяет блоки дорожки), DUPLICATE (ещё раз после последнего), палитра.
 struct ArrTrackMenu: View {
     static let width: CGFloat = 220
-    /// 4 строки по 40 (160, с DEFAULT), палитра 3 ряда по 22 и 2 зазора (78), 4 зазора по 6 (24), поля 16.
-    static let height: CGFloat = 278
+    /// 3 строки по 40 (120), палитра 4 ряда по 22 и 3 зазора (106), 3 зазора по 6 (18), поля 16.
+    static let height: CGFloat = 260
     let model: AppModel
     let track: Int
     @Environment(\.theme) private var theme
@@ -148,7 +148,7 @@ struct ArrTrackMenu: View {
             MenuItem(title: "COPY") { run { model.arrCopyTrack(track) } }
             MenuItem(title: "PASTE", enabled: model.arrTrackClipboard != nil) { run { model.arrPasteTrack(track) } }
             MenuItem(title: "DUPLICATE") { run { model.arrDuplicateTrack(track) } }
-            ArrPaletteGrid(current: cur) { c in model.arrSetTrackColor(track, c) }
+            ArrPaletteGrid(current: cur, none: true) { c in model.arrSetTrackColor(track, c) }
         }
         .frame(width: ArrTrackMenu.width)
         .modifier(MenuPanel())
@@ -160,36 +160,36 @@ struct ArrTrackMenu: View {
     }
 }
 
-/// Цвет: DEFAULT (цвет по умолчанию) и палитра без белого — 18 цветов, 6 × 3; выбранный — обводка цветом текста.
+/// Цвет: палитра без белого, 6 в ряд; выбранный — обводка цветом текста. Первый квадратик — цвет по умолчанию: у дорожки
+/// «нет цвета» (перечёркнутый круг; заголовок — как строка дорожек), у секции — сам этот цвет (решение пользователя).
 struct ArrPaletteGrid: View {
     let current: Int
+    let none: Bool
     let pick: (Int) -> Void
     @Environment(\.theme) private var theme
 
     var body: some View {
         let cols: [GridItem] = [GridItem](repeating: GridItem(.flexible(), spacing: 6), count: 6)
-        let list: [Int] = ArrPalette.choices
-        return VStack(spacing: 6) {
-            // DEFAULT — цветом по умолчанию (как заголовок дорожки), выбранный — обводка, как у цветов.
-            Text("DEFAULT")
-                .font(.system(size: 13, weight: .bold))
-                .foregroundStyle(theme.text)
-                .frame(maxWidth: .infinity, minHeight: 40)
-                .background(theme.trackBg, in: RoundedRectangle(cornerRadius: 8))
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(current == ArrPalette.defaultColor ? theme.text : Color.clear,
-                                                                lineWidth: 2))
-                .contentShape(Rectangle())
-                .onTapGesture { pick(ArrPalette.defaultColor) }
-            LazyVGrid(columns: cols, spacing: 6) {
-                ForEach(list, id: \.self) { k in
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(ArrColors.color(k))
-                        .frame(height: 22)
-                        .overlay(RoundedRectangle(cornerRadius: 4).stroke(k == current ? theme.text : Color.clear, lineWidth: 2))
-                        .contentShape(Rectangle())
-                        .onTapGesture { pick(k) }
-                }
+        let list: [Int] = [ArrPalette.defaultColor] + ArrPalette.choices
+        return LazyVGrid(columns: cols, spacing: 6) {
+            ForEach(list, id: \.self) { k in
+                swatch(k)
+                    .frame(height: 22)
+                    .overlay(RoundedRectangle(cornerRadius: 4).stroke(k == current ? theme.text : Color.clear, lineWidth: 2))
+                    .contentShape(Rectangle())
+                    .onTapGesture { pick(k) }
             }
+        }
+    }
+
+    @ViewBuilder
+    private func swatch(_ k: Int) -> some View {
+        if none && k == ArrPalette.defaultColor {
+            RoundedRectangle(cornerRadius: 4)
+                .fill(theme.trackBg)
+                .overlay(Image(systemName: "nosign").font(.system(size: 13, weight: .semibold)).foregroundStyle(theme.dim))
+        } else {
+            RoundedRectangle(cornerRadius: 4).fill(ArrColors.color(k))
         }
     }
 }
@@ -221,8 +221,8 @@ struct ArrInsertMenu: View {
 /// и при закрытии тапом мимо.
 struct ArrMarkerWindow: View {
     static let width: CGFloat = 240
-    /// Имя 44, DEFAULT 40, палитра 78, 2 строки по 40, 5 зазоров по 6, поля 16.
-    static let height: CGFloat = 288
+    /// Имя 44, палитра 106, 2 строки по 40, 3 зазора по 6, поля 16.
+    static let height: CGFloat = 264
     let model: AppModel
     let index: Int
     @State private var name: String = ""
@@ -242,7 +242,7 @@ struct ArrMarkerWindow: View {
                 .background(theme.panel, in: RoundedRectangle(cornerRadius: 6))
                 .onChange(of: name) { _, v in if v.count > 12 { name = String(v.prefix(12)) } }
                 .onSubmit { done() }
-            ArrPaletteGrid(current: cur) { c in model.arrSetMarkerColor(index, c) }
+            ArrPaletteGrid(current: cur, none: false) { c in model.arrSetMarkerColor(index, c) }
             MenuItem(title: "DELETE", red: true) { delete() }
             MenuItem(title: "OK") { done() }
         }
