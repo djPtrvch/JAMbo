@@ -6,6 +6,7 @@ struct LeftColumn: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
+        let _ = RedrawMeter.hit(.left)
         VStack(spacing: Layout.gap) {
             // Над окном (решение пользователя: высотой с верхнюю миниатюру паттернов — строка кнопок, в аранжировщике её
             // закрывают его кнопки): у дорожки — стрелки папки, при MIX — ● MASTER; при MST строки нет — индикация
@@ -82,6 +83,7 @@ struct RightColumn: View {
     let model: AppModel
 
     var body: some View {
+        let _ = RedrawMeter.hit(.right)
         // При MST — скоп на месте миниатюр, кнопки точек съёма COMP, CLIP, LIM на месте MORPH, FX, MOD.
         if model.channel == .master {
             VStack(spacing: Layout.gap) {

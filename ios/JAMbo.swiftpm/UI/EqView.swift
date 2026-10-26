@@ -20,6 +20,7 @@ struct EqView: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
+        let _ = RedrawMeter.hit(.eq)
         VStack(spacing: Layout.gap) {
             EqBar(model: model, layout: layout, plotFrame: plotFrame) { field in openInput(field) }
                 .frame(height: model.barH)

@@ -23,6 +23,7 @@ struct SampleEditor: View {
     static let flagH: CGFloat = 18
 
     var body: some View {
+        let _ = RedrawMeter.hit(.editor)
         let key: String = model.editorKey
         let data: SampleData? = model.sample(key)
         let _ = model.samplesVersion

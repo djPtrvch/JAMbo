@@ -12,6 +12,7 @@ struct RootView: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
+        let _ = RedrawMeter.hit(.root)
         GeometryReader { geo in
             // Одна высота строки на весь экран (решение пользователя): окно аранжировщика (под второй строкой) —
             // линейка и 8 строк дорожек; низ (строка дорожек, секвенсор, клавиатура) — ровно 3 строки, его верх — верх

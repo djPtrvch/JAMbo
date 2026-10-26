@@ -6,6 +6,7 @@ struct TrackRow: View {
     let layout: Layout
 
     var body: some View {
+        let _ = RedrawMeter.hit(.tracks)
         HStack(spacing: Layout.gap) {
             ChannelCell(model: model, title: "MIX", channel: .mix).frame(width: layout.step).midiTarget(model, "MIX")
             ForEach(0..<model.project.tracks.count, id: \.self) { i in

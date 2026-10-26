@@ -18,6 +18,7 @@ struct KnobGrid: View {
     static let spacing: CGFloat = 2
 
     var body: some View {
+        let _ = RedrawMeter.hit(.knobGrid)
         GeometryReader { geo in
             ZStack(alignment: .topLeading) {
                 cells(geo.size)
@@ -305,6 +306,7 @@ struct KnobView: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
+        let _ = RedrawMeter.hit(.knob)
         VStack(spacing: 2) {
             ZStack {
                 Canvas { ctx, size in draw(ctx, size) }

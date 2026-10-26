@@ -11,6 +11,7 @@ struct SequencerRow: View {
     @State private var lastCopy: (index: Int, old: Step)? = nil
 
     var body: some View {
+        RedrawMeter.hit(.seq)
         let pages: ClosedRange<Int> = model.viewPages
         let look: SeqLook = SeqLook(pages: pages.count)
         return GeometryReader { geo in

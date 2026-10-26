@@ -23,6 +23,7 @@ struct PatternGrid: View {
     static let flick: Double = 0.28
 
     var body: some View {
+        let _ = RedrawMeter.hit(.patterns)
         GeometryReader { geo in
             let g = GridGeometry(size: geo.size, step: layout.step, tracks: model.project.tracks.count)
             let w = model.gridWindow

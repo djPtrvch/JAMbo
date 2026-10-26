@@ -16,6 +16,7 @@ struct DiagnosticsView: View {
                 InkButton(title: "RESET") {
                     model.audio.core.profile.resetWorst()
                     model.frameMeter.reset()
+                    RedrawMeter.shared.reset()
                 }
                 .frame(width: 120)
                 #if DEBUG
@@ -67,7 +68,8 @@ struct DiagnosticsView: View {
         return "\(a)% avg · \(p)% peak · \(w)% worst"
     }
 
-    /// Кадры интерфейса за секунду и с RESET; drain — сообщения колбэка → состояние (главный поток).
+    /// Кадры интерфейса за секунду и с RESET; drain — сообщения колбэка → состояние (главный поток); Main — время
+    /// главного потока с RESET (S14c); Redraw — пересчёты видов в секунду с RESET (S14c).
     @ViewBuilder
     private func uiRows(_ m: FrameMeter) -> some View {
         let w: FrameMeter.FrameStats = m.last
@@ -81,6 +83,8 @@ struct DiagnosticsView: View {
         let dp: String = String(format: "%.2f", w.drainPeakMs)
         let dt: String = String(format: "%.2f", m.totalDrainMs)
         row("Drain", "\(da) ms avg · \(dp) ms peak · \(dt) ms worst")
+        row("Main", String(format: "%.1f", m.mainCpuSinceReset) + "% of one core since RESET (UI and drain)")
+        row("Redraw", RedrawMeter.shared.line)
     }
 
     /// KEY VELOCITY: последний толчок (g) и сила; подбор порогов TapVelocity.gMin / gMax.

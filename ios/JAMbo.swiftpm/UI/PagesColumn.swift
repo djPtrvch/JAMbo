@@ -19,6 +19,7 @@ struct PagesColumn: View {
     static let spacing: CGFloat = 4
 
     var body: some View {
+        let _ = RedrawMeter.hit(.pages)
         GeometryReader { geo in
             let rowH: CGFloat = (geo.size.height - PagesColumn.spacing * CGFloat(PagesColumn.rows - 1)) / CGFloat(PagesColumn.rows)
             ZStack(alignment: .topLeading) {

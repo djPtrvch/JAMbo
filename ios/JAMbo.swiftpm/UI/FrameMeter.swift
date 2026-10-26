@@ -1,3 +1,4 @@
+import Darwin
 import QuartzCore
 
 /// Кадры интерфейса (S14a): CADisplayLink — промежуток между кадрами и пропущенные кадры; время drain (60 раз
@@ -20,6 +21,9 @@ final class FrameMeter: NSObject {
     private(set) var totalDropped: Int = 0
     private(set) var totalWorstMs: Double = 0
     private(set) var totalDrainMs: Double = 0
+    /// Время главного потока (нс) и хоста (с) при RESET (S14c).
+    private var cpuReset: UInt64 = FrameMeter.mainCpuNs()
+    private var timeReset: Double = CACurrentMediaTime()
 
     private var link: CADisplayLink?
     private var prev: CFTimeInterval = 0
@@ -44,6 +48,20 @@ final class FrameMeter: NSObject {
         totalDropped = 0
         totalWorstMs = 0
         totalDrainMs = 0
+        cpuReset = FrameMeter.mainCpuNs()
+        timeReset = CACurrentMediaTime()
+    }
+
+    /// Время главного потока (интерфейс и drain) с RESET — % одного ядра (S14c). Без системного сервера отрисовки.
+    var mainCpuSinceReset: Double {
+        let span: Double = CACurrentMediaTime() - timeReset
+        if span <= 0 { return 0 }
+        return Double(FrameMeter.mainCpuNs() &- cpuReset) / 1e9 / span * 100
+    }
+
+    /// Время процессора потока, который зовёт (главного), нс.
+    static func mainCpuNs() -> UInt64 {
+        return clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID)
     }
 
     /// drain занял seconds (главный поток).

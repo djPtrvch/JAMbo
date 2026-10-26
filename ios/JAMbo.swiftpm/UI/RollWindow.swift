@@ -9,6 +9,7 @@ struct RollWindow: View {
     @State private var port = RollPort()
 
     var body: some View {
+        let _ = RedrawMeter.hit(.roll)
         GeometryReader { geo in
             let h: CGFloat = (geo.size.height - 7 * PatternGrid.rowGap) / 8
             ZStack(alignment: .topLeading) {

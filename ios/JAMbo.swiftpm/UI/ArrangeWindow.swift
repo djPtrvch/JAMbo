@@ -9,6 +9,7 @@ struct ArrangeWindow: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
+        let _ = RedrawMeter.hit(.arrange)
         GeometryReader { geo in
             ZStack(alignment: .topLeading) {
                 // Заголовки вплотную к таймлайну (решение пользователя: без зазора).
