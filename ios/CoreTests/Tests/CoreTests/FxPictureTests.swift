@@ -81,3 +81,14 @@ final class FxPictureTests: XCTestCase {
         XCTAssertEqual(FxPicture.duckDot(0.8), 0.5, accuracy: 1e-9)
     }
 }
+
+/// SETTINGS → APPEARANCE → FX ANIMATION: по умолчанию включено, сохраняется.
+final class FxPictureSettingTests: XCTestCase {
+    func testDefaultAndRoundTrip() {
+        XCTAssertTrue(AppSettings().fxPictures)
+        XCTAssertTrue(AppSettings.decode(Data("{}".utf8)).fxPictures)
+        var s = AppSettings()
+        s.fxPictures = false
+        XCTAssertFalse(AppSettings.decode(s.encode()).fxPictures)
+    }
+}

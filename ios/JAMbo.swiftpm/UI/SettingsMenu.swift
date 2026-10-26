@@ -183,7 +183,7 @@ struct OutputSettings: View {
     }
 }
 
-/// APPEARANCE: тема SYSTEM (как на iPad), LIGHT, DARK.
+/// APPEARANCE: тема SYSTEM (как на iPad), LIGHT, DARK; FX ANIMATION — картинки FX в окне сэмпла.
 struct AppearanceSettings: View {
     let model: AppModel
 
@@ -196,6 +196,8 @@ struct AppearanceSettings: View {
                 }
             }
             SettingsNote(text: "SYSTEM follows the iPad setting.")
+            ToggleRow(title: "FX ANIMATION", isOn: model.settings.fxPictures) { model.setFxPictures($0) }
+            SettingsNote(text: "While an FX knob is turned, the sample window shows a picture of the effect.")
         }
     }
 }

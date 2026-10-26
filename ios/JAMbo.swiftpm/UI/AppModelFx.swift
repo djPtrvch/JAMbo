@@ -22,9 +22,10 @@ extension AppModel {
 
     // MARK: — картинка FX в окне сэмпла (FxPreview)
 
-    /// Картинка видна: на дорожке палец на ручке FX или ручку FX только что повернули с MIDI.
+    /// Картинка видна: на дорожке палец на ручке FX или ручку FX только что повернули с MIDI (SETTINGS → APPEARANCE →
+    /// FX ANIMATION включён).
     var fxPicture: Bool {
-        return channel == .track && (fxMidiShow || (fxMode && !knobFingers.isEmpty))
+        return settings.fxPictures && channel == .track && (fxMidiShow || (fxMode && !knobFingers.isEmpty))
     }
 
     /// Палец (или нажатие энкодера) на ручке FX — картинка её колонки.

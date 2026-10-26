@@ -71,6 +71,9 @@ public struct AppSettings: Codable, Equatable, Sendable {
     /// COMPACT — все дорожки на высоту окна.
     public var arrangeCompact: Bool = false
     public var arrangeExpanded: Bool { return !arrangeCompact }
+    /// SETTINGS → APPEARANCE → FX ANIMATION (решение пользователя): картинки FX в окне сэмпла, пока регулируют ручки FX;
+    /// по умолчанию — да.
+    public var fxPictures: Bool = true
 
     public init() {}
 
@@ -87,7 +90,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
     private enum Keys: String, CodingKey { case appearance, pianoOctaves, velocity, record, sliceMap, scSends, muteTails, latchFx, latchMod, rollGrid,
                                          rollSound, levelRelative, morphAll, morphReturn, mixKey, mixCrossfader,
                                          clearSampleLocks, pitchSemitones, midi, stepPaint, sync,
-                                         arrangeCompact }
+                                         arrangeCompact, fxPictures }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
@@ -115,5 +118,6 @@ public struct AppSettings: Codable, Equatable, Sendable {
         stepPaint = (try? c.decode(Bool.self, forKey: .stepPaint)) ?? false
         sync = (try? c.decode(SyncSettings.self, forKey: .sync)) ?? SyncSettings()
         arrangeCompact = (try? c.decode(Bool.self, forKey: .arrangeCompact)) ?? false
+        fxPictures = (try? c.decode(Bool.self, forKey: .fxPictures)) ?? true
     }
 }

@@ -60,6 +60,10 @@ extension AppModel {
         updateSettings { s in s.morphReturn = k }
     }
 
+    func setFxPictures(_ on: Bool) {
+        updateSettings { s in s.fxPictures = on }
+    }
+
     func setClearSampleLocks(_ on: Bool) {
         updateSettings { s in s.clearSampleLocks = on }
     }
