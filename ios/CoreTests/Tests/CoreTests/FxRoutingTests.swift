@@ -109,6 +109,33 @@ final class FxRoutingTests: XCTestCase {
         XCTAssertEqual(o.l[9000], level, accuracy: 0.01, "вернулась")
     }
 
+    /// Sidechain от паттерна (игра секвенсора): источник с тригом на шаге 1 приглушает вторую дорожку — и звучащий, и
+    /// заглушённый (mute), и с MIDI OUT (его ноты уходят на устройство, свой звук молчит), и с MIDI OUT заглушённый.
+    func testSidechainFromPatternMutedAndMidi() {
+        for mode in ["open", "mute", "midi", "midi+mute"] {
+            let core = AudioCore(master: false)
+            var p = Project()
+            p.tracks[0].addSamples(["k"])
+            p.tracks[0].pages[0][0].on = true
+            if mode.contains("mute") { p.tracks[0].mute = true }
+            if mode.hasPrefix("midi") { p.tracks[0].midi.outDevice = 1 }
+            p.tracks[1].addSamples(["dc"])
+            p.tracks[1].vol = 0
+            p.tracks[1].params["sidechain"] = 100
+            p.fx["sc.source"] = 0
+            p.fx["sc.attack"] = 1
+            p.fx["sc.release"] = 400
+            core.publish(p, samples: ["k": burst(), "dc": SampleData(left: [Float](repeating: 1, count: 480000), right: nil)])
+            core.events.push(.noteOn(track: 1, note: 48, id: 1, velocity: 1))
+            let before = render(core, frames: 2400).l[2300]
+            XCTAssertGreaterThan(before, 0.5, mode)
+            core.events.push(.play(true))
+            let o = render(core, frames: 4800)
+            let low = o.l[600...2400].min() ?? 1
+            XCTAssertLessThan(low, before * 0.3, "\(mode): дорожка 2 приглушена тригом источника")
+        }
+    }
+
     /// P-lock FX играющего шага (любой дорожки) действует на время шага.
     func testFxLockWhileStepPlays() {
         let core = AudioCore(master: false)

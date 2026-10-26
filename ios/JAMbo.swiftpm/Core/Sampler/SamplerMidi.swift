@@ -30,6 +30,13 @@ extension Sampler {
         return d.midiOut[t] != 0
     }
 
+    /// Триг Sidechain нотой дорожки t, звук которой не играет (MIDI OUT): источник приглушает другие дорожки и так,
+    /// и заглушённым.
+    @inline(__always)
+    public func sidechainTrig(track t: Int, at frame: Int64) {
+        fx?.noteTrig(track: t, at: frame)
+    }
+
     /// Ноты дорожки t в кадре frame — на MIDI OUT. velocity — Level ноты (p-lock, LFO/ENV, ручка дорожки), 0 — не
     /// шлётся; заглушённая дорожка (mute, не solo) молчит и в MIDI.
     public func midiNotes(track t: Int, at frame: Int64, notes: UnsafePointer<Int16>, count: Int, mask: VoiceMask,

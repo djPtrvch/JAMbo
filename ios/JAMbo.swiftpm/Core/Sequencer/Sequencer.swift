@@ -451,6 +451,8 @@ public final class Sequencer {
                 mod?.trig(track: t, at: frame, gate: pendingEnv[k])
                 // MIDI OUT дорожки: нота на устройство (длина — как гейт ENV), голоса не звучат.
                 if let s = sampler, s.sendsMidi(t) {
+                    // Sidechain — и от дорожки с MIDI OUT (в trigger, где он обычно, нота не попадает).
+                    s.sidechainTrig(track: t, at: frame)
                     s.midiNotes(track: t, at: frame, notes: pendingNotes + k * SeqData.maxNotes, count: Int(pendingCountN[k]),
                                 mask: pendingMask[k], vals: pendingVals + k * VoiceParam.count, length: pendingEnv[k],
                                 liveId: -1)

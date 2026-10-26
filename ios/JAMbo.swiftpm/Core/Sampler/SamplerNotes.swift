@@ -199,6 +199,7 @@ extension Sampler {
             scratch[VoiceParam.level] = d.param(t, VoiceParam.level) * velocity
         }
         if sendsMidi(t) {
+            sidechainTrig(track: t, at: at)
             midiNotes(track: t, at: at, notes: one, count: 1, mask: mask, vals: scratch, length: -1, liveId: id)
             return
         }
