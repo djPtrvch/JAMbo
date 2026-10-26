@@ -13,6 +13,22 @@ final class FxPictureTests: XCTestCase {
         XCTAssertTrue(FxPicture.driveCut(200)!.low)
     }
 
+    func testCutEnvelope() {
+        // На частоте среза −3 dB; далеко в полосе пропускания — верх поля; за срезом — к низу; всё в поле.
+        let hp = FxPicture.Cut(low: true, hz: 200)
+        XCTAssertEqual(FxPicture.cutDb(hp, 200), -3.0103, accuracy: 1e-3)
+        XCTAssertEqual(FxPicture.cutDb(FxPicture.Cut(low: false, hz: 3000), 3000), -3.0103, accuracy: 1e-3)
+        let env = FxPicture.cutEnvelope(hp)
+        XCTAssertEqual(env.first!.y, FxPicture.bottom, accuracy: 1e-9)
+        XCTAssertEqual(env.last!.y, FxPicture.top, accuracy: 0.01)
+        let lp = FxPicture.cutEnvelope(FxPicture.Cut(low: false, hz: 500))
+        XCTAssertEqual(lp.first!.y, FxPicture.top, accuracy: 0.01)
+        XCTAssertGreaterThan(lp.last!.y, 50)
+        for p in env + lp {
+            XCTAssertTrue(p.x >= FxPicture.x0 && p.x <= FxPicture.x1 && p.y >= FxPicture.top && p.y <= FxPicture.bottom)
+        }
+    }
+
     func testReverbGrows() {
         let a = FxPicture.reverb(size: 0, decay: 0.1, tone: -100)
         let b = FxPicture.reverb(size: 100, decay: 20, tone: 100)

@@ -1,9 +1,10 @@
 import SwiftUI
 
 // Картинка FX в окне сэмпла (docs/ai/fx-eq.md «Анимация FX»): пока палец на ручке FX (или ручку FX крутят с MIDI),
-// поверх превью сэмпла или синта — картинка её колонки: Reverb, Delay, Drive, Duck. Неподвижна, меняется только от
-// ручек (кроме точки Duck). Цвета — как у иконок движков: звук — icon, второстепенное (контуры, серые копии, фильтр) —
-// icon2. Геометрия — FxPicture (Core).
+// поверх превью сэмпла или синта — картинка её колонки: Reverb, Delay, Drive, Duck. Раскладка и поле — как у окна
+// синта (SynthInfo): заголовок, поле 64×64 (до 144 pt, элементы в 4…60 × 8…56), линии толщиной иконок. Неподвижна,
+// меняется только от ручек (кроме точки Duck). Цвета — как у иконок движков: звук — icon, второстепенное (контуры,
+// серые копии, огибающая фильтра) — icon2. Геометрия — FxPicture (Core).
 
 struct FxPreview: View {
     let model: AppModel
@@ -13,29 +14,51 @@ struct FxPreview: View {
 
     var body: some View {
         let col: Int = min(3, max(0, model.fxPicCol))
-        return VStack(alignment: .leading, spacing: 8) {
+        return VStack(alignment: .leading, spacing: 4) {
             header(col)
-            picture(col)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            if col < 3 {
-                FxFilterStrip(cut: cut(col))
-                    .equatable()
-                    .frame(height: 12)
+                .padding(.top, 6)
+            // Поле — на том же месте, что иконка движка: под ним место строк ручек окна синта (пустое).
+            VStack(alignment: .leading, spacing: 8) {
+                ZStack {
+                    picture(col)
+                    if col < 3 { FxCutPic(cut: cut(col)).equatable() }
+                }
+                .aspectRatio(1, contentMode: .fit)
+                .frame(maxWidth: .infinity, maxHeight: 144)
+                .offset(y: 3)
+                FxPreview.rowsSpace
+                    .padding(.top, 14)
             }
+            .padding(.horizontal, 6)
+            .frame(maxHeight: .infinity)
         }
-        .padding(10)
+        .padding(8)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(theme.panel, in: RoundedRectangle(cornerRadius: Layout.radius))
         .allowsHitTesting(false)
     }
 
+    /// Место четырёх строк ручек окна синта (та же высота, без текста).
+    static var rowsSpace: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(0..<4, id: \.self) { _ in Text(" ").font(.system(size: 11)) }
+        }
+        .hidden()
+    }
+
     private func header(_ col: Int) -> some View {
         HStack(spacing: 4) {
-            Text(FxPreview.titles[col]).foregroundStyle(theme.dim)
+            Text(FxPreview.titles[col])
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(theme.text)
             Spacer(minLength: 4)
-            if col == 3 { Text(sourceName).foregroundStyle(theme.text) }
+            if col == 3 {
+                Text(sourceName)
+                    .font(.system(size: 11))
+                    .tracking(0.44)
+                    .foregroundStyle(theme.text)
+            }
         }
-        .font(.system(size: 10))
         .lineLimit(1)
     }
 
@@ -77,39 +100,48 @@ struct FxPreview: View {
     }
 }
 
-/// Полоса фильтра (лог 20 Гц — 20 кГц): срез НЧ — заливка слева до частоты, срез ВЧ — справа; край — скатом.
-struct FxFilterStrip: View, Equatable {
+/// Поле 64×64 по центру холста (как SynthIcon.draw): дальше рисуется в единицах поля.
+enum FxField {
+    static let size: CGFloat = 64
+    static let stroke: CGFloat = 1.4
+    static let x0: CGFloat = 4
+    static let x1: CGFloat = 60
+    static let top: CGFloat = 8
+    static let bottom: CGFloat = 56
+
+    static func begin(_ ctx: inout GraphicsContext, _ size: CGSize) {
+        let side: CGFloat = min(size.width, size.height)
+        ctx.translateBy(x: (size.width - side) / 2, y: (size.height - side) / 2)
+        ctx.scaleBy(x: side / FxField.size, y: side / FxField.size)
+    }
+}
+
+/// Огибающая фильтра поверх картинки (частота слева направо, лог 20 Гц — 20 кГц; 0 dB — верх поля, −30 dB — низ):
+/// отрезанное — серая полупрозрачная заливка над кривой, кривая — серой линией. Без среза — ничего.
+struct FxCutPic: View, Equatable {
     let cut: FxPicture.Cut?
     @Environment(\.theme) private var theme
 
-    static func == (a: FxFilterStrip, b: FxFilterStrip) -> Bool { return a.cut == b.cut }
+    static func == (a: FxCutPic, b: FxCutPic) -> Bool { return a.cut == b.cut }
 
     var body: some View {
-        let track: Color = theme.meterTrack
-        let ink: Color = theme.icon2
+        let ink2: Color = theme.icon2
         let cut: FxPicture.Cut? = self.cut
         return Canvas { ctx, size in
-            let w: CGFloat = size.width
-            let h: CGFloat = size.height
-            ctx.fill(Path(roundedRect: CGRect(x: 0, y: 0, width: w, height: h), cornerRadius: 3), with: .color(track))
             guard let c = cut else { return }
-            let xc: CGFloat = w * CGFloat(c.x)
-            let ramp: CGFloat = w * 0.06
-            var p = Path()
-            if c.low {
-                p.move(to: CGPoint(x: 0, y: 0))
-                p.addLine(to: CGPoint(x: max(0, xc - ramp), y: 0))
-                p.addLine(to: CGPoint(x: xc, y: h))
-                p.addLine(to: CGPoint(x: 0, y: h))
-            } else {
-                p.move(to: CGPoint(x: w, y: 0))
-                p.addLine(to: CGPoint(x: min(w, xc + ramp), y: 0))
-                p.addLine(to: CGPoint(x: xc, y: h))
-                p.addLine(to: CGPoint(x: w, y: h))
+            FxField.begin(&ctx, size)
+            let pts = FxPicture.cutEnvelope(c)
+            var line = Path()
+            for (i, p) in pts.enumerated() {
+                let pt = CGPoint(x: CGFloat(p.x), y: CGFloat(p.y))
+                if i == 0 { line.move(to: pt) } else { line.addLine(to: pt) }
             }
-            p.closeSubpath()
-            ctx.clip(to: Path(roundedRect: CGRect(x: 0, y: 0, width: w, height: h), cornerRadius: 3))
-            ctx.fill(p, with: .color(ink.opacity(0.9)))
+            var area: Path = line
+            area.addLine(to: CGPoint(x: FxField.x1, y: FxField.top))
+            area.addLine(to: CGPoint(x: FxField.x0, y: FxField.top))
+            area.closeSubpath()
+            ctx.fill(area, with: .color(ink2.opacity(0.45)))
+            ctx.stroke(line, with: .color(ink2), style: StrokeStyle(lineWidth: FxField.stroke, lineJoin: .round))
         }
     }
 }
@@ -126,15 +158,15 @@ struct FxReverbPic: View, Equatable {
         let ink2: Color = theme.icon2
         let r: FxPicture.Reverb = self.r
         return Canvas { ctx, size in
-            let c = CGPoint(x: size.width / 2, y: size.height / 2)
-            let m: CGFloat = min(size.width, size.height)
-            let s: CGFloat = m * CGFloat(r.size) / 2
-            // Контуры DECAY: шестиугольник силуэта куба, бледнеют наружу.
+            FxField.begin(&ctx, size)
+            let c = CGPoint(x: 32, y: 32)
+            // Радиус силуэта 6,4…16; контуры DECAY — до 6, шаг 0,7…1,9, крайний не дальше 27,5 (поле 4…60).
+            let s: CGFloat = 32 * CGFloat(r.size)
             if r.contours > 0 {
                 for k in 1...r.contours {
-                    let rad: CGFloat = s + CGFloat(k) * CGFloat(r.spread) * m * 0.25
+                    let rad: CGFloat = s + CGFloat(k) * CGFloat(r.spread) * 12
                     let a: Double = 1 - Double(k) / Double(r.contours + 1)
-                    ctx.stroke(FxReverbPic.hexagon(c, rad), with: .color(ink2.opacity(a)), lineWidth: 1)
+                    ctx.stroke(FxReverbPic.hexagon(c, rad), with: .color(ink2.opacity(a)), lineWidth: FxField.stroke * 0.7)
                 }
             }
             FxReverbPic.cube(ctx, c, s, r.fill, ink)
@@ -168,7 +200,7 @@ struct FxReverbPic: View, Equatable {
             p.addLines(pts)
             p.closeSubpath()
             ctx.fill(p, with: .color(ink.opacity(fill * k)))
-            ctx.stroke(p, with: .color(ink.opacity(0.9)), style: StrokeStyle(lineWidth: 1.5, lineJoin: .round))
+            ctx.stroke(p, with: .color(ink.opacity(0.9)), style: StrokeStyle(lineWidth: FxField.stroke, lineJoin: .round))
         }
     }
 }
@@ -188,22 +220,26 @@ struct FxDelayPic: View, Equatable {
         let echoes: [FxPicture.Echo] = self.echoes
         let spread: Double = self.spread
         return Canvas { ctx, size in
-            let mid: CGFloat = size.height / 2
-            let pad: CGFloat = 4
-            let w: CGFloat = size.width - 2 * pad
-            let full: CGFloat = size.height * 0.62
-            ctx.fill(Path(CGRect(x: 0, y: mid - 0.5, width: size.width, height: 1)), with: .color(ink2.opacity(0.6)))
-            ctx.fill(Path(CGRect(x: pad - 1, y: mid - full / 2, width: 2, height: full)), with: .color(ink2))
+            FxField.begin(&ctx, size)
+            let mid: CGFloat = 32
+            let x0: CGFloat = FxField.x0 + 1
+            let w: CGFloat = FxField.x1 - 1 - x0
+            // Линия полной высоты — 32 (16…48); копии SPREAD — до ±8 (поле 8…56).
+            let full: CGFloat = 32
+            let bw: CGFloat = FxField.stroke * 1.4
+            ctx.fill(Path(CGRect(x: FxField.x0, y: mid - 0.35, width: FxField.x1 - FxField.x0, height: 0.7)),
+                     with: .color(ink2.opacity(0.6)))
+            ctx.fill(Path(CGRect(x: x0 - bw / 2, y: mid - full / 2, width: bw, height: full)), with: .color(ink2))
             for e in echoes {
-                let x: CGFloat = pad + w * CGFloat(e.x)
+                let x: CGFloat = x0 + w * CGFloat(e.x)
                 let hh: CGFloat = full * CGFloat(e.h)
                 if spread > 0.005 {
-                    let dy: CGFloat = CGFloat(e.side) * CGFloat(spread) * size.height * 0.19
-                    let r = CGRect(x: x - 1.5, y: mid - hh / 2 + dy, width: 3, height: hh)
-                    ctx.fill(Path(roundedRect: r, cornerRadius: 1.5), with: .color(ink2.opacity(e.a)))
+                    let dy: CGFloat = CGFloat(e.side) * CGFloat(spread) * 8
+                    let r = CGRect(x: x - bw / 2, y: mid - hh / 2 + dy, width: bw, height: hh)
+                    ctx.fill(Path(roundedRect: r, cornerRadius: bw / 2), with: .color(ink2.opacity(e.a)))
                 }
-                let r = CGRect(x: x - 1.5, y: mid - hh / 2, width: 3, height: hh)
-                ctx.fill(Path(roundedRect: r, cornerRadius: 1.5), with: .color(ink.opacity(e.a)))
+                let r = CGRect(x: x - bw / 2, y: mid - hh / 2, width: bw, height: hh)
+                ctx.fill(Path(roundedRect: r, cornerRadius: bw / 2), with: .color(ink.opacity(e.a)))
             }
         }
     }
@@ -229,31 +265,31 @@ struct FxDrivePic: View, Equatable {
         let stepped: Bool = type >= 5
         let t: Double = min(1, max(0, tone / 100))
         return Canvas { ctx, size in
-            let mid: CGFloat = size.height / 2
-            let amp: CGFloat = size.height * 0.45
-            let line: Path = FxDrivePic.curve(wave, size, mid, amp, stepped)
+            FxField.begin(&ctx, size)
+            let line: Path = FxDrivePic.curve(wave, stepped)
             var area: Path = line
-            area.addLine(to: CGPoint(x: size.width, y: mid))
-            area.addLine(to: CGPoint(x: 0, y: mid))
+            area.addLine(to: CGPoint(x: FxField.x1, y: 32))
+            area.addLine(to: CGPoint(x: FxField.x0, y: 32))
             area.closeSubpath()
             ctx.fill(area, with: .color(ink.opacity(0.1 + 0.45 * t)))
-            ctx.stroke(FxDrivePic.curve(clean, size, mid, amp, false), with: .color(ink2), lineWidth: 1)
-            ctx.stroke(line, with: .color(ink.opacity(0.35 + 0.65 * t)), style: StrokeStyle(lineWidth: 1.5, lineJoin: .round))
+            ctx.stroke(FxDrivePic.curve(clean, false), with: .color(ink2), lineWidth: FxField.stroke * 0.7)
+            ctx.stroke(line, with: .color(ink.opacity(0.35 + 0.65 * t)),
+                       style: StrokeStyle(lineWidth: FxField.stroke, lineJoin: .round))
         }
     }
 
-    /// Кривая по отсчётам (CRUSH — ступенями).
-    static func curve(_ v: [Double], _ size: CGSize, _ mid: CGFloat, _ amp: CGFloat, _ stepped: Bool) -> Path {
+    /// Кривая по отсчётам в поле: x 4…60, середина 32, ±24 (8…56); CRUSH — ступенями.
+    static func curve(_ v: [Double], _ stepped: Bool) -> Path {
         var p = Path()
         let n: Int = v.count - 1
         if n < 1 { return p }
-        let dx: CGFloat = size.width / CGFloat(n)
-        p.move(to: CGPoint(x: 0, y: mid - CGFloat(v[0]) * amp))
+        let amp: CGFloat = 24
+        let dx: CGFloat = (FxField.x1 - FxField.x0) / CGFloat(n)
+        p.move(to: CGPoint(x: FxField.x0, y: 32 - CGFloat(v[0]) * amp))
         for i in 1...n {
-            let x: CGFloat = CGFloat(i) * dx
-            let y: CGFloat = mid - CGFloat(v[i]) * amp
-            if stepped { p.addLine(to: CGPoint(x: x, y: mid - CGFloat(v[i - 1]) * amp)) }
-            p.addLine(to: CGPoint(x: x, y: y))
+            let x: CGFloat = FxField.x0 + CGFloat(i) * dx
+            if stepped { p.addLine(to: CGPoint(x: x, y: 32 - CGFloat(v[i - 1]) * amp)) }
+            p.addLine(to: CGPoint(x: x, y: 32 - CGFloat(v[i]) * amp))
         }
         return p
     }
@@ -262,7 +298,6 @@ struct FxDrivePic: View, Equatable {
 /// Duck: огибающая громкости (вверху — 0 dB), по ней бежит точка.
 struct FxDuckPic: View {
     let d: FxPicture.Duck
-    @Environment(\.theme) private var theme
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 60)) { tl in
@@ -281,25 +316,26 @@ struct FxDuckFrame: View {
         let d: FxPicture.Duck = self.d
         let dot: Double = self.dot
         return Canvas { ctx, size in
-            let top: CGFloat = size.height * 0.12
-            let hh: CGFloat = size.height * 0.76
+            FxField.begin(&ctx, size)
+            let w: CGFloat = FxField.x1 - FxField.x0
+            let hh: CGFloat = FxField.bottom - FxField.top
             let n: Int = 240
             var line = Path()
             for i in 0...n {
                 let x: Double = Double(i) / Double(n)
-                let y: CGFloat = top + hh * CGFloat(1 - FxPicture.duckVolume(d, x))
-                let pt = CGPoint(x: size.width * CGFloat(x), y: y)
+                let y: CGFloat = FxField.top + hh * CGFloat(1 - FxPicture.duckVolume(d, x))
+                let pt = CGPoint(x: FxField.x0 + w * CGFloat(x), y: y)
                 if i == 0 { line.move(to: pt) } else { line.addLine(to: pt) }
             }
             var area: Path = line
-            area.addLine(to: CGPoint(x: size.width, y: top + hh))
-            area.addLine(to: CGPoint(x: 0, y: top + hh))
+            area.addLine(to: CGPoint(x: FxField.x1, y: FxField.bottom))
+            area.addLine(to: CGPoint(x: FxField.x0, y: FxField.bottom))
             area.closeSubpath()
             ctx.fill(area, with: .color(ink.opacity(0.18)))
-            ctx.stroke(line, with: .color(ink.opacity(0.9)), style: StrokeStyle(lineWidth: 1.5, lineJoin: .round))
-            let px: CGFloat = size.width * CGFloat(dot)
-            let py: CGFloat = top + hh * CGFloat(1 - FxPicture.duckVolume(d, dot))
-            ctx.fill(Path(ellipseIn: CGRect(x: px - 4, y: py - 4, width: 8, height: 8)), with: .color(ink))
+            ctx.stroke(line, with: .color(ink.opacity(0.9)), style: StrokeStyle(lineWidth: FxField.stroke, lineJoin: .round))
+            let px: CGFloat = FxField.x0 + w * CGFloat(dot)
+            let py: CGFloat = FxField.top + hh * CGFloat(1 - FxPicture.duckVolume(d, dot))
+            ctx.fill(Path(ellipseIn: CGRect(x: px - 2.2, y: py - 2.2, width: 4.4, height: 4.4)), with: .color(ink))
         }
     }
 }

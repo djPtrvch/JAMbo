@@ -1,41 +1,70 @@
 import Foundation
 
-// Картинки FX в окне сэмпла (пока регулируют ручки FX, docs/ai/fx-eq.md «Анимация FX»): геометрия в долях 0…1,
-// рисует UI (FxPreview). Формы — по тем же формулам, что в звуке: кривые Drive (FxDrive.shapeY, CRUSH), возврат
+// Картинки FX в окне сэмпла (пока регулируют ручки FX, docs/ai/fx-eq.md «Анимация FX»): геометрия в долях 0…1
+// и в единицах поля 64×64 (как иконки движков), рисует UI (FxPreview). Формы — по тем же формулам, что в звуке: кривые Drive (FxDrive.shapeY, CRUSH), возврат
 // Duck (FxDuck: (1 − u)^q, q = 2·4^((50 − CURVE)/50)), частоты фильтров (Params.delayFilterFreq).
 
 public enum FxPicture {
-    // MARK: — полоса фильтра (лог 20 Гц — 20 кГц)
+    // MARK: — поле и огибающая фильтра
 
-    /// Доля ширины для частоты hz.
+    /// Поле картинки — как у иконок движков (EngineIcons, 64×64): по ширине 4…60, по высоте 8…56.
+    public static let x0: Double = 4
+    public static let x1: Double = 60
+    public static let top: Double = 8
+    public static let bottom: Double = 56
+    /// Низ огибающей фильтра — −30 dB.
+    public static let floorDb: Double = -30
+
+    /// Доля ширины для частоты hz (лог 20 Гц — 20 кГц).
     public static func freqX(_ hz: Double) -> Double {
         let h: Double = Swift.min(20000, Swift.max(20, hz))
         return log(h / 20) / log(1000.0)
     }
 
-    /// Срез на полосе фильтра: low — срез НЧ (заливка слева до x), иначе срез ВЧ (справа от x); nil — без среза.
+    /// Срез: low — срез НЧ (HP), иначе срез ВЧ (LP); hz — частота среза.
     public struct Cut: Equatable {
         public let low: Bool
-        public let x: Double
+        public let hz: Double
+        public var x: Double { return FxPicture.freqX(hz) }
     }
 
     /// LOW CUT реверба (20–2000 Гц): на 20 Гц — без среза.
     public static func reverbCut(_ hpf: Double) -> Cut? {
         if hpf <= 20.5 { return nil }
-        return Cut(low: true, x: freqX(hpf))
+        return Cut(low: true, hz: hpf)
     }
 
     /// FILTER дилея: влево LP (срез ВЧ), вправо HP (срез НЧ), в центре OFF.
     public static func delayCut(_ v: Double) -> Cut? {
         let f = Params.delayFilterFreq(v)
         if f.type == 0 { return nil }
-        return Cut(low: f.type > 0, x: freqX(f.hz))
+        return Cut(low: f.type > 0, hz: f.hz)
     }
 
     /// LOW CUT Drive: ≤ 25 Гц — OFF.
     public static func driveCut(_ hz: Double) -> Cut? {
         if hz <= Params.driveLowCutOff { return nil }
-        return Cut(low: true, x: freqX(hz))
+        return Cut(low: true, hz: hz)
+    }
+
+    /// Ослабление (dB, ≤ 0) фильтра 2-го порядка (Баттерворт, как RBJ с Q = 1/√2) на частоте f.
+    public static func cutDb(_ c: Cut, _ f: Double) -> Double {
+        let r: Double = c.low ? f / c.hz : c.hz / f
+        let r4: Double = r * r * r * r
+        return 10 * log10(r4 / (1 + r4))
+    }
+
+    /// Огибающая фильтра в единицах поля: n + 1 точек (x, y) слева направо; 0 dB — верх поля, −30 dB и ниже — низ.
+    public static func cutEnvelope(_ c: Cut, _ n: Int = 112) -> [(x: Double, y: Double)] {
+        var out: [(x: Double, y: Double)] = []
+        out.reserveCapacity(n + 1)
+        for i in 0...n {
+            let u: Double = Double(i) / Double(n)
+            let f: Double = 20 * pow(1000, u)
+            let db: Double = Swift.max(floorDb, cutDb(c, f))
+            out.append((x: x0 + (x1 - x0) * u, y: top + (bottom - top) * db / floorDb))
+        }
+        return out
     }
 
     // MARK: — Reverb
