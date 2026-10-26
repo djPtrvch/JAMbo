@@ -15,6 +15,8 @@ struct KnobState {
     var heldSource: Int? = nil
     /// Кривая аранжировки, которая сейчас действует (0…1; S15f) — жёлтая риска снаружи кольца; nil — нет.
     var autoNorm: Double? = nil
+    /// 4-й столбец сетки дорожки (Pan, Chance, Ratchet, Velocity; у FX — Duck, у MOD — ENV): p-lock — оранжевым.
+    var col4: Bool = false
 }
 
 extension AppModel {
@@ -122,7 +124,8 @@ extension AppModel {
         }
         let v: Double = lock ?? base
         return KnobState(param: p, value: v, norm: p.toNorm(v), baseNorm: p.toNorm(base), locked: lock != nil,
-                         assign: assign(slot), heldSource: canAssign ? heldSource : nil, autoNorm: autoN)
+                         assign: assign(slot), heldSource: canAssign ? heldSource : nil, autoNorm: autoN,
+                         col4: slot % 4 == 3)
     }
 
     /// Начало поворота: положение, от которого считать (p-lock зажатого шага или ручка).

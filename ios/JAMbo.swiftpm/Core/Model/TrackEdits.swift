@@ -178,6 +178,21 @@ extension Track {
         let sound = s.soundLocks ?? []
         return s.locks.keys.contains { !sound.contains($0) }
     }
+
+    /// Параметры 4-го столбца сетки дорожки (Pan, Chance, Ratchet, Velocity), FX (Duck) и MOD (ENV): их p-lock —
+    /// оранжевые (решение пользователя, на пробу).
+    public static let col4Ids: Set<String> = Set((Params.trackColumns[3] + Params.fxColumns[3] + Params.modColumns[3]).map { $0.id })
+
+    /// Ручные p-lock шага по цвету: other — жёлтая точка, col4 — оранжевая (velocity ноты — Velocity, 4-й столбец).
+    public static func manualLockKinds(_ s: Step) -> (other: Bool, col4: Bool) {
+        let sound = s.soundLocks ?? []
+        var other = false
+        var col4 = s.hasVel
+        for k in s.locks.keys where !sound.contains(k) {
+            if col4Ids.contains(k) { col4 = true } else { other = true }
+        }
+        return (other, col4)
+    }
 }
 
 extension Track {

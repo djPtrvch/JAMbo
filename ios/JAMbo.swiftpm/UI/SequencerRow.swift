@@ -233,10 +233,13 @@ struct StepFace: View, Equatable {
 
     @ViewBuilder
     private func lockDot(_ info: StepInfo) -> some View {
-        if info.manualLock {
-            Circle().fill(theme.accent)
-                .frame(width: look.dot, height: look.dot)
-                .padding(look.dotPad)
+        // Остальные p-lock — жёлтая точка, 4-го столбца (Pan, Chance, Ratchet, Velocity; Duck, ENV) — оранжевая рядом.
+        if info.manualLock || info.col4Lock {
+            HStack(spacing: look.dot * 0.5) {
+                if info.manualLock { Circle().fill(theme.accent).frame(width: look.dot, height: look.dot) }
+                if info.col4Lock { Circle().fill(theme.gr).frame(width: look.dot, height: look.dot) }
+            }
+            .padding(look.dotPad)
         }
     }
 }
@@ -251,8 +254,10 @@ struct StepInfo: Equatable {
     let outside: Bool
     let last: Bool
     let channelOn: Bool
-    /// Ручные p-lock (на триге или пустом шаге) — жёлтая точка; свой звук шага — жёлтая обводка.
+    /// Ручные p-lock (на триге или пустом шаге) — жёлтая точка, p-lock 4-го столбца — оранжевая; свой звук шага —
+    /// жёлтая обводка.
     let manualLock: Bool
+    let col4Lock: Bool
     let ownSound: Bool
 
     init(model: AppModel, page: Int, col: Int) {
@@ -274,7 +279,9 @@ struct StepInfo: Equatable {
             }
         }
         tail = isTail
-        manualLock = s.map { Track.hasManualLocks($0) } ?? false
+        let kinds: (other: Bool, col4: Bool) = s.map { Track.manualLockKinds($0) } ?? (false, false)
+        manualLock = kinds.other
+        col4Lock = kinds.col4
         ownSound = on && s?.sound != nil
         if on, let s = s {
             label = s.notes.count > 1 ? "POLY" : (s.notes.first.map { Params.noteName($0) } ?? "")

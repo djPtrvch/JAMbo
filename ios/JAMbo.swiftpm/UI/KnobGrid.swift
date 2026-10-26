@@ -300,8 +300,8 @@ struct KnobCell: View {
     }
 }
 
-/// Ручка: кольцо (серое), дуга значения (белая; у двухполярных — от центра), p-lock — жёлтая дуга внутри
-/// и жёлтая стрелка, значение в центре, подпись под ручкой; LFO/ENV — кольцо снаружи от значения до текущего
+/// Ручка: кольцо (серое), дуга значения (белая; у двухполярных — от центра), p-lock — жёлтая (у 4-го столбца
+/// дорожки — оранжевая) дуга внутри и стрелка, значение в центре, подпись под ручкой; LFO/ENV — кольцо снаружи от значения до текущего
 /// (LFO1–3 — своя прозрачность, ENV — пунктир), пока держат источник — вся зона воздействия. Геометрия как в вебе.
 struct KnobView: View, Equatable {
     let state: KnobState
@@ -323,7 +323,7 @@ struct KnobView: View, Equatable {
         if tx != ty { return false }
         if x.value != y.value || x.norm != y.norm || x.baseNorm != y.baseNorm || x.locked != y.locked { return false }
         if x.assign != y.assign || x.heldSource != y.heldSource || x.autoNorm != y.autoNorm { return false }
-        return a.mod == b.mod && a.saved == b.saved
+        return a.mod == b.mod && a.saved == b.saved && x.col4 == y.col4
     }
 
     var body: some View {
@@ -357,8 +357,11 @@ struct KnobView: View, Equatable {
             .font(.system(size: 11, weight: saved ? .bold : .regular))
             .monospacedDigit()
             .multilineTextAlignment(.center)
-            .foregroundStyle(state.locked ? theme.accent : theme.text)
+            .foregroundStyle(state.locked ? lockColor : theme.text)
     }
+
+    /// Цвет p-lock: жёлтый, у 4-го столбца дорожки — оранжевый.
+    private var lockColor: Color { return state.col4 ? theme.gr : theme.accent }
 
     private func draw(_ ctx: GraphicsContext, _ size: CGSize) {
         let side: CGFloat = min(size.width, size.height)
@@ -374,7 +377,7 @@ struct KnobView: View, Equatable {
         ctx.stroke(KnobView.arc(c, 36 * k, origin, state.baseNorm), with: .color(theme.text),
                    style: StrokeStyle(lineWidth: 6 * k, lineCap: .round))
         if state.locked {
-            ctx.stroke(KnobView.arc(c, 28 * k, origin, state.norm), with: .color(theme.accent),
+            ctx.stroke(KnobView.arc(c, 28 * k, origin, state.norm), with: .color(lockColor),
                        style: StrokeStyle(lineWidth: 5 * k, lineCap: .round))
         }
         if let am = state.assign {
@@ -392,7 +395,7 @@ struct KnobView: View, Equatable {
         var pointer = Path()
         pointer.move(to: KnobView.polar(c, 21 * k, a))
         pointer.addLine(to: KnobView.polar(c, 28 * k, a))
-        ctx.stroke(pointer, with: .color(state.locked ? theme.accent : theme.text),
+        ctx.stroke(pointer, with: .color(state.locked ? lockColor : theme.text),
                    style: StrokeStyle(lineWidth: 3 * k, lineCap: .round))
     }
 

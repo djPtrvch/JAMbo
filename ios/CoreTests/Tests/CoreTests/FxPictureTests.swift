@@ -103,3 +103,18 @@ final class BackgroundAudioSettingTests: XCTestCase {
         XCTAssertFalse(AppSettings.decode(s.encode()).backgroundAudio)
     }
 }
+
+/// P-lock 4-го столбца (Pan, Chance, Ratchet, Velocity; Duck у FX; ENV у MOD) — отдельно от остальных (оранжевая точка).
+final class LockKindTests: XCTestCase {
+    func testKinds() {
+        var s = Step()
+        XCTAssertFalse(Track.manualLockKinds(s).other || Track.manualLockKinds(s).col4)
+        s.locks["prob"] = 50
+        XCTAssertTrue(Track.manualLockKinds(s).col4)
+        XCTAssertFalse(Track.manualLockKinds(s).other)
+        s.locks["decay"] = 100
+        XCTAssertTrue(Track.manualLockKinds(s).other)
+        XCTAssertTrue(Track.col4Ids.isSuperset(of: ["pan", "prob", "ratchet", "level", "sc.attack", "sc.curve"]))
+        XCTAssertFalse(Track.col4Ids.contains("reverb"))
+    }
+}
