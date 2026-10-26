@@ -218,12 +218,18 @@ final class LaunchTests: XCTestCase {
         XCTAssertTrue(p.tracks[0].stopped, "дорожка, игравшая строку, остановлена")
         XCTAssertEqual(p.visibleRows, 4)
         XCTAssertEqual(p.sceneName(0), "1")
-        // DELETE клипа очищает только его паттерн.
+        // DELETE клипа: одна пустая страница, как у нового; другие клипы не тронуты.
         var t = p.tracks[2]
         t.clips[1]!.pages[0][0].on = true
+        t.clips[1]!.pages += [Track.emptyPage(), Track.emptyPage(), Track.emptyPage()]
+        t.clips[1]!.length = 64
+        t.clips[1]!.playTo = 3
         t.clips[0]!.pages[0][0].on = true
         t.clearClip(1)
         XCTAssertFalse(t.clips[1]!.pages[0][0].on)
+        XCTAssertEqual(t.clips[1]!.pages.count, 1, "4 страницы — одна пустая")
+        XCTAssertEqual(t.clips[1]!.length, 16)
+        XCTAssertEqual(t.clips[1]!.range, 0...0)
         XCTAssertTrue(t.clips[0]!.pages[0][0].on, "другие клипы столбца не тронуты")
     }
 

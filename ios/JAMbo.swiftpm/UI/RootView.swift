@@ -119,6 +119,11 @@ struct RootView: View {
             TopBar(model: model, menuOpen: $menuOpen)
             if model.arrangeView && model.browser == nil && !model.rollView && !model.patternView {
                 arrangeArea(layout, lowerH, bar)
+            } else if model.patternView && model.project.gridHideSteps {
+                // STEPS выключена: под сеткой паттернов — только строка дорожек.
+                center(layout)
+                TrackRow(model: model, layout: layout)
+                    .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("root")).minY } action: { trackTop = $0 }
             } else {
                 center(layout)
                 lower(layout).frame(height: lowerH)

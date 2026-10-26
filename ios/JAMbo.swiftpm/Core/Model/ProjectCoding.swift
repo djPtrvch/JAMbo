@@ -111,7 +111,7 @@ extension Project {
     enum CodingKeys: String, CodingKey, CaseIterable {
         case version, bpm, scale, root, fx, fxAssigns, master, satBypass, cmpBypass, clipBypass, limBypass, outVol,
              masterEq, tracks, chanSeqs, scenes, rows, arrStart, arrEndStop, plusCopy, files, roots, rowLoop,
-             arrowSwitch, prevRow, notice, arrange
+             arrowSwitch, prevRow, notice, arrange, gridHideSteps
     }
 
     public init(from decoder: Decoder) throws {
@@ -143,6 +143,7 @@ extension Project {
         prevRow = c.value(.prevRow, false)
         notice = c.optional(.notice)
         arrange = c.value(.arrange, Arrangement())
+        gridHideSteps = c.value(.gridHideSteps, false)
     }
 }
 

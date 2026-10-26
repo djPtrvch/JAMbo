@@ -413,8 +413,9 @@ struct GridGeometry {
     }
 }
 
-/// Колонка над MST: бутерброд сетки, LOOP ROW, стрелки ▲ ▼ окна строк (если строк больше, чем видно). При переходе
-/// MIX (CROSSFADER ON) бутерброда и LOOP ROW нет — стрелки сверху, под ними кроссфейдер до низа сетки.
+/// Колонка над MST: бутерброд сетки, LOOP ROW, STEPS (секвенсор и клавиатура), стрелки ▲ ▼ окна строк (если строк
+/// больше, чем видно). При переходе MIX (CROSSFADER ON) бутерброда, LOOP ROW и STEPS нет — стрелки сверху, под ними
+/// кроссфейдер до низа сетки.
 struct GridSideButtons: View {
     let model: AppModel
     let scroll: Bool
@@ -430,6 +431,7 @@ struct GridSideButtons: View {
                 if !fader {
                     BurgerButton { model.gridMenuOpen = true }.frame(height: h)
                     loopButton.frame(height: h)
+                    stepsButton.frame(height: h)
                 }
                 if scroll {
                     arrow("▲", enabled: canUp || (model.project.arrowSwitch && model.playing)) { model.gridArrow(-1) }.frame(height: h).midiTarget(model, "GRID ▲")
@@ -453,6 +455,16 @@ struct GridSideButtons: View {
             .background(on ? theme.accent : theme.panel2, in: RoundedRectangle(cornerRadius: 6))
             .contentShape(Rectangle())
             .onTapGesture { model.toggleRowLoop() }
+    }
+
+    /// STEPS — значок, как в строке кнопок аранжировщика; горит, пока секвенсор и клавиатура видны.
+    private var stepsButton: some View {
+        let on: Bool = !model.project.gridHideSteps
+        return ArrStepsIcon(color: on ? theme.onAccent : theme.text)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(on ? theme.accent : theme.panel2, in: RoundedRectangle(cornerRadius: 6))
+            .contentShape(Rectangle())
+            .onTapGesture { model.toggleGridSteps() }
     }
 
     private func arrow(_ title: String, enabled: Bool, _ action: @escaping () -> Void) -> some View {

@@ -85,12 +85,16 @@ extension Track {
         return -1
     }
 
-    /// DELETE клипа: шаги всех его страниц пустые (ноты, триги, p-lock, звуки шагов); клип, его страницы и длина
-    /// остаются (пустых ячеек нет), другие клипы и звук дорожки не меняются.
+    /// DELETE клипа (решение пользователя): клип — как созданный заново, одна пустая страница (16 шагов, скорость ×1);
+    /// ячейка остаётся заполненной (пустых ячеек нет), гамма, нота, FX и свой звук клипа, другие клипы и звук дорожки
+    /// не меняются.
     public mutating func clearClip(_ k: Int) {
         guard var c = clips[k] else { return }
-        clips[k] = nil
-        for p in c.pages.indices { c.pages[p] = Track.emptyPage() }
+        c.pages = [Track.emptyPage()]
+        c.length = Params.stepsPerPage
+        c.playFrom = 0
+        c.playTo = 0
+        c.rate = nil
         clips[k] = c
     }
 }

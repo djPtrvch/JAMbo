@@ -186,6 +186,7 @@ extension AppModel {
         }
         edit { p in p.tracks[c.track].clearClip(c.row) }
         heldSteps.removeAll()
+        viewPage = max(0, min(viewPage, seq.pages.count - 1))
     }
 
     /// Перетаскивание: независимая копия клипа (его паттерн, гамма, нота, свой звук) в любую ячейку любого столбца.
@@ -272,6 +273,11 @@ extension AppModel {
 
     func toggleRowLoop() {
         edit { p in p.rowLoop.toggle() }
+    }
+
+    /// Кнопка STEPS под LOOP ROW: секвенсор и клавиатура под сеткой паттернов скрыты — сетка выше.
+    func toggleGridSteps() {
+        edit { p in p.gridHideSteps.toggle() }
     }
 
     // MARK: — окно строк

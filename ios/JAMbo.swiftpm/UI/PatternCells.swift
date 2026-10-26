@@ -30,6 +30,8 @@ struct ClipCellView: View {
         return ZStack(alignment: .bottomLeading) {
             if let t = t, filled { ClipThumb(cells: ClipThumb.rows(t, cell.row)).padding(.horizontal, 6).padding(.top, 5).padding(.bottom, 7) }
             if active && model.playing { ProgressBar(fraction: progress(t)) }
+            // Клип тянут на пустую ячейку — загорается «+» (встанет новый клип).
+            if target && !filled { DropPlus() }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(denied ? theme.rec.opacity(0.35) : bg, in: RoundedRectangle(cornerRadius: 6))
@@ -47,6 +49,27 @@ struct ClipCellView: View {
         let len: Int = c.passTicks
         let n: Int = ((tick - model.live.trackStart[cell.track]) % len + len) % len
         return CGFloat(n + 1) / CGFloat(len)
+    }
+}
+
+/// «+» на пустой ячейке под перетаскиваемым клипом: появляется с пружинкой и мягко пульсирует.
+struct DropPlus: View {
+    @State private var shown: Bool = false
+    @State private var pulse: Bool = false
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        Image(systemName: "plus")
+            .font(.system(size: 22, weight: .bold))
+            .foregroundStyle(theme.accent)
+            .scaleEffect(shown ? (pulse ? 1.15 : 1) : 0.3)
+            .opacity(shown ? 1 : 0)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .allowsHitTesting(false)
+            .onAppear {
+                withAnimation(.spring(response: 0.25, dampingFraction: 0.55)) { shown = true }
+                withAnimation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true).delay(0.25)) { pulse = true }
+            }
     }
 }
 

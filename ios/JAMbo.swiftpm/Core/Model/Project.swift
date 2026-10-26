@@ -301,6 +301,8 @@ public struct Project: Codable, Equatable, Sendable {
     public var rowLoop: Bool = true
     /// Стрелки ▲ ▼: false — только прокрутка (VIEW), true — при игре ещё и переход строки (SWITCH).
     public var arrowSwitch: Bool = false
+    /// STEPS в сетке паттернов выключена: секвенсор и клавиатура скрыты (строка дорожек остаётся).
+    public var gridHideSteps: Bool = false
     /// Идёт переход MIX (S10): последняя строка сетки — PREV (клипы старого проекта), строк проекта — на одну меньше.
     public var prevRow: Bool = false
     /// Аранжировщик (S15): маркеры, петля, сетка и магнит, STEPS (блоки — у дорожек).
