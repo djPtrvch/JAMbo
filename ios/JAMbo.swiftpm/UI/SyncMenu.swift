@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Бутерброд → SYNC (S13e, как ui/sync.ts веба): GENERAL — SYNC QUANTUM; MIDI CLOCK — вкл./выкл., SEND / RECEIVE,
-/// выход клока, SYNC START/STOP, MIDI OFFSET. Раздел ABLETON LINK скрыт до этапа 9 (S14, перед App Store: неработающей
+/// выход или вход клока, SYNC START/STOP, MIDI OFFSET. Раздел ABLETON LINK скрыт до этапа 9 (S14, перед App Store: неработающей
 /// функции на виду быть не должно); настройки Link по-прежнему хранятся в SyncSettings.
 struct SyncMenuPage: View {
     let model: AppModel
@@ -39,7 +39,7 @@ struct SyncMenuPage: View {
     }
 }
 
-/// MIDI CLOCK: вкл./выкл., источник, выход (SEND), SYNC START/STOP, MIDI OFFSET.
+/// MIDI CLOCK: вкл./выкл., источник, выход (SEND) или вход (RECEIVE), SYNC START/STOP, MIDI OFFSET.
 struct SyncClockSection: View {
     let model: AppModel
 
@@ -61,7 +61,12 @@ struct SyncClockSection: View {
                     model.setSync { $0.clockOut = id }
                 }
             } else {
-                SettingsNote(text: "The clock is received from the MIDI input chosen in MIDI → DEVICES. The project tempo follows it; without clock for 0.5 s the own tempo returns.")
+                FieldLabel(title: "CLOCK INPUT")
+                if model.midi.inputs.isEmpty { SettingsNote(text: "No MIDI inputs connected.") }
+                MidiDeviceList(none: "ALL INPUTS", devices: model.midi.inputs, current: s.clockIn) { id in
+                    model.setClockIn(id)
+                }
+                SettingsNote(text: "The project tempo follows the clock from this input; without clock for 0.5 s the own tempo returns.")
             }
             ToggleRow(title: "SYNC START/STOP", isOn: s.midiStartStop) { on in model.setSync { $0.midiStartStop = on } }
             SyncOffsetRow(title: "MIDI OFFSET", value: s.midiOffset) { d in model.setSync { $0.midiOffset = SyncSettings.clampOffset($0.midiOffset + d) } }

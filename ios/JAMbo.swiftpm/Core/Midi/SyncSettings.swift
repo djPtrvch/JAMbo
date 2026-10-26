@@ -21,6 +21,8 @@ public struct SyncSettings: Codable, Equatable, Sendable {
     public var source: ClockSource = .send
     /// Выход клока при SEND: nil — ALL OUTPUTS, иначе uniqueID.
     public var clockOut: Int32? = nil
+    /// Вход клока при RECEIVE (S14d): nil — ALL INPUTS, иначе uniqueID; не зависит от входа в MIDI → DEVICES.
+    public var clockIn: Int32? = nil
     /// SYNC START/STOP клока: SEND — Start и Stop с PLAY; RECEIVE — Start, Continue, Stop управляют игрой.
     public var midiStartStop: Bool = true
     /// Сдвиг клока, мс (−200…+200): плюс — отдаваемый клок позже, при приёме — свои шаги позже тиков.
@@ -34,7 +36,7 @@ public struct SyncSettings: Codable, Equatable, Sendable {
     public init() {}
 
     private enum Keys: String, CodingKey {
-        case quantum, clock, source, clockOut, midiStartStop, midiOffset, link, linkNotify, linkStartStop, linkOffset
+        case quantum, clock, source, clockOut, clockIn, midiStartStop, midiOffset, link, linkNotify, linkStartStop, linkOffset
     }
 
     /// Недостающие и испорченные поля — по умолчанию; квант и сдвиги — в своих пределах.
@@ -45,12 +47,19 @@ public struct SyncSettings: Codable, Equatable, Sendable {
         clock = (try? c.decode(Bool.self, forKey: .clock)) ?? false
         source = (try? c.decode(ClockSource.self, forKey: .source)) ?? .send
         clockOut = try? c.decode(Int32.self, forKey: .clockOut)
+        clockIn = try? c.decode(Int32.self, forKey: .clockIn)
         midiStartStop = (try? c.decode(Bool.self, forKey: .midiStartStop)) ?? true
         midiOffset = SyncSettings.clampOffset((try? c.decode(Int.self, forKey: .midiOffset)) ?? 0)
         link = (try? c.decode(Bool.self, forKey: .link)) ?? false
         linkNotify = (try? c.decode(Bool.self, forKey: .linkNotify)) ?? true
         linkStartStop = (try? c.decode(Bool.self, forKey: .linkStartStop)) ?? false
         linkOffset = SyncSettings.clampOffset((try? c.decode(Int.self, forKey: .linkOffset)) ?? 0)
+    }
+
+    /// Клок, Start, Continue, Stop с источника source принимаются (вход клока — ALL INPUTS или этот).
+    public func acceptsClock(source: Int32) -> Bool {
+        guard let i = clockIn else { return true }
+        return i == source
     }
 
     public static func clampOffset(_ v: Int) -> Int {

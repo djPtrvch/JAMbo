@@ -28,6 +28,16 @@ extension AppModel {
         midi.sendTimed(out, to: s.clockOut)
     }
 
+    /// Другой вход клока (S14d): тики прежнего не смешиваются с новым — темп и привязка шагов заново.
+    func setClockIn(_ id: Int32?) {
+        if id == settings.sync.clockIn { return }
+        setSync { $0.clockIn = id }
+        if midiRun.follower.last > 0 {
+            midiRun.follower.lose()
+            audio.core.events.push(.tempo(project.bpm))
+        }
+    }
+
     /// Сообщение реального времени с входа (время прихода at).
     func midiRealtime(_ kind: MidiKind, at: Double) {
         let s: SyncSettings = settings.sync

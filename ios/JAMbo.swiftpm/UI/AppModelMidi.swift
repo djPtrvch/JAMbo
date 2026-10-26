@@ -30,13 +30,13 @@ extension AppModel {
     }
 
     func midiMessage(_ msg: MidiMessage, source: Int32, at: Double = 0) {
-        let ms: MidiSettings = settings.midi
-        guard ms.accepts(source: source) else { return }
-        // Клок, Start, Continue, Stop — мимо маппингов (S13e).
+        // Клок, Start, Continue, Stop — мимо маппингов (S13e), со своего входа CLOCK INPUT (S14d).
         if msg.isRealtime {
-            midiRealtime(msg.kind, at: at)
+            if settings.sync.acceptsClock(source: source) { midiRealtime(msg.kind, at: at) }
             return
         }
+        let ms: MidiSettings = settings.midi
+        guard ms.accepts(source: source) else { return }
         let isCc: Bool = msg.kind == .cc
         let on: Bool = msg.kind == .noteOn
         let src = MidiSource(type: isCc ? .cc : .note, ch: msg.channel, num: msg.data1)
