@@ -115,7 +115,7 @@ public struct Track: Codable, Equatable, Sendable {
         clips[k] = c
     }
 
-    /// Паттерн открытого клипа: страницы, длина (1…pages·16; укорочена только страница с последним шагом),
+    /// Паттерн открытого клипа: страницы, длины страниц (своя у каждой, 1…16),
     /// играющие страницы playFrom…playTo. Секвенсор, миниатюры и правки страниц работают с ним.
     public var pages: [[Step]] {
         get { return openClip.pages }
@@ -125,6 +125,12 @@ public struct Track: Codable, Equatable, Sendable {
     public var length: Int {
         get { return openClip.length }
         set { withOpen { $0.length = newValue } }
+    }
+
+    /// Длины страниц открытого клипа (1…16, по одной на страницу).
+    public var pageLens: [Int] {
+        get { return openClip.pageLens }
+        set { withOpen { $0.pageLens = newValue } }
     }
 
     public var playFrom: Int {
@@ -160,7 +166,8 @@ public struct Track: Codable, Equatable, Sendable {
 /// гамма, нота и общие FX. Звук и ручки — у дорожки (общие для всех её клипов). Копия клипа — независимая.
 public struct Clip: Codable, Equatable, Sendable {
     public var pages: [[Step]]
-    public var length: Int
+    /// Длина каждой страницы, 1…16 шагов (решение пользователя: своя у каждой страницы); число — как у pages.
+    public var pageLens: [Int]
     public var playFrom: Int
     public var playTo: Int
     public var scale: Int?
@@ -187,10 +194,10 @@ public struct Clip: Codable, Equatable, Sendable {
         return r >> (-speed)
     }
 
-    public init(pages: [[Step]] = [Track.emptyPage()], length: Int = Params.stepsPerPage, playFrom: Int = 0,
+    public init(pages: [[Step]] = [Track.emptyPage()], length: Int? = nil, playFrom: Int = 0,
                 playTo: Int = 0, scale: Int? = nil, root: Int? = nil, fx: [String: Double]? = nil) {
         self.pages = pages
-        self.length = length
+        self.pageLens = Clip.lens(length: length ?? pages.count * Params.stepsPerPage, pages: pages.count)
         self.playFrom = playFrom
         self.playTo = playTo
         self.scale = scale
@@ -204,11 +211,48 @@ public struct Clip: Codable, Equatable, Sendable {
         return Swift.min(Swift.max(0, playFrom), to)...to
     }
 
-    /// Шагов на странице p у прохода, который начинается со страницы from (как pageLen веба).
+    /// Длины страниц по прежней общей длине паттерна (страницы до последней — по 16, последняя — остаток): так
+    /// открываются прежние проекты. Страницы целиком за длиной — по 16 (прежде они играли целиком, когда проход
+    /// начинался с них).
+    public static func lens(length: Int, pages: Int) -> [Int] {
+        let n: Int = Params.stepsPerPage
+        return (0..<Swift.max(0, pages)).map { p in
+            let r: Int = length - p * n
+            return r >= 1 && r < n ? r : n
+        }
+    }
+
+    /// Общая длина — сумма длин страниц; присваивание — как прежняя общая длина (lens(length:pages:)).
+    public var length: Int {
+        get { return pageLens.reduce(0, +) }
+        set { pageLens = Clip.lens(length: newValue, pages: pages.count) }
+    }
+
+    /// Шагов на странице p (from — от прежней модели, не влияет).
     public func pageLen(_ p: Int, from: Int) -> Int {
-        let n = Params.stepsPerPage
-        if length > from * n { return Swift.max(0, Swift.min(n, length - p * n)) }
-        return n
+        return p >= 0 && p < pageLens.count ? Swift.min(Params.stepsPerPage, Swift.max(1, pageLens[p])) : Params.stepsPerPage
+    }
+
+    /// Длины страниц для колбэка: по 4 бита на страницу (длина − 1), страница 0 — младшие биты.
+    public var packedLens: Int32 {
+        var v: UInt32 = 0
+        for p in 0..<Swift.min(Params.maxPages, pages.count) {
+            v |= UInt32(pageLen(p, from: 0) - 1) << UInt32(4 * p)
+        }
+        // Страниц нет в pageLens — по 16 (поля 15).
+        var p: Int = pages.count
+        while p < Params.maxPages {
+            v |= UInt32(15) << UInt32(4 * p)
+            p += 1
+        }
+        return Int32(bitPattern: v)
+    }
+
+    /// Длина страницы p (1…16).
+    public mutating func setPageLen(_ p: Int, _ len: Int) {
+        guard p >= 0 && p < pages.count else { return }
+        while pageLens.count < pages.count { pageLens.append(Params.stepsPerPage) }
+        pageLens[p] = Swift.min(Params.stepsPerPage, Swift.max(1, len))
     }
 
     /// Шагов в проходе: сумма длин играющих страниц.

@@ -87,7 +87,7 @@ final class AppModel {
     /// Открытое меню страницы (двойной тап по миниатюре).
     var pageMenu: PageMenuState? = nil
     /// Скопированные страницы (copy в меню страницы).
-    @ObservationIgnored var pageClipboard: [[Step]]? = nil
+    @ObservationIgnored var pageClipboard: PageCopy? = nil
     /// Октава клавиатуры у каждой дорожки своя (по умолчанию у всех одна — со второй: C2; не в проекте) — нота трига,
     /// пока нот не выбрали; от неё же — ноты маркеров нарезки дорожки.
     var octaves: [Int] = [Int](repeating: Scales.octaveDef, count: Params.maxTracks)

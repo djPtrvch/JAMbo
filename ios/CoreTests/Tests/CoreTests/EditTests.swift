@@ -41,13 +41,60 @@ final class EditTests: XCTestCase {
         XCTAssertEqual(t.pages.count, 2)
         XCTAssertEqual(t.length, 32, "при полной длине длина растёт")
         XCTAssertEqual(t.playTo, 1, "играли все — играют все")
+        // Своя длина у каждой страницы: прежняя общая длина 20 — 16 + 4; новая страница — 16.
         t.length = 20
+        XCTAssertEqual(t.pageLens, [16, 4])
         t.setPlayPages(0, 0)
         t.addPage()
-        XCTAssertEqual(t.length, 20)
+        XCTAssertEqual(t.pageLens, [16, 4, 16])
+        XCTAssertEqual(t.length, 36)
         XCTAssertEqual(t.playTo, 0)
         for _ in 0..<10 { t.addPage() }
         XCTAssertEqual(t.pages.count, Params.maxPages)
+    }
+
+    /// Страница в 12 шагов: «+» — 12 + 16, DUPLICATE — 12 + 12; PASTE и перенос — с длиной; длина шага — своей страницы.
+    func testPageLengthsMoveWithPages() {
+        var t = Track(index: 0)
+        t.setPageLength(lastIndex: 11)
+        XCTAssertEqual(t.pageLens, [12])
+        var a = t
+        a.addPage()
+        XCTAssertEqual(a.pageLens, [12, 16])
+        XCTAssertEqual(a.playLen(from: 0, to: 1), 28)
+        var d = t
+        XCTAssertTrue(d.duplicatePages(0))
+        XCTAssertEqual(d.pageLens, [12, 12])
+        XCTAssertEqual(d.playLen(from: 0, to: 1), 24)
+        d.setPageLength(lastIndex: 16 + 6)
+        XCTAssertEqual(d.pageLens, [12, 7])
+        d.movePage(1, 0)
+        XCTAssertEqual(d.pageLens, [7, 12])
+        // Меню страницы действует на играющий диапазон: копируется одна страница, когда играет только она.
+        d.setPlayPages(1, 1)
+        let copy = d.copyPages(1)
+        XCTAssertEqual(copy.lens, [12])
+        d.setPlayPages(0, 0)
+        d.pastePages(0, copy)
+        XCTAssertEqual(d.pageLens, [12, 12])
+        XCTAssertTrue(d.deletePages(0))
+        XCTAssertEqual(d.pageLens, [12])
+        // Проход: страница 1 — 12 шагов, страница 2 — 16; шаг 13-й прохода — первый шаг второй страницы.
+        XCTAssertEqual(a.openClip.playIndex(12), 16)
+        XCTAssertTrue(a.openClip.outside(12))
+        XCTAssertFalse(a.openClip.outside(16 + 15))
+    }
+
+    /// Прежний проект: только общая длина — страницы до последней по 16, последняя — остаток; сохраняется pageLens.
+    func testLegacyLengthDecodes() throws {
+        let json = #"{"pages":[[],[],[]],"length":40,"playFrom":0,"playTo":2}"#
+        var c = try JSONDecoder().decode(Clip.self, from: Data(json.utf8))
+        c.repair()
+        XCTAssertEqual(c.pageLens, [16, 16, 8])
+        let back = try JSONDecoder().decode(Clip.self, from: JSONEncoder().encode(c))
+        XCTAssertEqual(back.pageLens, [16, 16, 8])
+        XCTAssertEqual(back.length, 40)
+        XCTAssertEqual(Int32(bitPattern: UInt32(15 | 15 << 4 | 7 << 8) | 0xFFFFF000), c.packedLens)
     }
 
     func testDuplicatePasteDelete() {

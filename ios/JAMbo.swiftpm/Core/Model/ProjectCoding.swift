@@ -81,12 +81,18 @@ extension Track {
 }
 
 extension Clip {
-    enum CodingKeys: String, CodingKey, CaseIterable { case pages, length, playFrom, playTo, scale, root, fx, src, rate }
+    /// pageLens — длины страниц; length (общая длина) пишется для прежних версий и читается, если pageLens нет (прежние
+    /// проекты: страницы до последней — по 16, последняя — остаток).
+    enum CodingKeys: String, CodingKey, CaseIterable { case pages, pageLens, length, playFrom, playTo, scale, root, fx, src, rate }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         pages = c.value(.pages, [Track.emptyPage()])
-        length = c.value(.length, Params.stepsPerPage)
+        if let l: [Int] = c.optional(.pageLens) {
+            pageLens = l
+        } else {
+            pageLens = Clip.lens(length: c.value(.length, Params.stepsPerPage), pages: pages.count)
+        }
         playFrom = c.value(.playFrom, 0)
         playTo = c.value(.playTo, 0)
         scale = c.optional(.scale)
@@ -94,6 +100,20 @@ extension Clip {
         fx = c.optional(.fx)
         src = c.optional(.src)
         rate = c.optional(.rate)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(pages, forKey: .pages)
+        try c.encode(pageLens, forKey: .pageLens)
+        try c.encode(length, forKey: .length)
+        try c.encode(playFrom, forKey: .playFrom)
+        try c.encode(playTo, forKey: .playTo)
+        try c.encodeIfPresent(scale, forKey: .scale)
+        try c.encodeIfPresent(root, forKey: .root)
+        try c.encodeIfPresent(fx, forKey: .fx)
+        try c.encodeIfPresent(src, forKey: .src)
+        try c.encodeIfPresent(rate, forKey: .rate)
     }
 }
 

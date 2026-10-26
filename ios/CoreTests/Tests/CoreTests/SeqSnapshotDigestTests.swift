@@ -72,7 +72,8 @@ final class SeqSnapshotDigestTests: XCTestCase {
         XCTAssertEqual(h, SeqSnapshotDigestTests.expected)
     }
 
-    static let expected: UInt64 = 4793505042965849168
+    // Длины клипов в снимке — упакованные длины страниц (своя длина у каждой страницы): сумма пересчитана.
+    static let expected: UInt64 = 2286589868282060807
 }
 
 extension SystemRandomNumberGenerator {
