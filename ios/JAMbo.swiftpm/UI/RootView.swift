@@ -116,7 +116,7 @@ struct RootView: View {
     private func screen(_ layout: Layout, _ lowerH: CGFloat, _ bar: CGFloat) -> some View {
         VStack(spacing: Layout.gap) {
             TopBar(model: model, menuOpen: $menuOpen)
-            if model.arrangeView && model.browser == nil && !model.rollView && !model.patternView {
+            if model.arrangeView && model.browser == nil && !model.patternView {
                 arrangeArea(layout, lowerH, bar)
             } else {
                 center(layout)
@@ -132,8 +132,8 @@ struct RootView: View {
     /// Аранжировщик (решения пользователя): строка кнопок (ArrangeBar) — сверху, слева на месте строки папки над
     /// превью, справа — на месте верхней миниатюры; под ней окно — до низа экрана (дорожки не схлопываются, прокрутка);
     /// STEPS — строка дорожек, секвенсор и клавиатура поверх трёх нижних дорожек (от верха шестой); AUTO — на том же
-    /// месте; KNOBS — окно дорожки с ручками в обычном масштабе поверх линейки и пяти верхних дорожек (строку папки и
-    /// верхнюю миниатюру закрывает строка кнопок).
+    /// месте; пианоролл — поверх, под строкой кнопок; KNOBS — окно дорожки с ручками в обычном масштабе поверх линейки и
+    /// пяти верхних дорожек (строку папки и верхнюю миниатюру закрывает строка кнопок).
     private func arrangeArea(_ layout: Layout, _ lowerH: CGFloat, _ bar: CGFloat) -> some View {
         let steps: Bool = !model.project.arrange.hideSteps
         return GeometryReader { g in
@@ -147,6 +147,14 @@ struct RootView: View {
                         .frame(height: max(0, g.size.height - lowerH - Layout.gap))
                         .frame(height: max(0, g.size.height - lowerH), alignment: .top)
                         .background(theme.bg)
+                }
+                if model.rollView {
+                    // Пианоролл (решение пользователя) — поверх аранжировщика: от строки кнопок до верха шестой дорожки.
+                    RollWindow(model: model, layout: layout)
+                        .frame(height: max(0, g.size.height - lowerH - bar - 2 * Layout.gap))
+                        .frame(height: max(0, g.size.height - lowerH - bar - Layout.gap), alignment: .top)
+                        .background(theme.bg)
+                        .offset(y: bar + Layout.gap)
                 }
                 if model.arrAutoPanel {
                     ArrAutoPanel(model: model).frame(height: lowerH).offset(y: g.size.height - lowerH)

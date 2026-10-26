@@ -18,7 +18,7 @@ extension AppModel {
         eqPresetMenu = nil
         eqCompareMenu = false
         closeMasterWindow()
-        closeArrange()
+        // В аранжировщике (решение пользователя) пианоролл — поверх его верха, аранжировщик не закрывается.
         rollView = true
     }
 

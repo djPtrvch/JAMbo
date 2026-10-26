@@ -23,9 +23,30 @@ struct ArrangeWindow: View {
                         Color.clear.frame(width: Layout.meterWidth).padding(.leading, Layout.gap)
                     }
                 }
+                ArrTotalTime(model: model).frame(width: ArrMetrics.headerW, height: ArrMetrics.top)
                 ArrMenus(model: model, size: geo.size)
             }
         }
+    }
+}
+
+/// Слева от линейки (решение пользователя): общая длительность аранжировки (до конца последнего блока) — мин:сек.
+struct ArrTotalTime: View {
+    let model: AppModel
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let steps: Int = model.project.arrangeEnd
+        // Шаг — шестнадцатая: 15 / BPM секунд.
+        let sec: Int = Int((Double(steps) * 15 / max(20, model.project.bpm)).rounded())
+        let text: String = String(format: "%d:%02d", sec / 60, sec % 60)
+        return Text(text)
+            .font(.system(size: 17, weight: .semibold))
+            .monospacedDigit()
+            .foregroundStyle(theme.text)
+            .padding(.leading, 10)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .allowsHitTesting(false)
     }
 }
 

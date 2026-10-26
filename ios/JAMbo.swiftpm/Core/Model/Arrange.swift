@@ -67,7 +67,7 @@ public struct Arrangement: Codable, Equatable, Sendable {
     public var loopTo: Int = 0
     public var loop: Bool = false
     /// Номер шага сетки (ArrGrid), магнит (привязка к линиям сетки).
-    public var grid: Int = 0
+    public var grid: Int = 2
     public var snap: Bool = true
     /// STEPS: секвенсор и клавиатура скрыты, окно аранжировщика выше.
     public var hideSteps: Bool = false
@@ -121,7 +121,7 @@ extension Arrangement {
         loopFrom = c.value(.loopFrom, 0)
         loopTo = c.value(.loopTo, 0)
         loop = c.value(.loop, false)
-        grid = c.value(.grid, 0)
+        grid = c.value(.grid, 2)
         snap = c.value(.snap, true)
         hideSteps = c.value(.hideSteps, false)
     }

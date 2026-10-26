@@ -133,6 +133,8 @@ final class ArrangeTests: XCTestCase {
 
     func testSnap() {
         var a = Arrangement()
+        XCTAssertEqual(a.grid, 2, "по умолчанию — 1/4")
+        a.grid = 0
         XCTAssertEqual(a.snapped(7), 0)
         XCTAssertEqual(a.snapped(8), 16)
         a.grid = 2

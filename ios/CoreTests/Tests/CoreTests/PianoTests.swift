@@ -81,7 +81,7 @@ final class PianoTests: XCTestCase {
         let old = "{\"velocity\":true}".data(using: .utf8)
         let st = AppSettings.decode(old)
         XCTAssertTrue(st.velocity)
-        XCTAssertEqual(st.pianoOctaves, 2, "нет поля — по умолчанию")
+        XCTAssertEqual(st.pianoOctaves, 1, "нет поля — по умолчанию (одна октава)")
         XCTAssertTrue(st.record.quantize)
         XCTAssertEqual(AppSettings.decode(st.encode()), st)
     }

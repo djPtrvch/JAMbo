@@ -140,8 +140,8 @@ struct ArrLaneMenu: View {
 /// Меню дорожки: COPY (все блоки), PASTE (заменяет блоки дорожки), DUPLICATE (ещё раз после последнего), палитра.
 struct ArrTrackMenu: View {
     static let width: CGFloat = 220
-    /// 3 строки по 40 (120), палитра 3 ряда по 22 и 2 зазора (78), 3 зазора по 6 (18), поля 16.
-    static let height: CGFloat = 232
+    /// 3 строки по 40 (120), палитра 3 ряда квадратов по 29 и 2 зазора (99), 3 зазора по 6 (18), поля 16.
+    static let height: CGFloat = 253
     let model: AppModel
     let track: Int
     @Environment(\.theme) private var theme
@@ -177,8 +177,9 @@ struct ArrPaletteGrid: View {
         let list: [Int] = [ArrPalette.defaultColor] + ArrPalette.choices
         return LazyVGrid(columns: cols, spacing: 6) {
             ForEach(list, id: \.self) { k in
+                // Квадратики (решение пользователя).
                 swatch(k)
-                    .frame(height: 22)
+                    .aspectRatio(1, contentMode: .fit)
                     .overlay(RoundedRectangle(cornerRadius: 4).stroke(k == current ? theme.text : Color.clear, lineWidth: 2))
                     .contentShape(Rectangle())
                     .onTapGesture { pick(k) }
