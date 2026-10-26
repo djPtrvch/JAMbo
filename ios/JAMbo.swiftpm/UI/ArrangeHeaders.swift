@@ -126,19 +126,25 @@ struct ArrHeaderRow: View {
     }
 }
 
-/// Заголовок строки REF: REF и имя файла; двойной тап — меню REF (LOAD, DELETE).
+/// Заголовок строки REF (решение пользователя: две строки): REF и темп файла (TempoDetect), ниже — имя файла;
+/// двойной тап — меню REF (LOAD, DELETE).
 struct ArrRefHeader: View {
     let model: AppModel
     @Environment(\.theme) private var theme
 
     var body: some View {
         let name: String = model.project.arrange.ref?.name ?? ""
-        return HStack(spacing: 6) {
-            Text("REF").font(.system(size: 12, weight: .heavy)).foregroundStyle(theme.text)
+        return VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 6) {
+                Text("REF").font(.system(size: 12, weight: .heavy)).foregroundStyle(theme.text)
+                Spacer(minLength: 0)
+                Text(model.refBpmText).font(.system(size: 11, weight: .semibold)).monospacedDigit()
+                    .foregroundStyle(theme.text)
+            }
             Text(name).font(.system(size: 11, weight: .semibold)).foregroundStyle(theme.dim).lineLimit(1)
                 .truncationMode(.middle)
-                .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.leading, 6)
         .padding(.trailing, 10)
         .frame(maxHeight: .infinity)

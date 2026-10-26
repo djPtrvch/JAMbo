@@ -60,18 +60,21 @@ public enum ArrGrid {
 }
 
 /// Референс-трек (S15g): сэмпл в хранилище по ключу (в библиотеке не показывается), имя файла, сдвиг начала файла
-/// от начала таймлайна (секунды; файл играет в своём темпе), громкость (dB, регулятор измерителя в положении B).
+/// от начала таймлайна (секунды; файл играет в своём темпе), громкость (dB, регулятор измерителя в положении B), темп
+/// файла (TempoDetect при загрузке; nil — ещё не определён, 0 — не нашёлся).
 public struct ArrRef: Codable, Equatable, Sendable {
     public var key: String
     public var name: String = ""
     public var offset: Double = 0
     public var gain: Double = 0
+    public var bpm: Double? = nil
 
-    public init(key: String, name: String = "", offset: Double = 0, gain: Double = 0) {
+    public init(key: String, name: String = "", offset: Double = 0, gain: Double = 0, bpm: Double? = nil) {
         self.key = key
         self.name = name
         self.offset = offset
         self.gain = gain
+        self.bpm = bpm
     }
 }
 
@@ -168,6 +171,7 @@ extension Arrangement {
             } else {
                 ref?.offset = r.offset.isFinite ? r.offset : 0
                 ref?.gain = r.gain.isFinite ? Swift.max(Params.volMin, Swift.min(0, r.gain)) : 0
+                if let b = r.bpm, !b.isFinite || b < 0 { ref?.bpm = nil }
             }
         }
     }

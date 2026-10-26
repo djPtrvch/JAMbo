@@ -115,6 +115,7 @@ final class RefTests: XCTestCase {
     func testDataAndKeys() throws {
         var p = project(offset: 1.25)
         p.arrange.ref?.gain = -6
+        p.arrange.ref?.bpm = 126
         p.arrange.showRef = true
         XCTAssertTrue(p.sampleKeys.contains("r"), "копия файла — в проекте")
         let back = try JSONDecoder().decode(Project.self, from: JSONEncoder().encode(p))
@@ -124,6 +125,9 @@ final class RefTests: XCTestCase {
         a.ref = ArrRef(key: "x", gain: 12)
         a.repair()
         XCTAssertEqual(a.ref?.gain, 0)
+        a.ref?.bpm = -.infinity
+        a.repair()
+        XCTAssertNil(a.ref?.bpm)
         a.ref = ArrRef(key: "")
         a.repair()
         XCTAssertNil(a.ref)

@@ -63,6 +63,8 @@ extension AppModel {
 
     /// Референс — файл с ключом key (уже в хранилище): строка REF видна, браузер закрыт, аранжировщик открыт.
     func arrLoadRef(_ key: String, name: String) {
+        // Темп файла — заново (и у того же файла).
+        refBpmKey = ""
         edit { p in
             p.arrange.ref = ArrRef(key: key, name: name)
             p.arrange.showRef = true
@@ -96,21 +98,41 @@ extension AppModel {
         edit { p in p.arrange.ref?.gain = v }
     }
 
-    /// Огибающая для строки REF: строится в фоне, когда файл в памяти (после загрузки сэмплов — заново).
+    /// Огибающая для строки REF и темп файла: в фоне, когда файл в памяти (после загрузки сэмплов — заново). Темп
+    /// пишется в проект без UNDO (0 — не нашёлся, второй раз не ищется).
     func ensureRefWave() {
         guard let r = project.arrange.ref else {
             if refWave != nil { refWave = nil }
             return
         }
-        if refWave?.key == r.key { return }
         guard let s = store.data(r.key) else { return }
         let key: String = r.key
-        Task.detached(priority: .userInitiated) {
-            let w: RefWave = RefWave.make(key, s)
-            await MainActor.run {
-                if self.project.arrange.ref?.key == key { self.refWave = w }
+        if refWave?.key != key {
+            Task.detached(priority: .userInitiated) {
+                let w: RefWave = RefWave.make(key, s)
+                await MainActor.run {
+                    if self.project.arrange.ref?.key == key { self.refWave = w }
+                }
             }
         }
+        if r.bpm == nil && refBpmKey != key {
+            refBpmKey = key
+            Task.detached(priority: .utility) {
+                let b: Double = TempoDetect.bpm(s) ?? 0
+                await MainActor.run {
+                    guard self.project.arrange.ref?.key == key else { return }
+                    self.mutatePlay({ p in p.arrange.ref?.bpm = b }, publish: false)
+                }
+            }
+        }
+    }
+
+    /// Темп референса для заголовка: «126 BPM», дробный — с десятыми; не определён — пусто.
+    var refBpmText: String {
+        guard let b = project.arrange.ref?.bpm else { return "…" }
+        if b <= 0 { return "" }
+        let whole: Bool = b == b.rounded()
+        return (whole ? String(format: "%.0f", b) : String(format: "%.1f", b)) + " BPM"
     }
 
     /// Браузер REF: тап по сэмплу — референс.
