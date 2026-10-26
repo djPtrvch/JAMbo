@@ -363,6 +363,16 @@ final class ArrangeTests: XCTestCase {
         XCTAssertEqual(p.selectionToArrange(sel, at: 32), 64)
         XCTAssertEqual(spans(p.tracks[1]), [[1, 0, 32, 0], [1, 32, 32, 0]])
         XCTAssertNil(p.selectionToArrange(GridSelection(), at: nil))
+        // Несколько строк клипами: строка с именем — с секцией, без имени — без.
+        var q = Project()
+        for t in q.tracks.indices { q.tracks[t].clips[1] = nil; q.tracks[t].clips[2] = nil }
+        q.tracks[0].clips[1] = trigClip(pages: 1)
+        q.tracks[0].clips[2] = trigClip(pages: 1)
+        q.setScene(2, name: "Verse", repeats: 1)
+        let two = GridSelection(cells: [CellRef(track: 0, row: 1), CellRef(track: 0, row: 2)])
+        XCTAssertEqual(q.selectionToArrange(two, at: 0), 32)
+        XCTAssertEqual(q.arrange.markers.map { [$0.at, $0.end ?? -1] }, [[16, 32]])
+        XCTAssertEqual(q.arrange.markers.map { $0.name }, ["Verse"])
     }
 
     /// Журнал SEND TO ARRANGE: блоки от запусков, тишина — пропуск, окно 32 такта (offset — место в проходе).
