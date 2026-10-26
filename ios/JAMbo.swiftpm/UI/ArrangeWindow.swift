@@ -534,7 +534,10 @@ struct ArrDraw {
             let x1: CGFloat = end.map { m.stepX(Double($0)) } ?? m.size.width
             if x1 < 0 || x0 > m.size.width { continue }
             ctx.fill(Path(CGRect(x: x0, y: top, width: 1, height: h)), with: .color(theme.accent))
-            if end != nil { ctx.fill(Path(CGRect(x: x1 - 1, y: top, width: 1, height: h)), with: .color(theme.accent)) }
+            // Секции вплотную (решение пользователя): граница между ними — одна линия, как край секции (конец не рисуется,
+            // его заменяет начало следующей).
+            let touching: Bool = k + 1 < list.count && end != nil && end! >= list[k + 1].at
+            if end != nil && !touching { ctx.fill(Path(CGRect(x: x1 - 1, y: top, width: 1, height: h)), with: .color(theme.accent)) }
             var c = ctx
             c.clip(to: Path(CGRect(x: x0 + 1, y: top, width: max(1, x1 - x0 - 2), height: h)))
             let text: Text = Text(mk.name.isEmpty ? " " : mk.name).font(.system(size: 9, weight: .bold)).foregroundStyle(theme.text)
@@ -542,11 +545,6 @@ struct ArrDraw {
                 c.draw(text, at: CGPoint(x: (x0 + x1) / 2, y: top + h / 2), anchor: .center)
             } else {
                 c.draw(text, at: CGPoint(x: max(x0, 0) + 5, y: top + h / 2), anchor: .leading)
-            }
-            // Секции вплотную (решение пользователя): граница между ними — толще (4 pt).
-            if k + 1 < list.count, let e = end, e >= list[k + 1].at {
-                let x: CGFloat = m.stepX(Double(list[k + 1].at))
-                ctx.fill(Path(CGRect(x: x - 2, y: top, width: 4, height: h)), with: .color(theme.accent))
             }
         }
     }
