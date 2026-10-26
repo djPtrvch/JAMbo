@@ -88,7 +88,7 @@ extension EngineIcons {
         return [lane(a, IconLane(y0: 32, amp: 26))]
     }
 
-    /// GRANULAR — одна картинка, как волна сэмпла с зёрнами: серая волна во всё поле; полупрозрачная зона — откуда
+    /// GRANULAR — одна картинка, как волна сэмпла с зёрнами: серая сплошная волна (целый файл) во всё поле; полупрозрачная зона — откуда
     /// читаются зёрна (POSITION ± 0,35·SPRAY); белая линия — POSITION; зёрна — подсвеченные окном Ханна участки волны
     /// (ширина — SIZE, сколько — DENSITY, разброс по зоне — SPRAY); сверху — штрихи вспышек зёрен (их число — DENSITY).
     public static func granularIcon(_ v: IconValues) -> [IconElement] {
@@ -143,15 +143,13 @@ enum TexGranIcon {
         return t * t * (3 - 2 * t)
     }
 
-    /// Огибающая условного сэмпла (как демо прототипа): восемь затухающих нот арпеджио, затем нарастающий пэд.
+    /// Огибающая условного сэмпла — сплошной файл: громкость плавно гуляет (0,5…1) без пауз и провалов, по краям —
+    /// короткие подъём и спад.
     static func sampleEnv(_ p: Double) -> Double {
-        if p < 0.57 {
-            let step = 0.0667
-            let k = (p / step).rounded(.down)
-            let dt = p - k * step
-            return 0.15 + 0.85 * exp(-dt / 0.035)
-        }
-        let x = (p - 0.57) / 0.43
-        return 0.1 + 0.6 * pow(sin(Double.pi * Swift.min(1, x)), 1.5)
+        let x = Swift.min(1, Swift.max(0, p))
+        var e: Double = 0.74 + 0.14 * sin(EngineIcons.tau * 1.3 * x + 0.4) + 0.09 * sin(EngineIcons.tau * 3.7 * x + 1.1)
+        e += 0.06 * EngineIcons.nzi(x * 40 + 5)
+        let edge: Double = Swift.min(1, Swift.min(x, 1 - x) / 0.04)
+        return Swift.min(1, Swift.max(0.45, e)) * (0.3 + 0.7 * edge)
     }
 }
