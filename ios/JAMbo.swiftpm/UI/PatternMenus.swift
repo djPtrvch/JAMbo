@@ -122,6 +122,7 @@ struct CellMenu: View {
         let t: Track = model.project.tracks[min(c.track, model.project.tracks.count - 1)]
         let filled: Bool = t.clipFilled(c.row)
         let arrange: Bool = t.clipHasTrigs(c.row) || model.gridSel.contains(c)
+        let group: Bool = model.carryGroup(c) != nil
         return VStack(spacing: 6) {
             MenuItem(title: "TO ARRANGE", enabled: arrange) {
                 model.cellMenu = nil
@@ -130,7 +131,11 @@ struct CellMenu: View {
             .padding(.bottom, 8)
             MenuItem(title: "COPY", enabled: filled) { run { model.copyClip(c) } }
             MenuItem(title: "PASTE", enabled: model.clipClipboard != nil) { run { model.pasteClip(c) } }
-            MenuItem(title: "DELETE", enabled: filled, red: true) { run { model.deleteClip(c) } }
+            MenuItem(title: "DELETE", enabled: filled || group, red: true) {
+                // Клип в выделении рамкой — удаляются все выделенные.
+                let sel: GridSelection = model.gridSel
+                if group { run { model.deleteSelection(sel, rows: false) } } else { run { model.deleteClip(c) } }
+            }
         }
         .frame(width: 180)
         .modifier(MenuPanel())
@@ -170,7 +175,16 @@ struct RowMenu: View {
             }
             HStack(spacing: 6) {
                 MenuItem(title: "PASTE", enabled: model.rowClipboard != nil) { act { model.pasteRow(row) } }
-                MenuItem(title: "DELETE", red: true) { act { model.deleteRow(row) } }
+                MenuItem(title: "DELETE", red: true) {
+                    // Строка в выделении рамкой — удаляются все выделенные (строки целиком и клипы).
+                    var sel: GridSelection = model.gridSel
+                    if sel.touches(row: row) && (sel.rows.count + sel.cells.count) > 1 {
+                        sel.rows.insert(row)
+                        act { model.deleteSelection(sel, rows: true) }
+                    } else {
+                        act { model.deleteRow(row) }
+                    }
+                }
             }
             MenuItem(title: "OK") { done() }
         }

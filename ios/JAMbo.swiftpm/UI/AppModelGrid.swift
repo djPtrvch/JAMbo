@@ -221,6 +221,27 @@ extension AppModel {
         if playing { audio.core.events.push(.adoptPlay) }
     }
 
+    /// DELETE выделения рамкой (решение пользователя): все выделенные клипы — как DELETE клипа (одна пустая страница);
+    /// rows — выделенные строки целиком удаляются (из меню строки), иначе их клипы очищаются. Одна запись UNDO.
+    func deleteSelection(_ sel: GridSelection, rows: Bool) {
+        let cells: [CellRef] = Array(sel.cells).filter { !isPrev($0.row) && !(rows && sel.rows.contains($0.row)) }
+        let whole: [Int] = sel.rows.filter { !isPrev($0) }.sorted(by: >)
+        edit { p in
+            for c in cells where c.track < p.tracks.count { p.tracks[c.track].clearClip(c.row) }
+            for k in whole {
+                if rows {
+                    p.deleteRow(k)
+                } else {
+                    for t in p.tracks.indices { p.tracks[t].clearClip(k) }
+                }
+            }
+        }
+        if rows && playing { audio.core.events.push(.adoptPlay) }
+        gridSel = GridSelection()
+        heldSteps.removeAll()
+        viewPage = max(0, min(viewPage, seq.pages.count - 1))
+    }
+
     func deleteRow(_ k: Int) {
         edit { p in p.deleteRow(k) }
         if playing { audio.core.events.push(.adoptPlay) }
