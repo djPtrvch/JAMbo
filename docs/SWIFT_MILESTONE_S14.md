@@ -109,6 +109,10 @@
 - SYNC: при выключении RECEIVE в звук возвращается темп проекта.
 - iPad, PLAY, дорожка с сэмплом: пересчёты 466 → ~250–340 в секунду (шаги 134 → 16, дорожки 128 → 35, ручки при повороте 668 → 217); Main 35–41 % — без изменений: остаток — SwiftUI и отладочная сборка (без Instruments не разобрать); Canvas с rendersAsynchronously разницы не дал — возвращено. Кадры 119–120 fps, пропущено 2–7 из ~3000.
 
+## S14d — проверка SYNC (идёт)
+- RECEIVE, SYNC START/STOP (выкл. — свои PLAY и STOP независимы) и SEND проверены пользователем на iPad с Digitakt по USB (режим USB MIDI). Описание Swift-версии — docs/ai/settings-midi-sync.md («MIDI-клок в Swift-версии»).
+- Решение пользователя: в SYNC — выбор устройства, с которого принимается клок (RECEIVE).
+
 ## Проверено
 S14w — на iPad; CoreTests — 304 (новые: EngineIconTests — testPreviewsMatchPrototype, testGridFiniteInField, testEachKnobChangesIcon, testTableFrame; testApplyKnobsToAllPages, testFeedbackFollowsResolveAcrossInputs; убраны прежние тесты иконок веба). S14v — на iPad. S14a — тесты Core (HeavyLoadTests), DIAGNOSTICS на iPad. CoreTests — 298 (S14a: testHeavyProjectProfile, testProfileOffAndOn); 296 (новые: testMoveRow, testPasteTrackKeepsOwnPatterns, testClipSpeed, testQueuedClipAfterSlowClip, testSameNameIgnoresAudioExtension).
 
