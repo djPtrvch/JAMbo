@@ -2,8 +2,8 @@ import SwiftUI
 
 // Миниатюры LFO1–3 и ENV в окне сэмпла (как renderLfo, renderEnv в sample.ts веба): пока держат MOD (отпустили —
 // сразу гаснут). LFO — период формы с Polarity и Invert и точка на текущей фазе; ENV — форма ADSR по ручкам (условный
-// гейт, видны все стадии; от нот форма не меняется) и точка — настоящий уровень: пока нота держится — по кривой, после
-// отпускания — по участку Release от уровня, где нота оборвалась (у ноты короче A+D — ниже кривой).
+// гейт, видны все стадии; от нот форма не меняется) и точка всегда на кривой (EnvDot): пока нота держится — по
+// времени, после отпускания — где уровень кривой равен настоящему уровню ENV.
 
 struct ModPreview: View {
     let model: AppModel
@@ -88,12 +88,7 @@ struct ModPreview: View {
 
     static func envShape(_ p: [String: Double], _ x: Double, _ gate: Double) -> Double {
         let a = p["env.attack"] ?? 10, d = p["env.decay"] ?? 100, s = (p["env.sustain"] ?? 40) / 100
-        let r = p["env.release"] ?? 300
-        func ads(_ y: Double) -> Double { return y < a ? y / a : (y < a + d ? 1 - (1 - s) * (y - a) / d : s) }
-        if x < 0 { return 0 }
-        if x < gate { return ads(x) }
-        let rel = x - gate
-        return rel < r ? ads(gate) * (1 - rel / r) : 0
+        return EnvDot.curve(a, d, s, p["env.release"] ?? 300, x, gate)
     }
 
     static func drawEnv(_ ctx: GraphicsContext, _ size: CGSize, _ p: [String: Double], _ t: Double, _ g: Double,
@@ -105,27 +100,20 @@ struct ModPreview: View {
         let total: Double = gate + r
         let h: CGFloat = size.height
         func y(_ v: Double) -> CGFloat { return h - 3 - CGFloat(v) * (h - 6) }
+        // Ломаная — с точными углами (вершина Attack, конец Decay, начало и конец Release): точка на изломе не уходит
+        // с линии.
+        var xs: [Double] = (0...100).map { Double($0) / 100 * total }
+        xs.append(contentsOf: [a, ad, gate, total])
+        xs.sort()
         var path = Path()
-        let points = 100
-        for i in 0...points {
-            let x: Double = Double(i) / Double(points) * total
-            let pt = CGPoint(x: CGFloat(Double(i) / Double(points)) * size.width, y: y(envShape(p, x, gate)))
+        for (i, x) in xs.enumerated() where x >= 0 && x <= total {
+            let pt = CGPoint(x: CGFloat(x / total) * size.width, y: y(envShape(p, x, gate)))
             if i == 0 { path.move(to: pt) } else { path.addLine(to: pt) }
         }
         ctx.stroke(path, with: .color(c.text), style: StrokeStyle(lineWidth: 2, lineJoin: .round))
-        // Точка: держится — по кривой (до конца условного гейта); отпустили — по Release от настоящего уровня ноты.
-        var x: Double = 0
-        var v: Double = 0
-        if t >= 0 {
-            if t < g {
-                x = Swift.min(gate, t)
-                v = envShape(p, x, gate)
-            } else {
-                let rel: Double = Swift.min(r, t - g)
-                x = gate + rel
-                v = envShape(p, Swift.min(gate, g), gate) * (r > 0 ? 1 - rel / r : 0)
-            }
-        }
+        // Точка — всегда на кривой: держится — по времени, отпустили — где уровень кривой равен настоящему (EnvDot).
+        let x: Double = EnvDot.x(a, d, (p["env.sustain"] ?? 40) / 100, r, t: t, g: g, gate: gate)
+        let v: Double = envShape(p, x, gate)
         let dot = CGPoint(x: CGFloat(x / total) * size.width, y: y(v))
         ctx.fill(Path(ellipseIn: CGRect(x: dot.x - 3, y: dot.y - 3, width: 6, height: 6)), with: .color(c.accent))
     }
