@@ -102,6 +102,13 @@
 - Эталоны синта, FX и мастера проходят (результат побитно тот же, кроме порядка сложения в фильтре децимации синта — ниже −120 dB). CoreTests — 300.
 - iPad, проект пользователя (16 дорожек), avg · пик · худшее: Synth 16,9 · 20,5 · 32,3 %; FX 9,2 · 9,7 · 11,9 %; Master 8,4 · 10,0 · 11,1 %; всего 43,1 · 49,5 · 65,7 % (было 78,3 · 82,7 · 110,1 %). Интерфейс: пропущено 45 из 14356 кадров (0,3 %), худший 31,5 мс; drain 0,29 мс.
 
+## S14c — интерфейс и MIDI (готово, проверено на iPad)
+- Задержки нот с MIDI нет (проверил пользователь) — путь MIDI → звук не менялся. Sampler.swift разделён раньше (413 строк).
+- Замер: DIAGNOSTICS → Main (время главного потока, % ядра) и Redraw (пересчёты видов и кадры метров в секунду; RedrawMeter) — с RESET и только пока окно закрыто (под окном SwiftUI не рисует).
+- Ручки (KnobView), шаги (StepFace), дорожки (TrackFace), волна окна сэмпла (WaveShape) — equatable: правка проекта и ход игры перерисовывают только изменившееся; у волны каждый кадр — лишь полосы воспроизведения. Анимации ручек с LFO и кривой, иконки синта, миниатюр LFO, плейхеда аранжировщика — до 60 кадров в секунду.
+- SYNC: при выключении RECEIVE в звук возвращается темп проекта.
+- iPad, PLAY, дорожка с сэмплом: пересчёты 466 → ~250–340 в секунду (шаги 134 → 16, дорожки 128 → 35, ручки при повороте 668 → 217); Main 35–41 % — без изменений: остаток — SwiftUI и отладочная сборка (без Instruments не разобрать); Canvas с rendersAsynchronously разницы не дал — возвращено. Кадры 119–120 fps, пропущено 2–7 из ~3000.
+
 ## Проверено
 S14w — на iPad; CoreTests — 304 (новые: EngineIconTests — testPreviewsMatchPrototype, testGridFiniteInField, testEachKnobChangesIcon, testTableFrame; testApplyKnobsToAllPages, testFeedbackFollowsResolveAcrossInputs; убраны прежние тесты иконок веба). S14v — на iPad. S14a — тесты Core (HeavyLoadTests), DIAGNOSTICS на iPad. CoreTests — 298 (S14a: testHeavyProjectProfile, testProfileOffAndOn); 296 (новые: testMoveRow, testPasteTrackKeepsOwnPatterns, testClipSpeed, testQueuedClipAfterSlowClip, testSameNameIgnoresAudioExtension).
 
@@ -109,7 +116,7 @@ S14w — на iPad; CoreTests — 304 (новые: EngineIconTests — testPrevi
 - S14v — правки интерфейса (готово, проверено на iPad).
 - S14a — замеры: в колбэке — время по разделам (голоса, FX, EQ, мастер, метры и запись), среднее и пик блока — в DIAGNOSTICS; тест Core «тяжёлый проект» (8 дорожек, синт аккордами, сэмплы, FX, EQ Dynamic, весь мастер) — отладочная и релизная сборка на Linux; в DIAGNOSTICS — время кадра интерфейса и пропущенные кадры; пользователь делает один замер на iPad своим тяжёлым проектом — дальше чинить по цифрам.
 - S14b — оптимизация звука: только горячие места по замерам S14a, по правилам отладочной сборки Playgrounds; после каждой правки — сверка с эталонами (тесты и SELF-TEST).
-- S14c — интерфейс и MIDI: лишние перерисовки (наблюдаемое состояние, таймеры); задержка нот с MIDI — сначала спросить пользователя, осталась ли; если да — путь MIDI → звук мимо главного потока; разделить Sampler.swift.
+- S14c — интерфейс и MIDI (готово, проверено на iPad): лишние перерисовки (наблюдаемое состояние, таймеры); задержка нот с MIDI — сначала спросить пользователя, осталась ли; если да — путь MIDI → звук мимо главного потока; разделить Sampler.swift.
 - S14d — проверка S13e на iPad (меню SYNC, клок SEND / RECEIVE с внешним устройством), затем описание Swift-версии в docs/ai/settings-midi-sync.md.
 - S14e — App Store: Ableton Link — по лицензии Ableton (решение пользователя): для App Store — бесплатная лицензия Ableton (запрос — пользователь, link-devs@ableton.com; руководство Link, проверка интеграции); LinkKit (C++) в Playgrounds не подключить — сборка в Xcode на Mac (этап 9, спайк B0); до этого раздел ABLETON LINK скрыт. Privacy manifest PrivacyInfo.xcprivacy (UserDefaults, mach_absolute_time) — через Resources, проверить пробной загрузкой. Значок — только в Playgrounds (сейчас .placeholder). App Store Connect — пользователь: Team ID, версия, шифрование (ответ при каждой загрузке), политика конфиденциальности (URL), возрастной рейтинг, скриншоты iPad 13", TestFlight.
 - Итог — docs/SWIFT_MILESTONE_S14.md (создан; в конце вехи обновить).

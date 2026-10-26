@@ -1,4 +1,4 @@
-# Handoff: JAMbo, Swift-версия — S15 аранжировщик готов (S15a–g, проверено на iPad); идёт S14c — интерфейс и MIDI
+# Handoff: JAMbo, Swift-версия — S15 аранжировщик готов (S15a–g, проверено на iPad); S14c готов; идёт S14d — описание SYNC (S13e) в docs/ai
 
 ## 1. Контекст проекта
 Groovebox для iPad. Веб (`src/`, `public/`) — эталон, заморожен. Swift-перенос — ветка `swift`, `ios/JAMbo.swiftpm`. Правила — `CLAUDE.md`, `ios/CLAUDE.md`; план и вехи — `docs/SWIFT_AUDIT.md` (раздел 6); итоги вех — `docs/SWIFT_MILESTONE_Sx.md`. Поведение аранжировщика — `docs/ai/arranger.md`; MIDI — `docs/ai/settings-midi-sync.md` (в ветке swift описывают Swift-версию).
@@ -24,7 +24,7 @@ Groovebox для iPad. Веб (`src/`, `public/`) — эталон, заморо
   - S14a — замеры (готово, проверено на iPad): DIAGNOSTICS — время колбэка по разделам (Seq, Samples, Synth, EQ, Mix, FX, Master, Meters, Audio: avg · peak · worst с RESET), кадры интерфейса (UI, UI total), Drain; тест Core «тяжёлый проект».
   - S14w — превью-иконки движков из прототипа, заголовок окна звука, октава клавиатуры по дорожкам, MIDI MAP Apply to all pages, исправлена обратная связь MIDI на MIX/MOD/FX/MST (готово, проверено на iPad; подробно — SWIFT_MILESTONE_S14.md).
   - S14b — оптимизация звука (готово, проверено на iPad): Audio на проекте пользователя 78 → 43 % в среднем, худший блок 110 → 66 %; щелчков и изменений звука нет.
-  - S14c — интерфейс и MIDI: лишние перерисовки (наблюдаемое состояние, таймеры); задержка нот с MIDI — сначала спросить пользователя, осталась ли; если да — путь MIDI → звук мимо главного потока; разделить Sampler.swift.
+  - S14c — интерфейс и MIDI (готово, проверено на iPad; итог — SWIFT_MILESTONE_S14.md): лишние перерисовки (наблюдаемое состояние, таймеры); задержка нот с MIDI — сначала спросить пользователя, осталась ли; если да — путь MIDI → звук мимо главного потока; разделить Sampler.swift.
   - S14d — проверка S13e на iPad: RECEIVE и SYNC START/STOP (выкл. — свой PLAY и STOP независимы) и SEND (Digitakt по USB) пользователь проверил — работает; осталось описание Swift-версии в docs/ai/settings-midi-sync.md.
   - S14e — App Store: Ableton Link — по лицензии Ableton (решение пользователя): для App Store — бесплатная лицензия Ableton (запрос — пользователь, link-devs@ableton.com; руководство Link, проверка интеграции); LinkKit (C++) в Playgrounds не подключить — сборка в Xcode на Mac (этап 9, спайк B0); до этого раздел ABLETON LINK неактивен. Privacy manifest PrivacyInfo.xcprivacy (UserDefaults, mach_absolute_time) — через Resources, проверить пробной загрузкой. Значок — только в Playgrounds (сейчас .placeholder). App Store Connect — пользователь: Team ID, версия, шифрование (ответ при каждой загрузке), политика конфиденциальности (URL), возрастной рейтинг, скриншоты iPad 13", TestFlight.
   - Итог — docs/SWIFT_MILESTONE_S14.md (создан; в конце вехи обновить).
@@ -47,7 +47,7 @@ Groovebox для iPad. Веб (`src/`, `public/`) — эталон, заморо
 
 
 ## 3. Текущая задача
-S14c — интерфейс и MIDI (план S14 выше): первым делом спросить пользователя, осталась ли задержка нот с MIDI; если да — путь MIDI → звук мимо главного потока; лишние перерисовки (наблюдаемое состояние, таймеры); разделить Sampler.swift. Затем S14d (описание S13e в docs/ai/settings-midi-sync.md) и S14e (App Store).
+S14d — описание Swift-версии SYNC (S13e) в docs/ai/settings-midi-sync.md (Core-планировщик, метки времени CoreMIDI, поправка фазы в колбэке, старт в прошлом не дальше 0,9 шага); текст — предложить пользователю. Затем S14e (App Store).
 
 ## 4. Что уже решено
 - S15g (REF): Core/Engine/RefPlayer.swift (после мастера, A/B, Levels.ref), Core/Sampler/TempoDetect.swift, ArrRef и Arrangement.showRef; UI/AppModelArrangeRef.swift (RefWave, BrowserMode.ref, refBActive), ArrRefHeader, ArrRefMenu, ArrABSwitch, ArrMetrics.refRow / body / inRef. Тесты RefTests, TempoDetectTests; CoreTests — 394.
@@ -97,4 +97,4 @@ S14c — интерфейс и MIDI (план S14 выше): первым дел
 - Звуковые ошибки (щелчки) — воспроизводить сценой пользователя в тесте Core и мерить; при сомнении — стенд-страница с AudioWorklet (как SUB Bench в S12).
 
 ## 7. Первый запрос для нового чата
-«Прочитай docs/handoffs/HANDOFF.md, ios/CLAUDE.md и docs/SWIFT_MILESTONE_S14.md. Продолжаем S14c»
+«Прочитай docs/handoffs/HANDOFF.md, ios/CLAUDE.md и docs/SWIFT_MILESTONE_S14.md. Продолжаем S14d»
