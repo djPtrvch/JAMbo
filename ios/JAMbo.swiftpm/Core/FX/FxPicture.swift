@@ -7,11 +7,12 @@ import Foundation
 public enum FxPicture {
     // MARK: — поле и огибающая фильтра
 
-    /// Поле картинки — как у иконок движков (EngineIcons, 64×64): по ширине 4…60, по высоте 8…56.
+    /// Поле картинки — как у иконок движков (EngineIcons, 64×64; иконки ударных — 4…60 × 6…58): по ширине 4…60,
+    /// по высоте 6…58.
     public static let x0: Double = 4
     public static let x1: Double = 60
-    public static let top: Double = 8
-    public static let bottom: Double = 56
+    public static let top: Double = 6
+    public static let bottom: Double = 58
     /// Низ огибающей фильтра — −30 dB.
     public static let floorDb: Double = -30
 
@@ -82,7 +83,7 @@ public enum FxPicture {
         let d: Double = log(Swift.min(20, Swift.max(0.1, decay)) / 0.1) / log(200.0)
         let t: Double = Swift.min(1, Swift.max(0, (tone + 100) / 200))
         let n: Int = Int((d * 6).rounded())
-        return Reverb(size: 0.2 + 0.3 * s, fill: 0.08 + 0.62 * t, contours: n, spread: 0.06 + 0.1 * d)
+        return Reverb(size: 0.25 + 0.3 * s, fill: 0.08 + 0.62 * t, contours: n, spread: 0.06 + 0.1 * d)
     }
 
     // MARK: — Delay
