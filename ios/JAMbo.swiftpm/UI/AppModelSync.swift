@@ -55,13 +55,17 @@ extension AppModel {
         }
     }
 
-    /// Каждый кадр при RECEIVE: клок пропал — свой темп; старт своей кнопкой — шаг 0 на ближайшем тике; поправка
-    /// фазы следующего шага (один раз на шаг).
+    /// Каждый кадр при RECEIVE: клок пропал или RECEIVE выключили — свой темп; старт своей кнопкой — шаг 0 на
+    /// ближайшем тике; поправка фазы следующего шага (один раз на шаг).
     func tickClockFollow() {
         let s: SyncSettings = settings.sync
         let f: ClockFollower = midiRun.follower
         guard s.clock && s.source == .receive else {
-            if f.last > 0 { midiRun.follower.lose() }
+            // Звук шёл по точному темпу клока — вернуть темп проекта.
+            if f.last > 0 {
+                midiRun.follower.lose()
+                audio.core.events.push(.tempo(project.bpm))
+            }
             return
         }
         let now: Double = HostClock().now()
