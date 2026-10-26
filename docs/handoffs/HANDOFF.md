@@ -47,7 +47,8 @@ Groovebox для iPad. Веб (`src/`, `public/`) — эталон, заморо
 
 
 ## 3. Текущая задача
-S14d — в меню SYNC выбор устройства, с которого принимается клок при RECEIVE (решение пользователя); описание — в docs/ai/settings-midi-sync.md (текст — предложить пользователю). Затем S14e (App Store).
+S14d — проверить на iPad CLOCK INPUT в SYNC (RECEIVE с выбранного входа; клок с другого входа не принимается; смена входа на ходу). Затем S14e (App Store).
+
 
 ## 4. Что уже решено
 - S15g (REF): Core/Engine/RefPlayer.swift (после мастера, A/B, Levels.ref), Core/Sampler/TempoDetect.swift, ArrRef и Arrangement.showRef; UI/AppModelArrangeRef.swift (RefWave, BrowserMode.ref, refBActive), ArrRefHeader, ArrRefMenu, ArrABSwitch, ArrMetrics.refRow / body / inRef. Тесты RefTests, TempoDetectTests; CoreTests — 394.

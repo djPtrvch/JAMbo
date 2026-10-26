@@ -111,7 +111,7 @@
 
 ## S14d — проверка SYNC (идёт)
 - RECEIVE, SYNC START/STOP (выкл. — свои PLAY и STOP независимы) и SEND проверены пользователем на iPad с Digitakt по USB (режим USB MIDI). Описание Swift-версии — docs/ai/settings-midi-sync.md («MIDI-клок в Swift-версии»).
-- Решение пользователя: в SYNC — выбор устройства, с которого принимается клок (RECEIVE).
+- CLOCK INPUT (решение пользователя): при RECEIVE — список ALL INPUTS / один вход (SyncSettings.clockIn, acceptsClock), сообщения реального времени фильтруются по нему до фильтра входа MIDI → DEVICES; смена входа — ClockFollower.lose и темп проекта (AppModel.setClockIn). Тест — SyncTests.testDefaultsAndCoding. На iPad не проверено.
 
 ## Проверено
 S14w — на iPad; CoreTests — 304 (новые: EngineIconTests — testPreviewsMatchPrototype, testGridFiniteInField, testEachKnobChangesIcon, testTableFrame; testApplyKnobsToAllPages, testFeedbackFollowsResolveAcrossInputs; убраны прежние тесты иконок веба). S14v — на iPad. S14a — тесты Core (HeavyLoadTests), DIAGNOSTICS на iPad. CoreTests — 298 (S14a: testHeavyProjectProfile, testProfileOffAndOn); 296 (новые: testMoveRow, testPasteTrackKeepsOwnPatterns, testClipSpeed, testQueuedClipAfterSlowClip, testSameNameIgnoresAudioExtension).
