@@ -74,6 +74,9 @@ public struct AppSettings: Codable, Equatable, Sendable {
     /// SETTINGS → APPEARANCE → FX ANIMATION (решение пользователя): картинки FX в окне сэмпла, пока регулируют ручки FX;
     /// по умолчанию — да.
     public var fxPictures: Bool = true
+    /// SETTINGS → AUDIO ENGINE → BACKGROUND AUDIO (как в вебе): звук играет, когда приложение свёрнуто или экран
+    /// заблокирован; по умолчанию — да. Нужен ключ UIBackgroundModes: audio (Info.plist рядом с Package.swift).
+    public var backgroundAudio: Bool = true
 
     public init() {}
 
@@ -90,7 +93,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
     private enum Keys: String, CodingKey { case appearance, pianoOctaves, velocity, record, sliceMap, scSends, muteTails, latchFx, latchMod, rollGrid,
                                          rollSound, levelRelative, morphAll, morphReturn, mixKey, mixCrossfader,
                                          clearSampleLocks, pitchSemitones, midi, stepPaint, sync,
-                                         arrangeCompact, fxPictures }
+                                         arrangeCompact, fxPictures, backgroundAudio }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
@@ -119,5 +122,6 @@ public struct AppSettings: Codable, Equatable, Sendable {
         sync = (try? c.decode(SyncSettings.self, forKey: .sync)) ?? SyncSettings()
         arrangeCompact = (try? c.decode(Bool.self, forKey: .arrangeCompact)) ?? false
         fxPictures = (try? c.decode(Bool.self, forKey: .fxPictures)) ?? true
+        backgroundAudio = (try? c.decode(Bool.self, forKey: .backgroundAudio)) ?? true
     }
 }

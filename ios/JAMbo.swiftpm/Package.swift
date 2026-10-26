@@ -33,7 +33,8 @@ let package = Package(
                 .microphone(purposeString: "This app uses the microphone to record sounds and turn them into samples for your music. Recordings are stored only on your device"),
                 .bluetoothAlways(purposeString: "This app uses Bluetooth to connect wireless MIDI controllers and keyboards, and to make your iPad visible to other devices as a Bluetooth MIDI device")
             ],
-            appCategory: .music
+            appCategory: .music,
+            additionalInfoPlistContentFilePath: "Info.plist"
         )
     ],
     targets: [

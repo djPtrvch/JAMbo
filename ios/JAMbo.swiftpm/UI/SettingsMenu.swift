@@ -78,7 +78,7 @@ struct ArrangeSettings: View {
     }
 }
 
-/// AUDIO ENGINE: фактическая частота, буфер и задержка (строка «Now:», раз в 0,5 с).
+/// AUDIO ENGINE: фактическая частота, буфер и задержка (строка «Now:», раз в 0,5 с); BACKGROUND AUDIO.
 struct EngineSettings: View {
     let model: AppModel
 
@@ -88,6 +88,8 @@ struct EngineSettings: View {
                 SettingsNote(text: "Now: \(model.audio.statusLine)")
             }
             SettingsNote(text: "Always 48 kHz with a 256-sample buffer; iPadOS may choose another buffer.")
+            ToggleRow(title: "BACKGROUND AUDIO", isOn: model.settings.backgroundAudio) { model.setBackgroundAudio($0) }
+            SettingsNote(text: "ON: the sound keeps playing when JAMbo is in the background or the screen is locked. OFF: the sound stops.")
         }
     }
 }

@@ -19,7 +19,7 @@ struct JAMboApp: App {
             case .active: model.activate()
             case .background:
                 model.flushAutosave()
-                model.pauseAudio()
+                model.enterBackground()
             default: break
             }
         }

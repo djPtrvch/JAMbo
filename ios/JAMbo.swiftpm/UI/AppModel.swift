@@ -335,6 +335,15 @@ final class AppModel {
         if audioStarted { audio.stop() }
     }
 
+    /// Уход в фон: BACKGROUND AUDIO включён — звук играет дальше (запись входа всё равно кончается), иначе — пауза.
+    func enterBackground() {
+        if settings.backgroundAudio {
+            endInputRecForBackground()
+        } else {
+            pauseAudio()
+        }
+    }
+
     func toggleTone() {
         ensureAudio()
         toneOn.toggle()

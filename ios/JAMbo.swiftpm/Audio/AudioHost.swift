@@ -57,7 +57,7 @@ final class AudioHost {
         }
     }
 
-    /// Остановка (уход в фон: фонового звука в Playgrounds нет — ТЗ 0.2).
+    /// Остановка (уход в фон при выключенном BACKGROUND AUDIO).
     func stop() {
         engine.pause()
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)

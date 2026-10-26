@@ -60,6 +60,10 @@ extension AppModel {
         updateSettings { s in s.morphReturn = k }
     }
 
+    func setBackgroundAudio(_ on: Bool) {
+        updateSettings { s in s.backgroundAudio = on }
+    }
+
     func setFxPictures(_ on: Bool) {
         updateSettings { s in s.fxPictures = on }
     }

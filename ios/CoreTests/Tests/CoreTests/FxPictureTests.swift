@@ -92,3 +92,14 @@ final class FxPictureSettingTests: XCTestCase {
         XCTAssertFalse(AppSettings.decode(s.encode()).fxPictures)
     }
 }
+
+/// SETTINGS → AUDIO ENGINE → BACKGROUND AUDIO: по умолчанию включено, сохраняется.
+final class BackgroundAudioSettingTests: XCTestCase {
+    func testDefaultAndRoundTrip() {
+        XCTAssertTrue(AppSettings().backgroundAudio)
+        XCTAssertTrue(AppSettings.decode(Data("{}".utf8)).backgroundAudio)
+        var s = AppSettings()
+        s.backgroundAudio = false
+        XCTAssertFalse(AppSettings.decode(s.encode()).backgroundAudio)
+    }
+}
