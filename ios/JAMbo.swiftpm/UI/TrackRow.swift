@@ -110,6 +110,11 @@ struct TrackFace: View, Equatable {
     let flash: Bool
     @Environment(\.theme) private var theme
 
+    /// Тема — через окружение, в сравнение не входит (Environment не Equatable).
+    static func == (a: TrackFace, b: TrackFace) -> Bool {
+        return a.name == b.name && a.selected == b.selected && a.mute == b.mute && a.solo == b.solo && a.flash == b.flash
+    }
+
     var body: some View {
         let _ = RedrawMeter.hit(.trackCell)
         // Как в вебе: выбранная — жёлтый контур, заглушённая — красный (перекрывает выбор) и красная заливка.
