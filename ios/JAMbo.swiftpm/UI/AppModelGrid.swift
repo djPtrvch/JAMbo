@@ -294,8 +294,8 @@ extension AppModel {
         let plus = project.canAddRow
         let total = n + (plus ? 1 : 0)
         let prev: Bool = project.prevRow
-        let rows: Int = gridRowsShown
-        let win = prev ? rows - 1 : rows
+        let shown: Int = gridRowsShown
+        let win = prev ? shown - 1 : shown
         let maxTop = max(0, total - win)
         let top = min(max(0, gridTop), maxTop)
         var rows: [Int?] = []
