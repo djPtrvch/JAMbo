@@ -156,7 +156,6 @@ struct ArrAutoCurve: View {
     var body: some View {
         let p: Project = model.project
         let port: ArrPort = model.arrPort
-        let now: Int = model.arrNow
         let t: Int = model.arrAutoTrack ?? -1
         let param: ParamDef? = model.arrAutoParam(t)
         return GeometryReader { geo in
@@ -166,8 +165,8 @@ struct ArrAutoCurve: View {
                 let d = ArrAutoDraw(ctx: ctx, m: m, theme: theme)
                 d.grid(p)
                 if let pd = param, t >= 0 { d.curve(p, t, pd) }
-                d.cursor(now)
             }
+            .overlay { ArrCursorLayer(model: model, m: m, head: false) }
             .overlay(alignment: .topLeading) { title(p, t, param) }
             .contentShape(Rectangle())
             .gesture(touch(geo.size))
@@ -272,12 +271,6 @@ struct ArrAutoDraw {
         }
         ctx.stroke(line, with: .color(theme.accent), lineWidth: 2)
         ctx.fill(dots, with: .color(theme.accent))
-    }
-
-    func cursor(_ pos: Int) {
-        let x: CGFloat = m.stepX(Double(pos))
-        if x < -2 || x > m.size.width + 2 { return }
-        ctx.fill(Path(CGRect(x: x - 1, y: 0, width: 2, height: m.size.height)), with: .color(theme.accent))
     }
 }
 

@@ -30,23 +30,50 @@ struct ArrangeWindow: View {
     }
 }
 
-/// Слева от линейки (решение пользователя): общая длительность аранжировки (до конца последнего блока) — мин:сек.
+/// Слева от линейки (решение пользователя): время плейхеда / длительность аранжировки (до конца последнего блока),
+/// мин:сек; при игре — каждый кадр.
 struct ArrTotalTime: View {
     let model: AppModel
     @Environment(\.theme) private var theme
 
     var body: some View {
-        let steps: Int = model.project.arrangeEnd
-        // Шаг — шестнадцатая: 15 / BPM секунд.
-        let sec: Int = Int((Double(steps) * 15 / max(20, model.project.bpm)).rounded())
-        let text: String = String(format: "%d:%02d", sec / 60, sec % 60)
-        return Text(text)
-            .font(.system(size: 17, weight: .semibold))
-            .monospacedDigit()
-            .foregroundStyle(theme.text)
-            .padding(.leading, 10)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            .allowsHitTesting(false)
+        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !model.playing)) { _ in
+            let bpm: Double = max(20, model.project.bpm)
+            // Шаг — шестнадцатая: 15 / BPM секунд.
+            let now: String = ArrTotalTime.clock(model.arrNowX * 15 / bpm)
+            let total: String = ArrTotalTime.clock(Double(model.project.arrangeEnd) * 15 / bpm)
+            Text(now + " / " + total)
+                .font(.system(size: 15, weight: .semibold))
+                .monospacedDigit()
+                .foregroundStyle(theme.text)
+                .padding(.leading, 10)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        }
+        .allowsHitTesting(false)
+    }
+
+    static func clock(_ seconds: Double) -> String {
+        let sec: Int = max(0, Int(seconds.rounded(.down)))
+        return String(format: "%d:%02d", sec / 60, sec % 60)
+    }
+}
+
+/// Плейхед поверх холста (решение пользователя: при игре едет плавно — позиция между шагами по времени, каждый кадр;
+/// основной холст по шагам не перерисовывается).
+struct ArrCursorLayer: View {
+    let model: AppModel
+    let m: ArrMetrics
+    let head: Bool
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        TimelineView(.animation(paused: !model.playing)) { _ in
+            let pos: Double = model.arrNowX
+            Canvas { ctx, _ in
+                ArrDraw(ctx: ctx, m: m, theme: theme).cursorLine(pos, head: head)
+            }
+        }
+        .allowsHitTesting(false)
     }
 }
 
@@ -169,7 +196,6 @@ struct ArrTimeline: View {
     var body: some View {
         let p: Project = model.project
         let port: ArrPort = model.arrPort
-        let now: Int = model.arrNow
         let sel: ArrSel? = model.arrSel
         let group: [ArrSel] = model.arrGroup.count >= 2 ? model.arrGroup : []
         let marquee: CGRect? = model.arrMarquee
@@ -183,9 +209,10 @@ struct ArrTimeline: View {
                     // Левые углы прямые (к заголовкам дорожек), правые скруглены — решение пользователя.
                     var c = ctx
                     c.clip(to: ArrTimeline.frameShape.path(in: CGRect(origin: .zero, size: size)))
-                    ArrDraw(ctx: c, m: m, theme: theme).draw(p, cursor: now, sel: sel, lift: lift, following: following,
+                    ArrDraw(ctx: c, m: m, theme: theme).draw(p, sel: sel, lift: lift, following: following,
                                                             track: selTrack, group: group, marquee: marquee)
                 }
+                ArrCursorLayer(model: model, m: m, head: true)
                 if let l = lift { liftedView(l, m, p) }
             }
             .contentShape(Rectangle())
@@ -239,7 +266,7 @@ struct ArrDraw {
     let m: ArrMetrics
     let theme: Theme
 
-    func draw(_ p: Project, cursor: Int, sel: ArrSel?, lift: ArrLift?, following: [Bool], track: Int, group: [ArrSel],
+    func draw(_ p: Project, sel: ArrSel?, lift: ArrLift?, following: [Bool], track: Int, group: [ArrSel],
               marquee: CGRect?) {
         gridLines(p)
         lanes(p)
@@ -255,7 +282,6 @@ struct ArrDraw {
         if let r = marquee { marqueeRect(r) }
         ruler(p)
         markers(p)
-        cursorLine(cursor)
     }
 
     private func lanes(_ p: Project) {
@@ -427,10 +453,12 @@ struct ArrDraw {
         }
     }
 
-    private func cursorLine(_ pos: Int) {
-        let x: CGFloat = m.stepX(Double(pos))
-        if x < -2 || x > m.size.width + 2 { return }
+    /// Плейхед на позиции pos (шаги, дробная); head — пятиугольник над линией (на таймлайне).
+    func cursorLine(_ pos: Double, head drawHead: Bool) {
+        let x: CGFloat = m.stepX(pos)
+        if x < -8 || x > m.size.width + 8 { return }
         ctx.fill(Path(CGRect(x: x - 1, y: 0, width: 2, height: m.size.height)), with: .color(theme.accent))
+        if !drawHead { return }
         // Маркер плейхеда — жёлтый пятиугольник остриём вниз во всю высоту линейки и строки секций (решение
         // пользователя).
         let w: CGFloat = 14
