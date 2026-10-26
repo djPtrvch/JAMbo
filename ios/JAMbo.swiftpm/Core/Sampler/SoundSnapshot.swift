@@ -10,8 +10,8 @@ public typealias VoiceMask = UInt32
 
 public enum VoiceParam {
     public static let ids = ["pitch", "start", "end", "level", "attack", "decay", "filter", "reso", "pan",
-                             "harm", "timbre", "morph", "reverb", "delay", "drive", "p4"]
-    public static let count = 16
+                             "harm", "timbre", "morph", "reverb", "delay", "drive", "p4", "rate"]
+    public static let count = 17
     public static let pitch = 0
     public static let start = 1
     public static let end = 2
@@ -31,6 +31,8 @@ public enum VoiceParam {
     public static let drive = 14
     /// 1.4 синта (S12).
     public static let p4 = 15
+    /// RATE сэмпла (1.4 сэмплера): скорость −100…100 % (PTCH — со сменой высоты, TSTR — с таймстретчем).
+    public static let rate = 16
 }
 
 public struct SoundData {
@@ -76,6 +78,8 @@ public struct SoundData {
     public var eChannels: UnsafeMutablePointer<Int32>
     public var eSliceStart: UnsafeMutablePointer<Int32>
     public var eSliceCount: UnsafeMutablePointer<Int32>
+    /// Темп файла для TSTR (BPM; 0 — неизвестен или дорожка в PTCH: скорость — только RATE).
+    public var eBpm: UnsafeMutablePointer<Double>
     public var sliceAt: UnsafeMutablePointer<Double>
     public var sliceNote: UnsafeMutablePointer<Int32>
     /// Таблица WTABLE дорожки (указатели WtTable; кадров 0 — таблица ещё не готова, WTABLE молчит, как в вебе).
@@ -94,6 +98,8 @@ public struct SoundData {
     public var mod: UnsafeMutablePointer<Float>
     /// LFO1–3 по темпу (звук·3 + n; 1 — да).
     public var lfoSync: UnsafeMutablePointer<UInt8>
+    /// Режим RATE звука (Params.rateModeId): 0 — PTCH, 1 — TSTR.
+    public var rateMode: UnsafeMutablePointer<UInt8>
     public var asSrc: UnsafeMutablePointer<Int8>
     public var asAmt: UnsafeMutablePointer<Float>
     public var scale: UnsafeMutablePointer<ParamScale>
@@ -227,11 +233,13 @@ public final class SoundSnapshot: @unchecked Sendable {
             eHash: .allocate(capacity: entries), eLeft: .allocate(capacity: entries), eRight: .allocate(capacity: entries),
             eFrames: .allocate(capacity: entries), eChannels: .allocate(capacity: entries),
             eSliceStart: .allocate(capacity: entries), eSliceCount: .allocate(capacity: entries),
+            eBpm: .allocate(capacity: entries),
             sliceAt: .allocate(capacity: slices), sliceNote: .allocate(capacity: slices),
             tableRef: .allocate(capacity: tracks2),
             grainRef: .allocate(capacity: tracks2),
             fx: .allocate(capacity: Params.fxCount), scAmount: .allocate(capacity: tracks2), scSend: .allocate(capacity: 3),
-            mod: .allocate(capacity: tracks2 * Params.modCount), lfoSync: .allocate(capacity: tracks2 * 3), asSrc: .allocate(capacity: tracks2 * ModTarget.count),
+            mod: .allocate(capacity: tracks2 * Params.modCount), lfoSync: .allocate(capacity: tracks2 * 3),
+            rateMode: .allocate(capacity: tracks2), asSrc: .allocate(capacity: tracks2 * ModTarget.count),
             asAmt: .allocate(capacity: tracks2 * ModTarget.count), scale: .allocate(capacity: tracks2 * ModTarget.count),
             asAny: .allocate(capacity: tracks2), fxSrc: .allocate(capacity: Params.fxCount),
             fxAmt: .allocate(capacity: Params.fxCount), fxTrack: .allocate(capacity: Params.fxCount),
@@ -293,6 +301,7 @@ public final class SoundSnapshot: @unchecked Sendable {
         }
         d.mod.initialize(repeating: 0, count: tracks2 * Params.modCount)
         d.lfoSync.initialize(repeating: 0, count: tracks2 * 3)
+        d.rateMode.initialize(repeating: 0, count: tracks2)
         d.asSrc.initialize(repeating: 0, count: tracks2 * ModTarget.count)
         d.asAmt.initialize(repeating: 0, count: tracks2 * ModTarget.count)
         d.scale.initialize(repeating: ParamScale(), count: tracks2 * ModTarget.count)
@@ -331,6 +340,7 @@ public final class SoundSnapshot: @unchecked Sendable {
         d.eChannels.initialize(repeating: 1, count: entries)
         d.eSliceStart.initialize(repeating: 0, count: entries)
         d.eSliceCount.initialize(repeating: 0, count: entries)
+        d.eBpm.initialize(repeating: 0, count: entries)
         d.sliceAt.initialize(repeating: 0, count: slices)
         d.sliceNote.initialize(repeating: 0, count: slices)
         var keep: [SampleData] = []
@@ -379,6 +389,7 @@ public final class SoundSnapshot: @unchecked Sendable {
                 d.mod[u * Params.modCount + k] = Float(snd.params[id] ?? Params.byId[id]?.def ?? 0)
             }
             for (l, id) in Params.lfoSyncIds.enumerated() { d.lfoSync[u * 3 + l] = (snd.params[id] ?? 0) >= 0.5 ? 1 : 0 }
+            d.rateMode[u] = (snd.params[Params.rateModeId] ?? 0) >= 0.5 ? 1 : 0
             // Шкалы целей — по сетке звука дорожки (у синта свои пределы и ступени).
             var grid: [String: ParamDef] = [:]
             for p in Params.grid(sound: snd.sample) where !p.id.isEmpty { grid[p.id] = p }
@@ -416,6 +427,8 @@ public final class SoundSnapshot: @unchecked Sendable {
                 d.eRight[e] = s.right
                 d.eFrames[e] = s.frames
                 d.eChannels[e] = Int32(s.channels)
+                // Темп файла — только у дорожки в TSTR (определяется один раз на сэмпл).
+                d.eBpm[e] = d.rateMode[u] != 0 ? s.loopBpm : 0
                 let marks: [SliceMark] = key.isEmpty ? [] : (snd.slices[key] ?? [])
                 let oct: Int = t < octaves.count ? octaves[t] : octave
                 let notes = Slices.notes(marks, map: map, scale: clipKey.scale, root: clipKey.root, octave: oct)
@@ -486,6 +499,7 @@ public final class SoundSnapshot: @unchecked Sendable {
         data.eChannels.deallocate()
         data.eSliceStart.deallocate()
         data.eSliceCount.deallocate()
+        data.eBpm.deallocate()
         data.sliceAt.deallocate()
         data.sliceNote.deallocate()
         data.tableRef.deallocate()
@@ -499,6 +513,7 @@ public final class SoundSnapshot: @unchecked Sendable {
         data.scale.deallocate()
         data.asAny.deallocate()
         data.lfoSync.deallocate()
+        data.rateMode.deallocate()
         data.fxSrc.deallocate()
         data.fxAmt.deallocate()
         data.fxTrack.deallocate()

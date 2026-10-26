@@ -61,6 +61,8 @@ extension AppModel {
         let curC: Double? = c.map { companionValue($0) }
         var v: Double = p.def
         var cv: Double? = c.map { Params.byId[$0]?.def ?? 0 }
+        // RATE: режим PTCH / TSTR сбрасывается только к своему по умолчанию (заводской сброс его не трогает).
+        if p.id == "rate" { cv = curC }
         if let own = knobDefaults.value(scope, p.id) {
             let ownC: Double? = c.flatMap { knobDefaults.value(scope, $0) }
             let same: Bool = abs(own - cur) < 1e-9 && (ownC == nil || ownC == curC)
@@ -93,7 +95,8 @@ extension AppModel {
     /// SETTINGS → DEFAULTS: сколько своих значений запомнено.
     var knobDefaultsCount: Int {
         return knobDefaults.values.keys.filter { k in
-            !(k.hasSuffix("/dly.sync") || Params.lfoSyncIds.contains { k.hasSuffix("/" + $0) })
+            !(k.hasSuffix("/dly.sync") || k.hasSuffix("/" + Params.rateModeId)
+              || Params.lfoSyncIds.contains { k.hasSuffix("/" + $0) })
         }.count
     }
 

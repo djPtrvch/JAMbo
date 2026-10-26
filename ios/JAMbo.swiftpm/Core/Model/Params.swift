@@ -195,13 +195,13 @@ public enum Params {
     public static let swing = ParamDef(id: "swing", label: "Swing", min: 50, max: 75, def: 50, format: Fmt.pct)
 
     /// Колонки сетки ручек дорожки сэмплера (у синта колонка 1 — synthGrids; колонка 1 — сэмпл, 2 — огибающая и фильтр,
-    /// 3 — посылы, 4 — Pan, Chance, Ratchet, Velocity). 1.4 у сэмпла пока пустая (S12).
+    /// 3 — посылы, 4 — Pan, Chance, Ratchet, Velocity). 1.4 у сэмпла — RATE.
     public static let trackColumns: [[ParamDef]] = [
         [
             smooth("pitch", "Pitch", -24, 24, 0, bipolar: true, Fmt.pitch),
             smooth("start", "Start", 0, 100, 0, Fmt.pct),
             smooth("end", "End", 0, 100, 100, Fmt.pct),
-            empty,
+            rate,
         ],
         [
             smooth("attack", "Attack", 0, 2000, 0, curve: 3, Fmt.ms),
@@ -223,6 +223,17 @@ public enum Params {
             smooth("level", "Velocity", 0, 127, 127) { v in "\(Int((v / 127 * 100).rounded()))%" },
         ],
     ]
+
+    /// RATE сэмпла (как в Octatrack): скорость −100…100 %, правый край — 100 % (обычная игра), в центре — стоп,
+    /// левее центра — реверс. Режим (rateModeId, SHIFT + тап по ручке): PTCH — скорость меняет высоту, как на виниле;
+    /// TSTR — таймстретч: высота прежняя, сэмпл идёт в темпе проекта (темп файла — TempoDetect.loopBpm), RATE —
+    /// множитель скорости.
+    public static let rate = ParamDef(id: "rate", label: "Rate PTCH", min: -100, max: 100, def: 100, bipolar: true,
+                                      format: Fmt.pct)
+    public static let rateTstr = ParamDef(id: "rate", label: "Rate TSTR", min: -100, max: 100, def: 100, bipolar: true,
+                                          format: Fmt.pct)
+    /// Режим RATE дорожки (значение звука дорожки, не на сетке, без p-lock): 0 — PTCH (по умолчанию), 1 — TSTR.
+    public static let rateModeId = "rate.mode"
 
     /// Сетка 4×4 ряд за рядом (индекс = ряд·4 + столбец).
     public static let trackGrid: [ParamDef] = (0..<16).map { i in trackColumns[i % 4][i / 4] }

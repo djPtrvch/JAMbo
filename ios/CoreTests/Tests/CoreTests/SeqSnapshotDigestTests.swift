@@ -72,7 +72,8 @@ final class SeqSnapshotDigestTests: XCTestCase {
         XCTAssertEqual(h, SeqSnapshotDigestTests.expected)
     }
 
-    static let expected: UInt64 = 4793505042965849168
+    // RATE (VoiceParam.rate): p-lock голоса — 17 значений на шаг, сумма другая.
+    static let expected: UInt64 = 11384347476378270907
 }
 
 extension SystemRandomNumberGenerator {

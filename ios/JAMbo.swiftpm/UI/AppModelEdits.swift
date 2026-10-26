@@ -88,6 +88,7 @@ extension AppModel {
             if modMode { return modParam(slot) }
             if fxMode { return fxParam(slot) }
             let p: ParamDef = Params.grid(sound: track.sample)[slot]
+            if p.id == "rate" && rateStretch { return Params.rateTstr }
             return p.id.isEmpty ? nil : p
         case .mix: return mixParam(slot)
         case .master: return Params.masterGrid[slot]

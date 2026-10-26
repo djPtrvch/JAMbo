@@ -85,10 +85,20 @@ extension AppModel {
         return p
     }
 
-    /// SHIFT + тап по ручке: Dly Time и Speed LFO — по темпу или свободно; true — тап обработан.
+    /// RATE выбранной дорожки в режиме TSTR (таймстретч); по умолчанию — PTCH.
+    var rateStretch: Bool {
+        return (track.params[Params.rateModeId] ?? 0) >= 0.5
+    }
+
+    /// SHIFT + тап по ручке: Dly Time и Speed LFO — по темпу или свободно, RATE — PTCH / TSTR; true — тап обработан.
     @discardableResult
     func knobShiftTap(_ slot: Int) -> Bool {
         guard channel == .track else { return false }
+        if !modMode && !fxMode && param(slot)?.id == "rate" {
+            let on: Bool = !rateStretch
+            editTrack { t in t.params[Params.rateModeId] = on ? 1 : 0 }
+            return true
+        }
         if modMode {
             let l: Int = slot - 4
             guard l >= 0 && l < 3 else { return false }

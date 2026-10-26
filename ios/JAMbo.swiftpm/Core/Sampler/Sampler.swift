@@ -47,9 +47,18 @@ public final class Sampler {
     let start = UnsafeMutablePointer<Int64>.allocate(capacity: slots)
     let pos = UnsafeMutablePointer<Double>.allocate(capacity: slots)
     let endPos = UnsafeMutablePointer<Double>.allocate(capacity: slots)
+    /// Начало отрезка (Start или маркер): реверс (RATE левее центра) идёт от endPos к beginPos.
+    let beginPos = UnsafeMutablePointer<Double>.allocate(capacity: slots)
     let edge = UnsafeMutablePointer<Double>.allocate(capacity: slots)
     let noteRatio = UnsafeMutablePointer<Double>.allocate(capacity: slots)
+    /// Скорость указателя по сэмплу (со знаком; в TSTR — скорость времени, без высоты).
     let rate = UnsafeMutablePointer<Double>.allocate(capacity: slots)
+    /// RATE в TSTR (Stretch.swift): 1 — голос с таймстретчем; высота внутри зерна (нота и Pitch); темп файла (0 —
+    /// скорость только от RATE).
+    let tstr = UnsafeMutablePointer<UInt8>.allocate(capacity: slots)
+    let grainRatio = UnsafeMutablePointer<Double>.allocate(capacity: slots)
+    let srcBpm = UnsafeMutablePointer<Double>.allocate(capacity: slots)
+    let stretch = Stretcher(slots: slots)
     let attackF = UnsafeMutablePointer<Double>.allocate(capacity: slots)
     let decaySec = UnsafeMutablePointer<Double>.allocate(capacity: slots)
     let decayK = UnsafeMutablePointer<Float>.allocate(capacity: slots)
@@ -152,6 +161,10 @@ public final class Sampler {
         start.initialize(repeating: 0, count: s)
         pos.initialize(repeating: 0, count: s)
         endPos.initialize(repeating: 0, count: s)
+        beginPos.initialize(repeating: 0, count: s)
+        tstr.initialize(repeating: 0, count: s)
+        grainRatio.initialize(repeating: 1, count: s)
+        srcBpm.initialize(repeating: 0, count: s)
         edge.initialize(repeating: 1, count: s)
         noteRatio.initialize(repeating: 1, count: s)
         rate.initialize(repeating: 1, count: s)
@@ -196,10 +209,10 @@ public final class Sampler {
     }
 
     deinit {
-        for p in [active, fading, own, stereo, released, used, sendUsed, openPrev] as [UnsafeMutablePointer<UInt8>] { p.deallocate() }
+        for p in [active, fading, own, stereo, released, used, sendUsed, openPrev, tstr] as [UnsafeMutablePointer<UInt8>] { p.deallocate() }
         for p in [send, sendL, sendR, duckCur, flagCur, meterL, meterR] { p.deallocate() }
         for p in [track, trackId, note, liveId, serial, srcFrames, ftype] as [UnsafeMutablePointer<Int>] { p.deallocate() }
-        for p in [pos, endPos, edge, noteRatio, rate, attackF, decaySec, hz, qDb] as [UnsafeMutablePointer<Double>] { p.deallocate() }
+        for p in [pos, endPos, beginPos, edge, noteRatio, rate, grainRatio, srcBpm, attackF, decaySec, hz, qDb] as [UnsafeMutablePointer<Double>] { p.deallocate() }
         for p in [start, holdEnd, stopAt, fadeAt] as [UnsafeMutablePointer<Int64>] { p.deallocate() }
         for p in [decayK, env, fadeK, fadeG, level, pan, z, lockVal, busL, busR, outL, outR, volCur, gateCur, scratch] as [UnsafeMutablePointer<Float>] {
             p.deallocate()
@@ -224,6 +237,7 @@ public final class Sampler {
 
     @inline(__always)
     private static func cubic(_ p: UnsafeMutablePointer<Float>, _ n: Int, _ x: Double) -> Float {
+        if x < 0 { return 0 }
         let i = Int(x)
         let f = Float(x - Double(i))
         let ym1: Float = i >= 1 && i - 1 < n ? p[i - 1] : 0
@@ -291,7 +305,13 @@ public final class Sampler {
             if let mm = modE { x = mm.value(t, p, x, blockStart) }
             return x
         }
-        let rateT: Double = noteRatio[v] * pow(2, val(VoiceParam.pitch) / 12)
+        // RATE: PTCH — множитель скорости со сменой высоты; TSTR — скорость времени (темп проекта к темпу файла),
+        // высота — внутри зерна.
+        let ts: Bool = tstr[v] != 0
+        let rateK: Double = val(VoiceParam.rate) / 100
+        let pitchR: Double = noteRatio[v] * pow(2, val(VoiceParam.pitch) / 12)
+        let tempoK: Double = srcBpm[v] > 0 ? bpm / srcBpm[v] : 1
+        let rateT: Double = ts ? tempoK * rateK : pitchR * rateK
         let levelT = Float(pow(val(VoiceParam.level) / 127, 1.5))
         let sb = v * 3
         let send0T = Float(val(VoiceParam.reverb) / 100), send1T = Float(val(VoiceParam.delay) / 100)
@@ -315,6 +335,7 @@ public final class Sampler {
             let m = Swift.min(sub, n - i)
             // Сглаживание ручек по кусочкам (setTargetAtTime веба: 10 мс, фильтр — 15 мс).
             rate[v] += (rateT - rate[v]) * ks
+            grainRatio[v] += (pitchR - grainRatio[v]) * ks
             level[v] += (levelT - level[v]) * Float(ks)
             pan[v] += (panT - pan[v]) * Float(ks)
             send[sb] += (send0T - send[sb]) * Float(ks)
@@ -335,12 +356,19 @@ public final class Sampler {
             let x: Float = st ? (pn <= 0 ? pn + 1 : pn) : (pn + 1) / 2
             let gc = cos(x * Float.pi / 2)
             let gs = sin(x * Float.pi / 2)
-            let lv = level[v]
             let rt = rate[v]
+            // PTCH около остановки (|RATE| < 5 %) — тише до нуля, как у останавливающейся пластинки.
+            let lv: Float = ts ? level[v] : level[v] * Float(Swift.min(1, Swift.abs(rt) * 20))
+            if ts {
+                let skip: Int = Int(Swift.max(0, Swift.min(Int64(m), start[v] - (blockStart + Int64(i)))))
+                stretch.fill(v, l, r, frames, st, pos[v], rt, grainRatio[v], m, skip, beginPos[v], endPos[v])
+            }
+            let tsL = stretch.outL, tsR = stretch.outR
             for j in 0..<m {
                 let frame = blockStart + Int64(i + j)
                 if frame < start[v] { continue }
-                if frame >= stopAt[v] || pos[v] >= endPos[v] || pos[v] >= Double(frames) {
+                let ended: Bool = rt >= 0 ? pos[v] >= endPos[v] || pos[v] >= Double(frames) : pos[v] <= beginPos[v]
+                if frame >= stopAt[v] || ended {
                     finish(v)
                     return
                 }
@@ -360,11 +388,12 @@ public final class Sampler {
                     env[v] = e
                 }
                 if frame >= fadeAt[v] { fadeG[v] *= fadeK[v] }
-                let remain: Double = (endPos[v] - pos[v]) / rt
+                let remain: Double = rt > 1e-9 ? (endPos[v] - pos[v]) / rt
+                    : (rt < -1e-9 ? (pos[v] - beginPos[v]) / -rt : 1e12)
                 let eg = Float(Swift.min(1, remain / edge[v]))
                 let g: Float = e * eg * lv * fadeG[v]
-                var a: Float = Sampler.cubic(l, frames, pos[v]) * g
-                var b: Float = st ? Sampler.cubic(r, frames, pos[v]) * g : 0
+                var a: Float = (ts ? tsL[j] : Sampler.cubic(l, frames, pos[v])) * g
+                var b: Float = st ? (ts ? tsR[j] : Sampler.cubic(r, frames, pos[v])) * g : 0
                 // Фильтр (TDF II).
                 let ya: Float = c.b0 * a + z[zb]
                 z[zb] = c.b1 * a - c.a1 * ya + z[zb + 1]

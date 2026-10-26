@@ -40,6 +40,9 @@ public final class SampleData: @unchecked Sendable {
 
     public var duration: Double { return Double(frames) / AudioCore.sampleRate }
 
+    /// Темп лупа для RATE в TSTR (TempoDetect.loopBpm; 0 — не учитывается); считается один раз, в основном потоке.
+    public lazy var loopBpm: Double = TempoDetect.loopBpm(self)
+
     public func channel(_ c: Int) -> [Float] {
         let p = c == 0 ? left : right
         return Array(UnsafeBufferPointer(start: p, count: frames))

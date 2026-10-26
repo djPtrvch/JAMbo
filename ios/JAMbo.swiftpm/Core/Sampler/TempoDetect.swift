@@ -10,6 +10,20 @@ public enum TempoDetect {
     static let lo: Double = 75
     static let hi: Double = 180
 
+    /// Темп лупа для TSTR (как в Octatrack): по длине — луп в 1, 2, 4… такта 4/4, темп в 85…170 BPM; у файла от 6 с —
+    /// ещё и по атакам (bpm): совпал с темпом по длине (или вдвое больше, меньше) до 2 % — точный по длине, иначе по
+    /// атакам. Короче такта при 170 BPM (1,41 с) — 0: темп не учитывается (удар, одиночный звук).
+    public static func loopBpm(_ s: SampleData) -> Double {
+        let dur: Double = Double(s.frames) / AudioCore.sampleRate
+        if dur < 240.0 / 170 { return 0 }
+        var beats: Double = 4
+        while 60 * beats / dur < 85 { beats *= 2 }
+        let byLength: Double = 60 * beats / dur
+        guard dur >= 6, let det = bpm(s) else { return byLength }
+        for m in [1.0, 2.0, 0.5] where abs(det / (byLength * m) - 1) < 0.02 { return byLength * m }
+        return det
+    }
+
     /// Темп, BPM (около целого — целый); nil — не нашёлся (тишина, слишком коротко).
     public static func bpm(_ s: SampleData) -> Double? {
         let rate: Double = AudioCore.sampleRate

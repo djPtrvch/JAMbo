@@ -20,9 +20,11 @@ public struct KnobDefaults: Codable, Equatable, Sendable {
         return scope + "/" + id
     }
 
-    /// Вместе со значением ручки запоминается то, от чего зависит его смысл: Dly Time — Dly Sync, Speed — синхронизация LFO.
+    /// Вместе со значением ручки запоминается то, от чего зависит его смысл: Dly Time — Dly Sync, Speed — синхронизация LFO,
+    /// RATE — режим PTCH / TSTR.
     public static func companion(_ id: String) -> String? {
         if id == "dly.time" { return "dly.sync" }
+        if id == "rate" { return Params.rateModeId }
         for (l, sid) in Params.lfoSyncIds.enumerated() where id == "lfo\(l + 1).speed" { return sid }
         return nil
     }
@@ -44,6 +46,7 @@ public struct KnobDefaults: Codable, Equatable, Sendable {
         let scope: String = KnobDefaults.soundScope(t.sample)
         for p in Params.grid(sound: t.sample) where !p.id.isEmpty {
             if let v = value(scope, p.id) { t.params[p.id] = v }
+            if p.id == "rate", let m = value(scope, Params.rateModeId) { t.params[Params.rateModeId] = m }
         }
     }
 

@@ -65,7 +65,10 @@ extension Sampler {
             setupVoice(v, d, t, e, frame, a, b, ratio, n, attack, decay, gate, mask, vals)
             own[v] = isOwn ? 1 : 0
             liveId[v] = live
-            _ = out.push(.start(voice: v, track: t, hash: h, frame: frame, a: a / Double(frames), b: b / Double(frames),
+            // Полоса воспроизведения: реверс — от конца отрезка к началу.
+            let fa: Double = a / Double(frames), fb: Double = b / Double(frames)
+            let rev: Bool = rate[v] < 0
+            _ = out.push(.start(voice: v, track: t, hash: h, frame: frame, a: rev ? fb : fa, b: rev ? fa : fb,
                                 rate: rate[v], frames: frames))
         }
     }
@@ -83,7 +86,7 @@ extension Sampler {
         srcFrames[v] = d.eFrames[e]
         stereo[v] = d.eChannels[e] == 2 ? 1 : 0
         start[v] = frame
-        pos[v] = a
+        beginPos[v] = a
         endPos[v] = b
         noteRatio[v] = ratio
         lockMask[v] = mask
@@ -91,9 +94,20 @@ extension Sampler {
             lockVal[v * VoiceParam.count + p] = vals.map { $0[p] } ?? 0
         }
         let pitch: Double = pv(d, t, VoiceParam.pitch, mask, vals)
-        rate[v] = ratio * pow(2, pitch / 12)
+        let pitchR: Double = ratio * pow(2, pitch / 12)
+        let rateK: Double = pv(d, t, VoiceParam.rate, mask, vals) / 100
+        // RATE (Sampler.renderVoice): PTCH — скорость и высота вместе; TSTR — скорость времени по темпу проекта.
+        let ts: Bool = d.rateMode[d.s(t)] != 0
+        tstr[v] = ts ? 1 : 0
+        srcBpm[v] = ts ? d.eBpm[e] : 0
+        grainRatio[v] = pitchR
+        let tempoK: Double = srcBpm[v] > 0 ? bpm / srcBpm[v] : 1
+        rate[v] = ts ? tempoK * rateK : pitchR * rateK
+        // Реверс — от конца отрезка.
+        pos[v] = rate[v] < 0 ? b - 1 : a
+        if ts { stretch.start(v, dir: rate[v]) }
         // Край сэмпла (End или конец файла) гаснет за 4 мс (не больше четверти звучания).
-        let playDur: Double = (b - a) / rate[v]
+        let playDur: Double = (b - a) / Swift.max(1e-3, Swift.abs(rate[v]))
         edge[v] = Swift.max(1, Swift.min(0.004 * sr, playDur / 4))
         let att: Double = Swift.max(0.001, attack) * sr
         attackF[v] = att

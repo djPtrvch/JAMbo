@@ -153,8 +153,8 @@ final class EditTests: XCTestCase {
         XCTAssertEqual(Params.byId["pan"]!.format(-10), "L10")
         XCTAssertEqual(Params.trackGrid[0].id, "pitch")
         XCTAssertEqual(Params.trackGrid[1].id, "attack", "сетка — ряд за рядом")
-        // S12: 1.4 у сэмпла пустая, 4.4 Velocity (прежний level), Swing не на сетке.
-        XCTAssertEqual(Params.trackGrid[12].id, "", "1.4 у сэмпла пока пустая")
+        // S12: 4.4 Velocity (прежний level), Swing не на сетке; 1.4 у сэмпла — RATE.
+        XCTAssertEqual(Params.trackGrid[12].id, "rate", "1.4 у сэмпла — RATE")
         XCTAssertEqual(Params.trackGrid[15].id, "level")
         XCTAssertEqual(Params.trackGrid[15].label, "Velocity")
         XCTAssertEqual(Params.trackGrid[15].format(127), "100%")

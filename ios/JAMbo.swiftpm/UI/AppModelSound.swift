@@ -167,7 +167,8 @@ extension AppModel {
             if dt < 0 { continue }
             let f: Double = v.a + dt * v.rate / Double(max(1, v.frames))
             let alpha: Double = v.track < 0 ? 1 : 1 - dt / AudioCore.sampleRate / 1.2
-            if f < v.b && alpha > 0.02 { out.append((f, alpha)) }
+            let inside: Bool = v.rate >= 0 ? f < v.b : f > v.b
+            if inside && alpha > 0.02 { out.append((f, alpha)) }
         }
         return out
     }

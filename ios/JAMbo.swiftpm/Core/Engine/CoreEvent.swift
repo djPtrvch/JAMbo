@@ -52,11 +52,11 @@ public enum CoreEvent: Sendable {
     case captureStop
 }
 
-/// P-lock ноты без коллекций: маска по VoiceParam и значения (16 — VoiceParam.count).
+/// P-lock ноты без коллекций: маска по VoiceParam и значения (17 — VoiceParam.count).
 public struct NoteLocks: Sendable {
     public var mask: VoiceMask = 0
     public var vals: (Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float,
-                      Float, Float) = (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+                      Float, Float, Float) = (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
     public init() {}
 
