@@ -122,7 +122,8 @@ struct ArrLift: Equatable {
 
 /// Размеры и прокрутка таймлайна (общие у рисования и касаний).
 struct ArrMetrics {
-    static let headerW: CGFloat = 200
+    /// Заголовки дорожек — до левого края SCALE верхней панели (решение пользователя): левая колонка и зазор.
+    static let headerW: CGFloat = Layout.leftColumn + Layout.gap
     static let rulerH: CGFloat = 20
     static let markerH: CGFloat = 18
     static let top: CGFloat = rulerH + markerH
