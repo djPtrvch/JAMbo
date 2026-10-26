@@ -1,8 +1,9 @@
 import SwiftUI
 
 // Миниатюры LFO1–3 и ENV в окне сэмпла (как renderLfo, renderEnv в sample.ts веба): пока держат MOD (отпустили —
-// сразу гаснут). LFO — период формы с Polarity и Invert и точка на текущей фазе; ENV — форма ADSR (без ноты —
-// условный гейт, видны все стадии; нота короче A+D — её настоящий гейт) и точка на кривой.
+// сразу гаснут). LFO — период формы с Polarity и Invert и точка на текущей фазе; ENV — форма ADSR по ручкам (условный
+// гейт, видны все стадии; от нот форма не меняется) и точка — настоящий уровень: пока нота держится — по кривой, после
+// отпускания — по участку Release от уровня, где нота оборвалась (у ноты короче A+D — ниже кривой).
 
 struct ModPreview: View {
     let model: AppModel
@@ -99,7 +100,8 @@ struct ModPreview: View {
                         _ c: ThumbColors) {
         let a = p["env.attack"] ?? 10, d = p["env.decay"] ?? 100, r = p["env.release"] ?? 300
         let ad = a + d
-        let gate: Double = t >= 0 && g < ad ? g : ad + Swift.max(200, (ad + r) * 0.3)
+        // Форма — только по ручкам: гейт условный (нота любой длины форму не меняет).
+        let gate: Double = ad + Swift.max(200, (ad + r) * 0.3)
         let total: Double = gate + r
         let h: CGFloat = size.height
         func y(_ v: Double) -> CGFloat { return h - 3 - CGFloat(v) * (h - 6) }
@@ -111,9 +113,20 @@ struct ModPreview: View {
             if i == 0 { path.move(to: pt) } else { path.addLine(to: pt) }
         }
         ctx.stroke(path, with: .color(c.text), style: StrokeStyle(lineWidth: 2, lineJoin: .round))
+        // Точка: держится — по кривой (до конца условного гейта); отпустили — по Release от настоящего уровня ноты.
         var x: Double = 0
-        if t >= 0 { x = t < g ? Swift.min(gate, t) : gate + Swift.min(r, t - g) }
-        let dot = CGPoint(x: CGFloat(x / total) * size.width, y: y(envShape(p, x, gate)))
+        var v: Double = 0
+        if t >= 0 {
+            if t < g {
+                x = Swift.min(gate, t)
+                v = envShape(p, x, gate)
+            } else {
+                let rel: Double = Swift.min(r, t - g)
+                x = gate + rel
+                v = envShape(p, Swift.min(gate, g), gate) * (r > 0 ? 1 - rel / r : 0)
+            }
+        }
+        let dot = CGPoint(x: CGFloat(x / total) * size.width, y: y(v))
         ctx.fill(Path(ellipseIn: CGRect(x: dot.x - 3, y: dot.y - 3, width: 6, height: 6)), with: .color(c.accent))
     }
 }
