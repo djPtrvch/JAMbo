@@ -93,7 +93,7 @@ struct MasterIndicator: View {
                        now: Double) -> some View {
         VStack(spacing: 4) {
             Text(title).font(.system(size: 10)).tracking(1).foregroundStyle(theme.dim)
-            Canvas(rendersAsynchronously: true) { ctx, size in
+            Canvas { ctx, size in
                 MasterIndicator.draw(ctx, size, s, bypass: bypass, grMax: grMax, mark: mark, now: now, theme: theme)
             }
         }

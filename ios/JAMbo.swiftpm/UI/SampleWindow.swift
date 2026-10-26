@@ -156,7 +156,7 @@ struct MixOverviewBars: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        Canvas(rendersAsynchronously: true) { ctx, size in
+        Canvas { ctx, size in
             let cell: CGFloat = size.width / 16
             let w: CGFloat = MeterBars.width
             for (t, lv) in levels.enumerated() {
@@ -204,7 +204,7 @@ struct WaveStrip: View {
     private var heads: some View {
         let heads = model.playheads(track: model.selectedTrack, key: key)
         let accent: Color = theme.accent
-        return Canvas(rendersAsynchronously: true) { ctx, size in
+        return Canvas { ctx, size in
             for h in heads {
                 let x: CGFloat = size.width * h.f
                 ctx.fill(Path(CGRect(x: x - 1, y: 0, width: 2, height: size.height)), with: .color(accent.opacity(h.a)))
