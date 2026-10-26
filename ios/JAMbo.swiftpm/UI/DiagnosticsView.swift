@@ -25,6 +25,8 @@ struct DiagnosticsView: View {
                 #endif
             }
         }
+        .onAppear { RedrawMeter.shared.pause() }
+        .onDisappear { RedrawMeter.shared.resume() }
     }
 
     private var info: some View {
@@ -69,7 +71,7 @@ struct DiagnosticsView: View {
     }
 
     /// Кадры интерфейса за секунду и с RESET; drain — сообщения колбэка → состояние (главный поток); Main — время
-    /// главного потока с RESET (S14c); Redraw — пересчёты видов в секунду с RESET (S14c).
+    /// главного потока и Redraw — пересчёты видов в секунду с RESET, пока окно закрыто (S14c).
     @ViewBuilder
     private func uiRows(_ m: FrameMeter) -> some View {
         let w: FrameMeter.FrameStats = m.last
@@ -83,7 +85,7 @@ struct DiagnosticsView: View {
         let dp: String = String(format: "%.2f", w.drainPeakMs)
         let dt: String = String(format: "%.2f", m.totalDrainMs)
         row("Drain", "\(da) ms avg · \(dp) ms peak · \(dt) ms worst")
-        row("Main", String(format: "%.1f", m.mainCpuSinceReset) + "% of one core since RESET (UI and drain)")
+        row("Main", RedrawMeter.shared.mainLine)
         row("Redraw", RedrawMeter.shared.line)
     }
 

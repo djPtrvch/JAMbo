@@ -273,7 +273,9 @@ struct KnobTurn {
     var shiftTap: Bool = false
 }
 
-/// Ручка сетки: с назначенным LFO/ENV — перерисовка каждый кадр (кольцо модуляции идёт за источником).
+/// Ручка сетки: с назначенным LFO/ENV — перерисовка каждый кадр, до 60 в секунду (кольцо модуляции идёт за
+/// источником). KnobView — equatable: правка проекта пересчитывает все ячейки, но рисуется только ручка, у которой
+/// что-то изменилось (S14c: поворот одной ручки перерисовывал все 16).
 struct KnobCell: View {
     let model: AppModel
     let slot: Int
@@ -283,12 +285,16 @@ struct KnobCell: View {
         let saved: Bool = model.defaultFlash == slot
         return Group {
             if st.assign != nil {
-                TimelineView(.animation) { _ in KnobView(state: st, mod: model.modulatedNorm(st), saved: saved) }
+                TimelineView(.animation(minimumInterval: 1.0 / 60)) { _ in
+                    KnobView(state: st, mod: model.modulatedNorm(st), saved: saved).equatable()
+                }
             } else if st.autoNorm != nil {
                 // Кривая аранжировки: ручка идёт за ней каждый кадр.
-                TimelineView(.animation) { _ in KnobView(state: model.knobState(slot), saved: saved) }
+                TimelineView(.animation(minimumInterval: 1.0 / 60)) { _ in
+                    KnobView(state: model.knobState(slot), saved: saved).equatable()
+                }
             } else {
-                KnobView(state: st, saved: saved)
+                KnobView(state: st, saved: saved).equatable()
             }
         }
     }
@@ -297,13 +303,28 @@ struct KnobCell: View {
 /// Ручка: кольцо (серое), дуга значения (белая; у двухполярных — от центра), p-lock — жёлтая дуга внутри
 /// и жёлтая стрелка, значение в центре, подпись под ручкой; LFO/ENV — кольцо снаружи от значения до текущего
 /// (LFO1–3 — своя прозрачность, ENV — пунктир), пока держат источник — вся зона воздействия. Геометрия как в вебе.
-struct KnobView: View {
+struct KnobView: View, Equatable {
     let state: KnobState
     /// Положение с модуляцией (0…1); nil — без назначения.
     var mod: Double? = nil
     /// Только что запомнено как значение по умолчанию — вместо значения SAVED.
     var saved: Bool = false
     @Environment(\.theme) private var theme
+
+    /// Те же входы — та же картинка (тема — через окружение). ParamDef — по id, подписи, пределам и тексту значения.
+    static func == (a: KnobView, b: KnobView) -> Bool {
+        let x: KnobState = a.state
+        let y: KnobState = b.state
+        if x.param?.id != y.param?.id || x.param?.label != y.param?.label { return false }
+        if x.param?.min != y.param?.min || x.param?.max != y.param?.max { return false }
+        // Подпись значения — по своей таблице (имена дорожек у источника Duck, Dly Time по темпу и свободно).
+        let tx: String? = x.param.map { $0.format(x.value) }
+        let ty: String? = y.param.map { $0.format(y.value) }
+        if tx != ty { return false }
+        if x.value != y.value || x.norm != y.norm || x.baseNorm != y.baseNorm || x.locked != y.locked { return false }
+        if x.assign != y.assign || x.heldSource != y.heldSource || x.autoNorm != y.autoNorm { return false }
+        return a.mod == b.mod && a.saved == b.saved
+    }
 
     var body: some View {
         let _ = RedrawMeter.hit(.knob)

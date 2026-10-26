@@ -45,7 +45,7 @@ struct MixCell: View {
             let exists: Bool = slot < model.project.tracks.count
             let frames: [CGRect] = MixLayout.buttons(geo.size)
             ZStack(alignment: .topLeading) {
-                KnobView(state: model.knobState(slot))
+                KnobView(state: model.knobState(slot)).equatable()
                     .padding(.leading, MixLayout.meterW + 4)
                     .padding(.trailing, MixLayout.buttonW + 6)
                 if exists {
