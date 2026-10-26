@@ -4,10 +4,12 @@ import Foundation
 // громкости микшера и Sidechain, до mute/solo, как узел vol веба) и выход мастера, — и снижение громкости от
 // Sidechain; интерфейс читает новые блоки по таймеру (баллистика, пик-холд — вне колбэка). LUFS — Loudness.
 
-/// Пики блоков по каналам: дорожки 0…maxTracks−1, выход мастера — Levels.master. Кольцо из ring блоков.
+/// Пики блоков по каналам: дорожки 0…maxTracks−1, выход мастера — Levels.master, референс (S15g) — Levels.ref.
+/// Кольцо из ring блоков.
 public final class Levels: @unchecked Sendable {
     public static let master = SoundData.maxTracks
-    public static let channels = SoundData.maxTracks + 1
+    public static let ref = SoundData.maxTracks + 1
+    public static let channels = SoundData.maxTracks + 2
     /// Значений на канал в блоке: пик L, пик R, наибольшее приглушение Sidechain (amount·e, 0…1).
     static let stride = 3
     static let ring = 64

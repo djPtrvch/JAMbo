@@ -83,6 +83,8 @@ extension Project {
                 }
             }
         }
+        // Референс аранжировщика (S15g): копия файла — в проекте.
+        if let r = arrange.ref { keys.insert(r.key) }
         return keys.filter { !$0.isEmpty && !$0.contains(":") }
     }
 }

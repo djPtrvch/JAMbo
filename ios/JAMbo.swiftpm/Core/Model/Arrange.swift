@@ -59,7 +59,23 @@ public enum ArrGrid {
     public static let stepsPerBar = 16
 }
 
-/// Общие данные аранжировки (кроме блоков): маркеры, петля, сетка и магнит, STEPS.
+/// Референс-трек (S15g): сэмпл в хранилище по ключу (в библиотеке не показывается), имя файла, сдвиг начала файла
+/// от начала таймлайна (секунды; файл играет в своём темпе), громкость (dB, регулятор измерителя в положении B).
+public struct ArrRef: Codable, Equatable, Sendable {
+    public var key: String
+    public var name: String = ""
+    public var offset: Double = 0
+    public var gain: Double = 0
+
+    public init(key: String, name: String = "", offset: Double = 0, gain: Double = 0) {
+        self.key = key
+        self.name = name
+        self.offset = offset
+        self.gain = gain
+    }
+}
+
+/// Общие данные аранжировки (кроме блоков): маркеры, петля, сетка и магнит, STEPS, референс.
 public struct Arrangement: Codable, Equatable, Sendable {
     public var markers: [ArrMarker] = []
     /// Петля: диапазон [loopFrom, loopTo) в шагах (запоминается и при выключенной), loop — зацикливание.
@@ -71,6 +87,9 @@ public struct Arrangement: Codable, Equatable, Sendable {
     public var snap: Bool = true
     /// STEPS: секвенсор и клавиатура скрыты, окно аранжировщика выше.
     public var hideSteps: Bool = false
+    /// Референс (nil — нет файла) и строка REF над дорожками (кнопка REF).
+    public var ref: ArrRef? = nil
+    public var showRef: Bool = false
 
     public init() {}
 
@@ -113,7 +132,7 @@ extension ArrMarker {
 }
 
 extension Arrangement {
-    enum CodingKeys: String, CodingKey, CaseIterable { case markers, loopFrom, loopTo, loop, grid, snap, hideSteps }
+    enum CodingKeys: String, CodingKey, CaseIterable { case markers, loopFrom, loopTo, loop, grid, snap, hideSteps, ref, showRef }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -124,6 +143,8 @@ extension Arrangement {
         grid = c.value(.grid, 2)
         snap = c.value(.snap, true)
         hideSteps = c.value(.hideSteps, false)
+        ref = c.optional(.ref)
+        showRef = c.value(.showRef, false)
     }
 
     /// После чтения: маркеры по порядку, в пределах; петля и сетка — в пределах.
@@ -141,5 +162,13 @@ extension Arrangement {
             loop = false
         }
         grid = Swift.max(0, Swift.min(grid, ArrGrid.steps.count - 1))
+        if let r = ref {
+            if r.key.isEmpty {
+                ref = nil
+            } else {
+                ref?.offset = r.offset.isFinite ? r.offset : 0
+                ref?.gain = r.gain.isFinite ? Swift.max(Params.volMin, Swift.min(0, r.gain)) : 0
+            }
+        }
     }
 }

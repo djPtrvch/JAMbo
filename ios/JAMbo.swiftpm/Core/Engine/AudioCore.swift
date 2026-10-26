@@ -35,6 +35,8 @@ public final class AudioCore: @unchecked Sendable {
     /// Цепочка мастера (сумма дорожек и FX → EQ → SAT → COMP → CLIP → LIM); тест-тон, метроном и прослушивание — мимо неё,
     /// как в вебе. Без мастера (useMaster false) — тесты, которые сверяют выход по отсчётам.
     public let master = MasterChain(sampleRate: AudioCore.sampleRate)
+    /// Референс аранжировщика (S15g): после мастера, A/B.
+    public let ref = RefPlayer()
     private let useMaster: Bool
     private let masterL = UnsafeMutablePointer<Float>.allocate(capacity: AudioCore.maxFrames)
     private let masterR = UnsafeMutablePointer<Float>.allocate(capacity: AudioCore.maxFrames)
@@ -100,7 +102,7 @@ public final class AudioCore: @unchecked Sendable {
                         octaves: [Int] = [],
                         tables: [String: WtTable] = [:], scSends: SidechainSends = SidechainSends(),
                         muteTails: Bool = false, levelRelative: Bool = true, master: [Double]? = nil,
-                        extra: [String] = [], next: [Int] = [], rebind: Bool = false) {
+                        extra: [String] = [], next: [Int] = [], rebind: Bool = false, refB: Bool = false) {
         releaseRetired()
         if lastSeq == nil || !SeqSnapshot.same(lastSeq!, project) {
             lastSeq = project
@@ -110,7 +112,7 @@ public final class AudioCore: @unchecked Sendable {
         let made = SoundSnapshot(project, samples: samples, map: map, octave: octave, octaves: octaves, tables: tables,
                                  scSends: scSends, muteTails: muteTails, levelRelative: levelRelative,
                                  slots: sequencer.launcher.slot, master: master, extra: extra,
-                                 next: next, keepAlt: altKeep, rebind: rebind)
+                                 next: next, keepAlt: altKeep, rebind: rebind, refB: refB)
         altKeep = made.altKeep
         let snd = Unmanaged.passRetained(made)
         if !sounds.push(snd) { snd.release() }
@@ -192,6 +194,7 @@ public final class AudioCore: @unchecked Sendable {
             if spectra.outOn.load() != 0 { spectra.out.push(masterL, masterR, n) }
             meterMaster(n)
             master.scope.gonio(masterL, masterR, n)
+            renderRef(d, n)
             var i = 0
             while i < n {
                 left[i] += masterL[i]
@@ -205,6 +208,21 @@ public final class AudioCore: @unchecked Sendable {
         profile.lap(RenderProfile.meters)
         sampler.renderPreview(n, left, right)
         profile.lap(RenderProfile.voices)
+    }
+
+    /// Референс (S15g): место — по курсору таймлайна в конце блока (после шагов блока) минус блок.
+    @inline(__always)
+    private func renderRef(_ d: SoundData, _ n: Int) {
+        let seq: Sequencer = sequencer
+        let play: Bool = seq.playing && seq.launcher.arrangeMode
+        var x: Double = 0
+        if play {
+            let end: Double = seq.arrangePosition(at: sampleTime + Int64(n))
+            let back: Double = Double(n) / AudioCore.sampleRate * seq.bpm / 15
+            x = end - back
+        }
+        ref.render(d, play: play, x: x, bpm: seq.bpm, n: n)
+        ref.mix(d, masterL, masterR, n: n, levels: levels)
     }
 
     /// Стемы блока: выходы дорожек после громкости · гейт mute/solo (без посылов), мастер — конечный выход.

@@ -107,6 +107,14 @@ public struct SoundData {
     /// Порядок дорожек в микшере (S7b): источник динамической полосы EQ — раньше дорожки, которая его слушает
     /// (выход — в этом же блоке, как в вебе); в кольце источников одна дорожка слышит прошлый блок.
     public var eqOrder: UnsafeMutablePointer<Int>
+    /// Референс аранжировщика (S15g; RefPlayer): буферы (nil — нет), кадров, сдвиг начала файла от начала таймлайна
+    /// (кадры), громкость (усиление), A/B (true — слышен референс).
+    public var refLeft: UnsafeMutablePointer<Float>? = nil
+    public var refRight: UnsafeMutablePointer<Float>? = nil
+    public var refFrames: Int = 0
+    public var refOffset: Double = 0
+    public var refGain: Float = 1
+    public var refB: Bool = false
 
     /// Номер звука дорожки t в таблицах звука: t или t + maxTracks (играет клип altSlot со вторым звуком).
     @inline(__always)
@@ -194,7 +202,8 @@ public final class SoundSnapshot: @unchecked Sendable {
     public init(_ project: Project, samples: [String: SampleData], map: SliceMap, octave: Int = 3, octaves: [Int] = [],
                 tables: [String: WtTable] = [:], scSends: SidechainSends = SidechainSends(), muteTails: Bool = false,
                 levelRelative: Bool = true, slots: UnsafeMutablePointer<Int>? = nil, master: [Double]? = nil,
-                extra: [String] = [], next: [Int] = [], keepAlt: [Int: Int] = [:], rebind: Bool = false) {
+                extra: [String] = [], next: [Int] = [], keepAlt: [Int: Int] = [:], rebind: Bool = false,
+                refB: Bool = false) {
         let tracks = SoundData.maxTracks
         let tracks2 = tracks * 2
         var own: UnsafeMutablePointer<Int>? = nil
@@ -429,6 +438,16 @@ public final class SoundSnapshot: @unchecked Sendable {
         }
         d.extraCount = e - d.extraStart
         d.entryTotal = e
+        // Референс (S15g): буферы держит снимок (keep), пока колбэк их читает.
+        if let r = project.arrange.ref, let s = samples[r.key] {
+            keep.append(s)
+            d.refLeft = s.left
+            d.refRight = s.right
+            d.refFrames = s.frames
+            d.refOffset = r.offset * AudioCore.sampleRate
+            d.refGain = Float(Params.volGain(r.gain))
+        }
+        d.refB = refB
         data = d
         self.keep = keep
         self.keepTables = keepTables
