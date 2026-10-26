@@ -112,8 +112,8 @@ struct MenuItem: View {
 }
 
 struct CellMenu: View {
-    /// TO ARRANGE 54 (подпись 12, зазор 2, кнопки 40) с отступом 8 снизу, 3 строки по 40, 3 зазора по 6, поля 16.
-    static let height: CGFloat = 216
+    /// TO ARRANGE 40 с отступом 8 снизу, 3 строки по 40, 3 зазора по 6, поля 16.
+    static let height: CGFloat = 202
     let model: AppModel
     let state: CellMenuState
 
@@ -121,11 +121,11 @@ struct CellMenu: View {
         let c = state.cell
         let t: Track = model.project.tracks[min(c.track, model.project.tracks.count - 1)]
         let filled: Bool = t.clipFilled(c.row)
-        let arrange: Bool = filled || model.gridSel.contains(c)
+        let arrange: Bool = t.clipHasTrigs(c.row) || model.gridSel.contains(c)
         return VStack(spacing: 6) {
-            ArrangePair(enabled: arrange) { cursor in
+            MenuItem(title: "TO ARRANGE", enabled: arrange) {
                 model.cellMenu = nil
-                model.clipToArrange(c, atCursor: cursor)
+                model.clipToArrange(c)
             }
             .padding(.bottom, 8)
             MenuItem(title: "COPY", enabled: filled) { run { model.copyClip(c) } }
@@ -143,29 +143,10 @@ struct CellMenu: View {
     }
 }
 
-/// TO ARRANGE: подпись и две кнопки — END (в конец аранжировки) и CURSOR (с курсора).
-struct ArrangePair: View {
-    let enabled: Bool
-    let pick: (Bool) -> Void
-    @Environment(\.theme) private var theme
-
-    var body: some View {
-        VStack(spacing: 2) {
-            Text("TO ARRANGE").font(.system(size: 9)).foregroundStyle(theme.dim)
-                .frame(maxWidth: .infinity, minHeight: 12, alignment: .leading)
-            HStack(spacing: 6) {
-                MenuItem(title: "END", enabled: enabled) { pick(false) }
-                MenuItem(title: "CURSOR", enabled: enabled) { pick(true) }
-            }
-        }
-    }
-}
-
-/// Меню строки: имя (до 12 знаков), REPEATS − n +, TO ARRANGE (END, CURSOR), DUPLICATE, COPY, PASTE, DELETE, OK.
+/// Меню строки: имя (до 12 знаков), REPEATS − n +, TO ARRANGE, DUPLICATE, COPY, PASTE, DELETE, OK.
 struct RowMenu: View {
-    /// Имя 44, REPEATS 44, TO ARRANGE 54 (подпись 12, зазор 2, кнопки 40) и отступы 8 сверху и снизу, 3 строки по 40,
-    /// 5 зазоров по 6, поля 16.
-    static let height: CGFloat = 324
+    /// Имя 44, REPEATS 44, TO ARRANGE 40 и отступы 8 сверху и снизу, 3 строки по 40, 5 зазоров по 6, поля 16.
+    static let height: CGFloat = 310
     let model: AppModel
     let row: Int
     @State private var name: String = ""
@@ -213,17 +194,16 @@ struct RowMenu: View {
         .frame(height: 44)
     }
 
-    /// TO ARRANGE (S15e): блоки строки (или всего выделенного рамкой) — в конец аранжировки или с курсора (имя и
-    /// повторы — из этого окна).
+    /// TO ARRANGE (S15e): блоки строки (или всего выделенного рамкой) — с курсора (имя и повторы — из этого окна).
     private var arrangeRow: some View {
-        let any: Bool = model.project.rowFilled(row) || model.gridSel.touches(row: row)
+        let p: Project = model.project
+        let any: Bool = p.tracks.contains { $0.clipHasTrigs(row) } || model.gridSel.touches(row: row)
         // Отступ — чтобы не сливался с кнопками окна (решение пользователя).
-        return ArrangePair(enabled: any) { toArrange($0) }.padding(.vertical, 8)
-    }
-
-    private func toArrange(_ cursor: Bool) {
-        model.rowMenu = nil
-        model.rowToArrange(row, name: name, repeats: reps, atCursor: cursor)
+        return MenuItem(title: "TO ARRANGE", enabled: any) {
+            model.rowMenu = nil
+            model.rowToArrange(row, name: name, repeats: reps)
+        }
+        .padding(.vertical, 8)
     }
 
     private func done() {
@@ -260,22 +240,10 @@ struct GridMenu: View {
                 pair("NEW PATTERNS", !p.plusCopy, "COPY PLAYING", p.plusCopy) { model.setArrangement(plusCopy: !$0) }
                 title("▲ ▼ ARROWS")
                 pair("VIEW", !p.arrowSwitch, "SWITCH", p.arrowSwitch) { model.setArrangement(arrowSwitch: !$0) }
-                // S15e: что играло в сетке за последние 32 такта — в аранжировку.
-                title("SEND TO ARRANGE")
-                HStack(spacing: 6) {
-                    let any: Bool = !model.live.journal.isEmpty
-                    MenuItem(title: "END", enabled: any) { send(false) }
-                    MenuItem(title: "CURSOR", enabled: any) { send(true) }
-                }
             }
             .padding(.trailing, 6)
         }
         .modifier(MenuPanel())
-    }
-
-    private func send(_ cursor: Bool) {
-        model.gridMenuOpen = false
-        model.sendToArrange(atCursor: cursor)
     }
 
     private func title(_ s: String) -> some View {

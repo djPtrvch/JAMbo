@@ -3,10 +3,13 @@ import SwiftUI
 // Перенос клипа из сетки паттернов в аранжировку (решение пользователя): поднятый клип тянут на кнопку ARRANGE —
 // открывается аранжировщик (сетка остаётся под ним невидимой, пока палец не отпущен: жест не прерывается), клип
 // встаёт блоком на свою дорожку — на свободное место или, на стыке (палец у начала блока), со сдвигом блоков правее.
+// Клип выделения рамкой несёт всё выделенное: оно встаёт с места пальца, как TO ARRANGE (строки одна за другой).
 
-/// Идёт перенос клипа: ячейка и открыт ли уже аранжировщик (палец — carryPoint, отдельно: меняется каждый кадр).
+/// Идёт перенос клипа: ячейка, выделение рамкой (несут его целиком; nil — один клип) и открыт ли уже аранжировщик
+/// (палец — carryPoint, отдельно: меняется каждый кадр).
 struct ClipCarry: Equatable {
     let cell: CellRef
+    var sel: GridSelection? = nil
     var overArrange: Bool = false
 }
 
@@ -22,9 +25,16 @@ extension AppModel {
     /// Палец у начала блока ближе этого (pt) — вставка со сдвигом.
     static let carryJunction: CGFloat = 16
 
+    /// Клип c в выделении рамкой из нескольких клипов или строк — тянут всё выделенное.
+    func carryGroup(_ c: CellRef) -> GridSelection? {
+        let sel: GridSelection = gridSel
+        if !sel.contains(c) { return nil }
+        return sel.rows.isEmpty && sel.cells.count < 2 ? nil : sel
+    }
+
     /// Клип тянут (p — палец в координатах «root»): над кнопкой ARRANGE — открыть аранжировщик.
     func carryMove(_ c: CellRef, root p: CGPoint) {
-        if clipCarry == nil { clipCarry = ClipCarry(cell: c) }
+        if clipCarry == nil { clipCarry = ClipCarry(cell: c, sel: carryGroup(c)) }
         carryPoint = p
         guard var carry = clipCarry, !carry.overArrange, arrangeButtonFrame.contains(p) else { return }
         carry.overArrange = true
@@ -47,9 +57,17 @@ extension AppModel {
         guard let c = clipCarry else { return false }
         clipCarry = nil
         if !c.overArrange { return false }
-        let drop: CarryDrop? = cancelled ? nil : carryDrop(c)
         patternView = false
-        guard let d = drop else { return true }
+        if cancelled { return true }
+        if let sel = c.sel {
+            guard let s = carryGroupStart(c) else { return true }
+            edit { p in p.selectionToArrange(sel, at: s) }
+            gridSel = GridSelection()
+            arrGroup = []
+            arrSel = nil
+            return true
+        }
+        guard let d = carryDrop(c) else { return true }
         let k: Int = c.cell.row
         var i: Int = 0
         edit { p in
@@ -80,6 +98,29 @@ extension AppModel {
         return CarryDrop(track: t, start: max(0, s), length: len, insert: false)
     }
 
+    /// Выделение: начало под пальцем (с магнитом — на линии сетки); только над таймлайном (ниже линейки).
+    func carryGroupStart(_ c: ClipCarry) -> Int? {
+        let f: CGRect = arrTimelineFrame
+        let pt: CGPoint = carryPoint
+        guard c.overArrange, f.contains(pt), pt.y - f.minY >= ArrMetrics.top else { return nil }
+        let m: ArrMetrics = arrMetrics(f.size)
+        let x: Int = Int(m.step(at: pt.x - f.minX).rounded(.down))
+        return max(0, project.arrange.snapped(x))
+    }
+
+    /// Выделение: блоки, которые встанут (проба на копии проекта — новые блоки с места пальца).
+    func carryGroupGhost(_ c: ClipCarry) -> [(track: Int, block: ArrBlock)] {
+        guard let sel = c.sel, let s = carryGroupStart(c) else { return [] }
+        var probe: Project = project
+        probe.selectionToArrange(sel, at: s)
+        var out: [(track: Int, block: ArrBlock)] = []
+        for t in probe.tracks.indices where t < project.tracks.count {
+            let old: [ArrBlock] = project.tracks[t].blocks
+            for b in probe.tracks[t].blocks where b.start >= s && !old.contains(b) { out.append((t, b)) }
+        }
+        return out
+    }
+
     /// Метрики таймлайна размера size (как у окна аранжировщика).
     func arrMetrics(_ size: CGSize) -> ArrMetrics {
         let p: Project = project
@@ -98,7 +139,9 @@ struct ArrCarryLayer: View {
 
     var body: some View {
         let _ = model.carryPoint
-        if let d = model.carryDrop(carry) {
+        if carry.sel != nil {
+            group(model.carryGroupGhost(carry))
+        } else if let d = model.carryDrop(carry) {
             let p: Project = model.project
             let color: Color = d.track < p.tracks.count ? ArrColors.color(p.tracks[d.track].color) : ArrColors.color(0)
             let r: CGRect = m.rect(d.track, ArrBlock(clip: carry.cell.row, start: d.start, length: d.length))
@@ -113,6 +156,25 @@ struct ArrCarryLayer: View {
             }
             .allowsHitTesting(false)
         }
+    }
+
+    /// Выделение: блоки там, где встанут.
+    private func group(_ list: [(track: Int, block: ArrBlock)]) -> some View {
+        let p: Project = model.project
+        return ZStack(alignment: .topLeading) {
+            ForEach(0..<list.count, id: \.self) { i in
+                let t: Int = list[i].track
+                let r: CGRect = m.rect(t, list[i].block)
+                let color: Color = t < p.tracks.count ? ArrColors.color(p.tracks[t].color) : ArrColors.color(0)
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(color.opacity(0.85))
+                    .overlay(RoundedRectangle(cornerRadius: 4).stroke(theme.text, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
+                    .frame(width: r.width, height: r.height)
+                    .offset(x: r.minX, y: r.minY)
+            }
+        }
+        .shadow(color: Color.black.opacity(0.5), radius: 8, y: 4)
+        .allowsHitTesting(false)
     }
 
     /// Стык: жёлтая черта на высоту строки и значок ⟷ над ней.

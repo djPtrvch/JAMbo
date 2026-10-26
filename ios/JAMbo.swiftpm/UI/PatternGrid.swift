@@ -22,6 +22,10 @@ struct PatternGrid: View {
     /// Рамка выделения: палец и прямоугольник от точки касания.
     @State private var bandId: SpatialEventCollection.Event.ID? = nil
     @State private var band: CGRect? = nil
+    /// Начало рамки — в координатах всех строк (y от первой строки проекта: рамка держится при прокрутке окна строк)
+    /// и последняя точка пальца (автопрокрутка у края).
+    @State private var bandAnchor: CGPoint = .zero
+    @State private var bandLoc: CGPoint = .zero
     /// Последний тап по строке — для двойного тапа (меню строки).
     @State private var sceneTap: (row: Int, at: Date)? = nil
     /// Левый верхний угол сетки в координатах «root» (перенос клипа на ARRANGE).
@@ -217,9 +221,13 @@ struct PatternGrid: View {
             // Свободное место: удержание — рамка выделения от точки касания.
             case .none:
                 if bandId == nil {
+                    let pitch: CGFloat = g.rowH + PatternGrid.rowGap
                     bandId = id
+                    bandAnchor = CGPoint(x: cur.start.x, y: cur.start.y + CGFloat(model.gridWindow.top) * pitch)
                     band = CGRect(origin: cur.start, size: .zero)
+                    bandLoc = cur.start
                     model.gridSel = GridSelection()
+                    autoScroll(g, id)
                 }
             // Строка: удержание поднимает её для переноса (меню — двойным тапом).
             case .scene(let k):
@@ -240,7 +248,7 @@ struct PatternGrid: View {
         if hypot(dx, dy) > 8 { p.moved = true }
         presses[id] = p
         if bandId == id {
-            stretchBand(g, from: p.start, to: loc)
+            stretchBand(g, to: loc)
             return
         }
         // Строка тянется только после удержания (палец замер на 0,5 с); строки между ней и пальцем — цель.
@@ -269,29 +277,59 @@ struct PatternGrid: View {
         if dragId == nil && hypot(dx, dy) <= 8 { return }
         dragId = id
         ghost = loc
-        if case .cell(let t) = g.hit(loc, window: model.gridWindow), t != c { target = t } else { target = nil }
+        // Клип выделения рамкой несёт всё выделенное — только в аранжировку (в сетку не кладётся).
+        let group: Bool = model.carryGroup(c) != nil
+        if !group, case .cell(let t) = g.hit(loc, window: model.gridWindow), t != c { target = t } else { target = nil }
         // На кнопку ARRANGE — в аранжировку (клип PREV — нет).
         if !model.isPrev(c.row) { model.carryMove(c, root: CGPoint(x: loc.x + rootOrigin.x, y: loc.y + rootOrigin.y)) }
     }
 
-    /// Рамка до пальца: выделены заполненные клипы, которых она касается, и строки, если задета колонка строк.
-    private func stretchBand(_ g: GridGeometry, from a: CGPoint, to b: CGPoint) {
-        let r = CGRect(x: min(a.x, b.x), y: min(a.y, b.y), width: abs(b.x - a.x), height: abs(b.y - a.y))
-        band = r
-        var sel = GridSelection()
-        let w = model.gridWindow
+    /// Рамка до пальца: выделены заполненные клипы, которых она касается, и строки, если задета колонка строк (по всем
+    /// строкам проекта, в том числе ушедшим из окна при прокрутке).
+    private func stretchBand(_ g: GridGeometry, to b: CGPoint) {
+        bandLoc = b
         let pitch: CGFloat = g.rowH + PatternGrid.rowGap
-        for (i, row) in w.rows.enumerated() {
-            guard let k = row, !model.isPrev(k) else { continue }
-            let y: CGFloat = CGFloat(i) * pitch
+        let shift: CGFloat = CGFloat(model.gridWindow.top) * pitch
+        let a: CGPoint = bandAnchor
+        let by: CGFloat = b.y + shift
+        let r = CGRect(x: min(a.x, b.x), y: min(a.y, by), width: abs(b.x - a.x), height: abs(by - a.y))
+        // На экране — в пределах сетки.
+        let seen: CGRect = r.offsetBy(dx: 0, dy: -shift).intersection(CGRect(origin: .zero, size: g.size))
+        band = seen.isNull ? CGRect.zero : seen
+        var sel = GridSelection()
+        for k in 0..<model.project.visibleRows where !model.isPrev(k) {
+            let y: CGFloat = CGFloat(k) * pitch
             if r.maxY < y || r.minY > y + g.rowH { continue }
             if r.minX <= g.sceneW { sel.rows.insert(k) }
             for t in 0..<g.tracks where model.project.tracks[t].clipFilled(k) {
-                let x: CGFloat = g.origin(col: t, row: i).width
+                let x: CGFloat = g.origin(col: t, row: 0).width
                 if r.maxX >= x && r.minX <= x + g.trackW { sel.cells.insert(CellRef(track: t, row: k)) }
             }
         }
         if sel != model.gridSel { model.gridSel = sel }
+    }
+
+    /// Рамка у верхнего или нижнего края сетки (полстроки) — окно строк прокручивается на строку каждые 0,25 с,
+    /// если там есть ещё строки.
+    private func autoScroll(_ g: GridGeometry, _ id: SpatialEventCollection.Event.ID) {
+        Task { @MainActor in
+            while bandId == id {
+                try? await Task.sleep(nanoseconds: 250_000_000)
+                guard bandId == id else { return }
+                let w = model.gridWindow
+                let edge: CGFloat = g.rowH / 2
+                var top: Int = w.top
+                if bandLoc.y < edge && top > 0 {
+                    top -= 1
+                } else if bandLoc.y > g.size.height - edge && top < w.maxTop {
+                    top += 1
+                }
+                if top != w.top {
+                    model.gridTop = top
+                    stretchBand(g, to: bandLoc)
+                }
+            }
+        }
     }
 
     private func end(_ g: GridGeometry, _ id: SpatialEventCollection.Event.ID, _ loc: CGPoint, cancelled: Bool) {

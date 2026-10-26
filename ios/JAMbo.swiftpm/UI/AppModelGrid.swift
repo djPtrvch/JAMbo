@@ -241,10 +241,15 @@ extension AppModel {
         edit { p in p.setScene(k, name: name, repeats: repeats) }
     }
 
+    /// Куда встаёт TO ARRANGE (решения пользователя): с курсора, с магнитом — на линии сетки.
+    var arrPlaceAt: Int {
+        return project.arrange.snapped(arrCursor)
+    }
+
     /// TO ARRANGE в меню строки (S15e): имя и повторы из окна строки и перенос — одна запись UNDO. В строке есть
     /// выделение рамкой — переносится всё выделенное.
-    func rowToArrange(_ k: Int, name: String, repeats: Int, atCursor: Bool) {
-        let at: Int? = atCursor ? arrCursor : nil
+    func rowToArrange(_ k: Int, name: String, repeats: Int) {
+        let at: Int = arrPlaceAt
         let sel: GridSelection = gridSel
         let many: Bool = sel.touches(row: k)
         edit { p in
@@ -255,8 +260,8 @@ extension AppModel {
     }
 
     /// TO ARRANGE в меню клипа: клип в выделении рамкой — всё выделенное, иначе — один проход этого клипа.
-    func clipToArrange(_ c: CellRef, atCursor: Bool) {
-        let at: Int? = atCursor ? arrCursor : nil
+    func clipToArrange(_ c: CellRef) {
+        let at: Int = arrPlaceAt
         let sel: GridSelection = gridSel.contains(c) ? gridSel : GridSelection(cells: [c])
         edit { p in p.selectionToArrange(sel, at: at) }
         gridSel = GridSelection()

@@ -5,6 +5,15 @@ import Foundation
 // (вызывает UI).
 
 extension Track {
+    /// В клипе k есть триги (на играющих страницах): пустые клипы и ячейки в аранжировку не переносятся.
+    public func clipHasTrigs(_ k: Int) -> Bool {
+        guard clipFilled(k), let c = clips[k] else { return false }
+        for p in c.range where p < c.pages.count {
+            if c.pages[p].contains(where: { $0.on }) { return true }
+        }
+        return false
+    }
+
     /// Длина прохода клипа k в шагах транспорта (с учётом скорости); пустая ячейка — такт.
     public func clipSteps(_ k: Int) -> Int {
         guard clipFilled(k), let c = clips[k] else { return ArrGrid.stepsPerBar }
@@ -372,10 +381,10 @@ extension Project {
     }
 
     /// TO ARRANGE (S15e): строка k — в аранжировку с позиции at (nil — в конец аранжировки). Длина строки — самый
-    /// длинный клип × N (N — повторы строки; LOOP ROW — один проход); все дорожки заполняют её блоками длиной в свой
-    /// клип (короткий повторяется, последний блок — до конца строки; пустая ячейка — блоками по такту: допишут паттерн —
-    /// зазвучит). Участок дорожек и секции в нём заменяются; секция — имя строки на длину строки. Конец участка; nil —
-    /// в строке нет клипов.
+    /// длинный клип × N (N — повторы строки; LOOP ROW — один проход); дорожки с тригами в клипе заполняют её блоками
+    /// длиной в свой клип (короткий повторяется, последний блок — до конца строки). Пустые клипы и ячейки не переносятся
+    /// (решение пользователя) — их дорожки не трогаются. Участок дорожек и секции в нём заменяются; секция — имя строки
+    /// на длину строки. Конец участка; nil — в строке нет клипов с тригами.
     @discardableResult
     public mutating func rowToArrange(_ k: Int, at: Int?) -> Int? {
         guard k >= 0 && k < scenes.count else { return nil }
@@ -386,14 +395,14 @@ extension Project {
         return span.end
     }
 
-    /// Клипы строки k на дорожках only — блоками с позиции at (nil — в конец): длина — самый длинный заполненный клип
-    /// × repeats, каждая дорожка — блоками длиной в свой клип (короткий повторяется, последний — до конца участка).
-    /// Участок этих дорожек заменяется. nil — среди них нет заполненных клипов.
+    /// Клипы строки k на дорожках only — блоками с позиции at (nil — в конец): длина — самый длинный клип × repeats,
+    /// каждая дорожка — блоками длиной в свой клип (короткий повторяется, последний — до конца участка). Только клипы с
+    /// тригами; участок их дорожек заменяется. nil — таких клипов нет.
     mutating func placeRow(_ k: Int, tracks only: [Int], repeats reps: Int, at: Int?) -> (start: Int, end: Int)? {
         guard k >= 0 && k < scenes.count else { return nil }
-        let list: [Int] = only.filter { $0 >= 0 && $0 < tracks.count }
+        let list: [Int] = only.filter { $0 >= 0 && $0 < tracks.count && tracks[$0].clipHasTrigs(k) }
         var longest: Int = 0
-        for t in list where tracks[t].clipFilled(k) { longest = Swift.max(longest, tracks[t].clipSteps(k)) }
+        for t in list { longest = Swift.max(longest, tracks[t].clipSteps(k)) }
         if longest == 0 { return nil }
         let start: Int = Swift.max(0, at ?? arrangeEnd)
         let end: Int = start + longest * Swift.max(1, reps)

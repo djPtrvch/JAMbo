@@ -24,7 +24,7 @@ struct RootView: View {
             let layout: Layout = Layout(width: geo.size.width - 24, piano: piano)
             ZStack(alignment: .topLeading) {
                 theme.bg.ignoresSafeArea()
-                screen(layout, lowerH, units.bar)
+                screen(layout, lowerH, units.bar, geo.size.height)
                 arrangeMeter
                 overlays
                 if let c = model.choice {
@@ -114,7 +114,7 @@ struct RootView: View {
         return (bar, unit)
     }
 
-    private func screen(_ layout: Layout, _ lowerH: CGFloat, _ bar: CGFloat) -> some View {
+    private func screen(_ layout: Layout, _ lowerH: CGFloat, _ bar: CGFloat, _ h: CGFloat) -> some View {
         // Перенос клипа из сетки на ARRANGE (AppModelCarry): аранжировщик открыт поверх, а сетка остаётся под ним
         // (почти прозрачной), пока палец не отпущен, — её жест не прерывается.
         let carrying: Bool = model.clipCarry != nil
@@ -124,7 +124,7 @@ struct RootView: View {
             TopBar(model: model, menuOpen: $menuOpen)
             ZStack(alignment: .top) {
                 if !arrange || carrying {
-                    main(layout, lowerH).opacity(arrange ? 0.001 : 1)
+                    main(layout, lowerH, h).opacity(arrange ? 0.001 : 1)
                 }
                 if arrange {
                     arrangeArea(layout, lowerH, bar)
@@ -137,18 +137,21 @@ struct RootView: View {
         .padding(.vertical, 8)
     }
 
-    /// Обычный экран: центр и низ. STEPS сетки паттернов выключена — под сеткой только строка дорожек, сетка выше.
+    /// Обычный экран: центр и низ (высоты — явно, h — высота экрана). STEPS сетки паттернов выключена — под сеткой
+    /// только строка дорожек, сетка выше на секвенсор и клавиатуру.
     @ViewBuilder
-    private func main(_ layout: Layout, _ lowerH: CGFloat) -> some View {
+    private func main(_ layout: Layout, _ lowerH: CGFloat, _ h: CGFloat) -> some View {
+        // Центр: экран без полей (8 сверху и снизу), верхней панели, низа и двух зазоров.
+        let centerH: CGFloat = max(0, h - 16 - Layout.topHeight - lowerH - 2 * Layout.gap)
         if model.patternView && model.project.gridHideSteps {
             VStack(spacing: Layout.gap) {
-                center(layout).frame(maxHeight: .infinity)
+                center(layout).frame(height: centerH + lowerH - Layout.trackHeight)
                 TrackRow(model: model, layout: layout)
                     .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("root")).minY } action: { trackTop = $0 }
             }
         } else {
             VStack(spacing: Layout.gap) {
-                center(layout).frame(maxHeight: .infinity)
+                center(layout).frame(height: centerH)
                 lower(layout).frame(height: lowerH)
             }
         }

@@ -1,10 +1,16 @@
 import SwiftUI
 
 /// Меню аранжировщика (S15c): блока — COPY, PASTE, DUPLICATE, DELETE; места на дорожке — клипы дорожки и PASTE;
-/// дорожки — COPY, PASTE, DUPLICATE и цвет. Тап мимо — закрыть.
+/// дорожки — COPY, PASTE, DUPLICATE и цвет. Тап мимо — закрыть. Меню — только на свободном месте окна: над окнами
+/// STEPS и AUTO (решение пользователя).
 struct ArrMenus: View {
     let model: AppModel
     let size: CGSize
+
+    /// Низ свободного места: окно без закрытого STEPS или AUTO.
+    private var free: CGFloat {
+        return max(0, size.height - model.arrInset)
+    }
 
     var body: some View {
         if let m = model.arrMenu {
@@ -40,14 +46,14 @@ struct ArrMenus: View {
 
     private func laneMenu(_ t: Int, _ x: Int, _ a: CGPoint) -> some View {
         let n: Int = model.arrClips(t).count
-        let h: CGFloat = ArrLaneMenu.height(n, size.height)
+        let h: CGFloat = ArrLaneMenu.height(n, free)
         let o: CGSize = place(a, w: ArrLaneMenu.width, h: h)
         return ArrLaneMenu(model: model, track: t, at: x).frame(height: h).offset(o)
     }
 
     private func insertMenu(_ t: Int, _ x: Int, _ a: CGPoint) -> some View {
         let n: Int = model.arrClips(t).count
-        let h: CGFloat = ArrLaneMenu.height(max(0, n - 1), size.height)
+        let h: CGFloat = ArrLaneMenu.height(max(0, n - 1), free)
         let o: CGSize = place(a, w: ArrLaneMenu.width, h: h)
         return ArrInsertMenu(model: model, track: t, at: x).frame(height: h).offset(o)
     }
@@ -60,8 +66,9 @@ struct ArrMenus: View {
         let x: CGFloat = max(0, min(left, right))
         let below: CGFloat = a.y + 12
         let above: CGFloat = max(0, a.y - 12 - h)
-        let fits: Bool = below + h <= size.height
-        let y: CGFloat = fits ? below : above
+        let fits: Bool = below + h <= free
+        // Палец над окном STEPS или AUTO и сверху не помещается — вплотную к нему сверху.
+        let y: CGFloat = fits ? below : max(0, min(above, free - h))
         return CGSize(width: x, height: y)
     }
 
@@ -70,7 +77,7 @@ struct ArrMenus: View {
         let m = ArrMetrics(size: size, port: model.arrPort, tracks: model.project.tracks.count, end: 0, expanded: model.settings.arrangeExpanded,
                            inset: model.arrInset, ref: model.arrRefShown)
         let h: CGFloat = ArrTrackMenu.height
-        let y: CGFloat = max(0, min(m.rowY(t), size.height - h))
+        let y: CGFloat = max(0, min(m.rowY(t), free - h))
         // От начала таймлайна (решение пользователя).
         return CGSize(width: ArrMetrics.headerW, height: y)
     }
