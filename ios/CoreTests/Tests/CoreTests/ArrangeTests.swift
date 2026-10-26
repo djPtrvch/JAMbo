@@ -225,12 +225,6 @@ final class ArrangeTests: XCTestCase {
         let sel = GridSelection(cells: [CellRef(track: 0, row: 1)])
         XCTAssertTrue(p.selectionOverlaps(sel, at: 0))
         XCTAssertFalse(p.selectionOverlaps(sel, at: 16))
-        // Конец всей аранжировки — и по секциям, и по автоматизации.
-        XCTAssertEqual(p.arrangeEnd, 64)
-        p.addMarker(at: 64, name: "C", end: 96)
-        XCTAssertEqual(p.sequenceEnd, 96)
-        p.tracks[2].autos = [ArrAutoLane(param: "filter", points: [ArrAutoPoint(x: 120.5, y: 0)])]
-        XCTAssertEqual(p.sequenceEnd, 121)
     }
 
     func testSplitRange() {
@@ -341,6 +335,11 @@ final class ArrangeTests: XCTestCase {
         XCTAssertNil(p.rowToArrange(5, at: nil))
         p.tracks[0].clips[6] = Clip()
         XCTAssertNil(p.rowToArrange(6, at: nil))
+        // Строка без имени — блоки без секции.
+        p.tracks[0].clips[7] = trigClip(pages: 1)
+        let n: Int = p.arrange.markers.count
+        XCTAssertNotNil(p.rowToArrange(7, at: nil))
+        XCTAssertEqual(p.arrange.markers.count, n, "у строки без имени секции нет")
     }
 
     /// TO ARRANGE выделения рамкой: строки сверху вниз одна за другой; строка целиком — с повторами и секцией,

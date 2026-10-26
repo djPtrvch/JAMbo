@@ -90,18 +90,6 @@ extension Project {
         }
     }
 
-    /// Конец всей аранжировки (TO END): последний блок, конец последней секции, последняя точка автоматизации.
-    public var sequenceEnd: Int {
-        var e: Int = arrangeEnd
-        for (k, m) in arrange.markers.enumerated() { e = Swift.max(e, sectionEnd(k) ?? m.at) }
-        for t in tracks {
-            for l in t.autos {
-                if let last = l.points.last { e = Swift.max(e, Int(last.x.rounded(.up))) }
-            }
-        }
-        return e
-    }
-
     /// Выделение на участке с шага at кладётся поверх блоков (перекроет их)? Проба на копии: блоки тех же дорожек на
     /// участке [at, конец).
     public func selectionOverlaps(_ sel: GridSelection, at: Int) -> Bool {

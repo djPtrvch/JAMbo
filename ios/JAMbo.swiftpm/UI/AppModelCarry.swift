@@ -149,9 +149,10 @@ extension AppModel {
                 p.selectionToArrange(sel, at: s)
             }
         case .end:
-            // Конец всей аранжировки (блоки, секции, автоматизация); с магнитом — следующая линия сетки.
+            // За последним блоком аранжировки (решение пользователя: секции и автоматизация не в счёт); с магнитом —
+            // следующая линия сетки.
             let a: Arrangement = project.arrange
-            let e: Int = project.sequenceEnd
+            let e: Int = project.arrangeEnd
             let g: Int = max(1, a.gridSteps)
             let at: Int = a.snap ? (e + g - 1) / g * g : e
             edit { p in p.selectionToArrange(sel, at: at) }

@@ -383,15 +383,18 @@ extension Project {
     /// TO ARRANGE (S15e): строка k — в аранжировку с позиции at (nil — в конец аранжировки). Длина строки — самый
     /// длинный клип × N (N — повторы строки; LOOP ROW — один проход); дорожки с тригами в клипе заполняют её блоками
     /// длиной в свой клип (короткий повторяется, последний блок — до конца строки). Пустые клипы и ячейки не переносятся
-    /// (решение пользователя) — их дорожки не трогаются. Участок дорожек и секции в нём заменяются; секция — имя строки
-    /// на длину строки. Конец участка; nil — в строке нет клипов с тригами.
+    /// (решение пользователя) — их дорожки не трогаются. Участок дорожек заменяется. У строки с именем — секция с этим
+    /// именем на длину строки (секции на участке заменяются); у строки без имени секции нет (решение пользователя: не
+    /// «1», «2»…). Конец участка; nil — в строке нет клипов с тригами.
     @discardableResult
     public mutating func rowToArrange(_ k: Int, at: Int?) -> Int? {
         guard k >= 0 && k < scenes.count else { return nil }
         let reps: Int = rowLoop ? 1 : Swift.max(1, scenes[k].repeats)
         guard let span = placeRow(k, tracks: Array(tracks.indices), repeats: reps, at: at) else { return nil }
-        arrange.markers.removeAll { $0.at >= span.start && $0.at < span.end }
-        addMarker(at: span.start, name: sceneName(k), end: span.end)
+        if !scenes[k].name.isEmpty {
+            arrange.markers.removeAll { $0.at >= span.start && $0.at < span.end }
+            addMarker(at: span.start, name: scenes[k].name, end: span.end)
+        }
         return span.end
     }
 
