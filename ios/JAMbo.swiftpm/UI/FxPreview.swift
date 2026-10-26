@@ -3,8 +3,8 @@ import SwiftUI
 // Картинка FX в окне сэмпла (docs/ai/fx-eq.md «Анимация FX»): пока палец на ручке FX (или ручку FX крутят с MIDI),
 // поверх превью сэмпла или синта — картинка её колонки: Reverb, Delay, Drive, Duck. Раскладка и поле — как у окна
 // синта (SynthInfo): заголовок, поле 64×64 (до 144 pt, элементы в 4…60 × 6…58, как у иконок ударных), линии вдвое тоньше иконок. Неподвижна,
-// меняется только от ручек (кроме точки Duck). Цвета — как у иконок движков: звук — icon, второстепенное (контуры,
-// серые копии, огибающая фильтра) — icon2. Геометрия — FxPicture (Core).
+// меняется только от ручек (кроме точки Duck). Цвета — как у иконок движков: звук — icon, второстепенное (контуры DECAY,
+// чистый синус Drive, огибающая фильтра) — icon2. Геометрия — FxPicture (Core).
 
 struct FxPreview: View {
     let model: AppModel
@@ -206,8 +206,8 @@ struct FxReverbPic: View, Equatable {
     }
 }
 
-/// Delay: повторы — белые линии сплошным цветом (ниже и тусклее по FEEDBACK); SPREAD — серые копии повторов
-/// попеременно вверх (L) и вниз (R).
+/// Delay: повторы — белые линии сплошным цветом (ниже и тусклее по FEEDBACK); SPREAD сдвигает их попеременно вверх (L)
+/// и вниз (R).
 struct FxDelayPic: View, Equatable {
     let echoes: [FxPicture.Echo]
     let spread: Double
@@ -217,7 +217,6 @@ struct FxDelayPic: View, Equatable {
 
     var body: some View {
         let ink: Color = theme.icon
-        let ink2: Color = theme.icon2
         let bg: Color = theme.panel
         let echoes: [FxPicture.Echo] = self.echoes
         let spread: Double = self.spread
@@ -225,7 +224,7 @@ struct FxDelayPic: View, Equatable {
             FxField.begin(&ctx, size)
             let mid: CGFloat = 32
             let bw: CGFloat = FxField.stroke * 1.7
-            // Первый повтор — у левого края поля, дальше шаг TIME, линия полной высоты — 40 (12…52); копии SPREAD — до ±6
+            // Первый повтор — у левого края поля, дальше шаг TIME, линия полной высоты — 40 (12…52); сдвиг SPREAD — до ±6
             // (поле 6…58).
             let first: CGFloat = CGFloat(echoes.first?.x ?? 0)
             let x0: CGFloat = FxField.x0 + bw / 2
@@ -234,13 +233,9 @@ struct FxDelayPic: View, Equatable {
             for e in echoes {
                 let x: CGFloat = x0 + w * (CGFloat(e.x) - first)
                 let hh: CGFloat = full * CGFloat(e.h)
-                // Сплошным цветом (без прозрачности): тусклее — ближе к фону; белая перекрывает серую копию без смеси.
-                if spread > 0.005 {
-                    let dy: CGFloat = CGFloat(e.side) * CGFloat(spread) * 6
-                    let r = CGRect(x: x - bw / 2, y: mid - hh / 2 + dy, width: bw, height: hh)
-                    ctx.fill(Path(roundedRect: r, cornerRadius: bw / 2), with: .color(ink2.mix(with: bg, by: 1 - e.a)))
-                }
-                let r = CGRect(x: x - bw / 2, y: mid - hh / 2, width: bw, height: hh)
+                // Одна линия сплошным цветом (тусклее — ближе к фону); SPREAD сдвигает её вверх (L) или вниз (R).
+                let dy: CGFloat = CGFloat(e.side) * CGFloat(spread) * 6
+                let r = CGRect(x: x - bw / 2, y: mid - hh / 2 + dy, width: bw, height: hh)
                 ctx.fill(Path(roundedRect: r, cornerRadius: bw / 2), with: .color(ink.mix(with: bg, by: 1 - e.a)))
             }
         }

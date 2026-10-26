@@ -88,7 +88,7 @@ public enum FxPicture {
 
     // MARK: — Delay
 
-    /// Повтор: x — доля ширины, h — высота (доля), a — яркость, side — смещение серой копии: −1 вверх (L), +1 вниз (R).
+    /// Повтор: x — доля ширины, h — высота (доля), a — яркость, side — сдвиг линии по SPREAD: −1 вверх (L), +1 вниз (R).
     public struct Echo: Equatable {
         public let x: Double
         public let h: Double
