@@ -33,6 +33,8 @@ struct ArrMenus: View {
             insertMenu(t, x, a)
         case .range(let a):
             ArrRangeMenu(model: model, anchor: a).offset(place(a, w: ArrRangeMenu.width, h: ArrRangeMenu.height))
+        case .ref:
+            ArrRefMenu(model: model).offset(CGSize(width: ArrMetrics.headerW, height: ArrMetrics.top))
         }
     }
 
@@ -66,11 +68,31 @@ struct ArrMenus: View {
     /// Меню дорожки — справа от её заголовка, по высоте — от строки дорожки.
     private func trackPlace(_ t: Int) -> CGSize {
         let m = ArrMetrics(size: size, port: model.arrPort, tracks: model.project.tracks.count, end: 0, expanded: model.settings.arrangeExpanded,
-                           inset: model.arrInset)
+                           inset: model.arrInset, ref: model.arrRefShown)
         let h: CGFloat = ArrTrackMenu.height
         let y: CGFloat = max(0, min(m.rowY(t), size.height - h))
         // От начала таймлайна (решение пользователя).
         return CGSize(width: ArrMetrics.headerW, height: y)
+    }
+}
+
+/// Меню REF: LOAD — браузер (другой файл), DELETE — референса нет.
+struct ArrRefMenu: View {
+    static let width: CGFloat = 180
+    let model: AppModel
+
+    var body: some View {
+        VStack(spacing: 6) {
+            MenuItem(title: "LOAD") { run { model.openBrowser(.ref) } }
+            MenuItem(title: "DELETE", red: true) { run { model.arrDeleteRef() } }
+        }
+        .frame(width: ArrRefMenu.width)
+        .modifier(MenuPanel())
+    }
+
+    private func run(_ f: () -> Void) {
+        model.arrMenu = nil
+        f()
     }
 }
 

@@ -23,6 +23,8 @@ enum BrowserMode: Equatable {
     case loadTable
     case savePreset
     case saveSample(String)
+    /// REF аранжировщика (S15g): тап по сэмплу или IMPORT — референс проекта.
+    case ref
 }
 
 extension AppModel {
@@ -48,9 +50,12 @@ extension AppModel {
     }
 
     func closeBrowser() {
+        let wasRef: Bool = browser == .ref
         browser = nil
         libPicked = nil
         stopLibraryPreview()
+        // Браузер REF открыт из аранжировщика — ✕ возвращает в него.
+        if wasRef && !arrangeView { toggleArrange() }
     }
 
     var tableMode: Bool { return browser == .loadTable }
@@ -76,6 +81,8 @@ extension AppModel {
             let list: [LibNode] = library.children(libFolder).filter { $0.kind == .folder || $0.kind == .table }
             return libFolder == Library.root ? [LibraryBuiltins.folder] + list : list
         }
+        // REF — только папки и сэмплы.
+        if browser == .ref { return library.children(libFolder).filter { $0.kind == .folder || $0.kind == .sample } }
         return library.children(libFolder).filter { $0.kind != .table }
     }
 
@@ -129,6 +136,7 @@ extension AppModel {
 
     /// Звук дорожки сейчас — этот узел (подсветка).
     func libIsCurrent(_ n: LibNode) -> Bool {
+        if browser == .ref { return n.kind == .sample && n.key != nil && n.key == project.arrange.ref?.key }
         guard channel == .track, libPicked == nil, !saveMode else { return false }
         let t: Track = track
         switch n.kind {
@@ -152,6 +160,10 @@ extension AppModel {
                 return
             }
             libUseTable(key, name: n.name)
+            return
+        }
+        if browser == .ref {
+            libUseRef(n)
             return
         }
         guard case .load(let steps) = browser, channel == .track else { return }
@@ -276,6 +288,10 @@ extension AppModel {
     func libImport(_ urls: [URL]) {
         if tableMode {
             libImportTables(urls)
+            return
+        }
+        if browser == .ref {
+            refImport(urls)
             return
         }
         let into: String = libFolder == LibraryBuiltins.folderId ? Library.root : libFolder

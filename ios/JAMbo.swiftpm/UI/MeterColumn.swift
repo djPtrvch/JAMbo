@@ -61,7 +61,7 @@ struct MeterColumn: View {
     }
 
     private func bars(_ ch: Int) -> some View {
-        let stereo: Bool = ch == Levels.master || model.trackStereo(ch)
+        let stereo: Bool = ch >= Levels.master || model.trackStereo(ch)
         let data = model.meters.bars(ch, stereo: stereo)
         let track: Bool = ch < Levels.master
         let vol: Double = faderValue(ch)

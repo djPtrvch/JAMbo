@@ -18,6 +18,8 @@ enum ArrMenuState: Equatable {
     case insert(track: Int, at: Int, anchor: CGPoint)
     /// Выделенный на линейке диапазон: LOOP (зациклить), SECTION (секция с начала диапазона).
     case range(anchor: CGPoint)
+    /// Строка REF (S15g): LOAD (другой файл), DELETE.
+    case ref
 }
 
 /// Вид таймлайна: ширина шага (nil — 16 тактов на ширину), прокрутка по X и по Y (pt). Высота строки — по режиму
@@ -62,7 +64,10 @@ extension AppModel {
     }
 
     func closeArrange() {
+        // Вне аранжировщика слышен проект (A).
+        let wasB: Bool = refBActive
         arrangeView = false
+        if wasB { publishAudio() }
         arrMenu = nil
         arrSel = nil
         arrInsert = false

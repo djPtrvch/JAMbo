@@ -23,7 +23,12 @@ struct ArrangeWindow: View {
                         Color.clear.frame(width: Layout.meterWidth).padding(.leading, Layout.gap)
                     }
                 }
-                ArrTotalTime(model: model).frame(width: ArrMetrics.headerW, height: ArrMetrics.top)
+                // Слева от линейки: время; при строке REF — A/B (S15g).
+                HStack(spacing: 0) {
+                    ArrTotalTime(model: model)
+                    if model.arrRefShown { ArrABSwitch(model: model).padding(.vertical, 5).padding(.trailing, 6) }
+                }
+                .frame(width: ArrMetrics.headerW, height: ArrMetrics.top)
                 ArrMenus(model: model, size: geo.size)
             }
         }
@@ -55,6 +60,33 @@ struct ArrTotalTime: View {
     static func clock(_ seconds: Double) -> String {
         let sec: Int = max(0, Int(seconds.rounded(.down)))
         return String(format: "%d:%02d", sec / 60, sec % 60)
+    }
+}
+
+/// A/B (S15g): A — слышен проект, B — референс (мимо мастера; измеритель, LUFS и регулятор — референса); горит
+/// выбранная буква, тап — другая.
+struct ArrABSwitch: View {
+    let model: AppModel
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let b: Bool = model.arrRefB
+        return HStack(spacing: 0) {
+            letter("A", !b)
+            letter("B", b)
+        }
+        .frame(width: 60)
+        .background(theme.panel2, in: RoundedRectangle(cornerRadius: 5))
+        .contentShape(Rectangle())
+        .onTapGesture { model.toggleArrRefB() }
+    }
+
+    private func letter(_ s: String, _ on: Bool) -> some View {
+        Text(s)
+            .font(.system(size: 12, weight: .heavy))
+            .foregroundStyle(on ? theme.bg : theme.dim)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(on ? theme.text : Color.clear, in: RoundedRectangle(cornerRadius: 5))
     }
 }
 
@@ -108,11 +140,14 @@ struct ArrMetrics {
     /// SETTINGS → ARRANGE: COMPACT — строки делят высоту окна поровну (без прокрутки), EXPANDED — своя высота строк
     /// (масштаб двумя пальцами по вертикали) и прокрутка.
     let expanded: Bool
+    /// Строка REF (S15g) — над дорожками, под линейкой (не прокручивается); дорожки — на строку ниже.
+    let refRow: Bool
     /// inset — низ окна, закрытый окном AUTO (STEPS выключена): дорожки не сжимаются, прокрутка — до последней.
-    init(size: CGSize, port: ArrPort, tracks: Int, end: Int, expanded: Bool, inset: CGFloat = 0) {
+    init(size: CGSize, port: ArrPort, tracks: Int, end: Int, expanded: Bool, inset: CGFloat = 0, ref: Bool = false) {
         self.size = size
         self.tracks = tracks
         self.expanded = expanded
+        refRow = ref
         let w: CGFloat = max(1, size.width)
         let fit: CGFloat = w / 256
         let want: CGFloat = port.stepW ?? fit
@@ -121,7 +156,8 @@ struct ArrMetrics {
         let seen: CGFloat = max(0, area - inset)
         let n: CGFloat = CGFloat(max(1, tracks))
         let g: CGFloat = ArrMetrics.gap
-        let fitRow: CGFloat = (seen - (n - 1) * g) / n
+        let r: CGFloat = ref ? 1 : 0
+        let fitRow: CGFloat = (seen - (n + r - 1) * g) / (n + r)
         // Решения пользователя: строки дорожек — через чёрный зазор (как зазоры между окнами). EXPANDED — 8 строк и 7
         // зазоров на высоту окна (одна высота строки на весь экран: низ — 3 строки и 2 зазора, RootView), больше 8 дорожек
         // — прокрутка; COMPACT — все дорожки на видимую высоту окна. Масштаба по вертикали нет.
@@ -129,7 +165,7 @@ struct ArrMetrics {
         steps = max(end, 0) + 32 * ArrMetrics.stepsPerBar
         let maxX: CGFloat = max(0, CGFloat(steps) * stepW - w)
         x = min(maxX, max(0, port.x))
-        let maxY: CGFloat = max(0, n * (rowH + g) - g - seen)
+        let maxY: CGFloat = max(0, n * (rowH + g) - g - (seen - r * (rowH + g)))
         y = min(maxY, max(0, port.y))
     }
 
@@ -150,14 +186,22 @@ struct ArrMetrics {
     /// Шаг строк: строка и зазор.
     var pitch: CGFloat { return rowH + ArrMetrics.gap }
 
+    /// Верх дорожек: под линейкой, при строке REF — под ней.
+    var body: CGFloat { return ArrMetrics.top + (refRow ? pitch : 0) }
+
+    /// Точка в строке REF.
+    func inRef(_ py: CGFloat) -> Bool {
+        return refRow && py >= ArrMetrics.top && py < ArrMetrics.top + rowH
+    }
+
     func rowY(_ t: Int) -> CGFloat {
-        return ArrMetrics.top + CGFloat(t) * pitch - y
+        return body + CGFloat(t) * pitch - y
     }
 
     /// Строка заголовка с верхом y принимает касания, только если верх не ушёл под линейку: маска прячет строку, но не
     /// касания — уехавшая вверх строка ловила тапы второй строки экрана (AUTO включал S дорожки).
     func tappable(_ top: CGFloat) -> Bool {
-        return top >= ArrMetrics.top - 1 && top < size.height
+        return top >= body - 1 && top < size.height
     }
 
     /// Шаг под точкой (дробный).
@@ -167,8 +211,8 @@ struct ArrMetrics {
 
     /// Дорожка под точкой (−1 — не дорожка: линейка или ниже последней).
     func track(at py: CGFloat) -> Int {
-        if py < ArrMetrics.top { return -1 }
-        let cy: CGFloat = py - ArrMetrics.top + y
+        if py < body { return -1 }
+        let cy: CGFloat = py - body + y
         let t: Int = Int((cy / pitch).rounded(.down))
         return t >= 0 && t < tracks ? t : -1
     }
@@ -201,16 +245,18 @@ struct ArrTimeline: View {
         let marquee: CGRect? = model.arrMarquee
         let selTrack: Int = model.channel == .track ? model.selectedTrack : -1
         let following: [Bool] = (0..<p.tracks.count).map { model.arrFollowing($0) }
+        let wave: RefWave? = model.arrRefShown ? model.refWave : nil
+        let waveKey: String = (p.arrange.ref?.key ?? "") + "#\(model.samplesVersion)"
         return GeometryReader { geo in
             let m = ArrMetrics(size: geo.size, port: port, tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded,
-                           inset: model.arrInset)
+                           inset: model.arrInset, ref: model.arrRefShown)
             ZStack(alignment: .topLeading) {
                 Canvas { ctx, size in
                     // Левые углы прямые (к заголовкам дорожек), правые скруглены — решение пользователя.
                     var c = ctx
                     c.clip(to: ArrTimeline.frameShape.path(in: CGRect(origin: .zero, size: size)))
                     ArrDraw(ctx: c, m: m, theme: theme).draw(p, sel: sel, lift: lift, following: following,
-                                                            track: selTrack, group: group, marquee: marquee)
+                                                            track: selTrack, group: group, marquee: marquee, wave: wave)
                 }
                 ArrCursorLayer(model: model, m: m, head: true)
                 if let l = lift { liftedView(l, m, p) }
@@ -220,6 +266,8 @@ struct ArrTimeline: View {
         }
         .background(theme.panel)
         .clipShape(ArrTimeline.frameShape)
+        .onAppear { model.ensureRefWave() }
+        .onChange(of: waveKey) { _, _ in model.ensureRefWave() }
     }
 
     static let frameShape = UnevenRoundedRectangle(topLeadingRadius: 0, bottomLeadingRadius: 0,
@@ -250,11 +298,11 @@ struct ArrTimeline: View {
     private func apply(_ events: SpatialEventCollection, _ size: CGSize) {
         let p: Project = model.project
         let m = ArrMetrics(size: size, port: model.arrPort, tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded,
-                           inset: model.arrInset)
+                           inset: model.arrInset, ref: model.arrRefShown)
         var port: ArrPort = model.arrPort
         touches.handle(events, port: &port, m, model, lift: $lift)
         let c = ArrMetrics(size: size, port: port, tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded,
-                           inset: model.arrInset)
+                           inset: model.arrInset, ref: model.arrRefShown)
         let next = ArrPort(stepW: port.stepW == nil ? nil : c.stepW, x: c.x, y: c.y)
         if next != model.arrPort { model.arrPort = next }
     }
@@ -267,7 +315,7 @@ struct ArrDraw {
     let theme: Theme
 
     func draw(_ p: Project, sel: ArrSel?, lift: ArrLift?, following: [Bool], track: Int, group: [ArrSel],
-              marquee: CGRect?) {
+              marquee: CGRect?, wave: RefWave? = nil) {
         gridLines(p)
         lanes(p)
         for t in 0..<p.tracks.count {
@@ -280,6 +328,7 @@ struct ArrDraw {
         selectedLane(track)
         if let l = lift { target(l, p, group) }
         if let r = marquee { marqueeRect(r) }
+        refRow(p, wave)
         ruler(p)
         markers(p)
     }
@@ -287,7 +336,7 @@ struct ArrDraw {
     private func lanes(_ p: Project) {
         for t in 0..<p.tracks.count {
             let y: CGFloat = m.rowY(t)
-            if y > m.size.height || y + m.rowH < ArrMetrics.top { continue }
+            if y > m.size.height || y + m.rowH < m.body { continue }
             // Зазор под строкой — цветом фона (чёрная линия, как между окнами).
             let r = CGRect(x: 0, y: y + m.rowH, width: m.size.width, height: ArrMetrics.gap)
             ctx.fill(Path(r), with: .color(theme.bg))
@@ -318,7 +367,7 @@ struct ArrDraw {
     private func selectedLane(_ t: Int) {
         if t < 0 || t >= m.tracks { return }
         let y: CGFloat = m.rowY(t)
-        if y > m.size.height || y + m.rowH < ArrMetrics.top { return }
+        if y > m.size.height || y + m.rowH < m.body { return }
         // Те же высоты, что у линий заголовка (края строки): одна линия.
         ctx.fill(Path(CGRect(x: 0, y: y, width: m.size.width, height: 1)), with: .color(theme.accent))
         ctx.fill(Path(CGRect(x: 0, y: y + m.rowH - 1, width: m.size.width, height: 1)), with: .color(theme.accent))
@@ -327,7 +376,7 @@ struct ArrDraw {
     private func blocks(_ p: Project, _ t: Int, sel: ArrSel?, group: [ArrSel], lift: ArrLift?, dim: Bool) {
         let tr: Track = p.tracks[t]
         let y: CGFloat = m.rowY(t)
-        if y > m.size.height || y + m.rowH < ArrMetrics.top { return }
+        if y > m.size.height || y + m.rowH < m.body { return }
         let color: Color = ArrColors.color(tr.color)
         for (i, b) in tr.blocks.enumerated() {
             if let l = lift, l.track == t, l.index == i { continue }
@@ -396,6 +445,44 @@ struct ArrDraw {
     private func marqueeRect(_ r: CGRect) {
         ctx.fill(Path(r), with: .color(theme.text.opacity(0.08)))
         ctx.stroke(Path(r), with: .color(theme.text.opacity(0.8)), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+    }
+
+    /// Строка REF (S15g): над дорожками (уехавшие под неё — закрыты), волна референса по времени таймлайна (файл в
+    /// своём темпе: место — секунды шага при текущем темпе минус сдвиг), зазор снизу.
+    private func refRow(_ p: Project, _ wave: RefWave?) {
+        guard m.refRow else { return }
+        let y0: CGFloat = ArrMetrics.top
+        let h: CGFloat = m.rowH
+        ctx.fill(Path(CGRect(x: 0, y: y0, width: m.size.width, height: h + ArrMetrics.gap)), with: .color(theme.bg))
+        ctx.fill(Path(CGRect(x: 0, y: y0, width: m.size.width, height: h)), with: .color(theme.trackBg))
+        guard let w = wave, let r = p.arrange.ref, w.key == r.key, !w.peaks.isEmpty else { return }
+        let rate: Double = AudioCore.sampleRate
+        let sps: Double = 15 / max(20, p.bpm)
+        let colW: CGFloat = 2
+        let perCol: Double = Double(colW / m.stepW) * sps * rate
+        let mid: CGFloat = y0 + h / 2
+        let amp: CGFloat = h / 2 - 3
+        let count: Int = w.peaks.count
+        var path = Path()
+        var px: CGFloat = 0
+        while px < m.size.width {
+            let f0: Double = (m.step(at: px) * sps - r.offset) * rate
+            let f1: Double = f0 + perCol
+            if f1 > 0 && f0 < Double(w.frames) {
+                let a: Int = max(0, Int(f0) / RefWave.hop)
+                let b: Int = min(count, Int(f1) / RefWave.hop + 1)
+                var v: Float = 0
+                var k: Int = a
+                while k < b {
+                    if w.peaks[k] > v { v = w.peaks[k] }
+                    k += 1
+                }
+                let hh: CGFloat = max(0.5, CGFloat(min(1, v)) * amp)
+                path.addRect(CGRect(x: px, y: mid - hh, width: colW - 0.5, height: hh * 2))
+            }
+            px += colW
+        }
+        ctx.fill(path, with: .color(theme.text.opacity(0.6)))
     }
 
     /// Линейка: номера тактов, планка петли (жёлтая; выключенная петля — бледная).

@@ -2,8 +2,11 @@ import Foundation
 
 /// Измеритель справа и метры MIX: канал, стерео или моно, громкость дорожки с измерителя.
 extension AppModel {
-    /// Канал измерителя: выбранная дорожка, при MIX и MST — выход мастера.
-    var meterChannel: Int { return channel == .track ? selectedTrack : Levels.master }
+    /// Канал измерителя: выбранная дорожка, при MIX и MST — выход мастера; REF в положении B — референс (S15g).
+    var meterChannel: Int {
+        if refBActive { return Levels.ref }
+        return channel == .track ? selectedTrack : Levels.master
+    }
 
     /// Кадр метров (drain, 60 раз в секунду): LUFS копится и при закрытом измерителе (сетка паттернов).
     func tickMeters() {
@@ -77,6 +80,7 @@ extension AppModel {
     /// (при RELATIVE — с подстройкой trim, выше громкости MIX не поднимается), у MIX и MST — громкость выхода.
     func meterVol(_ ch: Int) -> Double {
         if ch == Levels.master { return project.outVol }
+        if ch == Levels.ref { return project.arrange.ref?.gain ?? 0 }
         guard ch < project.tracks.count else { return Params.volDef }
         let t = project.tracks[ch]
         if !settings.levelRelative { return t.vol }
@@ -87,6 +91,8 @@ extension AppModel {
     func setMeterVol(_ ch: Int, _ v: Double) {
         if ch == Levels.master {
             setOutVol(v)
+        } else if ch == Levels.ref {
+            setArrRefGain(v)
         } else if settings.levelRelative {
             setTrackLevel(ch, v)
         } else {

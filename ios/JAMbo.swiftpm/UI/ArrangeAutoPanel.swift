@@ -160,7 +160,7 @@ struct ArrAutoCurve: View {
         let param: ParamDef? = model.arrAutoParam(t)
         return GeometryReader { geo in
             let m = ArrMetrics(size: geo.size, port: port, tracks: p.tracks.count, end: p.arrangeEnd,
-                               expanded: model.settings.arrangeExpanded)
+                               expanded: model.settings.arrangeExpanded, ref: model.arrRefShown)
             Canvas { ctx, size in
                 let d = ArrAutoDraw(ctx: ctx, m: m, theme: theme)
                 d.grid(p)
@@ -196,10 +196,10 @@ struct ArrAutoCurve: View {
     private func apply(_ events: SpatialEventCollection, _ size: CGSize) {
         let p: Project = model.project
         let expanded: Bool = model.settings.arrangeExpanded
-        let m = ArrMetrics(size: size, port: model.arrPort, tracks: p.tracks.count, end: p.arrangeEnd, expanded: expanded)
+        let m = ArrMetrics(size: size, port: model.arrPort, tracks: p.tracks.count, end: p.arrangeEnd, expanded: expanded, ref: model.arrRefShown)
         var port: ArrPort = model.arrPort
         touches.handle(events, port: &port, m, model)
-        let c = ArrMetrics(size: size, port: port, tracks: p.tracks.count, end: p.arrangeEnd, expanded: expanded)
+        let c = ArrMetrics(size: size, port: port, tracks: p.tracks.count, end: p.arrangeEnd, expanded: expanded, ref: model.arrRefShown)
         let next = ArrPort(stepW: port.stepW == nil ? nil : c.stepW, x: c.x, y: port.y)
         if next != model.arrPort { model.arrPort = next }
     }

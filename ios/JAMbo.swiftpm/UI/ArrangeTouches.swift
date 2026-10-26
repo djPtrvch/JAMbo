@@ -8,7 +8,7 @@ import SwiftUI
 /// дорожке — клип для вставки, правый край вставленного блока — длина со сдвигом. Два пальца — масштаб по времени (точка
 /// между пальцами на месте) и прокрутка; по вертикали масштаба нет (решение пользователя).
 final class ArrTouches {
-    enum Mode { case idle, tap, press, lift, edge, scroll, ruler, zoom, marquee }
+    enum Mode { case idle, tap, press, lift, edge, scroll, ruler, zoom, marquee, ref }
 
     private var points: [SpatialEventCollection.Event.ID: CGPoint] = [:]
     private var mode: Mode = .idle
@@ -29,6 +29,8 @@ final class ArrTouches {
     private var lastTap: (at: Date, point: CGPoint)? = nil
     private var lastPoint: CGPoint = .zero
     private let ruler = ArrRulerTouches()
+    /// Строка REF: сдвиг начала файла до жеста (секунды).
+    private var refBase: Double = 0
     static let slop: CGFloat = 8
     static let zoomSlop: CGFloat = 10
     static let hold: Double = 0.35
@@ -47,7 +49,7 @@ final class ArrTouches {
         }
         if points.isEmpty { return }
         let p: [CGPoint] = Array(points.values)
-        if p.count >= 2 && mode != .zoom && mode != .lift && mode != .edge {
+        if p.count >= 2 && mode != .zoom && mode != .lift && mode != .edge && mode != .ref {
             beginZoom(p[0], p[1], m)
         } else if p.count == 1 && mode == .idle {
             begin(p[0], m, model, lift: lift)
@@ -64,6 +66,13 @@ final class ArrTouches {
         if p.y < ArrMetrics.top {
             mode = .ruler
             ruler.begin(p, m, model)
+            return
+        }
+        // Строка REF: палец вбок — сдвиг начала файла (одна запись UNDO на жест).
+        if m.inRef(p.y) {
+            mode = .ref
+            refBase = model.project.arrange.ref?.offset ?? 0
+            model.beginGesture()
             return
         }
         let t: Int = m.track(at: p.y)
@@ -165,6 +174,9 @@ final class ArrTouches {
             drag(p[0], m, model, lift: lift)
         case .marquee:
             marquee(p[0], m, model)
+        case .ref:
+            let ds: Double = Double((p[0].x - start.x) / m.stepW)
+            model.setArrRefOffset(refBase + ds * model.arrStepSeconds)
         case .edge:
             if moved { edgeMoved = true }
             if edgeMoved { edge(p[0], m, model) }
@@ -206,6 +218,8 @@ final class ArrTouches {
             if ended { tapped(model, m) }
         case .ruler:
             ruler.end(ended, m, model)
+        case .ref:
+            model.endGesture()
         case .lift:
             settle(model, lift: lift)
         case .edge:

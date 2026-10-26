@@ -33,7 +33,7 @@ struct ArrangeBar: View {
                     Image(systemName: "dial.medium").font(.system(size: 20, weight: .semibold)).foregroundStyle(c)
                 }
                 ArrBarButton(on: !a.hideSteps, enabled: true, action: { model.toggleArrSteps() }) { c in ArrStepsIcon(color: c) }
-                ArrBarText(title: "REF", on: false, enabled: false) {}
+                ArrBarText(title: "REF", on: model.arrRefShown, enabled: true) { model.toggleArrRef() }
             }
             .frame(width: Layout.leftColumn)
             .background(cover)

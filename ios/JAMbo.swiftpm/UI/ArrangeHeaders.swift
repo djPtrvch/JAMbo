@@ -12,25 +12,33 @@ struct ArrHeaders: View {
         return GeometryReader { geo in
             let m = ArrMetrics(size: CGSize(width: geo.size.width, height: geo.size.height), port: port,
                                tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded,
-                           inset: model.arrInset)
+                           inset: model.arrInset, ref: model.arrRefShown)
             ZStack(alignment: .topLeading) {
-                // Все строки — одним столбцом с одним сдвигом (прокрутка — без отставания строк от таймлайна).
-                VStack(spacing: ArrMetrics.gap) {
-                    ForEach(0..<p.tracks.count, id: \.self) { t in
-                        ArrHeaderRow(model: model, index: t, rowH: m.rowH)
-                            .frame(width: geo.size.width, height: m.rowH)
-                            .allowsHitTesting(m.tappable(m.rowY(t)))
+                ZStack(alignment: .topLeading) {
+                    // Все строки — одним столбцом с одним сдвигом (прокрутка — без отставания строк от таймлайна).
+                    VStack(spacing: ArrMetrics.gap) {
+                        ForEach(0..<p.tracks.count, id: \.self) { t in
+                            ArrHeaderRow(model: model, index: t, rowH: m.rowH)
+                                .frame(width: geo.size.width, height: m.rowH)
+                                .allowsHitTesting(m.tappable(m.rowY(t)))
+                        }
                     }
+                    .offset(x: 0, y: m.rowY(0))
+                    .transaction { $0.animation = nil }
                 }
-                .offset(x: 0, y: m.rowY(0))
-                .transaction { $0.animation = nil }
+                .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
+                // Строки — только под линейкой таймлайна (и строкой REF) и в пределах окна.
+                .mask(VStack(spacing: 0) {
+                    Color.clear.frame(height: m.body)
+                    Color.black
+                })
+                // Строка REF (S15g) — над дорожками, не прокручивается.
+                if m.refRow {
+                    ArrRefHeader(model: model)
+                        .frame(width: geo.size.width, height: m.rowH)
+                        .offset(x: 0, y: ArrMetrics.top)
+                }
             }
-            .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
-            // Строки — только под линейкой таймлайна и в пределах окна.
-            .mask(VStack(spacing: 0) {
-                Color.clear.frame(height: ArrMetrics.top)
-                Color.black
-            })
         }
     }
 }
@@ -115,6 +123,29 @@ struct ArrHeaderRow: View {
         }
         lastTap = now
         model.select(track: index)
+    }
+}
+
+/// Заголовок строки REF: REF и имя файла; двойной тап — меню REF (LOAD, DELETE).
+struct ArrRefHeader: View {
+    let model: AppModel
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let name: String = model.project.arrange.ref?.name ?? ""
+        return HStack(spacing: 6) {
+            Text("REF").font(.system(size: 12, weight: .heavy)).foregroundStyle(theme.text)
+            Text(name).font(.system(size: 11, weight: .semibold)).foregroundStyle(theme.dim).lineLimit(1)
+                .truncationMode(.middle)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.leading, 6)
+        .padding(.trailing, 10)
+        .frame(maxHeight: .infinity)
+        .background(theme.trackBg, in: UnevenRoundedRectangle(topLeadingRadius: 6, bottomLeadingRadius: 6,
+                                                              bottomTrailingRadius: 0, topTrailingRadius: 0))
+        .contentShape(Rectangle())
+        .onTapGesture(count: 2) { model.arrMenu = .ref }
     }
 }
 
