@@ -54,7 +54,8 @@ struct SettingsPage: View {
 }
 
 /// ARRANGE (S15): вид дорожек аранжировщика — EXPANDED (по умолчанию: 8 дорожек на высоту окна, больше — прокрутка) или
-/// COMPACT (все на высоту окна); GRID — шаг сетки таймлайна (1 BAR, 1/2, 1/4, 1 STEP).
+/// COMPACT (все на высоту окна); GRID — шаг сетки таймлайна (1 BAR, 1/2, 1/4, 1 STEP); ROW REPEATS — клипы строки в
+/// аранжировку на длину × повторы строки.
 struct ArrangeSettings: View {
     let model: AppModel
 
@@ -74,6 +75,8 @@ struct ArrangeSettings: View {
                     MenuItem(title: ArrGrid.names[k], current: model.project.arrange.grid == k) { model.setArrGrid(k) }
                 }
             }
+            ToggleRow(title: "ROW REPEATS", isOn: model.settings.arrangeRepeats) { v in model.updateSettings { $0.arrangeRepeats = v } }
+            SettingsNote(text: "ON: clips go to the arrangement as long as the row repeats (×4 on a 1-bar clip — a 4-bar block). OFF: one pass.")
         }
     }
 }

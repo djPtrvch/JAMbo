@@ -56,6 +56,7 @@ extension AppModel {
     /// (остаётся аранжировщик), над таймлайном — блок (одна запись UNDO).
     func carryEnd(cancelled: Bool) -> Bool {
         guard let c = clipCarry else { return false }
+        let rp: Bool = settings.arrangeRepeats
         clipCarry = nil
         if !c.overArrange { return false }
         patternView = false
@@ -63,13 +64,13 @@ extension AppModel {
         if let sel = c.sel {
             guard let s = carryGroupStart(c) else { return true }
             // Поверх блоков — меню: здесь, раздвинуть или в конец.
-            if project.selectionOverlaps(sel, at: s) {
+            if project.selectionOverlaps(sel, at: s, repeats: settings.arrangeRepeats) {
                 let f: CGRect = arrTimelineFrame
                 arrDropPending = (sel, s)
                 arrMenu = .drop(anchor: CGPoint(x: carryPoint.x - f.minX, y: carryPoint.y - f.minY))
                 return true
             }
-            edit { p in p.selectionToArrange(sel, at: s) }
+            edit { p in p.selectionToArrange(sel, at: s, repeats: rp) }
             gridSel = GridSelection()
             arrGroup = []
             arrSel = nil
@@ -79,7 +80,11 @@ extension AppModel {
         let k: Int = c.cell.row
         var i: Int = 0
         edit { p in
-            if d.insert { i = p.tracks[d.track].insertBlock(clip: k, at: d.start) } else { i = p.tracks[d.track].addBlock(clip: k, at: d.start) }
+            if d.insert {
+                i = p.tracks[d.track].insertBlock(clip: k, at: d.start, length: d.length)
+            } else {
+                i = p.tracks[d.track].addBlock(clip: k, at: d.start, length: d.length)
+            }
         }
         arrGroup = []
         arrSel = ArrSel(track: d.track, block: i)
@@ -98,7 +103,9 @@ extension AppModel {
         if py < ArrMetrics.top { return nil }
         let m: ArrMetrics = arrMetrics(f.size)
         let tr: Track = project.tracks[t]
-        let len: Int = tr.clipSteps(c.cell.row)
+        // ROW REPEATS: клип — на длину × повторы своей строки.
+        let reps: Int = settings.arrangeRepeats && c.cell.row < project.scenes.count ? max(1, project.scenes[c.cell.row].repeats) : 1
+        let len: Int = tr.clipSteps(c.cell.row) * reps
         for b in tr.blocks where abs(m.stepX(Double(b.start)) - px) < AppModel.carryJunction {
             return CarryDrop(track: t, start: b.start, length: len, insert: true)
         }
@@ -120,7 +127,7 @@ extension AppModel {
     func carryGroupGhost(_ c: ClipCarry) -> [(track: Int, block: ArrBlock)] {
         guard let sel = c.sel, let s = carryGroupStart(c) else { return [] }
         var probe: Project = project
-        probe.selectionToArrange(sel, at: s)
+        probe.selectionToArrange(sel, at: s, repeats: settings.arrangeRepeats)
         var out: [(track: Int, block: ArrBlock)] = []
         for t in probe.tracks.indices where t < project.tracks.count {
             let old: [ArrBlock] = project.tracks[t].blocks
@@ -134,19 +141,20 @@ extension AppModel {
     /// Выбор в меню выделения поверх блоков: одна запись UNDO.
     func arrDrop(_ mode: DropMode) {
         arrMenu = nil
+        let rp: Bool = settings.arrangeRepeats
         guard let d = arrDropPending else { return }
         arrDropPending = nil
         let sel: GridSelection = d.sel
         let s: Int = d.start
         switch mode {
         case .here:
-            edit { p in p.selectionToArrange(sel, at: s) }
+            edit { p in p.selectionToArrange(sel, at: s, repeats: rp) }
         case .insert:
             var probe: Project = project
-            let len: Int = (probe.selectionToArrange(sel, at: s) ?? s) - s
+            let len: Int = (probe.selectionToArrange(sel, at: s, repeats: settings.arrangeRepeats) ?? s) - s
             edit { p in
                 p.insertSpace(at: s, length: len)
-                p.selectionToArrange(sel, at: s)
+                p.selectionToArrange(sel, at: s, repeats: rp)
             }
         case .end:
             // За последним блоком аранжировки (решение пользователя: секции и автоматизация не в счёт); с магнитом —
@@ -155,7 +163,7 @@ extension AppModel {
             let e: Int = project.arrangeEnd
             let g: Int = max(1, a.gridSteps)
             let at: Int = a.snap ? (e + g - 1) / g * g : e
-            edit { p in p.selectionToArrange(sel, at: at) }
+            edit { p in p.selectionToArrange(sel, at: at, repeats: rp) }
         }
         gridSel = GridSelection()
         arrGroup = []

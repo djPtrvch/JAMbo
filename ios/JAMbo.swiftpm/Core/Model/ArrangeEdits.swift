@@ -55,10 +55,10 @@ extension Track {
         return blocks.firstIndex(of: n) ?? 0
     }
 
-    /// Новый блок клипа k на позиции at (длина — проход клипа).
+    /// Новый блок клипа k на позиции at (длина — проход клипа или length).
     @discardableResult
-    public mutating func addBlock(clip k: Int, at: Int) -> Int {
-        return placeBlock(ArrBlock(clip: k, start: at, length: clipSteps(k)))
+    public mutating func addBlock(clip k: Int, at: Int, length: Int? = nil) -> Int {
+        return placeBlock(ArrBlock(clip: k, start: at, length: length ?? clipSteps(k)))
     }
 
     /// Перенос блока i на начало start.
@@ -123,9 +123,9 @@ extension Track {
 
     /// INSERT: блок клипа k в точку at, блоки этой дорожки правее сдвигаются на его длину.
     @discardableResult
-    public mutating func insertBlock(clip k: Int, at: Int) -> Int {
+    public mutating func insertBlock(clip k: Int, at: Int, length: Int? = nil) -> Int {
         let x: Int = Swift.max(0, at)
-        let len: Int = clipSteps(k)
+        let len: Int = length ?? clipSteps(k)
         shiftArrange(after: x, by: len)
         return placeBlock(ArrBlock(clip: k, start: x, length: len))
     }
@@ -381,15 +381,15 @@ extension Project {
     }
 
     /// TO ARRANGE (S15e): строка k — в аранжировку с позиции at (nil — в конец аранжировки). Длина строки — самый
-    /// длинный клип × N (N — повторы строки; LOOP ROW — один проход); дорожки с тригами в клипе заполняют её блоками
-    /// длиной в свой клип (короткий повторяется, последний блок — до конца строки). Пустые клипы и ячейки не переносятся
+    /// длинный клип × N (N — повторы строки, если repeats — SETTINGS → ARRANGE → ROW REPEATS, иначе один проход);
+    /// у каждой дорожки с тригами в клипе — один блок на всю длину строки (клип в нём повторяется). Пустые клипы и ячейки не переносятся
     /// (решение пользователя) — их дорожки не трогаются. Участок дорожек заменяется. У строки с именем — секция с этим
     /// именем на длину строки (секции на участке заменяются); у строки без имени секции нет (решение пользователя: не
     /// «1», «2»…). Конец участка; nil — в строке нет клипов с тригами.
     @discardableResult
-    public mutating func rowToArrange(_ k: Int, at: Int?) -> Int? {
+    public mutating func rowToArrange(_ k: Int, at: Int?, repeats: Bool = true) -> Int? {
         guard k >= 0 && k < scenes.count else { return nil }
-        let reps: Int = rowLoop ? 1 : Swift.max(1, scenes[k].repeats)
+        let reps: Int = repeats ? Swift.max(1, scenes[k].repeats) : 1
         guard let span = placeRow(k, tracks: Array(tracks.indices), repeats: reps, at: at) else { return nil }
         if !scenes[k].name.isEmpty {
             arrange.markers.removeAll { $0.at >= span.start && $0.at < span.end }
@@ -398,9 +398,9 @@ extension Project {
         return span.end
     }
 
-    /// Клипы строки k на дорожках only — блоками с позиции at (nil — в конец): длина — самый длинный клип × repeats,
-    /// каждая дорожка — блоками длиной в свой клип (короткий повторяется, последний — до конца участка). Только клипы с
-    /// тригами; участок их дорожек заменяется. nil — таких клипов нет.
+    /// Клипы строки k на дорожках only — с позиции at (nil — в конец): длина — самый длинный клип × repeats, у каждой
+    /// дорожки — один блок на всю длину (решение пользователя: ×4 у клипа в такт — блок в 4 такта; клип в блоке
+    /// повторяется). Только клипы с тригами; участок их дорожек заменяется. nil — таких клипов нет.
     mutating func placeRow(_ k: Int, tracks only: [Int], repeats reps: Int, at: Int?) -> (start: Int, end: Int)? {
         guard k >= 0 && k < scenes.count else { return nil }
         let list: [Int] = only.filter { $0 >= 0 && $0 < tracks.count && tracks[$0].clipHasTrigs(k) }
@@ -409,17 +409,7 @@ extension Project {
         if longest == 0 { return nil }
         let start: Int = Swift.max(0, at ?? arrangeEnd)
         let end: Int = start + longest * Swift.max(1, reps)
-        for t in list {
-            let len: Int = tracks[t].clipSteps(k)
-            if len <= 0 { continue }
-            tracks[t].clearArrange(from: start, to: end)
-            var x: Int = start
-            while x < end {
-                let n: Int = Swift.min(len, end - x)
-                tracks[t].placeBlock(ArrBlock(clip: k, start: x, length: n))
-                x += len
-            }
-        }
+        for t in list { tracks[t].placeBlock(ArrBlock(clip: k, start: start, length: end - start)) }
         return (start, end)
     }
 

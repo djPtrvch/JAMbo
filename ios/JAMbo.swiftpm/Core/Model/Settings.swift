@@ -71,6 +71,9 @@ public struct AppSettings: Codable, Equatable, Sendable {
     /// COMPACT — все дорожки на высоту окна.
     public var arrangeCompact: Bool = false
     public var arrangeExpanded: Bool { return !arrangeCompact }
+    /// SETTINGS → ARRANGE → ROW REPEATS (решение пользователя): в аранжировку клип строки ложится на длину × повторы
+    /// строки (×4 у клипа в такт — блок в 4 такта); выключено — один проход. По умолчанию — да.
+    public var arrangeRepeats: Bool = true
     /// SETTINGS → APPEARANCE → FX ANIMATION (решение пользователя): картинки FX в окне сэмпла, пока регулируют ручки FX;
     /// по умолчанию — да.
     public var fxPictures: Bool = true
@@ -93,7 +96,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
     private enum Keys: String, CodingKey { case appearance, pianoOctaves, velocity, record, sliceMap, scSends, muteTails, latchFx, latchMod, rollGrid,
                                          rollSound, levelRelative, morphAll, morphReturn, mixKey, mixCrossfader,
                                          clearSampleLocks, pitchSemitones, midi, stepPaint, sync,
-                                         arrangeCompact, fxPictures, backgroundAudio }
+                                         arrangeCompact, fxPictures, backgroundAudio, arrangeRepeats }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
@@ -121,6 +124,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         stepPaint = (try? c.decode(Bool.self, forKey: .stepPaint)) ?? false
         sync = (try? c.decode(SyncSettings.self, forKey: .sync)) ?? SyncSettings()
         arrangeCompact = (try? c.decode(Bool.self, forKey: .arrangeCompact)) ?? false
+        arrangeRepeats = (try? c.decode(Bool.self, forKey: .arrangeRepeats)) ?? true
         fxPictures = (try? c.decode(Bool.self, forKey: .fxPictures)) ?? true
         backgroundAudio = (try? c.decode(Bool.self, forKey: .backgroundAudio)) ?? true
     }

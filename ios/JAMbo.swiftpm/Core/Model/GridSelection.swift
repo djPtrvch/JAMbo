@@ -40,19 +40,20 @@ public struct GridSelection: Equatable {
 
 extension Project {
     /// TO ARRANGE выделения: строки сверху вниз, одна за другой с позиции at (nil — в конец аранжировки). Строка
-    /// целиком — как rowToArrange (все дорожки, повторы, секция); иначе — только выделенные клипы строки: один проход
-    /// самого длинного из них, короткие повторяются, без секции. Конец участка; nil — нечего переносить.
+    /// целиком — как rowToArrange (все дорожки, секция); иначе — только выделенные клипы строки, без секции. Длина —
+    /// самый длинный клип × повторы строки (repeats; иначе один проход). Конец участка; nil — нечего переносить.
     @discardableResult
-    public mutating func selectionToArrange(_ sel: GridSelection, at: Int?) -> Int? {
+    public mutating func selectionToArrange(_ sel: GridSelection, at: Int?, repeats: Bool = true) -> Int? {
         var pos: Int? = at
         var last: Int? = nil
         for k in sel.orderedRows {
             var end: Int? = nil
             if sel.rows.contains(k) {
-                end = rowToArrange(k, at: pos)
+                end = rowToArrange(k, at: pos, repeats: repeats)
             } else {
                 let only: [Int] = sel.cells.filter { $0.row == k }.map { $0.track }.sorted()
-                end = placeRow(k, tracks: only, repeats: 1, at: pos)?.end
+                let reps: Int = repeats ? Swift.max(1, scenes[k].repeats) : 1
+                end = placeRow(k, tracks: only, repeats: reps, at: pos)?.end
             }
             if let e = end {
                 pos = e
@@ -92,9 +93,9 @@ extension Project {
 
     /// Выделение на участке с шага at кладётся поверх блоков (перекроет их)? Проба на копии: блоки тех же дорожек на
     /// участке [at, конец).
-    public func selectionOverlaps(_ sel: GridSelection, at: Int) -> Bool {
+    public func selectionOverlaps(_ sel: GridSelection, at: Int, repeats: Bool = true) -> Bool {
         var probe: Project = self
-        guard let end = probe.selectionToArrange(sel, at: at) else { return false }
+        guard let end = probe.selectionToArrange(sel, at: at, repeats: repeats) else { return false }
         for t in tracks.indices where t < probe.tracks.count && probe.tracks[t].blocks != tracks[t].blocks {
             if tracks[t].blocks.contains(where: { $0.start < end && $0.end > at }) { return true }
         }

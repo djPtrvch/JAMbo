@@ -250,11 +250,12 @@ extension AppModel {
     /// выделение рамкой — переносится всё выделенное.
     func rowToArrange(_ k: Int, name: String, repeats: Int) {
         let at: Int = arrPlaceAt
+        let rp: Bool = settings.arrangeRepeats
         let sel: GridSelection = gridSel
         let many: Bool = sel.touches(row: k)
         edit { p in
             p.setScene(k, name: name, repeats: repeats)
-            if many { p.selectionToArrange(sel, at: at) } else { p.rowToArrange(k, at: at) }
+            if many { p.selectionToArrange(sel, at: at, repeats: rp) } else { p.rowToArrange(k, at: at, repeats: rp) }
         }
         gridSel = GridSelection()
     }
@@ -262,8 +263,9 @@ extension AppModel {
     /// TO ARRANGE в меню клипа: клип в выделении рамкой — всё выделенное, иначе — один проход этого клипа.
     func clipToArrange(_ c: CellRef) {
         let at: Int = arrPlaceAt
+        let rp: Bool = settings.arrangeRepeats
         let sel: GridSelection = gridSel.contains(c) ? gridSel : GridSelection(cells: [c])
-        edit { p in p.selectionToArrange(sel, at: at) }
+        edit { p in p.selectionToArrange(sel, at: at, repeats: rp) }
         gridSel = GridSelection()
     }
 
