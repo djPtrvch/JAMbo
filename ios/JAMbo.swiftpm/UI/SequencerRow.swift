@@ -130,7 +130,7 @@ struct SequencerRow: View {
 }
 
 /// Размеры ряда шагов по числу показанных страниц: зазоры между шагами и страницами, поля, надпись ноты.
-struct SeqLook {
+struct SeqLook: Equatable {
     let pages: Int
     let gap: CGFloat
     let pageGap: CGFloat
@@ -182,12 +182,29 @@ struct StepCell: View {
     let page: Int
     let col: Int
     let look: SeqLook
+
+    /// Ход игры пересчитывает все ячейки (дёшево), рисуется только шаг, у которого что-то изменилось (S14c: каждый шаг
+    /// игры перерисовывал все шаги).
+    var body: some View {
+        let info: StepInfo = StepInfo(model: model, page: page, col: col)
+        return StepFace(info: info, col: col, look: look).equatable()
+    }
+}
+
+/// Картинка шага — по готовому StepInfo.
+struct StepFace: View, Equatable {
+    let info: StepInfo
+    let col: Int
+    let look: SeqLook
     @Environment(\.theme) private var theme
+
+    static func == (a: StepFace, b: StepFace) -> Bool {
+        return a.info == b.info && a.col == b.col && a.look == b.look
+    }
 
     var body: some View {
         let _ = RedrawMeter.hit(.step)
-        let info: StepInfo = StepInfo(model: model, page: page, col: col)
-        return ZStack(alignment: .trailing) {
+        ZStack(alignment: .trailing) {
             RoundedRectangle(cornerRadius: look.pages > 2 ? 2 : 4)
                 .fill(info.fill(theme))
                 .overlay(noteLabel(info))
@@ -225,7 +242,7 @@ struct StepCell: View {
 }
 
 /// Что показать на шаге (вынесено, чтобы тело вида было простым).
-struct StepInfo {
+struct StepInfo: Equatable {
     let on: Bool
     let tail: Bool
     let label: String

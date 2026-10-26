@@ -50,7 +50,6 @@ struct TrackCell: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        let _ = RedrawMeter.hit(.trackCell)
         // Дорожку могли только что удалить, а ячейка ещё не убрана — пусто вместо падения.
         if index < model.project.tracks.count {
             cell(model.project.tracks[index])
@@ -59,33 +58,15 @@ struct TrackCell: View {
         }
     }
 
+    /// Ход игры (мигание) пересчитывает все ячейки, рисуется только дорожка, у которой что-то изменилось (S14c).
     private func cell(_ t: Track) -> some View {
         let selected: Bool = model.channel == .track && model.selectedTrack == index
-        // Как в вебе: выбранная — жёлтый контур, заглушённая — красный (перекрывает выбор) и красная заливка.
-        let border: Color = t.mute ? theme.rec : (selected ? theme.accent : Color.clear)
-        return ZStack(alignment: .topTrailing) {
-            // Выбранная дорожка — имя крупнее и жирнее; невыбранные — как MIX и MST (12, semibold, разрядка); цвет — белый.
-            Text(t.name)
-                .font(.system(size: selected ? 15 : 12, weight: selected ? .heavy : .semibold))
-                .tracking(selected ? 0 : 0.7)
-                .lineLimit(1)
-                .foregroundStyle(theme.text)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            stateLetter(t)
-        }
-        .overlay(alignment: .topLeading) { morphDot(t) }
-        .background(background(t), in: RoundedRectangle(cornerRadius: Layout.radius))
-        .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(border, lineWidth: 1))
-        .contentShape(Rectangle())
-        .gesture(touch)
-    }
-
-    private func background(_ t: Track) -> Color {
-        let flash: Bool = model.live.flashing[index] && !t.mute
-        let base: Color = flash ? theme.flash : theme.trackBg
-        // Mute — красная заливка, solo — жёлтая (35 % поверх фона дорожки, при мигании solo — 55 %).
-        if t.mute { return theme.rec.opacity(0.35) }
-        return t.solo ? theme.accent.opacity(flash ? 0.55 : 0.35) : base
+        let flash: Bool = index < model.live.flashing.count && model.live.flashing[index] && !t.mute
+        let face = TrackFace(name: t.name, selected: selected, mute: t.mute, solo: t.solo, flash: flash)
+        return face.equatable()
+            .overlay(alignment: .topLeading) { morphDot(t) }
+            .contentShape(Rectangle())
+            .gesture(touch)
     }
 
     /// Жёлтая точка: параметры дорожки меняли в режиме MORPH; красная мигающая — пишется стем (жёлтая — правее).
@@ -95,17 +76,6 @@ struct TrackCell: View {
             if t.morphEdited {
                 Circle().fill(theme.accent).frame(width: 6, height: 6).padding(.leading, 7).padding(.top, 6)
             }
-        }
-    }
-
-    @ViewBuilder
-    private func stateLetter(_ t: Track) -> some View {
-        if t.mute || t.solo {
-            Text(t.mute ? "M" : "S")
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(t.mute ? theme.rec : theme.accent)
-                .padding(.top, 3)
-                .padding(.trailing, 7)
         }
     }
 
@@ -128,6 +98,52 @@ struct TrackCell: View {
                 // Выбор дорожки — тапом; свайп (mute/solo) выбор не меняет: окно MIX и выбранная дорожка остаются.
                 if !swiped { model.select(track: index) }
             }
+    }
+}
+
+/// Картинка дорожки: имя, M / S, заливка (мигание, mute, solo), рамка; точки MORPH и стема — поверх, в TrackCell.
+struct TrackFace: View, Equatable {
+    let name: String
+    let selected: Bool
+    let mute: Bool
+    let solo: Bool
+    let flash: Bool
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let _ = RedrawMeter.hit(.trackCell)
+        // Как в вебе: выбранная — жёлтый контур, заглушённая — красный (перекрывает выбор) и красная заливка.
+        let border: Color = mute ? theme.rec : (selected ? theme.accent : Color.clear)
+        ZStack(alignment: .topTrailing) {
+            // Выбранная дорожка — имя крупнее и жирнее; невыбранные — как MIX и MST (12, semibold, разрядка); цвет — белый.
+            Text(name)
+                .font(.system(size: selected ? 15 : 12, weight: selected ? .heavy : .semibold))
+                .tracking(selected ? 0 : 0.7)
+                .lineLimit(1)
+                .foregroundStyle(theme.text)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            stateLetter
+        }
+        .background(background, in: RoundedRectangle(cornerRadius: Layout.radius))
+        .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(border, lineWidth: 1))
+    }
+
+    private var background: Color {
+        let base: Color = flash ? theme.flash : theme.trackBg
+        // Mute — красная заливка, solo — жёлтая (35 % поверх фона дорожки, при мигании solo — 55 %).
+        if mute { return theme.rec.opacity(0.35) }
+        return solo ? theme.accent.opacity(flash ? 0.55 : 0.35) : base
+    }
+
+    @ViewBuilder
+    private var stateLetter: some View {
+        if mute || solo {
+            Text(mute ? "M" : "S")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(mute ? theme.rec : theme.accent)
+                .padding(.top, 3)
+                .padding(.trailing, 7)
+        }
     }
 }
 

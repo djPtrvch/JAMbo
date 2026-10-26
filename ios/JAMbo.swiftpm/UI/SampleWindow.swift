@@ -181,29 +181,30 @@ struct WaveStrip: View {
     let cache: PeakCache
     @Environment(\.theme) private var theme
 
+    /// Волна и затемнение Start/End рисуются только при их изменении; каждый кадр — лишь полосы воспроизведения,
+    /// пока звучат голоса (S14c: вся волна перерисовывалась 60 раз в секунду всю игру).
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 60, paused: model.headCount == 0)) { _ in
-            let _ = RedrawMeter.hit(.wave)
-            canvas
+        ZStack {
+            wave
+            TimelineView(.animation(minimumInterval: 1.0 / 60, paused: model.headCount == 0)) { _ in
+                let _ = RedrawMeter.hit(.wave)
+                heads
+            }
         }
     }
 
-    private var canvas: some View {
+    private var wave: some View {
         let lanes: [[Float]] = data.map { cache.small($0, key: key) } ?? []
         let p = model.track.params
         let start: Double = (p["start"] ?? 0) / 100
         let end: Double = max(start, (p["end"] ?? 100) / 100)
+        return WaveShape(lanes: lanes, start: start, end: end).equatable()
+    }
+
+    private var heads: some View {
         let heads = model.playheads(track: model.selectedTrack, key: key)
-        let ink: Color = theme.text
         let accent: Color = theme.accent
-        let scrim: Color = theme.bg.opacity(0.6)
         return Canvas { ctx, size in
-            WaveStrip.draw(ctx, size, lanes, ink)
-            if !lanes.isEmpty {
-                ctx.fill(Path(CGRect(x: 0, y: 0, width: size.width * start, height: size.height)), with: .color(scrim))
-                let x1: CGFloat = size.width * end
-                ctx.fill(Path(CGRect(x: x1, y: 0, width: size.width - x1, height: size.height)), with: .color(scrim))
-            }
             for h in heads {
                 let x: CGFloat = size.width * h.f
                 ctx.fill(Path(CGRect(x: x - 1, y: 0, width: 2, height: size.height)), with: .color(accent.opacity(h.a)))
@@ -240,6 +241,34 @@ struct WaveStrip: View {
             path.closeSubpath()
         }
         ctx.fill(path, with: .color(ink))
+    }
+}
+
+/// Волна окна сэмпла с затемнением Start/End — перерисовка только при смене сэмпла или Start/End (S14c).
+struct WaveShape: View, Equatable {
+    let lanes: [[Float]]
+    let start: Double
+    let end: Double
+    @Environment(\.theme) private var theme
+
+    static func == (a: WaveShape, b: WaveShape) -> Bool {
+        return a.start == b.start && a.end == b.end && a.lanes == b.lanes
+    }
+
+    var body: some View {
+        let ink: Color = theme.text
+        let scrim: Color = theme.bg.opacity(0.6)
+        let lanes: [[Float]] = self.lanes
+        let start: Double = self.start
+        let end: Double = self.end
+        return Canvas { ctx, size in
+            WaveStrip.draw(ctx, size, lanes, ink)
+            if !lanes.isEmpty {
+                ctx.fill(Path(CGRect(x: 0, y: 0, width: size.width * start, height: size.height)), with: .color(scrim))
+                let x1: CGFloat = size.width * end
+                ctx.fill(Path(CGRect(x: x1, y: 0, width: size.width - x1, height: size.height)), with: .color(scrim))
+            }
+        }
     }
 }
 
