@@ -280,7 +280,7 @@ extension AppModel {
         edit { p in p.rowLoop.toggle() }
     }
 
-    /// Кнопка STEPS под LOOP ROW: секвенсор и клавиатура под сеткой паттернов скрыты — сетка выше.
+    /// Кнопка STEPS под LOOP ROW: строка дорожек, секвенсор и клавиатура под сеткой паттернов скрыты — сетка до низа.
     func toggleGridSteps() {
         edit { p in p.gridHideSteps.toggle() }
     }

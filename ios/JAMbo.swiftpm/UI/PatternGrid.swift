@@ -530,7 +530,8 @@ struct GridSideButtons: View {
             .onTapGesture { model.toggleRowLoop() }
     }
 
-    /// STEPS — значок, как в строке кнопок аранжировщика; горит, пока секвенсор и клавиатура видны.
+    /// STEPS — значок и действие, как в строке кнопок аранжировщика: выключена — строка дорожек, секвенсор и клавиатура
+    /// скрыты; горит, пока видны.
     private var stepsButton: some View {
         let on: Bool = !model.project.gridHideSteps
         return ArrStepsIcon(color: on ? theme.onAccent : theme.text)
