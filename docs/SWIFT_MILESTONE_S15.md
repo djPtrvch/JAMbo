@@ -51,6 +51,11 @@
 - UI: ArrMetrics.headerW — до левого края SCALE (Layout.leftColumn + gap); ArrMetrics.refRow / body / inRef (дорожки ниже строки REF); ArrDraw.refRow (волна по RefWave — пики на 512 кадров, в фоне); ArrTouches .ref (сдвиг); ArrRefHeader (две строки), ArrRefMenu (LOAD, DELETE), ArrABSwitch; BrowserMode.ref (тап — libUseRef, IMPORT — refImport); AppModel.arrRefB, refBActive (B — только в аранжировщике при видимой строке REF), meterChannel → Levels.ref, регулятор — setArrRefGain.
 - Тесты: RefTests (10), TempoDetectTests (4); CoreTests — 394.
 
+## S15h — сетка паттернов ↔ аранжировка (правки после проверки, решения пользователя)
+- Core/Model/GridSelection.swift: CellRef (перенесён из UI), GridSelection (rows, cells; contains, touches, orderedRows); Project.selectionToArrange (строки сверху вниз, repeats), insertSpace (INSERT места: блоки, точки автоматизации, секции), selectionOverlaps (проба на копии). ArrangeEdits: placeRow — один блок на дорожку на длину × повторы, только клипы с тригами (Track.clipHasTrigs); rowToArrange(repeats:) — секция только у строки с именем; deleteBlockClosing / deleteBlocks(closing:) — DELETE с магнитом; addBlock / insertBlock(length:). Clips.clearClip — одна пустая страница. Project.gridHideSteps; AppSettings.arrangeRepeats (ROW REPEATS).
+- UI: PatternGrid — меню строки двойным тапом, рамка (со свободного места, автопрокрутка окна строк, якорь в координатах всех строк), подъём выделения, свободная колонка под кнопками; GridGeometry.rows и AppModel.gridRowsShown (STEPS выключена — больше строк той же высоты, RootView.main); DropPlus — «+» на пустой ячейке. AppModelCarry — перенос клипа / выделения на ARRANGE (ClipCarry, carryPoint; сетка остаётся под аранжировщиком почти прозрачной, пока палец не отпущен), CarryDrop (стык — вставка), ArrCarryLayer, меню ArrDropMenu (HERE / INSERT / TO END), прокрутка у краёв. ArrangeRuler — тап курсора отложен на 0,3 с, двойной тап — ArrRulerMenu, протяжка целыми тактами (selectSlop 14). ArrTouches — прокрутка у края при рамке (marqueeAnchor). ArrMenus — над STEPS и AUTO (free = высота − arrInset). TO ARRANGE — одна кнопка (AppModel.arrPlaceAt), SEND TO ARRANGE убран из меню сетки.
+- Тесты: ArrangeTests (testSelectionToArrange, testDeleteClosing, testInsertSpaceAndOverlap, testRowToArrange — один блок, пустые клипы, без имени — без секции); LaunchTests (DELETE клипа — одна страница). CoreTests — 432. Пользователь проверил на iPad: «всё работает».
+
 ## Проверено
 - REF (загрузка, волна и сдвиг, A/B, регулятор в B, темп файла, сохранение) — пользователь: «всё работает».
 - Core: 380 тестов на Linux. На iPad — S15c и S15d (несколько кругов правок), TO ARRANGE и SEND TO ARRANGE, автоматизация (рисуется, пишется, звучит по кривой), круг правок S15f′ (раскладка, окно AUTO, строка кнопок, плейхед, счётчик) — пользователь: «всё работает».
@@ -60,6 +65,5 @@
 - Возврат дорожек к таймлайну во время игры — кнопки нет; нужна ли и где.
 - Инерция прокрутки — нет.
 - Кривые — только у дорожек на таймлайне; при игре из сетки — не действуют (предложено пользователю, ответа нет). Duck, Chance, Ratchet на кривых на iPad отдельно не проверялись.
-- Меню блоков и дорожек у нижних дорожек может уйти под окно STEPS / AUTO.
 - AppModel.swift — больше 600 строк (было и до S15).
 - ios/CLAUDE.md «Решения» — строка про S15 (внести в конце вехи).
