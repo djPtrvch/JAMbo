@@ -113,6 +113,14 @@
 - RECEIVE, SYNC START/STOP (выкл. — свои PLAY и STOP независимы) и SEND проверены пользователем на iPad с Digitakt по USB (режим USB MIDI). Описание Swift-версии — docs/ai/settings-midi-sync.md («MIDI-клок в Swift-версии»).
 - CLOCK INPUT (решение пользователя): при RECEIVE — список ALL INPUTS / один вход (SyncSettings.clockIn, acceptsClock), сообщения реального времени фильтруются по нему до фильтра входа MIDI → DEVICES; смена входа — ClockFollower.lose и темп проекта (AppModel.setClockIn). Тест — SyncTests.testDefaultsAndCoding. На iPad не проверено.
 
+## Правки после проверки (готово, проверено на iPad)
+- Анимация FX: пока регулируют ручку FX (палец или MIDI), поверх превью окна сэмпла — картинка Reverb, Delay, Drive или Duck в поле иконок движков; огибающая фильтра; выключается SETTINGS → APPEARANCE → FX ANIMATION. Core/FX/FxPicture.swift, UI/FxPreview.swift; описание — docs/ai/fx-eq.md.
+- BACKGROUND AUDIO (SETTINGS → AUDIO ENGINE): ключ UIBackgroundModes: audio в Info.plist рядом с Package.swift (additionalInfoPlistContentFilePath); работает на iPad. Перед выгрузкой в App Store — проверить, что строка в Package.swift на месте; окончательно — сборкой из TestFlight.
+- EQ: у low cut, high cut и notch по вертикали — Q.
+- P-lock 4-го столбца (Pan, Chance, Ratchet, Velocity; Duck, ENV) — оранжевые (на пробу).
+- Одна сплошная секвенция: у короткой секвенции «+» — 16 шагов сразу за последним (7 → 23), DUPLICATE — копия шагов за последним (7 → 14). Своя длина у каждой страницы пробовалась и откачена.
+- Отложено: выбор устройств MIDI-клока отдельно для приёма и отдачи.
+
 ## Проверено
 S14w — на iPad; CoreTests — 304 (новые: EngineIconTests — testPreviewsMatchPrototype, testGridFiniteInField, testEachKnobChangesIcon, testTableFrame; testApplyKnobsToAllPages, testFeedbackFollowsResolveAcrossInputs; убраны прежние тесты иконок веба). S14v — на iPad. S14a — тесты Core (HeavyLoadTests), DIAGNOSTICS на iPad. CoreTests — 298 (S14a: testHeavyProjectProfile, testProfileOffAndOn); 296 (новые: testMoveRow, testPasteTrackKeepsOwnPatterns, testClipSpeed, testQueuedClipAfterSlowClip, testSameNameIgnoresAudioExtension).
 
