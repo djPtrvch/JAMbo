@@ -14,6 +14,7 @@ struct SampleWindow: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
+        let _ = RedrawMeter.hit(.sampleWin)
         content
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(theme.panel, in: RoundedRectangle(cornerRadius: Layout.radius))
@@ -130,6 +131,7 @@ struct MixOverview: View {
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 60)) { tl in
+            let _ = RedrawMeter.hit(.mixOverview)
             MixOverviewBars(levels: levels, muted: muted, now: tl.date)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -181,6 +183,7 @@ struct WaveStrip: View {
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 60, paused: model.headCount == 0)) { _ in
+            let _ = RedrawMeter.hit(.wave)
             canvas
         }
     }

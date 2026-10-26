@@ -44,6 +44,7 @@ struct ArrTotalTime: View {
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !model.playing)) { _ in
+            let _ = RedrawMeter.hit(.arrPlay)
             let bpm: Double = max(20, model.project.bpm)
             // Шаг — шестнадцатая: 15 / BPM секунд.
             let now: String = ArrTotalTime.clock(model.arrNowX * 15 / bpm)
@@ -100,7 +101,8 @@ struct ArrCursorLayer: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        TimelineView(.animation(paused: !model.playing)) { _ in
+        TimelineView(.animation(minimumInterval: 1.0 / 60, paused: !model.playing)) { _ in
+            let _ = RedrawMeter.hit(.arrPlay)
             let pos: Double = model.arrNowX
             Canvas { ctx, _ in
                 ArrDraw(ctx: ctx, m: m, theme: theme).cursorLine(pos, head: head)

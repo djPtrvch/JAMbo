@@ -185,6 +185,7 @@ struct StepCell: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
+        let _ = RedrawMeter.hit(.step)
         let info: StepInfo = StepInfo(model: model, page: page, col: col)
         return ZStack(alignment: .trailing) {
             RoundedRectangle(cornerRadius: look.pages > 2 ? 2 : 4)

@@ -8,12 +8,14 @@ import Foundation
 final class RedrawMeter {
     enum Kind: Int, CaseIterable {
         case root, topBar, left, knobGrid, knob, right, meter, tracks, seq, keyboard, pages, patterns, arrange, eq,
-             masterWin, masterInd, mixMeter, editor, roll
+             masterWin, masterInd, mixMeter, editor, roll, sampleWin, wave, synthIcon, mixOverview, modPreview,
+             arrPlay, scope, eqSpec, step, trackCell, pageThumb, phase
     }
 
     static let names: [String] = [
         "Root", "TopBar", "Left", "KnobGrid", "Knob", "Right", "Meter", "Tracks", "Seq", "Keyboard", "Pages",
-        "Patterns", "Arrange", "EQ", "MstWin", "MstInd", "MixMeter", "Editor", "Roll",
+        "Patterns", "Arrange", "EQ", "MstWin", "MstInd", "MixMeter", "Editor", "Roll", "SampleWin", "Wave", "SynthIcon",
+        "MixOverview", "ModPreview", "ArrPlay", "Scope", "EqSpec", "Step", "TrackCell", "PageThumb", "Phase",
     ]
 
     static let shared = RedrawMeter()

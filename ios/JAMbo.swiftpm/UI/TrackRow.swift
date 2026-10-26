@@ -50,6 +50,7 @@ struct TrackCell: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
+        let _ = RedrawMeter.hit(.trackCell)
         // Дорожку могли только что удалить, а ячейка ещё не убрана — пусто вместо падения.
         if index < model.project.tracks.count {
             cell(model.project.tracks[index])

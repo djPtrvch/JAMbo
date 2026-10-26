@@ -53,6 +53,7 @@ struct SampleEditor: View {
         } else if let d = data {
             ZStack(alignment: .topLeading) {
                 TimelineView(.animation(minimumInterval: 1.0 / 60, paused: model.headCount == 0)) { _ in
+                    let _ = RedrawMeter.hit(.wave)
                     canvas(key, d, size)
                 }
                 if let t = tip {

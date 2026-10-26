@@ -12,7 +12,8 @@ struct ModPreview: View {
     static let randomSteps: [Double] = [0.6, -0.3, 0.9, -0.8, 0.2, -0.5, 0.75, -0.1]
 
     var body: some View {
-        TimelineView(.animation) { tl in
+        TimelineView(.animation(minimumInterval: 1.0 / 60)) { tl in
+            let _ = RedrawMeter.hit(.modPreview)
             VStack(spacing: 4) {
                 ForEach(1..<5, id: \.self) { n in mini(n, tl.date) }
             }
