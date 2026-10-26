@@ -1,4 +1,4 @@
-# Handoff: JAMbo, Swift-версия — S15 аранжировщик готов (S15a–g, проверено на iPad); S14c готов; идёт S14d — выбор входа клока в SYNC
+# Handoff: JAMbo, Swift-версия — S15 аранжировщик готов (S15a–g, проверено на iPad); S14c, S14d готовы (CLOCK INPUT на iPad не проверен); идёт S14e — App Store
 
 ## 1. Контекст проекта
 Groovebox для iPad. Веб (`src/`, `public/`) — эталон, заморожен. Swift-перенос — ветка `swift`, `ios/JAMbo.swiftpm`. Правила — `CLAUDE.md`, `ios/CLAUDE.md`; план и вехи — `docs/SWIFT_AUDIT.md` (раздел 6); итоги вех — `docs/SWIFT_MILESTONE_Sx.md`. Поведение аранжировщика — `docs/ai/arranger.md`; MIDI — `docs/ai/settings-midi-sync.md` (в ветке swift описывают Swift-версию).
@@ -25,7 +25,7 @@ Groovebox для iPad. Веб (`src/`, `public/`) — эталон, заморо
   - S14w — превью-иконки движков из прототипа, заголовок окна звука, октава клавиатуры по дорожкам, MIDI MAP Apply to all pages, исправлена обратная связь MIDI на MIX/MOD/FX/MST (готово, проверено на iPad; подробно — SWIFT_MILESTONE_S14.md).
   - S14b — оптимизация звука (готово, проверено на iPad): Audio на проекте пользователя 78 → 43 % в среднем, худший блок 110 → 66 %; щелчков и изменений звука нет.
   - S14c — интерфейс и MIDI (готово, проверено на iPad; итог — SWIFT_MILESTONE_S14.md): лишние перерисовки (наблюдаемое состояние, таймеры); задержка нот с MIDI — сначала спросить пользователя, осталась ли; если да — путь MIDI → звук мимо главного потока; разделить Sampler.swift.
-  - S14d — проверка S13e на iPad: RECEIVE и SYNC START/STOP (выкл. — свой PLAY и STOP независимы) и SEND (Digitakt по USB) пользователь проверил — работает; описание Swift-версии — docs/ai/settings-midi-sync.md (готово); решение пользователя — в SYNC выбор устройства, с которого принимается клок (RECEIVE).
+  - S14d — проверка S13e на iPad: RECEIVE и SYNC START/STOP (выкл. — свой PLAY и STOP независимы) и SEND (Digitakt по USB) пользователь проверил — работает; описание Swift-версии — docs/ai/settings-midi-sync.md (готово); CLOCK INPUT — выбор входа клока при RECEIVE (решение пользователя; код готов, на iPad не проверен — пользователь проверить пока не может, решено идти дальше).
   - S14e — App Store: Ableton Link — по лицензии Ableton (решение пользователя): для App Store — бесплатная лицензия Ableton (запрос — пользователь, link-devs@ableton.com; руководство Link, проверка интеграции); LinkKit (C++) в Playgrounds не подключить — сборка в Xcode на Mac (этап 9, спайк B0); до этого раздел ABLETON LINK неактивен. Privacy manifest PrivacyInfo.xcprivacy (UserDefaults, mach_absolute_time) — через Resources, проверить пробной загрузкой. Значок — только в Playgrounds (сейчас .placeholder). App Store Connect — пользователь: Team ID, версия, шифрование (ответ при каждой загрузке), политика конфиденциальности (URL), возрастной рейтинг, скриншоты iPad 13", TestFlight.
   - Итог — docs/SWIFT_MILESTONE_S14.md (создан; в конце вехи обновить).
 - План S13: a — CoreMIDI, устройства, ноты (готово); b — маппинг и LEARN (готово); c — окно MIDI MAP и пресеты (готово); d — обратная связь (готово); e — SYNC (меню, SYNC QUANTUM, MIDI-клок SEND / RECEIVE, офсеты, TempoSource; настройки Link только хранятся; готово, проверено на iPad); f — Bluetooth MIDI (CONNECT и ADVERTISE — CABTMIDICentralViewController и CABTMIDILocalPeripheralViewController; capability Bluetooth Always в Package.swift; готово, проверено на iPad). Итог — SWIFT_MILESTONE_S13.md.
@@ -42,19 +42,24 @@ Groovebox для iPad. Веб (`src/`, `public/`) — эталон, заморо
   - Обратная связь — каждый кадр (60 Гц; в вебе 30 мс), фейдеру ABSOLUTE, который двигают, — без эха 0,3 с; нажатие ручки (PRESS) обратную связь не шлёт (у Twister этот источник — цвет подсветки).
   - DONE на полосе LEARN закрывает и окно MIDI MAP.
   - SETTINGS → RECORD → STEP SWIPE: LENGTH / PAINT.
+- Автоматизация (решение пользователя): кривые играют только в аранжировщике (дорожки на таймлайне), в клип-лаунчере — нет.
+- Задержки MIDI (ноты, маппинг) пользователь не замечает — путь MIDI → звук не меняем.
 - Ableton Link: LinkKit, -lc++ и entitlement multicast в Playgrounds невозможны — сам Link остаётся этапу 9 (спайк B0), в S13e — только меню и настройки.
 - Термины (CLAUDE.md): сэмпл-лок — шаг со своим сэмплом, пресет-лок — шаг со своим пресетом синта.
 
 
 ## 3. Текущая задача
-S14d — проверить на iPad CLOCK INPUT в SYNC (RECEIVE с выбранного входа; клок с другого входа не принимается; смена входа на ходу). Затем S14e (App Store).
-
+S14e — App Store. Что делается кодом (аудит перед App Store, «Открыто» в SWIFT_MILESTONE_S14.md):
+- trace (UI/JAMboApp.swift — print «JAMbo: …» в консоль Playgrounds) — только в отладочной сборке (#if DEBUG).
+- Предел распаковки ZIP (Core/Files/Zip.swift, Inflate.swift; импорт в библиотеку — AppModelLibrary.libPlaceFiles): у Inflate.inflate нет предела выхода — ZIP-бомба съест память; нужен предел на запись и на архив (размер обсудить с пользователем: сэмпл 10 мин стерео float 32 — ~230 МБ), тест в LibraryFilesTests.
+- Остальное — у пользователя: значок (Playgrounds), URL политики конфиденциальности, App Store Connect, пробная загрузка (privacy manifest, ориентация только альбомная), строка Privacy в DIAGNOSTICS на iPad. Ableton Link — этап 9 (Xcode на Mac).
 
 ## 4. Что уже решено
 - S15g (REF): Core/Engine/RefPlayer.swift (после мастера, A/B, Levels.ref), Core/Sampler/TempoDetect.swift, ArrRef и Arrangement.showRef; UI/AppModelArrangeRef.swift (RefWave, BrowserMode.ref, refBActive), ArrRefHeader, ArrRefMenu, ArrABSwitch, ArrMetrics.refRow / body / inRef. Тесты RefTests, TempoDetectTests; CoreTests — 394.
 - S15 (Core): Arrange.swift, ArrangeEdits.swift (блоки, секции, rowToArrange), ArrangeJournal.swift (ArrJournal, sendToArrange), ArrangeRecorder.swift (ArrRecorder, applyRecording), ArrangeAuto.swift (ArrAutoLane, ArrAutoTarget, Track.autos, simplify, recordAuto); Sequencer/ArrangePlay.swift, ArrangeAutoPlay.swift (подстановка кривой в снимок звука на блок, autoHold); SeqData — блоки, autoFirst/autoCount/autoX/autoY, probLock. Тесты — ArrangeTests, ArrangePlayTests.
 - S15f′ (UI): RootView.units / arrangeArea (раскладка), Layout.piano / pairHeight, AppModel.barH / arrLowerH / arrInset / arrKnobs / arrGroup / arrMarquee; ArrangeBar (новая строка, ArrStepsIcon), ArrangeAutoPanel.swift (ArrAutoPanel, ArrAutoList, ArrAutoAddMenu, ArrAutoLaneMenu, ArrAutoCurve, ArrAutoTouches), ArrCursorLayer и ArrTotalTime (ArrangeWindow.swift); Core — Project.moveBlocks / duplicateBlocks / deleteBlocks, setMarkerStart / setMarkerEnd, ArrPalette.removed. Тесты testBlockGroup, testSectionEdges; CoreTests — 394.
 - S15 (UI): ArrangeWindow (ArrMetrics, ArrTimeline, ArrDraw), ArrangeHeaders (+ ArrAutoHeaders), ArrangeTouches, ArrangeRuler, ArrangeMenus, ArrangeBar, AppModelArrange, AppModelArrangeMarks (SEND TO ARRANGE, запись), AppModelArrangeAuto (строки кривых, запись ручек, рука); LiveState — тик, журнал, recorder, arrPosTime.
+- S14d: CLOCK INPUT — SyncSettings.clockIn (nil — ALL INPUTS) и acceptsClock; в AppModel.midiMessage сообщения реального времени фильтруются по нему до фильтра входа MIDI → DEVICES; AppModel.setClockIn — смена входа: ClockFollower.lose и темп проекта; список в SyncClockSection (как CLOCK OUTPUT). Тест — SyncTests.testDefaultsAndCoding.
 - S0–S12 готовы и проверены на iPad; S13a–d и S13f проверены на iPad (обратная связь — с TouchOSC по Bluetooth); S13e — RECEIVE и SEND проверены (SEND — с Digitakt по USB). S14v, S14a, S14b готовы и проверены на iPad. CoreTests — 394.
 - Правки после проверки с Digitakt по USB (подробно — SWIFT_MILESTONE_S13.md, S13e): ClockFollower — после пропажи клока шаги заново привязываются к тикам (anchored; и после перезапуска звука), пропуск тиков — окно темпа заново с досчётом тиков, темп — после 4 тиков; MidiHost — при смене настройки MIDI подключённые источники не переподключаются; AudioHost — один перезапуск движка на пачку уведомлений (через 0,3 с), задержка выхода запоминается при запуске и смене маршрута; строка «Now:» — out, in, restarts, route changes, audio speed. Digitakt в режиме USB AUDIO/MIDI звук с iPad не принимает (и у других приложений: выход прыгает на динамик, секвенция тормозит) — из приложения не исправить, работать в режиме USB MIDI.
 - S14a: Core/Util/RenderProfile (метки разделов в AudioCore, Sampler, MasterChain; включён всегда, RESET — худшее заново), UI/FrameMeter (CADisplayLink, drain), DiagnosticsView; тесты HeavyLoadTests (тяжёлый проект), SynthCostTests (цена голоса по движкам).
@@ -66,7 +71,8 @@ S14d — проверить на iPad CLOCK INPUT в SYNC (RECEIVE с выбра
 
 ## 5. Что осталось решить
 - Аранжировщик: кнопки возврата дорожек к таймлайну во время игры нет — нужна ли и где; инерция прокрутки; меню блоков и дорожек у нижних дорожек может уйти под окно STEPS / AUTO; подставлять ли темп референса в проект (сейчас только показывается).
-- Автоматизация: кривые действуют только у дорожек на таймлайне, при игре из сетки — нет (решение пользователя). Duck, Chance, Ratchet на кривых отдельно не проверялись.
+- Автоматизация на кривых: Duck, Chance, Ratchet отдельно не проверялись.
+- CLOCK INPUT (S14d) — проверить на iPad, когда будет возможность: клок с выбранного входа; с другого не принимается; смена входа на ходу.
 - Автоматизация в паттернах (как в вебе) — нужна ли, веха S16; на таймлайне — сделана в S15f.
 - Значок и URL политики конфиденциальности — пользователь.
 - На iPad проверить строку Privacy в DIAGNOSTICS (manifest должен быть в корне бандла).
@@ -76,7 +82,6 @@ S14d — проверить на iPad CLOCK INPUT в SYNC (RECEIVE с выбра
 - Sampler.swift — больше ~600 строк, разделить при случае.
 - Правки микшера и мастера во время перехода MIX в файл не попадают (открыто в S10).
 - Чистка неиспользуемых сэмплов (Samples, Tables) — позже, по решению пользователя.
-- Задержка MIDI: ни у нот, ни у маппинга пользователь не замечает — путь MIDI → звук не меняем.
 
 ## 6. Важные ограничения
 - Отладочная сборка Playgrounds (S14b): встраивается только @_transparent (@inline(__always) — обычный вызов; @_transparent нельзя на методах класса — функции файла); каждый вызов обнуляет кадр стека; rounded(.down) и обобщённый abs медленные (пол — через Int при значении ≥ 0); Double(Float) — вызов; свойство класса — проверка доступа (в цикле — локальные). Горячее место искать профилем callgrind (valgrind в облаке есть) на тестах Core, сверять по числу инструкций.
@@ -97,4 +102,4 @@ S14d — проверить на iPad CLOCK INPUT в SYNC (RECEIVE с выбра
 - Звуковые ошибки (щелчки) — воспроизводить сценой пользователя в тесте Core и мерить; при сомнении — стенд-страница с AudioWorklet (как SUB Bench в S12).
 
 ## 7. Первый запрос для нового чата
-«Прочитай docs/handoffs/HANDOFF.md, ios/CLAUDE.md и docs/SWIFT_MILESTONE_S14.md. Продолжаем S14d — выбор входа клока в SYNC»
+«Прочитай docs/handoffs/HANDOFF.md, ios/CLAUDE.md и docs/SWIFT_MILESTONE_S14.md. Продолжаем S14e: trace только в DEBUG, предел распаковки ZIP»
