@@ -45,12 +45,13 @@ struct EqTouch {
     var band: Int = -1
     var f0: Double = 0
     var g0: Double = 0
+    var q0: Double = 1
     var moved: Bool = false
     var menu: Bool = false
 }
 
 /// Поле EQ: сетка, суммарная кривая, точки полос; мультитач (две точки сразу). Двойной тап по пустому месту — новая
-/// bell-полоса; точку тянут (у cut и notch — только частота); двойной тап по точке — удалить (решение пользователя; в
+/// bell-полоса; точку тянут (у cut и notch по вертикали — Q); двойной тап по точке — удалить (решение пользователя; в
 /// вебе — вкл./выкл., здесь оно в меню); удержание — меню типа, крутизны, ON/OFF, DELETE. Над пальцем, который держит точку, — частота (Гц и нота), усиление, Q. Под кривой —
 /// спектры (EqSpectrumLayer).
 /// Кривые EQ на экране (координаты y через 2 px) и какие из них рисовать.
@@ -325,6 +326,7 @@ extension EqPlot {
             t.band = k
             t.f0 = b.freq
             t.g0 = b.gain
+            t.q0 = b.q
             model.eqBand = k
             model.beginGesture()
             // LISTEN держат — слушается точка, которую взяли.
@@ -349,7 +351,11 @@ extension EqPlot {
         if EqSpec.hasGain(b.type) {
             model.setEqBand(t.band, freq: f, gain: t.g0 + g.gain(p.y) - g.gain(t.start.y))
         } else {
-            model.setEqBand(t.band, freq: f)
+            // low cut, high cut, notch (решение пользователя): по вертикали — Q (вверх — больше), весь ход Q 0,1…18 —
+            // на высоту поля, по логарифму.
+            let dy: Double = Double((t.start.y - p.y) / max(1, g.size.height))
+            let q: Double = t.q0 * pow(EqSpec.qMax / EqSpec.qMin, dy)
+            model.setEqBand(t.band, freq: f, q: min(EqSpec.qMax, max(EqSpec.qMin, q)))
         }
     }
 
