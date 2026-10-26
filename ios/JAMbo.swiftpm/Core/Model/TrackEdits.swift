@@ -1,39 +1,15 @@
 // Правки дорожки (как в state.ts веба): страницы (добавить, меню страницы), p-lock, триги.
 
-/// Скопированные страницы (COPY) с их длинами.
-public struct PageCopy: Equatable, Sendable {
-    public var pages: [[Step]]
-    public var lens: [Int]
-
-    public init(pages: [[Step]], lens: [Int]) {
-        self.pages = pages
-        self.lens = lens
-    }
-}
-
 extension Track {
-    /// Длина страницы: шаг index (p·16 + s) становится последним шагом своей страницы p (длина s + 1).
-    public mutating func setPageLength(lastIndex index: Int) {
-        let n: Int = Params.stepsPerPage
-        let p: Int = index / n
-        withOpen { c in c.setPageLen(p, index % n + 1) }
-    }
-
-    /// Изменение числа страниц: страницы и их длины меняются вместе (длина едет со страницей); если играли все —
-    /// играют все.
-    public mutating func changePages(_ change: (inout [[Step]], inout [Int]) -> Void) {
+    /// Изменение числа страниц: при полной длине длина растёт вместе со страницами; если играли все — играют все.
+    public mutating func changePages(_ change: (inout [[Step]]) -> Void) {
+        let n = Params.stepsPerPage
+        let full: Bool = length == pages.count * n
         let allPlay: Bool = playFrom == 0 && playTo == pages.count - 1
-        var pg: [[Step]] = pages
-        var ln: [Int] = pageLens
-        while ln.count < pg.count { ln.append(Params.stepsPerPage) }
-        change(&pg, &ln)
-        while ln.count < pg.count { ln.append(Params.stepsPerPage) }
-        if ln.count > pg.count { ln.removeLast(ln.count - pg.count) }
-        withOpen { c in
-            c.pages = pg
-            c.pageLens = ln
-        }
+        change(&pages)
         let last = pages.count - 1
+        let maxLen = pages.count * n
+        length = full ? maxLen : Swift.min(length, maxLen)
         if allPlay {
             playFrom = 0
             playTo = last
@@ -55,10 +31,7 @@ extension Track {
 
     public mutating func addPage() {
         if pages.count >= Params.maxPages { return }
-        changePages { pg, ln in
-            pg.append(Track.emptyPage())
-            ln.append(Params.stepsPerPage)
-        }
+        changePages { $0.append(Track.emptyPage()) }
     }
 
     /// DUPLICATE: копии диапазона встают сразу за ним; false — страниц стало бы больше 8.
@@ -67,11 +40,7 @@ extension Track {
         let r = pageRange(i)
         if pages.count + r.count > Params.maxPages { return false }
         let copy: [[Step]] = Array(pages[r])
-        let lens: [Int] = r.map { pageLen($0) }
-        changePages { pg, ln in
-            pg.insert(contentsOf: copy, at: r.upperBound + 1)
-            ln.insert(contentsOf: lens, at: r.upperBound + 1)
-        }
+        changePages { $0.insert(contentsOf: copy, at: r.upperBound + 1) }
         if playFrom > r.upperBound {
             playFrom += r.count
             playTo += r.count
@@ -79,24 +48,19 @@ extension Track {
         return true
     }
 
-    /// COPY: страницы диапазона с их длинами.
-    public func copyPages(_ i: Int) -> PageCopy {
-        let r = pageRange(i)
-        return PageCopy(pages: Array(pages[r]), lens: r.map { pageLen($0) })
+    public func copyPages(_ i: Int) -> [[Step]] {
+        return Array(pages[pageRange(i)])
     }
 
-    /// PASTE: скопированные страницы (с длинами) встают с первой страницы диапазона (не хватает — добавляются, до 8).
-    public mutating func pastePages(_ i: Int, _ clip: PageCopy) {
+    /// PASTE: скопированные страницы встают с первой страницы диапазона (не хватает — добавляются, до 8).
+    public mutating func pastePages(_ i: Int, _ clip: [[Step]]) {
         let a = pageRange(i).lowerBound
-        changePages { pg, ln in
-            for (k, page) in clip.pages.enumerated() {
-                let len: Int = k < clip.lens.count ? clip.lens[k] : Params.stepsPerPage
+        changePages { pg in
+            for (k, page) in clip.enumerated() {
                 if a + k < pg.count {
                     pg[a + k] = page
-                    ln[a + k] = len
                 } else if pg.count < Params.maxPages {
                     pg.append(page)
-                    ln.append(len)
                 }
             }
         }
@@ -114,10 +78,7 @@ extension Track {
         if pages.count - r.count < 1 { return false }
         let from = playFrom
         let to = playTo
-        changePages { pg, ln in
-            pg.removeSubrange(r)
-            ln.removeSubrange(r)
-        }
+        changePages { $0.removeSubrange(r) }
         if from >= r.lowerBound && to <= r.upperBound {
             playFrom = Swift.min(r.lowerBound, pages.count - 1)
             playTo = playFrom
@@ -264,12 +225,10 @@ extension Track {
         let n = pages.count
         if from == to || from < 0 || to < 0 || from >= n || to >= n { return }
         let single: Bool = playFrom == from && playTo == from
-        changePages { pg, ln in
-            let page = pg.remove(at: from)
-            pg.insert(page, at: to)
-            let len = ln.remove(at: from)
-            ln.insert(len, at: to)
-        }
+        var pg = pages
+        let page = pg.remove(at: from)
+        pg.insert(page, at: to)
+        pages = pg
         if single {
             playFrom = to
             playTo = to

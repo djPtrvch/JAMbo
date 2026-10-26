@@ -101,14 +101,13 @@ final class ProjectFileTests: XCTestCase {
 
     /// Каждое поле модели — в CodingKeys (иначе оно молча не сохранится).
     func testCodingKeysCoverAllFields() {
-        // extra — ключи без своего поля: у клипа length — общая длина (пишется для прежних версий, читается без pageLens).
-        func check<K: CaseIterable & RawRepresentable>(_ value: Any, _ keys: K.Type, extra: Set<String> = []) where K.RawValue == String {
+        func check<K: CaseIterable & RawRepresentable>(_ value: Any, _ keys: K.Type) where K.RawValue == String {
             let fields = Set(Mirror(reflecting: value).children.compactMap { $0.label })
-            XCTAssertEqual(fields.union(extra), Set(K.allCases.map { $0.rawValue }), "\(type(of: value))")
+            XCTAssertEqual(fields, Set(K.allCases.map { $0.rawValue }), "\(type(of: value))")
         }
         check(Project(), Project.CodingKeys.self)
         check(Track(index: 0), Track.CodingKeys.self)
-        check(Clip(), Clip.CodingKeys.self, extra: ["length"])
+        check(Clip(), Clip.CodingKeys.self)
         check(Step(), Step.CodingKeys.self)
         check(SceneRow(), SceneRow.CodingKeys.self)
         check(ModAssign(lfo: 1, amount: 0), ModAssign.CodingKeys.self)

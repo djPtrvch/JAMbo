@@ -145,10 +145,7 @@ extension Clip {
             while pages[p].count < n { pages[p].append(Step()) }
             for s in 0..<n { pages[p][s].repair() }
         }
-        // Длины страниц: по одной на страницу, 1…16 (недостающие — 16).
-        if pageLens.count > pages.count { pageLens.removeLast(pageLens.count - pages.count) }
-        while pageLens.count < pages.count { pageLens.append(n) }
-        pageLens = pageLens.map { Project.clamp($0, 1, n) }
+        length = Project.clamp(length, 1, pages.count * n)
         playTo = Project.clamp(playTo, 0, pages.count - 1)
         playFrom = Project.clamp(playFrom, 0, playTo)
         if let s = scale { scale = Project.clamp(s, 0, Scales.all.count - 1) }

@@ -74,9 +74,9 @@ extension AppModel {
         editSeq { t in t.withStep(index) { s in s = step } }
     }
 
-    /// Удержание первого шага и двойной тап по другому: он становится последним шагом своей страницы (и у MIX, MST).
+    /// Удержание первого шага и двойной тап по другому: он становится последним шагом паттерна (и у MIX, MST).
     func setPatternLength(lastIndex: Int) {
-        editSeq { t in t.setPageLength(lastIndex: lastIndex) }
+        editSeq { t in t.length = lastIndex + 1 }
     }
 
     // MARK: — ручки

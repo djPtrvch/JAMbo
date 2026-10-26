@@ -143,12 +143,11 @@ public struct SeqData {
         return SeqData.pageLen(Int(clipLength[ci(t, k)]), p, from: from)
     }
 
-    /// Длина страницы p из упакованных длин клипа (Clip.packedLens: 4 бита на страницу, длина − 1).
     @inline(__always)
-    static func pageLen(_ packed: Int, _ p: Int, from: Int) -> Int {
-        if p < 0 || p >= Params.maxPages { return Params.stepsPerPage }
-        let v: UInt32 = UInt32(truncatingIfNeeded: packed)
-        return Int((v >> UInt32(4 * p)) & 15) + 1
+    static func pageLen(_ length: Int, _ p: Int, from: Int) -> Int {
+        let n = Params.stepsPerPage
+        if length > from * n { return max(0, min(n, length - p * n)) }
+        return n
     }
 
     @inline(__always)
@@ -269,7 +268,7 @@ public final class SeqSnapshot: @unchecked Sendable {
         d.stopped.initialize(repeating: 1, count: tracks)
         d.slot.initialize(repeating: 0, count: tracks)
         d.clipBlock.initialize(repeating: -1, count: cells)
-        d.clipLength.initialize(repeating: Int32(bitPattern: 0xFFFF_FFFF), count: cells)
+        d.clipLength.initialize(repeating: Int32(Params.stepsPerPage), count: cells)
         d.clipFrom.initialize(repeating: 0, count: cells)
         d.clipTo.initialize(repeating: 0, count: cells)
         d.clipRate.initialize(repeating: 0, count: cells)
@@ -301,7 +300,7 @@ public final class SeqSnapshot: @unchecked Sendable {
         d.mixGain.initialize(repeating: 0, count: SeqData.maxSteps * tracks)
         for c in 0..<SeqData.chans {
             let clip: Clip = project.chanSeqs[c].openClip
-            d.chanLength[c] = clip.packedLens
+            d.chanLength[c] = Int32(clip.length)
             d.chanFrom[c] = Int32(clip.range.lowerBound)
             d.chanTo[c] = Int32(clip.range.upperBound)
         }
@@ -413,7 +412,7 @@ public final class SeqSnapshot: @unchecked Sendable {
     private static func fill(_ d: inout SeqData, _ track: Track, _ c: Clip, cell: Int, block: Int) {
         let r = c.range
         d.clipBlock[cell] = Int32(block)
-        d.clipLength[cell] = c.packedLens
+        d.clipLength[cell] = Int32(c.length)
         d.clipFrom[cell] = Int32(r.lowerBound)
         d.clipTo[cell] = Int32(r.upperBound)
         d.clipRate[cell] = Int8(Swift.max(-4, Swift.min(1, c.speed)))
