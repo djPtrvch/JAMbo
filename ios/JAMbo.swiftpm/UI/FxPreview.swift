@@ -2,7 +2,7 @@ import SwiftUI
 
 // Картинка FX в окне сэмпла (docs/ai/fx-eq.md «Анимация FX»): пока палец на ручке FX (или ручку FX крутят с MIDI),
 // поверх превью сэмпла или синта — картинка её колонки: Reverb, Delay, Drive, Duck. Раскладка и поле — как у окна
-// синта (SynthInfo): заголовок, поле 64×64 (до 144 pt, элементы в 4…60 × 8…56), линии толщиной иконок. Неподвижна,
+// синта (SynthInfo): заголовок, поле 64×64 (до 144 pt, элементы в 4…60 × 8…56), линии вдвое тоньше иконок. Неподвижна,
 // меняется только от ручек (кроме точки Duck). Цвета — как у иконок движков: звук — icon, второстепенное (контуры,
 // серые копии, огибающая фильтра) — icon2. Геометрия — FxPicture (Core).
 
@@ -103,7 +103,8 @@ struct FxPreview: View {
 /// Поле 64×64 по центру холста (как SynthIcon.draw): дальше рисуется в единицах поля.
 enum FxField {
     static let size: CGFloat = 64
-    static let stroke: CGFloat = 1.4
+    /// Линии — вдвое тоньше линий иконок движков (решение пользователя).
+    static let stroke: CGFloat = 0.7
     static let x0: CGFloat = 4
     static let x1: CGFloat = 60
     static let top: CGFloat = 8
@@ -226,7 +227,7 @@ struct FxDelayPic: View, Equatable {
             let w: CGFloat = FxField.x1 - 1 - x0
             // Линия полной высоты — 32 (16…48); копии SPREAD — до ±8 (поле 8…56).
             let full: CGFloat = 32
-            let bw: CGFloat = FxField.stroke * 1.4
+            let bw: CGFloat = FxField.stroke * 1.7
             ctx.fill(Path(CGRect(x: FxField.x0, y: mid - 0.35, width: FxField.x1 - FxField.x0, height: 0.7)),
                      with: .color(ink2.opacity(0.6)))
             ctx.fill(Path(CGRect(x: x0 - bw / 2, y: mid - full / 2, width: bw, height: full)), with: .color(ink2))
@@ -335,7 +336,7 @@ struct FxDuckFrame: View {
             ctx.stroke(line, with: .color(ink.opacity(0.9)), style: StrokeStyle(lineWidth: FxField.stroke, lineJoin: .round))
             let px: CGFloat = FxField.x0 + w * CGFloat(dot)
             let py: CGFloat = FxField.top + hh * CGFloat(1 - FxPicture.duckVolume(d, dot))
-            ctx.fill(Path(ellipseIn: CGRect(x: px - 2.2, y: py - 2.2, width: 4.4, height: 4.4)), with: .color(ink))
+            ctx.fill(Path(ellipseIn: CGRect(x: px - 1.7, y: py - 1.7, width: 3.4, height: 3.4)), with: .color(ink))
         }
     }
 }
