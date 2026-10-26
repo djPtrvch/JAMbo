@@ -29,15 +29,70 @@ extension Track {
         playTo = Swift.min(pages.count - 1, Swift.max(a, b))
     }
 
+    /// Секвенция короче своих страниц и кончается на последней странице (решение пользователя: одна сплошная
+    /// секвенция — новые шаги встают сразу за последним шагом, а не с новой страницы).
+    var endsShortOnLastPage: Bool {
+        let n = Params.stepsPerPage
+        return length < pages.count * n && (length + n - 1) / n == pages.count
+    }
+
+    /// «+»: 16 пустых шагов в конец секвенции. Короткая секвенция (7 шагов) — 7 + 16 = 23: первая страница 16 шагов,
+    /// вторая 7; полная — новая страница.
     public mutating func addPage() {
         if pages.count >= Params.maxPages { return }
+        if endsShortOnLastPage {
+            appendSteps(Array(repeating: Step(), count: Params.stepsPerPage))
+            return
+        }
         changePages { $0.append(Track.emptyPage()) }
     }
 
-    /// DUPLICATE: копии диапазона встают сразу за ним; false — страниц стало бы больше 8.
+    /// Шаги steps — сразу за последним шагом секвенции (скрытые шаги за длиной заменяются, страницы добавляются);
+    /// длина растёт на их число; если играли все — играют все. false — больше 8 страниц.
+    @discardableResult
+    mutating func appendSteps(_ steps: [Step]) -> Bool {
+        let n = Params.stepsPerPage
+        let from: Int = length
+        let newLen: Int = from + steps.count
+        if newLen > Params.maxPages * n { return false }
+        let allPlay: Bool = playFrom == 0 && playTo == pages.count - 1
+        var pg: [[Step]] = pages
+        while pg.count * n < newLen { pg.append(Track.emptyPage()) }
+        for (k, s) in steps.enumerated() {
+            let at: Int = from + k
+            pg[at / n][at % n] = s
+        }
+        // Скрытые шаги за новой длиной на последней странице — пустые (прежние ноты за длиной не всплывут).
+        var at: Int = newLen
+        while at < pg.count * n {
+            pg[at / n][at % n] = Step()
+            at += 1
+        }
+        pages = pg
+        length = newLen
+        if allPlay {
+            playFrom = 0
+            playTo = pages.count - 1
+        }
+        return true
+    }
+
+    /// DUPLICATE: копии диапазона встают сразу за ним; false — страниц стало бы больше 8. Короткая секвенция, диапазон
+    /// с её последней страницей — копия её шагов сразу за последним шагом: 7 шагов → 14 (одна страница), 12 → 24.
     @discardableResult
     public mutating func duplicatePages(_ i: Int) -> Bool {
         let r = pageRange(i)
+        if endsShortOnLastPage && r.upperBound == pages.count - 1 {
+            let n = Params.stepsPerPage
+            let start: Int = r.lowerBound * n
+            var copy: [Step] = []
+            for k in start..<length { copy.append(pages[k / n][k % n]) }
+            let playing: Bool = playTo == r.upperBound && playFrom == r.lowerBound
+            if !appendSteps(copy) { return false }
+            // Играл этот диапазон — играет и копия (одна секвенция).
+            if playing { playTo = pages.count - 1 }
+            return true
+        }
         if pages.count + r.count > Params.maxPages { return false }
         let copy: [[Step]] = Array(pages[r])
         changePages { $0.insert(contentsOf: copy, at: r.upperBound + 1) }

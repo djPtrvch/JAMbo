@@ -41,13 +41,49 @@ final class EditTests: XCTestCase {
         XCTAssertEqual(t.pages.count, 2)
         XCTAssertEqual(t.length, 32, "при полной длине длина растёт")
         XCTAssertEqual(t.playTo, 1, "играли все — играют все")
+        // Короткая секвенция (20 шагов = 16 + 4): «+» — 16 шагов сразу за последним: 36 = 16 + 16 + 4.
         t.length = 20
         t.setPlayPages(0, 0)
         t.addPage()
-        XCTAssertEqual(t.length, 20)
+        XCTAssertEqual(t.length, 36)
+        XCTAssertEqual(t.pages.count, 3)
         XCTAssertEqual(t.playTo, 0)
         for _ in 0..<10 { t.addPage() }
         XCTAssertEqual(t.pages.count, Params.maxPages)
+    }
+
+    /// Одна сплошная секвенция (решение пользователя): 7 шагов — DUPLICATE 14 (одна страница), «+» 23 (16 + 7).
+    func testShortSequenceGrowsContiguously() {
+        var t = Track(index: 0)
+        t.length = 7
+        t.pages[0][2].on = true
+        t.pages[0][10].on = true // скрытый шаг за длиной
+        var d = t
+        XCTAssertTrue(d.duplicatePages(0))
+        XCTAssertEqual(d.pages.count, 1)
+        XCTAssertEqual(d.length, 14)
+        XCTAssertTrue(d.pages[0][9].on, "копия шага 3 — шаг 10")
+        XCTAssertFalse(d.pages[0][10].on)
+        XCTAssertEqual(d.playLen(from: 0, to: 0), 14)
+        var a = t
+        a.addPage()
+        XCTAssertEqual(a.pages.count, 2)
+        XCTAssertEqual(a.length, 23)
+        XCTAssertEqual(a.pageLen(0), 16)
+        XCTAssertEqual(a.pageLen(1), 7)
+        XCTAssertFalse(a.pages[0][10].on, "новые шаги пустые")
+        XCTAssertEqual(a.playTo, 1, "играли все — играют все")
+        XCTAssertEqual(a.playLen(from: 0, to: 1), 23)
+        // 12 шагов: DUPLICATE — 24 (16 + 8).
+        var b = Track(index: 0)
+        b.length = 12
+        XCTAssertTrue(b.duplicatePages(0))
+        XCTAssertEqual(b.length, 24)
+        XCTAssertEqual(b.pages.count, 2)
+        // Полная страница — как прежде: копия страницей.
+        var f = Track(index: 0)
+        XCTAssertTrue(f.duplicatePages(0))
+        XCTAssertEqual(f.length, 32)
     }
 
     func testDuplicatePasteDelete() {
