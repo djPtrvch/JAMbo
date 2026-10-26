@@ -1,14 +1,14 @@
-# Handoff: JAMbo, Swift-версия — S15 аранжировщик: S15a–f готовы и проверены на iPad, в том числе круг правок раскладки (S15f′); дальше S15g — REF (S14 на паузе на S14c)
+# Handoff: JAMbo, Swift-версия — S15 аранжировщик готов (S15a–g, проверено на iPad); идёт S14c — интерфейс и MIDI
 
 ## 1. Контекст проекта
 Groovebox для iPad. Веб (`src/`, `public/`) — эталон, заморожен. Swift-перенос — ветка `swift`, `ios/JAMbo.swiftpm`. Правила — `CLAUDE.md`, `ios/CLAUDE.md`; план и вехи — `docs/SWIFT_AUDIT.md` (раздел 6); итоги вех — `docs/SWIFT_MILESTONE_Sx.md`. Поведение аранжировщика — `docs/ai/arranger.md`; MIDI — `docs/ai/settings-midi-sync.md` (в ветке swift описывают Swift-версию).
 
 ## 2. Принятые решения
-- S15 — аранжировщик (решение пользователя: S14 на паузе). Спецификация — docs/ai/arranger.md, итог — docs/SWIFT_MILESTONE_S15.md. План:
+- S15 — аранжировщик (готов, проверен на iPad; затем — решение пользователя — снова S14, с S14c). Спецификация — docs/ai/arranger.md, итог — docs/SWIFT_MILESTONE_S15.md. План:
   - S15a — данные, S15b — игра в колбэке, S15c — экран, S15d — секции, петля, INSERT (готово; несколько кругов правок по iPad — проверены пользователем).
   - S15e — перенос из сетки (готово): e1 — TO ARRANGE в меню строки (END / CURSOR; длина строки — самый длинный клип × REPEATS, LOOP ROW — один проход; короткие клипы и пустые ячейки повторяются до длины строки; секция — имя строки); e2 — журнал запусков за 32 такта и SEND TO ARRANGE в бутерброде сетки (END / CURSOR); e3 — запись аранжировки REC + PLAY + AUTO (всё, что играет в сетке, с курсора; одна запись UNDO в конце).
   - S15f — автоматизация на таймлайне (решения пользователя: в этой вехе, до REF; все 16 ручек сетки; кривая на таймлайне дорожки, не в паттерне; отдельной кнопки записи нет — AUTO показывает строки кривых, REC + PLAY + AUTO пишет и запуски клипов, и повороты ручек, у AUTO — красная обводка; рука перебивает кривую, кривая не меняется; отображение на ручке — как в вебе: дуга и стрелка по кривой, жёлтая риска; магнит — точки на линиях сетки таймлайна). Готово: f1 — данные и воспроизведение, f2 — строки кривых под выбранной дорожкой (тап — точка, сдвиг — двигать, двойной тап — удалить; «+» — ручки; CLEAR / DELETE), f3 — запись поворотов ручек.
-  - S15g — REF (референс-трек).
+  - S15g — REF (готово, проверено): строка REF сверху (дорожки на строку ниже), A/B слева от линейки, громкость REF — регулятор измерителя в положении B, референс мимо мастера и громкости выхода, играет только с таймлайна, темп файла определяется сам (показывается в заголовке, темп проекта не меняет); заголовок REF — две строки; меню REF (LOAD, DELETE) по двойному тапу; сдвиг волны без магнита. Заголовки дорожек и список окна AUTO — до левого края SCALE.
 - Решения пользователя — круг S15f′ (подробно — docs/ai/arranger.md, SWIFT_MILESTONE_S15.md «S15f′»):
   - Раскладка в одном масштабе: строка кнопок высотой с верхнюю миниатюру паттернов (строка папки ◀ ▶ — над превью, верхние строки EQ и окон мастера — той же высоты); окно аранжировщика — линейка и 8 строк через чёрные зазоры 6 pt; низ экрана — 3 строки и 2 зазора (верх — верх шестой дорожки), клавиатура — на остаток.
   - Строка кнопок аранжировщика: слева (по ширине превью) магнит, TRIM, курсор в начало, LOOP; справа (по ширине миниатюр) AUTO, окно ручек, STEPS (значок), REF; под ними — ровный фон. INSERT и A/B убраны (место A/B пользователь скажет позже); GRID — в SETTINGS → ARRANGE, по умолчанию 1/4.
@@ -47,13 +47,14 @@ Groovebox для iPad. Веб (`src/`, `public/`) — эталон, заморо
 
 
 ## 3. Текущая задача
-S15g — REF (референс-трек; docs/ai/arranger.md «REF»). Круг правок S15f′ проверен пользователем на iPad («всё работает»). Документы обновлены (arranger.md, SWIFT_MILESTONE_S15.md, ui-layout.md, sequencer.md). S14 на паузе: следующий шаг S14c — спросить пользователя, осталась ли задержка нот с MIDI.
+S14c — интерфейс и MIDI (план S14 выше): первым делом спросить пользователя, осталась ли задержка нот с MIDI; если да — путь MIDI → звук мимо главного потока; лишние перерисовки (наблюдаемое состояние, таймеры); разделить Sampler.swift. Затем S14d (описание S13e в docs/ai/settings-midi-sync.md) и S14e (App Store).
 
 ## 4. Что уже решено
+- S15g (REF): Core/Engine/RefPlayer.swift (после мастера, A/B, Levels.ref), Core/Sampler/TempoDetect.swift, ArrRef и Arrangement.showRef; UI/AppModelArrangeRef.swift (RefWave, BrowserMode.ref, refBActive), ArrRefHeader, ArrRefMenu, ArrABSwitch, ArrMetrics.refRow / body / inRef. Тесты RefTests, TempoDetectTests; CoreTests — 394.
 - S15 (Core): Arrange.swift, ArrangeEdits.swift (блоки, секции, rowToArrange), ArrangeJournal.swift (ArrJournal, sendToArrange), ArrangeRecorder.swift (ArrRecorder, applyRecording), ArrangeAuto.swift (ArrAutoLane, ArrAutoTarget, Track.autos, simplify, recordAuto); Sequencer/ArrangePlay.swift, ArrangeAutoPlay.swift (подстановка кривой в снимок звука на блок, autoHold); SeqData — блоки, autoFirst/autoCount/autoX/autoY, probLock. Тесты — ArrangeTests, ArrangePlayTests.
-- S15f′ (UI): RootView.units / arrangeArea (раскладка), Layout.piano / pairHeight, AppModel.barH / arrLowerH / arrInset / arrKnobs / arrGroup / arrMarquee; ArrangeBar (новая строка, ArrStepsIcon), ArrangeAutoPanel.swift (ArrAutoPanel, ArrAutoList, ArrAutoAddMenu, ArrAutoLaneMenu, ArrAutoCurve, ArrAutoTouches), ArrCursorLayer и ArrTotalTime (ArrangeWindow.swift); Core — Project.moveBlocks / duplicateBlocks / deleteBlocks, setMarkerStart / setMarkerEnd, ArrPalette.removed. Тесты testBlockGroup, testSectionEdges; CoreTests — 380.
+- S15f′ (UI): RootView.units / arrangeArea (раскладка), Layout.piano / pairHeight, AppModel.barH / arrLowerH / arrInset / arrKnobs / arrGroup / arrMarquee; ArrangeBar (новая строка, ArrStepsIcon), ArrangeAutoPanel.swift (ArrAutoPanel, ArrAutoList, ArrAutoAddMenu, ArrAutoLaneMenu, ArrAutoCurve, ArrAutoTouches), ArrCursorLayer и ArrTotalTime (ArrangeWindow.swift); Core — Project.moveBlocks / duplicateBlocks / deleteBlocks, setMarkerStart / setMarkerEnd, ArrPalette.removed. Тесты testBlockGroup, testSectionEdges; CoreTests — 394.
 - S15 (UI): ArrangeWindow (ArrMetrics, ArrTimeline, ArrDraw), ArrangeHeaders (+ ArrAutoHeaders), ArrangeTouches, ArrangeRuler, ArrangeMenus, ArrangeBar, AppModelArrange, AppModelArrangeMarks (SEND TO ARRANGE, запись), AppModelArrangeAuto (строки кривых, запись ручек, рука); LiveState — тик, журнал, recorder, arrPosTime.
-- S0–S12 готовы и проверены на iPad; S13a–d и S13f проверены на iPad (обратная связь — с TouchOSC по Bluetooth); S13e — RECEIVE и SEND проверены (SEND — с Digitakt по USB). S14v, S14a, S14b готовы и проверены на iPad. CoreTests — 380.
+- S0–S12 готовы и проверены на iPad; S13a–d и S13f проверены на iPad (обратная связь — с TouchOSC по Bluetooth); S13e — RECEIVE и SEND проверены (SEND — с Digitakt по USB). S14v, S14a, S14b готовы и проверены на iPad. CoreTests — 394.
 - Правки после проверки с Digitakt по USB (подробно — SWIFT_MILESTONE_S13.md, S13e): ClockFollower — после пропажи клока шаги заново привязываются к тикам (anchored; и после перезапуска звука), пропуск тиков — окно темпа заново с досчётом тиков, темп — после 4 тиков; MidiHost — при смене настройки MIDI подключённые источники не переподключаются; AudioHost — один перезапуск движка на пачку уведомлений (через 0,3 с), задержка выхода запоминается при запуске и смене маршрута; строка «Now:» — out, in, restarts, route changes, audio speed. Digitakt в режиме USB AUDIO/MIDI звук с iPad не принимает (и у других приложений: выход прыгает на динамик, секвенция тормозит) — из приложения не исправить, работать в режиме USB MIDI.
 - S14a: Core/Util/RenderProfile (метки разделов в AudioCore, Sampler, MasterChain; включён всегда, RESET — худшее заново), UI/FrameMeter (CADisplayLink, drain), DiagnosticsView; тесты HeavyLoadTests (тяжёлый проект), SynthCostTests (цена голоса по движкам).
 - S14b: синт — фильтр децимации jHalf/dHalf (пары отводов без цикла), sineD и буфер в Double, knob() без захвата и таблица битов p-lock; FX — покой Reverb и Delay в FxRack (sleep(), ниже −120 dB), Drive без пересчёта незвучащих кривых; Drive, SAT, CLIP, true peak лимитера — свёртки по 4 отвода со сдвигом указателей (fxDot, satDot, clipDot), кривые @_transparent; состояние циклов мастера — в локальных. Релизная сборка на Linux: `swift test -c release -Xswiftc -enable-testing` (Swift 6.0.3 падал на Drive.wet и Saturator.wet — позиции колец в локальных).
@@ -63,7 +64,7 @@ S15g — REF (референс-трек; docs/ai/arranger.md «REF»). Круг 
 - Настройки — AppSettings.midi (UserDefaults "settings"), пресеты маппингов — UserDefaults "midiPresets".
 
 ## 5. Что осталось решить
-- Аранжировщик: кнопки возврата дорожек к таймлайну во время игры нет — нужна ли и где; инерция прокрутки; место кнопки A/B — пользователь скажет; меню блоков и дорожек у нижних дорожек может уйти под окно STEPS / AUTO; ios/CLAUDE.md «Решения» — строка про S15 (внести в конце вехи).
+- Аранжировщик: кнопки возврата дорожек к таймлайну во время игры нет — нужна ли и где; инерция прокрутки; меню блоков и дорожек у нижних дорожек может уйти под окно STEPS / AUTO; подставлять ли темп референса в проект (сейчас только показывается).
 - Автоматизация: кривые действуют только у дорожек на таймлайне; пользователю предложено — и при игре из сетки, ответа нет. Duck, Chance, Ratchet на кривых отдельно не проверялись.
 - Автоматизация в паттернах (как в вебе) — нужна ли, веха S16; на таймлайне — сделана в S15f.
 - Значок и URL политики конфиденциальности — пользователь.
@@ -96,4 +97,4 @@ S15g — REF (референс-трек; docs/ai/arranger.md «REF»). Круг 
 - Звуковые ошибки (щелчки) — воспроизводить сценой пользователя в тесте Core и мерить; при сомнении — стенд-страница с AudioWorklet (как SUB Bench в S12).
 
 ## 7. Первый запрос для нового чата
-«Прочитай docs/handoffs/HANDOFF.md, ios/CLAUDE.md и docs/SWIFT_MILESTONE_S15.md. Продолжаем S15: S15g — REF»
+«Прочитай docs/handoffs/HANDOFF.md, ios/CLAUDE.md и docs/SWIFT_MILESTONE_S14.md. Продолжаем S14c»

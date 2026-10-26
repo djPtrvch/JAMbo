@@ -6,7 +6,7 @@
 - S15a — данные (готово). S15b — игра в колбэке (готово). S15c — экран (готово). S15d — секции, петля, INSERT (готово). Правки S15c/S15d по проверке на iPad — несколько кругов, проверены пользователем (линейка и левые углы прямые, заголовки вплотную, маркер плейхеда во всю строку секций, «нет цвета» у дорожки, цвет дорожки — только у блоков, секция — только из диапазона, измеритель до низа окна, метры заголовков, прокрутка по заголовкам).
 - S15e — перенос из сетки: e1 — TO ARRANGE в меню строки (готово: Project.rowToArrange, меню строки END / CURSOR, тест testRowToArrange); e2 — журнал и SEND TO ARRANGE (готово: Core/Model/ArrangeJournal.swift — ArrJournal, Project.sendToArrange; журнал и тик — в LiveState по сообщениям clip и step, begin при PLAY; бутерброд сетки END / CURSOR; тесты testJournalTake, testSendToArrange); e3 — запись с AUTO (готово: Core/Model/ArrangeRecorder.swift — ArrRecorder (отрезки по сообщениям arrange и clip, скачок петли), Project.applyRecording; в LiveState — recorder, beginRecord, finishRecord; AppModel.arrAuto, syncArrRecord на PLAY, стопе, .ended, REC и AUTO; ноты с AUTO не пишутся; ARRANGE — красный контур; тест testRecorder). TO ARRANGE: короткие клипы повторяются до длины строки (решение пользователя).
 - S15f — автоматизация на таймлайне (решение пользователя: в этой вехе, до REF; AUTO — показ строк кривых и запись): f1 — данные и воспроизведение (готово: Core/Model/ArrangeAuto.swift — ArrAutoLane, ArrAutoTarget, Track.autos; SeqData — autoFirst/autoCount/autoX/autoY, probLock; Core/Sequencer/ArrangeAutoPlay.swift — подстановка в снимок звука на блок, Chance и Ratchet на шаге, autoHold; тесты testAutomationOverridesKnob, testAutomationOnlyOnTimeline, testLaneValue); f2 — показ и правка под дорожкой (готово: ArrMetrics — autoTrack, lanes, laneY, lane(at:); AppModelArrangeAuto — arrAutoView, ручки, правки; ArrAutoHeaders, ArrAutoAddMenu, ArrAutoLaneMenu; ArrDraw.autoLanes; ArrTouches — точки); f3 — запись поворотов ручек (готово: ArrAutoLane.simplify, Track.recordAuto, тест testRecordAuto; AppModelArrangeAuto — AutoTake, knobTouch (рука — autoHold), autoTakeBegin / autoTakePoint / flushAutoTake, arrNowX, autoCurveNorm; LiveState.arrPosTime).
-- S15g — REF.
+- S15g — REF (готово, проверено на iPad).
 
 ## S15a — данные (Core/Model/Arrange.swift, ArrangeEdits.swift)
 - ArrBlock (clip, start, length, offset — место в проходе клипа), Track.blocks и Track.color (номер в ArrPalette; блоки переезжают, удаляются и копируются с дорожкой; PASTE дорожки — блоки и цвет свои). Arrangement (Project.arrange): markers (ArrMarker: at, name, color, end — конец секции или nil), loopFrom / loopTo / loop, grid (ArrGrid: 16, 8, 4, 1 шаг), snap, hideSteps. Формат версии 5; repair — клипы в пределах, без перекрытий, цвет и сетка в пределах.
@@ -44,14 +44,21 @@
 - Секции без цвета (линии и имя по центру), края тянутся (Project.setMarkerStart / setMarkerEnd, тест testSectionEdges); перетаскивания секции и выбора цвета нет. Плейхед — тянется (ArrRulerTouches .playhead), пятиугольник во всю высоту линейки, плавный ход (ArrCursorLayer — TimelineView по arrNowX; основной холст по шагам не перерисовывается). ArrTotalTime — время плейхеда / длительность.
 - Прочее: измеритель справа — размера окна дорожки; PLAY в аранжировщике с курсором за концом — с начала; палитра — без #B8902A (ArrPalette.removed), квадраты; меню дорожки — от начала таймлайна; клавиатура по умолчанию — одна октава (AppSettings.pianoOctaves = 1).
 
+## S15g — REF (Core/Engine/RefPlayer.swift, Core/Sampler/TempoDetect.swift, UI/AppModelArrangeRef.swift)
+- Данные: ArrRef (key, name, offset — с, gain — dB, bpm) в Arrangement.ref, Arrangement.showRef; repair (пустой ключ — нет референса, gain в пределах, неверный bpm — заново); ключ — в Project.sampleKeys (загрузка с проектом, EXPORT).
+- Колбэк: SoundData.refLeft / refRight / refFrames / refOffset / refGain / refB (снимок звука держит сэмпл); AudioCore.renderRef после мастера и громкости выхода — RefPlayer.render (место — по Sequencer.arrangePosition в конце блока минус блок; читается подряд, расхождение больше 25 мс — переход с кроссфейдом на блок; старт — подъём, стоп — затухание) и RefPlayer.mix (A/B плавно за 480 кадров; пики — Levels.ref, LUFS — пока измеритель показывает референс).
+- Темп (TempoDetect): огибающая атак (рост энергии всей полосы и низа, кадры по 256), автокорреляция, гребёнка долей и их половин (вес 0,5) на одном отрезке 6,4 с, 75…180 BPM с мягким предпочтением 125; двойной темп в диапазоне и не хуже 80 % — двойной; отрезок 40 с с 20 % длины; около целого — целый. В фоне при загрузке, в проект без UNDO (0 — не нашёлся).
+- UI: ArrMetrics.headerW — до левого края SCALE (Layout.leftColumn + gap); ArrMetrics.refRow / body / inRef (дорожки ниже строки REF); ArrDraw.refRow (волна по RefWave — пики на 512 кадров, в фоне); ArrTouches .ref (сдвиг); ArrRefHeader (две строки), ArrRefMenu (LOAD, DELETE), ArrABSwitch; BrowserMode.ref (тап — libUseRef, IMPORT — refImport); AppModel.arrRefB, refBActive (B — только в аранжировщике при видимой строке REF), meterChannel → Levels.ref, регулятор — setArrRefGain.
+- Тесты: RefTests (10), TempoDetectTests (4); CoreTests — 394.
+
 ## Проверено
+- REF (загрузка, волна и сдвиг, A/B, регулятор в B, темп файла, сохранение) — пользователь: «всё работает».
 - Core: 380 тестов на Linux. На iPad — S15c и S15d (несколько кругов правок), TO ARRANGE и SEND TO ARRANGE, автоматизация (рисуется, пишется, звучит по кривой), круг правок S15f′ (раскладка, окно AUTO, строка кнопок, плейхед, счётчик) — пользователь: «всё работает».
 - S13e (SYNC RECEIVE, SYNC START/STOP выкл. — свой PLAY и STOP независимы) — пользователь проверил: работает.
 
 ## Открыто
 - Возврат дорожек к таймлайну во время игры — кнопки нет; нужна ли и где.
 - Инерция прокрутки — нет.
-- A/B — место кнопки пользователь скажет позже; REF — S15g.
 - Кривые — только у дорожек на таймлайне; при игре из сетки — не действуют (предложено пользователю, ответа нет). Duck, Chance, Ratchet на кривых на iPad отдельно не проверялись.
 - Меню блоков и дорожек у нижних дорожек может уйти под окно STEPS / AUTO.
 - AppModel.swift — больше 600 строк (было и до S15).
