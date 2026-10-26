@@ -373,6 +373,13 @@ final class ArrangeTests: XCTestCase {
         XCTAssertEqual(q.selectionToArrange(two, at: 0), 32)
         XCTAssertEqual(q.arrange.markers.map { [$0.at, $0.end ?? -1] }, [[16, 32]])
         XCTAssertEqual(q.arrange.markers.map { $0.name }, ["Verse"])
+        // Одна строка клипами (два клипа) — секция; один клип — без секции.
+        q.tracks[1].clips[2] = trigClip(pages: 1)
+        let row = GridSelection(cells: [CellRef(track: 0, row: 2), CellRef(track: 1, row: 2)])
+        XCTAssertEqual(q.selectionToArrange(row, at: 64), 80)
+        XCTAssertEqual(q.arrange.markers.map { [$0.at, $0.end ?? -1] }, [[16, 32], [64, 80]])
+        XCTAssertEqual(q.selectionToArrange(GridSelection(cells: [CellRef(track: 0, row: 2)]), at: 96), 112)
+        XCTAssertEqual(q.arrange.markers.count, 2)
     }
 
     /// Журнал SEND TO ARRANGE: блоки от запусков, тишина — пропуск, окно 32 такта (offset — место в проходе).

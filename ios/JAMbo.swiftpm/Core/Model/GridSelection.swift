@@ -41,13 +41,14 @@ public struct GridSelection: Equatable {
 extension Project {
     /// TO ARRANGE выделения: строки сверху вниз, одна за другой с позиции at (nil — в конец аранжировки). Строка
     /// целиком — как rowToArrange (все дорожки, секция у строки с именем); иначе — только выделенные клипы строки (секция
-    /// с именем строки — если в выделении несколько строк). Длина —
+    /// с именем строки — если выделен не один клип). Длина —
     /// самый длинный клип × повторы строки (repeats; иначе один проход). Конец участка; nil — нечего переносить.
     @discardableResult
     public mutating func selectionToArrange(_ sel: GridSelection, at: Int?, repeats: Bool = true) -> Int? {
         var pos: Int? = at
         var last: Int? = nil
-        let many: Bool = sel.orderedRows.count > 1
+        // Один клип — без секции; строка (несколько клипов) или несколько строк — с секцией строки с именем.
+        let many: Bool = sel.orderedRows.count > 1 || sel.cells.count > 1
         for k in sel.orderedRows {
             var end: Int? = nil
             if sel.rows.contains(k) {
@@ -57,7 +58,7 @@ extension Project {
                 let reps: Int = repeats ? Swift.max(1, scenes[k].repeats) : 1
                 let span = placeRow(k, tracks: only, repeats: reps, at: pos)
                 end = span?.end
-                // Несколько строк сразу (решение пользователя): строка с именем — и секцией с этим именем.
+                // Решение пользователя: строка с именем — и секцией с этим именем (кроме одного клипа).
                 if many, let r = span, !scenes[k].name.isEmpty {
                     arrange.markers.removeAll { $0.at >= r.start && $0.at < r.end }
                     addMarker(at: r.start, name: scenes[k].name, end: r.end)
