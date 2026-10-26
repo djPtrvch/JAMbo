@@ -70,7 +70,7 @@ struct MeterColumn: View {
         let muted: Bool = track && ch < model.project.tracks.count && !model.project.audible(ch)
         return GeometryReader { geo in
             ZStack(alignment: .topLeading) {
-                Canvas { ctx, size in
+                Canvas(rendersAsynchronously: true) { ctx, size in
                     let w: CGFloat = MeterBars.span(data.count)
                     MeterBars.draw(ctx, CGRect(x: (size.width - w) / 2, y: 0, width: w, height: size.height), data, theme: theme,
                                    muted: muted)

@@ -206,7 +206,7 @@ struct MixMeter: View {
 
     var body: some View {
         let _ = RedrawMeter.hit(.mixMeter)
-        Canvas { ctx, sz in
+        Canvas(rendersAsynchronously: true) { ctx, sz in
             let w: CGFloat = MeterBars.span(bars.count)
             let gr: CGFloat = duckDb <= -0.1 ? CGFloat(-duckDb / 24) : 0
             MeterBars.draw(ctx, CGRect(x: sz.width - w, y: 0, width: w, height: sz.height), bars, theme: theme,

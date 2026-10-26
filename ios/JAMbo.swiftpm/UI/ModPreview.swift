@@ -33,7 +33,7 @@ struct ModPreview: View {
         let envG: Double = Double(model.audio.core.mod.envOuts[t * 2 + 1].load())
         return VStack(alignment: .leading, spacing: 2) {
             Text(title).font(.system(size: 10)).foregroundStyle(theme.dim).lineLimit(1)
-            Canvas { ctx, size in
+            Canvas(rendersAsynchronously: true) { ctx, size in
                 _ = frame
                 if n < 4 {
                     ModPreview.drawLfo(ctx, size, p, n, lfoPhase, colors)

@@ -184,7 +184,7 @@ struct ScopeCanvas: View {
     let draw: (GraphicsContext, CGSize) -> Void
 
     var body: some View {
-        Canvas { ctx, size in draw(ctx, size) }
+        Canvas(rendersAsynchronously: true) { ctx, size in draw(ctx, size) }
     }
 }
 
