@@ -228,9 +228,9 @@ public enum Params {
     /// левее центра — реверс. Режим (rateModeId, SHIFT + тап по ручке): PTCH — скорость меняет высоту, как на виниле;
     /// TSTR — таймстретч: высота прежняя, сэмпл идёт в темпе проекта (темп файла — TempoDetect.loopBpm), RATE —
     /// множитель скорости.
-    public static let rate = ParamDef(id: "rate", label: "Rate PTCH", min: -100, max: 100, def: 100, bipolar: true,
+    public static let rate = ParamDef(id: "rate", label: "Rate Pitch", min: -100, max: 100, def: 100, bipolar: true,
                                       format: Fmt.pct)
-    public static let rateTstr = ParamDef(id: "rate", label: "Rate TSTR", min: -100, max: 100, def: 100, bipolar: true,
+    public static let rateTstr = ParamDef(id: "rate", label: "Rate Stretch", min: -100, max: 100, def: 100, bipolar: true,
                                           format: Fmt.pct)
     /// Режим RATE дорожки (значение звука дорожки, не на сетке, без p-lock): 0 — PTCH (по умолчанию), 1 — TSTR.
     public static let rateModeId = "rate.mode"

@@ -58,8 +58,8 @@ final class RateTests: XCTestCase {
         XCTAssertEqual(Params.trackGrid[12].id, "rate")
         XCTAssertEqual(Params.byId["rate"]!.def, 100)
         XCTAssertEqual(Params.defaults()["rate"], 100)
-        XCTAssertEqual(Params.rate.label, "Rate PTCH")
-        XCTAssertEqual(Params.rateTstr.label, "Rate TSTR")
+        XCTAssertEqual(Params.rate.label, "Rate Pitch")
+        XCTAssertEqual(Params.rateTstr.label, "Rate Stretch")
         XCTAssertEqual(KnobDefaults.companion("rate"), Params.rateModeId)
     }
 
