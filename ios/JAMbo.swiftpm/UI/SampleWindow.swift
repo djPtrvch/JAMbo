@@ -32,8 +32,20 @@ struct SampleWindow: View {
         }
     }
 
-    @ViewBuilder
+    /// Поверх превью — картинка FX, пока регулируют ручку FX (появляется и гаснет за 0,2 с).
     private var trackView: some View {
+        ZStack {
+            preview
+            if model.fxPicture {
+                FxPreview(model: model)
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeOut(duration: 0.2), value: model.fxPicture)
+    }
+
+    @ViewBuilder
+    private var preview: some View {
         if model.modPreview {
             ModPreview(model: model)
         } else if let e = SynthKey.engine(model.shownSound) {

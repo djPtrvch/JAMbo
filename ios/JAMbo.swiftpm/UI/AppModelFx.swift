@@ -20,6 +20,36 @@ extension AppModel {
         }
     }
 
+    // MARK: — картинка FX в окне сэмпла (FxPreview)
+
+    /// Картинка видна: на дорожке палец на ручке FX или ручку FX только что повернули с MIDI.
+    var fxPicture: Bool {
+        return channel == .track && (fxMidiShow || (fxMode && !knobFingers.isEmpty))
+    }
+
+    /// Палец (или нажатие энкодера) на ручке FX — картинка её колонки.
+    func fxFinger(_ slot: Int) {
+        if fxMode { fxPicCol = slot % 4 }
+    }
+
+    /// Поворот ручки FX с MIDI: картинка колонки, гаснет через 0,5 с после последнего поворота.
+    func fxMidiPulse(_ slot: Int) {
+        fxPicCol = slot % 4
+        fxMidiShow = true
+        fxMidiTask?.cancel()
+        fxMidiTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            if Task.isCancelled { return }
+            self?.fxMidiShow = false
+        }
+    }
+
+    /// Значение FX на картинке — как на ручке: p-lock зажатого шага, иначе FX клипа.
+    func fxShown(_ id: String) -> Double {
+        if let held = heldSteps.min(), let v = track.step(held)?.locks[id] { return v }
+        return project.fx[id] ?? Params.byId[id]?.def ?? 0
+    }
+
     /// Значение FX клипа (без p-lock).
     func fxValue(_ p: ParamDef) -> Double {
         return project.fx[p.id] ?? p.def

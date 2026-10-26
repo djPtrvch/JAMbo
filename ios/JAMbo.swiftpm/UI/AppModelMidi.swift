@@ -132,7 +132,10 @@ extension AppModel {
             ensureAudio()
             midiGesture("knob \(s) \(String(describing: m.src))")
             withKnobPlace(place) {
-                if param(s) != nil { setKnob(s, norm: input.knobValue(m, cur: knobStart(s))) }
+                if param(s) != nil {
+                    setKnob(s, norm: input.knobValue(m, cur: knobStart(s)))
+                    if fxMode { fxMidiPulse(s) }
+                }
             }
             return
         }
@@ -147,6 +150,7 @@ extension AppModel {
             return
         }
         setKnob(s, norm: input.knobValue(m, cur: knobStart(s)))
+        if fxMode { fxMidiPulse(s) }
     }
 
     /// Нажатие ручки (PRESS): как палец на ручке (MIDI → MAPPING → KNOB PRESS = TOUCH, по умолчанию) или действие

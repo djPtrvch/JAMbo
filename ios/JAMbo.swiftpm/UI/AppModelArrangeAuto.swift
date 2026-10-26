@@ -111,6 +111,7 @@ extension AppModel {
 
     /// Палец на ручке (или нажатие энкодера): её кривая не действует — слышна рука; отпустили — кусок записи кончился.
     func knobTouch(_ slot: Int, _ on: Bool) {
+        if on { fxFinger(slot) }
         if !on {
             guard let key = autoSlotKeys.removeValue(forKey: slot) else { return }
             flushAutoTake(key)
