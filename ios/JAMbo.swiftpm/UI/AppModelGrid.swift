@@ -294,7 +294,8 @@ extension AppModel {
         let plus = project.canAddRow
         let total = n + (plus ? 1 : 0)
         let prev: Bool = project.prevRow
-        let win = prev ? Params.gridRows - 1 : Params.gridRows
+        let rows: Int = gridRowsShown
+        let win = prev ? rows - 1 : rows
         let maxTop = max(0, total - win)
         let top = min(max(0, gridTop), maxTop)
         var rows: [Int?] = []
@@ -317,7 +318,7 @@ extension AppModel {
             let cur = live.sceneQueued >= 0 ? live.sceneQueued : max(0, live.sceneRow)
             let k = min(project.visibleRows - 1, max(0, cur + dir))
             if k != cur { queueScene(k, atPass: true) }
-            let win: Int = project.prevRow ? Params.gridRows - 1 : Params.gridRows
+            let win: Int = project.prevRow ? gridRowsShown - 1 : gridRowsShown
             if k < w.top { gridTop = k } else if k >= w.top + win { gridTop = k - win + 1 }
             return
         }

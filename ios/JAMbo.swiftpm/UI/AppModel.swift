@@ -176,9 +176,13 @@ final class AppModel {
     var rowMenu: Int? = nil
     /// Выделение рамкой в сетке паттернов (строки и клипы) — для TO ARRANGE.
     var gridSel = GridSelection()
+    /// Строк в окне сетки паттернов: 8; STEPS выключена — сколько поместится той же высоты (RootView).
+    var gridRowsShown: Int = Params.gridRows
     /// Перенос клипа из сетки на кнопку ARRANGE и в аранжировку (AppModelCarry); палец — в координатах «root».
     var clipCarry: ClipCarry? = nil
     var carryPoint: CGPoint = .zero
+    /// Выделение, положенное поверх блоков, — ждёт выбора в меню (HERE, INSERT, TO END): что и с какого шага.
+    var arrDropPending: (sel: GridSelection, start: Int)? = nil
     /// Рамки кнопки ARRANGE и таймлайна аранжировщика (координаты «root»).
     @ObservationIgnored var arrangeButtonFrame: CGRect = .zero
     @ObservationIgnored var arrTimelineFrame: CGRect = .zero

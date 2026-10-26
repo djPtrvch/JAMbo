@@ -36,7 +36,7 @@ extension AppModel {
         if !settings.mixCrossfader { tr.pos = 1 }
         // Откуда клипы опускаются (строка окна сетки; ниже окна — с нижней строки).
         var drop: [Int: Int] = [:]
-        for m in tr.moves { drop[m.track] = min(Params.gridRows - 1, max(0, m.from - top)) }
+        for m in tr.moves { drop[m.track] = min(gridRowsShown - 1, max(0, m.from - top)) }
         resetForProject()
         keyHold = playing && !settings.mixKey
         bpmHold = playing && !settings.mixCrossfader ? next.bpm : nil

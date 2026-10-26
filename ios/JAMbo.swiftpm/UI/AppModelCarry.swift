@@ -49,6 +49,7 @@ extension AppModel {
         closeMasterWindow()
         arrangeView = true
         clipCarry = carry
+        carryAutoScroll()
     }
 
     /// Палец отпущен. Аранжировщик не открывался — false (обычный перенос в сетке). Иначе сетка закрывается
@@ -61,6 +62,13 @@ extension AppModel {
         if cancelled { return true }
         if let sel = c.sel {
             guard let s = carryGroupStart(c) else { return true }
+            // Поверх блоков — меню: здесь, раздвинуть или в конец.
+            if project.selectionOverlaps(sel, at: s) {
+                let f: CGRect = arrTimelineFrame
+                arrDropPending = (sel, s)
+                arrMenu = .drop(anchor: CGPoint(x: carryPoint.x - f.minX, y: carryPoint.y - f.minY))
+                return true
+            }
             edit { p in p.selectionToArrange(sel, at: s) }
             gridSel = GridSelection()
             arrGroup = []
@@ -119,6 +127,60 @@ extension AppModel {
             for b in probe.tracks[t].blocks where b.start >= s && !old.contains(b) { out.append((t, b)) }
         }
         return out
+    }
+
+    enum DropMode { case here, insert, end }
+
+    /// Выбор в меню выделения поверх блоков: одна запись UNDO.
+    func arrDrop(_ mode: DropMode) {
+        arrMenu = nil
+        guard let d = arrDropPending else { return }
+        arrDropPending = nil
+        let sel: GridSelection = d.sel
+        let s: Int = d.start
+        switch mode {
+        case .here:
+            edit { p in p.selectionToArrange(sel, at: s) }
+        case .insert:
+            var probe: Project = project
+            let len: Int = (probe.selectionToArrange(sel, at: s) ?? s) - s
+            edit { p in
+                p.insertSpace(at: s, length: len)
+                p.selectionToArrange(sel, at: s)
+            }
+        case .end:
+            // Конец аранжировки; с магнитом — следующая линия сетки.
+            let a: Arrangement = project.arrange
+            let e: Int = project.arrangeEnd
+            let g: Int = max(1, a.gridSteps)
+            let at: Int = a.snap ? (e + g - 1) / g * g : e
+            edit { p in p.selectionToArrange(sel, at: at) }
+        }
+        gridSel = GridSelection()
+        arrGroup = []
+        arrSel = nil
+    }
+
+    /// Перенос над таймлайном у левого или правого края (40 pt; слева — и над заголовками) — таймлайн прокручивается
+    /// (за концом аранжировки — ещё 32 такта места), пока палец там.
+    func carryAutoScroll() {
+        Task { @MainActor in
+            while clipCarry?.overArrange == true {
+                try? await Task.sleep(nanoseconds: 33_000_000)
+                let f: CGRect = arrTimelineFrame
+                let pt: CGPoint = carryPoint
+                if f.width <= 0 || pt.y < f.minY || pt.y > f.maxY { continue }
+                var dx: CGFloat = 0
+                if pt.x < f.minX + 40 { dx = -14 } else if pt.x > f.maxX - 40 { dx = 14 }
+                if dx == 0 { continue }
+                var port: ArrPort = arrPort
+                port.x = max(0, port.x + dx)
+                let m = ArrMetrics(size: f.size, port: port, tracks: project.tracks.count, end: project.arrangeEnd,
+                                   expanded: settings.arrangeExpanded, inset: arrInset, ref: arrRefShown)
+                port.x = m.x
+                if port != arrPort { arrPort = port }
+            }
+        }
     }
 
     /// Метрики таймлайна размера size (как у окна аранжировщика).

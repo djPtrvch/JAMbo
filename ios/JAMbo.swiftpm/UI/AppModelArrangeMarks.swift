@@ -6,6 +6,35 @@ extension AppModel {
     // MARK: — маркеры
 
     /// ADD SECTION в меню диапазона: секция ровно на выделенный диапазон и окно с именем.
+    /// Диапазон под точкой таймлайна: выделенный, если точка в нём, иначе такт под ней.
+    private func arrRangeAt(_ anchor: CGPoint) -> (from: Int, to: Int) {
+        let m: ArrMetrics = arrMetrics(arrTimelineFrame.size)
+        let x: Int = max(0, Int(m.step(at: anchor.x).rounded(.down)))
+        let a: Arrangement = project.arrange
+        if a.hasLoop && x >= a.loopFrom && x < a.loopTo { return (a.loopFrom, a.loopTo) }
+        let bar: Int = ArrMetrics.stepsPerBar
+        let s: Int = x / bar * bar
+        return (s, s + bar)
+    }
+
+    /// ADD SECTION в окне секции: новая секция на диапазоне под пальцем (выделенном или такте) и её окно.
+    func arrSectionHere(anchor: CGPoint) {
+        let r = arrRangeAt(anchor)
+        if !(project.arrange.hasLoop && project.arrange.loopFrom == r.from && project.arrange.loopTo == r.to) {
+            arrSetLoop(r.from, r.to)
+        }
+        arrSectionAtRange(anchor: anchor)
+    }
+
+    /// SPLIT в окне секции: блоки выбранной дорожки режутся по краям диапазона под пальцем.
+    func arrSplitAt(anchor: CGPoint) {
+        let r = arrRangeAt(anchor)
+        guard channel == .track else { return }
+        let t: Int = selectedTrack
+        edit { p in p.splitArrange(track: t, r.from, r.to) }
+        arrSel = nil
+    }
+
     func arrSectionAtRange(anchor: CGPoint) {
         let at: Int = project.arrange.loopFrom
         let end: Int = project.arrange.loopTo

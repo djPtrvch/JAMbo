@@ -138,24 +138,30 @@ struct RootView: View {
     }
 
     /// Обычный экран: центр и низ (высоты — явно, h — высота экрана). STEPS сетки паттернов выключена — как STEPS
-    /// аранжировщика: строки дорожек, секвенсора и клавиатуры нет; сетка не меняется (решение пользователя: ни сдвигов,
-    /// ни растяжения), под ней — пусто.
+    /// аранжировщика: строки дорожек, секвенсора и клавиатуры нет; на их месте — следующие строки сетки (решение
+    /// пользователя: клипы и кнопки не растягиваются и не сдвигаются — строки той же высоты, сколько поместится).
     @ViewBuilder
     private func main(_ layout: Layout, _ lowerH: CGFloat, _ h: CGFloat) -> some View {
         // Центр: экран без полей (8 сверху и снизу), верхней панели, низа и двух зазоров.
         let centerH: CGFloat = max(0, h - 16 - Layout.topHeight - lowerH - 2 * Layout.gap)
-        if model.patternView && model.project.gridHideSteps {
-            VStack(spacing: Layout.gap) {
-                center(layout).frame(height: centerH)
-                // Низ меню бутерброда — там же, где верх строки дорожек.
-                Color.clear.frame(height: lowerH)
-                    .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("root")).minY } action: { trackTop = $0 }
-            }
+        let tall: Bool = model.patternView && model.project.gridHideSteps
+        let rowH: CGFloat = GridGeometry.rowH(centerH, rows: Params.gridRows)
+        let pitch: CGFloat = max(1, rowH + PatternGrid.rowGap)
+        let more: Int = Int(((Layout.gap + lowerH) / pitch).rounded(.down))
+        let rows: Int = tall ? Params.gridRows + more : Params.gridRows
+        let gridH: CGFloat = CGFloat(rows) * rowH + CGFloat(rows - 1) * PatternGrid.rowGap
+        if tall {
+            center(layout).frame(height: gridH)
+                .frame(height: centerH + Layout.gap + lowerH, alignment: .top)
+                // Низ меню бутерброда — низ экрана.
+                .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("root")).maxY } action: { trackTop = $0 }
+                .onChange(of: rows, initial: true) { _, n in model.gridRowsShown = n }
         } else {
             VStack(spacing: Layout.gap) {
                 center(layout).frame(height: centerH)
                 lower(layout).frame(height: lowerH)
             }
+            .onChange(of: rows, initial: true) { _, n in model.gridRowsShown = n }
         }
     }
 

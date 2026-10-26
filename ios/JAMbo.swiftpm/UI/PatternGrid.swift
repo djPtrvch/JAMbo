@@ -39,7 +39,7 @@ struct PatternGrid: View {
     var body: some View {
         let _ = RedrawMeter.hit(.patterns)
         GeometryReader { geo in
-            let g = GridGeometry(size: geo.size, step: layout.step, tracks: model.project.tracks.count)
+            let g = GridGeometry(size: geo.size, step: layout.step, tracks: model.project.tracks.count, rows: model.gridRowsShown)
             let w = model.gridWindow
             ZStack(alignment: .topLeading) {
                 // Жест сетки — только на ячейках (колонка строк и дорожки); кнопки справа и меню — свои касания.
@@ -51,7 +51,7 @@ struct PatternGrid: View {
                 .frame(width: g.size.width - g.sceneW - Layout.gap, height: g.size.height, alignment: .topLeading)
                 .contentShape(Rectangle())
                 .gesture(touch(g))
-                GridSideButtons(model: model, scroll: w.maxTop > 0, canUp: w.top > 0, canDown: w.top < w.maxTop)
+                GridSideButtons(model: model, rows: g.rows, scroll: w.maxTop > 0, canUp: w.top > 0, canDown: w.top < w.maxTop)
                     .frame(width: g.sceneW, height: g.size.height)
                     .offset(x: g.size.width - g.sceneW)
                 freeSide(g)
@@ -70,7 +70,7 @@ struct PatternGrid: View {
         let w = model.gridWindow
         let fader: Bool = model.mix != nil && model.settings.mixCrossfader
         let n: Int = (fader ? 0 : 3) + (w.maxTop > 0 ? 2 : 0)
-        let h: CGFloat = (g.size.height - 7 * PatternGrid.rowGap) / 8
+        let h: CGFloat = g.rowH
         let top: CGFloat = CGFloat(n) * (h + PatternGrid.rowGap)
         if !fader && top < g.size.height {
             Color.clear
@@ -85,7 +85,7 @@ struct PatternGrid: View {
     private func cells(_ g: GridGeometry) -> some View {
         let w = model.gridWindow
         let group: Bool = groupLifted
-        ForEach(0..<Params.gridRows, id: \.self) { r in
+        ForEach(0..<g.rows, id: \.self) { r in
             if let k = w.rows[r] {
                 let lifted: Bool = dragRow == k && ghost != nil
                 SceneCellView(model: model, row: k, selected: model.gridSel.rows.contains(k)).frame(width: g.sceneW, height: g.rowH)
@@ -124,7 +124,7 @@ struct PatternGrid: View {
     /// MIX: клип PREV сначала стоит на строке, откуда опустился, затем съезжает вниз.
     private func dropLift(_ g: GridGeometry, track i: Int, row k: Int) -> CGFloat {
         guard model.isPrev(k), !model.mixDropDone, let from = model.mixDrop[i] else { return 0 }
-        let rows: CGFloat = CGFloat(from - (Params.gridRows - 1))
+        let rows: CGFloat = CGFloat(from - (g.rows - 1))
         return rows * (g.rowH + PatternGrid.rowGap)
     }
 
@@ -439,7 +439,7 @@ struct PatternGrid: View {
     /// Строка проекта под пальцем (по высоте), куда встанет перетаскиваемая строка: только видимые строки, без PREV.
     private func rowUnder(_ g: GridGeometry, _ y: CGFloat) -> Int? {
         let pitch: CGFloat = g.rowH + PatternGrid.rowGap
-        let r: Int = min(Params.gridRows - 1, max(0, Int(y / pitch)))
+        let r: Int = min(g.rows - 1, max(0, Int(y / pitch)))
         guard let k = model.gridWindow.rows[r], !model.isPrev(k), k < model.project.visibleRows else { return nil }
         return k
     }
@@ -495,6 +495,13 @@ struct GridGeometry {
     let size: CGSize
     let step: CGFloat
     let tracks: Int
+    /// Строк в окне: 8; STEPS выключена — больше (той же высоты).
+    var rows: Int = Params.gridRows
+
+    /// Высота строки при n строках на высоту h (для раскладки экрана, RootView).
+    static func rowH(_ h: CGFloat, rows n: Int) -> CGFloat {
+        return (h - CGFloat(n - 1) * PatternGrid.rowGap) / CGFloat(max(1, n))
+    }
 
     var sceneW: CGFloat { return step }
     var trackW: CGFloat {
@@ -502,7 +509,7 @@ struct GridGeometry {
         return (area - CGFloat(max(0, tracks - 1)) * Layout.gap) / CGFloat(max(1, tracks))
     }
     var rowH: CGFloat {
-        return (size.height - CGFloat(Params.gridRows - 1) * PatternGrid.rowGap) / CGFloat(Params.gridRows)
+        return GridGeometry.rowH(size.height, rows: rows)
     }
 
     /// Левый верхний угол ячейки: col −1 — колонка строк, 0…N−1 — дорожки.
@@ -521,7 +528,7 @@ struct GridGeometry {
 
     func hit(_ p: CGPoint, window: (rows: [Int?], plusRow: Int?, top: Int, maxTop: Int)) -> GridHit {
         let r: Int = Int(p.y / (rowH + PatternGrid.rowGap))
-        guard r >= 0 && r < Params.gridRows else { return .none }
+        guard r >= 0 && r < rows else { return .none }
         if p.x < step {
             if let k = window.rows[r] { return .scene(k) }
             return window.plusRow == r ? .plus : .none
@@ -539,6 +546,7 @@ struct GridGeometry {
 /// кроссфейдер до низа сетки.
 struct GridSideButtons: View {
     let model: AppModel
+    let rows: Int
     let scroll: Bool
     let canUp: Bool
     let canDown: Bool
@@ -546,7 +554,7 @@ struct GridSideButtons: View {
 
     var body: some View {
         GeometryReader { geo in
-            let h: CGFloat = (geo.size.height - 7 * PatternGrid.rowGap) / 8
+            let h: CGFloat = GridGeometry.rowH(geo.size.height, rows: rows)
             let fader: Bool = model.mix != nil && model.settings.mixCrossfader
             VStack(spacing: PatternGrid.rowGap) {
                 if !fader {

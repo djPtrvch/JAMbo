@@ -34,13 +34,16 @@ struct ArrMenus: View {
         case .track(let t, _):
             ArrTrackMenu(model: model, track: t).offset(trackPlace(t))
         case .marker(let k, let a):
-            ArrMarkerWindow(model: model, index: k).offset(place(a, w: ArrMarkerWindow.width, h: ArrMarkerWindow.height))
+            // Своё окно у каждой секции (ADD SECTION открывает окно новой — с пустым именем).
+            ArrMarkerWindow(model: model, index: k, anchor: a).id(k).offset(place(a, w: ArrMarkerWindow.width, h: ArrMarkerWindow.height))
         case .insert(let t, let x, let a):
             insertMenu(t, x, a)
         case .range(let a):
             ArrRangeMenu(model: model, anchor: a).offset(place(a, w: ArrRangeMenu.width, h: ArrRangeMenu.height))
         case .ref:
             ArrRefMenu(model: model).offset(CGSize(width: ArrMetrics.headerW, height: ArrMetrics.top))
+        case .drop(let a):
+            ArrDropMenu(model: model).offset(place(a, w: ArrDropMenu.width, h: ArrDropMenu.height))
         }
     }
 
@@ -253,12 +256,16 @@ struct ArrInsertMenu: View {
 
 /// Окно маркера: имя (до 12 знаков; клавиатура — по тапу в поле), цвет, DELETE, OK. Имя сохраняется
 /// и при закрытии тапом мимо.
+/// Окно секции (двойной тап по ней на линейке): NAME, ADD SECTION (новая секция — на выделенном диапазоне под пальцем,
+/// иначе на такте под пальцем) и SPLIT (как в меню диапазона), DELETE, OK.
 struct ArrMarkerWindow: View {
     static let width: CGFloat = 240
-    /// Имя 44, 2 строки по 40, 2 зазора по 6, поля 16 (цвета у секции нет — решение пользователя).
-    static let height: CGFloat = 152
+    /// Имя 44, 3 строки по 40, 3 зазора по 6, поля 16 (цвета у секции нет — решение пользователя).
+    static let height: CGFloat = 198
     let model: AppModel
     let index: Int
+    /// Точка двойного тапа (координаты таймлайна).
+    var anchor: CGPoint = .zero
     @State private var name: String = ""
     @State private var loaded: Bool = false
     @State private var deleted: Bool = false
@@ -275,6 +282,13 @@ struct ArrMarkerWindow: View {
                 .background(theme.panel, in: RoundedRectangle(cornerRadius: 6))
                 .onChange(of: name) { _, v in if v.count > 12 { name = String(v.prefix(12)) } }
                 .onSubmit { done() }
+            HStack(spacing: 6) {
+                MenuItem(title: "ADD SECTION") { add() }
+                MenuItem(title: "SPLIT") {
+                    model.arrMenu = nil
+                    model.arrSplitAt(anchor: anchor)
+                }
+            }
             MenuItem(title: "DELETE", red: true) { delete() }
             MenuItem(title: "OK") { done() }
         }
@@ -295,6 +309,13 @@ struct ArrMarkerWindow: View {
         model.arrMenu = nil
     }
 
+    /// Новая секция: сначала имя этой (номера секций после вставки сдвигаются — onDisappear уже не переименовывает).
+    private func add() {
+        model.arrRenameMarker(index, name)
+        deleted = true
+        model.arrSectionHere(anchor: anchor)
+    }
+
     private func delete() {
         deleted = true
         model.arrMenu = nil
@@ -306,6 +327,26 @@ struct ArrMarkerWindow: View {
         model.arrRenameMarker(index, name)
         model.arrMenu = nil
         f()
+    }
+}
+
+/// Выделение из сетки положили поверх блоков (решение пользователя): HERE — прямо здесь (перекрытое заменяется),
+/// INSERT — раздвинуть (всё с этого места — правее на длину выделения), TO END — в конец аранжировки. Тап мимо —
+/// ничего не кладётся.
+struct ArrDropMenu: View {
+    static let width: CGFloat = 180
+    /// 3 строки по 40, 2 зазора по 6, поля 16.
+    static let height: CGFloat = 148
+    let model: AppModel
+
+    var body: some View {
+        VStack(spacing: 6) {
+            MenuItem(title: "HERE") { model.arrDrop(.here) }
+            MenuItem(title: "INSERT") { model.arrDrop(.insert) }
+            MenuItem(title: "TO END") { model.arrDrop(.end) }
+        }
+        .frame(width: ArrDropMenu.width)
+        .modifier(MenuPanel())
     }
 }
 

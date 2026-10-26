@@ -20,6 +20,8 @@ enum ArrMenuState: Equatable {
     case range(anchor: CGPoint)
     /// Строка REF (S15g): LOAD (другой файл), DELETE.
     case ref
+    /// Выделение из сетки положили поверх блоков (AppModelCarry): HERE, INSERT, TO END.
+    case drop(anchor: CGPoint)
 }
 
 /// Вид таймлайна: ширина шага (nil — 16 тактов на ширину), прокрутка по X и по Y (pt). Высота строки — по режиму
