@@ -75,7 +75,7 @@ struct SoundTitle: View {
 /// Иконка движка: элементы EngineIcons (поле 64×64) на Canvas двумя цветами темы (icon — звук, icon2 — серый).
 /// Ручки сглажены (~90 мс, как в прототипе превью). Подсветки по удару нет (решение пользователя: иконки не пульсируют
 /// в такт).
-/// У WTABLE — кадр таблицы дорожки (таблица ещё строится — пусто). Пока ничего не движется, кадры не идут.
+/// У WTABLE — кадр таблицы дорожки (таблица ещё строится — пусто), у GRANULAR фон — огибающая сэмпла SOURCE. Пока ничего не движется, кадры не идут.
 struct SynthIcon: View {
     let model: AppModel
     let engine: Int
@@ -89,6 +89,7 @@ struct SynthIcon: View {
         // Другая дорожка — сразу её значения, без доезда от прежней.
         motion.follow(model.selectedTrack)
         let frame: ((Double, Double) -> Double)? = tableSource
+        let peaks: [Double]? = grainSource
         // Кадры идут, пока сглаживание не дошло до значений ручек.
         let live: Bool = animating || motion.differs(target)
         let ink: Color = theme.icon
@@ -98,7 +99,7 @@ struct SynthIcon: View {
             Canvas { ctx, size in
                 let now: Double = tl.date.timeIntervalSinceReferenceDate
                 let v: IconValues = motion.step(target, now)
-                let els: [IconElement] = SynthIcon.elements(engine, v, frame)
+                let els: [IconElement] = SynthIcon.elements(engine, v, frame, peaks)
                 SynthIcon.draw(ctx, size, els, ink, ink2)
             }
         }
@@ -119,6 +120,13 @@ struct SynthIcon: View {
         return EngineIcons.tableFrame(tb)
     }
 
+    /// Огибающая сэмпла SOURCE у GRANULAR (samplesVersion — перерисовка, когда сэмпл загрузился).
+    private var grainSource: [Double]? {
+        guard engine == Jambo.granular else { return nil }
+        _ = model.samplesVersion
+        return model.grainPeaks(model.track.grain)
+    }
+
     /// Кадры идут seconds после последнего изменения (сглаживание успевает закончиться).
     private func run(_ seconds: Double) {
         animating = true
@@ -129,7 +137,9 @@ struct SynthIcon: View {
         }
     }
 
-    static func elements(_ engine: Int, _ v: IconValues, _ frame: ((Double, Double) -> Double)?) -> [IconElement] {
+    static func elements(_ engine: Int, _ v: IconValues, _ frame: ((Double, Double) -> Double)?,
+                         _ peaks: [Double]? = nil) -> [IconElement] {
+        if engine == Jambo.granular { return EngineIcons.granularIcon(v, peaks: peaks) }
         if let f = frame {
             // Таблица ещё строится (NaN) — пусто.
             return f(0, 0).isNaN ? [] : EngineIcons.wtableIcon(v, f)

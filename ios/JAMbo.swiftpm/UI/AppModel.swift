@@ -27,6 +27,8 @@ final class AppModel {
     var settingsTab: SettingsTab = .record
     /// Список проектов в меню PROJECTS (перечитывается при открытии меню и после действий).
     var projectList: [ProjectInfo] = []
+    /// Огибающие сэмплов SOURCE для иконки GRANULAR (по ключу сэмпла; ключ — по содержимому, правка — новый ключ).
+    @ObservationIgnored var grainPeakCache: [String: [Double]] = [:]
     private(set) var selectedTrack: Int = 0 {
         didSet { updateGrainSeconds() }
     }

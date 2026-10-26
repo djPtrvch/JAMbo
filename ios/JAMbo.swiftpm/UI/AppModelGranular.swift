@@ -1,7 +1,7 @@
 import Foundation
 
 // GRANULAR: сэмпл дорожки (SOURCE в меню звука) — браузер сэмплов, тап или IMPORT ставит сэмпл (UNDO); длина сэмпла
-// выбранной дорожки — для значения POSITION на ручке.
+// выбранной дорожки — для значения POSITION на ручке; огибающая сэмпла — для иконки.
 
 extension AppModel {
     /// Тап по сэмплу в SOURCE: сэмпл — в хранилище (если ещё нет), затем на дорожку; браузер закрывается.
@@ -48,6 +48,16 @@ extension AppModel {
         guard i < project.tracks.count else { return }
         edit { p in p.tracks[i].grain = key }
         closeBrowser()
+    }
+
+    /// Огибающая сэмпла SOURCE для иконки GRANULAR (кэш по ключу); сэмпла нет или он не загружен — nil.
+    func grainPeaks(_ key: String) -> [Double]? {
+        if let p = grainPeakCache[key] { return p }
+        guard let s = sample(key) else { return nil }
+        let p: [Double] = EngineIcons.samplePeaks(s)
+        if grainPeakCache.count > 16 { grainPeakCache.removeAll() }
+        grainPeakCache[key] = p
+        return p
     }
 
     /// Длина сэмпла GRANULAR выбранной дорожки → значение POSITION на ручке (секунды).

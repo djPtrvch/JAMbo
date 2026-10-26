@@ -224,4 +224,26 @@ final class TexGranVoiceTests: XCTestCase {
             }
         }
     }
+
+    /// Фон иконки GRANULAR — огибающая настоящего сэмпла: громкая первая половина и тишина во второй видны на иконке.
+    func testGranularIconFollowsSample() {
+        let n = 48000
+        let left: [Float] = (0..<n).map { i in i < n / 2 ? Float(sin(Double(i) * 0.05)) * 0.5 : 0 }
+        let s = SampleData(left: left, right: nil)
+        let peaks = EngineIcons.samplePeaks(s)
+        XCTAssertEqual(peaks.count, 433)
+        XCTAssertEqual(peaks.max() ?? 0, 1, accuracy: 1e-9)
+        XCTAssertGreaterThan(peaks[100], 0.9)
+        XCTAssertEqual(peaks[400], 0)
+        let v = IconValues(h: 0.1, t: 0.3, m: 0.5, q: 0.1)
+        let real = EngineIcons.granularIcon(v, peaks: peaks)
+        let fake = EngineIcons.granularIcon(v)
+        XCTAssertNotEqual("\(real[0].rects)", "\(fake[0].rects)")
+        // Серая волна (первый элемент): во второй половине поля столбиков почти нет высоты.
+        let right = real[0].rects.filter { $0.x > 40 }
+        XCTAssertLessThan(right.map { $0.h }.max() ?? 0, 1.0)
+        let leftRects = real[0].rects.filter { $0.x < 25 }
+        XCTAssertGreaterThan(leftRects.map { $0.h }.max() ?? 0, 30)
+        XCTAssertEqual(EngineIcons.samplePeaks(SampleData(left: [Float](repeating: 0, count: 100), right: nil)).max(), 0)
+    }
 }
