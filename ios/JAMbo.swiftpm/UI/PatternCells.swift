@@ -3,12 +3,14 @@ import SwiftUI
 // Ячейки сетки паттернов: клип (миниатюра страниц клипа, полоса хода), строка (имя, повторы), «+».
 
 /// Ячейка клипа: пустая — фон панели; заполненная — темнее, играющая — светлее и полоса хода внизу;
-/// выбранная для правки — жёлтый контур; ожидающая запуска или остановки — мигает; недоступно — вспышка красным.
+/// выбранная для правки — жёлтый контур; выделенная рамкой — белый (в светлой теме — чёрный); ожидающая запуска или
+/// остановки — мигает; недоступно — вспышка красным.
 struct ClipCellView: View {
     let model: AppModel
     let cell: CellRef
     let lifted: Bool
     let target: Bool
+    var selected: Bool = false
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -21,7 +23,10 @@ struct ClipCellView: View {
         let queued: Bool = q == cell.row || (isSlot && q == Launcher.stop)
         let denied: Bool = model.deniedCell == cell
         let bg: Color = !filled ? theme.panel : (active ? theme.panel2 : theme.panel2.opacity(0.62))
-        let outline: Color = denied ? theme.rec : (target || editing ? theme.accent : Color.clear)
+        var outline: Color = editing ? theme.accent : Color.clear
+        if selected { outline = theme.text }
+        if target { outline = theme.accent }
+        if denied { outline = theme.rec }
         return ZStack(alignment: .bottomLeading) {
             if let t = t, filled { ClipThumb(cells: ClipThumb.rows(t, cell.row)).padding(.horizontal, 6).padding(.top, 5).padding(.bottom, 7) }
             if active && model.playing { ProgressBar(fraction: progress(t)) }
@@ -113,9 +118,11 @@ struct ClipThumb: View {
 }
 
 /// Ячейка строки (колонка над MIX): имя и повторы (×n; у играющей — проход n/N или ∞ при LOOP ROW), полоса хода.
+/// Строка, выделенная рамкой, — белый контур (в светлой теме — чёрный).
 struct SceneCellView: View {
     let model: AppModel
     let row: Int
+    var selected: Bool = false
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -135,6 +142,7 @@ struct SceneCellView: View {
             if playing { ProgressBar(fraction: pass.frac) }
         }
         .background(filled ? theme.panel2 : theme.panel, in: RoundedRectangle(cornerRadius: 6))
+        .overlay(RoundedRectangle(cornerRadius: 6).stroke(selected ? theme.text : Color.clear, lineWidth: 1))
         .clipShape(RoundedRectangle(cornerRadius: 6))
         .modifier(Blink(on: model.playing && model.live.sceneQueued == row))
     }

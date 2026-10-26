@@ -286,6 +286,31 @@ final class ArrangeTests: XCTestCase {
         XCTAssertNil(p.rowToArrange(5, at: nil))
     }
 
+    /// TO ARRANGE выделения рамкой: строки сверху вниз одна за другой; строка целиком — с повторами и секцией,
+    /// отдельные клипы — один проход самого длинного, только их дорожки, без секции.
+    func testSelectionToArrange() {
+        var p = Project()
+        for t in p.tracks.indices { p.tracks[t].clips[1] = nil; p.tracks[t].clips[3] = nil }
+        p.tracks[0].clips[1] = Clip(pages: [Track.emptyPage()], length: 16, playFrom: 0, playTo: 0)
+        p.tracks[1].clips[1] = Clip(pages: [Track.emptyPage(), Track.emptyPage()], length: 32, playFrom: 0, playTo: 1)
+        p.tracks[2].clips[3] = Clip(pages: [Track.emptyPage()], length: 16, playFrom: 0, playTo: 0)
+        p.setScene(3, name: "Out", repeats: 2)
+        p.rowLoop = false
+        var sel = GridSelection(rows: [3], cells: [CellRef(track: 0, row: 1), CellRef(track: 1, row: 1)])
+        XCTAssertEqual(sel.orderedRows, [1, 3])
+        XCTAssertTrue(sel.contains(CellRef(track: 5, row: 3)), "строка целиком — все её ячейки")
+        XCTAssertEqual(p.selectionToArrange(sel, at: nil), 64)
+        XCTAssertEqual(spans(p.tracks[0]), [[1, 0, 16, 0], [1, 16, 16, 0], [3, 32, 16, 0], [3, 48, 16, 0]])
+        XCTAssertEqual(spans(p.tracks[1]), [[1, 0, 32, 0], [3, 32, 16, 0], [3, 48, 16, 0]])
+        XCTAssertEqual(spans(p.tracks[2]), [[3, 32, 16, 0], [3, 48, 16, 0]], "отдельные клипы — только их дорожки")
+        XCTAssertEqual(p.arrange.markers.map { [$0.at, $0.end ?? -1] }, [[32, 64]], "секция — только у строки целиком")
+        // Один клип с курсора — один проход, заменяет участок своей дорожки.
+        sel = GridSelection(cells: [CellRef(track: 1, row: 1)])
+        XCTAssertEqual(p.selectionToArrange(sel, at: 32), 64)
+        XCTAssertEqual(spans(p.tracks[1]), [[1, 0, 32, 0], [1, 32, 32, 0]])
+        XCTAssertNil(p.selectionToArrange(GridSelection(), at: nil))
+    }
+
     /// Журнал SEND TO ARRANGE: блоки от запусков, тишина — пропуск, окно 32 такта (offset — место в проходе).
     func testJournalTake() {
         var j = ArrJournal()

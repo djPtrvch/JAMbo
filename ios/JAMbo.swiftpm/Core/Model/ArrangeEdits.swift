@@ -366,27 +366,35 @@ extension Project {
     public mutating func rowToArrange(_ k: Int, at: Int?) -> Int? {
         guard k >= 0 && k < scenes.count else { return nil }
         let reps: Int = rowLoop ? 1 : Swift.max(1, scenes[k].repeats)
-        var lens: [Int] = [Int](repeating: 0, count: tracks.count)
+        guard let span = placeRow(k, tracks: Array(tracks.indices), repeats: reps, at: at) else { return nil }
+        arrange.markers.removeAll { $0.at >= span.start && $0.at < span.end }
+        addMarker(at: span.start, name: sceneName(k), end: span.end)
+        return span.end
+    }
+
+    /// Клипы строки k на дорожках only — блоками с позиции at (nil — в конец): длина — самый длинный заполненный клип
+    /// × repeats, каждая дорожка — блоками длиной в свой клип (короткий повторяется, последний — до конца участка).
+    /// Участок этих дорожек заменяется. nil — среди них нет заполненных клипов.
+    mutating func placeRow(_ k: Int, tracks only: [Int], repeats reps: Int, at: Int?) -> (start: Int, end: Int)? {
+        guard k >= 0 && k < scenes.count else { return nil }
+        let list: [Int] = only.filter { $0 >= 0 && $0 < tracks.count }
         var longest: Int = 0
-        for t in tracks.indices {
-            lens[t] = tracks[t].clipSteps(k)
-            if tracks[t].clipFilled(k) { longest = Swift.max(longest, lens[t]) }
-        }
+        for t in list where tracks[t].clipFilled(k) { longest = Swift.max(longest, tracks[t].clipSteps(k)) }
         if longest == 0 { return nil }
         let start: Int = Swift.max(0, at ?? arrangeEnd)
-        let end: Int = start + longest * reps
-        for t in tracks.indices where lens[t] > 0 {
+        let end: Int = start + longest * Swift.max(1, reps)
+        for t in list {
+            let len: Int = tracks[t].clipSteps(k)
+            if len <= 0 { continue }
             tracks[t].clearArrange(from: start, to: end)
             var x: Int = start
             while x < end {
-                let n: Int = Swift.min(lens[t], end - x)
+                let n: Int = Swift.min(len, end - x)
                 tracks[t].placeBlock(ArrBlock(clip: k, start: x, length: n))
-                x += lens[t]
+                x += len
             }
         }
-        arrange.markers.removeAll { $0.at >= start && $0.at < end }
-        addMarker(at: start, name: sceneName(k), end: end)
-        return end
+        return (start, end)
     }
 
     public static func markerName(_ s: String) -> String {

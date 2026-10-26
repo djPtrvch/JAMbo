@@ -112,8 +112,8 @@ struct MenuItem: View {
 }
 
 struct CellMenu: View {
-    /// 3 строки по 40, 2 зазора по 6, поля 16.
-    static let height: CGFloat = 148
+    /// TO ARRANGE 54 (подпись 12, зазор 2, кнопки 40) с отступом 8 снизу, 3 строки по 40, 3 зазора по 6, поля 16.
+    static let height: CGFloat = 216
     let model: AppModel
     let state: CellMenuState
 
@@ -121,7 +121,13 @@ struct CellMenu: View {
         let c = state.cell
         let t: Track = model.project.tracks[min(c.track, model.project.tracks.count - 1)]
         let filled: Bool = t.clipFilled(c.row)
+        let arrange: Bool = filled || model.gridSel.contains(c)
         return VStack(spacing: 6) {
+            ArrangePair(enabled: arrange) { cursor in
+                model.cellMenu = nil
+                model.clipToArrange(c, atCursor: cursor)
+            }
+            .padding(.bottom, 8)
             MenuItem(title: "COPY", enabled: filled) { run { model.copyClip(c) } }
             MenuItem(title: "PASTE", enabled: model.clipClipboard != nil) { run { model.pasteClip(c) } }
             MenuItem(title: "DELETE", enabled: filled, red: true) { run { model.deleteClip(c) } }
@@ -132,7 +138,26 @@ struct CellMenu: View {
 
     private func run(_ f: () -> Void) {
         model.cellMenu = nil
+        model.gridSel = GridSelection()
         f()
+    }
+}
+
+/// TO ARRANGE: подпись и две кнопки — END (в конец аранжировки) и CURSOR (с курсора).
+struct ArrangePair: View {
+    let enabled: Bool
+    let pick: (Bool) -> Void
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        VStack(spacing: 2) {
+            Text("TO ARRANGE").font(.system(size: 9)).foregroundStyle(theme.dim)
+                .frame(maxWidth: .infinity, minHeight: 12, alignment: .leading)
+            HStack(spacing: 6) {
+                MenuItem(title: "END", enabled: enabled) { pick(false) }
+                MenuItem(title: "CURSOR", enabled: enabled) { pick(true) }
+            }
+        }
     }
 }
 
@@ -188,19 +213,12 @@ struct RowMenu: View {
         .frame(height: 44)
     }
 
-    /// TO ARRANGE (S15e): блоки строки — в конец аранжировки или с курсора (имя и повторы — из этого окна).
+    /// TO ARRANGE (S15e): блоки строки (или всего выделенного рамкой) — в конец аранжировки или с курсора (имя и
+    /// повторы — из этого окна).
     private var arrangeRow: some View {
-        let filled: Bool = model.project.rowFilled(row)
-        return VStack(spacing: 2) {
-            Text("TO ARRANGE").font(.system(size: 9)).foregroundStyle(theme.dim)
-                .frame(maxWidth: .infinity, minHeight: 12, alignment: .leading)
-            HStack(spacing: 6) {
-                MenuItem(title: "END", enabled: filled) { toArrange(false) }
-                MenuItem(title: "CURSOR", enabled: filled) { toArrange(true) }
-            }
-        }
+        let any: Bool = model.project.rowFilled(row) || model.gridSel.touches(row: row)
         // Отступ — чтобы не сливался с кнопками окна (решение пользователя).
-        .padding(.vertical, 8)
+        return ArrangePair(enabled: any) { toArrange($0) }.padding(.vertical, 8)
     }
 
     private func toArrange(_ cursor: Bool) {
@@ -215,6 +233,7 @@ struct RowMenu: View {
 
     private func act(_ f: () -> Void) {
         model.rowMenu = nil
+        model.gridSel = GridSelection()
         f()
     }
 }

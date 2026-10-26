@@ -174,6 +174,8 @@ final class AppModel {
     /// Открытые меню сетки: ячейки (свайп вверх), строки (удержание), бутерброд сетки.
     var cellMenu: CellMenuState? = nil
     var rowMenu: Int? = nil
+    /// Выделение рамкой в сетке паттернов (строки и клипы) — для TO ARRANGE.
+    var gridSel = GridSelection()
     var gridMenuOpen: Bool = false
     /// Ячейка коротко вспыхивает красным (действие недоступно).
     var deniedCell: CellRef? = nil
@@ -614,6 +616,7 @@ final class AppModel {
         trackMenu = nil
         cellMenu = nil
         rowMenu = nil
+        gridSel = GridSelection()
         gridMenuOpen = false
         history.reset()
         refreshHistory()

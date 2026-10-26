@@ -3,11 +3,6 @@ import Foundation
 // Сетка паттернов: ячейки (клипы), строки, запуск и остановка (как patterns.ts и state.ts веба).
 // Запуск при игре — командой в колбэк (там с точностью до отсчёта), без игры — сразу в проекте.
 
-struct CellRef: Equatable {
-    let track: Int
-    let row: Int
-}
-
 /// Меню ячейки (быстрый свайп вверх): copy, paste, delete.
 struct CellMenuState: Equatable {
     let cell: CellRef
@@ -245,13 +240,25 @@ extension AppModel {
         edit { p in p.setScene(k, name: name, repeats: repeats) }
     }
 
-    /// TO ARRANGE в меню строки (S15e): имя и повторы из окна строки и перенос — одна запись UNDO.
+    /// TO ARRANGE в меню строки (S15e): имя и повторы из окна строки и перенос — одна запись UNDO. В строке есть
+    /// выделение рамкой — переносится всё выделенное.
     func rowToArrange(_ k: Int, name: String, repeats: Int, atCursor: Bool) {
         let at: Int? = atCursor ? arrCursor : nil
+        let sel: GridSelection = gridSel
+        let many: Bool = sel.touches(row: k)
         edit { p in
             p.setScene(k, name: name, repeats: repeats)
-            p.rowToArrange(k, at: at)
+            if many { p.selectionToArrange(sel, at: at) } else { p.rowToArrange(k, at: at) }
         }
+        gridSel = GridSelection()
+    }
+
+    /// TO ARRANGE в меню клипа: клип в выделении рамкой — всё выделенное, иначе — один проход этого клипа.
+    func clipToArrange(_ c: CellRef, atCursor: Bool) {
+        let at: Int? = atCursor ? arrCursor : nil
+        let sel: GridSelection = gridSel.contains(c) ? gridSel : GridSelection(cells: [c])
+        edit { p in p.selectionToArrange(sel, at: at) }
+        gridSel = GridSelection()
     }
 
     func setArrangement(start: Int? = nil, endStop: Bool? = nil, plusCopy: Bool? = nil, arrowSwitch: Bool? = nil) {
