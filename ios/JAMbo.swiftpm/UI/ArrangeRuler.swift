@@ -1,12 +1,12 @@
 import SwiftUI
 
 /// Касания линейки аранжировщика (S15d, решения пользователя). Тап по линейке (номера тактов и строка секций) — курсор
-/// на ближайшую линию сетки; двойной тап — меню диапазона (ADD SECTION, SPLIT): внутри выделенного диапазона — для него,
-/// вне — диапазоном становится такт под пальцем. Протяжка по номерам тактов — выделить диапазон целыми тактами (он же
-/// диапазон петли — LOOP зацикливает его); край выделенного диапазона тянется точнее — по сетке (с магнитом) или по
-/// шагу. Строка маркеров: двойной тап по
-/// маркеру — его окно (имя, DELETE); секция не перетаскивается — тянутся её края (с магнитом; блоки не двигаются);
-/// плейхед (жёлтый пятиугольник) — перетаскивается, курсор за пальцем. Протяжка и края — одна запись UNDO.
+/// на ближайшую линию сетки (после паузы двойного тапа: двойной тап курсор не ставит); двойной тап — меню линейки
+/// (ArrRulerMenu): на секции — RENAME, SPLIT, DELETE SECTION, вне секции — ADD SECTION, SPLIT. Протяжка по номерам
+/// тактов (сдвиг пальца) — выделить диапазон целыми тактами (он же диапазон петли — LOOP зацикливает его); край
+/// выделенного диапазона тянется точнее — по сетке (с магнитом) или по шагу. Секция не перетаскивается — тянутся её края
+/// (с магнитом; блоки не двигаются); плейхед (жёлтый пятиугольник) — перетаскивается, курсор за пальцем. Протяжка и края
+/// — одна запись UNDO.
 final class ArrRulerTouches {
     enum Mode { case bars, select, edge, marker, markerEdge, markerEmpty, playhead }
 
@@ -18,6 +18,10 @@ final class ArrRulerTouches {
     private var anchor: Int = 0
     private var edgeDragging: Bool = false
     private var lastTap: (at: Date, point: CGPoint)? = nil
+    /// Отложенный курсор одиночного тапа: новый тап его отменяет.
+    private var tapSerial: Int = 0
+    /// Протяжка выделения начинается со сдвига больше этого (тап с дрожью пальца — не выделение).
+    static let selectSlop: CGFloat = 14
 
     static let edgeZone: CGFloat = 12
 
@@ -54,7 +58,7 @@ final class ArrRulerTouches {
         let v: Int = model.project.arrange.snapped(x)
         switch mode {
         case .bars:
-            if moved {
+            if hypot(p.x - start.x, p.y - start.y) > ArrRulerTouches.selectSlop {
                 mode = .select
                 anchor = ArrRulerTouches.bar(m.step(at: start.x))
                 model.beginGesture()
@@ -94,28 +98,17 @@ final class ArrRulerTouches {
         switch was {
         case .select:
             model.endGesture()
-        case .markerEdge:
-            if dragged {
-                model.endGesture()
-            } else if ended && isDouble() {
-                model.arrMenu = .marker(index: marker, anchor: start)
-            }
-        case .edge:
+        case .markerEdge, .edge:
             if dragged {
                 model.endGesture()
             } else if ended {
-                tapBars(x, m, model)
+                tapRuler(x, model)
             }
-        case .bars:
-            if ended { tapBars(x, m, model) }
-        case .marker:
-            if !ended { break }
-            if isDouble() { model.arrMenu = .marker(index: marker, anchor: start) } else { model.setArrCursor(x) }
-        case .markerEmpty:
-            if ended { tapBars(x, m, model) }
+        case .bars, .marker, .markerEmpty:
+            if ended { tapRuler(x, model) }
         case .playhead:
-            // Плейхед не сдвинули — это тап (первый тап ставит курсор под палец: второй попадает на плейхед).
-            if ended && !dragged { tapBars(x, m, model) }
+            // Плейхед не сдвинули — это тап.
+            if ended && !dragged { tapRuler(x, model) }
         }
     }
 
@@ -160,20 +153,18 @@ final class ArrRulerTouches {
         mode = marker >= 0 ? .marker : .markerEmpty
     }
 
-    /// Тап по линейке — курсор; двойной — меню диапазона (вне выделенного диапазона — диапазон на такт под пальцем).
-    private func tapBars(_ x: Int, _ m: ArrMetrics, _ model: AppModel) {
-        if !isDouble() {
-            model.setArrCursor(x)
+    /// Тап по линейке — курсор после паузы двойного тапа (второй тап отменяет); двойной — меню линейки.
+    private func tapRuler(_ x: Int, _ model: AppModel) {
+        tapSerial += 1
+        if isDouble() {
+            model.arrMenu = .ruler(anchor: start)
             return
         }
-        let a: Arrangement = model.project.arrange
-        let inside: Bool = a.hasLoop && x >= a.loopFrom && x <= a.loopTo
-        if !inside {
-            let bar: Int = ArrMetrics.stepsPerBar
-            let s: Int = Int(m.step(at: start.x).rounded(.down)) / bar * bar
-            model.arrSetLoop(max(0, s), max(0, s) + bar)
+        let mine: Int = tapSerial
+        DispatchQueue.main.asyncAfter(deadline: .now() + ArrTouches.doubleTap) { [weak self] in
+            guard let self = self, self.tapSerial == mine else { return }
+            model.setArrCursor(x)
         }
-        model.arrMenu = .range(anchor: start)
     }
 
     /// Второй тап за 0,3 с рядом с первым.

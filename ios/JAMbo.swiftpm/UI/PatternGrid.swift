@@ -5,7 +5,7 @@ import SwiftUI
 /// касание (тапы по нескольким ячейкам сразу — запуск и остановка вместе); перетаскивается один клип или одна строка.
 /// Ячейка: свайп вверх — меню, удержание (0,35 с) и перенос — копия клипа в другую ячейку (на кнопку ARRANGE — в
 /// аранжировку, AppModelCarry), свайп вниз — ничего. Свободное место (пустые строки внизу, колонка под кнопками справа):
-/// удержание и протяжка — рамка выделения (клипы и строки, которых она касается; для TO ARRANGE).
+/// сдвиг пальца (или удержание и протяжка) — рамка выделения (клипы и строки, которых она касается; для TO ARRANGE).
 /// Строка: двойной тап — меню строки, удержание и перенос — строка целиком (колонка строк и клипы) едет за
 /// пальцем, строки между ней и пальцем плавно сдвигаются; движение пальцем вверх-вниз — прокрутка окна строк.
 struct PatternGrid: View {
@@ -296,6 +296,17 @@ struct PatternGrid: View {
         if hypot(dx, dy) > 8 { p.moved = true }
         presses[id] = p
         if bandId == id {
+            stretchBand(g, to: loc)
+            return
+        }
+        // Свободное место: сдвиг пальца — сразу рамка (удерживать не нужно).
+        if p.hit == .none && bandId == nil && p.moved && dragId == nil {
+            let pitch: CGFloat = g.rowH + PatternGrid.rowGap
+            bandId = id
+            bandAnchor = CGPoint(x: p.start.x, y: p.start.y + CGFloat(model.gridWindow.top) * pitch)
+            bandLoc = p.start
+            model.gridSel = GridSelection()
+            autoScroll(g, id)
             stretchBand(g, to: loc)
             return
         }

@@ -35,15 +35,15 @@ struct ArrMenus: View {
             ArrTrackMenu(model: model, track: t).offset(trackPlace(t))
         case .marker(let k, let a):
             // Своё окно у каждой секции (ADD SECTION открывает окно новой — с пустым именем).
-            ArrMarkerWindow(model: model, index: k, anchor: a).id(k).offset(place(a, w: ArrMarkerWindow.width, h: ArrMarkerWindow.height))
+            ArrMarkerWindow(model: model, index: k).id(k).offset(place(a, w: ArrMarkerWindow.width, h: ArrMarkerWindow.height))
         case .insert(let t, let x, let a):
             insertMenu(t, x, a)
-        case .range(let a):
-            ArrRangeMenu(model: model, anchor: a).offset(place(a, w: ArrRangeMenu.width, h: ArrRangeMenu.height))
         case .ref:
             ArrRefMenu(model: model).offset(CGSize(width: ArrMetrics.headerW, height: ArrMetrics.top))
         case .drop(let a):
             ArrDropMenu(model: model).offset(place(a, w: ArrDropMenu.width, h: ArrDropMenu.height))
+        case .ruler(let a):
+            ArrRulerMenu(model: model, anchor: a).offset(place(a, w: ArrRulerMenu.width, h: ArrRulerMenu.height(model, a)))
         }
     }
 
@@ -256,16 +256,13 @@ struct ArrInsertMenu: View {
 
 /// Окно маркера: имя (до 12 знаков; клавиатура — по тапу в поле), цвет, DELETE, OK. Имя сохраняется
 /// и при закрытии тапом мимо.
-/// Окно секции (двойной тап по ней на линейке): NAME, ADD SECTION (новая секция — на выделенном диапазоне под пальцем,
-/// иначе на такте под пальцем) и SPLIT (как в меню диапазона), DELETE, OK.
+/// Окно секции (RENAME в меню линейки, новая секция): NAME, DELETE, OK.
 struct ArrMarkerWindow: View {
     static let width: CGFloat = 240
-    /// Имя 44, 3 строки по 40, 3 зазора по 6, поля 16 (цвета у секции нет — решение пользователя).
-    static let height: CGFloat = 198
+    /// Имя 44, 2 строки по 40, 2 зазора по 6, поля 16 (цвета у секции нет — решение пользователя).
+    static let height: CGFloat = 152
     let model: AppModel
     let index: Int
-    /// Точка двойного тапа (координаты таймлайна).
-    var anchor: CGPoint = .zero
     @State private var name: String = ""
     @State private var loaded: Bool = false
     @State private var deleted: Bool = false
@@ -282,13 +279,6 @@ struct ArrMarkerWindow: View {
                 .background(theme.panel, in: RoundedRectangle(cornerRadius: 6))
                 .onChange(of: name) { _, v in if v.count > 12 { name = String(v.prefix(12)) } }
                 .onSubmit { done() }
-            HStack(spacing: 6) {
-                MenuItem(title: "ADD SECTION") { add() }
-                MenuItem(title: "SPLIT") {
-                    model.arrMenu = nil
-                    model.arrSplitAt(anchor: anchor)
-                }
-            }
             MenuItem(title: "DELETE", red: true) { delete() }
             MenuItem(title: "OK") { done() }
         }
@@ -307,13 +297,6 @@ struct ArrMarkerWindow: View {
 
     private func done() {
         model.arrMenu = nil
-    }
-
-    /// Новая секция: сначала имя этой (номера секций после вставки сдвигаются — onDisappear уже не переименовывает).
-    private func add() {
-        model.arrRenameMarker(index, name)
-        deleted = true
-        model.arrSectionHere(anchor: anchor)
     }
 
     private func delete() {
@@ -350,24 +333,40 @@ struct ArrDropMenu: View {
     }
 }
 
-/// Меню выделенного диапазона (двойной тап по нему на линейке): ADD SECTION — маркер секции в начале диапазона и окно
-/// с именем; SPLIT — блоки всех дорожек разрезаются по краям диапазона. Зациклить — кнопка LOOP.
-struct ArrRangeMenu: View {
+/// Меню линейки (двойной тап, решение пользователя): на секции — RENAME (окно секции), SPLIT, DELETE SECTION; вне
+/// секции — ADD SECTION (секция на выделенном диапазоне под пальцем, иначе на такте) и SPLIT (блоки выбранной дорожки
+/// режутся по краям того же диапазона).
+struct ArrRulerMenu: View {
     static let width: CGFloat = 180
-    /// 2 строки по 40, зазор 6, поля 16.
-    static let height: CGFloat = 102
     let model: AppModel
     let anchor: CGPoint
 
+    /// 3 или 2 строки по 40, зазоры 6, поля 16.
+    static func height(_ model: AppModel, _ a: CGPoint) -> CGFloat {
+        return model.arrSectionAt(anchor: a) != nil ? 148 : 102
+    }
+
     var body: some View {
-        VStack(spacing: 6) {
-            MenuItem(title: "ADD SECTION") { model.arrSectionAtRange(anchor: anchor) }
+        let k: Int? = model.arrSectionAt(anchor: anchor)
+        return VStack(spacing: 6) {
+            if let s = k {
+                MenuItem(title: "RENAME") { model.arrMenu = .marker(index: s, anchor: anchor) }
+            } else {
+                MenuItem(title: "ADD SECTION") { model.arrSectionHere(anchor: anchor) }
+            }
             MenuItem(title: "SPLIT") {
                 model.arrMenu = nil
-                model.arrSplitRange()
+                model.arrSplitAt(anchor: anchor)
+            }
+            if let s = k {
+                MenuItem(title: "DELETE SECTION", red: true) {
+                    model.arrMenu = nil
+                    model.arrDeleteMarker(s)
+                }
             }
         }
-        .frame(width: ArrRangeMenu.width)
+        .frame(width: ArrRulerMenu.width)
         .modifier(MenuPanel())
     }
 }
+

@@ -5,42 +5,46 @@ import SwiftUI
 extension AppModel {
     // MARK: — маркеры
 
-    /// ADD SECTION в меню диапазона: секция ровно на выделенный диапазон и окно с именем.
-    /// Диапазон под точкой таймлайна: выделенный, если точка в нём, иначе такт под ней.
-    private func arrRangeAt(_ anchor: CGPoint) -> (from: Int, to: Int) {
+    /// Шаг таймлайна под точкой (координаты таймлайна).
+    private func arrStepAt(_ anchor: CGPoint) -> Int {
         let m: ArrMetrics = arrMetrics(arrTimelineFrame.size)
-        let x: Int = max(0, Int(m.step(at: anchor.x).rounded(.down)))
+        return max(0, Int(m.step(at: anchor.x).rounded(.down)))
+    }
+
+    /// Секция под точкой (nil — нет).
+    func arrSectionAt(anchor: CGPoint) -> Int? {
+        return project.section(at: arrStepAt(anchor))
+    }
+
+    /// Диапазон под точкой таймлайна: выделенный, если точка в нём, иначе секция под ней, иначе такт.
+    private func arrRangeAt(_ anchor: CGPoint) -> (from: Int, to: Int) {
+        let x: Int = arrStepAt(anchor)
         let a: Arrangement = project.arrange
         if a.hasLoop && x >= a.loopFrom && x < a.loopTo { return (a.loopFrom, a.loopTo) }
+        if let k = project.section(at: x) {
+            let at: Int = project.arrange.markers[k].at
+            return (at, project.sectionEnd(k) ?? at + ArrMetrics.stepsPerBar)
+        }
         let bar: Int = ArrMetrics.stepsPerBar
         let s: Int = x / bar * bar
         return (s, s + bar)
     }
 
-    /// ADD SECTION в окне секции: новая секция на диапазоне под пальцем (выделенном или такте) и её окно.
+    /// ADD SECTION в меню линейки: новая секция на диапазоне под пальцем (выделенном или такте) и её окно (имя).
     func arrSectionHere(anchor: CGPoint) {
         let r = arrRangeAt(anchor)
-        if !(project.arrange.hasLoop && project.arrange.loopFrom == r.from && project.arrange.loopTo == r.to) {
-            arrSetLoop(r.from, r.to)
-        }
-        arrSectionAtRange(anchor: anchor)
+        var k: Int = 0
+        edit { p in k = p.addMarker(at: r.from, name: "", end: r.to) }
+        arrMenu = .marker(index: k, anchor: anchor)
     }
 
-    /// SPLIT в окне секции: блоки выбранной дорожки режутся по краям диапазона под пальцем.
+    /// SPLIT в меню линейки: блоки выбранной дорожки режутся по краям диапазона под пальцем.
     func arrSplitAt(anchor: CGPoint) {
         let r = arrRangeAt(anchor)
         guard channel == .track else { return }
         let t: Int = selectedTrack
         edit { p in p.splitArrange(track: t, r.from, r.to) }
         arrSel = nil
-    }
-
-    func arrSectionAtRange(anchor: CGPoint) {
-        let at: Int = project.arrange.loopFrom
-        let end: Int = project.arrange.loopTo
-        var k: Int = 0
-        edit { p in k = p.addMarker(at: at, name: "", end: end) }
-        arrMenu = .marker(index: k, anchor: anchor)
     }
 
     /// Край секции k за пальцем (левый — начало, правый — конец; с магнитом; внутри жеста — одна запись UNDO).

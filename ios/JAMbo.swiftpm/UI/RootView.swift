@@ -147,7 +147,8 @@ struct RootView: View {
         let tall: Bool = model.patternView && model.project.gridHideSteps
         let rowH: CGFloat = GridGeometry.rowH(centerH, rows: Params.gridRows)
         let pitch: CGFloat = max(1, rowH + PatternGrid.rowGap)
-        let more: Int = Int(((Layout.gap + lowerH) / pitch).rounded(.down))
+        // Строка может зайти в нижнее поле экрана (8): иначе последней не хватает пары пунктов.
+        let more: Int = Int(((Layout.gap + lowerH + 8) / pitch).rounded(.down))
         let rows: Int = tall ? Params.gridRows + more : Params.gridRows
         let gridH: CGFloat = CGFloat(rows) * rowH + CGFloat(rows - 1) * PatternGrid.rowGap
         if tall {

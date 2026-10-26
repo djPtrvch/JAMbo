@@ -28,6 +28,9 @@ final class ArrTouches {
     private var serial: Int = 0
     private var lastTap: (at: Date, point: CGPoint)? = nil
     private var lastPoint: CGPoint = .zero
+    /// Рамка: начало в координатах всего таймлайна (держится при прокрутке) и размер окна.
+    private var marqueeAnchor: CGPoint = .zero
+    private var marqueeSize: CGSize = .zero
     private let ruler = ArrRulerTouches()
     /// Строка REF: сдвиг начала файла до жеста (секунды).
     private var refBase: Double = 0
@@ -78,7 +81,7 @@ final class ArrTouches {
         let t: Int = m.track(at: p.y)
         guard t >= 0, t < model.project.tracks.count else {
             mode = .tap
-            armMarquee(model)
+            armMarquee(model, m)
             return
         }
         hitTrack = t
@@ -106,26 +109,60 @@ final class ArrTouches {
             }
         }
         mode = .tap
-        armMarquee(model)
+        armMarquee(model, m)
     }
 
     /// Удержание по пустому без сдвига — рамка выделения от точки касания.
-    private func armMarquee(_ model: AppModel) {
+    private func armMarquee(_ model: AppModel, _ m: ArrMetrics) {
         if model.arrInsert { return }
         let mine: Int = serial
+        let size: CGSize = m.size
+        let port: CGPoint = CGPoint(x: m.x, y: m.y)
         DispatchQueue.main.asyncAfter(deadline: .now() + ArrTouches.hold) { [weak self] in
             guard let self = self, self.serial == mine, self.mode == .tap else { return }
             self.mode = .marquee
+            self.marqueeAnchor = CGPoint(x: self.start.x + port.x, y: self.start.y + port.y)
+            self.marqueeSize = size
             model.arrMenu = nil
             model.arrSel = nil
             model.arrGroup = []
             model.arrMarquee = CGRect(origin: self.start, size: .zero)
+            self.marqueeScroll(model, mine)
         }
     }
 
-    /// Рамка до пальца: выделены блоки, которых она касается.
+    /// Рамка у края окна (40 pt) — таймлайн прокручивается (по времени; в EXPANDED — и по дорожкам), рамка тянется.
+    private func marqueeScroll(_ model: AppModel, _ mine: Int) {
+        Task { @MainActor [weak self] in
+            while true {
+                try? await Task.sleep(nanoseconds: 33_000_000)
+                guard let me = self, me.serial == mine, me.mode == .marquee else { return }
+                let size: CGSize = me.marqueeSize
+                let pt: CGPoint = me.lastPoint
+                var dx: CGFloat = 0
+                var dy: CGFloat = 0
+                if pt.x < 40 { dx = -14 } else if pt.x > size.width - 40 { dx = 14 }
+                if pt.y < ArrMetrics.top + 20 { dy = -10 } else if pt.y > size.height - model.arrInset - 30 { dy = 10 }
+                if dx == 0 && dy == 0 { continue }
+                var port: ArrPort = model.arrPort
+                port.x = max(0, port.x + dx)
+                port.y = max(0, port.y + dy)
+                let p: Project = model.project
+                let m = ArrMetrics(size: size, port: port, tracks: p.tracks.count, end: p.arrangeEnd,
+                                   expanded: model.settings.arrangeExpanded, inset: model.arrInset, ref: model.arrRefShown)
+                port.x = m.x
+                port.y = m.y
+                if port == model.arrPort { continue }
+                model.arrPort = port
+                me.marquee(pt, m, model)
+            }
+        }
+    }
+
+    /// Рамка до пальца: выделены блоки, которых она касается (начало — на своём месте таймлайна при прокрутке).
     private func marquee(_ p: CGPoint, _ m: ArrMetrics, _ model: AppModel) {
-        let r = CGRect(x: min(start.x, p.x), y: min(start.y, p.y), width: abs(p.x - start.x), height: abs(p.y - start.y))
+        let a = CGPoint(x: marqueeAnchor.x - m.x, y: marqueeAnchor.y - m.y)
+        let r = CGRect(x: min(a.x, p.x), y: min(a.y, p.y), width: abs(p.x - a.x), height: abs(p.y - a.y))
         model.arrMarquee = r
         var list: [ArrSel] = []
         for (t, tr) in model.project.tracks.enumerated() {

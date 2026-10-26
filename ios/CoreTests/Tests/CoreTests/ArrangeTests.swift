@@ -225,6 +225,12 @@ final class ArrangeTests: XCTestCase {
         let sel = GridSelection(cells: [CellRef(track: 0, row: 1)])
         XCTAssertTrue(p.selectionOverlaps(sel, at: 0))
         XCTAssertFalse(p.selectionOverlaps(sel, at: 16))
+        // Конец всей аранжировки — и по секциям, и по автоматизации.
+        XCTAssertEqual(p.arrangeEnd, 64)
+        p.addMarker(at: 64, name: "C", end: 96)
+        XCTAssertEqual(p.sequenceEnd, 96)
+        p.tracks[2].autos = [ArrAutoLane(param: "filter", points: [ArrAutoPoint(x: 120.5, y: 0)])]
+        XCTAssertEqual(p.sequenceEnd, 121)
     }
 
     func testSplitRange() {
