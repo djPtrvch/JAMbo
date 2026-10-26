@@ -3,8 +3,9 @@ import SwiftUI
 /// Сетка паттернов (PATTERNS): колонка строк над MIX, столбцы дорожек ровно над дорожками, справа (над MST) —
 /// бутерброд сетки, LOOP ROW и стрелки окна строк. На экране 8 строк. Жесты — на всю сетку, у каждого пальца своё
 /// касание (тапы по нескольким ячейкам сразу — запуск и остановка вместе); перетаскивается один клип или одна строка.
-/// Ячейка: свайп вверх — меню, удержание (0,35 с) и перенос — копия клипа в другую ячейку, свайп вниз — ничего;
-/// удержание пустой ячейки и протяжка — рамка выделения (клипы и строки, которых она касается; для TO ARRANGE).
+/// Ячейка: свайп вверх — меню, удержание (0,35 с) и перенос — копия клипа в другую ячейку (на кнопку ARRANGE — в
+/// аранжировку, AppModelCarry), свайп вниз — ничего. Свободное место (пустые строки внизу, колонка под кнопками справа):
+/// удержание и протяжка — рамка выделения (клипы и строки, которых она касается; для TO ARRANGE).
 /// Строка: двойной тап — меню строки, удержание и перенос — строка целиком (колонка строк и клипы) едет за
 /// пальцем, строки между ней и пальцем плавно сдвигаются; движение пальцем вверх-вниз — прокрутка окна строк.
 struct PatternGrid: View {
@@ -23,6 +24,8 @@ struct PatternGrid: View {
     @State private var band: CGRect? = nil
     /// Последний тап по строке — для двойного тапа (меню строки).
     @State private var sceneTap: (row: Int, at: Date)? = nil
+    /// Левый верхний угол сетки в координатах «root» (перенос клипа на ARRANGE).
+    @State private var rootOrigin: CGPoint = .zero
 
     static let rowGap: CGFloat = 4
     static let hold: Double = 0.35
@@ -47,8 +50,30 @@ struct PatternGrid: View {
                 GridSideButtons(model: model, scroll: w.maxTop > 0, canUp: w.top > 0, canDown: w.top < w.maxTop)
                     .frame(width: g.sceneW, height: g.size.height)
                     .offset(x: g.size.width - g.sceneW)
+                freeSide(g)
                 PatternMenus(model: model, geometry: g)
             }
+            .coordinateSpace(name: PatternGrid.space)
+            .onGeometryChange(for: CGPoint.self) { $0.frame(in: .named("root")).origin } action: { rootOrigin = $0 }
+        }
+    }
+
+    static let space: String = "patternGrid"
+
+    /// Свободное место колонки справа (под кнопками): касания — те же, что у сетки (рамка выделения).
+    @ViewBuilder
+    private func freeSide(_ g: GridGeometry) -> some View {
+        let w = model.gridWindow
+        let fader: Bool = model.mix != nil && model.settings.mixCrossfader
+        let n: Int = (fader ? 0 : 3) + (w.maxTop > 0 ? 2 : 0)
+        let h: CGFloat = (g.size.height - 7 * PatternGrid.rowGap) / 8
+        let top: CGFloat = CGFloat(n) * (h + PatternGrid.rowGap)
+        if !fader && top < g.size.height {
+            Color.clear
+                .frame(width: g.sceneW, height: g.size.height - top)
+                .contentShape(Rectangle())
+                .gesture(touch(g))
+                .offset(x: g.size.width - g.sceneW, y: top)
         }
     }
 
@@ -149,7 +174,7 @@ struct PatternGrid: View {
     }
 
     private func touch(_ g: GridGeometry) -> some Gesture {
-        SpatialEventGesture(coordinateSpace: .local)
+        SpatialEventGesture(coordinateSpace: .named(PatternGrid.space))
             .onChanged { events in
                 for e in events {
                     switch e.phase {
@@ -189,7 +214,14 @@ struct PatternGrid: View {
             presses[id] = cur
             switch cur.hit {
             case .cell(let c): model.holdCell(c.track, c.row)
-            // Строка: удержание поднимает её для переноса (меню — свайпом вверх).
+            // Свободное место: удержание — рамка выделения от точки касания.
+            case .none:
+                if bandId == nil {
+                    bandId = id
+                    band = CGRect(origin: cur.start, size: .zero)
+                    model.gridSel = GridSelection()
+                }
+            // Строка: удержание поднимает её для переноса (меню — двойным тапом).
             case .scene(let k):
                 if !model.isPrev(k) && dragId == nil {
                     dragId = id
@@ -207,6 +239,10 @@ struct PatternGrid: View {
         let dy: CGFloat = loc.y - p.start.y
         if hypot(dx, dy) > 8 { p.moved = true }
         presses[id] = p
+        if bandId == id {
+            stretchBand(g, from: p.start, to: loc)
+            return
+        }
         // Строка тянется только после удержания (палец замер на 0,5 с); строки между ней и пальцем — цель.
         if p.cell == nil {
             if dragId == id {
@@ -227,19 +263,15 @@ struct PatternGrid: View {
             }
             return
         }
-        guard p.held, let c = p.cell else { return }
-        // Удержание пустой ячейки и протяжка — рамка выделения.
-        if !model.project.tracks[c.track].clipFilled(c.row) {
-            if bandId == nil && dragId == nil && hypot(dx, dy) > 8 && !model.isPrev(c.row) { bandId = id }
-            if bandId == id { stretchBand(g, from: p.start, to: loc) }
-            return
-        }
         // Клип тянется только после удержания (ячейка уже выбрана для правки); свайп без удержания клип не трогает.
+        guard p.held, let c = p.cell, model.project.tracks[c.track].clipFilled(c.row) else { return }
         if let d = dragId, d != id { return }
         if dragId == nil && hypot(dx, dy) <= 8 { return }
         dragId = id
         ghost = loc
         if case .cell(let t) = g.hit(loc, window: model.gridWindow), t != c { target = t } else { target = nil }
+        // На кнопку ARRANGE — в аранжировку (клип PREV — нет).
+        if !model.isPrev(c.row) { model.carryMove(c, root: CGPoint(x: loc.x + rootOrigin.x, y: loc.y + rootOrigin.y)) }
     }
 
     /// Рамка до пальца: выделены заполненные клипы, которых она касается, и строки, если задета колонка строк.
@@ -275,6 +307,8 @@ struct PatternGrid: View {
         var still = Transaction()
         still.disablesAnimations = true
         if dragId == id {
+            // Клип унесли в аранжировщик — там и встаёт (или отмена), в сетку не кладётся.
+            if model.carryEnd(cancelled: cancelled) { target = nil }
             dropped = target
             droppedRow = rowTarget
             withTransaction(still) {
@@ -300,8 +334,9 @@ struct PatternGrid: View {
             return
         }
         if hypot(dx, dy) > 12 { return }
-        // Тап по клипу снимает выделение рамкой (по строке — нет: двойной тап открывает меню строки для выделенного).
-        if p.cell != nil && !model.gridSel.isEmpty { model.gridSel = GridSelection() }
+        // Тап по клипу или свободному месту снимает выделение рамкой (по строке — нет: двойной тап открывает меню строки
+        // для выделенного).
+        if (p.cell != nil || p.hit == .none) && !model.gridSel.isEmpty { model.gridSel = GridSelection() }
         // Двойной тап по строке — меню строки (первый тап уже запустил строку; ожидающий запуск отменяется).
         if case .scene(let k) = p.hit, let last = sceneTap, last.row == k,
            Date().timeIntervalSince(last.at) < PatternGrid.doubleTap {

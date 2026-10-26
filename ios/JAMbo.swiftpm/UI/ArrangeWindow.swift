@@ -264,10 +264,12 @@ struct ArrTimeline: View {
                 }
                 ArrCursorLayer(model: model, m: m, head: true)
                 if let l = lift { liftedView(l, m, p) }
+                if let c = model.clipCarry, c.overArrange { ArrCarryLayer(model: model, carry: c, m: m) }
             }
             .contentShape(Rectangle())
             .gesture(touch(geo.size))
         }
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { model.arrTimelineFrame = $0 }
         .background(theme.panel)
         .clipShape(ArrTimeline.frameShape)
         .onAppear { model.ensureRefWave() }

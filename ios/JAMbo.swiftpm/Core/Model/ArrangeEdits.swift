@@ -77,6 +77,15 @@ extension Track {
         if blocks.indices.contains(i) { blocks.remove(at: i) }
     }
 
+    /// DELETE с магнитом (решение пользователя): блок i убирается вместе со своим участком — блоки дорожки правее
+    /// сдвигаются влево на его длину (соседи смыкаются).
+    public mutating func deleteBlockClosing(_ i: Int) {
+        guard blocks.indices.contains(i) else { return }
+        let b: ArrBlock = blocks.remove(at: i)
+        for k in blocks.indices where blocks[k].start >= b.end { blocks[k].start -= b.length }
+        sortBlocks()
+    }
+
     /// DUPLICATE: копия блока i сразу справа от него.
     @discardableResult
     public mutating func duplicateBlock(_ i: Int) -> Int {
@@ -220,9 +229,14 @@ extension Project {
         return out
     }
 
-    /// DELETE группы.
-    public mutating func deleteBlocks(_ sel: [(track: Int, block: Int)]) {
-        removeGroup(sel)
+    /// DELETE группы; closing (магнит) — блоки правее каждого удалённого смыкаются (справа налево, по дорожкам).
+    public mutating func deleteBlocks(_ sel: [(track: Int, block: Int)], closing: Bool = false) {
+        if !closing {
+            removeGroup(sel)
+            return
+        }
+        let sorted = sel.sorted { $0.track == $1.track ? $0.block > $1.block : $0.track < $1.track }
+        for s in sorted where tracks.indices.contains(s.track) { tracks[s.track].deleteBlockClosing(s.block) }
     }
 
     /// Перенос группы на d шагов (не левее нуля): блоки снимаются, затем ставятся на новые места. Номера после правки.

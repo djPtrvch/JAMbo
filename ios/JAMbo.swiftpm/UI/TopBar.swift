@@ -54,6 +54,8 @@ struct TopBar: View {
                 model.toggleArrange()
             }
             .frame(width: Layout.topButton)
+            // Клип из сетки, принесённый на ARRANGE, открывает аранжировщик (AppModelCarry).
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { model.arrangeButtonFrame = $0 }
                 .midiTarget(model, "ARRANGE")
             CPUIndicator(meter: model.audio.core.cpu).frame(width: Layout.meterWidth)
         }

@@ -189,6 +189,23 @@ final class ArrangeTests: XCTestCase {
         XCTAssertFalse(bad.arrange.loop)
     }
 
+    /// DELETE с магнитом: блоки правее смыкаются; группа — по дорожкам, справа налево.
+    func testDeleteClosing() {
+        var p = Project()
+        p.tracks[0].placeBlock(ArrBlock(clip: 0, start: 0, length: 16))
+        p.tracks[0].placeBlock(ArrBlock(clip: 1, start: 16, length: 32))
+        p.tracks[0].placeBlock(ArrBlock(clip: 2, start: 48, length: 16))
+        p.tracks[0].placeBlock(ArrBlock(clip: 3, start: 80, length: 16))
+        var t = p.tracks[0]
+        t.deleteBlockClosing(1)
+        XCTAssertEqual(spans(t), [[0, 0, 16, 0], [2, 16, 16, 0], [3, 48, 16, 0]], "правые сдвинуты на длину удалённого")
+        p.tracks[1].placeBlock(ArrBlock(clip: 0, start: 0, length: 16))
+        p.tracks[1].placeBlock(ArrBlock(clip: 1, start: 16, length: 16))
+        p.deleteBlocks([(0, 0), (0, 2), (1, 0)], closing: true)
+        XCTAssertEqual(spans(p.tracks[0]), [[1, 0, 32, 0], [3, 48, 16, 0]])
+        XCTAssertEqual(spans(p.tracks[1]), [[1, 0, 16, 0]])
+    }
+
     func testSplitRange() {
         var p = Project()
         p.tracks[0].placeBlock(ArrBlock(clip: 0, start: 0, length: 64))

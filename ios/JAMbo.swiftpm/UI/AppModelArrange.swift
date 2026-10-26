@@ -224,14 +224,19 @@ extension AppModel {
 
     func arrDeleteGroup() {
         let g = arrGroupList
-        edit { p in p.deleteBlocks(g) }
+        let closing: Bool = project.arrange.snap
+        edit { p in p.deleteBlocks(g, closing: closing) }
         arrGroup = []
         arrSel = nil
     }
 
     func arrDeleteBlock(_ s: ArrSel) {
         guard arrBlock(s) != nil else { return }
-        edit { p in p.tracks[s.track].deleteBlock(s.block) }
+        // С магнитом — блоки правее смыкаются (решение пользователя).
+        let closing: Bool = project.arrange.snap
+        edit { p in
+            if closing { p.tracks[s.track].deleteBlockClosing(s.block) } else { p.tracks[s.track].deleteBlock(s.block) }
+        }
         arrSel = nil
     }
 

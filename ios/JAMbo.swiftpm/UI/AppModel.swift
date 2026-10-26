@@ -176,6 +176,12 @@ final class AppModel {
     var rowMenu: Int? = nil
     /// Выделение рамкой в сетке паттернов (строки и клипы) — для TO ARRANGE.
     var gridSel = GridSelection()
+    /// Перенос клипа из сетки на кнопку ARRANGE и в аранжировку (AppModelCarry); палец — в координатах «root».
+    var clipCarry: ClipCarry? = nil
+    var carryPoint: CGPoint = .zero
+    /// Рамки кнопки ARRANGE и таймлайна аранжировщика (координаты «root»).
+    @ObservationIgnored var arrangeButtonFrame: CGRect = .zero
+    @ObservationIgnored var arrTimelineFrame: CGRect = .zero
     var gridMenuOpen: Bool = false
     /// Ячейка коротко вспыхивает красным (действие недоступно).
     var deniedCell: CellRef? = nil
@@ -617,6 +623,7 @@ final class AppModel {
         cellMenu = nil
         rowMenu = nil
         gridSel = GridSelection()
+        clipCarry = nil
         gridMenuOpen = false
         history.reset()
         refreshHistory()

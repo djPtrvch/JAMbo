@@ -115,24 +115,43 @@ struct RootView: View {
     }
 
     private func screen(_ layout: Layout, _ lowerH: CGFloat, _ bar: CGFloat) -> some View {
-        VStack(spacing: Layout.gap) {
+        // Перенос клипа из сетки на ARRANGE (AppModelCarry): аранжировщик открыт поверх, а сетка остаётся под ним
+        // (почти прозрачной), пока палец не отпущен, — её жест не прерывается.
+        let carrying: Bool = model.clipCarry != nil
+        let arrange: Bool = model.arrangeView && model.browser == nil && !model.rollView
+            && (!model.patternView || model.clipCarry?.overArrange == true)
+        return VStack(spacing: Layout.gap) {
             TopBar(model: model, menuOpen: $menuOpen)
-            if model.arrangeView && model.browser == nil && !model.rollView && !model.patternView {
-                arrangeArea(layout, lowerH, bar)
-            } else if model.patternView && model.project.gridHideSteps {
-                // STEPS выключена: под сеткой паттернов — только строка дорожек.
-                center(layout)
-                TrackRow(model: model, layout: layout)
-                    .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("root")).minY } action: { trackTop = $0 }
-            } else {
-                center(layout)
-                lower(layout).frame(height: lowerH)
+            ZStack(alignment: .top) {
+                if !arrange || carrying {
+                    main(layout, lowerH).opacity(arrange ? 0.001 : 1)
+                }
+                if arrange {
+                    arrangeArea(layout, lowerH, bar)
+                }
             }
         }
         .onChange(of: lowerH, initial: true) { _, h in model.arrLowerH = h }
         .onChange(of: bar, initial: true) { _, b in model.barH = b }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
+    }
+
+    /// Обычный экран: центр и низ. STEPS сетки паттернов выключена — под сеткой только строка дорожек, сетка выше.
+    @ViewBuilder
+    private func main(_ layout: Layout, _ lowerH: CGFloat) -> some View {
+        if model.patternView && model.project.gridHideSteps {
+            VStack(spacing: Layout.gap) {
+                center(layout).frame(maxHeight: .infinity)
+                TrackRow(model: model, layout: layout)
+                    .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("root")).minY } action: { trackTop = $0 }
+            }
+        } else {
+            VStack(spacing: Layout.gap) {
+                center(layout).frame(maxHeight: .infinity)
+                lower(layout).frame(height: lowerH)
+            }
+        }
     }
 
     /// Аранжировщик (решения пользователя): строка кнопок (ArrangeBar) — сверху, слева на месте строки папки над
@@ -147,7 +166,8 @@ struct RootView: View {
                 ArrangeWindow(model: model)
                     .frame(height: max(0, g.size.height - bar - Layout.gap))
                     .offset(y: bar + Layout.gap)
-                if model.arrKnobs {
+                // Во время переноса клипа из сетки центр — сетка паттернов (она уже есть под аранжировщиком).
+                if model.arrKnobs && !model.patternView {
                     // Фон — и под зазором снизу (чёрная полоса, как между дорожками): из-под окна ничего не видно.
                     center(layout)
                         .frame(height: max(0, g.size.height - lowerH - Layout.gap))
