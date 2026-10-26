@@ -543,6 +543,11 @@ struct ArrDraw {
             } else {
                 c.draw(text, at: CGPoint(x: max(x0, 0) + 5, y: top + h / 2), anchor: .leading)
             }
+            // Секции вплотную (решение пользователя): граница между ними — толще (3 pt).
+            if k + 1 < list.count, end == list[k + 1].at, let e = end {
+                let x: CGFloat = m.stepX(Double(e))
+                ctx.fill(Path(CGRect(x: x - 1.5, y: top, width: 3, height: h)), with: .color(theme.accent))
+            }
         }
     }
 
