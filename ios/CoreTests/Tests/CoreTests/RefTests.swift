@@ -46,6 +46,20 @@ final class RefTests: XCTestCase {
         XCTAssertTrue(c.ref.active)
     }
 
+    func testBypassesMasterAndMetersRaw() {
+        // Громкость выхода −30 dB — референс мимо мастера: отсчёт в отсчёт как файл.
+        var p = project()
+        p.outVol = -30
+        let c = core(p, b: true)
+        let l = render(c, blocks: 20)
+        XCTAssertEqual(Double(at(l[0])), Double(19 * 256), accuracy: 3)
+        XCTAssertEqual(l[255] - l[0], 255 * unit, accuracy: 1e-7, "без обработки")
+        // Пик на измерителе — пик файла в блоке.
+        var peak: Float = 0
+        _ = c.levels.read(since: c.levels.blocks.load() - 1) { b in peak = Levels.value(b, Levels.ref, 0) }
+        XCTAssertEqual(peak, l[255], accuracy: 1e-7)
+    }
+
     func testCursorAndOffset() {
         // С такта 2 (шаг 16 = 2 с), начало файла сдвинуто на 0,5 с: место — 1,5 с.
         let c = core(project(offset: 0.5), b: true, from: 16)
