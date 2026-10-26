@@ -138,15 +138,19 @@ struct RootView: View {
     }
 
     /// Обычный экран: центр и низ (высоты — явно, h — высота экрана). STEPS сетки паттернов выключена — как STEPS
-    /// аранжировщика: строки дорожек, секвенсора и клавиатуры нет, сетка — до низа экрана.
+    /// аранжировщика: строки дорожек, секвенсора и клавиатуры нет; сетка не меняется (решение пользователя: ни сдвигов,
+    /// ни растяжения), под ней — пусто.
     @ViewBuilder
     private func main(_ layout: Layout, _ lowerH: CGFloat, _ h: CGFloat) -> some View {
         // Центр: экран без полей (8 сверху и снизу), верхней панели, низа и двух зазоров.
         let centerH: CGFloat = max(0, h - 16 - Layout.topHeight - lowerH - 2 * Layout.gap)
         if model.patternView && model.project.gridHideSteps {
-            // Низ меню бутерброда — низ сетки.
-            center(layout).frame(height: centerH + Layout.gap + lowerH)
-                .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("root")).maxY } action: { trackTop = $0 }
+            VStack(spacing: Layout.gap) {
+                center(layout).frame(height: centerH)
+                // Низ меню бутерброда — там же, где верх строки дорожек.
+                Color.clear.frame(height: lowerH)
+                    .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("root")).minY } action: { trackTop = $0 }
+            }
         } else {
             VStack(spacing: Layout.gap) {
                 center(layout).frame(height: centerH)

@@ -84,6 +84,7 @@ struct PatternGrid: View {
     @ViewBuilder
     private func cells(_ g: GridGeometry) -> some View {
         let w = model.gridWindow
+        let group: Bool = groupLifted
         ForEach(0..<Params.gridRows, id: \.self) { r in
             if let k = w.rows[r] {
                 let lifted: Bool = dragRow == k && ghost != nil
@@ -94,7 +95,7 @@ struct PatternGrid: View {
                     .offset(y: rowShift(g, k))
                     .animation(.easeInOut(duration: 0.2), value: rowTarget)
                 ForEach(0..<g.tracks, id: \.self) { i in
-                    ClipCellView(model: model, cell: CellRef(track: i, row: k), lifted: dragCell == CellRef(track: i, row: k) && ghost != nil,
+                    ClipCellView(model: model, cell: CellRef(track: i, row: k), lifted: isLifted(CellRef(track: i, row: k), group),
                                  target: target == CellRef(track: i, row: k), selected: model.gridSel.contains(CellRef(track: i, row: k)))
                         .frame(width: g.trackW, height: g.rowH)
                         .midiMarks(model, [.button(MidiButtons.clip(i, r))])
@@ -127,9 +128,48 @@ struct PatternGrid: View {
         return rows * (g.rowH + PatternGrid.rowGap)
     }
 
+    /// Подняты все клипы выделения рамкой (палец держит один из них).
+    private var groupLifted: Bool {
+        guard ghost != nil, let c = dragCell else { return false }
+        return model.carryGroup(c) != nil
+    }
+
+    private func isLifted(_ c: CellRef, _ group: Bool) -> Bool {
+        if ghost == nil { return false }
+        if group { return model.gridSel.contains(c) }
+        return dragCell == c
+    }
+
+    /// Выделение рамкой под пальцем: копии видимых выделенных клипов — на своих местах со сдвигом пальца.
+    private func groupGhost(_ g: GridGeometry, _ p: CGPoint) -> some View {
+        let w = model.gridWindow
+        let start: CGPoint = dragId.flatMap { presses[$0]?.start } ?? p
+        let dx: CGFloat = p.x - start.x
+        let dy: CGFloat = p.y - start.y
+        var list: [(cell: CellRef, at: CGSize)] = []
+        for (r, row) in w.rows.enumerated() {
+            guard let k = row else { continue }
+            for i in 0..<g.tracks where model.gridSel.contains(CellRef(track: i, row: k)) {
+                if model.project.tracks[i].clipFilled(k) { list.append((CellRef(track: i, row: k), g.origin(col: i, row: r))) }
+            }
+        }
+        return ZStack(alignment: .topLeading) {
+            ForEach(0..<list.count, id: \.self) { n in
+                ClipCellView(model: model, cell: list[n].cell, lifted: false, target: false)
+                    .frame(width: g.trackW, height: g.rowH)
+                    .scaleEffect(1.06)
+                    .offset(x: list[n].at.width + dx, y: list[n].at.height + dy)
+            }
+        }
+        .shadow(color: .black.opacity(0.5), radius: 10)
+        .allowsHitTesting(false)
+    }
+
     @ViewBuilder
     private func ghostView(_ g: GridGeometry) -> some View {
-        if let p = ghost, let k = dragRow {
+        if let p = ghost, groupLifted {
+            groupGhost(g, p)
+        } else if let p = ghost, let k = dragRow {
             // Строка целиком: колонка строк и клипы всех дорожек.
             ZStack(alignment: .topLeading) {
                 SceneCellView(model: model, row: k).frame(width: g.sceneW, height: g.rowH)
@@ -217,7 +257,15 @@ struct PatternGrid: View {
             cur.held = true
             presses[id] = cur
             switch cur.hit {
-            case .cell(let c): model.holdCell(c.track, c.row)
+            case .cell(let c):
+                model.holdCell(c.track, c.row)
+                // Клип выделения рамкой: удержание поднимает все выделенные (как один клип при переносе).
+                if dragId == nil && model.carryGroup(c) != nil {
+                    withAnimation(.easeOut(duration: 0.15)) {
+                        dragId = id
+                        ghost = cur.start
+                    }
+                }
             // Свободное место: удержание — рамка выделения от точки касания.
             case .none:
                 if bandId == nil {

@@ -2,8 +2,9 @@ import SwiftUI
 
 /// Касания линейки аранжировщика (S15d, решения пользователя). Тап по линейке (номера тактов и строка секций) — курсор
 /// на ближайшую линию сетки; двойной тап — меню диапазона (ADD SECTION, SPLIT): внутри выделенного диапазона — для него,
-/// вне — диапазоном становится такт под пальцем. Протяжка по номерам тактов — выделить диапазон (с магнитом; он же
-/// диапазон петли — LOOP зацикливает его); край выделенного диапазона — тянется. Строка маркеров: двойной тап по
+/// вне — диапазоном становится такт под пальцем. Протяжка по номерам тактов — выделить диапазон целыми тактами (он же
+/// диапазон петли — LOOP зацикливает его); край выделенного диапазона тянется точнее — по сетке (с магнитом) или по
+/// шагу. Строка маркеров: двойной тап по
 /// маркеру — его окно (имя, DELETE); секция не перетаскивается — тянутся её края (с магнитом; блоки не двигаются);
 /// плейхед (жёлтый пятиугольник) — перетаскивается, курсор за пальцем. Протяжка и края — одна запись UNDO.
 final class ArrRulerTouches {
@@ -55,12 +56,13 @@ final class ArrRulerTouches {
         case .bars:
             if moved {
                 mode = .select
-                anchor = model.project.arrange.snapped(Int(m.step(at: start.x).rounded()))
+                anchor = ArrRulerTouches.bar(m.step(at: start.x))
                 model.beginGesture()
-                model.arrSetLoop(anchor, v)
+                model.arrSetLoop(anchor, ArrRulerTouches.bar(m.step(at: p.x)))
             }
         case .select:
-            model.arrSetLoop(anchor, v)
+            // Протяжка — целыми тактами (решение пользователя: широко; точно — краями).
+            model.arrSetLoop(anchor, ArrRulerTouches.bar(m.step(at: p.x)))
         case .edge:
             if !moved && !edgeDragging { return }
             if !edgeDragging { model.beginGesture() }
@@ -73,6 +75,9 @@ final class ArrRulerTouches {
             edgeDragging = true
             model.arrMarkerEdge(marker, left: leftEdge, to: x)
         case .playhead:
+            // Без сдвига — тап (двойной тап у курсора — меню); сдвинули — курсор за пальцем.
+            if !moved && !edgeDragging { return }
+            edgeDragging = true
             if v != model.arrCursor { model.setArrCursor(x) }
         case .marker, .markerEmpty:
             break
@@ -109,8 +114,15 @@ final class ArrRulerTouches {
         case .markerEmpty:
             if ended { tapBars(x, m, model) }
         case .playhead:
-            break
+            // Плейхед не сдвинули — это тап (первый тап ставит курсор под палец: второй попадает на плейхед).
+            if ended && !dragged { tapBars(x, m, model) }
         }
+    }
+
+    /// Ближайшая линия такта к шагу s.
+    static func bar(_ s: Double) -> Int {
+        let n: Double = Double(ArrMetrics.stepsPerBar)
+        return max(0, Int((s / n).rounded()) * ArrMetrics.stepsPerBar)
     }
 
     /// Строка секций: у плейхеда (до 12 pt) — он; у края секции — край (ближайший); внутри секции — она (двойной тап —
