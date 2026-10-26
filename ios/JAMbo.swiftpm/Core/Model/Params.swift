@@ -287,6 +287,9 @@ public enum Params {
                     return String(format: "%.1f ms", ms)
                 }
             }
+            if let f = TexGran.format(e.id, k) {
+                return ParamDef(id: p.id, label: label, min: p.min, max: p.max, def: p.def, format: f)
+            }
             if k == 3 && e.id == Jambo.wtable {
                 return ParamDef(id: p.id, label: label, min: p.min, max: p.max, def: p.def) { v in
                     "\(Int((v / 100 * Jambo.wtDetune).rounded())) ct"

@@ -32,6 +32,7 @@ extension AppModel {
 
     /// Проект изменился: автосохранение — через ~1,5 с после первого изменения (как интервал веба).
     func projectChanged() {
+        updateGrainSeconds()
         if autosaveDue == 0 { autosaveDue = Date.timeIntervalSinceReferenceDate + ProjectSession.autosaveDelay }
     }
 

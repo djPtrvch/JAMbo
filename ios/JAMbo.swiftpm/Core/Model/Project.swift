@@ -58,6 +58,8 @@ public struct Track: Codable, Equatable, Sendable {
     public var trim: Double = 0
     /// Таблица WTABLE дорожки ("" — BASIC, "builtin:NAME" — встроенная; свои WAV — S11).
     public var table: String = ""
+    /// Сэмпл GRANULAR дорожки (ключ хранилища; "" — нет, движок молчит): кнопка SOURCE в меню звука.
+    public var grain: String = ""
     /// Назначения LFO1–3 / ENV на ручки дорожки (id параметра → источник и степень).
     public var assigns: [String: ModAssign] = [:]
     /// MORPH: значения ручек и назначений на момент включения режима (что меняли), дорожку меняли (жёлтая точка).

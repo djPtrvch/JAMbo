@@ -1,5 +1,6 @@
 // Движки синта (как SYNTH_ENGINES, synthKey, synthEngine в src/params.ts веба): звук дорожки или шага «mi:<n>».
-// Свои движки KICK, ANALOG, FM, WTABLE (16–19); движков Mutable Instruments (0–15) нет.
+// Свои движки KICK, ANALOG, FM, WTABLE (16–19), ударные и SUB (20–24), TEXTURE и GRANULAR (25, 26); движков
+// Mutable Instruments (0–15) нет.
 
 /// Движок: номер (ключ звука mi:<n>), короткое имя (меню), полное (окно синта), подписи ручек 1.1–1.4 и пункты
 /// ступенчатых ручек (пустой список — плавная). decay — затухает сам (KICK): огибающая дорожки только с атакой.
@@ -48,11 +49,16 @@ public enum SynthEngines {
         // SUB (этап 4): моно-бас, OSC2 — октавой ниже; при выборе — треугольник, SUB 40 %, без FAT и GRIT.
         SynthEngine(id: 24, name: "SUB", full: "Sub bass", knobs: ["wave", "sub", "fat", "grit"],
                     options: [["Triangle", "Saw", "Square"], [], [], []], initKnobs: [100.0 / 6, 40, 0, 0]),
+        // TEXTURE и GRANULAR (ТЗ «Texture и Granular»): моно, стерео; при выборе — значения по умолчанию из ТЗ.
+        SynthEngine(id: 25, name: "TEXTURE", full: "Texture", knobs: ["color", "density", "tone", "motion"],
+                    options: [[], [], [], []], initKnobs: [40, 50, 30, 30]),
+        SynthEngine(id: 26, name: "GRANULAR", full: "Granular", knobs: ["position", "size", "density", "spray"],
+                    options: [[], [], [], []], initKnobs: [12, 45, 55, 20]),
     ]
 
-    /// Колонки меню звука: DRUMS и SYNTH (номера движков).
+    /// Колонки меню звука: DRUMS (под ними SAMPLER) и SYNTH (номера движков).
     public static let drums: [Int] = [16, 20, 21, 22, 23]
-    public static let synths: [Int] = [17, 24, 18, 19]
+    public static let synths: [Int] = [17, 24, 18, 19, 25, 26]
 
     /// Размер таблиц по номеру движка (наибольший номер + 1).
     public static let count: Int = (all.map { $0.id }.max() ?? -1) + 1

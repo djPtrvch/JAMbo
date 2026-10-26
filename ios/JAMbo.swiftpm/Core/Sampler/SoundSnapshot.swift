@@ -80,6 +80,8 @@ public struct SoundData {
     public var sliceNote: UnsafeMutablePointer<Int32>
     /// Таблица WTABLE дорожки (указатели WtTable; кадров 0 — таблица ещё не готова, WTABLE молчит, как в вебе).
     var tableRef: UnsafeMutablePointer<WtRef>
+    /// Сэмпл GRANULAR звука (указатели SampleData из keep; нет — пусто, движок молчит).
+    var grainRef: UnsafeMutablePointer<GrainSrc>
     /// Общие FX (Params.fxIds, без p-lock), глубина Sidechain дорожки (0…100), переключатели SETTINGS → SIDECHAIN
     /// (посылы Reverb, Delay, Drive: 1 — приглушаются).
     public var fx: UnsafeMutablePointer<Float>
@@ -227,6 +229,7 @@ public final class SoundSnapshot: @unchecked Sendable {
             eSliceStart: .allocate(capacity: entries), eSliceCount: .allocate(capacity: entries),
             sliceAt: .allocate(capacity: slices), sliceNote: .allocate(capacity: slices),
             tableRef: .allocate(capacity: tracks2),
+            grainRef: .allocate(capacity: tracks2),
             fx: .allocate(capacity: Params.fxCount), scAmount: .allocate(capacity: tracks2), scSend: .allocate(capacity: 3),
             mod: .allocate(capacity: tracks2 * Params.modCount), lfoSync: .allocate(capacity: tracks2 * 3), asSrc: .allocate(capacity: tracks2 * ModTarget.count),
             asAmt: .allocate(capacity: tracks2 * ModTarget.count), scale: .allocate(capacity: tracks2 * ModTarget.count),
@@ -310,6 +313,7 @@ public final class SoundSnapshot: @unchecked Sendable {
         d.scSend[2] = scSends.drv ? 1 : 0
         d.muteTails = muteTails
         d.tableRef.initialize(repeating: WtRef(), count: tracks2)
+        d.grainRef.initialize(repeating: GrainSrc(), count: tracks2)
         var keepTables: [WtTable] = []
         d.trackId.initialize(repeating: -1, count: tracks)
         d.params.initialize(repeating: 0, count: tracks2 * pc)
@@ -393,6 +397,11 @@ public final class SoundSnapshot: @unchecked Sendable {
             if let wt = tables[snd.table] {
                 keepTables.append(wt)
                 d.tableRef[u] = WtRef(frames: wt.frames, sizes: UnsafePointer(wt.sizes), data: UnsafePointer(wt.data))
+            }
+            if let g = snd.grain, let s = samples[g] {
+                keep.append(s)
+                d.grainRef[u] = GrainSrc(left: s.left, right: s.channels > 1 ? s.right : nil, frames: s.frames,
+                                         channels: s.channels)
             }
             d.entryStart[u] = Int32(e)
             var keys = snd.folder.sampleKeys
@@ -480,6 +489,7 @@ public final class SoundSnapshot: @unchecked Sendable {
         data.sliceAt.deallocate()
         data.sliceNote.deallocate()
         data.tableRef.deallocate()
+        data.grainRef.deallocate()
         data.fx.deallocate()
         data.scAmount.deallocate()
         data.scSend.deallocate()

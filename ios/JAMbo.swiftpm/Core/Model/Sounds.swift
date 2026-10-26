@@ -65,6 +65,7 @@ extension Track {
             if let v = p.params[id] { params[id] = v }
         }
         if let t = p.table { table = t }
+        if let g = p.grain { grain = g }
     }
 
     /// Загруженные файлы — в папку, первый звучит на дорожке.
@@ -99,9 +100,10 @@ extension Track {
         guard let e = SynthKey.engine(sample) else { return nil }
         var p: [String: Double] = [:]
         for id in SynthPreset.params { p[id] = params[id] ?? Params.byId[id]?.def ?? 0 }
-        // WTABLE (движок 19) — с таблицей дорожки.
+        // WTABLE (движок 19) — с таблицей дорожки, GRANULAR — с сэмплом.
         let wt: String? = e == 19 ? table : nil
-        return SynthPreset(name: name, sound: sample, params: p, table: wt)
+        let gr: String? = e == Jambo.granular ? grain : nil
+        return SynthPreset(name: name, sound: sample, params: p, table: wt, grain: gr)
     }
 
     /// Имя пресета, если звук дорожки — пресет из её папки ("" — нет; folderItemName веба).

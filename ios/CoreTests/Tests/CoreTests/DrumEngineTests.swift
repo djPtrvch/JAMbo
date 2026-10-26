@@ -27,7 +27,7 @@ final class DrumEngineTests: XCTestCase {
 
     func testTable() {
         XCTAssertEqual(SynthEngines.drums, [16, 20, 21, 22, 23])
-        XCTAssertEqual(SynthEngines.synths, [17, 24, 18, 19])
+        XCTAssertEqual(SynthEngines.synths, [17, 24, 18, 19, 25, 26])
         for e in drums {
             let eng = SynthEngines.engine(e)
             XCTAssertEqual(eng?.decay, true)

@@ -125,7 +125,7 @@ public enum EngineIcons {
 
     static func lerp(_ a: Double, _ b: Double, _ u: Double) -> Double { a + (b - a) * u }
 
-    /// Элементы иконки своего движка (16–24); у других — пусто. hx — центр подсветки удара (x на поле 64,
+    /// Элементы иконки своего движка (16–26); у других — пусто. hx — центр подсветки удара (x на поле 64,
     /// только у ударных; nil — без подсветки). WTABLE здесь — по встроенной BASIC (в окне — wtableIcon с tableFrame таблицы дорожки).
     public static func elements(_ engine: Int, _ v: IconValues, hx: Double? = nil) -> [IconElement] {
         switch engine {
@@ -138,6 +138,8 @@ public enum EngineIcons {
         case 22: return clapIcon(v, hx)
         case 23: return percIcon(v, hx)
         case 24: return subIcon(v)
+        case 25: return textureIcon(v)
+        case 26: return granularIcon(v)
         default: return []
         }
     }

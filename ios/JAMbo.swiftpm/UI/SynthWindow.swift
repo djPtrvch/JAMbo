@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Окно синта (на месте формы волны, как synth-info в sample.ts веба): заголовок — имя движка (у WTABLE — и имя
-/// таблицы), живая иконка движка (до 144 pt, ужимается по высоте окна) и ручки 1.1–1.4 «подпись · значение»
+/// таблицы, у GRANULAR — сэмпла), живая иконка движка (до 144 pt, ужимается по высоте окна) и ручки 1.1–1.4 «подпись · значение»
 /// (значение ручки дорожки, как в вебе). Пока зажат шаг со своим звуком — его движок.
 struct SynthInfo: View {
     let model: AppModel
@@ -10,8 +10,9 @@ struct SynthInfo: View {
 
     var body: some View {
         let e: SynthEngine? = SynthEngines.engine(engine)
-        // У WTABLE после имени движка — имя таблицы дорожки.
-        let table: String? = engine == Jambo.wtable ? SoundTitle.capitalized(WavetableKey.name(model.track.table)) : nil
+        // У WTABLE после имени движка — имя таблицы дорожки, у GRANULAR — имя сэмпла (SOURCE).
+        var table: String? = engine == Jambo.wtable ? SoundTitle.capitalized(WavetableKey.name(model.track.table)) : nil
+        if engine == Jambo.granular { table = model.sampleName(model.track.grain) }
         return VStack(alignment: .leading, spacing: 4) {
             SoundTitle(main: e?.name ?? "", detail: table)
                 .padding(.top, 6)

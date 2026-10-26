@@ -2,11 +2,13 @@ import SwiftUI
 
 /// Меню звука дорожки (тап по окну сэмпла, как в вебе): закрывает всю левую колонку — от верха окна сэмпла до низа
 /// кнопок LFO; кнопки движков — высотой с LOAD (40) сверху, группа LOAD · SAVE — внизу, между ними пустое место.
-/// Две колонки движков: DRUMS (KICK, SNARE, HAT, CLAP, PERC) и SYNTH (ANALOG, FM, WTABLE; под ними SAMPLER): тап —
+/// Две колонки движков: DRUMS (KICK, SNARE, HAT, CLAP, PERC; под ними SAMPLER) и SYNTH (ANALOG, SUB, FM, WTABLE,
+/// TEXTURE, GRANULAR): тап —
 /// движок дорожки, с зажатыми шагами — их звук; группа LOAD SAMPLE · PRESET · MIDI:
 /// LOAD (браузер библиотеки, S11b), MIDI (вход и выход нот дорожки — TrackMidiPage на месте меню; для зажатых шагов
 /// на этом месте TRACK — вернуть звук дорожки),
-/// SAVE (пресет синта в библиотеку) и TABLE (у дорожки с WTABLE — браузер в LOAD TABLE).
+/// SAVE (пресет синта в библиотеку) и TABLE (у дорожки с WTABLE — браузер в LOAD TABLE; у GRANULAR на его месте
+/// SOURCE — браузер сэмплов, тап ставит сэмпл GRANULAR).
 struct SoundMenu: View {
     let model: AppModel
     let state: SoundMenuState
@@ -38,8 +40,8 @@ struct SoundMenu: View {
                     .frame(maxWidth: .infinity)
             }
             HStack(alignment: .top, spacing: 4) {
-                column("DRUMS", SynthEngines.drums, sampler: false, steps: steps)
-                column("SYNTH", SynthEngines.synths, sampler: true, steps: steps)
+                column("DRUMS", SynthEngines.drums, sampler: true, steps: steps)
+                column("SYNTH", SynthEngines.synths, sampler: false, steps: steps)
             }
             Spacer(minLength: 0)
             title("LOAD SAMPLE · PRESET · MIDI")
@@ -111,7 +113,12 @@ struct SoundMenu: View {
             }
             HStack(spacing: 4) {
                 MenuItem(title: "SAVE", enabled: !steps && synth) { model.openBrowser(.savePreset) }
-                MenuItem(title: "TABLE", enabled: !steps && wtable) { model.openBrowser(.loadTable) }
+                // У GRANULAR на месте TABLE — SOURCE (сэмпл, из которого читаются зёрна).
+                if granular {
+                    MenuItem(title: "SOURCE", enabled: !steps) { model.openBrowser(.source) }
+                } else {
+                    MenuItem(title: "TABLE", enabled: !steps && wtable) { model.openBrowser(.loadTable) }
+                }
             }
         }
     }
@@ -119,6 +126,11 @@ struct SoundMenu: View {
     /// Дорожка играет синт (SAVE — пресет в библиотеку).
     private var synth: Bool {
         SynthKey.engine(model.track.sample) != nil
+    }
+
+    /// Дорожка играет GRANULAR (на месте TABLE — SOURCE).
+    private var granular: Bool {
+        SynthKey.engine(model.track.sample) == Jambo.granular
     }
 
     /// Дорожка играет WTABLE (кнопка TABLE активна).

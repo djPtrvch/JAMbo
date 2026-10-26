@@ -1,7 +1,8 @@
 import Foundation
 
 // Пресет синта и звук папки дорожки (S11b, как Preset и FolderItem в state.ts веба). Пресет — движок (ключ звука
-// «mi:<n>»), ручки звука (presetParams) и у WTABLE — таблица. В папке дорожки — сэмплы и пресеты (копии).
+// «mi:<n>»), ручки звука (presetParams), у WTABLE — таблица, у GRANULAR — сэмпл. В папке дорожки — сэмплы и пресеты
+// (копии).
 
 /// Пресет синта: имя, движок, ручки; fmt — версия формата (веб — 2; 3 — S12, ручки 1.4 своих движков).
 public struct SynthPreset: Codable, Equatable, Sendable {
@@ -11,19 +12,23 @@ public struct SynthPreset: Codable, Equatable, Sendable {
     public var fmt: Int?
     /// Таблица WTABLE ("" — BASIC, «builtin:…», своя — «wt:<ключ>:<кадр>»); nil — не WTABLE.
     public var table: String?
+    /// Сэмпл GRANULAR (ключ хранилища); nil — не GRANULAR.
+    public var grain: String?
 
-    public init(name: String, sound: String, params: [String: Double], fmt: Int? = 3, table: String? = nil) {
+    public init(name: String, sound: String, params: [String: Double], fmt: Int? = 3, table: String? = nil,
+                grain: String? = nil) {
         self.name = name
         self.sound = sound
         self.params = params
         self.fmt = fmt
         self.table = table
+        self.grain = grain
     }
 
     /// Ручки звука, которые хранит пресет (PRESET_PARAMS веба).
     public static let params: [String] = ["harm", "timbre", "morph", "p4", "level", "attack", "decay", "filter", "reso"]
 
-    enum CodingKeys: String, CodingKey, CaseIterable { case name, sound, params, fmt, table }
+    enum CodingKeys: String, CodingKey, CaseIterable { case name, sound, params, fmt, table, grain }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -39,6 +44,7 @@ public struct SynthPreset: Codable, Equatable, Sendable {
             fmt = 3
         }
         table = c.optional(.table)
+        grain = c.optional(.grain)
     }
 }
 

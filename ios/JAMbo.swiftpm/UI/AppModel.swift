@@ -27,7 +27,9 @@ final class AppModel {
     var settingsTab: SettingsTab = .record
     /// Список проектов в меню PROJECTS (перечитывается при открытии меню и после действий).
     var projectList: [ProjectInfo] = []
-    private(set) var selectedTrack: Int = 0
+    private(set) var selectedTrack: Int = 0 {
+        didSet { updateGrainSeconds() }
+    }
     private(set) var channel: Channel = .track
     var viewPage: Int = 0
     /// Секвенсор показывает все играющие страницы (если открытая среди них); удержание миниатюры — одну.

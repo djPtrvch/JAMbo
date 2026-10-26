@@ -10,6 +10,8 @@ public struct TrackSound: Codable, Equatable, Sendable {
     public var folder: Folder
     public var slices: [String: [SliceMark]]
     public var table: String
+    /// Сэмпл GRANULAR (nil — нет; в прежних файлах поля нет).
+    public var grain: String? = nil
     public var assigns: [String: ModAssign]
     public var eq: Eq
     /// Громкость микшера (dB), с которой звучит клип со своим звуком (клип PREV при MIX без кроссфейдера — громкость
@@ -22,7 +24,7 @@ extension Track {
     public var sound: TrackSound {
         get {
             return TrackSound(sample: sample, params: params, folder: folder, slices: slices, table: table,
-                              assigns: assigns, eq: eq)
+                              grain: grain.isEmpty ? nil : grain, assigns: assigns, eq: eq)
         }
         set {
             sample = newValue.sample
@@ -30,6 +32,7 @@ extension Track {
             folder = newValue.folder
             slices = newValue.slices
             table = newValue.table
+            grain = newValue.grain ?? ""
             assigns = newValue.assigns
             eq = newValue.eq
         }

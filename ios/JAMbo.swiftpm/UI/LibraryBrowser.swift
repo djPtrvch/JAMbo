@@ -131,6 +131,7 @@ struct LibraryBrowser: View {
         case .load: return "Tap a sample or preset to load it on the track. Hold one to select several."
         case .loadTable: return "Tap a table to load it on the WTABLE track. IMPORT reads WAV files as wavetables."
         case .ref: return "Tap a sample to use it as the reference track, or IMPORT an audio file."
+        case .source: return "Tap a sample to play it through GRANULAR on the track, or IMPORT an audio file."
         default: return "Choose a folder, name it and SAVE HERE."
         }
     }

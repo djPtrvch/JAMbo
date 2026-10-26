@@ -61,7 +61,7 @@ extension Project {
         return Swift.min(hi, Swift.max(lo, v))
     }
 
-    /// Ключи сэмплов, на которые ссылается проект (звук и папки дорожек, свой звук шагов, маркеры нарезки);
+    /// Ключи сэмплов, на которые ссылается проект (звук и папки дорожек, сэмпл GRANULAR, свой звук шагов, маркеры нарезки);
     /// ключи синтов и встроенных таблиц («mi:…», «builtin:…») — не сэмплы.
     public var sampleKeys: Set<String> {
         var keys = Set<String>()
@@ -69,10 +69,14 @@ extension Project {
             keys.insert(t.sample)
             keys.formUnion(t.folder.sampleKeys)
             keys.formUnion(t.slices.keys)
+            // Сэмпл GRANULAR — у дорожки и в пресетах её папки.
+            keys.insert(t.grain)
+            for it in t.folder.items { if let g = it.preset?.grain { keys.insert(g) } }
             // Переход MIX: звук старой дорожки у клипа PREV и свой звук дорожки, пока играет PREV.
             for snd in ([t.home] + t.clips.map { $0?.src }) {
                 guard let snd = snd else { continue }
                 keys.insert(snd.sample)
+                keys.insert(snd.grain ?? "")
                 keys.formUnion(snd.folder.sampleKeys)
                 keys.formUnion(snd.slices.keys)
             }

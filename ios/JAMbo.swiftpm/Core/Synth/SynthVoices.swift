@@ -4,6 +4,8 @@ import Foundation
 // (свободный: голос дозвучал), иначе крадётся следующий — гаснет за ~5 мс (τ 1,5 мс), новая нота — через 8 мс.
 // Громкость — внешняя огибающая, как у сэмпла: Attack (не меньше 2 мс) → удержание → Decay как Release.
 // Движок → огибающая → Level → фильтр → Pan → шина дорожки (микшер — в Sampler). Куски по 24 отсчёта (BLOCK worklet).
+// Стерео-движки (TEXTURE, GRANULAR): фильтр голоса — по двум каналам с общими коэффициентами, Pan — баланс (StereoPanner веба
+// со стерео-входом).
 // Затухающие сами (KICK): огибающая только с атакой (без удержания и релиза), голос считается до тишины (не дольше
 // 15 с), слот занят до атаки + 0,3 с + 4·Decay; с атакой ≤ 2,5 мс в свободном слоте огибающая не обнуляется — хвост
 // прошлой ноты не обрывается скачком, ручки звука слота подстраиваются за ~1 мс.
@@ -56,6 +58,8 @@ public final class SynthVoices {
     let ftype = UnsafeMutablePointer<Int>.allocate(capacity: slots)
     let coef = UnsafeMutablePointer<Biquad>.allocate(capacity: slots)
     let z = UnsafeMutablePointer<Float>.allocate(capacity: slots * 2)
+    /// Состояние фильтра правого канала стерео-движка.
+    let zR = UnsafeMutablePointer<Float>.allocate(capacity: slots * 2)
     /// Слот занят до (затухающие сами — атака + 0,3 с + 4·Decay; остальные — до stopAt).
     let busyUntil = UnsafeMutablePointer<Int64>.allocate(capacity: slots)
     /// Голос затухающего самого движка; keep — огибающая с 1 (без атаки), ручки звука — за ~1 мс.
@@ -88,9 +92,12 @@ public final class SynthVoices {
     /// Дрейф ANALOG (общий на дорожку, как узел worklet) и начало текущего блока.
     let drift = UnsafeMutablePointer<JamboDrift>.allocate(capacity: tracks)
     private var blockStart: Int64 = 0
-    private var nextSerial = 0
+    var nextSerial = 0
 
     private let outBuf = UnsafeMutablePointer<Float>.allocate(capacity: chunk)
+    private let outBufR = UnsafeMutablePointer<Float>.allocate(capacity: chunk)
+    /// Огибающая · Level · затухание кражи на кусок (0 после остановки голоса).
+    let gBuf = UnsafeMutablePointer<Float>.allocate(capacity: chunk)
     /// Бит p-lock параметра p (1 << p): в отладочной сборке VoiceMask(p) — обобщённое преобразование, вызов на каждый
     /// параметр каждого куска (S14b).
     private let bit = UnsafeMutablePointer<VoiceMask>.allocate(capacity: VoiceParam.count)
@@ -98,7 +105,7 @@ public final class SynthVoices {
     /// Создаётся вне колбэка (≈ 100 голосов).
     public init(sampleRate: Double) {
         sr = sampleRate
-        bank = JamboBank(count: SynthVoices.slots, sampleRate: sampleRate)
+        bank = JamboBank(count: SynthVoices.slots, sampleRate: sampleRate, perTrack: SynthVoices.perTrack)
         drift.initialize(repeating: JamboDrift(), count: SynthVoices.tracks)
         selfDecayE.initialize(repeating: 0, count: SynthVoices.engines)
         for e in SynthEngines.all { selfDecayE[e.id] = e.decay ? 1 : 0 }
@@ -121,12 +128,15 @@ public final class SynthVoices {
         send.initialize(repeating: 0, count: s * 3)
         coef.initialize(repeating: Biquad(), count: s)
         z.initialize(repeating: 0, count: s * 2)
+        zR.initialize(repeating: 0, count: s * 2)
         lockMask.initialize(repeating: 0, count: s)
         pMask.initialize(repeating: 0, count: s)
         lockVal.initialize(repeating: 0, count: s * VoiceParam.count)
         pVal.initialize(repeating: 0, count: s * VoiceParam.count)
         next.initialize(repeating: 0, count: SynthVoices.tracks)
         outBuf.initialize(repeating: 0, count: SynthVoices.chunk)
+        outBufR.initialize(repeating: 0, count: SynthVoices.chunk)
+        gBuf.initialize(repeating: 0, count: SynthVoices.chunk)
         for p in 0..<VoiceParam.count { bit[p] = VoiceMask(1) << VoiceMask(p) }
     }
 
@@ -138,7 +148,7 @@ public final class SynthVoices {
         for p in [start, holdEnd, stopAt, pStart, pGate, fadeAt, busyUntil] as [UnsafeMutablePointer<Int64>] { p.deallocate() }
         for p in [attackF, decaySec, hz, qDb] as [UnsafeMutablePointer<Double>] { p.deallocate() }
         send.deallocate()
-        for p in [decayK, env, env0, fadeK, fadeG, level, pan, z, lockVal, pVal, outBuf]
+        for p in [decayK, env, env0, fadeK, fadeG, level, pan, z, zR, lockVal, pVal, outBuf, outBufR, gBuf]
             as [UnsafeMutablePointer<Float>] { p.deallocate() }
         bit.deallocate()
         coef.deallocate()
@@ -221,24 +231,6 @@ public final class SynthVoices {
         }
     }
 
-    /// Слот дорожки по кругу: свободный — голос дозвучал (stopAt); иначе крадётся следующий (steal).
-    private func allocate(_ t: Int, _ at: Int64) -> (Int, Bool) {
-        let base = t * SynthVoices.perTrack
-        let pt = SynthVoices.perTrack
-        for k in 0..<pt {
-            let c = (next[t] + k) % pt
-            let v = base + c
-            if pActive[v] != 0 { continue }
-            if active[v] == 0 || Swift.min(stopAt[v], busyUntil[v]) <= at {
-                next[t] = (c + 1) % pt
-                return (v, false)
-            }
-        }
-        let c = next[t] % pt
-        next[t] = (c + 1) % pt
-        return (base + c, true)
-    }
-
     private func setup(_ v: Int, _ d: SoundData, _ t: Int, _ e: Int, _ frame: Int64, _ n: Int, _ gate: Int64,
                        _ mask: VoiceMask, _ vals: UnsafePointer<Float>?, _ isOwn: Bool, _ live: Int, steal: Bool) {
         let decaying = selfDecayE[e] != 0
@@ -306,6 +298,8 @@ public final class SynthVoices {
         coef[v].set(type: f.type, hz: f.hz, qDb: f.q, sampleRate: sr)
         z[v * 2] = 0
         z[v * 2 + 1] = 0
+        zR[v * 2] = 0
+        zR[v * 2 + 1] = 0
     }
 
     /// Ждущая нота слота v становится голосом (прежняя погасла).
@@ -321,78 +315,12 @@ public final class SynthVoices {
               pOwn[v] != 0, pLive[v], steal: !keepOld)
     }
 
-    private func fade(_ v: Int, at: Int64, tau: Double) {
+    func fade(_ v: Int, at: Int64, tau: Double) {
         if active[v] == 0 || (fading[v] != 0 && fadeAt[v] <= at) { return }
         fading[v] = 1
         fadeAt[v] = at
         fadeK[v] = Float(exp(-1 / (tau * sr)))
         stopAt[v] = Swift.min(stopAt[v], at + Int64((tau * 8 + 0.005) * sr))
-    }
-
-    /// Та же нота продолжает державшуюся: прежняя гаснет вместе с атакой новой (legatoCut веба).
-    private func legatoCut(_ t: Int, _ notes: UnsafePointer<Int16>, _ count: Int, _ at: Int64, _ attack: Double) {
-        let tol = Int64(0.005 * sr)
-        let base = t * SynthVoices.perTrack
-        for v in base..<(base + SynthVoices.perTrack)
-        where active[v] != 0 && fading[v] == 0 && holdEnd[v] != Int64.max {
-            var same = false
-            for k in 0..<count where Int(notes[k]) == note[v] { same = true }
-            if !same { continue }
-            if start[v] < at && holdEnd[v] >= at - tol { fade(v, at: at, tau: Swift.max(0.0015, attack / 3)) }
-        }
-    }
-
-    /// Отпустили клавишу: живые ноты (liveId) — Decay как Release с кадра at.
-    func release(track t: Int, liveId id: Int, at: Int64) {
-        if t < 0 || t >= SynthVoices.tracks { return }
-        let base = t * SynthVoices.perTrack
-        for v in base..<(base + SynthVoices.perTrack) {
-            if active[v] != 0 && liveId[v] == id && holdEnd[v] == Int64.max {
-                holdEnd[v] = Swift.max(at, start[v])
-                stopAt[v] = holdEnd[v] + Int64((Swift.max(0.02, decaySec[v]) * 2 + 0.05) * sr)
-            }
-            if pActive[v] != 0 && pLive[v] == id && pGate[v] == Int64.max {
-                pGate[v] = at > pStart[v] ? at - pStart[v] : -1
-            }
-        }
-    }
-
-    // MARK: — новый снимок звука
-
-    /// Перестановка или удаление дорожек — голоса гаснут (держащиеся ноты переставленной дорожки сэмплер уже завёл
-    /// заново на новом месте); переход MIX (rebind) — голоса остаются на своём месте.
-    func adopt(_ d: SoundData, now: Int64) {
-        for v in 0..<SynthVoices.slots where active[v] != 0 || pActive[v] != 0 {
-            let t = v / SynthVoices.perTrack
-            if d.rebind && t < d.trackCount {
-                trackId[v] = d.trackId[t]
-                continue
-            }
-            if t >= d.trackCount || d.trackId[t] != trackId[v] {
-                pActive[v] = 0
-                fade(v, at: now, tau: 0.0015)
-            }
-        }
-    }
-
-    var lastSerial: Int { return nextSerial }
-
-    /// Держащиеся ноты дорожки t (не свой звук шага, созданные до serial last) — для перезапуска новым звуком:
-    /// голос гаснет за ~3 мс, body получает ноту, удержание, p-lock и liveId.
-    func retrigger(_ t: Int, _ now: Int64, upTo last: Int,
-                   _ body: (_ note: Int, _ at: Int64, _ gate: Int64, _ mask: VoiceMask, _ vals: UnsafePointer<Float>,
-                            _ live: Int) -> Void) {
-        if t < 0 || t >= SynthVoices.tracks { return }
-        let edgeTol = Int64(0.01 * sr)
-        let base = t * SynthVoices.perTrack
-        for v in base..<(base + SynthVoices.perTrack)
-        where active[v] != 0 && fading[v] == 0 && own[v] == 0 && serial[v] <= last {
-            let at = Swift.max(now, start[v])
-            if holdEnd[v] != Int64.max && holdEnd[v] <= at + edgeTol { continue }
-            let gate: Int64 = holdEnd[v] == Int64.max ? Int64.max : holdEnd[v] - at
-            fade(v, at: at, tau: 0.003)
-            body(note[v], at, gate, lockMask[v], lockVal + v * VoiceParam.count, liveId[v])
-        }
     }
 
     // MARK: — звук
@@ -503,11 +431,28 @@ public final class SynthVoices {
         } else {
             bank.jamboSet(v, note: nt, q1, q2, q3, q4, decay: dec)
         }
-        bank.jamboRender(v, outBuf, m, driftRatio: dr.ratio, table: d.tableRef[d.s(t)])
+        let stereo: Bool = Jambo.stereo(e)
+        if stereo {
+            // Окно активности TEXTURE и GRANULAR: события и зёрна рождаются до attack + 1,7·Decay после отпускания
+            // (держится — всегда).
+            let hEnd = holdEnd[v]
+            var win = Int.max
+            if hEnd != Int64.max {
+                let endF: Int64 = hEnd + Int64(1.7 * decaySec[v] * sr)
+                win = endF > frame0 ? Int(endF - frame0) : 0
+            }
+            bank.stereoRender(v, outBuf, outBufR, m, window: win, src: d.grainRef[d.s(t)])
+        } else {
+            bank.jamboRender(v, outBuf, m, driftRatio: dr.ratio, table: d.tableRef[d.s(t)])
+        }
         var q = 0
         while q < m {
             let a = outBuf[q] < 0 ? -outBuf[q] : outBuf[q]
             if a > peak { peak = a }
+            if stereo {
+                let b = outBufR[q] < 0 ? -outBufR[q] : outBufR[q]
+                if b > peak { peak = b }
+            }
             q += 1
         }
         quiet[v] = peak < 1e-5 ? quiet[v] + m : 0
@@ -547,87 +492,93 @@ public final class SynthVoices {
             coef[v].set(type: ftype[v], hz: hz[v], qDb: qDb[v], sampleRate: sr)
         }
         let c = coef[v]
-        // StereoPanner, моно: cos/sin.
-        let x: Float = (pan[v] + 1) / 2
-        let gc = cos(x * Float.pi / 2)
-        let gs = sin(x * Float.pi / 2)
         let lv = level[v]
         let zb = v * 2
-        // Состояние голоса — в локальных переменных на кусок, кадр и время от начала ноты — счётчиками:
-        // в отладочной сборке (Playgrounds) преобразования Int64 → Double и обращения к указателям-свойствам
-        // на каждом отсчёте заметно дороже самой арифметики.
-        let stop = stopAt[v], hold = holdEnd[v], fadeFrom = fadeAt[v], att = attackF[v]
-        let keepEnv = keep[v] != 0
-        let e0v = env0[v]
-        let dk = decayK[v], fadeKV = fadeK[v]
-        var envV = env[v], fadeV = fadeG[v], rel = released[v] != 0
-        var z0 = z[zb], z1 = z[zb + 1]
+        // Огибающая — отдельным проходом в gBuf (с остановкой голоса), затем фильтр, Pan и посылы — моно или стерео.
+        let stopped: Bool = envelope(v, frame0, m, lv)
         // Коэффициенты фильтра — плавно от прежних к новым внутри куска (иначе ступеньки раз в 24 отсчёта при ENV/LFO
         // на фильтре звучат призвуком ~2 кГц).
         var b0 = cPrev.b0, b1 = cPrev.b1, b2 = cPrev.b2, a1 = cPrev.a1, a2 = cPrev.a2
         let im: Float = 1 / Float(m)
         let db0 = (c.b0 - b0) * im, db1 = (c.b1 - b1) * im, db2 = (c.b2 - b2) * im
         let da1 = (c.a1 - a1) * im, da2 = (c.a2 - a2) * im
-        var frame = frame0
-        var tt = Double(frame0 - start[v])
+        let gb = gBuf
+        let src = outBuf
+        var z0 = z[zb], z1 = z[zb + 1]
         var j = 0
-        var stopped = false
-        while j < m {
-            if frame >= stop {
-                stopped = true
-                break
-            }
-            // Огибающая: атака линейно (с env0 — у SUB с текущего уровня), удержание, затем Decay как Release (τ = Decay/4).
-            var g: Float
-            if keepEnv {
-                // Затухающий сам с короткой атакой: огибающая не обнуляется.
-                g = 1
-            } else if decaying {
-                // Только атака, дальше 1 — затухает сам движок.
-                g = tt < att ? Float(tt / att) : 1
-            } else if frame >= hold {
-                if !rel {
-                    rel = true
-                    envV = tt < att ? e0v + (1 - e0v) * Float(tt / att) : 1
+        if !stereo {
+            // StereoPanner, моно: cos/sin.
+            let x: Float = (pan[v] + 1) / 2
+            let gc = cos(x * Float.pi / 2)
+            let gs = sin(x * Float.pi / 2)
+            while j < m {
+                let a: Float = src[j] * gb[j]
+                b0 += db0
+                b1 += db1
+                b2 += db2
+                a1 += da1
+                a2 += da2
+                // Фильтр (TDF II).
+                let y: Float = b0 * a + z0
+                z0 = b1 * a - a1 * y + z1
+                z1 = b2 * a - a2 * y
+                let oa: Float = y * gc
+                let ob: Float = y * gs
+                bl[j] += oa
+                br[j] += ob
+                // Посылы слота — после Pan.
+                if hasSend {
+                    s0L[j] += oa * sg0
+                    s0R[j] += ob * sg0
+                    s0L[st + j] += oa * sg1
+                    s0R[st + j] += ob * sg1
+                    s0L[2 * st + j] += oa * sg2
+                    s0R[2 * st + j] += ob * sg2
                 }
-                envV *= dk
-                g = envV
-            } else {
-                g = tt < att ? e0v + (1 - e0v) * Float(tt / att) : 1
-                envV = g
+                j += 1
             }
-            if frame >= fadeFrom { fadeV *= fadeKV }
-            g *= lv * fadeV
-            let a: Float = outBuf[j] * g
-            b0 += db0
-            b1 += db1
-            b2 += db2
-            a1 += da1
-            a2 += da2
-            // Фильтр (TDF II).
-            let y: Float = b0 * a + z0
-            z0 = b1 * a - a1 * y + z1
-            z1 = b2 * a - a2 * y
-            let oa: Float = y * gc
-            let ob: Float = y * gs
-            bl[j] += oa
-            br[j] += ob
-            // Посылы слота — после Pan.
-            if hasSend {
-                s0L[j] += oa * sg0
-                s0R[j] += ob * sg0
-                s0L[st + j] += oa * sg1
-                s0R[st + j] += ob * sg1
-                s0L[2 * st + j] += oa * sg2
-                s0R[2 * st + j] += ob * sg2
+        } else {
+            // StereoPanner, стерео-вход (баланс): pan ≤ 0 — правый канал частью уходит влево, pan > 0 — наоборот.
+            let p: Float = pan[v]
+            let x: Float = p <= 0 ? p + 1 : p
+            let gc = cos(x * Float.pi / 2)
+            let gs = sin(x * Float.pi / 2)
+            let ll: Float = p <= 0 ? 1 : gc, rl: Float = p <= 0 ? gc : 0
+            let rr: Float = p <= 0 ? gs : 1, lr: Float = p <= 0 ? 0 : gs
+            let srcR = outBufR
+            var w0 = zR[zb], w1 = zR[zb + 1]
+            while j < m {
+                let g: Float = gb[j]
+                let a: Float = src[j] * g
+                let aR: Float = srcR[j] * g
+                b0 += db0
+                b1 += db1
+                b2 += db2
+                a1 += da1
+                a2 += da2
+                let y: Float = b0 * a + z0
+                z0 = b1 * a - a1 * y + z1
+                z1 = b2 * a - a2 * y
+                let yR: Float = b0 * aR + w0
+                w0 = b1 * aR - a1 * yR + w1
+                w1 = b2 * aR - a2 * yR
+                let oa: Float = y * ll + yR * rl
+                let ob: Float = yR * rr + y * lr
+                bl[j] += oa
+                br[j] += ob
+                if hasSend {
+                    s0L[j] += oa * sg0
+                    s0R[j] += ob * sg0
+                    s0L[st + j] += oa * sg1
+                    s0R[st + j] += ob * sg1
+                    s0L[2 * st + j] += oa * sg2
+                    s0R[2 * st + j] += ob * sg2
+                }
+                j += 1
             }
-            frame += 1
-            tt += 1
-            j += 1
+            zR[zb] = (w0 < 1e-20 && w0 > -1e-20) ? 0 : w0
+            zR[zb + 1] = (w1 < 1e-20 && w1 > -1e-20) ? 0 : w1
         }
-        env[v] = envV
-        fadeG[v] = fadeV
-        released[v] = rel ? 1 : 0
         z[zb] = z0
         z[zb + 1] = z1
         if stopped {
@@ -638,4 +589,6 @@ public final class SynthVoices {
         if z0 < 1e-20 && z0 > -1e-20 { z[zb] = 0 }
         if z1 < 1e-20 && z1 > -1e-20 { z[zb + 1] = 0 }
     }
+
+
 }
