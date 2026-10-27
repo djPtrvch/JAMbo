@@ -1,4 +1,4 @@
-# Handoff: JAMbo, Swift-версия — S15 аранжировщик готов (S15a–g, проверено на iPad); S14c, S14d готовы (CLOCK INPUT на iPad не проверен); идёт S14e — App Store
+# Handoff: JAMbo, Swift-версия — S15 аранжировщик готов (S15a–g, проверено на iPad); S14c, S14d готовы (CLOCK INPUT на iPad не проверен); S14zb — RATE сэмпла и таймстретч (готово, на iPad проверено частично); идёт S14e — App Store
 
 ## 1. Контекст проекта
 Groovebox для iPad. Веб (`src/`, `public/`) — эталон, заморожен. Swift-перенос — ветка `swift`, `ios/JAMbo.swiftpm`. Правила — `CLAUDE.md`, `ios/CLAUDE.md`; план и вехи — `docs/SWIFT_AUDIT.md` (раздел 6); итоги вех — `docs/SWIFT_MILESTONE_Sx.md`. Поведение аранжировщика — `docs/ai/arranger.md`; MIDI — `docs/ai/settings-midi-sync.md` (в ветке swift описывают Swift-версию).
@@ -46,15 +46,22 @@ Groovebox для iPad. Веб (`src/`, `public/`) — эталон, заморо
 - Задержки MIDI (ноты, маппинг) пользователь не замечает — путь MIDI → звук не меняем.
 - Ableton Link: LinkKit, -lc++ и entitlement multicast в Playgrounds невозможны — сам Link остаётся этапу 9 (спайк B0), в S13e — только меню и настройки.
 - Термины (CLAUDE.md): сэмпл-лок — шаг со своим сэмплом, пресет-лок — шаг со своим пресетом синта.
+- RATE сэмпла (S14zb, решения пользователя; подробно — docs/ai/sound-sampler.md, SWIFT_MILESTONE_S14.md «S14zb»):
+  - Ручка 1.4 сэмплера — RATE, как в Octatrack: −100…100 %, по умолчанию 100 % (правый край), центр — стоп, левее — реверс. Режимы — SHIFT + тап: Rate Pitch (по умолчанию; скорость меняет высоту) и Rate Stretch (таймстретч: высота прежняя, луп в темпе проекта, RATE — множитель). Подписи — «Rate Pitch» / «Rate Stretch» (заглавная только первая буква).
+  - Таймстретч — свой (zplane élastique Pro нельзя: закрытая платная библиотека на C++). Алгоритм — SETTINGS → SAMPLER → STRETCH, общий для проектов: NORMAL (по умолчанию) — фазовый вокодер с фазовой привязкой, атаками сэмпла (куски между ударами тянутся отдельно, удар исходный) и общими фазами L/R; BEAT — WSOLA, легче, для ударных лупов.
+  - RATE — для быстрой игры; дальше — варпинг сэмпла по точкам (в «Позже» CLAUDE.md): карта времени поведёт тот же указатель времени таймстретча, RATE остаётся множителем сверху.
 
 
 ## 3. Текущая задача
+Нагрузка Rate Stretch NORMAL (по замеру пользователя на iPad: 3 голоса — Samples 15 % в среднем, 24 % в пике, ≈ 5 % на голос; звук в целом 41,7 % / 56,6 % худший блок): оставшиеся циклы кадра (чтение, поворот спектра, сложение в кольцо) — на vDSP; кадры голосов — в разные блоки (пики не складываются). Замер на iPad: один и тот же паттерн в Rate Pitch, Stretch NORMAL и BEAT (RESET, ~1 мин, строка Samples). Затем — по решению пользователя: варпинг или дальше S14e.
+
 S14e — App Store. Что делается кодом (аудит перед App Store, «Открыто» в SWIFT_MILESTONE_S14.md):
 - trace (UI/JAMboApp.swift — print «JAMbo: …» в консоль Playgrounds) — только в отладочной сборке (#if DEBUG).
 - Предел распаковки ZIP (Core/Files/Zip.swift, Inflate.swift; импорт в библиотеку — AppModelLibrary.libPlaceFiles): у Inflate.inflate нет предела выхода — ZIP-бомба съест память; нужен предел на запись и на архив (размер обсудить с пользователем: сэмпл 10 мин стерео float 32 — ~230 МБ), тест в LibraryFilesTests.
 - Остальное — у пользователя: значок (Playgrounds), URL политики конфиденциальности, App Store Connect, пробная загрузка (privacy manifest, ориентация только альбомная), строка Privacy в DIAGNOSTICS на iPad. Ableton Link — этап 9 (Xcode на Mac).
 
 ## 4. Что уже решено
+- S14zb (RATE): VoiceParam.rate (17-й параметр голоса; NoteLocks — 17 значений; контрольная сумма SeqSnapshotDigestTests обновлена), Params.rate / rateTstr / rateModeId (SHIFT + тап — AppModel.knobShiftTap, подпись — AppModel.param; KnobDefaults.companion — режим со своим значением по умолчанию); Settings.stretchBeat → AudioCore.publish → SoundData.rateMode (0 — Pitch, 1 — NORMAL, 2 — BEAT), eBpm (TempoDetect.loopBpm), eOnsets (SampleData.onsets — Onsets.swift); голос — Sampler.renderVoice и setupVoice (beginPos, tstr, grainRatio, srcBpm, реверс — от конца отрезка); NORMAL — StretchPV.swift (Vocoder) и PvFFT.swift (vDSP / vForce под #if canImport(Accelerate), на Linux — своё БПФ); BEAT — Stretch.swift (Stretcher). Полоса воспроизведения в реверсе — AppModel.playheads. Тесты — RateTests, PvFFTTests; CoreTests — 443. На iPad: сборка с Accelerate прошла, нагрузка замерена; звук на лупах ещё не оценён.
 - S15g (REF): Core/Engine/RefPlayer.swift (после мастера, A/B, Levels.ref), Core/Sampler/TempoDetect.swift, ArrRef и Arrangement.showRef; UI/AppModelArrangeRef.swift (RefWave, BrowserMode.ref, refBActive), ArrRefHeader, ArrRefMenu, ArrABSwitch, ArrMetrics.refRow / body / inRef. Тесты RefTests, TempoDetectTests; CoreTests — 394.
 - S15 (Core): Arrange.swift, ArrangeEdits.swift (блоки, секции, rowToArrange), ArrangeJournal.swift (ArrJournal, sendToArrange), ArrangeRecorder.swift (ArrRecorder, applyRecording), ArrangeAuto.swift (ArrAutoLane, ArrAutoTarget, Track.autos, simplify, recordAuto); Sequencer/ArrangePlay.swift, ArrangeAutoPlay.swift (подстановка кривой в снимок звука на блок, autoHold); SeqData — блоки, autoFirst/autoCount/autoX/autoY, probLock. Тесты — ArrangeTests, ArrangePlayTests.
 - S15f′ (UI): RootView.units / arrangeArea (раскладка), Layout.piano / pairHeight, AppModel.barH / arrLowerH / arrInset / arrKnobs / arrGroup / arrMarquee; ArrangeBar (новая строка, ArrStepsIcon), ArrangeAutoPanel.swift (ArrAutoPanel, ArrAutoList, ArrAutoAddMenu, ArrAutoLaneMenu, ArrAutoCurve, ArrAutoTouches), ArrCursorLayer и ArrTotalTime (ArrangeWindow.swift); Core — Project.moveBlocks / duplicateBlocks / deleteBlocks, setMarkerStart / setMarkerEnd, ArrPalette.removed. Тесты testBlockGroup, testSectionEdges; CoreTests — 394.
@@ -77,7 +84,9 @@ S14e — App Store. Что делается кодом (аудит перед Ap
 - Значок и URL политики конфиденциальности — пользователь.
 - На iPad проверить строку Privacy в DIAGNOSTICS (manifest должен быть в корне бандла).
 - Тексты docs/ai (tracks-mixer, patterns-projects, master-chain, ui-layout, sequencer, sound-sampler), ios/CLAUDE.md («Решения») по правкам S14v — предложены пользователю, ждут подтверждения (внести в конце вехи вместе с итогом).
-- PLAY сэмплера на 1.4 — новая реализация (решение пользователя: прежняя не понравилась).
+- Ручка 1.4 сэмплера занята RATE (S14zb) — прежний пункт «PLAY сэмплера на 1.4» снят.
+- RATE: звук NORMAL и BEAT на лупах, ударных и тональном материале; нагрузка NORMAL (см. «Текущая задача»); эталона веба нет — в SELF-TEST не добавлено.
+- Варпинг сэмпла (CLAUDE.md, «Позже»): точки на ударах (Onsets — готовая основа), привязка к долям, окно — в редакторе сэмпла; спецификацию — с пользователем.
 - Номера готовых к записи дорожек при удалении или перестановке дорожек не пересчитываются (как в вебе).
 - Sampler.swift — больше ~600 строк, разделить при случае.
 - Правки микшера и мастера во время перехода MIX в файл не попадают (открыто в S10).
@@ -92,6 +101,7 @@ S14e — App Store. Что делается кодом (аудит перед Ap
 - Шаг строк аранжировщика — ArrMetrics.pitch (строка + зазор); высоты строки кнопок и низа — только из RootView.units (не задавать вручную).
 - Имена новых типов проверять на совпадение с уже существующими (Core и UI — один модуль; в S13 вид MidiPage совпал с типом Core — переименован в MidiMenuPage). Проверка: grep объявлений struct/class/enum по всему JAMbo.swiftpm, `sort | uniq -d`.
 - Playgrounds: выражения — по шагам с явными типами; UI на Linux не собирается — проверка только на iPad.
+- Accelerate (vDSP, vForce) — только под `#if canImport(Accelerate)` с обычной реализацией рядом; на Linux тесты идут по обычной ветке, ветка Accelerate проверяется только сборкой на iPad (PvFFT калибрует масштаб кругом вперёд-назад).
 - Package.swift — в виде Playgrounds; capabilities — только те, что пользователь добавил в Playgrounds; capabilities — перед appCategory.
 - Жесты в прокручиваемых списках: удержание — simultaneousGesture(LongPressGesture), не onLongPressGesture.
 - Надписи — английские; комментарии и документы — русские. Окна закрываются квадратным ✕; меню закрываются тапом мимо.
@@ -102,4 +112,4 @@ S14e — App Store. Что делается кодом (аудит перед Ap
 - Звуковые ошибки (щелчки) — воспроизводить сценой пользователя в тесте Core и мерить; при сомнении — стенд-страница с AudioWorklet (как SUB Bench в S12).
 
 ## 7. Первый запрос для нового чата
-«Прочитай docs/handoffs/HANDOFF.md, ios/CLAUDE.md и docs/SWIFT_MILESTONE_S14.md. Продолжаем S14e: trace только в DEBUG, предел распаковки ZIP»
+«Прочитай docs/handoffs/HANDOFF.md, ios/CLAUDE.md и docs/SWIFT_MILESTONE_S14.md. Продолжаем: нагрузка Rate Stretch NORMAL (vDSP в кадре, разнесение кадров голосов), затем S14e — trace только в DEBUG, предел распаковки ZIP»
