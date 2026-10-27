@@ -27,9 +27,11 @@ struct JAMboApp: App {
 }
 
 /// Корень: подставляет тему по текущей схеме.
-/// Отметки запуска в консоли Playgrounds (Show Console) — где остановился запуск.
-func trace(_ text: String) {
-    print("JAMbo: \(text)")
+/// Отметки запуска в консоли Playgrounds (Show Console) — где остановился запуск; только в отладочной сборке.
+func trace(_ text: @autoclosure () -> String) {
+    #if DEBUG
+    print("JAMbo: \(text())")
+    #endif
 }
 
 struct ThemedRoot: View {

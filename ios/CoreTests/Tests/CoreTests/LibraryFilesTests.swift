@@ -33,6 +33,25 @@ final class LibraryFilesTests: XCTestCase {
         XCTAssertEqual(Inflate.inflate(Data([0x01, 0x03, 0x00, 0xfc, 0xff, 0x61, 0x62, 0x63])), Data("abc".utf8))
     }
 
+    /// Предел распаковки (ZIP-бомба): 100 000 нулей из 114 байт.
+    func testInflateLimit() {
+        let head: [UInt8] = [0xed, 0xc1, 0x31, 0x01, 0x00, 0x00, 0x00, 0xc2, 0xa0, 0xf5, 0x4f, 0x6d, 0x0d, 0x0f, 0xa0]
+        let bomb = Data(head + [UInt8](repeating: 0, count: 96) + [0x80, 0x57, 0x03])
+        XCTAssertEqual(Inflate.inflate(bomb)?.count, 100_000)
+        XCTAssertEqual(Inflate.inflate(bomb, limit: 100_000)?.count, 100_000)
+        XCTAssertNil(Inflate.inflate(bomb, limit: 99_999))
+        XCTAssertNil(Inflate.inflate(Data([0x01, 0x03, 0x00, 0xfc, 0xff, 0x61, 0x62, 0x63]), limit: 2))
+    }
+
+    /// Предел распаковки ZIP: большой файл пропускается, большой архив — nil.
+    func testZipLimits() {
+        let e = [ZipEntry(path: "a.wav", data: Data(count: 300)), ZipEntry(path: "b.wav", data: Data(count: 100))]
+        let z = Zip.write(e)
+        XCTAssertEqual(Zip.read(z, fileLimit: 200)?.map(\.path), ["b.wav"])
+        XCTAssertNil(Zip.read(z, fileLimit: 300, totalLimit: 399))
+        XCTAssertEqual(Zip.read(z, fileLimit: 300, totalLimit: 400), e)
+    }
+
     func testWavFloat32ReadsBack() throws {
         let l: [Float] = [0, 0.5, -0.25, 1]
         let r: [Float] = [0.1, 0.2, 0.3, 0.4]

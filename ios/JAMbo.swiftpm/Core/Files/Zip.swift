@@ -69,8 +69,14 @@ public enum Zip {
         return out
     }
 
-    /// Файлы и папки архива; не ZIP — nil. Сжатые не deflate и битые записи пропускаются.
-    public static func read(_ data: Data) -> [ZipEntry]? {
+    /// Предел распакованного файла: сэмпл 10 мин стерео float 32 — ~230 МБ.
+    public static let fileLimit = 512 << 20
+    /// Предел всего распакованного архива.
+    public static let totalLimit = 2 << 30
+
+    /// Файлы и папки архива; не ZIP или распакованное больше totalLimit — nil. Сжатые не deflate, битые записи
+    /// и файлы больше fileLimit пропускаются.
+    public static func read(_ data: Data, fileLimit: Int = fileLimit, totalLimit: Int = totalLimit) -> [ZipEntry]? {
         let b: [UInt8] = [UInt8](data)
         let n = b.count
         func u16(_ o: Int) -> Int { o + 2 <= n ? Int(b[o]) | (Int(b[o + 1]) << 8) : 0 }
@@ -81,6 +87,7 @@ public enum Zip {
         let count = u16(e + 10)
         var p = u32(e + 16)
         var out: [ZipEntry] = []
+        var total = 0
         for _ in 0..<count {
             if p + 46 > n || u32(p) != 0x02014b50 { break }
             let method = u16(p + 10)
@@ -102,11 +109,17 @@ public enum Zip {
             let start = loc + 30 + u16(loc + 26) + u16(loc + 28)
             guard start + csize <= n else { continue }
             let raw = Data(b[start..<(start + csize)])
+            var file: Data? = nil
             if method == 0 {
-                out.append(ZipEntry(path: path, data: raw))
-            } else if method == 8, let d = Inflate.inflate(raw) {
-                out.append(ZipEntry(path: path, data: d))
+                file = csize <= fileLimit ? raw : nil
+            } else if method == 8 {
+                file = Inflate.inflate(raw, limit: Swift.min(fileLimit, totalLimit - total))
+                if file == nil && total + fileLimit > totalLimit { return nil }
             }
+            guard let d = file else { continue }
+            total += d.count
+            if total > totalLimit { return nil }
+            out.append(ZipEntry(path: path, data: d))
         }
         return out
     }

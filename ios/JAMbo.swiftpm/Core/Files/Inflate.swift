@@ -46,7 +46,7 @@ public enum Inflate {
         }
     }
 
-    enum InflateError: Error { case truncated, badCode, badBlock }
+    enum InflateError: Error { case truncated, badCode, badBlock, tooLarge }
 
     static let lenBase: [Int] = [3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31, 35, 43, 51, 59, 67, 83, 99,
                                  115, 131, 163, 195, 227, 258]
@@ -78,22 +78,22 @@ public enum Inflate {
         return h
     }
 
-    /// Распаковать; ошибка в потоке — nil.
-    public static func inflate(_ data: Data) -> Data? {
+    /// Распаковать; ошибка в потоке или выход больше limit байт (ZIP-бомба) — nil.
+    public static func inflate(_ data: Data, limit: Int = Int.max) -> Data? {
         var r = Reader([UInt8](data))
         var out: [UInt8] = []
-        out.reserveCapacity(data.count * 3)
+        out.reserveCapacity(Swift.min(data.count * 3, limit))
         do {
             var last = 0
             repeat {
                 last = try r.bits(1)
                 let type = try r.bits(2)
                 switch type {
-                case 0: try stored(&r, &out)
-                case 1: try codes(&r, &out, fixedLen, fixedDist)
+                case 0: try stored(&r, &out, limit)
+                case 1: try codes(&r, &out, fixedLen, fixedDist, limit)
                 case 2:
                     let (l, d) = try dynamicTables(&r)
-                    try codes(&r, &out, l, d)
+                    try codes(&r, &out, l, d, limit)
                 default: throw InflateError.badBlock
                 }
             } while last == 0
@@ -103,7 +103,7 @@ public enum Inflate {
         return Data(out)
     }
 
-    static func stored(_ r: inout Reader, _ out: inout [UInt8]) throws {
+    static func stored(_ r: inout Reader, _ out: inout [UInt8], _ limit: Int) throws {
         r.bitBuf = 0
         r.bitCnt = 0
         guard r.pos + 4 <= r.src.count else { throw InflateError.truncated }
@@ -112,6 +112,7 @@ public enum Inflate {
         r.pos += 4
         if len != (~nlen & 0xffff) { throw InflateError.badBlock }
         guard r.pos + len <= r.src.count else { throw InflateError.truncated }
+        if out.count + len > limit { throw InflateError.tooLarge }
         out.append(contentsOf: r.src[r.pos..<(r.pos + len)])
         r.pos += len
     }
@@ -165,10 +166,12 @@ public enum Inflate {
         return (l, d)
     }
 
-    static func codes(_ r: inout Reader, _ out: inout [UInt8], _ lencode: Huffman, _ distcode: Huffman) throws {
+    static func codes(_ r: inout Reader, _ out: inout [UInt8], _ lencode: Huffman, _ distcode: Huffman,
+                      _ limit: Int) throws {
         while true {
             var sym = try r.decode(lencode)
             if sym < 256 {
+                if out.count >= limit { throw InflateError.tooLarge }
                 out.append(UInt8(sym))
             } else if sym == 256 {
                 return
@@ -180,6 +183,7 @@ public enum Inflate {
                 if ds >= 30 { throw InflateError.badCode }
                 let dist = distBase[ds] + (try r.bits(distExtra[ds]))
                 if dist > out.count { throw InflateError.badBlock }
+                if out.count + len > limit { throw InflateError.tooLarge }
                 var from = out.count - dist
                 for _ in 0..<len {
                     out.append(out[from])
