@@ -34,8 +34,9 @@ struct Layout {
         return piano > 0 ? piano : keySide(scale) + 50
     }
 
-    /// Высота клавиши (и CHORD): клавиатура без строки аккордов.
+    /// Высота CHORD (квадратная, шириной в шаг) и клавиш в режиме аккордов; строка аккордов и нижний бутерброд —
+    /// на остаток клавиатуры.
     func keyHeight(_ scale: Int) -> CGFloat {
-        return max(20, pianoHeight(scale) - 50)
+        return max(20, min(step, pianoHeight(scale) - 50))
     }
 }
