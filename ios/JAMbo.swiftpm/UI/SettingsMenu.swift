@@ -134,12 +134,6 @@ struct SamplerSettings: View {
                 MenuItem(title: "SCALE", current: model.settings.sliceMap == .scale) { model.setSliceMap(.scale) }
             }
             SettingsNote(text: "Markers in the sample editor play their slice from a piano key. CHROMATIC: markers go up by semitone from C3 (C3, C#3, D3…). SCALE: markers follow the notes of the selected scale from its root note in octave 3; the marker notes change with the scale.")
-            FieldLabel(title: "ROOT NOTE")
-            HStack(spacing: 4) {
-                MenuItem(title: "C3", current: !model.settings.fileRoot) { model.setFileRoot(false) }
-                MenuItem(title: "FILE NOTE", current: model.settings.fileRoot) { model.setFileRoot(true) }
-            }
-            SettingsNote(text: "The key where a sample plays at its own pitch. C3: every sample. FILE NOTE: the note found in the file (shown in the sample window), so the keys play in tune with the recording; samples without a clear note stay on C3.")
             FieldLabel(title: "PITCH")
             HStack(spacing: 4) {
                 MenuItem(title: "SMOOTH", current: !model.settings.pitchSemitones) { model.updateSettings { $0.pitchSemitones = false } }

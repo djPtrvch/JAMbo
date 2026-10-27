@@ -83,9 +83,6 @@ public struct SoundData {
     /// Атаки сэмпла для TSTR NORMAL (указатель SampleData.onsets — живёт, пока снимок держит сэмпл; nil — нет).
     public var eOnsets: UnsafeMutablePointer<UnsafeMutablePointer<Double>?>
     public var eOnsetCount: UnsafeMutablePointer<Int>
-    /// Нота, на которой сэмпл звучит в исходной высоте: C3 (Params.sampleRoot) или определённая нота файла
-    /// (SETTINGS → SAMPLER → ROOT NOTE: FILE NOTE; без ясной высоты — C3).
-    public var eRoot: UnsafeMutablePointer<Int16>
     public var sliceAt: UnsafeMutablePointer<Double>
     /// Варпинг (WARP, только TSTR; SoundWarp.swift): метки сэмпла — отрезок таблиц warpU (доля в отсчётах темпа файла)
     /// и warpP (отсчёт сэмпла). Создаются после init снимка.
@@ -224,8 +221,7 @@ public final class SoundSnapshot: @unchecked Sendable {
     /// остаётся на втором звуке (без переключения звука посреди игры).
     public init(_ project: Project, samples: [String: SampleData], map: SliceMap, octave: Int = 3, octaves: [Int] = [],
                 tables: [String: WtTable] = [:], scSends: SidechainSends = SidechainSends(), muteTails: Bool = false,
-                levelRelative: Bool = true, stretchBeat: Bool = false, fileRoot: Bool = false,
-                slots: UnsafeMutablePointer<Int>? = nil, master: [Double]? = nil,
+                levelRelative: Bool = true, stretchBeat: Bool = false, slots: UnsafeMutablePointer<Int>? = nil, master: [Double]? = nil,
                 extra: [String] = [], next: [Int] = [], keepAlt: [Int: Int] = [:], rebind: Bool = false,
                 refB: Bool = false) {
         let tracks = SoundData.maxTracks
@@ -250,7 +246,7 @@ public final class SoundSnapshot: @unchecked Sendable {
             eFrames: .allocate(capacity: entries), eChannels: .allocate(capacity: entries),
             eSliceStart: .allocate(capacity: entries), eSliceCount: .allocate(capacity: entries),
             eBpm: .allocate(capacity: entries), eOnsets: .allocate(capacity: entries),
-            eOnsetCount: .allocate(capacity: entries), eRoot: .allocate(capacity: entries),
+            eOnsetCount: .allocate(capacity: entries),
             sliceAt: .allocate(capacity: slices), sliceNote: .allocate(capacity: slices),
             tableRef: .allocate(capacity: tracks2),
             grainRef: .allocate(capacity: tracks2),
@@ -363,7 +359,6 @@ public final class SoundSnapshot: @unchecked Sendable {
         d.eBpm.initialize(repeating: 0, count: entries)
         d.eOnsets.initialize(repeating: nil, count: entries)
         d.eOnsetCount.initialize(repeating: 0, count: entries)
-        d.eRoot.initialize(repeating: Int16(Params.sampleRoot), count: entries)
         d.sliceAt.initialize(repeating: 0, count: slices)
         d.sliceNote.initialize(repeating: 0, count: slices)
         var keep: [SampleData] = []
@@ -451,7 +446,6 @@ public final class SoundSnapshot: @unchecked Sendable {
                 d.eRight[e] = s.right
                 d.eFrames[e] = s.frames
                 d.eChannels[e] = Int32(s.channels)
-                if fileRoot, let r = project.roots[key] { d.eRoot[e] = Int16(max(0, min(127, r))) }
                 // Темп файла — только у дорожки в TSTR (определяется один раз на сэмпл).
                 // С метками варпинга — и у дорожки в PTCH (▶ WARP играет в Rate Stretch).
                 let wi: WarpInfo? = snd.warps?[key]
@@ -538,7 +532,6 @@ public final class SoundSnapshot: @unchecked Sendable {
         data.eBpm.deallocate()
         data.eOnsets.deallocate()
         data.eOnsetCount.deallocate()
-        data.eRoot.deallocate()
         data.sliceAt.deallocate()
         SoundSnapshot.freeWarp(data)
         data.sliceNote.deallocate()
