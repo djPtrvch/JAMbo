@@ -139,8 +139,11 @@ struct WarpBar: View {
 enum EditorWarpDraw {
     static let strip: CGFloat = 30
 
+    /// Флажки меток — одного размера сверху и снизу (нижний — с подписью внутри).
+    static let flagW: CGFloat = 48
+
     static func flagRect(_ x: CGFloat, _ label: String, _ h: CGFloat) -> CGRect {
-        let w: CGFloat = max(30, CGFloat(label.count) * 8 + 10)
+        let w: CGFloat = flagW
         return CGRect(x: x - w / 2, y: h - SampleEditor.flagH - 4, width: w, height: SampleEditor.flagH)
     }
 
@@ -191,7 +194,8 @@ enum EditorWarpDraw {
 
     /// Верхний флажок: по центру линии метки, острием вниз, к верху формы волны.
     static func topRect(_ x: CGFloat) -> CGRect {
-        return CGRect(x: x - 12, y: SampleEditor.flagY, width: 24, height: SampleEditor.flagH)
+        let w: CGFloat = flagW
+        return CGRect(x: x - w / 2, y: SampleEditor.flagY, width: w, height: SampleEditor.flagH)
     }
 
     private static func topFlag(_ ctx: GraphicsContext, _ x: CGFloat, _ col: Color) {
@@ -218,7 +222,8 @@ enum EditorWarpDraw {
                              _ c: EditorColors) {
         let top: CGFloat = SampleEditor.top
         let r = flagRect(x, label, h)
-        let tipY: CGFloat = r.minY - 6
+        // Остриё — как у верхнего флажка (от тела до верха формы волны — 12 pt).
+        let tipY: CGFloat = r.minY - (SampleEditor.top - 2 - SampleEditor.flagY - SampleEditor.flagH)
         ctx.fill(Path(CGRect(x: x.rounded(), y: top, width: 1, height: tipY - top)), with: .color(col))
         var p = Path()
         p.move(to: CGPoint(x: r.minX, y: r.maxY))
@@ -228,7 +233,7 @@ enum EditorWarpDraw {
         p.addLine(to: CGPoint(x: r.minX, y: r.minY))
         p.closeSubpath()
         ctx.fill(p, with: .color(col))
-        ctx.draw(Text(label).font(.system(size: 12, weight: .semibold)).foregroundColor(c.bg),
+        ctx.draw(Text(label).font(.system(size: 11, weight: .semibold)).foregroundColor(c.bg),
                  at: CGPoint(x: x + 0.5, y: r.midY))
     }
 
