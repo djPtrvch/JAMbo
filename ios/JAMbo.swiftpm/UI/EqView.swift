@@ -165,7 +165,7 @@ struct EqSlot {
 
 /// Строка EQ: имя канала под бутербродом, TYPE, FREQ, GAIN, Q, STEREO, DYN, LISTEN, PRESETS, BYPASS (решения
 /// пользователя; в вебе — над дорожками 1…8): TYPE — с левого края поля BPM, TYPE…Q — равные, правый край Q — по
-/// правому краю REDO; LISTEN, PRESETS, BYPASS — по кнопкам EQ, PATTERNS, ARRANGE верхней панели; STEREO и DYN —
+/// правому краю UNDO; LISTEN, PRESETS, BYPASS — по кнопкам EQ, PATTERNS, ARRANGE верхней панели; STEREO и DYN —
 /// поровну между Q и LISTEN. Пока рамки верхней панели неизвестны — 9 равных столбцов до правого края.
 struct EqBar: View {
     let model: AppModel
@@ -203,8 +203,8 @@ struct EqBar: View {
             return (0..<EqBar.columns).map { EqSlot(x: EqBar.left($0, col), w: col) }
         }
         var out: [EqSlot] = []
-        // TYPE…Q: четыре равных до правого края REDO.
-        let qRight: CGFloat = top.redo.maxX - barX
+        // TYPE…Q: четыре равных до правого края UNDO.
+        let qRight: CGFloat = top.undo.maxX - barX
         let w4: CGFloat = max(0, (qRight - x0 - 3 * g) / 4)
         for i in 0..<4 { out.append(EqSlot(x: x0 + CGFloat(i) * (w4 + g), w: w4)) }
         // STEREO и DYN — поровну до LISTEN.

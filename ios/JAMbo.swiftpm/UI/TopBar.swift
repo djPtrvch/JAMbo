@@ -30,9 +30,11 @@ struct TopBar: View {
         return HStack(spacing: Layout.gap) {
             ScaleField(model: model).frame(width: Layout.topButton)
                 .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { model.sampleRec.scaleFrame = $0 }
-            RootField(model: model)
+                .topFrame(model, \.scale)
+            RootField(model: model).topFrame(model, \.root)
             HistoryButton(symbol: "arrow.turn.up.left", enabled: model.canUndo || model.morphHeld) { model.undoTapped() }
                 .frame(width: Layout.topButton)
+                .topFrame(model, \.undo)
                 .midiTarget(model, "UNDO")
             PlayButton(model: model).frame(width: half)
                 .midiTarget(model, "PLAY")
@@ -66,15 +68,21 @@ struct TopBar: View {
     }
 }
 
-/// Рамки кнопок верхней панели (координаты «root»): REDO, EQ, PATTERNS, ARRANGE.
+/// Рамки кнопок верхней панели (координаты «root»): SCALE, ROOT, UNDO, REDO, EQ, PATTERNS, ARRANGE.
 struct TopFrames: Equatable {
+    var scale: CGRect = .zero
+    var root: CGRect = .zero
+    var undo: CGRect = .zero
     var redo: CGRect = .zero
     var eq: CGRect = .zero
     var patterns: CGRect = .zero
     var arrange: CGRect = .zero
 
     /// Все рамки уже известны.
-    var ready: Bool { return redo.width > 0 && eq.width > 0 && patterns.width > 0 && arrange.width > 0 }
+    var ready: Bool {
+        let a: Bool = scale.width > 0 && root.width > 0 && undo.width > 0 && redo.width > 0
+        return a && eq.width > 0 && patterns.width > 0 && arrange.width > 0
+    }
 }
 
 extension View {

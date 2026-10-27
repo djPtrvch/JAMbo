@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// Строка редактора сэмпла: имя и длина (во время записи — «REC · источник» и время), REC (S11e), ▶, TRIM, NORMALIZE, MONO, CLEAR, WARP, LOAD и SAVE (браузер библиотеки, S11b; перед ✕), ✕.
+/// Строка редактора сэмпла: имя и длина (во время записи — «REC · источник» и время), WARP, REC (S11e), ▶, TRIM,
+/// NORMALIZE, MONO, CLEAR, LOAD и SAVE (браузер библиотеки, S11b; перед ✕), ✕ — по кнопкам верхней панели (aligned).
 /// В режиме WARP вместо ▶…CLEAR — строка WarpBar (LOAD и SAVE остаются).
 struct EditorBar: View {
     let model: AppModel
@@ -12,6 +13,57 @@ struct EditorBar: View {
     @State private var barX: CGFloat = 0
 
     var body: some View {
+        if model.topFrames.ready { aligned } else { plain }
+    }
+
+    /// По кнопкам верхней панели (решение пользователя): имя — до SCALE; WARP — под SCALE, REC — под ROOT, ▶ — под
+    /// UNDO (их ширины); TRIM…CLEAR (в WARP — строка WarpBar) — поровну до PATTERNS; с левого края PATTERNS — LOAD и
+    /// SAVE поровну, ✕ — квадратная.
+    private var aligned: some View {
+        let top: TopFrames = model.topFrames
+        let g: CGFloat = Layout.gap
+        let infoW: CGFloat = max(60, top.scale.minX - barX - g)
+        let midW: CGFloat = max(0, top.patterns.minX - g - top.undo.minX)
+        return HStack(spacing: g) {
+            infoText.frame(width: infoW, alignment: .leading)
+            warpButton.frame(width: top.scale.width)
+            SampleRecButton(model: model).frame(width: top.root.width)
+            HStack(spacing: g) {
+                if model.editorWarp {
+                    WarpBar(model: model, data: data, playWidth: top.undo.width)
+                } else {
+                    tools(playWidth: top.undo.width)
+                }
+            }
+            .frame(width: midW)
+            loadSave
+            ToolButton(title: "✕", width: 48) { model.closeEditor() }
+        }
+        .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("root")).minX } action: { barX = $0 }
+    }
+
+    private var infoText: some View {
+        Text(info)
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(theme.text)
+            .lineLimit(2)
+            .padding(.horizontal, 10)
+    }
+
+    private var warpButton: some View {
+        ToolButton(title: "WARP", enabled: data != nil && model.sampleRec.take == nil, lit: model.editorWarp,
+                   width: nil) { model.toggleWarp() }
+    }
+
+    /// LOAD и SAVE — перед ✕, жирным.
+    @ViewBuilder
+    private var loadSave: some View {
+        ToolButton(title: "LOAD", width: nil, bold: true) { model.openBrowser(.load(steps: [])) }
+        ToolButton(title: "SAVE", enabled: data != nil, width: nil, bold: true) { model.openBrowser(.saveSample(key)) }
+    }
+
+    /// Пока рамки верхней панели неизвестны (первый кадр): прежняя раскладка.
+    private var plain: some View {
         let scale: CGRect = model.sampleRec.scaleFrame
         // Имя — слева до SCALE верхней панели; от её левого края — кнопки равной ширины (✕ — квадратная).
         let infoW: CGFloat = scale.width > 0 ? max(60, scale.minX - barX - Layout.gap) : 0
@@ -27,13 +79,10 @@ struct EditorBar: View {
             if model.editorWarp {
                 WarpBar(model: model, data: data)
             } else {
-                tools
+                tools(playWidth: nil)
             }
-            ToolButton(title: "WARP", enabled: data != nil && model.sampleRec.take == nil, lit: model.editorWarp,
-                       width: nil) { model.toggleWarp() }
-            // LOAD и SAVE — перед ✕ (решение пользователя), жирным.
-            ToolButton(title: "LOAD", width: nil, bold: true) { model.openBrowser(.load(steps: [])) }
-            ToolButton(title: "SAVE", enabled: data != nil, width: nil, bold: true) { model.openBrowser(.saveSample(key)) }
+            warpButton
+            loadSave
             ToolButton(title: "✕", width: 48) { model.closeEditor() }
         }
         .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("root")).minX } action: { barX = $0 }
@@ -41,9 +90,10 @@ struct EditorBar: View {
 
     /// ▶ и правка сэмпла (вне WARP).
     @ViewBuilder
-    private var tools: some View {
+    private func tools(playWidth: CGFloat?) -> some View {
         // ▶ без жёлтой подсветки (решение пользователя); во время прослушивания — ■.
         PlayToolButton(on: model.previewOn, enabled: data != nil) { model.togglePreview(sel.a, sel.b) }
+            .frame(width: playWidth)
         ToolButton(title: "TRIM", enabled: data != nil && !sel.full, width: nil) { model.trimSample(sel.a, sel.b) }
         ToolButton(title: "NORMALIZE", enabled: data != nil, width: nil) { model.normalizeSample() }
         ToolButton(title: "MONO", enabled: (data?.channels ?? 1) == 2, width: nil) { model.monoSample() }
