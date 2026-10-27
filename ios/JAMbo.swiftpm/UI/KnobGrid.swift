@@ -147,8 +147,8 @@ struct KnobGrid: View {
                 armSave(id, s)
             }
         }
-        // С зажатой SHIFT ручки не крутятся.
-        if model.shiftHeld { turn.consumed = true }
+        // С зажатой SHIFT ручки не крутятся; Pitch, Start и End сэмпла — крутятся с шагом (AppModel.setKnob).
+        if model.shiftHeld && !model.shiftTurns(s) { turn.consumed = true }
         // Удерживаемый LFO/ENV (без зажатого шага) — степень назначения −1…+1.
         if model.heldSteps.isEmpty && model.canAssign, let src = model.heldSource {
             turn.lfo = src
@@ -202,6 +202,8 @@ struct KnobGrid: View {
         if !t.moved {
             if abs(y - t.startY) < KnobGrid.dead { return }
             t.moved = true
+            // Поворот с SHIFT — не тап и не запоминание значения по умолчанию.
+            t.shiftTap = false
             t.lastY = y
             turns[id] = t
             return

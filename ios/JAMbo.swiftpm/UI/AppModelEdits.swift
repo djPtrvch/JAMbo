@@ -144,12 +144,31 @@ extension AppModel {
         return p.toNorm(track.params[p.id] ?? p.def)
     }
 
+    /// Ручки, которые крутятся с зажатой SHIFT (с шагом): Pitch, Start и End сэмпла.
+    func shiftTurns(_ slot: Int) -> Bool {
+        guard channel == .track && !fxMode && !modMode, let id = param(slot)?.id else { return false }
+        return id == "pitch" || id == "start" || id == "end"
+    }
+
+    /// Доли сэмпла для Start и End с SHIFT (Model:Samples: 0, 15, 30, 60, 90, 120 из 120), в процентах.
+    static let shares: [Double] = [0, 12.5, 25, 50, 75, 100]
+
+    static func snapShare(_ v: Double) -> Double {
+        var best: Double = shares[0]
+        for s in shares where abs(s - v) < abs(best - v) { best = s }
+        return best
+    }
+
     /// Поворот: с зажатыми шагами — p-lock на всех, иначе ручка дорожки.
     func setKnob(_ slot: Int, norm: Double) {
         guard let p = param(slot) else { return }
         var v: Double = p.fromNorm(norm)
-        // Pitch сэмпла по полутонам (SETTINGS → SAMPLER → PITCH: SEMITONES).
-        if p.id == "pitch" && settings.pitchSemitones && channel == .track && !fxMode && !modMode { v = v.rounded() }
+        // Pitch сэмпла: режим по умолчанию — SETTINGS → SAMPLER → PITCH (SMOOTH / SEMITONES), с SHIFT — другой.
+        // Start и End с SHIFT — доли сэмпла, как в Model:Samples (120, 90, 60, 30, 15 из 120).
+        if channel == .track && !fxMode && !modMode {
+            if p.id == "pitch" && settings.pitchSemitones != shiftHeld { v = v.rounded() }
+            if (p.id == "start" || p.id == "end") && shiftHeld { v = AppModel.snapShare(v) }
+        }
         // MIX: с зажатыми шагами — p-lock громкости на шагах последовательности MIX, иначе громкость дорожки.
         if channel == .mix {
             let held = heldSteps

@@ -136,10 +136,10 @@ struct SamplerSettings: View {
             SettingsNote(text: "Markers in the sample editor play their slice from a piano key. CHROMATIC: markers go up by semitone from C3 (C3, C#3, D3…). SCALE: markers follow the notes of the selected scale from its root note in octave 3; the marker notes change with the scale.")
             FieldLabel(title: "PITCH")
             HStack(spacing: 4) {
-                MenuItem(title: "SEMITONES", current: model.settings.pitchSemitones) { model.updateSettings { $0.pitchSemitones = true } }
                 MenuItem(title: "SMOOTH", current: !model.settings.pitchSemitones) { model.updateSettings { $0.pitchSemitones = false } }
+                MenuItem(title: "SEMITONES", current: model.settings.pitchSemitones) { model.updateSettings { $0.pitchSemitones = true } }
             }
-            SettingsNote(text: "Sample Pitch knob and its step locks: SEMITONES — whole semitones, SMOOTH — any value. LFO and ENV stay smooth. SHIFT + tap on the Pitch knob switches it too.")
+            SettingsNote(text: "How the sample Pitch knob and its step locks turn: SMOOTH — any value, SEMITONES — whole semitones. Hold SHIFT while turning for the other mode. LFO and ENV stay smooth.")
             ToggleRow(title: "CLEAR SAMPLE LOCKS", isOn: model.settings.clearSampleLocks) { model.setClearSampleLocks($0) }
             SettingsNote(text: "ON: loading sounds from the library onto a track removes its sample locks — those steps play the track sound at their own note. Preset locks stay. OFF: sample locks keep their samples.")
         }

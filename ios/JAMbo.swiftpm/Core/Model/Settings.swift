@@ -62,7 +62,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
     /// умолчанию) или BEAT (WSOLA, для ударных лупов).
     public var stretchBeat: Bool = false
     /// SETTINGS → SAMPLER → PITCH (S12): ручка Pitch сэмпла и её p-lock — по полутонам (по умолчанию) или плавно.
-    public var pitchSemitones: Bool = true
+    public var pitchSemitones: Bool = false
     /// Бутерброд → MIDI (S13): вход, обратная связь, ноты.
     public var midi = MidiSettings()
     /// SETTINGS → RECORD → STEP SWIPE (S13, решение пользователя): палец по шагам — длинная нота от первого шага
@@ -123,7 +123,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         mixCrossfader = (try? c.decode(Bool.self, forKey: .mixCrossfader)) ?? true
         clearSampleLocks = (try? c.decode(Bool.self, forKey: .clearSampleLocks)) ?? true
         stretchBeat = (try? c.decode(Bool.self, forKey: .stretchBeat)) ?? false
-        pitchSemitones = (try? c.decode(Bool.self, forKey: .pitchSemitones)) ?? true
+        pitchSemitones = (try? c.decode(Bool.self, forKey: .pitchSemitones)) ?? false
         midi = (try? c.decode(MidiSettings.self, forKey: .midi)) ?? MidiSettings()
         stepPaint = (try? c.decode(Bool.self, forKey: .stepPaint)) ?? false
         sync = (try? c.decode(SyncSettings.self, forKey: .sync)) ?? SyncSettings()
