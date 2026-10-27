@@ -19,6 +19,8 @@ final class AudioHost {
     private(set) var lastError: String = ""
     /// Запись входа (tap на узле входа) — Audio/InputCapture.swift.
     let input = InputCapture()
+    /// Экспорт песни: движок стоит, AudioCore.render зовёт фоновый поток — перезапусков нет.
+    private(set) var exporting: Bool = false
 
     init() {
         let center = NotificationCenter.default
@@ -41,6 +43,7 @@ final class AudioHost {
 
     /// Запуск звука (при старте приложения и возврате из фона).
     func start() {
+        if exporting { return }
         do {
             trace("audio: session")
             try configureSession()
@@ -68,6 +71,7 @@ final class AudioHost {
     /// Перезапуск — один, через 0,3 с после последнего уведомления.
     private func scheduleRestart() {
         restartWork?.cancel()
+        if exporting { return }
         let work = DispatchWorkItem { [weak self] in self?.restart() }
         restartWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: work)
@@ -131,7 +135,20 @@ final class AudioHost {
     private func handleInterruption(_ note: Notification) {
         guard let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
               let type = AVAudioSession.InterruptionType(rawValue: raw) else { return }
-        if type == .ended { start() }
+        if type == .ended && !exporting { start() }
+    }
+
+    /// Экспорт песни (SongExporter): вывод на динамик — стоп; после — снова.
+    func beginExport() {
+        exporting = true
+        restartWork?.cancel()
+        restartWork = nil
+        engine.pause()
+    }
+
+    func endExport() {
+        exporting = false
+        do { try engine.start() } catch { start() }
     }
 
     /// Время хоста сейчас (с) и задержка выхода (с) — для записи нот: что слышно сейчас.

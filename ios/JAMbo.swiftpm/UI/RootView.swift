@@ -418,7 +418,7 @@ struct MainMenu: View {
             Divider().overlay(theme.line).padding(.vertical, 8)
             MenuHead(title: "APP")
             MenuItem(title: "SETTINGS") { page = .settings }
-            ForEach(AppWindow.allCases, id: \.self) { w in
+            ForEach(AppWindow.menu, id: \.self) { w in
                 MenuItem(title: w.rawValue) {
                     isOpen = false
                     model.appWindow = w

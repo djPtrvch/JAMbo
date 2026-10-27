@@ -4,6 +4,10 @@ import SwiftUI
 enum AppWindow: String, CaseIterable {
     case diagnostics = "DIAGNOSTICS"
     case selfTest = "SELF-TEST"
+    case song = "EXPORT SONG"
+
+    /// Окна в разделе APP бутерброда (EXPORT SONG — в PROJECTS).
+    static let menu: [AppWindow] = [.diagnostics, .selfTest]
 }
 
 struct AppWindowView: View {
@@ -16,7 +20,11 @@ struct AppWindowView: View {
             HStack {
                 Text(window.rawValue).font(.system(size: 13, weight: .bold)).foregroundStyle(theme.text)
                 Spacer()
-                CloseButton { model.appWindow = nil }
+                CloseButton {
+                    // Закрыли окно во время экспорта песни — экспорт отменяется.
+                    if window == .song { model.cancelSong() }
+                    model.appWindow = nil
+                }
             }
             content
         }
@@ -31,6 +39,7 @@ struct AppWindowView: View {
         switch window {
         case .diagnostics: DiagnosticsView(model: model)
         case .selfTest: SelfTestPanel()
+        case .song: SongExportView(model: model)
         }
     }
 }

@@ -61,7 +61,7 @@ struct ProjectsPage: View {
         MenuBackHeader(title: model.unsaved ? "\(model.session.name) · unsaved" : model.session.name, back: back)
     }
 
-    /// Два ряда: NEW, SAVE, SAVE AS; EXPORT, IMPORT.
+    /// Три ряда: NEW, SAVE, SAVE AS; EXPORT, IMPORT; EXPORT SONG.
     private var actions: some View {
         VStack(spacing: 4) {
             HStack(spacing: 4) {
@@ -75,6 +75,11 @@ struct ProjectsPage: View {
             HStack(spacing: 4) {
                 MenuItem(title: "EXPORT") { export() }
                 MenuItem(title: "IMPORT") { model.chooseProjectFile() }
+            }
+            // Песня из аранжировки в аудиофайл (AppModelSongExport).
+            MenuItem(title: "EXPORT SONG") {
+                close()
+                model.appWindow = .song
             }
         }
     }

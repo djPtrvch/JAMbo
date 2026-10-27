@@ -141,6 +141,10 @@ final class AppModel {
     var arrInserted: ArrSel? = nil
     /// REF (S15g): A/B (true — слышен референс; не хранится в проекте), огибающая файла для строки REF.
     var arrRefB: Bool = false
+    /// EXPORT SONG (AppModelSongExport): формат, ход, экспорт в работе.
+    var songFormat: SongFormat = SongFormat()
+    var songExport: SongExportState = SongExportState()
+    @ObservationIgnored var songExporter: SongExporter? = nil
     var refWave: RefWave? = nil
     /// Файл, темп которого уже ищется (второй поиск не запускается).
     @ObservationIgnored var refBpmKey: String = ""
