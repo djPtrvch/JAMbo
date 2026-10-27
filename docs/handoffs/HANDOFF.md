@@ -1,4 +1,4 @@
-# Handoff: JAMbo, Swift-версия — S15 готов; круг правок 27.10 (разделение сетки и аранжировщика, запись аранжировки из сетки, EXPORT SONG, SHIFT у Pitch / Start / End, CHORD, заголовки меню) — проверено на iPad; дальше S14e — App Store
+# Handoff: JAMbo, Swift-версия — S15 готов; S14e: trace в DEBUG, пределы ZIP, CORRECT EQ (коррекция наушников), SAVE DEFAULT модулей мастера и EQ — проверено на iPad; дальше — пункты пользователя для App Store, затем WARP по долгому нажатию
 
 ## 1. Контекст проекта
 Groovebox для iPad. Веб (`src/`, `public/`) — эталон, заморожен. Swift-перенос — ветка `swift`, `ios/JAMbo.swiftpm`. Правила — `CLAUDE.md`, `ios/CLAUDE.md`; план и вехи — `docs/SWIFT_AUDIT.md` (раздел 6); итоги вех — `docs/SWIFT_MILESTONE_Sx.md`. Поведение аранжировщика — `docs/ai/arranger.md`; MIDI — `docs/ai/settings-midi-sync.md` (в ветке swift описывают Swift-версию).
@@ -66,14 +66,13 @@ Groovebox для iPad. Веб (`src/`, `public/`) — эталон, заморо
   - Единая сетка строк на весь экран (14 строк) — отложена: превью сделано, к ней вернуться позже (затратно).
 
 ## 3. Текущая задача
-S14e — App Store. Что делается кодом (аудит перед App Store, «Открыто» в SWIFT_MILESTONE_S14.md):
-- trace (UI/JAMboApp.swift — print «JAMbo: …» в консоль Playgrounds) — только в отладочной сборке (#if DEBUG).
-- Предел распаковки ZIP (Core/Files/Zip.swift, Inflate.swift; импорт в библиотеку — AppModelLibrary.libPlaceFiles): у Inflate.inflate нет предела выхода — ZIP-бомба съест память; нужен предел на запись и на архив (предложено пользователю: 512 МБ на файл, 2 ГБ на архив — ответа ещё нет; сэмпл 10 мин стерео float 32 — ~230 МБ), тест в LibraryFilesTests.
-- Остальное — у пользователя: значок (Playgrounds), URL политики конфиденциальности, App Store Connect, пробная загрузка (privacy manifest, ориентация только альбомная). Ableton Link — этап 9 (Xcode на Mac).
-- Сначала — проверка S14zd на iPad (перетаскивание ноты с p-lock в пианоролле).
-- WARP: выключатель варпинга без удаления меток — долгое нажатие на WARP (согласовано, сделать после S14e).
+S14e — App Store. Код готов (trace, ZIP — сделано, проверено на iPad). Остальное — у пользователя: значок (Playgrounds), URL политики конфиденциальности, App Store Connect, пробная загрузка (privacy manifest, ориентация только альбомная). Ableton Link — этап 9 (Xcode на Mac).
+- Следующее по коду: WARP — выключатель варпинга без удаления меток, долгое нажатие на WARP (согласовано).
 
 ## 4. Что уже решено
+- S14e (проверено на iPad; подробно — docs/ai/fx-eq.md, SWIFT_MILESTONE_S14.md «Открыто»): trace — #if DEBUG (UI/JAMboApp.swift, @autoclosure); пределы ZIP — Zip.fileLimit 512 МБ (файл пропускается), Zip.totalLimit 2 ГБ (импорт отменяется), Zip.check (Reading: skippedLarge, tooLarge), Inflate.inflate(limit:tooLarge:); окно «Too large to import» (AppModel.libWarning, LibraryBrowser).
+- CORRECT EQ — коррекция наушников (решения пользователя): тап по MASTER EQ — окно, повторный — обратно; кнопка EQ — всегда EQ мастера; прежний спектр выхода убран (Spectra.out, outOn). Core/EQ/PhonesEq.swift: PhonesEq (в AudioCore.renderPhones — в самом конце выхода, после REF и прослушивания; paused на время EXPORT SONG), EqSpec.preamp (минус подъём кривой), EqSpec.phonesChannel (−2, спектры до и после), EqPresetBook.sonyXM4 (oratory1990, AutoEQ, 10 фильтров подогнаны в 8 полос). Правки EQ — на уровне Eq (EqModel.swift: addBand, setBand…; Project — обёртки через withEq), AppModel.eqEdit (CORRECT — без UNDO). Настройка приложения: UserDefaults phonesEq, phonesPresets, phonesSeeded (Sony кладётся один раз), phonesName. Без STEREO, DYN, LISTEN; на месте STEREO — PREAMP (показ). Core/EQ/PhonesProfile.swift — формат AutoEQ ParametricEQ.txt (parse, text, name), PhonesFit — подгонка больше 8 фильтров (Левенберг — Марквардт); UI — IMPORT / EXPORT в CORRECT PRESETS (AppModel.phonesImport, exportPhones; PhonesFiles.swift — fileMover и итог). Тесты PhonesEqTests, PhonesProfileTests.
+- SAVE DEFAULT в PRESETS модулей мастера (все параметры модуля — KnobDefaults, область mst; NEW применяет MasterChain.ids) и EQ (KnobDefaults.eqTrack / eqMaster — ADD TRACK и NEW); на секунду SAVED жёлтым (AppModel.defaultSaved); SAVED на ручках — жёлтым; FORGET ALL сбрасывает всё. Тест KnobDefaultsTests.testModuleAndEqDefaults. CoreTests — 459.
 - S14zc (WARP): Core/Model/Warp.swift (WarpMark, WarpInfo, WarpMap, Track.warps и правка: addWarp, moveWarp, placeWarp, warpStart, deleteWarp, clearWarp, setWarpBpm, autoWarp); Core/Sampler/SoundWarp.swift (таблицы меток в снимке, копия в голосе, uPos и warpChunk, warpPreview); SampleEdit.peaks(bounds:); UI — SampleEditorWarp.swift (WarpView, WarpPeakCache, WarpBar, EditorWarpDraw), AppModelWarp.swift, жесты в SampleEditor (EditorTouch .warp / .warpTop), AppModelCapture.scaleFrame. Тесты WarpTests.
 - S14zb, нагрузка: Core/Sampler/PvVec.swift (векторные операции с обычной реализацией рядом, PvCubic), Vocoder — ранний расчёт кадров (lead, ring 4096, pickLead), Stretcher — grain() кусками и поиск через pvGather/pvDot/pvSumSq. Тест VocoderLoadTests.
 - S14zd: Track.rollCarry, moveRollNote(carry:) (RollEdits.swift, StepCarry), RollTouches.carry. Тест RollEditsTests.testMoveCarriesLocks. CoreTests — 451.
@@ -128,4 +127,4 @@ S14e — App Store. Что делается кодом (аудит перед Ap
 - Звуковые ошибки (щелчки) — воспроизводить сценой пользователя в тесте Core и мерить; при сомнении — стенд-страница с AudioWorklet (как SUB Bench в S12).
 
 ## 7. Первый запрос для нового чата
-«Прочитай docs/handoffs/HANDOFF.md, ios/CLAUDE.md и docs/SWIFT_MILESTONE_S14.md. Продолжаем S14e: trace только в DEBUG, предел распаковки ZIP»
+«Прочитай docs/handoffs/HANDOFF.md, ios/CLAUDE.md и docs/SWIFT_MILESTONE_S14.md. Делаем WARP: выключатель варпинга долгим нажатием на WARP»
