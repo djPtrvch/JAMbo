@@ -337,7 +337,9 @@ public final class AudioCore: @unchecked Sendable {
         case .preview(let h, let a, let b):
             sampler.preview(hash: h, a: a, b: b, at: sampleTime)
         case .previewStop:
-            sampler.stopPreview()
+            sampler.stopPreview(at: sampleTime)
+        case .warpPreview(let t, let h):
+            sampler.warpPreview(track: t, hash: h, at: sampleTime)
         case .presetNote(let t, let n, let h, let locks):
             sampler.presetNote(track: t, note: n, hash: h, locks: locks, at: sampleTime)
         case .stemArm(let c, let on):

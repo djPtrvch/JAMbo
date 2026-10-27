@@ -148,6 +148,9 @@ public final class Sampler {
     var pvStereo = false
     /// Ячейка полосы предпрослушки в сообщениях VoiceOut.
     public static let previewVoice = 99
+    /// ▶ WARP (SoundWarp.swift): нота идёт сейчас (весь сэмпл, режим stretch), голос — её (liveId warpLive).
+    var warpPv: Bool = false
+    static let warpLive = -9
 
     // Ноты для retrigger и живых нот.
     let one = UnsafeMutablePointer<Int16>.allocate(capacity: 1)
@@ -326,7 +329,7 @@ public final class Sampler {
         // RATE: PTCH — множитель скорости со сменой высоты; TSTR — скорость времени (темп проекта к темпу файла),
         // высота — внутри зерна.
         let ts: Bool = tstr[v] != 0
-        let rateK: Double = val(VoiceParam.rate) / 100
+        let rateK: Double = liveId[v] == Sampler.warpLive ? 1 : val(VoiceParam.rate) / 100
         let pitchR: Double = noteRatio[v] * pow(2, val(VoiceParam.pitch) / 12)
         let tempoK: Double = srcBpm[v] > 0 ? bpm / srcBpm[v] : 1
         let rateT: Double = ts ? tempoK * rateK : pitchR * rateK

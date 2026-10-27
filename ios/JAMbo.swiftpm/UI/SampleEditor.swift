@@ -5,6 +5,8 @@ import SwiftUI
 /// Форма волны во всю ширину (стерео — L и R); маркеры обрезки — за ручки внизу (двумя пальцами — оба сразу);
 /// палец по пустому месту: вверх-вниз — масштаб, влево-вправо — прокрутка; двойной тап — маркер нарезки,
 /// флажок тянут, двойной тап по флажку — удалить, удержание флажка + клавиша — своя нота маркера.
+/// WARP (SampleEditorWarp.swift): по горизонтали доли; двойной тап — метка варпинга, флажок снизу тянут (магнит к GRID),
+/// двойной тап по флажку — удалить; маркеры нарезки и обрезки скрыты.
 struct SampleEditor: View {
     let model: AppModel
     @State private var sel = EditorSelection()
@@ -13,6 +15,9 @@ struct SampleEditor: View {
     @State private var lastTap: (t: Date, x: CGFloat, flag: Int) = (Date.distantPast, 0, -1)
     @State private var tip: (text: String, at: CGPoint)? = nil
     @State private var cache = PeakCache()
+    @State private var warpCache = WarpPeakCache()
+    /// Диапазон долей WARP на время перетаскивания метки (окно не прыгает).
+    @State private var warpFrozen: (Double, Double)? = nil
     @Environment(\.theme) private var theme
 
     static let top: CGFloat = 40
@@ -41,7 +46,14 @@ struct SampleEditor: View {
             view = EditorWindow()
             touches.removeAll()
             model.heldFlag = nil
+            warpFrozen = nil
         }
+    }
+
+    /// Доли на экране WARP (во время перетаскивания метки — прежний диапазон).
+    private func warpView(_ d: SampleData) -> WarpView {
+        let map: WarpMap = model.warpMap(d)
+        return WarpView(map: map, frames: d.frames, range: warpFrozen ?? WarpView.range(map, frames: d.frames))
     }
 
     // MARK: — поле
@@ -54,7 +66,7 @@ struct SampleEditor: View {
             ZStack(alignment: .topLeading) {
                 TimelineView(.animation(minimumInterval: 1.0 / 60, paused: model.headCount == 0)) { _ in
                     let _ = RedrawMeter.hit(.wave)
-                    canvas(key, d, size)
+                    if model.editorWarp { warpCanvas(key, d, size) } else { canvas(key, d, size) }
                 }
                 if let t = tip {
                     Text(t.text).font(.system(size: 12, weight: .semibold)).monospacedDigit()
@@ -97,6 +109,26 @@ struct SampleEditor: View {
         }
     }
 
+    private func warpCanvas(_ key: String, _ d: SampleData, _ size: CGSize) -> some View {
+        let w: Int = max(1, Int(size.width))
+        let wv: WarpView = warpView(d)
+        let lanes = warpCache.lanes(d, key: key, width: w, view: view, wv: wv)
+        let heads = model.playheads(track: model.selectedTrack, key: key)
+        let held: Int = touches.values.first(where: { $0.kind == .warp })?.idx ?? -1
+        let colors = EditorColors(theme: theme)
+        let v = view
+        let grid: Double = model.warpGrid
+        return Canvas { ctx, sz in
+            let g = EditorGeometry(size: sz, view: v)
+            let wave = EditorGeometry(size: CGSize(width: sz.width, height: sz.height - EditorWarpDraw.strip), view: v)
+            EditorDraw.lanes(ctx, wave, lanes, colors)
+            EditorWarpDraw.grid(ctx, g, wv, grid, colors)
+            EditorWarpDraw.flags(ctx, g, wv, held, colors)
+            EditorWarpDraw.heads(ctx, g, wv, heads, colors)
+            EditorDraw.scrollbar(ctx, g, colors)
+        }
+    }
+
     // MARK: — жесты
 
     private func fingers(_ d: SampleData, _ size: CGSize) -> some Gesture {
@@ -126,12 +158,21 @@ struct SampleEditor: View {
 
     private func down(_ id: SpatialEventCollection.Event.ID, _ p: CGPoint, _ d: SampleData, _ size: CGSize) {
         let g = geometry(size)
-        if let m = trimAt(p, g) {
+        if model.editorWarp {
+            let k = warpFlagAt(p, g, d)
+            if k >= 0 {
+                if touches.values.contains(where: { $0.kind == .warp }) { return }
+                let wv = warpView(d)
+                warpFrozen = (wv.b0, wv.b1)
+                touches[id] = EditorTouch(kind: .warp, idx: k, p0: p)
+                return
+            }
+        } else if let m = trimAt(p, g) {
             touches[id] = EditorTouch(kind: .trim, trimB: m, p0: p)
             move(id, p, d, size)
             return
         }
-        let fl = flagAt(p, g)
+        let fl: Int = model.editorWarp ? -1 : flagAt(p, g)
         if fl >= 0 {
             touches[id] = EditorTouch(kind: .slice, idx: fl, p0: p)
             model.flagUsed = false
@@ -176,6 +217,19 @@ struct SampleEditor: View {
             if t.idx < marks.count {
                 tip = (Params.noteName(notes[t.idx]) + "\n" + EditorDraw.time(marks[t.idx].at * dur), p)
             }
+        case .warp:
+            if !t.moved {
+                if hypot(p.x - t.p0.x, p.y - t.p0.y) < SampleEditor.slop { return }
+                t.moved = true
+                model.beginGesture()
+            }
+            // Доля под пальцем — к ближайшей линии GRID.
+            let wv = warpView(d)
+            let gs: Double = model.warpGrid
+            let b: Double = (wv.beat(g.frac(p.x)) / gs).rounded() * gs
+            model.moveWarp(t.idx, beat: b)
+            let beats = model.warpMap(d).beats
+            if t.idx < beats.count { tip = (WarpView.label(beats[t.idx]), p) }
         case .nav:
             navigate(&t, p, d, g)
         }
@@ -213,6 +267,13 @@ struct SampleEditor: View {
     private func up(_ id: SpatialEventCollection.Event.ID, _ p: CGPoint, _ size: CGSize, cancelled: Bool) {
         guard let t = touches.removeValue(forKey: id) else { return }
         if !touches.values.contains(where: { $0.kind != .nav }) { tip = nil }
+        if t.kind == .warp {
+            warpFrozen = nil
+            if t.moved {
+                model.endGesture()
+                return
+            }
+        }
         if t.kind == .slice {
             model.heldFlag = nil
             if t.moved {
@@ -223,9 +284,9 @@ struct SampleEditor: View {
         }
         if cancelled { return }
         // Тап без движения: одиночный ничего не делает, двойной — маркер (по пустому месту) или удаление (по флажку).
-        let tap: Bool = t.kind == .slice ? !t.moved : (t.kind == .nav && t.axis == 0)
+        let tap: Bool = t.kind == .slice || t.kind == .warp ? !t.moved : (t.kind == .nav && t.axis == 0)
         if !tap { return }
-        let flag: Int = t.kind == .slice ? t.idx : -1
+        let flag: Int = t.kind == .slice || t.kind == .warp ? t.idx : -1
         let now = Date()
         let dbl: Bool = now.timeIntervalSince(lastTap.t) < 0.35 && abs(p.x - lastTap.x) < 24 && lastTap.flag == flag
         if !dbl {
@@ -233,6 +294,16 @@ struct SampleEditor: View {
             return
         }
         lastTap = (Date.distantPast, 0, -1)
+        if model.editorWarp {
+            if flag >= 0 {
+                model.deleteWarp(flag)
+            } else if let d = model.sample(model.editorKey) {
+                // Метка — только в пределах сэмпла.
+                let f: Double = warpView(d).sample(geometry(size).frac(p.x))
+                if f > 0 && f < 1 { model.addWarp(at: f) }
+            }
+            return
+        }
         if flag >= 0 {
             model.deleteSlice(flag)
         } else {
@@ -253,6 +324,20 @@ struct SampleEditor: View {
         let other: Bool = !best
         let od: CGFloat = other ? db : da
         return !used.contains(other) && od <= hd ? other : nil
+    }
+
+    /// Флажок метки варпинга под пальцем (полоса снизу; правее нарисованный; зона шире флажка на 6 px) или −1.
+    private func warpFlagAt(_ p: CGPoint, _ g: EditorGeometry, _ d: SampleData) -> Int {
+        if p.y < g.size.height - EditorWarpDraw.strip - 8 { return -1 }
+        let wv = warpView(d)
+        var k = wv.map.beats.count - 1
+        while k >= 0 {
+            let b: Double = wv.map.beats[k]
+            let r = EditorWarpDraw.flagRect(g.x(wv.frac(beat: b)), WarpView.label(b), g.size.height)
+            if p.x >= r.minX - 6 && p.x <= r.maxX + 6 { return k }
+            k -= 1
+        }
+        return -1
     }
 
     /// Флажок маркера под пальцем (сверху — правее нарисованный; зона шире флажка на 6 px) или −1.
@@ -284,7 +369,7 @@ struct EditorWindow: Equatable {
 }
 
 struct EditorTouch {
-    enum Kind { case trim, slice, nav }
+    enum Kind { case trim, slice, warp, nav }
     let kind: Kind
     var trimB: Bool = false
     var idx: Int = -1

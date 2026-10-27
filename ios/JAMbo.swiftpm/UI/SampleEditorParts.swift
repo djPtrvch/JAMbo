@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// Строка редактора сэмпла: имя и длина (во время записи — «REC · источник» и время), REC (S11e), ▶, LOAD и SAVE (браузер библиотеки, S11b), TRIM, NORMALIZE, MONO, CLEAR, ✕.
+/// Строка редактора сэмпла: имя и длина (во время записи — «REC · источник» и время), REC (S11e), ▶, LOAD и SAVE (браузер библиотеки, S11b), TRIM, NORMALIZE, MONO, CLEAR, WARP, ✕.
+/// В режиме WARP вместо ▶…CLEAR — строка WarpBar.
 struct EditorBar: View {
     let model: AppModel
     let key: String
@@ -23,19 +24,31 @@ struct EditorBar: View {
                 .frame(width: infoW > 0 ? infoW : nil, alignment: .leading)
                 .frame(maxWidth: infoW > 0 ? nil : .infinity, alignment: .leading)
             SampleRecButton(model: model)
-            // ▶ без жёлтой подсветки (решение пользователя); во время прослушивания — ■.
-            ToolButton(title: model.previewOn ? "■" : "▶", enabled: data != nil, width: play.width > 0 ? play.width : 48) {
-                model.togglePreview(sel.a, sel.b)
+            if model.editorWarp {
+                WarpBar(model: model, data: data, playW: play.width > 0 ? play.width : 48)
+            } else {
+                tools(play)
             }
-            ToolButton(title: "LOAD", width: nil) { model.openBrowser(.load(steps: [])) }
-            ToolButton(title: "SAVE", enabled: data != nil, width: nil) { model.openBrowser(.saveSample(key)) }
-            ToolButton(title: "TRIM", enabled: data != nil && !sel.full, width: nil) { model.trimSample(sel.a, sel.b) }
-            ToolButton(title: "NORMALIZE", enabled: data != nil, width: nil) { model.normalizeSample() }
-            ToolButton(title: "MONO", enabled: (data?.channels ?? 1) == 2, width: nil) { model.monoSample() }
-            ToolButton(title: "CLEAR", enabled: data != nil && model.sampleRec.take == nil, width: nil) { model.clearSample() }
+            ToolButton(title: "WARP", enabled: data != nil && model.sampleRec.take == nil, lit: model.editorWarp,
+                       width: nil) { model.toggleWarp() }
             ToolButton(title: "✕", width: 48) { model.closeEditor() }
         }
         .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("root")).minX } action: { barX = $0 }
+    }
+
+    /// ▶ и правка сэмпла (вне WARP).
+    @ViewBuilder
+    private func tools(_ play: CGRect) -> some View {
+        // ▶ без жёлтой подсветки (решение пользователя); во время прослушивания — ■.
+        ToolButton(title: model.previewOn ? "■" : "▶", enabled: data != nil, width: play.width > 0 ? play.width : 48) {
+            model.togglePreview(sel.a, sel.b)
+        }
+        ToolButton(title: "LOAD", width: nil) { model.openBrowser(.load(steps: [])) }
+        ToolButton(title: "SAVE", enabled: data != nil, width: nil) { model.openBrowser(.saveSample(key)) }
+        ToolButton(title: "TRIM", enabled: data != nil && !sel.full, width: nil) { model.trimSample(sel.a, sel.b) }
+        ToolButton(title: "NORMALIZE", enabled: data != nil, width: nil) { model.normalizeSample() }
+        ToolButton(title: "MONO", enabled: (data?.channels ?? 1) == 2, width: nil) { model.monoSample() }
+        ToolButton(title: "CLEAR", enabled: data != nil && model.sampleRec.take == nil, width: nil) { model.clearSample() }
     }
 
     private var info: String {

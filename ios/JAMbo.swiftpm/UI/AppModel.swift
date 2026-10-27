@@ -241,6 +241,9 @@ final class AppModel {
     var samplesVersion: Int = 0
     /// Редактор сэмпла (на месте центра), меню звука (для дорожки или зажатых шагов), выбор файлов.
     var editorOpen: Bool = false
+    /// Редактор в режиме WARP (метки варпинга вместо маркеров нарезки) и его GRID (в четвертях: 1/16 — 0,25).
+    var editorWarp: Bool = false
+    var warpGrid: Double = 0.25
     var soundMenu: SoundMenuState? = nil
     var importTarget: ImportTarget? = nil
     var importing: Bool = false

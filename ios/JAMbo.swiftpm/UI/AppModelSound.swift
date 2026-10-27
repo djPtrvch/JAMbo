@@ -347,6 +347,7 @@ extension AppModel {
 
     func closeEditor() {
         editorOpen = false
+        editorWarp = false
         heldFlag = nil
         if previewOn { audio.core.events.push(.previewStop) }
     }

@@ -110,6 +110,8 @@ public struct SoundData {
     /// Режим RATE звука (Params.rateModeId; алгоритм — SETTINGS → SAMPLER → STRETCH): 0 — PTCH, 1 — TSTR NORMAL
     /// (вокодер), 2 — TSTR BEAT (WSOLA).
     public var rateMode: UnsafeMutablePointer<UInt8>
+    /// Алгоритм таймстретча (SETTINGS → SAMPLER → STRETCH): 1 — NORMAL, 2 — BEAT (▶ WARP — у любой дорожки).
+    public var stretchAlgo: UInt8 = 1
     public var asSrc: UnsafeMutablePointer<Int8>
     public var asAmt: UnsafeMutablePointer<Float>
     public var scale: UnsafeMutablePointer<ParamScale>
@@ -260,6 +262,7 @@ public final class SoundSnapshot: @unchecked Sendable {
             eqOrder: .allocate(capacity: tracks)
         )
         d.rebind = rebind
+        d.stretchAlgo = stretchBeat ? 2 : 1
         SoundSnapshot.allocWarp(&d)
         var wl = 0
         MasterChain.fill(d.master, project)
@@ -444,8 +447,10 @@ public final class SoundSnapshot: @unchecked Sendable {
                 d.eFrames[e] = s.frames
                 d.eChannels[e] = Int32(s.channels)
                 // Темп файла — только у дорожки в TSTR (определяется один раз на сэмпл).
-                d.eBpm[e] = d.rateMode[u] != 0 ? s.loopBpm : 0
-                SoundSnapshot.putWarp(&d, e, &wl, d.rateMode[u] != 0 ? snd.warps?[key] : nil, s)
+                // С метками варпинга — и у дорожки в PTCH (▶ WARP играет в Rate Stretch).
+                let wi: WarpInfo? = snd.warps?[key]
+                d.eBpm[e] = d.rateMode[u] != 0 || wi != nil ? s.loopBpm : 0
+                SoundSnapshot.putWarp(&d, e, &wl, wi, s)
                 if d.rateMode[u] == 1 {
                     let o: OnsetList = s.onsets
                     d.eOnsets[e] = o.at

@@ -117,3 +117,15 @@ extension Sampler {
         return (p1 - p0) / Double(m)
     }
 }
+
+extension Sampler {
+    /// ▶ WARP: сэмпл hash дорожки t целиком, нота в исходной высоте, держится до конца сэмпла или стопа (stopPreview).
+    public func warpPreview(track t: Int, hash: UInt64, at: Int64) {
+        stopPreview(at: at)
+        one.pointee = Int16(Params.sampleRoot)
+        warpPv = true
+        trigger(track: t, at: at, notes: one, count: 1, mask: 0, vals: nil, hash: hash, gate: Int64.max, own: true,
+                liveId: Sampler.warpLive)
+        warpPv = false
+    }
+}

@@ -145,6 +145,34 @@ public enum SampleEdit {
         }
         return out
     }
+
+    /// Столбцы между соседними границами bounds (отсчёты, по возрастанию; WARP — форма волны по карте): наименьшее и
+    /// наибольшее значение; вне сэмпла — (0, 0); не больше reads чтений на столбец.
+    public static func peaks(_ s: SampleData, channel c: Int, bounds: [Double], reads: Int = 96) -> [(Float, Float)] {
+        let p = c == 0 ? s.left : s.right
+        let n: Int = Swift.max(0, bounds.count - 1)
+        var out = [(Float, Float)](repeating: (0, 0), count: n)
+        let fr: Double = Double(s.frames)
+        for k in 0..<n {
+            let a: Double = Swift.max(0, bounds[k])
+            let b: Double = Swift.min(fr, bounds[k + 1])
+            if b <= 0 || a >= fr || b < a { continue }
+            let i0: Int = Swift.min(s.frames - 1, Int(a))
+            let i1: Int = Swift.max(i0 + 1, Swift.min(s.frames, Int(b.rounded(.up))))
+            var lo: Float = 0
+            var hi: Float = 0
+            let stride: Int = Swift.max(1, (i1 - i0) / Swift.max(1, reads))
+            var i = i0
+            while i < i1 {
+                let v = p[i]
+                if v < lo { lo = v }
+                if v > hi { hi = v }
+                i += stride
+            }
+            out[k] = (lo, hi)
+        }
+        return out
+    }
 }
 
 /// Ключ звука в снимках для колбэка: FNV-1a 64 от строки (0 — нет звука).

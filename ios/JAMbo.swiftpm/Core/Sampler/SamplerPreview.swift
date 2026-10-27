@@ -20,8 +20,9 @@ extension Sampler {
                             rate: 1, frames: d.eFrames[e]))
     }
 
-    public func stopPreview() {
+    public func stopPreview(at: Int64 = 0) {
         if pvL != nil { pvStop = true }
+        for v in 0..<Sampler.slots where active[v] != 0 && liveId[v] == Sampler.warpLive { fade(v, at: at, tau: 0.005) }
     }
 
     public var previewing: Bool { return pvL != nil }

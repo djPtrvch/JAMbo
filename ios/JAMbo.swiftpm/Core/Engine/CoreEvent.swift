@@ -39,6 +39,8 @@ public enum CoreEvent: Sendable {
     /// ▶ редактора сэмпла: отрезок a…b (доли) сэмпла hash; стоп.
     case preview(hash: UInt64, a: Double, b: Double)
     case previewStop
+    /// ▶ редактора в режиме WARP: сэмпл hash целиком нотой дорожки — в Rate Stretch по карте, в темпе проекта.
+    case warpPreview(track: Int, hash: UInt64)
     /// ▶ пресета в библиотеке (S11b): одна нота дорожки звуком hash (движок пресета) с p-lock его ручек.
     case presetNote(track: Int, note: Int, hash: UInt64, locks: NoteLocks)
     /// Запись стемов (S11d): готовность канала (дорожка или StemRing.master); тап по ● во время записи — дописать

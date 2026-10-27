@@ -91,14 +91,14 @@ final class WarpTests: XCTestCase {
         return out
     }
 
-    private func play(_ s: SampleData, warp: Bool, beat: Bool) -> [Int] {
+    private func play(_ s: SampleData, warp: Bool, beat: Bool, pitchMode: Bool = false, preview: Bool = false) -> [Int] {
         var p = Project()
         p.tracks[0].addSamples(["k"])
         p.tracks[0].vol = 0
         p.tracks[0].params["attack"] = 0
         p.tracks[0].params["decay"] = 4000
         p.tracks[0].params["rate"] = 100
-        p.tracks[0].params[Params.rateModeId] = 1
+        p.tracks[0].params[Params.rateModeId] = pitchMode ? 0 : 1
         p.bpm = 120
         if warp {
             p.tracks[0].setWarpBpm("k", 120)
@@ -106,7 +106,11 @@ final class WarpTests: XCTestCase {
         }
         let core = AudioCore(master: false)
         core.publish(p, samples: ["k": s], stretchBeat: beat)
-        core.events.push(.noteOn(track: 0, note: 48, id: 1, velocity: 1))
+        if preview {
+            core.events.push(.warpPreview(track: 0, hash: SoundKey.hash("k")))
+        } else {
+            core.events.push(.noteOn(track: 0, note: 48, id: 1, velocity: 1))
+        }
         var o = [Float](repeating: 0, count: 90000)
         var bl = [Float](repeating: 0, count: 256), br = bl
         var pos = 0
@@ -131,5 +135,16 @@ final class WarpTests: XCTestCase {
                 XCTAssertEqual(Double(w[k]), Double(want), accuracy: 600, "удар \(k) на доле (\(beat ? "BEAT" : "NORMAL"))")
             }
         }
+    }
+
+    /// ▶ WARP: дорожка в Rate Pitch — по карте (удар на доле); обычная нота той же дорожки — как в файле.
+    func testWarpPreviewOnPitchTrack() {
+        let s = hits()
+        let note = play(s, warp: true, beat: false, pitchMode: true)
+        XCTAssertEqual(note.count, 4, "\(note)")
+        if note.count == 4 { XCTAssertEqual(Double(note[2]), 52800, accuracy: 600, "Rate Pitch — без варпинга") }
+        let pv = play(s, warp: true, beat: false, pitchMode: true, preview: true)
+        XCTAssertEqual(pv.count, 4, "\(pv)")
+        if pv.count == 4 { XCTAssertEqual(Double(pv[2]), 48000, accuracy: 600, "▶ WARP — по карте") }
     }
 }

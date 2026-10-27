@@ -35,9 +35,10 @@ extension Sampler {
         let e = d.entry(t, h)
         if e < 0 { return }
         let frames = d.eFrames[e]
-        let start0: Double = Double(frames) * pv(d, t, VoiceParam.start, mask, vals) / 100
-        let end0: Double = Double(frames) * pv(d, t, VoiceParam.end, mask, vals) / 100
-        let sc = Int(d.eSliceCount[e])
+        let start0: Double = warpPv ? 0 : Double(frames) * pv(d, t, VoiceParam.start, mask, vals) / 100
+        let end0: Double = warpPv ? Double(frames) : Double(frames) * pv(d, t, VoiceParam.end, mask, vals) / 100
+        // ▶ WARP: весь сэмпл в исходной высоте (без нарезки и Start/End).
+        let sc: Int = warpPv ? 0 : Int(d.eSliceCount[e])
         let minLen: Double = 0.003 * sr
         if sc == 0 && end0 - start0 < minLen { return }
         let attack: Double = pv(d, t, VoiceParam.attack, mask, vals) / 1000
@@ -95,9 +96,9 @@ extension Sampler {
         }
         let pitch: Double = pv(d, t, VoiceParam.pitch, mask, vals)
         let pitchR: Double = ratio * pow(2, pitch / 12)
-        let rateK: Double = pv(d, t, VoiceParam.rate, mask, vals) / 100
+        let rateK: Double = warpPv ? 1 : pv(d, t, VoiceParam.rate, mask, vals) / 100
         // RATE (Sampler.renderVoice): PTCH — скорость и высота вместе; TSTR — скорость времени по темпу проекта.
-        let mode: UInt8 = d.rateMode[d.s(t)]
+        let mode: UInt8 = warpPv ? d.stretchAlgo : d.rateMode[d.s(t)]
         let ts: Bool = mode != 0
         tstr[v] = mode
         srcBpm[v] = ts ? d.eBpm[e] : 0
@@ -185,6 +186,8 @@ extension Sampler {
         if active[v] == 0 { return }
         active[v] = 0
         _ = out.push(.end(voice: v))
+        // ▶ WARP закончился — кнопка ▶ снова ▶.
+        if liveId[v] == Sampler.warpLive { _ = out.push(.end(voice: Sampler.previewVoice)) }
     }
 
     /// Нота той же высоты продолжает державшуюся: прежняя гаснет вместе с атакой новой (без провала и удвоения).
