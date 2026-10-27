@@ -299,7 +299,7 @@ struct RoutePicker: UIViewRepresentable {
 }
 
 /// Шапка вложенного меню: стрелка назад и название — один стиль во всех меню (CLAUDE.md, «Шрифты в меню»):
-/// 15 pt, жирный, заглавные, разрядка; имя (проекта, дорожки) — как введено (caps: false).
+/// 15 pt, жирный, заглавные, без разрядки; имя (проекта, дорожки) — как введено (caps: false).
 struct MenuBackHeader: View {
     let title: String
     var caps: Bool = true
@@ -313,7 +313,7 @@ struct MenuBackHeader: View {
                     .foregroundStyle(theme.text).frame(width: 40, height: 40).contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            Text(caps ? title.uppercased() : title).font(.system(size: 15, weight: .bold)).tracking(caps ? 1.5 : 0.5)
+            Text(caps ? title.uppercased() : title).font(.system(size: 15, weight: .bold))
                 .lineLimit(1).foregroundStyle(theme.text)
         }
     }
