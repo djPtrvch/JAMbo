@@ -120,7 +120,15 @@ final class LiveState {
             let k: Int = !tr.stopped && tr.clipFilled(tr.slot) ? tr.slot : -1
             states.append((slot: k, offset: max(0, max(0, tick) - trackStart[t])))
         }
-        recorder.begin(at: at, states: states)
+        let heard: [Bool] = (0..<Params.maxTracks).map { t in t < p.tracks.count && p.audible(t) }
+        recorder.begin(at: at, states: states, audible: heard)
+    }
+
+    /// Mute / solo во время записи аранжировки: x — позиция курсора сейчас (дробная), смена — на ближайшей границе шага.
+    func recordAudible(_ p: Project, x: Double) {
+        if !recorder.active { return }
+        let heard: [Bool] = (0..<Params.maxTracks).map { t in t < p.tracks.count && p.audible(t) }
+        recorder.audible(heard, at: Int(x.rounded()))
     }
 
     func finishRecord() -> [ArrRecorder.Seg] {

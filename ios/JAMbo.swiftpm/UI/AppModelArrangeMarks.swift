@@ -165,15 +165,21 @@ extension AppModel {
     }
 
     /// Запись начинается и кончается по кнопке записи и PLAY: from — позиция курсора на PLAY (иначе — текущая);
-    /// на конце отрезки ложатся в проект одной записью UNDO. Запись ручек кончилась — куски в кривые.
+    /// на конце отрезки ложатся в проект одной записью UNDO, повороты ручек — в кривые до конца записи (ручки —
+    /// прежние). Запись ручек кончилась — куски в кривые.
     func syncArrRecord(from: Int? = nil) {
         let want: Bool = arrRecording
         if want && !live.recorder.active {
             live.beginRecord(project, at: from ?? live.arrPos, arrange: false)
         } else if !want && live.recorder.active {
+            let end: Double = Double(live.recorder.pos + 1)
             let segs: [ArrRecorder.Seg] = live.finishRecord()
+            // Клипы, mute / solo и ручки — одна запись UNDO.
+            beginGesture()
+            defer { endGesture() }
             if !segs.isEmpty { edit { p in p.applyRecording(segs) } }
+            if !autoTakes.isEmpty { flushAutoTakes(all: true, end: end) }
         }
-        if !arrKnobRec && !autoTakes.isEmpty { flushAutoTakes(all: true) }
+        if !arrKnobRec && !arrRecording && !autoTakes.isEmpty { flushAutoTakes(all: true) }
     }
 }

@@ -445,4 +445,26 @@ final class ArrangeTests: XCTestCase {
         XCTAssertEqual(spans(p.tracks[0]), [[0, 0, 32, 0], [0, 34, 14, 7], [0, 64, 64, 64]])
         XCTAssertEqual(spans(p.tracks[1]), [[2, 48, 16, 0]])
     }
+
+    /// Запись из сетки: mute и solo — заглушённый участок пустой, клип продолжается с того же места прохода.
+    func testRecorderMute() {
+        var r = ArrRecorder()
+        r.begin(at: 0, states: [(slot: 0, offset: 0), (slot: 0, offset: 0)], audible: [true, false])
+        for p in 1...8 { r.step(p) }
+        r.audible([false, false], at: 8)
+        for p in 9...12 { r.step(p) }
+        r.audible([false, false], at: 12)
+        r.audible([true, true], at: 13)
+        r.step(13)
+        r.step(14)
+        r.step(15)
+        let segs = r.finish()
+        let list: [[Int]] = segs.map { [$0.track, $0.slot, $0.start, $0.end, $0.offset, $0.silent ? 1 : 0] }
+        XCTAssertEqual(list, [[0, 0, 0, 8, 0, 0], [0, 0, 8, 13, 8, 1], [1, 0, 0, 13, 0, 1], [0, 0, 13, 16, 13, 0],
+                              [1, 0, 13, 16, 13, 0]])
+        var p = Project()
+        p.tracks[0].placeBlock(ArrBlock(clip: 0, start: 0, length: 32))
+        p.applyRecording(segs)
+        XCTAssertEqual(spans(p.tracks[0]), [[0, 0, 8, 0], [0, 13, 3, 13], [0, 16, 16, 16]])
+    }
 }

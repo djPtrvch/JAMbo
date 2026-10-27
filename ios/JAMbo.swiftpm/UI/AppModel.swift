@@ -420,6 +420,8 @@ final class AppModel {
         }, onPlay: { [weak self] e in
             self?.playEvent(e)
         })
+        // Запись аранжировки из сетки: mute и solo пишутся (заглушённый участок — пусто на таймлайне).
+        if live.recorder.active { live.recordAudible(project, x: arrNowX) }
         // Звук у клипа: колбэку — звук клипа, который дорожка запустит следующей (ожидание, строка).
         if nextSlots != publishedNext { publishAudio() }
     }

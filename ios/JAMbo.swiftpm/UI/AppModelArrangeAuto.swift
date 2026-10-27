@@ -99,9 +99,10 @@ extension AppModel {
         return autoHeld.contains(key)
     }
 
-    /// Пишется ли поворот ручки id: REC + PLAY + AUTO при игре по таймлайну, ручка дорожки (не FX).
+    /// Пишется ли поворот ручки id: REC + PLAY + AUTO при игре по таймлайну или запись аранжировки из сетки,
+    /// ручка дорожки (не FX).
     func autoRecording(_ id: String) -> Bool {
-        return arrKnobRec && channel == .track && !fxMode && ArrAutoTarget.index(id) != nil
+        return (arrKnobRec || arrRecording) && channel == .track && !fxMode && ArrAutoTarget.index(id) != nil
     }
 
     private func autoKey(_ t: Int, _ id: String) -> Int? {
@@ -114,7 +115,8 @@ extension AppModel {
         if on { fxFinger(slot) }
         if !on {
             guard let key = autoSlotKeys.removeValue(forKey: slot) else { return }
-            flushAutoTake(key)
+            // Запись аранжировки из сетки: кусок копится до конца записи (ручка не возвращается после жеста).
+            if !arrRecording { flushAutoTake(key) }
             autoHold(key, false)
             return
         }
@@ -149,7 +151,8 @@ extension AppModel {
             take.segs[take.segs.count - 1].append(pt)
         }
         autoTakes[key] = take
-        // Энкодер MIDI без касания: кусок кончается через 0,3 с без поворотов.
+        // Энкодер MIDI без касания: кусок кончается через 0,3 с без поворотов (при записи из сетки — в конце записи).
+        if arrRecording { return }
         autoFlush?.cancel()
         let work = DispatchWorkItem { [weak self] in self?.flushAutoTakes(all: false) }
         autoFlush = work
@@ -157,8 +160,13 @@ extension AppModel {
     }
 
     /// Кусок записи — в кривую (упрощение, замена точек на участке), ручка — прежнее значение; одна запись UNDO.
-    func flushAutoTake(_ key: Int) {
-        guard let take = autoTakes.removeValue(forKey: key) else { return }
+    /// end — конец записи из сетки: последнее значение держится до него.
+    func flushAutoTake(_ key: Int, end: Double? = nil) {
+        guard var take = autoTakes.removeValue(forKey: key) else { return }
+        let n: Int = take.segs.count
+        if let x = end, let last = take.segs[n - 1].last, x > last.x {
+            take.segs[n - 1].append(ArrAutoPoint(x: x, y: last.y))
+        }
         let segs: [[ArrAutoPoint]] = take.segs.filter { !$0.isEmpty }
         if take.track >= project.tracks.count { return }
         edit { p in
@@ -168,10 +176,10 @@ extension AppModel {
     }
 
     /// Конец записи (all) или пауза энкодера: куски без пальца на ручке — в кривые.
-    func flushAutoTakes(all: Bool) {
+    func flushAutoTakes(all: Bool, end: Double? = nil) {
         for (key, take) in autoTakes {
             if !all && take.track == selectedTrack && knobFingers.contains(take.slot) { continue }
-            flushAutoTake(key)
+            flushAutoTake(key, end: end)
             if !knobFingers.contains(take.slot) || all { autoHold(key, false) }
         }
     }
