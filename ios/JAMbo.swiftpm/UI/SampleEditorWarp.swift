@@ -140,7 +140,7 @@ enum EditorWarpDraw {
     static let strip: CGFloat = 30
 
     /// Флажки меток — одного размера сверху и снизу (нижний — с подписью внутри).
-    static let flagW: CGFloat = 48
+    static let flagW: CGFloat = 36
 
     static func flagRect(_ x: CGFloat, _ label: String, _ h: CGFloat) -> CGRect {
         let w: CGFloat = flagW
@@ -244,7 +244,7 @@ enum EditorWarpDraw {
         p.addLine(to: CGPoint(x: r.minX, y: r.minY))
         p.closeSubpath()
         ctx.fill(p, with: .color(col))
-        ctx.draw(Text(label).font(.system(size: 11, weight: .semibold)).foregroundColor(c.bg),
+        ctx.draw(Text(label).font(.system(size: 10, weight: .semibold)).foregroundColor(c.bg),
                  at: CGPoint(x: x + 0.5, y: r.midY))
     }
 

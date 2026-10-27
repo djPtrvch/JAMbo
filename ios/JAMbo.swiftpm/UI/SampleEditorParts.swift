@@ -189,7 +189,7 @@ enum EditorDraw {
             p.addLine(to: CGPoint(x: r.minX, y: r.maxY))
             p.closeSubpath()
             ctx.fill(p, with: .color(col))
-            ctx.draw(Text(label).font(.system(size: 11, weight: .semibold)).foregroundColor(c.bg),
+            ctx.draw(Text(label).font(.system(size: 10, weight: .semibold)).foregroundColor(c.bg),
                      at: CGPoint(x: x + 0.5, y: r.midY))
         }
     }
