@@ -127,6 +127,32 @@ enum MeterBars {
         }
     }
 
+    /// То же по горизонтали (заголовки аранжировщика): полосы друг под другом, уровень — слева направо, приглушение
+    /// Sidechain — справа, пик-холд — вертикальная линия.
+    static func drawRow(_ ctx: GraphicsContext, _ r: CGRect, _ bars: [(level: Float, hold: Float)], theme: Theme,
+                        muted: Bool = false, gr: CGFloat = 0) {
+        for (k, b) in bars.enumerated() {
+            let y: CGFloat = r.minY + CGFloat(k) * (width + gap)
+            let bar = CGRect(x: r.minX, y: y, width: r.width, height: width)
+            let shape = Path(roundedRect: bar, cornerRadius: 3)
+            ctx.fill(shape, with: .color(theme.meterTrack))
+            var c = ctx
+            c.clip(to: shape)
+            let f: CGFloat = MeterState.frac(b.level)
+            let fill: Color = muted ? theme.muteGrey : (b.level >= MeterState.over ? theme.rec : theme.accent)
+            c.fill(Path(CGRect(x: bar.minX, y: y, width: f * bar.width, height: width)), with: .color(fill))
+            if gr > 0 {
+                let w: CGFloat = min(1, gr) * bar.width
+                c.fill(Path(CGRect(x: bar.maxX - w, y: y, width: w, height: width)), with: .color(theme.gr.opacity(0.85)))
+            }
+            let hf: CGFloat = MeterState.frac(b.hold)
+            if hf > 0.01 {
+                let x: CGFloat = bar.minX + hf * bar.width
+                c.fill(Path(CGRect(x: min(bar.maxX - 2, x - 1), y: y, width: 2, height: width)), with: .color(theme.text))
+            }
+        }
+    }
+
     /// Ширина полос (одна или две).
     static func span(_ count: Int) -> CGFloat {
         return count <= 1 ? width : 2 * width + gap

@@ -15,8 +15,10 @@ struct ArrangeWindow: View {
                 // Заголовки вплотную к таймлайну (решение пользователя: без зазора).
                 HStack(spacing: 0) {
                     ArrHeaders(model: model).frame(width: ArrMetrics.headerW)
-                    // Измерителя справа нет — громкость в заголовках дорожек (решение пользователя, на пробу).
+                    // Измерителя справа нет — громкость в заголовках дорожек (решение пользователя, на пробу); правый
+                    // край — как у кнопки ARRANGE (место измерителя пустое).
                     ArrTimeline(model: model, lift: $lift)
+                    Color.clear.frame(width: Layout.meterWidth).padding(.leading, Layout.gap)
                 }
                 // Слева от линейки: время; при строке REF — A/B (S15g).
                 HStack(spacing: 0) {

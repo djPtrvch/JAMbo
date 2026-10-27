@@ -2,11 +2,12 @@ import SwiftUI
 
 /// Касания таймлайна аранжировщика (S15c). Один палец по дорожкам: тап по блоку — выбор (по пустому — снять выделение
 /// рамкой), двойной тап — меню блока или места; удержание блока 0,35 с — блок поднимается и едет за пальцем, при
-/// отпускании встаёт на место (с магнитом — на линию сетки; блок группы — переезжает вся группа); удержание по пустому —
-/// рамка выделения (блоки на разных дорожках); край блока — длина сразу; сдвиг по пустому (или по блоку до удержания) —
-/// прокрутка (по времени и, в EXPANDED, по дорожкам). Линейка и строка маркеров — ArrRulerTouches (S15d). INSERT: тап по
-/// дорожке — клип для вставки, правый край вставленного блока — длина со сдвигом. Два пальца — масштаб по времени (точка
-/// между пальцами на месте) и прокрутка; по вертикали масштаба нет (решение пользователя).
+/// отпускании встаёт на место (с магнитом — на линию сетки; блок группы — переезжает вся группа); удержание по пустому
+/// — рамка выделения (блоки на разных дорожках); край блока — длина сразу; сдвиг по пустому (или по блоку до удержания)
+/// — прокрутка по одной оси (по времени или, в EXPANDED, по дорожкам — по первому сдвигу). Линейка и строка маркеров —
+/// ArrRulerTouches (S15d). INSERT: тап по дорожке — клип для вставки, правый край вставленного блока — длина со
+/// сдвигом. Два пальца — масштаб по времени (точка между пальцами на месте) и прокрутка; по вертикали масштаба нет
+/// (решение пользователя).
 final class ArrTouches {
     enum Mode { case idle, tap, press, lift, edge, scroll, ruler, zoom, marquee, ref }
 
@@ -34,6 +35,9 @@ final class ArrTouches {
     private let ruler = ArrRulerTouches()
     /// Строка REF: сдвиг начала файла до жеста (секунды).
     private var refBase: Double = 0
+    /// Прокрутка одним пальцем — по одной оси: по первому сдвигу (решение пользователя: вверх-вниз по дорожкам время
+    /// не сдвигается, вбок — дорожки не едут).
+    private var scrollAxis: Axis = .horizontal
     static let slop: CGFloat = 8
     static let zoomSlop: CGFloat = 10
     static let hold: Double = 0.35
@@ -199,6 +203,7 @@ final class ArrTouches {
         case .tap, .press:
             if moved {
                 mode = .scroll
+                scrollAxis = abs(p[0].x - start.x) >= abs(p[0].y - start.y) ? .horizontal : .vertical
                 scroll(p[0], &port, k: 1)
             }
         case .ruler:
@@ -329,8 +334,13 @@ final class ArrTouches {
     }
 
     private func scroll(_ p: CGPoint, _ port: inout ArrPort, k: CGFloat) {
-        port.x = base.x - (p.x - start.x) * k
-        if k == 1 { port.y = base.y - (p.y - start.y) }
+        if scrollAxis == .horizontal {
+            port.x = base.x - (p.x - start.x) * k
+            port.y = base.y
+        } else {
+            port.x = base.x
+            if k == 1 { port.y = base.y - (p.y - start.y) }
+        }
     }
 
     private func beginZoom(_ a: CGPoint, _ b: CGPoint, _ m: ArrMetrics) {
