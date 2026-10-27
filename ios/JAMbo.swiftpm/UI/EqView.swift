@@ -56,6 +56,7 @@ struct EqView: View {
             Button("OK") { enter() }
             Button("Cancel", role: .cancel) {}
         }
+        .modifier(PhonesFiles(model: model))
         .modifier(NameClashAlert(clash: $clash, overwrite: { k in
             model.saveEqPreset(name: text, over: k)
         }, again: { c in

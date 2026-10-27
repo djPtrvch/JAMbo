@@ -37,7 +37,13 @@ struct EqPresetsMenu: View {
                 model.eqPresetMenu = nil
                 model.eqInputAsk = .save
             }
-            if !phones {
+            if phones {
+                // Профили в файлах AutoEQ (ParametricEQ.txt): IMPORT — в список и в коррекцию, EXPORT — коррекция.
+                HStack(spacing: 4) {
+                    MenuItem(title: "IMPORT") { model.choosePhonesFiles() }
+                    MenuItem(title: "EXPORT") { model.exportPhones() }
+                }
+            } else {
                 MenuItem(title: saved ? "SAVED" : "SAVE DEFAULT", current: saved) { model.saveEqDefault() }
             }
             if list.isEmpty {
@@ -53,7 +59,7 @@ struct EqPresetsMenu: View {
     /// Высота списка: все строки (44 + 4), но не выше места под заголовком и SAVE.
     private func listHeight(_ n: Int) -> CGFloat {
         let full: CGFloat = CGFloat(n) * 48 - 4
-        let room: CGFloat = max(48, maxHeight - (model.phonesShown ? 110 : 158))
+        let room: CGFloat = max(48, maxHeight - 158)
         return min(full, room)
     }
 

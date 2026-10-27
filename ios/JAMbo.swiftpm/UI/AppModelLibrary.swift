@@ -289,6 +289,7 @@ extension AppModel {
     func chooseLibraryFiles() {
         importingLibrary = true
         importingProject = false
+        importingPhones = false
         importing = true
     }
 

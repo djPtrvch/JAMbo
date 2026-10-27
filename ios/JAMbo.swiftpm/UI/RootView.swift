@@ -55,7 +55,7 @@ struct RootView: View {
         .ignoresSafeArea(.keyboard)
         // Снизу — до края экрана (под полоской «домой»); сверху — под строкой состояния, если она видна.
         .ignoresSafeArea(.container, edges: .bottom)
-        .fileImporter(isPresented: importing, allowedContentTypes: model.importingProject || model.importingLibrary ? [.data] : [.audio],
+        .fileImporter(isPresented: importing, allowedContentTypes: importTypes,
                       allowsMultipleSelection: !model.importingProject) { result in picked(result) }
         .alert(model.sampleRec.error ?? "", isPresented: recError) {
             Button("OK") { model.sampleRec.error = nil }
@@ -78,8 +78,19 @@ struct RootView: View {
         Binding(get: { model.sampleRec.error != nil }, set: { if !$0 { model.sampleRec.error = nil } })
     }
 
-    /// Выбранные файлы: проект (IMPORT, один .jambo) или сэмплы (LOAD).
+    /// Типы файлов выбора: профили коррекции — текст, проект и библиотека — любые, иначе — аудио.
+    private var importTypes: [UTType] {
+        if model.importingPhones { return [.text] }
+        return model.importingProject || model.importingLibrary ? [.data] : [.audio]
+    }
+
+    /// Выбранные файлы: профили коррекции наушников, библиотека, проект (IMPORT, один .jambo) или сэмплы (LOAD).
     private func picked(_ result: Result<[URL], Error>) {
+        if model.importingPhones {
+            model.importingPhones = false
+            if case .success(let urls) = result { model.phonesImport(urls) }
+            return
+        }
         if model.importingLibrary {
             model.importingLibrary = false
             if case .success(let urls) = result { model.libImport(urls) }

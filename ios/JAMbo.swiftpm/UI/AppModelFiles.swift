@@ -53,6 +53,7 @@ extension AppModel {
     func chooseProjectFile() {
         importingProject = true
         importingLibrary = false
+        importingPhones = false
         importing = true
     }
 

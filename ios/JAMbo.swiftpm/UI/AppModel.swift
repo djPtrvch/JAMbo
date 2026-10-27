@@ -181,6 +181,13 @@ final class AppModel {
     var eqPhones: Bool = false
     var phonesEq: Eq = AppModel.loadPhonesEq()
     var phonesPresets: EqPresetBook = AppModel.loadPhonesPresets()
+    /// Имя профиля коррекции (последний загруженный или импортированный пресет) — имя файла EXPORT.
+    var phonesName: String = UserDefaults.standard.string(forKey: AppModel.phonesNameKey) ?? "Phones EQ"
+    /// IMPORT профилей коррекции (тот же fileImporter, текстовые файлы); итог импорта — окно с OK.
+    var importingPhones: Bool = false
+    var phonesNote: String? = nil
+    /// EXPORT: готовый временный файл профиля (окно сохранения в «Файлы»).
+    var phonesExported: URL? = nil
     var gridTop: Int = 0
     /// Открытые меню сетки: ячейки (свайп вверх), строки (удержание), бутерброд сетки.
     var cellMenu: CellMenuState? = nil

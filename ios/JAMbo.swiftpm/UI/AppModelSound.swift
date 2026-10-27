@@ -232,6 +232,7 @@ extension AppModel {
         importTarget = ImportTarget(track: selectedTrack, steps: steps)
         importingProject = false
         importingLibrary = false
+        importingPhones = false
         importing = true
     }
 

@@ -219,6 +219,7 @@ extension AppModel {
         let p: EqPreset = book.list[k]
         let n: Int = phonesShown ? 0 : project.tracks.count
         eqEdit { $0.apply(p, tracks: n) }
+        if phonesShown { setPhonesName(p.name) }
         eqBand = -1
     }
 
@@ -239,6 +240,77 @@ extension AppModel {
     static let phonesEqKey = "phonesEq"
     static let phonesPresetsKey = "phonesPresets"
     static let phonesSeededKey = "phonesSeeded"
+    static let phonesNameKey = "phonesName"
+
+    func setPhonesName(_ name: String) {
+        phonesName = name
+        UserDefaults.standard.set(name, forKey: AppModel.phonesNameKey)
+    }
+
+    /// IMPORT в PHONES PRESETS: выбор текстовых файлов профилей.
+    func choosePhonesFiles() {
+        eqPresetMenu = nil
+        importingPhones = true
+        importingProject = false
+        importingLibrary = false
+        importing = true
+    }
+
+    /// Профили из файлов (AutoEQ ParametricEQ.txt, Equalizer APO): каждый — пресет с именем файла (занятое имя —
+    /// замена), первый — сразу в коррекцию (BYPASS прежний). Итог — окно с OK.
+    func phonesImport(_ urls: [URL]) {
+        var added: [String] = []
+        var fitted: [String] = []
+        var bad: [String] = []
+        var first: (Eq, String)? = nil
+        for u in urls {
+            let access: Bool = u.startAccessingSecurityScopedResource()
+            defer { if access { u.stopAccessingSecurityScopedResource() } }
+            let text: String? = (try? Data(contentsOf: u)).flatMap { String(data: $0, encoding: .utf8) ?? String(data: $0, encoding: .isoLatin1) }
+            let filters: [PhonesProfile.Filter] = text.map { PhonesProfile.parse($0) } ?? []
+            if filters.isEmpty {
+                bad.append(u.lastPathComponent)
+                continue
+            }
+            let r = PhonesProfile.eq(filters)
+            let name: String = PhonesProfile.name(fromFile: u.lastPathComponent)
+            let over: Int? = phonesPresets.index(named: name)
+            phonesPresets.save(name: name, eq: r.eq, over: over)
+            added.append(name)
+            if r.fitted { fitted.append("\(name): \(filters.count) filters fitted into 8 bands") }
+            if first == nil { first = (r.eq, name) }
+        }
+        UserDefaults.standard.set(phonesPresets.encode(), forKey: AppModel.phonesPresetsKey)
+        if let f = first {
+            var c: Eq = f.0
+            c.on = phonesEq.on
+            setPhonesEq(c)
+            setPhonesName(f.1)
+            eqBand = -1
+        }
+        var lines: [String] = []
+        if !added.isEmpty { lines.append("Imported: " + added.joined(separator: ", ") + ". Loaded: " + added[0] + ".") }
+        lines += fitted
+        if !bad.isEmpty { lines.append("No filters found in " + bad.joined(separator: ", ") + ".") }
+        phonesNote = lines.joined(separator: "\n")
+    }
+
+    /// EXPORT в PHONES PRESETS: файл — в окно сохранения в «Файлы» (EqView).
+    func exportPhones() {
+        eqPresetMenu = nil
+        phonesExported = phonesExportFile()
+    }
+
+    /// Коррекция в текстовый файл AutoEQ (временный).
+    func phonesExportFile() -> URL? {
+        let dir: URL = FileManager.default.temporaryDirectory.appendingPathComponent("phonesexport", isDirectory: true)
+        try? FileManager.default.removeItem(at: dir)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let safe: String = phonesName.replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-")
+        let url: URL = dir.appendingPathComponent(safe + " ParametricEQ.txt")
+        let text: String = PhonesProfile.text(phonesEq)
+        return (try? text.write(to: url, atomically: true, encoding: .utf8)) != nil ? url : nil
+    }
 
     static func loadPhonesEq() -> Eq {
         guard let d = UserDefaults.standard.data(forKey: AppModel.phonesEqKey),
