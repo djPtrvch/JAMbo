@@ -11,7 +11,7 @@ struct TrackMidiPage: View {
     var body: some View {
         let m: TrackMidi = model.track.midi
         return VStack(alignment: .leading, spacing: 6) {
-            MenuBackHeader(title: "MIDI · \(model.track.name)", back: back)
+            MenuBackHeader(title: "MIDI · \(model.track.name)", caps: false, back: back)
             MenuScroll {
                 VStack(alignment: .leading, spacing: 8) {
                     MenuHead(title: "MIDI IN")

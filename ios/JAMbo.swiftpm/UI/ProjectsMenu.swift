@@ -60,7 +60,7 @@ struct ProjectsPage: View {
     }
 
     private var header: some View {
-        MenuBackHeader(title: model.unsaved ? "\(model.session.name) · unsaved" : model.session.name, back: back)
+        MenuBackHeader(title: model.unsaved ? "\(model.session.name) · unsaved" : model.session.name, caps: false, back: back)
     }
 
     /// Три ряда: NEW, SAVE, SAVE AS; EXPORT, IMPORT; EXPORT SONG.

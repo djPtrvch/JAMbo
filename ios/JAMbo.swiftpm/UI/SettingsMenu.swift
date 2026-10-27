@@ -11,7 +11,7 @@ struct SettingsPage: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            MenuBackHeader(title: "Settings", back: back)
+            MenuBackHeader(title: "SETTINGS", back: back)
             MenuScroll {
                 VStack(alignment: .leading, spacing: 8) {
                     FieldLabel(title: "SECTIONS")
@@ -304,9 +304,11 @@ struct RoutePicker: UIViewRepresentable {
     }
 }
 
-/// Шапка вложенного меню: стрелка назад и название (PROJECTS, SETTINGS).
+/// Шапка вложенного меню: стрелка назад и название — один стиль во всех меню (CLAUDE.md, «Шрифты в меню»):
+/// 15 pt, жирный, заглавные, разрядка; имя (проекта, дорожки) — как введено (caps: false).
 struct MenuBackHeader: View {
     let title: String
+    var caps: Bool = true
     let back: () -> Void
     @Environment(\.theme) private var theme
 
@@ -317,7 +319,8 @@ struct MenuBackHeader: View {
                     .foregroundStyle(theme.text).frame(width: 40, height: 40).contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            Text(title).font(.system(size: 17, weight: .semibold)).lineLimit(1).foregroundStyle(theme.text)
+            Text(caps ? title.uppercased() : title).font(.system(size: 15, weight: .bold)).tracking(caps ? 1.5 : 0.5)
+                .lineLimit(1).foregroundStyle(theme.text)
         }
     }
 }
