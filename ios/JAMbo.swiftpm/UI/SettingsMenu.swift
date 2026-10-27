@@ -60,14 +60,12 @@ struct ArrangeSettings: View {
     let model: AppModel
 
     var body: some View {
-        let zoom: Int = model.settings.arrangeZoom
-        let last: Int = AppSettings.arrangeZooms - 1
+        let on: Bool = model.settings.arrangeExpanded
         return VStack(alignment: .leading, spacing: 8) {
             FieldLabel(title: "TRACKS")
             HStack(spacing: 4) {
-                // Крайние положения регулятора масштаба справа (промежуточные — только регулятором).
-                MenuItem(title: "EXPANDED", current: zoom == 0) { model.updateSettings { $0.arrangeZoom = 0 } }
-                MenuItem(title: "COMPACT", current: zoom == last) { model.updateSettings { $0.arrangeZoom = last } }
+                MenuItem(title: "EXPANDED", current: on) { model.updateSettings { $0.arrangeCompact = false } }
+                MenuItem(title: "COMPACT", current: !on) { model.updateSettings { $0.arrangeCompact = true } }
             }
             SettingsNote(text: "EXPANDED: 8 tracks fill the arranger window, more tracks scroll. COMPACT: all tracks fit the arranger window.")
             // Шаг сетки таймлайна (решение пользователя: из строки аранжировщика — сюда); у проекта, с UNDO.

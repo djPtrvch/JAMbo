@@ -70,13 +70,9 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var stepPaint: Bool = false
     /// Бутерброд → SYNC (S13e): квант, MIDI-клок, настройки Ableton Link.
     public var sync = SyncSettings()
-    /// Масштаб дорожек аранжировщика (решение пользователя, на пробу): регулятор справа, 0 (верх) — EXPANDED (8 дорожек
-    /// на высоту окна, по умолчанию), 4 (низ) — COMPACT (все на высоту окна), между ними — 3 промежуточных; SETTINGS →
-    /// ARRANGE (EXPANDED, COMPACT) ставит крайнее положение. Старые настройки: arrangeCompact — 4.
-    public var arrangeZoom: Int = 0
-    public static let arrangeZooms = 5
-    public var arrangeCompact: Bool { return arrangeZoom >= AppSettings.arrangeZooms - 1 }
-    /// Не COMPACT — дорожки прокручиваются.
+    /// SETTINGS → ARRANGE (S15, решение пользователя): EXPANDED (по умолчанию) — строки выше, дорожки прокручиваются;
+    /// COMPACT — все дорожки на высоту окна.
+    public var arrangeCompact: Bool = false
     public var arrangeExpanded: Bool { return !arrangeCompact }
     /// SETTINGS → ARRANGE → ROW REPEATS (решение пользователя): в аранжировку клип строки ложится на длину × повторы
     /// строки (×4 у клипа в такт — блок в 4 такта); выключено — один проход. По умолчанию — да.
@@ -103,7 +99,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
     private enum Keys: String, CodingKey { case appearance, pianoOctaves, velocity, record, sliceMap, scSends, muteTails, latchFx, latchMod, rollGrid,
                                          rollSound, levelRelative, morphAll, morphReturn, mixKey, mixCrossfader,
                                          clearSampleLocks, pitchSemitones, midi, stepPaint, sync,
-                                         arrangeCompact, arrangeZoom, fxPictures, backgroundAudio, arrangeRepeats, stretchBeat }
+                                         arrangeCompact, fxPictures, backgroundAudio, arrangeRepeats, stretchBeat }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
@@ -131,9 +127,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         midi = (try? c.decode(MidiSettings.self, forKey: .midi)) ?? MidiSettings()
         stepPaint = (try? c.decode(Bool.self, forKey: .stepPaint)) ?? false
         sync = (try? c.decode(SyncSettings.self, forKey: .sync)) ?? SyncSettings()
-        let compact: Bool = (try? c.decode(Bool.self, forKey: .arrangeCompact)) ?? false
-        let zoom: Int = (try? c.decode(Int.self, forKey: .arrangeZoom)) ?? (compact ? AppSettings.arrangeZooms - 1 : 0)
-        arrangeZoom = max(0, min(AppSettings.arrangeZooms - 1, zoom))
+        arrangeCompact = (try? c.decode(Bool.self, forKey: .arrangeCompact)) ?? false
         arrangeRepeats = (try? c.decode(Bool.self, forKey: .arrangeRepeats)) ?? true
         fxPictures = (try? c.decode(Bool.self, forKey: .fxPictures)) ?? true
         backgroundAudio = (try? c.decode(Bool.self, forKey: .backgroundAudio)) ?? true

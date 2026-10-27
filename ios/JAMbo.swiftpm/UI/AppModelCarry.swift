@@ -185,7 +185,7 @@ extension AppModel {
                 var port: ArrPort = arrPort
                 port.x = max(0, port.x + dx)
                 let m = ArrMetrics(size: f.size, port: port, tracks: project.tracks.count, end: project.arrangeEnd,
-                                   zoom: settings.arrangeZoom, inset: arrInset, ref: arrRefShown)
+                                   expanded: settings.arrangeExpanded, inset: arrInset, ref: arrRefShown)
                 port.x = m.x
                 if port != arrPort { arrPort = port }
             }
@@ -196,7 +196,7 @@ extension AppModel {
     func arrMetrics(_ size: CGSize) -> ArrMetrics {
         let p: Project = project
         return ArrMetrics(size: size, port: arrPort, tracks: p.tracks.count, end: p.arrangeEnd,
-                          zoom: settings.arrangeZoom, inset: arrInset, ref: arrRefShown)
+                          expanded: settings.arrangeExpanded, inset: arrInset, ref: arrRefShown)
     }
 }
 

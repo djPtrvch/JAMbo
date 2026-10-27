@@ -16,19 +16,13 @@ struct ArrangeWindow: View {
                 HStack(spacing: 0) {
                     ArrHeaders(model: model).frame(width: ArrMetrics.headerW)
                     ArrTimeline(model: model, lift: $lift)
-                    // Справа: измеритель с регулятором выбранной дорожки — на месте и размера измерителя окна дорожки
-                    // (RootView; пока его рамка неизвестна — здесь), под ним — регулятор масштаба дорожек на месте окна
-                    // STEPS (оно и окно AUTO его закрывают).
-                    VStack(spacing: 0) {
-                        if model.meterFrame == .zero {
-                            MeterColumn(model: model)
-                        } else {
-                            Spacer(minLength: 0)
-                        }
-                        ArrZoomSlider(model: model).frame(height: model.arrLowerH)
+                    // Измеритель справа с регулятором — выбранной дорожки: на месте измерителя окна дорожки (RootView);
+                    // пока его рамка неизвестна — здесь.
+                    if model.meterFrame == .zero {
+                        MeterColumn(model: model).padding(.leading, Layout.gap)
+                    } else {
+                        Color.clear.frame(width: Layout.meterWidth).padding(.leading, Layout.gap)
                     }
-                    .frame(width: Layout.meterWidth)
-                    .padding(.leading, Layout.gap)
                 }
                 // Слева от линейки: время; при строке REF — A/B (S15g).
                 HStack(spacing: 0) {
@@ -147,16 +141,16 @@ struct ArrMetrics {
     /// Шагов, до которых можно прокрутить.
     let steps: Int
 
-    /// Масштаб дорожек (регулятор справа, AppSettings.arrangeZoom): 0 — EXPANDED, последний — COMPACT (строки делят
-    /// высоту окна поровну, без прокрутки), между ними — высота строки по шагам от одной к другой.
-    let zoom: Int
+    /// SETTINGS → ARRANGE: COMPACT — строки делят высоту окна поровну (без прокрутки), EXPANDED — своя высота строк
+    /// (масштаб двумя пальцами по вертикали) и прокрутка.
+    let expanded: Bool
     /// Строка REF (S15g) — над дорожками, под линейкой (не прокручивается); дорожки — на строку ниже.
     let refRow: Bool
     /// inset — низ окна, закрытый окном AUTO (STEPS выключена): дорожки не сжимаются, прокрутка — до последней.
-    init(size: CGSize, port: ArrPort, tracks: Int, end: Int, zoom: Int, inset: CGFloat = 0, ref: Bool = false) {
+    init(size: CGSize, port: ArrPort, tracks: Int, end: Int, expanded: Bool, inset: CGFloat = 0, ref: Bool = false) {
         self.size = size
         self.tracks = tracks
-        self.zoom = zoom
+        self.expanded = expanded
         refRow = ref
         let w: CGFloat = max(1, size.width)
         let fit: CGFloat = w / 256
@@ -170,10 +164,8 @@ struct ArrMetrics {
         let fitRow: CGFloat = (seen - (n + r - 1) * g) / (n + r)
         // Решения пользователя: строки дорожек — через чёрный зазор (как зазоры между окнами). EXPANDED — 8 строк и 7
         // зазоров на высоту окна (одна высота строки на весь экран: низ — 3 строки и 2 зазора, RootView), больше 8 дорожек
-        // — прокрутка; COMPACT — все дорожки на видимую высоту окна; между ними — 3 шага (регулятор масштаба справа).
-        let wide: CGFloat = max(20, (area - 7 * g) / 8)
-        let k: CGFloat = CGFloat(max(0, min(zoom, AppSettings.arrangeZooms - 1))) / CGFloat(AppSettings.arrangeZooms - 1)
-        rowH = wide + (max(16, fitRow) - wide) * k
+        // — прокрутка; COMPACT — все дорожки на видимую высоту окна. Масштаба по вертикали нет.
+        rowH = expanded ? max(20, (area - 7 * g) / 8) : max(16, fitRow)
         steps = max(end, 0) + 32 * ArrMetrics.stepsPerBar
         let maxX: CGFloat = max(0, CGFloat(steps) * stepW - w)
         x = min(maxX, max(0, port.x))
@@ -260,7 +252,7 @@ struct ArrTimeline: View {
         let wave: RefWave? = model.arrRefShown ? model.refWave : nil
         let waveKey: String = (p.arrange.ref?.key ?? "") + "#\(model.samplesVersion)"
         return GeometryReader { geo in
-            let m = ArrMetrics(size: geo.size, port: port, tracks: p.tracks.count, end: p.arrangeEnd, zoom: model.settings.arrangeZoom,
+            let m = ArrMetrics(size: geo.size, port: port, tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded,
                            inset: model.arrInset, ref: model.arrRefShown)
             ZStack(alignment: .topLeading) {
                 Canvas { ctx, size in
@@ -311,11 +303,11 @@ struct ArrTimeline: View {
 
     private func apply(_ events: SpatialEventCollection, _ size: CGSize) {
         let p: Project = model.project
-        let m = ArrMetrics(size: size, port: model.arrPort, tracks: p.tracks.count, end: p.arrangeEnd, zoom: model.settings.arrangeZoom,
+        let m = ArrMetrics(size: size, port: model.arrPort, tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded,
                            inset: model.arrInset, ref: model.arrRefShown)
         var port: ArrPort = model.arrPort
         touches.handle(events, port: &port, m, model, lift: $lift)
-        let c = ArrMetrics(size: size, port: port, tracks: p.tracks.count, end: p.arrangeEnd, zoom: model.settings.arrangeZoom,
+        let c = ArrMetrics(size: size, port: port, tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded,
                            inset: model.arrInset, ref: model.arrRefShown)
         let next = ArrPort(stepW: port.stepW == nil ? nil : c.stepW, x: c.x, y: c.y)
         if next != model.arrPort { model.arrPort = next }
@@ -576,52 +568,5 @@ struct ArrDraw {
         head.addLine(to: CGPoint(x: x - w / 2, y: side))
         head.closeSubpath()
         ctx.fill(head, with: .color(theme.accent))
-    }
-}
-
-/// Регулятор масштаба дорожек (решение пользователя, на пробу): 5 положений, сверху — EXPANDED, снизу — COMPACT;
-/// палец вверх-вниз или тап — ближайшее положение (AppSettings.arrangeZoom).
-struct ArrZoomSlider: View {
-    let model: AppModel
-    @Environment(\.theme) private var theme
-    static let label: CGFloat = 14
-    static let thumbH: CGFloat = 8
-
-    var body: some View {
-        let n: Int = AppSettings.arrangeZooms
-        let z: Int = model.settings.arrangeZoom
-        return VStack(spacing: 4) {
-            Text("ZOOM")
-                .font(.system(size: 9))
-                .foregroundStyle(theme.dim)
-                .frame(height: ArrZoomSlider.label)
-            GeometryReader { geo in
-                let h: CGFloat = geo.size.height
-                let span: CGFloat = max(1, h - ArrZoomSlider.thumbH)
-                ZStack(alignment: .top) {
-                    RoundedRectangle(cornerRadius: 3).fill(theme.meterTrack).frame(width: MeterBars.width, height: h)
-                    // Метки положений.
-                    ForEach(0..<n, id: \.self) { k in
-                        Rectangle().fill(theme.dim)
-                            .frame(width: 15, height: 1)
-                            .offset(y: ArrZoomSlider.thumbH / 2 + span * CGFloat(k) / CGFloat(n - 1))
-                    }
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(theme.text)
-                        .overlay(RoundedRectangle(cornerRadius: 3).stroke(theme.bg, lineWidth: 1.5))
-                        .frame(width: 30, height: ArrZoomSlider.thumbH)
-                        .shadow(color: Color.black.opacity(0.4), radius: 2, y: 1)
-                        .offset(y: span * CGFloat(z) / CGFloat(n - 1))
-                }
-                .frame(width: geo.size.width, height: h, alignment: .top)
-                .contentShape(Rectangle())
-                .gesture(DragGesture(minimumDistance: 0).onChanged { g in
-                    let f: CGFloat = (g.location.y - ArrZoomSlider.thumbH / 2) / span
-                    let k: Int = max(0, min(n - 1, Int((f * CGFloat(n - 1)).rounded())))
-                    if k != model.settings.arrangeZoom { model.updateSettings { $0.arrangeZoom = k } }
-                })
-            }
-        }
-        .padding(.bottom, Layout.gap)
     }
 }
