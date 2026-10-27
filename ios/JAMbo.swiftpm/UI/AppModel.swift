@@ -141,8 +141,6 @@ final class AppModel {
     /// Файл, темп которого уже ищется (второй поиск не запускается).
     @ObservationIgnored var refBpmKey: String = ""
     @ObservationIgnored var arrBlockClipboard: ArrBlock? = nil
-    /// Рамка измерителя справа в окне дорожки («root»): в аранжировщике он стоит ровно там же и того же размера.
-    @ObservationIgnored var meterFrame: CGRect = .zero
     @ObservationIgnored var arrTrackClipboard: [ArrBlock]? = nil
     /// Пианоролл на месте центра (S8): открыт, меню бутерброда, режим VEL.
     var rollView: Bool = false

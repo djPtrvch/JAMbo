@@ -15,14 +15,8 @@ struct ArrangeWindow: View {
                 // Заголовки вплотную к таймлайну (решение пользователя: без зазора).
                 HStack(spacing: 0) {
                     ArrHeaders(model: model).frame(width: ArrMetrics.headerW)
+                    // Измерителя справа нет — громкость в заголовках дорожек (решение пользователя, на пробу).
                     ArrTimeline(model: model, lift: $lift)
-                    // Измеритель справа с регулятором — выбранной дорожки: на месте измерителя окна дорожки (RootView);
-                    // пока его рамка неизвестна — здесь.
-                    if model.meterFrame == .zero {
-                        MeterColumn(model: model).padding(.leading, Layout.gap)
-                    } else {
-                        Color.clear.frame(width: Layout.meterWidth).padding(.leading, Layout.gap)
-                    }
                 }
                 // Слева от линейки: время; при строке REF — A/B (S15g).
                 HStack(spacing: 0) {

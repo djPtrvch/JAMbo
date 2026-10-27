@@ -43,8 +43,8 @@ struct ArrHeaders: View {
     }
 }
 
-/// Строка заголовка: имя слева внизу (тап — выбор, двойной тап — меню дорожки), M над S справа внизу (решение
-/// пользователя: без метров).
+/// Строка заголовка: сверху регулятор громкости, снизу имя слева (тап — выбор, двойной тап — меню дорожки) и M, S
+/// справа в строку (решение пользователя: без метров).
 struct ArrHeaderRow: View {
     let model: AppModel
     let index: Int
@@ -68,22 +68,27 @@ struct ArrHeaderRow: View {
         // Цвет дорожки (меню дорожки) — только у блоков; заголовок — как строка дорожек (решение пользователя).
         let bg: Color = theme.trackBg
         let fg: Color = theme.text
-        // Отступ от краёв — один со всех сторон; имя — в левом нижнем углу, M над S — в правом нижнем (решение
-        // пользователя).
+        // Отступ от краёв — один со всех сторон; сверху регулятор громкости, снизу имя слева и M, S в строку справа
+        // (решение пользователя).
         let pad: CGFloat = 8
-        let side: CGFloat = max(10, min(26, (rowH - 2 * pad - 4) / 2))
-        return HStack(alignment: .bottom, spacing: 5) {
-            Text(t.name)
-                .font(.system(size: 12, weight: selected ? .heavy : .semibold))
-                .lineLimit(1)
-                .foregroundStyle(fg)
-                .frame(maxWidth: .infinity, alignment: .bottomLeading)
-            VStack(spacing: 4) {
-                ArrToggle(title: "M", on: t.mute, color: theme.rec, side: side) { model.toggleMute(index) }
-                ArrToggle(title: "S", on: t.solo, color: theme.accent, side: side) { model.toggleSolo(index) }
+        // Низкая строка (COMPACT) — без регулятора.
+        let vol: Bool = rowH >= 44
+        let side: CGFloat = max(10, min(24, rowH - 2 * pad - (vol ? ArrVolume.height + 6 : 0)))
+        return VStack(spacing: 6) {
+            if vol { ArrVolume(model: model, channel: index) }
+            Spacer(minLength: 0)
+            HStack(alignment: .bottom, spacing: 5) {
+                Text(t.name)
+                    .font(.system(size: 12, weight: selected ? .heavy : .semibold))
+                    .lineLimit(1)
+                    .foregroundStyle(fg)
+                    .frame(maxWidth: .infinity, alignment: .bottomLeading)
+                HStack(spacing: 4) {
+                    ArrToggle(title: "M", on: t.mute, color: theme.rec, side: side) { model.toggleMute(index) }
+                    ArrToggle(title: "S", on: t.solo, color: theme.accent, side: side) { model.toggleSolo(index) }
+                }
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         .padding(pad)
         // Заголовок — на всю высоту строки дорожки (как блоки).
         .frame(maxHeight: .infinity)
@@ -129,7 +134,8 @@ struct ArrHeaderRow: View {
     }
 }
 
-/// Заголовок строки REF (решение пользователя: две строки): REF и темп файла (TempoDetect), ниже — имя файла;
+/// Заголовок строки REF: сверху регулятор громкости REF; ниже две строки (решение пользователя): REF и темп файла
+/// (TempoDetect), ниже — имя файла;
 /// двойной тап — меню REF (LOAD, DELETE).
 struct ArrRefHeader: View {
     let model: AppModel
@@ -138,6 +144,9 @@ struct ArrRefHeader: View {
     var body: some View {
         let name: String = model.project.arrange.ref?.name ?? ""
         return VStack(alignment: .leading, spacing: 2) {
+            // Громкость REF — регулятор сверху, как у дорожек (измерителя справа в аранжировщике нет).
+            ArrVolume(model: model, channel: Levels.ref).padding(.bottom, 4)
+            Spacer(minLength: 0)
             HStack(spacing: 6) {
                 Text("REF").font(.system(size: 12, weight: .heavy)).foregroundStyle(theme.text)
                 Spacer(minLength: 0)
@@ -148,8 +157,7 @@ struct ArrRefHeader: View {
                 .truncationMode(.middle)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.leading, 6)
-        .padding(.trailing, 10)
+        .padding(8)
         .frame(maxHeight: .infinity)
         .background(theme.trackBg, in: UnevenRoundedRectangle(topLeadingRadius: 6, bottomLeadingRadius: 6,
                                                               bottomTrailingRadius: 0, topTrailingRadius: 0))
@@ -176,5 +184,63 @@ struct ArrToggle: View {
             .overlay(RoundedRectangle(cornerRadius: 4).stroke(color, lineWidth: 1))
             .contentShape(Rectangle())
             .onTapGesture { action() }
+    }
+}
+
+/// Регулятор громкости в заголовке (вместо измерителя справа — решение пользователя, на пробу): дорожка — как
+/// регулятор измерителя (SETTINGS → LEVEL: ABSOLUTE — громкость MIX, RELATIVE — подстройка), REF — громкость
+/// референса; −∞…0 dB, палец вбок на всю ширину — вся шкала; справа — громкость в dB.
+struct ArrVolume: View {
+    let model: AppModel
+    let channel: Int
+    @State private var start: Double? = nil
+    @Environment(\.theme) private var theme
+    static let height: CGFloat = 16
+
+    var body: some View {
+        let v: Double = model.meterVol(channel)
+        let f: CGFloat = CGFloat(max(0, min(1, (v - Params.volMin) / -Params.volMin)))
+        return HStack(spacing: 6) {
+            GeometryReader { geo in
+                let w: CGFloat = geo.size.width
+                let thumbW: CGFloat = 8
+                let x: CGFloat = thumbW / 2 + f * (w - thumbW)
+                ZStack(alignment: .leading) {
+                    Capsule().fill(theme.meterTrack).frame(height: 4)
+                    Capsule().fill(theme.accent).frame(width: x, height: 4)
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(theme.text)
+                        .overlay(RoundedRectangle(cornerRadius: 3).stroke(theme.bg, lineWidth: 1.5))
+                        .frame(width: thumbW, height: ArrVolume.height)
+                        .shadow(color: Color.black.opacity(0.4), radius: 2, y: 1)
+                        .position(x: x, y: ArrVolume.height / 2)
+                }
+                .frame(width: w, height: ArrVolume.height)
+                .contentShape(Rectangle())
+                .gesture(drag(w))
+            }
+            Text(MeterColumn.fmtVol(v))
+                .font(.system(size: 9)).monospacedDigit()
+                .foregroundStyle(theme.dim)
+                .frame(width: 28, alignment: .trailing)
+        }
+        .frame(height: ArrVolume.height)
+    }
+
+    private func drag(_ w: CGFloat) -> some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { g in
+                if start == nil {
+                    start = model.meterVol(channel)
+                    model.beginGesture()
+                }
+                let dx: Double = Double(g.translation.width / max(1, w))
+                model.setMeterVol(channel, (start ?? 0) + dx * -Params.volMin)
+            }
+            .onEnded { _ in
+                guard start != nil else { return }
+                start = nil
+                model.endGesture()
+            }
     }
 }
