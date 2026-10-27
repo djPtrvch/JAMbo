@@ -129,7 +129,7 @@ struct LibRow: View {
 
     private func textButton(_ t: String, _ act: @escaping () -> Void) -> some View {
         Button(action: act) {
-            Text(t).font(.system(size: 12, weight: .bold)).foregroundStyle(Color.white)
+            Text(t).font(.system(size: 12)).foregroundStyle(Color.white)
                 .frame(width: LibRow.button + 40, height: LibRow.height)
                 .background(theme.rec, in: RoundedRectangle(cornerRadius: 8))
         }

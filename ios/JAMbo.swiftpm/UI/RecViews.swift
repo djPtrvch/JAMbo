@@ -23,7 +23,7 @@ struct SampleRecButton: View {
                     Text("REC")
                 }
             }
-            .font(.system(size: 13, weight: .bold))
+            .font(.system(size: 13))
             .foregroundStyle(fg)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(on ? theme.rec : theme.panel2, in: RoundedRectangle(cornerRadius: 8))

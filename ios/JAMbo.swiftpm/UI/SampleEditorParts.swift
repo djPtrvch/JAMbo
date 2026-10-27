@@ -40,9 +40,7 @@ struct EditorBar: View {
     @ViewBuilder
     private var tools: some View {
         // ▶ без жёлтой подсветки (решение пользователя); во время прослушивания — ■.
-        ToolButton(title: model.previewOn ? "■" : "▶", enabled: data != nil, width: nil) {
-            model.togglePreview(sel.a, sel.b)
-        }
+        PlayToolButton(on: model.previewOn, enabled: data != nil) { model.togglePreview(sel.a, sel.b) }
         ToolButton(title: "LOAD", width: nil) { model.openBrowser(.load(steps: [])) }
         ToolButton(title: "SAVE", enabled: data != nil, width: nil) { model.openBrowser(.saveSample(key)) }
         ToolButton(title: "TRIM", enabled: data != nil && !sel.full, width: nil) { model.trimSample(sel.a, sel.b) }
@@ -75,7 +73,7 @@ struct ToolButton: View {
     var body: some View {
         let fg: Color = !enabled ? theme.off : (lit ? theme.onAccent : theme.text)
         return Button(action: action) {
-            Text(title).font(.system(size: 13, weight: .bold)).lineLimit(1).minimumScaleFactor(0.7)
+            Text(title).font(.system(size: 13)).lineLimit(1).minimumScaleFactor(0.7)
                 .foregroundStyle(fg)
                 .frame(width: width)
                 .frame(maxWidth: width == nil ? .infinity : nil, maxHeight: .infinity)
@@ -83,6 +81,43 @@ struct ToolButton: View {
         }
         .buttonStyle(.plain)
         .disabled(!enabled)
+    }
+}
+
+/// ▶ / ■ строки редактора: треугольник высотой с кружок REC (10 pt), во время прослушивания — квадрат, как у REC.
+struct PlayToolButton: View {
+    let on: Bool
+    var enabled: Bool = true
+    let action: () -> Void
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let fg: Color = enabled ? theme.text : theme.off
+        return Button(action: action) {
+            Group {
+                if on {
+                    RoundedRectangle(cornerRadius: 2).fill(fg).frame(width: 9, height: 9)
+                } else {
+                    PlayTriangle().fill(fg).frame(width: 9, height: 10)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(theme.panel2, in: RoundedRectangle(cornerRadius: 8))
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+    }
+}
+
+/// Треугольник ▶ (остриём вправо) во весь прямоугольник.
+struct PlayTriangle: Shape {
+    func path(in r: CGRect) -> Path {
+        var p = Path()
+        p.move(to: CGPoint(x: r.minX, y: r.minY))
+        p.addLine(to: CGPoint(x: r.maxX, y: r.midY))
+        p.addLine(to: CGPoint(x: r.minX, y: r.maxY))
+        p.closeSubpath()
+        return p
     }
 }
 

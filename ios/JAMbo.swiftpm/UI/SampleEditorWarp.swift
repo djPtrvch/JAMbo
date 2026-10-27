@@ -84,6 +84,9 @@ struct WarpBar: View {
     @State private var input: Bool = false
     @State private var text: String = ""
     @State private var lastTap: Date = .distantPast
+    /// Палец по BPM: BPM в начале жеста, сдвинули ли (вверх-вниз — 4 px на 1 BPM, как BPM проекта).
+    @State private var dragStart: Double? = nil
+    @State private var dragMoved: Bool = false
     @Environment(\.theme) private var theme
 
     static let grids: [(String, Double)] = [("1/16", 0.25), ("1/8", 0.5), ("1/4", 1)]
@@ -93,8 +96,8 @@ struct WarpBar: View {
         let marks: Int = model.editorWarpInfo.marks.count
         // Group — кнопки встают в строку редактора наравне с остальными (равной ширины).
         return Group {
-            ToolButton(title: model.previewOn ? "■" : "▶", enabled: has, width: nil) { model.toggleWarpPreview() }
-            ToolButton(title: bpmText, enabled: has, width: nil) { bpmTap() }
+            PlayToolButton(on: model.previewOn, enabled: has) { model.toggleWarpPreview() }
+            bpmButton(has)
                 .alert("FILE BPM", isPresented: $input) {
                     TextField("BPM", text: $text).keyboardType(.decimalPad)
                     Button("OK") { enter() }
@@ -108,6 +111,35 @@ struct WarpBar: View {
             ToolButton(title: "AUTO WARP", enabled: has, width: nil) { model.autoWarp() }
             ToolButton(title: "CLEAR WARP", enabled: has && marks > 0, width: nil) { model.clearWarp() }
         }
+    }
+
+    /// BPM файла: палец вверх-вниз — 4 px на 1 BPM (одна запись UNDO), двойной тап — ввод числом.
+    private func bpmButton(_ has: Bool) -> some View {
+        Text(bpmText).font(.system(size: 13)).lineLimit(1).minimumScaleFactor(0.7)
+            .foregroundStyle(has ? theme.text : theme.off)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(dragStart != nil ? theme.panel : theme.panel2, in: RoundedRectangle(cornerRadius: 8))
+            .contentShape(Rectangle())
+            .gesture(DragGesture(minimumDistance: 0)
+                .onChanged { g in
+                    guard has, let d = data else { return }
+                    if dragStart == nil {
+                        model.beginGesture()
+                        dragStart = model.warpBpm(d)
+                        dragMoved = false
+                    }
+                    let dy: CGFloat = g.translation.height
+                    if abs(dy) > 10 { dragMoved = true }
+                    if dragMoved, let s = dragStart {
+                        model.setWarpBpm((s - Double(dy) / 4).rounded())
+                    }
+                }
+                .onEnded { _ in
+                    if dragStart == nil { return }
+                    dragStart = nil
+                    model.endGesture()
+                    if !dragMoved { bpmTap() }
+                })
     }
 
     private var bpmText: String {
