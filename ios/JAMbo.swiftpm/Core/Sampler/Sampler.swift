@@ -53,12 +53,16 @@ public final class Sampler {
     let noteRatio = UnsafeMutablePointer<Double>.allocate(capacity: slots)
     /// Скорость указателя по сэмплу (со знаком; в TSTR — скорость времени, без высоты).
     let rate = UnsafeMutablePointer<Double>.allocate(capacity: slots)
-    /// RATE в TSTR (Stretch.swift): 1 — голос с таймстретчем; высота внутри зерна (нота и Pitch); темп файла (0 —
-    /// скорость только от RATE).
+    /// RATE в TSTR: 1 — таймстретч NORMAL (StretchPV.swift), 2 — BEAT (Stretch.swift), 0 — без него; высота внутри
+    /// кадра или зерна (нота и Pitch); темп файла (0 — скорость только от RATE).
     let tstr = UnsafeMutablePointer<UInt8>.allocate(capacity: slots)
     let grainRatio = UnsafeMutablePointer<Double>.allocate(capacity: slots)
     let srcBpm = UnsafeMutablePointer<Double>.allocate(capacity: slots)
+    /// Атаки сэмпла голоса (NORMAL: куски между атаками тянутся отдельно).
+    let onsetAt = UnsafeMutablePointer<UnsafeMutablePointer<Double>?>.allocate(capacity: slots)
+    let onsetCount = UnsafeMutablePointer<Int>.allocate(capacity: slots)
     let stretch = Stretcher(slots: slots)
+    let vocoder = Vocoder(slots: slots)
     let attackF = UnsafeMutablePointer<Double>.allocate(capacity: slots)
     let decaySec = UnsafeMutablePointer<Double>.allocate(capacity: slots)
     let decayK = UnsafeMutablePointer<Float>.allocate(capacity: slots)
@@ -165,6 +169,8 @@ public final class Sampler {
         tstr.initialize(repeating: 0, count: s)
         grainRatio.initialize(repeating: 1, count: s)
         srcBpm.initialize(repeating: 0, count: s)
+        onsetAt.initialize(repeating: nil, count: s)
+        onsetCount.initialize(repeating: 0, count: s)
         edge.initialize(repeating: 1, count: s)
         noteRatio.initialize(repeating: 1, count: s)
         rate.initialize(repeating: 1, count: s)
@@ -211,13 +217,14 @@ public final class Sampler {
     deinit {
         for p in [active, fading, own, stereo, released, used, sendUsed, openPrev, tstr] as [UnsafeMutablePointer<UInt8>] { p.deallocate() }
         for p in [send, sendL, sendR, duckCur, flagCur, meterL, meterR] { p.deallocate() }
-        for p in [track, trackId, note, liveId, serial, srcFrames, ftype] as [UnsafeMutablePointer<Int>] { p.deallocate() }
+        for p in [track, trackId, note, liveId, serial, srcFrames, ftype, onsetCount] as [UnsafeMutablePointer<Int>] { p.deallocate() }
         for p in [pos, endPos, beginPos, edge, noteRatio, rate, grainRatio, srcBpm, attackF, decaySec, hz, qDb] as [UnsafeMutablePointer<Double>] { p.deallocate() }
         for p in [start, holdEnd, stopAt, fadeAt] as [UnsafeMutablePointer<Int64>] { p.deallocate() }
         for p in [decayK, env, fadeK, fadeG, level, pan, z, lockVal, busL, busR, outL, outR, volCur, gateCur, scratch] as [UnsafeMutablePointer<Float>] {
             p.deallocate()
         }
         srcL.deallocate()
+        onsetAt.deallocate()
         srcR.deallocate()
         coef.deallocate()
         lockMask.deallocate()
@@ -359,11 +366,17 @@ public final class Sampler {
             let rt = rate[v]
             // PTCH около остановки (|RATE| < 5 %) — тише до нуля, как у останавливающейся пластинки.
             let lv: Float = ts ? level[v] : level[v] * Float(Swift.min(1, Swift.abs(rt) * 20))
+            let beat: Bool = tstr[v] == 2
             if ts {
                 let skip: Int = Int(Swift.max(0, Swift.min(Int64(m), start[v] - (blockStart + Int64(i)))))
-                stretch.fill(v, l, r, frames, st, pos[v], rt, grainRatio[v], m, skip, beginPos[v], endPos[v])
+                if beat {
+                    stretch.fill(v, l, r, frames, st, pos[v], rt, grainRatio[v], m, skip, beginPos[v], endPos[v])
+                } else {
+                    vocoder.fill(v, l, r, frames, st, pos[v], rt, grainRatio[v], m, skip, beginPos[v], endPos[v],
+                                 onsetAt[v], onsetCount[v])
+                }
             }
-            let tsL = stretch.outL, tsR = stretch.outR
+            let tsL = beat ? stretch.outL : vocoder.outL, tsR = beat ? stretch.outR : vocoder.outR
             for j in 0..<m {
                 let frame = blockStart + Int64(i + j)
                 if frame < start[v] { continue }

@@ -97,15 +97,19 @@ extension Sampler {
         let pitchR: Double = ratio * pow(2, pitch / 12)
         let rateK: Double = pv(d, t, VoiceParam.rate, mask, vals) / 100
         // RATE (Sampler.renderVoice): PTCH — скорость и высота вместе; TSTR — скорость времени по темпу проекта.
-        let ts: Bool = d.rateMode[d.s(t)] != 0
-        tstr[v] = ts ? 1 : 0
+        let mode: UInt8 = d.rateMode[d.s(t)]
+        let ts: Bool = mode != 0
+        tstr[v] = mode
         srcBpm[v] = ts ? d.eBpm[e] : 0
+        onsetAt[v] = mode == 1 ? d.eOnsets[e] : nil
+        onsetCount[v] = mode == 1 ? d.eOnsetCount[e] : 0
         grainRatio[v] = pitchR
         let tempoK: Double = srcBpm[v] > 0 ? bpm / srcBpm[v] : 1
         rate[v] = ts ? tempoK * rateK : pitchR * rateK
         // Реверс — от конца отрезка.
         pos[v] = rate[v] < 0 ? b - 1 : a
-        if ts { stretch.start(v, dir: rate[v]) }
+        if mode == 2 { stretch.start(v, dir: rate[v]) }
+        if mode == 1 { vocoder.start(v, dir: rate[v]) }
         // Край сэмпла (End или конец файла) гаснет за 4 мс (не больше четверти звучания).
         let playDur: Double = (b - a) / Swift.max(1e-3, Swift.abs(rate[v]))
         edge[v] = Swift.max(1, Swift.min(0.004 * sr, playDur / 4))

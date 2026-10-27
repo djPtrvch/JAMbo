@@ -8,7 +8,8 @@ import SwiftUI
 /// LOAD (браузер библиотеки, S11b), MIDI (вход и выход нот дорожки — TrackMidiPage на месте меню; для зажатых шагов
 /// на этом месте TRACK — вернуть звук дорожки),
 /// SAVE (пресет синта в библиотеку) и TABLE (у дорожки с WTABLE — браузер в LOAD TABLE; у GRANULAR на его месте
-/// SOURCE — браузер сэмплов, тап ставит сэмпл GRANULAR).
+/// SOURCE — браузер сэмплов, тап ставит сэмпл GRANULAR). STRETCH — алгоритм таймстретча RATE в режиме Stretch у сэмплера:
+/// NORMAL (фазовый вокодер, по умолчанию) или BEAT (для ударных лупов).
 struct SoundMenu: View {
     let model: AppModel
     let state: SoundMenuState
@@ -44,6 +45,8 @@ struct SoundMenu: View {
                 column("SYNTH", SynthEngines.synths, sampler: false, steps: steps)
             }
             Spacer(minLength: 0)
+            title("STRETCH")
+            stretchRow(steps)
             title("LOAD SAMPLE · PRESET · MIDI")
             loadGroup(steps)
         }
@@ -120,6 +123,15 @@ struct SoundMenu: View {
                     MenuItem(title: "TABLE", enabled: !steps && wtable) { model.openBrowser(.loadTable) }
                 }
             }
+        }
+    }
+
+    private func stretchRow(_ steps: Bool) -> some View {
+        let on: Bool = !steps && !synth
+        let beat: Bool = model.stretchBeat
+        return HStack(spacing: 4) {
+            MenuItem(title: "NORMAL", enabled: on, current: on && !beat) { model.setStretchBeat(false) }
+            MenuItem(title: "BEAT", enabled: on, current: on && beat) { model.setStretchBeat(true) }
         }
     }
 

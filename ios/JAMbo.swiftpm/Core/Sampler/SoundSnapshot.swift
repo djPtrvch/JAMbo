@@ -80,6 +80,9 @@ public struct SoundData {
     public var eSliceCount: UnsafeMutablePointer<Int32>
     /// Темп файла для TSTR (BPM; 0 — неизвестен или дорожка в PTCH: скорость — только RATE).
     public var eBpm: UnsafeMutablePointer<Double>
+    /// Атаки сэмпла для TSTR NORMAL (указатель SampleData.onsets — живёт, пока снимок держит сэмпл; nil — нет).
+    public var eOnsets: UnsafeMutablePointer<UnsafeMutablePointer<Double>?>
+    public var eOnsetCount: UnsafeMutablePointer<Int>
     public var sliceAt: UnsafeMutablePointer<Double>
     public var sliceNote: UnsafeMutablePointer<Int32>
     /// Таблица WTABLE дорожки (указатели WtTable; кадров 0 — таблица ещё не готова, WTABLE молчит, как в вебе).
@@ -98,7 +101,7 @@ public struct SoundData {
     public var mod: UnsafeMutablePointer<Float>
     /// LFO1–3 по темпу (звук·3 + n; 1 — да).
     public var lfoSync: UnsafeMutablePointer<UInt8>
-    /// Режим RATE звука (Params.rateModeId): 0 — PTCH, 1 — TSTR.
+    /// Режим RATE звука (Params.rateModeId, stretchBeatId): 0 — PTCH, 1 — TSTR NORMAL (вокодер), 2 — TSTR BEAT (WSOLA).
     public var rateMode: UnsafeMutablePointer<UInt8>
     public var asSrc: UnsafeMutablePointer<Int8>
     public var asAmt: UnsafeMutablePointer<Float>
@@ -233,7 +236,8 @@ public final class SoundSnapshot: @unchecked Sendable {
             eHash: .allocate(capacity: entries), eLeft: .allocate(capacity: entries), eRight: .allocate(capacity: entries),
             eFrames: .allocate(capacity: entries), eChannels: .allocate(capacity: entries),
             eSliceStart: .allocate(capacity: entries), eSliceCount: .allocate(capacity: entries),
-            eBpm: .allocate(capacity: entries),
+            eBpm: .allocate(capacity: entries), eOnsets: .allocate(capacity: entries),
+            eOnsetCount: .allocate(capacity: entries),
             sliceAt: .allocate(capacity: slices), sliceNote: .allocate(capacity: slices),
             tableRef: .allocate(capacity: tracks2),
             grainRef: .allocate(capacity: tracks2),
@@ -341,6 +345,8 @@ public final class SoundSnapshot: @unchecked Sendable {
         d.eSliceStart.initialize(repeating: 0, count: entries)
         d.eSliceCount.initialize(repeating: 0, count: entries)
         d.eBpm.initialize(repeating: 0, count: entries)
+        d.eOnsets.initialize(repeating: nil, count: entries)
+        d.eOnsetCount.initialize(repeating: 0, count: entries)
         d.sliceAt.initialize(repeating: 0, count: slices)
         d.sliceNote.initialize(repeating: 0, count: slices)
         var keep: [SampleData] = []
@@ -389,7 +395,9 @@ public final class SoundSnapshot: @unchecked Sendable {
                 d.mod[u * Params.modCount + k] = Float(snd.params[id] ?? Params.byId[id]?.def ?? 0)
             }
             for (l, id) in Params.lfoSyncIds.enumerated() { d.lfoSync[u * 3 + l] = (snd.params[id] ?? 0) >= 0.5 ? 1 : 0 }
-            d.rateMode[u] = (snd.params[Params.rateModeId] ?? 0) >= 0.5 ? 1 : 0
+            let tstr: Bool = (snd.params[Params.rateModeId] ?? 0) >= 0.5
+            let beat: Bool = (snd.params[Params.stretchBeatId] ?? 0) >= 0.5
+            d.rateMode[u] = tstr ? (beat ? 2 : 1) : 0
             // Шкалы целей — по сетке звука дорожки (у синта свои пределы и ступени).
             var grid: [String: ParamDef] = [:]
             for p in Params.grid(sound: snd.sample) where !p.id.isEmpty { grid[p.id] = p }
@@ -429,6 +437,14 @@ public final class SoundSnapshot: @unchecked Sendable {
                 d.eChannels[e] = Int32(s.channels)
                 // Темп файла — только у дорожки в TSTR (определяется один раз на сэмпл).
                 d.eBpm[e] = d.rateMode[u] != 0 ? s.loopBpm : 0
+                if d.rateMode[u] == 1 {
+                    let o: OnsetList = s.onsets
+                    d.eOnsets[e] = o.at
+                    d.eOnsetCount[e] = o.count
+                } else {
+                    d.eOnsets[e] = nil
+                    d.eOnsetCount[e] = 0
+                }
                 let marks: [SliceMark] = key.isEmpty ? [] : (snd.slices[key] ?? [])
                 let oct: Int = t < octaves.count ? octaves[t] : octave
                 let notes = Slices.notes(marks, map: map, scale: clipKey.scale, root: clipKey.root, octave: oct)
@@ -500,6 +516,8 @@ public final class SoundSnapshot: @unchecked Sendable {
         data.eSliceStart.deallocate()
         data.eSliceCount.deallocate()
         data.eBpm.deallocate()
+        data.eOnsets.deallocate()
+        data.eOnsetCount.deallocate()
         data.sliceAt.deallocate()
         data.sliceNote.deallocate()
         data.tableRef.deallocate()

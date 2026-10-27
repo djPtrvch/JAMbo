@@ -42,6 +42,8 @@ public final class SampleData: @unchecked Sendable {
 
     /// Темп лупа для RATE в TSTR (TempoDetect.loopBpm; 0 — не учитывается); считается один раз, в основном потоке.
     public lazy var loopBpm: Double = TempoDetect.loopBpm(self)
+    /// Атаки (Onsets.detect) — для таймстретча NORMAL; считаются один раз, в основном потоке.
+    public lazy var onsets: OnsetList = OnsetList(Onsets.detect(self))
 
     public func channel(_ c: Int) -> [Float] {
         let p = c == 0 ? left : right

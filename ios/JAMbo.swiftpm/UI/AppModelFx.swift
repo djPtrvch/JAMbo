@@ -90,6 +90,15 @@ extension AppModel {
         return (track.params[Params.rateModeId] ?? 0) >= 0.5
     }
 
+    /// Таймстретч дорожки — BEAT (WSOLA, для ударных лупов); по умолчанию NORMAL (фазовый вокодер).
+    var stretchBeat: Bool {
+        return (track.params[Params.stretchBeatId] ?? 0) >= 0.5
+    }
+
+    func setStretchBeat(_ on: Bool) {
+        editTrack { t in t.params[Params.stretchBeatId] = on ? 1 : 0 }
+    }
+
     /// SHIFT + тап по ручке: Dly Time и Speed LFO — по темпу или свободно, RATE — PTCH / TSTR; true — тап обработан.
     @discardableResult
     func knobShiftTap(_ slot: Int) -> Bool {

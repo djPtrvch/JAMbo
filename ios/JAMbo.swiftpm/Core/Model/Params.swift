@@ -234,6 +234,9 @@ public enum Params {
                                           format: Fmt.pct)
     /// Режим RATE дорожки (значение звука дорожки, не на сетке, без p-lock): 0 — PTCH (по умолчанию), 1 — TSTR.
     public static let rateModeId = "rate.mode"
+    /// Алгоритм таймстретча дорожки (меню звука → STRETCH): 0 — NORMAL (фазовый вокодер, по умолчанию), 1 — BEAT (WSOLA,
+    /// для ударных лупов).
+    public static let stretchBeatId = "rate.beat"
 
     /// Сетка 4×4 ряд за рядом (индекс = ряд·4 + столбец).
     public static let trackGrid: [ParamDef] = (0..<16).map { i in trackColumns[i % 4][i / 4] }

@@ -18,13 +18,14 @@ final class RateTests: XCTestCase {
         return l
     }
 
-    private func project(rate: Double, tstr: Bool, bpm: Double = 120) -> Project {
+    private func project(rate: Double, tstr: Bool, bpm: Double = 120, beat: Bool = false) -> Project {
         var p = Project()
         p.tracks[0].addSamples(["k"])
         p.tracks[0].vol = 0
         p.tracks[0].params["decay"] = 4000
         p.tracks[0].params["rate"] = rate
         p.tracks[0].params[Params.rateModeId] = tstr ? 1 : 0
+        p.tracks[0].params[Params.stretchBeatId] = beat ? 1 : 0
         p.bpm = bpm
         return p
     }
@@ -99,8 +100,13 @@ final class RateTests: XCTestCase {
 
     /// TSTR 50 %: вдвое дольше, высота прежняя.
     func testStretchKeepsPitch() {
+        stretchKeepsPitch(beat: false)
+        stretchKeepsPitch(beat: true)
+    }
+
+    private func stretchKeepsPitch(beat: Bool) {
         let core = AudioCore(master: false)
-        core.publish(project(rate: 50, tstr: true), samples: ["k": sine(441, seconds: 2)])
+        core.publish(project(rate: 50, tstr: true, beat: beat), samples: ["k": sine(441, seconds: 2)])
         core.events.push(.noteOn(track: 0, note: 48, id: 1, velocity: 1))
         let o = render(core, frames: 200000)
         XCTAssertEqual(crossings(o, 20000, 48000), 441, accuracy: 3, "высота не меняется")
@@ -115,8 +121,13 @@ final class RateTests: XCTestCase {
     /// TSTR в темпе проекта: луп 2 с (120 BPM) в проекте 60 BPM — вдвое дольше, той же высоты; Pitch +12 —
     /// октава вверх без смены длины.
     func testStretchFollowsTempoAndPitch() {
+        stretchFollowsTempoAndPitch(beat: false)
+        stretchFollowsTempoAndPitch(beat: true)
+    }
+
+    private func stretchFollowsTempoAndPitch(beat: Bool) {
         let core = AudioCore(master: false)
-        var p = project(rate: 100, tstr: true, bpm: 60)
+        var p = project(rate: 100, tstr: true, bpm: 60, beat: beat)
         p.tracks[0].params["pitch"] = 12
         core.publish(p, samples: ["k": sine(441, seconds: 2)])
         core.events.push(.tempo(60))
@@ -129,12 +140,79 @@ final class RateTests: XCTestCase {
 
     /// TSTR, RATE левее центра — реверс той же высоты.
     func testStretchReverse() {
+        stretchReverse(beat: false)
+        stretchReverse(beat: true)
+    }
+
+    private func stretchReverse(beat: Bool) {
         let core = AudioCore(master: false)
-        core.publish(project(rate: -100, tstr: true), samples: ["k": sine(441, seconds: 2)])
+        core.publish(project(rate: -100, tstr: true, beat: beat), samples: ["k": sine(441, seconds: 2)])
         core.events.push(.noteOn(track: 0, note: 48, id: 1, velocity: 1))
         let o = render(core, frames: 100000)
         XCTAssertEqual(crossings(o, 20000, 48000), 441, accuracy: 3)
         XCTAssertEqual(Double(lastSound(o)), 96000, accuracy: 600)
+    }
+
+    /// NORMAL при 100 % в темпе файла — почти тот же сигнал (аккорд из трёх нот, стерео с разной фазой каналов).
+    func testVocoderNearIdentity() {
+        let n = 96000
+        var lf = [Float](repeating: 0, count: n), rf = lf
+        for i in 0..<n {
+            let x = Double(i) / 48000
+            lf[i] = Float(0.2 * sin(2 * .pi * 220 * x) + 0.2 * sin(2 * .pi * 277.2 * x) + 0.2 * sin(2 * .pi * 329.6 * x))
+            rf[i] = Float(0.2 * sin(2 * .pi * 220 * x + 1) + 0.2 * sin(2 * .pi * 277.2 * x + 2) + 0.2 * sin(2 * .pi * 329.6 * x))
+        }
+        let core = AudioCore(master: false)
+        var p = project(rate: 100, tstr: true)
+        p.tracks[0].params["attack"] = 0
+        core.publish(p, samples: ["k": SampleData(left: lf, right: rf)])
+        core.events.push(.noteOn(track: 0, note: 48, id: 1, velocity: 1))
+        var l = [Float](repeating: 0, count: 60000), r = l
+        var pos = 0
+        var bl = [Float](repeating: 0, count: 256), br = bl
+        while pos < 60000 {
+            core.render(frames: 256, left: &bl, right: &br)
+            for i in 0..<256 where pos + i < 60000 { l[pos + i] = bl[i]; r[pos + i] = br[i] }
+            pos += 256
+        }
+        // Стерео дорожки по центру: L·1, R·1 (StereoPanner в центре).
+        var err: Double = 0, sig: Double = 0
+        for i in 4000..<58000 {
+            err += Double((l[i] - lf[i]) * (l[i] - lf[i]) + (r[i] - rf[i]) * (r[i] - rf[i]))
+            sig += Double(lf[i] * lf[i] + rf[i] * rf[i])
+        }
+        XCTAssertEqual(SampleData(left: lf, right: rf).onsets.count, 0, "у ровного аккорда атак нет")
+        let snr: Double = 10 * log10(sig / max(1e-12, err))
+        XCTAssertGreaterThan(snr, 30, "NORMAL в темпе файла — почти без искажений (\(snr) dB)")
+        XCTAssertEqual(l[100], lf[100], accuracy: 0.02, "начало ноты — без задержки")
+    }
+
+    /// NORMAL 50 %: удары (щелчки через 0,25 с) остаются короткими, без предэха, и встают через 0,5 с; атаки сэмпла
+    /// находятся за 1 мс до удара.
+    func testVocoderKeepsHits() {
+        let n = 96000
+        var x = [Float](repeating: 0, count: n)
+        var k = 0
+        while k < n {
+            for i in 0..<480 where k + i < n { x[k + i] = Float(0.8 * exp(-Double(i) / 60) * sin(Double(i) * 0.9)) }
+            k += 12000
+        }
+        let ol = SampleData(left: x, right: nil).onsets
+        XCTAssertEqual(ol.count, 7, "удары после первого (первый — начало ноты)")
+        for i in 0..<ol.count { XCTAssertEqual(ol.at[i], Double((i + 1) * 12000 - 48), accuracy: 16) }
+        let core = AudioCore(master: false)
+        let p = project(rate: 50, tstr: true)
+        core.publish(p, samples: ["k": SampleData(left: x, right: nil)])
+        core.events.push(.noteOn(track: 0, note: 48, id: 1, velocity: 1))
+        let o = render(core, frames: 192000)
+        // Энергия вокруг удара (±10 мс) против энергии между ударами.
+        for hit in [24000, 48000, 72000, 96000] {
+            let on = rms(o, hit - 240, 1200)
+            let off = rms(o, hit + 6000, 6000)
+            let pre = rms(o, hit - 1440, 1200)
+            XCTAssertGreaterThan(on, off * 8, "удар у \(hit) — короткий")
+            XCTAssertGreaterThan(on, pre * 30, "удар у \(hit) не слышен раньше себя")
+        }
     }
 
     /// RATE — цель p-lock и автоматизации (параметр голоса).
