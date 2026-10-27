@@ -48,7 +48,7 @@ extension Sampler {
             let n = Int(notes[k])
             var a = start0
             var b = end0
-            var ratio: Double = pow(2, Double(n - Params.sampleRoot) / 12)
+            var ratio: Double = pow(2, Double(n - Int(d.eRoot[e])) / 12)
             if sc > 0 {
                 let s0 = Int(d.eSliceStart[e])
                 var idx = -1

@@ -30,6 +30,12 @@ extension AppModel {
         publishAudio()
     }
 
+    /// SAMPLER → ROOT NOTE: сэмпл в исходной высоте на C3 или на своей определённой ноте.
+    func setFileRoot(_ on: Bool) {
+        updateSettings { s in s.fileRoot = on }
+        publishAudio()
+    }
+
     func setQuantize(_ on: Bool) {
         updateSettings { s in s.record.quantize = on }
     }

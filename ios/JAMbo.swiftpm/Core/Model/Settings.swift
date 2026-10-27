@@ -61,6 +61,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
     /// SETTINGS → SAMPLER → STRETCH: алгоритм таймстретча RATE в режиме Stretch — NORMAL (фазовый вокодер, по
     /// умолчанию) или BEAT (WSOLA, для ударных лупов).
     public var stretchBeat: Bool = false
+    /// SAMPLER → ROOT NOTE: FILE NOTE — сэмпл в исходной высоте на своей определённой ноте (без ясной — C3); C3 — всегда.
+    public var fileRoot: Bool = false
     /// SETTINGS → SAMPLER → PITCH (S12): ручка Pitch сэмпла и её p-lock — по полутонам (по умолчанию) или плавно.
     public var pitchSemitones: Bool = false
     /// Бутерброд → MIDI (S13): вход, обратная связь, ноты.
@@ -99,7 +101,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
     private enum Keys: String, CodingKey { case appearance, pianoOctaves, velocity, record, sliceMap, scSends, muteTails, latchFx, latchMod, rollGrid,
                                          rollSound, levelRelative, morphAll, morphReturn, mixKey, mixCrossfader,
                                          clearSampleLocks, pitchSemitones, midi, stepPaint, sync,
-                                         arrangeCompact, fxPictures, backgroundAudio, arrangeRepeats, stretchBeat }
+                                         arrangeCompact, fxPictures, backgroundAudio, arrangeRepeats, stretchBeat, fileRoot }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
@@ -123,6 +125,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         mixCrossfader = (try? c.decode(Bool.self, forKey: .mixCrossfader)) ?? true
         clearSampleLocks = (try? c.decode(Bool.self, forKey: .clearSampleLocks)) ?? true
         stretchBeat = (try? c.decode(Bool.self, forKey: .stretchBeat)) ?? false
+        fileRoot = (try? c.decode(Bool.self, forKey: .fileRoot)) ?? false
         pitchSemitones = (try? c.decode(Bool.self, forKey: .pitchSemitones)) ?? false
         midi = (try? c.decode(MidiSettings.self, forKey: .midi)) ?? MidiSettings()
         stepPaint = (try? c.decode(Bool.self, forKey: .stepPaint)) ?? false
