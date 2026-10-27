@@ -121,6 +121,7 @@ struct MasterStrip: View {
     var body: some View {
         let fields: [ParamDef] = AppModel.masterFields(module)
         let bypass: Bool = model.masterBypass(module)
+        let lead: (count: Int, width: CGFloat?) = leadFields
         return HStack(spacing: Layout.gap) {
             MasterTitle(model: model, module: module, bounds: bounds)
             ForEach(0..<fields.count, id: \.self) { i in
@@ -131,6 +132,7 @@ struct MasterStrip: View {
                 }
                 MasterField(model: model, param: p, gray: bypass && grays(p), tap: tapAction(p),
                             input: { input(.param(p.id)) })
+                    .frame(width: i < lead.count ? lead.width : nil)
             }
             EqTool(title: "PRESETS", enabled: true, active: model.masterMenu?.kind == .presets) {
                 model.masterMenu = MasterMenuState(kind: .presets, anchor: presetsFrame, bounds: bounds)
@@ -141,6 +143,22 @@ struct MasterStrip: View {
                 .frame(width: 100)
             CloseButton { model.closeMasterWindow() }
         }
+    }
+
+    /// Первые поля — до правого края дисплея TRANSFER под строкой (решение пользователя): у COMP — до MAKEUP, у SAT —
+    /// до TYPE, у CLIP — до CEILING; у LIM — по ширине полей CLIP (TRANSFER у него нет). Остальные поля — поровну до
+    /// PRESETS. Ширина TRANSFER — как в CompDisplay, ClipDisplay, SatDisplay (от размера дисплея под строкой).
+    private var leadFields: (count: Int, width: CGFloat?) {
+        let g: CGFloat = Layout.gap
+        let wide: CGFloat = bounds.width
+        let high: CGFloat = max(0, bounds.height - model.barH - g)
+        if wide <= 0 || high <= 0 { return (0, nil) }
+        let sat: Bool = module == MasterScope.sat
+        let transfer: CGFloat = sat ? min(wide * 0.35, high) : min(wide * 0.4, high * 1.4)
+        let k: Int = module == MasterScope.comp ? 4 : 2
+        let x0: CGFloat = EqBar.nameWidth + g
+        let w: CGFloat = (transfer - x0 - CGFloat(k - 1) * g) / CGFloat(k)
+        return (k, max(40, w))
     }
 
     private func tapAction(_ p: ParamDef) -> (() -> Void)? {
