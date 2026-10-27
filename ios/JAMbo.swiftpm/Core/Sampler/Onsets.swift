@@ -22,6 +22,18 @@ public final class OnsetList: @unchecked Sendable {
     }
 
     deinit { at.deallocate() }
+
+    /// Позиции атак массивом (AUTO WARP).
+    public var list: [Double] {
+        var out: [Double] = []
+        out.reserveCapacity(count)
+        var i = 0
+        while i < count {
+            out.append(at[i])
+            i += 1
+        }
+        return out
+    }
 }
 
 public enum Onsets {

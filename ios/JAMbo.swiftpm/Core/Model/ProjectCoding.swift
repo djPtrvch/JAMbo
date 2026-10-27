@@ -46,7 +46,7 @@ extension Step {
 extension Track {
     enum CodingKeys: String, CodingKey, CaseIterable {
         case id, name, sample, params, clips, slot, open, mute, solo, stopped, folder, slices, vol, trim, table, grain, assigns,
-             morphOrig, morphOrigAssign, morphEdited, eq, home, midi, blocks, color, autos
+             morphOrig, morphOrigAssign, morphEdited, eq, home, midi, blocks, color, autos, warps
     }
 
     public init(from decoder: Decoder) throws {
@@ -63,6 +63,7 @@ extension Track {
         stopped = c.value(.stopped, false)
         folder = c.value(.folder, Folder())
         slices = c.value(.slices, [String: [SliceMark]]())
+        warps = c.value(.warps, [String: WarpInfo]())
         vol = c.value(.vol, Params.volDef)
         trim = c.value(.trim, 0)
         table = c.value(.table, "")

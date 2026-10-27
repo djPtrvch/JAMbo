@@ -108,6 +108,7 @@ extension Sampler {
         rate[v] = ts ? tempoK * rateK : pitchR * rateK
         // Реверс — от конца отрезка.
         pos[v] = rate[v] < 0 ? b - 1 : a
+        setupWarp(v, d, e, ts)
         if mode == 2 { stretch.start(v, dir: rate[v]) }
         if mode == 1 { vocoder.start(v, dir: rate[v]) }
         // Край сэмпла (End или конец файла) гаснет за 4 мс (не больше четверти звучания).

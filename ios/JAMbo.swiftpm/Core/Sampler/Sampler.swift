@@ -61,6 +61,12 @@ public final class Sampler {
     /// Атаки сэмпла голоса (NORMAL: куски между атаками тянутся отдельно).
     let onsetAt = UnsafeMutablePointer<UnsafeMutablePointer<Double>?>.allocate(capacity: slots)
     let onsetCount = UnsafeMutablePointer<Int>.allocate(capacity: slots)
+    /// Варпинг голоса (SoundWarp.swift): меток, их копия (голос·warpCap: u и отсчёт сэмпла), указатель u.
+    static let warpCap = 1024
+    let warpN = UnsafeMutablePointer<Int>.allocate(capacity: slots)
+    let warpU = UnsafeMutablePointer<Double>.allocate(capacity: slots * warpCap)
+    let warpP = UnsafeMutablePointer<Double>.allocate(capacity: slots * warpCap)
+    let uPos = UnsafeMutablePointer<Double>.allocate(capacity: slots)
     let stretch = Stretcher(slots: slots)
     let vocoder = Vocoder(slots: slots)
     let attackF = UnsafeMutablePointer<Double>.allocate(capacity: slots)
@@ -171,6 +177,10 @@ public final class Sampler {
         srcBpm.initialize(repeating: 0, count: s)
         onsetAt.initialize(repeating: nil, count: s)
         onsetCount.initialize(repeating: 0, count: s)
+        warpN.initialize(repeating: 0, count: s)
+        warpU.initialize(repeating: 0, count: s * Sampler.warpCap)
+        warpP.initialize(repeating: 0, count: s * Sampler.warpCap)
+        uPos.initialize(repeating: 0, count: s)
         edge.initialize(repeating: 1, count: s)
         noteRatio.initialize(repeating: 1, count: s)
         rate.initialize(repeating: 1, count: s)
@@ -217,8 +227,8 @@ public final class Sampler {
     deinit {
         for p in [active, fading, own, stereo, released, used, sendUsed, openPrev, tstr] as [UnsafeMutablePointer<UInt8>] { p.deallocate() }
         for p in [send, sendL, sendR, duckCur, flagCur, meterL, meterR] { p.deallocate() }
-        for p in [track, trackId, note, liveId, serial, srcFrames, ftype, onsetCount] as [UnsafeMutablePointer<Int>] { p.deallocate() }
-        for p in [pos, endPos, beginPos, edge, noteRatio, rate, grainRatio, srcBpm, attackF, decaySec, hz, qDb] as [UnsafeMutablePointer<Double>] { p.deallocate() }
+        for p in [track, trackId, note, liveId, serial, srcFrames, ftype, onsetCount, warpN] as [UnsafeMutablePointer<Int>] { p.deallocate() }
+        for p in [pos, endPos, beginPos, edge, noteRatio, rate, grainRatio, srcBpm, attackF, decaySec, hz, qDb, warpU, warpP, uPos] as [UnsafeMutablePointer<Double>] { p.deallocate() }
         for p in [start, holdEnd, stopAt, fadeAt] as [UnsafeMutablePointer<Int64>] { p.deallocate() }
         for p in [decayK, env, fadeK, fadeG, level, pan, z, lockVal, busL, busR, outL, outR, volCur, gateCur, scratch] as [UnsafeMutablePointer<Float>] {
             p.deallocate()
@@ -364,12 +374,14 @@ public final class Sampler {
             let x: Float = st ? (pn <= 0 ? pn + 1 : pn) : (pn + 1) / 2
             let gc = cos(x * Float.pi / 2)
             let gs = sin(x * Float.pi / 2)
-            let rt = rate[v]
+            var rt: Double = rate[v]
+            let skip: Int = Int(Swift.max(0, Swift.min(Int64(m), start[v] - (blockStart + Int64(i)))))
+            // WARP: указатель u идёт со скоростью rate, отсчёт сэмпла — по карте; скорость куска — по карте.
+            if ts && warpN[v] > 0 && m > skip { rt = warpChunk(v, rt, m - skip) }
             // PTCH около остановки (|RATE| < 5 %) — тише до нуля, как у останавливающейся пластинки.
             let lv: Float = ts ? level[v] : level[v] * Float(Swift.min(1, Swift.abs(rt) * 20))
             let beat: Bool = tstr[v] == 2
             if ts {
-                let skip: Int = Int(Swift.max(0, Swift.min(Int64(m), start[v] - (blockStart + Int64(i)))))
                 if beat {
                     stretch.fill(v, l, r, frames, st, pos[v], rt, grainRatio[v], m, skip, beginPos[v], endPos[v])
                 } else {

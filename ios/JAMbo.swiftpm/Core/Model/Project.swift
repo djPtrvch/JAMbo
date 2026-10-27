@@ -52,6 +52,8 @@ public struct Track: Codable, Equatable, Sendable {
     /// Папка звуков дорожки (стрелки ◀ ▶ под окном сэмпла), маркеры нарезки по ключу сэмпла, громкость микшера (dB).
     public var folder: Folder = Folder()
     public var slices: [String: [SliceMark]] = [:]
+    /// Метки варпинга по ключу сэмпла (WARP; Warp.swift).
+    public var warps: [String: WarpInfo] = [:]
     public var vol: Double = Params.volDef
     /// SETTINGS → LEVEL RELATIVE (S9): подстройка громкости регулятором справа, dB вниз от громкости MIX
     /// (0 — как в MIX, volMin — тишина); итог — vol + trim; при LEVEL ABSOLUTE не действует.

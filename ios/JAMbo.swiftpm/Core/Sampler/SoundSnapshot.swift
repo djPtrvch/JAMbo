@@ -84,6 +84,12 @@ public struct SoundData {
     public var eOnsets: UnsafeMutablePointer<UnsafeMutablePointer<Double>?>
     public var eOnsetCount: UnsafeMutablePointer<Int>
     public var sliceAt: UnsafeMutablePointer<Double>
+    /// Варпинг (WARP, только TSTR; SoundWarp.swift): метки сэмпла — отрезок таблиц warpU (доля в отсчётах темпа файла)
+    /// и warpP (отсчёт сэмпла). Создаются после init снимка.
+    public var eWarpStart: UnsafeMutablePointer<Int32>? = nil
+    public var eWarpCount: UnsafeMutablePointer<Int32>? = nil
+    public var warpU: UnsafeMutablePointer<Double>? = nil
+    public var warpP: UnsafeMutablePointer<Double>? = nil
     public var sliceNote: UnsafeMutablePointer<Int32>
     /// Таблица WTABLE дорожки (указатели WtTable; кадров 0 — таблица ещё не готова, WTABLE молчит, как в вебе).
     var tableRef: UnsafeMutablePointer<WtRef>
@@ -254,6 +260,8 @@ public final class SoundSnapshot: @unchecked Sendable {
             eqOrder: .allocate(capacity: tracks)
         )
         d.rebind = rebind
+        SoundSnapshot.allocWarp(&d)
+        var wl = 0
         MasterChain.fill(d.master, project)
         if let m = master, m.count == MasterChain.Index.count {
             for k in 0..<m.count { d.master[k] = m[k] }
@@ -437,6 +445,7 @@ public final class SoundSnapshot: @unchecked Sendable {
                 d.eChannels[e] = Int32(s.channels)
                 // Темп файла — только у дорожки в TSTR (определяется один раз на сэмпл).
                 d.eBpm[e] = d.rateMode[u] != 0 ? s.loopBpm : 0
+                SoundSnapshot.putWarp(&d, e, &wl, d.rateMode[u] != 0 ? snd.warps?[key] : nil, s)
                 if d.rateMode[u] == 1 {
                     let o: OnsetList = s.onsets
                     d.eOnsets[e] = o.at
@@ -519,6 +528,7 @@ public final class SoundSnapshot: @unchecked Sendable {
         data.eOnsets.deallocate()
         data.eOnsetCount.deallocate()
         data.sliceAt.deallocate()
+        SoundSnapshot.freeWarp(data)
         data.sliceNote.deallocate()
         data.tableRef.deallocate()
         data.grainRef.deallocate()

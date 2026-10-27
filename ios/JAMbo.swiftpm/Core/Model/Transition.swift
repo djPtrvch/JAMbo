@@ -9,6 +9,8 @@ public struct TrackSound: Codable, Equatable, Sendable {
     public var params: [String: Double]
     public var folder: Folder
     public var slices: [String: [SliceMark]]
+    /// Метки варпинга (nil — нет; в прежних файлах поля нет).
+    public var warps: [String: WarpInfo]? = nil
     public var table: String
     /// Сэмпл GRANULAR (nil — нет; в прежних файлах поля нет).
     public var grain: String? = nil
@@ -23,14 +25,16 @@ extension Track {
     /// Звук дорожки (поля, которые сейчас действуют).
     public var sound: TrackSound {
         get {
-            return TrackSound(sample: sample, params: params, folder: folder, slices: slices, table: table,
-                              grain: grain.isEmpty ? nil : grain, assigns: assigns, eq: eq)
+            return TrackSound(sample: sample, params: params, folder: folder, slices: slices,
+                              warps: warps.isEmpty ? nil : warps, table: table, grain: grain.isEmpty ? nil : grain,
+                              assigns: assigns, eq: eq)
         }
         set {
             sample = newValue.sample
             params = newValue.params
             folder = newValue.folder
             slices = newValue.slices
+            warps = newValue.warps ?? [:]
             table = newValue.table
             grain = newValue.grain ?? ""
             assigns = newValue.assigns
