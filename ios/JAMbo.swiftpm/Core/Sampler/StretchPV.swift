@@ -82,16 +82,8 @@ final class Vocoder {
     let dc: UnsafeMutablePointer<Float>
     let ds: UnsafeMutablePointer<Float>
     let peaks: UnsafeMutablePointer<Int>
-    // Чтение кадра: позиции, целые (Int32 и Float), дробные, четыре соседних отсчёта, промежуточный.
-    let xd: UnsafeMutablePointer<Double>
-    let ki: UnsafeMutablePointer<Int32>
-    let kf: UnsafeMutablePointer<Float>
-    let fr: UnsafeMutablePointer<Float>
-    let g0: UnsafeMutablePointer<Float>
-    let g1: UnsafeMutablePointer<Float>
-    let g2: UnsafeMutablePointer<Float>
-    let g3: UnsafeMutablePointer<Float>
-    let t1: UnsafeMutablePointer<Float>
+    /// Чтение кадра из сэмпла (векторно); его ki, kf — рабочие буферы pvWrap.
+    let cub: PvCubic
     /// Выход куска.
     let outL: UnsafeMutablePointer<Float>
     let outR: UnsafeMutablePointer<Float>
@@ -183,24 +175,14 @@ final class Vocoder {
         ds = buf(B)
         peaks = .allocate(capacity: B)
         peaks.initialize(repeating: 0, count: B)
-        xd = .allocate(capacity: N)
-        xd.initialize(repeating: 0, count: N)
-        ki = .allocate(capacity: N)
-        ki.initialize(repeating: 0, count: N)
-        kf = buf(N)
-        fr = buf(N)
-        g0 = buf(N)
-        g1 = buf(N)
-        g2 = buf(N)
-        g3 = buf(N)
-        t1 = buf(N)
+        cub = PvCubic(cap: N)
         outL = buf(Stretcher.maxChunk)
         outR = buf(Stretcher.maxChunk)
     }
 
     deinit {
         for p in [win, winG, firstW, omg, ringL, ringR, prevAna, prevSyn, prevMag, instF, fL, fR, reL, imL, reR, imR,
-                  reM, imM, mag, ph, syn, dc, ds, kf, fr, g0, g1, g2, g3, t1, outL, outR] {
+                  reM, imM, mag, ph, syn, dc, ds, outL, outR] {
             p.deallocate()
         }
         ringAt.deallocate()
@@ -215,8 +197,6 @@ final class Vocoder {
         segLo.deallocate()
         segHi.deallocate()
         peaks.deallocate()
-        xd.deallocate()
-        ki.deallocate()
     }
 
     /// Новая нота голоса v: кольцо пустое, первый кадр — на первом отсчёте.
@@ -351,31 +331,8 @@ final class Vocoder {
                       _ hi: Double, _ out: UnsafeMutablePointer<Float>, raw: Bool) {
         let N = Vocoder.size
         let x0: Double = c - Double(N / 2) * step
-        let x1: Double = x0 + Double(N - 1) * step
-        let xmin: Double = Swift.min(x0, x1)
-        // Весь кадр внутри куска и сэмпла — векторно: позиции от base (индексы малы — точны и в Float), четыре
-        // соседних отсчёта, кубическая (Catmull-Rom) по Горнеру.
-        if xmin >= Swift.max(lo, 1) && Swift.max(x0, x1) < Swift.min(hi, Double(frames - 3)) {
-            let base = Int(xmin)
-            pvSplitRamp(x0 - Double(base), step, xd, ki, kf, fr, N)
-            let q = p + (base - 1)
-            pvGather(q, kf, ki, g0, N)
-            pvGather(q + 1, kf, ki, g1, N)
-            pvGather(q + 2, kf, ki, g2, N)
-            pvGather(q + 3, kf, ki, g3, N)
-            // g0…g3 — ym1, y0, y1, y2. c3 = 0.5·(y2 − ym1) + 1.5·(y0 − y1) → t1;
-            // c2 = (ym1 − 0.5·y2) + (2·y1 − 2.5·y0) → kf; c1 = 0.5·(y1 − ym1) → out.
-            pvSub(g3, g0, t1, N)
-            pvSub(g1, g2, kf, N)
-            pvSmsma(t1, 0.5, kf, 1.5, t1, N)
-            pvSmsma(g0, 1, g3, -0.5, kf, N)
-            pvSmsma(g2, 2, g1, -2.5, g3, N)
-            pvAdd(kf, g3, kf, N)
-            pvSmsma(g2, 0.5, g0, -0.5, out, N)
-            // y = ((c3·f + c2)·f + c1)·f + y0.
-            pvMa(t1, fr, kf, t1, N)
-            pvMa(t1, fr, out, t1, N)
-            pvMa(t1, fr, g1, out, N)
+        // Весь кадр внутри куска и сэмпла — векторно (PvCubic).
+        if cub.read(p, frames, x0, step, N, lo, hi, out) {
             if !raw { pvMul(out, win, out, N) }
             return
         }
@@ -503,7 +460,7 @@ final class Vocoder {
             if np == 0 {
                 pvSub(ph, pa, dc, B)
                 pvSma(omg, -ha, dc, dc, B)
-                pvWrap(dc, ki, kf, B)
+                pvWrap(dc, cub.ki, cub.kf, B)
                 pvSma(dc, iha, omg, fi, B)
             } else {
                 var p = 0
@@ -536,7 +493,7 @@ final class Vocoder {
                 p += 1
             }
         }
-        pvWrap(psy, ki, kf, B)
+        pvWrap(psy, cub.ki, cub.kf, B)
         pvSub(psy, ph, ds, B)
         pa.update(from: ph, count: B)
         pm.update(from: mag, count: B)

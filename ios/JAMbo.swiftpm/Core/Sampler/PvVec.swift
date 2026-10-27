@@ -183,13 +183,110 @@ func pvSplitRamp(_ start: Double, _ step: Double, _ xd: UnsafeMutablePointer<Dou
     #endif
 }
 
-/// o[i] = p[k[i]] (индексы — целые в Float, точные: k < 2^24).
-func pvGather(_ p: UnsafePointer<Float>, _ kf: UnsafePointer<Float>, _ ki: UnsafePointer<Int32>,
-              _ o: UnsafeMutablePointer<Float>, _ n: Int) {
+/// o[i] = p[k[i]] (индексы — целые ≥ 0 в Float, точные: k < 2^24).
+func pvGather(_ p: UnsafePointer<Float>, _ kf: UnsafePointer<Float>, _ o: UnsafeMutablePointer<Float>, _ n: Int) {
     #if canImport(Accelerate)
     vDSP_vindex(p, kf, 1, o, 1, vDSP_Length(n))
     #else
     var i = 0
-    while i < n { o[i] = p[Int(ki[i])]; i += 1 }
+    while i < n { o[i] = p[Int(kf[i])]; i += 1 }
     #endif
+}
+
+/// Σ a · b.
+func pvDot(_ a: UnsafePointer<Float>, _ b: UnsafePointer<Float>, _ n: Int) -> Float {
+    #if canImport(Accelerate)
+    var r: Float = 0
+    vDSP_dotpr(a, 1, b, 1, &r, vDSP_Length(n))
+    return r
+    #else
+    var r: Float = 0
+    var i = 0
+    while i < n { r += a[i] * b[i]; i += 1 }
+    return r
+    #endif
+}
+
+/// Σ a².
+func pvSumSq(_ a: UnsafePointer<Float>, _ n: Int) -> Float {
+    #if canImport(Accelerate)
+    var r: Float = 0
+    vDSP_svesq(a, 1, &r, vDSP_Length(n))
+    return r
+    #else
+    var r: Float = 0
+    var i = 0
+    while i < n { r += a[i] * a[i]; i += 1 }
+    return r
+    #endif
+}
+
+/// Кубическое чтение сэмпла (Catmull-Rom, как Sampler.cubic) векторно: n отсчётов в позициях x0 + i·step. Буферы —
+/// на cap отсчётов, создаются вне колбэка; ki и kf свободны между чтениями (рабочие буферы для вызывающего).
+final class PvCubic {
+    let cap: Int
+    let xd: UnsafeMutablePointer<Double>
+    let ki: UnsafeMutablePointer<Int32>
+    let kf: UnsafeMutablePointer<Float>
+    let fr: UnsafeMutablePointer<Float>
+    let g0: UnsafeMutablePointer<Float>
+    let g1: UnsafeMutablePointer<Float>
+    let g2: UnsafeMutablePointer<Float>
+    let g3: UnsafeMutablePointer<Float>
+    let t1: UnsafeMutablePointer<Float>
+
+    init(cap n: Int) {
+        cap = n
+        xd = .allocate(capacity: n)
+        xd.initialize(repeating: 0, count: n)
+        ki = .allocate(capacity: n)
+        ki.initialize(repeating: 0, count: n)
+        func buf() -> UnsafeMutablePointer<Float> {
+            let p = UnsafeMutablePointer<Float>.allocate(capacity: n)
+            p.initialize(repeating: 0, count: n)
+            return p
+        }
+        kf = buf()
+        fr = buf()
+        g0 = buf()
+        g1 = buf()
+        g2 = buf()
+        g3 = buf()
+        t1 = buf()
+    }
+
+    deinit {
+        for p in [kf, fr, g0, g1, g2, g3, t1] { p.deallocate() }
+        xd.deallocate()
+        ki.deallocate()
+    }
+
+    /// Все позиции в lo…hi и внутри сэмпла (1 ≤ x < frames − 3) — out и true; иначе false (читать по отсчётам).
+    func read(_ p: UnsafePointer<Float>, _ frames: Int, _ x0: Double, _ step: Double, _ n: Int, _ lo: Double,
+              _ hi: Double, _ out: UnsafeMutablePointer<Float>) -> Bool {
+        let x1: Double = x0 + Double(n - 1) * step
+        let xmin: Double = Swift.min(x0, x1)
+        if n > cap || xmin < Swift.max(lo, 1) || Swift.max(x0, x1) >= Swift.min(hi, Double(frames - 3)) { return false }
+        // Позиции — от base (индексы малы — точны и в Float); g0…g3 — ym1, y0, y1, y2.
+        let base = Int(xmin)
+        pvSplitRamp(x0 - Double(base), step, xd, ki, kf, fr, n)
+        let q = p + (base - 1)
+        pvGather(q, kf, g0, n)
+        pvGather(q + 1, kf, g1, n)
+        pvGather(q + 2, kf, g2, n)
+        pvGather(q + 3, kf, g3, n)
+        // c3 = 0.5·(y2 − ym1) + 1.5·(y0 − y1) → t1; c2 = (ym1 − 0.5·y2) + (2·y1 − 2.5·y0) → kf;
+        // c1 = 0.5·(y1 − ym1) → out; y = ((c3·f + c2)·f + c1)·f + y0.
+        pvSub(g3, g0, t1, n)
+        pvSub(g1, g2, kf, n)
+        pvSmsma(t1, 0.5, kf, 1.5, t1, n)
+        pvSmsma(g0, 1, g3, -0.5, kf, n)
+        pvSmsma(g2, 2, g1, -2.5, g3, n)
+        pvAdd(kf, g3, kf, n)
+        pvSmsma(g2, 0.5, g0, -0.5, out, n)
+        pvMa(t1, fr, kf, t1, n)
+        pvMa(t1, fr, out, t1, n)
+        pvMa(t1, fr, g1, out, n)
+        return true
+    }
 }

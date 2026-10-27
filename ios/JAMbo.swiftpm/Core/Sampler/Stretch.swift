@@ -5,6 +5,7 @@ import Foundation
 // со скоростью высоты (нота и Pitch) — высота не зависит от скорости. Новое зерно ищется возле указателя времени
 // (±288 отсчётов) там, где сэмпл лучше всего продолжает прежнее зерно (нормированная корреляция по 96 точкам через 4) —
 // без биений и провалов на тональном звуке. Первое зерно ноты — без нарастания (атака удара не смазывается).
+// Нагрузка: зёрна читаются кусками до границы зерна, поиск — по кандидатам целиком (PvVec: vDSP на iPad).
 // Всё — в колбэке, без выделений памяти: состояние голосов — массивы указателей.
 
 final class Stretcher {
@@ -35,6 +36,13 @@ final class Stretcher {
     /// Поиск зерна: продолжение звучащего зерна и смещения точек.
     let target: UnsafeMutablePointer<Float>
     let offsets: UnsafeMutablePointer<Double>
+    /// Поиск векторно: индексы точек от b0 (целые), они же от наименьшего (Float), точки кандидата.
+    let pIdx: UnsafeMutablePointer<Int>
+    let pRel: UnsafeMutablePointer<Float>
+    let pVal: UnsafeMutablePointer<Float>
+    /// Чтение зерна (векторно) и его кусок.
+    let cub: PvCubic
+    let tmp: UnsafeMutablePointer<Float>
 
     init(slots n: Int) {
         slots = n
@@ -65,6 +73,15 @@ final class Stretcher {
         target.initialize(repeating: 0, count: Stretcher.corrPoints)
         offsets = .allocate(capacity: Stretcher.corrPoints)
         offsets.initialize(repeating: 0, count: Stretcher.corrPoints)
+        pIdx = .allocate(capacity: Stretcher.corrPoints)
+        pIdx.initialize(repeating: 0, count: Stretcher.corrPoints)
+        pRel = .allocate(capacity: Stretcher.corrPoints)
+        pRel.initialize(repeating: 0, count: Stretcher.corrPoints)
+        pVal = .allocate(capacity: Stretcher.corrPoints)
+        pVal.initialize(repeating: 0, count: Stretcher.corrPoints)
+        cub = PvCubic(cap: Stretcher.maxChunk)
+        tmp = .allocate(capacity: Stretcher.maxChunk)
+        tmp.initialize(repeating: 0, count: Stretcher.maxChunk)
     }
 
     deinit {
@@ -79,6 +96,10 @@ final class Stretcher {
         outR.deallocate()
         target.deallocate()
         offsets.deallocate()
+        pIdx.deallocate()
+        pRel.deallocate()
+        pVal.deallocate()
+        tmp.deallocate()
     }
 
     /// Новая нота голоса v: зёрен нет, первое начнётся на первом отсчёте.
@@ -125,6 +146,26 @@ final class Stretcher {
             off[k] = Double(k) * cs * step
             k += 1
         }
+        // Точка k кандидата c = b0 + d — отсчёт Int(b0 + off[k]) + d: индексы — один раз на зерно; кандидат целиком
+        // внутри сэмпла — точки одним сбором, корреляция векторно.
+        var iMin = Int.max
+        var iMax = Int.min
+        var allPos = true
+        k = 0
+        while k < pts {
+            let x: Double = b0 + off[k]
+            if x < 0 { allPos = false }
+            let i: Int = x < 0 ? 0 : Int(x)
+            pIdx[k] = i
+            if i < iMin { iMin = i }
+            if i > iMax { iMax = i }
+            k += 1
+        }
+        k = 0
+        while k < pts {
+            pRel[k] = Float(pIdx[k] - iMin)
+            k += 1
+        }
         let n: Double = Double(frames)
         var best: Double = b0
         var bestScore: Float = -Float.greatestFiniteMagnitude
@@ -134,15 +175,21 @@ final class Stretcher {
             if c >= lo && c <= hi {
                 var xy: Float = 0
                 var yy: Float = 1e-9
-                k = 0
-                while k < pts {
-                    let x: Double = c + off[k]
-                    if x >= 0 && x < n {
-                        let y: Float = l[Int(x)]
-                        xy += tgt[k] * y
-                        yy += y * y
+                if allPos && iMin + d >= 0 && iMax + d < frames {
+                    pvGather(l + (iMin + d), pRel, pVal, pts)
+                    xy = pvDot(tgt, pVal, pts)
+                    yy += pvSumSq(pVal, pts)
+                } else {
+                    k = 0
+                    while k < pts {
+                        let x: Double = c + off[k]
+                        if x >= 0 && x < n {
+                            let y: Float = l[Int(x)]
+                            xy += tgt[k] * y
+                            yy += y * y
+                        }
+                        k += 1
                     }
-                    k += 1
                 }
                 let sc: Float = xy / yy.squareRoot()
                 if sc > bestScore {
@@ -186,27 +233,49 @@ final class Stretcher {
                 gFirst[k] = prev < 0 ? 1 : 0
                 phase[v] = h
             }
-            var sl: Float = 0
-            var sr: Float = 0
+            // Кусок до следующего зерна: зёрна в нём не начинаются; у каждого — свои границы (конец, нарастание).
+            let len: Int = Swift.min(m - j, phase[v])
+            (outL + j).update(repeating: 0, count: len)
+            if stereo { (outR + j).update(repeating: 0, count: len) }
             var k = a0
             while k < a0 + 2 {
-                let age = gAge[k]
-                if age < g {
-                    let wk: Float = gFirst[k] != 0 && age < h ? 1 : w[age]
-                    let x: Double = gPos[k]
-                    let yl: Float = Stretcher.cubic(l, frames, x)
-                    sl += yl * wk
-                    sr += (stereo ? Stretcher.cubic(r, frames, x) : yl) * wk
-                    gPos[k] = x + gDir[k] * ratio
-                    gAge[k] = age + 1
+                var o = 0
+                while o < len && gAge[k] < g {
+                    let age = gAge[k]
+                    let flat: Bool = gFirst[k] != 0 && age < h
+                    var n: Int = Swift.min(len - o, g - age)
+                    if flat { n = Swift.min(n, h - age) }
+                    let x0: Double = gPos[k]
+                    let st: Double = gDir[k] * ratio
+                    grain(l, frames, x0, st, n, outL + j + o, flat ? nil : w + age)
+                    if stereo { grain(r, frames, x0, st, n, outR + j + o, flat ? nil : w + age) }
+                    gPos[k] = x0 + st * Double(n)
+                    gAge[k] = age + n
+                    o += n
                 }
                 k += 1
             }
-            outL[j] = sl
-            outR[j] = sr
-            phase[v] -= 1
-            t += speed
-            j += 1
+            if !stereo { (outR + j).update(from: outL + j, count: len) }
+            phase[v] -= len
+            t += speed * Double(len)
+            j += len
+        }
+    }
+
+    /// n отсчётов зерна из p (позиции x0 + i·step, кубически) с окном w (nil — без окна) — прибавить к out.
+    private func grain(_ p: UnsafeMutablePointer<Float>, _ frames: Int, _ x0: Double, _ step: Double, _ n: Int,
+                       _ out: UnsafeMutablePointer<Float>, _ w: UnsafeMutablePointer<Float>?) {
+        if !cub.read(p, frames, x0, step, n, 0, Double(frames), tmp) {
+            var i = 0
+            while i < n {
+                tmp[i] = Stretcher.cubic(p, frames, x0 + Double(i) * step)
+                i += 1
+            }
+        }
+        if let ww = w {
+            pvMa(tmp, ww, out, out, n)
+        } else {
+            pvAdd(tmp, out, out, n)
         }
     }
 }
