@@ -173,14 +173,39 @@ enum EditorWarpDraw {
 
     /// Метки: линия во всю высоту и флажок острием вверх с тактом.долей; выделенная (sel) и та, что тянут, — жёлтые.
     /// Нет метки начала — у начала сэмпла серый флажок START (потянуть — метка начала).
-    static func flags(_ ctx: GraphicsContext, _ g: EditorGeometry, _ wv: WarpView, _ sel: Int, _ c: EditorColors) {
+    /// Сверху у каждой метки (кроме метки начала) — флажок без подписи острием вниз; moving — метку тянут за него:
+    /// линия и флажки — у пальца (x).
+    static func flags(_ ctx: GraphicsContext, _ g: EditorGeometry, _ wv: WarpView, _ sel: Int,
+                      _ moving: (idx: Int, x: CGFloat)?, _ c: EditorColors) {
         let h: CGFloat = g.size.height
         if let s = startX(g, wv) { flag(ctx, s, "START", h, c.dim, c) }
         for (k, b) in wv.map.beats.enumerated() {
-            let x: CGFloat = g.x(wv.frac(beat: b))
+            var x: CGFloat = g.x(wv.frac(beat: b))
+            if let m = moving, m.idx == k { x = m.x }
             if x < -60 || x > g.size.width + 60 { continue }
-            flag(ctx, x, WarpView.label(b), h, sel == k ? c.accent : c.ink, c)
+            let col: Color = sel == k ? c.accent : c.ink
+            if wv.map.pos[k] >= WarpMap.minFrames { topFlag(ctx, x, col) }
+            flag(ctx, x, WarpView.label(b), h, col, c)
         }
+    }
+
+    /// Верхний флажок: по центру линии метки, острием вниз, к верху формы волны.
+    static func topRect(_ x: CGFloat) -> CGRect {
+        return CGRect(x: x - 12, y: SampleEditor.flagY, width: 24, height: SampleEditor.flagH)
+    }
+
+    private static func topFlag(_ ctx: GraphicsContext, _ x: CGFloat, _ col: Color) {
+        let r = topRect(x)
+        let tipY: CGFloat = SampleEditor.top - 2
+        var p = Path()
+        p.move(to: CGPoint(x: r.minX, y: r.minY))
+        p.addLine(to: CGPoint(x: r.maxX, y: r.minY))
+        p.addLine(to: CGPoint(x: r.maxX, y: r.maxY))
+        p.addLine(to: CGPoint(x: x + 0.5, y: tipY))
+        p.addLine(to: CGPoint(x: r.minX, y: r.maxY))
+        p.closeSubpath()
+        ctx.fill(p, with: .color(col))
+        ctx.fill(Path(CGRect(x: x.rounded(), y: tipY, width: 1, height: SampleEditor.top - tipY)), with: .color(col))
     }
 
     /// Флажок START (нет метки у начала сэмпла): место по карте; nil — метка начала есть.

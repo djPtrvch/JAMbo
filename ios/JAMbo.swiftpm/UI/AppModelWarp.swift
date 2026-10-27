@@ -73,6 +73,13 @@ extension AppModel {
         editTrack { t in t.moveWarp(key, idx, beat: beat) }
     }
 
+    /// Верхний флажок: метка idx — в место сэмпла at (доля длины) на долю beat.
+    func placeWarp(_ idx: Int, at: Double, beat: Double) {
+        let key = editorKey
+        guard !key.isEmpty, let d = sample(key) else { return }
+        editTrack { t in t.placeWarp(key, idx, at: at, beat: beat, frames: d.frames) }
+    }
+
     func deleteWarp(_ idx: Int) {
         let key = editorKey
         if key.isEmpty { return }

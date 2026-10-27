@@ -50,6 +50,13 @@ final class WarpTests: XCTestCase {
         // Доля — между соседями.
         t.moveWarp(key, 0, beat: 5)
         XCTAssertEqual(t.warpInfo(key).marks[0].beat, 3 - WarpMap.minBeat, accuracy: 1e-9)
+        // Верхний флажок: место и доля — в пределах соседей.
+        t.placeWarp(key, 1, at: 0.9, beat: 4.5, frames: 96000)
+        XCTAssertEqual(t.warpInfo(key).marks[1].at, 0.9, accuracy: 1e-9)
+        XCTAssertEqual(t.warpInfo(key).marks[1].beat, 4.5, accuracy: 1e-9)
+        t.placeWarp(key, 1, at: 0.1, beat: -3, frames: 96000)
+        XCTAssertEqual(t.warpInfo(key).marks[1].at, t.warpInfo(key).marks[0].at + 48.0 / 96000, accuracy: 1e-9)
+        XCTAssertEqual(t.warpInfo(key).marks[1].beat, t.warpInfo(key).marks[0].beat + WarpMap.minBeat, accuracy: 1e-9)
         t.setWarpBpm(key, 1000)
         XCTAssertEqual(t.warpInfo(key).bpm, WarpMap.bpmMax)
         // В проекте и в звуке клипа (TrackSound).

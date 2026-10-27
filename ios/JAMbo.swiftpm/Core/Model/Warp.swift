@@ -152,6 +152,22 @@ extension Track {
         putWarp(key, w)
     }
 
+    /// Верхний флажок: метка idx — в другое место сэмпла (at, доля длины) и на долю beat; место и доля — в пределах
+    /// соседей (не ближе 1 мс и 1/64 доли).
+    public mutating func placeWarp(_ key: String, _ idx: Int, at: Double, beat: Double, frames: Int) {
+        var w = warpInfo(key)
+        guard idx >= 0, idx < w.marks.count, frames > 0 else { return }
+        let gap: Double = WarpMap.minFrames / Double(frames)
+        let aLo: Double = idx > 0 ? w.marks[idx - 1].at + gap : 0
+        let aHi: Double = idx + 1 < w.marks.count ? w.marks[idx + 1].at - gap : 1
+        let bLo: Double = idx > 0 ? w.marks[idx - 1].beat + WarpMap.minBeat : -Double.greatestFiniteMagnitude
+        let bHi: Double = idx + 1 < w.marks.count ? w.marks[idx + 1].beat - WarpMap.minBeat : Double.greatestFiniteMagnitude
+        if aLo > aHi || bLo > bHi { return }
+        w.marks[idx].at = Swift.min(aHi, Swift.max(aLo, at))
+        w.marks[idx].beat = Swift.min(bHi, Swift.max(bLo, beat))
+        putWarp(key, w)
+    }
+
     public mutating func deleteWarp(_ key: String, _ idx: Int) {
         var w = warpInfo(key)
         guard idx >= 0, idx < w.marks.count else { return }
