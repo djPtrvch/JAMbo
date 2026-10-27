@@ -3,7 +3,7 @@ import SwiftUI
 // Картинка FX в окне сэмпла (docs/ai/fx-eq.md «Анимация FX»): пока палец на ручке FX (или ручку FX крутят с MIDI),
 // поверх превью сэмпла или синта — картинка её колонки: Reverb, Delay, Drive, Duck. Раскладка и поле — как у окна
 // синта (SynthInfo): заголовок, поле 64×64 (до 144 pt, элементы в 4…60 × 6…58, как у иконок ударных), линии вдвое тоньше иконок. Неподвижна,
-// меняется только от ручек (кроме точки Duck). Цвета — как у иконок движков: звук — icon, второстепенное (контуры DECAY,
+// меняется только от ручек (кроме точки Duck); под полем — четыре ручки колонки «подпись · значение», как у движков. Цвета — как у иконок движков: звук — icon, второстепенное (контуры DECAY,
 // чистый синус Drive, огибающая фильтра) — icon2. Геометрия — FxPicture (Core).
 
 struct FxPreview: View {
@@ -17,7 +17,7 @@ struct FxPreview: View {
         return VStack(alignment: .leading, spacing: 4) {
             header(col)
                 .padding(.top, 6)
-            // Поле — на том же месте, что иконка движка: под ним место строк ручек окна синта (пустое).
+            // Поле — на том же месте, что иконка движка: под ним строки ручек, как в окне синта.
             VStack(alignment: .leading, spacing: 8) {
                 ZStack {
                     picture(col)
@@ -26,7 +26,7 @@ struct FxPreview: View {
                 .aspectRatio(1, contentMode: .fit)
                 .frame(maxWidth: .infinity, maxHeight: 144)
                 .offset(y: 3)
-                FxPreview.rowsSpace
+                rows(col)
                     .padding(.top, 14)
             }
             .padding(.horizontal, 6)
@@ -38,12 +38,18 @@ struct FxPreview: View {
         .allowsHitTesting(false)
     }
 
-    /// Место четырёх строк ручек окна синта (та же высота, без текста).
-    static var rowsSpace: some View {
+    /// Под картинкой — четыре ручки её колонки «подпись · значение», как строки ручек окна синта.
+    private func rows(_ col: Int) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            ForEach(0..<4, id: \.self) { _ in Text(" ").font(.system(size: 11)) }
+            ForEach(0..<4, id: \.self) { r in
+                let p: ParamDef = model.fxParam(r * 4 + col)
+                Text("\(p.label) · \(p.format(model.fxShown(p.id)))")
+                    .font(.system(size: 11))
+                    .tracking(0.44)
+                    .foregroundStyle(theme.text)
+                    .lineLimit(1)
+            }
         }
-        .hidden()
     }
 
     private func header(_ col: Int) -> some View {

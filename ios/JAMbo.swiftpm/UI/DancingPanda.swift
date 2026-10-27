@@ -3,7 +3,8 @@ import SwiftUI
 // Панда-пасхалка (прототип пользователя DancingPanda.swift): окно MIX слева, SHIFT + тап — панда и обратно
 // (PandaWindow.swift). Отличия от прототипа: состояние и фаза долей читаются каждый кадр (stateProvider,
 // beatPhaseProvider — аудио-часы секвенсора), переходы сна и бодрствования, подъём рук и рот — плавные (PandaMotion),
-// кадры — до 30 в секунду, цвета наушников — из темы (accent, rec), без #Preview.
+// кадры — до 30 в секунду, цвета наушников — из темы (accent, rec), без #Preview. Уши, руки и ноги — чёрные
+// (PandaPalette.limb, вторая версия прототипа).
 
 // MARK: - Palette (под тёмный UI JAMbo)
 
@@ -14,6 +15,7 @@ enum PandaPalette {
     static let cheek  = Color(red: 1.0, green: 0.55, blue: 0.5).opacity(0.35)
     static let accent = Color(red: 1.0, green: 0.80, blue: 0.10) // обычные наушники
     static let rec    = Color(red: 0.95, green: 0.22, blue: 0.20) // наушники при записи
+    static let limb   = Color.black // уши, руки, ноги
 }
 
 // MARK: - Input
@@ -121,15 +123,15 @@ private struct PandaCanvas: View {
                     .position(x: s * 0.5, y: s * 0.93)
 
                 ZStack {
-                    Circle().fill(PandaPalette.dark).frame(width: s * 0.208)
+                    Circle().fill(PandaPalette.limb).frame(width: s * 0.208)
                         .position(x: s * 0.31, y: s * 0.18)
-                    Circle().fill(PandaPalette.dark).frame(width: s * 0.208)
+                    Circle().fill(PandaPalette.limb).frame(width: s * 0.208)
                         .position(x: s * 0.69, y: s * 0.18)
 
-                    Capsule().fill(PandaPalette.dark)
+                    Capsule().fill(PandaPalette.limb)
                         .frame(width: s * 0.177, height: s * 0.246)
                         .position(x: s * 0.37, y: s * 0.82)
-                    Capsule().fill(PandaPalette.dark)
+                    Capsule().fill(PandaPalette.limb)
                         .frame(width: s * 0.177, height: s * 0.246)
                         .position(x: s * 0.63, y: s * 0.82)
 
@@ -158,7 +160,7 @@ private struct PandaCanvas: View {
     // MARK: parts
 
     private func arm(left: Bool, angle: Double, s: CGFloat) -> some View {
-        Capsule().fill(PandaPalette.dark)
+        Capsule().fill(PandaPalette.limb)
             .frame(width: s * 0.11, height: s * 0.26)
             .rotationEffect(.degrees(angle), anchor: .top)
             .position(x: s * (left ? 0.27 : 0.73), y: s * 0.60)
