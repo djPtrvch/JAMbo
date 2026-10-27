@@ -1,6 +1,6 @@
 import Foundation
 
-// Профили коррекции наушников в файле (IMPORT и EXPORT в PHONES PRESETS): текст в формате AutoEQ ParametricEQ.txt
+// Профили коррекции наушников в файле (IMPORT и EXPORT в CORRECT PRESETS): текст в формате AutoEQ ParametricEQ.txt
 // и Equalizer APO — строки «Preamp: −6.1 dB» и «Filter 1: ON PK Fc 105 Hz Gain −4.2 dB Q 0.70». Типы: PK — bell,
 // LSC/LS — low shelf, HSC/HS — high shelf, HP/HPQ — low cut, LP/LPQ — high cut, NO — notch (Q у shelf не
 // учитывается: у наших S = 1, Q ≈ 0,71). Preamp из файла не берётся — у коррекции он свой (EqSpec.preamp).

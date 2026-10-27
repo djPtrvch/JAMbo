@@ -7,7 +7,7 @@ struct PhonesFiles: ViewModifier {
     func body(content: Content) -> some View {
         content
             .fileMover(isPresented: exportShown, file: model.phonesExported) { _ in model.phonesExported = nil }
-            .alert("Phones profiles", isPresented: noteShown) {
+            .alert("Correct EQ profiles", isPresented: noteShown) {
                 Button("OK", role: .cancel) { model.phonesNote = nil }
             } message: {
                 Text(model.phonesNote ?? "")

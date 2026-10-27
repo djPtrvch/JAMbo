@@ -21,9 +21,9 @@ extension AppModel {
 
     var eqTarget: Eq { return phonesShown ? phonesEq : project.eq(eqChannel) }
 
-    /// Имя канала над MIX: дорожка, MASTER или PHONES (коррекция наушников).
+    /// Имя канала над MIX: дорожка, MASTER или CORRECT (коррекция наушников).
     var eqTargetName: String {
-        if phonesShown { return "PHONES" }
+        if phonesShown { return "CORRECT" }
         return channel == .track ? track.name : "MASTER"
     }
 
@@ -247,7 +247,7 @@ extension AppModel {
         UserDefaults.standard.set(name, forKey: AppModel.phonesNameKey)
     }
 
-    /// IMPORT в PHONES PRESETS: выбор текстовых файлов профилей.
+    /// IMPORT в CORRECT PRESETS: выбор текстовых файлов профилей.
     func choosePhonesFiles() {
         eqPresetMenu = nil
         importingPhones = true
@@ -295,7 +295,7 @@ extension AppModel {
         phonesNote = lines.joined(separator: "\n")
     }
 
-    /// EXPORT в PHONES PRESETS: файл — в окно сохранения в «Файлы» (EqView).
+    /// EXPORT в CORRECT PRESETS: файл — в окно сохранения в «Файлы» (EqView).
     func exportPhones() {
         eqPresetMenu = nil
         phonesExported = phonesExportFile()

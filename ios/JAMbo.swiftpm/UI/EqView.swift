@@ -203,7 +203,7 @@ struct EqBar: View {
         return x0 + CGFloat(i) * col
     }
 
-    /// Имя канала: тап — у дорожки меню дорожек для сравнения, у мастера — окно коррекции наушников (PHONES EQ)
+    /// Имя канала: тап — у дорожки меню дорожек для сравнения, у мастера — окно коррекции наушников (CORRECT EQ)
     /// и обратно.
     private var name: some View {
         let lit: Bool = model.phonesShown || model.eqCompareShown != nil

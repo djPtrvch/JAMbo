@@ -32,7 +32,7 @@ struct EqPresetsMenu: View {
         let phones: Bool = model.phonesShown
         let saved: Bool = model.defaultSaved == .eq
         return VStack(alignment: .leading, spacing: 8) {
-            MenuHead(title: phones ? "PHONES PRESETS" : "EQ PRESETS")
+            MenuHead(title: phones ? "CORRECT PRESETS" : "EQ PRESETS")
             MenuItem(title: "SAVE") {
                 model.eqPresetMenu = nil
                 model.eqInputAsk = .save
