@@ -1,7 +1,8 @@
 // Игра аранжировки в колбэке (S15, docs/ai/arranger.md): курсор идёт всегда, пока идёт игра; дорожка, которая
 // идёт по таймлайну, играет блок под курсором — клип блока с его места (без ожидания конца прохода), вне блоков
 // молчит. Клип из сетки уводит дорожку с таймлайна (Launcher.apply), возврат — сразу с позиции курсора. Петля —
-// [loopFrom, loopTo); все дорожки на таймлайне, петли нет и курсор прошёл последний блок — стоп.
+// [loopFrom, loopTo) — только если хоть одна дорожка идёт по таймлайну (игра из сетки и её запись в аранжировку
+// идут дальше без петли); все дорожки на таймлайне, петли нет и курсор прошёл последний блок — стоп.
 
 extension Launcher {
     /// Дорожка t идёт по таймлайну (или в сетке); изменение уходит в интерфейс.
@@ -33,16 +34,28 @@ extension Launcher {
         for t in 0..<SeqData.maxTracks where follow[t] { arrDirty[t] = true }
     }
 
-    /// Позиция курсора на тике tick (после старта — следующий шаг; петля). false — аранжировка кончилась.
+    /// Позиция курсора на тике tick (после старта — следующий шаг; петля, если хоть одна дорожка на таймлайне).
+    /// false — аранжировка кончилась.
     func arrangeStep(_ d: SeqData, tick: Int) -> Bool {
         if tick > 0 {
             let prev: Int = arrPos
             arrPos += 1
-            if d.loop && prev < d.loopTo && arrPos >= d.loopTo { arrPos = d.loopFrom }
+            if d.loop && prev < d.loopTo && arrPos >= d.loopTo && anyFollow(d) { arrPos = d.loopFrom }
         }
         out.push(.arrange(pos: arrPos))
         if d.loop || d.arrEnd <= 0 || arrPos < d.arrEnd { return true }
         for t in 0..<d.trackCount where !follow[t] { return true }
+        return false
+    }
+
+    /// Хоть одна дорожка идёт по таймлайну.
+    @inline(__always)
+    func anyFollow(_ d: SeqData) -> Bool {
+        var t: Int = 0
+        while t < d.trackCount {
+            if follow[t] { return true }
+            t += 1
+        }
         return false
     }
 

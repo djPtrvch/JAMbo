@@ -322,7 +322,7 @@ struct ViewButton: View {
             .foregroundStyle(on ? theme.bg : theme.text)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(on ? theme.text : theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
-            .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(ring ? theme.rec : Color.clear, lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: Layout.radius).strokeBorder(ring ? theme.rec : Color.clear, lineWidth: 3))
             .contentShape(Rectangle())
             .onTapGesture { action() }
     }

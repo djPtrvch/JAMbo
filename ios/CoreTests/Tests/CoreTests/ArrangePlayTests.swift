@@ -128,6 +128,18 @@ final class ArrangePlayTests: XCTestCase {
         XCTAssertEqual(cursor(out).prefix(3).map { $0 }, [0, 1, 2], "курсор идёт и в сетке")
     }
 
+    /// Игра из сетки (запись аранжировки): петля не действует — курсор идёт дальше.
+    func testGridIgnoresLoop() {
+        var p = project()
+        p.setLoop(4, 8)
+        p.arrange.loop = true
+        let core = AudioCore()
+        core.publish(p)
+        core.events.push(.play(true))
+        let out = run(core, steps: 12)
+        XCTAssertEqual(cursor(out).prefix(12).map { $0 }, Array(0..<12))
+    }
+
     func testLeaveArrangeKeepsClipsPlaying() {
         var p = project()
         p.tracks[0].placeBlock(ArrBlock(clip: 0, start: 0, length: 8))
