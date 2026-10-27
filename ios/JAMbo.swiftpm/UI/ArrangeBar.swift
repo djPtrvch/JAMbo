@@ -26,7 +26,7 @@ struct ArrangeBar: View {
             Spacer(minLength: 0)
             HStack(spacing: Layout.gap) {
                 // Запись (REC + PLAY + AUTO) — красная обводка.
-                ArrBarButton(on: model.arrAuto, enabled: true, ring: model.arrRecording, action: { model.toggleArrAuto() }) { c in
+                ArrBarButton(on: model.arrAuto, enabled: true, ring: model.arrKnobRec, action: { model.toggleArrAuto() }) { c in
                     ArrWaveIcon(color: c)
                 }
                 ArrBarButton(on: model.arrKnobs, enabled: true, action: { model.arrKnobs.toggle() }) { c in

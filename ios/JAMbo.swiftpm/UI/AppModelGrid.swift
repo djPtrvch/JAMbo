@@ -71,6 +71,7 @@ extension AppModel {
 
     /// Запуск клипа k (или Launcher.stop) дорожки i: при игре — с конца прохода, без игры — сразу.
     func queueClip(_ i: Int, _ k: Int) {
+        if timelineLock { return }
         if playing {
             audio.core.events.push(.launch(track: i, slot: k))
             return
@@ -89,6 +90,7 @@ extension AppModel {
 
     /// Тап по строке: при игре — с начала такта (повторный — отмена), без игры — сразу.
     func queueScene(_ k: Int, atPass: Bool = false) {
+        if timelineLock { return }
         if playing {
             audio.core.events.push(.scene(row: k, atPass: atPass))
             return
@@ -114,6 +116,11 @@ extension AppModel {
         guard i < project.tracks.count else { return }
         // Пустая ячейка PREV (у дорожки не было старого паттерна) не нажимается.
         if isPrev(k) && !project.tracks[i].clipFilled(k) { return }
+        // Играет таймлайн — клип не запускается (сетка и аранжировщик разделены): ячейка вспыхивает красным.
+        if timelineLock {
+            deny(CellRef(track: i, row: k))
+            return
+        }
         select(track: i)
         setEditSlot(i, k)
         let t = project.tracks[i]
@@ -135,7 +142,8 @@ extension AppModel {
         if isPrev(k) && !project.tracks[i].clipFilled(k) { return }
         select(track: i)
         let t = project.tracks[i]
-        let idle: Bool = !playing || t.stopped
+        // Играет таймлайн — только правка: активная ячейка дорожки не меняется.
+        let idle: Bool = !timelineLock && (!playing || t.stopped)
         if !t.clipFilled(k) {
             if idle { mutatePlay({ p in p.tracks[i].moveSlot(k); p.tracks[i].stopped = true }, publish: true) }
             openClip(i, k)

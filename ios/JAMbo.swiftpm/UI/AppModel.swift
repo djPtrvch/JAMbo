@@ -98,8 +98,12 @@ final class AppModel {
     private(set) var settings: AppSettings = AppModel.loadSettings()
     /// REC: ноты клавиатуры пишутся в секвенсор, пока идёт игра.
     var recOn: Bool = false
-    /// AUTO в аранжировщике (S15e): REC + PLAY + AUTO — запуски клипов в сетке пишутся блоками (ноты не пишутся).
+    /// AUTO в аранжировщике: окно автоматизации; REC + PLAY + AUTO при игре по таймлайну — запись ручек в кривые.
     var arrAuto: Bool = false
+    /// Кнопка записи аранжировки под STEPS сетки: пока играет сетка, запуски клипов пишутся на таймлайн блоками.
+    var arrRecArm: Bool = false
+    /// Игра по таймлайну (PLAY в окне аранжировщика): сетка и аранжировщик разделены — клипы в сетке не запускаются.
+    var arrPlay: Bool = false
     /// Ручка, кривая которой открыта в окне AUTO (id параметра).
     var arrAutoId: String = ""
     /// Запись ручек в аранжировку (S15f3): кусок на ручку (ключ — дорожка·ArrAutoTarget.count + цель), кривые под рукой,
@@ -418,12 +422,14 @@ final class AppModel {
                 from = 0
                 arrCursor = 0
             }
+            arrPlay = arrangeView
             audio.core.events.push(.arrange(on: arrangeView, from: from))
             live.stopped()
             live.begin(project, arrange: arrangeView)
             syncArrRecord(from: from)
         } else {
             arrCursor = live.arrPos
+            arrPlay = false
             syncArrRecord()
             live.stopped()
         }
@@ -436,6 +442,7 @@ final class AppModel {
         if playing { return }
         ensureAudio()
         playing = true
+        arrPlay = arrangeView
         endRecTake()
         live.stopped()
         live.begin(project, arrange: arrangeView)
@@ -468,6 +475,7 @@ final class AppModel {
             if playing {
                 playing = false
                 arrCursor = live.arrPos
+                arrPlay = false
                 syncArrRecord()
                 releaseHolds()
                 endRecTake()

@@ -69,7 +69,7 @@ struct PatternGrid: View {
     private func freeSide(_ g: GridGeometry) -> some View {
         let w = model.gridWindow
         let fader: Bool = model.mix != nil && model.settings.mixCrossfader
-        let n: Int = (fader ? 0 : 3) + (w.maxTop > 0 ? 2 : 0)
+        let n: Int = (fader ? 0 : 4) + (w.maxTop > 0 ? 2 : 0)
         let h: CGFloat = g.rowH
         let top: CGFloat = CGFloat(n) * (h + PatternGrid.rowGap)
         if !fader && top < g.size.height {
@@ -572,6 +572,7 @@ struct GridSideButtons: View {
                     BurgerButton { model.gridMenuOpen = true }.frame(height: h)
                     loopButton.frame(height: h)
                     stepsButton.frame(height: h)
+                    GridArrRecButton(model: model).frame(height: h)
                 }
                 if scroll {
                     arrow("▲", enabled: canUp || (model.project.arrowSwitch && model.playing)) { model.gridArrow(-1) }.frame(height: h).midiTarget(model, "GRID ▲")

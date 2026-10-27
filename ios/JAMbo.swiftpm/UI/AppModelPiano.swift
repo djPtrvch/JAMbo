@@ -166,7 +166,7 @@ extension AppModel {
         liveNoteOn(track: ti, notes: notes, id: id, velocity: velocity)
         var recIndex: Int? = nil
         // С AUTO запись — аранжировки, ноты в паттерн не пишутся.
-        if recOn && playing && !arrAuto && heldSteps.isEmpty && channel == .track {
+        if recOn && playing && !(arrAuto && arrPlay) && heldSteps.isEmpty && channel == .track {
             recIndex = record(track: ti, notes: notes, velocity: settings.velocity ? velocity : nil)
         } else if own {
             inputNotes()

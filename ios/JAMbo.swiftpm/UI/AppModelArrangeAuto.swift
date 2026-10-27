@@ -99,9 +99,9 @@ extension AppModel {
         return autoHeld.contains(key)
     }
 
-    /// Пишется ли поворот ручки id: REC + PLAY + AUTO, ручка дорожки (не FX).
+    /// Пишется ли поворот ручки id: REC + PLAY + AUTO при игре по таймлайну, ручка дорожки (не FX).
     func autoRecording(_ id: String) -> Bool {
-        return arrRecording && channel == .track && !fxMode && ArrAutoTarget.index(id) != nil
+        return arrKnobRec && channel == .track && !fxMode && ArrAutoTarget.index(id) != nil
     }
 
     private func autoKey(_ t: Int, _ id: String) -> Int? {

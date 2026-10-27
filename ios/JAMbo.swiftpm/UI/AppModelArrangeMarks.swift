@@ -143,26 +143,37 @@ extension AppModel {
         arrInserted = sel
     }
 
-    // MARK: — запись с AUTO (S15e)
+    // MARK: — запись аранжировки из сетки и запись ручек
 
-    /// Идёт запись аранжировки: REC + PLAY + AUTO.
-    var arrRecording: Bool { return recOn && playing && arrAuto }
+    /// Идёт запись аранжировки: кнопка записи под STEPS сетки включена и играет сетка (не таймлайн).
+    var arrRecording: Bool { return arrRecArm && playing && !arrPlay }
+
+    /// Идёт запись ручек в кривые: REC + PLAY + AUTO при игре по таймлайну.
+    var arrKnobRec: Bool { return recOn && playing && arrAuto && arrPlay }
+
+    /// Играет таймлайн: клипы и строки в сетке не запускаются (сетка и аранжировщик разделены).
+    var timelineLock: Bool { return playing && arrPlay }
 
     func toggleArrAuto() {
         arrAuto.toggle()
         syncArrRecord()
     }
 
-    /// Запись начинается и кончается по REC, PLAY и AUTO: from — позиция курсора на PLAY (иначе — текущая);
-    /// на конце отрезки ложатся в проект одной записью UNDO.
+    func toggleArrRec() {
+        arrRecArm.toggle()
+        syncArrRecord()
+    }
+
+    /// Запись начинается и кончается по кнопке записи и PLAY: from — позиция курсора на PLAY (иначе — текущая);
+    /// на конце отрезки ложатся в проект одной записью UNDO. Запись ручек кончилась — куски в кривые.
     func syncArrRecord(from: Int? = nil) {
         let want: Bool = arrRecording
         if want && !live.recorder.active {
-            live.beginRecord(project, at: from ?? live.arrPos, arrange: from != nil && arrangeView)
+            live.beginRecord(project, at: from ?? live.arrPos, arrange: false)
         } else if !want && live.recorder.active {
             let segs: [ArrRecorder.Seg] = live.finishRecord()
             if !segs.isEmpty { edit { p in p.applyRecording(segs) } }
-            flushAutoTakes(all: true)
         }
+        if !arrKnobRec && !autoTakes.isEmpty { flushAutoTakes(all: true) }
     }
 }

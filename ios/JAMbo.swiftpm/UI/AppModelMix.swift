@@ -26,6 +26,7 @@ extension AppModel {
     func startMix(_ next: Project) {
         // Аранжировщик (S15): переход MIX — все дорожки в сетку паттернов.
         audio.core.events.push(.leaveArrange)
+        arrPlay = false
         let last = AppModel.prevRow
         let leaving: [Bool] = (0..<Params.maxTracks).map { live.queued[$0] == Launcher.stop }
         let top: Int = gridWindow.top
