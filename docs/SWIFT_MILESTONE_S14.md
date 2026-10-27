@@ -73,6 +73,12 @@
 - CoreTests — 331 (TempoSyncTests, ScaleRecordTests, KnobDefaultsTests, testPitchShortPercussion).
 - На iPad проверено: превью MIX, иконки, WTABLE PWM, нота конги; остальное — нет.
 
+## S14zb — RATE сэмпла и таймстретч (готово, на iPad проверено частично)
+- Ручка 1.4 сэмплера — RATE (VoiceParam.rate, 17-й параметр голоса; NoteLocks — 17 значений); режимы Rate Pitch / Rate Stretch — SHIFT + тап (Params.rateModeId); алгоритм — Settings.stretchBeat (SETTINGS → SAMPLER → STRETCH, общий для проектов, по умолчанию NORMAL); SoundData.rateMode: 0 — Pitch, 1 — NORMAL, 2 — BEAT. Поведение — docs/ai/sound-sampler.md.
+- Общий движок: голос ведёт указатель времени (скорость — темп проекта к темпу файла и RATE) и высоту (нота, Pitch); алгоритм заполняет кусочек в 32 отсчёта. NORMAL — Core/Sampler/StretchPV.swift (Vocoder; БПФ — PvFFT.swift: vDSP на iPad, своё на Linux; atan2 и sincos — vForce), атаки — Onsets.swift (SampleData.onsets, один раз на сэмпл); BEAT — Stretch.swift (Stretcher). Темп файла — TempoDetect.loopBpm. Подготовка к варпингу: карта времени будет вести тот же указатель.
+- Проверено: RateTests, PvFFTTests; все 443 теста Core проходят. Замер (Linux, отладочная сборка, без Accelerate): 16 голосов NORMAL ≈ 4× от 16 голосов Pitch, BEAT ≈ 1,8×. iPad (отладочная сборка): 3 голоса Rate Stretch NORMAL — Samples 15 % в среднем, 24 % в пике; звук в целом 41,7 % / 56,6 % худший блок.
+- Открыто: звук на лупах, ударных и тональном материале; нагрузка NORMAL (≈ 5 % на голос — дальше перенос оставшихся циклов кадра на vDSP и разнесение кадров голосов по блокам); эталона веба нет — в SELF-TEST не добавлено.
+
 ## S14a — замеры (готово, замер на iPad сделан)
 - Колбэк: RenderProfile (Core/Util) — метки на уровне блока (не на отсчёт), время от прошлой метки — в раздел: Seq (снимки, команды, транспорт, начало MOD и FX), Samples (голоса сэмплера, прослушивание), Synth, EQ (дорожки и мастер), Mix, FX, Master (SAT, COMP, CLIP, LIM, выход), Meters (метры, скоп, спектры, стемы). За секунду звука — средняя и наибольшая доля блока, с RESET — худшая (seqlock). Часы — DispatchTime (на Apple — mach_absolute_time), ~25 чтений на блок.
 - Интерфейс: FrameMeter (UI) — CADisplayLink: fps, средний и худший кадр, пропущенные кадры (промежуток > 1,5 кадра); время drain (главный поток, 60 раз в секунду). Перерыв дольше 0,5 с (фон) — не пропуск.
