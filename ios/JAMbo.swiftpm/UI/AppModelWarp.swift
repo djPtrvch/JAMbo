@@ -20,6 +20,7 @@ extension AppModel {
     func toggleWarp() {
         if previewOn { audio.core.events.push(.previewStop) }
         heldFlag = nil
+        warpSel = nil
         editorWarp.toggle()
     }
 
@@ -36,12 +37,14 @@ extension AppModel {
         let ons: [Double] = d.onsets.list
         let det: Double = d.loopBpm
         let g: Double = warpGrid
+        warpSel = nil
         editTrack { t in t.autoWarp(key, onsets: ons, frames: d.frames, detectedBpm: det, grid: g) }
     }
 
     func clearWarp() {
         let key = editorKey
         if key.isEmpty { return }
+        warpSel = nil
         editTrack { t in t.clearWarp(key) }
     }
 
@@ -50,7 +53,18 @@ extension AppModel {
         let key = editorKey
         guard !key.isEmpty, let d = sample(key) else { return }
         let det: Double = d.loopBpm
+        warpSel = nil
         editTrack { t in t.addWarp(key, at: f, frames: d.frames, detectedBpm: det) }
+    }
+
+    /// Метка начала сэмпла (нет — ставится на своей доле); номер 0.
+    func warpStartMark() -> Int {
+        let key = editorKey
+        guard !key.isEmpty, let d = sample(key) else { return -1 }
+        let det: Double = d.loopBpm
+        var k = 0
+        editTrack { t in k = t.warpStart(key, frames: d.frames, detectedBpm: det) }
+        return k
     }
 
     func moveWarp(_ idx: Int, beat: Double) {
@@ -62,6 +76,7 @@ extension AppModel {
     func deleteWarp(_ idx: Int) {
         let key = editorKey
         if key.isEmpty { return }
+        warpSel = nil
         editTrack { t in t.deleteWarp(key, idx) }
     }
 

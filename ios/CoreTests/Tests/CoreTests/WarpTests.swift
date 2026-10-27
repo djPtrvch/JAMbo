@@ -27,6 +27,7 @@ final class WarpTests: XCTestCase {
         let onsets: [Double] = [10, 6500, 11000, 12100, 30500]
         let m = WarpMap.auto(onsets: onsets, frames: 48000, bpm: 120, grid: 0.25)
         XCTAssertEqual(m.map { $0.beat }, [0, 0.25, 0.5, 1.25], "12100 попала на ту же долю, что 11000 — без метки")
+        XCTAssertEqual(m[0].at, 0, "начало сэмпла — на доле 0 (атака у самого начала — без своей метки)")
         XCTAssertEqual(m[1].at * 48000, 6500, accuracy: 1e-6)
     }
 
@@ -39,6 +40,13 @@ final class WarpTests: XCTestCase {
         XCTAssertEqual(t.warpInfo(key).marks[0].beat, 1, accuracy: 1e-9)
         XCTAssertNil(t.addWarp(key, at: 0.25 + 10.0 / 96000, frames: 96000, detectedBpm: 120), "вплотную — нет")
         t.addWarp(key, at: 0.75, frames: 96000, detectedBpm: 120)
+        // Метка начала: ставится на своей доле (0 — без меток до неё), повторно — та же.
+        XCTAssertEqual(t.warpStart(key, frames: 96000, detectedBpm: 120), 0)
+        XCTAssertEqual(t.warpInfo(key).marks.count, 3)
+        XCTAssertEqual(t.warpInfo(key).marks[0].beat, 0, accuracy: 1e-9)
+        t.warpStart(key, frames: 96000, detectedBpm: 120)
+        XCTAssertEqual(t.warpInfo(key).marks.count, 3)
+        t.deleteWarp(key, 0)
         // Доля — между соседями.
         t.moveWarp(key, 0, beat: 5)
         XCTAssertEqual(t.warpInfo(key).marks[0].beat, 3 - WarpMap.minBeat, accuracy: 1e-9)
@@ -146,5 +154,49 @@ final class WarpTests: XCTestCase {
         let pv = play(s, warp: true, beat: false, pitchMode: true, preview: true)
         XCTAssertEqual(pv.count, 4, "\(pv)")
         if pv.count == 4 { XCTAssertEqual(Double(pv[2]), 48000, accuracy: 600, "▶ WARP — по карте") }
+    }
+
+    /// Начало сэмпла сдвинуто: тишина 0,1 с перед первым ударом; метка начала на доле 0 и удар на доле 1 — удар через
+    /// долю после начала ноты (без метки начала — через свои 0,1 с: до первой метки — по BPM файла).
+    func testStartMarkAlignsToNoteStart() {
+        let n = 96000
+        var x = [Float](repeating: 0, count: n)
+        for at in [4800, 28800] {
+            for i in 0..<480 { x[at + i] = Float(0.8 * exp(-Double(i) / 60) * sin(Double(i) * 0.9)) }
+        }
+        let s = SampleData(left: x, right: nil)
+        func run(start: Bool) -> [Int] {
+            var p = Project()
+            p.tracks[0].addSamples(["k"])
+            p.tracks[0].vol = 0
+            p.tracks[0].params["attack"] = 0
+            p.tracks[0].params["decay"] = 4000
+            p.tracks[0].params[Params.rateModeId] = 1
+            p.bpm = 120
+            p.tracks[0].setWarpBpm("k", 120)
+            p.tracks[0].addWarp("k", at: 4800.0 / Double(n), frames: n, detectedBpm: 120)
+            p.tracks[0].moveWarp("k", 0, beat: 1)
+            if start {
+                p.tracks[0].warpStart("k", frames: n, detectedBpm: 120)
+                p.tracks[0].moveWarp("k", 0, beat: 0)
+            }
+            let core = AudioCore(master: false)
+            core.publish(p, samples: ["k": s])
+            core.events.push(.noteOn(track: 0, note: 48, id: 1, velocity: 1))
+            var o = [Float](repeating: 0, count: 60000)
+            var bl = [Float](repeating: 0, count: 256), br = bl
+            var pos = 0
+            while pos < o.count {
+                core.render(frames: 256, left: &bl, right: &br)
+                for i in 0..<256 where pos + i < o.count { o[pos + i] = bl[i] }
+                pos += 256
+            }
+            return hitTimes(o)
+        }
+        let with = run(start: true)
+        XCTAssertGreaterThanOrEqual(with.count, 1)
+        if let h = with.first { XCTAssertEqual(Double(h), 24000, accuracy: 600, "удар — через долю после начала ноты") }
+        let without = run(start: false)
+        if let h = without.first { XCTAssertEqual(Double(h), 4800, accuracy: 600, "без метки начала — как в файле") }
     }
 }

@@ -81,7 +81,6 @@ final class WarpPeakCache {
 struct WarpBar: View {
     let model: AppModel
     let data: SampleData?
-    let playW: CGFloat
     @State private var input: Bool = false
     @State private var text: String = ""
     @State private var lastTap: Date = .distantPast
@@ -92,21 +91,22 @@ struct WarpBar: View {
     var body: some View {
         let has: Bool = data != nil
         let marks: Int = model.editorWarpInfo.marks.count
-        return HStack(spacing: Layout.gap) {
-            ToolButton(title: model.previewOn ? "■" : "▶", enabled: has, width: playW) { model.toggleWarpPreview() }
-            ToolButton(title: bpmText, enabled: has, width: 110) { bpmTap() }
+        // Group — кнопки встают в строку редактора наравне с остальными (равной ширины).
+        return Group {
+            ToolButton(title: model.previewOn ? "■" : "▶", enabled: has, width: nil) { model.toggleWarpPreview() }
+            ToolButton(title: bpmText, enabled: has, width: nil) { bpmTap() }
+                .alert("FILE BPM", isPresented: $input) {
+                    TextField("BPM", text: $text).keyboardType(.decimalPad)
+                    Button("OK") { enter() }
+                    Button("AUTO") { model.setWarpBpm(nil) }
+                    Button("Cancel", role: .cancel) {}
+                }
             ForEach(0..<WarpBar.grids.count, id: \.self) { i in
                 let g: (String, Double) = WarpBar.grids[i]
-                ToolButton(title: g.0, lit: model.warpGrid == g.1, width: 56) { model.warpGrid = g.1 }
+                ToolButton(title: g.0, lit: model.warpGrid == g.1, width: nil) { model.warpGrid = g.1 }
             }
             ToolButton(title: "AUTO WARP", enabled: has, width: nil) { model.autoWarp() }
             ToolButton(title: "CLEAR WARP", enabled: has && marks > 0, width: nil) { model.clearWarp() }
-        }
-        .alert("FILE BPM", isPresented: $input) {
-            TextField("BPM", text: $text).keyboardType(.decimalPad)
-            Button("OK") { enter() }
-            Button("AUTO") { model.setWarpBpm(nil) }
-            Button("Cancel", role: .cancel) {}
         }
     }
 
@@ -171,29 +171,40 @@ enum EditorWarpDraw {
         }
     }
 
-    /// Метки: линия во всю высоту и флажок острием вверх с тактом.долей; тянут — жёлтый.
-    static func flags(_ ctx: GraphicsContext, _ g: EditorGeometry, _ wv: WarpView, _ held: Int, _ c: EditorColors) {
-        let top: CGFloat = SampleEditor.top
+    /// Метки: линия во всю высоту и флажок острием вверх с тактом.долей; выделенная (sel) и та, что тянут, — жёлтые.
+    /// Нет метки начала — у начала сэмпла серый флажок START (потянуть — метка начала).
+    static func flags(_ ctx: GraphicsContext, _ g: EditorGeometry, _ wv: WarpView, _ sel: Int, _ c: EditorColors) {
         let h: CGFloat = g.size.height
+        if let s = startX(g, wv) { flag(ctx, s, "START", h, c.dim, c) }
         for (k, b) in wv.map.beats.enumerated() {
             let x: CGFloat = g.x(wv.frac(beat: b))
             if x < -60 || x > g.size.width + 60 { continue }
-            let label: String = WarpView.label(b)
-            let r = flagRect(x, label, h)
-            let col: Color = held == k ? c.accent : c.ink
-            let tipY: CGFloat = r.minY - 6
-            ctx.fill(Path(CGRect(x: x.rounded(), y: top, width: 1, height: tipY - top)), with: .color(col))
-            var p = Path()
-            p.move(to: CGPoint(x: r.minX, y: r.maxY))
-            p.addLine(to: CGPoint(x: r.maxX, y: r.maxY))
-            p.addLine(to: CGPoint(x: r.maxX, y: r.minY))
-            p.addLine(to: CGPoint(x: x + 0.5, y: tipY))
-            p.addLine(to: CGPoint(x: r.minX, y: r.minY))
-            p.closeSubpath()
-            ctx.fill(p, with: .color(col))
-            ctx.draw(Text(label).font(.system(size: 12, weight: .semibold)).foregroundColor(c.bg),
-                     at: CGPoint(x: x + 0.5, y: r.midY))
+            flag(ctx, x, WarpView.label(b), h, sel == k ? c.accent : c.ink, c)
         }
+    }
+
+    /// Флажок START (нет метки у начала сэмпла): место по карте; nil — метка начала есть.
+    static func startX(_ g: EditorGeometry, _ wv: WarpView) -> CGFloat? {
+        if let p = wv.map.pos.first, p < WarpMap.minFrames { return nil }
+        return g.x(wv.frac(sample: 0))
+    }
+
+    private static func flag(_ ctx: GraphicsContext, _ x: CGFloat, _ label: String, _ h: CGFloat, _ col: Color,
+                             _ c: EditorColors) {
+        let top: CGFloat = SampleEditor.top
+        let r = flagRect(x, label, h)
+        let tipY: CGFloat = r.minY - 6
+        ctx.fill(Path(CGRect(x: x.rounded(), y: top, width: 1, height: tipY - top)), with: .color(col))
+        var p = Path()
+        p.move(to: CGPoint(x: r.minX, y: r.maxY))
+        p.addLine(to: CGPoint(x: r.maxX, y: r.maxY))
+        p.addLine(to: CGPoint(x: r.maxX, y: r.minY))
+        p.addLine(to: CGPoint(x: x + 0.5, y: tipY))
+        p.addLine(to: CGPoint(x: r.minX, y: r.minY))
+        p.closeSubpath()
+        ctx.fill(p, with: .color(col))
+        ctx.draw(Text(label).font(.system(size: 12, weight: .semibold)).foregroundColor(c.bg),
+                 at: CGPoint(x: x + 0.5, y: r.midY))
     }
 
     /// Полосы воспроизведения (доли длины сэмпла) — на месте по карте.

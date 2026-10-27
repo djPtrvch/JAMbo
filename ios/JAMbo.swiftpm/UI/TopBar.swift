@@ -29,13 +29,13 @@ struct TopBar: View {
         let half: CGFloat = (Layout.topButton - Layout.gap) / 2
         return HStack(spacing: Layout.gap) {
             ScaleField(model: model).frame(width: Layout.topButton)
+                .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { model.sampleRec.scaleFrame = $0 }
             RootField(model: model)
             HistoryButton(symbol: "arrow.turn.up.left", enabled: model.canUndo || model.morphHeld) { model.undoTapped() }
                 .frame(width: Layout.topButton)
                 .midiTarget(model, "UNDO")
             PlayButton(model: model).frame(width: half)
                 .midiTarget(model, "PLAY")
-                .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { model.sampleRec.playFrame = $0 }
             RecButton(model: model).frame(width: half).midiTarget(model, "REC")
             HistoryButton(symbol: "arrow.turn.up.right", enabled: model.canRedo) { model.redo() }
                 .frame(width: Layout.topButton)

@@ -12,9 +12,9 @@ struct EditorBar: View {
     @State private var barX: CGFloat = 0
 
     var body: some View {
-        let play: CGRect = model.sampleRec.playFrame
-        // ▶ — под PLAY верхней панели, той же ширины: имя слева занимает место до REC.
-        let infoW: CGFloat = play.width > 0 ? max(60, play.minX - barX - 76 - 2 * Layout.gap) : 0
+        let scale: CGRect = model.sampleRec.scaleFrame
+        // Имя — слева до SCALE верхней панели; от её левого края — кнопки равной ширины (✕ — квадратная).
+        let infoW: CGFloat = scale.width > 0 ? max(60, scale.minX - barX - Layout.gap) : 0
         return HStack(spacing: Layout.gap) {
             Text(info)
                 .font(.system(size: 12, weight: .semibold))
@@ -25,9 +25,9 @@ struct EditorBar: View {
                 .frame(maxWidth: infoW > 0 ? nil : .infinity, alignment: .leading)
             SampleRecButton(model: model)
             if model.editorWarp {
-                WarpBar(model: model, data: data, playW: play.width > 0 ? play.width : 48)
+                WarpBar(model: model, data: data)
             } else {
-                tools(play)
+                tools
             }
             ToolButton(title: "WARP", enabled: data != nil && model.sampleRec.take == nil, lit: model.editorWarp,
                        width: nil) { model.toggleWarp() }
@@ -38,9 +38,9 @@ struct EditorBar: View {
 
     /// ▶ и правка сэмпла (вне WARP).
     @ViewBuilder
-    private func tools(_ play: CGRect) -> some View {
+    private var tools: some View {
         // ▶ без жёлтой подсветки (решение пользователя); во время прослушивания — ■.
-        ToolButton(title: model.previewOn ? "■" : "▶", enabled: data != nil, width: play.width > 0 ? play.width : 48) {
+        ToolButton(title: model.previewOn ? "■" : "▶", enabled: data != nil, width: nil) {
             model.togglePreview(sel.a, sel.b)
         }
         ToolButton(title: "LOAD", width: nil) { model.openBrowser(.load(steps: [])) }

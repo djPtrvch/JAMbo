@@ -244,6 +244,8 @@ final class AppModel {
     /// Редактор в режиме WARP (метки варпинга вместо маркеров нарезки) и его GRID (в четвертях: 1/16 — 0,25).
     var editorWarp: Bool = false
     var warpGrid: Double = 0.25
+    /// Выделенная метка варпинга (её тянут и из любого места полосы флажков).
+    var warpSel: Int? = nil
     var soundMenu: SoundMenuState? = nil
     var importTarget: ImportTarget? = nil
     var importing: Bool = false

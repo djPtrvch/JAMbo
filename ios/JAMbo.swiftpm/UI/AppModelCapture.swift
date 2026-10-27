@@ -35,8 +35,8 @@ final class SampleRec {
     var peaks = RecPeaks()
     /// Ошибка начала записи (окно с сообщением).
     var error: String? = nil
-    /// Рамка PLAY верхней панели («root»): ▶ редактора — под ней, той же ширины.
-    var playFrame: CGRect = .zero
+    /// Рамка SCALE верхней панели («root»): кнопки редактора сэмпла начинаются от её левого края.
+    var scaleFrame: CGRect = .zero
 }
 
 extension AppModel {

@@ -5,8 +5,9 @@ import SwiftUI
 /// Форма волны во всю ширину (стерео — L и R); маркеры обрезки — за ручки внизу (двумя пальцами — оба сразу);
 /// палец по пустому месту: вверх-вниз — масштаб, влево-вправо — прокрутка; двойной тап — маркер нарезки,
 /// флажок тянут, двойной тап по флажку — удалить, удержание флажка + клавиша — своя нота маркера.
-/// WARP (SampleEditorWarp.swift): по горизонтали доли; двойной тап — метка варпинга, флажок снизу тянут (магнит к GRID),
-/// двойной тап по флажку — удалить; маркеры нарезки и обрезки скрыты.
+/// WARP (SampleEditorWarp.swift): по горизонтали доли; двойной тап — метка варпинга; метку берут за флажок снизу или за
+/// линию (касание — выделить, тянуть — на столько же, магнит к GRID), выделенную тянут и из любого места полосы
+/// флажков; флажок START — метка начала сэмпла; двойной тап по флажку — удалить; маркеры нарезки и обрезки скрыты.
 struct SampleEditor: View {
     let model: AppModel
     @State private var sel = EditorSelection()
@@ -46,6 +47,7 @@ struct SampleEditor: View {
             view = EditorWindow()
             touches.removeAll()
             model.heldFlag = nil
+            model.warpSel = nil
             warpFrozen = nil
         }
     }
@@ -114,7 +116,7 @@ struct SampleEditor: View {
         let wv: WarpView = warpView(d)
         let lanes = warpCache.lanes(d, key: key, width: w, view: view, wv: wv)
         let heads = model.playheads(track: model.selectedTrack, key: key)
-        let held: Int = touches.values.first(where: { $0.kind == .warp })?.idx ?? -1
+        let held: Int = touches.values.first(where: { $0.kind == .warp })?.idx ?? (model.warpSel ?? -1)
         let colors = EditorColors(theme: theme)
         let v = view
         let grid: Double = model.warpGrid
@@ -159,12 +161,19 @@ struct SampleEditor: View {
     private func down(_ id: SpatialEventCollection.Event.ID, _ p: CGPoint, _ d: SampleData, _ size: CGSize) {
         let g = geometry(size)
         if model.editorWarp {
-            let k = warpFlagAt(p, g, d)
-            if k >= 0 {
+            // Метка под пальцем (флажок, START или линия); мимо, но в полосе флажков — выделенная.
+            let k: Int = warpHit(p, g, d)
+            let inStrip: Bool = p.y >= g.size.height - EditorWarpDraw.strip - 8
+            let idx: Int = k != -1 ? k : (inStrip ? (model.warpSel ?? -1) : -1)
+            if idx != -1 {
                 if touches.values.contains(where: { $0.kind == .warp }) { return }
                 let wv = warpView(d)
                 warpFrozen = (wv.b0, wv.b1)
-                touches[id] = EditorTouch(kind: .warp, idx: k, p0: p)
+                var t = EditorTouch(kind: .warp, idx: idx, p0: p)
+                t.onMark = k != -1
+                t.b0 = idx >= 0 && idx < wv.map.beats.count ? wv.map.beats[idx] : wv.map.beat(0)
+                if idx >= 0 { model.warpSel = idx }
+                touches[id] = t
                 return
             }
         } else if let m = trimAt(p, g) {
@@ -222,11 +231,18 @@ struct SampleEditor: View {
                 if hypot(p.x - t.p0.x, p.y - t.p0.y) < SampleEditor.slop { return }
                 t.moved = true
                 model.beginGesture()
+                // START: сначала метка начала (в том же жесте — одна запись UNDO).
+                if t.idx == EditorTouch.warpStart {
+                    t.idx = model.warpStartMark()
+                    model.warpSel = t.idx
+                }
             }
-            // Доля под пальцем — к ближайшей линии GRID.
+            if t.idx < 0 { return }
+            // Метка — на столько же долей, на сколько палец, к ближайшей линии GRID.
             let wv = warpView(d)
             let gs: Double = model.warpGrid
-            let b: Double = (wv.beat(g.frac(p.x)) / gs).rounded() * gs
+            let db: Double = wv.beat(g.frac(p.x)) - wv.beat(g.frac(t.p0.x))
+            let b: Double = ((t.b0 + db) / gs).rounded() * gs
             model.moveWarp(t.idx, beat: b)
             let beats = model.warpMap(d).beats
             if t.idx < beats.count { tip = (WarpView.label(beats[t.idx]), p) }
@@ -286,7 +302,7 @@ struct SampleEditor: View {
         // Тап без движения: одиночный ничего не делает, двойной — маркер (по пустому месту) или удаление (по флажку).
         let tap: Bool = t.kind == .slice || t.kind == .warp ? !t.moved : (t.kind == .nav && t.axis == 0)
         if !tap { return }
-        let flag: Int = t.kind == .slice || t.kind == .warp ? t.idx : -1
+        let flag: Int = t.kind == .slice ? t.idx : (t.kind == .warp && t.onMark ? t.idx : -1)
         let now = Date()
         let dbl: Bool = now.timeIntervalSince(lastTap.t) < 0.35 && abs(p.x - lastTap.x) < 24 && lastTap.flag == flag
         if !dbl {
@@ -295,6 +311,7 @@ struct SampleEditor: View {
         }
         lastTap = (Date.distantPast, 0, -1)
         if model.editorWarp {
+            if flag == EditorTouch.warpStart { return }
             if flag >= 0 {
                 model.deleteWarp(flag)
             } else if let d = model.sample(model.editorKey) {
@@ -326,18 +343,35 @@ struct SampleEditor: View {
         return !used.contains(other) && od <= hd ? other : nil
     }
 
-    /// Флажок метки варпинга под пальцем (полоса снизу; правее нарисованный; зона шире флажка на 6 px) или −1.
-    private func warpFlagAt(_ p: CGPoint, _ g: EditorGeometry, _ d: SampleData) -> Int {
-        if p.y < g.size.height - EditorWarpDraw.strip - 8 { return -1 }
+    /// Метка под пальцем: в полосе снизу — флажок (правее нарисованный; зона шире флажка на 6 px) или START
+    /// (EditorTouch.warpStart); выше — ближайшая линия метки не дальше 14 px; иначе −1.
+    private func warpHit(_ p: CGPoint, _ g: EditorGeometry, _ d: SampleData) -> Int {
         let wv = warpView(d)
-        var k = wv.map.beats.count - 1
-        while k >= 0 {
-            let b: Double = wv.map.beats[k]
-            let r = EditorWarpDraw.flagRect(g.x(wv.frac(beat: b)), WarpView.label(b), g.size.height)
-            if p.x >= r.minX - 6 && p.x <= r.maxX + 6 { return k }
-            k -= 1
+        let beats: [Double] = wv.map.beats
+        if p.y >= g.size.height - EditorWarpDraw.strip - 8 {
+            var k = beats.count - 1
+            while k >= 0 {
+                let r = EditorWarpDraw.flagRect(g.x(wv.frac(beat: beats[k])), WarpView.label(beats[k]), g.size.height)
+                if p.x >= r.minX - 6 && p.x <= r.maxX + 6 { return k }
+                k -= 1
+            }
+            if let sx = EditorWarpDraw.startX(g, wv) {
+                let r = EditorWarpDraw.flagRect(sx, "START", g.size.height)
+                if p.x >= r.minX - 6 && p.x <= r.maxX + 6 { return EditorTouch.warpStart }
+            }
+            return -1
         }
-        return -1
+        if p.y < SampleEditor.top { return -1 }
+        var best: Int = -1
+        var bestD: CGFloat = 14
+        for (k, b) in beats.enumerated() {
+            let dx: CGFloat = abs(p.x - g.x(wv.frac(beat: b)))
+            if dx <= bestD {
+                bestD = dx
+                best = k
+            }
+        }
+        return best
     }
 
     /// Флажок маркера под пальцем (сверху — правее нарисованный; зона шире флажка на 6 px) или −1.
@@ -380,6 +414,11 @@ struct EditorTouch {
     var a0: Double = 0
     var span0: Double = 1
     var f0: Double = 0
+    /// WARP: доля метки в начале перетаскивания; взяли саму метку (флажок, линию), а не выделенную из полосы.
+    var b0: Double = 0
+    var onMark: Bool = false
+    /// Номер «метки» START (метки начала ещё нет).
+    static let warpStart = -2
 
     init(kind: Kind, trimB: Bool = false, idx: Int = -1, p0: CGPoint) {
         self.kind = kind

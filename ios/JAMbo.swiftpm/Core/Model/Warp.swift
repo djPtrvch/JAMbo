@@ -80,14 +80,14 @@ public struct WarpMap: Sendable {
         return pos[k - 1] + f * (pos[k] - pos[k - 1])
     }
 
-    /// AUTO WARP: метки на атаки (отсчёты), каждая — на ближайшую долю сетки grid (в четвертях); атака, попавшая на
-    /// ту же долю, что и прежняя, — без метки.
+    /// AUTO WARP: метка начала сэмпла — на долю 0 (начало проигрывания), метки на атаки (отсчёты) — каждая на
+    /// ближайшую долю сетки grid (в четвертях); атака у самого начала или на той же доле, что и прежняя, — без метки.
     public static func auto(onsets: [Double], frames: Int, bpm: Double, grid: Double) -> [WarpMark] {
         let per: Double = AudioCore.sampleRate * 60 / Swift.max(1, bpm)
         let g: Double = Swift.max(1.0 / 64, grid)
-        var out: [WarpMark] = []
-        var last: Double = -Double.greatestFiniteMagnitude
-        for p in onsets where p >= 0 && p < Double(frames) {
+        var out: [WarpMark] = [WarpMark(at: 0, beat: 0)]
+        var last: Double = 0
+        for p in onsets where p >= minFrames && p < Double(frames) {
             let b: Double = (p / per / g).rounded() * g
             if b <= last + minBeat / 2 { continue }
             out.append(WarpMark(at: p / Double(frames), beat: b))
@@ -128,6 +128,17 @@ extension Track {
         w.marks.insert(WarpMark(at: a, beat: map.beat(p)), at: k)
         putWarp(key, w)
         return k
+    }
+
+    /// Метка начала сэмпла (доля длины 0; нет — ставится на нынешней доле, звук не меняется); её номер — 0.
+    @discardableResult
+    public mutating func warpStart(_ key: String, frames: Int, detectedBpm: Double) -> Int {
+        var w = warpInfo(key)
+        if let f = w.marks.first, f.at * Double(frames) < WarpMap.minFrames { return 0 }
+        let map = WarpMap(w, frames: frames, bpm: WarpMap.bpm(w, detected: detectedBpm))
+        w.marks.insert(WarpMark(at: 0, beat: map.beat(0)), at: 0)
+        putWarp(key, w)
+        return 0
     }
 
     /// Доля метки idx — в пределах соседей (не ближе 1/64 доли).
