@@ -43,7 +43,8 @@ struct ArrHeaders: View {
     }
 }
 
-/// Строка заголовка: имя (тап — выбор, двойной тап — меню дорожки), M над S (решение пользователя: без метров).
+/// Строка заголовка: имя слева внизу (тап — выбор, двойной тап — меню дорожки), M над S справа внизу (решение
+/// пользователя: без метров).
 struct ArrHeaderRow: View {
     let model: AppModel
     let index: Int
@@ -67,21 +68,23 @@ struct ArrHeaderRow: View {
         // Цвет дорожки (меню дорожки) — только у блоков; заголовок — как строка дорожек (решение пользователя).
         let bg: Color = theme.trackBg
         let fg: Color = theme.text
-        return HStack(spacing: 5) {
+        // Отступ от краёв — один со всех сторон; имя — в левом нижнем углу, M над S — в правом нижнем (решение
+        // пользователя).
+        let pad: CGFloat = 8
+        let side: CGFloat = max(10, min(26, (rowH - 2 * pad - 4) / 2))
+        return HStack(alignment: .bottom, spacing: 5) {
             Text(t.name)
                 .font(.system(size: 12, weight: selected ? .heavy : .semibold))
                 .lineLimit(1)
                 .foregroundStyle(fg)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            // M над S (решение пользователя), размер — по высоте строки; от края — небольшой отступ.
-            let side: CGFloat = max(10, min(26, (rowH - 16) / 2))
+                .frame(maxWidth: .infinity, alignment: .bottomLeading)
             VStack(spacing: 4) {
                 ArrToggle(title: "M", on: t.mute, color: theme.rec, side: side) { model.toggleMute(index) }
                 ArrToggle(title: "S", on: t.solo, color: theme.accent, side: side) { model.toggleSolo(index) }
             }
         }
-        .padding(.leading, 6)
-        .padding(.trailing, 10)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+        .padding(pad)
         // Заголовок — на всю высоту строки дорожки (как блоки).
         .frame(maxHeight: .infinity)
         .background(bg, in: UnevenRoundedRectangle(topLeadingRadius: 6, bottomLeadingRadius: 6, bottomTrailingRadius: 0,
