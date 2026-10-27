@@ -77,7 +77,7 @@ struct ArrMenus: View {
 
     /// Меню дорожки — справа от её заголовка, по высоте — от строки дорожки.
     private func trackPlace(_ t: Int) -> CGSize {
-        let m = ArrMetrics(size: size, port: model.arrPort, tracks: model.project.tracks.count, end: 0, expanded: model.settings.arrangeExpanded,
+        let m = ArrMetrics(size: size, port: model.arrPort, tracks: model.project.tracks.count, end: 0, zoom: model.settings.arrangeZoom,
                            inset: model.arrInset, ref: model.arrRefShown)
         let h: CGFloat = ArrTrackMenu.height
         let y: CGFloat = max(0, min(m.rowY(t), free - h))

@@ -11,7 +11,7 @@ struct ArrHeaders: View {
         let port: ArrPort = model.arrPort
         return GeometryReader { geo in
             let m = ArrMetrics(size: CGSize(width: geo.size.width, height: geo.size.height), port: port,
-                               tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded,
+                               tracks: p.tracks.count, end: p.arrangeEnd, zoom: model.settings.arrangeZoom,
                            inset: model.arrInset, ref: model.arrRefShown)
             ZStack(alignment: .topLeading) {
                 ZStack(alignment: .topLeading) {
