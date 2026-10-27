@@ -59,7 +59,8 @@ struct MasterModulesMenu: View {
     }
 }
 
-/// PRESETS модуля: заголовок с числом, SAVE (имя — окном ввода), список пресетов с прокруткой.
+/// PRESETS модуля: заголовок с числом, SAVE (имя — окном ввода), SAVE DEFAULT (параметры модуля — свои по умолчанию,
+/// как у ручек: NEW, двойной тап по ручке MST; на секунду SAVED жёлтым), список пресетов с прокруткой.
 struct MasterPresetsMenu: View {
     static let width: CGFloat = 260
     let model: AppModel
@@ -70,12 +71,14 @@ struct MasterPresetsMenu: View {
         let m: Int = model.masterWin ?? 0
         let list: [MasterPreset] = model.masterPresets.list(m)
         let title: String = "\(MasterPresetBook.titles[m]) PRESETS · \(list.count)"
+        let saved: Bool = model.defaultSaved == .master(m)
         return VStack(alignment: .leading, spacing: 8) {
             MenuHead(title: title)
             MenuItem(title: "SAVE") {
                 model.masterMenu = nil
                 model.masterInput = .save
             }
+            MenuItem(title: saved ? "SAVED" : "SAVE DEFAULT", current: saved) { model.saveMasterDefault(m) }
             if list.isEmpty {
                 Text("No \(MasterPresetBook.titles[m]) presets yet — save one with SAVE")
                     .font(.system(size: 12)).foregroundStyle(theme.dim)
@@ -89,7 +92,7 @@ struct MasterPresetsMenu: View {
     /// Высота списка: все строки (44 + 4), но не выше места под заголовком и SAVE.
     private func listHeight(_ n: Int) -> CGFloat {
         let full: CGFloat = CGFloat(n) * 48 - 4
-        let room: CGFloat = max(48, maxHeight - 110)
+        let room: CGFloat = max(48, maxHeight - 158)
         return min(full, room)
     }
 

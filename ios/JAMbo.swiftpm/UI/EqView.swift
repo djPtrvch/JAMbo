@@ -34,7 +34,7 @@ struct EqView: View {
             }
         }
         // Другой канал — выбор полосы сбрасывается, точки съёма спектров — на новый канал.
-        .onChange(of: model.eqChannel) { _, _ in
+        .onChange(of: model.eqShownChannel) { _, _ in
             model.eqBand = -1
             model.eqCompareMenu = false
             model.eqMsMenu = nil
@@ -64,7 +64,7 @@ struct EqView: View {
                 text = c.name
             } else {
                 input = .save
-                text = model.eqPresets.nextName()
+                text = model.eqBook.nextName()
             }
         }))
     }
@@ -97,11 +97,11 @@ struct EqView: View {
     private func openInput(_ field: EqInput) {
         switch field {
         case .save:
-            text = model.eqPresets.nextName()
+            text = model.eqBook.nextName()
             input = field
             return
         case .rename(let k):
-            let list: [EqPreset] = model.eqPresets.list
+            let list: [EqPreset] = model.eqBook.list
             text = k < list.count ? list[k].name : ""
             input = field
             return
@@ -136,14 +136,14 @@ struct EqView: View {
         case .range:
             if let v = EqFormat.parseNum(text) { model.setEqDynParams(k, range: v) }
         case .save:
-            if let k = model.eqPresets.index(named: text) {
+            if let k = model.eqBook.index(named: text) {
                 input = nil
                 clash = NameClash(name: text, existing: k, renaming: nil)
                 return
             }
             model.saveEqPreset(name: text)
         case .rename(let i):
-            if model.eqPresets.index(named: text, except: i) != nil {
+            if model.eqBook.index(named: text, except: i) != nil {
                 input = nil
                 clash = NameClash(name: text, existing: -1, renaming: i)
                 return
@@ -202,15 +202,16 @@ struct EqBar: View {
         return x0 + CGFloat(i) * col
     }
 
-    /// Имя канала: тап — у дорожки меню дорожек для сравнения, у мастера — спектр выхода (надпись красная).
+    /// Имя канала: тап — у дорожки меню дорожек для сравнения, у мастера — окно коррекции наушников (PHONES EQ)
+    /// и обратно.
     private var name: some View {
-        let lit: Bool = model.eqOutShown || model.eqCompareShown != nil
+        let lit: Bool = model.phonesShown || model.eqCompareShown != nil
         return Text("\(model.eqTargetName)\nEQ")
             .font(.system(size: 11)).tracking(0.9)
             .multilineTextAlignment(.center)
             .lineLimit(2)
             .minimumScaleFactor(0.7)
-            .foregroundStyle(model.eqOutShown ? theme.rec : (lit ? theme.text : theme.dim))
+            .foregroundStyle(lit ? theme.text : theme.dim)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(Rectangle())
             .onTapGesture { model.eqNameTapped() }
@@ -224,12 +225,26 @@ struct EqBar: View {
         case 1: freqField(b)
         case 2: gainField(b)
         case 3: qField(b)
-        case 4: msField(b)
-        case 5: dynField(b)
-        case 6: EqListenButton(model: model, enabled: b != nil)
+        // У коррекции наушников нет M/S, DYN и LISTEN; на месте STEREO — её предусиление.
+        case 4: if model.phonesShown { preampLabel } else { msField(b) }
+        case 5: if !model.phonesShown { dynField(b) }
+        case 6: if !model.phonesShown { EqListenButton(model: model, enabled: b != nil) }
         case 7: presetsButton
         default: EqTool(title: "BYPASS", enabled: true, active: !model.eqTarget.on) { model.toggleEqBypass() }
         }
+    }
+
+    /// Предусиление коррекции наушников (минус подъём кривой), только показ.
+    private var preampLabel: some View {
+        let v: Double = model.phonesPreamp
+        let t: String = v == 0 ? "0.0 dB" : String(format: "%.1f dB", v)
+        // Как поле EQ, но без подложки: значение не меняется пальцем.
+        return VStack(alignment: .leading, spacing: 0) {
+            Text("PREAMP").font(.system(size: 9)).tracking(0.8).foregroundStyle(theme.dim)
+            Text(t).font(.system(size: 16)).lineLimit(1).minimumScaleFactor(0.7).foregroundStyle(theme.text)
+        }
+        .padding(.horizontal, 12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
 
     /// PRESETS: меню пресетов EQ под кнопкой (горит, пока открыто).

@@ -309,7 +309,7 @@ struct KnobView: View, Equatable {
     let state: KnobState
     /// Положение с модуляцией (0…1); nil — без назначения.
     var mod: Double? = nil
-    /// Только что запомнено как значение по умолчанию — вместо значения SAVED.
+    /// Только что запомнено как значение по умолчанию — вместо значения SAVED (жёлтым).
     var saved: Bool = false
     @Environment(\.theme) private var theme
 
@@ -359,7 +359,7 @@ struct KnobView: View, Equatable {
             .font(.system(size: 11, weight: saved ? .bold : .regular))
             .monospacedDigit()
             .multilineTextAlignment(.center)
-            .foregroundStyle(state.locked ? lockColor : theme.text)
+            .foregroundStyle(saved ? theme.accent : (state.locked ? lockColor : theme.text))
     }
 
     /// Цвет p-lock: жёлтый, у 4-го столбца дорожки — оранжевый.

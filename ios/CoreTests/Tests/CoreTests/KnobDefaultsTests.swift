@@ -48,4 +48,26 @@ final class KnobDefaultsTests: XCTestCase {
         u.setSynth(e)
         XCTAssertNotEqual(u.params[id], 77, "без своих значений — как прежде")
     }
+
+    /// SAVE DEFAULT модуля мастера и EQ: параметры модуля вне сетки MST и полосы EQ — в NEW и ADD TRACK.
+    func testModuleAndEqDefaults() throws {
+        var d = KnobDefaults()
+        XCTAssertTrue(d.isEmpty)
+        d.values[KnobDefaults.key("mst", "cmp.knee")] = 9
+        var bands = [EqBand?](repeating: nil, count: EqSpec.bands)
+        bands[2] = EqBand(type: EqSpec.bell, freq: 300, gain: -3, q: 2)
+        d.setEq(bands, master: true)
+        d.setEq(bands, master: false)
+        let back = KnobDefaults.decode(d.encode())
+        XCTAssertEqual(back, d)
+        XCTAssertEqual(KnobDefaults.decode(Data(#"{"values":{}}"#.utf8)).eqTrack, nil, "старый формат читается")
+        var p = Project()
+        back.apply(to: &p)
+        XCTAssertEqual(p.master["cmp.knee"], 9)
+        XCTAssertEqual(p.masterEq.bands[2]?.freq, 300)
+        XCTAssertEqual(p.tracks.first?.eq.bands[2]?.gain, -3)
+        var t = Track(index: 1)
+        back.apply(to: &t)
+        XCTAssertEqual(t.eq.bands[2]?.q, 2)
+    }
 }

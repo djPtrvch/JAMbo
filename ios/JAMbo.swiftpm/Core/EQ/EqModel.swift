@@ -149,7 +149,7 @@ extension Project {
         return ch >= 0 && ch < tracks.count ? tracks[ch].eq : Eq()
     }
 
-    mutating func withEq(_ ch: Int, _ f: (inout Eq) -> Void) {
+    public mutating func withEq(_ ch: Int, _ f: (inout Eq) -> Void) {
         if ch == EqSpec.masterChannel {
             f(&masterEq)
         } else if ch >= 0 && ch < tracks.count {
@@ -157,72 +157,40 @@ extension Project {
         }
     }
 
-    private static func clamp(_ v: Double, _ lo: Double, _ hi: Double) -> Double { return Swift.max(lo, Swift.min(hi, v)) }
-
     /// Новая bell-полоса в первом свободном месте; −1, если мест нет.
     @discardableResult
     public mutating func addEqBand(_ ch: Int, freq: Double, gain: Double) -> Int {
-        guard let k = eq(ch).bands.firstIndex(where: { $0 == nil }) else { return -1 }
-        let b = EqBand(type: EqSpec.bell, freq: Project.clamp(freq, EqSpec.freqMin, EqSpec.freqMax),
-                       gain: Project.clamp(gain, -EqSpec.gainMax, EqSpec.gainMax), q: EqSpec.qDef)
-        withEq(ch) { $0.bands[k] = b }
+        var k = -1
+        withEq(ch) { k = $0.addBand(freq: freq, gain: gain) }
         return k
     }
 
     /// Значения полосы: частота, усиление (округление до 0,1 dB), Q.
     public mutating func setEqBand(_ ch: Int, _ k: Int, freq: Double? = nil, gain: Double? = nil, q: Double? = nil) {
-        withEq(ch) { e in
-            guard var b = e.band(k) else { return }
-            if let f = freq { b.freq = Project.clamp(f, EqSpec.freqMin, EqSpec.freqMax) }
-            if let g = gain { b.gain = (Project.clamp(g, -EqSpec.gainMax, EqSpec.gainMax) * 10).rounded() / 10 }
-            if let v = q { b.q = Project.clamp(v, EqSpec.qMin, EqSpec.qMax) }
-            e.bands[k] = b
-        }
+        withEq(ch) { $0.setBand(k, freq: freq, gain: gain, q: q) }
     }
 
     public mutating func setEqType(_ ch: Int, _ k: Int, _ type: Int) {
-        let n = EqSpec.types.count
-        withEq(ch) { e in
-            guard var b = e.band(k) else { return }
-            b.type = ((type % n) + n) % n
-            e.bands[k] = b
-        }
+        withEq(ch) { $0.setType(k, type) }
     }
 
     public mutating func setEqSlope(_ ch: Int, _ k: Int, _ slope: Int) {
-        withEq(ch) { e in
-            guard var b = e.band(k) else { return }
-            b.slope = Swift.max(0, Swift.min(slope, EqSpec.slopes.count - 1))
-            e.bands[k] = b
-        }
+        withEq(ch) { $0.setSlope(k, slope) }
     }
 
     /// Режим M/S полосы: 0 STEREO, 1 MID, 2 SIDE.
     public mutating func setEqMs(_ ch: Int, _ k: Int, _ ms: Int) {
-        withEq(ch) { e in
-            guard var b = e.band(k) else { return }
-            b.ms = Swift.max(0, Swift.min(ms, EqSpec.msModes.count - 1))
-            e.bands[k] = b
-        }
+        withEq(ch) { $0.setMs(k, ms) }
     }
 
     /// Источник динамической полосы: −1 OFF, 0 SELF, n — дорожка n.
     public mutating func setEqDyn(_ ch: Int, _ k: Int, _ src: Int) {
-        withEq(ch) { e in
-            guard var b = e.band(k) else { return }
-            b.dyn = Swift.max(-1, Swift.min(src, Params.maxTracks))
-            e.bands[k] = b
-        }
+        withEq(ch) { $0.setDyn(k, src) }
     }
 
     /// Порог (dBFS) и сдвиг (dB) динамической полосы, с округлением до 0,1.
     public mutating func setEqDynParams(_ ch: Int, _ k: Int, thr: Double? = nil, range: Double? = nil) {
-        withEq(ch) { e in
-            guard var b = e.band(k) else { return }
-            if let v = thr { b.thr = (Project.clamp(v, EqSpec.dynThrMin, 0) * 10).rounded() / 10 }
-            if let v = range { b.range = (Project.clamp(v, -EqSpec.dynRangeMax, EqSpec.dynRangeMax) * 10).rounded() / 10 }
-            e.bands[k] = b
-        }
+        withEq(ch) { $0.setDynParams(k, thr: thr, range: range) }
     }
 
     /// Источники-дорожки динамических полос всех EQ после удаления или перестановки дорожек: map — новый номер
@@ -241,21 +209,93 @@ extension Project {
 
     /// Двойной тап по точке: включить или выключить полосу.
     public mutating func toggleEqBand(_ ch: Int, _ k: Int) {
-        withEq(ch) { e in
-            guard var b = e.band(k) else { return }
-            b.on.toggle()
-            e.bands[k] = b
-        }
+        withEq(ch) { $0.toggleBand(k) }
     }
 
     public mutating func deleteEqBand(_ ch: Int, _ k: Int) {
-        withEq(ch) { e in
-            if k >= 0 && k < e.bands.count { e.bands[k] = nil }
-        }
+        withEq(ch) { $0.deleteBand(k) }
     }
 
     /// BYPASS: выключение EQ канала.
     public mutating func toggleEq(_ ch: Int) {
         withEq(ch) { $0.on.toggle() }
+    }
+}
+
+// Правки одного EQ (канал проекта или коррекция наушников — PhonesEq).
+extension Eq {
+    private static func clamp(_ v: Double, _ lo: Double, _ hi: Double) -> Double { return Swift.max(lo, Swift.min(hi, v)) }
+
+    /// Новая bell-полоса в первом свободном месте; −1, если мест нет.
+    @discardableResult
+    public mutating func addBand(freq: Double, gain: Double) -> Int {
+        guard let k = bands.firstIndex(where: { $0 == nil }) else { return -1 }
+        bands[k] = EqBand(type: EqSpec.bell, freq: Eq.clamp(freq, EqSpec.freqMin, EqSpec.freqMax),
+                          gain: Eq.clamp(gain, -EqSpec.gainMax, EqSpec.gainMax), q: EqSpec.qDef)
+        return k
+    }
+
+    /// Изменить полосу k, если она есть.
+    private mutating func change(_ k: Int, _ f: (inout EqBand) -> Void) {
+        guard var b = band(k) else { return }
+        f(&b)
+        bands[k] = b
+    }
+
+    /// Значения полосы: частота, усиление (округление до 0,1 dB), Q.
+    public mutating func setBand(_ k: Int, freq: Double? = nil, gain: Double? = nil, q: Double? = nil) {
+        change(k) { b in
+            if let f = freq { b.freq = Eq.clamp(f, EqSpec.freqMin, EqSpec.freqMax) }
+            if let g = gain { b.gain = (Eq.clamp(g, -EqSpec.gainMax, EqSpec.gainMax) * 10).rounded() / 10 }
+            if let v = q { b.q = Eq.clamp(v, EqSpec.qMin, EqSpec.qMax) }
+        }
+    }
+
+    public mutating func setType(_ k: Int, _ type: Int) {
+        let n = EqSpec.types.count
+        change(k) { $0.type = ((type % n) + n) % n }
+    }
+
+    public mutating func setSlope(_ k: Int, _ slope: Int) {
+        change(k) { $0.slope = Swift.max(0, Swift.min(slope, EqSpec.slopes.count - 1)) }
+    }
+
+    /// Режим M/S полосы: 0 STEREO, 1 MID, 2 SIDE.
+    public mutating func setMs(_ k: Int, _ ms: Int) {
+        change(k) { $0.ms = Swift.max(0, Swift.min(ms, EqSpec.msModes.count - 1)) }
+    }
+
+    /// Источник динамической полосы: −1 OFF, 0 SELF, n — дорожка n.
+    public mutating func setDyn(_ k: Int, _ src: Int) {
+        change(k) { $0.dyn = Swift.max(-1, Swift.min(src, Params.maxTracks)) }
+    }
+
+    /// Порог (dBFS) и сдвиг (dB) динамической полосы, с округлением до 0,1.
+    public mutating func setDynParams(_ k: Int, thr: Double? = nil, range: Double? = nil) {
+        change(k) { b in
+            if let v = thr { b.thr = (Eq.clamp(v, EqSpec.dynThrMin, 0) * 10).rounded() / 10 }
+            if let v = range { b.range = (Eq.clamp(v, -EqSpec.dynRangeMax, EqSpec.dynRangeMax) * 10).rounded() / 10 }
+        }
+    }
+
+    /// Двойной тап по точке: включить или выключить полосу.
+    public mutating func toggleBand(_ k: Int) {
+        change(k) { $0.on.toggle() }
+    }
+
+    public mutating func deleteBand(_ k: Int) {
+        if k >= 0 && k < bands.count { bands[k] = nil }
+    }
+
+    /// Полосы пресета (BYPASS не меняется); источник DYN — дорожка с номером больше tracks — OFF.
+    public mutating func apply(_ p: EqPreset, tracks: Int) {
+        for k in 0..<EqSpec.bands {
+            guard var b = k < p.bands.count ? p.bands[k] : nil else {
+                if k < bands.count { bands[k] = nil }
+                continue
+            }
+            if b.dyn > tracks { b.dyn = -1 }
+            if k < bands.count { bands[k] = b }
+        }
     }
 }

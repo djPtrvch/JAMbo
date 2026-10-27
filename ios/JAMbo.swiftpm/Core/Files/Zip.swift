@@ -74,16 +74,30 @@ public enum Zip {
     /// Предел всего распакованного архива.
     public static let totalLimit = 2 << 30
 
+    /// Итог чтения: записи (nil — не ZIP или распакованное больше totalLimit), пропущено файлов больше fileLimit,
+    /// архив больше totalLimit.
+    public struct Reading {
+        public var entries: [ZipEntry]?
+        public var skippedLarge: Int = 0
+        public var tooLarge: Bool = false
+    }
+
     /// Файлы и папки архива; не ZIP или распакованное больше totalLimit — nil. Сжатые не deflate, битые записи
     /// и файлы больше fileLimit пропускаются.
     public static func read(_ data: Data, fileLimit: Int = fileLimit, totalLimit: Int = totalLimit) -> [ZipEntry]? {
+        return check(data, fileLimit: fileLimit, totalLimit: totalLimit).entries
+    }
+
+    /// Как read, с тем, что пропущено по пределам (для предупреждения при импорте).
+    public static func check(_ data: Data, fileLimit: Int = fileLimit, totalLimit: Int = totalLimit) -> Reading {
+        var res = Reading()
         let b: [UInt8] = [UInt8](data)
         let n = b.count
         func u16(_ o: Int) -> Int { o + 2 <= n ? Int(b[o]) | (Int(b[o + 1]) << 8) : 0 }
         func u32(_ o: Int) -> Int { u16(o) | (u16(o + 2) << 16) }
         var e = n - 22
         while e >= 0 && u32(e) != 0x06054b50 { e -= 1 }
-        if e < 0 { return nil }
+        if e < 0 { return res }
         let count = u16(e + 10)
         var p = u32(e + 16)
         var out: [ZipEntry] = []
@@ -112,15 +126,28 @@ public enum Zip {
             var file: Data? = nil
             if method == 0 {
                 file = csize <= fileLimit ? raw : nil
+                if file == nil { res.skippedLarge += 1 }
             } else if method == 8 {
-                file = Inflate.inflate(raw, limit: Swift.min(fileLimit, totalLimit - total))
-                if file == nil && total + fileLimit > totalLimit { return nil }
+                var big = false
+                let room: Int = totalLimit - total
+                file = Inflate.inflate(raw, limit: Swift.min(fileLimit, room), tooLarge: &big)
+                if big {
+                    if room < fileLimit {
+                        res.tooLarge = true
+                        return res
+                    }
+                    res.skippedLarge += 1
+                }
             }
             guard let d = file else { continue }
             total += d.count
-            if total > totalLimit { return nil }
+            if total > totalLimit {
+                res.tooLarge = true
+                return res
+            }
             out.append(ZipEntry(path: path, data: d))
         }
-        return out
+        res.entries = out
+        return res
     }
 }

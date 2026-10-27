@@ -311,12 +311,21 @@ extension AppModel {
         let dir: URL = store.dir
         Task.detached(priority: .userInitiated) {
             var files: [(String, Data)] = []
+            var big: [String] = []
             for u in urls {
                 let access = u.startAccessingSecurityScopedResource()
                 defer { if access { u.stopAccessingSecurityScopedResource() } }
+                // Архив больше предела не читается в память.
+                let size: Int = (try? u.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+                if u.pathExtension.lowercased() == "zip" && size > Zip.totalLimit {
+                    big.append(u.lastPathComponent)
+                    continue
+                }
                 if let d = try? Data(contentsOf: u) { files.append((u.lastPathComponent, d)) }
             }
             let read = files
+            let tooBig = big
+            if !tooBig.isEmpty { await MainActor.run { self.warnZip(tooBig, skipped: 0) } }
             // Дерево — в основном потоке (папки и пресеты сразу), аудио — декодируется в фоне.
             let audio: [(String, String, Data)] = await MainActor.run { self.libPlaceFiles(read, into: into) }
             var loaded: [(String, SampleStore.Loaded)] = []
@@ -340,10 +349,16 @@ extension AppModel {
     private func libPlaceFiles(_ files: [(String, Data)], into: String) -> [(String, String, Data)] {
         var audio: [(String, String, Data)] = []
         var presets = 0
+        var big: [String] = []
+        var skipped = 0
         libEdit { lib in
             for (name, data) in files {
                 let lower: String = name.lowercased()
-                if lower.hasSuffix(".zip"), let entries = Zip.read(data) {
+                let zip: Zip.Reading? = lower.hasSuffix(".zip") ? Zip.check(data) : nil
+                if let z = zip, z.tooLarge {
+                    big.append(name)
+                } else if let z = zip, let entries = z.entries {
+                    skipped += z.skippedLarge
                     let r = lib.importZip(entries, into: into)
                     presets += r.presets
                     audio += r.audio
@@ -359,7 +374,24 @@ extension AppModel {
             }
         }
         libImportedPresets = presets
+        if !big.isEmpty || skipped > 0 { warnZip(big, skipped: skipped) }
         return audio
+    }
+
+    /// Предупреждение: архивы больше 2 ГБ не импортированы, файлы больше 512 МБ в архивах пропущены.
+    func warnZip(_ big: [String], skipped: Int) {
+        var lines: [String] = []
+        if !big.isEmpty {
+            let one: Bool = big.count == 1
+            lines.append(big.joined(separator: ", ") + (one ? " is" : " are") + " larger than 2 GB unpacked and "
+                         + (one ? "was" : "were") + " not imported.")
+        }
+        if skipped > 0 {
+            lines.append("\(skipped) file\(skipped == 1 ? "" : "s") larger than 512 MB inside the archive "
+                         + (skipped == 1 ? "was" : "were") + " skipped.")
+        }
+        let text: String = lines.joined(separator: "\n")
+        libWarning = libWarning.map { $0 + "\n" + text } ?? text
     }
 
     // MARK: — EXPORT (S11c)

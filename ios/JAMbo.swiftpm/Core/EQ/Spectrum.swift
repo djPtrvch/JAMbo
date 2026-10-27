@@ -3,7 +3,7 @@ import Foundation
 // Спектры EQ (как AnalyserNode веба: моно (L + R)/2, окно Блэкмана, FFT 4096, |X|/N, сглаживание 0,6 между
 // чтениями, dB). Колбэк пишет сигнал в кольцевые буферы точек съёма (SpectrumTap), интерфейс читает последние
 // 4096 отсчётов и считает спектр (SpectrumAnalyzer) — вне колбэка. Точки съёма (Spectra): до и после EQ показанного
-// канала, после EQ сравниваемой дорожки, конечный выход мастера; канал — атомарное значение (−1 — съём выключен).
+// канала (или коррекции наушников), после EQ сравниваемой дорожки; канал — атомарное значение (−1 — съём выключен).
 
 /// Кольцевой буфер точки съёма: пишет колбэк, читает интерфейс (без блокировок; разрыв на стыке — только в картинке).
 public final class SpectrumTap: @unchecked Sendable {
@@ -87,13 +87,10 @@ public final class Spectra: @unchecked Sendable {
     public let pre = SpectrumTap()
     public let post = SpectrumTap()
     public let compare = SpectrumTap()
-    public let out = SpectrumTap()
-    /// Канал EQ на экране (дорожка, EqSpec.masterChannel; −1 — EQ закрыт): до и после его EQ.
+    /// Канал EQ на экране (дорожка, EqSpec.masterChannel, EqSpec.phonesChannel; −1 — EQ закрыт): до и после его EQ.
     public let channel = AtomicCounter()
     /// Дорожка для сравнения (после её EQ; −1 — нет).
     public let compareTrack = AtomicCounter()
-    /// Спектр конечного выхода мастера включён (1).
-    public let outOn = AtomicCounter()
 
     public init() {
         channel.store(-1)

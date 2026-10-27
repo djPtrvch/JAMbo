@@ -2,6 +2,7 @@ import SwiftUI
 
 /// Меню PRESETS EQ (как пресеты EQ веба и модулей мастера): заголовок, SAVE (имя — окном ввода), список имён
 /// с прокруткой (без числа пресетов и полос — решение пользователя): тап — загрузить в EQ показанного канала (UNDO),
+/// SAVE DEFAULT — полосы EQ по умолчанию для новых дорожек или проектов (у коррекции наушников — свой список, без него),
 /// свайп влево — RENAME (карандаш на сером) и DELETE (корзина на красном). Правым краем к кнопке, не ниже поля EQ; тап мимо — закрыть.
 struct EqPresetsMenu: View {
     static let width: CGFloat = 260
@@ -27,12 +28,17 @@ struct EqPresetsMenu: View {
     }
 
     private var content: some View {
-        let list: [EqPreset] = model.eqPresets.list
+        let list: [EqPreset] = model.eqBook.list
+        let phones: Bool = model.phonesShown
+        let saved: Bool = model.defaultSaved == .eq
         return VStack(alignment: .leading, spacing: 8) {
-            MenuHead(title: "EQ PRESETS")
+            MenuHead(title: phones ? "PHONES PRESETS" : "EQ PRESETS")
             MenuItem(title: "SAVE") {
                 model.eqPresetMenu = nil
                 model.eqInputAsk = .save
+            }
+            if !phones {
+                MenuItem(title: saved ? "SAVED" : "SAVE DEFAULT", current: saved) { model.saveEqDefault() }
             }
             if list.isEmpty {
                 Text("No EQ presets yet — save one with SAVE")
@@ -47,7 +53,7 @@ struct EqPresetsMenu: View {
     /// Высота списка: все строки (44 + 4), но не выше места под заголовком и SAVE.
     private func listHeight(_ n: Int) -> CGFloat {
         let full: CGFloat = CGFloat(n) * 48 - 4
-        let room: CGFloat = max(48, maxHeight - 110)
+        let room: CGFloat = max(48, maxHeight - (model.phonesShown ? 110 : 158))
         return min(full, room)
     }
 

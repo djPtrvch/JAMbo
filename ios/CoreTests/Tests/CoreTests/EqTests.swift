@@ -260,7 +260,6 @@ final class SpectrumTests: XCTestCase {
         let s = SampleData(left: (0..<48000).map { Float(0.5 * sin(2 * Double.pi * 100 * Double($0) / 48000)) }, right: nil)
         core.publish(p, samples: ["s": s])
         core.spectra.channel.store(0)
-        core.spectra.outOn.store(1)
         var bl = [Float](repeating: 0, count: 256), br = [Float](repeating: 0, count: 256)
         for _ in 0..<16 { core.render(frames: 256, left: &bl, right: &br) }
         core.events.push(.noteOn(track: 0, note: 48, id: 1, velocity: 1))
@@ -272,7 +271,10 @@ final class SpectrumTests: XCTestCase {
         }
         XCTAssertGreaterThan(peak(core.spectra.pre), -40)
         XCTAssertLessThan(peak(core.spectra.post), -100)
-        XCTAssertLessThan(peak(core.spectra.out), -100, "через мастер — тоже после EQ дорожки")
+        // Окно коррекции наушников: съём — конечный выход до и после коррекции (через мастер — тоже после EQ дорожки).
+        core.spectra.channel.store(EqSpec.phonesChannel)
+        for _ in 0..<40 { core.render(frames: 256, left: &bl, right: &br) }
+        XCTAssertLessThan(peak(core.spectra.pre), -100)
     }
 
     /// Нагрузка анализа (отладочная сборка): 4 спектра — как кадр EQ с основным, сравнением и выходом.

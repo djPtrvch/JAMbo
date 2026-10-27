@@ -50,6 +50,9 @@ final class LibraryFilesTests: XCTestCase {
         XCTAssertEqual(Zip.read(z, fileLimit: 200)?.map(\.path), ["b.wav"])
         XCTAssertNil(Zip.read(z, fileLimit: 300, totalLimit: 399))
         XCTAssertEqual(Zip.read(z, fileLimit: 300, totalLimit: 400), e)
+        XCTAssertEqual(Zip.check(z, fileLimit: 200).skippedLarge, 1)
+        XCTAssertTrue(Zip.check(z, fileLimit: 300, totalLimit: 399).tooLarge)
+        XCTAssertFalse(Zip.check(Data("not a zip".utf8)).tooLarge)
     }
 
     func testWavFloat32ReadsBack() throws {

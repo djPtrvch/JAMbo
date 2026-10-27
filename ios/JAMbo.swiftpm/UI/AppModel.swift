@@ -173,11 +173,14 @@ final class AppModel {
     /// Меню PRESETS EQ (рамка кнопки и низ поля EQ, «root»); пресеты EQ — общие для каналов и проектов.
     var eqPresetMenu: EqPresetMenuState? = nil
     var eqPresets: EqPresetBook = AppModel.loadEqPresets()
-    /// Сравнение у каждой дорожки своё: id дорожки → id сравниваемой (спектр после её EQ); меню выбора; спектр
-    /// выхода у EQ мастера.
+    /// Сравнение у каждой дорожки своё: id дорожки → id сравниваемой (спектр после её EQ); меню выбора.
     var eqCompares: [Int: Int] = [:]
     var eqCompareMenu: Bool = false
-    var eqOutOn: Bool = false
+    /// Коррекция наушников: окно открыто вместо EQ мастера (тап по MASTER EQ), её полосы и пресеты — своя настройка
+    /// приложения, не проекта (UserDefaults).
+    var eqPhones: Bool = false
+    var phonesEq: Eq = AppModel.loadPhonesEq()
+    var phonesPresets: EqPresetBook = AppModel.loadPhonesPresets()
     var gridTop: Int = 0
     /// Открытые меню сетки: ячейки (свайп вверх), строки (удержание), бутерброд сетки.
     var cellMenu: CellMenuState? = nil
@@ -267,6 +270,8 @@ final class AppModel {
     var libFolder: String = Library.root
     var libPicked: Set<String>? = nil
     var libNote: String = ""
+    /// Предупреждение импорта в библиотеку (архив больше предела, пропущенные большие файлы) — окно с OK.
+    var libWarning: String? = nil
     var importingLibrary: Bool = false
     @ObservationIgnored var libraryLoaded: Bool = false
     /// IMPORT таблиц WAV без метки размера кадра — по очереди спрашивается размер (S11b4).
@@ -321,6 +326,8 @@ final class AppModel {
     /// Свои значения ручек по умолчанию (UserDefaults) и ручка, на которой на секунду видно SAVED.
     var knobDefaults: KnobDefaults = KnobDefaults.decode(UserDefaults.standard.data(forKey: AppModel.knobDefaultsKey))
     var defaultFlash: Int? = nil
+    /// SAVE DEFAULT в PRESETS EQ или модуля мастера — на секунду SAVED жёлтым.
+    var defaultSaved: DefaultSaved? = nil
 
     init() {
         trace("model init")
@@ -330,6 +337,7 @@ final class AppModel {
         syncTapSensor()
         startMidi()
         publishAudio()
+        audio.core.phones.publish(phonesEq)
         audio.core.events.push(.tempo(project.bpm))
         let timer = Timer(timeInterval: 1.0 / 60, repeats: true) { [weak self] _ in
             self?.drain()

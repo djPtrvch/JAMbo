@@ -3,8 +3,35 @@ import Foundation
 // Свои значения ручек по умолчанию (KnobDefaults): SHIFT + удержание ручки — запомнить, двойной тап — сбросить;
 // SETTINGS → DEFAULTS — забыть все.
 
+/// Где только что сохранено своё по умолчанию из меню PRESETS: EQ или модуль мастера (MasterScope).
+enum DefaultSaved: Equatable {
+    case eq
+    case master(Int)
+}
+
 extension AppModel {
     static let knobDefaultsKey = "knobDefaults"
+
+    /// SAVED на кнопке SAVE DEFAULT — на секунду.
+    func flashDefault(_ what: DefaultSaved) {
+        defaultSaved = what
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            if self.defaultSaved == what { self.defaultSaved = nil }
+        }
+    }
+
+    /// SAVE DEFAULT в PRESETS модуля m: все его параметры — свои по умолчанию (как ручки MST: NEW, двойной тап).
+    func saveMasterDefault(_ m: Int) {
+        let defs: [String: Double] = MasterChain.defaultValues()
+        let master: [String: Double] = project.master
+        storeDefaults { d in
+            for id in MasterPresetBook.ids(m) {
+                d.values[KnobDefaults.key("mst", id)] = master[id] ?? defs[id] ?? 0
+            }
+        }
+        flashDefault(.master(m))
+    }
 
     /// Область ручки slot на текущей странице (MIX — нет).
     func defaultScope(_ slot: Int) -> String? {
@@ -92,15 +119,16 @@ extension AppModel {
         }
     }
 
-    /// SETTINGS → DEFAULTS: сколько своих значений запомнено.
+    /// SETTINGS → DEFAULTS: сколько своих значений запомнено (EQ дорожки и мастера — по одному).
     var knobDefaultsCount: Int {
-        return knobDefaults.values.keys.filter { k in
+        let knobs: Int = knobDefaults.values.keys.filter { k in
             !(k.hasSuffix("/dly.sync") || k.hasSuffix("/" + Params.rateModeId)
               || Params.lfoSyncIds.contains { k.hasSuffix("/" + $0) })
         }.count
+        return knobs + (knobDefaults.eqTrack == nil ? 0 : 1) + (knobDefaults.eqMaster == nil ? 0 : 1)
     }
 
     func clearKnobDefaults() {
-        storeDefaults { d in d.values.removeAll() }
+        storeDefaults { d in d = KnobDefaults() }
     }
 }

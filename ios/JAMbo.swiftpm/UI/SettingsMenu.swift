@@ -262,7 +262,7 @@ struct LevelSettings: View {
     }
 }
 
-/// DEFAULTS: свои значения ручек по умолчанию (KnobDefaults) — как запомнить и сбросить; забыть все.
+/// DEFAULTS: свои значения ручек, модулей мастера и EQ по умолчанию (KnobDefaults) — как запомнить и сбросить; забыть все.
 struct DefaultsSettings: View {
     let model: AppModel
 
@@ -271,6 +271,7 @@ struct DefaultsSettings: View {
         return VStack(alignment: .leading, spacing: 8) {
             FieldLabel(title: "KNOB DEFAULTS")
             SettingsNote(text: "SHIFT + hold a knob: its value becomes the default (the knob shows SAVED). Double tap a knob: back to its default; double tap again: back to the factory value. Your defaults are used by NEW projects and ADD TRACK; saved projects stay as they are. Sound knobs keep their own defaults for the sampler and for each synth engine.")
+            SettingsNote(text: "SAVE DEFAULT in PRESETS of SAT, COMP, CLIP and LIM: all settings of the module become its default. SAVE DEFAULT in EQ PRESETS: the bands become the default EQ of new tracks (track EQ) or new projects (master EQ).")
             SettingsNote(text: n == 0 ? "No saved defaults." : "Saved defaults: \(n).")
             HStack(spacing: 4) {
                 MenuItem(title: "FORGET ALL", enabled: n > 0, red: true) { model.clearKnobDefaults() }

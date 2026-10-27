@@ -4,7 +4,7 @@ import SwiftUI
 /// сразу, спад 30 dB/s, линия через середины отрезков. До EQ — серая линия; после EQ — серая полупрозрачная заливка
 /// = линия до EQ + действие EQ (разница «после − до», сглаженная за ~50 мс: заливка сразу следует за полосами).
 /// Дорожка для сравнения (решение пользователя на S5b, в вебе нет) — после её EQ, прозрачнее основного, с именем.
-/// Выход мастера (тап по надписи у EQ мастера) — заливка с красным контуром. Шкала 6…−90 dBFS.
+/// У коррекции наушников — выход до неё и после. Шкала 6…−90 dBFS.
 final class SpectrumDisplay {
     static let top: Float = 6
     static let bottom: Float = -90
@@ -15,13 +15,11 @@ final class SpectrumDisplay {
     let pre = SpectrumAnalyzer()
     let post = SpectrumAnalyzer()
     let compare = SpectrumAnalyzer()
-    let out = SpectrumAnalyzer()
     private var cum = [Double](repeating: 0, count: SpectrumAnalyzer.bins + 1)
     private var dPre: [Float] = []
     private var dPost: [Float] = []
     private var dDiff: [Float] = []
     private var dCompare: [Float] = []
-    private var dOut: [Float] = []
     private var last: Date? = nil
 
     /// Кривые (y в точках поля) на этот кадр.
@@ -29,10 +27,9 @@ final class SpectrumDisplay {
         var pre: [CGFloat] = []
         var post: [CGFloat] = []
         var compare: [CGFloat]? = nil
-        var out: [CGFloat]? = nil
     }
 
-    func frame(_ spectra: Spectra, size: CGSize, compare cmp: Bool, out showOut: Bool, now: Date) -> Frame {
+    func frame(_ spectra: Spectra, size: CGSize, compare cmp: Bool, now: Date) -> Frame {
         let n: Int = Int(size.width / SpectrumDisplay.step) + 1
         let dt: Double = min(0.1, last.map { now.timeIntervalSince($0) } ?? 0)
         last = now
@@ -40,7 +37,6 @@ final class SpectrumDisplay {
             dPre = [Float](repeating: SpectrumDisplay.bottom, count: n)
             dPost = dPre
             dCompare = dPre
-            dOut = dPre
             dDiff = [Float](repeating: 0, count: n)
         }
         let fall: Float = SpectrumDisplay.fall * Float(dt)
@@ -61,10 +57,6 @@ final class SpectrumDisplay {
         if cmp {
             compare.analyze(spectra.compare)
             f.compare = follow(&dCompare, bands(compare, n, g), fall, size)
-        }
-        if showOut {
-            out.analyze(spectra.out)
-            f.out = follow(&dOut, bands(out, n, g), fall, size)
         }
         return f
     }
@@ -138,12 +130,11 @@ struct EqSpectrumLayer: View {
 
     var body: some View {
         let cmp: Int? = model.eqCompareShown
-        let out: Bool = model.eqOutShown
         let name: String = cmp.map { $0 < model.project.tracks.count ? model.project.tracks[$0].name : "" } ?? ""
         return TimelineView(.animation(minimumInterval: 1.0 / 30)) { tl in
             let _ = RedrawMeter.hit(.eqSpec)
             Canvas { ctx, size in
-                let f = display.frame(model.audio.core.spectra, size: size, compare: cmp != nil, out: out, now: tl.date)
+                let f = display.frame(model.audio.core.spectra, size: size, compare: cmp != nil, now: tl.date)
                 draw(ctx, f, size, name)
             }
         }
@@ -161,11 +152,6 @@ struct EqSpectrumLayer: View {
                        style: StrokeStyle(lineWidth: 1, lineJoin: .round))
             let label: Text = Text("vs \(name)").font(.system(size: 11, weight: .semibold)).foregroundColor(theme.dim)
             ctx.draw(label, at: CGPoint(x: size.width - 8, y: 8), anchor: .topTrailing)
-        }
-        if let o = f.out {
-            ctx.fill(SpectrumDisplay.path(o, filled: true, height: h), with: .color(theme.dim.opacity(0.22)))
-            ctx.stroke(SpectrumDisplay.path(o, filled: false, height: h), with: .color(theme.rec),
-                       style: StrokeStyle(lineWidth: 1.2, lineJoin: .round))
         }
     }
 }

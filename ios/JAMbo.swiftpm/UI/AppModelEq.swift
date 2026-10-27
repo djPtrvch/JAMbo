@@ -19,16 +19,39 @@ extension AppModel {
     /// Канал EQ: дорожка или EqSpec.masterChannel.
     var eqChannel: Int { return channel == .track ? selectedTrack : EqSpec.masterChannel }
 
-    var eqTarget: Eq { return project.eq(eqChannel) }
+    var eqTarget: Eq { return phonesShown ? phonesEq : project.eq(eqChannel) }
 
-    /// Имя канала над MIX: дорожка или MASTER.
-    var eqTargetName: String { return channel == .track ? track.name : "MASTER" }
+    /// Имя канала над MIX: дорожка, MASTER или PHONES (коррекция наушников).
+    var eqTargetName: String {
+        if phonesShown { return "PHONES" }
+        return channel == .track ? track.name : "MASTER"
+    }
+
+    /// Окно коррекции наушников (тап по MASTER EQ; при MIX и MST).
+    var phonesShown: Bool { return eqView && channel != .track && eqPhones }
+
+    /// Канал на экране для спектров и сброса выбора: дорожка, мастер или коррекция наушников.
+    var eqShownChannel: Int { return phonesShown ? EqSpec.phonesChannel : eqChannel }
+
+    /// Правка показанного EQ: канала проекта (UNDO) или коррекции наушников (своя настройка, без UNDO).
+    func eqEdit(_ f: (inout Eq) -> Void) {
+        if phonesShown {
+            var e: Eq = phonesEq
+            f(&e)
+            if e != phonesEq { setPhonesEq(e) }
+            return
+        }
+        let ch: Int = eqChannel
+        edit { $0.withEq(ch, f) }
+    }
 
     var selectedBand: EqBand? { return eqTarget.band(eqBand) }
 
     /// Кнопка EQ: центр экрана — EQ или обратно (PATTERNS и редактор сэмпла закрываются).
     func toggleEqView() {
         eqView.toggle()
+        // Кнопка EQ открывает EQ мастера, а не коррекцию наушников.
+        eqPhones = false
         stopEqListen()
         eqMenu = nil
         eqMsMenu = nil
@@ -59,15 +82,18 @@ extension AppModel {
         return c
     }
 
-    /// Спектр выхода показан (EQ мастера, включён тапом по надписи).
-    var eqOutShown: Bool { return eqView && channel != .track && eqOutOn }
-
-    /// Тап по имени канала: у дорожки — меню дорожек для сравнения, у мастера — спектр выхода (как в вебе).
+    /// Тап по имени канала: у дорожки — меню дорожек для сравнения, у мастера — окно коррекции наушников и обратно.
     func eqNameTapped() {
         if channel == .track {
             eqCompareMenu.toggle()
         } else {
-            eqOutOn.toggle()
+            stopEqListen()
+            eqMsMenu = nil
+            eqDynMenu = nil
+            eqPresetMenu = nil
+            eqMenu = nil
+            eqBand = -1
+            eqPhones.toggle()
             syncSpectra()
         }
     }
@@ -85,49 +111,42 @@ extension AppModel {
     /// Что слушают точки съёма спектров: канал EQ на экране, сравниваемая дорожка, выход мастера.
     func syncSpectra() {
         let s: Spectra = audio.core.spectra
-        s.channel.store(eqView ? eqChannel : -1)
+        s.channel.store(eqView ? eqShownChannel : -1)
         s.compareTrack.store(eqCompareShown ?? -1)
-        s.outOn.store(eqOutShown ? 1 : 0)
     }
 
     /// Двойной тап по пустому месту: новая bell-полоса, она же выбрана.
     func addEqBand(freq: Double, gain: Double) {
-        let ch = eqChannel
         var k = -1
-        edit { k = $0.addEqBand(ch, freq: freq, gain: gain) }
+        eqEdit { k = $0.addBand(freq: freq, gain: gain) }
         if k >= 0 { eqBand = k }
     }
 
     /// Значения полосы k (внутри жеста — одна запись UNDO на жест).
     func setEqBand(_ k: Int, freq: Double? = nil, gain: Double? = nil, q: Double? = nil) {
-        let ch = eqChannel
-        edit { $0.setEqBand(ch, k, freq: freq, gain: gain, q: q) }
+        eqEdit { $0.setBand(k, freq: freq, gain: gain, q: q) }
         if eqListenBand >= 0 { syncEqListen() }
     }
 
     func setEqType(_ k: Int, _ type: Int) {
-        let ch = eqChannel
-        edit { $0.setEqType(ch, k, type) }
+        eqEdit { $0.setType(k, type) }
         if eqListenBand >= 0 { syncEqListen() }
     }
 
     /// Режим M/S полосы k: 0 STEREO, 1 MID, 2 SIDE.
     func setEqMs(_ k: Int, _ ms: Int) {
-        let ch = eqChannel
-        edit { $0.setEqMs(ch, k, ms) }
+        eqEdit { $0.setMs(k, ms) }
         if eqListenBand >= 0 { syncEqListen() }
     }
 
     /// Источник динамической полосы k: −1 OFF, 0 SELF, n — дорожка n.
     func setEqDyn(_ k: Int, _ src: Int) {
-        let ch = eqChannel
-        edit { $0.setEqDyn(ch, k, src) }
+        eqEdit { $0.setDyn(k, src) }
     }
 
     /// THRESHOLD и RANGE динамической полосы k (внутри жеста — одна запись UNDO на жест).
     func setEqDynParams(_ k: Int, thr: Double? = nil, range: Double? = nil) {
-        let ch = eqChannel
-        edit { $0.setEqDynParams(ch, k, thr: thr, range: range) }
+        eqEdit { $0.setDynParams(k, thr: thr, range: range) }
     }
 
     /// Сдвиги динамических полос показанного канала сейчас, dB (0 — полоса не динамическая или выключена).
@@ -135,8 +154,9 @@ extension AppModel {
         let e: Eq = eqTarget
         let ch: Int = eqChannel
         let levels: EqDynLevels = audio.core.eqDyn
+        let phones: Bool = phonesShown
         return (0..<EqSpec.bands).map { k in
-            guard e.on, let b = e.band(k), b.on, EqSpec.dynOn(b) else { return 0 }
+            guard !phones, e.on, let b = e.band(k), b.on, EqSpec.dynOn(b) else { return 0 }
             return Double(levels.offset(ch, k))
         }
     }
@@ -144,7 +164,7 @@ extension AppModel {
     /// Есть ли у показанного канала включённые динамические полосы (тогда точки и кривая двигаются).
     var eqHasDyn: Bool {
         let e: Eq = eqTarget
-        if !e.on { return false }
+        if !e.on || phonesShown { return false }
         for case let b? in e.bands where b.on && EqSpec.dynOn(b) { return true }
         return false
     }
@@ -159,60 +179,109 @@ extension AppModel {
     }
 
     func setEqSlope(_ k: Int, _ slope: Int) {
-        let ch = eqChannel
-        edit { $0.setEqSlope(ch, k, slope) }
+        eqEdit { $0.setSlope(k, slope) }
     }
 
     func toggleEqBand(_ k: Int) {
-        let ch = eqChannel
-        edit { $0.toggleEqBand(ch, k) }
+        eqEdit { $0.toggleBand(k) }
     }
 
     func deleteEqBand(_ k: Int) {
-        let ch = eqChannel
-        edit { $0.deleteEqBand(ch, k) }
+        eqEdit { $0.deleteBand(k) }
         if eqBand == k { eqBand = -1 }
         if eqListenBand >= 0 { syncEqListen() }
     }
 
-    // MARK: — пресеты EQ (UserDefaults «eqPresets»)
+    // MARK: — пресеты EQ (UserDefaults «eqPresets»; у коррекции наушников свой список — «phonesPresets»)
 
-    func saveEqPreset(name: String, over: Int? = nil) {
-        eqPresets.save(name: name, eq: eqTarget, over: over)
-        storeEqPresets()
+    /// Список пресетов показанного EQ.
+    var eqBook: EqPresetBook { return phonesShown ? phonesPresets : eqPresets }
+
+    private func editBook(_ f: (inout EqPresetBook) -> Void) {
+        if phonesShown {
+            f(&phonesPresets)
+            UserDefaults.standard.set(phonesPresets.encode(), forKey: AppModel.phonesPresetsKey)
+        } else {
+            f(&eqPresets)
+            UserDefaults.standard.set(eqPresets.encode(), forKey: "eqPresets")
+        }
     }
 
-    /// Загрузить пресет k в EQ показанного канала (одна запись UNDO); выбор полосы сбрасывается.
+    func saveEqPreset(name: String, over: Int? = nil) {
+        let e: Eq = eqTarget
+        editBook { $0.save(name: name, eq: e, over: over) }
+    }
+
+    /// Загрузить пресет k в показанный EQ (одна запись UNDO); выбор полосы сбрасывается.
     func loadEqPreset(_ k: Int) {
-        guard k >= 0 && k < eqPresets.list.count else { return }
-        let ch = eqChannel
-        let p: EqPreset = eqPresets.list[k]
-        edit { $0.applyEqPreset(ch, p) }
+        let book: EqPresetBook = eqBook
+        guard k >= 0 && k < book.list.count else { return }
+        let p: EqPreset = book.list[k]
+        let n: Int = phonesShown ? 0 : project.tracks.count
+        eqEdit { $0.apply(p, tracks: n) }
         eqBand = -1
     }
 
     func renameEqPreset(_ k: Int, to name: String) {
-        eqPresets.rename(k, to: name)
-        storeEqPresets()
+        editBook { $0.rename(k, to: name) }
     }
 
     func deleteEqPreset(_ k: Int) {
-        eqPresets.delete(k)
-        storeEqPresets()
-    }
-
-    private func storeEqPresets() {
-        UserDefaults.standard.set(eqPresets.encode(), forKey: "eqPresets")
+        editBook { $0.delete(k) }
     }
 
     static func loadEqPresets() -> EqPresetBook {
         return EqPresetBook.decode(UserDefaults.standard.data(forKey: "eqPresets"))
     }
 
+    // MARK: — коррекция наушников (UserDefaults «phonesEq», «phonesPresets»)
+
+    static let phonesEqKey = "phonesEq"
+    static let phonesPresetsKey = "phonesPresets"
+    static let phonesSeededKey = "phonesSeeded"
+
+    static func loadPhonesEq() -> Eq {
+        guard let d = UserDefaults.standard.data(forKey: AppModel.phonesEqKey),
+              let e = try? JSONDecoder().decode(Eq.self, from: d) else { return Eq() }
+        return e
+    }
+
+    /// Список пресетов коррекции; в первый раз в нём — профиль Sony WH-1000XM4 (удалённый больше не появляется).
+    static func loadPhonesPresets() -> EqPresetBook {
+        let ud = UserDefaults.standard
+        var b: EqPresetBook = EqPresetBook.decode(ud.data(forKey: AppModel.phonesPresetsKey))
+        if !ud.bool(forKey: AppModel.phonesSeededKey) {
+            b.list.insert(EqPresetBook.sonyXM4, at: 0)
+            ud.set(b.encode(), forKey: AppModel.phonesPresetsKey)
+            ud.set(true, forKey: AppModel.phonesSeededKey)
+        }
+        return b
+    }
+
+    /// Новая коррекция: сохранить и отдать звуку.
+    func setPhonesEq(_ e: Eq) {
+        phonesEq = e
+        UserDefaults.standard.set(try? JSONEncoder().encode(e), forKey: AppModel.phonesEqKey)
+        audio.core.phones.publish(e)
+    }
+
+    /// Предусиление коррекции (подпись PREAMP), dB.
+    var phonesPreamp: Double { return EqSpec.preamp(phonesEq) }
+
+    // MARK: — свой EQ по умолчанию (SAVE DEFAULT в PRESETS; KnobDefaults)
+
+    /// SAVE DEFAULT: полосы показанного EQ — по умолчанию для новых дорожек (EQ дорожки) или проектов (EQ мастера).
+    func saveEqDefault() {
+        let bands: [EqBand?] = eqTarget.bands
+        let master: Bool = channel != .track
+        knobDefaults.setEq(bands, master: master)
+        UserDefaults.standard.set(knobDefaults.encode(), forKey: AppModel.knobDefaultsKey)
+        flashDefault(.eq)
+    }
+
     /// BYPASS: выключение EQ канала.
     func toggleEqBypass() {
-        let ch = eqChannel
-        edit { $0.toggleEq(ch) }
+        eqEdit { $0.on.toggle() }
     }
 }
 
@@ -267,6 +336,7 @@ enum EqFormat {
 extension AppModel {
     /// LISTEN нажата (или, пока её держат, выбрана другая точка): слушать выбранную полосу.
     func startEqListen() {
+        if phonesShown { return }
         eqListenHeld = true
         eqListenBand = selectedBand != nil ? eqBand : -1
         syncEqListen()

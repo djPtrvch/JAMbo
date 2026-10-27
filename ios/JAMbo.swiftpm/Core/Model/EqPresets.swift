@@ -76,15 +76,6 @@ extension Project {
     /// OFF (решение пользователя).
     public mutating func applyEqPreset(_ ch: Int, _ p: EqPreset) {
         let n: Int = tracks.count
-        withEq(ch) { e in
-            for k in 0..<EqSpec.bands {
-                guard var b = k < p.bands.count ? p.bands[k] : nil else {
-                    e.bands[k] = nil
-                    continue
-                }
-                if b.dyn > n { b.dyn = -1 }
-                e.bands[k] = b
-            }
-        }
+        withEq(ch) { $0.apply(p, tracks: n) }
     }
 }

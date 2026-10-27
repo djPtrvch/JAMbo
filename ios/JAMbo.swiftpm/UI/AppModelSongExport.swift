@@ -33,6 +33,8 @@ extension AppModel {
         songExporter = exporter
         songExport = SongExportState(progress: 0, running: true, file: nil, failed: false)
         audio.beginExport()
+        // Коррекция наушников — только для слуха: в файл не идёт.
+        core.phones.paused.store(1)
         exporter.preroll(core)
         core.events.push(.arrange(on: true, from: 0))
         core.events.push(.play(true))
@@ -54,6 +56,7 @@ extension AppModel {
 
     private func finishSong(_ url: URL?, cancelled: Bool, loop: Bool, refB: Bool) {
         audio.core.events.push(.play(false))
+        audio.core.phones.paused.store(0)
         audio.endExport()
         mutatePlay({ p in p.arrange.loop = loop }, publish: false)
         arrRefB = refB

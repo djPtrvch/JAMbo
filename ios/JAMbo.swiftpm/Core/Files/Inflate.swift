@@ -80,6 +80,12 @@ public enum Inflate {
 
     /// Распаковать; ошибка в потоке или выход больше limit байт (ZIP-бомба) — nil.
     public static func inflate(_ data: Data, limit: Int = Int.max) -> Data? {
+        var big = false
+        return inflate(data, limit: limit, tooLarge: &big)
+    }
+
+    /// То же; tooLarge — поток оборван пределом (а не испорчен).
+    public static func inflate(_ data: Data, limit: Int, tooLarge: inout Bool) -> Data? {
         var r = Reader([UInt8](data))
         var out: [UInt8] = []
         out.reserveCapacity(Swift.min(data.count * 3, limit))
@@ -97,6 +103,9 @@ public enum Inflate {
                 default: throw InflateError.badBlock
                 }
             } while last == 0
+        } catch InflateError.tooLarge {
+            tooLarge = true
+            return nil
         } catch {
             return nil
         }

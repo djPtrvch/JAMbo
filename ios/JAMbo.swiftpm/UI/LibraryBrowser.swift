@@ -50,6 +50,15 @@ struct LibraryBrowser: View {
             Button("SAVE AS…") { askSaveAs() }
             Button("CANCEL", role: .cancel) {}
         }
+        .alert("Too large to import", isPresented: warningShown) {
+            Button("OK", role: .cancel) { model.libWarning = nil }
+        } message: {
+            Text(model.libWarning ?? "")
+        }
+    }
+
+    private var warningShown: Binding<Bool> {
+        Binding(get: { model.libWarning != nil }, set: { if !$0 { model.libWarning = nil } })
     }
 
     private var header: some View {

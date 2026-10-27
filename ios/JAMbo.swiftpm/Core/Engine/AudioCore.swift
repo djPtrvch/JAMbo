@@ -37,6 +37,8 @@ public final class AudioCore: @unchecked Sendable {
     public let master = MasterChain(sampleRate: AudioCore.sampleRate)
     /// Референс аранжировщика (S15g): после мастера, A/B.
     public let ref = RefPlayer()
+    /// Коррекция наушников: в самом конце выхода (после мастера, референса и прослушивания), мимо записи и экспорта.
+    public let phones = PhonesEq(sampleRate: AudioCore.sampleRate)
     private let useMaster: Bool
     private let masterL = UnsafeMutablePointer<Float>.allocate(capacity: AudioCore.maxFrames)
     private let masterR = UnsafeMutablePointer<Float>.allocate(capacity: AudioCore.maxFrames)
@@ -167,6 +169,7 @@ public final class AudioCore: @unchecked Sendable {
         sequencer.process(blockStart: sampleTime, frames: frames, left: left, right: right, host: host)
         profile.lap(RenderProfile.seq)
         renderMix(frames, left, right)
+        if useMaster { renderPhones(frames, left, right) }
         mod.publish(frame: sampleTime + Int64(frames))
         sampleTime += Int64(frames)
         frameCounter.store(Int(sampleTime))
@@ -191,8 +194,6 @@ public final class AudioCore: @unchecked Sendable {
                            eqParams: d.eq + EqSpec.masterChannel * EqSpec.stride)
             profile.lap(RenderProfile.master)
             if sampler.stemGate != nil { captureStems(ring, n, masterL, masterR) }
-            // Конечный выход мастера (после громкости выхода).
-            if spectra.outOn.load() != 0 { spectra.out.push(masterL, masterR, n) }
             meterMaster(n)
             master.scope.gonio(masterL, masterR, n)
             renderRef(d, n)
@@ -209,6 +210,16 @@ public final class AudioCore: @unchecked Sendable {
         profile.lap(RenderProfile.meters)
         sampler.renderPreview(n, left, right)
         profile.lap(RenderProfile.voices)
+    }
+
+    /// Коррекция наушников на весь выход; спектры до и после неё — пока открыто её окно.
+    @inline(__always)
+    private func renderPhones(_ frames: Int, _ left: UnsafeMutablePointer<Float>, _ right: UnsafeMutablePointer<Float>) {
+        let n = Swift.min(frames, AudioCore.maxFrames)
+        let shown: Bool = spectra.channel.load() == EqSpec.phonesChannel
+        if shown { spectra.pre.push(left, right, n) }
+        phones.process(left, right, n)
+        if shown { spectra.post.push(left, right, n) }
     }
 
     /// Референс (S15g): место — по курсору таймлайна в конце блока (после шагов блока) минус блок.
