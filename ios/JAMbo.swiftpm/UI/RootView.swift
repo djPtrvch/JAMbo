@@ -131,7 +131,7 @@ struct RootView: View {
                 }
             }
         }
-        .onChange(of: lowerH, initial: true) { _, h in model.arrLowerH = h }
+        .onChange(of: lowerH, initial: true) { _, h in model.arrLowerH = RootView.arrStepsH(h) }
         .onChange(of: bar, initial: true) { _, b in model.barH = b }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -168,11 +168,12 @@ struct RootView: View {
 
     /// Аранжировщик (решения пользователя): строка кнопок (ArrangeBar) — сверху, слева на месте строки папки над
     /// превью, справа — на месте верхней миниатюры; под ней окно — до низа экрана (дорожки не схлопываются, прокрутка);
-    /// STEPS — строка дорожек, секвенсор и клавиатура поверх трёх нижних дорожек (от верха шестой); AUTO — на том же
-    /// месте; KNOBS — окно дорожки с ручками в обычном масштабе поверх линейки и пяти верхних дорожек (строку папки и
-    /// верхнюю миниатюру закрывает строка кнопок).
+    /// STEPS — секвенсор и клавиатура внизу (на тех же местах, что на обычном экране); AUTO — на том же месте; KNOBS —
+    /// окно дорожки с ручками и строкой дорожек под ними (как на обычном экране) поверх линейки и верхних дорожек
+    /// (строку папки и верхнюю миниатюру закрывает строка кнопок). Проба: строка дорожек — в окне ручек, не в STEPS.
     private func arrangeArea(_ layout: Layout, _ lowerH: CGFloat, _ bar: CGFloat) -> some View {
         let steps: Bool = !model.project.arrange.hideSteps
+        let stepsH: CGFloat = RootView.arrStepsH(lowerH)
         return GeometryReader { g in
             ZStack(alignment: .topLeading) {
                 ArrangeWindow(model: model)
@@ -181,23 +182,44 @@ struct RootView: View {
                 // Во время переноса клипа из сетки центр — сетка паттернов (она уже есть под аранжировщиком).
                 if model.arrKnobs && !model.patternView {
                     // Фон — и под зазором снизу (чёрная полоса, как между дорожками): из-под окна ничего не видно.
-                    center(layout)
-                        .frame(height: max(0, g.size.height - lowerH - Layout.gap))
-                        .frame(height: max(0, g.size.height - lowerH), alignment: .top)
-                        .background(theme.bg)
+                    VStack(spacing: Layout.gap) {
+                        center(layout).frame(height: max(0, g.size.height - lowerH - Layout.gap))
+                        TrackRow(model: model, layout: layout)
+                            .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("root")).minY } action: { trackTop = $0 }
+                    }
+                    .frame(height: max(0, g.size.height - stepsH), alignment: .top)
+                    .background(theme.bg)
                 }
                 // Над STEPS и AUTO — чёрная полоса (как под окном ручек): дорожки под окном не видны.
                 if model.arrAutoPanel {
-                    ArrAutoPanel(model: model).frame(height: lowerH)
+                    ArrAutoPanel(model: model).frame(height: stepsH)
                         .padding(.top, Layout.gap).background(theme.bg)
-                        .offset(y: g.size.height - lowerH - Layout.gap)
+                        .offset(y: g.size.height - stepsH - Layout.gap)
                 } else if steps {
-                    lower(layout).frame(height: lowerH)
+                    arrSteps(layout).frame(height: stepsH)
                         .padding(.top, Layout.gap).background(theme.bg)
-                        .offset(y: g.size.height - lowerH - Layout.gap)
+                        .offset(y: g.size.height - stepsH - Layout.gap)
                 }
                 ArrangeBar(model: model).frame(height: bar)
             }
+        }
+    }
+
+    /// Высота STEPS и AUTO аранжировщика: низ обычного экрана без строки дорожек (она — в окне ручек).
+    static func arrStepsH(_ lowerH: CGFloat) -> CGFloat {
+        return max(0, lowerH - Layout.trackHeight - Layout.gap)
+    }
+
+    /// STEPS аранжировщика: секвенсор и клавиатура.
+    private func arrSteps(_ layout: Layout) -> some View {
+        VStack(spacing: Layout.gap) {
+            SequencerRow(model: model)
+            KeyboardPanel(model: model, layout: layout)
+        }
+        .background(theme.bg)
+        // Меню бутерброда — до верха STEPS, если строки дорожек (окна ручек) нет.
+        .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("root")).minY } action: { y in
+            if !model.arrKnobs { trackTop = y }
         }
     }
 
