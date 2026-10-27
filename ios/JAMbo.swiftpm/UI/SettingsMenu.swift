@@ -115,13 +115,19 @@ struct RecordSettingsView: View {
     }
 }
 
-/// SAMPLER: SLICE NOTES — ноты маркеров нарезки по хроматической клавиатуре или по гамме; PITCH (S12);
-/// CLEAR SAMPLE LOCKS (S11b); STRETCH — алгоритм таймстретча RATE (NORMAL по умолчанию, BEAT).
+/// SAMPLER: STRETCH — алгоритм таймстретча RATE (NORMAL по умолчанию, BEAT); SLICE NOTES — ноты маркеров нарезки по
+/// хроматической клавиатуре или по гамме; PITCH (S12; ещё — SHIFT + тап по ручке Pitch); CLEAR SAMPLE LOCKS (S11b).
 struct SamplerSettings: View {
     let model: AppModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            FieldLabel(title: "STRETCH")
+            HStack(spacing: 4) {
+                MenuItem(title: "NORMAL", current: !model.settings.stretchBeat) { model.setStretchBeat(false) }
+                MenuItem(title: "BEAT", current: model.settings.stretchBeat) { model.setStretchBeat(true) }
+            }
+            SettingsNote(text: "Rate knob in Stretch mode keeps the pitch while the speed changes. NORMAL — for any material: tones stay clean, hits stay sharp. BEAT — lighter, for drum loops.")
             FieldLabel(title: "SLICE NOTES")
             HStack(spacing: 4) {
                 MenuItem(title: "CHROMATIC", current: model.settings.sliceMap == .chromatic) { model.setSliceMap(.chromatic) }
@@ -133,15 +139,9 @@ struct SamplerSettings: View {
                 MenuItem(title: "SEMITONES", current: model.settings.pitchSemitones) { model.updateSettings { $0.pitchSemitones = true } }
                 MenuItem(title: "SMOOTH", current: !model.settings.pitchSemitones) { model.updateSettings { $0.pitchSemitones = false } }
             }
-            SettingsNote(text: "Sample Pitch knob and its step locks: SEMITONES — whole semitones, SMOOTH — any value. LFO and ENV stay smooth.")
+            SettingsNote(text: "Sample Pitch knob and its step locks: SEMITONES — whole semitones, SMOOTH — any value. LFO and ENV stay smooth. SHIFT + tap on the Pitch knob switches it too.")
             ToggleRow(title: "CLEAR SAMPLE LOCKS", isOn: model.settings.clearSampleLocks) { model.setClearSampleLocks($0) }
             SettingsNote(text: "ON: loading sounds from the library onto a track removes its sample locks — those steps play the track sound at their own note. Preset locks stay. OFF: sample locks keep their samples.")
-            FieldLabel(title: "STRETCH")
-            HStack(spacing: 4) {
-                MenuItem(title: "NORMAL", current: !model.settings.stretchBeat) { model.setStretchBeat(false) }
-                MenuItem(title: "BEAT", current: model.settings.stretchBeat) { model.setStretchBeat(true) }
-            }
-            SettingsNote(text: "Rate knob in Stretch mode keeps the pitch while the speed changes. NORMAL — for any material: tones stay clean, hits stay sharp. BEAT — lighter, for drum loops.")
         }
     }
 }

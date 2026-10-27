@@ -90,10 +90,15 @@ extension AppModel {
         return (track.params[Params.rateModeId] ?? 0) >= 0.5
     }
 
-    /// SHIFT + тап по ручке: Dly Time и Speed LFO — по темпу или свободно, RATE — PTCH / TSTR; true — тап обработан.
+    /// SHIFT + тап по ручке: Dly Time и Speed LFO — по темпу или свободно, RATE — PTCH / TSTR, Pitch сэмпла —
+    /// SEMITONES / SMOOTH (SETTINGS → SAMPLER → PITCH); true — тап обработан.
     @discardableResult
     func knobShiftTap(_ slot: Int) -> Bool {
         guard channel == .track else { return false }
+        if !modMode && !fxMode && param(slot)?.id == "pitch" {
+            updateSettings { s in s.pitchSemitones.toggle() }
+            return true
+        }
         if !modMode && !fxMode && param(slot)?.id == "rate" {
             let on: Bool = !rateStretch
             editTrack { t in t.params[Params.rateModeId] = on ? 1 : 0 }
