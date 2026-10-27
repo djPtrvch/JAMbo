@@ -36,9 +36,9 @@ struct TopBar: View {
                 .frame(width: Layout.topButton)
                 .topFrame(model, \.undo)
                 .midiTarget(model, "UNDO")
-            PlayButton(model: model).frame(width: half)
+            PlayButton(model: model).frame(width: half).topFrame(model, \.play)
                 .midiTarget(model, "PLAY")
-            RecButton(model: model).frame(width: half).midiTarget(model, "REC")
+            RecButton(model: model).frame(width: half).topFrame(model, \.rec).midiTarget(model, "REC")
             HistoryButton(symbol: "arrow.turn.up.right", enabled: model.canRedo) { model.redo() }
                 .frame(width: Layout.topButton)
                 .topFrame(model, \.redo)
@@ -68,11 +68,13 @@ struct TopBar: View {
     }
 }
 
-/// Рамки кнопок верхней панели (координаты «root»): SCALE, ROOT, UNDO, REDO, EQ, PATTERNS, ARRANGE.
+/// Рамки кнопок верхней панели (координаты «root»): SCALE, ROOT, UNDO, PLAY, REC, REDO, EQ, PATTERNS, ARRANGE.
 struct TopFrames: Equatable {
     var scale: CGRect = .zero
     var root: CGRect = .zero
     var undo: CGRect = .zero
+    var play: CGRect = .zero
+    var rec: CGRect = .zero
     var redo: CGRect = .zero
     var eq: CGRect = .zero
     var patterns: CGRect = .zero
@@ -80,7 +82,8 @@ struct TopFrames: Equatable {
 
     /// Все рамки уже известны.
     var ready: Bool {
-        let a: Bool = scale.width > 0 && root.width > 0 && undo.width > 0 && redo.width > 0
+        let a: Bool = scale.width > 0 && root.width > 0 && undo.width > 0 && play.width > 0 && rec.width > 0
+            && redo.width > 0
         return a && eq.width > 0 && patterns.width > 0 && arrange.width > 0
     }
 }

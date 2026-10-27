@@ -81,8 +81,8 @@ final class WarpPeakCache {
 struct WarpBar: View {
     let model: AppModel
     let data: SampleData?
-    /// Ширина ▶ (под UNDO верхней панели); nil — как остальные.
-    var playWidth: CGFloat? = nil
+    /// ▶ в строке (false — его ставит строка редактора под PLAY верхней панели).
+    var showPlay: Bool = true
     @State private var input: Bool = false
     @State private var text: String = ""
     @State private var lastTap: Date = .distantPast
@@ -98,8 +98,9 @@ struct WarpBar: View {
         let marks: Int = model.editorWarpInfo.marks.count
         // Group — кнопки встают в строку редактора наравне с остальными (равной ширины).
         return Group {
-            PlayToolButton(on: model.previewOn, enabled: has) { model.toggleWarpPreview() }
-                .frame(width: playWidth)
+            if showPlay {
+                PlayToolButton(on: model.previewOn, enabled: has) { model.toggleWarpPreview() }
+            }
             bpmButton(has)
                 .alert("FILE BPM", isPresented: $input) {
                     TextField("BPM", text: $text).keyboardType(.decimalPad)
