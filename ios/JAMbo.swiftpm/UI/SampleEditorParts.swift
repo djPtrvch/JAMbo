@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Строка редактора сэмпла: имя и длина (во время записи — «REC · источник» и время), REC (S11e), ▶, LOAD и SAVE (браузер библиотеки, S11b), TRIM, NORMALIZE, MONO, CLEAR, WARP, ✕.
-/// В режиме WARP вместо ▶…CLEAR — строка WarpBar.
+/// Строка редактора сэмпла: имя и длина (во время записи — «REC · источник» и время), REC (S11e), ▶, TRIM, NORMALIZE, MONO, CLEAR, WARP, LOAD и SAVE (браузер библиотеки, S11b; перед ✕), ✕.
+/// В режиме WARP вместо ▶…CLEAR — строка WarpBar (LOAD и SAVE остаются).
 struct EditorBar: View {
     let model: AppModel
     let key: String
@@ -31,6 +31,9 @@ struct EditorBar: View {
             }
             ToolButton(title: "WARP", enabled: data != nil && model.sampleRec.take == nil, lit: model.editorWarp,
                        width: nil) { model.toggleWarp() }
+            // LOAD и SAVE — перед ✕ (решение пользователя), жирным.
+            ToolButton(title: "LOAD", width: nil, bold: true) { model.openBrowser(.load(steps: [])) }
+            ToolButton(title: "SAVE", enabled: data != nil, width: nil, bold: true) { model.openBrowser(.saveSample(key)) }
             ToolButton(title: "✕", width: 48) { model.closeEditor() }
         }
         .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("root")).minX } action: { barX = $0 }
@@ -41,8 +44,6 @@ struct EditorBar: View {
     private var tools: some View {
         // ▶ без жёлтой подсветки (решение пользователя); во время прослушивания — ■.
         PlayToolButton(on: model.previewOn, enabled: data != nil) { model.togglePreview(sel.a, sel.b) }
-        ToolButton(title: "LOAD", width: nil, bold: true) { model.openBrowser(.load(steps: [])) }
-        ToolButton(title: "SAVE", enabled: data != nil, width: nil, bold: true) { model.openBrowser(.saveSample(key)) }
         ToolButton(title: "TRIM", enabled: data != nil && !sel.full, width: nil) { model.trimSample(sel.a, sel.b) }
         ToolButton(title: "NORMALIZE", enabled: data != nil, width: nil) { model.normalizeSample() }
         ToolButton(title: "MONO", enabled: (data?.channels ?? 1) == 2, width: nil) { model.monoSample() }

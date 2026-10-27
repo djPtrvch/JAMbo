@@ -39,16 +39,19 @@ struct TopBar: View {
             RecButton(model: model).frame(width: half).midiTarget(model, "REC")
             HistoryButton(symbol: "arrow.turn.up.right", enabled: model.canRedo) { model.redo() }
                 .frame(width: Layout.topButton)
+                .topFrame(model, \.redo)
                 .midiTarget(model, "REDO")
             RollButton(model: model).midiTarget(model, "ROLL")
             ViewButton(title: "EQ", on: model.eqView) { model.toggleEqView() }.frame(width: Layout.topButton)
+                .topFrame(model, \.eq)
                 .midiTarget(model, "EQ")
         }
     }
 
     private var rightGroup: some View {
         HStack(spacing: Layout.gap) {
-            PatternsButton(model: model).frame(width: Layout.topButton).midiTarget(model, "PATTERNS")
+            PatternsButton(model: model).frame(width: Layout.topButton).topFrame(model, \.patterns)
+                .midiTarget(model, "PATTERNS")
             // Запись аранжировки при закрытом окне — красный контур.
             ViewButton(title: "ARRANGE", on: model.arrangeView, ring: model.arrRecording && !model.arrangeView) {
                 model.toggleArrange()
@@ -56,8 +59,29 @@ struct TopBar: View {
             .frame(width: Layout.topButton)
             // Клип из сетки, принесённый на ARRANGE, открывает аранжировщик (AppModelCarry).
             .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { model.arrangeButtonFrame = $0 }
+            .topFrame(model, \.arrange)
                 .midiTarget(model, "ARRANGE")
             CPUIndicator(meter: model.audio.core.cpu).frame(width: Layout.meterWidth)
+        }
+    }
+}
+
+/// Рамки кнопок верхней панели (координаты «root»): REDO, EQ, PATTERNS, ARRANGE.
+struct TopFrames: Equatable {
+    var redo: CGRect = .zero
+    var eq: CGRect = .zero
+    var patterns: CGRect = .zero
+    var arrange: CGRect = .zero
+
+    /// Все рамки уже известны.
+    var ready: Bool { return redo.width > 0 && eq.width > 0 && patterns.width > 0 && arrange.width > 0 }
+}
+
+extension View {
+    /// Запомнить рамку кнопки верхней панели (только при изменении).
+    func topFrame(_ model: AppModel, _ key: WritableKeyPath<TopFrames, CGRect>) -> some View {
+        onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { r in
+            if model.topFrames[keyPath: key] != r { model.topFrames[keyPath: key] = r }
         }
     }
 }

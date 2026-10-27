@@ -21,6 +21,8 @@ struct LibraryBrowser: View {
     @State private var confirmId: String = ""
     /// EXPORT: готовый временный файл (окно сохранения в «Файлы»).
     @State private var exported: URL? = nil
+    /// Левый край строки заголовка («root»).
+    @State private var headerX: CGFloat = 0
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -61,17 +63,25 @@ struct LibraryBrowser: View {
         Binding(get: { model.libWarning != nil }, set: { if !$0 { model.libWarning = nil } })
     }
 
+    /// Путь — до левого края кнопки EQ верхней панели: с него — NEW FOLDER, IMPORT, EXPORT (поровну) и ✕
+    /// (решение пользователя; пока рамки верхней панели неизвестны — прежние ширины).
     private var header: some View {
-        HStack(spacing: Layout.gap) {
+        let top: TopFrames = model.topFrames
+        let pathW: CGFloat = top.ready ? max(40, top.eq.minX - headerX - 48 - 2 * Layout.gap) : 0
+        let w: CGFloat? = top.ready ? nil : 96
+        return HStack(spacing: Layout.gap) {
             ToolButton(title: "‹", enabled: model.libFolder != Library.root, width: 48) { model.libUp() }
             Text(model.libPath).font(.system(size: 13, weight: .bold)).foregroundStyle(theme.text)
                 .lineLimit(1).truncationMode(.head)
-                .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 6)
-            ToolButton(title: "NEW FOLDER", width: 120) { ask(.newFolder, "New folder") }
-            ToolButton(title: "IMPORT", width: 96) { model.chooseLibraryFiles() }
-            ToolButton(title: "EXPORT", enabled: model.libFolder != LibraryBuiltins.folderId, width: 96) { export() }
+                .padding(.horizontal, 6)
+                .frame(width: top.ready ? pathW : nil, alignment: .leading)
+                .frame(maxWidth: top.ready ? nil : .infinity, alignment: .leading)
+            ToolButton(title: "NEW FOLDER", width: top.ready ? nil : 120) { ask(.newFolder, "New folder") }
+            ToolButton(title: "IMPORT", width: w) { model.chooseLibraryFiles() }
+            ToolButton(title: "EXPORT", enabled: model.libFolder != LibraryBuiltins.folderId, width: w) { export() }
             ToolButton(title: "✕", width: 48) { model.closeBrowser() }
         }
+        .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("root")).minX } action: { headerX = $0 }
     }
 
     @ViewBuilder
@@ -112,7 +122,8 @@ struct LibraryBrowser: View {
                 .onChange(of: name) { old, new in
                     if new.count > Library.nameLimit && new.count > old.count { name = old }
                 }
-            ToolButton(title: "SAVE HERE", width: 130) { save() }
+            // По ширине ARRANGE верхней панели, жирным.
+            ToolButton(title: "SAVE HERE", width: buttonW(model.topFrames.arrange, 130), bold: true) { save() }
         }
     }
 
@@ -121,9 +132,15 @@ struct LibraryBrowser: View {
             Text("\(model.libPicked?.count ?? 0) selected · tap " + (model.tableMode ? "tables" : "samples and presets") + " to add or remove")
                 .font(.system(size: 12)).foregroundStyle(theme.text).lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 6)
-            ToolButton(title: "LOAD", width: 110) { model.libLoadPicked() }
-            ToolButton(title: "CANCEL", width: 110) { model.libPicked = nil }
+            // По ширине PATTERNS и ARRANGE верхней панели, жирным.
+            ToolButton(title: "LOAD", width: buttonW(model.topFrames.patterns, 110), bold: true) { model.libLoadPicked() }
+            ToolButton(title: "CANCEL", width: buttonW(model.topFrames.arrange, 110), bold: true) { model.libPicked = nil }
         }
+    }
+
+    /// Ширина кнопки по кнопке верхней панели (пока неизвестна — fallback).
+    private func buttonW(_ r: CGRect, _ fallback: CGFloat) -> CGFloat {
+        return r.width > 0 ? r.width : fallback
     }
 
     private var emptyText: String {

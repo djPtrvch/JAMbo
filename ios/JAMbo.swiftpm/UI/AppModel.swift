@@ -205,6 +205,8 @@ final class AppModel {
     var arrDropPending: (sel: GridSelection, start: Int)? = nil
     /// Рамки кнопки ARRANGE и таймлайна аранжировщика (координаты «root»).
     @ObservationIgnored var arrangeButtonFrame: CGRect = .zero
+    /// Рамки кнопок верхней панели («root»): по ним выравниваются строки окон EQ и библиотеки.
+    var topFrames: TopFrames = TopFrames()
     @ObservationIgnored var arrTimelineFrame: CGRect = .zero
     var gridMenuOpen: Bool = false
     /// Ячейка коротко вспыхивает красным (действие недоступно).

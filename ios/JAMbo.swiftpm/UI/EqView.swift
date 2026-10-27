@@ -157,8 +157,16 @@ struct EqView: View {
     }
 }
 
-/// Строка EQ: имя канала под бутербродом, TYPE, FREQ, GAIN, Q, STEREO, DYN, LISTEN, PRESETS, BYPASS — 9 равных столбцов
-/// до правого края поля EQ, TYPE — с левого края поля BPM (решения пользователя; в вебе — над дорожками 1…8).
+/// Место столбца строки EQ.
+struct EqSlot {
+    let x: CGFloat
+    let w: CGFloat
+}
+
+/// Строка EQ: имя канала под бутербродом, TYPE, FREQ, GAIN, Q, STEREO, DYN, LISTEN, PRESETS, BYPASS (решения
+/// пользователя; в вебе — над дорожками 1…8): TYPE — с левого края поля BPM, TYPE…Q — равные, правый край Q — по
+/// правому краю REDO; LISTEN, PRESETS, BYPASS — по кнопкам EQ, PATTERNS, ARRANGE верхней панели; STEREO и DYN —
+/// поровну между Q и LISTEN. Пока рамки верхней панели неизвестны — 9 равных столбцов до правого края.
 struct EqBar: View {
     let model: AppModel
     let layout: Layout
@@ -167,18 +175,46 @@ struct EqBar: View {
     @State private var presetsFrame: CGRect = .zero
     /// Ширина строки (поля EQ): столбцы тянутся до её правого края.
     @State private var width: CGFloat = 0
+    /// Левый край строки («root»).
+    @State private var barX: CGFloat = 0
     @Environment(\.theme) private var theme
 
     var body: some View {
-        let col: CGFloat = EqBar.column(width)
+        let slots: [EqSlot] = EqBar.slots(width: width, barX: barX, top: model.topFrames)
         return ZStack(alignment: .topLeading) {
             name.frame(width: EqBar.nameWidth, height: model.barH)
             ForEach(0..<EqBar.columns, id: \.self) { i in
-                item(i).frame(width: col, height: model.barH).offset(x: EqBar.left(i, col))
+                item(i).frame(width: slots[i].w, height: model.barH).offset(x: slots[i].x)
             }
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { r in
+            width = r.width
+            barX = r.minX
+        }
+    }
+
+    /// Места столбцов (x от левого края строки, ширина).
+    static func slots(width: CGFloat, barX: CGFloat, top: TopFrames) -> [EqSlot] {
+        let g: CGFloat = Layout.gap
+        let x0: CGFloat = EqBar.nameWidth + g
+        guard top.ready else {
+            let col: CGFloat = EqBar.column(width)
+            return (0..<EqBar.columns).map { EqSlot(x: EqBar.left($0, col), w: col) }
+        }
+        var out: [EqSlot] = []
+        // TYPE…Q: четыре равных до правого края REDO.
+        let qRight: CGFloat = top.redo.maxX - barX
+        let w4: CGFloat = max(0, (qRight - x0 - 3 * g) / 4)
+        for i in 0..<4 { out.append(EqSlot(x: x0 + CGFloat(i) * (w4 + g), w: w4)) }
+        // STEREO и DYN — поровну до LISTEN.
+        let listen: CGFloat = top.eq.minX - barX
+        let w2: CGFloat = max(0, (listen - qRight - 3 * g) / 2)
+        out.append(EqSlot(x: qRight + g, w: w2))
+        out.append(EqSlot(x: qRight + 2 * g + w2, w: w2))
+        // LISTEN, PRESETS, BYPASS — под EQ, PATTERNS, ARRANGE.
+        for r in [top.eq, top.patterns, top.arrange] { out.append(EqSlot(x: r.minX - barX, w: r.width)) }
+        return out
     }
 
     /// Столбцов в строке (с LISTEN — 9; прежде 8).
