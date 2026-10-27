@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Строка редактора сэмпла: имя и длина (во время записи — «REC · источник» и время), WARP, ▶, REC (S11e), TRIM,
-/// NORMALIZE, MONO, CLEAR, LOAD и SAVE (браузер библиотеки, S11b; перед ✕), ✕ — по кнопкам верхней панели (aligned).
+/// Строка редактора сэмпла: имя и длина (во время записи — «REC · источник» и время), WARP, REC (S11e), ▶, MONO, TRIM,
+/// NORMALIZE, CLEAR, LOAD и SAVE (браузер библиотеки, S11b; перед ✕), ✕ — по кнопкам верхней панели (aligned).
 /// В режиме WARP вместо ▶…CLEAR — строка WarpBar (LOAD и SAVE остаются).
 struct EditorBar: View {
     let model: AppModel
@@ -16,31 +16,49 @@ struct EditorBar: View {
         if model.topFrames.ready { aligned } else { plain }
     }
 
-    /// По кнопкам верхней панели (решение пользователя): имя — до UNDO; WARP — под UNDO, ▶ — под PLAY, REC — под REC
-    /// (их ширины); TRIM…CLEAR (в WARP — строка WarpBar без ▶) — поровну до PATTERNS; с левого края PATTERNS — LOAD и
-    /// SAVE поровну, ✕ — квадратная.
+    /// По кнопкам верхней панели (решение пользователя): имя — до SCALE; WARP, REC, ▶ — поровну от SCALE до правого
+    /// края UNDO; MONO — под PLAY и REC; TRIM, NORMALIZE, CLEAR — поровну от REDO до правого края EQ (в WARP вместо MONO…CLEAR —
+    /// строка WarpBar без ▶ от PLAY до EQ); с левого края PATTERNS — LOAD и SAVE поровну, ✕ — квадратная.
     private var aligned: some View {
         let top: TopFrames = model.topFrames
         let g: CGFloat = Layout.gap
-        let infoW: CGFloat = max(60, top.undo.minX - barX - g)
-        let midW: CGFloat = max(0, top.patterns.minX - g - top.redo.minX)
+        let infoW: CGFloat = max(60, top.scale.minX - barX - g)
+        let trioW: CGFloat = max(0, top.undo.maxX - top.scale.minX)
+        let monoW: CGFloat = max(0, top.rec.maxX - top.play.minX)
+        let editW: CGFloat = max(0, top.eq.maxX - top.redo.minX)
         return HStack(spacing: g) {
             infoText.frame(width: infoW, alignment: .leading)
-            warpButton.frame(width: top.undo.width)
-            playButton.frame(width: top.play.width)
-            SampleRecButton(model: model).frame(width: top.rec.width)
             HStack(spacing: g) {
-                if model.editorWarp {
-                    WarpBar(model: model, data: data, showPlay: false)
-                } else {
-                    tools(play: false)
-                }
+                warpButton
+                SampleRecButton(model: model)
+                playButton
             }
-            .frame(width: midW)
+            .frame(width: trioW)
+            if model.editorWarp {
+                HStack(spacing: g) { WarpBar(model: model, data: data, showPlay: false) }
+                    .frame(width: max(0, top.eq.maxX - top.play.minX))
+            } else {
+                monoButton.frame(width: monoW)
+                HStack(spacing: g) {
+                    ToolButton(title: "TRIM", enabled: data != nil && !sel.full, width: nil) { model.trimSample(sel.a, sel.b) }
+                    ToolButton(title: "NORMALIZE", enabled: data != nil, width: nil) { model.normalizeSample() }
+                    clearButton
+                }
+                .frame(width: editW)
+            }
+            // От правого края EQ — LOAD и SAVE поровну (с левого края PATTERNS).
             loadSave
             ToolButton(title: "✕", width: 48) { model.closeEditor() }
         }
         .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("root")).minX } action: { barX = $0 }
+    }
+
+    private var monoButton: some View {
+        ToolButton(title: "MONO", enabled: (data?.channels ?? 1) == 2, width: nil) { model.monoSample() }
+    }
+
+    private var clearButton: some View {
+        ToolButton(title: "CLEAR", enabled: data != nil && model.sampleRec.take == nil, width: nil) { model.clearSample() }
     }
 
     /// ▶ без жёлтой подсветки (решение пользователя); во время прослушивания — ■; в WARP — по карте варпинга.
