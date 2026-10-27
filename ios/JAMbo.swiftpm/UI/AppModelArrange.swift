@@ -32,13 +32,14 @@ struct ArrPort: Equatable {
     var y: CGFloat = 0
 }
 
-/// Палитра дорожек и маркеров (20 цветов, одна в обеих темах; текст на них — #111111) — номер в ArrPalette.
+/// Палитра дорожек и маркеров (20 цветов, одна в обеих темах; текст на них — #111111) — номер в ArrPalette. В выборе
+/// (17) — серые, жёлтые, оранжевые, красные; 3 — прежний, убран из выбора; 16 — белый; 17 — по умолчанию.
 enum ArrColors {
     static let all: [Color] = [
-        Color(hex: 0xFFF0B0), Color(hex: 0xF0D45C), Color(hex: 0xD9B23A), Color(hex: 0xB8902A), Color(hex: 0x8F6E1E),
-        Color(hex: 0xFFD0A3), Color(hex: 0xEBA640), Color(hex: 0xFFB070), Color(hex: 0xF59447), Color(hex: 0xE07A33),
-        Color(hex: 0xC2622A), Color(hex: 0xFFB8B0), Color(hex: 0xF58C82), Color(hex: 0xE0607A), Color(hex: 0xE06666),
-        Color(hex: 0xC24848), Color(hex: 0xE0DCD4), Color(hex: 0xB5B0A8), Color(hex: 0x8A857E), Color(hex: 0x66625D),
+        Color(hex: 0x464649), Color(hex: 0x5E6166), Color(hex: 0x8E9298), Color(hex: 0xB8902A), Color(hex: 0xD0D3D7),
+        Color(hex: 0xFAF0A8), Color(hex: 0xF0D55A), Color(hex: 0xCDA830), Color(hex: 0xA67C1A), Color(hex: 0xF5964A),
+        Color(hex: 0xBF5F24), Color(hex: 0x733519), Color(hex: 0xEC746E), Color(hex: 0xDC5468), Color(hex: 0xCF4747),
+        Color(hex: 0xA33048), Color(hex: 0xE0DCD4), Color(hex: 0xB5B0A8), Color(hex: 0x7D2A2A), Color(hex: 0x6A2430),
     ]
     static let text: Color = Color(hex: 0x111111)
 
