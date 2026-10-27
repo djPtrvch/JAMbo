@@ -3,8 +3,8 @@ import SwiftUI
 // Панда-пасхалка (прототип пользователя DancingPanda.swift): окно MIX слева, SHIFT + тап — панда и обратно
 // (PandaWindow.swift). Отличия от прототипа: состояние и фаза долей читаются каждый кадр (stateProvider,
 // beatPhaseProvider — аудио-часы секвенсора), переходы сна и бодрствования, подъём рук и рот — плавные (PandaMotion),
-// кадры — до 30 в секунду, цвета наушников — из темы (accent, rec), без #Preview. Уши, руки и ноги — чёрные
-// (PandaPalette.limb, вторая версия прототипа).
+// кадры — до 30 в секунду, цвета наушников — из темы (accent, rec), без #Preview. Уши, руки, ноги, глаза, нос и рот — чёрные
+// (PandaPalette.limb; по второй версии прототипа и решению пользователя).
 
 // MARK: - Palette (под тёмный UI JAMbo)
 
@@ -15,7 +15,7 @@ enum PandaPalette {
     static let cheek  = Color(red: 1.0, green: 0.55, blue: 0.5).opacity(0.35)
     static let accent = Color(red: 1.0, green: 0.80, blue: 0.10) // обычные наушники
     static let rec    = Color(red: 0.95, green: 0.22, blue: 0.20) // наушники при записи
-    static let limb   = Color.black // уши, руки, ноги
+    static let limb   = Color.black // уши, руки, ноги, глаза, нос, рот
 }
 
 // MARK: - Input
@@ -175,11 +175,11 @@ private struct PandaCanvas: View {
                 .position(x: s * 0.5, y: s * 0.30)
 
             // Пятна вокруг глаз
-            Ellipse().fill(PandaPalette.dark)
+            Ellipse().fill(PandaPalette.limb)
                 .frame(width: s * 0.13, height: s * 0.17)
                 .rotationEffect(.degrees(20))
                 .position(x: s * 0.40, y: s * 0.30)
-            Ellipse().fill(PandaPalette.dark)
+            Ellipse().fill(PandaPalette.limb)
                 .frame(width: s * 0.13, height: s * 0.17)
                 .rotationEffect(.degrees(-20))
                 .position(x: s * 0.60, y: s * 0.30)
@@ -202,12 +202,12 @@ private struct PandaCanvas: View {
             Circle().fill(PandaPalette.cheek).frame(width: s * 0.06)
                 .position(x: s * 0.67, y: s * 0.38)
 
-            Ellipse().fill(PandaPalette.dark)
+            Ellipse().fill(PandaPalette.limb)
                 .frame(width: s * 0.07, height: s * 0.045)
                 .position(x: s * 0.5, y: s * 0.355)
 
             // Рот
-            Capsule().fill(PandaPalette.dark)
+            Capsule().fill(PandaPalette.limb)
                 .frame(width: s * 0.05 + s * 0.03 * mo,
                        height: s * 0.015 + s * 0.05 * mo)
                 .position(x: s * 0.5, y: s * 0.41)

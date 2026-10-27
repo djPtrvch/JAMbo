@@ -93,7 +93,7 @@ extension AppModel {
         }
         audio.core.publish(project, samples: store.samples, map: settings.sliceMap, octave: octave, octaves: octaves,
                            tables: tables,
-                           scSends: settings.scSends, muteTails: settings.muteTails,
+                           scSends: settings.scSends,
                            levelRelative: settings.levelRelative, stretchBeat: settings.stretchBeat,
                            master: mixMaster,
                            extra: libPreviewKey.map { [$0] } ?? [], next: next, rebind: rebindNext,

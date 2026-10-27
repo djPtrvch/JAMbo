@@ -100,8 +100,6 @@ public struct SoundData {
     public var fx: UnsafeMutablePointer<Float>
     public var scAmount: UnsafeMutablePointer<Float>
     public var scSend: UnsafeMutablePointer<Float>
-    /// SETTINGS → AUDIO ENGINE → MUTE TAILS.
-    public var muteTails: Bool = false
     /// MOD: параметры LFO/ENV дорожки (Params.modIds), назначения на цели (ModTarget: источник 0 — нет, 1–4; степень;
     /// шкала ручки по звуку дорожки), есть ли у дорожки назначения; назначения на FX (Params.fxIds) и дорожка-источник.
     public var mod: UnsafeMutablePointer<Float>
@@ -220,7 +218,7 @@ public final class SoundSnapshot: @unchecked Sendable {
     /// неизвестно). keepAlt — ячейка второго звука прошлого снимка (id дорожки → ячейка): если дорожка играет её, клип
     /// остаётся на втором звуке (без переключения звука посреди игры).
     public init(_ project: Project, samples: [String: SampleData], map: SliceMap, octave: Int = 3, octaves: [Int] = [],
-                tables: [String: WtTable] = [:], scSends: SidechainSends = SidechainSends(), muteTails: Bool = false,
+                tables: [String: WtTable] = [:], scSends: SidechainSends = SidechainSends(),
                 levelRelative: Bool = true, stretchBeat: Bool = false, slots: UnsafeMutablePointer<Int>? = nil, master: [Double]? = nil,
                 extra: [String] = [], next: [Int] = [], keepAlt: [Int: Int] = [:], rebind: Bool = false,
                 refB: Bool = false) {
@@ -336,7 +334,6 @@ public final class SoundSnapshot: @unchecked Sendable {
         d.scSend[0] = scSends.rev ? 1 : 0
         d.scSend[1] = scSends.dly ? 1 : 0
         d.scSend[2] = scSends.drv ? 1 : 0
-        d.muteTails = muteTails
         d.tableRef.initialize(repeating: WtRef(), count: tracks2)
         d.grainRef.initialize(repeating: GrainSrc(), count: tracks2)
         var keepTables: [WtTable] = []

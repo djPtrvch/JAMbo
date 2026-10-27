@@ -98,8 +98,6 @@ public final class Sampler {
     let used = UnsafeMutablePointer<UInt8>.allocate(capacity: SoundData.maxTracks)
     let volCur = UnsafeMutablePointer<Float>.allocate(capacity: SoundData.maxTracks)
     let gateCur = UnsafeMutablePointer<Float>.allocate(capacity: SoundData.maxTracks)
-    /// Была ли дорожка слышна в прошлом блоке (MUTE TAILS: 2 — ещё неизвестно).
-    let openPrev = UnsafeMutablePointer<UInt8>.allocate(capacity: SoundData.maxTracks)
     /// Шины посылов дорожек: (дорожка·3 + посыл)·maxFrames; sendUsed — шины дорожки очищены в этом блоке.
     let sendL = UnsafeMutablePointer<Float>.allocate(capacity: SoundData.maxTracks * 3 * maxFrames)
     let sendR = UnsafeMutablePointer<Float>.allocate(capacity: SoundData.maxTracks * 3 * maxFrames)
@@ -219,7 +217,6 @@ public final class Sampler {
         used.initialize(repeating: 0, count: SoundData.maxTracks)
         volCur.initialize(repeating: -1, count: SoundData.maxTracks)
         gateCur.initialize(repeating: -1, count: SoundData.maxTracks)
-        openPrev.initialize(repeating: 2, count: SoundData.maxTracks)
         one.initialize(to: 0)
         scratch.initialize(repeating: 0, count: VoiceParam.count)
         // Незанятые номера (движки Mutable Instruments) — 0: такой звук не синт и не сэмпл (пустой).
@@ -228,7 +225,7 @@ public final class Sampler {
     }
 
     deinit {
-        for p in [active, fading, own, stereo, released, used, sendUsed, openPrev, tstr] as [UnsafeMutablePointer<UInt8>] { p.deallocate() }
+        for p in [active, fading, own, stereo, released, used, sendUsed, tstr] as [UnsafeMutablePointer<UInt8>] { p.deallocate() }
         for p in [send, sendL, sendR, duckCur, flagCur, meterL, meterR] { p.deallocate() }
         for p in [track, trackId, note, liveId, serial, srcFrames, ftype, onsetCount, warpN] as [UnsafeMutablePointer<Int>] { p.deallocate() }
         for p in [pos, endPos, beginPos, edge, noteRatio, rate, grainRatio, srcBpm, attackF, decaySec, hz, qDb, warpU, warpP, uPos] as [UnsafeMutablePointer<Double>] { p.deallocate() }

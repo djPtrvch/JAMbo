@@ -34,9 +34,6 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var sliceMap: SliceMap = .chromatic
     /// SETTINGS → SIDECHAIN: посылы Reverb, Delay, Drive приглушаются огибающей.
     public var scSends = SidechainSends()
-    /// SETTINGS → SIDECHAIN → MUTE TAILS (в вебе — AUDIO ENGINE): заглушили единственный источник посыла Delay —
-    /// его повторы гасятся.
-    public var muteTails: Bool = false
     /// FX и MOD в режиме toggle (SHIFT + двойной тап по кнопке): тап включает страницу, следующий — выключает.
     public var latchFx: Bool = false
     public var latchMod: Bool = false
@@ -96,7 +93,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         return try? JSONEncoder().encode(self)
     }
 
-    private enum Keys: String, CodingKey { case appearance, pianoOctaves, velocity, record, sliceMap, scSends, muteTails, latchFx, latchMod, rollGrid,
+    private enum Keys: String, CodingKey { case appearance, pianoOctaves, velocity, record, sliceMap, scSends, latchFx, latchMod, rollGrid,
                                          rollSound, levelRelative, morphAll, morphReturn, mixKey, mixCrossfader,
                                          clearSampleLocks, pitchSemitones, midi, stepPaint, sync,
                                          arrangeCompact, fxPictures, backgroundAudio, arrangeRepeats, stretchBeat }
@@ -109,7 +106,6 @@ public struct AppSettings: Codable, Equatable, Sendable {
         record = (try? c.decode(RecordSettings.self, forKey: .record)) ?? RecordSettings()
         sliceMap = (try? c.decode(SliceMap.self, forKey: .sliceMap)) ?? .chromatic
         scSends = (try? c.decode(SidechainSends.self, forKey: .scSends)) ?? SidechainSends()
-        muteTails = (try? c.decode(Bool.self, forKey: .muteTails)) ?? false
         latchFx = (try? c.decode(Bool.self, forKey: .latchFx)) ?? false
         latchMod = (try? c.decode(Bool.self, forKey: .latchMod)) ?? false
         let g: Int = (try? c.decode(Int.self, forKey: .rollGrid)) ?? Roll.gridDef

@@ -10,19 +10,16 @@ enum SettingsTab: String, CaseIterable {
     case mix = "MIX"
     case morph = "MORPH"
     case level = "LEVEL"
-    case engine = "AUDIO ENGINE"
-    case output = "OUTPUT"
-    case appearance = "APPEARANCE"
-    case defaults = "DEFAULTS"
     case arrange = "ARRANGE"
+    // В конце (решение пользователя).
+    case defaults = "DEFAULTS"
+    case engine = "AUDIO ENGINE"
+    case appearance = "APPEARANCE"
+    case output = "OUTPUT"
 }
 
 /// Настройки приложения (общие для проектов, UserDefaults): применяются сразу.
 extension AppModel {
-    func setMuteTails(_ on: Bool) {
-        updateSettings { s in s.muteTails = on }
-        publishAudio()
-    }
 
     /// SAMPLER → STRETCH: таймстретч BEAT (WSOLA) или NORMAL (фазовый вокодер); новые ноты — новым алгоритмом.
     func setStretchBeat(_ on: Bool) {

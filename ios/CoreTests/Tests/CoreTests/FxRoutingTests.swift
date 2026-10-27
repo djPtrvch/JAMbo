@@ -65,26 +65,6 @@ final class FxRoutingTests: XCTestCase {
         XCTAssertLessThan(rms(o.l[0..<30000]), 1e-5)
     }
 
-    /// MUTE TAILS (S9d): заглушили единственный источник Delay во время повтора — следующие повторы обрываются;
-    /// без настройки — доигрывают.
-    func testMuteTailsCutsDelayRepeats() {
-        func second(_ cut: Bool) -> Double {
-            let core = AudioCore(master: false)
-            var p = project(sends: ["delay": 100])
-            core.publish(p, samples: ["k": burst()], muteTails: cut)
-            core.events.push(.noteOn(track: 0, note: 48, id: 1, velocity: 1))
-            _ = render(core, frames: 12800)
-            p.tracks[0].mute = true
-            core.publish(p, samples: ["k": burst()], muteTails: cut)
-            let o = render(core, frames: 20000)
-            // Второй повтор — через 0,5 с после ноты (кадры 24000…28800 от начала).
-            return rms(o.l[11200..<16000])
-        }
-        let ring = second(false)
-        XCTAssertGreaterThan(ring, 1e-3, "без MUTE TAILS повторы доигрывают")
-        XCTAssertLessThan(second(true), ring * 0.5)
-    }
-
     /// Sidechain: нота источника (дорожка 1, заглушена) приглушает дорожку 2 и отпускает за RELEASE.
     func testSidechainDucksOtherTrack() {
         let core = AudioCore(master: false)

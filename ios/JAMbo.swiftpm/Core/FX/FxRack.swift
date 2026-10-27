@@ -34,10 +34,6 @@ public final class FxRack {
     let sendFlag: UnsafeMutablePointer<Float>
     var source = 0
     var anyDucked = false
-    /// MUTE TAILS: сколько кадров ещё погашена обратная связь Delay (заглушили его единственный источник).
-    var tailLeft: Int = 0
-    /// На столько секунд гасится обратная связь (TAIL_CUT веба).
-    static let tailCut: Double = 0.1
     /// Покой Reverb и Delay (S14b): вход молчит и выход тише −120 dBFS дольше самого длинного внутреннего пути
     /// (Reverb — предзадержка до 240 мс и линии; Delay — наибольшее время и 0,5 с) — эффект не считается, состояние
     /// с нуля; первый ненулевой вход будит его. Звук не меняется: всё, что внутри, уже ниже −120 dB.
@@ -158,12 +154,6 @@ public final class FxRack {
         }
     }
 
-    /// MUTE TAILS (cutDelayTail веба): повторы Delay обрываются — обратная связь гаснет на 100 мс
-    /// (сглаживание обратной связи в FxDelay — 20 мс).
-    public func cutDelayTail() {
-        tailLeft = Int(FxRack.tailCut * sr)
-    }
-
     /// Эффекты: входы шин → выход (прибавляется к left/right). bpm — для времени Delay.
     public func process(frames n: Int, bpm: Double, left: UnsafeMutablePointer<Float>, right: UnsafeMutablePointer<Float>) {
         let lv = live
@@ -190,8 +180,7 @@ public final class FxRack {
         let freeX: Double = Swift.min(1, Swift.max(0, lv[FxRack.dlyTime] / FxRack.freeTop))
         let freeSec: Double = FxRack.freeMin * pow(FxRack.freeRatio, freeX) / 1000
         let time: Double = Swift.min(FxRack.maxDelay, synced ? delayBeats[di] * 60 / Swift.max(1, bpm) : freeSec)
-        let fb: Float = tailLeft > 0 ? 0 : Float(lv[FxRack.dlyFeedback] / 100)
-        if tailLeft > 0 { tailLeft -= n }
+        let fb: Float = Float(lv[FxRack.dlyFeedback] / 100)
         let dlyIn: Float = peak(inL + maxFrames, inR + maxFrames, n)
         if dlyIdle && dlyIn > lvl {
             dlyIdle = false

@@ -56,10 +56,6 @@ extension Sampler {
             var vt: Float = d.gain[d.s(t)]
             if lockMask & (UInt16(1) << UInt16(t)) != 0, let g = lockGain { vt = g[t] * d.trim[t] }
             let gt: Float = d.open[t] != 0 ? 1 : 0
-            if openPrev[t] == 1 && d.open[t] == 0 && d.muteTails, let r = rack, Sampler.onlyDelaySource(d, t) {
-                r.cutDelayTail()
-            }
-            openPrev[t] = d.open[t] != 0 ? 1 : 0
             let at: Float = t == source ? 0 : Swift.max(0, Swift.min(1, d.scAmount[d.s(t)] / 100))
             if volCur[t] < 0 { volCur[t] = vt }
             if gateCur[t] < 0 { gateCur[t] = gt }
@@ -167,18 +163,5 @@ extension Sampler {
             (outR + t * mf).update(repeating: 0, count: n)
             t += 1
         }
-    }
-
-    /// MUTE TAILS: заглушённая дорожка t шлёт в Delay, и ни одна другая слышимая дорожка в него не шлёт.
-    static func onlyDelaySource(_ d: SoundData, _ t: Int) -> Bool {
-        let pc: Int = VoiceParam.count
-        let dl: Int = VoiceParam.delay
-        if d.params[t * pc + dl] <= 0 { return false }
-        var k = 0
-        while k < d.trackCount {
-            if k != t && d.open[k] != 0 && d.params[k * pc + dl] > 0 { return false }
-            k += 1
-        }
-        return true
     }
 }
