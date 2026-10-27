@@ -1,4 +1,4 @@
-# Handoff: JAMbo, Swift-версия — S15 аранжировщик готов (проверено на iPad); S14zb — RATE и таймстретч, нагрузка (готово, проверено на iPad); S14zc — WARP (готово, проверено на iPad); S14zd — p-lock с нотой в пианоролле (на iPad не проверено); дальше S14e — App Store
+# Handoff: JAMbo, Swift-версия — S15 готов; круг правок 27.10 (разделение сетки и аранжировщика, запись аранжировки из сетки, EXPORT SONG, SHIFT у Pitch / Start / End, CHORD, заголовки меню) — проверено на iPad; дальше S14e — App Store
 
 ## 1. Контекст проекта
 Groovebox для iPad. Веб (`src/`, `public/`) — эталон, заморожен. Swift-перенос — ветка `swift`, `ios/JAMbo.swiftpm`. Правила — `CLAUDE.md`, `ios/CLAUDE.md`; план и вехи — `docs/SWIFT_AUDIT.md` (раздел 6); итоги вех — `docs/SWIFT_MILESTONE_Sx.md`. Поведение аранжировщика — `docs/ai/arranger.md`; MIDI — `docs/ai/settings-midi-sync.md` (в ветке swift описывают Swift-версию).
