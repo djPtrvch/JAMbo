@@ -86,6 +86,11 @@
 - UI: SampleEditorWarp.swift (WarpView — доли на экране, WarpPeakCache — форма волны по карте через SampleEdit.peaks(bounds:), WarpBar, EditorWarpDraw), AppModelWarp.swift; SampleEditor — жесты меток (снизу — доля, сверху — место в сэмпле, START, выделение), в режиме нарезки — метки варпинга снизу для ориентира и прилипание маркеров нарезки. Строка редактора — от левого края SCALE (AppModelCapture.scaleFrame).
 - Проверено: WarpTests (карта, AUTO WARP, правка и хранение, удар на долю в NORMAL и BEAT, ▶ WARP у дорожки в Rate Pitch, метка начала); все 450 тестов Core проходят; на iPad — пользователь.
 
+## S14zd — p-lock с нотой в пианоролле (готово, на iPad не проверено)
+- Решение пользователя: p-lock привязаны к шагу и едут с нотой, которую тянут в пианоролле (прежнее решение S8 — оставались на шаге). Правило — ios/CLAUDE.md («Пианоролл»).
+- Core: Track.rollCarry (в начале перетаскивания: нота одна на шаге — p-lock, свой звук шага, p-lock пресета; StepCarry с шагом, где они лежат) и moveRollNote(carry:) — уходят со шага, когда он пустеет, встают на пустой шаг (без трига, своих p-lock и звука); у аккорда и шага со своими p-lock — их p-lock. UI: RollTouches хранит carry на жест, AppModel.rollMove передаёт его. UNDO — одним шагом на жест.
+- Проверено: RollEditsTests.testMoveCarriesLocks; все 451 тест Core проходят.
+
 ## S14a — замеры (готово, замер на iPad сделан)
 - Колбэк: RenderProfile (Core/Util) — метки на уровне блока (не на отсчёт), время от прошлой метки — в раздел: Seq (снимки, команды, транспорт, начало MOD и FX), Samples (голоса сэмплера, прослушивание), Synth, EQ (дорожки и мастер), Mix, FX, Master (SAT, COMP, CLIP, LIM, выход), Meters (метры, скоп, спектры, стемы). За секунду звука — средняя и наибольшая доля блока, с RESET — худшая (seqlock). Часы — DispatchTime (на Apple — mach_absolute_time), ~25 чтений на блок.
 - Интерфейс: FrameMeter (UI) — CADisplayLink: fps, средний и худший кадр, пропущенные кадры (промежуток > 1,5 кадра); время drain (главный поток, 60 раз в секунду). Перерыв дольше 0,5 с (фон) — не пропуск.
