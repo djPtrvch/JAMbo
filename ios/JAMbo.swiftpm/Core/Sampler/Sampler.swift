@@ -261,6 +261,7 @@ public final class Sampler {
     public func render(blockStart: Int64, frames: Int, left: UnsafeMutablePointer<Float>, right: UnsafeMutablePointer<Float>) {
         let n = Swift.min(frames, Sampler.maxFrames)
         guard let d = sound else { return }
+        vocoder.block = n
         for t in 0..<SoundData.maxTracks { used[t] = 0 }
         for v in 0..<Sampler.slots where active[v] != 0 {
             let t = track[v]
@@ -373,7 +374,7 @@ public final class Sampler {
                     stretch.fill(v, l, r, frames, st, pos[v], rt, grainRatio[v], m, skip, beginPos[v], endPos[v])
                 } else {
                     vocoder.fill(v, l, r, frames, st, pos[v], rt, grainRatio[v], m, skip, beginPos[v], endPos[v],
-                                 onsetAt[v], onsetCount[v])
+                                 onsetAt[v], onsetCount[v], blockStart + Int64(i))
                 }
             }
             let tsL = beat ? stretch.outL : vocoder.outL, tsR = beat ? stretch.outR : vocoder.outR

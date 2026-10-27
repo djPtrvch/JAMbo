@@ -96,12 +96,8 @@ final class PvFFT {
         vDSP_ctoz(xc, 2, &sp, 1, vDSP_Length(h))
         vDSP_fft_zrip(setup, &sp, 1, vDSP_Length(bits + 1), FFTDirection(FFT_FORWARD))
         // vDSP — удвоенный спектр; Nyquist — в imagp[0].
-        var k = 1
-        while k < h {
-            re[k] = 0.5 * cr[k]
-            im[k] = 0.5 * ci[k]
-            k += 1
-        }
+        pvScale(cr + 1, 0.5, re + 1, h - 1)
+        pvScale(ci + 1, 0.5, im + 1, h - 1)
         re[0] = 0.5 * cr[0]
         im[0] = 0
         re[h] = 0.5 * ci[0]
@@ -139,12 +135,8 @@ final class PvFFT {
     func inverse(_ re: UnsafeMutablePointer<Float>, _ im: UnsafeMutablePointer<Float>, _ x: UnsafeMutablePointer<Float>) {
         let h = half
         #if canImport(Accelerate)
-        var k = 1
-        while k < h {
-            cr[k] = re[k]
-            ci[k] = im[k]
-            k += 1
-        }
+        (cr + 1).update(from: re + 1, count: h - 1)
+        (ci + 1).update(from: im + 1, count: h - 1)
         cr[0] = re[0]
         ci[0] = re[h]
         var sp = DSPSplitComplex(realp: cr, imagp: ci)
