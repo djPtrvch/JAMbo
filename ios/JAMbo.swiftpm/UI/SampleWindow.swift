@@ -4,7 +4,8 @@ import SwiftUI
 /// отрезанное, полосы воспроизведения звучащих нот), под ней определённая высота.
 /// У синта — окно синта (SynthInfo: иконка движка, имя, ручки 1.1–1.3).
 /// Тап — меню звука (с зажатым шагом — звук этих шагов); удержание 0,5 с (без зажатого шага, не у синта) — редактор.
-/// MIX — полосы уровня дорожек без заголовка (● MASTER — под окном, LeftColumn); MST — индикация мастера (MasterIndicator).
+/// MIX — полосы уровня дорожек без заголовка (● MASTER — под окном, LeftColumn; SHIFT + тап — панда, PandaWindow);
+/// MST — индикация мастера (MasterIndicator).
 struct SampleWindow: View {
     let model: AppModel
     @State private var holdTask: Task<Void, Never>? = nil
@@ -93,9 +94,15 @@ struct SampleWindow: View {
         }
     }
 
+    /// Полосы уровня дорожек; пасхалка — панда (SHIFT + тап по окну).
+    @ViewBuilder
     private var mixView: some View {
-        MixOverview(model: model)
-            .padding(10)
+        if model.pandaShown {
+            PandaWindow(model: model)
+        } else {
+            MixOverview(model: model)
+                .padding(10)
+        }
     }
 
     /// Тап — меню звука; удержание без движения — редактор (у дорожки с сэмплом или без звука).
@@ -116,6 +123,10 @@ struct SampleWindow: View {
                     return
                 }
                 if abs(g.translation.height) > 10 { return }
+                if model.channel == .mix && model.shiftHeld {
+                    model.pandaShown.toggle()
+                    return
+                }
                 model.ensureAudio()
                 model.openSoundMenu()
             }
