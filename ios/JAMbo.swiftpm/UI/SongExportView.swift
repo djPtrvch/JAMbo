@@ -1,20 +1,27 @@
 import SwiftUI
 
-/// Окно EXPORT SONG: формат, разрядность или качество, частота; длина песни; EXPORT — полоса хода и CANCEL;
-/// готовый файл — окно сохранения в «Файлы».
-struct SongExportView: View {
+/// PROJECTS → EXPORT SONG (страница бутерброда, того же размера): формат, разрядность или качество, частота, хвост;
+/// длина песни; EXPORT — полоса хода и CANCEL; готовый файл — окно сохранения в «Файлы».
+struct SongExportPage: View {
     let model: AppModel
+    let back: () -> Void
     @Environment(\.theme) private var theme
 
     var body: some View {
         let st: SongExportState = model.songExport
         return VStack(alignment: .leading, spacing: 8) {
-            options.disabled(st.running).opacity(st.running ? 0.4 : 1)
-            SettingsNote(text: lengthText)
-            if st.running { running(st) } else { start }
-            if st.failed { Text("Can’t export the song.").font(.system(size: 12)).foregroundStyle(theme.rec) }
+            MenuBackHeader(title: "EXPORT SONG", back: back)
+            MenuScroll {
+                VStack(alignment: .leading, spacing: 8) {
+                    options.disabled(st.running).opacity(st.running ? 0.4 : 1)
+                    SettingsNote(text: lengthText)
+                    if st.running { running(st) } else { start }
+                    if st.failed { Text("Can’t export the song.").font(.system(size: 12)).foregroundStyle(theme.rec) }
+                }
+                .padding(.trailing, 6)
+            }
         }
-        .frame(maxWidth: 440, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .fileMover(isPresented: fileShown, file: model.songExport.file) { _ in model.songExport.file = nil }
     }
 
@@ -40,6 +47,23 @@ struct SongExportView: View {
             MenuItem(title: "44.1 KHZ", current: f.rate == 44100) { model.songFormat.rate = 44100 }
             MenuItem(title: "48 KHZ", current: f.rate == 48000) { model.songFormat.rate = 48000 }
         }
+        FieldLabel(title: "TAIL")
+        HStack(spacing: 4) {
+            ForEach(SongExportPage.tails, id: \.self) { t in
+                MenuItem(title: SongExportPage.tailName(t), current: (f.tail ?? -1) == t) {
+                    model.songFormat.tail = t < 0 ? nil : t
+                }
+            }
+        }
+    }
+
+    /// Хвост: −1 — AUTO, 0 — OFF, иначе секунды.
+    static let tails: [Double] = [-1, 0, 2, 5, 10]
+
+    static func tailName(_ t: Double) -> String {
+        if t < 0 { return "AUTO" }
+        if t == 0 { return "OFF" }
+        return "\(Int(t)) S"
     }
 
     @ViewBuilder
@@ -75,7 +99,9 @@ struct SongExportView: View {
         if model.songSteps <= 0 { return "The arrangement is empty: put clips on the timeline first." }
         let s: Int = Int(model.songSeconds.rounded())
         let t: String = String(format: "%d:%02d", s / 60, s % 60)
-        return "The whole arrangement from the start, \(t), plus effect tails until silence (up to 10 s). Loop and REF are off while exporting."
+        let tail: String = model.songFormat.tail == nil ? "plus effect tails until silence (up to 10 s)"
+            : (model.songFormat.tail == 0 ? "cut at the end of the last block" : "plus \(Int(model.songFormat.tail ?? 0)) s of tail")
+        return "The whole arrangement from the start, \(t), \(tail). Loop, REF and MIDI out are off while exporting."
     }
 
     private var fileShown: Binding<Bool> {

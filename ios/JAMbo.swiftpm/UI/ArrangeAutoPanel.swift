@@ -366,7 +366,7 @@ final class ArrAutoTouches {
         if index > 0 { x = max(x, orig[index - 1].x) }
         if index + 1 < orig.count { x = min(x, orig[index + 1].x) }
         var pts: [ArrAutoPoint] = orig
-        pts[index] = ArrAutoPoint(x: x, y: ArrAutoGeo.value(p.y, m.size.height))
+        pts[index] = ArrAutoPoint(x: x, y: snapY(p.y, m, model))
         model.arrAutoSet(track: track, param, pts)
     }
 
@@ -380,7 +380,7 @@ final class ArrAutoTouches {
         switch was {
         case .tap:
             var pts: [ArrAutoPoint] = orig
-            pts.append(ArrAutoPoint(x: model.arrAutoSnap(m.step(at: start.x)), y: ArrAutoGeo.value(start.y, m.size.height)))
+            pts.append(ArrAutoPoint(x: model.arrAutoSnap(m.step(at: start.x)), y: snapY(start.y, m, model)))
             model.arrAutoSet(track: track, param, pts)
         case .point:
             if moved {
@@ -393,6 +393,15 @@ final class ArrAutoTouches {
         default:
             break
         }
+    }
+
+    /// Значение точки по высоте: с магнитом ближе 10 pt к серой линии (значение ручки) — ровно на неё.
+    private func snapY(_ y: CGFloat, _ m: ArrMetrics, _ model: AppModel) -> Double {
+        let v: Double = ArrAutoGeo.value(y, m.size.height)
+        guard model.project.arrange.snap, track >= 0 && track < model.project.tracks.count,
+              let pd = model.arrAutoParam(track) else { return v }
+        let base: Double = pd.toNorm(model.project.tracks[track].params[pd.id] ?? pd.def)
+        return abs(ArrAutoGeo.y(base, m.size.height) - y) < 10 ? base : v
     }
 
     /// Второй тап по точке за 0,3 с.

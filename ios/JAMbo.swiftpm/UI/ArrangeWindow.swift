@@ -50,7 +50,7 @@ struct ArrTotalTime: View {
             let now: String = ArrTotalTime.clock(model.arrNowX * 15 / bpm)
             let total: String = ArrTotalTime.clock(Double(model.project.arrangeEnd) * 15 / bpm)
             Text(now + " / " + total)
-                .font(.system(size: 15, weight: .semibold))
+                .font(.system(size: 15, weight: .regular))
                 .monospacedDigit()
                 .foregroundStyle(theme.text)
                 .padding(.leading, 10)
@@ -163,9 +163,10 @@ struct ArrMetrics {
         let r: CGFloat = ref ? 1 : 0
         let fitRow: CGFloat = (seen - (n + r - 1) * g) / (n + r)
         // Решения пользователя: строки дорожек — через чёрный зазор (как зазоры между окнами). EXPANDED — 8 строк и 7
-        // зазоров на видимую высоту окна (над STEPS и AUTO), больше 8 дорожек —
-        // прокрутка; COMPACT — все дорожки на видимую высоту окна. Масштаба по вертикали нет.
-        rowH = expanded ? max(20, (seen - 7 * g) / 8) : max(16, fitRow)
+        // зазоров на высоту окна (одна высота строки на весь экран: низ — 3 строки и 2 зазора, RootView; STEPS и AUTO
+        // только перекрывают дорожки, прокрутка — до последней), больше 8 дорожек — прокрутка; COMPACT — все дорожки
+        // на видимую высоту окна. Масштаба по вертикали нет.
+        rowH = expanded ? max(20, (area - 7 * g) / 8) : max(16, fitRow)
         steps = max(end, 0) + 32 * ArrMetrics.stepsPerBar
         let maxX: CGFloat = max(0, CGFloat(steps) * stepW - w)
         x = min(maxX, max(0, port.x))

@@ -366,6 +366,8 @@ enum MenuPage {
     case settings
     case midi
     case sync
+    /// PROJECTS → EXPORT SONG.
+    case song
 }
 
 /// Меню бутерброда (как веб): разделы PROJECT (PROJECTS) и APP (SETTINGS; DIAGNOSTICS, SELF-TEST — окна) — у каждого подзаголовок,
@@ -399,7 +401,9 @@ struct MainMenu: View {
     private var content: some View {
         switch page {
         case .projects:
-            ProjectsPage(model: model, back: { page = .main }, close: { isOpen = false })
+            ProjectsPage(model: model, back: { page = .main }, close: { isOpen = false }, song: { page = .song })
+        case .song:
+            SongExportPage(model: model, back: { page = .projects })
         case .settings:
             SettingsPage(model: model, back: { page = .main })
         case .midi:
@@ -418,7 +422,7 @@ struct MainMenu: View {
             Divider().overlay(theme.line).padding(.vertical, 8)
             MenuHead(title: "APP")
             MenuItem(title: "SETTINGS") { page = .settings }
-            ForEach(AppWindow.menu, id: \.self) { w in
+            ForEach(AppWindow.allCases, id: \.self) { w in
                 MenuItem(title: w.rawValue) {
                     isOpen = false
                     model.appWindow = w

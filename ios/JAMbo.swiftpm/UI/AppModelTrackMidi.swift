@@ -13,7 +13,8 @@ extension AppModel {
         var routes: [MidiOutRoute?] = []
         var any: Bool = false
         for tr in project.tracks {
-            if let d = tr.midi.outDevice {
+            // Экспорт песни — ноты наружу не идут (секвенсор играет быстрее реального времени).
+            if let d = tr.midi.outDevice, !songExport.running {
                 routes.append(MidiOutRoute(dest: d, channel: tr.midi.outChannel - 1))
                 any = true
             } else {

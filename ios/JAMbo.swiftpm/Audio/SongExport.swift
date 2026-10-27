@@ -10,6 +10,8 @@ struct SongFormat: Equatable {
     var bits: Int = 24
     var rate: Double = 48000
     var quality: Quality = .aac320
+    /// Хвост после конца песни (с); nil — AUTO: до тишины ниже −90 dB, не дольше 10 с.
+    var tail: Double? = nil
 
     var ext: String { return kind == .wav ? "wav" : "m4a" }
 
@@ -74,7 +76,7 @@ final class SongExporter: @unchecked Sendable {
         let outCap: AVAudioFrameCount = AVAudioFrameCount(Double(SongExporter.chunk) * ratio) + 64
         let out: AVAudioPCMBuffer? = conv == nil ? nil : AVAudioPCMBuffer(pcmFormat: dstFmt, frameCapacity: outCap)
         let limit: Int = expected * 2 + Int(AudioCore.sampleRate * 60)
-        let tailFrames: Int = Int(AudioCore.sampleRate * SongExporter.tailMax)
+        let tailFrames: Int = Int(AudioCore.sampleRate * (fmt.tail ?? SongExporter.tailMax))
         var done: Int = 0
         var tail: Int = -1
         var quietChunks: Int = 0
@@ -93,7 +95,8 @@ final class SongExporter: @unchecked Sendable {
             if tail >= 0 {
                 tail += SongExporter.chunk
                 quietChunks = SongExporter.peak(ch, SongExporter.chunk) < SongExporter.quiet ? quietChunks + 1 : 0
-                if quietChunks >= 3 || tail >= tailFrames { break }
+                // AUTO — до тишины; заданная длина — ровно она (OFF — песня обрывается на конце последнего блока).
+                if (fmt.tail == nil && quietChunks >= 3) || tail >= tailFrames { break }
             }
             if done > limit { break }
             let p: Double = min(0.99, Double(done) / Double(max(1, expected)))

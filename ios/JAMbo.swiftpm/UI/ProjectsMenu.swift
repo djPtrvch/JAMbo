@@ -16,6 +16,8 @@ struct ProjectsPage: View {
     let model: AppModel
     let back: () -> Void
     let close: () -> Void
+    /// EXPORT SONG — страница меню (того же размера).
+    var song: () -> Void = {}
     @State private var input: ProjectInput? = nil
     @State private var text: String = ""
     @State private var overwrite: ProjectInfo? = nil
@@ -77,10 +79,7 @@ struct ProjectsPage: View {
                 MenuItem(title: "IMPORT") { model.chooseProjectFile() }
             }
             // Песня из аранжировки в аудиофайл (AppModelSongExport).
-            MenuItem(title: "EXPORT SONG") {
-                close()
-                model.appWindow = .song
-            }
+            MenuItem(title: "EXPORT SONG") { song() }
         }
     }
 
