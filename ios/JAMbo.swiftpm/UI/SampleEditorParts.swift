@@ -41,8 +41,8 @@ struct EditorBar: View {
     private var tools: some View {
         // ▶ без жёлтой подсветки (решение пользователя); во время прослушивания — ■.
         PlayToolButton(on: model.previewOn, enabled: data != nil) { model.togglePreview(sel.a, sel.b) }
-        ToolButton(title: "LOAD", width: nil) { model.openBrowser(.load(steps: [])) }
-        ToolButton(title: "SAVE", enabled: data != nil, width: nil) { model.openBrowser(.saveSample(key)) }
+        ToolButton(title: "LOAD", width: nil, bold: true) { model.openBrowser(.load(steps: [])) }
+        ToolButton(title: "SAVE", enabled: data != nil, width: nil, bold: true) { model.openBrowser(.saveSample(key)) }
         ToolButton(title: "TRIM", enabled: data != nil && !sel.full, width: nil) { model.trimSample(sel.a, sel.b) }
         ToolButton(title: "NORMALIZE", enabled: data != nil, width: nil) { model.normalizeSample() }
         ToolButton(title: "MONO", enabled: (data?.channels ?? 1) == 2, width: nil) { model.monoSample() }
@@ -67,13 +67,15 @@ struct ToolButton: View {
     var enabled: Bool = true
     var lit: Bool = false
     var width: CGFloat? = 76
+    /// Жирный шрифт (в редакторе сэмпла — LOAD и SAVE; остальные — обычным).
+    var bold: Bool = false
     let action: () -> Void
     @Environment(\.theme) private var theme
 
     var body: some View {
         let fg: Color = !enabled ? theme.off : (lit ? theme.onAccent : theme.text)
         return Button(action: action) {
-            Text(title).font(.system(size: 13)).lineLimit(1).minimumScaleFactor(0.7)
+            Text(title).font(.system(size: 13, weight: bold ? .bold : .regular)).lineLimit(1).minimumScaleFactor(0.7)
                 .foregroundStyle(fg)
                 .frame(width: width)
                 .frame(maxWidth: width == nil ? .infinity : nil, maxHeight: .infinity)
