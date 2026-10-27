@@ -116,7 +116,7 @@ struct RecordSettingsView: View {
 }
 
 /// SAMPLER: SLICE NOTES — ноты маркеров нарезки по хроматической клавиатуре или по гамме; PITCH (S12);
-/// CLEAR SAMPLE LOCKS (S11b).
+/// CLEAR SAMPLE LOCKS (S11b); STRETCH — алгоритм таймстретча RATE (NORMAL по умолчанию, BEAT).
 struct SamplerSettings: View {
     let model: AppModel
 
@@ -136,6 +136,12 @@ struct SamplerSettings: View {
             SettingsNote(text: "Sample Pitch knob and its step locks: SEMITONES — whole semitones, SMOOTH — any value. LFO and ENV stay smooth.")
             ToggleRow(title: "CLEAR SAMPLE LOCKS", isOn: model.settings.clearSampleLocks) { model.setClearSampleLocks($0) }
             SettingsNote(text: "ON: loading sounds from the library onto a track removes its sample locks — those steps play the track sound at their own note. Preset locks stay. OFF: sample locks keep their samples.")
+            FieldLabel(title: "STRETCH")
+            HStack(spacing: 4) {
+                MenuItem(title: "NORMAL", current: !model.settings.stretchBeat) { model.setStretchBeat(false) }
+                MenuItem(title: "BEAT", current: model.settings.stretchBeat) { model.setStretchBeat(true) }
+            }
+            SettingsNote(text: "Rate knob in Stretch mode keeps the pitch while the speed changes. NORMAL — for any material: tones stay clean, hits stay sharp. BEAT — lighter, for drum loops.")
         }
     }
 }

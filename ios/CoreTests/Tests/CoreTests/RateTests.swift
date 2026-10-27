@@ -18,14 +18,13 @@ final class RateTests: XCTestCase {
         return l
     }
 
-    private func project(rate: Double, tstr: Bool, bpm: Double = 120, beat: Bool = false) -> Project {
+    private func project(rate: Double, tstr: Bool, bpm: Double = 120) -> Project {
         var p = Project()
         p.tracks[0].addSamples(["k"])
         p.tracks[0].vol = 0
         p.tracks[0].params["decay"] = 4000
         p.tracks[0].params["rate"] = rate
         p.tracks[0].params[Params.rateModeId] = tstr ? 1 : 0
-        p.tracks[0].params[Params.stretchBeatId] = beat ? 1 : 0
         p.bpm = bpm
         return p
     }
@@ -106,7 +105,7 @@ final class RateTests: XCTestCase {
 
     private func stretchKeepsPitch(beat: Bool) {
         let core = AudioCore(master: false)
-        core.publish(project(rate: 50, tstr: true, beat: beat), samples: ["k": sine(441, seconds: 2)])
+        core.publish(project(rate: 50, tstr: true), samples: ["k": sine(441, seconds: 2)], stretchBeat: beat)
         core.events.push(.noteOn(track: 0, note: 48, id: 1, velocity: 1))
         let o = render(core, frames: 200000)
         XCTAssertEqual(crossings(o, 20000, 48000), 441, accuracy: 3, "высота не меняется")
@@ -127,9 +126,9 @@ final class RateTests: XCTestCase {
 
     private func stretchFollowsTempoAndPitch(beat: Bool) {
         let core = AudioCore(master: false)
-        var p = project(rate: 100, tstr: true, bpm: 60, beat: beat)
+        var p = project(rate: 100, tstr: true, bpm: 60)
         p.tracks[0].params["pitch"] = 12
-        core.publish(p, samples: ["k": sine(441, seconds: 2)])
+        core.publish(p, samples: ["k": sine(441, seconds: 2)], stretchBeat: beat)
         core.events.push(.tempo(60))
         _ = render(core, frames: 256)
         core.events.push(.noteOn(track: 0, note: 48, id: 1, velocity: 1))
@@ -146,7 +145,7 @@ final class RateTests: XCTestCase {
 
     private func stretchReverse(beat: Bool) {
         let core = AudioCore(master: false)
-        core.publish(project(rate: -100, tstr: true, beat: beat), samples: ["k": sine(441, seconds: 2)])
+        core.publish(project(rate: -100, tstr: true), samples: ["k": sine(441, seconds: 2)], stretchBeat: beat)
         core.events.push(.noteOn(track: 0, note: 48, id: 1, velocity: 1))
         let o = render(core, frames: 100000)
         XCTAssertEqual(crossings(o, 20000, 48000), 441, accuracy: 3)

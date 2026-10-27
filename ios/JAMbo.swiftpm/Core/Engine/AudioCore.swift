@@ -101,8 +101,8 @@ public final class AudioCore: @unchecked Sendable {
     public func publish(_ project: Project, samples: [String: SampleData] = [:], map: SliceMap = .chromatic, octave: Int = 3,
                         octaves: [Int] = [],
                         tables: [String: WtTable] = [:], scSends: SidechainSends = SidechainSends(),
-                        muteTails: Bool = false, levelRelative: Bool = true, master: [Double]? = nil,
-                        extra: [String] = [], next: [Int] = [], rebind: Bool = false, refB: Bool = false) {
+                        muteTails: Bool = false, levelRelative: Bool = true, stretchBeat: Bool = false,
+                        master: [Double]? = nil, extra: [String] = [], next: [Int] = [], rebind: Bool = false, refB: Bool = false) {
         releaseRetired()
         if lastSeq == nil || !SeqSnapshot.same(lastSeq!, project) {
             lastSeq = project
@@ -111,6 +111,7 @@ public final class AudioCore: @unchecked Sendable {
         }
         let made = SoundSnapshot(project, samples: samples, map: map, octave: octave, octaves: octaves, tables: tables,
                                  scSends: scSends, muteTails: muteTails, levelRelative: levelRelative,
+                                 stretchBeat: stretchBeat,
                                  slots: sequencer.launcher.slot, master: master, extra: extra,
                                  next: next, keepAlt: altKeep, rebind: rebind, refB: refB)
         altKeep = made.altKeep

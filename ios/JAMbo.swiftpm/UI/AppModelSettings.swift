@@ -24,6 +24,12 @@ extension AppModel {
         publishAudio()
     }
 
+    /// SAMPLER → STRETCH: таймстретч BEAT (WSOLA) или NORMAL (фазовый вокодер); новые ноты — новым алгоритмом.
+    func setStretchBeat(_ on: Bool) {
+        updateSettings { s in s.stretchBeat = on }
+        publishAudio()
+    }
+
     func setQuantize(_ on: Bool) {
         updateSettings { s in s.record.quantize = on }
     }

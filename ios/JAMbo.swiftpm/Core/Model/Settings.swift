@@ -58,6 +58,9 @@ public struct AppSettings: Codable, Equatable, Sendable {
     /// SETTINGS → SAMPLER (S11b): загрузка звуков из библиотеки на дорожку снимает её сэмпл-локи (шаги со своим
     /// сэмплом играют звук дорожки своей нотой); пресет-локи остаются.
     public var clearSampleLocks: Bool = true
+    /// SETTINGS → SAMPLER → STRETCH: алгоритм таймстретча RATE в режиме Stretch — NORMAL (фазовый вокодер, по
+    /// умолчанию) или BEAT (WSOLA, для ударных лупов).
+    public var stretchBeat: Bool = false
     /// SETTINGS → SAMPLER → PITCH (S12): ручка Pitch сэмпла и её p-lock — по полутонам (по умолчанию) или плавно.
     public var pitchSemitones: Bool = true
     /// Бутерброд → MIDI (S13): вход, обратная связь, ноты.
@@ -96,7 +99,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
     private enum Keys: String, CodingKey { case appearance, pianoOctaves, velocity, record, sliceMap, scSends, muteTails, latchFx, latchMod, rollGrid,
                                          rollSound, levelRelative, morphAll, morphReturn, mixKey, mixCrossfader,
                                          clearSampleLocks, pitchSemitones, midi, stepPaint, sync,
-                                         arrangeCompact, fxPictures, backgroundAudio, arrangeRepeats }
+                                         arrangeCompact, fxPictures, backgroundAudio, arrangeRepeats, stretchBeat }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
@@ -119,6 +122,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         mixKey = (try? c.decode(Bool.self, forKey: .mixKey)) ?? true
         mixCrossfader = (try? c.decode(Bool.self, forKey: .mixCrossfader)) ?? true
         clearSampleLocks = (try? c.decode(Bool.self, forKey: .clearSampleLocks)) ?? true
+        stretchBeat = (try? c.decode(Bool.self, forKey: .stretchBeat)) ?? false
         pitchSemitones = (try? c.decode(Bool.self, forKey: .pitchSemitones)) ?? true
         midi = (try? c.decode(MidiSettings.self, forKey: .midi)) ?? MidiSettings()
         stepPaint = (try? c.decode(Bool.self, forKey: .stepPaint)) ?? false

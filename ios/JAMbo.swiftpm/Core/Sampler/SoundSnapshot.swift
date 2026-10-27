@@ -101,7 +101,8 @@ public struct SoundData {
     public var mod: UnsafeMutablePointer<Float>
     /// LFO1–3 по темпу (звук·3 + n; 1 — да).
     public var lfoSync: UnsafeMutablePointer<UInt8>
-    /// Режим RATE звука (Params.rateModeId, stretchBeatId): 0 — PTCH, 1 — TSTR NORMAL (вокодер), 2 — TSTR BEAT (WSOLA).
+    /// Режим RATE звука (Params.rateModeId; алгоритм — SETTINGS → SAMPLER → STRETCH): 0 — PTCH, 1 — TSTR NORMAL
+    /// (вокодер), 2 — TSTR BEAT (WSOLA).
     public var rateMode: UnsafeMutablePointer<UInt8>
     public var asSrc: UnsafeMutablePointer<Int8>
     public var asAmt: UnsafeMutablePointer<Float>
@@ -212,7 +213,7 @@ public final class SoundSnapshot: @unchecked Sendable {
     /// остаётся на втором звуке (без переключения звука посреди игры).
     public init(_ project: Project, samples: [String: SampleData], map: SliceMap, octave: Int = 3, octaves: [Int] = [],
                 tables: [String: WtTable] = [:], scSends: SidechainSends = SidechainSends(), muteTails: Bool = false,
-                levelRelative: Bool = true, slots: UnsafeMutablePointer<Int>? = nil, master: [Double]? = nil,
+                levelRelative: Bool = true, stretchBeat: Bool = false, slots: UnsafeMutablePointer<Int>? = nil, master: [Double]? = nil,
                 extra: [String] = [], next: [Int] = [], keepAlt: [Int: Int] = [:], rebind: Bool = false,
                 refB: Bool = false) {
         let tracks = SoundData.maxTracks
@@ -396,8 +397,7 @@ public final class SoundSnapshot: @unchecked Sendable {
             }
             for (l, id) in Params.lfoSyncIds.enumerated() { d.lfoSync[u * 3 + l] = (snd.params[id] ?? 0) >= 0.5 ? 1 : 0 }
             let tstr: Bool = (snd.params[Params.rateModeId] ?? 0) >= 0.5
-            let beat: Bool = (snd.params[Params.stretchBeatId] ?? 0) >= 0.5
-            d.rateMode[u] = tstr ? (beat ? 2 : 1) : 0
+            d.rateMode[u] = tstr ? (stretchBeat ? 2 : 1) : 0
             // Шкалы целей — по сетке звука дорожки (у синта свои пределы и ступени).
             var grid: [String: ParamDef] = [:]
             for p in Params.grid(sound: snd.sample) where !p.id.isEmpty { grid[p.id] = p }
