@@ -78,14 +78,17 @@ extension AppModel {
         editTrack { t in t.setRollNoteVel(n.index, pitch: n.pitch, vel: lv) }
     }
 
-    /// Перенос ноты на позицию pos и высоту pitch; там уже такая нота — не переносится (nil).
-    func rollMove(_ n: RollNote, pos: Int, pitch: Int) -> RollNote? {
+    /// Перенос ноты на позицию pos и высоту pitch; там уже такая нота — не переносится (nil). carry — p-lock и свой
+    /// звук шага, которые едут с нотой (Track.rollCarry в начале перетаскивания).
+    func rollMove(_ n: RollNote, pos: Int, pitch: Int, carry: inout StepCarry?) -> RollNote? {
         let ps: [Int] = Roll.positions(rollClip)
         guard pos >= 0 && pos < ps.count else { return nil }
         let dest: Int = ps[pos]
         if dest == n.index && pitch == n.pitch { return n }
         if let s = track.step(dest), s.on, s.notes.contains(pitch) { return nil }
-        editTrack { t in t.moveRollNote(n.index, pitch: n.pitch, to: dest, pitch: pitch) }
+        var c: StepCarry? = carry
+        editTrack { t in t.moveRollNote(n.index, pitch: n.pitch, to: dest, pitch: pitch, carry: &c) }
+        carry = c
         return RollNote(pos: pos, index: dest, k: 0, pitch: pitch, len: n.len, vel: n.vel)
     }
 

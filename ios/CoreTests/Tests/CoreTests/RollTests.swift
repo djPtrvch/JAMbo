@@ -65,6 +65,43 @@ final class RollEditsTests: XCTestCase {
         XCTAssertEqual(t.pages[0][2].locks["filter"], 50)
     }
 
+    /// Нота одна на шаге — p-lock и свой звук шага едут с ней (через аккорд и шаг со своими p-lock — не трогая их).
+    func testMoveCarriesLocks() {
+        var t = Track(index: 0)
+        t.addRollNote(2, pitch: 48, len: 1, vel: nil)
+        t.pages[0][2].locks["filter"] = 50
+        t.pages[0][2].sound = "snd"
+        t.addRollNote(4, pitch: 60, len: 1, vel: nil)
+        t.pages[0][4].locks["reso"] = 10
+        t.pages[0][6].locks["pan"] = 20
+        var c: StepCarry? = t.rollCarry(2, pitch: 48)
+        XCTAssertNotNil(c)
+        t.moveRollNote(2, pitch: 48, to: 3, pitch: 48, carry: &c)
+        XCTAssertEqual(t.pages[0][3].locks["filter"], 50, "p-lock — на новом шаге")
+        XCTAssertEqual(t.pages[0][3].sound, "snd", "свой звук шага — тоже")
+        XCTAssertTrue(t.pages[0][2].locks.isEmpty, "старый шаг пустой")
+        XCTAssertNil(t.pages[0][2].sound)
+        // Через аккорд: у шага 4 свои p-lock, эти — «в руке».
+        t.moveRollNote(3, pitch: 48, to: 4, pitch: 48, carry: &c)
+        XCTAssertEqual(t.pages[0][4].locks, ["reso": 10])
+        XCTAssertTrue(t.pages[0][3].locks.isEmpty)
+        // Через пустой шаг со своими p-lock — его p-lock остаются, эти ждут.
+        t.moveRollNote(4, pitch: 48, to: 6, pitch: 48, carry: &c)
+        XCTAssertEqual(t.pages[0][4].locks, ["reso": 10], "аккорд остался со своими p-lock")
+        XCTAssertEqual(t.pages[0][6].locks, ["pan": 20])
+        t.moveRollNote(6, pitch: 48, to: 7, pitch: 50, carry: &c)
+        XCTAssertEqual(t.pages[0][6].locks, ["pan": 20], "p-lock пустого шага не тронуты")
+        XCTAssertEqual(t.pages[0][7].locks["filter"], 50)
+        XCTAssertEqual(t.pages[0][7].notes, [50])
+        // Нота из аккорда — p-lock остаются у аккорда.
+        t.addRollNote(4, pitch: 64, len: 1, vel: nil)
+        XCTAssertNil(t.rollCarry(4, pitch: 64))
+        var none: StepCarry? = t.rollCarry(4, pitch: 64)
+        t.moveRollNote(4, pitch: 64, to: 9, pitch: 64, carry: &none)
+        XCTAssertEqual(t.pages[0][4].locks, ["reso": 10])
+        XCTAssertTrue(t.pages[0][9].locks.isEmpty)
+    }
+
     func testSnap() {
         XCTAssertEqual(Roll.snap(7, grid: 1), 7)
         XCTAssertEqual(Roll.snap(7, grid: 2), 6)

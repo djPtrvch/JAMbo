@@ -44,15 +44,59 @@ extension Track {
         return value("level", step: step(n.index))
     }
 
-    /// Перенести ноту (с её длиной и velocity) на другой шаг и высоту; p-lock и звук шагов остаются на месте.
-    public mutating func moveRollNote(_ index: Int, pitch: Int, to dest: Int, pitch dp: Int) {
+    /// P-lock и свой звук шага, которые едут с нотой (rollCarry): нота была на шаге одна — шаг переезжает целиком.
+    public func rollCarry(_ index: Int, pitch: Int) -> StepCarry? {
+        guard let s = step(index), s.on, s.notes == [pitch] else { return nil }
+        return StepCarry(locks: s.locks, sound: s.sound, soundLocks: s.soundLocks, at: index)
+    }
+
+    /// Перенести ноту (с её длиной и velocity) на другой шаг и высоту. carry (rollCarry в начале перетаскивания;
+    /// nil — нота была в аккорде: p-lock и звук остаются у шага) — p-lock и свой звук шага едут с нотой: уходят со
+    /// шага, где лежат, когда он пустеет, и встают на пустой шаг (без трига, своих p-lock и звука); у шага с другими
+    /// нотами или своими p-lock — его p-lock, а эти ждут следующего пустого шага (отпустили там — пропадают; отмена —
+    /// UNDO).
+    public mutating func moveRollNote(_ index: Int, pitch: Int, to dest: Int, pitch dp: Int, carry: inout StepCarry?) {
         guard let s = step(index), let k = s.notes.firstIndex(of: pitch) else { return }
         if index == dest && pitch == dp { return }
         let len: Int = s.noteLen(k)
         let vel: Double? = s.noteVel(k)
         removeRollNote(index, pitch: pitch)
+        if var c = carry, c.at == index, index != dest, step(index)?.on == false {
+            withStep(index) { st in
+                st.locks = [:]
+                st.sound = nil
+                st.soundLocks = nil
+            }
+            c.at = nil
+            carry = c
+        }
+        let ds: Step? = step(dest)
+        let free: Bool = ds.map { !$0.on && $0.locks.isEmpty && $0.sound == nil } ?? false
         addRollNote(dest, pitch: dp, len: len, vel: vel)
+        if var c = carry, c.at == nil, free {
+            withStep(dest) { st in
+                st.locks = c.locks
+                st.sound = c.sound
+                st.soundLocks = c.soundLocks
+            }
+            c.at = dest
+            carry = c
+        }
     }
+
+    /// Перенос без p-lock шага (они остаются на месте).
+    public mutating func moveRollNote(_ index: Int, pitch: Int, to dest: Int, pitch dp: Int) {
+        var none: StepCarry? = nil
+        moveRollNote(index, pitch: pitch, to: dest, pitch: dp, carry: &none)
+    }
+}
+
+/// P-lock и свой звук шага в пути с нотой пианоролла; at — шаг, где они сейчас (nil — «в руке»).
+public struct StepCarry: Equatable, Sendable {
+    public var locks: [String: Double]
+    public var sound: String?
+    public var soundLocks: [String]?
+    public var at: Int?
 }
 
 extension Roll {

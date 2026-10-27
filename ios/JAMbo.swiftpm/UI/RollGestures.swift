@@ -57,6 +57,8 @@ final class RollTouches {
     /// Нота под пальцем (как стоит сейчас), где она была в начале, звучащая нота (id).
     private var note: RollNote? = nil
     private var origin: RollNote? = nil
+    /// P-lock и свой звук шага, которые едут с перетаскиваемой нотой (нота была на шаге одна).
+    private var carry: StepCarry? = nil
     private var emptyHit: (pos: Int, row: Int)? = nil
     private var soundId: Int? = nil
     private var vel0: Double = 0
@@ -158,6 +160,7 @@ final class RollTouches {
         guard let n = note else { return }
         mode = .move
         origin = n
+        carry = model.track.rollCarry(n.index, pitch: n.pitch)
         model.beginGesture()
     }
 
@@ -177,6 +180,7 @@ final class RollTouches {
         mode = .idle
         note = nil
         origin = nil
+        carry = nil
     }
 
     private func move(_ p: CGPoint, _ m: RollMetrics, _ model: AppModel) {
@@ -188,7 +192,7 @@ final class RollTouches {
         let row: Int = min(m.rows.count - 1, max(0, r0 + dr))
         let pitch: Int = m.rows[row]
         if pos == cur.pos && pitch == cur.pitch { return }
-        guard let moved = model.rollMove(cur, pos: pos, pitch: pitch) else { return }
+        guard let moved = model.rollMove(cur, pos: pos, pitch: pitch, carry: &carry) else { return }
         note = moved
         if pitch != cur.pitch {
             stopSound(model)
