@@ -11,6 +11,12 @@ struct RootView: View {
     @State private var trackTop: CGFloat = 600
     @Environment(\.theme) private var theme
 
+    /// Поля экрана сверху и снизу (решение пользователя: без полей; снизу — и без безопасной зоны полоски «домой»).
+    static let padTop: CGFloat = 0
+    static let padBottom: CGFloat = 0
+    /// Верх меню бутерброда: под верхней панелью и зазором.
+    static var menuTop: CGFloat { return padTop + Layout.topHeight + Layout.gap }
+
     var body: some View {
         let _ = RedrawMeter.hit(.root)
         GeometryReader { geo in
@@ -47,6 +53,8 @@ struct RootView: View {
         }
         // Клавиатура (имя дорожки, темп числом) не сдвигает экран: поля ввода — в верхней части.
         .ignoresSafeArea(.keyboard)
+        // Снизу — до края экрана (под полоской «домой»); сверху — под строкой состояния, если она видна.
+        .ignoresSafeArea(.container, edges: .bottom)
         .fileImporter(isPresented: importing, allowedContentTypes: model.importingProject || model.importingLibrary ? [.data] : [.audio],
                       allowsMultipleSelection: !model.importingProject) { result in picked(result) }
         .alert(model.sampleRec.error ?? "", isPresented: recError) {
@@ -97,16 +105,16 @@ struct RootView: View {
     /// последовательными приближениями (сходится за несколько шагов).
     static func units(_ h: CGFloat) -> (bar: CGFloat, unit: CGFloat) {
         let g: CGFloat = Layout.gap
-        let centerTop: CGFloat = 8 + Layout.topHeight + g
+        let centerTop: CGFloat = RootView.padTop + Layout.topHeight + g
         let rows: CGFloat = CGFloat(PagesColumn.rows)
         var bar: CGFloat = 40
         var unit: CGFloat = 60
         var k: Int = 0
         while k < 12 {
-            let window: CGFloat = h - 8 - (centerTop + bar + g)
+            let window: CGFloat = h - RootView.padBottom - (centerTop + bar + g)
             unit = max(20, (window - ArrMetrics.top - 7 * g) / 8)
             let lowerH: CGFloat = 3 * unit + 2 * g
-            let center: CGFloat = h - 8 - centerTop - lowerH - g
+            let center: CGFloat = h - RootView.padBottom - centerTop - lowerH - g
             let pages: CGFloat = center - 2 * Layout.pairHeight - 2 * g
             bar = max(24, (pages - PagesColumn.spacing * (rows - 1)) / rows)
             k += 1
@@ -134,7 +142,8 @@ struct RootView: View {
         .onChange(of: lowerH, initial: true) { _, h in model.arrLowerH = RootView.arrStepsH(h) }
         .onChange(of: bar, initial: true) { _, b in model.barH = b }
         .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.top, RootView.padTop)
+        .padding(.bottom, RootView.padBottom)
     }
 
     /// Обычный экран: центр и низ (высоты — явно, h — высота экрана). STEPS сетки паттернов выключена — как STEPS
@@ -142,13 +151,13 @@ struct RootView: View {
     /// пользователя: клипы и кнопки не растягиваются и не сдвигаются — строки той же высоты, сколько поместится).
     @ViewBuilder
     private func main(_ layout: Layout, _ lowerH: CGFloat, _ h: CGFloat) -> some View {
-        // Центр: экран без полей (8 сверху и снизу), верхней панели, низа и двух зазоров.
-        let centerH: CGFloat = max(0, h - 16 - Layout.topHeight - lowerH - 2 * Layout.gap)
+        // Центр: экран без полей сверху и снизу (RootView.padTop, padBottom), верхней панели, низа и двух зазоров.
+        let centerH: CGFloat = max(0, h - RootView.padTop - RootView.padBottom - Layout.topHeight - lowerH - 2 * Layout.gap)
         let tall: Bool = model.patternView && model.project.gridHideSteps
         let rowH: CGFloat = GridGeometry.rowH(centerH, rows: Params.gridRows)
         let pitch: CGFloat = max(1, rowH + PatternGrid.rowGap)
-        // Строка может зайти в нижнее поле экрана (8): иначе последней не хватает пары пунктов.
-        let more: Int = Int(((Layout.gap + lowerH + 8) / pitch).rounded(.down))
+        // Строка может зайти в нижнее поле экрана (padBottom; без поля — только целые строки).
+        let more: Int = Int(((Layout.gap + lowerH + RootView.padBottom) / pitch).rounded(.down))
         let rows: Int = tall ? Params.gridRows + more : Params.gridRows
         let gridH: CGFloat = CGFloat(rows) * rowH + CGFloat(rows - 1) * PatternGrid.rowGap
         if tall {
@@ -291,8 +300,8 @@ struct RootView: View {
         if menuOpen {
             // Тап мимо меню закрывает его.
             Color.black.opacity(0.001).ignoresSafeArea().onTapGesture { menuOpen = false }
-            MainMenu(model: model, isOpen: $menuOpen, height: max(240, trackTop - 58 - Layout.gap))
-                .padding(.top, 58).padding(.leading, 12)
+            MainMenu(model: model, isOpen: $menuOpen, height: max(240, trackTop - RootView.menuTop - Layout.gap))
+                .padding(.top, RootView.menuTop).padding(.leading, 12)
         }
         if let menu = model.pageMenu {
             pageMenu(menu)
