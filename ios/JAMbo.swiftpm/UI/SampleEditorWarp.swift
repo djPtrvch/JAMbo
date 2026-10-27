@@ -218,6 +218,17 @@ enum EditorWarpDraw {
         return g.x(wv.frac(sample: 0))
     }
 
+    /// Обычный режим (маркеры нарезки): метки варпинга снизу — только для ориентира (серые, не выделяются); положение —
+    /// доля длины сэмпла.
+    static func ghosts(_ ctx: GraphicsContext, _ g: EditorGeometry, _ marks: [WarpMark], _ c: EditorColors) {
+        let h: CGFloat = g.size.height
+        for m in marks {
+            let x: CGFloat = g.x(m.at)
+            if x < -60 || x > g.size.width + 60 { continue }
+            flag(ctx, x, WarpView.label(m.beat), h, c.dim.opacity(0.7), c)
+        }
+    }
+
     private static func flag(_ ctx: GraphicsContext, _ x: CGFloat, _ label: String, _ h: CGFloat, _ col: Color,
                              _ c: EditorColors) {
         let top: CGFloat = SampleEditor.top

@@ -117,7 +117,8 @@ enum EditorDraw {
 
     /// Тело флажка — по центру линии маркера.
     static func flagRect(_ x: CGFloat, _ label: String) -> CGRect {
-        let w: CGFloat = max(30, CGFloat(label.count) * 8 + 10)
+        // Все флажки редактора (нарезка, WARP сверху и снизу) — одного размера.
+        let w: CGFloat = EditorWarpDraw.flagW
         return CGRect(x: x - w / 2, y: SampleEditor.flagY, width: w, height: SampleEditor.flagH)
     }
 
@@ -188,8 +189,8 @@ enum EditorDraw {
             p.addLine(to: CGPoint(x: r.minX, y: r.maxY))
             p.closeSubpath()
             ctx.fill(p, with: .color(col))
-            ctx.draw(Text(label).font(.system(size: 12, weight: .semibold)).foregroundColor(c.bg),
-                     at: CGPoint(x: x + 0.5, y: r.midY + 1))
+            ctx.draw(Text(label).font(.system(size: 11, weight: .semibold)).foregroundColor(c.bg),
+                     at: CGPoint(x: x + 0.5, y: r.midY))
         }
     }
 

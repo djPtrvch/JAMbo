@@ -4,7 +4,8 @@ import SwiftUI
 /// Вверху — имя, длина (и выделение), ST/M, REC (S11e; во время записи на поле — форма волны записи), ▶, LOAD, SAVE (S11), TRIM, NORMALIZE, MONO, CLEAR, ✕.
 /// Форма волны во всю ширину (стерео — L и R); маркеры обрезки — за ручки внизу (двумя пальцами — оба сразу);
 /// палец по пустому месту: вверх-вниз — масштаб, влево-вправо — прокрутка; двойной тап — маркер нарезки,
-/// флажок тянут, двойной тап по флажку — удалить, удержание флажка + клавиша — своя нота маркера.
+/// флажок тянут, двойной тап по флажку — удалить, удержание флажка + клавиша — своя нота маркера; метки варпинга —
+/// снизу серыми флажками (только ориентир), маркер ближе 12 pt к метке прилипает к ней.
 /// WARP (SampleEditorWarp.swift): по горизонтали доли; двойной тап — метка варпинга; метку берут за флажок снизу или за
 /// линию (касание — выделить, тянуть — на столько же, магнит к GRID), выделенную тянут и из любого места полосы
 /// флажков; флажок START — метка начала сэмпла; двойной тап по флажку — удалить; верхний флажок без подписи — метку
@@ -95,6 +96,7 @@ struct SampleEditor: View {
         let w: Int = max(1, Int(size.width))
         let lanes = cache.big(d, key: key, width: w, a: view.a, span: view.span)
         let marks: [SliceMark] = model.editorMarks
+        let warps: [WarpMark] = model.editorWarpInfo.marks
         let notes: [Int] = model.editorMarkNotes
         let heads = model.playheads(track: model.selectedTrack, key: key)
         let held: Set<Int> = Set(touches.values.compactMap { $0.kind == .slice ? $0.idx : nil })
@@ -107,6 +109,7 @@ struct SampleEditor: View {
             let g = EditorGeometry(size: sz, view: v)
             EditorDraw.lanes(ctx, g, lanes, colors)
             EditorDraw.trim(ctx, g, s, colors)
+            EditorWarpDraw.ghosts(ctx, g, warps, colors)
             EditorDraw.flags(ctx, g, marks, notes, held, refused, colors)
             EditorDraw.heads(ctx, g, heads, colors)
             EditorDraw.scrollbar(ctx, g, colors)
@@ -237,7 +240,7 @@ struct SampleEditor: View {
                 model.heldFlag = nil
                 model.beginGesture()
             }
-            model.moveSlice(t.idx, at: g.frac(p.x), gap: 32 / Double(d.frames))
+            model.moveSlice(t.idx, at: snapToWarp(g.frac(p.x), g), gap: 32 / Double(d.frames))
             let marks = model.editorMarks
             let notes = model.editorMarkNotes
             if t.idx < marks.count {
@@ -364,8 +367,23 @@ struct SampleEditor: View {
         if flag >= 0 {
             model.deleteSlice(flag)
         } else {
-            model.addSlice(at: geometry(size).frac(p.x))
+            let g = geometry(size)
+            model.addSlice(at: snapToWarp(g.frac(p.x), g))
         }
+    }
+
+    /// Маркер нарезки ближе 12 pt к метке варпинга — точно на неё.
+    private func snapToWarp(_ f: Double, _ g: EditorGeometry) -> Double {
+        var best: Double = f
+        var bestD: CGFloat = 12
+        for m in model.editorWarpInfo.marks {
+            let dx: CGFloat = abs(g.x(m.at) - g.x(f))
+            if dx <= bestD {
+                bestD = dx
+                best = m.at
+            }
+        }
+        return best
     }
 
     /// Ручка маркера обрезки под пальцем (внизу): false — начало, true — конец; nil — нет.
