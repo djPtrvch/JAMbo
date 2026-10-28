@@ -258,7 +258,7 @@ extension AppModel {
         importing = true
     }
 
-    /// Профили из файлов (AutoEQ ParametricEQ.txt и GraphicEQ.txt, Equalizer APO): каждый — пресет с именем файла (занятое имя —
+    /// Профили из файлов (AutoEQ ParametricEQ.txt, Equalizer APO): каждый — пресет с именем файла (занятое имя —
     /// замена), первый — сразу в коррекцию (BYPASS прежний). Итог — окно с OK.
     func phonesImport(_ urls: [URL]) {
         var added: [String] = []
@@ -270,21 +270,16 @@ extension AppModel {
             defer { if access { u.stopAccessingSecurityScopedResource() } }
             let text: String? = (try? Data(contentsOf: u)).flatMap { String(data: $0, encoding: .utf8) ?? String(data: $0, encoding: .isoLatin1) }
             let filters: [PhonesProfile.Filter] = text.map { PhonesProfile.parse($0) } ?? []
-            let curve: [(hz: Double, db: Double)] = filters.isEmpty ? (text.map { PhonesProfile.graphic($0) } ?? []) : []
-            if filters.isEmpty && curve.count < 2 {
+            if filters.isEmpty {
                 bad.append(u.lastPathComponent)
                 continue
             }
+            let r = PhonesProfile.eq(filters)
             let name: String = PhonesProfile.name(fromFile: u.lastPathComponent)
-            let r: (eq: Eq, fitted: Bool) = filters.isEmpty ? (PhonesProfile.eq(graphic: curve), true) : PhonesProfile.eq(filters)
             let over: Int? = phonesPresets.index(named: name)
             phonesPresets.save(name: name, eq: r.eq, over: over)
             added.append(name)
-            if filters.isEmpty {
-                fitted.append("\(name): GraphicEQ curve fitted into \(EqSpec.bands) bands")
-            } else if r.fitted {
-                fitted.append("\(name): \(filters.count) filters fitted into \(EqSpec.bands) bands")
-            }
+            if r.fitted { fitted.append("\(name): \(filters.count) filters fitted into \(EqSpec.bands) bands") }
             if first == nil { first = (r.eq, name) }
         }
         UserDefaults.standard.set(phonesPresets.encode(), forKey: AppModel.phonesPresetsKey)
@@ -298,7 +293,7 @@ extension AppModel {
         var lines: [String] = []
         if !added.isEmpty { lines.append("Imported: " + added.joined(separator: ", ") + ". Loaded: " + added[0] + ".") }
         lines += fitted
-        if !bad.isEmpty { lines.append("No filters or GraphicEQ curve found in " + bad.joined(separator: ", ") + ".") }
+        if !bad.isEmpty { lines.append("No filters found in " + bad.joined(separator: ", ") + ". Use the ParametricEQ.txt profile (GraphicEQ is not supported).") }
         phonesNote = lines.joined(separator: "\n")
     }
 

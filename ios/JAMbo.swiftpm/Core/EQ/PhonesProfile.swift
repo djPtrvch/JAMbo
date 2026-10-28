@@ -4,9 +4,7 @@ import Foundation
 // и Equalizer APO — строки «Preamp: −6.1 dB» и «Filter 1: ON PK Fc 105 Hz Gain −4.2 dB Q 0.70». Типы: PK — bell,
 // LSC/LS — low shelf, HSC/HS — high shelf, HP/HPQ — low cut, LP/LPQ — high cut, NO — notch (Q у shelf не
 // учитывается: у наших S = 1, Q ≈ 0,71). Preamp из файла не берётся — у коррекции он свой (EqSpec.preamp).
-// Фильтров больше 10 — 10 полос подгоняются под кривую всех фильтров (PhonesFit). Формат AutoEQ GraphicEQ.txt
-// (одна строка «GraphicEQ: 20 -7.2; 21 -7.3; …» — точки кривой, без фильтров) — 10 полос подгоняются под кривую
-// точек; общий сдвиг кривой (в GraphicEQ в неё входит предусиление) убирается — у коррекции предусиление своё.
+// Фильтров больше 10 — 10 полос подгоняются под кривую всех фильтров (PhonesFit).
 
 public enum PhonesProfile {
     /// Фильтр из файла.
@@ -91,34 +89,10 @@ public enum PhonesProfile {
         return lines.joined(separator: "\n") + "\n"
     }
 
-    /// Точки кривой GraphicEQ (частота, dB) по возрастанию частоты; нет строки «GraphicEQ:» — пусто.
-    public static func graphic(_ text: String) -> [(hz: Double, db: Double)] {
-        var out: [(hz: Double, db: Double)] = []
-        for raw in text.components(separatedBy: .newlines) {
-            let line: String = raw.trimmingCharacters(in: .whitespaces)
-            guard line.lowercased().hasPrefix("graphiceq") else { continue }
-            guard let colon = line.firstIndex(of: ":") else { continue }
-            for item in line[line.index(after: colon)...].split(separator: ";") {
-                let w: [Substring] = item.split(whereSeparator: { $0 == " " || $0 == "\t" })
-                guard w.count >= 2, let f = Double(w[0].replacingOccurrences(of: ",", with: ".")),
-                      let g = Double(w[1].replacingOccurrences(of: ",", with: ".")), f > 0 else { continue }
-                out.append((f, g))
-            }
-        }
-        return out.sorted { $0.hz < $1.hz }
-    }
-
-    /// EQ из точек GraphicEQ: 10 полос, подогнанных под кривую (сдвинутую так, что её середина — 0 dB).
-    public static func eq(graphic points: [(hz: Double, db: Double)]) -> Eq {
-        let bands: [EqBand] = PhonesFit.fitCurve(points)
-        let filters: [Filter] = bands.map { Filter(type: $0.type, freq: $0.freq, gain: $0.gain, q: $0.q) }
-        return eq(filters).eq
-    }
-
-    /// Имя пресета из имени файла: без расширения и хвоста « ParametricEQ» или « GraphicEQ».
+    /// Имя пресета из имени файла: без расширения и хвоста « ParametricEQ».
     public static func name(fromFile file: String) -> String {
         var s: String = (file as NSString).deletingPathExtension
-        for tail in [" ParametricEQ", "_ParametricEQ", " ParametricEq", " GraphicEQ", "_GraphicEQ"] where s.hasSuffix(tail) {
+        for tail in [" ParametricEQ", "_ParametricEQ", " ParametricEq"] where s.hasSuffix(tail) {
             s = String(s.dropLast(tail.count))
         }
         let t: String = s.trimmingCharacters(in: .whitespaces)
@@ -139,70 +113,13 @@ enum PhonesFit {
         let target: [Double] = curve(all, hz)
         var start: [EqBand] = all.sorted { impact($0) > impact($1) }
         start = Array(start.prefix(EqSpec.bands))
-        return refine(start, hz, target, iterations: 60).sorted { $0.freq < $1.freq }
-    }
-
-    /// Подгонка полос под кривую точек GraphicEQ: кривая — на 128 частотах (линейно по log f), сдвинута на медиану;
-    /// начало — жадно: полоса за полосой на месте наибольшего остатка (по краям — shelf, иначе bell), после каждой
-    /// новой — короткое уточнение всех, в конце — полное.
-    static func fitCurve(_ pts: [(hz: Double, db: Double)]) -> [EqBand] {
-        if pts.isEmpty { return [] }
-        let hz: [Double] = (0..<points).map { i in
-            EqSpec.freqMin * pow(EqSpec.freqMax / EqSpec.freqMin, Double(i) / Double(points - 1))
-        }
-        var target: [Double] = hz.map { interp(pts, $0) }
-        let mid: Double = target.sorted()[points / 2]
-        target = target.map { $0 - mid }
-        var bands: [EqBand] = []
-        while bands.count < EqSpec.bands {
-            let have: [Double] = curve(bands, hz)
-            var best = 0
-            var bestV: Double = 0
-            for i in 0..<points {
-                let v: Double = abs(target[i] - have[i])
-                if v > bestV {
-                    bestV = v
-                    best = i
-                }
-            }
-            if bestV < 0.1 { break }
-            let gain: Double = target[best] - have[best]
-            let f: Double = hz[best]
-            let b: EqBand
-            if best < 4 {
-                b = EqBand(type: EqSpec.lowShelf, freq: Swift.max(f, 40), gain: gain, q: 0.71)
-            } else if best > points - 5 {
-                b = EqBand(type: EqSpec.highShelf, freq: Swift.min(f, 12000), gain: gain, q: 0.71)
-            } else {
-                b = EqBand(type: EqSpec.bell, freq: f, gain: gain, q: 1.4)
-            }
-            bands.append(b)
-            bands = refine(bands, hz, target, iterations: 8)
-        }
-        return refine(bands, hz, target, iterations: 60).sorted { $0.freq < $1.freq }
-    }
-
-    /// Кривая точек на частоте f (линейно по log f; за краями — крайние значения).
-    static func interp(_ pts: [(hz: Double, db: Double)], _ f: Double) -> Double {
-        if f <= pts[0].hz { return pts[0].db }
-        for i in 1..<pts.count where f <= pts[i].hz {
-            let a = pts[i - 1], b = pts[i]
-            if b.hz <= a.hz { return b.db }
-            let t: Double = log(f / a.hz) / log(b.hz / a.hz)
-            return a.db + (b.db - a.db) * t
-        }
-        return pts[pts.count - 1].db
-    }
-
-    /// Левенберг — Марквардт: параметры полос start (форма — типы) под кривую target на частотах hz.
-    static func refine(_ start: [EqBand], _ hz: [Double], _ target: [Double], iterations: Int) -> [EqBand] {
         var x: [Double] = pack(start)
         var r: [Double] = residual(x, start, hz, target)
         var cost: Double = r.reduce(0) { $0 + $1 * $1 }
         var lambda: Double = 1e-2
         let m: Int = x.count
         var iter = 0
-        while iter < iterations && m > 0 {
+        while iter < 60 && m > 0 {
             iter += 1
             // Якобиан численно.
             var jac: [[Double]] = []
@@ -246,7 +163,7 @@ enum PhonesFit {
             }
             if !better { break }
         }
-        return unpack(x, start)
+        return unpack(x, start).sorted { $0.freq < $1.freq }
     }
 
     /// Вклад фильтра: срезы — всегда; у bell — |усиление| на ширину (1/Q), у shelf — |усиление| вдвое.
