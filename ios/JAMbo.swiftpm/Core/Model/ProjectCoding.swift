@@ -173,6 +173,9 @@ extension Eq {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         on = c.value(.on, true)
         bands = c.value(.bands, [EqBand?](repeating: nil, count: EqSpec.bands))
+        // Сохранённые до 10 полос (8 мест) — дополнить пустыми.
+        if bands.count > EqSpec.bands { bands.removeLast(bands.count - EqSpec.bands) }
+        while bands.count < EqSpec.bands { bands.append(nil) }
     }
 }
 

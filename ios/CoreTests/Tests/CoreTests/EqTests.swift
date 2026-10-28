@@ -66,7 +66,7 @@ final class EqRoutingTests: XCTestCase {
         let m = EqSpec.masterChannel
         XCTAssertEqual(p.addEqBand(0, freq: 5, gain: 30), 0)
         XCTAssertEqual(p.tracks[0].eq.bands[0], EqBand(type: EqSpec.bell, freq: 20, gain: 18, q: 1))
-        for k in 1..<8 { XCTAssertEqual(p.addEqBand(0, freq: 1000, gain: 0), k) }
+        for k in 1..<EqSpec.bands { XCTAssertEqual(p.addEqBand(0, freq: 1000, gain: 0), k) }
         XCTAssertEqual(p.addEqBand(0, freq: 1000, gain: 0), -1, "мест нет")
         p.setEqBand(0, 0, freq: 30000, gain: -3.14159, q: 50)
         XCTAssertEqual(p.tracks[0].eq.bands[0]?.freq, 20000)

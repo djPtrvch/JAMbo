@@ -29,22 +29,32 @@ extension EqSpec {
 
 extension EqPresetBook {
     /// Профиль Sony WH-1000XM4 (закрытые, по замерам oratory1990 из AutoEQ — 10 фильтров и Preamp −6,1 dB):
-    /// подогнан под 8 полос по кривой 20 Гц…20 кГц (отклонение до 1 dB, в среднем 0,2 dB). Кладётся в список пресетов
-    /// коррекции один раз, его можно удалить.
+    /// все 10 фильтров как есть, по частоте (у shelf Q 0,71). Кладётся в список пресетов коррекции один раз,
+    /// его можно удалить.
     public static let sonyXM4: EqPreset = {
         let bell: Int = EqSpec.bell
         let bands: [EqBand?] = [
-            EqBand(type: bell, freq: 55, gain: 1.2, q: 1.24),
-            EqBand(type: EqSpec.lowShelf, freq: 99, gain: -4.2, q: 0.71),
-            EqBand(type: bell, freq: 141, gain: -5.4, q: 1.09),
-            EqBand(type: bell, freq: 397, gain: 1.7, q: 4.92),
-            EqBand(type: bell, freq: 2273, gain: 6.0, q: 1.45),
-            EqBand(type: bell, freq: 5140, gain: -3.2, q: 5.59),
-            EqBand(type: bell, freq: 6712, gain: 3.0, q: 5.95),
-            EqBand(type: EqSpec.highShelf, freq: 9850, gain: -1.0, q: 0.71),
+            EqBand(type: bell, freq: 56, gain: 1.2, q: 1.19),
+            EqBand(type: EqSpec.lowShelf, freq: 105, gain: -4.2, q: 0.71),
+            EqBand(type: bell, freq: 143, gain: -5.2, q: 1.1),
+            EqBand(type: bell, freq: 407, gain: 1.7, q: 3.14),
+            EqBand(type: bell, freq: 576, gain: -1.2, q: 3.55),
+            EqBand(type: bell, freq: 1007, gain: 1.0, q: 3.41),
+            EqBand(type: bell, freq: 2289, gain: 6.1, q: 1.57),
+            EqBand(type: bell, freq: 5144, gain: -3.2, q: 6.0),
+            EqBand(type: bell, freq: 6715, gain: 3.0, q: 5.99),
+            EqBand(type: EqSpec.highShelf, freq: 10000, gain: -1.0, q: 0.71),
         ]
         return EqPreset(name: "Sony WH-1000XM4", bands: bands)
     }()
+
+    /// Переход на 10 полос: пресет с именем профиля Sony, подогнанный прежде под 8 полос, — заменить точным.
+    public mutating func upgradeSonyXM4() -> Bool {
+        let p: EqPreset = EqPresetBook.sonyXM4
+        guard let i = list.firstIndex(where: { $0.name == p.name }), list[i].count < p.count else { return false }
+        list[i] = p
+        return true
+    }
 }
 
 /// Коррекция наушников в колбэке: предусиление (плавно, 20 мс) и EqUnit. Параметры — от интерфейса через очередь

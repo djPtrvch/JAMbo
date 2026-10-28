@@ -4,7 +4,7 @@ import Foundation
 // и Equalizer APO — строки «Preamp: −6.1 dB» и «Filter 1: ON PK Fc 105 Hz Gain −4.2 dB Q 0.70». Типы: PK — bell,
 // LSC/LS — low shelf, HSC/HS — high shelf, HP/HPQ — low cut, LP/LPQ — high cut, NO — notch (Q у shelf не
 // учитывается: у наших S = 1, Q ≈ 0,71). Preamp из файла не берётся — у коррекции он свой (EqSpec.preamp).
-// Фильтров больше 8 — 8 полос подгоняются под кривую всех фильтров (PhonesFit).
+// Фильтров больше 10 — 10 полос подгоняются под кривую всех фильтров (PhonesFit).
 
 public enum PhonesProfile {
     /// Фильтр из файла.
@@ -47,7 +47,7 @@ public enum PhonesProfile {
         return out
     }
 
-    /// EQ из фильтров: до 8 — как есть, больше — подгонка 8 полос (fitted true).
+    /// EQ из фильтров: до EqSpec.bands (10) — как есть, больше — подгонка под число полос (fitted true).
     public static func eq(_ filters: [Filter]) -> (eq: Eq, fitted: Bool) {
         var e = Eq()
         let fitted: Bool = filters.count > EqSpec.bands
@@ -100,8 +100,8 @@ public enum PhonesProfile {
     }
 }
 
-/// Подгонка 8 полос под кривую большего числа фильтров (Левенберг — Марквардт по 128 частотам 20 Гц…20 кГц, dB):
-/// начало — 8 фильтров с наибольшим вкладом (срезы — всегда, их параметры не двигаются), у bell — частота, усиление
+/// Подгонка 10 полос под кривую большего числа фильтров (Левенберг — Марквардт по 128 частотам 20 Гц…20 кГц, dB):
+/// начало — 10 фильтров с наибольшим вкладом (срезы — всегда, их параметры не двигаются), у bell — частота, усиление
 /// и Q, у shelf — частота и усиление.
 enum PhonesFit {
     static let points = 128

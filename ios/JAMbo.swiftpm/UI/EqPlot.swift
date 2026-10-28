@@ -224,6 +224,7 @@ struct EqPlot: View {
                 ctx.stroke(ring, with: .color(msColor(b)), lineWidth: 3)
             }
             let num: Text = Text("\(k + 1)").font(.system(size: sel ? 13 : 11, weight: .semibold))
+                .tracking(k >= 9 ? -0.8 : 0)
                 .foregroundColor(sel ? theme.onAccent : theme.bg)
             ctx.draw(num, at: CGPoint(x: c.x, y: c.y + 0.5), anchor: .center)
         }

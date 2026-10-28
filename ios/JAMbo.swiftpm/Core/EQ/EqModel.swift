@@ -58,7 +58,8 @@ public enum EqSpec {
     public static let dynThrMin: Double = -60
     public static let dynRangeDef: Double = -6
     public static let dynRangeMax: Double = 18
-    public static let bands = 8
+    /// 10 полос (было 8, решение пользователя): профили AutoEQ — по 10 фильтров, грузятся без подгонки.
+    public static let bands = 10
     public static let freqMin: Double = 20
     public static let freqMax: Double = 20000
     public static let gainMax: Double = 18

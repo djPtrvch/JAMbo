@@ -240,6 +240,8 @@ extension AppModel {
     static let phonesEqKey = "phonesEq"
     static let phonesPresetsKey = "phonesPresets"
     static let phonesSeededKey = "phonesSeeded"
+    /// Переход на 10 полос сделан: профиль Sony — из 10 фильтров вместо подгонки в 8.
+    static let phonesBands10Key = "phonesBands10"
     static let phonesNameKey = "phonesName"
 
     func setPhonesName(_ name: String) {
@@ -277,7 +279,7 @@ extension AppModel {
             let over: Int? = phonesPresets.index(named: name)
             phonesPresets.save(name: name, eq: r.eq, over: over)
             added.append(name)
-            if r.fitted { fitted.append("\(name): \(filters.count) filters fitted into 8 bands") }
+            if r.fitted { fitted.append("\(name): \(filters.count) filters fitted into \(EqSpec.bands) bands") }
             if first == nil { first = (r.eq, name) }
         }
         UserDefaults.standard.set(phonesPresets.encode(), forKey: AppModel.phonesPresetsKey)
@@ -314,7 +316,17 @@ extension AppModel {
 
     static func loadPhonesEq() -> Eq {
         guard let d = UserDefaults.standard.data(forKey: AppModel.phonesEqKey),
-              let e = try? JSONDecoder().decode(Eq.self, from: d) else { return Eq() }
+              var e = try? JSONDecoder().decode(Eq.self, from: d) else { return Eq() }
+        // Один раз при переходе на 10 полос: загруженный профиль Sony (8 полос) — точным из 10 фильтров.
+        let ud = UserDefaults.standard
+        if !ud.bool(forKey: AppModel.phonesBands10Key) {
+            let sony: EqPreset = EqPresetBook.sonyXM4
+            let n: Int = e.bands.compactMap { $0 }.count
+            if ud.string(forKey: AppModel.phonesNameKey) == sony.name && n < sony.count {
+                e.apply(sony, tracks: 0)
+                ud.set(try? JSONEncoder().encode(e), forKey: AppModel.phonesEqKey)
+            }
+        }
         return e
     }
 
@@ -326,6 +338,10 @@ extension AppModel {
             b.list.insert(EqPresetBook.sonyXM4, at: 0)
             ud.set(b.encode(), forKey: AppModel.phonesPresetsKey)
             ud.set(true, forKey: AppModel.phonesSeededKey)
+        }
+        if !ud.bool(forKey: AppModel.phonesBands10Key) {
+            if b.upgradeSonyXM4() { ud.set(b.encode(), forKey: AppModel.phonesPresetsKey) }
+            ud.set(true, forKey: AppModel.phonesBands10Key)
         }
         return b
     }

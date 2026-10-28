@@ -12,7 +12,7 @@ final class PhonesEqTests: XCTestCase {
     func testPreamp() {
         XCTAssertEqual(EqSpec.preamp(Eq()), 0)
         let e: Eq = sonyEq()
-        XCTAssertEqual(e.bands.compactMap { $0 }.count, 8)
+        XCTAssertEqual(e.bands.compactMap { $0 }.count, 10)
         let pre: Double = EqSpec.preamp(e)
         XCTAssertLessThan(pre, -5.5)
         XCTAssertGreaterThan(pre, -6.5)
