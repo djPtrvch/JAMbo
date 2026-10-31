@@ -27,10 +27,12 @@ struct LibraryBrowser: View {
 
     var body: some View {
         VStack(spacing: Layout.gap) {
-            header.frame(height: 48)
-            list
-            if model.saveMode { saveBar.frame(height: 48) }
-            if model.libPicked != nil { pickBar.frame(height: 48) }
+            VStack(spacing: Layout.barGap) {
+                header.frame(height: model.barH)
+                list
+            }
+            if model.saveMode { saveBar.frame(height: model.barH) }
+            if model.libPicked != nil { pickBar.frame(height: model.barH) }
             Text(note).font(.system(size: 12)).foregroundStyle(theme.dim).lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 6)
         }
@@ -67,10 +69,10 @@ struct LibraryBrowser: View {
     /// (решение пользователя; пока рамки верхней панели неизвестны — прежние ширины).
     private var header: some View {
         let top: TopFrames = model.topFrames
-        let pathW: CGFloat = top.ready ? max(40, top.eq.minX - headerX - 48 - 2 * Layout.gap) : 0
+        let pathW: CGFloat = top.ready ? max(40, top.eq.minX - headerX - model.barH - 2 * Layout.gap) : 0
         let w: CGFloat? = top.ready ? nil : 96
         return HStack(spacing: Layout.gap) {
-            ToolButton(title: "‹", enabled: model.libFolder != Library.root, width: 48) { model.libUp() }
+            ToolButton(title: "‹", enabled: model.libFolder != Library.root, width: model.barH) { model.libUp() }
             Text(model.libPath).font(.system(size: 13, weight: .bold)).foregroundStyle(theme.text)
                 .lineLimit(1).truncationMode(.head)
                 .padding(.horizontal, 6)
@@ -79,7 +81,7 @@ struct LibraryBrowser: View {
             ToolButton(title: "NEW FOLDER", width: top.ready ? nil : 120) { ask(.newFolder, "New folder") }
             ToolButton(title: "IMPORT", width: w) { model.chooseLibraryFiles() }
             ToolButton(title: "EXPORT", enabled: model.libFolder != LibraryBuiltins.folderId, width: w) { export() }
-            ToolButton(title: "✕", width: 48) { model.closeBrowser() }
+            ToolButton(title: "✕", width: model.barH) { model.closeBrowser() }
         }
         .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("root")).minX } action: { headerX = $0 }
     }

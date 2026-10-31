@@ -48,7 +48,7 @@ struct EditorBar: View {
             }
             // От правого края EQ — LOAD и SAVE поровну (с левого края PATTERNS).
             loadSave
-            ToolButton(title: "✕", width: 48) { model.closeEditor() }
+            ToolButton(title: "✕", width: model.barH) { model.closeEditor() }
         }
         .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("root")).minX } action: { barX = $0 }
     }
@@ -109,7 +109,7 @@ struct EditorBar: View {
             }
             warpButton
             loadSave
-            ToolButton(title: "✕", width: 48) { model.closeEditor() }
+            ToolButton(title: "✕", width: model.barH) { model.closeEditor() }
         }
         .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("root")).minX } action: { barX = $0 }
     }

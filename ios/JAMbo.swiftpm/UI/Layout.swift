@@ -14,6 +14,9 @@ struct Layout {
     static let topButton: CGFloat = 107
     static let leftColumn: CGFloat = 220
     static let meterWidth: CGFloat = 30
+    /// Зазор под строкой кнопок (barH) — как между миниатюрами паттернов: столбец над парами кнопок делится на 9 равных
+    /// строк (строка кнопок и 8 миниатюр), окна под строкой кнопок начинаются на одной высоте.
+    static let barGap: CGFloat = 4
 
     /// Ширина рабочей области (без полей).
     let width: CGFloat

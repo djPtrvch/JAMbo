@@ -8,15 +8,17 @@ struct LeftColumn: View {
     var body: some View {
         let _ = RedrawMeter.hit(.left)
         VStack(spacing: Layout.gap) {
-            // Над окном (решение пользователя: высотой с верхнюю миниатюру паттернов — строка кнопок, в аранжировщике её
-            // закрывают его кнопки): у дорожки — стрелки папки, при MIX — ● MASTER; при MST строки нет — индикация
-            // мастера выше.
-            if model.channel == .track {
-                FolderArrows(model: model).frame(height: model.barH)
-            } else if model.channel == .mix {
-                MasterRecButton(model: model).frame(height: model.barH).midiTarget(model, "ARM MST")
+            // Над окном (решение пользователя: строка кнопок — первая из 9 равных строк колонки, вровень со стрелками
+            // страниц справа; окно — 8 строк, вровень с миниатюрами; в аранжировщике строку закрывают его кнопки):
+            // у дорожки — стрелки папки, при MIX — ● MASTER; при MST строки нет — индикация мастера выше.
+            VStack(spacing: Layout.barGap) {
+                if model.channel == .track {
+                    FolderArrows(model: model).frame(height: model.barH)
+                } else if model.channel == .mix {
+                    MasterRecButton(model: model).frame(height: model.barH).midiTarget(model, "ARM MST")
+                }
+                SampleWindow(model: model)
             }
-            SampleWindow(model: model)
             if model.channel == .master {
                 // По цепочке (решение пользователя, в вебе CLIP, LIM / SAT, COMP): SAT снизу слева, над ним COMP,
                 // справа от него CLIP, под CLIP — LIM.
@@ -56,6 +58,27 @@ struct FolderArrows: View {
     }
 }
 
+/// Стрелки страниц ◀ ▶ ▲ ▼ над миниатюрами (решение пользователя: перенесены из меню страницы) — для открытой
+/// страницы: если она в белой обводке — сдвигают все играющие страницы, иначе только её.
+struct PageArrows: View {
+    let model: AppModel
+
+    var body: some View {
+        HStack(spacing: Layout.gap) {
+            arrow("◀", .left)
+            arrow("▶", .right)
+            arrow("▲", .up)
+            arrow("▼", .down)
+        }
+    }
+
+    private func arrow(_ title: String, _ action: AppModel.PageAction) -> some View {
+        SideButton(title: title)
+            .contentShape(Rectangle())
+            .onTapGesture { model.pageAction(action, page: min(model.viewPage, max(0, model.seq.pages.count - 1))) }
+    }
+}
+
 /// ● MASTER — запись мастера (S11d: конечный выход после громкости выхода, по правилам стемов; ARM MST — S12).
 /// Дизайн как у ●: красная окантовка, горит, пока готова или пишет.
 struct MasterRecButton: View {
@@ -77,8 +100,8 @@ struct MasterRecButton: View {
     }
 }
 
-/// Правая колонка: миниатюры страниц (при MIX — пустое окно), под ними MOD и FX, SHIFT и MORPH (MORPH, FX, MOD — S4;
-/// MOD и MORPH поменяны местами — решение пользователя).
+/// Правая колонка: строка стрелок страниц ◀ ▶ ▲ ▼ (при MIX — пусто), под ней миниатюры страниц (при MIX — пустое
+/// окно), под ними MOD и FX, SHIFT и MORPH (MORPH, FX, MOD — S4; MOD и MORPH поменяны местами — решение пользователя).
 struct RightColumn: View {
     let model: AppModel
 
@@ -94,7 +117,15 @@ struct RightColumn: View {
             }
         } else {
             VStack(spacing: Layout.gap) {
-                if model.channel == .mix { MixPagesBlank() } else { PagesColumn(model: model) }
+                VStack(spacing: Layout.barGap) {
+                    if model.channel == .mix {
+                        Color.clear.frame(height: model.barH)
+                        MixPagesBlank()
+                    } else {
+                        PageArrows(model: model).frame(height: model.barH)
+                        PagesColumn(model: model)
+                    }
+                }
                 ButtonPair(left: PageButton(model: model, title: "MOD", page: .mod).midiTarget(model, "MOD"),
                            right: PageButton(model: model, title: "FX", page: .fx).midiTarget(model, "FX"))
                 ButtonPair(left: ShiftButton(model: model),

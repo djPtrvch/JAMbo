@@ -21,7 +21,7 @@ struct EqView: View {
 
     var body: some View {
         let _ = RedrawMeter.hit(.eq)
-        VStack(spacing: Layout.gap) {
+        VStack(spacing: Layout.barGap) {
             EqBar(model: model, layout: layout, plotFrame: plotFrame) { field in openInput(field) }
                 .frame(height: model.barH)
             EqPlot(model: model)

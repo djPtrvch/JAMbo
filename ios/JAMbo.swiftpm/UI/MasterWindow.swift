@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Окно модуля мастера (S6, на общей основе, как masterwin.ts веба): вверху строка 48 px — название (тап — меню
+/// Окно модуля мастера (S6, на общей основе, как masterwin.ts веба): вверху строка кнопок (barH, как стрелки над миниатюрами) — название (тап — меню
 /// SAT, COMP, CLIP, LIM), поля параметров, PRESETS, BYPASS, ✕; ниже — дисплей модуля. Нижней панели нет.
 struct MasterWindowView: View {
     let model: AppModel
@@ -13,7 +13,7 @@ struct MasterWindowView: View {
 
     var body: some View {
         let _ = RedrawMeter.hit(.masterWin)
-        VStack(spacing: Layout.gap) {
+        VStack(spacing: Layout.barGap) {
             MasterStrip(model: model, module: module, bounds: frame, input: { t in openInput(t) })
                 .frame(height: model.barH)
             display
@@ -141,7 +141,7 @@ struct MasterStrip: View {
             .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { presetsFrame = $0 }
             EqTool(title: "BYPASS", enabled: true, active: bypass) { model.toggleMasterBypass(module) }
                 .frame(width: 100)
-            CloseButton { model.closeMasterWindow() }
+            CloseButton(side: model.barH) { model.closeMasterWindow() }
         }
     }
 
@@ -151,7 +151,7 @@ struct MasterStrip: View {
     private var leadFields: (count: Int, width: CGFloat?) {
         let g: CGFloat = Layout.gap
         let wide: CGFloat = bounds.width
-        let high: CGFloat = max(0, bounds.height - model.barH - g)
+        let high: CGFloat = max(0, bounds.height - model.barH - Layout.barGap)
         if wide <= 0 || high <= 0 { return (0, nil) }
         let sat: Bool = module == MasterScope.sat
         let transfer: CGFloat = sat ? min(wide * 0.35, high) : min(wide * 0.4, high * 1.4)

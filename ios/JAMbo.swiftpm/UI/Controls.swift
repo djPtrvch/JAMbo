@@ -22,6 +22,8 @@ struct InkButton: View {
 
 /// Квадратная кнопка-крестик ✕ — закрыть окно (справа в верхней строке).
 struct CloseButton: View {
+    /// Сторона: в строке кнопок окон на месте центра — barH (квадрат во всю высоту строки).
+    var side: CGFloat = 48
     let action: () -> Void
     @Environment(\.theme) private var theme
 
@@ -30,7 +32,7 @@ struct CloseButton: View {
             Text("✕")
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(theme.text)
-                .frame(width: 48, height: 48)
+                .frame(width: side, height: side)
                 .background(theme.panel, in: RoundedRectangle(cornerRadius: 10))
         }
         .buttonStyle(.plain)

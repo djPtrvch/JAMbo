@@ -109,20 +109,21 @@ struct RootView: View {
         Binding(get: { model.importing }, set: { model.importing = $0 })
     }
 
-    /// Строка кнопок (bar: строка папки над превью, верхняя миниатюра паттернов, вторая строка аранжировщика, верхние
-    /// строки EQ и окон мастера) и высота строки дорожки аранжировщика (unit). Аранжировщик — от низа строки кнопок до
-    /// низа экрана: линейка, 8 строк и 7 зазоров; низ экрана — 3 строки и 2 зазора; центр — над низом; миниатюры — 8
-    /// строк колонки над двумя парами кнопок. bar зависит от центра, центр — от unit, unit — от bar: решается
+    /// Строка кнопок (bar: стрелки папки над превью и стрелки страниц над миниатюрами, вторая строка аранжировщика,
+    /// верхние строки EQ, окон мастера, редактора сэмпла и библиотеки) и высота строки дорожки аранжировщика (unit).
+    /// Аранжировщик — от низа строки кнопок до низа экрана: линейка, 8 строк и 7 зазоров; низ экрана — 3 строки и
+    /// 2 зазора; центр — над низом; колонка над двумя парами кнопок — 9 равных строк (строка кнопок и 8 миниатюр) с
+    /// зазорами 4 (решение пользователя). bar зависит от центра, центр — от unit, unit — от bar: решается
     /// последовательными приближениями (сходится за несколько шагов).
     static func units(_ h: CGFloat) -> (bar: CGFloat, unit: CGFloat) {
         let g: CGFloat = Layout.gap
         let centerTop: CGFloat = RootView.padTop + Layout.topHeight + g
-        let rows: CGFloat = CGFloat(PagesColumn.rows)
+        let rows: CGFloat = CGFloat(PagesColumn.rows + 1)
         var bar: CGFloat = 40
         var unit: CGFloat = 60
         var k: Int = 0
         while k < 12 {
-            let window: CGFloat = h - RootView.padBottom - (centerTop + bar + g)
+            let window: CGFloat = h - RootView.padBottom - (centerTop + bar + Layout.barGap)
             unit = max(20, (window - ArrMetrics.top - 7 * g) / 8)
             let lowerH: CGFloat = 3 * unit + 2 * g
             let center: CGFloat = h - RootView.padBottom - centerTop - lowerH - g
@@ -196,8 +197,8 @@ struct RootView: View {
         return GeometryReader { g in
             ZStack(alignment: .topLeading) {
                 ArrangeWindow(model: model)
-                    .frame(height: max(0, g.size.height - bar - Layout.gap))
-                    .offset(y: bar + Layout.gap)
+                    .frame(height: max(0, g.size.height - bar - Layout.barGap))
+                    .offset(y: bar + Layout.barGap)
                 // Во время переноса клипа из сетки центр — сетка паттернов (она уже есть под аранжировщиком).
                 if model.arrKnobs && !model.patternView {
                     // Фон — и под зазором снизу (чёрная полоса, как между дорожками): из-под окна ничего не видно.

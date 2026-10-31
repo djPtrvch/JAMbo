@@ -36,9 +36,9 @@ struct SampleEditor: View {
         let key: String = model.editorKey
         let data: SampleData? = model.sample(key)
         let _ = model.samplesVersion
-        return VStack(spacing: Layout.gap) {
+        return VStack(spacing: Layout.barGap) {
             EditorBar(model: model, key: key, data: data, sel: sel)
-                .frame(height: 48)
+                .frame(height: model.barH)
             GeometryReader { geo in
                 plot(key, data, geo.size)
             }

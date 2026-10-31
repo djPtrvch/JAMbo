@@ -357,7 +357,7 @@ struct PlusThumb: View {
     }
 }
 
-/// Меню страницы: ◀ ▶ ▲ ▼ (окно не закрывается), duplicate, copy, paste, clear, delete.
+/// Меню страницы: duplicate, copy, paste, clear, delete, SPEED (стрелки ◀ ▶ ▲ ▼ — над миниатюрами, PageArrows).
 /// Действуют на все играющие страницы, если страница в белой обводке, иначе только на неё.
 struct PageMenu: View {
     /// Ширина — по белой обводке миниатюр вместе с её линией (колонка и по 4 px с каждой стороны), скругление 9 —
@@ -365,8 +365,8 @@ struct PageMenu: View {
     static let width: CGFloat = Layout.leftColumn + 8
     static let radius: CGFloat = 9
     static let rowHeight: CGFloat = 36
-    /// Высота всего меню: 6 строк по 36, SPEED — подпись 11 и две строки по 30, зазоры по 6, поля 8.
-    static let height: CGFloat = 6 * rowHeight + 11 + 2 * 30 + 8 * 6 + 16
+    /// Высота всего меню: 5 строк по 36, SPEED — подпись 11 и две строки по 30, зазоры по 6, поля 8.
+    static let height: CGFloat = 5 * rowHeight + 11 + 2 * 30 + 7 * 6 + 16
     let model: AppModel
     let page: Int
     let close: () -> Void
@@ -374,12 +374,6 @@ struct PageMenu: View {
 
     var body: some View {
         VStack(spacing: 6) {
-            HStack(spacing: 6) {
-                arrow("◀", .left)
-                arrow("▶", .right)
-                arrow("▲", .up)
-                arrow("▼", .down)
-            }
             item("duplicate", .duplicate, enabled: model.canDuplicate(page))
             item("copy", .copy, enabled: true)
             item("paste", .paste, enabled: model.pageClipboard != nil)
@@ -411,10 +405,6 @@ struct PageMenu: View {
                 }
             }
         }
-    }
-
-    private func arrow(_ title: String, _ action: AppModel.PageAction) -> some View {
-        InkButton(title: title, height: PageMenu.rowHeight) { model.pageAction(action, page: page) }
     }
 
     private func item(_ title: String, _ action: AppModel.PageAction, enabled: Bool, red: Bool = false) -> some View {
