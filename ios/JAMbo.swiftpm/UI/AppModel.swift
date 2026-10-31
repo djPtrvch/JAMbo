@@ -487,6 +487,12 @@ final class AppModel {
         switch e {
         case .clip(let t, let slot, let stopped, _):
             guard t < project.tracks.count else { return }
+            // Ячейка блока аранжировки (своя копия клипа): активная ячейка сетки не меняется.
+            if slot >= Params.patternSlots {
+                if project.tracks[t].stopped != stopped { mutatePlay({ p in p.tracks[t].stopped = stopped }, publish: false) }
+                if stopped { leadStopped(t) } else { started(t) }
+                return
+            }
             // Другой клип — снимок звука заново: нарезка звучит в гамме и ноте этого клипа.
             let other: Bool = project.tracks[t].slot != slot
             mutatePlay({ p in
@@ -557,9 +563,17 @@ final class AppModel {
     func edit(_ change: (inout Project) -> Void) {
         let before = project
         change(&project)
+        // Новые блоки аранжировки (перенос из сетки, запись, вставка) — со своей копией клипа (решение пользователя).
+        if AppModel.needsOwnPatterns(project) { project.ownArrPatterns() }
         if project == before { return }
         history.record(before: before, after: project)
         changed()
+    }
+
+    /// Есть блок аранжировки без своей копии клипа.
+    static func needsOwnPatterns(_ p: Project) -> Bool {
+        for t in p.tracks where t.blocks.contains(where: { $0.pattern == nil }) { return true }
+        return false
     }
 
     /// Ход игры (активная ячейка, остановка, гамма лидера) — не правка: без UNDO.
@@ -653,7 +667,10 @@ final class AppModel {
         mixDrop = [:]
         live.stopped()
         resetForProject()
-        project = p
+        var own: Project = p
+        // Прежние проекты: блоки аранжировки — со своей копией клипа сетки на момент открытия.
+        own.ownArrPatterns()
+        project = own
         audio.core.events.push(.tempo(p.bpm))
         publishAudio()
         loadSamples(p.sampleKeys)

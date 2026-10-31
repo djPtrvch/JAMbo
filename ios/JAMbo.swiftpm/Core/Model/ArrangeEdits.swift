@@ -37,7 +37,7 @@ extension Track {
             }
             if b.end > to {
                 let cut: Int = to - b.start
-                out.append(ArrBlock(clip: b.clip, start: to, length: b.end - to, offset: b.offset + cut))
+                out.append(ArrBlock(clip: b.clip, start: to, length: b.end - to, offset: b.offset + cut, pattern: b.pattern))
             }
         }
         blocks = out
@@ -194,7 +194,7 @@ extension Track {
         let b: ArrBlock = blocks[k]
         let cut: Int = x - b.start
         blocks[k].length = cut
-        blocks.append(ArrBlock(clip: b.clip, start: x, length: b.end - x, offset: b.offset + cut))
+        blocks.append(ArrBlock(clip: b.clip, start: x, length: b.end - x, offset: b.offset + cut, pattern: b.pattern))
     }
 
     private mutating func sortBlocks() {

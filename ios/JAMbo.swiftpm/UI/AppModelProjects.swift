@@ -17,7 +17,10 @@ extension AppModel {
         // Открытый проект сразу становится автосохранением (Autosave само себя не перезаписывает).
         projectChanged()
         trace("project \(opened.0.name)")
-        return opened.1
+        // Прежние проекты: блоки аранжировки — со своей копией клипа сетки на момент открытия.
+        var p: Project = opened.1
+        p.ownArrPatterns()
+        return p
     }
 
     /// Есть изменения, не сохранённые кнопкой SAVE (пометка «unsaved»).

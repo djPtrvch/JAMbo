@@ -108,7 +108,7 @@ extension Sequencer {
             let len = d.tickLen(t, slot: launcher.slot[t])
             let boundary = len > 0 && (tick - launcher.trackStart[t]) % len == 0
             if boundary && tick > s.startTick[t] {
-                let bit = UInt16(1) << UInt16(launcher.slot[t])
+                let bit = UInt16(1) << UInt16(min(15, launcher.slot[t]))
                 if s.stopAsked || s.finish[t] || (arranged ? wrapped : s.seen[t] & bit != 0) {
                     stemEnd(t, at)
                 } else {
@@ -156,7 +156,7 @@ extension Sequencer {
         while t < d.trackCount {
             if s.armed[t] && launcher.plays(d, t) {
                 stemBegin(t, at)
-                s.seen[t] = UInt16(1) << UInt16(launcher.slot[t])
+                s.seen[t] = UInt16(1) << UInt16(min(15, launcher.slot[t]))
             }
             t += 1
         }
@@ -197,7 +197,7 @@ extension Sequencer {
     private func stemsMasterSee(_ d: SeqData) {
         var t = 0
         while t < d.trackCount {
-            if launcher.plays(d, t) { stemRules.masterSeen[t] |= UInt16(1) << UInt16(launcher.slot[t]) }
+            if launcher.plays(d, t) { stemRules.masterSeen[t] |= UInt16(1) << UInt16(min(15, launcher.slot[t])) }
             t += 1
         }
     }
@@ -205,7 +205,7 @@ extension Sequencer {
     private func stemsMasterAllSeen(_ d: SeqData) -> Bool {
         var t = 0
         while t < d.trackCount {
-            if launcher.plays(d, t) && stemRules.masterSeen[t] & (UInt16(1) << UInt16(launcher.slot[t])) == 0 {
+            if launcher.plays(d, t) && stemRules.masterSeen[t] & (UInt16(1) << UInt16(min(15, launcher.slot[t]))) == 0 {
                 return false
             }
             t += 1

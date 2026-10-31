@@ -4,19 +4,23 @@ import Foundation
 // удаляются и копируются вместе с дорожкой), остальное — Project.arrange. Позиции и длины — в шагах транспорта
 // (шестнадцатых, 16 на такт) от начала аранжировки.
 
-/// Блок на дорожке: ссылка на клип (ячейку столбца сетки паттернов), начало и длина в шагах; offset — с какого шага
-/// прохода клипа начинается блок (0 — с первого; правая часть блока, у которого заменили середину, — дальше).
+/// Блок на дорожке: клип (ячейка столбца сетки паттернов, откуда он взят), начало и длина в шагах; offset — с какого
+/// шага прохода клипа начинается блок (0 — с первого; правая часть блока, у которого заменили середину, — дальше).
+/// pattern — своя копия клипа (решение пользователя: блок не зависит от сетки — правка клипа в сетке блок не меняет,
+/// правка блока в STEPS аранжировщика не меняет сетку); nil — блок играет клип сетки (прежние проекты, тесты).
 public struct ArrBlock: Codable, Equatable, Sendable {
     public var clip: Int
     public var start: Int
     public var length: Int
     public var offset: Int = 0
+    public var pattern: Clip? = nil
 
-    public init(clip: Int, start: Int, length: Int, offset: Int = 0) {
+    public init(clip: Int, start: Int, length: Int, offset: Int = 0, pattern: Clip? = nil) {
         self.clip = clip
         self.start = start
         self.length = length
         self.offset = offset
+        self.pattern = pattern
     }
 
     public var end: Int { return start + length }
@@ -111,7 +115,7 @@ public struct Arrangement: Codable, Equatable, Sendable {
 }
 
 extension ArrBlock {
-    enum CodingKeys: String, CodingKey, CaseIterable { case clip, start, length, offset }
+    enum CodingKeys: String, CodingKey, CaseIterable { case clip, start, length, offset, pattern }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -119,6 +123,7 @@ extension ArrBlock {
         start = c.value(.start, 0)
         length = c.value(.length, ArrGrid.stepsPerBar)
         offset = c.value(.offset, 0)
+        pattern = c.optional(.pattern)
     }
 }
 
@@ -174,5 +179,42 @@ extension Arrangement {
                 if let b = r.bpm, !b.isFinite || b < 0 { ref?.bpm = nil }
             }
         }
+    }
+}
+
+extension Track {
+    /// Клип, который играет блок: своя копия, иначе клип сетки (nil — ячейка пуста).
+    public func blockClip(_ b: ArrBlock) -> Clip? {
+        if let c = b.pattern { return c }
+        return b.clip >= 0 && b.clip < clips.count ? clips[b.clip] : nil
+    }
+
+    /// У каждого блока — своя копия клипа (решение пользователя): блоки без копии получают копию клипа сетки на этот
+    /// момент. true — что-то поменялось.
+    @discardableResult
+    public mutating func ownArrPatterns() -> Bool {
+        var changed: Bool = false
+        for i in blocks.indices where blocks[i].pattern == nil {
+            let k: Int = blocks[i].clip
+            guard k >= 0 && k < clips.count, let c = clips[k] else { continue }
+            var copy: Clip = c
+            // Звук перехода MIX (PREV) — у клипа сетки, не у блока.
+            copy.src = nil
+            blocks[i].pattern = copy
+            changed = true
+        }
+        return changed
+    }
+}
+
+extension Project {
+    /// Все блоки — со своей копией клипа (после правки и при открытии проекта).
+    @discardableResult
+    public mutating func ownArrPatterns() -> Bool {
+        var changed: Bool = false
+        for t in tracks.indices where !tracks[t].blocks.isEmpty {
+            if tracks[t].blocks.contains(where: { $0.pattern == nil }) && tracks[t].ownArrPatterns() { changed = true }
+        }
+        return changed
     }
 }

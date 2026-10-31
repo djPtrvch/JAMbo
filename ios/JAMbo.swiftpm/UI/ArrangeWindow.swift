@@ -422,7 +422,8 @@ struct ArrDraw {
     /// Паттерн клипа на блоке (решение пользователя: без цифр): триг в один шаг — квадратик, длинная нота — линия на всю
     /// её длину; клип — по кругу с места блока, как он звучит.
     private func pattern(_ tr: Track, _ b: ArrBlock, _ r: CGRect) {
-        guard tr.clipFilled(b.clip), let c = tr.clips[b.clip] else { return }
+        // Своя копия блока (иначе клип сетки).
+        guard let c = tr.blockClip(b) else { return }
         let first: Int = max(b.start, Int(m.step(at: 0)) - 16)
         let last: Int = min(b.end, Int(m.step(at: m.size.width)) + 1)
         if last <= first { return }

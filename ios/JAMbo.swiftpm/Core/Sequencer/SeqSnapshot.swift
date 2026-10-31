@@ -10,6 +10,10 @@ public struct SeqData {
     public static let maxSteps = Params.maxPages * Params.stepsPerPage
     public static let maxNotes = 8
     public static let slots = Params.patternSlots
+    /// Ячейки блоков аранжировки со своей копией клипа (ArrBlock.pattern): после ячеек сетки, по номеру блока на
+    /// дорожке; блоки дальше — играют клип сетки.
+    public static let arrCells = 128
+    public static let cellsPerTrack = slots + arrCells
 
     public var trackCount: Int = 0
     /// На дорожку: остановлена, активная ячейка (колбэк берёт их, пока транспорт стоит; при игре ими управляет сам).
@@ -123,12 +127,12 @@ public struct SeqData {
 
     @inline(__always)
     private func ci(_ t: Int, _ k: Int) -> Int {
-        return t * SeqData.slots + max(0, min(SeqData.slots - 1, k))
+        return t * SeqData.cellsPerTrack + max(0, min(SeqData.cellsPerTrack - 1, k))
     }
 
     @inline(__always)
     public func filled(_ t: Int, _ k: Int) -> Bool {
-        return k >= 0 && k < SeqData.slots && clipBlock[t * SeqData.slots + k] >= 0
+        return k >= 0 && k < SeqData.cellsPerTrack && clipBlock[t * SeqData.cellsPerTrack + k] >= 0
     }
 
     /// Страницы клипа k дорожки t.
@@ -231,10 +235,13 @@ public final class SeqSnapshot: @unchecked Sendable {
 
     public init(_ project: Project) {
         let tracks = SeqData.maxTracks
-        let cells = tracks * SeqData.slots
+        let cells = tracks * SeqData.cellsPerTrack
         let used = min(project.tracks.count, tracks)
         var blocks = 0
         for t in 0..<used { blocks += project.tracks[t].clips.filter { $0 != nil }.count }
+        for t in 0..<used {
+            for (i, b) in project.tracks[t].blocks.enumerated() where i < SeqData.arrCells && b.pattern != nil { blocks += 1 }
+        }
         let steps = max(1, blocks) * SeqData.maxSteps
         var arrBlocks = 1
         for t in 0..<used { arrBlocks += project.tracks[t].blocks.count }
@@ -314,8 +321,10 @@ public final class SeqSnapshot: @unchecked Sendable {
         var nb = 0
         for t in 0..<used {
             d.arrFirst[t] = Int32(nb)
-            for b in project.tracks[t].blocks {
-                d.blkClip[nb] = Int32(b.clip)
+            for (i, b) in project.tracks[t].blocks.enumerated() {
+                // Своя копия — своя ячейка (после ячеек сетки), иначе — клип сетки.
+                let own: Bool = b.pattern != nil && i < SeqData.arrCells
+                d.blkClip[nb] = Int32(own ? SeqData.slots + i : b.clip)
                 d.blkStart[nb] = Int32(b.start)
                 d.blkLen[nb] = Int32(b.length)
                 d.blkOff[nb] = Int32(b.offset)
@@ -355,7 +364,12 @@ public final class SeqSnapshot: @unchecked Sendable {
             d.slot[t] = Int32(track.slot)
             for k in 0..<SeqData.slots {
                 guard let c = track.clips[k] else { continue }
-                SeqSnapshot.fill(&d, track, c, cell: t * SeqData.slots + k, block: block)
+                SeqSnapshot.fill(&d, track, c, cell: t * SeqData.cellsPerTrack + k, block: block)
+                block += 1
+            }
+            for (i, b) in track.blocks.enumerated() where i < SeqData.arrCells {
+                guard let c = b.pattern else { continue }
+                SeqSnapshot.fill(&d, track, c, cell: t * SeqData.cellsPerTrack + SeqData.slots + i, block: block)
                 block += 1
             }
         }

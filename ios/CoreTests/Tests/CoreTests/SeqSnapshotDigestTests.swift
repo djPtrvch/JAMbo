@@ -49,10 +49,14 @@ final class SeqSnapshotDigestTests: XCTestCase {
             for b in raw { h = (h ^ UInt64(b)) &* 1099511628211 }
         }
         let d = s.data
-        let cells = SeqData.maxTracks * SeqData.slots
         let steps = max(1, blocks) * SeqData.maxSteps
+        // Ячейки сетки каждой дорожки (после них — ячейки блоков аранжировки; в этом проекте блоков нет): как прежде,
+        // подряд по дорожкам.
+        func cells<T>(_ p: UnsafeMutablePointer<T>) {
+            for t in 0..<SeqData.maxTracks { eat(p + t * SeqData.cellsPerTrack, SeqData.slots) }
+        }
         eat(d.stopped, SeqData.maxTracks); eat(d.slot, SeqData.maxTracks)
-        eat(d.clipBlock, cells); eat(d.clipLength, cells); eat(d.clipFrom, cells); eat(d.clipTo, cells); eat(d.clipRate, cells)
+        cells(d.clipBlock); cells(d.clipLength); cells(d.clipFrom); cells(d.clipTo); cells(d.clipRate)
         eat(d.on, steps); eat(d.len, steps); eat(d.noteCount, steps); eat(d.notes, steps * SeqData.maxNotes)
         eat(d.split, steps); eat(d.noteLen, steps * SeqData.maxNotes); eat(d.noteVel, steps * SeqData.maxNotes)
         eat(d.prob, steps); eat(d.ratchet, steps); eat(d.swing, steps); eat(d.sound, steps)
