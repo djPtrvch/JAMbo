@@ -51,9 +51,9 @@ struct EqTouch {
 }
 
 /// Поле EQ: сетка, суммарная кривая, точки полос; мультитач (две точки сразу). Двойной тап по пустому месту — новая
-/// bell-полоса; точку тянут (у cut и notch по вертикали — Q); двойной тап по точке — удалить (решение пользователя; в
-/// вебе — вкл./выкл., здесь оно в меню); удержание — меню типа, крутизны, ON/OFF, DELETE. Над пальцем, который держит точку, — частота (Гц и нота), усиление, Q. Под кривой —
-/// спектры (EqSpectrumLayer).
+/// bell-полоса; точку тянут (у cut и notch по вертикали — Q); двойной тап по точке — выкл./вкл. полосы (решение
+/// пользователя, как в вебе); удержание меню не открывает — меню полосы (тип, крутизна, ON/OFF, DELETE) — кнопкой TYPE.
+/// Над пальцем, который держит точку, — частота (Гц и нота), усиление, Q. Под кривой — спектры (EqSpectrumLayer).
 /// Кривые EQ на экране (координаты y через 2 px) и какие из них рисовать.
 struct EqCurves {
     var stereo: [CGFloat] = []
@@ -67,7 +67,6 @@ struct EqCurves {
 struct EqPlot: View {
     static let hitR: CGFloat = 24
     static let moveTol: CGFloat = 8
-    static let hold: Double = 0.5
     static let doubleTap: Double = 0.32
     let model: AppModel
     @State private var touches: [SpatialEventCollection.Event.ID: EqTouch] = [:]
@@ -330,13 +329,9 @@ extension EqPlot {
             t.q0 = b.q
             model.eqBand = k
             model.beginGesture()
-            // LISTEN держат — слушается точка, которую взяли.
+            // LISTEN включена — слушается точка, которую взяли. Удержание меню не открывает (решение пользователя:
+            // меню полосы — только кнопкой TYPE).
             if model.eqListenHeld { model.startEqListen() }
-            Task { @MainActor in
-                try? await Task.sleep(nanoseconds: UInt64(EqPlot.hold * 1e9))
-                guard let cur = touches[id], !cur.moved, cur.band == k else { return }
-                openMenu(k, at: cur.at)
-            }
         }
         touches[id] = t
     }
@@ -360,19 +355,6 @@ extension EqPlot {
         }
     }
 
-    /// Меню полосы (удержание): все пальцы снимаются сразу (жесты UNDO закрываются) — поле до закрытия меню касаний не
-    /// получает, и конца касания может не прийти.
-    private func openMenu(_ k: Int, at p: CGPoint) {
-        for (id, t) in touches {
-            if t.band >= 0 { model.endGesture() }
-            dropped.insert(id)
-        }
-        touches.removeAll()
-        lastTap = nil
-        let anchor = CGPoint(x: frame.minX + p.x, y: frame.minY + p.y)
-        model.eqMenu = EqMenuState(band: k, anchor: anchor, bounds: frame)
-    }
-
     private func up(_ id: SpatialEventCollection.Event.ID, _ p: CGPoint, _ g: EqGeometry, tap: Bool) {
         guard let t = touches.removeValue(forKey: id) else { return }
         if t.band >= 0 { model.endGesture() }
@@ -381,7 +363,8 @@ extension EqPlot {
         if let l = lastTap, now.timeIntervalSince(l.at) < EqPlot.doubleTap, hypot(l.p.x - t.start.x, l.p.y - t.start.y) < 30,
            l.band == t.band {
             if t.band >= 0 {
-                model.deleteEqBand(t.band)
+                // Двойной тап по точке — выкл./вкл. полосы (решение пользователя; удалить — в меню TYPE).
+                model.toggleEqBand(t.band)
             } else {
                 model.addEqBand(freq: g.freq(t.start.x), gain: g.gain(t.start.y))
             }

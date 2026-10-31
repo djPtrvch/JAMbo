@@ -47,8 +47,8 @@ public enum EqSpec {
     /// Типы полос (как EQ_TYPES веба; индексы хранятся в проектах).
     public static let types = ["Bell", "Low Shelf", "High Shelf", "Low Cut", "High Cut", "Notch"]
     public static let bell = 0, lowShelf = 1, highShelf = 2, lowCut = 3, highCut = 4, notch = 5
-    /// Порядок типов в меню и в поле TYPE: bell, low cut, high cut, затем остальные.
-    public static let typeOrder = [0, 3, 4, 1, 2, 5]
+    /// Порядок типов в меню и в поле TYPE (решение пользователя): low cut, high cut, bell, затем остальные.
+    public static let typeOrder = [3, 4, 0, 1, 2, 5]
     /// Крутизна среза, dB/окт (каскад из 1, 2 или 4 биквадов).
     public static let slopes = [12, 24, 48]
     /// Режимы M/S (как EQ_MS веба): STEREO — оба канала, MID — только (L+R)/2, SIDE — только (L−R)/2.

@@ -265,7 +265,7 @@ struct EqBar: View {
         // У коррекции наушников нет M/S, DYN и LISTEN; на месте STEREO — её предусиление.
         case 4: if model.phonesShown { preampLabel } else { msField(b) }
         case 5: if !model.phonesShown { dynField(b) }
-        case 6: if !model.phonesShown { EqListenButton(model: model, enabled: b != nil) }
+        case 6: if !model.phonesShown { EqListenButton(model: model, enabled: true) }
         case 7: presetsButton
         default: EqTool(title: "BYPASS", enabled: true, active: !model.eqTarget.on) { model.toggleEqBypass() }
         }
@@ -488,12 +488,11 @@ struct EqTool: View {
     }
 }
 
-/// LISTEN — удержание: пока держат (горит жёлтым), канал звучит только в области выбранной полосы; взятая в это время
-/// точка становится слушаемой. Без выбранной полосы — серая.
+/// LISTEN — тап включает и выключает (решение пользователя): пока включена (горит жёлтым), канал звучит только в
+/// области выбранной полосы; тап по другой точке — слушается она (точку можно тянуть).
 struct EqListenButton: View {
     let model: AppModel
     let enabled: Bool
-    @GestureState private var down: Bool = false
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -507,9 +506,9 @@ struct EqListenButton: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(active ? theme.accent : theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
             .contentShape(Rectangle())
-            .gesture(DragGesture(minimumDistance: 0).updating($down) { _, s, _ in s = true })
-            .onChange(of: down) { _, v in
-                if v { model.startEqListen() } else { model.stopEqListen() }
+            .onTapGesture {
+                guard enabled else { return }
+                if model.eqListenHeld { model.stopEqListen() } else { model.startEqListen() }
             }
     }
 }
