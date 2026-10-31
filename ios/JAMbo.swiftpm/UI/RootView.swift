@@ -112,13 +112,13 @@ struct RootView: View {
     /// Строка кнопок (bar: стрелки папки над превью и стрелки страниц над миниатюрами, вторая строка аранжировщика,
     /// верхние строки EQ, окон мастера, редактора сэмпла и библиотеки) и высота строки дорожки аранжировщика (unit).
     /// Аранжировщик — от низа строки кнопок до низа экрана: линейка, 8 строк и 7 зазоров; низ экрана — 3 строки и
-    /// 2 зазора; центр — над низом; колонка над двумя парами кнопок — 9 равных строк (строка кнопок и 8 миниатюр) с
-    /// зазорами 4 (решение пользователя). bar зависит от центра, центр — от unit, unit — от bar: решается
+    /// 2 зазора; центр — над низом; колонка над двумя парами кнопок — 9 равных строк (строка кнопок и 8 миниатюр;
+    /// под строкой кнопок — основной зазор, между миниатюрами — 4; решение пользователя). bar зависит от центра, центр — от unit, unit — от bar: решается
     /// последовательными приближениями (сходится за несколько шагов).
     static func units(_ h: CGFloat) -> (bar: CGFloat, unit: CGFloat) {
         let g: CGFloat = Layout.gap
         let centerTop: CGFloat = RootView.padTop + Layout.topHeight + g
-        let rows: CGFloat = CGFloat(PagesColumn.rows + 1)
+        let rows: CGFloat = CGFloat(PagesColumn.rows)
         var bar: CGFloat = 40
         var unit: CGFloat = 60
         var k: Int = 0
@@ -128,7 +128,9 @@ struct RootView: View {
             let lowerH: CGFloat = 3 * unit + 2 * g
             let center: CGFloat = h - RootView.padBottom - centerTop - lowerH - g
             let pages: CGFloat = center - 2 * Layout.pairHeight - 2 * g
-            bar = max(24, (pages - PagesColumn.spacing * (rows - 1)) / rows)
+            // Строка кнопок, зазор barGap, 8 миниатюр с зазорами spacing — 9 строк одной высоты.
+            let rest: CGFloat = pages - Layout.barGap - PagesColumn.spacing * (rows - 1)
+            bar = max(24, rest / (rows + 1))
             k += 1
         }
         return (bar, unit)
