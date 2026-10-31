@@ -131,11 +131,8 @@ struct ProjectsPage: View {
         let auto: Bool = info.id == ProjectStore.autosaveId
         let title: String = auto ? "\(ProjectSession.autosaveName) · \(info.projectName ?? "")" : info.name
         let edit: (() -> Void)? = auto ? nil : { ask(.renameId(info.id), info.name) }
-        let tint: Color? = auto ? theme.accentText : nil
-        let current: Bool = !auto && info.id == model.session.id
-        let sub: String = ProjectsPage.date(info.updated)
-        return SwipeRow(title: title, subtitle: sub, meta: ProjectSession.meta(info),
-                        tint: tint, current: current,
+        return SwipeRow(title: title, subtitle: ProjectsPage.date(info.updated), meta: ProjectSession.meta(info),
+                        tint: auto ? theme.accentText : nil, current: !auto && info.id == model.session.id,
                         height: 48, tap: { opening = info }, rename: edit,
                         delete: { model.deleteProject(id: info.id) })
     }

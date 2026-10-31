@@ -12,6 +12,7 @@ struct MasterWindowView: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
+        let _ = RedrawMeter.hit(.masterWin)
         VStack(spacing: Layout.barGap) {
             MasterStrip(model: model, module: module, bounds: frame, input: { t in openInput(t) })
                 .frame(height: model.barH)
@@ -131,7 +132,7 @@ struct MasterStrip: View {
                 }
                 MasterField(model: model, param: p, gray: bypass && grays(p), tap: tapAction(p),
                             input: { input(.param(p.id)) })
-                    .frame(width: fieldWidth(i, lead))
+                    .frame(width: i < lead.count ? lead.width : nil)
             }
             EqTool(title: "PRESETS", enabled: true, active: model.masterMenu?.kind == .presets) {
                 model.masterMenu = MasterMenuState(kind: .presets, anchor: presetsFrame, bounds: bounds)
@@ -153,20 +154,11 @@ struct MasterStrip: View {
         let high: CGFloat = max(0, bounds.height - model.barH - Layout.barGap)
         if wide <= 0 || high <= 0 { return (0, nil) }
         let sat: Bool = module == MasterScope.sat
-        let satW: CGFloat = min(wide * 0.35, high)
-        let otherW: CGFloat = min(wide * 0.4, high * 1.4)
-        let transfer: CGFloat = sat ? satW : otherW
+        let transfer: CGFloat = sat ? min(wide * 0.35, high) : min(wide * 0.4, high * 1.4)
         let k: Int = module == MasterScope.comp ? 4 : 2
         let x0: CGFloat = EqBar.nameWidth + g
-        let gaps: CGFloat = CGFloat(k - 1) * g
-        let w: CGFloat = (transfer - x0 - gaps) / CGFloat(k)
-        return (k, max(40.0, w))
-    }
-
-    /// Ширина поля i: первые — по TRANSFER, остальные — поровну (nil).
-    private func fieldWidth(_ i: Int, _ lead: (count: Int, width: CGFloat?)) -> CGFloat? {
-        if i < lead.count { return lead.width }
-        return nil
+        let w: CGFloat = (transfer - x0 - CGFloat(k - 1) * g) / CGFloat(k)
+        return (k, max(40, w))
     }
 
     private func tapAction(_ p: ParamDef) -> (() -> Void)? {

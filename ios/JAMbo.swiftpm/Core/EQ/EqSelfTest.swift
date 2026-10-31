@@ -1,7 +1,6 @@
 import Foundation
-@testable import Core
 
-// Самотест EQ: сверка с эталонами ios/CoreTests/Golden/eq_*.i16 (ios/tools/eq/golden.mjs — EqChain веба в OfflineAudioContext
+// Самотест EQ: сверка с эталонами Resources/golden/eq_*.i16 (ios/tools/eq/golden.mjs — EqChain веба в OfflineAudioContext
 // Chromium). Как в вебе, EQ начинается пустым и первые полосы вводятся кроссфейдом; события — новый EQ в кадре блока.
 // Вход — MasterSelfTest.input. Общий для CoreTests и DIAGNOSTICS → SELF-TEST.
 

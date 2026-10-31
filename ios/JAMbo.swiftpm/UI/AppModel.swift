@@ -39,12 +39,16 @@ final class AppModel {
     private(set) var playing: Bool = false
     private(set) var metronome: Bool = false
     private(set) var toneOn: Bool = false
+    /// Окно раздела APP поверх экрана: DIAGNOSTICS, SELF-TEST (nil — закрыто).
+    var appWindow: AppWindow? = nil
     /// Зажатые шаги (индекс p·16 + s) — белый контур; с ними ручки ставят p-lock.
     var heldSteps: Set<Int> = []
     /// Зажатые шаги, на которых уже что-то сделали (p-lock) — триг на отпускании не переключается.
     @ObservationIgnored var usedSteps: Set<Int> = []
     /// Зажата SHIFT.
     var shiftHeld: Bool = false
+    /// Пасхалка: панда вместо полос уровня в окне MIX (SHIFT + тап по окну; не в проекте).
+    var pandaShown: Bool = false
     /// Зажата FX: ручки — общие эффекты; MOD — LFO1–3 и ENV дорожки; из двух — нажатая последней.
     var fxHeld: Bool = false
     var modHeld: Bool = false
@@ -67,6 +71,7 @@ final class AppModel {
     /// KEY VELOCITY (S12): толчки iPad (акселерометр).
     @ObservationIgnored let tapSensor = TapSensor()
     /// Кадры интерфейса и время drain (DIAGNOSTICS, S14a).
+    @ObservationIgnored let frameMeter = FrameMeter()
     /// MIDI (S13): CoreMIDI, устройства.
     let midi = MidiHost()
     let midiLearn = MidiLearnState()
@@ -355,7 +360,9 @@ final class AppModel {
         }
         RunLoop.main.add(timer, forMode: .common)
         pump = timer
-        // Замеры S14a (время колбэка по разделам) выключены: окно DIAGNOSTICS убрано из сборки (ios/extras/diagnostics).
+        // Замеры S14a — всё время (DIAGNOSTICS закрывает экран): время колбэка по разделам, кадры интерфейса.
+        audio.core.profile.enabled = true
+        frameMeter.start()
     }
 
     // MARK: — звук
@@ -394,6 +401,8 @@ final class AppModel {
 
     /// Сообщения колбэка → состояние интерфейса (60 раз в секунду).
     private func drain() {
+        let t0: Double = Date.timeIntervalSinceReferenceDate
+        defer { frameMeter.drained(Date.timeIntervalSinceReferenceDate - t0) }
         audio.core.releaseRetired()
         defer { applyPendingLead() }
         if autosaveDue > 0 && Date.timeIntervalSinceReferenceDate >= autosaveDue { autosave() }

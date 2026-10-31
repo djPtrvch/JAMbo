@@ -92,7 +92,7 @@ struct SyncOffsetRow: View {
             FieldLabel(title: title)
             HStack(spacing: 4) {
                 RepeatArrow(title: "◀") { step(-1) }
-                Text(SyncOffsetText.ms(value))
+                Text((value > 0 ? "+" : "") + "\(value) ms")
                     .font(.system(size: 13, weight: .bold)).monospacedDigit().foregroundStyle(theme.text)
                     .frame(width: 100, height: 44)
                     .background(applied != nil ? theme.panel2 : theme.panel, in: RoundedRectangle(cornerRadius: 8))
@@ -160,13 +160,5 @@ struct PressStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .onChange(of: configuration.isPressed) { _, down in pressed(down) }
-    }
-}
-
-/// Подпись сдвига: «+12 ms», «-5 ms» (по шагам — для компилятора Playgrounds).
-enum SyncOffsetText {
-    static func ms(_ v: Int) -> String {
-        let sign: String = v > 0 ? "+" : ""
-        return "\(sign)\(v) ms"
     }
 }

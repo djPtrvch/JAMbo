@@ -291,16 +291,9 @@ extension AppModel {
             eqBand = -1
         }
         var lines: [String] = []
-        if !added.isEmpty {
-            let all: String = added.joined(separator: ", ")
-            let first: String = added[0]
-            lines.append("Imported: \(all). Loaded: \(first).")
-        }
+        if !added.isEmpty { lines.append("Imported: " + added.joined(separator: ", ") + ". Loaded: " + added[0] + ".") }
         lines += fitted
-        if !bad.isEmpty {
-            let files: String = bad.joined(separator: ", ")
-            lines.append("No filters found in \(files). Use the ParametricEQ.txt profile (GraphicEQ is not supported).")
-        }
+        if !bad.isEmpty { lines.append("No filters found in " + bad.joined(separator: ", ") + ". Use the ParametricEQ.txt profile (GraphicEQ is not supported).") }
         phonesNote = lines.joined(separator: "\n")
     }
 

@@ -19,6 +19,7 @@ struct PagesColumn: View {
     static let spacing: CGFloat = 4
 
     var body: some View {
+        let _ = RedrawMeter.hit(.pages)
         GeometryReader { geo in
             let rowH: CGFloat = (geo.size.height - PagesColumn.spacing * CGFloat(PagesColumn.rows - 1)) / CGFloat(PagesColumn.rows)
             ZStack(alignment: .topLeading) {
@@ -28,17 +29,12 @@ struct PagesColumn: View {
                         let lifted: Bool = dragged || landing?.row == r
                         // Поднятая идёт за пальцем без анимации (иначе отстаёт и прыгает на смене места);
                         // плавно сдвигаются только соседи.
-                        let dy: CGFloat = pageOffset(r, step: rowH + 4.0)
-                        let scale: CGFloat = lifted ? 1.06 : 1.0
-                        let shade: Double = lifted ? 0.5 : 0.0
-                        let z: Double = lifted ? 1.0 : 0.0
-                        let anim: Animation? = dragged ? nil : Animation.easeOut(duration: 0.15)
                         row(r).frame(height: rowH)
-                            .offset(y: dy)
-                            .scaleEffect(scale)
-                            .shadow(color: Color.black.opacity(shade), radius: 8)
-                            .zIndex(z)
-                            .animation(anim, value: press?.liftTo)
+                            .offset(y: pageOffset(r, step: rowH + 4))
+                            .scaleEffect(lifted ? 1.06 : 1)
+                            .shadow(color: .black.opacity(lifted ? 0.5 : 0), radius: 8)
+                            .zIndex(lifted ? 1 : 0)
+                            .animation(dragged ? nil : .easeOut(duration: 0.15), value: press?.liftTo)
                     }
                 }
                 outline(rowH: rowH)
@@ -285,6 +281,7 @@ struct PageThumb: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
+        let _ = RedrawMeter.hit(.pageThumb)
         // Данные читаются здесь (в теле), а не в Canvas: так правки и ход игры перерисовывают миниатюру.
         let cells: [ThumbCell] = ThumbCell.page(model.seq, page: page)
         let played: Int = model.openPlayPos

@@ -69,20 +69,16 @@ struct LibraryBrowser: View {
     /// (решение пользователя; пока рамки верхней панели неизвестны — прежние ширины).
     private var header: some View {
         let top: TopFrames = model.topFrames
-        let room: CGFloat = top.eq.minX - headerX - model.barH - 2.0 * Layout.gap
-        let pathW: CGFloat = top.ready ? max(40.0, room) : 0.0
-        let w: CGFloat? = top.ready ? nil : 96.0
-        let pathFixed: CGFloat? = top.ready ? pathW : nil
-        let pathMax: CGFloat? = top.ready ? nil : CGFloat.infinity
-        let folderW: CGFloat? = top.ready ? nil : 120.0
+        let pathW: CGFloat = top.ready ? max(40, top.eq.minX - headerX - model.barH - 2 * Layout.gap) : 0
+        let w: CGFloat? = top.ready ? nil : 96
         return HStack(spacing: Layout.gap) {
             ToolButton(title: "‹", enabled: model.libFolder != Library.root, width: model.barH) { model.libUp() }
             Text(model.libPath).font(.system(size: 13, weight: .bold)).foregroundStyle(theme.text)
                 .lineLimit(1).truncationMode(.head)
                 .padding(.horizontal, 6)
-                .frame(width: pathFixed, alignment: .leading)
-                .frame(maxWidth: pathMax, alignment: .leading)
-            ToolButton(title: "NEW FOLDER", width: folderW) { ask(.newFolder, "New folder") }
+                .frame(width: top.ready ? pathW : nil, alignment: .leading)
+                .frame(maxWidth: top.ready ? nil : .infinity, alignment: .leading)
+            ToolButton(title: "NEW FOLDER", width: top.ready ? nil : 120) { ask(.newFolder, "New folder") }
             ToolButton(title: "IMPORT", width: w) { model.chooseLibraryFiles() }
             ToolButton(title: "EXPORT", enabled: model.libFolder != LibraryBuiltins.folderId, width: w) { export() }
             ToolButton(title: "✕", width: model.barH) { model.closeBrowser() }
@@ -134,11 +130,8 @@ struct LibraryBrowser: View {
     }
 
     private var pickBar: some View {
-        let count: Int = model.libPicked?.count ?? 0
-        let what: String = model.tableMode ? "tables" : "samples and presets"
-        let note: String = "\(count) selected · tap \(what) to add or remove"
-        return HStack(spacing: Layout.gap) {
-            Text(note)
+        HStack(spacing: Layout.gap) {
+            Text("\(model.libPicked?.count ?? 0) selected · tap " + (model.tableMode ? "tables" : "samples and presets") + " to add or remove")
                 .font(.system(size: 12)).foregroundStyle(theme.text).lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 6)
             // По ширине PATTERNS и ARRANGE верхней панели, жирным.

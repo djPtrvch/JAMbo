@@ -18,6 +18,7 @@ struct RootView: View {
     static var menuTop: CGFloat { return padTop + Layout.topHeight + Layout.gap }
 
     var body: some View {
+        let _ = RedrawMeter.hit(.root)
         GeometryReader { geo in
             // Одна высота строки на весь экран (решение пользователя): окно аранжировщика (под второй строкой) —
             // линейка и 8 строк дорожек; низ (строка дорожек, секвенсор, клавиатура) — ровно 3 строки, его верх — верх
@@ -330,6 +331,9 @@ struct RootView: View {
         if let f = model.sampleRec.menu {
             RecSourceMenu(model: model, anchor: f, bottom: trackTop)
         }
+        if let w = model.appWindow {
+            AppWindowView(model: model, window: w).padding(8)
+        }
     }
 }
 
@@ -392,8 +396,8 @@ enum MenuPage {
     case song
 }
 
-/// Меню бутерброда (как веб): разделы PROJECT (PROJECTS) и APP (SETTINGS; окна DIAGNOSTICS и SELF-TEST убраны из
-/// сборки — ios/extras/diagnostics, эталоны — в CoreTests) — у каждого подзаголовок,
+/// Меню бутерброда (как веб): разделы PROJECT (PROJECTS) и APP (SETTINGS; DIAGNOSTICS, SELF-TEST — окна, скрыты: видны
+/// только с зажатым SHIFT) — у каждого подзаголовок,
 /// между ними черта; CONTROLLERS — MIDI (S13a) и SYNC (S13e). Меню и подменю одного размера: по ширине — от левого края
 /// бутерброда до правого края поля SCALE, по высоте — до строки дорожек.
 struct MainMenu: View {
@@ -445,6 +449,15 @@ struct MainMenu: View {
             Divider().overlay(theme.line).padding(.vertical, 8)
             MenuHead(title: "APP")
             MenuItem(title: "SETTINGS") { page = .settings }
+            // DIAGNOSTICS и SELF-TEST скрыты (решение пользователя): видны, только пока держат SHIFT.
+            if model.shiftHeld {
+                ForEach(AppWindow.allCases, id: \.self) { w in
+                    MenuItem(title: w.rawValue) {
+                        isOpen = false
+                        model.appWindow = w
+                    }
+                }
+            }
             Divider().overlay(theme.line).padding(.vertical, 8)
             MenuHead(title: "CONTROLLERS")
             MenuItem(title: "MIDI") { page = .midi }

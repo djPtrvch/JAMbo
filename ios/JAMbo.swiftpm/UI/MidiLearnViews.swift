@@ -34,11 +34,9 @@ struct LearnBar: View {
 
     private var describe: String {
         guard let t = model.midiLearn.target else { return "MIDI LEARN · Tap a knob or button on screen" }
-        let label: String = t.label
-        guard let m = model.midiMapping(t) else { return "\(label) · Move a control on your MIDI device" }
+        guard let m = model.midiMapping(t) else { return t.label + " · Move a control on your MIDI device" }
         let hint: String = model.midiLearn.last.isEmpty ? " · Move a control to remap" : ""
-        let src: String = m.src.label
-        return "\(label)  ←  \(src)\(hint)"
+        return t.label + "  ←  " + m.src.label + hint
     }
 }
 

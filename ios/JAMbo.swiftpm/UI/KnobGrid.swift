@@ -18,6 +18,7 @@ struct KnobGrid: View {
     static let spacing: CGFloat = 2
 
     var body: some View {
+        let _ = RedrawMeter.hit(.knobGrid)
         GeometryReader { geo in
             ZStack(alignment: .topLeading) {
                 cells(geo.size)
@@ -330,6 +331,7 @@ struct KnobView: View, Equatable {
     }
 
     var body: some View {
+        let _ = RedrawMeter.hit(.knob)
         VStack(spacing: 2) {
             ZStack {
                 Canvas { ctx, size in draw(ctx, size) }
@@ -348,11 +350,8 @@ struct KnobView: View, Equatable {
         var text: String = state.param.map { $0.format(state.value) } ?? ""
         if let p = state.param, let a = state.assign {
             if let h = state.heldSource, h == a.lfo {
-                // По шагам (склейка строк с тернарными — тяжёлая для компилятора Playgrounds).
-                let pct: Int = Int((a.amount * 100.0).rounded())
-                let src: String = h == 4 ? "ENV" : "L\(h)"
-                let sign: String = pct > 0 ? "+" : ""
-                text = "\(src) \(sign)\(pct)%"
+                let pct = Int((a.amount * 100).rounded())
+                text = (h == 4 ? "ENV" : "L\(h)") + " " + (pct > 0 ? "+" : "") + "\(pct)%"
             } else if let m = mod {
                 text = p.format(p.fromNorm(m))
             }

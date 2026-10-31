@@ -3,7 +3,7 @@
 // (как sendDynamics в engine.ts), события — в начале блока. Параметры, убранные в Swift (BIAS, OUTPUT, AUTO сатуратора,
 // RANGE, HOLD, LINK компрессора, MIX клиппера, LINK лимитера, UNITY, AUDIT), — по умолчанию: при них звук прежний.
 // Случай chain — все четыре модуля по цепочке (SAT → COMP → CLIP → LIM) в каждом блоке.
-// Выход: ios/CoreTests/Golden/mst_<имя>.i16 (стерео L,R по очереди, Int16 = round(x·32767)) и mst_cases.json.
+// Выход: ios/JAMbo.swiftpm/Resources/golden/mst_<имя>.i16 (стерео L,R по очереди, Int16 = round(x·32767)) и mst_cases.json.
 // Запуск: node ios/tools/master/golden.mjs
 import fs from 'node:fs';
 import os from 'node:os';
@@ -12,7 +12,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../../..');
-const outDir = path.join(root, 'ios/CoreTests/Golden');
+const outDir = path.join(root, 'ios/JAMbo.swiftpm/Resources/golden');
 const SR = 48000;
 const BLOCK = 128;
 

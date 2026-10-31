@@ -1,9 +1,3 @@
-// ОТЛОЖЕНО (решение пользователя): панда убрана из сборки JAMbo.swiftpm, чтобы облегчить сборку в Playgrounds.
-// Вернуть: перенести DancingPanda.swift и PandaWindow.swift в ios/JAMbo.swiftpm/UI; в AppModel — свойство
-// `var pandaShown: Bool = false`; в SampleWindow.mixView — `if model.pandaShown { PandaWindow(model: model) } else {
-// MixOverview… }`; в SampleWindow.press (onEnded, перед openSoundMenu) — `if model.channel == .mix && model.shiftHeld {
-// model.pandaShown.toggle(); return }` (SHIFT + тап по окну MIX). Последняя версия с пандой — коммит f0eabe4.
-
 import SwiftUI
 
 // Панда-пасхалка на месте полос уровня в окне MIX: SHIFT + тап по окну — панда, ещё раз — полосы. Не в проекте.

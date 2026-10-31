@@ -7,6 +7,7 @@ struct KeyboardPanel: View {
     let layout: Layout
 
     var body: some View {
+        let _ = RedrawMeter.hit(.keyboard)
         HStack(spacing: Layout.stepGap) {
             VStack(spacing: Layout.gap) {
                 ChordButton(model: model).frame(height: layout.keyHeight(model.project.scale)).midiTarget(model, "CHORD")

@@ -66,6 +66,7 @@ struct MasterIndicator: View {
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 60)) { tl in
+            let _ = RedrawMeter.hit(.masterInd)
             blocks(now: tl.date.timeIntervalSinceReferenceDate)
         }
         .padding(8)

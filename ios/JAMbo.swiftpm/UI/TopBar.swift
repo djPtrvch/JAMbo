@@ -7,6 +7,7 @@ struct TopBar: View {
     @Binding var menuOpen: Bool
 
     var body: some View {
+        let _ = RedrawMeter.hit(.topBar)
         HStack(spacing: Layout.gap) {
             leftGroup
             middle

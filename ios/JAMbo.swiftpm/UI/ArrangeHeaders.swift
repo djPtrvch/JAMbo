@@ -76,20 +76,14 @@ struct ArrHeaderRow: View {
         // справа (решение пользователя). Низкая строка (COMPACT) — без регулятора, отступ меньше: всё — в высоте строки.
         let vol: Bool = rowH >= ArrHeaderRow.volRow + 8
         let need: CGFloat = vol ? ArrHeaderRow.volRow : ArrHeaderRow.nameH
-        let half: CGFloat = (rowH - need) / 2.0
-        let pad: CGFloat = max(2.0, min(8.0, half))
-        let volH: CGFloat = vol ? ArrVolume.height + ArrHeaderRow.space : 0.0
-        let free: CGFloat = rowH - 2.0 * pad - volH
-        let side: CGFloat = max(10.0, min(24.0, free))
-        let gapH: CGFloat = vol ? ArrHeaderRow.space : 0.0
-        let weight: Font.Weight = selected ? .heavy : .semibold
-        let line: Color = selected ? theme.accent : Color.clear
+        let pad: CGFloat = max(2, min(8, (rowH - need) / 2))
+        let side: CGFloat = max(10, min(24, rowH - 2 * pad - (vol ? ArrVolume.height + ArrHeaderRow.space : 0)))
         return VStack(spacing: 0) {
             if vol { ArrVolume(model: model, channel: index) }
-            Spacer(minLength: gapH)
+            Spacer(minLength: vol ? ArrHeaderRow.space : 0)
             HStack(alignment: .bottom, spacing: 5) {
                 Text(t.name)
-                    .font(.system(size: 12, weight: weight))
+                    .font(.system(size: 12, weight: selected ? .heavy : .semibold))
                     .lineLimit(1)
                     .foregroundStyle(fg)
                     .frame(maxWidth: .infinity, alignment: .bottomLeading)
@@ -105,8 +99,8 @@ struct ArrHeaderRow: View {
         .background(bg, in: UnevenRoundedRectangle(topLeadingRadius: 6, bottomLeadingRadius: 6, bottomTrailingRadius: 0,
                                                     topTrailingRadius: 0))
         // Выбранная — две жёлтые линии сверху и снизу (продолжаются по всей строке таймлайна).
-        .overlay(alignment: .top) { Rectangle().fill(line).frame(height: 1) }
-        .overlay(alignment: .bottom) { Rectangle().fill(line).frame(height: 1) }
+        .overlay(alignment: .top) { Rectangle().fill(selected ? theme.accent : Color.clear).frame(height: 1) }
+        .overlay(alignment: .bottom) { Rectangle().fill(selected ? theme.accent : Color.clear).frame(height: 1) }
         .contentShape(Rectangle())
         .gesture(touch)
     }
@@ -156,9 +150,7 @@ struct ArrRefHeader: View {
         // Как строка дорожки: сверху регулятор громкости REF с метром (в низкой строке — без него), снизу REF, имя
         // файла и темп в одну строку.
         let vol: Bool = rowH >= ArrHeaderRow.volRow + 8
-        let need: CGFloat = vol ? ArrHeaderRow.volRow : ArrHeaderRow.nameH
-        let half: CGFloat = (rowH - need) / 2.0
-        let pad: CGFloat = max(2.0, min(8.0, half))
+        let pad: CGFloat = max(2, min(8, (rowH - (vol ? ArrHeaderRow.volRow : ArrHeaderRow.nameH)) / 2))
         return VStack(spacing: 0) {
             if vol { ArrVolume(model: model, channel: Levels.ref) }
             Spacer(minLength: vol ? ArrHeaderRow.space : 0)
@@ -190,16 +182,11 @@ struct ArrToggle: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        let lit: Color = title == "M" ? Color.white : theme.onAccent
-        let fg: Color = on ? lit : color
-        let size: CGFloat = max(7.0, side / 2.0)
-        let w: CGFloat = side + 2.0
-        let bg: Color = on ? color : Color.clear
-        return Text(title)
-            .font(.system(size: size, weight: .bold))
-            .foregroundStyle(fg)
-            .frame(width: w, height: side)
-            .background(bg, in: RoundedRectangle(cornerRadius: 4))
+        Text(title)
+            .font(.system(size: max(7, side / 2), weight: .bold))
+            .foregroundStyle(on ? (title == "M" ? Color.white : theme.onAccent) : color)
+            .frame(width: side + 2, height: side)
+            .background(on ? color : Color.clear, in: RoundedRectangle(cornerRadius: 4))
             .overlay(RoundedRectangle(cornerRadius: 4).stroke(color, lineWidth: 1))
             .contentShape(Rectangle())
             .onTapGesture { action() }
@@ -222,8 +209,7 @@ struct ArrVolume: View {
 
     var body: some View {
         let v: Double = model.meterVol(channel)
-        let k: Double = (v - Params.volMin) / -Params.volMin
-        let f: CGFloat = CGFloat(max(0.0, min(1.0, k)))
+        let f: CGFloat = CGFloat(max(0, min(1, (v - Params.volMin) / -Params.volMin)))
         let track: Bool = channel < model.project.tracks.count
         let stereo: Bool = !track || model.trackStereo(channel)
         let muted: Bool = track && !model.project.audible(channel)
@@ -305,6 +291,7 @@ struct ArrMeter: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
+        let _ = RedrawMeter.hit(.mixMeter)
         Canvas { ctx, sz in
             let h: CGFloat = MeterBars.span(bars.count)
             let gr: CGFloat = duckDb <= -0.1 ? CGFloat(-duckDb / 24) : 0

@@ -2,7 +2,7 @@
 // блоки process() по 128 кадров, k-rate параметры берутся в начале блока, 48 кГц. Math.random заменён на mulberry32
 // с seed случая (Swift повторяет тот же генератор — FxRandom), поэтому модуляция (wow, flutter, LFO линий)
 // сравнивается по отсчётам. Вход — детерминированный (как FxGolden.input в Swift).
-// Выход: ios/CoreTests/Golden/fx_<имя>.i16 (стерео L,R по очереди, Int16 = round(x·32767)) и fx_cases.json.
+// Выход: ios/JAMbo.swiftpm/Resources/golden/fx_<имя>.i16 (стерео L,R по очереди, Int16 = round(x·32767)) и fx_cases.json.
 // Запуск: node ios/tools/fx/golden.mjs
 import fs from 'node:fs';
 import os from 'node:os';
@@ -11,7 +11,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../../..');
-const outDir = path.join(root, 'ios/CoreTests/Golden');
+const outDir = path.join(root, 'ios/JAMbo.swiftpm/Resources/golden');
 const SR = 48000;
 const BLOCK = 128;
 

@@ -6,6 +6,7 @@ struct TrackRow: View {
     let layout: Layout
 
     var body: some View {
+        let _ = RedrawMeter.hit(.tracks)
         HStack(spacing: Layout.gap) {
             ChannelCell(model: model, title: "MIX", channel: .mix).frame(width: layout.step).midiTarget(model, "MIX")
             ForEach(0..<model.project.tracks.count, id: \.self) { i in
@@ -115,6 +116,7 @@ struct TrackFace: View, Equatable {
     }
 
     var body: some View {
+        let _ = RedrawMeter.hit(.trackCell)
         // Как в вебе: выбранная — жёлтый контур, заглушённая — красный (перекрывает выбор) и красная заливка.
         let border: Color = mute ? theme.rec : (selected ? theme.accent : Color.clear)
         ZStack(alignment: .topTrailing) {

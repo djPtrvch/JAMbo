@@ -63,9 +63,7 @@ final class WarpPeakCache {
         let ps: [String] = wv.map.pos.map { String(Int($0)) }
         let bs: [String] = wv.map.beats.map { String($0) }
         let head: String = "\(key)|\(s.frames)|\(w)|\(view.a)|\(view.span)|\(wv.b0)|\(wv.b1)|\(wv.map.perBeat)|"
-        let pj: String = ps.joined(separator: ",")
-        let bj: String = bs.joined(separator: ",")
-        let sg: String = "\(head)\(pj)|\(bj)"
+        let sg: String = head + ps.joined(separator: ",") + "|" + bs.joined(separator: ",")
         if sg == sig { return lanes }
         sig = sg
         var bounds: [Double] = []

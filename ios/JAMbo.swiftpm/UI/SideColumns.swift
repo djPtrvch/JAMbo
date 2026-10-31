@@ -6,6 +6,7 @@ struct LeftColumn: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
+        let _ = RedrawMeter.hit(.left)
         VStack(spacing: Layout.gap) {
             LeftTop(model: model)
             if model.channel == .master {
@@ -141,6 +142,7 @@ struct RightColumn: View {
     let model: AppModel
 
     var body: some View {
+        let _ = RedrawMeter.hit(.right)
         // При MST — скоп на месте миниатюр, кнопки точек съёма COMP, CLIP, LIM на месте MORPH, FX, MOD.
         if model.channel == .master {
             VStack(spacing: Layout.gap) {
