@@ -127,14 +127,19 @@ struct RollGrid: View {
     }
 }
 
-/// Строка кнопок пианоролла (высотой barH): справа, как кнопки аранжировщика (той же ширины), — GRID (шаг сетки,
-/// тап — меню), VEL и динамик (звук ноты при нажатии и касании; выключен — перечёркнутый).
+/// Строка кнопок пианоролла (высотой barH): от левого края кнопки PATTERNS верхней панели до правого края окна, поровну
+/// (решение пользователя), — GRID (шаг сетки, тап — меню), VEL и динамик (звук ноты при нажатии и касании; выключен —
+/// перечёркнутый). Пока рамки верхней панели неизвестны — по ширине колонки миниатюр.
 struct RollBar: View {
     let model: AppModel
+    /// Правый край строки («root»).
+    @State private var barMaxX: CGFloat = 0
 
     var body: some View {
         let g: CGFloat = Layout.gap
-        let w: CGFloat = (Layout.leftColumn - 3 * g) / 4
+        let top: TopFrames = model.topFrames
+        let span: CGFloat = top.ready && barMaxX > 0 ? barMaxX - top.patterns.minX : Layout.leftColumn
+        let w: CGFloat = max(40, (span - 2 * g) / 3)
         let sound: Bool = model.settings.rollSound
         return HStack(spacing: g) {
             Spacer(minLength: 0)
@@ -148,6 +153,7 @@ struct RollBar: View {
             }
             .frame(width: w)
         }
+        .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("root")).maxX } action: { barMaxX = $0 }
     }
 
     /// Подпись GRID — текущий шаг сетки (1/16, 1/8, 1/4).

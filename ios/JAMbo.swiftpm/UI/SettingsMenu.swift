@@ -97,6 +97,52 @@ struct EngineSettings: View {
     }
 }
 
+/// Громкость метронома (как SWING в меню клавиатуры): полоса, тап и протягивание (0…200 %, 100 % — прежний уровень).
+struct MetronomeSlider: View {
+    let model: AppModel
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let v: Double = model.settings.metronomeVol
+        let n: Double = v / 200
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("METRONOME").font(.system(size: 13, weight: .bold)).foregroundStyle(theme.text)
+                Spacer()
+                Text("\(Int(v))%").font(.system(size: 13, weight: .bold)).monospacedDigit().foregroundStyle(theme.text)
+            }
+            GeometryReader { g in
+                bar(g.size.width, n)
+                    .contentShape(Rectangle())
+                    .gesture(drag(g.size.width))
+            }
+            .frame(height: 24)
+        }
+        .padding(.horizontal, 4)
+        .padding(.vertical, 6)
+    }
+
+    private func bar(_ w: CGFloat, _ n: Double) -> some View {
+        let x: CGFloat = w * CGFloat(n)
+        return ZStack(alignment: .leading) {
+            Capsule().fill(theme.meterTrack).frame(height: 6)
+            Capsule().fill(theme.accent).frame(width: max(6, x), height: 6)
+            Circle().fill(Color.white).frame(width: 22, height: 22)
+                .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
+                .offset(x: min(max(0, x - 11), w - 22))
+        }
+        .frame(maxHeight: .infinity)
+    }
+
+    private func drag(_ w: CGFloat) -> some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { g in
+                let k: Double = Double(min(max(0, g.location.x / max(1, w)), 1))
+                model.setMetronomeVol(k * 200)
+            }
+    }
+}
+
 /// RECORD: QUANTIZE, STEP SWIPE (OVERDUB — в меню клавиатуры; AUTOMATION RECORDING — с автоматизацией).
 struct RecordSettingsView: View {
     let model: AppModel
@@ -111,6 +157,8 @@ struct RecordSettingsView: View {
                 MenuItem(title: "PAINT", current: model.settings.stepPaint) { model.updateSettings { $0.stepPaint = true } }
             }
             SettingsNote(text: "Sliding a finger along the steps: LENGTH — one long note from the first step. PAINT — a trig on every step you pass.")
+            MetronomeSlider(model: model)
+            SettingsNote(text: "Click volume: 100% — the usual level, up to 200%.")
         }
     }
 }

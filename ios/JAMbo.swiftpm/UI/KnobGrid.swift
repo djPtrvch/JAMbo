@@ -325,6 +325,7 @@ struct KnobView: View, Equatable {
         if tx != ty { return false }
         if x.value != y.value || x.norm != y.norm || x.baseNorm != y.baseNorm || x.locked != y.locked { return false }
         if x.assign != y.assign || x.heldSource != y.heldSource || x.autoNorm != y.autoNorm { return false }
+        if x.srcLo != y.srcLo || x.srcHi != y.srcHi { return false }
         return a.mod == b.mod && a.saved == b.saved && x.col4 == y.col4
     }
 
@@ -401,12 +402,17 @@ struct KnobView: View, Equatable {
                    style: StrokeStyle(lineWidth: 3 * k, lineCap: .round))
     }
 
-    /// Кольцо модуляции (r 45) от значения до текущего; зона воздействия — пока держат этот источник.
+    /// Кольцо модуляции (r 45) от значения до текущего; зона воздействия — пока держат этот источник: по ходу источника
+    /// (Polarity LFO — в одну сторону, ENV — в одну сторону, со знаком степени).
     private func drawMod(_ ctx: GraphicsContext, _ c: CGPoint, _ k: CGFloat, _ am: ModAssign) {
         let n: Double = state.norm
         if let h = state.heldSource, h == am.lfo {
             let op: Double = h == 1 ? 0.18 : (h == 2 ? 0.09 : 0.12)
-            let r: Path = KnobView.arc(c, 45 * k, Swift.max(0, n - abs(am.amount)), Swift.min(1, n + abs(am.amount)))
+            let e0: Double = n + am.amount * state.srcLo
+            let e1: Double = n + am.amount * state.srcHi
+            let lo: Double = Swift.max(0, Swift.min(e0, e1))
+            let hi: Double = Swift.min(1, Swift.max(e0, e1))
+            let r: Path = KnobView.arc(c, 45 * k, lo, hi)
             ctx.stroke(r, with: .color(theme.text.opacity(op)), style: StrokeStyle(lineWidth: 8 * k))
         }
         guard let m = mod else { return }

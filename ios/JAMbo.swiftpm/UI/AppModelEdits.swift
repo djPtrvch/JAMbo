@@ -17,6 +17,9 @@ struct KnobState {
     var autoNorm: Double? = nil
     /// 4-й столбец сетки дорожки (Pan, Chance, Ratchet, Velocity; у FX — Duck, у MOD — ENV): p-lock — оранжевым.
     var col4: Bool = false
+    /// Ход источника (LFO с Polarity и Invert: −1…1, 0…1 или −1…0; ENV — 0…1) — зона воздействия, пока держат источник.
+    var srcLo: Double = -1
+    var srcHi: Double = 1
 }
 
 extension AppModel {
@@ -124,9 +127,16 @@ extension AppModel {
             if pos >= 0 { lock = t.step(pos)?.locks[p.id] }
         }
         let v: Double = lock ?? base
-        return KnobState(param: p, value: v, norm: p.toNorm(v), baseNorm: p.toNorm(base), locked: lock != nil,
-                         assign: assign(slot), heldSource: canAssign ? heldSource : nil, autoNorm: autoN,
-                         col4: slot % 4 == 3)
+        let am: ModAssign? = assign(slot)
+        var st = KnobState(param: p, value: v, norm: p.toNorm(v), baseNorm: p.toNorm(base), locked: lock != nil,
+                           assign: am, heldSource: canAssign ? heldSource : nil, autoNorm: autoN,
+                           col4: slot % 4 == 3)
+        if let a = am {
+            let r: (lo: Double, hi: Double) = sourceRange(a)
+            st.srcLo = r.lo
+            st.srcHi = r.hi
+        }
+        return st
     }
 
     /// Начало поворота: положение, от которого считать (p-lock зажатого шага или ручка).

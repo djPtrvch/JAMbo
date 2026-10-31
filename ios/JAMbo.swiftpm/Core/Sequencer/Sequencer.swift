@@ -35,6 +35,11 @@ public final class Sequencer {
     public private(set) var playing = false
     public private(set) var tick = 0
     public var metronome = false
+    /// Громкость щелчка метронома (0…2).
+    public var metronomeGain: Double {
+        get { return click.gain }
+        set { click.gain = newValue }
+    }
     public var data: SeqData? {
         didSet { if !playing, let d = data { launcher.adopt(d) } }
     }

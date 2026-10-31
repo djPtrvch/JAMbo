@@ -321,6 +321,8 @@ public final class AudioCore: @unchecked Sendable {
             sequencer.set(bpm: bpm)
         case .metronome(let on):
             sequencer.metronome = on
+        case .metronomeGain(let g):
+            sequencer.metronomeGain = Double(g)
         case .launch(let t, let k):
             sequencer.queue(track: t, slot: k)
         case .scene(let row, let atPass):

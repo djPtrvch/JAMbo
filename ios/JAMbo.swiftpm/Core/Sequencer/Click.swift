@@ -7,6 +7,8 @@ public struct Click {
     private var phaseInc: Double = 0
     private var peak: Double = 0
     private let sampleRate: Double
+    /// Громкость (SETTINGS → RECORD → METRONOME, 0…2; 1 — прежний уровень: пик 0,3, акцент 0,5).
+    public var gain: Double = 1
 
     public init(sampleRate: Double) {
         self.sampleRate = sampleRate
@@ -14,10 +16,12 @@ public struct Click {
 
     /// Щелчок с отсчёта at (кадры ядра).
     public mutating func trigger(at: Int64, accent: Bool) {
+        // Громкость 0 — щелчка нет (иначе спад из нуля дал бы NaN).
+        if gain < 0.001 { return }
         active = true
         start = at
         phaseInc = (accent ? 1600 : 1000) / sampleRate
-        peak = accent ? 0.5 : 0.3
+        peak = (accent ? 0.5 : 0.3) * gain
     }
 
     /// Прибавить щелчок к блоку, начинающемуся с кадра blockStart.

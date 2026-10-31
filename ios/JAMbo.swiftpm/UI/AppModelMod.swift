@@ -215,6 +215,20 @@ extension AppModel {
         return i < outs.count ? Double(outs[i].load()) : 0
     }
 
+    /// Ход источника назначения (как ModEngine): LFO — форма −1…1, Polarity u сдвигает к 0…1 (−(1−u)…1), Invert —
+    /// зеркально; ENV — 0…1.
+    func sourceRange(_ a: ModAssign) -> (lo: Double, hi: Double) {
+        if a.lfo == 4 { return (0, 1) }
+        let t: Int = a.track ?? selectedTrack
+        guard t >= 0 && t < project.tracks.count else { return (-1, 1) }
+        let p: [String: Double] = project.tracks[t].params
+        let u: Double = Swift.min(1, Swift.max(0, p["lfo\(a.lfo).polar"] ?? 0))
+        let inv: Double = p["lfo\(a.lfo).invert"] ?? 0
+        let lo: Double = u - 1
+        if inv >= 0.5 { return (-1, -lo) }
+        return (lo, 1)
+    }
+
     /// Положение ручки с модуляцией (0…1) — для кольца и стрелки.
     func modulatedNorm(_ state: KnobState) -> Double {
         guard let a = state.assign else { return state.norm }

@@ -350,6 +350,7 @@ final class AppModel {
         publishAudio()
         audio.core.phones.publish(phonesEq)
         audio.core.events.push(.tempo(project.bpm))
+        audio.core.events.push(.metronomeGain(Float(settings.metronomeVol / 100)))
         let timer = Timer(timeInterval: 1.0 / 60, repeats: true) { [weak self] _ in
             self?.drain()
         }
@@ -515,6 +516,14 @@ final class AppModel {
         ensureAudio()
         metronome.toggle()
         audio.core.events.push(.metronome(metronome))
+    }
+
+    /// Громкость метронома, % (SETTINGS → RECORD); без UNDO — настройка приложения.
+    func setMetronomeVol(_ v: Double) {
+        let x: Double = Swift.min(200, Swift.max(0, v.rounded()))
+        if x == settings.metronomeVol { return }
+        updateSettings { $0.metronomeVol = x }
+        audio.core.events.push(.metronomeGain(Float(x / 100)))
     }
 
     /// Темп с MIDI-клока (S13e): BPM проекта — округлённый темп клока, без UNDO (звук идёт по точному — его шлёт

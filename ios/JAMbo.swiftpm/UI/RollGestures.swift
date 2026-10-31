@@ -169,7 +169,8 @@ final class RollTouches {
         switch mode {
         case .tap:
             if ended, let h = emptyHit, h.row < model.rollRows.count { model.rollAdd(pos: h.pos, pitch: model.rollRows[h.row]) }
-        case .press:
+        case .press, .velPress:
+            // Тап по ноте (без сдвига) — удалить, и с VEL (решение пользователя).
             if ended, let n = note { model.rollRemove(n) }
         case .move, .resize, .vel:
             model.endGesture()

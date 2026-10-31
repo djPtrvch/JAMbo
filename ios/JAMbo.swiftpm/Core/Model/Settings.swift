@@ -80,6 +80,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
     /// SETTINGS → AUDIO ENGINE → BACKGROUND AUDIO (как в вебе): звук играет, когда приложение свёрнуто или экран
     /// заблокирован; по умолчанию — да. Нужен ключ UIBackgroundModes: audio (Info.plist рядом с Package.swift).
     public var backgroundAudio: Bool = true
+    /// Громкость метронома, % (0…200; 100 — прежний уровень).
+    public var metronomeVol: Double = 100
 
     public init() {}
 
@@ -96,7 +98,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
     private enum Keys: String, CodingKey { case appearance, pianoOctaves, velocity, record, sliceMap, scSends, latchFx, latchMod, rollGrid,
                                          rollSound, levelRelative, morphAll, morphReturn, mixKey, mixCrossfader,
                                          clearSampleLocks, pitchSemitones, midi, stepPaint, sync,
-                                         arrangeCompact, fxPictures, backgroundAudio, arrangeRepeats, stretchBeat }
+                                         arrangeCompact, fxPictures, backgroundAudio, arrangeRepeats, stretchBeat,
+                                         metronomeVol }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
@@ -127,5 +130,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         arrangeRepeats = (try? c.decode(Bool.self, forKey: .arrangeRepeats)) ?? true
         fxPictures = (try? c.decode(Bool.self, forKey: .fxPictures)) ?? true
         backgroundAudio = (try? c.decode(Bool.self, forKey: .backgroundAudio)) ?? true
+        let mv: Double = (try? c.decode(Double.self, forKey: .metronomeVol)) ?? 100
+        metronomeVol = Swift.min(200, Swift.max(0, mv))
     }
 }

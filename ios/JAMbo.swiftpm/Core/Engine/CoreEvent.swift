@@ -15,6 +15,8 @@ public enum CoreEvent: Sendable {
     case tempo(Double)
     /// Метроном.
     case metronome(Bool)
+    /// Громкость метронома (0…2, 1 — прежний уровень).
+    case metronomeGain(Float)
     /// Тап по ячейке сетки во время игры: ячейка или Launcher.stop.
     case launch(track: Int, slot: Int)
     /// Тап по строке во время игры; atPass — в конце прохода строки (стрелки SWITCH).
