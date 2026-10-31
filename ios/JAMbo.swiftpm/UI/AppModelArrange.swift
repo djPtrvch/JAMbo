@@ -137,17 +137,25 @@ extension AppModel {
         arrPort.y = 0
     }
 
-    /// FOLLOW PLAYHEAD (решение пользователя): при игре плейхед ушёл за правый край окна (или левее левого) — окно
-    /// перелистывается: плейхед — у левого края (десятая часть ширины). Зовётся из таймера модели (60 Гц).
+    /// FOLLOW PLAYHEAD (решения пользователя): при игре окно плавно едет за плейхедом — он не заходит правее отступа
+    /// (четверть ширины окна от правого края); ушёл левее окна (петля, курсор назад) — окно встаёт так, чтобы он был у
+    /// левого края (десятая часть ширины). Зовётся из таймера модели (60 Гц) — каждый кадр.
     func arrFollowPlayhead() {
         guard arrangeView && playing && settings.arrangeFollow, clipCarry == nil else { return }
         let w: CGFloat = arrTimelineFrame.width
         if w <= 0 { return }
         let step: CGFloat = ArrMetrics.clampStep(arrPort.stepW ?? w / 256, width: w)
-        let x: CGFloat = CGFloat(arrNowX) * step - arrPort.x
-        if x >= 0 && x <= w - 24 { return }
+        let at: CGFloat = CGFloat(arrNowX) * step
+        let x: CGFloat = at - arrPort.x
+        let right: CGFloat = w * 0.75
         var port: ArrPort = arrPort
-        port.x = max(0, CGFloat(arrNowX) * step - w * 0.1)
+        if x > right {
+            port.x = at - right
+        } else if x < 0 {
+            port.x = max(0, at - w * 0.1)
+        } else {
+            return
+        }
         if port != arrPort { arrPort = port }
     }
 

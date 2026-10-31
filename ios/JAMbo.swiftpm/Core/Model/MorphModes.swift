@@ -25,8 +25,9 @@ public struct MorphPoint: Equatable, Sendable {
 extension Project {
     /// MORPH на все дорожки: ручку id выбранной дорожки sel поставили на norm (доля хода 0…1) — у остальных дорожек,
     /// где эта ручка есть на сетке их звука (или MOD), — сдвиг на ту же долю хода от их значения на момент включения режима
-    /// (у края шкалы упирается; вернув ручку, получаем прежнее соотношение).
-    public mutating func morphShift(from sel: Int, id: String, norm: Double) {
+    /// (у края шкалы упирается; вернув ручку, получаем прежнее соотношение). absolute (SETTINGS → MORPH → ABSOLUTE) — у
+    /// всех ручка встаёт на ту же долю хода norm.
+    public mutating func morphShift(from sel: Int, id: String, norm: Double, absolute: Bool = false) {
         guard sel >= 0 && sel < tracks.count, let p0 = Params.byId[id] else { return }
         let o0: Double = tracks[sel].morphOrig[id] ?? tracks[sel].params[id] ?? p0.def
         let delta: Double = norm - p0.toNorm(o0)
@@ -35,7 +36,7 @@ extension Project {
             guard let p = defs.first(where: { $0.id == id }) else { continue }
             tracks[i].morphParam(id)
             let o: Double = tracks[i].morphOrig[id] ?? p.def
-            let n: Double = Swift.min(1, Swift.max(0, p.toNorm(o) + delta))
+            let n: Double = absolute ? Swift.min(1, Swift.max(0, norm)) : Swift.min(1, Swift.max(0, p.toNorm(o) + delta))
             tracks[i].params[id] = p.fromNorm(n)
         }
     }

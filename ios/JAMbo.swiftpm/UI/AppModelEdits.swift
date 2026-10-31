@@ -208,11 +208,12 @@ extension AppModel {
             let m = morph
             // MORPH на все дорожки (SETTINGS → MORPH): та же ручка у остальных — сдвиг на ту же долю хода.
             let all: Bool = m && settings.morphAll
+            let absolute: Bool = !settings.morphRelative
             let i = selectedTrack
             edit { pr in
                 if m { pr.tracks[i].morphParam(p.id) }
                 pr.tracks[i].params[p.id] = v
-                if all { pr.morphShift(from: i, id: p.id, norm: norm) }
+                if all { pr.morphShift(from: i, id: p.id, norm: norm, absolute: absolute) }
             }
         } else {
             usedSteps.formUnion(held)

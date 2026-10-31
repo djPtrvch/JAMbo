@@ -13,7 +13,7 @@ struct ArrangeBar: View {
         return HStack(spacing: Layout.gap) {
             HStack(spacing: Layout.gap) {
                 // Сетка (решение пользователя, на месте магнита): тап — меню шага сетки и SNAP TO GRID.
-                ArrBarButton(on: model.arrMenu == .grid, enabled: true, action: { model.arrMenu = .grid }) { c in
+                ArrBarButton(on: model.arrMenu == .grid, enabled: true, action: { model.arrMenu = model.arrMenu == .grid ? nil : .grid }) { c in
                     Image(systemName: "squareshape.split.3x3").font(.system(size: 18, weight: .semibold)).foregroundStyle(c)
                 }
                 ArrBarButton(on: false, enabled: true, action: { model.arrTrim() }) { c in
@@ -169,11 +169,12 @@ struct ArrWaveIcon: View {
 }
 
 
-/// Кнопки под измерителем аранжировщика (решения пользователя), шириной с измеритель и чуть выше ширины: при FIX
+/// Кнопки под измерителем аранжировщика (решения пользователя), шириной с измеритель, высотой с пары кнопок колонок: при FIX
 /// (SETTINGS → ARRANGE) — EXPANDED (8 строк на окно) и COMPACT (все дорожки на окно); под ними карандаш — рисование
 /// кривой в окне AUTO (есть, только пока AUTO включена).
 struct ArrSideButtons: View {
-    static let height: CGFloat = 44
+    /// Высота — как у пар кнопок боковых колонок (решение пользователя: выше).
+    static let height: CGFloat = Layout.pairHeight
     let model: AppModel
     let width: CGFloat
 

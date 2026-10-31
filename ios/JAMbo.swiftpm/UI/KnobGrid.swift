@@ -140,7 +140,7 @@ struct KnobGrid: View {
             turn.consumed = true
         } else {
             lastTap[s] = Date()
-            // SHIFT: короткий тап (при отпускании) — Dly Time и Speed LFO по темпу / свободно; удержание 0,6 с —
+            // SHIFT: короткий тап (при отпускании) — Dly Time и Speed LFO по темпу / свободно; удержание 1 с —
             // значение ручки — своё по умолчанию.
             if model.shiftHeld && model.channel != .mix {
                 turn.shiftTap = true
@@ -167,10 +167,11 @@ struct KnobGrid: View {
         }
     }
 
-    /// SHIFT + удержание ручки 0,6 с — запомнить её значение по умолчанию (тап при отпускании тогда не считается).
+    /// SHIFT + удержание ручки 1 с (решение пользователя) — запомнить её значение по умолчанию (тап при отпускании тогда
+    /// не считается).
     private func armSave(_ id: SpatialEventCollection.Event.ID, _ s: Int) {
         Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 600_000_000)
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
             guard var t = turns[id], t.shiftTap, model.shiftHeld else { return }
             t.shiftTap = false
             turns[id] = t
@@ -271,7 +272,7 @@ struct KnobTurn {
     var consumed: Bool = false
     /// Назначение источника (1–4): накопитель — степень −1…+1.
     var lfo: Int? = nil
-    /// SHIFT + касание: при отпускании до 0,6 с — тап (по темпу / свободно).
+    /// SHIFT + касание: при отпускании до 1 с — тап (по темпу / свободно).
     var shiftTap: Bool = false
 }
 

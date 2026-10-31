@@ -341,12 +341,20 @@ struct ArrDraw {
             let dim: Bool = !on || !heard
             blocks(p, t, sel: sel, group: group, lift: lift, dim: dim)
         }
+        emptyBelow()
         selectedLane(track)
         if let l = lift { target(l, p, group) }
         if let r = marquee { marqueeRect(r) }
         refRow(p, wave)
         ruler(p)
         markers(p)
+    }
+
+    /// Под последней дорожкой (мелкий масштаб) — пусто: фон окна (чёрный), без сетки (решение пользователя).
+    private func emptyBelow() {
+        let bottom: CGFloat = max(m.body, m.rowY(m.tracks - 1) + m.rowH)
+        if bottom >= m.size.height { return }
+        ctx.fill(Path(CGRect(x: 0, y: bottom, width: m.size.width, height: m.size.height - bottom)), with: .color(theme.bg))
     }
 
     private func lanes(_ p: Project) {
@@ -524,11 +532,12 @@ struct ArrDraw {
         var bar: Int = firstBar - firstBar % every
         while bar <= lastBar {
             let x: CGFloat = m.stepX(Double(bar * ArrMetrics.stepsPerBar))
-            // Черта такта у самого края не рисуется; каждые 4 такта — во всю высоту линейки, остальные — короче (нижняя
-            // половина, решение пользователя).
+            // Черта такта у самого края не рисуется; каждые 4 такта — во всю высоту линейки и толщиной как на сетке (2),
+            // остальные — короче, от верха (решение пользователя).
             let four: Bool = bar % 4 == 0
-            let ty: CGFloat = four ? 0 : ArrMetrics.rulerH / 2
-            if x >= 1 { ctx.fill(Path(CGRect(x: x, y: ty, width: 1, height: ArrMetrics.rulerH - ty)), with: .color(theme.gridStrong)) }
+            let th: CGFloat = four ? ArrMetrics.rulerH : ArrMetrics.rulerH / 2
+            let tw: CGFloat = four ? 2 : 1
+            if x >= 1 { ctx.fill(Path(CGRect(x: x, y: 0, width: tw, height: th)), with: .color(theme.gridStrong)) }
             // В выделенном диапазоне при включённой петле (яркая заливка) — номера тактов чёрные.
             let s: Int = bar * ArrMetrics.stepsPerBar
             let lit: Bool = loopOn && s >= p.arrange.loopFrom && s < p.arrange.loopTo
