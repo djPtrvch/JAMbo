@@ -139,7 +139,8 @@ public enum EngineIcons {
         case 23: return percIcon(v, hx)
         case 24: return subIcon(v)
         case 25: return textureIcon(v)
-        case 26: return granularIcon(v)
+        // GRANULAR временно убран из сборки (ios/extras/granular).
+        case 26: return []
         default: return []
         }
     }
