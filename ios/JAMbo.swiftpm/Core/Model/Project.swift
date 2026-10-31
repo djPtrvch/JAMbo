@@ -79,6 +79,9 @@ public struct Track: Codable, Equatable, Sendable {
     public var color: Int = ArrPalette.defaultColor
     /// Автоматизация на таймлайне (S15f): кривые ручек сетки дорожки, по одной на ручку.
     public var autos: [ArrAutoLane] = []
+    /// STEPS в аранжировщике (решение пользователя): номер блока, чья копия клипа открыта в секвенсоре и миниатюрах
+    /// вместо клипа сетки (nil — клип сетки). Не хранится в файле (нет в CodingKeys).
+    public var editBlock: Int? = nil
 
     public init(index: Int) {
         id = Int.random(in: 0..<(1 << 31))
@@ -104,12 +107,27 @@ public struct Track: Codable, Equatable, Sendable {
 
     private var openIndex: Int { return Swift.max(0, Swift.min(open, clips.count - 1)) }
 
-    /// Открытый клип (пустая ячейка — пустой паттерн).
-    public var openClip: Clip { return clips[openIndex] ?? Clip() }
+    /// Блок, чья копия открыта (editBlock в пределах и с копией).
+    public var editedBlock: Int? {
+        guard let i = editBlock, i >= 0, i < blocks.count, blocks[i].pattern != nil else { return nil }
+        return i
+    }
+
+    /// Открытый клип (пустая ячейка — пустой паттерн); в STEPS аранжировщика — копия выбранного блока.
+    public var openClip: Clip {
+        if let i = editedBlock, let c = blocks[i].pattern { return c }
+        return clips[openIndex] ?? Clip()
+    }
 
     /// Правка открытого клипа (пустой ячейки — создаёт клип). Ссылка в массиве снимается на время правки —
-    /// массивы страниц меняются на месте, без копии.
+    /// массивы страниц меняются на месте, без копии. В STEPS аранжировщика — правится копия блока, сетка — нет.
     public mutating func withOpen(_ f: (inout Clip) -> Void) {
+        if let i = editedBlock, var c = blocks[i].pattern {
+            blocks[i].pattern = nil
+            f(&c)
+            blocks[i].pattern = c
+            return
+        }
         let k = openIndex
         var c = clips[k] ?? Clip()
         clips[k] = nil

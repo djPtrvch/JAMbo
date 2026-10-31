@@ -409,6 +409,7 @@ final class AppModel {
         if morphGlide != nil { stepMorphGlide() }
         if mix != nil { updateMix() }
         if arrangeView && playing { arrFollowPlayhead() }
+        syncEditBlock()
         drainVoices()
         drainStems()
         tickMeters()
@@ -792,8 +793,12 @@ final class AppModel {
     /// Позиция играющего шага в открытом клипе выбранной дорожки (и при MIX, MST — клавиатура, окно синта).
     var trackPlayPos: Int {
         let t = track
-        if t.open != t.slot { return -1 }
-        return live.playPos[selectedTrack]
+        let s: Int = selectedTrack
+        let cell: Int = s < live.cell.count ? live.cell[s] : -1
+        // STEPS аранжировщика: ход — только пока играет этот блок.
+        if let i = t.editedBlock { return cell == SeqData.slots + i ? live.playPos[s] : -1 }
+        if t.open != t.slot || cell >= SeqData.slots { return -1 }
+        return live.playPos[s]
     }
 
     /// Ноты трига: выбранные на клавиатуре (S1c), иначе корневая нота октавы.

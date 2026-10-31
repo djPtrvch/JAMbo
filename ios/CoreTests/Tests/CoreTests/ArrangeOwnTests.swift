@@ -153,3 +153,24 @@ final class FiredOutTests: XCTestCase {
         XCTAssertEqual(got, [0], "шаг 2 с Chance 0 % — не сработал")
     }
 }
+
+/// Этап 3: STEPS аранжировщика правит копию блока, сетка не меняется.
+final class ArrangeEditBlockTests: XCTestCase {
+    func testEditBlockCopy() throws {
+        var t = Track(index: 0)
+        t.blocks = [ArrBlock(clip: 0, start: 0, length: 16, pattern: Clip())]
+        t.editBlock = 0
+        t.toggleStep(3, notes: [36])
+        XCTAssertTrue(try XCTUnwrap(t.blocks[0].pattern).pages[0][3].on, "шаг — в копии блока")
+        XCTAssertFalse(t.clips[0]!.pages[0][3].on, "сетка — без изменений")
+        XCTAssertTrue(t.pages[0][3].on, "секвенсор видит копию")
+        t.editBlock = nil
+        XCTAssertFalse(t.pages[0][3].on, "вне аранжировщика — клип сетки")
+        // Номер вне блоков — клип сетки.
+        t.editBlock = 5
+        XCTAssertFalse(t.pages[0][3].on)
+        // Копия в файл не пишется.
+        let back = try JSONDecoder().decode(Track.self, from: JSONEncoder().encode(t))
+        XCTAssertNil(back.editBlock)
+    }
+}

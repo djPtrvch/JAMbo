@@ -101,12 +101,13 @@ final class ProjectFileTests: XCTestCase {
 
     /// Каждое поле модели — в CodingKeys (иначе оно молча не сохранится).
     func testCodingKeysCoverAllFields() {
-        func check<K: CaseIterable & RawRepresentable>(_ value: Any, _ keys: K.Type) where K.RawValue == String {
-            let fields = Set(Mirror(reflecting: value).children.compactMap { $0.label })
+        // except — поля вида, которые нарочно не пишутся (Track.editBlock — блок, открытый в STEPS аранжировщика).
+        func check<K: CaseIterable & RawRepresentable>(_ value: Any, _ keys: K.Type, except: Set<String> = []) where K.RawValue == String {
+            let fields = Set(Mirror(reflecting: value).children.compactMap { $0.label }).subtracting(except)
             XCTAssertEqual(fields, Set(K.allCases.map { $0.rawValue }), "\(type(of: value))")
         }
         check(Project(), Project.CodingKeys.self)
-        check(Track(index: 0), Track.CodingKeys.self)
+        check(Track(index: 0), Track.CodingKeys.self, except: ["editBlock"])
         check(Clip(), Clip.CodingKeys.self)
         check(Step(), Step.CodingKeys.self)
         check(SceneRow(), SceneRow.CodingKeys.self)

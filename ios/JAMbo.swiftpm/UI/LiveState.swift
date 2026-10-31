@@ -19,6 +19,8 @@ final class LiveState {
     /// Ожидание у дорожек (Launcher.none / stop / ячейка), начало прохода, играющая и ожидающая строки.
     private(set) var queued: [Int] = [Int](repeating: Launcher.none, count: Params.maxTracks)
     @ObservationIgnored private(set) var trackStart: [Int] = [Int](repeating: 0, count: Params.maxTracks)
+    /// Ячейка, которую дорожка играет в колбэке (ячейки блоков аранжировки — с SeqData.slots).
+    @ObservationIgnored private(set) var cell: [Int] = [Int](repeating: -1, count: Params.maxTracks)
     private(set) var sceneRow: Int = -1
     @ObservationIgnored private(set) var sceneStart: Int = 0
     @ObservationIgnored private(set) var sceneLen: Int = 16
@@ -56,6 +58,7 @@ final class LiveState {
                 if !flashing[t] { flashing[t] = true }
             case .clip(let t, let slot, let off, let start):
                 trackStart[t] = start
+                cell[t] = off ? -1 : slot
                 // Таймлайн и стоп — в журнале тишина.
                 let grid: Bool = !off && !(t < following.count && following[t])
                 journal.record(track: t, slot: grid ? slot : -1, start: start)

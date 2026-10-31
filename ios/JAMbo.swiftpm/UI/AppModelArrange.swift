@@ -127,6 +127,29 @@ extension AppModel {
         arrPort.rowH = nil
     }
 
+    /// STEPS в аранжировщике (решение пользователя): секвенсор и миниатюры выбранной дорожки правят копию выбранного
+    /// блока (тап по блоку), без выбора — блока под курсором; вне аранжировщика — клип сетки. Без UNDO (это вид).
+    func syncEditBlock() {
+        var want: [Int?] = [Int?](repeating: nil, count: project.tracks.count)
+        if arrangeView && channel == .track && selectedTrack < project.tracks.count {
+            let t: Int = selectedTrack
+            if let s = arrSel, s.track == t {
+                want[t] = s.block
+            } else {
+                let x: Int = arrNow
+                want[t] = project.tracks[t].blocks.firstIndex { $0.start <= x && $0.end > x }
+            }
+        }
+        var differs: Bool = false
+        for t in project.tracks.indices where project.tracks[t].editBlock != want[t] { differs = true }
+        if !differs { return }
+        mutatePlay({ p in
+            for t in p.tracks.indices where t < want.count { p.tracks[t].editBlock = want[t] }
+        }, publish: false)
+        heldSteps.removeAll()
+        viewPage = min(viewPage, seq.pages.count - 1)
+    }
+
     /// Карандаш и ластик окна AUTO — один из двух (или ни одного).
     func toggleArrDraw() {
         arrDraw.toggle()
