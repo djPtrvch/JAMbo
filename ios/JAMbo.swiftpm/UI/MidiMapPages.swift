@@ -170,7 +170,7 @@ struct MidiRangeEditor: View {
                     .gesture(drag(geo.size))
             }
             .frame(height: 150)
-            Text("Min \(pct(m.min))% · Max \(pct(m.max))%" + (m.min > m.max ? " · inverted" : ""))
+            Text(rangeText(m))
                 .font(.system(size: 12)).foregroundStyle(theme.dim)
             HStack(spacing: 4) {
                 MenuItem(title: "Invert") {
@@ -192,6 +192,14 @@ struct MidiRangeEditor: View {
     }
 
     private func pct(_ n: Double) -> Int { return Int((n * 100).rounded()) }
+
+    /// «Min 0% · Max 100%» (и « · inverted»), по шагам.
+    private func rangeText(_ m: MidiMapping) -> String {
+        let lo: Int = pct(m.min)
+        let hi: Int = pct(m.max)
+        let inv: String = m.min > m.max ? " · inverted" : ""
+        return "Min \(lo)% · Max \(hi)%\(inv)"
+    }
 
     /// Поле графика: отступ 20 по бокам, 10 сверху, 24 снизу (подписи 0 и 127).
     private func box(_ size: CGSize) -> CGRect {
@@ -243,7 +251,7 @@ struct MidiPresetPage: View {
         return VStack(alignment: .leading, spacing: 4) {
             if list.isEmpty { SettingsNote(text: "No presets yet.") }
             ForEach(list, id: \.name) { p in
-                MidiMapLine(label: p.name + (p.name == own ? "  ✓" : ""), value: "\(p.mappings.count)") {
+                MidiMapLine(label: MidiPresetText.label(p.name, own: own), value: "\(p.mappings.count)") {
                     model.loadMidiPreset(p.name)
                     model.midiLearn.mapPage = .main
                 }
@@ -298,5 +306,13 @@ struct MidiPresetAlert: ViewModifier {
         case nil: break
         }
         model.midiLearn.presetInput = nil
+    }
+}
+
+/// Имя пресета MIDI MAP в списке: текущий — с галочкой.
+enum MidiPresetText {
+    static func label(_ name: String, own: String?) -> String {
+        let mark: String = name == own ? "  ✓" : ""
+        return "\(name)\(mark)"
     }
 }

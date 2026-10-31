@@ -230,7 +230,9 @@ struct SampleEditor: View {
                 sel.a = max(0, min(f, sel.b - gap))
             }
             let at: Double = (t.trimB ? sel.b : sel.a) * dur
-            tip = ((t.trimB ? "END\n" : "START\n") + EditorDraw.time(at), p)
+            let edge: String = t.trimB ? "END" : "START"
+            let time: String = EditorDraw.time(at)
+            tip = ("\(edge)\n\(time)", p)
         case .slice:
             if !t.moved {
                 if hypot(p.x - t.p0.x, p.y - t.p0.y) < SampleEditor.slop { return }

@@ -22,13 +22,13 @@ struct EditorBar: View {
     private var aligned: some View {
         let top: TopFrames = model.topFrames
         let g: CGFloat = Layout.gap
-        let infoW: CGFloat = max(60, top.scale.minX - barX - g)
+        let infoW: CGFloat = max(60.0, top.scale.minX - barX - g)
         // ▶ и REC — шириной кнопок аранжировщика (четыре в ширину левой колонки).
-        let w: CGFloat = (Layout.leftColumn - 3 * g) / 4
+        let w: CGFloat = (Layout.leftColumn - 3.0 * g) / 4.0
         // WARP и правка (или строка WARP) — от REC до левого края PATTERNS: LOAD и SAVE стоят с него и не меняют
         // ширину при WARP (решение пользователя).
-        let midX: CGFloat = top.scale.minX + 2 * w + 2 * g
-        let midW: CGFloat = max(0, top.patterns.minX - g - midX)
+        let midX: CGFloat = top.scale.minX + 2.0 * w + 2.0 * g
+        let midW: CGFloat = max(0.0, top.patterns.minX - g - midX)
         return HStack(spacing: g) {
             infoText.frame(width: infoW, alignment: .leading)
             playButton.frame(width: w)
@@ -90,15 +90,18 @@ struct EditorBar: View {
     private var plain: some View {
         let scale: CGRect = model.sampleRec.scaleFrame
         // Имя — слева до SCALE верхней панели; от её левого края — кнопки равной ширины (✕ — квадратная).
-        let infoW: CGFloat = scale.width > 0 ? max(60, scale.minX - barX - Layout.gap) : 0
+        let fit: CGFloat = max(60.0, scale.minX - barX - Layout.gap)
+        let infoW: CGFloat = scale.width > 0 ? fit : 0.0
+        let fixedW: CGFloat? = infoW > 0 ? infoW : nil
+        let maxW: CGFloat? = infoW > 0 ? nil : CGFloat.infinity
         return HStack(spacing: Layout.gap) {
             Text(info)
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(theme.text)
                 .lineLimit(2)
                 .padding(.horizontal, 10)
-                .frame(width: infoW > 0 ? infoW : nil, alignment: .leading)
-                .frame(maxWidth: infoW > 0 ? nil : .infinity, alignment: .leading)
+                .frame(width: fixedW, alignment: .leading)
+                .frame(maxWidth: maxW, alignment: .leading)
             SampleRecButton(model: model)
             if model.editorWarp {
                 WarpBar(model: model, data: data)
@@ -124,13 +127,18 @@ struct EditorBar: View {
 
     private var info: String {
         if let t = model.sampleRec.take {
-            return "REC · " + t.name + "\n" + Capture.time(Double(model.sampleRec.seconds)) + " / "
-                + Capture.time(Double(Capture.maxSeconds))
+            let now: String = Capture.time(Double(model.sampleRec.seconds))
+            let most: String = Capture.time(Double(Capture.maxSeconds))
+            return "REC · \(t.name)\n\(now) / \(most)"
         }
         guard let d = data else { return "SAMPLE\nEDITOR" }
         let dur: Double = d.duration
-        let len: String = sel.full ? EditorDraw.time(dur) : EditorDraw.time((sel.b - sel.a) * dur) + " of " + EditorDraw.time(dur)
-        return model.sampleName(key) + "\n" + len + (d.channels == 2 ? " · ST" : " · M")
+        let all: String = EditorDraw.time(dur)
+        let part: String = EditorDraw.time((sel.b - sel.a) * dur)
+        let len: String = sel.full ? all : "\(part) of \(all)"
+        let ch: String = d.channels == 2 ? " · ST" : " · M"
+        let name: String = model.sampleName(key)
+        return "\(name)\n\(len)\(ch)"
     }
 }
 
@@ -147,12 +155,15 @@ struct ToolButton: View {
 
     var body: some View {
         let fg: Color = !enabled ? theme.off : (lit ? theme.onAccent : theme.text)
+        let weight: Font.Weight = bold ? .bold : .regular
+        let maxW: CGFloat? = width == nil ? CGFloat.infinity : nil
+        let bg: Color = lit ? theme.accent : theme.panel2
         return Button(action: action) {
-            Text(title).font(.system(size: 13, weight: bold ? .bold : .regular)).lineLimit(1).minimumScaleFactor(0.7)
+            Text(title).font(.system(size: 13, weight: weight)).lineLimit(1).minimumScaleFactor(0.7)
                 .foregroundStyle(fg)
                 .frame(width: width)
-                .frame(maxWidth: width == nil ? .infinity : nil, maxHeight: .infinity)
-                .background(lit ? theme.accent : theme.panel2, in: RoundedRectangle(cornerRadius: 8))
+                .frame(maxWidth: maxW, maxHeight: .infinity)
+                .background(bg, in: RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
         .disabled(!enabled)

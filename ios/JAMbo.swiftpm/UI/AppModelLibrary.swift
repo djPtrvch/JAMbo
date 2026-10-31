@@ -384,15 +384,18 @@ extension AppModel {
         var lines: [String] = []
         if !big.isEmpty {
             let one: Bool = big.count == 1
-            lines.append(big.joined(separator: ", ") + (one ? " is" : " are") + " larger than 2 GB unpacked and "
-                         + (one ? "was" : "were") + " not imported.")
+            let names: String = big.joined(separator: ", ")
+            let isAre: String = one ? "is" : "are"
+            let wasWere: String = one ? "was" : "were"
+            lines.append("\(names) \(isAre) larger than 2 GB unpacked and \(wasWere) not imported.")
         }
         if skipped > 0 {
-            lines.append("\(skipped) file\(skipped == 1 ? "" : "s") larger than 512 MB inside the archive "
-                         + (skipped == 1 ? "was" : "were") + " skipped.")
+            let s: String = skipped == 1 ? "" : "s"
+            let wasWere: String = skipped == 1 ? "was" : "were"
+            lines.append("\(skipped) file\(s) larger than 512 MB inside the archive \(wasWere) skipped.")
         }
         let text: String = lines.joined(separator: "\n")
-        libWarning = libWarning.map { $0 + "\n" + text } ?? text
+        if let old = libWarning { libWarning = "\(old)\n\(text)" } else { libWarning = text }
     }
 
     // MARK: — EXPORT (S11c)
