@@ -1,6 +1,7 @@
 import Foundation
+@testable import Core
 
-// Самотест мастера: сверка с эталонами Resources/golden/mst_*.i16 (ios/tools/master/golden.mjs — рендер worklet'ов веба
+// Самотест мастера: сверка с эталонами ios/CoreTests/Golden/mst_*.i16 (ios/tools/master/golden.mjs — рендер worklet'ов веба
 // в Node: блоки по 128, параметры — сообщения port в начале блока). Вход повторяет input() из golden.mjs.
 // Общий для CoreTests и DIAGNOSTICS → SELF-TEST.
 

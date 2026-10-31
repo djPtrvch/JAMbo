@@ -1,6 +1,7 @@
 import Foundation
+@testable import Core
 
-// Самотест эффектов: сверка с эталонами Resources/golden/fx_*.i16 (ios/tools/fx/golden.mjs — рендер worklet'ов веба
+// Самотест эффектов: сверка с эталонами ios/CoreTests/Golden/fx_*.i16 (ios/tools/fx/golden.mjs — рендер worklet'ов веба
 // в Node: блоки по 128, k-rate параметры в начале блока, Math.random → mulberry32 с seed случая).
 // Вход повторяет input() из golden.mjs. Общий для CoreTests и DIAGNOSTICS → SELF-TEST.
 

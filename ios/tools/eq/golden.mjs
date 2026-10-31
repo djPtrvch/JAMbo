@@ -3,7 +3,7 @@
 // рендерит случаи; результат забирается по протоколу отладки (Runtime.evaluate, WebSocket Node 22). Как в вебе, EqChain создаётся пустым и первый update()
 // вводит полосы кроссфейдом 40 мс; события — update() в кадре, кратном 128 (suspend / resume).
 // Входы — как input() в ios/tools/master/golden.mjs (drums, loud) и noise (белый шум, L и R — свои зёрна).
-// Выход: ios/JAMbo.swiftpm/Resources/golden/eq_<имя>.i16 (стерео L,R по очереди, Int16 = round(x·32767)) и eq_cases.json.
+// Выход: ios/CoreTests/Golden/eq_<имя>.i16 (стерео L,R по очереди, Int16 = round(x·32767)) и eq_cases.json.
 // Запуск: node ios/tools/eq/golden.mjs (Chromium — /opt/pw-browsers или переменная CHROME).
 import fs from 'node:fs';
 import os from 'node:os';
@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../../..');
-const outDir = path.join(root, 'ios/JAMbo.swiftpm/Resources/golden');
+const outDir = path.join(root, 'ios/CoreTests/Golden');
 const chrome = process.env.CHROME ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 const F = 48000;
 

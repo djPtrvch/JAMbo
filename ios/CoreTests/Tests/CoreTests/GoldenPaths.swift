@@ -1,11 +1,10 @@
 import Foundation
 @testable import Core
 
-/// Пути к Resources в репозитории (на iPad — bundle приложения, Golden.directory).
+/// Эталоны — ios/CoreTests/Golden (решение пользователя: из приложения убраны вместе с SELF-TEST — 13 МБ ресурсов
+/// мешали сборке в Playgrounds; сверка — только здесь, в тестах Core).
 enum GoldenPaths {
-    static let resourcesDir: URL = URL(fileURLWithPath: #filePath)
+    static let goldenDir: URL = URL(fileURLWithPath: #filePath)
         .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-        .deletingLastPathComponent().appendingPathComponent("JAMbo.swiftpm/Resources")
-
-    static let goldenDir = resourcesDir.appendingPathComponent("golden")
+        .appendingPathComponent("Golden")
 }

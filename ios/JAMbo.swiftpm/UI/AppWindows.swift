@@ -3,7 +3,6 @@ import SwiftUI
 /// Окна раздела APP бутерброда (S9e): поверх экрана, название слева, ✕ справа в верхней строке.
 enum AppWindow: String, CaseIterable {
     case diagnostics = "DIAGNOSTICS"
-    case selfTest = "SELF-TEST"
 }
 
 struct AppWindowView: View {
@@ -30,7 +29,6 @@ struct AppWindowView: View {
     private var content: some View {
         switch window {
         case .diagnostics: DiagnosticsView(model: model)
-        case .selfTest: SelfTestPanel()
         }
     }
 }

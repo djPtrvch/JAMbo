@@ -1,7 +1,7 @@
 // Эталоны своих движков JAMbo (DRUM, ANALOG, FM, WTABLE) для Swift-версии: рендер public/jambo-synth-worklet.js в Node
 // так же, как браузер (блоки process() по 128 кадров, внутри — куски по 24; 48 кГц; дрейф ANALOG — свой генератор
 // узла с начального состояния). Голос слота 0, нота в кадре 0 (у случая с retrig — второй удар в кадре retrig).
-// Выход: ios/JAMbo.swiftpm/Resources/golden/j<движок>_s<набор>_n<нота>.i16 (1 с, Int16 = round(x·32767))
+// Выход: ios/CoreTests/Golden/j<движок>_s<набор>_n<нота>.i16 (1 с, Int16 = round(x·32767))
 // и jambo_cases.json; таблицы WTABLE (src/audio/wavetable.ts) — контрольные отсчёты в jambo_tables.json.
 // Запуск: node ios/tools/jambo/golden.mjs
 import fs from 'node:fs';
@@ -11,7 +11,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../../..');
-const outDir = path.join(root, 'ios/JAMbo.swiftpm/Resources/golden');
+const outDir = path.join(root, 'ios/CoreTests/Golden');
 const SR = 48000;
 const FRAMES = 48000;
 const ctx = {};

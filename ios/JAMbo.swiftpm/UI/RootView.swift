@@ -396,7 +396,7 @@ enum MenuPage {
     case song
 }
 
-/// Меню бутерброда (как веб): разделы PROJECT (PROJECTS) и APP (SETTINGS; DIAGNOSTICS, SELF-TEST — окна, скрыты: видны
+/// Меню бутерброда (как веб): разделы PROJECT (PROJECTS) и APP (SETTINGS; DIAGNOSTICS — окно, скрыто: видно
 /// только с зажатым SHIFT) — у каждого подзаголовок,
 /// между ними черта; CONTROLLERS — MIDI (S13a) и SYNC (S13e). Меню и подменю одного размера: по ширине — от левого края
 /// бутерброда до правого края поля SCALE, по высоте — до строки дорожек.
@@ -449,7 +449,7 @@ struct MainMenu: View {
             Divider().overlay(theme.line).padding(.vertical, 8)
             MenuHead(title: "APP")
             MenuItem(title: "SETTINGS") { page = .settings }
-            // DIAGNOSTICS и SELF-TEST скрыты (решение пользователя): видны, только пока держат SHIFT.
+            // DIAGNOSTICS скрыто (решение пользователя): видно, только пока держат SHIFT. SELF-TEST убран (эталоны — в CoreTests).
             if model.shiftHeld {
                 ForEach(AppWindow.allCases, id: \.self) { w in
                     MenuItem(title: w.rawValue) {
