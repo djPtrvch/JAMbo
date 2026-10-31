@@ -14,7 +14,6 @@ struct ModPreview: View {
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 60)) { tl in
-            let _ = RedrawMeter.hit(.modPreview)
             VStack(spacing: 4) {
                 ForEach(1..<5, id: \.self) { n in mini(n, tl.date) }
             }

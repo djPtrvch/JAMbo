@@ -32,7 +32,6 @@ struct SampleEditor: View {
     static let flagH: CGFloat = 18
 
     var body: some View {
-        let _ = RedrawMeter.hit(.editor)
         let key: String = model.editorKey
         let data: SampleData? = model.sample(key)
         let _ = model.samplesVersion
@@ -70,7 +69,6 @@ struct SampleEditor: View {
         } else if let d = data {
             ZStack(alignment: .topLeading) {
                 TimelineView(.animation(minimumInterval: 1.0 / 60, paused: model.headCount == 0)) { _ in
-                    let _ = RedrawMeter.hit(.wave)
                     if model.editorWarp { warpCanvas(key, d, size) } else { canvas(key, d, size) }
                 }
                 if let t = tip {

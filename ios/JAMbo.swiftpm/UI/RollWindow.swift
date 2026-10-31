@@ -9,7 +9,6 @@ struct RollWindow: View {
     @State private var port = RollPort()
 
     var body: some View {
-        let _ = RedrawMeter.hit(.roll)
         GeometryReader { geo in
             ZStack(alignment: .topLeading) {
                 VStack(spacing: Layout.barGap) {

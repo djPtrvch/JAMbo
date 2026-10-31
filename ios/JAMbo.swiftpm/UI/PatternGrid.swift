@@ -37,7 +37,6 @@ struct PatternGrid: View {
     static let doubleTap: Double = 0.3
 
     var body: some View {
-        let _ = RedrawMeter.hit(.patterns)
         GeometryReader { geo in
             let g = GridGeometry(size: geo.size, step: layout.step, tracks: model.project.tracks.count, rows: model.gridRowsShown)
             let w = model.gridWindow

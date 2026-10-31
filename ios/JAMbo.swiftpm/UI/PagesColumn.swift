@@ -19,7 +19,6 @@ struct PagesColumn: View {
     static let spacing: CGFloat = 4
 
     var body: some View {
-        let _ = RedrawMeter.hit(.pages)
         GeometryReader { geo in
             let rowH: CGFloat = (geo.size.height - PagesColumn.spacing * CGFloat(PagesColumn.rows - 1)) / CGFloat(PagesColumn.rows)
             ZStack(alignment: .topLeading) {
@@ -281,7 +280,6 @@ struct PageThumb: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        let _ = RedrawMeter.hit(.pageThumb)
         // Данные читаются здесь (в теле), а не в Canvas: так правки и ход игры перерисовывают миниатюру.
         let cells: [ThumbCell] = ThumbCell.page(model.seq, page: page)
         let played: Int = model.openPlayPos

@@ -12,7 +12,6 @@ struct MasterWindowView: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        let _ = RedrawMeter.hit(.masterWin)
         VStack(spacing: Layout.barGap) {
             MasterStrip(model: model, module: module, bounds: frame, input: { t in openInput(t) })
                 .frame(height: model.barH)

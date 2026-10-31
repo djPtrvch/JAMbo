@@ -305,7 +305,6 @@ struct ArrMeter: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        let _ = RedrawMeter.hit(.mixMeter)
         Canvas { ctx, sz in
             let h: CGFloat = MeterBars.span(bars.count)
             let gr: CGFloat = duckDb <= -0.1 ? CGFloat(-duckDb / 24) : 0
