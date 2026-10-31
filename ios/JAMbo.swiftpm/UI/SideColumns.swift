@@ -8,17 +8,7 @@ struct LeftColumn: View {
     var body: some View {
         let _ = RedrawMeter.hit(.left)
         VStack(spacing: Layout.gap) {
-            // Над окном (решение пользователя: строка кнопок — первая из 9 равных строк колонки, вровень со стрелками
-            // страниц справа; окно — 8 строк, вровень с миниатюрами; в аранжировщике строку закрывают его кнопки):
-            // у дорожки — стрелки папки, при MIX — ● MASTER; при MST строки нет — индикация мастера выше.
-            VStack(spacing: Layout.barGap) {
-                if model.channel == .track {
-                    FolderArrows(model: model).frame(height: model.barH)
-                } else if model.channel == .mix {
-                    MasterRecButton(model: model).frame(height: model.barH).midiTarget(model, "ARM MST")
-                }
-                SampleWindow(model: model)
-            }
+            LeftTop(model: model)
             if model.channel == .master {
                 // По цепочке (решение пользователя, в вебе CLIP, LIM / SAT, COMP): SAT снизу слева, над ним COMP,
                 // справа от него CLIP, под CLIP — LIM.
@@ -35,6 +25,45 @@ struct LeftColumn: View {
         }
         .onGeometryChange(for: CGRect.self) { g in g.frame(in: .named("root")) } action: { r in
             if model.leftFrame != r { model.leftFrame = r }
+        }
+    }
+}
+
+/// Верх левой колонки (решение пользователя: строка кнопок — первая из 9 равных строк колонки, вровень со стрелками
+/// страниц справа; окно — 8 строк, вровень с миниатюрами; в аранжировщике строку закрывают его кнопки): у дорожки —
+/// стрелки папки, при MIX — ● MASTER; при MST строки нет — индикация мастера выше.
+struct LeftTop: View {
+    let model: AppModel
+
+    var body: some View {
+        let bar: CGFloat = model.barH
+        let channel: Channel = model.channel
+        return VStack(spacing: Layout.barGap) {
+            if channel == .track {
+                FolderArrows(model: model).frame(height: bar)
+            } else if channel == .mix {
+                MasterRecButton(model: model).frame(height: bar).midiTarget(model, "ARM MST")
+            }
+            SampleWindow(model: model)
+        }
+    }
+}
+
+/// Верх правой колонки: строка стрелок страниц и 8 миниатюр; при MIX — пустая строка и пустое окно.
+struct RightTop: View {
+    let model: AppModel
+
+    var body: some View {
+        let bar: CGFloat = model.barH
+        let mix: Bool = model.channel == .mix
+        return VStack(spacing: Layout.barGap) {
+            if mix {
+                Color.clear.frame(height: bar)
+                MixPagesBlank()
+            } else {
+                PageArrows(model: model).frame(height: bar)
+                PagesColumn(model: model)
+            }
         }
     }
 }
@@ -75,7 +104,13 @@ struct PageArrows: View {
     private func arrow(_ title: String, _ action: AppModel.PageAction) -> some View {
         SideButton(title: title)
             .contentShape(Rectangle())
-            .onTapGesture { model.pageAction(action, page: min(model.viewPage, max(0, model.seq.pages.count - 1))) }
+            .onTapGesture { tap(action) }
+    }
+
+    private func tap(_ action: AppModel.PageAction) {
+        let last: Int = model.seq.pages.count - 1
+        let page: Int = model.viewPage < last ? model.viewPage : last
+        model.pageAction(action, page: page < 0 ? 0 : page)
     }
 }
 
@@ -117,15 +152,7 @@ struct RightColumn: View {
             }
         } else {
             VStack(spacing: Layout.gap) {
-                VStack(spacing: Layout.barGap) {
-                    if model.channel == .mix {
-                        Color.clear.frame(height: model.barH)
-                        MixPagesBlank()
-                    } else {
-                        PageArrows(model: model).frame(height: model.barH)
-                        PagesColumn(model: model)
-                    }
-                }
+                RightTop(model: model)
                 ButtonPair(left: PageButton(model: model, title: "MOD", page: .mod).midiTarget(model, "MOD"),
                            right: PageButton(model: model, title: "FX", page: .fx).midiTarget(model, "FX"))
                 ButtonPair(left: ShiftButton(model: model),
