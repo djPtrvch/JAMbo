@@ -300,19 +300,6 @@ final class MorphModesTests: XCTestCase {
         XCTAssertEqual(f.toNorm(p.tracks[2].params["filter"] ?? 0), 0.9, accuracy: 1e-6)
     }
 
-    func testShiftAllTracksAbsolute() throws {
-        var p = Project()
-        let f = try XCTUnwrap(Params.byId["filter"])
-        p.tracks[1].params["filter"] = f.fromNorm(0.2)
-        p.tracks[2].params["filter"] = f.fromNorm(0.9)
-        p.tracks[0].morphParam("filter")
-        p.tracks[0].params["filter"] = f.fromNorm(0.6)
-        p.morphShift(from: 0, id: "filter", norm: 0.6, absolute: true)
-        XCTAssertEqual(f.toNorm(p.tracks[1].params["filter"] ?? 0), 0.6, accuracy: 1e-6)
-        XCTAssertEqual(f.toNorm(p.tracks[2].params["filter"] ?? 0), 0.6, accuracy: 1e-6)
-        XCTAssertTrue(p.tracks[2].morphEdited)
-    }
-
     func testReturnGlide() throws {
         var p = Project()
         let f = try XCTUnwrap(Params.byId["filter"])

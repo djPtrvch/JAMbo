@@ -48,9 +48,6 @@ public struct AppSettings: Codable, Equatable, Sendable {
     /// По умолчанию — на все дорожки (решение пользователя).
     public var morphAll: Bool = true
     public var morphReturn: Int = 0
-    /// SETTINGS → MORPH → ALL TRACKS MODE (решение пользователя): ABSOLUTE (по умолчанию) — у всех дорожек ручка встаёт
-    /// на то же значение; RELATIVE — каждая сдвигается от своего значения на ту же долю хода.
-    public var morphRelative: Bool = false
     /// SETTINGS → MIX (S9, действуют с переходами S10): гамма и нота нового проекта при переходе; кроссфейдер
     /// (ON — темп по кроссфейдеру, OFF — темп старого паттерна).
     public var mixKey: Bool = true
@@ -109,7 +106,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
                                          rollSound, levelRelative, morphAll, morphReturn, mixKey, mixCrossfader,
                                          clearSampleLocks, pitchSemitones, midi, stepPaint, sync,
                                          arrangeCompact, fxPictures, backgroundAudio, arrangeRepeats, stretchBeat,
-                                         metronomeVol, arrangeScale, arrangeFollow, morphRelative }
+                                         metronomeVol, arrangeScale, arrangeFollow }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
@@ -140,7 +137,6 @@ public struct AppSettings: Codable, Equatable, Sendable {
         arrangeRepeats = (try? c.decode(Bool.self, forKey: .arrangeRepeats)) ?? true
         fxPictures = (try? c.decode(Bool.self, forKey: .fxPictures)) ?? true
         backgroundAudio = (try? c.decode(Bool.self, forKey: .backgroundAudio)) ?? true
-        morphRelative = (try? c.decode(Bool.self, forKey: .morphRelative)) ?? false
         arrangeScale = (try? c.decode(Bool.self, forKey: .arrangeScale)) ?? false
         arrangeFollow = (try? c.decode(Bool.self, forKey: .arrangeFollow)) ?? true
         let mv: Double = (try? c.decode(Double.self, forKey: .metronomeVol)) ?? 100

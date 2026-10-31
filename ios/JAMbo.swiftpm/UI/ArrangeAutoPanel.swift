@@ -278,7 +278,8 @@ struct ArrAutoDraw {
 /// Касания поля кривой: у точки (до 24 pt) — перетаскивание (одна запись UNDO) или двойной тап (удалить); по пустому
 /// тап — новая точка, сдвиг — прокрутка по времени; два пальца — масштаб по времени (точка между пальцами на месте) и
 /// прокрутка. Карандаш (решение пользователя) — палец рисует кривую: на пройденном участке точки заменяются нарисованными
-/// (по шагу, упрощённо), одна запись UNDO на жест; прокрутка и масштаб — при выключенном карандаше.
+/// (узлы — по сетке при SNAP TO GRID, иначе четверть шага; упрощённо), одна запись UNDO на жест; прокрутка и масштаб —
+/// при выключенном карандаше.
 final class ArrAutoTouches {
     enum Mode { case idle, tap, point, scroll, zoom, draw }
 
@@ -294,8 +295,10 @@ final class ArrAutoTouches {
     private var orig: [ArrAutoPoint] = []
     private var moved: Bool = false
     private var lastTap: (at: Date, point: CGPoint)? = nil
-    /// Рисование: значение на шаге (ключ — шаг) и последний шаг под пальцем.
+    /// Рисование: значение в узле (ключ — номер узла: шаг сетки при SNAP TO GRID, иначе четверть шага), последний
+    /// узел под пальцем, шаг узлов (в шагах транспорта).
     private var stroke: [Int: Double] = [:]
+    private var quantum: Double = 1
     private var lastKey: Int? = nil
 
     func handle(_ events: SpatialEventCollection, port: inout ArrPort, _ m: ArrMetrics, _ model: AppModel) {
@@ -344,6 +347,9 @@ final class ArrAutoTouches {
             mode = .draw
             stroke = [:]
             lastKey = nil
+            // Узлы карандаша — по сетке таймлайна при SNAP TO GRID, иначе четверть шага (как точки без привязки).
+            let a: Arrangement = model.project.arrange
+            quantum = a.snap ? Double(max(1, a.gridSteps)) : 0.25
             model.beginGesture()
             draw(p, m, model)
             return
@@ -351,10 +357,11 @@ final class ArrAutoTouches {
         if index >= 0 { mode = .point }
     }
 
-    /// Карандаш: значение под пальцем — на шаг (быстрый мазок — шаги между прошлым и этим по прямой); точки кривой на
-    /// участке мазка заменяются нарисованными (упрощёнными).
+    /// Карандаш: значение под пальцем — в ближайший узел (быстрый мазок — узлы между прошлым и этим по прямой); точки
+    /// кривой на участке мазка заменяются нарисованными (упрощёнными).
     private func draw(_ p: CGPoint, _ m: ArrMetrics, _ model: AppModel) {
-        let key: Int = max(0, Int(m.step(at: p.x).rounded()))
+        let q: Double = quantum
+        let key: Int = max(0, Int((m.step(at: p.x) / q).rounded()))
         let v: Double = ArrAutoGeo.value(p.y, m.size.height)
         if let k0 = lastKey, let v0 = stroke[k0], abs(key - k0) > 1 {
             let n: Int = abs(key - k0)
@@ -369,8 +376,10 @@ final class ArrAutoTouches {
         stroke[key] = v
         lastKey = key
         guard let lo = stroke.keys.min(), let hi = stroke.keys.max() else { return }
-        let drawn: [ArrAutoPoint] = stroke.keys.sorted().map { ArrAutoPoint(x: Double($0), y: stroke[$0] ?? 0) }
-        var pts: [ArrAutoPoint] = orig.filter { $0.x < Double(lo) || $0.x > Double(hi) }
+        let drawn: [ArrAutoPoint] = stroke.keys.sorted().map { ArrAutoPoint(x: Double($0) * q, y: stroke[$0] ?? 0) }
+        let x0: Double = Double(lo) * q
+        let x1: Double = Double(hi) * q
+        var pts: [ArrAutoPoint] = orig.filter { $0.x < x0 || $0.x > x1 }
         pts.append(contentsOf: ArrAutoLane.simplify(drawn, tol: 0.005))
         model.arrAutoSet(track: track, param, pts)
     }

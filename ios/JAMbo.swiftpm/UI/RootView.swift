@@ -283,8 +283,11 @@ struct RootView: View {
     @ViewBuilder
     private var arrangeMeter: some View {
         let f: CGRect = model.meterFrame
-        if model.arrangeView && !model.arrKnobs && f != .zero {
-            MeterColumn(model: model).frame(width: f.width, height: f.height).offset(x: f.minX, y: f.minY)
+        if model.arrangeView && f != .zero {
+            // С KNOBS измеритель — свой, в окне ручек; кнопки под ним остаются.
+            if !model.arrKnobs {
+                MeterColumn(model: model).frame(width: f.width, height: f.height).offset(x: f.minX, y: f.minY)
+            }
             if model.project.arrange.hideSteps {
                 ArrSideButtons(model: model, width: f.width)
                     .offset(x: f.minX, y: f.maxY + Layout.gap)

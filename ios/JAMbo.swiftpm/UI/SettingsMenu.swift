@@ -267,21 +267,14 @@ struct MixSettings: View {
     }
 }
 
-/// MORPH: ручки на все дорожки или на выбранную; на все — ABSOLUTE (то же значение) или RELATIVE (сдвиг от своего);
-/// возврат после выключения режима.
+/// MORPH: ручки на все дорожки или на выбранную; возврат после выключения режима.
 struct MorphSettings: View {
     let model: AppModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             ToggleRow(title: "ALL TRACKS", isOn: model.settings.morphAll) { model.setMorphAll($0) }
-            SettingsNote(text: "ON: in MORPH a knob changes its parameter on every track that has it. OFF: only the selected track.")
-            FieldLabel(title: "ALL TRACKS MODE")
-            HStack(spacing: 4) {
-                MenuItem(title: "ABSOLUTE", current: !model.settings.morphRelative) { model.updateSettings { $0.morphRelative = false } }
-                MenuItem(title: "RELATIVE", current: model.settings.morphRelative) { model.updateSettings { $0.morphRelative = true } }
-            }
-            SettingsNote(text: "ABSOLUTE: every track gets the same knob value. RELATIVE: each track moves by the same amount from its own value.")
+            SettingsNote(text: "ON: in MORPH a knob changes its parameter on every track that has it (each track moves by the same amount from its own value). OFF: only the selected track.")
             FieldLabel(title: "RETURN")
             HStack(spacing: 4) {
                 ForEach(0..<MorphReturn.names.count, id: \.self) { k in
