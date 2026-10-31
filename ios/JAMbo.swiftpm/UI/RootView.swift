@@ -277,21 +277,18 @@ struct RootView: View {
         }
     }
 
-    /// Аранжировщик: измеритель с регулятором — на месте измерителя окна дорожки (решение пользователя: вниз не
-    /// тянется); под ним — кнопки EXPANDED и COMPACT (при FIX) и карандаш (рисование кривой в AUTO), измеритель
-    /// короче на их высоту.
+    /// Аранжировщик: измеритель с регулятором — на месте и размера измерителя окна дорожки (решение пользователя: вниз
+    /// не тянется); под ним, в колонке справа от дорожек, — кнопки EXPANDED и COMPACT (при FIX) и под ними карандаш
+    /// (только с AUTO). Место под измерителем свободно, пока STEPS выключена (с STEPS там строка дорожек).
     @ViewBuilder
     private var arrangeMeter: some View {
         let f: CGRect = model.meterFrame
         if model.arrangeView && !model.arrKnobs && f != .zero {
-            let n: CGFloat = model.settings.arrangeScale ? 1 : 3
-            let side: CGFloat = f.width
-            let below: CGFloat = n * (side + Layout.gap)
-            VStack(spacing: Layout.gap) {
-                MeterColumn(model: model).frame(width: f.width, height: max(40, f.height - below))
-                ArrSideButtons(model: model, side: side)
+            MeterColumn(model: model).frame(width: f.width, height: f.height).offset(x: f.minX, y: f.minY)
+            if model.project.arrange.hideSteps {
+                ArrSideButtons(model: model, width: f.width)
+                    .offset(x: f.minX, y: f.maxY + Layout.gap)
             }
-            .offset(x: f.minX, y: f.minY)
         }
     }
 

@@ -153,6 +153,8 @@ extension AppModel {
     /// AUTO и STEPS переключают друг друга (решение пользователя): AUTO включили — STEPS выключается.
     func toggleArrAuto() {
         arrAuto.toggle()
+        // Карандаш есть только с AUTO.
+        if !arrAuto { arrDraw = false }
         if arrAuto && !project.arrange.hideSteps { edit { p in p.arrange.hideSteps = true } }
         syncArrRecord()
     }

@@ -165,6 +165,7 @@ extension AppModel {
         edit { p in p.arrange.hideSteps.toggle() }
         if !project.arrange.hideSteps && arrAuto {
             arrAuto = false
+            arrDraw = false
             syncArrRecord()
         }
     }

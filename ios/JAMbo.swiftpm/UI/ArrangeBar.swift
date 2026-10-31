@@ -169,30 +169,34 @@ struct ArrWaveIcon: View {
 }
 
 
-/// Кнопки под измерителем аранжировщика (решения пользователя), квадратные шириной с измеритель: при FIX (SETTINGS →
-/// ARRANGE) — EXPANDED (8 строк на окно) и COMPACT (все дорожки на окно); ниже — карандаш: рисование кривой в окне AUTO
-/// (неактивен, пока AUTO выключена).
+/// Кнопки под измерителем аранжировщика (решения пользователя), шириной с измеритель и чуть выше ширины: при FIX
+/// (SETTINGS → ARRANGE) — EXPANDED (8 строк на окно) и COMPACT (все дорожки на окно); под ними карандаш — рисование
+/// кривой в окне AUTO (есть, только пока AUTO включена).
 struct ArrSideButtons: View {
+    static let height: CGFloat = 44
     let model: AppModel
-    let side: CGFloat
+    let width: CGFloat
 
     var body: some View {
         let compact: Bool = model.settings.arrangeCompact
+        let h: CGFloat = ArrSideButtons.height
         return VStack(spacing: Layout.gap) {
             if !model.settings.arrangeScale {
                 ArrBarButton(on: !compact, enabled: true, action: { model.setArrCompact(false) }) { c in
                     Image(systemName: "rectangle.expand.vertical").font(.system(size: 14, weight: .semibold)).foregroundStyle(c)
                 }
-                .frame(width: side, height: side)
+                .frame(width: width, height: h)
                 ArrBarButton(on: compact, enabled: true, action: { model.setArrCompact(true) }) { c in
                     Image(systemName: "rectangle.compress.vertical").font(.system(size: 14, weight: .semibold)).foregroundStyle(c)
                 }
-                .frame(width: side, height: side)
+                .frame(width: width, height: h)
             }
-            ArrBarButton(on: model.arrDraw, enabled: model.arrAuto, action: { model.arrDraw.toggle() }) { c in
-                Image(systemName: "pencil").font(.system(size: 15, weight: .semibold)).foregroundStyle(c)
+            if model.arrAuto {
+                ArrBarButton(on: model.arrDraw, enabled: true, action: { model.arrDraw.toggle() }) { c in
+                    Image(systemName: "pencil").font(.system(size: 15, weight: .semibold)).foregroundStyle(c)
+                }
+                .frame(width: width, height: h)
             }
-            .frame(width: side, height: side)
         }
     }
 }
