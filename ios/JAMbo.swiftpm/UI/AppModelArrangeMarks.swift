@@ -38,15 +38,6 @@ extension AppModel {
         arrMenu = .marker(index: k, anchor: anchor)
     }
 
-    /// SPLIT в меню линейки: блоки выбранной дорожки режутся по краям диапазона под пальцем.
-    func arrSplitAt(anchor: CGPoint) {
-        let r = arrRangeAt(anchor)
-        guard channel == .track else { return }
-        let t: Int = selectedTrack
-        edit { p in p.splitArrange(track: t, r.from, r.to) }
-        arrSel = nil
-    }
-
     /// Край секции k за пальцем (левый — начало, правый — конец; с магнитом; внутри жеста — одна запись UNDO).
     func arrMarkerEdge(_ k: Int, left: Bool, to x: Int) {
         let list: [ArrMarker] = project.arrange.markers
@@ -77,24 +68,29 @@ extension AppModel {
         edit { p in p.deleteMarker(k) }
     }
 
-    /// SPLIT: блоки выбранной дорожки разрезаются по краям выделенного диапазона.
-    func arrSplitRange() {
-        let a: Arrangement = project.arrange
-        guard a.hasLoop, channel == .track else { return }
-        let t: Int = selectedTrack
-        edit { p in p.splitArrange(track: t, a.loopFrom, a.loopTo) }
-        arrSel = nil
-    }
-
-    /// TRIM (ножницы, решение пользователя): блок под курсором разрезается на две части — у выбранного блока (его
-    /// дорожка), иначе у выбранной дорожки.
+    /// TRIM (ножницы, решения пользователя): блок под курсором разрезается на две части — у выделенных рамкой блоков
+    /// (все, которые курсор пересекает; одна запись UNDO), иначе у выбранного блока (его дорожка), иначе у выбранной
+    /// дорожки.
     func arrTrim() {
-        let t: Int = arrSel?.track ?? (channel == .track ? selectedTrack : -1)
-        guard t >= 0 && t < project.tracks.count else { return }
         let x: Int = arrNow
-        guard project.tracks[t].blocks.contains(where: { $0.start < x && $0.end > x }) else { return }
-        edit { p in p.tracks[t].splitArrange(at: x) }
+        var tracks: [Int] = []
+        if arrGroup.count >= 2 {
+            for s in arrGroup where !tracks.contains(s.track) {
+                guard let b = arrBlock(s), b.start < x && b.end > x else { continue }
+                tracks.append(s.track)
+            }
+        } else {
+            let t: Int = arrSel?.track ?? (channel == .track ? selectedTrack : -1)
+            if t >= 0 && t < project.tracks.count && project.tracks[t].blocks.contains(where: { $0.start < x && $0.end > x }) {
+                tracks.append(t)
+            }
+        }
+        if tracks.isEmpty { return }
+        edit { p in
+            for t in tracks { p.tracks[t].splitArrange(at: x) }
+        }
         arrSel = nil
+        arrGroup = []
     }
 
     // MARK: — петля
@@ -154,8 +150,10 @@ extension AppModel {
     /// Играет таймлайн: клипы и строки в сетке не запускаются (сетка и аранжировщик разделены).
     var timelineLock: Bool { return playing && arrPlay }
 
+    /// AUTO и STEPS переключают друг друга (решение пользователя): AUTO включили — STEPS выключается.
     func toggleArrAuto() {
         arrAuto.toggle()
+        if arrAuto && !project.arrange.hideSteps { edit { p in p.arrange.hideSteps = true } }
         syncArrRecord()
     }
 

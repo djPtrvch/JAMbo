@@ -4,10 +4,10 @@ import SwiftUI
 /// рамкой), двойной тап — меню блока или места; удержание блока 0,35 с — блок поднимается и едет за пальцем, при
 /// отпускании встаёт на место (с магнитом — на линию сетки; блок группы — переезжает вся группа); удержание по пустому
 /// — рамка выделения (блоки на разных дорожках); край блока — длина сразу; сдвиг по пустому (или по блоку до удержания)
-/// — прокрутка по одной оси (по времени или, в EXPANDED, по дорожкам — по первому сдвигу). Линейка и строка маркеров —
+/// — прокрутка по одной оси (по времени или по дорожкам — по первому сдвигу). Линейка и строка маркеров —
 /// ArrRulerTouches (S15d). INSERT: тап по дорожке — клип для вставки, правый край вставленного блока — длина со
-/// сдвигом. Два пальца — масштаб по времени (точка между пальцами на месте) и прокрутка; по вертикали масштаба нет
-/// (решение пользователя).
+/// сдвигом. Два пальца — масштаб по времени (точка между пальцами на месте) и прокрутка; по вертикали — высота строк,
+/// только при SCALE (SETTINGS → ARRANGE).
 final class ArrTouches {
     enum Mode { case idle, tap, press, lift, edge, scroll, ruler, zoom, marquee, ref }
 
@@ -38,6 +38,8 @@ final class ArrTouches {
     /// Прокрутка одним пальцем — по одной оси: по первому сдвигу (решение пользователя: вверх-вниз по дорожкам время
     /// не сдвигается, вбок — дорожки не едут).
     private var scrollAxis: Axis = .horizontal
+    /// Ось масштаба двумя пальцами (nil — ещё не ясна).
+    private var zoomAxis: Axis? = nil
     static let slop: CGFloat = 8
     static let zoomSlop: CGFloat = 10
     static let hold: Double = 0.35
@@ -57,7 +59,7 @@ final class ArrTouches {
         if points.isEmpty { return }
         let p: [CGPoint] = Array(points.values)
         if p.count >= 2 && mode != .zoom && mode != .lift && mode != .edge && mode != .ref {
-            beginZoom(p[0], p[1], m)
+            beginZoom(p[0], p[1], m, model)
         } else if p.count == 1 && mode == .idle {
             begin(p[0], m, model, lift: lift)
         }
@@ -67,12 +69,13 @@ final class ArrTouches {
 
     private func begin(_ p: CGPoint, _ m: ArrMetrics, _ model: AppModel, lift: Binding<ArrLift?>) {
         start = p
-        base = ArrPort(stepW: m.stepW, x: m.x, y: m.y)
+        base = ArrPort(stepW: m.stepW, x: m.x, y: m.y, rowH: model.arrPort.rowH)
         hitBlock = nil
         serial += 1
         if p.y < ArrMetrics.top {
             mode = .ruler
             ruler.begin(p, m, model)
+            rulerScroll(model, m.size, serial)
             return
         }
         // Строка REF: палец вбок — сдвиг начала файла (одна запись UNDO на жест).
@@ -163,6 +166,31 @@ final class ArrTouches {
         }
     }
 
+    /// Выделение на линейке (и края, плейхед) у края окна (40 pt) — таймлайн прокручивается по времени, выделение
+    /// тянется за ним (решение пользователя).
+    private func rulerScroll(_ model: AppModel, _ size: CGSize, _ mine: Int) {
+        Task { @MainActor [weak self] in
+            while true {
+                try? await Task.sleep(nanoseconds: 33_000_000)
+                guard let me = self, me.serial == mine, me.mode == .ruler else { return }
+                if !me.ruler.dragging { continue }
+                let pt: CGPoint = me.lastPoint
+                var dx: CGFloat = 0
+                if pt.x < 40 { dx = -14 } else if pt.x > size.width - 40 { dx = 14 }
+                if dx == 0 { continue }
+                var port: ArrPort = model.arrPort
+                port.x = max(0, port.x + dx)
+                let p: Project = model.project
+                let m = ArrMetrics(size: size, port: port, tracks: p.tracks.count, end: p.arrangeEnd,
+                                   expanded: model.settings.arrangeExpanded, inset: model.arrInset, ref: model.arrRefShown)
+                port.x = m.x
+                if port == model.arrPort { continue }
+                model.arrPort = port
+                me.ruler.move(pt, &port, m, model)
+            }
+        }
+    }
+
     /// Рамка до пальца: выделены блоки, которых она касается (начало — на своём месте таймлайна при прокрутке).
     private func marquee(_ p: CGPoint, _ m: ArrMetrics, _ model: AppModel) {
         let a = CGPoint(x: marqueeAnchor.x - m.x, y: marqueeAnchor.y - m.y)
@@ -211,7 +239,7 @@ final class ArrTouches {
         case .scroll:
             scroll(p[0], &port, k: 1)
         case .zoom:
-            if p.count >= 2 { zoom(p[0], p[1], &port, m) }
+            if p.count >= 2 { zoom(p[0], p[1], &port, m, model) }
         case .lift:
             drag(p[0], m, model, lift: lift)
         case .marquee:
@@ -343,27 +371,49 @@ final class ArrTouches {
         }
     }
 
-    private func beginZoom(_ a: CGPoint, _ b: CGPoint, _ m: ArrMetrics) {
+    private func beginZoom(_ a: CGPoint, _ b: CGPoint, _ m: ArrMetrics, _ model: AppModel) {
         mode = .zoom
         zooming = false
+        zoomAxis = nil
         spread0 = CGSize(width: abs(a.x - b.x), height: abs(a.y - b.y))
         mid = CGPoint(x: (a.x + b.x) / 2, y: (a.y + b.y) / 2)
-        base = ArrPort(stepW: m.stepW, x: m.x, y: m.y)
+        base = ArrPort(stepW: m.stepW, x: m.x, y: m.y, rowH: m.rowH)
     }
 
     /// Два пальца (решения пользователя): разошлись или сошлись по горизонтали — масштаб по времени (точка между
-    /// пальцами на месте); сдвинулись вместе вбок — прокрутка по времени.
-    private func zoom(_ a: CGPoint, _ b: CGPoint, _ port: inout ArrPort, _ m: ArrMetrics) {
+    /// пальцами на месте); при SCALE (SETTINGS → ARRANGE) по вертикали — высота строк (строка между пальцами на месте);
+    /// сдвинулись вместе вбок — прокрутка по времени. Ось — какая разошлась первой.
+    private func zoom(_ a: CGPoint, _ b: CGPoint, _ port: inout ArrPort, _ m: ArrMetrics, _ model: AppModel) {
         let sx: CGFloat = abs(a.x - b.x)
+        let sy: CGFloat = abs(a.y - b.y)
         let cx: CGFloat = (a.x + b.x) / 2
-        port.y = base.y
         if !zooming {
-            if abs(sx - spread0.width) < ArrTouches.zoomSlop {
+            port.y = base.y
+            let dx: CGFloat = abs(sx - spread0.width)
+            let dy: CGFloat = abs(sy - spread0.height)
+            if max(dx, dy) < ArrTouches.zoomSlop {
                 port.x = base.x - (cx - mid.x)
                 return
             }
             zooming = true
+            zoomAxis = dy > dx && model.settings.arrangeScale ? .vertical : .horizontal
         }
+        if zoomAxis == .vertical {
+            let h0: CGFloat = base.rowH ?? m.rowH
+            let k: CGFloat = sy / max(20, spread0.height)
+            let area: CGFloat = m.size.height - ArrMetrics.top
+            let h: CGFloat = ArrMetrics.clampRow(h0 * k, area: area)
+            // Точка между пальцами — на той же строке: прокрутка пересчитывается от верха дорожек.
+            let top: CGFloat = m.body
+            let pitch0: CGFloat = h0 + ArrMetrics.gap
+            let pitch1: CGFloat = h + ArrMetrics.gap
+            let cy: CGFloat = (a.y + b.y) / 2
+            port.rowH = h
+            port.y = max(0, (base.y + mid.y - top) / pitch0 * pitch1 - (cy - top))
+            port.x = base.x
+            return
+        }
+        port.y = base.y
         let w0: CGFloat = base.stepW ?? m.stepW
         let k: CGFloat = sx / max(20, spread0.width)
         let w: CGFloat = ArrMetrics.clampStep(w0 * k, width: m.size.width)

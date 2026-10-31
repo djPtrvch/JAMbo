@@ -117,7 +117,7 @@ struct ArrHeaderRow: View {
                 }
                 let dy: CGFloat = g.translation.height
                 if !scrolled && abs(dy) >= 8 { scrolled = true }
-                if scrolled && model.settings.arrangeExpanded { model.arrPort.y = max(0, baseY - dy) }
+                if scrolled && model.arrRowsScroll { model.arrPort.y = max(0, baseY - dy) }
             }
             .onEnded { _ in
                 touching = false
@@ -258,7 +258,7 @@ struct ArrVolume: View {
                 touch = t
                 if t.axis == .horizontal {
                     model.setMeterVol(channel, t.vol + Double(dx / max(1, w)) * -Params.volMin)
-                } else if t.axis == .vertical && model.settings.arrangeExpanded {
+                } else if t.axis == .vertical && model.arrRowsScroll {
                     model.arrPort.y = max(0, t.y - dy)
                 }
             }

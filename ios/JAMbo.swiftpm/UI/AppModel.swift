@@ -106,6 +106,8 @@ final class AppModel {
     var arrRecArm: Bool = false
     /// Игра по таймлайну (PLAY в окне аранжировщика): сетка и аранжировщик разделены — клипы в сетке не запускаются.
     var arrPlay: Bool = false
+    /// Карандаш под измерителем аранжировщика (решение пользователя): рисование кривой в окне AUTO пальцем.
+    var arrDraw: Bool = false
     /// Ручка, кривая которой открыта в окне AUTO (id параметра).
     var arrAutoId: String = ""
     /// Запись ручек в аранжировку (S15f3): кусок на ручку (ключ — дорожка·ArrAutoTarget.count + цель), кривые под рукой,
@@ -404,6 +406,7 @@ final class AppModel {
         if autosaveDue > 0 && Date.timeIntervalSinceReferenceDate >= autosaveDue { autosave() }
         if morphGlide != nil { stepMorphGlide() }
         if mix != nil { updateMix() }
+        if arrangeView && playing { arrFollowPlayhead() }
         drainVoices()
         drainStems()
         tickMeters()

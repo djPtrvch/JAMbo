@@ -165,13 +165,20 @@ struct ArrMetrics {
         // Решения пользователя: строки дорожек — через чёрный зазор (как зазоры между окнами). EXPANDED — 8 строк и 7
         // зазоров на высоту окна (одна высота строки на весь экран: низ — 3 строки и 2 зазора, RootView; STEPS и AUTO
         // только перекрывают дорожки, прокрутка — до последней), больше 8 дорожек — прокрутка; COMPACT — все дорожки
-        // на видимую высоту окна. Масштаба по вертикали нет.
-        rowH = expanded ? max(20, (area - 7 * g) / 8) : max(16, fitRow)
+        // на видимую высоту окна. SCALE (SETTINGS → ARRANGE) — свой масштаб строк двумя пальцами по вертикали.
+        let modeRow: CGFloat = expanded ? max(20, (area - 7 * g) / 8) : max(16, fitRow)
+        // SCALE: своя высота строк (масштаб двумя пальцами по вертикали) — от 16 pt до высоты окна.
+        rowH = port.rowH.map { ArrMetrics.clampRow($0, area: area) } ?? modeRow
         steps = max(end, 0) + 32 * ArrMetrics.stepsPerBar
         let maxX: CGFloat = max(0, CGFloat(steps) * stepW - w)
         x = min(maxX, max(0, port.x))
         let maxY: CGFloat = max(0, n * (rowH + g) - g - (seen - r * (rowH + g)))
         y = min(maxY, max(0, port.y))
+    }
+
+    /// Масштаб строк (SCALE): от 16 pt до высоты окна под линейкой.
+    static func clampRow(_ h: CGFloat, area: CGFloat) -> CGFloat {
+        return min(max(16, area), max(16, h))
     }
 
     /// Масштаб по времени: от 64 до 4 тактов на ширину окна.
@@ -310,7 +317,7 @@ struct ArrTimeline: View {
         touches.handle(events, port: &port, m, model, lift: $lift)
         let c = ArrMetrics(size: size, port: port, tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded,
                            inset: model.arrInset, ref: model.arrRefShown)
-        let next = ArrPort(stepW: port.stepW == nil ? nil : c.stepW, x: c.x, y: c.y)
+        let next = ArrPort(stepW: port.stepW == nil ? nil : c.stepW, x: c.x, y: c.y, rowH: port.rowH == nil ? nil : c.rowH)
         if next != model.arrPort { model.arrPort = next }
     }
 }
@@ -392,7 +399,10 @@ struct ArrDraw {
             let shape = Path(roundedRect: r, cornerRadius: 4)
             ctx.fill(shape, with: .color(color.opacity(dim ? 0.35 : 1)))
             let s = ArrSel(track: t, block: i)
-            if sel == s || group.contains(s) { ctx.stroke(shape, with: .color(theme.text), lineWidth: 1) }
+            // Рамка выбранного блока — 2 pt (решение пользователя: чуть жирнее), внутри блока.
+            if sel == s || group.contains(s) {
+                ctx.stroke(Path(roundedRect: r.insetBy(dx: 1, dy: 1), cornerRadius: 3), with: .color(theme.text), lineWidth: 2)
+            }
             pattern(tr, b, r)
         }
     }

@@ -42,6 +42,9 @@ struct ArrMenus: View {
             ArrRefMenu(model: model).offset(CGSize(width: ArrMetrics.headerW, height: ArrMetrics.top))
         case .drop(let a):
             ArrDropMenu(model: model).offset(place(a, w: ArrDropMenu.width, h: ArrDropMenu.height))
+        case .grid:
+            // Под кнопкой сетки — у левого края окна.
+            ArrGridMenu(model: model)
         case .ruler(let a):
             ArrRulerMenu(model: model, anchor: a).offset(place(a, w: ArrRulerMenu.width, h: ArrRulerMenu.height(model, a)))
         }
@@ -333,17 +336,38 @@ struct ArrDropMenu: View {
     }
 }
 
-/// Меню линейки (двойной тап, решение пользователя): на секции — RENAME (окно секции), SPLIT, DELETE SECTION; вне
-/// секции — ADD SECTION (секция на выделенном диапазоне под пальцем, иначе на такте) и SPLIT (блоки выбранной дорожки
-/// режутся по краям того же диапазона).
+/// Меню кнопки сетки (решение пользователя; из SETTINGS → ARRANGE): шаг сетки (1 BAR, 1/2, 1/4, 1 STEP) и ниже рычажок
+/// SNAP TO GRID (привязка к линиям сетки, прежний магнит). У проекта, с UNDO; меню не закрывается.
+struct ArrGridMenu: View {
+    static let width: CGFloat = Layout.leftColumn + 40
+    let model: AppModel
+
+    var body: some View {
+        let a: Arrangement = model.project.arrange
+        return VStack(alignment: .leading, spacing: 6) {
+            FieldLabel(title: "GRID")
+            HStack(spacing: 4) {
+                ForEach(0..<ArrGrid.names.count, id: \.self) { k in
+                    MenuItem(title: ArrGrid.names[k], current: a.grid == k) { model.setArrGrid(k) }
+                }
+            }
+            ToggleRow(title: "SNAP TO GRID", isOn: a.snap) { v in if v != a.snap { model.toggleArrSnap() } }
+        }
+        .frame(width: ArrGridMenu.width)
+        .modifier(MenuPanel())
+    }
+}
+
+/// Меню линейки (двойной тап, решение пользователя): на секции — RENAME (окно секции), DELETE SECTION; вне секции —
+/// ADD SECTION (секция на выделенном диапазоне под пальцем, иначе на такте). SPLIT убран (решение пользователя).
 struct ArrRulerMenu: View {
     static let width: CGFloat = 180
     let model: AppModel
     let anchor: CGPoint
 
-    /// 3 или 2 строки по 40, зазоры 6, поля 16.
+    /// 2 строки или 1 по 40, зазоры 6, поля 16.
     static func height(_ model: AppModel, _ a: CGPoint) -> CGFloat {
-        return model.arrSectionAt(anchor: a) != nil ? 148 : 102
+        return model.arrSectionAt(anchor: a) != nil ? 102 : 56
     }
 
     var body: some View {
@@ -353,10 +377,6 @@ struct ArrRulerMenu: View {
                 MenuItem(title: "RENAME") { model.arrMenu = .marker(index: s, anchor: anchor) }
             } else {
                 MenuItem(title: "ADD SECTION") { model.arrSectionHere(anchor: anchor) }
-            }
-            MenuItem(title: "SPLIT") {
-                model.arrMenu = nil
-                model.arrSplitAt(anchor: anchor)
             }
             if let s = k {
                 MenuItem(title: "DELETE SECTION", red: true) {

@@ -67,10 +67,17 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var stepPaint: Bool = false
     /// Бутерброд → SYNC (S13e): квант, MIDI-клок, настройки Ableton Link.
     public var sync = SyncSettings()
-    /// SETTINGS → ARRANGE (S15, решение пользователя): EXPANDED (по умолчанию) — строки выше, дорожки прокручиваются;
-    /// COMPACT — все дорожки на высоту окна.
+    /// Режим строк при SCALE (кнопки EXPANDED / COMPACT под измерителем аранжировщика): EXPANDED (по умолчанию) — 8
+    /// строк на окно, дорожки прокручиваются; COMPACT — все дорожки на высоту окна.
     public var arrangeCompact: Bool = false
-    public var arrangeExpanded: Bool { return !arrangeCompact }
+    /// SETTINGS → ARRANGE → TRACKS (решение пользователя): FIX (по умолчанию) — строки в одном масштабе с экраном
+    /// (EXPANDED), масштаба по вертикали нет; SCALE — строки масштабируются двумя пальцами по вертикали, под измерителем
+    /// кнопки EXPANDED и COMPACT.
+    public var arrangeScale: Bool = false
+    /// Действующий режим строк: при FIX — всегда EXPANDED.
+    public var arrangeExpanded: Bool { return !arrangeScale || !arrangeCompact }
+    /// SETTINGS → ARRANGE → FOLLOW PLAYHEAD (решение пользователя): при игре окно едет за плейхедом.
+    public var arrangeFollow: Bool = true
     /// SETTINGS → ARRANGE → ROW REPEATS (решение пользователя): в аранжировку клип строки ложится на длину × повторы
     /// строки (×4 у клипа в такт — блок в 4 такта); выключено — один проход. По умолчанию — да.
     public var arrangeRepeats: Bool = true
@@ -99,7 +106,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
                                          rollSound, levelRelative, morphAll, morphReturn, mixKey, mixCrossfader,
                                          clearSampleLocks, pitchSemitones, midi, stepPaint, sync,
                                          arrangeCompact, fxPictures, backgroundAudio, arrangeRepeats, stretchBeat,
-                                         metronomeVol }
+                                         metronomeVol, arrangeScale, arrangeFollow }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
@@ -130,6 +137,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
         arrangeRepeats = (try? c.decode(Bool.self, forKey: .arrangeRepeats)) ?? true
         fxPictures = (try? c.decode(Bool.self, forKey: .fxPictures)) ?? true
         backgroundAudio = (try? c.decode(Bool.self, forKey: .backgroundAudio)) ?? true
+        arrangeScale = (try? c.decode(Bool.self, forKey: .arrangeScale)) ?? false
+        arrangeFollow = (try? c.decode(Bool.self, forKey: .arrangeFollow)) ?? true
         let mv: Double = (try? c.decode(Double.self, forKey: .metronomeVol)) ?? 100
         metronomeVol = Swift.min(200, Swift.max(0, mv))
     }

@@ -133,3 +133,25 @@ extension Track {
         setAuto(id, pts)
     }
 }
+
+extension Track {
+    /// Удалили блок (решение пользователя): точки всех кривых дорожки на его месте [a, b) убираются. Кривая вне места
+    /// не меняется: есть точки слева — на краю a встаёт точка с прежним значением кривой, справа — на краю b (между
+    /// ними — прямая); с одной стороны точек нет — кривая там кончается.
+    public mutating func clearAuto(from a: Double, to b: Double) {
+        if b <= a { return }
+        for k in autos.indices {
+            let pts: [ArrAutoPoint] = autos[k].points
+            if !pts.contains(where: { $0.x >= a && $0.x < b }) { continue }
+            let va: Double? = ArrAutoLane.value(pts, at: a)
+            let vb: Double? = ArrAutoLane.value(pts, at: b)
+            var out: [ArrAutoPoint] = pts.filter { $0.x < a || $0.x >= b }
+            let left: Bool = out.contains { $0.x < a }
+            let right: Bool = out.contains { $0.x >= b }
+            if left, let v = va { out.append(ArrAutoPoint(x: a, y: v)) }
+            if right, let v = vb, !out.contains(where: { $0.x == b }) { out.append(ArrAutoPoint(x: b, y: v)) }
+            out.sort { $0.x < $1.x }
+            autos[k].points = out
+        }
+    }
+}

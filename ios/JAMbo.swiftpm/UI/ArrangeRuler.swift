@@ -25,6 +25,15 @@ final class ArrRulerTouches {
 
     static let edgeZone: CGFloat = 12
 
+    /// Палец тянет выделение, край выделения или секции, плейхед: у края окна таймлайн прокручивается (ArrTouches).
+    var dragging: Bool {
+        switch mode {
+        case .select: return true
+        case .edge, .markerEdge, .playhead: return edgeDragging
+        default: return false
+        }
+    }
+
     func begin(_ p: CGPoint, _ m: ArrMetrics, _ model: AppModel) {
         start = p
         if p.y >= ArrMetrics.rulerH {

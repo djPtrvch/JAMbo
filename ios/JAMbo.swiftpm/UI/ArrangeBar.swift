@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Строка кнопок аранжировщика (решения пользователя): высотой со строку стрелок над превью и миниатюрами
-/// (AppModel.barH) — и закрывает её. Слева, по ширине превью, — магнит, TRIM (ножницы), курсор в начало
+/// (AppModel.barH) — и закрывает её. Слева, по ширине превью, — сетка (меню GRID и SNAP TO GRID), TRIM (ножницы), курсор в начало
 /// (стрелка к черте), LOOP; справа, по ширине колонки миниатюр, — AUTO (синусоида с точками), KNOBS (окно ручек),
 /// STEPS (значок секвенсора), REF. Шаг сетки — в SETTINGS → ARRANGE.
 struct ArrangeBar: View {
@@ -12,7 +12,10 @@ struct ArrangeBar: View {
         let a: Arrangement = model.project.arrange
         return HStack(spacing: Layout.gap) {
             HStack(spacing: Layout.gap) {
-                ArrBarButton(on: a.snap, enabled: true, action: { model.toggleArrSnap() }) { c in ArrMagnetIcon(color: c) }
+                // Сетка (решение пользователя, на месте магнита): тап — меню шага сетки и SNAP TO GRID.
+                ArrBarButton(on: model.arrMenu == .grid, enabled: true, action: { model.arrMenu = .grid }) { c in
+                    Image(systemName: "squareshape.split.3x3").font(.system(size: 18, weight: .semibold)).foregroundStyle(c)
+                }
                 ArrBarButton(on: false, enabled: true, action: { model.arrTrim() }) { c in
                     Image(systemName: "scissors").font(.system(size: 18, weight: .semibold)).foregroundStyle(c)
                 }
@@ -137,33 +140,6 @@ struct ArrReturnAll: View {
     }
 }
 
-/// Значок магнита: подкова (дуга и две ножки) с полюсами-накладками на концах, наклонена, как 🧲.
-struct ArrMagnetIcon: View {
-    let color: Color
-
-    var body: some View {
-        Canvas { ctx, size in
-            let c = CGPoint(x: size.width / 2, y: size.height / 2 + 3)
-            let r: CGFloat = 6.5
-            let leg: CGFloat = 5
-            var body = Path()
-            body.move(to: CGPoint(x: c.x - r, y: c.y - leg))
-            body.addLine(to: CGPoint(x: c.x - r, y: c.y))
-            body.addArc(center: c, radius: r, startAngle: .degrees(180), endAngle: .degrees(0), clockwise: true)
-            body.addLine(to: CGPoint(x: c.x + r, y: c.y - leg))
-            ctx.stroke(body, with: .color(color), style: StrokeStyle(lineWidth: 5, lineCap: .butt))
-            let tipH: CGFloat = 4
-            let tipY: CGFloat = c.y - leg - tipH - 1.5
-            let left = CGRect(x: c.x - r - 2.5, y: tipY, width: 5, height: tipH)
-            let right = CGRect(x: c.x + r - 2.5, y: tipY, width: 5, height: tipH)
-            ctx.fill(Path(roundedRect: left, cornerRadius: 1), with: .color(color))
-            ctx.fill(Path(roundedRect: right, cornerRadius: 1), with: .color(color))
-        }
-        .frame(width: 28, height: 28)
-        .rotationEffect(.degrees(-45))
-    }
-}
-
 /// Значок AUTO: синусоида с точками.
 struct ArrWaveIcon: View {
     let color: Color
@@ -192,3 +168,31 @@ struct ArrWaveIcon: View {
     }
 }
 
+
+/// Кнопки под измерителем аранжировщика (решения пользователя), квадратные шириной с измеритель: при SCALE (SETTINGS →
+/// ARRANGE) — EXPANDED (8 строк на окно) и COMPACT (все дорожки на окно); ниже — карандаш: рисование кривой в окне AUTO
+/// (неактивен, пока AUTO выключена).
+struct ArrSideButtons: View {
+    let model: AppModel
+    let side: CGFloat
+
+    var body: some View {
+        let compact: Bool = model.settings.arrangeCompact
+        return VStack(spacing: Layout.gap) {
+            if model.settings.arrangeScale {
+                ArrBarButton(on: !compact, enabled: true, action: { model.setArrCompact(false) }) { c in
+                    Image(systemName: "rectangle.expand.vertical").font(.system(size: 14, weight: .semibold)).foregroundStyle(c)
+                }
+                .frame(width: side, height: side)
+                ArrBarButton(on: compact, enabled: true, action: { model.setArrCompact(true) }) { c in
+                    Image(systemName: "rectangle.compress.vertical").font(.system(size: 14, weight: .semibold)).foregroundStyle(c)
+                }
+                .frame(width: side, height: side)
+            }
+            ArrBarButton(on: model.arrDraw, enabled: model.arrAuto, action: { model.arrDraw.toggle() }) { c in
+                Image(systemName: "pencil").font(.system(size: 15, weight: .semibold)).foregroundStyle(c)
+            }
+            .frame(width: side, height: side)
+        }
+    }
+}

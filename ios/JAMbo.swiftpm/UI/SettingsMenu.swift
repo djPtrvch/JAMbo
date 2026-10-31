@@ -53,28 +53,23 @@ struct SettingsPage: View {
     }
 }
 
-/// ARRANGE (S15): вид дорожек аранжировщика — EXPANDED (по умолчанию: 8 дорожек на высоту окна, больше — прокрутка) или
-/// COMPACT (все на высоту окна); GRID — шаг сетки таймлайна (1 BAR, 1/2, 1/4, 1 STEP); ROW REPEATS — клипы строки в
-/// аранжировку на длину × повторы строки.
+/// ARRANGE (S15): TRACKS — FIX (по умолчанию: 8 дорожек на высоту окна, больше — прокрутка) или SCALE (масштаб строк
+/// двумя пальцами по вертикали, кнопки EXPANDED / COMPACT под измерителем); FOLLOW PLAYHEAD; ROW REPEATS — клипы строки
+/// в аранжировку на длину × повторы строки. Шаг сетки — в меню кнопки сетки аранжировщика.
 struct ArrangeSettings: View {
     let model: AppModel
 
     var body: some View {
-        let on: Bool = model.settings.arrangeExpanded
+        let scale: Bool = model.settings.arrangeScale
         return VStack(alignment: .leading, spacing: 8) {
             FieldLabel(title: "TRACKS")
             HStack(spacing: 4) {
-                MenuItem(title: "EXPANDED", current: on) { model.updateSettings { $0.arrangeCompact = false } }
-                MenuItem(title: "COMPACT", current: !on) { model.updateSettings { $0.arrangeCompact = true } }
+                MenuItem(title: "FIX", current: !scale) { model.setArrScale(false) }
+                MenuItem(title: "SCALE", current: scale) { model.setArrScale(true) }
             }
-            SettingsNote(text: "EXPANDED: 8 tracks fill the arranger window, more tracks scroll. COMPACT: all tracks fit the arranger window.")
-            // Шаг сетки таймлайна (решение пользователя: из строки аранжировщика — сюда); у проекта, с UNDO.
-            FieldLabel(title: "GRID")
-            HStack(spacing: 4) {
-                ForEach(0..<ArrGrid.names.count, id: \.self) { k in
-                    MenuItem(title: ArrGrid.names[k], current: model.project.arrange.grid == k) { model.setArrGrid(k) }
-                }
-            }
+            SettingsNote(text: "FIX: 8 tracks fill the arranger window, more tracks scroll. SCALE: pinch vertically with two fingers to resize the tracks; EXPANDED and COMPACT (all tracks fit the window) — buttons under the level meter.")
+            ToggleRow(title: "FOLLOW PLAYHEAD", isOn: model.settings.arrangeFollow) { v in model.updateSettings { $0.arrangeFollow = v } }
+            SettingsNote(text: "ON: while playing, the arranger scrolls to keep the playhead in view.")
             ToggleRow(title: "ROW REPEATS", isOn: model.settings.arrangeRepeats) { v in model.updateSettings { $0.arrangeRepeats = v } }
             SettingsNote(text: "ON: clips go to the arrangement as long as the row repeats (×4 on a 1-bar clip — a 4-bar block). OFF: one pass.")
         }

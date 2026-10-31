@@ -200,7 +200,7 @@ struct ArrAutoCurve: View {
         var port: ArrPort = model.arrPort
         touches.handle(events, port: &port, m, model)
         let c = ArrMetrics(size: size, port: port, tracks: p.tracks.count, end: p.arrangeEnd, expanded: expanded, ref: model.arrRefShown)
-        let next = ArrPort(stepW: port.stepW == nil ? nil : c.stepW, x: c.x, y: port.y)
+        let next = ArrPort(stepW: port.stepW == nil ? nil : c.stepW, x: c.x, y: port.y, rowH: port.rowH)
         if next != model.arrPort { model.arrPort = next }
     }
 }
@@ -276,9 +276,10 @@ struct ArrAutoDraw {
 
 /// Касания поля кривой: у точки (до 24 pt) — перетаскивание (одна запись UNDO) или двойной тап (удалить); по пустому
 /// тап — новая точка, сдвиг — прокрутка по времени; два пальца — масштаб по времени (точка между пальцами на месте) и
-/// прокрутка.
+/// прокрутка. Карандаш (решение пользователя) — палец рисует кривую: на пройденном участке точки заменяются нарисованными
+/// (по шагу, упрощённо), одна запись UNDO на жест; прокрутка и масштаб — при выключенном карандаше.
 final class ArrAutoTouches {
-    enum Mode { case idle, tap, point, scroll, zoom }
+    enum Mode { case idle, tap, point, scroll, zoom, draw }
 
     private var points: [SpatialEventCollection.Event.ID: CGPoint] = [:]
     private var mode: Mode = .idle
@@ -292,6 +293,9 @@ final class ArrAutoTouches {
     private var orig: [ArrAutoPoint] = []
     private var moved: Bool = false
     private var lastTap: (at: Date, point: CGPoint)? = nil
+    /// Рисование: значение на шаге (ключ — шаг) и последний шаг под пальцем.
+    private var stroke: [Int: Double] = [:]
+    private var lastKey: Int? = nil
 
     func handle(_ events: SpatialEventCollection, port: inout ArrPort, _ m: ArrMetrics, _ model: AppModel) {
         for e in events {
@@ -305,7 +309,7 @@ final class ArrAutoTouches {
         }
         if points.isEmpty { return }
         let p: [CGPoint] = Array(points.values)
-        if p.count >= 2 && mode != .zoom && mode != .point {
+        if p.count >= 2 && mode != .zoom && mode != .point && mode != .draw {
             beginZoom(p[0], p[1], m)
         } else if p.count == 1 && mode == .idle {
             begin(p[0], m, model)
@@ -315,7 +319,7 @@ final class ArrAutoTouches {
 
     private func begin(_ p: CGPoint, _ m: ArrMetrics, _ model: AppModel) {
         start = p
-        base = ArrPort(stepW: m.stepW, x: m.x, y: model.arrPort.y)
+        base = ArrPort(stepW: m.stepW, x: m.x, y: model.arrPort.y, rowH: model.arrPort.rowH)
         moved = false
         index = -1
         mode = .tap
@@ -335,7 +339,39 @@ final class ArrAutoTouches {
                 index = i
             }
         }
+        if model.arrDraw {
+            mode = .draw
+            stroke = [:]
+            lastKey = nil
+            model.beginGesture()
+            draw(p, m, model)
+            return
+        }
         if index >= 0 { mode = .point }
+    }
+
+    /// Карандаш: значение под пальцем — на шаг (быстрый мазок — шаги между прошлым и этим по прямой); точки кривой на
+    /// участке мазка заменяются нарисованными (упрощёнными).
+    private func draw(_ p: CGPoint, _ m: ArrMetrics, _ model: AppModel) {
+        let key: Int = max(0, Int(m.step(at: p.x).rounded()))
+        let v: Double = ArrAutoGeo.value(p.y, m.size.height)
+        if let k0 = lastKey, let v0 = stroke[k0], abs(key - k0) > 1 {
+            let n: Int = abs(key - k0)
+            let dir: Int = key > k0 ? 1 : -1
+            var i: Int = 1
+            while i < n {
+                let f: Double = Double(i) / Double(n)
+                stroke[k0 + i * dir] = v0 + (v - v0) * f
+                i += 1
+            }
+        }
+        stroke[key] = v
+        lastKey = key
+        guard let lo = stroke.keys.min(), let hi = stroke.keys.max() else { return }
+        let drawn: [ArrAutoPoint] = stroke.keys.sorted().map { ArrAutoPoint(x: Double($0), y: stroke[$0] ?? 0) }
+        var pts: [ArrAutoPoint] = orig.filter { $0.x < Double(lo) || $0.x > Double(hi) }
+        pts.append(contentsOf: ArrAutoLane.simplify(drawn, tol: 0.005))
+        model.arrAutoSet(track: track, param, pts)
     }
 
     private func move(_ p: [CGPoint], _ port: inout ArrPort, _ m: ArrMetrics, _ model: AppModel) {
@@ -354,6 +390,8 @@ final class ArrAutoTouches {
             if moved { drag(p[0], m, model) }
         case .zoom:
             if p.count >= 2 { zoom(p[0], p[1], &port, m) }
+        case .draw:
+            draw(p[0], m, model)
         case .idle:
             break
         }
@@ -373,6 +411,12 @@ final class ArrAutoTouches {
     private func finish(_ model: AppModel, _ m: ArrMetrics, ended: Bool) {
         let was: Mode = mode
         mode = .idle
+        if was == .draw {
+            model.endGesture()
+            stroke = [:]
+            lastKey = nil
+            return
+        }
         if track < 0 || !ended {
             if was == .point && moved { model.endGesture() }
             return
@@ -419,7 +463,7 @@ final class ArrAutoTouches {
         mode = .zoom
         spread0 = max(20, abs(a.x - b.x))
         mid = (a.x + b.x) / 2
-        base = ArrPort(stepW: m.stepW, x: m.x, y: base.y)
+        base = ArrPort(stepW: m.stepW, x: m.x, y: base.y, rowH: base.rowH)
     }
 
     private func zoom(_ a: CGPoint, _ b: CGPoint, _ port: inout ArrPort, _ m: ArrMetrics) {

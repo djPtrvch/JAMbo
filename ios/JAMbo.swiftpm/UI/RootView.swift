@@ -277,13 +277,21 @@ struct RootView: View {
         }
     }
 
-    /// Аранжировщик: измеритель с регулятором — на месте и размера измерителя окна дорожки (решение пользователя: вниз
-    /// не тянется).
+    /// Аранжировщик: измеритель с регулятором — на месте измерителя окна дорожки (решение пользователя: вниз не
+    /// тянется); под ним — кнопки EXPANDED и COMPACT (при SCALE) и карандаш (рисование кривой в AUTO), измеритель
+    /// короче на их высоту.
     @ViewBuilder
     private var arrangeMeter: some View {
         let f: CGRect = model.meterFrame
         if model.arrangeView && !model.arrKnobs && f != .zero {
-            MeterColumn(model: model).frame(width: f.width, height: f.height).offset(x: f.minX, y: f.minY)
+            let n: CGFloat = model.settings.arrangeScale ? 3 : 1
+            let side: CGFloat = f.width
+            let below: CGFloat = n * (side + Layout.gap)
+            VStack(spacing: Layout.gap) {
+                MeterColumn(model: model).frame(width: f.width, height: max(40, f.height - below))
+                ArrSideButtons(model: model, side: side)
+            }
+            .offset(x: f.minX, y: f.minY)
         }
     }
 

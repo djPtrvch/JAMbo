@@ -20,16 +20,20 @@ enum ArrMenuState: Equatable {
     case ref
     /// Выделение из сетки положили поверх блоков (AppModelCarry): HERE, INSERT, TO END.
     case drop(anchor: CGPoint)
+    /// Кнопка сетки (решение пользователя): шаг сетки и SNAP TO GRID.
+    case grid
     /// Двойной тап по линейке: на секции — RENAME, SPLIT, DELETE SECTION; вне — ADD SECTION, SPLIT.
     case ruler(anchor: CGPoint)
 }
 
-/// Вид таймлайна: ширина шага (nil — 16 тактов на ширину), прокрутка по X и по Y (pt). Высота строки — по режиму
-/// (ArrMetrics). Не хранится в проекте и не входит в UNDO.
+/// Вид таймлайна: ширина шага (nil — 16 тактов на ширину), прокрутка по X и по Y (pt), высота строки (nil — по режиму
+/// EXPANDED / COMPACT; своя — только при SCALE, масштаб двумя пальцами по вертикали). Не хранится в проекте и не входит
+/// в UNDO.
 struct ArrPort: Equatable {
     var stepW: CGFloat? = nil
     var x: CGFloat = 0
     var y: CGFloat = 0
+    var rowH: CGFloat? = nil
 }
 
 /// Палитра дорожек и маркеров (20 цветов, одна в обеих темах; текст на них — #111111) — номер в ArrPalette. В выборе
@@ -117,6 +121,36 @@ extension AppModel {
         edit { p in p.arrange.grid = max(0, min(k, ArrGrid.steps.count - 1)) }
     }
 
+    /// SETTINGS → ARRANGE → TRACKS: FIX или SCALE; свой масштаб строк сбрасывается.
+    func setArrScale(_ on: Bool) {
+        updateSettings { $0.arrangeScale = on }
+        arrPort.rowH = nil
+    }
+
+    /// Дорожки прокручиваются по вертикали: EXPANDED или свой масштаб строк (SCALE).
+    var arrRowsScroll: Bool { return settings.arrangeExpanded || arrPort.rowH != nil }
+
+    /// Кнопки EXPANDED / COMPACT под измерителем (при SCALE): режим строк, свой масштаб строк сбрасывается.
+    func setArrCompact(_ on: Bool) {
+        updateSettings { $0.arrangeCompact = on }
+        arrPort.rowH = nil
+        arrPort.y = 0
+    }
+
+    /// FOLLOW PLAYHEAD (решение пользователя): при игре плейхед ушёл за правый край окна (или левее левого) — окно
+    /// перелистывается: плейхед — у левого края (десятая часть ширины). Зовётся из таймера модели (60 Гц).
+    func arrFollowPlayhead() {
+        guard arrangeView && playing && settings.arrangeFollow, clipCarry == nil else { return }
+        let w: CGFloat = arrTimelineFrame.width
+        if w <= 0 { return }
+        let step: CGFloat = ArrMetrics.clampStep(arrPort.stepW ?? w / 256, width: w)
+        let x: CGFloat = CGFloat(arrNowX) * step - arrPort.x
+        if x >= 0 && x <= w - 24 { return }
+        var port: ArrPort = arrPort
+        port.x = max(0, CGFloat(arrNowX) * step - w * 0.1)
+        if port != arrPort { arrPort = port }
+    }
+
     func toggleArrSnap() {
         edit { p in p.arrange.snap.toggle() }
     }
@@ -126,8 +160,13 @@ extension AppModel {
         edit { p in p.arrange.loop.toggle() }
     }
 
+    /// STEPS включили — AUTO выключается (решение пользователя: кнопки переключают друг друга).
     func toggleArrSteps() {
         edit { p in p.arrange.hideSteps.toggle() }
+        if !project.arrange.hideSteps && arrAuto {
+            arrAuto = false
+            syncArrRecord()
+        }
     }
 
     /// Сколько снизу окна аранжировщика закрыто (STEPS или AUTO — три нижние дорожки): дорожки прокручиваются из-под низа.
@@ -225,20 +264,28 @@ extension AppModel {
         setGroup(out)
     }
 
+    /// DELETE группы: блоки убираются (правые не смыкаются — решение пользователя), с ними — автоматизация их дорожек
+    /// на их месте.
     func arrDeleteGroup() {
         let g = arrGroupList
-        let closing: Bool = project.arrange.snap
-        edit { p in p.deleteBlocks(g, closing: closing) }
+        var spans: [(track: Int, from: Int, to: Int)] = []
+        for s in arrGroup {
+            if let b = arrBlock(s) { spans.append((s.track, b.start, b.end)) }
+        }
+        edit { p in
+            p.deleteBlocks(g)
+            for r in spans where r.track < p.tracks.count { p.tracks[r.track].clearAuto(from: Double(r.from), to: Double(r.to)) }
+        }
         arrGroup = []
         arrSel = nil
     }
 
+    /// DELETE блока: правые не смыкаются (решение пользователя), автоматизация дорожки на месте блока — тоже убирается.
     func arrDeleteBlock(_ s: ArrSel) {
-        guard arrBlock(s) != nil else { return }
-        // С магнитом — блоки правее смыкаются (решение пользователя).
-        let closing: Bool = project.arrange.snap
+        guard let b = arrBlock(s) else { return }
         edit { p in
-            if closing { p.tracks[s.track].deleteBlockClosing(s.block) } else { p.tracks[s.track].deleteBlock(s.block) }
+            p.tracks[s.track].deleteBlock(s.block)
+            p.tracks[s.track].clearAuto(from: Double(b.start), to: Double(b.end))
         }
         arrSel = nil
     }
