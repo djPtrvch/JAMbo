@@ -84,11 +84,13 @@ struct ArrABSwitch: View {
     }
 
     private func letter(_ s: String, _ on: Bool) -> some View {
-        Text(s)
+        let fg: Color = on ? theme.bg : theme.dim
+        let bg: Color = on ? theme.text : Color.clear
+        return Text(s)
             .font(.system(size: 12, weight: .heavy))
-            .foregroundStyle(on ? theme.bg : theme.dim)
+            .foregroundStyle(fg)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(on ? theme.text : Color.clear, in: RoundedRectangle(cornerRadius: 5))
+            .background(bg, in: RoundedRectangle(cornerRadius: 5))
     }
 }
 
@@ -163,18 +165,24 @@ struct ArrMetrics {
         let n: CGFloat = CGFloat(max(1, tracks))
         let g: CGFloat = ArrMetrics.gap
         let r: CGFloat = ref ? 1 : 0
-        let fitRow: CGFloat = (seen - (n + r - 1) * g) / (n + r)
+        let rows: CGFloat = n + r
+        let gaps: CGFloat = (rows - 1.0) * g
+        let fitRow: CGFloat = (seen - gaps) / rows
         // Решения пользователя: строки дорожек — через чёрный зазор (как зазоры между окнами). EXPANDED — 8 строк и 7
         // зазоров на высоту окна (одна высота строки на весь экран: низ — 3 строки и 2 зазора, RootView; STEPS и AUTO
         // только перекрывают дорожки, прокрутка — до последней), больше 8 дорожек — прокрутка; COMPACT — все дорожки
         // на видимую высоту окна. SCALE (SETTINGS → ARRANGE) — свой масштаб строк двумя пальцами по вертикали.
-        let modeRow: CGFloat = expanded ? max(20, (area - 7 * g) / 8) : max(16, fitRow)
+        let eightRow: CGFloat = (area - 7.0 * g) / 8.0
+        let modeRow: CGFloat = expanded ? max(20.0, eightRow) : max(16.0, fitRow)
         // SCALE: своя высота строк (масштаб двумя пальцами по вертикали) — от 16 pt до высоты окна.
         rowH = port.rowH.map { ArrMetrics.clampRow($0, area: area) } ?? modeRow
         steps = max(end, 0) + 32 * ArrMetrics.stepsPerBar
         let maxX: CGFloat = max(0, CGFloat(steps) * stepW - w)
         x = min(maxX, max(0, port.x))
-        let maxY: CGFloat = max(0, n * (rowH + g) - g - (seen - r * (rowH + g)))
+        let pitch: CGFloat = rowH + g
+        let content: CGFloat = n * pitch - g
+        let view: CGFloat = seen - r * pitch
+        let maxY: CGFloat = max(0.0, content - view)
         y = min(maxY, max(0, port.y))
     }
 
@@ -319,7 +327,9 @@ struct ArrTimeline: View {
         touches.handle(events, port: &port, m, model, lift: $lift)
         let c = ArrMetrics(size: size, port: port, tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded,
                            inset: model.arrInset, ref: model.arrRefShown)
-        let next = ArrPort(stepW: port.stepW == nil ? nil : c.stepW, x: c.x, y: c.y, rowH: port.rowH == nil ? nil : c.rowH)
+        let sw: CGFloat? = port.stepW == nil ? nil : c.stepW
+        let rh: CGFloat? = port.rowH == nil ? nil : c.rowH
+        let next = ArrPort(stepW: sw, x: c.x, y: c.y, rowH: rh)
         if next != model.arrPort { model.arrPort = next }
     }
 }
@@ -409,7 +419,8 @@ struct ArrDraw {
             let r: CGRect = m.rect(t, b)
             if r.maxX < 0 || r.minX > m.size.width { continue }
             let shape = Path(roundedRect: r, cornerRadius: 4)
-            ctx.fill(shape, with: .color(color.opacity(dim ? 0.35 : 1)))
+            let op: Double = dim ? 0.35 : 1.0
+            ctx.fill(shape, with: .color(color.opacity(op)))
             let s = ArrSel(track: t, block: i)
             // Рамка выбранного блока — 2 pt (решение пользователя: чуть жирнее), внутри блока.
             if sel == s || group.contains(s) {
@@ -427,7 +438,9 @@ struct ArrDraw {
         let first: Int = max(b.start, Int(m.step(at: 0)) - 16)
         let last: Int = min(b.end, Int(m.step(at: m.size.width)) + 1)
         if last <= first { return }
-        let side: CGFloat = max(2, min(m.stepW * 0.7, r.height * 0.4))
+        let a: CGFloat = m.stepW * 0.7
+        let b: CGFloat = r.height * 0.4
+        let side: CGFloat = max(2.0, min(a, b))
         let y: CGFloat = r.midY - side / 2
         let len: Int = c.playLen
         var path = Path()
@@ -524,7 +537,8 @@ struct ArrDraw {
             let x0: CGFloat = m.stepX(Double(a.loopFrom))
             let x1: CGFloat = m.stepX(Double(a.loopTo))
             let r = CGRect(x: x0, y: 0, width: max(2, x1 - x0), height: ArrMetrics.rulerH)
-            ctx.fill(Path(r), with: .color(theme.accent.opacity(a.loop ? 0.75 : 0.35)))
+            let op: Double = a.loop ? 0.75 : 0.35
+            ctx.fill(Path(r), with: .color(theme.accent.opacity(op)))
         }
         let loopOn: Bool = p.arrange.loop && p.arrange.hasLoop
         let every: Int = m.barLabelEvery

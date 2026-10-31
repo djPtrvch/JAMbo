@@ -75,8 +75,10 @@ struct ArrAutoList: View {
     }
 
     private func row(_ t: Int, _ id: String, selected: Bool) -> some View {
-        Text(model.arrAutoLabel(t, id))
-            .font(.system(size: 12, weight: selected ? .heavy : .semibold))
+        let weight: Font.Weight = selected ? .heavy : .semibold
+        let ring: Color = selected ? theme.accent : Color.clear
+        return Text(model.arrAutoLabel(t, id))
+            .font(.system(size: 12, weight: weight))
             .lineLimit(1)
             .foregroundStyle(theme.text)
             .padding(.horizontal, 10)
@@ -84,7 +86,7 @@ struct ArrAutoList: View {
             .frame(height: ArrAutoList.rowH)
             // Цветом поля кривой (решение пользователя).
             .background(theme.panel, in: RoundedRectangle(cornerRadius: 6))
-            .overlay(RoundedRectangle(cornerRadius: 6).stroke(selected ? theme.accent : Color.clear, lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: 6).stroke(ring, lineWidth: 1))
             .contentShape(Rectangle())
             .onTapGesture { tapped(id) }
     }
@@ -178,7 +180,8 @@ struct ArrAutoCurve: View {
     /// Слева сверху: дорожка и ручка (при MIX и MST — подсказка).
     private func title(_ p: Project, _ t: Int, _ param: ParamDef?) -> some View {
         let name: String = t >= 0 && t < p.tracks.count ? p.tracks[t].name : ""
-        let s: String = t < 0 ? "SELECT A TRACK" : name + " · " + (param.map { model.arrAutoLabel(t, $0.id) } ?? "TAP + TO ADD")
+        let knob: String = param.map { model.arrAutoLabel(t, $0.id) } ?? "TAP + TO ADD"
+        let s: String = t < 0 ? "SELECT A TRACK" : name + " · " + knob
         return Text(s)
             .font(.system(size: 11, weight: .semibold))
             .foregroundStyle(theme.dim)
@@ -200,7 +203,8 @@ struct ArrAutoCurve: View {
         var port: ArrPort = model.arrPort
         touches.handle(events, port: &port, m, model)
         let c = ArrMetrics(size: size, port: port, tracks: p.tracks.count, end: p.arrangeEnd, expanded: expanded, ref: model.arrRefShown)
-        let next = ArrPort(stepW: port.stepW == nil ? nil : c.stepW, x: c.x, y: port.y, rowH: port.rowH)
+        let sw: CGFloat? = port.stepW == nil ? nil : c.stepW
+        let next = ArrPort(stepW: sw, x: c.x, y: port.y, rowH: port.rowH)
         if next != model.arrPort { model.arrPort = next }
     }
 }
@@ -211,12 +215,16 @@ enum ArrAutoGeo {
     static let bottom: CGFloat = 10
 
     static func y(_ v: Double, _ h: CGFloat) -> CGFloat {
-        return top + CGFloat(1 - v) * max(1, h - top - bottom)
+        let span: CGFloat = max(1.0, h - top - bottom)
+        let k: CGFloat = CGFloat(1.0 - v)
+        return top + k * span
     }
 
     static func value(_ y: CGFloat, _ h: CGFloat) -> Double {
-        let n: CGFloat = 1 - (y - top) / max(1, h - top - bottom)
-        return Double(min(1, max(0, n)))
+        let span: CGFloat = max(1.0, h - top - bottom)
+        let n: CGFloat = 1.0 - (y - top) / span
+        let c: CGFloat = min(1.0, max(0.0, n))
+        return Double(c)
     }
 }
 
@@ -233,8 +241,9 @@ struct ArrAutoDraw {
         if a.hasLoop {
             let x0: CGFloat = m.stepX(Double(a.loopFrom))
             let x1: CGFloat = m.stepX(Double(a.loopTo))
-            ctx.fill(Path(CGRect(x: x0, y: 0, width: max(2, x1 - x0), height: h)),
-                     with: .color(theme.accent.opacity(a.loop ? 0.08 : 0.04)))
+            let loopOp: Double = a.loop ? 0.08 : 0.04
+            let lw: CGFloat = max(2.0, x1 - x0)
+            ctx.fill(Path(CGRect(x: x0, y: 0, width: lw, height: h)), with: .color(theme.accent.opacity(loopOp)))
         }
         let first: Int = max(0, Int(m.step(at: 0)))
         let last: Int = Int(m.step(at: m.size.width)) + 1

@@ -95,7 +95,8 @@ final class ArrTouches {
         let blocks: [ArrBlock] = model.project.tracks[t].blocks
         for (i, b) in blocks.enumerated() {
             let r: CGRect = m.rect(t, b)
-            let ew: CGFloat = min(14, max(6, r.width / 4))
+            let quarter: CGFloat = r.width / 4.0
+            let ew: CGFloat = min(14.0, max(6.0, quarter))
             let inX: Bool = p.x >= r.minX - 6 && p.x <= r.maxX + 6
             let inY: Bool = p.y >= r.minY && p.y <= r.maxY
             if inX && inY {
@@ -409,7 +410,8 @@ final class ArrTouches {
             let pitch1: CGFloat = h + ArrMetrics.gap
             let cy: CGFloat = (a.y + b.y) / 2
             port.rowH = h
-            port.y = max(0, (base.y + mid.y - top) / pitch0 * pitch1 - (cy - top))
+            let rows: CGFloat = (base.y + mid.y - top) / pitch0
+            port.y = max(0.0, rows * pitch1 - (cy - top))
             port.x = base.x
             return
         }

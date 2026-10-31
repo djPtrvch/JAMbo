@@ -69,12 +69,14 @@ struct ArrMenus: View {
         let ax: CGFloat = a.x + ArrMetrics.headerW + Layout.gap
         let left: CGFloat = ax - w / 2
         let right: CGFloat = size.width - w
-        let x: CGFloat = max(0, min(left, right))
+        let x: CGFloat = max(0.0, min(left, right))
         let below: CGFloat = a.y + 12
         let above: CGFloat = max(0, a.y - 12 - h)
         let fits: Bool = below + h <= free
         // Палец над окном STEPS или AUTO и сверху не помещается — вплотную к нему сверху.
-        let y: CGFloat = fits ? below : max(0, min(above, free - h))
+        let room: CGFloat = free - h
+        let up: CGFloat = max(0.0, min(above, room))
+        let y: CGFloat = fits ? below : up
         return CGSize(width: x, height: y)
     }
 
@@ -83,7 +85,8 @@ struct ArrMenus: View {
         let m = ArrMetrics(size: size, port: model.arrPort, tracks: model.project.tracks.count, end: 0, expanded: model.settings.arrangeExpanded,
                            inset: model.arrInset, ref: model.arrRefShown)
         let h: CGFloat = ArrTrackMenu.height
-        let y: CGFloat = max(0, min(m.rowY(t), free - h))
+        let room: CGFloat = free - h
+        let y: CGFloat = max(0.0, min(m.rowY(t), room))
         // От начала таймлайна (решение пользователя).
         return CGSize(width: ArrMetrics.headerW, height: y)
     }
@@ -215,7 +218,7 @@ struct ArrPaletteGrid: View {
                 // Квадратики (решение пользователя).
                 swatch(k)
                     .aspectRatio(1, contentMode: .fit)
-                    .overlay(RoundedRectangle(cornerRadius: 4).stroke(k == current ? theme.text : Color.clear, lineWidth: 2))
+                    .overlay(RoundedRectangle(cornerRadius: 4).stroke(ring(k), lineWidth: 2))
                     .contentShape(Rectangle())
                     .onTapGesture { pick(k) }
             }
@@ -223,6 +226,11 @@ struct ArrPaletteGrid: View {
     }
 
     @ViewBuilder
+    /// Рамка выбранного цвета.
+    private func ring(_ k: Int) -> Color {
+        return k == current ? theme.text : Color.clear
+    }
+
     private func swatch(_ k: Int) -> some View {
         if none && k == ArrPalette.defaultColor {
             RoundedRectangle(cornerRadius: 4)
