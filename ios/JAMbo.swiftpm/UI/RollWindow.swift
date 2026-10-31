@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// Пианоролл (S8): на месте центра, размером с сетку паттернов. Слева клавиши — ноты гаммы (шириной с колонку строк
-/// сетки паттернов), в середине сетка с нотами открытого клипа выбранной дорожки (выбранные страницы подряд),
-/// справа (над MST) — бутерброд (GRID, звук ноты при нажатии) и под ним VEL, как LOOP ROW у сетки паттернов.
+/// Пианоролл (S8): на месте центра. Сверху строка кнопок (высотой barH, как стрелки над миниатюрами): справа GRID
+/// (тап — меню шага сетки), VEL и динамик (звук ноты при нажатии). Под ней сетка во всю ширину (решение пользователя):
+/// столбцы по умолчанию — ровно над шагами секвенсора, имена нот — подписью у левого края строк поверх сетки.
 struct RollWindow: View {
     let model: AppModel
     let layout: Layout
@@ -11,12 +11,10 @@ struct RollWindow: View {
     var body: some View {
         let _ = RedrawMeter.hit(.roll)
         GeometryReader { geo in
-            let h: CGFloat = (geo.size.height - 7 * PatternGrid.rowGap) / 8
             ZStack(alignment: .topLeading) {
-                HStack(spacing: Layout.gap) {
-                    RollKeys(model: model, port: $port).frame(width: layout.step)
+                VStack(spacing: Layout.barGap) {
+                    RollBar(model: model).frame(height: model.barH)
                     RollGrid(model: model, port: $port)
-                    RollSide(model: model, buttonH: h).frame(width: layout.step)
                 }
                 if model.rollMenuOpen {
                     menu(geo.size)
@@ -30,22 +28,23 @@ struct RollWindow: View {
         }
     }
 
-    /// Меню бутерброда — у правого края сетки, шириной в три шага; тап мимо — закрыть.
+    /// Меню GRID — под строкой кнопок, правым краем по правому краю окна, шириной в три шага; тап мимо — закрыть.
     @ViewBuilder
     private func menu(_ size: CGSize) -> some View {
         let w: CGFloat = min(size.width, 3 * layout.step + 2 * Layout.gap)
+        let top: CGFloat = model.barH + Layout.barGap
         Color.black.opacity(0.001)
             .frame(width: size.width, height: size.height)
             .onTapGesture { model.rollMenuOpen = false }
         RollMenu(model: model)
             .frame(width: w)
-            .frame(maxHeight: size.height, alignment: .top)
-            .offset(x: size.width - layout.step - Layout.gap - w, y: 0)
+            .fixedSize(horizontal: false, vertical: true)
+            .offset(x: size.width - w, y: top)
     }
 }
 
 /// Вид пианоролла: ширина шага и высота строки (масштаб), прокрутка (S8c). nil — по умолчанию: все выбранные страницы
-/// на ширину поля, снизу видна октава C2 гаммы.
+/// на ширину поля (одна страница — столбцы ровно над шагами секвенсора), снизу видна октава C2 гаммы.
 struct RollPort {
     var colW: CGFloat? = nil
     var rowH: CGFloat = 40
@@ -67,7 +66,7 @@ struct RollMetrics {
         self.size = size
         self.rows = rows
         self.cols = cols
-        let cw: CGFloat = port.colW ?? size.width / CGFloat(max(16, cols))
+        let cw: CGFloat = port.colW ?? RollMetrics.fitW(size.width, cols)
         colW = max(4, cw)
         rowH = port.rowH
         let maxX: CGFloat = max(0, CGFloat(cols) * colW - size.width)
@@ -83,6 +82,13 @@ struct RollMetrics {
             let bottom: CGFloat = CGFloat(rows.count - r) * rowH
             y = min(maxY, max(0, bottom - size.height))
         }
+    }
+
+    /// Ширина столбца, при которой видны все шаги прохода (не меньше 16): шаг секвенсора с его зазором справа —
+    /// столбцы стоят ровно над шагами (поле во всю ширину секвенсора, у последнего шага зазора нет).
+    static func fitW(_ width: CGFloat, _ cols: Int) -> CGFloat {
+        let n: CGFloat = CGFloat(max(16, cols))
+        return (width + Layout.stepGap) / n
     }
 
     /// Верх строки r (r — индекс в rows, снизу вверх).

@@ -1,57 +1,7 @@
 import SwiftUI
 
-/// Клавиши пианоролла: ноты гаммы с подписями, корневая выделена, диезы чуть другим тоном; палец — прокрутка
-/// вверх-вниз.
-struct RollKeys: View {
-    let model: AppModel
-    @Binding var port: RollPort
-    @State private var startY: CGFloat? = nil
-    @Environment(\.theme) private var theme
-
-    var body: some View {
-        let rows: [Int] = model.rollRows
-        let cols: Int = model.rollClip.playLen
-        let root: Int = model.project.root
-        return GeometryReader { geo in
-            Canvas { ctx, size in
-                let m = RollMetrics(size: size, port: port, rows: rows, cols: cols, root: root)
-                draw(ctx, m, root)
-            }
-            .contentShape(Rectangle())
-            .gesture(drag(RollMetrics(size: geo.size, port: port, rows: rows, cols: cols, root: root)))
-        }
-        .background(theme.panel)
-        .clipShape(RoundedRectangle(cornerRadius: Layout.radius))
-    }
-
-    private func drag(_ m: RollMetrics) -> some Gesture {
-        DragGesture(minimumDistance: 4)
-            .onChanged { g in
-                let y0: CGFloat = startY ?? m.y
-                if startY == nil { startY = y0 }
-                port.y = y0 - g.translation.height
-                port.y = RollMetrics(size: m.size, port: port, rows: m.rows, cols: m.cols, root: model.project.root).y
-            }
-            .onEnded { _ in startY = nil }
-    }
-
-    private func draw(_ ctx: GraphicsContext, _ m: RollMetrics, _ root: Int) {
-        for r in m.visibleRows {
-            let n: Int = m.rows[r]
-            let y: CGFloat = m.rowY(r)
-            let rect = CGRect(x: 0, y: y, width: m.size.width, height: m.rowH)
-            ctx.fill(Path(rect), with: .color(RollColors.row(n, root: root, theme)))
-            ctx.fill(Path(CGRect(x: 0, y: y + m.rowH - 1, width: m.size.width, height: 1)), with: .color(theme.grid))
-            let isRoot: Bool = Roll.isRoot(n, root: root)
-            let label = SwiftUI.Text(Params.noteName(n))
-                .font(.system(size: 13, weight: isRoot ? .bold : .regular))
-                .foregroundColor(isRoot ? theme.text : theme.dim)
-            ctx.draw(label, at: CGPoint(x: m.size.width / 2, y: y + (m.rowH - 1) / 2), anchor: .center)
-        }
-    }
-}
-
-/// Сетка пианоролла: строки нот гаммы, линии по GRID (доли и такты — сильнее), подписи долей, ход, ноты.
+/// Сетка пианоролла: строки нот гаммы (имена нот — у левого края поверх сетки, корневая жирнее), линии по GRID
+/// (доли и такты — сильнее), подписи долей, ход, ноты.
 struct RollGrid: View {
     let model: AppModel
     @Binding var port: RollPort
@@ -73,6 +23,7 @@ struct RollGrid: View {
                 let m = RollMetrics(size: size, port: port, rows: rows, cols: clip.playLen, root: root)
                 drawRows(ctx, m, root)
                 drawColumns(ctx, m, grid, play)
+                drawNames(ctx, m, root)
                 drawNotes(ctx, m, notes, levels, pct)
             }
             .contentShape(Rectangle())
@@ -104,6 +55,21 @@ struct RollGrid: View {
             let y: CGFloat = m.rowY(r)
             ctx.fill(Path(CGRect(x: 0, y: y, width: m.size.width, height: m.rowH)), with: .color(RollColors.row(m.rows[r], root: root, theme)))
             ctx.fill(Path(CGRect(x: 0, y: y + m.rowH - 1, width: m.size.width, height: 1)), with: .color(theme.grid))
+        }
+    }
+
+    /// Имена нот у левого края строк (вместо колонки клавиш — столбцы сетки стоят над шагами секвенсора); ноты —
+    /// поверх подписей.
+    private func drawNames(_ ctx: GraphicsContext, _ m: RollMetrics, _ root: Int) {
+        let size: CGFloat = min(13, max(9, m.rowH * 0.4))
+        for r in m.visibleRows {
+            let n: Int = m.rows[r]
+            let y: CGFloat = m.rowY(r) + (m.rowH - 1) / 2
+            let isRoot: Bool = Roll.isRoot(n, root: root)
+            let label = SwiftUI.Text(Params.noteName(n))
+                .font(.system(size: size, weight: isRoot ? .bold : .regular))
+                .foregroundColor(isRoot ? theme.text : theme.dim)
+            ctx.draw(label, at: CGPoint(x: 6, y: y), anchor: .leading)
         }
     }
 
@@ -161,57 +127,56 @@ struct RollGrid: View {
     }
 }
 
-/// Колонка справа (над MST): бутерброд и VEL — высотой со строку сетки паттернов.
-struct RollSide: View {
+/// Строка кнопок пианоролла (высотой barH): справа, как кнопки аранжировщика (той же ширины), — GRID (шаг сетки,
+/// тап — меню), VEL и динамик (звук ноты при нажатии и касании; выключен — перечёркнутый).
+struct RollBar: View {
     let model: AppModel
-    let buttonH: CGFloat
-    @Environment(\.theme) private var theme
 
     var body: some View {
-        VStack(spacing: PatternGrid.rowGap) {
-            BurgerButton { model.rollMenuOpen = true }.frame(height: buttonH)
-            velButton.frame(height: buttonH)
+        let g: CGFloat = Layout.gap
+        let w: CGFloat = (Layout.leftColumn - 3 * g) / 4
+        let sound: Bool = model.settings.rollSound
+        return HStack(spacing: g) {
             Spacer(minLength: 0)
+            ArrBarText(title: gridTitle, on: model.rollMenuOpen, enabled: true) { model.rollMenuOpen = true }
+                .frame(width: w)
+            ArrBarText(title: "VEL", on: model.rollVel, enabled: true) { model.rollVel.toggle() }
+                .frame(width: w)
+            ArrBarButton(on: sound, enabled: true, action: { model.setRollSound(!sound) }) { c in
+                Image(systemName: sound ? "speaker.wave.2.fill" : "speaker.slash.fill")
+                    .font(.system(size: 18, weight: .semibold)).foregroundStyle(c)
+            }
+            .frame(width: w)
         }
     }
 
-    private var velButton: some View {
-        let on: Bool = model.rollVel
-        return Text("VEL")
-            .font(.system(size: 13, weight: .semibold))
-            .tracking(1)
-            .foregroundStyle(on ? theme.onAccent : theme.text)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(on ? theme.accent : theme.panel2, in: RoundedRectangle(cornerRadius: 6))
-            .contentShape(Rectangle())
-            .onTapGesture { model.rollVel.toggle() }
+    /// Подпись GRID — текущий шаг сетки (1/16, 1/8, 1/4).
+    private var gridTitle: String {
+        let grid: Int = model.settings.rollGrid
+        guard let k = Roll.grids.firstIndex(of: grid) else { return "GRID" }
+        return Roll.gridNames[k]
     }
 }
 
-/// Бутерброд пианоролла: GRID и звук ноты при нажатии (настройки, общие для проектов).
+/// Меню GRID пианоролла: шаг сетки (настройка, общая для проектов); выбор закрывает меню.
 struct RollMenu: View {
     let model: AppModel
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let grid: Int = model.settings.rollGrid
-        return MenuScroll {
-            VStack(alignment: .leading, spacing: 6) {
-                MenuHead(title: "GRID").padding(.top, 4)
-                HStack(spacing: 6) {
-                    ForEach(0..<Roll.grids.count, id: \.self) { k in
-                        MenuItem(title: Roll.gridNames[k], current: Roll.grids[k] == grid) {
-                            model.setRollGrid(Roll.grids[k])
-                        }
+        // Меню короткое — без прокрутки (высота по содержимому).
+        return VStack(alignment: .leading, spacing: 6) {
+            MenuHead(title: "GRID").padding(.top, 4)
+            HStack(spacing: 6) {
+                ForEach(0..<Roll.grids.count, id: \.self) { k in
+                    MenuItem(title: Roll.gridNames[k], current: Roll.grids[k] == grid) {
+                        model.setRollGrid(Roll.grids[k])
+                        model.rollMenuOpen = false
                     }
                 }
-                ToggleRow(title: "NOTE PREVIEW", isOn: model.settings.rollSound) { model.setRollSound($0) }
-                Text("Plays a note when you place it or touch it in the piano roll.")
-                    .font(.system(size: 12))
-                    .foregroundStyle(theme.dim)
             }
-            .padding(.trailing, 6)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .modifier(MenuPanel())
     }
 }

@@ -41,7 +41,7 @@ extension RollMetrics {
 /// ставит ноту; тап по ноте — удалить; правый край ноты — длина по GRID; нота со сдвигом пальца больше 4 px — сразу
 /// перетаскивание по GRID и по нотам гаммы (прокрутка — только по пустому). С VEL — правый край — длина, палец по ноте
 /// вверх-вниз — velocity (150 px — весь диапазон), вбок — перетаскивание, как без VEL (решение пользователя; что первым сдвинулось больше
-/// 4 px); мимо нот — прокрутка. Два пальца — масштаб по одной оси: какая разошлась первой
+/// 4 px); по пустому — тап ставит ноту, сдвиг — прокрутка. Два пальца — масштаб по одной оси: какая разошлась первой
 /// (больше 10 px) — по горизонтали ширина шага, по вертикали высота строки; точка между пальцами стоит на месте.
 final class RollTouches {
     enum Axis { case h, v }
@@ -210,7 +210,7 @@ final class RollTouches {
     }
 
     /// VEL: правый край ноты — длина, как без VEL; тело — ждём, куда пойдёт палец (вверх-вниз — velocity, вбок —
-    /// перетаскивание); мимо — только прокрутка.
+    /// перетаскивание); по пустому — тап ставит ноту, сдвиг — прокрутка.
     private func beginVel(_ hit: RollHit, _ model: AppModel) {
         switch hit {
         case .edge(let n):
@@ -221,7 +221,11 @@ final class RollTouches {
             note = n
             vel0 = model.track.rollNoteLevel(n)
             mode = .velPress
-        default:
+        case .empty(let pos, let row):
+            // Тап по пустому — нота, как без VEL (решение пользователя).
+            emptyHit = (pos, row)
+            mode = .tap
+        case .none:
             mode = .tap
         }
     }
@@ -292,7 +296,7 @@ final class RollTouches {
 /// Пределы масштаба: шаг — от всего прохода (но не меньше 16 шагов) на ширину до 4 шагов; строка — 18…96 px.
 enum RollZoom {
     static func colW(_ w: CGFloat, _ m: RollMetrics) -> CGFloat {
-        let lo: CGFloat = m.size.width / CGFloat(max(16, m.cols))
+        let lo: CGFloat = RollMetrics.fitW(m.size.width, m.cols)
         let hi: CGFloat = m.size.width / 4
         return min(hi, max(lo, w))
     }
