@@ -128,7 +128,7 @@ struct RollGrid: View {
 }
 
 /// Строка кнопок пианоролла (высотой barH): от левого края кнопки PATTERNS верхней панели до правого края окна, поровну
-/// (решение пользователя), — GRID (шаг сетки, тап — меню), VEL и динамик (звук ноты при нажатии и касании; выключен —
+/// (решение пользователя), — сетка (значок; тап — меню шага), VEL и динамик (звук ноты при нажатии и касании; выключен —
 /// перечёркнутый). Пока рамки верхней панели неизвестны — по ширине колонки миниатюр.
 struct RollBar: View {
     let model: AppModel
@@ -143,7 +143,8 @@ struct RollBar: View {
         let sound: Bool = model.settings.rollSound
         return HStack(spacing: g) {
             Spacer(minLength: 0)
-            ArrBarText(title: gridTitle, on: model.rollMenuOpen, enabled: true) { model.rollMenuOpen = true }
+            // Значок сетки, как в аранжировщике (решение пользователя); тап — меню, повторный — закрыть.
+            ArrBarButton(on: model.rollMenuOpen, enabled: true, action: { model.rollMenuOpen.toggle() }) { c in GridIcon(color: c) }
                 .frame(width: w)
             ArrBarText(title: "VEL", on: model.rollVel, enabled: true) { model.rollVel.toggle() }
                 .frame(width: w)
@@ -154,13 +155,6 @@ struct RollBar: View {
             .frame(width: w)
         }
         .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("root")).maxX } action: { barMaxX = $0 }
-    }
-
-    /// Подпись GRID — текущий шаг сетки (1/16, 1/8, 1/4).
-    private var gridTitle: String {
-        let grid: Int = model.settings.rollGrid
-        guard let k = Roll.grids.firstIndex(of: grid) else { return "GRID" }
-        return Roll.gridNames[k]
     }
 }
 

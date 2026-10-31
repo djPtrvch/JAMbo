@@ -279,9 +279,9 @@ struct ArrAutoDraw {
 /// тап — новая точка, сдвиг — прокрутка по времени; два пальца — масштаб по времени (точка между пальцами на месте) и
 /// прокрутка. Карандаш (решение пользователя) — палец рисует кривую: на пройденном участке точки заменяются нарисованными
 /// (узлы — по сетке при SNAP TO GRID, иначе четверть шага; упрощённо), одна запись UNDO на жест; прокрутка и масштаб —
-/// при выключенном карандаше.
+/// при выключенных карандаше и ластике. Ластик — палец стирает точки кривой на пройденном участке.
 final class ArrAutoTouches {
-    enum Mode { case idle, tap, point, scroll, zoom, draw }
+    enum Mode { case idle, tap, point, scroll, zoom, draw, erase }
 
     private var points: [SpatialEventCollection.Event.ID: CGPoint] = [:]
     private var mode: Mode = .idle
@@ -299,6 +299,11 @@ final class ArrAutoTouches {
     /// узел под пальцем, шаг узлов (в шагах транспорта).
     private var stroke: [Int: Double] = [:]
     private var quantum: Double = 1
+    /// Ластик: пройденный пальцем участок (шаги).
+    private var eraseLo: Double = 0
+    private var eraseHi: Double = 0
+    /// Сколько точек осталось после прошлого шага ластика (правка — только когда меньше).
+    private var erased: Int = 0
     private var lastKey: Int? = nil
 
     func handle(_ events: SpatialEventCollection, port: inout ArrPort, _ m: ArrMetrics, _ model: AppModel) {
@@ -313,7 +318,7 @@ final class ArrAutoTouches {
         }
         if points.isEmpty { return }
         let p: [CGPoint] = Array(points.values)
-        if p.count >= 2 && mode != .zoom && mode != .point && mode != .draw {
+        if p.count >= 2 && mode != .zoom && mode != .point && mode != .draw && mode != .erase {
             beginZoom(p[0], p[1], m)
         } else if p.count == 1 && mode == .idle {
             begin(p[0], m, model)
@@ -343,6 +348,15 @@ final class ArrAutoTouches {
                 index = i
             }
         }
+        if model.arrErase {
+            mode = .erase
+            eraseLo = m.step(at: p.x)
+            eraseHi = eraseLo
+            erased = orig.count
+            model.beginGesture()
+            erase(p, m, model)
+            return
+        }
         if model.arrDraw {
             mode = .draw
             stroke = [:]
@@ -355,6 +369,21 @@ final class ArrAutoTouches {
             return
         }
         if index >= 0 { mode = .point }
+    }
+
+    /// Ластик: точки кривой на пройденном пальцем участке (плюс-минус 6 pt) убираются.
+    private func erase(_ p: CGPoint, _ m: ArrMetrics, _ model: AppModel) {
+        let pad: Double = Double(6 / m.stepW)
+        let x: Double = m.step(at: p.x)
+        eraseLo = min(eraseLo, x - pad)
+        eraseHi = max(eraseHi, x + pad)
+        let a: Double = eraseLo
+        let b: Double = eraseHi
+        let pts: [ArrAutoPoint] = orig.filter { $0.x < a || $0.x > b }
+        if pts.count != erased {
+            erased = pts.count
+            model.arrAutoSet(track: track, param, pts)
+        }
     }
 
     /// Карандаш: значение под пальцем — в ближайший узел (быстрый мазок — узлы между прошлым и этим по прямой); точки
@@ -402,6 +431,8 @@ final class ArrAutoTouches {
             if p.count >= 2 { zoom(p[0], p[1], &port, m) }
         case .draw:
             draw(p[0], m, model)
+        case .erase:
+            erase(p[0], m, model)
         case .idle:
             break
         }
@@ -421,7 +452,7 @@ final class ArrAutoTouches {
     private func finish(_ model: AppModel, _ m: ArrMetrics, ended: Bool) {
         let was: Mode = mode
         mode = .idle
-        if was == .draw {
+        if was == .draw || was == .erase {
             model.endGesture()
             stroke = [:]
             lastKey = nil

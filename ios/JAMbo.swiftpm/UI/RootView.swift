@@ -31,7 +31,7 @@ struct RootView: View {
             ZStack(alignment: .topLeading) {
                 theme.bg.ignoresSafeArea()
                 screen(layout, lowerH, units.bar, geo.size.height)
-                arrangeMeter
+                arrangeMeter(geo.size.height)
                 overlays
                 if let c = model.choice {
                     ChoiceMenu(model: model, state: c, screen: geo.size)
@@ -281,7 +281,7 @@ struct RootView: View {
     /// не тянется); под ним, в колонке справа от дорожек, — кнопки EXPANDED и COMPACT (при FIX) и под ними карандаш
     /// (только с AUTO). Место под измерителем свободно, пока STEPS выключена (с STEPS там строка дорожек).
     @ViewBuilder
-    private var arrangeMeter: some View {
+    private func arrangeMeter(_ screenH: CGFloat) -> some View {
         let f: CGRect = model.meterFrame
         if model.arrangeView && f != .zero {
             // С KNOBS измеритель — свой, в окне ручек; кнопки под ним остаются.
@@ -289,8 +289,12 @@ struct RootView: View {
                 MeterColumn(model: model).frame(width: f.width, height: f.height).offset(x: f.minX, y: f.minY)
             }
             if model.project.arrange.hideSteps {
-                ArrSideButtons(model: model, width: f.width)
-                    .offset(x: f.minX, y: f.maxY + Layout.gap)
+                // Четыре места одной высоты — от низа измерителя до низа экрана (решение пользователя).
+                let top: CGFloat = f.maxY + Layout.gap
+                let free: CGFloat = screenH - RootView.padBottom - top
+                let h: CGFloat = max(30, (free - 3 * Layout.gap) / 4)
+                ArrSideButtons(model: model, width: f.width, height: h)
+                    .offset(x: f.minX, y: top)
             }
         }
     }

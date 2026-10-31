@@ -17,27 +17,34 @@ struct EditorBar: View {
     }
 
     /// Решение пользователя: имя — до SCALE верхней панели; с него ▶ и REC шириной кнопок аранжировщика, за ними
-    /// WARP и остальные поровну до ✕ (MONO, TRIM, NORMALIZE, CLEAR, LOAD, SAVE; в WARP вместо MONO…CLEAR — строка
-    /// WarpBar без ▶); ✕ — квадратная.
+    /// WARP и MONO, TRIM, NORMALIZE, CLEAR поровну до левого края PATTERNS (в WARP вместо MONO…CLEAR — строка WarpBar
+    /// без ▶); с PATTERNS — LOAD и SAVE поровну до ✕ (квадратная).
     private var aligned: some View {
         let top: TopFrames = model.topFrames
         let g: CGFloat = Layout.gap
         let infoW: CGFloat = max(60, top.scale.minX - barX - g)
         // ▶ и REC — шириной кнопок аранжировщика (четыре в ширину левой колонки).
         let w: CGFloat = (Layout.leftColumn - 3 * g) / 4
+        // WARP и правка (или строка WARP) — от REC до левого края PATTERNS: LOAD и SAVE стоят с него и не меняют
+        // ширину при WARP (решение пользователя).
+        let midX: CGFloat = top.scale.minX + 2 * w + 2 * g
+        let midW: CGFloat = max(0, top.patterns.minX - g - midX)
         return HStack(spacing: g) {
             infoText.frame(width: infoW, alignment: .leading)
             playButton.frame(width: w)
             SampleRecButton(model: model).frame(width: w)
-            warpButton
-            if model.editorWarp {
-                WarpBar(model: model, data: data, showPlay: false)
-            } else {
-                monoButton
-                ToolButton(title: "TRIM", enabled: data != nil && !sel.full, width: nil) { model.trimSample(sel.a, sel.b) }
-                ToolButton(title: "NORMALIZE", enabled: data != nil, width: nil) { model.normalizeSample() }
-                clearButton
+            HStack(spacing: g) {
+                warpButton
+                if model.editorWarp {
+                    WarpBar(model: model, data: data, showPlay: false)
+                } else {
+                    monoButton
+                    ToolButton(title: "TRIM", enabled: data != nil && !sel.full, width: nil) { model.trimSample(sel.a, sel.b) }
+                    ToolButton(title: "NORMALIZE", enabled: data != nil, width: nil) { model.normalizeSample() }
+                    clearButton
+                }
             }
+            .frame(width: midW)
             loadSave
             ToolButton(title: "✕", width: model.barH) { model.closeEditor() }
         }

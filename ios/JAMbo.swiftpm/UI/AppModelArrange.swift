@@ -127,6 +127,17 @@ extension AppModel {
         arrPort.rowH = nil
     }
 
+    /// Карандаш и ластик окна AUTO — один из двух (или ни одного).
+    func toggleArrDraw() {
+        arrDraw.toggle()
+        if arrDraw { arrErase = false }
+    }
+
+    func toggleArrErase() {
+        arrErase.toggle()
+        if arrErase { arrDraw = false }
+    }
+
     /// Дорожки прокручиваются по вертикали: EXPANDED или свой масштаб строк (SCALE).
     var arrRowsScroll: Bool { return settings.arrangeExpanded || arrPort.rowH != nil }
 
@@ -174,6 +185,7 @@ extension AppModel {
         if !project.arrange.hideSteps && arrAuto {
             arrAuto = false
             arrDraw = false
+            arrErase = false
             syncArrRecord()
         }
     }

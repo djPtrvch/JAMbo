@@ -154,7 +154,10 @@ extension AppModel {
     func toggleArrAuto() {
         arrAuto.toggle()
         // Карандаш есть только с AUTO.
-        if !arrAuto { arrDraw = false }
+        if !arrAuto {
+            arrDraw = false
+            arrErase = false
+        }
         if arrAuto && !project.arrange.hideSteps { edit { p in p.arrange.hideSteps = true } }
         syncArrRecord()
     }

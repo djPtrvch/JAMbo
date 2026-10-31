@@ -14,7 +14,7 @@ struct ArrangeBar: View {
             HStack(spacing: Layout.gap) {
                 // Сетка (решение пользователя, на месте магнита): тап — меню шага сетки и SNAP TO GRID.
                 ArrBarButton(on: model.arrMenu == .grid, enabled: true, action: { model.arrMenu = model.arrMenu == .grid ? nil : .grid }) { c in
-                    Image(systemName: "squareshape.split.3x3").font(.system(size: 18, weight: .semibold)).foregroundStyle(c)
+                    GridIcon(color: c)
                 }
                 ArrBarButton(on: false, enabled: true, action: { model.arrTrim() }) { c in
                     Image(systemName: "scissors").font(.system(size: 18, weight: .semibold)).foregroundStyle(c)
@@ -140,6 +140,33 @@ struct ArrReturnAll: View {
     }
 }
 
+/// Значок сетки (решение пользователя, аранжировщик и пианоролл): «решётка» — две вертикальные и две горизонтальные
+/// линии, концы выходят за пересечения.
+struct GridIcon: View {
+    let color: Color
+
+    var body: some View {
+        Canvas { ctx, size in
+            let s: CGFloat = min(size.width, size.height)
+            let x0: CGFloat = (size.width - s) / 2
+            let y0: CGFloat = (size.height - s) / 2
+            let a: CGFloat = s * 0.32
+            let b: CGFloat = s * 0.68
+            var p = Path()
+            p.move(to: CGPoint(x: x0 + a, y: y0 + 1))
+            p.addLine(to: CGPoint(x: x0 + a, y: y0 + s - 1))
+            p.move(to: CGPoint(x: x0 + b, y: y0 + 1))
+            p.addLine(to: CGPoint(x: x0 + b, y: y0 + s - 1))
+            p.move(to: CGPoint(x: x0 + 1, y: y0 + a))
+            p.addLine(to: CGPoint(x: x0 + s - 1, y: y0 + a))
+            p.move(to: CGPoint(x: x0 + 1, y: y0 + b))
+            p.addLine(to: CGPoint(x: x0 + s - 1, y: y0 + b))
+            ctx.stroke(p, with: .color(color), style: StrokeStyle(lineWidth: 2, lineCap: .round))
+        }
+        .frame(width: 22, height: 22)
+    }
+}
+
 /// Значок AUTO: синусоида с точками.
 struct ArrWaveIcon: View {
     let color: Color
@@ -169,18 +196,17 @@ struct ArrWaveIcon: View {
 }
 
 
-/// Кнопки под измерителем аранжировщика (решения пользователя), шириной с измеритель, высотой с пары кнопок колонок: при FIX
-/// (SETTINGS → ARRANGE) — EXPANDED (8 строк на окно) и COMPACT (все дорожки на окно); под ними карандаш — рисование
-/// кривой в окне AUTO (есть, только пока AUTO включена).
+/// Кнопки под измерителем аранжировщика (решения пользователя), шириной с измеритель; четыре места одной высоты от
+/// низа измерителя до низа экрана (RootView): при FIX (SETTINGS → ARRANGE) — EXPANDED (8 строк на окно) и COMPACT (все
+/// дорожки на окно); под ними, только пока AUTO включена, — карандаш (рисование кривой) и ластик (стирание точек).
 struct ArrSideButtons: View {
-    /// Высота — как у пар кнопок боковых колонок (решение пользователя: выше).
-    static let height: CGFloat = Layout.pairHeight
     let model: AppModel
     let width: CGFloat
+    let height: CGFloat
 
     var body: some View {
         let compact: Bool = model.settings.arrangeCompact
-        let h: CGFloat = ArrSideButtons.height
+        let h: CGFloat = height
         return VStack(spacing: Layout.gap) {
             if !model.settings.arrangeScale {
                 ArrBarButton(on: !compact, enabled: true, action: { model.setArrCompact(false) }) { c in
@@ -193,8 +219,12 @@ struct ArrSideButtons: View {
                 .frame(width: width, height: h)
             }
             if model.arrAuto {
-                ArrBarButton(on: model.arrDraw, enabled: true, action: { model.arrDraw.toggle() }) { c in
+                ArrBarButton(on: model.arrDraw, enabled: true, action: { model.toggleArrDraw() }) { c in
                     Image(systemName: "pencil").font(.system(size: 15, weight: .semibold)).foregroundStyle(c)
+                }
+                .frame(width: width, height: h)
+                ArrBarButton(on: model.arrErase, enabled: true, action: { model.toggleArrErase() }) { c in
+                    Image(systemName: "eraser").font(.system(size: 15, weight: .semibold)).foregroundStyle(c)
                 }
                 .frame(width: width, height: h)
             }

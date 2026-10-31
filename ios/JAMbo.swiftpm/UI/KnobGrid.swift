@@ -414,7 +414,8 @@ struct KnobView: View, Equatable {
             let lo: Double = Swift.max(0, Swift.min(e0, e1))
             let hi: Double = Swift.min(1, Swift.max(e0, e1))
             let r: Path = KnobView.arc(c, 45 * k, lo, hi)
-            ctx.stroke(r, with: .color(theme.text.opacity(op)), style: StrokeStyle(lineWidth: 8 * k))
+            // Края зоны скруглены (решение пользователя).
+            ctx.stroke(r, with: .color(theme.text.opacity(op)), style: StrokeStyle(lineWidth: 8 * k, lineCap: .round))
         }
         guard let m = mod else { return }
         let ops: [Double] = [0.95, 0.4, 0.65, 0.85]
