@@ -180,7 +180,10 @@ extension AppModel {
             // Клипы, mute / solo и ручки — одна запись UNDO.
             beginGesture()
             defer { endGesture() }
-            if !segs.isEmpty { edit { p in p.applyRecording(segs) } }
+            // Запись «по факту»: шаги, которые звучали, и прошедшие Chance.
+            let played: [[Int: Int]] = live.recorder.played
+            let fired: [Set<Int>] = live.recorder.fired
+            if !segs.isEmpty { edit { p in p.applyRecording(segs, played: played, fired: fired) } }
             if !autoTakes.isEmpty { flushAutoTakes(all: true, end: end) }
         }
         if !arrKnobRec && !arrRecording && !autoTakes.isEmpty { flushAutoTakes(all: true) }

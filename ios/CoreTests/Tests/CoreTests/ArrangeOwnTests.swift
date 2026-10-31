@@ -72,3 +72,84 @@ final class ArrangeOwnTests: XCTestCase {
         XCTAssertEqual(back, b)
     }
 }
+
+/// Этап 2: запись «по факту» — в блок попадают шаги, которые звучали; не прошедший Chance — без трига, прошедший —
+/// Chance 100 %; длинный отрезок — блоками по 128 шагов.
+final class ArrangeFiredTests: XCTestCase {
+    func testFiredSteps() {
+        var p = Project()
+        var c = Clip(pages: [Track.emptyPage(), Track.emptyPage()], length: 32, playFrom: 0, playTo: 0)
+        c.pages[0][0].on = true
+        c.pages[0][4].on = true
+        c.pages[0][4].locks["prob"] = 50
+        c.pages[1][0].on = true
+        p.tracks[0].clips[0] = c
+        // Таймлайн 0…15 — страница 1 (шаги 0…15), 16…19 — переключили на страницу 2 (шаги 16…19).
+        var played: [Int: Int] = [:]
+        for x in 0..<16 { played[x] = x }
+        for x in 16..<20 { played[x] = 16 + (x - 16) }
+        let fired: Set<Int> = [0, 16]
+        let seg = ArrRecorder.Seg(track: 0, slot: 0, start: 0, end: 20, offset: 0)
+        var pp: [[Int: Int]] = [[Int: Int]](repeating: [:], count: Params.maxTracks)
+        var ff: [Set<Int>] = [Set<Int>](repeating: [], count: Params.maxTracks)
+        pp[0] = played
+        ff[0] = fired
+        p.applyRecording([seg], played: pp, fired: ff)
+        XCTAssertEqual(p.tracks[0].blocks.count, 1)
+        let b: ArrBlock = p.tracks[0].blocks[0]
+        let own: Clip = try! XCTUnwrap(b.pattern)
+        XCTAssertEqual(own.length, 20)
+        XCTAssertTrue(own.pages[0][0].on)
+        XCTAssertFalse(own.pages[0][4].on, "Chance не прошёл — без трига")
+        XCTAssertTrue(own.pages[1][0].on, "страница 2 — как играли")
+        // Прошедший шаг с p-lock Chance — 100.
+        var c2 = c
+        c2.pages[0][0].locks["prob"] = 30
+        p.tracks[0].clips[0] = c2
+        p.tracks[0].blocks = []
+        p.applyRecording([seg], played: pp, fired: ff)
+        XCTAssertEqual(p.tracks[0].blocks[0].pattern?.pages[0][0].locks["prob"], 100)
+    }
+
+    func testLongSplitsIntoBlocks() {
+        var p = Project()
+        var c = Clip()
+        c.pages[0][0].on = true
+        p.tracks[0].clips[0] = c
+        var pp: [[Int: Int]] = [[Int: Int]](repeating: [:], count: Params.maxTracks)
+        for x in 0..<300 { pp[0][x] = x % 16 }
+        let ff: [Set<Int>] = [Set<Int>](repeating: Set((0..<300).filter { $0 % 16 == 0 }), count: Params.maxTracks)
+        p.applyRecording([ArrRecorder.Seg(track: 0, slot: 0, start: 0, end: 300, offset: 0)], played: pp, fired: ff)
+        XCTAssertEqual(p.tracks[0].blocks.map { $0.length }, [128, 128, 44])
+        XCTAssertEqual(p.tracks[0].blocks.map { $0.start }, [0, 128, 256])
+        XCTAssertTrue(p.tracks[0].blocks[2].pattern!.pages[0][0].on)
+    }
+}
+
+/// Колбэк сообщает о шагах, прошедших Chance (fired), — только о них.
+final class FiredOutTests: XCTestCase {
+    func testFiredOnlyWhenChancePasses() {
+        var p = Project()
+        for t in 1..<8 { p.tracks[t].clips[0] = nil }
+        var c = Clip()
+        c.pages[0][0].on = true
+        c.pages[0][2].on = true
+        c.pages[0][2].locks["prob"] = 0
+        p.tracks[0].clips[0] = c
+        let core = AudioCore()
+        core.publish(p)
+        core.events.push(.play(true))
+        var l = [Float](repeating: 0, count: 256)
+        var r = [Float](repeating: 0, count: 256)
+        var got: [Int] = []
+        var pos = 0
+        while pos < 6000 * 4 {
+            core.render(frames: 256, left: &l, right: &r)
+            while let e = core.sequencer.out.pop() {
+                if case .fired(let t, let s) = e, t == 0 { got.append(s) }
+            }
+            pos += 256
+        }
+        XCTAssertEqual(got, [0], "шаг 2 с Chance 0 % — не сработал")
+    }
+}

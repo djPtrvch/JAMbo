@@ -43,9 +43,12 @@ final class LiveState {
                 break
             case .step(let t, let pos):
                 if t == SeqData.maxTracks { tick += 1 }
+                if t < SeqData.maxTracks && pos >= 0 { recorder.notePlayed(track: t, pos: pos) }
                 if playPos[t] != pos { playPos[t] = pos }
                 if t == 0 { stepSerial &+= 1 }
                 if pos >= 0 { onStep(t, pos) }
+            case .fired(let t, _):
+                recorder.noteFired(track: t)
             case .trig(let t, _):
                 // Заглушённая дорожка играет дальше, но не мигает.
                 if !audible(t) { continue }

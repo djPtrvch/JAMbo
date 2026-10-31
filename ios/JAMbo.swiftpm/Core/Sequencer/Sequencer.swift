@@ -10,6 +10,8 @@ public enum SeqOut: Sendable {
     case step(track: Int, pos: Int)
     /// Сработала нота дорожки (каждый удар рэтчета) в кадре frame.
     case trig(track: Int, frame: Int64)
+    /// Шаг pos дорожки прошёл Chance (один раз на шаг, до рэтчета): запись аранжировки «по факту».
+    case fired(track: Int, pos: Int)
     /// Доля метронома (accent — начало такта).
     case beat(accent: Bool)
     /// Дорожка играет клип slot (или остановлена) с тика start.
@@ -376,6 +378,7 @@ public final class Sequencer {
             ratchetV = m.value(t, ModTarget.ratchet, ratchetV, f)
         }
         if Double(nextRandom()) * 100 >= prob { return }
+        out.push(.fired(track: t, pos: pos))
         let ratchet = Int(ratchetV.rounded()) + 1
         let offset: Double = pos % 2 == 1 ? (swing - 50) / 50 * dur : 0
         let sub = dur / Double(ratchet)

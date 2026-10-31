@@ -29,6 +29,10 @@ public struct ArrRecorder: Sendable {
     /// Заглушена ли дорожка (mute / solo) сейчас.
     private var muted: [Bool]
     public private(set) var done: [Seg] = []
+    /// Запись «по факту» (решение пользователя): на каждом шаге таймлайна — какой шаг клипа звучал (позиция p·16 + s)
+    /// и прошёл ли он Chance; по дорожкам. Держатся до следующей записи (applyRecording берёт их после finish).
+    public private(set) var played: [[Int: Int]]
+    public private(set) var fired: [Set<Int>]
     public private(set) var active: Bool = false
     /// Курсор на текущем шаге.
     public private(set) var pos: Int = 0
@@ -36,6 +40,20 @@ public struct ArrRecorder: Sendable {
     public init(tracks: Int = Params.maxTracks) {
         open = [Seg?](repeating: nil, count: tracks)
         muted = [Bool](repeating: false, count: tracks)
+        played = [[Int: Int]](repeating: [:], count: tracks)
+        fired = [Set<Int>](repeating: [], count: tracks)
+    }
+
+    /// Шаг pos клипа дорожки t начал звучать на текущем шаге таймлайна (дорожка пишется).
+    public mutating func notePlayed(track t: Int, pos p: Int) {
+        guard active, p >= 0, open.indices.contains(t), open[t] != nil else { return }
+        played[t][pos] = p
+    }
+
+    /// Шаг дорожки t прошёл Chance на текущем шаге таймлайна.
+    public mutating func noteFired(track t: Int) {
+        guard active, open.indices.contains(t), open[t] != nil else { return }
+        fired[t].insert(pos)
     }
 
     /// Начало записи на позиции at: у каждой дорожки — клип и место в его проходе (slot −1 — тишина; nil — дорожка
@@ -44,6 +62,10 @@ public struct ArrRecorder: Sendable {
         active = true
         done = []
         pos = at
+        for t in played.indices {
+            played[t] = [:]
+            fired[t] = []
+        }
         for t in open.indices {
             open[t] = nil
             muted[t] = t < audible.count && !audible[t]
@@ -133,14 +155,55 @@ public struct ArrRecorder: Sendable {
 extension Project {
     /// Записанные отрезки — в аранжировку (по порядку записи: поздний заменяет ранний): участок отрезка заменяется,
     /// клип — блоком, тишина и заглушённый клип — пусто.
-    public mutating func applyRecording(_ segs: [ArrRecorder.Seg]) {
+    /// played и fired (ArrRecorder) — запись «по факту» (решение пользователя): блок получает свою копию из шагов,
+    /// которые звучали на каждом шаге таймлайна (переключение страниц — как играли); шаг, не прошедший Chance, — без
+    /// трига, прошедший — с Chance 100 %. Блок — не длиннее 8 страниц (128 шагов), длиннее — несколько блоков подряд.
+    /// Клип с другой скоростью (×2, 1/2…) и запись без этих данных — блок со ссылкой на клип, как прежде.
+    public mutating func applyRecording(_ segs: [ArrRecorder.Seg], played: [[Int: Int]] = [], fired: [Set<Int>] = []) {
         for s in segs where tracks.indices.contains(s.track) && s.end > s.start {
             tracks[s.track].clearArrange(from: s.start, to: s.end)
-            if s.slot >= 0 && !s.silent && tracks[s.track].clipFilled(s.slot) {
-                let pass: Int = tracks[s.track].clipSteps(s.slot)
-                tracks[s.track].placeBlock(ArrBlock(clip: s.slot, start: s.start, length: s.end - s.start,
-                                                    offset: s.offset % pass))
+            guard s.slot >= 0 && !s.silent && tracks[s.track].clipFilled(s.slot), let src = tracks[s.track].clips[s.slot] else {
+                continue
             }
+            let t: Int = s.track
+            if src.speed == 0 && t < played.count && t < fired.count {
+                placeFired(t, s, src, played[t], fired[t])
+                continue
+            }
+            let pass: Int = tracks[t].clipSteps(s.slot)
+            tracks[t].placeBlock(ArrBlock(clip: s.slot, start: s.start, length: s.end - s.start, offset: s.offset % pass))
+        }
+    }
+
+    /// Отрезок s дорожки t — блоками со своей копией из прозвучавших шагов клипа src.
+    private mutating func placeFired(_ t: Int, _ s: ArrRecorder.Seg, _ src: Clip, _ played: [Int: Int], _ fired: Set<Int>) {
+        let maxLen: Int = Params.maxPages * Params.stepsPerPage
+        let n16: Int = Params.stepsPerPage
+        let trackProb: Double = tracks[t].params["prob"] ?? Params.byId["prob"]?.def ?? 100
+        var x: Int = s.start
+        while x < s.end {
+            let n: Int = Swift.min(maxLen, s.end - x)
+            let pages: Int = (n + n16 - 1) / n16
+            var c = Clip(pages: [[Step]](repeating: Track.emptyPage(), count: pages), length: n, playFrom: 0,
+                         playTo: pages - 1, scale: src.scale, root: src.root, fx: src.fx)
+            var i: Int = 0
+            while i < n {
+                let at: Int = x + i
+                if let p = played[at], var st = src.step(p) {
+                    if st.on {
+                        if fired.contains(at) {
+                            // Прозвучал — дальше звучит всегда.
+                            if st.locks["prob"] != nil || trackProb < 100 { st.locks["prob"] = 100 }
+                        } else {
+                            st.on = false
+                        }
+                    }
+                    c.pages[i / n16][i % n16] = st
+                }
+                i += 1
+            }
+            tracks[t].placeBlock(ArrBlock(clip: s.slot, start: x, length: n, pattern: c))
+            x += n
         }
     }
 }
