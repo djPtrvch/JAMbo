@@ -53,8 +53,8 @@ struct SettingsPage: View {
     }
 }
 
-/// ARRANGE (S15): TRACKS — FIX (по умолчанию: 8 дорожек на высоту окна, больше — прокрутка) или SCALE (масштаб строк
-/// двумя пальцами по вертикали, кнопки EXPANDED / COMPACT под измерителем); FOLLOW PLAYHEAD; ROW REPEATS — клипы строки
+/// ARRANGE (S15): TRACKS — FIX (по умолчанию: кнопки EXPANDED / COMPACT под измерителем) или SCALE (масштаб строк
+/// двумя пальцами по вертикали); FOLLOW PLAYHEAD; ROW REPEATS — клипы строки
 /// в аранжировку на длину × повторы строки. Шаг сетки — в меню кнопки сетки аранжировщика.
 struct ArrangeSettings: View {
     let model: AppModel
@@ -67,7 +67,7 @@ struct ArrangeSettings: View {
                 MenuItem(title: "FIX", current: !scale) { model.setArrScale(false) }
                 MenuItem(title: "SCALE", current: scale) { model.setArrScale(true) }
             }
-            SettingsNote(text: "FIX: 8 tracks fill the arranger window, more tracks scroll. SCALE: pinch vertically with two fingers to resize the tracks; EXPANDED and COMPACT (all tracks fit the window) — buttons under the level meter.")
+            SettingsNote(text: "FIX: track height by the buttons under the level meter — EXPANDED (8 tracks fill the window, more tracks scroll) or COMPACT (all tracks fit the window). SCALE: pinch vertically with two fingers to resize the tracks.")
             ToggleRow(title: "FOLLOW PLAYHEAD", isOn: model.settings.arrangeFollow) { v in model.updateSettings { $0.arrangeFollow = v } }
             SettingsNote(text: "ON: while playing, the arranger scrolls to keep the playhead in view.")
             ToggleRow(title: "ROW REPEATS", isOn: model.settings.arrangeRepeats) { v in model.updateSettings { $0.arrangeRepeats = v } }

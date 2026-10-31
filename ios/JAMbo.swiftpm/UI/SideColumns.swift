@@ -136,7 +136,8 @@ struct MasterRecButton: View {
 }
 
 /// Правая колонка: строка стрелок страниц ◀ ▶ ▲ ▼ (при MIX — пусто), под ней миниатюры страниц (при MIX — пустое
-/// окно), под ними MOD и FX, SHIFT и MORPH (MORPH, FX, MOD — S4; MOD и MORPH поменяны местами — решение пользователя).
+/// окно), под ними FX и MOD, SHIFT и MORPH (MORPH, FX, MOD — S4; MOD и MORPH, затем FX и MOD поменяны местами —
+/// решения пользователя).
 struct RightColumn: View {
     let model: AppModel
 
@@ -153,8 +154,9 @@ struct RightColumn: View {
         } else {
             VStack(spacing: Layout.gap) {
                 RightTop(model: model)
-                ButtonPair(left: PageButton(model: model, title: "MOD", page: .mod).midiTarget(model, "MOD"),
-                           right: PageButton(model: model, title: "FX", page: .fx).midiTarget(model, "FX"))
+                // FX слева, MOD справа (решение пользователя).
+                ButtonPair(left: PageButton(model: model, title: "FX", page: .fx).midiTarget(model, "FX"),
+                           right: PageButton(model: model, title: "MOD", page: .mod).midiTarget(model, "MOD"))
                 ButtonPair(left: ShiftButton(model: model),
                            right: MorphButton(model: model).midiTarget(model, "MORPH"))
             }

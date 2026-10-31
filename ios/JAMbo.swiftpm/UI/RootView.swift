@@ -278,13 +278,13 @@ struct RootView: View {
     }
 
     /// Аранжировщик: измеритель с регулятором — на месте измерителя окна дорожки (решение пользователя: вниз не
-    /// тянется); под ним — кнопки EXPANDED и COMPACT (при SCALE) и карандаш (рисование кривой в AUTO), измеритель
+    /// тянется); под ним — кнопки EXPANDED и COMPACT (при FIX) и карандаш (рисование кривой в AUTO), измеритель
     /// короче на их высоту.
     @ViewBuilder
     private var arrangeMeter: some View {
         let f: CGRect = model.meterFrame
         if model.arrangeView && !model.arrKnobs && f != .zero {
-            let n: CGFloat = model.settings.arrangeScale ? 3 : 1
+            let n: CGFloat = model.settings.arrangeScale ? 1 : 3
             let side: CGFloat = f.width
             let below: CGFloat = n * (side + Layout.gap)
             VStack(spacing: Layout.gap) {

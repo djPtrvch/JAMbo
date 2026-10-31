@@ -246,7 +246,8 @@ struct ArrAutoDraw {
             if bar || fine {
                 let x: CGFloat = m.stepX(Double(s))
                 let c: Color = bar ? theme.gridStrong : theme.grid
-                if x >= 1 { ctx.fill(Path(CGRect(x: x, y: 0, width: 1, height: h)), with: .color(c)) }
+                let w: CGFloat = s % ArrMetrics.stepsPer4Bars == 0 ? 2 : 1
+                if x >= 1 { ctx.fill(Path(CGRect(x: x, y: 0, width: w, height: h)), with: .color(c)) }
             }
             s += g
         }

@@ -130,7 +130,7 @@ extension AppModel {
     /// Дорожки прокручиваются по вертикали: EXPANDED или свой масштаб строк (SCALE).
     var arrRowsScroll: Bool { return settings.arrangeExpanded || arrPort.rowH != nil }
 
-    /// Кнопки EXPANDED / COMPACT под измерителем (при SCALE): режим строк, свой масштаб строк сбрасывается.
+    /// Кнопки EXPANDED / COMPACT под измерителем (при FIX): режим строк, свой масштаб строк сбрасывается.
     func setArrCompact(_ on: Bool) {
         updateSettings { $0.arrangeCompact = on }
         arrPort.rowH = nil

@@ -67,15 +67,15 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var stepPaint: Bool = false
     /// Бутерброд → SYNC (S13e): квант, MIDI-клок, настройки Ableton Link.
     public var sync = SyncSettings()
-    /// Режим строк при SCALE (кнопки EXPANDED / COMPACT под измерителем аранжировщика): EXPANDED (по умолчанию) — 8
+    /// Режим строк при FIX (кнопки EXPANDED / COMPACT под измерителем аранжировщика): EXPANDED (по умолчанию) — 8
     /// строк на окно, дорожки прокручиваются; COMPACT — все дорожки на высоту окна.
     public var arrangeCompact: Bool = false
-    /// SETTINGS → ARRANGE → TRACKS (решение пользователя): FIX (по умолчанию) — строки в одном масштабе с экраном
-    /// (EXPANDED), масштаба по вертикали нет; SCALE — строки масштабируются двумя пальцами по вертикали, под измерителем
-    /// кнопки EXPANDED и COMPACT.
+    /// SETTINGS → ARRANGE → TRACKS (решение пользователя): FIX (по умолчанию) — высота строк по кнопкам EXPANDED и
+    /// COMPACT под измерителем, масштаба по вертикали нет; SCALE — строки масштабируются двумя пальцами по вертикали
+    /// (от EXPANDED), кнопок нет.
     public var arrangeScale: Bool = false
-    /// Действующий режим строк: при FIX — всегда EXPANDED.
-    public var arrangeExpanded: Bool { return !arrangeScale || !arrangeCompact }
+    /// Действующий режим строк: при SCALE — от EXPANDED.
+    public var arrangeExpanded: Bool { return arrangeScale || !arrangeCompact }
     /// SETTINGS → ARRANGE → FOLLOW PLAYHEAD (решение пользователя): при игре окно едет за плейхедом.
     public var arrangeFollow: Bool = true
     /// SETTINGS → ARRANGE → ROW REPEATS (решение пользователя): в аранжировку клип строки ложится на длину × повторы

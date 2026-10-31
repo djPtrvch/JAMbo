@@ -16,37 +16,28 @@ struct EditorBar: View {
         if model.topFrames.ready { aligned } else { plain }
     }
 
-    /// По кнопкам верхней панели (решение пользователя): имя — до SCALE; WARP, REC, ▶ — поровну от SCALE до правого
-    /// края UNDO; MONO — под PLAY и REC; TRIM, NORMALIZE, CLEAR — поровну от REDO до правого края EQ (в WARP вместо MONO…CLEAR —
-    /// строка WarpBar без ▶ от PLAY до EQ); с левого края PATTERNS — LOAD и SAVE поровну, ✕ — квадратная.
+    /// Решение пользователя: имя — до SCALE верхней панели; с него ▶ и REC шириной кнопок аранжировщика, за ними
+    /// WARP и остальные поровну до ✕ (MONO, TRIM, NORMALIZE, CLEAR, LOAD, SAVE; в WARP вместо MONO…CLEAR — строка
+    /// WarpBar без ▶); ✕ — квадратная.
     private var aligned: some View {
         let top: TopFrames = model.topFrames
         let g: CGFloat = Layout.gap
         let infoW: CGFloat = max(60, top.scale.minX - barX - g)
-        let trioW: CGFloat = max(0, top.undo.maxX - top.scale.minX)
-        let monoW: CGFloat = max(0, top.rec.maxX - top.play.minX)
-        let editW: CGFloat = max(0, top.eq.maxX - top.redo.minX)
+        // ▶ и REC — шириной кнопок аранжировщика (четыре в ширину левой колонки).
+        let w: CGFloat = (Layout.leftColumn - 3 * g) / 4
         return HStack(spacing: g) {
             infoText.frame(width: infoW, alignment: .leading)
-            HStack(spacing: g) {
-                warpButton
-                SampleRecButton(model: model)
-                playButton
-            }
-            .frame(width: trioW)
+            playButton.frame(width: w)
+            SampleRecButton(model: model).frame(width: w)
+            warpButton
             if model.editorWarp {
-                HStack(spacing: g) { WarpBar(model: model, data: data, showPlay: false) }
-                    .frame(width: max(0, top.eq.maxX - top.play.minX))
+                WarpBar(model: model, data: data, showPlay: false)
             } else {
-                monoButton.frame(width: monoW)
-                HStack(spacing: g) {
-                    ToolButton(title: "TRIM", enabled: data != nil && !sel.full, width: nil) { model.trimSample(sel.a, sel.b) }
-                    ToolButton(title: "NORMALIZE", enabled: data != nil, width: nil) { model.normalizeSample() }
-                    clearButton
-                }
-                .frame(width: editW)
+                monoButton
+                ToolButton(title: "TRIM", enabled: data != nil && !sel.full, width: nil) { model.trimSample(sel.a, sel.b) }
+                ToolButton(title: "NORMALIZE", enabled: data != nil, width: nil) { model.normalizeSample() }
+                clearButton
             }
-            // От правого края EQ — LOAD и SAVE поровну (с левого края PATTERNS).
             loadSave
             ToolButton(title: "✕", width: model.barH) { model.closeEditor() }
         }

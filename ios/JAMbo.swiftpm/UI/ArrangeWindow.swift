@@ -131,6 +131,8 @@ struct ArrMetrics {
     static let markerH: CGFloat = 18
     static let top: CGFloat = rulerH + markerH
     static let stepsPerBar: Int = ArrGrid.stepsPerBar
+    /// Четыре такта — линия сетки и черта линейки выделены.
+    static let stepsPer4Bars: Int = 4 * ArrGrid.stepsPerBar
 
     let size: CGSize
     let stepW: CGFloat
@@ -357,7 +359,8 @@ struct ArrDraw {
         }
     }
 
-    /// Линии тактов (ярче) и сетки (с выбранным шагом сетки, если не слишком тесно).
+    /// Линии тактов (ярче), каждые 4 такта — вдвое толще (решение пользователя), и сетки (с выбранным шагом сетки,
+    /// если не слишком тесно).
     private func gridLines(_ p: Project) {
         let first: Int = max(0, Int(m.step(at: 0)))
         let last: Int = Int(m.step(at: m.size.width)) + 1
@@ -370,7 +373,8 @@ struct ArrDraw {
             if bar || fine {
                 let x: CGFloat = m.stepX(Double(s))
                 let c: Color = bar ? theme.gridStrong : theme.grid
-                if x >= 1 { ctx.fill(Path(CGRect(x: x, y: ArrMetrics.top, width: 1, height: h)), with: .color(c)) }
+                let w: CGFloat = s % ArrMetrics.stepsPer4Bars == 0 ? 2 : 1
+                if x >= 1 { ctx.fill(Path(CGRect(x: x, y: ArrMetrics.top, width: w, height: h)), with: .color(c)) }
             }
             s += max(1, g)
         }
@@ -520,8 +524,11 @@ struct ArrDraw {
         var bar: Int = firstBar - firstBar % every
         while bar <= lastBar {
             let x: CGFloat = m.stepX(Double(bar * ArrMetrics.stepsPerBar))
-            // Черта такта у самого края не рисуется.
-            if x >= 1 { ctx.fill(Path(CGRect(x: x, y: 0, width: 1, height: ArrMetrics.rulerH)), with: .color(theme.gridStrong)) }
+            // Черта такта у самого края не рисуется; каждые 4 такта — во всю высоту линейки, остальные — короче (нижняя
+            // половина, решение пользователя).
+            let four: Bool = bar % 4 == 0
+            let ty: CGFloat = four ? 0 : ArrMetrics.rulerH / 2
+            if x >= 1 { ctx.fill(Path(CGRect(x: x, y: ty, width: 1, height: ArrMetrics.rulerH - ty)), with: .color(theme.gridStrong)) }
             // В выделенном диапазоне при включённой петле (яркая заливка) — номера тактов чёрные.
             let s: Int = bar * ArrMetrics.stepsPerBar
             let lit: Bool = loopOn && s >= p.arrange.loopFrom && s < p.arrange.loopTo

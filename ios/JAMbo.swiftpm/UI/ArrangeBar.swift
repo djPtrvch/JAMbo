@@ -169,7 +169,7 @@ struct ArrWaveIcon: View {
 }
 
 
-/// Кнопки под измерителем аранжировщика (решения пользователя), квадратные шириной с измеритель: при SCALE (SETTINGS →
+/// Кнопки под измерителем аранжировщика (решения пользователя), квадратные шириной с измеритель: при FIX (SETTINGS →
 /// ARRANGE) — EXPANDED (8 строк на окно) и COMPACT (все дорожки на окно); ниже — карандаш: рисование кривой в окне AUTO
 /// (неактивен, пока AUTO выключена).
 struct ArrSideButtons: View {
@@ -179,7 +179,7 @@ struct ArrSideButtons: View {
     var body: some View {
         let compact: Bool = model.settings.arrangeCompact
         return VStack(spacing: Layout.gap) {
-            if model.settings.arrangeScale {
+            if !model.settings.arrangeScale {
                 ArrBarButton(on: !compact, enabled: true, action: { model.setArrCompact(false) }) { c in
                     Image(systemName: "rectangle.expand.vertical").font(.system(size: 14, weight: .semibold)).foregroundStyle(c)
                 }
