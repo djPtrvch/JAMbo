@@ -320,25 +320,28 @@ extension AppModel {
     /// на их месте.
     func arrDeleteGroup() {
         let g = arrGroupList
-        var spans: [(track: Int, from: Int, to: Int)] = []
-        for s in arrGroup {
-            if let b = arrBlock(s) { spans.append((s.track, b.start, b.end)) }
-        }
-        edit { p in
-            p.deleteBlocks(g)
-            for r in spans where r.track < p.tracks.count { p.tracks[r.track].clearAuto(from: Double(r.from), to: Double(r.to)) }
-        }
+        // Автоматизация — в блоках, уходит с ними.
+        edit { p in p.deleteBlocks(g) }
         arrGroup = []
         arrSel = nil
     }
 
-    /// DELETE блока: правые не смыкаются (решение пользователя), автоматизация дорожки на месте блока — тоже убирается.
+    /// LINK: есть ли у блока следующий блок на дорожке (с ним соединяется кривая).
+    func arrCanLink(_ s: ArrSel) -> Bool {
+        guard s.track >= 0 && s.track < project.tracks.count else { return false }
+        return s.block >= 0 && s.block + 1 < project.tracks[s.track].blocks.count
+    }
+
+    /// LINK / UNLINK: кривая блока соединяется прямой с кривой следующего блока дорожки (одна запись UNDO).
+    func arrToggleLink(_ s: ArrSel) {
+        guard let b = arrBlock(s), arrCanLink(s) else { return }
+        edit { p in p.tracks[s.track].setAutoLink(s.block, !b.autoLink) }
+    }
+
+    /// DELETE блока: правые не смыкаются (решение пользователя); автоматизация блока уходит с ним.
     func arrDeleteBlock(_ s: ArrSel) {
-        guard let b = arrBlock(s) else { return }
-        edit { p in
-            p.tracks[s.track].deleteBlock(s.block)
-            p.tracks[s.track].clearAuto(from: Double(b.start), to: Double(b.end))
-        }
+        guard arrBlock(s) != nil else { return }
+        edit { p in p.tracks[s.track].deleteBlock(s.block) }
         arrSel = nil
     }
 

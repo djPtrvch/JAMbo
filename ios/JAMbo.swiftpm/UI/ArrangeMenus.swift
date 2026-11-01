@@ -106,8 +106,8 @@ struct ArrRefMenu: View {
 
 struct ArrBlockMenu: View {
     static let width: CGFloat = 180
-    /// 4 строки по 40, 3 зазора по 6, поля 16.
-    static let height: CGFloat = 194
+    /// 5 строк по 40, 4 зазора по 6, поля 16.
+    static let height: CGFloat = 240
     let model: AppModel
     let sel: ArrSel
 
@@ -122,6 +122,11 @@ struct ArrBlockMenu: View {
             MenuChoice(title: "DUPLICATE", current: false) {
                 m.arrMenu = nil
                 if group { m.arrDuplicateGroup() } else { m.arrDuplicateBlock(b) }
+            },
+            // LINK (решение пользователя): автоматизация блока соединяется со следующим блоком дорожки.
+            MenuChoice(title: "LINK AUTO", enabled: !group && m.arrCanLink(b), current: m.arrBlock(b)?.autoLink ?? false) {
+                m.arrMenu = nil
+                m.arrToggleLink(b)
             },
             MenuChoice(title: "DELETE", red: true, current: false) {
                 m.arrMenu = nil

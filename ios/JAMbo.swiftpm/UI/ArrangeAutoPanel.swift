@@ -259,16 +259,16 @@ struct ArrAutoDraw {
         let base: Double = pd.toNorm(p.tracks[t].params[pd.id] ?? pd.def)
         let by: CGFloat = ArrAutoGeo.y(base, h)
         ctx.fill(Path(CGRect(x: 0, y: by - 0.5, width: m.size.width, height: 1)), with: .color(theme.dim.opacity(0.6)))
-        guard let k = p.tracks[t].autoLane(pd.id) else { return }
-        let pts: [ArrAutoPoint] = p.tracks[t].autos[k].points
-        if pts.isEmpty { return }
+        // Кривая — по группам (блок или блоки с LINK): между группами линии нет.
         var line = Path()
         var dots = Path()
-        for (i, pt) in pts.enumerated() {
-            let x: CGFloat = m.stepX(pt.x)
-            let y: CGFloat = ArrAutoGeo.y(pt.y, h)
-            if i == 0 { line.move(to: CGPoint(x: x, y: y)) } else { line.addLine(to: CGPoint(x: x, y: y)) }
-            if x >= -6 && x <= m.size.width + 6 { dots.addEllipse(in: CGRect(x: x - 4, y: y - 4, width: 8, height: 8)) }
+        for g in p.tracks[t].autoGroups(pd.id) {
+            for (i, pt) in g.enumerated() {
+                let x: CGFloat = m.stepX(pt.x)
+                let y: CGFloat = ArrAutoGeo.y(pt.y, h)
+                if i == 0 { line.move(to: CGPoint(x: x, y: y)) } else { line.addLine(to: CGPoint(x: x, y: y)) }
+                if x >= -6 && x <= m.size.width + 6 { dots.addEllipse(in: CGRect(x: x - 4, y: y - 4, width: 8, height: 8)) }
+            }
         }
         ctx.stroke(line, with: .color(theme.accent), lineWidth: 2)
         ctx.fill(dots, with: .color(theme.accent))
@@ -335,8 +335,7 @@ final class ArrAutoTouches {
         }
         track = t
         param = pd.id
-        let lane: Int? = model.project.tracks[t].autoLane(pd.id)
-        orig = lane.map { model.project.tracks[t].autos[$0].points } ?? []
+        orig = model.project.tracks[t].autoPoints(pd.id)
         var best: CGFloat = 24
         for (i, pt) in orig.enumerated() {
             let d: CGFloat = hypot(m.stepX(pt.x) - p.x, ArrAutoGeo.y(pt.y, m.size.height) - p.y)

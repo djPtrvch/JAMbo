@@ -1,8 +1,9 @@
 import Foundation
 
-// Автоматизация на таймлайне аранжировки (S15f, docs/ai/arranger.md): у дорожки по кривой на ручку сетки. Точка — шаг
-// таймлайна (дробный) и положение ручки 0…1; между точками — прямая. Кривая действует от первой точки до последней,
-// пока дорожка идёт по таймлайну (вне — значение ручки).
+// Автоматизация на таймлайне аранжировки (S15f, docs/ai/arranger.md): у дорожки — строки ручек (Track.autos), точки
+// кривых — в блоках (ArrBlock.autos, x от начала блока; решение пользователя 1.11). Точка — шаг (дробный) и положение
+// ручки 0…1; между точками — прямая. Кривая блока действует от его первой точки до последней (LINK — до первой точки
+// следующего блока), пока дорожка идёт по таймлайну; вне — значение ручки.
 
 /// Точка кривой: x — шаг таймлайна, y — положение ручки 0…1.
 public struct ArrAutoPoint: Codable, Equatable, Sendable {
@@ -61,26 +62,102 @@ public enum ArrAutoTarget {
 }
 
 extension Track {
-    /// Номер кривой ручки id (nil — нет).
+    /// Номер строки ручки id (nil — нет). Track.autos — строки окна AUTO (ручки); точки — в блоках (ArrBlock.autos).
     public func autoLane(_ id: String) -> Int? {
         return autos.firstIndex { $0.param == id }
     }
 
-    /// Точки кривой ручки id (по x, не больше maxPoints, y в 0…1); пустые точки кривую не удаляют.
+    /// Группы кривой ручки id на таймлайне (абсолютные шаги): блок с LINK — вместе со следующим блоком дорожки.
+    /// Между группами кривой нет; точки блока — в пределах [начало, конец] блока.
+    public func autoGroups(_ id: String) -> [[ArrAutoPoint]] {
+        var out: [[ArrAutoPoint]] = []
+        var cur: [ArrAutoPoint] = []
+        for (i, b) in blocks.enumerated() {
+            let s: Double = Double(b.start)
+            let len: Double = Double(b.length)
+            if let l = b.autos.first(where: { $0.param == id }) {
+                for pt in l.points where pt.x >= 0 && pt.x <= len { cur.append(ArrAutoPoint(x: s + pt.x, y: pt.y)) }
+            }
+            let linked: Bool = b.autoLink && i + 1 < blocks.count
+            if !linked {
+                if !cur.isEmpty { out.append(cur) }
+                cur = []
+            }
+        }
+        if !cur.isEmpty { out.append(cur) }
+        return out
+    }
+
+    /// Все точки кривой ручки id (абсолютные шаги, по порядку блоков).
+    public func autoPoints(_ id: String) -> [ArrAutoPoint] {
+        return autoGroups(id).flatMap { $0 }
+    }
+
+    /// Значение кривой ручки id на шаге x (nil — вне кривых групп).
+    public func autoValue(_ id: String, at x: Double) -> Double? {
+        for g in autoGroups(id) {
+            if let v = ArrAutoLane.value(g, at: x) { return v }
+        }
+        return nil
+    }
+
+    /// Точки кривой ручки id (абсолютные шаги): каждая — в свой блок (под ней; на стыке двух — в блок прошлой точки);
+    /// точки вне блоков не ставятся. Строки нет — появляется (пустые точки строку не удаляют).
     public mutating func setAuto(_ id: String, _ points: [ArrAutoPoint]) {
         guard ArrAutoTarget.index(id) != nil else { return }
         var p: [ArrAutoPoint] = points.map { ArrAutoPoint(x: Swift.max(0, $0.x), y: Swift.min(1, Swift.max(0, $0.y))) }
         p.sort { $0.x < $1.x }
         if p.count > ArrAutoLane.maxPoints { p = Array(p.prefix(ArrAutoLane.maxPoints)) }
-        if let k = autoLane(id) {
-            autos[k].points = p
-        } else {
-            autos.append(ArrAutoLane(param: id, points: p))
+        if autoLane(id) == nil { autos.append(ArrAutoLane(param: id)) }
+        var per: [[ArrAutoPoint]] = [[ArrAutoPoint]](repeating: [], count: blocks.count)
+        var last: Int = -1
+        for pt in p {
+            var k: Int = -1
+            if last >= 0 && pt.x >= Double(blocks[last].start) && pt.x <= Double(blocks[last].end) {
+                k = last
+            } else if let j = blocks.lastIndex(where: { pt.x >= Double($0.start) && pt.x <= Double($0.end) }) {
+                k = j
+            }
+            if k < 0 { continue }
+            last = k
+            per[k].append(ArrAutoPoint(x: pt.x - Double(blocks[k].start), y: pt.y))
+        }
+        for k in blocks.indices {
+            // Точки за краями блока (после TRIM) — не видны и не звучат; правка кривой их убирает.
+            blocks[k].autos.removeAll { $0.param == id }
+            if !per[k].isEmpty { blocks[k].autos.append(ArrAutoLane(param: id, points: per[k])) }
         }
     }
 
     public mutating func deleteAuto(_ id: String) {
         autos.removeAll { $0.param == id }
+        for k in blocks.indices { blocks[k].autos.removeAll { $0.param == id } }
+    }
+
+    /// Корзина: вся автоматизация дорожки (строки и точки блоков).
+    public mutating func clearAllAutos() {
+        autos = []
+        for k in blocks.indices { blocks[k].autos = [] }
+    }
+
+    /// Есть ли у дорожки хоть одна точка.
+    public var hasAutoPoints: Bool {
+        return blocks.contains { b in b.autos.contains { !$0.points.isEmpty } }
+    }
+
+    /// LINK блока i: кривая соединяется со следующим блоком дорожки.
+    public mutating func setAutoLink(_ i: Int, _ on: Bool) {
+        if blocks.indices.contains(i) { blocks[i].autoLink = on }
+    }
+
+    /// Проект прежнего формата: точки кривых дорожки — в блоки под ними (соседние блоки — с LINK, чтобы кривая
+    /// звучала как раньше); у строк дорожки точек не остаётся.
+    mutating func migrateAutos() {
+        let old: [ArrAutoLane] = autos.filter { !$0.points.isEmpty }
+        if old.isEmpty { return }
+        for k in blocks.indices.dropLast() where blocks[k].end == blocks[k + 1].start { blocks[k].autoLink = true }
+        for l in old { setAuto(l.param, l.points) }
+        for k in autos.indices { autos[k].points = [] }
     }
 }
 
@@ -127,31 +204,9 @@ extension Track {
     public mutating func recordAuto(_ id: String, _ take: [ArrAutoPoint], tol: Double = 0.01) {
         guard let a = take.first, let b = take.last, ArrAutoTarget.index(id) != nil else { return }
         let piece: [ArrAutoPoint] = ArrAutoLane.simplify(take, tol: tol)
-        var pts: [ArrAutoPoint] = autoLane(id).map { autos[$0].points } ?? []
+        var pts: [ArrAutoPoint] = autoPoints(id)
         pts.removeAll { $0.x >= a.x && $0.x <= b.x }
         pts.append(contentsOf: piece)
         setAuto(id, pts)
-    }
-}
-
-extension Track {
-    /// Удалили блок (решение пользователя): точки всех кривых дорожки на его месте [a, b) убираются. Кривая вне места
-    /// не меняется: есть точки слева — на краю a встаёт точка с прежним значением кривой, справа — на краю b (между
-    /// ними — прямая); с одной стороны точек нет — кривая там кончается.
-    public mutating func clearAuto(from a: Double, to b: Double) {
-        if b <= a { return }
-        for k in autos.indices {
-            let pts: [ArrAutoPoint] = autos[k].points
-            if !pts.contains(where: { $0.x >= a && $0.x < b }) { continue }
-            let va: Double? = ArrAutoLane.value(pts, at: a)
-            let vb: Double? = ArrAutoLane.value(pts, at: b)
-            var out: [ArrAutoPoint] = pts.filter { $0.x < a || $0.x >= b }
-            let left: Bool = out.contains { $0.x < a }
-            let right: Bool = out.contains { $0.x >= b }
-            if left, let v = va { out.append(ArrAutoPoint(x: a, y: v)) }
-            if right, let v = vb, !out.contains(where: { $0.x == b }) { out.append(ArrAutoPoint(x: b, y: v)) }
-            out.sort { $0.x < $1.x }
-            autos[k].points = out
-        }
     }
 }

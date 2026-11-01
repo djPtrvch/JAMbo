@@ -58,7 +58,7 @@ extension AppModel {
     func arrAutoClearTrack() {
         guard let t = arrAutoTrack, !project.tracks[t].autos.isEmpty else { return }
         flushAutoTakes(all: true)
-        edit { p in p.tracks[t].autos = [] }
+        edit { p in p.tracks[t].clearAllAutos() }
     }
 
     /// Точки кривой (тап, перетаскивание, удаление; при перетаскивании — внутри жеста, одна запись UNDO).
@@ -102,8 +102,8 @@ extension AppModel {
     /// Значение кривой ручки id дорожки t, которое сейчас звучит (дорожка на таймлайне); nil — кривая не действует.
     func autoCurveNorm(_ t: Int, _ id: String) -> Double? {
         guard playing, t >= 0, t < project.tracks.count, t < live.following.count, live.following[t],
-              let k = project.tracks[t].autoLane(id) else { return nil }
-        return project.tracks[t].autos[k].value(at: arrNowX)
+              project.tracks[t].autoLane(id) != nil else { return nil }
+        return project.tracks[t].autoValue(id, at: arrNowX)
     }
 
     /// Ручка id выбранной дорожки под рукой (палец, энкодер при записи): кривая на ней не действует.

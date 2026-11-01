@@ -211,13 +211,14 @@ final class ArrangeTests: XCTestCase {
         var p = Project()
         p.tracks[0].placeBlock(ArrBlock(clip: 0, start: 0, length: 32))
         p.tracks[1].placeBlock(ArrBlock(clip: 0, start: 32, length: 16))
-        p.tracks[0].autos = [ArrAutoLane(param: "filter", points: [ArrAutoPoint(x: 8, y: 0), ArrAutoPoint(x: 20, y: 1)])]
+        p.tracks[0].setAuto("filter", [ArrAutoPoint(x: 8, y: 0), ArrAutoPoint(x: 20, y: 1)])
         p.addMarker(at: 0, name: "A", end: 32)
         p.addMarker(at: 32, name: "B", end: 48)
         p.insertSpace(at: 16, length: 16)
         XCTAssertEqual(spans(p.tracks[0]), [[0, 0, 16, 0], [0, 32, 16, 16]])
         XCTAssertEqual(spans(p.tracks[1]), [[0, 48, 16, 0]])
-        XCTAssertEqual(p.tracks[0].autos[0].points.map { $0.x }, [8, 36])
+        XCTAssertEqual(p.tracks[0].autoPoints("filter").map { $0.x }, [8, 36])
+        XCTAssertEqual(p.tracks[0].autoGroups("filter").count, 1, "разрез INSERT — кривая не рвётся (LINK)")
         XCTAssertEqual(p.arrange.markers.map { [$0.at, $0.end ?? -1] }, [[0, 48], [48, 64]])
         // Проба: клип строки 1 дорожки 0 (16 шагов) с 0 — поверх блока, с 16 — на пустом.
         p.tracks[0].clips[1] = Clip(pages: [Track.emptyPage()], length: 16, playFrom: 0, playTo: 0)

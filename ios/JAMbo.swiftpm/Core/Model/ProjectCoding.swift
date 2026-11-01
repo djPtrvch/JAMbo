@@ -78,6 +78,7 @@ extension Track {
         blocks = c.value(.blocks, [ArrBlock]())
         color = c.value(.color, ArrPalette.defaultColor)
         autos = c.value(.autos, [ArrAutoLane]())
+        migrateAutos()
     }
 }
 

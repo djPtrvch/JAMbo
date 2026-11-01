@@ -77,11 +77,13 @@ public struct SeqData {
     public var loopTo: Int = 0
     public var loop: Bool = false
     /// Автоматизация (S15f): кривая цели j (ArrAutoTarget) дорожки t — точки autoFirst[t·count + j] …
-    /// + autoCount − 1 (x — шаг таймлайна, y — 0…1); autoAny[t] — у дорожки есть кривые.
+    /// + autoCount − 1 (x — шаг таймлайна, y — 0…1, autoG — группа: блок или блоки с LINK; между группами прямой нет);
+    /// autoAny[t] — у дорожки есть кривые.
     public var autoFirst: UnsafeMutablePointer<Int32>
     public var autoCount: UnsafeMutablePointer<Int32>
     public var autoX: UnsafeMutablePointer<Double>
     public var autoY: UnsafeMutablePointer<Float>
+    public var autoG: UnsafeMutablePointer<Int32>
     public var autoAny: UnsafeMutablePointer<UInt8>
 
     /// Значение 0…1 кривой цели j дорожки t на шаге x; −1 — кривой нет или x вне её точек.
@@ -101,6 +103,8 @@ public struct SeqData {
         }
         let ax: Double = autoX[lo]
         let bx: Double = autoX[hi]
+        // Разные группы (промежуток между блоками без LINK): кривой нет, кроме самой точки.
+        if autoG[lo] != autoG[hi] { return x == ax ? Double(autoY[lo]) : (x == bx ? Double(autoY[hi]) : -1) }
         let ay: Double = Double(autoY[lo])
         let by: Double = Double(autoY[hi])
         if bx <= ax { return by }
@@ -246,7 +250,9 @@ public final class SeqSnapshot: @unchecked Sendable {
         var arrBlocks = 1
         for t in 0..<used { arrBlocks += project.tracks[t].blocks.count }
         var autoPoints = 1
-        for t in 0..<used { for l in project.tracks[t].autos { autoPoints += l.points.count } }
+        for t in 0..<used {
+            for b in project.tracks[t].blocks { for l in b.autos { autoPoints += l.points.count } }
+        }
         let autoCells = tracks * ArrAutoTarget.count
         var d = SeqData(
             stopped: .allocate(capacity: tracks), slot: .allocate(capacity: tracks),
@@ -270,7 +276,8 @@ public final class SeqSnapshot: @unchecked Sendable {
             blkClip: .allocate(capacity: arrBlocks), blkStart: .allocate(capacity: arrBlocks),
             blkLen: .allocate(capacity: arrBlocks), blkOff: .allocate(capacity: arrBlocks),
             autoFirst: .allocate(capacity: autoCells), autoCount: .allocate(capacity: autoCells),
-            autoX: .allocate(capacity: autoPoints), autoY: .allocate(capacity: autoPoints), autoAny: .allocate(capacity: tracks)
+            autoX: .allocate(capacity: autoPoints), autoY: .allocate(capacity: autoPoints),
+            autoG: .allocate(capacity: autoPoints), autoAny: .allocate(capacity: tracks)
         )
         d.stopped.initialize(repeating: 1, count: tracks)
         d.slot.initialize(repeating: 0, count: tracks)
@@ -336,18 +343,26 @@ public final class SeqSnapshot: @unchecked Sendable {
         d.autoCount.initialize(repeating: 0, count: autoCells)
         d.autoX.initialize(repeating: 0, count: autoPoints)
         d.autoY.initialize(repeating: 0, count: autoPoints)
+        d.autoG.initialize(repeating: 0, count: autoPoints)
         d.autoAny.initialize(repeating: 0, count: tracks)
         var na = 0
         for t in 0..<used {
-            for l in project.tracks[t].autos where !l.points.isEmpty {
+            let tr: Track = project.tracks[t]
+            for l in tr.autos {
                 guard let j = ArrAutoTarget.index(l.param) else { continue }
+                let groups: [[ArrAutoPoint]] = tr.autoGroups(l.param)
+                let n: Int = groups.reduce(0) { $0 + $1.count }
+                if n == 0 || na + n > autoPoints { continue }
                 let k: Int = t * ArrAutoTarget.count + j
                 d.autoFirst[k] = Int32(na)
-                d.autoCount[k] = Int32(l.points.count)
-                for p in l.points {
-                    d.autoX[na] = p.x
-                    d.autoY[na] = Float(p.y)
-                    na += 1
+                d.autoCount[k] = Int32(n)
+                for (g, pts) in groups.enumerated() {
+                    for p in pts {
+                        d.autoX[na] = p.x
+                        d.autoY[na] = Float(p.y)
+                        d.autoG[na] = Int32(g)
+                        na += 1
+                    }
                 }
                 d.autoAny[t] = 1
             }
@@ -539,6 +554,7 @@ public final class SeqSnapshot: @unchecked Sendable {
         data.autoCount.deallocate()
         data.autoX.deallocate()
         data.autoY.deallocate()
+        data.autoG.deallocate()
         data.autoAny.deallocate()
     }
 }

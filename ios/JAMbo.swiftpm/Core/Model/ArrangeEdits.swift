@@ -37,7 +37,12 @@ extension Track {
             }
             if b.end > to {
                 let cut: Int = to - b.start
-                out.append(ArrBlock(clip: b.clip, start: to, length: b.end - to, offset: b.offset + cut, pattern: b.pattern))
+                var right: ArrBlock = b
+                right.start = to
+                right.length = b.end - to
+                right.offset = b.offset + cut
+                right.shiftAutos(cut)
+                out.append(right)
             }
         }
         blocks = out
@@ -121,6 +126,7 @@ extension Track {
         var b: ArrBlock = blocks.remove(at: i)
         let s: Int = Swift.max(0, Swift.min(start, end - 1))
         b.offset += s - b.start
+        b.shiftAutos(s - b.start)
         b.start = s
         b.length = Swift.max(1, end - s)
         return placeBlock(b)
@@ -238,7 +244,13 @@ extension Track {
         let b: ArrBlock = blocks[k]
         let cut: Int = x - b.start
         blocks[k].length = cut
-        blocks.append(ArrBlock(clip: b.clip, start: x, length: b.end - x, offset: b.offset + cut, pattern: b.pattern))
+        blocks[k].autoLink = true
+        var right: ArrBlock = b
+        right.start = x
+        right.length = b.end - x
+        right.offset = b.offset + cut
+        right.shiftAutos(cut)
+        blocks.append(right)
     }
 
     private mutating func sortBlocks() {

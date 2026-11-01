@@ -80,15 +80,8 @@ extension Project {
     public mutating func insertSpace(at x: Int, length: Int) {
         if length <= 0 { return }
         let at: Int = Swift.max(0, x)
-        let d: Double = Double(length)
-        for t in tracks.indices {
-            tracks[t].shiftArrange(after: at, by: length)
-            for l in tracks[t].autos.indices {
-                for i in tracks[t].autos[l].points.indices where tracks[t].autos[l].points[i].x >= Double(at) {
-                    tracks[t].autos[l].points[i].x += d
-                }
-            }
-        }
+        // Точки автоматизации — в блоках, едут с ними.
+        for t in tracks.indices { tracks[t].shiftArrange(after: at, by: length) }
         for k in arrange.markers.indices {
             let m: ArrMarker = arrange.markers[k]
             if m.at >= at {

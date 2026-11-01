@@ -232,8 +232,9 @@ final class ArrangePlayTests: XCTestCase {
         XCTAssertEqual(l.value(at: 6)!, 0.6, accuracy: 1e-9)
         XCTAssertNil(l.value(at: 8.1))
         var t = Track(index: 0)
+        t.placeBlock(ArrBlock(clip: 0, start: 0, length: 16))
         t.setAuto("filter", [ArrAutoPoint(x: 8, y: 2), ArrAutoPoint(x: 1, y: -1)])
-        XCTAssertEqual(t.autos[0].points, [ArrAutoPoint(x: 1, y: 0), ArrAutoPoint(x: 8, y: 1)])
+        XCTAssertEqual(t.autoPoints("filter"), [ArrAutoPoint(x: 1, y: 0), ArrAutoPoint(x: 8, y: 1)])
         t.setAuto("nope", [])
         XCTAssertEqual(t.autos.count, 1)
     }
@@ -245,9 +246,10 @@ final class ArrangePlayTests: XCTestCase {
         let bend: [ArrAutoPoint] = [ArrAutoPoint(x: 0, y: 0), ArrAutoPoint(x: 1, y: 1), ArrAutoPoint(x: 2, y: 0)]
         XCTAssertEqual(ArrAutoLane.simplify(bend, tol: 0.01).count, 3)
         var t = Track(index: 0)
+        t.placeBlock(ArrBlock(clip: 0, start: 0, length: 64))
         t.setAuto("filter", [ArrAutoPoint(x: 0, y: 0.5), ArrAutoPoint(x: 8, y: 0.5), ArrAutoPoint(x: 32, y: 0.5)])
         t.recordAuto("filter", line.map { ArrAutoPoint(x: $0.x + 4, y: $0.y) })
-        XCTAssertEqual(t.autos[0].points.map { $0.x }, [0, 4, 24, 32])
+        XCTAssertEqual(t.autoPoints("filter").map { $0.x }, [0, 4, 24, 32])
         t.recordAuto("pan", [ArrAutoPoint(x: 1, y: 0.2), ArrAutoPoint(x: 2, y: 0.3)])
         XCTAssertEqual(t.autos.count, 2)
     }

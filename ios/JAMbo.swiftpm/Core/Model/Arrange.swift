@@ -14,6 +14,11 @@ public struct ArrBlock: Codable, Equatable, Sendable {
     public var length: Int
     public var offset: Int = 0
     public var pattern: Clip? = nil
+    /// Автоматизация блока (решение пользователя, 1.11): кривые ручек, x — шаг от начала блока; едут, копируются и
+    /// удаляются вместе с блоком.
+    public var autos: [ArrAutoLane] = []
+    /// LINK: кривая блока соединяется прямой с кривой следующего блока дорожки (через промежуток).
+    public var autoLink: Bool = false
 
     public init(clip: Int, start: Int, length: Int, offset: Int = 0, pattern: Clip? = nil) {
         self.clip = clip
@@ -115,7 +120,7 @@ public struct Arrangement: Codable, Equatable, Sendable {
 }
 
 extension ArrBlock {
-    enum CodingKeys: String, CodingKey, CaseIterable { case clip, start, length, offset, pattern }
+    enum CodingKeys: String, CodingKey, CaseIterable { case clip, start, length, offset, pattern, autos, autoLink }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -124,6 +129,17 @@ extension ArrBlock {
         length = c.value(.length, ArrGrid.stepsPerBar)
         offset = c.value(.offset, 0)
         pattern = c.optional(.pattern)
+        autos = c.value(.autos, [ArrAutoLane]())
+        autoLink = c.value(.autoLink, false)
+    }
+
+    /// Начало блока сдвинулось на d шагов вправо (TRIM слева, правая часть разреза): точки — на прежних местах таймлайна.
+    mutating func shiftAutos(_ d: Int) {
+        if d == 0 || autos.isEmpty { return }
+        let dx: Double = Double(d)
+        for l in autos.indices {
+            for i in autos[l].points.indices { autos[l].points[i].x -= dx }
+        }
     }
 }
 
