@@ -209,4 +209,61 @@ final class ArrangeAutoReturnTests: XCTestCase {
             }
         }
     }
+
+    /// Ступенька кривой HP → выкл. посреди хвоста KICK (как на видео 1.11): низ хвоста возвращается, но без щелчка —
+    /// доля фильтра в выходе идёт по S-кривой. Мера щелчка — пик выше 1 кГц у ступеньки против того же места
+    /// без кривой (выкл.) и с HP без ступеньки.
+    func testHpToOffStepWithoutClick() {
+        func render(_ pts: [ArrAutoPoint]?) -> [Float] {
+            var p = Project()
+            for t in 1..<8 { p.tracks[t].clips[0] = nil }
+            p.tracks[0].setSynth(16)
+            p.tracks[0].params["filter"] = 0
+            p.tracks[0].params["decay"] = 1000
+            p.tracks[0].params["attack"] = 0
+            p.tracks[0].clips[0]!.pages[0][9].on = true
+            p.tracks[0].clips[0]!.pages[0][9].notes = [36]
+            p.tracks[0].placeBlock(ArrBlock(clip: 0, start: 0, length: 16))
+            if let pts = pts { p.tracks[0].setAuto("filter", pts) }
+            let core = AudioCore(master: false)
+            core.installSynth()
+            core.publish(p)
+            core.events.push(.arrange(on: true, from: 0))
+            core.events.push(.play(true))
+            var l = [Float](repeating: 0, count: 256), r = l
+            var y: [Float] = []
+            while y.count < 14 * step {
+                core.render(frames: 256, left: &l, right: &r)
+                while core.sequencer.out.pop() != nil {}
+                y += l
+            }
+            return y
+        }
+        func highPeak(_ y: [Float], _ a: Int, _ b: Int) -> Float {
+            var hp = Biquad()
+            hp.set(type: 1, hz: 1000, qDb: 0, sampleRate: 48000)
+            var x1: Float = 0, x2: Float = 0, y1: Float = 0, y2: Float = 0, m: Float = 0
+            for i in 0..<b {
+                let o: Float = hp.b0 * y[i] + hp.b1 * x1 + hp.b2 * x2 - hp.a1 * y1 - hp.a2 * y2
+                x2 = x1; x1 = y[i]; y2 = y1; y1 = o
+                if i >= a { m = Swift.max(m, abs(o)) }
+            }
+            return m
+        }
+        let hpY: Double = 0.75
+        for at in [11.0, 11.4, 12.0] {
+            let stepped: [Float] = render([ArrAutoPoint(x: 0, y: hpY), ArrAutoPoint(x: at, y: hpY),
+                                           ArrAutoPoint(x: at, y: 0.5), ArrAutoPoint(x: 16, y: 0.5)])
+            let off: [Float] = render(nil)
+            let hp: [Float] = render([ArrAutoPoint(x: 0, y: hpY), ArrAutoPoint(x: 16, y: hpY)])
+            let a: Int = Int(at * Double(step)) - 500, b: Int = Int(at * Double(step)) + 1500
+            let s: Float = highPeak(stepped, a, b), r: Float = Swift.max(highPeak(off, a, b), highPeak(hp, a, b))
+            var lo: Float = 0
+            for i in (b + 1000)..<(b + 2000) { lo = Swift.max(lo, abs(stepped[i] - off[i])) }
+            print(String(format: "HP→OFF at %.1f: high %.6f, ref %.6f", at, s, r))
+            XCTAssertGreaterThan(r, 0)
+            XCTAssertLessThanOrEqual(s, r * 1.1, "ступенька HP → выкл. — без щелчка")
+            XCTAssertLessThan(lo, 1e-3, "после ступеньки — как без фильтра")
+        }
+    }
 }

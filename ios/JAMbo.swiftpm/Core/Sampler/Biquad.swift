@@ -52,5 +52,10 @@ public struct Biquad {
     }
 
     /// Переход выхода фильтра на сухой сигнал и обратно при скачке (секунды на каждый).
-    public static let fadeTime: Double = 0.01
+    public static let fadeTime: Double = 0.02
+
+    /// Доля фильтра в выходе по ходу перехода g (0…1) — S-кривая: у линейной на краях излом, на громком низком хвосте
+    /// (бочка после HP → выкл.) он слышен щелчком.
+    @inline(__always)
+    public static func mix(_ g: Float) -> Float { g * g * (3 - 2 * g) }
 }

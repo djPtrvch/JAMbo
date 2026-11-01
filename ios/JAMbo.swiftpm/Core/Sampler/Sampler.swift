@@ -363,7 +363,7 @@ public final class Sampler {
             let hasSend: Bool = sg0 > 1e-6 || sg1 > 1e-6 || sg2 > 1e-6
             let h0 = hz[v]
             let q0 = qDb[v]
-            // Частота — плавно; скачок (HP ↔ LP, выкл., частота дальше 4 раз) — выход на сухой сигнал за 10 мс, фильтр
+            // Частота — плавно; скачок (HP ↔ LP, выкл., частота дальше 4 раз) — выход на сухой сигнал за 20 мс (S-кривая), фильтр
             // сразу на цель, обратно на фильтр (проезд частоты через низы давал всплеск).
             let g0: Float = fdip[v]
             let swap: Bool = Biquad.glide(&ftype[v], &hz[v], fk.type, fk.hz, kf)
@@ -381,9 +381,9 @@ public final class Sampler {
                 coef[v].set(type: ftype[v], hz: hz[v], qDb: qDb[v], sampleRate: sr)
             }
             let c: Biquad = coef[v]
-            // Доля фильтра в выходе — по отсчётам куска.
-            var fq: Float = retype ? 0 : g0
-            let dfq: Float = (fdip[v] - fq) / Float(m)
+            // Доля фильтра в выходе — по отсчётам куска (S-кривая перехода, Biquad.mix).
+            var fq: Float = retype ? 0 : Biquad.mix(g0)
+            let dfq: Float = (Biquad.mix(fdip[v]) - fq) / Float(m)
             let pn = pan[v]
             // StereoPanner: моно — cos/sin; стерео — перекрёстно в сторону панорамы.
             let x: Float = st ? (pn <= 0 ? pn + 1 : pn) : (pn + 1) / 2
@@ -435,7 +435,6 @@ public final class Sampler {
                 let g: Float = e * eg * lv * fadeG[v]
                 var a: Float = (ts ? tsL[j] : Sampler.cubic(l, frames, pos[v])) * g
                 var b: Float = st ? (ts ? tsR[j] : Sampler.cubic(r, frames, pos[v])) * g : 0
-                // Фильтр (TDF II).
                 // Фильтр (прямая форма I).
                 let ya: Float = c.b0 * a + c.b1 * z[zb] + c.b2 * z[zb + 1] - c.a1 * z[zb + 2] - c.a2 * z[zb + 3]
                 z[zb + 1] = z[zb]

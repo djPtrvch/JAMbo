@@ -486,7 +486,7 @@ public final class SynthVoices {
         let s0L = sendL! + t * 3 * st + off, s0R = sendR! + t * 3 * st + off
         let h0 = hz[v]
         let q0 = qDb[v]
-        // Частота — плавно; скачок (HP ↔ LP, выкл., частота дальше 4 раз) — выход на сухой сигнал за 10 мс, фильтр сразу
+        // Частота — плавно; скачок (HP ↔ LP, выкл., частота дальше 4 раз) — выход на сухой сигнал за 20 мс (S-кривая), фильтр сразу
         // на цель, обратно на фильтр (проезд частоты через низы давал всплеск).
         let g0: Float = fdip[v]
         var cPrev: Biquad = coef[v]
@@ -511,9 +511,9 @@ public final class SynthVoices {
         let c: Biquad = coef[v]
         // Скачок — на сухом сигнале: коэффициенты цели сразу (смесь знаменателей двух фильтров — не фильтр).
         if retype { cPrev = c }
-        // Доля фильтра в выходе — по отсчётам от прежней к новой.
-        var fq: Float = retype ? 0 : g0
-        let dfq: Float = (fdip[v] - fq) / Float(m)
+        // Доля фильтра в выходе — по отсчётам от прежней к новой (S-кривая перехода, Biquad.mix).
+        var fq: Float = retype ? 0 : Biquad.mix(g0)
+        let dfq: Float = (Biquad.mix(fdip[v]) - fq) / Float(m)
         let lv = level[v]
         let zb = v * 4
         // Огибающая — отдельным проходом в gBuf (с остановкой голоса), затем фильтр, Pan и посылы — моно или стерео.
@@ -540,7 +540,6 @@ public final class SynthVoices {
                 b2 += db2
                 a1 += da1
                 a2 += da2
-                // Фильтр (TDF II).
                 // Фильтр (прямая форма I).
                 let yf: Float = b0 * a + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2
                 x2 = x1
