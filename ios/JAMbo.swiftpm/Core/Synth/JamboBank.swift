@@ -1,5 +1,5 @@
 // Голоса своих движков JAMbo: KICK, ANALOG, FM, WTABLE, SUB — JamboVoice; SNARE, HAT, CLAP, PERC — JamboDrumVoice;
-// TEXTURE — TextureVoice, GRANULAR — временно убран, ios/extras/granular (стерео, только первый слот дорожки: движки моно). Голос каждого вида на слот, таблицы —
+// TEXTURE — TextureVoice, GRANULAR — GranularVoice (стерео, только первый слот дорожки: движки моно). Голос каждого вида на слот, таблицы —
 // общие. Создаются вне колбэка.
 
 final class JamboBank {
@@ -9,6 +9,7 @@ final class JamboBank {
     private let drums: UnsafeMutablePointer<JamboDrumVoice>
     /// TEXTURE — на первый слот дорожки (слот / perTrack).
     private let texture: UnsafeMutablePointer<TextureVoice>
+    private let granular: UnsafeMutablePointer<GranularVoice>
     private let perTrack: Int
     /// Вид голоса в слоте: 0 — JamboVoice, 1 — ударный 20–23 (JamboDrumVoice), 2 — TEXTURE, 3 — GRANULAR.
     private let kind: UnsafeMutablePointer<UInt8>
@@ -26,8 +27,10 @@ final class JamboBank {
         }
         let tracks = (count + perTrack - 1) / perTrack
         texture = .allocate(capacity: tracks)
+        granular = .allocate(capacity: tracks)
         for t in 0..<tracks {
             (texture + t).initialize(to: TextureVoice(sampleRate: sampleRate, seed: t + 1))
+            (granular + t).initialize(to: GranularVoice(sampleRate: sampleRate, seed: t + 1))
         }
     }
 
@@ -40,6 +43,8 @@ final class JamboBank {
         let tracks = (count + perTrack - 1) / perTrack
         texture.deinitialize(count: tracks)
         texture.deallocate()
+        granular.deinitialize(count: tracks)
+        granular.deallocate()
     }
 
     /// Нота своего движка в голосе v (trigger в worklet); now — абсолютный кадр, tau — время дорожки с дрейфом.
@@ -56,9 +61,9 @@ final class JamboBank {
             texture[v / perTrack].trigger(note: note, p1, p2, p3, p4)
             return
         }
-        // GRANULAR временно убран (ios/extras/granular): нота молчит.
         if e == Jambo.granular {
             kind[v] = 3
+            granular[v / perTrack].trigger(note: note, p1, p2, p3, p4)
             return
         }
         kind[v] = 0
@@ -77,7 +82,10 @@ final class JamboBank {
             texture[v / perTrack].set(note: note, p1, p2, p3, p4)
             return
         }
-        if k == 3 { return }
+        if k == 3 {
+            granular[v / perTrack].set(note: note, p1, p2, p3, p4)
+            return
+        }
         jambo[v].set(note: note, p1, p2, p3, p4, decay: decay)
     }
 
@@ -97,6 +105,7 @@ final class JamboBank {
         drums[v].last = 0
         if v % perTrack == 0 {
             texture[v / perTrack].silence()
+            granular[v / perTrack].silence()
         }
     }
 
@@ -106,9 +115,7 @@ final class JamboBank {
     func stereoRender(_ v: Int, _ outL: UnsafeMutablePointer<Float>, _ outR: UnsafeMutablePointer<Float>, _ n: Int,
                       window: Int, src: GrainSrc) {
         if kind[v] == 3 {
-            // GRANULAR временно убран — тишина.
-            outL.update(repeating: 0, count: n)
-            outR.update(repeating: 0, count: n)
+            granular[v / perTrack].render(outL, outR, n, window: window, src: src)
             return
         }
         texture[v / perTrack].render(outL, outR, n, window: window)

@@ -113,7 +113,12 @@ struct SoundMenu: View {
             }
             HStack(spacing: 4) {
                 MenuItem(title: "SAVE", enabled: !steps && synth) { model.openBrowser(.savePreset) }
-                MenuItem(title: "TABLE", enabled: !steps && wtable) { model.openBrowser(.loadTable) }
+                // У GRANULAR на месте TABLE — SOURCE (сэмпл, из которого читаются зёрна).
+                if granular {
+                    MenuItem(title: "SOURCE", enabled: !steps) { model.openBrowser(.source) }
+                } else {
+                    MenuItem(title: "TABLE", enabled: !steps && wtable) { model.openBrowser(.loadTable) }
+                }
             }
         }
     }
@@ -123,6 +128,10 @@ struct SoundMenu: View {
         SynthKey.engine(model.track.sample) != nil
     }
 
+    /// Дорожка играет GRANULAR (на месте TABLE — SOURCE).
+    private var granular: Bool {
+        SynthKey.engine(model.track.sample) == Jambo.granular
+    }
 
     /// Дорожка играет WTABLE (кнопка TABLE активна).
     private var wtable: Bool {

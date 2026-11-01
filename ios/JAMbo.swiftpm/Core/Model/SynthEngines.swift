@@ -58,8 +58,7 @@ public enum SynthEngines {
 
     /// Колонки меню звука: DRUMS (под ними SAMPLER) и SYNTH (номера движков).
     public static let drums: [Int] = [16, 20, 21, 22, 23]
-    /// GRANULAR (26) временно убран из меню и сборки (ios/extras/granular); проекты с ним открываются, дорожка молчит.
-    public static let synths: [Int] = [17, 24, 18, 19, 25]
+    public static let synths: [Int] = [17, 24, 18, 19, 25, 26]
 
     /// Размер таблиц по номеру движка (наибольший номер + 1).
     public static let count: Int = (all.map { $0.id }.max() ?? -1) + 1

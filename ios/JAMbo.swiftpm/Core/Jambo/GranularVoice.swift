@@ -1,10 +1,3 @@
-// ОТЛОЖЕНО (решение пользователя: облегчить сборку в Playgrounds): движок GRANULAR (26) убран из сборки.
-// Вернуть: этот файл — в ios/JAMbo.swiftpm/Core/Jambo (GrainSrc сейчас в Core/Sampler/SoundSnapshot.swift — убрать
-// оттуда), AppModelGranular.swift — в UI, GranularIcon.swift — в Core/Icons/EngineIconsTexGran.swift; в JamboBank —
-// голос granular (по коммиту 4ec35a5), 26 — в SynthEngines.synths; в меню звука — SOURCE, в библиотеке — режим .source,
-// в SynthWindow — огибающая SOURCE (grainSource) и имя сэмпла; AppModel — grainPeakCache и updateGrainSeconds
-// (selectedTrack didSet, projectChanged); тесты — GranularEngineTests.swift и GranularTexGranTests.swift.
-
 import Foundation
 
 // GRANULAR (26): облако зёрен из сэмпла дорожки (ТЗ «Texture и Granular»; эталон — веб-прототип). Зерно — отрезок

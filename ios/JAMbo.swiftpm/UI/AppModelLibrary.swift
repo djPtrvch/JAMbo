@@ -25,6 +25,8 @@ enum BrowserMode: Equatable {
     case saveSample(String)
     /// REF аранжировщика (S15g): тап по сэмплу или IMPORT — референс проекта.
     case ref
+    /// SOURCE (у дорожки с GRANULAR): тап по сэмплу или IMPORT — сэмпл GRANULAR дорожки.
+    case source
 }
 
 extension AppModel {
@@ -82,7 +84,7 @@ extension AppModel {
             return libFolder == Library.root ? [LibraryBuiltins.folder] + list : list
         }
         // REF и SOURCE — только папки и сэмплы.
-        if browser == .ref {
+        if browser == .ref || browser == .source {
             return library.children(libFolder).filter { $0.kind == .folder || $0.kind == .sample }
         }
         return library.children(libFolder).filter { $0.kind != .table }
@@ -139,6 +141,7 @@ extension AppModel {
     /// Звук дорожки сейчас — этот узел (подсветка).
     func libIsCurrent(_ n: LibNode) -> Bool {
         if browser == .ref { return n.kind == .sample && n.key != nil && n.key == project.arrange.ref?.key }
+        if browser == .source { return n.kind == .sample && n.key != nil && n.key == track.grain }
         guard channel == .track, libPicked == nil, !saveMode else { return false }
         let t: Track = track
         switch n.kind {
@@ -166,6 +169,10 @@ extension AppModel {
         }
         if browser == .ref {
             libUseRef(n)
+            return
+        }
+        if browser == .source {
+            libUseSource(n)
             return
         }
         guard case .load(let steps) = browser, channel == .track else { return }
@@ -295,6 +302,10 @@ extension AppModel {
         }
         if browser == .ref {
             refImport(urls)
+            return
+        }
+        if browser == .source {
+            sourceImport(urls)
             return
         }
         let into: String = libFolder == LibraryBuiltins.folderId ? Library.root : libFolder

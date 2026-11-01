@@ -553,11 +553,3 @@ public final class SoundSnapshot: @unchecked Sendable {
         data.eqOrder.deallocate()
     }
 }
-
-/// Сэмпл GRANULAR в снимке (движок временно убран из сборки — ios/extras/granular; поле остаётся для проектов).
-struct GrainSrc {
-    var left: UnsafeMutablePointer<Float>? = nil
-    var right: UnsafeMutablePointer<Float>? = nil
-    var frames = 0
-    var channels = 1
-}
