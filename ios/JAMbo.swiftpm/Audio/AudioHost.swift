@@ -13,6 +13,8 @@ final class AudioHost {
     private var latency: Double = -1
     /// Диагностика тормозов с USB-аудио (строка «Now:»): смены маршрута; прошлый замер скорости колбэка.
     private(set) var routeChanges: Int = 0
+    /// Последняя смена маршрута: причина и прежний выход (диагностика переключений динамик ↔ интерфейс).
+    private(set) var lastRoute: String = ""
     private var rateHost: Double = 0
     private var rateFrames: Int = 0
     private var speed: Double = 0
@@ -31,10 +33,32 @@ final class AudioHost {
         observers.append(center.addObserver(forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main) { [weak self] _ in
             self?.scheduleRestart()
         })
-        observers.append(center.addObserver(forName: AVAudioSession.routeChangeNotification, object: session, queue: .main) { [weak self] _ in
+        observers.append(center.addObserver(forName: AVAudioSession.routeChangeNotification, object: session, queue: .main) { [weak self] note in
             self?.routeChanges += 1
+            self?.lastRoute = AudioHost.describe(note)
             self?.refreshLatency()
         })
+    }
+
+    /// «причина (прежний выход)» смены маршрута.
+    private static func describe(_ note: Notification) -> String {
+        let raw: UInt = note.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt ?? 0
+        var why: String = "reason \(raw)"
+        if let r = AVAudioSession.RouteChangeReason(rawValue: raw) {
+            switch r {
+            case .newDeviceAvailable: why = "new device"
+            case .oldDeviceUnavailable: why = "device gone"
+            case .categoryChange: why = "category change"
+            case .override: why = "override"
+            case .wakeFromSleep: why = "wake"
+            case .noSuitableRouteForCategory: why = "no route"
+            case .routeConfigurationChange: why = "configuration"
+            default: why = "unknown"
+            }
+        }
+        let prev = note.userInfo?[AVAudioSessionRouteChangePreviousRouteKey] as? AVAudioSessionRouteDescription
+        let was: String = prev?.outputs.map { $0.portName }.joined(separator: ", ") ?? "-"
+        return why + " (was " + (was.isEmpty ? "-" : was) + ")"
     }
 
     deinit {
@@ -198,7 +222,9 @@ final class AudioHost {
         let out: String = s.currentRoute.outputs.map { $0.portName }.joined(separator: ", ")
         let inp: String = s.currentRoute.inputs.map { $0.portName }.joined(separator: ", ")
         line += " · out: \(out.isEmpty ? "-" : out) · in: \(inp.isEmpty ? "-" : inp)"
-        line += " · restarts \(restarts) · route changes \(routeChanges) · audio speed \(renderSpeed())%"
+        line += " · restarts \(restarts) · route changes \(routeChanges)"
+        if !lastRoute.isEmpty { line += " · last: " + lastRoute }
+        line += " · audio speed \(renderSpeed())%"
         return line
     }
 }
