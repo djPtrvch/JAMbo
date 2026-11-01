@@ -191,4 +191,12 @@ jobs:
                   s.get('IRModule.NumIRFunctions', 0), s.get('SILModule.NumSILGenFunctions', 0),
                   s.get('time.swift.Type checking and Semantic analysis.wall', 0),
                   s.get('time.swift.LLVM pipeline.wall', 0), s.get('time.swift.IRGen.wall', 0)))
+              # Разбивка: счётчики памяти и самые крупные счётчики (типы, объявления, метаданные).
+              for k in sorted(s):
+                  if any(w in k for w in ('Bytes', 'Memory', 'Malloc', 'NumTypes', 'NumDecls', 'NumIRGlobals',
+                                          'NumIRBasicBlocks', 'NumSILGenGlobalVariables', 'NumGenericSignature',
+                                          'NumConformance', 'NumSubstitution', 'NumLLVMBytesOutput', 'NumASTScope')):
+                      print('  %s = %s' % (k, s[k]))
+              big = sorted(((v, k) for k, v in s.items() if not k.startswith('time.') and isinstance(v, (int, float))), reverse=True)
+              print('  top counters: ' + ', '.join('%s=%d' % (k, v) for v, k in big[:25]))
           EOF
