@@ -82,6 +82,10 @@ final class ArrangeFiredTests: XCTestCase {
         c.pages[0][0].on = true
         c.pages[0][4].on = true
         c.pages[0][4].locks["prob"] = 50
+        c.pages[0][4].locks["filter"] = 40
+        c.pages[0][4].notes = [50]
+        c.pages[0][4].sound = "kick2"
+        c.pages[0][6].locks["filter"] = 20
         c.pages[1][0].on = true
         p.tracks[0].clips[0] = c
         // Таймлайн 0…15 — страница 1 (шаги 0…15), 16…19 — переключили на страницу 2 (шаги 16…19).
@@ -100,7 +104,8 @@ final class ArrangeFiredTests: XCTestCase {
         let own: Clip = try! XCTUnwrap(p.tracks[0].blocks[0].pattern)
         XCTAssertEqual(own.length, 16)
         XCTAssertTrue(own.pages[0][0].on)
-        XCTAssertFalse(own.pages[0][4].on, "Chance не прошёл — без трига")
+        XCTAssertEqual(own.pages[0][4], Step(), "Chance не прошёл — пустой шаг, без p-lock")
+        XCTAssertEqual(own.pages[0][6].locks["filter"], 20, "p-lock шага без трига — остаётся")
         XCTAssertTrue(p.tracks[0].blocks[1].pattern!.pages[0][0].on, "страница 2 — как играли")
         // Прошедший шаг с p-lock Chance — 100.
         var c2 = c
