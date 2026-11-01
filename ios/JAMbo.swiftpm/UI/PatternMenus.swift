@@ -111,6 +111,42 @@ struct MenuItem: View {
     }
 }
 
+/// Вариант в ряду кнопок меню (MenuChoiceRow): данные вместо отдельной кнопки в коде — сборщику легче (S14, сборка
+/// в Playgrounds упирается в память компилятора).
+struct MenuChoice {
+    let title: String
+    var enabled: Bool = true
+    let current: Bool
+    let action: () -> Void
+}
+
+/// Подпись поля (FieldLabel) и ряд кнопок MenuItem поровну — по списку вариантов.
+struct MenuChoiceRow: View {
+    let label: String
+    let items: [MenuChoice]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            FieldLabel(title: label)
+            MenuChoiceButtons(items: items)
+        }
+    }
+}
+
+/// Ряд кнопок MenuItem поровну — по списку вариантов (без подписи).
+struct MenuChoiceButtons: View {
+    let items: [MenuChoice]
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(items.indices, id: \.self) { i in
+                let c: MenuChoice = items[i]
+                MenuItem(title: c.title, enabled: c.enabled, current: c.current, action: c.action)
+            }
+        }
+    }
+}
+
 struct CellMenu: View {
     /// TO ARRANGE 40 с отступом 8 снизу, 3 строки по 40, 3 зазора по 6, поля 16.
     static let height: CGFloat = 202

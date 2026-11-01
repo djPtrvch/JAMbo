@@ -28,32 +28,46 @@ struct SongExportPage: View {
     @ViewBuilder
     private var options: some View {
         let f: SongFormat = model.songFormat
-        FieldLabel(title: "FORMAT")
-        HStack(spacing: 4) {
-            MenuItem(title: "WAV", current: f.kind == .wav) { model.songFormat.kind = .wav }
-            MenuItem(title: "M4A", current: f.kind == .m4a) { model.songFormat.kind = .m4a }
-        }
-        if f.kind == .m4a {
-            FieldLabel(title: "QUALITY")
-            HStack(spacing: 4) {
-                MenuItem(title: "AAC 256", current: f.quality == .aac256) { model.songFormat.quality = .aac256 }
-                MenuItem(title: "AAC 320", current: f.quality == .aac320) { model.songFormat.quality = .aac320 }
-                MenuItem(title: "LOSSLESS", current: f.quality == .lossless) { model.songFormat.quality = .lossless }
-            }
-        }
-        if f.kind == .wav || f.quality == .lossless { bitDepth(f) }
-        FieldLabel(title: "SAMPLE RATE")
-        HStack(spacing: 4) {
-            MenuItem(title: "44.1 KHZ", current: f.rate == 44100) { model.songFormat.rate = 44100 }
-            MenuItem(title: "48 KHZ", current: f.rate == 48000) { model.songFormat.rate = 48000 }
-        }
-        FieldLabel(title: "TAIL")
-        HStack(spacing: 4) {
-            ForEach(SongExportPage.tails, id: \.self) { t in
-                MenuItem(title: SongExportPage.tailName(t), current: (f.tail ?? -1) == t) {
-                    model.songFormat.tail = t < 0 ? nil : t
-                }
-            }
+        MenuChoiceRow(label: "FORMAT", items: formatItems(f))
+        if f.kind == .m4a { MenuChoiceRow(label: "QUALITY", items: qualityItems(f)) }
+        if f.kind == .wav || f.quality == .lossless { MenuChoiceRow(label: "BIT DEPTH", items: bitItems(f)) }
+        MenuChoiceRow(label: "SAMPLE RATE", items: rateItems(f))
+        MenuChoiceRow(label: "TAIL", items: tailItems(f))
+    }
+
+    private func formatItems(_ f: SongFormat) -> [MenuChoice] {
+        let m: AppModel = model
+        return [MenuChoice(title: "WAV", current: f.kind == .wav) { m.songFormat.kind = .wav },
+                MenuChoice(title: "M4A", current: f.kind == .m4a) { m.songFormat.kind = .m4a }]
+    }
+
+    private func qualityItems(_ f: SongFormat) -> [MenuChoice] {
+        let m: AppModel = model
+        return [MenuChoice(title: "AAC 256", current: f.quality == .aac256) { m.songFormat.quality = .aac256 },
+                MenuChoice(title: "AAC 320", current: f.quality == .aac320) { m.songFormat.quality = .aac320 },
+                MenuChoice(title: "LOSSLESS", current: f.quality == .lossless) { m.songFormat.quality = .lossless }]
+    }
+
+    /// ALAC — до 24 бит (32 FLOAT — только у WAV).
+    private func bitItems(_ f: SongFormat) -> [MenuChoice] {
+        let m: AppModel = model
+        var r: [MenuChoice] = [MenuChoice(title: "16", current: f.bits == 16) { m.songFormat.bits = 16 },
+                               MenuChoice(title: "24", current: f.bits == 24) { m.songFormat.bits = 24 }]
+        if f.kind == .wav { r.append(MenuChoice(title: "32 FLOAT", current: f.bits == 32) { m.songFormat.bits = 32 }) }
+        return r
+    }
+
+    private func rateItems(_ f: SongFormat) -> [MenuChoice] {
+        let m: AppModel = model
+        return [MenuChoice(title: "44.1 KHZ", current: f.rate == 44100) { m.songFormat.rate = 44100 },
+                MenuChoice(title: "48 KHZ", current: f.rate == 48000) { m.songFormat.rate = 48000 }]
+    }
+
+    private func tailItems(_ f: SongFormat) -> [MenuChoice] {
+        let m: AppModel = model
+        let cur: Double = f.tail ?? -1
+        return SongExportPage.tails.map { (t: Double) -> MenuChoice in
+            MenuChoice(title: SongExportPage.tailName(t), current: cur == t) { m.songFormat.tail = t < 0 ? nil : t }
         }
     }
 
@@ -64,17 +78,6 @@ struct SongExportPage: View {
         if t < 0 { return "AUTO" }
         if t == 0 { return "OFF" }
         return "\(Int(t)) S"
-    }
-
-    @ViewBuilder
-    private func bitDepth(_ f: SongFormat) -> some View {
-        FieldLabel(title: "BIT DEPTH")
-        HStack(spacing: 4) {
-            MenuItem(title: "16", current: f.bits == 16) { model.songFormat.bits = 16 }
-            MenuItem(title: "24", current: f.bits == 24) { model.songFormat.bits = 24 }
-            // ALAC — до 24 бит.
-            if f.kind == .wav { MenuItem(title: "32 FLOAT", current: f.bits == 32) { model.songFormat.bits = 32 } }
-        }
     }
 
     private var start: some View {

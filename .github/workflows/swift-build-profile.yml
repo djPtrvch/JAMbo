@@ -127,7 +127,8 @@ jobs:
             ${{ runner.temp }}/stats-wmo
           retention-days: 14
 
-  # Калибровка: память и объём кода одной сборки «весь модуль» под iPad (arm64) у версий, которые на iPad
+  # Калибровка (сравнение 27.10–1.11: 114cca4 — 1288 МБ / 1,51 млн IR, 8a12490 — 1518 / 1,93, 1f2950b — 1561 / 1,99,
+  # 4b3a968 — 1571 / 2,03; цель ≤ ~1500 МБ). Память и объём кода одной сборки «весь модуль» под iPad (arm64) у версий, которые на iPad
   # собирались (114cca4 — надёжно, 1f2950b — со второго раза), и у текущей. Разница — сколько кода срезать.
   calibrate:
     if: ${{ contains(github.event.head_commit.message, '[calibrate]') }}
@@ -136,7 +137,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ref: [114cca4, 1f2950b, 8a12490, HEAD]
+        ref: [HEAD]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -171,7 +172,7 @@ jobs:
             OTHER_SWIFT_FLAGS="\$(inherited) -stats-output-dir $RUNNER_TEMP/stats" \
             > "$RUNNER_TEMP/build.log" 2>&1 || true
           echo "build seconds: $(( $(date +%s) - start ))"
-          grep -E 'error:|BUILD (SUCCEEDED|FAILED)' "$RUNNER_TEMP/build.log" | head -20 || true
+          grep -E 'error:|BUILD (SUCCEEDED|FAILED)' "$RUNNER_TEMP/build.log" | sort -u | head -60 || true
       - name: Result
         run: |
           python3 - "$RUNNER_TEMP/stats" "${{ matrix.ref }}" <<'EOF'
