@@ -151,6 +151,12 @@
 - Одна сплошная секвенция: у короткой секвенции «+» — 16 шагов сразу за последним (7 → 23), DUPLICATE — копия шагов за последним (7 → 14). Своя длина у каждой страницы пробовалась и откачена.
 - Отложено: выбор устройств MIDI-клока отдельно для приёма и отдачи.
 
+## Правки 1.11 вечер (готово, на iPad — частично)
+- WTABLE: своя таблица в окне синта — таблица показа прямо из WAV (WtDisplay.user: 256 кадров × 256, без FFT, без постоянной, к пику 1.0), не ждёт мипмапов звуковой; WavetableStore.display — ожидающие (waitingDisplay), preload строит и показ своих, prune чистит. Тест WavetableUserDisplayTests.
+- Фильтр голоса — прямая форма I, скачки через сухой сигнал (docs/ai/sound-sampler.md «Фильтр голоса»; итог — SWIFT_MILESTONE_S15 «Правки 1.11 вечер»).
+- Клок RECEIVE: пачки и опоздавшие тики USB — в счёт, не в темп (ClockFollower: прямая «время от номера тика», долг паузы, rejectLimit). Тесты testDelayedBurst, testTempoJump. На iPad с Digitakt: стало лучше; остаток — отключения AG06 на хабе без питания (docs/ai/settings-midi-sync.md).
+- Строка «Now:» (AUDIO ENGINE): last — причина последней смены маршрута и прежний выход (AudioHost.describe).
+
 ## Проверено
 S14w — на iPad; CoreTests — 304 (новые: EngineIconTests — testPreviewsMatchPrototype, testGridFiniteInField, testEachKnobChangesIcon, testTableFrame; testApplyKnobsToAllPages, testFeedbackFollowsResolveAcrossInputs; убраны прежние тесты иконок веба). S14v — на iPad. S14a — тесты Core (HeavyLoadTests), DIAGNOSTICS на iPad. CoreTests — 298 (S14a: testHeavyProjectProfile, testProfileOffAndOn); 296 (новые: testMoveRow, testPasteTrackKeepsOwnPatterns, testClipSpeed, testQueuedClipAfterSlowClip, testSameNameIgnoresAudioExtension).
 
