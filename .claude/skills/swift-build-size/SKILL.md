@@ -14,8 +14,11 @@ Playgrounds на iPad собирает приложение отладочной
 
 | коммит | инструкций IR | на iPad |
 |---|---:|---|
+| c2b80e1 | 1,609 млн | с первого раза (Theme, ParamDef — классы) |
 | 114cca4 | 1,51 млн | надёжно |
+| e42dd98 | 1,621 млн | (Theme — класс; на iPad не отправлялся) |
 | 8896717 | 1,862 млн | с первого раза (SELF-TEST вынесен) |
+| 98f01e7 | 1,868 млн | не собралось (CUT, WARP; порог плавает) |
 | 8a12490 | 1,93 млн | с первого раза |
 | 166c360 | 1,903 млн | 54979d2 — с первого, 5bff89e — со второго |
 | 1d309b1 | 1,912 млн | с первого раза |
@@ -26,7 +29,7 @@ Playgrounds на iPad собирает приложение отладочной
 | 1f2950b | 1,99 млн | со второго раза |
 | 4b3a968 | 2,03 млн | не собиралась |
 
-Держать **не выше ~1,85 млн** (на 1,91 — то с первого, то со второго раза: порог плавает от состояния iPad). Пиковая память на Mac (MaxMallocUsage ~1,57–1,59 ГБ) правок не показывает —
+Держать **не выше ~1,70 млн** (около 1,86 порог плавает от состояния iPad: 1,862 — с первого раза, 1,868 — не собралось; решение пользователя — стабильная сборка без перезагрузок). Пиковая память на Mac (MaxMallocUsage ~1,57–1,59 ГБ) правок не показывает —
 по ней не судить. UI на Linux не собирается — единственная проверка компиляции UI до iPad — этот замер в Xcode.
 
 ## Как замерить
@@ -37,16 +40,23 @@ Playgrounds на iPad собирает приложение отладочной
    Без метки задачи пропускаются (минуты Actions не тратятся); `[profile]` — полный профиль: время проверки
    типов по функциям и выражениям, память и объём IR по файлам (скрипты `ios/tools/build-profile-report.py`,
    `ios/tools/build-stats-report.py`).
-3. Читать лог задачи через GitHub MCP (`actions_list` → `list_workflow_jobs`, `get_job_logs` с `tail_lines` ~165):
-   - `CALIBRATION HEAD: memory … MB, IR insts N, IR functions …` — главное число N;
+3. Читать лог задачи через GitHub MCP (`actions_list` → `list_workflow_jobs`, `get_job_logs` с `tail_lines` ~185):
+   - `CALIBRATION HEAD: memory … MB, IR insts N, IR functions …` — главное число N (повторяется в самом конце лога);
+   - `CODE BYTES / TOP TYPES / TOP FUNCTIONS` — байты машинного кода по видам функций (value witness, outlined,
+     closure…), по типам и по функциям: где объём (а не только число функций) — по ним выбирать правку;
    - `error:` / `BUILD FAILED` в шаге сборки — ошибка компиляции UI, исправить до отправки на iPad;
    - `FUNCTIONS total … / TOP FILES` — функции по видам и по файлам (где искать запас).
    Артефакт из облачной сессии не скачать (хранилище закрыто сетью) — всё нужное печатается в лог.
-4. Сравнить с таблицей. Выше ~1,94 млн — облегчить до отправки на iPad.
+4. Сравнить с таблицей. Выше ~1,70 млн — облегчить до отправки на iPad.
 5. Проверка на iPad (пользователь): перезагрузить iPad, App Preview не открывать, ▶; результат — с первого раза,
    со второго или «Build failed». Архив — `git archive --format=zip --prefix=JAMbo-swift/ origin/swift` в чат.
 
 ## Чем облегчать (что сработало, по выгоде)
+- **Набор значений во многих видах — неизменяемый `final class`, а не структура.** Theme (23 цвета, в каждом виде
+  через `@Environment(\.theme)`) — структура давала каждому виду функции копирования всех полей (value witness,
+  outlined copy — 14 % кода): класс — −246 тыс. инструкций (e42dd98); ParamDef, EditorColors — ещё −12 тыс. Признак в
+  TOP TYPES — у типа большие `outlined` и `value witness`. Можно, если поля `let`, нет сравнения структур и изменённых
+  копий; в колбэке класс не читать (ARC) — для колбэка своя структура (ModScale).
 - **Меню и формы — списком, а не отдельной кнопкой в коде.** Ряды кнопок — `MenuChoice` + `MenuChoiceRow` /
   `MenuChoiceButtons` / `MenuChoiceColumn` (UI/PatternMenus.swift); формы (подпись, пояснение, ряд кнопок,
   рычажок, свой вид) — `FormRows` (UI/FormRows.swift: `.head`, `.label`, `.note`, `.choices`, `.toggle`, `.view`).
@@ -65,8 +75,11 @@ Playgrounds на iPad собирает приложение отладочной
 - `AppModel` — @Observable: ~10 функций на наблюдаемое свойство (~1,5 тыс. из 2,5 тыс. функций файла).
   `@ObservationIgnored` — только свойствам, которые никакой вид не читает ни прямо, ни через вычисляемые
   свойства (иначе вид перестанет обновляться) — проверять по коду, при сомнении не трогать.
-- Крупные файлы по функциям: EqView, PatternGrid, RootView, TopBar, PatternMenus, ArrangeMenus, MasterWindow,
-  ArrangeAutoPanel, ArrangeWindow, PagesColumn, SideColumns, ArrangeHeaders.
+- По размеру кода (c2b80e1, TOP TYPES): AppModel 854 КБ (из них 85 КБ — setter наблюдаемых свойств), Track 230,
+  Project 211 (модель — копии значений нужны для UNDO, не трогать), MenuItem 129 (closure 60 — кнопка в 98 местах),
+  PatternGrid 114, LibraryBrowser 68, MenuScroll 56, MenuHead 47.
+- Крупные файлы по IR ([profile], 98f01e7): AppModel 65 тыс., ArrangeWindow 44, PatternGrid 41, EqView 39,
+  LibraryBrowser 38, RootView 33, ProjectsMenu 30, PatternMenus 30.
 - SELF-TEST вынесен (1.11, 8896717): −41 тыс. инструкций; панда и DIAGNOSTICS (~1 %) — **только по решению пользователя** (DIAGNOSTICS пока оставлен — решение 1.11).
 
 ## Чего не делать
