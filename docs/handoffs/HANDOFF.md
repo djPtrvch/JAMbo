@@ -1,4 +1,4 @@
-# Handoff: JAMbo, Swift-версия — проект не собирается в Swift Playgrounds на iPad; следующая сессия — поиск причины
+# Handoff: JAMbo, Swift-версия — сборка в Playgrounds снова проходит (причина — объём кода); дальше WARP
 
 ## 1. Контекст проекта
 Groovebox для iPad. Веб (`src/`, `public/`) — эталон, заморожен. Swift-перенос — ветка `swift`, `ios/JAMbo.swiftpm`. Правила — `CLAUDE.md`, `ios/CLAUDE.md`; план и вехи — `docs/SWIFT_AUDIT.md` (раздел 6); итоги вех — `docs/SWIFT_MILESTONE_Sx.md`. Поведение аранжировщика — `docs/ai/arranger.md`; MIDI — `docs/ai/settings-midi-sync.md` (в ветке swift описывают Swift-версию).
@@ -66,14 +66,11 @@ Groovebox для iPad. Веб (`src/`, `public/`) — эталон, заморо
   - Единая сетка строк на весь экран (14 строк) — отложена: превью сделано, к ней вернуться позже (затратно).
 
 ## 3. Текущая задача
-Поиск причины: проект не собирается в Swift Playgrounds на iPad («JAMbo Crashed — Build failed» без ошибок в списке, iPad греется). Состояние ios — как 473b872 (после возвратов).
-- Поиск пополам (холодный iPad, App Preview закрыт):
-  - 114cca4 (JAMbo-14, 25.10), 30f1989, 1170360, 8a12490 — грузятся; 1f2950b — со второго раза;
-  - fb05d5e (1f2950b + строка редактора сэмпла), fb6f3f3, 9b9054b, c89e0d2 и позже — не грузятся.
-  - Объём Swift в приложении: 1,87 МБ (114cca4) → 2,44 (8a12490) → 2,50 (1f2950b) → 2,55 (сейчас); ресурсы (эталоны 13 МБ) — те же.
-- Пробовали и откатили (не помогло): облегчение выражений аранжировщика (bcc845d); SELF-TEST и эталоны вне приложения (f0eabe4); панда (f0e3f64) и DIAGNOSTICS (fd723a1) вне сборки; склейка строк с тернарными и nil-тернарные в модификаторах (2687500); GRANULAR вне сборки (d446cc9). Возврат — 4ec35a5 и откат d446cc9.
-- Гипотезы: предел Playgrounds по времени или памяти сборки (рост объёма); или выражение-«бомба» в интерфейсе (UI на Linux не собирается).
-- План: (1) Xcode на Mac с -warn-long-function-bodies / -debug-time-function-bodies — найти тяжёлые функции; (2) без Mac — отключать крупные части UI по одной и проверять на iPad; локальные модули в Playgrounds невозможны.
+Сборка в Swift Playgrounds на iPad снова проходит (1.11, 45b548d — с первого раза, проверено пользователем; все переделанные меню работают).
+- Причина «Build failed» без ошибок — объём кода, не выражение-«бомба»: компилятор Playgrounds не выдерживает пика памяти генерации кода. Калибровка в Xcode 26.6 (сборка всего модуля под iPad, arm64): 114cca4 — 1,51 млн инструкций IR (собиралась надёжно), 8a12490 — 1,93 (с первого раза), 1f2950b — 1,99 (со второго), 4b3a968 — 2,03 (не собиралась); 1a15c2a — 1,958 (со второго), 45b548d — 1,946 (с первого). Порог — около 1,95 млн; запас тонкий.
+- Замер: CI .github/workflows/swift-build-profile.yml — коммит с [calibrate] (строка CALIBRATION, функции по видам и файлам) или [profile] (время проверки типов по функциям, память по файлам); скрипты ios/tools/build-profile-report.py, build-stats-report.py. Порядок работы — скилл .claude/skills/swift-build-size.
+- Что дало сокращение: ряды кнопок и формы меню списком (MenuChoice, MenuChoiceRow, MenuChoiceButtons, MenuChoiceColumn — PatternMenus.swift; FormRows — FormRows.swift: SETTINGS, SYNC, MIDI → MAPPING, EXPORT SONG), ветки центра экрана, окон и меню в AnyView (RootView: WithMeter, MainCenter; SETTINGS, меню аранжировщика, MIDI, мастера), AnyView под длинными цепочками модификаторов (EqView, LibraryBrowser, ProjectsMenu, MasterWindow, ArrangeWindow). Пиковая память на Mac (MaxMallocUsage ~1,57–1,59 ГБ) этих правок не показывает — ориентир только число инструкций IR.
+- Крупные источники кода (если понадобится ещё запас): AppModel (@Observable — ~1,5 тыс. функций из 2,5), EqView, PatternGrid, RootView, TopBar, PatternMenus, ArrangeMenus, MasterWindow, ArrangeAutoPanel; вынос SELF-TEST из приложения (~2 %) — только с решения пользователя.
 - Код сессии 31.10–1.11 готов, на iPad проверен частично: раскладка центра 9 строк, пианоролл во всю ширину, громкость метронома, полярность LFO/ENV на ручке, аранжировщик (сетка вместо магнита, FIX/SCALE, FOLLOW PLAYHEAD, карандаш и ластик, TRIM группы, удаление автоматизации с блоками), EQ LISTEN вкл./выкл., этапы 1–3 (своя копия клипа у блока, запись по факту, STEPS правит блок). docs/ai, ios/CLAUDE.md, SWIFT_MILESTONE_S15 по ним не обновлены — согласовать текст.
 - После сборки — WARP: выключатель варпинга без удаления меток, долгое нажатие на WARP (согласовано).
 
