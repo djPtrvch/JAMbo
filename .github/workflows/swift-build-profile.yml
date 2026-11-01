@@ -8,7 +8,7 @@ name: Swift build profile
 on:
   push:
     branches: [swift]
-    paths: ['.github/workflows/swift-build-profile.yml', 'ios/tools/build-profile-report.py']
+    paths: ['.github/workflows/swift-build-profile.yml', 'ios/tools/build-profile-report.py', 'ios/tools/build-stats-report.py']
     tags: ['profile-*']
   workflow_dispatch:
 
@@ -36,7 +36,8 @@ jobs:
           XC=$(ls -d /Applications/Xcode_*.app | grep -v -i beta | sort -V | tail -1)
           [ -n "$XC" ] || XC=/Applications/Xcode.app
           sudo xcode-select -s "$XC"
-          xcodebuild -version
+          xcodebuild -version > "$RUNNER_TEMP/xcode-version.txt"
+          cat "$RUNNER_TEMP/xcode-version.txt"
           swift --version
           xcodebuild -list
 
@@ -52,8 +53,10 @@ jobs:
           EOF
           chmod +x "$RUNNER_TEMP/memwatch.sh"
 
-      - name: Build (Debug, as Playgrounds) with type-check timing
+      - name: Build (Debug, one file per compiler process) with type-check timing and stats
         run: |
+          # Без пакетного режима: у каждого файла свой процесс и свой JSON со статистикой (память, объём IR).
+          mkdir -p "$RUNNER_TEMP/stats"
           "$RUNNER_TEMP/memwatch.sh" "$RUNNER_TEMP/mem.txt" & W=$!
           set -o pipefail
           start=$(date +%s)
@@ -64,13 +67,15 @@ jobs:
             -derivedDataPath "$RUNNER_TEMP/dd" \
             -skipMacroValidation \
             CODE_SIGNING_ALLOWED=NO \
-            OTHER_SWIFT_FLAGS='$(inherited) -Xfrontend -debug-time-function-bodies -Xfrontend -warn-long-expression-type-checking=100' \
+            SWIFT_ENABLE_BATCH_MODE=NO \
+            OTHER_SWIFT_FLAGS="\$(inherited) -stats-output-dir $RUNNER_TEMP/stats -Xfrontend -debug-time-function-bodies -Xfrontend -warn-long-expression-type-checking=100" \
             2>&1 | tee "$RUNNER_TEMP/build.log" | grep -E 'error:|BUILD (SUCCEEDED|FAILED)' || true
           echo "seconds=$(( $(date +%s) - start ))" > "$RUNNER_TEMP/build-time.txt"
           kill $W || true
 
       - name: Build whole-module (one compiler process, closer to iPad)
         run: |
+          mkdir -p "$RUNNER_TEMP/stats-wmo"
           "$RUNNER_TEMP/memwatch.sh" "$RUNNER_TEMP/mem-wmo.txt" & W=$!
           start=$(date +%s)
           xcodebuild build \
@@ -81,6 +86,7 @@ jobs:
             -skipMacroValidation \
             CODE_SIGNING_ALLOWED=NO \
             SWIFT_COMPILATION_MODE=wholemodule \
+            OTHER_SWIFT_FLAGS="\$(inherited) -stats-output-dir $RUNNER_TEMP/stats-wmo" \
             > "$RUNNER_TEMP/build-wmo.log" 2>&1 || true
           echo $(( $(date +%s) - start )) > "$RUNNER_TEMP/wmo-time.txt"
           kill $W || true
@@ -92,12 +98,17 @@ jobs:
           cat "$RUNNER_TEMP/build-time.txt" || true
           python3 ../tools/build-profile-report.py "$RUNNER_TEMP/build.log" "$RUNNER_TEMP/mem.txt" \
             "$RUNNER_TEMP/mem-wmo.txt" "$(cat "$RUNNER_TEMP/wmo-time.txt" 2>/dev/null)" > "$RUNNER_TEMP/report.md"
+          python3 ../tools/build-stats-report.py "$RUNNER_TEMP/stats" "$RUNNER_TEMP/stats-wmo" > "$RUNNER_TEMP/stats.md"
           {
-            echo "Xcode: $(xcodebuild -version | head -1); обычная сборка: $(cat "$RUNNER_TEMP/build-time.txt" 2>/dev/null)"
+            echo "Xcode: $(head -1 "$RUNNER_TEMP/xcode-version.txt"); сборка по файлам: $(cat "$RUNNER_TEMP/build-time.txt" 2>/dev/null)"
             echo
             cat "$RUNNER_TEMP/report.md"
+            echo
+            cat "$RUNNER_TEMP/stats.md"
           } >> "$GITHUB_STEP_SUMMARY"
-          head -60 "$RUNNER_TEMP/report.md"
+          # В лог задачи — целиком (артефакт из облачной сессии не скачать).
+          cat "$RUNNER_TEMP/stats.md"
+          head -80 "$RUNNER_TEMP/report.md"
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -109,4 +120,7 @@ jobs:
             ${{ runner.temp }}/mem.txt
             ${{ runner.temp }}/mem-wmo.txt
             ${{ runner.temp }}/report.md
+            ${{ runner.temp }}/stats.md
+            ${{ runner.temp }}/stats
+            ${{ runner.temp }}/stats-wmo
           retention-days: 14
