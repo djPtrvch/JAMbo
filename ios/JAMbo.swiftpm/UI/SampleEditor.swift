@@ -66,9 +66,9 @@ struct SampleEditor: View {
     @ViewBuilder
     private func plot(_ key: String, _ data: SampleData?, _ size: CGSize) -> some View {
         if model.sampleRec.take != nil {
-            RecordingPlot(model: model)
+            AnyView(RecordingPlot(model: model))
         } else if let d = data {
-            ZStack(alignment: .topLeading) {
+            AnyView(ZStack(alignment: .topLeading) {
                 TimelineView(.animation(minimumInterval: 1.0 / 60, paused: model.headCount == 0)) { _ in
                     let _ = RedrawMeter.hit(.wave)
                     if model.editorWarp { warpCanvas(key, d, size) } else { canvas(key, d, size) }
@@ -84,11 +84,11 @@ struct SampleEditor: View {
                 }
             }
             .contentShape(Rectangle())
-            .gesture(fingers(d, size))
+            .gesture(fingers(d, size)))
         } else {
-            Text(model.channel != .track ? "Select a track to edit its sample." : "No sample on this track — LOAD a file or REC.")
+            AnyView(Text(model.channel != .track ? "Select a track to edit its sample." : "No sample on this track — LOAD a file or REC.")
                 .font(.system(size: 13)).foregroundStyle(theme.dim)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(maxWidth: .infinity, maxHeight: .infinity))
         }
     }
 

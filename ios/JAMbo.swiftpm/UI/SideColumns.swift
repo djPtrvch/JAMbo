@@ -12,15 +12,19 @@ struct LeftColumn: View {
             if model.channel == .master {
                 // По цепочке (решение пользователя, в вебе CLIP, LIM / SAT, COMP): SAT снизу слева, над ним COMP,
                 // справа от него CLIP, под CLIP — LIM.
-                ButtonPair(left: MasterButton(model: model, module: MasterScope.comp),
-                           right: MasterButton(model: model, module: MasterScope.clip))
-                ButtonPair(left: MasterButton(model: model, module: MasterScope.sat),
-                           right: MasterButton(model: model, module: MasterScope.lim))
+                AnyView(VStack(spacing: Layout.gap) {
+                    ButtonPair(left: MasterButton(model: model, module: MasterScope.comp),
+                               right: MasterButton(model: model, module: MasterScope.clip))
+                    ButtonPair(left: MasterButton(model: model, module: MasterScope.sat),
+                               right: MasterButton(model: model, module: MasterScope.lim))
+                })
             } else {
-                ButtonPair(left: SourceButton(model: model, title: "LFO1", source: 1).midiTarget(model, "LFO1"),
-                           right: SourceButton(model: model, title: "LFO2", source: 2).midiTarget(model, "LFO2"))
-                ButtonPair(left: SourceButton(model: model, title: "LFO3", source: 3).midiTarget(model, "LFO3"),
-                           right: SourceButton(model: model, title: "ENV", source: 4).midiTarget(model, "ENV"))
+                AnyView(VStack(spacing: Layout.gap) {
+                    ButtonPair(left: SourceButton(model: model, title: "LFO1", source: 1).midiTarget(model, "LFO1"),
+                               right: SourceButton(model: model, title: "LFO2", source: 2).midiTarget(model, "LFO2"))
+                    ButtonPair(left: SourceButton(model: model, title: "LFO3", source: 3).midiTarget(model, "LFO3"),
+                               right: SourceButton(model: model, title: "ENV", source: 4).midiTarget(model, "ENV"))
+                })
             }
         }
         .onGeometryChange(for: CGRect.self) { g in g.frame(in: .named("root")) } action: { r in
@@ -40,9 +44,9 @@ struct LeftTop: View {
         let channel: Channel = model.channel
         return VStack(spacing: Layout.barGap) {
             if channel == .track {
-                FolderArrows(model: model).frame(height: bar)
+                AnyView(FolderArrows(model: model).frame(height: bar))
             } else if channel == .mix {
-                MasterRecButton(model: model).frame(height: bar).midiTarget(model, "ARM MST")
+                AnyView(MasterRecButton(model: model).frame(height: bar).midiTarget(model, "ARM MST"))
             }
             SampleWindow(model: model)
         }
@@ -58,11 +62,15 @@ struct RightTop: View {
         let mix: Bool = model.channel == .mix
         return VStack(spacing: Layout.barGap) {
             if mix {
-                Color.clear.frame(height: bar)
-                MixPagesBlank()
+                AnyView(VStack(spacing: Layout.barGap) {
+                    Color.clear.frame(height: bar)
+                    MixPagesBlank()
+                })
             } else {
-                PageArrows(model: model).frame(height: bar)
-                PagesColumn(model: model)
+                AnyView(VStack(spacing: Layout.barGap) {
+                    PageArrows(model: model).frame(height: bar)
+                    PagesColumn(model: model)
+                })
             }
         }
     }
@@ -149,21 +157,21 @@ struct RightColumn: View {
         let _ = RedrawMeter.hit(.right)
         // При MST — скоп на месте миниатюр, кнопки точек съёма COMP, CLIP, LIM на месте MORPH, FX, MOD.
         if model.channel == .master {
-            VStack(spacing: Layout.gap) {
+            AnyView(VStack(spacing: Layout.gap) {
                 MasterScopeView(model: model)
                 ButtonPair(left: ScopeButton(model: model, tap: MasterScope.comp),
                            right: ScopeButton(model: model, tap: MasterScope.clip))
                 ButtonPair(left: ShiftButton(model: model), right: ScopeButton(model: model, tap: MasterScope.lim))
-            }
+            })
         } else {
-            VStack(spacing: Layout.gap) {
+            AnyView(VStack(spacing: Layout.gap) {
                 RightTop(model: model)
                 // FX слева, MOD справа (решение пользователя).
                 ButtonPair(left: PageButton(model: model, title: "FX", page: .fx).midiTarget(model, "FX"),
                            right: PageButton(model: model, title: "MOD", page: .mod).midiTarget(model, "MOD"))
                 ButtonPair(left: ShiftButton(model: model),
                            right: MorphButton(model: model).midiTarget(model, "MORPH"))
-            }
+            })
         }
     }
 }

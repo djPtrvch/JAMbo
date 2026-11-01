@@ -18,9 +18,9 @@ struct SoundMenu: View {
     var body: some View {
         Group {
             if midiPage {
-                TrackMidiPage(model: model) { midiPage = false }
+                AnyView(TrackMidiPage(model: model) { midiPage = false })
             } else {
-                engines
+                AnyView(engines)
             }
         }
         .padding(6)

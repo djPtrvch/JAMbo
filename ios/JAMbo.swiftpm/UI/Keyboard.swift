@@ -23,12 +23,12 @@ struct KeyboardPanel: View {
     @ViewBuilder
     private var keyArea: some View {
         if model.chordMode[model.selectedTrack] {
-            VStack(spacing: Layout.gap) {
+            AnyView(VStack(spacing: Layout.gap) {
                 KeyRow(model: model).frame(height: layout.keyHeight(model.project.scale))
                 ProgressionRow(model: model, layout: layout).frame(maxHeight: .infinity)
-            }
+            })
         } else {
-            KeyRow(model: model)
+            AnyView(KeyRow(model: model))
         }
     }
 }
