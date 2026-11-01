@@ -1,0 +1,112 @@
+# Профиль сборки Swift-версии (ios/JAMbo.swiftpm) в Xcode: какие функции и выражения дольше всего
+# проверяются по типам и сколько памяти берёт компилятор. Ищем, почему проект не собирается в Swift Playgrounds.
+# Запуск: пуш тега profile-* (git tag profile-1 && git push origin profile-1), пуш этого файла в ветку swift
+# или кнопка Run workflow (появится, когда файл будет и в ветке по умолчанию).
+# Итог — во вкладке Summary запуска и в артефакте build-profile (полные логи).
+name: Swift build profile
+
+on:
+  push:
+    branches: [swift]
+    paths: ['.github/workflows/swift-build-profile.yml', 'ios/tools/build-profile-report.py']
+    tags: ['profile-*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: swift-build-profile
+  cancel-in-progress: true
+
+jobs:
+  profile:
+    # Xcode 26 — компилятор той же линии, что в Playgrounds 4.7.
+    runs-on: macos-26
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: ios/JAMbo.swiftpm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select newest Xcode
+        run: |
+          ls -d /Applications/Xcode*.app
+          XC=$(ls -d /Applications/Xcode_*.app | grep -v -i beta | sort -V | tail -1)
+          [ -n "$XC" ] || XC=/Applications/Xcode.app
+          sudo xcode-select -s "$XC"
+          xcodebuild -version
+          swift --version
+          xcodebuild -list
+
+      - name: Memory sampler script
+        run: |
+          # Раз в секунду: сумма RSS всех swift-frontend (KB), наибольший процесс, число процессов.
+          cat > "$RUNNER_TEMP/memwatch.sh" <<'EOF'
+          #!/bin/bash
+          while true; do
+            ps -axo rss=,comm= | awk '/swift-frontend/ {s+=$1; n++; if ($1>m) m=$1} END {print s+0, m+0, n+0}' >> "$1"
+            sleep 1
+          done
+          EOF
+          chmod +x "$RUNNER_TEMP/memwatch.sh"
+
+      - name: Build (Debug, as Playgrounds) with type-check timing
+        run: |
+          "$RUNNER_TEMP/memwatch.sh" "$RUNNER_TEMP/mem.txt" & W=$!
+          set -o pipefail
+          start=$(date +%s)
+          xcodebuild build \
+            -scheme JAMbo \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/dd" \
+            -skipMacroValidation \
+            CODE_SIGNING_ALLOWED=NO \
+            OTHER_SWIFT_FLAGS='$(inherited) -Xfrontend -debug-time-function-bodies -Xfrontend -warn-long-expression-type-checking=100' \
+            2>&1 | tee "$RUNNER_TEMP/build.log" | grep -E 'error:|BUILD (SUCCEEDED|FAILED)' || true
+          echo "seconds=$(( $(date +%s) - start ))" > "$RUNNER_TEMP/build-time.txt"
+          kill $W || true
+
+      - name: Build whole-module (one compiler process, closer to iPad)
+        run: |
+          "$RUNNER_TEMP/memwatch.sh" "$RUNNER_TEMP/mem-wmo.txt" & W=$!
+          start=$(date +%s)
+          xcodebuild build \
+            -scheme JAMbo \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/dd-wmo" \
+            -skipMacroValidation \
+            CODE_SIGNING_ALLOWED=NO \
+            SWIFT_COMPILATION_MODE=wholemodule \
+            > "$RUNNER_TEMP/build-wmo.log" 2>&1 || true
+          echo $(( $(date +%s) - start )) > "$RUNNER_TEMP/wmo-time.txt"
+          kill $W || true
+          grep -E 'error:|BUILD (SUCCEEDED|FAILED)' "$RUNNER_TEMP/build-wmo.log" || true
+
+      - name: Report
+        if: always()
+        run: |
+          cat "$RUNNER_TEMP/build-time.txt" || true
+          python3 ../tools/build-profile-report.py "$RUNNER_TEMP/build.log" "$RUNNER_TEMP/mem.txt" \
+            "$RUNNER_TEMP/mem-wmo.txt" "$(cat "$RUNNER_TEMP/wmo-time.txt" 2>/dev/null)" > "$RUNNER_TEMP/report.md"
+          {
+            echo "Xcode: $(xcodebuild -version | head -1); обычная сборка: $(cat "$RUNNER_TEMP/build-time.txt" 2>/dev/null)"
+            echo
+            cat "$RUNNER_TEMP/report.md"
+          } >> "$GITHUB_STEP_SUMMARY"
+          head -60 "$RUNNER_TEMP/report.md"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build-profile
+          path: |
+            ${{ runner.temp }}/build.log
+            ${{ runner.temp }}/build-wmo.log
+            ${{ runner.temp }}/mem.txt
+            ${{ runner.temp }}/mem-wmo.txt
+            ${{ runner.temp }}/report.md
+          retention-days: 14
