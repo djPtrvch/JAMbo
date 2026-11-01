@@ -188,6 +188,33 @@ final class ArrangePlayTests: XCTestCase {
         XCTAssertEqual(core.sampler.sound!.params[rv], 0, "стоп — значение ручки")
     }
 
+    /// Ступенька кривой на шаге 16: в блоке, где срабатывает шаг 16, значение уже новое (нота не ударяет прежним);
+    /// за последней точкой — снова значение ручки.
+    func testAutomationStepAppliesBeforeTrig() {
+        var p = project()
+        p.tracks[0].placeBlock(ArrBlock(clip: 0, start: 0, length: 64))
+        let pts: [ArrAutoPoint] = [ArrAutoPoint(x: 0, y: 1), ArrAutoPoint(x: 16, y: 1), ArrAutoPoint(x: 16, y: 0.5),
+                                   ArrAutoPoint(x: 24, y: 0.5)]
+        p.tracks[0].setAuto("reverb", pts)
+        let core = start(p)
+        let rv: Int = VoiceParam.reverb
+        var l = [Float](repeating: 0, count: 256)
+        var r = [Float](repeating: 0, count: 256)
+        var seen = false
+        var n = 0
+        while !seen && n < 4000 {
+            core.render(frames: 256, left: &l, right: &r)
+            while let e = core.sequencer.out.pop() {
+                if case .arrange(let pos) = e, pos == 16 { seen = true }
+            }
+            n += 1
+        }
+        XCTAssertTrue(seen)
+        XCTAssertEqual(core.sampler.sound!.params[rv], 50, accuracy: 0.5, "блок шага 16 — уже после ступеньки")
+        _ = run(core, steps: 10)
+        XCTAssertEqual(core.sampler.sound!.params[rv], 0, "за последней точкой — значение ручки")
+    }
+
     /// Дорожка играет сетку — кривая не действует.
     func testAutomationOnlyOnTimeline() {
         var p = project()

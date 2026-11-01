@@ -279,6 +279,9 @@ public final class Sequencer {
             out.push(.ended)
             return
         }
+        // Автоматизация — на позицию этого шага, до его тригов: нота на границе ступеньки кривой звучит уже с новым
+        // значением (на блок кривая считается по прошлому шагу — удар до смены значения).
+        if let snd = sampler?.sound { auto.apply(d, snd, x: Double(launcher.arrPos), follow: launcher.follow) }
         // Стемы — после смены строк и клипов на этом тике; PLAY во время записи — стоп, когда всё дописано.
         if stemsStep(d, at: time) {
             set(playing: false, at: Int64(time))
