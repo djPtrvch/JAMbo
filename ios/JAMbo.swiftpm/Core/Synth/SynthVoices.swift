@@ -486,12 +486,13 @@ public final class SynthVoices {
         let s0L = sendL! + t * 3 * st + off, s0R = sendR! + t * 3 * st + off
         let h0 = hz[v]
         let q0 = qDb[v]
-        // Частота — плавно; скачок (HP ↔ LP, выкл., частота дальше 4 раз) — выход на сухой сигнал за 20 мс (S-кривая), фильтр сразу
+        // Частота — плавно; скачок (HP ↔ LP, выкл., частота дальше 4 раз) — выход на сухой сигнал за 20 мс (с HP — 80 мс; S-кривая), фильтр сразу
         // на цель, обратно на фильтр (проезд частоты через низы давал всплеск).
         let g0: Float = fdip[v]
         var cPrev: Biquad = coef[v]
         let swap: Bool = Biquad.glide(&ftype[v], &hz[v], fk.type, fk.hz, kf)
         let dg: Float = Float(Double(m) / (Biquad.fadeTime * sr))
+        let dgOut: Float = ftype[v] > 0 ? Float(Double(m) / (Biquad.fadeHpTime * sr)) : dg
         var retype: Bool = false
         if swap && g0 <= 0 {
             ftype[v] = fk.type
@@ -502,7 +503,7 @@ public final class SynthVoices {
             }
             retype = true
         }
-        fdip[v] = swap && !retype ? Swift.max(0, g0 - dg) : Swift.min(1, g0 + dg)
+        fdip[v] = swap && !retype ? Swift.max(0, g0 - dgOut) : Swift.min(1, g0 + dg)
         qDb[v] += (fk.q - qDb[v]) * kf
         let dh: Double = hz[v] - h0, dq: Double = qDb[v] - q0
         if retype || dh > 1e-6 || dh < -1e-6 || dq > 1e-6 || dq < -1e-6 {

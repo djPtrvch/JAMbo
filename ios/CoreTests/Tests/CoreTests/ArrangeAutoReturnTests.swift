@@ -210,8 +210,8 @@ final class ArrangeAutoReturnTests: XCTestCase {
         }
     }
 
-    /// Ступенька кривой HP → выкл. посреди хвоста KICK (как на видео 1.11): низ хвоста возвращается, но без щелчка —
-    /// доля фильтра в выходе идёт по S-кривой. Мера щелчка — пик выше 1 кГц у ступеньки против того же места
+    /// Ступенька кривой HP → выкл. посреди хвоста KICK (как на видео 1.11 и 2.11): низ хвоста возвращается без щелчка
+    /// и без толчка — доля фильтра в выходе идёт по S-кривой, с HP — за 80 мс. Мера щелчка — пик выше 1 кГц у ступеньки против того же места
     /// без кривой (выкл.) и с HP без ступеньки.
     func testHpToOffStepWithoutClick() {
         func render(_ pts: [ArrAutoPoint]?) -> [Float] {
@@ -259,11 +259,23 @@ final class ArrangeAutoReturnTests: XCTestCase {
             let a: Int = Int(at * Double(step)) - 500, b: Int = Int(at * Double(step)) + 1500
             let s: Float = highPeak(stepped, a, b), r: Float = Swift.max(highPeak(off, a, b), highPeak(hp, a, b))
             var lo: Float = 0
-            for i in (b + 1000)..<(b + 2000) { lo = Swift.max(lo, abs(stepped[i] - off[i])) }
+            for i in (a + 6500)..<(a + 7500) { lo = Swift.max(lo, abs(stepped[i] - off[i])) }
             print(String(format: "HP→OFF at %.1f: high %.6f, ref %.6f", at, s, r))
             XCTAssertGreaterThan(r, 0)
             XCTAssertLessThanOrEqual(s, r * 1.1, "ступенька HP → выкл. — без щелчка")
             XCTAssertLessThan(lo, 1e-3, "после ступеньки — как без фильтра")
+            // Низ хвоста возвращается плавно (не толчком): через 10 мс — меньше трети, через 150 мс — весь.
+            func rms(_ y: [Float], _ i0: Int) -> Float {
+                var e: Float = 0
+                for i in i0..<(i0 + 240) { e += y[i] * y[i] }
+                return (e / 240).squareRoot()
+            }
+            let s0: Int = Int(at * Double(step))
+            let early: Float = rms(stepped, s0 + 240) / Swift.max(1e-9, rms(off, s0 + 240))
+            let late: Float = rms(stepped, s0 + 7200) / Swift.max(1e-9, rms(off, s0 + 7200))
+            print(String(format: "HP→OFF at %.1f: low early %.3f, late %.3f", at, early, late))
+            XCTAssertLessThan(early, 0.33, "низ — без толчка")
+            XCTAssertEqual(late, 1, accuracy: 0.02)
         }
     }
 }
