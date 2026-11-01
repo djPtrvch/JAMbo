@@ -89,7 +89,7 @@ extension Project {
             tracks[t].clearArrange(from: start, to: end)
             for b in blocks[t] where tracks[t].clipFilled(b.clip) {
                 let pass: Int = tracks[t].clipSteps(b.clip)
-                tracks[t].placeBlock(ArrBlock(clip: b.clip, start: start + b.start, length: b.length, offset: b.offset % pass))
+                tracks[t].placeClip(ArrBlock(clip: b.clip, start: start + b.start, length: b.length, offset: b.offset % pass))
             }
         }
         return end

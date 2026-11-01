@@ -157,7 +157,7 @@ extension Project {
     /// клип — блоком, тишина и заглушённый клип — пусто.
     /// played и fired (ArrRecorder) — запись «по факту» (решение пользователя): блок получает свою копию из шагов,
     /// которые звучали на каждом шаге таймлайна (переключение страниц — как играли); шаг, не прошедший Chance, — без
-    /// трига, прошедший — с Chance 100 %. Блок — не длиннее 8 страниц (128 шагов), длиннее — несколько блоков подряд.
+    /// трига, прошедший — с Chance 100 %. Блоки — по проходу клипа, не длиннее 8 тактов (128 шагов).
     /// Клип с другой скоростью (×2, 1/2…) и запись без этих данных — блок со ссылкой на клип, как прежде.
     public mutating func applyRecording(_ segs: [ArrRecorder.Seg], played: [[Int: Int]] = [], fired: [Set<Int>] = []) {
         for s in segs where tracks.indices.contains(s.track) && s.end > s.start {
@@ -171,18 +171,22 @@ extension Project {
                 continue
             }
             let pass: Int = tracks[t].clipSteps(s.slot)
-            tracks[t].placeBlock(ArrBlock(clip: s.slot, start: s.start, length: s.end - s.start, offset: s.offset % pass))
+            tracks[t].placeClip(ArrBlock(clip: s.slot, start: s.start, length: s.end - s.start, offset: s.offset % pass))
         }
     }
 
     /// Отрезок s дорожки t — блоками со своей копией из прозвучавших шагов клипа src.
     private mutating func placeFired(_ t: Int, _ s: ArrRecorder.Seg, _ src: Clip, _ played: [Int: Int], _ fired: Set<Int>) {
-        let maxLen: Int = Params.maxPages * Params.stepsPerPage
+        let maxLen: Int = Swift.min(Params.maxPages * Params.stepsPerPage, Track.maxClipBlock)
+        // Блоки — по проходу клипа (клип в такт — по такту, в два — по два), не длиннее 8 тактов (решение пользователя).
+        let pass: Int = Swift.max(1, tracks[t].clipSteps(s.slot))
+        let chunk: Int = Swift.min(pass, maxLen)
         let n16: Int = Params.stepsPerPage
         let trackProb: Double = tracks[t].params["prob"] ?? Params.byId["prob"]?.def ?? 100
         var x: Int = s.start
         while x < s.end {
-            let n: Int = Swift.min(maxLen, s.end - x)
+            let ph: Int = (s.offset + x - s.start) % pass
+            let n: Int = Swift.min(s.end - x, chunk - ph % chunk, pass - ph)
             let pages: Int = (n + n16 - 1) / n16
             var c = Clip(pages: [[Step]](repeating: Track.emptyPage(), count: pages), length: n, playFrom: 0,
                          playTo: pages - 1, scale: src.scale, root: src.root, fx: src.fx)

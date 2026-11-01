@@ -218,6 +218,8 @@ final class ArrTouches {
                 model.arrSel = s
                 model.arrGroup = []
             }
+            // Дорожка блока — выбранная: STEPS правит этот блок (решение пользователя).
+            model.select(track: self.hitTrack)
             withAnimation(.easeOut(duration: 0.12)) {
                 lift.wrappedValue = ArrLift(track: self.hitTrack, index: self.hitIndex, block: b, at: Double(b.start),
                                             target: b.start, group: group)
@@ -334,6 +336,8 @@ final class ArrTouches {
                 model.arrSel = s
                 model.arrGroup = []
             }
+            // Дорожка блока — выбранная: STEPS правит этот блок (решение пользователя).
+            model.select(track: hitTrack)
             if double { model.arrMenu = .block(track: hitTrack, block: hitIndex, anchor: start) }
             return
         }

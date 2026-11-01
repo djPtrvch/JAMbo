@@ -95,13 +95,13 @@ final class ArrangeFiredTests: XCTestCase {
         pp[0] = played
         ff[0] = fired
         p.applyRecording([seg], played: pp, fired: ff)
-        XCTAssertEqual(p.tracks[0].blocks.count, 1)
-        let b: ArrBlock = p.tracks[0].blocks[0]
-        let own: Clip = try! XCTUnwrap(b.pattern)
-        XCTAssertEqual(own.length, 20)
+        // Проход клипа — 16 шагов: блоки по 16 (решение пользователя), у каждого своя копия.
+        XCTAssertEqual(p.tracks[0].blocks.map { $0.length }, [16, 4])
+        let own: Clip = try! XCTUnwrap(p.tracks[0].blocks[0].pattern)
+        XCTAssertEqual(own.length, 16)
         XCTAssertTrue(own.pages[0][0].on)
         XCTAssertFalse(own.pages[0][4].on, "Chance не прошёл — без трига")
-        XCTAssertTrue(own.pages[1][0].on, "страница 2 — как играли")
+        XCTAssertTrue(p.tracks[0].blocks[1].pattern!.pages[0][0].on, "страница 2 — как играли")
         // Прошедший шаг с p-lock Chance — 100.
         var c2 = c
         c2.pages[0][0].locks["prob"] = 30
@@ -120,9 +120,26 @@ final class ArrangeFiredTests: XCTestCase {
         for x in 0..<300 { pp[0][x] = x % 16 }
         let ff: [Set<Int>] = [Set<Int>](repeating: Set((0..<300).filter { $0 % 16 == 0 }), count: Params.maxTracks)
         p.applyRecording([ArrRecorder.Seg(track: 0, slot: 0, start: 0, end: 300, offset: 0)], played: pp, fired: ff)
-        XCTAssertEqual(p.tracks[0].blocks.map { $0.length }, [128, 128, 44])
-        XCTAssertEqual(p.tracks[0].blocks.map { $0.start }, [0, 128, 256])
-        XCTAssertTrue(p.tracks[0].blocks[2].pattern!.pages[0][0].on)
+        // Клип в такт — блоки по такту.
+        XCTAssertEqual(p.tracks[0].blocks.count, 19)
+        XCTAssertEqual(p.tracks[0].blocks.last?.length, 12)
+        XCTAssertEqual(p.tracks[0].blocks[1].start, 16)
+        XCTAssertTrue(p.tracks[0].blocks[18].pattern!.pages[0][0].on)
+    }
+
+    func testBlocksByPatternLength() {
+        var p = Project()
+        // Клип в 2 такта — блоки по 2 такта; запись с середины клипа — первый блок до конца прохода.
+        p.tracks[0].clips[0] = Clip(pages: [Track.emptyPage(), Track.emptyPage()], length: 32, playFrom: 0, playTo: 1)
+        p.tracks[0].clips[0]!.pages[0][0].on = true
+        p.applyRecording([ArrRecorder.Seg(track: 0, slot: 0, start: 0, end: 72, offset: 8)])
+        XCTAssertEqual(p.tracks[0].blocks.map { [$0.start, $0.length, $0.offset] }, [[0, 24, 8], [24, 32, 0], [56, 16, 0]])
+        // Длинный клип (8 страниц) — не длиннее 8 тактов.
+        var t = Track(index: 0)
+        t.clips[0] = Clip(pages: [[Step]](repeating: Track.emptyPage(), count: 8), length: 128, playFrom: 0, playTo: 7)
+        t.clips[0]!.pages[0][0].on = true
+        t.addBlock(clip: 0, at: 0, length: 300)
+        XCTAssertEqual(t.blocks.map { $0.length }, [128, 128, 44])
     }
 }
 

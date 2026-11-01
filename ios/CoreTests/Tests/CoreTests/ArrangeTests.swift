@@ -317,16 +317,16 @@ final class ArrangeTests: XCTestCase {
         p.rowLoop = false
         p.tracks[0].placeBlock(ArrBlock(clip: 0, start: 0, length: 16))
         XCTAssertEqual(p.rowToArrange(2, at: nil), 80, "длина — по клипам с тригами (пустой на 4 страницы не в счёт)")
-        XCTAssertEqual(spans(p.tracks[0]), [[0, 0, 16, 0], [2, 16, 64, 0]], "один блок — короткий клип в нём повторяется")
-        XCTAssertEqual(spans(p.tracks[1]), [[2, 16, 64, 0]])
+        XCTAssertEqual(spans(p.tracks[0]), [[0, 0, 16, 0], [2, 16, 16, 0], [2, 32, 16, 0], [2, 48, 16, 0], [2, 64, 16, 0]], "блоки по проходу клипа (решение пользователя)")
+        XCTAssertEqual(spans(p.tracks[1]), [[2, 16, 32, 0], [2, 48, 32, 0]])
         XCTAssertEqual(spans(p.tracks[3]), [], "пустой клип не переносится")
         XCTAssertEqual(p.arrange.markers.map { [$0.at, $0.end ?? -1] }, [[16, 80]])
         XCTAssertEqual(p.arrange.markers[0].name, "Drop")
         // С курсора: заменяет блоки и секции этих дорожек на участке; без повторов — один проход.
         p.tracks[2].placeBlock(ArrBlock(clip: 0, start: 0, length: 64))
         XCTAssertEqual(p.rowToArrange(2, at: 0, repeats: false), 32)
-        XCTAssertEqual(spans(p.tracks[0]), [[2, 0, 32, 0], [2, 32, 48, 16]])
-        XCTAssertEqual(spans(p.tracks[1]), [[2, 0, 32, 0], [2, 32, 48, 16]], "правее участка — остаток прежнего блока")
+        XCTAssertEqual(spans(p.tracks[0]), [[2, 0, 16, 0], [2, 16, 16, 0], [2, 32, 16, 0], [2, 48, 16, 0], [2, 64, 16, 0]])
+        XCTAssertEqual(spans(p.tracks[1]), [[2, 0, 32, 0], [2, 32, 16, 16], [2, 48, 32, 0]], "правее участка — остаток прежнего блока")
         XCTAssertEqual(spans(p.tracks[2]), [[0, 0, 64, 0]], "пустая ячейка — дорожка не тронута")
         XCTAssertEqual(p.arrange.markers.map { [$0.at, $0.end ?? -1] }, [[0, 32]])
         // Строка без тригов — ничего.
@@ -354,9 +354,9 @@ final class ArrangeTests: XCTestCase {
         XCTAssertEqual(sel.orderedRows, [1, 3])
         XCTAssertTrue(sel.contains(CellRef(track: 5, row: 3)), "строка целиком — все её ячейки")
         XCTAssertEqual(p.selectionToArrange(sel, at: nil), 64)
-        XCTAssertEqual(spans(p.tracks[0]), [[1, 0, 32, 0]], "пустые ячейки строки — без блоков")
+        XCTAssertEqual(spans(p.tracks[0]), [[1, 0, 16, 0], [1, 16, 16, 0]], "пустые ячейки строки — без блоков")
         XCTAssertEqual(spans(p.tracks[1]), [[1, 0, 32, 0]])
-        XCTAssertEqual(spans(p.tracks[2]), [[3, 32, 32, 0]], "×2 строки — блок на два прохода")
+        XCTAssertEqual(spans(p.tracks[2]), [[3, 32, 16, 0], [3, 48, 16, 0]], "×2 строки — блок на два прохода")
         XCTAssertEqual(p.arrange.markers.map { [$0.at, $0.end ?? -1] }, [[32, 64]], "секция — только у строки целиком")
         // Один клип с курсора — один проход, заменяет участок своей дорожки.
         sel = GridSelection(cells: [CellRef(track: 1, row: 1)])
@@ -410,9 +410,9 @@ final class ArrangeTests: XCTestCase {
         p.tracks[1].placeBlock(ArrBlock(clip: 0, start: 0, length: 64))
         let blocks: [[ArrBlock]] = [[ArrBlock(clip: 1, start: 0, length: 40, offset: 20)], [], []]
         XCTAssertEqual(p.sendToArrange(blocks, length: 48, at: nil), 112)
-        XCTAssertEqual(spans(p.tracks[0]), [[0, 0, 16, 0], [1, 64, 40, 4]])
+        XCTAssertEqual(spans(p.tracks[0]), [[0, 0, 16, 0], [1, 64, 12, 4], [1, 76, 16, 0], [1, 92, 12, 0]])
         XCTAssertEqual(p.sendToArrange(blocks, length: 48, at: 8), 56)
-        XCTAssertEqual(spans(p.tracks[0]), [[0, 0, 8, 0], [1, 8, 40, 4], [1, 64, 40, 4]])
+        XCTAssertEqual(spans(p.tracks[0]), [[0, 0, 8, 0], [1, 8, 12, 4], [1, 20, 16, 0], [1, 36, 12, 0], [1, 64, 12, 4], [1, 76, 16, 0], [1, 92, 12, 0]])
         XCTAssertEqual(spans(p.tracks[1]), [[0, 0, 64, 0]], "дорожка без блоков журнала не меняется")
         XCTAssertNil(p.sendToArrange([[], []], length: 48, at: nil))
     }
@@ -442,7 +442,7 @@ final class ArrangeTests: XCTestCase {
         p.tracks[0].placeBlock(ArrBlock(clip: 0, start: 0, length: 128))
         p.tracks[1].clips[2] = Clip(pages: [Track.emptyPage()], length: 16, playFrom: 0, playTo: 0)
         p.applyRecording(segs)
-        XCTAssertEqual(spans(p.tracks[0]), [[0, 0, 32, 0], [0, 34, 14, 7], [0, 64, 64, 64]])
+        XCTAssertEqual(spans(p.tracks[0]), [[0, 0, 32, 0], [0, 34, 9, 7], [0, 43, 5, 0], [0, 64, 64, 64]])
         XCTAssertEqual(spans(p.tracks[1]), [[2, 48, 16, 0]])
     }
 

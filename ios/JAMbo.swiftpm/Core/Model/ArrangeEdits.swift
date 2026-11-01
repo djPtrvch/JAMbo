@@ -55,10 +55,35 @@ extension Track {
         return blocks.firstIndex(of: n) ?? 0
     }
 
-    /// Новый блок клипа k на позиции at (длина — проход клипа или length).
+    /// Самый длинный блок, который ставит запись и перенос клипов: 8 тактов (решение пользователя).
+    public static let maxClipBlock: Int = 8 * ArrGrid.stepsPerBar
+
+    /// Блок клипа при записи и переносе на таймлайн (решение пользователя): делится на блоки по проходу клипа (клип в такт —
+    /// блоки по такту, в два — по два), но не длиннее 8 тактов; у каждого блока потом своя копия клипа — правится в
+    /// STEPS отдельно. Возвращает номер первого блока.
+    @discardableResult
+    public mutating func placeClip(_ b: ArrBlock) -> Int {
+        let pass: Int = Swift.max(1, b.pattern?.passTicks ?? clipSteps(b.clip))
+        let chunk: Int = Swift.min(pass, Track.maxClipBlock)
+        let len: Int = Swift.max(1, b.length)
+        if len <= chunk && (b.offset % pass) + len <= pass { return placeBlock(b) }
+        var pos: Int = 0
+        var first: Int = -1
+        while pos < len {
+            let o: Int = (b.offset + pos) % pass
+            let seg: Int = Swift.min(len - pos, chunk - o % chunk, pass - o)
+            let piece = ArrBlock(clip: b.clip, start: b.start + pos, length: seg, offset: o, pattern: b.pattern)
+            let i: Int = placeBlock(piece)
+            if first < 0 { first = i }
+            pos += seg
+        }
+        return blocks.firstIndex { $0.start == b.start } ?? Swift.max(0, first)
+    }
+
+    /// Новый блок клипа k на позиции at (длина — проход клипа или length; длиннее — блоками по проходу, placeClip).
     @discardableResult
     public mutating func addBlock(clip k: Int, at: Int, length: Int? = nil) -> Int {
-        return placeBlock(ArrBlock(clip: k, start: at, length: length ?? clipSteps(k)))
+        return placeClip(ArrBlock(clip: k, start: at, length: length ?? clipSteps(k)))
     }
 
     /// Перенос блока i на начало start.
@@ -127,7 +152,7 @@ extension Track {
         let x: Int = Swift.max(0, at)
         let len: Int = length ?? clipSteps(k)
         shiftArrange(after: x, by: len)
-        return placeBlock(ArrBlock(clip: k, start: x, length: len))
+        return placeClip(ArrBlock(clip: k, start: x, length: len))
     }
 
     /// Протяжка края вставленного блока i при INSERT: новая длина, блоки правее сдвигаются вслед.
@@ -409,7 +434,7 @@ extension Project {
         if longest == 0 { return nil }
         let start: Int = Swift.max(0, at ?? arrangeEnd)
         let end: Int = start + longest * Swift.max(1, reps)
-        for t in list { tracks[t].placeBlock(ArrBlock(clip: k, start: start, length: end - start)) }
+        for t in list { tracks[t].placeClip(ArrBlock(clip: k, start: start, length: end - start)) }
         return (start, end)
     }
 
