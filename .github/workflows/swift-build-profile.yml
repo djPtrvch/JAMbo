@@ -205,3 +205,39 @@ jobs:
               big = sorted(((v, k) for k, v in s.items() if not k.startswith('time.') and isinstance(v, (int, float))), reverse=True)
               print('  top counters: ' + ', '.join('%s=%d' % (k, v) for v, k in big[:25]))
           EOF
+      - name: Functions by kind (object file)
+        run: |
+          O=$(find "$RUNNER_TEMP/dd" -path '*arm64*' -name 'JAMbo.o' -o -path '*arm64*' -name 'AppModule.o' | head -1)
+          [ -n "$O" ] || O=$(find "$RUNNER_TEMP/dd" -path '*Objects-normal*' -name '*.o' | xargs ls -S | head -1)
+          echo "object: $O"; ls -la "$O"
+          nm -U "$O" | awk '$2 ~ /^[tT]$/ {print $3}' > "$RUNNER_TEMP/syms.txt"
+          wc -l < "$RUNNER_TEMP/syms.txt"
+          xcrun swift-demangle --compact < "$RUNNER_TEMP/syms.txt" > "$RUNNER_TEMP/dem.txt"
+          python3 - "$RUNNER_TEMP/dem.txt" <<'EOF'
+          import re, sys
+          from collections import Counter
+          kinds = Counter(); owners = Counter(); ownk = Counter()
+          rules = [
+              ('closure', r'closure #'), ('reabstraction thunk', r'reabstraction thunk'),
+              ('key path', r'key path'), ('metadata accessor', r'metadata accessor|type metadata'),
+              ('value witness', r'value witness|initializeBufferWithCopyOfBuffer|assignWithCopy|assignWithTake|initializeWithCopy|initializeWithTake|destroy|getEnumTagSinglePayload|storeEnumTagSinglePayload'),
+              ('outlined', r'outlined '), ('protocol witness', r'protocol witness'),
+              ('observation (_modify/withMutation/access)', r'withMutation|\.access<|_\$observationRegistrar|\.modify'),
+              ('getter', r'\.getter'), ('setter', r'\.setter'), ('modify', r'\.modify'),
+              ('init', r'\.init\('), ('body', r'\.body'),
+          ]
+          for line in open(sys.argv[1], errors='replace'):
+              d = line.strip()
+              k = 'other'
+              for name, rx in rules:
+                  if re.search(rx, d):
+                      k = name; break
+              kinds[k] += 1
+              m = re.search(r'(?:JAMbo|AppModule)\.([A-Za-z_][A-Za-z0-9_]*)', d)
+              o = m.group(1) if m else '?'
+              owners[o] += 1
+          print('FUNCTIONS total %d' % sum(kinds.values()))
+          for k, v in kinds.most_common(): print('  kind %-45s %d' % (k, v))
+          print('TOP OWNERS (type):')
+          for o, v in owners.most_common(60): print('  %6d %s' % (v, o))
+          EOF
