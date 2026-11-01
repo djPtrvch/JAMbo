@@ -236,45 +236,25 @@ struct RootView: View {
     }
 
     /// Центр: левая колонка | сетка ручек | правая колонка | измеритель; с PATTERNS — сетка паттернов во всю ширину;
-    /// с EQ и окном модуля мастера — до края миниатюр страниц, справа измеритель.
-    @ViewBuilder
-    private func center(_ layout: Layout) -> some View {
+    /// с EQ и окном модуля мастера — до края миниатюр страниц, справа измеритель. Ветки — AnyView (S14: вложенные if
+    /// давали огромный тип и много кода у компилятора; состояние внутри ветки сохраняется — тип ветки тот же).
+    private func center(_ layout: Layout) -> AnyView {
         if model.browser != nil {
             // Браузер библиотеки — на месте центра (как EQ), справа измеритель.
-            HStack(spacing: Layout.gap) {
-                LibraryBrowser(model: model)
-                MeterColumn(model: model)
-            }
-        } else if model.rollView {
-            RollWindow(model: model, layout: layout)
-        } else if model.patternView {
-            PatternGrid(model: model, layout: layout)
-        } else if model.eqView {
-            HStack(spacing: Layout.gap) {
-                EqView(model: model, layout: layout)
-                MeterColumn(model: model)
-            }
-        } else if let m = model.masterWin {
-            // Окно модуля мастера — на месте центра (как EQ), справа измеритель.
-            HStack(spacing: Layout.gap) {
-                MasterWindowView(model: model, module: m)
-                MeterColumn(model: model)
-            }
-        } else if model.editorOpen {
-            // Редактор сэмпла — на месте центра (окно сэмпла, сетка ручек, правая колонка), справа измеритель.
-            HStack(spacing: Layout.gap) {
-                SampleEditor(model: model)
-                MeterColumn(model: model)
-            }
-        } else {
-            HStack(spacing: Layout.gap) {
-                LeftColumn(model: model).frame(width: Layout.leftColumn)
-                KnobGrid(model: model)
-                RightColumn(model: model).frame(width: Layout.leftColumn)
-                MeterColumn(model: model)
-                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { model.meterFrame = $0 }
-            }
+            return AnyView(WithMeter(model: model) { LibraryBrowser(model: model) })
         }
+        if model.rollView { return AnyView(RollWindow(model: model, layout: layout)) }
+        if model.patternView { return AnyView(PatternGrid(model: model, layout: layout)) }
+        if model.eqView { return AnyView(WithMeter(model: model) { EqView(model: model, layout: layout) }) }
+        if let m = model.masterWin {
+            // Окно модуля мастера — на месте центра (как EQ), справа измеритель.
+            return AnyView(WithMeter(model: model) { MasterWindowView(model: model, module: m) })
+        }
+        if model.editorOpen {
+            // Редактор сэмпла — на месте центра (окно сэмпла, сетка ручек, правая колонка), справа измеритель.
+            return AnyView(WithMeter(model: model) { SampleEditor(model: model) })
+        }
+        return AnyView(MainCenter(model: model))
     }
 
     /// Аранжировщик: измеритель с регулятором — на месте и размера измерителя окна дорожки (решение пользователя: вниз
@@ -465,5 +445,33 @@ struct MainMenu: View {
         }
         .padding(.top, 4)
         .padding(.trailing, 6)
+    }
+}
+
+/// Окно на месте центра и справа измеритель (браузер, EQ, окно модуля мастера, редактор сэмпла).
+struct WithMeter<Content: View>: View {
+    let model: AppModel
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        HStack(spacing: Layout.gap) {
+            content()
+            MeterColumn(model: model)
+        }
+    }
+}
+
+/// Обычный центр: левая колонка | сетка ручек | правая колонка | измеритель (его рамка — для аранжировщика).
+struct MainCenter: View {
+    let model: AppModel
+
+    var body: some View {
+        HStack(spacing: Layout.gap) {
+            LeftColumn(model: model).frame(width: Layout.leftColumn)
+            KnobGrid(model: model)
+            RightColumn(model: model).frame(width: Layout.leftColumn)
+            MeterColumn(model: model)
+                .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { model.meterFrame = $0 }
+        }
     }
 }
