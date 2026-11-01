@@ -246,3 +246,56 @@ jobs:
               print('  %6d %-28s cl %5d th %4d kp %4d vw %4d gs %4d' % (v, f, c['closure'], c['reabstraction thunk'],
                     c['key path'], c['value witness'] + c['protocol witness'], c['getter'] + c['setter'] + c['modify']))
           EOF
+
+      - name: Code size by type and function (object files)
+        run: |
+          # Размер машинного кода (байты __TEXT,__text) — по функциям, видам и типам: где объём, а не только число функций.
+          D=$(dirname "$(find "$RUNNER_TEMP/dd" -path '*Objects-normal/arm64/*' -name 'AppModel.o' | head -1)")
+          python3 - "$D" "$RUNNER_TEMP" <<'EOF'
+          import os, re, subprocess, sys
+          from collections import Counter, defaultdict
+          d, tmp = sys.argv[1], sys.argv[2]
+          rows = []
+          for fn in sorted(os.listdir(d)):
+              if not fn.endswith('.o'): continue
+              o = os.path.join(d, fn); f = fn[:-2]
+              end = 0; sect = False
+              for l in subprocess.run(['otool', '-l', o], capture_output=True, text=True).stdout.split('\n'):
+                  w = l.split()
+                  if len(w) >= 2 and w[0] == 'sectname': sect = w[1] == '__text'
+                  elif sect and len(w) >= 2 and w[0] == 'addr': a0 = int(w[1], 16)
+                  elif sect and len(w) >= 2 and w[0] == 'size': end = a0 + int(w[1], 16); sect = False
+              syms = []
+              for l in subprocess.run(['nm', '-n', '-m', o], capture_output=True, text=True).stdout.split('\n'):
+                  if '(__TEXT,__text)' not in l: continue
+                  w = l.split()
+                  name = w[-1]
+                  if name.startswith('ltmp') or name.startswith('l_'): continue
+                  syms.append((int(w[0], 16), name))
+              for k, (a, name) in enumerate(syms):
+                  nxt = syms[k + 1][0] if k + 1 < len(syms) else end
+                  if nxt > a: rows.append((f, nxt - a, name))
+          dem = subprocess.run(['xcrun', 'swift-demangle', '--compact'], input='\n'.join(r[2] for r in rows),
+                               capture_output=True, text=True).stdout.split('\n')
+          rules = [('closure', r'closure #'), ('thunk', r'thunk'), ('key path', r'key path'),
+                   ('value witness', r'value witness|initializeBufferWithCopyOfBuffer|assignWithCopy|assignWithTake|initializeWithCopy|initializeWithTake|destroy|EnumTag'),
+                   ('outlined', r'outlined '), ('protocol witness', r'protocol witness'), ('metadata', r'metadata'),
+                   ('getter', r'\.getter'), ('setter', r'\.setter'), ('modify', r'\.modify'), ('init', r'\.init\(')]
+          kinds = Counter(); types = Counter(); tk = defaultdict(Counter); funcs = []
+          for (f, sz, _), dm in zip(rows, dem):
+              k = 'other'
+              for name, rx in rules:
+                  if re.search(rx, dm): k = name; break
+              m = re.search(r'in conformance (?:JAMbo\.)?([A-Za-z_][\w.]*)', dm) or re.search(r'JAMbo\.([A-Za-z_]\w*)', dm)
+              t = m.group(1).split('.')[0] if m else '(' + f + ')'
+              kinds[k] += sz; types[t] += sz; tk[t][k] += sz; funcs.append((sz, f, dm))
+          total = sum(kinds.values())
+          print('CODE BYTES total %d in %d functions' % (total, len(funcs)))
+          for k, v in kinds.most_common(): print('  bytes %-16s %8d  %4.1f%%' % (k, v, 100.0 * v / max(1, total)))
+          print('TOP TYPES by code bytes (top kinds):')
+          for t, v in types.most_common(70):
+              print('  %7d %-30s %s' % (v, t, ', '.join('%s %d' % kv for kv in tk[t].most_common(3))))
+          print('TOP FUNCTIONS by code bytes:')
+          for sz, f, dm in sorted(funcs, reverse=True)[:70]:
+              print('  %6d %-22s %s' % (sz, f, dm[:150]))
+          EOF
