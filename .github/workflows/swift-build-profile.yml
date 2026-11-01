@@ -21,6 +21,8 @@ concurrency:
 
 jobs:
   profile:
+    # Коммит с [calibrate] в сообщении — только калибровка (job calibrate).
+    if: ${{ !contains(github.event.head_commit.message, '[calibrate]') }}
     # Xcode 26 — компилятор той же линии, что в Playgrounds 4.7.
     runs-on: macos-26
     timeout-minutes: 60
@@ -124,3 +126,65 @@ jobs:
             ${{ runner.temp }}/stats
             ${{ runner.temp }}/stats-wmo
           retention-days: 14
+
+  # Калибровка: память и объём кода одной сборки «весь модуль» под iPad (arm64) у версий, которые на iPad
+  # собирались (114cca4 — надёжно, 1f2950b — со второго раза), и у текущей. Разница — сколько кода срезать.
+  calibrate:
+    if: ${{ contains(github.event.head_commit.message, '[calibrate]') }}
+    runs-on: macos-26
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        ref: [114cca4, 1f2950b, 8a12490, HEAD]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Select newest Xcode
+        run: |
+          XC=$(ls -d /Applications/Xcode_*.app | grep -v -i beta | sort -V | tail -1)
+          [ -n "$XC" ] || XC=/Applications/Xcode.app
+          sudo xcode-select -s "$XC"
+          xcodebuild -version > "$RUNNER_TEMP/xcode-version.txt"; cat "$RUNNER_TEMP/xcode-version.txt"
+      - name: Checkout app at ${{ matrix.ref }}
+        run: |
+          if [ "${{ matrix.ref }}" != "HEAD" ]; then
+            rm -rf ios/JAMbo.swiftpm
+            git checkout ${{ matrix.ref }} -- ios/JAMbo.swiftpm
+          fi
+          git log -1 --format='%h %ad %s' --date=short ${{ matrix.ref }}
+          find ios/JAMbo.swiftpm -name '*.swift' | xargs cat | wc -c | awk '{printf "Swift, bytes: %d\n", $1}'
+      - name: Build whole-module for iOS device (arm64)
+        working-directory: ios/JAMbo.swiftpm
+        run: |
+          mkdir -p "$RUNNER_TEMP/stats"
+          start=$(date +%s)
+          xcodebuild build \
+            -scheme JAMbo \
+            -configuration Debug \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/dd" \
+            -skipMacroValidation \
+            CODE_SIGNING_ALLOWED=NO \
+            SWIFT_COMPILATION_MODE=wholemodule \
+            OTHER_SWIFT_FLAGS="\$(inherited) -stats-output-dir $RUNNER_TEMP/stats" \
+            > "$RUNNER_TEMP/build.log" 2>&1 || true
+          echo "build seconds: $(( $(date +%s) - start ))"
+          grep -E 'error:|BUILD (SUCCEEDED|FAILED)' "$RUNNER_TEMP/build.log" | head -20 || true
+      - name: Result
+        run: |
+          python3 - "$RUNNER_TEMP/stats" "${{ matrix.ref }}" <<'EOF'
+          import json, os, sys
+          d, ref = sys.argv[1], sys.argv[2]
+          for f in sorted(os.listdir(d)):
+              if 'swift-frontend' not in f or '-o-' not in f:
+                  continue
+              s = json.load(open(os.path.join(d, f)))
+              print('CALIBRATION %s: memory %.0f MB, IR insts %d, IR functions %d, SIL functions %d, '
+                    'typecheck %.1f s, LLVM %.1f s, IRGen %.1f s' % (
+                  ref, s.get('Frontend.MaxMallocUsage', 0) / 1048576, s.get('IRModule.NumIRInsts', 0),
+                  s.get('IRModule.NumIRFunctions', 0), s.get('SILModule.NumSILGenFunctions', 0),
+                  s.get('time.swift.Type checking and Semantic analysis.wall', 0),
+                  s.get('time.swift.LLVM pipeline.wall', 0), s.get('time.swift.IRGen.wall', 0)))
+          EOF
