@@ -84,7 +84,7 @@ struct PatternGrid: View {
     private func cells(_ g: GridGeometry) -> some View {
         let w = model.gridWindow
         let group: Bool = groupLifted
-        ForEach(0..<g.rows, id: \.self) { r in
+        return ForEach(0..<g.rows, id: \.self) { r in
             rowCells(g, r, w, group)
         }
     }
