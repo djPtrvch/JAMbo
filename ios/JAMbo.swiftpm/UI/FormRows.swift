@@ -4,6 +4,7 @@ import SwiftUI
 /// Меню собираются списком строк — у компилятора один тип на все формы вместо отдельной цепочки видов на каждое меню
 /// (S14: сборка в Playgrounds упирается в объём кода).
 enum FormRow {
+    case head(String)
     case label(String)
     case note(String)
     case choices([MenuChoice])
@@ -30,6 +31,7 @@ struct FormRowView: View {
 
     var body: some View {
         switch row {
+        case .head(let t): MenuHead(title: t)
         case .label(let t): FieldLabel(title: t)
         case .note(let t): SettingsNote(text: t)
         case .choices(let items): MenuChoiceButtons(items: items)

@@ -94,17 +94,13 @@ struct ArrRefMenu: View {
     let model: AppModel
 
     var body: some View {
-        VStack(spacing: 6) {
-            MenuItem(title: "LOAD") { run { model.openBrowser(.ref) } }
-            MenuItem(title: "DELETE", red: true) { run { model.arrDeleteRef() } }
-        }
+        let m: AppModel = model
+        return MenuChoiceColumn(items: [
+            MenuChoice(title: "LOAD", current: false) { m.arrMenu = nil; m.openBrowser(.ref) },
+            MenuChoice(title: "DELETE", red: true, current: false) { m.arrMenu = nil; m.arrDeleteRef() },
+        ])
         .frame(width: ArrRefMenu.width)
         .modifier(MenuPanel())
-    }
-
-    private func run(_ f: () -> Void) {
-        model.arrMenu = nil
-        f()
     }
 }
 
@@ -118,19 +114,22 @@ struct ArrBlockMenu: View {
     var body: some View {
         // Блок группы (выделение рамкой): DUPLICATE и DELETE — всей группы, COPY и PASTE — только у одного блока.
         let group: Bool = model.arrInGroup(sel)
-        return VStack(spacing: 6) {
-            MenuItem(title: "COPY", enabled: !group) { run { model.arrCopyBlock(sel) } }
-            MenuItem(title: "PASTE", enabled: !group && model.arrBlockClipboard != nil) { run { model.arrPasteBlock(after: sel) } }
-            MenuItem(title: "DUPLICATE") { run { if group { model.arrDuplicateGroup() } else { model.arrDuplicateBlock(sel) } } }
-            MenuItem(title: "DELETE", red: true) { run { if group { model.arrDeleteGroup() } else { model.arrDeleteBlock(sel) } } }
-        }
+        let m: AppModel = model
+        let b: ArrSel = sel
+        return MenuChoiceColumn(items: [
+            MenuChoice(title: "COPY", enabled: !group, current: false) { m.arrMenu = nil; m.arrCopyBlock(b) },
+            MenuChoice(title: "PASTE", enabled: !group && m.arrBlockClipboard != nil, current: false) { m.arrMenu = nil; m.arrPasteBlock(after: b) },
+            MenuChoice(title: "DUPLICATE", current: false) {
+                m.arrMenu = nil
+                if group { m.arrDuplicateGroup() } else { m.arrDuplicateBlock(b) }
+            },
+            MenuChoice(title: "DELETE", red: true, current: false) {
+                m.arrMenu = nil
+                if group { m.arrDeleteGroup() } else { m.arrDeleteBlock(b) }
+            },
+        ])
         .frame(width: ArrBlockMenu.width)
         .modifier(MenuPanel())
-    }
-
-    private func run(_ f: () -> Void) {
-        model.arrMenu = nil
-        f()
     }
 }
 
@@ -151,23 +150,24 @@ struct ArrLaneMenu: View {
 
     var body: some View {
         let clips: [Int] = model.arrClips(track)
+        let m: AppModel = model
+        let t: Int = track
+        let x: Int = at
+        var items: [MenuChoice] = [MenuChoice(title: "PASTE", enabled: m.arrBlockClipboard != nil, current: false) {
+            m.arrMenu = nil
+            m.arrPasteBlock(track: t, at: x)
+        }]
+        for k in clips {
+            items.append(MenuChoice(title: m.arrClipName(k), current: false) {
+                m.arrMenu = nil
+                m.arrAddBlock(track: t, clip: k, at: x)
+            })
+        }
         return MenuScroll {
-            VStack(spacing: 6) {
-                MenuItem(title: "PASTE", enabled: model.arrBlockClipboard != nil) {
-                    run { model.arrPasteBlock(track: track, at: at) }
-                }
-                ForEach(clips, id: \.self) { k in
-                    MenuItem(title: model.arrClipName(k)) { run { model.arrAddBlock(track: track, clip: k, at: at) } }
-                }
-            }
+            MenuChoiceColumn(items: items)
         }
         .frame(width: ArrLaneMenu.width)
         .modifier(MenuPanel())
-    }
-
-    private func run(_ f: () -> Void) {
-        model.arrMenu = nil
-        f()
     }
 }
 
@@ -182,19 +182,18 @@ struct ArrTrackMenu: View {
 
     var body: some View {
         let cur: Int = track < model.project.tracks.count ? model.project.tracks[track].color : ArrPalette.defaultColor
+        let m: AppModel = model
+        let t: Int = track
         return VStack(spacing: 6) {
-            MenuItem(title: "COPY") { run { model.arrCopyTrack(track) } }
-            MenuItem(title: "PASTE", enabled: model.arrTrackClipboard != nil) { run { model.arrPasteTrack(track) } }
-            MenuItem(title: "DUPLICATE") { run { model.arrDuplicateTrack(track) } }
-            ArrPaletteGrid(current: cur, none: true) { c in model.arrSetTrackColor(track, c) }
+            MenuChoiceColumn(items: [
+                MenuChoice(title: "COPY", current: false) { m.arrMenu = nil; m.arrCopyTrack(t) },
+                MenuChoice(title: "PASTE", enabled: m.arrTrackClipboard != nil, current: false) { m.arrMenu = nil; m.arrPasteTrack(t) },
+                MenuChoice(title: "DUPLICATE", current: false) { m.arrMenu = nil; m.arrDuplicateTrack(t) },
+            ])
+            ArrPaletteGrid(current: cur, none: true) { c in m.arrSetTrackColor(t, c) }
         }
         .frame(width: ArrTrackMenu.width)
         .modifier(MenuPanel())
-    }
-
-    private func run(_ f: () -> Void) {
-        model.arrMenu = nil
-        f()
     }
 }
 

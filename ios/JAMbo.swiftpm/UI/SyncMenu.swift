@@ -26,16 +26,17 @@ struct SyncMenuPage: View {
     }
 
     private var general: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            MenuHead(title: "GENERAL")
-            FieldLabel(title: "SYNC QUANTUM")
-            HStack(spacing: 4) {
-                ForEach(SyncSettings.quanta, id: \.self) { q in
-                    MenuItem(title: q > 1 ? "\(q) BARS" : "1 BAR", current: s.quantum == q) { model.setSync { $0.quantum = q } }
-                }
-            }
-            SettingsNote(text: "Phrase length in bars for lining up the start with other devices.")
+        let m: AppModel = model
+        let q0: Int = s.quantum
+        let quanta: [MenuChoice] = SyncSettings.quanta.map { (q: Int) -> MenuChoice in
+            MenuChoice(title: q > 1 ? "\(q) BARS" : "1 BAR", current: q0 == q) { m.setSync { $0.quantum = q } }
         }
+        return FormRows(rows: [
+            .head("GENERAL"),
+            .label("SYNC QUANTUM"),
+            .choices(quanta),
+            .note("Phrase length in bars for lining up the start with other devices."),
+        ])
     }
 }
 
@@ -44,35 +45,37 @@ struct SyncClockSection: View {
     let model: AppModel
 
     var body: some View {
-        let s: SyncSettings = model.settings.sync
+        let m: AppModel = model
+        let s: SyncSettings = m.settings.sync
         let send: Bool = s.source == .send
-        return VStack(alignment: .leading, spacing: 8) {
-            MenuHead(title: "MIDI CLOCK")
-            ToggleRow(title: "MIDI CLOCK SYNC", isOn: s.clock) { on in model.setSync { $0.clock = on } }
-            FieldLabel(title: "CLOCK SOURCE")
-            HStack(spacing: 4) {
-                MenuItem(title: "SEND", current: send) { model.setSync { $0.source = .send } }
-                MenuItem(title: "RECEIVE", current: !send) { model.setSync { $0.source = .receive } }
-            }
-            if send {
-                FieldLabel(title: "CLOCK OUTPUT")
-                if model.midi.outputs.isEmpty { SettingsNote(text: "No MIDI outputs connected.") }
-                MidiDeviceList(none: "ALL OUTPUTS", devices: model.midi.outputs, current: s.clockOut) { id in
-                    model.setSync { $0.clockOut = id }
-                }
-            } else {
-                FieldLabel(title: "CLOCK INPUT")
-                if model.midi.inputs.isEmpty { SettingsNote(text: "No MIDI inputs connected.") }
-                MidiDeviceList(none: "ALL INPUTS", devices: model.midi.inputs, current: s.clockIn) { id in
-                    model.setClockIn(id)
-                }
-                SettingsNote(text: "The project tempo follows the clock from this input; without clock for 0.5 s the own tempo returns.")
-            }
-            ToggleRow(title: "SYNC START/STOP", isOn: s.midiStartStop) { on in model.setSync { $0.midiStartStop = on } }
-            SyncOffsetRow(title: "MIDI OFFSET", value: s.midiOffset) { d in model.setSync { $0.midiOffset = SyncSettings.clampOffset($0.midiOffset + d) } }
-            SettingsNote(text: send ? "ON: PLAY sends MIDI Start, stop sends MIDI Stop. The clock runs all the time while MIDI clock sync is on. MIDI OFFSET moves the sent clock later (+) or earlier (−) to line up with the other device."
-                         : "ON: MIDI Start starts playback on the next clock tick, Continue resumes, Stop stops. MIDI OFFSET moves own steps later (+) or earlier (−) than the clock.")
+        var rows: [FormRow] = [
+            .head("MIDI CLOCK"),
+            .toggle("MIDI CLOCK SYNC", s.clock) { on in m.setSync { $0.clock = on } },
+            .label("CLOCK SOURCE"),
+            .choices([MenuChoice(title: "SEND", current: send) { m.setSync { $0.source = .send } },
+                      MenuChoice(title: "RECEIVE", current: !send) { m.setSync { $0.source = .receive } }]),
+        ]
+        if send {
+            rows.append(.label("CLOCK OUTPUT"))
+            if m.midi.outputs.isEmpty { rows.append(.note("No MIDI outputs connected.")) }
+            rows.append(.view(AnyView(MidiDeviceList(none: "ALL OUTPUTS", devices: m.midi.outputs, current: s.clockOut) { id in
+                m.setSync { $0.clockOut = id }
+            })))
+        } else {
+            rows.append(.label("CLOCK INPUT"))
+            if m.midi.inputs.isEmpty { rows.append(.note("No MIDI inputs connected.")) }
+            rows.append(.view(AnyView(MidiDeviceList(none: "ALL INPUTS", devices: m.midi.inputs, current: s.clockIn) { id in
+                m.setClockIn(id)
+            })))
+            rows.append(.note("The project tempo follows the clock from this input; without clock for 0.5 s the own tempo returns."))
         }
+        rows.append(.toggle("SYNC START/STOP", s.midiStartStop) { on in m.setSync { $0.midiStartStop = on } })
+        rows.append(.view(AnyView(SyncOffsetRow(title: "MIDI OFFSET", value: s.midiOffset) { d in
+            m.setSync { $0.midiOffset = SyncSettings.clampOffset($0.midiOffset + d) }
+        })))
+        rows.append(.note(send ? "ON: PLAY sends MIDI Start, stop sends MIDI Stop. The clock runs all the time while MIDI clock sync is on. MIDI OFFSET moves the sent clock later (+) or earlier (−) to line up with the other device."
+                          : "ON: MIDI Start starts playback on the next clock tick, Continue resumes, Stop stops. MIDI OFFSET moves own steps later (+) or earlier (−) than the clock."))
+        return FormRows(rows: rows)
     }
 }
 

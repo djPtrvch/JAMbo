@@ -148,6 +148,20 @@ struct MenuChoiceButtons: View {
     }
 }
 
+/// Столбик кнопок MenuItem (меню блока, дорожки, клипа) — по списку вариантов, зазор 6.
+struct MenuChoiceColumn: View {
+    let items: [MenuChoice]
+
+    var body: some View {
+        VStack(spacing: 6) {
+            ForEach(items.indices, id: \.self) { i in
+                let c: MenuChoice = items[i]
+                MenuItem(title: c.title, enabled: c.enabled, red: c.red, current: c.current, action: c.action)
+            }
+        }
+    }
+}
+
 struct CellMenu: View {
     /// TO ARRANGE 40 с отступом 8 снизу, 3 строки по 40, 3 зазора по 6, поля 16.
     static let height: CGFloat = 202
@@ -160,28 +174,32 @@ struct CellMenu: View {
         let filled: Bool = t.clipFilled(c.row)
         let arrange: Bool = t.clipHasTrigs(c.row) || model.gridSel.contains(c)
         let group: Bool = model.carryGroup(c) != nil
+        let m: AppModel = model
+        let sel: GridSelection = m.gridSel
+        let run: (@escaping () -> Void) -> () -> Void = { f in
+            return {
+                m.cellMenu = nil
+                m.gridSel = GridSelection()
+                f()
+            }
+        }
+        // Клип в выделении рамкой — DELETE удаляет все выделенные.
+        let items: [MenuChoice] = [
+            MenuChoice(title: "COPY", enabled: filled, current: false, action: run { m.copyClip(c) }),
+            MenuChoice(title: "PASTE", enabled: m.clipClipboard != nil, current: false, action: run { m.pasteClip(c) }),
+            MenuChoice(title: "DELETE", enabled: filled || group, red: true, current: false,
+                       action: run { if group { m.deleteSelection(sel, rows: false) } else { m.deleteClip(c) } }),
+        ]
         return VStack(spacing: 6) {
             MenuItem(title: "TO ARRANGE", enabled: arrange) {
-                model.cellMenu = nil
-                model.clipToArrange(c)
+                m.cellMenu = nil
+                m.clipToArrange(c)
             }
             .padding(.bottom, 8)
-            MenuItem(title: "COPY", enabled: filled) { run { model.copyClip(c) } }
-            MenuItem(title: "PASTE", enabled: model.clipClipboard != nil) { run { model.pasteClip(c) } }
-            MenuItem(title: "DELETE", enabled: filled || group, red: true) {
-                // Клип в выделении рамкой — удаляются все выделенные.
-                let sel: GridSelection = model.gridSel
-                if group { run { model.deleteSelection(sel, rows: false) } } else { run { model.deleteClip(c) } }
-            }
+            MenuChoiceColumn(items: items)
         }
         .frame(width: 180)
         .modifier(MenuPanel())
-    }
-
-    private func run(_ f: () -> Void) {
-        model.cellMenu = nil
-        model.gridSel = GridSelection()
-        f()
     }
 }
 

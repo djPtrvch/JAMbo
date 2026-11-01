@@ -115,27 +115,30 @@ struct MidiMappingTab: View {
         let maps: [MidiMapping] = model.settings.midi.mappings
         // Кроссфейдер — своей закреплённой строкой выше.
         let rows: [Int] = (0..<maps.count).filter { maps[$0].target != MidiTarget.crossfader }
-        return VStack(alignment: .leading, spacing: 8) {
-            MenuItem(title: "MIDI LEARN") {
+        let m: AppModel = model
+        let close: () -> Void = self.close
+        var list: [FormRow] = [
+            .choices([MenuChoice(title: "MIDI LEARN", current: false) {
                 close()
-                model.setLearn(true)
-            }
-            ToggleRow(title: "KNOB PRESS = TOUCH", isOn: model.settings.midi.pressTouch) { on in model.setMidi { $0.pressTouch = on } }
-            SettingsNote(text: "ON: a knob’s push button works like a finger on the knob — press to touch, press twice for a double tap. OFF: it runs the Action set in MIDI MAP.")
-            SettingsNote(text: "MIDI LEARN: tap a knob or button on screen, then move a control. Knobs are mapped by position in the 4×4 grid and follow the current mode (track, FX, MOD, MIX, MST); switch to PRESS to map a knob’s push button. Double-tap a target to open MIDI MAP; tap a mapping below to edit it. Hold a step to p-lock, hold LFO/ENV to set modulation.")
-            FieldLabel(title: "CROSSFADER")
-            crossfader
-            FieldLabel(title: "MAPPINGS (\(rows.count))")
-            if rows.isEmpty { SettingsNote(text: "No mappings yet.") }
-            ForEach(rows, id: \.self) { k in
-                MidiMapRow(mapping: maps[k], device: model.midiPortName(maps[k].input, inputs: true, none: "ANY INPUT"),
-                           place: model.placeLabel(maps[k]), open: {
-                    close()
-                    model.openMapFromList(k)
-                }, remove: { model.removeMapping(k) })
-            }
-            MenuItem(title: "CLEAR ALL", enabled: !maps.isEmpty, red: !maps.isEmpty) { model.clearMappings() }
+                m.setLearn(true)
+            }]),
+            .toggle("KNOB PRESS = TOUCH", m.settings.midi.pressTouch) { on in m.setMidi { $0.pressTouch = on } },
+            .note("ON: a knob’s push button works like a finger on the knob — press to touch, press twice for a double tap. OFF: it runs the Action set in MIDI MAP."),
+            .note("MIDI LEARN: tap a knob or button on screen, then move a control. Knobs are mapped by position in the 4×4 grid and follow the current mode (track, FX, MOD, MIX, MST); switch to PRESS to map a knob’s push button. Double-tap a target to open MIDI MAP; tap a mapping below to edit it. Hold a step to p-lock, hold LFO/ENV to set modulation."),
+            .label("CROSSFADER"),
+            .view(AnyView(crossfader)),
+            .label("MAPPINGS (\(rows.count))"),
+        ]
+        if rows.isEmpty { list.append(.note("No mappings yet.")) }
+        for k in rows {
+            list.append(.view(AnyView(MidiMapRow(mapping: maps[k], device: m.midiPortName(maps[k].input, inputs: true, none: "ANY INPUT"),
+                                                 place: m.placeLabel(maps[k]), open: {
+                close()
+                m.openMapFromList(k)
+            }, remove: { m.removeMapping(k) }))))
         }
+        list.append(.choices([MenuChoice(title: "CLEAR ALL", enabled: !maps.isEmpty, red: !maps.isEmpty, current: false) { m.clearMappings() }]))
+        return FormRows(rows: list)
     }
 }
 
