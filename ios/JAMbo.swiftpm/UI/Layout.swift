@@ -4,6 +4,9 @@ import SwiftUI
 struct Layout {
     static let gap: CGFloat = 6
     static let radius: CGFloat = 10
+    /// Кнопки у низа экрана — не ниже этой высоты над низом (решение пользователя): ниже — скругление экрана iPad,
+    /// касания там ненадёжны.
+    static let bottomGuard: CGFloat = 30
     static let stepGap: CGFloat = 4
     static let topHeight: CGFloat = 44
     static let trackHeight: CGFloat = 50

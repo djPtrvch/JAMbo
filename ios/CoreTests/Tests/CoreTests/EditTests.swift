@@ -119,6 +119,23 @@ final class EditTests: XCTestCase {
         XCTAssertEqual(t.pages[0][15].notes, [120])
     }
 
+    /// SHIFT + ▲ ▼: ноты на одну ноту гаммы (C major: E → F, B → C; не из гаммы — к ближайшей в ту же сторону).
+    func testTransposeByScaleStep() {
+        var t = trackWith(pages: 1)
+        t.pages[0][0].on = true
+        t.pages[0][0].notes = [64, 71]
+        XCTAssertTrue(t.transposePages(0, by: 1, scale: 0, root: 0))
+        XCTAssertEqual(t.pages[0][0].notes, [65, 72])
+        XCTAssertTrue(t.transposePages(0, by: -1, scale: 0, root: 0))
+        XCTAssertEqual(t.pages[0][0].notes, [64, 71])
+        t.pages[0][0].notes = [61]
+        XCTAssertTrue(t.transposePages(0, by: 1, scale: 0, root: 0), "C# не из гаммы — вверх к D")
+        XCTAssertEqual(t.pages[0][0].notes, [62])
+        t.pages[0][0].notes = [127]
+        XCTAssertFalse(t.transposePages(0, by: 1, scale: 0, root: 0), "за 127 — без сдвига")
+        XCTAssertEqual(t.pages[0][0].notes, [127])
+    }
+
     func testLocksAndToggle() {
         var t = Track(index: 0)
         t.toggleStep(2, notes: [36])

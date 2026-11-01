@@ -12,7 +12,7 @@ struct ArrHeaders: View {
         return GeometryReader { geo in
             let m = ArrMetrics(size: CGSize(width: geo.size.width, height: geo.size.height), port: port,
                                tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded,
-                           inset: model.arrInset, ref: model.arrRefShown)
+                           inset: model.arrInset, ref: model.arrRefShown, knobsLow: model.arrKnobsLow)
             ZStack(alignment: .topLeading) {
                 ZStack(alignment: .topLeading) {
                     // Все строки — одним столбцом с одним сдвигом (прокрутка — без отставания строк от таймлайна).

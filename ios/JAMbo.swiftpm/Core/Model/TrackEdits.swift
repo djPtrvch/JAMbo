@@ -169,6 +169,28 @@ extension Track {
         }
     }
 
+    /// SHIFT + ▲ ▼ над миниатюрами (решение пользователя): ноты всех шагов диапазона — на одну ноту гаммы вверх (d = 1)
+    /// или вниз (d = −1); нота не из гаммы — к ближайшей ноте гаммы в ту же сторону. Если нота вышла бы за 0–127 —
+    /// сдвига нет. false — ничего не изменилось.
+    @discardableResult
+    public mutating func transposePages(_ i: Int, by d: Int, scale: Int, root: Int) -> Bool {
+        let r = pageRange(i)
+        let notes: [Int] = r.flatMap { pages[$0] }.flatMap { $0.notes }
+        if notes.isEmpty || d == 0 { return false }
+        let steps: [Int] = Scales.all[Scales.wrap(scale, Scales.all.count)].steps
+        func inScale(_ n: Int) -> Bool { return steps.contains(Scales.wrap(n - root, 12)) }
+        func move(_ n: Int) -> Int {
+            var m: Int = n
+            repeat { m += d > 0 ? 1 : -1 } while !inScale(m) && abs(m - n) < 12
+            return m
+        }
+        if notes.contains(where: { move($0) < 0 || move($0) > 127 }) { return false }
+        for p in r {
+            for k in 0..<pages[p].count { pages[p][k].notes = pages[p][k].notes.map { move($0) } }
+        }
+        return true
+    }
+
     // MARK: — шаги и p-lock
 
     public mutating func withStep(_ index: Int, _ change: (inout Step) -> Void) {

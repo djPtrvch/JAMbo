@@ -197,8 +197,9 @@ struct ArrWaveIcon: View {
 
 
 /// Кнопки под измерителем аранжировщика (решения пользователя), шириной с измеритель; четыре места одной высоты от
-/// низа измерителя до низа экрана (RootView): при FIX (SETTINGS → ARRANGE) — EXPANDED (8 строк на окно) и COMPACT (все
-/// дорожки на окно); под ними, только пока AUTO включена, — карандаш (рисование кривой) и ластик (стирание точек).
+/// низа измерителя до линии Layout.bottomGuard над низом экрана (RootView; ниже — скругление экрана, кнопок нет): при FIX
+/// (SETTINGS → ARRANGE) — одна кнопка EXPANDED ↔ COMPACT (8 строк на окно / все дорожки на окно); под ней, только пока AUTO
+/// включена, — карандаш (рисование кривой) и ластик (стирание точек); четвёртое место свободно.
 struct ArrSideButtons: View {
     let model: AppModel
     let width: CGFloat
@@ -209,12 +210,10 @@ struct ArrSideButtons: View {
         let h: CGFloat = height
         return VStack(spacing: Layout.gap) {
             if !model.settings.arrangeScale {
-                ArrBarButton(on: !compact, enabled: true, action: { model.setArrCompact(false) }) { c in
-                    Image(systemName: "rectangle.expand.vertical").font(.system(size: 14, weight: .semibold)).foregroundStyle(c)
-                }
-                .frame(width: width, height: h)
-                ArrBarButton(on: compact, enabled: true, action: { model.setArrCompact(true) }) { c in
-                    Image(systemName: "rectangle.compress.vertical").font(.system(size: 14, weight: .semibold)).foregroundStyle(c)
+                // Одна кнопка (решение пользователя): тап — EXPANDED ↔ COMPACT; значок — текущий режим.
+                ArrBarButton(on: false, enabled: true, action: { model.setArrCompact(!compact) }) { c in
+                    Image(systemName: compact ? "rectangle.compress.vertical" : "rectangle.expand.vertical")
+                        .font(.system(size: 14, weight: .semibold)).foregroundStyle(c)
                 }
                 .frame(width: width, height: h)
             }

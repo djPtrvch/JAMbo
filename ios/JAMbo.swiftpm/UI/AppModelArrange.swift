@@ -214,6 +214,12 @@ extension AppModel {
     }
 
     /// Сколько снизу окна аранжировщика закрыто (STEPS или AUTO — три нижние дорожки): дорожки прокручиваются из-под низа.
+    /// Окно ручек (KNOBS) закрывает линейку и верхние дорожки: открыта нижняя часть высотой низа экрана (arrLowerH) —
+    /// дорожки идут с неё и прокручиваются (решение пользователя); 0 — окна нет или низ закрыт STEPS / AUTO.
+    var arrKnobsLow: CGFloat {
+        return arrangeView && arrKnobs && !patternView && project.arrange.hideSteps && !arrAuto ? arrLowerH : 0
+    }
+
     var arrInset: CGFloat { return arrangeView && (arrAuto || !project.arrange.hideSteps) ? arrLowerH + ArrMetrics.gap : 0 }
 
     /// STEPS выключена: строка дорожек, секвенсор и клавиатура скрыты (только пока открыт аранжировщик).

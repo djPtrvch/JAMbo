@@ -88,7 +88,8 @@ struct FolderArrows: View {
 }
 
 /// Стрелки страниц ◀ ▶ ▲ ▼ над миниатюрами (решение пользователя: перенесены из меню страницы) — для открытой
-/// страницы: если она в белой обводке — сдвигают все играющие страницы, иначе только её.
+/// страницы: если она в белой обводке — сдвигают все играющие страницы, иначе только её. ▲ ▼ — ноты на октаву,
+/// с SHIFT — на одну ноту гаммы.
 struct PageArrows: View {
     let model: AppModel
 
@@ -107,7 +108,10 @@ struct PageArrows: View {
             .onTapGesture { tap(action) }
     }
 
-    private func tap(_ action: AppModel.PageAction) {
+    private func tap(_ arrow: AppModel.PageAction) {
+        var action: AppModel.PageAction = arrow
+        if model.shiftHeld && arrow == .up { action = .noteUp }
+        if model.shiftHeld && arrow == .down { action = .noteDown }
         let last: Int = model.seq.pages.count - 1
         let page: Int = model.viewPage < last ? model.viewPage : last
         model.pageAction(action, page: page < 0 ? 0 : page)

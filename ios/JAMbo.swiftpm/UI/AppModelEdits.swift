@@ -291,7 +291,7 @@ extension AppModel {
         spanView = true
     }
 
-    enum PageAction { case left, right, up, down, duplicate, copy, paste, clear, delete }
+    enum PageAction { case left, right, up, down, noteUp, noteDown, duplicate, copy, paste, clear, delete }
 
     /// Скорость открытого клипа выбранной дорожки (меню страницы, S14): Clip.rates — 2, 1, 1/2…1/16 (UNDO).
     func setClipRate(_ r: Int) {
@@ -305,6 +305,11 @@ extension AppModel {
         case .right: editSeq { t in _ = t.nudgePages(i, .right) }
         case .up: editSeq { t in _ = t.nudgePages(i, .up) }
         case .down: editSeq { t in _ = t.nudgePages(i, .down) }
+        case .noteUp, .noteDown:
+            let sc: Int = project.scale
+            let rt: Int = project.root
+            let d: Int = action == .noteUp ? 1 : -1
+            editSeq { t in _ = t.transposePages(i, by: d, scale: sc, root: rt) }
         case .duplicate:
             let r = seq.pageRange(i)
             editSeq { t in _ = t.duplicatePages(i) }

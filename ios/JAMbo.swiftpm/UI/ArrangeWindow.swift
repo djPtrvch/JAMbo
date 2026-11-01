@@ -148,8 +148,12 @@ struct ArrMetrics {
     let expanded: Bool
     /// Строка REF (S15g) — над дорожками, под линейкой (не прокручивается); дорожки — на строку ниже.
     let refRow: Bool
+    /// Сдвиг дорожек вниз под окно ручек (KNOBS): дорожка 1 — сразу под ним, прокрутка — до последней.
+    let shift: CGFloat
     /// inset — низ окна, закрытый окном AUTO (STEPS выключена): дорожки не сжимаются, прокрутка — до последней.
-    init(size: CGSize, port: ArrPort, tracks: Int, end: Int, expanded: Bool, inset: CGFloat = 0, ref: Bool = false) {
+    /// knobsLow — высота открытой части внизу, пока окно ручек закрывает линейку и верхние дорожки (0 — окна нет).
+    init(size: CGSize, port: ArrPort, tracks: Int, end: Int, expanded: Bool, inset: CGFloat = 0, ref: Bool = false,
+         knobsLow: CGFloat = 0) {
         self.size = size
         self.tracks = tracks
         self.expanded = expanded
@@ -159,7 +163,10 @@ struct ArrMetrics {
         let want: CGFloat = port.stepW ?? fit
         stepW = ArrMetrics.clampStep(want, width: w)
         let area: CGFloat = max(0, size.height - ArrMetrics.top)
-        let seen: CGFloat = max(0, area - inset)
+        // Окно ручек (решение пользователя): дорожки идут с низа окна ручек и прокручиваются в открытой части.
+        let sh: CGFloat = knobsLow > 0 ? max(0, size.height - knobsLow - ArrMetrics.top) : 0
+        shift = sh
+        let seen: CGFloat = max(0, area - inset - sh)
         let n: CGFloat = CGFloat(max(1, tracks))
         let g: CGFloat = ArrMetrics.gap
         let r: CGFloat = ref ? 1 : 0
@@ -201,11 +208,11 @@ struct ArrMetrics {
     var pitch: CGFloat { return rowH + ArrMetrics.gap }
 
     /// Верх дорожек: под линейкой, при строке REF — под ней.
-    var body: CGFloat { return ArrMetrics.top + (refRow ? pitch : 0) }
+    var body: CGFloat { return ArrMetrics.top + shift + (refRow ? pitch : 0) }
 
     /// Точка в строке REF.
     func inRef(_ py: CGFloat) -> Bool {
-        return refRow && py >= ArrMetrics.top && py < ArrMetrics.top + rowH
+        return refRow && py >= ArrMetrics.top + shift && py < ArrMetrics.top + shift + rowH
     }
 
     func rowY(_ t: Int) -> CGFloat {
@@ -263,7 +270,7 @@ struct ArrTimeline: View {
         let waveKey: String = (p.arrange.ref?.key ?? "") + "#\(model.samplesVersion)"
         return AnyView(GeometryReader { geo in
             let m = ArrMetrics(size: geo.size, port: port, tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded,
-                           inset: model.arrInset, ref: model.arrRefShown)
+                           inset: model.arrInset, ref: model.arrRefShown, knobsLow: model.arrKnobsLow)
             ZStack(alignment: .topLeading) {
                 Canvas { ctx, size in
                     // Левые углы прямые (к заголовкам дорожек), правые скруглены — решение пользователя.
@@ -314,11 +321,11 @@ struct ArrTimeline: View {
     private func apply(_ events: SpatialEventCollection, _ size: CGSize) {
         let p: Project = model.project
         let m = ArrMetrics(size: size, port: model.arrPort, tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded,
-                           inset: model.arrInset, ref: model.arrRefShown)
+                           inset: model.arrInset, ref: model.arrRefShown, knobsLow: model.arrKnobsLow)
         var port: ArrPort = model.arrPort
         touches.handle(events, port: &port, m, model, lift: $lift)
         let c = ArrMetrics(size: size, port: port, tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded,
-                           inset: model.arrInset, ref: model.arrRefShown)
+                           inset: model.arrInset, ref: model.arrRefShown, knobsLow: model.arrKnobsLow)
         let next = ArrPort(stepW: port.stepW == nil ? nil : c.stepW, x: c.x, y: c.y, rowH: port.rowH == nil ? nil : c.rowH)
         if next != model.arrPort { model.arrPort = next }
     }
