@@ -47,10 +47,11 @@ def main():
                 continue
             total = sum(r[1].get(key, 0) for r in per)
             o.append('\n## Файлы по «%s», топ %d (сумма %.0f)\n' % (title, TOP, total * mul))
-            o.append('| %s | инстр. IR | функций SIL | файл |\n|---:|---:|---:|---|' % title)
+            o.append('| %s | инстр. IR | функций IR | функций SIL | файл |\n|---:|---:|---:|---:|---|' % title)
             for name, d, _ in rows:
-                o.append('| %.0f | %d | %d | %s |' % (d.get(key, 0) * mul, d.get('IRModule.NumIRInsts', 0),
-                                                       d.get('SILModule.NumSILGenFunctions', 0), name))
+                o.append('| %.0f | %d | %d | %d | %s |' % (d.get(key, 0) * mul, d.get('IRModule.NumIRInsts', 0),
+                                                            d.get('IRModule.NumIRFunctions', 0),
+                                                            d.get('SILModule.NumSILGenFunctions', 0), name))
     for name, d, f in wmo:
         o.append('\n## WMO: %s\n' % f)
         for key, title, mul in KEYS:
