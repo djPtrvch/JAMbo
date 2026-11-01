@@ -15,6 +15,8 @@ final class LiveState {
     @ObservationIgnored private var beatUntil: Double = 0
     /// Слышна ли дорожка (mute / solo) — задаёт модель.
     @ObservationIgnored var audible: (Int) -> Bool = { _ in true }
+    /// Шаг pos клипа k дорожки t сейчас (запись аранжировки берёт шаг, каким он прозвучал).
+    @ObservationIgnored var stepAt: (Int, Int, Int) -> Step? = { _, _, _ in nil }
 
     /// Ожидание у дорожек (Launcher.none / stop / ячейка), начало прохода, играющая и ожидающая строки.
     private(set) var queued: [Int] = [Int](repeating: Launcher.none, count: Params.maxTracks)
@@ -45,7 +47,11 @@ final class LiveState {
                 break
             case .step(let t, let pos):
                 if t == SeqData.maxTracks { tick += 1 }
-                if t < SeqData.maxTracks && pos >= 0 { recorder.notePlayed(track: t, pos: pos) }
+                if t < SeqData.maxTracks && pos >= 0 {
+                    var st: Step? = nil
+                    if let k = recorder.openSlot(t), k >= 0 { st = stepAt(t, k, pos) }
+                    recorder.notePlayed(track: t, pos: pos, step: st)
+                }
                 if playPos[t] != pos { playPos[t] = pos }
                 if t == 0 { stepSerial &+= 1 }
                 if pos >= 0 { onStep(t, pos) }
@@ -139,6 +145,16 @@ final class LiveState {
 
     func finishRecord() -> [ArrRecorder.Seg] {
         return recorder.finish()
+    }
+
+    /// Живая нота во время записи аранжировки: шаг таймлайна — по слышимому тику (heard; nil — транспорт стоит).
+    func recordLive(track t: Int, heard: Int?, notes: [Int], velocity: Double?) -> Int? {
+        guard recorder.active, let h = heard else { return nil }
+        return recorder.liveNote(track: t, at: arrPos + (h - Swift.max(0, tick)), notes: notes, velocity: velocity)
+    }
+
+    func recordLiveLength(_ i: Int, _ len: Int) {
+        recorder.liveLength(i, len)
     }
 
     /// PLAY (S15e): тик и журнал заново; в сетке — дорожки, которые играют свой клип с тика 0 (сообщений clip о них нет).

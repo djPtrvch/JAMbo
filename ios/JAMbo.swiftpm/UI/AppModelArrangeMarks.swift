@@ -182,7 +182,10 @@ extension AppModel {
             // Запись «по факту»: шаги, которые звучали, и прошедшие Chance.
             let played: [[Int: Int]] = live.recorder.played
             let fired: [Set<Int>] = live.recorder.fired
-            if !segs.isEmpty { edit { p in p.applyRecording(segs, played: played, fired: fired) } }
+            // Шаги — какими звучали (правка во время записи — с места правки); живые ноты — на свои шаги.
+            let heard: [[Int: Step]] = live.recorder.heard
+            let notes: [ArrRecorder.LiveNote] = live.recorder.live
+            if !segs.isEmpty { edit { p in p.applyRecording(segs, played: played, fired: fired, heard: heard, live: notes) } }
             if !autoTakes.isEmpty { flushAutoTakes(all: true, end: end) }
         }
         if !arrKnobRec && !arrRecording && !autoTakes.isEmpty { flushAutoTakes(all: true) }

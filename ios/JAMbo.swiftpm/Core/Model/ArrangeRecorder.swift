@@ -33,6 +33,28 @@ public struct ArrRecorder: Sendable {
     /// и прошёл ли он Chance; по дорожкам. Держатся до следующей записи (applyRecording берёт их после finish).
     public private(set) var played: [[Int: Int]]
     public private(set) var fired: [Set<Int>]
+    /// Шаг клипа, каким он был, когда прозвучал (решение пользователя 2.11: правка шагов во время записи действует
+    /// с места, где её сделали; прежние проходы — как сыграли): шаг таймлайна → шаг.
+    public private(set) var heard: [[Int: Step]]
+    /// Ноты, сыгранные вживую во время записи (клавиши, MIDI; решение пользователя 2.11 — пишутся всегда).
+    public private(set) var live: [LiveNote] = []
+
+    /// Живая нота: дорожка, шаг таймлайна, ноты, сила (0…1; nil — без своей), длина в шагах.
+    public struct LiveNote: Equatable, Sendable {
+        public var track: Int
+        public var at: Int
+        public var notes: [Int]
+        public var velocity: Double?
+        public var len: Int
+
+        public init(track: Int, at: Int, notes: [Int], velocity: Double?, len: Int = 1) {
+            self.track = track
+            self.at = at
+            self.notes = notes
+            self.velocity = velocity
+            self.len = len
+        }
+    }
     public private(set) var active: Bool = false
     /// Курсор на текущем шаге.
     public private(set) var pos: Int = 0
@@ -42,12 +64,32 @@ public struct ArrRecorder: Sendable {
         muted = [Bool](repeating: false, count: tracks)
         played = [[Int: Int]](repeating: [:], count: tracks)
         fired = [Set<Int>](repeating: [], count: tracks)
+        heard = [[Int: Step]](repeating: [:], count: tracks)
     }
 
-    /// Шаг pos клипа дорожки t начал звучать на текущем шаге таймлайна (дорожка пишется).
-    public mutating func notePlayed(track t: Int, pos p: Int) {
+    /// Клип, который сейчас пишется у дорожки t (−1 — тишина; nil — дорожка не пишется).
+    public func openSlot(_ t: Int) -> Int? {
+        guard active, open.indices.contains(t) else { return nil }
+        return open[t]?.slot
+    }
+
+    /// Шаг pos клипа дорожки t начал звучать на текущем шаге таймлайна (дорожка пишется); step — каким он был.
+    public mutating func notePlayed(track t: Int, pos p: Int, step: Step? = nil) {
         guard active, p >= 0, open.indices.contains(t), open[t] != nil else { return }
         played[t][pos] = p
+        if let s = step { heard[t][pos] = s }
+    }
+
+    /// Нажали клавишу на дорожке t: ноты на шаге таймлайна at. Номер ноты (для длины) или nil — дорожка не пишется.
+    public mutating func liveNote(track t: Int, at x: Int, notes: [Int], velocity: Double?) -> Int? {
+        guard active, !notes.isEmpty, open.indices.contains(t), let s = open[t], !s.silent else { return nil }
+        live.append(LiveNote(track: t, at: Swift.max(s.start, x), notes: notes, velocity: velocity))
+        return live.count - 1
+    }
+
+    /// Отпустили клавишу: длина живой ноты i в шагах (не меньше 1).
+    public mutating func liveLength(_ i: Int, _ len: Int) {
+        if live.indices.contains(i) { live[i].len = Swift.max(1, len) }
     }
 
     /// Шаг дорожки t прошёл Chance на текущем шаге таймлайна.
@@ -65,7 +107,9 @@ public struct ArrRecorder: Sendable {
         for t in played.indices {
             played[t] = [:]
             fired[t] = []
+            heard[t] = [:]
         }
+        live = []
         for t in open.indices {
             open[t] = nil
             muted[t] = t < audible.count && !audible[t]
@@ -120,7 +164,23 @@ public struct ArrRecorder: Sendable {
         open.insert(x, at: to)
         let m: Bool = muted.remove(at: from)
         muted.insert(m, at: to)
+        let pl = played.remove(at: from)
+        played.insert(pl, at: to)
+        let fi = fired.remove(at: from)
+        fired.insert(fi, at: to)
+        let he = heard.remove(at: from)
+        heard.insert(he, at: to)
         for t in open.indices { open[t]?.track = t }
+        for i in live.indices {
+            let t: Int = live[i].track
+            if t == from {
+                live[i].track = to
+            } else if from < to && t > from && t <= to {
+                live[i].track = t - 1
+            } else if from > to && t >= to && t < from {
+                live[i].track = t + 1
+            }
+        }
         for i in done.indices {
             let t: Int = done[i].track
             if t == from {
@@ -159,15 +219,20 @@ extension Project {
     /// которые звучали на каждом шаге таймлайна (переключение страниц — как играли); шаг, не прошедший Chance, — пустой
     /// (без трига и p-lock), прошедший — с Chance 100 %. Блоки — по проходу клипа, не длиннее 8 тактов (128 шагов).
     /// Клип с другой скоростью (×2, 1/2…) и запись без этих данных — блок со ссылкой на клип, как прежде.
-    public mutating func applyRecording(_ segs: [ArrRecorder.Seg], played: [[Int: Int]] = [], fired: [Set<Int>] = []) {
+    /// heard — шаги, какими они были, когда звучали (правка во время записи — с места правки); live — ноты, сыгранные
+    /// вживую (ложатся в блок на свой шаг; в тишине — блоками по такту).
+    public mutating func applyRecording(_ segs: [ArrRecorder.Seg], played: [[Int: Int]] = [], fired: [Set<Int>] = [],
+                                        heard: [[Int: Step]] = [], live: [ArrRecorder.LiveNote] = []) {
         for s in segs where tracks.indices.contains(s.track) && s.end > s.start {
             tracks[s.track].clearArrange(from: s.start, to: s.end)
+            let t: Int = s.track
+            let notes: [ArrRecorder.LiveNote] = live.filter { $0.track == t && $0.at >= s.start && $0.at < s.end }
             guard s.slot >= 0 && !s.silent && tracks[s.track].clipFilled(s.slot), let src = tracks[s.track].clips[s.slot] else {
+                if !s.silent && !notes.isEmpty { placeLive(t, s, notes) }
                 continue
             }
-            let t: Int = s.track
             if src.speed == 0 && t < played.count && t < fired.count {
-                placeFired(t, s, src, played[t], fired[t])
+                placeFired(t, s, src, played[t], fired[t], t < heard.count ? heard[t] : [:], notes)
                 continue
             }
             let pass: Int = tracks[t].clipSteps(s.slot)
@@ -176,7 +241,8 @@ extension Project {
     }
 
     /// Отрезок s дорожки t — блоками со своей копией из прозвучавших шагов клипа src.
-    private mutating func placeFired(_ t: Int, _ s: ArrRecorder.Seg, _ src: Clip, _ played: [Int: Int], _ fired: Set<Int>) {
+    private mutating func placeFired(_ t: Int, _ s: ArrRecorder.Seg, _ src: Clip, _ played: [Int: Int], _ fired: Set<Int>,
+                                     _ heard: [Int: Step], _ live: [ArrRecorder.LiveNote]) {
         let maxLen: Int = Swift.min(Params.maxPages * Params.stepsPerPage, Track.maxClipBlock)
         // Блоки — по проходу клипа (клип в такт — по такту, в два — по два), не длиннее 8 тактов (решение пользователя).
         let pass: Int = Swift.max(1, tracks[t].clipSteps(s.slot))
@@ -194,7 +260,7 @@ extension Project {
             var any: Bool = false
             while i < n {
                 let at: Int = x + i
-                if let p = played[at], var st = src.step(p) {
+                if let p = played[at], var st = heard[at] ?? src.step(p) {
                     if st.on {
                         if fired.contains(at) {
                             // Прозвучал — дальше звучит всегда.
@@ -209,9 +275,56 @@ extension Project {
                 }
                 i += 1
             }
+            if Project.addLive(&c, live, from: x, count: n, level: tracks[t].params["level"] ?? 127) { any = true }
             // Блок без прозвучавших тригов (заглушённая дорожка, Chance не прошёл) — не пишется (решение пользователя).
             if any { tracks[t].placeBlock(ArrBlock(clip: s.slot, start: x, length: n, pattern: c)) }
             x += n
         }
+    }
+
+    /// Живые ноты в тишине (клип не играл): блоки по такту — только такты с нотами; клип блока — выбранный у дорожки.
+    private mutating func placeLive(_ t: Int, _ s: ArrRecorder.Seg, _ live: [ArrRecorder.LiveNote]) {
+        let bar: Int = ArrGrid.stepsPerBar
+        let n16: Int = Params.stepsPerPage
+        var x: Int = s.start
+        while x < s.end {
+            let n: Int = Swift.min(s.end - x, bar - ((x % bar) + bar) % bar)
+            let pages: Int = (n + n16 - 1) / n16
+            var c = Clip(pages: [[Step]](repeating: Track.emptyPage(), count: pages), length: n, playFrom: 0, playTo: pages - 1)
+            if Project.addLive(&c, live, from: x, count: n, level: tracks[t].params["level"] ?? 127) {
+                let k: Int = Swift.max(0, Swift.min(Params.patternSlots - 1, tracks[t].slot))
+                tracks[t].placeBlock(ArrBlock(clip: k, start: x, length: n, pattern: c))
+            }
+            x += n
+        }
+    }
+
+    /// Живые ноты с шагов [from, from + count) — в копию клипа c (к нотам шага; длина — не дальше конца копии; сила —
+    /// Level ноты = Level дорожки × сила, как запись с REC). true — что-то легло.
+    static func addLive(_ c: inout Clip, _ live: [ArrRecorder.LiveNote], from: Int, count: Int, level: Double) -> Bool {
+        var any: Bool = false
+        let n16: Int = Params.stepsPerPage
+        for ln in live where ln.at >= from && ln.at < from + count {
+            let i: Int = ln.at - from
+            var st: Step = c.pages[i / n16][i % n16]
+            let had: Bool = st.on
+            if !had {
+                st.lens = nil
+                st.vels = nil
+            }
+            st.setNotes(had ? Array(Set(st.notes + ln.notes)).sorted() : ln.notes)
+            st.on = true
+            st.setAllLen(Swift.max(had ? st.len : 1, Swift.min(ln.len, count - i)))
+            if let v = ln.velocity {
+                let lv: Double = (level * v).rounded()
+                for note in ln.notes {
+                    guard let k = st.notes.firstIndex(of: note) else { continue }
+                    st.setVelLinked(k, Swift.max(st.noteVel(k) ?? 0, lv), fallback: level)
+                }
+            }
+            c.pages[i / n16][i % n16] = st
+            any = true
+        }
+        return any
     }
 }

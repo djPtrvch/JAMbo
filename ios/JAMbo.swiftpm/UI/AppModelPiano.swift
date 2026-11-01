@@ -8,6 +8,8 @@ struct KeyHold {
     let notes: [Int]
     let recIndex: Int?
     let t0: Double
+    /// Живая нота в записи аранжировки (номер у ArrRecorder).
+    var arrLive: Int? = nil
 }
 
 /// Меню выбора (SCALE, ROOT, PROGRESSION): пункты, столбцы, выбранный, рамка поля (в координатах экрана).
@@ -175,7 +177,13 @@ extension AppModel {
         if !(recOn && playing) && heldSteps.isEmpty && channel == .track {
             captureDown(id: id, track: ti, notes: notes, velocity: settings.velocity ? velocity : nil)
         }
-        keyHolds[id] = KeyHold(track: ti, notes: notes, recIndex: recIndex, t0: Date.timeIntervalSinceReferenceDate)
+        var hold = KeyHold(track: ti, notes: notes, recIndex: recIndex, t0: Date.timeIntervalSinceReferenceDate)
+        // Запись аранжировки из сетки: живые ноты пишутся всегда (решение пользователя 2.11).
+        if live.recorder.active && heldSteps.isEmpty && channel == .track {
+            hold.arrLive = live.recordLive(track: ti, heard: heardTick(), notes: notes,
+                                           velocity: settings.velocity ? velocity : nil)
+        }
+        keyHolds[id] = hold
     }
 
     /// Отпустили клавишу: с REC — длина записанной ноты по времени удержания.
@@ -184,9 +192,10 @@ extension AppModel {
         guard let k = keyHolds.removeValue(forKey: id) else { return }
         liveNoteOff(track: k.track, id: id)
         captureUp(id: id, track: k.track)
-        guard let index = k.recIndex else { return }
         let stepSeconds: Double = 60 / project.bpm / 4
         let len = RecordClock.length(seconds: Date.timeIntervalSinceReferenceDate - k.t0, stepSeconds: stepSeconds)
+        if let i = k.arrLive { live.recordLiveLength(i, len) }
+        guard let index = k.recIndex else { return }
         writeTake(track: k.track) { t in t.recordLength(index, len) }
     }
 

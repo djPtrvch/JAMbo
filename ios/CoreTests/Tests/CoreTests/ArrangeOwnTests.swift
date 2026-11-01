@@ -116,6 +116,53 @@ final class ArrangeFiredTests: XCTestCase {
         XCTAssertEqual(p.tracks[0].blocks[0].pattern?.pages[0][0].locks["prob"], 100)
     }
 
+    /// Правка шагов во время записи (решение пользователя 2.11): каждый проход — как прозвучал; живые ноты — на свои шаги
+    /// (к нотам шага, с длиной и силой), в тишине — блоками по такту.
+    func testHeardStepsAndLiveNotes() {
+        var p = Project()
+        var c = Clip(pages: [Track.emptyPage()], length: 16, playFrom: 0, playTo: 0)
+        c.pages[0][0].on = true
+        c.pages[0][0].notes = [48]
+        p.tracks[0].clips[0] = c
+        var rec = ArrRecorder()
+        var states: [(slot: Int, offset: Int)?] = [(slot: 0, offset: 0), (slot: -1, offset: 0)]
+        states += [(slot: Int, offset: Int)?](repeating: nil, count: Params.maxTracks - 2)
+        rec.begin(at: 0, states: states)
+        // Такт 1: шаг 4 пуст; на такте 2 поставили шаг 4 и убрали шаг 0.
+        var on4 = Step()
+        on4.on = true
+        on4.notes = [50]
+        for x in 0..<32 {
+            rec.step(x)
+            let pos: Int = x % 16
+            var st: Step = c.pages[0][pos]
+            if x >= 16 && pos == 4 { st = on4 }
+            if x >= 16 && pos == 0 { st = Step() }
+            rec.notePlayed(track: 0, pos: pos, step: st)
+            if st.on { rec.noteFired(track: 0) }
+        }
+        // Живые ноты: на дорожке 0 — шаг 8 (к пустому) и шаг 0 (к триггеру), на дорожке 1 (тишина) — шаг 20.
+        let a: Int? = rec.liveNote(track: 0, at: 8, notes: [60], velocity: 0.5)
+        rec.liveLength(a!, 3)
+        _ = rec.liveNote(track: 0, at: 0, notes: [55], velocity: nil)
+        _ = rec.liveNote(track: 1, at: 20, notes: [40], velocity: nil)
+        XCTAssertNil(rec.liveNote(track: 2, at: 3, notes: [40], velocity: nil), "дорожка не пишется")
+        let segs = rec.finish()
+        p.applyRecording(segs, played: rec.played, fired: rec.fired, heard: rec.heard, live: rec.live)
+        let b0: Clip = try! XCTUnwrap(p.tracks[0].blocks[0].pattern)
+        let b1: Clip = try! XCTUnwrap(p.tracks[0].blocks[1].pattern)
+        XCTAssertEqual(b0.pages[0][0].notes, [48, 55], "живая нота — к нотам шага")
+        XCTAssertFalse(b0.pages[0][4].on, "такт 1 — без поставленного позже шага")
+        XCTAssertTrue(b0.pages[0][8].on)
+        XCTAssertEqual(b0.pages[0][8].notes, [60])
+        XCTAssertEqual(b0.pages[0][8].len, 3)
+        XCTAssertEqual(b0.pages[0][8].noteVel(0) ?? -1, 64, accuracy: 0.5, "сила — Level × velocity")
+        XCTAssertFalse(b1.pages[0][0].on, "такт 2 — без убранного шага")
+        XCTAssertEqual(b1.pages[0][4].notes, [50], "такт 2 — с поставленным шагом")
+        XCTAssertEqual(p.tracks[1].blocks.map { [$0.start, $0.length] }, [[16, 16]], "тишина — такт с нотой")
+        XCTAssertEqual(p.tracks[1].blocks[0].pattern?.pages[0][4].notes, [40])
+    }
+
     func testLongSplitsIntoBlocks() {
         var p = Project()
         var c = Clip()

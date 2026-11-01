@@ -420,6 +420,10 @@ final class AppModel {
             guard let s = self, t < tracks else { return false }
             return s.project.audible(t)
         }
+        live.stepAt = { [weak self] t, k, pos in
+            guard let s = self, t < s.project.tracks.count, k >= 0, k < s.project.tracks[t].clips.count else { return nil }
+            return s.project.tracks[t].clips[k]?.step(pos)
+        }
         live.drain(audio.core.sequencer.out, now: Date.timeIntervalSinceReferenceDate, onStep: { [weak self] t, pos in
             self?.recPassStep(t, pos)
         }, onPlay: { [weak self] e in
