@@ -56,6 +56,11 @@ enum ArrColors {
 /// действие — одна запись UNDO, перетаскивание — одна запись на жест.
 extension AppModel {
     func toggleArrange() {
+        // Пианоролл поверх аранжировки: ARRANGE закрывает его и показывает аранжировку.
+        if arrangeView && rollView {
+            closeRoll()
+            return
+        }
         if arrangeView {
             closeArrange()
             return
@@ -150,15 +155,9 @@ extension AppModel {
         viewPage = min(viewPage, seq.pages.count - 1)
     }
 
-    /// Карандаш и ластик окна AUTO — один из двух (или ни одного).
+    /// Карандаш окна AUTO.
     func toggleArrDraw() {
         arrDraw.toggle()
-        if arrDraw { arrErase = false }
-    }
-
-    func toggleArrErase() {
-        arrErase.toggle()
-        if arrErase { arrDraw = false }
     }
 
     /// Дорожки прокручиваются по вертикали: EXPANDED или свой масштаб строк (SCALE).
@@ -208,7 +207,6 @@ extension AppModel {
         if !project.arrange.hideSteps && arrAuto {
             arrAuto = false
             arrDraw = false
-            arrErase = false
             syncArrRecord()
         }
     }

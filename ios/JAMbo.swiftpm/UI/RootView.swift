@@ -268,12 +268,12 @@ struct RootView: View {
     @ViewBuilder
     private func arrangeMeter(_ screenH: CGFloat) -> some View {
         let f: CGRect = model.meterFrame
-        if model.arrangeView && f != .zero {
+        if model.arrangeView && !model.rollView && f != .zero {
             // С KNOBS измеритель — свой, в окне ручек; кнопки под ним остаются.
             if !model.arrKnobs {
                 MeterColumn(model: model).frame(width: f.width, height: f.height).offset(x: f.minX, y: f.minY)
             }
-            if model.project.arrange.hideSteps && !model.rollView {
+            if model.project.arrange.hideSteps {
                 // Три места одной высоты — от низа измерителя до линии Layout.bottomGuard над низом экрана (решения
                 // пользователя: ниже — скругление экрана, кнопок там нет; кнопки — на всю высоту, измеритель не сдвигается).
                 let top: CGFloat = f.maxY + Layout.gap

@@ -156,7 +156,6 @@ extension AppModel {
         // Карандаш есть только с AUTO.
         if !arrAuto {
             arrDraw = false
-            arrErase = false
         }
         if arrAuto && !project.arrange.hideSteps { edit { p in p.arrange.hideSteps = true } }
         syncArrRecord()

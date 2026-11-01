@@ -199,7 +199,7 @@ struct ArrWaveIcon: View {
 /// Кнопки под измерителем аранжировщика (решения пользователя), шириной с измеритель; три места одной высоты от
 /// низа измерителя до линии Layout.bottomGuard над низом экрана (RootView; ниже — скругление экрана, кнопок нет): при FIX
 /// (SETTINGS → ARRANGE) — одна кнопка EXPANDED ↔ COMPACT (8 строк на окно / все дорожки на окно); под ней, только пока AUTO
-/// включена, — карандаш (рисование кривой) и ластик (стирание точек).
+/// включена, — карандаш (рисование кривой) и корзина (вся автоматизация выбранной дорожки).
 struct ArrSideButtons: View {
     let model: AppModel
     let width: CGFloat
@@ -222,8 +222,9 @@ struct ArrSideButtons: View {
                     Image(systemName: "pencil").font(.system(size: 15, weight: .semibold)).foregroundStyle(c)
                 }
                 .frame(width: width, height: h)
-                ArrBarButton(on: model.arrErase, enabled: true, action: { model.toggleArrErase() }) { c in
-                    Image(systemName: "eraser").font(.system(size: 15, weight: .semibold)).foregroundStyle(c)
+                // Корзина (решение пользователя, вместо ластика): вся автоматизация выбранной дорожки — одна запись UNDO.
+                ArrBarButton(on: false, enabled: model.arrAutoCanClear, action: { model.arrAutoClearTrack() }) { c in
+                    Image(systemName: "trash").font(.system(size: 15, weight: .semibold)).foregroundStyle(c)
                 }
                 .frame(width: width, height: h)
             }

@@ -48,6 +48,19 @@ extension AppModel {
         edit { p in p.tracks[t].deleteAuto(id) }
     }
 
+    /// Корзина под измерителем: у выбранной дорожки есть кривые.
+    var arrAutoCanClear: Bool {
+        guard let t = arrAutoTrack else { return false }
+        return !project.tracks[t].autos.isEmpty
+    }
+
+    /// Корзина (решение пользователя): вся автоматизация выбранной дорожки — все строки кривых; одна запись UNDO.
+    func arrAutoClearTrack() {
+        guard let t = arrAutoTrack, !project.tracks[t].autos.isEmpty else { return }
+        flushAutoTakes(all: true)
+        edit { p in p.tracks[t].autos = [] }
+    }
+
     /// Точки кривой (тап, перетаскивание, удаление; при перетаскивании — внутри жеста, одна запись UNDO).
     func arrAutoSet(track t: Int, _ id: String, _ points: [ArrAutoPoint]) {
         guard t >= 0 && t < project.tracks.count else { return }
