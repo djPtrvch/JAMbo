@@ -174,7 +174,12 @@ struct RootView: View {
         let more: Int = Int(((Layout.gap + lowerH + RootView.padBottom) / pitch).rounded(.down))
         let rows: Int = tall ? Params.gridRows + more : Params.gridRows
         let gridH: CGFloat = CGFloat(rows) * rowH + CGFloat(rows - 1) * PatternGrid.rowGap
-        if tall {
+        if model.arrangeView && model.rollView {
+            // Пианоролл из аранжировщика (решение пользователя): только окно — на весь центр и низ, без STEPS
+            // (строки дорожек, секвенсора и клавиатуры); из обычного экрана — как раньше, с низом.
+            center(layout).frame(height: centerH + Layout.gap + lowerH)
+                .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("root")).maxY } action: { trackTop = $0 }
+        } else if tall {
             center(layout).frame(height: gridH)
                 .frame(height: centerH + Layout.gap + lowerH, alignment: .top)
                 // Низ меню бутерброда — низ экрана.
@@ -268,7 +273,7 @@ struct RootView: View {
             if !model.arrKnobs {
                 MeterColumn(model: model).frame(width: f.width, height: f.height).offset(x: f.minX, y: f.minY)
             }
-            if model.project.arrange.hideSteps {
+            if model.project.arrange.hideSteps && !model.rollView {
                 // Три места одной высоты — от низа измерителя до линии Layout.bottomGuard над низом экрана (решения
                 // пользователя: ниже — скругление экрана, кнопок там нет; кнопки — на всю высоту, измеритель не сдвигается).
                 let top: CGFloat = f.maxY + Layout.gap
