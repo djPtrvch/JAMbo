@@ -99,8 +99,8 @@ final class ClockFollowerTests: XCTestCase {
         XCTAssertEqual(f.stepTime(0) ?? 0, last + iv, accuracy: 1e-6)
     }
 
-    /// Пропуск тиков (переподключение входа): темп не проседает, окно — заново (первые тики без темпа), шаги — по
-    /// прежней привязке (пропущенные тики досчитаны).
+    /// Пропуск тиков (переподключение входа): темп не проседает и не забывается, шаги — по прежней привязке
+    /// (пропущенные тики досчитаны с первым обычным тиком после паузы).
     func testGap() {
         var f = ClockFollower()
         let iv: Double = 60 / (156.0 * 24)
@@ -114,7 +114,7 @@ final class ClockFollowerTests: XCTestCase {
         // Пропали 15 тиков.
         t += iv * 15
         _ = f.tick(at: t)
-        XCTAssertNil(f.tempo)
+        XCTAssertEqual(f.tempo ?? 0, 156, accuracy: 0.01, "темп прежний")
         XCTAssertTrue(f.anchored)
         for _ in 0..<10 {
             t += iv
@@ -126,5 +126,54 @@ final class ClockFollowerTests: XCTestCase {
         t += iv * 2
         _ = f.tick(at: t)
         XCTAssertNotNil(f.tempo)
+    }
+
+    /// USB отдал задержанные тики пачкой (iPad + Digitakt, 1.11): темп не скачет, шаги не сдвигаются.
+    func testDelayedBurst() {
+        var f = ClockFollower()
+        let iv: Double = 60 / (120.0 * 24)
+        var t: Double = 1
+        for _ in 0..<60 {
+            _ = f.tick(at: t)
+            t += iv
+        }
+        f.started(at: t - iv)
+        let s8: Double = f.stepTime(8) ?? 0
+        var lo: Double = 999
+        var hi: Double = 0
+        for round in 0..<6 {
+            // 5 тиков задержаны: приходят разом через 0,5 мс друг за другом.
+            let late: Double = t + iv * 4
+            for k in 0..<5 {
+                _ = f.tick(at: late + Double(k) * 0.0005)
+                if let b = f.tempo {
+                    lo = min(lo, b)
+                    hi = max(hi, b)
+                }
+            }
+            t += iv * 5
+            for _ in 0..<(20 + round) {
+                _ = f.tick(at: t)
+                t += iv
+            }
+        }
+        XCTAssertGreaterThan(lo, 119.5)
+        XCTAssertLessThan(hi, 120.5)
+        XCTAssertEqual(f.stepTime(8) ?? 0, s8, accuracy: 0.002, "привязка шагов прежняя")
+    }
+
+    /// Темп клока резко сменился (120 → 150): окно набирается заново за несколько тиков.
+    func testTempoJump() {
+        var f = ClockFollower()
+        var t: Double = 1
+        for _ in 0..<60 {
+            _ = f.tick(at: t)
+            t += 60 / (120.0 * 24)
+        }
+        for _ in 0..<30 {
+            t += 60 / (240.0 * 24)
+            _ = f.tick(at: t)
+        }
+        XCTAssertEqual(f.tempo ?? 0, 240, accuracy: 0.5)
     }
 }
