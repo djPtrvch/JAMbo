@@ -202,11 +202,15 @@ extension Track {
         return j
     }
 
-    /// Блоки дорожки ещё раз — после последнего (DUPLICATE в меню дорожки).
+    /// Блоки дорожки ещё раз — после последнего (DUPLICATE в меню дорожки): копии целиком — своя копия клипа, кривые, LINK.
     public mutating func duplicateBlocks() {
         guard let first = blocks.first, let last = blocks.map({ $0.end }).max() else { return }
         let d: Int = last - first.start
-        let copy: [ArrBlock] = blocks.map { ArrBlock(clip: $0.clip, start: $0.start + d, length: $0.length, offset: $0.offset) }
+        let copy: [ArrBlock] = blocks.map { b in
+            var c: ArrBlock = b
+            c.start += d
+            return c
+        }
         blocks.append(contentsOf: copy)
         sortBlocks()
     }

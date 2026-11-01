@@ -123,8 +123,8 @@ struct ArrBlockMenu: View {
                 m.arrMenu = nil
                 if group { m.arrDuplicateGroup() } else { m.arrDuplicateBlock(b) }
             },
-            // LINK (решение пользователя): автоматизация блока соединяется со следующим блоком дорожки.
-            MenuChoice(title: "LINK AUTO", enabled: !group && m.arrCanLink(b), current: m.arrBlock(b)?.autoLink ?? false) {
+            // LINK (решение пользователя): автоматизация блока соединяется со следующим блоком дорожки; неактивна — не горит.
+            MenuChoice(title: "LINK AUTO", enabled: !group && m.arrCanLink(b), current: !group && m.arrCanLink(b) && (m.arrBlock(b)?.autoLink ?? false)) {
                 m.arrMenu = nil
                 m.arrToggleLink(b)
             },

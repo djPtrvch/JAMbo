@@ -79,4 +79,21 @@ final class ArrangeBlockAutoTests: XCTestCase {
         withExtendedLifetime(snap) {}
         withExtendedLifetime(snap2) {}
     }
+
+    /// DUPLICATE в меню дорожки: копии блоков — со своей копией клипа, кривыми и LINK (как у оригиналов).
+    func testTrackDuplicateKeepsPatternCurvesAndLink() {
+        var t = track()
+        var c = Clip()
+        c.pages[0][3].on = true
+        t.blocks[0].pattern = c
+        t.setAuto("filter", [ArrAutoPoint(x: 2, y: 0.2), ArrAutoPoint(x: 10, y: 0.8), ArrAutoPoint(x: 40, y: 0.4)])
+        t.setAutoLink(0, true)
+        t.duplicateBlocks()
+        XCTAssertEqual(t.blocks.count, 4)
+        XCTAssertEqual(t.blocks[2].start, 48)
+        XCTAssertEqual(t.blocks[2].pattern, c, "своя копия клипа")
+        XCTAssertTrue(t.blocks[2].autoLink, "LINK")
+        XCTAssertEqual(t.autoPoints("filter").map { $0.x }, [2, 10, 40, 50, 58, 88])
+        XCTAssertEqual(t.autoValue("filter", at: 73)!, 0.6, accuracy: 1e-9, "LINK копий — прямая через промежуток")
+    }
 }
