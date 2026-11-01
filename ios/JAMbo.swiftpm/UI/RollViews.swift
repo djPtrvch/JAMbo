@@ -153,6 +153,7 @@ struct RollBar: View {
                     .font(.system(size: 18, weight: .semibold)).foregroundStyle(c)
             }
             .frame(width: w)
+            Spacer(minLength: 0)
         }
         .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("root")).maxX } action: { barMaxX = $0 }
     }
