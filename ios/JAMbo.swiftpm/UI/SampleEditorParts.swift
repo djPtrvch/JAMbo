@@ -40,6 +40,7 @@ struct EditorBar: View {
                 } else {
                     monoButton
                     ToolButton(title: "TRIM", enabled: data != nil && !sel.full, width: nil) { model.trimSample(sel.a, sel.b) }
+                    cutButton
                     ToolButton(title: "NORMALIZE", enabled: data != nil, width: nil) { model.normalizeSample() }
                     clearButton
                 }
@@ -53,6 +54,11 @@ struct EditorBar: View {
 
     private var monoButton: some View {
         ToolButton(title: "MONO", enabled: (data?.channels ?? 1) == 2, width: nil) { model.monoSample() }
+    }
+
+    /// CUT — вырезать выделенное маркерами обрезки (стык — кроссфейд 5 мс).
+    private var cutButton: some View {
+        ToolButton(title: "CUT", enabled: data != nil && !sel.full, width: nil) { model.cutSample(sel.a, sel.b) }
     }
 
     private var clearButton: some View {
@@ -74,9 +80,10 @@ struct EditorBar: View {
             .padding(.horizontal, 10)
     }
 
+    /// Тап — вид WARP; удержание — варпинг выкл./вкл. (метки остаются; выключен — надпись зачёркнута).
     private var warpButton: some View {
-        ToolButton(title: "WARP", enabled: data != nil && model.sampleRec.take == nil, lit: model.editorWarp,
-                   width: nil) { model.toggleWarp() }
+        HoldToolButton(title: "WARP", enabled: data != nil && model.sampleRec.take == nil, lit: model.editorWarp,
+                       strike: model.editorWarpInfo.isOff, tap: { model.toggleWarp() }, hold: { model.toggleWarpOff() })
     }
 
     /// LOAD и SAVE — перед ✕, жирным.
@@ -117,6 +124,7 @@ struct EditorBar: View {
     private func tools(play: Bool) -> some View {
         if play { playButton }
         ToolButton(title: "TRIM", enabled: data != nil && !sel.full, width: nil) { model.trimSample(sel.a, sel.b) }
+        cutButton
         ToolButton(title: "NORMALIZE", enabled: data != nil, width: nil) { model.normalizeSample() }
         ToolButton(title: "MONO", enabled: (data?.channels ?? 1) == 2, width: nil) { model.monoSample() }
         ToolButton(title: "CLEAR", enabled: data != nil && model.sampleRec.take == nil, width: nil) { model.clearSample() }
@@ -156,6 +164,30 @@ struct ToolButton: View {
         }
         .buttonStyle(.plain)
         .disabled(!enabled)
+    }
+}
+
+/// Кнопка строки с удержанием (0,5 с): тап и удержание — разные действия; strike — надпись зачёркнута (выключено).
+struct HoldToolButton: View {
+    let title: String
+    var enabled: Bool = true
+    var lit: Bool = false
+    var strike: Bool = false
+    let tap: () -> Void
+    let hold: () -> Void
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let fg: Color = !enabled ? theme.off : (lit ? theme.onAccent : (strike ? theme.dim : theme.text))
+        let gesture = LongPressGesture(minimumDuration: 0.5).onEnded { _ in hold() }
+            .exclusively(before: TapGesture().onEnded { tap() })
+        return Text(title).font(.system(size: 13)).strikethrough(strike).lineLimit(1).minimumScaleFactor(0.7)
+            .foregroundStyle(fg)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(lit ? theme.accent : theme.panel2, in: RoundedRectangle(cornerRadius: 8))
+            .contentShape(Rectangle())
+            .gesture(gesture)
+            .allowsHitTesting(enabled)
     }
 }
 

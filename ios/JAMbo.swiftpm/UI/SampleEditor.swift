@@ -128,12 +128,13 @@ struct SampleEditor: View {
         let colors = EditorColors(theme: theme)
         let v = view
         let grid: Double = model.warpGrid
+        let off: Bool = model.editorWarpInfo.isOff
         return Canvas { ctx, sz in
             let g = EditorGeometry(size: sz, view: v)
             let wave = EditorGeometry(size: CGSize(width: sz.width, height: sz.height - EditorWarpDraw.strip), view: v)
             EditorDraw.lanes(ctx, wave, lanes, colors)
             EditorWarpDraw.grid(ctx, g, wv, grid, colors)
-            EditorWarpDraw.flags(ctx, g, wv, held, moving, colors)
+            EditorWarpDraw.flags(ctx, g, wv, held, moving, off, colors)
             EditorWarpDraw.heads(ctx, g, wv, heads, colors)
             EditorDraw.scrollbar(ctx, g, colors)
         }

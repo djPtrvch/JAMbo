@@ -19,6 +19,9 @@ public struct WarpMark: Codable, Equatable, Sendable {
 public struct WarpInfo: Codable, Equatable, Sendable {
     public var bpm: Double? = nil
     public var marks: [WarpMark] = []
+    /// Варпинг выключен (удержание WARP): метки и BPM остаются, звук — как без них (nil — включён; в прежних файлах
+    /// поля нет).
+    public var off: Bool? = nil
 
     public init(bpm: Double? = nil, marks: [WarpMark] = []) {
         self.bpm = bpm
@@ -26,6 +29,7 @@ public struct WarpInfo: Codable, Equatable, Sendable {
     }
 
     public var isEmpty: Bool { return bpm == nil && marks.isEmpty }
+    public var isOff: Bool { return off == true }
 }
 
 /// Карта времени сэмпла: отсчёты ↔ доли.
@@ -172,6 +176,13 @@ extension Track {
         var w = warpInfo(key)
         guard idx >= 0, idx < w.marks.count else { return }
         w.marks.remove(at: idx)
+        putWarp(key, w)
+    }
+
+    /// Удержание WARP: выключить / включить варпинг сэмпла (метки и BPM остаются).
+    public mutating func setWarpOff(_ key: String, _ v: Bool) {
+        var w = warpInfo(key)
+        w.off = v ? true : nil
         putWarp(key, w)
     }
 

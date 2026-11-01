@@ -359,7 +359,8 @@ extension AppModel {
     }
 
     /// TRIM, NORMALIZE, MONO: отредактированная копия сразу на дорожке (в папке — на месте исходного).
-    func applyEdit(_ make: @escaping (SampleData) -> SampleData) {
+    func applyEdit(_ make: @escaping (SampleData) -> SampleData,
+                   carry: ((inout Track, String, String) -> Void)? = nil) {
         let key = editorKey
         guard let src = sample(key) else { return }
         let i = selectedTrack
@@ -376,6 +377,7 @@ extension AppModel {
                 self.edit { p in
                     p.files[newKey] = name
                     if let r = root { p.roots[newKey] = r }
+                    carry?(&p.tracks[i], key, newKey)
                     p.tracks[i].replaceSample(key, newKey)
                 }
             }
@@ -384,6 +386,16 @@ extension AppModel {
 
     func trimSample(_ a: Double, _ b: Double) {
         applyEdit { SampleEdit.trim($0, a, b) }
+    }
+
+    /// CUT: без выделенного a…b (стык — кроссфейд 5 мс); маркеры нарезки и метки WARP — к копии со сдвигом.
+    func cutSample(_ a: Double, _ b: Double) {
+        guard let src = sample(editorKey), let (i0, i1) = SampleEdit.cutRange(src.frames, a, b) else { return }
+        let frames: Int = src.frames
+        let det: Double = src.loopBpm
+        applyEdit({ SampleEdit.cut($0, a, b) }, carry: { t, old, new in
+            t.carryCut(old, new, frames: frames, i0, i1, detectedBpm: det)
+        })
     }
 
     func normalizeSample() {

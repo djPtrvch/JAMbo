@@ -106,7 +106,8 @@ final class WarpTests: XCTestCase {
         return out
     }
 
-    private func play(_ s: SampleData, warp: Bool, beat: Bool, pitchMode: Bool = false, preview: Bool = false) -> [Int] {
+    private func play(_ s: SampleData, warp: Bool, beat: Bool, pitchMode: Bool = false, preview: Bool = false,
+                      off: Bool = false) -> [Int] {
         var p = Project()
         p.tracks[0].addSamples(["k"])
         p.tracks[0].vol = 0
@@ -118,6 +119,7 @@ final class WarpTests: XCTestCase {
         if warp {
             p.tracks[0].setWarpBpm("k", 120)
             p.tracks[0].autoWarp("k", onsets: s.onsets.list, frames: s.frames, detectedBpm: s.loopBpm, grid: 1)
+            if off { p.tracks[0].setWarpOff("k", true) }
         }
         let core = AudioCore(master: false)
         core.publish(p, samples: ["k": s], stretchBeat: beat)
@@ -150,6 +152,26 @@ final class WarpTests: XCTestCase {
                 XCTAssertEqual(Double(w[k]), Double(want), accuracy: 600, "удар \(k) на доле (\(beat ? "BEAT" : "NORMAL"))")
             }
         }
+    }
+
+    /// Удержание WARP: варпинг выключен — звук как без меток, метки остаются; включили — снова по карте.
+    func testWarpOffKeepsMarks() throws {
+        let s = hits()
+        let off = play(s, warp: true, beat: false, off: true)
+        XCTAssertEqual(off.count, 4, "\(off)")
+        if off.count == 4 { XCTAssertEqual(Double(off[2]), 52800, accuracy: 600, "выключен — как в файле") }
+        var t = Track(index: 0)
+        t.autoWarp("k", onsets: s.onsets.list, frames: s.frames, detectedBpm: s.loopBpm, grid: 1)
+        let n = t.warpInfo("k").marks.count
+        t.setWarpOff("k", true)
+        XCTAssertTrue(t.warpInfo("k").isOff)
+        XCTAssertEqual(t.warpInfo("k").marks.count, n, "метки остаются")
+        let back = try JSONDecoder().decode(WarpInfo.self, from: JSONEncoder().encode(t.warpInfo("k")))
+        XCTAssertTrue(back.isOff)
+        let old = try JSONDecoder().decode(WarpInfo.self, from: Data(#"{"marks":[]}"#.utf8))
+        XCTAssertFalse(old.isOff, "в прежних файлах поля нет — включён")
+        t.setWarpOff("k", false)
+        XCTAssertNil(t.warpInfo("k").off)
     }
 
     /// ▶ WARP: дорожка в Rate Pitch — по карте (удар на доле); обычная нота той же дорожки — как в файле.

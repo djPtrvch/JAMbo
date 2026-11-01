@@ -37,7 +37,7 @@ extension SoundSnapshot {
     static func putWarp(_ d: inout SoundData, _ e: Int, _ w: inout Int, _ info: WarpInfo?, _ s: SampleData) {
         d.eWarpStart![e] = Int32(w)
         d.eWarpCount![e] = 0
-        guard let wi = info else { return }
+        guard let wi = info, !wi.isOff else { return }
         if wi.marks.isEmpty {
             if let b = wi.bpm { d.eBpm[e] = b }
             return

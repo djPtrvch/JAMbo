@@ -213,16 +213,16 @@ enum EditorWarpDraw {
     /// Метки: линия во всю высоту и флажок острием вверх с тактом.долей; выделенная (sel) и та, что тянут, — жёлтые.
     /// Нет метки начала — у начала сэмпла серый флажок START (потянуть — метка начала).
     /// Сверху у каждой метки (кроме метки начала) — флажок без подписи острием вниз; moving — метку тянут за него:
-    /// линия и флажки — у пальца (x).
+    /// линия и флажки — у пальца (x). off — варпинг выключен (удержание WARP): метки серые.
     static func flags(_ ctx: GraphicsContext, _ g: EditorGeometry, _ wv: WarpView, _ sel: Int,
-                      _ moving: (idx: Int, x: CGFloat)?, _ c: EditorColors) {
+                      _ moving: (idx: Int, x: CGFloat)?, _ off: Bool, _ c: EditorColors) {
         let h: CGFloat = g.size.height
         if let s = startX(g, wv) { flag(ctx, s, "START", h, c.dim, c) }
         for (k, b) in wv.map.beats.enumerated() {
             var x: CGFloat = g.x(wv.frac(beat: b))
             if let m = moving, m.idx == k { x = m.x }
             if x < -60 || x > g.size.width + 60 { continue }
-            let col: Color = sel == k ? c.accent : c.ink
+            let col: Color = sel == k ? c.accent : (off ? c.dim : c.ink)
             if wv.map.pos[k] >= WarpMap.minFrames { topFlag(ctx, x, col) }
             flag(ctx, x, WarpView.label(b), h, col, c)
         }

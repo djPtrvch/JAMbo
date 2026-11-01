@@ -24,6 +24,14 @@ extension AppModel {
         editorWarp.toggle()
     }
 
+    /// Удержание WARP: варпинг сэмпла выкл./вкл. (метки и BPM остаются; одна запись UNDO).
+    func toggleWarpOff() {
+        let key = editorKey
+        if key.isEmpty { return }
+        let v: Bool = !editorWarpInfo.isOff
+        editTrack { t in t.setWarpOff(key, v) }
+    }
+
     /// Свой BPM файла (nil — определённый сам).
     func setWarpBpm(_ v: Double?) {
         let key = editorKey
