@@ -14,19 +14,18 @@ struct MasterMenuView: View {
         }
     }
 
-    @ViewBuilder
-    private var content: some View {
+    private var content: AnyView {
         switch state.kind {
         case .modules:
-            MasterModulesMenu(model: model)
+            return AnyView(MasterModulesMenu(model: model)
                 .modifier(MenuPanel())
                 .frame(width: 150)
-                .offset(x: state.anchor.minX, y: state.anchor.maxY + 6)
+                .offset(x: state.anchor.minX, y: state.anchor.maxY + 6))
         case .presets:
-            MasterPresetsMenu(model: model, maxHeight: menuHeight)
+            return AnyView(MasterPresetsMenu(model: model, maxHeight: menuHeight)
                 .modifier(MenuPanel())
                 .frame(width: MasterPresetsMenu.width)
-                .offset(x: left(MasterPresetsMenu.width), y: state.anchor.maxY + 6)
+                .offset(x: left(MasterPresetsMenu.width), y: state.anchor.maxY + 6))
         }
     }
 

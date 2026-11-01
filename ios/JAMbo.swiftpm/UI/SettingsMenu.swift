@@ -35,20 +35,20 @@ struct SettingsPage: View {
         }
     }
 
-    @ViewBuilder
-    private var section: some View {
+    /// Открытая вкладка — AnyView (S14: 11 веток switch давали глубоко вложенный тип и много кода у компилятора).
+    private var section: AnyView {
         switch model.settingsTab {
-        case .engine: EngineSettings(model: model)
-        case .record: RecordSettingsView(model: model)
-        case .sampler: SamplerSettings(model: model)
-        case .sidechain: SidechainSettings(model: model)
-        case .output: OutputSettings(model: model)
-        case .appearance: AppearanceSettings(model: model)
-        case .mix: MixSettings(model: model)
-        case .morph: MorphSettings(model: model)
-        case .level: LevelSettings(model: model)
-        case .defaults: DefaultsSettings(model: model)
-        case .arrange: ArrangeSettings(model: model)
+        case .engine: return AnyView(EngineSettings(model: model))
+        case .record: return AnyView(RecordSettingsView(model: model))
+        case .sampler: return AnyView(SamplerSettings(model: model))
+        case .sidechain: return AnyView(SidechainSettings(model: model))
+        case .output: return AnyView(OutputSettings(model: model))
+        case .appearance: return AnyView(AppearanceSettings(model: model))
+        case .mix: return AnyView(MixSettings(model: model))
+        case .morph: return AnyView(MorphSettings(model: model))
+        case .level: return AnyView(LevelSettings(model: model))
+        case .defaults: return AnyView(DefaultsSettings(model: model))
+        case .arrange: return AnyView(ArrangeSettings(model: model))
         }
     }
 }

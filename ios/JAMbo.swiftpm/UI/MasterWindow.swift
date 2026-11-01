@@ -13,11 +13,12 @@ struct MasterWindowView: View {
 
     var body: some View {
         let _ = RedrawMeter.hit(.masterWin)
-        VStack(spacing: Layout.barGap) {
+        // Содержимое — AnyView: цепочка модификаторов ниже оборачивает маленький тип (S14, память сборки).
+        AnyView(VStack(spacing: Layout.barGap) {
             MasterStrip(model: model, module: module, bounds: frame, input: { t in openInput(t) })
                 .frame(height: model.barH)
             display
-        }
+        })
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { frame = $0 }
         // Окно ввода открывают поле (двойной тап), SAVE и RENAME: текст — текущее значение или имя.
         .onChange(of: model.masterInput) { _, t in

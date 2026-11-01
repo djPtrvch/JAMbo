@@ -261,7 +261,7 @@ struct ArrTimeline: View {
         let following: [Bool] = (0..<p.tracks.count).map { model.arrFollowing($0) }
         let wave: RefWave? = model.arrRefShown ? model.refWave : nil
         let waveKey: String = (p.arrange.ref?.key ?? "") + "#\(model.samplesVersion)"
-        return GeometryReader { geo in
+        return AnyView(GeometryReader { geo in
             let m = ArrMetrics(size: geo.size, port: port, tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded,
                            inset: model.arrInset, ref: model.arrRefShown)
             ZStack(alignment: .topLeading) {
@@ -273,12 +273,12 @@ struct ArrTimeline: View {
                                                             track: selTrack, group: group, marquee: marquee, wave: wave)
                 }
                 ArrCursorLayer(model: model, m: m, head: true)
-                if let l = lift { liftedView(l, m, p) }
-                if let c = model.clipCarry, c.overArrange { ArrCarryLayer(model: model, carry: c, m: m) }
+                if let l = lift { AnyView(liftedView(l, m, p)) }
+                if let c = model.clipCarry, c.overArrange { AnyView(ArrCarryLayer(model: model, carry: c, m: m)) }
             }
             .contentShape(Rectangle())
             .gesture(touch(geo.size))
-        }
+        })
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { model.arrTimelineFrame = $0 }
         .background(theme.panel)
         .clipShape(ArrTimeline.frameShape)

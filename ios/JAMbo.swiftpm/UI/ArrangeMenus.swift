@@ -23,30 +23,29 @@ struct ArrMenus: View {
         }
     }
 
-    @ViewBuilder
-    private func menu(_ m: ArrMenuState) -> some View {
+    private func menu(_ m: ArrMenuState) -> AnyView {
         switch m {
         case .block(let t, let i, let a):
-            ArrBlockMenu(model: model, sel: ArrSel(track: t, block: i))
-                .offset(place(a, w: ArrBlockMenu.width, h: ArrBlockMenu.height))
+            return AnyView(ArrBlockMenu(model: model, sel: ArrSel(track: t, block: i))
+                .offset(place(a, w: ArrBlockMenu.width, h: ArrBlockMenu.height)))
         case .lane(let t, let x, let a):
-            laneMenu(t, x, a)
+            return AnyView(laneMenu(t, x, a))
         case .track(let t, _):
-            ArrTrackMenu(model: model, track: t).offset(trackPlace(t))
+            return AnyView(ArrTrackMenu(model: model, track: t).offset(trackPlace(t)))
         case .marker(let k, let a):
             // Своё окно у каждой секции (ADD SECTION открывает окно новой — с пустым именем).
-            ArrMarkerWindow(model: model, index: k).id(k).offset(place(a, w: ArrMarkerWindow.width, h: ArrMarkerWindow.height))
+            return AnyView(ArrMarkerWindow(model: model, index: k).id(k).offset(place(a, w: ArrMarkerWindow.width, h: ArrMarkerWindow.height)))
         case .insert(let t, let x, let a):
-            insertMenu(t, x, a)
+            return AnyView(insertMenu(t, x, a))
         case .ref:
-            ArrRefMenu(model: model).offset(CGSize(width: ArrMetrics.headerW, height: ArrMetrics.top))
+            return AnyView(ArrRefMenu(model: model).offset(CGSize(width: ArrMetrics.headerW, height: ArrMetrics.top)))
         case .drop(let a):
-            ArrDropMenu(model: model).offset(place(a, w: ArrDropMenu.width, h: ArrDropMenu.height))
+            return AnyView(ArrDropMenu(model: model).offset(place(a, w: ArrDropMenu.width, h: ArrDropMenu.height)))
         case .grid:
             // Под кнопкой сетки — у левого края окна.
-            ArrGridMenu(model: model)
+            return AnyView(ArrGridMenu(model: model))
         case .ruler(let a):
-            ArrRulerMenu(model: model, anchor: a).offset(place(a, w: ArrRulerMenu.width, h: ArrRulerMenu.height(model, a)))
+            return AnyView(ArrRulerMenu(model: model, anchor: a).offset(place(a, w: ArrRulerMenu.width, h: ArrRulerMenu.height(model, a))))
         }
     }
 

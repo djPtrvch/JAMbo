@@ -28,14 +28,8 @@ struct ProjectsPage: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            header
-            actions
-            MenuHead(title: "PROJECTS")
-            list
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .overlay { openPanel }
+        // Содержимое — AnyView: цепочка модификаторов ниже оборачивает маленький тип (S14, память сборки).
+        AnyView(projectsMain)
         .onAppear {
             model.refreshProjects()
             imported(model.projectImport)
@@ -57,6 +51,17 @@ struct ProjectsPage: View {
         } message: {
             Text("“\(overwrite?.name ?? "")” already exists. Overwrite it?")
         }
+    }
+
+    private var projectsMain: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            header
+            actions
+            MenuHead(title: "PROJECTS")
+            list
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .overlay { openPanel }
     }
 
     private var header: some View {

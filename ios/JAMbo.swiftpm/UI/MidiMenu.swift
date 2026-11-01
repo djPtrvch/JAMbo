@@ -30,11 +30,12 @@ struct MidiMenuPage: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
-    @ViewBuilder
-    private var section: some View {
+    private var section: AnyView {
         switch tab {
-        case .devices: MidiDevicesTab(model: model)
-        case .mapping: MidiMappingTab(model: model, close: close)
+        case .devices:
+            return AnyView(MidiDevicesTab(model: model))
+        case .mapping:
+            return AnyView(MidiMappingTab(model: model, close: close))
         }
     }
 

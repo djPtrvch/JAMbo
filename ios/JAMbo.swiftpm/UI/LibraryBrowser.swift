@@ -26,16 +26,8 @@ struct LibraryBrowser: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        VStack(spacing: Layout.gap) {
-            VStack(spacing: Layout.barGap) {
-                header.frame(height: model.barH)
-                list
-            }
-            if model.saveMode { saveBar.frame(height: model.barH) }
-            if model.libPicked != nil { pickBar.frame(height: model.barH) }
-            Text(note).font(.system(size: 12)).foregroundStyle(theme.dim).lineLimit(1)
-                .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 6)
-        }
+        // Содержимое — AnyView: цепочка модификаторов ниже оборачивает маленький тип (S14, память сборки).
+        AnyView(libMain)
         .onAppear { name = model.libDefaultName }
         .onChange(of: model.browser) { _, _ in name = model.libDefaultName }
         .onChange(of: model.libFolder) { _, _ in confirmId = "" }
@@ -58,6 +50,19 @@ struct LibraryBrowser: View {
             Button("OK", role: .cancel) { model.libWarning = nil }
         } message: {
             Text(model.libWarning ?? "")
+        }
+    }
+
+    private var libMain: some View {
+        VStack(spacing: Layout.gap) {
+            VStack(spacing: Layout.barGap) {
+                header.frame(height: model.barH)
+                list
+            }
+            if model.saveMode { saveBar.frame(height: model.barH) }
+            if model.libPicked != nil { pickBar.frame(height: model.barH) }
+            Text(note).font(.system(size: 12)).foregroundStyle(theme.dim).lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 6)
         }
     }
 

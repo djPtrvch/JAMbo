@@ -26,11 +26,12 @@ struct AppWindowView: View {
         .overlay(RoundedRectangle(cornerRadius: 10).stroke(theme.line, lineWidth: 1))
     }
 
-    @ViewBuilder
-    private var content: some View {
+    private var content: AnyView {
         switch window {
-        case .diagnostics: DiagnosticsView(model: model)
-        case .selfTest: SelfTestPanel()
+        case .diagnostics:
+            return AnyView(DiagnosticsView(model: model))
+        case .selfTest:
+            return AnyView(SelfTestPanel())
         }
     }
 }
