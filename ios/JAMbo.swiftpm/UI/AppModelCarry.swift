@@ -184,7 +184,7 @@ extension AppModel {
                 if dx == 0 { continue }
                 var port: ArrPort = arrPort
                 port.x = max(0, port.x + dx)
-                let m = ArrMetrics(size: f.size, port: port, tracks: project.tracks.count, end: project.arrangeEnd,
+                let m = ArrMetrics(size: f.size, port: port, tracks: project.tracks.count, end: arrViewEnd,
                                    expanded: settings.arrangeExpanded, inset: arrInset, ref: arrRefShown)
                 port.x = m.x
                 if port != arrPort { arrPort = port }
@@ -195,7 +195,7 @@ extension AppModel {
     /// Метрики таймлайна размера size (как у окна аранжировщика).
     func arrMetrics(_ size: CGSize) -> ArrMetrics {
         let p: Project = project
-        return ArrMetrics(size: size, port: arrPort, tracks: p.tracks.count, end: p.arrangeEnd,
+        return ArrMetrics(size: size, port: arrPort, tracks: p.tracks.count, end: arrViewEnd,
                           expanded: settings.arrangeExpanded, inset: arrInset, ref: arrRefShown)
     }
 }

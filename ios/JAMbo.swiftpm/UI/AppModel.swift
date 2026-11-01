@@ -104,6 +104,10 @@ final class AppModel {
     var arrAuto: Bool = false
     /// Кнопка записи аранжировки под STEPS сетки: пока играет сетка, запуски клипов пишутся на таймлайн блоками.
     var arrRecArm: Bool = false
+    /// Докуда при игре можно прокрутить таймлайн (шаги; 0 — не играет): плейхед за концом аранжировки (arrViewEnd).
+    var arrPlayEnd: Int = 0
+    /// Конец таймлайна для прокрутки: аранжировка или место плейхеда при игре.
+    var arrViewEnd: Int { return max(project.arrangeEnd, arrPlayEnd) }
     /// ARRANGE зажата (с тапом REC — запись аранжировки; отпустили без REC — обычный тап).
     @ObservationIgnored var arrangeHeld: Bool = false
     @ObservationIgnored var arrangeHoldUsed: Bool = false
@@ -409,6 +413,7 @@ final class AppModel {
         if autosaveDue > 0 && Date.timeIntervalSinceReferenceDate >= autosaveDue { autosave() }
         if morphGlide != nil { stepMorphGlide() }
         if mix != nil { updateMix() }
+        arrTrackPlayEnd()
         if arrangeView && playing { arrFollowPlayhead() }
         syncEditBlock()
         drainVoices()

@@ -267,7 +267,7 @@ struct ArrTimeline: View {
         let wave: RefWave? = model.arrRefShown ? model.refWave : nil
         let waveKey: String = (p.arrange.ref?.key ?? "") + "#\(model.samplesVersion)"
         return AnyView(GeometryReader { geo in
-            let m = ArrMetrics(size: geo.size, port: port, tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded,
+            let m = ArrMetrics(size: geo.size, port: port, tracks: p.tracks.count, end: model.arrViewEnd, expanded: model.settings.arrangeExpanded,
                            inset: model.arrInset, ref: model.arrRefShown)
             ZStack(alignment: .topLeading) {
                 Canvas { ctx, size in
@@ -318,11 +318,11 @@ struct ArrTimeline: View {
 
     private func apply(_ events: SpatialEventCollection, _ size: CGSize) {
         let p: Project = model.project
-        let m = ArrMetrics(size: size, port: model.arrPort, tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded,
+        let m = ArrMetrics(size: size, port: model.arrPort, tracks: p.tracks.count, end: model.arrViewEnd, expanded: model.settings.arrangeExpanded,
                            inset: model.arrInset, ref: model.arrRefShown)
         var port: ArrPort = model.arrPort
         touches.handle(events, port: &port, m, model, lift: $lift)
-        let c = ArrMetrics(size: size, port: port, tracks: p.tracks.count, end: p.arrangeEnd, expanded: model.settings.arrangeExpanded,
+        let c = ArrMetrics(size: size, port: port, tracks: p.tracks.count, end: model.arrViewEnd, expanded: model.settings.arrangeExpanded,
                            inset: model.arrInset, ref: model.arrRefShown)
         let next = ArrPort(stepW: port.stepW == nil ? nil : c.stepW, x: c.x, y: c.y, rowH: port.rowH == nil ? nil : c.rowH)
         if next != model.arrPort { model.arrPort = next }

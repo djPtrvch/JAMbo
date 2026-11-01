@@ -183,6 +183,18 @@ extension AppModel {
     /// FOLLOW PLAYHEAD (решения пользователя): при игре окно плавно едет за плейхедом — он не заходит правее отступа
     /// (четверть ширины окна от правого края); ушёл левее окна (петля, курсор назад) — окно встаёт так, чтобы он был у
     /// левого края (десятая часть ширины). Зовётся из таймера модели (60 Гц) — каждый кадр.
+    /// Прокрутка — до конца аранжировки + 32 такта; при игре граница едет за плейхедом (запись из сетки: блоков ещё
+    /// нет — окно вставало около 29-го такта). Меняется раз в 16 тактов; стоп — обратно к аранжировке.
+    func arrTrackPlayEnd() {
+        let bar: Int = ArrMetrics.stepsPerBar
+        if playing {
+            let at: Int = Int(arrNowX)
+            if at + 4 * bar > arrPlayEnd { arrPlayEnd = (at / (16 * bar) + 1) * 16 * bar }
+        } else if arrPlayEnd != 0 {
+            arrPlayEnd = 0
+        }
+    }
+
     func arrFollowPlayhead() {
         guard arrangeView && playing && settings.arrangeFollow, clipCarry == nil else { return }
         let w: CGFloat = arrTimelineFrame.width

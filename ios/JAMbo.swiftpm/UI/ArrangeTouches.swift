@@ -155,7 +155,7 @@ final class ArrTouches {
                 port.x = max(0, port.x + dx)
                 port.y = max(0, port.y + dy)
                 let p: Project = model.project
-                let m = ArrMetrics(size: size, port: port, tracks: p.tracks.count, end: p.arrangeEnd,
+                let m = ArrMetrics(size: size, port: port, tracks: p.tracks.count, end: model.arrViewEnd,
                                    expanded: model.settings.arrangeExpanded, inset: model.arrInset, ref: model.arrRefShown)
                 port.x = m.x
                 port.y = m.y
@@ -181,7 +181,7 @@ final class ArrTouches {
                 var port: ArrPort = model.arrPort
                 port.x = max(0, port.x + dx)
                 let p: Project = model.project
-                let m = ArrMetrics(size: size, port: port, tracks: p.tracks.count, end: p.arrangeEnd,
+                let m = ArrMetrics(size: size, port: port, tracks: p.tracks.count, end: model.arrViewEnd,
                                    expanded: model.settings.arrangeExpanded, inset: model.arrInset, ref: model.arrRefShown)
                 port.x = m.x
                 if port == model.arrPort { continue }
