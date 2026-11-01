@@ -183,7 +183,7 @@ jobs:
           grep -E 'error:|BUILD (SUCCEEDED|FAILED)' "$RUNNER_TEMP/build.log" | sort -u | head -60 || true
       - name: Result
         run: |
-          python3 - "$RUNNER_TEMP/stats" "${{ matrix.ref }}" <<'EOF'
+          python3 - "$RUNNER_TEMP/stats" "${{ matrix.ref }}" > "$RUNNER_TEMP/calib.txt" <<'EOF'
           import json, os, sys
           d, ref = sys.argv[1], sys.argv[2]
           for f in sorted(os.listdir(d)):
@@ -205,6 +205,7 @@ jobs:
               big = sorted(((v, k) for k, v in s.items() if not k.startswith('time.') and isinstance(v, (int, float))), reverse=True)
               print('  top counters: ' + ', '.join('%s=%d' % (k, v) for v, k in big[:25]))
           EOF
+          cat "$RUNNER_TEMP/calib.txt"
       - name: Functions by kind and by file (object files)
         run: |
           D=$(dirname "$(find "$RUNNER_TEMP/dd" -path '*Objects-normal/arm64/*' -name 'AppModel.o' | head -1)")
@@ -299,3 +300,4 @@ jobs:
           for sz, f, dm in sorted(funcs, reverse=True)[:70]:
               print('  %6d %-22s %s' % (sz, f, dm[:150]))
           EOF
+          grep CALIBRATION "$RUNNER_TEMP/calib.txt" || true

@@ -228,8 +228,8 @@ struct PlayTriangle: Shape {
     }
 }
 
-/// Цвета темы для Canvas редактора.
-struct EditorColors {
+/// Цвета темы для Canvas редактора (класс — копия одной ссылкой, поля неизменяемые).
+final class EditorColors {
     let ink: Color
     let line: Color
     let dim: Color

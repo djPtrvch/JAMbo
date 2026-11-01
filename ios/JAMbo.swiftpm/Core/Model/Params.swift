@@ -8,7 +8,9 @@ public enum KnobKind: Sendable {
     case stepped
 }
 
-public struct ParamDef: @unchecked Sendable {
+/// Класс, а не структура (1.11, облегчение сборки): описание копируется во многих видах и функциях; копия класса —
+/// одна ссылка. Поля неизменяемые — поведение то же. В колбэке не используется (там — ModScale).
+public final class ParamDef: @unchecked Sendable {
     public let id: String
     public let label: String
     public let kind: KnobKind
