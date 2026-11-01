@@ -77,3 +77,16 @@
 - Кривые — только у дорожек на таймлайне; при игре из сетки — не действуют (предложено пользователю, ответа нет). Duck, Chance, Ratchet на кривых на iPad отдельно не проверялись.
 - AppModel.swift — больше 600 строк (было и до S15).
 - ios/CLAUDE.md «Решения» — строка про S15 (внести в конце вехи).
+
+## Правки 31.10–1.11 (решения пользователя)
+Сделано (Core — тесты, 471; UI — на iPad не проверено: проект не собирается в Playgrounds, см. HANDOFF):
+- Раскладка центра: колонки над парами кнопок — 9 равных строк (Layout.barGap, RootView.units: строка кнопок и 8 миниатюр); слева FolderArrows и окно (LeftTop), справа PageArrows ◀ ▶ ▲ ▼ и миниатюры (RightTop); стрелки убраны из PageMenu; верхние строки EQ, окон мастера, редактора, библиотеки — barH, ✕ — квадрат (CloseButton side).
+- Пианоролл (RollWindow, RollBar, RollGrid): сетка во всю ширину, RollMetrics.fitW — столбцы над шагами; имена нот поверх сетки; кнопки от PATTERNS: сетка (GridIcon), VEL, динамик; с VEL — тап ставит и удаляет ноту.
+- METRONOME (Click.gain, CoreEvent.metronomeGain, AppSettings.metronomeVol); KnobState.srcLo/srcHi — зона источника на ручке (AppModel.sourceRange), скруглённые края; SHIFT + удержание — 1 с; FX и MOD поменяны.
+- Редактор сэмпла (EditorBar.aligned): ▶, REC шириной кнопок аранжировщика, середина до PATTERNS, LOAD и SAVE с PATTERNS.
+- EQ: LISTEN тапом (EqListenButton), двойной тап — toggleEqBand, без меню удержания, EqSpec.typeOrder [3, 4, 0, 1, 2, 5].
+- Аранжировщик: ArrGridMenu (GRID, SNAP TO GRID) вместо магнита; DELETE без смыкания + Track.clearAuto; SPLIT убран из меню линейки; arrTrim по группе; AUTO ⇄ STEPS; рамка выбора 2 pt; ArrRulerTouches.dragging + rulerScroll — прокрутка у края; AppSettings.arrangeScale (FIX / SCALE), arrangeFollow (arrFollowPlayhead — плавно, отступ 1/4 справа); ArrPort.rowH и масштаб по вертикали (ArrTouches.zoom); ArrSideButtons под измерителем (EXPANDED, COMPACT при FIX; карандаш и ластик при AUTO — ArrAutoTouches .draw / .erase); черты 4 тактов толще, на линейке короткие — от верха; пусто под дорожками — чёрное.
+- Блоки — свои копии (этап 1): ArrBlock.pattern, Project.ownArrPatterns (AppModel.edit, открытие проекта), SeqData.arrCells 128 и cellsPerTrack — ячейки блоков после ячеек сетки; playEvent не меняет активную ячейку для ячеек блоков. Тесты ArrangeOwnTests.
+- Запись «по факту» (этап 2): SeqOut.fired (Sequencer.trig после Chance), ArrRecorder.played / fired (notePlayed, noteFired — LiveState), Project.applyRecording(played:fired:) → placeFired (копия из прозвучавших шагов, Chance 100 %, блоки по 128 шагов; скорость ≠ 1 — копия клипа). Тесты ArrangeFiredTests, FiredOutTests.
+- STEPS правит блок (этап 3): Track.editBlock (не пишется), openClip / withOpen — копия блока; AppModel.syncEditBlock (выбранный блок или под курсором), trackPlayPos — по LiveState.cell. Тест ArrangeEditBlockTests.
+Открыто: сборка в Playgrounds (HANDOFF); проверка всего списка на iPad.
