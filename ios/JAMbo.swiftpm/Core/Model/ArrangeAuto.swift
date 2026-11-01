@@ -2,8 +2,8 @@ import Foundation
 
 // Автоматизация на таймлайне аранжировки (S15f, docs/ai/arranger.md): у дорожки — строки ручек (Track.autos), точки
 // кривых — в блоках (ArrBlock.autos, x от начала блока; решение пользователя 1.11). Точка — шаг (дробный) и положение
-// ручки 0…1; между точками — прямая. Кривая блока действует от его первой точки до последней (LINK — до первой точки
-// следующего блока), пока дорожка идёт по таймлайну; вне — значение ручки.
+// ручки 0…1; между точками — прямая. Кривая блока действует от его первой точки до последней, пока дорожка идёт по
+// таймлайну; вне — значение ручки. Блоки между собой не соединяются (решение пользователя 1.11).
 
 /// Точка кривой: x — шаг таймлайна, y — положение ручки 0…1.
 public struct ArrAutoPoint: Codable, Equatable, Sendable {
@@ -67,24 +67,18 @@ extension Track {
         return autos.firstIndex { $0.param == id }
     }
 
-    /// Группы кривой ручки id на таймлайне (абсолютные шаги): блок с LINK — вместе со следующим блоком дорожки.
-    /// Между группами кривой нет; точки блока — в пределах [начало, конец] блока.
+    /// Группы кривой ручки id на таймлайне (абсолютные шаги): у каждого блока — своя. Между группами кривой нет;
+    /// точки блока — в пределах [начало, конец] блока.
     public func autoGroups(_ id: String) -> [[ArrAutoPoint]] {
         var out: [[ArrAutoPoint]] = []
-        var cur: [ArrAutoPoint] = []
-        for (i, b) in blocks.enumerated() {
+        for b in blocks {
+            guard let l = b.autos.first(where: { $0.param == id }) else { continue }
             let s: Double = Double(b.start)
             let len: Double = Double(b.length)
-            if let l = b.autos.first(where: { $0.param == id }) {
-                for pt in l.points where pt.x >= 0 && pt.x <= len { cur.append(ArrAutoPoint(x: s + pt.x, y: pt.y)) }
-            }
-            let linked: Bool = b.autoLink && i + 1 < blocks.count
-            if !linked {
-                if !cur.isEmpty { out.append(cur) }
-                cur = []
-            }
+            var cur: [ArrAutoPoint] = []
+            for pt in l.points where pt.x >= 0 && pt.x <= len { cur.append(ArrAutoPoint(x: s + pt.x, y: pt.y)) }
+            if !cur.isEmpty { out.append(cur) }
         }
-        if !cur.isEmpty { out.append(cur) }
         return out
     }
 
@@ -145,19 +139,40 @@ extension Track {
         return blocks.contains { b in b.autos.contains { !$0.points.isEmpty } }
     }
 
-    /// LINK блока i: кривая соединяется со следующим блоком дорожки.
-    public mutating func setAutoLink(_ i: Int, _ on: Bool) {
-        if blocks.indices.contains(i) { blocks[i].autoLink = on }
-    }
-
-    /// Проект прежнего формата: точки кривых дорожки — в блоки под ними (соседние блоки — с LINK, чтобы кривая
-    /// звучала как раньше); у строк дорожки точек не остаётся.
+    /// Проект прежнего формата: точки кривых дорожки — в блоки под ними; на краях блоков, через которые кривая
+    /// проходила, — точки (внутри блоков звучит как раньше; в промежутках — значение ручки). У строк точек не остаётся.
     mutating func migrateAutos() {
         let old: [ArrAutoLane] = autos.filter { !$0.points.isEmpty }
         if old.isEmpty { return }
-        for k in blocks.indices.dropLast() where blocks[k].end == blocks[k + 1].start { blocks[k].autoLink = true }
-        for l in old { setAuto(l.param, l.points) }
+        for l in old {
+            setAuto(l.param, l.points)
+            for k in blocks.indices {
+                for e in [blocks[k].start, blocks[k].end] {
+                    if let v = l.value(at: Double(e)) { blocks[k].pinAuto(l.param, x: Double(e - blocks[k].start), y: v) }
+                }
+            }
+        }
         for k in autos.indices { autos[k].points = [] }
+    }
+
+    /// LINK прежних проектов (1.11): у блоков вплотную — точки на стыке по прямой LINK (звучит как раньше); через
+    /// промежуток не соединяется (там — значение ручки).
+    mutating func dropLegacyLinks() {
+        for i in blocks.indices where blocks[i].legacyLink {
+            blocks[i].legacyLink = false
+            guard i + 1 < blocks.count, blocks[i].end == blocks[i + 1].start else { continue }
+            let e: Double = Double(blocks[i].end)
+            for l in blocks[i].autos {
+                guard let a = l.points.last(where: { $0.x <= Double(blocks[i].length) }),
+                      let nl = blocks[i + 1].autos.first(where: { $0.param == l.param }),
+                      let b = nl.points.first(where: { $0.x >= 0 }) else { continue }
+                let ax: Double = Double(blocks[i].start) + a.x
+                let bx: Double = e + b.x
+                let y: Double = bx > ax ? a.y + (b.y - a.y) * (e - ax) / (bx - ax) : b.y
+                blocks[i].pinAuto(l.param, x: e - Double(blocks[i].start), y: y)
+                blocks[i + 1].pinAuto(l.param, x: 0, y: y)
+            }
+        }
     }
 }
 

@@ -17,8 +17,9 @@ public struct ArrBlock: Codable, Equatable, Sendable {
     /// Автоматизация блока (решение пользователя, 1.11): кривые ручек, x — шаг от начала блока; едут, копируются и
     /// удаляются вместе с блоком.
     public var autos: [ArrAutoLane] = []
-    /// LINK: кривая блока соединяется прямой с кривой следующего блока дорожки (через промежуток).
-    public var autoLink: Bool = false
+    /// LINK прежних проектов (1.11, убран — решение пользователя: блоки не соединяются): только при чтении, потом —
+    /// точки на стыке (Track.dropLegacyLinks); не пишется.
+    var legacyLink: Bool = false
 
     public init(clip: Int, start: Int, length: Int, offset: Int = 0, pattern: Clip? = nil) {
         self.clip = clip
@@ -120,7 +121,8 @@ public struct Arrangement: Codable, Equatable, Sendable {
 }
 
 extension ArrBlock {
-    enum CodingKeys: String, CodingKey, CaseIterable { case clip, start, length, offset, pattern, autos, autoLink }
+    enum CodingKeys: String, CodingKey, CaseIterable { case clip, start, length, offset, pattern, autos }
+    private enum LegacyKeys: String, CodingKey { case autoLink }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -130,7 +132,8 @@ extension ArrBlock {
         offset = c.value(.offset, 0)
         pattern = c.optional(.pattern)
         autos = c.value(.autos, [ArrAutoLane]())
-        autoLink = c.value(.autoLink, false)
+        let lc = try decoder.container(keyedBy: LegacyKeys.self)
+        legacyLink = (try? lc.decodeIfPresent(Bool.self, forKey: .autoLink)) ?? false
     }
 
     /// Начало блока сдвинулось на d шагов вправо (TRIM слева, правая часть разреза): точки — на прежних местах таймлайна.
@@ -139,6 +142,26 @@ extension ArrBlock {
         let dx: Double = Double(d)
         for l in autos.indices {
             for i in autos[l].points.indices { autos[l].points[i].x -= dx }
+        }
+    }
+
+    /// Точка на шаге x блока (y) у кривой ручки param, если там точки ещё нет (строки нет — появляется).
+    mutating func pinAuto(_ param: String, x: Double, y: Double) {
+        if let l = autos.firstIndex(where: { $0.param == param }) {
+            if autos[l].points.contains(where: { $0.x == x }) { return }
+            let k: Int = autos[l].points.firstIndex { $0.x > x } ?? autos[l].points.count
+            autos[l].points.insert(ArrAutoPoint(x: x, y: y), at: k)
+        } else {
+            autos.append(ArrAutoLane(param: param, points: [ArrAutoPoint(x: x, y: y)]))
+        }
+    }
+
+    /// Разрез на шаге x блока (TRIM, INSERT, замена середины): у кривых, которые через x проходят, — точка на x, чтобы
+    /// обе части звучали как до разреза (блоки не соединяются — решение пользователя).
+    mutating func pinCut(_ x: Int) {
+        let cx: Double = Double(x)
+        for l in autos {
+            if let v = ArrAutoLane.value(l.points, at: cx) { pinAuto(l.param, x: cx, y: v) }
         }
     }
 }

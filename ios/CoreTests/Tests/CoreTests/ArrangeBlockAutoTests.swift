@@ -2,7 +2,7 @@ import XCTest
 @testable import Core
 
 /// Автоматизация в блоках (решение пользователя 1.11): у каждого блока своя кривая, едет и копируется с ним;
-/// LINK соединяет кривую со следующим блоком; прежний формат раскладывается по блокам.
+/// блоки между собой не соединяются (решение пользователя); прежний формат раскладывается по блокам.
 final class ArrangeBlockAutoTests: XCTestCase {
     private func track() -> Track {
         var t = Track(index: 0)
@@ -18,9 +18,6 @@ final class ArrangeBlockAutoTests: XCTestCase {
         XCTAssertEqual(t.blocks[1].autos[0].points, [ArrAutoPoint(x: 8, y: 0)], "x — от начала блока")
         XCTAssertEqual(t.autoGroups("filter").count, 2, "точка в промежутке не ставится, блоки отдельно")
         XCTAssertNil(t.autoValue("filter", at: 20), "между блоками — значение ручки")
-        t.setAutoLink(0, true)
-        XCTAssertEqual(t.autoGroups("filter").count, 1)
-        XCTAssertEqual(t.autoValue("filter", at: 22)!, 0.5, accuracy: 1e-9, "LINK — прямая через промежуток")
     }
 
     func testMoveDuplicateDeleteCarryCurve() {
@@ -55,11 +52,12 @@ final class ArrangeBlockAutoTests: XCTestCase {
         let data: Data = try JSONEncoder().encode(t)
         let u: Track = try JSONDecoder().decode(Track.self, from: data)
         XCTAssertTrue(u.autos[0].points.isEmpty, "у строки точек не остаётся")
-        XCTAssertEqual(u.autoPoints("filter").map { $0.x }, [0, 30])
-        XCTAssertEqual(u.autoValue("filter", at: 15)!, 0.5, accuracy: 1e-9, "соседние блоки — с LINK, звучит как раньше")
+        XCTAssertEqual(u.autoPoints("filter").map { $0.x }, [0, 16, 16, 30], "на стыке — точки в обоих блоках")
+        XCTAssertEqual(u.autoValue("filter", at: 15)!, 0.5, accuracy: 1e-9, "звучит как раньше")
+        XCTAssertEqual(u.autoValue("filter", at: 20)!, 20.0 / 30, accuracy: 1e-9)
     }
 
-    /// Колбэк: между блоками без LINK кривая не действует (значение ручки), с LINK — прямая.
+    /// Колбэк: между блоками кривая не действует (значение ручки).
     func testPlaybackBreaksBetweenBlocks() {
         var p = Project()
         for t in 1..<8 { p.tracks[t].clips[0] = nil }
@@ -72,28 +70,62 @@ final class ArrangeBlockAutoTests: XCTestCase {
         XCTAssertEqual(d.auto(0, j, at: 4), 1, accuracy: 1e-6)
         XCTAssertEqual(d.auto(0, j, at: 16), -1, "промежуток — без кривой")
         XCTAssertEqual(d.auto(0, j, at: 8), 1, accuracy: 1e-6, "сама точка на краю")
-        p.tracks[0].setAutoLink(0, true)
-        let snap2 = SeqSnapshot(p)
-        let e: SeqData = snap2.data
-        XCTAssertEqual(e.auto(0, j, at: 16), 1, accuracy: 1e-6)
         withExtendedLifetime(snap) {}
-        withExtendedLifetime(snap2) {}
     }
 
-    /// DUPLICATE в меню дорожки: копии блоков — со своей копией клипа, кривыми и LINK (как у оригиналов).
+    /// DUPLICATE в меню дорожки: копии блоков — со своей копией клипа и кривыми; между блоками кривые не соединяются.
     func testTrackDuplicateKeepsPatternCurvesAndLink() {
         var t = track()
         var c = Clip()
         c.pages[0][3].on = true
         t.blocks[0].pattern = c
         t.setAuto("filter", [ArrAutoPoint(x: 2, y: 0.2), ArrAutoPoint(x: 10, y: 0.8), ArrAutoPoint(x: 40, y: 0.4)])
-        t.setAutoLink(0, true)
         t.duplicateBlocks()
         XCTAssertEqual(t.blocks.count, 4)
         XCTAssertEqual(t.blocks[2].start, 48)
         XCTAssertEqual(t.blocks[2].pattern, c, "своя копия клипа")
-        XCTAssertTrue(t.blocks[2].autoLink, "LINK")
         XCTAssertEqual(t.autoPoints("filter").map { $0.x }, [2, 10, 40, 50, 58, 88])
-        XCTAssertEqual(t.autoValue("filter", at: 73)!, 0.6, accuracy: 1e-9, "LINK копий — прямая через промежуток")
+        XCTAssertNil(t.autoValue("filter", at: 73), "промежуток — значение ручки")
+    }
+
+    /// Разрез (TRIM) — две отдельные кривые, на месте разреза — точка в обеих: звучит как до разреза.
+    func testSplitPinsCut() {
+        var t = track()
+        t.setAuto("filter", [ArrAutoPoint(x: 2, y: 0), ArrAutoPoint(x: 14, y: 1)])
+        t.splitArrange(at: 8)
+        XCTAssertEqual(t.blocks.count, 3)
+        XCTAssertEqual(t.autoGroups("filter").count, 2, "половинки не соединены")
+        XCTAssertEqual(t.autoPoints("filter").map { $0.x }, [2, 8, 8, 14])
+        for x in [3.0, 7.5, 8.0, 8.5, 13.0] {
+            XCTAssertEqual(t.autoValue("filter", at: x)!, (x - 2) / 12, accuracy: 1e-9)
+        }
+        // Замена середины блока другим — края частей тоже с точками.
+        var u = track()
+        u.setAuto("filter", [ArrAutoPoint(x: 2, y: 0), ArrAutoPoint(x: 14, y: 1)])
+        u.placeBlock(ArrBlock(clip: 1, start: 6, length: 4))
+        XCTAssertEqual(u.autoValue("filter", at: 6)!, 4.0 / 12, accuracy: 1e-9)
+        XCTAssertEqual(u.autoValue("filter", at: 10)!, 8.0 / 12, accuracy: 1e-9)
+    }
+
+    /// Проект с LINK (1.11): блоки вплотную — точки на стыке по прямой; через промежуток — не соединяются.
+    func testLegacyLinkDropped() throws {
+        var t = Track(index: 0)
+        t.placeBlock(ArrBlock(clip: 0, start: 0, length: 16))
+        t.placeBlock(ArrBlock(clip: 0, start: 16, length: 16))
+        t.placeBlock(ArrBlock(clip: 0, start: 48, length: 16))
+        t.setAuto("filter", [ArrAutoPoint(x: 10, y: 0), ArrAutoPoint(x: 22, y: 1), ArrAutoPoint(x: 30, y: 0),
+                             ArrAutoPoint(x: 56, y: 1)])
+        var json = try JSONSerialization.jsonObject(with: JSONEncoder().encode(t)) as! [String: Any]
+        var bl = json["blocks"] as! [[String: Any]]
+        XCTAssertNil(bl[0]["autoLink"], "LINK не пишется")
+        bl[0]["autoLink"] = true
+        bl[1]["autoLink"] = true
+        json["blocks"] = bl
+        let u: Track = try JSONDecoder().decode(Track.self, from: JSONSerialization.data(withJSONObject: json))
+        XCTAssertEqual(u.autoGroups("filter").count, 3)
+        XCTAssertEqual(u.autoValue("filter", at: 16)!, 0.5, accuracy: 1e-9, "стык — по прямой прежнего LINK")
+        XCTAssertEqual(u.autoValue("filter", at: 13)!, 0.25, accuracy: 1e-9)
+        XCTAssertNil(u.autoValue("filter", at: 40), "промежуток — значение ручки")
+        XCTAssertFalse(u.blocks.contains { $0.legacyLink })
     }
 }

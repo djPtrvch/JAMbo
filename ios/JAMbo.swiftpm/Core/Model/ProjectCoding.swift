@@ -79,6 +79,7 @@ extension Track {
         color = c.value(.color, ArrPalette.defaultColor)
         autos = c.value(.autos, [ArrAutoLane]())
         migrateAutos()
+        dropLegacyLinks()
     }
 }
 

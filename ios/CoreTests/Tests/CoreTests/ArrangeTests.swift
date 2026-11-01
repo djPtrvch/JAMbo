@@ -217,8 +217,9 @@ final class ArrangeTests: XCTestCase {
         p.insertSpace(at: 16, length: 16)
         XCTAssertEqual(spans(p.tracks[0]), [[0, 0, 16, 0], [0, 32, 16, 16]])
         XCTAssertEqual(spans(p.tracks[1]), [[0, 48, 16, 0]])
-        XCTAssertEqual(p.tracks[0].autoPoints("filter").map { $0.x }, [8, 36])
-        XCTAssertEqual(p.tracks[0].autoGroups("filter").count, 1, "разрез INSERT — кривая не рвётся (LINK)")
+        XCTAssertEqual(p.tracks[0].autoPoints("filter").map { $0.x }, [8, 16, 32, 36])
+        XCTAssertEqual(p.tracks[0].autoGroups("filter").count, 2, "разрез INSERT — две кривые, на краях — точки")
+        XCTAssertNil(p.tracks[0].autoValue("filter", at: 24), "вставленное место — значение ручки")
         XCTAssertEqual(p.arrange.markers.map { [$0.at, $0.end ?? -1] }, [[0, 48], [48, 64]])
         // Проба: клип строки 1 дорожки 0 (16 шагов) с 0 — поверх блока, с 16 — на пустом.
         p.tracks[0].clips[1] = Clip(pages: [Track.emptyPage()], length: 16, playFrom: 0, playTo: 0)

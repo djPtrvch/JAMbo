@@ -33,11 +33,13 @@ extension Track {
             if b.start < from {
                 var left: ArrBlock = b
                 left.length = from - b.start
+                left.pinCut(left.length)
                 out.append(left)
             }
             if b.end > to {
                 let cut: Int = to - b.start
                 var right: ArrBlock = b
+                right.pinCut(cut)
                 right.start = to
                 right.length = b.end - to
                 right.offset = b.offset + cut
@@ -202,7 +204,7 @@ extension Track {
         return j
     }
 
-    /// Блоки дорожки ещё раз — после последнего (DUPLICATE в меню дорожки): копии целиком — своя копия клипа, кривые, LINK.
+    /// Блоки дорожки ещё раз — после последнего (DUPLICATE в меню дорожки): копии целиком — своя копия клипа, кривые.
     public mutating func duplicateBlocks() {
         guard let first = blocks.first, let last = blocks.map({ $0.end }).max() else { return }
         let d: Int = last - first.start
@@ -248,8 +250,8 @@ extension Track {
         let b: ArrBlock = blocks[k]
         let cut: Int = x - b.start
         blocks[k].length = cut
-        blocks[k].autoLink = true
-        var right: ArrBlock = b
+        blocks[k].pinCut(cut)
+        var right: ArrBlock = blocks[k]
         right.start = x
         right.length = b.end - x
         right.offset = b.offset + cut

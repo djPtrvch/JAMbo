@@ -259,7 +259,7 @@ struct ArrAutoDraw {
         let base: Double = pd.toNorm(p.tracks[t].params[pd.id] ?? pd.def)
         let by: CGFloat = ArrAutoGeo.y(base, h)
         ctx.fill(Path(CGRect(x: 0, y: by - 0.5, width: m.size.width, height: 1)), with: .color(theme.dim.opacity(0.6)))
-        // Кривая — по группам (блок или блоки с LINK): между группами линии нет.
+        // Кривая — по группам (блоки): между группами линии нет.
         var line = Path()
         var dots = Path()
         for g in p.tracks[t].autoGroups(pd.id) {

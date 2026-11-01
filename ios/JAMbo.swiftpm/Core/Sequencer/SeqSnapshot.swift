@@ -77,7 +77,7 @@ public struct SeqData {
     public var loopTo: Int = 0
     public var loop: Bool = false
     /// Автоматизация (S15f): кривая цели j (ArrAutoTarget) дорожки t — точки autoFirst[t·count + j] …
-    /// + autoCount − 1 (x — шаг таймлайна, y — 0…1, autoG — группа: блок или блоки с LINK; между группами прямой нет);
+    /// + autoCount − 1 (x — шаг таймлайна, y — 0…1, autoG — группа: блок; между группами прямой нет);
     /// autoAny[t] — у дорожки есть кривые.
     public var autoFirst: UnsafeMutablePointer<Int32>
     public var autoCount: UnsafeMutablePointer<Int32>
@@ -103,7 +103,7 @@ public struct SeqData {
         }
         let ax: Double = autoX[lo]
         let bx: Double = autoX[hi]
-        // Разные группы (промежуток между блоками без LINK): кривой нет, кроме самой точки.
+        // Разные группы (промежуток между блоками): кривой нет, кроме самой точки.
         if autoG[lo] != autoG[hi] { return x == ax ? Double(autoY[lo]) : (x == bx ? Double(autoY[hi]) : -1) }
         let ay: Double = Double(autoY[lo])
         let by: Double = Double(autoY[hi])

@@ -326,18 +326,6 @@ extension AppModel {
         arrSel = nil
     }
 
-    /// LINK: есть ли у блока следующий блок на дорожке (с ним соединяется кривая).
-    func arrCanLink(_ s: ArrSel) -> Bool {
-        guard s.track >= 0 && s.track < project.tracks.count else { return false }
-        return s.block >= 0 && s.block + 1 < project.tracks[s.track].blocks.count
-    }
-
-    /// LINK / UNLINK: кривая блока соединяется прямой с кривой следующего блока дорожки (одна запись UNDO).
-    func arrToggleLink(_ s: ArrSel) {
-        guard let b = arrBlock(s), arrCanLink(s) else { return }
-        edit { p in p.tracks[s.track].setAutoLink(s.block, !b.autoLink) }
-    }
-
     /// DELETE блока: правые не смыкаются (решение пользователя); автоматизация блока уходит с ним.
     func arrDeleteBlock(_ s: ArrSel) {
         guard arrBlock(s) != nil else { return }
