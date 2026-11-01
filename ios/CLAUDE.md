@@ -5,8 +5,8 @@
 ## Структура
 - `JAMbo.swiftpm/Core/` — DSP и модель, только Foundation и Synchronization (Accelerate — только под `#if canImport(Accelerate)` с обычной реализацией рядом). Util/ (атомарные значения, очереди, CPU), Engine/ (AudioCore — весь звук), Model/ (Params, Project, правки, UNDO), Sequencer/, Sampler/, Synth/, Jambo/, FX/, Mod/, Master/, EQ/, Icons/.
 - `JAMbo.swiftpm/Audio/` — AVAudioSession (48 кГц, буфер 256), один AVAudioSourceNode → `AudioCore.render`; хранилище сэмплов.
-- `JAMbo.swiftpm/UI/` — SwiftUI. `JAMbo.swiftpm/Resources/` — эталоны самотеста, PrivacyInfo.xcprivacy.
-- `CoreTests/` — сборка и тесты Core на Linux и Mac (`Sources/Core` — ссылка на `JAMbo.swiftpm/Core`).
+- `JAMbo.swiftpm/UI/` — SwiftUI. `JAMbo.swiftpm/Resources/` — PrivacyInfo.xcprivacy.
+- `CoreTests/` — сборка и тесты Core на Linux и Mac (`Sources/Core` — ссылка на `JAMbo.swiftpm/Core`); эталоны веба — `CoreTests/golden`, код сверок — `Tests/CoreTests/Golden` (SELF-TEST из приложения убран 1.11 — облегчение сборки).
 - `tools/` — install-swift-linux.sh, swift-env.sh; генераторы эталонов (jambo, fx, master, eq, icons).
 
 ## Проверка
@@ -24,7 +24,7 @@
 - Колбэк (AudioCore.render и всё, что он зовёт): без выделения памяти, блокировок, ARC-объектов, созданных в колбэке, Objective-C, print и растущих Swift-коллекций; final-классы, UnsafeMutablePointer, @inline(__always) на горячих функциях; денормалы в обратных связях гасить вручную. Каждый новый вызов в колбэке проверять по этому списку.
 - Playgrounds собирает отладочную версию (без оптимизации). В горячих циклах DSP: без вызовов функций из других файлов на каждом отсчёте (встраивание — только внутри файла), состояние класса — в локальных переменных на блок, циклы while, без обобщённых преобразований чисел, глобальные константы других файлов — в локальную переменную, enum с raw value не сравнивать в цикле. Проверка — сверка с эталонами.
 - UI → аудио: CoreEvent через SPSCQueue и AtomicFloat; аудио → UI: атомарные значения и кольцевые буферы, UI читает по таймеру. Экземпляры движков и буферы создаются вне колбэка.
-- DSP — сверка с эталонами веба (по отсчётам ≤ −60 dB или третьоктавные полосы ±0,5 dB), каждый эталон — в SELF-TEST. Эталоны Web Audio (узлы браузера) — настоящий код веба в headless Chromium через протокол отладки (образец — tools/eq/golden.mjs).
+- DSP — сверка с эталонами веба (по отсчётам ≤ −60 dB или третьоктавные полосы ±0,5 dB), каждый эталон — в тестах Core (CoreTests/golden). Эталоны Web Audio (узлы браузера) — настоящий код веба в headless Chromium через протокол отладки (образец — tools/eq/golden.mjs).
 - UI: ручки, шаги, сетки, метры, спектры — Canvas; состояние — @Observable; без перерисовки всего экрана каждый кадр. Вид с индексом читает данные с проверкой границ. Общий DragGesture от 0 px на контейнере перехватывает кнопки внутри — кнопки и меню держать вне него. Пока открыто меню поверх поля с жестами, поле касаний не принимает.
 - Меню: низ не ниже верха кнопок дорожек; что не помещается — прокрутка пальцем (MenuScroll) с тонкой полосой справа.
 - Надписи — на английском, комментарии и документы — по-русски. Окна закрываются квадратным ✕.
