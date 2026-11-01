@@ -111,7 +111,7 @@ struct SynthIcon: View {
     private var tableSource: ((Double, Double) -> Double)? {
         guard engine == Jambo.wtable else { return nil }
         _ = model.wavetableSerial
-        // Встроенная — по таблице показа (256 кадров, плавно); пока её нет и у своей — по звуковой.
+        // По таблице показа (256 кадров; своя — прямо из WAV, не ждёт мипмапов звуковой); пока её нет — по звуковой.
         let key: String = model.track.table
         if let d = model.wavetables.display(key, done: { [weak model] in model?.wavetableSerial += 1 }) {
             return EngineIcons.displayFrame(d)

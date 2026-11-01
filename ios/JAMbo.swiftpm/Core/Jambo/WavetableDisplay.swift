@@ -43,4 +43,48 @@ public final class WtDisplay: @unchecked Sendable {
         }
         return WtDisplay(data: out)
     }
+
+    /// Своя таблица — прямо из отсчётов WAV, без FFT (быстро даже в отладочной сборке): 256 кадров × 256 точек, между
+    /// кадрами и отсчётами — линейно; без постоянной составляющей кадра; вся таблица к пику 1.0 (как звуковая).
+    public static func user(_ samples: [Float], frameSize: Int) -> WtDisplay {
+        let fr: Int = WtDisplay.frames
+        let size: Int = WtDisplay.size
+        let src: Int = Swift.max(1, Swift.min(WtWav.maxFrames, samples.count / frameSize))
+        let n: Int = samples.count
+        func at(_ f: Int, _ j: Int) -> Double {
+            let k: Int = f * frameSize + j
+            return k < n ? Double(samples[k]) : 0
+        }
+        var out = [Float](repeating: 0, count: fr * size)
+        var row = [Double](repeating: 0, count: size)
+        var peak: Double = 0
+        for f in 0..<fr {
+            let fpos: Double = src > 1 ? Double(f) / Double(fr - 1) * Double(src - 1) : 0
+            let fa: Int = Swift.min(src - 1, Int(fpos.rounded(.down)))
+            let fb: Int = Swift.min(src - 1, fa + 1)
+            let ff: Double = fpos - Double(fa)
+            var mean: Double = 0
+            for k in 0..<size {
+                let x: Double = Double(k) / Double(size) * Double(frameSize)
+                let j: Int = Swift.min(frameSize - 1, Int(x.rounded(.down)))
+                let j1: Int = (j + 1) % frameSize
+                let fj: Double = x - Double(j)
+                let va: Double = at(fa, j) + (at(fa, j1) - at(fa, j)) * fj
+                let vb: Double = at(fb, j) + (at(fb, j1) - at(fb, j)) * fj
+                row[k] = va + (vb - va) * ff
+                mean += row[k]
+            }
+            mean /= Double(size)
+            for k in 0..<size {
+                let v: Double = row[k] - mean
+                peak = Swift.max(peak, abs(v))
+                out[f * size + k] = Float(v)
+            }
+        }
+        if peak > 0 {
+            let g: Float = Float(1 / peak)
+            for k in 0..<out.count { out[k] *= g }
+        }
+        return WtDisplay(data: out)
+    }
 }

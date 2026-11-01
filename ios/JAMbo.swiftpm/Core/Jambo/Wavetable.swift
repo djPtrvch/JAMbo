@@ -271,23 +271,37 @@ public final class WavetableStore {
     public private(set) var ready: [String: WtTable] = [:]
     /// Строятся: кто ждёт готовности (у каждой таблицы — все, кто просил, а не только первый).
     private var waiting: [String: [() -> Void]] = [:]
-    /// Таблицы показа встроенных таблиц (окно синта; WtDisplay).
+    /// Таблицы показа (окно синта; WtDisplay): встроенные и свои.
     public private(set) var displays: [String: WtDisplay] = [:]
-    private var buildingDisplay: Set<String> = []
+    /// Строятся таблицы показа: кто ждёт готовности (все, кто просил).
+    private var waitingDisplay: [String: [() -> Void]] = [:]
 
-    /// Таблица показа встроенной таблицы key, если готова; иначе — в фоне, done — когда готова. Своя таблица — nil.
+    /// Таблица показа key, если готова; иначе — в фоне, done — когда готова. Своя таблица — прямо из WAV (не ждёт
+    /// звуковую таблицу: её мипмапы строятся дольше); нет файла — nil.
     public func display(_ key: String, done: @escaping () -> Void) -> WtDisplay? {
-        if WavetableKey.parseUser(key) != nil { return nil }
         if let d = displays[key] { return d }
-        if buildingDisplay.contains(key) { return nil }
-        buildingDisplay.insert(key)
+        if waitingDisplay[key] != nil {
+            waitingDisplay[key]!.append(done)
+            return nil
+        }
+        waitingDisplay[key] = [done]
         let name = WavetableKey.name(key)
-        DispatchQueue.global(qos: .utility).async {
-            let d = WtDisplay.builtin(name)
+        let user = WavetableKey.parseUser(key)
+        let dir = userDir
+        DispatchQueue.global(qos: .userInitiated).async {
+            var d: WtDisplay? = nil
+            if let u = user {
+                if let dr = dir, let data = try? Data(contentsOf: WtWav.url(u.wav, in: dr)), let w = WtWav.parse(data) {
+                    d = WtDisplay.user(w.samples, frameSize: u.frameSize)
+                }
+            } else {
+                d = WtDisplay.builtin(name)
+            }
+            let built: WtDisplay? = d
             DispatchQueue.main.async {
-                self.displays[key] = d
-                self.buildingDisplay.remove(key)
-                done()
+                if let b = built { self.displays[key] = b }
+                let list: [() -> Void] = self.waitingDisplay.removeValue(forKey: key) ?? []
+                if built != nil { for f in list { f() } }
             }
         }
         return nil
@@ -332,7 +346,11 @@ public final class WavetableStore {
 
     /// Построить заранее (в фоне), что ещё не готово.
     public func preload(_ keys: [String]) {
-        for k in keys { _ = table(k, done: {}) }
+        for k in keys {
+            _ = table(k, done: {})
+            // Своя таблица — и таблица показа (быстро, из WAV): окно синта рисует её сразу после тапа.
+            if WavetableKey.parseUser(k) != nil { _ = display(k, done: {}) }
+        }
     }
 
     /// Встроенные таблицы и их таблицы показа — заранее (при запуске).
@@ -346,6 +364,9 @@ public final class WavetableStore {
     public func prune(keep: Set<String>) {
         for k in Array(ready.keys) where WavetableKey.parseUser(k) != nil && !keep.contains(k) {
             ready[k] = nil
+        }
+        for k in Array(displays.keys) where WavetableKey.parseUser(k) != nil && !keep.contains(k) {
+            displays[k] = nil
         }
     }
 }
