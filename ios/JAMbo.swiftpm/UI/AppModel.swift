@@ -453,16 +453,16 @@ final class AppModel {
         if playing {
             // Петля включена — PLAY в аранжировщике играет её сначала.
             let a: Arrangement = project.arrange
-            // Запись аранжировки включена (ARRANGE + REC, решение пользователя 2.11): PLAY и в окне ARRANGE играет сетку,
-            // запись — с плейхеда или с начала (SETTINGS → RECORD → ARRANGE REC START).
-            let tl: Bool = arrangeView && !arrRecArm
+            // PLAY в окне ARRANGE — таймлайн (живая запись оттуда убрана — решение пользователя 2.11); запись аранжировки
+            // из сетки — с плейхеда или с начала (SETTINGS → RECORD → ARRANGE REC START).
+            let tl: Bool = arrangeView
             var from: Int = tl && a.loop && a.hasLoop ? a.loopFrom : arrCursor
             // Курсор за концом аранжировки (ушёл при игре из сетки) — с начала, иначе игра сразу кончается.
             if tl && !(a.loop && a.hasLoop) && project.arrangeEnd > 0 && from >= project.arrangeEnd {
                 from = 0
                 arrCursor = 0
             }
-            if arrRecArm && settings.record.arrFromStart {
+            if arrRecArm && !tl && settings.record.arrFromStart {
                 from = 0
                 arrCursor = 0
             }
@@ -486,8 +486,8 @@ final class AppModel {
         if playing { return }
         ensureAudio()
         playing = true
-        let tl: Bool = arrangeView && !arrRecArm
-        if arrRecArm && settings.record.arrFromStart { arrCursor = 0 }
+        let tl: Bool = arrangeView
+        if arrRecArm && !tl && settings.record.arrFromStart { arrCursor = 0 }
         arrPlay = tl
         endRecTake()
         live.stopped()
