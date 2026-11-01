@@ -32,7 +32,7 @@ struct ArrangeBar: View {
                 ArrBarButton(on: model.arrAuto, enabled: true, ring: model.arrKnobRec, action: { model.toggleArrAuto() }) { c in
                     ArrWaveIcon(color: c)
                 }
-                ArrBarButton(on: model.arrKnobs, enabled: true, action: { model.arrKnobs.toggle() }) { c in
+                ArrBarButton(on: model.arrKnobs && !model.rollView, enabled: true, action: { model.toggleArrKnobs() }) { c in
                     Image(systemName: "dial.medium").font(.system(size: 20, weight: .semibold)).foregroundStyle(c)
                 }
                 ArrBarButton(on: !a.hideSteps, enabled: true, action: { model.toggleArrSteps() }) { c in ArrStepsIcon(color: c) }

@@ -195,22 +195,30 @@ struct RootView: View {
     /// STEPS — строка дорожек, секвенсор и клавиатура поверх трёх нижних дорожек (от верха шестой); AUTO — на том же
     /// месте; KNOBS — окно дорожки с ручками в обычном масштабе поверх линейки и пяти верхних дорожек (строку папки и
     /// верхнюю миниатюру закрывает строка кнопок).
-    /// Пианоролл из аранжировщика (решения пользователя): обычного размера — на месте окна ручек, поверх линейки и
-    /// верхних дорожек; под ним — дорожки аранжировки (не STEPS); строки кнопок аранжировщика нет — AUTO, STEPS и окно
-    /// ручек вместе с ним не открываются; закрыли — снова аранжировка.
+    /// Пианоролл из аранжировщика (решения пользователя): обычного размера — под строкой кнопок аранжировщика, поверх
+    /// линейки и верхних дорожек (на месте окна ручек); внизу — дорожки, STEPS или AUTO, как выбрано кнопками; кнопка
+    /// окна ручек закрывает пианоролл; закрыли пианоролл — снова аранжировка.
     private func arrangeArea(_ layout: Layout, _ lowerH: CGFloat, _ bar: CGFloat) -> AnyView {
         return AnyView(arrangeWindow(layout, lowerH, bar, roll: model.rollView))
     }
 
     private func arrangeWindow(_ layout: Layout, _ lowerH: CGFloat, _ bar: CGFloat, roll: Bool) -> some View {
-        let steps: Bool = !model.project.arrange.hideSteps && !roll
+        let steps: Bool = !model.project.arrange.hideSteps
         return GeometryReader { g in
             ZStack(alignment: .topLeading) {
                 ArrangeWindow(model: model)
                     .frame(height: max(0, g.size.height - bar - Layout.barGap))
                     .offset(y: bar + Layout.barGap)
                 // Во время переноса клипа из сетки центр — сетка паттернов (она уже есть под аранжировщиком).
-                if (model.arrKnobs || roll) && !model.patternView {
+                if roll && !model.patternView {
+                    // Под строкой кнопок аранжировщика: свои кнопки пианоролла (сетка, VEL, звук) видны.
+                    let top: CGFloat = bar + Layout.barGap
+                    AnyView(center(layout)
+                        .frame(height: max(0, g.size.height - lowerH - Layout.gap - top))
+                        .frame(height: max(0, g.size.height - lowerH - top), alignment: .top)
+                        .background(theme.bg)
+                        .offset(y: top))
+                } else if model.arrKnobs && !model.patternView {
                     // Фон — и под зазором снизу (чёрная полоса, как между дорожками): из-под окна ничего не видно.
                     AnyView(center(layout)
                         .frame(height: max(0, g.size.height - lowerH - Layout.gap))
@@ -218,7 +226,7 @@ struct RootView: View {
                         .background(theme.bg))
                 }
                 // Над STEPS и AUTO — чёрная полоса (как под окном ручек): дорожки под окном не видны.
-                if model.arrAutoPanel && !roll {
+                if model.arrAutoPanel {
                     AnyView(ArrAutoPanel(model: model).frame(height: lowerH)
                         .padding(.top, Layout.gap).background(theme.bg)
                         .offset(y: g.size.height - lowerH - Layout.gap))
@@ -227,9 +235,7 @@ struct RootView: View {
                         .padding(.top, Layout.gap).background(theme.bg)
                         .offset(y: g.size.height - lowerH - Layout.gap))
                 }
-                if !roll {
-                    ArrangeBar(model: model).frame(height: bar)
-                }
+                ArrangeBar(model: model).frame(height: bar)
             }
         }
     }

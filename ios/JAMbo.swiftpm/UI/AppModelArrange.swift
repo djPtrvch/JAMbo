@@ -155,6 +155,16 @@ extension AppModel {
         viewPage = min(viewPage, seq.pages.count - 1)
     }
 
+    /// Окно ручек аранжировщика; у пианоролла то же место — кнопка окна ручек закрывает его и открывает окно ручек.
+    func toggleArrKnobs() {
+        if rollView {
+            closeRoll()
+            arrKnobs = true
+            return
+        }
+        arrKnobs.toggle()
+    }
+
     /// Карандаш окна AUTO.
     func toggleArrDraw() {
         arrDraw.toggle()
@@ -212,7 +222,7 @@ extension AppModel {
     }
 
     /// Сколько снизу окна аранжировщика закрыто (STEPS или AUTO — три нижние дорожки): дорожки прокручиваются из-под низа.
-    var arrInset: CGFloat { return arrangeView && !rollView && (arrAuto || !project.arrange.hideSteps) ? arrLowerH + ArrMetrics.gap : 0 }
+    var arrInset: CGFloat { return arrangeView && (arrAuto || !project.arrange.hideSteps) ? arrLowerH + ArrMetrics.gap : 0 }
 
     /// STEPS выключена: строка дорожек, секвенсор и клавиатура скрыты (только пока открыт аранжировщик).
     var arrStepsHidden: Bool { return arrangeView && project.arrange.hideSteps }
