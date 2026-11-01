@@ -1,10 +1,11 @@
 import Foundation
+@testable import Core
 
-// Самотест своих движков JAMbo (KICK, ANALOG, FM, WTABLE): сверка с эталонами Resources/golden/j*.i16
+// Самотест своих движков JAMbo (KICK, ANALOG, FM, WTABLE): сверка с эталонами CoreTests/golden/j*.i16
 // (ios/tools/jambo/golden.mjs — рендер public/jambo-synth-worklet.js в Node). Ручки случая (до S12) переводятся
 // SynthMigration; случаи, где звук после S12 другой (суб ANALOG, клик KICK не на 50 %), не сравниваются. Узел worklet повторён: блоки process()
 // по 128 кадров (дрейф ANALOG — в начале блока, время дорожки — в конце), внутри — куски по 24 и до кадра
-// следующей ноты; тишина дольше 4800 кадров — голос молчит. Общий для CoreTests и DIAGNOSTICS → SELF-TEST.
+// следующей ноты; тишина дольше 4800 кадров — голос молчит. Только в тестах Core.
 
 public enum JamboSelfTest {
     public struct Case: Decodable, Sendable {

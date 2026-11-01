@@ -1,8 +1,9 @@
 import Foundation
+@testable import Core
 
-// Самотест мастера: сверка с эталонами Resources/golden/mst_*.i16 (ios/tools/master/golden.mjs — рендер worklet'ов веба
+// Самотест мастера: сверка с эталонами CoreTests/golden/mst_*.i16 (ios/tools/master/golden.mjs — рендер worklet'ов веба
 // в Node: блоки по 128, параметры — сообщения port в начале блока). Вход повторяет input() из golden.mjs.
-// Общий для CoreTests и DIAGNOSTICS → SELF-TEST.
+// Только в тестах Core.
 
 public enum MasterSelfTest {
     public struct Case: @unchecked Sendable {
@@ -19,7 +20,7 @@ public enum MasterSelfTest {
         public let cases: [Case]
     }
 
-    /// Коды в Result.engine (после FX 32–35) и имена в SELF-TEST.
+    /// Коды в Result.engine (после FX 32–35) и имена.
     public static let codes = ["saturator": 36, "glue": 37, "clipper": 38, "limiter": 39, "chain": 40]
     public static let engineNames = [36: "MST SAT", 37: "MST COMP", 38: "MST CLIP", 39: "MST LIM", 40: "MST CHAIN"]
 

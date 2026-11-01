@@ -1,9 +1,9 @@
 import SwiftUI
 
-/// Окна раздела APP бутерброда (S9e): поверх экрана, название слева, ✕ справа в верхней строке.
+/// Окна раздела APP бутерброда (S9e): поверх экрана, название слева, ✕ справа в верхней строке. SELF-TEST убран
+/// (1.11, облегчение сборки): сверки с эталонами — в тестах Core.
 enum AppWindow: String, CaseIterable {
     case diagnostics = "DIAGNOSTICS"
-    case selfTest = "SELF-TEST"
 }
 
 struct AppWindowView: View {
@@ -30,8 +30,6 @@ struct AppWindowView: View {
         switch window {
         case .diagnostics:
             return AnyView(DiagnosticsView(model: model))
-        case .selfTest:
-            return AnyView(SelfTestPanel())
         }
     }
 }

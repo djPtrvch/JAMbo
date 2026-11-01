@@ -1,8 +1,9 @@
 import Foundation
+@testable import Core
 
-// Самотест эффектов: сверка с эталонами Resources/golden/fx_*.i16 (ios/tools/fx/golden.mjs — рендер worklet'ов веба
+// Самотест эффектов: сверка с эталонами CoreTests/golden/fx_*.i16 (ios/tools/fx/golden.mjs — рендер worklet'ов веба
 // в Node: блоки по 128, k-rate параметры в начале блока, Math.random → mulberry32 с seed случая).
-// Вход повторяет input() из golden.mjs. Общий для CoreTests и DIAGNOSTICS → SELF-TEST.
+// Вход повторяет input() из golden.mjs. Только в тестах Core.
 
 public enum FxSelfTest {
     public struct Case: Decodable, Sendable {
@@ -35,7 +36,7 @@ public enum FxSelfTest {
         public let cases: [Case]
     }
 
-    /// Коды эффектов в Result.engine (после движков 0–19) и их имена в SELF-TEST.
+    /// Коды эффектов в Result.engine (после движков 0–19) и их имена.
     public static let codes = ["delay": 32, "reverb": 33, "drive": 34, "duck": 35]
     public static let engineNames = [32: "DELAY", 33: "REVERB", 34: "DRIVE", 35: "DUCK"]
 

@@ -1,11 +1,11 @@
-// Сверка с эталонами Resources/golden (самотест своих движков, FX, мастера и EQ): чтение файлов, ошибка
-// по отсчётам и третьоктавные полосы. Общий для CoreTests (Linux) и окна DIAGNOSTICS → SELF-TEST (iPad).
-// Не для аудиоколбэка.
+// Сверка с эталонами ios/CoreTests/golden (свои движки, FX, мастер и EQ): чтение файлов, ошибка по отсчётам
+// и третьоктавные полосы. Только в тестах Core (окно SELF-TEST из приложения убрано 1.11 — облегчение сборки).
 import Foundation
+@testable import Core
 
 public enum Golden {
     /// Итог случая: ошибка по отсчётам (dB к RMS эталона), наибольшее отличие третьоктавной полосы (dB), RMS (dBFS).
-    /// engine — код строки SELF-TEST (свои движки 16–19, FX 32–35, мастер 36–40, EQ 41).
+    /// engine — код набора (свои движки 16–19, FX 32–35, мастер 36–40, EQ 41).
     public struct Result: Sendable {
         public let file: String
         public let engine: Int
@@ -18,18 +18,6 @@ public enum Golden {
         /// Итог: критерий + страховка (по отсчётам не хуже −40 dB — полярность, сдвиг), без NaN, не тишина
         /// (RMS выше −60 dBFS).
         public var ok: Bool { passes && finite && sampleErrorDb <= -40 && rmsDb > -60 }
-    }
-
-    /// Папка с файлом name: в bundle приложения ресурсы могут лежать в корне (.process) или в подпапке.
-    public static func directory(of name: String, in bundle: Bundle, subdirectories: [String]) -> URL? {
-        let base = (name as NSString).deletingPathExtension
-        let ext = (name as NSString).pathExtension
-        for sub in [nil] + subdirectories.map({ Optional($0) }) {
-            if let url = bundle.url(forResource: base, withExtension: ext, subdirectory: sub) {
-                return url.deletingLastPathComponent()
-            }
-        }
-        return nil
     }
 
     /// Эталон: Int16 → −1…1.

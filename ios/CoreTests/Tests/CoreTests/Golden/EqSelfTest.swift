@@ -1,8 +1,9 @@
 import Foundation
+@testable import Core
 
-// Самотест EQ: сверка с эталонами Resources/golden/eq_*.i16 (ios/tools/eq/golden.mjs — EqChain веба в OfflineAudioContext
+// Самотест EQ: сверка с эталонами CoreTests/golden/eq_*.i16 (ios/tools/eq/golden.mjs — EqChain веба в OfflineAudioContext
 // Chromium). Как в вебе, EQ начинается пустым и первые полосы вводятся кроссфейдом; события — новый EQ в кадре блока.
-// Вход — MasterSelfTest.input. Общий для CoreTests и DIAGNOSTICS → SELF-TEST.
+// Вход — MasterSelfTest.input. Только в тестах Core.
 
 public enum EqSelfTest {
     public struct Case: @unchecked Sendable {
@@ -15,7 +16,7 @@ public enum EqSelfTest {
         let eqs: [(frame: Int, eq: Eq)]
     }
 
-    /// Код в Result.engine (после мастера 36–40) и имя в SELF-TEST.
+    /// Код в Result.engine (после мастера 36–40) и имя набора.
     public static let code = 41
     public static let engineNames = [41: "EQ"]
     static let block = 128

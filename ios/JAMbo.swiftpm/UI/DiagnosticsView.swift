@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// DIAGNOSTICS: фактическое состояние звука («Now:»), нагрузка, время колбэка по разделам и кадры интерфейса (S14a:
-/// последняя секунда и худшее с RESET — замер идёт и при закрытом окне), сборка, место privacy manifest (SELF-TEST —
-/// своё окно, S9e). Тест-тон и строка Tap — только в отладочной сборке (S14: в App Store отладочных функций нет).
+/// последняя секунда и худшее с RESET — замер идёт и при закрытом окне), сборка, место privacy manifest.
+/// Тест-тон и строка Tap — только в отладочной сборке (S14: в App Store отладочных функций нет).
 struct DiagnosticsView: View {
     let model: AppModel
     @Environment(\.theme) private var theme
