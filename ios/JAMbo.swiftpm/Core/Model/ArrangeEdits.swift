@@ -62,28 +62,47 @@ extension Track {
     /// блоки по такту, в два — по два), но не длиннее 8 тактов; у каждого блока потом своя копия клипа — правится в
     /// STEPS отдельно. Возвращает номер первого блока.
     @discardableResult
-    public mutating func placeClip(_ b: ArrBlock) -> Int {
+    /// skipEmpty — участок без тригов не пишется (запись, перенос строк; решение пользователя): тогда может вернуть -1.
+    public mutating func placeClip(_ b: ArrBlock, skipEmpty: Bool = true) -> Int {
         let pass: Int = Swift.max(1, b.pattern?.passTicks ?? clipSteps(b.clip))
         let chunk: Int = Swift.min(pass, Track.maxClipBlock)
         let len: Int = Swift.max(1, b.length)
-        if len <= chunk && (b.offset % pass) + len <= pass { return placeBlock(b) }
+        if len <= chunk && (b.offset % pass) + len <= pass {
+            return !skipEmpty || clipHasTrig(b) ? placeBlock(b) : -1
+        }
         var pos: Int = 0
-        var first: Int = -1
+        var firstStart: Int = -1
         while pos < len {
             let o: Int = (b.offset + pos) % pass
             let seg: Int = Swift.min(len - pos, chunk - o % chunk, pass - o)
             let piece = ArrBlock(clip: b.clip, start: b.start + pos, length: seg, offset: o, pattern: b.pattern)
-            let i: Int = placeBlock(piece)
-            if first < 0 { first = i }
+            // Участок без тригов — пусто, блока нет (решение пользователя).
+            if !skipEmpty || clipHasTrig(piece) {
+                placeBlock(piece)
+                if firstStart < 0 { firstStart = piece.start }
+            }
             pos += seg
         }
-        return blocks.firstIndex { $0.start == b.start } ?? Swift.max(0, first)
+        return blocks.firstIndex { $0.start == firstStart } ?? -1
+    }
+
+    /// Есть ли в участке блока b триг его клипа (по проходу, с учётом скорости).
+    public func clipHasTrig(_ b: ArrBlock) -> Bool {
+        guard let c = b.pattern ?? (clipFilled(b.clip) ? clips[b.clip] : nil) else { return false }
+        let n: Int = Swift.min(b.length, Swift.max(1, c.passTicks))
+        var i: Int = 0
+        while i < n {
+            let k: Int = c.playIndex(c.localStep(b.offset + i))
+            if let st = c.step(k), st.on { return true }
+            i += 1
+        }
+        return false
     }
 
     /// Новый блок клипа k на позиции at (длина — проход клипа или length; длиннее — блоками по проходу, placeClip).
     @discardableResult
     public mutating func addBlock(clip k: Int, at: Int, length: Int? = nil) -> Int {
-        return placeClip(ArrBlock(clip: k, start: at, length: length ?? clipSteps(k)))
+        return placeClip(ArrBlock(clip: k, start: at, length: length ?? clipSteps(k)), skipEmpty: false)
     }
 
     /// Перенос блока i на начало start.
@@ -152,7 +171,7 @@ extension Track {
         let x: Int = Swift.max(0, at)
         let len: Int = length ?? clipSteps(k)
         shiftArrange(after: x, by: len)
-        return placeClip(ArrBlock(clip: k, start: x, length: len))
+        return placeClip(ArrBlock(clip: k, start: x, length: len), skipEmpty: false)
     }
 
     /// Протяжка края вставленного блока i при INSERT: новая длина, блоки правее сдвигаются вслед.

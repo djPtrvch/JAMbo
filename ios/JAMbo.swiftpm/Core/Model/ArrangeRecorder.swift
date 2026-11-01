@@ -191,6 +191,7 @@ extension Project {
             var c = Clip(pages: [[Step]](repeating: Track.emptyPage(), count: pages), length: n, playFrom: 0,
                          playTo: pages - 1, scale: src.scale, root: src.root, fx: src.fx)
             var i: Int = 0
+            var any: Bool = false
             while i < n {
                 let at: Int = x + i
                 if let p = played[at], var st = src.step(p) {
@@ -202,11 +203,13 @@ extension Project {
                             st.on = false
                         }
                     }
+                    if st.on { any = true }
                     c.pages[i / n16][i % n16] = st
                 }
                 i += 1
             }
-            tracks[t].placeBlock(ArrBlock(clip: s.slot, start: x, length: n, pattern: c))
+            // Блок без прозвучавших тригов (заглушённая дорожка, Chance не прошёл) — не пишется (решение пользователя).
+            if any { tracks[t].placeBlock(ArrBlock(clip: s.slot, start: x, length: n, pattern: c)) }
             x += n
         }
     }

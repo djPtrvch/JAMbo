@@ -403,9 +403,16 @@ final class ArrangeTests: XCTestCase {
         XCTAssertEqual(j.entries[2].last, ArrJournal.Entry(slot: 3, start: 1000))
     }
 
+    /// Клип в такт с тригом на каждом шаге: участки записи не пустые.
+    private func fullClip() -> Clip {
+        var c = Clip(pages: [Track.emptyPage()], length: 16, playFrom: 0, playTo: 0)
+        for i in 0..<16 { c.pages[0][i].on = true }
+        return c
+    }
+
     func testSendToArrange() {
         var p = Project()
-        p.tracks[0].clips[1] = Clip(pages: [Track.emptyPage()], length: 16, playFrom: 0, playTo: 0)
+        p.tracks[0].clips[1] = fullClip()
         p.tracks[0].placeBlock(ArrBlock(clip: 0, start: 0, length: 16))
         p.tracks[1].placeBlock(ArrBlock(clip: 0, start: 0, length: 64))
         let blocks: [[ArrBlock]] = [[ArrBlock(clip: 1, start: 0, length: 40, offset: 20)], [], []]
@@ -439,8 +446,9 @@ final class ArrangeTests: XCTestCase {
         XCTAssertEqual(list, [[1, -1, 32, 48, 0], [0, 0, 32, 48, 5], [0, -1, 48, 64, 0], [1, 2, 48, 64, 0],
                               [0, -1, 32, 34, 16]])
         var p = Project()
+        p.tracks[0].clips[0] = fullClip()
         p.tracks[0].placeBlock(ArrBlock(clip: 0, start: 0, length: 128))
-        p.tracks[1].clips[2] = Clip(pages: [Track.emptyPage()], length: 16, playFrom: 0, playTo: 0)
+        p.tracks[1].clips[2] = fullClip()
         p.applyRecording(segs)
         XCTAssertEqual(spans(p.tracks[0]), [[0, 0, 32, 0], [0, 34, 9, 7], [0, 43, 5, 0], [0, 64, 64, 64]])
         XCTAssertEqual(spans(p.tracks[1]), [[2, 48, 16, 0]])
@@ -463,6 +471,7 @@ final class ArrangeTests: XCTestCase {
         XCTAssertEqual(list, [[0, 0, 0, 8, 0, 0], [0, 0, 8, 13, 8, 1], [1, 0, 0, 13, 0, 1], [0, 0, 13, 16, 13, 0],
                               [1, 0, 13, 16, 13, 0]])
         var p = Project()
+        p.tracks[0].clips[0] = fullClip()
         p.tracks[0].placeBlock(ArrBlock(clip: 0, start: 0, length: 32))
         p.applyRecording(segs)
         XCTAssertEqual(spans(p.tracks[0]), [[0, 0, 8, 0], [0, 13, 3, 13], [0, 16, 16, 16]])

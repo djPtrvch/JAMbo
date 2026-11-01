@@ -133,13 +133,32 @@ final class ArrangeFiredTests: XCTestCase {
         p.tracks[0].clips[0] = Clip(pages: [Track.emptyPage(), Track.emptyPage()], length: 32, playFrom: 0, playTo: 1)
         p.tracks[0].clips[0]!.pages[0][0].on = true
         p.applyRecording([ArrRecorder.Seg(track: 0, slot: 0, start: 0, end: 72, offset: 8)])
-        XCTAssertEqual(p.tracks[0].blocks.map { [$0.start, $0.length, $0.offset] }, [[0, 24, 8], [24, 32, 0], [56, 16, 0]])
+        XCTAssertEqual(p.tracks[0].blocks.map { [$0.start, $0.length, $0.offset] }, [[24, 32, 0], [56, 16, 0]], "начало прохода без тригов — пусто")
         // Длинный клип (8 страниц) — не длиннее 8 тактов.
         var t = Track(index: 0)
         t.clips[0] = Clip(pages: [[Step]](repeating: Track.emptyPage(), count: 8), length: 128, playFrom: 0, playTo: 7)
         t.clips[0]!.pages[0][0].on = true
         t.addBlock(clip: 0, at: 0, length: 300)
         XCTAssertEqual(t.blocks.map { $0.length }, [128, 128, 44])
+    }
+
+    func testEmptyBlocksNotWritten() {
+        // Участок клипа без тригов — без блока: клип в 2 такта, триг только в 1-м, запись со 2-го такта.
+        var p = Project()
+        p.tracks[0].clips[0] = Clip(pages: [Track.emptyPage(), Track.emptyPage()], length: 32, playFrom: 0, playTo: 1)
+        p.tracks[0].clips[0]!.pages[0][0].on = true
+        p.applyRecording([ArrRecorder.Seg(track: 0, slot: 0, start: 0, end: 64, offset: 16)])
+        XCTAssertEqual(p.tracks[0].blocks.map { [$0.start, $0.length] }, [[16, 32], [48, 16]])
+        // Запись «по факту»: такты, где ничего не прозвучало (mute, Chance), — пусто.
+        var q = Project()
+        q.tracks[0].clips[0] = Clip()
+        q.tracks[0].clips[0]!.pages[0][0].on = true
+        var pp: [[Int: Int]] = [[Int: Int]](repeating: [:], count: Params.maxTracks)
+        for x in 0..<48 { pp[0][x] = x % 16 }
+        var ff: [Set<Int>] = [Set<Int>](repeating: [], count: Params.maxTracks)
+        ff[0] = [0, 32]
+        q.applyRecording([ArrRecorder.Seg(track: 0, slot: 0, start: 0, end: 48, offset: 0)], played: pp, fired: ff)
+        XCTAssertEqual(q.tracks[0].blocks.map { $0.start }, [0, 32])
     }
 }
 
