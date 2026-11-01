@@ -163,6 +163,8 @@ jobs:
         working-directory: ios/JAMbo.swiftpm
         run: |
           mkdir -p "$RUNNER_TEMP/stats"
+          # Память процесса компилятора по времени (RSS, раз в секунду): где пик — в проверке типов или в генерации кода.
+          ( while true; do ps -axo rss=,etime=,comm= | awk '/swift-frontend/ {printf "%s %d\n", $2, $1/1024}'; sleep 1; done ) > "$RUNNER_TEMP/rss.txt" & W=$!
           start=$(date +%s)
           xcodebuild build \
             -scheme JAMbo \
@@ -174,7 +176,10 @@ jobs:
             SWIFT_COMPILATION_MODE=wholemodule \
             OTHER_SWIFT_FLAGS="\$(inherited) -stats-output-dir $RUNNER_TEMP/stats" \
             > "$RUNNER_TEMP/build.log" 2>&1 || true
+          kill $W || true
           echo "build seconds: $(( $(date +%s) - start ))"
+          echo "RSS timeline (elapsed MB) of the biggest swift-frontend, every 5th sample:"
+          awk '{ if ($2 > 300) print }' "$RUNNER_TEMP/rss.txt" | awk 'NR % 5 == 1' | tr '\n' ' '; echo
           grep -E 'error:|BUILD (SUCCEEDED|FAILED)' "$RUNNER_TEMP/build.log" | sort -u | head -60 || true
       - name: Result
         run: |
