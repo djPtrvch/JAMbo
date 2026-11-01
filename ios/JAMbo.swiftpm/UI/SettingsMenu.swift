@@ -149,6 +149,10 @@ struct RecordSettingsView: View {
         return FormRows(rows: [
             .toggle("QUANTIZE", m.settings.record.quantize) { m.setQuantize($0) },
             .note("ON: a note played with REC lands on the nearest step. OFF: on the step where it was played."),
+            .label("ARRANGE REC START"),
+            .choices([MenuChoice(title: "PLAYHEAD", current: !m.settings.record.arrFromStart) { m.updateSettings { $0.record.arrFromStart = false } },
+                      MenuChoice(title: "BEGINNING", current: m.settings.record.arrFromStart) { m.updateSettings { $0.record.arrFromStart = true } }]),
+            .note("Live recording into the arrangement (hold ARRANGE + tap REC, then PLAY): PLAYHEAD — from the playhead. BEGINNING — always from the start of the timeline."),
             .label("STEP SWIPE"),
             .choices([MenuChoice(title: "LENGTH", current: !paint) { m.updateSettings { $0.stepPaint = false } },
                       MenuChoice(title: "PAINT", current: paint) { m.updateSettings { $0.stepPaint = true } }]),

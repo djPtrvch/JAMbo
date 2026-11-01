@@ -54,10 +54,24 @@ struct TopBar: View {
         HStack(spacing: Layout.gap) {
             PatternsButton(model: model).frame(width: Layout.topButton).topFrame(model, \.patterns)
                 .midiTarget(model, "PATTERNS")
-            // Запись аранжировки при закрытом окне — красный контур.
-            ViewButton(title: "ARRANGE", on: model.arrangeView, ring: model.arrRecording && !model.arrangeView) {
+            // Запись аранжировки (решение пользователя 2.11): включена — тонкий красный контур, идёт — толстый.
+            ViewButton(title: "ARRANGE", on: model.arrangeView, ring: model.arrRecArm,
+                       ringWidth: model.arrRecording ? 3 : 1) {
+                // Зажатой ARRANGE включали запись (тап REC) — окно не переключается.
+                if model.arrangeHoldUsed {
+                    model.arrangeHoldUsed = false
+                    return
+                }
                 model.toggleArrange()
             }
+            .simultaneousGesture(DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    if !model.arrangeHeld {
+                        model.arrangeHeld = true
+                        model.arrangeHoldUsed = false
+                    }
+                }
+                .onEnded { _ in model.arrangeHeld = false })
             .frame(width: Layout.topButton)
             // Клип из сетки, принесённый на ARRANGE, открывает аранжировщик (AppModelCarry).
             .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { model.arrangeButtonFrame = $0 }
@@ -271,7 +285,15 @@ struct RecButton: View {
         .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(theme.rec, lineWidth: 1))
         .contentShape(Rectangle())
         .onTapGesture {
-            if model.shiftHeld { model.stemTap(StemRing.master) } else { model.toggleRec() }
+            if model.arrangeHeld {
+                // ARRANGE + REC — запись аранжировки (решение пользователя 2.11).
+                model.arrangeHoldUsed = true
+                model.toggleArrRec()
+            } else if model.shiftHeld {
+                model.stemTap(StemRing.master)
+            } else {
+                model.toggleRec()
+            }
         }
     }
 }
@@ -312,6 +334,7 @@ struct ViewButton: View {
     let title: String
     let on: Bool
     var ring: Bool = false
+    var ringWidth: CGFloat = 3
     let action: () -> Void
     @Environment(\.theme) private var theme
 
@@ -322,7 +345,7 @@ struct ViewButton: View {
             .foregroundStyle(on ? theme.bg : theme.text)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(on ? theme.text : theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
-            .overlay(RoundedRectangle(cornerRadius: Layout.radius).strokeBorder(ring ? theme.rec : Color.clear, lineWidth: 3))
+            .overlay(RoundedRectangle(cornerRadius: Layout.radius).strokeBorder(ring ? theme.rec : Color.clear, lineWidth: ringWidth))
             .contentShape(Rectangle())
             .onTapGesture { action() }
     }

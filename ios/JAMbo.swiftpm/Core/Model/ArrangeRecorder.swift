@@ -67,6 +67,18 @@ public struct ArrRecorder: Sendable {
         heard = [[Int: Step]](repeating: [:], count: tracks)
     }
 
+    /// Отрезки записи сейчас (законченные и идущие — до конца текущего шага): показ записи на таймлайне.
+    public var current: [Seg] {
+        guard active else { return [] }
+        var out: [Seg] = done
+        for s in open {
+            guard var x = s else { continue }
+            x.end = Swift.max(x.start, pos + 1)
+            if x.end > x.start { out.append(x) }
+        }
+        return out
+    }
+
     /// Клип, который сейчас пишется у дорожки t (−1 — тишина; nil — дорожка не пишется).
     public func openSlot(_ t: Int) -> Int? {
         guard active, open.indices.contains(t) else { return nil }

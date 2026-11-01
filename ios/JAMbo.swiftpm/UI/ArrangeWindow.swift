@@ -104,8 +104,13 @@ struct ArrCursorLayer: View {
         TimelineView(.animation(minimumInterval: 1.0 / 60, paused: !model.playing)) { _ in
             let _ = RedrawMeter.hit(.arrPlay)
             let pos: Double = model.arrNowX
+            let rec: ArrRecorder? = model.live.recorder.active ? model.live.recorder : nil
+            let colors: [Int] = model.project.tracks.map { $0.color }
             Canvas { ctx, _ in
-                ArrDraw(ctx: ctx, m: m, theme: theme).cursorLine(pos, head: head)
+                let d = ArrDraw(ctx: ctx, m: m, theme: theme)
+                // Запись аранжировки (решение пользователя 2.11): записываемое растёт за плейхедом.
+                if let r = rec { d.recording(r, colors: colors, now: pos) }
+                d.cursorLine(pos, head: head)
             }
         }
         .allowsHitTesting(false)
@@ -452,6 +457,50 @@ struct ArrDraw {
         var cc = ctx
         cc.clip(to: Path(r.insetBy(dx: 1, dy: 1)))
         cc.fill(path, with: .color(ArrColors.text.opacity(0.6)))
+    }
+
+    /// Идущая запись: участки дорожек (до плейхеда) — блоками цвета дорожки с красной рамкой поверх прежних, на них —
+    /// прозвучавшие триги и живые ноты.
+    func recording(_ r: ArrRecorder, colors: [Int], now: Double) {
+        let lo: Double = m.step(at: 0) - 1
+        let hi: Double = m.step(at: m.size.width) + 1
+        for s in r.current where !s.silent && s.track < m.tracks {
+            let a: Double = Double(s.start)
+            let b: Double = min(Double(s.end), max(a, now))
+            if b <= a || b < lo || a > hi { continue }
+            let y: CGFloat = m.rowY(s.track)
+            if y > m.size.height || y + m.rowH < m.body { continue }
+            let x0: CGFloat = m.stepX(a)
+            let rect = CGRect(x: x0, y: y + 1, width: max(2, m.stepX(b) - x0), height: m.rowH - 2)
+            let color: Color = ArrColors.color(s.track < colors.count ? colors[s.track] : 0)
+            let shape = Path(roundedRect: rect, cornerRadius: 4)
+            ctx.fill(shape, with: .color(theme.panel))
+            ctx.fill(shape, with: .color(color))
+            ctx.stroke(Path(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), cornerRadius: 4), with: .color(theme.rec), lineWidth: 1)
+            // Триги: шаги, что прозвучали (прошли Chance), и живые ноты.
+            let side: CGFloat = max(2, min(m.stepW * 0.7, rect.height * 0.4))
+            let pad: CGFloat = max(0.5, (m.stepW - side) / 2)
+            var path = Path()
+            let heard: [Int: Step] = s.track < r.heard.count ? r.heard[s.track] : [:]
+            let fired: Set<Int> = s.track < r.fired.count ? r.fired[s.track] : []
+            var x: Int = max(s.start, Int(lo))
+            let last: Int = min(Int(b.rounded(.up)), Int(hi))
+            while x < last {
+                if let st = heard[x], st.on, fired.contains(x) {
+                    let w: CGFloat = st.len >= 2 ? CGFloat(st.len) * m.stepW - 2 * pad : side
+                    path.addRect(CGRect(x: m.stepX(Double(x)) + pad, y: rect.midY - side / 2, width: w, height: side))
+                }
+                x += 1
+            }
+            for n in r.live where n.track == s.track && n.at >= s.start && Double(n.at) < b {
+                let w: CGFloat = n.len >= 2 ? CGFloat(n.len) * m.stepW - 2 * pad : side
+                path.addRect(CGRect(x: m.stepX(Double(n.at)) + pad, y: rect.midY - side / 2, width: w, height: side))
+            }
+            var cc = ctx
+            cc.clip(to: Path(rect.insetBy(dx: 1, dy: 1)))
+            cc.clip(to: Path(CGRect(x: rect.minX, y: rect.minY, width: max(0, m.stepX(b) - rect.minX), height: rect.height)))
+            cc.fill(path, with: .color(ArrColors.text.opacity(0.6)))
+        }
     }
 
     /// Куда встанет поднятый блок — контур.

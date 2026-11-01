@@ -104,6 +104,9 @@ final class AppModel {
     var arrAuto: Bool = false
     /// Кнопка записи аранжировки под STEPS сетки: пока играет сетка, запуски клипов пишутся на таймлайн блоками.
     var arrRecArm: Bool = false
+    /// ARRANGE зажата (с тапом REC — запись аранжировки; отпустили без REC — обычный тап).
+    @ObservationIgnored var arrangeHeld: Bool = false
+    @ObservationIgnored var arrangeHoldUsed: Bool = false
     /// Игра по таймлайну (PLAY в окне аранжировщика): сетка и аранжировщик разделены — клипы в сетке не запускаются.
     var arrPlay: Bool = false
     /// Карандаш под измерителем аранжировщика (решение пользователя): рисование кривой в окне AUTO пальцем.
@@ -450,16 +453,23 @@ final class AppModel {
         if playing {
             // Петля включена — PLAY в аранжировщике играет её сначала.
             let a: Arrangement = project.arrange
-            var from: Int = arrangeView && a.loop && a.hasLoop ? a.loopFrom : arrCursor
+            // Запись аранжировки включена (ARRANGE + REC, решение пользователя 2.11): PLAY и в окне ARRANGE играет сетку,
+            // запись — с плейхеда или с начала (SETTINGS → RECORD → ARRANGE REC START).
+            let tl: Bool = arrangeView && !arrRecArm
+            var from: Int = tl && a.loop && a.hasLoop ? a.loopFrom : arrCursor
             // Курсор за концом аранжировки (ушёл при игре из сетки) — с начала, иначе игра сразу кончается.
-            if arrangeView && !(a.loop && a.hasLoop) && project.arrangeEnd > 0 && from >= project.arrangeEnd {
+            if tl && !(a.loop && a.hasLoop) && project.arrangeEnd > 0 && from >= project.arrangeEnd {
                 from = 0
                 arrCursor = 0
             }
-            arrPlay = arrangeView
-            audio.core.events.push(.arrange(on: arrangeView, from: from))
+            if arrRecArm && settings.record.arrFromStart {
+                from = 0
+                arrCursor = 0
+            }
+            arrPlay = tl
+            audio.core.events.push(.arrange(on: tl, from: from))
             live.stopped()
-            live.begin(project, arrange: arrangeView)
+            live.begin(project, arrange: tl)
             syncArrRecord(from: from)
         } else {
             arrCursor = live.arrPos
@@ -476,12 +486,14 @@ final class AppModel {
         if playing { return }
         ensureAudio()
         playing = true
-        arrPlay = arrangeView
+        let tl: Bool = arrangeView && !arrRecArm
+        if arrRecArm && settings.record.arrFromStart { arrCursor = 0 }
+        arrPlay = tl
         endRecTake()
         live.stopped()
-        live.begin(project, arrange: arrangeView)
+        live.begin(project, arrange: tl)
         syncArrRecord(from: arrCursor)
-        audio.core.events.push(.arrange(on: arrangeView, from: arrCursor))
+        audio.core.events.push(.arrange(on: tl, from: arrCursor))
         audio.core.events.push(.playAt(frame: frame))
     }
 

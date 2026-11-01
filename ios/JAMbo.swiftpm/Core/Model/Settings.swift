@@ -9,8 +9,29 @@ public struct RecordSettings: Codable, Equatable, Sendable {
     public var overdub: Bool = false
     /// Запись автоматизации с REC (S13).
     public var autoRec: Bool = true
+    /// ARRANGE REC START (решение пользователя 2.11): запись аранжировки из сетки на PLAY — с начала таймлайна (true)
+    /// или с плейхеда (false, по умолчанию).
+    public var arrFromStart: Bool = false
 
     public init() {}
+
+    private enum Keys: String, CodingKey { case quantize, overdub, autoRec, arrFromStart }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: Keys.self)
+        quantize = (try? c.decode(Bool.self, forKey: .quantize)) ?? true
+        overdub = (try? c.decode(Bool.self, forKey: .overdub)) ?? false
+        autoRec = (try? c.decode(Bool.self, forKey: .autoRec)) ?? true
+        arrFromStart = (try? c.decode(Bool.self, forKey: .arrFromStart)) ?? false
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: Keys.self)
+        try c.encode(quantize, forKey: .quantize)
+        try c.encode(overdub, forKey: .overdub)
+        try c.encode(autoRec, forKey: .autoRec)
+        try c.encode(arrFromStart, forKey: .arrFromStart)
+    }
 }
 
 /// SETTINGS → SIDECHAIN: какие посылы приглушаются вместе с дорожкой (по умолчанию только Drive).

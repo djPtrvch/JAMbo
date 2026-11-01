@@ -163,6 +163,35 @@ final class ArrangeFiredTests: XCTestCase {
         XCTAssertEqual(p.tracks[1].blocks[0].pattern?.pages[0][4].notes, [40])
     }
 
+    /// ARRANGE REC START (2.11): по умолчанию — с плейхеда; прежние настройки записи читаются без потерь.
+    func testRecordSettingsArrStart() throws {
+        let old = #"{"quantize":false,"overdub":true,"autoRec":false}"#.data(using: .utf8)!
+        let r: RecordSettings = try JSONDecoder().decode(RecordSettings.self, from: old)
+        XCTAssertFalse(r.quantize)
+        XCTAssertTrue(r.overdub)
+        XCTAssertFalse(r.autoRec)
+        XCTAssertFalse(r.arrFromStart)
+        var n = RecordSettings()
+        n.arrFromStart = true
+        let back: RecordSettings = try JSONDecoder().decode(RecordSettings.self, from: JSONEncoder().encode(n))
+        XCTAssertEqual(back, n)
+    }
+
+    /// Показ идущей записи: отрезки — законченные и идущий до конца текущего шага.
+    func testRecorderCurrent() {
+        var rec = ArrRecorder()
+        var states: [(slot: Int, offset: Int)?] = [(slot: 0, offset: 0)]
+        states += [(slot: Int, offset: Int)?](repeating: nil, count: Params.maxTracks - 1)
+        XCTAssertTrue(rec.current.isEmpty)
+        rec.begin(at: 4, states: states)
+        rec.step(5)
+        rec.step(6)
+        XCTAssertEqual(rec.current.map { [$0.track, $0.start, $0.end] }, [[0, 4, 7]])
+        rec.clip(track: 0, slot: 1)
+        rec.step(7)
+        XCTAssertEqual(rec.current.map { [$0.slot, $0.start, $0.end] }, [[0, 4, 6], [1, 6, 8]])
+    }
+
     func testLongSplitsIntoBlocks() {
         var p = Project()
         var c = Clip()
