@@ -101,9 +101,9 @@ struct EditorBar: View {
                 .frame(maxWidth: infoW > 0 ? nil : .infinity, alignment: .leading)
             SampleRecButton(model: model)
             if model.editorWarp {
-                WarpBar(model: model, data: data)
+                AnyView(WarpBar(model: model, data: data))
             } else {
-                tools(play: true)
+                AnyView(tools(play: true))
             }
             warpButton
             loadSave

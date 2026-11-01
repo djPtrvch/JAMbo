@@ -55,16 +55,11 @@ struct PagesColumn: View {
         }
     }
 
-    @ViewBuilder
-    private func row(_ r: Int) -> some View {
+    private func row(_ r: Int) -> AnyView {
         let n: Int = model.seq.pages.count
-        if r < n {
-            PageThumb(model: model, page: r)
-        } else if r == n && n < Params.maxPages {
-            PlusThumb()
-        } else {
-            Color.clear
-        }
+        if r < n { return AnyView(PageThumb(model: model, page: r)) }
+        if r == n && n < Params.maxPages { return AnyView(PlusThumb()) }
+        return AnyView(Color.clear)
     }
 
     private func outline(rowH: CGFloat) -> some View {

@@ -259,20 +259,23 @@ struct EqBar: View {
             .onTapGesture { model.eqNameTapped() }
     }
 
-    @ViewBuilder
-    private func item(_ i: Int) -> some View {
+    /// Столбец строки EQ — AnyView (S14: девять веток switch давали глубоко вложенный тип и много кода у компилятора).
+    private func item(_ i: Int) -> AnyView {
         let b: EqBand? = model.selectedBand
+        let phones: Bool = model.phonesShown
         switch i {
-        case 0: typeField(b)
-        case 1: freqField(b)
-        case 2: gainField(b)
-        case 3: qField(b)
+        case 0: return AnyView(typeField(b))
+        case 1: return AnyView(freqField(b))
+        case 2: return AnyView(gainField(b))
+        case 3: return AnyView(qField(b))
         // У коррекции наушников нет M/S, DYN и LISTEN; на месте STEREO — её предусиление.
-        case 4: if model.phonesShown { preampLabel } else { msField(b) }
-        case 5: if !model.phonesShown { dynField(b) }
-        case 6: if !model.phonesShown { EqListenButton(model: model, enabled: true) }
-        case 7: presetsButton
-        default: EqTool(title: "BYPASS", enabled: true, active: !model.eqTarget.on) { model.toggleEqBypass() }
+        case 4: return phones ? AnyView(preampLabel) : AnyView(msField(b))
+        case 5: return phones ? AnyView(EmptyView()) : AnyView(dynField(b))
+        case 6: return phones ? AnyView(EmptyView()) : AnyView(EqListenButton(model: model, enabled: true))
+        case 7: return AnyView(presetsButton)
+        default:
+            let m: AppModel = model
+            return AnyView(EqTool(title: "BYPASS", enabled: true, active: !m.eqTarget.on) { m.toggleEqBypass() })
         }
     }
 

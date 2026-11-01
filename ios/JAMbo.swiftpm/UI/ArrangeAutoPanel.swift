@@ -28,12 +28,12 @@ struct ArrAutoPanel: View {
                 Color.black.opacity(0.001).contentShape(Rectangle()).onTapGesture { close() }
             }
             if adding && t >= 0 {
-                ArrAutoAddMenu(model: model, track: t) { close() }
-                    .offset(x: ArrMetrics.headerW, y: 0)
+                AnyView(ArrAutoAddMenu(model: model, track: t) { close() }
+                    .offset(x: ArrMetrics.headerW, y: 0))
             }
             if let id = laneMenu, t >= 0 {
-                ArrAutoLaneMenu(model: model, track: t, param: id) { close() }
-                    .offset(x: ArrMetrics.headerW, y: 0)
+                AnyView(ArrAutoLaneMenu(model: model, track: t, param: id) { close() }
+                    .offset(x: ArrMetrics.headerW, y: 0))
             }
         }
         .background(theme.bg)

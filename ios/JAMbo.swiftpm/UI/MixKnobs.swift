@@ -122,10 +122,10 @@ struct TrackMenus: View {
                 Color.black.opacity(0.001)
                     .frame(width: size.width, height: size.height)
                     .onTapGesture { model.trackMenu = nil }
-                menu(m).offset(menuOffset(m.slot))
+                AnyView(menu(m).offset(menuOffset(m.slot)))
             }
             if let k = model.renaming, k < model.project.tracks.count {
-                renameField(k)
+                AnyView(renameField(k))
             }
         }
     }

@@ -81,13 +81,19 @@ struct PatternGrid: View {
         }
     }
 
-    @ViewBuilder
     private func cells(_ g: GridGeometry) -> some View {
         let w = model.gridWindow
         let group: Bool = groupLifted
         ForEach(0..<g.rows, id: \.self) { r in
-            if let k = w.rows[r] {
-                let lifted: Bool = dragRow == k && ghost != nil
+            rowCells(g, r, w, group)
+        }
+    }
+
+    /// Строка сетки: ячейка строки и клипы дорожек (или «+» под последней) — AnyView (S14, объём кода сборки).
+    private func rowCells(_ g: GridGeometry, _ r: Int, _ w: (rows: [Int?], plusRow: Int?, top: Int, maxTop: Int), _ group: Bool) -> AnyView {
+        if let k = w.rows[r] {
+            let lifted: Bool = dragRow == k && ghost != nil
+            return AnyView(ZStack(alignment: .topLeading) {
                 SceneCellView(model: model, row: k, selected: model.gridSel.rows.contains(k)).frame(width: g.sceneW, height: g.rowH)
                     .opacity(lifted ? 0 : 1)
                     .midiMarks(model, [.button("ROW \(r + 1)")])
@@ -106,10 +112,12 @@ struct PatternGrid: View {
                         .offset(y: rowShift(g, k))
                         .animation(.easeInOut(duration: 0.2), value: rowTarget)
                 }
-            } else if w.plusRow == r {
-                PlusCell().frame(width: g.sceneW, height: g.rowH).offset(g.origin(col: -1, row: r))
-            }
+            })
         }
+        if w.plusRow == r {
+            return AnyView(PlusCell().frame(width: g.sceneW, height: g.rowH).offset(g.origin(col: -1, row: r)))
+        }
+        return AnyView(EmptyView())
     }
 
     /// Перенос строки: строки между поднятой и местом под пальцем сдвигаются на её место (на строку вверх или вниз).
@@ -165,13 +173,13 @@ struct PatternGrid: View {
         .allowsHitTesting(false)
     }
 
-    @ViewBuilder
-    private func ghostView(_ g: GridGeometry) -> some View {
+    /// Поднятое пальцем — AnyView (S14, объём кода сборки).
+    private func ghostView(_ g: GridGeometry) -> AnyView {
         if let p = ghost, groupLifted {
-            groupGhost(g, p)
+            return AnyView(groupGhost(g, p))
         } else if let p = ghost, let k = dragRow {
             // Строка целиком: колонка строк и клипы всех дорожек.
-            ZStack(alignment: .topLeading) {
+            return AnyView(ZStack(alignment: .topLeading) {
                 SceneCellView(model: model, row: k).frame(width: g.sceneW, height: g.rowH)
                 ForEach(0..<g.tracks, id: \.self) { i in
                     ClipCellView(model: model, cell: CellRef(track: i, row: k), lifted: false, target: false)
@@ -181,15 +189,16 @@ struct PatternGrid: View {
             }
             .shadow(color: .black.opacity(0.5), radius: 10)
             .offset(x: 0, y: p.y - g.rowH / 2)
-            .allowsHitTesting(false)
+            .allowsHitTesting(false))
         } else if let p = ghost, let c = dragCell {
-            ClipCellView(model: model, cell: c, lifted: false, target: false)
+            return AnyView(ClipCellView(model: model, cell: c, lifted: false, target: false)
                 .frame(width: g.trackW, height: g.rowH)
                 .scaleEffect(1.06)
                 .shadow(color: .black.opacity(0.5), radius: 10)
                 .offset(x: p.x - g.trackW / 2, y: p.y - g.rowH / 2)
-                .allowsHitTesting(false)
+                .allowsHitTesting(false))
         }
+        return AnyView(EmptyView())
     }
 
     /// Рамка выделения: бледная заливка и пунктир цветом текста (как в аранжировщике).
@@ -579,7 +588,7 @@ struct GridSideButtons: View {
                     arrow("▼", enabled: canDown || (model.project.arrowSwitch && model.playing)) { model.gridArrow(1) }.frame(height: h).midiTarget(model, "GRID ▼")
                 }
                 if fader {
-                    MixFader(model: model).frame(maxHeight: .infinity).midiTarget(model, MidiButtons.xfader)
+                    AnyView(MixFader(model: model).frame(maxHeight: .infinity).midiTarget(model, MidiButtons.xfader))
                 } else {
                     Spacer(minLength: 0)
                 }
