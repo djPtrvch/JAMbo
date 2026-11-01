@@ -205,39 +205,44 @@ jobs:
               big = sorted(((v, k) for k, v in s.items() if not k.startswith('time.') and isinstance(v, (int, float))), reverse=True)
               print('  top counters: ' + ', '.join('%s=%d' % (k, v) for v, k in big[:25]))
           EOF
-      - name: Functions by kind (object file)
+      - name: Functions by kind and by file (object files)
         run: |
-          O=$(find "$RUNNER_TEMP/dd" -path '*arm64*' -name 'JAMbo.o' -o -path '*arm64*' -name 'AppModule.o' | head -1)
-          [ -n "$O" ] || O=$(find "$RUNNER_TEMP/dd" -path '*Objects-normal*' -name '*.o' | xargs ls -S | head -1)
-          echo "object: $O"; ls -la "$O"
-          nm -U "$O" | awk '$2 ~ /^[tT]$/ {print $3}' > "$RUNNER_TEMP/syms.txt"
-          wc -l < "$RUNNER_TEMP/syms.txt"
-          xcrun swift-demangle --compact < "$RUNNER_TEMP/syms.txt" > "$RUNNER_TEMP/dem.txt"
-          python3 - "$RUNNER_TEMP/dem.txt" <<'EOF'
+          D=$(dirname "$(find "$RUNNER_TEMP/dd" -path '*Objects-normal/arm64/*' -name 'AppModel.o' | head -1)")
+          echo "objects: $D ($(ls "$D"/*.o | wc -l) files)"
+          : > "$RUNNER_TEMP/syms.txt"
+          for o in "$D"/*.o; do
+            f=$(basename "$o" .o)
+            nm -U "$o" | awk -v f="$f" '$2 ~ /^[tT]$/ {print f "\t" $3}' >> "$RUNNER_TEMP/syms.txt"
+          done
+          cut -f2 "$RUNNER_TEMP/syms.txt" | xcrun swift-demangle --compact > "$RUNNER_TEMP/dem.txt"
+          cut -f1 "$RUNNER_TEMP/syms.txt" > "$RUNNER_TEMP/files.txt"
+          python3 - "$RUNNER_TEMP/files.txt" "$RUNNER_TEMP/dem.txt" <<'EOF'
           import re, sys
           from collections import Counter
-          kinds = Counter(); owners = Counter(); ownk = Counter()
+          files = [l.strip() for l in open(sys.argv[1])]
+          dems = [l.strip() for l in open(sys.argv[2], errors='replace')]
           rules = [
               ('closure', r'closure #'), ('reabstraction thunk', r'reabstraction thunk'),
               ('key path', r'key path'), ('metadata accessor', r'metadata accessor|type metadata'),
               ('value witness', r'value witness|initializeBufferWithCopyOfBuffer|assignWithCopy|assignWithTake|initializeWithCopy|initializeWithTake|destroy|getEnumTagSinglePayload|storeEnumTagSinglePayload'),
               ('outlined', r'outlined '), ('protocol witness', r'protocol witness'),
-              ('observation (_modify/withMutation/access)', r'withMutation|\.access<|_\$observationRegistrar|\.modify'),
+              ('observation', r'withMutation|\.access<|_\$observationRegistrar'),
               ('getter', r'\.getter'), ('setter', r'\.setter'), ('modify', r'\.modify'),
               ('init', r'\.init\('), ('body', r'\.body'),
           ]
-          for line in open(sys.argv[1], errors='replace'):
-              d = line.strip()
+          kinds = Counter(); byfile = Counter(); fk = {}
+          for f, d in zip(files, dems):
               k = 'other'
               for name, rx in rules:
                   if re.search(rx, d):
                       k = name; break
-              kinds[k] += 1
-              m = re.search(r'(?:JAMbo|AppModule)\.([A-Za-z_][A-Za-z0-9_]*)', d)
-              o = m.group(1) if m else '?'
-              owners[o] += 1
-          print('FUNCTIONS total %d' % sum(kinds.values()))
-          for k, v in kinds.most_common(): print('  kind %-45s %d' % (k, v))
-          print('TOP OWNERS (type):')
-          for o, v in owners.most_common(60): print('  %6d %s' % (v, o))
+              kinds[k] += 1; byfile[f] += 1
+              fk.setdefault(f, Counter())[k] += 1
+          print('FUNCTIONS total %d in %d files' % (sum(kinds.values()), len(byfile)))
+          for k, v in kinds.most_common(): print('  kind %-22s %6d' % (k, v))
+          print('TOP FILES (functions: closure / thunk / keypath / witness / getter+setter):')
+          for f, v in byfile.most_common(70):
+              c = fk[f]
+              print('  %6d %-28s cl %5d th %4d kp %4d vw %4d gs %4d' % (v, f, c['closure'], c['reabstraction thunk'],
+                    c['key path'], c['value witness'] + c['protocol witness'], c['getter'] + c['setter'] + c['modify']))
           EOF
