@@ -98,3 +98,9 @@
 - Фильтр после конца кривой (KICK на хвосте держал прежний фильтр; затем щелчок, затем всплеск ×10 при проезде частоты через низы): см. docs/ai/sound-sampler.md «Фильтр голоса»; Biquad.glide, fadeTime, Sampler / SynthVoices — прямая форма I, fdip (доля фильтра в выходе). Тесты ArrangeAutoReturnTests.
 - LINK AUTO убран (решение пользователя): блоки не соединяются; разрез — точки на краях; прежний LINK — точки на стыках.
 - Проверено: Core — 494 теста. На iPad: меню блока (4 пункта), разрез кривых — не проверено; фильтр — проверяется пользователем (последнее: «всплеск при переходе» — исправлено, ждёт проверки).
+
+## Правки 2.11 (решения пользователя, проверено на iPad)
+- Фильтр голоса: скачок через сухой сигнал — S-кривая 20 мс (Biquad.mix, fadeTime), уход с HP — 80 мс (fadeHpTime); тесты ArrangeAutoReturnTests.testHpToOffStepWithoutClick.
+- DUPLICATE в меню дорожки — блоки целиком (своя копия клипа, кривые); LINK AUTO убран: блоки не соединяются, разрез (TRIM, INSERT, замена середины) — точки на краях частей (ArrBlock.pinCut), прежний формат и LINK проектов 1.11 — точки на стыках (migrateAutos, dropLegacyLinks).
+- Запись аранжировки из сетки: шаг, не прошедший Chance, — пустой; шаги — какими прозвучали (ArrRecorder.heard, LiveState.stepAt); живые ноты — всегда (ArrRecorder.live, Project.addLive / placeLive); ARRANGE (удержание) + REC — включить запись (AppModel.arrangeHeld), контур ARRANGE 1 / 3 pt; показ записи на таймлайне (ArrRecorder.current, ArrDraw.recording); SETTINGS → RECORD → ARRANGE REC START (RecordSettings.arrFromStart); прокрутка при игре — за плейхедом (arrPlayEnd, arrViewEnd). Живая запись из окна ARRANGE пробовалась и убрана.
+- Core — 497 тестов; сборка в Playgrounds — с первого раза (после 2d7daca).
