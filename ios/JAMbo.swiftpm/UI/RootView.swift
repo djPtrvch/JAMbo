@@ -269,11 +269,11 @@ struct RootView: View {
                 MeterColumn(model: model).frame(width: f.width, height: f.height).offset(x: f.minX, y: f.minY)
             }
             if model.project.arrange.hideSteps {
-                // Четыре места одной высоты — от низа измерителя до линии Layout.bottomGuard над низом экрана (решение
-                // пользователя: ниже — скругление экрана, кнопок там нет).
+                // Три места одной высоты — от низа измерителя до линии Layout.bottomGuard над низом экрана (решения
+                // пользователя: ниже — скругление экрана, кнопок там нет; кнопки — на всю высоту, измеритель не сдвигается).
                 let top: CGFloat = f.maxY + Layout.gap
                 let free: CGFloat = screenH - RootView.padBottom - Layout.bottomGuard - top
-                let h: CGFloat = max(30, (free - 3 * Layout.gap) / 4)
+                let h: CGFloat = max(30, (free - 2 * Layout.gap) / 3)
                 ArrSideButtons(model: model, width: f.width, height: h)
                     .offset(x: f.minX, y: top)
             }
