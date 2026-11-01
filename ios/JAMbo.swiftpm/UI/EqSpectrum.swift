@@ -207,14 +207,13 @@ struct EqCompareMenu: View {
     }
 
     /// Пункт i: −1 — OFF, 0… — дорожки; за последней дорожкой — пусто.
-    @ViewBuilder
-    private func cell(_ i: Int) -> some View {
+    private func cell(_ i: Int) -> AnyView {
         if i < 0 {
-            item("OFF", -1, enabled: true)
+            return AnyView(item("OFF", -1, enabled: true))
         } else if i < model.project.tracks.count {
-            item(model.project.tracks[i].name, i, enabled: i != model.selectedTrack)
+            return AnyView(item(model.project.tracks[i].name, i, enabled: i != model.selectedTrack))
         } else {
-            Color.clear.frame(maxWidth: .infinity)
+            return AnyView(Color.clear.frame(maxWidth: .infinity))
         }
     }
 

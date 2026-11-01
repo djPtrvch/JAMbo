@@ -38,16 +38,15 @@ struct MasterWindowView: View {
         }))
     }
 
-    @ViewBuilder
-    private var display: some View {
+    private var display: AnyView {
         if module == MasterScope.lim {
-            LimiterDisplay(model: model)
+            return AnyView(LimiterDisplay(model: model))
         } else if module == MasterScope.comp {
-            CompDisplay(model: model)
+            return AnyView(CompDisplay(model: model))
         } else if module == MasterScope.clip {
-            ClipDisplay(model: model)
+            return AnyView(ClipDisplay(model: model))
         } else {
-            SatDisplay(model: model)
+            return AnyView(SatDisplay(model: model))
         }
     }
 

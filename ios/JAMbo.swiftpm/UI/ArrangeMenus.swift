@@ -220,14 +220,13 @@ struct ArrPaletteGrid: View {
         }
     }
 
-    @ViewBuilder
-    private func swatch(_ k: Int) -> some View {
+    private func swatch(_ k: Int) -> AnyView {
         if none && k == ArrPalette.defaultColor {
-            RoundedRectangle(cornerRadius: 4)
+            return AnyView(RoundedRectangle(cornerRadius: 4)
                 .fill(theme.trackBg)
-                .overlay(Image(systemName: "nosign").font(.system(size: 13, weight: .semibold)).foregroundStyle(theme.dim))
+                .overlay(Image(systemName: "nosign").font(.system(size: 13, weight: .semibold)).foregroundStyle(theme.dim)))
         } else {
-            RoundedRectangle(cornerRadius: 4).fill(ArrColors.color(k))
+            return AnyView(RoundedRectangle(cornerRadius: 4).fill(ArrColors.color(k)))
         }
     }
 }

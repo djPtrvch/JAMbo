@@ -24,12 +24,14 @@ struct SampleWindow: View {
             .gesture(press, including: model.channel == .master ? .subviews : .all)
     }
 
-    @ViewBuilder
-    private var content: some View {
+    private var content: AnyView {
         switch model.channel {
-        case .track: trackView
-        case .mix: mixView
-        case .master: MasterIndicator(model: model)
+        case .track:
+            return AnyView(trackView)
+        case .mix:
+            return AnyView(mixView)
+        case .master:
+            return AnyView(MasterIndicator(model: model))
         }
     }
 
@@ -45,14 +47,13 @@ struct SampleWindow: View {
         .animation(.easeOut(duration: 0.2), value: model.fxPicture)
     }
 
-    @ViewBuilder
-    private var preview: some View {
+    private var preview: AnyView {
         if model.modPreview {
-            ModPreview(model: model)
+            return AnyView(ModPreview(model: model))
         } else if let e = SynthKey.engine(model.shownSound) {
-            SynthInfo(model: model, engine: e)
+            return AnyView(SynthInfo(model: model, engine: e))
         } else {
-            sampleView
+            return AnyView(sampleView)
         }
     }
 
@@ -95,13 +96,12 @@ struct SampleWindow: View {
     }
 
     /// Полосы уровня дорожек; пасхалка — панда (SHIFT + тап по окну).
-    @ViewBuilder
-    private var mixView: some View {
+    private var mixView: AnyView {
         if model.pandaShown {
-            PandaWindow(model: model)
+            return AnyView(PandaWindow(model: model))
         } else {
-            MixOverview(model: model)
-                .padding(10)
+            return AnyView(MixOverview(model: model)
+                .padding(10))
         }
     }
 

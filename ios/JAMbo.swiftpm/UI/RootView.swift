@@ -410,21 +410,20 @@ struct MainMenu: View {
             .onAppear { reopen() }
     }
 
-    @ViewBuilder
-    private var content: some View {
+    private var content: AnyView {
         switch page {
         case .projects:
-            ProjectsPage(model: model, back: { page = .main }, close: { isOpen = false }, song: { page = .song })
+            return AnyView(ProjectsPage(model: model, back: { page = .main }, close: { isOpen = false }, song: { page = .song }))
         case .song:
-            SongExportPage(model: model, back: { page = .projects })
+            return AnyView(SongExportPage(model: model, back: { page = .projects }))
         case .settings:
-            SettingsPage(model: model, back: { page = .main })
+            return AnyView(SettingsPage(model: model, back: { page = .main }))
         case .midi:
-            MidiMenuPage(model: model, back: { page = .main }, close: { isOpen = false })
+            return AnyView(MidiMenuPage(model: model, back: { page = .main }, close: { isOpen = false }))
         case .sync:
-            SyncMenuPage(model: model, back: { page = .main })
+            return AnyView(SyncMenuPage(model: model, back: { page = .main }))
         case .main:
-            MenuScroll { mainItems }
+            return AnyView(MenuScroll { mainItems })
         }
     }
 

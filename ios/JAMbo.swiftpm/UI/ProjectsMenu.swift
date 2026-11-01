@@ -114,12 +114,11 @@ struct ProjectsPage: View {
         Binding(get: { failure != nil }, set: { if !$0 { failure = nil } })
     }
 
-    @ViewBuilder
-    private var list: some View {
+    private var list: AnyView {
         if model.projectList.isEmpty {
-            Text("No saved projects yet — save one with SAVE").font(.system(size: 12)).foregroundStyle(theme.dim)
+            return AnyView(Text("No saved projects yet — save one with SAVE").font(.system(size: 12)).foregroundStyle(theme.dim))
         } else {
-            MenuScroll { rows }
+            return AnyView(MenuScroll { rows })
         }
     }
 
