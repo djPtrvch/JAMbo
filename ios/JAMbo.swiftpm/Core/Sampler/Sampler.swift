@@ -338,9 +338,13 @@ public final class Sampler {
         let mf = Sampler.maxFrames
         let panT = Float(Swift.max(-1, Swift.min(1, val(VoiceParam.pan) / 64)))
         let fk = Biquad.knob(val(VoiceParam.filter), reso: val(VoiceParam.reso))
+        // Тип сменился (LP ↔ HP ↔ выкл., скачок ручки или кривой) — частота встаёт сразу, коэффициенты — тоже
+        // (иначе частота уже на месте, сдвига нет и фильтр остаётся прежним).
+        var retype: Bool = false
         if fk.type != ftype[v] {
             ftype[v] = fk.type
             hz[v] = fk.hz
+            retype = true
         }
         let sub = 32
         let ks: Double = 1 - exp(-Double(sub) / (0.01 * sr))
@@ -365,8 +369,9 @@ public final class Sampler {
             let q0 = qDb[v]
             hz[v] += (fk.hz - hz[v]) * kf
             qDb[v] += (fk.q - qDb[v]) * kf
-            if abs(hz[v] - h0) > 1e-6 || abs(qDb[v] - q0) > 1e-6 {
+            if retype || abs(hz[v] - h0) > 1e-6 || abs(qDb[v] - q0) > 1e-6 {
                 coef[v].set(type: ftype[v], hz: hz[v], qDb: qDb[v], sampleRate: sr)
+                retype = false
             }
             let c = coef[v]
             let pn = pan[v]

@@ -464,9 +464,12 @@ public final class SynthVoices {
         let levelT = Float(pow(knob(row, locks, mask, modE, t, frame0, VoiceParam.level) / 127, 1.5))
         let panT = Float(Swift.max(-1, Swift.min(1, knob(row, locks, mask, modE, t, frame0, VoiceParam.pan) / 64)))
         let fk = Biquad.knob(knob(row, locks, mask, modE, t, frame0, VoiceParam.filter), reso: knob(row, locks, mask, modE, t, frame0, VoiceParam.reso))
+        // Тип сменился (LP ↔ HP ↔ выкл.) — коэффициенты сразу (частота встаёт сразу, сдвига нет).
+        var retype: Bool = false
         if fk.type != ftype[v] {
             ftype[v] = fk.type
             hz[v] = fk.hz
+            retype = true
         }
         // keep: ручки слота на звучащем хвосте подстраиваются за ~1 мс (первые 10 мс ноты).
         let fast = keep[v] != 0 && frame0 - start[v] < Int64(0.01 * sr)
@@ -488,7 +491,7 @@ public final class SynthVoices {
         hz[v] += (fk.hz - hz[v]) * kf
         qDb[v] += (fk.q - qDb[v]) * kf
         let dh: Double = hz[v] - h0, dq: Double = qDb[v] - q0
-        if dh > 1e-6 || dh < -1e-6 || dq > 1e-6 || dq < -1e-6 {
+        if retype || dh > 1e-6 || dh < -1e-6 || dq > 1e-6 || dq < -1e-6 {
             coef[v].set(type: ftype[v], hz: hz[v], qDb: qDb[v], sampleRate: sr)
         }
         let c = coef[v]
