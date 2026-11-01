@@ -1,4 +1,4 @@
-# Handoff: JAMbo, Swift-версия — S15 готов; S14e: trace в DEBUG, пределы ZIP, CORRECT EQ (коррекция наушников), SAVE DEFAULT модулей мастера и EQ — проверено на iPad; дальше — пункты пользователя для App Store, затем WARP по долгому нажатию
+# Handoff: JAMbo, Swift-версия — проект не собирается в Swift Playgrounds на iPad; следующая сессия — поиск причины
 
 ## 1. Контекст проекта
 Groovebox для iPad. Веб (`src/`, `public/`) — эталон, заморожен. Swift-перенос — ветка `swift`, `ios/JAMbo.swiftpm`. Правила — `CLAUDE.md`, `ios/CLAUDE.md`; план и вехи — `docs/SWIFT_AUDIT.md` (раздел 6); итоги вех — `docs/SWIFT_MILESTONE_Sx.md`. Поведение аранжировщика — `docs/ai/arranger.md`; MIDI — `docs/ai/settings-midi-sync.md` (в ветке swift описывают Swift-версию).
@@ -66,8 +66,16 @@ Groovebox для iPad. Веб (`src/`, `public/`) — эталон, заморо
   - Единая сетка строк на весь экран (14 строк) — отложена: превью сделано, к ней вернуться позже (затратно).
 
 ## 3. Текущая задача
-S14e — App Store. Код готов (trace, ZIP — сделано, проверено на iPad). Остальное — у пользователя: значок (Playgrounds), URL политики конфиденциальности, App Store Connect, пробная загрузка (privacy manifest, ориентация только альбомная). Ableton Link — этап 9 (Xcode на Mac).
-- Следующее по коду: WARP — выключатель варпинга без удаления меток, долгое нажатие на WARP (согласовано).
+Поиск причины: проект не собирается в Swift Playgrounds на iPad («JAMbo Crashed — Build failed» без ошибок в списке, iPad греется). Состояние ios — как 473b872 (после возвратов).
+- Поиск пополам (холодный iPad, App Preview закрыт):
+  - 114cca4 (JAMbo-14, 25.10), 30f1989, 1170360, 8a12490 — грузятся; 1f2950b — со второго раза;
+  - fb05d5e (1f2950b + строка редактора сэмпла), fb6f3f3, 9b9054b, c89e0d2 и позже — не грузятся.
+  - Объём Swift в приложении: 1,87 МБ (114cca4) → 2,44 (8a12490) → 2,50 (1f2950b) → 2,55 (сейчас); ресурсы (эталоны 13 МБ) — те же.
+- Пробовали и откатили (не помогло): облегчение выражений аранжировщика (bcc845d); SELF-TEST и эталоны вне приложения (f0eabe4); панда (f0e3f64) и DIAGNOSTICS (fd723a1) вне сборки; склейка строк с тернарными и nil-тернарные в модификаторах (2687500); GRANULAR вне сборки (d446cc9). Возврат — 4ec35a5 и откат d446cc9.
+- Гипотезы: предел Playgrounds по времени или памяти сборки (рост объёма); или выражение-«бомба» в интерфейсе (UI на Linux не собирается).
+- План: (1) Xcode на Mac с -warn-long-function-bodies / -debug-time-function-bodies — найти тяжёлые функции; (2) без Mac — отключать крупные части UI по одной и проверять на iPad; локальные модули в Playgrounds невозможны.
+- Код сессии 31.10–1.11 готов, на iPad проверен частично: раскладка центра 9 строк, пианоролл во всю ширину, громкость метронома, полярность LFO/ENV на ручке, аранжировщик (сетка вместо магнита, FIX/SCALE, FOLLOW PLAYHEAD, карандаш и ластик, TRIM группы, удаление автоматизации с блоками), EQ LISTEN вкл./выкл., этапы 1–3 (своя копия клипа у блока, запись по факту, STEPS правит блок). docs/ai, ios/CLAUDE.md, SWIFT_MILESTONE_S15 по ним не обновлены — согласовать текст.
+- После сборки — WARP: выключатель варпинга без удаления меток, долгое нажатие на WARP (согласовано).
 
 ## 4. Что уже решено
 - Круг правок 27.10, вечер (решения пользователя, проверено на iPad): CORRECT EQ (прежнее PHONES EQ; надписи CORRECT PRESETS, «Correct EQ profiles»); панда-пасхалка — SHIFT + тап по окну MIX (UI/DancingPanda.swift — одним Canvas, PandaWindow.swift; доли — AppModel.heardBeat по PlayClock, Voice — дорожка с этим именем выше −50 dBFS); смена темы iPad — RootView.id(scheme) (ячейки .equatable() оставались в цветах прежней темы); подписи ручек под картинкой FX; SETTINGS — DEFAULTS, AUDIO ENGINE, APPEARANCE, OUTPUT в конце; MUTE TAILS убран из UI, настроек и Core (FxRack.cutDelayTail, Sampler.openPrev); выравнивание строк по кнопкам верхней панели — TopFrames (AppModel.topFrames, TopBar.topFrame): строка EQ (EqBar.slots), библиотека, редактор сэмпла (EditorBar.aligned), окна мастера (MasterStrip.leadFields — до правого края TRANSFER). «Build failed» без ошибок в списке — сбой Playgrounds (вероятно, App Preview собирает параллельно), не код. CoreTests — 458.
