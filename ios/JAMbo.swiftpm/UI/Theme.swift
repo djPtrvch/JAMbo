@@ -1,7 +1,10 @@
 import SwiftUI
 
 /// Цветовые токены — те же, что в вебе (src/style.css): тёмная и светлая темы.
-struct Theme {
+/// Класс, а не структура (1.11, облегчение сборки): тема есть почти в каждом виде (@Environment), и копия структуры
+/// из 23 цветов давала каждому виду большие функции копирования; копия класса — одна ссылка. Поля неизменяемые,
+/// экземпляров два (dark, light) — поведение то же.
+final class Theme: @unchecked Sendable {
     let bg: Color
     let panel: Color
     let panel2: Color
@@ -31,6 +34,32 @@ struct Theme {
     let grid: Color
     let gridStrong: Color
     let muteGrey: Color
+
+    init(bg: Color, panel: Color, panel2: Color, trackBg: Color, flash: Color, accentSoft: Color, root: Color, line: Color, text: Color, dim: Color, off: Color, accent: Color, onAccent: Color, rec: Color, gr: Color, meterTrack: Color, meterThr: Color, accentText: Color, icon: Color, icon2: Color, grid: Color, gridStrong: Color, muteGrey: Color) {
+        self.bg = bg
+        self.panel = panel
+        self.panel2 = panel2
+        self.trackBg = trackBg
+        self.flash = flash
+        self.accentSoft = accentSoft
+        self.root = root
+        self.line = line
+        self.text = text
+        self.dim = dim
+        self.off = off
+        self.accent = accent
+        self.onAccent = onAccent
+        self.rec = rec
+        self.gr = gr
+        self.meterTrack = meterTrack
+        self.meterThr = meterThr
+        self.accentText = accentText
+        self.icon = icon
+        self.icon2 = icon2
+        self.grid = grid
+        self.gridStrong = gridStrong
+        self.muteGrey = muteGrey
+    }
 
     static let dark = Theme(
         bg: Color(hex: 0x111111), panel: Color(hex: 0x1c1c1c), panel2: Color(hex: 0x272727), trackBg: Color(hex: 0x2e2e2e),
