@@ -88,6 +88,8 @@ public final class Sampler {
     let ftype = UnsafeMutablePointer<Int>.allocate(capacity: slots)
     let coef = UnsafeMutablePointer<Biquad>.allocate(capacity: slots)
     let z = UnsafeMutablePointer<Float>.allocate(capacity: slots * 4)
+    /// Усиление фильтра (1; провал до 0 при смене HP ↔ LP — Biquad.glide).
+    let fdip = UnsafeMutablePointer<Float>.allocate(capacity: slots)
     let lockMask = UnsafeMutablePointer<VoiceMask>.allocate(capacity: slots)
     let lockVal = UnsafeMutablePointer<Float>.allocate(capacity: slots * VoiceParam.count)
     var nextSerial = 0
@@ -208,6 +210,7 @@ public final class Sampler {
         ftype.initialize(repeating: -1, count: s)
         coef.initialize(repeating: Biquad(), count: s)
         z.initialize(repeating: 0, count: s * 4)
+        fdip.initialize(repeating: 1, count: s)
         lockMask.initialize(repeating: 0, count: s)
         lockVal.initialize(repeating: 0, count: s * VoiceParam.count)
         busL.initialize(repeating: 0, count: SoundData.maxTracks * Sampler.maxFrames)
@@ -230,7 +233,7 @@ public final class Sampler {
         for p in [track, trackId, note, liveId, serial, srcFrames, ftype, onsetCount, warpN] as [UnsafeMutablePointer<Int>] { p.deallocate() }
         for p in [pos, endPos, beginPos, edge, noteRatio, rate, grainRatio, srcBpm, attackF, decaySec, hz, qDb, warpU, warpP, uPos] as [UnsafeMutablePointer<Double>] { p.deallocate() }
         for p in [start, holdEnd, stopAt, fadeAt] as [UnsafeMutablePointer<Int64>] { p.deallocate() }
-        for p in [decayK, env, fadeK, fadeG, level, pan, z, lockVal, busL, busR, outL, outR, volCur, gateCur, scratch] as [UnsafeMutablePointer<Float>] {
+        for p in [decayK, env, fadeK, fadeG, level, pan, z, fdip, lockVal, busL, busR, outL, outR, volCur, gateCur, scratch] as [UnsafeMutablePointer<Float>] {
             p.deallocate()
         }
         srcL.deallocate()
@@ -338,14 +341,6 @@ public final class Sampler {
         let mf = Sampler.maxFrames
         let panT = Float(Swift.max(-1, Swift.min(1, val(VoiceParam.pan) / 64)))
         let fk = Biquad.knob(val(VoiceParam.filter), reso: val(VoiceParam.reso))
-        // Тип сменился (LP ↔ HP ↔ выкл., скачок ручки или кривой) — частота встаёт сразу, коэффициенты — тоже
-        // (иначе частота уже на месте, сдвига нет и фильтр остаётся прежним).
-        var retype: Bool = false
-        if fk.type != ftype[v] {
-            ftype[v] = fk.type
-            hz[v] = fk.hz
-            retype = true
-        }
         let sub = 32
         let ks: Double = 1 - exp(-Double(sub) / (0.01 * sr))
         let kf: Double = 1 - exp(-Double(sub) / (0.015 * sr))
@@ -367,13 +362,26 @@ public final class Sampler {
             let hasSend: Bool = sg0 > 1e-6 || sg1 > 1e-6 || sg2 > 1e-6
             let h0 = hz[v]
             let q0 = qDb[v]
-            hz[v] += (fk.hz - hz[v]) * kf
+            // Частота — плавно; выкл. — без смены типа; HP ↔ LP — провал в ноль за 3 мс, смена типа, подъём.
+            let g0: Float = fdip[v]
+            let swap: Bool = Biquad.glide(&ftype[v], &hz[v], fk.type, fk.hz, kf)
+            let dg: Float = Float(Double(m) / (Biquad.dipTime * sr))
+            var retype: Bool = false
+            if swap && g0 <= 0 {
+                ftype[v] = fk.type > 0 ? 1 : -1
+                hz[v] = fk.type == 0 ? 20000 : fk.hz
+                for k in 0..<4 { z[zb + k] = 0 }
+                retype = true
+            }
+            fdip[v] = swap && !retype ? Swift.max(0, g0 - dg) : Swift.min(1, g0 + dg)
             qDb[v] += (fk.q - qDb[v]) * kf
             if retype || abs(hz[v] - h0) > 1e-6 || abs(qDb[v] - q0) > 1e-6 {
                 coef[v].set(type: ftype[v], hz: hz[v], qDb: qDb[v], sampleRate: sr)
-                retype = false
             }
-            let c = coef[v]
+            let c: Biquad = coef[v]
+            // Усиление выхода фильтра (провал) — по отсчётам куска.
+            var fq: Float = retype ? 0 : g0
+            let dfq: Float = (fdip[v] - fq) / Float(m)
             let pn = pan[v]
             // StereoPanner: моно — cos/sin; стерео — перекрёстно в сторону панорамы.
             let x: Float = st ? (pn <= 0 ? pn + 1 : pn) : (pn + 1) / 2
@@ -429,12 +437,13 @@ public final class Sampler {
                 let ya: Float = c.b0 * a + z[zb]
                 z[zb] = c.b1 * a - c.a1 * ya + z[zb + 1]
                 z[zb + 1] = c.b2 * a - c.a2 * ya
-                a = ya
+                fq += dfq
+                a = ya * fq
                 if st {
                     let yb: Float = c.b0 * b + z[zb + 2]
                     z[zb + 2] = c.b1 * b - c.a1 * yb + z[zb + 3]
                     z[zb + 3] = c.b2 * b - c.a2 * yb
-                    b = yb
+                    b = yb * fq
                 }
                 let k = t * Sampler.maxFrames + i + j
                 let oa: Float

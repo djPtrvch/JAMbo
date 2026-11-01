@@ -60,6 +60,8 @@ public final class SynthVoices {
     let z = UnsafeMutablePointer<Float>.allocate(capacity: slots * 2)
     /// Состояние фильтра правого канала стерео-движка.
     let zR = UnsafeMutablePointer<Float>.allocate(capacity: slots * 2)
+    /// Усиление фильтра (1; провал до 0 при смене HP ↔ LP — Biquad.glide).
+    let fdip = UnsafeMutablePointer<Float>.allocate(capacity: slots)
     /// Слот занят до (затухающие сами — атака + 0,3 с + 4·Decay; остальные — до stopAt).
     let busyUntil = UnsafeMutablePointer<Int64>.allocate(capacity: slots)
     /// Голос затухающего самого движка; keep — огибающая с 1 (без атаки), ручки звука — за ~1 мс.
@@ -129,6 +131,7 @@ public final class SynthVoices {
         coef.initialize(repeating: Biquad(), count: s)
         z.initialize(repeating: 0, count: s * 2)
         zR.initialize(repeating: 0, count: s * 2)
+        fdip.initialize(repeating: 1, count: s)
         lockMask.initialize(repeating: 0, count: s)
         pMask.initialize(repeating: 0, count: s)
         lockVal.initialize(repeating: 0, count: s * VoiceParam.count)
@@ -148,7 +151,7 @@ public final class SynthVoices {
         for p in [start, holdEnd, stopAt, pStart, pGate, fadeAt, busyUntil] as [UnsafeMutablePointer<Int64>] { p.deallocate() }
         for p in [attackF, decaySec, hz, qDb] as [UnsafeMutablePointer<Double>] { p.deallocate() }
         send.deallocate()
-        for p in [decayK, env, env0, fadeK, fadeG, level, pan, z, zR, lockVal, pVal, outBuf, outBufR, gBuf]
+        for p in [decayK, env, env0, fadeK, fadeG, level, pan, z, zR, fdip, lockVal, pVal, outBuf, outBufR, gBuf]
             as [UnsafeMutablePointer<Float>] { p.deallocate() }
         bit.deallocate()
         coef.deallocate()
@@ -296,6 +299,7 @@ public final class SynthVoices {
         hz[v] = f.hz
         qDb[v] = f.q
         coef[v].set(type: f.type, hz: f.hz, qDb: f.q, sampleRate: sr)
+        fdip[v] = 1
         z[v * 2] = 0
         z[v * 2 + 1] = 0
         zR[v * 2] = 0
@@ -464,13 +468,6 @@ public final class SynthVoices {
         let levelT = Float(pow(knob(row, locks, mask, modE, t, frame0, VoiceParam.level) / 127, 1.5))
         let panT = Float(Swift.max(-1, Swift.min(1, knob(row, locks, mask, modE, t, frame0, VoiceParam.pan) / 64)))
         let fk = Biquad.knob(knob(row, locks, mask, modE, t, frame0, VoiceParam.filter), reso: knob(row, locks, mask, modE, t, frame0, VoiceParam.reso))
-        // Тип сменился (LP ↔ HP ↔ выкл.) — коэффициенты сразу (частота встаёт сразу, сдвига нет).
-        var retype: Bool = false
-        if fk.type != ftype[v] {
-            ftype[v] = fk.type
-            hz[v] = fk.hz
-            retype = true
-        }
         // keep: ручки слота на звучащем хвосте подстраиваются за ~1 мс (первые 10 мс ноты).
         let fast = keep[v] != 0 && frame0 - start[v] < Int64(0.01 * sr)
         let ks: Double = 1 - exp(-Double(m) / ((fast ? 0.001 : 0.01) * sr))
@@ -487,14 +484,33 @@ public final class SynthVoices {
         let s0L = sendL! + t * 3 * st + off, s0R = sendR! + t * 3 * st + off
         let h0 = hz[v]
         let q0 = qDb[v]
-        let cPrev = coef[v]
-        hz[v] += (fk.hz - hz[v]) * kf
+        // Частота — плавно; выкл. — без смены типа; HP ↔ LP — провал в ноль за 3 мс, смена типа, подъём (без щелчка).
+        let g0: Float = fdip[v]
+        var cPrev: Biquad = coef[v]
+        let swap: Bool = Biquad.glide(&ftype[v], &hz[v], fk.type, fk.hz, kf)
+        let dg: Float = Float(Double(m) / (Biquad.dipTime * sr))
+        var retype: Bool = false
+        if swap && g0 <= 0 {
+            ftype[v] = fk.type > 0 ? 1 : -1
+            hz[v] = fk.type == 0 ? 20000 : fk.hz
+            z[v * 2] = 0
+            z[v * 2 + 1] = 0
+            zR[v * 2] = 0
+            zR[v * 2 + 1] = 0
+            retype = true
+        }
+        fdip[v] = swap && !retype ? Swift.max(0, g0 - dg) : Swift.min(1, g0 + dg)
         qDb[v] += (fk.q - qDb[v]) * kf
         let dh: Double = hz[v] - h0, dq: Double = qDb[v] - q0
         if retype || dh > 1e-6 || dh < -1e-6 || dq > 1e-6 || dq < -1e-6 {
             coef[v].set(type: ftype[v], hz: hz[v], qDb: qDb[v], sampleRate: sr)
         }
-        let c = coef[v]
+        let c: Biquad = coef[v]
+        // Смена типа — на нуле выхода: коэффициенты нового типа сразу (смесь знаменателей двух типов — не фильтр).
+        if retype { cPrev = c }
+        // Усиление выхода фильтра (провал) — по отсчётам от прежнего к новому.
+        var fq: Float = retype ? 0 : g0
+        let dfq: Float = (fdip[v] - fq) / Float(m)
         let lv = level[v]
         let zb = v * 2
         // Огибающая — отдельным проходом в gBuf (с остановкой голоса), затем фильтр, Pan и посылы — моно или стерео.
@@ -522,9 +538,11 @@ public final class SynthVoices {
                 a1 += da1
                 a2 += da2
                 // Фильтр (TDF II).
-                let y: Float = b0 * a + z0
-                z0 = b1 * a - a1 * y + z1
-                z1 = b2 * a - a2 * y
+                let yf: Float = b0 * a + z0
+                z0 = b1 * a - a1 * yf + z1
+                z1 = b2 * a - a2 * yf
+                fq += dfq
+                let y: Float = yf * fq
                 let oa: Float = y * gc
                 let ob: Float = y * gs
                 bl[j] += oa
@@ -559,12 +577,15 @@ public final class SynthVoices {
                 b2 += db2
                 a1 += da1
                 a2 += da2
-                let y: Float = b0 * a + z0
-                z0 = b1 * a - a1 * y + z1
-                z1 = b2 * a - a2 * y
-                let yR: Float = b0 * aR + w0
-                w0 = b1 * aR - a1 * yR + w1
-                w1 = b2 * aR - a2 * yR
+                let yf: Float = b0 * a + z0
+                z0 = b1 * a - a1 * yf + z1
+                z1 = b2 * a - a2 * yf
+                let yfR: Float = b0 * aR + w0
+                w0 = b1 * aR - a1 * yfR + w1
+                w1 = b2 * aR - a2 * yfR
+                fq += dfq
+                let y: Float = yf * fq
+                let yR: Float = yfR * fq
                 let oa: Float = y * ll + yR * rl
                 let ob: Float = yR * rr + y * lr
                 bl[j] += oa

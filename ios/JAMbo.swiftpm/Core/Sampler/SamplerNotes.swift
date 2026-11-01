@@ -140,6 +140,7 @@ extension Sampler {
         hz[v] = f.hz
         qDb[v] = f.q
         coef[v].set(type: f.type, hz: f.hz, qDb: f.q, sampleRate: sr)
+        fdip[v] = 1
         for k in 0..<4 { z[v * 4 + k] = 0 }
     }
 
