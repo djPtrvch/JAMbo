@@ -140,7 +140,8 @@ struct RootView: View {
         // Перенос клипа из сетки на ARRANGE (AppModelCarry): аранжировщик открыт поверх, а сетка остаётся под ним
         // (почти прозрачной), пока палец не отпущен, — её жест не прерывается.
         let carrying: Bool = model.clipCarry != nil
-        let arrange: Bool = model.arrangeView && model.browser == nil && !model.rollView
+        // Пианоролл из аранжировщика — внутри окна аранжировщика (arrangeArea), поверх всего.
+        let arrange: Bool = model.arrangeView && model.browser == nil
             && (!model.patternView || model.clipCarry?.overArrange == true)
         return VStack(spacing: Layout.gap) {
             TopBar(model: model, menuOpen: $menuOpen)
@@ -174,12 +175,7 @@ struct RootView: View {
         let more: Int = Int(((Layout.gap + lowerH + RootView.padBottom) / pitch).rounded(.down))
         let rows: Int = tall ? Params.gridRows + more : Params.gridRows
         let gridH: CGFloat = CGFloat(rows) * rowH + CGFloat(rows - 1) * PatternGrid.rowGap
-        if model.arrangeView && model.rollView {
-            // Пианоролл из аранжировщика (решение пользователя): только окно — на весь центр и низ, без STEPS
-            // (строки дорожек, секвенсора и клавиатуры); из обычного экрана — как раньше, с низом.
-            center(layout).frame(height: centerH + Layout.gap + lowerH)
-                .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("root")).maxY } action: { trackTop = $0 }
-        } else if tall {
+        if tall {
             center(layout).frame(height: gridH)
                 .frame(height: centerH + Layout.gap + lowerH, alignment: .top)
                 // Низ меню бутерброда — низ экрана.
@@ -199,7 +195,17 @@ struct RootView: View {
     /// STEPS — строка дорожек, секвенсор и клавиатура поверх трёх нижних дорожек (от верха шестой); AUTO — на том же
     /// месте; KNOBS — окно дорожки с ручками в обычном масштабе поверх линейки и пяти верхних дорожек (строку папки и
     /// верхнюю миниатюру закрывает строка кнопок).
-    private func arrangeArea(_ layout: Layout, _ lowerH: CGFloat, _ bar: CGFloat) -> some View {
+    private func arrangeArea(_ layout: Layout, _ lowerH: CGFloat, _ bar: CGFloat) -> AnyView {
+        if model.rollView {
+            // Пианоролл из аранжировщика (решение пользователя): только окно — на всю высоту окна аранжировщика,
+            // поверх строки кнопок, без STEPS, AUTO и окна ручек; закрыли — снова аранжировка.
+            return AnyView(RollWindow(model: model, layout: layout)
+                .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("root")).maxY } action: { trackTop = $0 })
+        }
+        return AnyView(arrangeWindow(layout, lowerH, bar))
+    }
+
+    private func arrangeWindow(_ layout: Layout, _ lowerH: CGFloat, _ bar: CGFloat) -> some View {
         let steps: Bool = !model.project.arrange.hideSteps
         return GeometryReader { g in
             ZStack(alignment: .topLeading) {
