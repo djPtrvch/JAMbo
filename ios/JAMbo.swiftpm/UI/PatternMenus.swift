@@ -116,6 +116,7 @@ struct MenuItem: View {
 struct MenuChoice {
     let title: String
     var enabled: Bool = true
+    var red: Bool = false
     let current: Bool
     let action: () -> Void
 }
@@ -141,7 +142,7 @@ struct MenuChoiceButtons: View {
         HStack(spacing: 4) {
             ForEach(items.indices, id: \.self) { i in
                 let c: MenuChoice = items[i]
-                MenuItem(title: c.title, enabled: c.enabled, current: c.current, action: c.action)
+                MenuItem(title: c.title, enabled: c.enabled, red: c.red, current: c.current, action: c.action)
             }
         }
     }

@@ -60,19 +60,18 @@ struct ArrangeSettings: View {
     let model: AppModel
 
     var body: some View {
-        let scale: Bool = model.settings.arrangeScale
-        return VStack(alignment: .leading, spacing: 8) {
-            FieldLabel(title: "TRACKS")
-            HStack(spacing: 4) {
-                MenuItem(title: "FIX", current: !scale) { model.setArrScale(false) }
-                MenuItem(title: "SCALE", current: scale) { model.setArrScale(true) }
-            }
-            SettingsNote(text: "FIX: track height by the buttons under the level meter — EXPANDED (8 tracks fill the window, more tracks scroll) or COMPACT (all tracks fit the window). SCALE: pinch vertically with two fingers to resize the tracks.")
-            ToggleRow(title: "FOLLOW PLAYHEAD", isOn: model.settings.arrangeFollow) { v in model.updateSettings { $0.arrangeFollow = v } }
-            SettingsNote(text: "ON: while playing, the arranger scrolls to keep the playhead in view.")
-            ToggleRow(title: "ROW REPEATS", isOn: model.settings.arrangeRepeats) { v in model.updateSettings { $0.arrangeRepeats = v } }
-            SettingsNote(text: "ON: clips go to the arrangement as long as the row repeats (×4 on a 1-bar clip — a 4-bar block). OFF: one pass.")
-        }
+        let m: AppModel = model
+        let scale: Bool = m.settings.arrangeScale
+        return FormRows(rows: [
+            .label("TRACKS"),
+            .choices([MenuChoice(title: "FIX", current: !scale) { m.setArrScale(false) },
+                      MenuChoice(title: "SCALE", current: scale) { m.setArrScale(true) }]),
+            .note("FIX: track height by the buttons under the level meter — EXPANDED (8 tracks fill the window, more tracks scroll) or COMPACT (all tracks fit the window). SCALE: pinch vertically with two fingers to resize the tracks."),
+            .toggle("FOLLOW PLAYHEAD", m.settings.arrangeFollow) { v in m.updateSettings { $0.arrangeFollow = v } },
+            .note("ON: while playing, the arranger scrolls to keep the playhead in view."),
+            .toggle("ROW REPEATS", m.settings.arrangeRepeats) { v in m.updateSettings { $0.arrangeRepeats = v } },
+            .note("ON: clips go to the arrangement as long as the row repeats (×4 on a 1-bar clip — a 4-bar block). OFF: one pass."),
+        ])
     }
 }
 
@@ -81,14 +80,16 @@ struct EngineSettings: View {
     let model: AppModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            TimelineView(.periodic(from: .now, by: 0.5)) { _ in
-                SettingsNote(text: "Now: \(model.audio.statusLine)")
-            }
-            SettingsNote(text: "Always 48 kHz with a 256-sample buffer; iPadOS may choose another buffer.")
-            ToggleRow(title: "BACKGROUND AUDIO", isOn: model.settings.backgroundAudio) { model.setBackgroundAudio($0) }
-            SettingsNote(text: "ON: the sound keeps playing when JAMbo is in the background or the screen is locked. OFF: the sound stops.")
-        }
+        let m: AppModel = model
+        let now: AnyView = AnyView(TimelineView(.periodic(from: .now, by: 0.5)) { _ in
+            SettingsNote(text: "Now: \(m.audio.statusLine)")
+        })
+        return FormRows(rows: [
+            .view(now),
+            .note("Always 48 kHz with a 256-sample buffer; iPadOS may choose another buffer."),
+            .toggle("BACKGROUND AUDIO", m.settings.backgroundAudio) { m.setBackgroundAudio($0) },
+            .note("ON: the sound keeps playing when JAMbo is in the background or the screen is locked. OFF: the sound stops."),
+        ])
     }
 }
 
@@ -143,18 +144,18 @@ struct RecordSettingsView: View {
     let model: AppModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ToggleRow(title: "QUANTIZE", isOn: model.settings.record.quantize) { model.setQuantize($0) }
-            SettingsNote(text: "ON: a note played with REC lands on the nearest step. OFF: on the step where it was played.")
-            FieldLabel(title: "STEP SWIPE")
-            HStack(spacing: 4) {
-                MenuItem(title: "LENGTH", current: !model.settings.stepPaint) { model.updateSettings { $0.stepPaint = false } }
-                MenuItem(title: "PAINT", current: model.settings.stepPaint) { model.updateSettings { $0.stepPaint = true } }
-            }
-            SettingsNote(text: "Sliding a finger along the steps: LENGTH — one long note from the first step. PAINT — a trig on every step you pass.")
-            MetronomeSlider(model: model)
-            SettingsNote(text: "Click volume: 100% — the usual level, up to 200%.")
-        }
+        let m: AppModel = model
+        let paint: Bool = m.settings.stepPaint
+        return FormRows(rows: [
+            .toggle("QUANTIZE", m.settings.record.quantize) { m.setQuantize($0) },
+            .note("ON: a note played with REC lands on the nearest step. OFF: on the step where it was played."),
+            .label("STEP SWIPE"),
+            .choices([MenuChoice(title: "LENGTH", current: !paint) { m.updateSettings { $0.stepPaint = false } },
+                      MenuChoice(title: "PAINT", current: paint) { m.updateSettings { $0.stepPaint = true } }]),
+            .note("Sliding a finger along the steps: LENGTH — one long note from the first step. PAINT — a trig on every step you pass."),
+            .view(AnyView(MetronomeSlider(model: m))),
+            .note("Click volume: 100% — the usual level, up to 200%."),
+        ])
     }
 }
 
@@ -164,28 +165,24 @@ struct SamplerSettings: View {
     let model: AppModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            FieldLabel(title: "STRETCH")
-            HStack(spacing: 4) {
-                MenuItem(title: "NORMAL", current: !model.settings.stretchBeat) { model.setStretchBeat(false) }
-                MenuItem(title: "BEAT", current: model.settings.stretchBeat) { model.setStretchBeat(true) }
-            }
-            SettingsNote(text: "Rate knob in Stretch mode keeps the pitch while the speed changes. NORMAL — for any material: tones stay clean, hits stay sharp. BEAT — lighter, for drum loops.")
-            FieldLabel(title: "SLICE NOTES")
-            HStack(spacing: 4) {
-                MenuItem(title: "CHROMATIC", current: model.settings.sliceMap == .chromatic) { model.setSliceMap(.chromatic) }
-                MenuItem(title: "SCALE", current: model.settings.sliceMap == .scale) { model.setSliceMap(.scale) }
-            }
-            SettingsNote(text: "Markers in the sample editor play their slice from a piano key. CHROMATIC: markers go up by semitone from C3 (C3, C#3, D3…). SCALE: markers follow the notes of the selected scale from its root note in octave 3; the marker notes change with the scale.")
-            FieldLabel(title: "PITCH")
-            HStack(spacing: 4) {
-                MenuItem(title: "SMOOTH", current: !model.settings.pitchSemitones) { model.updateSettings { $0.pitchSemitones = false } }
-                MenuItem(title: "SEMITONES", current: model.settings.pitchSemitones) { model.updateSettings { $0.pitchSemitones = true } }
-            }
-            SettingsNote(text: "How the sample Pitch knob and its step locks turn: SMOOTH — any value, SEMITONES — whole semitones. Hold SHIFT while turning for the other mode. LFO and ENV stay smooth.")
-            ToggleRow(title: "CLEAR SAMPLE LOCKS", isOn: model.settings.clearSampleLocks) { model.setClearSampleLocks($0) }
-            SettingsNote(text: "ON: loading sounds from the library onto a track removes its sample locks — those steps play the track sound at their own note. Preset locks stay. OFF: sample locks keep their samples.")
-        }
+        let m: AppModel = model
+        let st: AppSettings = m.settings
+        return FormRows(rows: [
+            .label("STRETCH"),
+            .choices([MenuChoice(title: "NORMAL", current: !st.stretchBeat) { m.setStretchBeat(false) },
+                      MenuChoice(title: "BEAT", current: st.stretchBeat) { m.setStretchBeat(true) }]),
+            .note("Rate knob in Stretch mode keeps the pitch while the speed changes. NORMAL — for any material: tones stay clean, hits stay sharp. BEAT — lighter, for drum loops."),
+            .label("SLICE NOTES"),
+            .choices([MenuChoice(title: "CHROMATIC", current: st.sliceMap == .chromatic) { m.setSliceMap(.chromatic) },
+                      MenuChoice(title: "SCALE", current: st.sliceMap == .scale) { m.setSliceMap(.scale) }]),
+            .note("Markers in the sample editor play their slice from a piano key. CHROMATIC: markers go up by semitone from C3 (C3, C#3, D3…). SCALE: markers follow the notes of the selected scale from its root note in octave 3; the marker notes change with the scale."),
+            .label("PITCH"),
+            .choices([MenuChoice(title: "SMOOTH", current: !st.pitchSemitones) { m.updateSettings { $0.pitchSemitones = false } },
+                      MenuChoice(title: "SEMITONES", current: st.pitchSemitones) { m.updateSettings { $0.pitchSemitones = true } }]),
+            .note("How the sample Pitch knob and its step locks turn: SMOOTH — any value, SEMITONES — whole semitones. Hold SHIFT while turning for the other mode. LFO and ENV stay smooth."),
+            .toggle("CLEAR SAMPLE LOCKS", st.clearSampleLocks) { m.setClearSampleLocks($0) },
+            .note("ON: loading sounds from the library onto a track removes its sample locks — those steps play the track sound at their own note. Preset locks stay. OFF: sample locks keep their samples."),
+        ])
     }
 }
 
@@ -195,13 +192,14 @@ struct SidechainSettings: View {
     let model: AppModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            FieldLabel(title: "DUCK SENDS")
-            ToggleRow(title: "REVERB", isOn: model.scSend(0)) { model.setScSend(0, $0) }
-            ToggleRow(title: "DELAY", isOn: model.scSend(1)) { model.setScSend(1, $0) }
-            ToggleRow(title: "DRIVE", isOn: model.scSend(2)) { model.setScSend(2, $0) }
-            SettingsNote(text: "ON: the send level of the effect is ducked by Duck too. Effect tails keep playing. OFF: the send is not ducked.")
-        }
+        let m: AppModel = model
+        return FormRows(rows: [
+            .label("DUCK SENDS"),
+            .toggle("REVERB", m.scSend(0)) { m.setScSend(0, $0) },
+            .toggle("DELAY", m.scSend(1)) { m.setScSend(1, $0) },
+            .toggle("DRIVE", m.scSend(2)) { m.setScSend(2, $0) },
+            .note("ON: the send level of the effect is ducked by Duck too. Effect tails keep playing. OFF: the send is not ducked."),
+        ])
     }
 }
 
@@ -239,17 +237,17 @@ struct AppearanceSettings: View {
     let model: AppModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            FieldLabel(title: "THEME")
-            HStack(spacing: 4) {
-                ForEach(Appearance.allCases, id: \.self) { a in
-                    MenuItem(title: a.rawValue, current: model.appearance == a) { model.setAppearance(a) }
-                }
-            }
-            SettingsNote(text: "SYSTEM follows the iPad setting.")
-            ToggleRow(title: "FX ANIMATION", isOn: model.settings.fxPictures) { model.setFxPictures($0) }
-            SettingsNote(text: "While an FX knob is turned, the sample window shows a picture of the effect.")
+        let m: AppModel = model
+        let themes: [MenuChoice] = Appearance.allCases.map { (a: Appearance) -> MenuChoice in
+            MenuChoice(title: a.rawValue, current: m.appearance == a) { m.setAppearance(a) }
         }
+        return FormRows(rows: [
+            .label("THEME"),
+            .choices(themes),
+            .note("SYSTEM follows the iPad setting."),
+            .toggle("FX ANIMATION", m.settings.fxPictures) { m.setFxPictures($0) },
+            .note("While an FX knob is turned, the sample window shows a picture of the effect."),
+        ])
     }
 }
 
@@ -258,12 +256,13 @@ struct MixSettings: View {
     let model: AppModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ToggleRow(title: "CHANGE KEY", isOn: model.settings.mixKey) { model.setMixKey($0) }
-            SettingsNote(text: "ON: on a MIX transition the scale and root note change to the new project. OFF: the scale and root note stay as they are.")
-            ToggleRow(title: "CROSSFADER", isOn: model.settings.mixCrossfader) { model.setMixCrossfader($0) }
-            SettingsNote(text: "ON: the crossfader between projects sets the tempo (only the tempo). OFF: no crossfader; the tempo follows the old pattern.")
-        }
+        let m: AppModel = model
+        return FormRows(rows: [
+            .toggle("CHANGE KEY", m.settings.mixKey) { m.setMixKey($0) },
+            .note("ON: on a MIX transition the scale and root note change to the new project. OFF: the scale and root note stay as they are."),
+            .toggle("CROSSFADER", m.settings.mixCrossfader) { m.setMixCrossfader($0) },
+            .note("ON: the crossfader between projects sets the tempo (only the tempo). OFF: no crossfader; the tempo follows the old pattern."),
+        ])
     }
 }
 
@@ -272,17 +271,17 @@ struct MorphSettings: View {
     let model: AppModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ToggleRow(title: "ALL TRACKS", isOn: model.settings.morphAll) { model.setMorphAll($0) }
-            SettingsNote(text: "ON: in MORPH a knob changes its parameter on every track that has it (each track moves by the same amount from its own value). OFF: only the selected track.")
-            FieldLabel(title: "RETURN")
-            HStack(spacing: 4) {
-                ForEach(0..<MorphReturn.names.count, id: \.self) { k in
-                    MenuItem(title: MorphReturn.names[k], current: model.settings.morphReturn == k) { model.setMorphReturn(k) }
-                }
-            }
-            SettingsNote(text: "How fast the knobs glide back when MORPH is turned off: OFF — at once, or over 1/4 bar to 2 bars at the current tempo.")
+        let m: AppModel = model
+        let ret: [MenuChoice] = (0..<MorphReturn.names.count).map { (k: Int) -> MenuChoice in
+            MenuChoice(title: MorphReturn.names[k], current: m.settings.morphReturn == k) { m.setMorphReturn(k) }
         }
+        return FormRows(rows: [
+            .toggle("ALL TRACKS", m.settings.morphAll) { m.setMorphAll($0) },
+            .note("ON: in MORPH a knob changes its parameter on every track that has it (each track moves by the same amount from its own value). OFF: only the selected track."),
+            .label("RETURN"),
+            .choices(ret),
+            .note("How fast the knobs glide back when MORPH is turned off: OFF — at once, or over 1/4 bar to 2 bars at the current tempo."),
+        ])
     }
 }
 
@@ -291,14 +290,14 @@ struct LevelSettings: View {
     let model: AppModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            FieldLabel(title: "TRACK LEVEL FADER")
-            HStack(spacing: 4) {
-                MenuItem(title: "ABSOLUTE", current: !model.settings.levelRelative) { model.setLevelRelative(false) }
-                MenuItem(title: "RELATIVE", current: model.settings.levelRelative) { model.setLevelRelative(true) }
-            }
-            SettingsNote(text: "ABSOLUTE: the fader on the right is the track volume in MIX. RELATIVE: the fader trims the track down from its MIX volume — it cannot go above the MIX volume (for example −10 dB), down to silence; when the MIX volume changes, the trimmed level moves with it. The trim is kept with the track and only works in RELATIVE.")
-        }
+        let m: AppModel = model
+        let rel: Bool = m.settings.levelRelative
+        return FormRows(rows: [
+            .label("TRACK LEVEL FADER"),
+            .choices([MenuChoice(title: "ABSOLUTE", current: !rel) { m.setLevelRelative(false) },
+                      MenuChoice(title: "RELATIVE", current: rel) { m.setLevelRelative(true) }]),
+            .note("ABSOLUTE: the fader on the right is the track volume in MIX. RELATIVE: the fader trims the track down from its MIX volume — it cannot go above the MIX volume (for example −10 dB), down to silence; when the MIX volume changes, the trimmed level moves with it. The trim is kept with the track and only works in RELATIVE."),
+        ])
     }
 }
 
@@ -307,16 +306,15 @@ struct DefaultsSettings: View {
     let model: AppModel
 
     var body: some View {
-        let n: Int = model.knobDefaultsCount
-        return VStack(alignment: .leading, spacing: 8) {
-            FieldLabel(title: "KNOB DEFAULTS")
-            SettingsNote(text: "SHIFT + hold a knob: its value becomes the default (the knob shows SAVED). Double tap a knob: back to its default; double tap again: back to the factory value. Your defaults are used by NEW projects and ADD TRACK; saved projects stay as they are. Sound knobs keep their own defaults for the sampler and for each synth engine.")
-            SettingsNote(text: "SAVE DEFAULT in PRESETS of SAT, COMP, CLIP and LIM: all settings of the module become its default. SAVE DEFAULT in EQ PRESETS: the bands become the default EQ of new tracks (track EQ) or new projects (master EQ).")
-            SettingsNote(text: n == 0 ? "No saved defaults." : "Saved defaults: \(n).")
-            HStack(spacing: 4) {
-                MenuItem(title: "FORGET ALL", enabled: n > 0, red: true) { model.clearKnobDefaults() }
-            }
-        }
+        let m: AppModel = model
+        let n: Int = m.knobDefaultsCount
+        return FormRows(rows: [
+            .label("KNOB DEFAULTS"),
+            .note("SHIFT + hold a knob: its value becomes the default (the knob shows SAVED). Double tap a knob: back to its default; double tap again: back to the factory value. Your defaults are used by NEW projects and ADD TRACK; saved projects stay as they are. Sound knobs keep their own defaults for the sampler and for each synth engine."),
+            .note("SAVE DEFAULT in PRESETS of SAT, COMP, CLIP and LIM: all settings of the module become its default. SAVE DEFAULT in EQ PRESETS: the bands become the default EQ of new tracks (track EQ) or new projects (master EQ)."),
+            .note(n == 0 ? "No saved defaults." : "Saved defaults: \(n)."),
+            .choices([MenuChoice(title: "FORGET ALL", enabled: n > 0, red: true, current: false) { m.clearKnobDefaults() }]),
+        ])
     }
 }
 
