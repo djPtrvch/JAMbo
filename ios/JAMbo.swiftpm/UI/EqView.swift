@@ -21,18 +21,8 @@ struct EqView: View {
 
     var body: some View {
         let _ = RedrawMeter.hit(.eq)
-        VStack(spacing: Layout.barGap) {
-            EqBar(model: model, layout: layout, plotFrame: plotFrame) { field in openInput(field) }
-                .frame(height: model.barH)
-            EqPlot(model: model)
-                .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { plotFrame = $0 }
-        }
-        // Меню COMPARE — поверх, раскладку не меняет: помещается в поле EQ (кнопки ужимаются).
-        .overlay(alignment: .topLeading) {
-            if model.eqCompareMenu {
-                EqCompareMenu(model: model, width: 2 * layout.step + Layout.gap, height: plotFrame.height)
-            }
-        }
+        // Поле EQ — AnyView: цепочка модификаторов ниже оборачивает маленький тип (S14, память сборки).
+        AnyView(eqMain)
         // Другой канал — выбор полосы сбрасывается, точки съёма спектров — на новый канал.
         .onChange(of: model.eqShownChannel) { _, _ in
             model.eqBand = -1
@@ -68,6 +58,21 @@ struct EqView: View {
                 text = model.eqBook.nextName()
             }
         }))
+    }
+
+    /// Строка полей и поле EQ; меню COMPARE — поверх, раскладку не меняет: помещается в поле EQ (кнопки ужимаются).
+    private var eqMain: some View {
+        VStack(spacing: Layout.barGap) {
+            EqBar(model: model, layout: layout, plotFrame: plotFrame) { field in openInput(field) }
+                .frame(height: model.barH)
+            EqPlot(model: model)
+                .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { plotFrame = $0 }
+        }
+        .overlay(alignment: .topLeading) {
+            if model.eqCompareMenu {
+                EqCompareMenu(model: model, width: 2 * layout.step + Layout.gap, height: plotFrame.height)
+            }
+        }
     }
 
     /// Ввод имени пресета (не числа).

@@ -34,19 +34,19 @@ struct RootView: View {
                 arrangeMeter(geo.size.height)
                 overlays
                 if let c = model.choice {
-                    ChoiceMenu(model: model, state: c, screen: geo.size)
+                    AnyView(ChoiceMenu(model: model, state: c, screen: geo.size))
                 }
                 if model.pianoMenuOpen {
-                    PianoMenu(model: model, layout: layout, screen: geo.size)
+                    AnyView(PianoMenu(model: model, layout: layout, screen: geo.size))
                 }
                 if model.midiLearn.mapTarget != nil {
-                    MidiMapWindow(model: model, screen: geo.size)
+                    AnyView(MidiMapWindow(model: model, screen: geo.size))
                 }
                 if model.midiLearn.on {
-                    LearnBar(model: model)
+                    AnyView(LearnBar(model: model)
                         .frame(maxWidth: geo.size.width - 32)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-                        .padding(.bottom, 8)
+                        .padding(.bottom, 8))
                 }
             }
             .coordinateSpace(name: "root")
@@ -146,10 +146,10 @@ struct RootView: View {
             TopBar(model: model, menuOpen: $menuOpen)
             ZStack(alignment: .top) {
                 if !arrange || carrying {
-                    main(layout, lowerH, h).opacity(arrange ? 0.001 : 1)
+                    AnyView(main(layout, lowerH, h).opacity(arrange ? 0.001 : 1))
                 }
                 if arrange {
-                    arrangeArea(layout, lowerH, bar)
+                    AnyView(arrangeArea(layout, lowerH, bar))
                 }
             }
         }
@@ -204,20 +204,20 @@ struct RootView: View {
                 // Во время переноса клипа из сетки центр — сетка паттернов (она уже есть под аранжировщиком).
                 if model.arrKnobs && !model.patternView {
                     // Фон — и под зазором снизу (чёрная полоса, как между дорожками): из-под окна ничего не видно.
-                    center(layout)
+                    AnyView(center(layout)
                         .frame(height: max(0, g.size.height - lowerH - Layout.gap))
                         .frame(height: max(0, g.size.height - lowerH), alignment: .top)
-                        .background(theme.bg)
+                        .background(theme.bg))
                 }
                 // Над STEPS и AUTO — чёрная полоса (как под окном ручек): дорожки под окном не видны.
                 if model.arrAutoPanel {
-                    ArrAutoPanel(model: model).frame(height: lowerH)
+                    AnyView(ArrAutoPanel(model: model).frame(height: lowerH)
                         .padding(.top, Layout.gap).background(theme.bg)
-                        .offset(y: g.size.height - lowerH - Layout.gap)
+                        .offset(y: g.size.height - lowerH - Layout.gap))
                 } else if steps {
-                    lower(layout).frame(height: lowerH)
+                    AnyView(lower(layout).frame(height: lowerH)
                         .padding(.top, Layout.gap).background(theme.bg)
-                        .offset(y: g.size.height - lowerH - Layout.gap)
+                        .offset(y: g.size.height - lowerH - Layout.gap))
                 }
                 ArrangeBar(model: model).frame(height: bar)
             }
@@ -284,35 +284,35 @@ struct RootView: View {
         if menuOpen {
             // Тап мимо меню закрывает его.
             Color.black.opacity(0.001).ignoresSafeArea().onTapGesture { menuOpen = false }
-            MainMenu(model: model, isOpen: $menuOpen, height: max(240, trackTop - RootView.menuTop - Layout.gap))
-                .padding(.top, RootView.menuTop).padding(.leading, 12)
+            AnyView(MainMenu(model: model, isOpen: $menuOpen, height: max(240, trackTop - RootView.menuTop - Layout.gap))
+                .padding(.top, RootView.menuTop).padding(.leading, 12))
         }
         if let menu = model.pageMenu {
-            pageMenu(menu)
+            AnyView(pageMenu(menu))
         }
         if let m = model.soundMenu {
-            soundMenu(m)
+            AnyView(soundMenu(m))
         }
         if let m = model.eqMenu {
-            EqBandMenu(model: model, state: m)
+            AnyView(EqBandMenu(model: model, state: m))
         }
         if let f = model.eqMsMenu {
-            EqMsMenu(model: model, anchor: f)
+            AnyView(EqMsMenu(model: model, anchor: f))
         }
         if let f = model.eqDynMenu {
-            EqDynMenu(model: model, anchor: f)
+            AnyView(EqDynMenu(model: model, anchor: f))
         }
         if let m = model.eqPresetMenu {
-            EqPresetsMenu(model: model, state: m)
+            AnyView(EqPresetsMenu(model: model, state: m))
         }
         if let m = model.masterMenu {
-            MasterMenuView(model: model, state: m)
+            AnyView(MasterMenuView(model: model, state: m))
         }
         if let f = model.sampleRec.menu {
-            RecSourceMenu(model: model, anchor: f, bottom: trackTop)
+            AnyView(RecSourceMenu(model: model, anchor: f, bottom: trackTop))
         }
         if let w = model.appWindow {
-            AppWindowView(model: model, window: w).padding(8)
+            AnyView(AppWindowView(model: model, window: w).padding(8))
         }
     }
 }
