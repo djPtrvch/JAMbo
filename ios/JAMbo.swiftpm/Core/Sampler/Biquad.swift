@@ -35,28 +35,22 @@ public struct Biquad {
     public static func knob(_ v: Double, reso: Double) -> (type: Int, hz: Double, q: Double) {
         let f = Fmt.filterFreq(v)
         let q: Double = 0.7 + reso / 100 * 18
-        // Выключен: тип 0 (коэффициенты — LP на 20 кГц); звучащий голос остаётся в своём типе (Biquad.glide).
-        if f.type == 0 { return (0, 20000, q) }
+        if f.type == 0 { return (-1, 20000, q) }
         return (f.type, f.hz, q)
     }
 
-    /// Фильтр звучащего голоса на кусок (k — доля сглаживания): частота плавно идёт к цели. Выключен (tt 0) — тип
-    /// голоса остаётся, частота — к прозрачному краю (HP — 10 Гц, LP — 20 кГц): без смены типа и щелчка.
-    /// true — нужна смена HP ↔ LP: голос уводит выход фильтра в ноль (dipTime), меняет тип и возвращает.
+    /// Фильтр звучащего голоса на кусок (k — доля сглаживания): частота плавно идёт к цели. true — скачок: смена
+    /// HP ↔ LP (выкл. — LP 20 кГц) или частота дальше, чем в 4 раза; проезд частоты через низы даёт всплеск, поэтому
+    /// голос за fadeTime переводит выход на сухой сигнал, ставит фильтр сразу на цель и возвращает выход на фильтр.
     @inline(__always)
     public static func glide(_ type: inout Int, _ hz: inout Double, _ tt: Int, _ th: Double, _ k: Double) -> Bool {
-        if type == 0 { type = -1 }
-        let hp: Bool = type > 0
-        var h2: Double = th
-        if tt == 0 {
-            h2 = hp ? 10 : 20000
-        } else if (tt > 0) != hp {
-            return true
-        }
-        hz += (h2 - hz) * k
+        if tt != type { return true }
+        let r: Double = th / Swift.max(1, hz)
+        if r > 4 || r < 0.25 { return true }
+        hz += (th - hz) * k
         return false
     }
 
-    /// Провал фильтра при смене HP ↔ LP: за сколько секунд выход уходит в ноль (и столько же — обратно).
-    public static let dipTime: Double = 0.003
+    /// Переход выхода фильтра на сухой сигнал и обратно при скачке (секунды на каждый).
+    public static let fadeTime: Double = 0.01
 }

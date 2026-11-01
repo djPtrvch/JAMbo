@@ -57,10 +57,12 @@ public final class SynthVoices {
     let qDb = UnsafeMutablePointer<Double>.allocate(capacity: slots)
     let ftype = UnsafeMutablePointer<Int>.allocate(capacity: slots)
     let coef = UnsafeMutablePointer<Biquad>.allocate(capacity: slots)
-    let z = UnsafeMutablePointer<Float>.allocate(capacity: slots * 2)
+    /// Состояние фильтра (прямая форма I: x1, x2, y1, y2 — прошлые входы и выходы; не раздувается, когда частота
+    /// быстро едет).
+    let z = UnsafeMutablePointer<Float>.allocate(capacity: slots * 4)
     /// Состояние фильтра правого канала стерео-движка.
-    let zR = UnsafeMutablePointer<Float>.allocate(capacity: slots * 2)
-    /// Усиление фильтра (1; провал до 0 при смене HP ↔ LP — Biquad.glide).
+    let zR = UnsafeMutablePointer<Float>.allocate(capacity: slots * 4)
+    /// Доля фильтра в выходе (1; при скачке — к сухому сигналу и обратно, Biquad.glide).
     let fdip = UnsafeMutablePointer<Float>.allocate(capacity: slots)
     /// Слот занят до (затухающие сами — атака + 0,3 с + 4·Decay; остальные — до stopAt).
     let busyUntil = UnsafeMutablePointer<Int64>.allocate(capacity: slots)
@@ -129,8 +131,8 @@ public final class SynthVoices {
         for p in [decayK, env, env0, fadeK, fadeG, level, pan] as [UnsafeMutablePointer<Float>] { p.initialize(repeating: 0, count: s) }
         send.initialize(repeating: 0, count: s * 3)
         coef.initialize(repeating: Biquad(), count: s)
-        z.initialize(repeating: 0, count: s * 2)
-        zR.initialize(repeating: 0, count: s * 2)
+        z.initialize(repeating: 0, count: s * 4)
+        zR.initialize(repeating: 0, count: s * 4)
         fdip.initialize(repeating: 1, count: s)
         lockMask.initialize(repeating: 0, count: s)
         pMask.initialize(repeating: 0, count: s)
@@ -300,10 +302,10 @@ public final class SynthVoices {
         qDb[v] = f.q
         coef[v].set(type: f.type, hz: f.hz, qDb: f.q, sampleRate: sr)
         fdip[v] = 1
-        z[v * 2] = 0
-        z[v * 2 + 1] = 0
-        zR[v * 2] = 0
-        zR[v * 2 + 1] = 0
+        for k in 0..<4 {
+            z[v * 4 + k] = 0
+            zR[v * 4 + k] = 0
+        }
     }
 
     /// Ждущая нота слота v становится голосом (прежняя погасла).
@@ -484,19 +486,20 @@ public final class SynthVoices {
         let s0L = sendL! + t * 3 * st + off, s0R = sendR! + t * 3 * st + off
         let h0 = hz[v]
         let q0 = qDb[v]
-        // Частота — плавно; выкл. — без смены типа; HP ↔ LP — провал в ноль за 3 мс, смена типа, подъём (без щелчка).
+        // Частота — плавно; скачок (HP ↔ LP, выкл., частота дальше 4 раз) — выход на сухой сигнал за 10 мс, фильтр сразу
+        // на цель, обратно на фильтр (проезд частоты через низы давал всплеск).
         let g0: Float = fdip[v]
         var cPrev: Biquad = coef[v]
         let swap: Bool = Biquad.glide(&ftype[v], &hz[v], fk.type, fk.hz, kf)
-        let dg: Float = Float(Double(m) / (Biquad.dipTime * sr))
+        let dg: Float = Float(Double(m) / (Biquad.fadeTime * sr))
         var retype: Bool = false
         if swap && g0 <= 0 {
-            ftype[v] = fk.type > 0 ? 1 : -1
-            hz[v] = fk.type == 0 ? 20000 : fk.hz
-            z[v * 2] = 0
-            z[v * 2 + 1] = 0
-            zR[v * 2] = 0
-            zR[v * 2 + 1] = 0
+            ftype[v] = fk.type
+            hz[v] = fk.hz
+            for k in 0..<4 {
+                z[v * 4 + k] = 0
+                zR[v * 4 + k] = 0
+            }
             retype = true
         }
         fdip[v] = swap && !retype ? Swift.max(0, g0 - dg) : Swift.min(1, g0 + dg)
@@ -506,13 +509,13 @@ public final class SynthVoices {
             coef[v].set(type: ftype[v], hz: hz[v], qDb: qDb[v], sampleRate: sr)
         }
         let c: Biquad = coef[v]
-        // Смена типа — на нуле выхода: коэффициенты нового типа сразу (смесь знаменателей двух типов — не фильтр).
+        // Скачок — на сухом сигнале: коэффициенты цели сразу (смесь знаменателей двух фильтров — не фильтр).
         if retype { cPrev = c }
-        // Усиление выхода фильтра (провал) — по отсчётам от прежнего к новому.
+        // Доля фильтра в выходе — по отсчётам от прежней к новой.
         var fq: Float = retype ? 0 : g0
         let dfq: Float = (fdip[v] - fq) / Float(m)
         let lv = level[v]
-        let zb = v * 2
+        let zb = v * 4
         // Огибающая — отдельным проходом в gBuf (с остановкой голоса), затем фильтр, Pan и посылы — моно или стерео.
         let stopped: Bool = envelope(v, frame0, m, lv)
         // Коэффициенты фильтра — плавно от прежних к новым внутри куска (иначе ступеньки раз в 24 отсчёта при ENV/LFO
@@ -523,7 +526,7 @@ public final class SynthVoices {
         let da1 = (c.a1 - a1) * im, da2 = (c.a2 - a2) * im
         let gb = gBuf
         let src = outBuf
-        var z0 = z[zb], z1 = z[zb + 1]
+        var x1 = z[zb], x2 = z[zb + 1], y1 = z[zb + 2], y2 = z[zb + 3]
         var j = 0
         if !stereo {
             // StereoPanner, моно: cos/sin.
@@ -538,11 +541,14 @@ public final class SynthVoices {
                 a1 += da1
                 a2 += da2
                 // Фильтр (TDF II).
-                let yf: Float = b0 * a + z0
-                z0 = b1 * a - a1 * yf + z1
-                z1 = b2 * a - a2 * yf
+                // Фильтр (прямая форма I).
+                let yf: Float = b0 * a + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2
+                x2 = x1
+                x1 = a
+                y2 = y1
+                y1 = yf
                 fq += dfq
-                let y: Float = yf * fq
+                let y: Float = a + (yf - a) * fq
                 let oa: Float = y * gc
                 let ob: Float = y * gs
                 bl[j] += oa
@@ -567,7 +573,7 @@ public final class SynthVoices {
             let ll: Float = p <= 0 ? 1 : gc, rl: Float = p <= 0 ? gc : 0
             let rr: Float = p <= 0 ? gs : 1, lr: Float = p <= 0 ? 0 : gs
             let srcR = outBufR
-            var w0 = zR[zb], w1 = zR[zb + 1]
+            var u1 = zR[zb], u2 = zR[zb + 1], w1 = zR[zb + 2], w2 = zR[zb + 3]
             while j < m {
                 let g: Float = gb[j]
                 let a: Float = src[j] * g
@@ -577,15 +583,19 @@ public final class SynthVoices {
                 b2 += db2
                 a1 += da1
                 a2 += da2
-                let yf: Float = b0 * a + z0
-                z0 = b1 * a - a1 * yf + z1
-                z1 = b2 * a - a2 * yf
-                let yfR: Float = b0 * aR + w0
-                w0 = b1 * aR - a1 * yfR + w1
-                w1 = b2 * aR - a2 * yfR
+                let yf: Float = b0 * a + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2
+                x2 = x1
+                x1 = a
+                y2 = y1
+                y1 = yf
+                let yfR: Float = b0 * aR + b1 * u1 + b2 * u2 - a1 * w1 - a2 * w2
+                u2 = u1
+                u1 = aR
+                w2 = w1
+                w1 = yfR
                 fq += dfq
-                let y: Float = yf * fq
-                let yR: Float = yfR * fq
+                let y: Float = a + (yf - a) * fq
+                let yR: Float = aR + (yfR - aR) * fq
                 let oa: Float = y * ll + yR * rl
                 let ob: Float = yR * rr + y * lr
                 bl[j] += oa
@@ -600,18 +610,22 @@ public final class SynthVoices {
                 }
                 j += 1
             }
-            zR[zb] = (w0 < 1e-20 && w0 > -1e-20) ? 0 : w0
-            zR[zb + 1] = (w1 < 1e-20 && w1 > -1e-20) ? 0 : w1
+            zR[zb] = u1
+            zR[zb + 1] = u2
+            zR[zb + 2] = (w1 < 1e-20 && w1 > -1e-20) ? 0 : w1
+            zR[zb + 3] = (w2 < 1e-20 && w2 > -1e-20) ? 0 : w2
         }
-        z[zb] = z0
-        z[zb + 1] = z1
+        z[zb] = x1
+        z[zb + 1] = x2
+        z[zb + 2] = y1
+        z[zb + 3] = y2
         if stopped {
             active[v] = 0
             return
         }
         // Денормалы в состоянии фильтра.
-        if z0 < 1e-20 && z0 > -1e-20 { z[zb] = 0 }
-        if z1 < 1e-20 && z1 > -1e-20 { z[zb + 1] = 0 }
+        if y1 < 1e-20 && y1 > -1e-20 { z[zb + 2] = 0 }
+        if y2 < 1e-20 && y2 > -1e-20 { z[zb + 3] = 0 }
     }
 
 

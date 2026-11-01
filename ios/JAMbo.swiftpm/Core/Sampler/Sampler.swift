@@ -87,8 +87,9 @@ public final class Sampler {
     let qDb = UnsafeMutablePointer<Double>.allocate(capacity: slots)
     let ftype = UnsafeMutablePointer<Int>.allocate(capacity: slots)
     let coef = UnsafeMutablePointer<Biquad>.allocate(capacity: slots)
-    let z = UnsafeMutablePointer<Float>.allocate(capacity: slots * 4)
-    /// Усиление фильтра (1; провал до 0 при смене HP ↔ LP — Biquad.glide).
+    /// Состояние фильтра (прямая форма I: x1, x2, y1, y2 на канал; не раздувается, когда частота быстро едет).
+    let z = UnsafeMutablePointer<Float>.allocate(capacity: slots * 8)
+    /// Доля фильтра в выходе (1; при скачке — к сухому сигналу и обратно, Biquad.glide).
     let fdip = UnsafeMutablePointer<Float>.allocate(capacity: slots)
     let lockMask = UnsafeMutablePointer<VoiceMask>.allocate(capacity: slots)
     let lockVal = UnsafeMutablePointer<Float>.allocate(capacity: slots * VoiceParam.count)
@@ -209,7 +210,7 @@ public final class Sampler {
         qDb.initialize(repeating: 0.7, count: s)
         ftype.initialize(repeating: -1, count: s)
         coef.initialize(repeating: Biquad(), count: s)
-        z.initialize(repeating: 0, count: s * 4)
+        z.initialize(repeating: 0, count: s * 8)
         fdip.initialize(repeating: 1, count: s)
         lockMask.initialize(repeating: 0, count: s)
         lockVal.initialize(repeating: 0, count: s * VoiceParam.count)
@@ -346,7 +347,7 @@ public final class Sampler {
         let kf: Double = 1 - exp(-Double(sub) / (0.015 * sr))
         let frames = srcFrames[v]
         let st = stereo[v] != 0
-        let zb = v * 4
+        let zb = v * 8
         var i = 0
         while i < n {
             let m = Swift.min(sub, n - i)
@@ -362,15 +363,16 @@ public final class Sampler {
             let hasSend: Bool = sg0 > 1e-6 || sg1 > 1e-6 || sg2 > 1e-6
             let h0 = hz[v]
             let q0 = qDb[v]
-            // Частота — плавно; выкл. — без смены типа; HP ↔ LP — провал в ноль за 3 мс, смена типа, подъём.
+            // Частота — плавно; скачок (HP ↔ LP, выкл., частота дальше 4 раз) — выход на сухой сигнал за 10 мс, фильтр
+            // сразу на цель, обратно на фильтр (проезд частоты через низы давал всплеск).
             let g0: Float = fdip[v]
             let swap: Bool = Biquad.glide(&ftype[v], &hz[v], fk.type, fk.hz, kf)
-            let dg: Float = Float(Double(m) / (Biquad.dipTime * sr))
+            let dg: Float = Float(Double(m) / (Biquad.fadeTime * sr))
             var retype: Bool = false
             if swap && g0 <= 0 {
-                ftype[v] = fk.type > 0 ? 1 : -1
-                hz[v] = fk.type == 0 ? 20000 : fk.hz
-                for k in 0..<4 { z[zb + k] = 0 }
+                ftype[v] = fk.type
+                hz[v] = fk.hz
+                for k in 0..<8 { z[zb + k] = 0 }
                 retype = true
             }
             fdip[v] = swap && !retype ? Swift.max(0, g0 - dg) : Swift.min(1, g0 + dg)
@@ -379,7 +381,7 @@ public final class Sampler {
                 coef[v].set(type: ftype[v], hz: hz[v], qDb: qDb[v], sampleRate: sr)
             }
             let c: Biquad = coef[v]
-            // Усиление выхода фильтра (провал) — по отсчётам куска.
+            // Доля фильтра в выходе — по отсчётам куска.
             var fq: Float = retype ? 0 : g0
             let dfq: Float = (fdip[v] - fq) / Float(m)
             let pn = pan[v]
@@ -434,16 +436,21 @@ public final class Sampler {
                 var a: Float = (ts ? tsL[j] : Sampler.cubic(l, frames, pos[v])) * g
                 var b: Float = st ? (ts ? tsR[j] : Sampler.cubic(r, frames, pos[v])) * g : 0
                 // Фильтр (TDF II).
-                let ya: Float = c.b0 * a + z[zb]
-                z[zb] = c.b1 * a - c.a1 * ya + z[zb + 1]
-                z[zb + 1] = c.b2 * a - c.a2 * ya
+                // Фильтр (прямая форма I).
+                let ya: Float = c.b0 * a + c.b1 * z[zb] + c.b2 * z[zb + 1] - c.a1 * z[zb + 2] - c.a2 * z[zb + 3]
+                z[zb + 1] = z[zb]
+                z[zb] = a
+                z[zb + 3] = z[zb + 2]
+                z[zb + 2] = ya
                 fq += dfq
-                a = ya * fq
+                a += (ya - a) * fq
                 if st {
-                    let yb: Float = c.b0 * b + z[zb + 2]
-                    z[zb + 2] = c.b1 * b - c.a1 * yb + z[zb + 3]
-                    z[zb + 3] = c.b2 * b - c.a2 * yb
-                    b = yb * fq
+                    let yb: Float = c.b0 * b + c.b1 * z[zb + 4] + c.b2 * z[zb + 5] - c.a1 * z[zb + 6] - c.a2 * z[zb + 7]
+                    z[zb + 5] = z[zb + 4]
+                    z[zb + 4] = b
+                    z[zb + 7] = z[zb + 6]
+                    z[zb + 6] = yb
+                    b += (yb - b) * fq
                 }
                 let k = t * Sampler.maxFrames + i + j
                 let oa: Float
@@ -475,7 +482,7 @@ public final class Sampler {
                 pos[v] += rt
             }
             // Денормалы в состоянии фильтра.
-            for k in 0..<4 where abs(z[zb + k]) < 1e-20 { z[zb + k] = 0 }
+            for k in 0..<8 where abs(z[zb + k]) < 1e-20 { z[zb + k] = 0 }
             i += m
         }
     }

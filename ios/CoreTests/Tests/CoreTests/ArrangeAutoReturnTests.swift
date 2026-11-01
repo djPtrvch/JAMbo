@@ -98,7 +98,7 @@ final class ArrangeAutoReturnTests: XCTestCase {
     /// Мера щелчка — скачок отсчёта (|y[i] − y[i−1]|) у конца кривой против скачков хвоста без кривой.
     func testFilterEndWithoutClick() {
         var lastType: Int = 99
-        func render(_ curve: Bool, toLP: Bool = false, fromOff: Bool = false) -> [Float] {
+        func render(_ curve: Bool, toLP: Bool = false, fromOff: Bool = false, lpEnd: Bool = false) -> [Float] {
             var p = Project()
             for t in 1..<8 { p.tracks[t].clips[0] = nil }
             p.tracks[0].setSynth(16)
@@ -114,6 +114,8 @@ final class ArrangeAutoReturnTests: XCTestCase {
                 if toLP { pts += [ArrAutoPoint(x: 9, y: 0.3), ArrAutoPoint(x: 16, y: 0.3)] }
                 // Выкл. → HP посреди ноты.
                 if fromOff { pts = [ArrAutoPoint(x: 9, y: 0.7), ArrAutoPoint(x: 16, y: 0.7)] }
+                // LP прикрыт → конец кривой (выкл.).
+                if lpEnd { pts = [ArrAutoPoint(x: 0, y: 0.2), ArrAutoPoint(x: 9, y: 0.2)] }
                 p.tracks[0].setAuto("filter", pts)
             }
             let core = AudioCore(master: false)
@@ -154,5 +156,57 @@ final class ArrangeAutoReturnTests: XCTestCase {
         print(String(format: "FILTER OFF→HP: jump %.5f", on))
         XCTAssertLessThanOrEqual(on, ref * 1.1, "выкл. → HP — без скачка")
         XCTAssertEqual(lastType, 1, "тип сменился на HP")
+        let yl2: [Float] = render(true, lpEnd: true)
+        let le: Float = jump(yl2, 9 * step - 2000, 9 * step + 4000)
+        var pk: Float = 0, pkPlain: Float = 0
+        for i in (9 * step)..<(9 * step + 4000) { pk = Swift.max(pk, abs(yl2[i])); pkPlain = Swift.max(pkPlain, abs(plain[i])) }
+        print(String(format: "FILTER LP END: jump %.5f peak %.4f plain peak %.4f", le, pk, pkPlain))
+    }
+
+    /// Удар KICK на конце кривой HP (как на iPad 1.11): после конца — без всплеска (пики окнами по 500 отсчётов не выше,
+    /// чем без кривой), и с резонансом: фильтр не проезжает через низы, выход переходит через сухой сигнал.
+    func testNoBurstAfterHpCurve() {
+        func render(_ curve: Bool, reso: Double) -> [Float] {
+            var p = Project()
+            for t in 1..<8 { p.tracks[t].clips[0] = nil }
+            p.tracks[0].setSynth(16)
+            p.tracks[0].params["filter"] = 0
+            p.tracks[0].params["reso"] = reso
+            p.tracks[0].params["decay"] = 600
+            p.tracks[0].params["attack"] = 0
+            for k in [0, 4, 8, 12] {
+                p.tracks[0].clips[0]!.pages[0][k].on = true
+                p.tracks[0].clips[0]!.pages[0][k].notes = [48]
+            }
+            p.tracks[0].placeBlock(ArrBlock(clip: 0, start: 0, length: 16))
+            if curve { p.tracks[0].setAuto("filter", [ArrAutoPoint(x: 0, y: 0.9), ArrAutoPoint(x: 8, y: 0.9)]) }
+            let core = AudioCore(master: false)
+            core.installSynth()
+            core.publish(p)
+            core.events.push(.arrange(on: true, from: 0))
+            core.events.push(.play(true))
+            var l = [Float](repeating: 0, count: 256), r = l
+            var out: [Float] = []
+            while out.count < 14 * step {
+                core.render(frames: 256, left: &l, right: &r)
+                while core.sequencer.out.pop() != nil {}
+                out += l
+            }
+            return out
+        }
+        for reso in [0.0, 50.0] {
+            let a: [Float] = render(true, reso: reso)
+            let b: [Float] = render(false, reso: reso)
+            for w in 0..<12 {
+                let i0: Int = 8 * step + w * 500
+                var pa: Float = 0
+                var pb: Float = 0
+                for i in i0..<(i0 + 500) {
+                    pa = Swift.max(pa, abs(a[i]))
+                    pb = Swift.max(pb, abs(b[i]))
+                }
+                XCTAssertLessThanOrEqual(pa, pb * 1.1 + 0.002, "reso \(reso), окно \(w): без всплеска")
+            }
+        }
     }
 }

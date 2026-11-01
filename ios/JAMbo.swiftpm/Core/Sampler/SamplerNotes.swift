@@ -141,7 +141,7 @@ extension Sampler {
         qDb[v] = f.q
         coef[v].set(type: f.type, hz: f.hz, qDb: f.q, sampleRate: sr)
         fdip[v] = 1
-        for k in 0..<4 { z[v * 4 + k] = 0 }
+        for k in 0..<8 { z[v * 8 + k] = 0 }
     }
 
     /// Свободная ячейка; больше maxVoices звучащих — самый старый гаснет за ~5 мс.
