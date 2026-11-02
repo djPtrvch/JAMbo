@@ -218,9 +218,10 @@ public final class SynthVoices {
             let n = Int(notes[k])
             let (v, steal) = allocate(t, frame)
             if steal {
-                fade(v, at: frame, tau: 0.0015)
+                // Кража: прежняя нота гаснет (τ 2,5 мс), новая — после неё (18 мс ≈ 7τ, остаток ниже −60 dB).
+                fade(v, at: frame, tau: 0.0025)
                 pActive[v] = 1
-                pStart[v] = frame + Int64((0.008 * sr).rounded())
+                pStart[v] = frame + Int64((0.018 * sr).rounded())
                 pNote[v] = n
                 pEngine[v] = e
                 pGate[v] = gate
@@ -322,7 +323,15 @@ public final class SynthVoices {
     }
 
     func fade(_ v: Int, at: Int64, tau: Double) {
-        if active[v] == 0 || (fading[v] != 0 && fadeAt[v] <= at) { return }
+        if active[v] == 0 { return }
+        let k: Float = Float(exp(-1 / (tau * sr)))
+        // Уже гаснет (legatoCut с τ по атаке) — быстрое гашение кражи перекрывает медленное: иначе голос обрезает
+        // на ещё громком звуке (щелчок на смене аккорда).
+        if fading[v] != 0 && fadeAt[v] <= at {
+            if k < fadeK[v] { fadeK[v] = k }
+            stopAt[v] = Swift.min(stopAt[v], at + Int64((tau * 8 + 0.005) * sr))
+            return
+        }
         fading[v] = 1
         fadeAt[v] = at
         fadeK[v] = Float(exp(-1 / (tau * sr)))

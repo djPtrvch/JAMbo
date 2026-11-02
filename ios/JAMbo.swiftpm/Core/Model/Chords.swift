@@ -138,3 +138,25 @@ public enum Chords {
         return out
     }
 }
+
+extension Track {
+    /// Прогрессия на страницы range открытого паттерна: прежние шаги этих страниц стираются (триги, ноты, p-lock, свой
+    /// звук), аккорды — поровну (Chords.places), конкретными нотами. Страницы вне range не трогаются.
+    public mutating func writeProgression(_ chords: [[Int]], pages range: ClosedRange<Int>) {
+        let lo: Int = Swift.max(0, range.lowerBound)
+        let hi: Int = Swift.min(pages.count - 1, range.upperBound)
+        if lo > hi { return }
+        changePages { ps in
+            for p in lo...hi { ps[p] = Track.emptyPage() }
+        }
+        let base: Int = lo * Params.stepsPerPage
+        let places = Chords.places(pages: hi - lo + 1)
+        for (i, notes) in chords.enumerated() where i < places.count {
+            withStep(base + places[i].start) { s in
+                s.on = true
+                s.notes = notes
+                s.setAllLen(places[i].len)
+            }
+        }
+    }
+}

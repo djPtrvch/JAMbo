@@ -15,6 +15,9 @@ struct KeyboardPanel: View {
             }
             .frame(width: layout.step)
             KeyRow(model: model)
+                .onGeometryChange(for: CGRect.self) { g in g.frame(in: .named("root")) } action: { r in
+                    if model.keysFrame != r { model.keysFrame = r }
+                }
             OctavePair(model: model).frame(width: layout.step)
         }
         .frame(height: layout.pianoHeight(model.project.scale))

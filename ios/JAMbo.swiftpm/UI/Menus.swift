@@ -101,7 +101,10 @@ struct PianoMenu: View {
 
     var body: some View {
         let width: CGFloat = 4 * layout.step + 3 * Layout.stepGap
-        let x: CGFloat = 12 + layout.step + Layout.stepGap
+        // Левый нижний угол меню — у левого нижнего угла первой клавиши.
+        let keys: CGRect = model.keysFrame
+        let x: CGFloat = keys.width > 0 ? keys.minX : 12 + layout.step + Layout.stepGap
+        let bottom: CGFloat = keys.height > 0 ? max(0, screen.height - keys.maxY) : 8
         return ZStack(alignment: .bottomLeading) {
             Color.black.opacity(0.001).ignoresSafeArea().onTapGesture { model.pianoMenuOpen = false }
             content
@@ -111,7 +114,7 @@ struct PianoMenu: View {
                 .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(theme.line, lineWidth: 1))
                 .shadow(color: .black.opacity(0.5), radius: 12, y: 4)
                 .padding(.leading, x)
-                .padding(.bottom, 8)
+                .padding(.bottom, bottom)
         }
         .frame(width: screen.width, height: screen.height, alignment: .bottomLeading)
     }

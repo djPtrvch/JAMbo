@@ -103,6 +103,25 @@ final class EditTests: XCTestCase {
         XCTAssertFalse(t.deletePages(0), "одна страница остаётся")
     }
 
+    /// DELETE в меню страницы — только эта страница, и в белой обводке: играющий диапазон сужается.
+    func testDeleteSinglePageInsideRange() {
+        var t = trackWith(pages: 4)
+        for p in 0..<4 { t.pages[p][0].on = true; t.pages[p][0].notes = [60 + p] }
+        t.setPlayPages(0, 3)
+        XCTAssertTrue(t.deletePages(1, single: true))
+        XCTAssertEqual(t.pages.count, 3)
+        XCTAssertEqual(t.pages.map { $0[0].notes }, [[60], [62], [63]])
+        XCTAssertEqual(t.playFrom, 0)
+        XCTAssertEqual(t.playTo, 2)
+        t.setPlayPages(1, 2)
+        XCTAssertTrue(t.deletePages(0, single: true), "страница перед диапазоном")
+        XCTAssertEqual(t.playFrom, 0)
+        XCTAssertEqual(t.playTo, 1)
+        XCTAssertTrue(t.deletePages(1, single: true))
+        XCTAssertFalse(t.deletePages(0, single: true), "одна страница остаётся")
+        XCTAssertEqual(t.pages.count, 1)
+    }
+
     func testNudgeAcrossPagesAndOctave() {
         var t = trackWith(pages: 2)
         t.pages[0][15].on = true

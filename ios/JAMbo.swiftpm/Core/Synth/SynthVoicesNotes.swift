@@ -57,10 +57,13 @@ extension SynthVoices {
         }
     }
 
-    /// Слот дорожки по кругу: свободный — голос дозвучал (stopAt); иначе крадётся следующий (steal).
+    /// Слот дорожки по кругу: свободный — голос дозвучал (stopAt); иначе крадётся самый тихий (steal) — хвост
+    /// релиза, а не держащаяся нота: громкий голос, погашенный за миллисекунды, щёлкает.
     func allocate(_ t: Int, _ at: Int64) -> (Int, Bool) {
         let base = t * SynthVoices.perTrack
         let pt = SynthVoices.perTrack
+        var quiet: Int = -1
+        var quietG: Float = Float.greatestFiniteMagnitude
         for k in 0..<pt {
             let c = (next[t] + k) % pt
             let v = base + c
@@ -69,7 +72,15 @@ extension SynthVoices {
                 next[t] = (c + 1) % pt
                 return (v, false)
             }
+            // Держащаяся нота (до конца удержания) — громче любого хвоста.
+            let held: Float = holdEnd[v] > at ? 1 : 0
+            let g: Float = held + env[v] * fadeG[v] * level[v]
+            if g < quietG {
+                quietG = g
+                quiet = v
+            }
         }
+        if quiet >= 0 { return (quiet, true) }
         let c = next[t] % pt
         next[t] = (c + 1) % pt
         return (base + c, true)

@@ -319,7 +319,8 @@ extension AppModel {
             if let clip = pageClipboard { editSeq { t in t.pastePages(i, clip) } }
         case .clear: editSeq { t in t.clearPages(i) }
         case .delete:
-            editSeq { t in _ = t.deletePages(i) }
+            // DELETE — только эта страница, и в белой обводке (решение пользователя).
+            editSeq { t in _ = t.deletePages(i, single: true) }
             viewPage = min(viewPage, seq.pages.count - 1)
         }
     }
@@ -329,6 +330,6 @@ extension AppModel {
     }
 
     func canDelete(_ i: Int) -> Bool {
-        return seq.pages.count - seq.pageRange(i).count >= 1
+        return seq.pages.count > 1
     }
 }

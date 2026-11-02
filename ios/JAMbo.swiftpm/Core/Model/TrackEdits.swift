@@ -128,9 +128,11 @@ extension Track {
 
     /// DELETE: убрать страницы диапазона (одна остаётся всегда); false — не осталось бы ни одной.
     @discardableResult
-    public mutating func deletePages(_ i: Int) -> Bool {
-        let r = pageRange(i)
-        if pages.count - r.count < 1 { return false }
+    /// Удалить страницы диапазона страницы i (single — только саму страницу i, и в белой обводке): играющие
+    /// страницы сдвигаются и сужаются вместе с ней.
+    public mutating func deletePages(_ i: Int, single: Bool = false) -> Bool {
+        let r: ClosedRange<Int> = single ? i...i : pageRange(i)
+        if r.lowerBound < 0 || r.upperBound >= pages.count || pages.count - r.count < 1 { return false }
         let from = playFrom
         let to = playTo
         changePages { $0.removeSubrange(r) }
@@ -140,7 +142,10 @@ extension Track {
         } else if from > r.upperBound {
             playFrom = from - r.count
             playTo = to - r.count
+        } else if from <= r.lowerBound && r.upperBound <= to {
+            playTo = to - r.count
         }
+        playTo = Swift.max(playFrom, Swift.min(playTo, pages.count - 1))
         return true
     }
 

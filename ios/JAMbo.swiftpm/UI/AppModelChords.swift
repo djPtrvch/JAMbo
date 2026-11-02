@@ -28,8 +28,8 @@ extension AppModel {
     }
 
     /// Случайная прогрессия из 4 аккордов текущего типа на выбранные страницы поровну (одна страница — шаги 1, 5, 9,
-    /// 13 по 4 шага; четыре — по странице на аккорд). Ноты — конкретные (гамма, корень, октава клавиатуры сейчас);
-    /// остальные шаги не трогаются. Одна запись UNDO; режим CHORD не меняется.
+    /// 13 по 4 шага; четыре — по странице на аккорд). Прежние шаги выбранных страниц стираются. Ноты — конкретные
+    /// (гамма, корень, октава клавиатуры сейчас). Одна запись UNDO; режим CHORD не меняется.
     func writeRandomProgression() {
         guard channel == .track else { return }
         var g = SystemRandomNumberGenerator()
@@ -38,18 +38,6 @@ extension AppModel {
         let cs: [[Int]] = Chords.chords(degrees, scale: project.scale, root: project.root, octave: octave,
                                         kind: chordKind[selectedTrack])
         let range: ClosedRange<Int> = chordPages
-        let base: Int = range.lowerBound * Params.stepsPerPage
-        let places = Chords.places(pages: range.count)
-        editTrack { t in
-            for (i, notes) in cs.enumerated() where i < places.count {
-                t.withStep(base + places[i].start) { s in
-                    s.on = true
-                    s.notes = notes
-                    s.lens = nil
-                    s.vels = nil
-                    s.setAllLen(places[i].len)
-                }
-            }
-        }
+        editTrack { t in t.writeProgression(cs, pages: range) }
     }
 }

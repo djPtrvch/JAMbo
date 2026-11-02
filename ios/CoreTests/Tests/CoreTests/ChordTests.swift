@@ -91,25 +91,31 @@ final class ChordTests: XCTestCase {
         }
     }
 
-    /// Запись прогрессии на 4 страницы: по странице на аккорд, остальные шаги не тронуты; снимок отдаёт все ноты.
-    func testWriteChordsToSteps() {
+    /// Прогрессия на выбранные страницы: прежние шаги этих страниц стираются, страницы вне — нет; аккорды поровну;
+    /// снимок отдаёт все ноты.
+    func testWriteProgressionClearsSelectedPages() {
         var t = Track(index: 0)
-        t.pages[0][2].on = true
-        t.pages[0][2].notes = [60]
-        let cs: [[Int]] = Chords.chords([1, 7, 6, 7], scale: phr, root: e, octave: 2, kind: 0)
-        while t.pages.count < 4 { t.pages.append([Step](repeating: Step(), count: Params.stepsPerPage)) }
-        let places = Chords.places(pages: 4)
-        for (i, notes) in cs.enumerated() {
-            t.withStep(places[i].start) { s in
-                s.on = true
-                s.notes = notes
-                s.setAllLen(places[i].len)
-            }
+        while t.pages.count < 9 { t.pages.append(Track.emptyPage()) }
+        for p in 0..<9 {
+            t.pages[p][0].on = true
+            t.pages[p][0].notes = [60]
+            t.pages[p][6].on = true
+            t.pages[p][6].notes = [61]
         }
+        let cs: [[Int]] = Chords.chords([1, 7, 6, 7], scale: phr, root: e, octave: 2, kind: 0)
+        t.writeProgression(cs, pages: 0...3)
         XCTAssertEqual(t.pages[0][0].notes, [40, 43, 47])
         XCTAssertEqual(t.pages[1][0].notes, [50, 53, 57], "Dm: D F A")
         XCTAssertEqual(t.pages[3][0].len, 16)
-        XCTAssertEqual(t.pages[0][2].notes, [60], "прочие шаги не тронуты")
+        XCTAssertFalse(t.pages[2][6].on, "прежний шаг выбранной страницы стёрт")
+        XCTAssertTrue(t.pages[4][6].on, "страница вне выбора не тронута")
+        // Затем 8 страниц: прежняя прогрессия стёрта, аккорды по 32 шага.
+        t.writeProgression(cs, pages: 0...7)
+        XCTAssertFalse(t.pages[1][0].on, "аккорд прежней прогрессии стёрт")
+        XCTAssertEqual(t.pages[2][0].notes, [50, 53, 57])
+        XCTAssertEqual(t.pages[2][0].len, 32)
+        XCTAssertFalse(t.pages[4][6].on)
+        XCTAssertTrue(t.pages[8][6].on)
         var p = Project()
         p.tracks[0] = t
         let d = SeqSnapshot(p)
