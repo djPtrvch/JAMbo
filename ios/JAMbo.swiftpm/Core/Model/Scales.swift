@@ -21,12 +21,10 @@ public enum Scales {
         Scale(name: "Chromatic", short: "Chr", steps: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]),
     ]
 
-    /// Типы аккорда (CHORD; выбирается один в окне долгого нажатия на CHORD): ступени гаммы от ступени клавиши d —
+    /// Типы аккорда (CHORD; выбирается один в окне долгого нажатия на CHORD; имя — и подпись под CHORD): ступени гаммы от ступени клавиши d —
     /// Triad d, d+2, d+4; 7th + d+6; 9th + d+6, d+8; sus2 d, d+1, d+4; sus4 d, d+3, d+4; add9 d, d+2, d+4, d+8.
     /// Все ноты — в гамме.
-    public static let chordKinds: [String] = ["Triad", "7th", "9th", "sus2", "sus4", "add9"]
-    /// Подпись типа под словом CHORD на кнопке.
-    public static let chordShort: [String] = ["TRIAD", "7", "9", "SUS2", "SUS4", "ADD9"]
+    public static let chordKinds: [String] = ["Triad", "7th", "9th", "Sus2", "Sus4", "Add9"]
     public static let chordDegrees: [[Int]] = [[0, 2, 4], [0, 2, 4, 6], [0, 2, 4, 6, 8], [0, 1, 4], [0, 3, 4], [0, 2, 4, 8]]
 
     /// Октава клавиатуры: 0…7, по умолчанию 2 (C2).

@@ -19,7 +19,6 @@ final class PianoTests: XCTestCase {
         XCTAssertEqual(Scales.chord(scale: 0, root: 0, octave: 2, degree: 0, kind: 3), [36, 38, 43], "Csus2 по гамме")
         XCTAssertEqual(Scales.chord(scale: 0, root: 0, octave: 2, degree: 0, kind: 4), [36, 41, 43], "Csus4 по гамме")
         XCTAssertEqual(Scales.chord(scale: 0, root: 0, octave: 2, degree: 0, kind: 5), [36, 40, 43, 50], "Cadd9 по гамме")
-        XCTAssertEqual(Scales.chordKinds.count, Scales.chordShort.count)
         XCTAssertEqual(Scales.chordKinds.count, Scales.chordDegrees.count)
     }
 

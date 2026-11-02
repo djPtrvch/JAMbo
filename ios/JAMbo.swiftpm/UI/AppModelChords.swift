@@ -1,6 +1,6 @@
 import Foundation
 
-// Режим CHORD: пресеты прогрессий и случайная прогрессия (SHIFT + CHORD) — запись аккордов в открытый паттерн.
+// Режим CHORD: случайная прогрессия (SHIFT + CHORD) — запись аккордов в выбранные страницы открытого паттерна.
 
 extension AppModel {
     /// Тап по CHORD: с SHIFT — случайная прогрессия (режим не меняется), иначе — вкл./выкл. режима.
@@ -18,54 +18,36 @@ extension AppModel {
                                kind: chordKind[selectedTrack])
     }
 
-    /// Аккорды пресета для текущей гаммы и корня (строка окна CHORD).
-    func progressionNames(_ p: ChordProgression) -> String {
-        return Chords.names(p.degrees, scale: project.scale, root: project.root, kind: chordKind[selectedTrack])
+    /// Выбранные страницы открытого паттерна (playFrom…playTo); вне их — открытая страница.
+    private var chordPages: ClosedRange<Int> {
+        let t: Track = track
+        let last: Int = t.pages.count - 1
+        if t.playFrom >= 0 && t.playFrom <= t.playTo && t.playTo <= last { return t.playFrom...t.playTo }
+        let v: Int = max(0, min(viewPage, last))
+        return v...v
     }
 
-    /// Страница секвенсора, на которую пишутся аккорды (открытая; при нескольких на экране — выбранная).
-    private var chordPage: Int {
-        return max(0, min(viewPage, track.pages.count - 1))
-    }
-
-    /// Пресет или случайная прогрессия: 4 аккорда текущего типа на шаги 1, 5, 9, 13 текущей страницы, по 4 шага;
-    /// ноты — конкретные (от гаммы, корня и октавы клавиатуры сейчас). Остальные шаги не трогаются. Одна запись UNDO.
-    func writeProgression(_ degrees: [Int]) {
+    /// Случайная прогрессия из 4 аккордов текущего типа на выбранные страницы поровну (одна страница — шаги 1, 5, 9,
+    /// 13 по 4 шага; четыре — по странице на аккорд). Ноты — конкретные (гамма, корень, октава клавиатуры сейчас);
+    /// остальные шаги не трогаются. Одна запись UNDO; режим CHORD не меняется.
+    func writeRandomProgression() {
         guard channel == .track else { return }
+        var g = SystemRandomNumberGenerator()
+        let degrees: [Int] = Chords.random(scale: project.scale, avoid: lastRandomProgression, using: &g)
+        lastRandomProgression = degrees
         let cs: [[Int]] = Chords.chords(degrees, scale: project.scale, root: project.root, octave: octave,
                                         kind: chordKind[selectedTrack])
-        let base: Int = chordPage * Params.stepsPerPage
+        let range: ClosedRange<Int> = chordPages
+        let base: Int = range.lowerBound * Params.stepsPerPage
+        let places = Chords.places(pages: range.count)
         editTrack { t in
-            for (i, notes) in cs.enumerated() where i < Chords.slots.count {
-                t.withStep(base + Chords.slots[i]) { s in
+            for (i, notes) in cs.enumerated() where i < places.count {
+                t.withStep(base + places[i].start) { s in
                     s.on = true
                     s.notes = notes
                     s.lens = nil
                     s.vels = nil
-                    s.setAllLen(Chords.slotLen)
-                }
-            }
-        }
-    }
-
-    func writeRandomProgression() {
-        var g = SystemRandomNumberGenerator()
-        let degrees: [Int] = Chords.random(scale: project.scale, avoid: lastRandomProgression, using: &g)
-        lastRandomProgression = degrees
-        writeProgression(degrees)
-    }
-
-    /// Clear chords: аккорды (шаги с несколькими нотами) на шагах 1, 5, 9, 13 текущей страницы снимаются. Одна запись UNDO.
-    func clearProgression() {
-        guard channel == .track else { return }
-        let base: Int = chordPage * Params.stepsPerPage
-        let t0: Track = track
-        let any: Bool = Chords.slots.contains { (t0.step(base + $0)?.notes.count ?? 0) > 1 }
-        if !any { return }
-        editTrack { t in
-            for slot in Chords.slots {
-                t.withStep(base + slot) { s in
-                    if s.notes.count > 1 { s = Step() }
+                    s.setAllLen(places[i].len)
                 }
             }
         }

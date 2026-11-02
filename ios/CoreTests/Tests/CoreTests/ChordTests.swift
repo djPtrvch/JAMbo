@@ -1,7 +1,7 @@
 import XCTest
 @testable import Core
 
-/// Режим CHORD: аккорды по ступеням гаммы, названия, римские ступени, пресеты и случайные прогрессии.
+/// Режим CHORD: аккорды по ступеням гаммы, названия, римские ступени и случайные прогрессии.
 final class ChordTests: XCTestCase {
     /// Phrygian (3), корень E (4).
     private let phr: Int = 3
@@ -61,14 +61,18 @@ final class ChordTests: XCTestCase {
         XCTAssertEqual(c.first, 131 - 12)
     }
 
-    func testProgressionPresets() {
-        let p: ChordProgression = Chords.progressions[4]
-        XCTAssertEqual(p.degrees, [1, 7, 6, 7])
-        XCTAssertEqual(Chords.names(p.degrees, scale: phr, root: e, kind: 0), "Em – Dm – C – Dm", "по гамме: D F A")
+    func testProgressionDegreesAndPlaces() {
+        let cs: [[Int]] = Chords.chords([1, 7, 6, 7], scale: phr, root: e, octave: 2, kind: 0)
+        XCTAssertEqual(cs.map { Chords.name($0, kind: 0) }, ["Em", "Dm", "C", "Dm"], "по гамме: D F A")
         // Пентатоника (5 нот): ступени 6 и 7 — по модулю.
         XCTAssertEqual(Chords.degreeIndex(6, scale: 8), 0)
         XCTAssertEqual(Chords.degreeIndex(7, scale: 8), 1)
-        for pr in Chords.progressions { XCTAssertEqual(pr.degrees.count, Chords.slots.count) }
+        // Одна страница — шаги 1, 5, 9, 13 по 4; четыре — по странице на аккорд.
+        XCTAssertEqual(Chords.places(pages: 1).map { $0.start }, [0, 4, 8, 12])
+        XCTAssertEqual(Chords.places(pages: 1).map { $0.len }, [4, 4, 4, 4])
+        XCTAssertEqual(Chords.places(pages: 4).map { $0.start }, [0, 16, 32, 48])
+        XCTAssertEqual(Chords.places(pages: 4).map { $0.len }, [16, 16, 16, 16])
+        XCTAssertEqual(Chords.places(pages: 2).map { $0.start }, [0, 8, 16, 24])
     }
 
     func testRandomProgression() {
@@ -87,22 +91,24 @@ final class ChordTests: XCTestCase {
         }
     }
 
-    /// Запись прогрессии в страницу: шаги 1, 5, 9, 13 по 4 шага, остальные не тронуты; снимок отдаёт все ноты.
+    /// Запись прогрессии на 4 страницы: по странице на аккорд, остальные шаги не тронуты; снимок отдаёт все ноты.
     func testWriteChordsToSteps() {
         var t = Track(index: 0)
         t.pages[0][2].on = true
         t.pages[0][2].notes = [60]
         let cs: [[Int]] = Chords.chords([1, 7, 6, 7], scale: phr, root: e, octave: 2, kind: 0)
+        while t.pages.count < 4 { t.pages.append([Step](repeating: Step(), count: Params.stepsPerPage)) }
+        let places = Chords.places(pages: 4)
         for (i, notes) in cs.enumerated() {
-            t.withStep(Chords.slots[i]) { s in
+            t.withStep(places[i].start) { s in
                 s.on = true
                 s.notes = notes
-                s.setAllLen(Chords.slotLen)
+                s.setAllLen(places[i].len)
             }
         }
         XCTAssertEqual(t.pages[0][0].notes, [40, 43, 47])
-        XCTAssertEqual(t.pages[0][4].notes, [50, 53, 57], "Dm: D F A")
-        XCTAssertEqual(t.pages[0][12].len, 4)
+        XCTAssertEqual(t.pages[1][0].notes, [50, 53, 57], "Dm: D F A")
+        XCTAssertEqual(t.pages[3][0].len, 16)
         XCTAssertEqual(t.pages[0][2].notes, [60], "прочие шаги не тронуты")
         var p = Project()
         p.tracks[0] = t

@@ -1,26 +1,17 @@
-// Названия аккордов по интервалам, римские ступени, пресеты прогрессий и случайная прогрессия (режим CHORD).
-
-/// Пресет прогрессии: название и ступени гаммы (1…7; для гамм короче — по модулю длины гаммы).
-public struct ChordProgression: Sendable {
-    public let name: String
-    public let degrees: [Int]
-}
+// Названия аккордов по интервалам, римские ступени и случайная прогрессия (режим CHORD, SHIFT + CHORD).
 
 public enum Chords {
-    public static let progressions: [ChordProgression] = [
-        ChordProgression(name: "I–V–VI–IV", degrees: [1, 5, 6, 4]),
-        ChordProgression(name: "I–IV–V–I", degrees: [1, 4, 5, 1]),
-        ChordProgression(name: "I–VI–IV–V", degrees: [1, 6, 4, 5]),
-        ChordProgression(name: "II–V–I–I", degrees: [2, 5, 1, 1]),
-        ChordProgression(name: "i–VII–VI–VII", degrees: [1, 7, 6, 7]),
-        ChordProgression(name: "i–II–i–II", degrees: [1, 2, 1, 2]),
-    ]
+    /// Аккордов в прогрессии.
+    public static let count: Int = 4
 
-    /// Шаги страницы, на которые пишется прогрессия (1, 5, 9, 13), и длина каждого аккорда в шагах.
-    public static let slots: [Int] = [0, 4, 8, 12]
-    public static let slotLen: Int = 4
+    /// Начала и длины аккордов прогрессии на выбранных страницах (pages страниц по 16 шагов): 4 аккорда поровну —
+    /// одна страница — шаги 1, 5, 9, 13 по 4 шага; четыре страницы — по странице на аккорд.
+    public static func places(pages: Int) -> [(start: Int, len: Int)] {
+        let len: Int = Swift.max(1, pages) * Params.stepsPerPage / count
+        return (0..<count).map { (start: $0 * len, len: len) }
+    }
 
-    /// Индекс ступени гаммы (0…n−1) для номера ступени пресета (1…7).
+    /// Индекс ступени гаммы (0…n−1) для номера ступени (1…7; гамма короче — по модулю).
     public static func degreeIndex(_ degree: Int, scale: Int) -> Int {
         let n: Int = Scales.all[Scales.wrap(scale, Scales.all.count)].steps.count
         return Scales.wrap(degree - 1, n)
@@ -36,7 +27,7 @@ public enum Chords {
         let iv: [Int] = notes.map { Scales.wrap($0 - root, 12) }
         if let q = quality(iv, kind: kind) { return base + q }
         let k: Int = min(Scales.chordKinds.count - 1, max(0, kind))
-        return base + "(" + Scales.chordKinds[k] + ")"
+        return base + "(" + Scales.chordKinds[k].lowercased() + ")"
     }
 
     /// Суффикс названия по интервалам: позиции нот — как в Scales.chordDegrees[kind].
@@ -127,12 +118,6 @@ public enum Chords {
         return degrees.map { d in
             Scales.chord(scale: scale, root: root, octave: octave, degree: degreeIndex(d, scale: scale), kind: kind)
         }
-    }
-
-    /// Названия аккордов прогрессии через « – »: «Em – Dm – C – Dm».
-    public static func names(_ degrees: [Int], scale: Int, root: Int, kind: Int) -> String {
-        let cs: [[Int]] = chords(degrees, scale: scale, root: root, octave: Scales.octaveDef, kind: kind)
-        return cs.map { name($0, kind: kind) }.joined(separator: " – ")
     }
 
     /// Случайная прогрессия из 4 ступеней (номера 1…n): первая — тоника, дальше случайные ступени гаммы, без двух
