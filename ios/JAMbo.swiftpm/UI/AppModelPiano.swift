@@ -46,8 +46,11 @@ extension AppModel {
         publishAudio()
     }
 
-    func setChordType(_ v: Int) {
-        chordType[selectedTrack] = min(Scales.chordTypes.count - 1, max(0, v))
+    /// Часть аккорда k (TRIAD, 7th, 9th) — вкл./выкл.; последнюю включённую не снять.
+    func toggleChordPart(_ k: Int) {
+        if k < 0 || k >= Scales.chordParts.count { return }
+        let m: Int = chordParts[selectedTrack] ^ (1 << k)
+        if m != 0 { chordParts[selectedTrack] = m }
     }
 
     func toggleChord() {
@@ -63,7 +66,7 @@ extension AppModel {
     /// Верхняя октава клавиатуры выбранной дорожки (ноты не выше 127).
     var topOctave: Int {
         return Scales.topOctave(scale: project.scale, root: project.root, octaves: settings.pianoOctaves,
-                                chord: chordMode[selectedTrack], type: chordType[selectedTrack])
+                                chord: chordMode[selectedTrack], parts: chordParts[selectedTrack])
     }
 
     var keyCount: Int {
@@ -75,20 +78,16 @@ extension AppModel {
         return Scales.note(scale: project.scale, root: project.root, octave: octave, degree: k)
     }
 
-    /// Что играет клавиша k: нота или (CHORD) аккорд выбранного вида от неё.
+    /// Что играет клавиша k: нота или (CHORD) аккорд из выбранных частей от неё.
     func keyNotes(_ k: Int) -> [Int]? {
         if k >= keyCount { return nil }
         if chordMode[selectedTrack] {
-            return Scales.chord(scale: project.scale, root: project.root, octave: octave, degree: k, type: chordType[selectedTrack])
+            return Scales.chord(scale: project.scale, root: project.root, octave: octave, degree: k,
+                                parts: chordParts[selectedTrack])
         }
         return [keyNote(k)]
     }
 
-    /// Имя аккорда клавиши k (CHORD NAMES): Am7, Cmaj9.
-    func keyChordName(_ k: Int) -> String {
-        return Scales.chordName(scale: project.scale, root: project.root, octave: octave, degree: k,
-                                type: chordType[selectedTrack])
-    }
 
     var pressedNotes: Set<Int> {
         var all = Set<Int>()

@@ -9,11 +9,11 @@ final class ScaleRecordTests: XCTestCase {
         for scale in 0..<Scales.all.count {
             let steps: [Int] = Scales.all[scale].steps
             for root in 0..<12 {
-                for octave in Scales.octaveMin...Scales.topOctave(scale: scale, root: root, octaves: 2, chord: true, type: 2) {
+                for octave in Scales.octaveMin...Scales.topOctave(scale: scale, root: root, octaves: 2, chord: true, parts: 7) {
                     let count: Int = Scales.keyCount(scale: scale, octaves: 2)
                     let keys: [Int] = (0..<count).map { Scales.note(scale: scale, root: root, octave: octave, degree: $0) }
                     for n in keys where !steps.contains(Scales.wrap(n - root, 12)) { mismatch += 1 }
-                    let chordTop: Int = Scales.chord(scale: scale, root: root, octave: octave, degree: count - 1, type: 2).max()!
+                    let chordTop: Int = Scales.chord(scale: scale, root: root, octave: octave, degree: count - 1, parts: 7).max()!
                     if chordTop > 127 { outOfRange.append("\(Scales.all[scale].short) root \(root) oct \(octave)") }
                     // Запись в шаг и снимок секвенсора.
                     var p = Project()

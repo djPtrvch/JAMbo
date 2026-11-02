@@ -1,4 +1,4 @@
-// Гаммы, виды аккордов, ноты клавиатуры и аккорды (как SCALES, PROGRESSIONS, scaleNotes, chordOnDegree в вебе).
+// Гаммы, части аккордов, ноты клавиатуры и аккорды (как SCALES, PROGRESSIONS, scaleNotes, chordOnDegree в вебе).
 
 public struct Scale: Sendable {
     public let name: String
@@ -21,8 +21,8 @@ public enum Scales {
         Scale(name: "Chromatic", short: "Chr", steps: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]),
     ]
 
-    /// Виды аккорда строки под клавишами (CHORD): трезвучие, септаккорд, нонаккорд — ноты гаммы через одну.
-    public static let chordTypes: [String] = ["TRIAD", "7", "9"]
+    /// Части аккорда строки под клавишами (CHORD; выбираются в любом сочетании, бит k — пункт k).
+    public static let chordParts: [String] = ["TRIAD", "7th", "9th"]
 
     /// Октава клавиатуры: 0…7, по умолчанию 2 (C2).
     public static let octaveMin = 0
@@ -53,48 +53,30 @@ public enum Scales {
         return min(maxKeys, all[wrap(scale, all.count)].steps.count * octaves + 1)
     }
 
-    /// Верхняя октава клавиатуры, при которой самая высокая нота (с CHORD — верх аккорда вида type верхней клавиши)
-    /// не выше 127: выше пианоролл её не показывает и MIDI не отправляет.
-    public static func topOctave(scale: Int, root: Int, octaves: Int, chord: Bool, type: Int = 0) -> Int {
-        let span: Int = chord ? 4 + 2 * min(2, max(0, type)) : 0
+    /// Верхняя октава клавиатуры, при которой самая высокая нота (с CHORD — верх аккорда с частями parts верхней
+    /// клавиши) не выше 127: выше пианоролл её не показывает и MIDI не отправляет.
+    public static func topOctave(scale: Int, root: Int, octaves: Int, chord: Bool, parts: Int = 1) -> Int {
+        let span: Int = chord ? chordSpan(parts) : 0
         let last: Int = keyCount(scale: scale, octaves: octaves) - 1 + span
         var o: Int = octaveMax
         while o > octaveMin && note(scale: scale, root: root, octave: o, degree: last) > 127 { o -= 1 }
         return o
     }
 
-    /// Аккорд от ступени degree (ноты гаммы через одну): type 0 — трезвучие, 1 — септаккорд, 2 — нонаккорд.
-    public static func chord(scale: Int, root: Int, octave: Int, degree: Int, type: Int = 0) -> [Int] {
-        let count: Int = 3 + min(2, max(0, type))
-        var out: [Int] = []
-        var i: Int = 0
-        while i < count {
-            out.append(note(scale: scale, root: root, octave: octave, degree: degree + 2 * i))
-            i += 1
-        }
-        return out
+    /// Аккорд от ступени degree (ноты гаммы через одну): основной тон и части по маске parts — бит 0 TRIAD (терция
+    /// и квинта), бит 1 7th (септима), бит 2 9th (нона); сочетания любые (TRIAD + 9th — add9, 7th + 9th без TRIAD…).
+    public static func chord(scale: Int, root: Int, octave: Int, degree: Int, parts: Int = 1) -> [Int] {
+        var offsets: [Int] = [0]
+        if parts & 1 != 0 { offsets += [2, 4] }
+        if parts & 2 != 0 { offsets.append(6) }
+        if parts & 4 != 0 { offsets.append(8) }
+        return offsets.map { note(scale: scale, root: root, octave: octave, degree: degree + $0) }
     }
 
-    /// Название аккорда ступени: C, Am, Bdim, Caug; с 7 — Cmaj7, Am7, G7, Bm7b5, Bdim7; с 9 — Cmaj9, Am9, G9, Em7b9.
-    public static func chordName(scale: Int, root: Int, octave: Int, degree: Int, type: Int = 0) -> String {
-        let c: [Int] = chord(scale: scale, root: root, octave: octave, degree: degree, type: type)
-        let third: Int = c[1] - c[0]
-        let fifth: Int = c[2] - c[0]
-        let q: String = fifth == 6 ? "dim" : fifth == 8 ? "aug" : third == 3 ? "m" : ""
-        let name: String = Params.noteNames[wrap(c[0], 12)]
-        if c.count < 4 { return name + q }
-        let seventh: Int = c[3] - c[0]
-        var ext: String = "7"
-        if c.count > 4 && c[4] - c[0] == 14 { ext = "9" }
-        let tail: String = c.count > 4 && ext == "7" ? (c[4] - c[0] == 13 ? "b9" : c[4] - c[0] == 15 ? "#9" : "") : ""
-        var body: String
-        switch q {
-        case "dim": body = seventh == 9 ? "dim" + ext : "m" + ext + "b5"
-        case "m": body = seventh == 11 ? "mMaj" + ext : "m" + ext
-        case "aug": body = seventh == 11 ? "augMaj" + ext : "aug" + ext
-        default: body = seventh == 11 ? "maj" + ext : ext
-        }
-        body += tail
-        return name + body
+    /// Ступеней гаммы от основного тона до верхней ноты аккорда с маской parts.
+    public static func chordSpan(_ parts: Int) -> Int {
+        if parts & 4 != 0 { return 8 }
+        if parts & 2 != 0 { return 6 }
+        return parts & 1 != 0 ? 4 : 0
     }
 }

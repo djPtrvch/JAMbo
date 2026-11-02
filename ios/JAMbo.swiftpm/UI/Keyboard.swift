@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// Клавиатура: слева CHORD и бутерброд, клавиши гаммы (с CHORD — квадратные и строка вида аккорда под ними,
-/// если включён CHORD ROW),
+/// Клавиатура: слева CHORD и бутерброд, клавиши гаммы (с CHORD — квадратные и строка частей аккорда под ними),
 /// справа ▲ ▼ октавы. Столбцы — как шаги секвенсора. Мультитач.
 struct KeyboardPanel: View {
     let model: AppModel
@@ -23,7 +22,7 @@ struct KeyboardPanel: View {
 
     @ViewBuilder
     private var keyArea: some View {
-        if model.chordMode[model.selectedTrack] && model.settings.chordRow {
+        if model.chordMode[model.selectedTrack] {
             AnyView(VStack(spacing: Layout.gap) {
                 KeyRow(model: model).frame(height: layout.keyHeight(model.project.scale))
                 ChordTypeRow(model: model).frame(maxHeight: .infinity)
@@ -34,7 +33,7 @@ struct KeyboardPanel: View {
     }
 }
 
-/// Клавиши: имя ноты внизу (CHORD с CHORD NAMES — имя аккорда клавиши); корневая чуть светлее; выбранные — белый контур; нажатые и звучащие — белая заливка.
+/// Клавиши: имя ноты внизу; корневая чуть светлее; выбранные — белый контур; нажатые и звучащие — белая заливка.
 struct KeyRow: View {
     let model: AppModel
     @State private var touches: [SpatialEventCollection.Event.ID: Int] = [:]
@@ -63,14 +62,10 @@ struct KeyRow: View {
         let on: Bool = lit.contains(n)
         let bg: Color = on ? theme.text : (isRoot ? theme.root : theme.panel)
         let fg: Color = on ? theme.bg : (shown.contains(n) || isRoot ? theme.text : theme.dim)
-        let names: Bool = model.chordMode[model.selectedTrack] && model.settings.chordNames
-        return Text(names ? model.keyChordName(k) : Params.noteName(n))
+        return Text(Params.noteName(n))
             .font(.system(size: 11))
-            .lineLimit(1)
-            .minimumScaleFactor(0.6)
             .foregroundStyle(fg)
             .padding(.bottom, 6)
-            .padding(.horizontal, 2)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
             .background(bg, in: RoundedRectangle(cornerRadius: 6))
             .overlay(RoundedRectangle(cornerRadius: 6).stroke(shown.contains(n) && !on ? theme.text : Color.clear, lineWidth: 1))
@@ -115,8 +110,8 @@ struct KeyRow: View {
     }
 }
 
-/// Строка под клавишами (CHORD, рычажок CHORD ROW в меню под CHORD): вид аккорда клавиш — TRIAD, 7, 9, по 2 клавиши
-/// (с одной октавой — по одной); выбранный — белая заливка. Вид — у каждой дорожки свой.
+/// Строка под клавишами (CHORD): части аккорда клавиш — TRIAD, 7th, 9th, по 2 клавиши (с одной октавой — по одной);
+/// тап включает и выключает, в любом сочетании (последнюю не снять); включённые — белая заливка. У каждой дорожки свои.
 struct ChordTypeRow: View {
     let model: AppModel
     @Environment(\.theme) private var theme
@@ -128,7 +123,7 @@ struct ChordTypeRow: View {
             let one: Bool = model.settings.pianoOctaves == 1
             let chipW: CGFloat = one ? keyW : 2 * keyW + KeyRow.gap
             HStack(spacing: KeyRow.gap) {
-                ForEach(0..<Scales.chordTypes.count, id: \.self) { c in
+                ForEach(0..<Scales.chordParts.count, id: \.self) { c in
                     chip(c).frame(width: chipW).midiMarks(model, [.button("CHORD TYPE \(c + 1)")])
                 }
                 Spacer(minLength: 0)
@@ -137,15 +132,15 @@ struct ChordTypeRow: View {
     }
 
     private func chip(_ c: Int) -> some View {
-        let on: Bool = model.chordType[model.selectedTrack] == c
-        return Text(Scales.chordTypes[c])
+        let on: Bool = model.chordParts[model.selectedTrack] & (1 << c) != 0
+        return Text(Scales.chordParts[c])
             .font(.system(size: 13, weight: .semibold))
             .foregroundStyle(on ? theme.bg : theme.text)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(on ? theme.text : theme.panel, in: RoundedRectangle(cornerRadius: 6))
             .contentShape(Rectangle())
             .onTapGesture {
-                if model.midiLearn.on { model.learnTap(.button("CHORD TYPE \(c + 1)")) } else { model.setChordType(c) }
+                if model.midiLearn.on { model.learnTap(.button("CHORD TYPE \(c + 1)")) } else { model.toggleChordPart(c) }
             }
     }
 }

@@ -90,7 +90,7 @@ struct ChoiceMenu: View {
     }
 }
 
-/// Меню клавиатуры (бутерброд под CHORD): 1 OCTAVE / 2 OCTAVES, CHORD ROW, CHORD NAMES, KEY VELOCITY, OVERDUB (из SETTINGS → RECORD — решение
+/// Меню клавиатуры (бутерброд под CHORD): 1 OCTAVE / 2 OCTAVES, KEY VELOCITY, OVERDUB (из SETTINGS → RECORD — решение
 /// пользователя) и SWING; правее кнопки, снизу вверх,
 /// не выше строки шагов, шириной 4 шага.
 struct PianoMenu: View {
@@ -104,12 +104,7 @@ struct PianoMenu: View {
         let x: CGFloat = 12 + layout.step + Layout.stepGap
         return ZStack(alignment: .bottomLeading) {
             Color.black.opacity(0.001).ignoresSafeArea().onTapGesture { model.pianoMenuOpen = false }
-            // Не помещается по высоте — прокрутка пальцем (как во всех меню).
-            ViewThatFits(in: .vertical) {
-                content
-                MenuScroll { content }
-            }
-                .frame(maxHeight: max(200, screen.height - 140))
+            content
                 .padding(10)
                 .frame(width: width)
                 .background(theme.bg, in: RoundedRectangle(cornerRadius: Layout.radius))
@@ -131,11 +126,6 @@ struct PianoMenu: View {
                     model.updateSettings { $0.pianoOctaves = 2 }
                 }
             }
-            ToggleRow(title: "CHORD ROW", isOn: model.settings.chordRow) { v in model.updateSettings { $0.chordRow = v } }
-            ToggleRow(title: "CHORD NAMES", isOn: model.settings.chordNames) { v in model.updateSettings { $0.chordNames = v } }
-            Text("In CHORD mode: the TRIAD / 7 / 9 row under the keys; chord names on the keys.")
-                .font(.system(size: 11))
-                .foregroundStyle(theme.dim)
             ToggleRow(title: "KEY VELOCITY", isOn: model.settings.velocity) { v in model.updateSettings { $0.velocity = v } }
             Text(model.settings.velocity
                  ? "Tap harder — louder: the iPad motion sensor feels each tap. Scales the track Velocity; REC writes it as the note velocity."

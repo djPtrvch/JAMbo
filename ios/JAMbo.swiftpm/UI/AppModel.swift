@@ -126,8 +126,9 @@ final class AppModel {
     @ObservationIgnored var autoFlush: DispatchWorkItem? = nil
     /// У каждой дорожки свои режим аккордов, прогрессия и выбранные ноты (не в проекте).
     var chordMode: [Bool] = [Bool](repeating: false, count: Params.maxTracks)
-    /// Вид аккорда клавиш в режиме CHORD (Scales.chordTypes: TRIAD, 7, 9) — у каждой дорожки свой.
-    var chordType: [Int] = [Int](repeating: 0, count: Params.maxTracks)
+    /// Части аккорда клавиш в режиме CHORD — маска Scales.chordParts (TRIAD, 7th, 9th; по умолчанию TRIAD), у каждой
+    /// дорожки своя.
+    var chordParts: [Int] = [Int](repeating: 1, count: Params.maxTracks)
     var selNotes: [[Int]] = [[Int]](repeating: [], count: Params.maxTracks)
     /// Зажатые клавиши и аккорды: касание → ноты.
     var pressedKeys: [Int: [Int]] = [:]
