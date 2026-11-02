@@ -1,12 +1,17 @@
 import Foundation
 
-// Режим CHORD: случайная прогрессия (SHIFT + CHORD) — запись аккордов в выбранные страницы открытого паттерна.
+// Режим CHORD: случайная прогрессия (SHIFT + CHORD) — запись аккордов в выбранные страницы открытого паттерна; на
+// ударном движке (KICK, SNARE, HAT, CLAP, PERC) — случайный ритм (DrumRhythm).
 
 extension AppModel {
     /// Тап по CHORD: с SHIFT — случайная прогрессия (режим не меняется), иначе — вкл./выкл. режима.
     func chordTap() {
         if shiftHeld {
-            writeRandomProgression()
+            if DrumRhythm.role(engine: SynthKey.engine(track.sample)) != nil {
+                writeRandomDrums()
+            } else {
+                writeRandomProgression()
+            }
         } else {
             toggleChord()
         }
@@ -39,5 +44,20 @@ extension AppModel {
                                         kind: chordKind[selectedTrack])
         let range: ClosedRange<Int> = chordPages
         editTrack { t in t.writeProgression(cs, pages: range) }
+    }
+
+    /// Случайный ритм ударного движка дорожки (KICK, SNARE, HAT, CLAP, PERC) на выбранные страницы: по длинам
+    /// страниц (короткая — своей длиной), нота — корневая в октаве клавиатуры. Одна запись UNDO.
+    func writeRandomDrums() {
+        guard channel == .track, let role = DrumRhythm.role(engine: SynthKey.engine(track.sample)) else { return }
+        let range: ClosedRange<Int> = chordPages
+        let t: Track = track
+        let lens: [Int] = range.map { t.pageLen($0, from: range.lowerBound) }
+        var g = SystemRandomNumberGenerator()
+        let id: Int = t.id
+        let pattern: [[DrumRhythm.Hit]] = DrumRhythm.pattern(role, lens: lens, avoid: lastRandomDrums[id], using: &g)
+        lastRandomDrums[id] = pattern.first(where: { !$0.isEmpty })?.map { $0.step }
+        let note: Int = Scales.baseNote(root: project.root, octave: octave)
+        editTrack { tr in tr.writeDrums(pattern, note: note, pages: range) }
     }
 }

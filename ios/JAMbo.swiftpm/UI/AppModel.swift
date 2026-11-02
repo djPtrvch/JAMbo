@@ -135,6 +135,8 @@ final class AppModel {
     var chordMenuOpen: Bool = false
     /// Последняя случайная прогрессия (SHIFT + CHORD) — следующая будет другой.
     @ObservationIgnored var lastRandomProgression: [Int]? = nil
+    /// Шаги основы прошлого случайного ритма по id дорожки (SHIFT + CHORD на ударном движке).
+    @ObservationIgnored var lastRandomDrums: [Int: [Int]] = [:]
     var selNotes: [[Int]] = [[Int]](repeating: [], count: Params.maxTracks)
     /// Зажатые клавиши и аккорды: касание → ноты.
     var pressedKeys: [Int: [Int]] = [:]
