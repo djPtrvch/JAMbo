@@ -115,6 +115,18 @@ extension AppModel {
     }
 
     /// Правка дерева: сразу на экране, запись файла — в очереди сохранения.
+    /// Свои папки открытой папки, которые можно переставлять (в BUILT-IN TABLES — нет).
+    var libMovableFolders: [LibNode] {
+        if libFolder == LibraryBuiltins.folderId { return [] }
+        return library.movableFolders(libFolder)
+    }
+
+    /// Перетаскивание папки в списке: новый порядок папок открытой папки (общий для LOAD, LOAD TABLE, SAVE).
+    func libMoveFolder(_ from: Int, to: Int) {
+        let parent: String = libFolder
+        libEdit { $0.moveFolder(parent, from: from, to: to) }
+    }
+
     func libEdit(_ change: (inout Library) -> Void) {
         change(&library)
         let lib: Library = library

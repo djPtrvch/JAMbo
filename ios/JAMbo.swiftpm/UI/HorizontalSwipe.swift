@@ -47,6 +47,8 @@ struct HorizontalSwipe: UIGestureRecognizerRepresentable {
 /// RowGesture решил, что строку держат. enabled = false — у строки нет перетаскивания (проекты).
 struct HoldDrag {
     var enabled: Bool = true
+    /// Сколько держать без движения, с.
+    var delay: Double = 0.4
     let began: () -> Void
     /// Сдвиг пальца по вертикали от точки удержания.
     let changed: (CGFloat) -> Void
@@ -71,12 +73,14 @@ struct RowGesture: UIGestureRecognizerRepresentable {
     func makeUIGestureRecognizer(context: Context) -> RowRecognizer {
         let g = RowRecognizer()
         g.holdEnabled = hold.enabled
+        g.holdDelay = hold.delay
         g.delegate = context.coordinator
         return g
     }
 
     func updateUIGestureRecognizer(_ g: RowRecognizer, context: Context) {
         g.holdEnabled = hold.enabled
+        g.holdDelay = hold.delay
     }
 
     func handleUIGestureRecognizerAction(_ g: RowRecognizer, context: Context) {
@@ -101,9 +105,10 @@ struct RowGesture: UIGestureRecognizerRepresentable {
     }
 }
 
-/// Распознаватель RowGesture: решает по первым 10 pt движения или по 0,4 с без движения.
+/// Распознаватель RowGesture: решает по первым 10 pt движения или по удержанию без движения (holdDelay).
 final class RowRecognizer: UIGestureRecognizer {
     var holdEnabled: Bool = true
+    var holdDelay: Double = 0.4
     /// Точка касания (в окне) и что решено: удержание (иначе — свайп).
     private(set) var start: CGPoint = .zero
     private(set) var holding: Bool = false
@@ -117,7 +122,7 @@ final class RowRecognizer: UIGestureRecognizer {
         start = t.location(in: nil)
         holding = false
         stopTimer()
-        if holdEnabled { perform(#selector(fire), with: nil, afterDelay: 0.4) }
+        if holdEnabled { perform(#selector(fire), with: nil, afterDelay: holdDelay) }
     }
 
     /// 0,4 с без движения — удержание.

@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// Строка браузера библиотеки: слева ▶ (у сэмпла и пресета — предпрослушка, звук не загружает), значок и имя,
-/// справа — что это (число в папке, движок пресета). Тап — войти или загрузить, удержание — выбор нескольких,
+/// справа — что это (число в папке, движок пресета). Тап — войти или загрузить, удержание — выбор нескольких (у своих
+/// папок — перетаскивание, порядок; свайп, удержание и прокрутка — RowGesture, как у пресетов EQ),
 /// свайп влево — карандаш (RENAME) и корзина (у непустой папки — второй тап по DELETE?); у системных — без свайпа.
 struct LibRow: View {
     static let height: CGFloat = 44
@@ -11,6 +12,9 @@ struct LibRow: View {
     let confirm: Bool
     let rename: () -> Void
     let delete: () -> Void
+    /// Своя папка: удержание — перетаскивание (ReorderState.hold); тап сразу после него не открывает папку.
+    var drag: HoldDrag? = nil
+    var reorder: ReorderState? = nil
     @State private var offset: CGFloat = 0
     @State private var open: Bool = false
     /// Удержание сработало — отпускание пальца не тап.
@@ -25,10 +29,8 @@ struct LibRow: View {
             actions.opacity(offset < -1 ? 1 : 0)
             HStack(spacing: 0) {
                 if playable { playButton }
-                // Удержание — одновременным жестом: onLongPressGesture в ScrollView держит начало прокрутки.
                 label
-                    .gesture(swipe)
-                    .simultaneousGesture(hold)
+                    .gesture(gesture)
                     .onTapGesture { tapped() }
             }
             .padding(.trailing, max(0, -offset))
@@ -137,6 +139,7 @@ struct LibRow: View {
     }
 
     private func tapped() {
+        if let r = reorder, !r.tapAllowed { return }
         if held {
             held = false
             return
@@ -148,31 +151,33 @@ struct LibRow: View {
         model.libTap(node)
     }
 
-    /// Удержание сэмпла или пресета (0,5 с без сдвига) — выбор нескольких; в LOAD TABLE — таблиц.
-    private var hold: some Gesture {
-        LongPressGesture(minimumDuration: 0.5, maximumDistance: 10)
-            .onEnded { _ in
-                let kinds: Bool = model.tableMode ? node.kind == .table
-                    : (node.kind == .sample || node.kind == .preset) && model.browser == .load(steps: [])
-                guard kinds, model.libPicked == nil, !open else { return }
-                held = true
-                model.libHold(node)
-            }
+    /// Удержание: своя папка — перетаскивание; сэмпл или пресет (0,5 с) — выбор нескольких; в LOAD TABLE — таблиц.
+    private var hold: HoldDrag {
+        if let d = drag, model.libPicked == nil { return d }
+        let kinds: Bool = model.tableMode ? node.kind == .table
+            : (node.kind == .sample || node.kind == .preset) && model.browser == .load(steps: [])
+        guard kinds, model.libPicked == nil else { return HoldDrag.off }
+        return HoldDrag(delay: 0.5, began: {
+            guard model.libPicked == nil, !open else { return }
+            held = true
+            model.libHold(node)
+        }, changed: { _ in }, ended: {})
     }
 
-    /// Горизонтальный свайп (вертикальный — прокрутка списка, HorizontalSwipe); у системных и в выборе нескольких — нет.
-    private var swipe: HorizontalSwipe {
-        HorizontalSwipe(changed: { dx in
+    /// Свайп вбок (у системных и в выборе нескольких — нет) и удержание — одним распознавателем; по вертикали —
+    /// прокрутка списка.
+    private var gesture: RowGesture {
+        RowGesture(swipeChanged: { dx in
             if node.isSystem || model.libPicked != nil { return }
             let base: CGFloat = open ? -reveal : 0
             let x: CGFloat = base + dx
             offset = min(0, max(-reveal - 24, x))
-        }, ended: {
+        }, swipeEnded: {
             if node.isSystem || model.libPicked != nil { return }
             let show: Bool = offset < -reveal / 2
             open = show
             withAnimation(.easeOut(duration: 0.2)) { offset = show ? -reveal : 0 }
-        })
+        }, hold: hold)
     }
 
     private func close() {
