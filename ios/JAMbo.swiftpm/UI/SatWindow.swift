@@ -11,7 +11,9 @@ struct SatDisplay: View {
             let now: Double = tl.date.timeIntervalSinceReferenceDate
             GeometryReader { geo in
                 let w: CGFloat = min(geo.size.width * 0.35, geo.size.height)
-                HStack(spacing: Layout.gap) {
+                // TRANSFER и SPECTRUM — слитно, как TRANSFER и LEVEL у COMP и CLIP (решение пользователя): без зазора,
+                // скруглены внешние углы, между ними — линия у правого края TRANSFER.
+                HStack(spacing: 0) {
                     SatTransfer(model: model, now: now).frame(width: w)
                     SatSpectrum(model: model, spec: spec, now: now)
                 }
@@ -48,8 +50,11 @@ struct SatTransfer: View {
                     }
                 })
         }
+        // Как окно TRANSFER у COMP и CLIP: тёмная подложка поверх панели, справа — граница линией.
+        .background(theme.bg.opacity(0.5))
         .background(theme.panel)
-        .clipShape(RoundedRectangle(cornerRadius: Layout.radius))
+        .overlay(alignment: .trailing) { Rectangle().fill(theme.line).frame(width: 1) }
+        .clipShape(UnevenRoundedRectangle(topLeadingRadius: Layout.radius, bottomLeadingRadius: Layout.radius))
     }
 
     private var drag: some Gesture {
@@ -249,7 +254,7 @@ struct SatSpectrum: View {
                 })
         }
         .background(theme.panel)
-        .clipShape(RoundedRectangle(cornerRadius: Layout.radius))
+        .clipShape(UnevenRoundedRectangle(bottomTrailingRadius: Layout.radius, topTrailingRadius: Layout.radius))
     }
 
     private func drag(_ size: CGSize) -> some Gesture {

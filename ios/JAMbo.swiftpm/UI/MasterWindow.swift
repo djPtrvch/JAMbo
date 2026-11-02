@@ -126,8 +126,9 @@ struct MasterStrip: View {
             MasterTitle(model: model, module: module, bounds: bounds)
             ForEach(0..<fields.count, id: \.self) { i in
                 let p: ParamDef = fields[i]
-                // Поля без ручек (RATIO и дальше) — за тонкой чертой.
-                if p.id == "cmp.ratio" {
+                // Тонкая черта — ровно над правым краем TRANSFER (у COMP — перед RATIO, у CLIP — после CEILING,
+                // у SAT — после TYPE; решение пользователя); у LIM черты нет.
+                if i == lead.count && lead.count > 0 && module != MasterScope.lim {
                     Rectangle().fill(theme.line).frame(width: 1).padding(.vertical, 8)
                 }
                 MasterField(model: model, param: p, gray: bypass && grays(p), tap: tapAction(p),
@@ -145,9 +146,10 @@ struct MasterStrip: View {
         }
     }
 
-    /// Первые поля — до правого края дисплея TRANSFER под строкой (решение пользователя): у COMP — до MAKEUP, у SAT —
-    /// до TYPE, у CLIP — до CEILING; у LIM — по ширине полей CLIP (TRANSFER у него нет). Остальные поля — поровну до
-    /// PRESETS. Ширина TRANSFER — как в CompDisplay, ClipDisplay, SatDisplay (от размера дисплея под строкой).
+    /// Первые поля — до тонкой черты, которая стоит ровно над правым краем TRANSFER под строкой (решение пользователя;
+    /// черта 1 px — последний пиксель TRANSFER): у COMP — до MAKEUP, у SAT — до TYPE, у CLIP — до CEILING; у LIM — по
+    /// ширине полей CLIP (TRANSFER у него нет). Остальные поля — поровну до PRESETS. Ширина TRANSFER — как в
+    /// CompDisplay, ClipDisplay, SatDisplay (от размера дисплея под строкой).
     private var leadFields: (count: Int, width: CGFloat?) {
         let g: CGFloat = Layout.gap
         let wide: CGFloat = bounds.width
@@ -157,7 +159,9 @@ struct MasterStrip: View {
         let transfer: CGFloat = sat ? min(wide * 0.35, high) : min(wide * 0.4, high * 1.4)
         let k: Int = module == MasterScope.comp ? 4 : 2
         let x0: CGFloat = EqBar.nameWidth + g
-        let w: CGFloat = (transfer - x0 - CGFloat(k - 1) * g) / CGFloat(k)
+        // Поля кончаются за зазор и черту до правого края TRANSFER.
+        let end: CGFloat = transfer - g - 1
+        let w: CGFloat = (end - x0 - CGFloat(k - 1) * g) / CGFloat(k)
         return (k, max(40, w))
     }
 
