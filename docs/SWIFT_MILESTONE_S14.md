@@ -163,6 +163,7 @@
 - CHORD: прогрессий нет; вид TRIAD / 7th / 9th и поле VARIANT (Scales.chordKinds, chordVariants; AppModel.chordKind, chordVariant); MIDI CHORD TYPE 1…3 вместо PROG CHORD 1…8. Рычажки CHORD ROW и CHORD NAMES пробовали — убраны.
 - COMP и CLIP: LEVEL на всю ширину, окно TRANSFER поверх слева, полупрозрачное (волна видна). Пробовали и откатили: дисплей WAVE, кривая на весь дисплей, продление кривой до верха.
 - SETTINGS → APPEARANCE → MASTER FX DISPLAY SCALE: 48 / 32 / 16 dB (AppSettings.displayScale → MasterDraw.scale).
+- Окна SAT, COMP, CLIP: черта в строке полей — над правым краем TRANSFER (MasterStrip.leadFields); SAT — TRANSFER и SPECTRUM слитно.
 
 ## Проверено
 S14w — на iPad; CoreTests — 304 (новые: EngineIconTests — testPreviewsMatchPrototype, testGridFiniteInField, testEachKnobChangesIcon, testTableFrame; testApplyKnobsToAllPages, testFeedbackFollowsResolveAcrossInputs; убраны прежние тесты иконок веба). S14v — на iPad. S14a — тесты Core (HeavyLoadTests), DIAGNOSTICS на iPad. CoreTests — 298 (S14a: testHeavyProjectProfile, testProfileOffAndOn); 296 (новые: testMoveRow, testPasteTrackKeepsOwnPatterns, testClipSpeed, testQueuedClipAfterSlowClip, testSameNameIgnoresAudioExtension).
