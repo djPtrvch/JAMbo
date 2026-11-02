@@ -96,12 +96,12 @@ struct SoundMenu: View {
     private func loadGroup(_ steps: Bool) -> some View {
         let hasSample: Bool = !model.track.sample.isEmpty && SynthKey.engine(model.track.sample) == nil
         return VStack(spacing: 4) {
-            HStack(spacing: 4) {
-                MenuItem(title: "LOAD", current: !steps && hasSample) {
+            MenuChoiceButtons(items: [
+                MenuChoice(title: "LOAD", current: !steps && hasSample) {
                     let s = state.steps
                     model.openBrowser(.load(steps: s))
-                }
-                MenuItem(title: steps ? "TRACK" : "MIDI", current: !steps && model.track.midi.sends) {
+                },
+                MenuChoice(title: steps ? "TRACK" : "MIDI", current: !steps && model.track.midi.sends) {
                     if !steps {
                         midiPage = true
                         return
@@ -109,18 +109,23 @@ struct SoundMenu: View {
                     let s = state.steps
                     close()
                     model.stepSoundToTrack(s)
-                }
-            }
-            HStack(spacing: 4) {
-                MenuItem(title: "SAVE", enabled: !steps && synth) { model.openBrowser(.savePreset) }
-                // У GRANULAR на месте TABLE — SOURCE (сэмпл, из которого читаются зёрна).
-                if granular {
-                    MenuItem(title: "SOURCE", enabled: !steps) { model.openBrowser(.source) }
-                } else {
-                    MenuItem(title: "TABLE", enabled: !steps && wtable) { model.openBrowser(.loadTable) }
-                }
-            }
+                },
+            ])
+            // У GRANULAR на месте TABLE — SOURCE (сэмпл, из которого читаются зёрна).
+            MenuChoiceButtons(items: [
+                MenuChoice(title: "SAVE", enabled: !steps && synth, current: false) { model.openBrowser(.savePreset) },
+                tableChoice(steps),
+            ])
         }
+    }
+
+    /// TABLE (WTABLE) или SOURCE (GRANULAR).
+    private func tableChoice(_ steps: Bool) -> MenuChoice {
+        let m: AppModel = model
+        if granular {
+            return MenuChoice(title: "SOURCE", enabled: !steps, current: false) { m.openBrowser(.source) }
+        }
+        return MenuChoice(title: "TABLE", enabled: !steps && wtable, current: false) { m.openBrowser(.loadTable) }
     }
 
     /// Дорожка играет синт (SAVE — пресет в библиотеку).

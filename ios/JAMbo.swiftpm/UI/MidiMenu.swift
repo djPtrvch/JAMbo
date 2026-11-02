@@ -74,10 +74,10 @@ struct MidiDevicesTab: View {
     private var bluetooth: some View {
         let on: Bool = BluetoothMidi.available
         FieldLabel(title: "BLUETOOTH MIDI")
-        HStack(spacing: 4) {
-            MenuItem(title: "CONNECT", enabled: on) { BluetoothMidi.connect() }
-            MenuItem(title: "ADVERTISE", enabled: on) { BluetoothMidi.advertise() }
-        }
+        MenuChoiceButtons(items: [
+            MenuChoice(title: "CONNECT", enabled: on, current: false) { BluetoothMidi.connect() },
+            MenuChoice(title: "ADVERTISE", enabled: on, current: false) { BluetoothMidi.advertise() },
+        ])
         if on {
             SettingsNote(text: "CONNECT: find and connect Bluetooth MIDI devices (tap a connected one to disconnect). ADVERTISE: make this iPad visible to other devices as a Bluetooth MIDI device. Connected devices appear in the lists above.")
         } else {

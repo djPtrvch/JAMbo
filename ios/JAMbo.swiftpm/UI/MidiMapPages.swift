@@ -249,10 +249,14 @@ struct MidiPresetPage: View {
                 }
             }
             SettingsNote(text: "Loading a preset replaces all current mappings.").padding(.vertical, 6)
-            MenuItem(title: "SAVE CURRENT AS NEW…") { model.midiLearn.presetInput = .save }
-            MenuItem(title: own.isEmpty ? "SAVE TO PRESET" : "SAVE TO “\(own)”", enabled: !own.isEmpty) { model.saveMidiPreset(own) }
-            MenuItem(title: "RENAME…", enabled: !own.isEmpty) { model.midiLearn.presetInput = .rename(own) }
-            MenuItem(title: "DELETE", enabled: !own.isEmpty, red: !own.isEmpty) { model.deleteMidiPreset(own) }
+            MenuChoiceColumn(items: [
+                MenuChoice(title: "SAVE CURRENT AS NEW…", current: false) { model.midiLearn.presetInput = .save },
+                MenuChoice(title: own.isEmpty ? "SAVE TO PRESET" : "SAVE TO “\(own)”", enabled: !own.isEmpty, current: false) {
+                    model.saveMidiPreset(own)
+                },
+                MenuChoice(title: "RENAME…", enabled: !own.isEmpty, current: false) { model.midiLearn.presetInput = .rename(own) },
+                MenuChoice(title: "DELETE", enabled: !own.isEmpty, red: !own.isEmpty, current: false) { model.deleteMidiPreset(own) },
+            ], spacing: 4)
         }
     }
 }

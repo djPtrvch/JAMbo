@@ -131,24 +131,25 @@ struct TrackMenus: View {
     }
 
     private func menu(_ m: TrackMenuState) -> some View {
-        VStack(spacing: 6) {
-            if m.add {
-                MenuItem(title: "ADD TRACK") { run { model.addTrack() } }
-            } else {
-                MenuItem(title: "COPY") { run { model.copyTrack(m.slot) } }
-                MenuItem(title: "PASTE", enabled: model.hasTrackClip) { run { model.pasteTrack(m.slot) } }
-                MenuItem(title: "DELETE TRACK", enabled: model.project.canDeleteTrack(m.slot), red: true) {
-                    run { model.deleteTrack(m.slot) }
-                }
-                MenuItem(title: "RENAME") {
-                    run {
-                        name = model.project.tracks[m.slot].name
-                        model.renaming = m.slot
-                        focused = true
-                    }
-                }
-            }
+        if m.add {
+            let add: [MenuChoice] = [MenuChoice(title: "ADD TRACK", current: false) { run { model.addTrack() } }]
+            return MenuChoiceColumn(items: add).frame(width: 180).modifier(MenuPanel())
         }
+        let items: [MenuChoice] = [
+            MenuChoice(title: "COPY", current: false) { run { model.copyTrack(m.slot) } },
+            MenuChoice(title: "PASTE", enabled: model.hasTrackClip, current: false) { run { model.pasteTrack(m.slot) } },
+            MenuChoice(title: "DELETE TRACK", enabled: model.project.canDeleteTrack(m.slot), red: true, current: false) {
+                run { model.deleteTrack(m.slot) }
+            },
+            MenuChoice(title: "RENAME", current: false) {
+                run {
+                    name = model.project.tracks[m.slot].name
+                    model.renaming = m.slot
+                    focused = true
+                }
+            },
+        ]
+        return MenuChoiceColumn(items: items)
         .frame(width: 180)
         .modifier(MenuPanel())
     }

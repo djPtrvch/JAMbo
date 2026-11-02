@@ -137,9 +137,10 @@ struct MenuChoiceRow: View {
 /// Ряд кнопок MenuItem поровну — по списку вариантов (без подписи).
 struct MenuChoiceButtons: View {
     let items: [MenuChoice]
+    var spacing: CGFloat = 4
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: spacing) {
             ForEach(items.indices, id: \.self) { i in
                 let c: MenuChoice = items[i]
                 MenuItem(title: c.title, enabled: c.enabled, red: c.red, current: c.current, action: c.action)
@@ -151,9 +152,10 @@ struct MenuChoiceButtons: View {
 /// Столбик кнопок MenuItem (меню блока, дорожки, клипа) — по списку вариантов, зазор 6.
 struct MenuChoiceColumn: View {
     let items: [MenuChoice]
+    var spacing: CGFloat = 6
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: spacing) {
             ForEach(items.indices, id: \.self) { i in
                 let c: MenuChoice = items[i]
                 MenuItem(title: c.title, enabled: c.enabled, red: c.red, current: c.current, action: c.action)
@@ -224,23 +226,14 @@ struct RowMenu: View {
                 .onChange(of: name) { _, v in if v.count > 12 { name = String(v.prefix(12)) } }
             repeatsRow
             arrangeRow
-            HStack(spacing: 6) {
-                MenuItem(title: "DUPLICATE", enabled: model.project.canAddRow) { act { model.duplicateRow(row) } }
-                MenuItem(title: "COPY") { act { model.copyRow(row) } }
-            }
-            HStack(spacing: 6) {
-                MenuItem(title: "PASTE", enabled: model.rowClipboard != nil) { act { model.pasteRow(row) } }
-                MenuItem(title: "DELETE", red: true) {
-                    // Строка в выделении рамкой — удаляются все выделенные (строки целиком и клипы).
-                    var sel: GridSelection = model.gridSel
-                    if sel.touches(row: row) && (sel.rows.count + sel.cells.count) > 1 {
-                        sel.rows.insert(row)
-                        act { model.deleteSelection(sel, rows: true) }
-                    } else {
-                        act { model.deleteRow(row) }
-                    }
-                }
-            }
+            MenuChoiceButtons(items: [
+                MenuChoice(title: "DUPLICATE", enabled: model.project.canAddRow, current: false) { act { model.duplicateRow(row) } },
+                MenuChoice(title: "COPY", current: false) { act { model.copyRow(row) } },
+            ], spacing: 6)
+            MenuChoiceButtons(items: [
+                MenuChoice(title: "PASTE", enabled: model.rowClipboard != nil, current: false) { act { model.pasteRow(row) } },
+                MenuChoice(title: "DELETE", red: true, current: false) { deleteRow() },
+            ], spacing: 6)
             MenuItem(title: "OK") { done() }
         }
         .frame(maxWidth: .infinity)
@@ -273,6 +266,17 @@ struct RowMenu: View {
             model.rowToArrange(row, name: name, repeats: reps)
         }
         .padding(.vertical, 8)
+    }
+
+    /// Строка в выделении рамкой — удаляются все выделенные (строки целиком и клипы).
+    private func deleteRow() {
+        var sel: GridSelection = model.gridSel
+        if sel.touches(row: row) && (sel.rows.count + sel.cells.count) > 1 {
+            sel.rows.insert(row)
+            act { model.deleteSelection(sel, rows: true) }
+        } else {
+            act { model.deleteRow(row) }
+        }
     }
 
     private func done() {

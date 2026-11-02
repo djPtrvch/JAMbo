@@ -42,10 +42,10 @@ struct EqPresetsMenu: View {
             }
             if phones {
                 // Профили в файлах AutoEQ (ParametricEQ.txt): IMPORT — в список и в коррекцию, EXPORT — коррекция.
-                HStack(spacing: 4) {
-                    MenuItem(title: "IMPORT") { model.choosePhonesFiles() }
-                    MenuItem(title: "EXPORT") { model.exportPhones() }
-                }
+                MenuChoiceButtons(items: [
+                    MenuChoice(title: "IMPORT", current: false) { model.choosePhonesFiles() },
+                    MenuChoice(title: "EXPORT", current: false) { model.exportPhones() },
+                ])
             } else if model.eqShownChannel == EqSpec.masterChannel {
                 MenuItem(title: saved ? "SAVED" : "SAVE DEFAULT", current: saved) { model.saveEqDefault() }
             }

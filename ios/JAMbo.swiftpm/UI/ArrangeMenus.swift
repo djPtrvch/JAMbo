@@ -323,11 +323,11 @@ struct ArrDropMenu: View {
     let model: AppModel
 
     var body: some View {
-        VStack(spacing: 6) {
-            MenuItem(title: "HERE") { model.arrDrop(.here) }
-            MenuItem(title: "INSERT") { model.arrDrop(.insert) }
-            MenuItem(title: "TO END") { model.arrDrop(.end) }
-        }
+        MenuChoiceColumn(items: [
+            MenuChoice(title: "HERE", current: false) { model.arrDrop(.here) },
+            MenuChoice(title: "INSERT", current: false) { model.arrDrop(.insert) },
+            MenuChoice(title: "TO END", current: false) { model.arrDrop(.end) },
+        ])
         .frame(width: ArrDropMenu.width)
         .modifier(MenuPanel())
     }
@@ -343,11 +343,9 @@ struct ArrGridMenu: View {
         let a: Arrangement = model.project.arrange
         return VStack(alignment: .leading, spacing: 6) {
             FieldLabel(title: "GRID")
-            HStack(spacing: 4) {
-                ForEach(0..<ArrGrid.names.count, id: \.self) { k in
-                    MenuItem(title: ArrGrid.names[k], current: a.grid == k) { model.setArrGrid(k) }
-                }
-            }
+            MenuChoiceButtons(items: (0..<ArrGrid.names.count).map { (k: Int) -> MenuChoice in
+                MenuChoice(title: ArrGrid.names[k], current: a.grid == k) { model.setArrGrid(k) }
+            })
             ToggleRow(title: "SNAP TO GRID", isOn: a.snap) { v in if v != a.snap { model.toggleArrSnap() } }
         }
         .frame(width: ArrGridMenu.width)
@@ -369,19 +367,21 @@ struct ArrRulerMenu: View {
 
     var body: some View {
         let k: Int? = model.arrSectionAt(anchor: anchor)
-        return VStack(spacing: 6) {
-            if let s = k {
-                MenuItem(title: "RENAME") { model.arrMenu = .marker(index: s, anchor: anchor) }
-            } else {
-                MenuItem(title: "ADD SECTION") { model.arrSectionHere(anchor: anchor) }
-            }
-            if let s = k {
-                MenuItem(title: "DELETE SECTION", red: true) {
-                    model.arrMenu = nil
-                    model.arrDeleteMarker(s)
-                }
-            }
+        let m: AppModel = model
+        let a: CGPoint = anchor
+        let items: [MenuChoice]
+        if let s = k {
+            items = [
+                MenuChoice(title: "RENAME", current: false) { m.arrMenu = .marker(index: s, anchor: a) },
+                MenuChoice(title: "DELETE SECTION", red: true, current: false) {
+                    m.arrMenu = nil
+                    m.arrDeleteMarker(s)
+                },
+            ]
+        } else {
+            items = [MenuChoice(title: "ADD SECTION", current: false) { m.arrSectionHere(anchor: a) }]
         }
+        return MenuChoiceColumn(items: items)
         .frame(width: ArrRulerMenu.width)
         .modifier(MenuPanel())
     }

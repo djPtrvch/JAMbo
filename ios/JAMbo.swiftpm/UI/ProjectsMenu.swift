@@ -71,18 +71,18 @@ struct ProjectsPage: View {
     /// Три ряда: NEW, SAVE, SAVE AS; EXPORT, IMPORT; EXPORT SONG.
     private var actions: some View {
         VStack(spacing: 4) {
-            HStack(spacing: 4) {
-                MenuItem(title: "NEW") {
+            MenuChoiceButtons(items: [
+                MenuChoice(title: "NEW", current: false) {
                     close()
                     model.newProject()
-                }
-                MenuItem(title: "SAVE") { save() }
-                MenuItem(title: "SAVE AS") { ask(.saveAs, "\(model.session.name) copy") }
-            }
-            HStack(spacing: 4) {
-                MenuItem(title: "EXPORT") { export() }
-                MenuItem(title: "IMPORT") { model.chooseProjectFile() }
-            }
+                },
+                MenuChoice(title: "SAVE", current: false) { save() },
+                MenuChoice(title: "SAVE AS", current: false) { ask(.saveAs, "\(model.session.name) copy") },
+            ])
+            MenuChoiceButtons(items: [
+                MenuChoice(title: "EXPORT", current: false) { export() },
+                MenuChoice(title: "IMPORT", current: false) { model.chooseProjectFile() },
+            ])
             // Песня из аранжировки в аудиофайл (AppModelSongExport).
             MenuItem(title: "EXPORT SONG") { song() }
         }
@@ -254,11 +254,11 @@ struct OpenProjectPanel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(text).font(.system(size: 14)).foregroundStyle(theme.text).padding(.horizontal, 6).padding(.top, 4)
-            HStack(spacing: 4) {
-                MenuItem(title: "LOAD", action: load)
-                MenuItem(title: "MIX", action: mix)
-                MenuItem(title: "IMPORT", action: importRows)
-            }
+            MenuChoiceButtons(items: [
+                MenuChoice(title: "LOAD", current: false, action: load),
+                MenuChoice(title: "MIX", current: false, action: mix),
+                MenuChoice(title: "IMPORT", current: false, action: importRows),
+            ])
             Text("LOAD replaces the current project now. MIX keeps the playing patterns in the bottom row (PREV) and blends tempo and settings with the crossfader. IMPORT adds the project’s rows with their sounds to free rows of this grid.")
                 .font(.system(size: 12)).foregroundStyle(theme.dim)
         }
