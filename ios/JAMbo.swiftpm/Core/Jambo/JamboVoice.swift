@@ -89,6 +89,8 @@ final class JamboVoice {
     // Цели ручек и сглаженные значения.
     private var t1 = 0.5, t2 = 0.5, t3 = 0.5, t4 = 0.5, td = 500.0
     private var s1 = 0.5, s2 = 0.5, s3 = 0.5, s4 = 0.5, sd = 500.0
+    /// Ручка 3 в начале куска (KICK: DRIVE плавно по отсчётам — ступенька раз в кусок трещала при вращении).
+    private var s3From = 0.5
     private var t = 0.0
     private var rnd = 22222
     // DRUM
@@ -209,6 +211,7 @@ final class JamboVoice {
         let v1: Double = s1, v2: Double = s2, v3: Double = s3, v4: Double = s4, vd: Double = sd
         s1 = v1 + (t1 - v1) * k
         s2 = v2 + (t2 - v2) * k
+        s3From = v3
         s3 = v3 + (t3 - v3) * k
         s4 = v4 + (t4 - v4) * k
         sd = vd + (td - vd) * k
@@ -254,8 +257,11 @@ final class JamboVoice {
         let tauSweep = Swift.min(0.08, Swift.max(0.006, 0.08 * decay / 1000))
         let semis = 48 * s2
         // DRIVE: tanh (запас 1 → 12), компенсация. CLICK (S12): уровень клика 0 → 1.0, длина 3 → 1 мс.
-        let dg = 1 + 11 * s3
-        let comp = Jambo.drumSine / tanh(dg * Jambo.drumSine)
+        // DRIVE и его компенсация — линейно по куску от значения в начале к значению в конце.
+        let dg0 = 1 + 11 * s3From, dg1 = 1 + 11 * s3
+        let comp0 = Jambo.drumSine / tanh(dg0 * Jambo.drumSine), comp1 = Jambo.drumSine / tanh(dg1 * Jambo.drumSine)
+        let dgStep = (dg1 - dg0) / Double(Swift.max(1, n)), compStep = (comp1 - comp0) / Double(Swift.max(1, n))
+        var dg = dg0, comp = comp0
         let click = s4
         let clickLen = Jambo.drumClick * (1.5 - s4) * sr
         let dEnv = exp(-1 / (tauE * sr))
@@ -275,6 +281,8 @@ final class JamboVoice {
             if tt < clickLen { x += click * (1 - tt / clickLen) }
             // Ретриг: хвост прошлого удара гаснет за ~2 мс — до клиппера.
             x += d
+            dg += dgStep
+            comp += compStep
             out[i] = Float(outG * comp * tanh(dg * x))
             d *= dDc
             env *= dEnv

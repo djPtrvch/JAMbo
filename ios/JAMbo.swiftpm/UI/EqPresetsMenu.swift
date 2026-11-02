@@ -2,7 +2,8 @@ import SwiftUI
 
 /// Меню PRESETS EQ (как пресеты EQ веба и модулей мастера): заголовок, SAVE (имя — окном ввода), список имён
 /// с прокруткой (без числа пресетов и полос — решение пользователя): тап — загрузить в EQ показанного канала (UNDO),
-/// SAVE DEFAULT — полосы EQ по умолчанию для новых дорожек или проектов (у коррекции наушников — свой список, без него),
+/// SAVE DEFAULT — только у EQ мастера: полосы EQ по умолчанию для новых проектов (у EQ дорожек — нет, решение
+/// пользователя; у коррекции наушников — свой список, без него),
 /// свайп влево — RENAME (карандаш на сером) и DELETE (корзина на красном); удержание и перетаскивание — порядок.
 /// Правым краем к кнопке, не ниже поля EQ; тап мимо — закрыть.
 struct EqPresetsMenu: View {
@@ -45,7 +46,7 @@ struct EqPresetsMenu: View {
                     MenuItem(title: "IMPORT") { model.choosePhonesFiles() }
                     MenuItem(title: "EXPORT") { model.exportPhones() }
                 }
-            } else {
+            } else if model.eqShownChannel == EqSpec.masterChannel {
                 MenuItem(title: saved ? "SAVED" : "SAVE DEFAULT", current: saved) { model.saveEqDefault() }
             }
             if list.isEmpty {

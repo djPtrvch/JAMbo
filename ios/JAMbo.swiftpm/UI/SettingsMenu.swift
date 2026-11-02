@@ -323,7 +323,7 @@ struct DefaultsSettings: View {
         return FormRows(rows: [
             .label("KNOB DEFAULTS"),
             .note("SHIFT + hold a knob: its value becomes the default (the knob shows SAVED). Double tap a knob: back to its default; double tap again: back to the factory value. Your defaults are used by NEW projects and ADD TRACK; saved projects stay as they are. Sound knobs keep their own defaults for the sampler and for each synth engine."),
-            .note("SAVE DEFAULT in PRESETS of SAT, COMP, CLIP and LIM: all settings of the module become its default. SAVE DEFAULT in EQ PRESETS: the bands become the default EQ of new tracks (track EQ) or new projects (master EQ)."),
+            .note("SAVE DEFAULT in PRESETS of SAT, COMP, CLIP and LIM: all settings of the module become its default. SAVE DEFAULT in master EQ PRESETS: the bands become the master EQ of new projects."),
             .note(n == 0 ? "No saved defaults." : "Saved defaults: \(n)."),
             .choices([MenuChoice(title: "FORGET ALL", enabled: n > 0, red: true, current: false) { m.clearKnobDefaults() }]),
         ])
