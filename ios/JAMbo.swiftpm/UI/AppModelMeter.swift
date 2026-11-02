@@ -27,18 +27,65 @@ extension AppModel {
         }
     }
 
-    /// Стерео ли дорожка на метре (как trackIsStereo веба): стерео-сэмпл, панорама до края, панораму двигают
-    /// LFO/ENV или p-lock шагов.
+    /// Стерео ли дорожка на метре (правило: стерео где-то на дорожке — метр стерео): стерео-сэмпл или стерео-движок
+    /// (TEXTURE, GRANULAR) — у дорожки, у звука клипа, в сэмпл-локе или пресет-локе шага (паттерны и блоки
+    /// аранжировки); панорама не в центре — ручкой, p-lock шагов, кривой аранжировки; панораму двигают LFO/ENV.
+    /// Кэш — до правки проекта; пока сэмпл не загружен, не кэшируется.
     func trackStereo(_ t: Int) -> Bool {
         guard t >= 0 && t < project.tracks.count else { return false }
+        if let v = stereoCache[t] { return v }
+        var missing = false
         let tr = project.tracks[t]
-        if (sample(tr.sample)?.channels ?? 1) > 1 { return true }
-        if abs(tr.params["pan"] ?? 0) >= 1 { return true }
-        if abs(tr.assigns["pan"]?.amount ?? 0) > 0 { return true }
-        for page in tr.pages {
-            for s in page where abs(s.locks["pan"] ?? 0) >= 1 { return true }
+        let r: Bool = trackStereoScan(tr, &missing)
+        if !missing { stereoCache[t] = r }
+        return r
+    }
+
+    /// Звук по ключу — стерео: движок TEXTURE, GRANULAR или стерео-сэмпл (missing — сэмпл ещё не загружен).
+    private func soundStereo(_ key: String, _ missing: inout Bool) -> Bool {
+        if key.isEmpty { return false }
+        if let e = SynthKey.engine(key) { return Jambo.stereo(e) }
+        if key.contains(":") { return false }
+        guard let s = sample(key) else {
+            missing = true
+            return false
+        }
+        return s.channels > 1
+    }
+
+    private func clipStereo(_ c: Clip, _ missing: inout Bool) -> Bool {
+        if let src = c.src {
+            if soundStereo(src.sample, &missing) { return true }
+            if abs(src.params["pan"] ?? 0) >= 1 || abs(src.assigns["pan"]?.amount ?? 0) > 0 { return true }
+        }
+        for page in c.pages {
+            for s in page {
+                if abs(s.locks["pan"] ?? 0) >= 1 { return true }
+                if let k = s.sound, soundStereo(k, &missing) { return true }
+            }
         }
         return false
+    }
+
+    private func trackStereoScan(_ tr: Track, _ missing: inout Bool) -> Bool {
+        if soundStereo(tr.sample, &missing) { return true }
+        if abs(tr.params["pan"] ?? 0) >= 1 { return true }
+        if abs(tr.assigns["pan"]?.amount ?? 0) > 0 { return true }
+        if let h = tr.home {
+            if soundStereo(h.sample, &missing) { return true }
+            if abs(h.params["pan"] ?? 0) >= 1 || abs(h.assigns["pan"]?.amount ?? 0) > 0 { return true }
+        }
+        for c in tr.clips {
+            if let c = c, clipStereo(c, &missing) { return true }
+        }
+        let panLane: (ArrAutoLane) -> Bool = { l in
+            l.param == "pan" && l.points.contains { abs($0.y * 127 - 64) >= 1 }
+        }
+        for b in tr.blocks {
+            if let c = b.pattern, clipStereo(c, &missing) { return true }
+            if b.autos.contains(where: panLane) { return true }
+        }
+        return tr.autos.contains(where: panLane)
     }
 
     /// Регулятор на измерителе: громкость дорожки в микшере (та же, что ручка в MIX), −∞…0 dB.

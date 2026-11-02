@@ -29,6 +29,8 @@ final class AppModel {
     var projectList: [ProjectInfo] = []
     /// Огибающие сэмплов SOURCE для иконки GRANULAR (по ключу сэмпла; ключ — по содержимому, правка — новый ключ).
     @ObservationIgnored var grainPeakCache: [String: [Double]] = [:]
+    /// Стерео ли дорожка на метрах (trackStereo; по индексу дорожки) — до следующей правки проекта.
+    @ObservationIgnored var stereoCache: [Int: Bool] = [:]
     private(set) var selectedTrack: Int = 0 {
         didSet { updateGrainSeconds() }
     }
