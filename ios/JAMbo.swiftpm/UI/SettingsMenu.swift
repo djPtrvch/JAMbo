@@ -236,7 +236,8 @@ struct OutputSettings: View {
     }
 }
 
-/// APPEARANCE: тема SYSTEM (как на iPad), LIGHT, DARK; FX ANIMATION — картинки FX в окне сэмпла.
+/// APPEARANCE: тема SYSTEM (как на iPad), LIGHT, DARK; SCALE дисплеев окон модулей мастера (48, 32, 16 dB);
+/// FX ANIMATION — картинки FX в окне сэмпла.
 struct AppearanceSettings: View {
     let model: AppModel
 
@@ -245,10 +246,16 @@ struct AppearanceSettings: View {
         let themes: [MenuChoice] = Appearance.allCases.map { (a: Appearance) -> MenuChoice in
             MenuChoice(title: a.rawValue, current: m.appearance == a) { m.setAppearance(a) }
         }
+        let scales: [MenuChoice] = AppSettings.displayScales.map { (d: Int) -> MenuChoice in
+            MenuChoice(title: "\(d) dB", current: m.settings.displayScale == d) { m.updateSettings { $0.displayScale = d } }
+        }
         return FormRows(rows: [
             .label("THEME"),
             .choices(themes),
             .note("SYSTEM follows the iPad setting."),
+            .label("SCALE"),
+            .choices(scales),
+            .note("Level scale of the master module windows (COMP, CLIP, LIM): from 0 dBFS down to −48, −32 or −16 dB."),
             .toggle("FX ANIMATION", m.settings.fxPictures) { m.setFxPictures($0) },
             .note("While an FX knob is turned, the sample window shows a picture of the effect."),
         ])

@@ -108,6 +108,9 @@ public struct AppSettings: Codable, Equatable, Sendable {
     /// SETTINGS → AUDIO ENGINE → BACKGROUND AUDIO (как в вебе): звук играет, когда приложение свёрнуто или экран
     /// заблокирован; по умолчанию — да. Нужен ключ UIBackgroundModes: audio (Info.plist рядом с Package.swift).
     public var backgroundAudio: Bool = true
+    /// SETTINGS → APPEARANCE → SCALE: шкала дисплеев окон модулей мастера, dB (48, 32, 16; как в вебе).
+    public var displayScale: Int = 48
+    public static let displayScales: [Int] = [48, 32, 16]
     /// Громкость метронома, % (0…200; 100 — прежний уровень).
     public var metronomeVol: Double = 100
 
@@ -127,7 +130,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
                                          rollSound, levelRelative, morphAll, morphReturn, mixKey, mixCrossfader,
                                          clearSampleLocks, pitchSemitones, midi, stepPaint, sync,
                                          arrangeCompact, fxPictures, backgroundAudio, arrangeRepeats, stretchBeat,
-                                         metronomeVol, arrangeScale, arrangeFollow }
+                                         metronomeVol, arrangeScale, arrangeFollow, displayScale }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
@@ -160,6 +163,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
         backgroundAudio = (try? c.decode(Bool.self, forKey: .backgroundAudio)) ?? true
         arrangeScale = (try? c.decode(Bool.self, forKey: .arrangeScale)) ?? false
         arrangeFollow = (try? c.decode(Bool.self, forKey: .arrangeFollow)) ?? true
+        let ds: Int = (try? c.decode(Int.self, forKey: .displayScale)) ?? 48
+        displayScale = AppSettings.displayScales.contains(ds) ? ds : 48
         let mv: Double = (try? c.decode(Double.self, forKey: .metronomeVol)) ?? 100
         metronomeVol = Swift.min(200, Swift.max(0, mv))
     }

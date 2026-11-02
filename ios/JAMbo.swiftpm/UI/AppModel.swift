@@ -885,6 +885,7 @@ final class AppModel {
 
     func updateSettings(_ change: (inout AppSettings) -> Void) {
         change(&settings)
+        MasterDraw.scale = CGFloat(settings.displayScale)
         UserDefaults.standard.set(settings.encode(), forKey: "settings")
         syncTapSensor()
     }
@@ -895,7 +896,9 @@ final class AppModel {
     }
 
     private static func loadSettings() -> AppSettings {
-        return AppSettings.decode(UserDefaults.standard.data(forKey: "settings"))
+        let s: AppSettings = AppSettings.decode(UserDefaults.standard.data(forKey: "settings"))
+        MasterDraw.scale = CGFloat(s.displayScale)
+        return s
     }
 
     private static func loadAppearance() -> Appearance {

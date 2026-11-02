@@ -109,8 +109,9 @@ final class TeleHistory {
 /// Рисование дисплеев окон модулей мастера (masterwin.ts веба): шкала dB (верх 0 dBFS, низ −48 — SCALE всегда
 /// 48 dB, S5a), сетка через 6 dB с подписями, подписи пиков GR, надпись FREEZE.
 enum MasterDraw {
-    static let scale: CGFloat = 48
-    static let gridStep: Int = 6
+    /// SCALE из SETTINGS → APPEARANCE (48, 32, 16 dB; ставит AppModel), сетка — восьмая часть: 6, 4, 2 dB.
+    static var scale: CGFloat = 48
+    static var gridStep: Int { return max(1, Int(scale) / 8) }
     /// Зона касания линии (CEILING, THRESHOLD), px (±).
     static let lineHit: CGFloat = 22
 

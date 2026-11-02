@@ -16,9 +16,12 @@ struct ClipDisplay: View {
             GeometryReader { geo in
                 let w: CGFloat = min(geo.size.width * 0.4, geo.size.height * 1.4)
                 HStack(spacing: Layout.gap) {
-                    ClipTransfer(model: model, hist: hist, now: now).frame(width: w)
-                    LevelPlot(model: model, tele: model.audio.core.master.clipTele, hist: hist, line: ceilingParam,
-                              now: now) { ctx, size, c in drawLevel(ctx, size, c, now) }
+                    // LEVEL на всю ширину, кривая TRANSFER — поверх слева (решение пользователя).
+                    ZStack(alignment: .leading) {
+                        LevelPlot(model: model, tele: model.audio.core.master.clipTele, hist: hist, line: ceilingParam,
+                                  now: now) { ctx, size, c in drawLevel(ctx, size, c, now) }
+                        ClipTransfer(model: model, hist: hist, now: now).frame(width: w)
+                    }
                     DynBlock(model: model, module: MasterScope.clip, now: now)
                         .frame(width: 96)
                 }
