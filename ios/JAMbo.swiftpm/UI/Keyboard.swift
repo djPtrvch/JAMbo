@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// Клавиатура: слева CHORD и бутерброд, клавиши гаммы (с CHORD — квадратные и строка прогрессии под ними),
+/// Клавиатура: слева CHORD и бутерброд, клавиши гаммы (с CHORD — квадратные и строка вида аккорда под ними,
+/// если включён CHORD ROW),
 /// справа ▲ ▼ октавы. Столбцы — как шаги секвенсора. Мультитач.
 struct KeyboardPanel: View {
     let model: AppModel
@@ -22,10 +23,10 @@ struct KeyboardPanel: View {
 
     @ViewBuilder
     private var keyArea: some View {
-        if model.chordMode[model.selectedTrack] {
+        if model.chordMode[model.selectedTrack] && model.settings.chordRow {
             AnyView(VStack(spacing: Layout.gap) {
                 KeyRow(model: model).frame(height: layout.keyHeight(model.project.scale))
-                ProgressionRow(model: model, layout: layout).frame(maxHeight: .infinity)
+                ChordTypeRow(model: model).frame(maxHeight: .infinity)
             })
         } else {
             AnyView(KeyRow(model: model))
@@ -33,7 +34,7 @@ struct KeyboardPanel: View {
     }
 }
 
-/// Клавиши: имя ноты внизу; корневая чуть светлее; выбранные — белый контур; нажатые и звучащие — белая заливка.
+/// Клавиши: имя ноты внизу (CHORD с CHORD NAMES — имя аккорда клавиши); корневая чуть светлее; выбранные — белый контур; нажатые и звучащие — белая заливка.
 struct KeyRow: View {
     let model: AppModel
     @State private var touches: [SpatialEventCollection.Event.ID: Int] = [:]
@@ -62,10 +63,14 @@ struct KeyRow: View {
         let on: Bool = lit.contains(n)
         let bg: Color = on ? theme.text : (isRoot ? theme.root : theme.panel)
         let fg: Color = on ? theme.bg : (shown.contains(n) || isRoot ? theme.text : theme.dim)
-        return Text(Params.noteName(n))
+        let names: Bool = model.chordMode[model.selectedTrack] && model.settings.chordNames
+        return Text(names ? model.keyChordName(k) : Params.noteName(n))
             .font(.system(size: 11))
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
             .foregroundStyle(fg)
             .padding(.bottom, 6)
+            .padding(.horizontal, 2)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
             .background(bg, in: RoundedRectangle(cornerRadius: 6))
             .overlay(RoundedRectangle(cornerRadius: 6).stroke(shown.contains(n) && !on ? theme.text : Color.clear, lineWidth: 1))
@@ -110,12 +115,10 @@ struct KeyRow: View {
     }
 }
 
-/// Строка под клавишами (CHORD): PROGRESSION шириной 3 клавиши и аккорды прогрессии по 2 клавиши; с одной октавой
-/// (клавиши шире) — PROGRESSION в 2 клавиши, аккорды по одной. Не помещаются — делят оставшееся место поровну.
-struct ProgressionRow: View {
+/// Строка под клавишами (CHORD, рычажок CHORD ROW в меню под CHORD): вид аккорда клавиш — TRIAD, 7, 9, по 2 клавиши
+/// (с одной октавой — по одной); выбранный — белая заливка. Вид — у каждой дорожки свой.
+struct ChordTypeRow: View {
     let model: AppModel
-    let layout: Layout
-    @State private var chipTouches: [SpatialEventCollection.Event.ID: Int] = [:]
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -123,89 +126,27 @@ struct ProgressionRow: View {
             let count: Int = model.keyCount
             let keyW: CGFloat = (geo.size.width - KeyRow.gap * CGFloat(count - 1)) / CGFloat(count)
             let one: Bool = model.settings.pianoOctaves == 1
-            let progKeys: CGFloat = one ? 2 : 3
-            let progW: CGFloat = progKeys * keyW + (progKeys - 1) * KeyRow.gap
             let chipW: CGFloat = one ? keyW : 2 * keyW + KeyRow.gap
             HStack(spacing: KeyRow.gap) {
-                ProgressionField(model: model).frame(width: progW)
-                chips(width: geo.size.width - progW - KeyRow.gap, full: chipW)
+                ForEach(0..<Scales.chordTypes.count, id: \.self) { c in
+                    chip(c).frame(width: chipW).midiMarks(model, [.button("CHORD TYPE \(c + 1)")])
+                }
+                Spacer(minLength: 0)
             }
         }
     }
 
-    private func chips(width: CGFloat, full: CGFloat) -> some View {
-        let degrees: [Int] = model.progressionDegrees
-        let n: Int = degrees.count
-        let w: CGFloat = min(full, (width - KeyRow.gap * CGFloat(n - 1)) / CGFloat(n))
-        let lit: Set<Int> = model.pressedNotes.union(model.playingNotes).union(model.heldNotes)
-        let shown: Set<Int> = model.shownNotes
-        return HStack(spacing: KeyRow.gap) {
-            ForEach(0..<n, id: \.self) { c in
-                chip(c, lit: lit, shown: shown).frame(width: w).midiMarks(model, [.button("PROG CHORD \(c + 1)")])
-            }
-            Spacer(minLength: 0)
-        }
-        .contentShape(Rectangle())
-        .gesture(fingers(cell: w + KeyRow.gap, count: n))
-    }
-
-    /// Аккорд: нажат или звучит — белая заливка; совпадает с нотами выбранными (или зажатого шага) — белый контур.
-    private func chip(_ c: Int, lit: Set<Int>, shown: Set<Int>) -> some View {
-        let notes: [Int] = model.chipNotes(c) ?? []
-        let on: Bool = !notes.isEmpty && notes.allSatisfy { lit.contains($0) }
-        let selected: Bool = notes.count > 1 && Set(notes) == shown
-        return Text(model.chipName(c))
+    private func chip(_ c: Int) -> some View {
+        let on: Bool = model.chordType[model.selectedTrack] == c
+        return Text(Scales.chordTypes[c])
             .font(.system(size: 13, weight: .semibold))
             .foregroundStyle(on ? theme.bg : theme.text)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(on ? theme.text : theme.panel, in: RoundedRectangle(cornerRadius: 6))
-            .overlay(RoundedRectangle(cornerRadius: 6).stroke(selected && !on ? theme.text : Color.clear, lineWidth: 1))
-    }
-
-    private func fingers(cell: CGFloat, count: Int) -> some Gesture {
-        SpatialEventGesture(coordinateSpace: .local)
-            .onChanged { events in
-                for e in events {
-                    if case .active = e.phase {
-                        if chipTouches[e.id] == nil {
-                            let c: Int = Int(e.location.x / cell)
-                            guard c >= 0 && c < count, let notes = model.chipNotes(c) else { continue }
-                            if model.midiLearn.on {
-                                chipTouches[e.id] = Int.min
-                                model.learnTap(.button("PROG CHORD \(c + 1)"))
-                                continue
-                            }
-                            let id: Int = e.id.hashValue
-                            chipTouches[e.id] = id
-                            // Аккорды прогрессии — с той же силой по толчку (без датчика — полная).
-                            model.keyPress(id: id, notes: notes, fallback: 1)
-                        }
-                    } else if let id = chipTouches.removeValue(forKey: e.id) {
-                        model.keyRelease(id: id)
-                    }
-                }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                if model.midiLearn.on { model.learnTap(.button("CHORD TYPE \(c + 1)")) } else { model.setChordType(c) }
             }
-            .onEnded { events in
-                for e in events {
-                    if let id = chipTouches.removeValue(forKey: e.id) { model.keyRelease(id: id) }
-                }
-            }
-    }
-}
-
-/// PROGRESSION: палец вверх-вниз — 24 px на пункт; тап — меню.
-struct ProgressionField: View {
-    let model: AppModel
-
-    var body: some View {
-        let names: [String] = Scales.progressions.map { $0.name }
-        let i: Int = model.progression[model.selectedTrack]
-        return DragField(label: "PROGRESSION", value: names[i], pxPerUnit: 24,
-                         get: { Double(model.progression[model.selectedTrack]) },
-                         set: { model.setProgression(Int($0)) },
-                         tap: { frame in model.choice = ChoiceState(options: names, columns: 2, current: i, anchor: frame,
-                                                                     pick: { model.setProgression($0) }) },
-                         undoable: false, model: model)
     }
 }
 

@@ -89,7 +89,7 @@ extension AppModel {
     /// переключатель; кнопки без состояния (UNDO, OCTAVE, стрелки) — нажатие при включении.
     func midiLatch(_ name: String, _ on: Bool) {
         let holds: [String] = ["LFO1", "LFO2", "LFO3", "ENV", "FX", "MOD"]
-        let prefixes: [String] = ["STEP ", "KEY ", "PROG CHORD "]
+        let prefixes: [String] = ["STEP ", "KEY "]
         if holds.contains(name) || prefixes.contains(where: { name.hasPrefix($0) }) {
             midiButton(name, on)
             return
@@ -152,9 +152,7 @@ extension AppModel {
         if let n = MidiButtons.number(name, prefix: "KEY "), let notes = keyNotes(n - 1) {
             return !notes.isEmpty && notes.allSatisfy { pressed.contains($0) }
         }
-        if let n = MidiButtons.number(name, prefix: "PROG CHORD "), let notes = chipNotes(n - 1) {
-            return !notes.isEmpty && notes.allSatisfy { pressed.contains($0) }
-        }
+        if let n = MidiButtons.number(name, prefix: "CHORD TYPE ") { return chordType[selectedTrack] == n - 1 }
         return false
     }
 }

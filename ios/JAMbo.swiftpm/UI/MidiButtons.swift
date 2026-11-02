@@ -23,7 +23,7 @@ enum MidiButtons {
         }
         for n in 1...16 { out.append("STEP \(n)") }
         for n in 1...25 { out.append("KEY \(n)") }
-        for n in 1...8 { out.append("PROG CHORD \(n)") }
+        for n in 1...3 { out.append("CHORD TYPE \(n)") }
         for n in 1...8 { out.append("ROW \(n)") }
         return out
     }
@@ -73,8 +73,8 @@ extension AppModel {
             keyDown(id: midiKeyId(name), notes: notes, velocity: 1)
             return
         }
-        if let n = MidiButtons.number(name, prefix: "PROG CHORD "), let notes = chipNotes(n - 1) {
-            keyDown(id: midiKeyId(name), notes: notes, velocity: 1)
+        if let n = MidiButtons.number(name, prefix: "CHORD TYPE "), n >= 1 && n <= Scales.chordTypes.count {
+            setChordType(n - 1)
             return
         }
         if let n = MidiButtons.number(name, prefix: "STEP "), n >= 1 && n <= 16 {
@@ -96,7 +96,7 @@ extension AppModel {
         case "MORPH": morphRelease()
         default: break
         }
-        if name.hasPrefix("KEY ") || name.hasPrefix("PROG CHORD ") { keyUp(id: midiKeyId(name)) }
+        if name.hasPrefix("KEY ") { keyUp(id: midiKeyId(name)) }
         if let n = MidiButtons.number(name, prefix: "STEP "), n >= 1 && n <= 16 {
             let index: Int = viewPages.lowerBound * 16 + n - 1
             guard let t0 = midiRun.stepDown.removeValue(forKey: index) else { return }
@@ -159,9 +159,9 @@ extension AppModel {
         return false
     }
 
-    /// Касание клавиши для KEY n и PROG CHORD n (не пересекается с нотами MIDI и пальцами).
+    /// Касание клавиши для KEY n (не пересекается с нотами MIDI и пальцами).
     private func midiKeyId(_ name: String) -> Int {
-        let k: Int = MidiButtons.number(name, prefix: "KEY ") ?? (100 + (MidiButtons.number(name, prefix: "PROG CHORD ") ?? 0))
+        let k: Int = MidiButtons.number(name, prefix: "KEY ") ?? 0
         return Int.min + 10_000 + k
     }
 }

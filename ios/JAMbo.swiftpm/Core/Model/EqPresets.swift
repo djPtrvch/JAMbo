@@ -60,6 +60,13 @@ public struct EqPresetBook: Codable, Equatable, Sendable {
         list.remove(at: k)
     }
 
+    /// Переставить пресет from на место to (перетаскивание в списке).
+    public mutating func move(_ from: Int, to: Int) {
+        guard from >= 0 && from < list.count && to >= 0 && to < list.count && from != to else { return }
+        let p: EqPreset = list.remove(at: from)
+        list.insert(p, at: to)
+    }
+
     /// Чтение из JSON: повреждённое — пустой список.
     public static func decode(_ data: Data?) -> EqPresetBook {
         guard let data = data, let b = try? JSONDecoder().decode(EqPresetBook.self, from: data) else { return EqPresetBook() }

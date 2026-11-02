@@ -3,12 +3,14 @@ import SwiftUI
 /// Меню PRESETS EQ (как пресеты EQ веба и модулей мастера): заголовок, SAVE (имя — окном ввода), список имён
 /// с прокруткой (без числа пресетов и полос — решение пользователя): тап — загрузить в EQ показанного канала (UNDO),
 /// SAVE DEFAULT — полосы EQ по умолчанию для новых дорожек или проектов (у коррекции наушников — свой список, без него),
-/// свайп влево — RENAME (карандаш на сером) и DELETE (корзина на красном). Правым краем к кнопке, не ниже поля EQ; тап мимо — закрыть.
+/// свайп влево — RENAME (карандаш на сером) и DELETE (корзина на красном); удержание и перетаскивание — порядок.
+/// Правым краем к кнопке, не ниже поля EQ; тап мимо — закрыть.
 struct EqPresetsMenu: View {
     static let width: CGFloat = 260
     let model: AppModel
     let state: EqPresetMenuState
     @Environment(\.theme) private var theme
+    @State private var reorder = ReorderState()
 
     var body: some View {
         let x: CGFloat = max(8, state.anchor.maxX - EqPresetsMenu.width)
@@ -51,6 +53,7 @@ struct EqPresetsMenu: View {
                     .font(.system(size: 12)).foregroundStyle(theme.dim)
             } else {
                 MenuScroll { rows(list) }
+                    .scrollDisabled(reorder.active)
                     .frame(height: listHeight(list.count))
             }
         }
@@ -67,6 +70,7 @@ struct EqPresetsMenu: View {
         VStack(spacing: 4) {
             ForEach(0..<list.count, id: \.self) { k in
                 SwipeRow(title: list[k].name, tap: {
+                    if !reorder.tapAllowed { return }
                     model.eqPresetMenu = nil
                     model.loadEqPreset(k)
                 }, rename: {
@@ -75,7 +79,8 @@ struct EqPresetsMenu: View {
                 }, delete: {
                     model.deleteEqPreset(k)
                 })
-                // Другой список (удалили пресет) — строки закрыты заново.
+                .modifier(ReorderDrag(index: k, count: list.count, state: reorder) { model.moveEqPreset($0, to: $1) })
+                // Другой список (удалили или переставили пресет) — строки закрыты заново.
                 .id("\(k)#\(list.count)#\(list[k].name)")
             }
         }

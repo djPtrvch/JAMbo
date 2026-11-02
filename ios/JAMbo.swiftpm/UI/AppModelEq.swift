@@ -231,6 +231,10 @@ extension AppModel {
         editBook { $0.delete(k) }
     }
 
+    func moveEqPreset(_ from: Int, to: Int) {
+        editBook { $0.move(from, to: to) }
+    }
+
     static func loadEqPresets() -> EqPresetBook {
         return EqPresetBook.decode(UserDefaults.standard.data(forKey: "eqPresets"))
     }

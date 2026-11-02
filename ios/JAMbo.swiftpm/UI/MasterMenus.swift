@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Меню окна модуля мастера (поверх экрана; тап мимо — закрыть): модули SAT, COMP, CLIP, LIM (по цепочке, открытое —
 /// жёлтое) под названием; PRESETS — SAVE и список пресетов модуля под кнопкой (тап — загрузить, свайп влево —
-/// RENAME и DELETE). Меню не выходит за окно модуля.
+/// RENAME и DELETE, удержание и перетаскивание — порядок). Меню не выходит за окно модуля.
 struct MasterMenuView: View {
     let model: AppModel
     let state: MasterMenuState
@@ -65,6 +65,7 @@ struct MasterPresetsMenu: View {
     let model: AppModel
     let maxHeight: CGFloat
     @Environment(\.theme) private var theme
+    @State private var reorder = ReorderState()
 
     var body: some View {
         let m: Int = model.masterWin ?? 0
@@ -83,6 +84,7 @@ struct MasterPresetsMenu: View {
                     .font(.system(size: 12)).foregroundStyle(theme.dim)
             } else {
                 MenuScroll { rows(m, list) }
+                    .scrollDisabled(reorder.active)
                     .frame(height: listHeight(list.count))
             }
         }
@@ -99,6 +101,7 @@ struct MasterPresetsMenu: View {
         VStack(spacing: 4) {
             ForEach(0..<list.count, id: \.self) { k in
                 SwipeRow(title: list[k].name, tap: {
+                    if !reorder.tapAllowed { return }
                     model.masterMenu = nil
                     model.loadMasterPreset(m, k)
                 }, rename: {
@@ -107,7 +110,8 @@ struct MasterPresetsMenu: View {
                 }, delete: {
                     model.deleteMasterPreset(m, k)
                 })
-                // Другой список (удалили пресет) — строки закрыты заново.
+                .modifier(ReorderDrag(index: k, count: list.count, state: reorder) { model.moveMasterPreset(m, $0, to: $1) })
+                // Другой список (удалили или переставили пресет) — строки закрыты заново.
                 .id("\(k)#\(list.count)#\(list[k].name)")
             }
         }

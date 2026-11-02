@@ -1,15 +1,9 @@
-// Гаммы, прогрессии, ноты клавиатуры и аккорды (как SCALES, PROGRESSIONS, scaleNotes, chordOnDegree в вебе).
+// Гаммы, виды аккордов, ноты клавиатуры и аккорды (как SCALES, PROGRESSIONS, scaleNotes, chordOnDegree в вебе).
 
 public struct Scale: Sendable {
     public let name: String
     public let short: String
     public let steps: [Int]
-}
-
-public struct Progression: Sendable {
-    public let name: String
-    /// Ступени гаммы (0 = I).
-    public let degrees: [Int]
 }
 
 public enum Scales {
@@ -27,15 +21,8 @@ public enum Scales {
         Scale(name: "Chromatic", short: "Chr", steps: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]),
     ]
 
-    public static let progressions: [Progression] = [
-        Progression(name: "I–V–vi–IV", degrees: [0, 4, 5, 3]),
-        Progression(name: "I–vi–IV–V", degrees: [0, 5, 3, 4]),
-        Progression(name: "vi–IV–I–V", degrees: [5, 3, 0, 4]),
-        Progression(name: "ii–V–I", degrees: [1, 4, 0]),
-        Progression(name: "I–IV–V–IV", degrees: [0, 3, 4, 3]),
-        Progression(name: "i–VII–VI–VII", degrees: [0, 6, 5, 6]),
-        Progression(name: "Canon", degrees: [0, 4, 5, 2, 3, 0, 3, 4]),
-    ]
+    /// Виды аккорда строки под клавишами (CHORD): трезвучие, септаккорд, нонаккорд — ноты гаммы через одну.
+    public static let chordTypes: [String] = ["TRIAD", "7", "9"]
 
     /// Октава клавиатуры: 0…7, по умолчанию 2 (C2).
     public static let octaveMin = 0
@@ -66,26 +53,48 @@ public enum Scales {
         return min(maxKeys, all[wrap(scale, all.count)].steps.count * octaves + 1)
     }
 
-    /// Верхняя октава клавиатуры, при которой самая высокая нота (с CHORD — верх аккорда верхней клавиши) не выше
-    /// 127: выше пианоролл её не показывает и MIDI не отправляет.
-    public static func topOctave(scale: Int, root: Int, octaves: Int, chord: Bool) -> Int {
-        let last: Int = keyCount(scale: scale, octaves: octaves) - 1 + (chord ? 4 : 0)
+    /// Верхняя октава клавиатуры, при которой самая высокая нота (с CHORD — верх аккорда вида type верхней клавиши)
+    /// не выше 127: выше пианоролл её не показывает и MIDI не отправляет.
+    public static func topOctave(scale: Int, root: Int, octaves: Int, chord: Bool, type: Int = 0) -> Int {
+        let span: Int = chord ? 4 + 2 * min(2, max(0, type)) : 0
+        let last: Int = keyCount(scale: scale, octaves: octaves) - 1 + span
         var o: Int = octaveMax
         while o > octaveMin && note(scale: scale, root: root, octave: o, degree: last) > 127 { o -= 1 }
         return o
     }
 
-    /// Трезвучие от ступени degree (ноты гаммы через одну).
-    public static func chord(scale: Int, root: Int, octave: Int, degree: Int) -> [Int] {
-        return [0, 2, 4].map { note(scale: scale, root: root, octave: octave, degree: degree + $0) }
+    /// Аккорд от ступени degree (ноты гаммы через одну): type 0 — трезвучие, 1 — септаккорд, 2 — нонаккорд.
+    public static func chord(scale: Int, root: Int, octave: Int, degree: Int, type: Int = 0) -> [Int] {
+        let count: Int = 3 + min(2, max(0, type))
+        var out: [Int] = []
+        var i: Int = 0
+        while i < count {
+            out.append(note(scale: scale, root: root, octave: octave, degree: degree + 2 * i))
+            i += 1
+        }
+        return out
     }
 
-    /// Название аккорда ступени: C, Am, Bdim, Caug.
-    public static func chordName(scale: Int, root: Int, octave: Int, degree: Int) -> String {
-        let c = chord(scale: scale, root: root, octave: octave, degree: degree)
-        let third = c[1] - c[0]
-        let fifth = c[2] - c[0]
+    /// Название аккорда ступени: C, Am, Bdim, Caug; с 7 — Cmaj7, Am7, G7, Bm7b5, Bdim7; с 9 — Cmaj9, Am9, G9, Em7b9.
+    public static func chordName(scale: Int, root: Int, octave: Int, degree: Int, type: Int = 0) -> String {
+        let c: [Int] = chord(scale: scale, root: root, octave: octave, degree: degree, type: type)
+        let third: Int = c[1] - c[0]
+        let fifth: Int = c[2] - c[0]
         let q: String = fifth == 6 ? "dim" : fifth == 8 ? "aug" : third == 3 ? "m" : ""
-        return Params.noteNames[wrap(c[0], 12)] + q
+        let name: String = Params.noteNames[wrap(c[0], 12)]
+        if c.count < 4 { return name + q }
+        let seventh: Int = c[3] - c[0]
+        var ext: String = "7"
+        if c.count > 4 && c[4] - c[0] == 14 { ext = "9" }
+        let tail: String = c.count > 4 && ext == "7" ? (c[4] - c[0] == 13 ? "b9" : c[4] - c[0] == 15 ? "#9" : "") : ""
+        var body: String
+        switch q {
+        case "dim": body = seventh == 9 ? "dim" + ext : "m" + ext + "b5"
+        case "m": body = seventh == 11 ? "mMaj" + ext : "m" + ext
+        case "aug": body = seventh == 11 ? "augMaj" + ext : "aug" + ext
+        default: body = seventh == 11 ? "maj" + ext : ext
+        }
+        body += tail
+        return name + body
     }
 }

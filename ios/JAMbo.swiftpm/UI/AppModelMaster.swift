@@ -94,6 +94,11 @@ extension AppModel {
         storeMasterPresets()
     }
 
+    func moveMasterPreset(_ m: Int, _ from: Int, to: Int) {
+        masterPresets.move(m, from, to: to)
+        storeMasterPresets()
+    }
+
     private func storeMasterPresets() {
         UserDefaults.standard.set(masterPresets.encode(), forKey: "masterPresets")
     }

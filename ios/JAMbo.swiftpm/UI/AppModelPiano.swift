@@ -12,7 +12,7 @@ struct KeyHold {
     var arrLive: Int? = nil
 }
 
-/// Меню выбора (SCALE, ROOT, PROGRESSION): пункты, столбцы, выбранный, рамка поля (в координатах экрана).
+/// Меню выбора (SCALE, ROOT): пункты, столбцы, выбранный, рамка поля (в координатах экрана).
 struct ChoiceState {
     let options: [String]
     let columns: Int
@@ -46,8 +46,8 @@ extension AppModel {
         publishAudio()
     }
 
-    func setProgression(_ v: Int) {
-        progression[selectedTrack] = Scales.wrap(v, Scales.progressions.count)
+    func setChordType(_ v: Int) {
+        chordType[selectedTrack] = min(Scales.chordTypes.count - 1, max(0, v))
     }
 
     func toggleChord() {
@@ -63,7 +63,7 @@ extension AppModel {
     /// Верхняя октава клавиатуры выбранной дорожки (ноты не выше 127).
     var topOctave: Int {
         return Scales.topOctave(scale: project.scale, root: project.root, octaves: settings.pianoOctaves,
-                                chord: chordMode[selectedTrack])
+                                chord: chordMode[selectedTrack], type: chordType[selectedTrack])
     }
 
     var keyCount: Int {
@@ -75,25 +75,19 @@ extension AppModel {
         return Scales.note(scale: project.scale, root: project.root, octave: octave, degree: k)
     }
 
-    /// Что играет клавиша k: нота или (CHORD) трезвучие от неё.
+    /// Что играет клавиша k: нота или (CHORD) аккорд выбранного вида от неё.
     func keyNotes(_ k: Int) -> [Int]? {
         if k >= keyCount { return nil }
-        if chordMode[selectedTrack] { return Scales.chord(scale: project.scale, root: project.root, octave: octave, degree: k) }
+        if chordMode[selectedTrack] {
+            return Scales.chord(scale: project.scale, root: project.root, octave: octave, degree: k, type: chordType[selectedTrack])
+        }
         return [keyNote(k)]
     }
 
-    var progressionDegrees: [Int] {
-        return Scales.progressions[progression[selectedTrack]].degrees
-    }
-
-    func chipNotes(_ c: Int) -> [Int]? {
-        let d = progressionDegrees
-        if c >= d.count || !chordMode[selectedTrack] { return nil }
-        return Scales.chord(scale: project.scale, root: project.root, octave: octave, degree: d[c])
-    }
-
-    func chipName(_ c: Int) -> String {
-        return Scales.chordName(scale: project.scale, root: project.root, octave: octave, degree: progressionDegrees[c])
+    /// Имя аккорда клавиши k (CHORD NAMES): Am7, Cmaj9.
+    func keyChordName(_ k: Int) -> String {
+        return Scales.chordName(scale: project.scale, root: project.root, octave: octave, degree: k,
+                                type: chordType[selectedTrack])
     }
 
     var pressedNotes: Set<Int> {

@@ -17,8 +17,13 @@ final class PianoTests: XCTestCase {
         XCTAssertEqual(Scales.chordName(scale: 0, root: 0, octave: 2, degree: 5), "Am")
         XCTAssertEqual(Scales.chordName(scale: 0, root: 0, octave: 2, degree: 6), "Bdim")
         XCTAssertEqual(Scales.chordName(scale: 0, root: 0, octave: 2, degree: 4), "G")
-        let names = Scales.progressions[0].degrees.map { Scales.chordName(scale: 0, root: 0, octave: 2, degree: $0) }
-        XCTAssertEqual(names, ["C", "G", "Am", "F"])
+        XCTAssertEqual(Scales.chord(scale: 0, root: 0, octave: 2, degree: 0, type: 1), [36, 40, 43, 47])
+        XCTAssertEqual(Scales.chord(scale: 0, root: 0, octave: 2, degree: 0, type: 2), [36, 40, 43, 47, 50])
+        let sevenths = (0..<7).map { Scales.chordName(scale: 0, root: 0, octave: 2, degree: $0, type: 1) }
+        XCTAssertEqual(sevenths, ["Cmaj7", "Dm7", "Em7", "Fmaj7", "G7", "Am7", "Bm7b5"])
+        let ninths = (0..<7).map { Scales.chordName(scale: 0, root: 0, octave: 2, degree: $0, type: 2) }
+        XCTAssertEqual(ninths, ["Cmaj9", "Dm9", "Em7b9", "Fmaj9", "G9", "Am9", "Bm7b5b9"])
+        XCTAssertEqual(Scales.chordName(scale: 7, root: 0, octave: 2, degree: 6, type: 1), "Bdim7", "гарм. минор, VII")
     }
 
     func testRecordNotesMergeOverdubVelocity() {

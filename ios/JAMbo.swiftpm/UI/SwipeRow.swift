@@ -122,3 +122,91 @@ struct SwipeRow: View {
         withAnimation(.easeOut(duration: 0.2)) { offset = 0 }
     }
 }
+
+/// Перетаскивание строк списка пресетов (EQ и модулей мастера, решение пользователя): удержание строки (0,4 с) —
+/// строка поднимается и едет за пальцем, остальные расступаются; отпустили — пресет встаёт на новое место. Пока
+/// тянут, список не прокручивается; тап сразу после перетаскивания не загружает пресет.
+@Observable
+final class ReorderState {
+    /// Тянется строка (−1 — ничего) и сдвиг пальца по вертикали.
+    var from: Int = -1
+    var dy: CGFloat = 0
+    /// Время конца перетаскивания — тап по строке в это же касание не срабатывает.
+    @ObservationIgnored var ended: Double = 0
+
+    var active: Bool { return from >= 0 }
+
+    /// Тап по строке разрешён (не тянут и не только что отпустили).
+    var tapAllowed: Bool {
+        return from < 0 && Date.timeIntervalSinceReferenceDate - ended > 0.3
+    }
+
+    func target(_ count: Int, pitch: CGFloat) -> Int {
+        let shift: Int = Int((dy / pitch).rounded())
+        return min(count - 1, max(0, from + shift))
+    }
+
+    /// Сдвиг строки k: тянущаяся — за пальцем, между старым и новым местом — на строку в сторону.
+    func offset(_ k: Int, _ count: Int, pitch: CGFloat) -> CGFloat {
+        if from < 0 { return 0 }
+        if k == from { return dy }
+        let t: Int = target(count, pitch: pitch)
+        if from < k && k <= t { return -pitch }
+        if t <= k && k < from { return pitch }
+        return 0
+    }
+}
+
+struct ReorderDrag: ViewModifier {
+    let index: Int
+    let count: Int
+    let state: ReorderState
+    /// Шаг строк: высота строки и зазор.
+    var pitch: CGFloat = 48
+    let move: (Int, Int) -> Void
+    /// Касание идёт (сбрасывается и при отмене жеста — тогда строка встаёт, куда дотянули).
+    @GestureState private var touching: Bool = false
+
+    func body(content: Content) -> some View {
+        let lifted: Bool = state.from == index
+        let y: CGFloat = state.offset(index, count, pitch: pitch)
+        return content
+            .scaleEffect(lifted ? 1.03 : 1)
+            .shadow(color: .black.opacity(lifted ? 0.4 : 0), radius: 8, y: 3)
+            .offset(y: y)
+            .zIndex(lifted ? 1 : 0)
+            .animation(lifted ? nil : .easeOut(duration: 0.15), value: y)
+            .simultaneousGesture(gesture)
+            .onChange(of: touching) { _, t in if !t { finish() } }
+    }
+
+    private var gesture: some Gesture {
+        LongPressGesture(minimumDuration: 0.4)
+            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .global))
+            .updating($touching) { _, s, _ in s = true }
+            .onChanged { v in
+                switch v {
+                case .second(true, let d):
+                    if state.from < 0 { state.from = index }
+                    if state.from == index { state.dy = d?.translation.height ?? 0 }
+                default:
+                    break
+                }
+            }
+            .onEnded { _ in finish() }
+    }
+
+    private func finish() {
+        guard state.from == index else { return }
+        let to: Int = state.target(count, pitch: pitch)
+        let from: Int = state.from
+        var t = Transaction()
+        t.disablesAnimations = true
+        withTransaction(t) {
+            state.from = -1
+            state.dy = 0
+            state.ended = Date.timeIntervalSinceReferenceDate
+            if to != from { move(from, to) }
+        }
+    }
+}

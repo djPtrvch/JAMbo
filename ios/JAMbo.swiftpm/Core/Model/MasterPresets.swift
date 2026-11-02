@@ -82,6 +82,15 @@ public struct MasterPresetBook: Codable, Equatable, Sendable {
         lists[m].remove(at: k)
     }
 
+    /// Переставить пресет from модуля m на место to (перетаскивание в списке).
+    public mutating func move(_ m: Int, _ from: Int, to: Int) {
+        guard m >= 0 && m < lists.count else { return }
+        let n: Int = lists[m].count
+        guard from >= 0 && from < n && to >= 0 && to < n && from != to else { return }
+        let p: MasterPreset = lists[m].remove(at: from)
+        lists[m].insert(p, at: to)
+    }
+
     /// Загрузить пресет k модуля m в значения мастера: параметры модуля — из пресета (нет в пресете — по умолчанию),
     /// остальные не меняются.
     public func apply(_ m: Int, _ k: Int, to master: inout [String: Double]) {

@@ -50,6 +50,10 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var pianoOctaves: Int = 1
     /// Чувствительность клавиш к нажатию.
     public var velocity: Bool = false
+    /// Меню под CHORD → CHORD ROW: строка выбора аккорда (TRIAD, 7, 9) под клавишами в режиме CHORD; по умолчанию — да.
+    public var chordRow: Bool = true
+    /// Меню под CHORD → CHORD NAMES: в режиме CHORD на клавишах имена аккордов (Am7) вместо имён нот.
+    public var chordNames: Bool = false
     public var record = RecordSettings()
     /// SETTINGS → SAMPLER → SLICE NOTES: ноты маркеров нарезки по порядку.
     public var sliceMap: SliceMap = .chromatic
@@ -123,7 +127,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         return try? JSONEncoder().encode(self)
     }
 
-    private enum Keys: String, CodingKey { case appearance, pianoOctaves, velocity, record, sliceMap, scSends, latchFx, latchMod, rollGrid,
+    private enum Keys: String, CodingKey { case appearance, pianoOctaves, velocity, chordRow, chordNames, record, sliceMap, scSends, latchFx, latchMod, rollGrid,
                                          rollSound, levelRelative, morphAll, morphReturn, mixKey, mixCrossfader,
                                          clearSampleLocks, pitchSemitones, midi, stepPaint, sync,
                                          arrangeCompact, fxPictures, backgroundAudio, arrangeRepeats, stretchBeat,
@@ -134,6 +138,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
         appearance = (try? c.decode(String.self, forKey: .appearance)) ?? "SYSTEM"
         pianoOctaves = (try? c.decode(Int.self, forKey: .pianoOctaves)) ?? 1
         velocity = (try? c.decode(Bool.self, forKey: .velocity)) ?? false
+        chordRow = (try? c.decode(Bool.self, forKey: .chordRow)) ?? true
+        chordNames = (try? c.decode(Bool.self, forKey: .chordNames)) ?? false
         record = (try? c.decode(RecordSettings.self, forKey: .record)) ?? RecordSettings()
         sliceMap = (try? c.decode(SliceMap.self, forKey: .sliceMap)) ?? .chromatic
         scSends = (try? c.decode(SidechainSends.self, forKey: .scSends)) ?? SidechainSends()

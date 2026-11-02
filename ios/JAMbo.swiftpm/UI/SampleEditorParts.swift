@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Строка редактора сэмпла: имя и длина (во время записи — «REC · источник» и время), WARP, REC (S11e), ▶, MONO, TRIM,
+/// Строка редактора сэмпла: имя и длина (во время записи — «REC · источник» и время), WARP, REC (S11e), ▶, MONO, CUT, TRIM,
 /// NORMALIZE, CLEAR, LOAD и SAVE (браузер библиотеки, S11b; перед ✕), ✕ — по кнопкам верхней панели (aligned).
 /// В режиме WARP вместо ▶…CLEAR — строка WarpBar (LOAD и SAVE остаются).
 struct EditorBar: View {
@@ -17,7 +17,7 @@ struct EditorBar: View {
     }
 
     /// Решение пользователя: имя — до SCALE верхней панели; с него ▶ и REC шириной кнопок аранжировщика, за ними
-    /// WARP и MONO, TRIM, NORMALIZE, CLEAR поровну до левого края PATTERNS (в WARP вместо MONO…CLEAR — строка WarpBar
+    /// WARP и MONO, CUT, TRIM, NORMALIZE, CLEAR поровну до левого края PATTERNS (в WARP вместо MONO…CLEAR — строка WarpBar
     /// без ▶); с PATTERNS — LOAD и SAVE поровну до ✕ (квадратная).
     private var aligned: some View {
         let top: TopFrames = model.topFrames
@@ -39,8 +39,8 @@ struct EditorBar: View {
                     WarpBar(model: model, data: data, showPlay: false)
                 } else {
                     monoButton
-                    ToolButton(title: "TRIM", enabled: data != nil && !sel.full, width: nil) { model.trimSample(sel.a, sel.b) }
                     cutButton
+                    ToolButton(title: "TRIM", enabled: data != nil && !sel.full, width: nil) { model.trimSample(sel.a, sel.b) }
                     ToolButton(title: "NORMALIZE", enabled: data != nil, width: nil) { model.normalizeSample() }
                     clearButton
                 }
@@ -123,10 +123,10 @@ struct EditorBar: View {
     @ViewBuilder
     private func tools(play: Bool) -> some View {
         if play { playButton }
-        ToolButton(title: "TRIM", enabled: data != nil && !sel.full, width: nil) { model.trimSample(sel.a, sel.b) }
+        monoButton
         cutButton
+        ToolButton(title: "TRIM", enabled: data != nil && !sel.full, width: nil) { model.trimSample(sel.a, sel.b) }
         ToolButton(title: "NORMALIZE", enabled: data != nil, width: nil) { model.normalizeSample() }
-        ToolButton(title: "MONO", enabled: (data?.channels ?? 1) == 2, width: nil) { model.monoSample() }
         ToolButton(title: "CLEAR", enabled: data != nil && model.sampleRec.take == nil, width: nil) { model.clearSample() }
     }
 

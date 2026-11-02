@@ -126,7 +126,8 @@ final class AppModel {
     @ObservationIgnored var autoFlush: DispatchWorkItem? = nil
     /// У каждой дорожки свои режим аккордов, прогрессия и выбранные ноты (не в проекте).
     var chordMode: [Bool] = [Bool](repeating: false, count: Params.maxTracks)
-    var progression: [Int] = [Int](repeating: 0, count: Params.maxTracks)
+    /// Вид аккорда клавиш в режиме CHORD (Scales.chordTypes: TRIAD, 7, 9) — у каждой дорожки свой.
+    var chordType: [Int] = [Int](repeating: 0, count: Params.maxTracks)
     var selNotes: [[Int]] = [[Int]](repeating: [], count: Params.maxTracks)
     /// Зажатые клавиши и аккорды: касание → ноты.
     var pressedKeys: [Int: [Int]] = [:]
@@ -245,7 +246,7 @@ final class AppModel {
     /// Анимация MIX: клипы опускаются в PREV из строк окна (дорожка → строка окна), пока mixDropDone false.
     var mixDrop: [Int: Int] = [:]
     var mixDropDone: Bool = true
-    /// Открытое меню выбора (SCALE, ROOT, PROGRESSION) и меню клавиатуры.
+    /// Открытое меню выбора (SCALE, ROOT) и меню клавиатуры.
     var choice: ChoiceState? = nil
     var pianoMenuOpen: Bool = false
     /// Дубль записи: номер истории после первой ноты (−1 — дубля нет), дорожки и записанные шаги дубля.
