@@ -11,7 +11,10 @@ struct SynthInfo: View {
     var body: some View {
         let e: SynthEngine? = SynthEngines.engine(engine)
         // У WTABLE после имени движка — имя таблицы дорожки, у GRANULAR — имя сэмпла (SOURCE).
-        var table: String? = engine == Jambo.wtable ? SoundTitle.capitalized(WavetableKey.name(model.track.table)) : nil
+        // Своя таблица — имя как введено, встроенная — с заглавной.
+        let key: String = model.track.table
+        let own: Bool = WavetableKey.parseUser(key) != nil
+        var table: String? = engine == Jambo.wtable ? (own ? model.tableName(key) : SoundTitle.capitalized(model.tableName(key))) : nil
         if engine == Jambo.granular { table = model.sampleName(model.track.grain) }
         return VStack(alignment: .leading, spacing: 4) {
             SoundTitle(main: e?.name ?? "", detail: table)

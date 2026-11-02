@@ -216,6 +216,17 @@ extension AppModel {
         return key.isEmpty ? nil : store.data(key)
     }
 
+    /// Имя таблицы WTABLE: встроенная — своё имя; своя (wt:…) — имя пресета таблицы в папке дорожки, иначе имя в
+    /// библиотеке, иначе TABLE.
+    func tableName(_ key: String) -> String {
+        if WavetableKey.parseUser(key) == nil { return WavetableKey.name(key) }
+        for it in track.folder.items {
+            if let p = it.preset, p.table == key, !p.name.isEmpty { return p.name }
+        }
+        if let n = library.nodes.first(where: { $0.kind == .table && $0.key == key }) { return n.name }
+        return WavetableKey.name(key)
+    }
+
     func sampleName(_ key: String) -> String {
         if key.isEmpty { return "No sample" }
         return project.files[key] ?? "file"
