@@ -24,8 +24,6 @@ public struct LibNode: Codable, Equatable, Sendable {
     public var system: Bool?
     /// Время изменения, с от 1970.
     public var updated: Double
-    /// Место папки в своей папке (перетаскивание, решение пользователя); nil — после расставленных, по имени.
-    public var order: Double?
 
     public init(id: String, parent: String, kind: LibKind, name: String, key: String? = nil, preset: SynthPreset? = nil,
                 system: Bool? = nil, updated: Double = Date().timeIntervalSince1970) {
@@ -80,36 +78,14 @@ public struct Library: Codable, Equatable, Sendable {
         return nodes.first { $0.id == id }
     }
 
-    /// Содержимое папки: сначала системные (RECORDINGS), потом папки (по своему порядку — перетаскиванием, затем по
-    /// имени), потом остальное; по имени (числа — по значению).
+    /// Содержимое папки: сначала системные (RECORDINGS), потом папки, потом остальное; по имени (числа — по значению).
     public func children(_ parent: String) -> [LibNode] {
         let list: [LibNode] = nodes.filter { $0.parent == parent }
         return list.sorted { a, b in
             let ra: Int = Library.rank(a)
             let rb: Int = Library.rank(b)
             if ra != rb { return ra < rb }
-            if ra == 1 && a.order != b.order {
-                guard let oa = a.order else { return false }
-                guard let ob = b.order else { return true }
-                return oa < ob
-            }
             return a.name.localizedStandardCompare(b.name) == .orderedAscending
-        }
-    }
-
-    /// Папки, которые можно переставлять (не системные), — по порядку показа.
-    public func movableFolders(_ parent: String) -> [LibNode] {
-        return children(parent).filter { $0.kind == .folder && !$0.isSystem }
-    }
-
-    /// Перетаскивание папки: from → to среди movableFolders(parent); порядок всех папок запоминается.
-    public mutating func moveFolder(_ parent: String, from: Int, to: Int) {
-        var ids: [String] = movableFolders(parent).map { $0.id }
-        guard from >= 0, from < ids.count, to >= 0, to < ids.count, from != to else { return }
-        let id: String = ids.remove(at: from)
-        ids.insert(id, at: to)
-        for (k, fid) in ids.enumerated() {
-            if let i = nodes.firstIndex(where: { $0.id == fid }) { nodes[i].order = Double(k) }
         }
     }
 

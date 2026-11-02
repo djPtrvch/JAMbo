@@ -53,7 +53,8 @@ struct EqPresetsMenu: View {
                 Text("No EQ presets yet — save one with SAVE")
                     .font(.system(size: 12)).foregroundStyle(theme.dim)
             } else {
-                DragList(reorder: reorder) { rows(list) }
+                MenuScroll { rows(list) }
+                    .scrollDisabled(reorder.active)
                     .frame(height: listHeight(list.count))
             }
         }

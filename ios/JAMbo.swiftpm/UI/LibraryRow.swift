@@ -1,8 +1,7 @@
 import SwiftUI
 
 /// Строка браузера библиотеки: слева ▶ (у сэмпла и пресета — предпрослушка, звук не загружает), значок и имя,
-/// справа — что это (число в папке, движок пресета). Тап — войти или загрузить, удержание — выбор нескольких (у своих
-/// папок — перетаскивание, порядок),
+/// справа — что это (число в папке, движок пресета). Тап — войти или загрузить, удержание — выбор нескольких,
 /// свайп влево — карандаш (RENAME) и корзина (у непустой папки — второй тап по DELETE?); у системных — без свайпа.
 struct LibRow: View {
     static let height: CGFloat = 44
@@ -12,8 +11,6 @@ struct LibRow: View {
     let confirm: Bool
     let rename: () -> Void
     let delete: () -> Void
-    /// Перетаскивание папок списка: тап сразу после него не открывает папку.
-    var reorder: ReorderState? = nil
     @State private var offset: CGFloat = 0
     @State private var open: Bool = false
     /// Удержание сработало — отпускание пальца не тап.
@@ -140,7 +137,6 @@ struct LibRow: View {
     }
 
     private func tapped() {
-        if let r = reorder, !r.tapAllowed { return }
         if held {
             held = false
             return

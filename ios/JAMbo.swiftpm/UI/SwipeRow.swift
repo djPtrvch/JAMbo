@@ -166,16 +166,13 @@ struct ReorderDrag: ViewModifier {
     let move: (Int, Int) -> Void
     /// Касание идёт (сбрасывается и при отмене жеста — тогда строка встаёт, куда дотянули).
     @GestureState private var touching: Bool = false
-    /// Касание (как в колонке страниц, PagesColumn): метка начала (0 — нет) и сдвиг пальца до удержания.
-    @State private var downAt: Double = 0
-    @State private var moved: Bool = false
 
     func body(content: Content) -> some View {
         let lifted: Bool = state.from == index
         let y: CGFloat = state.offset(index, count, pitch: pitch)
         return content
-            .scaleEffect(lifted ? 1.06 : 1)
-            .shadow(color: .black.opacity(lifted ? 0.5 : 0), radius: 8)
+            .scaleEffect(lifted ? 1.03 : 1)
+            .shadow(color: .black.opacity(lifted ? 0.4 : 0), radius: 8, y: 3)
             .offset(y: y)
             .zIndex(lifted ? 1 : 0)
             .animation(lifted ? nil : .easeOut(duration: 0.15), value: y)
@@ -183,39 +180,23 @@ struct ReorderDrag: ViewModifier {
             .onChange(of: touching) { _, t in if !t { finish() } }
     }
 
-    /// Как перенос страницы в колонке страниц: касание с первого пикселя; палец 0,4 с почти на месте (до 8 pt) —
-    /// строка поднимается и дальше идёт за пальцем, соседи расступаются; сдвинулся раньше — это прокрутка списка
-    /// (пока строка поднята, список не прокручивается).
     private var gesture: some Gesture {
-        DragGesture(minimumDistance: 0, coordinateSpace: .global)
+        LongPressGesture(minimumDuration: 0.4)
+            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .global))
             .updating($touching) { _, s, _ in s = true }
             .onChanged { v in
-                if downAt == 0 { arm() }
-                if state.from == index {
-                    state.dy = v.translation.height
-                    return
+                switch v {
+                case .second(true, let d):
+                    if state.from < 0 { state.from = index }
+                    if state.from == index { state.dy = d?.translation.height ?? 0 }
+                default:
+                    break
                 }
-                if abs(v.translation.height) > 8 || abs(v.translation.width) > 8 { moved = true }
             }
             .onEnded { _ in finish() }
     }
 
-    /// Начало касания: через 0,4 с без сдвига — строка поднята.
-    private func arm() {
-        let t: Double = Date.timeIntervalSinceReferenceDate
-        downAt = t
-        moved = false
-        let s: ReorderState = state
-        let k: Int = index
-        Later.run(0.4) {
-            guard downAt == t, !moved, s.from < 0 else { return }
-            s.from = k
-            s.dy = 0
-        }
-    }
-
     private func finish() {
-        downAt = 0
         guard state.from == index else { return }
         let to: Int = state.target(count, pitch: pitch)
         let from: Int = state.from
