@@ -83,8 +83,7 @@ struct MasterPresetsMenu: View {
                 Text("No \(MasterPresetBook.titles[m]) presets yet — save one with SAVE")
                     .font(.system(size: 12)).foregroundStyle(theme.dim)
             } else {
-                MenuScroll { rows(m, list) }
-                    .scrollDisabled(reorder.active)
+                DragList(reorder: reorder) { rows(m, list) }
                     .frame(height: listHeight(list.count))
             }
         }
