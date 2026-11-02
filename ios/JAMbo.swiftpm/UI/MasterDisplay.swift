@@ -286,12 +286,8 @@ struct LevelPlot: View {
     let hist: TeleHistory
     let line: ParamDef
     let now: Double
-    /// Дисплей WAVE (COMP, CLIP): шкала зеркальная от середины (MasterWave), линия — две, сверху и снизу.
-    var wave: Bool = false
     let draw: (GraphicsContext, CGSize, TeleHistory.Columns) -> Void
     @State private var touching: Bool = false
-    /// Тянут нижнюю линию WAVE (палец вверх — значение вниз).
-    @State private var lower: Bool = false
     @State private var lineStart: Double? = nil
     @State private var moved: Bool = false
     @State private var lastTap: Date = .distantPast
@@ -325,10 +321,8 @@ struct LevelPlot: View {
                     touching = true
                     moved = false
                     let v: Double = model.masterValue(line)
-                    let cy: CGFloat = wave ? MasterWave.y(v, h, lower: false) : MasterDraw.y(v, h)
-                    let cy2: CGFloat = wave ? MasterWave.y(v, h, lower: true) : cy
-                    lower = abs(g.startLocation.y - cy2) < abs(g.startLocation.y - cy)
-                    if min(abs(g.startLocation.y - cy), abs(g.startLocation.y - cy2)) <= MasterDraw.lineHit {
+                    let cy: CGFloat = MasterDraw.y(v, h)
+                    if abs(g.startLocation.y - cy) <= MasterDraw.lineHit {
                         lineStart = v
                         model.beginGesture()
                     } else {
@@ -337,10 +331,8 @@ struct LevelPlot: View {
                 }
                 if abs(g.translation.height) > 6 { moved = true }
                 guard let v0 = lineStart, h > 0 else { return }
-                // Линия идёт за пальцем по шкале дисплея (у WAVE — полвысоты на шкалу, снизу — наоборот).
-                let span: CGFloat = wave ? h / 2 : h
-                let sign: Double = wave && lower ? -1 : 1
-                let d: Double = sign * Double(g.translation.height / span * MasterDraw.scale)
+                // Линия идёт за пальцем по шкале дисплея.
+                let d: Double = Double(g.translation.height / h * MasterDraw.scale)
                 model.setMaster(line, v0 - d)
             }
             .onEnded { _ in

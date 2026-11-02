@@ -147,8 +147,8 @@ struct MasterStrip: View {
 
     /// Первые поля — до правого края дисплея TRANSFER под строкой (решение пользователя): у COMP — до MAKEUP, у SAT —
     /// до TYPE, у CLIP — до CEILING; у LIM — по ширине полей CLIP (TRANSFER у него нет). Остальные поля — поровну до
-    /// PRESETS. Ширина TRANSFER — как в SatDisplay (от размера дисплея под строкой); у COMP и CLIP дисплей — WAVE,
-    /// поля стоят по прежней ширине TRANSFER.
+    /// PRESETS. Ширина TRANSFER — как в SatDisplay (от размера дисплея под строкой); у COMP и CLIP TRANSFER нет,
+    /// поля стоят по прежней ширине.
     private var leadFields: (count: Int, width: CGFloat?) {
         let g: CGFloat = Layout.gap
         let wide: CGFloat = bounds.width
