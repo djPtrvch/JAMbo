@@ -39,6 +39,9 @@ struct RootView: View {
                 if model.pianoMenuOpen {
                     AnyView(PianoMenu(model: model, layout: layout, screen: geo.size))
                 }
+                if model.chordMenuOpen {
+                    AnyView(ChordMenu(model: model, layout: layout, screen: geo.size))
+                }
                 if model.midiLearn.mapTarget != nil {
                     AnyView(MidiMapWindow(model: model, screen: geo.size))
                 }

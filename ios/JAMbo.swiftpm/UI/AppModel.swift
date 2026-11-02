@@ -128,10 +128,13 @@ final class AppModel {
     @ObservationIgnored var autoFlush: DispatchWorkItem? = nil
     /// У каждой дорожки свои режим аккордов, прогрессия и выбранные ноты (не в проекте).
     var chordMode: [Bool] = [Bool](repeating: false, count: Params.maxTracks)
-    /// Вид аккорда клавиш в режиме CHORD (Scales.chordKinds: TRIAD, 7th, 9th) и вариант каждого вида
-    /// (Scales.chordVariants; 0 — по гамме) — у каждой дорожки свои.
+    /// Тип аккорда клавиш в режиме CHORD (Scales.chordKinds: Triad, 7th, 9th, sus2, sus4, add9) — у каждой дорожки
+    /// свой; живёт до закрытия приложения (в проекте не хранится).
     var chordKind: [Int] = [Int](repeating: 0, count: Params.maxTracks)
-    var chordVariant: [[Int]] = [[Int]](repeating: [0, 0, 0], count: Params.maxTracks)
+    /// Окно CHORD (долгое нажатие на CHORD): тип аккорда и пресеты прогрессий.
+    var chordMenuOpen: Bool = false
+    /// Последняя случайная прогрессия (SHIFT + CHORD) — следующая будет другой.
+    @ObservationIgnored var lastRandomProgression: [Int]? = nil
     var selNotes: [[Int]] = [[Int]](repeating: [], count: Params.maxTracks)
     /// Зажатые клавиши и аккорды: касание → ноты.
     var pressedKeys: [Int: [Int]] = [:]

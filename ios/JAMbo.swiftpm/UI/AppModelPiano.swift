@@ -12,7 +12,7 @@ struct KeyHold {
     var arrLive: Int? = nil
 }
 
-/// Меню выбора (SCALE, ROOT, VARIANT): пункты, столбцы, выбранный, рамка поля (в координатах экрана).
+/// Меню выбора (SCALE, ROOT): пункты, столбцы, выбранный, рамка поля (в координатах экрана).
 struct ChoiceState {
     let options: [String]
     let columns: Int
@@ -50,14 +50,6 @@ extension AppModel {
         chordKind[selectedTrack] = min(Scales.chordKinds.count - 1, max(0, k))
     }
 
-    /// Вариант выбранного вида аккорда (по кругу).
-    var chordVariantNow: Int { return chordVariant[selectedTrack][chordKind[selectedTrack]] }
-
-    func setChordVariant(_ v: Int) {
-        let k: Int = chordKind[selectedTrack]
-        chordVariant[selectedTrack][k] = Scales.wrap(v, Scales.chordVariants[k].count)
-    }
-
     func toggleChord() {
         chordMode[selectedTrack].toggle()
     }
@@ -71,8 +63,7 @@ extension AppModel {
     /// Верхняя октава клавиатуры выбранной дорожки (ноты не выше 127).
     var topOctave: Int {
         return Scales.topOctave(scale: project.scale, root: project.root, octaves: settings.pianoOctaves,
-                                chord: chordMode[selectedTrack], kind: chordKind[selectedTrack],
-                                variant: chordVariantNow)
+                                chord: chordMode[selectedTrack], kind: chordKind[selectedTrack])
     }
 
     var keyCount: Int {
@@ -84,12 +75,12 @@ extension AppModel {
         return Scales.note(scale: project.scale, root: project.root, octave: octave, degree: k)
     }
 
-    /// Что играет клавиша k: нота или (CHORD) аккорд выбранного вида и варианта от неё.
+    /// Что играет клавиша k: нота или (CHORD) аккорд выбранного типа от неё (ступени гаммы).
     func keyNotes(_ k: Int) -> [Int]? {
         if k >= keyCount { return nil }
         if chordMode[selectedTrack] {
             return Scales.chord(scale: project.scale, root: project.root, octave: octave, degree: k,
-                                kind: chordKind[selectedTrack], variant: chordVariantNow)
+                                kind: chordKind[selectedTrack])
         }
         return [keyNote(k)]
     }

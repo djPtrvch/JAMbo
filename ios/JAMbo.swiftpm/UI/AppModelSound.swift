@@ -479,7 +479,9 @@ extension AppModel {
     func liveNoteOn(track t: Int, notes: [Int], id: Int, velocity: Double) {
         ensureAudio()
         let v: Float = settings.velocity ? Float(velocity) : 1
-        for n in notes { audio.core.events.push(.noteOn(track: t, note: n, id: id, velocity: v)) }
+        // Сверху вниз: корень аккорда — последним. Монофонический движок оставляет последнюю ноту, а при нехватке
+        // голосов крадутся первые — так звучит корень и ближние к нему ноты.
+        for n in notes.reversed() { audio.core.events.push(.noteOn(track: t, note: n, id: id, velocity: v)) }
     }
 
     func liveNoteOff(track t: Int, id: Int) {

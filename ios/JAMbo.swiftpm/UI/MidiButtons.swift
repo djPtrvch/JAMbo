@@ -23,7 +23,7 @@ enum MidiButtons {
         }
         for n in 1...16 { out.append("STEP \(n)") }
         for n in 1...25 { out.append("KEY \(n)") }
-        for n in 1...3 { out.append("CHORD TYPE \(n)") }
+        for n in 1...Scales.chordKinds.count { out.append("CHORD TYPE \(n)") }
         for n in 1...8 { out.append("ROW \(n)") }
         return out
     }
@@ -125,7 +125,7 @@ extension AppModel {
         case "UNDO": undoTapped()
         case "REDO": redo()
         case "METRONOME": toggleMetronome()
-        case "CHORD": toggleChord()
+        case "CHORD": chordTap()
         case "OCTAVE ▲": setOctave(octave + 1)
         case "OCTAVE ▼": setOctave(octave - 1)
         case "FX": pagePress(.fx)

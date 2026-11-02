@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Клавиатура: слева CHORD и бутерброд, клавиши гаммы (с CHORD — квадратные и строка вида аккорда под ними),
-/// справа ▲ ▼ октавы. Столбцы — как шаги секвенсора. Мультитач.
+/// Клавиатура: слева CHORD и бутерброд, клавиши гаммы (с CHORD — подписи аккордов), справа ▲ ▼ октавы.
+/// Столбцы — как шаги секвенсора. Мультитач.
 struct KeyboardPanel: View {
     let model: AppModel
     let layout: Layout
@@ -14,26 +14,15 @@ struct KeyboardPanel: View {
                 BurgerButton { model.pianoMenuOpen.toggle() }.frame(maxHeight: .infinity)
             }
             .frame(width: layout.step)
-            keyArea
+            KeyRow(model: model)
             OctavePair(model: model).frame(width: layout.step)
         }
         .frame(height: layout.pianoHeight(model.project.scale))
     }
-
-    @ViewBuilder
-    private var keyArea: some View {
-        if model.chordMode[model.selectedTrack] {
-            AnyView(VStack(spacing: Layout.gap) {
-                KeyRow(model: model).frame(height: layout.keyHeight(model.project.scale))
-                ChordTypeRow(model: model).frame(maxHeight: .infinity)
-            })
-        } else {
-            AnyView(KeyRow(model: model))
-        }
-    }
 }
 
-/// Клавиши: имя ноты внизу; корневая чуть светлее; выбранные — белый контур; нажатые и звучащие — белая заливка.
+/// Клавиши: имя ноты внизу (с CHORD — аккорд и римская ступень, «Em · i»); корневая чуть светлее; выбранные — белый
+/// контур; нажатые и звучащие — белая заливка.
 struct KeyRow: View {
     let model: AppModel
     @State private var touches: [SpatialEventCollection.Event.ID: Int] = [:]
@@ -62,8 +51,13 @@ struct KeyRow: View {
         let on: Bool = lit.contains(n)
         let bg: Color = on ? theme.text : (isRoot ? theme.root : theme.panel)
         let fg: Color = on ? theme.bg : (shown.contains(n) || isRoot ? theme.text : theme.dim)
-        return Text(Params.noteName(n))
+        let chord: Bool = model.chordMode[model.selectedTrack]
+        return Text(chord ? model.chordKeyLabel(k) : Params.noteName(n))
             .font(.system(size: 11))
+            .multilineTextAlignment(.center)
+            .lineLimit(2)
+            .minimumScaleFactor(0.6)
+            .padding(.horizontal, 2)
             .foregroundStyle(fg)
             .padding(.bottom, 6)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
@@ -110,76 +104,25 @@ struct KeyRow: View {
     }
 }
 
-/// Строка под клавишами (CHORD): вид аккорда — TRIAD, 7th, 9th (выбирается один, белая заливка), по 2 клавиши
-/// (с одной октавой — по одной), за ними поле VARIANT шириной 3 клавиши (2) — вариант вида: палец вверх-вниз или
-/// тап — меню. Вид и варианты — у каждой дорожки свои.
-struct ChordTypeRow: View {
-    let model: AppModel
-    @Environment(\.theme) private var theme
-
-    var body: some View {
-        GeometryReader { geo in
-            let count: Int = model.keyCount
-            let keyW: CGFloat = (geo.size.width - KeyRow.gap * CGFloat(count - 1)) / CGFloat(count)
-            let one: Bool = model.settings.pianoOctaves == 1
-            let chipW: CGFloat = one ? keyW : 2 * keyW + KeyRow.gap
-            let fieldKeys: CGFloat = one ? 2 : 3
-            let fieldW: CGFloat = fieldKeys * keyW + (fieldKeys - 1) * KeyRow.gap
-            HStack(spacing: KeyRow.gap) {
-                ForEach(0..<Scales.chordKinds.count, id: \.self) { c in
-                    chip(c).frame(width: chipW).midiMarks(model, [.button("CHORD TYPE \(c + 1)")])
-                }
-                ChordVariantField(model: model).frame(width: fieldW)
-                Spacer(minLength: 0)
-            }
-        }
-    }
-
-    private func chip(_ c: Int) -> some View {
-        let on: Bool = model.chordKind[model.selectedTrack] == c
-        return Text(Scales.chordKinds[c])
-            .font(.system(size: 13, weight: .semibold))
-            .foregroundStyle(on ? theme.bg : theme.text)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(on ? theme.text : theme.panel, in: RoundedRectangle(cornerRadius: 6))
-            .contentShape(Rectangle())
-            .onTapGesture {
-                if model.midiLearn.on { model.learnTap(.button("CHORD TYPE \(c + 1)")) } else { model.setChordKind(c) }
-            }
-    }
-}
-
-/// VARIANT: палец вверх-вниз — 24 px на пункт; тап — меню вариантов выбранного вида.
-struct ChordVariantField: View {
-    let model: AppModel
-
-    var body: some View {
-        let kind: Int = model.chordKind[model.selectedTrack]
-        let names: [String] = Scales.chordVariants[kind].map { $0.name }
-        let i: Int = model.chordVariantNow
-        return DragField(label: "VARIANT", value: names[i], pxPerUnit: 24,
-                         get: { Double(model.chordVariantNow) },
-                         set: { model.setChordVariant(Int($0)) },
-                         tap: { frame in model.choice = ChoiceState(options: names, columns: 2, current: i, anchor: frame,
-                                                                     pick: { model.setChordVariant($0) }) },
-                         undoable: false, model: model)
-    }
-}
-
+/// CHORD: тап — вкл./выкл. режима (с SHIFT — случайная прогрессия), долгое нажатие — окно CHORD (тип и прогрессии).
+/// Под словом CHORD — тип аккорда мелкой подписью.
 struct ChordButton: View {
     let model: AppModel
     @Environment(\.theme) private var theme
 
     var body: some View {
         let on: Bool = model.chordMode[model.selectedTrack]
-        return Text("CHORD")
-            .font(.system(size: 12, weight: .semibold))
-            .tracking(1)
-            .foregroundStyle(on ? theme.bg : theme.text)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(on ? theme.text : theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
-            .contentShape(Rectangle())
-            .onTapGesture { model.toggleChord() }
+        let kind: Int = min(Scales.chordShort.count - 1, max(0, model.chordKind[model.selectedTrack]))
+        return VStack(spacing: 2) {
+            Text("CHORD").font(.system(size: 12, weight: .semibold)).tracking(1)
+            Text(Scales.chordShort[kind]).font(.system(size: 9, weight: .semibold))
+        }
+        .foregroundStyle(on ? theme.bg : theme.text)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(on ? theme.text : theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
+        .contentShape(Rectangle())
+        .onTapGesture { model.chordTap() }
+        .onLongPressGesture(minimumDuration: 0.5) { model.chordMenuOpen = true }
     }
 }
 
