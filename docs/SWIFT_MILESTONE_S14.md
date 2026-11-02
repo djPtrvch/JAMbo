@@ -158,7 +158,8 @@
 - Строка «Now:» (AUDIO ENGINE): last — причина последней смены маршрута и прежний выход (AudioHost.describe).
 
 ## Правки 2.11 (решения пользователя; проверено на iPad)
-- Пресеты EQ и модулей мастера: удержание строки 0,4 с и перетаскивание — порядок списка (ReorderDrag в SwipeRow.swift; EqPresetBook.move, MasterPresetBook.move).
+- Пресеты EQ и модулей мастера: удержание строки 0,4 с и перетаскивание — порядок списка (EqPresetBook.move, MasterPresetBook.move). Свои папки библиотеки — так же (LibNode.order, Library.moveFolder, AppModel.libMoveFolder; тест LibraryFolderOrderTests).
+- Жест строки списка (SwipeRow, LibRow) — один распознаватель UIKit RowGesture / RowRecognizer (HorizontalSwipe.swift): сдвиг больше 10 pt раньше удержания — вбок свайп, по вертикали жест не начинается (касание — прокрутке); без движения 0,4 с (выбор нескольких в библиотеке — 0,5 с) — удержание (HoldDrag: перетаскивание через ReorderState.hold, вид — ReorderDrag); отпустили раньше — тап. Урок: жесты SwiftUI на строке в ScrollView iOS 18 (LongPressGesture + DragGesture, simultaneousGesture) забирают касание у прокрутки; два распознавателя UIKit на одной строке (свайп и удержание) мешают друг другу — удержание ждёт, пока свайп возможен; распознаватель UIKit подключается только .gesture, не .simultaneousGesture.
 - Редактор сэмпла: MONO, CUT, TRIM, NORMALIZE, CLEAR.
 - CHORD по ТЗ: 6 типов по ступеням гаммы (Scales.chordKinds, chordDegrees; Chords — названия, ступени, случайная прогрессия; Track.writeProgression), подписи клавиш, окно типов по удержанию, SHIFT + CHORD — прогрессия на выбранные страницы; VARIANT и пресеты прогрессий убраны (тесты ChordTests).
 - COMP и CLIP: LEVEL на всю ширину, окно TRANSFER поверх слева, полупрозрачное (волна видна). Пробовали и откатили: дисплей WAVE, кривая на весь дисплей, продление кривой до верха.
@@ -166,7 +167,7 @@
 - Окна SAT, COMP, CLIP: черта в строке полей — над правым краем TRANSFER (MasterStrip.leadFields); SAT — TRANSFER и SPECTRUM слитно.
 - Кража голоса синта — самый тихий голос, τ 2,5 мс, нота через 18 мс; быстрое гашение перекрывает медленное (тест ChordStealTests). KICK: DRIVE плавно по отсчётам (KickDriveTests).
 - DELETE в меню страницы — только эта страница (Track.deletePages single). SAVE DEFAULT EQ — только у мастера. Имя своей таблицы WTABLE (AppModel.tableName).
-- Порядок своих папок библиотеки перетаскиванием сделан и откатан (решение пользователя): в прокручиваемом списке iOS 18 жест строки и прокрутка мешают друг другу — пробовали LongPressGesture + DragGesture, удержание UIKit, системный drag & drop, свою прокрутку; каждое ломало либо перетаскивание, либо прокрутку, либо раскладку. Пресеты EQ и модулей мастера — как раньше.
+- Порядок своих папок библиотеки: первая версия откатывалась (жест строки и прокрутка мешали друг другу), вернули с RowGesture (см. выше).
 - Облегчение сборки (2.11): отложенные вызовы — Later.run / Later.every вместо Task + sleep (−11 тыс. инструкций IR), кнопки меню списком в 8 меню (−4 тыс.); итог 1,633 млн (было 1,649).
 
 ## Проверено
