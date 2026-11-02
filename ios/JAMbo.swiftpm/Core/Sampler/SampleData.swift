@@ -7,6 +7,9 @@ public final class SampleData: @unchecked Sendable {
     public let channels: Int
     public let left: UnsafeMutablePointer<Float>
     public let right: UnsafeMutablePointer<Float>
+    /// Период источника, с (метаданные; 0 — неизвестен): GRANULAR выравнивает по нему зёрна по фазе. В проекте не
+    /// хранится и в интерфейсе не задаётся (решение пользователя: только тестовый однотоновый источник).
+    public var period: Double = 0
 
     public convenience init(left l: [Float], right r: [Float]?) {
         self.init(frames: l.count, stereo: r != nil)

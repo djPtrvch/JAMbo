@@ -4,7 +4,7 @@
 // Выход движка — до огибающей, фильтра и мастера прототипа (T.n.out; у Granular — шина зёрен A.gbus): так он
 // сравнивается с выходом голоса Swift до огибающей. Нота держится всё время (Hold).
 // Результат: JSON со статистикой (RMS, пик по каналам, третьоктавные полосы 25 Гц–16 кГц, dB) и WAV для прослушивания.
-// Запуск: node ios/tools/texture/proto.mjs <out-dir> [секунд] [прогонов]
+// Запуск: node ios/tools/texture/proto.mjs <out-dir> [секунд] [прогонов] [префикс случаев — остальные из proto.json]
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -15,6 +15,7 @@ const outDir = process.argv[2] ?? '.';
 const SECONDS = Number(process.argv[3] ?? 10);
 /** Прогонов на случай: статистика случайного звука усредняется по мощности (RMS, полосы), пик — наибольший. */
 const RUNS = Number(process.argv[4] ?? 4);
+const ONLY = process.argv[5] ?? '';
 fs.mkdirSync(outDir, { recursive: true });
 
 const CASES = [
@@ -25,12 +26,18 @@ const CASES = [
   { name: 'tex_tone', engine: 'tex', k: [0.4, 0.5, 1, 0] },
   { name: 'tex_motion', engine: 'tex', k: [0.4, 0.5, 0.3, 1] },
   { name: 'tex_sparse_tone', engine: 'tex', k: [0, 0, 1, 0] },
-  { name: 'gran_default', engine: 'gran', k: [0.12, 0.45, 0.55, 0.2] },
-  { name: 'gran_mid', engine: 'gran', k: [0.5, 0.45, 0.55, 0] },
-  { name: 'gran_tiny', engine: 'gran', k: [0.12, 0, 1, 0] },
-  { name: 'gran_long', engine: 'gran', k: [0.12, 1, 0.2, 0] },
-  { name: 'gran_spray', engine: 'gran', k: [0.5, 0.45, 0.55, 1] },
-  { name: 'gran_dense', engine: 'gran', k: [0.12, 1, 1, 0] },
+  // GRANULAR (ТЗ «Granular»): src — pad (один тон A3, Ts = 1/110 с, стерео) или arp (демо, Ts нет); semis — ноты (Hold).
+  { name: 'gran_default', engine: 'gran', src: 'pad', semis: [0], k: [0.08, 0.62, 0.6, 0.25] },
+  { name: 'gran_spray0', engine: 'gran', src: 'pad', semis: [0], k: [0.08, 0.62, 0.6, 0] },
+  { name: 'gran_spray10', engine: 'gran', src: 'pad', semis: [0], k: [0.08, 0.62, 0.6, 0.1] },
+  { name: 'gran_spray60', engine: 'gran', src: 'pad', semis: [0], k: [0.08, 0.62, 0.6, 0.6] },
+  { name: 'gran_spray100', engine: 'gran', src: 'pad', semis: [0], k: [0.5, 0.62, 0.6, 1] },
+  { name: 'gran_dense', engine: 'gran', src: 'pad', semis: [0], k: [0.08, 1, 1, 0.25] },
+  { name: 'gran_tiny', engine: 'gran', src: 'pad', semis: [0], k: [0.5, 0, 0.3, 0.25] },
+  { name: 'gran_chord', engine: 'gran', src: 'pad', semis: [0, 3, 7], k: [0.08, 0.62, 0.6, 0.25] },
+  { name: 'gran_eight', engine: 'gran', src: 'pad', semis: [0, 3, 5, 7, 10, 12, 15, 17], k: [0.08, 1, 1, 0.25] },
+  { name: 'gran_arp', engine: 'gran', src: 'arp', semis: [0], k: [0.08, 0.62, 0.6, 0.25] },
+  { name: 'gran_arp_pad', engine: 'gran', src: 'arp', semis: [12], k: [0.7, 0.62, 0.6, 0.4] },
 ];
 
 /** Код страницы: движки прототипа без интерфейса, время — параметр now. */
@@ -41,7 +48,7 @@ function pageCode() {
   const rnd = () => Math.random() * 2 - 1;
   const BASE = 220, RATIOS = [1, 2, 3, 4];
   const W_DARK = [1, .25, .08, .02], W_BRIGHT = [.55, .85, .9, .8];
-  const M = { size: v => 0.005 * Math.pow(100, v), density: v => 2 * Math.pow(40, v) };
+  const M = { size: v => 0.01 * Math.pow(80, v), overlap: v => 0.5 * Math.pow(48, v) };
 
   function makeDemo() {
     const sr = 44100, len = sr * 6, d = new Float32Array(len);
@@ -65,6 +72,45 @@ function pageCode() {
     let pk = 0; for (let i = 0; i < len; i++) pk = Math.max(pk, Math.abs(d[i]));
     const g = 0.85 / (pk || 1); for (let i = 0; i < len; i++) d[i] *= g;
     return d;
+  }
+
+  // Пэд прототипа (makePadB): 8 с, стерео, 44,1 кГц, один тон A3 — пилы на 110, 220 и 440 Гц, ФНЧ 1 → 5 кГц. Фазы
+  // генераторов — не Math.random, а тот же генератор, что в тесте Swift (GranularEngineTests.makePad): одна и та же
+  // реализация источника в обоих (уровень тона в точке чтения зависит от фаз — биения расстроенных пил).
+  function makePadB(variant) {
+    let rs = BigInt(777 + variant * 7919);
+    const uni = () => { rs = (rs * 1103515245n + 12345n) & 0x7FFFFFFFn; return Number(rs) / 2147483648; };
+    const sr = 44100, len = sr * 8, N = 2048, tab = new Float32Array(N + 1);
+    for (let k = 1; k <= 18; k++) { const a = 1 / Math.pow(k, 1.15); for (let i = 0; i <= N; i++) tab[i] += a * Math.sin(2 * Math.PI * k * i / N); }
+    let tm = 0; for (let i = 0; i <= N; i++) tm = Math.max(tm, Math.abs(tab[i]));
+    for (let i = 0; i <= N; i++) tab[i] /= tm;
+    const voices = [[110, 0.5], [220, 1], [440, 0.4]], det = [-12, 0, 12], nD = det.length;
+    const out = [new Float32Array(len), new Float32Array(len)];
+    const ph = new Float64Array(voices.length * nD * 2), inc = new Float64Array(ph.length), dp = new Float64Array(ph.length);
+    for (let i = 0; i < ph.length; i++) ph[i] = uni() * N;
+    for (let i = 0; i < ph.length; i++) dp[i] = uni() * 6.283;
+    const y = [[0, 0], [0, 0]], B = 128;
+    for (let s0 = 0; s0 < len; s0 += B) {
+      const t = s0 / sr, fc = 1000 * Math.pow(5, t / 8);
+      for (let v = 0; v < voices.length; v++) for (let d = 0; d < nD; d++) for (let ch = 0; ch < 2; ch++) {
+        const idx = (v * nD + d) * 2 + ch, cents = det[d] * (ch ? -1 : 1) + 6 * Math.sin(6.283 * 0.09 * t + dp[idx]);
+        inc[idx] = voices[v][0] * Math.pow(2, cents / 1200) * N / sr;
+      }
+      const a = 1 - Math.exp(-6.283 * fc / sr);
+      for (let n = 0; n < B && s0 + n < len; n++) {
+        let l = 0, r = 0;
+        for (let v = 0; v < voices.length; v++) for (let d = 0; d < nD; d++) for (let ch = 0; ch < 2; ch++) {
+          const idx = (v * nD + d) * 2 + ch; let p = ph[idx] + inc[idx]; if (p >= N) p -= N; ph[idx] = p;
+          const i0 = p | 0, val = (tab[i0] + (tab[i0 + 1] - tab[i0]) * (p - i0)) * voices[v][1];
+          if (ch) r += val; else l += val;
+        }
+        y[0][0] += a * (l - y[0][0]); y[0][1] += a * (y[0][0] - y[0][1]); out[0][s0 + n] = y[0][1];
+        y[1][0] += a * (r - y[1][0]); y[1][1] += a * (y[1][0] - y[1][1]); out[1][s0 + n] = y[1][1];
+      }
+    }
+    let pk = 0; for (let i = 0; i < len; i++) pk = Math.max(pk, Math.abs(out[0][i]), Math.abs(out[1][i]));
+    const g = 0.8 / (pk || 1); for (let i = 0; i < len; i++) { out[0][i] *= g; out[1][i] *= g; }
+    return out;
   }
 
   async function renderTex(k, seconds, semi) {
@@ -157,48 +203,73 @@ function pageCode() {
     return [buf.getChannelData(0), buf.getChannelData(1)];
   }
 
-  async function renderGran(k, seconds, semi) {
+  // Granular прототипа (spawnGrain, granularTick, grainPlan; вариант B — шина и gate на ноту). Выход — сумма шин нот
+  // (до gate, фильтра и мастера), ноты держатся (Hold). Курсор — сразу на POSITION (в прототипе он туда уже пришёл).
+  async function renderGran(c, seconds, run) {
     const sr = 48000, ctx = new OfflineAudioContext(2, sr * seconds, sr);
-    const P = { position: k[0], size: k[1], density: k[2], spray: k[3] };
-    const demo = makeDemo();
-    const b = ctx.createBuffer(1, demo.length, 44100); b.copyToChannel(demo, 0);
-    const gbus = ctx.createGain(); gbus.gain.value = 3;
-    gbus.connect(ctx.destination);
-    const HANN = new Float32Array(64);
-    for (let i = 0; i < 64; i++) HANN[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / 63));
-    let next = 0; let ends = [];
-    function spawn(t) {
-      const bd = b.duration, sp = P.spray;
-      const dur = Math.min(M.size(P.size), bd * 0.9);
-      const rate = Math.pow(2, (semi + rnd() * sp * 3) / 12);
-      let pos = (P.position + rnd() * sp * 0.35) * bd;
+    const P = { position: c.k[0], size: c.k[1], density: c.k[2], spray: c.k[3] };
+    const chs = c.src === 'pad' ? makePadB(run) : [makeDemo()];
+    const b = ctx.createBuffer(chs.length, chs[0].length, 44100); chs.forEach((x, i) => b.copyToChannel(x, i));
+    const Ts = c.src === 'pad' ? 1 / 110 : 0;
+    const HANN = new Float32Array(128); for (let i = 0; i < 128; i++) HANN[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / 127));
+    const WIN = new Float32Array(128);
+    { const sg = 0.2, g0 = Math.exp(-0.5 * Math.pow(0.5 / sg, 2)); for (let i = 0; i < 128; i++) { const x = i / 127; WIN[i] = (Math.exp(-0.5 * Math.pow((x - 0.5) / sg, 2)) - g0) / (1 - g0); } }
+    const G = { head: P.position, dr: 0, drT: 0, drHold: 0, ends: [] };
+    const voices = c.semis.map(semi => { const bus = ctx.createGain(); bus.gain.value = 1; bus.connect(ctx.destination); return { bus, semi, next: 0 }; });
+    const grainState = sc => {
+      const size = Math.min(M.size(P.size), b.duration * 0.9);
+      const eff = Math.min(M.overlap(P.density) * sc, 100 * size);
+      return { size, eff, rate: eff / size };
+    };
+    const plan = (gs, semi) => {
+      let iv = 1 / gs.rate;
+      if (Ts) { const Tout = Ts / Math.pow(2, semi / 12); iv = Math.max(1, Math.round(iv / Tout)) * Tout; }
+      const eff = gs.size / iv, inc = 1.3 / Math.sqrt(Math.max(1, eff));
+      if (!Ts) return { iv, gain: inc };
+      const coh = 1.5 * 1.3 / Math.max(1, eff);
+      return { iv, gain: lerp(coh, inc, smooth(.3, .7, P.spray)) };
+    };
+    function spawn(t, gs, v) {
+      const bd = b.duration, sp = P.spray, dur = gs.size;
+      const cents = rnd() * (25 * sp * sp + 120 * smooth(.75, 1, sp));
+      const rate = Math.pow(2, v.semi / 12 + cents / 1200);
+      let pos = (G.head + G.dr * 0.03 * (0.3 + sp) + rnd() * sp * sp * 0.2) * bd;
+      if (Ts) pos = Math.round(pos / Ts) * Ts;
       pos = clamp(pos, 0, Math.max(0, bd - dur * rate - 0.001));
       const src = ctx.createBufferSource(); src.buffer = b; src.playbackRate.value = rate;
       const g = ctx.createGain(); g.gain.value = 0;
       src.connect(g);
-      const pn = ctx.createStereoPanner(); pn.pan.value = clamp(rnd() * sp * 0.9, -1, 1); g.connect(pn);
-      pn.connect(gbus);
-      g.gain.setValueCurveAtTime(HANN, t, dur);
+      const pn = ctx.createStereoPanner(); pn.pan.value = clamp(rnd() * (0.1 + 0.6 * sp * sp), -1, 1); g.connect(pn);
+      pn.connect(v.bus);
+      g.gain.setValueCurveAtTime(gs.eff >= 2 ? HANN : WIN, t, dur);
       src.start(t, pos, dur * rate);
-      ends.push(t + dur);
+      G.ends.push(t + dur);
     }
     for (let now = 0; now < seconds; now += 0.025) {
-      const dens = M.density(P.density), dur = M.size(P.size);
-      gbus.gain.setTargetAtTime(3.5 / Math.sqrt(Math.max(1, dens * dur)), now, 0.05);
-      if (next < now) next = now;
-      while (next < now + 0.1) {
-        const count = ends.filter(e => e > now).length;
-        if (count < 160) spawn(Math.max(next, now + 0.003));
-        next += (1 / dens) * (1 + rnd() * P.spray * 0.8);
+      const sp = P.spray;
+      if (now > G.drHold) { G.drT = rnd(); G.drHold = now + 1.5 + Math.random() * 3; }
+      G.dr += (G.drT - G.dr) * 0.012;
+      G.head += (P.position - G.head) * (1 - Math.exp(-0.025 / 0.15));
+      const jit = 0.4 * Math.pow(smooth(.4, 1, sp), 2);
+      const gs = grainState(Math.min(1, 4 / Math.max(1, voices.length)));
+      for (const v of voices) {
+        const pl = plan(gs, v.semi);
+        v.bus.gain.setTargetAtTime(pl.gain, now, 0.08);
+        if (v.next < now) v.next = now;
+        while (v.next < now + 0.1) {
+          const count = G.ends.filter(e => e > now).length;
+          if (count < 240) spawn(Math.max(v.next, now + 0.003), gs, v);
+          v.next += pl.iv * (1 + rnd() * jit);
+        }
       }
-      if (ends.length > 4000) ends = ends.filter(e => e > now);
+      if (G.ends.length > 4000) G.ends = G.ends.filter(e => e > now);
     }
     const buf = await ctx.startRendering();
     return [buf.getChannelData(0), buf.getChannelData(1)];
   }
 
-  window.renderCase = async (c, seconds) => {
-    const [l, r] = c.engine === 'tex' ? await renderTex(c.k, seconds, 0) : await renderGran(c.k, seconds, 0);
+  window.renderCase = async (c, seconds, run) => {
+    const [l, r] = c.engine === 'tex' ? await renderTex(c.k, seconds, 0) : await renderGran(c, seconds, run);
     return { l: Array.from(l), r: Array.from(r) };
   };
 }
@@ -229,7 +300,15 @@ export function stats(l, r, sr = 48000) {
     for (let k = Math.ceil(lo * N / sr); k <= Math.floor(hi * N / sr) && k < N / 2; k++) p += bins[k];
     bands.push({ fc: Math.round(fc), db: 10 * Math.log10(p / Math.max(1, frames) + 1e-30) });
   }
-  return { peak, rmsL: Math.sqrt(sl / l.length), rmsR: Math.sqrt(sr2 / r.length), bands };
+  // Ровность: CV (σ / μ) RMS окон по 10 мс (мощность обоих каналов), после первых 0,5 с.
+  const W = Math.round(sr * 0.01), ws = [];
+  for (let s = Math.round(sr * 0.5); s + W <= l.length; s += W) {
+    let p = 0; for (let i = s; i < s + W; i++) p += (l[i] * l[i] + r[i] * r[i]) / 2;
+    ws.push(Math.sqrt(p / W));
+  }
+  const mu = ws.reduce((a, x) => a + x, 0) / Math.max(1, ws.length);
+  const sd = Math.sqrt(ws.reduce((a, x) => a + (x - mu) * (x - mu), 0) / Math.max(1, ws.length));
+  return { peak, rmsL: Math.sqrt(sl / l.length), rmsR: Math.sqrt(sr2 / r.length), bands, cv: mu > 0 ? sd / mu : 0 };
 }
 
 function fft(re, im) {
@@ -271,21 +350,24 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const page = await browser.newPage();
   await page.goto('about:blank');
   await page.evaluate(`(${pageCode.toString()})()`);
-  const all = {};
-  for (const c of CASES) {
+  const prev = path.join(outDir, 'proto.json');
+  const all = ONLY && fs.existsSync(prev) ? JSON.parse(fs.readFileSync(prev, 'utf8')) : {};
+  for (const k of Object.keys(all)) if (k.startsWith(ONLY)) delete all[k];
+  for (const c of CASES.filter(x => x.name.startsWith(ONLY))) {
     const runs = [];
     for (let k = 0; k < RUNS; k++) {
-      const { l, r } = await page.evaluate(([c, s]) => window.renderCase(c, s), [c, SECONDS]);
+      const { l, r } = await page.evaluate(([c, s, k]) => window.renderCase(c, s, k), [c, SECONDS, k]);
       runs.push(stats(l, r));
       if (k === 0) wav(path.join(outDir, `proto_${c.name}.wav`), l, r);
     }
     const pw = f => Math.sqrt(runs.reduce((a, x) => a + f(x) * f(x), 0) / RUNS);
     const st = {
       peak: Math.max(...runs.map(x => x.peak)), rmsL: pw(x => x.rmsL), rmsR: pw(x => x.rmsR),
+      cv: runs.reduce((a, x) => a + x.cv, 0) / RUNS,
       bands: runs[0].bands.map((b, i) => ({ fc: b.fc, db: 10 * Math.log10(runs.reduce((a, x) => a + Math.pow(10, x.bands[i].db / 10), 0) / RUNS) })),
     };
-    all[c.name] = { k: c.k, ...st };
-    console.log(`${c.name.padEnd(16)} peak ${st.peak.toFixed(3)} rms ${((st.rmsL + st.rmsR) / 2).toFixed(4)}`);
+    all[c.name] = { k: c.k, src: c.src, semis: c.semis, ...st };
+    console.log(`${c.name.padEnd(16)} peak ${st.peak.toFixed(3)} rms ${((st.rmsL + st.rmsR) / 2).toFixed(4)} cv ${st.cv.toFixed(3)}`);
   }
   fs.writeFileSync(path.join(outDir, 'proto.json'), JSON.stringify(all, null, 1));
   await browser.close();

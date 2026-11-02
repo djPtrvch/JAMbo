@@ -428,7 +428,7 @@ public final class SoundSnapshot: @unchecked Sendable {
             if let g = snd.grain, let s = samples[g] {
                 keep.append(s)
                 d.grainRef[u] = GrainSrc(left: s.left, right: s.channels > 1 ? s.right : nil, frames: s.frames,
-                                         channels: s.channels)
+                                         channels: s.channels, period: s.period)
             }
             d.entryStart[u] = Int32(e)
             var keys = snd.folder.sampleKeys

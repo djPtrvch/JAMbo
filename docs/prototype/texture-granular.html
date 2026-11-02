@@ -1,0 +1,844 @@
+<title>Texture + Granular</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one instrument panel. Scope on top, 4 engine knobs + 4 shared knobs (envelope, filter), 8 pads.
+   Accent colour follows the active engine: amber for Texture, teal for Granular. */
+:root{
+  --bg:#e4e8ee; --panel:#f2f4f8; --ink:#161a21; --ink-2:#556073; --line:#c6ccd6;
+  --cap:#dfe3ea; --cap-edge:#b4bcc9; --track:#cdd3dd;
+  --tex:#a85f00; --gran:#00716a;
+  --font-label:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --font-body:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0e1116; --panel:#161a21; --ink:#e7eaf0; --ink-2:#8c96a8; --line:#262d38;
+    --cap:#212733; --cap-edge:#364052; --track:#2a313d;
+    --tex:#f0a63a; --gran:#3fd0c6; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0e1116; --panel:#161a21; --ink:#e7eaf0; --ink-2:#8c96a8; --line:#262d38;
+  --cap:#212733; --cap-edge:#364052; --track:#2a313d;
+  --tex:#f0a63a; --gran:#3fd0c6; color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{
+  background:var(--bg); color:var(--ink); font-family:var(--font-label);
+  padding-block:16px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  -webkit-tap-highlight-color:transparent;
+}
+#app{
+  --accent:var(--tex);
+  --accent-soft:color-mix(in srgb,var(--accent) 16%,transparent);
+  max-width:760px; margin:0 auto; display:grid; gap:14px;
+}
+#app[data-engine="gran"]{--accent:var(--gran)}
+
+.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px}
+h1{margin:0;font:600 22px/1 var(--font-label);letter-spacing:.12em;text-transform:uppercase}
+.top-ctl{display:flex;align-items:center;gap:12px}
+.lvl{display:flex;align-items:center;gap:8px;font:600 13px/1 var(--font-label);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
+.lvl input{width:104px;accent-color:var(--accent)}
+
+.btn{
+  height:40px;padding:0 14px;border-radius:6px;border:1px solid var(--cap-edge);background:var(--cap);
+  color:var(--ink);font:600 14px/1 var(--font-label);letter-spacing:.08em;text-transform:uppercase;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;
+}
+.btn.sm{height:34px;font-size:13px;padding:0 12px}
+.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.btn:focus-visible,.tab:focus-visible,.pad:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tab{
+  height:46px;border-radius:6px;border:1px solid var(--cap-edge);background:var(--cap);color:var(--ink-2);
+  font:600 17px/1 var(--font-label);letter-spacing:.12em;text-transform:uppercase;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;gap:10px;
+}
+.tab i{width:10px;height:10px;border-radius:50%;display:block}
+#tab-tex i{background:var(--tex)} #tab-gran i{background:var(--gran)}
+.tab[aria-selected="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--ink)}
+
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;display:grid;gap:12px}
+canvas{display:block;width:100%}
+#spec{height:112px}
+#wave{height:88px;cursor:crosshair;touch-action:none}
+.src{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:8px}
+.src .mono{font:400 12px/1.2 var(--font-mono);color:var(--ink-2);min-width:0;overflow-wrap:anywhere}
+
+.sec{display:flex;justify-content:space-between;align-items:baseline;gap:8px;
+  font:600 14px/1 var(--font-label);letter-spacing:.14em;text-transform:uppercase;color:var(--ink)}
+.sec .sec-note{color:var(--ink-2);font-weight:500}
+.sec.second{border-top:1px solid var(--line);padding-top:14px;margin-top:2px}
+.hint,.note{margin:0;font:400 13px/1.45 var(--font-body);color:var(--ink-2);max-width:65ch}
+
+.knobs{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px 12px}
+.knob{display:grid;justify-items:center;align-content:start;gap:3px;padding:6px 4px;border-radius:8px;
+  touch-action:none;user-select:none;-webkit-user-select:none;cursor:ns-resize;outline:none}
+.knob:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.knob .lab{font:600 15px/1 var(--font-label);letter-spacing:.1em;text-transform:uppercase;text-align:center}
+.knob svg{width:76px;height:76px;display:block}
+.knob .trk{fill:none;stroke:var(--track);stroke-width:5;stroke-linecap:round}
+.knob .fil{fill:none;stroke:var(--accent);stroke-width:5;stroke-linecap:round}
+.knob .cap{fill:var(--cap);stroke:var(--cap-edge);stroke-width:1.5}
+.knob .ptr{stroke:var(--ink);stroke-width:2.5;stroke-linecap:round}
+.knob .val{font:500 13px/1 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--accent)}
+.knob .sub{font:500 12px/1.2 var(--font-label);letter-spacing:.03em;color:var(--ink-2);text-align:center;min-height:2.4em}
+
+.padhead{display:flex;justify-content:space-between;align-items:center}
+.pads{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+@media (min-width:600px){.pads{grid-template-columns:repeat(8,1fr)}}
+.pad{
+  height:68px;border-radius:6px;border:1px solid var(--cap-edge);border-bottom-width:4px;background:var(--cap);color:var(--ink);
+  display:grid;place-content:center;gap:4px;justify-items:center;cursor:pointer;
+  touch-action:none;user-select:none;-webkit-user-select:none;
+}
+.pad .pn{font:600 22px/1 var(--font-label);letter-spacing:.06em}
+.pad .pk{font:400 11px/1 var(--font-mono);color:var(--ink-2)}
+.pad.on{background:var(--accent-soft);border-color:var(--accent);transform:translateY(2px);border-bottom-width:2px}
+</style>
+
+<div id="app" data-engine="tex">
+  <header class="top">
+    <h1>Texture + Granular</h1>
+    <div class="top-ctl">
+      <label class="lvl">Level <input id="level" type="range" min="0" max="1" step="0.01" value="0.7"></label>
+      <button id="power" class="btn" type="button" aria-pressed="false">Включить звук</button>
+    </div>
+  </header>
+
+  <div class="tabs" role="tablist" aria-label="Движок">
+    <button class="tab" id="tab-tex" role="tab" type="button" aria-selected="true" data-engine="tex"><i></i>Texture</button>
+    <button class="tab" id="tab-gran" role="tab" type="button" aria-selected="false" data-engine="gran"><i></i>Granular</button>
+  </div>
+
+  <section class="panel" aria-label="Скоп">
+    <canvas id="spec" role="img" aria-label="Спектр звука"></canvas>
+    <div id="waveWrap" hidden>
+      <canvas id="wave" role="img" aria-label="Форма волны семпла. Нажми или проведи, чтобы выбрать Position"></canvas>
+      <div class="src">
+        <button id="srcPad" class="btn sm" type="button" aria-pressed="true">Пэд</button>
+        <button id="srcArp" class="btn sm" type="button" aria-pressed="false">Арпеджио</button>
+        <label class="btn sm" for="file">Свой файл</label>
+        <input id="file" type="file" accept="audio/*" hidden>
+        <span id="srcName" class="mono">пэд: Am, F, C, G по 2 с, стерео</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" aria-label="Параметры">
+    <div class="sec"><span id="engTitle">Texture</span><span class="sec-note">4 ручки движка</span></div>
+    <p class="hint" id="engHint"></p>
+    <div class="knobs" id="engKnobs"></div>
+    <div class="sec second"><span>Envelope · Filter</span><span class="sec-note">общие</span></div>
+    <div class="knobs" id="envKnobs"></div>
+  </section>
+
+  <section aria-label="Пэды" style="display:grid;gap:10px">
+    <div class="padhead">
+      <div class="sec"><span>Pads</span></div>
+      <button id="hold" class="btn sm" type="button" aria-pressed="false">Hold</button>
+    </div>
+    <div class="pads" id="pads"></div>
+    <p class="note">Клавиши A S D F G H J K играют пэды. Hold держит звук, пока пэд нажат; без него огибающая отрабатывает Attack и Decay сама. На iPhone при включённом беззвучном режиме звука не будет.</p>
+  </section>
+</div>
+
+<script>
+(function(){
+'use strict';
+const $=s=>document.querySelector(s);
+const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
+const lerp=(a,b,t)=>a+(b-a)*t;
+const smooth=(a,b,x)=>{const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t)};
+const rnd=()=>Math.random()*2-1;
+
+/* ---------- state ---------- */
+const P={
+  tex:{color:.4,density:.5,tone:.3,motion:.3},
+  gran:{position:.08,size:.62,density:.6,spray:.25},
+  env:{attack:.2,decay:.6,cutoff:.85,reso:.15}
+};
+const DEFAULTS=JSON.parse(JSON.stringify(P));
+const ENV_DEF={tex:{attack:.2,decay:.6,cutoff:.85,reso:.15},gran:{attack:.5,decay:.85,cutoff:.8,reso:.1}};
+const ENVS=JSON.parse(JSON.stringify(ENV_DEF));   // envelope and filter are remembered per engine
+let level=.7, engine='tex', hold=false, ctx=null;
+const A={};                       // shared audio nodes
+const G={data:null,demo:null,buf:null,sr:44100,dur:8,src:'pad',padB:null,head:.08,semi:0,next:0,activeUntil:0,count:0,flashes:[],peaks:null,peaksW:0,dr:0,drT:0,drHold:0};
+
+/* ---------- value maps and formats ---------- */
+const M={
+  attack:v=>0.002*Math.pow(1000,v),     // 2 ms .. 2 s
+  decay:v=>0.05*Math.pow(120,v),        // 50 ms .. 6 s
+  cutoff:v=>80*Math.pow(225,v),         // 80 Hz .. 18 kHz
+  reso:v=>v*18,                         // dB of peak
+  size:v=>0.01*Math.pow(80,v),          // 10 ms .. 800 ms
+  overlap:v=>0.5*Math.pow(48,v)         // 0.5 .. 24 grains sounding at once
+};
+const fmtTime=s=>s<1?Math.round(s*1000)+' ms':s.toFixed(2)+' s';
+const fmtHz=f=>f<1000?Math.round(f)+' Hz':(f/1000).toFixed(1)+' kHz';
+const pct=v=>Math.round(v*100)+'%';
+const colorName=v=>v<.15?'brown':v<.35?'pink':v<.6?'white':v<.82?'light':'blue';
+
+const DEFS={
+  tex:[
+    {k:'color',n:'Color',s:'тёмный → белый → светлый',f:colorName},
+    {k:'density',n:'Density',s:'редкие щелчки → сплошной шум',f:v=>Math.round(2*Math.pow(60,v))+' /s'},
+    {k:'tone',n:'Tone',s:'чистый шум → почти нота',f:pct},
+    {k:'motion',n:'Motion',s:'статика → дрейф и S&H',f:pct}
+  ],
+  gran:[
+    {k:'position',n:'Position',s:'место в семпле',f:v=>(v*G.dur).toFixed(2)+' s'},
+    {k:'size',n:'Size',s:'длина зерна',f:v=>fmtTime(M.size(v))},
+    {k:'density',n:'Density',s:'сколько зёрен звучит сразу',f:v=>'×'+M.overlap(v).toFixed(1)},
+    {k:'spray',n:'Spray',s:'разброс позиции, строя и ширины',f:pct}
+  ],
+  env:[
+    {k:'attack',n:'Attack',s:'нарастание',f:v=>fmtTime(M.attack(v))},
+    {k:'decay',n:'Decay',s:'спад',f:v=>fmtTime(M.decay(v))},
+    {k:'cutoff',n:'Cutoff',s:'фильтр',f:v=>fmtHz(M.cutoff(v))},
+    {k:'reso',n:'Reso',s:'резонанс',f:v=>M.reso(v).toFixed(1)+' dB'}
+  ]
+};
+const INFO={
+  tex:{title:'Texture',hint:'Шум из случайных событий: от редких щелчков до сплошного шума. Tone заставляет их звенеть на ноте пэда. Motion сам двигает цвет, плотность и строй, это не LFO.'},
+  gran:{title:'Granular',hint:'Пэдовые зёрна идут за курсором Position. Size это длина зерна, Density это сколько зёрен звучит сразу. Spray ниже 40% почти ничего не размывает, выше добавляет разброс позиции, строя и ширины. Каждая зажатая нота играет своим потоком: включи Hold и играй аккорды.'}
+};
+
+/* ---------- knobs ---------- */
+const R0=-135,R1=135;
+function pol(r,a){const t=a*Math.PI/180;return [40+r*Math.sin(t),40-r*Math.cos(t)]}
+function arc(a0,a1,r){
+  const p0=pol(r,a0),p1=pol(r,a1);
+  return 'M'+p0[0].toFixed(2)+' '+p0[1].toFixed(2)+'A'+r+' '+r+' 0 '+((a1-a0)>180?1:0)+' 1 '+p1[0].toFixed(2)+' '+p1[1].toFixed(2);
+}
+let engKnobs=[],envKnobs=[];
+const allKnobs=()=>engKnobs.concat(envKnobs);
+
+function makeKnob(group,def,host){
+  const el=document.createElement('div');
+  el.className='knob';el.tabIndex=0;el.setAttribute('role','slider');
+  el.setAttribute('aria-label',def.n);el.setAttribute('aria-valuemin','0');el.setAttribute('aria-valuemax','100');
+  el.innerHTML='<span class="lab">'+def.n+'</span>'+
+    '<svg viewBox="0 0 80 80" aria-hidden="true"><path class="trk" d="'+arc(R0,R1,32)+'"/><path class="fil" d=""/>'+
+    '<circle class="cap" cx="40" cy="40" r="22"/><line class="ptr" x1="40" y1="27" x2="40" y2="20"/></svg>'+
+    '<span class="val"></span><span class="sub">'+def.s+'</span>';
+  const kn={group:group,def:def,el:el,fil:el.querySelector('.fil'),ptr:el.querySelector('.ptr'),val:el.querySelector('.val')};
+  kn.render=function(){
+    const v=P[group][def.k],a=lerp(R0,R1,v),t=def.f(v);
+    kn.fil.setAttribute('d',v>0.003?arc(R0,a,32):'');
+    kn.ptr.setAttribute('transform','rotate('+a+' 40 40)');
+    kn.val.textContent=t;
+    el.setAttribute('aria-valuenow',Math.round(v*100));
+    el.setAttribute('aria-valuetext',t);
+  };
+  let drag=null;
+  el.addEventListener('pointerdown',e=>{
+    e.preventDefault();el.setPointerCapture(e.pointerId);
+    drag={y:e.clientY,v:P[group][def.k]};
+  });
+  el.addEventListener('pointermove',e=>{
+    if(drag)setParam(group,def.k,drag.v+(drag.y-e.clientY)/170);
+  });
+  const end=()=>{drag=null};
+  el.addEventListener('pointerup',end);el.addEventListener('pointercancel',end);
+  el.addEventListener('dblclick',()=>setParam(group,def.k,group==='env'?ENV_DEF[engine][def.k]:DEFAULTS[group][def.k]));
+  el.addEventListener('keydown',e=>{
+    const step=e.shiftKey?0.05:0.01;let v=P[group][def.k],used=true;
+    if(e.key==='ArrowUp'||e.key==='ArrowRight')v+=step;
+    else if(e.key==='ArrowDown'||e.key==='ArrowLeft')v-=step;
+    else if(e.key==='PageUp')v+=0.1;
+    else if(e.key==='PageDown')v-=0.1;
+    else if(e.key==='Home')v=0;
+    else if(e.key==='End')v=1;
+    else used=false;
+    if(used){e.preventDefault();setParam(group,def.k,v)}
+  });
+  host.appendChild(el);kn.render();
+  return kn;
+}
+function setParam(group,key,v){
+  P[group][key]=clamp(v,0,1);
+  const kn=allKnobs().find(k=>k.group===group&&k.def.k===key);
+  if(kn)kn.render();
+  onParam(group,key);
+}
+function onParam(group){
+  if(!ctx)return;
+  if(group==='env')applyFilter(0.02);
+  else if(group==='tex')applyTexture(0.03);
+}
+function buildEngineKnobs(){
+  const host=$('#engKnobs');host.replaceChildren();
+  engKnobs=DEFS[engine].map(d=>makeKnob(engine,d,host));
+}
+function buildEnvKnobs(){
+  const host=$('#envKnobs');host.replaceChildren();
+  envKnobs=DEFS.env.map(d=>makeKnob('env',d,host));
+}
+
+/* ---------- audio graph ---------- */
+function holdParam(p,t){
+  if(p.cancelAndHoldAtTime){p.cancelAndHoldAtTime(t)}
+  else{p.cancelScheduledValues(t);p.setValueAtTime(p.value,t)}
+}
+function applyFilter(tc){
+  if(!A.filter)return;
+  const t=ctx.currentTime;
+  if(tc===0){A.filter.frequency.value=M.cutoff(P.env.cutoff);A.filter.Q.value=M.reso(P.env.reso);return}
+  A.filter.frequency.setTargetAtTime(M.cutoff(P.env.cutoff),t,tc);
+  A.filter.Q.setTargetAtTime(M.reso(P.env.reso),t,tc);
+}
+function setLevel(){if(A.out)A.out.gain.setTargetAtTime(level*0.9,ctx.currentTime,0.02)}
+
+function buildGraph(){
+  A.gate=ctx.createGain();A.gate.gain.value=0;
+  A.filter=ctx.createBiquadFilter();A.filter.type='lowpass';
+  A.out=ctx.createGain();A.out.gain.value=level*0.9;
+  A.comp=ctx.createDynamicsCompressor();
+  A.comp.threshold.value=-8;A.comp.knee.value=10;A.comp.ratio.value=10;A.comp.attack.value=0.003;A.comp.release.value=0.2;
+  A.an=ctx.createAnalyser();A.an.fftSize=2048;A.an.smoothingTimeConstant=0.8;
+  A.spec=new Uint8Array(A.an.frequencyBinCount);
+  A.gbus=ctx.createGain();A.gbus.gain.value=1;
+  const tex=buildTexture();
+  tex.connect(A.gate);A.gbus.connect(A.gate);
+  A.gate.connect(A.filter);A.filter.connect(A.out);A.out.connect(A.comp);
+  A.voices=[];   // variant B: one gate and one grain bus per pad
+  for(let i=0;i<8;i++){
+    const gate=ctx.createGain();gate.gain.value=0;
+    const bus=ctx.createGain();bus.gain.value=1;
+    bus.connect(gate);gate.connect(A.filter);
+    A.voices.push({gate:gate,bus:bus,semi:0,next:0,until:0,held:false});
+  }
+  A.comp.connect(ctx.destination);A.comp.connect(A.an);
+  applyFilter(0);applyTexture(0.001);
+  if(!G.buf)G.buf=makeBuf(padFor());
+}
+
+/* ---------- Texture engine ---------- */
+/* Random noise events, from single clicks to dense bursts, go two ways: through colour filters (dry)
+   and through a resonator bank tuned to the pad note (wet). Color tilts the noise and the brightness
+   of the resonances, Density sets event rate and length, Tone crossfades noise into a ringing note,
+   Motion runs sample & hold drift on colour, density and tuning. */
+const BASE=220;
+const RATIOS=[1,2,3,4];
+const W_DARK=[1,.25,.08,.02],W_BRIGHT=[.55,.85,.9,.8];
+const T={n:null,semi:0,next:0,count:0,
+  mod:{c:0,d:0,cT:0,dT:0,pit:[0,0,0,0],pitT:[0,0,0,0],hold:0,tc:0.1}};
+
+function buildTexture(){
+  const sr=ctx.sampleRate;
+  const out=ctx.createGain();out.gain.value=engine==='tex'?1:0;
+  const ev=ctx.createGain();ev.channelCount=2;ev.channelCountMode='explicit';
+  const lp=ctx.createBiquadFilter();lp.type='lowpass';lp.Q.value=-3;
+  const hp=ctx.createBiquadFilter();hp.type='highpass';hp.Q.value=-3;
+  const mk=ctx.createGain(),dry=ctx.createGain(),wet=ctx.createGain();
+  ev.connect(lp);lp.connect(hp);hp.connect(mk);mk.connect(dry);dry.connect(out);
+  const bank=RATIOS.map((r,i)=>{
+    const f=ctx.createBiquadFilter();f.type='bandpass';f.frequency.value=BASE*r;f.Q.value=10;
+    const g=ctx.createGain();g.gain.value=0;
+    ev.connect(f);f.connect(g);g.connect(wet);
+    return {f:f,g:g};
+  });
+  wet.connect(out);
+  const nb=ctx.createBuffer(1,sr*3,sr),nd=nb.getChannelData(0);
+  for(let i=0;i<nd.length;i++)nd[i]=rnd();
+  const ns=ctx.createBufferSource();ns.buffer=nb;ns.loop=true;
+  const cont=ctx.createGain();cont.gain.value=0;
+  ns.connect(cont);cont.connect(ev);ns.start();
+  T.n={out:out,ev:ev,lp:lp,hp:hp,mk:mk,dry:dry,wet:wet,bank:bank,cont:cont,nb:nb};
+  return out;
+}
+
+function applyTexture(tc){
+  if(!T.n||!ctx)return;
+  const n=T.n,now=ctx.currentTime,sr=ctx.sampleRate,p=P.tex,m=T.mod,fMax=sr*0.45;
+  const c=clamp(p.color+m.c,0,1),d=clamp(p.density+m.d,0,1),tone=p.tone;
+  // colour: lowpass opens 250 Hz .. 18 kHz, then a highpass climbs 30 Hz .. 6 kHz
+  const lpHz=Math.min(250*Math.pow(72,smooth(0,.55,c)),fMax);
+  const hpHz=30*Math.pow(200,smooth(.55,1,c));
+  n.lp.frequency.setTargetAtTime(lpHz,now,tc);
+  n.hp.frequency.setTargetAtTime(hpHz,now,tc);
+  n.mk.gain.setTargetAtTime(clamp(0.2/(0.577*Math.sqrt(Math.max(300,lpHz-hpHz)/(sr*0.5))),0.5,6)*(5.5-3.8*d),now,tc);
+  // dense end: continuous noise fades in under the events
+  n.cont.gain.setTargetAtTime(smooth(.65,1,d)*0.9,now,tc);
+  // tone: noise crossfades into resonators, resonance gets sharper, colour sets partial brightness
+  const Q=2+tone*tone*98,f0=BASE*Math.pow(2,T.semi/12),bright=smooth(0,1,c);
+  const ws=W_DARK.map((a,i)=>lerp(a,W_BRIGHT[i],bright));
+  let S=0;for(let i=0;i<4;i++)S+=ws[i]*ws[i]*RATIOS[i];
+  const boost=1+5*Math.pow(1-d,1.5);   // sparse clicks excite narrow resonators weakly
+  n.dry.gain.setTargetAtTime(Math.cos(tone*Math.PI/2),now,tc);
+  n.wet.gain.setTargetAtTime(Math.sin(tone*Math.PI/2)*boost*Math.min(60,37.5*Math.sqrt(Q/(f0*S))),now,tc);
+  for(let i=0;i<4;i++){
+    const b=n.bank[i],fr=Math.min(f0*RATIOS[i]*Math.pow(2,m.pit[i]*p.motion*25/1200),fMax);
+    b.f.frequency.setTargetAtTime(fr,now,Math.max(tc,0.005));
+    b.f.Q.setTargetAtTime(Q,now,tc);
+    b.g.gain.setTargetAtTime(ws[i],now,tc);
+  }
+}
+
+function spawnEvent(t,len,rate){
+  const nb=T.n.nb,src=ctx.createBufferSource();src.buffer=nb;
+  const g=ctx.createGain();g.gain.value=0;
+  const amp=(0.4+Math.random()*0.6)/Math.sqrt(Math.max(1,rate*len));
+  g.gain.setValueAtTime(0,t);
+  g.gain.linearRampToValueAtTime(amp,t+0.0004);
+  g.gain.setTargetAtTime(0,t+0.0004,len/3);
+  src.connect(g);
+  let tail=g;
+  if(ctx.createStereoPanner){const pn=ctx.createStereoPanner();pn.pan.value=rnd()*0.7;g.connect(pn);tail=pn}
+  tail.connect(T.n.ev);
+  src.start(t,Math.random()*(nb.duration-0.5),len*2+0.004);
+  T.count++;
+  src.onended=()=>{T.count--;try{src.disconnect();tail.disconnect()}catch(err){}};
+}
+
+function texTick(){
+  if(!ctx||!T.n||ctx.state!=='running'||engine!=='tex')return;
+  const now=ctx.currentTime,p=P.tex,m=T.mod,mo=p.motion;
+  if(mo>0.001){
+    if(now>=m.hold){   // new sample & hold step
+      const iv=lerp(0.8,0.09,mo)*(0.6+Math.random()*0.8);
+      m.hold=now+iv;m.cT=rnd()*0.4*mo;m.dT=rnd()*0.5*mo;
+      for(let i=0;i<4;i++)m.pitT[i]=rnd();
+      m.tc=lerp(iv*0.6,0.004,smooth(.45,1,mo));   // slow glide at low Motion, hard steps at high
+    }
+    const k=1-Math.exp(-0.025/Math.max(0.004,m.tc));
+    m.c+=(m.cT-m.c)*k;m.d+=(m.dT-m.d)*k;
+    for(let i=0;i<4;i++)m.pit[i]+=(m.pitT[i]-m.pit[i])*k;
+    applyTexture(0.02);
+  }else if(m.c||m.d){
+    m.c=m.d=m.cT=m.dT=0;
+    for(let i=0;i<4;i++)m.pit[i]=m.pitT[i]=0;
+    applyTexture(0.05);
+  }
+  if(now>G.activeUntil){T.next=now;return}
+  const d=clamp(p.density+m.d,0,1),rate=2*Math.pow(60,d),len=0.002*Math.pow(60,d);
+  if(T.next<now)T.next=now;
+  while(T.next<now+0.1){
+    if(T.count<150)spawnEvent(Math.max(T.next,now+0.003),len,rate);
+    T.next+=Math.max(0.0005,-Math.log(1-Math.random())/rate);
+  }
+}
+
+/* ---------- Granular engine ---------- */
+/* Pad-oriented grains: Gaussian window, long overlapping grains, pitch jitter in cents (not semitones),
+   a stereo pad source and a slow drift of the read position. Density is the number of grains sounding at
+   once, so changing Size never opens gaps by accident. */
+const WIN=new Float32Array(128);
+(function(){
+  const sg=0.2,g0=Math.exp(-0.5*Math.pow(0.5/sg,2));
+  for(let i=0;i<128;i++){const x=i/127;WIN[i]=(Math.exp(-0.5*Math.pow((x-0.5)/sg,2))-g0)/(1-g0)}
+})();
+/* Hann window for Scan: regularly spaced grains with overlap of 2 or more add up to a constant level. */
+const HANN=new Float32Array(128);
+for(let i=0;i<128;i++)HANN[i]=0.5*(1-Math.cos(2*Math.PI*i/127));
+const MAX_RATE=100;   // grains per second, the limit for one node chain per grain
+
+function makeDemo(){
+  const sr=44100,len=sr*6,d=new Float32Array(len);
+  const notes=[220,261.63,329.63,440,392,329.63,293.66,261.63],nl=Math.floor(sr*0.4);
+  notes.forEach((f,ni)=>{
+    const s0=ni*nl,total=Math.floor(nl*1.6);
+    for(let i=0;i<total&&s0+i<len;i++){
+      const t=i/sr;let v=0;
+      for(let k=1;k<=8;k++)v+=Math.sin(2*Math.PI*f*k*t)/k*Math.exp(-t*(2.5+k*1.4));
+      if(i<400)v+=rnd()*0.4*(1-i/400);
+      d[s0+i]+=v*0.5;
+    }
+  });
+  const p0=Math.floor(sr*3.4),plen=len-p0,chord=[110,164.81,220,329.63];
+  for(let i=0;i<plen;i++){
+    const t=i/sr,x=i/plen,env=Math.pow(Math.sin(Math.PI*x),1.5),vib=1+0.004*Math.sin(2*Math.PI*5*t);
+    let v=0;
+    for(let c=0;c<chord.length;c++)for(let k=1;k<=5;k++)v+=Math.sin(2*Math.PI*chord[c]*vib*k*t)/(k*k);
+    d[p0+i]+=v*0.12*env+rnd()*0.03*env;
+  }
+  let pk=0;for(let i=0;i<len;i++)pk=Math.max(pk,Math.abs(d[i]));
+  const g=0.85/(pk||1);for(let i=0;i<len;i++)d[i]*=g;
+  return d;
+}
+
+function makeBuf(chs){const bf=ctx.createBuffer(chs.length,chs[0].length,44100);chs.forEach((c,i)=>bf.copyToChannel(c,i));return bf}
+
+/* Pad source, 8 s stereo: one note (A3) as a sustained pad tone, three detuned saws on 110, 220 and 440 Hz.
+   The low-pass opens from 1 kHz to 5 kHz along the sample, so Position scrubs brightness, not harmony. */
+function makePadB(){
+  const sr=44100,len=sr*8,N=2048,tab=new Float32Array(N+1);
+  for(let k=1;k<=18;k++){const a=1/Math.pow(k,1.15);for(let i=0;i<=N;i++)tab[i]+=a*Math.sin(2*Math.PI*k*i/N)}
+  let tm=0;for(let i=0;i<=N;i++)tm=Math.max(tm,Math.abs(tab[i]));
+  for(let i=0;i<=N;i++)tab[i]/=tm;
+  const voices=[[110,0.5],[220,1],[440,0.4]],det=[-12,0,12],nD=det.length;
+  const out=[new Float32Array(len),new Float32Array(len)];
+  const ph=new Float64Array(voices.length*nD*2),inc=new Float64Array(ph.length),dp=new Float64Array(ph.length);
+  for(let i=0;i<ph.length;i++){ph[i]=Math.random()*N;dp[i]=Math.random()*6.283}
+  const y=[[0,0],[0,0]],B=128;
+  for(let s0=0;s0<len;s0+=B){
+    const t=s0/sr,fc=1000*Math.pow(5,t/8);
+    for(let v=0;v<voices.length;v++)for(let d=0;d<nD;d++)for(let ch=0;ch<2;ch++){
+      const idx=(v*nD+d)*2+ch,cents=det[d]*(ch?-1:1)+6*Math.sin(6.283*0.09*t+dp[idx]);
+      inc[idx]=voices[v][0]*Math.pow(2,cents/1200)*N/sr;
+    }
+    const a=1-Math.exp(-6.283*fc/sr);
+    for(let n=0;n<B&&s0+n<len;n++){
+      let l=0,r=0;
+      for(let v=0;v<voices.length;v++)for(let d=0;d<nD;d++)for(let ch=0;ch<2;ch++){
+        const idx=(v*nD+d)*2+ch;let p=ph[idx]+inc[idx];if(p>=N)p-=N;ph[idx]=p;
+        const i0=p|0,val=(tab[i0]+(tab[i0+1]-tab[i0])*(p-i0))*voices[v][1];
+        if(ch)r+=val;else l+=val;
+      }
+      y[0][0]+=a*(l-y[0][0]);y[0][1]+=a*(y[0][0]-y[0][1]);out[0][s0+n]=y[0][1];
+      y[1][0]+=a*(r-y[1][0]);y[1][1]+=a*(y[1][0]-y[1][1]);out[1][s0+n]=y[1][1];
+    }
+  }
+  let pk=0;for(let i=0;i<len;i++)pk=Math.max(pk,Math.abs(out[0][i]),Math.abs(out[1][i]));
+  const g=0.8/(pk||1);for(let i=0;i<len;i++){out[0][i]*=g;out[1][i]*=g}
+  return out;
+}
+const padFor=()=>G.padB;
+/* Variant B source is a single tone with every partial on a multiple of 110 Hz, so its period is known.
+   Scan uses it to launch grains a whole number of output periods apart and to start them on source-period steps. */
+const srcPeriod=()=>G.src==='pad'?1/110:0;
+const padName=()=>'один тон A3, яркость растёт к концу, 8 с, стерео';
+
+function grainState(sc){
+  const size=Math.min(M.size(P.gran.size),G.buf.duration*0.9);
+  const eff=Math.min(M.overlap(P.gran.density)*sc,MAX_RATE*size);   // grains sounding at once
+  return {size:size,eff:eff,rate:eff/size};
+}
+function spawnGrain(t,gs,v){
+  const b=G.buf,bd=b.duration,sp=P.gran.spray,dur=gs.size;
+  const cents=rnd()*(25*sp*sp+120*smooth(.75,1,sp));
+  const rate=Math.pow(2,v.semi/12+cents/1200);
+  let pos=(G.head+G.dr*0.03*(0.3+sp)+rnd()*sp*sp*0.2)*bd;
+  const Ts=srcPeriod();
+  if(Ts)pos=Math.round(pos/Ts)*Ts;
+  pos=clamp(pos,0,Math.max(0,bd-dur*rate-0.001));
+  const src=ctx.createBufferSource();src.buffer=b;src.playbackRate.value=rate;
+  const g=ctx.createGain();g.gain.value=0;
+  src.connect(g);
+  let tail=g;
+  if(ctx.createStereoPanner){const pn=ctx.createStereoPanner();pn.pan.value=clamp(rnd()*(0.1+0.6*sp*sp),-1,1);g.connect(pn);tail=pn}
+  tail.connect(v.bus);
+  g.gain.setValueCurveAtTime(gs.eff>=2?HANN:WIN,t,dur);
+  src.start(t,pos,dur*rate);
+  G.count++;
+  src.onended=()=>{G.count--;try{src.disconnect();tail.disconnect()}catch(err){}};
+  G.flashes.push({p:pos/bd,t:performance.now()});
+  if(G.flashes.length>80)G.flashes.shift();
+}
+/* The playhead follows Position with a 150 ms glide. Grains start on a regular grid, so timing jitter only
+   appears above 40% Spray. Each held note runs its own grain stream on its own bus. */
+function granularTick(){
+  if(!ctx||engine!=='gran'||!G.buf||ctx.state!=='running')return;
+  const now=ctx.currentTime,sp=P.gran.spray;
+  if(now>G.drHold){G.drT=rnd();G.drHold=now+1.5+Math.random()*3}
+  G.dr+=(G.drT-G.dr)*0.012;
+  G.head+=(P.gran.position-G.head)*(1-Math.exp(-0.025/0.15));
+  const jit=0.4*Math.pow(smooth(.4,1,sp),2);
+  let nAct=0;
+  for(const v of A.voices)if(now<=v.until)nAct++;
+  const gs=grainState(Math.min(1,4/Math.max(1,nAct)));   // above four notes each note gets fewer grains
+  for(const v of A.voices){
+    if(now>v.until){v.next=now;continue}
+    const pl=grainPlan(gs,v.semi);
+    v.bus.gain.setTargetAtTime(pl.gain,now,0.08);
+    if(v.next<now)v.next=now;
+    while(v.next<now+0.1){
+      if(G.count<240)spawnGrain(Math.max(v.next,now+0.003),gs,v);
+      v.next+=pl.iv*(1+rnd()*jit);
+    }
+  }
+}
+const GRAIN_K=1.3;
+/* Launch interval and bus gain. On the single-tone pad the interval is rounded to a whole number of output periods
+   so every grain starts in phase, and in-phase grains add in amplitude, so the gain drops faster. */
+function grainPlan(gs,semi){
+  const Ts=srcPeriod();
+  let iv=1/gs.rate;
+  if(Ts){const Tout=Ts/Math.pow(2,semi/12);iv=Math.max(1,Math.round(iv/Tout))*Tout}
+  const eff=gs.size/iv,inc=GRAIN_K/Math.sqrt(Math.max(1,eff));
+  if(!Ts)return {iv:iv,gain:inc};
+  const coh=1.5*GRAIN_K/Math.max(1,eff);
+  return {iv:iv,gain:lerp(coh,inc,smooth(.3,.7,P.gran.spray))};
+}
+function useBuffer(buf,name){
+  G.buf=buf;G.data=buf.getChannelData(0);G.dur=buf.duration;G.sr=buf.sampleRate;G.peaksW=0;
+  $('#srcName').textContent=name;
+  allKnobs().forEach(k=>k.render());
+}
+
+/* ---------- notes ---------- */
+const PADS=[
+  {n:'A3',st:0,key:'a'},{n:'C4',st:3,key:'s'},{n:'D4',st:5,key:'d'},{n:'E4',st:7,key:'f'},
+  {n:'G4',st:10,key:'g'},{n:'A4',st:12,key:'h'},{n:'C5',st:15,key:'j'},{n:'D5',st:17,key:'k'}
+];
+let lastPad=-1,heldFlag=false,pendingPad=-1;
+function ensureAudio(){
+  if(!ctx){
+    const AC=window.AudioContext||window.webkitAudioContext;
+    if(!AC)return false;
+    ctx=new AC({latencyHint:'interactive'});
+    ctx.onstatechange=()=>{
+      updPower();
+      if(ctx.state==='running'&&pendingPad>=0){const i=pendingPad;pendingPad=-1;noteOn(i)}
+    };
+    buildGraph();
+    setInterval(()=>{granularTick();texTick()},25);
+  }
+  if(ctx.state!=='running'){const rp=ctx.resume();if(rp&&rp.catch)rp.catch(()=>{})}
+  return true;
+}
+function polyOn(i){
+  const v=A.voices[i],t=ctx.currentTime;
+  const att=M.attack(P.env.attack),dec=M.decay(P.env.decay),g=v.gate.gain;
+  holdParam(g,t);g.linearRampToValueAtTime(1,t+att);
+  if(!hold)g.setTargetAtTime(0,t+att,dec/4);
+  v.semi=PADS[i].st;v.held=hold;v.until=hold?Infinity:t+att+dec*1.7;v.next=Math.max(v.next,t);
+}
+function polyOff(i){
+  const v=A.voices&&A.voices[i];if(!v||!v.held)return;
+  v.held=false;const t=ctx.currentTime,dec=M.decay(P.env.decay);
+  holdParam(v.gate.gain,t);v.gate.gain.setTargetAtTime(0,t,dec/4);v.until=t+dec*1.7;
+}
+function silenceVoices(){
+  if(!A.voices)return;const t=ctx.currentTime;
+  A.voices.forEach(v=>{holdParam(v.gate.gain,t);v.gate.gain.setTargetAtTime(0,t,0.02);v.until=0;v.held=false});
+}
+function noteOn(i){
+  if(!ensureAudio())return;
+  if(ctx.state!=='running'){pendingPad=i;return}
+  if(engine==='gran'){polyOn(i);return}
+  const t=ctx.currentTime,st=PADS[i].st;
+  const att=M.attack(P.env.attack),dec=M.decay(P.env.decay),g=A.gate.gain;
+  holdParam(g,t);
+  g.linearRampToValueAtTime(1,t+att);
+  if(!hold)g.setTargetAtTime(0,t+att,dec/4);
+  lastPad=i;heldFlag=hold;
+  T.semi=st;G.activeUntil=hold?Infinity:t+att+dec*1.7;T.next=Math.max(T.next,t);applyTexture(0.01);
+}
+function noteOff(i){
+  if(pendingPad===i&&hold)pendingPad=-1;
+  if(engine==='gran'){polyOff(i);return}
+  if(!ctx||!heldFlag||i!==lastPad)return;
+  heldFlag=false;
+  const t=ctx.currentTime,dec=M.decay(P.env.decay);
+  holdParam(A.gate.gain,t);
+  A.gate.gain.setTargetAtTime(0,t,dec/4);
+  G.activeUntil=t+dec*1.7;
+}
+
+/* ---------- UI wiring ---------- */
+function setEngine(e){
+  if(e!==engine){
+    Object.assign(ENVS[engine],P.env);Object.assign(P.env,ENVS[e]);
+    envKnobs.forEach(k=>k.render());if(ctx)applyFilter(0.02);
+  }
+  engine=e;
+  $('#app').dataset.engine=e;
+  document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.engine===e)));
+  $('#waveWrap').hidden=e!=='gran';
+  $('#engTitle').textContent=INFO[e].title;
+  $('#engHint').textContent=INFO[e].hint;
+  buildEngineKnobs();
+  if(ctx){
+    const t=ctx.currentTime;
+    holdParam(A.gate.gain,t);A.gate.gain.setTargetAtTime(0,t,0.02);
+    T.n.out.gain.setTargetAtTime(e==='tex'?1:0,t,0.02);
+    G.activeUntil=0;heldFlag=false;silenceVoices();
+  }
+}
+document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>setEngine(b.dataset.engine)));
+
+const padsEl=$('#pads');
+PADS.forEach((p,i)=>{
+  const b=document.createElement('button');
+  b.type='button';b.className='pad';b.setAttribute('aria-label','Пэд '+p.n);
+  b.innerHTML='<span class="pn">'+p.n+'</span><span class="pk">'+p.key.toUpperCase()+'</span>';
+  let down=false;
+  const on=()=>{if(down)return;down=true;b.classList.add('on');noteOn(i)};
+  const off=()=>{if(!down)return;down=false;b.classList.remove('on');noteOff(i)};
+  b.addEventListener('pointerdown',e=>{e.preventDefault();try{b.setPointerCapture(e.pointerId)}catch(err){}on()});
+  b.addEventListener('pointerup',off);b.addEventListener('pointercancel',off);b.addEventListener('lostpointercapture',off);
+  p.el=b;p.on=on;p.off=off;
+  padsEl.appendChild(b);
+});
+window.addEventListener('keydown',e=>{
+  if(e.repeat||e.metaKey||e.ctrlKey||e.altKey)return;
+  const p=PADS.find(x=>x.key===e.key.toLowerCase());
+  if(p)p.on();
+});
+window.addEventListener('keyup',e=>{
+  const p=PADS.find(x=>x.key===e.key.toLowerCase());
+  if(p)p.off();
+});
+
+$('#hold').addEventListener('click',e=>{hold=!hold;e.currentTarget.setAttribute('aria-pressed',String(hold))});
+$('#level').addEventListener('input',e=>{level=+e.target.value;setLevel()});
+
+const pw=$('#power');
+function updPower(){
+  const on=!!ctx&&ctx.state==='running';
+  pw.setAttribute('aria-pressed',String(on));
+  pw.textContent=on?'Звук включён':'Включить звук';
+}
+pw.addEventListener('click',()=>{ensureAudio()});
+
+/* Mobile browsers start audio only after a finished tap (pointerup, touchend, click), not on pointerdown.
+   iOS also mutes Web Audio in silent mode unless the audio session is set to playback. */
+let silentEl=null;
+function silentWavUri(){
+  const n=800,b=new Uint8Array(44+n),dv=new DataView(b.buffer);
+  const w=(o,s)=>{for(let i=0;i<s.length;i++)b[o+i]=s.charCodeAt(i)};
+  w(0,'RIFF');dv.setUint32(4,36+n,true);w(8,'WAVE');w(12,'fmt ');
+  dv.setUint32(16,16,true);dv.setUint16(20,1,true);dv.setUint16(22,1,true);
+  dv.setUint32(24,8000,true);dv.setUint32(28,8000,true);dv.setUint16(32,1,true);dv.setUint16(34,8,true);
+  w(36,'data');dv.setUint32(40,n,true);b.fill(128,44);
+  let s='';for(let i=0;i<b.length;i++)s+=String.fromCharCode(b[i]);
+  return 'data:audio/wav;base64,'+btoa(s);
+}
+function unlock(){
+  try{if(navigator.audioSession)navigator.audioSession.type='playback'}catch(err){}
+  if(!silentEl){
+    try{silentEl=new Audio(silentWavUri());silentEl.loop=true;const sp=silentEl.play();if(sp&&sp.catch)sp.catch(()=>{})}catch(err){}
+  }
+  ensureAudio();
+}
+['pointerup','touchend','click','keydown'].forEach(t=>window.addEventListener(t,unlock,{capture:true}));
+
+function markSrc(k){
+  G.src=k;
+  $('#srcPad').setAttribute('aria-pressed',String(k==='pad'));
+  $('#srcArp').setAttribute('aria-pressed',String(k==='arp'));
+}
+$('#srcPad').addEventListener('click',()=>{
+  if(!ensureAudio())return;
+  useBuffer(makeBuf(padFor()),padName());markSrc('pad');
+});
+$('#srcArp').addEventListener('click',()=>{
+  if(!ensureAudio())return;
+  useBuffer(makeBuf([G.demo]),'арпеджио и пэд, 6 с');markSrc('arp');
+});
+$('#file').addEventListener('change',async e=>{
+  const f=e.target.files&&e.target.files[0];
+  if(!f||!ensureAudio())return;
+  $('#srcName').textContent='читаю '+f.name+'…';
+  try{
+    const ab=await f.arrayBuffer();
+    const buf=await new Promise((res,rej)=>ctx.decodeAudioData(ab,res,rej));
+    useBuffer(buf,f.name+' · '+buf.duration.toFixed(1)+' с');markSrc('file');
+  }catch(err){
+    $('#srcName').textContent='не удалось прочитать файл, нужен wav, mp3 или m4a';
+  }
+  e.target.value='';
+});
+
+/* ---------- scope drawing ---------- */
+const specC=$('#spec'),waveC=$('#wave');
+const dim={spec:{w:0,h:112},wave:{w:0,h:88}};
+const colors={};
+function refreshColors(){
+  const cs=getComputedStyle($('#app'));
+  ['--accent','--ink','--ink-2','--line'].forEach(k=>{colors[k]=cs.getPropertyValue(k).trim()});
+}
+function fit(c,d){
+  const w=c.clientWidth;if(!w||w===d.w)return;
+  const dpr=Math.min(2,window.devicePixelRatio||1);
+  c.width=Math.round(w*dpr);c.height=Math.round(d.h*dpr);
+  c.getContext('2d').setTransform(dpr,0,0,dpr,0,0);
+  d.w=w;G.peaksW=0;
+}
+const ro=new ResizeObserver(()=>{fit(specC,dim.spec);fit(waveC,dim.wave)});
+ro.observe(specC);ro.observe(waveC);
+
+function drawSpec(){
+  const w=dim.spec.w,h=dim.spec.h;if(!w)return;
+  const x=specC.getContext('2d');x.clearRect(0,0,w,h);
+  const fMin=40,fMax=16000,sr=ctx?ctx.sampleRate:44100,base=h-14;
+  const X=f=>Math.log(f/fMin)/Math.log(fMax/fMin)*w;
+  x.strokeStyle=colors['--line'];x.lineWidth=1;x.fillStyle=colors['--ink-2'];
+  x.font='10px "IBM Plex Mono",ui-monospace,monospace';
+  [100,1000,10000].forEach(f=>{
+    const px=Math.round(X(f))+0.5;
+    x.beginPath();x.moveTo(px,0);x.lineTo(px,base);x.stroke();
+    x.fillText(f>=1000?(f/1000)+'k':String(f),px+3,h-3);
+  });
+  x.fillText('Hz',w-16,h-3);
+  x.beginPath();x.moveTo(0,base+0.5);x.lineTo(w,base+0.5);x.stroke();
+  if(!A.an||ctx.state!=='running'){
+    x.font='13px system-ui,sans-serif';x.textAlign='center';
+    x.fillText(A.an?'Звук не запущен: нажми «Включить звук»':'Нажми пэд или «Включить звук»',w/2,base/2+4);x.textAlign='start';
+    return;
+  }
+  A.an.getByteFrequencyData(A.spec);
+  const bars=Math.max(24,Math.floor(w/6)),bw=w/bars,bins=A.spec.length;
+  x.fillStyle=colors['--accent'];
+  for(let i=0;i<bars;i++){
+    const f0=fMin*Math.pow(fMax/fMin,i/bars),f1=fMin*Math.pow(fMax/fMin,(i+1)/bars);
+    const b0=Math.floor(f0/(sr/2)*bins),b1=Math.max(b0+1,Math.ceil(f1/(sr/2)*bins));
+    let m=0;for(let b=b0;b<b1&&b<bins;b++)if(A.spec[b]>m)m=A.spec[b];
+    const bh=Math.pow(m/255,1.3)*(base-4);
+    x.fillRect(i*bw+1,base-bh,bw-2,bh);
+  }
+}
+function computePeaks(w){
+  const d=G.data,len=d.length,pk=new Float32Array(w*2);
+  for(let i=0;i<w;i++){
+    const s=Math.floor(i/w*len),e=Math.max(s+1,Math.floor((i+1)/w*len));
+    let mn=1,mx=-1;
+    for(let j=s;j<e;j++){const v=d[j];if(v<mn)mn=v;if(v>mx)mx=v}
+    pk[i*2]=mn;pk[i*2+1]=mx;
+  }
+  G.peaks=pk;G.peaksW=w;
+}
+function drawWave(){
+  const w=dim.wave.w,h=dim.wave.h;if(!w||!G.data)return;
+  const x=waveC.getContext('2d');x.clearRect(0,0,w,h);
+  if(G.peaksW!==w)computePeaks(w);
+  const pos=P.gran.position,sp=P.gran.spray*P.gran.spray*0.2,mid=h/2;
+  const l=clamp(pos-sp,0,1),r=clamp(pos+sp,0,1);
+  x.fillStyle=colors['--accent'];x.globalAlpha=0.16;x.fillRect(l*w,0,(r-l)*w,h);x.globalAlpha=1;
+  x.strokeStyle=colors['--ink-2'];x.lineWidth=1;x.beginPath();
+  for(let i=0;i<w;i++){
+    x.moveTo(i+0.5,mid-G.peaks[i*2+1]*mid*0.9);
+    x.lineTo(i+0.5,Math.max(mid-G.peaks[i*2+1]*mid*0.9+1,mid-G.peaks[i*2]*mid*0.9));
+  }
+  x.stroke();
+  const now=performance.now();
+  G.flashes=G.flashes.filter(f=>now-f.t<450);
+  x.fillStyle=colors['--accent'];
+  G.flashes.forEach(f=>{x.globalAlpha=1-(now-f.t)/450;x.fillRect(f.p*w-1,0,2,10)});
+  x.globalAlpha=1;
+  x.fillRect(Math.round(pos*w)-1,0,2,h);
+}
+let waveDrag=false;
+const waveSet=e=>{const r=waveC.getBoundingClientRect();setParam('gran','position',(e.clientX-r.left)/r.width)};
+waveC.addEventListener('pointerdown',e=>{e.preventDefault();waveC.setPointerCapture(e.pointerId);waveDrag=true;waveSet(e)});
+waveC.addEventListener('pointermove',e=>{if(waveDrag)waveSet(e)});
+['pointerup','pointercancel'].forEach(t=>waveC.addEventListener(t,()=>{waveDrag=false}));
+
+let frameN=0;
+function frame(){
+  if(frameN++%20===0)refreshColors();
+  drawSpec();
+  if(engine==='gran')drawWave();
+  requestAnimationFrame(frame);
+}
+
+/* ---------- start ---------- */
+G.demo=makeDemo();G.padB=makePadB();G.data=G.padB[0];
+buildEnvKnobs();
+setEngine('tex');
+$('#srcName').textContent=padName();
+refreshColors();
+requestAnimationFrame(frame);
+})();
+</script>

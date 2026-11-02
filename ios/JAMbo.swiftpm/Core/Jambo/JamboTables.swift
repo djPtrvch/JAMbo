@@ -20,12 +20,13 @@ enum Jambo {
     /// FAT: расстройка OSC2 до 35 центов.
     static let subFat = 35.0
 
-    /// TEXTURE и GRANULAR (ТЗ «Texture и Granular»): моно (слот 0), стерео-выход.
+    /// TEXTURE и GRANULAR (ТЗ «Texture и Granular», «Granular»): стерео-выход; TEXTURE моно (слот 0), GRANULAR
+    /// полифоничен (голос на ноту).
     static let texture = 25
     static let granular = 26
 
-    /// Монофоничный движок (слот 0): ударные (KICK, 20–23), SUB, TEXTURE и GRANULAR.
-    @inline(__always) static func mono(_ e: Int) -> Bool { return e == drum || (e >= snare && e <= granular) }
+    /// Монофоничный движок (слот 0): ударные (KICK, 20–23), SUB и TEXTURE.
+    @inline(__always) static func mono(_ e: Int) -> Bool { return e == drum || (e >= snare && e <= texture) }
     /// Стерео-выход движка (TEXTURE, GRANULAR): фильтр голоса по двум каналам, Pan — баланс.
     @inline(__always) static func stereo(_ e: Int) -> Bool { return e == texture || e == granular }
 

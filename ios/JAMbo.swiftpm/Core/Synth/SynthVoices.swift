@@ -185,7 +185,7 @@ public final class SynthVoices {
                  mask: VoiceMask, vals: UnsafePointer<Float>?, gate: Int64, own isOwn: Bool, liveId live: Int, retrig: Bool) {
         if t < 0 || t >= SynthVoices.tracks { return }
         modFrame = frame
-        // Ударные (KICK, SNARE, HAT, CLAP, PERC) и SUB монофоничны: ноты дорожки — в первый голос дорожки, из
+        // Ударные (KICK, SNARE, HAT, CLAP, PERC), SUB и TEXTURE монофоничны: ноты дорожки — в первый голос дорожки, из
         // аккорда — нижняя нота, без кражи (хвост прошлой гаснет в самом движке за ~2 мс).
         if Jambo.mono(e) {
             guard count > 0 else { return }
@@ -346,6 +346,8 @@ public final class SynthVoices {
             drift[t].begin(n, sr)
             t += 1
         }
+        // GRANULAR: дрейф позиции и число нот дорожки (общие для её голосов).
+        bank.granularBegin(n, sampleRate: sr, active: active)
         defer {
             var k = 0
             while k < SynthVoices.tracks {

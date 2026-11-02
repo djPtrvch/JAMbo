@@ -8,6 +8,10 @@ enum ProtoCompare {
         let rms: Double
         let peak: Double
         let bands: [Double]
+        /// GRANULAR: источник (pad, arp), ноты (полутоны, Hold), ровность — CV RMS окон 10 мс.
+        var src: String = ""
+        var semis: [Double] = []
+        var cv: Double = 0
     }
 
     static let file: URL = URL(fileURLWithPath: #filePath)
@@ -22,9 +26,26 @@ enum ProtoCompare {
             let k = v["k"] as? [Double] ?? []
             let l = v["rmsL"] as? Double ?? 0, r = v["rmsR"] as? Double ?? 0
             let b = (v["bands"] as? [[String: Any]] ?? []).map { $0["db"] as? Double ?? -300 }
-            out[name] = Ref(k: k, rms: (l + r) / 2, peak: v["peak"] as? Double ?? 0, bands: b)
+            out[name] = Ref(k: k, rms: (l + r) / 2, peak: v["peak"] as? Double ?? 0, bands: b,
+                            src: v["src"] as? String ?? "", semis: v["semis"] as? [Double] ?? [], cv: v["cv"] as? Double ?? 0)
         }
         return out
+    }
+
+    /// Ровность (как в proto.mjs): CV = σ / μ RMS окон по 10 мс (мощность обоих каналов), после первых 0,5 с.
+    static func cv(_ l: [Float], _ r: [Float], sr: Double = 48000) -> Double {
+        let w = Int((sr * 0.01).rounded())
+        var ws: [Double] = []
+        var s = Int((sr * 0.5).rounded())
+        while s + w <= l.count {
+            var p = 0.0
+            for i in s..<(s + w) { p += (Double(l[i]) * Double(l[i]) + Double(r[i]) * Double(r[i])) / 2 }
+            ws.append(sqrt(p / Double(w)))
+            s += w
+        }
+        let mu = ws.reduce(0, +) / Double(max(1, ws.count))
+        let sd = sqrt(ws.reduce(0) { $0 + ($1 - mu) * ($1 - mu) } / Double(max(1, ws.count)))
+        return mu > 0 ? sd / mu : 0
     }
 
     /// RMS (среднее каналов), пик и полосы, dB.

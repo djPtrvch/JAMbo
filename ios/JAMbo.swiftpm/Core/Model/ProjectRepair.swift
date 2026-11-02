@@ -7,7 +7,8 @@ extension Project {
     public mutating func repair() {
         if version < 3 { migrateSwing() }
         if version < 4 { migrateSynthKnobs() }
-        version = Swift.max(version, 5)
+        if version < 6 { migrateGranular() }
+        version = Swift.max(version, 6)
         if !bpm.isFinite { bpm = 120 }
         bpm = Swift.min(Params.bpmMax, Swift.max(Params.bpmMin, bpm))
         scale = Project.clamp(scale, 0, Scales.all.count - 1)

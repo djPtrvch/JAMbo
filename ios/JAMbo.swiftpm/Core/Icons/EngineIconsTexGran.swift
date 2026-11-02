@@ -89,7 +89,7 @@ extension EngineIcons {
     }
 
     /// GRANULAR — одна картинка, как волна сэмпла с зёрнами: серая сплошная волна (целый файл) во всё поле; полупрозрачная зона — откуда
-    /// читаются зёрна (POSITION ± 0,35·SPRAY); белая линия — POSITION; зёрна — подсвеченные окном Ханна участки волны
+    /// читаются зёрна (POSITION ± 0,2·SPRAY², как разброс позиции движка); белая линия — POSITION; зёрна — подсвеченные окном Ханна участки волны
     /// (ширина — SIZE, сколько — DENSITY, разброс по зоне — SPRAY); сверху — штрихи вспышек зёрен (их число — DENSITY).
     /// peaks — огибающая настоящего сэмпла SOURCE (samplePeaks, 433 точки 0…1); nil — условный сплошной файл.
     public static func granularIcon(_ v: IconValues, peaks: [Double]? = nil) -> [IconElement] {
@@ -98,7 +98,7 @@ extension EngineIcons {
         // Ширина зерна на поле: 2…16 точек (ручка SIZE уже логарифмическая).
         let gw: Double = (2 + 14 * size) / span
         let n: Int = 2 + Int((dens * 14).rounded())
-        let half: Double = 0.35 * sp
+        let half: Double = TexGran.posSpread(sp)
         var starts: [Double] = []
         for k in 0..<n {
             let x: Double = pos + rnd(k, 7.7) * half

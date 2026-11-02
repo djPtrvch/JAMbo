@@ -40,7 +40,7 @@ final class TexGranVoiceTests: XCTestCase {
     func testTable() {
         XCTAssertEqual(SynthEngines.engine(25)?.name, "TEXTURE")
         XCTAssertEqual(SynthEngines.engine(26)?.name, "GRANULAR")
-        XCTAssertTrue(Jambo.mono(25) && Jambo.mono(26) && Jambo.stereo(25) && Jambo.stereo(26))
+        XCTAssertTrue(Jambo.mono(25) && !Jambo.mono(26) && Jambo.stereo(25) && Jambo.stereo(26))
         XCTAssertFalse(Jambo.stereo(24))
         let g = Params.grid(sound: "mi:25")
         XCTAssertEqual(g[0].label, "Color")
@@ -49,16 +49,18 @@ final class TexGranVoiceTests: XCTestCase {
         XCTAssertEqual(g[8].format(30), "30%")
         let h = Params.grid(sound: "mi:26")
         XCTAssertEqual(h[4].label, "Size")
-        XCTAssertEqual(h[4].format(0), "5ms")
-        XCTAssertEqual(h[4].format(100), "500ms")
-        XCTAssertEqual(h[8].format(55), "15 /s")
+        XCTAssertEqual(h[4].format(0), "10ms")
+        XCTAssertEqual(h[4].format(100), "800ms")
+        XCTAssertEqual(h[8].format(100), "×24.0")
         var t = Project().tracks[0]
         t.setSynth(25)
         XCTAssertEqual(t.params["harm"], 40)
         XCTAssertEqual(t.params["p4"], 30)
         t.setSynth(26)
-        XCTAssertEqual(t.params["harm"], 12)
-        XCTAssertEqual(t.params["morph"], 55)
+        XCTAssertEqual(t.params["harm"], 8)
+        XCTAssertEqual(t.params["timbre"], 62)
+        XCTAssertEqual(t.params["morph"], 60)
+        XCTAssertEqual(t.params["p4"], 25)
     }
 
     /// Аккорд — один голос; каналы различаются (панорама событий); NaN нет.
@@ -125,6 +127,51 @@ final class TexGranVoiceTests: XCTestCase {
         XCTAssertLessThan(rms(render(m, frames: 24000).0), 1e-9)
     }
 
+    /// GRANULAR полифоничен: аккорд — голос на ноту; каждая нота — своей высоты; после отпускания голоса дозвучали.
+    func testGranularPoly() {
+        let c = coreWithSample("pad", samples: ["pad": GranularEngineTests.pad])
+        for (k, n) in [48, 51, 55].enumerated() { c.events.push(.noteOn(track: 0, note: n, id: k + 1, velocity: 1)) }
+        let (l, r) = render(c, frames: 48000)
+        XCTAssertEqual(c.sampler.synth?.activeCount, 3)
+        XCTAssertFalse(l.contains { !$0.isFinite } || r.contains { !$0.isFinite })
+        XCTAssertGreaterThan(rms(l), 0.005)
+        for k in 1...3 { c.events.push(.noteOff(track: 0, id: k)) }
+        _ = render(c, frames: 48000 * 8)
+        XCTAssertEqual(c.sampler.synth?.activeCount, 0)
+    }
+
+    /// Уровень на выходе мастера (мастер по умолчанию): ручки по умолчанию, A3 удержана — RMS около 0,1 (±3 dB);
+    /// DENSITY 1, SIZE 1, шесть нот (все голоса дорожки) — лимитер мастера не упирается (GR 0).
+    func testGranularMasterLevel() {
+        func run(_ k: [Double]?, notes: [Int]) -> (rms: Double, peak: Double, gr: Double) {
+            var p = Project()
+            p.tracks[0].setSynth(Jambo.granular)
+            p.tracks[0].grain = "pad"
+            if let k = k { for (j, id) in SynthEngines.knobIds.enumerated() { p.tracks[0].params[id] = k[j] } }
+            let c = AudioCore(master: true)
+            c.installSynth()
+            c.publish(p, samples: ["pad": GranularEngineTests.pad])
+            for (i, n) in notes.enumerated() { c.events.push(.noteOn(track: 0, note: n, id: i + 1, velocity: 1)) }
+            _ = render(c, frames: 48000)
+            var l: [Float] = [], r: [Float] = []
+            var gr = 0.0
+            for _ in 0..<(48000 * 4 / 256) {
+                let (a, b) = render(c, frames: 256)
+                l += a
+                r += b
+                gr = max(gr, Double(c.master.lim.frameGr))
+            }
+            let peak = Double(max(l.map { abs($0) }.max() ?? 0, r.map { abs($0) }.max() ?? 0))
+            return ((rms(l) + rms(r)) / 2, peak, gr)
+        }
+        let d = run(nil, notes: [57])
+        let dense = run([8, 100, 100, 25], notes: [57, 60, 62, 64, 67, 69])
+        print(String(format: "GRANULAR master: default RMS %.3f (%.1f dBFS), peak %.2f, lim GR %.2f dB; dense ×6 RMS %.3f, peak %.3f, lim GR %.2f dB",
+                     d.rms, 20 * log10(d.rms), d.peak, d.gr, dense.rms, dense.peak, dense.gr))
+        XCTAssertLessThan(abs(20 * log10(d.rms / 0.1)), 3)
+        XCTAssertLessThan(dense.gr, 0.01)
+    }
+
     /// Сэмпл GRANULAR — в проекте (ключи сэмплов, файл), пресете и звуке клипа; прежние файлы без поля грузятся.
     func testGranularStorage() throws {
         var p = Project()
@@ -163,7 +210,7 @@ final class TexGranVoiceTests: XCTestCase {
         let blockUs: Double = 256.0 / 48000 * 1e6
         var lines: [String] = []
         for (e, k) in [(Jambo.texture, [40.0, 100, 0, 0]), (Jambo.texture, [40.0, 100, 100, 100]),
-                       (Jambo.granular, [50.0, 100, 100, 50])] {
+                       (Jambo.granular, [8.0, 100, 100, 25])] {
             for tracks in [1, 16] {
                 var p = Project()
                 while p.tracks.count < tracks { p.tracks.append(p.tracks[0]) }
@@ -193,6 +240,47 @@ final class TexGranVoiceTests: XCTestCase {
         let build = "release"
         #endif
         print("TEXGRAN cost (\(build)):\n" + lines.joined(separator: "\n"))
+    }
+
+    /// Нагрузка GRANULAR по ТЗ: DENSITY 1, SIZE 1, пэд-источник, ноты держатся — 6 нот на одной дорожке (больше
+    /// голосов у дорожки нет) и 8 нот на двух дорожках (по 4). Время раздела Synth на блок 256, % ядра и на ноту.
+    func testGranularCost() {
+        let blockUs: Double = 256.0 / 48000 * 1e6
+        var lines: [String] = []
+        for split in [[6], [4, 4]] {
+            var p = Project()
+            for (t, _) in split.enumerated() {
+                p.tracks[t].setSynth(Jambo.granular)
+                p.tracks[t].grain = "pad"
+                for (j, id) in SynthEngines.knobIds.enumerated() { p.tracks[t].params[id] = [8.0, 100, 100, 25][j] }
+            }
+            let c = AudioCore(master: false)
+            c.installSynth()
+            c.publish(p, samples: ["pad": GranularEngineTests.pad])
+            var id = 1
+            for (t, n) in split.enumerated() {
+                for k in 0..<n {
+                    c.events.push(.noteOn(track: t, note: 57 + [0, 3, 5, 7, 10, 12][k], id: id, velocity: 1))
+                    id += 1
+                }
+            }
+            var bl = [Float](repeating: 0, count: 256), br = [Float](repeating: 0, count: 256)
+            for _ in 0..<200 { c.render(frames: 256, left: &bl, right: &br) }
+            c.profile.enabled = true
+            for _ in 0..<400 { c.render(frames: 256, left: &bl, right: &br) }
+            guard let s = c.profile.read() else { return XCTFail("нет окна замера") }
+            let us: Double = Double(s.avg[RenderProfile.synth]) * blockUs
+            let notes = split.reduce(0, +)
+            lines.append(String(format: "  %d нот (%@): synth %7.1f µs/блок (%5.2f%% ядра, на ноту %5.2f%%), голосов %d",
+                                notes, split.map { String($0) }.joined(separator: "+"), us, us / blockUs * 100,
+                                us / blockUs * 100 / Double(notes), c.sampler.synth?.activeCount ?? 0))
+        }
+        #if DEBUG
+        let build = "debug"
+        #else
+        let build = "release"
+        #endif
+        print("GRANULAR cost (\(build)):\n" + lines.joined(separator: "\n"))
     }
 
     // MARK: — иконки

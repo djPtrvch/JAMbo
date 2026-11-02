@@ -37,7 +37,7 @@ final class SynthKnobsTests: XCTestCase {
         p.tracks[2].sample = "mi:17"
         p.tracks[2].params["morph"] = 0
         p.repair()
-        XCTAssertEqual(p.version, 5)
+        XCTAssertEqual(p.version, 6)
         let t = p.tracks[0]
         XCTAssertEqual(t.params["harm"], 62.5)
         XCTAssertEqual(t.params["timbre"], 62.5, "WAVE B — прежний WAVE")
@@ -57,7 +57,7 @@ final class SynthKnobsTests: XCTestCase {
     func testPresetMigration() throws {
         let web = Data(#"{"name":"Pad","sound":"mi:17","params":{"harm":87.5,"timbre":20,"morph":60},"fmt":2}"#.utf8)
         let p = try JSONDecoder().decode(SynthPreset.self, from: web)
-        XCTAssertEqual(p.fmt, 3)
+        XCTAssertEqual(p.fmt, 4)
         XCTAssertEqual(p.params["timbre"], 87.5)
         XCTAssertEqual(p.params["morph"], 20)
         let again = try JSONDecoder().decode(SynthPreset.self, from: JSONEncoder().encode(p))

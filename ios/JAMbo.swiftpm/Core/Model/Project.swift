@@ -278,8 +278,9 @@ public struct SceneRow: Codable, Equatable, Sendable {
 
 public struct Project: Codable, Equatable, Sendable {
     /// Версия формата: 3 — S12 (Swing без p-lock и LFO/ENV), 4 — S12 (ручки 1.4 своих движков, SynthMigration),
-    /// 5 — S15 (аранжировка: Track.blocks, Track.color, arrange; в старых — пустая).
-    public var version: Int = 5
+    /// 5 — S15 (аранжировка: Track.blocks, Track.color, arrange; в старых — пустая), 6 — ручки GRANULAR по ТЗ
+    /// «Granular» (GranularMigration).
+    public var version: Int = 6
     /// Сообщение при открытии проекта (перевод старой версии, например пропавший суб ANALOG); nil — нет.
     public var notice: String?
     public var bpm: Double = 120

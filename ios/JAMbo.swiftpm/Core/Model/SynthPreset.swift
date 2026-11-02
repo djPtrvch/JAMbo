@@ -4,7 +4,8 @@ import Foundation
 // «mi:<n>»), ручки звука (presetParams), у WTABLE — таблица, у GRANULAR — сэмпл. В папке дорожки — сэмплы и пресеты
 // (копии).
 
-/// Пресет синта: имя, движок, ручки; fmt — версия формата (веб — 2; 3 — S12, ручки 1.4 своих движков).
+/// Пресет синта: имя, движок, ручки; fmt — версия формата (веб — 2; 3 — S12, ручки 1.4 своих движков; 4 — ручки
+/// GRANULAR по ТЗ «Granular»).
 public struct SynthPreset: Codable, Equatable, Sendable {
     public var name: String
     public var sound: String
@@ -15,7 +16,7 @@ public struct SynthPreset: Codable, Equatable, Sendable {
     /// Сэмпл GRANULAR (ключ хранилища); nil — не GRANULAR.
     public var grain: String?
 
-    public init(name: String, sound: String, params: [String: Double], fmt: Int? = 3, table: String? = nil,
+    public init(name: String, sound: String, params: [String: Double], fmt: Int? = 4, table: String? = nil,
                 grain: String? = nil) {
         self.name = name
         self.sound = sound
@@ -42,6 +43,11 @@ public struct SynthPreset: Codable, Equatable, Sendable {
         if (fmt ?? 1) < 3 {
             SynthMigration.params(sound, &params)
             fmt = 3
+        }
+        // fmt < 4 — ручки GRANULAR по прежним формулам (GranularMigration).
+        if (fmt ?? 1) < 4 {
+            GranularMigration.params(sound, &params)
+            fmt = 4
         }
         table = c.optional(.table)
         grain = c.optional(.grain)
