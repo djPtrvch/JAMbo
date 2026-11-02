@@ -77,6 +77,8 @@ public struct Track: Codable, Equatable, Sendable {
     /// Аранжировщик (S15): блоки дорожки на таймлайне (по порядку, без перекрытий) и цвет (номер в ArrPalette).
     public var blocks: [ArrBlock] = []
     public var color: Int = ArrPalette.defaultColor
+    /// Стиль случайного ритма ударных (SHIFT + CHORD; номер в DrumRhythm.styles, по умолчанию HOUSE).
+    public var drumStyle: Int = 0
     /// Автоматизация на таймлайне (S15f): кривые ручек сетки дорожки, по одной на ручку.
     public var autos: [ArrAutoLane] = []
     /// STEPS в аранжировщике (решение пользователя): номер блока, чья копия клипа открыта в секвенсоре и миниатюрах

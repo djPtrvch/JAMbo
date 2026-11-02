@@ -74,7 +74,7 @@ extension AppModel {
             return
         }
         if let n = MidiButtons.number(name, prefix: "CHORD TYPE "), n >= 1 && n <= Scales.chordKinds.count {
-            setChordKind(n - 1)
+            chooseChordType(n - 1)
             return
         }
         if let n = MidiButtons.number(name, prefix: "STEP "), n >= 1 && n <= 16 {

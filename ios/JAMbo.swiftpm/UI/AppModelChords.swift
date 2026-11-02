@@ -1,13 +1,13 @@
 import Foundation
 
 // Режим CHORD: случайная прогрессия (SHIFT + CHORD) — запись аккордов в выбранные страницы открытого паттерна; на
-// ударном движке (KICK, SNARE, HAT, CLAP, PERC) — случайный ритм (DrumRhythm).
+// ударном движке (KICK, SNARE, HAT, CLAP, PERC) — случайный ритм стиля дорожки (DrumRhythm), стили — в окне CHORD.
 
 extension AppModel {
     /// Тап по CHORD: с SHIFT — случайная прогрессия (режим не меняется), иначе — вкл./выкл. режима.
     func chordTap() {
         if shiftHeld {
-            if DrumRhythm.role(engine: SynthKey.engine(track.sample)) != nil {
+            if drumTrack {
                 writeRandomDrums()
             } else {
                 writeRandomProgression()
@@ -15,6 +15,23 @@ extension AppModel {
         } else {
             toggleChord()
         }
+    }
+
+    /// Дорожка с ударным движком (KICK, SNARE, HAT, CLAP, PERC): у CHORD — стили ритма вместо типов аккорда.
+    var drumTrack: Bool {
+        guard channel == .track else { return false }
+        return DrumRhythm.role(engine: SynthKey.engine(track.sample)) != nil
+    }
+
+    /// Стиль ритма выбранной дорожки (хранится в проекте, одна запись UNDO).
+    func setDrumStyle(_ k: Int) {
+        let v: Int = DrumRhythm.styleIndex(k)
+        editTrack { t in t.drumStyle = v }
+    }
+
+    /// Окно и MIDI CHORD TYPE n: на ударной дорожке — стиль, иначе — тип аккорда.
+    func chooseChordType(_ k: Int) {
+        if drumTrack { setDrumStyle(k) } else { setChordKind(k) }
     }
 
     /// Подписи клавиш в режиме CHORD: аккорд и римская ступень («Em · i»).
@@ -55,7 +72,8 @@ extension AppModel {
         let lens: [Int] = range.map { t.pageLen($0, from: range.lowerBound) }
         var g = SystemRandomNumberGenerator()
         let id: Int = t.id
-        let pattern: [[DrumRhythm.Hit]] = DrumRhythm.pattern(role, lens: lens, avoid: lastRandomDrums[id], using: &g)
+        let pattern: [[DrumRhythm.Hit]] = DrumRhythm.pattern(role, style: t.drumStyle, lens: lens,
+                                                             avoid: lastRandomDrums[id], using: &g)
         lastRandomDrums[id] = pattern.first(where: { !$0.isEmpty })?.map { $0.step }
         let note: Int = Scales.baseNote(root: project.root, octave: octave)
         editTrack { tr in tr.writeDrums(pattern, note: note, pages: range) }

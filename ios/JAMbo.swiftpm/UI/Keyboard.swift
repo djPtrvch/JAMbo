@@ -108,7 +108,8 @@ struct KeyRow: View {
 }
 
 /// CHORD: тап — вкл./выкл. режима (с SHIFT — случайная прогрессия на выбранные страницы), долгое нажатие — окно
-/// типа аккорда. CHORD и под ним тип (как в окне: Triad, 7th, 9th, Sus2, Sus4, Add9) — вместе по центру кнопки.
+/// типа аккорда (на ударной дорожке — стиля ритма, под CHORD — стиль). CHORD и под ним тип (как в окне: Triad, 7th,
+/// 9th, Sus2, Sus4, Add9) — вместе по центру кнопки.
 struct ChordButton: View {
     let model: AppModel
     @Environment(\.theme) private var theme
@@ -116,10 +117,13 @@ struct ChordButton: View {
     var body: some View {
         let on: Bool = model.chordMode[model.selectedTrack]
         let kind: Int = min(Scales.chordKinds.count - 1, max(0, model.chordKind[model.selectedTrack]))
+        // На ударной дорожке под CHORD — стиль ритма.
+        let sub: String = model.drumTrack ? DrumRhythm.styles[DrumRhythm.styleIndex(model.track.drumStyle)]
+            : Scales.chordKinds[kind]
         // CHORD и тип под ним (обычным начертанием) — вместе по центру кнопки.
         return VStack(spacing: 2) {
             Text("CHORD").font(.system(size: 12, weight: .semibold)).tracking(1)
-            Text(Scales.chordKinds[kind]).font(.system(size: 10))
+            Text(sub).font(.system(size: 10))
         }
         .foregroundStyle(on ? theme.bg : theme.text)
         .frame(maxWidth: .infinity, maxHeight: .infinity)

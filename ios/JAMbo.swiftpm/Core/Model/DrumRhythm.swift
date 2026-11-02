@@ -1,5 +1,5 @@
 // Случайный ритм ударных (SHIFT + CHORD на дорожке с KICK, SNARE, HAT, CLAP, PERC): рисунок страницы по
-// вероятностям шагов движка, вариации средних страниц и сбивка последней (docs/ai/sequencer.md, «Пианоролл»).
+// вероятностям шагов движка в стиле дорожки, вариации средних страниц и сбивка последней (docs/ai/sequencer.md, «Пианоролл»).
 
 public enum DrumRhythm {
     /// Роль ударного движка.
@@ -28,20 +28,82 @@ public enum DrumRhythm {
         }
     }
 
+    /// Стили ритма (у дорожки — Track.drumStyle): HOUSE, BREAKS, D&B, TRAP, AFRO, MINIMAL.
+    public static let styles: [String] = ["HOUSE", "BREAKS", "D&B", "TRAP", "AFRO", "MINIMAL"]
+
+    public static func styleIndex(_ s: Int) -> Int { return Swift.max(0, Swift.min(styles.count - 1, s)) }
+
+    /// Партия движка в стиле: вероятности шагов 0…15 (несколько вариантов — один наугад), призрачные шаги;
+    /// или евклидов ритм lo…hi ударов (fromOne — первый удар на шаге 1, иначе случайный сдвиг).
+    enum Part {
+        case chance([[Double]], ghosts: [Int])
+        case euclid(Int, Int, fromOne: Bool)
+    }
+
     /// Velocity (Level): доля 100 %, обычный удар 70–85 %, призрачный 30–45 %.
     static let velFull: Double = 127
     static let velMid: ClosedRange<Double> = 88.9...107.95
     static let velGhost: ClosedRange<Double> = 38.1...57.15
 
-    /// Вероятности шагов KICK (0…15): 1 всегда, 9 почти всегда, 5 и 13 часто, синкопы 11, 15, 16 иногда.
-    static let kickChance: [Double] = [1, 0, 0, 0, 0.55, 0, 0, 0, 0.9, 0, 0.35, 0, 0.55, 0, 0.3, 0.25]
-    /// Призрачные удары SNARE (шаги 4, 7, 10, 12, 15, 16) и их вероятность.
-    static let snareGhosts: [Int] = [3, 6, 9, 11, 14, 15]
-    static let snareGhostChance: Double = 0.15
-    /// Пропуск удара HAT.
-    static let hatSkip: Double = 0.12
-    /// Удар CLAP на шестнадцатую позже.
-    static let clapShift: Double = 0.3
+    /// Вероятность шага в списке steps, остальные — rest.
+    static func probs(_ steps: [Int: Double], rest: Double = 0) -> [Double] {
+        var out: [Double] = [Double](repeating: rest, count: 16)
+        for (k, v) in steps { out[k] = v }
+        return out
+    }
+
+    static let ghostSteps: [Int] = [3, 6, 9, 11, 14, 15]
+    static let evens: [Int: Double] = [0: 1, 2: 1, 4: 1, 6: 1, 8: 1, 10: 1, 12: 1, 14: 1]
+
+    static func ghosts(_ steps: [Int], _ p: Double, main: [Int]) -> [Double] {
+        var out: [Double] = [Double](repeating: 0, count: 16)
+        for k in steps { out[k] = p }
+        for k in main { out[k] = 1 }
+        return out
+    }
+
+    static func scaled(_ a: [Double], _ k: Double) -> [Double] { return a.map { $0 * k } }
+
+    /// Партия движка role в стиле style (номера шагов — с 0).
+    static func part(_ style: Int, _ role: Role) -> Part {
+        switch (styleIndex(style), role) {
+        // HOUSE: бочка на каждую долю.
+        case (0, .kick): return .chance([probs([0: 1, 4: 1, 8: 1, 12: 1, 15: 0.25])], ghosts: [])
+        case (0, .snare): return .chance([ghosts(ghostSteps, 0.1, main: [4, 12])], ghosts: ghostSteps)
+        case (0, .hat): return .chance([probs([2: 1, 6: 1, 10: 1, 14: 1], rest: 0.25)], ghosts: [])
+        case (0, .clap): return .chance([probs([4: 1, 12: 1])], ghosts: [])
+        // BREAKS: ломаный бит, много призрачных ударов.
+        case (1, .kick): return .chance([probs([0: 1, 10: 0.7, 2: 0.35, 7: 0.35, 11: 0.35])], ghosts: [])
+        case (1, .snare): return .chance([ghosts([7, 9, 14, 15], 0.45, main: [4, 12])], ghosts: [7, 9, 14, 15])
+        case (1, .hat): return .chance([scaled(probs(evens), 0.8)], ghosts: [])
+        case (1, .clap): return .chance([probs([4: 1, 12: 1])], ghosts: [])
+        // D&B: бочка 1 и 11, малый 5 и 13.
+        case (2, .kick): return .chance([probs([0: 1, 10: 1, 7: 0.3, 11: 0.3])], ghosts: [])
+        case (2, .snare): return .chance([ghosts(ghostSteps, 0.12, main: [4, 12])], ghosts: ghostSteps)
+        case (2, .hat): return .chance([scaled(probs(evens), 0.9)], ghosts: [])
+        case (2, .clap): return .chance([probs([4: 1, 12: 1])], ghosts: [])
+        // TRAP: половинный темп — малый на 9.
+        case (3, .kick): return .chance([probs([0: 1, 7: 0.35, 10: 0.35, 11: 0.35, 14: 0.35])], ghosts: [])
+        case (3, .snare): return .chance([ghosts([3, 6, 11, 14, 15], 0.12, main: [8])], ghosts: [3, 6, 11, 14, 15])
+        case (3, .hat): return .chance([probs([:], rest: 0.85)], ghosts: [])
+        case (3, .clap): return .chance([probs([8: 1])], ghosts: [])
+        case (3, .perc): return .euclid(2, 5, fromOne: false)
+        // AFRO: все движки — евклидов ритм.
+        case (4, .kick): return .euclid(3, 5, fromOne: true)
+        case (4, .snare): return .euclid(2, 3, fromOne: false)
+        case (4, .hat): return .euclid(5, 11, fromOne: false)
+        case (4, .clap): return .euclid(2, 3, fromOne: false)
+        // MINIMAL: редкий рисунок с паузами.
+        case (5, .kick): return .chance([probs([0: 1, 10: 0.35])], ghosts: [])
+        case (5, .snare): return .chance([probs([12: 1])], ghosts: [])
+        case (5, .hat): return .chance([probs([0: 0.5, 4: 0.5, 8: 0.5, 12: 0.5])], ghosts: [])
+        case (5, .clap): return .chance([probs([12: 1])], ghosts: [])
+        case (5, .perc): return .euclid(2, 3, fromOne: false)
+        // PERC в остальных стилях.
+        default: return .euclid(3, 7, fromOne: false)
+        }
+    }
+
     /// Доля шага сбивки с ударом (шаги 13–16 последней страницы).
     static let fillChance: [Double] = [0.4, 0.6, 0.7, 0.45, 0.5]
 
@@ -53,7 +115,7 @@ public enum DrumRhythm {
         return Double.random(in: velMid, using: &g).rounded()
     }
 
-    /// Евклидов ритм: k ударов на n шагах (по Бьёрклунду через округление), сдвиг rot.
+    /// Евклидов ритм: k ударов на n шагах (равномерно, через округление), сдвиг rot.
     public static func euclid(_ k: Int, _ n: Int, rot: Int) -> [Int] {
         if n <= 0 || k <= 0 { return [] }
         let kk: Int = Swift.min(k, n)
@@ -65,70 +127,54 @@ public enum DrumRhythm {
         return out.sorted()
     }
 
-    /// Основа: рисунок страницы длиной len (1…16) по вероятностям шагов движка; не пустая.
-    public static func base<G: RandomNumberGenerator>(_ role: Role, len: Int, using g: inout G) -> [Hit] {
+    /// Основа: рисунок страницы длиной len (1…16) по партии движка в стиле; не пустая.
+    public static func base<G: RandomNumberGenerator>(_ role: Role, style: Int = 0, len: Int,
+                                                      using g: inout G) -> [Hit] {
         let n: Int = Swift.max(1, Swift.min(Params.stepsPerPage, len))
         var hits: [Hit] = []
-        switch role {
-        case .kick:
-            for s in 0..<n where Double.random(in: 0..<1, using: &g) < kickChance[s] {
-                hits.append(Hit(step: s, vel: nil))
+        switch part(style, role) {
+        case .chance(let options, let gh):
+            let pr: [Double] = options.count == 1 ? options[0] : options[Int.random(in: 0..<options.count, using: &g)]
+            for s in 0..<n where pr[s] > 0 && Double.random(in: 0..<1, using: &g) < pr[s] {
+                let ghost: Bool = gh.contains(s) && pr[s] < 1
+                hits.append(Hit(step: s, vel: hitVel(role, step: s, ghost: ghost, using: &g)))
             }
-        case .snare:
-            for s in 0..<n {
-                if s == 4 || s == 12 {
-                    hits.append(Hit(step: s, vel: velFull))
-                } else if snareGhosts.contains(s) && Double.random(in: 0..<1, using: &g) < snareGhostChance {
-                    hits.append(Hit(step: s, vel: hitVel(role, step: s, ghost: true, using: &g)))
-                }
-            }
-        case .hat:
-            let sixteenths: Bool = Bool.random(using: &g)
-            for s in 0..<n where sixteenths || s % 2 == 0 {
-                if Double.random(in: 0..<1, using: &g) < hatSkip { continue }
-                hits.append(Hit(step: s, vel: hitVel(role, step: s, ghost: false, using: &g)))
-            }
-        case .clap:
-            var steps: [Int] = Bool.random(using: &g) ? [4, 12] : [12]
-            if Double.random(in: 0..<1, using: &g) < clapShift {
-                let i: Int = Int.random(in: 0..<steps.count, using: &g)
-                steps[i] += 1
-            }
-            for s in steps where s < n {
-                hits.append(Hit(step: s, vel: hitVel(role, step: s, ghost: false, using: &g)))
-            }
-        case .perc:
-            let k: Int = Int.random(in: 3...7, using: &g)
-            let rot: Int = Int.random(in: 0..<n, using: &g)
+        case .euclid(let lo, let hi, let fromOne):
+            let k: Int = Int.random(in: lo...hi, using: &g)
+            let rot: Int = fromOne ? 0 : Int.random(in: 0..<n, using: &g)
             for s in euclid(k, n, rot: rot) {
                 hits.append(Hit(step: s, vel: hitVel(role, step: s, ghost: false, using: &g)))
             }
         }
         if hits.isEmpty {
-            // Короткая страница без ударов движка (SNARE, CLAP на 1–4 шагах): удар на середине.
+            // Короткая страница без ударов партии (SNARE, CLAP на 1–4 шагах) или всё выпало: удар на середине.
             let s: Int = n >= 2 ? n / 2 : 0
             hits.append(Hit(step: s, vel: hitVel(role, step: s, ghost: false, using: &g)))
         }
         return hits
     }
 
-    /// Опорные удары, которые вариации не снимают: KICK — шаг 1, SNARE — 5 и 13.
-    static func anchor(_ role: Role, _ s: Int) -> Bool {
+    /// Опорные удары, которые вариации не снимают: KICK — шаг 1, SNARE — основные удары стиля (вероятность 1).
+    static func anchor(_ role: Role, style: Int, _ s: Int) -> Bool {
         switch role {
         case .kick: return s == 0
-        case .snare: return s == 4 || s == 12
+        case .snare:
+            if case .chance(let options, let gh) = part(style, .snare) {
+                return !gh.contains(s) && options.allSatisfy { $0[s] >= 1 }
+            }
+            return false
         default: return false
         }
     }
 
     /// Вариация: 1–2 удара добавлено или убрано (опорные не снимаются), в пределах len.
-    public static func vary<G: RandomNumberGenerator>(_ hits: [Hit], role: Role, len: Int,
+    public static func vary<G: RandomNumberGenerator>(_ hits: [Hit], role: Role, style: Int = 0, len: Int,
                                                       using g: inout G) -> [Hit] {
         let n: Int = Swift.max(1, Swift.min(Params.stepsPerPage, len))
         var out: [Hit] = hits.filter { $0.step < n }
         let changes: Int = Int.random(in: 1...2, using: &g)
         for _ in 0..<changes {
-            let removable: [Int] = out.indices.filter { !anchor(role, out[$0].step) }
+            let removable: [Int] = out.indices.filter { !anchor(role, style: style, out[$0].step) }
             let used: Set<Int> = Set(out.map { $0.step })
             let free: [Int] = (0..<n).filter { !used.contains($0) }
             let remove: Bool = !removable.isEmpty && (free.isEmpty || Bool.random(using: &g))
@@ -139,7 +185,7 @@ public enum DrumRhythm {
                 out.append(Hit(step: s, vel: hitVel(role, step: s, ghost: ghost, using: &g)))
             }
         }
-        if out.isEmpty { out = base(role, len: n, using: &g) }
+        if out.isEmpty { out = base(role, style: style, len: n, using: &g) }
         return out.sorted { $0.step < $1.step }
     }
 
@@ -165,21 +211,21 @@ public enum DrumRhythm {
     /// Ритм на страницы с длинами lens (шагов на странице, 0 — страница не играет): первая — основа (по своей
     /// длине), средние — вариации, последняя играющая — основа со сбивкой; одна страница — только основа.
     /// Основа не совпадает с avoid (шаги прошлого рисунка), если получится за 16 попыток.
-    public static func pattern<G: RandomNumberGenerator>(_ role: Role, lens: [Int], avoid: [Int]? = nil,
-                                                         using g: inout G) -> [[Hit]] {
+    public static func pattern<G: RandomNumberGenerator>(_ role: Role, style: Int = 0, lens: [Int],
+                                                         avoid: [Int]? = nil, using g: inout G) -> [[Hit]] {
         let playing: [Int] = lens.indices.filter { lens[$0] > 0 }
         var out: [[Hit]] = lens.map { _ in [] }
         guard let first = playing.first, let last = playing.last else { return out }
-        var b: [Hit] = base(role, len: lens[first], using: &g)
+        var b: [Hit] = base(role, style: style, len: lens[first], using: &g)
         var tries: Int = 1
         while b.map({ $0.step }) == avoid && tries < 16 {
-            b = base(role, len: lens[first], using: &g)
+            b = base(role, style: style, len: lens[first], using: &g)
             tries += 1
         }
         out[first] = b
         if last == first { return out }
         for p in playing where p != first && p != last {
-            out[p] = vary(b, role: role, len: lens[p], using: &g)
+            out[p] = vary(b, role: role, style: style, len: lens[p], using: &g)
         }
         let lastBase: [Hit] = lens[last] >= lens[first] ? b : b.filter { $0.step < lens[last] }
         out[last] = fill(lastBase, role: role, len: lens[last], using: &g)
