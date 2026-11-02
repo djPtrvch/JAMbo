@@ -4,6 +4,8 @@ import SwiftUI
 /// за 4 с — волна, зеркальная от середины (пик кадра в dB: 0 dBFS — у кромок, −48 — на середине); вход — серым,
 /// выход — цветом модуля поверх; GR — оранжевым от верхней кромки (шкала 48 dB на полвысоты), подписи пиков; линия
 /// THRESHOLD (пунктир) или CEILING (2 px), с числом, — сверху и снизу, тянется пальцем; двойной тап мимо линии — FREEZE.
+/// Поверх — кривая прежнего окна TRANSFER (решение пользователя: окно убрано, наклонная линия осталась): по ширине
+/// вход −48…0 dB, по высоте выход в шкале волны, сверху и зеркально снизу; белая 1,5 px, при BYPASS — серая.
 enum MasterWave {
     static let gridStep: Int = 12
 
@@ -52,9 +54,27 @@ enum MasterWave {
         return p
     }
 
+    /// Кривая TRANSFER: вход (x) → выход (y) по обеим половинам, шаг 2 px.
+    static func curvePath(_ size: CGSize, _ curve: (Double) -> Double) -> Path {
+        var p = Path()
+        let w: CGFloat = max(1, size.width)
+        for lower in [false, true] {
+            var x: CGFloat = 0
+            var first: Bool = true
+            while x <= w {
+                let l: Double = Double(-MasterDraw.scale + x / w * MasterDraw.scale)
+                let pt = CGPoint(x: x, y: y(curve(l), size.height, lower: lower))
+                if first { p.move(to: pt) } else { p.addLine(to: pt) }
+                first = false
+                x += 2
+            }
+        }
+        return p
+    }
+
     /// Весь дисплей: сетка, вход, выход, GR, линия параметра, надписи.
     static func draw(_ ctx: GraphicsContext, _ size: CGSize, _ c: TeleHistory.Columns, out: Color, bypass: Bool,
-                     line: Double, dashed: Bool, frozen: Bool, _ theme: Theme) {
+                     line: Double, dashed: Bool, frozen: Bool, curve: (Double) -> Double, _ theme: Theme) {
         let h: CGFloat = size.height
         grid(ctx, size, theme)
         let inWave: Path = path(c.inDb, h)
@@ -68,6 +88,8 @@ enum MasterWave {
             ctx.fill(MasterDraw.grPath(c.gr, h / 2), with: .color(theme.gr.opacity(0.25)))
             MasterDraw.grPeaks(ctx, c.gr, half, gapMs: 100, theme)
         }
+        let cp: Path = curvePath(size, curve)
+        ctx.stroke(cp, with: .color(bypass ? theme.dim : theme.text), lineWidth: 1.5)
         let top: CGFloat = y(line, h, lower: false)
         let bottom: CGFloat = y(line, h, lower: true)
         for ly in [top, bottom] {
