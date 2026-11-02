@@ -48,7 +48,7 @@ struct SwipeRow: View {
             label
                 .padding(.trailing, max(0, -offset))
                 .gesture(swipe)
-                .simultaneousGesture(hold)
+                .gesture(hold)
                 .onTapGesture {
                     if open { close() } else { tap() }
                 }
