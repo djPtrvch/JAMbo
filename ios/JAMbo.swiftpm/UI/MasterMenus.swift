@@ -109,8 +109,8 @@ struct MasterPresetsMenu: View {
                     model.masterInput = .rename(k)
                 }, delete: {
                     model.deleteMasterPreset(m, k)
-                })
-                .modifier(ReorderDrag(index: k, count: list.count, state: reorder) { model.moveMasterPreset(m, $0, to: $1) })
+                }, hold: reorder.hold(k, list.count) { model.moveMasterPreset(m, $0, to: $1) })
+                .modifier(ReorderDrag(index: k, count: list.count, state: reorder))
                 // Другой список (удалили или переставили пресет) — строки закрыты заново.
                 .id("\(k)#\(list.count)#\(list[k].name)")
             }

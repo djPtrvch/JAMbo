@@ -41,3 +41,61 @@ struct HorizontalSwipe: UIGestureRecognizerRepresentable {
         }
     }
 }
+
+/// Удержание и перетаскивание строки в прокручиваемом списке (порядок пресетов EQ и модулей мастера): распознаватель
+/// удержания UIKit (0,4 с, палец почти на месте) на самой строке, рядом со свайпом SwipeRow, — до срабатывания
+/// касание достаётся прокрутке (палец пошёл раньше — удержание отменяется), после — сдвиг пальца по вертикали.
+/// Жест SwiftUI в ScrollView (iOS 18) забирает касание у прокрутки, а распознаватель снаружи строки проигрывал тапу
+/// внутри неё — поэтому он здесь и висит на строке до тапа.
+struct HoldDrag: UIGestureRecognizerRepresentable {
+    var enabled: Bool = true
+    let began: () -> Void
+    /// Сдвиг пальца по вертикали от точки удержания.
+    let changed: (CGFloat) -> Void
+    let ended: () -> Void
+
+    /// Строка без перетаскивания (проекты).
+    static let off = HoldDrag(enabled: false, began: {}, changed: { _ in }, ended: {})
+
+    func makeCoordinator(converter: CoordinateSpaceConverter) -> Coordinator {
+        return Coordinator()
+    }
+
+    func makeUIGestureRecognizer(context: Context) -> UILongPressGestureRecognizer {
+        let g = UILongPressGestureRecognizer()
+        g.minimumPressDuration = 0.4
+        g.allowableMovement = 10
+        g.delegate = context.coordinator
+        g.isEnabled = enabled
+        return g
+    }
+
+    func updateUIGestureRecognizer(_ g: UILongPressGestureRecognizer, context: Context) {
+        if g.isEnabled != enabled { g.isEnabled = enabled }
+    }
+
+    func handleUIGestureRecognizerAction(_ g: UILongPressGestureRecognizer, context: Context) {
+        let y: CGFloat = g.location(in: nil).y
+        switch g.state {
+        case .began:
+            context.coordinator.y0 = y
+            began()
+        case .changed:
+            changed(y - context.coordinator.y0)
+        case .ended, .cancelled, .failed:
+            ended()
+        default:
+            break
+        }
+    }
+
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        var y0: CGFloat = 0
+
+        /// Вместе с тапом строки, но не с прокруткой списка и не со свайпом (оба — UIPanGestureRecognizer).
+        func gestureRecognizer(_ g: UIGestureRecognizer,
+                               shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
+            return !(other is UIPanGestureRecognizer)
+        }
+    }
+}

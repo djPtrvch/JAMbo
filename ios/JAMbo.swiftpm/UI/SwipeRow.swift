@@ -17,13 +17,15 @@ struct SwipeRow: View {
     let tap: () -> Void
     let rename: (() -> Void)?
     let delete: () -> Void
+    /// Удержание и перетаскивание (порядок пресетов, ReorderState.hold); у остальных списков — нет.
+    let hold: HoldDrag
     @State private var offset: CGFloat = 0
     @State private var open: Bool = false
     @Environment(\.theme) private var theme
 
     init(title: String, subtitle: String? = nil, meta: String? = nil, tint: Color? = nil, current: Bool = false,
          height: CGFloat = 44, tap: @escaping () -> Void, rename: (() -> Void)? = nil,
-         delete: @escaping () -> Void) {
+         delete: @escaping () -> Void, hold: HoldDrag = HoldDrag.off) {
         self.title = title
         self.subtitle = subtitle
         self.meta = meta
@@ -33,6 +35,7 @@ struct SwipeRow: View {
         self.tap = tap
         self.rename = rename
         self.delete = delete
+        self.hold = hold
     }
 
     private var reveal: CGFloat {
@@ -45,6 +48,7 @@ struct SwipeRow: View {
             label
                 .padding(.trailing, max(0, -offset))
                 .gesture(swipe)
+                .simultaneousGesture(hold)
                 .onTapGesture {
                     if open { close() } else { tap() }
                 }
@@ -141,6 +145,33 @@ final class ReorderState {
         return from < 0 && Date.timeIntervalSinceReferenceDate - ended > 0.3
     }
 
+    /// Удержание строки k (HoldDrag в SwipeRow): поднять, вести за пальцем, отпустили — на новое место.
+    func hold(_ k: Int, _ count: Int, pitch: CGFloat = 48, move: @escaping (Int, Int) -> Void) -> HoldDrag {
+        return HoldDrag(began: { [weak self] in
+            guard let s = self, s.from < 0 else { return }
+            s.from = k
+            s.dy = 0
+        }, changed: { [weak self] dy in
+            guard let s = self, s.from == k else { return }
+            s.dy = dy
+        }, ended: { [weak self] in
+            self?.finish(k, count, pitch: pitch, move: move)
+        })
+    }
+
+    func finish(_ k: Int, _ count: Int, pitch: CGFloat, move: (Int, Int) -> Void) {
+        guard from == k else { return }
+        let to: Int = target(count, pitch: pitch)
+        var t = Transaction()
+        t.disablesAnimations = true
+        withTransaction(t) {
+            from = -1
+            dy = 0
+            ended = Date.timeIntervalSinceReferenceDate
+            if to != k { move(k, to) }
+        }
+    }
+
     func target(_ count: Int, pitch: CGFloat) -> Int {
         let shift: Int = Int((dy / pitch).rounded())
         return min(count - 1, max(0, from + shift))
@@ -157,15 +188,13 @@ final class ReorderState {
     }
 }
 
+/// Вид перетаскиваемой строки: поднятая — крупнее, с тенью, за пальцем; соседи расступаются. Жест — ReorderState.hold.
 struct ReorderDrag: ViewModifier {
     let index: Int
     let count: Int
     let state: ReorderState
     /// Шаг строк: высота строки и зазор.
     var pitch: CGFloat = 48
-    let move: (Int, Int) -> Void
-    /// Касание идёт (сбрасывается и при отмене жеста — тогда строка встаёт, куда дотянули).
-    @GestureState private var touching: Bool = false
 
     func body(content: Content) -> some View {
         let lifted: Bool = state.from == index
@@ -176,37 +205,5 @@ struct ReorderDrag: ViewModifier {
             .offset(y: y)
             .zIndex(lifted ? 1 : 0)
             .animation(lifted ? nil : .easeOut(duration: 0.15), value: y)
-            .simultaneousGesture(gesture)
-            .onChange(of: touching) { _, t in if !t { finish() } }
-    }
-
-    private var gesture: some Gesture {
-        LongPressGesture(minimumDuration: 0.4)
-            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .global))
-            .updating($touching) { _, s, _ in s = true }
-            .onChanged { v in
-                switch v {
-                case .second(true, let d):
-                    if state.from < 0 { state.from = index }
-                    if state.from == index { state.dy = d?.translation.height ?? 0 }
-                default:
-                    break
-                }
-            }
-            .onEnded { _ in finish() }
-    }
-
-    private func finish() {
-        guard state.from == index else { return }
-        let to: Int = state.target(count, pitch: pitch)
-        let from: Int = state.from
-        var t = Transaction()
-        t.disablesAnimations = true
-        withTransaction(t) {
-            state.from = -1
-            state.dy = 0
-            state.ended = Date.timeIntervalSinceReferenceDate
-            if to != from { move(from, to) }
-        }
     }
 }
