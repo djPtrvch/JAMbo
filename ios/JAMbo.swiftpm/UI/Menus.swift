@@ -51,7 +51,7 @@ struct DragField: View {
     }
 }
 
-/// Меню выбора пункта (SCALE, ROOT): сетка кнопок под полем (не помещается — над ним); тап мимо — закрыть.
+/// Меню выбора пункта (SCALE, ROOT, VARIANT): сетка кнопок под полем (не помещается — над ним); тап мимо — закрыть.
 struct ChoiceMenu: View {
     let model: AppModel
     let state: ChoiceState

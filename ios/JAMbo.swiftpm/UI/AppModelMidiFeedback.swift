@@ -152,7 +152,7 @@ extension AppModel {
         if let n = MidiButtons.number(name, prefix: "KEY "), let notes = keyNotes(n - 1) {
             return !notes.isEmpty && notes.allSatisfy { pressed.contains($0) }
         }
-        if let n = MidiButtons.number(name, prefix: "CHORD TYPE ") { return n >= 1 && chordParts[selectedTrack] & (1 << (n - 1)) != 0 }
+        if let n = MidiButtons.number(name, prefix: "CHORD TYPE ") { return chordKind[selectedTrack] == n - 1 }
         return false
     }
 }

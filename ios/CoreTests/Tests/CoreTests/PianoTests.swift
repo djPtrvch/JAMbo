@@ -14,11 +14,13 @@ final class PianoTests: XCTestCase {
 
     func testChordsAndNames() {
         XCTAssertEqual(Scales.chord(scale: 0, root: 0, octave: 2, degree: 0), [36, 40, 43])
-        XCTAssertEqual(Scales.chord(scale: 0, root: 0, octave: 2, degree: 0, parts: 3), [36, 40, 43, 47], "TRIAD + 7th")
-        XCTAssertEqual(Scales.chord(scale: 0, root: 0, octave: 2, degree: 0, parts: 7), [36, 40, 43, 47, 50], "+ 9th")
-        XCTAssertEqual(Scales.chord(scale: 0, root: 0, octave: 2, degree: 0, parts: 5), [36, 40, 43, 50], "add9")
-        XCTAssertEqual(Scales.chord(scale: 0, root: 0, octave: 2, degree: 4, parts: 6), [43, 53, 57], "G: 7th + 9th")
-        XCTAssertEqual(Scales.chordSpan(2), 6)
+        XCTAssertEqual(Scales.chord(scale: 0, root: 0, octave: 2, degree: 0, kind: 1), [36, 40, 43, 47], "7th по гамме")
+        XCTAssertEqual(Scales.chord(scale: 0, root: 0, octave: 2, degree: 4, kind: 2), [43, 47, 50, 53, 57], "G9 по гамме")
+        XCTAssertEqual(Scales.chord(scale: 0, root: 0, octave: 2, degree: 1, kind: 0, variant: 1), [38, 42, 45], "D Maj")
+        XCTAssertEqual(Scales.chord(scale: 0, root: 0, octave: 2, degree: 0, kind: 0, variant: 6), [36, 41, 43], "C Sus4")
+        XCTAssertEqual(Scales.chord(scale: 0, root: 0, octave: 2, degree: 0, kind: 1, variant: 2), [36, 40, 43, 46], "C7")
+        XCTAssertEqual(Scales.chord(scale: 0, root: 0, octave: 2, degree: 0, kind: 2, variant: 4), [36, 40, 43, 50], "Cadd9")
+        XCTAssertEqual(Scales.chordVariants.map { $0[0].name }, ["Scale", "Scale", "Scale"])
     }
 
     func testRecordNotesMergeOverdubVelocity() {

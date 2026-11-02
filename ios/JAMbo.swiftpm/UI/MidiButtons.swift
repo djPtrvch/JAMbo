@@ -73,8 +73,8 @@ extension AppModel {
             keyDown(id: midiKeyId(name), notes: notes, velocity: 1)
             return
         }
-        if let n = MidiButtons.number(name, prefix: "CHORD TYPE "), n >= 1 && n <= Scales.chordParts.count {
-            toggleChordPart(n - 1)
+        if let n = MidiButtons.number(name, prefix: "CHORD TYPE "), n >= 1 && n <= Scales.chordKinds.count {
+            setChordKind(n - 1)
             return
         }
         if let n = MidiButtons.number(name, prefix: "STEP "), n >= 1 && n <= 16 {

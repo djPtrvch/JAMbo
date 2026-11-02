@@ -12,7 +12,7 @@ struct KeyHold {
     var arrLive: Int? = nil
 }
 
-/// Меню выбора (SCALE, ROOT): пункты, столбцы, выбранный, рамка поля (в координатах экрана).
+/// Меню выбора (SCALE, ROOT, VARIANT): пункты, столбцы, выбранный, рамка поля (в координатах экрана).
 struct ChoiceState {
     let options: [String]
     let columns: Int
@@ -46,11 +46,16 @@ extension AppModel {
         publishAudio()
     }
 
-    /// Часть аккорда k (TRIAD, 7th, 9th) — вкл./выкл.; последнюю включённую не снять.
-    func toggleChordPart(_ k: Int) {
-        if k < 0 || k >= Scales.chordParts.count { return }
-        let m: Int = chordParts[selectedTrack] ^ (1 << k)
-        if m != 0 { chordParts[selectedTrack] = m }
+    func setChordKind(_ k: Int) {
+        chordKind[selectedTrack] = min(Scales.chordKinds.count - 1, max(0, k))
+    }
+
+    /// Вариант выбранного вида аккорда (по кругу).
+    var chordVariantNow: Int { return chordVariant[selectedTrack][chordKind[selectedTrack]] }
+
+    func setChordVariant(_ v: Int) {
+        let k: Int = chordKind[selectedTrack]
+        chordVariant[selectedTrack][k] = Scales.wrap(v, Scales.chordVariants[k].count)
     }
 
     func toggleChord() {
@@ -66,7 +71,8 @@ extension AppModel {
     /// Верхняя октава клавиатуры выбранной дорожки (ноты не выше 127).
     var topOctave: Int {
         return Scales.topOctave(scale: project.scale, root: project.root, octaves: settings.pianoOctaves,
-                                chord: chordMode[selectedTrack], parts: chordParts[selectedTrack])
+                                chord: chordMode[selectedTrack], kind: chordKind[selectedTrack],
+                                variant: chordVariantNow)
     }
 
     var keyCount: Int {
@@ -78,12 +84,12 @@ extension AppModel {
         return Scales.note(scale: project.scale, root: project.root, octave: octave, degree: k)
     }
 
-    /// Что играет клавиша k: нота или (CHORD) аккорд из выбранных частей от неё.
+    /// Что играет клавиша k: нота или (CHORD) аккорд выбранного вида и варианта от неё.
     func keyNotes(_ k: Int) -> [Int]? {
         if k >= keyCount { return nil }
         if chordMode[selectedTrack] {
             return Scales.chord(scale: project.scale, root: project.root, octave: octave, degree: k,
-                                parts: chordParts[selectedTrack])
+                                kind: chordKind[selectedTrack], variant: chordVariantNow)
         }
         return [keyNote(k)]
     }

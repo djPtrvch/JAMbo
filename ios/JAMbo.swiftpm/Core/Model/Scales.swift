@@ -1,9 +1,20 @@
-// Гаммы, части аккордов, ноты клавиатуры и аккорды (как SCALES, PROGRESSIONS, scaleNotes, chordOnDegree в вебе).
+// Гаммы, виды и варианты аккордов, ноты клавиатуры и аккорды (как SCALES, PROGRESSIONS, scaleNotes, chordOnDegree в вебе).
 
 public struct Scale: Sendable {
     public let name: String
     public let short: String
     public let steps: [Int]
+}
+
+public struct ChordVariant: Sendable {
+    public let name: String
+    /// Полутоны от ноты клавиши; пусто — по гамме.
+    public let intervals: [Int]
+
+    public init(_ name: String, _ intervals: [Int]) {
+        self.name = name
+        self.intervals = intervals
+    }
 }
 
 public enum Scales {
@@ -21,8 +32,21 @@ public enum Scales {
         Scale(name: "Chromatic", short: "Chr", steps: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]),
     ]
 
-    /// Части аккорда строки под клавишами (CHORD; выбираются в любом сочетании, бит k — пункт k).
-    public static let chordParts: [String] = ["TRIAD", "7th", "9th"]
+    /// Виды аккорда строки под клавишами (CHORD; выбирается один): базовые трезвучия, септаккорды, расширенные.
+    public static let chordKinds: [String] = ["TRIAD", "7th", "9th"]
+
+    /// Варианты каждого вида (поле VARIANT): SCALE — по гамме, остальные — интервалы в полутонах от ноты клавиши.
+    public static let chordVariants: [[ChordVariant]] = [
+        [ChordVariant("Scale", []), ChordVariant("Maj", [0, 4, 7]), ChordVariant("Min", [0, 3, 7]),
+         ChordVariant("Dim", [0, 3, 6]), ChordVariant("Aug", [0, 4, 8]), ChordVariant("Sus2", [0, 2, 7]),
+         ChordVariant("Sus4", [0, 5, 7])],
+        [ChordVariant("Scale", []), ChordVariant("Maj7", [0, 4, 7, 11]), ChordVariant("7", [0, 4, 7, 10]),
+         ChordVariant("m7", [0, 3, 7, 10]), ChordVariant("m7b5", [0, 3, 6, 10]), ChordVariant("dim7", [0, 3, 6, 9]),
+         ChordVariant("mMaj7", [0, 3, 7, 11]), ChordVariant("7sus4", [0, 5, 7, 10])],
+        [ChordVariant("Scale", []), ChordVariant("Maj9", [0, 4, 7, 11, 14]), ChordVariant("9", [0, 4, 7, 10, 14]),
+         ChordVariant("m9", [0, 3, 7, 10, 14]), ChordVariant("add9", [0, 4, 7, 14]), ChordVariant("m(add9)", [0, 3, 7, 14]),
+         ChordVariant("7b9", [0, 4, 7, 10, 13]), ChordVariant("7#9", [0, 4, 7, 10, 15])],
+    ]
 
     /// Октава клавиатуры: 0…7, по умолчанию 2 (C2).
     public static let octaveMin = 0
@@ -53,30 +77,36 @@ public enum Scales {
         return min(maxKeys, all[wrap(scale, all.count)].steps.count * octaves + 1)
     }
 
-    /// Верхняя октава клавиатуры, при которой самая высокая нота (с CHORD — верх аккорда с частями parts верхней
-    /// клавиши) не выше 127: выше пианоролл её не показывает и MIDI не отправляет.
-    public static func topOctave(scale: Int, root: Int, octaves: Int, chord: Bool, parts: Int = 1) -> Int {
-        let span: Int = chord ? chordSpan(parts) : 0
-        let last: Int = keyCount(scale: scale, octaves: octaves) - 1 + span
+    /// Верхняя октава клавиатуры, при которой самая высокая нота (с CHORD — верх аккорда верхней клавиши) не выше
+    /// 127: выше пианоролл её не показывает и MIDI не отправляет.
+    public static func topOctave(scale: Int, root: Int, octaves: Int, chord: Bool, kind: Int = 0, variant: Int = 0) -> Int {
+        let last: Int = keyCount(scale: scale, octaves: octaves) - 1
         var o: Int = octaveMax
-        while o > octaveMin && note(scale: scale, root: root, octave: o, degree: last) > 127 { o -= 1 }
+        while o > octaveMin {
+            let top: Int = chord
+                ? (Scales.chord(scale: scale, root: root, octave: o, degree: last, kind: kind, variant: variant).max() ?? 0)
+                : note(scale: scale, root: root, octave: o, degree: last)
+            if top <= 127 { break }
+            o -= 1
+        }
         return o
     }
 
-    /// Аккорд от ступени degree (ноты гаммы через одну): основной тон и части по маске parts — бит 0 TRIAD (терция
-    /// и квинта), бит 1 7th (септима), бит 2 9th (нона); сочетания любые (TRIAD + 9th — add9, 7th + 9th без TRIAD…).
-    public static func chord(scale: Int, root: Int, octave: Int, degree: Int, parts: Int = 1) -> [Int] {
-        var offsets: [Int] = [0]
-        if parts & 1 != 0 { offsets += [2, 4] }
-        if parts & 2 != 0 { offsets.append(6) }
-        if parts & 4 != 0 { offsets.append(8) }
-        return offsets.map { note(scale: scale, root: root, octave: octave, degree: degree + $0) }
-    }
-
-    /// Ступеней гаммы от основного тона до верхней ноты аккорда с маской parts.
-    public static func chordSpan(_ parts: Int) -> Int {
-        if parts & 4 != 0 { return 8 }
-        if parts & 2 != 0 { return 6 }
-        return parts & 1 != 0 ? 4 : 0
+    /// Аккорд клавиши: ступень degree, вид kind (TRIAD, 7th, 9th) и вариант variant (chordVariants[kind]). Вариант 0
+    /// SCALE — ноты гаммы через одну (3, 4 или 5 нот); остальные — свои интервалы от ноты клавиши (одинаковые на всех
+    /// клавишах, мимо гаммы).
+    public static func chord(scale: Int, root: Int, octave: Int, degree: Int, kind: Int = 0, variant: Int = 0) -> [Int] {
+        let kd: Int = min(chordKinds.count - 1, max(0, kind))
+        let vs: [ChordVariant] = chordVariants[kd]
+        let v: ChordVariant = vs[min(vs.count - 1, max(0, variant))]
+        let base: Int = note(scale: scale, root: root, octave: octave, degree: degree)
+        if !v.intervals.isEmpty { return v.intervals.map { base + $0 } }
+        var out: [Int] = []
+        var i: Int = 0
+        while i < 3 + kd {
+            out.append(note(scale: scale, root: root, octave: octave, degree: degree + 2 * i))
+            i += 1
+        }
+        return out
     }
 }
