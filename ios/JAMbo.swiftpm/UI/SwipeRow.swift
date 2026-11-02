@@ -47,8 +47,7 @@ struct SwipeRow: View {
             actions.opacity(offset < -1 ? 1 : 0)
             label
                 .padding(.trailing, max(0, -offset))
-                .gesture(swipe)
-                .gesture(hold)
+                .gesture(gesture)
                 .onTapGesture {
                     if open { close() } else { tap() }
                 }
@@ -108,17 +107,17 @@ struct SwipeRow: View {
         .buttonStyle(.plain)
     }
 
-    /// Горизонтальный свайп (вертикальный — прокрутка списка, HorizontalSwipe).
-    private var swipe: HorizontalSwipe {
-        HorizontalSwipe(changed: { dx in
+    /// Свайп вбок и удержание (перетаскивание) — одним распознавателем; вертикальное движение — прокрутка списка.
+    private var gesture: RowGesture {
+        RowGesture(swipeChanged: { dx in
             let base: CGFloat = open ? -reveal : 0
             let x: CGFloat = base + dx
             offset = min(0, max(-reveal - 24, x))
-        }, ended: {
+        }, swipeEnded: {
             let show: Bool = offset < -reveal / 2
             open = show
             withAnimation(.easeOut(duration: 0.2)) { offset = show ? -reveal : 0 }
-        })
+        }, hold: hold)
     }
 
     private func close() {
