@@ -19,6 +19,8 @@ struct LibraryBrowser: View {
     @State private var name: String = ""
     @State private var overwrite: LibNode? = nil
     @State private var confirmId: String = ""
+    /// Перетаскивание своих папок (порядок).
+    @State private var reorder = ReorderState()
     /// EXPORT: готовый временный файл (окно сохранения в «Файлы»).
     @State private var exported: URL? = nil
     /// Левый край строки заголовка («root»).
@@ -99,22 +101,31 @@ struct LibraryBrowser: View {
                 Text(emptyText).font(.system(size: 12)).foregroundStyle(theme.dim)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading).padding(10)
             } else {
-                MenuScroll { rows(items) }.padding(6)
+                MenuScroll { rows(items) }.scrollDisabled(reorder.active).padding(6)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
     }
 
+    /// Строки; свои папки — удержание и перетаскивание меняют их порядок (как пресеты EQ).
     private func rows(_ items: [LibNode]) -> some View {
-        VStack(spacing: 4) {
+        let folders: [String] = model.libMovableFolders.map { $0.id }
+        return VStack(spacing: 4) {
             ForEach(items, id: \.id) { n in
-                LibRow(model: model, node: n, confirm: confirmId == n.id, rename: { ask(.rename(n.id), n.name) },
-                       delete: { delete(n) })
-                    .id("\(n.id)#\(n.name)#\(n.updated)")
+                row(n, folders.firstIndex(of: n.id), folders.count)
             }
         }
         .padding(.trailing, 6)
+    }
+
+    private func row(_ n: LibNode, _ k: Int?, _ count: Int) -> AnyView {
+        let r: LibRow = LibRow(model: model, node: n, confirm: confirmId == n.id, rename: { ask(.rename(n.id), n.name) },
+                               delete: { delete(n) }, reorder: reorder)
+        let id: String = "\(n.id)#\(n.name)#\(n.updated)#\(n.order ?? -1)"
+        guard let k = k, model.libPicked == nil else { return AnyView(r.id(id)) }
+        return AnyView(r.modifier(ReorderDrag(index: k, count: count, state: reorder) { model.libMoveFolder($0, to: $1) })
+            .id(id))
     }
 
     private var saveBar: some View {
