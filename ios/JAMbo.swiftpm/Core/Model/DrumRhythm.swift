@@ -28,8 +28,8 @@ public enum DrumRhythm {
         }
     }
 
-    /// Стили ритма (у дорожки — Track.drumStyle): HOUSE, BREAKS, D&B, TRAP, AFRO, MINIMAL.
-    public static let styles: [String] = ["HOUSE", "BREAKS", "D&B", "TRAP", "AFRO", "MINIMAL"]
+    /// Стили ритма (у дорожки — Track.drumStyle); подписи — как у типов аккорда (с заглавной).
+    public static let styles: [String] = ["House", "Breaks", "D&B", "Trap", "Afro", "Minimal"]
 
     public static func styleIndex(_ s: Int) -> Int { return Swift.max(0, Swift.min(styles.count - 1, s)) }
 

@@ -17,7 +17,7 @@ final class DrumRhythmTests: XCTestCase {
 
     func testBaseRules() {
         var g = SystemRandomNumberGenerator()
-        XCTAssertEqual(DrumRhythm.styles, ["HOUSE", "BREAKS", "D&B", "TRAP", "AFRO", "MINIMAL"])
+        XCTAssertEqual(DrumRhythm.styles, ["House", "Breaks", "D&B", "Trap", "Afro", "Minimal"])
         for _ in 0..<300 {
             for st in 0..<DrumRhythm.styles.count {
                 let k = DrumRhythm.base(.kick, style: st, len: 16, using: &g)

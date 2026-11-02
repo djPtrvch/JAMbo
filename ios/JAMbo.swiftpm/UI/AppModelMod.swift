@@ -54,21 +54,15 @@ extension AppModel {
 
     func latched(_ page: GridPage) -> Bool { return page == .fx ? settings.latchFx : settings.latchMod }
 
-    /// Нажатие FX или MOD. SHIFT + двойной тап — режим toggle кнопки (и обратно); в режиме toggle тап включает
-    /// страницу, следующий — выключает, включённая toggle-кнопка выключает другую; иначе — удержание.
+    /// Нажатие FX или MOD. SHIFT + тап — режим toggle кнопки (и обратно); в режиме toggle тап включает страницу,
+    /// следующий — выключает, включённая toggle-кнопка выключает другую; иначе — удержание.
     func pagePress(_ page: GridPage) {
         if shiftHeld {
-            let now = Date()
-            if let l = lastPageTap, l.page == page, now.timeIntervalSince(l.at) < 0.35 {
-                lastPageTap = nil
-                let on = !latched(page)
-                updateSettings { s in
-                    if page == .fx { s.latchFx = on } else { s.latchMod = on }
-                }
-                if !on { setPageHeld(page, false) }
-            } else {
-                lastPageTap = (page, now)
+            let on = !latched(page)
+            updateSettings { s in
+                if page == .fx { s.latchFx = on } else { s.latchMod = on }
             }
+            if !on { setPageHeld(page, false) }
             return
         }
         if latched(page) {
@@ -137,20 +131,14 @@ extension AppModel {
         }
     }
 
-    /// Нажатие MORPH. SHIFT + двойной тап — MORPH ALL TRACKS вкл./выкл. (как SETTINGS → MORPH → ALL TRACKS; решение
+    /// Нажатие MORPH. SHIFT + тап — MORPH ALL TRACKS вкл./выкл. (как SETTINGS → MORPH → ALL TRACKS; решение
     /// пользователя), сам режим MORPH при этом не переключается.
     func morphPress() {
         morphHeld = true
         morphUsed = false
         guard shiftHeld else { return }
         morphUsed = true
-        let now = Date()
-        if let l = lastMorphShiftTap, now.timeIntervalSince(l) < 0.35 {
-            lastMorphShiftTap = nil
-            setMorphAll(!settings.morphAll)
-        } else {
-            lastMorphShiftTap = now
-        }
+        setMorphAll(!settings.morphAll)
     }
 
     func morphRelease() {

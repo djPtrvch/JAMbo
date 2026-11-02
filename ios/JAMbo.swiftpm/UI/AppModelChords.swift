@@ -34,6 +34,17 @@ extension AppModel {
         if drumTrack { setDrumStyle(k) } else { setChordKind(k) }
     }
 
+    /// Номер выбранного типа (на ударной дорожке — стиля) и их число: для свайпа по CHORD.
+    var chordTypeIndex: Int { return drumTrack ? track.drumStyle : chordKind[selectedTrack] }
+    var chordTypeCount: Int { return drumTrack ? DrumRhythm.styles.count : Scales.chordKinds.count }
+
+    /// Свайп по CHORD вверх-вниз: тип (стиль) от исходного base на delta (вверх — следующий), без круга; стиль —
+    /// одна запись UNDO на жест.
+    func chordSwipe(base: Int, delta: Int) {
+        let k: Int = max(0, min(chordTypeCount - 1, base + delta))
+        if k != chordTypeIndex { chooseChordType(k) }
+    }
+
     /// Подписи клавиш в режиме CHORD: аккорд и римская ступень («Em · i»).
     func chordKeyLabel(_ k: Int) -> String {
         return Chords.keyLabel(scale: project.scale, root: project.root, octave: octave, degree: k,

@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Окно CHORD (долгое нажатие на CHORD): 6 типов аккорда, на ударной дорожке — 6 стилей ритма (выбор сразу, окно
-/// остаётся). Как меню бутерброда под
+/// Окно CHORD (долгое нажатие на CHORD): 6 типов аккорда, на ударной дорожке — 6 стилей ритма (тап — выбор, окно
+/// закрывается). Как меню бутерброда под
 /// CHORD: правее кнопки, снизу вверх, шириной 4 шага; закрывается тапом мимо окна.
 struct ChordMenu: View {
     let model: AppModel
@@ -38,7 +38,12 @@ struct ChordMenu: View {
         return LazyVGrid(columns: cols, spacing: 6) {
             ForEach(0..<names.count, id: \.self) { c in
                 InkButton(title: names[c], active: c == cur, height: 44) {
-                    if model.midiLearn.on { model.learnTap(.button("CHORD TYPE \(c + 1)")) } else { model.chooseChordType(c) }
+                    if model.midiLearn.on {
+                        model.learnTap(.button("CHORD TYPE \(c + 1)"))
+                    } else {
+                        model.chooseChordType(c)
+                        model.chordMenuOpen = false
+                    }
                 }
                 .midiMarks(model, [.button("CHORD TYPE \(c + 1)")])
             }
