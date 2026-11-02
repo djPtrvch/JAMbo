@@ -165,7 +165,9 @@
 - SETTINGS → APPEARANCE → MASTER FX DISPLAY SCALE: 48 / 32 / 16 dB (AppSettings.displayScale → MasterDraw.scale).
 - Окна SAT, COMP, CLIP: черта в строке полей — над правым краем TRANSFER (MasterStrip.leadFields); SAT — TRANSFER и SPECTRUM слитно.
 - Кража голоса синта — самый тихий голос, τ 2,5 мс, нота через 18 мс; быстрое гашение перекрывает медленное (тест ChordStealTests). KICK: DRIVE плавно по отсчётам (KickDriveTests).
-- DELETE в меню страницы — только эта страница (Track.deletePages single). SAVE DEFAULT EQ — только у мастера. Имя своей таблицы WTABLE (AppModel.tableName). Порядок папок библиотеки (LibNode.order, Library.moveFolder; LibraryFolderOrderTests).
+- DELETE в меню страницы — только эта страница (Track.deletePages single). SAVE DEFAULT EQ — только у мастера. Имя своей таблицы WTABLE (AppModel.tableName).
+- Порядок своих папок библиотеки перетаскиванием сделан и откатан (решение пользователя): в прокручиваемом списке iOS 18 жест строки и прокрутка мешают друг другу — пробовали LongPressGesture + DragGesture, удержание UIKit, системный drag & drop, свою прокрутку; каждое ломало либо перетаскивание, либо прокрутку, либо раскладку. Пресеты EQ и модулей мастера — как раньше.
+- Облегчение сборки (2.11): отложенные вызовы — Later.run / Later.every вместо Task + sleep (−11 тыс. инструкций IR), кнопки меню списком в 8 меню (−4 тыс.); итог 1,633 млн (было 1,649).
 
 ## Проверено
 S14w — на iPad; CoreTests — 304 (новые: EngineIconTests — testPreviewsMatchPrototype, testGridFiniteInField, testEachKnobChangesIcon, testTableFrame; testApplyKnobsToAllPages, testFeedbackFollowsResolveAcrossInputs; убраны прежние тесты иконок веба). S14v — на iPad. S14a — тесты Core (HeavyLoadTests), DIAGNOSTICS на iPad. CoreTests — 298 (S14a: testHeavyProjectProfile, testProfileOffAndOn); 296 (новые: testMoveRow, testPasteTrackKeepsOwnPatterns, testClipSpeed, testQueuedClipAfterSlowClip, testSameNameIgnoresAudioExtension).
