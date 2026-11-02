@@ -164,8 +164,6 @@ struct ReorderDrag: ViewModifier {
     /// Шаг строк: высота строки и зазор.
     var pitch: CGFloat = 48
     let move: (Int, Int) -> Void
-    /// Касание идёт (сбрасывается и при отмене жеста — тогда строка встаёт, куда дотянули).
-    @GestureState private var touching: Bool = false
 
     func body(content: Content) -> some View {
         let lifted: Bool = state.from == index
@@ -176,24 +174,21 @@ struct ReorderDrag: ViewModifier {
             .offset(y: y)
             .zIndex(lifted ? 1 : 0)
             .animation(lifted ? nil : .easeOut(duration: 0.15), value: y)
-            .simultaneousGesture(gesture)
-            .onChange(of: touching) { _, t in if !t { finish() } }
+            .gesture(drag)
     }
 
-    private var gesture: some Gesture {
-        LongPressGesture(minimumDuration: 0.4)
-            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .global))
-            .updating($touching) { _, s, _ in s = true }
-            .onChanged { v in
-                switch v {
-                case .second(true, let d):
-                    if state.from < 0 { state.from = index }
-                    if state.from == index { state.dy = d?.translation.height ?? 0 }
-                default:
-                    break
-                }
+    /// Удержание 0,4 с (UIKit) — строка поднимается; дальше едет за пальцем.
+    private var drag: HoldDrag {
+        let s: ReorderState = state
+        let k: Int = index
+        return HoldDrag(began: {
+            if s.from < 0 {
+                s.from = k
+                s.dy = 0
             }
-            .onEnded { _ in finish() }
+        }, changed: { dy in
+            if s.from == k { s.dy = dy }
+        }, ended: { finish() })
     }
 
     private func finish() {

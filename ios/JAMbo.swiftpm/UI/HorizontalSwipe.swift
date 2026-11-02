@@ -41,3 +41,51 @@ struct HorizontalSwipe: UIGestureRecognizerRepresentable {
         }
     }
 }
+
+/// Удержание и перетаскивание строки в прокручиваемом списке (порядок пресетов и папок, ReorderDrag): распознаватель
+/// удержания UIKit (0,4 с, палец почти на месте) — пока оно не сработало, касание достаётся прокрутке; после —
+/// сдвиг пальца по вертикали от точки удержания. DragGesture SwiftUI (даже после LongPressGesture) внутри ScrollView
+/// (iOS 18) забирает касание — список не прокручивается.
+struct HoldDrag: UIGestureRecognizerRepresentable {
+    let began: () -> Void
+    /// Сдвиг пальца по вертикали от точки удержания.
+    let changed: (CGFloat) -> Void
+    let ended: () -> Void
+
+    func makeCoordinator(converter: CoordinateSpaceConverter) -> Coordinator {
+        return Coordinator()
+    }
+
+    func makeUIGestureRecognizer(context: Context) -> UILongPressGestureRecognizer {
+        let g = UILongPressGestureRecognizer()
+        g.minimumPressDuration = 0.4
+        g.allowableMovement = 10
+        g.delegate = context.coordinator
+        return g
+    }
+
+    func handleUIGestureRecognizerAction(_ g: UILongPressGestureRecognizer, context: Context) {
+        let y: CGFloat = g.location(in: nil).y
+        switch g.state {
+        case .began:
+            context.coordinator.y0 = y
+            began()
+        case .changed:
+            changed(y - context.coordinator.y0)
+        case .ended, .cancelled, .failed:
+            ended()
+        default:
+            break
+        }
+    }
+
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        var y0: CGFloat = 0
+
+        /// Вместе с жестами строки (тап, удержание, свайп), но не с прокруткой списка.
+        func gestureRecognizer(_ g: UIGestureRecognizer,
+                               shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
+            return !(other.view is UIScrollView)
+        }
+    }
+}
