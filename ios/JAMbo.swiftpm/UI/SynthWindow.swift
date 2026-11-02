@@ -84,7 +84,7 @@ struct SynthIcon: View {
     let engine: Int
     @State private var motion = IconMotion()
     @State private var animating = false
-    @State private var stopTask: Task<Void, Never>? = nil
+    @State private var stopTask: LaterTask? = nil
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -134,9 +134,8 @@ struct SynthIcon: View {
     private func run(_ seconds: Double) {
         animating = true
         stopTask?.cancel()
-        stopTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: UInt64(seconds * 1e9))
-            if !Task.isCancelled { animating = false }
+        stopTask = Later.run(seconds) {
+            animating = false
         }
     }
 

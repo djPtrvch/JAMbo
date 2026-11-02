@@ -38,9 +38,7 @@ extension AppModel {
         fxPicCol = slot % 4
         fxMidiShow = true
         fxMidiTask?.cancel()
-        fxMidiTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: 500_000_000)
-            if Task.isCancelled { return }
+        fxMidiTask = Later.run(0.5) { [weak self] in
             self?.fxMidiShow = false
         }
     }

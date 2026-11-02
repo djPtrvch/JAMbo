@@ -164,8 +164,7 @@ extension AppModel {
 
     func deny(_ c: CellRef) {
         deniedCell = c
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 400_000_000)
+        Later.run(0.4) {
             if self.deniedCell == c { self.deniedCell = nil }
         }
     }

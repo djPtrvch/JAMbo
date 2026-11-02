@@ -9,7 +9,7 @@ struct PagesColumn: View {
     @State private var press: PagePress? = nil
     /// Отпущенная перенесённая страница: уже на новом месте, плавно встаёт из-под пальца (сдвиг dy → 0).
     @State private var landing: (row: Int, dy: CGFloat)? = nil
-    @State private var tapTask: Task<Void, Never>? = nil
+    @State private var tapTask: LaterTask? = nil
     @State private var lastTap: (row: Int, at: Date)? = nil
     @State private var rowStep: CGFloat = 50
     @State private var columnHeight: CGFloat = 400
@@ -128,8 +128,7 @@ struct PagesColumn: View {
         press = p
         let started: Date = p.t0
         let nearEdge: Bool = edgeDistance(y, step: step) < 0.25 * (step - 4)
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 450_000_000)
+        Later.run(0.45) {
             guard var cur = press, cur.t0 == started, !cur.moved, !cur.plus, !nearEdge else { return }
             cur.held = true
             // Страница открыта в секвенсоре и поднята: протягивание переносит её.
@@ -220,8 +219,7 @@ struct PagesColumn: View {
             landing = (p.liftTo, dy)
             if p.liftTo != p.row { model.movePage(p.row, p.liftTo) }
         }
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 20_000_000)
+        Later.run(0.02) {
             withAnimation(.easeOut(duration: 0.18)) { landing = nil }
         }
     }
@@ -236,9 +234,7 @@ struct PagesColumn: View {
         }
         lastTap = (r, Date())
         tapTask?.cancel()
-        tapTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 300_000_000)
-            if Task.isCancelled { return }
+        tapTask = Later.run(0.3) {
             model.playPages(r, r)
         }
     }

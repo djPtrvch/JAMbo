@@ -472,8 +472,7 @@ extension AppModel {
         if !ok {
             // Нота уже у другого маркера — не назначается: флажок на 0,5 с красный.
             refusedFlag = (idx, Date.timeIntervalSinceReferenceDate + 0.5)
-            Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 500_000_000)
+            Later.run(0.5) {
                 self.refusedFlag = (-1, 0)
             }
         }

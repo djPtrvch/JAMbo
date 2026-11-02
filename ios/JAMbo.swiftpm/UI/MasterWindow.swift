@@ -217,7 +217,7 @@ struct MasterField: View {
     @State private var moved: Bool = false
     @State private var lastTap: Date = .distantPast
     /// Отложенный одиночный тап (ждёт, не будет ли второго).
-    @State private var tapTask: Task<Void, Never>? = nil
+    @State private var tapTask: LaterTask? = nil
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -277,9 +277,7 @@ struct MasterField: View {
         }
         lastTap = now
         guard let t = tap else { return }
-        tapTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 330_000_000)
-            if Task.isCancelled { return }
+        tapTask = Later.run(0.33) {
             t()
         }
     }
@@ -318,8 +316,7 @@ struct NameClashAlert: ViewModifier {
     /// Окно ввода — после закрытия этого (два alert подряд в одном кадре SwiftUI не показывает).
     private func reopen(_ c: NameClash) {
         clash = nil
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 300_000_000)
+        Later.run(0.3) {
             again(c)
         }
     }
@@ -338,8 +335,7 @@ struct GestureCancelGuard: ViewModifier {
                 if d { return }
                 // Чуть позже: при обычном конце жеста сначала срабатывает его onEnded.
                 let c: () -> Void = cleanup
-                Task { @MainActor in
-                    try? await Task.sleep(nanoseconds: 60_000_000)
+                Later.run(0.06) {
                     c()
                 }
             }

@@ -122,7 +122,7 @@ struct SyncOffsetRow: View {
 struct RepeatArrow: View {
     let title: String
     let action: () -> Void
-    @State private var task: Task<Void, Never>? = nil
+    @State private var task: LaterTask? = nil
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -146,12 +146,10 @@ struct RepeatArrow: View {
 
     private func begin() {
         action()
-        task = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 350_000_000)
-            while !Task.isCancelled {
-                action()
-                try? await Task.sleep(nanoseconds: 50_000_000)
-            }
+        let a: () -> Void = action
+        task = Later.every(0.05, first: 0.35) {
+            a()
+            return true
         }
     }
 }

@@ -15,8 +15,7 @@ extension AppModel {
     /// SAVED на кнопке SAVE DEFAULT — на секунду.
     func flashDefault(_ what: DefaultSaved) {
         defaultSaved = what
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 1_000_000_000)
+        Later.run(1.0) {
             if self.defaultSaved == what { self.defaultSaved = nil }
         }
     }
@@ -74,8 +73,7 @@ extension AppModel {
             if let c = c, let cv = cv { d.values[KnobDefaults.key(scope, c)] = cv }
         }
         defaultFlash = slot
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 1_000_000_000)
+        Later.run(1.0) {
             if self.defaultFlash == slot { self.defaultFlash = nil }
         }
     }

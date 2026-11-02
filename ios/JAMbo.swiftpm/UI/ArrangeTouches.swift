@@ -140,55 +140,61 @@ final class ArrTouches {
 
     /// Рамка у края окна (40 pt) — таймлайн прокручивается (по времени; в EXPANDED — и по дорожкам), рамка тянется.
     private func marqueeScroll(_ model: AppModel, _ mine: Int) {
-        Task { @MainActor [weak self] in
-            while true {
-                try? await Task.sleep(nanoseconds: 33_000_000)
-                guard let me = self, me.serial == mine, me.mode == .marquee else { return }
-                let size: CGSize = me.marqueeSize
-                let pt: CGPoint = me.lastPoint
-                var dx: CGFloat = 0
-                var dy: CGFloat = 0
-                if pt.x < 40 { dx = -14 } else if pt.x > size.width - 40 { dx = 14 }
-                if pt.y < ArrMetrics.top + 20 { dy = -10 } else if pt.y > size.height - model.arrInset - 30 { dy = 10 }
-                if dx == 0 && dy == 0 { continue }
-                var port: ArrPort = model.arrPort
-                port.x = max(0, port.x + dx)
-                port.y = max(0, port.y + dy)
-                let p: Project = model.project
-                let m = ArrMetrics(size: size, port: port, tracks: p.tracks.count, end: model.arrViewEnd,
-                                   expanded: model.settings.arrangeExpanded, inset: model.arrInset, ref: model.arrRefShown)
-                port.x = m.x
-                port.y = m.y
-                if port == model.arrPort { continue }
-                model.arrPort = port
-                me.marquee(pt, m, model)
-            }
+        Later.every(0.033) { [weak self] in
+            guard let me = self, me.serial == mine, me.mode == .marquee else { return false }
+            me.marqueeTick(model)
+            return true
         }
+    }
+
+    /// Шаг прокрутки рамки у края окна (каждые 33 мс).
+    private func marqueeTick(_ model: AppModel) {
+        let size: CGSize = marqueeSize
+        let pt: CGPoint = lastPoint
+        var dx: CGFloat = 0
+        var dy: CGFloat = 0
+        if pt.x < 40 { dx = -14 } else if pt.x > size.width - 40 { dx = 14 }
+        if pt.y < ArrMetrics.top + 20 { dy = -10 } else if pt.y > size.height - model.arrInset - 30 { dy = 10 }
+        if dx == 0 && dy == 0 { return }
+        var port: ArrPort = model.arrPort
+        port.x = max(0, port.x + dx)
+        port.y = max(0, port.y + dy)
+        let p: Project = model.project
+        let m = ArrMetrics(size: size, port: port, tracks: p.tracks.count, end: model.arrViewEnd,
+                           expanded: model.settings.arrangeExpanded, inset: model.arrInset, ref: model.arrRefShown)
+        port.x = m.x
+        port.y = m.y
+        if port == model.arrPort { return }
+        model.arrPort = port
+        marquee(pt, m, model)
     }
 
     /// Выделение на линейке (и края, плейхед) у края окна (40 pt) — таймлайн прокручивается по времени, выделение
     /// тянется за ним (решение пользователя).
     private func rulerScroll(_ model: AppModel, _ size: CGSize, _ mine: Int) {
-        Task { @MainActor [weak self] in
-            while true {
-                try? await Task.sleep(nanoseconds: 33_000_000)
-                guard let me = self, me.serial == mine, me.mode == .ruler else { return }
-                if !me.ruler.dragging { continue }
-                let pt: CGPoint = me.lastPoint
-                var dx: CGFloat = 0
-                if pt.x < 40 { dx = -14 } else if pt.x > size.width - 40 { dx = 14 }
-                if dx == 0 { continue }
-                var port: ArrPort = model.arrPort
-                port.x = max(0, port.x + dx)
-                let p: Project = model.project
-                let m = ArrMetrics(size: size, port: port, tracks: p.tracks.count, end: model.arrViewEnd,
-                                   expanded: model.settings.arrangeExpanded, inset: model.arrInset, ref: model.arrRefShown)
-                port.x = m.x
-                if port == model.arrPort { continue }
-                model.arrPort = port
-                me.ruler.move(pt, &port, m, model)
-            }
+        Later.every(0.033) { [weak self] in
+            guard let me = self, me.serial == mine, me.mode == .ruler else { return false }
+            me.rulerTick(model, size)
+            return true
         }
+    }
+
+    /// Шаг прокрутки выделения на линейке у края окна (каждые 33 мс).
+    private func rulerTick(_ model: AppModel, _ size: CGSize) {
+        if !ruler.dragging { return }
+        let pt: CGPoint = lastPoint
+        var dx: CGFloat = 0
+        if pt.x < 40 { dx = -14 } else if pt.x > size.width - 40 { dx = 14 }
+        if dx == 0 { return }
+        var port: ArrPort = model.arrPort
+        port.x = max(0, port.x + dx)
+        let p: Project = model.project
+        let m = ArrMetrics(size: size, port: port, tracks: p.tracks.count, end: model.arrViewEnd,
+                           expanded: model.settings.arrangeExpanded, inset: model.arrInset, ref: model.arrRefShown)
+        port.x = m.x
+        if port == model.arrPort { return }
+        model.arrPort = port
+        ruler.move(pt, &port, m, model)
     }
 
     /// Рамка до пальца: выделены блоки, которых она касается (начало — на своём месте таймлайна при прокрутке).

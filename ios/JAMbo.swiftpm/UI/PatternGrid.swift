@@ -260,8 +260,7 @@ struct PatternGrid: View {
         gp.top0 = model.gridWindow.top
         presses[id] = gp
         let started = gp.t0
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: UInt64(PatternGrid.hold * 1e9))
+        Later.run(PatternGrid.hold) {
             guard var cur = presses[id], cur.t0 == started, !cur.moved, dragId != id else { return }
             cur.held = true
             presses[id] = cur
@@ -380,23 +379,21 @@ struct PatternGrid: View {
     /// Рамка у верхнего или нижнего края сетки (полстроки) — окно строк прокручивается на строку каждые 0,25 с,
     /// если там есть ещё строки.
     private func autoScroll(_ g: GridGeometry, _ id: SpatialEventCollection.Event.ID) {
-        Task { @MainActor in
-            while bandId == id {
-                try? await Task.sleep(nanoseconds: 250_000_000)
-                guard bandId == id else { return }
-                let w = model.gridWindow
-                let edge: CGFloat = g.rowH / 2
-                var top: Int = w.top
-                if bandLoc.y < edge && top > 0 {
-                    top -= 1
-                } else if bandLoc.y > g.size.height - edge && top < w.maxTop {
-                    top += 1
-                }
-                if top != w.top {
-                    model.gridTop = top
-                    stretchBand(g, to: bandLoc)
-                }
+        Later.every(0.25) {
+            guard bandId == id else { return false }
+            let w = model.gridWindow
+            let edge: CGFloat = g.rowH / 2
+            var top: Int = w.top
+            if bandLoc.y < edge && top > 0 {
+                top -= 1
+            } else if bandLoc.y > g.size.height - edge && top < w.maxTop {
+                top += 1
             }
+            if top != w.top {
+                model.gridTop = top
+                stretchBand(g, to: bandLoc)
+            }
+            return true
         }
     }
 

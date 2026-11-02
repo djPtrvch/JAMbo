@@ -170,8 +170,7 @@ struct KnobGrid: View {
     /// SHIFT + удержание ручки 1 с (решение пользователя) — запомнить её значение по умолчанию (тап при отпускании тогда
     /// не считается).
     private func armSave(_ id: SpatialEventCollection.Event.ID, _ s: Int) {
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 1_000_000_000)
+        Later.run(1.0) {
             guard var t = turns[id], t.shiftTap, model.shiftHeld else { return }
             t.shiftTap = false
             turns[id] = t
@@ -182,8 +181,7 @@ struct KnobGrid: View {
 
     /// Удержание ручки громкости 0,5 с без движения — она поднимается (перестановка дорожек).
     private func armLift(_ id: SpatialEventCollection.Event.ID, _ s: Int, _ p: CGPoint) {
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 500_000_000)
+        Later.run(0.5) {
             guard var t = turns[id], !t.moved, !t.consumed, lift == nil else { return }
             t.consumed = true
             turns[id] = t

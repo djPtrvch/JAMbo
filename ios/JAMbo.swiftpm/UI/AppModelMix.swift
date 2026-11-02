@@ -53,8 +53,7 @@ extension AppModel {
         mixDrop = drop
         mixDropDone = drop.isEmpty
         if !drop.isEmpty {
-            Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 30_000_000)
+            Later.run(0.03) {
                 self.mixDropDone = true
             }
         }

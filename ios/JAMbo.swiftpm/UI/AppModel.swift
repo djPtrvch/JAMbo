@@ -63,7 +63,7 @@ final class AppModel {
     /// Картинка FX в окне сэмпла: колонка (0–3) ручки FX, тронутой последней; поворот ручки FX с MIDI — показ на 0,5 с.
     var fxPicCol: Int = 0
     var fxMidiShow: Bool = false
-    @ObservationIgnored var fxMidiTask: Task<Void, Never>? = nil
+    @ObservationIgnored var fxMidiTask: LaterTask? = nil
     /// MORPH: режим включён; кнопка зажата; на удержании нажали UNDO (отпускание не переключает режим).
     var morph: Bool = false
     var morphHeld: Bool = false

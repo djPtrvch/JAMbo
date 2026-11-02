@@ -8,7 +8,7 @@ import SwiftUI
 /// MST — индикация мастера (MasterIndicator).
 struct SampleWindow: View {
     let model: AppModel
-    @State private var holdTask: Task<Void, Never>? = nil
+    @State private var holdTask: LaterTask? = nil
     @State private var heldOpen: Bool = false
     @State private var downY: CGFloat? = nil
     @State private var cache = PeakCache()
@@ -136,9 +136,7 @@ struct SampleWindow: View {
         heldOpen = false
         holdTask?.cancel()
         guard model.channel == .track, model.heldSteps.isEmpty, SynthKey.engine(model.track.sample) == nil else { return }
-        holdTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 500_000_000)
-            if Task.isCancelled { return }
+        holdTask = Later.run(0.5) {
             heldOpen = true
             model.openEditor()
         }

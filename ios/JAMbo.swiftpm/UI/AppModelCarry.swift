@@ -173,23 +173,27 @@ extension AppModel {
     /// Перенос над таймлайном у левого или правого края (40 pt; слева — и над заголовками) — таймлайн прокручивается
     /// (за концом аранжировки — ещё 32 такта места), пока палец там.
     func carryAutoScroll() {
-        Task { @MainActor in
-            while clipCarry?.overArrange == true {
-                try? await Task.sleep(nanoseconds: 33_000_000)
-                let f: CGRect = arrTimelineFrame
-                let pt: CGPoint = carryPoint
-                if f.width <= 0 || pt.y < f.minY || pt.y > f.maxY { continue }
-                var dx: CGFloat = 0
-                if pt.x < f.minX + 40 { dx = -14 } else if pt.x > f.maxX - 40 { dx = 14 }
-                if dx == 0 { continue }
-                var port: ArrPort = arrPort
-                port.x = max(0, port.x + dx)
-                let m = ArrMetrics(size: f.size, port: port, tracks: project.tracks.count, end: arrViewEnd,
-                                   expanded: settings.arrangeExpanded, inset: arrInset, ref: arrRefShown)
-                port.x = m.x
-                if port != arrPort { arrPort = port }
-            }
+        Later.every(0.033) {
+            guard self.clipCarry?.overArrange == true else { return false }
+            self.carryScrollTick()
+            return true
         }
+    }
+
+    /// Шаг прокрутки при переносе у края таймлайна (каждые 33 мс).
+    private func carryScrollTick() {
+        let f: CGRect = arrTimelineFrame
+        let pt: CGPoint = carryPoint
+        if f.width <= 0 || pt.y < f.minY || pt.y > f.maxY { return }
+        var dx: CGFloat = 0
+        if pt.x < f.minX + 40 { dx = -14 } else if pt.x > f.maxX - 40 { dx = 14 }
+        if dx == 0 { return }
+        var port: ArrPort = arrPort
+        port.x = max(0, port.x + dx)
+        let m = ArrMetrics(size: f.size, port: port, tracks: project.tracks.count, end: arrViewEnd,
+                           expanded: settings.arrangeExpanded, inset: arrInset, ref: arrRefShown)
+        port.x = m.x
+        if port != arrPort { arrPort = port }
     }
 
     /// Метрики таймлайна размера size (как у окна аранжировщика).
