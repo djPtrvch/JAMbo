@@ -174,14 +174,14 @@ struct ReorderDrag: ViewModifier {
             .offset(y: y)
             .zIndex(lifted ? 1 : 0)
             .animation(lifted ? nil : .easeOut(duration: 0.15), value: y)
-            .gesture(drag)
+            .background(drag)
     }
 
-    /// Удержание 0,4 с (UIKit) — строка поднимается; дальше едет за пальцем.
-    private var drag: HoldDrag {
+    /// Удержание 0,4 с (UIKit, HoldDragHost) — строка поднимается; дальше едет за пальцем.
+    private var drag: HoldDragHost {
         let s: ReorderState = state
         let k: Int = index
-        return HoldDrag(began: {
+        return HoldDragHost(began: {
             if s.from < 0 {
                 s.from = k
                 s.dy = 0
