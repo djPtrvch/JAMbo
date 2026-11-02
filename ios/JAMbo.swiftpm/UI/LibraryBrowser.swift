@@ -101,7 +101,7 @@ struct LibraryBrowser: View {
                 Text(emptyText).font(.system(size: 12)).foregroundStyle(theme.dim)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading).padding(10)
             } else {
-                MenuScroll { rows(items) }.padding(6)
+                MenuScroll { rows(items) }.scrollDisabled(reorder.active).padding(6)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

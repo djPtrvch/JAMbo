@@ -54,6 +54,7 @@ struct EqPresetsMenu: View {
                     .font(.system(size: 12)).foregroundStyle(theme.dim)
             } else {
                 MenuScroll { rows(list) }
+                    .scrollDisabled(reorder.active)
                     .frame(height: listHeight(list.count))
             }
         }
