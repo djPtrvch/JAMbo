@@ -48,8 +48,8 @@ struct ClipDisplay: View {
     }
 }
 
-/// TRANSFER клиппера (решение пользователя: без своего окна — без фона, сетки и подписи, линии прямо на фоне окна
-/// модуля): по горизонтали источник до INPUT, по вертикали выход клиппера (обе оси −48…0 dB);
+/// TRANSFER клиппера (решение пользователя: окно поверх LEVEL слева, полупрозрачное — волна LEVEL видна
+/// сквозь него, как в Pro-C 2): по горизонтали источник до INPUT, по вертикали выход клиппера (обе оси −48…0 dB);
 /// диагональ 1:1, серая полоса колена от x_k = x_c + 20·log10(k) до угла x_c = CEILING − INPUT,
 /// кривая (белая, 1,5 px), пунктир CEILING; живая точка — пик последнего кадра после INPUT минус INPUT, на кривой;
 /// при срезе участок от колена до точки — оранжевый. Ручка-угол (28 px) в (x_c, CEILING): палец — CEILING = y,
@@ -76,6 +76,11 @@ struct ClipTransfer: View {
                     dragging = -1
                 })
         }
+        // Окно поверх LEVEL (решение пользователя, как в Pro-C 2): тёмная полупрозрачная подложка — волна видна сквозь
+        // неё; скруглены только левые углы, справа — граница линией.
+        .background(theme.bg.opacity(0.5))
+        .overlay(alignment: .trailing) { Rectangle().fill(theme.line).frame(width: 1) }
+        .clipShape(UnevenRoundedRectangle(topLeadingRadius: Layout.radius, bottomLeadingRadius: Layout.radius))
     }
 
     private var curve: (input: Double, ceil: Double, soft: Double) {
@@ -128,6 +133,14 @@ struct ClipTransfer: View {
         let h: CGFloat = size.height
         let c = curve
         let bypass: Bool = model.project.clipBypass
+        // Сетка: горизонтали — как у LEVEL (подписи — у LEVEL под окном), вертикали — те же деления по входу.
+        MasterDraw.grid(ctx, size, theme, labels: false)
+        var db: Int = -MasterDraw.gridStep
+        while CGFloat(-db) < MasterDraw.scale {
+            let x: CGFloat = CompTransfer.x(Double(db), w).rounded()
+            ctx.fill(Path(CGRect(x: x, y: 0, width: 1, height: h)), with: .color(theme.line))
+            db -= MasterDraw.gridStep
+        }
         // Колено: от x_k до угла x_c.
         let xc: Double = c.ceil - c.input
         let k: Double = 1 - 0.6 * (c.soft / 100)
@@ -144,6 +157,7 @@ struct ClipTransfer: View {
         MasterDraw.dashed(ctx, CGPoint(x: 0, y: ty), CGPoint(x: w, y: ty), theme)
         if !bypass { drawLive(ctx, size, xk) }
         drawCorner(ctx, size)
+        MasterDraw.title(ctx, "TRANSFER", size, theme)
     }
 
     /// Кривая на столбцах a…b.

@@ -67,8 +67,8 @@ struct CompDisplay: View {
     }
 }
 
-/// TRANSFER компрессора (решение пользователя: без своего окна — без фона, сетки и подписи, линии прямо на фоне окна
-/// модуля): по горизонтали вход (−48…0 dB), по вертикали выход без MAKEUP; полоса колена,
+/// TRANSFER компрессора (решение пользователя: окно поверх LEVEL слева, полупрозрачное — волна LEVEL видна
+/// сквозь него, как в Pro-C 2): по горизонтали вход (−48…0 dB), по вертикали выход без MAKEUP; полоса колена,
 /// диагональ 1:1, кривая (белая, 1,5 px), пунктир порога; точка порога тянется вдоль диагонали; кружок RATIO (28 px)
 /// на правом краю — вертикально, ratio = (0 − THRESHOLD) / (выход − THRESHOLD); живая точка — уровень детектора
 /// последнего кадра; при компрессии участок кривой от колена до текущего GR — оранжевый.
@@ -95,6 +95,11 @@ struct CompTransfer: View {
                     kind = -1
                 })
         }
+        // Окно поверх LEVEL (решение пользователя, как в Pro-C 2): тёмная полупрозрачная подложка — волна видна сквозь
+        // неё; скруглены только левые углы, справа — граница линией.
+        .background(theme.bg.opacity(0.5))
+        .overlay(alignment: .trailing) { Rectangle().fill(theme.line).frame(width: 1) }
+        .clipShape(UnevenRoundedRectangle(topLeadingRadius: Layout.radius, bottomLeadingRadius: Layout.radius))
     }
 
     // MARK: — шкалы
@@ -176,6 +181,14 @@ struct CompTransfer: View {
         let h: CGFloat = size.height
         let c = curve
         let bypass: Bool = model.project.cmpBypass
+        // Сетка: горизонтали — как у LEVEL (подписи — у LEVEL под окном), вертикали — те же деления по входу.
+        MasterDraw.grid(ctx, size, theme, labels: false)
+        var db: Int = -MasterDraw.gridStep
+        while CGFloat(-db) < MasterDraw.scale {
+            let x: CGFloat = CompTransfer.x(Double(db), w).rounded()
+            ctx.fill(Path(CGRect(x: x, y: 0, width: 1, height: h)), with: .color(theme.line))
+            db -= MasterDraw.gridStep
+        }
         // Колено: серая полоса шириной KNEE вокруг порога.
         if c.knee > 0 {
             let a: CGFloat = CompTransfer.x(c.thr - c.knee / 2, w)
@@ -196,6 +209,7 @@ struct CompTransfer: View {
         let r: CGFloat = 5
         ctx.fill(Path(ellipseIn: CGRect(x: tx - r, y: ty - r, width: 2 * r, height: 2 * r)), with: .color(theme.meterThr))
         drawHandle(ctx, size, c.ratio)
+        MasterDraw.title(ctx, "TRANSFER", size, theme)
     }
 
     /// Кривая передачи на столбцах a…b.

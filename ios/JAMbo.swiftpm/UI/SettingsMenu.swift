@@ -236,7 +236,8 @@ struct OutputSettings: View {
     }
 }
 
-/// APPEARANCE: тема SYSTEM (как на iPad), LIGHT, DARK; SCALE дисплеев окон модулей мастера (48, 32, 16 dB);
+/// APPEARANCE: тема SYSTEM (как на iPad), LIGHT, DARK; MASTER FX DISPLAY SCALE — масштаб дисплеев окон модулей
+/// мастера (48, 32, 16 dB);
 /// FX ANIMATION — картинки FX в окне сэмпла.
 struct AppearanceSettings: View {
     let model: AppModel
@@ -253,9 +254,9 @@ struct AppearanceSettings: View {
             .label("THEME"),
             .choices(themes),
             .note("SYSTEM follows the iPad setting."),
-            .label("SCALE"),
+            .label("MASTER FX DISPLAY SCALE"),
             .choices(scales),
-            .note("Level scale of the master module windows (COMP, CLIP, LIM): from 0 dBFS down to −48, −32 or −16 dB."),
+            .note("Zoom of the level displays in the master effect windows (COMP, CLIP, LIM): from 0 dBFS down to −48, −32 or −16 dB."),
             .toggle("FX ANIMATION", m.settings.fxPictures) { m.setFxPictures($0) },
             .note("While an FX knob is turned, the sample window shows a picture of the effect."),
         ])
