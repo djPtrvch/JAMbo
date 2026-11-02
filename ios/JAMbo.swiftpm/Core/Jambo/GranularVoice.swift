@@ -140,7 +140,8 @@ final class GranularVoice {
     private(set) var spawning = false
     private let busL: UnsafeMutablePointer<Double>
     private let busR: UnsafeMutablePointer<Double>
-    /// Зёрна запущены (тесты): моменты (кадры от ноты), всего.
+    /// Кадров от ноты (момент зерна для onSpawn); onSpawn — запуск зерна (тесты: момент, позиция, высота, панорама;
+    /// в приложении nil).
     private var clock = 0.0
     var onSpawn: ((Double, Double, Double, Double) -> Void)? = nil
 
