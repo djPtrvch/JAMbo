@@ -18,7 +18,10 @@ struct CompDisplay: View {
                     // LEVEL на всю ширину, кривая TRANSFER — поверх слева (решение пользователя).
                     ZStack(alignment: .leading) {
                         LevelPlot(model: model, tele: model.audio.core.master.compTele, hist: hist, line: thrParam,
-                                  now: now) { ctx, size, c in drawLevel(ctx, size, c, now) }
+                                  now: now) { ctx, size, c in
+                            drawLevel(ctx, size, c, now)
+                            drawExtension(ctx, size, w)
+                        }
                         CompTransfer(model: model, hist: hist, now: now).frame(width: w)
                     }
                     DynBlock(model: model, module: MasterScope.comp, now: now)
@@ -26,6 +29,32 @@ struct CompDisplay: View {
                 }
             }
         }
+    }
+
+    /// Наклонная линия TRANSFER продолжается за окном TRANSFER по LEVEL до верхней кромки (решение пользователя): та же
+    /// шкала входа, что в TRANSFER шириной tw (вход 0 dB — на его правом краю), выход без MAKEUP; белая 1,5 px, при
+    /// BYPASS — серая.
+    private func drawExtension(_ ctx: GraphicsContext, _ size: CGSize, _ tw: CGFloat) {
+        if tw <= 0 { return }
+        let thr: Double = model.masterValue(thrParam)
+        let ratio: Double = model.masterValue(Params.byId["cmp.ratio"] ?? thrParam)
+        let knee: Double = model.project.master["cmp.knee"] ?? 6
+        let sc: Double = Double(MasterDraw.scale)
+        var p = Path()
+        var x: CGFloat = tw
+        var first: Bool = true
+        while x <= size.width {
+            let l: Double = -sc + Double(x / tw) * sc
+            let out: Double = l - MasterGlue.staticGr(l, thr: thr, ratio: ratio, knee: knee)
+            let y: CGFloat = CGFloat(-out) / CGFloat(sc) * size.height
+            let pt = CGPoint(x: x, y: max(0, y))
+            if first { p.move(to: pt) } else { p.addLine(to: pt) }
+            first = false
+            if y <= 0 { break }
+            x += 2
+        }
+        let col: Color = model.project.cmpBypass ? theme.dim : theme.text
+        ctx.stroke(p, with: .color(col), lineWidth: 1.5)
     }
 
     /// LEVEL: вход до компрессора — серая заливка с контуром; выход после MAKEUP — жёлтый контур 1,5 px и заливка
