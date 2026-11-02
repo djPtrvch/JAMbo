@@ -69,6 +69,12 @@ public struct AppSettings: Codable, Equatable, Sendable {
     /// По умолчанию — на все дорожки (решение пользователя).
     public var morphAll: Bool = true
     public var morphReturn: Int = 0
+    /// SETTINGS → RANDOM (SHIFT + CHORD): случайный ритм ударных и прогрессия — вкл./выкл.; стиль ритма сразу всем
+    /// ударным дорожкам; ритм сразу на все ударные дорожки.
+    public var randomDrums: Bool = true
+    public var randomChords: Bool = true
+    public var randomStyleAll: Bool = false
+    public var randomStepsAll: Bool = false
     /// SETTINGS → MIX (S9, действуют с переходами S10): гамма и нота нового проекта при переходе; кроссфейдер
     /// (ON — темп по кроссфейдеру, OFF — темп старого паттерна).
     public var mixKey: Bool = true
@@ -130,7 +136,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
                                          rollSound, levelRelative, morphAll, morphReturn, mixKey, mixCrossfader,
                                          clearSampleLocks, pitchSemitones, midi, stepPaint, sync,
                                          arrangeCompact, fxPictures, backgroundAudio, arrangeRepeats, stretchBeat,
-                                         metronomeVol, arrangeScale, arrangeFollow, displayScale }
+                                         metronomeVol, arrangeScale, arrangeFollow, displayScale,
+                                         randomDrums, randomChords, randomStyleAll, randomStepsAll }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
@@ -165,6 +172,10 @@ public struct AppSettings: Codable, Equatable, Sendable {
         arrangeFollow = (try? c.decode(Bool.self, forKey: .arrangeFollow)) ?? true
         let ds: Int = (try? c.decode(Int.self, forKey: .displayScale)) ?? 48
         displayScale = AppSettings.displayScales.contains(ds) ? ds : 48
+        randomDrums = (try? c.decode(Bool.self, forKey: .randomDrums)) ?? true
+        randomChords = (try? c.decode(Bool.self, forKey: .randomChords)) ?? true
+        randomStyleAll = (try? c.decode(Bool.self, forKey: .randomStyleAll)) ?? false
+        randomStepsAll = (try? c.decode(Bool.self, forKey: .randomStepsAll)) ?? false
         let mv: Double = (try? c.decode(Double.self, forKey: .metronomeVol)) ?? 100
         metronomeVol = Swift.min(200, Swift.max(0, mv))
     }

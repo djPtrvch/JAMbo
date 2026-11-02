@@ -256,3 +256,20 @@ extension Track {
         }
     }
 }
+
+extension Track {
+    /// Ударная роль звука дорожки (KICK, SNARE, HAT, CLAP, PERC); иначе nil.
+    public var drumRole: DrumRhythm.Role? { return DrumRhythm.role(engine: SynthKey.engine(sample)) }
+
+    /// Случайный ритм стиля дорожки на страницы range (по их длинам) нотой note; avoid — шаги прошлой основы.
+    /// Возвращает шаги новой основы (для следующего avoid); не ударная дорожка — nil, ничего не пишется.
+    public mutating func writeRandomDrums<G: RandomNumberGenerator>(pages range: ClosedRange<Int>, note: Int,
+                                                                    avoid: [Int]?, using g: inout G) -> [Int]? {
+        guard let role = drumRole else { return nil }
+        let t: Track = self
+        let lens: [Int] = range.map { t.pageLen($0, from: range.lowerBound) }
+        let pattern: [[DrumRhythm.Hit]] = DrumRhythm.pattern(role, style: drumStyle, lens: lens, avoid: avoid, using: &g)
+        writeDrums(pattern, note: note, pages: range)
+        return pattern.first(where: { !$0.isEmpty })?.map { $0.step }
+    }
+}

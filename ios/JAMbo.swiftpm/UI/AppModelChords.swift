@@ -7,9 +7,10 @@ extension AppModel {
     /// Тап по CHORD: с SHIFT — случайная прогрессия (режим не меняется), иначе — вкл./выкл. режима.
     func chordTap() {
         if shiftHeld {
+            // SETTINGS → RANDOM: выключенный DRUMS или CHORDS — ничего.
             if drumTrack {
-                writeRandomDrums()
-            } else {
+                if settings.randomDrums { writeRandomDrums() }
+            } else if settings.randomChords {
                 writeRandomProgression()
             }
         } else {
@@ -20,13 +21,20 @@ extension AppModel {
     /// Дорожка с ударным движком (KICK, SNARE, HAT, CLAP, PERC): у CHORD — стили ритма вместо типов аккорда.
     var drumTrack: Bool {
         guard channel == .track else { return false }
-        return DrumRhythm.role(engine: SynthKey.engine(track.sample)) != nil
+        return track.drumRole != nil
     }
 
     /// Стиль ритма выбранной дорожки (хранится в проекте, одна запись UNDO).
+    /// SETTINGS → RANDOM → STYLE ALL TRACKS — всем ударным дорожкам проекта.
     func setDrumStyle(_ k: Int) {
         let v: Int = DrumRhythm.styleIndex(k)
-        editTrack { t in t.drumStyle = v }
+        if settings.randomStyleAll {
+            edit { p in
+                for i in p.tracks.indices where p.tracks[i].drumRole != nil { p.tracks[i].drumStyle = v }
+            }
+        } else {
+            editTrack { t in t.drumStyle = v }
+        }
     }
 
     /// Окно и MIDI CHORD TYPE n: на ударной дорожке — стиль, иначе — тип аккорда.
@@ -75,18 +83,31 @@ extension AppModel {
     }
 
     /// Случайный ритм ударного движка дорожки (KICK, SNARE, HAT, CLAP, PERC) на выбранные страницы: по длинам
-    /// страниц (короткая — своей длиной), нота — корневая в октаве клавиатуры. Одна запись UNDO.
+    /// страниц (короткая — своей длиной), нота — корневая в октаве клавиатуры. SETTINGS → RANDOM → STEPS ALL TRACKS —
+    /// на все ударные дорожки (каждая — своим движком и стилем, на свои выбранные страницы). Одна запись UNDO.
     func writeRandomDrums() {
-        guard channel == .track, let role = DrumRhythm.role(engine: SynthKey.engine(track.sample)) else { return }
+        guard channel == .track, track.drumRole != nil else { return }
+        let sel: Int = selectedTrack
+        let all: Bool = settings.randomStepsAll
         let range: ClosedRange<Int> = chordPages
-        let t: Track = track
-        let lens: [Int] = range.map { t.pageLen($0, from: range.lowerBound) }
         var g = SystemRandomNumberGenerator()
-        let id: Int = t.id
-        let pattern: [[DrumRhythm.Hit]] = DrumRhythm.pattern(role, style: t.drumStyle, lens: lens,
-                                                             avoid: lastRandomDrums[id], using: &g)
-        lastRandomDrums[id] = pattern.first(where: { !$0.isEmpty })?.map { $0.step }
-        let note: Int = Scales.baseNote(root: project.root, octave: octave)
-        editTrack { tr in tr.writeDrums(pattern, note: note, pages: range) }
+        var last: [Int: [Int]] = lastRandomDrums
+        let root: Int = project.root
+        let octs: [Int] = (0..<project.tracks.count).map { i in i == sel ? octave : octaveOf(i) }
+        edit { p in
+            for i in p.tracks.indices where (i == sel || all) && p.tracks[i].drumRole != nil {
+                let r: ClosedRange<Int> = i == sel ? range : p.tracks[i].openClip.range
+                let note: Int = Scales.baseNote(root: root, octave: octs[i])
+                let id: Int = p.tracks[i].id
+                last[id] = p.tracks[i].writeRandomDrums(pages: r, note: note, avoid: last[id], using: &g)
+            }
+        }
+        lastRandomDrums = last
+    }
+
+    /// Октава клавиатуры дорожки i (у каждой своя).
+    private func octaveOf(_ i: Int) -> Int {
+        guard i >= 0 && i < octaves.count else { return Scales.octaveDef }
+        return min(octaves[i], topOctave)
     }
 }

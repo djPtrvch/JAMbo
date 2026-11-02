@@ -9,6 +9,7 @@ enum SettingsTab: String, CaseIterable {
     case sidechain = "DUCK"
     case mix = "MIX"
     case morph = "MORPH"
+    case random = "RANDOM"
     case level = "LEVEL"
     case arrange = "ARRANGE"
     // В конце (решение пользователя).
@@ -53,6 +54,18 @@ extension AppModel {
     func setLevelRelative(_ on: Bool) {
         updateSettings { s in s.levelRelative = on }
         publishAudio()
+    }
+
+    /// SETTINGS → RANDOM: k — 0 DRUMS, 1 CHORDS, 2 STYLE ALL TRACKS, 3 STEPS ALL TRACKS.
+    func setRandom(_ k: Int, _ on: Bool) {
+        updateSettings { s in
+            switch k {
+            case 0: s.randomDrums = on
+            case 1: s.randomChords = on
+            case 2: s.randomStyleAll = on
+            default: s.randomStepsAll = on
+            }
+        }
     }
 
     func setMorphAll(_ on: Bool) {

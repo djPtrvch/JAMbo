@@ -152,4 +152,31 @@ final class DrumRhythmTests: XCTestCase {
         XCTAssertEqual(t.pages[1][2].locks["level"], 127)
         XCTAssertTrue(t.pages[2][8].on, "страница вне range не тронута")
     }
+
+    func testTrackRandomDrums() {
+        var g = SystemRandomNumberGenerator()
+        var t = Track(index: 0)
+        t.sample = "mi:17"
+        XCTAssertNil(t.writeRandomDrums(pages: 0...0, note: 36, avoid: nil, using: &g), "не ударный — ничего")
+        XCTAssertFalse(t.pages[0].contains { $0.on })
+        t.sample = "mi:20"
+        t.drumStyle = 3
+        let steps = t.writeRandomDrums(pages: 0...0, note: 36, avoid: nil, using: &g)
+        XCTAssertEqual(steps, t.pages[0].indices.filter { t.pages[0][$0].on })
+        XCTAssertTrue(t.pages[0][8].on, "Trap — малый на 9")
+    }
+
+    func testRandomSettingsDefaults() throws {
+        let s = AppSettings.decode(try JSONEncoder().encode(["appearance": "DARK"]))
+        XCTAssertTrue(s.randomDrums)
+        XCTAssertTrue(s.randomChords)
+        XCTAssertFalse(s.randomStyleAll)
+        XCTAssertFalse(s.randomStepsAll)
+        var a = AppSettings()
+        a.randomStepsAll = true
+        a.randomDrums = false
+        let b = AppSettings.decode(a.encode())
+        XCTAssertTrue(b.randomStepsAll)
+        XCTAssertFalse(b.randomDrums)
+    }
 }

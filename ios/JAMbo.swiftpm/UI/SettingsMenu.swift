@@ -46,6 +46,7 @@ struct SettingsPage: View {
         case .appearance: return AnyView(AppearanceSettings(model: model))
         case .mix: return AnyView(MixSettings(model: model))
         case .morph: return AnyView(MorphSettings(model: model))
+        case .random: return AnyView(RandomSettings(model: model))
         case .level: return AnyView(LevelSettings(model: model))
         case .defaults: return AnyView(DefaultsSettings(model: model))
         case .arrange: return AnyView(ArrangeSettings(model: model))
@@ -293,6 +294,26 @@ struct MorphSettings: View {
             .label("RETURN"),
             .choices(ret),
             .note("How fast the knobs glide back when MORPH is turned off: OFF — at once, or over 1/4 bar to 2 bars at the current tempo."),
+        ])
+    }
+}
+
+/// RANDOM: SHIFT + CHORD — случайный ритм ударных и прогрессия; стиль и ритм сразу на все ударные дорожки.
+struct RandomSettings: View {
+    let model: AppModel
+
+    var body: some View {
+        let m: AppModel = model
+        let s: AppSettings = m.settings
+        return FormRows(rows: [
+            .toggle("DRUMS", s.randomDrums) { m.setRandom(0, $0) },
+            .note("SHIFT + tap on CHORD on a drum track (Kick, Snare, Hat, Clap, Perc) writes a random rhythm in the track's style. OFF: nothing."),
+            .toggle("CHORDS", s.randomChords) { m.setRandom(1, $0) },
+            .note("SHIFT + tap on CHORD on other tracks writes a random chord progression. OFF: nothing."),
+            .toggle("STYLE ALL TRACKS", s.randomStyleAll) { m.setRandom(2, $0) },
+            .note("Choosing a style on a drum track sets it on every drum track of the project."),
+            .toggle("STEPS ALL TRACKS", s.randomStepsAll) { m.setRandom(3, $0) },
+            .note("SHIFT + tap on CHORD on a drum track writes a rhythm on every drum track at once, each with its own sound and style."),
         ])
     }
 }
