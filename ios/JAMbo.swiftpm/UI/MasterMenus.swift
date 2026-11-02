@@ -84,7 +84,6 @@ struct MasterPresetsMenu: View {
                     .font(.system(size: 12)).foregroundStyle(theme.dim)
             } else {
                 MenuScroll { rows(m, list) }
-                    .scrollDisabled(reorder.active)
                     .frame(height: listHeight(list.count))
             }
         }

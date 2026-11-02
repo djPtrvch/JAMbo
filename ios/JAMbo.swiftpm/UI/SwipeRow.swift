@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Строка списка (как в списках iPad; пресеты модулей мастера и EQ, проекты): тап — действие; свайп влево открывает
 /// справа кнопки — карандаш на сером (RENAME) и корзина на красном (DELETE), без rename — только корзина; строка
@@ -123,37 +124,21 @@ struct SwipeRow: View {
     }
 }
 
-/// Перетаскивание строк списка пресетов (EQ и модулей мастера, решение пользователя): удержание строки (0,4 с) —
-/// строка поднимается и едет за пальцем, остальные расступаются; отпустили — пресет встаёт на новое место. Пока
-/// тянут, список не прокручивается; тап сразу после перетаскивания не загружает пресет.
+/// Перетаскивание строк списка (пресеты EQ и модулей мастера, свои папки библиотеки; решение пользователя): системное
+/// перетаскивание iPad — удержание строки поднимает её карточку, строка под пальцем подсвечивается, отпустили — элемент
+/// встаёт на её место. Жесты SwiftUI и UIKit на строке в iOS 18 не годятся: DragGesture в ScrollView забирает касание у
+/// прокрутки, удержание снаружи строки не начинается, пока возможен тап внутри. Тап сразу после переноса не срабатывает.
 @Observable
 final class ReorderState {
-    /// Тянется строка (−1 — ничего) и сдвиг пальца по вертикали.
+    /// Поднятая строка (−1 — ничего) и строка, над которой палец (−1 — ни над какой).
     var from: Int = -1
-    var dy: CGFloat = 0
-    /// Время конца перетаскивания — тап по строке в это же касание не срабатывает.
+    var to: Int = -1
+    /// Время конца переноса — тап по строке в это же касание не срабатывает.
     @ObservationIgnored var ended: Double = 0
 
-    var active: Bool { return from >= 0 }
-
-    /// Тап по строке разрешён (не тянут и не только что отпустили).
+    /// Тап по строке разрешён (не только что перенесли).
     var tapAllowed: Bool {
-        return from < 0 && Date.timeIntervalSinceReferenceDate - ended > 0.3
-    }
-
-    func target(_ count: Int, pitch: CGFloat) -> Int {
-        let shift: Int = Int((dy / pitch).rounded())
-        return min(count - 1, max(0, from + shift))
-    }
-
-    /// Сдвиг строки k: тянущаяся — за пальцем, между старым и новым местом — на строку в сторону.
-    func offset(_ k: Int, _ count: Int, pitch: CGFloat) -> CGFloat {
-        if from < 0 { return 0 }
-        if k == from { return dy }
-        let t: Int = target(count, pitch: pitch)
-        if from < k && k <= t { return -pitch }
-        if t <= k && k < from { return pitch }
-        return 0
+        return Date.timeIntervalSinceReferenceDate - ended > 0.3
     }
 }
 
@@ -161,47 +146,54 @@ struct ReorderDrag: ViewModifier {
     let index: Int
     let count: Int
     let state: ReorderState
-    /// Шаг строк: высота строки и зазор.
-    var pitch: CGFloat = 48
     let move: (Int, Int) -> Void
+    @Environment(\.theme) private var theme
 
     func body(content: Content) -> some View {
-        let lifted: Bool = state.from == index
-        let y: CGFloat = state.offset(index, count, pitch: pitch)
-        return content
-            .scaleEffect(lifted ? 1.03 : 1)
-            .shadow(color: .black.opacity(lifted ? 0.4 : 0), radius: 8, y: 3)
-            .offset(y: y)
-            .zIndex(lifted ? 1 : 0)
-            .animation(lifted ? nil : .easeOut(duration: 0.15), value: y)
-            .background(drag)
-    }
-
-    /// Удержание 0,4 с (UIKit, HoldDragHost) — строка поднимается; дальше едет за пальцем.
-    private var drag: HoldDragHost {
+        let target: Bool = state.to == index && state.from >= 0 && state.from != index
         let s: ReorderState = state
         let k: Int = index
-        return HoldDragHost(began: {
-            if s.from < 0 {
+        return content
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(theme.accent, lineWidth: target ? 2 : 0))
+            .onDrag {
                 s.from = k
-                s.dy = 0
+                s.to = -1
+                return NSItemProvider(object: NSString(string: "jambo-row-\(k)"))
             }
-        }, changed: { dy in
-            if s.from == k { s.dy = dy }
-        }, ended: { finish() })
+            .onDrop(of: [UTType.plainText], delegate: ReorderDrop(index: index, count: count, state: state, move: move))
+    }
+}
+
+/// Строка — место переноса: палец над ней — подсветка, отпустили — move(from, сюда).
+struct ReorderDrop: DropDelegate {
+    let index: Int
+    let count: Int
+    let state: ReorderState
+    let move: (Int, Int) -> Void
+
+    func validateDrop(info: DropInfo) -> Bool {
+        return state.from >= 0
     }
 
-    private func finish() {
-        guard state.from == index else { return }
-        let to: Int = state.target(count, pitch: pitch)
+    func dropEntered(info: DropInfo) {
+        state.to = index
+    }
+
+    func dropExited(info: DropInfo) {
+        if state.to == index { state.to = -1 }
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        return DropProposal(operation: .move)
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
         let from: Int = state.from
-        var t = Transaction()
-        t.disablesAnimations = true
-        withTransaction(t) {
-            state.from = -1
-            state.dy = 0
-            state.ended = Date.timeIntervalSinceReferenceDate
-            if to != from { move(from, to) }
-        }
+        state.from = -1
+        state.to = -1
+        state.ended = Date.timeIntervalSinceReferenceDate
+        guard from >= 0, from < count, from != index else { return from >= 0 }
+        move(from, index)
+        return true
     }
 }
