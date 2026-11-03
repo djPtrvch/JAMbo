@@ -125,6 +125,27 @@ struct Tile: ViewModifier {
     }
 }
 
+/// Фон fill со скруглением radius и обводка line толщиной width. Один модификатор вместо двух на каждом месте (S14).
+struct Framed: ViewModifier {
+    let fill: Color
+    let line: Color
+    var radius: CGFloat = Layout.radius
+    var width: CGFloat = 1
+
+    init(_ fill: Color, line: Color, radius: CGFloat = Layout.radius, width: CGFloat = 1) {
+        self.fill = fill
+        self.line = line
+        self.radius = radius
+        self.width = width
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .background(fill, in: RoundedRectangle(cornerRadius: radius))
+            .overlay(RoundedRectangle(cornerRadius: radius).stroke(line, lineWidth: width))
+    }
+}
+
 /// Кнопка меню: неактивная — серая, DELETE — красная.
 struct MenuItem: View {
     let title: String

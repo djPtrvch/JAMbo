@@ -92,8 +92,7 @@ struct MixCell: View {
             .font(.system(size: 11, weight: .bold))
             .foregroundStyle(on ? theme.onAccent : color)
             .frame(width: r.width, height: r.height)
-            .background(on ? color : Color.clear, in: RoundedRectangle(cornerRadius: 5))
-            .overlay(RoundedRectangle(cornerRadius: 5).stroke(color, lineWidth: 1))
+            .modifier(Framed(on ? color : Color.clear, line: color, radius: 5))
             .offset(x: r.minX, y: r.minY)
     }
 
@@ -101,8 +100,7 @@ struct MixCell: View {
     private func dot(_ r: CGRect, on: Bool) -> some View {
         Circle().fill(on ? Color.white : theme.rec).frame(width: 8, height: 8)
             .frame(width: r.width, height: r.height)
-            .background(on ? theme.rec : Color.clear, in: RoundedRectangle(cornerRadius: 5))
-            .overlay(RoundedRectangle(cornerRadius: 5).stroke(theme.rec, lineWidth: 1))
+            .modifier(Framed(on ? theme.rec : Color.clear, line: theme.rec, radius: 5))
             .offset(x: r.minX, y: r.minY)
     }
 }
@@ -176,8 +174,7 @@ struct TrackMenus: View {
             .tint(theme.text)
             .padding(.horizontal, 6)
             .frame(width: cell.width - 20, height: 26)
-            .background(theme.bg, in: RoundedRectangle(cornerRadius: 6))
-            .overlay(RoundedRectangle(cornerRadius: 6).stroke(theme.text, lineWidth: 1))
+            .modifier(Framed(theme.bg, line: theme.text, radius: 6))
             .position(x: c.x, y: c.y + cell.height / 2 - 10)
             .onChange(of: name) { _, v in if v.count > 12 { name = String(v.prefix(12)) } }
             .onAppear { focused = true }

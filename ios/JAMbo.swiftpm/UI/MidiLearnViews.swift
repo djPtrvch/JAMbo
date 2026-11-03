@@ -23,8 +23,7 @@ struct LearnBar: View {
         .padding(.leading, 14)
         .padding(6)
         .frame(height: 48)
-        .background(theme.panel, in: RoundedRectangle(cornerRadius: Layout.radius))
-        .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(theme.accent, lineWidth: 2))
+        .modifier(Framed(theme.panel, line: theme.accent, width: 2))
     }
 
     private var unmapEnabled: Bool {

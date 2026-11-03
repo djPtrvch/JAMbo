@@ -38,8 +38,7 @@ struct ChannelCell: View {
             .overlay(alignment: .topLeading) {
                 if channel == .master { StemRecDot(model: model, channel: StemRing.master) }
             }
-            .background(theme.trackBg, in: RoundedRectangle(cornerRadius: Layout.radius))
-            .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(selected ? theme.accent : Color.clear, lineWidth: 1))
+            .modifier(Framed(theme.trackBg, line: selected ? theme.accent : Color.clear))
             .contentShape(Rectangle())
             .onTapGesture { model.select(channel: channel) }
     }
@@ -132,8 +131,7 @@ struct TrackFace: View, Equatable {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             stateLetter
         }
-        .background(background, in: RoundedRectangle(cornerRadius: Layout.radius))
-        .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(border, lineWidth: 1))
+        .modifier(Framed(background, line: border))
     }
 
     private var background: Color {

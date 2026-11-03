@@ -163,8 +163,7 @@ struct SceneCellView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             if playing { ProgressBar(fraction: pass.frac) }
         }
-        .background(filled ? theme.panel2 : theme.panel, in: RoundedRectangle(cornerRadius: 6))
-        .overlay(RoundedRectangle(cornerRadius: 6).stroke(selected ? theme.text : Color.clear, lineWidth: 1))
+        .modifier(Framed(filled ? theme.panel2 : theme.panel, line: selected ? theme.text : Color.clear, radius: 6))
         .clipShape(RoundedRectangle(cornerRadius: 6))
         .modifier(Blink(on: model.playing && model.live.sceneQueued == row))
     }
