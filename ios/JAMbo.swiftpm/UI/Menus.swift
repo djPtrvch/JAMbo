@@ -91,7 +91,7 @@ struct ChoiceMenu: View {
 }
 
 /// Меню клавиатуры (бутерброд под CHORD): 1 OCTAVE / 2 OCTAVES, под ними SWING, KEY VELOCITY, OVERDUB (из SETTINGS →
-/// RECORD — решение пользователя) и ARP (не на ударной дорожке); правее кнопки, снизу вверх, не выше верха строки
+/// RECORD — решение пользователя), рычажок ARPEGGIATOR (режим CHORD/ARP) и ARP (не на ударной дорожке); правее кнопки, снизу вверх, не выше верха строки
 /// дорожек (дальше — прокрутка), шириной 4 шага.
 struct PianoMenu: View {
     let model: AppModel
@@ -154,7 +154,15 @@ struct PianoMenu: View {
                  : "REC clears the steps it passes over; only the new notes stay.")
                 .font(.system(size: 11))
                 .foregroundStyle(theme.dim)
-            if !model.drumTrack && model.channel == .track { ArpMenuSection(model: model) }
+            if !model.drumTrack && model.channel == .track {
+                ToggleRow(title: "ARPEGGIATOR", isOn: model.track.arp.mode) { model.setChordArpMode($0) }
+                Text(model.track.arp.mode
+                     ? "The CHORD button plays an arpeggio of the held keys."
+                     : "The CHORD button plays chords.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(theme.dim)
+                ArpMenuSection(model: model)
+            }
         }
     }
 }
