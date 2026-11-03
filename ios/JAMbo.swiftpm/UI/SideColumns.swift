@@ -64,9 +64,9 @@ struct RightTop: View {
             if mix {
                 AnyView(VStack(spacing: Layout.barGap) {
                     Color.clear.frame(height: bar)
-                    // Скоп мастера, как при MST (решение пользователя 3.11): гониометр и осциллоскоп; точки съёма —
-                    // по кнопкам COMP, CLIP, LIM при MST.
-                    MasterScopeView(model: model)
+                    // Скоп мастера, как при MST (решение пользователя 3.11): гониометр и осциллоскоп — только форма
+                    // волны мастера, без точек съёма COMP, CLIP, LIM.
+                    MasterScopeView(model: model, taps: false)
                 })
             } else {
                 AnyView(VStack(spacing: Layout.barGap) {

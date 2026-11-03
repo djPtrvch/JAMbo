@@ -97,6 +97,8 @@ final class ScopeState {
 /// полупрозрачные 60 %, SAT снизу, LIM сверху; COMP, CLIP, LIM по умолчанию выключены).
 struct MasterScopeView: View {
     let model: AppModel
+    /// Формы волны COMP, CLIP, LIM по кнопкам (при MST); false — только SAT (при MIX, без кнопок).
+    var taps: Bool = true
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -162,7 +164,7 @@ struct MasterScopeView: View {
         let amp: CGFloat = size.height / 2 - 2
         ctx.fill(Path(CGRect(x: 0, y: cy.rounded(), width: size.width, height: 1)), with: .color(theme.gridStrong))
         let colors: [Color] = [theme.text, theme.accent, theme.gr, theme.rec]
-        for k in 0..<4 where model.scopeOn[k] {
+        for k in 0..<4 where k == 0 || (taps && model.scopeOn[k]) {
             let lo: [Float] = s.mins[k], hi: [Float] = s.maxs[k]
             let n: Int = lo.count
             if n == 0 { continue }
