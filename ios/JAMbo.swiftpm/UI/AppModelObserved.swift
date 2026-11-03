@@ -5,7 +5,8 @@ import Observation
 // сборки в Playgrounds: макрос @Observable даёт на свойство ~1,8 КБ кода — замыкание withMutation, _modify и др.).
 // Хранение — _имя в AppModel.swift (там же описание свойства), чтение — access, запись — put: willSet / didSet
 // регистратора, как у макроса; уведомление — только если значение изменилось (как shouldNotifyObservers макроса).
-// Коллекции и крупные структуры — через макрос (изменение на месте без копии). Свойства private(set) — в AppModel.swift.
+// Небольшие коллекции (зажатые шаги, по 8 дорожек) — тоже: изменение на месте — копия, она мала. Крупные коллекции и
+// структуры (проект, библиотека, настройки, пресеты) — через макрос (без копии). Свойства private(set) — в AppModel.swift.
 
 extension AppModel {
     var settingsTab: SettingsTab {
@@ -395,5 +396,89 @@ extension AppModel {
     var defaultSaved: DefaultSaved? {
         get { access(keyPath: \.defaultSaved); return _defaultSaved }
         set { put(\.defaultSaved, \._defaultSaved, newValue, AppModel.changed(_defaultSaved, newValue)) }
+    }
+    var heldSteps: Set<Int> {
+        get { access(keyPath: \.heldSteps); return _heldSteps }
+        set { put(\.heldSteps, \._heldSteps, newValue, AppModel.changed(_heldSteps, newValue)) }
+    }
+    var heldSources: Set<Int> {
+        get { access(keyPath: \.heldSources); return _heldSources }
+        set { put(\.heldSources, \._heldSources, newValue, AppModel.changed(_heldSources, newValue)) }
+    }
+    var knobFingers: Set<Int> {
+        get { access(keyPath: \.knobFingers); return _knobFingers }
+        set { put(\.knobFingers, \._knobFingers, newValue, AppModel.changed(_knobFingers, newValue)) }
+    }
+    var octaves: [Int] {
+        get { access(keyPath: \.octaves); return _octaves }
+        set { put(\.octaves, \._octaves, newValue, AppModel.changed(_octaves, newValue)) }
+    }
+    var chordMode: [Bool] {
+        get { access(keyPath: \.chordMode); return _chordMode }
+        set { put(\.chordMode, \._chordMode, newValue, AppModel.changed(_chordMode, newValue)) }
+    }
+    var chordKind: [Int] {
+        get { access(keyPath: \.chordKind); return _chordKind }
+        set { put(\.chordKind, \._chordKind, newValue, AppModel.changed(_chordKind, newValue)) }
+    }
+    var selNotes: [[Int]] {
+        get { access(keyPath: \.selNotes); return _selNotes }
+        set { put(\.selNotes, \._selNotes, newValue, AppModel.changed(_selNotes, newValue)) }
+    }
+    var pressedKeys: [Int: [Int]] {
+        get { access(keyPath: \.pressedKeys); return _pressedKeys }
+        set { put(\.pressedKeys, \._pressedKeys, newValue, AppModel.changed(_pressedKeys, newValue)) }
+    }
+    var arrGroup: [ArrSel] {
+        get { access(keyPath: \.arrGroup); return _arrGroup }
+        set { put(\.arrGroup, \._arrGroup, newValue, AppModel.changed(_arrGroup, newValue)) }
+    }
+    var eqCompares: [Int: Int] {
+        get { access(keyPath: \.eqCompares); return _eqCompares }
+        set { put(\.eqCompares, \._eqCompares, newValue, AppModel.changed(_eqCompares, newValue)) }
+    }
+    var arrDropPending: (sel: GridSelection, start: Int)? {
+        get { access(keyPath: \.arrDropPending); return _arrDropPending }
+        set { put(\.arrDropPending, \._arrDropPending, newValue, AppModel.changed(_arrDropPending, newValue)) }
+    }
+    var gridMenuOpen: Bool {
+        get { access(keyPath: \.gridMenuOpen); return _gridMenuOpen }
+        set { put(\.gridMenuOpen, \._gridMenuOpen, newValue, AppModel.changed(_gridMenuOpen, newValue)) }
+    }
+    var mixDrop: [Int: Int] {
+        get { access(keyPath: \.mixDrop); return _mixDrop }
+        set { put(\.mixDrop, \._mixDrop, newValue, AppModel.changed(_mixDrop, newValue)) }
+    }
+    var captureFlash: Bool {
+        get { access(keyPath: \.captureFlash); return _captureFlash }
+        set { put(\.captureFlash, \._captureFlash, newValue, AppModel.changed(_captureFlash, newValue)) }
+    }
+    var wavetableSerial: Int {
+        get { access(keyPath: \.wavetableSerial); return _wavetableSerial }
+        set { put(\.wavetableSerial, \._wavetableSerial, newValue, AppModel.changed(_wavetableSerial, newValue)) }
+    }
+    var headCount: Int {
+        get { access(keyPath: \.headCount); return _headCount }
+        set { put(\.headCount, \._headCount, newValue, AppModel.changed(_headCount, newValue)) }
+    }
+    var stemArmed: Set<Int> {
+        get { access(keyPath: \.stemArmed); return _stemArmed }
+        set { put(\.stemArmed, \._stemArmed, newValue, AppModel.changed(_stemArmed, newValue)) }
+    }
+    var stemRecording: Set<Int> {
+        get { access(keyPath: \.stemRecording); return _stemRecording }
+        set { put(\.stemRecording, \._stemRecording, newValue, AppModel.changed(_stemRecording, newValue)) }
+    }
+    var refusedFlag: (idx: Int, until: Double) {
+        get { access(keyPath: \.refusedFlag); return _refusedFlag }
+        set { put(\.refusedFlag, \._refusedFlag, newValue, AppModel.changed(_refusedFlag, newValue)) }
+    }
+    var hasTrackClip: Bool {
+        get { access(keyPath: \.hasTrackClip); return _hasTrackClip }
+        set { put(\.hasTrackClip, \._hasTrackClip, newValue, AppModel.changed(_hasTrackClip, newValue)) }
+    }
+    var scopeOn: [Bool] {
+        get { access(keyPath: \.scopeOn); return _scopeOn }
+        set { put(\.scopeOn, \._scopeOn, newValue, AppModel.changed(_scopeOn, newValue)) }
     }
 }
