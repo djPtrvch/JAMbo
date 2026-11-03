@@ -77,7 +77,7 @@ struct RollMetrics {
         if let py = port.y {
             y = min(maxY, max(0, py))
         } else {
-            // Нижняя строка поля — корневая нота октавы 2 (C2 при ROOT C), как на клавиатуре.
+            // Нижняя строка поля — корневая нота октавы по умолчанию (C3 при ROOT C), как на клавиатуре.
             let base: Int = Scales.baseNote(root: root, octave: Scales.octaveDef)
             let r: Int = rows.firstIndex(where: { $0 >= base }) ?? 0
             let bottom: CGFloat = CGFloat(rows.count - r) * rowH

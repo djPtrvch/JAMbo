@@ -87,10 +87,7 @@ extension AppModel {
 
     /// Запись (стем или REC) — в RECORDINGS библиотеки, папка «проект дд.мм.гггг».
     func addRecording(_ key: String, name: String, folder: String) {
-        if !libraryLoaded {
-            library = libraryStore.load()
-            libraryLoaded = true
-        }
+        ensureLibrary()
         libEdit { lib in
             let id: String = lib.recordingsFolder(folder)
             _ = lib.addSample(id, key: key, name: name)

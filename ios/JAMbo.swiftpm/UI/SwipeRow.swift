@@ -10,6 +10,8 @@ struct SwipeRow: View {
     let subtitle: String?
     /// Справа (у проектов — темп, нота, гамма); у открытой строки не видно.
     let meta: String?
+    /// Тональность после meta своим цветом (PROJECTS: близость по квинтовому кругу); nil — без неё.
+    var key: (String, Color)? = nil
     /// Цвет текста (Autosave — жёлтый); current — строка горит акцентом (текущий проект).
     let tint: Color?
     let current: Bool
@@ -71,7 +73,12 @@ struct SwipeRow: View {
             }
             Spacer(minLength: 0)
             if let m = meta, offset > -1 {
-                Text(m).font(.system(size: 12)).lineLimit(1).opacity(0.65)
+                if let k = key {
+                    (Text(m + " · ").foregroundStyle(fg.opacity(0.65)) + Text(k.0).foregroundStyle(k.1))
+                        .font(.system(size: 12)).lineLimit(1)
+                } else {
+                    Text(m).font(.system(size: 12)).lineLimit(1).opacity(0.65)
+                }
             }
         }
         .foregroundStyle(fg)

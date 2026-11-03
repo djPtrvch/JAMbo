@@ -135,10 +135,26 @@ struct ProjectsPage: View {
         let auto: Bool = info.id == ProjectStore.autosaveId
         let title: String = auto ? "\(ProjectSession.autosaveName) · \(info.projectName ?? "")" : info.name
         let edit: (() -> Void)? = auto ? nil : { ask(.renameId(info.id), info.name) }
-        return SwipeRow(title: title, subtitle: ProjectsPage.date(info.updated), meta: ProjectSession.meta(info),
-                        tint: auto ? theme.accentText : nil, current: !auto && info.id == model.session.id,
-                        height: 48, tap: { opening = info }, rename: edit,
-                        delete: { model.deleteProject(id: info.id) })
+        let current: Bool = !auto && info.id == model.session.id
+        var r = SwipeRow(title: title, subtitle: ProjectsPage.date(info.updated), meta: "\(Int(info.bpm.rounded()))",
+                         tint: auto ? theme.accentText : nil, current: current,
+                         height: 48, tap: { opening = info }, rename: edit,
+                         delete: { model.deleteProject(id: info.id) })
+        r.key = (ProjectSession.keyName(info), keyColor(info, current: current))
+        return r
+    }
+
+    /// Тональность проекта по квинтовому кругу от открытого: жёлтая — та же или соседняя, оранжевая — через 2–3
+    /// шага, красная — дальше; у открытого проекта и у Chromatic — цветом строки.
+    private func keyColor(_ info: ProjectInfo, current: Bool) -> Color {
+        let plain: Color = current ? theme.onAccent : theme.text
+        if current { return plain }
+        let p = model.project
+        guard let d = KeyMatch.distance(scale: p.scale, root: p.root, scale: info.scale, root: info.root) else {
+            return plain.opacity(0.65)
+        }
+        let g: Int = KeyMatch.grade(d)
+        return g == 0 ? theme.accentText : (g == 1 ? theme.gr : theme.rec)
     }
 
     /// LOAD или MIX (переход между проектами, S10).

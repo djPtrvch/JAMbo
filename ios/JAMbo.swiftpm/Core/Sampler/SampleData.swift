@@ -60,12 +60,18 @@ public enum SampleEdit {
     // Правки — прямо по буферам, циклы while без вызовов функций (отладочная сборка Playgrounds не оптимизирует).
 
     public static func trim(_ s: SampleData, _ a: Double, _ b: Double) -> SampleData {
-        let i0 = Swift.max(0, Swift.min(s.frames - 1, Int((Swift.min(a, b) * Double(s.frames)).rounded())))
-        let i1 = Swift.max(i0 + 1, Swift.min(s.frames, Int((Swift.max(a, b) * Double(s.frames)).rounded())))
+        let (i0, i1) = trimRange(s.frames, a, b)
         let out = SampleData(frames: i1 - i0, stereo: s.channels == 2)
         out.left.update(from: s.left + i0, count: i1 - i0)
         if s.channels == 2 { out.right.update(from: s.right + i0, count: i1 - i0) }
         return out
+    }
+
+    /// Оставляемые TRIM кадры i0..<i1 для выделения a…b (доли длины).
+    public static func trimRange(_ frames: Int, _ a: Double, _ b: Double) -> (Int, Int) {
+        let i0 = Swift.max(0, Swift.min(frames - 1, Int((Swift.min(a, b) * Double(frames)).rounded())))
+        let i1 = Swift.max(i0 + 1, Swift.min(frames, Int((Swift.max(a, b) * Double(frames)).rounded())))
+        return (i0, i1)
     }
 
     /// NORMALIZE: пик −0.1 dBFS.

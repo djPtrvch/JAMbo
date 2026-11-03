@@ -16,8 +16,11 @@ struct SynthInfo: View {
         let own: Bool = WavetableKey.parseUser(key) != nil
         var table: String? = engine == Jambo.wtable ? (own ? model.tableName(key) : SoundTitle.capitalized(model.tableName(key))) : nil
         if engine == Jambo.granular { table = model.sampleName(model.track.grain) }
+        // Звук дорожки — пресет (загружен или сохранён): его имя через тире, как detail.
+        let isTrack: Bool = SynthKey.engine(model.track.sample) == engine
+        let preset: String? = isTrack ? model.track.presetName : nil
         return VStack(alignment: .leading, spacing: 4) {
-            SoundTitle(main: e?.name ?? "", detail: table)
+            SoundTitle(main: e?.name ?? "", detail: table, preset: preset)
                 .padding(.top, 6)
             VStack(alignment: .leading, spacing: 8) {
                 // Поле иконки 64×64 — по центру своего места (сдвиг на 3 pt вниз — по проверке на iPad).
@@ -54,6 +57,8 @@ struct SynthInfo: View {
 struct SoundTitle: View {
     let main: String
     let detail: String?
+    /// Имя пресета синта (после detail, тоже через тире, цветом текста).
+    var preset: String? = nil
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -61,11 +66,16 @@ struct SoundTitle: View {
         if let d = detail, !d.isEmpty {
             t = t + Text(" — " + d).foregroundStyle(theme.text)
         }
+        if let p = preset, !p.isEmpty {
+            t = t + Text(" — " + p).foregroundStyle(theme.text)
+        }
         return t
             // Как подписи движков в меню звука.
             .font(.system(size: 13, weight: .bold))
-            .lineLimit(1)
+            // Длинное имя — на вторую строку (не мельче); не влезло и в две — тогда ужимается.
+            .lineLimit(2)
             .minimumScaleFactor(0.7)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     /// «METAL» → «Metal»: первая буква заглавная, остальные малые.

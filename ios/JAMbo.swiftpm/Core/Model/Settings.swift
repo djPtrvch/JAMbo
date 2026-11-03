@@ -88,6 +88,9 @@ public struct AppSettings: Codable, Equatable, Sendable {
     /// SETTINGS → SAMPLER (S11b): загрузка звуков из библиотеки на дорожку снимает её сэмпл-локи (шаги со своим
     /// сэмплом играют звук дорожки своей нотой); пресет-локи остаются.
     public var clearSampleLocks: Bool = true
+    /// SETTINGS → SAMPLER → WARP TO PROJECT BPM (решение пользователя): при входе в WARP у сэмпла без своего BPM
+    /// файла BPM файла ставится равным темпу проекта; по умолчанию — нет.
+    public var warpProjectBpm: Bool = false
     /// SETTINGS → SAMPLER → STRETCH: алгоритм таймстретча RATE в режиме Stretch — NORMAL (фазовый вокодер, по
     /// умолчанию) или BEAT (WSOLA, для ударных лупов).
     public var stretchBeat: Bool = false
@@ -143,7 +146,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
                                          clearSampleLocks, pitchSemitones, midi, stepPaint, sync,
                                          arrangeCompact, fxPictures, backgroundAudio, arrangeRepeats, stretchBeat,
                                          metronomeVol, arrangeScale, arrangeFollow, displayScale,
-                                         randomDrums, randomChords, randomStyleAll, randomStepsAll, randomSamples }
+                                         randomDrums, randomChords, randomStyleAll, randomStepsAll, randomSamples,
+                                         warpProjectBpm }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -166,6 +170,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         mixKey = c.value(.mixKey, true)
         mixCrossfader = c.value(.mixCrossfader, true)
         clearSampleLocks = c.value(.clearSampleLocks, true)
+        warpProjectBpm = c.value(.warpProjectBpm, false)
         stretchBeat = c.value(.stretchBeat, false)
         pitchSemitones = c.value(.pitchSemitones, false)
         midi = c.value(.midi, MidiSettings())

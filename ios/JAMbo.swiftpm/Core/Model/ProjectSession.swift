@@ -168,9 +168,14 @@ extension ProjectSession {
 
     /// Справа в строке списка: темп, корневая нота и гамма сокращённо («120 · C Min»).
     public static func meta(_ i: ProjectInfo) -> String {
+        return "\(Int(i.bpm.rounded())) · " + keyName(i)
+    }
+
+    /// Тональность для строки списка: «D Min».
+    public static func keyName(_ i: ProjectInfo) -> String {
         let scale: Int = Swift.min(Scales.all.count - 1, Swift.max(0, i.scale))
         let note: String = Params.noteNames[((i.root % 12) + 12) % 12]
-        return "\(Int(i.bpm.rounded())) · \(note) \(Scales.all[scale].short)"
+        return "\(note) \(Scales.all[scale].short)"
     }
 
     /// IMPORT (S11a, как importProject веба): имя занято — «имя (imported)»; длиннее 24 — можно (подставленное).

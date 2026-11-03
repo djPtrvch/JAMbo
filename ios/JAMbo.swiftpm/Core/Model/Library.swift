@@ -49,17 +49,21 @@ public struct Library: Codable, Equatable, Sendable {
     public static let nameLimit = 40
 
     public var nodes: [LibNode] = []
+    /// Нарезка и варпинг сэмплов по ключу (LibraryMarks.swift): запоминаются при правке в редакторе, подставляются
+    /// при загрузке сэмпла на дорожку.
+    public var marks: [String: SampleMarks] = [:]
 
     public init(nodes: [LibNode] = []) {
         self.nodes = nodes
         ensureRecordings()
     }
 
-    enum CodingKeys: String, CodingKey { case nodes }
+    enum CodingKeys: String, CodingKey { case nodes, marks }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         nodes = c.value(.nodes, [LibNode]())
+        marks = c.value(.marks, [String: SampleMarks]())
         ensureRecordings()
     }
 

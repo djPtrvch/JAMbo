@@ -27,10 +27,11 @@ public enum Scales {
     public static let chordKinds: [String] = ["Triad", "7th", "9th", "Sus2", "Sus4", "Add9"]
     public static let chordDegrees: [[Int]] = [[0, 2, 4], [0, 2, 4, 6], [0, 2, 4, 6, 8], [0, 1, 4], [0, 3, 4], [0, 2, 4, 8]]
 
-    /// Октава клавиатуры: 0…7, по умолчанию 2 (C2).
+    /// Октава клавиатуры: 0…7, по умолчанию 3 (C3 — сэмпл в исходной высоте и первый маркер нарезки; решение пользователя
+    /// 3.11, прежде 2).
     public static let octaveMin = 0
     public static let octaveMax = 7
-    public static let octaveDef = 2
+    public static let octaveDef = 3
     /// Клавиш самое большее (две октавы хроматики + 1).
     public static let maxKeys = 25
 

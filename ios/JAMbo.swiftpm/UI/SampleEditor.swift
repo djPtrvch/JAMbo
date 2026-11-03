@@ -47,13 +47,41 @@ struct SampleEditor: View {
             .clipShape(RoundedRectangle(cornerRadius: Layout.radius))
         }
         .onChange(of: key) { _, _ in
-            sel = EditorSelection()
-            view = EditorWindow()
+            let r: (Double, Double)? = model.editorRemap
+            model.editorRemap = nil
+            // TRIM, NORMALIZE, MONO: то же место звука и тот же масштаб; иначе — весь сэмпл.
+            if let r = r, !model.editorWarp {
+                view = EditorWindow.remap(view, r.0, r.1)
+                sel = EditorSelection()
+            } else {
+                sel = EditorSelection()
+                view = EditorWindow()
+            }
             touches.removeAll()
             model.releaseFlag()
             model.warpSel = nil
             warpFrozen = nil
         }
+        .onChange(of: model.editorWarp) { _, warp in
+            touches.removeAll()
+            tip = nil
+            warpFrozen = nil
+            if let d = data { view = convertView(d, toWarp: warp) }
+        }
+    }
+
+    /// Переход NORMAL ↔ WARP: окно — на тот же отрезок звука (окно NORMAL — доли длины, WARP — доли диапазона долей).
+    private func convertView(_ d: SampleData, toWarp: Bool) -> EditorWindow {
+        let wv: WarpView = warpView(d)
+        let a: Double = view.a
+        let b: Double = view.a + view.span
+        let fa: Double = toWarp ? wv.frac(sample: a) : wv.sample(a)
+        let fb: Double = toWarp ? wv.frac(sample: b) : wv.sample(b)
+        let lo: Double = Swift.min(1, Swift.max(0, Swift.min(fa, fb)))
+        let hi: Double = Swift.min(1, Swift.max(0, Swift.max(fa, fb)))
+        let minSpan: Double = Swift.min(1, 256 / Double(Swift.max(1, d.frames)))
+        let span: Double = Swift.min(1, Swift.max(minSpan, hi - lo))
+        return EditorWindow(a: Swift.min(1 - span, Swift.max(0, lo)), span: span)
     }
 
     /// Доли на экране WARP (во время перетаскивания метки — прежний диапазон).
@@ -473,6 +501,14 @@ struct EditorSelection: Equatable {
 struct EditorWindow: Equatable {
     var a: Double = 0
     var span: Double = 1
+
+    /// Окно на копии, ставшей отрезком r0…r1 прежнего сэмпла (TRIM; NORMALIZE и MONO — 0…1): тот же звук на экране.
+    static func remap(_ v: EditorWindow, _ r0: Double, _ r1: Double) -> EditorWindow {
+        let len: Double = Swift.max(1e-9, r1 - r0)
+        let span: Double = Swift.min(1, v.span / len)
+        let a: Double = (v.a - r0) / len
+        return EditorWindow(a: Swift.min(1 - span, Swift.max(0, a)), span: span)
+    }
 }
 
 struct EditorTouch {

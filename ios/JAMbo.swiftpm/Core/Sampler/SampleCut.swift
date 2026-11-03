@@ -92,3 +92,39 @@ extension Track {
         putWarp(new, out)
     }
 }
+
+extension Track {
+    /// TRIM (оставлены кадры i0..<i1 из frames): маркеры нарезки и метки WARP сэмпла old — к копии new; вне
+    /// оставленного — удаляются, внутри — на прежнем месте звука. Доли меток — со сдвигом на целое число долей начала
+    /// (сетка та же); с метками BPM файла закрепляется. NORMALIZE и MONO — i0 = 0, i1 = frames (всё как было).
+    public mutating func carryTrim(_ old: String, _ new: String, frames: Int, _ i0: Int, _ i1: Int,
+                                   detectedBpm: Double) {
+        if old.isEmpty || new.isEmpty || i1 <= i0 { return }
+        let n: Double = Double(i1 - i0)
+        let a: Double = Double(i0)
+        let b: Double = Double(i1)
+        var marks: [SliceMark] = []
+        for m in sliceMarks(old) {
+            let p: Double = m.at * Double(frames)
+            if p < a || p >= b { continue }
+            marks.append(SliceMark(at: (p - a) / n, note: m.note, role: m.role))
+        }
+        putMarks(new, marks)
+        let w = warpInfo(old)
+        if w.isEmpty { return }
+        var out = WarpInfo(bpm: w.bpm, marks: [])
+        out.off = w.off
+        if !w.marks.isEmpty {
+            let bpm: Double = WarpMap.bpm(w, detected: detectedBpm)
+            let map = WarpMap(w, frames: frames, bpm: bpm)
+            let shift: Double = i0 > 0 ? map.beat(a).rounded(.down) : 0
+            out.bpm = bpm
+            for m in w.marks {
+                let p: Double = m.at * Double(frames)
+                if p < a || p > b { continue }
+                out.marks.append(WarpMark(at: (p - a) / n, beat: m.beat - shift))
+            }
+        }
+        putWarp(new, out)
+    }
+}

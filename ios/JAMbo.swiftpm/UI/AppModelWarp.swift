@@ -22,6 +22,10 @@ extension AppModel {
         releaseFlag()
         warpSel = nil
         editorWarp.toggle()
+        // WARP TO PROJECT BPM: BPM файла — темп проекта (если свой не задан; одна запись UNDO).
+        if editorWarp && settings.warpProjectBpm && editorWarpInfo.bpm == nil && !editorKey.isEmpty {
+            setWarpBpm(project.bpm)
+        }
     }
 
     /// Удержание WARP: варпинг сэмпла выкл./вкл. (метки и BPM остаются; одна запись UNDO).

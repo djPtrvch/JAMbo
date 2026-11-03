@@ -64,4 +64,31 @@ final class SampleCutTests: XCTestCase {
         XCTAssertEqual(w.marks[2].at * 72000, 48000, accuracy: 1e-6)
         XCTAssertEqual(t.sliceMarks("a").count, 3, "у исходного — как было (UNDO)")
     }
+
+    func testCarryTrim() {
+        var t = Track(index: 0)
+        let frames = 96000
+        t.addSlice("a", at: 0.1)
+        t.addSlice("a", at: 0.3)
+        t.addSlice("a", at: 0.6)
+        _ = t.setSliceNote("a", 1, note: 60, notes: [48, 49, 50])
+        // 120 BPM: доля — 24000; метки на 0, 1, 2, 3 доли.
+        t.autoWarp("a", onsets: [24000, 48000, 72000], frames: frames, detectedBpm: 120, grid: 1)
+        // Оставляем 24000..<72000: маркер 0.1 вне — удаляется.
+        let (i0, i1) = SampleEdit.trimRange(frames, 0.25, 0.75)
+        t.carryTrim("a", "b", frames: frames, i0, i1, detectedBpm: 120)
+        let m = t.sliceMarks("b")
+        XCTAssertEqual(m.count, 2)
+        XCTAssertEqual(m[0].at * 48000, 28800 - 24000, accuracy: 1e-6)
+        XCTAssertEqual(m[0].note, 60, "своя нота едет с маркером")
+        XCTAssertEqual(m[1].at * 48000, 57600 - 24000, accuracy: 1e-6)
+        let w = t.warpInfo("b")
+        XCTAssertEqual(w.bpm, 120, "BPM файла закреплён")
+        XCTAssertEqual(w.marks.map { $0.beat }, [0, 1, 2], "доли — от начала копии")
+        XCTAssertEqual(w.marks[2].at, 1, accuracy: 1e-9)
+        // NORMALIZE, MONO: всё как было.
+        t.carryTrim("a", "c", frames: frames, 0, frames, detectedBpm: 120)
+        XCTAssertEqual(t.sliceMarks("c"), t.sliceMarks("a"))
+        XCTAssertEqual(t.warpInfo("c").marks, t.warpInfo("a").marks)
+    }
 }

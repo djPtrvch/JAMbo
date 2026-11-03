@@ -43,6 +43,11 @@ final class AppModel {
     @ObservationIgnored var grainPeakCache: [String: [Double]] = [:]
     /// Стерео ли дорожка на метрах (trackStereo; по индексу дорожки) — до следующей правки проекта.
     @ObservationIgnored var stereoCache: [Int: Bool] = [:]
+    /// TRIM, NORMALIZE, MONO: какая часть прежнего сэмпла (доли длины) стала копией — редактор переводит на неё
+    /// масштаб и место (SampleEditor, смена ключа); nil — смена сэмпла не правкой.
+    @ObservationIgnored var editorRemap: (Double, Double)? = nil
+    /// Запись библиотеки после правки нарезки или варпинга уже назначена (одна на секунду, не на каждое движение).
+    @ObservationIgnored var marksSaveDue: Bool = false
     private(set) var selectedTrack: Int = 0 {
         didSet { updateGrainSeconds() }
     }
@@ -799,6 +804,7 @@ final class AppModel {
     func refreshHistory() {
         if canUndo != history.canUndo { canUndo = history.canUndo }
         if canRedo != history.canRedo { canRedo = history.canRedo }
+        rememberEditorMarks()
     }
 
     var track: Track { return project.tracks[selectedTrack] }

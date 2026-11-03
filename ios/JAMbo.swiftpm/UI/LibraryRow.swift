@@ -57,10 +57,12 @@ struct LibRow: View {
         let fg: Color = current ? theme.onAccent : theme.text
         return HStack(spacing: 8) {
             if node.id == Library.recordings {
-                Circle().fill(theme.rec).frame(width: 7, height: 7)
+                Circle().fill(theme.rec).frame(width: 7, height: 7).frame(width: 22)
                 Text(node.name).font(.system(size: 13, weight: .bold)).lineLimit(1)
             } else {
-                Text(LibRow.icon(node) + "  " + node.name).font(.system(size: 13, weight: .bold)).lineLimit(1)
+                Image(systemName: LibRow.icon(node)).font(.system(size: 14, weight: .semibold))
+                    .frame(width: 22)
+                Text(node.name).font(.system(size: 13, weight: .bold)).lineLimit(1)
             }
             Spacer(minLength: 0)
             if offset > -1 {
@@ -75,12 +77,13 @@ struct LibRow: View {
         .contentShape(Rectangle())
     }
 
+    /// Значок по типу (SF Symbols): папка, таблица, сэмпл, пресет синта.
     static func icon(_ n: LibNode) -> String {
         switch n.kind {
-        case .folder: return "▸"
-        case .table: return "▦"
-        case .sample: return "∿"
-        case .preset: return "◆"
+        case .folder: return "folder.fill"
+        case .table: return "square.grid.3x3.fill"
+        case .sample: return "waveform"
+        case .preset: return "pianokeys"
         }
     }
 

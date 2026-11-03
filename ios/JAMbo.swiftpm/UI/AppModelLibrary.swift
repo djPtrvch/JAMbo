@@ -32,11 +32,16 @@ enum BrowserMode: Equatable {
 extension AppModel {
     // MARK: — окно
 
+    /// Библиотека с диска (один раз за запуск) — до любой правки: правка пустой библиотеки в памяти затёрла бы файл.
+    func ensureLibrary() {
+        if libraryLoaded { return }
+        library = libraryStore.load()
+        libraryLoaded = true
+    }
+
     func openBrowser(_ m: BrowserMode) {
-        if !libraryLoaded {
-            library = libraryStore.load()
-            libraryLoaded = true
-        }
+        ensureLibrary()
+        rememberProjectMarks()
         browser = m
         libPicked = nil
         libNote = ""
@@ -127,7 +132,41 @@ extension AppModel {
         libEdit { $0.moveFolder(parent, from: from, to: to) }
     }
 
+    /// Нарезка и варпинг сэмпла в редакторе — в библиотеку (LibraryMarks.swift): тот же сэмпл, загруженный позже на
+    /// любую дорожку и в любой проект, получает их. Запись на диск — через секунду после правки.
+    func rememberEditorMarks() {
+        guard editorOpen, channel == .track, selectedTrack < project.tracks.count else { return }
+        let key: String = editorKey
+        if key.isEmpty || SynthKey.engine(key) != nil { return }
+        ensureLibrary()
+        if !library.remember(key, track.sampleMarks(key)) { return }
+        if marksSaveDue { return }
+        marksSaveDue = true
+        Later.run(1.0) {
+            self.marksSaveDue = false
+            self.libEdit { _ in }
+        }
+    }
+
+    /// Нарезка и варпинг всех сэмплов открытого проекта — в библиотеку, если там их ещё нет (поставлены до этой
+    /// сборки или без редактора); сэмпл в редакторе — всегда как сейчас.
+    func rememberProjectMarks() {
+        var changed: Bool = false
+        for t in project.tracks {
+            var keys: Set<String> = Set(t.slices.keys)
+            keys.formUnion(t.warps.keys)
+            for k in keys where library.marks[k] == nil {
+                if library.remember(k, t.sampleMarks(k)) { changed = true }
+            }
+        }
+        if editorOpen, channel == .track, !editorKey.isEmpty {
+            if library.remember(editorKey, track.sampleMarks(editorKey)) { changed = true }
+        }
+        if changed { libEdit { _ in } }
+    }
+
     func libEdit(_ change: (inout Library) -> Void) {
+        ensureLibrary()
         change(&library)
         let lib: Library = library
         let store: LibraryStore = libraryStore
@@ -139,8 +178,12 @@ extension AppModel {
         libEdit { $0.createFolder(into, name) }
     }
 
+    /// Новое имя сэмпла — и в проекте (окно сэмпла и редактор показывают имя из проекта; без записи в UNDO).
     func libRename(_ id: String, _ name: String) {
         libEdit { $0.rename(id, to: name) }
+        guard let n = library.node(id), n.kind == .sample, let key = n.key, project.files[key] != nil else { return }
+        let shown: String = n.name
+        mutatePlay({ p in p.files[key] = shown }, publish: false)
     }
 
     func libDelete(_ id: String) {
@@ -197,7 +240,9 @@ extension AppModel {
             libUseSamples([(key, n.name)]) { [weak self] ok in
                 guard let self = self, ok, i < self.project.tracks.count else { return }
                 let clear: Bool = self.settings.clearSampleLocks
+                let mk: SampleMarks? = self.library.marks[key]
                 self.edit { p in
+                    p.tracks[i].applyMarks(key, mk)
                     if steps.isEmpty {
                         p.tracks[i].setFolder([FolderItem(sample: key)])
                         if clear { p.tracks[i].clearSampleLocks() }
@@ -207,6 +252,7 @@ extension AppModel {
                     }
                 }
                 self.libNote = (steps.isEmpty ? self.trackLabel(i) : AppModel.stepsLabel(steps)) + ": " + n.name
+                    + (mk != nil ? " · slices and warp restored" : "")
             }
         } else if n.kind == .preset, let p = n.preset, steps.isEmpty {
             let clear: Bool = settings.clearSampleLocks
@@ -249,7 +295,9 @@ extension AppModel {
             self.libPicked = nil
             if items.isEmpty { return }
             let clear: Bool = self.settings.clearSampleLocks
+            let marks: [String: SampleMarks] = self.library.marks
             self.edit { p in
+                for it in items { if let k = it.sample { p.tracks[i].applyMarks(k, marks[k]) } }
                 p.tracks[i].setFolder(items)
                 if clear { p.tracks[i].clearSampleLocks() }
             }
@@ -275,9 +323,10 @@ extension AppModel {
                 if !ok { self.libNote = "This sample is no longer stored on this iPad" }
                 let present: [(String, String)] = list.filter { self.store.data($0.0) != nil }
                 if !present.isEmpty {
-                    // Имя и высота — в проект (без записи в UNDO: проекту они нужны, пока звук на дорожке).
+                    // Имя (нынешнее имя в библиотеке) и высота — в проект (без записи в UNDO: проекту они нужны, пока звук на
+                    // дорожке).
                     self.mutatePlay({ p in
-                        for (k, name) in present where p.files[k] == nil { p.files[k] = name }
+                        for (k, name) in present { p.files[k] = name }
                         for (k, _, r) in result { if let r = r, p.roots[k] == nil { p.roots[k] = r } }
                     }, publish: true)
                 }
@@ -505,7 +554,10 @@ extension AppModel {
             edit { pr in pr.tracks[i].addItems([FolderItem(preset: saved)]) }
             libNote = "Saved preset " + saved.name
         case .saveSample(let key):
+            // С сэмплом — его нарезка и варпинг на этой дорожке.
+            let mk: SampleMarks = track.sampleMarks(key)
             libEdit { lib in
+                if !mk.isEmpty { lib.remember(key, mk) }
                 if let id = over {
                     lib.overwrite(id, with: FolderItem(sample: key))
                 } else {

@@ -270,10 +270,13 @@ extension AppModel {
         let keys: [String] = loaded.map { $0.key }
         let i = target.track
         guard i < project.tracks.count else { return }
+        ensureLibrary()
+        let marks: [String: SampleMarks] = library.marks
         edit { p in
             for l in loaded {
                 p.files[l.key] = l.name
                 if let r = l.root { p.roots[l.key] = r }
+                p.tracks[i].applyMarks(l.key, marks[l.key])
             }
             if target.steps.isEmpty {
                 p.tracks[i].addSamples(keys)
@@ -396,8 +399,27 @@ extension AppModel {
         }
     }
 
+    /// TRIM: маркеры нарезки и метки WARP внутри оставленного — к копии (редактор показывает то же место).
     func trimSample(_ a: Double, _ b: Double) {
-        applyEdit { SampleEdit.trim($0, a, b) }
+        guard let src = sample(editorKey) else { return }
+        let frames: Int = src.frames
+        let det: Double = src.loopBpm
+        let (i0, i1) = SampleEdit.trimRange(frames, a, b)
+        editorRemap = (Double(i0) / Double(frames), Double(i1) / Double(frames))
+        applyEdit({ SampleEdit.trim($0, a, b) }, carry: { t, old, new in
+            t.carryTrim(old, new, frames: frames, i0, i1, detectedBpm: det)
+        })
+    }
+
+    /// NORMALIZE и MONO: маркеры нарезки и метки WARP — к копии как были; масштаб редактора остаётся.
+    private func applySameLength(_ make: @escaping (SampleData) -> SampleData) {
+        guard let src = sample(editorKey) else { return }
+        let frames: Int = src.frames
+        let det: Double = src.loopBpm
+        editorRemap = (0, 1)
+        applyEdit(make, carry: { t, old, new in
+            t.carryTrim(old, new, frames: frames, 0, frames, detectedBpm: det)
+        })
     }
 
     /// CUT: без выделенного a…b (стык — кроссфейд 5 мс); маркеры нарезки и метки WARP — к копии со сдвигом.
@@ -405,17 +427,18 @@ extension AppModel {
         guard let src = sample(editorKey), let (i0, i1) = SampleEdit.cutRange(src.frames, a, b) else { return }
         let frames: Int = src.frames
         let det: Double = src.loopBpm
+        editorRemap = nil
         applyEdit({ SampleEdit.cut($0, a, b) }, carry: { t, old, new in
             t.carryCut(old, new, frames: frames, i0, i1, detectedBpm: det)
         })
     }
 
     func normalizeSample() {
-        applyEdit { SampleEdit.normalize($0) }
+        applySameLength { SampleEdit.normalize($0) }
     }
 
     func monoSample() {
-        applyEdit { SampleEdit.mono($0) }
+        applySameLength { SampleEdit.mono($0) }
     }
 
     func clearSample() {
