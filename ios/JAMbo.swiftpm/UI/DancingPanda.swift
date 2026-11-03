@@ -114,7 +114,9 @@ private struct PandaCanvas: View {
 
 enum PandaDraw {
     static func draw(_ base: GraphicsContext, _ size: CGSize, m: PandaMotion.Frame, time: Double, headphones: Color) {
-        let s: CGFloat = min(size.width, size.height)
+        // Масштаб 0,82: поднятые в стороны руки при наклоне тела выходят за квадрат примерно на 0,1 с каждой стороны,
+        // а Canvas обрезает по своей рамке — панда меньше квадрата, чтобы руки не обрезались на быстром темпе.
+        let s: CGFloat = min(size.width, size.height) * 0.82
         var ctx: GraphicsContext = base
         ctx.translateBy(x: (size.width - s) / 2, y: (size.height - s) / 2)
         let sleep: Double = 1 - m.awake
