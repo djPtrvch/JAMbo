@@ -87,8 +87,7 @@ struct ArrABSwitch: View {
         Text(s)
             .font(.system(size: 12, weight: .heavy))
             .foregroundStyle(on ? theme.bg : theme.dim)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(on ? theme.text : Color.clear, in: RoundedRectangle(cornerRadius: 5))
+            .modifier(Tile(on ? theme.text : Color.clear, radius: 5))
     }
 }
 

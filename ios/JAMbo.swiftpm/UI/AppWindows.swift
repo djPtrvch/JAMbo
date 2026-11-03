@@ -21,8 +21,7 @@ struct AppWindowView: View {
             content
         }
         .padding(12)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(theme.bg, in: RoundedRectangle(cornerRadius: 10))
+        .modifier(Tile(theme.bg, radius: 10, alignment: .topLeading))
         .overlay(RoundedRectangle(cornerRadius: 10).stroke(theme.line, lineWidth: 1))
     }
 

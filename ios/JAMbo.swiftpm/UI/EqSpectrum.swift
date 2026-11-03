@@ -222,8 +222,7 @@ struct EqCompareMenu: View {
         return Text(title)
             .font(.system(size: 13, weight: .bold)).lineLimit(1).minimumScaleFactor(0.7)
             .foregroundStyle(fg)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(cur ? theme.accent : theme.panel, in: RoundedRectangle(cornerRadius: 8))
+            .modifier(Tile(cur ? theme.accent : theme.panel, radius: 8))
             .contentShape(Rectangle())
             .onTapGesture { if enabled { model.setEqCompare(t) } }
     }

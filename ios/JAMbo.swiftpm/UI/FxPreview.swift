@@ -33,8 +33,7 @@ struct FxPreview: View {
             .frame(maxHeight: .infinity)
         }
         .padding(8)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(theme.panel, in: RoundedRectangle(cornerRadius: Layout.radius))
+        .modifier(Tile(theme.panel))
         .allowsHitTesting(false)
     }
 

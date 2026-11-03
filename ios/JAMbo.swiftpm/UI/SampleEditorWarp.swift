@@ -121,8 +121,7 @@ struct WarpBar: View {
     private func bpmButton(_ has: Bool) -> some View {
         Text(bpmText).font(.system(size: 13)).lineLimit(1).minimumScaleFactor(0.7)
             .foregroundStyle(has ? theme.text : theme.off)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(dragStart != nil ? theme.panel : theme.panel2, in: RoundedRectangle(cornerRadius: 8))
+            .modifier(Tile(dragStart != nil ? theme.panel : theme.panel2, radius: 8))
             .contentShape(Rectangle())
             .gesture(DragGesture(minimumDistance: 0)
                 .onChanged { g in

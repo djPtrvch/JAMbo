@@ -70,8 +70,7 @@ struct LibRow: View {
         }
         .foregroundStyle(fg)
         .padding(.horizontal, 12)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .background(current ? theme.accent : theme.panel, in: RoundedRectangle(cornerRadius: 8))
+        .modifier(Tile(current ? theme.accent : theme.panel, radius: 8, alignment: .leading))
         .overlay(RoundedRectangle(cornerRadius: 8).stroke(theme.accent, lineWidth: picked ? 1 : 0))
         .contentShape(Rectangle())
     }

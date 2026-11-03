@@ -17,8 +17,7 @@ struct SampleWindow: View {
     var body: some View {
         let _ = RedrawMeter.hit(.sampleWin)
         content
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(theme.panel, in: RoundedRectangle(cornerRadius: Layout.radius))
+            .modifier(Tile(theme.panel))
             .contentShape(Rectangle())
             // При MST касания — блокам индикации (тап — окно модуля), общий жест окна выключен.
             .gesture(press, including: model.channel == .master ? .subviews : .all)

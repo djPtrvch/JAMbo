@@ -203,8 +203,7 @@ struct ScopeButton: View {
             .font(.system(size: 13, weight: .semibold))
             .tracking(1)
             .foregroundStyle(on ? theme.onAccent : theme.text)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(on ? colors[tap] : theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
+            .modifier(Tile(on ? colors[tap] : theme.panel2))
             .contentShape(Rectangle())
             .onTapGesture { model.scopeOn[tap].toggle() }
     }

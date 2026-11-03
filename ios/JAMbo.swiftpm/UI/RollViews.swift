@@ -192,8 +192,7 @@ struct RollButton: View {
         return Image(systemName: "pianokeys")
             .font(.system(size: 18, weight: .semibold))
             .foregroundStyle(on ? theme.bg : theme.text)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(on ? theme.text : theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
+            .modifier(Tile(on ? theme.text : theme.panel2))
             .contentShape(Rectangle())
             .onTapGesture { model.toggleRoll() }
     }

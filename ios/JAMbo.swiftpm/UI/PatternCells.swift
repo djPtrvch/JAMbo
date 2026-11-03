@@ -33,8 +33,7 @@ struct ClipCellView: View {
             // Клип тянут на пустую ячейку — загорается «+» (встанет новый клип).
             if target && !filled { DropPlus() }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(denied ? theme.rec.opacity(0.35) : bg, in: RoundedRectangle(cornerRadius: 6))
+        .modifier(Tile(denied ? theme.rec.opacity(0.35) : bg, radius: 6))
         .overlay(RoundedRectangle(cornerRadius: 6).stroke(outline, lineWidth: 1))
         .clipShape(RoundedRectangle(cornerRadius: 6))
         .opacity(lifted ? 0.35 : 1)

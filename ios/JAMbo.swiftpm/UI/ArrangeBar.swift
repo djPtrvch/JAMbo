@@ -94,8 +94,7 @@ struct ArrBarText: View {
             .lineLimit(1)
             .minimumScaleFactor(0.7)
             .foregroundStyle(fg)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(bg, in: RoundedRectangle(cornerRadius: Layout.radius))
+            .modifier(Tile(bg))
             .contentShape(Rectangle())
             .onTapGesture { if enabled { action() } }
     }
@@ -115,8 +114,7 @@ struct ArrBarButton<Icon: View>: View {
         let fg: Color = !enabled ? theme.off : (on ? theme.bg : theme.text)
         let bg: Color = lit ? theme.text : theme.panel2
         return icon(fg)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(bg, in: RoundedRectangle(cornerRadius: Layout.radius))
+            .modifier(Tile(bg))
             // Запись — красный контур толще (решение пользователя: 3 pt, как запись мастера).
             .overlay(RoundedRectangle(cornerRadius: Layout.radius).strokeBorder(ring ? theme.rec : Color.clear, lineWidth: 3))
             .contentShape(Rectangle())
@@ -133,8 +131,7 @@ struct ArrReturnAll: View {
         Image(systemName: "arrow.left.to.line")
             .font(.system(size: 18, weight: .semibold))
             .foregroundStyle(theme.text)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
+            .modifier(Tile(theme.panel2))
             .contentShape(Rectangle())
             .onTapGesture { model.arrToStart() }
     }

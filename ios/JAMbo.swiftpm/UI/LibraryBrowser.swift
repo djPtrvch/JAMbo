@@ -104,8 +104,7 @@ struct LibraryBrowser: View {
                 MenuScroll { rows(items) }.scrollDisabled(reorder.active).padding(6)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
+        .modifier(Tile(theme.panel2))
     }
 
     /// Строки; свои папки — удержание и перетаскивание меняют их порядок (как пресеты EQ).

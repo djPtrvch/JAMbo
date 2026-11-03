@@ -373,8 +373,7 @@ struct Placeholder: View {
             .font(.system(size: 12, weight: .semibold))
             .tracking(1)
             .foregroundStyle(theme.off)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(theme.panel, in: RoundedRectangle(cornerRadius: Layout.radius))
+            .modifier(Tile(theme.panel))
     }
 }
 

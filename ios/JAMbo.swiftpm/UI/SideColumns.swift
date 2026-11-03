@@ -139,8 +139,7 @@ struct MasterRecButton: View {
             Text("MASTER").font(.system(size: 13, weight: .semibold)).tracking(1)
                 .foregroundStyle(on ? Color.white : theme.rec)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(on ? theme.rec : theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
+        .modifier(Tile(on ? theme.rec : theme.panel2))
         .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(theme.rec, lineWidth: 1))
         .contentShape(Rectangle())
         .onTapGesture { model.stemTap(StemRing.master) }
@@ -214,8 +213,7 @@ struct SideButton: View {
             .font(.system(size: 13, weight: .semibold))
             .tracking(1)
             .foregroundStyle(fg)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(bg, in: RoundedRectangle(cornerRadius: Layout.radius))
+            .modifier(Tile(bg))
     }
 }
 

@@ -25,8 +25,7 @@ struct SampleRecButton: View {
             }
             .font(.system(size: 13))
             .foregroundStyle(fg)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(on ? theme.rec : theme.panel2, in: RoundedRectangle(cornerRadius: 8))
+            .modifier(Tile(on ? theme.rec : theme.panel2, radius: 8))
             .overlay(RoundedRectangle(cornerRadius: 8).stroke(enabled && !on ? theme.rec : .clear, lineWidth: 1))
         }
         .buttonStyle(.plain)

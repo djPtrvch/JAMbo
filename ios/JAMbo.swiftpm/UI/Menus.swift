@@ -22,8 +22,7 @@ struct DragField: View {
             Text(value).font(.system(size: 15)).lineLimit(1).foregroundStyle(theme.text)
         }
         .padding(.horizontal, 10)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .background(start != nil ? theme.panel2 : theme.panel, in: RoundedRectangle(cornerRadius: Layout.radius))
+        .modifier(Tile(start != nil ? theme.panel2 : theme.panel, alignment: .leading))
         .contentShape(Rectangle())
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { frame = $0 }
         .gesture(drag)

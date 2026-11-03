@@ -63,8 +63,7 @@ struct KeyRow: View {
             .padding(.horizontal, 2)
             .foregroundStyle(fg)
             .padding(.bottom, 6)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-            .background(bg, in: RoundedRectangle(cornerRadius: 6))
+            .modifier(Tile(bg, radius: 6, alignment: .bottom))
             .overlay(RoundedRectangle(cornerRadius: 6).stroke(shown.contains(n) && !on ? theme.text : Color.clear, lineWidth: 1))
     }
 
@@ -129,8 +128,7 @@ struct ChordButton: View {
             Text(names[k]).font(.system(size: 10)).opacity(!model.arpMode && model.drumTrack && !model.settings.randomDrums ? 0 : 1)
         }
         .foregroundStyle(on ? theme.bg : theme.text)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(on ? theme.text : theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
+        .modifier(Tile(on ? theme.text : theme.panel2))
         .contentShape(Rectangle())
         .onTapGesture { model.chordTap() }
         .onLongPressGesture(minimumDuration: 0.5, perform: { model.chordMenuOpen = true },
@@ -217,7 +215,6 @@ struct OctaveButton: View {
         Text(title)
             .font(.system(size: 14))
             .foregroundStyle(lit ? theme.bg : theme.text)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(lit ? theme.text : theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
+            .modifier(Tile(lit ? theme.text : theme.panel2))
     }
 }

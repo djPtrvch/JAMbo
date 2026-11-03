@@ -105,6 +105,26 @@ struct MenuBox: ViewModifier {
     }
 }
 
+/// Плитка: на всю ширину и высоту (содержимое — по alignment), фон fill со скруглением radius. Один модификатор вместо
+/// двух на каждом месте (S14, объём сборки).
+struct Tile: ViewModifier {
+    let fill: Color
+    var radius: CGFloat = Layout.radius
+    var alignment: Alignment = .center
+
+    init(_ fill: Color, radius: CGFloat = Layout.radius, alignment: Alignment = .center) {
+        self.fill = fill
+        self.radius = radius
+        self.alignment = alignment
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignment)
+            .background(fill, in: RoundedRectangle(cornerRadius: radius))
+    }
+}
+
 /// Кнопка меню: неактивная — серая, DELETE — красная.
 struct MenuItem: View {
     let title: String

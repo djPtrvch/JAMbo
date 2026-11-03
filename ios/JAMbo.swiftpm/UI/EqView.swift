@@ -433,8 +433,7 @@ struct EqField: View {
                 .foregroundStyle(enabled ? theme.text : theme.off)
         }
         .padding(.horizontal, 12)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .background(start != nil ? theme.panel2 : theme.panel, in: RoundedRectangle(cornerRadius: Layout.radius))
+        .modifier(Tile(start != nil ? theme.panel2 : theme.panel, alignment: .leading))
         .contentShape(Rectangle())
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { frame = $0 }
         .gesture(drag, including: enabled ? .all : .none)
@@ -489,8 +488,7 @@ struct EqTool: View {
             .lineLimit(1)
             .minimumScaleFactor(0.6)
             .foregroundStyle(fg)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(active ? theme.accent : theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
+            .modifier(Tile(active ? theme.accent : theme.panel2))
             .contentShape(Rectangle())
             .onTapGesture { if enabled { action() } }
     }
@@ -511,8 +509,7 @@ struct EqListenButton: View {
             .lineLimit(1)
             .minimumScaleFactor(0.6)
             .foregroundStyle(fg)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(active ? theme.accent : theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
+            .modifier(Tile(active ? theme.accent : theme.panel2))
             .contentShape(Rectangle())
             .onTapGesture {
                 guard enabled else { return }

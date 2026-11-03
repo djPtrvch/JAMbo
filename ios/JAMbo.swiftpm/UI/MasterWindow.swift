@@ -230,8 +230,7 @@ struct MasterField: View {
                 .foregroundStyle(gray ? theme.off : theme.text)
         }
         .padding(.horizontal, 12)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .background(start != nil ? theme.panel2 : theme.panel, in: RoundedRectangle(cornerRadius: Layout.radius))
+        .modifier(Tile(start != nil ? theme.panel2 : theme.panel, alignment: .leading))
         .contentShape(Rectangle())
         .gesture(drag)
         .modifier(GestureCancelGuard {

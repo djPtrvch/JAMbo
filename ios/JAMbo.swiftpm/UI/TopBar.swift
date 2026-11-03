@@ -123,8 +123,7 @@ struct TopIcon: View {
         return Image(systemName: symbol)
             .font(.system(size: tint == .rec ? 12 : 18, weight: .semibold))
             .foregroundStyle(color)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
+            .modifier(Tile(theme.panel2))
             .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(tint == .rec ? theme.rec : Color.clear, lineWidth: 1))
     }
 }
@@ -139,8 +138,7 @@ struct TopText: View {
             .font(.system(size: 13, weight: .semibold))
             .tracking(1)
             .foregroundStyle(theme.off)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
+            .modifier(Tile(theme.panel2))
     }
 }
 
@@ -156,8 +154,7 @@ struct TopField: View {
             Text(value).font(.system(size: 15)).foregroundStyle(theme.off)
         }
         .padding(.horizontal, 10)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .background(theme.panel, in: RoundedRectangle(cornerRadius: Layout.radius))
+        .modifier(Tile(theme.panel, alignment: .leading))
     }
 }
 
@@ -172,8 +169,7 @@ struct PlayButton: View {
         return Image(systemName: "play.fill")
             .font(.system(size: 16, weight: .bold))
             .foregroundStyle(on ? theme.onAccent : theme.accent)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(on ? theme.accent : theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
+            .modifier(Tile(on ? theme.accent : theme.panel2))
             .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(theme.accent, lineWidth: 1))
             .contentShape(Rectangle())
             .gesture(touchDown)
@@ -202,8 +198,7 @@ struct MetronomeButton: View {
         return Image(systemName: "metronome")
             .font(.system(size: 20))
             .foregroundStyle(on ? theme.text : theme.dim)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(bg, in: RoundedRectangle(cornerRadius: Layout.radius))
+            .modifier(Tile(bg))
             .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(on ? theme.text : Color.clear, lineWidth: 1))
             .contentShape(Rectangle())
             .onTapGesture { model.toggleMetronome() }
@@ -222,8 +217,7 @@ struct HistoryButton: View {
         Image(systemName: symbol)
             .font(.system(size: 18, weight: .semibold))
             .foregroundStyle(enabled ? theme.text : theme.off)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
+            .modifier(Tile(theme.panel2))
             .contentShape(Rectangle())
             .onTapGesture { action() }
     }
@@ -280,8 +274,7 @@ struct RecButton: View {
                     .foregroundStyle(on ? Color.white : theme.rec)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(on ? theme.rec : theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
+        .modifier(Tile(on ? theme.rec : theme.panel2))
         .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(theme.rec, lineWidth: 1))
         .contentShape(Rectangle())
         .onTapGesture {
@@ -343,8 +336,7 @@ struct ViewButton: View {
             .font(.system(size: 13, weight: .semibold))
             .tracking(1)
             .foregroundStyle(on ? theme.bg : theme.text)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(on ? theme.text : theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
+            .modifier(Tile(on ? theme.text : theme.panel2))
             .overlay(RoundedRectangle(cornerRadius: Layout.radius).strokeBorder(ring ? theme.rec : Color.clear, lineWidth: ringWidth))
             .contentShape(Rectangle())
             .onTapGesture { action() }
