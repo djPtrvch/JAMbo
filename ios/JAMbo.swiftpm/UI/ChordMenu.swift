@@ -16,8 +16,10 @@ struct ChordMenu: View {
         let x: CGFloat = keys.width > 0 ? keys.minX : 12 + layout.step + Layout.stepGap
         let bottom: CGFloat = keys.height > 0 ? max(0, screen.height - keys.maxY) : 8
         // Высота окна — как у клавиш (решение пользователя): кнопки делят её на 3 ряда.
-        let height: CGFloat = keys.height > 0 ? keys.height : 3 * 44 + 2 * 6 + 2 * 10
-        let rowH: CGFloat = max(28, (height - 2 * 10 - 2 * 6) / 3)
+        // Без клавиш — 3 ряда по 44 pt (3·44 + 2·6 + 2·10 = 176); поля и зазоры — 32 pt.
+        let height: CGFloat = keys.height > 0 ? keys.height : 176
+        let inner: CGFloat = height - 32
+        let rowH: CGFloat = max(28, inner / 3)
         return ZStack(alignment: .bottomLeading) {
             Color.black.opacity(0.001).ignoresSafeArea().onTapGesture { model.chordMenuOpen = false }
             types(rowH)

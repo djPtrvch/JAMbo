@@ -433,7 +433,6 @@ public final class SynthVoices {
         let row: UnsafeMutablePointer<Float> = d.params + d.s(t) * VoiceParam.count
         let locks: UnsafeMutablePointer<Float> = lockVal + v * VoiceParam.count
         let e = engine[v]
-        let decaying = selfDecay[v] != 0
         var peak: Float = 0
         // Свои движки (jambo-synth-worklet.js): p1–p4 — ручки 1.1–1.4 / 100, Decay — мс; сглаживание — в голосе (5 мс).
         let q1 = knob(row, locks, mask, modE, t, frame0, VoiceParam.harm) / 100, q2 = knob(row, locks, mask, modE, t, frame0, VoiceParam.timbre) / 100, q3 = knob(row, locks, mask, modE, t, frame0, VoiceParam.morph) / 100
