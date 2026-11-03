@@ -299,5 +299,20 @@ jobs:
           print('TOP FUNCTIONS by code bytes:')
           for sz, f, dm in sorted(funcs, reverse=True)[:70]:
               print('  %6d %-22s %s' % (sz, f, dm[:150]))
+          # По файлам: где объём кода и какого вида; крупнейшие функции файлов UI (Core — DSP, его не трогаем).
+          fb = Counter(); fkind = defaultdict(Counter)
+          for (f, sz, _), dm in zip(rows, dem):
+              k = 'other'
+              for name, rx in rules:
+                  if re.search(rx, dm): k = name; break
+              fb[f] += sz; fkind[f][k] += sz
+          print('TOP FILES by code bytes (top kinds):')
+          for f, v in fb.most_common(60):
+              print('  %7d %-28s %s' % (v, f, ', '.join('%s %d' % kv for kv in fkind[f].most_common(4))))
+          ui = set(fn[:-6] for fn in os.listdir('ios/JAMbo.swiftpm/UI') if fn.endswith('.swift'))
+          print('UI code bytes total %d' % sum(v for f, v in fb.items() if f in ui))
+          print('TOP UI FUNCTIONS by code bytes:')
+          for sz, f, dm in [r for r in sorted(funcs, reverse=True) if r[1] in ui][:120]:
+              print('  %6d %-22s %s' % (sz, f, dm[:170]))
           EOF
           grep CALIBRATION "$RUNNER_TEMP/calib.txt" || true
