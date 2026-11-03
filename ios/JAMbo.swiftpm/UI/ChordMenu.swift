@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Окно CHORD (долгое нажатие на CHORD; решения пользователя 3.11): типы аккорда, на ударной дорожке — стили ритма
-/// (тап — выбор, окно закрывается), в режиме ARP — направление, RATE и OCTAVES (окно остаётся). Все три — от левого
+/// (тап — выбор, окно закрывается), в режиме ARP — направление, OCTAVES, RATE и LATCH (окно остаётся). Все три — от левого
 /// нижнего угла первой клавиши до верха строки дорожек, кнопки квадратные, одного размера (3 ряда); закрывается
 /// тапом мимо.
 struct ChordMenu: View {
@@ -32,8 +32,8 @@ struct ChordMenu: View {
         if arp {
             return AnyView(HStack(alignment: .top, spacing: ChordMenuMetrics.section) {
                 ArpWindowColumn(model: model, title: "DIRECTION", m: m, cols: 2, kind: 0)
-                ArpWindowColumn(model: model, title: "RATE", m: m, cols: 2, kind: 1)
                 ArpWindowColumn(model: model, title: "OCTAVES", m: m, cols: 1, kind: 2)
+                ArpWindowColumn(model: model, title: "RATE", m: m, cols: 2, kind: 1)
             })
         }
         let title: String = model.drumTrack ? "STYLE" : "CHORD"
@@ -77,7 +77,7 @@ struct ChordMenuMetrics {
     /// Окно аккордов и стилей (2 столбца) и сторона квадратной кнопки.
     let width: CGFloat
     let colW: CGFloat
-    /// Окно ARP: 5 столбцов (направления 2, RATE 2, OCTAVES 1) с промежутками между разделами.
+    /// Окно ARP: 5 столбцов (направления 2, OCTAVES 1, RATE 2 и LATCH) с промежутками между разделами.
     let arpWidth: CGFloat
 
     init(model: AppModel, layout: Layout, screen: CGSize) {
@@ -116,6 +116,12 @@ struct ArpWindowColumn: View {
             LazyVGrid(columns: grid, alignment: .leading, spacing: ChordMenuMetrics.gap) {
                 ForEach(0..<names.count, id: \.self) { i in
                     button(names, i, cur)
+                }
+                // RATE: в свободной шестой ячейке (справа внизу) — LATCH.
+                if kind == 1 {
+                    InkButton(title: "LATCH", active: model.track.arp.latch, height: m.rowH) {
+                        model.setArpLatch(!model.track.arp.latch)
+                    }
                 }
             }
         }
