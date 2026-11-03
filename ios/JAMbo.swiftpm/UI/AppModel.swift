@@ -318,6 +318,8 @@ final class AppModel {
     var pagesFrame: CGRect = .zero
     /// Клавиши клавиатуры (в координатах экрана): меню CHORD и бутерброда — от левого нижнего угла первой клавиши.
     var keysFrame: CGRect = .zero
+    /// Строка дорожек (в координатах «root»): верх окна CHORD и предел меню бутерброда под CHORD.
+    var tracksFrame: CGRect = .zero
     /// Звучащие голоса сэмплов (полоса воспроизведения): из колбэка; число — чтобы включать анимацию.
     @ObservationIgnored var heads: [Int: VoiceHead] = [:]
     var headCount: Int = 0

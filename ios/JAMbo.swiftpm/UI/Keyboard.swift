@@ -123,7 +123,8 @@ struct ChordButton: View {
         let word: String = model.arpMode ? "ARP" : "CHORD"
         return VStack(spacing: 2) {
             Text(word).font(.system(size: 12, weight: .semibold)).tracking(1)
-            Text(names[k]).font(.system(size: 10))
+            // Ударная дорожка с выключенным SETTINGS → RANDOM → DRUMS: стиля нет, слово остаётся на месте.
+            Text(names[k]).font(.system(size: 10)).opacity(model.drumTrack && !model.settings.randomDrums ? 0 : 1)
         }
         .foregroundStyle(on ? theme.bg : theme.text)
         .frame(maxWidth: .infinity, maxHeight: .infinity)

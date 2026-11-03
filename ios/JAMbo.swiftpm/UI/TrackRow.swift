@@ -15,6 +15,9 @@ struct TrackRow: View {
             ChannelCell(model: model, title: "MST", channel: .master).frame(width: layout.step).midiTarget(model, "MST")
         }
         .frame(height: Layout.trackHeight)
+        .onGeometryChange(for: CGRect.self) { g in g.frame(in: .named("root")) } action: { r in
+            if model.tracksFrame != r { model.tracksFrame = r }
+        }
     }
 }
 

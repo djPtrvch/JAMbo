@@ -118,6 +118,7 @@ final class ArpTests: XCTestCase {
         let old = try JSONDecoder().decode(Track.self, from: try JSONSerialization.data(withJSONObject: obj))
         XCTAssertEqual(old.arp, TrackArp(), "старый проект — CHORD и значения по умолчанию")
         XCTAssertEqual(TrackArp().rate, 2)
+        XCTAssertEqual(Arp.clampOctaves(4), 3, "октав не больше 3")
         XCTAssertEqual(Arp.rates[TrackArp().rate], "1/16")
     }
 }

@@ -90,32 +90,38 @@ struct ChoiceMenu: View {
     }
 }
 
-/// Меню клавиатуры (бутерброд под CHORD): 1 OCTAVE / 2 OCTAVES, KEY VELOCITY, OVERDUB (из SETTINGS → RECORD — решение
-/// пользователя), SWING и ARP (не на ударной дорожке); правее кнопки, снизу вверх,
-/// не выше строки шагов, шириной 4 шага.
+/// Меню клавиатуры (бутерброд под CHORD): 1 OCTAVE / 2 OCTAVES, под ними SWING, KEY VELOCITY, OVERDUB (из SETTINGS →
+/// RECORD — решение пользователя) и ARP (не на ударной дорожке); правее кнопки, снизу вверх, не выше верха строки
+/// дорожек (дальше — прокрутка), шириной 4 шага.
 struct PianoMenu: View {
     let model: AppModel
     let layout: Layout
     let screen: CGSize
     @Environment(\.theme) private var theme
+    /// Высота содержимого: меню по нему, но не выше верха строки дорожек (дальше — прокрутка).
+    @State private var contentH: CGFloat = 0
 
     var body: some View {
         let width: CGFloat = 4 * layout.step + 3 * Layout.stepGap
         // Левый нижний угол меню — у левого нижнего угла первой клавиши.
         let keys: CGRect = model.keysFrame
+        let tracks: CGRect = model.tracksFrame
         let x: CGFloat = keys.width > 0 ? keys.minX : 12 + layout.step + Layout.stepGap
         let bottom: CGFloat = keys.height > 0 ? max(0, screen.height - keys.maxY) : 8
-        let maxHeight: CGFloat = screen.height * 0.6
+        let low: CGFloat = keys.height > 0 ? keys.maxY : screen.height - 8
+        let top: CGFloat = tracks.height > 0 ? tracks.minY : screen.height * 0.4
+        let room: CGFloat = max(160, low - top - 20)
+        let h: CGFloat = contentH > 0 ? min(contentH, room) : room
         return ZStack(alignment: .bottomLeading) {
             Color.black.opacity(0.001).ignoresSafeArea().onTapGesture { model.pianoMenuOpen = false }
-            // Не помещается (раздел ARP) — прокрутка пальцем; высота — до 60 % экрана.
-            ViewThatFits(in: .vertical) {
-                content
-                MenuScroll { content }
+            MenuScroll {
+                content.onGeometryChange(for: CGFloat.self) { g in g.size.height } action: { v in
+                    if abs(contentH - v) > 0.5 { contentH = v }
+                }
             }
+                .frame(height: h)
                 .padding(10)
                 .frame(width: width)
-                .frame(maxHeight: maxHeight)
                 .background(theme.bg, in: RoundedRectangle(cornerRadius: Layout.radius))
                 .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(theme.line, lineWidth: 1))
                 .shadow(color: .black.opacity(0.5), radius: 12, y: 4)
@@ -135,6 +141,7 @@ struct PianoMenu: View {
                     model.updateSettings { $0.pianoOctaves = 2 }
                 }
             }
+            SwingSlider(model: model)
             ToggleRow(title: "KEY VELOCITY", isOn: model.settings.velocity) { v in model.updateSettings { $0.velocity = v } }
             Text(model.settings.velocity
                  ? "Tap harder — louder: the iPad motion sensor feels each tap. Scales the track Velocity; REC writes it as the note velocity."
@@ -147,7 +154,6 @@ struct PianoMenu: View {
                  : "REC clears the steps it passes over; only the new notes stay.")
                 .font(.system(size: 11))
                 .foregroundStyle(theme.dim)
-            SwingSlider(model: model)
             if !model.drumTrack && model.channel == .track { ArpMenuSection(model: model) }
         }
     }

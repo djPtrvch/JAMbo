@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Раздел ARP в меню под CHORD (не на ударной дорожке): RATE, OCTAVES, GATE, LATCH. Настройки дорожки — в проекте,
-/// без записи UNDO (как ход игры).
+/// Раздел ARP в меню под CHORD (не на ударной дорожке): GATE и LATCH; RATE и OCTAVES — в окне CHORD в режиме ARP.
+/// Настройки дорожки — в проекте, без записи UNDO (как ход игры).
 struct ArpMenuSection: View {
     let model: AppModel
     @Environment(\.theme) private var theme
@@ -10,25 +10,13 @@ struct ArpMenuSection: View {
         let a: TrackArp = model.track.arp
         return VStack(alignment: .leading, spacing: 6) {
             MenuHead(title: "ARP")
-            FieldLabel(title: "RATE")
-            HStack(spacing: 4) {
-                ForEach(0..<Arp.rates.count, id: \.self) { r in
-                    InkButton(title: Arp.rates[r], active: a.rate == r, height: 40) { model.setArpRate(r) }
-                }
-            }
-            FieldLabel(title: "OCTAVES")
-            HStack(spacing: 4) {
-                ForEach(1...Arp.maxOctaves, id: \.self) { o in
-                    InkButton(title: "\(o)", active: a.octaves == o, height: 40) { model.setArpOctaves(o) }
-                }
-            }
             ArpGateSlider(model: model)
             ToggleRow(title: "LATCH", isOn: a.latch) { model.setArpLatch($0) }
         }
     }
 }
 
-/// GATE арпеджио: ползунок 10–100 %, палец вбок.
+/// GATE арпеджио: ползунок 10–100 %, палец вбок; двойной тап — 50 %.
 struct ArpGateSlider: View {
     let model: AppModel
     @Environment(\.theme) private var theme
@@ -47,6 +35,8 @@ struct ArpGateSlider: View {
                 bar(geo.size.width, n)
                     .contentShape(Rectangle())
                     .gesture(drag(geo.size.width))
+                    // Двойной тап — значение по умолчанию (50 %).
+                    .simultaneousGesture(TapGesture(count: 2).onEnded { model.setArpGate(TrackArp().gate) })
             }
             .frame(height: 24)
         }
