@@ -468,11 +468,10 @@ extension AppModel {
         return Slices.notes(editorMarks, map: settings.sliceMap, scale: project.scale, root: project.root, octave: octave)
     }
 
-    /// free — маркер без ноты (двойной тап снизу; пустой флажок сверху, сэмпл на ноты не нарезает).
-    func addSlice(at f: Double, free: Bool = false) {
+    func addSlice(at f: Double) {
         let key = editorKey
         if key.isEmpty { return }
-        editTrack { t in t.addSlice(key, at: f, free: free) }
+        editTrack { t in t.addSlice(key, at: f) }
     }
 
     func deleteSlice(_ idx: Int) {
@@ -486,10 +485,21 @@ extension AppModel {
         editTrack { t in t.moveSlice(key, idx, at: f, gap: gap) }
     }
 
-    /// Держат флажок + клавиша: маркеру — эта нота. true — нота ушла маркеру (флажок держат, не двигая).
+    /// Держат флажок + клавиша: маркеру — эта нота; двойной тап той же клавиши — маркер без ноты (пустой флажок:
+    /// сэмпл на ноты не нарезает, только случайная нарезка). true — клавиша ушла маркеру (флажок держат, не двигая).
     func assignHeldSlice(_ note: Int) -> Bool {
         guard editorOpen, let idx = heldFlag, !editorKey.isEmpty else { return false }
         let key = editorKey
+        let now: Double = Date.timeIntervalSinceReferenceDate
+        let last = flagKeyTap
+        if last.idx == idx && last.note == note && now - last.t < 0.35 {
+            flagKeyTap = (-1, -1, 0)
+            flagUsed = true
+            refusedFlag = (-1, 0)
+            editTrack { t in t.clearSliceNote(key, idx) }
+            return true
+        }
+        flagKeyTap = (idx, note, now)
         let notes = editorMarkNotes
         var ok = false
         flagUsed = true

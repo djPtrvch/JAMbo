@@ -23,6 +23,11 @@ final class SliceCueTests: XCTestCase {
         XCTAssertTrue(t.setSliceNote("loop.caf", 1, note: 60, notes: notes))
         XCTAssertFalse(t.sliceMarks("loop.caf")[1].isFree)
         XCTAssertEqual(Slices.notes(t.sliceMarks("loop.caf"), map: .chromatic, scale: 0, root: 0), [48, 60, 50], "номер по порядку — по месту маркера")
+        // Двойной тап клавиши при удержании флажка — нота снята.
+        t.clearSliceNote("loop.caf", 1)
+        XCTAssertTrue(t.sliceMarks("loop.caf")[1].isFree)
+        XCTAssertNil(t.sliceMarks("loop.caf")[1].note)
+        XCTAssertEqual(Slices.notes(t.sliceMarks("loop.caf"), map: .chromatic, scale: 0, root: 0), [48, Slices.noNote, 49])
     }
 
     func testPiecesAndWrite() {

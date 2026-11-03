@@ -23,7 +23,7 @@ public struct SliceMark: Codable, Equatable, Sendable {
     public var note: Int?
     /// Роль куска для случайной нарезки (SliceRhythm.Role: LOW, MID, HIGH, LONG); nil — без роли.
     public var role: Int?
-    /// Метка без ноты (пустой флажок; ставят двойным тапом снизу; решение пользователя 3.11): только для случайной нарезки — сэмпл не
+    /// Маркер без ноты (пустой флажок; удержание флажка + двойной тап клавиши; решение пользователя 3.11): только для случайной нарезки — сэмпл не
     /// нарезается на ноты и транспонируется клавишами, как без маркеров. nil — маркер с нотой.
     public var free: Bool?
 
@@ -248,7 +248,7 @@ extension Track {
         slices[key] = m.isEmpty ? nil : m
     }
 
-    /// Новый маркер на доле at (нота — по порядку); free — метка без ноты.
+    /// Новый маркер на доле at (нота — по порядку); free — маркер без ноты.
     public mutating func addSlice(_ key: String, at: Double, free: Bool = false) {
         var m = sliceMarks(key)
         m.append(SliceMark(at: Swift.min(1, Swift.max(0, at)), free: free))
@@ -282,6 +282,17 @@ extension Track {
         m[idx].free = nil
         putMarks(key, m)
         return true
+    }
+}
+
+extension Track {
+    /// Маркер без ноты (удержание флажка + двойной тап клавиши): нота снята, сэмпл маркером на ноты не нарезается.
+    public mutating func clearSliceNote(_ key: String, _ idx: Int) {
+        var m = sliceMarks(key)
+        guard idx >= 0 && idx < m.count else { return }
+        m[idx].note = nil
+        m[idx].free = true
+        putMarks(key, m)
     }
 }
 

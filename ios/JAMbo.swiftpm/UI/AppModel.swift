@@ -46,6 +46,8 @@ final class AppModel {
     /// TRIM, NORMALIZE, MONO: какая часть прежнего сэмпла (доли длины) стала копией — редактор переводит на неё
     /// масштаб и место (SampleEditor, смена ключа); nil — смена сэмпла не правкой.
     @ObservationIgnored var editorRemap: (Double, Double)? = nil
+    /// Держат флажок нарезки: последняя клавиша (маркер, нота, время) — второй тап той же клавиши снимает ноту.
+    @ObservationIgnored var flagKeyTap: (idx: Int, note: Int, t: Double) = (-1, -1, 0)
     /// Запись библиотеки после правки нарезки или варпинга уже назначена (одна на секунду, не на каждое движение).
     @ObservationIgnored var marksSaveDue: Bool = false
     private(set) var selectedTrack: Int = 0 {
