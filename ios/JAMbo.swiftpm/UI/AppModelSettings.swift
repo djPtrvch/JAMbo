@@ -2,20 +2,20 @@ import Foundation
 
 /// Вкладки SETTINGS (S9d; отличия от веба: без SAMPLE RATE и BUFFER SIZE, BACKGROUND и SCALE; APPEARANCE — вкладка;
 /// новые MIX, MORPH, LEVEL — решение пользователя).
-/// Порядок — решение пользователя: AUDIO ENGINE, OUTPUT, APPEARANCE — нижним рядом.
+/// Порядок (3.11, решение пользователя) — по рядам из трёх: RECORD, SAMPLER, ARRANGE / MORPH, MIX, RANDOM /
+/// LEVEL, DUCK, DEFAULTS / APPEARANCE, AUDIO ENGINE, OUTPUT.
 enum SettingsTab: String, CaseIterable {
     case record = "RECORD"
     case sampler = "SAMPLER"
-    case sidechain = "DUCK"
-    case mix = "MIX"
+    case arrange = "ARRANGE"
     case morph = "MORPH"
+    case mix = "MIX"
     case random = "RANDOM"
     case level = "LEVEL"
-    case arrange = "ARRANGE"
-    // В конце (решение пользователя).
+    case sidechain = "DUCK"
     case defaults = "DEFAULTS"
-    case engine = "AUDIO ENGINE"
     case appearance = "APPEARANCE"
+    case engine = "AUDIO ENGINE"
     case output = "OUTPUT"
 }
 

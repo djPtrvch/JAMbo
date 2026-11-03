@@ -2,7 +2,7 @@ import SwiftUI
 
 // Режим WARP редактора сэмпла (docs/ai/sound-sampler.md): по горизонтали — доли (окно масштаба — доли диапазона
 // b0…b1), форма волны — по карте меток; сетка долей (такты ярче, номера тактов сверху); метки — флажки в полосе
-// под формой волны. Строка WARP: ▶ (по карте в темпе проекта), BPM файла, GRID, AUTO WARP, CLEAR WARP, WARP, ✕.
+// под формой волны. Строка WARP: ▶ (по карте в темпе проекта), BPM файла, GRID, CLEAR WARP, WARP, ✕ (AUTO WARP убран 3.11).
 
 /// Доли на экране: диапазон b0…b1 (доли) — это доли окна 0…1 (EditorWindow).
 struct WarpView {
@@ -77,7 +77,7 @@ final class WarpPeakCache {
     }
 }
 
-/// Строка WARP (вместо LOAD…CLEAR): ▶, BPM файла (двойной тап — ввод числом), GRID, AUTO WARP, CLEAR WARP.
+/// Строка WARP (вместо LOAD…CLEAR): ▶, BPM файла (двойной тап — ввод числом), GRID, CLEAR WARP.
 struct WarpBar: View {
     let model: AppModel
     let data: SampleData?
@@ -112,7 +112,6 @@ struct WarpBar: View {
                 let g: (String, Double) = WarpBar.grids[i]
                 ToolButton(title: g.0, lit: model.warpGrid == g.1, width: nil) { model.warpGrid = g.1 }
             }
-            ToolButton(title: "AUTO WARP", enabled: has, width: nil) { model.autoWarp() }
             ToolButton(title: "CLEAR WARP", enabled: has && marks > 0, width: nil) { model.clearWarp() }
         }
     }
