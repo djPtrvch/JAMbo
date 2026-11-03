@@ -158,6 +158,10 @@ extension AppModel {
         if !morphUsed { toggleMorph() }
     }
 
+    /// SHIFT для ручек (тап, удержание, шаг Pitch / Start / End, ручки не крутятся): пока держат SHIFT + MORPH в MODE
+    /// HOLD, SHIFT занята удержанием — ручки крутятся как без неё.
+    var knobShift: Bool { return shiftHeld && !morphAllHeld }
+
     /// Отпустили SHIFT: удержание SHIFT + MORPH (MODE HOLD) кончилось.
     func shiftReleased() {
         shiftHeld = false

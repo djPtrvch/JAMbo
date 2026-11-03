@@ -131,7 +131,7 @@ struct KnobGrid: View {
         if let t = lastTap[s], Date().timeIntervalSince(t) < 0.35 {
             lastTap[s] = nil
             // SHIFT + двойной тап снимает p-lock: синхронизацию, переключённую первым тапом, — обратно.
-            if model.shiftHeld { model.knobShiftTap(s) }
+            if model.knobShift { model.knobShiftTap(s) }
             if model.heldSteps.isEmpty && model.canAssign, let src = model.heldSource {
                 model.clearAssign(s, lfo: src)
             } else {
@@ -142,13 +142,13 @@ struct KnobGrid: View {
             lastTap[s] = Date()
             // SHIFT: короткий тап (при отпускании) — Dly Time и Speed LFO по темпу / свободно; удержание 1 с —
             // значение ручки — своё по умолчанию.
-            if model.shiftHeld && model.channel != .mix {
+            if model.knobShift && model.channel != .mix {
                 turn.shiftTap = true
                 armSave(id, s)
             }
         }
         // С зажатой SHIFT ручки не крутятся; Pitch, Start и End сэмпла — крутятся с шагом (AppModel.setKnob).
-        if model.shiftHeld && !model.shiftTurns(s) { turn.consumed = true }
+        if model.knobShift && !model.shiftTurns(s) { turn.consumed = true }
         // Удерживаемый LFO/ENV (без зажатого шага) — степень назначения −1…+1.
         if model.heldSteps.isEmpty && model.canAssign, let src = model.heldSource {
             turn.lfo = src
@@ -171,7 +171,7 @@ struct KnobGrid: View {
     /// не считается).
     private func armSave(_ id: SpatialEventCollection.Event.ID, _ s: Int) {
         Later.run(1.0) {
-            guard var t = turns[id], t.shiftTap, model.shiftHeld else { return }
+            guard var t = turns[id], t.shiftTap, model.knobShift else { return }
             t.shiftTap = false
             turns[id] = t
             lastTap[s] = nil

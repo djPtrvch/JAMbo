@@ -176,8 +176,8 @@ extension AppModel {
         // Pitch сэмпла: режим по умолчанию — SETTINGS → SAMPLER → PITCH (SMOOTH / SEMITONES), с SHIFT — другой.
         // Start и End с SHIFT — доли сэмпла, как в Model:Samples (120, 90, 60, 30, 15 из 120).
         if channel == .track && !fxMode && !modMode {
-            if p.id == "pitch" && settings.pitchSemitones != shiftHeld { v = v.rounded() }
-            if (p.id == "start" || p.id == "end") && shiftHeld { v = AppModel.snapShare(v) }
+            if p.id == "pitch" && settings.pitchSemitones != knobShift { v = v.rounded() }
+            if (p.id == "start" || p.id == "end") && knobShift { v = AppModel.snapShare(v) }
         }
         // MIX: с зажатыми шагами — p-lock громкости на шагах последовательности MIX, иначе громкость дорожки.
         if channel == .mix {
@@ -239,12 +239,12 @@ extension AppModel {
             }
             return
         }
-        if channel == .master && !shiftHeld {
+        if channel == .master && !knobShift {
             resetKnob(slot)
             return
         }
         guard let p = param(slot), channel == .track else { return }
-        if shiftHeld {
+        if knobShift {
             editTrack { t in t.clearAllLocks() }
             return
         }
