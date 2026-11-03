@@ -16,21 +16,13 @@ final class SliceCueTests: XCTestCase {
         let notes = Slices.notes(m, map: .chromatic, scale: 0, root: 0)
         // Ноты по порядку — только у маркеров с нотой: метка без ноты номера не занимает.
         XCTAssertEqual(notes, [48, Slices.noNote, 49])
-        XCTAssertFalse(t.setSliceNote("loop.caf", 1, note: 60, notes: notes))
         let back = try JSONDecoder().decode(Track.self, from: JSONEncoder().encode(t))
         XCTAssertEqual(back.sliceMarks("loop.caf").map { $0.isFree }, [false, true, false])
-    }
-
-    func testMoveWithinOwnKind() {
-        var t = Track(index: 0)
-        t.addSlice("k", at: 0.2)
-        t.addSlice("k", at: 0.4, free: true)
-        t.addSlice("k", at: 0.6)
-        // Маркер с нотой проходит мимо метки без ноты, но не дальше соседа своего вида.
-        t.moveSlice("k", 0, at: 0.5, gap: 0.01)
-        XCTAssertEqual(t.sliceMarks("k")[0].at, 0.5, accuracy: 1e-9)
-        t.moveSlice("k", 0, at: 0.9, gap: 0.01)
-        XCTAssertEqual(t.sliceMarks("k")[0].at, 0.59, accuracy: 1e-9)
+        // Нота метке без ноты — она становится маркером с нотой; занятая нота — не назначается.
+        XCTAssertFalse(t.setSliceNote("loop.caf", 1, note: 49, notes: notes))
+        XCTAssertTrue(t.setSliceNote("loop.caf", 1, note: 60, notes: notes))
+        XCTAssertFalse(t.sliceMarks("loop.caf")[1].isFree)
+        XCTAssertEqual(Slices.notes(t.sliceMarks("loop.caf"), map: .chromatic, scale: 0, root: 0), [48, 60, 50], "номер по порядку — по месту маркера")
     }
 
     func testPiecesAndWrite() {

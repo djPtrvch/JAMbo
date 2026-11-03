@@ -23,7 +23,7 @@ public struct SliceMark: Codable, Equatable, Sendable {
     public var note: Int?
     /// Роль куска для случайной нарезки (SliceRhythm.Role: LOW, MID, HIGH, LONG); nil — без роли.
     public var role: Int?
-    /// Метка без ноты (флажок снизу; решение пользователя 3.11): только для случайной нарезки — сэмпл не
+    /// Метка без ноты (пустой флажок; ставят двойным тапом снизу; решение пользователя 3.11): только для случайной нарезки — сэмпл не
     /// нарезается на ноты и транспонируется клавишами, как без маркеров. nil — маркер с нотой.
     public var free: Bool?
 
@@ -263,39 +263,23 @@ extension Track {
         putMarks(key, m)
     }
 
-    /// Сдвинуть маркер между соседями своего вида (с нотой или без; gap — наименьший зазор, доля).
+    /// Сдвинуть маркер между соседями (gap — наименьший зазор, доля).
     public mutating func moveSlice(_ key: String, _ idx: Int, at: Double, gap: Double) {
         var m = sliceMarks(key)
         guard idx >= 0 && idx < m.count else { return }
-        let free: Bool = m[idx].isFree
-        var lo: Double = 0
-        var hi: Double = 1
-        var k: Int = idx - 1
-        while k >= 0 {
-            if m[k].isFree == free {
-                lo = m[k].at + gap
-                break
-            }
-            k -= 1
-        }
-        k = idx + 1
-        while k < m.count {
-            if m[k].isFree == free {
-                hi = m[k].at - gap
-                break
-            }
-            k += 1
-        }
+        let lo: Double = idx > 0 ? m[idx - 1].at + gap : 0
+        let hi: Double = idx < m.count - 1 ? m[idx + 1].at - gap : 1
         m[idx].at = Swift.min(hi, Swift.max(lo, at))
         putMarks(key, m)
     }
 
-    /// Назначить маркеру ноту; false — нота уже у другого маркера.
+    /// Назначить маркеру ноту (метка без ноты становится маркером с нотой); false — нота уже у другого маркера.
     public mutating func setSliceNote(_ key: String, _ idx: Int, note: Int, notes: [Int]) -> Bool {
         var m = sliceMarks(key)
-        guard idx >= 0 && idx < m.count, !m[idx].isFree else { return false }
+        guard idx >= 0 && idx < m.count else { return false }
         for (k, n) in notes.enumerated() where k != idx && n == note { return false }
         m[idx].note = note
+        m[idx].free = nil
         putMarks(key, m)
         return true
     }
