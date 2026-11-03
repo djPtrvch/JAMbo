@@ -22,17 +22,17 @@ final class LiveState {
     @ObservationIgnored private var _beat: Int = -1
     private(set) var beat: Int {
         get { access(keyPath: \.beat); return _beat }
-        set { put(\.beat, \._beat, newValue, AppModel.changed(_beat, newValue)) }
+        set { put(\.beat, \._beat, newValue, notifyChanged(_beat, newValue)) }
     }
     @ObservationIgnored private var _beatFlash: Bool = false
     private(set) var beatFlash: Bool {
         get { access(keyPath: \.beatFlash); return _beatFlash }
-        set { put(\.beatFlash, \._beatFlash, newValue, AppModel.changed(_beatFlash, newValue)) }
+        set { put(\.beatFlash, \._beatFlash, newValue, notifyChanged(_beatFlash, newValue)) }
     }
     @ObservationIgnored private var _beatAccent: Bool = false
     private(set) var beatAccent: Bool {
         get { access(keyPath: \.beatAccent); return _beatAccent }
-        set { put(\.beatAccent, \._beatAccent, newValue, AppModel.changed(_beatAccent, newValue)) }
+        set { put(\.beatAccent, \._beatAccent, newValue, notifyChanged(_beatAccent, newValue)) }
     }
     @ObservationIgnored private var flashUntil: [Double] = [Double](repeating: 0, count: Params.maxTracks)
     @ObservationIgnored private var beatUntil: Double = 0
@@ -54,13 +54,13 @@ final class LiveState {
     @ObservationIgnored private var _stepSerial: Int = 0
     private(set) var stepSerial: Int {
         get { access(keyPath: \.stepSerial); return _stepSerial }
-        set { put(\.stepSerial, \._stepSerial, newValue, AppModel.changed(_stepSerial, newValue)) }
+        set { put(\.stepSerial, \._stepSerial, newValue, notifyChanged(_stepSerial, newValue)) }
     }
     /// Аранжировщик (S15): курсор (шаги) и дорожки, которые идут по таймлайну.
     @ObservationIgnored private var _arrPos: Int = 0
     private(set) var arrPos: Int {
         get { access(keyPath: \.arrPos); return _arrPos }
-        set { put(\.arrPos, \._arrPos, newValue, AppModel.changed(_arrPos, newValue)) }
+        set { put(\.arrPos, \._arrPos, newValue, notifyChanged(_arrPos, newValue)) }
     }
     private(set) var following: [Bool] = [Bool](repeating: false, count: Params.maxTracks)
     /// Тик транспорта от PLAY (шаги; −1 — ещё не было) и журнал запусков клипов в сетке (S15e, SEND TO ARRANGE).
@@ -215,3 +215,10 @@ final class LiveState {
         queued[t] = v
     }
 }
+
+// Изменилось ли значение (как shouldNotifyObservers макроса @Observable): перегрузки — private в каждом файле, как у
+// макроса (Playgrounds подменяет функции на лету и не находит общие перегрузки одного имени — «Replaced function»).
+private func notifyChanged<T>(_ a: T, _ b: T) -> Bool { return true }
+private func notifyChanged<T: Equatable>(_ a: T, _ b: T) -> Bool { return a != b }
+private func notifyChanged<T: AnyObject>(_ a: T, _ b: T) -> Bool { return a !== b }
+private func notifyChanged<T: Equatable & AnyObject>(_ a: T, _ b: T) -> Bool { return a != b }

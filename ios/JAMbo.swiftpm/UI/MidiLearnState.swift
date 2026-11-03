@@ -57,65 +57,65 @@ final class MidiLearnState {
     @ObservationIgnored private var _on: Bool = false
     var on: Bool {
         get { access(keyPath: \.on); return _on }
-        set { put(\.on, \._on, newValue, AppModel.changed(_on, newValue)) }
+        set { put(\.on, \._on, newValue, notifyChanged(_on, newValue)) }
     }
     @ObservationIgnored private var _target: MidiTarget? = nil
     var target: MidiTarget? {
         get { access(keyPath: \.target); return _target }
-        set { put(\.target, \._target, newValue, AppModel.changed(_target, newValue)) }
+        set { put(\.target, \._target, newValue, notifyChanged(_target, newValue)) }
     }
     @ObservationIgnored private var _press: Bool = false
     var press: Bool {
         get { access(keyPath: \.press); return _press }
-        set { put(\.press, \._press, newValue, AppModel.changed(_press, newValue)) }
+        set { put(\.press, \._press, newValue, notifyChanged(_press, newValue)) }
     }
     @ObservationIgnored private var _last: String = ""
     var last: String {
         get { access(keyPath: \.last); return _last }
-        set { put(\.last, \._last, newValue, AppModel.changed(_last, newValue)) }
+        set { put(\.last, \._last, newValue, notifyChanged(_last, newValue)) }
     }
     /// Открытая вкладка меню MIDI.
     @ObservationIgnored private var _tab: MidiTab = .devices
     var tab: MidiTab {
         get { access(keyPath: \.tab); return _tab }
-        set { put(\.tab, \._tab, newValue, AppModel.changed(_tab, newValue)) }
+        set { put(\.tab, \._tab, newValue, notifyChanged(_tab, newValue)) }
     }
     /// Окно MIDI MAP: цель (nil — закрыто), условие, маппинг которого правит окно, страница, положение.
     @ObservationIgnored private var _mapTarget: MidiTarget? = nil
     var mapTarget: MidiTarget? {
         get { access(keyPath: \.mapTarget); return _mapTarget }
-        set { put(\.mapTarget, \._mapTarget, newValue, AppModel.changed(_mapTarget, newValue)) }
+        set { put(\.mapTarget, \._mapTarget, newValue, notifyChanged(_mapTarget, newValue)) }
     }
     @ObservationIgnored private var _pinned: String? = nil
     var pinned: String? {
         get { access(keyPath: \.pinned); return _pinned }
-        set { put(\.pinned, \._pinned, newValue, AppModel.changed(_pinned, newValue)) }
+        set { put(\.pinned, \._pinned, newValue, notifyChanged(_pinned, newValue)) }
     }
     @ObservationIgnored private var _mapPage: MidiMapPage = .main
     var mapPage: MidiMapPage {
         get { access(keyPath: \.mapPage); return _mapPage }
-        set { put(\.mapPage, \._mapPage, newValue, AppModel.changed(_mapPage, newValue)) }
+        set { put(\.mapPage, \._mapPage, newValue, notifyChanged(_mapPage, newValue)) }
     }
     @ObservationIgnored private var _mapPos: CGPoint? = nil
     var mapPos: CGPoint? {
         get { access(keyPath: \.mapPos); return _mapPos }
-        set { put(\.mapPos, \._mapPos, newValue, AppModel.changed(_mapPos, newValue)) }
+        set { put(\.mapPos, \._mapPos, newValue, notifyChanged(_mapPos, newValue)) }
     }
     /// Окно открыто из списка маппингов — после закрытия снова меню MIDI (reopenMenu ловит экран).
     @ObservationIgnored private var _mapBack: Bool = false
     var mapBack: Bool {
         get { access(keyPath: \.mapBack); return _mapBack }
-        set { put(\.mapBack, \._mapBack, newValue, AppModel.changed(_mapBack, newValue)) }
+        set { put(\.mapBack, \._mapBack, newValue, notifyChanged(_mapBack, newValue)) }
     }
     @ObservationIgnored private var _reopenMenu: Bool = false
     var reopenMenu: Bool {
         get { access(keyPath: \.reopenMenu); return _reopenMenu }
-        set { put(\.reopenMenu, \._reopenMenu, newValue, AppModel.changed(_reopenMenu, newValue)) }
+        set { put(\.reopenMenu, \._reopenMenu, newValue, notifyChanged(_reopenMenu, newValue)) }
     }
     @ObservationIgnored private var _presetInput: MidiPresetInput? = nil
     var presetInput: MidiPresetInput? {
         get { access(keyPath: \.presetInput); return _presetInput }
-        set { put(\.presetInput, \._presetInput, newValue, AppModel.changed(_presetInput, newValue)) }
+        set { put(\.presetInput, \._presetInput, newValue, notifyChanged(_presetInput, newValue)) }
     }
     var presets: MidiPresetBook = MidiPresetBook.decode(UserDefaults.standard.data(forKey: "midiPresets"))
     /// Последний тап по цели в LEARN (двойной — окно MIDI MAP).
@@ -146,3 +146,10 @@ struct MidiRuntime {
     /// AudioHost.restarts при последней привязке шагов к клоку.
     var clockAudioRestarts: Int = 0
 }
+
+// Изменилось ли значение (как shouldNotifyObservers макроса @Observable): перегрузки — private в каждом файле, как у
+// макроса (Playgrounds подменяет функции на лету и не находит общие перегрузки одного имени — «Replaced function»).
+private func notifyChanged<T>(_ a: T, _ b: T) -> Bool { return true }
+private func notifyChanged<T: Equatable>(_ a: T, _ b: T) -> Bool { return a != b }
+private func notifyChanged<T: AnyObject>(_ a: T, _ b: T) -> Bool { return a !== b }
+private func notifyChanged<T: Equatable & AnyObject>(_ a: T, _ b: T) -> Bool { return a != b }
