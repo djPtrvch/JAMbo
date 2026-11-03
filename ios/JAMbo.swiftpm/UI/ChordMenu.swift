@@ -149,7 +149,7 @@ struct ArpWindowColumn: View {
     }
 }
 
-/// LATCH в окне ARP: включён — белый (в светлой теме — чёрный), как зажатая SHIFT; не жёлтый.
+/// LATCH в окне ARP: обычное начертание; включён — белый (в светлой теме — чёрный), как зажатая SHIFT; не жёлтый.
 struct LatchButton: View {
     let model: AppModel
     let side: CGFloat
@@ -159,7 +159,7 @@ struct LatchButton: View {
         let on: Bool = model.track.arp.latch
         return Button(action: { model.setArpLatch(!on) }) {
             Text("LATCH")
-                .font(.system(size: 13, weight: .bold))
+                .font(.system(size: 13))
                 .foregroundStyle(on ? theme.bg : theme.text)
                 .frame(maxWidth: .infinity, minHeight: side)
                 .background(on ? theme.text : theme.panel, in: RoundedRectangle(cornerRadius: 10))
