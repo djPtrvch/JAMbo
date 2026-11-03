@@ -131,6 +131,11 @@ final class AppModel {
     var chordMenuOpen: Bool = false
     /// Последняя случайная прогрессия (SHIFT + CHORD) — следующая будет другой.
     @ObservationIgnored var lastRandomProgression: [Int]? = nil
+    /// Настройки арпеджиатора, уже отправленные в колбэк (по номеру дорожки).
+    @ObservationIgnored var sentArp: [TrackArp?] = [TrackArp?](repeating: nil, count: SeqData.maxTracks)
+    /// Тик последней ноты арпеджио дорожки (при игре на шаг пишется одна нота); касания Capture нот арпеджио.
+    @ObservationIgnored var lastArpTick: [Int] = [Int](repeating: Int.min, count: SeqData.maxTracks)
+    @ObservationIgnored var arpCaptureId: Int = -2_000_000_000
     /// Шаги основы прошлого случайного ритма по id дорожки (SHIFT + CHORD на ударном движке).
     @ObservationIgnored var lastRandomDrums: [Int: [Int]] = [:]
     var selNotes: [[Int]] = [[Int]](repeating: [], count: Params.maxTracks)
@@ -425,6 +430,7 @@ final class AppModel {
         if arrangeView && playing { arrFollowPlayhead() }
         syncEditBlock()
         drainVoices()
+        drainArp()
         drainStems()
         tickMeters()
         tickMidiFeedback()
@@ -644,6 +650,8 @@ final class AppModel {
             // Что играет, UNDO не меняет: активная ячейка и остановка — как сейчас.
             if let cur = project.tracks.first(where: { $0.id == p.tracks[i].id }) {
                 p.tracks[i].stopped = cur.stopped
+                // Арпеджиатор — без UNDO (как ход игры): остаётся как сейчас.
+                p.tracks[i].arp = cur.arp
                 if p.tracks[i].clipFilled(cur.slot) || cur.blank { p.tracks[i].moveSlot(cur.slot) }
                 p.tracks[i].open = cur.open
                 // Звук — по активной ячейке (клип со своим звуком — его).

@@ -1,0 +1,77 @@
+import SwiftUI
+
+/// Раздел ARP в меню под CHORD (не на ударной дорожке): RATE, OCTAVES, GATE, LATCH. Настройки дорожки — в проекте,
+/// без записи UNDO (как ход игры).
+struct ArpMenuSection: View {
+    let model: AppModel
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let a: TrackArp = model.track.arp
+        return VStack(alignment: .leading, spacing: 6) {
+            MenuHead(title: "ARP")
+            FieldLabel(title: "RATE")
+            HStack(spacing: 4) {
+                ForEach(0..<Arp.rates.count, id: \.self) { r in
+                    InkButton(title: Arp.rates[r], active: a.rate == r, height: 40) { model.setArpRate(r) }
+                }
+            }
+            FieldLabel(title: "OCTAVES")
+            HStack(spacing: 4) {
+                ForEach(1...Arp.maxOctaves, id: \.self) { o in
+                    InkButton(title: "\(o)", active: a.octaves == o, height: 40) { model.setArpOctaves(o) }
+                }
+            }
+            ArpGateSlider(model: model)
+            ToggleRow(title: "LATCH", isOn: a.latch) { model.setArpLatch($0) }
+        }
+    }
+}
+
+/// GATE арпеджио: ползунок 10–100 %, палец вбок.
+struct ArpGateSlider: View {
+    let model: AppModel
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let g: Double = model.track.arp.gate
+        let pct: Int = Int((g * 100).rounded())
+        let n: Double = (g - Arp.gateMin) / (1 - Arp.gateMin)
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("GATE").font(.system(size: 13, weight: .bold)).foregroundStyle(theme.text)
+                Spacer()
+                Text("\(pct)%").font(.system(size: 13, weight: .bold)).monospacedDigit().foregroundStyle(theme.text)
+            }
+            GeometryReader { geo in
+                bar(geo.size.width, n)
+                    .contentShape(Rectangle())
+                    .gesture(drag(geo.size.width))
+            }
+            .frame(height: 24)
+        }
+        .padding(.horizontal, 4)
+        .padding(.vertical, 6)
+    }
+
+    private func bar(_ w: CGFloat, _ n: Double) -> some View {
+        let x: CGFloat = w * CGFloat(n)
+        return ZStack(alignment: .leading) {
+            Capsule().fill(theme.meterTrack).frame(height: 6)
+            Capsule().fill(theme.accent).frame(width: max(6, x), height: 6)
+            Circle().fill(Color.white).frame(width: 22, height: 22)
+                .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
+                .offset(x: min(max(0, x - 11), w - 22))
+        }
+        .frame(maxHeight: .infinity)
+    }
+
+    private func drag(_ w: CGFloat) -> some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { v in
+                let n: Double = Double(min(max(0, v.location.x / max(1, w)), 1))
+                let g: Double = Arp.gateMin + n * (1 - Arp.gateMin)
+                model.setArpGate((g * 100).rounded() / 100)
+            }
+    }
+}

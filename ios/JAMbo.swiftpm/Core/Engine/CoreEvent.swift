@@ -38,6 +38,8 @@ public enum CoreEvent: Sendable {
     /// Живая нота с клавиатуры (id — касание; velocity 1 — без p-lock Level) и её отпускание.
     case noteOn(track: Int, note: Int, id: Int, velocity: Float)
     case noteOff(track: Int, id: Int)
+    /// Арпеджиатор дорожки (TrackArp): включён, направление, скорость, октавы, длина ноты, LATCH.
+    case arp(track: Int, on: Bool, dir: Int, rate: Int, octaves: Int, gate: Float, latch: Bool)
     /// ▶ редактора сэмпла: отрезок a…b (доли) сэмпла hash; стоп.
     case preview(hash: UInt64, a: Double, b: Double)
     case previewStop

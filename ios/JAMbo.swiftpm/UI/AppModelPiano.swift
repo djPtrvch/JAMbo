@@ -156,6 +156,12 @@ extension AppModel {
         }
         // Нажатая нота сразу звучит на выбранной дорожке (живой наигрыш); держится, пока держат клавишу.
         liveNoteOn(track: ti, notes: notes, id: id, velocity: velocity)
+        // Дорожка с ARP: пишутся ноты арпеджио (drainArp), не сами клавиши.
+        if arpPlays(ti) {
+            if own { inputNotes() }
+            keyHolds[id] = KeyHold(track: ti, notes: notes, recIndex: nil, t0: Date.timeIntervalSinceReferenceDate)
+            return
+        }
         var recIndex: Int? = nil
         // С AUTO запись — аранжировки, ноты в паттерн не пишутся.
         if recOn && playing && !(arrAuto && arrPlay) && heldSteps.isEmpty && channel == .track {
@@ -190,7 +196,7 @@ extension AppModel {
     }
 
     /// Выбранными становятся все зажатые сейчас ноты; если зажат шаг — его ноты заменяются зажатыми.
-    private func inputNotes() {
+    func inputNotes() {
         let notes: [Int] = pressedNotes.sorted()
         if notes.isEmpty { return }
         if !heldSteps.isEmpty && channel == .track {
@@ -212,8 +218,8 @@ extension AppModel {
     // MARK: — запись с REC
 
     /// Шаг, на который ложится нота сейчас: по ходу транспорта из колбэка с поправкой на задержку выхода.
-    private func record(track ti: Int, notes: [Int], velocity: Double?) -> Int? {
-        guard let k = heardTick() else { return nil }
+    func record(track ti: Int, notes: [Int], velocity: Double?, tick: Int? = nil) -> Int? {
+        guard let k = tick ?? heardTick() else { return nil }
         let merge: Bool = lastRec.track == ti && lastRec.tick == k
         lastRec = (ti, k)
         let tr = project.tracks[ti]
@@ -239,7 +245,7 @@ extension AppModel {
 
     /// Правка дубля: первая нота — новая запись в UNDO, следующие (пока не было других действий) — в неё же.
     /// Пишется в играющий клип дорожки, что бы ни было открыто в секвенсоре.
-    private func writeTake(track ti: Int, _ change: (inout Track) -> Void) {
+    func writeTake(track ti: Int, _ change: (inout Track) -> Void) {
         if recTake >= 0 && recTake == history.serial {
             applyInTake { p in AppModel.inPlaying(&p.tracks[ti], change) }
             return

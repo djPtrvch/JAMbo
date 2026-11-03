@@ -107,26 +107,23 @@ struct KeyRow: View {
     }
 }
 
-/// CHORD: тап — вкл./выкл. режима (с SHIFT — случайная прогрессия на выбранные страницы), свайп вверх-вниз — тип
-/// аккорда (стиль), долгое нажатие — окно
-/// типа аккорда (на ударной дорожке — стиля ритма, под CHORD — стиль). CHORD и под ним тип (как в окне: Triad, 7th,
-/// 9th, Sus2, Sus4, Add9) — вместе по центру кнопки.
+/// CHORD: тап — вкл./выкл. текущего режима (с SHIFT — случайная прогрессия или ритм на выбранные страницы); свайп
+/// вверх — ARP, вниз — CHORD (не на ударной дорожке); долгое нажатие — окно типов аккорда, направлений арпеджио или
+/// стилей ритма. Слово (CHORD или ARP) и под ним тип — вместе по центру кнопки.
 struct ChordButton: View {
     let model: AppModel
     @Environment(\.theme) private var theme
-    /// Тип (стиль) в начале свайпа; nil — свайпа нет.
-    @State private var swipeBase: Int? = nil
+    /// Свайп уже переключил режим (один раз за жест).
+    @State private var swiped: Bool = false
 
     var body: some View {
-        let on: Bool = model.chordMode[model.selectedTrack]
-        let kind: Int = min(Scales.chordKinds.count - 1, max(0, model.chordKind[model.selectedTrack]))
-        // На ударной дорожке под CHORD — стиль ритма.
-        let sub: String = model.drumTrack ? DrumRhythm.styles[DrumRhythm.styleIndex(model.track.drumStyle)]
-            : Scales.chordKinds[kind]
-        // CHORD и тип под ним (обычным начертанием) — вместе по центру кнопки.
+        let on: Bool = model.chordButtonOn
+        let names: [String] = model.chordTypeNames
+        let k: Int = min(names.count - 1, max(0, model.chordTypeIndex))
+        let word: String = model.arpMode ? "ARP" : "CHORD"
         return VStack(spacing: 2) {
-            Text("CHORD").font(.system(size: 12, weight: .semibold)).tracking(1)
-            Text(sub).font(.system(size: 10))
+            Text(word).font(.system(size: 12, weight: .semibold)).tracking(1)
+            Text(names[k]).font(.system(size: 10))
         }
         .foregroundStyle(on ? theme.bg : theme.text)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -137,21 +134,18 @@ struct ChordButton: View {
         .simultaneousGesture(swipe)
     }
 
-    /// Свайп вверх-вниз: тип аккорда (на ударной дорожке — стиль) на шаг каждые 24 pt; вверх — следующий.
+    /// Свайп на 24 pt: вверх — ARP, вниз — CHORD; на ударной дорожке — ничего.
     private var swipe: some Gesture {
         DragGesture(minimumDistance: 12)
             .onChanged { v in
-                if swipeBase == nil {
-                    swipeBase = model.chordTypeIndex
-                    model.beginGesture()
+                if swiped { return }
+                let dy: CGFloat = v.translation.height
+                if dy <= -24 || dy >= 24 {
+                    swiped = true
+                    model.setChordArpMode(dy < 0)
                 }
-                let steps: Int = Int((-v.translation.height / 24).rounded(.towardZero))
-                model.chordSwipe(base: swipeBase ?? 0, delta: steps)
             }
-            .onEnded { _ in
-                if swipeBase != nil { model.endGesture() }
-                swipeBase = nil
-            }
+            .onEnded { _ in swiped = false }
     }
 }
 

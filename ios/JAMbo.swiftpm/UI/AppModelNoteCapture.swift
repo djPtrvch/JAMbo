@@ -29,6 +29,17 @@ extension AppModel {
         captureLog[ti] = log
     }
 
+    /// Нота арпеджио (drainArp): время нажатия и отпускания уже известно.
+    func captureArp(id: Int, track ti: Int, playing: Bool, tick: Int, t0: Double, t1: Double, notes: [Int],
+                    velocity: Double?) {
+        guard ti >= 0 && ti < captureLog.count else { return }
+        let key = CapturedKey(id: id, playing: playing, tick: tick, t0: t0, t1: t1, notes: notes, velocity: velocity)
+        var log: [CapturedKey] = captureLog[ti]
+        if log.count >= AppModel.captureKeep { log.removeFirst(log.count - AppModel.captureKeep + 1) }
+        log.append(key)
+        captureLog[ti] = log
+    }
+
     func captureUp(id: Int, track ti: Int) {
         guard ti >= 0 && ti < captureLog.count else { return }
         guard let i = captureLog[ti].lastIndex(where: { $0.id == id && $0.t1 == nil }) else { return }

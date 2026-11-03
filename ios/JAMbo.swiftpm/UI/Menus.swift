@@ -91,7 +91,7 @@ struct ChoiceMenu: View {
 }
 
 /// Меню клавиатуры (бутерброд под CHORD): 1 OCTAVE / 2 OCTAVES, KEY VELOCITY, OVERDUB (из SETTINGS → RECORD — решение
-/// пользователя) и SWING; правее кнопки, снизу вверх,
+/// пользователя), SWING и ARP (не на ударной дорожке); правее кнопки, снизу вверх,
 /// не выше строки шагов, шириной 4 шага.
 struct PianoMenu: View {
     let model: AppModel
@@ -105,11 +105,17 @@ struct PianoMenu: View {
         let keys: CGRect = model.keysFrame
         let x: CGFloat = keys.width > 0 ? keys.minX : 12 + layout.step + Layout.stepGap
         let bottom: CGFloat = keys.height > 0 ? max(0, screen.height - keys.maxY) : 8
+        let maxHeight: CGFloat = screen.height * 0.6
         return ZStack(alignment: .bottomLeading) {
             Color.black.opacity(0.001).ignoresSafeArea().onTapGesture { model.pianoMenuOpen = false }
-            content
+            // Не помещается (раздел ARP) — прокрутка пальцем; высота — до 60 % экрана.
+            ViewThatFits(in: .vertical) {
+                content
+                MenuScroll { content }
+            }
                 .padding(10)
                 .frame(width: width)
+                .frame(maxHeight: maxHeight)
                 .background(theme.bg, in: RoundedRectangle(cornerRadius: Layout.radius))
                 .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(theme.line, lineWidth: 1))
                 .shadow(color: .black.opacity(0.5), radius: 12, y: 4)
@@ -142,6 +148,7 @@ struct PianoMenu: View {
                 .font(.system(size: 11))
                 .foregroundStyle(theme.dim)
             SwingSlider(model: model)
+            if !model.drumTrack && model.channel == .track { ArpMenuSection(model: model) }
         }
     }
 }

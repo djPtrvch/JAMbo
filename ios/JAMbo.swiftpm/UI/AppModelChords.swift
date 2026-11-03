@@ -13,6 +13,8 @@ extension AppModel {
             } else if settings.randomChords {
                 writeRandomProgression()
             }
+        } else if arpMode {
+            toggleArp()
         } else {
             toggleChord()
         }
@@ -37,20 +39,27 @@ extension AppModel {
         }
     }
 
-    /// Окно и MIDI CHORD TYPE n: на ударной дорожке — стиль, иначе — тип аккорда.
+    /// Окно и MIDI CHORD TYPE n: на ударной дорожке — стиль, в режиме ARP — направление, иначе — тип аккорда.
     func chooseChordType(_ k: Int) {
-        if drumTrack { setDrumStyle(k) } else { setChordKind(k) }
+        if drumTrack {
+            setDrumStyle(k)
+        } else if arpMode {
+            setArpDir(k)
+        } else {
+            setChordKind(k)
+        }
     }
 
-    /// Номер выбранного типа (на ударной дорожке — стиля) и их число: для свайпа по CHORD.
-    var chordTypeIndex: Int { return drumTrack ? track.drumStyle : chordKind[selectedTrack] }
-    var chordTypeCount: Int { return drumTrack ? DrumRhythm.styles.count : Scales.chordKinds.count }
+    /// Подписи окна CHORD и под словом на кнопке: стили, направления арпеджио или типы аккорда.
+    var chordTypeNames: [String] {
+        if drumTrack { return DrumRhythm.styles }
+        return arpMode ? Arp.dirs : Scales.chordKinds
+    }
 
-    /// Свайп по CHORD вверх-вниз: тип (стиль) от исходного base на delta (вверх — следующий), без круга; стиль —
-    /// одна запись UNDO на жест.
-    func chordSwipe(base: Int, delta: Int) {
-        let k: Int = max(0, min(chordTypeCount - 1, base + delta))
-        if k != chordTypeIndex { chooseChordType(k) }
+    /// Номер выбранного типа (на ударной дорожке — стиля, в ARP — направления).
+    var chordTypeIndex: Int {
+        if drumTrack { return track.drumStyle }
+        return arpMode ? track.arp.dir : chordKind[selectedTrack]
     }
 
     /// Подписи клавиш в режиме CHORD: аккорд и римская ступень («Em · i»).

@@ -99,6 +99,7 @@ extension AppModel {
                            extra: libPreviewKey.map { [$0] } ?? [], next: next, rebind: rebindNext,
                            refB: refBActive)
         rebindNext = false
+        syncArp()
         ensureRoots()
     }
 

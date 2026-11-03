@@ -34,12 +34,11 @@ struct ChordMenu: View {
         .frame(width: screen.width, height: screen.height, alignment: .bottomLeading)
     }
 
-    /// Ударная дорожка — стили ритма (DrumRhythm.styles), иначе — типы аккорда; кнопки те же (CHORD TYPE 1…6).
+    /// Ударная дорожка — стили ритма, режим ARP — направления, иначе — типы аккорда; кнопки те же (CHORD TYPE 1…6).
     private func types(_ rowH: CGFloat) -> some View {
         let cols: [GridItem] = Array(repeating: GridItem(.flexible(), spacing: 6), count: 2)
-        let drum: Bool = model.drumTrack
-        let names: [String] = drum ? DrumRhythm.styles : Scales.chordKinds
-        let cur: Int = drum ? model.track.drumStyle : model.chordKind[model.selectedTrack]
+        let names: [String] = model.chordTypeNames
+        let cur: Int = model.chordTypeIndex
         return LazyVGrid(columns: cols, spacing: 6) {
             ForEach(0..<names.count, id: \.self) { c in
                 InkButton(title: names[c], active: c == cur, height: rowH) {

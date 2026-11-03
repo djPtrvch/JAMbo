@@ -110,7 +110,7 @@ extension AppModel {
         case "EQ": return eqView
         case "ROLL": return rollView
         case "METRONOME": return metronome
-        case "CHORD": return chordMode[selectedTrack]
+        case "CHORD": return chordButtonOn
         case "LFO1": return heldSources.contains(1)
         case "LFO2": return heldSources.contains(2)
         case "LFO3": return heldSources.contains(3)
@@ -153,7 +153,7 @@ extension AppModel {
             return !notes.isEmpty && notes.allSatisfy { pressed.contains($0) }
         }
         if let n = MidiButtons.number(name, prefix: "CHORD TYPE ") {
-            return (drumTrack ? track.drumStyle : chordKind[selectedTrack]) == n - 1
+            return chordTypeIndex == n - 1
         }
         return false
     }

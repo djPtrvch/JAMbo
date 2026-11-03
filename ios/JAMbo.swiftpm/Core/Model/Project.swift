@@ -79,6 +79,8 @@ public struct Track: Codable, Equatable, Sendable {
     public var color: Int = ArrPalette.defaultColor
     /// Стиль случайного ритма ударных (SHIFT + CHORD; номер в DrumRhythm.styles, по умолчанию HOUSE).
     public var drumStyle: Int = 0
+    /// Арпеджиатор дорожки (режим кнопки CHORD — CHORD или ARP, направление, скорость…).
+    public var arp: TrackArp = TrackArp()
     /// Автоматизация на таймлайне (S15f): кривые ручек сетки дорожки, по одной на ручку.
     public var autos: [ArrAutoLane] = []
     /// STEPS в аранжировщике (решение пользователя): номер блока, чья копия клипа открыта в секвенсоре и миниатюрах

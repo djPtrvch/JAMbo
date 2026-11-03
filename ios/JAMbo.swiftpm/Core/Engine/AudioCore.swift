@@ -22,6 +22,8 @@ public final class AudioCore: @unchecked Sendable {
     public let fx = FxRack(sampleRate: AudioCore.sampleRate)
     /// LFO1–3 и ENV дорожек.
     public let mod = ModEngine(sampleRate: AudioCore.sampleRate)
+    /// Арпеджиатор живых нот.
+    public let arp = Arpeggiator()
     /// EQ дорожек (сухой сигнал и посылы).
     public let trackEqs = TrackEqs(sampleRate: AudioCore.sampleRate)
     /// Сдвиги динамических полос EQ для экрана.
@@ -167,6 +169,7 @@ public final class AudioCore: @unchecked Sendable {
         right.update(repeating: 0, count: frames)
         tone.render(frames: frames, left: left, right: right)
         sequencer.process(blockStart: sampleTime, frames: frames, left: left, right: right, host: host)
+        renderArp(frames)
         profile.lap(RenderProfile.seq)
         renderMix(frames, left, right)
         if useMaster { renderPhones(frames, left, right) }
@@ -175,6 +178,31 @@ public final class AudioCore: @unchecked Sendable {
         frameCounter.store(Int(sampleTime))
         profile.lap(RenderProfile.meters)
         profile.end(frames: frames)
+    }
+
+    /// Арпеджиатор: ноты блока (и отпускания из событий) → сэмплер и ENV.
+    @inline(__always)
+    private func renderArp(_ frames: Int) {
+        let seq: Sequencer = sequencer
+        let sf: Double = 60 / seq.bpm / TempoGrid.stepsPerBeat * AudioCore.sampleRate
+        arp.process(start: sampleTime, frames: frames, playing: seq.playing, nextTick: seq.tick,
+                    nextFrame: seq.stepFrame(seq.tick), stepFrames: sf)
+        let n: Int = arp.emitCount
+        var i: Int = 0
+        while i < n {
+            let t: Int = Int(arp.emitTrack[i])
+            let f: Int64 = arp.emitFrame[i]
+            let id: Int = Arpeggiator.noteId(t)
+            if arp.emitKind[i] == 1 {
+                mod.liveOn(track: t, at: f)
+                sampler.noteOn(track: t, note: Int(arp.emitNote[i]), liveId: id, velocity: arp.emitVel[i], at: f)
+            } else {
+                mod.liveOff(track: t, at: f)
+                sampler.release(track: t, liveId: id, at: f)
+            }
+            i += 1
+        }
+        arp.clearEmit()
     }
 
     /// Дорожки и FX → мастер → выход (к тону и метроному); затем прослушивание (мимо мастера).
@@ -342,11 +370,24 @@ public final class AudioCore: @unchecked Sendable {
         case .moveTrack(let a, let b):
             sequencer.launcher.move(a, b)
         case .noteOn(let t, let n, let id, let v):
+            // Дорожка с ARP: нота — в набор арпеджио, сама не звучит.
+            if arp.active(t) {
+                arp.press(track: t, note: n, id: id, velocity: v, at: sampleTime)
+                return
+            }
             mod.liveOn(track: t, at: sampleTime)
             sampler.noteOn(track: t, note: n, liveId: id, velocity: v, at: sampleTime)
         case .noteOff(let t, let id):
+            if arp.active(t) {
+                arp.release(track: t, id: id, at: sampleTime)
+                // Нота, нажатая до включения ARP, звучит сама — гаснет как обычно.
+                sampler.release(track: t, liveId: id, at: sampleTime)
+                return
+            }
             mod.liveOff(track: t, at: sampleTime)
             sampler.release(track: t, liveId: id, at: sampleTime)
+        case .arp(let t, let on, let d, let r, let oc, let g, let l):
+            arp.configure(track: t, on: on, dir: d, rate: r, octaves: oc, gate: Double(g), latch: l, at: sampleTime)
         case .preview(let h, let a, let b):
             sampler.preview(hash: h, a: a, b: b, at: sampleTime)
         case .previewStop:
