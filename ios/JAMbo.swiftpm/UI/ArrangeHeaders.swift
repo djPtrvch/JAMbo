@@ -101,7 +101,8 @@ struct ArrHeaderRow: View {
         // Выбранная — две жёлтые линии сверху и снизу (продолжаются по всей строке таймлайна).
         .overlay(alignment: .top) { Rectangle().fill(selected ? theme.accent : Color.clear).frame(height: 1) }
         .overlay(alignment: .bottom) { Rectangle().fill(selected ? theme.accent : Color.clear).frame(height: 1) }
-        .modifier(TouchArea(gesture: touch))
+        .contentShape(Rectangle())
+        .gesture(touch)
     }
 
     /// Палец вверх-вниз — прокрутка дорожек (EXPANDED; свайпов mute и solo нет — решение пользователя); без сдвига — тап.
@@ -231,7 +232,8 @@ struct ArrVolume: View {
                         .allowsHitTesting(false)
                 }
                 .frame(width: w, height: ArrVolume.height)
-                .modifier(TouchArea(gesture: drag(w)))
+                .contentShape(Rectangle())
+                .gesture(drag(w))
             }
             Text(MeterColumn.fmtVol(v))
                 .font(.system(size: 9)).monospacedDigit()

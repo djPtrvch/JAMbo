@@ -166,7 +166,8 @@ struct MidiRangeEditor: View {
         VStack(alignment: .leading, spacing: 8) {
             GeometryReader { geo in
                 Canvas { ctx, size in draw(ctx, size) }
-                    .modifier(TouchArea(gesture: drag(geo.size)))
+                    .contentShape(Rectangle())
+                    .gesture(drag(geo.size))
             }
             .frame(height: 150)
             Text("Min \(pct(m.min))% · Max \(pct(m.max))%" + (m.min > m.max ? " · inverted" : ""))

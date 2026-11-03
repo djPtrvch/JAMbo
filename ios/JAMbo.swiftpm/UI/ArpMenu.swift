@@ -31,7 +31,8 @@ struct ArpGateSlider: View {
             }
             GeometryReader { geo in
                 bar(geo.size.width, n)
-                    .modifier(TouchArea(gesture: drag(geo.size.width)))
+                    .contentShape(Rectangle())
+                    .gesture(drag(geo.size.width))
                     // Двойной тап — значение по умолчанию (50 %).
                     .simultaneousGesture(TapGesture(count: 2).onEnded { model.setArpGate(TrackArp().gate) })
             }

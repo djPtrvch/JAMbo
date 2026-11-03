@@ -49,7 +49,8 @@ struct PatternGrid: View {
                     bandView
                 }
                 .frame(width: g.size.width - g.sceneW - Layout.gap, height: g.size.height, alignment: .topLeading)
-                .modifier(TouchArea(gesture: touch(g)))
+                .contentShape(Rectangle())
+                .gesture(touch(g))
                 GridSideButtons(model: model, rows: g.rows, scroll: w.maxTop > 0, canUp: w.top > 0, canDown: w.top < w.maxTop)
                     .frame(width: g.sceneW, height: g.size.height)
                     .offset(x: g.size.width - g.sceneW)
@@ -74,7 +75,8 @@ struct PatternGrid: View {
         if !fader && top < g.size.height {
             Color.clear
                 .frame(width: g.sceneW, height: g.size.height - top)
-                .modifier(TouchArea(gesture: touch(g)))
+                .contentShape(Rectangle())
+                .gesture(touch(g))
                 .offset(x: g.size.width - g.sceneW, y: top)
         }
     }

@@ -25,7 +25,8 @@ struct SequencerRow: View {
                     }
                 }
             }
-            .modifier(TouchArea(gesture: touches(width: geo.size.width, look: look, first: pages.lowerBound)))
+            .contentShape(Rectangle())
+            .gesture(touches(width: geo.size.width, look: look, first: pages.lowerBound))
         }
         .frame(height: Layout.seqHeight)
     }

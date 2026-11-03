@@ -69,7 +69,8 @@ struct ClipTransfer: View {
     var body: some View {
         GeometryReader { geo in
             Canvas { ctx, size in draw(ctx, size) }
-                .modifier(TouchArea(gesture: drag(geo.size)))
+                .contentShape(Rectangle())
+                .gesture(drag(geo.size))
                 .modifier(GestureCancelGuard {
                     if dragging == 1 { model.endGesture() }
                     dragging = -1

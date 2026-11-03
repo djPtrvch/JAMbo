@@ -43,7 +43,8 @@ struct KeyRow: View {
                     key(k, shown: shown, lit: lit).midiMarks(model, [.button("KEY \(k + 1)")])
                 }
             }
-            .modifier(TouchArea(gesture: fingers(width: geo.size.width, height: geo.size.height, count: count)))
+            .contentShape(Rectangle())
+            .gesture(fingers(width: geo.size.width, height: geo.size.height, count: count))
         }
     }
 
@@ -165,7 +166,8 @@ struct OctavePair: View {
                 OctaveButton(title: "▲", lit: model.captureFlash).midiTarget(model, "OCTAVE ▲")
                 OctaveButton(title: "▼", lit: model.captureFlash).midiTarget(model, "OCTAVE ▼")
             }
-            .modifier(TouchArea(gesture: fingers(height: geo.size.height)))
+            .contentShape(Rectangle())
+            .gesture(fingers(height: geo.size.height))
         }
     }
 

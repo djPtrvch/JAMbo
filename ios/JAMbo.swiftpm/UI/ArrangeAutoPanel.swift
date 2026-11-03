@@ -168,7 +168,8 @@ struct ArrAutoCurve: View {
             }
             .overlay { ArrCursorLayer(model: model, m: m, head: false) }
             .overlay(alignment: .topLeading) { title(p, t, param) }
-            .modifier(TouchArea(gesture: touch(geo.size)))
+            .contentShape(Rectangle())
+            .gesture(touch(geo.size))
         }
         .background(theme.panel)
         .clipShape(RoundedRectangle(cornerRadius: Layout.radius))

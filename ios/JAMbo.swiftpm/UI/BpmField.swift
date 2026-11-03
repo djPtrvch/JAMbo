@@ -23,7 +23,8 @@ struct BpmField: View {
             PhaseBar(beat: model.live.beat, sync: model.settings.sync).padding(.horizontal, 12).padding(.bottom, 7)
         }
         .background(start != nil ? theme.panel2 : theme.panel, in: RoundedRectangle(cornerRadius: Layout.radius))
-        .modifier(TouchArea(gesture: drag))
+        .contentShape(Rectangle())
+        .gesture(drag)
         .alert("BPM", isPresented: $input) {
             TextField("BPM", text: $text).keyboardType(.decimalPad)
             Button("OK") { enter() }

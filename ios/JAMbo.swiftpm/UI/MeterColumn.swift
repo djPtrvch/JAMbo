@@ -77,7 +77,8 @@ struct MeterColumn: View {
                 }
                 thumb(vol, geo.size)
             }
-            .modifier(TouchArea(gesture: drag(ch)))
+            .contentShape(Rectangle())
+            .gesture(drag(ch))
         }
         .midiTarget(model, MidiButtons.level)
     }

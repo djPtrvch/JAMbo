@@ -231,7 +231,8 @@ struct MasterField: View {
         }
         .padding(.horizontal, 12)
         .modifier(Tile(start != nil ? theme.panel2 : theme.panel, alignment: .leading))
-        .modifier(TouchArea(gesture: drag))
+        .contentShape(Rectangle())
+        .gesture(drag)
         .modifier(GestureCancelGuard {
             if start != nil {
                 start = nil
