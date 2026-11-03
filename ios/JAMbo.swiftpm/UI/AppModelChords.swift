@@ -37,7 +37,7 @@ extension AppModel {
     /// Дорожка с нарезанным сэмплом при SETTINGS → RANDOM → SAMPLES: у CHORD — RANDOM и стили, как у ударной.
     var sliceTrack: Bool {
         guard channel == .track, settings.randomSamples else { return false }
-        return track.drumRole == nil && track.sliced
+        return track.drumRole == nil && track.hasCuts
     }
 
     /// У кнопки CHORD — стили вместо типов аккорда (ударная или нарезанная дорожка; в режиме ARP — направления).
@@ -62,15 +62,13 @@ extension AppModel {
     }
 
     /// Стиль ритма выбранной дорожки (хранится в проекте, одна запись UNDO).
-    /// SETTINGS → RANDOM → STYLE ALL TRACKS — всем ударным и нарезанным дорожкам проекта.
+    /// SETTINGS → RANDOM → STYLE ALL TRACKS — всем дорожкам проекта: и тем, что станут ударными или нарезанными
+    /// позже (смена звука, маркеры, SAMPLES, ARP) — иначе у них оставался прежний стиль.
     func setDrumStyle(_ k: Int) {
         let v: Int = DrumRhythm.styleIndex(k)
         if settings.randomStyleAll {
-            let sl: Bool = settings.randomSamples
             edit { p in
-                for i in p.tracks.indices where p.tracks[i].drumRole != nil || (sl && p.tracks[i].sliced) {
-                    p.tracks[i].drumStyle = v
-                }
+                for i in p.tracks.indices { p.tracks[i].drumStyle = v }
             }
         } else {
             editTrack { t in t.drumStyle = v }
@@ -178,20 +176,22 @@ extension AppModel {
         guard sliceTrack else { return }
         let key: String = track.sample
         guard let d = sample(key) else { return }
-        let pieces: [SliceRhythm.Piece] = slicePieces(key, d)
+        let cut = slicePieces(key, d)
+        let pieces: [SliceRhythm.Piece] = cut.pieces
         if pieces.isEmpty { return }
         let range: ClosedRange<Int> = chordPages
         let id: Int = track.id
         var g = SystemRandomNumberGenerator()
         let avoid: [Int]? = lastRandomDrums[-1 - id]
         var code: [Int]? = nil
-        editTrack { t in code = t.writeRandomSlices(pieces, pages: range, avoid: avoid, using: &g) }
+        let cuts: [Int: SliceRhythm.Cut] = cut.cuts
+        editTrack { t in code = t.writeRandomSlices(pieces, pages: range, avoid: avoid, cuts: cuts, using: &g) }
         lastRandomDrums[-1 - id] = code
     }
 
-    /// Куски нарезки сэмпла key дорожки: нота маркера, длина в шагах (до следующего маркера, последний — до конца),
-    /// роль. С включённым WARP — по долям карты меток, иначе — по времени в темпе проекта.
-    private func slicePieces(_ key: String, _ d: SampleData) -> [SliceRhythm.Piece] {
+    /// Куски нарезки сэмпла key дорожки (SliceRhythm.pieces): по маркерам с нотой, без них — по меткам без ноты
+    /// (отрезки — в cuts); длина в шагах — с включённым WARP по долям карты меток, иначе по времени в темпе проекта.
+    private func slicePieces(_ key: String, _ d: SampleData) -> (pieces: [SliceRhythm.Piece], cuts: [Int: SliceRhythm.Cut]) {
         let marks: [SliceMark] = track.sliceMarks(key)
         let notes: [Int] = Slices.notes(marks, map: settings.sliceMap, scale: project.scale, root: project.root,
                                         octave: octave)
@@ -202,14 +202,11 @@ extension AppModel {
             warp = WarpMap(i, frames: d.frames, bpm: WarpMap.bpm(i, detected: d.loopBpm))
         }
         let stepSec: Double = 15 / max(1, project.bpm)
-        var out: [SliceRhythm.Piece] = []
-        for (k, m) in marks.enumerated() where k < notes.count {
-            let end: Double = k + 1 < marks.count ? marks[k + 1].at : 1
-            var len: Double = (end - m.at) * d.duration / stepSec
-            if let w = warp { len = (w.beat(end * frames) - w.beat(m.at * frames)) * 4 }
-            out.append(SliceRhythm.Piece(note: notes[k], len: max(0, len), role: SliceRhythm.role(m.role)))
+        let dur: Double = d.duration
+        return SliceRhythm.pieces(marks, notes: notes) { a, b in
+            if let w = warp { return (w.beat(b * frames) - w.beat(a * frames)) * 4 }
+            return (b - a) * dur / stepSec
         }
-        return out
     }
 
     /// Октава клавиатуры дорожки i (у каждой своя).

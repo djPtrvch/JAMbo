@@ -456,7 +456,8 @@ public final class SoundSnapshot: @unchecked Sendable {
                     d.eOnsets[e] = nil
                     d.eOnsetCount[e] = 0
                 }
-                let marks: [SliceMark] = key.isEmpty ? [] : (snd.slices[key] ?? [])
+                // Метки без ноты (только для случайной нарезки) сэмпл на ноты не нарезают.
+                let marks: [SliceMark] = key.isEmpty ? [] : (snd.slices[key] ?? []).filter { !$0.isFree }
                 let oct: Int = t < octaves.count ? octaves[t] : octave
                 let notes = Slices.notes(marks, map: map, scale: clipKey.scale, root: clipKey.root, octave: oct)
                 d.eSliceStart[e] = Int32(sl)

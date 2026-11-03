@@ -468,10 +468,11 @@ extension AppModel {
         return Slices.notes(editorMarks, map: settings.sliceMap, scale: project.scale, root: project.root, octave: octave)
     }
 
-    func addSlice(at f: Double) {
+    /// free — метка без ноты (флажок снизу; только для случайной нарезки).
+    func addSlice(at f: Double, free: Bool = false) {
         let key = editorKey
         if key.isEmpty { return }
-        editTrack { t in t.addSlice(key, at: f) }
+        editTrack { t in t.addSlice(key, at: f, free: free) }
     }
 
     func deleteSlice(_ idx: Int) {
@@ -488,6 +489,8 @@ extension AppModel {
     /// Держат флажок + клавиша: маркеру — эта нота. true — нота ушла маркеру (флажок держат, не двигая).
     func assignHeldSlice(_ note: Int) -> Bool {
         guard editorOpen, let idx = heldFlag, !editorKey.isEmpty else { return false }
+        // Метке без ноты нота не назначается — клавиша играет как обычно.
+        if idx < editorMarks.count && editorMarks[idx].isFree { return false }
         let key = editorKey
         let notes = editorMarkNotes
         var ok = false

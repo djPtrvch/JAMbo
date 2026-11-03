@@ -5,7 +5,8 @@ import SwiftUI
 /// Форма волны во всю ширину (стерео — L и R); маркеры обрезки — за ручки внизу (двумя пальцами — оба сразу);
 /// палец по пустому месту: вверх-вниз — масштаб, влево-вправо — прокрутка; двойной тап — маркер нарезки,
 /// флажок тянут, двойной тап по флажку — удалить, удержание флажка + клавиша — своя нота маркера, удержание 0,5 с
-/// без движения — роли куска (LOW, MID, HIGH, LONG) в строке; метки варпинга —
+/// без движения — роли куска (LOW, MID, HIGH, LONG) в строке; двойной тап в полосе снизу — метка без ноты (флажок
+/// снизу, только для случайной нарезки; тянут, удаляют и дают роль так же); метки варпинга —
 /// снизу серыми флажками (только ориентир), маркер ближе 12 pt к метке прилипает к ней.
 /// WARP (SampleEditorWarp.swift): по горизонтали доли; двойной тап — метка варпинга; метку берут за флажок снизу или за
 /// линию (касание — выделить, тянуть — на столько же, магнит к GRID), выделенную тянут и из любого места полосы
@@ -231,7 +232,8 @@ struct SampleEditor: View {
             move(id, p, d, size)
             return
         }
-        let fl: Int = model.editorWarp ? -1 : flagAt(p, g)
+        var fl: Int = model.editorWarp ? -1 : flagAt(p, g)
+        if fl < 0 && !model.editorWarp { fl = cueAt(p, g) }
         if fl >= 0 {
             touches[id] = EditorTouch(kind: .slice, idx: fl, p0: p)
             model.holdFlag(fl)
@@ -272,8 +274,16 @@ struct SampleEditor: View {
             model.moveSlice(t.idx, at: snapToWarp(g.frac(p.x), g), gap: 32 / Double(d.frames))
             let marks = model.editorMarks
             let notes = model.editorMarkNotes
-            if t.idx < marks.count {
-                tip = (Params.noteName(notes[t.idx]) + "\n" + EditorDraw.time(marks[t.idx].at * dur), p)
+            if t.idx < marks.count && t.idx < notes.count {
+                let m: SliceMark = marks[t.idx]
+                var head: String = Params.noteName(notes[t.idx])
+                var at: CGPoint = p
+                if m.isFree {
+                    let r: SliceRhythm.Role? = SliceRhythm.role(m.role)
+                    head = r != nil ? SliceRhythm.roleNames[r!.rawValue] : "CUT"
+                    at.y = p.y - 40
+                }
+                tip = (head + "\n" + EditorDraw.time(m.at * dur), at)
             }
         case .warp:
             if !t.moved {
@@ -397,7 +407,9 @@ struct SampleEditor: View {
             model.deleteSlice(flag)
         } else {
             let g = geometry(size)
-            model.addSlice(at: snapToWarp(g.frac(p.x), g))
+            // В полосе снизу — метка без ноты, выше — маркер с нотой.
+            let free: Bool = p.y >= g.size.height - EditorWarpDraw.strip
+            model.addSlice(at: snapToWarp(g.frac(p.x), g), free: free)
         }
     }
 
@@ -482,8 +494,25 @@ struct SampleEditor: View {
         let notes = model.editorMarkNotes
         var k = marks.count - 1
         while k >= 0 {
-            let r = EditorDraw.flagRect(g.x(marks[k].at), Params.noteName(notes[k]))
-            if p.x >= r.minX - 6 && p.x <= r.maxX + 6 { return k }
+            if k < notes.count && !marks[k].isFree {
+                let r = EditorDraw.flagRect(g.x(marks[k].at), Params.noteName(notes[k]))
+                if p.x >= r.minX - 6 && p.x <= r.maxX + 6 { return k }
+            }
+            k -= 1
+        }
+        return -1
+    }
+
+    /// Флажок метки без ноты под пальцем (снизу; правее нарисованный; зона шире флажка на 6 px) или −1.
+    private func cueAt(_ p: CGPoint, _ g: EditorGeometry) -> Int {
+        if p.y < g.size.height - EditorWarpDraw.strip - 8 { return -1 }
+        let marks = model.editorMarks
+        var k = marks.count - 1
+        while k >= 0 {
+            if marks[k].isFree {
+                let r = EditorDraw.cueRect(g.x(marks[k].at), g.size.height)
+                if p.x >= r.minX - 6 && p.x <= r.maxX + 6 { return k }
+            }
             k -= 1
         }
         return -1

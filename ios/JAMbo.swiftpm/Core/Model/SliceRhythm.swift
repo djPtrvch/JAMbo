@@ -30,6 +30,45 @@ public enum SliceRhythm {
         var steps: Int { return Swift.max(1, Int(len.rounded(.up))) }
     }
 
+    /// Кусок метки без ноты: отрезок сэмпла a…b (доли длины).
+    public struct Cut: Equatable, Sendable {
+        public var a: Double
+        public var b: Double
+        public init(a: Double, b: Double) {
+            self.a = a
+            self.b = b
+        }
+    }
+
+    /// «Ноты» кусков меток без ноты в рисунке (от этого номера по порядку; в шаг пишется Params.sampleRoot).
+    public static let cutNote: Int = 1000
+
+    /// Куски нарезки: marks — маркеры сэмпла, notes — их ноты (Slices.notes), lens — длина куска в шагах по
+    /// маркеру (до следующего своего вида). Есть маркеры с нотой — куски по ним (метки без ноты не участвуют);
+    /// нет — по меткам без ноты, «ноты» — cutNote + номер, отрезки — в cuts.
+    public static func pieces(_ marks: [SliceMark], notes: [Int], len: (Double, Double) -> Double)
+        -> (pieces: [Piece], cuts: [Int: Cut]) {
+        let noted: Bool = marks.contains { !$0.isFree }
+        var idx: [Int] = []
+        for (k, m) in marks.enumerated() where m.isFree != noted && k < notes.count { idx.append(k) }
+        idx.sort { marks[$0].at < marks[$1].at }
+        var out: [Piece] = []
+        var cuts: [Int: Cut] = [:]
+        for (j, k) in idx.enumerated() {
+            let a: Double = marks[k].at
+            let b: Double = j + 1 < idx.count ? marks[idx[j + 1]].at : 1
+            let l: Double = Swift.max(0, len(a, b))
+            if noted {
+                out.append(Piece(note: notes[k], len: l, role: role(marks[k].role)))
+            } else {
+                let n: Int = cutNote + j
+                cuts[n] = Cut(a: a, b: b)
+                out.append(Piece(note: n, len: l, role: role(marks[k].role)))
+            }
+        }
+        return (out, cuts)
+    }
+
     /// Нота на странице: шаг (0…15), нота куска, длина в шагах, velocity — Level ноты 0…127 (nil — без своей).
     public struct Event: Equatable, Sendable {
         public var step: Int
@@ -218,8 +257,14 @@ public enum SliceRhythm {
 }
 
 extension Track {
-    /// Звук дорожки — сэмпл (не синт) с маркерами нарезки.
+    /// Звук дорожки — сэмпл (не синт) с маркерами нарезки (с нотой: клавиши играют куски).
     public var sliced: Bool {
+        if sample.isEmpty || SynthKey.engine(sample) != nil { return false }
+        return sliceMarks(sample).contains { !$0.isFree }
+    }
+
+    /// Звук дорожки — сэмпл с любыми маркерами (и метками без ноты): случайная нарезка (RANDOM).
+    public var hasCuts: Bool {
         if sample.isEmpty || SynthKey.engine(sample) != nil { return false }
         return !sliceMarks(sample).isEmpty
     }
@@ -233,8 +278,11 @@ extension Track {
     }
 
     /// Рисунок на страницы range открытого паттерна: прежние шаги этих страниц стираются, ноты — со своей длиной
-    /// и velocity (Level ноты). Страницы вне range не трогаются.
-    public mutating func writeSlices(_ pattern: [[SliceRhythm.Event]], pages range: ClosedRange<Int>) {
+    /// и velocity (Level ноты). Страницы вне range не трогаются. cuts — куски меток без ноты (по «ноте» куска —
+    /// отрезок сэмпла, доли длины): шаг играет исходную высоту (Params.sampleRoot) с p-lock Start и End; на шаге —
+    /// не больше одного такого куска (первый).
+    public mutating func writeSlices(_ pattern: [[SliceRhythm.Event]], pages range: ClosedRange<Int>,
+                                     cuts: [Int: SliceRhythm.Cut] = [:]) {
         let lo: Int = Swift.max(0, range.lowerBound)
         let hi: Int = Swift.min(pages.count - 1, range.upperBound)
         if lo > hi { return }
@@ -243,7 +291,19 @@ extension Track {
         }
         for (i, evs) in pattern.enumerated() where lo + i <= hi {
             let base: Int = (lo + i) * Params.stepsPerPage
+            var cutSteps = Set<Int>()
             for e in evs {
+                if let c = cuts[e.note] {
+                    if cutSteps.contains(e.step) { continue }
+                    cutSteps.insert(e.step)
+                    withStep(base + e.step) { s in
+                        s.on = true
+                        s.addNote(Params.sampleRoot, len: e.len, vel: e.vel)
+                        s.locks["start"] = c.a * 100
+                        s.locks["end"] = c.b * 100
+                    }
+                    continue
+                }
                 withStep(base + e.step) { s in
                     s.on = true
                     s.addNote(e.note, len: e.len, vel: e.vel)
@@ -262,13 +322,14 @@ extension Track {
     /// Возвращает код новой основы; нет кусков — nil, ничего не пишется.
     public mutating func writeRandomSlices<G: RandomNumberGenerator>(_ pieces: [SliceRhythm.Piece],
                                                                      pages range: ClosedRange<Int>, avoid: [Int]?,
+                                                                     cuts: [Int: SliceRhythm.Cut] = [:],
                                                                      using g: inout G) -> [Int]? {
         if pieces.isEmpty { return nil }
         let t: Track = self
         let lens: [Int] = range.map { t.pageLen($0, from: range.lowerBound) }
         let pattern: [[SliceRhythm.Event]] = SliceRhythm.pattern(pieces, style: drumStyle, lens: lens, avoid: avoid,
                                                                  using: &g)
-        writeSlices(pattern, pages: range)
+        writeSlices(pattern, pages: range, cuts: cuts)
         return SliceRhythm.code(pattern.first(where: { !$0.isEmpty }) ?? [])
     }
 }

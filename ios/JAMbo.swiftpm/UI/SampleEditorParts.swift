@@ -332,6 +332,10 @@ enum EditorDraw {
         for (k, m) in marks.enumerated() where k < notes.count {
             let x: CGFloat = g.x(m.at)
             if x < -60 || x > g.size.width + 60 { continue }
+            if m.isFree {
+                cue(ctx, g, m, x, refused == k ? c.rec : (held.contains(k) ? c.accent : c.ink), c)
+                continue
+            }
             let label: String = Params.noteName(notes[k])
             let r = flagRect(x, label)
             let col: Color = refused == k ? c.rec : (held.contains(k) ? c.accent : c.ink)
@@ -352,6 +356,33 @@ enum EditorDraw {
                     .foregroundColor(c.dim), at: CGPoint(x: x + 4, y: SampleEditor.top + 8), anchor: .leading)
             }
         }
+    }
+
+    /// Метка без ноты: флажок снизу острием вверх с ролью (без роли — пустой), линия до верха формы волны.
+    static func cue(_ ctx: GraphicsContext, _ g: EditorGeometry, _ m: SliceMark, _ x: CGFloat, _ col: Color,
+                    _ c: EditorColors) {
+        let top: CGFloat = SampleEditor.top
+        let r: CGRect = cueRect(x, g.size.height)
+        let tipY: CGFloat = r.minY - 10
+        ctx.fill(Path(CGRect(x: x.rounded(), y: top, width: 1, height: tipY - top)), with: .color(col))
+        var p = Path()
+        p.move(to: CGPoint(x: r.minX, y: r.maxY))
+        p.addLine(to: CGPoint(x: r.maxX, y: r.maxY))
+        p.addLine(to: CGPoint(x: r.maxX, y: r.minY))
+        p.addLine(to: CGPoint(x: x + 0.5, y: tipY))
+        p.addLine(to: CGPoint(x: r.minX, y: r.minY))
+        p.closeSubpath()
+        ctx.fill(p, with: .color(col))
+        if let role = SliceRhythm.role(m.role) {
+            ctx.draw(Text(SliceRhythm.roleNames[role.rawValue]).font(.system(size: 9, weight: .semibold))
+                .foregroundColor(c.bg), at: CGPoint(x: x + 0.5, y: r.midY))
+        }
+    }
+
+    /// Тело флажка метки без ноты — внизу поля, по центру линии.
+    static func cueRect(_ x: CGFloat, _ h: CGFloat) -> CGRect {
+        let w: CGFloat = EditorWarpDraw.flagW
+        return CGRect(x: x - w / 2, y: h - SampleEditor.flagH - 4, width: w, height: SampleEditor.flagH)
     }
 
     static func heads(_ ctx: GraphicsContext, _ g: EditorGeometry, _ heads: [(f: Double, a: Double)], _ c: EditorColors) {

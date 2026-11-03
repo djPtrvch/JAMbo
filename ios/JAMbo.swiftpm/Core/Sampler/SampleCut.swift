@@ -69,8 +69,8 @@ extension Track {
         var marks: [SliceMark] = []
         for m in sliceMarks(old) {
             guard let at = SampleEdit.cutPlace(m.at, frames, i0, i1) else { continue }
-            if let last = marks.last, at - last.at < gap { continue }
-            marks.append(SliceMark(at: at, note: m.note, role: m.role))
+            if let last = marks.last(where: { $0.isFree == m.isFree }), at - last.at < gap { continue }
+            marks.append(SliceMark(at: at, note: m.note, role: m.role, free: m.free))
         }
         putMarks(new, marks)
         let w = warpInfo(old)
@@ -107,7 +107,7 @@ extension Track {
         for m in sliceMarks(old) {
             let p: Double = m.at * Double(frames)
             if p < a || p >= b { continue }
-            marks.append(SliceMark(at: (p - a) / n, note: m.note, role: m.role))
+            marks.append(SliceMark(at: (p - a) / n, note: m.note, role: m.role, free: m.free))
         }
         putMarks(new, marks)
         let w = warpInfo(old)

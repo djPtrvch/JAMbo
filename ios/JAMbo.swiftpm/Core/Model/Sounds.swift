@@ -23,12 +23,18 @@ public struct SliceMark: Codable, Equatable, Sendable {
     public var note: Int?
     /// Роль куска для случайной нарезки (SliceRhythm.Role: LOW, MID, HIGH, LONG); nil — без роли.
     public var role: Int?
+    /// Метка без ноты (флажок снизу; решение пользователя 3.11): только для случайной нарезки — сэмпл не
+    /// нарезается на ноты и транспонируется клавишами, как без маркеров. nil — маркер с нотой.
+    public var free: Bool?
 
-    public init(at: Double, note: Int? = nil, role: Int? = nil) {
+    public init(at: Double, note: Int? = nil, role: Int? = nil, free: Bool? = nil) {
         self.at = at
         self.note = note
         self.role = role
+        self.free = free == true ? true : nil
     }
+
+    public var isFree: Bool { return free == true }
 }
 
 /// SETTINGS → SAMPLER → SLICE NOTES: ноты маркеров по порядку — хроматически или по гамме.
@@ -242,10 +248,10 @@ extension Track {
         slices[key] = m.isEmpty ? nil : m
     }
 
-    /// Новый маркер на доле at (нота — по порядку).
-    public mutating func addSlice(_ key: String, at: Double) {
+    /// Новый маркер на доле at (нота — по порядку); free — метка без ноты.
+    public mutating func addSlice(_ key: String, at: Double, free: Bool = false) {
         var m = sliceMarks(key)
-        m.append(SliceMark(at: Swift.min(1, Swift.max(0, at))))
+        m.append(SliceMark(at: Swift.min(1, Swift.max(0, at)), free: free))
         m.sort { $0.at < $1.at }
         putMarks(key, m)
     }
@@ -257,12 +263,29 @@ extension Track {
         putMarks(key, m)
     }
 
-    /// Сдвинуть маркер между соседями (gap — наименьший зазор, доля).
+    /// Сдвинуть маркер между соседями своего вида (с нотой или без; gap — наименьший зазор, доля).
     public mutating func moveSlice(_ key: String, _ idx: Int, at: Double, gap: Double) {
         var m = sliceMarks(key)
         guard idx >= 0 && idx < m.count else { return }
-        let lo: Double = idx > 0 ? m[idx - 1].at + gap : 0
-        let hi: Double = idx < m.count - 1 ? m[idx + 1].at - gap : 1
+        let free: Bool = m[idx].isFree
+        var lo: Double = 0
+        var hi: Double = 1
+        var k: Int = idx - 1
+        while k >= 0 {
+            if m[k].isFree == free {
+                lo = m[k].at + gap
+                break
+            }
+            k -= 1
+        }
+        k = idx + 1
+        while k < m.count {
+            if m[k].isFree == free {
+                hi = m[k].at - gap
+                break
+            }
+            k += 1
+        }
         m[idx].at = Swift.min(hi, Swift.max(lo, at))
         putMarks(key, m)
     }
@@ -270,7 +293,7 @@ extension Track {
     /// Назначить маркеру ноту; false — нота уже у другого маркера.
     public mutating func setSliceNote(_ key: String, _ idx: Int, note: Int, notes: [Int]) -> Bool {
         var m = sliceMarks(key)
-        guard idx >= 0 && idx < m.count else { return false }
+        guard idx >= 0 && idx < m.count, !m[idx].isFree else { return false }
         for (k, n) in notes.enumerated() where k != idx && n == note { return false }
         m[idx].note = note
         putMarks(key, m)
@@ -279,6 +302,9 @@ extension Track {
 }
 
 public enum Slices {
+    /// «Нота» метки без ноты в Slices.notes.
+    public static let noNote: Int = -1
+
     /// ПРОБА (3.11, решение пользователя «попробую, не понравится — перейдём на другой вариант»): ноты маркеров по
     /// порядку — всегда от корневой ноты 3-й октавы, не от октавы клавиатуры (стрелки ▲ ▼ и переоткрытие проекта
     /// их не сдвигают; шаги не замолкают). Прежнее поведение (от первой клавиши клавиатуры) — fixedOctave = nil.
@@ -293,15 +319,20 @@ public enum Slices {
         return Scales.note(scale: scale, root: root, octave: octave, degree: idx)
     }
 
-    /// Ноты маркеров: назначенная — как есть; остальные — по порядку, занятая нота пропускается.
+    /// Ноты маркеров: назначенная — как есть; остальные — по порядку, занятая нота пропускается; у меток без ноты —
+    /// noNote (номер по порядку они не занимают).
     public static func notes(_ m: [SliceMark], map: SliceMap, scale: Int, root: Int, octave keys: Int = 3) -> [Int] {
         // Проба: октава — fixedOctave (3), иначе — октава клавиатуры.
         let octave: Int = fixedOctave ?? keys
         var taken = Set<Int>()
-        for v in m { if let n = v.note { taken.insert(n) } }
+        for v in m where !v.isFree { if let n = v.note { taken.insert(n) } }
         var j = 0
         var out: [Int] = []
         for v in m {
+            if v.isFree {
+                out.append(noNote)
+                continue
+            }
             if let n = v.note {
                 j += 1
                 out.append(n)
