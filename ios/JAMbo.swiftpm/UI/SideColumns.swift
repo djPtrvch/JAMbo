@@ -228,7 +228,8 @@ struct MorphButton: View {
 
     var body: some View {
         let shown: Bool = model.morphHeld && !model.morphUsed && !model.shiftHeld ? !model.morph : model.morph
-        let all: Bool = model.settings.morphAll
+        // Чёрная линия: SWITCH — пока ALL TRACKS выключен; HOLD — пока держат SHIFT + MORPH (все дорожки).
+        let all: Bool = model.settings.morphHold ? !model.morphAllHeld : model.settings.morphAll
         return SideButton(title: "MORPH", accent: shown)
             .overlay(
                 RoundedRectangle(cornerRadius: Layout.radius)
@@ -318,7 +319,7 @@ struct ShiftButton: View {
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { _ in if !model.shiftHeld { model.shiftHeld = true } }
-                    .onEnded { _ in model.shiftHeld = false }
+                    .onEnded { _ in model.shiftReleased() }
             )
     }
 }

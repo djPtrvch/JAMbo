@@ -207,7 +207,7 @@ extension AppModel {
             defer { if rec { autoTakePoint(p.id, norm) } }
             let m = morph
             // MORPH на все дорожки (SETTINGS → MORPH): та же ручка у остальных — сдвиг на ту же долю хода.
-            let all: Bool = m && settings.morphAll
+            let all: Bool = morphAllNow
             let i = selectedTrack
             edit { pr in
                 if m { pr.tracks[i].morphParam(p.id) }

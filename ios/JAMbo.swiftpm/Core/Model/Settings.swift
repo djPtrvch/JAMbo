@@ -69,6 +69,10 @@ public struct AppSettings: Codable, Equatable, Sendable {
     /// По умолчанию — на все дорожки (решение пользователя).
     public var morphAll: Bool = true
     public var morphReturn: Int = 0
+    /// SETTINGS → MORPH → MODE (3.11, решение пользователя): false — SWITCH (как прежде: ALL TRACKS — переключатель,
+    /// SHIFT + тап по MORPH), true — HOLD (тап — только выбранная дорожка; SHIFT + MORPH держат — все дорожки,
+    /// отпустили — режим выключен).
+    public var morphHold: Bool = false
     /// SETTINGS → RANDOM (SHIFT + CHORD): случайный ритм ударных и прогрессия — вкл./выкл.; стиль ритма сразу всем
     /// ударным дорожкам; ритм сразу на все ударные дорожки.
     public var randomDrums: Bool = false
@@ -135,7 +139,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
     }
 
     private enum Keys: String, CodingKey { case appearance, pianoOctaves, velocity, record, sliceMap, scSends, latchFx, latchMod, rollGrid,
-                                         rollSound, levelRelative, morphAll, morphReturn, mixKey, mixCrossfader,
+                                         rollSound, levelRelative, morphAll, morphReturn, morphHold, mixKey, mixCrossfader,
                                          clearSampleLocks, pitchSemitones, midi, stepPaint, sync,
                                          arrangeCompact, fxPictures, backgroundAudio, arrangeRepeats, stretchBeat,
                                          metronomeVol, arrangeScale, arrangeFollow, displayScale,
@@ -156,6 +160,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         rollSound = (try? c.decode(Bool.self, forKey: .rollSound)) ?? true
         levelRelative = (try? c.decode(Bool.self, forKey: .levelRelative)) ?? false
         morphAll = (try? c.decode(Bool.self, forKey: .morphAll)) ?? true
+        morphHold = (try? c.decode(Bool.self, forKey: .morphHold)) ?? false
         let mr: Int = (try? c.decode(Int.self, forKey: .morphReturn)) ?? 0
         morphReturn = mr >= 0 && mr < MorphReturn.beats.count ? mr : 0
         mixKey = (try? c.decode(Bool.self, forKey: .mixKey)) ?? true

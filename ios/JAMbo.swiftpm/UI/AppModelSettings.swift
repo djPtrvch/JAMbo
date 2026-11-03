@@ -69,6 +69,10 @@ extension AppModel {
         }
     }
 
+    func setMorphHold(_ on: Bool) {
+        updateSettings { s in s.morphHold = on }
+    }
+
     func setMorphAll(_ on: Bool) {
         updateSettings { s in s.morphAll = on }
     }

@@ -133,17 +133,47 @@ extension AppModel {
 
     /// Нажатие MORPH. SHIFT + тап — MORPH ALL TRACKS вкл./выкл. (как SETTINGS → MORPH → ALL TRACKS; решение
     /// пользователя), сам режим MORPH при этом не переключается.
+    /// MODE HOLD: SHIFT + MORPH — режим на всех дорожках, пока держат обе (выключен был — включается и выключится
+    /// при отпускании; был включён — после отпускания снова только выбранная дорожка).
     func morphPress() {
         morphHeld = true
         morphUsed = false
         guard shiftHeld else { return }
         morphUsed = true
-        setMorphAll(!settings.morphAll)
+        if settings.morphHold {
+            morphAllHeld = true
+            morphHoldOn = !morph
+            if !morph { toggleMorph() }
+        } else {
+            setMorphAll(!settings.morphAll)
+        }
     }
 
     func morphRelease() {
         morphHeld = false
+        if morphAllHeld {
+            endMorphAllHold()
+            return
+        }
         if !morphUsed { toggleMorph() }
+    }
+
+    /// Отпустили SHIFT: удержание SHIFT + MORPH (MODE HOLD) кончилось.
+    func shiftReleased() {
+        shiftHeld = false
+        if morphAllHeld { endMorphAllHold() }
+    }
+
+    private func endMorphAllHold() {
+        morphAllHeld = false
+        if morphHoldOn && morph { toggleMorph() }
+        morphHoldOn = false
+    }
+
+    /// Ручка в MORPH меняет параметр на всех дорожках: MODE SWITCH — по ALL TRACKS, HOLD — пока держат SHIFT + MORPH.
+    var morphAllNow: Bool {
+        if !morph { return false }
+        return settings.morphHold ? morphAllHeld : settings.morphAll
     }
 
     /// UNDO: с зажатой MORPH — сбросить изменения режима MORPH (режим не переключается), иначе — обычная отмена.
