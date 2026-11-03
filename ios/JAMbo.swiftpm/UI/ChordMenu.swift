@@ -2,7 +2,8 @@ import SwiftUI
 
 /// Окно CHORD (долгое нажатие на CHORD; решения пользователя 3.11): типы аккорда, на ударной дорожке — стили ритма
 /// (тап — выбор, окно закрывается), в режиме ARP — направление, RATE и OCTAVES (окно остаётся). Все три — от левого
-/// нижнего угла первой клавиши до верха строки дорожек, кнопки одного размера (3 ряда); закрывается тапом мимо.
+/// нижнего угла первой клавиши до верха строки дорожек, кнопки квадратные, одного размера (3 ряда); закрывается
+/// тапом мимо.
 struct ChordMenu: View {
     let model: AppModel
     let layout: Layout
@@ -44,10 +45,10 @@ struct ChordMenu: View {
 
     /// Ударная дорожка — стили ритма, иначе — типы аккорда (CHORD TYPE 1…6).
     private func types(_ rowH: CGFloat) -> some View {
-        let cols: [GridItem] = Array(repeating: GridItem(.flexible(), spacing: ChordMenuMetrics.gap), count: 2)
+        let cols: [GridItem] = Array(repeating: GridItem(.fixed(rowH), spacing: ChordMenuMetrics.gap), count: 2)
         let names: [String] = model.chordTypeNames
         let cur: Int = model.chordTypeIndex
-        return LazyVGrid(columns: cols, spacing: ChordMenuMetrics.gap) {
+        return LazyVGrid(columns: cols, alignment: .leading, spacing: ChordMenuMetrics.gap) {
             ForEach(0..<names.count, id: \.self) { c in
                 InkButton(title: names[c], active: c == cur, height: rowH) {
                     if model.midiLearn.on {
@@ -73,7 +74,7 @@ struct ChordMenuMetrics {
     let bottom: CGFloat
     let height: CGFloat
     let rowH: CGFloat
-    /// Окно аккордов и стилей (2 столбца) и ширина одного столбца кнопок.
+    /// Окно аккордов и стилей (2 столбца) и сторона квадратной кнопки.
     let width: CGFloat
     let colW: CGFloat
     /// Окно ARP: 5 столбцов (направления 2, RATE 2, OCTAVES 1) с промежутками между разделами.
@@ -89,9 +90,9 @@ struct ChordMenuMetrics {
         height = max(160, low - top)
         let inner: CGFloat = height - 2 * ChordMenuMetrics.pad - ChordMenuMetrics.head - 3 * ChordMenuMetrics.gap
         rowH = max(28, inner / 3)
-        let w4: CGFloat = 4 * layout.step + 3 * Layout.stepGap
-        width = w4
-        colW = (w4 - 2 * ChordMenuMetrics.pad - ChordMenuMetrics.gap) / 2
+        // Кнопки квадратные (решение пользователя): сторона — высота ряда.
+        colW = rowH
+        width = 2 * rowH + ChordMenuMetrics.gap + 2 * ChordMenuMetrics.pad
         let cols: CGFloat = 5 * colW + 2 * ChordMenuMetrics.gap + 2 * ChordMenuMetrics.section
         arpWidth = cols + 2 * ChordMenuMetrics.pad
     }
