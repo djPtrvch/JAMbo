@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Окно CHORD (долгое нажатие на CHORD): 6 типов аккорда, на ударной дорожке — 6 стилей ритма (тап — выбор, окно
-/// закрывается). Как меню бутерброда под
+/// закрывается); высотой с клавиши. Как меню бутерброда под
 /// CHORD: правее кнопки, снизу вверх, шириной 4 шага; закрывается тапом мимо окна.
 struct ChordMenu: View {
     let model: AppModel
@@ -15,11 +15,14 @@ struct ChordMenu: View {
         let keys: CGRect = model.keysFrame
         let x: CGFloat = keys.width > 0 ? keys.minX : 12 + layout.step + Layout.stepGap
         let bottom: CGFloat = keys.height > 0 ? max(0, screen.height - keys.maxY) : 8
+        // Высота окна — как у клавиш (решение пользователя): кнопки делят её на 3 ряда.
+        let height: CGFloat = keys.height > 0 ? keys.height : 3 * 44 + 2 * 6 + 2 * 10
+        let rowH: CGFloat = max(28, (height - 2 * 10 - 2 * 6) / 3)
         return ZStack(alignment: .bottomLeading) {
             Color.black.opacity(0.001).ignoresSafeArea().onTapGesture { model.chordMenuOpen = false }
-            types
+            types(rowH)
                 .padding(10)
-                .frame(width: width)
+                .frame(width: width, height: height)
                 .background(theme.bg, in: RoundedRectangle(cornerRadius: Layout.radius))
                 .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(theme.line, lineWidth: 1))
                 .shadow(color: .black.opacity(0.5), radius: 12, y: 4)
@@ -30,14 +33,14 @@ struct ChordMenu: View {
     }
 
     /// Ударная дорожка — стили ритма (DrumRhythm.styles), иначе — типы аккорда; кнопки те же (CHORD TYPE 1…6).
-    private var types: some View {
+    private func types(_ rowH: CGFloat) -> some View {
         let cols: [GridItem] = Array(repeating: GridItem(.flexible(), spacing: 6), count: 2)
         let drum: Bool = model.drumTrack
         let names: [String] = drum ? DrumRhythm.styles : Scales.chordKinds
         let cur: Int = drum ? model.track.drumStyle : model.chordKind[model.selectedTrack]
         return LazyVGrid(columns: cols, spacing: 6) {
             ForEach(0..<names.count, id: \.self) { c in
-                InkButton(title: names[c], active: c == cur, height: 44) {
+                InkButton(title: names[c], active: c == cur, height: rowH) {
                     if model.midiLearn.on {
                         model.learnTap(.button("CHORD TYPE \(c + 1)"))
                     } else {
