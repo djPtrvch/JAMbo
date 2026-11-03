@@ -133,20 +133,33 @@ extension AppModel {
 
     /// Нажатие MORPH. SHIFT + тап — MORPH ALL TRACKS вкл./выкл. (как SETTINGS → MORPH → ALL TRACKS; решение
     /// пользователя), сам режим MORPH при этом не переключается.
-    /// MODE HOLD: SHIFT + MORPH — режим на всех дорожках, пока держат обе (выключен был — включается и выключится
-    /// при отпускании; был включён — после отпускания снова только выбранная дорожка).
+    /// MODE HOLD: SHIFT и MORPH держат одновременно (в любом порядке, 3.11) — режим на всех дорожках, пока держат обе
+    /// (выключен был — включается и выключится при отпускании; был включён — после отпускания снова только выбранная
+    /// дорожка).
     func morphPress() {
         morphHeld = true
         morphUsed = false
         guard shiftHeld else { return }
-        morphUsed = true
         if settings.morphHold {
-            morphAllHeld = true
-            morphHoldOn = !morph
-            if !morph { toggleMorph() }
+            beginMorphAllHold()
         } else {
+            morphUsed = true
             setMorphAll(!settings.morphAll)
         }
+    }
+
+    /// Нажали SHIFT: в MODE HOLD при уже зажатой MORPH — режим на всех дорожках, пока держат обе.
+    func shiftPressed() {
+        shiftHeld = true
+        if settings.morphHold && morphHeld { beginMorphAllHold() }
+    }
+
+    private func beginMorphAllHold() {
+        if morphAllHeld { return }
+        morphUsed = true
+        morphAllHeld = true
+        morphHoldOn = !morph
+        if !morph { toggleMorph() }
     }
 
     func morphRelease() {
@@ -177,7 +190,8 @@ extension AppModel {
     /// Ручка в MORPH меняет параметр на всех дорожках: MODE SWITCH — по ALL TRACKS, HOLD — пока держат SHIFT + MORPH.
     var morphAllNow: Bool {
         if !morph { return false }
-        return settings.morphHold ? morphAllHeld : settings.morphAll
+        // HOLD — только пока прямо сейчас держат и SHIFT, и MORPH (не по оставшемуся флагу).
+        return settings.morphHold ? morphAllHeld && morphHeld && shiftHeld : settings.morphAll
     }
 
     /// UNDO: с зажатой MORPH — сбросить изменения режима MORPH (режим не переключается), иначе — обычная отмена.

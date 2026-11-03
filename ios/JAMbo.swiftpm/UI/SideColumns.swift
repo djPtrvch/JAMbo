@@ -19,11 +19,13 @@ struct LeftColumn: View {
                                right: MasterButton(model: model, module: MasterScope.lim))
                 })
             } else {
+                // При MIX кнопки ничего не делают — без надписей (решение пользователя 3.11).
+                let mix: Bool = model.channel == .mix
                 AnyView(VStack(spacing: Layout.gap) {
-                    ButtonPair(left: SourceButton(model: model, title: "LFO1", source: 1).midiTarget(model, "LFO1"),
-                               right: SourceButton(model: model, title: "LFO2", source: 2).midiTarget(model, "LFO2"))
-                    ButtonPair(left: SourceButton(model: model, title: "LFO3", source: 3).midiTarget(model, "LFO3"),
-                               right: SourceButton(model: model, title: "ENV", source: 4).midiTarget(model, "ENV"))
+                    ButtonPair(left: SourceButton(model: model, title: mix ? "" : "LFO1", source: 1).midiTarget(model, "LFO1"),
+                               right: SourceButton(model: model, title: mix ? "" : "LFO2", source: 2).midiTarget(model, "LFO2"))
+                    ButtonPair(left: SourceButton(model: model, title: mix ? "" : "LFO3", source: 3).midiTarget(model, "LFO3"),
+                               right: SourceButton(model: model, title: mix ? "" : "ENV", source: 4).midiTarget(model, "ENV"))
                 })
             }
         }
@@ -53,7 +55,7 @@ struct LeftTop: View {
     }
 }
 
-/// Верх правой колонки: строка стрелок страниц и 8 миниатюр; при MIX — пустая строка и пустое окно.
+/// Верх правой колонки: строка стрелок страниц и 8 миниатюр; при MIX — скоп мастера на всю высоту.
 struct RightTop: View {
     let model: AppModel
 
@@ -62,12 +64,9 @@ struct RightTop: View {
         let mix: Bool = model.channel == .mix
         return VStack(spacing: Layout.barGap) {
             if mix {
-                AnyView(VStack(spacing: Layout.barGap) {
-                    Color.clear.frame(height: bar)
-                    // Скоп мастера, как при MST (решение пользователя 3.11): гониометр и осциллоскоп — только форма
-                    // волны мастера, без точек съёма COMP, CLIP, LIM.
-                    MasterScopeView(model: model, taps: false)
-                })
+                // Скоп мастера того же размера, что при MST (решение пользователя 3.11): гониометр и осциллоскоп — только
+                // форма волны мастера, без точек съёма COMP, CLIP, LIM; пустой строки сверху нет.
+                AnyView(MasterScopeView(model: model, taps: false))
             } else {
                 AnyView(VStack(spacing: Layout.barGap) {
                     PageArrows(model: model).frame(height: bar)
@@ -165,11 +164,13 @@ struct RightColumn: View {
                 ButtonPair(left: ShiftButton(model: model), right: ScopeButton(model: model, tap: MasterScope.lim))
             })
         } else {
+            // При MIX FX, MOD и MORPH ничего не делают — без надписей (решение пользователя 3.11).
+            let mix: Bool = model.channel == .mix
             AnyView(VStack(spacing: Layout.gap) {
                 RightTop(model: model)
                 // FX слева, MOD справа (решение пользователя).
-                ButtonPair(left: PageButton(model: model, title: "FX", page: .fx).midiTarget(model, "FX"),
-                           right: PageButton(model: model, title: "MOD", page: .mod).midiTarget(model, "MOD"))
+                ButtonPair(left: PageButton(model: model, title: mix ? "" : "FX", page: .fx).midiTarget(model, "FX"),
+                           right: PageButton(model: model, title: mix ? "" : "MOD", page: .mod).midiTarget(model, "MOD"))
                 ButtonPair(left: ShiftButton(model: model),
                            right: MorphButton(model: model).midiTarget(model, "MORPH"))
             })
@@ -221,7 +222,7 @@ struct MorphButton: View {
         let shown: Bool = model.morphHeld && !model.morphUsed && !model.shiftHeld ? !model.morph : model.morph
         // Чёрная линия: SWITCH — пока ALL TRACKS выключен; HOLD — пока держат SHIFT + MORPH (все дорожки).
         let all: Bool = model.settings.morphHold ? !model.morphAllHeld : model.settings.morphAll
-        return SideButton(title: "MORPH", accent: shown)
+        return SideButton(title: model.channel == .mix ? "" : "MORPH", accent: shown)
             .overlay(
                 RoundedRectangle(cornerRadius: Layout.radius)
                     .inset(by: 3)
@@ -309,7 +310,7 @@ struct ShiftButton: View {
             .contentShape(Rectangle())
             .gesture(
                 DragGesture(minimumDistance: 0)
-                    .onChanged { _ in if !model.shiftHeld { model.shiftHeld = true } }
+                    .onChanged { _ in if !model.shiftHeld { model.shiftPressed() } }
                     .onEnded { _ in model.shiftReleased() }
             )
     }
