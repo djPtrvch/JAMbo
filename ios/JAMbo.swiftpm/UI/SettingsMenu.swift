@@ -308,8 +308,8 @@ struct RandomSettings: View {
         return FormRows(rows: [
             .toggle("DRUMS", s.randomDrums) { m.setRandom(0, $0) },
             .note("SHIFT + tap on CHORD on a drum track (Kick, Snare, Hat, Clap, Perc) writes a random rhythm in the track's style. OFF: nothing."),
-            .toggle("CHORDS", s.randomChords) { m.setRandom(1, $0) },
-            .note("SHIFT + tap on CHORD on other tracks writes a random chord progression. OFF: nothing."),
+            .toggle("CHORDS / ARP", s.randomChords) { m.setRandom(1, $0) },
+            .note("SHIFT + tap on CHORD on other tracks writes a random chord progression, in ARP mode — a random arpeggio. OFF: nothing."),
             .toggle("STYLE ALL TRACKS", s.randomStyleAll) { m.setRandom(2, $0) },
             .note("Choosing a style on a drum track sets it on every drum track of the project."),
             .toggle("STEPS ALL TRACKS", s.randomStepsAll) { m.setRandom(3, $0) },
