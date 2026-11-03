@@ -97,7 +97,7 @@ extension AppModel {
                            levelRelative: settings.levelRelative, stretchBeat: settings.stretchBeat,
                            master: mixMaster,
                            extra: libPreviewKey.map { [$0] } ?? [], next: next, rebind: rebindNext,
-                           refB: refBActive)
+                           refB: refBActive, warpFollow: settings.warpProjectBpm)
         rebindNext = false
         syncArp()
         ensureRoots()
@@ -404,10 +404,11 @@ extension AppModel {
         guard let src = sample(editorKey) else { return }
         let frames: Int = src.frames
         let det: Double = src.loopBpm
+        let fol: Double? = warpFollowBpm
         let (i0, i1) = SampleEdit.trimRange(frames, a, b)
         editorRemap = (Double(i0) / Double(frames), Double(i1) / Double(frames))
         applyEdit({ SampleEdit.trim($0, a, b) }, carry: { t, old, new in
-            t.carryTrim(old, new, frames: frames, i0, i1, detectedBpm: det)
+            t.carryTrim(old, new, frames: frames, i0, i1, detectedBpm: det, follow: fol)
         })
     }
 
@@ -416,9 +417,10 @@ extension AppModel {
         guard let src = sample(editorKey) else { return }
         let frames: Int = src.frames
         let det: Double = src.loopBpm
+        let fol: Double? = warpFollowBpm
         editorRemap = (0, 1)
         applyEdit(make, carry: { t, old, new in
-            t.carryTrim(old, new, frames: frames, 0, frames, detectedBpm: det)
+            t.carryTrim(old, new, frames: frames, 0, frames, detectedBpm: det, follow: fol)
         })
     }
 
@@ -427,9 +429,10 @@ extension AppModel {
         guard let src = sample(editorKey), let (i0, i1) = SampleEdit.cutRange(src.frames, a, b) else { return }
         let frames: Int = src.frames
         let det: Double = src.loopBpm
+        let fol: Double? = warpFollowBpm
         editorRemap = nil
         applyEdit({ SampleEdit.cut($0, a, b) }, carry: { t, old, new in
-            t.carryCut(old, new, frames: frames, i0, i1, detectedBpm: det)
+            t.carryCut(old, new, frames: frames, i0, i1, detectedBpm: det, follow: fol)
         })
     }
 

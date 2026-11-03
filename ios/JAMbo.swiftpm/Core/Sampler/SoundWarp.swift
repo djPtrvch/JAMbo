@@ -33,8 +33,9 @@ extension SoundSnapshot {
     }
 
     /// Метки сэмпла s записи e (info — только у дорожки в TSTR; nil — без варпинга): свой BPM файла — в eBpm (с метками —
-    /// и определённый сам или 120), метки — с позиции w таблиц.
-    static func putWarp(_ d: inout SoundData, _ e: Int, _ w: inout Int, _ info: WarpInfo?, _ s: SampleData) {
+    /// и определённый сам или 120; follow — темп проекта, WARP TO PROJECT BPM), метки — с позиции w таблиц.
+    static func putWarp(_ d: inout SoundData, _ e: Int, _ w: inout Int, _ info: WarpInfo?, _ s: SampleData,
+                        follow: Double? = nil) {
         d.eWarpStart![e] = Int32(w)
         d.eWarpCount![e] = 0
         guard let wi = info, !wi.isOff else { return }
@@ -42,7 +43,7 @@ extension SoundSnapshot {
             if let b = wi.bpm { d.eBpm[e] = b }
             return
         }
-        let bpm: Double = WarpMap.bpm(wi, detected: s.loopBpm)
+        let bpm: Double = WarpMap.bpm(wi, detected: s.loopBpm, follow: follow)
         d.eBpm[e] = bpm
         let map = WarpMap(wi, frames: s.frames, bpm: bpm)
         var n = 0

@@ -221,7 +221,7 @@ public final class SoundSnapshot: @unchecked Sendable {
                 tables: [String: WtTable] = [:], scSends: SidechainSends = SidechainSends(),
                 levelRelative: Bool = true, stretchBeat: Bool = false, slots: UnsafeMutablePointer<Int>? = nil, master: [Double]? = nil,
                 extra: [String] = [], next: [Int] = [], keepAlt: [Int: Int] = [:], rebind: Bool = false,
-                refB: Bool = false) {
+                refB: Bool = false, warpFollow: Bool = false) {
         let tracks = SoundData.maxTracks
         let tracks2 = tracks * 2
         var own: UnsafeMutablePointer<Int>? = nil
@@ -447,7 +447,7 @@ public final class SoundSnapshot: @unchecked Sendable {
                 // С метками варпинга — и у дорожки в PTCH (▶ WARP играет в Rate Stretch).
                 let wi: WarpInfo? = snd.warps?[key]
                 d.eBpm[e] = d.rateMode[u] != 0 || wi != nil ? s.loopBpm : 0
-                SoundSnapshot.putWarp(&d, e, &wl, wi, s)
+                SoundSnapshot.putWarp(&d, e, &wl, wi, s, follow: warpFollow ? project.bpm : nil)
                 if d.rateMode[u] == 1 {
                     let o: OnsetList = s.onsets
                     d.eOnsets[e] = o.at

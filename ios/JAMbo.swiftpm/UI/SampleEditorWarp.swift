@@ -101,7 +101,8 @@ struct WarpBar: View {
             if showPlay {
                 PlayToolButton(on: model.previewOn, enabled: has) { model.toggleWarpPreview() }
             }
-            bpmButton(has)
+            // WARP TO PROJECT BPM: у сэмпла с метками BPM файла — темп проекта (серый, не правится).
+            bpmButton(has && !model.warpBpmFollows)
                 .alert("FILE BPM", isPresented: $input) {
                     TextField("BPM", text: $text).keyboardType(.decimalPad)
                     Button("OK") { enter() }

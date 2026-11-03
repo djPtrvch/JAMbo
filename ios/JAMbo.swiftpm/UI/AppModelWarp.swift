@@ -8,9 +8,20 @@ extension AppModel {
         return track.warpInfo(editorKey)
     }
 
-    /// BPM файла: свой, иначе определённый сам, иначе 120.
+    /// WARP TO PROJECT BPM: темп проекта (у сэмплов с метками он — BPM файла, свой не действует); выкл. — nil.
+    var warpFollowBpm: Double? {
+        return settings.warpProjectBpm ? project.bpm : nil
+    }
+
+    /// BPM файла идёт за темпом проекта (WARP TO PROJECT BPM, у сэмпла есть метки, варпинг включён).
+    var warpBpmFollows: Bool {
+        let w = editorWarpInfo
+        return settings.warpProjectBpm && !w.marks.isEmpty && !w.isOff
+    }
+
+    /// BPM файла: темп проекта (WARP TO PROJECT BPM), иначе свой, иначе определённый сам, иначе 120.
     func warpBpm(_ d: SampleData) -> Double {
-        return WarpMap.bpm(editorWarpInfo, detected: d.loopBpm)
+        return WarpMap.bpm(editorWarpInfo, detected: d.loopBpm, follow: warpFollowBpm)
     }
 
     func warpMap(_ d: SampleData) -> WarpMap {
@@ -22,7 +33,8 @@ extension AppModel {
         releaseFlag()
         warpSel = nil
         editorWarp.toggle()
-        // WARP TO PROJECT BPM: BPM файла — темп проекта (если свой не задан; одна запись UNDO).
+        // WARP TO PROJECT BPM: у сэмпла без меток и своего BPM — BPM файла = темп проекта (одна запись UNDO); с
+        // метками BPM файла и так идёт за темпом проекта.
         if editorWarp && settings.warpProjectBpm && editorWarpInfo.bpm == nil && !editorKey.isEmpty {
             setWarpBpm(project.bpm)
         }
@@ -50,7 +62,8 @@ extension AppModel {
         let det: Double = d.loopBpm
         let g: Double = warpGrid
         warpSel = nil
-        editTrack { t in t.autoWarp(key, onsets: ons, frames: d.frames, detectedBpm: det, grid: g) }
+        let fol: Double? = warpFollowBpm
+        editTrack { t in t.autoWarp(key, onsets: ons, frames: d.frames, detectedBpm: det, grid: g, follow: fol) }
     }
 
     func clearWarp() {
@@ -66,7 +79,8 @@ extension AppModel {
         guard !key.isEmpty, let d = sample(key) else { return }
         let det: Double = d.loopBpm
         warpSel = nil
-        editTrack { t in t.addWarp(key, at: f, frames: d.frames, detectedBpm: det) }
+        let fol: Double? = warpFollowBpm
+        editTrack { t in t.addWarp(key, at: f, frames: d.frames, detectedBpm: det, follow: fol) }
     }
 
     /// Метка начала сэмпла (нет — ставится на своей доле); номер 0.
@@ -75,7 +89,8 @@ extension AppModel {
         guard !key.isEmpty, let d = sample(key) else { return -1 }
         let det: Double = d.loopBpm
         var k = 0
-        editTrack { t in k = t.warpStart(key, frames: d.frames, detectedBpm: det) }
+        let fol: Double? = warpFollowBpm
+        editTrack { t in k = t.warpStart(key, frames: d.frames, detectedBpm: det, follow: fol) }
         return k
     }
 

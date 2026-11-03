@@ -54,8 +54,10 @@ public struct WarpMap: Sendable {
         perBeat = AudioCore.sampleRate * 60 / Swift.max(1, bpm)
     }
 
-    /// BPM файла: свой, иначе определённый сам, иначе 120.
-    public static func bpm(_ info: WarpInfo?, detected: Double) -> Double {
+    /// BPM файла: темп проекта follow (WARP TO PROJECT BPM — у сэмпла с метками, варпинг включён), иначе свой, иначе
+    /// определённый сам, иначе 120.
+    public static func bpm(_ info: WarpInfo?, detected: Double, follow: Double? = nil) -> Double {
+        if let f = follow, let i = info, !i.marks.isEmpty, !i.isOff { return f }
         if let b = info?.bpm { return b }
         return detected > 0 ? detected : fallbackBpm
     }
@@ -121,11 +123,14 @@ extension Track {
 
     /// Новая метка в отсчёте at (доля длины) — на её нынешней доле (звук не меняется); номер метки или nil (слишком
     /// близко к соседней).
+    /// follow — темп проекта (WARP TO PROJECT BPM): по нему и первая метка (карта с метками пойдёт по нему же).
     @discardableResult
-    public mutating func addWarp(_ key: String, at: Double, frames: Int, detectedBpm: Double) -> Int? {
+    public mutating func addWarp(_ key: String, at: Double, frames: Int, detectedBpm: Double,
+                                 follow: Double? = nil) -> Int? {
         var w = warpInfo(key)
         let a: Double = Swift.min(1, Swift.max(0, at))
-        let map = WarpMap(w, frames: frames, bpm: WarpMap.bpm(w, detected: detectedBpm))
+        let map = WarpMap(w, frames: frames, bpm: w.isOff ? WarpMap.bpm(w, detected: detectedBpm)
+                                                           : follow ?? WarpMap.bpm(w, detected: detectedBpm))
         let p: Double = a * Double(frames)
         for m in w.marks where Swift.abs(m.at * Double(frames) - p) < WarpMap.minFrames { return nil }
         let k: Int = w.marks.firstIndex { $0.at > a } ?? w.marks.count
@@ -136,10 +141,11 @@ extension Track {
 
     /// Метка начала сэмпла (доля длины 0; нет — ставится на нынешней доле, звук не меняется); её номер — 0.
     @discardableResult
-    public mutating func warpStart(_ key: String, frames: Int, detectedBpm: Double) -> Int {
+    public mutating func warpStart(_ key: String, frames: Int, detectedBpm: Double, follow: Double? = nil) -> Int {
         var w = warpInfo(key)
         if let f = w.marks.first, f.at * Double(frames) < WarpMap.minFrames { return 0 }
-        let map = WarpMap(w, frames: frames, bpm: WarpMap.bpm(w, detected: detectedBpm))
+        let map = WarpMap(w, frames: frames, bpm: w.isOff ? WarpMap.bpm(w, detected: detectedBpm)
+                                                           : follow ?? WarpMap.bpm(w, detected: detectedBpm))
         w.marks.insert(WarpMark(at: 0, beat: map.beat(0)), at: 0)
         putWarp(key, w)
         return 0
@@ -194,9 +200,12 @@ extension Track {
     }
 
     /// AUTO WARP: метки на атаки сэмпла по сетке grid (в четвертях) — вместо прежних.
-    public mutating func autoWarp(_ key: String, onsets: [Double], frames: Int, detectedBpm: Double, grid: Double) {
+    /// follow — темп проекта (WARP TO PROJECT BPM): атаки — по сетке в нём.
+    public mutating func autoWarp(_ key: String, onsets: [Double], frames: Int, detectedBpm: Double, grid: Double,
+                                  follow: Double? = nil) {
         var w = warpInfo(key)
-        w.marks = WarpMap.auto(onsets: onsets, frames: frames, bpm: WarpMap.bpm(w, detected: detectedBpm), grid: grid)
+        let bpm: Double = w.isOff ? WarpMap.bpm(w, detected: detectedBpm) : follow ?? WarpMap.bpm(w, detected: detectedBpm)
+        w.marks = WarpMap.auto(onsets: onsets, frames: frames, bpm: bpm, grid: grid)
         putWarp(key, w)
     }
 }

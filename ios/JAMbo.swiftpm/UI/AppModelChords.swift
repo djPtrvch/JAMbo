@@ -216,7 +216,7 @@ extension AppModel {
         let frames: Double = Double(max(1, d.frames))
         var warp: WarpMap? = nil
         if let i = info, !i.isEmpty, !i.isOff {
-            warp = WarpMap(i, frames: d.frames, bpm: WarpMap.bpm(i, detected: d.loopBpm))
+            warp = WarpMap(i, frames: d.frames, bpm: WarpMap.bpm(i, detected: d.loopBpm, follow: warpFollowBpm))
         }
         let stepSec: Double = 15 / max(1, project.bpm)
         let dur: Double = d.duration

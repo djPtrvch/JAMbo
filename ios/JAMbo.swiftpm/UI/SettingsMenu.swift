@@ -187,7 +187,7 @@ struct SamplerSettings: View {
             .note("How the sample Pitch knob and its step locks turn: SMOOTH — any value, SEMITONES — whole semitones. Hold SHIFT while turning for the other mode. LFO and ENV stay smooth."),
             .toggle("CLEAR SAMPLE LOCKS", st.clearSampleLocks) { m.setClearSampleLocks($0) },
             .note("ON: loading sounds from the library onto a track removes its sample locks — those steps play the track sound at their own note. Preset locks stay. OFF: sample locks keep their samples."),
-            .toggle("WARP TO PROJECT BPM", st.warpProjectBpm) { on in m.updateSettings { $0.warpProjectBpm = on } },
+            .toggle("WARP TO PROJECT BPM", st.warpProjectBpm) { on in m.setWarpProjectBpm(on) },
             .note("ON: opening WARP for a sample without its own file BPM sets the file BPM to the project tempo."),
         ])
     }

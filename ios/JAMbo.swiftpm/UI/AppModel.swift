@@ -623,7 +623,10 @@ final class AppModel {
     /// AppModelSync).
     func setClockBpm(_ bpm: Double) {
         let b: Double = min(Params.bpmMax, max(Params.bpmMin, bpm.rounded()))
-        if b != project.bpm { project.bpm = b }
+        if b == project.bpm { return }
+        project.bpm = b
+        // WARP TO PROJECT BPM: BPM файла сэмплов с метками — новый темп.
+        if settings.warpProjectBpm { publishAudio() }
     }
 
     func setBpm(_ value: Double) {

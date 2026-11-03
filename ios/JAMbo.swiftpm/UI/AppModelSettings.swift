@@ -28,6 +28,12 @@ extension AppModel {
         publishAudio()
     }
 
+    /// SAMPLER → WARP TO PROJECT BPM: у сэмплов с метками BPM файла идёт за темпом проекта.
+    func setWarpProjectBpm(_ on: Bool) {
+        updateSettings { s in s.warpProjectBpm = on }
+        publishAudio()
+    }
+
     func setQuantize(_ on: Bool) {
         updateSettings { s in s.record.quantize = on }
     }

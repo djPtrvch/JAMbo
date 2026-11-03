@@ -88,7 +88,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
     /// SETTINGS → SAMPLER (S11b): загрузка звуков из библиотеки на дорожку снимает её сэмпл-локи (шаги со своим
     /// сэмплом играют звук дорожки своей нотой); пресет-локи остаются.
     public var clearSampleLocks: Bool = true
-    /// SETTINGS → SAMPLER → WARP TO PROJECT BPM (решение пользователя): при входе в WARP у сэмпла без своего BPM
+    /// SETTINGS → SAMPLER → WARP TO PROJECT BPM (решение пользователя): у сэмплов с метками варпинга BPM файла всегда
+    /// равен темпу проекта и идёт за ним (свой BPM не действует); при входе в WARP у сэмпла без меток и своего BPM
     /// файла BPM файла ставится равным темпу проекта; по умолчанию — нет.
     public var warpProjectBpm: Bool = false
     /// SETTINGS → SAMPLER → STRETCH: алгоритм таймстретча RATE в режиме Stretch — NORMAL (фазовый вокодер, по

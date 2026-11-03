@@ -62,7 +62,7 @@ extension Track {
     /// долям, на длину вырезанного по карте), внутри — удаляются; метка на стыке — одна. С метками BPM файла
     /// закрепляется (копия определила бы свой — звук до первой и после последней метки поменялся бы).
     public mutating func carryCut(_ old: String, _ new: String, frames: Int, _ i0: Int, _ i1: Int,
-                                  detectedBpm: Double) {
+                                  detectedBpm: Double, follow: Double? = nil) {
         if old.isEmpty || new.isEmpty { return }
         let n: Int = frames - (i1 - i0)
         let gap: Double = WarpMap.minFrames / Double(Swift.max(1, n))
@@ -78,7 +78,7 @@ extension Track {
         var out = WarpInfo(bpm: w.bpm, marks: [])
         out.off = w.off
         if !w.marks.isEmpty {
-            let bpm: Double = WarpMap.bpm(w, detected: detectedBpm)
+            let bpm: Double = WarpMap.bpm(w, detected: detectedBpm, follow: follow)
             let map = WarpMap(w, frames: frames, bpm: bpm)
             let span: Double = map.beat(Double(i1)) - map.beat(Double(i0))
             out.bpm = bpm
@@ -98,7 +98,7 @@ extension Track {
     /// оставленного — удаляются, внутри — на прежнем месте звука. Доли меток — со сдвигом на целое число долей начала
     /// (сетка та же); с метками BPM файла закрепляется. NORMALIZE и MONO — i0 = 0, i1 = frames (всё как было).
     public mutating func carryTrim(_ old: String, _ new: String, frames: Int, _ i0: Int, _ i1: Int,
-                                   detectedBpm: Double) {
+                                   detectedBpm: Double, follow: Double? = nil) {
         if old.isEmpty || new.isEmpty || i1 <= i0 { return }
         let n: Double = Double(i1 - i0)
         let a: Double = Double(i0)
@@ -115,7 +115,7 @@ extension Track {
         var out = WarpInfo(bpm: w.bpm, marks: [])
         out.off = w.off
         if !w.marks.isEmpty {
-            let bpm: Double = WarpMap.bpm(w, detected: detectedBpm)
+            let bpm: Double = WarpMap.bpm(w, detected: detectedBpm, follow: follow)
             let map = WarpMap(w, frames: frames, bpm: bpm)
             let shift: Double = i0 > 0 ? map.beat(a).rounded(.down) : 0
             out.bpm = bpm

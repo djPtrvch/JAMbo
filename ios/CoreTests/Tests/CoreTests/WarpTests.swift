@@ -228,4 +228,39 @@ final class WarpTests: XCTestCase {
         let without = run(start: false)
         if let h = without.first { XCTAssertEqual(Double(h), 4800, accuracy: 600, "без метки начала — как в файле") }
     }
+
+    /// WARP TO PROJECT BPM: у сэмпла с метками BPM файла — темп проекта (свой не действует); без меток и при
+    /// выключенном варпинге — как прежде; первые метки — по темпу проекта.
+    func testFollowProjectBpm() {
+        let marked = WarpInfo(bpm: 98, marks: [WarpMark(at: 0, beat: 0)])
+        XCTAssertEqual(WarpMap.bpm(marked, detected: 125, follow: 140), 140)
+        XCTAssertEqual(WarpMap.bpm(marked, detected: 125), 98)
+        XCTAssertEqual(WarpMap.bpm(WarpInfo(bpm: 98), detected: 125, follow: 140), 98, "без меток — свой")
+        var off = marked
+        off.off = true
+        XCTAssertEqual(WarpMap.bpm(off, detected: 125, follow: 140), 98, "варпинг выключен — свой")
+        var t = Track(index: 0)
+        // 96 BPM — доля 30000 отсчётов; атака на 30000 — доля 1 (по своим 120 была бы 1,25).
+        t.autoWarp("k", onsets: [30000], frames: 96000, detectedBpm: 120, grid: 0.25, follow: 96)
+        XCTAssertEqual(t.warpInfo("k").marks.map { $0.beat }, [0, 1])
+        var u = Track(index: 0)
+        u.addWarp("k", at: 0.3125, frames: 96000, detectedBpm: 120, follow: 96)
+        XCTAssertEqual(u.warpInfo("k").marks[0].beat, 1, accuracy: 1e-9)
+    }
+
+    /// Снимок звука: WARP TO PROJECT BPM — темп файла сэмпла с метками = темп проекта; выкл. — свой BPM файла.
+    func testSnapshotFollowsProjectBpm() {
+        let s = hits()
+        var p = Project()
+        p.tracks[0].addSamples(["k"])
+        p.tracks[0].params[Params.rateModeId] = 1
+        p.bpm = 133
+        p.tracks[0].setWarpBpm("k", 120)
+        p.tracks[0].autoWarp("k", onsets: s.onsets.list, frames: s.frames, detectedBpm: s.loopBpm, grid: 1)
+        for (fol, want) in [(true, 133.0), (false, 120.0)] {
+            let snap = SoundSnapshot(p, samples: ["k": s], map: .chromatic, warpFollow: fol)
+            let e = Int(snap.data.entryStart[0])
+            XCTAssertEqual(snap.data.eBpm[e], want)
+        }
+    }
 }
