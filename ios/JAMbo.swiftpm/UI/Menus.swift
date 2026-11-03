@@ -154,7 +154,7 @@ struct PianoMenu: View {
                  : "REC clears the steps it passes over; only the new notes stay.")
                 .font(.system(size: 11))
                 .foregroundStyle(theme.dim)
-            if !model.styleTrack && model.channel == .track {
+            if model.channel == .track {
                 ToggleRow(title: "ARPEGGIATOR", isOn: model.track.arp.mode) { model.setChordArpMode($0) }
                 Text(model.track.arp.mode
                      ? "The CHORD button plays an arpeggio of the held keys."

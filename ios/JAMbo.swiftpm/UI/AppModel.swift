@@ -333,6 +333,11 @@ final class AppModel {
     var previewOn: Bool = false
     /// Маркер нарезки, который держат в редакторе (не двигая): клавиша назначает ему ноту; отказ — красный.
     var heldFlag: Int? = nil
+    /// Флажок держат 0,5 с, не двигая: в строке редактора — роли куска (LOW, MID, HIGH, LONG); сразу — не мешает
+    /// перетаскиванию.
+    var roleFlag: Int? = nil
+    /// Номер удержания флажка (отложенный показ ролей — только для того же удержания).
+    @ObservationIgnored var flagHoldId: Int = 0
     /// Клавиша назначила ноту флажку, который держат (его отпускание — не тап).
     @ObservationIgnored var flagUsed: Bool = false
     var refusedFlag: (idx: Int, until: Double) = (-1, 0)

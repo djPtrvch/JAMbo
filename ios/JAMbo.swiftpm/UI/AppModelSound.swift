@@ -361,7 +361,7 @@ extension AppModel {
     func closeEditor() {
         editorOpen = false
         editorWarp = false
-        heldFlag = nil
+        releaseFlag()
         if previewOn { audio.core.events.push(.previewStop) }
     }
 
@@ -480,9 +480,28 @@ extension AppModel {
         return true
     }
 
+    /// Удержание флажка idx: через 0,5 с (если его всё ещё держат, не двигая) — роли куска в строке редактора.
+    func holdFlag(_ idx: Int) {
+        flagUsed = false
+        heldFlag = idx
+        roleFlag = nil
+        flagHoldId += 1
+        let id: Int = flagHoldId
+        Later.run(0.5) {
+            if self.flagHoldId == id && self.heldFlag == idx { self.roleFlag = idx }
+        }
+    }
+
+    /// Флажок отпустили или повели: ролей в строке больше нет.
+    func releaseFlag() {
+        heldFlag = nil
+        roleFlag = nil
+        flagHoldId += 1
+    }
+
     /// Роль маркера, который держат (строка редактора: LOW, MID, HIGH, LONG); тап по выбранной — снять. Одна запись UNDO.
     func setHeldSliceRole(_ r: SliceRhythm.Role) {
-        guard editorOpen, let idx = heldFlag, !editorKey.isEmpty else { return }
+        guard editorOpen, let idx = roleFlag, !editorKey.isEmpty else { return }
         let key = editorKey
         let marks = editorMarks
         guard idx < marks.count else { return }
@@ -493,7 +512,7 @@ extension AppModel {
 
     /// Роль маркера, который держат (nil — не держат или без роли).
     var heldSliceRole: SliceRhythm.Role? {
-        guard let idx = heldFlag, idx < editorMarks.count else { return nil }
+        guard let idx = roleFlag, idx < editorMarks.count else { return nil }
         return SliceRhythm.role(editorMarks[idx].role)
     }
 

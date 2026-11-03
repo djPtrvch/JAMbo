@@ -4,8 +4,8 @@ import Foundation
 // без UNDO — как ход игры), отправка в колбэк. Звук — Core/Sequencer/Arpeggiator.
 
 extension AppModel {
-    /// Кнопка CHORD выбранной дорожки в режиме ARP (на ударной — нет).
-    var arpMode: Bool { return channel == .track && !styleTrack && track.arp.mode }
+    /// Кнопка CHORD выбранной дорожки в режиме ARP (на любой дорожке, и на ударной — решение пользователя 3.11).
+    var arpMode: Bool { return channel == .track && track.arp.mode }
 
     /// Кнопка CHORD горит: включён текущий режим.
     var chordButtonOn: Bool { return arpMode ? track.arp.on : chordMode[selectedTrack] }
@@ -22,7 +22,7 @@ extension AppModel {
 
     /// Свайп по CHORD: вверх — ARP, вниз — CHORD; включённость переходит к новому режиму (одновременно включён один).
     func setChordArpMode(_ arp: Bool) {
-        guard channel == .track, !styleTrack, track.arp.mode != arp else { return }
+        guard channel == .track, track.arp.mode != arp else { return }
         let i: Int = selectedTrack
         if arp {
             let was: Bool = chordMode[i]
@@ -52,7 +52,7 @@ extension AppModel {
     func setArpGate(_ g: Double) { editArp { a in a.gate = Arp.clampGate(g) } }
     func setArpLatch(_ on: Bool) { editArp { a in a.latch = on } }
 
-    /// Настройки арпеджиатора дорожек → колбэк (только изменившиеся; на ударной дорожке ARP не играет).
+    /// Настройки арпеджиатора дорожек → колбэк (только изменившиеся).
     func syncArp() {
         let n: Int = min(project.tracks.count, SeqData.maxTracks)
         var i: Int = 0
@@ -60,7 +60,6 @@ extension AppModel {
             var a: TrackArp = TrackArp()
             if i < n {
                 a = project.tracks[i].arp
-                if project.tracks[i].drumRole != nil { a.on = false }
                 a.on = a.active
             }
             let sent: TrackArp? = i < sentArp.count ? sentArp[i] : nil
@@ -75,11 +74,11 @@ extension AppModel {
 }
 
 extension AppModel {
-    /// Живые ноты дорожки ti играет арпеджиатор (ARP включён, дорожка не ударная).
+    /// Живые ноты дорожки ti играет арпеджиатор (ARP включён).
     func arpPlays(_ ti: Int) -> Bool {
         guard ti >= 0 && ti < project.tracks.count else { return false }
         let t: Track = project.tracks[ti]
-        return t.arp.active && t.drumRole == nil
+        return t.arp.active
     }
 
     /// Ноты арпеджио из колбэка → запись (REC), Capture и запись аранжировки: при игре — одна нота на шаг (первая),

@@ -19,7 +19,7 @@ extension AppModel {
 
     func toggleWarp() {
         if previewOn { audio.core.events.push(.previewStop) }
-        heldFlag = nil
+        releaseFlag()
         warpSel = nil
         editorWarp.toggle()
     }

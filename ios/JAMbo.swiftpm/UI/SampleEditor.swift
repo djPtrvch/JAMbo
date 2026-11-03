@@ -4,7 +4,8 @@ import SwiftUI
 /// Вверху — имя, длина (и выделение), ST/M, REC (S11e; во время записи на поле — форма волны записи), ▶, TRIM, NORMALIZE, MONO, CLEAR, WARP, LOAD, SAVE (S11), ✕.
 /// Форма волны во всю ширину (стерео — L и R); маркеры обрезки — за ручки внизу (двумя пальцами — оба сразу);
 /// палец по пустому месту: вверх-вниз — масштаб, влево-вправо — прокрутка; двойной тап — маркер нарезки,
-/// флажок тянут, двойной тап по флажку — удалить, удержание флажка + клавиша — своя нота маркера; метки варпинга —
+/// флажок тянут, двойной тап по флажку — удалить, удержание флажка + клавиша — своя нота маркера, удержание 0,5 с
+/// без движения — роли куска (LOW, MID, HIGH, LONG) в строке; метки варпинга —
 /// снизу серыми флажками (только ориентир), маркер ближе 12 pt к метке прилипает к ней.
 /// WARP (SampleEditorWarp.swift): по горизонтали доли; двойной тап — метка варпинга; метку берут за флажок снизу или за
 /// линию (касание — выделить, тянуть — на столько же, магнит к GRID), выделенную тянут и из любого места полосы
@@ -49,7 +50,7 @@ struct SampleEditor: View {
             sel = EditorSelection()
             view = EditorWindow()
             touches.removeAll()
-            model.heldFlag = nil
+            model.releaseFlag()
             model.warpSel = nil
             warpFrozen = nil
         }
@@ -205,8 +206,7 @@ struct SampleEditor: View {
         let fl: Int = model.editorWarp ? -1 : flagAt(p, g)
         if fl >= 0 {
             touches[id] = EditorTouch(kind: .slice, idx: fl, p0: p)
-            model.flagUsed = false
-            model.heldFlag = fl
+            model.holdFlag(fl)
             return
         }
         // Масштаб и прокрутка — одним пальцем; второй палец по пустому месту ничего не делает.
@@ -238,7 +238,7 @@ struct SampleEditor: View {
             if !t.moved {
                 if hypot(p.x - t.p0.x, p.y - t.p0.y) < SampleEditor.slop { return }
                 t.moved = true
-                model.heldFlag = nil
+                model.releaseFlag()
                 model.beginGesture()
             }
             model.moveSlice(t.idx, at: snapToWarp(g.frac(p.x), g), gap: 32 / Double(d.frames))
@@ -335,7 +335,7 @@ struct SampleEditor: View {
             }
         }
         if t.kind == .slice {
-            model.heldFlag = nil
+            model.releaseFlag()
             if t.moved {
                 model.endGesture()
                 return

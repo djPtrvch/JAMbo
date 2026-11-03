@@ -35,13 +35,14 @@ extension AppModel {
         return track.drumRole == nil && track.sliced
     }
 
-    /// У кнопки CHORD — стили вместо типов аккорда (ударная или нарезанная дорожка); ARP нет.
+    /// У кнопки CHORD — стили вместо типов аккорда (ударная или нарезанная дорожка; в режиме ARP — направления).
     var styleTrack: Bool { return drumTrack || sliceTrack }
 
-    /// Слово на кнопке CHORD: RANDOM — на ударной (при DRUMS) и нарезанной дорожке, ARP — в режиме ARP.
+    /// Слово на кнопке CHORD: ARP — в режиме ARP; RANDOM — на ударной (при DRUMS) и нарезанной дорожке.
     var chordWord: String {
+        if arpMode { return "ARP" }
         if (drumTrack && settings.randomDrums) || sliceTrack { return "RANDOM" }
-        return arpMode ? "ARP" : "CHORD"
+        return "CHORD"
     }
 
     /// Стиль ритма выбранной дорожки (хранится в проекте, одна запись UNDO).
@@ -62,10 +63,10 @@ extension AppModel {
 
     /// Окно и MIDI CHORD TYPE n: на ударной дорожке — стиль, в режиме ARP — направление, иначе — тип аккорда.
     func chooseChordType(_ k: Int) {
-        if styleTrack {
-            setDrumStyle(k)
-        } else if arpMode {
+        if arpMode {
             setArpDir(k)
+        } else if styleTrack {
+            setDrumStyle(k)
         } else {
             setChordKind(k)
         }
@@ -73,14 +74,14 @@ extension AppModel {
 
     /// Подписи окна CHORD и под словом на кнопке: стили, направления арпеджио или типы аккорда.
     var chordTypeNames: [String] {
-        if styleTrack { return DrumRhythm.styles }
-        return arpMode ? Arp.dirs : Scales.chordKinds
+        if arpMode { return Arp.dirs }
+        return styleTrack ? DrumRhythm.styles : Scales.chordKinds
     }
 
     /// Номер выбранного типа (на ударной дорожке — стиля, в ARP — направления).
     var chordTypeIndex: Int {
-        if styleTrack { return track.drumStyle }
-        return arpMode ? track.arp.dir : chordKind[selectedTrack]
+        if arpMode { return track.arp.dir }
+        return styleTrack ? track.drumStyle : chordKind[selectedTrack]
     }
 
     /// Подписи клавиш в режиме CHORD: аккорд и римская ступень («Em · i»).

@@ -29,15 +29,17 @@ struct EditorBar: View {
         // ширину при WARP (решение пользователя).
         let midX: CGFloat = top.scale.minX + 2 * w + 2 * g
         let midW: CGFloat = max(0, top.patterns.minX - g - midX)
+        // WARP — шириной одной из шести кнопок правки: не меняется, когда вместо них роли куска или строка WARP.
+        let warpW: CGFloat = max(0, (midW - 5 * g) / 6)
         return HStack(spacing: g) {
             infoText.frame(width: infoW, alignment: .leading)
             playButton.frame(width: w)
             SampleRecButton(model: model).frame(width: w)
             HStack(spacing: g) {
-                warpButton
+                warpButton.frame(width: warpW)
                 if model.editorWarp {
                     WarpBar(model: model, data: data, showPlay: false)
-                } else if model.heldFlag != nil {
+                } else if model.roleFlag != nil {
                     roleButtons
                 } else {
                     monoButton
@@ -54,7 +56,7 @@ struct EditorBar: View {
         .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("root")).minX } action: { barX = $0 }
     }
 
-    /// Пока держат флажок нарезки: роль куска для случайной нарезки (выбранная — жёлтая; тап по ней — снять).
+    /// Флажок нарезки держат 0,5 с, не двигая: роль куска для случайной нарезки (выбранная — жёлтая; тап по ней — снять).
     @ViewBuilder
     private var roleButtons: some View {
         let cur: SliceRhythm.Role? = model.heldSliceRole
@@ -120,7 +122,7 @@ struct EditorBar: View {
             SampleRecButton(model: model)
             if model.editorWarp {
                 AnyView(WarpBar(model: model, data: data))
-            } else if model.heldFlag != nil {
+            } else if model.roleFlag != nil {
                 AnyView(roleButtons)
             } else {
                 AnyView(tools(play: true))
