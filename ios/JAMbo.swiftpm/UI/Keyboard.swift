@@ -54,7 +54,7 @@ struct KeyRow: View {
         let on: Bool = lit.contains(n)
         let bg: Color = on ? theme.text : (isRoot ? theme.root : theme.panel)
         let fg: Color = on ? theme.bg : (shown.contains(n) || isRoot ? theme.text : theme.dim)
-        let chord: Bool = model.chordMode[model.selectedTrack]
+        let chord: Bool = model.chordOn
         return Text(chord ? model.chordKeyLabel(k) : Params.noteName(n))
             .font(.system(size: 11))
             .multilineTextAlignment(.center)
@@ -115,9 +115,11 @@ struct ChordButton: View {
     @Environment(\.theme) private var theme
     /// Свайп уже переключил режим (один раз за жест).
     @State private var swiped: Bool = false
+    /// Палец на кнопке (RANDOM — моментальная: горит, пока нажата).
+    @State private var pressed: Bool = false
 
     var body: some View {
-        let on: Bool = model.chordButtonOn
+        let on: Bool = model.randomButton ? pressed : model.chordButtonOn
         let names: [String] = model.chordTypeNames
         let k: Int = min(names.count - 1, max(0, model.chordTypeIndex))
         let word: String = model.chordWord
@@ -131,7 +133,8 @@ struct ChordButton: View {
         .background(on ? theme.text : theme.panel2, in: RoundedRectangle(cornerRadius: Layout.radius))
         .contentShape(Rectangle())
         .onTapGesture { model.chordTap() }
-        .onLongPressGesture(minimumDuration: 0.5) { model.chordMenuOpen = true }
+        .onLongPressGesture(minimumDuration: 0.5, perform: { model.chordMenuOpen = true },
+                            onPressingChanged: { p in pressed = p })
         .simultaneousGesture(swipe)
     }
 

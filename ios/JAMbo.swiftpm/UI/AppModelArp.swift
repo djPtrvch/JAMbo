@@ -8,7 +8,7 @@ extension AppModel {
     var arpMode: Bool { return channel == .track && track.arp.mode }
 
     /// Кнопка CHORD горит: включён текущий режим.
-    var chordButtonOn: Bool { return arpMode ? track.arp.on : chordMode[selectedTrack] }
+    var chordButtonOn: Bool { return arpMode ? track.arp.on : chordOn }
 
     /// Правка настроек арпеджиатора выбранной дорожки (в проекте, без записи UNDO); сразу — в колбэк.
     func editArp(_ change: (inout TrackArp) -> Void) {

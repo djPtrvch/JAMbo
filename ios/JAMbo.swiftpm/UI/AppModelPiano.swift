@@ -63,7 +63,7 @@ extension AppModel {
     /// Верхняя октава клавиатуры выбранной дорожки (ноты не выше 127).
     var topOctave: Int {
         return Scales.topOctave(scale: project.scale, root: project.root, octaves: settings.pianoOctaves,
-                                chord: chordMode[selectedTrack], kind: chordKind[selectedTrack])
+                                chord: chordOn, kind: chordKind[selectedTrack])
     }
 
     var keyCount: Int {
@@ -78,7 +78,7 @@ extension AppModel {
     /// Что играет клавиша k: нота или (CHORD) аккорд выбранного типа от неё (ступени гаммы).
     func keyNotes(_ k: Int) -> [Int]? {
         if k >= keyCount { return nil }
-        if chordMode[selectedTrack] {
+        if chordOn {
             return Scales.chord(scale: project.scale, root: project.root, octave: octave, degree: k,
                                 kind: chordKind[selectedTrack])
         }

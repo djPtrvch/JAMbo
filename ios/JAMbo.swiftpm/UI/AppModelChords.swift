@@ -5,8 +5,13 @@ import Foundation
 // (SETTINGS → RANDOM → SAMPLES) — случайный рисунок кусков (SliceRhythm); стили — в окне CHORD.
 
 extension AppModel {
-    /// Тап по CHORD: с SHIFT — случайная прогрессия (режим не меняется), иначе — вкл./выкл. режима.
+    /// Тап по CHORD: с SHIFT — случайная прогрессия (режим не меняется), иначе — вкл./выкл. режима. Кнопка RANDOM
+    /// (ударная при DRUMS, нарезанная дорожка) — моментальная: тап сразу пишет случайный ритм, без SHIFT.
     func chordTap() {
+        if randomButton {
+            if drumTrack { writeRandomDrums() } else { writeRandomSlices() }
+            return
+        }
         if shiftHeld {
             // SETTINGS → RANDOM: выключенный DRUMS или CHORDS — ничего.
             if drumTrack {
@@ -38,11 +43,22 @@ extension AppModel {
     /// У кнопки CHORD — стили вместо типов аккорда (ударная или нарезанная дорожка; в режиме ARP — направления).
     var styleTrack: Bool { return drumTrack || sliceTrack }
 
+    /// Кнопка в режиме RANDOM (не ARP; ударная при DRUMS или нарезанная дорожка): моментальная — горит, пока
+    /// нажата, тап пишет случайный ритм; режима аккордов у неё нет.
+    var randomButton: Bool {
+        if arpMode { return false }
+        return (drumTrack && settings.randomDrums) || sliceTrack
+    }
+
+    /// Режим аккордов клавиш выбранной дорожки (у кнопки RANDOM — нет).
+    var chordOn: Bool {
+        return chordMode[selectedTrack] && !randomButton
+    }
+
     /// Слово на кнопке CHORD: ARP — в режиме ARP; RANDOM — на ударной (при DRUMS) и нарезанной дорожке.
     var chordWord: String {
         if arpMode { return "ARP" }
-        if (drumTrack && settings.randomDrums) || sliceTrack { return "RANDOM" }
-        return "CHORD"
+        return randomButton ? "RANDOM" : "CHORD"
     }
 
     /// Стиль ритма выбранной дорожки (хранится в проекте, одна запись UNDO).
