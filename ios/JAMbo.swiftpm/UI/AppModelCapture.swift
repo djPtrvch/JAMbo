@@ -26,17 +26,48 @@ struct RecTake: Equatable {
 
 @Observable
 final class SampleRec {
+    // Свойства простых типов — вручную, без макроса (как в AppModel, AppModelObserved.swift; S14, объём сборки).
+    private func put<T>(_ key: KeyPath<SampleRec, T>, _ slot: ReferenceWritableKeyPath<SampleRec, T>, _ value: T, _ notify: Bool) {
+        if notify {
+            _$observationRegistrar.willSet(self, keyPath: key)
+            self[keyPath: slot] = value
+            _$observationRegistrar.didSet(self, keyPath: key)
+        } else {
+            self[keyPath: slot] = value
+        }
+    }
+
     /// Меню RECORD FROM: рамка кнопки REC («root»); nil — закрыто.
-    var menu: CGRect? = nil
+    @ObservationIgnored private var _menu: CGRect? = nil
+    var menu: CGRect? {
+        get { access(keyPath: \.menu); return _menu }
+        set { put(\.menu, \._menu, newValue, AppModel.changed(_menu, newValue)) }
+    }
     var ports: [InputPort] = []
-    var take: RecTake? = nil
+    @ObservationIgnored private var _take: RecTake? = nil
+    var take: RecTake? {
+        get { access(keyPath: \.take); return _take }
+        set { put(\.take, \._take, newValue, AppModel.changed(_take, newValue)) }
+    }
     /// Секунд записано (меняется раз в секунду — строка и кнопка).
-    var seconds: Int = 0
+    @ObservationIgnored private var _seconds: Int = 0
+    var seconds: Int {
+        get { access(keyPath: \.seconds); return _seconds }
+        set { put(\.seconds, \._seconds, newValue, AppModel.changed(_seconds, newValue)) }
+    }
     var peaks = RecPeaks()
     /// Ошибка начала записи (окно с сообщением).
-    var error: String? = nil
+    @ObservationIgnored private var _error: String? = nil
+    var error: String? {
+        get { access(keyPath: \.error); return _error }
+        set { put(\.error, \._error, newValue, AppModel.changed(_error, newValue)) }
+    }
     /// Рамка SCALE верхней панели («root»): кнопки редактора сэмпла начинаются от её левого края.
-    var scaleFrame: CGRect = .zero
+    @ObservationIgnored private var _scaleFrame: CGRect = .zero
+    var scaleFrame: CGRect {
+        get { access(keyPath: \.scaleFrame); return _scaleFrame }
+        set { put(\.scaleFrame, \._scaleFrame, newValue, AppModel.changed(_scaleFrame, newValue)) }
+    }
 }
 
 extension AppModel {

@@ -43,21 +43,80 @@ enum MidiPresetInput: Equatable {
 /// последний источник; окно — цель, закреплённое условие, страница, положение (до перезапуска), пресеты маппингов.
 @Observable
 final class MidiLearnState {
-    var on: Bool = false
-    var target: MidiTarget? = nil
-    var press: Bool = false
-    var last: String = ""
+    // Свойства простых типов — вручную, без макроса (как в AppModel, AppModelObserved.swift; S14, объём сборки).
+    private func put<T>(_ key: KeyPath<MidiLearnState, T>, _ slot: ReferenceWritableKeyPath<MidiLearnState, T>, _ value: T, _ notify: Bool) {
+        if notify {
+            _$observationRegistrar.willSet(self, keyPath: key)
+            self[keyPath: slot] = value
+            _$observationRegistrar.didSet(self, keyPath: key)
+        } else {
+            self[keyPath: slot] = value
+        }
+    }
+
+    @ObservationIgnored private var _on: Bool = false
+    var on: Bool {
+        get { access(keyPath: \.on); return _on }
+        set { put(\.on, \._on, newValue, AppModel.changed(_on, newValue)) }
+    }
+    @ObservationIgnored private var _target: MidiTarget? = nil
+    var target: MidiTarget? {
+        get { access(keyPath: \.target); return _target }
+        set { put(\.target, \._target, newValue, AppModel.changed(_target, newValue)) }
+    }
+    @ObservationIgnored private var _press: Bool = false
+    var press: Bool {
+        get { access(keyPath: \.press); return _press }
+        set { put(\.press, \._press, newValue, AppModel.changed(_press, newValue)) }
+    }
+    @ObservationIgnored private var _last: String = ""
+    var last: String {
+        get { access(keyPath: \.last); return _last }
+        set { put(\.last, \._last, newValue, AppModel.changed(_last, newValue)) }
+    }
     /// Открытая вкладка меню MIDI.
-    var tab: MidiTab = .devices
+    @ObservationIgnored private var _tab: MidiTab = .devices
+    var tab: MidiTab {
+        get { access(keyPath: \.tab); return _tab }
+        set { put(\.tab, \._tab, newValue, AppModel.changed(_tab, newValue)) }
+    }
     /// Окно MIDI MAP: цель (nil — закрыто), условие, маппинг которого правит окно, страница, положение.
-    var mapTarget: MidiTarget? = nil
-    var pinned: String? = nil
-    var mapPage: MidiMapPage = .main
-    var mapPos: CGPoint? = nil
+    @ObservationIgnored private var _mapTarget: MidiTarget? = nil
+    var mapTarget: MidiTarget? {
+        get { access(keyPath: \.mapTarget); return _mapTarget }
+        set { put(\.mapTarget, \._mapTarget, newValue, AppModel.changed(_mapTarget, newValue)) }
+    }
+    @ObservationIgnored private var _pinned: String? = nil
+    var pinned: String? {
+        get { access(keyPath: \.pinned); return _pinned }
+        set { put(\.pinned, \._pinned, newValue, AppModel.changed(_pinned, newValue)) }
+    }
+    @ObservationIgnored private var _mapPage: MidiMapPage = .main
+    var mapPage: MidiMapPage {
+        get { access(keyPath: \.mapPage); return _mapPage }
+        set { put(\.mapPage, \._mapPage, newValue, AppModel.changed(_mapPage, newValue)) }
+    }
+    @ObservationIgnored private var _mapPos: CGPoint? = nil
+    var mapPos: CGPoint? {
+        get { access(keyPath: \.mapPos); return _mapPos }
+        set { put(\.mapPos, \._mapPos, newValue, AppModel.changed(_mapPos, newValue)) }
+    }
     /// Окно открыто из списка маппингов — после закрытия снова меню MIDI (reopenMenu ловит экран).
-    var mapBack: Bool = false
-    var reopenMenu: Bool = false
-    var presetInput: MidiPresetInput? = nil
+    @ObservationIgnored private var _mapBack: Bool = false
+    var mapBack: Bool {
+        get { access(keyPath: \.mapBack); return _mapBack }
+        set { put(\.mapBack, \._mapBack, newValue, AppModel.changed(_mapBack, newValue)) }
+    }
+    @ObservationIgnored private var _reopenMenu: Bool = false
+    var reopenMenu: Bool {
+        get { access(keyPath: \.reopenMenu); return _reopenMenu }
+        set { put(\.reopenMenu, \._reopenMenu, newValue, AppModel.changed(_reopenMenu, newValue)) }
+    }
+    @ObservationIgnored private var _presetInput: MidiPresetInput? = nil
+    var presetInput: MidiPresetInput? {
+        get { access(keyPath: \.presetInput); return _presetInput }
+        set { put(\.presetInput, \._presetInput, newValue, AppModel.changed(_presetInput, newValue)) }
+    }
     var presets: MidiPresetBook = MidiPresetBook.decode(UserDefaults.standard.data(forKey: "midiPresets"))
     /// Последний тап по цели в LEARN (двойной — окно MIDI MAP).
     @ObservationIgnored var lastTap: (target: MidiTarget, at: Double)? = nil

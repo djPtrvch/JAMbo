@@ -113,23 +113,33 @@ struct MidiMapMain: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            line("Preset", presetName, .preset)
-            SettingsNote(text: model.mapMapped ? "Move a control to remap."
-                : "Not mapped yet — move a control on your MIDI device or set the fields.").padding(.vertical, 6)
-            MidiNumberLine(model: model, m: m)
-            line("Channel", "\(m.src.ch + 1)", .channel)
-            line("Event type", m.src.type == .cc ? "CC" : "Note", .event)
-            line("Control type", m.control.title, .control)
-            if continuous && m.control == .rel { line("Encoder", MidiMapOptions.encName(m.enc), .encoder) }
-            if showsRange { line("Range", "\(pct(m.min)) – \(pct(m.max)) %", .range) }
-            if case .press = m.target { actionLine }
-            line("Condition", MidiMapOptions.condName(m), .cond)
-            Divider().overlay(theme.line).padding(.vertical, 6)
-            line("Input port", model.midiPortName(m.input, inputs: true, none: "Any"), .port)
-            line("Feedback port", feedbackName, .feedback)
-            if allPages { applyAll }
+        // Строки — списком (S14, объём сборки): у компилятора один тип вместо цепочки видов. Number — всегда третья
+        // строка (её состояние ввода не сбивается: условные строки — ниже).
+        let rows: [AnyView] = mainRows
+        return VStack(alignment: .leading, spacing: 0) {
+            ForEach(rows.indices, id: \.self) { i in rows[i] }
         }
+    }
+
+    private var mainRows: [AnyView] {
+        var r: [AnyView] = [
+            line("Preset", presetName, .preset),
+            AnyView(SettingsNote(text: model.mapMapped ? "Move a control to remap."
+                : "Not mapped yet — move a control on your MIDI device or set the fields.").padding(.vertical, 6)),
+            AnyView(MidiNumberLine(model: model, m: m)),
+            line("Channel", "\(m.src.ch + 1)", .channel),
+            line("Event type", m.src.type == .cc ? "CC" : "Note", .event),
+            line("Control type", m.control.title, .control)
+        ]
+        if continuous && m.control == .rel { r.append(line("Encoder", MidiMapOptions.encName(m.enc), .encoder)) }
+        if showsRange { r.append(line("Range", "\(pct(m.min)) – \(pct(m.max)) %", .range)) }
+        if case .press = m.target { r.append(actionLine) }
+        r.append(line("Condition", MidiMapOptions.condName(m), .cond))
+        r.append(AnyView(Divider().overlay(theme.line).padding(.vertical, 6)))
+        r.append(line("Input port", model.midiPortName(m.input, inputs: true, none: "Any"), .port))
+        r.append(line("Feedback port", feedbackName, .feedback))
+        if allPages { r.append(AnyView(applyAll)) }
+        return r
     }
 
     /// APPLY TO ALL PAGES — у назначенной ручки в условии Current page.
@@ -185,8 +195,8 @@ struct MidiMapMain: View {
 
     private func pct(_ n: Double) -> Int { return Int((n * 100).rounded()) }
 
-    private func line(_ label: String, _ value: String, _ go: MidiMapPage) -> some View {
-        MidiMapLine(label: label, value: value) { model.midiLearn.mapPage = go }
+    private func line(_ label: String, _ value: String, _ go: MidiMapPage) -> AnyView {
+        return AnyView(MidiMapLine(label: label, value: value) { model.midiLearn.mapPage = go })
     }
 }
 
