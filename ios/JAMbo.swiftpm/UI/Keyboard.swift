@@ -120,7 +120,7 @@ struct ChordButton: View {
         let on: Bool = model.chordButtonOn
         let names: [String] = model.chordTypeNames
         let k: Int = min(names.count - 1, max(0, model.chordTypeIndex))
-        let word: String = model.arpMode ? "ARP" : "CHORD"
+        let word: String = model.chordWord
         return VStack(spacing: 2) {
             Text(word).font(.system(size: 12, weight: .semibold)).tracking(1)
             // Ударная дорожка с выключенным SETTINGS → RANDOM → DRUMS: стиля нет, слово остаётся на месте.

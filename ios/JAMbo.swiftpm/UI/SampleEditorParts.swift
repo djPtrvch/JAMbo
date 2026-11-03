@@ -37,6 +37,8 @@ struct EditorBar: View {
                 warpButton
                 if model.editorWarp {
                     WarpBar(model: model, data: data, showPlay: false)
+                } else if model.heldFlag != nil {
+                    roleButtons
                 } else {
                     monoButton
                     cutButton
@@ -50,6 +52,15 @@ struct EditorBar: View {
             ToolButton(title: "✕", width: model.barH) { model.closeEditor() }
         }
         .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("root")).minX } action: { barX = $0 }
+    }
+
+    /// Пока держат флажок нарезки: роль куска для случайной нарезки (выбранная — жёлтая; тап по ней — снять).
+    @ViewBuilder
+    private var roleButtons: some View {
+        let cur: SliceRhythm.Role? = model.heldSliceRole
+        ForEach(SliceRhythm.Role.allCases, id: \.rawValue) { r in
+            ToolButton(title: SliceRhythm.roleNames[r.rawValue], lit: cur == r, width: nil) { model.setHeldSliceRole(r) }
+        }
     }
 
     private var monoButton: some View {
@@ -109,6 +120,8 @@ struct EditorBar: View {
             SampleRecButton(model: model)
             if model.editorWarp {
                 AnyView(WarpBar(model: model, data: data))
+            } else if model.heldFlag != nil {
+                AnyView(roleButtons)
             } else {
                 AnyView(tools(play: true))
             }
@@ -333,6 +346,11 @@ enum EditorDraw {
             ctx.fill(p, with: .color(col))
             ctx.draw(Text(label).font(.system(size: 10, weight: .semibold)).foregroundColor(c.bg),
                      at: CGPoint(x: x + 0.5, y: r.midY))
+            // Роль куска (случайная нарезка) — мелко справа от линии, под полосой флажков.
+            if let role = SliceRhythm.role(m.role) {
+                ctx.draw(Text(SliceRhythm.roleNames[role.rawValue]).font(.system(size: 9, weight: .semibold))
+                    .foregroundColor(c.dim), at: CGPoint(x: x + 4, y: SampleEditor.top + 8), anchor: .leading)
+            }
         }
     }
 

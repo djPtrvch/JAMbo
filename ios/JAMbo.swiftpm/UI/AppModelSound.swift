@@ -480,6 +480,23 @@ extension AppModel {
         return true
     }
 
+    /// Роль маркера, который держат (строка редактора: LOW, MID, HIGH, LONG); тап по выбранной — снять. Одна запись UNDO.
+    func setHeldSliceRole(_ r: SliceRhythm.Role) {
+        guard editorOpen, let idx = heldFlag, !editorKey.isEmpty else { return }
+        let key = editorKey
+        let marks = editorMarks
+        guard idx < marks.count else { return }
+        let cur: SliceRhythm.Role? = SliceRhythm.role(marks[idx].role)
+        flagUsed = true
+        editTrack { t in t.setSliceRole(key, idx, role: cur == r ? nil : r) }
+    }
+
+    /// Роль маркера, который держат (nil — не держат или без роли).
+    var heldSliceRole: SliceRhythm.Role? {
+        guard let idx = heldFlag, idx < editorMarks.count else { return nil }
+        return SliceRhythm.role(editorMarks[idx].role)
+    }
+
     func setSliceMap(_ m: SliceMap) {
         updateSettings { s in s.sliceMap = m }
         publishAudio()

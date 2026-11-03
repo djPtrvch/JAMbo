@@ -36,7 +36,7 @@ struct ChordMenu: View {
                 ArpWindowColumn(model: model, title: "RATE", m: m, cols: 2, kind: 1)
             })
         }
-        let title: String = model.drumTrack ? "STYLE" : "CHORD"
+        let title: String = model.styleTrack ? "STYLE" : "CHORD"
         return AnyView(VStack(alignment: .leading, spacing: ChordMenuMetrics.gap) {
             FieldLabel(title: title).frame(height: ChordMenuMetrics.head, alignment: .bottomLeading)
             types(m.rowH)

@@ -194,11 +194,12 @@ extension Folder {
 }
 
 extension SliceMark {
-    enum CodingKeys: String, CodingKey, CaseIterable { case at, note }
+    enum CodingKeys: String, CodingKey, CaseIterable { case at, note, role }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         at = c.value(.at, 0)
         note = c.optional(.note)
+        role = c.optional(.role)
     }
 }

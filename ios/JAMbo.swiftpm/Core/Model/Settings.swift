@@ -75,6 +75,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var randomChords: Bool = true
     public var randomStyleAll: Bool = false
     public var randomStepsAll: Bool = false
+    /// SETTINGS → RANDOM → SAMPLES: случайный рисунок нарезанного сэмпла (SliceRhythm).
+    public var randomSamples: Bool = true
     /// SETTINGS → MIX (S9, действуют с переходами S10): гамма и нота нового проекта при переходе; кроссфейдер
     /// (ON — темп по кроссфейдеру, OFF — темп старого паттерна).
     public var mixKey: Bool = true
@@ -137,7 +139,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
                                          clearSampleLocks, pitchSemitones, midi, stepPaint, sync,
                                          arrangeCompact, fxPictures, backgroundAudio, arrangeRepeats, stretchBeat,
                                          metronomeVol, arrangeScale, arrangeFollow, displayScale,
-                                         randomDrums, randomChords, randomStyleAll, randomStepsAll }
+                                         randomDrums, randomChords, randomStyleAll, randomStepsAll, randomSamples }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
@@ -176,6 +178,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         randomChords = (try? c.decode(Bool.self, forKey: .randomChords)) ?? true
         randomStyleAll = (try? c.decode(Bool.self, forKey: .randomStyleAll)) ?? false
         randomStepsAll = (try? c.decode(Bool.self, forKey: .randomStepsAll)) ?? false
+        randomSamples = (try? c.decode(Bool.self, forKey: .randomSamples)) ?? true
         let mv: Double = (try? c.decode(Double.self, forKey: .metronomeVol)) ?? 100
         metronomeVol = Swift.min(200, Swift.max(0, mv))
     }

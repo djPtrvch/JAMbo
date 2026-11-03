@@ -70,7 +70,7 @@ extension Track {
         for m in sliceMarks(old) {
             guard let at = SampleEdit.cutPlace(m.at, frames, i0, i1) else { continue }
             if let last = marks.last, at - last.at < gap { continue }
-            marks.append(SliceMark(at: at, note: m.note))
+            marks.append(SliceMark(at: at, note: m.note, role: m.role))
         }
         putMarks(new, marks)
         let w = warpInfo(old)

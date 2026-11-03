@@ -56,13 +56,14 @@ extension AppModel {
         publishAudio()
     }
 
-    /// SETTINGS → RANDOM: k — 0 DRUMS, 1 CHORDS, 2 STYLE ALL TRACKS, 3 STEPS ALL TRACKS.
+    /// SETTINGS → RANDOM: k — 0 DRUMS, 1 CHORDS, 2 STYLE ALL TRACKS, 3 STEPS ALL TRACKS, 4 SAMPLES.
     func setRandom(_ k: Int, _ on: Bool) {
         updateSettings { s in
             switch k {
             case 0: s.randomDrums = on
             case 1: s.randomChords = on
             case 2: s.randomStyleAll = on
+            case 4: s.randomSamples = on
             default: s.randomStepsAll = on
             }
         }

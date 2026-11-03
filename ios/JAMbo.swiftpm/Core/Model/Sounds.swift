@@ -21,10 +21,13 @@ public struct Folder: Codable, Equatable, Sendable {
 public struct SliceMark: Codable, Equatable, Sendable {
     public var at: Double
     public var note: Int?
+    /// Роль куска для случайной нарезки (SliceRhythm.Role: LOW, MID, HIGH, LONG); nil — без роли.
+    public var role: Int?
 
-    public init(at: Double, note: Int? = nil) {
+    public init(at: Double, note: Int? = nil, role: Int? = nil) {
         self.at = at
         self.note = note
+        self.role = role
     }
 }
 

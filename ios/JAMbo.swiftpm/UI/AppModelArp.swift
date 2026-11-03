@@ -5,7 +5,7 @@ import Foundation
 
 extension AppModel {
     /// Кнопка CHORD выбранной дорожки в режиме ARP (на ударной — нет).
-    var arpMode: Bool { return channel == .track && !drumTrack && track.arp.mode }
+    var arpMode: Bool { return channel == .track && !styleTrack && track.arp.mode }
 
     /// Кнопка CHORD горит: включён текущий режим.
     var chordButtonOn: Bool { return arpMode ? track.arp.on : chordMode[selectedTrack] }
@@ -22,7 +22,7 @@ extension AppModel {
 
     /// Свайп по CHORD: вверх — ARP, вниз — CHORD; включённость переходит к новому режиму (одновременно включён один).
     func setChordArpMode(_ arp: Bool) {
-        guard channel == .track, !drumTrack, track.arp.mode != arp else { return }
+        guard channel == .track, !styleTrack, track.arp.mode != arp else { return }
         let i: Int = selectedTrack
         if arp {
             let was: Bool = chordMode[i]
