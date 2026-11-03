@@ -12,7 +12,7 @@ enum Channel: Equatable {
 @Observable
 final class AppModel {
     // Свойства простых типов — вручную, без макроса (AppModelObserved.swift): put — запись с уведомлением, как
-    // withMutation макроса; notifyChanged — изменилось ли значение (внизу файла).
+    // withMutation макроса; observedChanged — изменилось ли значение (AppModelObserved.swift).
     func put<T>(_ key: KeyPath<AppModel, T>, _ slot: ReferenceWritableKeyPath<AppModel, T>, _ value: T, _ notify: Bool) {
         if notify {
             _$observationRegistrar.willSet(self, keyPath: key)
@@ -49,7 +49,7 @@ final class AppModel {
     @ObservationIgnored private var _channel: Channel = .track
     private(set) var channel: Channel {
         get { access(keyPath: \.channel); return _channel }
-        set { put(\.channel, \._channel, newValue, notifyChanged(_channel, newValue)) }
+        set { put(\.channel, \._channel, newValue, observedChanged(_channel, newValue)) }
     }
     @ObservationIgnored var _viewPage: Int = 0
     /// Секвенсор показывает все играющие страницы (если открытая среди них); удержание миниатюры — одну.
@@ -57,17 +57,17 @@ final class AppModel {
     @ObservationIgnored private var _playing: Bool = false
     private(set) var playing: Bool {
         get { access(keyPath: \.playing); return _playing }
-        set { put(\.playing, \._playing, newValue, notifyChanged(_playing, newValue)) }
+        set { put(\.playing, \._playing, newValue, observedChanged(_playing, newValue)) }
     }
     @ObservationIgnored private var _metronome: Bool = false
     private(set) var metronome: Bool {
         get { access(keyPath: \.metronome); return _metronome }
-        set { put(\.metronome, \._metronome, newValue, notifyChanged(_metronome, newValue)) }
+        set { put(\.metronome, \._metronome, newValue, observedChanged(_metronome, newValue)) }
     }
     @ObservationIgnored private var _toneOn: Bool = false
     private(set) var toneOn: Bool {
         get { access(keyPath: \.toneOn); return _toneOn }
-        set { put(\.toneOn, \._toneOn, newValue, notifyChanged(_toneOn, newValue)) }
+        set { put(\.toneOn, \._toneOn, newValue, observedChanged(_toneOn, newValue)) }
     }
     /// Окно раздела APP поверх экрана: DIAGNOSTICS (nil — закрыто).
     @ObservationIgnored var _appWindow: AppWindow? = nil
@@ -381,7 +381,7 @@ final class AppModel {
     @ObservationIgnored private var _audioStarted: Bool = false
     private var audioStarted: Bool {
         get { access(keyPath: \.audioStarted); return _audioStarted }
-        set { put(\.audioStarted, \._audioStarted, newValue, notifyChanged(_audioStarted, newValue)) }
+        set { put(\.audioStarted, \._audioStarted, newValue, observedChanged(_audioStarted, newValue)) }
     }
     @ObservationIgnored private var pump: Timer?
     /// Измеритель и метры MIX (читают виды по таймеру анимации; не наблюдается).
@@ -636,12 +636,12 @@ final class AppModel {
     @ObservationIgnored private var _canUndo: Bool = false
     private(set) var canUndo: Bool {
         get { access(keyPath: \.canUndo); return _canUndo }
-        set { put(\.canUndo, \._canUndo, newValue, notifyChanged(_canUndo, newValue)) }
+        set { put(\.canUndo, \._canUndo, newValue, observedChanged(_canUndo, newValue)) }
     }
     @ObservationIgnored private var _canRedo: Bool = false
     private(set) var canRedo: Bool {
         get { access(keyPath: \.canRedo); return _canRedo }
-        set { put(\.canRedo, \._canRedo, newValue, notifyChanged(_canRedo, newValue)) }
+        set { put(\.canRedo, \._canRedo, newValue, observedChanged(_canRedo, newValue)) }
     }
 
     /// Дискретное действие: одна запись в UNDO (внутри жеста — запись в конце жеста).
@@ -970,10 +970,3 @@ final class AppModel {
         return Appearance(rawValue: raw) ?? .system
     }
 }
-
-// Изменилось ли значение (как shouldNotifyObservers макроса @Observable): перегрузки — private в каждом файле, как у
-// макроса (Playgrounds подменяет функции на лету и не находит общие перегрузки одного имени — «Replaced function»).
-private func notifyChanged<T>(_ a: T, _ b: T) -> Bool { return true }
-private func notifyChanged<T: Equatable>(_ a: T, _ b: T) -> Bool { return a != b }
-private func notifyChanged<T: AnyObject>(_ a: T, _ b: T) -> Bool { return a !== b }
-private func notifyChanged<T: Equatable & AnyObject>(_ a: T, _ b: T) -> Bool { return a != b }

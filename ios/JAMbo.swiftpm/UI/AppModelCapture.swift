@@ -41,32 +41,32 @@ final class SampleRec {
     @ObservationIgnored private var _menu: CGRect? = nil
     var menu: CGRect? {
         get { access(keyPath: \.menu); return _menu }
-        set { put(\.menu, \._menu, newValue, notifyChanged(_menu, newValue)) }
+        set { put(\.menu, \._menu, newValue, observedChanged(_menu, newValue)) }
     }
     var ports: [InputPort] = []
     @ObservationIgnored private var _take: RecTake? = nil
     var take: RecTake? {
         get { access(keyPath: \.take); return _take }
-        set { put(\.take, \._take, newValue, notifyChanged(_take, newValue)) }
+        set { put(\.take, \._take, newValue, observedChanged(_take, newValue)) }
     }
     /// Секунд записано (меняется раз в секунду — строка и кнопка).
     @ObservationIgnored private var _seconds: Int = 0
     var seconds: Int {
         get { access(keyPath: \.seconds); return _seconds }
-        set { put(\.seconds, \._seconds, newValue, notifyChanged(_seconds, newValue)) }
+        set { put(\.seconds, \._seconds, newValue, observedChanged(_seconds, newValue)) }
     }
     var peaks = RecPeaks()
     /// Ошибка начала записи (окно с сообщением).
     @ObservationIgnored private var _error: String? = nil
     var error: String? {
         get { access(keyPath: \.error); return _error }
-        set { put(\.error, \._error, newValue, notifyChanged(_error, newValue)) }
+        set { put(\.error, \._error, newValue, observedChanged(_error, newValue)) }
     }
     /// Рамка SCALE верхней панели («root»): кнопки редактора сэмпла начинаются от её левого края.
     @ObservationIgnored private var _scaleFrame: CGRect = .zero
     var scaleFrame: CGRect {
         get { access(keyPath: \.scaleFrame); return _scaleFrame }
-        set { put(\.scaleFrame, \._scaleFrame, newValue, notifyChanged(_scaleFrame, newValue)) }
+        set { put(\.scaleFrame, \._scaleFrame, newValue, observedChanged(_scaleFrame, newValue)) }
     }
 }
 
@@ -185,10 +185,3 @@ extension AppModel {
         if sampleRec.take?.input == true { stopRec() }
     }
 }
-
-// Изменилось ли значение (как shouldNotifyObservers макроса @Observable): перегрузки — private в каждом файле, как у
-// макроса (Playgrounds подменяет функции на лету и не находит общие перегрузки одного имени — «Replaced function»).
-private func notifyChanged<T>(_ a: T, _ b: T) -> Bool { return true }
-private func notifyChanged<T: Equatable>(_ a: T, _ b: T) -> Bool { return a != b }
-private func notifyChanged<T: AnyObject>(_ a: T, _ b: T) -> Bool { return a !== b }
-private func notifyChanged<T: Equatable & AnyObject>(_ a: T, _ b: T) -> Bool { return a != b }
