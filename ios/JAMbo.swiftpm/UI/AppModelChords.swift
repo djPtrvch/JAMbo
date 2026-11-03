@@ -75,6 +75,23 @@ extension AppModel {
         }
     }
 
+    /// STYLE ALL TRACKS: всем дорожкам — стиль выбранной ударной или нарезанной дорожки (иначе первой такой).
+    /// Одна запись UNDO; стили уже совпадают — ничего.
+    func syncStyleAll() {
+        let ts: [Track] = project.tracks
+        var src: Int = -1
+        if selectedTrack < ts.count && (ts[selectedTrack].drumRole != nil || ts[selectedTrack].hasCuts) {
+            src = selectedTrack
+        } else {
+            src = ts.firstIndex(where: { $0.drumRole != nil || $0.hasCuts }) ?? -1
+        }
+        if src < 0 { return }
+        let v: Int = ts[src].drumStyle
+        edit { p in
+            for i in p.tracks.indices { p.tracks[i].drumStyle = v }
+        }
+    }
+
     /// Окно и MIDI CHORD TYPE n: на ударной дорожке — стиль, в режиме ARP — направление, иначе — тип аккорда.
     func chooseChordType(_ k: Int) {
         if arpMode {

@@ -67,6 +67,9 @@ extension AppModel {
             default: s.randomStepsAll = on
             }
         }
+        // STYLE ALL TRACKS включили — стили, разошедшиеся до этого, сразу общие (стиль выбранной ударной или
+        // нарезанной дорожки, иначе первой такой).
+        if k == 2 && on { syncStyleAll() }
     }
 
     func setMorphHold(_ on: Bool) {
