@@ -279,6 +279,13 @@ extension Track {
 }
 
 public enum Slices {
+    /// ПРОБА (3.11, решение пользователя «попробую, не понравится — перейдём на другой вариант»): ноты маркеров по
+    /// порядку — всегда от корневой ноты 3-й октавы, не от октавы клавиатуры (стрелки ▲ ▼ и переоткрытие проекта
+    /// их не сдвигают; шаги не замолкают). Прежнее поведение (от первой клавиши клавиатуры) — fixedOctave = nil.
+    /// Другие варианты на случай отказа: хранить октаву клавиатуры дорожки в проекте; закреплять ноты маркерам при
+    /// записи шагов. Учёт проб — docs/TRIALS.md.
+    public static let fixedOctave: Int? = 3
+
     /// Нота по порядку маркера idx — от первой клавиши клавиатуры (корневая нота его октавы; решение пользователя,
     /// в вебе — от C3): CHROMATIC — по полутону, SCALE — клавиши клавиатуры по порядку (ступени гаммы).
     public static func note(_ idx: Int, map: SliceMap, scale: Int, root: Int, octave: Int = 3) -> Int {
@@ -287,7 +294,9 @@ public enum Slices {
     }
 
     /// Ноты маркеров: назначенная — как есть; остальные — по порядку, занятая нота пропускается.
-    public static func notes(_ m: [SliceMark], map: SliceMap, scale: Int, root: Int, octave: Int = 3) -> [Int] {
+    public static func notes(_ m: [SliceMark], map: SliceMap, scale: Int, root: Int, octave keys: Int = 3) -> [Int] {
+        // Проба: октава — fixedOctave (3), иначе — октава клавиатуры.
+        let octave: Int = fixedOctave ?? keys
         var taken = Set<Int>()
         for v in m { if let n = v.note { taken.insert(n) } }
         var j = 0
