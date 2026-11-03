@@ -122,3 +122,35 @@ final class ArpTests: XCTestCase {
         XCTAssertEqual(Arp.rates[TrackArp().rate], "1/16")
     }
 }
+
+/// Случайное арпеджио на шагах: четверть на аккорд, шаг по RATE, длина по GATE, стирание страниц.
+final class ArpStepsTests: XCTestCase {
+    func testStepsLayout() {
+        var g = SystemRandomNumberGenerator()
+        let chords: [[Int]] = [[60, 64, 67], [62, 65, 69], [64, 67, 71], [65, 69, 72]]
+        let a = Arp.steps(chords, steps: 16, dir: Arp.up, octaves: 1, rate: 2, gate: 0.5, using: &g)
+        XCTAssertEqual(a.map { $0.step }, Array(0..<16))
+        XCTAssertEqual(a.prefix(4).map { $0.note }, [60, 64, 67, 60])
+        XCTAssertEqual(a[4].note, 62, "второй аккорд — со второй четверти")
+        XCTAssertTrue(a.allSatisfy { $0.len == 1 })
+        let b = Arp.steps(chords, steps: 32, dir: Arp.down, octaves: 2, rate: 0, gate: 1, using: &g)
+        XCTAssertEqual(b.count, 16, "1/8 — через шаг")
+        XCTAssertEqual(b[0].note, 79)
+        XCTAssertTrue(b.allSatisfy { $0.len == 2 })
+        let r = Arp.steps(chords, steps: 16, dir: Arp.random, octaves: 1, rate: 4, gate: 0.3, using: &g)
+        XCTAssertEqual(r.count, 16)
+        XCTAssertTrue(r.prefix(4).allSatisfy { [60, 64, 67].contains($0.note) })
+    }
+
+    func testWriteArpSteps() {
+        var t = Track(index: 0)
+        t.pages = [Track.emptyPage(), Track.emptyPage()]
+        t.toggleStep(3, notes: [50])
+        t.toggleStep(20, notes: [50])
+        t.writeArpSteps([ArpStepNote(step: 0, note: 60, len: 2), ArpStepNote(step: 5, note: 64, len: 1)], pages: 0...0)
+        XCTAssertEqual(t.pages[0][0].notes, [60])
+        XCTAssertEqual(t.pages[0][0].len, 2)
+        XCTAssertFalse(t.pages[0][3].on, "прежний шаг стёрт")
+        XCTAssertTrue(t.pages[1][4].on, "страница вне выбора не тронута")
+    }
+}

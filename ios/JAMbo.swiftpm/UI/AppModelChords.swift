@@ -11,7 +11,7 @@ extension AppModel {
             if drumTrack {
                 if settings.randomDrums { writeRandomDrums() }
             } else if settings.randomChords {
-                writeRandomProgression()
+                if arpMode { writeRandomArp() } else { writeRandomProgression() }
             }
         } else if arpMode {
             toggleArp()
@@ -89,6 +89,23 @@ extension AppModel {
                                         kind: chordKind[selectedTrack])
         let range: ClosedRange<Int> = chordPages
         editTrack { t in t.writeProgression(cs, pages: range) }
+    }
+
+    /// Режим ARP: случайная прогрессия (как writeRandomProgression), разложенная по шагам выбранных страниц —
+    /// четверть на аккорд, направление, октавы, RATE и GATE арпеджиатора. Одна запись UNDO; ARP не меняется.
+    func writeRandomArp() {
+        guard channel == .track else { return }
+        var g = SystemRandomNumberGenerator()
+        let degrees: [Int] = Chords.random(scale: project.scale, avoid: lastRandomProgression, using: &g)
+        lastRandomProgression = degrees
+        let cs: [[Int]] = Chords.chords(degrees, scale: project.scale, root: project.root, octave: octave,
+                                        kind: chordKind[selectedTrack])
+        let range: ClosedRange<Int> = chordPages
+        let a: TrackArp = track.arp
+        let total: Int = (range.upperBound - range.lowerBound + 1) * Params.stepsPerPage
+        let notes: [ArpStepNote] = Arp.steps(cs, steps: total, dir: a.dir, octaves: a.octaves, rate: a.rate,
+                                             gate: a.gate, using: &g)
+        editTrack { t in t.writeArpSteps(notes, pages: range) }
     }
 
     /// Случайный ритм ударного движка дорожки (KICK, SNARE, HAT, CLAP, PERC) на выбранные страницы: по длинам
