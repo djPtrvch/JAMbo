@@ -68,8 +68,7 @@ struct TrackCell: View {
         let face = TrackFace(name: t.name, selected: selected, mute: t.mute, solo: t.solo, flash: flash)
         return face.equatable()
             .overlay(alignment: .topLeading) { morphDot(t) }
-            .contentShape(Rectangle())
-            .gesture(touch)
+            .modifier(TouchArea(gesture: touch))
     }
 
     /// Жёлтая точка: параметры дорожки меняли в режиме MORPH; красная мигающая — пишется стем (жёлтая — правее).

@@ -88,8 +88,7 @@ struct CompTransfer: View {
     var body: some View {
         GeometryReader { geo in
             Canvas { ctx, size in draw(ctx, size) }
-                .contentShape(Rectangle())
-                .gesture(drag(geo.size))
+                .modifier(TouchArea(gesture: drag(geo.size)))
                 .modifier(GestureCancelGuard {
                     if kind > 0 { model.endGesture() }
                     kind = -1

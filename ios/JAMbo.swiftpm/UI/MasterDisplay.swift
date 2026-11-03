@@ -301,8 +301,7 @@ struct LevelPlot: View {
                 let c: TeleHistory.Columns = hist.columns(tele, cols: cols, now: now)
                 draw(ctx, size, c)
             }
-            .contentShape(Rectangle())
-            .gesture(drag(geo.size.height))
+            .modifier(TouchArea(gesture: drag(geo.size.height)))
             .modifier(GestureCancelGuard {
                 if lineStart != nil {
                     lineStart = nil

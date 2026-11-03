@@ -43,8 +43,7 @@ struct EqDynMenu: View {
             }
         }
         .frame(height: 28)
-        .contentShape(Rectangle())
-        .gesture(move)
+        .modifier(TouchArea(gesture: move))
     }
 
     private var move: some Gesture {

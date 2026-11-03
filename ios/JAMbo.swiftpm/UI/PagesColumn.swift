@@ -39,8 +39,7 @@ struct PagesColumn: View {
                 }
                 outline(rowH: rowH)
             }
-            .contentShape(Rectangle())
-            .gesture(drag(rowH: rowH + 4))
+            .modifier(TouchArea(gesture: drag(rowH: rowH + 4)))
             .onAppear {
                 rowStep = rowH + 4
                 columnHeight = geo.size.height

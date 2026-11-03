@@ -26,8 +26,7 @@ struct RollGrid: View {
                 drawNames(ctx, m, root)
                 drawNotes(ctx, m, notes, levels, pct)
             }
-            .contentShape(Rectangle())
-            .gesture(touch(geo.size, rows, clip.playLen, root))
+            .modifier(TouchArea(gesture: touch(geo.size, rows, clip.playLen, root)))
         }
         .background(theme.panel)
         .clipShape(RoundedRectangle(cornerRadius: Layout.radius))

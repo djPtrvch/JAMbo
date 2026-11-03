@@ -171,8 +171,7 @@ struct PlayButton: View {
             .foregroundStyle(on ? theme.onAccent : theme.accent)
             .modifier(Tile(on ? theme.accent : theme.panel2))
             .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(theme.accent, lineWidth: 1))
-            .contentShape(Rectangle())
-            .gesture(touchDown)
+            .modifier(TouchArea(gesture: touchDown))
     }
 
     private var touchDown: some Gesture {

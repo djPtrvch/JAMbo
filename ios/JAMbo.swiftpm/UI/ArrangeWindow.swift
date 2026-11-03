@@ -280,8 +280,7 @@ struct ArrTimeline: View {
                 if let l = lift { AnyView(liftedView(l, m, p)) }
                 if let c = model.clipCarry, c.overArrange { AnyView(ArrCarryLayer(model: model, carry: c, m: m)) }
             }
-            .contentShape(Rectangle())
-            .gesture(touch(geo.size))
+            .modifier(TouchArea(gesture: touch(geo.size)))
         })
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { model.arrTimelineFrame = $0 }
         .background(theme.panel)

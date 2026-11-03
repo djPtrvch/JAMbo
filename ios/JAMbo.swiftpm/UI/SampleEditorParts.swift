@@ -199,8 +199,7 @@ struct HoldToolButton: View {
         return Text(title).font(.system(size: 13)).strikethrough(strike).lineLimit(1).minimumScaleFactor(0.7)
             .foregroundStyle(fg)
             .modifier(Tile(lit ? theme.accent : theme.panel2, radius: 8))
-            .contentShape(Rectangle())
-            .gesture(gesture)
+            .modifier(TouchArea(gesture: gesture))
             .allowsHitTesting(enabled)
     }
 }

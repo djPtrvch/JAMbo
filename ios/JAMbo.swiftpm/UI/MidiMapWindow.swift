@@ -54,8 +54,7 @@ struct MidiMapWindow: View {
         }
         .padding(6)
         .frame(height: 50)
-        .contentShape(Rectangle())
-        .gesture(dragHeader)
+        .modifier(TouchArea(gesture: dragHeader))
     }
 
     private var dragHeader: some Gesture {

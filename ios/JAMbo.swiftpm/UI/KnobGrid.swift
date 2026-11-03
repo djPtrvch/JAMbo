@@ -22,8 +22,7 @@ struct KnobGrid: View {
         GeometryReader { geo in
             ZStack(alignment: .topLeading) {
                 cells(geo.size)
-                    .contentShape(Rectangle())
-                    .gesture(touches(size: geo.size))
+                    .modifier(TouchArea(gesture: touches(size: geo.size)))
                 TrackMenus(model: model, size: geo.size)
             }
         }

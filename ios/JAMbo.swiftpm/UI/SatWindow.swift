@@ -41,8 +41,7 @@ struct SatTransfer: View {
     var body: some View {
         GeometryReader { _ in
             Canvas { ctx, size in draw(ctx, size) }
-                .contentShape(Rectangle())
-                .gesture(drag)
+                .modifier(TouchArea(gesture: drag))
                 .modifier(GestureCancelGuard {
                     if start != nil {
                         start = nil
@@ -243,8 +242,7 @@ struct SatSpectrum: View {
     var body: some View {
         GeometryReader { geo in
             Canvas { ctx, size in draw(ctx, size) }
-                .contentShape(Rectangle())
-                .gesture(drag(geo.size))
+                .modifier(TouchArea(gesture: drag(geo.size)))
                 .modifier(GestureCancelGuard {
                     if focusStart != nil {
                         focusStart = nil

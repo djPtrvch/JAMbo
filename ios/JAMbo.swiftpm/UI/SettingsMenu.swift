@@ -110,8 +110,7 @@ struct MetronomeSlider: View {
             }
             GeometryReader { g in
                 bar(g.size.width, n)
-                    .contentShape(Rectangle())
-                    .gesture(drag(g.size.width))
+                    .modifier(TouchArea(gesture: drag(g.size.width)))
             }
             .frame(height: 24)
         }

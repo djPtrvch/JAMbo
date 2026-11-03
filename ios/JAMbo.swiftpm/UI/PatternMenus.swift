@@ -125,6 +125,17 @@ struct Tile: ViewModifier {
     }
 }
 
+/// Поле касаний: вся рамка (contentShape — прямоугольник) и жест. Один модификатор вместо двух на каждом месте (S14).
+struct TouchArea<G: Gesture>: ViewModifier {
+    let gesture: G
+
+    func body(content: Content) -> some View {
+        content
+            .contentShape(Rectangle())
+            .gesture(gesture)
+    }
+}
+
 /// Кнопка меню: неактивная — серая, DELETE — красная.
 struct MenuItem: View {
     let title: String
