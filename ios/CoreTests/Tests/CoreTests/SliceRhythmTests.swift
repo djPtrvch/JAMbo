@@ -80,6 +80,7 @@ final class SliceRhythmTests: XCTestCase {
             XCTAssertTrue(mid.isSuperset(of: [4, 12]), "MID — на местах SNARE")
             XCTAssertFalse(evs.contains { $0.note == 64 }, "кусок без роли в ките не играет")
             XCTAssertTrue(evs.allSatisfy { $0.vel != nil }, "у каждой ноты своя velocity")
+            XCTAssertTrue(evs.allSatisfy { $0.len == 1 }, "кит — ноты в 1 шаг, хвост — ручкой Decay")
             noOverlap(evs, notes: [60], len: 16, "LOW")
             noOverlap(evs, notes: [61], len: 16, "MID")
             noOverlap(evs, notes: [62, 63], len: 16, "HIGH")

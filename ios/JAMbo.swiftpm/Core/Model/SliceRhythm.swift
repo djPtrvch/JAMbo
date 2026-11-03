@@ -1,6 +1,6 @@
 // Случайный рисунок нарезанного сэмпла (SHIFT + CHORD на дорожке с маркерами нарезки, SETTINGS → RANDOM → SAMPLES;
 // docs/ai/sequencer.md, «Случайная нарезка»). Роли кусков назначаются вручную (удержание флажка в редакторе):
-// LOW, MID, HIGH ставятся на места KICK, SNARE, HAT стиля дорожки (DrumRhythm), LONG — редко и без наложения;
+// LOW, MID, HIGH ставятся на места KICK, SNARE, HAT стиля дорожки (DrumRhythm) нотами в 1 шаг, LONG — редко и без наложения;
 // без ролей LOW/MID/HIGH — перетасовка брейка: куски по порядку, часть заменена, в конце — сбивка.
 
 public enum SliceRhythm {
@@ -129,9 +129,10 @@ public enum SliceRhythm {
                 var evs: [Event] = []
                 for h in page {
                     guard let pc = own.randomElement(using: &g) else { continue }
-                    evs.append(Event(step: h.step, note: pc.note, len: pc.steps, vel: h.vel ?? DrumRhythm.velFull))
+                    // Нота в 1 шаг (решение пользователя 3.11): хвост куска — ручкой Decay, как у ударной дорожки.
+                    evs.append(Event(step: h.step, note: pc.note, len: 1, vel: h.vel ?? DrumRhythm.velFull))
                 }
-                out[p] += clip(evs, pieces: own, len: lens[p])
+                out[p] += evs
             }
         }
         return out
