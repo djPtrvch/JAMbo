@@ -168,15 +168,20 @@ final class DrumRhythmTests: XCTestCase {
 
     func testRandomSettingsDefaults() throws {
         let s = AppSettings.decode(try JSONEncoder().encode(["appearance": "DARK"]))
-        XCTAssertTrue(s.randomDrums)
-        XCTAssertTrue(s.randomChords)
+        // Все рычажки RANDOM по умолчанию выключены (решение пользователя, 3.11).
+        XCTAssertFalse(s.randomDrums)
+        XCTAssertFalse(s.randomChords)
+        XCTAssertFalse(s.randomSamples)
         XCTAssertFalse(s.randomStyleAll)
         XCTAssertFalse(s.randomStepsAll)
+        XCTAssertFalse(AppSettings().randomDrums || AppSettings().randomChords || AppSettings().randomSamples)
         var a = AppSettings()
         a.randomStepsAll = true
-        a.randomDrums = false
+        a.randomDrums = true
+        a.randomSamples = true
         let b = AppSettings.decode(a.encode())
         XCTAssertTrue(b.randomStepsAll)
-        XCTAssertFalse(b.randomDrums)
+        XCTAssertTrue(b.randomDrums)
+        XCTAssertTrue(b.randomSamples)
     }
 }
