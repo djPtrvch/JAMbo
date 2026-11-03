@@ -1,7 +1,7 @@
 import Foundation
 
 // WARP в редакторе сэмпла (docs/ai/sound-sampler.md): метки варпинга сэмпла выбранной дорожки, BPM файла, GRID,
-// CLEAR WARP, ▶ по карте (AUTO WARP убран 3.11). Каждое действие — одна запись UNDO (перетаскивание — жестом).
+// AUTO WARP, CLEAR WARP, ▶ по карте. Каждое действие — одна запись UNDO (перетаскивание — жестом).
 
 extension AppModel {
     var editorWarpInfo: WarpInfo {
@@ -37,6 +37,16 @@ extension AppModel {
         let key = editorKey
         if key.isEmpty { return }
         editTrack { t in t.setWarpBpm(key, v) }
+    }
+
+    func autoWarp() {
+        let key = editorKey
+        guard !key.isEmpty, let d = sample(key) else { return }
+        let ons: [Double] = d.onsets.list
+        let det: Double = d.loopBpm
+        let g: Double = warpGrid
+        warpSel = nil
+        editTrack { t in t.autoWarp(key, onsets: ons, frames: d.frames, detectedBpm: det, grid: g) }
     }
 
     func clearWarp() {
