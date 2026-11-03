@@ -175,23 +175,23 @@ public struct MidiMapping: Codable, Equatable, Sendable {
         self.control = continuous ? .abs : .momentary
     }
 
-    private enum Keys: String, CodingKey { case src, target, control, enc, min, max, input, cond, page, port, press, place }
+    private enum CodingKeys: String, CodingKey { case src, target, control, enc, min, max, input, cond, page, port, press, place }
 
     /// Недостающие поля — по умолчанию; без источника или цели — ошибка (маппинг пропускается).
     public init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: Keys.self)
+        let c = try decoder.container(keyedBy: CodingKeys.self)
         src = try c.decode(MidiSource.self, forKey: .src)
         target = try c.decode(MidiTarget.self, forKey: .target)
-        control = (try? c.decode(MidiControl.self, forKey: .control)) ?? .momentary
-        enc = (try? c.decode(MidiEncoder.self, forKey: .enc)) ?? .offset
-        min = (try? c.decode(Double.self, forKey: .min)) ?? 0
-        max = (try? c.decode(Double.self, forKey: .max)) ?? 1
-        input = try? c.decode(Int32.self, forKey: .input)
-        cond = (try? c.decode(MidiCond.self, forKey: .cond)) ?? .global
-        page = (try? c.decode(MidiPage.self, forKey: .page)) ?? .track
-        port = (try? c.decode(MidiPort.self, forKey: .port)) ?? .standard
-        press = (try? c.decode(MidiPressAction.self, forKey: .press)) ?? .reset
-        place = try? c.decode(MidiPlace.self, forKey: .place)
+        control = c.value(.control, .momentary)
+        enc = c.value(.enc, .offset)
+        min = c.value(.min, 0)
+        max = c.value(.max, 1)
+        input = c.optional(.input)
+        cond = c.value(.cond, .global)
+        page = c.value(.page, .track)
+        port = c.value(.port, .standard)
+        press = c.value(.press, .reset)
+        place = c.optional(.place)
         if target.isClip && cond == .page { cond = .clip }
     }
 

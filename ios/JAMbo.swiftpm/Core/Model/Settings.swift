@@ -19,10 +19,10 @@ public struct RecordSettings: Codable, Equatable, Sendable {
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
-        quantize = (try? c.decode(Bool.self, forKey: .quantize)) ?? true
-        overdub = (try? c.decode(Bool.self, forKey: .overdub)) ?? false
-        autoRec = (try? c.decode(Bool.self, forKey: .autoRec)) ?? true
-        arrFromStart = (try? c.decode(Bool.self, forKey: .arrFromStart)) ?? false
+        quantize = c.value(.quantize, true)
+        overdub = c.value(.overdub, false)
+        autoRec = c.value(.autoRec, true)
+        arrFromStart = c.value(.arrFromStart, false)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -138,7 +138,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         return try? JSONEncoder().encode(self)
     }
 
-    private enum Keys: String, CodingKey { case appearance, pianoOctaves, velocity, record, sliceMap, scSends, latchFx, latchMod, rollGrid,
+    private enum CodingKeys: String, CodingKey { case appearance, pianoOctaves, velocity, record, sliceMap, scSends, latchFx, latchMod, rollGrid,
                                          rollSound, levelRelative, morphAll, morphReturn, morphHold, mixKey, mixCrossfader,
                                          clearSampleLocks, pitchSemitones, midi, stepPaint, sync,
                                          arrangeCompact, fxPictures, backgroundAudio, arrangeRepeats, stretchBeat,
@@ -146,45 +146,45 @@ public struct AppSettings: Codable, Equatable, Sendable {
                                          randomDrums, randomChords, randomStyleAll, randomStepsAll, randomSamples }
 
     public init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: Keys.self)
-        appearance = (try? c.decode(String.self, forKey: .appearance)) ?? "SYSTEM"
-        pianoOctaves = (try? c.decode(Int.self, forKey: .pianoOctaves)) ?? 1
-        velocity = (try? c.decode(Bool.self, forKey: .velocity)) ?? false
-        record = (try? c.decode(RecordSettings.self, forKey: .record)) ?? RecordSettings()
-        sliceMap = (try? c.decode(SliceMap.self, forKey: .sliceMap)) ?? .chromatic
-        scSends = (try? c.decode(SidechainSends.self, forKey: .scSends)) ?? SidechainSends()
-        latchFx = (try? c.decode(Bool.self, forKey: .latchFx)) ?? false
-        latchMod = (try? c.decode(Bool.self, forKey: .latchMod)) ?? false
-        let g: Int = (try? c.decode(Int.self, forKey: .rollGrid)) ?? Roll.gridDef
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        appearance = c.value(.appearance, "SYSTEM")
+        pianoOctaves = c.value(.pianoOctaves, 1)
+        velocity = c.value(.velocity, false)
+        record = c.value(.record, RecordSettings())
+        sliceMap = c.value(.sliceMap, .chromatic)
+        scSends = c.value(.scSends, SidechainSends())
+        latchFx = c.value(.latchFx, false)
+        latchMod = c.value(.latchMod, false)
+        let g: Int = c.value(.rollGrid, Roll.gridDef)
         rollGrid = Roll.grids.contains(g) ? g : Roll.gridDef
-        rollSound = (try? c.decode(Bool.self, forKey: .rollSound)) ?? true
-        levelRelative = (try? c.decode(Bool.self, forKey: .levelRelative)) ?? false
-        morphAll = (try? c.decode(Bool.self, forKey: .morphAll)) ?? true
-        morphHold = (try? c.decode(Bool.self, forKey: .morphHold)) ?? false
-        let mr: Int = (try? c.decode(Int.self, forKey: .morphReturn)) ?? 0
+        rollSound = c.value(.rollSound, true)
+        levelRelative = c.value(.levelRelative, false)
+        morphAll = c.value(.morphAll, true)
+        morphHold = c.value(.morphHold, false)
+        let mr: Int = c.value(.morphReturn, 0)
         morphReturn = mr >= 0 && mr < MorphReturn.beats.count ? mr : 0
-        mixKey = (try? c.decode(Bool.self, forKey: .mixKey)) ?? true
-        mixCrossfader = (try? c.decode(Bool.self, forKey: .mixCrossfader)) ?? true
-        clearSampleLocks = (try? c.decode(Bool.self, forKey: .clearSampleLocks)) ?? true
-        stretchBeat = (try? c.decode(Bool.self, forKey: .stretchBeat)) ?? false
-        pitchSemitones = (try? c.decode(Bool.self, forKey: .pitchSemitones)) ?? false
-        midi = (try? c.decode(MidiSettings.self, forKey: .midi)) ?? MidiSettings()
-        stepPaint = (try? c.decode(Bool.self, forKey: .stepPaint)) ?? false
-        sync = (try? c.decode(SyncSettings.self, forKey: .sync)) ?? SyncSettings()
-        arrangeCompact = (try? c.decode(Bool.self, forKey: .arrangeCompact)) ?? false
-        arrangeRepeats = (try? c.decode(Bool.self, forKey: .arrangeRepeats)) ?? true
-        fxPictures = (try? c.decode(Bool.self, forKey: .fxPictures)) ?? true
-        backgroundAudio = (try? c.decode(Bool.self, forKey: .backgroundAudio)) ?? true
-        arrangeScale = (try? c.decode(Bool.self, forKey: .arrangeScale)) ?? false
-        arrangeFollow = (try? c.decode(Bool.self, forKey: .arrangeFollow)) ?? true
-        let ds: Int = (try? c.decode(Int.self, forKey: .displayScale)) ?? 48
+        mixKey = c.value(.mixKey, true)
+        mixCrossfader = c.value(.mixCrossfader, true)
+        clearSampleLocks = c.value(.clearSampleLocks, true)
+        stretchBeat = c.value(.stretchBeat, false)
+        pitchSemitones = c.value(.pitchSemitones, false)
+        midi = c.value(.midi, MidiSettings())
+        stepPaint = c.value(.stepPaint, false)
+        sync = c.value(.sync, SyncSettings())
+        arrangeCompact = c.value(.arrangeCompact, false)
+        arrangeRepeats = c.value(.arrangeRepeats, true)
+        fxPictures = c.value(.fxPictures, true)
+        backgroundAudio = c.value(.backgroundAudio, true)
+        arrangeScale = c.value(.arrangeScale, false)
+        arrangeFollow = c.value(.arrangeFollow, true)
+        let ds: Int = c.value(.displayScale, 48)
         displayScale = AppSettings.displayScales.contains(ds) ? ds : 48
-        randomDrums = (try? c.decode(Bool.self, forKey: .randomDrums)) ?? false
-        randomChords = (try? c.decode(Bool.self, forKey: .randomChords)) ?? false
-        randomStyleAll = (try? c.decode(Bool.self, forKey: .randomStyleAll)) ?? false
-        randomStepsAll = (try? c.decode(Bool.self, forKey: .randomStepsAll)) ?? false
-        randomSamples = (try? c.decode(Bool.self, forKey: .randomSamples)) ?? false
-        let mv: Double = (try? c.decode(Double.self, forKey: .metronomeVol)) ?? 100
+        randomDrums = c.value(.randomDrums, false)
+        randomChords = c.value(.randomChords, false)
+        randomStyleAll = c.value(.randomStyleAll, false)
+        randomStepsAll = c.value(.randomStepsAll, false)
+        randomSamples = c.value(.randomSamples, false)
+        let mv: Double = c.value(.metronomeVol, 100)
         metronomeVol = Swift.min(200, Swift.max(0, mv))
     }
 }

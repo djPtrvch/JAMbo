@@ -12,12 +12,12 @@ public struct MidiPreset: Codable, Equatable, Sendable {
         self.mappings = mappings
     }
 
-    private enum Keys: String, CodingKey { case name, mappings }
+    private enum CodingKeys: String, CodingKey { case name, mappings }
 
     public init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: Keys.self)
+        let c = try decoder.container(keyedBy: CodingKeys.self)
         name = try c.decode(String.self, forKey: .name)
-        let maps: [LossyMapping] = (try? c.decode([LossyMapping].self, forKey: .mappings)) ?? []
+        let maps: [LossyMapping] = c.value(.mappings, [])
         mappings = maps.compactMap { $0.value }
     }
 }

@@ -19,16 +19,16 @@ public struct MidiSettings: Codable, Equatable, Sendable {
 
     public init() {}
 
-    private enum Keys: String, CodingKey { case input, feedback, mappings, preset, pressTouch }
+    private enum CodingKeys: String, CodingKey { case input, feedback, mappings, preset, pressTouch }
 
     public init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: Keys.self)
-        input = try? c.decode(Int32.self, forKey: .input)
-        feedback = try? c.decode(Int32.self, forKey: .feedback)
-        let maps: [LossyMapping] = (try? c.decode([LossyMapping].self, forKey: .mappings)) ?? []
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        input = c.optional(.input)
+        feedback = c.optional(.feedback)
+        let maps: [LossyMapping] = c.value(.mappings, [])
         mappings = maps.compactMap { $0.value }
-        preset = (try? c.decode(String.self, forKey: .preset)) ?? ""
-        pressTouch = (try? c.decode(Bool.self, forKey: .pressTouch)) ?? true
+        preset = c.value(.preset, "")
+        pressTouch = c.value(.pressTouch, true)
     }
 
     /// Слушать ли источник (uniqueID).

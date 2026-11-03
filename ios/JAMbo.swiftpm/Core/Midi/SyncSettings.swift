@@ -35,25 +35,25 @@ public struct SyncSettings: Codable, Equatable, Sendable {
 
     public init() {}
 
-    private enum Keys: String, CodingKey {
+    private enum CodingKeys: String, CodingKey {
         case quantum, clock, source, clockOut, clockIn, midiStartStop, midiOffset, link, linkNotify, linkStartStop, linkOffset
     }
 
     /// Недостающие и испорченные поля — по умолчанию; квант и сдвиги — в своих пределах.
     public init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: Keys.self)
-        let q: Int = (try? c.decode(Int.self, forKey: .quantum)) ?? 1
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let q: Int = c.value(.quantum, 1)
         quantum = SyncSettings.quanta.contains(q) ? q : 1
-        clock = (try? c.decode(Bool.self, forKey: .clock)) ?? false
-        source = (try? c.decode(ClockSource.self, forKey: .source)) ?? .send
-        clockOut = try? c.decode(Int32.self, forKey: .clockOut)
-        clockIn = try? c.decode(Int32.self, forKey: .clockIn)
-        midiStartStop = (try? c.decode(Bool.self, forKey: .midiStartStop)) ?? true
-        midiOffset = SyncSettings.clampOffset((try? c.decode(Int.self, forKey: .midiOffset)) ?? 0)
-        link = (try? c.decode(Bool.self, forKey: .link)) ?? false
-        linkNotify = (try? c.decode(Bool.self, forKey: .linkNotify)) ?? true
-        linkStartStop = (try? c.decode(Bool.self, forKey: .linkStartStop)) ?? false
-        linkOffset = SyncSettings.clampOffset((try? c.decode(Int.self, forKey: .linkOffset)) ?? 0)
+        clock = c.value(.clock, false)
+        source = c.value(.source, .send)
+        clockOut = c.optional(.clockOut)
+        clockIn = c.optional(.clockIn)
+        midiStartStop = c.value(.midiStartStop, true)
+        midiOffset = SyncSettings.clampOffset(c.value(.midiOffset, 0))
+        link = c.value(.link, false)
+        linkNotify = c.value(.linkNotify, true)
+        linkStartStop = c.value(.linkStartStop, false)
+        linkOffset = SyncSettings.clampOffset(c.value(.linkOffset, 0))
     }
 
     /// Клок, Start, Continue, Stop с источника source принимаются (вход клока — ALL INPUTS или этот).
