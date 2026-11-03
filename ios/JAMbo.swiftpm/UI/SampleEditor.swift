@@ -276,7 +276,7 @@ struct SampleEditor: View {
             if t.idx < marks.count && t.idx < notes.count {
                 let m: SliceMark = marks[t.idx]
                 var head: String = Params.noteName(notes[t.idx])
-                var at: CGPoint = p
+                let at: CGPoint = p
                 if m.isFree {
                     let r: SliceRhythm.Role? = SliceRhythm.role(m.role)
                     head = r != nil ? SliceRhythm.roleNames[r!.rawValue] : "NO NOTE"
