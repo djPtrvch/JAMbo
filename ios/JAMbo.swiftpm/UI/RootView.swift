@@ -412,8 +412,7 @@ struct MainMenu: View {
         content
             .padding(12)
             .frame(width: MainMenu.width, height: height, alignment: .topLeading)
-            .background(theme.bg, in: RoundedRectangle(cornerRadius: Layout.radius))
-            .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(theme.line, lineWidth: 1))
+            .modifier(MenuBox(shadow: false))
             .onAppear { reopen() }
     }
 

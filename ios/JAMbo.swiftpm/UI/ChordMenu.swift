@@ -19,9 +19,7 @@ struct ChordMenu: View {
             content(m, arp)
                 .padding(ChordMenuMetrics.pad)
                 .frame(width: width, height: m.height, alignment: .topLeading)
-                .background(theme.bg, in: RoundedRectangle(cornerRadius: Layout.radius))
-                .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(theme.line, lineWidth: 1))
-                .shadow(color: .black.opacity(0.5), radius: 12, y: 4)
+                .modifier(MenuBox())
                 .padding(.leading, m.x)
                 .padding(.bottom, m.bottom)
         }

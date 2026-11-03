@@ -375,9 +375,7 @@ struct PageMenu: View {
         }
         .padding(8)
         .frame(width: PageMenu.width)
-        .background(theme.bg, in: RoundedRectangle(cornerRadius: PageMenu.radius))
-        .overlay(RoundedRectangle(cornerRadius: PageMenu.radius).stroke(theme.line, lineWidth: 1))
-        .shadow(color: .black.opacity(0.5), radius: 12, y: 4)
+        .modifier(MenuBox(radius: PageMenu.radius))
     }
 
     /// SPEED открытого клипа: 2, 1, 1/2 / 1/4, 1/8, 1/16 (выбранная — жёлтая); меню не закрывает.

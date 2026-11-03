@@ -70,9 +70,7 @@ struct ChoiceMenu: View {
             grid
                 .padding(6)
                 .frame(width: width)
-                .background(theme.bg, in: RoundedRectangle(cornerRadius: Layout.radius))
-                .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(theme.line, lineWidth: 1))
-                .shadow(color: .black.opacity(0.5), radius: 12, y: 4)
+                .modifier(MenuBox())
                 .offset(x: x, y: y)
         }
     }
@@ -122,9 +120,7 @@ struct PianoMenu: View {
                 .frame(height: h)
                 .padding(10)
                 .frame(width: width)
-                .background(theme.bg, in: RoundedRectangle(cornerRadius: Layout.radius))
-                .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(theme.line, lineWidth: 1))
-                .shadow(color: .black.opacity(0.5), radius: 12, y: 4)
+                .modifier(MenuBox())
                 .padding(.leading, x)
                 .padding(.bottom, bottom)
         }

@@ -26,9 +26,7 @@ struct EqDynMenu: View {
             }
             .padding(8)
             .frame(width: EqDynMenu.width)
-            .background(theme.bg, in: RoundedRectangle(cornerRadius: Layout.radius))
-            .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(theme.line, lineWidth: 1))
-            .shadow(color: .black.opacity(0.5), radius: 12, y: 4)
+            .modifier(MenuBox())
             .offset(x: anchor.minX + dx, y: anchor.maxY + 4 + dy)
         }
     }

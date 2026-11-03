@@ -25,9 +25,7 @@ struct SoundMenu: View {
         }
         .padding(6)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(theme.bg, in: RoundedRectangle(cornerRadius: Layout.radius))
-        .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(theme.line, lineWidth: 1))
-        .shadow(color: .black.opacity(0.5), radius: 12, y: 4)
+        .modifier(MenuBox())
     }
 
     private var engines: some View {

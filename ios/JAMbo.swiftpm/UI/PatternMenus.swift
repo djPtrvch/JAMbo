@@ -83,9 +83,25 @@ struct MenuPanel: ViewModifier {
     func body(content: Content) -> some View {
         content
             .padding(8)
-            .background(theme.bg, in: RoundedRectangle(cornerRadius: Layout.radius))
-            .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(theme.line, lineWidth: 1))
-            .shadow(color: .black.opacity(0.5), radius: 12, y: 4)
+            .modifier(MenuBox())
+    }
+}
+
+/// Фон окна меню: панель цвета фона со скруглением, обводка 1 px, тень (shadow). Один модификатор вместо цепочки из
+/// трёх на каждом месте (S14, объём сборки).
+struct MenuBox: ViewModifier {
+    var radius: CGFloat = Layout.radius
+    var shadow: Bool = true
+    @Environment(\.theme) private var theme
+
+    func body(content: Content) -> some View {
+        let framed = content
+            .background(theme.bg, in: RoundedRectangle(cornerRadius: radius))
+            .overlay(RoundedRectangle(cornerRadius: radius).stroke(theme.line, lineWidth: 1))
+        if shadow {
+            return AnyView(framed.shadow(color: .black.opacity(0.5), radius: 12, y: 4))
+        }
+        return AnyView(framed)
     }
 }
 

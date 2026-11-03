@@ -202,8 +202,7 @@ struct EqCompareMenu: View {
         }
         .padding(8)
         .frame(width: width, height: fits ? nil : height, alignment: .top)
-        .background(theme.bg, in: RoundedRectangle(cornerRadius: Layout.radius))
-        .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(theme.line, lineWidth: 1))
+        .modifier(MenuBox(shadow: false))
     }
 
     /// Пункт i: −1 — OFF, 0… — дорожки; за последней дорожкой — пусто.
