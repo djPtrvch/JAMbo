@@ -64,7 +64,9 @@ struct RightTop: View {
             if mix {
                 AnyView(VStack(spacing: Layout.barGap) {
                     Color.clear.frame(height: bar)
-                    MixPagesBlank()
+                    // Скоп мастера, как при MST (решение пользователя 3.11): гониометр и осциллоскоп; точки съёма —
+                    // по кнопкам COMP, CLIP, LIM при MST.
+                    MasterScopeView(model: model)
                 })
             } else {
                 AnyView(VStack(spacing: Layout.barGap) {
@@ -172,15 +174,6 @@ struct RightColumn: View {
                            right: MorphButton(model: model).midiTarget(model, "MORPH"))
             })
         }
-    }
-}
-
-/// Место миниатюр страниц при MIX: пустое окно без подписей.
-struct MixPagesBlank: View {
-    @Environment(\.theme) private var theme
-
-    var body: some View {
-        RoundedRectangle(cornerRadius: Layout.radius).fill(theme.panel)
     }
 }
 

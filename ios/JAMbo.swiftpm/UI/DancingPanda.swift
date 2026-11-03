@@ -159,8 +159,8 @@ enum PandaDraw {
     /// Уши, ноги, туловище, живот, руки.
     static func drawBody(_ c: GraphicsContext, m: PandaMotion.Frame, sway: Double) {
         let limb: GraphicsContext.Shading = .color(PandaPalette.limb)
-        c.fill(ellipse(0.31, 0.18, 0.208, 0.208), with: limb)
-        c.fill(ellipse(0.69, 0.18, 0.208, 0.208), with: limb)
+        c.fill(ellipse(0.32, 0.135, 0.17, 0.17), with: limb)
+        c.fill(ellipse(0.68, 0.135, 0.17, 0.17), with: limb)
         c.fill(capsule(0.37, 0.82, 0.177, 0.246), with: limb)
         c.fill(capsule(0.63, 0.82, 0.177, 0.246), with: limb)
         c.fill(ellipse(0.5, 0.62, 0.54, 0.48), with: .color(PandaPalette.fur))

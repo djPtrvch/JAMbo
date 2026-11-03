@@ -15,9 +15,9 @@ extension AppModel {
         let now: Double = Date.timeIntervalSinceReferenceDate
         meters.tick(lv, now: now)
         dynMeters.tick(audio.core.master, project, now: now)
-        // Скоп — только пока виден (MST).
+        // Скоп — только пока виден (MST и MIX).
         let sc: MasterScope = audio.core.master.scope
-        if channel == .master {
+        if channel != .track {
             var m: Int = MasterScope.gonioBit
             for k in 0..<4 where scopeOn[k] { m |= 1 << k }
             sc.mask.store(m)
