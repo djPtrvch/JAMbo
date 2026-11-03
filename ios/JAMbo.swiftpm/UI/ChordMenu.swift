@@ -118,11 +118,7 @@ struct ArpWindowColumn: View {
                     button(names, i, cur)
                 }
                 // RATE: в свободной шестой ячейке (справа внизу) — LATCH.
-                if kind == 1 {
-                    InkButton(title: "LATCH", active: model.track.arp.latch, height: m.rowH) {
-                        model.setArpLatch(!model.track.arp.latch)
-                    }
-                }
+                if kind == 1 { LatchButton(model: model, side: m.rowH) }
             }
         }
         .frame(width: w, alignment: .topLeading)
@@ -150,5 +146,24 @@ struct ArpWindowColumn: View {
         if kind == 0 { return a.dir }
         if kind == 1 { return a.rate }
         return a.octaves - 1
+    }
+}
+
+/// LATCH в окне ARP: включён — белый (в светлой теме — чёрный), как зажатая SHIFT; не жёлтый.
+struct LatchButton: View {
+    let model: AppModel
+    let side: CGFloat
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let on: Bool = model.track.arp.latch
+        return Button(action: { model.setArpLatch(!on) }) {
+            Text("LATCH")
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(on ? theme.bg : theme.text)
+                .frame(maxWidth: .infinity, minHeight: side)
+                .background(on ? theme.text : theme.panel, in: RoundedRectangle(cornerRadius: 10))
+        }
+        .buttonStyle(.plain)
     }
 }
