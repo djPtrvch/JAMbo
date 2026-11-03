@@ -124,8 +124,10 @@ extension AppModel {
                                         kind: chordKind[selectedTrack])
         let range: ClosedRange<Int> = chordPages
         let a: TrackArp = track.arp
+        // Каждый аккорд — в октаве клавиатуры (обращением): с OCTAVES 1 арпеджио не разбегается на две октавы.
+        let folded: [[Int]] = Arp.fold(cs, base: Scales.baseNote(root: project.root, octave: octave))
         let total: Int = (range.upperBound - range.lowerBound + 1) * Params.stepsPerPage
-        let notes: [ArpStepNote] = Arp.steps(cs, steps: total, dir: a.dir, octaves: a.octaves, rate: a.rate,
+        let notes: [ArpStepNote] = Arp.steps(folded, steps: total, dir: a.dir, octaves: a.octaves, rate: a.rate,
                                              gate: a.gate, using: &g)
         editTrack { t in t.writeArpSteps(notes, pages: range) }
     }

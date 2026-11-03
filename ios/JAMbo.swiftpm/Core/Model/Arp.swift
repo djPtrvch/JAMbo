@@ -89,6 +89,19 @@ extension Arp {
     /// Шаг сетки (шестнадцатых) для RATE: 1/8 и 1/8T — через шаг, 1/16, 1/16T, 1/32 — каждый шаг.
     public static let gridSteps: [Int] = [2, 2, 1, 1, 1]
 
+    /// Аккорды в одну октаву от base (обращение: ноты выше — на октаву вниз, повторы убираются, по высоте):
+    /// случайное арпеджио с OCTAVES 1 не выходит за октаву клавиатуры, OCTAVES 2–3 — ряд выше.
+    public static func fold(_ chords: [[Int]], base: Int) -> [[Int]] {
+        return chords.map { c in
+            var out: [Int] = []
+            for n in c {
+                let m: Int = base + ((n - base) % 12 + 12) % 12
+                if !out.contains(m) { out.append(m) }
+            }
+            return out.sorted()
+        }
+    }
+
     /// Аккорды поровну на steps шагов (четверть на аккорд при 4 аккордах), каждый — по направлению dir, с октавами,
     /// шагом по RATE и длиной по GATE (не меньше шага); Random — ноты аккорда наугад.
     public static func steps<G: RandomNumberGenerator>(_ chords: [[Int]], steps total: Int, dir: Int, octaves: Int,

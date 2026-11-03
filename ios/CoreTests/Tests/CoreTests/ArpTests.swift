@@ -153,4 +153,19 @@ final class ArpStepsTests: XCTestCase {
         XCTAssertFalse(t.pages[0][3].on, "прежний шаг стёрт")
         XCTAssertTrue(t.pages[1][4].on, "страница вне выбора не тронута")
     }
+
+    func testFoldKeepsOneOctave() {
+        // vii и ix ступени уходят за октаву — после обращения все ноты в октаве от base (C3 = 48).
+        let cs: [[Int]] = [[48, 52, 55], [59, 62, 65], [57, 60, 64, 71]]
+        let f = Arp.fold(cs, base: 48)
+        XCTAssertEqual(f[0], [48, 52, 55])
+        XCTAssertEqual(f[1], [50, 53, 59])
+        XCTAssertEqual(f[2], [48, 52, 57, 59])
+        for c in f { XCTAssertTrue(c.allSatisfy { $0 >= 48 && $0 < 60 }) }
+        var g = SystemRandomNumberGenerator()
+        let one = Arp.steps(f, steps: 64, dir: Arp.upDown, octaves: 1, rate: 2, gate: 0.5, using: &g)
+        XCTAssertTrue(one.allSatisfy { $0.note >= 48 && $0.note < 60 }, "OCTAVES 1 — одна октава")
+        let two = Arp.steps(f, steps: 64, dir: 0, octaves: 2, rate: 2, gate: 0.5, using: &g)
+        XCTAssertTrue(two.contains { $0.note >= 60 } && two.allSatisfy { $0.note < 72 }, "OCTAVES 2 — две")
+    }
 }
