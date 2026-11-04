@@ -77,7 +77,8 @@ public struct Track: Codable, Equatable, Sendable {
     /// Аранжировщик (S15): блоки дорожки на таймлайне (по порядку, без перекрытий) и цвет (номер в ArrPalette).
     public var blocks: [ArrBlock] = []
     public var color: Int = ArrPalette.defaultColor
-    /// Стиль случайного ритма ударных (SHIFT + CHORD; номер в DrumRhythm.styles, по умолчанию HOUSE).
+    /// Стиль случайного ритма ударных (SHIFT + CHORD; номер в DrumRhythm.styles, по умолчанию HOUSE); один на проект —
+    /// у всех дорожек одинаковый.
     public var drumStyle: Int = 0
     /// Арпеджиатор дорожки (режим кнопки CHORD — CHORD или ARP, направление, скорость…).
     public var arp: TrackArp = TrackArp()
@@ -283,8 +284,8 @@ public struct SceneRow: Codable, Equatable, Sendable {
 public struct Project: Codable, Equatable, Sendable {
     /// Версия формата: 3 — S12 (Swing без p-lock и LFO/ENV), 4 — S12 (ручки 1.4 своих движков, SynthMigration),
     /// 5 — S15 (аранжировка: Track.blocks, Track.color, arrange; в старых — пустая), 6 — ручки GRANULAR по ТЗ
-    /// «Granular» (GranularMigration).
-    public var version: Int = 6
+    /// «Granular» (GranularMigration), 7 — стили случайного ритма 4.11 (migrateRandomStyles).
+    public var version: Int = 7
     /// Сообщение при открытии проекта (перевод старой версии, например пропавший суб ANALOG); nil — нет.
     public var notice: String?
     public var bpm: Double = 120

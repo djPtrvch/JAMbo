@@ -12,6 +12,8 @@ struct InkButton: View {
         Button(action: action) {
             Text(title)
                 .font(.system(size: 13, weight: .bold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
                 .foregroundStyle(active ? theme.onAccent : theme.text)
                 .frame(maxWidth: .infinity, minHeight: height)
                 .background(active ? theme.accent : theme.panel, in: RoundedRectangle(cornerRadius: 10))

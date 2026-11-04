@@ -8,7 +8,8 @@ extension Project {
         if version < 3 { migrateSwing() }
         if version < 4 { migrateSynthKnobs() }
         if version < 6 { migrateGranular() }
-        version = Swift.max(version, 6)
+        if version < 7 { migrateRandomStyles() }
+        version = Swift.max(version, 7)
         if !bpm.isFinite { bpm = 120 }
         bpm = Swift.min(Params.bpmMax, Swift.max(Params.bpmMin, bpm))
         scale = Project.clamp(scale, 0, Scales.all.count - 1)
@@ -191,5 +192,16 @@ extension Eq {
             if b.dyn > n || b.dyn < -1 { b.dyn = -1 }
             bands[k] = b
         }
+    }
+}
+
+extension Project {
+    /// Версия 7 (4.11): стили случайного ритма — House, Techno, Breaks/D&B, Trap/R&B, Pop, Ambient (Afro → House,
+    /// Minimal → Techno); стиль один на проект — у всех дорожек стиль первой ударной или нарезанной (иначе первой).
+    mutating func migrateRandomStyles() {
+        if tracks.isEmpty { return }
+        let src: Int = tracks.firstIndex(where: { $0.drumRole != nil || $0.hasCuts }) ?? 0
+        let v: Int = DrumRhythm.migrateStyle(tracks[src].drumStyle)
+        for i in tracks.indices { tracks[i].drumStyle = v }
     }
 }

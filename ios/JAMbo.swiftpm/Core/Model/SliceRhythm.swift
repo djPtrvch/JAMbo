@@ -118,13 +118,14 @@ public enum SliceRhythm {
     // MARK: — роли LOW, MID, HIGH (кит)
 
     /// Ноты ролей LOW, MID, HIGH на страницах lens по партиям KICK, SNARE, HAT стиля (основа, вариации, сбивка).
-    static func kit<G: RandomNumberGenerator>(_ pieces: [Piece], style: Int, lens: [Int],
+    static func kit<G: RandomNumberGenerator>(_ pieces: [Piece], style: Int, bpm: Double, lens: [Int],
                                              using g: inout G) -> [[Event]] {
         var out: [[Event]] = lens.map { _ in [] }
         for r in [Role.low, Role.mid, Role.high] {
             let own: [Piece] = pieces.filter { $0.role == r }
             if own.isEmpty { continue }
-            let hits: [[DrumRhythm.Hit]] = DrumRhythm.pattern(drumRole(r), style: style, lens: lens, using: &g)
+            let hits: [[DrumRhythm.Hit]] = DrumRhythm.pattern(drumRole(r), style: style, bpm: bpm, lens: lens,
+                                                                    using: &g)
             for (p, page) in hits.enumerated() {
                 var evs: [Event] = []
                 for h in page {
@@ -220,14 +221,15 @@ public enum SliceRhythm {
     /// Рисунок на страницы lens (шагов на странице, 0 — не играет): LOW, MID, HIGH — по стилю; без них — брейк из
     /// кусков без роли; LONG — поверх. Первая страница брейка не повторяет avoid (код прошлой основы), если
     /// получится за 16 попыток. Нет кусков — пусто.
-    public static func pattern<G: RandomNumberGenerator>(_ pieces: [Piece], style: Int = 0, lens: [Int],
-                                                         avoid: [Int]? = nil, using g: inout G) -> [[Event]] {
+    public static func pattern<G: RandomNumberGenerator>(_ pieces: [Piece], style: Int = 0, bpm: Double = 120,
+                                                         lens: [Int], avoid: [Int]? = nil,
+                                                         using g: inout G) -> [[Event]] {
         var out: [[Event]] = lens.map { _ in [] }
         let playing: [Int] = lens.indices.filter { lens[$0] > 0 }
         guard let first = playing.first, let last = playing.last else { return out }
         let kitMode: Bool = pieces.contains { $0.role != nil && $0.role != .long }
         if kitMode {
-            out = kit(pieces, style: style, lens: lens, using: &g)
+            out = kit(pieces, style: style, bpm: bpm, lens: lens, using: &g)
         } else {
             let u: [Piece] = pieces.filter { $0.role == nil }
             if !u.isEmpty {
@@ -319,16 +321,18 @@ extension Track {
         }
     }
 
-    /// Случайный рисунок нарезки на страницы range (по их длинам) в стиле дорожки; avoid — код прошлой основы.
+    /// Случайный рисунок нарезки на страницы range (по их длинам) в стиле дорожки (вариант — по bpm); avoid — код прошлой основы.
     /// Возвращает код новой основы; нет кусков — nil, ничего не пишется.
     public mutating func writeRandomSlices<G: RandomNumberGenerator>(_ pieces: [SliceRhythm.Piece],
                                                                      pages range: ClosedRange<Int>, avoid: [Int]?,
                                                                      cuts: [Int: SliceRhythm.Cut] = [:],
+                                                                     bpm: Double = 120,
                                                                      using g: inout G) -> [Int]? {
         if pieces.isEmpty { return nil }
         let t: Track = self
         let lens: [Int] = range.map { t.pageLen($0, from: range.lowerBound) }
-        let pattern: [[SliceRhythm.Event]] = SliceRhythm.pattern(pieces, style: drumStyle, lens: lens, avoid: avoid,
+        let pattern: [[SliceRhythm.Event]] = SliceRhythm.pattern(pieces, style: drumStyle, bpm: bpm, lens: lens,
+                                                                 avoid: avoid,
                                                                  using: &g)
         writeSlices(pattern, pages: range, cuts: cuts)
         return SliceRhythm.code(pattern.first(where: { !$0.isEmpty }) ?? [])

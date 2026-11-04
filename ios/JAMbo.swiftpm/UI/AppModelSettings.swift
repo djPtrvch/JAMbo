@@ -62,20 +62,17 @@ extension AppModel {
         publishAudio()
     }
 
-    /// SETTINGS → RANDOM: k — 0 DRUMS, 1 CHORDS, 2 STYLE ALL TRACKS, 3 STEPS ALL TRACKS, 4 SAMPLES.
+    /// SETTINGS → RANDOM: k — 0 DRUMS, 1 CHORDS, 2 AUTO SWING, 3 STEPS ALL TRACKS, 4 SAMPLES.
     func setRandom(_ k: Int, _ on: Bool) {
         updateSettings { s in
             switch k {
             case 0: s.randomDrums = on
             case 1: s.randomChords = on
-            case 2: s.randomStyleAll = on
+            case 2: s.randomSwing = on
             case 4: s.randomSamples = on
             default: s.randomStepsAll = on
             }
         }
-        // STYLE ALL TRACKS включили — стили, разошедшиеся до этого, сразу общие (стиль выбранной ударной или
-        // нарезанной дорожки, иначе первой такой).
-        if k == 2 && on { syncStyleAll() }
     }
 
     func setMorphHold(_ on: Bool) {

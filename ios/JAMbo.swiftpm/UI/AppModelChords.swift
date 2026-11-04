@@ -61,35 +61,19 @@ extension AppModel {
         return randomButton ? "RANDOM" : "CHORD"
     }
 
-    /// Стиль ритма выбранной дорожки (хранится в проекте, одна запись UNDO).
-    /// SETTINGS → RANDOM → STYLE ALL TRACKS — всем дорожкам проекта: и тем, что станут ударными или нарезанными
-    /// позже (смена звука, маркеры, SAMPLES, ARP) — иначе у них оставался прежний стиль.
+    /// Стиль ритма (хранится в проекте, одна запись UNDO) — всем дорожкам проекта (решение 4.11): и тем, что
+    /// станут ударными или нарезанными позже (смена звука, маркеры, SAMPLES, ARP).
     func setDrumStyle(_ k: Int) {
         let v: Int = DrumRhythm.styleIndex(k)
-        if settings.randomStyleAll {
-            edit { p in
-                for i in p.tracks.indices { p.tracks[i].drumStyle = v }
-            }
-        } else {
-            editTrack { t in t.drumStyle = v }
-        }
-    }
-
-    /// STYLE ALL TRACKS: всем дорожкам — стиль выбранной ударной или нарезанной дорожки (иначе первой такой).
-    /// Одна запись UNDO; стили уже совпадают — ничего.
-    func syncStyleAll() {
-        let ts: [Track] = project.tracks
-        var src: Int = -1
-        if selectedTrack < ts.count && (ts[selectedTrack].drumRole != nil || ts[selectedTrack].hasCuts) {
-            src = selectedTrack
-        } else {
-            src = ts.firstIndex(where: { $0.drumRole != nil || $0.hasCuts }) ?? -1
-        }
-        if src < 0 { return }
-        let v: Int = ts[src].drumStyle
         edit { p in
             for i in p.tracks.indices { p.tracks[i].drumStyle = v }
         }
+    }
+
+    /// Вариант стиля по темпу проекта (Breaks или D&B, Trap или R&B) — под словом RANDOM.
+    var drumGrooveName: String {
+        let gr: DrumRhythm.Groove = DrumRhythm.groove(track.drumStyle, bpm: project.bpm)
+        return DrumRhythm.grooveNames[gr.rawValue]
     }
 
     /// Окно и MIDI CHORD TYPE n: на ударной дорожке — стиль, в режиме ARP — направление, иначе — тип аккорда.
@@ -165,7 +149,8 @@ extension AppModel {
 
     /// Случайный ритм ударного движка дорожки (KICK, SNARE, HAT, CLAP, PERC) на выбранные страницы: по длинам
     /// страниц (короткая — своей длиной), нота — корневая в октаве клавиатуры. SETTINGS → RANDOM → STEPS ALL TRACKS —
-    /// на все ударные дорожки (каждая — своим движком и стилем, на свои выбранные страницы). Одна запись UNDO.
+    /// на все ударные дорожки (каждая — своим движком, на свои выбранные страницы). AUTO SWING — Swing дорожки по
+    /// стилю. Одна запись UNDO.
     func writeRandomDrums() {
         guard channel == .track, track.drumRole != nil else { return }
         let sel: Int = selectedTrack
@@ -175,12 +160,14 @@ extension AppModel {
         var last: [Int: [Int]] = lastRandomDrums
         let root: Int = project.root
         let octs: [Int] = (0..<project.tracks.count).map { i in i == sel ? octave : octaveOf(i) }
+        let swing: Bool = settings.randomSwing
         edit { p in
             for i in p.tracks.indices where (i == sel || all) && p.tracks[i].drumRole != nil {
                 let r: ClosedRange<Int> = i == sel ? range : p.tracks[i].openClip.range
                 let note: Int = Scales.baseNote(root: root, octave: octs[i])
                 let id: Int = p.tracks[i].id
-                last[id] = p.tracks[i].writeRandomDrums(pages: r, note: note, avoid: last[id], using: &g)
+                last[id] = p.tracks[i].writeRandomDrums(pages: r, note: note, bpm: p.bpm, avoid: last[id], using: &g)
+                if swing { p.tracks[i].params["swing"] = DrumRhythm.swing(p.tracks[i].drumStyle, bpm: p.bpm) }
             }
         }
         lastRandomDrums = last
@@ -202,7 +189,12 @@ extension AppModel {
         let avoid: [Int]? = lastRandomDrums[-1 - id]
         var code: [Int]? = nil
         let cuts: [Int: SliceRhythm.Cut] = cut.cuts
-        editTrack { t in code = t.writeRandomSlices(pieces, pages: range, avoid: avoid, cuts: cuts, using: &g) }
+        let bpm: Double = project.bpm
+        let swing: Bool = settings.randomSwing
+        editTrack { t in
+            code = t.writeRandomSlices(pieces, pages: range, avoid: avoid, cuts: cuts, bpm: bpm, using: &g)
+            if swing { t.params["swing"] = DrumRhythm.swing(t.drumStyle, bpm: bpm) }
+        }
         lastRandomDrums[-1 - id] = code
     }
 

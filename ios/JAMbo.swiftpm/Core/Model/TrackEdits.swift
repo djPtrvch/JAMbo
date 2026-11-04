@@ -331,6 +331,8 @@ extension Project {
         if !canAddTrack { return }
         var t = Track(index: tracks.count)
         t.stopped = true
+        // Стиль случайного ритма — общий для проекта.
+        t.drumStyle = tracks.first?.drumStyle ?? 0
         tracks.append(t)
         fillRows()
     }

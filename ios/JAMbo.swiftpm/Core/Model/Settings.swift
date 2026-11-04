@@ -73,11 +73,11 @@ public struct AppSettings: Codable, Equatable, Sendable {
     /// SHIFT + тап по MORPH), true — HOLD (тап — только выбранная дорожка; SHIFT + MORPH держат — все дорожки,
     /// отпустили — режим выключен).
     public var morphHold: Bool = false
-    /// SETTINGS → RANDOM (SHIFT + CHORD): случайный ритм ударных и прогрессия — вкл./выкл.; стиль ритма сразу всем
-    /// ударным дорожкам; ритм сразу на все ударные дорожки.
+    /// SETTINGS → RANDOM (SHIFT + CHORD): случайный ритм ударных и прогрессия — вкл./выкл.; AUTO SWING — Swing
+    /// дорожки по стилю ритма; ритм сразу на все ударные дорожки. Стиль — всегда общий (STYLE ALL TRACKS убран 4.11).
     public var randomDrums: Bool = false
     public var randomChords: Bool = false
-    public var randomStyleAll: Bool = false
+    public var randomSwing: Bool = false
     public var randomStepsAll: Bool = false
     /// SETTINGS → RANDOM → SAMPLES: случайный рисунок нарезанного сэмпла (SliceRhythm).
     public var randomSamples: Bool = false
@@ -147,7 +147,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
                                          clearSampleLocks, pitchSemitones, midi, stepPaint, sync,
                                          arrangeCompact, fxPictures, backgroundAudio, arrangeRepeats, stretchBeat,
                                          metronomeVol, arrangeScale, arrangeFollow, displayScale,
-                                         randomDrums, randomChords, randomStyleAll, randomStepsAll, randomSamples,
+                                         randomDrums, randomChords, randomSwing, randomStepsAll, randomSamples,
                                          warpProjectBpm }
 
     public init(from decoder: Decoder) throws {
@@ -187,7 +187,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         displayScale = AppSettings.displayScales.contains(ds) ? ds : 48
         randomDrums = c.value(.randomDrums, false)
         randomChords = c.value(.randomChords, false)
-        randomStyleAll = c.value(.randomStyleAll, false)
+        randomSwing = c.value(.randomSwing, false)
         randomStepsAll = c.value(.randomStepsAll, false)
         randomSamples = c.value(.randomSamples, false)
         let mv: Double = c.value(.metronomeVol, 100)

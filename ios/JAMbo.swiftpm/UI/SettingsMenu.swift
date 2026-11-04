@@ -323,15 +323,15 @@ struct RandomSettings: View {
         let s: AppSettings = m.settings
         return FormRows(rows: [
             .toggle("DRUMS", s.randomDrums) { m.setRandom(0, $0) },
-            .note("SHIFT + tap on CHORD on a drum track (Kick, Snare, Hat, Clap, Perc) writes a random rhythm in the track's style. OFF: nothing."),
+            .note("SHIFT + tap on CHORD on a drum track (Kick, Snare, Hat, Clap, Perc) writes a random rhythm in the project's style (one style for all tracks; Breaks/D&B and Trap/R&B follow the tempo). OFF: nothing."),
             .toggle("CHORDS / ARP", s.randomChords) { m.setRandom(1, $0) },
             .note("SHIFT + tap on CHORD on other tracks writes a random chord progression, in ARP mode — a random arpeggio. OFF: nothing."),
             .toggle("SAMPLES", s.randomSamples) { m.setRandom(4, $0) },
-            .note("SHIFT + tap on RANDOM on a track with a sliced sample writes a random pattern of its slices in the track's style. Hold a slice flag in the sample editor to give the slice a role: LOW, MID, HIGH play where the style puts kick, snare, hat; LONG plays rarely, never over itself. Without roles the slices are reshuffled like a break."),
-            .toggle("STYLE ALL TRACKS", s.randomStyleAll) { m.setRandom(2, $0) },
-            .note("Choosing a style on a drum or sliced track sets it on every drum and sliced track of the project."),
+            .note("SHIFT + tap on RANDOM on a track with a sliced sample writes a random pattern of its slices in the project's style. Hold a slice flag in the sample editor to give the slice a role: LOW, MID, HIGH play where the style puts kick, snare, hat; LONG plays rarely, never over itself. Without roles the slices are reshuffled like a break."),
             .toggle("STEPS ALL TRACKS", s.randomStepsAll) { m.setRandom(3, $0) },
-            .note("SHIFT + tap on CHORD on a drum track writes a rhythm on every drum track at once, each with its own sound and style."),
+            .note("SHIFT + tap on CHORD on a drum track writes a rhythm on every drum track at once, each with its own sound."),
+            .toggle("AUTO SWING", s.randomSwing) { m.setRandom(2, $0) },
+            .note("A random rhythm also sets the track's Swing to suit the style."),
         ])
     }
 }

@@ -125,7 +125,7 @@ struct ChordButton: View {
         return VStack(spacing: 2) {
             Text(word).font(.system(size: 12, weight: .semibold)).tracking(1)
             // Ударная дорожка с выключенным SETTINGS → RANDOM → DRUMS: стиля нет, слово остаётся на месте.
-            Text(names[k]).font(.system(size: 10)).opacity(!model.arpMode && model.drumTrack && !model.settings.randomDrums ? 0 : 1)
+            Text(!model.arpMode && model.styleTrack ? model.drumGrooveName : names[k]).font(.system(size: 10)).opacity(!model.arpMode && model.drumTrack && !model.settings.randomDrums ? 0 : 1)
         }
         .foregroundStyle(on ? theme.bg : theme.text)
         .modifier(Tile(on ? theme.text : theme.panel2))

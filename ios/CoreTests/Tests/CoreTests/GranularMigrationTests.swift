@@ -35,7 +35,7 @@ final class GranularMigrationTests: XCTestCase {
         let data = try JSONEncoder().encode(p)
         var q = try JSONDecoder().decode(Project.self, from: data)
         q.repair()
-        XCTAssertEqual(q.version, 6)
+        XCTAssertEqual(q.version, 7)
         let want = GranularMigration.knobs(size: 45, density: 55, spray: 20)
         let t = q.tracks[0]
         XCTAssertEqual(t.params["timbre"]!, want.s, accuracy: 1e-9)
