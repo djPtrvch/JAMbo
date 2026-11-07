@@ -1,14 +1,19 @@
 // Случайный рисунок нарезанного сэмпла (SHIFT + CHORD на дорожке с маркерами нарезки, SETTINGS → RANDOM → SAMPLES;
 // docs/ai/sequencer.md, «Случайная нарезка»). Роли кусков назначаются вручную (удержание флажка в редакторе):
-// LOW, MID, HIGH ставятся на места KICK, SNARE, HAT стиля дорожки (DrumRhythm) нотами в 1 шаг, LONG — редко и без наложения;
-// без ролей LOW/MID/HIGH — перетасовка брейка: куски по порядку, часть заменена, в конце — сбивка.
+// KICK, SNARE, CLAP, HAT, PERC ставятся на места своих ударных стиля проекта (DrumRhythm) нотами в 1 шаг, BASS и LEAD —
+// по ритму баса и мелодии стиля (MelodyRhythm), PAD — редко и без наложения; без ролей (кроме PAD) — перетасовка
+// брейка: куски по порядку, часть заменена, в конце — сбивка.
 
 public enum SliceRhythm {
     /// Роль куска нарезки (SliceMark.role).
-    public enum Role: Int, Sendable, CaseIterable { case low, mid, high, long }
+    /// Номера 0…3 — прежние LOW, MID, HIGH, LONG (7.11 стали KICK, SNARE, HAT, PAD — без перевода проектов).
+    public enum Role: Int, Sendable, CaseIterable { case kick, snare, hat, pad, clap, perc, bass, lead }
 
-    /// Подписи ролей (строка редактора при удержании флажка) и короткие — у флажка.
-    public static let roleNames: [String] = ["LOW", "MID", "HIGH", "LONG"]
+    /// Подписи ролей по номеру (строка редактора при удержании флажка, подпись у флажка).
+    public static let roleNames: [String] = ["KICK", "SNARE", "HAT", "PAD", "CLAP", "PERC", "BASS", "LEAD"]
+
+    /// Порядок кнопок ролей в строке редактора.
+    public static let order: [Role] = [.kick, .snare, .clap, .hat, .perc, .bass, .lead, .pad]
 
     public static func role(_ v: Int?) -> Role? {
         guard let k = v else { return nil }
@@ -93,12 +98,15 @@ public enum SliceRhythm {
         return Double.random(in: DrumRhythm.velMid, using: &g).rounded()
     }
 
-    /// Роль ударного движка, на места которого встают куски роли.
-    static func drumRole(_ r: Role) -> DrumRhythm.Role {
+    /// Роль ударного движка, на места которого встают куски роли; BASS, LEAD, PAD — nil.
+    static func drumRole(_ r: Role) -> DrumRhythm.Role? {
         switch r {
-        case .low: return .kick
-        case .mid: return .snare
-        default: return .hat
+        case .kick: return .kick
+        case .snare: return .snare
+        case .clap: return .clap
+        case .hat: return .hat
+        case .perc: return .perc
+        default: return nil
         }
     }
 
@@ -115,25 +123,41 @@ public enum SliceRhythm {
         return out
     }
 
-    // MARK: — роли LOW, MID, HIGH (кит)
+    // MARK: — роли (кит)
 
-    /// Ноты ролей LOW, MID, HIGH на страницах lens по партиям KICK, SNARE, HAT стиля (основа, вариации, сбивка).
-    static func kit(_ pieces: [Piece], style: Int, bpm: Double, lens: [Int],
-                                             using g: inout Rng) -> [[Event]] {
+    /// Ноты ролей на страницах lens: ударные — по партиям стиля (основа, вариации, сбивка), нотами в 1 шаг; BASS и
+    /// LEAD — по ритму баса и мелодии стиля (длина — по ним, не длиннее куска); кусок на удар — наугад из своей роли.
+    static func kit(_ pieces: [Piece], style: Int, bpm: Double, lens: [Int], using g: inout Rng) -> [[Event]] {
         var out: [[Event]] = lens.map { _ in [] }
-        for r in [Role.low, Role.mid, Role.high] {
+        for r in order where r != .pad {
             let own: [Piece] = pieces.filter { $0.role == r }
             if own.isEmpty { continue }
-            let hits: [[DrumRhythm.Hit]] = DrumRhythm.pattern(drumRole(r), style: style, bpm: bpm, lens: lens,
-                                                                    using: &g)
-            for (p, page) in hits.enumerated() {
-                var evs: [Event] = []
-                for h in page {
-                    guard let pc = own.randomElement(using: &g) else { continue }
-                    // Нота в 1 шаг (решение пользователя 3.11): хвост куска — ручкой Decay, как у ударной дорожки.
-                    evs.append(Event(step: h.step, note: pc.note, len: 1, vel: h.vel ?? DrumRhythm.velFull))
+            if let dr = drumRole(r) {
+                let hits: [[DrumRhythm.Hit]] = DrumRhythm.pattern(dr, style: style, bpm: bpm, lens: lens, using: &g)
+                for (p, page) in hits.enumerated() {
+                    for h in page {
+                        guard let pc = own.randomElement(using: &g) else { continue }
+                        // Нота в 1 шаг (решение пользователя 3.11): хвост куска — ручкой Decay, как у ударной дорожки.
+                        out[p].append(Event(step: h.step, note: pc.note, len: 1, vel: h.vel ?? DrumRhythm.velFull))
+                    }
                 }
-                out[p] += evs
+                continue
+            }
+            // Ритм баса или мелодии стиля (высоты не нужны — нота куска своя).
+            let degrees: [Int] = [1, 1, 1, 1]
+            var line: [[Event]] = []
+            if r == .bass {
+                line = MelodyRhythm.bass(style: style, bpm: bpm, lens: lens, degrees: degrees, scale: 0, root: 0,
+                                         octave: 3, using: &g)
+            } else {
+                line = MelodyRhythm.lead(style: style, bpm: bpm, lens: lens, degrees: degrees, scale: 0, root: 0,
+                                         octave: 4, using: &g)
+            }
+            for (p, page) in line.enumerated() {
+                for e in page {
+                    guard let pc = own.randomElement(using: &g) else { continue }
+                    out[p].append(Event(step: e.step, note: pc.note, len: Swift.min(e.len, pc.steps), vel: e.vel))
+                }
             }
         }
         return out
@@ -199,7 +223,7 @@ public enum SliceRhythm {
         return clip(out, pieces: u, len: n)
     }
 
-    // MARK: — LONG
+    // MARK: — PAD
 
     /// Длинные куски: с шага 1, следующий — через 8 шагов (кусок до 8 шагов) или через страницу; нота — до
     /// следующей, не длиннее куска: длинные не накладываются друг на друга.
@@ -218,8 +242,8 @@ public enum SliceRhythm {
 
     // MARK: — рисунок
 
-    /// Рисунок на страницы lens (шагов на странице, 0 — не играет): LOW, MID, HIGH — по стилю; без них — брейк из
-    /// кусков без роли; LONG — поверх. Первая страница брейка не повторяет avoid (код прошлой основы), если
+    /// Рисунок на страницы lens (шагов на странице, 0 — не играет): куски с ролями (кроме PAD) — по стилю; без них —
+    /// брейк из кусков без роли; PAD — поверх. Первая страница брейка не повторяет avoid (код прошлой основы), если
     /// получится за 16 попыток. Нет кусков — пусто.
     public static func pattern(_ pieces: [Piece], style: Int = 0, bpm: Double = 120,
                                                          lens: [Int], avoid: [Int]? = nil,
@@ -227,7 +251,7 @@ public enum SliceRhythm {
         var out: [[Event]] = lens.map { _ in [] }
         let playing: [Int] = lens.indices.filter { lens[$0] > 0 }
         guard let first = playing.first, let last = playing.last else { return out }
-        let kitMode: Bool = pieces.contains { $0.role != nil && $0.role != .long }
+        let kitMode: Bool = pieces.contains { $0.role != nil && $0.role != .pad }
         if kitMode {
             out = kit(pieces, style: style, bpm: bpm, lens: lens, using: &g)
         } else {
@@ -246,7 +270,7 @@ public enum SliceRhythm {
                 if last != first { out[last] = breakFill(b, u, len: lens[last], using: &g) }
             }
         }
-        let l: [Piece] = pieces.filter { $0.role == .long }
+        let l: [Piece] = pieces.filter { $0.role == .pad }
         if !l.isEmpty {
             for p in playing { out[p] += longs(l, len: lens[p], using: &g) }
         }

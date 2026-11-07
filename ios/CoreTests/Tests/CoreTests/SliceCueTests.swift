@@ -36,7 +36,7 @@ final class SliceCueTests: XCTestCase {
         let r = SliceRhythm.pieces(marks, notes: notes) { a, b in (b - a) * 16 }
         XCTAssertEqual(r.pieces.map { $0.note }, [SliceRhythm.cutNote, SliceRhythm.cutNote + 1])
         XCTAssertEqual(r.pieces.map { $0.len }, [8, 8])
-        XCTAssertEqual(r.pieces[1].role, .mid)
+        XCTAssertEqual(r.pieces[1].role, .snare)
         XCTAssertEqual(r.cuts[SliceRhythm.cutNote + 1], SliceRhythm.Cut(a: 0.5, b: 1))
         var t = Track(index: 0)
         let pat: [[SliceRhythm.Event]] = [[SliceRhythm.Event(step: 0, note: SliceRhythm.cutNote + 1, len: 4, vel: 127),

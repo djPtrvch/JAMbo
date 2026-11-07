@@ -1,7 +1,7 @@
 import XCTest
 @testable import Core
 
-/// Случайная нарезка (SHIFT + RANDOM на дорожке с нарезанным сэмплом): брейк, роли LOW/MID/HIGH по стилю, LONG без
+/// Случайная нарезка (SHIFT + RANDOM на дорожке с нарезанным сэмплом): брейк, ударные роли по стилю, BASS и LEAD по ритму стиля, PAD без
 /// наложения, длины нот, запись, роль маркера в проекте.
 final class SliceRhythmTests: XCTestCase {
     private func pieces(_ lens: [Double], roles: [SliceRhythm.Role?]? = nil) -> [SliceRhythm.Piece] {
@@ -71,7 +71,7 @@ final class SliceRhythmTests: XCTestCase {
     func testKitRoles() {
         var g = SystemRandomNumberGenerator()
         // 60 — LOW, 61 — MID, 62, 63 — HIGH, 64 — без роли (в ките не играет).
-        let ps = pieces([1, 2, 0.5, 0.5, 1], roles: [.low, .mid, .high, .high, nil])
+        let ps = pieces([1, 2, 0.5, 0.5, 1], roles: [.kick, .snare, .hat, .hat, nil])
         for _ in 0..<200 {
             let evs = SliceRhythm.pattern(ps, style: 0, lens: [16], using: &g)[0]
             let low = Set(evs.filter { $0.note == 60 }.map { $0.step })
@@ -91,7 +91,7 @@ final class SliceRhythmTests: XCTestCase {
         var g = SystemRandomNumberGenerator()
         // Длинный пэд (40 шагов) поверх брейка из двух кусков; и короткий LONG (6 шагов).
         for long in [40.0, 6.0] {
-            let ps = pieces([1, 1, long], roles: [nil, nil, .long])
+            let ps = pieces([1, 1, long], roles: [nil, nil, .pad])
             for _ in 0..<100 {
                 let pat = SliceRhythm.pattern(ps, lens: [16, 16, 16], using: &g)
                 for evs in pat {
@@ -104,7 +104,7 @@ final class SliceRhythmTests: XCTestCase {
             }
         }
         // Только LONG — без ритма.
-        let only = SliceRhythm.pattern(pieces([30], roles: [.long]), lens: [16], using: &g)[0]
+        let only = SliceRhythm.pattern(pieces([30], roles: [.pad]), lens: [16], using: &g)[0]
         XCTAssertEqual(only.map { $0.step }, [0])
         XCTAssertEqual(only.first?.len, 16)
     }
@@ -116,7 +116,7 @@ final class SliceRhythmTests: XCTestCase {
         t.addSlice("loop.caf", at: 0)
         t.addSlice("loop.caf", at: 0.5)
         XCTAssertTrue(t.sliced)
-        t.setSliceRole("loop.caf", 1, role: .long)
+        t.setSliceRole("loop.caf", 1, role: .pad)
         XCTAssertEqual(t.sliceMarks("loop.caf")[1].role, 3)
         t.withStep(3) { s in s.on = true; s.notes = [40] }
         let pat: [[SliceRhythm.Event]] = [[SliceRhythm.Event(step: 0, note: 60, len: 2, vel: 127),
@@ -135,5 +135,27 @@ final class SliceRhythmTests: XCTestCase {
         XCTAssertNil(back.sliceMarks("loop.caf")[0].role)
         t.setSliceRole("loop.caf", 1, role: nil)
         XCTAssertNil(t.sliceMarks("loop.caf")[1].role)
+    }
+
+    func testMelodicAndClapRoles() {
+        var g = SystemRandomNumberGenerator()
+        XCTAssertEqual(SliceRhythm.order.count, 8)
+        XCTAssertEqual(Set(SliceRhythm.order), Set(SliceRhythm.Role.allCases))
+        // Прежние LOW, MID, HIGH, LONG (0…3) — KICK, SNARE, HAT, PAD.
+        XCTAssertEqual([0, 1, 2, 3].map { SliceRhythm.role($0) }, [.kick, .snare, .hat, .pad])
+        let ps = pieces([4, 4, 1, 1], roles: [.bass, .lead, .clap, .perc])
+        for st in 0..<DrumRhythm.styles.count {
+            for _ in 0..<20 {
+                let pat = SliceRhythm.pattern(ps, style: st, bpm: 124, lens: [16, 16], using: &g)
+                for page in pat {
+                    XCTAssertTrue(page.allSatisfy { $0.step >= 0 && $0.step + $0.len <= 16 })
+                    XCTAssertTrue(page.filter { $0.note == 60 }.allSatisfy { $0.len <= 4 }, "BASS — не длиннее куска")
+                    XCTAssertTrue(page.filter { $0.note == 62 || $0.note == 63 }.allSatisfy { $0.len == 1 }, "ударные — 1 шаг")
+                }
+                XCTAssertTrue(pat[0].contains { $0.note == 60 }, "BASS играет")
+                XCTAssertTrue(pat[0].contains { $0.note == 61 }, "LEAD играет")
+                XCTAssertTrue(pat[0].contains { $0.note == 62 }, "CLAP играет")
+            }
+        }
     }
 }

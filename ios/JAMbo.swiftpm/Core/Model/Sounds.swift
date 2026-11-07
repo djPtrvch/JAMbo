@@ -21,7 +21,7 @@ public struct Folder: Codable, Equatable, Sendable {
 public struct SliceMark: Codable, Equatable, Sendable {
     public var at: Double
     public var note: Int?
-    /// Роль куска для случайной нарезки (SliceRhythm.Role: LOW, MID, HIGH, LONG); nil — без роли.
+    /// Роль куска для случайной нарезки (SliceRhythm.Role: KICK, SNARE, CLAP, HAT, PERC, BASS, LEAD, PAD; 0…3 — прежние LOW, MID, HIGH, LONG); nil — без роли.
     public var role: Int?
     /// Маркер без ноты (пустой флажок; удержание флажка + двойной тап клавиши; решение пользователя 3.11): только для случайной нарезки — сэмпл не
     /// нарезается на ноты и транспонируется клавишами, как без маркеров. nil — маркер с нотой.

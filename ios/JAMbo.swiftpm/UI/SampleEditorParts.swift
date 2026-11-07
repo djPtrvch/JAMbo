@@ -61,7 +61,7 @@ struct EditorBar: View {
     @ViewBuilder
     private var roleButtons: some View {
         let cur: SliceRhythm.Role? = model.heldSliceRole
-        ForEach(SliceRhythm.Role.allCases, id: \.rawValue) { r in
+        ForEach(SliceRhythm.order, id: \.rawValue) { r in
             ToolButton(title: SliceRhythm.roleNames[r.rawValue], lit: cur == r, width: nil) { model.setHeldSliceRole(r) }
         }
     }
