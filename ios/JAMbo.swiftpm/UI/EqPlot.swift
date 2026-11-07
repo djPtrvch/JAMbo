@@ -94,7 +94,14 @@ struct EqPlot: View {
                         drawPoints(ctx, eq, g, offs)
                     }
                 }
+                // Окно коррекции наушников: кривые TRIM и RESULT, миниатюра колонок (Headphone Monitor).
+                if model.phonesShown { MonitorCurves(model: model, g: g) }
                 tips(eq, g)
+            }
+            .overlay(alignment: .topTrailing) {
+                if model.phonesShown {
+                    MonitorSpeakers(angle: model.monitor.angle, amount: model.monitor.amount).padding(6)
+                }
             }
             .contentShape(Rectangle())
             .gesture(touch(g))

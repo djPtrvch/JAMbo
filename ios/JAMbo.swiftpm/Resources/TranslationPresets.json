@@ -1,6 +1,10 @@
 {
   "presets": [
-    { "name": "Off", "filters": [] },
+    { "name": "Studio", "filters": [
+      { "type": "HP", "freq": 30 },
+      { "type": "LS", "freq": 120, "gain": 1.5 },
+      { "type": "HS", "freq": 5000, "gain": -2 }
+    ] },
     { "name": "Club", "filters": [
       { "type": "HP", "freq": 30 },
       { "type": "LS", "freq": 60, "gain": 2 },

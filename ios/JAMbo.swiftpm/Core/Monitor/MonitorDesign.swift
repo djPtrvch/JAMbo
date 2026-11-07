@@ -14,7 +14,7 @@ public struct MonitorSettings: Codable, Equatable, Sendable {
     /// Crossfeed: угол колонок, градусы (10…60), и Amount, 0…1.
     public var angle: Double = MonitorSpec.angleDef
     public var amount: Double = MonitorSpec.amountDef
-    /// Имя пресета Translation (пусто или Off — выкл.).
+    /// Имя пресета Translation (пусто — первый, Studio).
     public var translation: String = ""
     public var mono: Bool = false
     public var sub: Bool = false

@@ -11,7 +11,7 @@ extension AppModel {
         return MonitorSettings.decode(UserDefaults.standard.data(forKey: AppModel.monitorKey))
     }
 
-    /// Пресеты Translation из ресурсов (в корне пакета или в папке Resources); нет файла — только Off.
+    /// Пресеты Translation из ресурсов (в корне пакета или в папке Resources); нет файла — только Off (без фильтров).
     static func loadTranslations() -> [TranslationPreset] {
         let b: Bundle = Bundle.main
         let url: URL? = b.url(forResource: "TranslationPresets", withExtension: "json")
@@ -41,8 +41,10 @@ extension AppModel {
         publishMonitor()
     }
 
+    /// Пресет Translation: выбранный, иначе первый (Studio — по умолчанию).
     var translationPreset: TranslationPreset? {
-        return translations.first { $0.name == monitor.translation && !$0.filters.isEmpty }
+        let p: TranslationPreset? = translations.first { $0.name == monitor.translation } ?? translations.first
+        return (p?.filters.isEmpty ?? true) ? nil : p
     }
 
     /// Параметры цепочки по текущим настройкам.

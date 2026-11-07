@@ -161,7 +161,7 @@ final class MonitorTests: XCTestCase {
     /// Translation: пресеты из JSON; Phone — моно, срез низа, компенсация вверх (≤ 12 dB); Sub-check — соло НЧ.
     func testTranslationAndSub() {
         let list: [TranslationPreset] = presets()
-        XCTAssertEqual(list.map { $0.name }, ["Off", "Club", "Small Monitors", "Small Headphones", "Phone", "Car", "Home Hi-Fi"])
+        XCTAssertEqual(list.map { $0.name }, ["Studio", "Club", "Small Monitors", "Small Headphones", "Phone", "Car", "Home Hi-Fi"])
         guard let phone = list.first(where: { $0.name == "Phone" }) else { return XCTFail() }
         var m = MonitorSettings()
         m.amount = 0
