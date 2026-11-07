@@ -99,9 +99,6 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var pitchSemitones: Bool = false
     /// Бутерброд → MIDI (S13): вход, обратная связь, ноты.
     public var midi = MidiSettings()
-    /// SETTINGS → RECORD → STEP SWIPE (S13, решение пользователя): палец по шагам — длинная нота от первого шага
-    /// (LENGTH, по умолчанию) или триг на каждом пройденном шаге (PAINT).
-    public var stepPaint: Bool = false
     /// Бутерброд → SYNC (S13e): квант, MIDI-клок, настройки Ableton Link.
     public var sync = SyncSettings()
     /// Режим строк при FIX (кнопки EXPANDED / COMPACT под измерителем аранжировщика): EXPANDED (по умолчанию) — 8
@@ -144,7 +141,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
 
     private enum CodingKeys: String, CodingKey { case appearance, pianoOctaves, velocity, record, sliceMap, scSends, latchFx, latchMod, rollGrid,
                                          rollSound, levelRelative, morphAll, morphReturn, morphHold, mixKey, mixCrossfader,
-                                         clearSampleLocks, pitchSemitones, midi, stepPaint, sync,
+                                         clearSampleLocks, pitchSemitones, midi, sync,
                                          arrangeCompact, fxPictures, backgroundAudio, arrangeRepeats, stretchBeat,
                                          metronomeVol, arrangeScale, arrangeFollow, displayScale,
                                          randomDrums, randomChords, randomSwing, randomStepsAll, randomSamples,
@@ -175,7 +172,6 @@ public struct AppSettings: Codable, Equatable, Sendable {
         stretchBeat = c.value(.stretchBeat, false)
         pitchSemitones = c.value(.pitchSemitones, false)
         midi = c.value(.midi, MidiSettings())
-        stepPaint = c.value(.stepPaint, false)
         sync = c.value(.sync, SyncSettings())
         arrangeCompact = c.value(.arrangeCompact, false)
         arrangeRepeats = c.value(.arrangeRepeats, true)

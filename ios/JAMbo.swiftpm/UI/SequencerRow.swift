@@ -86,18 +86,10 @@ struct SequencerRow: View {
         model.beginGesture()
     }
 
-    /// Палец по шагам (SETTINGS → RECORD → STEP SWIPE): LENGTH — длинная нота от первого шага; PAINT — триг на
-    /// каждом пройденном шаге (в обе стороны; пропущенные при быстром движении — тоже).
+    /// Палец по шагам вправо — длинная нота от первого шага (STEP SWIPE PAINT убран, 7.11).
     private func move(_ id: SpatialEventCollection.Event.ID, _ p: StepPress, to col: Int) {
         if p.secondary { return }
         if col == p.col && !p.dragged { return }
-        if model.settings.stepPaint {
-            presses[id]?.dragged = true
-            presses[id]?.used = true
-            let base: Int = p.index - p.col
-            model.paintSteps(base + min(p.col, col), base + max(p.col, col))
-            return
-        }
         if col < p.col { return }
         presses[id]?.dragged = true
         presses[id]?.used = true

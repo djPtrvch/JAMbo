@@ -169,3 +169,61 @@ final class ArpStepsTests: XCTestCase {
         XCTAssertTrue(two.contains { $0.note >= 60 } && two.allSatisfy { $0.note < 72 }, "OCTAVES 2 — две")
     }
 }
+
+/// Случайное арпеджио по стилю (Arp.randomSteps): ноты из аккордов, ритм, разнообразие фигур.
+final class ArpRandomTests: XCTestCase {
+    private let chords: [[Int]] = [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]]
+
+    func testNotesFromChordsAndGrid() {
+        var g = SystemRandomNumberGenerator()
+        for st in 0..<DrumRhythm.styles.count {
+            for rate in 0..<Arp.rates.count {
+                for oc in 1...3 {
+                    let notes = Arp.randomSteps(chords, steps: 64, dir: Int.random(in: 0..<6, using: &g), octaves: oc,
+                                                rate: rate, gate: 0.5, style: st, bpm: 124, using: &g)
+                    XCTAssertFalse(notes.isEmpty)
+                    let every: Int = Arp.gridSteps[rate]
+                    for (i, n) in notes.enumerated() {
+                        XCTAssertEqual(n.step % every, 0)
+                        let ci: Int = n.step * 4 / 64
+                        let pcs: Set<Int> = Set(chords[ci].map { $0 % 12 })
+                        XCTAssertTrue(pcs.contains(n.note % 12), "звук аккорда")
+                        XCTAssertGreaterThanOrEqual(n.note, chords[ci].min() ?? 0)
+                        XCTAssertLessThan(n.note, (chords[ci].max() ?? 0) + 12 * oc + 1, "в пределах OCTAVES")
+                        let next: Int = i + 1 < notes.count ? notes[i + 1].step : 64
+                        XCTAssertTrue(n.len >= 1 && n.step + n.len <= next, "не накладываются")
+                        XCTAssertNotNil(n.vel)
+                    }
+                    XCTAssertEqual(notes.first?.step, 0, "первая доля звучит")
+                }
+            }
+        }
+    }
+
+    func testVariety() {
+        var g = SystemRandomNumberGenerator()
+        var shapes = Set<[Int]>()
+        for _ in 0..<60 {
+            let notes = Arp.randomSteps(chords, steps: 16, dir: Arp.up, octaves: 2, rate: 2, gate: 0.5, style: 2,
+                                        bpm: 130, using: &g)
+            shapes.insert(notes.map { $0.step * 1000 + $0.note })
+        }
+        XCTAssertGreaterThan(shapes.count, 20, "рисунки разные")
+        // Up не значит «всегда вверх»: есть шаги вниз внутри одного аккорда.
+        var downs: Int = 0
+        for _ in 0..<40 {
+            let n = Arp.randomSteps([[60, 64, 67, 71]], steps: 16, dir: Arp.up, octaves: 1, rate: 2, gate: 0.5,
+                                    style: 1, bpm: 130, using: &g)
+            for i in 1..<n.count where n[i].note < n[i - 1].note && n[i].step < 12 { downs += 1 }
+        }
+        XCTAssertGreaterThan(downs, 0)
+    }
+
+    func testWriteVelocity() {
+        var t = Track(index: 0)
+        t.writeArpSteps([ArpStepNote(step: 0, note: 60, len: 1, vel: 127), ArpStepNote(step: 3, note: 64, len: 1, vel: 70)],
+                        pages: 0...0)
+        XCTAssertEqual(t.pages[0][0].locks["level"], 127)
+        XCTAssertEqual(t.pages[0][3].locks["level"], 70)
+    }
+}

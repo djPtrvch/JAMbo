@@ -106,14 +106,12 @@ struct KeyRow: View {
     }
 }
 
-/// CHORD: тап — вкл./выкл. текущего режима (с SHIFT — случайная прогрессия или ритм на выбранные страницы); свайп
-/// вверх — ARP, вниз — CHORD (не на ударной дорожке); долгое нажатие — окно типов аккорда, направлений арпеджио или
-/// стилей ритма. Слово (CHORD или ARP) и под ним тип — вместе по центру кнопки.
+/// CHORD: тап — вкл./выкл. текущего режима (с SHIFT — случайная прогрессия или ритм на выбранные страницы); режим
+/// ARP — только рычажок ARPEGGIATOR в меню под CHORD (свайпа нет, 7.11); долгое нажатие — окно типов аккорда,
+/// направлений арпеджио или стилей ритма. Слово (CHORD или ARP) и под ним тип — вместе по центру кнопки.
 struct ChordButton: View {
     let model: AppModel
     @Environment(\.theme) private var theme
-    /// Свайп уже переключил режим (один раз за жест).
-    @State private var swiped: Bool = false
     /// Палец на кнопке (RANDOM — моментальная: горит, пока нажата).
     @State private var pressed: Bool = false
 
@@ -133,21 +131,6 @@ struct ChordButton: View {
         .onTapGesture { model.chordTap() }
         .onLongPressGesture(minimumDuration: 0.5, perform: { model.chordMenuOpen = true },
                             onPressingChanged: { p in pressed = p })
-        .simultaneousGesture(swipe)
-    }
-
-    /// Свайп на 24 pt: вверх — ARP, вниз — CHORD; на ударной дорожке — ничего.
-    private var swipe: some Gesture {
-        DragGesture(minimumDistance: 12)
-            .onChanged { v in
-                if swiped { return }
-                let dy: CGFloat = v.translation.height
-                if dy <= -24 || dy >= 24 {
-                    swiped = true
-                    model.setChordArpMode(dy < 0)
-                }
-            }
-            .onEnded { _ in swiped = false }
     }
 }
 

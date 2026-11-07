@@ -140,13 +140,12 @@ struct MetronomeSlider: View {
     }
 }
 
-/// RECORD: QUANTIZE, STEP SWIPE (OVERDUB — в меню клавиатуры; AUTOMATION RECORDING — с автоматизацией).
+/// RECORD: QUANTIZE, ARRANGE REC START, METRONOME (палец по шагам — всегда длинная нота, STEP SWIPE убран 7.11; OVERDUB — в меню клавиатуры; AUTOMATION RECORDING — с автоматизацией).
 struct RecordSettingsView: View {
     let model: AppModel
 
     var body: some View {
         let m: AppModel = model
-        let paint: Bool = m.settings.stepPaint
         return FormRows(rows: [
             .toggle("QUANTIZE", m.settings.record.quantize) { m.setQuantize($0) },
             .note("ON: a note played with REC lands on the nearest step. OFF: on the step where it was played."),
@@ -154,10 +153,6 @@ struct RecordSettingsView: View {
             .choices([MenuChoice(title: "PLAYHEAD", current: !m.settings.record.arrFromStart) { m.updateSettings { $0.record.arrFromStart = false } },
                       MenuChoice(title: "BEGINNING", current: m.settings.record.arrFromStart) { m.updateSettings { $0.record.arrFromStart = true } }]),
             .note("Live recording into the arrangement (hold ARRANGE + tap REC, then PLAY in the pattern grid): PLAYHEAD — from the playhead. BEGINNING — always from the start of the timeline."),
-            .label("STEP SWIPE"),
-            .choices([MenuChoice(title: "LENGTH", current: !paint) { m.updateSettings { $0.stepPaint = false } },
-                      MenuChoice(title: "PAINT", current: paint) { m.updateSettings { $0.stepPaint = true } }]),
-            .note("Sliding a finger along the steps: LENGTH — one long note from the first step. PAINT — a trig on every step you pass."),
             .view(AnyView(MetronomeSlider(model: m))),
             .note("Click volume: 100% — the usual level, up to 200%."),
         ])

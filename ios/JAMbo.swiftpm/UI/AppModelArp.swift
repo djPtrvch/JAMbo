@@ -20,7 +20,7 @@ extension AppModel {
         syncArp()
     }
 
-    /// Свайп по CHORD: вверх — ARP, вниз — CHORD; включённость переходит к новому режиму (одновременно включён один).
+    /// Рычажок ARPEGGIATOR (меню под CHORD): ON — ARP, OFF — CHORD; включённость переходит к новому режиму (одновременно включён один).
     func setChordArpMode(_ arp: Bool) {
         guard channel == .track, track.arp.mode != arp else { return }
         let i: Int = selectedTrack

@@ -83,6 +83,8 @@ public struct ArpStepNote: Equatable, Sendable {
     public var step: Int
     public var note: Int
     public var len: Int
+    /// Velocity — p-lock Level шага 0…127 (nil — без p-lock).
+    public var vel: Double? = nil
 }
 
 extension Arp {
@@ -147,6 +149,7 @@ extension Track {
                 s.notes = [a.note]
                 s.setAllLen(a.len)
             }
+            if let v = a.vel { setLock(base + a.step, "level", v) }
         }
     }
 }

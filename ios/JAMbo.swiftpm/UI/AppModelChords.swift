@@ -159,7 +159,8 @@ extension AppModel {
     }
 
     /// Режим ARP: случайная прогрессия (как writeRandomProgression), разложенная по шагам выбранных страниц —
-    /// четверть на аккорд, направление, октавы, RATE и GATE арпеджиатора. Одна запись UNDO; ARP не меняется.
+    /// четверть на аккорд, фигура по направлению, ритм стиля проекта, октавы, RATE и GATE арпеджиатора
+    /// (Arp.randomSteps). Одна запись UNDO; ARP не меняется.
     func writeRandomArp() {
         guard channel == .track else { return }
         var g = SystemRandomNumberGenerator()
@@ -172,8 +173,9 @@ extension AppModel {
         // Каждый аккорд — в октаве клавиатуры (обращением): с OCTAVES 1 арпеджио не разбегается на две октавы.
         let folded: [[Int]] = Arp.fold(cs, base: Scales.baseNote(root: project.root, octave: octave))
         let total: Int = (range.upperBound - range.lowerBound + 1) * Params.stepsPerPage
-        let notes: [ArpStepNote] = Arp.steps(folded, steps: total, dir: a.dir, octaves: a.octaves, rate: a.rate,
-                                             gate: a.gate, using: &g)
+        let notes: [ArpStepNote] = Arp.randomSteps(folded, steps: total, dir: a.dir, octaves: a.octaves,
+                                                   rate: a.rate, gate: a.gate, style: track.drumStyle,
+                                                   bpm: project.bpm, using: &g)
         editTrack { t in t.writeArpSteps(notes, pages: range) }
     }
 
