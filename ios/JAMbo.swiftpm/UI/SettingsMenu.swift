@@ -320,7 +320,7 @@ struct RandomSettings: View {
             .toggle("DRUMS", s.randomDrums) { m.setRandom(0, $0) },
             .note("SHIFT + tap on CHORD on a drum track (Kick, Snare, Hat, Clap, Perc) writes a random rhythm in the project's style (one style for all tracks; Breaks/D&B and Trap/R&B follow the tempo). OFF: nothing."),
             .toggle("CHORDS / ARP", s.randomChords) { m.setRandom(1, $0) },
-            .note("SHIFT + tap on CHORD on other tracks writes a random part by the track's role: a bass line in the project's style on a bass track (Sub, a sample named bass or 808, or keyboard octave C2 and lower) over the last random progression; otherwise a random chord progression, in ARP mode — a random arpeggio. OFF: nothing."),
+            .note("SHIFT + tap on CHORD on other tracks writes a random part in the project's style by the track's role: BASS (Sub, a sample named bass or 808, keyboard octave C2 and lower) — a bass line; KEYS (CHORD mode, a sample named chord, keys, piano) — chords in the style's rhythm; PAD (Texture, Granular, a sample named pad) — long chords; LEAD (other tracks) — a melody; ARP mode — an arpeggio. Bass and lead follow the last random progression. OFF: nothing."),
             .toggle("SAMPLES", s.randomSamples) { m.setRandom(4, $0) },
             .note("SHIFT + tap on RANDOM on a track with a sliced sample writes a random pattern of its slices in the project's style. Hold a slice flag in the sample editor to give the slice a role: LOW, MID, HIGH play where the style puts kick, snare, hat; LONG plays rarely, never over itself. Without roles the slices are reshuffled like a break."),
             .toggle("STEPS ALL TRACKS", s.randomStepsAll) { m.setRandom(3, $0) },

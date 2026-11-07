@@ -23,8 +23,10 @@ extension AppModel {
                     writeRandomArp()
                 } else if melodyRole == .bass {
                     writeRandomBass()
+                } else if melodyRole == .keys || melodyRole == .pad {
+                    writeRandomChordPart(melodyRole)
                 } else {
-                    writeRandomProgression()
+                    writeRandomLead()
                 }
             }
         } else if arpMode {
@@ -120,23 +122,54 @@ extension AppModel {
         return v...v
     }
 
-    /// Случайная прогрессия из 4 аккордов текущего типа на выбранные страницы поровну (одна страница — шаги 1, 5, 9,
-    /// 13 по 4 шага; четыре — по странице на аккорд). Прежние шаги выбранных страниц стираются. Ноты — конкретные
-    /// (гамма, корень, октава клавиатуры сейчас). Одна запись UNDO; режим CHORD не меняется.
-    func writeRandomProgression() {
-        guard channel == .track else { return }
-        var g = SystemRandomNumberGenerator()
-        let degrees: [Int] = Chords.random(scale: project.scale, avoid: lastRandomProgression, using: &g)
-        lastRandomProgression = degrees
-        let cs: [[Int]] = Chords.chords(degrees, scale: project.scale, root: project.root, octave: octave,
-                                        kind: chordKind[selectedTrack])
-        let range: ClosedRange<Int> = chordPages
-        editTrack { t in t.writeProgression(cs, pages: range) }
-    }
-
     /// Роль выбранной дорожки для случайной партии (MelodyRhythm.role): звук, октава клавиатуры, CHORD, ARP.
     var melodyRole: MelodyRhythm.Role {
         return MelodyRhythm.role(sample: track.sample, octave: octave, chord: chordMode[selectedTrack], arp: arpMode)
+    }
+
+    /// Случайная прогрессия стиля проекта (MelodyRhythm.progression), не равная прошлой.
+    func newProgression<G: RandomNumberGenerator>(using g: inout G) -> [Int] {
+        return MelodyRhythm.progression(style: track.drumStyle, bpm: project.bpm, scale: project.scale,
+                                        avoid: lastRandomProgression, using: &g)
+    }
+
+    /// Случайная мелодия (LEAD) выбранной дорожки (стиль проекта) на выбранные страницы — по прогрессии, общей с
+    /// аккордами (последняя случайная; её нет — новая). Одна запись UNDO; AUTO SWING — Swing дорожки по стилю.
+    func writeRandomLead() {
+        guard channel == .track else { return }
+        var g = SystemRandomNumberGenerator()
+        let degrees: [Int] = lastRandomProgression ?? newProgression(using: &g)
+        lastRandomProgression = degrees
+        let range: ClosedRange<Int> = chordPages
+        let scale: Int = project.scale
+        let root: Int = project.root
+        let oct: Int = octave
+        let bpm: Double = project.bpm
+        let swing: Bool = settings.randomSwing
+        editTrack { t in
+            t.writeRandomLead(pages: range, degrees: degrees, scale: scale, root: root, octave: oct, bpm: bpm, using: &g)
+            if swing { t.params["swing"] = DrumRhythm.swing(t.drumStyle, bpm: bpm) }
+        }
+    }
+
+    /// Случайная аккордовая партия KEYS (ритм стиля) или PAD (аккорд на отрезок) на выбранные страницы: новая
+    /// прогрессия стиля (её же потом берёт бас), тип аккорда дорожки, голосоведение — аккорды в октаве клавиатуры
+    /// (Arp.fold). Одна запись UNDO; режим CHORD не меняется.
+    func writeRandomChordPart(_ role: MelodyRhythm.Role) {
+        guard channel == .track else { return }
+        var g = SystemRandomNumberGenerator()
+        let degrees: [Int] = newProgression(using: &g)
+        lastRandomProgression = degrees
+        let cs: [[Int]] = Chords.chords(degrees, scale: project.scale, root: project.root, octave: octave,
+                                        kind: chordKind[selectedTrack])
+        let folded: [[Int]] = Arp.fold(cs, base: Scales.baseNote(root: project.root, octave: octave))
+        let range: ClosedRange<Int> = chordPages
+        let bpm: Double = project.bpm
+        let swing: Bool = settings.randomSwing
+        editTrack { t in
+            t.writeRandomChords(role, pages: range, chords: folded, bpm: bpm, using: &g)
+            if swing && role == .keys { t.params["swing"] = DrumRhythm.swing(t.drumStyle, bpm: bpm) }
+        }
     }
 
     /// Случайная басовая линия выбранной дорожки (стиль проекта) на выбранные страницы — по прогрессии, общей с
@@ -144,7 +177,7 @@ extension AppModel {
     func writeRandomBass() {
         guard channel == .track else { return }
         var g = SystemRandomNumberGenerator()
-        let degrees: [Int] = lastRandomProgression ?? Chords.random(scale: project.scale, using: &g)
+        let degrees: [Int] = lastRandomProgression ?? newProgression(using: &g)
         lastRandomProgression = degrees
         let range: ClosedRange<Int> = chordPages
         let scale: Int = project.scale
@@ -158,13 +191,13 @@ extension AppModel {
         }
     }
 
-    /// Режим ARP: случайная прогрессия (как writeRandomProgression), разложенная по шагам выбранных страниц —
+    /// Режим ARP: случайная прогрессия стиля (newProgression), разложенная по шагам выбранных страниц —
     /// четверть на аккорд, фигура по направлению, ритм стиля проекта, октавы, RATE и GATE арпеджиатора
     /// (Arp.randomSteps). Одна запись UNDO; ARP не меняется.
     func writeRandomArp() {
         guard channel == .track else { return }
         var g = SystemRandomNumberGenerator()
-        let degrees: [Int] = Chords.random(scale: project.scale, avoid: lastRandomProgression, using: &g)
+        let degrees: [Int] = newProgression(using: &g)
         lastRandomProgression = degrees
         let cs: [[Int]] = Chords.chords(degrees, scale: project.scale, root: project.root, octave: octave,
                                         kind: chordKind[selectedTrack])
