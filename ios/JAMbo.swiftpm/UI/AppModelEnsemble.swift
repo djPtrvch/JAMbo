@@ -15,8 +15,8 @@ enum EnsembleJob {
 
 extension AppModel {
     /// Партия дорожки i по роли (рычажки DRUMS, SAMPLES, CHORDS / ARP); без звука или с выключенным рычажком — nil.
-    private func ensembleJob<G: RandomNumberGenerator>(_ i: Int, degrees: [Int], range: ClosedRange<Int>, octave oct: Int,
-                                                      using g: inout G) -> EnsembleJob? {
+    private func ensembleJob(_ i: Int, degrees: [Int], range: ClosedRange<Int>, octave oct: Int,
+                                                      using g: inout Rng) -> EnsembleJob? {
         let t: Track = project.tracks[i]
         if t.sample.isEmpty { return nil }
         let p: Project = project

@@ -149,7 +149,7 @@ extension AppModel {
     }
 
     /// Случайная прогрессия стиля проекта (MelodyRhythm.progression), не равная прошлой.
-    func newProgression<G: RandomNumberGenerator>(using g: inout G) -> [Int] {
+    func newProgression(using g: inout Rng) -> [Int] {
         return MelodyRhythm.progression(style: track.drumStyle, bpm: project.bpm, scale: project.scale,
                                         avoid: lastRandomProgression, using: &g)
     }

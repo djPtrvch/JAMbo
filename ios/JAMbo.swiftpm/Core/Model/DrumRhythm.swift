@@ -2,6 +2,9 @@
 // вероятностям шагов движка в стиле проекта, вариации средних страниц и сбивка последней (docs/ai/sequencer.md, «Пианоролл»).
 // Стиль — один на проект (у всех дорожек); Breaks / D&B и Trap / R&B выбирают вариант по темпу проекта.
 
+/// Генератор случайных партий (без обобщений — меньше кода в сборке Playgrounds, 7.11).
+public typealias Rng = SystemRandomNumberGenerator
+
 public enum DrumRhythm {
     /// Роль ударного движка.
     public enum Role: Int, Sendable { case kick, snare, hat, clap, perc }
@@ -200,8 +203,8 @@ public enum DrumRhythm {
     /// Доля шага сбивки с ударом (шаги 13–16 последней страницы).
     static let fillChance: [Double] = [0.4, 0.6, 0.7, 0.6, 0.5]
 
-    private static func hitVel<G: RandomNumberGenerator>(_ role: Role, step: Int, ghost: Bool,
-                                                         using g: inout G) -> Double? {
+    private static func hitVel(_ role: Role, step: Int, ghost: Bool,
+                                                         using g: inout Rng) -> Double? {
         if role == .kick { return nil }
         if ghost { return Double.random(in: velGhost, using: &g).rounded() }
         if step % 4 == 0 { return velFull }
@@ -209,8 +212,8 @@ public enum DrumRhythm {
     }
 
     /// Удар роли: velocity, ролл и Chance по рисунку.
-    static func hit<G: RandomNumberGenerator>(_ gr: Groove, _ role: Role, step: Int, ghost: Bool,
-                                              using g: inout G) -> Hit {
+    static func hit(_ gr: Groove, _ role: Role, step: Int, ghost: Bool,
+                                              using g: inout Rng) -> Hit {
         var h = Hit(step: step, vel: hitVel(role, step: step, ghost: ghost, using: &g))
         let rc: Double = rollChance(gr, role)
         if rc > 0 && step % 4 != 0 && Double.random(in: 0..<1, using: &g) < rc {
@@ -233,8 +236,8 @@ public enum DrumRhythm {
     }
 
     /// Основа: рисунок страницы длиной len (1…16) по партии движка в стиле (вариант — по bpm); не пустая.
-    public static func base<G: RandomNumberGenerator>(_ role: Role, style: Int = 0, bpm: Double = 120, len: Int,
-                                                      using g: inout G) -> [Hit] {
+    public static func base(_ role: Role, style: Int = 0, bpm: Double = 120, len: Int,
+                                                      using g: inout Rng) -> [Hit] {
         let gr: Groove = groove(style, bpm: bpm)
         let n: Int = Swift.max(1, Swift.min(Params.stepsPerPage, len))
         var hits: [Hit] = []
@@ -274,8 +277,8 @@ public enum DrumRhythm {
     }
 
     /// Вариация: 1–2 удара добавлено или убрано (опорные не снимаются), в пределах len.
-    public static func vary<G: RandomNumberGenerator>(_ hits: [Hit], role: Role, style: Int = 0, bpm: Double = 120,
-                                                      len: Int, using g: inout G) -> [Hit] {
+    public static func vary(_ hits: [Hit], role: Role, style: Int = 0, bpm: Double = 120,
+                                                      len: Int, using g: inout Rng) -> [Hit] {
         let gr: Groove = groove(style, bpm: bpm)
         let n: Int = Swift.max(1, Swift.min(Params.stepsPerPage, len))
         var out: [Hit] = hits.filter { $0.step < n }
@@ -297,8 +300,8 @@ public enum DrumRhythm {
     }
 
     /// Сбивка: последние 4 шага (из len) заново, хоть один удар.
-    public static func fill<G: RandomNumberGenerator>(_ hits: [Hit], role: Role, style: Int = 0, bpm: Double = 120,
-                                                      len: Int, using g: inout G) -> [Hit] {
+    public static func fill(_ hits: [Hit], role: Role, style: Int = 0, bpm: Double = 120,
+                                                      len: Int, using g: inout Rng) -> [Hit] {
         let gr: Groove = groove(style, bpm: bpm)
         let n: Int = Swift.max(1, Swift.min(Params.stepsPerPage, len))
         let from: Int = Swift.max(0, n - 4)
@@ -319,8 +322,8 @@ public enum DrumRhythm {
     /// Ритм на страницы с длинами lens (шагов на странице, 0 — страница не играет): первая — основа (по своей
     /// длине), средние — вариации, последняя играющая — основа со сбивкой; одна страница — только основа.
     /// Основа не совпадает с avoid (шаги прошлого рисунка), если получится за 16 попыток.
-    public static func pattern<G: RandomNumberGenerator>(_ role: Role, style: Int = 0, bpm: Double = 120, lens: [Int],
-                                                         avoid: [Int]? = nil, using g: inout G) -> [[Hit]] {
+    public static func pattern(_ role: Role, style: Int = 0, bpm: Double = 120, lens: [Int],
+                                                         avoid: [Int]? = nil, using g: inout Rng) -> [[Hit]] {
         let playing: [Int] = lens.indices.filter { lens[$0] > 0 }
         var out: [[Hit]] = lens.map { _ in [] }
         guard let first = playing.first, let last = playing.last else { return out }
@@ -384,10 +387,10 @@ extension Track {
     /// Случайный ритм стиля дорожки на страницы range (по их длинам) нотой note; вариант стиля — по bpm; avoid —
     /// шаги прошлой основы; r — роль (ударный сэмпл по имени), иначе по движку. Возвращает шаги новой основы (для
     /// следующего avoid); не ударная — nil, ничего не пишется.
-    public mutating func writeRandomDrums<G: RandomNumberGenerator>(pages range: ClosedRange<Int>, note: Int,
+    public mutating func writeRandomDrums(pages range: ClosedRange<Int>, note: Int,
                                                                     bpm: Double = 120, avoid: [Int]?,
                                                                     role r: DrumRhythm.Role? = nil,
-                                                                    using g: inout G) -> [Int]? {
+                                                                    using g: inout Rng) -> [Int]? {
         guard let role = r ?? drumRole else { return nil }
         let t: Track = self
         let lens: [Int] = range.map { t.pageLen($0, from: range.lowerBound) }

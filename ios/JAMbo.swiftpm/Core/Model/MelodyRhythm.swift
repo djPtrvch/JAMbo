@@ -88,7 +88,7 @@ public enum MelodyRhythm {
         }
     }
 
-    static func pick<G: RandomNumberGenerator>(_ items: [Int], _ weights: [Double], using g: inout G) -> Int {
+    static func pick(_ items: [Int], _ weights: [Double], using g: inout Rng) -> Int {
         let total: Double = weights.reduce(0, +)
         var x: Double = Double.random(in: 0..<Swift.max(total, 0.000001), using: &g)
         for (i, w) in weights.enumerated() {
@@ -99,7 +99,7 @@ public enum MelodyRhythm {
     }
 
     /// Шаги ритма баса на странице длиной n (не пусто).
-    static func bassSteps<G: RandomNumberGenerator>(_ part: BassPart, len n: Int, using g: inout G) -> [Int] {
+    static func bassSteps(_ part: BassPart, len n: Int, using g: inout Rng) -> [Int] {
         let pr: [Double] = part.options[Int.random(in: 0..<part.options.count, using: &g)]
         var out: [Int] = []
         for s in 0..<n where pr[s] > 0 && Double.random(in: 0..<1, using: &g) < pr[s] { out.append(s) }
@@ -108,7 +108,7 @@ public enum MelodyRhythm {
     }
 
     /// Вариация ритма: один шаг добавлен или убран (первый не снимается).
-    static func varySteps<G: RandomNumberGenerator>(_ steps: [Int], len n: Int, using g: inout G) -> [Int] {
+    static func varySteps(_ steps: [Int], len n: Int, using g: inout Rng) -> [Int] {
         var out: [Int] = steps.filter { $0 < n }
         let free: [Int] = (0..<n).filter { !out.contains($0) }
         if out.count > 1 && (free.isEmpty || Bool.random(using: &g)) {
@@ -124,9 +124,9 @@ public enum MelodyRhythm {
     /// аккорды поровну на все шаги — как Chords.places): первая играющая страница — основа ритма, средние — вариации,
     /// последняя — сбивка в последних 4 шагах (подход к корню первого аккорда). Первая нота каждого аккорда — его
     /// корень. Ноты — в гамме от октавы клавиатуры; velocity — доли 100 %, остальные 70–85 %.
-    public static func bass<G: RandomNumberGenerator>(style: Int, bpm: Double, lens: [Int], degrees: [Int],
+    public static func bass(style: Int, bpm: Double, lens: [Int], degrees: [Int],
                                                       scale: Int, root: Int, octave oct: Int,
-                                                      using g: inout G) -> [[SliceRhythm.Event]] {
+                                                      using g: inout Rng) -> [[SliceRhythm.Event]] {
         var out: [[SliceRhythm.Event]] = lens.map { _ in [] }
         let playing: [Int] = lens.indices.filter { lens[$0] > 0 }
         guard let first = playing.first, let last = playing.last, !degrees.isEmpty else { return out }
@@ -172,9 +172,9 @@ public enum MelodyRhythm {
 extension Track {
     /// Случайная басовая линия стиля проекта на страницы range (по их длинам) по прогрессии degrees: прежние шаги
     /// этих страниц стираются, ноты — со своей длиной и velocity.
-    public mutating func writeRandomBass<G: RandomNumberGenerator>(pages range: ClosedRange<Int>, degrees: [Int],
+    public mutating func writeRandomBass(pages range: ClosedRange<Int>, degrees: [Int],
                                                                    scale: Int, root: Int, octave: Int, bpm: Double,
-                                                                   using g: inout G) {
+                                                                   using g: inout Rng) {
         let t: Track = self
         let lens: [Int] = range.map { t.pageLen($0, from: range.lowerBound) }
         let pattern: [[SliceRhythm.Event]] = MelodyRhythm.bass(style: drumStyle, bpm: bpm, lens: lens, degrees: degrees,

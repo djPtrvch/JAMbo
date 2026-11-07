@@ -88,7 +88,7 @@ public enum SliceRhythm {
     /// Доля шагов сбивки (последние 4 шага последней страницы) с ударом.
     static let fillChance: Double = 0.6
 
-    static func vel<G: RandomNumberGenerator>(_ step: Int, using g: inout G) -> Double {
+    static func vel(_ step: Int, using g: inout Rng) -> Double {
         if step % 4 == 0 { return DrumRhythm.velFull }
         return Double.random(in: DrumRhythm.velMid, using: &g).rounded()
     }
@@ -118,8 +118,8 @@ public enum SliceRhythm {
     // MARK: — роли LOW, MID, HIGH (кит)
 
     /// Ноты ролей LOW, MID, HIGH на страницах lens по партиям KICK, SNARE, HAT стиля (основа, вариации, сбивка).
-    static func kit<G: RandomNumberGenerator>(_ pieces: [Piece], style: Int, bpm: Double, lens: [Int],
-                                             using g: inout G) -> [[Event]] {
+    static func kit(_ pieces: [Piece], style: Int, bpm: Double, lens: [Int],
+                                             using g: inout Rng) -> [[Event]] {
         var out: [[Event]] = lens.map { _ in [] }
         for r in [Role.low, Role.mid, Role.high] {
             let own: [Piece] = pieces.filter { $0.role == r }
@@ -143,7 +143,7 @@ public enum SliceRhythm {
 
     /// Основа брейка длиной n: куски по порядку от первого (шаг 1 — всегда первый кусок), каждый своей длиной;
     /// часть (swapChance) заменена случайным куском.
-    static func breakBase<G: RandomNumberGenerator>(_ u: [Piece], len n: Int, using g: inout G) -> [Event] {
+    static func breakBase(_ u: [Piece], len n: Int, using g: inout Rng) -> [Event] {
         var out: [Event] = []
         var s: Int = 0
         var k: Int = 0
@@ -161,8 +161,8 @@ public enum SliceRhythm {
     }
 
     /// Вариация: 1–2 куска (не первый) заменены другими, каждый — в своём месте и не длиннее его.
-    static func breakVary<G: RandomNumberGenerator>(_ base: [Event], _ u: [Piece], len n: Int,
-                                                    using g: inout G) -> [Event] {
+    static func breakVary(_ base: [Event], _ u: [Piece], len n: Int,
+                                                    using g: inout Rng) -> [Event] {
         var out: [Event] = base.filter { $0.step < n }
         if out.count < 2 || u.count < 2 { return clip(out, pieces: u, len: n) }
         let changes: Int = Int.random(in: 1...2, using: &g)
@@ -177,8 +177,8 @@ public enum SliceRhythm {
     }
 
     /// Сбивка: последние 4 шага заново — повтор одного куска (чаще) или случайные куски по шагу; хоть один удар.
-    static func breakFill<G: RandomNumberGenerator>(_ base: [Event], _ u: [Piece], len n: Int,
-                                                    using g: inout G) -> [Event] {
+    static func breakFill(_ base: [Event], _ u: [Piece], len n: Int,
+                                                    using g: inout Rng) -> [Event] {
         let from: Int = Swift.max(0, n - 4)
         var out: [Event] = base.filter { $0.step < from }.map { e in
             var x: Event = e
@@ -203,7 +203,7 @@ public enum SliceRhythm {
 
     /// Длинные куски: с шага 1, следующий — через 8 шагов (кусок до 8 шагов) или через страницу; нота — до
     /// следующей, не длиннее куска: длинные не накладываются друг на друга.
-    static func longs<G: RandomNumberGenerator>(_ l: [Piece], len n: Int, using g: inout G) -> [Event] {
+    static func longs(_ l: [Piece], len n: Int, using g: inout Rng) -> [Event] {
         var out: [Event] = []
         var s: Int = 0
         while s < n {
@@ -221,9 +221,9 @@ public enum SliceRhythm {
     /// Рисунок на страницы lens (шагов на странице, 0 — не играет): LOW, MID, HIGH — по стилю; без них — брейк из
     /// кусков без роли; LONG — поверх. Первая страница брейка не повторяет avoid (код прошлой основы), если
     /// получится за 16 попыток. Нет кусков — пусто.
-    public static func pattern<G: RandomNumberGenerator>(_ pieces: [Piece], style: Int = 0, bpm: Double = 120,
+    public static func pattern(_ pieces: [Piece], style: Int = 0, bpm: Double = 120,
                                                          lens: [Int], avoid: [Int]? = nil,
-                                                         using g: inout G) -> [[Event]] {
+                                                         using g: inout Rng) -> [[Event]] {
         var out: [[Event]] = lens.map { _ in [] }
         let playing: [Int] = lens.indices.filter { lens[$0] > 0 }
         guard let first = playing.first, let last = playing.last else { return out }
@@ -323,11 +323,11 @@ extension Track {
 
     /// Случайный рисунок нарезки на страницы range (по их длинам) в стиле дорожки (вариант — по bpm); avoid — код прошлой основы.
     /// Возвращает код новой основы; нет кусков — nil, ничего не пишется.
-    public mutating func writeRandomSlices<G: RandomNumberGenerator>(_ pieces: [SliceRhythm.Piece],
+    public mutating func writeRandomSlices(_ pieces: [SliceRhythm.Piece],
                                                                      pages range: ClosedRange<Int>, avoid: [Int]?,
                                                                      cuts: [Int: SliceRhythm.Cut] = [:],
                                                                      bpm: Double = 120,
-                                                                     using g: inout G) -> [Int]? {
+                                                                     using g: inout Rng) -> [Int]? {
         if pieces.isEmpty { return nil }
         let t: Track = self
         let lens: [Int] = range.map { t.pageLen($0, from: range.lowerBound) }

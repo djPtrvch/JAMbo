@@ -40,15 +40,15 @@ extension MelodyRhythm {
         [(0, 0.6), (2, 0.4)], [(1, 0.7), (0, 0.3)], [(0, 0.5), (2, 0.5)], [(1, 0.6), (2, 0.4)],
     ]
 
-    static func pickWeighted<G: RandomNumberGenerator>(_ pool: [(Int, Double)], using g: inout G) -> Int {
+    static func pickWeighted(_ pool: [(Int, Double)], using g: inout Rng) -> Int {
         return pick(pool.map { $0.0 }, pool.map { $0.1 }, using: &g)
     }
 
     /// Аккорды прогрессии degrees в стиле: тип — у каждого свой (из набора стиля, два одинаковых аккорда подряд — тот
     /// же тип), расположение голосов — одно на рисунок; ноты — в октаве клавиатуры (обращения для плавных переходов),
     /// drop 2 и корень ниже — не ниже 0.
-    public static func styleChords<G: RandomNumberGenerator>(_ degrees: [Int], style: Int, bpm: Double, scale: Int,
-                                                             root: Int, octave: Int, using g: inout G) -> [[Int]] {
+    public static func styleChords(_ degrees: [Int], style: Int, bpm: Double, scale: Int,
+                                                             root: Int, octave: Int, using g: inout Rng) -> [[Int]] {
         let gr: Int = DrumRhythm.groove(style, bpm: bpm).rawValue
         let voicing: Int = pickWeighted(voicingPools[gr], using: &g)
         let base: Int = Scales.baseNote(root: root, octave: octave)
@@ -76,8 +76,8 @@ extension MelodyRhythm {
 
     /// Случайная прогрессия стиля: 75 % — из набора стиля, 25 % — свободная (Chords.random); не равна avoid,
     /// если получится за 16 попыток. Ступени выше числа ступеней гаммы — по модулю (пентатоника).
-    public static func progression<G: RandomNumberGenerator>(style: Int, bpm: Double, scale: Int, avoid: [Int]?,
-                                                             using g: inout G) -> [Int] {
+    public static func progression(style: Int, bpm: Double, scale: Int, avoid: [Int]?,
+                                                             using g: inout Rng) -> [Int] {
         let pool: [[Int]] = MelodyRhythm.pool(DrumRhythm.groove(style, bpm: bpm).rawValue)
         var out: [Int] = []
         var tries: Int = 0
@@ -116,8 +116,8 @@ extension MelodyRhythm {
     /// Аккордовая партия на страницы lens по аккордам chords (поровну на все играющие шаги, как Chords.places):
     /// KEYS — ритм стиля (один вариант на рисунок, повтор по тактам; в отрезке аккорда короче такта — его начало),
     /// PAD — аккорд на весь свой отрезок (с новой страницы — заново). Ноты не переходят за страницу; velocity — доли 100 %, остальные 70–85 % (PAD — 75–85 %).
-    public static func chordPart<G: RandomNumberGenerator>(_ role: Role, style: Int, bpm: Double, lens: [Int],
-                                                           chords: [[Int]], using g: inout G) -> [[SliceRhythm.Event]] {
+    public static func chordPart(_ role: Role, style: Int, bpm: Double, lens: [Int],
+                                                           chords: [[Int]], using g: inout Rng) -> [[SliceRhythm.Event]] {
         var out: [[SliceRhythm.Event]] = lens.map { _ in [] }
         let playing: [Int] = lens.indices.filter { lens[$0] > 0 }
         if playing.isEmpty || chords.isEmpty { return out }
@@ -157,8 +157,8 @@ extension MelodyRhythm {
 extension Track {
     /// Случайная аккордовая партия (KEYS или PAD) стиля проекта на страницы range по аккордам chords: прежние шаги
     /// этих страниц стираются, ноты — со своей длиной и velocity.
-    public mutating func writeRandomChords<G: RandomNumberGenerator>(_ role: MelodyRhythm.Role, pages range: ClosedRange<Int>,
-                                                                     chords: [[Int]], bpm: Double, using g: inout G) {
+    public mutating func writeRandomChords(_ role: MelodyRhythm.Role, pages range: ClosedRange<Int>,
+                                                                     chords: [[Int]], bpm: Double, using g: inout Rng) {
         let t: Track = self
         let lens: [Int] = range.map { t.pageLen($0, from: range.lowerBound) }
         let pattern: [[SliceRhythm.Event]] = MelodyRhythm.chordPart(role, style: drumStyle, bpm: bpm, lens: lens,

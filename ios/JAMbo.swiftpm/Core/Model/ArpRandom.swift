@@ -34,7 +34,7 @@ extension Arp {
     static let legatos: [Double] = [0.15, 0.05, 0.2, 0.25, 0.2, 0.35, 0.2, 0.6]
 
     /// Фигура для направления dir: 70 % — из близких, 30 % — любая; Down и Down-Up — задом наперёд.
-    static func figure<G: RandomNumberGenerator>(dir: Int, using g: inout G) -> [Int] {
+    static func figure(dir: Int, using g: inout Rng) -> [Int] {
         let fam: [Int] = families[clampDir(dir)]
         let near: Bool = Double.random(in: 0..<1, using: &g) < 0.7
         let k: Int = near ? (fam.randomElement(using: &g) ?? 0) : Int.random(in: 0..<figures.count, using: &g)
@@ -57,9 +57,9 @@ extension Arp {
     /// OCTAVES 2–3 — часть тактов октавой выше; фигура с новым аккордом — сначала или продолжается (наугад на
     /// весь рисунок); последний такт — разбег вверх в последних 4 долях. Velocity: доли 100 %, остальные 65–85 %,
     /// изредка тихие; длина — по GATE, часть нот legato (до следующей).
-    public static func randomSteps<G: RandomNumberGenerator>(_ chords: [[Int]], steps total: Int, dir: Int,
+    public static func randomSteps(_ chords: [[Int]], steps total: Int, dir: Int,
                                                              octaves: Int, rate: Int, gate: Double, style: Int,
-                                                             bpm: Double, using g: inout G) -> [ArpStepNote] {
+                                                             bpm: Double, using g: inout Rng) -> [ArpStepNote] {
         if chords.isEmpty || total <= 0 { return [] }
         let gr: Int = DrumRhythm.groove(style, bpm: bpm).rawValue
         let every: Int = gridSteps[clampRate(rate)]
