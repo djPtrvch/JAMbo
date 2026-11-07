@@ -391,13 +391,14 @@ struct GridMenu: View {
 
 /// Прокрутка меню: содержимое не помещается — прокручивается пальцем, справа тонкая полупрозрачная полоса,
 /// видна всегда, пока есть что прокручивать (системная видна только во время прокрутки). Для всех меню.
-struct MenuScroll<Content: View>: View {
-    let content: Content
+/// Не обобщённый (содержимое — AnyView): одна копия кода на все меню (объём сборки, 7.11).
+struct MenuScroll: View {
+    let content: AnyView
     @State private var geo: ScrollGeometry? = nil
     @Environment(\.theme) private var theme
 
-    init(@ViewBuilder content: () -> Content) {
-        self.content = content()
+    init<Content: View>(@ViewBuilder content: () -> Content) {
+        self.content = AnyView(content())
     }
 
     var body: some View {

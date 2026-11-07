@@ -101,13 +101,23 @@ struct ArrBarText: View {
 }
 
 /// Кнопка-значок второй строки (магнит, AUTO).
-struct ArrBarButton<Icon: View>: View {
+struct ArrBarButton: View {
     let on: Bool
     let enabled: Bool
     var ring: Bool = false
     let action: () -> Void
-    let icon: (Color) -> Icon
+    let icon: (Color) -> AnyView
     @Environment(\.theme) private var theme
+
+    /// Значок — AnyView: не обобщённый вид, одна копия кода (объём сборки).
+    init<Icon: View>(on: Bool, enabled: Bool, ring: Bool = false, action: @escaping () -> Void,
+                     icon: @escaping (Color) -> Icon) {
+        self.on = on
+        self.enabled = enabled
+        self.ring = ring
+        self.action = action
+        self.icon = { c in AnyView(icon(c)) }
+    }
 
     var body: some View {
         let lit: Bool = on && enabled

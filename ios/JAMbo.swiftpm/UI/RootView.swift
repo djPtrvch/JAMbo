@@ -462,13 +462,18 @@ struct MainMenu: View {
 }
 
 /// Окно на месте центра и справа измеритель (браузер, EQ, окно модуля мастера, редактор сэмпла).
-struct WithMeter<Content: View>: View {
+struct WithMeter: View {
     let model: AppModel
-    @ViewBuilder let content: () -> Content
+    let content: AnyView
+
+    init<Content: View>(model: AppModel, @ViewBuilder content: () -> Content) {
+        self.model = model
+        self.content = AnyView(content())
+    }
 
     var body: some View {
         HStack(spacing: Layout.gap) {
-            content()
+            content
             MeterColumn(model: model)
         }
     }
