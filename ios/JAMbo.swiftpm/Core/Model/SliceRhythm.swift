@@ -1,22 +1,26 @@
 // Случайный рисунок нарезанного сэмпла (SHIFT + CHORD на дорожке с маркерами нарезки, SETTINGS → RANDOM → SAMPLES;
 // docs/ai/sequencer.md, «Случайная нарезка»). Роли кусков назначаются вручную (удержание флажка в редакторе):
-// KICK, SNARE, CLAP, HAT, PERC ставятся на места своих ударных стиля проекта (DrumRhythm) нотами в 1 шаг, BASS и LEAD —
-// по ритму баса и мелодии стиля (MelodyRhythm), PAD — редко и без наложения; без ролей (кроме PAD) — перетасовка
+// KICK, SNARE (и клэп), HAT, PERC ставятся на места своих ударных стиля проекта (DrumRhythm) нотами в 1 шаг, BASS и LEAD (и аккорды) —
+// по ритму баса, мелодии или аккордов стиля (MelodyRhythm), PAD — редко и без наложения; без ролей (кроме PAD) — перетасовка
 // брейка: куски по порядку, часть заменена, в конце — сбивка.
 
 public enum SliceRhythm {
     /// Роль куска нарезки (SliceMark.role).
-    /// Номера 0…3 — прежние LOW, MID, HIGH, LONG (7.11 стали KICK, SNARE, HAT, PAD — без перевода проектов).
-    public enum Role: Int, Sendable, CaseIterable { case kick, snare, hat, pad, clap, perc, bass, lead }
+    /// Номера 0…3 — прежние LOW, MID, HIGH, LONG (7.11 стали KICK, SNARE, HAT, PAD — без перевода проектов);
+    /// 4 — бывший отдельный CLAP (читается как SNARE). SNARE — и снейр, и клэп; LEAD — и мелодия, и аккорды (7.11).
+    public enum Role: Int, Sendable, CaseIterable {
+        case kick = 0, snare = 1, hat = 2, pad = 3, perc = 5, bass = 6, lead = 7
+    }
 
     /// Подписи ролей по номеру (строка редактора при удержании флажка, подпись у флажка).
-    public static let roleNames: [String] = ["KICK", "SNARE", "HAT", "PAD", "CLAP", "PERC", "BASS", "LEAD"]
+    public static let roleNames: [String] = ["KICK", "SNARE", "HAT", "PAD", "SNARE", "PERC", "BASS", "LEAD"]
 
     /// Порядок кнопок ролей в строке редактора.
-    public static let order: [Role] = [.kick, .snare, .clap, .hat, .perc, .bass, .lead, .pad]
+    public static let order: [Role] = [.kick, .snare, .hat, .perc, .bass, .lead, .pad]
 
     public static func role(_ v: Int?) -> Role? {
         guard let k = v else { return nil }
+        if k == 4 { return .snare }
         return Role(rawValue: k)
     }
 
@@ -103,7 +107,6 @@ public enum SliceRhythm {
         switch r {
         case .kick: return .kick
         case .snare: return .snare
-        case .clap: return .clap
         case .hat: return .hat
         case .perc: return .perc
         default: return nil
@@ -125,8 +128,9 @@ public enum SliceRhythm {
 
     // MARK: — роли (кит)
 
-    /// Ноты ролей на страницах lens: ударные — по партиям стиля (основа, вариации, сбивка), нотами в 1 шаг; BASS и
-    /// LEAD — по ритму баса и мелодии стиля (длина — по ним, не длиннее куска); кусок на удар — наугад из своей роли.
+    /// Ноты ролей на страницах lens: ударные — по партиям стиля (основа, вариации, сбивка), нотами в 1 шаг; BASS — по
+    /// ритму баса стиля; LEAD — наугад на рисунок: ритм мелодии или ритм аккордов KEYS стиля (длина — по партии,
+    /// не длиннее куска); кусок на удар — наугад из своей роли.
     static func kit(_ pieces: [Piece], style: Int, bpm: Double, lens: [Int], using g: inout Rng) -> [[Event]] {
         var out: [[Event]] = lens.map { _ in [] }
         for r in order where r != .pad {
@@ -149,9 +153,12 @@ public enum SliceRhythm {
             if r == .bass {
                 line = MelodyRhythm.bass(style: style, bpm: bpm, lens: lens, degrees: degrees, scale: 0, root: 0,
                                          octave: 3, using: &g)
-            } else {
+            } else if Bool.random(using: &g) {
                 line = MelodyRhythm.lead(style: style, bpm: bpm, lens: lens, degrees: degrees, scale: 0, root: 0,
                                          octave: 4, using: &g)
+            } else {
+                let one: [[Int]] = [[60], [60], [60], [60]]
+                line = MelodyRhythm.chordPart(.keys, style: style, bpm: bpm, lens: lens, chords: one, using: &g)
             }
             for (p, page) in line.enumerated() {
                 for e in page {

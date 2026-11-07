@@ -139,11 +139,13 @@ final class SliceRhythmTests: XCTestCase {
 
     func testMelodicAndClapRoles() {
         var g = SystemRandomNumberGenerator()
-        XCTAssertEqual(SliceRhythm.order.count, 8)
+        XCTAssertEqual(SliceRhythm.order.count, 7)
         XCTAssertEqual(Set(SliceRhythm.order), Set(SliceRhythm.Role.allCases))
-        // Прежние LOW, MID, HIGH, LONG (0…3) — KICK, SNARE, HAT, PAD.
-        XCTAssertEqual([0, 1, 2, 3].map { SliceRhythm.role($0) }, [.kick, .snare, .hat, .pad])
-        let ps = pieces([4, 4, 1, 1], roles: [.bass, .lead, .clap, .perc])
+        // Прежние LOW, MID, HIGH, LONG (0…3) — KICK, SNARE, HAT, PAD; 4 (бывший CLAP) — SNARE.
+        XCTAssertEqual([0, 1, 2, 3, 4].map { SliceRhythm.role($0) }, [.kick, .snare, .hat, .pad, .snare])
+        XCTAssertEqual(SliceRhythm.order.map { SliceRhythm.roleNames[$0.rawValue] },
+                       ["KICK", "SNARE", "HAT", "PERC", "BASS", "LEAD", "PAD"])
+        let ps = pieces([4, 4, 1, 1], roles: [.bass, .lead, .snare, .perc])
         for st in 0..<DrumRhythm.styles.count {
             for _ in 0..<20 {
                 let pat = SliceRhythm.pattern(ps, style: st, bpm: 124, lens: [16, 16], using: &g)
@@ -154,7 +156,7 @@ final class SliceRhythmTests: XCTestCase {
                 }
                 XCTAssertTrue(pat[0].contains { $0.note == 60 }, "BASS играет")
                 XCTAssertTrue(pat[0].contains { $0.note == 61 }, "LEAD играет")
-                XCTAssertTrue(pat[0].contains { $0.note == 62 }, "CLAP играет")
+                XCTAssertTrue(pat[0].contains { $0.note == 62 }, "SNARE играет")
             }
         }
     }
