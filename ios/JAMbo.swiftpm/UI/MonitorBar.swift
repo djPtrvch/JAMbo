@@ -1,33 +1,61 @@
 import SwiftUI
 
-/// Строки Headphone Monitor в окне коррекции наушников (под строкой EQ): MONITOR — STRENGTH, ANGLE и AMOUNT
-/// (Crossfeed), TRANSLATION, MONO, SUB, TRIM (раскрыть строку TRIM), LEVEL (компенсация громкости, только показ);
-/// TRIM — 5 полос ±3 dB профиля. Поля — как у EQ: палец вверх-вниз, двойной тап — значение по умолчанию.
+/// Строка Headphone Monitor в окне коррекции наушников (под строкой EQ) — регуляторы вкладки, выбранной в строке EQ
+/// (на месте M/S, DYN, LISTEN): PHONES — CORRECTION (сила коррекции профилем) и TRIM 5 полос ±3 dB; ROOM — TRANSLATION,
+/// ANGLE и AMOUNT (Crossfeed); CHECK — MONO, SUB, LEVEL (компенсация громкости, только показ). Поля — как у EQ: палец
+/// вверх-вниз, двойной тап — значение по умолчанию.
 struct MonitorBar: View {
+    static let tabs: [String] = ["PHONES", "ROOM", "CHECK"]
     let model: AppModel
     @Environment(\.theme) private var theme
 
     var body: some View {
         let m: AppModel = model
         let s: MonitorSettings = m.monitor
-        let items: [AnyView] = [
-            strengthField(s), angleField(s), amountField(s), AnyView(translationField),
+        let tab: Int = max(0, min(2, s.tab))
+        let items: [AnyView]
+        switch tab {
+        case 1: items = [AnyView(translationField), angleField(s), amountField(s)]
+        case 2: items = [
             AnyView(EqTool(title: "MONO", enabled: true, active: s.mono) { m.setMonitor { $0.mono.toggle() } }),
             AnyView(EqTool(title: "SUB", enabled: true, active: s.sub) { m.setMonitor { $0.sub.toggle() } }),
-            AnyView(EqTool(title: "TRIM", enabled: true, active: s.trimOpen) { m.setMonitor { $0.trimOpen.toggle() } }),
             AnyView(levelLabel),
         ]
-        return MonitorRow(name: "MONITOR", items: items, height: m.barH)
+        default: items = [correctionField(s)] + MonitorBar.trimFields(m)
+        }
+        return MonitorRow(name: MonitorBar.tabs[tab], items: items, height: m.barH)
     }
 
-    /// STRENGTH коррекции, 0…100 %, 2 px на 1 %.
-    private func strengthField(_ s: MonitorSettings) -> AnyView {
+    /// Кнопка вкладки в строке EQ (горит выбранная).
+    static func tabButton(_ m: AppModel, _ k: Int) -> AnyView {
+        return AnyView(EqTool(title: MonitorBar.tabs[k], enabled: true, active: m.monitor.tab == k) {
+            m.setMonitor { $0.tab = k }
+        })
+    }
+
+    /// CORRECTION — сила коррекции профилем, 0…100 %, 2 px на 1 %.
+    private func correctionField(_ s: MonitorSettings) -> AnyView {
         let m: AppModel = model
         let t: String = String(format: "%.0f %%", s.strength * 100)
-        return AnyView(EqField(label: "STRENGTH", value: t, pxPerUnit: 2,
+        return AnyView(EqField(label: "CORRECTION", value: t, pxPerUnit: 2,
                                get: { (m.monitor.strength * 100).rounded() },
                                set: { v in m.setMonitor { $0.strength = Swift.max(0, Swift.min(100, v)) / 100 } },
                                double: { m.setMonitor { $0.strength = 1 } }, model: m))
+    }
+
+    /// TRIM: 5 полос профиля (100 Гц…8 кГц, Q 1), 0,1 dB на 2 px, ±3 dB.
+    static func trimFields(_ m: AppModel) -> [AnyView] {
+        let t: [Double] = m.phonesTrim
+        var items: [AnyView] = []
+        for k in 0..<MonitorSpec.trimHz.count {
+            let hz: Double = MonitorSpec.trimHz[k]
+            let f: String = hz >= 1000 ? String(format: "%g kHz", hz / 1000) : String(format: "%.0f Hz", hz)
+            items.append(AnyView(EqField(label: "TRIM " + f, value: String(format: "%+.1f dB", t[k]), pxPerUnit: 2,
+                                         get: { (m.phonesTrim[k] * 10).rounded() },
+                                         set: { v in m.setPhonesTrim(k, v / 10) },
+                                         double: { m.setPhonesTrim(k, 0) }, model: m)))
+        }
+        return items
     }
 
     /// ANGLE Crossfeed, 10…60°, 4 px на градус.
@@ -76,27 +104,6 @@ struct MonitorBar: View {
         }
         .padding(.horizontal, 12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-    }
-}
-
-/// Строка TRIM: 5 полос профиля (100 Гц…8 кГц, Q 1), 0,1 dB на 2 px, ±3 dB.
-struct MonitorTrimBar: View {
-    let model: AppModel
-
-    var body: some View {
-        let m: AppModel = model
-        let t: [Double] = m.phonesTrim
-        var items: [AnyView] = []
-        for k in 0..<MonitorSpec.trimHz.count {
-            let hz: Double = MonitorSpec.trimHz[k]
-            let label: String = hz >= 1000 ? String(format: "%g kHz", hz / 1000) : String(format: "%.0f Hz", hz)
-            items.append(AnyView(EqField(label: label, value: String(format: "%+.1f dB", t[k]), pxPerUnit: 2,
-                                         get: { (m.phonesTrim[k] * 10).rounded() },
-                                         set: { v in m.setPhonesTrim(k, v / 10) },
-                                         double: { m.setPhonesTrim(k, 0) }, model: m)))
-        }
-        for _ in 0..<3 { items.append(AnyView(Color.clear)) }
-        return MonitorRow(name: "TRIM", items: items, height: m.barH)
     }
 }
 

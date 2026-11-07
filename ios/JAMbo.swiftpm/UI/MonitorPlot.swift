@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Кривые Headphone Monitor поверх поля EQ в окне коррекции наушников: белая (основная кривая EQ с точками) — профиль
-/// наушников на 100 %; серая пунктиром — TRIM; жёлтая — RESULT: профиль · STRENGTH + TRIM (то, что звучит). Подписи —
+/// наушников на 100 %; серая пунктиром — TRIM; жёлтая — RESULT: профиль · CORRECTION + TRIM (то, что звучит). Подписи —
 /// в левом верхнем углу.
 struct MonitorCurves: View {
     let model: AppModel
@@ -21,12 +21,12 @@ struct MonitorCurves: View {
             stroke(ctx, result, theme.accent.opacity(on ? 1 : 0.35), dash: [])
             legend(ctx, "PROFILE 100 %", theme.text, 0)
             legend(ctx, "TRIM", theme.dim, 1)
-            legend(ctx, "RESULT · STRENGTH " + pct, theme.accent, 2)
+            legend(ctx, "RESULT · CORRECTION " + pct, theme.accent, 2)
         }
         .allowsHitTesting(false)
     }
 
-    /// Полосы профиля со STRENGTH (как MonitorDesign.correction: ±12 dB · s; срезы и notch — при s > 0).
+    /// Полосы профиля с CORRECTION (как MonitorDesign.correction: ±12 dB · s; срезы и notch — при s > 0).
     static func scaled(_ eq: Eq, _ s: Double) -> [EqBand] {
         if s <= 0 { return [] }
         var out: [EqBand] = []

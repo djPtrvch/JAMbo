@@ -18,8 +18,8 @@ public struct MonitorSettings: Codable, Equatable, Sendable {
     public var translation: String = ""
     public var mono: Bool = false
     public var sub: Bool = false
-    /// Trim раскрыт (строка TRIM в окне).
-    public var trimOpen: Bool = false
+    /// Вкладка окна коррекции: 0 — PHONES (CORRECTION, TRIM), 1 — ROOM (TRANSLATION, Crossfeed), 2 — CHECK (MONO, SUB, LEVEL).
+    public var tab: Int = 0
     /// Референс через мастер-цепочку (по умолчанию нет — как прежде: мимо мастера) и через монитор-цепочку (да).
     public var refMaster: Bool = false
     public var refMonitor: Bool = true
@@ -35,7 +35,7 @@ public struct MonitorSettings: Codable, Equatable, Sendable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case strength, angle, amount, translation, mono, sub, trimOpen, refMaster, refMonitor, refMatch, refTrim
+        case strength, angle, amount, translation, mono, sub, tab, refMaster, refMonitor, refMatch, refTrim
     }
 
     public init(from decoder: Decoder) throws {
@@ -46,7 +46,8 @@ public struct MonitorSettings: Codable, Equatable, Sendable {
         translation = c.value(.translation, "")
         mono = c.value(.mono, false)
         sub = c.value(.sub, false)
-        trimOpen = c.value(.trimOpen, false)
+        let t: Int = c.value(.tab, 0)
+        tab = t >= 0 && t < 3 ? t : 0
         refMaster = c.value(.refMaster, false)
         refMonitor = c.value(.refMonitor, true)
         refMatch = c.value(.refMatch, true)
