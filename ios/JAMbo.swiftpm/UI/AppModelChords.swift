@@ -19,7 +19,13 @@ extension AppModel {
             } else if sliceTrack {
                 writeRandomSlices()
             } else if settings.randomChords {
-                if arpMode { writeRandomArp() } else { writeRandomProgression() }
+                if arpMode {
+                    writeRandomArp()
+                } else if melodyRole == .bass {
+                    writeRandomBass()
+                } else {
+                    writeRandomProgression()
+                }
             }
         } else if arpMode {
             toggleArp()
@@ -126,6 +132,30 @@ extension AppModel {
                                         kind: chordKind[selectedTrack])
         let range: ClosedRange<Int> = chordPages
         editTrack { t in t.writeProgression(cs, pages: range) }
+    }
+
+    /// Роль выбранной дорожки для случайной партии (MelodyRhythm.role): звук, октава клавиатуры, CHORD, ARP.
+    var melodyRole: MelodyRhythm.Role {
+        return MelodyRhythm.role(sample: track.sample, octave: octave, chord: chordMode[selectedTrack], arp: arpMode)
+    }
+
+    /// Случайная басовая линия выбранной дорожки (стиль проекта) на выбранные страницы — по прогрессии, общей с
+    /// аккордами (последняя случайная; её нет — новая). Одна запись UNDO; AUTO SWING — Swing дорожки по стилю.
+    func writeRandomBass() {
+        guard channel == .track else { return }
+        var g = SystemRandomNumberGenerator()
+        let degrees: [Int] = lastRandomProgression ?? Chords.random(scale: project.scale, using: &g)
+        lastRandomProgression = degrees
+        let range: ClosedRange<Int> = chordPages
+        let scale: Int = project.scale
+        let root: Int = project.root
+        let oct: Int = octave
+        let bpm: Double = project.bpm
+        let swing: Bool = settings.randomSwing
+        editTrack { t in
+            t.writeRandomBass(pages: range, degrees: degrees, scale: scale, root: root, octave: oct, bpm: bpm, using: &g)
+            if swing { t.params["swing"] = DrumRhythm.swing(t.drumStyle, bpm: bpm) }
+        }
     }
 
     /// Режим ARP: случайная прогрессия (как writeRandomProgression), разложенная по шагам выбранных страниц —
