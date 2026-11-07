@@ -185,6 +185,10 @@ extension AppModel {
         get { access(keyPath: \.eqMenu); return _eqMenu }
         set { put(\.eqMenu, \._eqMenu, newValue, observedChanged(_eqMenu, newValue)) }
     }
+    var translationMenu: CGRect? {
+        get { access(keyPath: \.translationMenu); return _translationMenu }
+        set { put(\.translationMenu, \._translationMenu, newValue, observedChanged(_translationMenu, newValue)) }
+    }
     var eqMsMenu: CGRect? {
         get { access(keyPath: \.eqMsMenu); return _eqMsMenu }
         set { put(\.eqMsMenu, \._eqMsMenu, newValue, observedChanged(_eqMsMenu, newValue)) }

@@ -50,7 +50,7 @@ struct MonitorBar: View {
                                double: { m.setMonitor { $0.amount = MonitorSpec.amountDef } }, model: m))
     }
 
-    /// TRANSLATION: палец вниз — следующий пресет, тап — следующий.
+    /// TRANSLATION: палец вниз — следующий пресет, тап — меню пресетов.
     private var translationField: some View {
         let m: AppModel = model
         let names: [String] = m.translations.map { $0.name }
@@ -63,7 +63,7 @@ struct MonitorBar: View {
                            let i: Int = ((-Int(v)) % n + n) % n
                            m.setMonitor { $0.translation = names[i] }
                        },
-                       tap: { _ in m.stepTranslation(1) }, model: m)
+                       tap: { f in m.translationMenu = m.translationMenu == nil ? f : nil }, model: m)
     }
 
     /// LEVEL: компенсация громкости цепочки (только показ).
@@ -117,5 +117,36 @@ struct MonitorRow: View {
             }
         }
         .frame(height: height)
+    }
+}
+
+/// Меню TRANSLATION: пресеты одним столбцом под полем (выбранный горит); тап мимо — закрыть.
+struct TranslationMenu: View {
+    static let width: CGFloat = 220
+    let model: AppModel
+    let anchor: CGRect
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let m: AppModel = model
+        let cur: String = m.translationPreset?.name ?? (m.translations.contains { $0.name == m.monitor.translation } ? m.monitor.translation : "Off")
+        return ZStack(alignment: .topLeading) {
+            Color.black.opacity(0.001).ignoresSafeArea().onTapGesture { m.translationMenu = nil }
+            VStack(alignment: .leading, spacing: 6) {
+                Text("TRANSLATION").font(.system(size: 12, weight: .bold)).tracking(1.2).foregroundStyle(theme.text)
+                ForEach(m.translations.indices, id: \.self) { i in
+                    let name: String = m.translations[i].name
+                    MenuItem(title: name.uppercased(), current: name == cur) {
+                        m.setMonitor { $0.translation = name }
+                        m.translationMenu = nil
+                    }
+                    .frame(height: 40)
+                }
+            }
+            .padding(8)
+            .frame(width: TranslationMenu.width)
+            .modifier(MenuBox())
+            .offset(x: anchor.minX, y: anchor.maxY + 4)
+        }
     }
 }

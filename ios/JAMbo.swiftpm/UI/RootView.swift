@@ -312,6 +312,9 @@ struct RootView: View {
         if let f = model.eqMsMenu {
             AnyView(EqMsMenu(model: model, anchor: f))
         }
+        if let f = model.translationMenu {
+            AnyView(TranslationMenu(model: model, anchor: f))
+        }
         if let f = model.eqDynMenu {
             AnyView(EqDynMenu(model: model, anchor: f))
         }

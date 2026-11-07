@@ -28,6 +28,7 @@ struct EqView: View {
             model.eqBand = -1
             model.eqCompareMenu = false
             model.eqMsMenu = nil
+            model.translationMenu = nil
             model.eqDynMenu = nil
             model.eqPresetMenu = nil
             model.syncSpectra()

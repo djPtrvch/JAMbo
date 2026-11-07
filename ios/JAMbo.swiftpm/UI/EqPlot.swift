@@ -106,7 +106,7 @@ struct EqPlot: View {
             .contentShape(Rectangle())
             .gesture(touch(g))
             // Пока открыто меню (полосы, COMPARE), касания — только ему: тап по пункту не доходит до точек.
-            .allowsHitTesting(model.eqMenu == nil && !model.eqCompareMenu && model.eqMsMenu == nil && model.eqDynMenu == nil
+            .allowsHitTesting(model.eqMenu == nil && !model.eqCompareMenu && model.eqMsMenu == nil && model.translationMenu == nil && model.eqDynMenu == nil
                               && model.eqPresetMenu == nil)
         }
         .background(theme.panel, in: RoundedRectangle(cornerRadius: Layout.radius))

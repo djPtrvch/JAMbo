@@ -222,6 +222,8 @@ final class AppModel {
     @ObservationIgnored var _eqMenu: EqMenuState? = nil
     /// Меню STEREO / MID / SIDE: рамка поля M/S («root»); nil — закрыто.
     @ObservationIgnored var _eqMsMenu: CGRect? = nil
+    /// Меню TRANSLATION (тап по полю в окне коррекции наушников): рамка поля («root»).
+    @ObservationIgnored var _translationMenu: CGRect? = nil
     /// Меню DYN (источник, THRESHOLD, RANGE): рамка поля DYN; ввод числом из меню (EqView открывает окно).
     @ObservationIgnored var _eqDynMenu: CGRect? = nil
     /// Сдвиг меню DYN пальцем (перетаскивание за заголовок); сбрасывается при открытии.
@@ -789,6 +791,7 @@ final class AppModel {
         eqView = false
         eqMenu = nil
         eqMsMenu = nil
+        translationMenu = nil
         eqDynMenu = nil
         eqPresetMenu = nil
         pageMenu = nil
