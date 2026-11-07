@@ -170,7 +170,14 @@
 - Порядок своих папок библиотеки: первая версия откатывалась (жест строки и прокрутка мешали друг другу), вернули с RowGesture (см. выше).
 - Облегчение сборки (2.11): отложенные вызовы — Later.run / Later.every вместо Task + sleep (−11 тыс. инструкций IR), кнопки меню списком в 8 меню (−4 тыс.); итог 1,633 млн (было 1,649).
 
-## Проверено
+## Правки 4.11–7.11 — RANDOM по стилям и ролям (решения пользователя; на iPad — сборка со второго раза)
+- Стили (DrumRhythm): House, Techno (с Minimal), Breaks/D&B (D&B от 150 BPM), Trap/R&B (Trap от 115 BPM), Pop, Ambient; один стиль на проект (STYLE ALL TRACKS убран), формат проекта 7 (migrateRandomStyles: Afro → House, Minimal → Techno); CLAP — рисунок SNARE; роллы хэта (p-lock Ratchet), Chance у Ambient и хэта Techno; AUTO SWING (SETTINGS → RANDOM); подписи «Breaks/D&B», «Trap/R&B» в окне стилей — в две строки с линией (InkButton split).
+- Роли дорожек (MelodyRhythm.role): ARP, KEYS (CHORD), BASS (SUB, имя сэмпла, октава до C2), PAD (TEXTURE, GRANULAR, имя сэмпла), LEAD; ударные сэмплы — по имени файла (DrumRhythm.roleByName, Track.drumRoleBy; нарезанный — нарезка). Партии: бас (MelodyRhythm.bass), KEYS и PAD (ChordParts: прогрессии стиля, типы аккордов и расположение голосов по стилю), LEAD (LeadPart: мотив A A′ A B), арпеджио с фигурами (ArpRandom); BASS и LEAD — по последней прогрессии. Ансамбль — STEPS ALL TRACKS (AppModelEnsemble: партии на все дорожки по одной прогрессии).
+- Нарезка (SliceRhythm.Role): KICK, SNARE (и клэп), HAT, PERC, BASS, LEAD (мелодия или аккорды), PAD; номера 0…3 — прежние LOW, MID, HIGH, LONG, 4 (CLAP одной из проб) — SNARE. Редактор сэмпла: при ролях WARP скрыт, роли — поровну; флажок берётся только за сам флажок, второй палец при масштабе флажки и метки WARP не берёт.
+- Убраны: свайп ARP по CHORD (только рычажок ARPEGGIATOR), STEP SWIPE (PAINT), панда (объём сборки), Track-запись прогрессии из UI (writeRandomProgression).
+- Сборка: 1,681 млн после R1–R8 (8017c55 падала в Xcode — chordPages private) → таблицы рисунков строками (DrumRhythm.pat, −2,4 тыс.), без обобщённых генераторов (Rng — без выигрыша), панда (−8 тыс.) → 1,671 млн (9a56903) — на iPad со второго раза. Урок: одно имя с разными параметрами (role(engine:) и role(name:), drumRole и drumRole(name:)) — переименовано, Playgrounds такого не собирает.
+- Тесты Core: DrumRhythm (стили, темп, роллы, миграция, имена сэмплов), MelodyRhythm (роли, бас), ChordParts и StyleChords, LeadPart, ArpRandom, SliceRhythm (роли); всего 572+.
+
 S14w — на iPad; CoreTests — 304 (новые: EngineIconTests — testPreviewsMatchPrototype, testGridFiniteInField, testEachKnobChangesIcon, testTableFrame; testApplyKnobsToAllPages, testFeedbackFollowsResolveAcrossInputs; убраны прежние тесты иконок веба). S14v — на iPad. S14a — тесты Core (HeavyLoadTests), DIAGNOSTICS на iPad. CoreTests — 298 (S14a: testHeavyProjectProfile, testProfileOffAndOn); 296 (новые: testMoveRow, testPasteTrackKeepsOwnPatterns, testClipSpeed, testQueuedClipAfterSlowClip, testSameNameIgnoresAudioExtension).
 
 ## План (подтверждён пользователем)
@@ -183,6 +190,7 @@ S14w — на iPad; CoreTests — 304 (новые: EngineIconTests — testPrevi
 - Итог — docs/SWIFT_MILESTONE_S14.md (создан; в конце вехи обновить).
 
 ## Открыто
+- Объём сборки 1,671 млн (со второго раза): облегчить до ~1,63 (крупные файлы — ArrangeWindow, LibraryBrowser, PatternGrid, EqView, RootView; профиль 7.11). Звук партий RANDOM на iPad — проверить и подстроить таблицы.
 - Тексты docs/ai и ios/CLAUDE.md по правкам S14v — предложены, ждут подтверждения.
 
 ## Аудит перед App Store (готово)
