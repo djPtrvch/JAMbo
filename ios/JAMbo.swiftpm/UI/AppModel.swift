@@ -84,8 +84,6 @@ final class AppModel {
     @ObservationIgnored var usedSteps: Set<Int> = []
     /// Зажата SHIFT.
     @ObservationIgnored var _shiftHeld: Bool = false
-    /// Пасхалка: панда вместо полос уровня в окне MIX (SHIFT + тап по окну; не в проекте).
-    @ObservationIgnored var _pandaShown: Bool = false
     /// Зажата FX: ручки — общие эффекты; MOD — LFO1–3 и ENV дорожки; из двух — нажатая последней.
     @ObservationIgnored var _fxHeld: Bool = false
     @ObservationIgnored var _modHeld: Bool = false

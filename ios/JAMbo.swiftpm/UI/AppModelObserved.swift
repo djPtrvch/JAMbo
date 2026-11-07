@@ -29,10 +29,6 @@ extension AppModel {
         get { access(keyPath: \.shiftHeld); return _shiftHeld }
         set { put(\.shiftHeld, \._shiftHeld, newValue, observedChanged(_shiftHeld, newValue)) }
     }
-    var pandaShown: Bool {
-        get { access(keyPath: \.pandaShown); return _pandaShown }
-        set { put(\.pandaShown, \._pandaShown, newValue, observedChanged(_pandaShown, newValue)) }
-    }
     var fxHeld: Bool {
         get { access(keyPath: \.fxHeld); return _fxHeld }
         set { put(\.fxHeld, \._fxHeld, newValue, observedChanged(_fxHeld, newValue)) }
