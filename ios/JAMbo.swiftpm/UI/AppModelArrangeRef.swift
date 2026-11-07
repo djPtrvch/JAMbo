@@ -107,6 +107,7 @@ extension AppModel {
         }
         guard let s = store.data(r.key) else { return }
         let key: String = r.key
+        ensureRefLufs(key, s)
         if refWave?.key != key {
             Task.detached(priority: .userInitiated) {
                 let w: RefWave = RefWave.make(key, s)

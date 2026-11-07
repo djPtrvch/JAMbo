@@ -18,8 +18,11 @@ public final class Levels: @unchecked Sendable {
     public let blocks = AtomicCounter()
     /// Громкость (LUFS) показанного канала.
     public let loudness = Loudness(sampleRate: AudioCore.sampleRate)
+    /// Громкость выхода мастера всегда (short-term — подгонка громкости референса, Headphone Monitor).
+    public let mixLoudness = Loudness(sampleRate: AudioCore.sampleRate)
 
     public init() {
+        mixLoudness.source.store(Levels.master)
         let n = Levels.ring * Levels.channels * Levels.stride
         data = .allocate(capacity: n)
         data.initialize(repeating: 0, count: n)
@@ -47,6 +50,7 @@ public final class Levels: @unchecked Sendable {
     @inline(__always)
     func commit(frames: Int) {
         loudness.end(frames)
+        mixLoudness.end(frames)
         blocks.store(blocks.load() + 1)
     }
 
@@ -85,6 +89,11 @@ public final class Loudness: @unchecked Sendable {
     /// Моментальная и интегральная громкость, LUFS (−∞ — тишина или ещё нет блоков).
     public let momentary = AtomicFloat(-Float.infinity)
     public let integrated = AtomicFloat(-Float.infinity)
+    /// Short-term (около 3 с): средний квадрат последних shortHops моментальных окон.
+    public let shortTerm = AtomicFloat(-Float.infinity)
+    static let shortHops = 30
+    let shortRing: UnsafeMutablePointer<Double>
+    private var shortCount = 0
 
     let c: UnsafeMutablePointer<Double>
     /// Состояние биквадов (DF1, как Biquad.cpp): [канал][фильтр][x1, x2, y1, y2].
@@ -117,12 +126,15 @@ public final class Loudness: @unchecked Sendable {
         binE.initialize(repeating: 0, count: Loudness.bins)
         zeros = .allocate(capacity: AudioCore.maxFrames)
         zeros.initialize(repeating: 0, count: AudioCore.maxFrames)
+        shortRing = .allocate(capacity: Loudness.shortHops)
+        shortRing.initialize(repeating: 0, count: Loudness.shortHops)
         source.store(-1)
     }
 
     deinit {
         c.deallocate(); z.deallocate(); energy.deallocate(); frames.deallocate(); binN.deallocate(); binE.deallocate()
         zeros.deallocate()
+        shortRing.deallocate()
     }
 
     /// Колбэк: слушает ли громкость канал ch (заодно — смена канала и сброс).
@@ -148,6 +160,9 @@ public final class Loudness: @unchecked Sendable {
         frames.update(repeating: 0, count: Loudness.ringBlocks)
         sinceHop = 0
         momentary.store(-Float.infinity)
+        shortRing.update(repeating: 0, count: Loudness.shortHops)
+        shortCount = 0
+        shortTerm.store(-Float.infinity)
         clearIntegrated()
     }
 
@@ -226,6 +241,17 @@ public final class Loudness: @unchecked Sendable {
         }
         let ms: Double = sum / Double(Loudness.window)
         momentary.store(ms > 1e-10 ? Float(-0.691 + 10 * log10(ms)) : -Float.infinity)
+        shortRing[shortCount % Loudness.shortHops] = ms
+        shortCount += 1
+        let hops: Int = Swift.min(shortCount, Loudness.shortHops)
+        var st: Double = 0
+        var h = 0
+        while h < hops {
+            st += shortRing[h]
+            h += 1
+        }
+        st /= Double(hops)
+        shortTerm.store(st > 1e-10 ? Float(-0.691 + 10 * log10(st)) : -Float.infinity)
         integrate(ms)
     }
 
@@ -254,5 +280,23 @@ public final class Loudness: @unchecked Sendable {
             i += 1
         }
         integrated.store(n > 0 ? Float(-0.691 + 10 * log10(s / n)) : -Float.infinity)
+    }
+}
+
+extension Loudness {
+    /// Интегральная громкость файла (LUFS; тишина — −∞) — вне колбэка (подгонка громкости референса).
+    public static func integrated(left: UnsafePointer<Float>, right: UnsafePointer<Float>, frames: Int) -> Double {
+        let m = Loudness(sampleRate: AudioCore.sampleRate)
+        m.source.store(0)
+        _ = m.listens(0)
+        let block = 4096
+        var at = 0
+        while at < frames {
+            let n: Int = Swift.min(block, frames - at)
+            m.process(left + at, right + at, n)
+            m.end(n)
+            at += n
+        }
+        return Double(m.integrated.load())
     }
 }

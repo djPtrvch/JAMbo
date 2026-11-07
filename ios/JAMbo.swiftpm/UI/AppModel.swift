@@ -243,6 +243,14 @@ final class AppModel {
     /// IMPORT профилей коррекции (тот же fileImporter, текстовые файлы); итог импорта — окно с OK.
     @ObservationIgnored var _importingPhones: Bool = false
     @ObservationIgnored var _phonesNote: String? = nil
+    /// Headphone Monitor (AppModelMonitor): настройки цепочки, Trim по профилям, пресеты Translation, громкость файла
+    /// референса (LUFS) и подгонка к миксу, dB.
+    var monitor: MonitorSettings = AppModel.loadMonitor()
+    var phonesTrims: [String: [Double]] = AppModel.loadTrims()
+    @ObservationIgnored let translations: [TranslationPreset] = AppModel.loadTranslations()
+    @ObservationIgnored var refLufs: (key: String, lufs: Double)? = nil
+    @ObservationIgnored var refLufsPending: String = ""
+    @ObservationIgnored var refMatchDb: Double = 0
     /// EXPORT: готовый временный файл профиля (окно сохранения в «Файлы»).
     @ObservationIgnored var _phonesExported: URL? = nil
     @ObservationIgnored var _gridTop: Int = 0
@@ -416,7 +424,7 @@ final class AppModel {
         syncTapSensor()
         startMidi()
         publishAudio()
-        audio.core.phones.publish(phonesEq)
+        publishMonitor()
         audio.core.events.push(.tempo(project.bpm))
         audio.core.events.push(.metronomeGain(Float(settings.metronomeVol / 100)))
         let timer = Timer(timeInterval: 1.0 / 60, repeats: true) { [weak self] _ in

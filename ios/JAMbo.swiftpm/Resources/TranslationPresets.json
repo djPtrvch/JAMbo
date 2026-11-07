@@ -1,0 +1,32 @@
+{
+  "presets": [
+    { "name": "Off", "filters": [] },
+    { "name": "Club", "filters": [
+      { "type": "HP", "freq": 30 },
+      { "type": "LS", "freq": 60, "gain": 2 },
+      { "type": "HS", "freq": 10000, "gain": -2 }
+    ] },
+    { "name": "Small Monitors", "filters": [
+      { "type": "HP", "freq": 55, "order": 4 }
+    ] },
+    { "name": "Laptop", "filters": [
+      { "type": "HP", "freq": 150 },
+      { "type": "LP", "freq": 14000 },
+      { "type": "PK", "freq": 1500, "gain": 2, "q": 1 }
+    ] },
+    { "name": "Phone", "mono": true, "filters": [
+      { "type": "HP", "freq": 300 },
+      { "type": "LP", "freq": 12000 },
+      { "type": "PK", "freq": 2500, "gain": 3, "q": 1 }
+    ] },
+    { "name": "Car", "filters": [
+      { "type": "LS", "freq": 100, "gain": 4 },
+      { "type": "PK", "freq": 250, "gain": -2, "q": 1 },
+      { "type": "LP", "freq": 16000 }
+    ] },
+    { "name": "Home Hi-Fi", "filters": [
+      { "type": "LS", "freq": 100, "gain": 1.5 },
+      { "type": "HS", "freq": 8000, "gain": 1.5 }
+    ] }
+  ]
+}

@@ -223,6 +223,7 @@ struct OutputSettings: View {
                 }
             }
             SettingsNote(text: "Tap the AirPlay icon to choose where the sound goes: the iPad speakers, headphones, Bluetooth, AirPlay or a USB audio interface. The same choice is in Control Center.")
+            MonitorSettingsRows(model: model)
         }
     }
 
@@ -231,6 +232,40 @@ struct OutputSettings: View {
         let outs: [AVAudioSessionPortDescription] = AVAudioSession.sharedInstance().currentRoute.outputs
         if outs.isEmpty { return "No output" }
         return outs.map { $0.portName }.joined(separator: ", ")
+    }
+}
+
+/// OUTPUT → MONITORING (Headphone Monitor): пути референса (через модули мастера, через монитор-цепочку), подгонка
+/// громкости референса к миксу и ручная подстройка ±12 dB (шаг 0,5 dB). Хранится в настройках монитора (UserDefaults).
+struct MonitorSettingsRows: View {
+    let model: AppModel
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let m: AppModel = model
+        let s: MonitorSettings = m.monitor
+        return FormRows(rows: [
+            .head("MONITORING"),
+            .toggle("REF THROUGH MASTER CHAIN", s.refMaster) { v in m.setMonitor { $0.refMaster = v } },
+            .note("The reference track goes through the master modules and the master EQ, like the mix."),
+            .toggle("REF THROUGH HEADPHONE MONITOR", s.refMonitor) { v in m.setMonitor { $0.refMonitor = v } },
+            .note("If off, the A/B comparison is unfair: the mix is heard with the correction, the reference without (RAW on the A/B switch)."),
+            .toggle("REF LOUDNESS MATCH", s.refMatch) { v in m.setMonitor { $0.refMatch = v } },
+            .note("The reference is matched to the mix: short-term loudness of the mix against the integrated loudness of the reference."),
+            .label("REF TRIM"),
+            .view(AnyView(trim(s.refTrim))),
+        ])
+    }
+
+    private func trim(_ db: Double) -> some View {
+        let m: AppModel = model
+        let t: String = db == 0 ? "0.0 dB" : String(format: "%+.1f dB", db)
+        return HStack(spacing: 8) {
+            MenuItem(title: "−") { m.setMonitor { $0.refTrim = Swift.max(-12, $0.refTrim - 0.5) } }.frame(width: 64, height: 44)
+            Text(t).font(.system(size: 13, weight: .bold)).monospacedDigit().foregroundStyle(theme.text).frame(width: 80)
+            MenuItem(title: "+") { m.setMonitor { $0.refTrim = Swift.min(12, $0.refTrim + 0.5) } }.frame(width: 64, height: 44)
+            MenuItem(title: "0") { m.setMonitor { $0.refTrim = 0 } }.frame(width: 64, height: 44)
+        }
     }
 }
 

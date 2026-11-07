@@ -65,7 +65,8 @@ struct ArrTotalTime: View {
     }
 }
 
-/// A/B (S15g): A — слышен проект, B — референс (мимо мастера; измеритель, LUFS и регулятор — референса); горит
+/// A/B (S15g): A — слышен проект, B — референс (мимо мастера или через него и через монитор-цепочку или мимо —
+/// SETTINGS → OUTPUT → MONITORING; мимо монитор-цепочки — значок RAW; измеритель, LUFS и регулятор — референса); горит
 /// выбранная буква, тап — другая.
 struct ArrABSwitch: View {
     let model: AppModel
@@ -76,6 +77,13 @@ struct ArrABSwitch: View {
         return HStack(spacing: 0) {
             letter("A", !b)
             letter("B", b)
+                // Референс мимо монитор-цепочки (Headphone Monitor) — RAW.
+                .overlay(alignment: .topTrailing) {
+                    if model.refRaw {
+                        Text("RAW").font(.system(size: 7, weight: .heavy)).foregroundStyle(b ? theme.bg : theme.dim)
+                            .padding(.top, 1).padding(.trailing, 2)
+                    }
+                }
         }
         .frame(width: 60)
         .background(theme.panel2, in: RoundedRectangle(cornerRadius: 5))

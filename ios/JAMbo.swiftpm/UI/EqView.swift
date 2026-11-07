@@ -65,6 +65,9 @@ struct EqView: View {
         VStack(spacing: Layout.barGap) {
             EqBar(model: model, layout: layout, plotFrame: plotFrame) { field in openInput(field) }
                 .frame(height: model.barH)
+            // Окно коррекции наушников: строки Headphone Monitor.
+            if model.phonesShown { MonitorBar(model: model) }
+            if model.phonesShown && model.monitor.trimOpen { MonitorTrimBar(model: model) }
             EqPlot(model: model)
                 .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { plotFrame = $0 }
         }
@@ -268,28 +271,16 @@ struct EqBar: View {
         case 1: return AnyView(freqField(b))
         case 2: return AnyView(gainField(b))
         case 3: return AnyView(qField(b))
-        // У коррекции наушников нет M/S, DYN и LISTEN; на месте STEREO — её предусиление.
-        case 4: return phones ? AnyView(preampLabel) : AnyView(msField(b))
+        // У коррекции наушников нет M/S, DYN и LISTEN (уровень цепочки — LEVEL в строке MONITOR).
+        case 4: return phones ? AnyView(EmptyView()) : AnyView(msField(b))
         case 5: return phones ? AnyView(EmptyView()) : AnyView(dynField(b))
         case 6: return phones ? AnyView(EmptyView()) : AnyView(EqListenButton(model: model, enabled: true))
         case 7: return AnyView(presetsButton)
+        // У коррекции наушников BYPASS — вся монитор-цепочка (Headphone Monitor).
         default:
             let m: AppModel = model
             return AnyView(EqTool(title: "BYPASS", enabled: true, active: !m.eqTarget.on) { m.toggleEqBypass() })
         }
-    }
-
-    /// Предусиление коррекции наушников (минус подъём кривой), только показ.
-    private var preampLabel: some View {
-        let v: Double = model.phonesPreamp
-        let t: String = v == 0 ? "0.0 dB" : String(format: "%.1f dB", v)
-        // Как поле EQ, но без подложки: значение не меняется пальцем.
-        return VStack(alignment: .leading, spacing: 0) {
-            Text("PREAMP").font(.system(size: 9)).tracking(0.8).foregroundStyle(theme.dim)
-            Text(t).font(.system(size: 16)).lineLimit(1).minimumScaleFactor(0.7).foregroundStyle(theme.text)
-        }
-        .padding(.horizontal, 12)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
 
     /// PRESETS: меню пресетов EQ под кнопкой (горит, пока открыто).

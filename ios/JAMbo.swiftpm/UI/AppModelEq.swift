@@ -251,6 +251,8 @@ extension AppModel {
     func setPhonesName(_ name: String) {
         phonesName = name
         UserDefaults.standard.set(name, forKey: AppModel.phonesNameKey)
+        // Trim — свой у каждого профиля.
+        publishMonitor()
     }
 
     /// IMPORT в CORRECT PRESETS: выбор текстовых файлов профилей.
@@ -354,11 +356,9 @@ extension AppModel {
     func setPhonesEq(_ e: Eq) {
         phonesEq = e
         UserDefaults.standard.set(try? JSONEncoder().encode(e), forKey: AppModel.phonesEqKey)
-        audio.core.phones.publish(e)
+        publishMonitor()
     }
 
-    /// Предусиление коррекции (подпись PREAMP), dB.
-    var phonesPreamp: Double { return EqSpec.preamp(phonesEq) }
 
     // MARK: — свой EQ по умолчанию (SAVE DEFAULT в PRESETS; KnobDefaults)
 

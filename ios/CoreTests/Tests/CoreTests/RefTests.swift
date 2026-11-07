@@ -91,9 +91,10 @@ final class RefTests: XCTestCase {
         c.publish(p, samples: ["r": ramp(400_000)], refB: true)
         let l = render(c, blocks: 1)
         XCTAssertLessThan(l[0], l[255] * 0.1, "B — с подъёмом")
-        XCTAssertGreaterThan(c.ref.ab, 0.5)
-        let l2 = render(c, blocks: 2)
-        XCTAssertEqual(Double(at(l2[0])), Double(22 * 256), accuracy: 3)
+        // Переход A/B — 20 мс (960 кадров; Headphone Monitor, прежде 10 мс): за блок 256 — чуть больше четверти.
+        XCTAssertEqual(c.ref.ab, 256 / 960, accuracy: 0.01)
+        let l2 = render(c, blocks: 3)
+        XCTAssertEqual(Double(at(l2[255])), Double(23 * 256 + 255), accuracy: 3)
     }
 
     func testOnlyFromTimeline() {

@@ -37,10 +37,11 @@ public final class AudioCore: @unchecked Sendable {
     /// Цепочка мастера (сумма дорожек и FX → EQ → SAT → COMP → CLIP → LIM); тест-тон, метроном и прослушивание — мимо неё,
     /// как в вебе. Без мастера (useMaster false) — тесты, которые сверяют выход по отсчётам.
     public let master = MasterChain(sampleRate: AudioCore.sampleRate)
-    /// Референс аранжировщика (S15g): после мастера, A/B.
+    /// Референс аранжировщика (S15g): A/B, мимо мастера или через него.
     public let ref = RefPlayer()
-    /// Коррекция наушников: в самом конце выхода (после мастера, референса и прослушивания), мимо записи и экспорта.
-    public let phones = PhonesEq(sampleRate: AudioCore.sampleRate)
+    /// Монитор-цепочка (Headphone Monitor: коррекция наушников, Crossfeed, Translation…): в самом конце выхода (после
+    /// мастера, референса и прослушивания), мимо записи и экспорта; референс — через неё или мимо.
+    public let monitor = MonitorChain(sampleRate: AudioCore.sampleRate)
     private let useMaster: Bool
     private let masterL = UnsafeMutablePointer<Float>.allocate(capacity: AudioCore.maxFrames)
     private let masterR = UnsafeMutablePointer<Float>.allocate(capacity: AudioCore.maxFrames)
@@ -220,13 +221,14 @@ public final class AudioCore: @unchecked Sendable {
             masterL.update(repeating: 0, count: n)
             masterR.update(repeating: 0, count: n)
             sampler.render(blockStart: sampleTime, frames: n, left: masterL, right: masterR)
+            renderRef(d, n)
             master.process(left: masterL, right: masterR, frames: n, params: d.master,
                            eqParams: d.eq + EqSpec.masterChannel * EqSpec.stride)
             profile.lap(RenderProfile.master)
             if sampler.stemGate != nil { captureStems(ring, n, masterL, masterR) }
             meterMaster(n)
             master.scope.gonio(masterL, masterR, n)
-            renderRef(d, n)
+            ref.mixPost(masterL, masterR, n: n)
             var i = 0
             while i < n {
                 left[i] += masterL[i]
@@ -242,17 +244,20 @@ public final class AudioCore: @unchecked Sendable {
         profile.lap(RenderProfile.voices)
     }
 
-    /// Коррекция наушников на весь выход; спектры до и после неё — пока открыто её окно.
+    /// Монитор-цепочка на весь выход (слышен референс мимо неё — уходит); спектры до и после неё — пока открыто окно
+    /// коррекции.
     @inline(__always)
     private func renderPhones(_ frames: Int, _ left: UnsafeMutablePointer<Float>, _ right: UnsafeMutablePointer<Float>) {
         let n = Swift.min(frames, AudioCore.maxFrames)
         let shown: Bool = spectra.channel.load() == EqSpec.phonesChannel
         if shown { spectra.pre.push(left, right, n) }
-        phones.process(left, right, n)
+        let raw: Bool = (sampler.sound?.refB ?? false) && ref.throughMonitor.load() == 0
+        monitor.process(left, right, n, raw: raw)
         if shown { spectra.post.push(left, right, n) }
     }
 
-    /// Референс (S15g): место — по курсору таймлайна в конце блока (после шагов блока) минус блок.
+    /// Референс (S15g): место — по курсору таймлайна в конце блока (после шагов блока) минус блок; в вход мастера —
+    /// по A/B и пути через мастер (остальное — после мастера, mixPost).
     @inline(__always)
     private func renderRef(_ d: SoundData, _ n: Int) {
         let seq: Sequencer = sequencer
@@ -264,7 +269,7 @@ public final class AudioCore: @unchecked Sendable {
             x = end - back
         }
         ref.render(d, play: play, x: x, bpm: seq.bpm, n: n)
-        ref.mix(d, masterL, masterR, n: n, levels: levels)
+        ref.mixPre(refB: d.refB, masterL, masterR, n: n, levels: levels)
     }
 
     /// Стемы блока: выходы дорожек после громкости · гейт mute/solo (без посылов), мастер — конечный выход.
@@ -306,6 +311,7 @@ public final class AudioCore: @unchecked Sendable {
         m[0] = pl
         m[1] = pr
         if levels.loudness.listens(Levels.master) { levels.loudness.process(UnsafePointer(l), UnsafePointer(r), n) }
+        levels.mixLoudness.process(UnsafePointer(l), UnsafePointer(r), n)
     }
 
     @inline(__always)
