@@ -199,9 +199,11 @@ struct SampleEditor: View {
 
     private func down(_ id: SpatialEventCollection.Event.ID, _ p: CGPoint, _ d: SampleData, _ size: CGSize) {
         let g = geometry(size)
+        // Идёт масштаб или прокрутка (палец на поле): второй палец флажки и метки не берёт (7.11).
+        let navigating: Bool = touches.values.contains(where: { $0.kind == .nav })
         if model.editorWarp {
             // Верхний флажок: место метки в сэмпле.
-            let top: Int = p.y < SampleEditor.top ? warpTopHit(p, g, d) : -1
+            let top: Int = p.y < SampleEditor.top && !navigating ? warpTopHit(p, g, d) : -1
             if top >= 0 {
                 if touches.values.contains(where: { $0.kind == .warp || $0.kind == .warpTop }) { return }
                 let wv = warpView(d)
@@ -213,8 +215,8 @@ struct SampleEditor: View {
                 return
             }
             // Метка под пальцем (флажок, START или линия); мимо, но в полосе флажков — выделенная.
-            let k: Int = warpHit(p, g, d)
-            let inStrip: Bool = p.y >= g.size.height - EditorWarpDraw.strip - 8
+            let k: Int = navigating ? -1 : warpHit(p, g, d)
+            let inStrip: Bool = !navigating && p.y >= g.size.height - EditorWarpDraw.strip - 8
             let idx: Int = k != -1 ? k : (inStrip ? (model.warpSel ?? -1) : -1)
             if idx != -1 {
                 if touches.values.contains(where: { $0.kind == .warp || $0.kind == .warpTop }) { return }
@@ -232,7 +234,7 @@ struct SampleEditor: View {
             move(id, p, d, size)
             return
         }
-        let fl: Int = model.editorWarp ? -1 : flagAt(p, g)
+        let fl: Int = model.editorWarp || navigating ? -1 : flagAt(p, g)
         if fl >= 0 {
             touches[id] = EditorTouch(kind: .slice, idx: fl, p0: p)
             model.holdFlag(fl)
@@ -483,16 +485,16 @@ struct SampleEditor: View {
         return best
     }
 
-    /// Флажок маркера под пальцем (сверху — правее нарисованный; зона шире флажка на 6 px) или −1.
+    /// Флажок маркера под пальцем — только сам флажок (7.11: без запаса вокруг и без полосы над формой волны —
+    /// нет случайных касаний при масштабе; сверху — правее нарисованный) или −1.
     private func flagAt(_ p: CGPoint, _ g: EditorGeometry) -> Int {
-        if p.y > SampleEditor.top + 8 { return -1 }
         let marks = model.editorMarks
         let notes = model.editorMarkNotes
         var k = marks.count - 1
         while k >= 0 {
             if k < notes.count {
                 let r = EditorDraw.flagRect(g.x(marks[k].at), "")
-                if p.x >= r.minX - 6 && p.x <= r.maxX + 6 { return k }
+                if r.contains(p) { return k }
             }
             k -= 1
         }

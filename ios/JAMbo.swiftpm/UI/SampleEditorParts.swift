@@ -29,14 +29,15 @@ struct EditorBar: View {
         // ширину при WARP (решение пользователя).
         let midX: CGFloat = top.scale.minX + 2 * w + 2 * g
         let midW: CGFloat = max(0, top.patterns.minX - g - midX)
-        // WARP — шириной одной из шести кнопок правки: не меняется, когда вместо них роли куска или строка WARP.
+        // WARP — шириной одной из шести кнопок правки: не меняется со строкой WARP; при ролях куска WARP скрыт.
         let warpW: CGFloat = max(0, (midW - 5 * g) / 6)
         return HStack(spacing: g) {
             infoText.frame(width: infoW, alignment: .leading)
             playButton.frame(width: w)
             SampleRecButton(model: model).frame(width: w)
             HStack(spacing: g) {
-                warpButton.frame(width: warpW)
+                // Роли куска (держат флажок нарезки): WARP скрыт, роли — поровну на всё место (7.11).
+                if model.roleFlag == nil || model.editorWarp { warpButton.frame(width: warpW) }
                 if model.editorWarp {
                     WarpBar(model: model, data: data, showPlay: false)
                 } else if model.roleFlag != nil {
@@ -127,7 +128,7 @@ struct EditorBar: View {
             } else {
                 AnyView(tools(play: true))
             }
-            warpButton
+            if model.roleFlag == nil || model.editorWarp { warpButton }
             loadSave
             ToolButton(title: "✕", width: model.barH) { model.closeEditor() }
         }
