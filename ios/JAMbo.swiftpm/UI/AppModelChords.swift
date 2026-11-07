@@ -48,13 +48,13 @@ extension AppModel {
     /// Дорожка с ударным движком (KICK, SNARE, HAT, CLAP, PERC): у CHORD — стили ритма вместо типов аккорда.
     var drumTrack: Bool {
         guard channel == .track else { return false }
-        return track.drumRole != nil
+        return drumRoleOf(track) != nil
     }
 
     /// Дорожка с нарезанным сэмплом при SETTINGS → RANDOM → SAMPLES: у CHORD — RANDOM и стили, как у ударной.
     var sliceTrack: Bool {
         guard channel == .track, settings.randomSamples else { return false }
-        return track.drumRole == nil && track.hasCuts
+        return drumRoleOf(track) == nil && track.hasCuts
     }
 
     /// У кнопки CHORD — стили вместо типов аккорда (ударная или нарезанная дорожка; в режиме ARP — направления).
@@ -123,7 +123,7 @@ extension AppModel {
     }
 
     /// Выбранные страницы открытого паттерна (playFrom…playTo); вне их — открытая страница.
-    private var chordPages: ClosedRange<Int> {
+    var chordPages: ClosedRange<Int> {
         let t: Track = track
         let last: Int = t.pages.count - 1
         if t.playFrom >= 0 && t.playFrom <= t.playTo && t.playTo <= last { return t.playFrom...t.playTo }
@@ -133,7 +133,19 @@ extension AppModel {
 
     /// Роль выбранной дорожки для случайной партии (MelodyRhythm.role): звук, октава клавиатуры, CHORD, ARP.
     var melodyRole: MelodyRhythm.Role {
-        return MelodyRhythm.role(sample: track.sample, octave: octave, chord: chordMode[selectedTrack], arp: arpMode)
+        return MelodyRhythm.role(sample: track.sample, name: project.files[track.sample] ?? "", octave: octave,
+                                 chord: chordMode[selectedTrack], arp: arpMode)
+    }
+
+    /// Ударная роль дорожки: движок или сэмпл (без нарезки) по имени файла.
+    func drumRoleOf(_ t: Track) -> DrumRhythm.Role? {
+        return t.drumRole(name: project.files[t.sample])
+    }
+
+    /// Нота случайного ритма: у сэмпла — исходная высота (Params.sampleRoot), у движка — корневая в октаве oct.
+    func drumNote(_ t: Track, octave oct: Int) -> Int {
+        if SynthKey.engine(t.sample) == nil { return Params.sampleRoot }
+        return Scales.baseNote(root: project.root, octave: oct)
     }
 
     /// Случайная прогрессия стиля проекта (MelodyRhythm.progression), не равная прошлой.
@@ -224,17 +236,17 @@ extension AppModel {
     /// длинам страниц (короткая — своей длиной), нота — корневая в октаве клавиатуры; на все дорожки сразу — STEPS ALL
     /// TRACKS (writeEnsemble). AUTO SWING — Swing дорожки по стилю. Одна запись UNDO.
     func writeRandomDrums() {
-        guard channel == .track, track.drumRole != nil else { return }
+        guard channel == .track, let role = drumRoleOf(track) else { return }
         let range: ClosedRange<Int> = chordPages
         var g = SystemRandomNumberGenerator()
         let id: Int = track.id
         let avoid: [Int]? = lastRandomDrums[id]
-        let note: Int = Scales.baseNote(root: project.root, octave: octave)
+        let note: Int = drumNote(track, octave: octave)
         let bpm: Double = project.bpm
         let swing: Bool = settings.randomSwing
         var steps: [Int]? = nil
         editTrack { t in
-            steps = t.writeRandomDrums(pages: range, note: note, bpm: bpm, avoid: avoid, using: &g)
+            steps = t.writeRandomDrums(pages: range, note: note, bpm: bpm, avoid: avoid, role: role, using: &g)
             if swing { t.params["swing"] = DrumRhythm.swing(t.drumStyle, bpm: bpm) }
         }
         lastRandomDrums[id] = steps

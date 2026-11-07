@@ -5,7 +5,7 @@ import Foundation
 
 /// Партия одной дорожки ансамбля (считается до правки проекта).
 enum EnsembleJob {
-    case drums(note: Int)
+    case drums(note: Int, role: DrumRhythm.Role)
     case slices(pieces: [SliceRhythm.Piece], cuts: [Int: SliceRhythm.Cut])
     case bass(octave: Int)
     case chords(role: MelodyRhythm.Role, chords: [[Int]])
@@ -20,8 +20,8 @@ extension AppModel {
         let t: Track = project.tracks[i]
         if t.sample.isEmpty { return nil }
         let p: Project = project
-        if t.drumRole != nil {
-            return settings.randomDrums ? .drums(note: Scales.baseNote(root: p.root, octave: oct)) : nil
+        if let dr = drumRoleOf(t) {
+            return settings.randomDrums ? .drums(note: drumNote(t, octave: oct), role: dr) : nil
         }
         if settings.randomSamples && t.hasCuts {
             guard let d = sample(t.sample) else { return nil }
@@ -30,7 +30,8 @@ extension AppModel {
         }
         if !settings.randomChords { return nil }
         let chordOn: Bool = i < chordMode.count ? chordMode[i] : false
-        let role: MelodyRhythm.Role = MelodyRhythm.role(sample: t.sample, octave: oct, chord: chordOn, arp: t.arp.mode)
+        let role: MelodyRhythm.Role = MelodyRhythm.role(sample: t.sample, name: p.files[t.sample] ?? "", octave: oct,
+                                                        chord: chordOn, arp: t.arp.mode)
         switch role {
         case .bass: return .bass(octave: oct)
         case .lead: return .lead(octave: oct)
@@ -75,8 +76,9 @@ extension AppModel {
                 let id: Int = p.tracks[i].id
                 var pad: Bool = false
                 switch job {
-                case .drums(let note):
-                    last[id] = p.tracks[i].writeRandomDrums(pages: r, note: note, bpm: bpm, avoid: last[id], using: &g)
+                case .drums(let note, let role):
+                    last[id] = p.tracks[i].writeRandomDrums(pages: r, note: note, bpm: bpm, avoid: last[id], role: role,
+                                                            using: &g)
                 case .slices(let pieces, let cuts):
                     last[-1 - id] = p.tracks[i].writeRandomSlices(pieces, pages: r, avoid: last[-1 - id], cuts: cuts,
                                                                   bpm: bpm, using: &g)

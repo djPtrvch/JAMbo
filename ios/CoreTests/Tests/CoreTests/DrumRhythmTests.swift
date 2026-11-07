@@ -234,3 +234,39 @@ final class DrumRhythmTests: XCTestCase {
         XCTAssertTrue(b.randomSamples)
     }
 }
+
+/// Ударные сэмплы по имени файла (7.11).
+final class DrumSampleRoleTests: XCTestCase {
+    func testNames() {
+        let r = DrumRhythm.role(name:)
+        XCTAssertEqual(r("Kick 01.wav"), .kick)
+        XCTAssertEqual(r("TR909_BD_tape.wav"), .kick)
+        XCTAssertEqual(r("808 Kick Long"), .kick)
+        XCTAssertEqual(r("Snare Tight.aif"), .snare)
+        XCTAssertEqual(r("SD-02"), .snare)
+        XCTAssertEqual(r("Rim shot"), .snare)
+        XCTAssertEqual(r("Clap_Big"), .clap)
+        XCTAssertEqual(r("Open Hat"), .hat)
+        XCTAssertEqual(r("HiHat closed"), .hat)
+        XCTAssertEqual(r("HH 3"), .hat)
+        XCTAssertEqual(r("Conga Hi"), .perc)
+        XCTAssertEqual(r("Tom Low"), .perc)
+        XCTAssertNil(r("Bottom Bass"), "tom внутри слова — не PERC")
+        XCTAssertNil(r("Warm Pad"))
+        XCTAssertNil(r("What"), "hat внутри слова — нет")
+    }
+
+    func testTrackRole() {
+        var t = Track(index: 0)
+        t.sample = "key1"
+        XCTAssertEqual(t.drumRole(name: "Snare 2.wav"), .snare)
+        XCTAssertNil(t.drumRole(name: "Lead Pluck.wav"))
+        XCTAssertNil(t.drumRole, "по движку — нет")
+        t.sample = "mi:16"
+        XCTAssertEqual(t.drumRole(name: "Snare"), .kick, "движок важнее имени")
+        var g = SystemRandomNumberGenerator()
+        t.sample = "key1"
+        XCTAssertNotNil(t.writeRandomDrums(pages: 0...0, note: Params.sampleRoot, avoid: nil, role: .hat, using: &g))
+        XCTAssertTrue(t.pages[0].contains { $0.on && $0.notes == [Params.sampleRoot] })
+    }
+}

@@ -18,15 +18,15 @@ public enum MelodyRhythm {
     static let keysWords: [String] = ["chord", "keys", "piano", "stab", "organ", "rhodes", "epiano"]
 
     /// Роль по звуку дорожки: ARP — арпеджиатор включён; KEYS — режим CHORD; SUB — BASS; TEXTURE, GRANULAR — PAD;
-    /// сэмпл — по словам в имени (bass, pad, chord…); иначе по октаве клавиатуры: до C2 — BASS, выше — LEAD.
-    public static func role(sample: String, octave: Int, chord: Bool, arp: Bool) -> Role {
+    /// сэмпл — по словам в имени файла name (bass, pad, chord…); иначе по октаве клавиатуры: до C2 — BASS, выше — LEAD.
+    public static func role(sample: String, name: String = "", octave: Int, chord: Bool, arp: Bool) -> Role {
         if arp { return .arp }
         if chord { return .keys }
         if let e = SynthKey.engine(sample) {
             if e == Jambo.sub { return .bass }
             if e == Jambo.texture || e == Jambo.granular { return .pad }
         } else if !sample.isEmpty {
-            let name: String = (sample as NSString).lastPathComponent.lowercased()
+            let name: String = DrumRhythm.words(name).joined(separator: " ")
             if bassWords.contains(where: { name.contains($0) }) { return .bass }
             if padWords.contains(where: { name.contains($0) }) { return .pad }
             if keysWords.contains(where: { name.contains($0) }) { return .keys }

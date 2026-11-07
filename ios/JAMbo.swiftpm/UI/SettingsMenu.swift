@@ -318,7 +318,7 @@ struct RandomSettings: View {
         let s: AppSettings = m.settings
         return FormRows(rows: [
             .toggle("DRUMS", s.randomDrums) { m.setRandom(0, $0) },
-            .note("SHIFT + tap on CHORD on a drum track (Kick, Snare, Hat, Clap, Perc) writes a random rhythm in the project's style (one style for all tracks; Breaks/D&B and Trap/R&B follow the tempo). OFF: nothing."),
+            .note("SHIFT + tap on CHORD on a drum track (Kick, Snare, Hat, Clap, Perc, or a sample named kick, snare, hat, clap, perc, tom…) writes a random rhythm in the project's style (one style for all tracks; Breaks/D&B and Trap/R&B follow the tempo). OFF: nothing."),
             .toggle("CHORDS / ARP", s.randomChords) { m.setRandom(1, $0) },
             .note("SHIFT + tap on CHORD on other tracks writes a random part in the project's style by the track's role: BASS (Sub, a sample named bass or 808, keyboard octave C2 and lower) — a bass line; KEYS (CHORD mode, a sample named chord, keys, piano) — chords in the style's rhythm; PAD (Texture, Granular, a sample named pad) — long chords; LEAD (other tracks) — a melody; ARP mode — an arpeggio. Bass and lead follow the last random progression. OFF: nothing."),
             .toggle("SAMPLES", s.randomSamples) { m.setRandom(4, $0) },

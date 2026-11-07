@@ -34,6 +34,29 @@ public enum DrumRhythm {
         }
     }
 
+    /// Слова имени сэмпла (строчными, разбито по не-буквам и не-цифрам).
+    public static func words(_ name: String) -> [String] {
+        return name.lowercased().split(whereSeparator: { !($0.isLetter || $0.isNumber) }).map { String($0) }
+    }
+
+    /// Роль ударного сэмпла по имени файла (7.11): kick, bd → KICK; snare, sd, rim → SNARE; clap, cp → CLAP;
+    /// hat, hihat, hh, oh, ch, ride → HAT; perc, tom, conga, bongo, shaker, tamb, cowbell, clave → PERC; иначе nil.
+    public static func role(name: String) -> Role? {
+        let w: [String] = words(name)
+        let joined: String = w.joined()
+        func has(_ exact: [String], prefix: [String]) -> Bool {
+            return w.contains { t in exact.contains(t) || prefix.contains { t.hasPrefix($0) } }
+        }
+        if joined.contains("kick") || has(["bd", "kik"], prefix: ["kick", "bassdrum"]) || joined.contains("bassdrum") {
+            return .kick
+        }
+        if joined.contains("snare") || has(["sd", "snr", "rim", "rimshot"], prefix: ["snare"]) { return .snare }
+        if joined.contains("clap") || has(["cp", "clp"], prefix: ["clap"]) { return .clap }
+        if joined.contains("hihat") || has(["hh", "oh", "ch", "ride"], prefix: ["hat"]) { return .hat }
+        if has(["perc"], prefix: ["perc", "tom", "conga", "bongo", "shaker", "tamb", "cowbell", "clave"]) { return .perc }
+        return nil
+    }
+
     /// Стили (кнопки окна CHORD, Track.drumStyle); подписи — с заглавной. Minimal — внутри Techno (решение 4.11).
     public static let styles: [String] = ["House", "Techno", "Breaks/D&B", "Trap/R&B", "Pop", "Ambient"]
 
@@ -349,12 +372,23 @@ extension Track {
     /// Ударная роль звука дорожки (KICK, SNARE, HAT, CLAP, PERC); иначе nil.
     public var drumRole: DrumRhythm.Role? { return DrumRhythm.role(engine: SynthKey.engine(sample)) }
 
+    /// Ударная роль с учётом сэмпла (7.11): движок — как drumRole; сэмпл без маркеров нарезки — по имени файла
+    /// name (DrumRhythm.role(name:)); нарезанный сэмпл — нарезка, не ударная.
+    public func drumRole(name: String?) -> DrumRhythm.Role? {
+        if let r = drumRole { return r }
+        if sample.isEmpty || SynthKey.engine(sample) != nil || hasCuts { return nil }
+        guard let n = name else { return nil }
+        return DrumRhythm.role(name: n)
+    }
+
     /// Случайный ритм стиля дорожки на страницы range (по их длинам) нотой note; вариант стиля — по bpm; avoid —
-    /// шаги прошлой основы. Возвращает шаги новой основы (для следующего avoid); не ударная — nil, ничего не пишется.
+    /// шаги прошлой основы; r — роль (ударный сэмпл по имени), иначе по движку. Возвращает шаги новой основы (для
+    /// следующего avoid); не ударная — nil, ничего не пишется.
     public mutating func writeRandomDrums<G: RandomNumberGenerator>(pages range: ClosedRange<Int>, note: Int,
                                                                     bpm: Double = 120, avoid: [Int]?,
+                                                                    role r: DrumRhythm.Role? = nil,
                                                                     using g: inout G) -> [Int]? {
-        guard let role = drumRole else { return nil }
+        guard let role = r ?? drumRole else { return nil }
         let t: Track = self
         let lens: [Int] = range.map { t.pageLen($0, from: range.lowerBound) }
         let pattern: [[DrumRhythm.Hit]] = DrumRhythm.pattern(role, style: drumStyle, bpm: bpm, lens: lens,
