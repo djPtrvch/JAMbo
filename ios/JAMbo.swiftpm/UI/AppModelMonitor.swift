@@ -8,7 +8,7 @@ extension AppModel {
     static let phonesTrimsKey = "phonesTrims"
 
     static func loadMonitor() -> MonitorSettings {
-        return MonitorSettings.decode(UserDefaults.standard.data(forKey: AppModel.monitorKey))
+        return MonitorSettings(plist: UserDefaults.standard.dictionary(forKey: AppModel.monitorKey))
     }
 
     /// Пресеты Translation из ресурсов (в корне пакета или в папке Resources); нет файла — только Off (без фильтров).
@@ -21,9 +21,7 @@ extension AppModel {
     }
 
     static func loadTrims() -> [String: [Double]] {
-        guard let d = UserDefaults.standard.data(forKey: AppModel.phonesTrimsKey),
-              let t = try? JSONDecoder().decode([String: [Double]].self, from: d) else { return [:] }
-        return t
+        return UserDefaults.standard.dictionary(forKey: AppModel.phonesTrimsKey) as? [String: [Double]] ?? [:]
     }
 
     /// Trim текущего профиля (5 полос, dB).
@@ -37,7 +35,7 @@ extension AppModel {
         var t: [Double] = phonesTrim
         t[k] = (Swift.max(-MonitorSpec.trimMax, Swift.min(MonitorSpec.trimMax, db)) * 10).rounded() / 10
         phonesTrims[phonesName] = t
-        UserDefaults.standard.set(try? JSONEncoder().encode(phonesTrims), forKey: AppModel.phonesTrimsKey)
+        UserDefaults.standard.set(phonesTrims, forKey: AppModel.phonesTrimsKey)
         publishMonitor()
     }
 
@@ -70,9 +68,8 @@ extension AppModel {
     func setMonitor(_ change: (inout MonitorSettings) -> Void) {
         var m: MonitorSettings = monitor
         change(&m)
-        if m == monitor { return }
         monitor = m
-        UserDefaults.standard.set(try? JSONEncoder().encode(m), forKey: AppModel.monitorKey)
+        UserDefaults.standard.set(m.plist, forKey: AppModel.monitorKey)
         publishMonitor()
     }
 

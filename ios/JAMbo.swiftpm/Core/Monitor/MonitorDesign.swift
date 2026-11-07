@@ -7,9 +7,10 @@ import Foundation
 // Safety limiter. Биквады одинаковы в обоих каналах и линейны, Mono и Crossfeed — линейное смешение каналов, поэтому
 // в колбэке все биквады идут одним каскадом после Crossfeed (результат тот же).
 
-/// Настройки монитор-цепочки (одни на приложение, UserDefaults). Bypass — выключенная коррекция (Eq.on).
-public struct MonitorSettings: Codable, Equatable, Sendable {
-    /// Strength коррекции, 0…1.
+/// Настройки монитор-цепочки (одни на приложение, UserDefaults — словарём, без Codable: объём сборки). Bypass —
+/// выключенная коррекция (Eq.on).
+public struct MonitorSettings {
+    /// CORRECTION (сила коррекции профилем), 0…1.
     public var strength: Double = 1
     /// Crossfeed: угол колонок, градусы (10…60), и Amount, 0…1.
     public var angle: Double = MonitorSpec.angleDef
@@ -29,29 +30,32 @@ public struct MonitorSettings: Codable, Equatable, Sendable {
 
     public init() {}
 
-    public static func decode(_ data: Data?) -> MonitorSettings {
-        guard let data = data, let s = try? JSONDecoder().decode(MonitorSettings.self, from: data) else { return MonitorSettings() }
-        return s
+    /// Из словаря UserDefaults; недостающие и неверные значения — по умолчанию.
+    public init(plist d: [String: Any]?) {
+        let g: [String: Any] = d ?? [:]
+        func num(_ k: String, _ def: Double, _ lo: Double, _ hi: Double) -> Double {
+            let v: Double = (g[k] as? NSNumber)?.doubleValue ?? def
+            return v.isFinite ? Swift.min(hi, Swift.max(lo, v)) : def
+        }
+        func flag(_ k: String, _ def: Bool) -> Bool { return (g[k] as? NSNumber)?.boolValue ?? def }
+        strength = num("strength", 1, 0, 1)
+        angle = num("angle", MonitorSpec.angleDef, MonitorSpec.angleMin, MonitorSpec.angleMax)
+        amount = num("amount", MonitorSpec.amountDef, 0, 1)
+        translation = g["translation"] as? String ?? ""
+        mono = flag("mono", false)
+        sub = flag("sub", false)
+        tab = Int(num("tab", 0, 0, 2))
+        refMaster = flag("refMaster", false)
+        refMonitor = flag("refMonitor", true)
+        refMatch = flag("refMatch", true)
+        refTrim = num("refTrim", 0, -12, 12)
     }
 
-    private enum CodingKeys: String, CodingKey {
-        case strength, angle, amount, translation, mono, sub, tab, refMaster, refMonitor, refMatch, refTrim
-    }
-
-    public init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        strength = Swift.min(1, Swift.max(0, c.value(.strength, 1.0)))
-        angle = Swift.min(MonitorSpec.angleMax, Swift.max(MonitorSpec.angleMin, c.value(.angle, MonitorSpec.angleDef)))
-        amount = Swift.min(1, Swift.max(0, c.value(.amount, MonitorSpec.amountDef)))
-        translation = c.value(.translation, "")
-        mono = c.value(.mono, false)
-        sub = c.value(.sub, false)
-        let t: Int = c.value(.tab, 0)
-        tab = t >= 0 && t < 3 ? t : 0
-        refMaster = c.value(.refMaster, false)
-        refMonitor = c.value(.refMonitor, true)
-        refMatch = c.value(.refMatch, true)
-        refTrim = Swift.min(12, Swift.max(-12, c.value(.refTrim, 0.0)))
+    /// Словарь для UserDefaults.
+    public var plist: [String: Any] {
+        return ["strength": strength, "angle": angle, "amount": amount, "translation": translation, "mono": mono,
+                "sub": sub, "tab": tab, "refMaster": refMaster, "refMonitor": refMonitor, "refMatch": refMatch,
+                "refTrim": refTrim]
     }
 }
 
@@ -109,9 +113,10 @@ public enum MonitorSpec {
     public static let butter4: [Double] = [0.5411961001461969, 1.3065629648763766]
 }
 
-/// Пресет Translation (Resources/TranslationPresets.json): список биквадов и Mono.
-public struct TranslationPreset: Codable, Equatable, Sendable {
-    public struct Filter: Codable, Equatable, Sendable {
+/// Пресет Translation (Resources/TranslationPresets.json): список биквадов и Mono. Разбор — JSONSerialization (без
+/// Codable: объём сборки).
+public struct TranslationPreset {
+    public struct Filter {
         /// HP, LP, PK, LS, HS.
         public var type: String
         public var freq: Double
@@ -124,11 +129,24 @@ public struct TranslationPreset: Codable, Equatable, Sendable {
     public var mono: Bool?
     public var filters: [Filter]
 
-    /// Список пресетов из JSON ({"presets": […]}); ошибка — пусто.
+    /// Список пресетов из JSON ({"presets": […]}); ошибка — пусто, пресет без имени или фильтр без частоты — пропуск.
     public static func list(_ data: Data?) -> [TranslationPreset] {
-        struct Book: Codable { var presets: [TranslationPreset] }
-        guard let d = data, let b = try? JSONDecoder().decode(Book.self, from: d) else { return [] }
-        return b.presets
+        guard let d = data, let root = (try? JSONSerialization.jsonObject(with: d)) as? [String: Any],
+              let arr = root["presets"] as? [[String: Any]] else { return [] }
+        var out: [TranslationPreset] = []
+        for p in arr {
+            guard let name = p["name"] as? String else { continue }
+            var fs: [Filter] = []
+            for f in (p["filters"] as? [[String: Any]]) ?? [] {
+                guard let type = f["type"] as? String, let hz = (f["freq"] as? NSNumber)?.doubleValue else { continue }
+                let g: Double? = (f["gain"] as? NSNumber)?.doubleValue
+                let q: Double? = (f["q"] as? NSNumber)?.doubleValue
+                let o: Int? = (f["order"] as? NSNumber)?.intValue
+                fs.append(Filter(type: type, freq: hz, gain: g, q: q, order: o))
+            }
+            out.append(TranslationPreset(name: name, mono: (p["mono"] as? NSNumber)?.boolValue, filters: fs))
+        }
+        return out
     }
 }
 

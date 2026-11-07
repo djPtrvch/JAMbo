@@ -190,6 +190,30 @@ final class MonitorTests: XCTestCase {
         XCTAssertEqual(o.l.last ?? 0, o.r.last ?? 1, accuracy: 1e-6)
     }
 
+    /// Настройки — словарём UserDefaults: туда и обратно, неверные значения — в пределы.
+    func testSettingsPlist() {
+        var m = MonitorSettings()
+        m.strength = 0.4
+        m.translation = "Car"
+        m.mono = true
+        m.tab = 2
+        m.refMonitor = false
+        m.refTrim = -3.5
+        let back = MonitorSettings(plist: m.plist)
+        XCTAssertEqual(back.strength, 0.4)
+        XCTAssertEqual(back.translation, "Car")
+        XCTAssertTrue(back.mono)
+        XCTAssertEqual(back.tab, 2)
+        XCTAssertFalse(back.refMonitor)
+        XCTAssertEqual(back.refTrim, -3.5)
+        let bad = MonitorSettings(plist: ["angle": 500, "tab": 9, "refTrim": -40, "mono": "x"])
+        XCTAssertEqual(bad.angle, MonitorSpec.angleMax)
+        XCTAssertEqual(bad.tab, 2)
+        XCTAssertEqual(bad.refTrim, -12)
+        XCTAssertFalse(bad.mono)
+        XCTAssertEqual(MonitorSettings(plist: nil).strength, 1)
+    }
+
     /// Trim: 5 полос, ±3 dB.
     func testTrim() {
         var m = MonitorSettings()
