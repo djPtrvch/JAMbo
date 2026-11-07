@@ -9,10 +9,10 @@
     { "name": "Small Monitors", "filters": [
       { "type": "HP", "freq": 55, "order": 4 }
     ] },
-    { "name": "Laptop", "filters": [
-      { "type": "HP", "freq": 150 },
-      { "type": "LP", "freq": 14000 },
-      { "type": "PK", "freq": 1500, "gain": 2, "q": 1 }
+    { "name": "Small Headphones", "filters": [
+      { "type": "HP", "freq": 80 },
+      { "type": "PK", "freq": 3000, "gain": 2, "q": 1 },
+      { "type": "HS", "freq": 10000, "gain": -2 }
     ] },
     { "name": "Phone", "mono": true, "filters": [
       { "type": "HP", "freq": 300 },
