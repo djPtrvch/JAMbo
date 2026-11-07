@@ -9,10 +9,19 @@ extension AppModel {
     /// (ударная при DRUMS, нарезанная дорожка) — моментальная: тап сразу пишет случайный ритм, без SHIFT.
     func chordTap() {
         if randomButton {
-            if drumTrack { writeRandomDrums() } else { writeRandomSlices() }
+            if settings.randomStepsAll {
+                writeEnsemble()
+            } else if drumTrack {
+                writeRandomDrums()
+            } else {
+                writeRandomSlices()
+            }
             return
         }
-        if shiftHeld {
+        if shiftHeld && settings.randomStepsAll {
+            // STEPS ALL TRACKS: партии сразу на всех дорожках (AppModelEnsemble).
+            writeEnsemble()
+        } else if shiftHeld {
             // SETTINGS → RANDOM: выключенный DRUMS или CHORDS — ничего.
             if drumTrack {
                 if settings.randomDrums { writeRandomDrums() }
@@ -211,30 +220,24 @@ extension AppModel {
         editTrack { t in t.writeArpSteps(notes, pages: range) }
     }
 
-    /// Случайный ритм ударного движка дорожки (KICK, SNARE, HAT, CLAP, PERC) на выбранные страницы: по длинам
-    /// страниц (короткая — своей длиной), нота — корневая в октаве клавиатуры. SETTINGS → RANDOM → STEPS ALL TRACKS —
-    /// на все ударные дорожки (каждая — своим движком, на свои выбранные страницы). AUTO SWING — Swing дорожки по
-    /// стилю. Одна запись UNDO.
+    /// Случайный ритм ударного движка выбранной дорожки (KICK, SNARE, HAT, CLAP, PERC) на выбранные страницы: по
+    /// длинам страниц (короткая — своей длиной), нота — корневая в октаве клавиатуры; на все дорожки сразу — STEPS ALL
+    /// TRACKS (writeEnsemble). AUTO SWING — Swing дорожки по стилю. Одна запись UNDO.
     func writeRandomDrums() {
         guard channel == .track, track.drumRole != nil else { return }
-        let sel: Int = selectedTrack
-        let all: Bool = settings.randomStepsAll
         let range: ClosedRange<Int> = chordPages
         var g = SystemRandomNumberGenerator()
-        var last: [Int: [Int]] = lastRandomDrums
-        let root: Int = project.root
-        let octs: [Int] = (0..<project.tracks.count).map { i in i == sel ? octave : octaveOf(i) }
+        let id: Int = track.id
+        let avoid: [Int]? = lastRandomDrums[id]
+        let note: Int = Scales.baseNote(root: project.root, octave: octave)
+        let bpm: Double = project.bpm
         let swing: Bool = settings.randomSwing
-        edit { p in
-            for i in p.tracks.indices where (i == sel || all) && p.tracks[i].drumRole != nil {
-                let r: ClosedRange<Int> = i == sel ? range : p.tracks[i].openClip.range
-                let note: Int = Scales.baseNote(root: root, octave: octs[i])
-                let id: Int = p.tracks[i].id
-                last[id] = p.tracks[i].writeRandomDrums(pages: r, note: note, bpm: p.bpm, avoid: last[id], using: &g)
-                if swing { p.tracks[i].params["swing"] = DrumRhythm.swing(p.tracks[i].drumStyle, bpm: p.bpm) }
-            }
+        var steps: [Int]? = nil
+        editTrack { t in
+            steps = t.writeRandomDrums(pages: range, note: note, bpm: bpm, avoid: avoid, using: &g)
+            if swing { t.params["swing"] = DrumRhythm.swing(t.drumStyle, bpm: bpm) }
         }
-        lastRandomDrums = last
+        lastRandomDrums[id] = steps
     }
 
     /// Случайный рисунок нарезанного сэмпла выбранной дорожки на выбранные страницы (SliceRhythm): куски —
@@ -264,11 +267,14 @@ extension AppModel {
 
     /// Куски нарезки сэмпла key дорожки (SliceRhythm.pieces): по маркерам с нотой, без них — по меткам без ноты
     /// (отрезки — в cuts); длина в шагах — с включённым WARP по долям карты меток, иначе по времени в темпе проекта.
-    private func slicePieces(_ key: String, _ d: SampleData) -> (pieces: [SliceRhythm.Piece], cuts: [Int: SliceRhythm.Cut]) {
-        let marks: [SliceMark] = track.sliceMarks(key)
+    /// t и oct — дорожка и её октава клавиатуры (по умолчанию — выбранная).
+    func slicePieces(_ key: String, _ d: SampleData, track tr: Track? = nil,
+                     octave oc: Int? = nil) -> (pieces: [SliceRhythm.Piece], cuts: [Int: SliceRhythm.Cut]) {
+        let t: Track = tr ?? track
+        let marks: [SliceMark] = t.sliceMarks(key)
         let notes: [Int] = Slices.notes(marks, map: settings.sliceMap, scale: project.scale, root: project.root,
-                                        octave: octave)
-        let info: WarpInfo? = track.warps[key]
+                                        octave: oc ?? octave)
+        let info: WarpInfo? = t.warps[key]
         let frames: Double = Double(max(1, d.frames))
         var warp: WarpMap? = nil
         if let i = info, !i.isEmpty, !i.isOff {
@@ -283,7 +289,7 @@ extension AppModel {
     }
 
     /// Октава клавиатуры дорожки i (у каждой своя).
-    private func octaveOf(_ i: Int) -> Int {
+    func octaveOf(_ i: Int) -> Int {
         guard i >= 0 && i < octaves.count else { return Scales.octaveDef }
         return min(octaves[i], topOctave)
     }

@@ -324,7 +324,7 @@ struct RandomSettings: View {
             .toggle("SAMPLES", s.randomSamples) { m.setRandom(4, $0) },
             .note("SHIFT + tap on RANDOM on a track with a sliced sample writes a random pattern of its slices in the project's style. Hold a slice flag in the sample editor to give the slice a role: LOW, MID, HIGH play where the style puts kick, snare, hat; LONG plays rarely, never over itself. Without roles the slices are reshuffled like a break."),
             .toggle("STEPS ALL TRACKS", s.randomStepsAll) { m.setRandom(3, $0) },
-            .note("SHIFT + tap on CHORD on a drum track writes a rhythm on every drum track at once, each with its own sound."),
+            .note("SHIFT + tap on CHORD (or tap on RANDOM) writes parts on every track with a sound at once, each by its role — drums, slices, bass, keys, pad, lead, arpeggio — over one new progression in the project's style. The DRUMS, CHORDS / ARP and SAMPLES switches still apply."),
             .toggle("AUTO SWING", s.randomSwing) { m.setRandom(2, $0) },
             .note("A random rhythm also sets the track's Swing to suit the style."),
         ])
