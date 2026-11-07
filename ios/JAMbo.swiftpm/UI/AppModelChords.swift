@@ -139,7 +139,7 @@ extension AppModel {
 
     /// Ударная роль дорожки: движок или сэмпл (без нарезки) по имени файла.
     func drumRoleOf(_ t: Track) -> DrumRhythm.Role? {
-        return t.drumRole(name: project.files[t.sample])
+        return t.drumRoleBy(name: project.files[t.sample])
     }
 
     /// Нота случайного ритма: у сэмпла — исходная высота (Params.sampleRoot), у движка — корневая в октаве oct.

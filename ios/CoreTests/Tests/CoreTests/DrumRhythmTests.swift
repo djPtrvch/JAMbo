@@ -238,7 +238,7 @@ final class DrumRhythmTests: XCTestCase {
 /// Ударные сэмплы по имени файла (7.11).
 final class DrumSampleRoleTests: XCTestCase {
     func testNames() {
-        let r = DrumRhythm.role(name:)
+        let r = DrumRhythm.roleByName
         XCTAssertEqual(r("Kick 01.wav"), .kick)
         XCTAssertEqual(r("TR909_BD_tape.wav"), .kick)
         XCTAssertEqual(r("808 Kick Long"), .kick)
@@ -259,11 +259,11 @@ final class DrumSampleRoleTests: XCTestCase {
     func testTrackRole() {
         var t = Track(index: 0)
         t.sample = "key1"
-        XCTAssertEqual(t.drumRole(name: "Snare 2.wav"), .snare)
-        XCTAssertNil(t.drumRole(name: "Lead Pluck.wav"))
+        XCTAssertEqual(t.drumRoleBy(name: "Snare 2.wav"), .snare)
+        XCTAssertNil(t.drumRoleBy(name: "Lead Pluck.wav"))
         XCTAssertNil(t.drumRole, "по движку — нет")
         t.sample = "mi:16"
-        XCTAssertEqual(t.drumRole(name: "Snare"), .kick, "движок важнее имени")
+        XCTAssertEqual(t.drumRoleBy(name: "Snare"), .kick, "движок важнее имени")
         var g = SystemRandomNumberGenerator()
         t.sample = "key1"
         XCTAssertNotNil(t.writeRandomDrums(pages: 0...0, note: Params.sampleRoot, avoid: nil, role: .hat, using: &g))

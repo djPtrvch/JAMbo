@@ -5,15 +5,9 @@ import Foundation
 
 extension MelodyRhythm {
     /// Ритм мелодии по стилю (DrumRhythm.Groove): вероятность ноты на шаге такта.
-    static let leadRhythms: [[Double]] = [
-        [1, 0, 0.4, 0.5, 0, 0.3, 0.6, 0, 0.5, 0, 0.4, 0.6, 0, 0.3, 0.2, 0],     // house
-        [1, 0, 0, 0.6, 0, 0, 0.6, 0, 0.3, 0, 0, 0.6, 0, 0, 0.5, 0],             // techno
-        [1, 0, 0.5, 0, 0.4, 0, 0.6, 0.3, 0, 0.5, 0, 0.4, 0.6, 0, 0.3, 0],       // breaks
-        [1, 0, 0, 0, 0.5, 0, 0.3, 0, 0.6, 0, 0, 0.4, 0, 0, 0.5, 0],             // dnb
-        [1, 0, 0.5, 0.3, 0, 0.5, 0.4, 0, 0.6, 0.3, 0.5, 0, 0.4, 0, 0.3, 0.3],   // trap
-        [1, 0, 0, 0.5, 0, 0.4, 0, 0.5, 0.3, 0, 0.6, 0, 0, 0.4, 0, 0],           // rnb
-        [1, 0, 0.6, 0, 0.7, 0, 0.6, 0.3, 1, 0, 0.6, 0, 0.5, 0, 0.4, 0],         // pop
-        [1, 0, 0, 0, 0, 0, 0.3, 0, 0.5, 0, 0, 0, 0, 0, 0.2, 0],                 // ambient
+    static let leadRhythms: [String] = [
+        "x.45.36.5.46.32.", "x..6..6.3..6..5.", "x.5.4.63.5.46.3.", "x...5.3.6..4..5.",  // house, techno, breaks, dnb
+        "x.53.54.635.4.33", "x..5.4.53.6..4..", "x.6.7.63x.6.5.4.", "x.....3.5.....2.",  // trap, rnb, pop, ambient
     ]
 
     /// Доля нот мелодии, которые тянутся до следующей, по стилю.
@@ -73,7 +67,7 @@ extension MelodyRhythm {
         let playing: [Int] = lens.indices.filter { lens[$0] > 0 }
         if playing.isEmpty || degrees.isEmpty { return out }
         let gr: Int = DrumRhythm.groove(style, bpm: bpm).rawValue
-        let pr: [Double] = leadRhythms[gr]
+        let pr: [Double] = DrumRhythm.pat(leadRhythms[gr])
         let n: Int = Scales.all[Scales.wrap(scale, Scales.all.count)].steps.count
         let lo: Int = 0
         let hi: Int = n + n / 2

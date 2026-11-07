@@ -41,7 +41,7 @@ public enum DrumRhythm {
 
     /// Роль ударного сэмпла по имени файла (7.11): kick, bd → KICK; snare, sd, rim → SNARE; clap, cp → CLAP;
     /// hat, hihat, hh, oh, ch, ride → HAT; perc, tom, conga, bongo, shaker, tamb, cowbell, clave → PERC; иначе nil.
-    public static func role(name: String) -> Role? {
+    public static func roleByName(_ name: String) -> Role? {
         let w: [String] = words(name)
         let joined: String = w.joined()
         func has(_ exact: [String], prefix: [String]) -> Bool {
@@ -106,73 +106,73 @@ public enum DrumRhythm {
     static let velMid: ClosedRange<Double> = 88.9...107.95
     static let velGhost: ClosedRange<Double> = 38.1...57.15
 
-    /// Вероятность шага в списке steps, остальные — rest.
-    static func probs(_ steps: [Int: Double], rest: Double = 0) -> [Double] {
-        var out: [Double] = [Double](repeating: rest, count: 16)
-        for (k, v) in steps { out[k] = v }
-        return out
-    }
-
     static let ghostSteps: [Int] = [3, 6, 9, 11, 14, 15]
-    static let fours: [Int: Double] = [0: 1, 4: 1, 8: 1, 12: 1]
-    static let offbeats: [Int: Double] = [2: 1, 6: 1, 10: 1, 14: 1]
-    static let evens: [Int: Double] = [0: 1, 2: 1, 4: 1, 6: 1, 8: 1, 10: 1, 12: 1, 14: 1]
 
-    static func ghosts(_ steps: [Int], _ p: Double, main: [Int]) -> [Double] {
-        var out: [Double] = [Double](repeating: 0, count: 16)
-        for k in steps { out[k] = p }
-        for k in main { out[k] = 1 }
+    /// Шаги из строки (16 знаков, шаг 1 — слева): «x» — 1, «1»…«9» — 0,1…0,9, «.» — 0. Строки вместо литералов
+    /// массивов — меньше кода в сборке Playgrounds (7.11).
+    public static func pat(_ s: String) -> [Double] {
+        var out: [Double] = []
+        for c in s.utf8 {
+            if c == 120 { out.append(1) } else if c >= 49 && c <= 57 { out.append(Double(c - 48) / 10) } else { out.append(0) }
+        }
+        while out.count < 16 { out.append(0) }
         return out
     }
 
-    static func with(_ base: [Int: Double], _ extra: [Int: Double], rest: Double = 0) -> [Double] {
-        return probs(base.merging(extra) { a, _ in a }, rest: rest)
+    static func chance(_ opts: String, ghosts: [Int] = []) -> Part {
+        let ps: [[Double]] = opts.split(separator: " ").map { pat(String($0)) }
+        return .chance(ps, ghosts: ghosts)
     }
 
-    /// Партия роли в рисунке (номера шагов — с 0). CLAP — тот же рисунок, что SNARE (решение 4.11).
+    /// Рисунки (номер Groove): KICK, SNARE (и CLAP), HAT — варианты через пробел.
+    static let kicks: [String] = [
+        "x...x...x...x..2 x..2x...x.2.x...",                       // house: на каждую долю
+        "x...x...x...x... x...x...x...x.2. x..1x...x..1x...",      // techno
+        "x.6.......x5.... x.3....3..7.....",                       // breaks: 1, 3, 11, 12
+        "x......2..x..2.. x.3.......x.....",                       // dnb: two-step 1 и 11
+        "x......4..53..3. x.....45...5....",                       // trap
+        "x..2...4..6..... x.......5.5.....",                       // rnb
+        "x......2x.4..... x...x...x...x... x.....5.x.......",      // pop: 1 и 9 или на каждую долю
+        "x.........2..... x...............",                       // ambient
+    ]
+    static let snares: [String] = [
+        "...1x.1..1.1x.11", "....x..1....x..1 .......1....x..1", "....x..4.4..x.44", "....x..2.2..x.22",
+        "...1..1.x..1..11", "...3x..3.3.3x.33", "...1x.1..1.1x.11", "............x...",
+    ]
+    static let hats: [String] = [
+        "22x222x222x222x2 66x666x666x666x6",                       // house: офбиты
+        "55x555x555x555x5 88x888x888x888x8 ..7...7...7...7.",      // techno
+        "8282828282828282", "9292929292929292",                    // breaks, dnb: восьмые
+        "x4x4x4x4x4x4x4x4", "x5x5x5x5x5x5x5x5", "x1x1x1x1x1x1x1x1", // trap, rnb, pop
+        "3333333333333333",                                        // ambient
+    ]
+
+    /// Призрачные шаги SNARE по рисунку.
+    static func snareGhosts(_ gr: Groove) -> [Int] {
+        switch gr {
+        case .house, .pop: return ghostSteps
+        case .techno: return [7, 15]
+        case .breaks, .dnb: return [7, 9, 14, 15]
+        case .trap: return [3, 6, 11, 14, 15]
+        case .rnb: return [3, 7, 9, 11, 14, 15]
+        case .ambient: return []
+        }
+    }
+
+    /// Партия роли в рисунке (номера шагов — с 0). CLAP — тот же рисунок, что SNARE (решение 4.11); PERC — евклид.
     static func part(_ gr: Groove, _ role: Role) -> Part {
-        let r: Role = role == .clap ? .snare : role
-        switch (gr, r) {
-        // HOUSE (118–126): бочка на каждую долю, хлопок на 2 и 4, открытый хэт на офбитах.
-        case (.house, .kick): return .chance([with(fours, [15: 0.2]), with(fours, [3: 0.15, 10: 0.15])], ghosts: [])
-        case (.house, .snare): return .chance([ghosts(ghostSteps, 0.1, main: [4, 12])], ghosts: ghostSteps)
-        case (.house, .hat): return .chance([probs(offbeats, rest: 0.25), with(offbeats, [:], rest: 0.6)], ghosts: [])
-        case (.house, .perc): return .euclid(3, 5, fromOne: false)
-        // TECHNO (125–140, с Minimal): бочка на каждую долю, хлопок на 2 и 4 или только на 4, хэт 16-ми.
-        case (.techno, .kick): return .chance([probs(fours), with(fours, [14: 0.25]), with(fours, [3: 0.15, 11: 0.15])], ghosts: [])
-        case (.techno, .snare): return .chance([ghosts([7, 15], 0.08, main: [12]), ghosts([7, 15], 0.08, main: [4, 12])], ghosts: [7, 15])
-        case (.techno, .hat): return .chance([probs(offbeats, rest: 0.5), with(offbeats, [:], rest: 0.85), scaled(probs(offbeats), 0.7)], ghosts: [])
-        case (.techno, .perc): return .euclid(3, 5, fromOne: false)
-        // BREAKS (< 150): ломаный бит — бочка 1, 3, 11, 12, малый 5 и 13, призрачные удары.
-        case (.breaks, .kick): return .chance([probs([0: 1, 2: 0.6, 10: 1, 11: 0.5]), probs([0: 1, 7: 0.35, 10: 0.7, 2: 0.35])], ghosts: [])
-        case (.breaks, .snare): return .chance([ghosts([7, 9, 14, 15], 0.45, main: [4, 12])], ghosts: [7, 9, 14, 15])
-        case (.breaks, .hat): return .chance([scaled(probs(evens, rest: 0.2), 0.85)], ghosts: [])
-        case (.breaks, .perc): return .euclid(3, 7, fromOne: false)
-        // D&B (от 150): two-step — бочка 1 и 11, малый 5 и 13.
-        case (.dnb, .kick): return .chance([probs([0: 1, 10: 1, 7: 0.25, 13: 0.2]), probs([0: 1, 10: 1, 2: 0.3])], ghosts: [])
-        case (.dnb, .snare): return .chance([ghosts([7, 9, 14, 15], 0.15, main: [4, 12])], ghosts: [7, 9, 14, 15])
-        case (.dnb, .hat): return .chance([scaled(probs(evens, rest: 0.2), 0.9)], ghosts: [])
-        case (.dnb, .perc): return .euclid(3, 7, fromOne: false)
-        // TRAP (от 115): половинный темп — малый на 9, хэт 8-ми и 16-ми с роллами (Ratchet).
-        case (.trap, .kick): return .chance([probs([0: 1, 7: 0.4, 10: 0.5, 11: 0.3, 14: 0.3]), probs([0: 1, 6: 0.4, 7: 0.5, 11: 0.5])], ghosts: [])
-        case (.trap, .snare): return .chance([ghosts([3, 6, 11, 14, 15], 0.12, main: [8])], ghosts: [3, 6, 11, 14, 15])
-        case (.trap, .hat): return .chance([probs(evens, rest: 0.45)], ghosts: [])
-        case (.trap, .perc): return .euclid(2, 5, fromOne: false)
-        // R&B (< 115): малый 5 и 13, много призрачных ударов, хэт 16-ми, swing.
-        case (.rnb, .kick): return .chance([probs([0: 1, 3: 0.25, 7: 0.4, 10: 0.6]), probs([0: 1, 8: 0.5, 10: 0.5])], ghosts: [])
-        case (.rnb, .snare): return .chance([ghosts([3, 7, 9, 11, 14, 15], 0.3, main: [4, 12])], ghosts: [3, 7, 9, 11, 14, 15])
-        case (.rnb, .hat): return .chance([probs(evens, rest: 0.5)], ghosts: [])
-        case (.rnb, .perc): return .euclid(3, 7, fromOne: false)
-        // POP (95–128): бочка 1 и 9 (или на каждую долю), малый 5 и 13, хэт 8-ми.
-        case (.pop, .kick): return .chance([probs([0: 1, 8: 1, 10: 0.4, 7: 0.2]), probs(fours), probs([0: 1, 6: 0.5, 8: 1])], ghosts: [])
-        case (.pop, .snare): return .chance([ghosts(ghostSteps, 0.06, main: [4, 12])], ghosts: ghostSteps)
-        case (.pop, .hat): return .chance([probs(evens, rest: 0.15)], ghosts: [])
-        case (.pop, .perc): return .euclid(2, 4, fromOne: false)
-        // AMBIENT: редкие удары, у всех, кроме бочки, — Chance.
-        case (.ambient, .kick): return .chance([probs([0: 1, 10: 0.2]), probs([0: 1])], ghosts: [])
-        case (.ambient, .snare): return .chance([probs([12: 1])], ghosts: [])
-        case (.ambient, .hat): return .chance([probs([:], rest: 0.3)], ghosts: [])
-        default: return .euclid(2, 5, fromOne: false)
+        let g: Int = gr.rawValue
+        switch role {
+        case .kick: return chance(kicks[g])
+        case .snare, .clap: return chance(snares[g], ghosts: snareGhosts(gr))
+        case .hat: return chance(hats[g])
+        case .perc:
+            switch gr {
+            case .house, .techno: return .euclid(3, 5, fromOne: false)
+            case .trap, .ambient: return .euclid(2, 5, fromOne: false)
+            case .pop: return .euclid(2, 4, fromOne: false)
+            default: return .euclid(3, 7, fromOne: false)
+            }
         }
     }
 
@@ -373,12 +373,12 @@ extension Track {
     public var drumRole: DrumRhythm.Role? { return DrumRhythm.role(engine: SynthKey.engine(sample)) }
 
     /// Ударная роль с учётом сэмпла (7.11): движок — как drumRole; сэмпл без маркеров нарезки — по имени файла
-    /// name (DrumRhythm.role(name:)); нарезанный сэмпл — нарезка, не ударная.
-    public func drumRole(name: String?) -> DrumRhythm.Role? {
+    /// name (DrumRhythm.roleByName); нарезанный сэмпл — нарезка, не ударная.
+    public func drumRoleBy(name: String?) -> DrumRhythm.Role? {
         if let r = drumRole { return r }
         if sample.isEmpty || SynthKey.engine(sample) != nil || hasCuts { return nil }
         guard let n = name else { return nil }
-        return DrumRhythm.role(name: n)
+        return DrumRhythm.roleByName(n)
     }
 
     /// Случайный ритм стиля дорожки на страницы range (по их длинам) нотой note; вариант стиля — по bpm; avoid —

@@ -5,16 +5,21 @@ import Foundation
 
 extension MelodyRhythm {
     /// Прогрессии стиля (ступени 1…7 гаммы) по рисунку DrumRhythm.Groove.
-    static let progressions: [[[Int]]] = [
-        [[1, 7, 6, 7], [1, 6, 4, 5], [2, 5, 1, 1], [1, 4, 6, 5], [1, 4, 1, 7], [6, 7, 1, 1]],   // house
-        [[1, 1, 1, 1], [1, 1, 6, 6], [1, 6, 1, 7], [1, 1, 4, 1], [1, 2, 1, 2], [1, 1, 7, 6]],   // techno
-        [[1, 7, 6, 7], [1, 6, 7, 1], [1, 4, 7, 1], [1, 3, 4, 6], [1, 7, 4, 4]],                 // breaks
-        [[1, 6, 3, 7], [1, 6, 4, 5], [6, 4, 1, 5], [1, 4, 6, 3], [4, 5, 3, 6]],                 // dnb
-        [[1, 6, 3, 7], [1, 6, 7, 6], [1, 1, 6, 6], [1, 4, 6, 5], [6, 6, 1, 7]],                 // trap
-        [[2, 5, 1, 1], [4, 3, 6, 6], [1, 6, 2, 5], [4, 5, 3, 6], [1, 3, 4, 4], [2, 3, 4, 5]],   // rnb
-        [[1, 5, 6, 4], [6, 4, 1, 5], [1, 4, 6, 5], [1, 6, 4, 5], [4, 1, 5, 6], [1, 5, 4, 4]],   // pop
-        [[1, 4, 1, 4], [1, 6, 1, 6], [4, 1, 4, 1], [1, 1, 4, 4], [1, 3, 4, 1], [6, 4, 6, 4]],   // ambient
+    static let progressions: [String] = [
+        "1767 1645 2511 1465 1417 6711",   // house
+        "1111 1166 1617 1141 1212 1176",   // techno
+        "1767 1671 1471 1346 1744",        // breaks
+        "1637 1645 6415 1463 4536",        // dnb
+        "1637 1676 1166 1465 6617",        // trap
+        "2511 4366 1625 4536 1344 2345",   // rnb
+        "1564 6415 1465 1645 4156 1544",   // pop
+        "1414 1616 4141 1144 1341 6464",   // ambient
     ]
+
+    /// Прогрессии стиля: группы по 4 цифры (ступени 1…7) через пробел.
+    static func pool(_ gr: Int) -> [[Int]] {
+        return progressions[gr].split(separator: " ").map { w in w.utf8.map { Int($0) - 48 } }
+    }
 
     /// Типы аккорда по стилю (номера Scales.chordKinds: 0 Triad, 1 7th, 2 9th, 3 Sus2, 4 Sus4, 5 Add9) и их доли.
     static let kindPools: [[(Int, Double)]] = [
@@ -73,7 +78,7 @@ extension MelodyRhythm {
     /// если получится за 16 попыток. Ступени выше числа ступеней гаммы — по модулю (пентатоника).
     public static func progression<G: RandomNumberGenerator>(style: Int, bpm: Double, scale: Int, avoid: [Int]?,
                                                              using g: inout G) -> [Int] {
-        let pool: [[Int]] = progressions[DrumRhythm.groove(style, bpm: bpm).rawValue]
+        let pool: [[Int]] = MelodyRhythm.pool(DrumRhythm.groove(style, bpm: bpm).rawValue)
         var out: [Int] = []
         var tries: Int = 0
         repeat {
@@ -88,16 +93,25 @@ extension MelodyRhythm {
     }
 
     /// Ритм аккордов KEYS по стилю: варианты, удар — (шаг 0…15 в такте, длина в шагах).
-    static let keysRhythms: [[[(Int, Int)]]] = [
-        [[(2, 1), (6, 1), (10, 1), (14, 1)], [(0, 2), (3, 1), (6, 1), (10, 2), (13, 1)]],     // house: офбит-стабы
-        [[(2, 1), (7, 1), (10, 1)], [(0, 16)], [(3, 1), (6, 1), (11, 1), (14, 1)]],           // techno: даб-стабы, дрон
-        [[(0, 3), (6, 2), (10, 3)], [(0, 2), (3, 2), (8, 2), (11, 3)]],                       // breaks
-        [[(0, 8), (8, 8)], [(0, 16)], [(0, 6), (10, 6)]],                                     // dnb
-        [[(0, 16)], [(0, 6), (8, 6)], [(0, 3), (3, 3), (8, 8)]],                              // trap
-        [[(0, 3), (3, 3), (7, 2), (10, 4)], [(0, 16)], [(0, 6), (6, 4), (11, 5)]],            // rnb
-        [[(0, 3), (4, 3), (8, 3), (12, 3)], [(0, 6), (6, 2), (8, 6), (14, 2)], [(0, 2), (2, 2), (4, 2), (6, 2), (8, 2), (10, 2), (12, 2), (14, 2)]], // pop
-        [[(0, 16)], [(0, 8), (8, 8)]],                                                        // ambient
+    static let keysRhythms: [String] = [
+        "..1...1...1...1. 2..1..1...2..1..",                    // house: офбит-стабы
+        "..1....1..1..... g............... ...1..1....1..1.",   // techno: даб-стабы, дрон
+        "3.....2...3..... 2..2....2..3....",                    // breaks
+        "8.......8....... g............... 6.........6.....",   // dnb
+        "g............... 6.......6....... 3..3....8.......",   // trap
+        "3..3...2..4..... g............... 6.....4....5....",   // rnb
+        "3...3...3...3... 6.....2.6.....2. 2.2.2.2.2.2.2.2.",   // pop
+        "g............... 8.......8.......",                    // ambient
     ]
+
+    /// Удары KEYS из строки: на шаге — длина (1…9, a…g — 10…16), «.» — нет удара.
+    static func hits(_ s: String) -> [(Int, Int)] {
+        var out: [(Int, Int)] = []
+        for (i, c) in s.utf8.enumerated() {
+            if c >= 49 && c <= 57 { out.append((i, Int(c) - 48)) } else if c >= 97 && c <= 103 { out.append((i, Int(c) - 87)) }
+        }
+        return out
+    }
 
     /// Аккордовая партия на страницы lens по аккордам chords (поровну на все играющие шаги, как Chords.places):
     /// KEYS — ритм стиля (один вариант на рисунок, повтор по тактам; в отрезке аккорда короче такта — его начало),
@@ -110,8 +124,9 @@ extension MelodyRhythm {
         let per: Int = Params.stepsPerPage
         let total: Int = playing.count * per
         let seg: Int = Swift.max(1, total / chords.count)
-        let pool: [[(Int, Int)]] = keysRhythms[DrumRhythm.groove(style, bpm: bpm).rawValue]
-        let hits: [(Int, Int)] = role == .pad ? [(0, per)] : (pool.randomElement(using: &g) ?? [(0, per)])
+        let pool: [Substring] = keysRhythms[DrumRhythm.groove(style, bpm: bpm).rawValue].split(separator: " ")
+        let pick: String = String(pool.randomElement(using: &g) ?? "g")
+        let hits: [(Int, Int)] = role == .pad ? [(0, per)] : MelodyRhythm.hits(pick)
         for (ci, chord) in chords.enumerated() {
             let start: Int = ci * seg
             let end: Int = ci == chords.count - 1 ? total : start + seg

@@ -48,52 +48,42 @@ public enum MelodyRhythm {
         let weights: [Double]
     }
 
-    static func probs(_ steps: [Int: Double], rest: Double = 0) -> [Double] { return DrumRhythm.probs(steps, rest: rest) }
-
-    /// Шаги не на долях (1, 5, 9, 13) — с вероятностью p.
-    static func offFours(_ p: Double) -> [Double] {
-        var out: [Double] = [Double](repeating: p, count: 16)
-        for k in [0, 4, 8, 12] { out[k] = 0 }
-        return out
-    }
+    /// Варианты ритма из строки (DrumRhythm.pat; через пробел).
+    static func opts(_ s: String) -> [[Double]] { return s.split(separator: " ").map { DrumRhythm.pat(String($0)) } }
 
     static func bassPart(_ gr: DrumRhythm.Groove) -> BassPart {
         switch gr {
         // HOUSE: офбит (между бочками), иногда синкопа.
         case .house:
-            return BassPart(options: [probs([2: 1, 6: 1, 10: 1, 14: 1, 3: 0.2, 11: 0.2, 15: 0.15]),
-                                      probs([2: 1, 3: 0.5, 6: 1, 10: 1, 11: 0.5, 14: 1])],
-                            len: 1...2, legato: false, degrees: [0, octave, 4], weights: [0.6, 0.25, 0.15])
+            return BassPart(options: opts("..x2..x...x2..x1 ..x5..x...x5..x."), len: 1...2, legato: false,
+                            degrees: [0, octave, 4], weights: [0.6, 0.25, 0.15])
         // TECHNO: «катящийся» 16-ми мимо бочки или офбит, почти одна нота.
         case .techno:
-            var off: [Double] = offFours(0.3)
-            for k in [2, 6, 10, 14] { off[k] = 1 }
-            return BassPart(options: [offFours(0.9), off], len: 1...1, legato: false,
+            return BassPart(options: opts(".999.999.999.999 .3x3.3x3.3x3.3x3"), len: 1...1, legato: false,
                             degrees: [0, octave, 4], weights: [0.85, 0.1, 0.05])
         // BREAKS: за бочкой брейка, ноты 2–3 шага.
         case .breaks:
-            return BassPart(options: [probs([0: 1, 2: 0.5, 7: 0.3, 10: 1, 11: 0.4, 14: 0.3])], len: 2...3, legato: false,
+            return BassPart(options: opts("x.5....3..x4..3."), len: 2...3, legato: false,
                             degrees: [0, 4, octave, 6], weights: [0.5, 0.2, 0.2, 0.1])
         // D&B: длинные ноты (Reese) на 1 и 11.
         case .dnb:
-            return BassPart(options: [probs([0: 1, 10: 0.7, 6: 0.3])], len: 4...16, legato: true,
+            return BassPart(options: opts("x.....3...7....."), len: 4...16, legato: true,
                             degrees: [0, 4, 2], weights: [0.7, 0.15, 0.15])
         // TRAP: 808 на ударах бочки, тянется до следующей.
         case .trap:
-            return BassPart(options: [probs([0: 1, 7: 0.4, 10: 0.5, 11: 0.3, 14: 0.3])], len: 2...16, legato: true,
+            return BassPart(options: opts("x......4..53..3."), len: 2...16, legato: true,
                             degrees: [0, octave, 4], weights: [0.7, 0.2, 0.1])
         // R&B: синкопы, звуки аккорда.
         case .rnb:
-            return BassPart(options: [probs([0: 1, 3: 0.3, 7: 0.5, 10: 0.6, 14: 0.3])], len: 2...3, legato: false,
+            return BassPart(options: opts("x..3...5..6...3."), len: 2...3, legato: false,
                             degrees: [0, 2, 4, 6], weights: [0.45, 0.2, 0.2, 0.15])
         // POP: восьмые на корне («пульс») или за бочкой.
         case .pop:
-            return BassPart(options: [probs(DrumRhythm.evens, rest: 0).map { $0 * 0.9 },
-                                      probs([0: 1, 3: 0.4, 8: 1, 10: 0.5, 11: 0.3])],
-                            len: 1...2, legato: false, degrees: [0, 4, octave], weights: [0.7, 0.2, 0.1])
+            return BassPart(options: opts("9.9.9.9.9.9.9.9. x..4....x.53...."), len: 1...2, legato: false,
+                            degrees: [0, 4, octave], weights: [0.7, 0.2, 0.1])
         // AMBIENT: дрон — нота на страницу, иногда вторая.
         case .ambient:
-            return BassPart(options: [probs([0: 1, 8: 0.25])], len: 8...16, legato: true,
+            return BassPart(options: opts("x.......2......."), len: 8...16, legato: true,
                             degrees: [0, 4], weights: [0.8, 0.2])
         }
     }

@@ -25,15 +25,9 @@ extension Arp {
                                     Array(0..<10), [0, 3, 9, 2]]
 
     /// Ритм по стилю (DrumRhythm.Groove): вероятность ноты в доле шага арпеджио (16 долей на такт при 1/16).
-    static let rhythms: [[Double]] = [
-        [1, 0.3, 1, 1, 0.9, 0.3, 1, 0.6, 1, 0.3, 1, 1, 0.9, 0.3, 1, 0.6],          // house
-        [1, 0.95, 0.95, 0.95, 1, 0.95, 0.95, 0.95, 1, 0.95, 0.95, 0.95, 1, 0.95, 0.95, 0.95], // techno
-        [1, 0, 0.8, 0.5, 1, 0.4, 0.6, 0, 1, 0.3, 0.8, 0.6, 0.7, 0, 1, 0.5],          // breaks
-        [1, 0.2, 0.9, 0.3, 1, 0.3, 0.9, 0.4, 1, 0.2, 0.9, 0.3, 1, 0.5, 0.9, 0.6],    // dnb
-        [1, 0.5, 0.7, 0.8, 0.6, 0.8, 0.5, 0.9, 1, 0.5, 0.7, 0.8, 0.6, 0.8, 0.5, 0.9], // trap
-        [1, 0, 0.5, 0.7, 0, 0.6, 0.4, 0, 1, 0, 0.6, 0.5, 0, 0.7, 0.3, 0.4],          // rnb
-        [1, 0.2, 1, 0.2, 1, 0.2, 1, 0.2, 1, 0.2, 1, 0.2, 1, 0.2, 1, 0.6],            // pop
-        [1, 0, 0.3, 0, 0.5, 0, 0.3, 0, 0.7, 0, 0.3, 0, 0.5, 0, 0.3, 0.2],            // ambient
+    static let rhythms: [String] = [
+        "x3xx93x6x3xx93x6", "x999x999x999x999", "x.85x46.x3867.x5", "x293x394x293x596",  // house, techno, breaks, dnb
+        "x5786859x5786859", "x.57.64.x.65.734", "x2x2x2x2x2x2x2x6", "x.3.5.3.7.3.5.32",  // trap, rnb, pop, ambient
     ]
 
     /// Доля нот, которые тянутся до следующей (legato), по стилю.
@@ -71,7 +65,7 @@ extension Arp {
         let every: Int = gridSteps[clampRate(rate)]
         let slots: Int = Swift.max(1, total / every)
         let perBar: Int = Swift.max(1, Params.stepsPerPage / every)
-        let probs: [Double] = rhythms[gr]
+        let probs: [Double] = DrumRhythm.pat(rhythms[gr])
         var mask: [Bool] = (0..<perBar).map { i in
             i == 0 || Double.random(in: 0..<1, using: &g) < probs[(i * every) % 16]
         }
