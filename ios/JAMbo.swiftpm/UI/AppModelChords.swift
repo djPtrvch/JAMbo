@@ -153,18 +153,16 @@ extension AppModel {
     }
 
     /// Случайная аккордовая партия KEYS (ритм стиля) или PAD (аккорд на отрезок) на выбранные страницы: новая
-    /// прогрессия стиля (её же потом берёт бас), тип аккорда дорожки, голосоведение — аккорды в октаве клавиатуры
-    /// (Arp.fold). Одна запись UNDO; режим CHORD не меняется.
+    /// прогрессия стиля (её же потом берёт бас), типы аккордов и расположение голосов — по стилю (styleChords). Одна запись UNDO; режим CHORD не меняется.
     func writeRandomChordPart(_ role: MelodyRhythm.Role) {
         guard channel == .track else { return }
         var g = SystemRandomNumberGenerator()
         let degrees: [Int] = newProgression(using: &g)
         lastRandomProgression = degrees
-        let cs: [[Int]] = Chords.chords(degrees, scale: project.scale, root: project.root, octave: octave,
-                                        kind: chordKind[selectedTrack])
-        let folded: [[Int]] = Arp.fold(cs, base: Scales.baseNote(root: project.root, octave: octave))
-        let range: ClosedRange<Int> = chordPages
         let bpm: Double = project.bpm
+        let folded: [[Int]] = MelodyRhythm.styleChords(degrees, style: track.drumStyle, bpm: bpm, scale: project.scale,
+                                                       root: project.root, octave: octave, using: &g)
+        let range: ClosedRange<Int> = chordPages
         let swing: Bool = settings.randomSwing
         editTrack { t in
             t.writeRandomChords(role, pages: range, chords: folded, bpm: bpm, using: &g)
@@ -191,7 +189,7 @@ extension AppModel {
         }
     }
 
-    /// Режим ARP: случайная прогрессия стиля (newProgression), разложенная по шагам выбранных страниц —
+    /// Режим ARP: случайная прогрессия стиля (newProgression) с типами аккордов стиля, разложенная по шагам выбранных страниц —
     /// четверть на аккорд, фигура по направлению, ритм стиля проекта, октавы, RATE и GATE арпеджиатора
     /// (Arp.randomSteps). Одна запись UNDO; ARP не меняется.
     func writeRandomArp() {
@@ -199,11 +197,12 @@ extension AppModel {
         var g = SystemRandomNumberGenerator()
         let degrees: [Int] = newProgression(using: &g)
         lastRandomProgression = degrees
-        let cs: [[Int]] = Chords.chords(degrees, scale: project.scale, root: project.root, octave: octave,
-                                        kind: chordKind[selectedTrack])
+        // Типы аккордов — по стилю (styleChords); каждый аккорд — в октаве клавиатуры (обращением, без drop 2 и
+        // корня ниже): с OCTAVES 1 арпеджио не разбегается на две октавы.
+        let cs: [[Int]] = MelodyRhythm.styleChords(degrees, style: track.drumStyle, bpm: project.bpm, scale: project.scale,
+                                                   root: project.root, octave: octave, using: &g)
         let range: ClosedRange<Int> = chordPages
         let a: TrackArp = track.arp
-        // Каждый аккорд — в октаве клавиатуры (обращением): с OCTAVES 1 арпеджио не разбегается на две октавы.
         let folded: [[Int]] = Arp.fold(cs, base: Scales.baseNote(root: project.root, octave: octave))
         let total: Int = (range.upperBound - range.lowerBound + 1) * Params.stepsPerPage
         let notes: [ArpStepNote] = Arp.randomSteps(folded, steps: total, dir: a.dir, octaves: a.octaves,

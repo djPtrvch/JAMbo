@@ -71,3 +71,40 @@ final class ChordPartsTests: XCTestCase {
         XCTAssertTrue(t.pages[0][4].on)
     }
 }
+
+/// Аккорды по стилю: разные типы, ноты гаммы, расположение голосов.
+final class StyleChordsTests: XCTestCase {
+    func testStyleChords() {
+        var g = SystemRandomNumberGenerator()
+        XCTAssertEqual(MelodyRhythm.kindPools.count, DrumRhythm.Groove.allCases.count)
+        XCTAssertEqual(MelodyRhythm.voicingPools.count, DrumRhythm.Groove.allCases.count)
+        let scale: Int = 1, root: Int = 5, oct: Int = 3
+        let steps: [Int] = Scales.all[scale].steps
+        for st in 0..<DrumRhythm.styles.count {
+            var sizes = Set<Int>()
+            var shapes = Set<[Int]>()
+            for _ in 0..<60 {
+                let cs = MelodyRhythm.styleChords([1, 6, 3, 7], style: st, bpm: 124, scale: scale, root: root, octave: oct,
+                                                  using: &g)
+                XCTAssertEqual(cs.count, 4)
+                for (i, c) in cs.enumerated() {
+                    XCTAssertGreaterThanOrEqual(c.count, 3)
+                    XCTAssertTrue(c.allSatisfy { steps.contains((($0 - root) % 12 + 12) % 12) }, "в гамме")
+                    let base: Int = Scales.baseNote(root: root, octave: oct)
+                    XCTAssertTrue(c.allSatisfy { $0 >= base - 12 && $0 < base + 12 }, "около октавы клавиатуры")
+                    // Корень ступени — среди звуков.
+                    let r: Int = Scales.note(scale: scale, root: root, octave: 0, degree: Chords.degreeIndex([1, 6, 3, 7][i], scale: scale)) % 12
+                    XCTAssertTrue(c.contains { $0 % 12 == r })
+                    sizes.insert(c.count)
+                    shapes.insert(c.map { $0 - c[0] })
+                }
+            }
+            XCTAssertGreaterThan(shapes.count, 3, "разные аккорды, стиль \(st)")
+        }
+        // Повтор ступени подряд — тот же тип.
+        for _ in 0..<30 {
+            let cs = MelodyRhythm.styleChords([1, 1, 1, 1], style: 6, bpm: 120, scale: 0, root: 0, octave: 3, using: &g)
+            XCTAssertTrue(cs.allSatisfy { $0 == cs[0] })
+        }
+    }
+}

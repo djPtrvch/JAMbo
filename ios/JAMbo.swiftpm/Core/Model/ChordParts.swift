@@ -6,15 +6,68 @@ import Foundation
 extension MelodyRhythm {
     /// Прогрессии стиля (ступени 1…7 гаммы) по рисунку DrumRhythm.Groove.
     static let progressions: [[[Int]]] = [
-        [[1, 7, 6, 7], [1, 6, 4, 5], [2, 5, 1, 1], [1, 4, 6, 5]],   // house
-        [[1, 1, 1, 1], [1, 1, 6, 6], [1, 6, 1, 7], [1, 1, 4, 1]],   // techno
-        [[1, 7, 6, 7], [1, 6, 7, 1], [1, 4, 7, 1]],                 // breaks
-        [[1, 6, 3, 7], [1, 6, 4, 5], [6, 4, 1, 5]],                 // dnb
-        [[1, 6, 3, 7], [1, 6, 7, 6], [1, 1, 6, 6]],                 // trap
-        [[2, 5, 1, 1], [4, 3, 6, 6], [1, 6, 2, 5], [4, 5, 3, 6]],   // rnb
-        [[1, 5, 6, 4], [6, 4, 1, 5], [1, 4, 6, 5], [1, 6, 4, 5]],   // pop
-        [[1, 4, 1, 4], [1, 6, 1, 6], [4, 1, 4, 1], [1, 1, 4, 4]],   // ambient
+        [[1, 7, 6, 7], [1, 6, 4, 5], [2, 5, 1, 1], [1, 4, 6, 5], [1, 4, 1, 7], [6, 7, 1, 1]],   // house
+        [[1, 1, 1, 1], [1, 1, 6, 6], [1, 6, 1, 7], [1, 1, 4, 1], [1, 2, 1, 2], [1, 1, 7, 6]],   // techno
+        [[1, 7, 6, 7], [1, 6, 7, 1], [1, 4, 7, 1], [1, 3, 4, 6], [1, 7, 4, 4]],                 // breaks
+        [[1, 6, 3, 7], [1, 6, 4, 5], [6, 4, 1, 5], [1, 4, 6, 3], [4, 5, 3, 6]],                 // dnb
+        [[1, 6, 3, 7], [1, 6, 7, 6], [1, 1, 6, 6], [1, 4, 6, 5], [6, 6, 1, 7]],                 // trap
+        [[2, 5, 1, 1], [4, 3, 6, 6], [1, 6, 2, 5], [4, 5, 3, 6], [1, 3, 4, 4], [2, 3, 4, 5]],   // rnb
+        [[1, 5, 6, 4], [6, 4, 1, 5], [1, 4, 6, 5], [1, 6, 4, 5], [4, 1, 5, 6], [1, 5, 4, 4]],   // pop
+        [[1, 4, 1, 4], [1, 6, 1, 6], [4, 1, 4, 1], [1, 1, 4, 4], [1, 3, 4, 1], [6, 4, 6, 4]],   // ambient
     ]
+
+    /// Типы аккорда по стилю (номера Scales.chordKinds: 0 Triad, 1 7th, 2 9th, 3 Sus2, 4 Sus4, 5 Add9) и их доли.
+    static let kindPools: [[(Int, Double)]] = [
+        [(1, 0.45), (2, 0.3), (0, 0.15), (5, 0.1)],               // house: m7, m9-стабы
+        [(0, 0.3), (3, 0.25), (4, 0.2), (1, 0.25)],               // techno: простые, sus
+        [(1, 0.4), (0, 0.3), (2, 0.2), (4, 0.1)],                 // breaks
+        [(2, 0.35), (1, 0.3), (5, 0.2), (3, 0.15)],               // dnb: liquid — 9th, add9
+        [(0, 0.45), (1, 0.35), (3, 0.2)],                         // trap
+        [(1, 0.4), (2, 0.4), (5, 0.1), (4, 0.1)],                 // rnb: 7th, 9th
+        [(0, 0.5), (5, 0.2), (3, 0.1), (4, 0.1), (1, 0.1)],       // pop: трезвучия, add9, sus
+        [(3, 0.3), (5, 0.3), (2, 0.25), (1, 0.15)],               // ambient: sus2, add9, 9th
+    ]
+
+    /// Расположение голосов: 0 — тесное (в октаве клавиатуры), 1 — drop 2 (второй сверху — на октаву вниз),
+    /// 2 — тесное с корнем октавой ниже. Доли по стилю.
+    static let voicingPools: [[(Int, Double)]] = [
+        [(0, 0.7), (1, 0.3)], [(0, 1)], [(0, 0.6), (1, 0.4)], [(1, 0.5), (0, 0.5)],
+        [(0, 0.6), (2, 0.4)], [(1, 0.7), (0, 0.3)], [(0, 0.5), (2, 0.5)], [(1, 0.6), (2, 0.4)],
+    ]
+
+    static func pickWeighted<G: RandomNumberGenerator>(_ pool: [(Int, Double)], using g: inout G) -> Int {
+        return pick(pool.map { $0.0 }, pool.map { $0.1 }, using: &g)
+    }
+
+    /// Аккорды прогрессии degrees в стиле: тип — у каждого свой (из набора стиля, два одинаковых аккорда подряд — тот
+    /// же тип), расположение голосов — одно на рисунок; ноты — в октаве клавиатуры (обращения для плавных переходов),
+    /// drop 2 и корень ниже — не ниже 0.
+    public static func styleChords<G: RandomNumberGenerator>(_ degrees: [Int], style: Int, bpm: Double, scale: Int,
+                                                             root: Int, octave: Int, using g: inout G) -> [[Int]] {
+        let gr: Int = DrumRhythm.groove(style, bpm: bpm).rawValue
+        let voicing: Int = pickWeighted(voicingPools[gr], using: &g)
+        let base: Int = Scales.baseNote(root: root, octave: octave)
+        var out: [[Int]] = []
+        var lastDeg: Int = -1
+        var lastKind: Int = 0
+        for d in degrees {
+            let kind: Int = d == lastDeg ? lastKind : pickWeighted(kindPools[gr], using: &g)
+            lastDeg = d
+            lastKind = kind
+            let raw: [Int] = Scales.chord(scale: scale, root: root, octave: octave,
+                                          degree: Chords.degreeIndex(d, scale: scale), kind: kind)
+            var c: [Int] = Arp.fold([raw], base: base)[0]
+            if voicing == 1 && c.count >= 3 {
+                let i: Int = c.count - 2
+                if c[i] - 12 >= 0 { c[i] -= 12 }
+            } else if voicing == 2, let r = raw.first {
+                let low: Int = base + ((r - base) % 12 + 12) % 12 - 12
+                if low >= 0 && !c.contains(low) { c.append(low) }
+            }
+            out.append(c.sorted())
+        }
+        return out
+    }
 
     /// Случайная прогрессия стиля: 75 % — из набора стиля, 25 % — свободная (Chords.random); не равна avoid,
     /// если получится за 16 попыток. Ступени выше числа ступеней гаммы — по модулю (пентатоника).
