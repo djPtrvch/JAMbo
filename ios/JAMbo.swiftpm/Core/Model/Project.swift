@@ -21,51 +21,18 @@ public struct Step: Codable, Equatable, Sendable {
     public var len: Int = 1
     /// Ноты шага (MIDI). Несколько нот — POLY.
     public var notes: [Int] = []
+    /// Длины нот в шагах (параллельно notes; S8, пианоролл); nil — у всех len. При lens len — самая длинная.
+    public var lens: [Int]?
+    /// Velocity нот — Level ноты 0…127 (параллельно notes; −1 — без своей); nil — ни у одной своей нет.
+    public var vels: [Double]?
     /// P-lock: id параметра → значение. Может быть и на шаге без ноты.
     public var locks: [String: Double] = [:]
-    /// Редко нужные поля (StepMore) «в коробке» (9.11, объём сборки): пустой массив — их нет; копия и сравнение
-    /// шага не тянут их по значению.
-    var moreBox: [StepMore] = []
-
-    public init() {}
-
-    /// Длины нот в шагах (параллельно notes; S8, пианоролл); nil — у всех len. При lens len — самая длинная.
-    public var lens: [Int]? {
-        get { return moreBox.first?.lens }
-        set { withMore { $0.lens = newValue } }
-    }
-    /// Velocity нот — Level ноты 0…127 (параллельно notes; −1 — без своей); nil — ни у одной своей нет.
-    public var vels: [Double]? {
-        get { return moreBox.first?.vels }
-        set { withMore { $0.vels = newValue } }
-    }
     /// Свой звук шага (S2).
-    public var sound: String? {
-        get { return moreBox.first?.sound }
-        set { withMore { $0.sound = newValue } }
-    }
-    /// P-lock, которые поставил пресет звука шага.
-    public var soundLocks: [String]? {
-        get { return moreBox.first?.soundLocks }
-        set { withMore { $0.soundLocks = newValue } }
-    }
-
-    /// Правка коробки: пустая после правки — коробки нет (шаги без редких полей равны новым).
-    private mutating func withMore(_ change: (inout StepMore) -> Void) {
-        var m: StepMore = moreBox.first ?? StepMore()
-        change(&m)
-        moreBox = m.isEmpty ? [] : [m]
-    }
-}
-
-/// Редко нужные поля шага (Step.moreBox, 9.11).
-public struct StepMore: Equatable, Sendable {
-    public var lens: [Int]?
-    public var vels: [Double]?
     public var sound: String?
+    /// P-lock, которые поставил пресет звука шага.
     public var soundLocks: [String]?
 
-    var isEmpty: Bool { return lens == nil && vels == nil && sound == nil && soundLocks == nil }
+    public init() {}
 }
 
 /// Редко нужные поля дорожки (Track.moreBox, 8.11): папка, нарезка, варпинг, EQ, MIDI, ARP, MORPH, цвет, автоматизация.

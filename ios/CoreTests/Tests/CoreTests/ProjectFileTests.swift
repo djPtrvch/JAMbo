@@ -110,8 +110,8 @@ final class ProjectFileTests: XCTestCase {
             // Track.moreBox, Project.moreBox — редко нужные поля (TrackMore, ProjectMore), каждое под своим ключом.
             if let k = labels.firstIndex(of: "moreBox") {
                 labels.remove(at: k)
-                let more: Any = value is Project ? ProjectMore() as Any : (value is Step ? StepMore() as Any : TrackMore() as Any)
-                labels += Mirror(reflecting: more).children.compactMap { $0.label }
+                labels += Mirror(reflecting: value is Project ? ProjectMore() as Any : TrackMore() as Any).children
+                    .compactMap { $0.label }
             }
             let fields = Set(labels).subtracting(except)
             XCTAssertEqual(fields, Set(K.allCases.map { $0.rawValue }), "\(type(of: value))")
