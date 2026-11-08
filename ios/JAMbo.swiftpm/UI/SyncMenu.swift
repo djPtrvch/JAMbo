@@ -39,41 +39,42 @@ struct SyncMenuPage: View {
     }
 }
 
-/// MIDI CLOCK: вкл./выкл., источник, выход (SEND) или вход (RECEIVE), SYNC START/STOP, MIDI OFFSET.
+/// MIDI CLOCK: вкл./выкл., SEND и RECEIVE (по отдельности или вместе, 8.11), выходы (SEND, несколько) и вход
+/// (RECEIVE), SYNC START/STOP, MIDI OFFSET.
 struct SyncClockSection: View {
     let model: AppModel
 
     var body: some View {
         let m: AppModel = model
         let s: SyncSettings = m.settings.sync
-        let send: Bool = s.source == .send
         var rows: [FormRow] = [
             .head("MIDI CLOCK"),
             .toggle("MIDI CLOCK SYNC", s.clock) { on in m.setSync { $0.clock = on } },
-            .label("CLOCK SOURCE"),
-            .choices([MenuChoice(title: "SEND", current: send) { m.setSync { $0.source = .send } },
-                      MenuChoice(title: "RECEIVE", current: !send) { m.setSync { $0.source = .receive } }]),
+            .toggle("SEND CLOCK", s.send) { on in m.setSync { $0.send = on } },
         ]
-        if send {
-            rows.append(.label("CLOCK OUTPUT"))
+        if s.send {
+            rows.append(.label("CLOCK OUTPUTS"))
             if m.midi.outputs.isEmpty { rows.append(.note("No MIDI outputs connected.")) }
-            rows.append(.view(AnyView(MidiDeviceList(none: "ALL OUTPUTS", devices: m.midi.outputs, current: s.clockOut) { id in
-                m.setSync { $0.clockOut = id }
-            })))
-        } else {
+            rows.append(.view(AnyView(ClockOutputList(model: m))))
+        }
+        rows.append(.toggle("RECEIVE CLOCK", s.receive) { on in m.setSync { $0.receive = on } })
+        if s.receive {
             rows.append(.label("CLOCK INPUT"))
             if m.midi.inputs.isEmpty { rows.append(.note("No MIDI inputs connected.")) }
             rows.append(.view(AnyView(MidiDeviceList(none: "ALL INPUTS", devices: m.midi.inputs, current: s.clockIn) { id in
                 m.setClockIn(id)
             })))
-            rows.append(.note("The project tempo follows the clock from this input; without clock for 0.5 s the own tempo returns."))
+            rows.append(.note(s.send
+                ? "The project follows the clock from this input and passes it on to the clock outputs (not back to the device it comes from). Without clock for 0.5 s the own tempo returns."
+                : "The project tempo follows the clock from this input; without clock for 0.5 s the own tempo returns."))
         }
         rows.append(.toggle("SYNC START/STOP", s.midiStartStop) { on in m.setSync { $0.midiStartStop = on } })
         rows.append(.view(AnyView(SyncOffsetRow(title: "MIDI OFFSET", value: s.midiOffset) { d in
             m.setSync { $0.midiOffset = SyncSettings.clampOffset($0.midiOffset + d) }
         })))
-        rows.append(.note(send ? "ON: PLAY sends MIDI Start, stop sends MIDI Stop. The clock runs all the time while MIDI clock sync is on. MIDI OFFSET moves the sent clock later (+) or earlier (−) to line up with the other device."
-                          : "ON: MIDI Start starts playback on the next clock tick, Continue resumes, Stop stops. MIDI OFFSET moves own steps later (+) or earlier (−) than the clock."))
+        rows.append(.note(s.receive
+            ? "ON: MIDI Start starts playback on the next clock tick, Continue resumes, Stop stops\(s.send ? "; Start and Stop are passed on" : ""). MIDI OFFSET moves own steps later (+) or earlier (−) than the clock."
+            : "ON: PLAY sends MIDI Start, stop sends MIDI Stop. The clock runs all the time while MIDI clock sync is on. MIDI OFFSET moves the sent clock later (+) or earlier (−) to line up with the other device."))
         return FormRows(rows: rows)
     }
 }
@@ -158,5 +159,25 @@ struct PressStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .onChange(of: configuration.isPressed) { _, down in pressed(down) }
+    }
+}
+
+/// CLOCK OUTPUTS: ALL OUTPUTS или любой набор выходов (тап — добавить или убрать; убран последний — снова все).
+struct ClockOutputList: View {
+    let model: AppModel
+
+    var body: some View {
+        let m: AppModel = model
+        let s: SyncSettings = m.settings.sync
+        let gone: [Int32] = s.clockOuts.filter { id in !m.midi.outputs.contains(where: { $0.id == id }) }
+        return VStack(alignment: .leading, spacing: 4) {
+            MenuItem(title: "ALL OUTPUTS", current: s.clockOuts.isEmpty) { m.setSync { $0.clockOuts = [] } }
+            ForEach(m.midi.outputs) { d in
+                MenuItem(title: d.name, current: s.clockOuts.contains(d.id)) { m.setSync { $0.toggleOut(d.id) } }
+            }
+            if !gone.isEmpty {
+                MenuItem(title: "NOT CONNECTED (\(gone.count))", enabled: false, current: true) {}
+            }
+        }
     }
 }

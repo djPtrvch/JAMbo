@@ -141,6 +141,8 @@ struct MidiRuntime {
     /// прошлом кадре (старт своей кнопкой — шаг 0 на ближайшем тике).
     var clockPlan = ClockPlan()
     var follower = ClockFollower()
+    /// Вход, с которого пришёл последний тик клока (RECEIVE; при одновременной отдаче клок на это устройство не уходит).
+    var clockSource: Int32 = 0
     var clockRefStep: Int = -1
     var clockWasPlaying: Bool = false
     /// AudioHost.restarts при последней привязке шагов к клоку.

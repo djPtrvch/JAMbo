@@ -7,8 +7,9 @@ final class SyncTests: XCTestCase {
         let d = SyncSettings()
         XCTAssertEqual(d.quantum, 1)
         XCTAssertFalse(d.clock)
-        XCTAssertEqual(d.source, .send)
-        XCTAssertNil(d.clockOut)
+        XCTAssertTrue(d.send)
+        XCTAssertFalse(d.receive)
+        XCTAssertEqual(d.clockOuts, [])
         XCTAssertNil(d.clockIn)
         XCTAssertTrue(d.midiStartStop)
         XCTAssertTrue(d.linkNotify)
@@ -18,8 +19,10 @@ final class SyncTests: XCTestCase {
         XCTAssertEqual(s.quantum, 1)
         XCTAssertEqual(s.midiOffset, 200)
         XCTAssertEqual(s.linkOffset, -200)
-        XCTAssertEqual(s.source, .receive)
-        XCTAssertEqual(s.clockOut, 42)
+        // Прежние настройки (до 8.11): RECEIVE — только приём, один выход — список из него.
+        XCTAssertFalse(s.send)
+        XCTAssertTrue(s.receive)
+        XCTAssertEqual(s.clockOuts, [42])
         XCTAssertEqual(s.clockIn, 7)
         XCTAssertTrue(s.acceptsClock(source: 7))
         XCTAssertFalse(s.acceptsClock(source: 8))
@@ -30,6 +33,30 @@ final class SyncTests: XCTestCase {
         a.sync.quantum = 4
         a.sync.clock = true
         XCTAssertEqual(AppSettings.decode(a.encode()).sync, a.sync)
+    }
+
+    /// SEND и RECEIVE вместе, несколько выходов: пусто — все; убран последний — снова все; запись и чтение.
+    func testSendReceiveOutputs() throws {
+        var s = SyncSettings()
+        s.receive = true
+        XCTAssertTrue(s.send && s.receive)
+        XCTAssertTrue(s.sendsTo(5))
+        s.toggleOut(5)
+        s.toggleOut(9)
+        XCTAssertEqual(s.clockOuts, [5, 9])
+        XCTAssertTrue(s.sendsTo(9))
+        XCTAssertFalse(s.sendsTo(7))
+        s.toggleOut(5)
+        s.toggleOut(9)
+        XCTAssertEqual(s.clockOuts, [])
+        XCTAssertTrue(s.sendsTo(7))
+        s.toggleOut(3)
+        let back = try JSONDecoder().decode(SyncSettings.self, from: JSONEncoder().encode(s))
+        XCTAssertEqual(back, s)
+        let old = try JSONDecoder().decode(SyncSettings.self, from: Data(#"{"source":"send"}"#.utf8))
+        XCTAssertTrue(old.send)
+        XCTAssertFalse(old.receive)
+        XCTAssertEqual(old.clockOuts, [])
     }
 
     /// Полоса фазы: 4 отрезка на такт × квант; в начале фразы горит один, стоп — ни одного.

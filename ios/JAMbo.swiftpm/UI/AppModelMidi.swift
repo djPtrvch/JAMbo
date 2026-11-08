@@ -32,7 +32,7 @@ extension AppModel {
     func midiMessage(_ msg: MidiMessage, source: Int32, at: Double = 0) {
         // Клок, Start, Continue, Stop — мимо маппингов (S13e), со своего входа CLOCK INPUT (S14d).
         if msg.isRealtime {
-            if settings.sync.acceptsClock(source: source) { midiRealtime(msg.kind, at: at) }
+            if settings.sync.acceptsClock(source: source) { midiRealtime(msg.kind, at: at, source: source) }
             return
         }
         let ms: MidiSettings = settings.midi

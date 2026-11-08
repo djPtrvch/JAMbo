@@ -1,9 +1,11 @@
 import Foundation
 
 // Бутерброд → SYNC (S13e, как settings.sync веба): общие для проектов. SYNC QUANTUM — длина фразы в тактах
-// (полоса фазы у BPM, выравнивание старта с Ableton Link); MIDI-клок — SEND (отдаём) или RECEIVE (принимаем со входа
-// из MIDI → DEVICES); настройки Ableton Link пока только хранятся (Link — этап 9).
+// (полоса фазы у BPM, выравнивание старта с Ableton Link); MIDI-клок — SEND (отдаём на один или несколько выходов)
+// и RECEIVE (принимаем со входа) — по отдельности или вместе (8.11, решение пользователя: принять и раздать дальше);
+// настройки Ableton Link пока только хранятся (Link — этап 9).
 
+/// Прежний выбор SEND / RECEIVE (до 8.11) — только для чтения старых настроек.
 public enum ClockSource: String, Codable, Sendable {
     case send
     case receive
@@ -18,9 +20,11 @@ public struct SyncSettings: Codable, Equatable, Sendable {
     public var quantum: Int = 1
     /// MIDI CLOCK SYNC.
     public var clock: Bool = false
-    public var source: ClockSource = .send
-    /// Выход клока при SEND: nil — ALL OUTPUTS, иначе uniqueID.
-    public var clockOut: Int32? = nil
+    /// SEND — отдаём клок; RECEIVE — принимаем; можно оба сразу (принятый клок уходит на выходы).
+    public var send: Bool = true
+    public var receive: Bool = false
+    /// Выходы клока при SEND (uniqueID); пусто — ALL OUTPUTS.
+    public var clockOuts: [Int32] = []
     /// Вход клока при RECEIVE (S14d): nil — ALL INPUTS, иначе uniqueID; не зависит от входа в MIDI → DEVICES.
     public var clockIn: Int32? = nil
     /// SYNC START/STOP клока: SEND — Start и Stop с PLAY; RECEIVE — Start, Continue, Stop управляют игрой.
@@ -36,8 +40,12 @@ public struct SyncSettings: Codable, Equatable, Sendable {
     public init() {}
 
     private enum CodingKeys: String, CodingKey {
-        case quantum, clock, source, clockOut, clockIn, midiStartStop, midiOffset, link, linkNotify, linkStartStop, linkOffset
+        case quantum, clock, send, receive, clockOuts, clockIn, midiStartStop, midiOffset, link, linkNotify, linkStartStop,
+             linkOffset
     }
+
+    /// Прежние ключи (до 8.11): source — SEND или RECEIVE, clockOut — один выход.
+    private enum LegacyKeys: String, CodingKey { case source, clockOut }
 
     /// Недостающие и испорченные поля — по умолчанию; квант и сдвиги — в своих пределах.
     public init(from decoder: Decoder) throws {
@@ -45,8 +53,12 @@ public struct SyncSettings: Codable, Equatable, Sendable {
         let q: Int = c.value(.quantum, 1)
         quantum = SyncSettings.quanta.contains(q) ? q : 1
         clock = c.value(.clock, false)
-        source = c.value(.source, .send)
-        clockOut = c.optional(.clockOut)
+        let old = try decoder.container(keyedBy: LegacyKeys.self)
+        let src: ClockSource = old.value(.source, .send)
+        send = c.value(.send, src == .send)
+        receive = c.value(.receive, src == .receive)
+        let one: Int32? = old.optional(.clockOut)
+        clockOuts = c.value(.clockOuts, one.map { [$0] } ?? [])
         clockIn = c.optional(.clockIn)
         midiStartStop = c.value(.midiStartStop, true)
         midiOffset = SyncSettings.clampOffset(c.value(.midiOffset, 0))
@@ -60,6 +72,20 @@ public struct SyncSettings: Codable, Equatable, Sendable {
     public func acceptsClock(source: Int32) -> Bool {
         guard let i = clockIn else { return true }
         return i == source
+    }
+
+    /// Выход id в списке CLOCK OUTPUTS: выбран (ALL OUTPUTS — пусто).
+    public func sendsTo(_ id: Int32) -> Bool {
+        return clockOuts.isEmpty || clockOuts.contains(id)
+    }
+
+    /// Выход id добавить в CLOCK OUTPUTS или убрать; убран последний — снова ALL OUTPUTS.
+    public mutating func toggleOut(_ id: Int32) {
+        if let k = clockOuts.firstIndex(of: id) {
+            clockOuts.remove(at: k)
+        } else {
+            clockOuts.append(id)
+        }
     }
 
     public static func clampOffset(_ v: Int) -> Int {

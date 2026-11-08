@@ -1,13 +1,15 @@
 import Foundation
 
 /// MIDI-клок (S13e): SEND — по таймеру UI (drain) планировщик ClockPlan ставит тики, Start и Stop на 100 мс вперёд,
-/// MidiHost шлёт их с метками времени. Моменты — когда слышен звук (время блока + задержка выхода) + MIDI OFFSET.
+/// MidiHost шлёт их с метками времени на выбранные выходы (CLOCK OUTPUTS). Моменты — когда слышен звук (время блока +
+/// задержка выхода) + MIDI OFFSET. SEND и RECEIVE вместе (8.11): принятый клок раздаётся дальше — шаги идут по нему,
+/// стоя — точный темп клока; на устройство, с которого он пришёл (то же имя), клок не уходит (без петли).
 /// RECEIVE — ClockFollower: темп клока (точный — в звук, округлённый — в BPM проекта, без UNDO), старт по Start на
 /// первом тике, поправка фазы раз на шаг; свои шаги звучат на MIDI OFFSET позже тиков.
 extension AppModel {
     func tickMidiClock() {
         let s: SyncSettings = settings.sync
-        guard s.clock && s.source == .send && midi.started else {
+        guard s.clock && s.send && midi.started else {
             if midiRun.clockPlan.last != nil { midiRun.clockPlan.reset() }
             return
         }
@@ -16,16 +18,31 @@ extension AppModel {
         let offset: Double = Double(s.midiOffset) / 1000
         // Отрицательный сдвиг — планировать дальше вперёд, чтобы тики уходили заранее.
         let ahead: Double = 0.1 + max(0, -offset)
-        let r = midiRun.clockPlan.update(now: now, bpm: project.bpm, play: clockGrid(), startStop: s.midiStartStop,
+        // Принимаем и отдаём: стоя — точный темп входящего клока, а не округлённый BPM проекта.
+        let bpm: Double = s.receive ? (midiRun.follower.tempo ?? project.bpm) : project.bpm
+        let r = midiRun.clockPlan.update(now: now, bpm: bpm, play: clockGrid(), startStop: s.midiStartStop,
                                          lookahead: ahead)
-        if r.flush { midi.flush(s.clockOut) }
+        let dsts: [Int32] = clockDestinations(s)
+        if r.flush { midi.flush(dsts) }
         if r.events.isEmpty { return }
         var out: [(at: UInt64, word: UInt32)] = []
         for e in r.events {
             let word: UInt32 = MidiMessage.ump(status: e.kind.status, 0, 0)
             out.append((at: clock.ticks(seconds: e.time + offset), word: word))
         }
-        midi.sendTimed(out, to: s.clockOut)
+        midi.sendTimed(out, to: dsts)
+    }
+
+    /// Выходы клока: CLOCK OUTPUTS (пусто — все); при приёме — без устройства, с которого клок пришёл (по имени).
+    func clockDestinations(_ s: SyncSettings) -> [Int32] {
+        var skip: String = ""
+        if s.receive && midiRun.follower.last > 0 {
+            let src: Int32 = midiRun.clockSource
+            skip = midi.inputs.first(where: { $0.id == src })?.name ?? ""
+        }
+        var ids: [Int32] = []
+        for o in midi.outputs where s.sendsTo(o.id) && (skip.isEmpty || o.name != skip) { ids.append(o.id) }
+        return ids
     }
 
     /// Другой вход клока (S14d): тики прежнего не смешиваются с новым — темп и привязка шагов заново.
@@ -39,11 +56,12 @@ extension AppModel {
     }
 
     /// Сообщение реального времени с входа (время прихода at).
-    func midiRealtime(_ kind: MidiKind, at: Double) {
+    func midiRealtime(_ kind: MidiKind, at: Double, source: Int32 = 0) {
         let s: SyncSettings = settings.sync
-        guard s.clock && s.source == .receive else { return }
+        guard s.clock && s.receive else { return }
         var action: ClockFollower.Action? = nil
         if kind == .clock {
+            midiRun.clockSource = source
             action = midiRun.follower.tick(at: at)
             if let b = midiRun.follower.tempo {
                 // Звук — по точному темпу клока, BPM проекта — округлённый.
@@ -70,7 +88,7 @@ extension AppModel {
     func tickClockFollow() {
         let s: SyncSettings = settings.sync
         let f: ClockFollower = midiRun.follower
-        guard s.clock && s.source == .receive else {
+        guard s.clock && s.receive else {
             // Звук шёл по точному темпу клока — вернуть темп проекта.
             if f.last > 0 {
                 midiRun.follower.lose()

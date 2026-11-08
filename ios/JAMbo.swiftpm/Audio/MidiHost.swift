@@ -141,14 +141,12 @@ final class MidiHost {
         }
     }
 
-    /// Сообщения с метками времени (такты mach) на выход id или на все выходы (nil): по 16 на список.
-    func sendTimed(_ events: [(at: UInt64, word: UInt32)], to id: Int32?) {
+    /// Сообщения с метками времени (такты mach) на выходы ids (клок — на несколько устройств): по 16 на список.
+    func sendTimed(_ events: [(at: UInt64, word: UInt32)], to ids: [Int32]) {
         guard started, !events.isEmpty else { return }
         var dsts: [MIDIEndpointRef] = []
-        if let i = id {
+        for i in ids {
             if let d = destinations[i] { dsts.append(d) }
-        } else {
-            dsts = Array(destinations.values)
         }
         let size: Int = MemoryLayout<MIDIEventList>.size
         for dst in dsts {
@@ -193,13 +191,11 @@ final class MidiHost {
         }
     }
 
-    /// Отменить отправленные, но ещё не ушедшие по времени сообщения (выход id или все).
-    func flush(_ id: Int32?) {
+    /// Отменить отправленные, но ещё не ушедшие по времени сообщения на выходах ids.
+    func flush(_ ids: [Int32]) {
         guard started else { return }
-        if let i = id {
+        for i in ids {
             if let dst = destinations[i] { MIDIFlushOutput(dst) }
-        } else {
-            MIDIFlushOutput(0)
         }
     }
 
