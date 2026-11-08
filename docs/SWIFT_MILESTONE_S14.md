@@ -180,6 +180,12 @@
 
 S14w — на iPad; CoreTests — 304 (новые: EngineIconTests — testPreviewsMatchPrototype, testGridFiniteInField, testEachKnobChangesIcon, testTableFrame; testApplyKnobsToAllPages, testFeedbackFollowsResolveAcrossInputs; убраны прежние тесты иконок веба). S14v — на iPad. S14a — тесты Core (HeavyLoadTests), DIAGNOSTICS на iPad. CoreTests — 298 (S14a: testHeavyProjectProfile, testProfileOffAndOn); 296 (новые: testMoveRow, testPasteTrackKeepsOwnPatterns, testClipSpeed, testQueuedClipAfterSlowClip, testSameNameIgnoresAudioExtension).
 
+## Правки 8.11 (решения пользователя; на iPad — сборка с первого раза, fe2ca0a — 1,630 млн)
+- RANDOM: LEAD в Techno — гипнотическая ячейка (полиметрия и евклидовы ритмы, HypnoticLead.swift); SHOW PART TYPE — раздел PART (BASS, LEAD, PAD) в окне CHORD с выбором типа партии; роли по имени сэмпла — новые слова; случайные партии сэмпла — по его определённой ноте; на клавишах CHORD — нота с октавой (sequencer.md, settings-midi-sync.md).
+- Вылет: тап по пресету EQ — чтение project внутри edit (двойной доступ, SIGABRT); число дорожек — до правки. Других таких мест скрипт не нашёл.
+- SHIFT + тап по Speed LFO — снова по темпу: после перестановки ручек строками Speed искался в прежних ячейках 4…6; теперь — по id.
+- MIX: вместо LFO/ENV и FX, MOD, SHIFT, MORPH — пустое поле на группу; загрузка сэмпла из видео (LOAD, SOURCE, REF, IMPORT библиотеки); пресет коррекции AIAIAI TMA-2 Studio Wireless+; значок наушников над CPU, пока цепочка прослушивания меняет звук (ui-layout.md, sound-sampler.md, fx-eq.md).
+
 ## План (подтверждён пользователем)
 - S14v — правки интерфейса (готово, проверено на iPad).
 - S14a — замеры: в колбэке — время по разделам (голоса, FX, EQ, мастер, метры и запись), среднее и пик блока — в DIAGNOSTICS; тест Core «тяжёлый проект» (8 дорожек, синт аккордами, сэмплы, FX, EQ Dynamic, весь мастер) — отладочная и релизная сборка на Linux; в DIAGNOSTICS — время кадра интерфейса и пропущенные кадры; пользователь делает один замер на iPad своим тяжёлым проектом — дальше чинить по цифрам.
