@@ -78,7 +78,8 @@ final class SeqSnapshotDigestTests: XCTestCase {
 
     // RATE (VoiceParam.rate): p-lock голоса — 17 значений на шаг, сумма другая.
     // ANALOG (8.11): VoiceParam.amod, aoct — 19 значений на шаг, список id для случайных p-lock длиннее.
-    static let expected: UInt64 = 16469321655857768444
+    // Тип фильтра (9.11): VoiceParam.ftype — 20 значений на шаг.
+    static let expected: UInt64 = 16770557892766145836
 }
 
 extension SystemRandomNumberGenerator {

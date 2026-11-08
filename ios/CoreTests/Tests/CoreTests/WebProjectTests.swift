@@ -50,7 +50,9 @@ final class WebProjectTests: XCTestCase {
         let t = p.tracks[0]
         XCTAssertEqual(t.name, "KICK")
         XCTAssertEqual(t.sample, kick)
-        XCTAssertEqual(t.params["filter"], 40)
+        // Прежняя ручка Filter (до 9.11): 40 — HP; тип и частота — FilterMigration.
+        XCTAssertEqual(t.params["filter"], FilterMigration.value(40, type: FilterType.hp))
+        XCTAssertEqual(t.params[Params.filterTypeId], Double(FilterType.hp))
         XCTAssertEqual(t.assigns["filter"], ModAssign(lfo: 2, amount: -0.5))
         XCTAssertTrue(t.mute)
         XCTAssertEqual(t.vol, -6)
@@ -70,7 +72,7 @@ final class WebProjectTests: XCTestCase {
         XCTAssertTrue(s.on)
         XCTAssertEqual(s.len, 2)
         XCTAssertEqual(s.notes, [60, 64])
-        XCTAssertEqual(s.locks, ["filter": 30])
+        XCTAssertEqual(s.locks, ["filter": FilterMigration.value(30, type: FilterType.hp)])
         XCTAssertEqual(s.sound, snare)
         XCTAssertEqual(s.soundLocks, ["decay"])
         XCTAssertEqual(a.pages[1][0].notes, [48])
@@ -87,7 +89,7 @@ final class WebProjectTests: XCTestCase {
         XCTAssertEqual(t.clips[5]?.scale, 2)
         XCTAssertEqual(t.slices[kick], [SliceMark(at: 0.5, note: 62), SliceMark(at: 0.75)])
         // Папка: сэмплы и пресет синта (S11b), звучит snare. Пресет движка Mutable Instruments (mi:2) — пустой (S12).
-        let bell = SynthPreset(name: "Bell", sound: "", params: ["harm": 30], fmt: 4)
+        let bell = SynthPreset(name: "Bell", sound: "", params: ["harm": 30], fmt: 5)
         XCTAssertEqual(t.folder, Folder(items: [FolderItem(sample: kick), FolderItem(preset: bell), FolderItem(sample: snare)],
                                         index: 2))
         let q = t.eq.bands[1]

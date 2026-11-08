@@ -10,7 +10,8 @@ final class ChordStealTests: XCTestCase {
         p.tracks[0].params["attack"] = 203
         p.tracks[0].params["decay"] = 2030
         p.tracks[0].params["reverb"] = 0
-        p.tracks[0].params["filter"] = -30
+        // LP ~2,8 кГц (прежняя ручка −30).
+        p.tracks[0].params["filter"] = FilterMigration.value(-30, type: FilterType.lp)
         var pages: [[Step]] = []
         for d in [1, 7, 6, 7] {
             var page = Track.emptyPage()

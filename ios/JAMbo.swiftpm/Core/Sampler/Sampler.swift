@@ -341,7 +341,7 @@ public final class Sampler {
         let sends0L = sendL + t * 3 * Sampler.maxFrames, sends0R = sendR + t * 3 * Sampler.maxFrames
         let mf = Sampler.maxFrames
         let panT = Float(Swift.max(-1, Swift.min(1, val(VoiceParam.pan) / 64)))
-        let fk = Biquad.knob(val(VoiceParam.filter), reso: val(VoiceParam.reso))
+        let fk = Biquad.knob(val(VoiceParam.filter), reso: val(VoiceParam.reso), type: val(VoiceParam.ftype), ladder: false)
         let sub = 32
         let ks: Double = 1 - exp(-Double(sub) / (0.01 * sr))
         let kf: Double = 1 - exp(-Double(sub) / (0.015 * sr))
@@ -368,7 +368,7 @@ public final class Sampler {
             let g0: Float = fdip[v]
             let swap: Bool = Biquad.glide(&ftype[v], &hz[v], fk.type, fk.hz, kf)
             let dg: Float = Float(Double(m) / (Biquad.fadeTime * sr))
-            let dgOut: Float = ftype[v] > 0 ? Float(Double(m) / (Biquad.fadeHpTime * sr)) : dg
+            let dgOut: Float = ftype[v] == 1 ? Float(Double(m) / (Biquad.fadeHpTime * sr)) : dg
             var retype: Bool = false
             if swap && g0 <= 0 {
                 ftype[v] = fk.type

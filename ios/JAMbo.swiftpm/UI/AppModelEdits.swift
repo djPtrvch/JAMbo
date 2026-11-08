@@ -74,6 +74,7 @@ extension AppModel {
             if fxMode { return fxParam(slot) }
             let p: ParamDef = Params.grid(sound: track.sample)[slot]
             if p.id == "rate" && rateStretch { return Params.rateTstr }
+            if p.id == "filter" { return Params.filterDef(filterType) }
             if p.id.isEmpty { return nil }
             // ANALOG: AMOUNT вместо DETUNE при модуляции, WAVE B с «−1» при октаве ниже.
             if let e = SynthKey.engine(track.sample) { return AnalogMod.knob(p, engine: e, params: track.params) }

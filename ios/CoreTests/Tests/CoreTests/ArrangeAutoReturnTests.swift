@@ -29,7 +29,7 @@ final class ArrangeAutoReturnTests: XCTestCase {
         for t in 1..<8 { p.tracks[t].clips[0] = nil }
         p.tracks[0].clips[0]!.pages[0][0].on = true
         p.tracks[0].clips[0]!.pages[0][8].on = true
-        p.tracks[0].params["filter"] = -40
+        p.tracks[0].params["filter"] = 60
         let c: Clip = p.tracks[0].clips[0]!
         for k in 0..<6 { p.tracks[0].placeBlock(ArrBlock(clip: 0, start: k * 16, length: 16, pattern: own ? c : nil)) }
         p.tracks[0].setAuto("filter", [ArrAutoPoint(x: 16, y: 0.8), ArrAutoPoint(x: 32, y: 0.8)])
@@ -56,6 +56,8 @@ final class ArrangeAutoReturnTests: XCTestCase {
             for t in 1..<8 { p.tracks[t].clips[0] = nil }
             // KICK с длинным хвостом: новый удар на звучащем хвосте (голос слота продолжается).
             p.tracks[0].setSynth(16)
+            // HP, открыт (ручка Filter 9.11: 0 — HP открыт, звучит LP 20 кГц — тип другой, чем у кривой).
+            p.tracks[0].params[Params.filterTypeId] = Double(FilterType.hp)
             p.tracks[0].params["filter"] = 0
             p.tracks[0].params["decay"] = 1000
             p.tracks[0].params["attack"] = 0
@@ -93,29 +95,33 @@ final class ArrangeAutoReturnTests: XCTestCase {
         XCTAssertEqual(auto / plain, 1, accuracy: 0.02, "после кривой — звук как без неё")
     }
 
-    /// Конец кривой HP посреди звучащей ноты KICK — без щелчка: фильтр уезжает к прозрачному краю, тип не прыгает;
-    /// HP → LP и выкл. → HP — провалом выхода фильтра (3 мс), тип меняется.
+    /// Конец кривой HP посреди звучащей ноты KICK — без щелчка: фильтр уезжает к открытому краю, тип не прыгает;
+    /// открытый → HP посреди ноты — провалом выхода фильтра, тип меняется; конец кривой LP — тоже без скачка.
     /// Мера щелчка — скачок отсчёта (|y[i] − y[i−1]|) у конца кривой против скачков хвоста без кривой.
+    /// Ручка Filter (9.11): дорожка HP (LP у lpEnd), 0 — HP открыт; y кривой = ручка / 100.
     func testFilterEndWithoutClick() {
         var lastType: Int = 99
-        func render(_ curve: Bool, toLP: Bool = false, fromOff: Bool = false, lpEnd: Bool = false) -> [Float] {
+        let hpY: Double = FilterMigration.value(40, type: FilterType.hp) / 100
+        func render(_ curve: Bool, fromOff: Bool = false, lpEnd: Bool = false) -> [Float] {
             var p = Project()
             for t in 1..<8 { p.tracks[t].clips[0] = nil }
             p.tracks[0].setSynth(16)
-            p.tracks[0].params["filter"] = 0
+            p.tracks[0].params[Params.filterTypeId] = Double(lpEnd ? FilterType.lp : FilterType.hp)
+            p.tracks[0].params["filter"] = lpEnd ? 100 : 0
             p.tracks[0].params["decay"] = 1000
             p.tracks[0].params["attack"] = 0
             p.tracks[0].clips[0]!.pages[0][8].on = true
             p.tracks[0].clips[0]!.pages[0][8].notes = [48]
             p.tracks[0].placeBlock(ArrBlock(clip: 0, start: 0, length: 16))
             if curve {
-                var pts: [ArrAutoPoint] = [ArrAutoPoint(x: 0, y: 0.7), ArrAutoPoint(x: 9, y: 0.7)]
-                // HP → LP скачком (через прозрачный край).
-                if toLP { pts += [ArrAutoPoint(x: 9, y: 0.3), ArrAutoPoint(x: 16, y: 0.3)] }
-                // Выкл. → HP посреди ноты.
-                if fromOff { pts = [ArrAutoPoint(x: 9, y: 0.7), ArrAutoPoint(x: 16, y: 0.7)] }
-                // LP прикрыт → конец кривой (выкл.).
-                if lpEnd { pts = [ArrAutoPoint(x: 0, y: 0.2), ArrAutoPoint(x: 9, y: 0.2)] }
+                var pts: [ArrAutoPoint] = [ArrAutoPoint(x: 0, y: hpY), ArrAutoPoint(x: 9, y: hpY)]
+                // Открытый → HP посреди ноты.
+                if fromOff { pts = [ArrAutoPoint(x: 9, y: hpY), ArrAutoPoint(x: 16, y: hpY)] }
+                // LP прикрыт → конец кривой (открыт).
+                if lpEnd {
+                    let y: Double = FilterMigration.value(-60, type: FilterType.lp) / 100
+                    pts = [ArrAutoPoint(x: 0, y: y), ArrAutoPoint(x: 9, y: y)]
+                }
                 p.tracks[0].setAuto("filter", pts)
             }
             let core = AudioCore(master: false)
@@ -147,20 +153,15 @@ final class ArrangeAutoReturnTests: XCTestCase {
         print(String(format: "FILTER END: jump %.5f, plain %.5f", atEnd, ref))
         XCTAssertGreaterThan(ref, 0)
         XCTAssertLessThanOrEqual(atEnd, ref * 1.1, "конец кривой — без скачка сверх хвоста")
-        let yl: [Float] = render(true, toLP: true)
-        let lp: Float = jump(yl, 9 * step - 2000, 9 * step + 4000)
-        print(String(format: "FILTER HP→LP: jump %.5f", lp))
-        XCTAssertLessThanOrEqual(lp, ref * 1.1, "HP → LP — без скачка")
-        XCTAssertEqual(lastType, -1, "тип сменился на LP")
         let on: Float = jump(render(true, fromOff: true), 9 * step - 2000, 9 * step + 4000)
         print(String(format: "FILTER OFF→HP: jump %.5f", on))
-        XCTAssertLessThanOrEqual(on, ref * 1.1, "выкл. → HP — без скачка")
+        XCTAssertLessThanOrEqual(on, ref * 1.1, "открытый → HP — без скачка")
         XCTAssertEqual(lastType, 1, "тип сменился на HP")
         let yl2: [Float] = render(true, lpEnd: true)
         let le: Float = jump(yl2, 9 * step - 2000, 9 * step + 4000)
-        var pk: Float = 0, pkPlain: Float = 0
-        for i in (9 * step)..<(9 * step + 4000) { pk = Swift.max(pk, abs(yl2[i])); pkPlain = Swift.max(pkPlain, abs(plain[i])) }
-        print(String(format: "FILTER LP END: jump %.5f peak %.4f plain peak %.4f", le, pk, pkPlain))
+        let ref2: Float = jump(render(false, lpEnd: true), 9 * step - 2000, 9 * step + 4000)
+        print(String(format: "FILTER LP END: jump %.5f, plain %.5f", le, ref2))
+        XCTAssertLessThanOrEqual(le, ref2 * 1.1, "конец кривой LP — без скачка")
     }
 
     /// Удар KICK на конце кривой HP (как на iPad 1.11): после конца — без всплеска (пики окнами по 500 отсчётов не выше,
@@ -170,6 +171,7 @@ final class ArrangeAutoReturnTests: XCTestCase {
             var p = Project()
             for t in 1..<8 { p.tracks[t].clips[0] = nil }
             p.tracks[0].setSynth(16)
+            p.tracks[0].params[Params.filterTypeId] = Double(FilterType.hp)
             p.tracks[0].params["filter"] = 0
             p.tracks[0].params["reso"] = reso
             p.tracks[0].params["decay"] = 600
@@ -179,7 +181,9 @@ final class ArrangeAutoReturnTests: XCTestCase {
                 p.tracks[0].clips[0]!.pages[0][k].notes = [48]
             }
             p.tracks[0].placeBlock(ArrBlock(clip: 0, start: 0, length: 16))
-            if curve { p.tracks[0].setAuto("filter", [ArrAutoPoint(x: 0, y: 0.9), ArrAutoPoint(x: 8, y: 0.9)]) }
+            // HP ~2,9 кГц (прежняя ручка 80).
+            let y: Double = FilterMigration.value(80, type: FilterType.hp) / 100
+            if curve { p.tracks[0].setAuto("filter", [ArrAutoPoint(x: 0, y: y), ArrAutoPoint(x: 8, y: y)]) }
             let core = AudioCore(master: false)
             core.installSynth()
             core.publish(p)
@@ -218,6 +222,7 @@ final class ArrangeAutoReturnTests: XCTestCase {
             var p = Project()
             for t in 1..<8 { p.tracks[t].clips[0] = nil }
             p.tracks[0].setSynth(16)
+            p.tracks[0].params[Params.filterTypeId] = Double(FilterType.hp)
             p.tracks[0].params["filter"] = 0
             p.tracks[0].params["decay"] = 1000
             p.tracks[0].params["attack"] = 0
@@ -250,10 +255,11 @@ final class ArrangeAutoReturnTests: XCTestCase {
             }
             return m
         }
-        let hpY: Double = 0.75
+        // HP ~450 Гц (прежняя ручка 50); выкл. — HP открыт (0).
+        let hpY: Double = FilterMigration.value(50, type: FilterType.hp) / 100
         for at in [11.0, 11.4, 12.0] {
             let stepped: [Float] = render([ArrAutoPoint(x: 0, y: hpY), ArrAutoPoint(x: at, y: hpY),
-                                           ArrAutoPoint(x: at, y: 0.5), ArrAutoPoint(x: 16, y: 0.5)])
+                                           ArrAutoPoint(x: at, y: 0), ArrAutoPoint(x: 16, y: 0)])
             let off: [Float] = render(nil)
             let hp: [Float] = render([ArrAutoPoint(x: 0, y: hpY), ArrAutoPoint(x: 16, y: hpY)])
             let a: Int = Int(at * Double(step)) - 500, b: Int = Int(at * Double(step)) + 1500

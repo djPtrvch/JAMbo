@@ -35,7 +35,7 @@ final class GranularMigrationTests: XCTestCase {
         let data = try JSONEncoder().encode(p)
         var q = try JSONDecoder().decode(Project.self, from: data)
         q.repair()
-        XCTAssertEqual(q.version, 8)
+        XCTAssertEqual(q.version, 9)
         let want = GranularMigration.knobs(size: 45, density: 55, spray: 20)
         let t = q.tracks[0]
         XCTAssertEqual(t.params["timbre"]!, want.s, accuracy: 1e-9)
@@ -50,7 +50,7 @@ final class GranularMigrationTests: XCTestCase {
         // Другой движок — как был; пресет GRANULAR в папке — переведён.
         XCTAssertEqual(q.tracks[1].params["timbre"], 45)
         let qp = q.tracks[1].folder.items[0].preset!
-        XCTAssertEqual(qp.fmt, 4)
+        XCTAssertEqual(qp.fmt, 5)
         XCTAssertEqual(qp.params["morph"]!, want.d, accuracy: 1e-9)
         // Повторно не переводится.
         var again = q

@@ -85,7 +85,7 @@ final class MidiTests: XCTestCase {
         p.tracks[1].midi.inChannel = 5
         p.tracks[2].midi.inDevice = 9
         p.repair()
-        XCTAssertEqual(p.version, 8)
+        XCTAssertEqual(p.version, 9)
         XCTAssertFalse(p.tracks[0].midi.inOn)
         XCTAssertTrue(p.tracks[1].midi.inOn)
         XCTAssertTrue(p.tracks[2].midi.inOn)

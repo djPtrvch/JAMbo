@@ -11,8 +11,8 @@ public typealias VoiceMask = UInt32
 public enum VoiceParam {
     public static let ids = ["pitch", "start", "end", "level", "attack", "decay", "filter", "reso", "pan",
                              "harm", "timbre", "morph", "reverb", "delay", "drive", "p4", "rate",
-                             AnalogMod.modId, AnalogMod.octId]
-    public static let count = 19
+                             AnalogMod.modId, AnalogMod.octId, Params.filterTypeId]
+    public static let count = 20
     public static let pitch = 0
     public static let start = 1
     public static let end = 2
@@ -37,6 +37,8 @@ public enum VoiceParam {
     /// ANALOG: режим модуляции (AnalogMod.mode) и октава B (1 — на октаву ниже); скрытые, без LFO/ENV.
     public static let amod = 17
     public static let aoct = 18
+    /// Тип фильтра (FilterType: 0 LP, 1 HP, 2 BP, 3 LADDER — только у SUB); скрытый, без LFO/ENV.
+    public static let ftype = 19
 }
 
 public struct SoundData {

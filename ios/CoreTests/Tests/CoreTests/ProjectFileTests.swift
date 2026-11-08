@@ -83,8 +83,9 @@ final class ProjectFileTests: XCTestCase {
         let t = d.tracks[0]
         XCTAssertEqual(t.name, "KICK")
         XCTAssertEqual(t.vol, Params.volDef)
-        XCTAssertEqual(t.params["filter"], 12)
-        XCTAssertEqual(t.params.count, Params.defaults().count)
+        XCTAssertEqual(t.params["filter"], FilterMigration.value(12, type: FilterType.hp), "прежняя ручка Filter — HP")
+        XCTAssertEqual(t.params[Params.filterTypeId], Double(FilterType.hp))
+        XCTAssertEqual(t.params.count, Params.defaults().count + 1)
         XCTAssertEqual(t.clips.count, Params.patternSlots)
         let c = try XCTUnwrap(t.clips[0])
         XCTAssertEqual(c.pages[0].count, Params.stepsPerPage)

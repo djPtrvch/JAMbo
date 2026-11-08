@@ -64,6 +64,8 @@ public final class SynthVoices {
     let zR = UnsafeMutablePointer<Float>.allocate(capacity: slots * 4)
     /// Доля фильтра в выходе (1; при скачке — к сухому сигналу и обратно, Biquad.glide).
     let fdip = UnsafeMutablePointer<Float>.allocate(capacity: slots)
+    /// LADDER (SUB): состояние лестничного фильтра.
+    let ladder = LadderFilter(slots: slots)
     /// Слот занят до (затухающие сами — атака + 0,3 с + 4·Decay; остальные — до stopAt).
     let busyUntil = UnsafeMutablePointer<Int64>.allocate(capacity: slots)
     /// Голос затухающего самого движка; keep — огибающая с 1 (без атаки), ручки звука — за ~1 мс.
@@ -297,7 +299,9 @@ public final class SynthVoices {
         level[v] = Float(pow(pv(d, t, VoiceParam.level, mask, vals) / 127, 1.5))
         pan[v] = Float(Swift.max(-1, Swift.min(1, pv(d, t, VoiceParam.pan, mask, vals) / 64)))
         for k in 0..<3 { send[v * 3 + k] = Float(pv(d, t, VoiceParam.reverb + k, mask, vals) / 100) }
-        let f = Biquad.knob(pv(d, t, VoiceParam.filter, mask, vals), reso: pv(d, t, VoiceParam.reso, mask, vals))
+        let f = Biquad.knob(pv(d, t, VoiceParam.filter, mask, vals), reso: pv(d, t, VoiceParam.reso, mask, vals),
+                            type: pv(d, t, VoiceParam.ftype, mask, vals), ladder: e == Jambo.sub)
+        ladder.reset(v)
         ftype[v] = f.type
         hz[v] = f.hz
         qDb[v] = f.q
@@ -436,7 +440,12 @@ public final class SynthVoices {
         var peak: Float = 0
         // Свои движки (jambo-synth-worklet.js): p1–p4 — ручки 1.1–1.4 / 100, Decay — мс; сглаживание — в голосе (5 мс).
         let q1 = knob(row, locks, mask, modE, t, frame0, VoiceParam.harm) / 100, q2 = knob(row, locks, mask, modE, t, frame0, VoiceParam.timbre) / 100, q3 = knob(row, locks, mask, modE, t, frame0, VoiceParam.morph) / 100
-        let q4 = knob(row, locks, mask, modE, t, frame0, VoiceParam.p4) / 100
+        let q4k = knob(row, locks, mask, modE, t, frame0, VoiceParam.p4) / 100
+        // Тип фильтра — значение звука (пресет-лок — его), без LFO/ENV; LADDER — только у SUB, GRIT тогда — перегруз
+        // входа фильтра (tanh движка выключен).
+        let fty: Float = mask & bit[VoiceParam.ftype] != 0 ? locks[VoiceParam.ftype] : row[VoiceParam.ftype]
+        let ladOK: Bool = e == Jambo.sub
+        let q4 = ladOK && fty > 2.5 ? 0 : q4k
         let dec = knob(row, locks, mask, modE, t, frame0, VoiceParam.decay)
         let nt = Double(note[v])
         let dr = drift[t]
@@ -486,7 +495,8 @@ public final class SynthVoices {
         // Сглаживание ручек (setTargetAtTime веба: 10 мс, фильтр — 15 мс).
         let levelT = Float(pow(knob(row, locks, mask, modE, t, frame0, VoiceParam.level) / 127, 1.5))
         let panT = Float(Swift.max(-1, Swift.min(1, knob(row, locks, mask, modE, t, frame0, VoiceParam.pan) / 64)))
-        let fk = Biquad.knob(knob(row, locks, mask, modE, t, frame0, VoiceParam.filter), reso: knob(row, locks, mask, modE, t, frame0, VoiceParam.reso))
+        let fk = Biquad.knob(knob(row, locks, mask, modE, t, frame0, VoiceParam.filter), reso: knob(row, locks, mask, modE, t, frame0, VoiceParam.reso),
+                             type: Double(fty), ladder: ladOK)
         // keep: ручки слота на звучащем хвосте подстраиваются за ~1 мс (первые 10 мс ноты).
         let fast = keep[v] != 0 && frame0 - start[v] < Int64(0.01 * sr)
         let ks: Double = 1 - exp(-Double(m) / ((fast ? 0.001 : 0.01) * sr))
@@ -509,7 +519,7 @@ public final class SynthVoices {
         var cPrev: Biquad = coef[v]
         let swap: Bool = Biquad.glide(&ftype[v], &hz[v], fk.type, fk.hz, kf)
         let dg: Float = Float(Double(m) / (Biquad.fadeTime * sr))
-        let dgOut: Float = ftype[v] > 0 ? Float(Double(m) / (Biquad.fadeHpTime * sr)) : dg
+        let dgOut: Float = ftype[v] == 1 ? Float(Double(m) / (Biquad.fadeHpTime * sr)) : dg
         var retype: Bool = false
         if swap && g0 <= 0 {
             ftype[v] = fk.type
@@ -518,6 +528,7 @@ public final class SynthVoices {
                 z[v * 4 + k] = 0
                 zR[v * 4 + k] = 0
             }
+            ladder.reset(v)
             retype = true
         }
         fdip[v] = swap && !retype ? Swift.max(0, g0 - dgOut) : Swift.min(1, g0 + dg)
@@ -526,12 +537,19 @@ public final class SynthVoices {
         if retype || dh > 1e-6 || dh < -1e-6 || dq > 1e-6 || dq < -1e-6 {
             coef[v].set(type: ftype[v], hz: hz[v], qDb: qDb[v], sampleRate: sr)
         }
-        let c: Biquad = coef[v]
+        var c: Biquad = coef[v]
         // Скачок — на сухом сигнале: коэффициенты цели сразу (смесь знаменателей двух фильтров — не фильтр).
         if retype { cPrev = c }
         // Доля фильтра в выходе — по отсчётам от прежней к новой (S-кривая перехода, Biquad.mix).
         var fq: Float = retype ? 0 : Biquad.mix(g0)
         let dfq: Float = (Biquad.mix(fdip[v]) - fq) / Float(m)
+        // LADDER (моно SUB): до огибающей, на месте в outBuf, с той же долей фильтра; биквад — сквозной.
+        if ftype[v] == 3 && !stereo {
+            ladder.run(v, outBuf, m, hz0: retype ? hz[v] : h0, hz1: hz[v], qDb: qDb[v], grit: q4k, sr: sr, fq: fq,
+                       dfq: dfq)
+            c = Biquad()
+            cPrev = c
+        }
         let lv = level[v]
         let zb = v * 4
         // Огибающая — отдельным проходом в gBuf (с остановкой голоса), затем фильтр, Pan и посылы — моно или стерео.

@@ -159,12 +159,12 @@ final class EditTests: XCTestCase {
         var t = Track(index: 0)
         t.toggleStep(2, notes: [36])
         XCTAssertEqual(t.pages[0][2].notes, [36])
-        t.setLock(2, "filter", -40)
+        t.setLock(2, "filter", 40)
         t.setLock(5, "pan", 10) // p-lock на пустом шаге
         XCTAssertTrue(Track.hasManualLocks(t.pages[0][5]))
-        XCTAssertEqual(t.value("filter", step: t.pages[0][2]), -40)
+        XCTAssertEqual(t.value("filter", step: t.pages[0][2]), 40)
         t.clearLock(2, "filter")
-        XCTAssertEqual(t.value("filter", step: t.pages[0][2]), 0)
+        XCTAssertEqual(t.value("filter", step: t.pages[0][2]), 100, "LP открыт — по умолчанию")
         t.setLock(2, "pan", 5)
         t.clearAllLocks()
         XCTAssertTrue(t.pages[0][2].locks.isEmpty && t.pages[0][5].locks.isEmpty)
@@ -185,7 +185,11 @@ final class EditTests: XCTestCase {
         let ratchet = Params.byId["ratchet"]!
         XCTAssertEqual(ratchet.fromNorm(0.4), 1)
         XCTAssertEqual(ratchet.format(3), "4")
-        XCTAssertEqual(Params.byId["filter"]!.format(0), "OFF")
+        XCTAssertEqual(Params.byId["filter"]!.format(100), "LP OFF")
+        XCTAssertEqual(Params.byId["filter"]!.format(0), "LP 20.0")
+        XCTAssertEqual(Params.filterDef(FilterType.hp).format(0), "HP OFF")
+        XCTAssertEqual(Params.filterDef(FilterType.bp).format(50), "BP 632")
+        XCTAssertEqual(Params.filterDef(FilterType.ladder).format(100), "LAD 20.0k")
         XCTAssertEqual(Params.byId["pan"]!.format(-10), "L10")
         XCTAssertEqual(Params.trackGrid[0].id, "pitch")
         XCTAssertEqual(Params.trackGrid[4].id, "attack", "сетка — ряд за рядом")
@@ -208,16 +212,16 @@ final class MorphTests: XCTestCase {
         var t = Track(index: 0)
         t.assigns["pan"] = ModAssign(lfo: 1, amount: 0.5)
         t.morphParam("filter")
-        t.params["filter"] = -40
+        t.params["filter"] = 40
         t.morphParam("filter")
-        t.params["filter"] = -80
+        t.params["filter"] = 20
         t.morphAssign("pan")
         t.assigns["pan"] = ModAssign(lfo: 2, amount: -1)
         t.morphAssign("level")
         t.assigns["level"] = ModAssign(lfo: 4, amount: 0.3)
         XCTAssertTrue(t.morphEdited)
         t.undoMorph()
-        XCTAssertEqual(t.params["filter"], 0)
+        XCTAssertEqual(t.params["filter"], 100)
         XCTAssertEqual(t.assigns["pan"], ModAssign(lfo: 1, amount: 0.5))
         XCTAssertNil(t.assigns["level"])
         XCTAssertFalse(t.morphEdited)

@@ -15,7 +15,11 @@ extension AppModel {
     /// Ручки сетки дорожки, которые можно автоматизировать (в порядке сетки).
     func arrAutoKnobs(_ t: Int) -> [ParamDef] {
         guard t >= 0 && t < project.tracks.count else { return [] }
-        return Params.grid(sound: project.tracks[t].sample).filter { !$0.id.isEmpty && ArrAutoTarget.index($0.id) != nil }
+        let tr: Track = project.tracks[t]
+        // Filter — по типу фильтра дорожки (подпись значения LP / HP / BP / LAD).
+        let ft: Int = FilterType.effective(FilterType.of(tr.params[Params.filterTypeId]), sound: tr.sample)
+        let g: [ParamDef] = Params.grid(sound: tr.sample).map { $0.id == "filter" ? Params.filterDef(ft) : $0 }
+        return g.filter { !$0.id.isEmpty && ArrAutoTarget.index($0.id) != nil }
     }
 
     /// Ручка id: с сетки дорожки (подписи движка синта), иначе из общей таблицы.

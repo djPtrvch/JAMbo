@@ -245,9 +245,19 @@ final class SamplerTests: XCTestCase {
         XCTAssertEqual(b.b0 + b.b1 + b.b2, 1 + b.a1 + b.a2, accuracy: 1e-5, "LP: на постоянном токе 0 dB")
         b.set(type: 1, hz: 1000, qDb: 0, sampleRate: 48000)
         XCTAssertEqual(b.b0 + b.b1 + b.b2, 0, accuracy: 1e-6, "HP: постоянный ток не проходит")
-        let k = Biquad.knob(-100, reso: 0)
-        XCTAssertEqual(k.hz, 30, accuracy: 0.01)
-        XCTAssertEqual(Biquad.knob(0, reso: 100).q, 18.7, accuracy: 1e-9)
+        b.set(type: 2, hz: 1000, qDb: 0, sampleRate: 48000)
+        XCTAssertEqual(b.b0 + b.b1 + b.b2, 0, accuracy: 1e-6, "BP: постоянный ток не проходит")
+        // Ручка Filter (9.11): 0…100 — 20 Гц … 20 кГц, тип — отдельно; открытый LP и HP — LP 20 кГц.
+        let k = Biquad.knob(0, reso: 0, type: 0, ladder: false)
+        XCTAssertEqual(k.type, -1)
+        XCTAssertEqual(k.hz, 20, accuracy: 0.01)
+        XCTAssertEqual(Biquad.knob(50, reso: 0, type: 1, ladder: false).hz, 632.46, accuracy: 0.01)
+        XCTAssertEqual(Biquad.knob(0, reso: 0, type: 1, ladder: false).type, -1, "HP слева — открыт")
+        XCTAssertEqual(Biquad.knob(100, reso: 0, type: 0, ladder: false).hz, 20000, "LP справа — открыт")
+        XCTAssertEqual(Biquad.knob(0, reso: 0, type: 2, ladder: false).type, 2, "BP открытым не бывает")
+        XCTAssertEqual(Biquad.knob(40, reso: 0, type: 3, ladder: false).type, -1, "LADDER — только у SUB")
+        XCTAssertEqual(Biquad.knob(100, reso: 0, type: 3, ladder: true).type, 3)
+        XCTAssertEqual(Biquad.knob(0, reso: 100, type: 0, ladder: false).q, 18.7, accuracy: 1e-9)
     }
 
     func testEditsAndPitch() {
@@ -436,7 +446,7 @@ final class SamplerLoadTests: XCTestCase {
         let l = (0..<480000).map { Float(sin(Double($0) * 0.05)) }
         let s = SampleData(left: l, right: l)
         p.tracks[0].addSamples(["k"])
-        p.tracks[0].params["filter"] = -40
+        p.tracks[0].params["filter"] = 60
         p.tracks[0].params["reso"] = 30
         p.tracks[0].params["decay"] = 4000
         core.publish(p, samples: ["k": s])

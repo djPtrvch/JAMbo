@@ -11,6 +11,8 @@ public struct KnobDefaults: Codable, Equatable, Sendable {
     /// Свой EQ по умолчанию (SAVE DEFAULT в PRESETS EQ): полосы EQ дорожки и EQ мастера; nil — нет своего.
     public var eqTrack: [EqBand?]? = nil
     public var eqMaster: [EqBand?]? = nil
+    /// 2 — Filter на всём ходу и тип фильтра (9.11); nil — прежняя двухполярная ручка (переводится при чтении).
+    public var filterV: Int? = 2
 
     public init() {}
 
@@ -38,10 +40,11 @@ public struct KnobDefaults: Codable, Equatable, Sendable {
     }
 
     /// Вместе со значением ручки запоминается то, от чего зависит его смысл: Dly Time — Dly Sync, Speed — синхронизация LFO,
-    /// RATE — режим PTCH / TSTR.
+    /// RATE — режим PTCH / TSTR, Filter — тип фильтра.
     public static func companion(_ id: String) -> String? {
         if id == "dly.time" { return "dly.sync" }
         if id == "rate" { return Params.rateModeId }
+        if id == "filter" { return Params.filterTypeId }
         for (l, sid) in Params.lfoSyncIds.enumerated() where id == "lfo\(l + 1).speed" { return sid }
         return nil
     }
@@ -65,6 +68,7 @@ public struct KnobDefaults: Codable, Equatable, Sendable {
         for p in Params.grid(sound: t.sample) where !p.id.isEmpty {
             if let v = value(scope, p.id) { t.params[p.id] = v }
             if p.id == "rate", let m = value(scope, Params.rateModeId) { t.params[Params.rateModeId] = m }
+            if p.id == "filter", let m = value(scope, Params.filterTypeId) { t.params[Params.filterTypeId] = m }
         }
     }
 
@@ -87,7 +91,20 @@ public struct KnobDefaults: Codable, Equatable, Sendable {
     }
 
     public static func decode(_ data: Data?) -> KnobDefaults {
-        guard let d = data, let k = try? JSONDecoder().decode(KnobDefaults.self, from: d) else { return KnobDefaults() }
+        guard let d = data, var k = try? JSONDecoder().decode(KnobDefaults.self, from: d) else { return KnobDefaults() }
+        if k.filterV == nil {
+            k.migrateFilter()
+            k.filterV = 2
+        }
         return k
+    }
+
+    /// Прежняя ручка Filter (до 9.11) — тип по её стороне и частота (FilterMigration).
+    mutating func migrateFilter() {
+        for (key, v) in values where key.hasSuffix("/filter") {
+            let type: Int = FilterMigration.soundType(base: v, others: [])
+            values[key] = FilterMigration.value(v, type: type)
+            values[String(key.dropLast("filter".count)) + Params.filterTypeId] = Double(type)
+        }
     }
 }

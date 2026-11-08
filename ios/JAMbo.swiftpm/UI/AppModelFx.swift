@@ -96,13 +96,35 @@ extension AppModel {
         return (track.params[Params.rateModeId] ?? 0) >= 0.5
     }
 
-    /// SHIFT + тап по ручке: Dly Time и Speed LFO — по темпу или свободно, RATE — PTCH / TSTR, у ANALOG — модуляция,
+    /// Тип фильтра выбранной дорожки (FilterType; LADDER у не-SUB — LP).
+    var filterType: Int {
+        return FilterType.effective(FilterType.of(track.params[Params.filterTypeId]), sound: track.sample)
+    }
+
+    /// SHIFT + тап по Filter — следующий тип (у SUB — LP → LADDER → BP, у остальных — LP → HP → BP); открытый
+    /// фильтр остаётся открытым, иначе частота прежняя. Одна запись UNDO.
+    func filterShiftTap(undo: Bool) {
+        let from: Int = filterType
+        let to: Int = FilterType.next(from, sound: track.sample, back: undo)
+        let cur: Double = track.params["filter"] ?? Params.filterDef(from).def
+        let v: Double = FilterType.valueAfterSwitch(cur, from: from, to: to)
+        editTrack { t in
+            t.params[Params.filterTypeId] = Double(to)
+            t.params["filter"] = v
+        }
+    }
+
+    /// SHIFT + тап по ручке: Dly Time и Speed LFO — по темпу или свободно, RATE — PTCH / TSTR, Filter — тип, у ANALOG — модуляция,
     /// октава B и режим (undo — второй тап двойного: отменить первый); true — тап обработан.
     @discardableResult
     func knobShiftTap(_ slot: Int, undo: Bool = false) -> Bool {
         guard channel == .track else { return false }
         if !modMode && !fxMode && SynthKey.engine(track.sample) == Jambo.analog, let id = param(slot)?.id,
            analogShiftTap(id, undo: undo) {
+            return true
+        }
+        if !modMode && !fxMode && param(slot)?.id == "filter" {
+            filterShiftTap(undo: undo)
             return true
         }
         if !modMode && !fxMode && param(slot)?.id == "rate" {

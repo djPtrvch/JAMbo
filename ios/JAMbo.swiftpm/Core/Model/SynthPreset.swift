@@ -5,7 +5,7 @@ import Foundation
 // (копии).
 
 /// Пресет синта: имя, движок, ручки; fmt — версия формата (веб — 2; 3 — S12, ручки 1.4 своих движков; 4 — ручки
-/// GRANULAR по ТЗ «Granular»).
+/// GRANULAR по ТЗ «Granular»; 5 — Filter на всём ходу и тип фильтра, 9.11).
 public struct SynthPreset: Codable, Equatable, Sendable {
     public var name: String
     public var sound: String
@@ -16,7 +16,7 @@ public struct SynthPreset: Codable, Equatable, Sendable {
     /// Сэмпл GRANULAR (ключ хранилища); nil — не GRANULAR.
     public var grain: String?
 
-    public init(name: String, sound: String, params: [String: Double], fmt: Int? = 4, table: String? = nil,
+    public init(name: String, sound: String, params: [String: Double], fmt: Int? = 5, table: String? = nil,
                 grain: String? = nil) {
         self.name = name
         self.sound = sound
@@ -26,15 +26,17 @@ public struct SynthPreset: Codable, Equatable, Sendable {
         self.grain = grain
     }
 
-    /// Ручки звука, которые хранит пресет (PRESET_PARAMS веба); у ANALOG — ещё режим модуляции и октава B
-    /// (AnalogMod; нет в пресете — выключены).
+    /// Ручки звука, которые хранит пресет (PRESET_PARAMS веба), тип фильтра (нет — LP); у ANALOG — ещё режим
+    /// модуляции и октава B (AnalogMod; нет в пресете — выключены).
     public static let params: [String] = ["harm", "timbre", "morph", "p4", "level", "attack", "decay", "filter", "reso",
-                                          AnalogMod.modId, AnalogMod.octId]
+                                          Params.filterTypeId, AnalogMod.modId, AnalogMod.octId]
 
     /// Значение ручки id пресета: скрытые значения ANALOG, которых в пресете нет (старый пресет), — 0 (выключены);
     /// у других движков их нет (nil).
     public func value(_ id: String) -> Double? {
         if let v = params[id] { return v }
+        // Тип фильтра: нет в пресете с ручкой Filter — LP.
+        if id == Params.filterTypeId && params["filter"] != nil { return Double(FilterType.lp) }
         if AnalogMod.ids.contains(id) && SynthKey.engine(sound) == Jambo.analog { return 0 }
         return nil
     }
@@ -58,6 +60,11 @@ public struct SynthPreset: Codable, Equatable, Sendable {
         if (fmt ?? 1) < 4 {
             GranularMigration.params(sound, &params)
             fmt = 4
+        }
+        // fmt < 5 — прежняя двухполярная ручка Filter: тип и частота на всём ходу (FilterMigration, 9.11).
+        if (fmt ?? 1) < 5 {
+            FilterMigration.preset(&params)
+            fmt = 5
         }
         table = c.optional(.table)
         grain = c.optional(.grain)

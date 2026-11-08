@@ -110,17 +110,23 @@ public enum Fmt {
         return String(format: "%.1f", v)
     }
 
-    /// Двухполярный фильтр: влево от центра — low pass, вправо — high pass, в центре выключен.
-    public static func filterFreq(_ v: Double) -> (type: Int, hz: Double) {
-        if abs(v) < 0.5 { return (0, 0) }
-        if v < 0 { return (-1, 20000 * pow(30.0 / 20000, -v / 100)) }
-        return (1, 20 * pow(10000.0 / 20, v / 100))
+    /// Частота ручки Filter (9.11): 0…100 — 20 Гц … 20 кГц по экспоненте, у всех типов одна шкала.
+    public static func filterHz(_ v: Double) -> Double {
+        return 20 * pow(1000, Swift.min(100, Swift.max(0, v)) / 100)
     }
 
-    public static func filter(_ v: Double) -> String {
-        let f = filterFreq(v)
-        if f.type == 0 { return "OFF" }
-        return "\(f.type < 0 ? "LP" : "HP") \(hz(f.hz))"
+    /// Фильтр открыт (выключен): LP и LADDER — у правого края, HP — у левого; у BP — никогда.
+    public static func filterOpen(_ v: Double, type: Int) -> Bool {
+        if type == FilterType.hp { return v <= 0.5 }
+        if type == FilterType.bp { return false }
+        return v >= 99.5
+    }
+
+    /// Значение ручки Filter по типу фильтра: «LP 1.2k», открытый — «LP OFF».
+    public static func filter(_ v: Double, type: Int) -> String {
+        let name: String = FilterType.names[Swift.min(FilterType.names.count - 1, Swift.max(0, type))]
+        if filterOpen(v, type: type) && type != FilterType.ladder { return name + " OFF" }
+        return name + " " + hz(filterHz(v))
     }
 
     public static func pan(_ v: Double) -> String {
@@ -209,7 +215,7 @@ public enum Params {
         [
             smooth("attack", "Attack", 0, 2000, 0, curve: 3, Fmt.ms),
             smooth("decay", "Decay", 0, 4000, 500, curve: 3, Fmt.ms),
-            smooth("filter", "Filter", -100, 100, 0, bipolar: true, Fmt.filter),
+            filterLp,
             smooth("reso", "Resonance", 0, 100, 0, Fmt.pct),
         ],
         [
@@ -237,6 +243,32 @@ public enum Params {
                                           format: Fmt.pct)
     /// Режим RATE дорожки (значение звука дорожки, не на сетке, без p-lock): 0 — PTCH (по умолчанию), 1 — TSTR.
     public static let rateModeId = "rate.mode"
+
+    /// Filter (9.11): частота на всём ходу (Fmt.filterHz), тип — FilterType (SHIFT + тап по ручке). У каждого типа
+    /// своё значение по умолчанию — открытый фильтр (BP — середина).
+    public static let filterLp = ParamDef(id: "filter", label: "Filter", min: 0, max: 100, def: 100) { v in
+        Fmt.filter(v, type: FilterType.lp)
+    }
+    public static let filterHp = ParamDef(id: "filter", label: "Filter", min: 0, max: 100, def: 0) { v in
+        Fmt.filter(v, type: FilterType.hp)
+    }
+    public static let filterBp = ParamDef(id: "filter", label: "Filter", min: 0, max: 100, def: 50) { v in
+        Fmt.filter(v, type: FilterType.bp)
+    }
+    public static let filterLadder = ParamDef(id: "filter", label: "Filter", min: 0, max: 100, def: 100) { v in
+        Fmt.filter(v, type: FilterType.ladder)
+    }
+
+    /// Тип фильтра звука (FilterType; значение звука дорожки и пресета, не на сетке, без p-lock шага).
+    public static let filterTypeId = "filter.type"
+
+    /// Описание ручки Filter для типа фильтра.
+    public static func filterDef(_ type: Int) -> ParamDef {
+        if type == FilterType.hp { return filterHp }
+        if type == FilterType.bp { return filterBp }
+        if type == FilterType.ladder { return filterLadder }
+        return filterLp
+    }
 
     /// Сетка 4×4 ряд за рядом (индекс = ряд·4 + столбец): группа — строка (8.11; прежде — столбец).
     public static let trackGrid: [ParamDef] = (0..<16).map { i in trackColumns[i / 4][i % 4] }

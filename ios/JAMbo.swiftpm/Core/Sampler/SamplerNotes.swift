@@ -135,7 +135,8 @@ extension Sampler {
         level[v] = Float(pow(pv(d, t, VoiceParam.level, mask, vals) / 127, 1.5))
         pan[v] = Float(Swift.max(-1, Swift.min(1, pv(d, t, VoiceParam.pan, mask, vals) / 64)))
         for k in 0..<3 { send[v * 3 + k] = Float(pv(d, t, VoiceParam.reverb + k, mask, vals) / 100) }
-        let f = Biquad.knob(pv(d, t, VoiceParam.filter, mask, vals), reso: pv(d, t, VoiceParam.reso, mask, vals))
+        let f = Biquad.knob(pv(d, t, VoiceParam.filter, mask, vals), reso: pv(d, t, VoiceParam.reso, mask, vals),
+                            type: pv(d, t, VoiceParam.ftype, mask, vals), ladder: false)
         ftype[v] = f.type
         hz[v] = f.hz
         qDb[v] = f.q

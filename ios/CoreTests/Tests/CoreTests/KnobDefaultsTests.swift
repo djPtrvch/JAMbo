@@ -27,7 +27,8 @@ final class KnobDefaultsTests: XCTestCase {
         XCTAssertEqual(back, d)
         XCTAssertEqual(KnobDefaults.companion("dly.time"), "dly.sync")
         XCTAssertEqual(KnobDefaults.companion("lfo2.speed"), "lfo2.sync")
-        XCTAssertNil(KnobDefaults.companion("filter"))
+        XCTAssertEqual(KnobDefaults.companion("filter"), Params.filterTypeId)
+        XCTAssertNil(KnobDefaults.companion("reso"))
     }
 
     /// Выбор движка (SYNTH): ручки — по своим значениям этого движка, поверх начальных; тот же движок — без изменений.
