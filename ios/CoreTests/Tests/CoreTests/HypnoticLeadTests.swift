@@ -44,10 +44,16 @@ final class HypnoticLeadTests: XCTestCase {
 
     func testPartTypes() {
         typealias M = MelodyRhythm
-        XCTAssertEqual(M.partName(.bass), "BASS")
-        XCTAssertEqual(M.partName(.keys), "LEAD")
-        XCTAssertEqual(M.partName(.lead), "LEAD")
-        XCTAssertEqual(M.partName(.pad), "PAD")
+        XCTAssertEqual(M.partIndex(.bass), 0)
+        XCTAssertEqual(M.partIndex(.keys), 1, "клавишные — LEAD")
+        XCTAssertEqual(M.partIndex(.lead), 1)
+        XCTAssertEqual(M.partIndex(.pad), 2)
+        XCTAssertNil(M.partIndex(.arp))
+        XCTAssertEqual(M.role(.lead, part: -1, chord: false), .lead, "сам")
+        XCTAssertEqual(M.role(.lead, part: 0, chord: false), .bass)
+        XCTAssertEqual(M.role(.bass, part: 2, chord: false), .pad)
+        XCTAssertEqual(M.role(.pad, part: 1, chord: true), .keys, "LEAD в режиме CHORD — аккорды")
+        XCTAssertEqual(M.role(.arp, part: 0, chord: false), .arp)
         XCTAssertEqual(M.role(sample: "k1", name: "Dark Texture FX.wav", octave: 4, chord: false, arp: false), .pad)
         XCTAssertEqual(M.role(sample: "k2", name: "Noise Riser.wav", octave: 4, chord: false, arp: false), .pad)
         XCTAssertEqual(M.role(sample: "k3", name: "Acid Lead.wav", octave: 1, chord: false, arp: false), .lead)

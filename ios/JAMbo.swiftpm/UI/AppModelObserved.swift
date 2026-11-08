@@ -421,6 +421,10 @@ extension AppModel {
         get { access(keyPath: \.chordKind); return _chordKind }
         set { put(\.chordKind, \._chordKind, newValue, observedChanged(_chordKind, newValue)) }
     }
+    var partType: [Int] {
+        get { access(keyPath: \.partType); return _partType }
+        set { put(\.partType, \._partType, newValue, observedChanged(_partType, newValue)) }
+    }
     var selNotes: [[Int]] {
         get { access(keyPath: \.selNotes); return _selNotes }
         set { put(\.selNotes, \._selNotes, newValue, observedChanged(_selNotes, newValue)) }

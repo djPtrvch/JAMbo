@@ -21,15 +21,26 @@ public enum MelodyRhythm {
     /// LEAD — по имени и в низкой октаве (иначе октава C2 и ниже дала бы BASS).
     static let leadWords: [String] = ["lead", "pluck", "melody", "arp"]
 
-    /// Тип партии для показа при удержании CHORD (SETTINGS → RANDOM → SHOW PART TYPE): BASS; LEAD — мелодия и
-    /// клавишные (KEYS); PAD — пэды, текстуры, эффекты; ARP — арпеджио.
-    public static func partName(_ r: Role) -> String {
+    /// Типы партии в окне CHORD (SETTINGS → RANDOM → SHOW PART TYPE): BASS; LEAD — мелодия и клавишные (KEYS);
+    /// PAD — пэды, подклады, текстуры, эффекты.
+    public static let partNames: [String] = ["BASS", "LEAD", "PAD"]
+
+    /// Номер типа партии роли (ARP — nil).
+    public static func partIndex(_ r: Role) -> Int? {
         switch r {
-        case .bass: return "BASS"
-        case .lead, .keys: return "LEAD"
-        case .pad: return "PAD"
-        case .arp: return "ARP"
+        case .bass: return 0
+        case .lead, .keys: return 1
+        case .pad: return 2
+        case .arp: return nil
         }
+    }
+
+    /// Роль с выбранным в окне CHORD типом партии part (−1 — сама): LEAD в режиме CHORD — KEYS; ARP не меняется.
+    public static func role(_ auto: Role, part: Int, chord: Bool) -> Role {
+        if auto == .arp || part < 0 { return auto }
+        if part == 0 { return .bass }
+        if part == 2 { return .pad }
+        return chord ? .keys : .lead
     }
 
     /// Роль по звуку дорожки: ARP — арпеджиатор включён; KEYS — режим CHORD; SUB — BASS; TEXTURE, GRANULAR — PAD;

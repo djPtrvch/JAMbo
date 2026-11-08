@@ -12,7 +12,7 @@ struct ChordMenu: View {
     var body: some View {
         let m: ChordMenuMetrics = ChordMenuMetrics(model: model, layout: layout, screen: screen)
         let arp: Bool = model.arpMode
-        let width: CGFloat = arp ? m.arpWidth : m.width
+        let width: CGFloat = arp ? m.arpWidth : (model.partColumnShown ? m.partWidth : m.width)
         return ZStack(alignment: .bottomLeading) {
             Color.black.opacity(0.001).ignoresSafeArea().onTapGesture { model.chordMenuOpen = false }
             content(m, arp)
@@ -33,12 +33,29 @@ struct ChordMenu: View {
                 ArpWindowColumn(model: model, title: "RATE", m: m, cols: 2, kind: 1)
             })
         }
-        let part: String = model.partTypeName.map { " · " + $0 } ?? ""
-        let title: String = model.styleTrack ? "STYLE" : "CHORD" + part
-        return AnyView(VStack(alignment: .leading, spacing: ChordMenuMetrics.gap) {
+        let title: String = model.styleTrack ? "STYLE" : "CHORD"
+        let chords = VStack(alignment: .leading, spacing: ChordMenuMetrics.gap) {
             FieldLabel(title: title).frame(height: ChordMenuMetrics.head, alignment: .bottomLeading)
             types(m.rowH)
+        }
+        if !model.partColumnShown { return AnyView(chords) }
+        return AnyView(HStack(alignment: .top, spacing: ChordMenuMetrics.section) {
+            chords
+            parts(m.rowH)
         })
+    }
+
+    /// SHOW PART TYPE: раздел PART — BASS, LEAD, PAD столбцом; горит тип партии дорожки (выбранный или свой).
+    private func parts(_ rowH: CGFloat) -> some View {
+        let cur: Int = MelodyRhythm.partIndex(model.melodyRole) ?? -1
+        let names: [String] = MelodyRhythm.partNames
+        return VStack(alignment: .leading, spacing: ChordMenuMetrics.gap) {
+            FieldLabel(title: "PART").frame(height: ChordMenuMetrics.head, alignment: .bottomLeading)
+            ForEach(0..<names.count, id: \.self) { k in
+                InkButton(title: names[k], active: k == cur, height: rowH) { model.choosePartType(k) }
+                    .frame(width: rowH)
+            }
+        }
     }
 
     /// Ударная дорожка — стили ритма, иначе — типы аккорда (CHORD TYPE 1…6).
@@ -75,6 +92,8 @@ struct ChordMenuMetrics {
     /// Окно аккордов и стилей (2 столбца) и сторона квадратной кнопки.
     let width: CGFloat
     let colW: CGFloat
+    /// Окно аккордов с разделом PART (SHOW PART TYPE): ещё столбец через промежуток разделов.
+    let partWidth: CGFloat
     /// Окно ARP: 5 столбцов (направления 2, OCTAVES 1, RATE 2 и LATCH) с промежутками между разделами.
     let arpWidth: CGFloat
 
@@ -91,6 +110,7 @@ struct ChordMenuMetrics {
         // Кнопки квадратные (решение пользователя): сторона — высота ряда.
         colW = rowH
         width = 2 * rowH + ChordMenuMetrics.gap + 2 * ChordMenuMetrics.pad
+        partWidth = width + ChordMenuMetrics.section + rowH
         let cols: CGFloat = 5 * colW + 2 * ChordMenuMetrics.gap + 2 * ChordMenuMetrics.section
         arpWidth = cols + 2 * ChordMenuMetrics.pad
     }

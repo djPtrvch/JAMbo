@@ -81,8 +81,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var randomStepsAll: Bool = false
     /// SETTINGS → RANDOM → SAMPLES: случайный рисунок нарезанного сэмпла (SliceRhythm).
     public var randomSamples: Bool = false
-    /// SETTINGS → RANDOM → SHOW PART TYPE: пока палец на CHORD — под словом тип случайной партии дорожки (BASS,
-    /// LEAD, PAD), и в окне CHORD.
+    /// SETTINGS → RANDOM → SHOW PART TYPE: в окне CHORD — раздел PART (BASS, LEAD, PAD): тип случайной партии
+    /// дорожки, выбор вместо определённого самим.
     public var showPartType: Bool = false
     /// SETTINGS → MIX (S9, действуют с переходами S10): гамма и нота нового проекта при переходе; кроссфейдер
     /// (ON — темп по кроссфейдеру, OFF — темп старого паттерна).

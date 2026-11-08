@@ -133,15 +133,27 @@ extension AppModel {
 
     /// Роль выбранной дорожки для случайной партии (MelodyRhythm.role): звук, октава клавиатуры, CHORD, ARP.
     var melodyRole: MelodyRhythm.Role {
-        return MelodyRhythm.role(sample: track.sample, name: project.files[track.sample] ?? "", octave: octave,
-                                 chord: chordMode[selectedTrack], arp: arpMode)
+        let auto: MelodyRhythm.Role = MelodyRhythm.role(sample: track.sample, name: project.files[track.sample] ?? "",
+                                                        octave: octave, chord: chordMode[selectedTrack], arp: arpMode)
+        return MelodyRhythm.role(auto, part: partTypeOf(selectedTrack), chord: chordMode[selectedTrack])
     }
 
-    /// Тип случайной партии для показа (SETTINGS → RANDOM → SHOW PART TYPE): только на мелодической дорожке
-    /// (не ударной, не нарезанной, не в режиме ARP); иначе nil.
-    var partTypeName: String? {
-        if !settings.showPartType || arpMode || styleTrack || drumTrack || channel != .track { return nil }
-        return MelodyRhythm.partName(melodyRole)
+    /// Тип партии дорожки i, выбранный в окне CHORD (−1 — сам; при выключенном SHOW PART TYPE — всегда сам).
+    func partTypeOf(_ i: Int) -> Int {
+        if !settings.showPartType || i < 0 || i >= partType.count { return -1 }
+        return partType[i]
+    }
+
+    /// Раздел PART в окне CHORD: при SHOW PART TYPE, на мелодической дорожке (не ударной, не нарезанной, не ARP).
+    var partColumnShown: Bool {
+        return settings.showPartType && !arpMode && !styleTrack && !drumTrack && channel == .track
+    }
+
+    /// Тап по BASS, LEAD, PAD: выбор типа партии дорожки; тап по уже выбранному — снова сам.
+    func choosePartType(_ k: Int) {
+        let i: Int = selectedTrack
+        if i < 0 || i >= partType.count { return }
+        partType[i] = partType[i] == k ? -1 : k
     }
 
     /// Ударная роль дорожки: движок или сэмпл (без нарезки) по имени файла.

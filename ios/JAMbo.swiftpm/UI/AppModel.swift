@@ -162,6 +162,9 @@ final class AppModel {
     /// Тип аккорда клавиш в режиме CHORD (Scales.chordKinds: Triad, 7th, 9th, sus2, sus4, add9) — у каждой дорожки
     /// свой; живёт до закрытия приложения (в проекте не хранится).
     @ObservationIgnored var _chordKind: [Int] = [Int](repeating: 0, count: Params.maxTracks)
+    /// Тип случайной партии, выбранный в окне CHORD (MelodyRhythm.partNames; −1 — определяется сам) — у каждой
+    /// дорожки свой, действует при SETTINGS → RANDOM → SHOW PART TYPE; в проекте не хранится.
+    @ObservationIgnored var _partType: [Int] = [Int](repeating: -1, count: Params.maxTracks)
     /// Окно CHORD (долгое нажатие на CHORD): тип аккорда и пресеты прогрессий.
     @ObservationIgnored var _chordMenuOpen: Bool = false
     /// Последняя случайная прогрессия (SHIFT + CHORD) — следующая будет другой.

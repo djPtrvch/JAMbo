@@ -30,8 +30,9 @@ extension AppModel {
         }
         if !settings.randomChords { return nil }
         let chordOn: Bool = i < chordMode.count ? chordMode[i] : false
-        let role: MelodyRhythm.Role = MelodyRhythm.role(sample: t.sample, name: p.files[t.sample] ?? "", octave: oct,
+        let auto: MelodyRhythm.Role = MelodyRhythm.role(sample: t.sample, name: p.files[t.sample] ?? "", octave: oct,
                                                         chord: chordOn, arp: t.arp.mode)
+        let role: MelodyRhythm.Role = MelodyRhythm.role(auto, part: partTypeOf(i), chord: chordOn)
         switch role {
         case .bass: return .bass(octave: oct)
         case .lead: return .lead(octave: oct)
