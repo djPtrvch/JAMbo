@@ -265,8 +265,8 @@ extension AppModel {
     static let phonesSeededKey = "phonesSeeded"
     /// Переход на 10 полос сделан: профиль Sony — из 10 фильтров вместо подгонки в 8.
     static let phonesBands10Key = "phonesBands10"
-    /// Профиль AIAIAI TMA-2 Studio уже положен в список (8.11; удалённый больше не появляется).
-    static let phonesTma2Key = "phonesTma2Studio"
+    /// Профиль AIAIAI TMA-2 Studio Wireless+ уже положен в список (8.11; удалённый больше не появляется).
+    static let phonesTma2Key = "phonesTma2StudioWirelessPlus"
     static let phonesNameKey = "phonesName"
 
     func setPhonesName(_ name: String) {
@@ -357,7 +357,7 @@ extension AppModel {
         return e
     }
 
-    /// Список пресетов коррекции; в первый раз в нём — профили Sony WH-1000XM4 и AIAIAI TMA-2 Studio (удалённые
+    /// Список пресетов коррекции; в первый раз в нём — профили Sony WH-1000XM4 и AIAIAI TMA-2 Studio Wireless+ (удалённые
     /// больше не появляются).
     static func loadPhonesPresets() -> EqPresetBook {
         let ud = UserDefaults.standard

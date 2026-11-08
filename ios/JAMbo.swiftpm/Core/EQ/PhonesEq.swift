@@ -47,8 +47,8 @@ extension EqPresetBook {
         return EqPreset(name: "Sony WH-1000XM4", bands: bands)
     }()
 
-    /// Профиль AIAIAI TMA-2 Studio (8.11, нынешний набор: динамики S05, амбушюры E08). Отдельного замера Studio в
-    /// AutoEQ нет — взят TMA-2 HD Wireless (oratory1990): те же S05 и E08, другое только оголовье (Bluetooth).
+    /// Профиль AIAIAI TMA-2 Studio Wireless+ (8.11; набор: динамики S05, амбушюры E08, оголовье H10, передатчик X01).
+    /// Отдельного замера в AutoEQ нет — взят TMA-2 HD Wireless (oratory1990): те же S05 и E08, другое оголовье.
     /// 10 фильтров как есть, по частоте (Preamp файла −6,4 dB); кладётся в список один раз, его можно удалить.
     public static let tma2Studio: EqPreset = {
         let bell: Int = EqSpec.bell
@@ -64,7 +64,7 @@ extension EqPresetBook {
             EqBand(type: bell, freq: 9107, gain: 6.1, q: 2.44),
             EqBand(type: EqSpec.highShelf, freq: 10000, gain: -0.2, q: 0.7),
         ]
-        return EqPreset(name: "AIAIAI TMA-2 Studio", bands: bands)
+        return EqPreset(name: "AIAIAI TMA-2 Studio Wireless+", bands: bands)
     }()
 
     /// Переход на 10 полос: пресет с именем профиля Sony, подогнанный прежде под 8 полос, — заменить точным.
