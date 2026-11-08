@@ -18,7 +18,10 @@ struct CPUIndicator: View {
             Text("\(percent)%").font(.system(size: 9)).monospacedDigit()
         }
         .foregroundStyle(high ? theme.rec : theme.dim)
-        .frame(width: 48, height: 48)
+        // Высотой с кнопки верхней панели; подписи — к низу (8.11: над ними — значок наушников вровень с верхом
+        // кнопок).
+        .frame(width: 48, height: Layout.topHeight - 1, alignment: .bottom)
+        .frame(height: Layout.topHeight, alignment: .top)
     }
 }
 
@@ -32,7 +35,7 @@ struct PhonesBadge: View {
             Image(systemName: "headphones")
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(theme.accent)
-                .frame(width: 28, height: 14)
+                .frame(width: 28, height: 13, alignment: .top)
                 .contentShape(Rectangle())
                 .onTapGesture { model.openPhones() }
         }
