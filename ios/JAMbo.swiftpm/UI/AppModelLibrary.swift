@@ -392,7 +392,7 @@ extension AppModel {
             let audio: [(String, String, Data)] = await MainActor.run { self.libPlaceFiles(read, into: into) }
             var loaded: [(String, SampleStore.Loaded)] = []
             for (folder, name, data) in audio {
-                if let l = SampleStore.decode(bytes: data, name: name, dir: dir) { loaded.append((folder, l)) }
+                if let l = await SampleStore.decode(bytes: data, name: name, dir: dir) { loaded.append((folder, l)) }
             }
             let result = loaded
             await MainActor.run {

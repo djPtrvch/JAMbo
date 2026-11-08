@@ -50,7 +50,13 @@ final class SampleStore {
             write(data, to: dest)
             return Loaded(key: key, name: name, data: data, root: PitchDetect.root(data))
         }
-        // Видео: только звуковая дорожка.
+        guard let data = await videoSound(url, key: key) else { return nil }
+        write(data, to: dest)
+        return Loaded(key: key, name: name, data: data, root: PitchDetect.root(data))
+    }
+
+    /// Звуковая дорожка видео (8.11): AVAssetExportSession — M4A во временный файл, затем как аудио. Без звука — nil.
+    static func videoSound(_ url: URL, key: String) async -> SampleData? {
         let asset = AVURLAsset(url: url)
         guard let tracks = try? await asset.loadTracks(withMediaType: .audio), !tracks.isEmpty,
               let session = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetAppleM4A) else { return nil }
@@ -62,13 +68,13 @@ final class SampleStore {
         } catch {
             return nil
         }
-        guard let file = try? AVAudioFile(forReading: tmp), let data = read(file) else { return nil }
-        write(data, to: dest)
-        return Loaded(key: key, name: name, data: data, root: PitchDetect.root(data))
+        guard let file = try? AVAudioFile(forReading: tmp) else { return nil }
+        return read(file)
     }
 
-    /// Аудио из архива (S11c): байты файла name — как файл из «Файлов» (ключ по байтам, копия .caf); не аудио — nil.
-    static func decode(bytes: Data, name: String, dir: URL) -> Loaded? {
+    /// Аудио из архива (S11c) и IMPORT библиотеки: байты файла name — как файл из «Файлов» (ключ по байтам, копия
+    /// .caf); видео — его звуковая дорожка (8.11, videoSound); без звука — nil.
+    static func decode(bytes: Data, name: String, dir: URL) async -> Loaded? {
         if bytes.isEmpty { return nil }
         let key = SampleStore.key(bytes)
         let dest = dir.appendingPathComponent("\(key).caf")
@@ -78,8 +84,11 @@ final class SampleStore {
         let ext: String = (name as NSString).pathExtension.isEmpty ? "wav" : (name as NSString).pathExtension
         let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("unzip-\(key).\(ext)")
         defer { try? FileManager.default.removeItem(at: tmp) }
-        guard (try? bytes.write(to: tmp, options: .atomic)) != nil,
-              let file = try? AVAudioFile(forReading: tmp), let data = read(file) else { return nil }
+        guard (try? bytes.write(to: tmp, options: .atomic)) != nil else { return nil }
+        var sound: SampleData? = nil
+        if let file = try? AVAudioFile(forReading: tmp) { sound = read(file) }
+        if sound == nil { sound = await videoSound(tmp, key: key) }
+        guard let data = sound else { return nil }
         write(data, to: dest)
         return Loaded(key: key, name: name, data: data, root: PitchDetect.root(data))
     }
