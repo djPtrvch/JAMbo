@@ -8,6 +8,9 @@ import Accelerate
 // 128 отсчётов (2,7 мс при 48 кГц). Прямая часть (первые direct отсчётов) и хвост — в разных сумматорах: выход
 // = прямая + Ambience · хвост (громкость хвоста — плавно, без пересчёта импульсов). БПФ — PvFFT (vDSP на iPad).
 // Экземпляр (RoomConv) готовится вне колбэка; смена комнаты — кроссфейд 40 мс между экземплярами (RoomStage).
+// HEAD (8.11): спектры первой партиции (прямая часть) — из набора по углу поворота головы (линейно между соседними
+// углами через 2°); смена спектров — переход внутри блока: прямая часть считается и с прошлыми спектрами, выход —
+// линейно от прошлых к новым за 128 отсчётов. Остальные партиции (отражения, хвост) не меняются.
 
 /// Одна свёртка (одна комната): спектры партиций импульсов и состояние.
 public final class RoomConv: @unchecked Sendable {
@@ -35,8 +38,24 @@ public final class RoomConv: @unchecked Sendable {
     let tmp: UnsafeMutablePointer<Float>
     /// Выход блока: прямая L, прямая R, хвост L, хвост R — по 128.
     let out: UnsafeMutablePointer<Float>
+    /// HEAD: спектры прямой части по углам [набор][путь][бин]; headCount 0 — набора нет.
+    let headCount: Int
+    let headFrom: Float
+    let headStep: Float
+    let headR: UnsafeMutablePointer<Float>
+    let headI: UnsafeMutablePointer<Float>
+    /// Спектры прямой части: прошлого блока (hp) и нового (hn), [путь][бин]; сумматоры прямой части по прошлым.
+    let hpR: UnsafeMutablePointer<Float>
+    let hpI: UnsafeMutablePointer<Float>
+    let hnR: UnsafeMutablePointer<Float>
+    let hnI: UnsafeMutablePointer<Float>
+    let aoR: UnsafeMutablePointer<Float>
+    let aoI: UnsafeMutablePointer<Float>
+    /// Прошлый блок шёл со спектрами HEAD (hp — их).
+    var headActive = false
 
-    public init(ir: RoomIR) {
+    /// head — набор HEAD (4 пути, наборы по RoomConv.part кадров подряд), from и step — углы, градусы.
+    public init(ir: RoomIR, head: RoomIR? = nil, from: Double = -50, step: Double = 2) {
         name = ir.name
         let p: Int = RoomConv.part
         let b: Int = RoomConv.bins
@@ -64,6 +83,27 @@ public final class RoomConv: @unchecked Sendable {
         tmp.initialize(repeating: 0, count: RoomConv.size)
         out = .allocate(capacity: 4 * p)
         out.initialize(repeating: 0, count: 4 * p)
+        let hc: Int = head.map { $0.frames / p } ?? 0
+        headCount = hc
+        headFrom = Float(from)
+        headStep = Float(step > 0 ? step : 2)
+        let hs: Int = Swift.max(1, hc * 4 * b)
+        headR = .allocate(capacity: hs)
+        headI = .allocate(capacity: hs)
+        headR.initialize(repeating: 0, count: hs)
+        headI.initialize(repeating: 0, count: hs)
+        hpR = .allocate(capacity: 4 * b)
+        hpI = .allocate(capacity: 4 * b)
+        hnR = .allocate(capacity: 4 * b)
+        hnI = .allocate(capacity: 4 * b)
+        aoR = .allocate(capacity: 2 * b)
+        aoI = .allocate(capacity: 2 * b)
+        hpR.initialize(repeating: 0, count: 4 * b)
+        hpI.initialize(repeating: 0, count: 4 * b)
+        hnR.initialize(repeating: 0, count: 4 * b)
+        hnI.initialize(repeating: 0, count: 4 * b)
+        aoR.initialize(repeating: 0, count: 2 * b)
+        aoI.initialize(repeating: 0, count: 2 * b)
         // Спектры партиций (дополненных нулями до 256), с делением на масштаб круга БПФ.
         let scale: Float = 1 / fft.gain
         for path in 0..<4 {
@@ -76,20 +116,74 @@ public final class RoomConv: @unchecked Sendable {
                 fft.forward(tmp, hr + at, hi + at)
             }
         }
+        if let hd = head {
+            let hf: Int = hd.frames
+            for set in 0..<hc {
+                for path in 0..<4 {
+                    tmp.update(repeating: 0, count: RoomConv.size)
+                    for i in 0..<p { tmp[i] = hd.h[path * hf + set * p + i] * scale }
+                    let at: Int = (set * 4 + path) * b
+                    fft.forward(tmp, headR + at, headI + at)
+                }
+            }
+        }
     }
 
     deinit {
         hr.deallocate(); hi.deallocate(); xr.deallocate(); xi.deallocate(); ar.deallocate(); ai.deallocate()
         inL.deallocate(); inR.deallocate(); tmp.deallocate(); out.deallocate()
+        headR.deallocate(); headI.deallocate(); hpR.deallocate(); hpI.deallocate(); hnR.deallocate(); hnI.deallocate()
+        aoR.deallocate(); aoI.deallocate()
+    }
+
+    /// Спектры прямой части без HEAD (партиция 0 импульса) → dst [путь][бин].
+    @inline(__always)
+    private func copyStatic(_ dr: UnsafeMutablePointer<Float>, _ di: UnsafeMutablePointer<Float>) {
+        let b: Int = RoomConv.bins
+        var path = 0
+        while path < 4 {
+            let f: Int = path * parts * b
+            (dr + path * b).update(from: hr + f, count: b)
+            (di + path * b).update(from: hi + f, count: b)
+            path += 1
+        }
+    }
+
+    /// Спектры прямой части для поворота yaw (градусы, вправо +) → hn: линейно между соседними наборами.
+    @inline(__always)
+    private func headSpectra(_ yaw: Float) {
+        let n: Int = 4 * RoomConv.bins
+        let last: Float = Float(headCount - 1)
+        var x: Float = (yaw - headFrom) / headStep
+        if x < 0 { x = 0 }
+        if x > last { x = last }
+        let i0: Int = Int(x)
+        let i1: Int = Swift.min(i0 + 1, headCount - 1)
+        let t: Float = x - Float(i0)
+        let ar0 = headR + i0 * n, ai0 = headI + i0 * n
+        let ar1 = headR + i1 * n, ai1 = headI + i1 * n
+        var q = 0
+        while q < n {
+            hnR[q] = ar0[q] + (ar1[q] - ar0[q]) * t
+            hnI[q] = ai0[q] + (ai1[q] - ai0[q]) * t
+            q += 1
+        }
     }
 
     /// Блок: новые 128 отсчётов — в inL[128…], inR[128…] (кладёт RoomStage); выход — out (4 × 128).
+    /// yaw — поворот головы (градусы, вправо +), headOn — HEAD включён (без набора — как выключен).
     @inline(__always)
-    func step() {
+    func step(yaw: Float = 0, headOn: Bool = false) {
         let b: Int = RoomConv.bins
         let p: Int = RoomConv.part
         let np: Int = parts
         let h: Int = head
+        let useHead: Bool = headOn && headCount > 0
+        let mix: Bool = useHead || headActive
+        if mix {
+            if useHead { headSpectra(yaw) } else { copyStatic(hnR, hnI) }
+            if !headActive { copyStatic(hpR, hpI) }
+        }
         fft.forward(inL, xr + h * b, xi + h * b)
         fft.forward(inR, xr + (np + h) * b, xi + (np + h) * b)
         ar.update(repeating: 0, count: 4 * b)
@@ -103,9 +197,14 @@ public final class RoomConv: @unchecked Sendable {
                 let ch: Int = path < 2 ? 0 : 1
                 let ear: Int = path & 1
                 let x: Int = (ch * np + slot) * b
-                let f: Int = (path * np + k) * b
                 let a: Int = (acc + ear) * b
-                RoomConv.cmac(xr + x, xi + x, hr + f, hi + f, ar + a, ai + a, b)
+                if mix && k == 0 {
+                    let f: Int = path * b
+                    RoomConv.cmac(xr + x, xi + x, hnR + f, hnI + f, ar + a, ai + a, b)
+                } else {
+                    let f: Int = (path * np + k) * b
+                    RoomConv.cmac(xr + x, xi + x, hr + f, hi + f, ar + a, ai + a, b)
+                }
                 path += 1
             }
             k += 1
@@ -116,9 +215,46 @@ public final class RoomConv: @unchecked Sendable {
             (out + j * p).update(from: tmp + p, count: p)
             j += 1
         }
+        if mix { blendDirect(h) }
+        headActive = useHead
         inL.update(from: inL + p, count: p)
         inR.update(from: inR + p, count: p)
         head = (h + 1) % np
+    }
+
+    /// HEAD: прямая часть ещё и по прошлым спектрам (hp); выход прямой части — линейно от прошлых к новым за блок;
+    /// новые спектры становятся прошлыми.
+    @inline(__always)
+    private func blendDirect(_ h: Int) {
+        let b: Int = RoomConv.bins
+        let p: Int = RoomConv.part
+        let np: Int = parts
+        aoR.update(repeating: 0, count: 2 * b)
+        aoI.update(repeating: 0, count: 2 * b)
+        var path = 0
+        while path < 4 {
+            let ch: Int = path < 2 ? 0 : 1
+            let ear: Int = path & 1
+            let x: Int = (ch * np + h) * b
+            RoomConv.cmac(xr + x, xi + x, hpR + path * b, hpI + path * b, aoR + ear * b, aoI + ear * b, b)
+            path += 1
+        }
+        let inv: Float = 1 / Float(p)
+        var ear = 0
+        while ear < 2 {
+            fft.inverse(aoR + ear * b, aoI + ear * b, tmp)
+            let o: UnsafeMutablePointer<Float> = out + ear * p
+            var i = 0
+            while i < p {
+                let old: Float = tmp[p + i]
+                let w: Float = Float(i + 1) * inv
+                o[i] = old + (o[i] - old) * w
+                i += 1
+            }
+            ear += 1
+        }
+        hpR.update(from: hnR, count: 4 * b)
+        hpI.update(from: hnI, count: 4 * b)
     }
 
     /// acc += x · h (комплексно, n бинов).
@@ -147,11 +283,18 @@ public final class RoomConv: @unchecked Sendable {
 /// Off и нет перехода — блок не трогается (выход бит в бит равен входу).
 public final class RoomStage: @unchecked Sendable {
     static let fadeFrames: Float = 1920
+    /// Сглаживание угла HEAD за блок 128 отсчётов: 1 − e^(−128 / (0,008 · 48000)).
+    static let yawGlide: Float = 0.2835
     /// Новые комнаты от интерфейса (nil — Off) и отработавшие — обратно (освобождает основной поток).
     let incoming = SPSCQueue<Unmanaged<RoomConv>?>(capacity: 16, filler: nil)
     public let retired = SPSCQueue<Unmanaged<RoomConv>?>(capacity: 64, filler: nil)
     /// Громкость хвоста (множитель; 0 — −∞).
     public let ambience = AtomicFloat(0.5)
+    /// HEAD (8.11): поворот головы (градусы, вправо +) и вкл. (1) — от трекера; в колбэке угол сглаживается по блокам
+    /// (≈ 8 мс), выключение — сначала угол к нулю, потом спектры без HEAD.
+    public let headYaw = AtomicFloat(0)
+    public let headOn = AtomicFloat(0)
+    private var yaw: Float = 0
     private var cur: Unmanaged<RoomConv>? = nil
     private var next: Unmanaged<RoomConv>? = nil
     private var pending: Unmanaged<RoomConv>? = nil
@@ -244,8 +387,12 @@ public final class RoomStage: @unchecked Sendable {
             i += m
             if fill == p {
                 fill = 0
-                a?.step()
-                b?.step()
+                let on: Bool = headOn.load() > 0.5
+                let target: Float = on ? headYaw.load() : 0
+                yaw += (target - yaw) * RoomStage.yawGlide
+                let use: Bool = on || yaw > 0.05 || yaw < -0.05
+                a?.step(yaw: yaw, headOn: use)
+                b?.step(yaw: yaw, headOn: use)
             }
             if fading && fade >= 1 {
                 fading = false

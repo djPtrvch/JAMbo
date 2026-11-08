@@ -118,7 +118,12 @@ extension AppModel {
         Task.detached(priority: .userInitiated) {
             guard let d = AppModel.resource((info.file as NSString).deletingPathExtension, "wav"),
                   let ir = RoomIR(name: info.name, wav: d, gainDb: info.gainDb, direct: info.direct) else { return }
-            let conv = RoomConv(ir: ir)
+            // HEAD: набор прямой части по углам поворота головы (нет файла — свёртка без HEAD).
+            var head: RoomIR? = nil
+            if !info.headFile.isEmpty, let hd = AppModel.resource((info.headFile as NSString).deletingPathExtension, "wav") {
+                head = RoomIR(name: info.name, wav: hd, gainDb: info.headGainDb, direct: 0)
+            }
+            let conv = RoomConv(ir: ir, head: head, from: info.headFrom, step: info.headStep)
             let resp: RoomResponse = ir.response(sampleRate: AudioCore.sampleRate)
             await MainActor.run {
                 guard self.roomInfo?.name == info.name else { return }

@@ -11,6 +11,12 @@ public struct RoomInfo {
     public var file: String
     public var gainDb: Double
     public var direct: Int
+    /// HEAD (8.11): набор прямой части по углам поворота головы — файл (пусто — нет), первый угол и шаг (градусы,
+    /// вправо +), громкость; число наборов — по длине файла (кадры / RoomConv.part).
+    public var headFile: String = ""
+    public var headFrom: Double = 0
+    public var headStep: Double = 2
+    public var headGainDb: Double = 0
 
     /// Список из rooms.json ({"rooms": […]}); ошибка — пусто.
     public static func list(_ data: Data?) -> [RoomInfo] {
@@ -21,7 +27,14 @@ public struct RoomInfo {
             guard let name = r["name"] as? String, let file = r["file"] as? String else { continue }
             let g: Double = (r["gain_db"] as? NSNumber)?.doubleValue ?? 0
             let dn: Int = (r["direct"] as? NSNumber)?.intValue ?? RoomConv.part
-            out.append(RoomInfo(name: name, file: file, gainDb: g, direct: dn))
+            var info = RoomInfo(name: name, file: file, gainDb: g, direct: dn)
+            if let hd = r["head"] as? [String: Any], let hf = hd["file"] as? String {
+                info.headFile = hf
+                info.headFrom = (hd["from_deg"] as? NSNumber)?.doubleValue ?? -50
+                info.headStep = (hd["step_deg"] as? NSNumber)?.doubleValue ?? 2
+                info.headGainDb = (hd["gain_db"] as? NSNumber)?.doubleValue ?? g
+            }
+            out.append(info)
         }
         return out
     }
