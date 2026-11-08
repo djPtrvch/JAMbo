@@ -46,8 +46,8 @@ final class RoomTests: XCTestCase {
 
     func testRoomsAndWav() {
         let list = RoomTests.rooms()
-        XCTAssertEqual(list.map { $0.name }, ["Control Room", "Small Studio", "Dry"])
-        for k in 0..<3 {
+        XCTAssertEqual(list.map { $0.name }, ["Studio", "Home", "Car", "Club", "Desk"])
+        for k in 0..<list.count {
             let ir = RoomTests.ir(k)
             XCTAssertGreaterThan(ir.frames, 1000)
             XCTAssertLessThanOrEqual(ir.frames, RoomIR.maxFrames)
@@ -136,12 +136,11 @@ final class RoomTests: XCTestCase {
         let n = 48000 * 4
         // Розовый шум: белый в спектре · 1/√f.
         let pink: [Float] = RoomTests.pink(n)
-        for k in 0..<3 {
+        for k in 0..<RoomTests.rooms().count {
             let ir = RoomTests.ir(k)
             let resp = ir.response(sampleRate: 48000)
             for amb in [0.0, 0.5, 1.0] {
                 var m = MonitorSettings()
-                m.amount = 0
                 let p = MonitorDesign.make(eq: nil, settings: m, correct: nil, preset: nil, room: resp, ambience: amb,
                                            sampleRate: 48000)
                 let c = MonitorChain(sampleRate: 48000)
@@ -170,37 +169,39 @@ final class RoomTests: XCTestCase {
         }
     }
 
-    /// Розовый шум (−3 dB на октаву), RMS ≈ 0,1; ниже 20 Гц — срез (как полоса компенсации 20 Гц…20 кГц).
+    /// Розовый шум (−3 dB на октаву) ровно в полосе компенсации 20 Гц…20 кГц, RMS 0,1.
     static func pink(_ n: Int) -> [Float] {
+        // Точно: спектр 1/√f со случайными фазами в полосе 20 Гц…20 кГц (та же, что у компенсации), обратное БПФ.
+        var size = 1024
+        while size < n { size *= 2 }
+        let fft = PvFFT(size: size)
+        let bins: Int = size / 2 + 1
+        var re = [Float](repeating: 0, count: bins), im = re
         var x: UInt64 = 99
-        var b0: Double = 0, b1: Double = 0, b2: Double = 0
-        var out = [Float](repeating: 0, count: n)
-        for i in 0..<n {
+        for k in 1..<bins {
+            let hz: Double = Double(k) * 48000 / Double(size)
+            if hz < 20 || hz > 20000 { continue }
             x = x &* 6364136223846793005 &+ 1442695040888963407
-            let w: Double = Double(x >> 33) / Double(1 << 31) - 0.5
-            // Фильтр Пола Келлета (экономный).
-            b0 = 0.99765 * b0 + w * 0.0990460
-            b1 = 0.96300 * b1 + w * 0.2965164
-            b2 = 0.57000 * b2 + w * 1.0526913
-            out[i] = Float((b0 + b1 + b2 + w * 0.1848) * 0.1)
+            let ph: Double = Double(x >> 11) / Double(1 << 53) * 2 * Double.pi
+            let m: Double = 1 / hz.squareRoot()
+            re[k] = Float(m * cos(ph))
+            im[k] = Float(m * sin(ph))
         }
-        // Срез 20 Гц: два однополюсных ФВЧ.
-        var y1: Double = 0, x1: Double = 0, y2: Double = 0, x2: Double = 0
-        let a: Double = exp(-2 * Double.pi * 20 / 48000)
-        for i in 0..<n {
-            let x: Double = Double(out[i])
-            y1 = a * (y1 + x - x1)
-            x1 = x
-            y2 = a * (y2 + y1 - x2)
-            x2 = y1
-            out[i] = Float(y2)
+        var t = [Float](repeating: 0, count: size)
+        re.withUnsafeMutableBufferPointer { r in
+            im.withUnsafeMutableBufferPointer { i in
+                t.withUnsafeMutableBufferPointer { o in fft.inverse(r.baseAddress!, i.baseAddress!, o.baseAddress!) }
+            }
         }
-        return out
+        var e: Double = 0
+        for i in 0..<n { e += Double(t[i] * t[i]) }
+        let g: Float = Float(0.1 / (e / Double(n)).squareRoot())
+        return (0..<n).map { t[$0] * g }
     }
 
-    /// Задержка — 128 отсчётов; нагрузка свёртки (отладочная сборка, без vDSP на Linux).
+    /// Задержка — 128 отсчётов; нагрузка свёртки самой длинной комнаты — Club, 1 с (отладочная сборка, без vDSP на Linux).
     func testLatencyAndLoad() {
-        let ir = RoomTests.ir(0)
+        let ir = RoomTests.ir(3)
         let st = RoomStage(sampleRate: 48000)
         st.ambience.store(1)
         st.set(RoomConv(ir: ir))
@@ -215,7 +216,7 @@ final class RoomTests: XCTestCase {
         let blocks = 400
         for _ in 0..<blocks { st.process(&bl, &br, 256) }
         let per: Double = Date().timeIntervalSince(t0) / Double(blocks)
-        print(String(format: "room conv: %.0f µs на блок 256 (%.1f %% времени блока, Linux, без vDSP)", per * 1e6,
+        print(String(format: "room conv %@: %.0f µs на блок 256 (%.1f %% времени блока, Linux, без vDSP)", ir.name, per * 1e6,
                      per / (256.0 / 48000) * 100))
         st.set(nil)
         st.drain()

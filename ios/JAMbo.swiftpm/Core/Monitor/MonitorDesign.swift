@@ -3,24 +3,21 @@ import Foundation
 // Headphone Monitor (ТЗ «Headphone Monitor», фаза 1): монитор-цепочка в конце выхода — только для прослушивания, в
 // экспорт, стемы и запись не попадает. Здесь — настройки, пресеты Translation (данные — Resources/TranslationPresets.json)
 // и расчёт параметров для колбэка (MonitorChain) в основном потоке.
-// Порядок по ТЗ: Mono → Translation EQ (и Sub-check) → Crossfeed → Headphone Correction (PHONE CURVE) → CORRECT CURVE → Level compensation →
-// Safety limiter. Биквады одинаковы в обоих каналах и линейны, Mono и Crossfeed — линейное смешение каналов, поэтому
-// в колбэке все биквады идут одним каскадом после Crossfeed (результат тот же).
+// Порядок: Mono → Room (пространство пункта TRANSLATION) → Translation EQ (тембр пункта) и Sub-check → Headphone
+// Correction (PHONE CURVE) → CORRECT CURVE → Level compensation → Safety limiter. Биквады одинаковы в обоих каналах и
+// линейны, поэтому в колбэке идут одним каскадом после комнаты (результат тот же). Crossfeed убран (8.11, решение
+// пользователя): колонки без комнаты — пространство с головой FABIAN (Room).
 
 /// Настройки монитор-цепочки (одни на приложение, UserDefaults — словарём, без Codable: объём сборки). Bypass —
 /// выключенная коррекция (Eq.on).
 public struct MonitorSettings {
     /// CORRECTION (сила коррекции профилем), 0…1.
     public var strength: Double = 1
-    /// Crossfeed: угол колонок, градусы (10…60), и Amount, 0…1.
-    public var angle: Double = MonitorSpec.angleDef
-    public var amount: Double = MonitorSpec.amountDef
-    /// Имя пресета Translation (по умолчанию Studio).
+    /// Пункт TRANSLATION (тембр и пространство; по умолчанию Studio).
     public var translation: String = "Studio"
     public var mono: Bool = false
     public var sub: Bool = false
-    /// Room: комната (Off — нет) и Ambience, dB (−60 и ниже — −∞; по умолчанию −6).
-    public var room: String = "Off"
+    /// Ambience — громкость пространства (отражений и хвоста), dB (−60 и ниже — −∞; по умолчанию −6).
     public var ambienceDb: Double = -6
     /// Правится CORRECT CURVE (иначе PHONE CURVE — профиль наушников).
     public var editCorrect: Bool = false
@@ -42,13 +39,10 @@ public struct MonitorSettings {
         }
         func flag(_ k: String, _ def: Bool) -> Bool { return (g[k] as? NSNumber)?.boolValue ?? def }
         strength = num("strength", 1, 0, 1)
-        angle = num("angle", MonitorSpec.angleDef, MonitorSpec.angleMin, MonitorSpec.angleMax)
-        amount = num("amount", MonitorSpec.amountDef, 0, 1)
         translation = g["translation"] as? String ?? "Studio"
         mono = flag("mono", false)
         sub = flag("sub", false)
         editCorrect = flag("editCorrect", false)
-        room = g["room"] as? String ?? "Off"
         ambienceDb = num("ambienceDb", -6, MonitorSpec.ambienceMin, 0)
         refMaster = flag("refMaster", false)
         refMonitor = flag("refMonitor", true)
@@ -58,29 +52,18 @@ public struct MonitorSettings {
 
     /// Словарь для UserDefaults.
     public var plist: [String: Any] {
-        return ["strength": strength, "angle": angle, "amount": amount, "translation": translation, "mono": mono,
-                "sub": sub, "editCorrect": editCorrect, "room": room, "ambienceDb": ambienceDb, "refMaster": refMaster, "refMonitor": refMonitor, "refMatch": refMatch,
+        return ["strength": strength, "translation": translation, "mono": mono,
+                "sub": sub, "editCorrect": editCorrect, "ambienceDb": ambienceDb, "refMaster": refMaster, "refMonitor": refMonitor, "refMatch": refMatch,
                 "refTrim": refTrim]
     }
 }
 
 /// Константы цепочки (стартовые значения ТЗ, подстраиваются на слух).
 public enum MonitorSpec {
-    /// Crossfeed: радиус головы, м, скорость звука, м/с (ITD по Вудворду: r/c·(θ + sin θ)).
-    public static let headRadius: Double = 0.0875
-    public static let soundSpeed: Double = 343
-    public static let angleMin: Double = 10
-    public static let angleMax: Double = 60
-    public static let angleDef: Double = 30
-    public static let amountDef: Double = 0.5
     /// Ambience на этом и ниже — −∞ (только прямой звук).
     public static let ambienceMin: Double = -60
     /// Ambience, dB → множитель хвоста.
     public static func ambience(_ db: Double) -> Double { return db <= ambienceMin ? 0 : pow(10, db / 20) }
-    /// Наибольшее g при Amount 100 %.
-    public static let gainMax: Double = 0.7
-    /// ФНЧ ветки Crossfeed, Гц.
-    public static let crossLp: Double = 800
     /// Наибольшее усиление одного фильтра коррекции и предел Level compensation, dB.
     public static let filterMax: Double = 12
     public static let compMax: Double = 12
@@ -100,27 +83,18 @@ public enum MonitorSpec {
     /// CORRECT CURVE: полос сколько угодно, в звук — первые 32 ступени.
     public static let userSlots = 32
     public static let sections = transSlots + subSlots + corrSlots + userSlots
-    /// Параметры для колбэка: коэффициенты (5 на биквад), затем усиление компенсации, g и задержка Crossfeed (отсчёты),
-    /// ФНЧ Crossfeed (5), Mono (0/1), цепочка включена (0/1).
+    /// Параметры для колбэка: коэффициенты (5 на биквад), затем усиление компенсации, Mono (0/1), цепочка включена (0/1).
     public static let compAt = sections * 5
-    public static let crossGAt = compAt + 1
-    public static let crossDelayAt = compAt + 2
-    public static let crossLpAt = compAt + 3
-    public static let monoAt = compAt + 8
-    public static let onAt = compAt + 9
-    public static let size = compAt + 10
-
-    /// ITD для угла (градусы), с.
-    public static func itd(_ degrees: Double) -> Double {
-        let t: Double = degrees * Double.pi / 180
-        return headRadius / soundSpeed * (t + sin(t))
-    }
+    public static let monoAt = compAt + 1
+    public static let onAt = compAt + 2
+    public static let size = compAt + 3
 
     /// Q ступеней Баттерворта 4-го порядка.
     public static let butter4: [Double] = [0.5411961001461969, 1.3065629648763766]
 }
 
-/// Пресет Translation (Resources/TranslationPresets.json): список биквадов и Mono. Разбор — JSONSerialization (без
+/// Пункт TRANSLATION (Resources/TranslationPresets.json): тембр (биквады), Mono и пространство (room — имя комнаты
+/// из rooms.json; нет — без пространства). Разбор — JSONSerialization (без
 /// Codable: объём сборки).
 public struct TranslationPreset {
     public struct Filter {
@@ -135,6 +109,7 @@ public struct TranslationPreset {
     public var name: String
     public var mono: Bool?
     public var filters: [Filter]
+    public var room: String? = nil
 
     /// Список пресетов из JSON ({"presets": […]}); ошибка — пусто, пресет без имени или фильтр без частоты — пропуск.
     public static func list(_ data: Data?) -> [TranslationPreset] {
@@ -151,7 +126,8 @@ public struct TranslationPreset {
                 let o: Int? = (f["order"] as? NSNumber)?.intValue
                 fs.append(Filter(type: type, freq: hz, gain: g, q: q, order: o))
             }
-            out.append(TranslationPreset(name: name, mono: (p["mono"] as? NSNumber)?.boolValue, filters: fs))
+            out.append(TranslationPreset(name: name, mono: (p["mono"] as? NSNumber)?.boolValue, filters: fs,
+                                         room: p["room"] as? String))
         }
         return out
     }
@@ -228,8 +204,7 @@ public enum MonitorDesign {
 
     /// Параметры для колбэка (MonitorSpec.size значений): eq — профиль наушников, PHONE CURVE (nil — нет; Eq.on false —
     /// Bypass всей цепочки); correct — CORRECT CURVE (своя правка поверх профиля, без CORRECTION).
-    /// room — отклик комнаты (Room; nil — Off): Crossfeed выключен (связь каналов — в импульсах), отклик — в
-    /// компенсации; ambience — громкость хвоста комнаты (множитель).
+    /// room — отклик комнаты (Room; nil — без пространства), в компенсации; ambience — громкость хвоста (множитель).
     public static func make(eq: Eq?, settings m: MonitorSettings, correct: Eq?, preset: TranslationPreset?,
                             room: RoomResponse? = nil, ambience: Double = 0, sampleRate sr: Double) -> [Double] {
         var out = [Double](repeating: 0, count: MonitorSpec.size)
@@ -250,11 +225,6 @@ public enum MonitorDesign {
             let u0: Int = c0 + MonitorSpec.corrSlots
             let user: [MonitorBiquad] = MonitorDesign.correction(correct, strength: 1)
             for (k, b) in user.prefix(MonitorSpec.userSlots).enumerated() { coeffs(b, sr, base + (u0 + k) * 5) }
-            let g: Double = room == nil ? m.amount * MonitorSpec.gainMax : 0
-            base[MonitorSpec.crossGAt] = g
-            base[MonitorSpec.crossDelayAt] = MonitorSpec.itd(m.angle) * sr
-            let lp = MonitorBiquad(type: EqSpec.highCut, freq: MonitorSpec.crossLp, gain: 0, q: 0.7071067811865476)
-            coeffs(lp, sr, base + MonitorSpec.crossLpAt)
             base[MonitorSpec.monoAt] = (m.mono || (preset?.mono ?? false)) ? 1 : 0
             base[MonitorSpec.onAt] = (eq?.on ?? true) ? 1 : 0
             let db: Double = compensation(base, sr, room, ambience)
@@ -263,21 +233,19 @@ public enum MonitorDesign {
         return out
     }
 
-    /// Level compensation, dB: минус средняя мощность АЧХ цепочки (биквады и Crossfeed для сигнала в центре) с розовым
+    /// Level compensation, dB: минус средняя мощность АЧХ цепочки (биквады для сигнала в центре) с розовым
     /// весом — точки через 1/12 октавы в 20 Гц…20 кГц (равный вес октав), с пределом ±12 dB; 0 — без изменения.
     /// Комната (Room) — мощность её отклика для сигнала в центре (прямая часть + Ambience · хвост).
     static func compensation(_ p: UnsafePointer<Double>, _ sr: Double, _ room: RoomResponse?, _ amb: Double) -> Double {
         var active: [Int] = []
         for k in 0..<MonitorSpec.sections where !isIdentity(p + k * 5) { active.append(k) }
-        let g: Double = p[MonitorSpec.crossGAt]
-        if active.isEmpty && g == 0 && room == nil { return 0 }
+        if active.isEmpty && room == nil { return 0 }
         let points: Int = MonitorDesign.points
         var sum: Double = 0
         for i in 0..<points {
             let w: Double = 2 * Double.pi * MonitorDesign.pointHz(i) / sr
             var pw: Double = 1
             for k in active { pw *= power(p + k * 5, w) }
-            if g > 0 { pw *= crossPower(p, w, g) }
             if let r = room { pw *= r.power(i, amb) }
             sum += pw
         }
@@ -309,25 +277,6 @@ public enum MonitorDesign {
         return (nr * nr + ni * ni) / Swift.max(1e-30, dr * dr + di * di)
     }
 
-    /// |H|² Crossfeed для одинаковых каналов: (1 + g·LP·e^(−jwD)) / (1 + g).
-    static func crossPower(_ p: UnsafePointer<Double>, _ w: Double, _ g: Double) -> Double {
-        let c: UnsafePointer<Double> = p + MonitorSpec.crossLpAt
-        let c1: Double = cos(w), s1: Double = sin(w), c2: Double = cos(2 * w), s2: Double = sin(2 * w)
-        let nr: Double = c[0] + c[1] * c1 + c[2] * c2
-        let ni: Double = -(c[1] * s1 + c[2] * s2)
-        let dr: Double = 1 + c[3] * c1 + c[4] * c2
-        let di: Double = -(c[3] * s1 + c[4] * s2)
-        let den: Double = Swift.max(1e-30, dr * dr + di * di)
-        // LP = (nr + j ni) / (dr + j di).
-        let lr: Double = (nr * dr + ni * di) / den
-        let li: Double = (ni * dr - nr * di) / den
-        let d: Double = p[MonitorSpec.crossDelayAt] * w
-        let er: Double = cos(d), ei: Double = -sin(d)
-        let xr: Double = 1 + g * (lr * er - li * ei)
-        let xi: Double = g * (lr * ei + li * er)
-        return (xr * xr + xi * xi) / ((1 + g) * (1 + g))
-    }
-
     /// АЧХ всей цепочки (без компенсации и лимитера) на частоте hz для сигнала в центре, dB — для тестов и экрана.
     public static func response(_ p: [Double], hz: Double, sampleRate sr: Double) -> Double {
         return p.withUnsafeBufferPointer { b -> Double in
@@ -335,8 +284,6 @@ public enum MonitorDesign {
             let w: Double = 2 * Double.pi * hz / sr
             var pw: Double = 1
             for k in 0..<MonitorSpec.sections { pw *= power(base + k * 5, w) }
-            let g: Double = base[MonitorSpec.crossGAt]
-            if g > 0 { pw *= crossPower(base, w, g) }
             return 10 * log10(Swift.max(1e-30, pw))
         }
     }

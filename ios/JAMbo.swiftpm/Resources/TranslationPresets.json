@@ -1,37 +1,38 @@
 {
   "presets": [
     { "name": "Off", "filters": [] },
-    { "name": "Studio", "filters": [
+    { "name": "Studio", "room": "Studio", "filters": [
       { "type": "HP", "freq": 30 },
       { "type": "LS", "freq": 120, "gain": 1.5 },
       { "type": "HS", "freq": 5000, "gain": -2 }
     ] },
-    { "name": "Club", "filters": [
-      { "type": "HP", "freq": 30 },
-      { "type": "LS", "freq": 60, "gain": 2 },
-      { "type": "HS", "freq": 10000, "gain": -2 }
+    { "name": "Home Hi-Fi", "room": "Home", "filters": [
+      { "type": "LS", "freq": 100, "gain": 1.5 },
+      { "type": "HS", "freq": 8000, "gain": 1.5 }
     ] },
-    { "name": "Small Monitors", "filters": [
-      { "type": "HP", "freq": 55, "order": 4 }
+    { "name": "Car", "room": "Car", "filters": [
+      { "type": "PK", "freq": 250, "gain": -2, "q": 1 },
+      { "type": "LP", "freq": 16000 }
     ] },
-    { "name": "Small Headphones", "filters": [
-      { "type": "HP", "freq": 80 },
-      { "type": "PK", "freq": 3000, "gain": 2, "q": 1 },
-      { "type": "HS", "freq": 10000, "gain": -2 }
+    { "name": "Club", "room": "Club", "filters": [
+      { "type": "HP", "freq": 28, "order": 4 },
+      { "type": "LS", "freq": 70, "gain": 5 },
+      { "type": "PK", "freq": 250, "gain": -2, "q": 1 },
+      { "type": "HS", "freq": 8000, "gain": -3 }
+    ] },
+    { "name": "Small Speakers", "room": "Desk", "filters": [
+      { "type": "HP", "freq": 110, "order": 4 },
+      { "type": "PK", "freq": 2500, "gain": 1.5, "q": 1 }
     ] },
     { "name": "Phone", "mono": true, "filters": [
       { "type": "HP", "freq": 300 },
       { "type": "LP", "freq": 12000 },
       { "type": "PK", "freq": 2500, "gain": 3, "q": 1 }
     ] },
-    { "name": "Car", "filters": [
-      { "type": "LS", "freq": 100, "gain": 4 },
-      { "type": "PK", "freq": 250, "gain": -2, "q": 1 },
-      { "type": "LP", "freq": 16000 }
-    ] },
-    { "name": "Home Hi-Fi", "filters": [
-      { "type": "LS", "freq": 100, "gain": 1.5 },
-      { "type": "HS", "freq": 8000, "gain": 1.5 }
+    { "name": "Earbuds", "filters": [
+      { "type": "HP", "freq": 80 },
+      { "type": "PK", "freq": 3000, "gain": 2, "q": 1 },
+      { "type": "HS", "freq": 10000, "gain": -2 }
     ] }
   ]
 }

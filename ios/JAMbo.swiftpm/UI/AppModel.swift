@@ -253,10 +253,9 @@ final class AppModel {
     @ObservationIgnored var refLufs: (key: String, lufs: Double)? = nil
     @ObservationIgnored var refLufsPending: String = ""
     @ObservationIgnored var refMatchDb: Double = 0
-    /// Room: комнаты из ресурсов, загруженная (имя и отклик для компенсации), меню ROOM вместо TRANSLATION.
+    /// Room: пространства из ресурсов (по пунктам TRANSLATION) и загруженное (имя и отклик для компенсации).
     @ObservationIgnored let rooms: [RoomInfo] = AppModel.loadRooms()
     @ObservationIgnored var roomLoaded: (name: String, resp: RoomResponse)? = nil
-    @ObservationIgnored var monitorMenuRoom: Bool = false
     /// UNDO окна коррекции (AppModelMonitor): записи и жест (0 — нет, 1 — идёт, 2 — запись сделана).
     var monitorUndo: [MonitorSnap] = []
     var monitorRedo: [MonitorSnap] = []

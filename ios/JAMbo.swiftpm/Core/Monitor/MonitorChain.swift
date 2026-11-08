@@ -2,16 +2,16 @@ import Foundation
 
 /// Монитор-цепочка в колбэке (Headphone Monitor, фаза 1; параметры — MonitorDesign.make в основном потоке, через очередь
 /// номеров заранее выделенных буферов). Без выделений и блокировок; биквады — Direct Form II Transposed в Double.
-/// Плавно: коэффициенты — к новым за ~25 мс (выпуклая смесь устойчивых биквадов устойчива), g и задержка Crossfeed,
-/// компенсация — линейно в блоке, Mono и вкл./выкл. (Bypass, референс мимо цепочки) — кроссфейд 25 мс.
-/// Нейтральные ступени пропускаются: без коррекции, Crossfeed, Mono и компенсации выход равен входу бит в бит.
+/// Плавно: коэффициенты — к новым за ~25 мс (выпуклая смесь устойчивых биквадов устойчива), компенсация — линейно в
+/// блоке, Mono и вкл./выкл. (Bypass, референс мимо цепочки) — кроссфейд 25 мс. Связь каналов (колонки) — только в
+/// комнате (Room; Crossfeed убран 8.11, решение пользователя). Нейтральные ступени пропускаются: без коррекции,
+/// комнаты, Mono и компенсации выход равен входу бит в бит.
 public final class MonitorChain: @unchecked Sendable {
     static let slots = 8
-    static let delaySize = 256
     public let sampleRate: Double
     /// Экспорт песни идёт (1): цепочка не применяется (сразу, без перехода).
     public let paused = AtomicCounter()
-    /// Room (фаза 2): свёртка с импульсами комнаты — после Crossfeed, перед биквадами.
+    /// Room (фаза 2): свёртка с импульсами комнаты — после Mono, перед биквадами.
     public let room: RoomStage
     /// Наибольшее снижение лимитером в последнем блоке (1 — нет), для экрана.
     public let limitGain = AtomicFloat(1)
@@ -22,15 +22,10 @@ public final class MonitorChain: @unchecked Sendable {
     /// Цель (последние параметры) и действующие коэффициенты.
     private let tgt: UnsafeMutablePointer<Double>
     private let cur: UnsafeMutablePointer<Double>
-    /// Состояние биквадов: на биквад [s1 L, s2 L, s1 R, s2 R]; ФНЧ Crossfeed — последним.
+    /// Состояние биквадов: на биквад [s1 L, s2 L, s1 R, s2 R].
     private let state: UnsafeMutablePointer<Double>
-    private let delayL: UnsafeMutablePointer<Double>
-    private let delayR: UnsafeMutablePointer<Double>
-    private var write = 0
     private let wl: UnsafeMutablePointer<Double>
     private let wr: UnsafeMutablePointer<Double>
-    private var g: Double = 0
-    private var delay: Double = 0
     private var comp: Double = 1
     private var mono: Double = 0
     private var wet: Double = 0
@@ -49,13 +44,9 @@ public final class MonitorChain: @unchecked Sendable {
         tgt.initialize(repeating: 0, count: size)
         cur = .allocate(capacity: size)
         cur.initialize(repeating: 0, count: size)
-        let nst: Int = (MonitorSpec.sections + 1) * 4
+        let nst: Int = MonitorSpec.sections * 4
         state = .allocate(capacity: nst)
         state.initialize(repeating: 0, count: nst)
-        delayL = .allocate(capacity: MonitorChain.delaySize)
-        delayL.initialize(repeating: 0, count: MonitorChain.delaySize)
-        delayR = .allocate(capacity: MonitorChain.delaySize)
-        delayR.initialize(repeating: 0, count: MonitorChain.delaySize)
         wl = .allocate(capacity: AudioCore.maxFrames)
         wl.initialize(repeating: 0, count: AudioCore.maxFrames)
         wr = .allocate(capacity: AudioCore.maxFrames)
@@ -72,13 +63,11 @@ public final class MonitorChain: @unchecked Sendable {
         }
         tgt[MonitorSpec.compAt] = 1
         cur[MonitorSpec.compAt] = 1
-        tgt[MonitorSpec.crossLpAt] = 1
-        cur[MonitorSpec.crossLpAt] = 1
     }
 
     deinit {
         ring.deallocate(); tgt.deallocate(); cur.deallocate(); state.deallocate()
-        delayL.deallocate(); delayR.deallocate(); wl.deallocate(); wr.deallocate()
+        wl.deallocate(); wr.deallocate()
     }
 
     /// Новые параметры (основной поток; MonitorDesign.make, MonitorSpec.size значений).
@@ -112,7 +101,6 @@ public final class MonitorChain: @unchecked Sendable {
             i += 1
         }
         processMono(n)
-        processCross(n)
         room.process(wl, wr, n)
         var k = 0
         while k < MonitorSpec.sections {
@@ -123,15 +111,14 @@ public final class MonitorChain: @unchecked Sendable {
         output(left, right, n, wetTarget)
     }
 
-    /// Коэффициенты (биквады и ФНЧ Crossfeed) — к цели за блок на долю 1 − e^(−n/τ); вплотную — ровно цель.
+    /// Коэффициенты биквадов — к цели за блок на долю 1 − e^(−n/τ); вплотную — ровно цель.
     @inline(__always)
     private func glide(_ n: Int) {
         let a: Double = 1 - exp(-Double(n) / (MonitorSpec.glide * sampleRate))
         let t = tgt, c = cur
-        let last: Int = MonitorSpec.crossLpAt + 5
+        let last: Int = MonitorSpec.compAt
         var k = 0
         while k < last {
-            if k == MonitorSpec.compAt { k = MonitorSpec.crossLpAt }
             let d: Double = t[k] - c[k]
             if d != 0 { c[k] = (d < 1e-12 && d > -1e-12) ? t[k] : c[k] + d * a }
             k += 1
@@ -154,57 +141,6 @@ public final class MonitorChain: @unchecked Sendable {
             i += 1
         }
         mono = m
-    }
-
-    /// Crossfeed: каждому уху — противоположный канал через задержку (дробную, линейная интерполяция) и ФНЧ, · g;
-    /// L = (L + g·LP(delay(R))) / (1 + g). Линия задержки и ФНЧ идут всегда (включение — без щелчка).
-    @inline(__always)
-    private func processCross(_ n: Int) {
-        let l = wl, r = wr, dl = delayL, dr = delayR
-        let c: UnsafeMutablePointer<Double> = cur + MonitorSpec.crossLpAt
-        let b0: Double = c[0], b1: Double = c[1], b2: Double = c[2], a1: Double = c[3], a2: Double = c[4]
-        let s: UnsafeMutablePointer<Double> = state + MonitorSpec.sections * 4
-        var s1l: Double = s[0], s2l: Double = s[1], s1r: Double = s[2], s2r: Double = s[3]
-        let g0: Double = g, g1: Double = tgt[MonitorSpec.crossGAt]
-        let d0: Double = delay, d1: Double = tgt[MonitorSpec.crossDelayAt]
-        let dg: Double = (g1 - g0) / Double(n), dd: Double = (d1 - d0) / Double(n)
-        let mask: Int = MonitorChain.delaySize - 1
-        let active: Bool = g0 > 0 || g1 > 0
-        var w: Int = write
-        var i = 0
-        while i < n {
-            let xl: Double = l[i], xr: Double = r[i]
-            dl[w] = xl
-            dr[w] = xr
-            let gi: Double = g0 + dg * Double(i + 1)
-            let di: Double = d0 + dd * Double(i + 1)
-            let whole: Int = Int(di)
-            let frac: Double = di - Double(whole)
-            let p0: Int = (w - whole) & mask
-            let p1: Int = (w - whole - 1) & mask
-            let ql: Double = dl[p0] + (dl[p1] - dl[p0]) * frac
-            let qr: Double = dr[p0] + (dr[p1] - dr[p0]) * frac
-            // ФНЧ задержанных каналов (DF2T).
-            let yl: Double = b0 * ql + s1l
-            s1l = b1 * ql - a1 * yl + s2l
-            s2l = b2 * ql - a2 * yl
-            let yr: Double = b0 * qr + s1r
-            s1r = b1 * qr - a1 * yr + s2r
-            s2r = b2 * qr - a2 * yr
-            if active {
-                let k: Double = 1 / (1 + gi)
-                l[i] = (xl + gi * yr) * k
-                r[i] = (xr + gi * yl) * k
-            }
-            w = (w + 1) & mask
-            i += 1
-        }
-        write = w
-        g = g1
-        delay = d1
-        if abs(s1l) < 1e-30 { s1l = 0; s2l = 0 }
-        if abs(s1r) < 1e-30 { s1r = 0; s2r = 0 }
-        s[0] = s1l; s[1] = s2l; s[2] = s1r; s[3] = s2r
     }
 
     /// Биквад k на оба канала (DF2T); нейтральный (и цель нейтральная) — пропуск, состояние — с нуля.

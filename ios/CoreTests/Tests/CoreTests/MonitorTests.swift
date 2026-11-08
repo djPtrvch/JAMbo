@@ -1,7 +1,7 @@
 import XCTest
 @testable import Core
 
-/// Headphone Monitor (фаза 1): приёмка по ТЗ — бит-в-бит без обработки, АЧХ коррекции, Crossfeed, экспорт, маршруты
+/// Headphone Monitor (фаза 1): приёмка по ТЗ — бит-в-бит без обработки, АЧХ коррекции, экспорт, маршруты
 /// референса, частоты дискретизации, битые профили и пресеты.
 final class MonitorTests: XCTestCase {
     static let block = 256
@@ -75,11 +75,10 @@ final class MonitorTests: XCTestCase {
         return (c, p)
     }
 
-    /// Strength 0 (и Crossfeed 0) — выход бит в бит равен входу; Bypass после перехода — тоже.
+    /// Strength 0 — выход бит в бит равен входу; Bypass после перехода — тоже.
     func testNeutralAndBypassBitExact() {
         var m = MonitorSettings()
         m.strength = 0
-        m.amount = 0
         let (c, p) = chain(sony(), m)
         XCTAssertEqual(p[MonitorSpec.compAt], 1)
         let o = run(c, blocks: 50, noise(1))
@@ -104,7 +103,6 @@ final class MonitorTests: XCTestCase {
     /// Strength 100 %: измеренная АЧХ совпадает с расчётной по профилю (с компенсацией) в пределах 0,1 dB.
     func testCorrectionResponse() {
         var m = MonitorSettings()
-        m.amount = 0
         let e: Eq = sony()
         let (c, p) = chain(e, m)
         let comp: Double = 20 * log10(p[MonitorSpec.compAt])
@@ -129,53 +127,29 @@ final class MonitorTests: XCTestCase {
         var e = Eq()
         e.bands[0] = EqBand(type: EqSpec.bell, freq: 1000, gain: 18, q: 1)
         var m = MonitorSettings()
-        m.amount = 0
         let p: [Double] = MonitorDesign.make(eq: e, settings: m, correct: nil, preset: nil, sampleRate: 48000)
         XCTAssertEqual(MonitorDesign.response(p, hz: 1000, sampleRate: 48000), 12, accuracy: 1e-6)
-    }
-
-    /// Crossfeed: моно на НЧ сохраняет уровень (±0,2 dB), разница каналов — с ITD 30° ≈ 0,26 мс; Amount 0 = выключено.
-    func testCrossfeed() {
-        XCTAssertEqual(MonitorSpec.itd(30) * 1000, 0.26, accuracy: 0.005)
-        var m = MonitorSettings()
-        m.amount = 1
-        let (c, p) = chain(nil, m)
-        let comp: Double = 20 * log10(p[MonitorSpec.compAt])
-        XCTAssertEqual(gain(c, hz: 50, sr: 48000) - comp, 0, accuracy: 0.2)
-        XCTAssertEqual(MonitorDesign.response(p, hz: 50, sampleRate: 48000), 0, accuracy: 0.2)
-        // Только левый канал на НЧ: в правом — g/(1+g) левого.
-        let (c2, _) = chain(nil, m)
-        let o = run(c2, blocks: 200) { t, ch in ch == 0 ? Float(0.1 * sin(2 * Double.pi * 50 * Double(t) / 48000)) : 0 }
-        let g: Double = MonitorSpec.gainMax
-        let peakR: Float = o.r.suffix(9600).map { abs($0) }.max() ?? 0
-        let ratio: Double = Double(peakR) / Double(o.l.suffix(9600).map { abs($0) }.max() ?? 1)
-        XCTAssertEqual(ratio, g, accuracy: 0.03)
-        // Amount 0 — как выключено.
-        m.amount = 0
-        let (z, _) = chain(nil, m)
-        let oz = run(z, blocks: 30, noise(5))
-        XCTAssertEqual(oz.l, oz.inL)
-        XCTAssertEqual(oz.r, oz.inR)
     }
 
     /// Translation: пресеты из JSON; Phone — моно, срез низа, компенсация вверх (≤ 12 dB); Sub-check — соло НЧ.
     func testTranslationAndSub() {
         let list: [TranslationPreset] = presets()
-        XCTAssertEqual(list.map { $0.name }, ["Off", "Studio", "Club", "Small Monitors", "Small Headphones", "Phone", "Car", "Home Hi-Fi"])
+        XCTAssertEqual(list.map { $0.name }, ["Off", "Studio", "Home Hi-Fi", "Car", "Club", "Small Speakers", "Phone", "Earbuds"])
+        // Пространство пунктов — комнаты rooms.json; у Off, Phone и Earbuds — нет.
+        XCTAssertEqual(list.map { $0.room ?? "-" }, ["-", "Studio", "Home", "Car", "Club", "Desk", "-", "-"])
         guard let phone = list.first(where: { $0.name == "Phone" }) else { return XCTFail() }
         var m = MonitorSettings()
-        m.amount = 0
         let p: [Double] = MonitorDesign.make(eq: nil, settings: m, correct: nil, preset: phone, sampleRate: 48000)
         XCTAssertEqual(p[MonitorSpec.monoAt], 1)
         XCTAssertLessThan(MonitorDesign.response(p, hz: 60, sampleRate: 48000), -20)
         let comp: Double = 20 * log10(p[MonitorSpec.compAt])
         XCTAssertGreaterThan(comp, 0)
         XCTAssertLessThanOrEqual(comp, 12)
-        // Small Monitors: HPF 4-го порядка — 24 dB/окт ниже среза.
-        guard let small = list.first(where: { $0.name == "Small Monitors" }) else { return XCTFail() }
+        // Small Speakers: HPF 4-го порядка — 24 dB/окт ниже среза (на 110 Гц — −3 dB и подъём 2,5 кГц не мешает).
+        guard let small = list.first(where: { $0.name == "Small Speakers" }) else { return XCTFail() }
         let ps: [Double] = MonitorDesign.make(eq: nil, settings: m, correct: nil, preset: small, sampleRate: 48000)
-        XCTAssertEqual(MonitorDesign.response(ps, hz: 55, sampleRate: 48000), -3.01, accuracy: 0.05)
-        XCTAssertEqual(MonitorDesign.response(ps, hz: 27.5, sampleRate: 48000), -24.1, accuracy: 0.5)
+        XCTAssertEqual(MonitorDesign.response(ps, hz: 110, sampleRate: 48000), -3.01, accuracy: 0.1)
+        XCTAssertEqual(MonitorDesign.response(ps, hz: 55, sampleRate: 48000), -24.1, accuracy: 0.5)
         // Sub-check: 120 Гц — −3 dB, 1 кГц — глубоко вниз.
         m.sub = true
         let pb: [Double] = MonitorDesign.make(eq: nil, settings: m, correct: nil, preset: nil, sampleRate: 48000)
@@ -183,7 +157,6 @@ final class MonitorTests: XCTestCase {
         XCTAssertLessThan(MonitorDesign.response(pb, hz: 1000, sampleRate: 48000), -70)
         // Mono: левый канал — в оба поровну.
         var mm = MonitorSettings()
-        mm.amount = 0
         mm.mono = true
         let (c, _) = chain(nil, mm)
         let o = run(c, blocks: 40) { _, ch in ch == 0 ? 0.5 : 0 }
@@ -206,8 +179,8 @@ final class MonitorTests: XCTestCase {
         XCTAssertTrue(back.editCorrect)
         XCTAssertFalse(back.refMonitor)
         XCTAssertEqual(back.refTrim, -3.5)
-        let bad = MonitorSettings(plist: ["angle": 500, "refTrim": -40, "mono": "x"])
-        XCTAssertEqual(bad.angle, MonitorSpec.angleMax)
+        let bad = MonitorSettings(plist: ["ambienceDb": 500, "refTrim": -40, "mono": "x"])
+        XCTAssertEqual(bad.ambienceDb, 0)
         XCTAssertEqual(bad.translation, "Studio")
         XCTAssertEqual(bad.refTrim, -12)
         XCTAssertFalse(bad.mono)
@@ -217,7 +190,6 @@ final class MonitorTests: XCTestCase {
     /// CORRECT CURVE: полосы сверх 10 тоже звучат, усиление — полностью (без CORRECTION).
     func testCorrectCurve() {
         var m = MonitorSettings()
-        m.amount = 0
         m.strength = 0
         let hz: [Double] = (0..<14).map { 50 * pow(1.6, Double($0)) }
         let c: Eq = MonitorTests.curve(hz, hz.map { _ in 1.0 })
@@ -239,7 +211,6 @@ final class MonitorTests: XCTestCase {
     /// Лимитер: громкий вход — выход не выше −0,5 dBFS.
     func testLimiter() {
         var m = MonitorSettings()
-        m.amount = 0
         let (c, _) = chain(nil, m)
         let o = run(c, blocks: 40) { t, _ in Float(2 * sin(2 * Double.pi * 200 * Double(t) / 48000)) }
         // После перехода (25 мс) — не выше потолка.
@@ -252,7 +223,6 @@ final class MonitorTests: XCTestCase {
     /// 44,1 и 96 кГц: коэффициенты по частоте, АЧХ — как расчётная.
     func testSampleRates() {
         var m = MonitorSettings()
-        m.amount = 0.5
         for sr in [44100.0, 96000.0] {
             let (c, p) = chain(sony(), m, sr: sr)
             let comp: Double = 20 * log10(p[MonitorSpec.compAt])
@@ -305,7 +275,7 @@ final class MonitorTests: XCTestCase {
         var out: [Float] = []
         var t0 = 0
         let steps: [(inout MonitorSettings, inout Eq) -> Void] = [
-            { _, _ in }, { m, _ in m.amount = 1 }, { m, _ in m.angle = 60 }, { m, _ in m.mono = true },
+            { _, _ in }, { m, _ in m.mono = true },
             { m, _ in m.strength = 0 }, { m, _ in m.strength = 1 }, { _, e in e.on = false }, { _, e in e.on = true },
         ]
         var e: Eq = sony()
@@ -356,7 +326,6 @@ final class MonitorTests: XCTestCase {
         let n = MonitorTests.block
         let hz: Double = 1500
         var m = MonitorSettings()
-        m.amount = 0
         let mon: [Double] = MonitorDesign.make(eq: nil, settings: m, correct: MonitorTests.curve([1500], [3]), preset: nil, sampleRate: 48000)
         let monDb: Double = MonitorDesign.response(mon, hz: hz, sampleRate: 48000) + 20 * log10(mon[MonitorSpec.compAt])
         XCTAssertGreaterThan(abs(monDb), 0.5)
@@ -436,7 +405,7 @@ final class MonitorTests: XCTestCase {
     }
 }
 
-/// Нагрузка фазы 1 (отладочная сборка): полная цепочка — профиль 10 полос, Translation, Trim, Crossfeed, Mono.
+/// Нагрузка фазы 1 (отладочная сборка): полная цепочка — профиль 10 полос, Translation, CORRECT CURVE, Mono.
 final class MonitorLoadTests: XCTestCase {
     func testLoad() {
         var e = Eq()

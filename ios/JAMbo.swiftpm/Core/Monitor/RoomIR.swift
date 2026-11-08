@@ -29,7 +29,7 @@ public struct RoomInfo {
 
 /// Импульсы комнаты: 4 пути (LL, LR, RL, RR) с громкостью из rooms.json, частота 48 кГц.
 public final class RoomIR: @unchecked Sendable {
-    public static let maxFrames = 14400
+    public static let maxFrames = 52800
     public let name: String
     public let frames: Int
     public let direct: Int
@@ -43,7 +43,7 @@ public final class RoomIR: @unchecked Sendable {
         h = paths
     }
 
-    /// Из WAV (4 канала, 48 кГц); неверный файл — nil. Длина — не больше maxFrames (300 мс).
+    /// Из WAV (4 канала, 48 кГц); неверный файл — nil. Длина — не больше maxFrames (1,1 с — клуб).
     public convenience init?(name: String, wav: Data, gainDb: Double, direct: Int) {
         guard let w = RoomIR.parseWav(wav), w.channels == 4, w.rate == 48000, w.frames > 0 else { return nil }
         let n: Int = Swift.min(w.frames, RoomIR.maxFrames)
@@ -106,56 +106,84 @@ public final class RoomIR: @unchecked Sendable {
     }
 
     /// Отклик для Level compensation: сигнал в центре (L = R) — левое ухо LL + RL, правое LR + RR; прямая часть и
-    /// хвост отдельно (комплексные, на тех же частотах, что MonitorDesign.compensation).
+    /// хвост отдельно. Мощность — средняя по каждой полосе 1/12 октавы вокруг точек MonitorDesign (по бинам БПФ), а не
+    /// в одной точке: частая гребёнка ранних отражений (салон) иначе проваливается между точками.
     public func response(sampleRate sr: Double) -> RoomResponse {
         let n: Int = frames
         let pts: Int = MonitorDesign.points
         var out = RoomResponse(count: pts)
-        var left = [Double](repeating: 0, count: n)
-        var right = [Double](repeating: 0, count: n)
-        for i in 0..<n {
-            left[i] = Double(h[i] + h[2 * n + i])
-            right[i] = Double(h[n + i] + h[3 * n + i])
-        }
-        for k in 0..<pts {
-            let w: Double = 2 * Double.pi * MonitorDesign.pointHz(k) / sr
-            var a = (0.0, 0.0, 0.0, 0.0), t = (0.0, 0.0, 0.0, 0.0)
-            // Поворот e^(−jwi) — рекуррентно (без cos/sin на каждый отсчёт).
-            let cw: Double = cos(w), sw: Double = sin(w)
-            var c: Double = 1, s: Double = 0
-            for i in 0..<n {
-                let lr: Double = left[i] * c, li: Double = -left[i] * s
-                let rr: Double = right[i] * c, ri: Double = -right[i] * s
-                if i < direct {
-                    a.0 += lr; a.1 += li; a.2 += rr; a.3 += ri
-                } else {
-                    t.0 += lr; t.1 += li; t.2 += rr; t.3 += ri
+        var size = 256
+        while size < n { size *= 2 }
+        let fft = PvFFT(size: size)
+        let bins: Int = size / 2 + 1
+        let x = UnsafeMutablePointer<Float>.allocate(capacity: size)
+        let re = UnsafeMutablePointer<Float>.allocate(capacity: 4 * bins)
+        let im = UnsafeMutablePointer<Float>.allocate(capacity: 4 * bins)
+        defer { x.deallocate(); re.deallocate(); im.deallocate() }
+        // Масштаб БПФ — по единичному импульсу (|X| = 1 на всех частотах).
+        x.initialize(repeating: 0, count: size)
+        x[0] = 1
+        fft.forward(x, re, im)
+        let unit: Double = Double(re[1] * re[1] + im[1] * im[1])
+        // 0 — прямая часть, 1 — хвост; левое и правое ухо.
+        for part in 0..<2 {
+            for ear in 0..<2 {
+                x.update(repeating: 0, count: size)
+                for i in 0..<n where (i < direct) == (part == 0) {
+                    x[i] = h[ear * n + i] + h[(2 + ear) * n + i]
                 }
-                let c2: Double = c * cw - s * sw
-                s = s * cw + c * sw
-                c = c2
+                let at: Int = (part * 2 + ear) * bins
+                fft.forward(x, re + at, im + at)
             }
-            out.d[4 * k] = a.0; out.d[4 * k + 1] = a.1; out.d[4 * k + 2] = a.2; out.d[4 * k + 3] = a.3
-            out.t[4 * k] = t.0; out.t[4 * k + 1] = t.1; out.t[4 * k + 2] = t.2; out.t[4 * k + 3] = t.3
+        }
+        let hzPerBin: Double = sr / Double(size)
+        for k in 0..<pts {
+            let lo: Double = 20 * pow(1000, Double(k) / Double(pts)) / hzPerBin
+            let hi: Double = 20 * pow(1000, Double(k + 1) / Double(pts)) / hzPerBin
+            var j0: Int = Int(lo.rounded(.up))
+            var j1: Int = Int(hi.rounded(.up))
+            if j1 <= j0 {
+                j0 = Swift.min(bins - 1, Int((MonitorDesign.pointHz(k) / hzPerBin).rounded()))
+                j1 = j0 + 1
+            }
+            j1 = Swift.min(j1, bins)
+            var dd: Double = 0, dt: Double = 0, tt: Double = 0
+            var j: Int = j0
+            while j < j1 {
+                for ear in 0..<2 {
+                    let a: Int = ear * bins + j, b: Int = (2 + ear) * bins + j
+                    let dr: Double = Double(re[a]), di: Double = Double(im[a])
+                    let tr: Double = Double(re[b]), ti: Double = Double(im[b])
+                    dd += dr * dr + di * di
+                    dt += dr * tr + di * ti
+                    tt += tr * tr + ti * ti
+                }
+                j += 1
+            }
+            let m: Double = 1 / (2 * Double(j1 - j0) * unit)
+            out.dd[k] = dd * m
+            out.dt[k] = dt * m
+            out.tt[k] = tt * m
         }
         return out
     }
 }
 
-/// Отклик комнаты на частотах компенсации: на точку [Re L, Im L, Re R, Im R] прямой части (d) и хвоста (t).
+/// Отклик комнаты на частотах компенсации (средние по полосе, среднее ушей): |D|², Re(D·T*), |T|² прямой части D и
+/// хвоста T.
 public struct RoomResponse {
-    public var d: [Double]
-    public var t: [Double]
+    public var dd: [Double]
+    public var dt: [Double]
+    public var tt: [Double]
 
     public init(count: Int) {
-        d = [Double](repeating: 0, count: 4 * count)
-        t = [Double](repeating: 0, count: 4 * count)
+        dd = [Double](repeating: 0, count: count)
+        dt = [Double](repeating: 0, count: count)
+        tt = [Double](repeating: 0, count: count)
     }
 
-    /// Мощность в точке k при громкости хвоста amb: среднее ушей |D + amb·T|².
+    /// Мощность в полосе k при громкости хвоста amb: |D + amb·T|² в среднем.
     public func power(_ k: Int, _ amb: Double) -> Double {
-        let lr: Double = d[4 * k] + amb * t[4 * k], li: Double = d[4 * k + 1] + amb * t[4 * k + 1]
-        let rr: Double = d[4 * k + 2] + amb * t[4 * k + 2], ri: Double = d[4 * k + 3] + amb * t[4 * k + 3]
-        return 0.5 * (lr * lr + li * li + rr * rr + ri * ri)
+        return dd[k] + 2 * amb * dt[k] + amb * amb * tt[k]
     }
 }

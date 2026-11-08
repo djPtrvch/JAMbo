@@ -51,10 +51,17 @@ extension AppModel {
         setMonitor(record: false) { $0.editCorrect = on }
     }
 
-    /// Пресет Translation: выбранный, иначе первый (Studio — по умолчанию).
+    /// Пункт TRANSLATION: выбранный, иначе первый; Off (ни тембра, ни пространства) — nil.
     var translationPreset: TranslationPreset? {
         let p: TranslationPreset? = translations.first { $0.name == monitor.translation } ?? translations.first
-        return (p?.filters.isEmpty ?? true) ? nil : p
+        guard let q = p, !q.filters.isEmpty || q.room != nil || (q.mono ?? false) else { return nil }
+        return q
+    }
+
+    /// Выбрать пункт TRANSLATION: тембр — сразу, пространство (комната пункта) — в фоне.
+    func setTranslation(_ name: String) {
+        setMonitor { $0.translation = name }
+        syncRoom()
     }
 
     /// Параметры цепочки по текущим настройкам (с комнатой — когда её отклик готов).
@@ -79,19 +86,20 @@ extension AppModel {
         return url.flatMap { try? Data(contentsOf: $0) }
     }
 
-    /// Комната включена (выбрана и есть в списке).
-    var roomOn: Bool { return monitor.room != "Off" && rooms.contains { $0.name == monitor.room } }
-
-    /// Выбрать комнату (Off — обход): импульсы и отклик — в фоне, затем в звук (переход 40 мс).
-    func setRoom(_ name: String) {
-        setMonitor { $0.room = name }
-        syncRoom()
+    /// Пространство пункта TRANSLATION (комната из rooms.json); нет — nil.
+    var roomInfo: RoomInfo? {
+        guard let r = translationPreset?.room else { return nil }
+        return rooms.first { $0.name == r }
     }
 
-    /// Свёртка выбранной комнаты — звуку (при запуске и при выборе).
+    /// У пункта есть пространство.
+    var roomOn: Bool { return roomInfo != nil }
+
+    /// Свёртка комнаты пункта — звуку (при запуске, выборе пункта, UNDO): импульсы и отклик — в фоне, затем в звук
+    /// (переход 40 мс).
     func syncRoom() {
         let stage: RoomStage = audio.core.monitor.room
-        guard roomOn, let info = rooms.first(where: { $0.name == monitor.room }) else {
+        guard let info = roomInfo else {
             stage.set(nil)
             roomLoaded = nil
             publishMonitor()
@@ -104,7 +112,7 @@ extension AppModel {
             let conv = RoomConv(ir: ir)
             let resp: RoomResponse = ir.response(sampleRate: AudioCore.sampleRate)
             await MainActor.run {
-                guard self.monitor.room == info.name else { return }
+                guard self.roomInfo?.name == info.name else { return }
                 self.roomLoaded = (info.name, resp)
                 stage.set(conv)
                 self.publishMonitor()
@@ -137,15 +145,6 @@ extension AppModel {
         publishMonitor()
     }
 
-    /// TRANSLATION: следующий (step 1) или предыдущий пресет по кругу.
-    func stepTranslation(_ step: Int) {
-        let names: [String] = translations.map { $0.name }
-        if names.isEmpty { return }
-        let i: Int = names.firstIndex(of: monitor.translation) ?? 0
-        let j: Int = ((i + step) % names.count + names.count) % names.count
-        setMonitor { $0.translation = names[j] }
-    }
-
     /// Референс идёт мимо монитор-цепочки (значок RAW на A/B).
     var refRaw: Bool { return !monitor.refMonitor }
 
@@ -176,20 +175,13 @@ extension AppModel {
         }
     }
 
-    // MARK: — поля строк MONITOR и ROOM по ключу: 0 TRANSLATION, 1 CORRECTION, 2 ANGLE, 3 AMOUNT, 4 ROOM, 5 AMBIENCE
-
-    /// Имена комнат для поля ROOM (Off — первым).
-    var roomNames: [String] { return ["Off"] + rooms.map { $0.name } }
+    // MARK: — поля монитора по ключу: 0 TRANSLATION, 1 CORRECTION, 5 AMBIENCE
 
     func monitorField(_ k: Int) -> MonitorFieldInfo {
         let s: MonitorSettings = monitor
         switch k {
         case 0: return MonitorFieldInfo(label: "TRANSLATION", value: translationPreset?.name ?? "Off", enabled: true, px: 30)
         case 1: return MonitorFieldInfo(label: "CORRECTION", value: String(format: "%.0f %%", s.strength * 100), enabled: true, px: 2)
-        // Room включена — Crossfeed заменён комнатой (связь каналов — в её импульсах).
-        case 2: return MonitorFieldInfo(label: "ANGLE", value: roomOn ? "ROOM" : String(format: "%.0f°", s.angle), enabled: !roomOn, px: 4)
-        case 3: return MonitorFieldInfo(label: "AMOUNT", value: roomOn ? "ROOM" : String(format: "%.0f %%", s.amount * 100), enabled: !roomOn, px: 2)
-        case 4: return MonitorFieldInfo(label: "ROOM", value: roomOn ? s.room : "Off", enabled: true, px: 30)
         default:
             let t: String = s.ambienceDb <= MonitorSpec.ambienceMin ? "−∞ dB" : String(format: "%.1f dB", s.ambienceDb)
             return MonitorFieldInfo(label: "AMBIENCE", value: t, enabled: roomOn, px: 2)
@@ -202,47 +194,35 @@ extension AppModel {
         switch k {
         case 0: return -Double(translations.firstIndex { $0.name == s.translation } ?? 0)
         case 1: return (s.strength * 100).rounded()
-        case 2: return s.angle.rounded()
-        case 3: return (s.amount * 100).rounded()
-        case 4: return -Double(roomNames.firstIndex(of: s.room) ?? 0)
         default: return (s.ambienceDb * 2).rounded()
         }
     }
 
     func setMonitorUnits(_ k: Int, _ v: Double) {
         switch k {
-        case 0, 4:
-            let names: [String] = k == 0 ? translations.map { $0.name } : roomNames
+        case 0:
+            let names: [String] = translations.map { $0.name }
             let n: Int = names.count
             if n == 0 { return }
             let name: String = names[((-Int(v)) % n + n) % n]
-            if k == 4 {
-                if name != monitor.room { setRoom(name) }
-            } else {
-                setMonitor { $0.translation = name }
-            }
+            if name != monitor.translation { setTranslation(name) }
         case 1: setMonitor { $0.strength = Swift.max(0, Swift.min(100, v)) / 100 }
-        case 2: setMonitor { $0.angle = Swift.max(MonitorSpec.angleMin, Swift.min(MonitorSpec.angleMax, v)) }
-        case 3: setMonitor { $0.amount = Swift.max(0, Swift.min(100, v)) / 100 }
         default: setMonitor { $0.ambienceDb = Swift.max(MonitorSpec.ambienceMin, Swift.min(0, v / 2)) }
         }
     }
 
-    /// Двойной тап — по умолчанию (у TRANSLATION и ROOM — ничего).
+    /// Двойной тап — по умолчанию (у TRANSLATION — ничего).
     func resetMonitorField(_ k: Int) {
         switch k {
         case 1: setMonitor { $0.strength = 1 }
-        case 2: setMonitor { $0.angle = MonitorSpec.angleDef }
-        case 3: setMonitor { $0.amount = MonitorSpec.amountDef }
         case 5: setMonitor { $0.ambienceDb = -6 }
         default: break
         }
     }
 
-    /// Тап: у TRANSLATION и ROOM — меню под полем.
+    /// Тап: у TRANSLATION — меню под полем.
     func monitorFieldTap(_ k: Int, _ r: CGRect) {
-        guard k == 0 || k == 4 else { return }
-        monitorMenuRoom = k == 4
+        guard k == 0 else { return }
         translationMenu = translationMenu == nil ? r : nil
     }
 }

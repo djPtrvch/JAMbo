@@ -77,37 +77,3 @@ struct MonitorCurves: View {
         if sel { ctx.fill(Path(ellipseIn: CGRect(x: 16 - 4, y: y - 4, width: 8, height: 8)), with: .color(color)) }
     }
 }
-
-/// Миниатюра Crossfeed: голова и две колонки под углом ANGLE (каждая — на ±ANGLE от центра); линии к дальнему уху —
-/// AMOUNT (не видны — Crossfeed выключен); угол — подпись справа от головы.
-struct MonitorSpeakers: View {
-    let angle: Double
-    let amount: Double
-
-    var body: some View {
-        Canvas { ctx, size in
-            let head = CGPoint(x: size.width / 2, y: size.height - 16)
-            let r: CGFloat = size.height - 30
-            ctx.fill(Path(ellipseIn: CGRect(x: head.x - 7, y: head.y - 7, width: 14, height: 14)), with: .color(theme.dim))
-            for side in [-1.0, 1.0] {
-                let a: Double = side * angle * Double.pi / 180
-                let sp = CGPoint(x: head.x + r * CGFloat(sin(a)), y: head.y - r * CGFloat(cos(a)))
-                // К дальнему уху — Crossfeed.
-                let far = CGPoint(x: head.x - CGFloat(side) * 7, y: head.y)
-                let near = CGPoint(x: head.x + CGFloat(side) * 7, y: head.y)
-                ctx.stroke(Path { $0.move(to: sp); $0.addLine(to: near) }, with: .color(theme.text.opacity(0.5)), lineWidth: 1)
-                ctx.stroke(Path { $0.move(to: sp); $0.addLine(to: far) },
-                           with: .color(theme.accent.opacity(amount)), style: StrokeStyle(lineWidth: 1, dash: [2, 2]))
-                var box = ctx
-                box.translateBy(x: sp.x, y: sp.y)
-                box.rotate(by: .radians(a))
-                box.fill(Path(roundedRect: CGRect(x: -6, y: -8, width: 12, height: 16), cornerRadius: 2), with: .color(theme.text))
-            }
-            // Угол — справа от головы, на её уровне.
-            let t: Text = Text(String(format: "%.0f°", angle)).font(.system(size: 10, weight: .semibold)).foregroundColor(theme.dim)
-            ctx.draw(t, at: CGPoint(x: head.x + 12, y: head.y), anchor: .leading)
-        }
-        .frame(width: 110, height: 84)
-        .allowsHitTesting(false)
-    }
-}

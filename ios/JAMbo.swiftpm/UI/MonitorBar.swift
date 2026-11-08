@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// Строка Headphone Monitor под строкой EQ окна коррекции — проверки и эмуляция прослушивания: TRANSLATION, MONO,
-/// SUB, затем (справа, над значком колонок) ROOM, AMBIENCE, ANGLE и AMOUNT (Crossfeed; при комнате — серые, «ROOM»).
-/// Строка EQ — коррекция наушников: кривая (PHONE | CORRECT), CORRECTION, LEVEL, PRESETS, BYPASS. Поля — как у EQ:
+/// Строка Headphone Monitor под строкой EQ окна коррекции — где и на чём звучит: TRANSLATION (тембр и пространство
+/// пункта), AMBIENCE (сколько пространства; у пунктов без него — серое), проверки MONO и SUB.
+/// Строка EQ — коррекция наушников: PHONE CURVE, CORRECT CURVE, CORRECTION, LEVEL, PRESETS, BYPASS. Поля — как у EQ:
 /// палец вверх-вниз, двойной тап — значение по умолчанию.
 struct MonitorBar: View {
     let model: AppModel
@@ -11,10 +11,9 @@ struct MonitorBar: View {
         let m: AppModel = model
         let s: MonitorSettings = m.monitor
         let items: [AnyView] = [
-            MonitorBar.field(m, 0),
+            MonitorBar.field(m, 0), MonitorBar.field(m, 5),
             AnyView(EqTool(title: "MONO", enabled: true, active: s.mono) { m.setMonitor { $0.mono.toggle() } }),
             AnyView(EqTool(title: "SUB", enabled: true, active: s.sub) { m.setMonitor { $0.sub.toggle() } }),
-            MonitorBar.field(m, 4), MonitorBar.field(m, 5), MonitorBar.field(m, 2), MonitorBar.field(m, 3),
         ]
         return MonitorRow(name: "MONITOR", items: items, height: m.barH)
     }
@@ -80,7 +79,7 @@ struct CurveSwitch: View {
     }
 }
 
-/// Меню TRANSLATION или ROOM (monitorMenuRoom): пункты одним столбцом под полем (выбранный горит); тап мимо — закрыть.
+/// Меню TRANSLATION: пункты одним столбцом под полем (Off — первым, выбранный горит); тап мимо — закрыть.
 struct TranslationMenu: View {
     static let width: CGFloat = 220
     let model: AppModel
@@ -88,17 +87,16 @@ struct TranslationMenu: View {
 
     var body: some View {
         let m: AppModel = model
-        let room: Bool = m.monitorMenuRoom
-        let names: [String] = room ? ["Off"] + m.rooms.map { $0.name } : m.translations.map { $0.name }
-        let cur: String = room ? (m.roomOn ? m.monitor.room : "Off") : (m.translationPreset?.name ?? "Off")
+        let names: [String] = m.translations.map { $0.name }
+        let cur: String = m.translationPreset?.name ?? "Off"
         return ZStack(alignment: .topLeading) {
             Color.black.opacity(0.001).ignoresSafeArea().onTapGesture { m.translationMenu = nil }
             VStack(alignment: .leading, spacing: 6) {
-                Text(room ? "ROOM" : "TRANSLATION").font(.system(size: 12, weight: .bold)).tracking(1.2)
+                Text("TRANSLATION").font(.system(size: 12, weight: .bold)).tracking(1.2)
                     .foregroundStyle(theme.text)
                 MenuChoiceColumn(items: names.map { (name: String) -> MenuChoice in
                     MenuChoice(title: name.uppercased(), current: name == cur) {
-                        if room { m.setRoom(name) } else { m.setMonitor { $0.translation = name } }
+                        m.setTranslation(name)
                         m.translationMenu = nil
                     }
                 })

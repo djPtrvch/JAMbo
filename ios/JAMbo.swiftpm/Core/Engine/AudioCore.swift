@@ -39,7 +39,7 @@ public final class AudioCore: @unchecked Sendable {
     public let master = MasterChain(sampleRate: AudioCore.sampleRate)
     /// Референс аранжировщика (S15g): A/B, мимо мастера или через него.
     public let ref = RefPlayer()
-    /// Монитор-цепочка (Headphone Monitor: коррекция наушников, Crossfeed, Translation…): в самом конце выхода (после
+    /// Монитор-цепочка (Headphone Monitor: коррекция наушников, Translation с пространством…): в самом конце выхода (после
     /// мастера, референса и прослушивания), мимо записи и экспорта; референс — через неё или мимо.
     public let monitor = MonitorChain(sampleRate: AudioCore.sampleRate)
     private let useMaster: Bool

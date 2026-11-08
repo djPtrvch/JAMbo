@@ -254,7 +254,7 @@ struct MonitorSettingsRows: View {
                 MenuChoice(title: "0", current: s.refTrim == 0) { m.setMonitor { $0.refTrim = 0 } },
                 MenuChoice(title: "+0.5 dB", current: false) { m.setMonitor { $0.refTrim = Swift.min(12, $0.refTrim + 0.5) } },
             ]),
-            .note("Room impulses are built with the FABIAN head-related transfer function data base (F. Brinkmann et al., TU Berlin), licensed under CC BY 4.0."),
+            .note("The spaces of TRANSLATION (Studio, Home Hi-Fi, Car, Club, Small Speakers) are built with the FABIAN head-related transfer function data base (F. Brinkmann et al., TU Berlin), licensed under CC BY 4.0."),
         ])
     }
 }

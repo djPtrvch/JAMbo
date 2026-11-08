@@ -391,7 +391,7 @@ extension AppModel {
 
     /// BYPASS: выключение EQ канала.
     func toggleEqBypass() {
-        // Окно коррекции: BYPASS — вся монитор-цепочка (обе кривые, Translation, Crossfeed, Room, MONO, SUB),
+        // Окно коррекции: BYPASS — вся монитор-цепочка (обе кривые, Translation с пространством, MONO, SUB),
         // какую бы кривую ни правили.
         if phonesShown {
             var e: Eq = phonesEq
