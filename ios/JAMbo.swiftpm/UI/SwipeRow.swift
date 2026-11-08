@@ -82,7 +82,7 @@ struct SwipeRow: View {
         }
         .foregroundStyle(fg)
         .padding(.horizontal, 12)
-        .modifier(Tile(current ? theme.accent : theme.panel, radius: 8, alignment: .leading))
+        .tile(current ? theme.accent : theme.panel, radius: 8, alignment: .leading)
         .contentShape(Rectangle())
     }
 

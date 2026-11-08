@@ -424,7 +424,7 @@ struct EqField: View {
                 .foregroundStyle(enabled ? theme.text : theme.off)
         }
         .padding(.horizontal, 12)
-        .modifier(Tile(start != nil ? theme.panel2 : theme.panel, alignment: .leading))
+        .tile(start != nil ? theme.panel2 : theme.panel, alignment: .leading)
         .contentShape(Rectangle())
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { frame = $0 }
         .gesture(drag, including: enabled ? .all : .none)
@@ -478,7 +478,7 @@ struct EqTool: View {
             .lineLimit(1)
             .minimumScaleFactor(0.6)
             .foregroundStyle(fg)
-            .modifier(Tile(active ? theme.accent : theme.panel2))
+            .tile(active ? theme.accent : theme.panel2)
             .contentShape(Rectangle())
             .onTapGesture { if enabled { action() } }
     }
@@ -498,7 +498,7 @@ struct EqListenButton: View {
             .lineLimit(1)
             .minimumScaleFactor(0.6)
             .foregroundStyle(fg)
-            .modifier(Tile(active ? theme.accent : theme.panel2))
+            .tile(active ? theme.accent : theme.panel2)
             .contentShape(Rectangle())
             .onTapGesture {
                 guard enabled else { return }
@@ -533,7 +533,7 @@ struct EqBandMenu: View {
             content
                 .padding(6)
                 .frame(width: w)
-                .modifier(MenuBox())
+                .menuBox()
                 .offset(x: x, y: y)
         }
     }
@@ -599,7 +599,7 @@ struct EqMsMenu: View {
             }
             .padding(8)
             .frame(width: EqMsMenu.width)
-            .modifier(MenuBox())
+            .menuBox()
             .offset(x: anchor.minX, y: anchor.maxY + 4)
         }
     }

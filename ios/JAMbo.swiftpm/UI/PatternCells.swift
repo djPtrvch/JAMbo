@@ -32,7 +32,7 @@ struct ClipCellView: View {
             // Клип тянут на пустую ячейку — загорается «+» (встанет новый клип).
             if target && !filled { DropPlus() }
         }
-        .modifier(Tile(denied ? theme.rec.opacity(0.35) : bg, radius: 6))
+        .tile(denied ? theme.rec.opacity(0.35) : bg, radius: 6)
         .overlay(RoundedRectangle(cornerRadius: 6).stroke(outline, lineWidth: 1))
         .clipShape(RoundedRectangle(cornerRadius: 6))
         .opacity(lifted ? 0.35 : 1)
@@ -158,7 +158,7 @@ struct SceneCellView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             if playing { ProgressBar(fraction: pass.frac) }
         }
-        .modifier(Framed(filled ? theme.panel2 : theme.panel, line: selected ? theme.text : Color.clear, radius: 6))
+        .framed(filled ? theme.panel2 : theme.panel, line: selected ? theme.text : Color.clear, radius: 6)
         .clipShape(RoundedRectangle(cornerRadius: 6))
         .modifier(Blink(on: model.playing && model.live.sceneQueued == row))
     }

@@ -47,7 +47,7 @@ struct MasterButton: View {
             .lineLimit(2)
             .minimumScaleFactor(0.7)
             .foregroundStyle(on ? (module == MasterScope.sat ? theme.bg : theme.onAccent) : theme.text)
-            .modifier(Tile(on ? colors[module] : theme.panel2))
+            .tile(on ? colors[module] : theme.panel2)
             .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(bypass ? Color.clear : colors[module], lineWidth: 1))
             .contentShape(Rectangle())
             .onTapGesture {

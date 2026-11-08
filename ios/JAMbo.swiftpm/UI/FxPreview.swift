@@ -32,7 +32,7 @@ struct FxPreview: View {
             .frame(maxHeight: .infinity)
         }
         .padding(8)
-        .modifier(Tile(theme.panel))
+        .tile(theme.panel)
         .allowsHitTesting(false)
     }
 

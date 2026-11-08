@@ -116,7 +116,7 @@ struct TranslationMenu: View {
             }
             .padding(8)
             .frame(width: TranslationMenu.width)
-            .modifier(MenuBox())
+            .menuBox()
             .offset(x: anchor.minX, y: anchor.maxY + 4)
         }
     }

@@ -374,7 +374,7 @@ struct Placeholder: View {
             .font(.system(size: 12, weight: .semibold))
             .tracking(1)
             .foregroundStyle(theme.off)
-            .modifier(Tile(theme.panel))
+            .tile(theme.panel)
     }
 }
 
@@ -411,7 +411,7 @@ struct MainMenu: View {
         content
             .padding(12)
             .frame(width: MainMenu.width, height: height, alignment: .topLeading)
-            .modifier(MenuBox(shadow: false))
+            .menuBox(shadow: false)
             .onAppear { reopen() }
     }
 

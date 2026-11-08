@@ -100,7 +100,7 @@ struct ArrRefMenu: View {
             MenuChoice(title: "DELETE", red: true, current: false) { m.arrMenu = nil; m.arrDeleteRef() },
         ])
         .frame(width: ArrRefMenu.width)
-        .modifier(MenuPanel())
+        .menuPanel()
     }
 }
 
@@ -129,7 +129,7 @@ struct ArrBlockMenu: View {
             },
         ])
         .frame(width: ArrBlockMenu.width)
-        .modifier(MenuPanel())
+        .menuPanel()
     }
 }
 
@@ -167,7 +167,7 @@ struct ArrLaneMenu: View {
             MenuChoiceColumn(items: items)
         }
         .frame(width: ArrLaneMenu.width)
-        .modifier(MenuPanel())
+        .menuPanel()
     }
 }
 
@@ -192,7 +192,7 @@ struct ArrTrackMenu: View {
             ArrPaletteGrid(current: cur, none: true) { c in m.arrSetTrackColor(t, c) }
         }
         .frame(width: ArrTrackMenu.width)
-        .modifier(MenuPanel())
+        .menuPanel()
     }
 }
 
@@ -248,7 +248,7 @@ struct ArrInsertMenu: View {
             }
         }
         .frame(width: ArrLaneMenu.width)
-        .modifier(MenuPanel())
+        .menuPanel()
     }
 }
 
@@ -280,7 +280,7 @@ struct ArrMarkerWindow: View {
             MenuItem(title: "OK") { done() }
         }
         .frame(width: ArrMarkerWindow.width)
-        .modifier(MenuPanel())
+        .menuPanel()
         .onAppear { load() }
         .onDisappear { if !deleted { model.arrRenameMarker(index, name) } }
     }
@@ -326,7 +326,7 @@ struct ArrDropMenu: View {
             MenuChoice(title: "TO END", current: false) { model.arrDrop(.end) },
         ])
         .frame(width: ArrDropMenu.width)
-        .modifier(MenuPanel())
+        .menuPanel()
     }
 }
 
@@ -346,7 +346,7 @@ struct ArrGridMenu: View {
             ToggleRow(title: "SNAP TO GRID", isOn: a.snap) { v in if v != a.snap { model.toggleArrSnap() } }
         }
         .frame(width: ArrGridMenu.width)
-        .modifier(MenuPanel())
+        .menuPanel()
     }
 }
 
@@ -380,7 +380,7 @@ struct ArrRulerMenu: View {
         }
         return MenuChoiceColumn(items: items)
         .frame(width: ArrRulerMenu.width)
-        .modifier(MenuPanel())
+        .menuPanel()
     }
 }
 

@@ -177,7 +177,7 @@ struct RollMenu: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .modifier(MenuPanel())
+        .menuPanel()
     }
 }
 
@@ -190,7 +190,7 @@ struct RollButton: View {
         return Image(systemName: "pianokeys")
             .font(.system(size: 18, weight: .semibold))
             .foregroundStyle(on ? theme.bg : theme.text)
-            .modifier(Tile(on ? theme.text : theme.panel2))
+            .tile(on ? theme.text : theme.panel2)
             .contentShape(Rectangle())
             .onTapGesture { model.toggleRoll() }
     }

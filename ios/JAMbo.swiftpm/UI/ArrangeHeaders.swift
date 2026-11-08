@@ -182,7 +182,7 @@ struct ArrToggle: View {
             .font(.system(size: max(7, side / 2), weight: .bold))
             .foregroundStyle(on ? (title == "M" ? Color.white : theme.onAccent) : color)
             .frame(width: side + 2, height: side)
-            .modifier(Framed(on ? color : Color.clear, line: color, radius: 4))
+            .framed(on ? color : Color.clear, line: color, radius: 4)
             .contentShape(Rectangle())
             .onTapGesture { action() }
     }

@@ -17,7 +17,7 @@ struct EqPresetsMenu: View {
         return ZStack(alignment: .topLeading) {
             Color.black.opacity(0.001).ignoresSafeArea().onTapGesture { model.eqPresetMenu = nil }
             content
-                .modifier(MenuPanel())
+                .menuPanel()
                 .frame(width: EqPresetsMenu.width)
                 .offset(x: x, y: state.anchor.maxY + 6)
         }

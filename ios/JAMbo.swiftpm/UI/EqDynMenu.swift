@@ -25,7 +25,7 @@ struct EqDynMenu: View {
             }
             .padding(8)
             .frame(width: EqDynMenu.width)
-            .modifier(MenuBox())
+            .menuBox()
             .offset(x: anchor.minX + dx, y: anchor.maxY + 4 + dy)
         }
     }

@@ -91,7 +91,7 @@ struct MixCell: View {
             .font(.system(size: 11, weight: .bold))
             .foregroundStyle(on ? theme.onAccent : color)
             .frame(width: r.width, height: r.height)
-            .modifier(Framed(on ? color : Color.clear, line: color, radius: 5))
+            .framed(on ? color : Color.clear, line: color, radius: 5)
             .offset(x: r.minX, y: r.minY)
     }
 
@@ -99,7 +99,7 @@ struct MixCell: View {
     private func dot(_ r: CGRect, on: Bool) -> some View {
         Circle().fill(on ? Color.white : theme.rec).frame(width: 8, height: 8)
             .frame(width: r.width, height: r.height)
-            .modifier(Framed(on ? theme.rec : Color.clear, line: theme.rec, radius: 5))
+            .framed(on ? theme.rec : Color.clear, line: theme.rec, radius: 5)
             .offset(x: r.minX, y: r.minY)
     }
 }
@@ -129,7 +129,7 @@ struct TrackMenus: View {
     private func menu(_ m: TrackMenuState) -> some View {
         if m.add {
             let add: [MenuChoice] = [MenuChoice(title: "ADD TRACK", current: false) { run { model.addTrack() } }]
-            return MenuChoiceColumn(items: add).frame(width: 180).modifier(MenuPanel())
+            return MenuChoiceColumn(items: add).frame(width: 180).menuPanel()
         }
         let items: [MenuChoice] = [
             MenuChoice(title: "COPY", current: false) { run { model.copyTrack(m.slot) } },
@@ -147,7 +147,7 @@ struct TrackMenus: View {
         ]
         return MenuChoiceColumn(items: items)
         .frame(width: 180)
-        .modifier(MenuPanel())
+        .menuPanel()
     }
 
     private func menuOffset(_ slot: Int) -> CGSize {
@@ -172,7 +172,7 @@ struct TrackMenus: View {
             .tint(theme.text)
             .padding(.horizontal, 6)
             .frame(width: cell.width - 20, height: 26)
-            .modifier(Framed(theme.bg, line: theme.text, radius: 6))
+            .framed(theme.bg, line: theme.text, radius: 6)
             .position(x: c.x, y: c.y + cell.height / 2 - 10)
             .onChange(of: name) { _, v in if v.count > 12 { name = String(v.prefix(12)) } }
             .onAppear { focused = true }

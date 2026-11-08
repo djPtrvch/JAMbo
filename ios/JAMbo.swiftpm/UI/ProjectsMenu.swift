@@ -277,6 +277,6 @@ struct OpenProjectPanel: View {
                 .font(.system(size: 12)).foregroundStyle(theme.dim)
         }
         .frame(width: 300)
-        .modifier(MenuPanel())
+        .menuPanel()
     }
 }

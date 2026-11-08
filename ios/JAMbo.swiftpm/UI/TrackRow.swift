@@ -37,7 +37,7 @@ struct ChannelCell: View {
             .overlay(alignment: .topLeading) {
                 if channel == .master { StemRecDot(model: model, channel: StemRing.master) }
             }
-            .modifier(Framed(theme.trackBg, line: selected ? theme.accent : Color.clear))
+            .framed(theme.trackBg, line: selected ? theme.accent : Color.clear)
             .contentShape(Rectangle())
             .onTapGesture { model.select(channel: channel) }
     }
@@ -128,7 +128,7 @@ struct TrackFace: View, Equatable {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             stateLetter
         }
-        .modifier(Framed(background, line: border))
+        .framed(background, line: border)
     }
 
     private var background: Color {

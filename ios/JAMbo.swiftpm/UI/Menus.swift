@@ -21,7 +21,7 @@ struct DragField: View {
             Text(value).font(.system(size: 15)).lineLimit(1).foregroundStyle(theme.text)
         }
         .padding(.horizontal, 10)
-        .modifier(Tile(start != nil ? theme.panel2 : theme.panel, alignment: .leading))
+        .tile(start != nil ? theme.panel2 : theme.panel, alignment: .leading)
         .contentShape(Rectangle())
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { frame = $0 }
         .gesture(drag)
@@ -67,7 +67,7 @@ struct ChoiceMenu: View {
             grid
                 .padding(6)
                 .frame(width: width)
-                .modifier(MenuBox())
+                .menuBox()
                 .offset(x: x, y: y)
         }
     }
@@ -116,7 +116,7 @@ struct PianoMenu: View {
                 .frame(height: h)
                 .padding(10)
                 .frame(width: width)
-                .modifier(MenuBox())
+                .menuBox()
                 .padding(.leading, x)
                 .padding(.bottom, bottom)
         }

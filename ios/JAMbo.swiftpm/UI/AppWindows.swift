@@ -20,7 +20,7 @@ struct AppWindowView: View {
             content
         }
         .padding(12)
-        .modifier(Tile(theme.bg, radius: 10, alignment: .topLeading))
+        .tile(theme.bg, radius: 10, alignment: .topLeading)
         .overlay(RoundedRectangle(cornerRadius: 10).stroke(theme.line, lineWidth: 1))
     }
 

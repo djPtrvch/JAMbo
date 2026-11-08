@@ -8,7 +8,7 @@ struct GridArrRecButton: View {
     var body: some View {
         let on: Bool = model.arrRecArm
         return GridArrRecIcon(blocks: on ? Color.white : theme.text, dot: on ? Color.white : theme.rec)
-            .modifier(Tile(on ? theme.rec : theme.panel2, radius: 6))
+            .tile(on ? theme.rec : theme.panel2, radius: 6)
             .contentShape(Rectangle())
             .onTapGesture { model.toggleArrRec() }
     }

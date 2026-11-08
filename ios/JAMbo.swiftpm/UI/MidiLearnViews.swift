@@ -22,7 +22,7 @@ struct LearnBar: View {
         .padding(.leading, 14)
         .padding(6)
         .frame(height: 48)
-        .modifier(Framed(theme.panel, line: theme.accent, width: 2))
+        .framed(theme.panel, line: theme.accent, width: 2)
     }
 
     private var unmapEnabled: Bool {

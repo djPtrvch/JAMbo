@@ -596,7 +596,7 @@ struct GridSideButtons: View {
         return Image(systemName: "repeat")
             .font(.system(size: 18, weight: .semibold))
             .foregroundStyle(on ? theme.onAccent : theme.text)
-            .modifier(Tile(on ? theme.accent : theme.panel2, radius: 6))
+            .tile(on ? theme.accent : theme.panel2, radius: 6)
             .contentShape(Rectangle())
             .onTapGesture { model.toggleRowLoop() }
     }
@@ -606,14 +606,14 @@ struct GridSideButtons: View {
     private var stepsButton: some View {
         let on: Bool = !model.project.gridHideSteps
         return ArrStepsIcon(color: on ? theme.onAccent : theme.text)
-            .modifier(Tile(on ? theme.accent : theme.panel2, radius: 6))
+            .tile(on ? theme.accent : theme.panel2, radius: 6)
             .contentShape(Rectangle())
             .onTapGesture { model.toggleGridSteps() }
     }
 
     private func arrow(_ title: String, enabled: Bool, _ action: @escaping () -> Void) -> some View {
         Text(title).font(.system(size: 16)).foregroundStyle(theme.text)
-            .modifier(Tile(theme.panel2, radius: 6))
+            .tile(theme.panel2, radius: 6)
             .opacity(enabled ? 1 : 0.35)
             .contentShape(Rectangle())
             .onTapGesture { action() }

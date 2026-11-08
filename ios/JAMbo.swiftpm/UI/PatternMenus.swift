@@ -82,7 +82,27 @@ struct MenuPanel: ViewModifier {
     func body(content: Content) -> some View {
         content
             .padding(8)
-            .modifier(MenuBox())
+            .menuBox()
+    }
+}
+
+/// Частые модификаторы — функциями, возвращающими AnyView (8.11, объём сборки: тип ModifiedContent<…, Tile> и его
+/// функции на каждом месте применения не создаются; обобщённая функция в отладочной сборке — одна на все места).
+extension View {
+    func tile(_ fill: Color, radius: CGFloat = Layout.radius, alignment: Alignment = .center) -> AnyView {
+        return AnyView(modifier(Tile(fill, radius: radius, alignment: alignment)))
+    }
+
+    func framed(_ fill: Color, line: Color, radius: CGFloat = Layout.radius, width: CGFloat = 1) -> AnyView {
+        return AnyView(modifier(Framed(fill, line: line, radius: radius, width: width)))
+    }
+
+    func menuBox(radius: CGFloat = Layout.radius, shadow: Bool = true) -> AnyView {
+        return AnyView(modifier(MenuBox(radius: radius, shadow: shadow)))
+    }
+
+    func menuPanel() -> AnyView {
+        return AnyView(modifier(MenuPanel()))
     }
 }
 
@@ -255,7 +275,7 @@ struct CellMenu: View {
             MenuChoiceColumn(items: items)
         }
         .frame(width: 180)
-        .modifier(MenuPanel())
+        .menuPanel()
     }
 }
 
@@ -290,7 +310,7 @@ struct RowMenu: View {
             MenuItem(title: "OK") { done() }
         }
         .frame(maxWidth: .infinity)
-        .modifier(MenuPanel())
+        .menuPanel()
         .onAppear {
             if loaded { return }
             loaded = true
@@ -368,7 +388,7 @@ struct GridMenu: View {
             }
             .padding(.trailing, 6)
         }
-        .modifier(MenuPanel())
+        .menuPanel()
     }
 
     private func title(_ s: String) -> some View {

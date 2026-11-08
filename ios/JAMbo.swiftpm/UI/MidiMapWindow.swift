@@ -19,7 +19,7 @@ struct MidiMapWindow: View {
             MenuScroll { MidiMapBody(model: model).padding(12) }
         }
         .frame(width: MidiMapWindow.width, height: max(160, min(520, screen.height - p.y - 16)))
-        .modifier(Framed(theme.panel, line: theme.line))
+        .framed(theme.panel, line: theme.line)
         .shadow(color: Color.black.opacity(0.35), radius: 12, y: 4)
         .offset(x: p.x, y: p.y)
         .modifier(MidiPresetAlert(model: model))

@@ -24,7 +24,7 @@ struct SampleRecButton: View {
             }
             .font(.system(size: 13))
             .foregroundStyle(fg)
-            .modifier(Tile(on ? theme.rec : theme.panel2, radius: 8))
+            .tile(on ? theme.rec : theme.panel2, radius: 8)
             .overlay(RoundedRectangle(cornerRadius: 8).stroke(enabled && !on ? theme.rec : .clear, lineWidth: 1))
         }
         .buttonStyle(.plain)
@@ -53,7 +53,7 @@ struct RecSourceMenu: View {
             }
             .padding(8)
             .frame(width: RecSourceMenu.width)
-            .modifier(MenuBox())
+            .menuBox()
             .offset(x: left, y: top)
         }
     }

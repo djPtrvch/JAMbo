@@ -24,7 +24,7 @@ struct SoundMenu: View {
         }
         .padding(6)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .modifier(MenuBox())
+        .menuBox()
     }
 
     private var engines: some View {

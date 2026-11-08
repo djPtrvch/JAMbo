@@ -200,7 +200,7 @@ struct EqCompareMenu: View {
         }
         .padding(8)
         .frame(width: width, height: fits ? nil : height, alignment: .top)
-        .modifier(MenuBox(shadow: false))
+        .menuBox(shadow: false)
     }
 
     /// Пункт i: −1 — OFF, 0… — дорожки; за последней дорожкой — пусто.
@@ -220,7 +220,7 @@ struct EqCompareMenu: View {
         return Text(title)
             .font(.system(size: 13, weight: .bold)).lineLimit(1).minimumScaleFactor(0.7)
             .foregroundStyle(fg)
-            .modifier(Tile(cur ? theme.accent : theme.panel, radius: 8))
+            .tile(cur ? theme.accent : theme.panel, radius: 8)
             .contentShape(Rectangle())
             .onTapGesture { if enabled { model.setEqCompare(t) } }
     }

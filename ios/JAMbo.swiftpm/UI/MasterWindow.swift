@@ -226,7 +226,7 @@ struct MasterField: View {
                 .foregroundStyle(gray ? theme.off : theme.text)
         }
         .padding(.horizontal, 12)
-        .modifier(Tile(start != nil ? theme.panel2 : theme.panel, alignment: .leading))
+        .tile(start != nil ? theme.panel2 : theme.panel, alignment: .leading)
         .contentShape(Rectangle())
         .gesture(drag)
         .modifier(GestureCancelGuard {

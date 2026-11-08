@@ -371,7 +371,7 @@ struct PageMenu: View {
         }
         .padding(8)
         .frame(width: PageMenu.width)
-        .modifier(MenuBox(radius: PageMenu.radius))
+        .menuBox(radius: PageMenu.radius)
     }
 
     /// SPEED открытого клипа: 2, 1, 1/2 / 1/4, 1/8, 1/16 (выбранная — жёлтая); меню не закрывает.

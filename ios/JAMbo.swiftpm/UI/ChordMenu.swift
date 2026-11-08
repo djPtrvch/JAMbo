@@ -18,7 +18,7 @@ struct ChordMenu: View {
             content(m, arp)
                 .padding(ChordMenuMetrics.pad)
                 .frame(width: width, height: m.height, alignment: .topLeading)
-                .modifier(MenuBox())
+                .menuBox()
                 .padding(.leading, m.x)
                 .padding(.bottom, m.bottom)
         }

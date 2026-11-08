@@ -196,7 +196,7 @@ struct HoldToolButton: View {
             .exclusively(before: TapGesture().onEnded { tap() })
         return Text(title).font(.system(size: 13)).strikethrough(strike).lineLimit(1).minimumScaleFactor(0.7)
             .foregroundStyle(fg)
-            .modifier(Tile(lit ? theme.accent : theme.panel2, radius: 8))
+            .tile(lit ? theme.accent : theme.panel2, radius: 8)
             .contentShape(Rectangle())
             .gesture(gesture)
             .allowsHitTesting(enabled)
@@ -219,7 +219,7 @@ struct PlayToolButton: View {
                     PlayTriangle().fill(fg).frame(width: 9, height: 10)
                 }
             }
-            .modifier(Tile(theme.panel2, radius: 8))
+            .tile(theme.panel2, radius: 8)
         }
         .buttonStyle(.plain)
         .disabled(!enabled)

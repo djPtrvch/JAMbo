@@ -81,7 +81,7 @@ struct ArrAutoList: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .frame(height: ArrAutoList.rowH)
             // Цветом поля кривой (решение пользователя).
-            .modifier(Framed(theme.panel, line: selected ? theme.accent : Color.clear, radius: 6))
+            .framed(theme.panel, line: selected ? theme.accent : Color.clear, radius: 6)
             .contentShape(Rectangle())
             .onTapGesture { tapped(id) }
     }
@@ -116,7 +116,7 @@ struct ArrAutoAddMenu: View {
             }
         }
         .frame(width: ArrAutoAddMenu.width)
-        .modifier(MenuPanel())
+        .menuPanel()
     }
 }
 
@@ -139,7 +139,7 @@ struct ArrAutoLaneMenu: View {
             }
         }
         .frame(width: 180)
-        .modifier(MenuPanel())
+        .menuPanel()
     }
 }
 
