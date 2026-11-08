@@ -59,6 +59,26 @@ final class SyncTests: XCTestCase {
         XCTAssertEqual(old.clockOuts, [])
     }
 
+    /// Ноты с входа клока: при приёме не играют (выбранный вход или вход последнего тика), с NOTES FROM CLOCK INPUT —
+    /// играют; без приёма — всегда.
+    func testClockNotes() {
+        var s = SyncSettings()
+        XCTAssertFalse(s.blocksNotes(source: 5, clockSource: 5), "клок выключен")
+        s.clock = true
+        s.receive = true
+        XCTAssertTrue(s.blocksNotes(source: 5, clockSource: 5))
+        XCTAssertFalse(s.blocksNotes(source: 6, clockSource: 5))
+        XCTAssertFalse(s.blocksNotes(source: 5, clockSource: 0), "тиков ещё не было")
+        s.clockIn = 7
+        XCTAssertTrue(s.blocksNotes(source: 7, clockSource: 0))
+        XCTAssertFalse(s.blocksNotes(source: 5, clockSource: 5))
+        s.clockNotes = true
+        XCTAssertFalse(s.blocksNotes(source: 7, clockSource: 7))
+        s.clockNotes = false
+        s.receive = false
+        XCTAssertFalse(s.blocksNotes(source: 7, clockSource: 7))
+    }
+
     /// Полоса фазы: 4 отрезка на такт × квант; в начале фразы горит один, стоп — ни одного.
     func testPhase() {
         var s = SyncSettings()

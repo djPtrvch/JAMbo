@@ -64,9 +64,10 @@ struct SyncClockSection: View {
             rows.append(.view(AnyView(MidiDeviceList(none: "ALL INPUTS", devices: m.midi.inputs, current: s.clockIn) { id in
                 m.setClockIn(id)
             })))
+            rows.append(.toggle("NOTES FROM CLOCK INPUT", s.clockNotes) { on in m.setSync { $0.clockNotes = on } })
             rows.append(.note(s.send
-                ? "The project follows the clock from this input and passes it on to the clock outputs (not back to the device it comes from). Without clock for 0.5 s the own tempo returns."
-                : "The project tempo follows the clock from this input; without clock for 0.5 s the own tempo returns."))
+                ? "The project follows the clock from this input and passes it on to the clock outputs (not back to the device it comes from). Without clock for 0.5 s the own tempo returns. Notes from the clock input play the tracks only with NOTES FROM CLOCK INPUT on."
+                : "The project tempo follows the clock from this input; without clock for 0.5 s the own tempo returns. Notes from the clock input play the tracks only with NOTES FROM CLOCK INPUT on."))
         }
         rows.append(.toggle("SYNC START/STOP", s.midiStartStop) { on in m.setSync { $0.midiStartStop = on } })
         rows.append(.view(AnyView(SyncOffsetRow(title: "MIDI OFFSET", value: s.midiOffset) { d in
