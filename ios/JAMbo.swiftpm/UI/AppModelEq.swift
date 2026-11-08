@@ -19,7 +19,11 @@ extension AppModel {
     /// Канал EQ: дорожка или EqSpec.masterChannel.
     var eqChannel: Int { return channel == .track ? selectedTrack : EqSpec.masterChannel }
 
-    var eqTarget: Eq { return phonesShown ? phonesEq : project.eq(eqChannel) }
+    /// Правится в окне коррекции: PHONE CURVE (профиль) или CORRECT CURVE.
+    var eqTarget: Eq {
+        if phonesShown { return monitor.editCorrect ? correctEq : phonesEq }
+        return project.eq(eqChannel)
+    }
 
     /// Имя канала над MIX: дорожка, MASTER или CORRECT (коррекция наушников).
     var eqTargetName: String {
@@ -35,6 +39,12 @@ extension AppModel {
 
     /// Правка показанного EQ: канала проекта (UNDO) или коррекции наушников (своя настройка, без UNDO).
     func eqEdit(_ f: (inout Eq) -> Void) {
+        if phonesShown && monitor.editCorrect {
+            var e: Eq = correctEq
+            f(&e)
+            setCorrectEq(e)
+            return
+        }
         if phonesShown {
             var e: Eq = phonesEq
             f(&e)
@@ -118,7 +128,15 @@ extension AppModel {
     /// Двойной тап по пустому месту: новая bell-полоса, она же выбрана.
     func addEqBand(freq: Double, gain: Double) {
         var k = -1
-        eqEdit { k = $0.addBand(freq: freq, gain: gain) }
+        // CORRECT CURVE — полос сколько угодно: мест нет — новое место.
+        let grow: Bool = phonesShown && monitor.editCorrect
+        eqEdit { e in
+            k = e.addBand(freq: freq, gain: gain)
+            if k < 0 && grow {
+                e.bands.append(nil)
+                k = e.addBand(freq: freq, gain: gain)
+            }
+        }
         if k >= 0 { eqBand = k }
     }
 
@@ -208,7 +226,8 @@ extension AppModel {
     }
 
     func saveEqPreset(name: String, over: Int? = nil) {
-        let e: Eq = eqTarget
+        // Пресеты окна коррекции — профили наушников (PHONE CURVE).
+        let e: Eq = phonesShown ? phonesEq : eqTarget
         editBook { $0.save(name: name, eq: e, over: over) }
     }
 
@@ -217,9 +236,15 @@ extension AppModel {
         let book: EqPresetBook = eqBook
         guard k >= 0 && k < book.list.count else { return }
         let p: EqPreset = book.list[k]
-        let n: Int = phonesShown ? 0 : project.tracks.count
-        eqEdit { $0.apply(p, tracks: n) }
-        if phonesShown { setPhonesName(p.name) }
+        if phonesShown {
+            var e: Eq = phonesEq
+            e.apply(p, tracks: 0)
+            setPhonesEq(e)
+            setPhonesName(p.name)
+            eqBand = -1
+            return
+        }
+        eqEdit { $0.apply(p, tracks: project.tracks.count) }
         eqBand = -1
     }
 

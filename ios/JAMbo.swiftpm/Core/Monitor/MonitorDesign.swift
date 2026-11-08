@@ -3,7 +3,7 @@ import Foundation
 // Headphone Monitor (ТЗ «Headphone Monitor», фаза 1): монитор-цепочка в конце выхода — только для прослушивания, в
 // экспорт, стемы и запись не попадает. Здесь — настройки, пресеты Translation (данные — Resources/TranslationPresets.json)
 // и расчёт параметров для колбэка (MonitorChain) в основном потоке.
-// Порядок по ТЗ: Mono → Translation EQ (и Sub-check) → Crossfeed → Headphone Correction → Trim → Level compensation →
+// Порядок по ТЗ: Mono → Translation EQ (и Sub-check) → Crossfeed → Headphone Correction (PHONE CURVE) → CORRECT CURVE → Level compensation →
 // Safety limiter. Биквады одинаковы в обоих каналах и линейны, Mono и Crossfeed — линейное смешение каналов, поэтому
 // в колбэке все биквады идут одним каскадом после Crossfeed (результат тот же).
 
@@ -15,12 +15,12 @@ public struct MonitorSettings {
     /// Crossfeed: угол колонок, градусы (10…60), и Amount, 0…1.
     public var angle: Double = MonitorSpec.angleDef
     public var amount: Double = MonitorSpec.amountDef
-    /// Имя пресета Translation (пусто — первый, Studio).
-    public var translation: String = ""
+    /// Имя пресета Translation (по умолчанию Studio).
+    public var translation: String = "Studio"
     public var mono: Bool = false
     public var sub: Bool = false
-    /// Вкладка окна коррекции: 0 — PHONES (CORRECTION, TRIM), 1 — ROOM (TRANSLATION, Crossfeed), 2 — CHECK (MONO, SUB, LEVEL).
-    public var tab: Int = 0
+    /// Правится CORRECT CURVE (иначе PHONE CURVE — профиль наушников).
+    public var editCorrect: Bool = false
     /// Референс через мастер-цепочку (по умолчанию нет — как прежде: мимо мастера) и через монитор-цепочку (да).
     public var refMaster: Bool = false
     public var refMonitor: Bool = true
@@ -41,10 +41,10 @@ public struct MonitorSettings {
         strength = num("strength", 1, 0, 1)
         angle = num("angle", MonitorSpec.angleDef, MonitorSpec.angleMin, MonitorSpec.angleMax)
         amount = num("amount", MonitorSpec.amountDef, 0, 1)
-        translation = g["translation"] as? String ?? ""
+        translation = g["translation"] as? String ?? "Studio"
         mono = flag("mono", false)
         sub = flag("sub", false)
-        tab = Int(num("tab", 0, 0, 2))
+        editCorrect = flag("editCorrect", false)
         refMaster = flag("refMaster", false)
         refMonitor = flag("refMonitor", true)
         refMatch = flag("refMatch", true)
@@ -54,7 +54,7 @@ public struct MonitorSettings {
     /// Словарь для UserDefaults.
     public var plist: [String: Any] {
         return ["strength": strength, "angle": angle, "amount": amount, "translation": translation, "mono": mono,
-                "sub": sub, "tab": tab, "refMaster": refMaster, "refMonitor": refMonitor, "refMatch": refMatch,
+                "sub": sub, "editCorrect": editCorrect, "refMaster": refMaster, "refMonitor": refMonitor, "refMatch": refMatch,
                 "refTrim": refTrim]
     }
 }
@@ -75,10 +75,6 @@ public enum MonitorSpec {
     /// Наибольшее усиление одного фильтра коррекции и предел Level compensation, dB.
     public static let filterMax: Double = 12
     public static let compMax: Double = 12
-    /// Trim: частоты полос, Q, предел, dB.
-    public static let trimHz: [Double] = [100, 400, 1500, 4000, 8000]
-    public static let trimQ: Double = 1
-    public static let trimMax: Double = 3
     /// Sub-check: ФНЧ 4-го порядка, Гц.
     public static let subHz: Double = 120
     /// Потолок лимитера, dBFS, и его отпускание, с.
@@ -88,11 +84,13 @@ public enum MonitorSpec {
     public static let fade: Double = 0.025
     public static let glide: Double = 0.025
 
-    /// Места биквадов: Translation, Sub-check, коррекция (полосы со срезами — по ступеням), Trim.
+    /// Места биквадов: Translation, Sub-check, PHONE CURVE и CORRECT CURVE (полосы со срезами — по ступеням).
     public static let transSlots = 8
     public static let subSlots = 2
     public static let corrSlots = 20
-    public static let sections = transSlots + subSlots + corrSlots + 5
+    /// CORRECT CURVE: полос сколько угодно, в звук — первые 32 ступени.
+    public static let userSlots = 32
+    public static let sections = transSlots + subSlots + corrSlots + userSlots
     /// Параметры для колбэка: коэффициенты (5 на биквад), затем усиление компенсации, g и задержка Crossfeed (отсчёты),
     /// ФНЧ Crossfeed (5), Mono (0/1), цепочка включена (0/1).
     public static let compAt = sections * 5
@@ -219,8 +217,9 @@ public enum MonitorDesign {
         out[0] = 1; out[1] = 0; out[2] = 0; out[3] = 0; out[4] = 0
     }
 
-    /// Параметры для колбэка (MonitorSpec.size значений): eq — профиль коррекции (nil — нет; Eq.on false — Bypass).
-    public static func make(eq: Eq?, settings m: MonitorSettings, trim: [Double], preset: TranslationPreset?,
+    /// Параметры для колбэка (MonitorSpec.size значений): eq — профиль наушников, PHONE CURVE (nil — нет; Eq.on false —
+    /// Bypass всей цепочки); correct — CORRECT CURVE (своя правка поверх профиля, без CORRECTION).
+    public static func make(eq: Eq?, settings m: MonitorSettings, correct: Eq?, preset: TranslationPreset?,
                             sampleRate sr: Double) -> [Double] {
         var out = [Double](repeating: 0, count: MonitorSpec.size)
         out.withUnsafeMutableBufferPointer { p in
@@ -237,12 +236,9 @@ public enum MonitorDesign {
             let c0: Int = MonitorSpec.transSlots + MonitorSpec.subSlots
             let corr: [MonitorBiquad] = correction(eq, strength: m.strength)
             for (k, b) in corr.prefix(MonitorSpec.corrSlots).enumerated() { coeffs(b, sr, base + (c0 + k) * 5) }
-            let t0: Int = c0 + MonitorSpec.corrSlots
-            for k in 0..<MonitorSpec.trimHz.count {
-                let g: Double = k < trim.count ? Swift.max(-MonitorSpec.trimMax, Swift.min(MonitorSpec.trimMax, trim[k])) : 0
-                let b = MonitorBiquad(type: EqSpec.bell, freq: MonitorSpec.trimHz[k], gain: g, q: MonitorSpec.trimQ)
-                coeffs(b, sr, base + (t0 + k) * 5)
-            }
+            let u0: Int = c0 + MonitorSpec.corrSlots
+            let user: [MonitorBiquad] = MonitorDesign.correction(correct, strength: 1)
+            for (k, b) in user.prefix(MonitorSpec.userSlots).enumerated() { coeffs(b, sr, base + (u0 + k) * 5) }
             let g: Double = m.amount * MonitorSpec.gainMax
             base[MonitorSpec.crossGAt] = g
             base[MonitorSpec.crossDelayAt] = MonitorSpec.itd(m.angle) * sr

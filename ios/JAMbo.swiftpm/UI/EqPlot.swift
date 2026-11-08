@@ -90,11 +90,12 @@ struct EqPlot: View {
                     Canvas { ctx, _ in
                         drawGrid(ctx, g)
                         if let b = eq.band(model.eqListenBand) { drawListen(ctx, b, g) }
-                        drawCurves(ctx, curves, on: eq.on)
+                        // Окно коррекции: кривые рисует MonitorCurves (PHONE CURVE, CORRECT CURVE, RESULT).
+                        if !model.phonesShown { drawCurves(ctx, curves, on: eq.on) }
                         drawPoints(ctx, eq, g, offs)
                     }
                 }
-                // Окно коррекции наушников: кривые TRIM и RESULT, миниатюра колонок (Headphone Monitor).
+                // Окно коррекции наушников: кривые и подписи, миниатюра колонок (Headphone Monitor).
                 if model.phonesShown { MonitorCurves(model: model, g: g) }
                 tips(eq, g)
             }

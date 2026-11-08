@@ -245,10 +245,10 @@ final class AppModel {
     /// IMPORT профилей коррекции (тот же fileImporter, текстовые файлы); итог импорта — окно с OK.
     @ObservationIgnored var _importingPhones: Bool = false
     @ObservationIgnored var _phonesNote: String? = nil
-    /// Headphone Monitor (AppModelMonitor): настройки цепочки, Trim по профилям, пресеты Translation, громкость файла
+    /// Headphone Monitor (AppModelMonitor): настройки цепочки, CORRECT CURVE по профилям, пресеты Translation, громкость файла
     /// референса (LUFS) и подгонка к миксу, dB.
     var monitor: MonitorSettings = AppModel.loadMonitor()
-    var phonesTrims: [String: [Double]] = AppModel.loadTrims()
+    var correctCurves: [String: Data] = AppModel.loadCorrectCurves()
     @ObservationIgnored let translations: [TranslationPreset] = AppModel.loadTranslations()
     @ObservationIgnored var refLufs: (key: String, lufs: Double)? = nil
     @ObservationIgnored var refLufsPending: String = ""

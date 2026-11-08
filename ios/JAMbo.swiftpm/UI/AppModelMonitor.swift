@@ -1,11 +1,11 @@
 import Foundation
 
-/// Headphone Monitor (ТЗ, фаза 1): настройки монитор-цепочки (UserDefaults «monitor»), Trim профиля коррекции
-/// («phonesTrims», по имени профиля), пресеты Translation (Resources/TranslationPresets.json), маршруты референса и
+/// Headphone Monitor (ТЗ, фаза 1): настройки монитор-цепочки (UserDefaults «monitor»), CORRECT CURVE профиля
+/// («correctCurves», по имени профиля), пресеты Translation (Resources/TranslationPresets.json), маршруты референса и
 /// подгонка его громкости к миксу. Bypass — BYPASS окна коррекции (phonesEq.on).
 extension AppModel {
     static let monitorKey = "monitor"
-    static let phonesTrimsKey = "phonesTrims"
+    static let correctCurvesKey = "correctCurves"
 
     static func loadMonitor() -> MonitorSettings {
         return MonitorSettings(plist: UserDefaults.standard.dictionary(forKey: AppModel.monitorKey))
@@ -20,23 +20,33 @@ extension AppModel {
         return list.isEmpty ? [TranslationPreset(name: "Off", mono: nil, filters: [])] : list
     }
 
-    static func loadTrims() -> [String: [Double]] {
-        return UserDefaults.standard.dictionary(forKey: AppModel.phonesTrimsKey) as? [String: [Double]] ?? [:]
+    /// CORRECT CURVE каждого профиля: имя профиля → полосы (JSON [EqBand]; Codable Eq обрезает до 10 полос).
+    static func loadCorrectCurves() -> [String: Data] {
+        return UserDefaults.standard.dictionary(forKey: AppModel.correctCurvesKey) as? [String: Data] ?? [:]
     }
 
-    /// Trim текущего профиля (5 полос, dB).
-    var phonesTrim: [Double] {
-        let t: [Double] = phonesTrims[phonesName] ?? []
-        return (0..<MonitorSpec.trimHz.count).map { $0 < t.count ? t[$0] : 0 }
+    /// CORRECT CURVE текущего профиля (полос сколько угодно).
+    var correctEq: Eq {
+        var e = Eq()
+        guard let d = correctCurves[phonesName], let b = try? JSONDecoder().decode([EqBand?].self, from: d) else { return e }
+        e.bands = b + [EqBand?](repeating: nil, count: Swift.max(0, EqSpec.bands - b.count))
+        return e
     }
 
-    func setPhonesTrim(_ k: Int, _ db: Double) {
-        guard k >= 0 && k < MonitorSpec.trimHz.count else { return }
-        var t: [Double] = phonesTrim
-        t[k] = (Swift.max(-MonitorSpec.trimMax, Swift.min(MonitorSpec.trimMax, db)) * 10).rounded() / 10
-        phonesTrims[phonesName] = t
-        UserDefaults.standard.set(phonesTrims, forKey: AppModel.phonesTrimsKey)
+    func setCorrectEq(_ e: Eq) {
+        var b: [EqBand?] = e.bands
+        while let last = b.last, last == nil, b.count > EqSpec.bands { b.removeLast() }
+        correctCurves[phonesName] = try? JSONEncoder().encode(b)
+        UserDefaults.standard.set(correctCurves, forKey: AppModel.correctCurvesKey)
         publishMonitor()
+    }
+
+    /// PHONE CURVE / CORRECT CURVE: какую кривую править (выбор точки сбрасывается).
+    func setEditCorrect(_ on: Bool) {
+        if monitor.editCorrect == on { return }
+        eqBand = -1
+        stopEqListen()
+        setMonitor { $0.editCorrect = on }
     }
 
     /// Пресет Translation: выбранный, иначе первый (Studio — по умолчанию).
@@ -47,7 +57,7 @@ extension AppModel {
 
     /// Параметры цепочки по текущим настройкам.
     func monitorDesign() -> [Double] {
-        return MonitorDesign.make(eq: phonesEq, settings: monitor, trim: phonesTrim, preset: translationPreset,
+        return MonitorDesign.make(eq: phonesEq, settings: monitor, correct: correctEq, preset: translationPreset,
                                   sampleRate: AudioCore.sampleRate)
     }
 

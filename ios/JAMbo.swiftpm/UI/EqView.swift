@@ -271,10 +271,10 @@ struct EqBar: View {
         case 1: return AnyView(freqField(b))
         case 2: return AnyView(gainField(b))
         case 3: return AnyView(qField(b))
-        // У коррекции наушников вместо M/S, DYN и LISTEN — вкладки Headphone Monitor (строка под EQ).
-        case 4: return phones ? MonitorBar.tabButton(model, 0) : AnyView(msField(b))
-        case 5: return phones ? MonitorBar.tabButton(model, 1) : AnyView(dynField(b))
-        case 6: return phones ? MonitorBar.tabButton(model, 2) : AnyView(EqListenButton(model: model, enabled: true))
+        // У коррекции наушников вместо M/S, DYN и LISTEN — выбор кривой (PHONE CURVE / CORRECT CURVE) и LEVEL.
+        case 4: return phones ? MonitorBar.curveButton(model, false) : AnyView(msField(b))
+        case 5: return phones ? MonitorBar.curveButton(model, true) : AnyView(dynField(b))
+        case 6: return phones ? AnyView(MonitorLevel(model: model)) : AnyView(EqListenButton(model: model, enabled: true))
         case 7: return AnyView(presetsButton)
         // У коррекции наушников BYPASS — вся монитор-цепочка (Headphone Monitor).
         default:
