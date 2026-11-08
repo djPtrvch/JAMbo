@@ -463,6 +463,17 @@ def write_wav24(path, data):
         f.write(b"data" + struct.pack("<I", len(raw)) + bytes(raw))
 
 
+def write_head(cfg, sets, ctf, dirs, info, gain_db, file, res):
+    """HEAD: прямая часть по углам поворота головы — набор i в кадрах [i·DIRECT_N, (i+1)·DIRECT_N), своя громкость
+    (у ближнего уха при повороте пик выше, чем у импульса комнаты). Возвращает файл, громкость, срезанную долю."""
+    hs, cut = head_sets(cfg, sets, ctf, dirs, info)
+    hpeak = float(np.max(np.abs(hs)))
+    hscale = 0.99 / max(hpeak, 0.99)
+    head_file = file.replace(".wav", "Head.wav")
+    write_wav24(os.path.join(res, head_file), np.concatenate(list(hs * hscale), axis=-1))
+    return head_file, round(gain_db - 20 * np.log10(hscale), 3), cut
+
+
 def main():
     if len(sys.argv) < 2:
         print(__doc__)
@@ -478,13 +489,13 @@ def main():
     for k, cfg in enumerate(ROOMS):
         h, gain_db, length, info = make_room(cfg, ir, ctf, dirs, SEED + cfg.get("seed", k))
         write_wav24(os.path.join(res, cfg["file"]), h)
-        # HEAD: прямая часть по углам поворота головы — набор i в кадрах [i·DIRECT_N, (i+1)·DIRECT_N), своя громкость
-        # (у ближнего уха при повороте пик выше, чем у импульса комнаты).
-        hs, cut = head_sets(cfg, sets, ctf, dirs, info)
-        hpeak = float(np.max(np.abs(hs)))
-        hscale = 0.99 / max(hpeak, 0.99)
-        head_file = cfg["file"].replace(".wav", "Head.wav")
-        write_wav24(os.path.join(res, head_file), np.concatenate(list(hs * hscale), axis=-1))
+        head_file, head_gain, cut = write_head(cfg, sets, ctf, dirs, info, gain_db, cfg["file"], res)
+        # RAW (8.11): та же комната с выровненным тембром прямого звука (front 1) — приложение смешивает их.
+        flat_cfg = dict(cfg, front=1.0)
+        hf, flat_gain, _, finfo = make_room(flat_cfg, ir, ctf, dirs, SEED + cfg.get("seed", k))
+        flat_file = cfg["file"].replace(".wav", "Flat.wav")
+        write_wav24(os.path.join(res, flat_file), hf)
+        flat_head, flat_head_gain, _ = write_head(flat_cfg, sets, ctf, dirs, finfo, flat_gain, flat_file, res)
         lst, spks = places(cfg)
         meta.append(dict(name=cfg["name"], file=cfg["file"], rt60=cfg["rt60"], size=cfg["size"],
                          listener=[round(float(v), 3) for v in lst],
@@ -492,8 +503,10 @@ def main():
                          length_ms=round(1000 * length / SR, 1),
                          direct=DIRECT_N, channels="LL, LR, RL, RR",
                          head=dict(file=head_file, from_deg=HEAD_FROM, step_deg=HEAD_STEP, count=HEAD_COUNT,
-                                   gain_db=round(gain_db - 20 * np.log10(hscale), 3))))
-        print("%s: HEAD %d sets, peak %.3f, cut before window %.1e" % (cfg["name"], HEAD_COUNT, hpeak, cut))
+                                   gain_db=head_gain),
+                         flat=dict(file=flat_file, gain_db=round(flat_gain, 3), head_file=flat_head,
+                                   head_gain_db=flat_head_gain)))
+        print("%s: HEAD %d sets, cut before window %.1e; flat gain %.2f dB" % (cfg["name"], HEAD_COUNT, cut, flat_gain))
         if report:
             nfft = 1 << 16
             direct = h[:, :DIRECT_N] * 10 ** (gain_db / 20)

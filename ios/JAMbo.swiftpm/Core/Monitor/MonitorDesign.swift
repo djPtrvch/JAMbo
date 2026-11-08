@@ -19,6 +19,11 @@ public struct MonitorSettings {
     public var sub: Bool = false
     /// Ambience — громкость пространства (отражений и хвоста), dB (−60 и ниже — −∞; по умолчанию −6).
     public var ambienceDb: Double = -6
+    /// Raw — окраска уха в прямом звуке колонок (8.11): 1 — как есть (сочнее, признак «спереди»), 0 — тембр выровнен.
+    public var raw: Double = 1
+    /// Профили пунктов SPACE (8.11, решение пользователя): имя пункта → сохранённые удержанием по пункту AMBIENCE,
+    /// RAW, CORRECTION и CORRECT CURVE (MonitorProfile); выбор пункта загружает его профиль.
+    public var spaces: [String: MonitorProfile] = [:]
     /// Правится CORRECT CURVE (иначе PHONE CURVE — профиль наушников).
     public var editCorrect: Bool = false
     /// Референс через мастер-цепочку (по умолчанию нет — как прежде: мимо мастера) и через монитор-цепочку (да).
@@ -44,6 +49,10 @@ public struct MonitorSettings {
         sub = flag("sub", false)
         editCorrect = flag("editCorrect", false)
         ambienceDb = num("ambienceDb", -6, MonitorSpec.ambienceMin, 0)
+        raw = num("raw", 1, 0, 1)
+        if let sp = g["spaces"] as? [String: [String: Any]] {
+            for (k, v) in sp { spaces[k] = MonitorProfile(plist: v) }
+        }
         refMaster = flag("refMaster", false)
         refMonitor = flag("refMonitor", true)
         refMatch = flag("refMatch", true)
@@ -53,8 +62,41 @@ public struct MonitorSettings {
     /// Словарь для UserDefaults.
     public var plist: [String: Any] {
         return ["strength": strength, "translation": translation, "mono": mono,
-                "sub": sub, "editCorrect": editCorrect, "ambienceDb": ambienceDb, "refMaster": refMaster, "refMonitor": refMonitor, "refMatch": refMatch,
+                "sub": sub, "editCorrect": editCorrect, "ambienceDb": ambienceDb, "raw": raw,
+                "spaces": spaces.mapValues { $0.plist }, "refMaster": refMaster, "refMonitor": refMonitor, "refMatch": refMatch,
                 "refTrim": refTrim]
+    }
+}
+
+/// Профиль пункта SPACE: AMBIENCE, RAW, CORRECTION и CORRECT CURVE (JSON полос; nil — без своей кривой).
+public struct MonitorProfile {
+    public var ambienceDb: Double = -6
+    public var raw: Double = 1
+    public var strength: Double = 1
+    public var correct: Data? = nil
+
+    public init(ambienceDb: Double, raw: Double, strength: Double, correct: Data?) {
+        self.ambienceDb = ambienceDb
+        self.raw = raw
+        self.strength = strength
+        self.correct = correct
+    }
+
+    public init(plist d: [String: Any]) {
+        func num(_ k: String, _ def: Double, _ lo: Double, _ hi: Double) -> Double {
+            let v: Double = (d[k] as? NSNumber)?.doubleValue ?? (d[k] as? Double) ?? def
+            return v.isFinite ? Swift.min(hi, Swift.max(lo, v)) : def
+        }
+        ambienceDb = num("ambienceDb", -6, MonitorSpec.ambienceMin, 0)
+        raw = num("raw", 1, 0, 1)
+        strength = num("strength", 1, 0, 1)
+        correct = d["correct"] as? Data
+    }
+
+    public var plist: [String: Any] {
+        var d: [String: Any] = ["ambienceDb": ambienceDb, "raw": raw, "strength": strength]
+        if let c = correct { d["correct"] = c }
+        return d
     }
 }
 

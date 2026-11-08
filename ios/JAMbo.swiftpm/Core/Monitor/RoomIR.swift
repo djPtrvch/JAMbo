@@ -17,6 +17,11 @@ public struct RoomInfo {
     public var headFrom: Double = 0
     public var headStep: Double = 2
     public var headGainDb: Double = 0
+    /// RAW (8.11): те же импульсы с выровненным тембром прямого звука (пусто — нет) и их громкость; RAW смешивает.
+    public var flatFile: String = ""
+    public var flatGainDb: Double = 0
+    public var flatHeadFile: String = ""
+    public var flatHeadGainDb: Double = 0
 
     /// Список из rooms.json ({"rooms": […]}); ошибка — пусто.
     public static func list(_ data: Data?) -> [RoomInfo] {
@@ -33,6 +38,12 @@ public struct RoomInfo {
                 info.headFrom = (hd["from_deg"] as? NSNumber)?.doubleValue ?? -50
                 info.headStep = (hd["step_deg"] as? NSNumber)?.doubleValue ?? 2
                 info.headGainDb = (hd["gain_db"] as? NSNumber)?.doubleValue ?? g
+            }
+            if let fl = r["flat"] as? [String: Any], let ff = fl["file"] as? String {
+                info.flatFile = ff
+                info.flatGainDb = (fl["gain_db"] as? NSNumber)?.doubleValue ?? g
+                info.flatHeadFile = fl["head_file"] as? String ?? ""
+                info.flatHeadGainDb = (fl["head_gain_db"] as? NSNumber)?.doubleValue ?? g
             }
             out.append(info)
         }
@@ -66,6 +77,16 @@ public final class RoomIR: @unchecked Sendable {
             for i in 0..<n { p[c * n + i] = w.samples[i * 4 + c] * g }
         }
         self.init(name: name, paths: p, frames: n, direct: Swift.max(0, direct))
+    }
+
+    /// RAW: flat + raw · (self − flat) — смесь импульсов той же комнаты (self — с окраской уха, flat — выровненный);
+    /// разной длины — self как есть.
+    public func mixed(flat: RoomIR?, raw: Double) -> RoomIR {
+        guard let f = flat, f.frames == frames, raw < 0.9995 else { return self }
+        let t: Float = Float(Swift.max(0, raw))
+        var p = [Float](repeating: 0, count: h.count)
+        for i in 0..<h.count { p[i] = f.h[i] + (h[i] - f.h[i]) * t }
+        return RoomIR(name: name, paths: p, frames: frames, direct: direct)
     }
 
     /// WAV PCM 16/24/32 бит и float 32: каналы, частота, кадры, отсчёты подряд (кадр за кадром); иначе nil.

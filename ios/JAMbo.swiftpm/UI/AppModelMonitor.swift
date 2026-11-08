@@ -67,10 +67,40 @@ extension AppModel {
         return curve || correct || translationPreset != nil || monitor.mono || monitor.sub
     }
 
-    /// Выбрать пункт TRANSLATION: тембр — сразу, пространство (комната пункта) — в фоне.
+    /// Выбрать пункт TRANSLATION: тембр — сразу, пространство (комната пункта) — в фоне. Есть профиль пункта —
+    /// AMBIENCE, RAW, CORRECTION и CORRECT CURVE из него; нет — остаются текущие.
     func setTranslation(_ name: String) {
-        setMonitor { $0.translation = name }
+        let p: MonitorProfile? = monitor.spaces[name]
+        setMonitor { m in
+            m.translation = name
+            if let q = p {
+                m.ambienceDb = q.ambienceDb
+                m.raw = q.raw
+                m.strength = q.strength
+            }
+        }
+        if let q = p {
+            correctCurves[phonesName] = q.correct
+            UserDefaults.standard.set(correctCurves, forKey: AppModel.correctCurvesKey)
+            publishMonitor()
+        }
         syncRoom()
+    }
+
+    /// Удержание пункта в меню SPACE: текущие AMBIENCE, RAW, CORRECTION и CORRECT CURVE — его профиль (пункт
+    /// становится выбранным); на секунду SAVED.
+    func saveSpace(_ name: String) {
+        let prof = MonitorProfile(ambienceDb: monitor.ambienceDb, raw: monitor.raw, strength: monitor.strength,
+                                  correct: correctCurves[phonesName])
+        setMonitor { m in
+            m.spaces[name] = prof
+            m.translation = name
+        }
+        syncRoom()
+        spaceSaved = name
+        Later.run(1.0) {
+            if self.spaceSaved == name { self.spaceSaved = nil }
+        }
     }
 
     /// Параметры цепочки по текущим настройкам (с комнатой — когда её отклик готов).
@@ -104,8 +134,9 @@ extension AppModel {
     /// У пункта есть пространство.
     var roomOn: Bool { return roomInfo != nil }
 
-    /// Свёртка комнаты пункта — звуку (при запуске, выборе пункта, UNDO): импульсы и отклик — в фоне, затем в звук
-    /// (переход 40 мс).
+    /// Свёртка комнаты пункта — звуку (при запуске, выборе пункта, RAW, UNDO): импульсы — один раз на комнату, смесь
+    /// по RAW, свёртка и отклик — в фоне, затем в звук (переход 40 мс). Пока идёт сборка, новая не начинается — по её
+    /// окончании синхронизация повторяется (RAW при движении пальца не копит очередь).
     func syncRoom() {
         syncHead()
         let stage: RoomStage = audio.core.monitor.room
@@ -115,22 +146,31 @@ extension AppModel {
             publishMonitor()
             return
         }
-        if roomLoaded?.name == info.name { return }
+        let raw: Double = (monitor.raw * 100).rounded() / 100
+        let key: String = info.name + "@" + String(raw)
+        if roomLoaded?.name == key || roomBuilding { return }
+        roomBuilding = true
+        let cached: RoomSet? = roomSet?.name == info.name ? roomSet : nil
         Task.detached(priority: .userInitiated) {
-            guard let d = AppModel.resource((info.file as NSString).deletingPathExtension, "wav"),
-                  let ir = RoomIR(name: info.name, wav: d, gainDb: info.gainDb, direct: info.direct) else { return }
-            // HEAD: набор прямой части по углам поворота головы (нет файла — свёртка без HEAD).
-            var head: RoomIR? = nil
-            if !info.headFile.isEmpty, let hd = AppModel.resource((info.headFile as NSString).deletingPathExtension, "wav") {
-                head = RoomIR(name: info.name, wav: hd, gainDb: info.headGainDb, direct: 0)
+            let set: RoomSet? = cached ?? RoomSet.load(info)
+            var conv: RoomConv? = nil
+            var resp: RoomResponse? = nil
+            if let s = set {
+                let ir: RoomIR = s.ir.mixed(flat: s.flat, raw: raw)
+                let head: RoomIR? = s.head?.mixed(flat: s.flatHead, raw: raw)
+                conv = RoomConv(ir: ir, head: head, from: info.headFrom, step: info.headStep)
+                resp = ir.response(sampleRate: AudioCore.sampleRate)
             }
-            let conv = RoomConv(ir: ir, head: head, from: info.headFrom, step: info.headStep)
-            let resp: RoomResponse = ir.response(sampleRate: AudioCore.sampleRate)
             await MainActor.run {
-                guard self.roomInfo?.name == info.name else { return }
-                self.roomLoaded = (info.name, resp)
-                stage.set(conv)
-                self.publishMonitor()
+                self.roomBuilding = false
+                guard let s = set, let c = conv, let r = resp else { return }
+                self.roomSet = s
+                if self.roomInfo?.name == info.name {
+                    self.roomLoaded = (key, r)
+                    stage.set(c)
+                    self.publishMonitor()
+                }
+                self.syncRoom()
             }
         }
     }
@@ -190,13 +230,14 @@ extension AppModel {
         }
     }
 
-    // MARK: — поля монитора по ключу: 0 TRANSLATION, 1 CORRECTION, 5 AMBIENCE
+    // MARK: — поля монитора по ключу: 0 TRANSLATION, 1 CORRECTION, 5 AMBIENCE, 6 RAW
 
     func monitorField(_ k: Int) -> MonitorFieldInfo {
         let s: MonitorSettings = monitor
         switch k {
         case 0: return MonitorFieldInfo(label: "SPACE", value: translationPreset?.name ?? "Off", enabled: true, px: 30)
         case 1: return MonitorFieldInfo(label: "CORRECTION", value: String(format: "%.0f %%", s.strength * 100), enabled: true, px: 2)
+        case 6: return MonitorFieldInfo(label: "RAW", value: String(format: "%.0f %%", s.raw * 100), enabled: roomOn, px: 2)
         default:
             let t: String = s.ambienceDb <= MonitorSpec.ambienceMin ? "−∞ dB" : String(format: "%.1f dB", s.ambienceDb)
             return MonitorFieldInfo(label: "AMBIENCE", value: t, enabled: roomOn, px: 2)
@@ -209,6 +250,7 @@ extension AppModel {
         switch k {
         case 0: return -Double(translations.firstIndex { $0.name == s.translation } ?? 0)
         case 1: return (s.strength * 100).rounded()
+        case 6: return (s.raw * 100).rounded()
         default: return (s.ambienceDb * 2).rounded()
         }
     }
@@ -222,6 +264,9 @@ extension AppModel {
             let name: String = names[((-Int(v)) % n + n) % n]
             if name != monitor.translation { setTranslation(name) }
         case 1: setMonitor { $0.strength = Swift.max(0, Swift.min(100, v)) / 100 }
+        case 6:
+            setMonitor { $0.raw = Swift.max(0, Swift.min(100, v)) / 100 }
+            syncRoom()
         default: setMonitor { $0.ambienceDb = Swift.max(MonitorSpec.ambienceMin, Swift.min(0, v / 2)) }
         }
     }
@@ -231,6 +276,9 @@ extension AppModel {
         switch k {
         case 1: setMonitor { $0.strength = 1 }
         case 5: setMonitor { $0.ambienceDb = -6 }
+        case 6:
+            setMonitor { $0.raw = 1 }
+            syncRoom()
         default: break
         }
     }
@@ -307,3 +355,34 @@ extension AppModel {
     }
 }
 
+
+/// Импульсы комнаты для RAW и HEAD TRACK: с окраской уха (ir, head) и выровненные (flat, flatHead; нет — nil).
+final class RoomSet: @unchecked Sendable {
+    let name: String
+    let ir: RoomIR
+    let flat: RoomIR?
+    let head: RoomIR?
+    let flatHead: RoomIR?
+
+    init(name: String, ir: RoomIR, flat: RoomIR?, head: RoomIR?, flatHead: RoomIR?) {
+        self.name = name
+        self.ir = ir
+        self.flat = flat
+        self.head = head
+        self.flatHead = flatHead
+    }
+
+    /// Из ресурсов (файлы rooms.json); нет импульсов комнаты — nil.
+    static func load(_ i: RoomInfo) -> RoomSet? {
+        guard let ir = RoomSet.wav(i.name, i.file, i.gainDb, i.direct) else { return nil }
+        return RoomSet(name: i.name, ir: ir, flat: RoomSet.wav(i.name, i.flatFile, i.flatGainDb, i.direct),
+                       head: RoomSet.wav(i.name, i.headFile, i.headGainDb, 0),
+                       flatHead: RoomSet.wav(i.name, i.flatHeadFile, i.flatHeadGainDb, 0))
+    }
+
+    private static func wav(_ name: String, _ file: String, _ gain: Double, _ direct: Int) -> RoomIR? {
+        if file.isEmpty { return nil }
+        guard let d = AppModel.resource((file as NSString).deletingPathExtension, "wav") else { return nil }
+        return RoomIR(name: name, wav: d, gainDb: gain, direct: direct)
+    }
+}

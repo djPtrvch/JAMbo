@@ -36,6 +36,12 @@
         "step_deg": 2,
         "count": 51,
         "gain_db": -2.743
+      },
+      "flat": {
+        "file": "RoomStudioFlat.wav",
+        "gain_db": -5.606,
+        "head_file": "RoomStudioFlatHead.wav",
+        "head_gain_db": -1.44
       }
     },
     {
@@ -74,6 +80,12 @@
         "step_deg": 2,
         "count": 51,
         "gain_db": -2.792
+      },
+      "flat": {
+        "file": "RoomHomeFlat.wav",
+        "gain_db": -5.728,
+        "head_file": "RoomHomeFlatHead.wav",
+        "head_gain_db": -1.464
       }
     },
     {
@@ -112,6 +124,12 @@
         "step_deg": 2,
         "count": 51,
         "gain_db": -9.478
+      },
+      "flat": {
+        "file": "RoomCarFlat.wav",
+        "gain_db": -13.092,
+        "head_file": "RoomCarFlatHead.wav",
+        "head_gain_db": -9.742
       }
     },
     {
@@ -150,6 +168,12 @@
         "step_deg": 2,
         "count": 51,
         "gain_db": -3.811
+      },
+      "flat": {
+        "file": "RoomClubFlat.wav",
+        "gain_db": -6.286,
+        "head_file": "RoomClubFlatHead.wav",
+        "head_gain_db": -2.488
       }
     },
     {
@@ -188,6 +212,12 @@
         "step_deg": 2,
         "count": 51,
         "gain_db": -4.551
+      },
+      "flat": {
+        "file": "RoomDeskFlat.wav",
+        "gain_db": -6.864,
+        "head_file": "RoomDeskFlatHead.wav",
+        "head_gain_db": -2.41
       }
     }
   ],

@@ -259,6 +259,12 @@ final class AppModel {
     /// Room: пространства из ресурсов (по пунктам TRANSLATION) и загруженное (имя и отклик для компенсации).
     @ObservationIgnored let rooms: [RoomInfo] = AppModel.loadRooms()
     @ObservationIgnored var roomLoaded: (name: String, resp: RoomResponse)? = nil
+    /// RAW: импульсы выбранной комнаты (с окраской уха и выровненные, с наборами HEAD TRACK) — смешиваются по RAW
+    /// в фоне; идёт сборка — следующая после неё.
+    @ObservationIgnored var roomSet: RoomSet? = nil
+    @ObservationIgnored var roomBuilding = false
+    /// Профиль пункта SPACE сохранён удержанием — на секунду SAVED в меню.
+    var spaceSaved: String? = nil
     /// HEAD (AppModelHead): отслеживание головы включено, лицо видно (кнопка горит), трекер.
     var headOn = false
     var headFace = false
