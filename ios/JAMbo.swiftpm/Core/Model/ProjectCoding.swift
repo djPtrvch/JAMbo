@@ -41,6 +41,19 @@ extension Step {
         sound = c.optional(.sound)
         soundLocks = c.optional(.soundLocks)
     }
+
+    /// Запись — под прежними ключами (редкие поля — из коробки, StepMore).
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(on, forKey: .on)
+        try c.encode(len, forKey: .len)
+        try c.encode(notes, forKey: .notes)
+        try c.encodeIfPresent(lens, forKey: .lens)
+        try c.encodeIfPresent(vels, forKey: .vels)
+        try c.encode(locks, forKey: .locks)
+        try c.encodeIfPresent(sound, forKey: .sound)
+        try c.encodeIfPresent(soundLocks, forKey: .soundLocks)
+    }
 }
 
 extension Track {
