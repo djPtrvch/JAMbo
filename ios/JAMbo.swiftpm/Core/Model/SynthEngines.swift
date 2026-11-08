@@ -49,10 +49,10 @@ public enum SynthEngines {
         // SUB (этап 4): моно-бас, OSC2 — октавой ниже; при выборе — треугольник, SUB 40 %, без FAT и GRIT.
         SynthEngine(id: 24, name: "SUB", full: "Sub bass", knobs: ["wave", "sub", "fat", "grit"],
                     options: [["Triangle", "Saw", "Square"], [], [], []], initKnobs: [100.0 / 6, 40, 0, 0]),
-        // TEXTURE и GRANULAR (ТЗ «Texture и Granular», GRANULAR — ТЗ «Granular»): стерео; TEXTURE моно, GRANULAR
+        // TEXTURE (ТЗ docs/texture-engine.md) и GRANULAR (ТЗ «Granular»): стерео; TEXTURE моно, GRANULAR
         // полифоничен; при выборе — значения по умолчанию из ТЗ.
-        SynthEngine(id: 25, name: "TEXTURE", full: "Texture", knobs: ["color", "density", "tone", "motion"],
-                    options: [[], [], [], []], initKnobs: [40, 50, 30, 30]),
+        SynthEngine(id: 25, name: "TEXTURE", full: "Texture", knobs: ["color", "grit", "tone", "metal"],
+                    options: [[], [], [], []], initKnobs: [40, 30, 30, 0]),
         SynthEngine(id: 26, name: "GRANULAR", full: "Granular", knobs: ["position", "size", "density", "spray"],
                     options: [[], [], [], []], initKnobs: [8, 62, 60, 25]),
     ]

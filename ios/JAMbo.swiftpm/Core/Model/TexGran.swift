@@ -66,9 +66,6 @@ enum TexGran {
     /// Свой формат ручки k движка e (nil — проценты).
     static func format(_ e: Int, _ k: Int) -> ((Double) -> String)? {
         if e == Jambo.texture && k == 0 { return { v in TextureMap.colorName(v / 100) } }
-        if e == Jambo.texture && k == 1 {
-            return { v in "\(Int(TextureMap.rate(v / 100).rounded())) /s" }
-        }
         if e == Jambo.granular && k == 0 {
             return { v in
                 let s: Double = sourceSeconds
