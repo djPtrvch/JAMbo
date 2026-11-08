@@ -1,7 +1,7 @@
 # Лицензии данных Room (Headphone Monitor, фаза 2)
 
 Импульсы пространств меню SPACE `ios/JAMbo.swiftpm/Resources/RoomStudio.wav`, `RoomHome.wav`, `RoomCar.wav`,
-`RoomClub.wav`, `RoomDesk.wav` и `rooms.json` созданы скриптом `ios/tools/generate_rooms.py` (свои модели комнат: мнимые источники, хвост из шума). Чужих
+`RoomClub.wav`, `RoomDesk.wav`, наборы HEAD `Room*Head.wav` и `rooms.json` созданы скриптом `ios/tools/generate_rooms.py` (свои модели комнат: мнимые источники, хвост из шума). Чужих
 импульсов комнат и импульсов коммерческих продуктов нет.
 
 ## HRTF — FABIAN head-related transfer function data base, v4
@@ -12,7 +12,8 @@
   `HRIRs_neutral_head_orientation_v4.zip`.
 - Используются: `SOFA/FABIAN_HRIR_measured_HATO_0.sofa` (HRIR, голова прямо) и
   `SOFA/FABIAN_CTF_measured_inverted_smoothed.sofa` (обратная общая передаточная функция — диффузно-полевая
-  эквализация).
+  эквализация); для HEAD — `SOFA/FABIAN_HRIR_measured_HATO_{10…50, 310…350}.sofa` из `FABIAN_HRTF_DATABASE_v4.zip`
+  (та же запись, CC BY 4.0; голова повёрнута относительно корпуса на ±10…50°).
 - Лицензия: Creative Commons Attribution 4.0 International (CC BY 4.0),
   https://creativecommons.org/licenses/by/4.0/ — указана в метаданных записи v4 и в самих SOFA-файлах
   (`GLOBAL_License`).
