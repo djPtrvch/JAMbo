@@ -41,7 +41,7 @@ struct SynthInfo: View {
         return VStack(alignment: .leading, spacing: 8) {
             ForEach(0..<4, id: \.self) { slot in
                 let p: ParamDef = AnalogMod.knob(grid[slot], engine: engine, params: params)
-                Text("\(p.label) · \(p.format(params[p.id] ?? p.def))")
+                Text("\(p.label) · \(p.format(params[p.id] ?? p.def).replacingOccurrences(of: "\n", with: " "))")
                     .font(.system(size: 11))
                     .tracking(0.44)
                     .foregroundStyle(theme.text)

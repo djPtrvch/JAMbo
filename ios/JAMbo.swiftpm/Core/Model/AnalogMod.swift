@@ -50,11 +50,11 @@ public enum AnalogMod {
         return ParamDef(id: "morph", label: label, min: 0, max: 100, def: 50, format: Fmt.pct)
     }
 
-    /// WAVE B на октаву ниже: пункт с пометкой «−1» (через неразрывный пробел — на ручке в одну строку).
+    /// WAVE B на октаву ниже: пункт и под ним «−1» (вторая строка на ручке — подпись не длинная; решение пользователя).
     static let waveBLow: ParamDef = {
         let o: [String] = SynthEngines.waves
         return ParamDef(id: "timbre", label: "Wave B", kind: .stepped, min: 0, max: 100, def: 50, steps: o.count) { v in
-            o[Params.stepIndex(v / 100, o.count)] + "\u{00A0}−1"
+            o[Params.stepIndex(v / 100, o.count)] + "\n−1"
         }
     }()
 
