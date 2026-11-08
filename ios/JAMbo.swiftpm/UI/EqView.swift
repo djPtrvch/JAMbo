@@ -269,7 +269,7 @@ struct EqBar: View {
         case 1: return AnyView(freqField(b))
         case 2: return AnyView(gainField(b))
         case 3: return AnyView(qField(b))
-        // У коррекции наушников вместо M/S, DYN и LISTEN — блок коррекции: кривая (PHONE | CORRECT), CORRECTION, LEVEL.
+        // У коррекции наушников вместо M/S, DYN и LISTEN — блок коррекции: PHONE CURVE и CORRECT CURVE, CORRECTION, LEVEL.
         case 4: return phones ? AnyView(CurveSwitch(model: model)) : AnyView(msField(b))
         case 5: return phones ? MonitorBar.field(model, 1) : AnyView(dynField(b))
         case 6: return phones ? AnyView(MonitorLevel(model: model)) : AnyView(EqListenButton(model: model, enabled: true))
