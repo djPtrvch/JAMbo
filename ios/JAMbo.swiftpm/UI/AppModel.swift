@@ -13,6 +13,18 @@ enum Channel: Equatable {
 final class AppModel {
     // Свойства простых типов — вручную, без макроса (AppModelObserved.swift): put — запись с уведомлением, как
     // withMutation макроса; observedChanged — изменилось ли значение (AppModelObserved.swift).
+    /// Запись наблюдаемого свойства (AppModelObserved): перед записью — willSet (если значение меняется), после —
+    /// didSet; один путь к свойству на сеттер (8.11, объём сборки: прежде — два, к свойству и к хранилищу).
+    func willPut<T>(_ key: KeyPath<AppModel, T>, _ notify: Bool) -> KeyPath<AppModel, T>? {
+        if !notify { return nil }
+        _$observationRegistrar.willSet(self, keyPath: key)
+        return key
+    }
+
+    func didPut<T>(_ key: KeyPath<AppModel, T>?) {
+        if let k = key { _$observationRegistrar.didSet(self, keyPath: k) }
+    }
+
     func put<T>(_ key: KeyPath<AppModel, T>, _ slot: ReferenceWritableKeyPath<AppModel, T>, _ value: T, _ notify: Bool) {
         if notify {
             _$observationRegistrar.willSet(self, keyPath: key)
