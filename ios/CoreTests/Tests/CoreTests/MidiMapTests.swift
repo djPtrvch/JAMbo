@@ -15,8 +15,8 @@ final class MidiMapTests: XCTestCase {
         XCTAssertEqual(m.control, .abs)
         XCTAssertEqual(m.cond, .global)
         XCTAssertEqual(m.input, 7)
-        XCTAssertEqual(m.target.label, "KNOB 1.2")
-        XCTAssertEqual(MidiTarget.press(1).label, "KNOB 2.1 PRESS")
+        XCTAssertEqual(m.target.label, "KNOB 2.1")
+        XCTAssertEqual(MidiTarget.press(1).label, "KNOB 1.2 PRESS")
         XCTAssertEqual(m.src.short, "CC 20")
         XCTAssertEqual(MidiSource(type: .note, ch: 9, num: 36).label, "NOTE 36 · CH 10")
         // Нажатие ручки и кнопки — кнопочный тип.

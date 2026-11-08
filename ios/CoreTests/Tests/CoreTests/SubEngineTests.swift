@@ -29,7 +29,7 @@ final class SubEngineTests: XCTestCase {
         XCTAssertEqual(g[0].steps, 3)
         XCTAssertEqual(g[0].format(100.0 / 6), "Triangle")
         XCTAssertEqual(g[0].format(90), "Square")
-        XCTAssertEqual([g[4].label, g[8].label, g[12].label], ["Sub", "Fat", "Grit"])
+        XCTAssertEqual([g[1].label, g[2].label, g[3].label], ["Sub", "Fat", "Grit"])
         var t = Track(index: 0)
         t.setSynth(24)
         XCTAssertEqual(t.params["timbre"], 40, "SUB при выборе — 40 %")

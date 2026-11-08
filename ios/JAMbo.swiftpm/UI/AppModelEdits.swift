@@ -15,7 +15,7 @@ struct KnobState {
     var heldSource: Int? = nil
     /// Кривая аранжировки, которая сейчас действует (0…1; S15f) — жёлтая риска снаружи кольца; nil — нет.
     var autoNorm: Double? = nil
-    /// 4-й столбец сетки дорожки (Pan, Chance, Ratchet, Velocity; у FX — Duck, у MOD — ENV): p-lock — оранжевым.
+    /// 4-я (нижняя) строка сетки дорожки (Pan, Velocity, Ratchet, Chance; у FX — Duck, у MOD — ENV): p-lock — оранжевым.
     var col4: Bool = false
     /// Ход источника (LFO с Polarity и Invert: −1…1, 0…1 или −1…0; ENV — 0…1) — зона воздействия, пока держат источник.
     var srcLo: Double = -1
@@ -112,7 +112,7 @@ extension AppModel {
         let am: ModAssign? = assign(slot)
         var st = KnobState(param: p, value: v, norm: p.toNorm(v), baseNorm: p.toNorm(base), locked: lock != nil,
                            assign: am, heldSource: canAssign ? heldSource : nil, autoNorm: autoN,
-                           col4: slot % 4 == 3)
+                           col4: slot / 4 == 3)
         if let a = am {
             let r: (lo: Double, hi: Double) = sourceRange(a)
             st.srcLo = r.lo

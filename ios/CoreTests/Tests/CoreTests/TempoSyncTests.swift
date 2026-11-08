@@ -4,8 +4,8 @@ import XCTest
 /// Dly Time и Speed LFO по темпу (SHIFT + тап), порядок FX, подписи Duck, случайное имя проекта.
 final class TempoSyncTests: XCTestCase {
     func testFxOrderAndLabels() {
-        XCTAssertEqual(Params.fxGrid[9].id, "dly.spread", "Spread — на месте Filter")
-        XCTAssertEqual(Params.fxGrid[13].id, "dly.filter")
+        XCTAssertEqual(Params.fxGrid[6].id, "dly.spread", "Spread — на месте Filter")
+        XCTAssertEqual(Params.fxGrid[7].id, "dly.filter")
         XCTAssertEqual(Set(Params.fxIds), Set((Params.fxGrid + Params.hiddenFx).map { $0.id }))
         XCTAssertEqual(Params.fxIds.count, Params.fxCount)
         XCTAssertEqual(Params.fxIds[FxRack.dlyFilter], "dly.filter")

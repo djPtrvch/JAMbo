@@ -34,9 +34,9 @@ final class DrumEngineTests: XCTestCase {
             XCTAssertTrue(Jambo.mono(e))
         }
         XCTAssertFalse(Jambo.mono(Jambo.analog))
-        XCTAssertEqual(Params.grid(sound: "mi:22")[4].format(50), "4", "BURSTS по умолчанию — 4")
+        XCTAssertEqual(Params.grid(sound: "mi:22")[1].format(50), "4", "BURSTS по умолчанию — 4")
         XCTAssertEqual(Params.grid(sound: "mi:22")[0].format(50), "1099 Hz", "TONE CLAP на 50 % ≈ 1.1 кГц")
-        XCTAssertEqual(Params.grid(sound: "mi:22")[8].format(50), "12.0 ms")
+        XCTAssertEqual(Params.grid(sound: "mi:22")[2].format(50), "12.0 ms")
         XCTAssertEqual(Params.grid(sound: "mi:21")[0].format(50), "0 st")
         XCTAssertEqual(Params.grid(sound: "mi:20")[5].max, 800)
         XCTAssertEqual(Params.grid(sound: "mi:23")[5].max, 2000)

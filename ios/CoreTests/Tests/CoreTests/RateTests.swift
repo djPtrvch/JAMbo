@@ -55,7 +55,7 @@ final class RateTests: XCTestCase {
     }
 
     func testGridAndDefaults() {
-        XCTAssertEqual(Params.trackGrid[12].id, "rate")
+        XCTAssertEqual(Params.trackGrid[3].id, "rate")
         XCTAssertEqual(Params.byId["rate"]!.def, 100)
         XCTAssertEqual(Params.defaults()["rate"], 100)
         XCTAssertEqual(Params.rate.label, "Rate Pitch")

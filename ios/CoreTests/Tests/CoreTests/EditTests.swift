@@ -188,12 +188,12 @@ final class EditTests: XCTestCase {
         XCTAssertEqual(Params.byId["filter"]!.format(0), "OFF")
         XCTAssertEqual(Params.byId["pan"]!.format(-10), "L10")
         XCTAssertEqual(Params.trackGrid[0].id, "pitch")
-        XCTAssertEqual(Params.trackGrid[1].id, "attack", "сетка — ряд за рядом")
-        // S12: 4.4 Velocity (прежний level), Swing не на сетке; 1.4 у сэмпла — RATE.
-        XCTAssertEqual(Params.trackGrid[12].id, "rate", "1.4 у сэмпла — RATE")
-        XCTAssertEqual(Params.trackGrid[15].id, "level")
-        XCTAssertEqual(Params.trackGrid[15].label, "Velocity")
-        XCTAssertEqual(Params.trackGrid[15].format(127), "100%")
+        XCTAssertEqual(Params.trackGrid[4].id, "attack", "сетка — ряд за рядом")
+        // S12: Velocity (прежний level) — 4.2, Chance — 4.4 (8.11), Swing не на сетке; 1.4 у сэмпла — RATE.
+        XCTAssertEqual(Params.trackGrid[3].id, "rate", "1.4 у сэмпла — RATE")
+        XCTAssertEqual(Params.trackGrid[13].id, "level")
+        XCTAssertEqual(Params.trackGrid[13].label, "Velocity")
+        XCTAssertEqual(Params.trackGrid[13].format(127), "100%")
         XCTAssertFalse(Params.trackGrid.contains { $0.id == "swing" })
         XCTAssertNil(Params.byId[""])
         XCTAssertEqual(Params.defaults()["swing"], 50)

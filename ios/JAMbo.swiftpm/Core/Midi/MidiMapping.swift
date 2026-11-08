@@ -32,7 +32,7 @@ public enum MidiTarget: Codable, Equatable, Hashable, Sendable {
     case press(Int)
     case button(String)
 
-    /// KNOB столбец.ряд, как в описании сетки; у нажатия — KNOB 2.1 PRESS.
+    /// KNOB строка.место (группа.ручка, как в описании сетки; 8.11 — группы в строках, прежде в столбцах); у нажатия — KNOB 2.1 PRESS.
     public var label: String {
         switch self {
         case .knob(let s): return MidiTarget.knobName(s)
@@ -42,7 +42,7 @@ public enum MidiTarget: Codable, Equatable, Hashable, Sendable {
     }
 
     static func knobName(_ s: Int) -> String {
-        return "KNOB \(s % 4 + 1).\(s / 4 + 1)"
+        return "KNOB \(s / 4 + 1).\(s % 4 + 1)"
     }
 
     /// Кроссфейдер перехода MIX (S13, решение пользователя): строка, закреплённая в списке маппингов; по умолчанию GLOBAL.

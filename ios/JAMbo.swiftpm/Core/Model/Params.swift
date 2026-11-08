@@ -196,8 +196,9 @@ public enum Params {
     /// Swing дорожки (S12): не на сетке — ползунок в меню клавиатуры; без p-lock и LFO/ENV.
     public static let swing = ParamDef(id: "swing", label: "Swing", min: 50, max: 75, def: 50, format: Fmt.pct)
 
-    /// Колонки сетки ручек дорожки сэмплера (у синта колонка 1 — synthGrids; колонка 1 — сэмпл, 2 — огибающая и фильтр,
-    /// 3 — посылы, 4 — Pan, Chance, Ratchet, Velocity). 1.4 у сэмпла — RATE.
+    /// Группы ручек дорожки сэмплера — строки сетки сверху вниз (8.11, решение пользователя: прежде столбцы; у синта
+    /// группа 1 — synthGrids): 1 — сэмпл, 2 — огибающая и фильтр, 3 — посылы, 4 — Pan, Velocity, Ratchet, Chance
+    /// (Velocity и Chance поменяны местами 8.11). 1.4 у сэмпла — RATE.
     public static let trackColumns: [[ParamDef]] = [
         [
             smooth("pitch", "Pitch", -24, 24, 0, bipolar: true, Fmt.pitch),
@@ -219,10 +220,10 @@ public enum Params {
         ],
         [
             smooth("pan", "Pan", -64, 63, 0, bipolar: true, Fmt.pan),
-            smooth("prob", "Chance", 0, 100, 100, Fmt.pct),
-            stepped("ratchet", "Ratchet", ["1", "2", "3", "4"]),
             // Velocity (S12; прежний Level, id тот же): множитель уровня нот дорожки, на ручке — проценты, хранится 0…127.
             smooth("level", "Velocity", 0, 127, 127) { v in "\(Int((v / 127 * 100).rounded()))%" },
+            stepped("ratchet", "Ratchet", ["1", "2", "3", "4"]),
+            smooth("prob", "Chance", 0, 100, 100, Fmt.pct),
         ],
     ]
 
@@ -237,8 +238,8 @@ public enum Params {
     /// Режим RATE дорожки (значение звука дорожки, не на сетке, без p-lock): 0 — PTCH (по умолчанию), 1 — TSTR.
     public static let rateModeId = "rate.mode"
 
-    /// Сетка 4×4 ряд за рядом (индекс = ряд·4 + столбец).
-    public static let trackGrid: [ParamDef] = (0..<16).map { i in trackColumns[i % 4][i / 4] }
+    /// Сетка 4×4 ряд за рядом (индекс = ряд·4 + столбец): группа — строка (8.11; прежде — столбец).
+    public static let trackGrid: [ParamDef] = (0..<16).map { i in trackColumns[i / 4][i % 4] }
 
     /// Колонка 1 синта (вместо Pitch, Start, End): Harmonics, Timbre, Morph — 0…100 %, по умолчанию 50 (SYNTH_GRID).
     public static let synthColumn: [ParamDef] = [
@@ -311,7 +312,7 @@ public enum Params {
             return ParamDef(id: p.id, label: label, min: p.min, max: p.max, def: p.def, format: p.format)
         }
         return (0..<16).map { i in
-            if i % 4 == 0 { return col[i / 4] }
+            if i / 4 == 0 { return col[i % 4] }
             let p = trackGrid[i]
             // Свой предел Decay (у KICK — 1000 мс).
             if p.id == "decay", let max = e.decayMax {
@@ -388,7 +389,7 @@ public enum Params {
     ]
 
     /// Сетка MOD 4×4 ряд за рядом; порядок в снимках для колбэка — modColumns подряд (LFO1, LFO2, LFO3, ENV).
-    public static let modGrid: [ParamDef] = (0..<16).map { i in modColumns[i % 4][i / 4] }
+    public static let modGrid: [ParamDef] = (0..<16).map { i in modColumns[i / 4][i % 4] }
     public static let modIds: [String] = modColumns.flatMap { $0 }.map { $0.id }
     public static let modCount = 16
 
@@ -448,7 +449,7 @@ public enum Params {
     ]
 
     /// Сетка FX 4×4 ряд за рядом.
-    public static let fxGrid: [ParamDef] = (0..<16).map { i in fxColumns[i % 4][i / 4] }
+    public static let fxGrid: [ParamDef] = (0..<16).map { i in fxColumns[i / 4][i % 4] }
     /// Без ручки: дополнительная пред-задержка реверба (p-lock и MIDI по ключу работают); Dly Sync — время Delay
     /// по темпу (1, по умолчанию) или в мс (0); переключает SHIFT + тап по Dly Time.
     public static let hiddenFx: [ParamDef] = [
@@ -582,7 +583,7 @@ public enum Params {
     ]
 
     /// Сетка MST 4×4 ряд за рядом.
-    public static let masterGrid: [ParamDef] = (0..<16).map { i in masterColumns[i % 4][i / 4] }
+    public static let masterGrid: [ParamDef] = (0..<16).map { i in masterColumns[i / 4][i % 4] }
 
     public static let byId: [String: ParamDef] = {
         var d: [String: ParamDef] = [:]

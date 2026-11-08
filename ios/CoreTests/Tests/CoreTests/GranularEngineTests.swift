@@ -193,10 +193,10 @@ final class GranularEngineTests: XCTestCase {
         XCTAssertEqual(TexGran.overlap(1), 24, accuracy: 1e-9)
         XCTAssertEqual(TexGran.overlap(0.6), 5.1, accuracy: 0.05)
         let h = Params.grid(sound: "mi:26")
-        XCTAssertEqual(h[4].format(62), "151ms")
-        XCTAssertEqual(h[4].format(100), "800ms")
-        XCTAssertEqual(h[8].format(60), "×5.1")
-        XCTAssertEqual(h[12].format(25), "25%")
+        XCTAssertEqual(h[1].format(62), "151ms")
+        XCTAssertEqual(h[1].format(100), "800ms")
+        XCTAssertEqual(h[2].format(60), "×5.1")
+        XCTAssertEqual(h[3].format(25), "25%")
         TexGran.sourceSeconds = 8
         XCTAssertEqual(h[0].format(8), "0.64 s")
         TexGran.sourceSeconds = 0

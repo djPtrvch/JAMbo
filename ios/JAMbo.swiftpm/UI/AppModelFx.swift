@@ -30,12 +30,12 @@ extension AppModel {
 
     /// Палец (или нажатие энкодера) на ручке FX — картинка её колонки.
     func fxFinger(_ slot: Int) {
-        if fxMode { fxPicCol = slot % 4 }
+        if fxMode { fxPicCol = slot / 4 }
     }
 
     /// Поворот ручки FX с MIDI: картинка колонки, гаснет через 0,5 с после последнего поворота.
     func fxMidiPulse(_ slot: Int) {
-        fxPicCol = slot % 4
+        fxPicCol = slot / 4
         fxMidiShow = true
         fxMidiTask?.cancel()
         fxMidiTask = Later.run(0.5) { [weak self] in
