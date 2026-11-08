@@ -1,4 +1,4 @@
-# Handoff: JAMbo, Swift-версия — модуляция ANALOG, TEXTURE по ТЗ, облегчение сборки, MIDI-клок и ноты у дорожек; дальше — фильтр и SUB
+# Handoff: JAMbo, Swift-версия — тип фильтра (LP / HP / BP, LADDER у SUB), mute/solo без UNDO, облегчение сборки
 
 ## 1. Контекст проекта
 Groovebox для iPad. Веб (`src/`, `public/`) — эталон, заморожен. Swift-перенос — ветка `swift`, `ios/JAMbo.swiftpm`. Правила — `CLAUDE.md`, `ios/CLAUDE.md`; план и вехи — `docs/SWIFT_AUDIT.md` (раздел 6); итоги вех — `docs/SWIFT_MILESTONE_Sx.md`. Поведение аранжировщика — `docs/ai/arranger.md`; MIDI — `docs/ai/settings-midi-sync.md` (в ветке swift описывают Swift-версию).
@@ -66,6 +66,14 @@ Groovebox для iPad. Веб (`src/`, `public/`) — эталон, заморо
   - Единая сетка строк на весь экран (14 строк) — отложена: превью сделано, к ней вернуться позже (затратно).
 
 ## 3. Текущая задача
+**Сейчас (9.11):** сделано и запушено в swift, на iPad aec0d02 собирается с первого раза, фильтр проверен. Подробно — SWIFT_MILESTONE_S14 «Правки 9.11».
+- Фильтр: Filter — частота на всём ходу, SHIFT + тап — тип: LP → HP → BP (12 dB) у всех движков и сэмплера, у SUB — LP → LADDER → BP; по умолчанию LP; GRIT SUB в LADDER — перегруз входа. Старые проекты (версия 9), пресеты (fmt 5), свои значения по умолчанию переводятся. docs/ai: ui-layout, sound-sampler, synth-engines.
+- Mute и solo — без UNDO (docs/ai/tracks-mixer.md). «−1» октавы B у ANALOG — второй строкой на ручке.
+- Объём сборки: 1,5343 млн (d255ec5) — с первого раза; 1,5432 — не с первого. Запас дальше — DIAGNOSTICS (только по решению пользователя), крупных файлов нет (AppModel 35 тыс. IR).
+- История git: 7336aa9 с подписью «Откат» на деле — StepMore; настоящий откат — 114e389.
+- **Дальше — по решению пользователя.**
+
+Прежняя задача (8.11, вечер):
 **Сейчас (8.11, вечер):** сделано и запушено в swift (c3b02fe, 1,536 млн инструкций IR, на Mac собирается; 32510f2 на iPad — со второго раза, «MIDI работает»). Подробно — SWIFT_MILESTONE_S14 «Правки 8.11, вечер».
 - ANALOG: модуляция B осциллятором A (SHIFT + тап по WAVE A — вкл./выкл., по 1.3 — SYNC / FM / RING, 1.3 — AMOUNT; по WAVE B — B на октаву ниже). docs/ai/synth-engines.md.
 - TEXTURE по ТЗ docs/texture-engine.md (Color, Grit, Tone, Metal). docs/ai/synth-engines.md.
@@ -133,7 +141,7 @@ Groovebox для iPad. Веб (`src/`, `public/`) — эталон, заморо
 - Настройки — AppSettings.midi (UserDefaults "settings"), пресеты маппингов — UserDefaults "midiPresets".
 
 ## 5. Что осталось решить
-- Фильтр и SUB — см. «Текущая задача» (ждёт ответа пользователя).
+- DIAGNOSTICS ради объёма сборки — убрать или урезать (решение пользователя).
 - Звук ANALOG с модуляцией и нового TEXTURE — пользователь ещё не оценивал на iPad. TEXTURE: корреляция L/R по формуле ТЗ — 0,20 (в ТЗ «около 0,5»): поправить ширину, если попросит; уровень на краях ручек — ±34 % (допуск ±35 %, впритык).
 - Порог сборки на iPad плавает: 1,586 — со второго раза, 1,536 — собирается. Держать ~1,55 и ниже; новые функции — с [calibrate].
 - Сборка de594f7 (8.11) была с третьего раза — снято облегчением (1,536 млн). Замер есть только у fe2ca0a — 1,630 млн инструкций IR, с первого раза; после него без замера: Speed LFO по id, пресет TMA-2 Studio Wireless+, IMPORT видео в библиотеку (async decode(bytes:), videoSound), значок наушников над CPU (PhonesBadge, monitorAudible — расшифровка CORRECT CURVE из JSON при каждой проверке), CPU — ZStack с offset; 1481544 и 752c424 собирались с первого раза. Сделать замер [calibrate] на de594f7, сравнить с fe2ca0a (TOP TYPES, TOP FUNCTIONS) и решить: порог (~1,63) или сбой Playgrounds; записать в скилл swift-build-size.
