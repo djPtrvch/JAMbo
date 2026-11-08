@@ -186,7 +186,7 @@ struct EqBar: View {
     @State private var barX: CGFloat = 0
 
     var body: some View {
-        let slots: [EqSlot] = EqBar.slots(width: width, barX: barX, top: model.topFrames)
+        let slots: [EqSlot] = EqBar.slots(width: width, barX: barX, top: model.topFrames, phones: model.phonesShown)
         return ZStack(alignment: .topLeading) {
             name.frame(width: EqBar.nameWidth, height: model.barH)
             ForEach(0..<EqBar.columns, id: \.self) { i in
@@ -201,7 +201,8 @@ struct EqBar: View {
     }
 
     /// Места столбцов (x от левого края строки, ширина).
-    static func slots(width: CGFloat, barX: CGFloat, top: TopFrames) -> [EqSlot] {
+    /// phones — окно коррекции: выбор кривой (PHONE | CORRECT) шире, CORRECTION уже (решение пользователя).
+    static func slots(width: CGFloat, barX: CGFloat, top: TopFrames, phones: Bool = false) -> [EqSlot] {
         let g: CGFloat = Layout.gap
         let x0: CGFloat = EqBar.nameWidth + g
         guard top.ready else {
@@ -216,8 +217,9 @@ struct EqBar: View {
         // STEREO и DYN — поровну до LISTEN.
         let listen: CGFloat = top.eq.minX - barX
         let w2: CGFloat = max(0, (listen - qRight - 3 * g) / 2)
-        out.append(EqSlot(x: qRight + g, w: w2))
-        out.append(EqSlot(x: qRight + 2 * g + w2, w: w2))
+        let wa: CGFloat = phones ? w2 * 1.3 : w2
+        out.append(EqSlot(x: qRight + g, w: wa))
+        out.append(EqSlot(x: qRight + 2 * g + wa, w: 2 * w2 - wa))
         // LISTEN, PRESETS, BYPASS — под EQ, PATTERNS, ARRANGE.
         for r in [top.eq, top.patterns, top.arrange] { out.append(EqSlot(x: r.minX - barX, w: r.width)) }
         return out

@@ -64,18 +64,31 @@ struct MonitorRow: View {
     }
 }
 
-/// Выбор кривой окна коррекции: кнопки PHONE CURVE и CORRECT CURVE (выбранная горит); правится выбранная.
+/// Выбор кривой окна коррекции: одна кнопка из двух половин — PHONE CURVE | CORRECT CURVE (подписи в две строки,
+/// между половинами — черта; выбранная горит); правится выбранная.
 struct CurveSwitch: View {
     let model: AppModel
 
-    /// Две отдельные кнопки (решение пользователя): PHONE CURVE и CORRECT CURVE; выбранная горит.
     var body: some View {
-        let m: AppModel = model
-        let c: Bool = m.monitor.editCorrect
-        return HStack(spacing: Layout.gap) {
-            EqTool(title: "PHONE CURVE", enabled: true, active: !c) { m.setEditCorrect(false) }
-            EqTool(title: "CORRECT CURVE", enabled: true, active: c) { m.setEditCorrect(true) }
+        let c: Bool = model.monitor.editCorrect
+        return HStack(spacing: 0) {
+            half("PHONE\nCURVE", !c, false)
+            Rectangle().fill(theme.line).frame(width: 1)
+            half("CORRECT\nCURVE", c, true)
         }
+        .background(theme.panel2)
+        .clipShape(RoundedRectangle(cornerRadius: Layout.radius))
+    }
+
+    private func half(_ t: String, _ on: Bool, _ correct: Bool) -> some View {
+        let m: AppModel = model
+        return Text(t).font(.system(size: 11, weight: .bold)).tracking(0.6).multilineTextAlignment(.center)
+            .lineLimit(2).minimumScaleFactor(0.7)
+            .foregroundStyle(on ? theme.onAccent : theme.text)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(on ? theme.accent : Color.clear)
+            .contentShape(Rectangle())
+            .onTapGesture { m.setEditCorrect(correct) }
     }
 }
 
