@@ -171,4 +171,82 @@ extension AppModel {
             }
         }
     }
+
+    // MARK: — поля строк MONITOR и ROOM по ключу: 0 TRANSLATION, 1 CORRECTION, 2 ANGLE, 3 AMOUNT, 4 ROOM, 5 AMBIENCE
+
+    /// Имена комнат для поля ROOM (Off — первым).
+    var roomNames: [String] { return ["Off"] + rooms.map { $0.name } }
+
+    func monitorField(_ k: Int) -> MonitorFieldInfo {
+        let s: MonitorSettings = monitor
+        switch k {
+        case 0: return MonitorFieldInfo(label: "TRANSLATION", value: translationPreset?.name ?? "Off", enabled: true, px: 30)
+        case 1: return MonitorFieldInfo(label: "CORRECTION", value: String(format: "%.0f %%", s.strength * 100), enabled: true, px: 2)
+        // Room включена — Crossfeed заменён комнатой (связь каналов — в её импульсах).
+        case 2: return MonitorFieldInfo(label: "ANGLE", value: String(format: "%.0f°", s.angle), enabled: !roomOn, px: 4)
+        case 3: return MonitorFieldInfo(label: "AMOUNT", value: String(format: "%.0f %%", s.amount * 100), enabled: !roomOn, px: 2)
+        case 4: return MonitorFieldInfo(label: "ROOM", value: roomOn ? s.room : "Off", enabled: true, px: 30)
+        default:
+            let t: String = s.ambienceDb <= MonitorSpec.ambienceMin ? "−∞ dB" : String(format: "%.1f dB", s.ambienceDb)
+            return MonitorFieldInfo(label: "AMBIENCE", value: t, enabled: roomOn, px: 2)
+        }
+    }
+
+    /// Значение поля в пунктах движения пальца.
+    func monitorUnits(_ k: Int) -> Double {
+        let s: MonitorSettings = monitor
+        switch k {
+        case 0: return -Double(translations.firstIndex { $0.name == s.translation } ?? 0)
+        case 1: return (s.strength * 100).rounded()
+        case 2: return s.angle.rounded()
+        case 3: return (s.amount * 100).rounded()
+        case 4: return -Double(roomNames.firstIndex(of: s.room) ?? 0)
+        default: return (s.ambienceDb * 2).rounded()
+        }
+    }
+
+    func setMonitorUnits(_ k: Int, _ v: Double) {
+        switch k {
+        case 0, 4:
+            let names: [String] = k == 0 ? translations.map { $0.name } : roomNames
+            let n: Int = names.count
+            if n == 0 { return }
+            let name: String = names[((-Int(v)) % n + n) % n]
+            if k == 4 {
+                if name != monitor.room { setRoom(name) }
+            } else {
+                setMonitor { $0.translation = name }
+            }
+        case 1: setMonitor { $0.strength = Swift.max(0, Swift.min(100, v)) / 100 }
+        case 2: setMonitor { $0.angle = Swift.max(MonitorSpec.angleMin, Swift.min(MonitorSpec.angleMax, v)) }
+        case 3: setMonitor { $0.amount = Swift.max(0, Swift.min(100, v)) / 100 }
+        default: setMonitor { $0.ambienceDb = Swift.max(MonitorSpec.ambienceMin, Swift.min(0, v / 2)) }
+        }
+    }
+
+    /// Двойной тап — по умолчанию (у TRANSLATION и ROOM — ничего).
+    func resetMonitorField(_ k: Int) {
+        switch k {
+        case 1: setMonitor { $0.strength = 1 }
+        case 2: setMonitor { $0.angle = MonitorSpec.angleDef }
+        case 3: setMonitor { $0.amount = MonitorSpec.amountDef }
+        case 5: setMonitor { $0.ambienceDb = -6 }
+        default: break
+        }
+    }
+
+    /// Тап: у TRANSLATION и ROOM — меню под полем.
+    func monitorFieldTap(_ k: Int, _ r: CGRect) {
+        guard k == 0 || k == 4 else { return }
+        monitorMenuRoom = k == 4
+        translationMenu = translationMenu == nil ? r : nil
+    }
+}
+
+/// Подпись, значение, доступность и шаг пальца поля монитора.
+struct MonitorFieldInfo {
+    let label: String
+    let value: String
+    let enabled: Bool
+    let px: CGFloat
 }

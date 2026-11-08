@@ -6,13 +6,12 @@ import SwiftUI
 /// CORRECT CURVE (какую кривую править) и LEVEL.
 struct MonitorBar: View {
     let model: AppModel
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let m: AppModel = model
         let s: MonitorSettings = m.monitor
         let items: [AnyView] = [
-            AnyView(translationField), correctionField(s), angleField(s), amountField(s),
+            MonitorBar.field(m, 0), MonitorBar.field(m, 1), MonitorBar.field(m, 2), MonitorBar.field(m, 3),
             AnyView(EqTool(title: "MONO", enabled: true, active: s.mono) { m.setMonitor { $0.mono.toggle() } }),
             AnyView(EqTool(title: "SUB", enabled: true, active: s.sub) { m.setMonitor { $0.sub.toggle() } }),
         ]
@@ -25,56 +24,15 @@ struct MonitorBar: View {
                               active: m.monitor.editCorrect == correct) { m.setEditCorrect(correct) })
     }
 
-    /// CORRECTION — сила коррекции профилем наушников, 0…100 %, 2 px на 1 %.
-    private func correctionField(_ s: MonitorSettings) -> AnyView {
-        let m: AppModel = model
-        let t: String = String(format: "%.0f %%", s.strength * 100)
-        return AnyView(EqField(label: "CORRECTION", value: t, pxPerUnit: 2,
-                               get: { (m.monitor.strength * 100).rounded() },
-                               set: { v in m.setMonitor { $0.strength = Swift.max(0, Swift.min(100, v)) / 100 } },
-                               double: { m.setMonitor { $0.strength = 1 } }, model: m))
+    /// Поле монитора k (AppModel.monitorField): одни замыкания на все поля (объём сборки).
+    static func field(_ m: AppModel, _ k: Int) -> AnyView {
+        let f: MonitorFieldInfo = m.monitorField(k)
+        return AnyView(EqField(label: f.label, value: f.value, enabled: f.enabled, pxPerUnit: f.px,
+                               get: { m.monitorUnits(k) },
+                               set: { v in m.setMonitorUnits(k, v) },
+                               tap: { r in m.monitorFieldTap(k, r) },
+                               double: { m.resetMonitorField(k) }, model: m))
     }
-
-    /// ANGLE Crossfeed, 10…60°, 4 px на градус.
-    private func angleField(_ s: MonitorSettings) -> AnyView {
-        let m: AppModel = model
-        let t: String = String(format: "%.0f°", s.angle)
-        // Room включена — Crossfeed заменён комнатой (связь каналов — в её импульсах).
-        return AnyView(EqField(label: "ANGLE", value: t, enabled: !m.roomOn, pxPerUnit: 4,
-                               get: { m.monitor.angle.rounded() },
-                               set: { v in m.setMonitor { $0.angle = Swift.max(MonitorSpec.angleMin, Swift.min(MonitorSpec.angleMax, v)) } },
-                               double: { m.setMonitor { $0.angle = MonitorSpec.angleDef } }, model: m))
-    }
-
-    /// AMOUNT Crossfeed, 0…100 %, 2 px на 1 %.
-    private func amountField(_ s: MonitorSettings) -> AnyView {
-        let m: AppModel = model
-        let t: String = String(format: "%.0f %%", s.amount * 100)
-        return AnyView(EqField(label: "AMOUNT", value: t, enabled: !m.roomOn, pxPerUnit: 2,
-                               get: { (m.monitor.amount * 100).rounded() },
-                               set: { v in m.setMonitor { $0.amount = Swift.max(0, Swift.min(100, v)) / 100 } },
-                               double: { m.setMonitor { $0.amount = MonitorSpec.amountDef } }, model: m))
-    }
-
-    /// TRANSLATION: палец вниз — следующий пресет, тап — меню пресетов.
-    private var translationField: some View {
-        let m: AppModel = model
-        let names: [String] = m.translations.map { $0.name }
-        let cur: String = names.contains(m.monitor.translation) ? m.monitor.translation : (names.first ?? "Off")
-        return EqField(label: "TRANSLATION", value: cur, pxPerUnit: 30,
-                       get: { -Double(names.firstIndex(of: m.monitor.translation) ?? 0) },
-                       set: { v in
-                           let n: Int = names.count
-                           if n == 0 { return }
-                           let i: Int = ((-Int(v)) % n + n) % n
-                           m.setMonitor { $0.translation = names[i] }
-                       },
-                       tap: { f in
-                           m.monitorMenuRoom = false
-                           m.translationMenu = m.translationMenu == nil ? f : nil
-                       }, model: m)
-    }
-
 }
 
 /// LEVEL: компенсация громкости цепочки (только показ; в строке EQ окна коррекции).
@@ -122,29 +80,11 @@ struct MonitorRoomBar: View {
 
     var body: some View {
         let m: AppModel = model
-        let names: [String] = ["Off"] + m.rooms.map { $0.name }
-        let cur: String = m.roomOn ? m.monitor.room : "Off"
-        let room = EqField(label: "ROOM", value: cur, pxPerUnit: 30,
-                           get: { -Double(names.firstIndex(of: m.monitor.room) ?? 0) },
-                           set: { v in
-                               let n: Int = names.count
-                               let i: Int = ((-Int(v)) % n + n) % n
-                               if names[i] != m.monitor.room { m.setRoom(names[i]) }
-                           },
-                           tap: { f in
-                               m.monitorMenuRoom = true
-                               m.translationMenu = m.translationMenu == nil ? f : nil
-                           }, model: m)
-        let db: Double = m.monitor.ambienceDb
-        let t: String = db <= MonitorSpec.ambienceMin ? "−∞ dB" : String(format: "%.1f dB", db)
-        let amb = EqField(label: "AMBIENCE", value: t, enabled: m.roomOn, pxPerUnit: 2,
-                          get: { (m.monitor.ambienceDb * 2).rounded() },
-                          set: { v in m.setMonitor { $0.ambienceDb = Swift.max(MonitorSpec.ambienceMin, Swift.min(0, v / 2)) } },
-                          double: { m.setMonitor { $0.ambienceDb = -6 } }, model: m)
         let note: String = m.roomOn ? "Crossfeed is replaced by the room" : "Room off: crossfeed works"
         let label = Text(note).font(.system(size: 12)).foregroundStyle(theme.dim).lineLimit(2)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading).padding(.horizontal, 12)
-        return MonitorRow(name: "ROOM", items: [AnyView(room), AnyView(amb), AnyView(label)], height: m.barH)
+        return MonitorRow(name: "ROOM", items: [MonitorBar.field(m, 4), MonitorBar.field(m, 5), AnyView(label)],
+                          height: m.barH)
     }
 }
 
