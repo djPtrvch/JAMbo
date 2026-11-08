@@ -7,9 +7,9 @@ import Foundation
 enum EnsembleJob {
     case drums(note: Int, role: DrumRhythm.Role)
     case slices(pieces: [SliceRhythm.Piece], cuts: [Int: SliceRhythm.Cut])
-    case bass(octave: Int)
+    case bass(octave: Int, root: Int)
     case chords(role: MelodyRhythm.Role, chords: [[Int]])
-    case lead(octave: Int)
+    case lead(octave: Int, root: Int)
     case arp(notes: [ArpStepNote])
 }
 
@@ -34,16 +34,16 @@ extension AppModel {
                                                         chord: chordOn, arp: t.arp.mode)
         let role: MelodyRhythm.Role = MelodyRhythm.role(auto, part: partTypeOf(i), chord: chordOn)
         switch role {
-        case .bass: return .bass(octave: oct)
-        case .lead: return .lead(octave: oct)
+        case .bass: return .bass(octave: oct, root: randomRoot(t))
+        case .lead: return .lead(octave: oct, root: randomRoot(t))
         case .keys, .pad:
             let cs: [[Int]] = MelodyRhythm.styleChords(degrees, style: t.drumStyle, bpm: p.bpm, scale: p.scale,
-                                                       root: p.root, octave: oct, using: &g)
+                                                       root: randomRoot(t), octave: oct, using: &g)
             return .chords(role: role, chords: cs)
         case .arp:
             let cs: [[Int]] = MelodyRhythm.styleChords(degrees, style: t.drumStyle, bpm: p.bpm, scale: p.scale,
-                                                       root: p.root, octave: oct, using: &g)
-            let folded: [[Int]] = Arp.fold(cs, base: Scales.baseNote(root: p.root, octave: oct))
+                                                       root: randomRoot(t), octave: oct, using: &g)
+            let folded: [[Int]] = Arp.fold(cs, base: Scales.baseNote(root: randomRoot(t), octave: oct))
             let total: Int = (range.upperBound - range.lowerBound + 1) * Params.stepsPerPage
             let a: TrackArp = t.arp
             let notes: [ArpStepNote] = Arp.randomSteps(folded, steps: total, dir: a.dir, octaves: a.octaves, rate: a.rate,
@@ -83,14 +83,14 @@ extension AppModel {
                 case .slices(let pieces, let cuts):
                     last[-1 - id] = p.tracks[i].writeRandomSlices(pieces, pages: r, avoid: last[-1 - id], cuts: cuts,
                                                                   bpm: bpm, using: &g)
-                case .bass(let oct):
-                    p.tracks[i].writeRandomBass(pages: r, degrees: degrees, scale: p.scale, root: p.root, octave: oct,
+                case .bass(let oct, let root):
+                    p.tracks[i].writeRandomBass(pages: r, degrees: degrees, scale: p.scale, root: root, octave: oct,
                                                 bpm: bpm, using: &g)
                 case .chords(let role, let cs):
                     pad = role == .pad
                     p.tracks[i].writeRandomChords(role, pages: r, chords: cs, bpm: bpm, using: &g)
-                case .lead(let oct):
-                    p.tracks[i].writeRandomLead(pages: r, degrees: degrees, scale: p.scale, root: p.root, octave: oct,
+                case .lead(let oct, let root):
+                    p.tracks[i].writeRandomLead(pages: r, degrees: degrees, scale: p.scale, root: root, octave: oct,
                                                 bpm: bpm, using: &g)
                 case .arp(let notes):
                     p.tracks[i].writeArpSteps(notes, pages: r)

@@ -236,7 +236,9 @@ extension AppModel {
             eqBand = -1
             return
         }
-        eqEdit { $0.apply(p, tracks: project.tracks.count) }
+        // Число дорожек — до правки: чтение project внутри edit — двойной доступ (вылет, 8.11).
+        let tracks: Int = project.tracks.count
+        eqEdit { $0.apply(p, tracks: tracks) }
         eqBand = -1
     }
 

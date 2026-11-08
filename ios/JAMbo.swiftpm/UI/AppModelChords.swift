@@ -116,10 +116,12 @@ extension AppModel {
         return styleTrack ? track.drumStyle : chordKind[selectedTrack]
     }
 
-    /// Подписи клавиш в режиме CHORD: аккорд и римская ступень («Em · i»).
+    /// Подписи клавиш в режиме CHORD: аккорд и римская ступень («Em · i»), второй строкой — нижняя нота аккорда с
+    /// октавой («E3»; 8.11 — октаву видно и в режиме CHORD).
     func chordKeyLabel(_ k: Int) -> String {
-        return Chords.keyLabel(scale: project.scale, root: project.root, octave: octave, degree: k,
-                               kind: chordKind[selectedTrack])
+        let label: String = Chords.keyLabel(scale: project.scale, root: project.root, octave: octave, degree: k,
+                                            kind: chordKind[selectedTrack])
+        return label + "\n" + Params.noteName(keyNote(k))
     }
 
     /// Выбранные страницы открытого паттерна (playFrom…playTo); вне их — открытая страница.
@@ -161,10 +163,27 @@ extension AppModel {
         return t.drumRoleBy(name: project.files[t.sample])
     }
 
-    /// Нота случайного ритма: у сэмпла — исходная высота (Params.sampleRoot), у движка — корневая в октаве oct.
+    /// Нота случайного ритма: у движка — корневая в октаве oct; у сэмпла — исходная высота (Params.sampleRoot), а
+    /// с определённой нотой сэмпла r (Project.roots; 8.11) — ближайшая к C3 нота, на которой он звучит корневой
+    /// проекта (подстройка от −6 до +5 полутонов).
     func drumNote(_ t: Track, octave oct: Int) -> Int {
-        if SynthKey.engine(t.sample) == nil { return Params.sampleRoot }
-        return Scales.baseNote(root: project.root, octave: oct)
+        if SynthKey.engine(t.sample) != nil { return Scales.baseNote(root: project.root, octave: oct) }
+        guard let r = sampleNote(t) else { return Params.sampleRoot }
+        return Params.sampleRoot + Scales.wrap(project.root - r + 6, 12) - 6
+    }
+
+    /// Определённая нота сэмпла дорожки (Project.roots); у движка и сэмпла без ноты — nil.
+    func sampleNote(_ t: Track) -> Int? {
+        if t.sample.isEmpty || SynthKey.engine(t.sample) != nil { return nil }
+        return project.roots[t.sample]
+    }
+
+    /// Корневая нота случайной партии дорожки t (8.11). Сэмпл звучит исходной высотой на C3 (Params.sampleRoot):
+    /// с определённой нотой r нота N звучит как r + N − C3. Чтобы партия звучала в гамме проекта, ноты пишутся ниже
+    /// на (r − C3) по модулю 12 — от −6 до +5 (сэмпл подстраивается меньше всего, звучит в своём регистре).
+    func randomRoot(_ t: Track) -> Int {
+        guard let r = sampleNote(t) else { return project.root }
+        return project.root - (Scales.wrap(r - Params.sampleRoot + 6, 12) - 6)
     }
 
     /// Случайная прогрессия стиля проекта (MelodyRhythm.progression), не равная прошлой.
@@ -182,7 +201,7 @@ extension AppModel {
         lastRandomProgression = degrees
         let range: ClosedRange<Int> = chordPages
         let scale: Int = project.scale
-        let root: Int = project.root
+        let root: Int = randomRoot(track)
         let oct: Int = octave
         let bpm: Double = project.bpm
         let swing: Bool = settings.randomSwing
@@ -201,7 +220,7 @@ extension AppModel {
         lastRandomProgression = degrees
         let bpm: Double = project.bpm
         let folded: [[Int]] = MelodyRhythm.styleChords(degrees, style: track.drumStyle, bpm: bpm, scale: project.scale,
-                                                       root: project.root, octave: octave, using: &g)
+                                                       root: randomRoot(track), octave: octave, using: &g)
         let range: ClosedRange<Int> = chordPages
         let swing: Bool = settings.randomSwing
         editTrack { t in
@@ -219,7 +238,7 @@ extension AppModel {
         lastRandomProgression = degrees
         let range: ClosedRange<Int> = chordPages
         let scale: Int = project.scale
-        let root: Int = project.root
+        let root: Int = randomRoot(track)
         let oct: Int = octave
         let bpm: Double = project.bpm
         let swing: Bool = settings.randomSwing
@@ -240,10 +259,10 @@ extension AppModel {
         // Типы аккордов — по стилю (styleChords); каждый аккорд — в октаве клавиатуры (обращением, без drop 2 и
         // корня ниже): с OCTAVES 1 арпеджио не разбегается на две октавы.
         let cs: [[Int]] = MelodyRhythm.styleChords(degrees, style: track.drumStyle, bpm: project.bpm, scale: project.scale,
-                                                   root: project.root, octave: octave, using: &g)
+                                                   root: randomRoot(track), octave: octave, using: &g)
         let range: ClosedRange<Int> = chordPages
         let a: TrackArp = track.arp
-        let folded: [[Int]] = Arp.fold(cs, base: Scales.baseNote(root: project.root, octave: octave))
+        let folded: [[Int]] = Arp.fold(cs, base: Scales.baseNote(root: randomRoot(track), octave: octave))
         let total: Int = (range.upperBound - range.lowerBound + 1) * Params.stepsPerPage
         let notes: [ArpStepNote] = Arp.randomSteps(folded, steps: total, dir: a.dir, octaves: a.octaves,
                                                    rate: a.rate, gate: a.gate, style: track.drumStyle,

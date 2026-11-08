@@ -17,6 +17,9 @@ struct LeftColumn: View {
                     ButtonPair(left: MasterButton(model: model, module: MasterScope.sat),
                                right: MasterButton(model: model, module: MasterScope.lim))
                 })
+            } else if model.channel == .mix {
+                // MIX (8.11): LFO и ENV при MIX ничего не делают — пустое поле на месте всей группы.
+                AnyView(EmptyGroup())
             } else {
                 AnyView(VStack(spacing: Layout.gap) {
                     ButtonPair(left: SourceButton(model: model, title: "LFO1", source: 1).midiTarget(model, "LFO1"),
@@ -158,6 +161,12 @@ struct RightColumn: View {
                            right: ScopeButton(model: model, tap: MasterScope.clip))
                 ButtonPair(left: ShiftButton(model: model), right: ScopeButton(model: model, tap: MasterScope.lim))
             })
+        } else if model.channel == .mix {
+            // MIX (8.11): FX, MOD, SHIFT, MORPH при MIX не нужны — пустое поле на месте всей группы.
+            AnyView(VStack(spacing: Layout.gap) {
+                RightTop(model: model)
+                EmptyGroup()
+            })
         } else {
             AnyView(VStack(spacing: Layout.gap) {
                 RightTop(model: model)
@@ -168,6 +177,15 @@ struct RightColumn: View {
                            right: MorphButton(model: model).midiTarget(model, "MORPH"))
             })
         }
+    }
+}
+
+/// Пустое поле на месте группы из двух пар кнопок (MIX): фон панели, без подписей.
+struct EmptyGroup: View {
+    var body: some View {
+        RoundedRectangle(cornerRadius: Layout.radius)
+            .fill(theme.panel)
+            .frame(height: 2 * Layout.pairHeight + Layout.gap)
     }
 }
 

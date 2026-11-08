@@ -42,6 +42,25 @@ final class HypnoticLeadTests: XCTestCase {
         XCTAssertFalse(pat[0].isEmpty)
     }
 
+    /// Нота сэмпла (8.11): корневая со сдвигом может быть отрицательной — партии остаются в гамме от неё.
+    func testShiftedRootInScale() {
+        var g = SystemRandomNumberGenerator()
+        let scale: Int = 1
+        let steps: [Int] = Scales.all[scale].steps
+        for root in [-6, -1, 3, 16] {
+            for st in 0..<DrumRhythm.styles.count {
+                let lead = MelodyRhythm.lead(style: st, bpm: 125, lens: [16, 16], degrees: [1, 6], scale: scale, root: root,
+                                             octave: 3, using: &g)
+                let bass = MelodyRhythm.bass(style: st, bpm: 125, lens: [16, 16], degrees: [1, 6], scale: scale, root: root,
+                                             octave: 1, using: &g)
+                for e in (lead + bass).flatMap({ $0 }) {
+                    XCTAssertTrue(steps.contains(((e.note - root) % 12 + 12) % 12), "в гамме от сдвинутой корневой")
+                    XCTAssertTrue((0...127).contains(e.note))
+                }
+            }
+        }
+    }
+
     func testPartTypes() {
         typealias M = MelodyRhythm
         XCTAssertEqual(M.partIndex(.bass), 0)
