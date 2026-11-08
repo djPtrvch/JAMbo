@@ -39,10 +39,13 @@ final class MidiTests: XCTestCase {
         XCTAssertEqual(out[0].data1, 36)
     }
 
-    /// MIDI дорожки: канал ALL — только выбранная дорожка, канал 1–16 — всегда; устройство; вход выключен.
+    /// MIDI дорожки: по умолчанию вход — NONE (8.11); канал ALL — только выбранная дорожка, канал 1–16 — всегда;
+    /// устройство; вход выключен.
     func testTrackNoteRouting() {
         var p = Project()
         while p.tracks.count < 4 { p.tracks.append(Track(index: p.tracks.count)) }
+        XCTAssertEqual(TrackMidi.tracks(p, source: 9, channel: 2, selected: 1), [], "по умолчанию ноты не принимаются")
+        for i in p.tracks.indices { p.tracks[i].midi.inOn = true }
         XCTAssertEqual(TrackMidi.tracks(p, source: 9, channel: 2, selected: 1), [1])
         p.tracks[3].midi.inChannel = 3
         XCTAssertEqual(TrackMidi.tracks(p, source: 9, channel: 2, selected: 1), [1, 3])
@@ -74,12 +77,21 @@ final class MidiTests: XCTestCase {
         XCTAssertEqual(bad.outChannel, 1)
     }
 
-    func testInputFilterAndVelocity() {
-        var s = MidiSettings()
-        XCTAssertTrue(s.accepts(source: 123))
-        s.input = 77
-        XCTAssertFalse(s.accepts(source: 123))
-        XCTAssertTrue(s.accepts(source: 77))
+    /// Старые проекты (до версии 8): вход, оставленный по умолчанию, — NONE; выбранные устройство или канал остаются.
+    func testMigrateMidiIn() throws {
+        var p = Project()
+        p.version = 7
+        for i in p.tracks.indices { p.tracks[i].midi.inOn = true }
+        p.tracks[1].midi.inChannel = 5
+        p.tracks[2].midi.inDevice = 9
+        p.repair()
+        XCTAssertEqual(p.version, 8)
+        XCTAssertFalse(p.tracks[0].midi.inOn)
+        XCTAssertTrue(p.tracks[1].midi.inOn)
+        XCTAssertTrue(p.tracks[2].midi.inOn)
+    }
+
+    func testVelocity() {
         XCTAssertEqual(MidiSettings.velocity(127, sensitive: true), 1)
         XCTAssertEqual(MidiSettings.velocity(0, sensitive: true), 1.0 / 127, accuracy: 1e-9)
         XCTAssertEqual(MidiSettings.velocity(20, sensitive: false), 1)
@@ -91,15 +103,15 @@ final class MidiTests: XCTestCase {
     /// Настройки MIDI хранятся в AppSettings; старые настройки без них читаются со значениями по умолчанию.
     func testSettingsCoding() throws {
         var a = AppSettings()
-        a.midi.input = -42
+        a.midi.feedback = -42
         let back = AppSettings.decode(a.encode())
         XCTAssertEqual(back.midi, a.midi)
         let old = AppSettings.decode(Data("{\"velocity\":true}".utf8))
         XCTAssertEqual(old.midi, MidiSettings())
         XCTAssertTrue(old.velocity)
-        // Прежние noteChannel и noteRoute пропускаются.
+        // Прежние noteChannel, noteRoute и общий вход input (до 8.11) пропускаются.
         let bad = AppSettings.decode(Data("{\"midi\":{\"noteChannel\":40,\"input\":5}}".utf8))
-        XCTAssertEqual(bad.midi.input, 5)
+        XCTAssertEqual(bad.midi, MidiSettings())
         // Нажатие ручки как касание: по умолчанию ON, сохраняется.
         XCTAssertTrue(old.midi.pressTouch)
         var b = AppSettings()

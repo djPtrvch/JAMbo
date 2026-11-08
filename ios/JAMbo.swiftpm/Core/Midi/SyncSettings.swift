@@ -27,9 +27,6 @@ public struct SyncSettings: Codable, Equatable, Sendable {
     public var clockOuts: [Int32] = []
     /// Вход клока при RECEIVE (S14d): nil — ALL INPUTS, иначе uniqueID; не зависит от входа в MIDI → DEVICES.
     public var clockIn: Int32? = nil
-    /// Ноты с входа клока (8.11, решение пользователя): по умолчанию при приёме клока не играют дорожки (у ведущего
-    /// устройства свои ноты); ON — принимаются, как с любого входа.
-    public var clockNotes: Bool = false
     /// SYNC START/STOP клока: SEND — Start и Stop с PLAY; RECEIVE — Start, Continue, Stop управляют игрой.
     public var midiStartStop: Bool = true
     /// Сдвиг клока, мс (−200…+200): плюс — отдаваемый клок позже, при приёме — свои шаги позже тиков.
@@ -43,7 +40,7 @@ public struct SyncSettings: Codable, Equatable, Sendable {
     public init() {}
 
     private enum CodingKeys: String, CodingKey {
-        case quantum, clock, send, receive, clockOuts, clockIn, clockNotes, midiStartStop, midiOffset, link, linkNotify, linkStartStop,
+        case quantum, clock, send, receive, clockOuts, clockIn, midiStartStop, midiOffset, link, linkNotify, linkStartStop,
              linkOffset
     }
 
@@ -63,7 +60,6 @@ public struct SyncSettings: Codable, Equatable, Sendable {
         let one: Int32? = old.optional(.clockOut)
         clockOuts = c.value(.clockOuts, one.map { [$0] } ?? [])
         clockIn = c.optional(.clockIn)
-        clockNotes = c.value(.clockNotes, false)
         midiStartStop = c.value(.midiStartStop, true)
         midiOffset = SyncSettings.clampOffset(c.value(.midiOffset, 0))
         link = c.value(.link, false)
@@ -76,14 +72,6 @@ public struct SyncSettings: Codable, Equatable, Sendable {
     public func acceptsClock(source: Int32) -> Bool {
         guard let i = clockIn else { return true }
         return i == source
-    }
-
-    /// Ноты с входа source не играют: идёт приём клока, ноты с входа клока выключены, и source — вход клока
-    /// (выбранный; при ALL INPUTS — тот, с которого пришёл последний тик, clockSource; 0 — клока ещё не было).
-    public func blocksNotes(source: Int32, clockSource: Int32) -> Bool {
-        if !clock || !receive || clockNotes { return false }
-        if let i = clockIn { return i == source }
-        return clockSource != 0 && clockSource == source
     }
 
     /// Выход id в списке CLOCK OUTPUTS: выбран (ALL OUTPUTS — пусто).

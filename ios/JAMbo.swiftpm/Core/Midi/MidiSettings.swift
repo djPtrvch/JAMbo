@@ -5,8 +5,6 @@ import Foundation
 // (TrackMidi; прежние noteChannel и noteRoute при чтении пропускаются).
 
 public struct MidiSettings: Codable, Equatable, Sendable {
-    /// Вход: nil — ALL INPUTS, иначе uniqueID источника.
-    public var input: Int32? = nil
     /// Выход обратной связи по умолчанию: nil — NONE (S13d).
     public var feedback: Int32? = nil
     /// Маппинги (S13b; MidiMapper.swift — условия и правка).
@@ -19,22 +17,17 @@ public struct MidiSettings: Codable, Equatable, Sendable {
 
     public init() {}
 
-    private enum CodingKeys: String, CodingKey { case input, feedback, mappings, preset, pressTouch }
+    /// Прежний общий вход нот (input, до 8.11) при чтении пропускается: ноты — только у дорожек (TrackMidi), маппинги —
+    /// со своего входа (MidiMapping).
+    private enum CodingKeys: String, CodingKey { case feedback, mappings, preset, pressTouch }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        input = c.optional(.input)
         feedback = c.optional(.feedback)
         let maps: [LossyMapping] = c.value(.mappings, [])
         mappings = maps.compactMap { $0.value }
         preset = c.value(.preset, "")
         pressTouch = c.value(.pressTouch, true)
-    }
-
-    /// Слушать ли источник (uniqueID).
-    public func accepts(source: Int32) -> Bool {
-        guard let i = input else { return true }
-        return i == source
     }
 
     /// Касание клавиши для ноты с MIDI на дорожке track (id клавиши в модели): отрицательные, не пересекаются

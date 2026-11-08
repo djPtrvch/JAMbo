@@ -99,7 +99,6 @@ extension AppModel {
         let now: Double = HostClock().now()
         if f.last > 0 && now - f.last > ClockFollower.timeout {
             midiRun.follower.lose()
-            // Клок пропал: при ALL INPUTS ноты с этого входа снова играют.
             midiRun.clockSource = 0
             audio.core.events.push(.tempo(project.bpm))
             return

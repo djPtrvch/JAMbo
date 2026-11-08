@@ -47,17 +47,14 @@ struct MidiMenuPage: View {
     }
 }
 
-/// DEVICES: вход (ALL INPUTS или один) и выход обратной связи (NONE или один).
+/// DEVICES: выход обратной связи (NONE или один) и Bluetooth MIDI. Вход и выход нот — только у дорожек (меню звука → MIDI;
+/// 8.11, решение пользователя).
 struct MidiDevicesTab: View {
     let model: AppModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            FieldLabel(title: "INPUT")
-            if model.midi.inputs.isEmpty { SettingsNote(text: "No MIDI inputs connected.") }
-            MidiDeviceList(none: "ALL INPUTS", devices: model.midi.inputs, current: model.settings.midi.input) { id in
-                model.setMidi { $0.input = id }
-            }
+            SettingsNote(text: "Note input and output are set on each track: sound menu → MIDI. By default tracks do not receive notes.")
             FieldLabel(title: "FEEDBACK OUTPUT")
             if model.midi.outputs.isEmpty { SettingsNote(text: "No MIDI outputs connected.") }
             MidiDeviceList(none: "NONE", devices: model.midi.outputs, current: model.settings.midi.feedback) { id in

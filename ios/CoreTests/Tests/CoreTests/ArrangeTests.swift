@@ -170,7 +170,7 @@ final class ArrangeTests: XCTestCase {
         obj["tracks"] = tracks
         var old = try JSONDecoder().decode(Project.self, from: JSONSerialization.data(withJSONObject: obj))
         old.repair()
-        XCTAssertEqual(old.version, 7)
+        XCTAssertEqual(old.version, 8)
         XCTAssertTrue(old.tracks.allSatisfy { $0.blocks.isEmpty && $0.color == ArrPalette.defaultColor })
         XCTAssertEqual(old.arrange, Arrangement())
 

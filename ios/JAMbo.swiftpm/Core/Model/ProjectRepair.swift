@@ -9,7 +9,8 @@ extension Project {
         if version < 4 { migrateSynthKnobs() }
         if version < 6 { migrateGranular() }
         if version < 7 { migrateRandomStyles() }
-        version = Swift.max(version, 7)
+        if version < 8 { migrateMidiIn() }
+        version = Swift.max(version, 8)
         if !bpm.isFinite { bpm = 120 }
         bpm = Swift.min(Params.bpmMax, Swift.max(Params.bpmMin, bpm))
         scale = Project.clamp(scale, 0, Scales.all.count - 1)
@@ -196,6 +197,14 @@ extension Eq {
 }
 
 extension Project {
+    /// Версия 8 (8.11, решение пользователя: по умолчанию входящие ноты не принимаются): вход нот дорожки, оставленный
+    /// по умолчанию (ALL INPUTS, канал ALL), — NONE; выбранные устройство или канал остаются.
+    mutating func migrateMidiIn() {
+        for i in tracks.indices where tracks[i].midi.inOn && tracks[i].midi.inDevice == nil && tracks[i].midi.inChannel == 0 {
+            tracks[i].midi.inOn = false
+        }
+    }
+
     /// Версия 7 (4.11): стили случайного ритма — House, Techno, Breaks/D&B, Trap/R&B, Pop, Ambient (Afro → House,
     /// Minimal → Techno); стиль один на проект — у всех дорожек стиль первой ударной или нарезанной (иначе первой).
     mutating func migrateRandomStyles() {

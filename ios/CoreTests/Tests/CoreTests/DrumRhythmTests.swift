@@ -102,7 +102,7 @@ final class DrumRhythmTests: XCTestCase {
         p.tracks[1].sample = "mi:16"
         p.tracks[1].drumStyle = 5
         p.repair()
-        XCTAssertEqual(p.version, 7)
+        XCTAssertEqual(p.version, 8)
         XCTAssertTrue(p.tracks.allSatisfy { $0.drumStyle == 1 }, "Minimal первой ударной → Techno у всех")
         p.addTrack()
         XCTAssertEqual(p.tracks.last?.drumStyle, 1)

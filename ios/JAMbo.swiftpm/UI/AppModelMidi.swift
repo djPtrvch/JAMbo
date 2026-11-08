@@ -36,7 +36,6 @@ extension AppModel {
             return
         }
         let ms: MidiSettings = settings.midi
-        guard ms.accepts(source: source) else { return }
         let isCc: Bool = msg.kind == .cc
         let on: Bool = msg.kind == .noteOn
         let src = MidiSource(type: isCc ? .cc : .note, ch: msg.channel, num: msg.data1)
@@ -66,8 +65,6 @@ extension AppModel {
             for m in r.active { applyMapping(m, isCc: isCc, value: msg.data2, press: press) }
             return
         }
-        // Ноты ведущего устройства (вход клока) на дорожки не идут (8.11; SYNC → NOTES FROM CLOCK INPUT).
-        if settings.sync.blocksNotes(source: source, clockSource: midiRun.clockSource) { return }
         midiNote(msg, source: source)
     }
 

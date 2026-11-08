@@ -5,9 +5,10 @@ import Foundation
 // отключённое устройство.
 
 public struct TrackMidi: Codable, Equatable, Sendable {
-    /// Вход: принимать ли ноты, устройство (nil — ANY) и канал (0 — ALL: дорожка играет, только когда выбрана;
-    /// 1–16 — играет всегда).
-    public var inOn: Bool = true
+    /// Вход: принимать ли ноты (по умолчанию нет — NONE; 8.11, решение пользователя: входящий и исходящий MIDI нот —
+    /// только у дорожек), устройство (nil — ANY) и канал (0 — ALL: дорожка играет, только когда выбрана; 1–16 — играет
+    /// всегда).
+    public var inOn: Bool = false
     public var inDevice: Int32? = nil
     public var inName: String = ""
     public var inChannel: Int = 0
@@ -23,7 +24,7 @@ public struct TrackMidi: Codable, Equatable, Sendable {
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
-        inOn = c.value(.inOn, true)
+        inOn = c.value(.inOn, false)
         inDevice = c.optional(.inDevice)
         inName = c.value(.inName, "")
         let ic: Int = c.value(.inChannel, 0)
