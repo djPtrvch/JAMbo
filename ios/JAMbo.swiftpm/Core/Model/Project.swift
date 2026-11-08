@@ -258,6 +258,18 @@ public struct Track: Codable, Equatable, Sendable {
     }
 }
 
+/// Редкие поля клипа (Clip.moreBox): гамма, нота, FX, скорость; все nil — коробка пуста.
+public struct ClipMore: Equatable, Sendable {
+    public var scale: Int? = nil
+    public var root: Int? = nil
+    public var fx: [String: Double]? = nil
+    public var rate: Int? = nil
+
+    public init() {}
+
+    var isEmpty: Bool { return scale == nil && root == nil && fx == nil && rate == nil }
+}
+
 /// Клип — ячейка сетки паттернов со своим паттерном: страницы (до 8), длина, играющие страницы (диапазон подряд),
 /// гамма, нота и общие FX. Звук и ручки — у дорожки (общие для всех её клипов). Копия клипа — независимая.
 public struct Clip: Codable, Equatable, Sendable {
@@ -265,9 +277,27 @@ public struct Clip: Codable, Equatable, Sendable {
     public var length: Int
     public var playFrom: Int
     public var playTo: Int
-    public var scale: Int?
-    public var root: Int?
-    public var fx: [String: Double]?
+    /// Гамма, нота, FX и скорость клипа — редкие поля «в коробке» (ClipMore; 8.11, объём сборки): копия клипа не тянет
+    /// их по полям; в файле — прежние ключи.
+    var moreBox: [ClipMore] = []
+    public var scale: Int? {
+        get { return moreBox.first?.scale }
+        set { setMore { $0.scale = newValue } }
+    }
+    public var root: Int? {
+        get { return moreBox.first?.root }
+        set { setMore { $0.root = newValue } }
+    }
+    public var fx: [String: Double]? {
+        get { return moreBox.first?.fx }
+        set { setMore { $0.fx = newValue } }
+    }
+
+    private mutating func setMore(_ f: (inout ClipMore) -> Void) {
+        var m: ClipMore = moreBox.first ?? ClipMore()
+        f(&m)
+        moreBox = m.isEmpty ? [] : [m]
+    }
     /// Переход MIX (S10, src веба): только у клипа строки PREV — звук старой дорожки (старый проект).
     /// Хранится «в коробке» (массив из 0 или 1 элемента, копия при записи): копии клипа не тянут звук по значению
     /// (объём сборки, 8.11).
@@ -277,7 +307,10 @@ public struct Clip: Codable, Equatable, Sendable {
         set { srcBox = newValue.map { [$0] } ?? [] }
     }
     /// Скорость паттерна (S14): степень двойки — 1 (×2), 0 или nil (×1), −1…−4 (1/2…1/16).
-    public var rate: Int?
+    public var rate: Int? {
+        get { return moreBox.first?.rate }
+        set { setMore { $0.rate = newValue } }
+    }
 
     public static let rates: [Int] = [1, 0, -1, -2, -3, -4]
     public static let rateNames: [String] = ["2", "1", "1/2", "1/4", "1/8", "1/16"]
