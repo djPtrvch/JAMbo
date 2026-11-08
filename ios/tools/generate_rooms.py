@@ -19,10 +19,16 @@ TRANSLATION (8.11): Studio (студия, мониторы ±30° на 1,5 м), 
     поля), стык с ранней частью по плотности энергии;
   * WAV 48 кГц, 24 бит, 4 канала: LL, LR, RL, RR (колонка → ухо: левая → левое, левая → правое, правая → левое,
     правая → правое), пик 0,99; множитель громкости — gain_db в rooms.json.
+  * HEAD (отслеживание головы, 8.11): Room*Head.wav — прямая часть (первые DIRECT_N отсчётов, 4 пути) для поворотов
+    головы −50…+50° через 2° (вправо +; 51 набор подряд), с той же эквализацией, сдвигом и громкостью, что и импульс
+    комнаты (при голове прямо — совпадает с ним). Голова повёрнута относительно корпуса (HATO FABIAN, измерения через
+    10°, между ними — линейно по выровненным импульсам), колонки остаются на местах; отражения — те же, что в пределах
+    окна прямой части. Своя громкость — head.gain_db в rooms.json.
 
 HRTF — FABIAN head-related transfer function data base, v4 (TU Berlin), CC BY 4.0, DOI 10.14279/depositonce-5718.5
 (файл HRIRs_neutral_head_orientation_v4.zip: SOFA/FABIAN_HRIR_measured_HATO_0.sofa и
-SOFA/FABIAN_CTF_measured_inverted_smoothed.sofa). Ранние версии датасета — CC BY-NC-SA, их не брать.
+SOFA/FABIAN_CTF_measured_inverted_smoothed.sofa; для HEAD — ещё FABIAN_HRIR_measured_HATO_{10…50, 310…350}.sofa из
+FABIAN_HRTF_DATABASE_v4.zip, папка «1 HRIRs/SOFA»). Ранние версии датасета — CC BY-NC-SA, их не брать.
 Лицензии — docs/LICENSES-room.md.
 
 Запуск: pip install numpy scipy sofar
@@ -48,6 +54,13 @@ RT_CLUB = np.array([1.05, 1.0, 1.0, 1.0, 0.9, 0.75, 0.6])
 EAR_DIST = 0.18
 SPK_DIST = 1.5
 DIRECT_N = 128
+# Запас перед прямым звуком (отсчёты): при повороте головы ближнее ухо слышит колонку раньше, чем при голове прямо.
+PRE = 8
+# HEAD: наборы прямой части по углам поворота головы (вправо +), градусы.
+HEAD_FROM = -50
+HEAD_STEP = 2
+HEAD_COUNT = 51
+HATO = [0, 10, 20, 30, 40, 50, -10, -20, -30, -40, -50]
 SPK_ANGLE = 30.0
 HEIGHT = 1.2
 
@@ -81,6 +94,84 @@ def load_hrtf(folder):
     dirs = np.stack([np.cos(el) * np.cos(az), np.cos(el) * np.sin(az), np.sin(el)], axis=1)
     lic = getattr(h, "GLOBAL_License", "")
     return ir, ctf, dirs, lic
+
+
+def load_hato(folder):
+    """HRIR FABIAN для всех поворотов головы относительно корпуса (HATO, влево +): {угол: массив}. Направления
+    источников в файлах — относительно корпуса, общие для всех HATO."""
+    sets = {}
+    ref = None
+    for a in HATO:
+        name = "FABIAN_HRIR_measured_HATO_%d.sofa" % (a % 360)
+        h = sf.read_sofa(os.path.join(folder, name), verify=False)
+        pos = np.asarray(h.SourcePosition, dtype=float)
+        if ref is None:
+            ref = pos
+        assert np.allclose(pos, ref), name
+        sets[a] = sg.resample_poly(np.asarray(h.Data_IR, dtype=float), 160, 147, axis=-1)
+    return sets
+
+
+def onset_of(x):
+    """Начало HRIR (дробные отсчёты): первый отсчёт выше 20 % пика после повышения частоты в 8 раз."""
+    u = sg.resample_poly(x, 8, 1)
+    return float(np.argmax(np.abs(u) >= 0.2 * np.max(np.abs(u)))) / 8
+
+
+class HatoIR:
+    """HRIR для поворота головы hato (влево +, ±50°): между измерениями через 10° — линейно по выровненным
+    импульсам (начало каждого уха снимается, импульсы смешиваются, начало — тоже линейно); на измеренных углах —
+    как есть."""
+
+    def __init__(self, sets, hato):
+        self.sets = sets
+        a = int(np.floor(hato / 10.0)) * 10
+        self.a = max(-50, min(40, a))
+        self.t = (hato - self.a) / 10.0
+        self.shape = sets[0].shape
+        self.cache = {}
+
+    def __getitem__(self, j):
+        if j in self.cache:
+            return self.cache[j]
+        A = self.sets[self.a][j]
+        if abs(self.t) < 1e-9:
+            out = A
+        elif abs(self.t - 1) < 1e-9:
+            out = self.sets[self.a + 10][j]
+        else:
+            B = self.sets[self.a + 10][j]
+            n = 2048
+            w = 2 * np.pi * np.fft.rfftfreq(n)
+            out = np.zeros((2, n))
+            for e in range(2):
+                ta, tb = onset_of(A[e]), onset_of(B[e])
+                fa = np.fft.rfft(A[e], n) * np.exp(1j * w * ta)
+                fb = np.fft.rfft(B[e], n) * np.exp(1j * w * tb)
+                tt = (1 - self.t) * ta + self.t * tb
+                f = ((1 - self.t) * fa + self.t * fb) * np.exp(-1j * w * tt)
+                out[e] = np.fft.irfft(f, n)
+            out = out[:, :A.shape[-1] + 64]
+        self.cache[j] = out
+        return out
+
+
+def head_sets(cfg, sets, ctf, dirs, info):
+    """Прямая часть (первые DIRECT_N отсчётов, 4 пути) для поворотов головы HEAD_FROM + HEAD_STEP·i (вправо +) —
+    с той же эквализацией, сдвигом и громкостью, что и импульс комнаты. Возвращает (наборы, срезанная доля энергии
+    перед началом окна — наибольшая)."""
+    nfft, shift, corr = info["nfft"], info["shift"], info["corr"]
+    k = info["scale"] / info["norm"]
+    out = np.zeros((HEAD_COUNT, 4, DIRECT_N))
+    worst = 0.0
+    for i in range(HEAD_COUNT):
+        yaw = HEAD_FROM + HEAD_STEP * i
+        spec, _ = early_part(cfg, HatoIR(sets, -yaw), ctf, dirs, nfft, limit=(shift + DIRECT_N + 256) / SR)
+        e = np.fft.irfft(spec * corr[None, :], nfft, axis=-1)
+        cut = np.sum(e[:, nfft - 2 * DIRECT_N:] ** 2) + np.sum(e[:, :shift] ** 2)
+        worst = max(worst, cut / np.sum(e ** 2))
+        out[i] = np.roll(e, -shift, axis=-1)[:, :DIRECT_N] * k
+    return out, worst
 
 
 def sabine_alpha(size, rt60):
@@ -120,8 +211,9 @@ def images(room, src, lst, max_dist):
     return out
 
 
-def early_part(cfg, ir, ctf, dirs, nfft):
-    """Прямой звук и ранние отражения для четырёх путей (частотная область, nfft), задержка прямого — 0."""
+def early_part(cfg, ir, ctf, dirs, nfft, limit=None):
+    """Прямой звук и ранние отражения для четырёх путей (частотная область, nfft), задержка прямого — 0.
+    limit — только пути, пришедшие не позже limit секунд после прямого (для наборов HEAD; случайные сдвиги — те же)."""
     lx, ly, lz = cfg["size"]
     alpha = cfg.get("alpha", sabine_alpha(cfg["size"], cfg["rt60"]))
     # Поглощение по октавам: там, где RT длиннее, — меньше.
@@ -135,7 +227,13 @@ def early_part(cfg, ir, ctf, dirs, nfft):
     out = np.zeros((4, freqs.size), dtype=complex)
     dry = np.zeros((4, freqs.size), dtype=complex)
     w = 2 * np.pi * freqs
-    hr = np.fft.rfft(ir, nfft, axis=-1)
+    # Спектры HRIR — только нужных направлений (все 11 950 при большом nfft не помещаются в память).
+    cache = {}
+
+    def hrtf(j):
+        if j not in cache:
+            cache[j] = np.fft.rfft(ir[j], nfft, axis=-1)
+        return cache[j]
     # Отсчёт времени и громкости — от ближней колонки (её прямой звук — 0 dB, задержка 0).
     d0 = min(np.linalg.norm(p - lst) for p in spks)
     max_dist = max(np.linalg.norm(p - lst) for p in spks) + C * cfg["early_ms"] / 1000
@@ -151,15 +249,18 @@ def early_part(cfg, ir, ctf, dirs, nfft):
             d = np.linalg.norm(v)
             if jit > 0 and k > 0:
                 d += rng.uniform(-1, 1) * jit * np.sqrt(k)
+            if limit is not None and (d - d0) / C > limit:
+                continue
             u = np.array([v @ fwd, v @ left, v @ up]) / d
             j = int(np.argmax(dirs @ u))
             amp = (d0 / d) * np.exp(k * lrefl) * floor ** kf
             ph = np.exp(-1j * w * (d - d0) / C)
-            out[2 * s_i + 0] += hr[j, 0] * amp * ph
-            out[2 * s_i + 1] += hr[j, 1] * amp * ph
+            hj = hrtf(j)
+            out[2 * s_i + 0] += hj[0] * amp * ph
+            out[2 * s_i + 1] += hj[1] * amp * ph
             if k == 0:
-                dry[2 * s_i + 0] += hr[j, 0] * amp * ph
-                dry[2 * s_i + 1] += hr[j, 1] * amp * ph
+                dry[2 * s_i + 0] += hj[0] * amp * ph
+                dry[2 * s_i + 1] += hj[1] * amp * ph
     # Диффузно-полевая эквализация (инверсная CTF FABIAN).
     eq = np.fft.rfft(ctf, nfft)[None, :]
     return out * eq, dry * eq
@@ -242,9 +343,9 @@ def make_room(cfg, ir, ctf, dirs, seed):
     spec, dspec = early_part(cfg, ir, ctf, dirs, nfft)
     early = np.fft.irfft(spec, nfft, axis=-1)
     dry = np.fft.irfft(dspec, nfft, axis=-1)
-    # Начало: прямой звук — на 8-м отсчёте после самого раннего прихода (общий сдвиг всех путей).
+    # Начало: прямой звук — на PRE-м отсчёте после самого раннего прихода (общий сдвиг всех путей).
     onset = int(np.argmax(np.max(np.abs(early), axis=0) > 0.05 * np.max(np.abs(early))))
-    shift = max(0, onset - 8)
+    shift = max(0, onset - PRE)
     early = np.roll(early, -shift, axis=-1)
     dry = np.roll(dry, -shift, axis=-1)
     corr = front_correction(dry, nfft)
@@ -290,7 +391,8 @@ def make_room(cfg, ir, ctf, dirs, seed):
     h /= np.sqrt(p)
     peak = np.max(np.abs(h))
     scale = 0.99 / peak
-    return h * scale, -20 * np.log10(scale), length
+    info = dict(nfft=nfft, shift=shift, corr=corr, norm=np.sqrt(p), scale=scale)
+    return h * scale, -20 * np.log10(scale), length, info
 
 
 def low_shelf(freq, gain_db, q=0.7071):
@@ -358,16 +460,27 @@ def main():
     res = os.path.join(here, "..", "JAMbo.swiftpm", "Resources")
     ir, ctf, dirs, lic = load_hrtf(folder)
     print("HRTF:", ir.shape, "license:", lic)
+    sets = load_hato(folder)
     meta = []
     for k, cfg in enumerate(ROOMS):
-        h, gain_db, length = make_room(cfg, ir, ctf, dirs, SEED + k)
+        h, gain_db, length, info = make_room(cfg, ir, ctf, dirs, SEED + k)
         write_wav24(os.path.join(res, cfg["file"]), h)
+        # HEAD: прямая часть по углам поворота головы — набор i в кадрах [i·DIRECT_N, (i+1)·DIRECT_N), своя громкость
+        # (у ближнего уха при повороте пик выше, чем у импульса комнаты).
+        hs, cut = head_sets(cfg, sets, ctf, dirs, info)
+        hpeak = float(np.max(np.abs(hs)))
+        hscale = 0.99 / max(hpeak, 0.99)
+        head_file = cfg["file"].replace(".wav", "Head.wav")
+        write_wav24(os.path.join(res, head_file), np.concatenate(list(hs * hscale), axis=-1))
         lst, spks = places(cfg)
         meta.append(dict(name=cfg["name"], file=cfg["file"], rt60=cfg["rt60"], size=cfg["size"],
                          listener=[round(float(v), 3) for v in lst],
                          speakers=[[round(float(v), 3) for v in p] for p in spks], gain_db=round(gain_db, 3),
                          length_ms=round(1000 * length / SR, 1),
-                         direct=DIRECT_N, channels="LL, LR, RL, RR"))
+                         direct=DIRECT_N, channels="LL, LR, RL, RR",
+                         head=dict(file=head_file, from_deg=HEAD_FROM, step_deg=HEAD_STEP, count=HEAD_COUNT,
+                                   gain_db=round(gain_db - 20 * np.log10(hscale), 3))))
+        print("%s: HEAD %d sets, peak %.3f, cut before window %.1e" % (cfg["name"], HEAD_COUNT, hpeak, cut))
         if report:
             nfft = 1 << 16
             direct = h[:, :DIRECT_N] * 10 ** (gain_db / 20)

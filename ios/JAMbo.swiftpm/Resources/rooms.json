@@ -29,7 +29,14 @@
       "gain_db": -5.603,
       "length_ms": 300.0,
       "direct": 128,
-      "channels": "LL, LR, RL, RR"
+      "channels": "LL, LR, RL, RR",
+      "head": {
+        "file": "RoomStudioHead.wav",
+        "from_deg": -50,
+        "step_deg": 2,
+        "count": 51,
+        "gain_db": -1.436
+      }
     },
     {
       "name": "Home",
@@ -60,7 +67,14 @@
       "gain_db": -5.728,
       "length_ms": 674.2,
       "direct": 128,
-      "channels": "LL, LR, RL, RR"
+      "channels": "LL, LR, RL, RR",
+      "head": {
+        "file": "RoomHomeHead.wav",
+        "from_deg": -50,
+        "step_deg": 2,
+        "count": 51,
+        "gain_db": -1.464
+      }
     },
     {
       "name": "Car",
@@ -91,7 +105,14 @@
       "gain_db": -13.092,
       "length_ms": 125.5,
       "direct": 128,
-      "channels": "LL, LR, RL, RR"
+      "channels": "LL, LR, RL, RR",
+      "head": {
+        "file": "RoomCarHead.wav",
+        "from_deg": -50,
+        "step_deg": 2,
+        "count": 51,
+        "gain_db": -9.742
+      }
     },
     {
       "name": "Club",
@@ -122,7 +143,14 @@
       "gain_db": -6.286,
       "length_ms": 962.0,
       "direct": 128,
-      "channels": "LL, LR, RL, RR"
+      "channels": "LL, LR, RL, RR",
+      "head": {
+        "file": "RoomClubHead.wav",
+        "from_deg": -50,
+        "step_deg": 2,
+        "count": 51,
+        "gain_db": -2.488
+      }
     },
     {
       "name": "Desk",
@@ -153,7 +181,14 @@
       "gain_db": -6.864,
       "length_ms": 596.0,
       "direct": 128,
-      "channels": "LL, LR, RL, RR"
+      "channels": "LL, LR, RL, RR",
+      "head": {
+        "file": "RoomDeskHead.wav",
+        "from_deg": -50,
+        "step_deg": 2,
+        "count": 51,
+        "gain_db": -2.41
+      }
     }
   ],
   "hrtf": "FABIAN HRTF data base v4, TU Berlin, CC BY 4.0, DOI 10.14279/depositonce-5718.5"
