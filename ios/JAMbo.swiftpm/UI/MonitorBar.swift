@@ -73,8 +73,10 @@ struct CurveSwitch: View {
         let c: Bool = model.monitor.editCorrect
         return VStack(alignment: .leading, spacing: 2) {
             Text("CURVE").font(.system(size: 9)).tracking(0.8).foregroundStyle(theme.dim).padding(.leading, 12)
+            // Две половины — через короткую черту (решение пользователя).
             HStack(spacing: 4) {
                 segment("PHONE", !c, false)
+                Rectangle().fill(theme.dim).frame(width: 1, height: 16)
                 segment("CORRECT", c, true)
             }
         }

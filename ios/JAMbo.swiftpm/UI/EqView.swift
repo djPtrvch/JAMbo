@@ -284,7 +284,7 @@ struct EqBar: View {
 
     /// PRESETS: меню пресетов EQ под кнопкой (горит, пока открыто).
     private var presetsButton: some View {
-        EqTool(title: model.phonesShown ? "PHONE CURVE PRESETS" : "PRESETS", enabled: true, active: model.eqPresetMenu != nil) {
+        EqTool(title: "PRESETS", enabled: true, active: model.eqPresetMenu != nil) {
             model.eqPresetMenu = model.eqPresetMenu == nil ? EqPresetMenuState(anchor: presetsFrame, bottom: plotFrame.maxY) : nil
         }
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { presetsFrame = $0 }

@@ -272,7 +272,7 @@ extension AppModel {
         publishMonitor()
     }
 
-    /// IMPORT в CORRECT PRESETS: выбор текстовых файлов профилей.
+    /// IMPORT в PHONE CURVE PRESETS: выбор текстовых файлов профилей.
     func choosePhonesFiles() {
         eqPresetMenu = nil
         importingPhones = true
@@ -320,7 +320,7 @@ extension AppModel {
         phonesNote = lines.joined(separator: "\n")
     }
 
-    /// EXPORT в CORRECT PRESETS: файл — в окно сохранения в «Файлы» (EqView).
+    /// EXPORT в PHONE CURVE PRESETS: файл — в окно сохранения в «Файлы» (EqView).
     func exportPhones() {
         eqPresetMenu = nil
         phonesExported = phonesExportFile()
