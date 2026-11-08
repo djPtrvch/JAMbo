@@ -189,6 +189,82 @@
         "count": 51,
         "gain_db": -2.41
       }
+    },
+    {
+      "name": "StudioRaw",
+      "file": "RoomStudioRaw.wav",
+      "rt60": 0.25,
+      "size": [
+        4.5,
+        3.5,
+        2.8
+      ],
+      "listener": [
+        2.199,
+        1.75,
+        1.2
+      ],
+      "speakers": [
+        [
+          0.9,
+          1.0,
+          1.2
+        ],
+        [
+          0.9,
+          2.5,
+          1.2
+        ]
+      ],
+      "gain_db": -6.737,
+      "length_ms": 300.0,
+      "direct": 128,
+      "channels": "LL, LR, RL, RR",
+      "head": {
+        "file": "RoomStudioRawHead.wav",
+        "from_deg": -50,
+        "step_deg": 2,
+        "count": 51,
+        "gain_db": -2.739
+      }
+    },
+    {
+      "name": "StudioHalf",
+      "file": "RoomStudioHalf.wav",
+      "rt60": 0.25,
+      "size": [
+        4.5,
+        3.5,
+        2.8
+      ],
+      "listener": [
+        2.199,
+        1.75,
+        1.2
+      ],
+      "speakers": [
+        [
+          0.9,
+          1.0,
+          1.2
+        ],
+        [
+          0.9,
+          2.5,
+          1.2
+        ]
+      ],
+      "gain_db": -6.033,
+      "length_ms": 300.0,
+      "direct": 128,
+      "channels": "LL, LR, RL, RR",
+      "head": {
+        "file": "RoomStudioHalfHead.wav",
+        "from_deg": -50,
+        "step_deg": 2,
+        "count": 51,
+        "gain_db": -1.95
+      }
     }
   ],
   "hrtf": "FABIAN HRTF data base v4, TU Berlin, CC BY 4.0, DOI 10.14279/depositonce-5718.5"

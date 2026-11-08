@@ -77,6 +77,12 @@ ROOMS = [
     # Маленькие колонки на столе: ±20°, 0,6 м, обычная комната.
     dict(name="Desk", file="RoomDesk.wav", size=[4.0, 3.5, 2.6], rt60=0.4, early_ms=50.0, tail=True, max_ms=600, jitter=0.1,
          listener=[1.3, 1.75, 1.15], spk=[[0.74, 1.545, 1.0], [0.74, 1.955, 1.0]]),
+    # Проба (8.11, docs/TRIALS.md): Studio без выравнивания тембра прямого звука и с выравниванием наполовину —
+    # признак «спереди» (окраска уха) остаётся; хвост — тот же шум, что у Studio (seed).
+    dict(name="StudioRaw", file="RoomStudioRaw.wav", size=[4.5, 3.5, 2.8], rt60=0.25, early_ms=40.0, tail=True, max_ms=300,
+         front=0.0, seed=0),
+    dict(name="StudioHalf", file="RoomStudioHalf.wav", size=[4.5, 3.5, 2.8], rt60=0.25, early_ms=40.0, tail=True, max_ms=300,
+         front=0.5, seed=0),
 ]
 
 
@@ -320,7 +326,7 @@ def min_phase(mag, nfft):
     return np.exp(np.fft.rfft(fold, nfft))
 
 
-def front_correction(direct, nfft):
+def front_correction(direct, nfft, strength=1.0):
     """Остаток окраски прямого звука колонок без отражений (сигнал в центре) — обратный, сглаженный, ±12 dB. Только
     прямой звук: отражение от пола в первых миллисекундах (большой зал, салон) — часть пространства, его гребёнку
     не выравниваем (иначе подъём на её провале окрасил бы все отражения)."""
@@ -334,6 +340,8 @@ def front_correction(direct, nfft):
     # Вне 60 Гц…16 кГц — без коррекции (плавно к 1).
     g = np.where(freqs < 60, 1.0, g)
     g = np.where(freqs > 16000, 1.0, g)
+    # Доля выравнивания (проба 8.11): 1 — полностью, 0 — без него (окраска уха FABIAN для колонок спереди остаётся).
+    g = g ** strength
     return min_phase(g, nfft)
 
 
@@ -348,7 +356,7 @@ def make_room(cfg, ir, ctf, dirs, seed):
     shift = max(0, onset - PRE)
     early = np.roll(early, -shift, axis=-1)
     dry = np.roll(dry, -shift, axis=-1)
-    corr = front_correction(dry, nfft)
+    corr = front_correction(dry, nfft, cfg.get("front", 1.0))
     early = np.fft.irfft(np.fft.rfft(early, nfft, axis=-1) * corr[None, :], nfft, axis=-1)
     t_early = int(SR * cfg["early_ms"] / 1000)
     if cfg["tail"]:
@@ -463,7 +471,7 @@ def main():
     sets = load_hato(folder)
     meta = []
     for k, cfg in enumerate(ROOMS):
-        h, gain_db, length, info = make_room(cfg, ir, ctf, dirs, SEED + k)
+        h, gain_db, length, info = make_room(cfg, ir, ctf, dirs, SEED + cfg.get("seed", k))
         write_wav24(os.path.join(res, cfg["file"]), h)
         # HEAD: прямая часть по углам поворота головы — набор i в кадрах [i·DIRECT_N, (i+1)·DIRECT_N), своя громкость
         # (у ближнего уха при повороте пик выше, чем у импульса комнаты).

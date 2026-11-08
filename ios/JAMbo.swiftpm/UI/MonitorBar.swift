@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Строка Headphone Monitor под строкой EQ окна коррекции — где и на чём звучит: SPACE (пункт TRANSLATION — тембр и пространство
-/// пункта), AMBIENCE (сколько пространства; у пунктов без него — серое), проверки MONO и SUB, HEAD (отслеживание головы).
+/// пункта), AMBIENCE (сколько пространства; у пунктов без него — серое), проверки MONO и SUB, HEAD TRACK (отслеживание головы).
 /// Строка EQ — коррекция наушников: PHONE CURVE, CORRECT CURVE, CORRECTION, LEVEL, PRESETS, BYPASS. Поля — как у EQ:
 /// палец вверх-вниз, двойной тап — значение по умолчанию.
 struct MonitorBar: View {
@@ -30,7 +30,7 @@ struct MonitorBar: View {
     }
 }
 
-/// HEAD: отслеживание головы камерой — горит жёлтым, пока лицо видно; включён, а лица нет — серое с точкой; без
+/// HEAD TRACK: отслеживание головы камерой — горит жёлтым, пока лицо видно; включён, а лица нет — серое с точкой; без
 /// пространства или камеры — серая надпись. Тап — вкл./выкл., SHIFT + тап — CENTER.
 struct HeadButton: View {
     let model: AppModel
@@ -42,7 +42,8 @@ struct HeadButton: View {
         let lost: Bool = enabled && m.headOn && !m.headFace
         let fg: Color = !enabled ? theme.off : (lit ? theme.onAccent : theme.text)
         return HStack(spacing: 5) {
-            Text("HEAD").font(.system(size: 12, weight: .bold)).tracking(0.8).lineLimit(1).minimumScaleFactor(0.6)
+            Text("HEAD\nTRACK").font(.system(size: 11, weight: .bold)).tracking(0.6).multilineTextAlignment(.center)
+                .lineLimit(2).minimumScaleFactor(0.6)
             if lost { Circle().fill(theme.accent).frame(width: 6, height: 6) }
         }
         .foregroundStyle(fg)
