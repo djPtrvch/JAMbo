@@ -23,7 +23,7 @@ extension AppModel {
         Task.detached(priority: .userInitiated) {
             var loaded: SampleStore.Loaded? = nil
             for u in urls {
-                if let l = SampleStore.decode(u, dir: dir) {
+                if let l = await SampleStore.decodeMedia(u, dir: dir) {
                     loaded = l
                     break
                 }

@@ -33,20 +33,38 @@ final class SampleStore {
         samples[key] = data
     }
 
-    /// Файл с iPad (из «Файлов»): прочитать, привести к 48 кГц float32, сохранить копию. nil — не аудио.
-    static func decode(_ url: URL, dir: URL) -> Loaded? {
+    /// Сэмпл из файла «Файлов» — аудио или видео (8.11): аудио читается AVAudioFile; видео — звуковая дорожка
+    /// (AVAssetExportSession, M4A во временный файл), дальше как аудио: 48 кГц float32, своя копия .caf, нота.
+    /// Ключ — по байтам исходного файла (файл отображается в память, не читается целиком). Без звука — nil.
+    static func decodeMedia(_ url: URL, dir: URL) async -> Loaded? {
         let access = url.startAccessingSecurityScopedResource()
         defer { if access { url.stopAccessingSecurityScopedResource() } }
-        guard let bytes = try? Data(contentsOf: url), !bytes.isEmpty else { return nil }
+        guard let bytes = try? Data(contentsOf: url, options: .alwaysMapped), !bytes.isEmpty else { return nil }
         let key = SampleStore.key(bytes)
+        let name = url.lastPathComponent
         let dest = dir.appendingPathComponent("\(key).caf")
-        // Уже лежит на диске — читаем свою копию.
         if let file = try? AVAudioFile(forReading: dest), let data = read(file) {
-            return Loaded(key: key, name: url.lastPathComponent, data: data, root: PitchDetect.root(data))
+            return Loaded(key: key, name: name, data: data, root: PitchDetect.root(data))
         }
-        guard let file = try? AVAudioFile(forReading: url), let data = read(file) else { return nil }
+        if let file = try? AVAudioFile(forReading: url), let data = read(file) {
+            write(data, to: dest)
+            return Loaded(key: key, name: name, data: data, root: PitchDetect.root(data))
+        }
+        // Видео: только звуковая дорожка.
+        let asset = AVURLAsset(url: url)
+        guard let tracks = try? await asset.loadTracks(withMediaType: .audio), !tracks.isEmpty,
+              let session = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetAppleM4A) else { return nil }
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("video-\(key).m4a")
+        try? FileManager.default.removeItem(at: tmp)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        do {
+            try await session.export(to: tmp, as: .m4a)
+        } catch {
+            return nil
+        }
+        guard let file = try? AVAudioFile(forReading: tmp), let data = read(file) else { return nil }
         write(data, to: dest)
-        return Loaded(key: key, name: url.lastPathComponent, data: data, root: PitchDetect.root(data))
+        return Loaded(key: key, name: name, data: data, root: PitchDetect.root(data))
     }
 
     /// Аудио из архива (S11c): байты файла name — как файл из «Файлов» (ключ по байтам, копия .caf); не аудио — nil.

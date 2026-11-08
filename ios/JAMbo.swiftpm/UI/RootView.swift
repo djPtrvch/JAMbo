@@ -83,7 +83,8 @@ struct RootView: View {
     /// Типы файлов выбора: профили коррекции — текст, проект и библиотека — любые, иначе — аудио.
     private var importTypes: [UTType] {
         if model.importingPhones { return [.text] }
-        return model.importingProject || model.importingLibrary ? [.data] : [.audio]
+        // Сэмплы — аудио и видео (8.11: из видео берётся только звук, SampleStore.decodeMedia).
+        return model.importingProject || model.importingLibrary ? [.data] : [.audio, .movie]
     }
 
     /// Выбранные файлы: профили коррекции наушников, библиотека, проект (IMPORT, один .jambo) или сэмплы (LOAD).

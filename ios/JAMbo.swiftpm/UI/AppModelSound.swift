@@ -257,7 +257,7 @@ extension AppModel {
         Task.detached(priority: .userInitiated) {
             var loaded: [SampleStore.Loaded] = []
             for u in urls {
-                if let l = SampleStore.decode(u, dir: dir) { loaded.append(l) }
+                if let l = await SampleStore.decodeMedia(u, dir: dir) { loaded.append(l) }
             }
             let result = loaded
             await MainActor.run { self.addLoaded(result, target) }
