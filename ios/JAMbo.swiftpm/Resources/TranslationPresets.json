@@ -6,16 +6,6 @@
       { "type": "LS", "freq": 120, "gain": 1.5 },
       { "type": "HS", "freq": 5000, "gain": -2 }
     ] },
-    { "name": "Studio Raw", "room": "StudioRaw", "filters": [
-      { "type": "HP", "freq": 30 },
-      { "type": "LS", "freq": 120, "gain": 1.5 },
-      { "type": "HS", "freq": 5000, "gain": -2 }
-    ] },
-    { "name": "Studio Half", "room": "StudioHalf", "filters": [
-      { "type": "HP", "freq": 30 },
-      { "type": "LS", "freq": 120, "gain": 1.5 },
-      { "type": "HS", "freq": 5000, "gain": -2 }
-    ] },
     { "name": "Home Hi-Fi", "room": "Home", "filters": [
       { "type": "LS", "freq": 100, "gain": 1.5 },
       { "type": "HS", "freq": 8000, "gain": 1.5 }

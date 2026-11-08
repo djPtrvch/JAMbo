@@ -26,7 +26,7 @@
           1.2
         ]
       ],
-      "gain_db": -5.603,
+      "gain_db": -6.739,
       "length_ms": 300.0,
       "direct": 128,
       "channels": "LL, LR, RL, RR",
@@ -35,7 +35,7 @@
         "from_deg": -50,
         "step_deg": 2,
         "count": 51,
-        "gain_db": -1.436
+        "gain_db": -2.743
       }
     },
     {
@@ -64,7 +64,7 @@
           1.0
         ]
       ],
-      "gain_db": -5.728,
+      "gain_db": -6.935,
       "length_ms": 674.2,
       "direct": 128,
       "channels": "LL, LR, RL, RR",
@@ -73,7 +73,7 @@
         "from_deg": -50,
         "step_deg": 2,
         "count": 51,
-        "gain_db": -1.464
+        "gain_db": -2.792
       }
     },
     {
@@ -102,7 +102,7 @@
           0.35
         ]
       ],
-      "gain_db": -13.092,
+      "gain_db": -11.46,
       "length_ms": 125.5,
       "direct": 128,
       "channels": "LL, LR, RL, RR",
@@ -111,7 +111,7 @@
         "from_deg": -50,
         "step_deg": 2,
         "count": 51,
-        "gain_db": -9.742
+        "gain_db": -9.478
       }
     },
     {
@@ -140,7 +140,7 @@
           2.5
         ]
       ],
-      "gain_db": -6.286,
+      "gain_db": -7.515,
       "length_ms": 962.0,
       "direct": 128,
       "channels": "LL, LR, RL, RR",
@@ -149,7 +149,7 @@
         "from_deg": -50,
         "step_deg": 2,
         "count": 51,
-        "gain_db": -2.488
+        "gain_db": -3.811
       }
     },
     {
@@ -178,7 +178,7 @@
           1.0
         ]
       ],
-      "gain_db": -6.864,
+      "gain_db": -7.692,
       "length_ms": 596.0,
       "direct": 128,
       "channels": "LL, LR, RL, RR",
@@ -187,83 +187,7 @@
         "from_deg": -50,
         "step_deg": 2,
         "count": 51,
-        "gain_db": -2.41
-      }
-    },
-    {
-      "name": "StudioRaw",
-      "file": "RoomStudioRaw.wav",
-      "rt60": 0.25,
-      "size": [
-        4.5,
-        3.5,
-        2.8
-      ],
-      "listener": [
-        2.199,
-        1.75,
-        1.2
-      ],
-      "speakers": [
-        [
-          0.9,
-          1.0,
-          1.2
-        ],
-        [
-          0.9,
-          2.5,
-          1.2
-        ]
-      ],
-      "gain_db": -6.737,
-      "length_ms": 300.0,
-      "direct": 128,
-      "channels": "LL, LR, RL, RR",
-      "head": {
-        "file": "RoomStudioRawHead.wav",
-        "from_deg": -50,
-        "step_deg": 2,
-        "count": 51,
-        "gain_db": -2.739
-      }
-    },
-    {
-      "name": "StudioHalf",
-      "file": "RoomStudioHalf.wav",
-      "rt60": 0.25,
-      "size": [
-        4.5,
-        3.5,
-        2.8
-      ],
-      "listener": [
-        2.199,
-        1.75,
-        1.2
-      ],
-      "speakers": [
-        [
-          0.9,
-          1.0,
-          1.2
-        ],
-        [
-          0.9,
-          2.5,
-          1.2
-        ]
-      ],
-      "gain_db": -6.033,
-      "length_ms": 300.0,
-      "direct": 128,
-      "channels": "LL, LR, RL, RR",
-      "head": {
-        "file": "RoomStudioHalfHead.wav",
-        "from_deg": -50,
-        "step_deg": 2,
-        "count": 51,
-        "gain_db": -1.95
+        "gain_db": -4.551
       }
     }
   ],

@@ -51,11 +51,16 @@ BANDS = np.array([125, 250, 500, 1000, 2000, 4000, 8000], dtype=float)
 RT_SHAPE = np.array([1.3, 1.15, 1.0, 1.0, 0.92, 0.8, 0.65])
 # Клуб: бас не длиннее середины (хорошо оценённые залы, Adelman-Larsen), верх короче (публика, воздух).
 RT_CLUB = np.array([1.05, 1.0, 1.0, 1.0, 0.9, 0.75, 0.6])
+# Студия с басовыми ловушками: низ не длиннее середины.
+RT_TREATED = np.array([1.0, 0.95, 1.0, 1.0, 0.95, 0.85, 0.75])
 EAR_DIST = 0.18
 SPK_DIST = 1.5
 DIRECT_N = 128
 # Запас перед прямым звуком (отсчёты): при повороте головы ближнее ухо слышит колонку раньше, чем при голове прямо.
 PRE = 8
+# Доля выравнивания окраски прямого звука колонок (решение пользователя 8.11 после пробы Studio Raw: 0 — окраска уха
+# FABIAN для колонок спереди остаётся, звук сочнее и объёмнее).
+FRONT = 0.0
 # HEAD: наборы прямой части по углам поворота головы (вправо +), градусы.
 HEAD_FROM = -50
 HEAD_STEP = 2
@@ -66,7 +71,10 @@ HEIGHT = 1.2
 
 # Места: listener и spk — [x от передней стены, y от левой стены, z от пола], м (без них — колонки ±30° на SPK_DIST).
 ROOMS = [
-    dict(name="Studio", file="RoomStudio.wav", size=[4.5, 3.5, 2.8], rt60=0.25, early_ms=40.0, tail=True, max_ms=300),
+    # Студия — обработанная контрольная комната (8.11, решение пользователя): поглотители в точках первых отражений
+    # (отражения первых 20 мс тише на 12 dB), рассеяние, басовые ловушки (низ не длиннее середины).
+    dict(name="Studio", file="RoomStudio.wav", size=[4.5, 3.5, 2.8], rt60=0.25, early_ms=40.0, tail=True, max_ms=300,
+         jitter=0.1, rfz_ms=20.0, rfz_db=-12.0, shape=RT_TREATED),
     dict(name="Home", file="RoomHome.wav", size=[5.5, 4.2, 2.6], rt60=0.45, early_ms=60.0, tail=True, max_ms=700, jitter=0.15,
          listener=[3.4, 2.1, 1.1], spk=[[1.4, 0.95, 1.0], [1.4, 3.25, 1.0]]),
     # Салон: водитель слева, динамики низко в передних дверях (левый ближе), сиденья и обивка глушат.
@@ -77,12 +85,6 @@ ROOMS = [
     # Маленькие колонки на столе: ±20°, 0,6 м, обычная комната.
     dict(name="Desk", file="RoomDesk.wav", size=[4.0, 3.5, 2.6], rt60=0.4, early_ms=50.0, tail=True, max_ms=600, jitter=0.1,
          listener=[1.3, 1.75, 1.15], spk=[[0.74, 1.545, 1.0], [0.74, 1.955, 1.0]]),
-    # Проба (8.11, docs/TRIALS.md): Studio без выравнивания тембра прямого звука и с выравниванием наполовину —
-    # признак «спереди» (окраска уха) остаётся; хвост — тот же шум, что у Studio (seed).
-    dict(name="StudioRaw", file="RoomStudioRaw.wav", size=[4.5, 3.5, 2.8], rt60=0.25, early_ms=40.0, tail=True, max_ms=300,
-         front=0.0, seed=0),
-    dict(name="StudioHalf", file="RoomStudioHalf.wav", size=[4.5, 3.5, 2.8], rt60=0.25, early_ms=40.0, tail=True, max_ms=300,
-         front=0.5, seed=0),
 ]
 
 
@@ -260,6 +262,9 @@ def early_part(cfg, ir, ctf, dirs, nfft, limit=None):
             u = np.array([v @ fwd, v @ left, v @ up]) / d
             j = int(np.argmax(dirs @ u))
             amp = (d0 / d) * np.exp(k * lrefl) * floor ** kf
+            # Обработка комнаты (поглотители в точках первых отражений): отражения в первые rfz_ms — тише на rfz_db.
+            if k > 0 and (d - d0) / C * 1000 < cfg.get("rfz_ms", 0.0):
+                amp *= 10 ** (cfg.get("rfz_db", 0.0) / 20)
             ph = np.exp(-1j * w * (d - d0) / C)
             hj = hrtf(j)
             out[2 * s_i + 0] += hj[0] * amp * ph
@@ -356,7 +361,7 @@ def make_room(cfg, ir, ctf, dirs, seed):
     shift = max(0, onset - PRE)
     early = np.roll(early, -shift, axis=-1)
     dry = np.roll(dry, -shift, axis=-1)
-    corr = front_correction(dry, nfft, cfg.get("front", 1.0))
+    corr = front_correction(dry, nfft, cfg.get("front", FRONT))
     early = np.fft.irfft(np.fft.rfft(early, nfft, axis=-1) * corr[None, :], nfft, axis=-1)
     t_early = int(SR * cfg["early_ms"] / 1000)
     if cfg["tail"]:
