@@ -71,7 +71,12 @@ public struct Track: Codable, Equatable, Sendable {
     /// EQ дорожки (doc.eqs[i] веба): один на все клипы, переезжает и копируется вместе с дорожкой.
     public var eq: Eq = Eq()
     /// Переход MIX (S10, t.home веба): свой звук дорожки, пока она играет клип PREV со звуком старой дорожки.
-    public var home: TrackSound?
+    /// Хранится «в коробке» (массив из 0 или 1 элемента, копия при записи; объём сборки, 8.11).
+    var homeBox: [TrackSound] = []
+    public var home: TrackSound? {
+        get { return homeBox.first }
+        set { homeBox = newValue.map { [$0] } ?? [] }
+    }
     /// MIDI дорожки: вход нот и выход (TrackMidi).
     public var midi: TrackMidi = TrackMidi()
     /// Аранжировщик (S15): блоки дорожки на таймлайне (по порядку, без перекрытий) и цвет (номер в ArrPalette).

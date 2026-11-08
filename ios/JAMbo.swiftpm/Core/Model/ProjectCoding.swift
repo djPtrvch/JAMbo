@@ -83,6 +83,40 @@ extension Track {
         migrateAutos()
         dropLegacyLinks()
     }
+
+    /// Запись — как прежняя синтезированная (home — только если есть; editBlock не пишется).
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(name, forKey: .name)
+        try c.encode(sample, forKey: .sample)
+        try c.encode(params, forKey: .params)
+        try c.encode(clips, forKey: .clips)
+        try c.encode(slot, forKey: .slot)
+        try c.encode(open, forKey: .open)
+        try c.encode(mute, forKey: .mute)
+        try c.encode(solo, forKey: .solo)
+        try c.encode(stopped, forKey: .stopped)
+        try c.encode(folder, forKey: .folder)
+        try c.encode(slices, forKey: .slices)
+        try c.encode(vol, forKey: .vol)
+        try c.encode(trim, forKey: .trim)
+        try c.encode(table, forKey: .table)
+        try c.encode(grain, forKey: .grain)
+        try c.encode(assigns, forKey: .assigns)
+        try c.encode(morphOrig, forKey: .morphOrig)
+        try c.encode(morphOrigAssign, forKey: .morphOrigAssign)
+        try c.encode(morphEdited, forKey: .morphEdited)
+        try c.encode(eq, forKey: .eq)
+        try c.encodeIfPresent(home, forKey: .home)
+        try c.encode(midi, forKey: .midi)
+        try c.encode(blocks, forKey: .blocks)
+        try c.encode(color, forKey: .color)
+        try c.encode(autos, forKey: .autos)
+        try c.encode(warps, forKey: .warps)
+        try c.encode(drumStyle, forKey: .drumStyle)
+        try c.encode(arp, forKey: .arp)
+    }
 }
 
 extension Clip {
