@@ -13,7 +13,13 @@ public struct ArrBlock: Codable, Equatable, Sendable {
     public var start: Int
     public var length: Int
     public var offset: Int = 0
-    public var pattern: Clip? = nil
+    /// Своя копия клипа блока — «в коробке» (массив из 0 или 1 элемента, копия при записи): копии и сравнения блока
+    /// не тянут весь клип по значению (объём сборки: функции копирования вложенных структур, 8.11).
+    var patternBox: [Clip] = []
+    public var pattern: Clip? {
+        get { return patternBox.first }
+        set { patternBox = newValue.map { [$0] } ?? [] }
+    }
     /// Автоматизация блока (решение пользователя, 1.11): кривые ручек, x — шаг от начала блока; едут, копируются и
     /// удаляются вместе с блоком.
     public var autos: [ArrAutoLane] = []
@@ -134,6 +140,17 @@ extension ArrBlock {
         autos = c.value(.autos, [ArrAutoLane]())
         let lc = try decoder.container(keyedBy: LegacyKeys.self)
         legacyLink = (try? lc.decodeIfPresent(Bool.self, forKey: .autoLink)) ?? false
+    }
+
+    /// Запись — как прежняя синтезированная (pattern — только если есть; legacyLink не пишется).
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(clip, forKey: .clip)
+        try c.encode(start, forKey: .start)
+        try c.encode(length, forKey: .length)
+        try c.encode(offset, forKey: .offset)
+        try c.encodeIfPresent(pattern, forKey: .pattern)
+        try c.encode(autos, forKey: .autos)
     }
 
     /// Начало блока сдвинулось на d шагов вправо (TRIM слева, правая часть разреза): точки — на прежних местах таймлайна.

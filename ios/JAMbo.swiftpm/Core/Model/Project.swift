@@ -192,7 +192,13 @@ public struct Clip: Codable, Equatable, Sendable {
     public var root: Int?
     public var fx: [String: Double]?
     /// Переход MIX (S10, src веба): только у клипа строки PREV — звук старой дорожки (старый проект).
-    public var src: TrackSound?
+    /// Хранится «в коробке» (массив из 0 или 1 элемента, копия при записи): копии клипа не тянут звук по значению
+    /// (объём сборки, 8.11).
+    var srcBox: [TrackSound] = []
+    public var src: TrackSound? {
+        get { return srcBox.first }
+        set { srcBox = newValue.map { [$0] } ?? [] }
+    }
     /// Скорость паттерна (S14): степень двойки — 1 (×2), 0 или nil (×1), −1…−4 (1/2…1/16).
     public var rate: Int?
 

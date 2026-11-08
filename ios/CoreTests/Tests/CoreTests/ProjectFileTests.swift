@@ -103,7 +103,10 @@ final class ProjectFileTests: XCTestCase {
     func testCodingKeysCoverAllFields() {
         // except — поля вида, которые нарочно не пишутся (Track.editBlock — блок, открытый в STEPS аранжировщика).
         func check<K: CaseIterable & RawRepresentable>(_ value: Any, _ keys: K.Type, except: Set<String> = []) where K.RawValue == String {
-            let fields = Set(Mirror(reflecting: value).children.compactMap { $0.label }).subtracting(except)
+            // Поля «в коробке» (8.11, объём сборки) пишутся под прежним ключом: srcBox → src, patternBox → pattern.
+            let boxed: [String: String] = ["srcBox": "src", "patternBox": "pattern"]
+            let fields = Set(Mirror(reflecting: value).children.compactMap { $0.label }.map { boxed[$0] ?? $0 })
+                .subtracting(except)
             XCTAssertEqual(fields, Set(K.allCases.map { $0.rawValue }), "\(type(of: value))")
         }
         check(Project(), Project.CodingKeys.self)

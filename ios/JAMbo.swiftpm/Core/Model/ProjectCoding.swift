@@ -100,6 +100,20 @@ extension Clip {
         src = c.optional(.src)
         rate = c.optional(.rate)
     }
+
+    /// Запись — как прежняя синтезированная (необязательные — только если есть).
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(pages, forKey: .pages)
+        try c.encode(length, forKey: .length)
+        try c.encode(playFrom, forKey: .playFrom)
+        try c.encode(playTo, forKey: .playTo)
+        try c.encodeIfPresent(scale, forKey: .scale)
+        try c.encodeIfPresent(root, forKey: .root)
+        try c.encodeIfPresent(fx, forKey: .fx)
+        try c.encodeIfPresent(src, forKey: .src)
+        try c.encodeIfPresent(rate, forKey: .rate)
+    }
 }
 
 extension SceneRow {
