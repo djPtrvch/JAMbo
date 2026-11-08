@@ -40,11 +40,11 @@ struct ThemedRoot: View {
 
     var body: some View {
         let _ = trace("root view")
+        let _ = Theme.use(scheme)
         // Смена темы iPad — раскладка заново: ячейки .equatable() (ручки, шаги, дорожки, картинки FX) сравнивают
         // только свои данные и без этого оставались в цветах прежней темы (заливка ручек MIX).
         RootView(model: model)
             .id(scheme)
-            .environment(\.theme, Theme.of(scheme))
             .statusBarHidden(true)
             .persistentSystemOverlays(.hidden)
     }

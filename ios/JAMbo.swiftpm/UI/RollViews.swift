@@ -6,7 +6,6 @@ struct RollGrid: View {
     let model: AppModel
     @Binding var port: RollPort
     @State private var touches = RollTouches()
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let rows: [Int] = model.rollRows
@@ -185,7 +184,6 @@ struct RollMenu: View {
 /// Кнопка пианоролла в верхней панели (на месте AUTO): значок пианино, горит, пока окно открыто.
 struct RollButton: View {
     let model: AppModel
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let on: Bool = model.rollView

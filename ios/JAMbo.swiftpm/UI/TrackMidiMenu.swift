@@ -6,7 +6,6 @@ import SwiftUI
 struct TrackMidiPage: View {
     let model: AppModel
     let back: () -> Void
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let m: TrackMidi = model.track.midi

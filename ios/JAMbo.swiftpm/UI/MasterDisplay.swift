@@ -249,7 +249,6 @@ struct DynBlock: View {
     let model: AppModel
     let module: Int
     let now: Double
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let title: String = MasterPresetBook.titles[module]
@@ -292,7 +291,6 @@ struct LevelPlot: View {
     @State private var lineStart: Double? = nil
     @State private var moved: Bool = false
     @State private var lastTap: Date = .distantPast
-    @Environment(\.theme) private var theme
 
     var body: some View {
         GeometryReader { geo in

@@ -29,7 +29,6 @@ struct KeyboardPanel: View {
 struct KeyRow: View {
     let model: AppModel
     @State private var touches: [SpatialEventCollection.Event.ID: Int] = [:]
-    @Environment(\.theme) private var theme
 
     static let gap: CGFloat = 3
 
@@ -111,7 +110,6 @@ struct KeyRow: View {
 /// направлений арпеджио или стилей ритма. Слово (CHORD или ARP) и под ним тип — вместе по центру кнопки.
 struct ChordButton: View {
     let model: AppModel
-    @Environment(\.theme) private var theme
     /// Палец на кнопке (RANDOM — моментальная: горит, пока нажата).
     @State private var pressed: Bool = false
 
@@ -192,7 +190,6 @@ struct OctavePair: View {
 struct OctaveButton: View {
     let title: String
     var lit: Bool = false
-    @Environment(\.theme) private var theme
 
     var body: some View {
         Text(title)

@@ -9,7 +9,6 @@ enum AppWindow: String, CaseIterable {
 struct AppWindowView: View {
     let model: AppModel
     let window: AppWindow
-    @Environment(\.theme) private var theme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {

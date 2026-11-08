@@ -11,7 +11,6 @@ struct ClipCellView: View {
     let lifted: Bool
     let target: Bool
     var selected: Bool = false
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let t: Track? = cell.track < model.project.tracks.count ? model.project.tracks[cell.track] : nil
@@ -55,7 +54,6 @@ struct ClipCellView: View {
 struct DropPlus: View {
     @State private var shown: Bool = false
     @State private var pulse: Bool = false
-    @Environment(\.theme) private var theme
 
     var body: some View {
         Image(systemName: "plus")
@@ -92,7 +90,6 @@ struct Blink: ViewModifier {
 /// Жёлтая полоса хода внизу ячейки.
 struct ProgressBar: View {
     let fraction: CGFloat
-    @Environment(\.theme) private var theme
 
     var body: some View {
         GeometryReader { geo in
@@ -105,7 +102,6 @@ struct ProgressBar: View {
 /// Миниатюра клипа: его страницы строками (по 16 шагов), по высоте — не меньше 4 строк, по центру.
 struct ClipThumb: View {
     let cells: [[ThumbCell]]
-    @Environment(\.theme) private var theme
 
     static func rows(_ t: Track, _ k: Int) -> [[ThumbCell]] {
         guard let r = t.clipRange(k) else { return [] }
@@ -145,7 +141,6 @@ struct SceneCellView: View {
     let model: AppModel
     let row: Int
     var selected: Bool = false
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let p: Project = model.project
@@ -179,7 +174,6 @@ struct SceneCellView: View {
 
 /// «+» под последней строкой (в колонке строк).
 struct PlusCell: View {
-    @Environment(\.theme) private var theme
 
     var body: some View {
         Text("+").font(.system(size: 20)).foregroundStyle(theme.dim)

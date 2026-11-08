@@ -25,7 +25,6 @@ struct ChannelCell: View {
     let model: AppModel
     let title: String
     let channel: Channel
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let selected: Bool = model.channel == channel
@@ -49,7 +48,6 @@ struct TrackCell: View {
     let index: Int
     @State private var swiped: Bool = false
     @State private var touching: Bool = false
-    @Environment(\.theme) private var theme
 
     var body: some View {
         // Дорожку могли только что удалить, а ячейка ещё не убрана — пусто вместо падения.
@@ -110,7 +108,6 @@ struct TrackFace: View, Equatable {
     let mute: Bool
     let solo: Bool
     let flash: Bool
-    @Environment(\.theme) private var theme
 
     /// Тема — через окружение, в сравнение не входит (Environment не Equatable).
     static func == (a: TrackFace, b: TrackFace) -> Bool {
@@ -157,7 +154,6 @@ struct TrackFace: View, Equatable {
 struct StemRecDot: View {
     let model: AppModel
     let channel: Int
-    @Environment(\.theme) private var theme
 
     var body: some View {
         if model.stemRecording.contains(channel) {

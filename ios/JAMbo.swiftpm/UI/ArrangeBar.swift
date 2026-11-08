@@ -6,7 +6,6 @@ import SwiftUI
 /// STEPS (значок секвенсора), REF. Шаг сетки — в SETTINGS → ARRANGE.
 struct ArrangeBar: View {
     let model: AppModel
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let a: Arrangement = model.project.arrange
@@ -82,7 +81,6 @@ struct ArrBarText: View {
     let on: Bool
     let enabled: Bool
     let action: () -> Void
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let lit: Bool = on && enabled
@@ -107,7 +105,6 @@ struct ArrBarButton: View {
     var ring: Bool = false
     let action: () -> Void
     let icon: (Color) -> AnyView
-    @Environment(\.theme) private var theme
 
     /// Значок — AnyView: не обобщённый вид, одна копия кода (объём сборки).
     init<Icon: View>(on: Bool, enabled: Bool, ring: Bool = false, action: @escaping () -> Void,
@@ -135,7 +132,6 @@ struct ArrBarButton: View {
 /// Курсор в самое начало таймлайна (при игре — сразу).
 struct ArrReturnAll: View {
     let model: AppModel
-    @Environment(\.theme) private var theme
 
     var body: some View {
         Image(systemName: "arrow.left.to.line")

@@ -5,7 +5,6 @@ import SwiftUI
 /// Тест-тон и строка Tap — только в отладочной сборке (S14: в App Store отладочных функций нет).
 struct DiagnosticsView: View {
     let model: AppModel
-    @Environment(\.theme) private var theme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {

@@ -6,7 +6,6 @@ import SwiftUI
 struct SampleRecButton: View {
     let model: AppModel
     @State private var frame: CGRect = .zero
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let rec = model.sampleRec
@@ -41,7 +40,6 @@ struct RecSourceMenu: View {
     let anchor: CGRect
     /// Низ меню — не ниже верха кнопок дорожек.
     let bottom: CGFloat
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let left: CGFloat = max(8, anchor.maxX - RecSourceMenu.width)
@@ -103,7 +101,6 @@ struct RecSourceMenu: View {
 /// красная линия — текущее место.
 struct RecordingPlot: View {
     let model: AppModel
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let p: RecPeaks = model.sampleRec.peaks

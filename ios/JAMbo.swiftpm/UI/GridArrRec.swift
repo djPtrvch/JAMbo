@@ -4,7 +4,6 @@ import SwiftUI
 /// Включена — горит красным; пока играет сетка, её запуски клипов пишутся на таймлайн с курсора аранжировщика.
 struct GridArrRecButton: View {
     let model: AppModel
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let on: Bool = model.arrRecArm

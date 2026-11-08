@@ -62,7 +62,6 @@ final class MasterMeters {
 /// THRESHOLD / CEILING — только на IN; bypass — серые, GR ноль. Тап по блоку — окно модуля.
 struct MasterIndicator: View {
     let model: AppModel
-    @Environment(\.theme) private var theme
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 60)) { tl in

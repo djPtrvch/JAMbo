@@ -3,7 +3,6 @@ import SwiftUI
 /// Индикатор CPU: средняя нагрузка аудиоколбэка (доля одного ядра), обновление 4 раза в секунду.
 struct CPUIndicator: View {
     let meter: CPUMeter
-    @Environment(\.theme) private var theme
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 0.25)) { _ in

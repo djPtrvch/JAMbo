@@ -110,13 +110,19 @@ enum Appearance: String, CaseIterable {
     }
 }
 
-private struct ThemeKey: EnvironmentKey {
-    static let defaultValue: Theme = Theme.dark
-}
+extension Theme {
+    /// Тема на экране — ставит корень (ThemedRoot) перед построением видов.
+    nonisolated(unsafe) static var current: Theme = Theme.dark
 
-extension EnvironmentValues {
-    var theme: Theme {
-        get { return self[ThemeKey.self] }
-        set { self[ThemeKey.self] = newValue }
+    /// Корень: тема по схеме; возвращает её (для `let _ =` в теле вида).
+    @discardableResult
+    static func use(_ scheme: ColorScheme) -> Theme {
+        current = Theme.of(scheme)
+        return current
     }
 }
+
+/// Тема для видов — одна общая, а не @Environment в каждом виде (8.11, объём сборки: у каждого вида была своя
+/// обёртка Environment — функции копирования и чтения). Смена темы iPad пересоздаёт всё дерево (ThemedRoot, .id),
+/// так что виды читают новую тему, как и раньше.
+var theme: Theme { return Theme.current }

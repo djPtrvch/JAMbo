@@ -210,7 +210,6 @@ struct ArrCarryLayer: View {
     let model: AppModel
     let carry: ClipCarry
     let m: ArrMetrics
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let _ = model.carryPoint

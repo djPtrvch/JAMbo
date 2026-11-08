@@ -8,7 +8,6 @@ struct ChordMenu: View {
     let model: AppModel
     let layout: Layout
     let screen: CGSize
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let m: ChordMenuMetrics = ChordMenuMetrics(model: model, layout: layout, screen: screen)
@@ -151,7 +150,6 @@ struct ArpWindowColumn: View {
 struct LatchButton: View {
     let model: AppModel
     let side: CGFloat
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let on: Bool = model.track.arp.latch

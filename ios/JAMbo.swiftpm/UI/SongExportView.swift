@@ -5,7 +5,6 @@ import SwiftUI
 struct SongExportPage: View {
     let model: AppModel
     let back: () -> Void
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let st: SongExportState = model.songExport

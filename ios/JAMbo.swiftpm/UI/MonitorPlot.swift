@@ -7,7 +7,6 @@ import SwiftUI
 struct MonitorCurves: View {
     let model: AppModel
     let g: EqGeometry
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let n: Int = Int(g.size.width / 2) + 1
@@ -84,7 +83,6 @@ struct MonitorCurves: View {
 struct MonitorSpeakers: View {
     let angle: Double
     let amount: Double
-    @Environment(\.theme) private var theme
 
     var body: some View {
         Canvas { ctx, size in

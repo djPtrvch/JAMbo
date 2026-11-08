@@ -31,7 +31,6 @@ extension AppModel {
 struct MasterButton: View {
     let model: AppModel
     let module: Int
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let names: [String] = ["SAT", "COMP", "CLIP", "LIM"]

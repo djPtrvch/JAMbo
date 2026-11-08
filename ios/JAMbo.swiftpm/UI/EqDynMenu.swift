@@ -12,7 +12,6 @@ struct EqDynMenu: View {
     let anchor: CGRect
     /// Сдвиг пальцем в текущем жесте (после жеста прибавляется к model.eqDynShift).
     @State private var drag: CGSize = .zero
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let dx: CGFloat = model.eqDynShift.width + drag.width

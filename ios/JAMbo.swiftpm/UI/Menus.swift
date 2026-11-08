@@ -14,7 +14,6 @@ struct DragField: View {
     @State private var start: Double? = nil
     @State private var moved: Bool = false
     @State private var frame: CGRect = .zero
-    @Environment(\.theme) private var theme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -55,7 +54,6 @@ struct ChoiceMenu: View {
     let model: AppModel
     let state: ChoiceState
     let screen: CGSize
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let width: CGFloat = state.width ?? CGFloat(state.columns) * 104
@@ -94,7 +92,6 @@ struct PianoMenu: View {
     let model: AppModel
     let layout: Layout
     let screen: CGSize
-    @Environment(\.theme) private var theme
     /// Высота содержимого: меню по нему, но не выше верха строки дорожек (дальше — прокрутка).
     @State private var contentH: CGFloat = 0
 
@@ -169,7 +166,6 @@ struct ToggleRow: View {
     /// Неактивный рычажок (серый) с пояснением под подписью (был у ABLETON LINK; раздел скрыт до этапа 9).
     var unavailable: String? = nil
     let change: (Bool) -> Void
-    @Environment(\.theme) private var theme
 
     var body: some View {
         Toggle(isOn: Binding(get: { isOn }, set: { change($0) })) {
@@ -188,7 +184,6 @@ struct ToggleRow: View {
 /// SWING дорожки (S12): ползунок с процентами (50–75 %), палец вбок; один жест — одна запись в UNDO.
 struct SwingSlider: View {
     let model: AppModel
-    @Environment(\.theme) private var theme
     @State private var dragging: Bool = false
 
     var body: some View {

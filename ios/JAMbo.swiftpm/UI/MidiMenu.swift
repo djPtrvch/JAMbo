@@ -11,7 +11,6 @@ struct MidiMenuPage: View {
     let model: AppModel
     let back: () -> Void
     let close: () -> Void
-    @Environment(\.theme) private var theme
 
     private var tab: MidiTab { return model.midiLearn.tab }
 
@@ -170,7 +169,6 @@ struct MidiMapRow: View {
     let place: String?
     let open: () -> Void
     let remove: () -> Void
-    @Environment(\.theme) private var theme
 
     var body: some View {
         HStack(spacing: 8) {

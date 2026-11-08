@@ -23,7 +23,6 @@ struct SwipeRow: View {
     let hold: HoldDrag
     @State private var offset: CGFloat = 0
     @State private var open: Bool = false
-    @Environment(\.theme) private var theme
 
     init(title: String, subtitle: String? = nil, meta: String? = nil, tint: Color? = nil, current: Bool = false,
          height: CGFloat = 44, tap: @escaping () -> Void, rename: (() -> Void)? = nil,

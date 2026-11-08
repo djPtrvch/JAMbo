@@ -3,7 +3,6 @@ import SwiftUI
 /// Левая колонка: окно сэмпла, стрелки звука (папка дорожки), LFO1, LFO2, LFO3, ENV (при MST — кнопки мастера).
 struct LeftColumn: View {
     let model: AppModel
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let _ = RedrawMeter.hit(.left)
@@ -78,7 +77,6 @@ struct RightTop: View {
 /// Стрелки ◀ ▶ под окном сэмпла: соседний звук папки дорожки (с зажатым шагом — звук шага); между ними n / всего.
 struct FolderArrows: View {
     let model: AppModel
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let total: Int = model.track.folder.items.count
@@ -129,7 +127,6 @@ struct PageArrows: View {
 /// Дизайн как у ●: красная окантовка, горит, пока готова или пишет.
 struct MasterRecButton: View {
     let model: AppModel
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let on: Bool = model.stemLit(StemRing.master)
@@ -194,7 +191,6 @@ struct SideButton: View {
     var lit: Bool = false
     /// Горит жёлтым (MORPH включён).
     var accent: Bool = false
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let fg: Color = accent ? theme.onAccent : (lit ? theme.bg : (enabled ? theme.text : theme.off))
@@ -271,7 +267,6 @@ struct SourceButton: View {
     let model: AppModel
     let title: String
     let source: Int
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let outlined: Bool = model.fingerSources.contains(source)

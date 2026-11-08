@@ -5,7 +5,6 @@ import SwiftUI
 /// TURN / PRESS (что выбирает тап по ручке), UNMAP, DONE.
 struct LearnBar: View {
     let model: AppModel
-    @Environment(\.theme) private var theme
 
     var body: some View {
         HStack(spacing: 8) {
@@ -44,7 +43,6 @@ struct LearnBar: View {
 struct MidiMark: View {
     let model: AppModel
     let targets: [MidiTarget]
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let maps: [MidiMapping] = targets.compactMap { model.midiMapping($0) }
@@ -105,7 +103,6 @@ struct MidiSmallMark: View {
     let model: AppModel
     let target: MidiTarget
     let frame: CGRect
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let m: MidiMapping? = model.midiMapping(target)

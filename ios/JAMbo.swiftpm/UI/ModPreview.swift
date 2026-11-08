@@ -7,7 +7,6 @@ import SwiftUI
 
 struct ModPreview: View {
     let model: AppModel
-    @Environment(\.theme) private var theme
 
     /// Шаги условного Random на миниатюре.
     static let randomSteps: [Double] = [0.6, -0.3, 0.9, -0.8, 0.2, -0.5, 0.75, -0.1]

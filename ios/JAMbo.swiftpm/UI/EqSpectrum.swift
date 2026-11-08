@@ -126,7 +126,6 @@ final class SpectrumDisplay {
 struct EqSpectrumLayer: View {
     let model: AppModel
     let display: SpectrumDisplay
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let cmp: Int? = model.eqCompareShown
@@ -167,7 +166,6 @@ struct EqCompareMenu: View {
     let width: CGFloat
     /// Высота поля EQ.
     let height: CGFloat
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let rows: Int = (model.project.tracks.count + 2) / 2

@@ -13,7 +13,6 @@ struct SoundMenu: View {
     let model: AppModel
     let state: SoundMenuState
     @State private var midiPage: Bool = false
-    @Environment(\.theme) private var theme
 
     var body: some View {
         Group {

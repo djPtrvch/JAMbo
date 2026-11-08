@@ -13,7 +13,6 @@ struct PagesColumn: View {
     @State private var lastTap: (row: Int, at: Date)? = nil
     @State private var rowStep: CGFloat = 50
     @State private var columnHeight: CGFloat = 400
-    @Environment(\.theme) private var theme
 
     static let rows = 8
     static let spacing: CGFloat = 4
@@ -269,7 +268,6 @@ enum PageDragMode {
 struct PageThumb: View {
     let model: AppModel
     let page: Int
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let _ = RedrawMeter.hit(.pageThumb)
@@ -337,7 +335,6 @@ struct ThumbColors {
 }
 
 struct PlusThumb: View {
-    @Environment(\.theme) private var theme
 
     var body: some View {
         Text("+")
@@ -362,7 +359,6 @@ struct PageMenu: View {
     let model: AppModel
     let page: Int
     let close: () -> Void
-    @Environment(\.theme) private var theme
 
     var body: some View {
         VStack(spacing: 6) {

@@ -25,7 +25,6 @@ struct LibraryBrowser: View {
     @State private var exported: URL? = nil
     /// Левый край строки заголовка («root»).
     @State private var headerX: CGFloat = 0
-    @Environment(\.theme) private var theme
 
     var body: some View {
         // Содержимое — AnyView: цепочка модификаторов ниже оборачивает маленький тип (S14, память сборки).

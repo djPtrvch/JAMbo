@@ -9,7 +9,6 @@ struct MasterWindowView: View {
     @State private var text: String = ""
     /// Имя занято: SAVE — номер пресета с этим именем (OVERWRITE / SAVE AS), RENAME — (пресет, занятый).
     @State private var clash: NameClash? = nil
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let _ = RedrawMeter.hit(.masterWin)
@@ -116,7 +115,6 @@ struct MasterStrip: View {
     let bounds: CGRect
     let input: (MasterInputTarget) -> Void
     @State private var presetsFrame: CGRect = .zero
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let fields: [ParamDef] = AppModel.masterFields(module)
@@ -183,7 +181,6 @@ struct MasterTitle: View {
     let module: Int
     let bounds: CGRect
     @State private var frame: CGRect = .zero
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let name: String = MasterPresetBook.titles[module]
@@ -218,7 +215,6 @@ struct MasterField: View {
     @State private var lastTap: Date = .distantPast
     /// Отложенный одиночный тап (ждёт, не будет ли второго).
     @State private var tapTask: LaterTask? = nil
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let v: Double = model.masterValue(param)

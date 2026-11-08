@@ -64,7 +64,6 @@ struct MasterPresetsMenu: View {
     static let width: CGFloat = 260
     let model: AppModel
     let maxHeight: CGFloat
-    @Environment(\.theme) private var theme
     @State private var reorder = ReorderState()
 
     var body: some View {

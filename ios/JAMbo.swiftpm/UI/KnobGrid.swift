@@ -310,7 +310,6 @@ struct KnobView: View, Equatable {
     var mod: Double? = nil
     /// Только что запомнено как значение по умолчанию — вместо значения SAVED (жёлтым).
     var saved: Bool = false
-    @Environment(\.theme) private var theme
 
     /// Те же входы — та же картинка (тема — через окружение). ParamDef — по id, подписи, пределам и тексту значения.
     static func == (a: KnobView, b: KnobView) -> Bool {

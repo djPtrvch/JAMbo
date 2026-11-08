@@ -7,7 +7,6 @@ import SwiftUI
 struct SettingsPage: View {
     let model: AppModel
     let back: () -> Void
-    @Environment(\.theme) private var theme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -97,7 +96,6 @@ struct EngineSettings: View {
 /// Громкость метронома (как SWING в меню клавиатуры): полоса, тап и протягивание (0…200 %, 100 % — прежний уровень).
 struct MetronomeSlider: View {
     let model: AppModel
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let v: Double = model.settings.metronomeVol
@@ -208,7 +206,6 @@ struct SidechainSettings: View {
 /// OUTPUT: системный выбор выхода (как в Пункте управления) и текущий выход.
 struct OutputSettings: View {
     let model: AppModel
-    @Environment(\.theme) private var theme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -239,7 +236,6 @@ struct OutputSettings: View {
 /// громкости референса к миксу и ручная подстройка ±12 dB (шаг 0,5 dB). Хранится в настройках монитора (UserDefaults).
 struct MonitorSettingsRows: View {
     let model: AppModel
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let m: AppModel = model
@@ -418,7 +414,6 @@ struct MenuBackHeader: View {
     let title: String
     var caps: Bool = true
     let back: () -> Void
-    @Environment(\.theme) private var theme
 
     var body: some View {
         HStack(spacing: 4) {
@@ -436,7 +431,6 @@ struct MenuBackHeader: View {
 /// Подпись поля над переключателями (9 px, --dim).
 struct FieldLabel: View {
     let title: String
-    @Environment(\.theme) private var theme
 
     var body: some View {
         Text(title).font(.system(size: 9, weight: .semibold)).tracking(0.6).foregroundStyle(theme.dim)
@@ -446,7 +440,6 @@ struct FieldLabel: View {
 /// Пояснение в меню (12 px, --dim).
 struct SettingsNote: View {
     let text: String
-    @Environment(\.theme) private var theme
 
     var body: some View {
         Text(text).font(.system(size: 12)).foregroundStyle(theme.dim).fixedSize(horizontal: false, vertical: true)

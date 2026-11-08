@@ -24,7 +24,6 @@ struct SampleEditor: View {
     @State private var warpCache = WarpPeakCache()
     /// Диапазон долей WARP на время перетаскивания метки (окно не прыгает).
     @State private var warpFrozen: (Double, Double)? = nil
-    @Environment(\.theme) private var theme
 
     static let top: CGFloat = 40
     static let handle: CGFloat = 22

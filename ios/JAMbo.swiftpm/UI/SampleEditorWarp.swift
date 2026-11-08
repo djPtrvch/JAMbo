@@ -89,7 +89,6 @@ struct WarpBar: View {
     /// Палец по BPM: BPM в начале жеста, сдвинули ли (вверх-вниз — 4 px на 1 BPM, как BPM проекта).
     @State private var dragStart: Double? = nil
     @State private var dragMoved: Bool = false
-    @Environment(\.theme) private var theme
 
     static let grids: [(String, Double)] = [("1/16", 0.25), ("1/8", 0.5), ("1/4", 1)]
 

@@ -13,7 +13,6 @@ struct MidiOption: Identifiable {
 struct MidiMapOptions: View {
     let model: AppModel
     let m: MidiMapping
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let items: [MidiOption] = options
@@ -160,7 +159,6 @@ struct MidiRangeEditor: View {
     let model: AppModel
     let m: MidiMapping
     @State private var end: Int? = nil
-    @Environment(\.theme) private var theme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -235,7 +233,6 @@ struct MidiRangeEditor: View {
 /// удалить (действия с текущим пресетом без него неактивны).
 struct MidiPresetPage: View {
     let model: AppModel
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let own: String = model.settings.midi.preset

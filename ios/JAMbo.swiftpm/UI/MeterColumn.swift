@@ -9,7 +9,6 @@ import SwiftUI
 /// и MST — громкость выхода мастера (палец вверх-вниз; пока палец на нём — снизу VOL — итоговая громкость).
 struct MeterColumn: View {
     let model: AppModel
-    @Environment(\.theme) private var theme
     @State private var start: Double? = nil
     /// Ход пальца на всю шкалу регулятора, pt.
     static let travel: CGFloat = 240

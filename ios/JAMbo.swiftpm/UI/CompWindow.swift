@@ -5,7 +5,6 @@ import SwiftUI
 struct CompDisplay: View {
     let model: AppModel
     @State private var hist = TeleHistory()
-    @Environment(\.theme) private var theme
 
     private var thrParam: ParamDef { return Params.masterColumns[1][0] }
 
@@ -80,7 +79,6 @@ struct CompTransfer: View {
     /// Что тянет палец: 1 — порог, 2 — RATIO, 0 — ничего; значение и положение в начале.
     @State private var kind: Int = -1
     @State private var start: Double = 0
-    @Environment(\.theme) private var theme
 
     private var thrP: ParamDef { return Params.masterColumns[1][0] }
     private var ratioP: ParamDef { return Params.byId["cmp.ratio"] ?? Params.masterColumns[1][0] }

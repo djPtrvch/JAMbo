@@ -33,7 +33,6 @@ struct SatTransfer: View {
     let now: Double
     @State private var start: Double? = nil
     @State private var probe = SatProbe()
-    @Environment(\.theme) private var theme
 
     private var driveP: ParamDef { return Params.masterColumns[0][0] }
     private var typeP: ParamDef { return Params.masterColumns[0][1] }
@@ -236,7 +235,6 @@ struct SatSpectrum: View {
     @State private var focusStart: CGFloat? = nil
     @State private var moved: Bool = false
     @State private var lastTap: Date = .distantPast
-    @Environment(\.theme) private var theme
 
     private var focusP: ParamDef { return Params.byId["sat.focus"] ?? Params.masterColumns[0][0] }
 

@@ -6,7 +6,6 @@ import SwiftUI
 struct ClipDisplay: View {
     let model: AppModel
     @State private var hist = TeleHistory()
-    @Environment(\.theme) private var theme
 
     private var ceilingParam: ParamDef { return Params.masterColumns[2][1] }
 
@@ -60,7 +59,6 @@ struct ClipTransfer: View {
     let hist: TeleHistory
     let now: Double
     @State private var dragging: Int = -1
-    @Environment(\.theme) private var theme
 
     private var inputP: ParamDef { return Params.masterColumns[2][0] }
     private var ceilP: ParamDef { return Params.masterColumns[2][1] }

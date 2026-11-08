@@ -8,7 +8,6 @@ import SwiftUI
 
 struct FxPreview: View {
     let model: AppModel
-    @Environment(\.theme) private var theme
 
     static let titles: [String] = ["REVERB", "DELAY", "DRIVE", "DUCK"]
 
@@ -126,7 +125,6 @@ enum FxField {
 /// отрезанное — серая полупрозрачная заливка над кривой, кривая — серой линией. Без среза — ничего.
 struct FxCutPic: View, Equatable {
     let cut: FxPicture.Cut?
-    @Environment(\.theme) private var theme
 
     static func == (a: FxCutPic, b: FxCutPic) -> Bool { return a.cut == b.cut }
 
@@ -155,7 +153,6 @@ struct FxCutPic: View, Equatable {
 /// Reverb: полупрозрачный куб (изометрия), вокруг — контуры DECAY.
 struct FxReverbPic: View, Equatable {
     let r: FxPicture.Reverb
-    @Environment(\.theme) private var theme
 
     static func == (a: FxReverbPic, b: FxReverbPic) -> Bool { return a.r == b.r }
 
@@ -216,7 +213,6 @@ struct FxReverbPic: View, Equatable {
 struct FxDelayPic: View, Equatable {
     let echoes: [FxPicture.Echo]
     let spread: Double
-    @Environment(\.theme) private var theme
 
     static func == (a: FxDelayPic, b: FxDelayPic) -> Bool { return a.spread == b.spread && a.echoes == b.echoes }
 
@@ -253,7 +249,6 @@ struct FxDrivePic: View, Equatable {
     let type: Int
     let drive: Double
     let tone: Double
-    @Environment(\.theme) private var theme
 
     static func == (a: FxDrivePic, b: FxDrivePic) -> Bool {
         return a.type == b.type && a.drive == b.drive && a.tone == b.tone
@@ -306,7 +301,6 @@ struct FxDuckPic: View {
 struct FxDuckFrame: View {
     let d: FxPicture.Duck
     let dot: Double
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let ink: Color = theme.icon

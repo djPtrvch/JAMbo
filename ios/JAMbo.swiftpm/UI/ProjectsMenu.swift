@@ -25,7 +25,6 @@ struct ProjectsPage: View {
     /// EXPORT: готовый временный файл (окно сохранения в «Файлы»); ошибка EXPORT или IMPORT.
     @State private var exported: URL? = nil
     @State private var failure: String? = nil
-    @Environment(\.theme) private var theme
 
     var body: some View {
         // Содержимое — AnyView: цепочка модификаторов ниже оборачивает маленький тип (S14, память сборки).
@@ -265,7 +264,6 @@ struct OpenProjectPanel: View {
     let load: () -> Void
     let mix: () -> Void
     let importRows: () -> Void
-    @Environment(\.theme) private var theme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {

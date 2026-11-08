@@ -10,7 +10,6 @@ struct ArrAutoPanel: View {
     let model: AppModel
     @State private var adding: Bool = false
     @State private var laneMenu: String? = nil
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let t: Int = model.arrAutoTrack ?? -1
@@ -53,7 +52,6 @@ struct ArrAutoList: View {
     @Binding var adding: Bool
     @Binding var laneMenu: String?
     @State private var lastTap: (at: Date, id: String)? = nil
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let t: Int = model.arrAutoTrack ?? -1
@@ -150,7 +148,6 @@ struct ArrAutoLaneMenu: View {
 struct ArrAutoCurve: View {
     let model: AppModel
     @State private var touches = ArrAutoTouches()
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let p: Project = model.project

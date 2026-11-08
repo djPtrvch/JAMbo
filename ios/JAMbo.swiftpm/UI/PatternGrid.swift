@@ -11,7 +11,6 @@ import SwiftUI
 struct PatternGrid: View {
     let model: AppModel
     let layout: Layout
-    @Environment(\.theme) private var theme
     @State private var presses: [SpatialEventCollection.Event.ID: GridPress] = [:]
     /// Палец, который тянет клип (копия под пальцем — ghost, ячейка под ним — target).
     @State private var dragId: SpatialEventCollection.Event.ID? = nil
@@ -567,7 +566,6 @@ struct GridSideButtons: View {
     let scroll: Bool
     let canUp: Bool
     let canDown: Bool
-    @Environment(\.theme) private var theme
 
     var body: some View {
         GeometryReader { geo in
@@ -625,7 +623,6 @@ struct GridSideButtons: View {
 /// Кроссфейдер перехода MIX: вертикальный, без надписей; внизу — общие настройки старого проекта, вверху — нового.
 struct MixFader: View {
     let model: AppModel
-    @Environment(\.theme) private var theme
 
     static let thumbH: CGFloat = 28
 

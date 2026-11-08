@@ -19,7 +19,6 @@ struct LibRow: View {
     @State private var open: Bool = false
     /// Удержание сработало — отпускание пальца не тап.
     @State private var held: Bool = false
-    @Environment(\.theme) private var theme
 
     private var reveal: CGFloat { return 2 * LibRow.button + 4 + (confirm ? 40 : 0) }
     private var playable: Bool { return node.kind == .sample || node.kind == .preset }

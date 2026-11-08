@@ -99,7 +99,6 @@ struct MasterScopeView: View {
     let model: AppModel
     /// Формы волны COMP, CLIP, LIM по кнопкам (при MST); false — только SAT (при MIX, без кнопок).
     var taps: Bool = true
-    @Environment(\.theme) private var theme
 
     var body: some View {
         GeometryReader { geo in
@@ -195,7 +194,6 @@ struct ScopeCanvas: View {
 struct ScopeButton: View {
     let model: AppModel
     let tap: Int
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let on: Bool = model.scopeOn[tap]

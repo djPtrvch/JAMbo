@@ -7,7 +7,6 @@ import SwiftUI
 struct LimiterDisplay: View {
     let model: AppModel
     @State private var hist = TeleHistory()
-    @Environment(\.theme) private var theme
 
     private var ceilingParam: ParamDef { return Params.masterColumns[3][1] }
 

@@ -10,7 +10,6 @@ struct EqPresetsMenu: View {
     static let width: CGFloat = 260
     let model: AppModel
     let state: EqPresetMenuState
-    @Environment(\.theme) private var theme
     @State private var reorder = ReorderState()
 
     var body: some View {

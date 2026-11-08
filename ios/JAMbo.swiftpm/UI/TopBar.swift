@@ -116,7 +116,6 @@ struct TopIcon: View {
     enum Tint { case normal, rec }
     let symbol: String
     var tint: Tint = .normal
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let color: Color = tint == .rec ? theme.rec : theme.off
@@ -131,7 +130,6 @@ struct TopIcon: View {
 /// Неактивная пока кнопка-надпись верхней панели.
 struct TopText: View {
     let title: String
-    @Environment(\.theme) private var theme
 
     var body: some View {
         Text(title)
@@ -146,7 +144,6 @@ struct TopText: View {
 struct TopField: View {
     let label: String
     let value: String
-    @Environment(\.theme) private var theme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -162,7 +159,6 @@ struct TopField: View {
 struct PlayButton: View {
     let model: AppModel
     @State private var down: Bool = false
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let on: Bool = model.playing
@@ -189,7 +185,6 @@ struct PlayButton: View {
 /// Метроном: тап включает; при игре мигает на долях (акцент — жёлтым).
 struct MetronomeButton: View {
     let model: AppModel
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let on: Bool = model.metronome
@@ -211,7 +206,6 @@ struct HistoryButton: View {
     let symbol: String
     let enabled: Bool
     let action: () -> Void
-    @Environment(\.theme) private var theme
 
     var body: some View {
         Image(systemName: symbol)
@@ -260,7 +254,6 @@ struct RootField: View {
 /// общее состояние): готова — точка крупнее, пишет — она мигает, как точка на MST.
 struct RecButton: View {
     let model: AppModel
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let on: Bool = model.recOn
@@ -329,7 +322,6 @@ struct ViewButton: View {
     var ring: Bool = false
     var ringWidth: CGFloat = 3
     let action: () -> Void
-    @Environment(\.theme) private var theme
 
     var body: some View {
         Text(title)

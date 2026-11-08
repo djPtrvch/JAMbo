@@ -17,7 +17,6 @@ struct EqView: View {
     @State private var inputBand: Int = -1
     @State private var text: String = ""
     @State private var clash: NameClash? = nil
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let _ = RedrawMeter.hit(.eq)
@@ -185,7 +184,6 @@ struct EqBar: View {
     @State private var width: CGFloat = 0
     /// Левый край строки («root»).
     @State private var barX: CGFloat = 0
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let slots: [EqSlot] = EqBar.slots(width: width, barX: barX, top: model.topFrames)
@@ -416,7 +414,6 @@ struct EqField: View {
     @State private var moved: Bool = false
     @State private var lastTap: Date = .distantPast
     @State private var frame: CGRect = .zero
-    @Environment(\.theme) private var theme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -471,7 +468,6 @@ struct EqTool: View {
     let enabled: Bool
     let active: Bool
     let action: () -> Void
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let fg: Color = !enabled ? theme.off : (active ? theme.onAccent : theme.text)
@@ -491,7 +487,6 @@ struct EqTool: View {
 struct EqListenButton: View {
     let model: AppModel
     let enabled: Bool
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let active: Bool = model.eqListenHeld && enabled
@@ -519,7 +514,6 @@ struct EqBandMenu: View {
     static let height: CGFloat = 200
     let model: AppModel
     let state: EqMenuState
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let r: CGRect = state.bounds
@@ -585,7 +579,6 @@ struct EqMsMenu: View {
     static let width: CGFloat = 200
     let model: AppModel
     let anchor: CGRect
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let ms: Int = model.selectedBand?.ms ?? -1

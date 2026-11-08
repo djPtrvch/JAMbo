@@ -6,7 +6,6 @@ import SwiftUI
 struct SyncMenuPage: View {
     let model: AppModel
     let back: () -> Void
-    @Environment(\.theme) private var theme
 
     private var s: SyncSettings { return model.settings.sync }
 
@@ -88,7 +87,6 @@ struct SyncOffsetRow: View {
     let step: (Int) -> Void
     /// Сколько миллисекунд уже прибавлено текущим жестом (nil — пальца нет).
     @State private var applied: Int? = nil
-    @Environment(\.theme) private var theme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -123,7 +121,6 @@ struct RepeatArrow: View {
     let title: String
     let action: () -> Void
     @State private var task: LaterTask? = nil
-    @Environment(\.theme) private var theme
 
     var body: some View {
         Text(title)

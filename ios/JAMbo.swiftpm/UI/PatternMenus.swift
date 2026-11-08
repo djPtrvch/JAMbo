@@ -78,7 +78,6 @@ struct PatternMenus: View {
 
 /// Оформление всплывающего меню.
 struct MenuPanel: ViewModifier {
-    @Environment(\.theme) private var theme
 
     func body(content: Content) -> some View {
         content
@@ -92,7 +91,6 @@ struct MenuPanel: ViewModifier {
 struct MenuBox: ViewModifier {
     var radius: CGFloat = Layout.radius
     var shadow: Bool = true
-    @Environment(\.theme) private var theme
 
     func body(content: Content) -> some View {
         let framed = content
@@ -153,7 +151,6 @@ struct MenuItem: View {
     var red: Bool = false
     var current: Bool = false
     let action: () -> Void
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let fg: Color = !enabled ? theme.off : (current ? theme.onAccent : (red ? theme.rec : theme.text))
@@ -271,7 +268,6 @@ struct RowMenu: View {
     @State private var name: String = ""
     @State private var reps: Int = 1
     @State private var loaded: Bool = false
-    @Environment(\.theme) private var theme
 
     var body: some View {
         VStack(spacing: 6) {
@@ -351,7 +347,6 @@ struct RowMenu: View {
 /// Бутерброд сетки: строка старта, что в конце строк, что делает «+», режим стрелок.
 struct GridMenu: View {
     let model: AppModel
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let p: Project = model.project
@@ -395,7 +390,6 @@ struct GridMenu: View {
 struct MenuScroll: View {
     let content: AnyView
     @State private var geo: ScrollGeometry? = nil
-    @Environment(\.theme) private var theme
 
     init<Content: View>(@ViewBuilder content: () -> Content) {
         self.content = AnyView(content())

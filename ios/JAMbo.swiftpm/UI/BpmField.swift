@@ -9,7 +9,6 @@ struct BpmField: View {
     @State private var lastTap: Date = .distantPast
     @State private var input: Bool = false
     @State private var text: String = ""
-    @Environment(\.theme) private var theme
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -84,7 +83,6 @@ struct PhaseBar: View {
     let beat: Int
     /// Отрезков — 4 на такт × SYNC QUANTUM (S13e).
     let sync: SyncSettings
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let _ = RedrawMeter.hit(.phase)

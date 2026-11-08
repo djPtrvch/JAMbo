@@ -6,7 +6,6 @@ import SwiftUI
 struct SynthInfo: View {
     let model: AppModel
     let engine: Int
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let e: SynthEngine? = SynthEngines.engine(engine)
@@ -59,7 +58,6 @@ struct SoundTitle: View {
     let detail: String?
     /// Имя пресета синта (после detail, тоже через тире, цветом текста).
     var preset: String? = nil
-    @Environment(\.theme) private var theme
 
     var body: some View {
         var t: Text = Text(main.uppercased()).foregroundStyle(theme.accentText)
@@ -95,7 +93,6 @@ struct SynthIcon: View {
     @State private var motion = IconMotion()
     @State private var animating = false
     @State private var stopTask: LaterTask? = nil
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let target: IconValues = model.iconValues(engine)

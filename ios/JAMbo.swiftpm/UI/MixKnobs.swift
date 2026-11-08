@@ -38,7 +38,6 @@ enum MixLayout {
 struct MixCell: View {
     let model: AppModel
     let slot: Int
-    @Environment(\.theme) private var theme
 
     var body: some View {
         GeometryReader { geo in
@@ -112,7 +111,6 @@ struct TrackMenus: View {
     let size: CGSize
     @State private var name: String = ""
     @FocusState private var focused: Bool
-    @Environment(\.theme) private var theme
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -200,7 +198,6 @@ struct MixMeter: View {
     let duckDb: Float
     let muted: Bool
     let now: Date
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let _ = RedrawMeter.hit(.mixMeter)

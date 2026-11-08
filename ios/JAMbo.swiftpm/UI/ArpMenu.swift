@@ -4,7 +4,6 @@ import SwiftUI
 /// Настройки дорожки — в проекте, без записи UNDO (как ход игры).
 struct ArpMenuSection: View {
     let model: AppModel
-    @Environment(\.theme) private var theme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -17,7 +16,6 @@ struct ArpMenuSection: View {
 /// GATE арпеджио: ползунок 10–100 %, палец вбок; двойной тап — 50 %.
 struct ArpGateSlider: View {
     let model: AppModel
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let g: Double = model.track.arp.gate

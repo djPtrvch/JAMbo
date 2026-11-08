@@ -178,7 +178,6 @@ struct ArrTrackMenu: View {
     static let height: CGFloat = 253
     let model: AppModel
     let track: Int
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let cur: Int = track < model.project.tracks.count ? model.project.tracks[track].color : ArrPalette.defaultColor
@@ -203,7 +202,6 @@ struct ArrPaletteGrid: View {
     let current: Int
     let none: Bool
     let pick: (Int) -> Void
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let cols: [GridItem] = [GridItem](repeating: GridItem(.flexible(), spacing: 6), count: 6)
@@ -267,7 +265,6 @@ struct ArrMarkerWindow: View {
     @State private var loaded: Bool = false
     @State private var deleted: Bool = false
     @FocusState private var focused: Bool
-    @Environment(\.theme) private var theme
 
     var body: some View {
         VStack(spacing: 6) {

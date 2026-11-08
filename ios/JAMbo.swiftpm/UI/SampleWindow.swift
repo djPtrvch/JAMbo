@@ -12,7 +12,6 @@ struct SampleWindow: View {
     @State private var heldOpen: Bool = false
     @State private var downY: CGFloat? = nil
     @State private var cache = PeakCache()
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let _ = RedrawMeter.hit(.sampleWin)
@@ -138,7 +137,6 @@ struct SampleWindow: View {
 /// приглушение Duck не показывается; заглушённая — серая, выше 0 dBFS — красная.
 struct MixOverview: View {
     let model: AppModel
-    @Environment(\.theme) private var theme
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 60)) { tl in
@@ -164,7 +162,6 @@ struct MixOverviewBars: View {
     let levels: [Float]
     let muted: [Bool]
     let now: Date
-    @Environment(\.theme) private var theme
 
     var body: some View {
         Canvas { ctx, size in
@@ -190,7 +187,6 @@ struct WaveStrip: View {
     let key: String
     let data: SampleData?
     let cache: PeakCache
-    @Environment(\.theme) private var theme
 
     /// Волна и затемнение Start/End рисуются только при их изменении; каждый кадр — лишь полосы воспроизведения,
     /// пока звучат голоса (S14c: вся волна перерисовывалась 60 раз в секунду всю игру).
@@ -260,7 +256,6 @@ struct WaveShape: View, Equatable {
     let lanes: [[Float]]
     let start: Double
     let end: Double
-    @Environment(\.theme) private var theme
 
     static func == (a: WaveShape, b: WaveShape) -> Bool {
         return a.start == b.start && a.end == b.end && a.lanes == b.lanes

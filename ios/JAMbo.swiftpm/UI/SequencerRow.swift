@@ -188,7 +188,6 @@ struct StepFace: View, Equatable {
     let info: StepInfo
     let col: Int
     let look: SeqLook
-    @Environment(\.theme) private var theme
 
     static func == (a: StepFace, b: StepFace) -> Bool {
         return a.info == b.info && a.col == b.col && a.look == b.look

@@ -33,7 +33,6 @@ struct MonitorBar: View {
 /// LEVEL: компенсация громкости цепочки (только показ; в строке EQ окна коррекции).
 struct MonitorLevel: View {
     let model: AppModel
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let v: Double = model.monitorComp
@@ -52,7 +51,6 @@ struct MonitorRow: View {
     let name: String
     let items: [AnyView]
     let height: CGFloat
-    @Environment(\.theme) private var theme
 
     var body: some View {
         HStack(spacing: Layout.gap) {
@@ -70,7 +68,6 @@ struct MonitorRow: View {
 /// Выбор кривой окна коррекции: подпись CURVE и два сегмента PHONE | CORRECT (выбранный горит); правится выбранная.
 struct CurveSwitch: View {
     let model: AppModel
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let c: Bool = model.monitor.editCorrect
@@ -101,7 +98,6 @@ struct TranslationMenu: View {
     static let width: CGFloat = 220
     let model: AppModel
     let anchor: CGRect
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let m: AppModel = model

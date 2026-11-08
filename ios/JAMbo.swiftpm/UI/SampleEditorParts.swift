@@ -8,7 +8,6 @@ struct EditorBar: View {
     let key: String
     let data: SampleData?
     let sel: EditorSelection
-    @Environment(\.theme) private var theme
 
     @State private var barX: CGFloat = 0
 
@@ -167,7 +166,6 @@ struct ToolButton: View {
     /// Жирный шрифт (в редакторе сэмпла — LOAD и SAVE; остальные — обычным).
     var bold: Bool = false
     let action: () -> Void
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let fg: Color = !enabled ? theme.off : (lit ? theme.onAccent : theme.text)
@@ -191,7 +189,6 @@ struct HoldToolButton: View {
     var strike: Bool = false
     let tap: () -> Void
     let hold: () -> Void
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let fg: Color = !enabled ? theme.off : (lit ? theme.onAccent : (strike ? theme.dim : theme.text))
@@ -211,7 +208,6 @@ struct PlayToolButton: View {
     let on: Bool
     var enabled: Bool = true
     let action: () -> Void
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let fg: Color = enabled ? theme.text : theme.off

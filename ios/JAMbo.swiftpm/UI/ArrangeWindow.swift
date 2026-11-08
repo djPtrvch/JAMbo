@@ -6,7 +6,6 @@ struct ArrangeWindow: View {
     let model: AppModel
     /// Поднятый блок (удержание и перетаскивание) — рисуется поверх таймлайна.
     @State private var lift: ArrLift? = nil
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let _ = RedrawMeter.hit(.arrange)
@@ -40,7 +39,6 @@ struct ArrangeWindow: View {
 /// мин:сек; при игре — каждый кадр.
 struct ArrTotalTime: View {
     let model: AppModel
-    @Environment(\.theme) private var theme
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !model.playing)) { _ in
@@ -70,7 +68,6 @@ struct ArrTotalTime: View {
 /// выбранная буква, тап — другая.
 struct ArrABSwitch: View {
     let model: AppModel
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let b: Bool = model.arrRefB
@@ -105,7 +102,6 @@ struct ArrCursorLayer: View {
     let model: AppModel
     let m: ArrMetrics
     let head: Bool
-    @Environment(\.theme) private var theme
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 60, paused: !model.playing)) { _ in
@@ -261,7 +257,6 @@ struct ArrTimeline: View {
     let model: AppModel
     @Binding var lift: ArrLift?
     @State private var touches = ArrTouches()
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let p: Project = model.project

@@ -8,7 +8,6 @@ struct MidiMapWindow: View {
     let model: AppModel
     let screen: CGSize
     @State private var dragFrom: CGPoint? = nil
-    @Environment(\.theme) private var theme
 
     static let width: CGFloat = 340
 
@@ -89,7 +88,6 @@ struct MidiMapLine: View {
     let label: String
     let value: String
     var go: (() -> Void)? = nil
-    @Environment(\.theme) private var theme
 
     var body: some View {
         HStack(spacing: 8) {
@@ -109,7 +107,6 @@ struct MidiMapLine: View {
 struct MidiMapMain: View {
     let model: AppModel
     let m: MidiMapping
-    @Environment(\.theme) private var theme
 
     var body: some View {
         // Строки — списком (S14, объём сборки): у компилятора один тип вместо цепочки видов. Number — всегда третья
@@ -206,7 +203,6 @@ struct MidiNumberLine: View {
     let m: MidiMapping
     @State private var text: String = ""
     @FocusState private var focused: Bool
-    @Environment(\.theme) private var theme
 
     var body: some View {
         HStack(spacing: 8) {

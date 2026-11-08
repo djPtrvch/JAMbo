@@ -9,7 +9,6 @@ struct RootView: View {
     @State private var menuOpen: Bool = false
     /// Верх строки дорожек (низ меню бутерброда).
     @State private var trackTop: CGFloat = 600
-    @Environment(\.theme) private var theme
 
     /// Поля экрана сверху и снизу (решение пользователя: без полей; снизу — и без безопасной зоны полоски «домой»).
     static let padTop: CGFloat = 0
@@ -369,7 +368,6 @@ extension RootView {
 /// Заглушка будущей части экрана.
 struct Placeholder: View {
     let title: String
-    @Environment(\.theme) private var theme
 
     var body: some View {
         Text(title)
@@ -401,7 +399,6 @@ struct MainMenu: View {
     @Binding var isOpen: Bool
     let height: CGFloat
     @State private var page: MenuPage = .main
-    @Environment(\.theme) private var theme
 
     /// Возврат из окна MIDI MAP — сразу меню MIDI.
     private func reopen() {

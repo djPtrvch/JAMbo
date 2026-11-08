@@ -4,7 +4,6 @@ import SwiftUI
 /// меню дорожки (COPY, PASTE, DUPLICATE, цвет).
 struct ArrHeaders: View {
     let model: AppModel
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let p: Project = model.project
@@ -53,7 +52,6 @@ struct ArrHeaderRow: View {
     @State private var touching: Bool = false
     @State private var scrolled: Bool = false
     @State private var baseY: CGFloat = 0
-    @Environment(\.theme) private var theme
     /// Высота строки имени; зазор под регулятором; содержимое строки с регулятором без отступов.
     static let nameH: CGFloat = 15
     static let space: CGFloat = 4
@@ -143,7 +141,6 @@ struct ArrHeaderRow: View {
 struct ArrRefHeader: View {
     let model: AppModel
     let rowH: CGFloat
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let name: String = model.project.arrange.ref?.name ?? ""
@@ -179,7 +176,6 @@ struct ArrToggle: View {
     let color: Color
     var side: CGFloat = 20
     let action: () -> Void
-    @Environment(\.theme) private var theme
 
     var body: some View {
         Text(title)
@@ -201,7 +197,6 @@ struct ArrVolume: View {
     let model: AppModel
     let channel: Int
     @State private var touch: ArrVolumeTouch? = nil
-    @Environment(\.theme) private var theme
     static let height: CGFloat = 22
     static let thumbW: CGFloat = 8
     static let label: CGFloat = 28
@@ -287,7 +282,6 @@ struct ArrMeter: View {
     let duckDb: Float
     let muted: Bool
     let now: Date
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let _ = RedrawMeter.hit(.mixMeter)

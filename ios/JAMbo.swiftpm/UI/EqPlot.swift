@@ -75,7 +75,6 @@ struct EqPlot: View {
     @State private var lastTap: (at: Date, p: CGPoint, band: Int)? = nil
     @State private var frame: CGRect = .zero
     @State private var spectrum = SpectrumDisplay()
-    @Environment(\.theme) private var theme
 
     var body: some View {
         GeometryReader { geo in
@@ -261,7 +260,6 @@ struct EqPlot: View {
 /// Подсказка над пальцем: частота · нота, усиление · Q.
 struct EqTip: View {
     let band: EqBand
-    @Environment(\.theme) private var theme
 
     var body: some View {
         let gain: String = EqSpec.hasGain(band.type) ? EqFormat.gain(band.gain) : "—"

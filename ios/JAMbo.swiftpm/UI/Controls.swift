@@ -8,7 +8,6 @@ struct InkButton: View {
     /// «A/B» — в две строки с линией (окно стилей); иначе «/» — часть подписи (1/8, 1/16).
     var split: Bool = false
     let action: () -> Void
-    @Environment(\.theme) private var theme
 
     var body: some View {
         Button(action: action) {
@@ -39,7 +38,6 @@ struct CloseButton: View {
     /// Сторона: в строке кнопок окон на месте центра — barH (квадрат во всю высоту строки).
     var side: CGFloat = 48
     let action: () -> Void
-    @Environment(\.theme) private var theme
 
     var body: some View {
         Button(action: action) {
@@ -56,7 +54,6 @@ struct CloseButton: View {
 /// Бутерброд — только полоски, без фона.
 struct BurgerButton: View {
     let action: () -> Void
-    @Environment(\.theme) private var theme
 
     var body: some View {
         Button(action: action) {
@@ -75,7 +72,6 @@ struct BurgerButton: View {
 /// Заголовок раздела меню (menu-head в вебе: 12 px, жирный, разрядка).
 struct MenuHead: View {
     let title: String
-    @Environment(\.theme) private var theme
 
     var body: some View {
         Text(title)
