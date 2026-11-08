@@ -210,7 +210,8 @@ extension AppModel {
             // Ступенчатая: toNorm — уже i / (s − 1).
             return p.toNorm(synthValue(p))
         }
-        return IconValues(h: norm(0), t: norm(4), m: norm(8), q: norm(12), d: norm(5))
+        // Ручки движка — строка 1 (места 0…3), Decay — 2.2 (место 5; 8.11 — группы в строках).
+        return IconValues(h: norm(0), t: norm(1), m: norm(2), q: norm(3), d: norm(5))
     }
 
     func sample(_ key: String) -> SampleData? {

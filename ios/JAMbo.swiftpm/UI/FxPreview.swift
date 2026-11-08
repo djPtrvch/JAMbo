@@ -122,7 +122,7 @@ enum FxField {
 }
 
 /// Огибающая фильтра поверх картинки (частота слева направо, лог 20 Гц — 20 кГц; 0 dB — верх поля, −30 dB — низ):
-/// отрезанное — серая полупрозрачная заливка над кривой, без контура (8.11, решение пользователя). Без среза — ничего.
+/// отрезанное — серая полупрозрачная заливка над кривой вместе с линией среза, однотонно (8.11, решение пользователя). Без среза — ничего.
 struct FxCutPic: View, Equatable {
     let cut: FxPicture.Cut?
 
@@ -144,7 +144,12 @@ struct FxCutPic: View, Equatable {
             area.addLine(to: CGPoint(x: FxField.x1, y: FxField.top))
             area.addLine(to: CGPoint(x: FxField.x0, y: FxField.top))
             area.closeSubpath()
-            ctx.fill(area, with: .color(ink2.opacity(0.45)))
+            // Заливка и линия среза — одним слоем с общей прозрачностью: однотонно, линия не выделяется (8.11).
+            ctx.drawLayer { l in
+                l.opacity = 0.45
+                l.fill(area, with: .color(ink2))
+                l.stroke(line, with: .color(ink2), style: StrokeStyle(lineWidth: FxField.stroke, lineJoin: .round))
+            }
         }
     }
 }
