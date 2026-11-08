@@ -11,475 +11,475 @@ import Observation
 extension AppModel {
     var settingsTab: SettingsTab {
         get { access(keyPath: \.settingsTab); return _settingsTab }
-        set { let k = willPut(\.settingsTab, observedChanged(_settingsTab, newValue)); _settingsTab = newValue; didPut(k) }
+        set { put(\.settingsTab, \._settingsTab, newValue, observedChanged(_settingsTab, newValue)) }
     }
     var viewPage: Int {
         get { access(keyPath: \.viewPage); return _viewPage }
-        set { let k = willPut(\.viewPage, observedChanged(_viewPage, newValue)); _viewPage = newValue; didPut(k) }
+        set { put(\.viewPage, \._viewPage, newValue, observedChanged(_viewPage, newValue)) }
     }
     var spanView: Bool {
         get { access(keyPath: \.spanView); return _spanView }
-        set { let k = willPut(\.spanView, observedChanged(_spanView, newValue)); _spanView = newValue; didPut(k) }
+        set { put(\.spanView, \._spanView, newValue, observedChanged(_spanView, newValue)) }
     }
     var appWindow: AppWindow? {
         get { access(keyPath: \.appWindow); return _appWindow }
-        set { let k = willPut(\.appWindow, observedChanged(_appWindow, newValue)); _appWindow = newValue; didPut(k) }
+        set { put(\.appWindow, \._appWindow, newValue, observedChanged(_appWindow, newValue)) }
     }
     var shiftHeld: Bool {
         get { access(keyPath: \.shiftHeld); return _shiftHeld }
-        set { let k = willPut(\.shiftHeld, observedChanged(_shiftHeld, newValue)); _shiftHeld = newValue; didPut(k) }
+        set { put(\.shiftHeld, \._shiftHeld, newValue, observedChanged(_shiftHeld, newValue)) }
     }
     var fxHeld: Bool {
         get { access(keyPath: \.fxHeld); return _fxHeld }
-        set { let k = willPut(\.fxHeld, observedChanged(_fxHeld, newValue)); _fxHeld = newValue; didPut(k) }
+        set { put(\.fxHeld, \._fxHeld, newValue, observedChanged(_fxHeld, newValue)) }
     }
     var modHeld: Bool {
         get { access(keyPath: \.modHeld); return _modHeld }
-        set { let k = willPut(\.modHeld, observedChanged(_modHeld, newValue)); _modHeld = newValue; didPut(k) }
+        set { put(\.modHeld, \._modHeld, newValue, observedChanged(_modHeld, newValue)) }
     }
     var lastPage: GridPage {
         get { access(keyPath: \.lastPage); return _lastPage }
-        set { let k = willPut(\.lastPage, observedChanged(_lastPage, newValue)); _lastPage = newValue; didPut(k) }
+        set { put(\.lastPage, \._lastPage, newValue, observedChanged(_lastPage, newValue)) }
     }
     var lastSource: Int {
         get { access(keyPath: \.lastSource); return _lastSource }
-        set { let k = willPut(\.lastSource, observedChanged(_lastSource, newValue)); _lastSource = newValue; didPut(k) }
+        set { put(\.lastSource, \._lastSource, newValue, observedChanged(_lastSource, newValue)) }
     }
     var fxPicCol: Int {
         get { access(keyPath: \.fxPicCol); return _fxPicCol }
-        set { let k = willPut(\.fxPicCol, observedChanged(_fxPicCol, newValue)); _fxPicCol = newValue; didPut(k) }
+        set { put(\.fxPicCol, \._fxPicCol, newValue, observedChanged(_fxPicCol, newValue)) }
     }
     var fxMidiShow: Bool {
         get { access(keyPath: \.fxMidiShow); return _fxMidiShow }
-        set { let k = willPut(\.fxMidiShow, observedChanged(_fxMidiShow, newValue)); _fxMidiShow = newValue; didPut(k) }
+        set { put(\.fxMidiShow, \._fxMidiShow, newValue, observedChanged(_fxMidiShow, newValue)) }
     }
     var morph: Bool {
         get { access(keyPath: \.morph); return _morph }
-        set { let k = willPut(\.morph, observedChanged(_morph, newValue)); _morph = newValue; didPut(k) }
+        set { put(\.morph, \._morph, newValue, observedChanged(_morph, newValue)) }
     }
     var morphHeld: Bool {
         get { access(keyPath: \.morphHeld); return _morphHeld }
-        set { let k = willPut(\.morphHeld, observedChanged(_morphHeld, newValue)); _morphHeld = newValue; didPut(k) }
+        set { put(\.morphHeld, \._morphHeld, newValue, observedChanged(_morphHeld, newValue)) }
     }
     var morphUsed: Bool {
         get { access(keyPath: \.morphUsed); return _morphUsed }
-        set { let k = willPut(\.morphUsed, observedChanged(_morphUsed, newValue)); _morphUsed = newValue; didPut(k) }
+        set { put(\.morphUsed, \._morphUsed, newValue, observedChanged(_morphUsed, newValue)) }
     }
     var morphAllHeld: Bool {
         get { access(keyPath: \.morphAllHeld); return _morphAllHeld }
-        set { let k = willPut(\.morphAllHeld, observedChanged(_morphAllHeld, newValue)); _morphAllHeld = newValue; didPut(k) }
+        set { put(\.morphAllHeld, \._morphAllHeld, newValue, observedChanged(_morphAllHeld, newValue)) }
     }
     var pageMenu: PageMenuState? {
         get { access(keyPath: \.pageMenu); return _pageMenu }
-        set { let k = willPut(\.pageMenu, observedChanged(_pageMenu, newValue)); _pageMenu = newValue; didPut(k) }
+        set { put(\.pageMenu, \._pageMenu, newValue, observedChanged(_pageMenu, newValue)) }
     }
     var recOn: Bool {
         get { access(keyPath: \.recOn); return _recOn }
-        set { let k = willPut(\.recOn, observedChanged(_recOn, newValue)); _recOn = newValue; didPut(k) }
+        set { put(\.recOn, \._recOn, newValue, observedChanged(_recOn, newValue)) }
     }
     var arrAuto: Bool {
         get { access(keyPath: \.arrAuto); return _arrAuto }
-        set { let k = willPut(\.arrAuto, observedChanged(_arrAuto, newValue)); _arrAuto = newValue; didPut(k) }
+        set { put(\.arrAuto, \._arrAuto, newValue, observedChanged(_arrAuto, newValue)) }
     }
     var arrRecArm: Bool {
         get { access(keyPath: \.arrRecArm); return _arrRecArm }
-        set { let k = willPut(\.arrRecArm, observedChanged(_arrRecArm, newValue)); _arrRecArm = newValue; didPut(k) }
+        set { put(\.arrRecArm, \._arrRecArm, newValue, observedChanged(_arrRecArm, newValue)) }
     }
     var arrPlayEnd: Int {
         get { access(keyPath: \.arrPlayEnd); return _arrPlayEnd }
-        set { let k = willPut(\.arrPlayEnd, observedChanged(_arrPlayEnd, newValue)); _arrPlayEnd = newValue; didPut(k) }
+        set { put(\.arrPlayEnd, \._arrPlayEnd, newValue, observedChanged(_arrPlayEnd, newValue)) }
     }
     var arrPlay: Bool {
         get { access(keyPath: \.arrPlay); return _arrPlay }
-        set { let k = willPut(\.arrPlay, observedChanged(_arrPlay, newValue)); _arrPlay = newValue; didPut(k) }
+        set { put(\.arrPlay, \._arrPlay, newValue, observedChanged(_arrPlay, newValue)) }
     }
     var arrDraw: Bool {
         get { access(keyPath: \.arrDraw); return _arrDraw }
-        set { let k = willPut(\.arrDraw, observedChanged(_arrDraw, newValue)); _arrDraw = newValue; didPut(k) }
+        set { put(\.arrDraw, \._arrDraw, newValue, observedChanged(_arrDraw, newValue)) }
     }
     var arrAutoId: String {
         get { access(keyPath: \.arrAutoId); return _arrAutoId }
-        set { let k = willPut(\.arrAutoId, observedChanged(_arrAutoId, newValue)); _arrAutoId = newValue; didPut(k) }
+        set { put(\.arrAutoId, \._arrAutoId, newValue, observedChanged(_arrAutoId, newValue)) }
     }
     var chordMenuOpen: Bool {
         get { access(keyPath: \.chordMenuOpen); return _chordMenuOpen }
-        set { let k = willPut(\.chordMenuOpen, observedChanged(_chordMenuOpen, newValue)); _chordMenuOpen = newValue; didPut(k) }
+        set { put(\.chordMenuOpen, \._chordMenuOpen, newValue, observedChanged(_chordMenuOpen, newValue)) }
     }
     var patternView: Bool {
         get { access(keyPath: \.patternView); return _patternView }
-        set { let k = willPut(\.patternView, observedChanged(_patternView, newValue)); _patternView = newValue; didPut(k) }
+        set { put(\.patternView, \._patternView, newValue, observedChanged(_patternView, newValue)) }
     }
     var arrangeView: Bool {
         get { access(keyPath: \.arrangeView); return _arrangeView }
-        set { let k = willPut(\.arrangeView, observedChanged(_arrangeView, newValue)); _arrangeView = newValue; didPut(k) }
+        set { put(\.arrangeView, \._arrangeView, newValue, observedChanged(_arrangeView, newValue)) }
     }
     var arrCursor: Int {
         get { access(keyPath: \.arrCursor); return _arrCursor }
-        set { let k = willPut(\.arrCursor, observedChanged(_arrCursor, newValue)); _arrCursor = newValue; didPut(k) }
+        set { put(\.arrCursor, \._arrCursor, newValue, observedChanged(_arrCursor, newValue)) }
     }
     var arrSel: ArrSel? {
         get { access(keyPath: \.arrSel); return _arrSel }
-        set { let k = willPut(\.arrSel, observedChanged(_arrSel, newValue)); _arrSel = newValue; didPut(k) }
+        set { put(\.arrSel, \._arrSel, newValue, observedChanged(_arrSel, newValue)) }
     }
     var arrMarquee: CGRect? {
         get { access(keyPath: \.arrMarquee); return _arrMarquee }
-        set { let k = willPut(\.arrMarquee, observedChanged(_arrMarquee, newValue)); _arrMarquee = newValue; didPut(k) }
+        set { put(\.arrMarquee, \._arrMarquee, newValue, observedChanged(_arrMarquee, newValue)) }
     }
     var arrKnobs: Bool {
         get { access(keyPath: \.arrKnobs); return _arrKnobs }
-        set { let k = willPut(\.arrKnobs, observedChanged(_arrKnobs, newValue)); _arrKnobs = newValue; didPut(k) }
+        set { put(\.arrKnobs, \._arrKnobs, newValue, observedChanged(_arrKnobs, newValue)) }
     }
     var arrLowerH: CGFloat {
         get { access(keyPath: \.arrLowerH); return _arrLowerH }
-        set { let k = willPut(\.arrLowerH, observedChanged(_arrLowerH, newValue)); _arrLowerH = newValue; didPut(k) }
+        set { put(\.arrLowerH, \._arrLowerH, newValue, observedChanged(_arrLowerH, newValue)) }
     }
     var barH: CGFloat {
         get { access(keyPath: \.barH); return _barH }
-        set { let k = willPut(\.barH, observedChanged(_barH, newValue)); _barH = newValue; didPut(k) }
+        set { put(\.barH, \._barH, newValue, observedChanged(_barH, newValue)) }
     }
     var arrMenu: ArrMenuState? {
         get { access(keyPath: \.arrMenu); return _arrMenu }
-        set { let k = willPut(\.arrMenu, observedChanged(_arrMenu, newValue)); _arrMenu = newValue; didPut(k) }
+        set { put(\.arrMenu, \._arrMenu, newValue, observedChanged(_arrMenu, newValue)) }
     }
     var arrInsert: Bool {
         get { access(keyPath: \.arrInsert); return _arrInsert }
-        set { let k = willPut(\.arrInsert, observedChanged(_arrInsert, newValue)); _arrInsert = newValue; didPut(k) }
+        set { put(\.arrInsert, \._arrInsert, newValue, observedChanged(_arrInsert, newValue)) }
     }
     var arrInserted: ArrSel? {
         get { access(keyPath: \.arrInserted); return _arrInserted }
-        set { let k = willPut(\.arrInserted, observedChanged(_arrInserted, newValue)); _arrInserted = newValue; didPut(k) }
+        set { put(\.arrInserted, \._arrInserted, newValue, observedChanged(_arrInserted, newValue)) }
     }
     var arrRefB: Bool {
         get { access(keyPath: \.arrRefB); return _arrRefB }
-        set { let k = willPut(\.arrRefB, observedChanged(_arrRefB, newValue)); _arrRefB = newValue; didPut(k) }
+        set { put(\.arrRefB, \._arrRefB, newValue, observedChanged(_arrRefB, newValue)) }
     }
     var rollView: Bool {
         get { access(keyPath: \.rollView); return _rollView }
-        set { let k = willPut(\.rollView, observedChanged(_rollView, newValue)); _rollView = newValue; didPut(k) }
+        set { put(\.rollView, \._rollView, newValue, observedChanged(_rollView, newValue)) }
     }
     var rollMenuOpen: Bool {
         get { access(keyPath: \.rollMenuOpen); return _rollMenuOpen }
-        set { let k = willPut(\.rollMenuOpen, observedChanged(_rollMenuOpen, newValue)); _rollMenuOpen = newValue; didPut(k) }
+        set { put(\.rollMenuOpen, \._rollMenuOpen, newValue, observedChanged(_rollMenuOpen, newValue)) }
     }
     var rollVel: Bool {
         get { access(keyPath: \.rollVel); return _rollVel }
-        set { let k = willPut(\.rollVel, observedChanged(_rollVel, newValue)); _rollVel = newValue; didPut(k) }
+        set { put(\.rollVel, \._rollVel, newValue, observedChanged(_rollVel, newValue)) }
     }
     var eqView: Bool {
         get { access(keyPath: \.eqView); return _eqView }
-        set { let k = willPut(\.eqView, observedChanged(_eqView, newValue)); _eqView = newValue; didPut(k) }
+        set { put(\.eqView, \._eqView, newValue, observedChanged(_eqView, newValue)) }
     }
     var eqBand: Int {
         get { access(keyPath: \.eqBand); return _eqBand }
-        set { let k = willPut(\.eqBand, observedChanged(_eqBand, newValue)); _eqBand = newValue; didPut(k) }
+        set { put(\.eqBand, \._eqBand, newValue, observedChanged(_eqBand, newValue)) }
     }
     var eqListenHeld: Bool {
         get { access(keyPath: \.eqListenHeld); return _eqListenHeld }
-        set { let k = willPut(\.eqListenHeld, observedChanged(_eqListenHeld, newValue)); _eqListenHeld = newValue; didPut(k) }
+        set { put(\.eqListenHeld, \._eqListenHeld, newValue, observedChanged(_eqListenHeld, newValue)) }
     }
     var eqListenBand: Int {
         get { access(keyPath: \.eqListenBand); return _eqListenBand }
-        set { let k = willPut(\.eqListenBand, observedChanged(_eqListenBand, newValue)); _eqListenBand = newValue; didPut(k) }
+        set { put(\.eqListenBand, \._eqListenBand, newValue, observedChanged(_eqListenBand, newValue)) }
     }
     var eqMenu: EqMenuState? {
         get { access(keyPath: \.eqMenu); return _eqMenu }
-        set { let k = willPut(\.eqMenu, observedChanged(_eqMenu, newValue)); _eqMenu = newValue; didPut(k) }
+        set { put(\.eqMenu, \._eqMenu, newValue, observedChanged(_eqMenu, newValue)) }
     }
     var translationMenu: CGRect? {
         get { access(keyPath: \.translationMenu); return _translationMenu }
-        set { let k = willPut(\.translationMenu, observedChanged(_translationMenu, newValue)); _translationMenu = newValue; didPut(k) }
+        set { put(\.translationMenu, \._translationMenu, newValue, observedChanged(_translationMenu, newValue)) }
     }
     var eqMsMenu: CGRect? {
         get { access(keyPath: \.eqMsMenu); return _eqMsMenu }
-        set { let k = willPut(\.eqMsMenu, observedChanged(_eqMsMenu, newValue)); _eqMsMenu = newValue; didPut(k) }
+        set { put(\.eqMsMenu, \._eqMsMenu, newValue, observedChanged(_eqMsMenu, newValue)) }
     }
     var eqDynMenu: CGRect? {
         get { access(keyPath: \.eqDynMenu); return _eqDynMenu }
-        set { let k = willPut(\.eqDynMenu, observedChanged(_eqDynMenu, newValue)); _eqDynMenu = newValue; didPut(k) }
+        set { put(\.eqDynMenu, \._eqDynMenu, newValue, observedChanged(_eqDynMenu, newValue)) }
     }
     var eqDynShift: CGSize {
         get { access(keyPath: \.eqDynShift); return _eqDynShift }
-        set { let k = willPut(\.eqDynShift, observedChanged(_eqDynShift, newValue)); _eqDynShift = newValue; didPut(k) }
+        set { put(\.eqDynShift, \._eqDynShift, newValue, observedChanged(_eqDynShift, newValue)) }
     }
     var eqInputAsk: EqInput? {
         get { access(keyPath: \.eqInputAsk); return _eqInputAsk }
-        set { let k = willPut(\.eqInputAsk, observedChanged(_eqInputAsk, newValue)); _eqInputAsk = newValue; didPut(k) }
+        set { put(\.eqInputAsk, \._eqInputAsk, newValue, observedChanged(_eqInputAsk, newValue)) }
     }
     var eqPresetMenu: EqPresetMenuState? {
         get { access(keyPath: \.eqPresetMenu); return _eqPresetMenu }
-        set { let k = willPut(\.eqPresetMenu, observedChanged(_eqPresetMenu, newValue)); _eqPresetMenu = newValue; didPut(k) }
+        set { put(\.eqPresetMenu, \._eqPresetMenu, newValue, observedChanged(_eqPresetMenu, newValue)) }
     }
     var eqCompareMenu: Bool {
         get { access(keyPath: \.eqCompareMenu); return _eqCompareMenu }
-        set { let k = willPut(\.eqCompareMenu, observedChanged(_eqCompareMenu, newValue)); _eqCompareMenu = newValue; didPut(k) }
+        set { put(\.eqCompareMenu, \._eqCompareMenu, newValue, observedChanged(_eqCompareMenu, newValue)) }
     }
     var eqPhones: Bool {
         get { access(keyPath: \.eqPhones); return _eqPhones }
-        set { let k = willPut(\.eqPhones, observedChanged(_eqPhones, newValue)); _eqPhones = newValue; didPut(k) }
+        set { put(\.eqPhones, \._eqPhones, newValue, observedChanged(_eqPhones, newValue)) }
     }
     var phonesName: String {
         get { access(keyPath: \.phonesName); return _phonesName }
-        set { let k = willPut(\.phonesName, observedChanged(_phonesName, newValue)); _phonesName = newValue; didPut(k) }
+        set { put(\.phonesName, \._phonesName, newValue, observedChanged(_phonesName, newValue)) }
     }
     var importingPhones: Bool {
         get { access(keyPath: \.importingPhones); return _importingPhones }
-        set { let k = willPut(\.importingPhones, observedChanged(_importingPhones, newValue)); _importingPhones = newValue; didPut(k) }
+        set { put(\.importingPhones, \._importingPhones, newValue, observedChanged(_importingPhones, newValue)) }
     }
     var phonesNote: String? {
         get { access(keyPath: \.phonesNote); return _phonesNote }
-        set { let k = willPut(\.phonesNote, observedChanged(_phonesNote, newValue)); _phonesNote = newValue; didPut(k) }
+        set { put(\.phonesNote, \._phonesNote, newValue, observedChanged(_phonesNote, newValue)) }
     }
     var phonesExported: URL? {
         get { access(keyPath: \.phonesExported); return _phonesExported }
-        set { let k = willPut(\.phonesExported, observedChanged(_phonesExported, newValue)); _phonesExported = newValue; didPut(k) }
+        set { put(\.phonesExported, \._phonesExported, newValue, observedChanged(_phonesExported, newValue)) }
     }
     var gridTop: Int {
         get { access(keyPath: \.gridTop); return _gridTop }
-        set { let k = willPut(\.gridTop, observedChanged(_gridTop, newValue)); _gridTop = newValue; didPut(k) }
+        set { put(\.gridTop, \._gridTop, newValue, observedChanged(_gridTop, newValue)) }
     }
     var cellMenu: CellMenuState? {
         get { access(keyPath: \.cellMenu); return _cellMenu }
-        set { let k = willPut(\.cellMenu, observedChanged(_cellMenu, newValue)); _cellMenu = newValue; didPut(k) }
+        set { put(\.cellMenu, \._cellMenu, newValue, observedChanged(_cellMenu, newValue)) }
     }
     var rowMenu: Int? {
         get { access(keyPath: \.rowMenu); return _rowMenu }
-        set { let k = willPut(\.rowMenu, observedChanged(_rowMenu, newValue)); _rowMenu = newValue; didPut(k) }
+        set { put(\.rowMenu, \._rowMenu, newValue, observedChanged(_rowMenu, newValue)) }
     }
     var gridRowsShown: Int {
         get { access(keyPath: \.gridRowsShown); return _gridRowsShown }
-        set { let k = willPut(\.gridRowsShown, observedChanged(_gridRowsShown, newValue)); _gridRowsShown = newValue; didPut(k) }
+        set { put(\.gridRowsShown, \._gridRowsShown, newValue, observedChanged(_gridRowsShown, newValue)) }
     }
     var clipCarry: ClipCarry? {
         get { access(keyPath: \.clipCarry); return _clipCarry }
-        set { let k = willPut(\.clipCarry, observedChanged(_clipCarry, newValue)); _clipCarry = newValue; didPut(k) }
+        set { put(\.clipCarry, \._clipCarry, newValue, observedChanged(_clipCarry, newValue)) }
     }
     var carryPoint: CGPoint {
         get { access(keyPath: \.carryPoint); return _carryPoint }
-        set { let k = willPut(\.carryPoint, observedChanged(_carryPoint, newValue)); _carryPoint = newValue; didPut(k) }
+        set { put(\.carryPoint, \._carryPoint, newValue, observedChanged(_carryPoint, newValue)) }
     }
     var deniedCell: CellRef? {
         get { access(keyPath: \.deniedCell); return _deniedCell }
-        set { let k = willPut(\.deniedCell, observedChanged(_deniedCell, newValue)); _deniedCell = newValue; didPut(k) }
+        set { put(\.deniedCell, \._deniedCell, newValue, observedChanged(_deniedCell, newValue)) }
     }
     var mix: MixTransition? {
         get { access(keyPath: \.mix); return _mix }
-        set { let k = willPut(\.mix, observedChanged(_mix, newValue)); _mix = newValue; didPut(k) }
+        set { put(\.mix, \._mix, newValue, observedChanged(_mix, newValue)) }
     }
     var mixDropDone: Bool {
         get { access(keyPath: \.mixDropDone); return _mixDropDone }
-        set { let k = willPut(\.mixDropDone, observedChanged(_mixDropDone, newValue)); _mixDropDone = newValue; didPut(k) }
+        set { put(\.mixDropDone, \._mixDropDone, newValue, observedChanged(_mixDropDone, newValue)) }
     }
     var choice: ChoiceState? {
         get { access(keyPath: \.choice); return _choice }
-        set { let k = willPut(\.choice, observedChanged(_choice, newValue)); _choice = newValue; didPut(k) }
+        set { put(\.choice, \._choice, newValue, observedChanged(_choice, newValue)) }
     }
     var pianoMenuOpen: Bool {
         get { access(keyPath: \.pianoMenuOpen); return _pianoMenuOpen }
-        set { let k = willPut(\.pianoMenuOpen, observedChanged(_pianoMenuOpen, newValue)); _pianoMenuOpen = newValue; didPut(k) }
+        set { put(\.pianoMenuOpen, \._pianoMenuOpen, newValue, observedChanged(_pianoMenuOpen, newValue)) }
     }
     var samplesVersion: Int {
         get { access(keyPath: \.samplesVersion); return _samplesVersion }
-        set { let k = willPut(\.samplesVersion, observedChanged(_samplesVersion, newValue)); _samplesVersion = newValue; didPut(k) }
+        set { put(\.samplesVersion, \._samplesVersion, newValue, observedChanged(_samplesVersion, newValue)) }
     }
     var editorOpen: Bool {
         get { access(keyPath: \.editorOpen); return _editorOpen }
-        set { let k = willPut(\.editorOpen, observedChanged(_editorOpen, newValue)); _editorOpen = newValue; didPut(k) }
+        set { put(\.editorOpen, \._editorOpen, newValue, observedChanged(_editorOpen, newValue)) }
     }
     var editorWarp: Bool {
         get { access(keyPath: \.editorWarp); return _editorWarp }
-        set { let k = willPut(\.editorWarp, observedChanged(_editorWarp, newValue)); _editorWarp = newValue; didPut(k) }
+        set { put(\.editorWarp, \._editorWarp, newValue, observedChanged(_editorWarp, newValue)) }
     }
     var warpGrid: Double {
         get { access(keyPath: \.warpGrid); return _warpGrid }
-        set { let k = willPut(\.warpGrid, observedChanged(_warpGrid, newValue)); _warpGrid = newValue; didPut(k) }
+        set { put(\.warpGrid, \._warpGrid, newValue, observedChanged(_warpGrid, newValue)) }
     }
     var warpSel: Int? {
         get { access(keyPath: \.warpSel); return _warpSel }
-        set { let k = willPut(\.warpSel, observedChanged(_warpSel, newValue)); _warpSel = newValue; didPut(k) }
+        set { put(\.warpSel, \._warpSel, newValue, observedChanged(_warpSel, newValue)) }
     }
     var soundMenu: SoundMenuState? {
         get { access(keyPath: \.soundMenu); return _soundMenu }
-        set { let k = willPut(\.soundMenu, observedChanged(_soundMenu, newValue)); _soundMenu = newValue; didPut(k) }
+        set { put(\.soundMenu, \._soundMenu, newValue, observedChanged(_soundMenu, newValue)) }
     }
     var importTarget: ImportTarget? {
         get { access(keyPath: \.importTarget); return _importTarget }
-        set { let k = willPut(\.importTarget, observedChanged(_importTarget, newValue)); _importTarget = newValue; didPut(k) }
+        set { put(\.importTarget, \._importTarget, newValue, observedChanged(_importTarget, newValue)) }
     }
     var importing: Bool {
         get { access(keyPath: \.importing); return _importing }
-        set { let k = willPut(\.importing, observedChanged(_importing, newValue)); _importing = newValue; didPut(k) }
+        set { put(\.importing, \._importing, newValue, observedChanged(_importing, newValue)) }
     }
     var importingProject: Bool {
         get { access(keyPath: \.importingProject); return _importingProject }
-        set { let k = willPut(\.importingProject, observedChanged(_importingProject, newValue)); _importingProject = newValue; didPut(k) }
+        set { put(\.importingProject, \._importingProject, newValue, observedChanged(_importingProject, newValue)) }
     }
     var projectImport: ProjectImport? {
         get { access(keyPath: \.projectImport); return _projectImport }
-        set { let k = willPut(\.projectImport, observedChanged(_projectImport, newValue)); _projectImport = newValue; didPut(k) }
+        set { put(\.projectImport, \._projectImport, newValue, observedChanged(_projectImport, newValue)) }
     }
     var browser: BrowserMode? {
         get { access(keyPath: \.browser); return _browser }
-        set { let k = willPut(\.browser, observedChanged(_browser, newValue)); _browser = newValue; didPut(k) }
+        set { put(\.browser, \._browser, newValue, observedChanged(_browser, newValue)) }
     }
     var libFolder: String {
         get { access(keyPath: \.libFolder); return _libFolder }
-        set { let k = willPut(\.libFolder, observedChanged(_libFolder, newValue)); _libFolder = newValue; didPut(k) }
+        set { put(\.libFolder, \._libFolder, newValue, observedChanged(_libFolder, newValue)) }
     }
     var libPicked: Set<String>? {
         get { access(keyPath: \.libPicked); return _libPicked }
-        set { let k = willPut(\.libPicked, observedChanged(_libPicked, newValue)); _libPicked = newValue; didPut(k) }
+        set { put(\.libPicked, \._libPicked, newValue, observedChanged(_libPicked, newValue)) }
     }
     var libNote: String {
         get { access(keyPath: \.libNote); return _libNote }
-        set { let k = willPut(\.libNote, observedChanged(_libNote, newValue)); _libNote = newValue; didPut(k) }
+        set { put(\.libNote, \._libNote, newValue, observedChanged(_libNote, newValue)) }
     }
     var libWarning: String? {
         get { access(keyPath: \.libWarning); return _libWarning }
-        set { let k = willPut(\.libWarning, observedChanged(_libWarning, newValue)); _libWarning = newValue; didPut(k) }
+        set { put(\.libWarning, \._libWarning, newValue, observedChanged(_libWarning, newValue)) }
     }
     var importingLibrary: Bool {
         get { access(keyPath: \.importingLibrary); return _importingLibrary }
-        set { let k = willPut(\.importingLibrary, observedChanged(_importingLibrary, newValue)); _importingLibrary = newValue; didPut(k) }
+        set { put(\.importingLibrary, \._importingLibrary, newValue, observedChanged(_importingLibrary, newValue)) }
     }
     var leftFrame: CGRect {
         get { access(keyPath: \.leftFrame); return _leftFrame }
-        set { let k = willPut(\.leftFrame, observedChanged(_leftFrame, newValue)); _leftFrame = newValue; didPut(k) }
+        set { put(\.leftFrame, \._leftFrame, newValue, observedChanged(_leftFrame, newValue)) }
     }
     var pagesFrame: CGRect {
         get { access(keyPath: \.pagesFrame); return _pagesFrame }
-        set { let k = willPut(\.pagesFrame, observedChanged(_pagesFrame, newValue)); _pagesFrame = newValue; didPut(k) }
+        set { put(\.pagesFrame, \._pagesFrame, newValue, observedChanged(_pagesFrame, newValue)) }
     }
     var keysFrame: CGRect {
         get { access(keyPath: \.keysFrame); return _keysFrame }
-        set { let k = willPut(\.keysFrame, observedChanged(_keysFrame, newValue)); _keysFrame = newValue; didPut(k) }
+        set { put(\.keysFrame, \._keysFrame, newValue, observedChanged(_keysFrame, newValue)) }
     }
     var tracksFrame: CGRect {
         get { access(keyPath: \.tracksFrame); return _tracksFrame }
-        set { let k = willPut(\.tracksFrame, observedChanged(_tracksFrame, newValue)); _tracksFrame = newValue; didPut(k) }
+        set { put(\.tracksFrame, \._tracksFrame, newValue, observedChanged(_tracksFrame, newValue)) }
     }
     var previewOn: Bool {
         get { access(keyPath: \.previewOn); return _previewOn }
-        set { let k = willPut(\.previewOn, observedChanged(_previewOn, newValue)); _previewOn = newValue; didPut(k) }
+        set { put(\.previewOn, \._previewOn, newValue, observedChanged(_previewOn, newValue)) }
     }
     var heldFlag: Int? {
         get { access(keyPath: \.heldFlag); return _heldFlag }
-        set { let k = willPut(\.heldFlag, observedChanged(_heldFlag, newValue)); _heldFlag = newValue; didPut(k) }
+        set { put(\.heldFlag, \._heldFlag, newValue, observedChanged(_heldFlag, newValue)) }
     }
     var roleFlag: Int? {
         get { access(keyPath: \.roleFlag); return _roleFlag }
-        set { let k = willPut(\.roleFlag, observedChanged(_roleFlag, newValue)); _roleFlag = newValue; didPut(k) }
+        set { put(\.roleFlag, \._roleFlag, newValue, observedChanged(_roleFlag, newValue)) }
     }
     var trackMenu: TrackMenuState? {
         get { access(keyPath: \.trackMenu); return _trackMenu }
-        set { let k = willPut(\.trackMenu, observedChanged(_trackMenu, newValue)); _trackMenu = newValue; didPut(k) }
+        set { put(\.trackMenu, \._trackMenu, newValue, observedChanged(_trackMenu, newValue)) }
     }
     var renaming: Int? {
         get { access(keyPath: \.renaming); return _renaming }
-        set { let k = willPut(\.renaming, observedChanged(_renaming, newValue)); _renaming = newValue; didPut(k) }
+        set { put(\.renaming, \._renaming, newValue, observedChanged(_renaming, newValue)) }
     }
     var masterWin: Int? {
         get { access(keyPath: \.masterWin); return _masterWin }
-        set { let k = willPut(\.masterWin, observedChanged(_masterWin, newValue)); _masterWin = newValue; didPut(k) }
+        set { put(\.masterWin, \._masterWin, newValue, observedChanged(_masterWin, newValue)) }
     }
     var masterMenu: MasterMenuState? {
         get { access(keyPath: \.masterMenu); return _masterMenu }
-        set { let k = willPut(\.masterMenu, observedChanged(_masterMenu, newValue)); _masterMenu = newValue; didPut(k) }
+        set { put(\.masterMenu, \._masterMenu, newValue, observedChanged(_masterMenu, newValue)) }
     }
     var masterInput: MasterInputTarget? {
         get { access(keyPath: \.masterInput); return _masterInput }
-        set { let k = willPut(\.masterInput, observedChanged(_masterInput, newValue)); _masterInput = newValue; didPut(k) }
+        set { put(\.masterInput, \._masterInput, newValue, observedChanged(_masterInput, newValue)) }
     }
     var defaultFlash: Int? {
         get { access(keyPath: \.defaultFlash); return _defaultFlash }
-        set { let k = willPut(\.defaultFlash, observedChanged(_defaultFlash, newValue)); _defaultFlash = newValue; didPut(k) }
+        set { put(\.defaultFlash, \._defaultFlash, newValue, observedChanged(_defaultFlash, newValue)) }
     }
     var defaultSaved: DefaultSaved? {
         get { access(keyPath: \.defaultSaved); return _defaultSaved }
-        set { let k = willPut(\.defaultSaved, observedChanged(_defaultSaved, newValue)); _defaultSaved = newValue; didPut(k) }
+        set { put(\.defaultSaved, \._defaultSaved, newValue, observedChanged(_defaultSaved, newValue)) }
     }
     var heldSteps: Set<Int> {
         get { access(keyPath: \.heldSteps); return _heldSteps }
-        set { let k = willPut(\.heldSteps, observedChanged(_heldSteps, newValue)); _heldSteps = newValue; didPut(k) }
+        set { put(\.heldSteps, \._heldSteps, newValue, observedChanged(_heldSteps, newValue)) }
     }
     var heldSources: Set<Int> {
         get { access(keyPath: \.heldSources); return _heldSources }
-        set { let k = willPut(\.heldSources, observedChanged(_heldSources, newValue)); _heldSources = newValue; didPut(k) }
+        set { put(\.heldSources, \._heldSources, newValue, observedChanged(_heldSources, newValue)) }
     }
     var knobFingers: Set<Int> {
         get { access(keyPath: \.knobFingers); return _knobFingers }
-        set { let k = willPut(\.knobFingers, observedChanged(_knobFingers, newValue)); _knobFingers = newValue; didPut(k) }
+        set { put(\.knobFingers, \._knobFingers, newValue, observedChanged(_knobFingers, newValue)) }
     }
     var octaves: [Int] {
         get { access(keyPath: \.octaves); return _octaves }
-        set { let k = willPut(\.octaves, observedChanged(_octaves, newValue)); _octaves = newValue; didPut(k) }
+        set { put(\.octaves, \._octaves, newValue, observedChanged(_octaves, newValue)) }
     }
     var chordMode: [Bool] {
         get { access(keyPath: \.chordMode); return _chordMode }
-        set { let k = willPut(\.chordMode, observedChanged(_chordMode, newValue)); _chordMode = newValue; didPut(k) }
+        set { put(\.chordMode, \._chordMode, newValue, observedChanged(_chordMode, newValue)) }
     }
     var chordKind: [Int] {
         get { access(keyPath: \.chordKind); return _chordKind }
-        set { let k = willPut(\.chordKind, observedChanged(_chordKind, newValue)); _chordKind = newValue; didPut(k) }
+        set { put(\.chordKind, \._chordKind, newValue, observedChanged(_chordKind, newValue)) }
     }
     var selNotes: [[Int]] {
         get { access(keyPath: \.selNotes); return _selNotes }
-        set { let k = willPut(\.selNotes, observedChanged(_selNotes, newValue)); _selNotes = newValue; didPut(k) }
+        set { put(\.selNotes, \._selNotes, newValue, observedChanged(_selNotes, newValue)) }
     }
     var pressedKeys: [Int: [Int]] {
         get { access(keyPath: \.pressedKeys); return _pressedKeys }
-        set { let k = willPut(\.pressedKeys, observedChanged(_pressedKeys, newValue)); _pressedKeys = newValue; didPut(k) }
+        set { put(\.pressedKeys, \._pressedKeys, newValue, observedChanged(_pressedKeys, newValue)) }
     }
     var arrGroup: [ArrSel] {
         get { access(keyPath: \.arrGroup); return _arrGroup }
-        set { let k = willPut(\.arrGroup, observedChanged(_arrGroup, newValue)); _arrGroup = newValue; didPut(k) }
+        set { put(\.arrGroup, \._arrGroup, newValue, observedChanged(_arrGroup, newValue)) }
     }
     var eqCompares: [Int: Int] {
         get { access(keyPath: \.eqCompares); return _eqCompares }
-        set { let k = willPut(\.eqCompares, observedChanged(_eqCompares, newValue)); _eqCompares = newValue; didPut(k) }
+        set { put(\.eqCompares, \._eqCompares, newValue, observedChanged(_eqCompares, newValue)) }
     }
     var arrDropPending: (sel: GridSelection, start: Int)? {
         get { access(keyPath: \.arrDropPending); return _arrDropPending }
-        set { let k = willPut(\.arrDropPending, observedChanged(_arrDropPending, newValue)); _arrDropPending = newValue; didPut(k) }
+        set { put(\.arrDropPending, \._arrDropPending, newValue, observedChanged(_arrDropPending, newValue)) }
     }
     var gridMenuOpen: Bool {
         get { access(keyPath: \.gridMenuOpen); return _gridMenuOpen }
-        set { let k = willPut(\.gridMenuOpen, observedChanged(_gridMenuOpen, newValue)); _gridMenuOpen = newValue; didPut(k) }
+        set { put(\.gridMenuOpen, \._gridMenuOpen, newValue, observedChanged(_gridMenuOpen, newValue)) }
     }
     var mixDrop: [Int: Int] {
         get { access(keyPath: \.mixDrop); return _mixDrop }
-        set { let k = willPut(\.mixDrop, observedChanged(_mixDrop, newValue)); _mixDrop = newValue; didPut(k) }
+        set { put(\.mixDrop, \._mixDrop, newValue, observedChanged(_mixDrop, newValue)) }
     }
     var captureFlash: Bool {
         get { access(keyPath: \.captureFlash); return _captureFlash }
-        set { let k = willPut(\.captureFlash, observedChanged(_captureFlash, newValue)); _captureFlash = newValue; didPut(k) }
+        set { put(\.captureFlash, \._captureFlash, newValue, observedChanged(_captureFlash, newValue)) }
     }
     var wavetableSerial: Int {
         get { access(keyPath: \.wavetableSerial); return _wavetableSerial }
-        set { let k = willPut(\.wavetableSerial, observedChanged(_wavetableSerial, newValue)); _wavetableSerial = newValue; didPut(k) }
+        set { put(\.wavetableSerial, \._wavetableSerial, newValue, observedChanged(_wavetableSerial, newValue)) }
     }
     var headCount: Int {
         get { access(keyPath: \.headCount); return _headCount }
-        set { let k = willPut(\.headCount, observedChanged(_headCount, newValue)); _headCount = newValue; didPut(k) }
+        set { put(\.headCount, \._headCount, newValue, observedChanged(_headCount, newValue)) }
     }
     var stemArmed: Set<Int> {
         get { access(keyPath: \.stemArmed); return _stemArmed }
-        set { let k = willPut(\.stemArmed, observedChanged(_stemArmed, newValue)); _stemArmed = newValue; didPut(k) }
+        set { put(\.stemArmed, \._stemArmed, newValue, observedChanged(_stemArmed, newValue)) }
     }
     var stemRecording: Set<Int> {
         get { access(keyPath: \.stemRecording); return _stemRecording }
-        set { let k = willPut(\.stemRecording, observedChanged(_stemRecording, newValue)); _stemRecording = newValue; didPut(k) }
+        set { put(\.stemRecording, \._stemRecording, newValue, observedChanged(_stemRecording, newValue)) }
     }
     var refusedFlag: (idx: Int, until: Double) {
         get { access(keyPath: \.refusedFlag); return _refusedFlag }
-        set { let k = willPut(\.refusedFlag, observedChanged(_refusedFlag, newValue)); _refusedFlag = newValue; didPut(k) }
+        set { put(\.refusedFlag, \._refusedFlag, newValue, observedChanged(_refusedFlag, newValue)) }
     }
     var hasTrackClip: Bool {
         get { access(keyPath: \.hasTrackClip); return _hasTrackClip }
-        set { let k = willPut(\.hasTrackClip, observedChanged(_hasTrackClip, newValue)); _hasTrackClip = newValue; didPut(k) }
+        set { put(\.hasTrackClip, \._hasTrackClip, newValue, observedChanged(_hasTrackClip, newValue)) }
     }
     var scopeOn: [Bool] {
         get { access(keyPath: \.scopeOn); return _scopeOn }
-        set { let k = willPut(\.scopeOn, observedChanged(_scopeOn, newValue)); _scopeOn = newValue; didPut(k) }
+        set { put(\.scopeOn, \._scopeOn, newValue, observedChanged(_scopeOn, newValue)) }
     }
 }
 
