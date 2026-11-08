@@ -39,7 +39,8 @@ struct MonitorBar: View {
     private func angleField(_ s: MonitorSettings) -> AnyView {
         let m: AppModel = model
         let t: String = String(format: "%.0f°", s.angle)
-        return AnyView(EqField(label: "ANGLE", value: t, pxPerUnit: 4,
+        // Room включена — Crossfeed заменён комнатой (связь каналов — в её импульсах).
+        return AnyView(EqField(label: "ANGLE", value: t, enabled: !m.roomOn, pxPerUnit: 4,
                                get: { m.monitor.angle.rounded() },
                                set: { v in m.setMonitor { $0.angle = Swift.max(MonitorSpec.angleMin, Swift.min(MonitorSpec.angleMax, v)) } },
                                double: { m.setMonitor { $0.angle = MonitorSpec.angleDef } }, model: m))
@@ -49,7 +50,7 @@ struct MonitorBar: View {
     private func amountField(_ s: MonitorSettings) -> AnyView {
         let m: AppModel = model
         let t: String = String(format: "%.0f %%", s.amount * 100)
-        return AnyView(EqField(label: "AMOUNT", value: t, pxPerUnit: 2,
+        return AnyView(EqField(label: "AMOUNT", value: t, enabled: !m.roomOn, pxPerUnit: 2,
                                get: { (m.monitor.amount * 100).rounded() },
                                set: { v in m.setMonitor { $0.amount = Swift.max(0, Swift.min(100, v)) / 100 } },
                                double: { m.setMonitor { $0.amount = MonitorSpec.amountDef } }, model: m))
@@ -68,7 +69,10 @@ struct MonitorBar: View {
                            let i: Int = ((-Int(v)) % n + n) % n
                            m.setMonitor { $0.translation = names[i] }
                        },
-                       tap: { f in m.translationMenu = m.translationMenu == nil ? f : nil }, model: m)
+                       tap: { f in
+                           m.monitorMenuRoom = false
+                           m.translationMenu = m.translationMenu == nil ? f : nil
+                       }, model: m)
     }
 
 }
@@ -110,7 +114,41 @@ struct MonitorRow: View {
     }
 }
 
-/// Меню TRANSLATION: пресеты одним столбцом под полем (выбранный горит); тап мимо — закрыть.
+/// Строка ROOM (фаза 2): комната (тап — меню, палец вниз — следующая), AMBIENCE (громкость хвоста, −∞…0 dB,
+/// 0,5 dB на 2 px, двойной тап — −6 dB) и пояснение: пока комната включена, Crossfeed заменён ею.
+struct MonitorRoomBar: View {
+    let model: AppModel
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let m: AppModel = model
+        let names: [String] = ["Off"] + m.rooms.map { $0.name }
+        let cur: String = m.roomOn ? m.monitor.room : "Off"
+        let room = EqField(label: "ROOM", value: cur, pxPerUnit: 30,
+                           get: { -Double(names.firstIndex(of: m.monitor.room) ?? 0) },
+                           set: { v in
+                               let n: Int = names.count
+                               let i: Int = ((-Int(v)) % n + n) % n
+                               if names[i] != m.monitor.room { m.setRoom(names[i]) }
+                           },
+                           tap: { f in
+                               m.monitorMenuRoom = true
+                               m.translationMenu = m.translationMenu == nil ? f : nil
+                           }, model: m)
+        let db: Double = m.monitor.ambienceDb
+        let t: String = db <= MonitorSpec.ambienceMin ? "−∞ dB" : String(format: "%.1f dB", db)
+        let amb = EqField(label: "AMBIENCE", value: t, enabled: m.roomOn, pxPerUnit: 2,
+                          get: { (m.monitor.ambienceDb * 2).rounded() },
+                          set: { v in m.setMonitor { $0.ambienceDb = Swift.max(MonitorSpec.ambienceMin, Swift.min(0, v / 2)) } },
+                          double: { m.setMonitor { $0.ambienceDb = -6 } }, model: m)
+        let note: String = m.roomOn ? "Crossfeed is replaced by the room" : "Room off: crossfeed works"
+        let label = Text(note).font(.system(size: 12)).foregroundStyle(theme.dim).lineLimit(2)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading).padding(.horizontal, 12)
+        return MonitorRow(name: "ROOM", items: [AnyView(room), AnyView(amb), AnyView(label)], height: m.barH)
+    }
+}
+
+/// Меню TRANSLATION или ROOM (monitorMenuRoom): пункты одним столбцом под полем (выбранный горит); тап мимо — закрыть.
 struct TranslationMenu: View {
     static let width: CGFloat = 220
     let model: AppModel
@@ -119,15 +157,18 @@ struct TranslationMenu: View {
 
     var body: some View {
         let m: AppModel = model
-        let cur: String = m.translationPreset?.name ?? (m.translations.contains { $0.name == m.monitor.translation } ? m.monitor.translation : "Off")
+        let room: Bool = m.monitorMenuRoom
+        let names: [String] = room ? ["Off"] + m.rooms.map { $0.name } : m.translations.map { $0.name }
+        let cur: String = room ? (m.roomOn ? m.monitor.room : "Off") : (m.translationPreset?.name ?? "Off")
         return ZStack(alignment: .topLeading) {
             Color.black.opacity(0.001).ignoresSafeArea().onTapGesture { m.translationMenu = nil }
             VStack(alignment: .leading, spacing: 6) {
-                Text("TRANSLATION").font(.system(size: 12, weight: .bold)).tracking(1.2).foregroundStyle(theme.text)
-                ForEach(m.translations.indices, id: \.self) { i in
-                    let name: String = m.translations[i].name
+                Text(room ? "ROOM" : "TRANSLATION").font(.system(size: 12, weight: .bold)).tracking(1.2)
+                    .foregroundStyle(theme.text)
+                ForEach(names.indices, id: \.self) { i in
+                    let name: String = names[i]
                     MenuItem(title: name.uppercased(), current: name == cur) {
-                        m.setMonitor { $0.translation = name }
+                        if room { m.setRoom(name) } else { m.setMonitor { $0.translation = name } }
                         m.translationMenu = nil
                     }
                     .frame(height: 40)

@@ -11,6 +11,8 @@ public final class MonitorChain: @unchecked Sendable {
     public let sampleRate: Double
     /// Экспорт песни идёт (1): цепочка не применяется (сразу, без перехода).
     public let paused = AtomicCounter()
+    /// Room (фаза 2): свёртка с импульсами комнаты — после Crossfeed, перед биквадами.
+    public let room: RoomStage
     /// Наибольшее снижение лимитером в последнем блоке (1 — нет), для экрана.
     public let limitGain = AtomicFloat(1)
 
@@ -39,6 +41,7 @@ public final class MonitorChain: @unchecked Sendable {
 
     public init(sampleRate: Double) {
         self.sampleRate = sampleRate
+        room = RoomStage(sampleRate: sampleRate)
         let size: Int = MonitorSpec.size
         ring = .allocate(capacity: MonitorChain.slots * size)
         ring.initialize(repeating: 0, count: MonitorChain.slots * size)
@@ -110,6 +113,7 @@ public final class MonitorChain: @unchecked Sendable {
         }
         processMono(n)
         processCross(n)
+        room.process(wl, wr, n)
         var k = 0
         while k < MonitorSpec.sections {
             section(k, n)

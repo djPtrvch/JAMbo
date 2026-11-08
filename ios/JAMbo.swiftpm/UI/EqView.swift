@@ -68,6 +68,7 @@ struct EqView: View {
                 .frame(height: model.barH)
             // Окно коррекции наушников: строки Headphone Monitor.
             if model.phonesShown { MonitorBar(model: model) }
+            if model.phonesShown { MonitorRoomBar(model: model) }
             EqPlot(model: model)
                 .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { plotFrame = $0 }
         }

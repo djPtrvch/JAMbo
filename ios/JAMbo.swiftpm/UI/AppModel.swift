@@ -253,6 +253,10 @@ final class AppModel {
     @ObservationIgnored var refLufs: (key: String, lufs: Double)? = nil
     @ObservationIgnored var refLufsPending: String = ""
     @ObservationIgnored var refMatchDb: Double = 0
+    /// Room: комнаты из ресурсов, загруженная (имя и отклик для компенсации), меню ROOM вместо TRANSLATION.
+    @ObservationIgnored let rooms: [RoomInfo] = AppModel.loadRooms()
+    @ObservationIgnored var roomLoaded: (name: String, resp: RoomResponse)? = nil
+    @ObservationIgnored var monitorMenuRoom: Bool = false
     /// EXPORT: готовый временный файл профиля (окно сохранения в «Файлы»).
     @ObservationIgnored var _phonesExported: URL? = nil
     @ObservationIgnored var _gridTop: Int = 0
@@ -427,6 +431,7 @@ final class AppModel {
         startMidi()
         publishAudio()
         publishMonitor()
+        syncRoom()
         audio.core.events.push(.tempo(project.bpm))
         audio.core.events.push(.metronomeGain(Float(settings.metronomeVol / 100)))
         let timer = Timer(timeInterval: 1.0 / 60, repeats: true) { [weak self] _ in

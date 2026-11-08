@@ -19,6 +19,9 @@ public struct MonitorSettings {
     public var translation: String = "Studio"
     public var mono: Bool = false
     public var sub: Bool = false
+    /// Room: комната (Off — нет) и Ambience, dB (−60 и ниже — −∞; по умолчанию −6).
+    public var room: String = "Off"
+    public var ambienceDb: Double = -6
     /// Правится CORRECT CURVE (иначе PHONE CURVE — профиль наушников).
     public var editCorrect: Bool = false
     /// Референс через мастер-цепочку (по умолчанию нет — как прежде: мимо мастера) и через монитор-цепочку (да).
@@ -45,6 +48,8 @@ public struct MonitorSettings {
         mono = flag("mono", false)
         sub = flag("sub", false)
         editCorrect = flag("editCorrect", false)
+        room = g["room"] as? String ?? "Off"
+        ambienceDb = num("ambienceDb", -6, MonitorSpec.ambienceMin, 0)
         refMaster = flag("refMaster", false)
         refMonitor = flag("refMonitor", true)
         refMatch = flag("refMatch", true)
@@ -54,7 +59,7 @@ public struct MonitorSettings {
     /// Словарь для UserDefaults.
     public var plist: [String: Any] {
         return ["strength": strength, "angle": angle, "amount": amount, "translation": translation, "mono": mono,
-                "sub": sub, "editCorrect": editCorrect, "refMaster": refMaster, "refMonitor": refMonitor, "refMatch": refMatch,
+                "sub": sub, "editCorrect": editCorrect, "room": room, "ambienceDb": ambienceDb, "refMaster": refMaster, "refMonitor": refMonitor, "refMatch": refMatch,
                 "refTrim": refTrim]
     }
 }
@@ -68,6 +73,10 @@ public enum MonitorSpec {
     public static let angleMax: Double = 60
     public static let angleDef: Double = 30
     public static let amountDef: Double = 0.5
+    /// Ambience на этом и ниже — −∞ (только прямой звук).
+    public static let ambienceMin: Double = -60
+    /// Ambience, dB → множитель хвоста.
+    public static func ambience(_ db: Double) -> Double { return db <= ambienceMin ? 0 : pow(10, db / 20) }
     /// Наибольшее g при Amount 100 %.
     public static let gainMax: Double = 0.7
     /// ФНЧ ветки Crossfeed, Гц.
@@ -219,8 +228,10 @@ public enum MonitorDesign {
 
     /// Параметры для колбэка (MonitorSpec.size значений): eq — профиль наушников, PHONE CURVE (nil — нет; Eq.on false —
     /// Bypass всей цепочки); correct — CORRECT CURVE (своя правка поверх профиля, без CORRECTION).
+    /// room — отклик комнаты (Room; nil — Off): Crossfeed выключен (связь каналов — в импульсах), отклик — в
+    /// компенсации; ambience — громкость хвоста комнаты (множитель).
     public static func make(eq: Eq?, settings m: MonitorSettings, correct: Eq?, preset: TranslationPreset?,
-                            sampleRate sr: Double) -> [Double] {
+                            room: RoomResponse? = nil, ambience: Double = 0, sampleRate sr: Double) -> [Double] {
         var out = [Double](repeating: 0, count: MonitorSpec.size)
         out.withUnsafeMutableBufferPointer { p in
             guard let base = p.baseAddress else { return }
@@ -239,14 +250,14 @@ public enum MonitorDesign {
             let u0: Int = c0 + MonitorSpec.corrSlots
             let user: [MonitorBiquad] = MonitorDesign.correction(correct, strength: 1)
             for (k, b) in user.prefix(MonitorSpec.userSlots).enumerated() { coeffs(b, sr, base + (u0 + k) * 5) }
-            let g: Double = m.amount * MonitorSpec.gainMax
+            let g: Double = room == nil ? m.amount * MonitorSpec.gainMax : 0
             base[MonitorSpec.crossGAt] = g
             base[MonitorSpec.crossDelayAt] = MonitorSpec.itd(m.angle) * sr
             let lp = MonitorBiquad(type: EqSpec.highCut, freq: MonitorSpec.crossLp, gain: 0, q: 0.7071067811865476)
             coeffs(lp, sr, base + MonitorSpec.crossLpAt)
             base[MonitorSpec.monoAt] = (m.mono || (preset?.mono ?? false)) ? 1 : 0
             base[MonitorSpec.onAt] = (eq?.on ?? true) ? 1 : 0
-            let db: Double = compensation(base, sr)
+            let db: Double = compensation(base, sr, room, ambience)
             base[MonitorSpec.compAt] = db == 0 ? 1 : pow(10, db / 20)
         }
         return out
@@ -254,19 +265,20 @@ public enum MonitorDesign {
 
     /// Level compensation, dB: минус средняя мощность АЧХ цепочки (биквады и Crossfeed для сигнала в центре) с розовым
     /// весом — точки через 1/12 октавы в 20 Гц…20 кГц (равный вес октав), с пределом ±12 dB; 0 — без изменения.
-    static func compensation(_ p: UnsafePointer<Double>, _ sr: Double) -> Double {
+    /// Комната (Room) — мощность её отклика для сигнала в центре (прямая часть + Ambience · хвост).
+    static func compensation(_ p: UnsafePointer<Double>, _ sr: Double, _ room: RoomResponse?, _ amb: Double) -> Double {
         var active: [Int] = []
         for k in 0..<MonitorSpec.sections where !isIdentity(p + k * 5) { active.append(k) }
         let g: Double = p[MonitorSpec.crossGAt]
-        if active.isEmpty && g == 0 { return 0 }
-        let points: Int = 120
+        if active.isEmpty && g == 0 && room == nil { return 0 }
+        let points: Int = MonitorDesign.points
         var sum: Double = 0
         for i in 0..<points {
-            let hz: Double = 20 * pow(1000, (Double(i) + 0.5) / Double(points))
-            let w: Double = 2 * Double.pi * hz / sr
+            let w: Double = 2 * Double.pi * MonitorDesign.pointHz(i) / sr
             var pw: Double = 1
             for k in active { pw *= power(p + k * 5, w) }
             if g > 0 { pw *= crossPower(p, w, g) }
+            if let r = room { pw *= r.power(i, amb) }
             sum += pw
         }
         let mean: Double = sum / Double(points)
@@ -274,6 +286,13 @@ public enum MonitorDesign {
         let db: Double = -10 * log10(mean)
         if abs(db) < 0.005 { return 0 }
         return Swift.max(-MonitorSpec.compMax, Swift.min(MonitorSpec.compMax, db))
+    }
+
+    /// Точки усреднения: через 1/12 октавы, 20 Гц…20 кГц.
+    public static let points = 120
+
+    public static func pointHz(_ i: Int) -> Double {
+        return 20 * pow(1000, (Double(i) + 0.5) / Double(MonitorDesign.points))
     }
 
     static func isIdentity(_ c: UnsafePointer<Double>) -> Bool {

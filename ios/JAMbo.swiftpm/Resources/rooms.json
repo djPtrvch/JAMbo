@@ -1,0 +1,53 @@
+{
+  "rooms": [
+    {
+      "name": "Control Room",
+      "file": "RoomControl.wav",
+      "rt60": 0.25,
+      "size": [
+        4.5,
+        3.5,
+        2.8
+      ],
+      "angle": 30.0,
+      "distance": 1.5,
+      "gain_db": -5.616,
+      "length_ms": 300.0,
+      "direct": 128,
+      "channels": "LL, LR, RL, RR"
+    },
+    {
+      "name": "Small Studio",
+      "file": "RoomStudio.wav",
+      "rt60": 0.35,
+      "size": [
+        5.0,
+        4.0,
+        2.6
+      ],
+      "angle": 30.0,
+      "distance": 1.5,
+      "gain_db": -5.616,
+      "length_ms": 300.0,
+      "direct": 128,
+      "channels": "LL, LR, RL, RR"
+    },
+    {
+      "name": "Dry",
+      "file": "RoomDry.wav",
+      "rt60": 0.1,
+      "size": [
+        4.5,
+        3.5,
+        2.8
+      ],
+      "angle": 30.0,
+      "distance": 1.5,
+      "gain_db": -5.61,
+      "length_ms": 26.0,
+      "direct": 128,
+      "channels": "LL, LR, RL, RR"
+    }
+  ],
+  "hrtf": "FABIAN HRTF data base v4, TU Berlin, CC BY 4.0, DOI 10.14279/depositonce-5718.5"
+}

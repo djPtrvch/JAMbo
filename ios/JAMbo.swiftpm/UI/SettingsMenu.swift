@@ -254,6 +254,7 @@ struct MonitorSettingsRows: View {
             .note("The reference is matched to the mix: short-term loudness of the mix against the integrated loudness of the reference."),
             .label("REF TRIM"),
             .view(AnyView(trim(s.refTrim))),
+            .note("Room impulses are built with the FABIAN head-related transfer function data base (F. Brinkmann et al., TU Berlin), licensed under CC BY 4.0."),
         ])
     }
 

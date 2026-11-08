@@ -15,6 +15,7 @@ extension AppModel {
         let now: Double = Date.timeIntervalSinceReferenceDate
         meters.tick(lv, now: now)
         tickRefMatch()
+        audio.core.monitor.room.drain()
         dynMeters.tick(audio.core.master, project, now: now)
         // Скоп — только пока виден (MST и MIX).
         let sc: MasterScope = audio.core.master.scope
