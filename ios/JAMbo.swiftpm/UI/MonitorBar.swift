@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Строка Headphone Monitor под строкой EQ окна коррекции — где и на чём звучит: TRANSLATION (тембр и пространство
+/// Строка Headphone Monitor под строкой EQ окна коррекции — где и на чём звучит: SPACE (пункт TRANSLATION — тембр и пространство
 /// пункта), AMBIENCE (сколько пространства; у пунктов без него — серое), проверки MONO и SUB.
 /// Строка EQ — коррекция наушников: PHONE CURVE, CORRECT CURVE, CORRECTION, LEVEL, PRESETS, BYPASS. Поля — как у EQ:
 /// палец вверх-вниз, двойной тап — значение по умолчанию.
@@ -92,7 +92,7 @@ struct CurveSwitch: View {
     }
 }
 
-/// Меню TRANSLATION: пункты одним столбцом под полем (Off — первым, выбранный горит); тап мимо — закрыть.
+/// Меню SPACE (пункты TRANSLATION): пункты одним столбцом под полем (Off — первым, выбранный горит); тап мимо — закрыть.
 struct TranslationMenu: View {
     static let width: CGFloat = 220
     let model: AppModel
@@ -105,7 +105,7 @@ struct TranslationMenu: View {
         return ZStack(alignment: .topLeading) {
             Color.black.opacity(0.001).ignoresSafeArea().onTapGesture { m.translationMenu = nil }
             VStack(alignment: .leading, spacing: 6) {
-                Text("TRANSLATION").font(.system(size: 12, weight: .bold)).tracking(1.2)
+                Text("SPACE").font(.system(size: 12, weight: .bold)).tracking(1.2)
                     .foregroundStyle(theme.text)
                 MenuChoiceColumn(items: names.map { (name: String) -> MenuChoice in
                     MenuChoice(title: name.uppercased(), current: name == cur) {

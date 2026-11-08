@@ -180,7 +180,7 @@ extension AppModel {
     func monitorField(_ k: Int) -> MonitorFieldInfo {
         let s: MonitorSettings = monitor
         switch k {
-        case 0: return MonitorFieldInfo(label: "TRANSLATION", value: translationPreset?.name ?? "Off", enabled: true, px: 30)
+        case 0: return MonitorFieldInfo(label: "SPACE", value: translationPreset?.name ?? "Off", enabled: true, px: 30)
         case 1: return MonitorFieldInfo(label: "CORRECTION", value: String(format: "%.0f %%", s.strength * 100), enabled: true, px: 2)
         default:
             let t: String = s.ambienceDb <= MonitorSpec.ambienceMin ? "−∞ dB" : String(format: "%.1f dB", s.ambienceDb)
