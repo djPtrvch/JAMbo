@@ -724,7 +724,7 @@ final class AppModel {
         restore(next)
     }
 
-    /// Вернуть проект к снимку: что сейчас играет (остановленные дорожки), UNDO не меняет.
+    /// Вернуть проект к снимку: что сейчас играет (остановленные дорожки), mute, solo — UNDO не меняет.
     private func restore(_ snap: Project) {
         arrGroup = []
         var p = snap
@@ -732,6 +732,9 @@ final class AppModel {
             // Что играет, UNDO не меняет: активная ячейка и остановка — как сейчас.
             if let cur = project.tracks.first(where: { $0.id == p.tracks[i].id }) {
                 p.tracks[i].stopped = cur.stopped
+                // Mute и solo — без UNDO (9.11): как сейчас.
+                p.tracks[i].mute = cur.mute
+                p.tracks[i].solo = cur.solo
                 // Арпеджиатор — без UNDO (как ход игры): остаётся как сейчас.
                 p.tracks[i].arp = cur.arp
                 if p.tracks[i].clipFilled(cur.slot) || cur.blank { p.tracks[i].moveSlot(cur.slot) }
@@ -958,10 +961,10 @@ final class AppModel {
         if c != .master { closeMasterWindow() }
     }
 
-    /// Свайп по дорожке: вниз — mute, вверх — solo; включённый mute или solo выключается любым свайпом.
+    /// Свайп по дорожке: вниз — mute, вверх — solo; включённый mute или solo выключается любым свайпом. Без UNDO.
     func swipe(track i: Int, down: Bool) {
         guard i < project.tracks.count else { return }
-        edit { p in
+        mutatePlay({ p in
             if p.tracks[i].mute || p.tracks[i].solo {
                 p.tracks[i].mute = false
                 p.tracks[i].solo = false
@@ -970,7 +973,7 @@ final class AppModel {
             } else {
                 p.tracks[i].solo = true
             }
-        }
+        }, publish: true)
     }
 
     // MARK: — тема

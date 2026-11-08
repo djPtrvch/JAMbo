@@ -29,7 +29,7 @@ final class AnalogModTests: XCTestCase {
         XCTAssertEqual(AnalogMod.knob(morph, engine: Jambo.analog, params: [AnalogMod.modId: 2]).label, "FM")
         XCTAssertEqual(AnalogMod.knob(morph, engine: Jambo.analog, params: [AnalogMod.modId: -3]).label, "Detune")
         let low = AnalogMod.knob(timbre, engine: Jambo.analog, params: [AnalogMod.octId: 1])
-        XCTAssertEqual(low.format(62.5), "Saw −1")
+        XCTAssertEqual(low.format(62.5), "Saw\u{00A0}−1", "неразрывный пробел — в одну строку")
         XCTAssertTrue(AnalogMod.knob(morph, engine: Jambo.fm, params: [AnalogMod.modId: 1]) === morph)
     }
 

@@ -591,20 +591,21 @@ extension AppModel {
                         format: base.format)
     }
 
+    /// Mute и solo — без UNDO (решение пользователя 9.11): UNDO / REDO их не меняет (AppModel.restore).
     func toggleMute(_ i: Int) {
         guard i < project.tracks.count else { return }
-        edit { p in
+        mutatePlay({ p in
             p.tracks[i].mute.toggle()
             if p.tracks[i].mute { p.tracks[i].solo = false }
-        }
+        }, publish: true)
     }
 
     func toggleSolo(_ i: Int) {
         guard i < project.tracks.count else { return }
-        edit { p in
+        mutatePlay({ p in
             p.tracks[i].solo.toggle()
             if p.tracks[i].solo { p.tracks[i].mute = false }
-        }
+        }, publish: true)
     }
 
     /// Двойной тап по ручке громкости — меню дорожки; по серой — ADD TRACK.
