@@ -81,6 +81,9 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var randomStepsAll: Bool = false
     /// SETTINGS → RANDOM → SAMPLES: случайный рисунок нарезанного сэмпла (SliceRhythm).
     public var randomSamples: Bool = false
+    /// SETTINGS → RANDOM → SHOW PART TYPE: пока палец на CHORD — под словом тип случайной партии дорожки (BASS,
+    /// LEAD, PAD), и в окне CHORD.
+    public var showPartType: Bool = false
     /// SETTINGS → MIX (S9, действуют с переходами S10): гамма и нота нового проекта при переходе; кроссфейдер
     /// (ON — темп по кроссфейдеру, OFF — темп старого паттерна).
     public var mixKey: Bool = true
@@ -144,7 +147,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
                                          clearSampleLocks, pitchSemitones, midi, sync,
                                          arrangeCompact, fxPictures, backgroundAudio, arrangeRepeats, stretchBeat,
                                          metronomeVol, arrangeScale, arrangeFollow, displayScale,
-                                         randomDrums, randomChords, randomSwing, randomStepsAll, randomSamples,
+                                         randomDrums, randomChords, randomSwing, randomStepsAll, randomSamples, showPartType,
                                          warpProjectBpm }
 
     public init(from decoder: Decoder) throws {
@@ -186,6 +189,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         randomSwing = c.value(.randomSwing, false)
         randomStepsAll = c.value(.randomStepsAll, false)
         randomSamples = c.value(.randomSamples, false)
+        showPartType = c.value(.showPartType, false)
         let mv: Double = c.value(.metronomeVol, 100)
         metronomeVol = Swift.min(200, Swift.max(0, mv))
     }

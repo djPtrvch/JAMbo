@@ -14,8 +14,23 @@ public enum MelodyRhythm {
     public static let bassOctave: Int = 2
 
     static let bassWords: [String] = ["bass", "808", "sub", "reese"]
-    static let padWords: [String] = ["pad", "atmo", "drone", "string", "ambient", "choir"]
-    static let keysWords: [String] = ["chord", "keys", "piano", "stab", "organ", "rhodes", "epiano"]
+    /// PAD — пэды, подклады, текстуры и эффекты.
+    static let padWords: [String] = ["pad", "atmo", "drone", "string", "ambient", "choir", "texture", "fx", "noise",
+                                     "riser", "sweep", "soundscape", "swell"]
+    static let keysWords: [String] = ["chord", "keys", "piano", "stab", "organ", "rhodes", "epiano", "clav", "wurli"]
+    /// LEAD — по имени и в низкой октаве (иначе октава C2 и ниже дала бы BASS).
+    static let leadWords: [String] = ["lead", "pluck", "melody", "arp"]
+
+    /// Тип партии для показа при удержании CHORD (SETTINGS → RANDOM → SHOW PART TYPE): BASS; LEAD — мелодия и
+    /// клавишные (KEYS); PAD — пэды, текстуры, эффекты; ARP — арпеджио.
+    public static func partName(_ r: Role) -> String {
+        switch r {
+        case .bass: return "BASS"
+        case .lead, .keys: return "LEAD"
+        case .pad: return "PAD"
+        case .arp: return "ARP"
+        }
+    }
 
     /// Роль по звуку дорожки: ARP — арпеджиатор включён; KEYS — режим CHORD; SUB — BASS; TEXTURE, GRANULAR — PAD;
     /// сэмпл — по словам в имени файла name (bass, pad, chord…); иначе по октаве клавиатуры: до C2 — BASS, выше — LEAD.
@@ -30,6 +45,7 @@ public enum MelodyRhythm {
             if bassWords.contains(where: { name.contains($0) }) { return .bass }
             if padWords.contains(where: { name.contains($0) }) { return .pad }
             if keysWords.contains(where: { name.contains($0) }) { return .keys }
+            if leadWords.contains(where: { name.contains($0) }) { return .lead }
         }
         return octave <= bassOctave ? .bass : .lead
     }

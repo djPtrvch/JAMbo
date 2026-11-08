@@ -28,7 +28,8 @@ final class LeadPartTests: XCTestCase {
                             all.append((p * 16 + e.step, e))
                         }
                     }
-                    for (abs, e) in all where abs % 4 == 0 {
+                    // Techno — гипнотическая ячейка (HypnoticLead): секунда и септима на доле — намеренно.
+                    for (abs, e) in all where abs % 4 == 0 && st != 1 {
                         let ci: Int = min(3, abs * 4 / total)
                         let k: Int = Chords.degreeIndex(degrees[ci], scale: scale)
                         let pcs: Set<Int> = Set([0, 2, 4].map { Scales.note(scale: scale, root: root, octave: 0, degree: k + $0) % 12 })

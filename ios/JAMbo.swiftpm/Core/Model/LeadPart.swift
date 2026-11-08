@@ -67,6 +67,10 @@ extension MelodyRhythm {
         let playing: [Int] = lens.indices.filter { lens[$0] > 0 }
         if playing.isEmpty || degrees.isEmpty { return out }
         let gr: Int = DrumRhythm.groove(style, bpm: bpm).rawValue
+        // Techno — гипнотическая ячейка вместо мелодии с фразами (HypnoticLead.swift).
+        if gr == DrumRhythm.Groove.techno.rawValue {
+            return hypnoticLead(lens: lens, degrees: degrees, scale: scale, root: root, octave: oct, using: &g)
+        }
         let pr: [Double] = DrumRhythm.pat(leadRhythms[gr])
         let n: Int = Scales.all[Scales.wrap(scale, Scales.all.count)].steps.count
         let lo: Int = 0

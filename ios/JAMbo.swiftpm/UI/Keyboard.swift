@@ -118,10 +118,13 @@ struct ChordButton: View {
         let names: [String] = model.chordTypeNames
         let k: Int = min(names.count - 1, max(0, model.chordTypeIndex))
         let word: String = model.chordWord
+        // SHOW PART TYPE: пока палец на кнопке — тип партии (BASS, LEAD, PAD) вместо типа аккорда.
+        let part: String? = pressed ? model.partTypeName : nil
+        let sub: String = part ?? (!model.arpMode && model.styleTrack ? model.drumGrooveName : names[k])
         return VStack(spacing: 2) {
             Text(word).font(.system(size: 12, weight: .semibold)).tracking(1)
             // Ударная дорожка с выключенным SETTINGS → RANDOM → DRUMS: стиля нет, слово остаётся на месте.
-            Text(!model.arpMode && model.styleTrack ? model.drumGrooveName : names[k]).font(.system(size: 10)).opacity(!model.arpMode && model.drumTrack && !model.settings.randomDrums ? 0 : 1)
+            Text(sub).font(.system(size: 10, weight: part != nil ? .bold : .regular)).opacity(!model.arpMode && model.drumTrack && !model.settings.randomDrums ? 0 : 1)
         }
         .foregroundStyle(on ? theme.bg : theme.text)
         .tile(on ? theme.text : theme.panel2)

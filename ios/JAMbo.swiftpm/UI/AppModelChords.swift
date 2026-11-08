@@ -137,6 +137,13 @@ extension AppModel {
                                  chord: chordMode[selectedTrack], arp: arpMode)
     }
 
+    /// Тип случайной партии для показа (SETTINGS → RANDOM → SHOW PART TYPE): только на мелодической дорожке
+    /// (не ударной, не нарезанной, не в режиме ARP); иначе nil.
+    var partTypeName: String? {
+        if !settings.showPartType || arpMode || styleTrack || drumTrack || channel != .track { return nil }
+        return MelodyRhythm.partName(melodyRole)
+    }
+
     /// Ударная роль дорожки: движок или сэмпл (без нарезки) по имени файла.
     func drumRoleOf(_ t: Track) -> DrumRhythm.Role? {
         return t.drumRoleBy(name: project.files[t.sample])
