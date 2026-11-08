@@ -23,6 +23,7 @@ final class HTModel: ObservableObject {
     @Published var invert = false
     @Published var swapAxes = false
     @Published var tiltFix = true
+    @Published var predict = true
     @Published var source = 0
     @Published var outMs: Double = 0
     @Published var bufMs: Double = 0
@@ -52,15 +53,20 @@ final class HTModel: ObservableObject {
         applySign()
     }
 
-    // Знак поворота: без TILT FIX в landscapeRight оси камеры развёрнуты на 180° относительно landscapeLeft
-    // (с TILT FIX ориентация не важна — разворот на 180° снимает CENTER); INVERT — ручная правка.
+    // Знак поворота (проверено на iPad 8.11: прежний знак был обратным в обоих расчётах). В осях камеры
+    // landscapeRight развёрнута на 180° относительно landscapeLeft; с TILT FIX ориентация не важна. INVERT — ручная правка.
     func applySign() {
-        var s: Double = 1
-        if !tiltFix, let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
-            if scene.interfaceOrientation == .landscapeRight { s = -1 }
+        var cam: Double = -1
+        if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+            if scene.interfaceOrientation == .landscapeRight { cam = 1 }
         }
-        if invert { s = -s }
-        tracker.setSign(s)
+        let s: Double = invert ? -1 : 1
+        tracker.setSign(s, cam: cam)
+    }
+
+    func togglePredict() {
+        predict.toggle()
+        tracker.setPredict(predict)
     }
 
     func toggleTracking() {
@@ -153,11 +159,12 @@ struct HTStats: View {
             Text(m.status).font(.system(size: 22, weight: .bold))
             Text(String(format: "YAW %+.1f°   PITCH %+.1f°", m.yawDeg, m.pitchDeg))
                 .font(.system(size: 32, weight: .bold).monospacedDigit())
+            Text(String(format: "TILT FIX %+.1f°   camera axes %+.1f°   sent to audio %+.1f°", m.yawGravityDeg, m.yawCameraDeg, m.sentDeg))
             Text(String(format: "Tracking rate %.0f Hz   camera → angle %.0f ms", m.rateHz, m.camLatencyMs))
             Text(String(format: "Range seen %+.0f° … %+.0f°   lost %d times", m.minYaw, m.maxYaw, m.lostCount))
             Text(String(format: "Audio out %.0f ms + buffer %.1f ms", model.outMs, model.bufMs))
             Text("Output: " + model.route).foregroundColor(.gray)
-            Text(String(format: "Estimated turn → sound ≈ %.0f ms (+ camera exposure)", total))
+            Text(String(format: "Estimated turn → sound ≈ %.0f ms (+ camera exposure)%@", total, model.predict ? ", prediction −35 ms" : ""))
                 .font(.system(size: 18, weight: .bold))
         }
         .font(.system(size: 16, weight: .semibold).monospacedDigit())
@@ -175,6 +182,7 @@ struct HTButtons: View {
                 HTButton(title: "INVERT", on: model.invert) { model.toggleInvert() }
                 HTButton(title: "TILT FIX", on: model.tiltFix) { model.toggleTiltFix() }
                 HTButton(title: "SWAP AXES", on: model.swapAxes) { model.toggleSwap() }
+                HTButton(title: "PREDICT", on: model.predict) { model.togglePredict() }
             }
             HStack(spacing: 12) {
                 Text("SOURCE").foregroundColor(.gray)

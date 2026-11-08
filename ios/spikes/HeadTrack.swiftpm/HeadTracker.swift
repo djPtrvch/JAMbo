@@ -20,6 +20,9 @@ final class HTShared {
 struct HTMetrics {
     var status: String = "Starting…"
     var yawDeg: Double = 0
+    var yawGravityDeg: Double = 0
+    var yawCameraDeg: Double = 0
+    var sentDeg: Double = 0
     var pitchDeg: Double = 0
     var rateHz: Double = 0
     var camLatencyMs: Double = 0
@@ -34,9 +37,17 @@ final class HTTracker: NSObject, ARSessionDelegate {
     private let lock = NSLock()
     private let queue = DispatchQueue(label: "headtrack")
     private var m = HTMetrics()
-    private var rawYaw: Double = 0
-    private var offset: Double = 0
+    private var rawG: Double = 0
+    private var rawC: Double = 0
+    private var offG: Double = 0
+    private var offC: Double = 0
     private var sign: Double = 1
+    private var camSign: Double = 1
+    private var predict = true
+    private var lastY: Double = 0
+    private var lastT: Double = 0
+    private var vel: Double = 0
+    private var lostFrames: Int = 0
     private var swapAxes = false
     private var gravity = true
     private var frames: Int = 0
@@ -67,16 +78,27 @@ final class HTTracker: NSObject, ARSessionDelegate {
     // Текущий поворот — новый ноль (смотреть на iPad и нажать CENTER).
     func center() {
         lock.lock()
-        offset = rawYaw
+        offG = rawG
+        offC = rawC
+        vel = 0
         m.minYaw = 0
         m.maxYaw = 0
         m.lostCount = 0
         lock.unlock()
     }
 
-    func setSign(_ s: Double) {
+    // s — общий знак (INVERT), cam — поправка ориентации для расчёта в осях камеры.
+    func setSign(_ s: Double, cam: Double) {
         lock.lock()
         sign = s
+        camSign = cam
+        lock.unlock()
+    }
+
+    func setPredict(_ b: Bool) {
+        lock.lock()
+        predict = b
+        vel = 0
         lock.unlock()
     }
 
@@ -90,6 +112,8 @@ final class HTTracker: NSObject, ARSessionDelegate {
     func setGravity(_ b: Bool) {
         lock.lock()
         gravity = b
+        vel = 0
+        lastT = 0
         lock.unlock()
     }
 
@@ -134,43 +158,70 @@ final class HTTracker: NSObject, ARSessionDelegate {
         guard let f = face, f.isTracked else {
             if wasTracked { m.lostCount += 1 }
             wasTracked = false
-            m.status = "Face lost — holding last angle"
+            lostFrames += 1
+            // Лицо пропало: 0,5 с держим угол, затем плавно возвращаем звук к «прямо».
+            if lostFrames > 30 {
+                shared.cell[0] = shared.cell[0] * 0.93
+                m.status = "Face lost — returning to center"
+            } else {
+                m.status = "Face lost — holding last angle"
+            }
+            m.sentDeg = Double(shared.cell[0]) * 180 / Double.pi
+            vel = 0
             return
         }
         wasTracked = true
+        lostFrames = 0
         m.status = "Tracking"
-        var yaw: Double = 0
-        var pitch: Double = 0
-        if gravity {
-            // Мир ARKit: y — вверх по гравитации. Поворот головы — угол оси ушей (x лица) в горизонтальной плоскости
-            // минус такой же угол оси x камеры (в альбомной ориентации она горизонтальна при любом наклоне iPad).
-            // Не зависит ни от наклона iPad, ни от того, куда наклонена голова (вниз на экран).
-            let fx: simd_float4 = f.transform.columns.0
-            let cx: simd_float4 = frame.camera.transform.columns.0
-            let fz: simd_float4 = f.transform.columns.2
-            let headAng: Double = atan2(Double(-fx.z), Double(fx.x))
-            let padAng: Double = atan2(Double(-cx.z), Double(cx.x))
-            yaw = -(headAng - padAng)
-            pitch = asin(Double(max(-1, min(1, fz.y))))
-        } else {
-            // Прежний расчёт: голова в осях камеры; ось z лица смотрит из лица вперёд (к камере).
-            let rel: simd_float4x4 = simd_mul(simd_inverse(frame.camera.transform), f.transform)
-            let z: simd_float4 = rel.columns.2
-            let h: Double = swapAxes ? Double(z.y) : Double(z.x)
-            let v: Double = swapAxes ? Double(z.x) : Double(z.y)
-            yaw = atan2(h, Double(z.z))
-            pitch = atan2(-v, Double(z.z))
-        }
-        rawYaw = yaw
-        var d: Double = yaw - offset
-        if d > Double.pi { d -= 2 * Double.pi }
-        if d < -Double.pi { d += 2 * Double.pi }
-        let y: Double = sign * d
+        // TILT FIX (по гравитации). Мир ARKit: y — вверх. Поворот головы — угол оси ушей (x лица) в горизонтальной
+        // плоскости минус такой же угол оси x камеры (в альбомной ориентации она горизонтальна при любом наклоне iPad).
+        let fx: simd_float4 = f.transform.columns.0
+        let cx: simd_float4 = frame.camera.transform.columns.0
+        let fz: simd_float4 = f.transform.columns.2
+        let headAng: Double = atan2(Double(-fx.z), Double(fx.x))
+        let padAng: Double = atan2(Double(-cx.z), Double(cx.x))
+        rawG = headAng - padAng
+        let pitch: Double = asin(Double(max(-1, min(1, fz.y))))
+        // Прежний расчёт: голова в осях камеры; ось z лица смотрит из лица вперёд (к камере).
+        let rel: simd_float4x4 = simd_mul(simd_inverse(frame.camera.transform), f.transform)
+        let z: simd_float4 = rel.columns.2
+        let h: Double = swapAxes ? Double(z.y) : Double(z.x)
+        rawC = atan2(h, Double(z.z))
+        let yG: Double = sign * wrap(rawG - offG)
+        let yC: Double = sign * camSign * wrap(rawC - offC)
+        let y: Double = gravity ? yG : yC
+        m.yawGravityDeg = yG * 180 / Double.pi
+        m.yawCameraDeg = yC * 180 / Double.pi
         m.yawDeg = y * 180 / Double.pi
         m.pitchDeg = pitch * 180 / Double.pi
         if m.yawDeg < m.minYaw { m.minYaw = m.yawDeg }
         if m.yawDeg > m.maxYaw { m.maxYaw = m.yawDeg }
-        shared.cell[0] = Float(y)
+        // Предсказание: угол на PREDICT_S вперёд по сглаженной скорости поворота (снимает часть задержки камеры).
+        let t: Double = frame.timestamp
+        var out: Double = y
+        if lastT > 0 && t > lastT {
+            let v: Double = (y - lastY) / (t - lastT)
+            vel = vel + (v - vel) * 0.5
+        }
+        lastY = y
+        lastT = t
+        if predict {
+            var lead: Double = vel * HTTracker.predictS
+            if lead > 0.35 { lead = 0.35 }
+            if lead < -0.35 { lead = -0.35 }
+            out = y + lead
+        }
+        m.sentDeg = out * 180 / Double.pi
+        shared.cell[0] = Float(out)
+    }
+
+    static let predictS: Double = 0.035
+
+    private func wrap(_ a: Double) -> Double {
+        var d: Double = a
+        if d > Double.pi { d -= 2 * Double.pi }
+        if d < -Double.pi { d += 2 * Double.pi }
+        return d
     }
 
     func session(_ session: ARSession, didFailWithError error: Error) {
