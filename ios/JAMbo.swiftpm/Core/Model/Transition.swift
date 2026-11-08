@@ -5,20 +5,85 @@
 
 /// Звук дорожки (TrackData веба без паттернов): переезжает с клипом PREV. Громкости — у микшера (кроссфейдер).
 public struct TrackSound: Codable, Equatable, Sendable {
-    public var sample: String
-    public var params: [String: Double]
-    public var folder: Folder
-    public var slices: [String: [SliceMark]]
-    /// Метки варпинга (nil — нет; в прежних файлах поля нет).
-    public var warps: [String: WarpInfo]? = nil
-    public var table: String
-    /// Сэмпл GRANULAR (nil — нет; в прежних файлах поля нет).
-    public var grain: String? = nil
-    public var assigns: [String: ModAssign]
-    public var eq: Eq
-    /// Громкость микшера (dB), с которой звучит клип со своим звуком (клип PREV при MIX без кроссфейдера — громкость
-    /// старой дорожки; решение пользователя); nil — громкость дорожки. В звук дорожки не переносится.
-    public var vol: Double? = nil
+    /// Поля — «в коробке» (8.11, объём сборки: копия и сравнение звука — одна ссылка, а не каждое поле); в файле — те
+    /// же ключи, что и прежде (Fields пишется на место TrackSound).
+    struct Fields: Codable, Equatable, Sendable {
+        var sample: String
+        var params: [String: Double]
+        var folder: Folder
+        var slices: [String: [SliceMark]]
+        /// Метки варпинга (nil — нет; в прежних файлах поля нет).
+        var warps: [String: WarpInfo]? = nil
+        var table: String
+        /// Сэмпл GRANULAR (nil — нет; в прежних файлах поля нет).
+        var grain: String? = nil
+        var assigns: [String: ModAssign]
+        var eq: Eq
+        /// Громкость микшера (dB), с которой звучит клип со своим звуком (клип PREV при MIX без кроссфейдера — громкость
+        /// старой дорожки; решение пользователя); nil — громкость дорожки. В звук дорожки не переносится.
+        var vol: Double? = nil
+    }
+    var box: [Fields]
+
+    public init(sample: String, params: [String: Double], folder: Folder, slices: [String: [SliceMark]],
+                warps: [String: WarpInfo]? = nil, table: String, grain: String? = nil, assigns: [String: ModAssign],
+                eq: Eq, vol: Double? = nil) {
+        box = [Fields(sample: sample, params: params, folder: folder, slices: slices, warps: warps, table: table,
+                      grain: grain, assigns: assigns, eq: eq, vol: vol)]
+    }
+
+    public init(from decoder: Decoder) throws { box = [try Fields(from: decoder)] }
+    public func encode(to encoder: Encoder) throws { try box[0].encode(to: encoder) }
+
+    public var sample: String {
+        get { return box[0].sample }
+        set { box[0].sample = newValue }
+    }
+
+    public var params: [String: Double] {
+        get { return box[0].params }
+        set { box[0].params = newValue }
+    }
+
+    public var folder: Folder {
+        get { return box[0].folder }
+        set { box[0].folder = newValue }
+    }
+
+    public var slices: [String: [SliceMark]] {
+        get { return box[0].slices }
+        set { box[0].slices = newValue }
+    }
+
+    public var warps: [String: WarpInfo]? {
+        get { return box[0].warps }
+        set { box[0].warps = newValue }
+    }
+
+    public var table: String {
+        get { return box[0].table }
+        set { box[0].table = newValue }
+    }
+
+    public var grain: String? {
+        get { return box[0].grain }
+        set { box[0].grain = newValue }
+    }
+
+    public var assigns: [String: ModAssign] {
+        get { return box[0].assigns }
+        set { box[0].assigns = newValue }
+    }
+
+    public var eq: Eq {
+        get { return box[0].eq }
+        set { box[0].eq = newValue }
+    }
+
+    public var vol: Double? {
+        get { return box[0].vol }
+        set { box[0].vol = newValue }
+    }
 }
 
 extension Track {

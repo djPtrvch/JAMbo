@@ -31,7 +31,7 @@ struct MonitorBar: View {
     }
 }
 
-/// HEAD TRACK: отслеживание головы камерой — горит жёлтым, пока лицо видно; включён, а лица нет — серое с точкой; без
+/// HEAD TRACK: отслеживание головы камерой — горит жёлтым, пока лицо видно; включён, а лица нет — серое с точкой (•); без
 /// пространства или камеры — серая надпись. Тап — вкл./выкл., SHIFT + тап — CENTER.
 struct HeadButton: View {
     let model: AppModel
@@ -42,11 +42,9 @@ struct HeadButton: View {
         let lit: Bool = enabled && m.headOn && m.headFace
         let lost: Bool = enabled && m.headOn && !m.headFace
         let fg: Color = !enabled ? theme.off : (lit ? theme.onAccent : theme.text)
-        return HStack(spacing: 5) {
-            Text("HEAD TRACK").font(.system(size: 12, weight: .bold)).tracking(0.8).lineLimit(1).minimumScaleFactor(0.5)
-            if lost { Circle().fill(theme.accent).frame(width: 6, height: 6) }
-        }
-        .foregroundStyle(fg)
+        return Text(lost ? "HEAD TRACK •" : "HEAD TRACK").font(.system(size: 12, weight: .bold)).tracking(0.8)
+            .lineLimit(1).minimumScaleFactor(0.5)
+            .foregroundStyle(fg)
         .tile(lit ? theme.accent : theme.panel2)
         .contentShape(Rectangle())
         .onTapGesture { m.headTap() }
@@ -65,11 +63,8 @@ struct SpaceItem: View {
         let saved: Bool = m.spaceSaved == n
         let has: Bool = m.monitor.spaces[n] != nil
         let fg: Color = current ? theme.onAccent : theme.text
-        return HStack(spacing: 6) {
-            Text(saved ? "SAVED" : n.uppercased()).font(.system(size: 13, weight: .bold)).lineLimit(1)
-                .minimumScaleFactor(0.7)
-            if has && !saved { Circle().fill(current ? theme.onAccent : theme.accent).frame(width: 6, height: 6) }
-        }
+        let title: String = saved ? "SAVED" : (has ? n.uppercased() + " •" : n.uppercased())
+        return Text(title).font(.system(size: 13, weight: .bold)).lineLimit(1).minimumScaleFactor(0.7)
         .foregroundStyle(fg)
         .frame(maxWidth: .infinity, minHeight: 40)
         .background(current || saved ? theme.accent : theme.panel, in: RoundedRectangle(cornerRadius: 8))
@@ -147,7 +142,7 @@ struct CurveSwitch: View {
 
 /// Меню SPACE (пункты TRANSLATION): пункты одним столбцом под полем (Off — первым, выбранный горит); тап — выбрать
 /// (с профилем пункта), удержание — сохранить в пункт текущие AMBIENCE, RAW, CORRECTION и CORRECT CURVE (на секунду
-/// SAVED; у пункта с профилем — точка); тап мимо — закрыть.
+/// SAVED; у пункта с профилем — точка •); тап мимо — закрыть.
 struct TranslationMenu: View {
     static let width: CGFloat = 220
     let model: AppModel

@@ -151,7 +151,7 @@ extension AppModel {
         if roomLoaded?.name == key || roomBuilding { return }
         roomBuilding = true
         let cached: RoomSet? = roomSet?.name == info.name ? roomSet : nil
-        Task.detached(priority: .userInitiated) {
+        DispatchQueue.global(qos: .userInitiated).async {
             let set: RoomSet? = cached ?? RoomSet.load(info)
             var conv: RoomConv? = nil
             var resp: RoomResponse? = nil
@@ -161,7 +161,7 @@ extension AppModel {
                 conv = RoomConv(ir: ir, head: head, from: info.headFrom, step: info.headStep)
                 resp = ir.response(sampleRate: AudioCore.sampleRate)
             }
-            await MainActor.run {
+            DispatchQueue.main.async {
                 self.roomBuilding = false
                 guard let s = set, let c = conv, let r = resp else { return }
                 self.roomSet = s
