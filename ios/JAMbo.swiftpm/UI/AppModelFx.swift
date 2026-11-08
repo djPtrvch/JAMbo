@@ -77,10 +77,18 @@ extension AppModel {
     /// Параметр ручки MOD: Speed LFO по темпу — подпись пунктом (1/4, 1 bar…).
     func modParam(_ slot: Int) -> ParamDef {
         let p: ParamDef = Params.modGrid[slot]
-        // Speed — второй ряд, столбцы LFO1–3 (ячейки 4…6).
-        let l: Int = slot - 4
-        if l >= 0 && l < 3 && lfoSynced(l) { return Params.lfoSpeedSync(l + 1) }
+        let l: Int = lfoSpeedIndex(slot)
+        if l >= 0 && lfoSynced(l) { return Params.lfoSpeedSync(l + 1) }
         return p
+    }
+
+    /// Номер LFO (0…2), чья ручка Speed стоит в ячейке MOD slot; иначе −1. По id, а не по месту на сетке (8.11:
+    /// ручки переставлены группами по строкам — прежде Speed стоял в ячейках 4…6).
+    func lfoSpeedIndex(_ slot: Int) -> Int {
+        if slot < 0 || slot >= Params.modGrid.count { return -1 }
+        let id: String = Params.modGrid[slot].id
+        for l in 0..<3 where id == "lfo\(l + 1).speed" { return l }
+        return -1
     }
 
     /// RATE выбранной дорожки в режиме TSTR (таймстретч); по умолчанию — PTCH.
@@ -98,8 +106,8 @@ extension AppModel {
             return true
         }
         if modMode {
-            let l: Int = slot - 4
-            guard l >= 0 && l < 3 else { return false }
+            let l: Int = lfoSpeedIndex(slot)
+            guard l >= 0 else { return false }
             let id: String = Params.lfoSyncIds[l]
             let on: Bool = !lfoSynced(l)
             editTrack { t in t.params[id] = on ? 1 : 0 }
