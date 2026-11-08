@@ -20,7 +20,12 @@ public struct LibNode: Codable, Equatable, Sendable {
     public var name: String
     /// Сэмпл — ключ в хранилище сэмплов; таблица — ключ таблицы («wt:<ключ>:<кадр>»).
     public var key: String?
-    public var preset: SynthPreset?
+    /// Пресет синта «в коробке» (9.11, объём сборки): копия и сравнение узла не тянут пресет по значению.
+    var presetBox: [SynthPreset] = []
+    public var preset: SynthPreset? {
+        get { return presetBox.first }
+        set { presetBox = newValue.map { [$0] } ?? [] }
+    }
     public var system: Bool?
     /// Время изменения, с от 1970.
     public var updated: Double
@@ -34,12 +39,40 @@ public struct LibNode: Codable, Equatable, Sendable {
         self.kind = kind
         self.name = name
         self.key = key
-        self.preset = preset
+        self.presetBox = preset.map { [$0] } ?? []
         self.system = system
         self.updated = updated
     }
 
     public var isSystem: Bool { return system ?? false }
+
+    enum CodingKeys: String, CodingKey, CaseIterable { case id, parent, kind, name, key, preset, system, updated, order }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        parent = try c.decode(String.self, forKey: .parent)
+        kind = try c.decode(LibKind.self, forKey: .kind)
+        name = try c.decode(String.self, forKey: .name)
+        key = try c.decodeIfPresent(String.self, forKey: .key)
+        presetBox = try c.decodeIfPresent(SynthPreset.self, forKey: .preset).map { [$0] } ?? []
+        system = try c.decodeIfPresent(Bool.self, forKey: .system)
+        updated = try c.decode(Double.self, forKey: .updated)
+        order = try c.decodeIfPresent(Double.self, forKey: .order)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(parent, forKey: .parent)
+        try c.encode(kind, forKey: .kind)
+        try c.encode(name, forKey: .name)
+        try c.encodeIfPresent(key, forKey: .key)
+        try c.encodeIfPresent(preset, forKey: .preset)
+        try c.encodeIfPresent(system, forKey: .system)
+        try c.encode(updated, forKey: .updated)
+        try c.encodeIfPresent(order, forKey: .order)
+    }
 }
 
 public struct Library: Codable, Equatable, Sendable {
