@@ -26,10 +26,15 @@
           1.2
         ]
       ],
-      "gain_db": -6.739,
+      "gain_db": -6.74,
       "length_ms": 300.0,
       "direct": 128,
       "channels": "LL, LR, RL, RR",
+      "speaker": {
+        "hp_hz": 40,
+        "hp_order": 4,
+        "ft_hz": 2000
+      },
       "head": {
         "file": "RoomStudioHead.wav",
         "from_deg": -50,
@@ -70,10 +75,15 @@
           1.0
         ]
       ],
-      "gain_db": -6.935,
+      "gain_db": -6.934,
       "length_ms": 674.2,
       "direct": 128,
       "channels": "LL, LR, RL, RR",
+      "speaker": {
+        "hp_hz": 35,
+        "hp_order": 4,
+        "ft_hz": 2000
+      },
       "head": {
         "file": "RoomHomeHead.wav",
         "from_deg": -50,
@@ -83,7 +93,7 @@
       },
       "flat": {
         "file": "RoomHomeFlat.wav",
-        "gain_db": -5.728,
+        "gain_db": -5.726,
         "head_file": "RoomHomeFlatHead.wav",
         "head_gain_db": -1.464
       }
@@ -114,22 +124,27 @@
           0.35
         ]
       ],
-      "gain_db": -11.46,
+      "gain_db": -16.788,
       "length_ms": 125.5,
       "direct": 128,
       "channels": "LL, LR, RL, RR",
+      "speaker": {
+        "hp_hz": 55,
+        "hp_order": 2,
+        "ft_hz": 1500
+      },
       "head": {
         "file": "RoomCarHead.wav",
         "from_deg": -50,
         "step_deg": 2,
         "count": 51,
-        "gain_db": -9.478
+        "gain_db": -14.509
       },
       "flat": {
         "file": "RoomCarFlat.wav",
-        "gain_db": -13.092,
+        "gain_db": -16.238,
         "head_file": "RoomCarFlatHead.wav",
-        "head_gain_db": -9.742
+        "head_gain_db": -14.464
       }
     },
     {
@@ -158,22 +173,27 @@
           2.5
         ]
       ],
-      "gain_db": -7.515,
+      "gain_db": -7.495,
       "length_ms": 962.0,
       "direct": 128,
       "channels": "LL, LR, RL, RR",
+      "speaker": {
+        "hp_hz": 35,
+        "hp_order": 4,
+        "ft_hz": 900
+      },
       "head": {
         "file": "RoomClubHead.wav",
         "from_deg": -50,
         "step_deg": 2,
         "count": 51,
-        "gain_db": -3.811
+        "gain_db": -3.791
       },
       "flat": {
         "file": "RoomClubFlat.wav",
-        "gain_db": -6.286,
+        "gain_db": -6.255,
         "head_file": "RoomClubFlatHead.wav",
-        "head_gain_db": -2.488
+        "head_gain_db": -2.456
       }
     },
     {
@@ -202,10 +222,15 @@
           1.0
         ]
       ],
-      "gain_db": -7.692,
+      "gain_db": -7.693,
       "length_ms": 596.0,
       "direct": 128,
       "channels": "LL, LR, RL, RR",
+      "speaker": {
+        "hp_hz": 85,
+        "hp_order": 4,
+        "ft_hz": 4000
+      },
       "head": {
         "file": "RoomDeskHead.wav",
         "from_deg": -50,
@@ -215,9 +240,9 @@
       },
       "flat": {
         "file": "RoomDeskFlat.wav",
-        "gain_db": -6.864,
+        "gain_db": -6.865,
         "head_file": "RoomDeskFlatHead.wav",
-        "head_gain_db": -2.41
+        "head_gain_db": -2.411
       }
     }
   ],

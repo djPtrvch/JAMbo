@@ -159,7 +159,9 @@ extension AppModel {
                 let ir: RoomIR = s.ir.mixed(flat: s.flat, raw: raw)
                 let head: RoomIR? = s.head?.mixed(flat: s.flatHead, raw: raw)
                 conv = RoomConv(ir: ir, head: head, from: info.headFrom, step: info.headStep)
+                conv?.setHighpass(hz: info.hpHz, order: info.hpOrder, sampleRate: AudioCore.sampleRate)
                 resp = ir.response(sampleRate: AudioCore.sampleRate)
+                resp?.highpass(hz: info.hpHz, order: info.hpOrder)
             }
             DispatchQueue.main.async {
                 self.roomBuilding = false

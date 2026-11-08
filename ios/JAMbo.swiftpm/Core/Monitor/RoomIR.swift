@@ -22,6 +22,9 @@ public final class RoomInfo: @unchecked Sendable {
     public var flatGainDb: Double = 0
     public var flatHeadFile: String = ""
     public var flatHeadGainDb: Double = 0
+    /// Колонки (9.11): срез низа — частота (Гц) и порядок Баттерворта (0 — нет).
+    public var hpHz: Double = 0
+    public var hpOrder: Int = 0
 
     public init(name: String, file: String, gainDb: Double, direct: Int) {
         self.name = name
@@ -51,6 +54,10 @@ public final class RoomInfo: @unchecked Sendable {
                 info.flatGainDb = (fl["gain_db"] as? NSNumber)?.doubleValue ?? g
                 info.flatHeadFile = fl["head_file"] as? String ?? ""
                 info.flatHeadGainDb = (fl["head_gain_db"] as? NSNumber)?.doubleValue ?? g
+            }
+            if let sp = r["speaker"] as? [String: Any] {
+                info.hpHz = (sp["hp_hz"] as? NSNumber)?.doubleValue ?? 0
+                info.hpOrder = (sp["hp_order"] as? NSNumber)?.intValue ?? 0
             }
             out.append(info)
         }
@@ -237,5 +244,17 @@ public struct RoomResponse {
     /// Мощность в полосе k при громкости хвоста amb: |D + amb·T|² в среднем.
     public func power(_ k: Int, _ amb: Double) -> Double {
         return dd[k] + 2 * amb * dt[k] + amb * amb * tt[k]
+    }
+
+    /// Срез низа колонок (Баттерворт порядка order на hz, Гц): |H|² по точкам усреднения.
+    public mutating func highpass(hz: Double, order: Int) {
+        if hz <= 0 || order < 1 { return }
+        for i in 0..<dd.count {
+            let x: Double = pow(MonitorDesign.pointHz(i) / hz, Double(2 * order))
+            let g: Double = x / (1 + x)
+            dd[i] *= g
+            dt[i] *= g
+            tt[i] *= g
+        }
     }
 }

@@ -17,6 +17,9 @@ TRANSLATION (8.11): Studio (студия, мониторы ±30° на 1,5 м), 
   * прямая часть (для Ambience) — первые DIRECT_N = 128 отсчётов (2,7 мс): до отражения от пола (3,9 мс);
   * поздний хвост — декоррелированный шум по октавам с затуханием по RT60 (между ушами — когерентность диффузного
     поля), стык с ранней частью по плотности энергии;
+  * колонки (drv, 9.11): направленность — луч каждого отражения выходит из колонки под своим углом к её оси, выше
+    ~ft/4 он тем тише, чем дальше от оси (прямой звук на оси — без изменений); хвост окрашен долей мощности, ушедшей
+    в комнату; срез низа колонки — в приложении (rooms.json speaker);
   * WAV 48 кГц, 24 бит (наборы HEAD и ранняя часть выровненного варианта — 16 бит), 4 канала: LL, LR, RL, RR (колонка → ухо: левая → левое, левая → правое, правая → левое,
     правая → правое), пик 0,99; множитель громкости — gain_db в rooms.json.
   * HEAD (отслеживание головы, 8.11): Room*Head.wav — прямая часть (первые DIRECT_N отсчётов, 4 пути) для поворотов
@@ -69,22 +72,28 @@ HATO = [0, 10, 20, 30, 40, 50, -10, -20, -30, -40, -50]
 SPK_ANGLE = 30.0
 HEIGHT = 1.2
 
+# Колонки (drv): hp — срез низа (частота, порядок Баттерворта: закрытый ящик — 2, фазоинвертор — 4) — не в импульсах,
+# а фильтром на входе свёртки в приложении (rooms.json speaker; срез длиннее прямой части в 128 отсчётов); ft — частота,
+# выше которой колонка заметно сужает излучение (больше динамик или рупор — ниже), axis — куда смотрят (без него — на
+# слушателя).
 # Места: listener и spk — [x от передней стены, y от левой стены, z от пола], м (без них — колонки ±30° на SPK_DIST).
 ROOMS = [
     # Студия — обработанная контрольная комната (8.11, решение пользователя): поглотители в точках первых отражений
     # (отражения первых 20 мс тише на 12 dB), рассеяние, басовые ловушки (низ не длиннее середины).
     dict(name="Studio", file="RoomStudio.wav", size=[4.5, 3.5, 2.8], rt60=0.25, early_ms=40.0, tail=True, max_ms=300,
-         jitter=0.1, rfz_ms=20.0, rfz_db=-12.0, shape=RT_TREATED),
+         jitter=0.1, rfz_ms=20.0, rfz_db=-12.0, shape=RT_TREATED, drv=dict(hp=(40, 4), ft=2000)),
     dict(name="Home", file="RoomHome.wav", size=[5.5, 4.2, 2.6], rt60=0.45, early_ms=60.0, tail=True, max_ms=700, jitter=0.15,
-         listener=[3.4, 2.1, 1.1], spk=[[1.4, 0.95, 1.0], [1.4, 3.25, 1.0]]),
+         listener=[3.4, 2.1, 1.1], spk=[[1.4, 0.95, 1.0], [1.4, 3.25, 1.0]], drv=dict(hp=(35, 4), ft=2000)),
     # Салон: водитель слева, динамики низко в передних дверях (левый ближе), сиденья и обивка глушат.
     dict(name="Car", file="RoomCar.wav", size=[2.4, 1.5, 1.15], rt60=0.07, early_ms=30.0, tail=True, max_ms=150, jitter=0.05, refl_ls=(80, -8),
-         listener=[1.15, 0.42, 0.85], spk=[[0.75, 0.04, 0.35], [0.75, 1.46, 0.35]]),
+         listener=[1.15, 0.42, 0.85], spk=[[0.75, 0.04, 0.35], [0.75, 1.46, 0.35]],
+         drv=dict(hp=(55, 2), ft=1500, axis=[[0, 1, 0], [0, -1, 0]])),
     dict(name="Club", file="RoomClub.wav", size=[22.0, 16.0, 7.0], rt60=0.8, early_ms=80.0, tail=True, max_ms=1100,
-         shape=RT_CLUB, jitter=0.3, floor=0.35, listener=[11.0, 8.0, 1.6], spk=[[1.0, 4.0, 2.5], [1.0, 12.0, 2.5]]),
+         shape=RT_CLUB, jitter=0.3, floor=0.35, listener=[11.0, 8.0, 1.6], spk=[[1.0, 4.0, 2.5], [1.0, 12.0, 2.5]],
+         drv=dict(hp=(35, 4), ft=900)),
     # Маленькие колонки на столе: ±20°, 0,6 м, обычная комната.
     dict(name="Desk", file="RoomDesk.wav", size=[4.0, 3.5, 2.6], rt60=0.4, early_ms=50.0, tail=True, max_ms=600, jitter=0.1,
-         listener=[1.3, 1.75, 1.15], spk=[[0.74, 1.545, 1.0], [0.74, 1.955, 1.0]]),
+         listener=[1.3, 1.75, 1.15], spk=[[0.74, 1.545, 1.0], [0.74, 1.955, 1.0]], drv=dict(hp=(85, 4), ft=4000)),
 ]
 
 
@@ -196,7 +205,8 @@ def band_curve(values, freqs):
 
 
 def images(room, src, lst, max_dist):
-    """Мнимые источники: координаты, число отражений и из них — от пола (до расстояния max_dist)."""
+    """Мнимые источники: координаты, число отражений, из них — от пола, зеркальность по осям (±1; луч из настоящей
+    колонки — направление от мнимого источника к слушателю, умноженное на неё) — до расстояния max_dist."""
     lx, ly, lz = room
     n = int(np.ceil(max_dist / min(room))) + 1
     out = []
@@ -215,7 +225,8 @@ def images(room, src, lst, max_dist):
                             kf = abs(nz) if pz == 0 or nz > 0 else 1 - nz
                             d = np.linalg.norm(np.array([x, y, z]) - lst)
                             if d <= max_dist:
-                                out.append((np.array([x, y, z]), kx + ky + kz, kf))
+                                mir = np.array([1 - 2 * px, 1 - 2 * py, 1 - 2 * pz], dtype=float)
+                                out.append((np.array([x, y, z]), kx + ky + kz, kf, mir))
     return out
 
 
@@ -251,8 +262,18 @@ def early_part(cfg, ir, ctf, dirs, nfft, limit=None):
     jit = cfg.get("jitter", 0.0)
     # Пол с публикой (клуб) — отражает слабее стен: множитель на каждое отражение от пола.
     floor = cfg.get("floor", 1.0)
+    axes = spk_axes(cfg, lst, spks)
+    ft = cfg.get("drv", {}).get("ft", 0.0)
+    # Направленность — минимально-фазовый фильтр (без звона до прихода), по углу с шагом 0,05 косинуса.
+    dcache = {}
+
+    def dirf(c):
+        q = int(round(c * 20))
+        if q not in dcache:
+            dcache[q] = min_phase(directivity(q / 20.0, freqs, ft), nfft) if ft > 0 else 1.0
+        return dcache[q]
     for s_i, spk in enumerate(spks):  # левая колонка, правая
-        for pos, k, kf in images(cfg["size"], spk, lst, max_dist):
+        for pos, k, kf, mir in images(cfg["size"], spk, lst, max_dist):
             v = pos - lst
             d = np.linalg.norm(v)
             if jit > 0 and k > 0:
@@ -267,14 +288,44 @@ def early_part(cfg, ir, ctf, dirs, nfft, limit=None):
                 amp *= 10 ** (cfg.get("rfz_db", 0.0) / 20)
             ph = np.exp(-1j * w * (d - d0) / C)
             hj = hrtf(j)
-            out[2 * s_i + 0] += hj[0] * amp * ph
-            out[2 * s_i + 1] += hj[1] * amp * ph
+            # Направленность колонки: луч выходит из неё под углом к оси — верх слабее (прямой звук на оси — без изменений).
+            em = -v / d * mir
+            dg = dirf(float(em @ axes[s_i]))
+            out[2 * s_i + 0] += hj[0] * amp * ph * dg
+            out[2 * s_i + 1] += hj[1] * amp * ph * dg
             if k == 0:
                 dry[2 * s_i + 0] += hj[0] * amp * ph
                 dry[2 * s_i + 1] += hj[1] * amp * ph
     # Диффузно-полевая эквализация (инверсная CTF FABIAN).
     eq = np.fft.rfft(ctf, nfft)[None, :]
     return out * eq, dry * eq
+
+
+def directivity(cos_t, freqs, ft):
+    """Направленность колонки по частотам: ниже ~ft/4 излучает во все стороны, выше сужается (усреднённая модель
+    двухполосной колонки: −1…−2 dB на 30°, −6…−10 dB на 60° на 4·ft, сзади — сильно тише). ft 0 — во все стороны."""
+    if ft <= 0:
+        return np.ones_like(freqs)
+    base = max(0.03, 0.5 * (1 + cos_t))
+    m = np.minimum(6.0, freqs / ft)
+    return base ** m
+
+
+def spk_axes(cfg, lst, spks):
+    """Оси колонок: свои (drv.axis) или на слушателя."""
+    ax = cfg.get("drv", {}).get("axis")
+    out = []
+    for i, p in enumerate(spks):
+        a = np.array(ax[i], dtype=float) if ax else lst - p
+        out.append(a / np.linalg.norm(a))
+    return out
+
+
+def spk_power(ft):
+    """Доля мощности колонки, ушедшая в комнату (среднее по сфере квадрата направленности), по октавам BANDS —
+    окраска диффузного хвоста."""
+    cs = np.linspace(-1, 1, 401)
+    return np.array([np.mean([directivity(c, np.array([fc]), ft)[0] ** 2 for c in cs]) for fc in BANDS])
 
 
 def places(cfg):
@@ -296,12 +347,13 @@ def diffuse_tail(cfg, n, seed):
     rng = np.random.default_rng(seed)
     t = np.arange(n) / SR
     out = np.zeros((4, n))
+    pw = np.sqrt(spk_power(cfg.get("drv", {}).get("ft", 0.0)))
     for b, (fc, shape) in enumerate(zip(BANDS, cfg.get("shape", RT_SHAPE))):
         lo, hi = fc / np.sqrt(2), min(fc * np.sqrt(2), SR / 2 * 0.95)
         sos = sg.butter(4, [lo, hi], btype="bandpass", fs=SR, output="sos")
         kd = 2 * np.pi * fc / C * EAR_DIST
         coh = abs(np.sin(kd) / kd)
-        env = np.exp(-6.908 * t / (cfg["rt60"] * shape))
+        env = np.exp(-6.908 * t / (cfg["rt60"] * shape)) * pw[b]
         for spk in range(2):
             a = sg.sosfiltfilt(sos, rng.standard_normal(n))
             c = sg.sosfiltfilt(sos, rng.standard_normal(n))
@@ -508,6 +560,9 @@ def main():
                          speakers=[[round(float(v), 3) for v in p] for p in spks], gain_db=round(gain_db, 3),
                          length_ms=round(1000 * length / SR, 1),
                          direct=DIRECT_N, channels="LL, LR, RL, RR",
+                         speaker=dict(hp_hz=cfg.get("drv", {}).get("hp", (0, 0))[0],
+                                      hp_order=cfg.get("drv", {}).get("hp", (0, 0))[1],
+                                      ft_hz=cfg.get("drv", {}).get("ft", 0)),
                          head=dict(file=head_file, from_deg=HEAD_FROM, step_deg=HEAD_STEP, count=HEAD_COUNT,
                                    gain_db=head_gain),
                          flat=dict(file=flat_file, gain_db=round(flat_gain, 3), head_file=flat_head,

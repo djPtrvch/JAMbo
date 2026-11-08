@@ -11,6 +11,7 @@ import Accelerate
 // HEAD (8.11): спектры первой партиции (прямая часть) — из набора по углу поворота головы (линейно между соседними
 // углами через 2°); смена спектров — переход внутри блока: прямая часть считается и с прошлыми спектрами, выход —
 // линейно от прошлых к новым за 128 отсчётов. Остальные партиции (отражения, хвост) не меняются.
+// Колонки (9.11): срез низа колонок комнаты — фильтр на входе свёртки (rooms.json speaker), направленность — в импульсах.
 
 /// Одна свёртка (одна комната): спектры партиций импульсов и состояние.
 public final class RoomConv: @unchecked Sendable {
@@ -53,6 +54,11 @@ public final class RoomConv: @unchecked Sendable {
     let aoI: UnsafeMutablePointer<Float>
     /// Прошлый блок шёл со спектрами HEAD (hp — их).
     var headActive = false
+    /// Срез низа колонок (9.11): до двух звеньев Баттерворта на входе свёртки — коэффициенты [звено][b0 b1 b2 a1 a2],
+    /// состояние [канал][звено][z1 z2]; hpN 0 — без среза.
+    let hpc: UnsafeMutablePointer<Double>
+    let hps: UnsafeMutablePointer<Double>
+    var hpN = 0
 
     /// head — набор HEAD (4 пути, наборы по RoomConv.part кадров подряд), from и step — углы, градусы.
     public init(ir: RoomIR, head: RoomIR? = nil, from: Double = -50, step: Double = 2) {
@@ -104,6 +110,10 @@ public final class RoomConv: @unchecked Sendable {
         hnI.initialize(repeating: 0, count: 4 * b)
         aoR.initialize(repeating: 0, count: 2 * b)
         aoI.initialize(repeating: 0, count: 2 * b)
+        hpc = .allocate(capacity: 10)
+        hps = .allocate(capacity: 8)
+        hpc.initialize(repeating: 0, count: 10)
+        hps.initialize(repeating: 0, count: 8)
         // Спектры партиций (дополненных нулями до 256), с делением на масштаб круга БПФ.
         let scale: Float = 1 / fft.gain
         for path in 0..<4 {
@@ -133,7 +143,58 @@ public final class RoomConv: @unchecked Sendable {
         hr.deallocate(); hi.deallocate(); xr.deallocate(); xi.deallocate(); ar.deallocate(); ai.deallocate()
         inL.deallocate(); inR.deallocate(); tmp.deallocate(); out.deallocate()
         headR.deallocate(); headI.deallocate(); hpR.deallocate(); hpI.deallocate(); hnR.deallocate(); hnI.deallocate()
-        aoR.deallocate(); aoI.deallocate()
+        aoR.deallocate(); aoI.deallocate(); hpc.deallocate(); hps.deallocate()
+    }
+
+    /// Основной поток, до передачи в колбэк: срез низа колонок — частота (Гц) и порядок Баттерворта (2 или 4; 0 — нет).
+    public func setHighpass(hz: Double, order: Int, sampleRate: Double) {
+        hpN = 0
+        if hz <= 0 || order < 2 { return }
+        let qs: [Double] = order >= 4 ? [0.5411961, 1.3065630] : [0.7071068]
+        let w: Double = 2 * Double.pi * hz / sampleRate
+        let cw: Double = cos(w)
+        for (k, q) in qs.enumerated() {
+            let al: Double = sin(w) / (2 * q)
+            let a0: Double = 1 + al
+            let c: UnsafeMutablePointer<Double> = hpc + 5 * k
+            c[0] = (1 + cw) / 2 / a0
+            c[1] = -(1 + cw) / a0
+            c[2] = c[0]
+            c[3] = -2 * cw / a0
+            c[4] = (1 - al) / a0
+        }
+        hps.update(repeating: 0, count: 8)
+        hpN = qs.count
+    }
+
+    /// Колбэк: отсчёт входа на место k (через срез низа колонок).
+    @inline(__always)
+    func feed(_ k: Int, _ l: Float, _ r: Float) {
+        if hpN == 0 {
+            inL[k] = l
+            inR[k] = r
+            return
+        }
+        var ch = 0
+        while ch < 2 {
+            var x: Double = Double(ch == 0 ? l : r)
+            var s = 0
+            while s < hpN {
+                let c: UnsafeMutablePointer<Double> = hpc + 5 * s
+                let z: UnsafeMutablePointer<Double> = hps + 4 * ch + 2 * s
+                let y: Double = c[0] * x + z[0]
+                var z1: Double = c[1] * x - c[3] * y + z[1]
+                var z2: Double = c[2] * x - c[4] * y
+                if abs(z1) < 1e-25 { z1 = 0 }
+                if abs(z2) < 1e-25 { z2 = 0 }
+                z[0] = z1
+                z[1] = z2
+                x = y
+                s += 1
+            }
+            if ch == 0 { inL[k] = Float(x) } else { inR[k] = Float(x) }
+            ch += 1
+        }
     }
 
     /// Спектры прямой части без HEAD (партиция 0 импульса) → dst [путь][бин].
@@ -362,16 +423,14 @@ public final class RoomStage: @unchecked Sendable {
                 amb += (target - amb) * glide
                 var ol: Float = dl, or: Float = dr
                 if let c = a {
-                    c.inL[p + k] = dl
-                    c.inR[p + k] = dr
+                    c.feed(p + k, dl, dr)
                     ol = c.out[k] + amb * c.out[2 * p + k]
                     or = c.out[p + k] + amb * c.out[3 * p + k]
                 }
                 if fading {
                     var nl: Float = dl, nr: Float = dr
                     if let c = b {
-                        c.inL[p + k] = dl
-                        c.inR[p + k] = dr
+                        c.feed(p + k, dl, dr)
                         nl = c.out[k] + amb * c.out[2 * p + k]
                         nr = c.out[p + k] + amb * c.out[3 * p + k]
                     }
