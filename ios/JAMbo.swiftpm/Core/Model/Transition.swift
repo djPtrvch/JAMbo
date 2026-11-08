@@ -191,19 +191,83 @@ public struct MixGlobals: Equatable, Sendable {
 /// Состояние перехода: скрытая последняя строка нового проекта (по id дорожки), гамма, нота и FX нового проекта,
 /// общие настройки старого (from) и нового (to) проекта, положение кроссфейдера (0 — OLD, 1 — NEW).
 public struct MixTransition: Equatable, Sendable {
-    public var hidden: [Int: Clip] = [:]
-    public var origSlot: [Int: Int] = [:]
-    public var hiddenScene: SceneRow = SceneRow()
-    /// Дорожек у нового проекта (лишние дорожки старого убираются в конце перехода).
-    public var count: Int = 0
-    public var scale: Int = 0
-    public var root: Int = 0
-    public var fx: [String: Double] = [:]
-    public var from: MixGlobals
-    public var to: MixGlobals
-    public var pos: Double = 0
-    /// Дорожки, клипы которых опустились в PREV, и строки, откуда (для анимации).
-    public var moves: [MixMove] = []
+    /// Поля — «в коробке» (8.11, объём сборки: переход в наблюдаемом свойстве модели копируется и сравнивается
+    /// одной ссылкой).
+    struct Fields: Equatable, Sendable {
+        var hidden: [Int: Clip] = [:]
+        var origSlot: [Int: Int] = [:]
+        var hiddenScene: SceneRow = SceneRow()
+        /// Дорожек у нового проекта (лишние дорожки старого убираются в конце перехода).
+        var count: Int = 0
+        var scale: Int = 0
+        var root: Int = 0
+        var fx: [String: Double] = [:]
+        var from: MixGlobals
+        var to: MixGlobals
+        var pos: Double = 0
+        /// Дорожки, клипы которых опустились в PREV, и строки, откуда (для анимации).
+        var moves: [MixMove] = []
+    }
+    var box: [Fields]
+
+    public init(from: MixGlobals, to: MixGlobals) {
+        box = [Fields(from: from, to: to)]
+    }
+
+    public var hidden: [Int: Clip] {
+        get { return box[0].hidden }
+        set { box[0].hidden = newValue }
+    }
+
+    public var origSlot: [Int: Int] {
+        get { return box[0].origSlot }
+        set { box[0].origSlot = newValue }
+    }
+
+    public var hiddenScene: SceneRow {
+        get { return box[0].hiddenScene }
+        set { box[0].hiddenScene = newValue }
+    }
+
+    public var count: Int {
+        get { return box[0].count }
+        set { box[0].count = newValue }
+    }
+
+    public var scale: Int {
+        get { return box[0].scale }
+        set { box[0].scale = newValue }
+    }
+
+    public var root: Int {
+        get { return box[0].root }
+        set { box[0].root = newValue }
+    }
+
+    public var fx: [String: Double] {
+        get { return box[0].fx }
+        set { box[0].fx = newValue }
+    }
+
+    public var from: MixGlobals {
+        get { return box[0].from }
+        set { box[0].from = newValue }
+    }
+
+    public var to: MixGlobals {
+        get { return box[0].to }
+        set { box[0].to = newValue }
+    }
+
+    public var pos: Double {
+        get { return box[0].pos }
+        set { box[0].pos = newValue }
+    }
+
+    public var moves: [MixMove] {
+        get { return box[0].moves }
+        set { box[0].moves = newValue }
+    }
 }
 
 /// Клип дорожки track опустился в PREV из строки from.

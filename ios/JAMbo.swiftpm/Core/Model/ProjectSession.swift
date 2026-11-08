@@ -11,10 +11,19 @@ public struct ProjectSession: Sendable {
 
     public var id: String
     public var name: String
-    /// Проект в том виде, в каком его записала кнопка SAVE (nil — ещё не сохраняли: новый).
-    public var saved: Project?
+    /// Проект в том виде, в каком его записала кнопка SAVE (nil — ещё не сохраняли: новый). Оба проекта — «в
+    /// коробке» (8.11, объём сборки: сессия в наблюдаемом свойстве модели копируется ссылкой, а не по полям проекта).
+    var savedBox: [Project] = []
+    public var saved: Project? {
+        get { return savedBox.first }
+        set { savedBox = newValue.map { [$0] } ?? [] }
+    }
     /// Что последним записало автосохранение (nil — ещё не писало).
-    public var lastAuto: Project?
+    var autoBox: [Project] = []
+    public var lastAuto: Project? {
+        get { return autoBox.first }
+        set { autoBox = newValue.map { [$0] } ?? [] }
+    }
 
     public init(id: String, name: String, saved: Project? = nil, lastAuto: Project? = nil) {
         self.id = id

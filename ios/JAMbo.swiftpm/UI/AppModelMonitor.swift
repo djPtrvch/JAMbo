@@ -68,7 +68,7 @@ extension AppModel {
     }
 
     /// Выбрать пункт TRANSLATION: тембр — сразу, пространство (комната пункта) — в фоне. Есть профиль пункта —
-    /// AMBIENCE, RAW, CORRECTION и CORRECT CURVE из него; нет — остаются текущие.
+    /// AMBIENCE, EAR TONE, CORRECTION и CORRECT CURVE из него; нет — остаются текущие.
     func setTranslation(_ name: String) {
         let p: MonitorProfile? = monitor.spaces[name]
         setMonitor { m in
@@ -87,7 +87,7 @@ extension AppModel {
         syncRoom()
     }
 
-    /// Удержание пункта в меню SPACE: текущие AMBIENCE, RAW, CORRECTION и CORRECT CURVE — его профиль (пункт
+    /// Удержание пункта в меню SPACE: текущие AMBIENCE, EAR TONE, CORRECTION и CORRECT CURVE — его профиль (пункт
     /// становится выбранным); на секунду SAVED.
     func saveSpace(_ name: String) {
         let prof = MonitorProfile(ambienceDb: monitor.ambienceDb, raw: monitor.raw, strength: monitor.strength,
@@ -134,9 +134,9 @@ extension AppModel {
     /// У пункта есть пространство.
     var roomOn: Bool { return roomInfo != nil }
 
-    /// Свёртка комнаты пункта — звуку (при запуске, выборе пункта, RAW, UNDO): импульсы — один раз на комнату, смесь
-    /// по RAW, свёртка и отклик — в фоне, затем в звук (переход 40 мс). Пока идёт сборка, новая не начинается — по её
-    /// окончании синхронизация повторяется (RAW при движении пальца не копит очередь).
+    /// Свёртка комнаты пункта — звуку (при запуске, выборе пункта, EAR TONE, UNDO): импульсы — один раз на комнату, смесь
+    /// по EAR TONE, свёртка и отклик — в фоне, затем в звук (переход 40 мс). Пока идёт сборка, новая не начинается — по её
+    /// окончании синхронизация повторяется (EAR TONE при движении пальца не копит очередь).
     func syncRoom() {
         syncHead()
         let stage: RoomStage = audio.core.monitor.room
@@ -230,14 +230,14 @@ extension AppModel {
         }
     }
 
-    // MARK: — поля монитора по ключу: 0 TRANSLATION, 1 CORRECTION, 5 AMBIENCE, 6 RAW
+    // MARK: — поля монитора по ключу: 0 TRANSLATION, 1 CORRECTION, 5 AMBIENCE, 6 EAR TONE
 
     func monitorField(_ k: Int) -> MonitorFieldInfo {
         let s: MonitorSettings = monitor
         switch k {
         case 0: return MonitorFieldInfo(label: "SPACE", value: translationPreset?.name ?? "Off", enabled: true, px: 30)
         case 1: return MonitorFieldInfo(label: "CORRECTION", value: String(format: "%.0f %%", s.strength * 100), enabled: true, px: 2)
-        case 6: return MonitorFieldInfo(label: "RAW", value: String(format: "%.0f %%", s.raw * 100), enabled: roomOn, px: 2)
+        case 6: return MonitorFieldInfo(label: "EAR TONE", value: String(format: "%.0f %%", s.raw * 100), enabled: roomOn, px: 2)
         default:
             let t: String = s.ambienceDb <= MonitorSpec.ambienceMin ? "−∞ dB" : String(format: "%.1f dB", s.ambienceDb)
             return MonitorFieldInfo(label: "AMBIENCE", value: t, enabled: roomOn, px: 2)
@@ -356,7 +356,7 @@ extension AppModel {
 }
 
 
-/// Импульсы комнаты для RAW и HEAD TRACK: с окраской уха (ir, head) и выровненные (flat, flatHead; нет — nil).
+/// Импульсы комнаты для EAR TONE и HEAD TRACK: с окраской уха (ir, head) и выровненные (flat, flatHead; нет — nil).
 final class RoomSet: @unchecked Sendable {
     let name: String
     let ir: RoomIR
