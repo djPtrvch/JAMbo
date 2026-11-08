@@ -78,6 +78,7 @@ struct TopBar: View {
             .topFrame(model, \.arrange)
                 .midiTarget(model, "ARRANGE")
             CPUIndicator(meter: model.audio.core.cpu).frame(width: Layout.meterWidth)
+                .overlay(alignment: .top) { PhonesBadge(model: model) }
         }
     }
 }

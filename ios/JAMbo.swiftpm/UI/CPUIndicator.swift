@@ -21,3 +21,20 @@ struct CPUIndicator: View {
         .frame(width: 48, height: 48)
     }
 }
+
+/// Коррекция наушников включена (8.11, решение пользователя): над CPU — жёлтый значок наушников, без кнопки и
+/// контура; выключена — значка нет. Тап — окно коррекции (как тап по имени MASTER EQ).
+struct PhonesBadge: View {
+    let model: AppModel
+
+    var body: some View {
+        if model.phonesEq.on {
+            Image(systemName: "headphones")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(theme.accent)
+                .frame(width: 28, height: 14)
+                .contentShape(Rectangle())
+                .onTapGesture { model.openPhones() }
+        }
+    }
+}

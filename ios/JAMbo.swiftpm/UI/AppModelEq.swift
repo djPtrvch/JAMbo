@@ -108,6 +108,21 @@ extension AppModel {
         }
     }
 
+    /// Значок наушников в верхней панели: окно коррекции (MST, EQ, коррекция вместо EQ мастера).
+    func openPhones() {
+        if phonesShown { return }
+        if channel != .master { select(channel: .master) }
+        if !eqView { toggleEqView() }
+        stopEqListen()
+        eqMsMenu = nil
+        eqDynMenu = nil
+        eqPresetMenu = nil
+        eqMenu = nil
+        eqBand = -1
+        eqPhones = true
+        syncSpectra()
+    }
+
     /// Сравнение выбранной дорожки: t — дорожка, −1 — OFF.
     func setEqCompare(_ t: Int) {
         if selectedTrack < project.tracks.count {
