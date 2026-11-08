@@ -35,26 +35,13 @@ public struct Step: Codable, Equatable, Sendable {
     public init() {}
 }
 
-public struct Track: Codable, Equatable, Sendable {
-    public var id: Int
-    public var name: String
-    public var sample: String = ""
-    public var params: [String: Double]
-    /// Клипы столбца сетки паттернов (nil — пустая ячейка): у каждого свой паттерн (страницы, длина, играющие
-    /// страницы). Активная ячейка (играет или запустится) — slot; открытая в секвенсоре и миниатюрах — open.
-    public var clips: [Clip?] = Track.firstClips()
-    public var slot: Int = 0
-    public var open: Int = 0
-    public var mute: Bool = false
-    public var solo: Bool = false
-    /// Остановлена в сетке паттернов.
-    public var stopped: Bool = false
+/// Редко нужные поля дорожки (Track.moreBox, 8.11): папка, нарезка, варпинг, EQ, MIDI, ARP, MORPH, цвет, автоматизация.
+public struct TrackMore: Equatable, Sendable {
     /// Папка звуков дорожки (стрелки ◀ ▶ под окном сэмпла), маркеры нарезки по ключу сэмпла, громкость микшера (dB).
     public var folder: Folder = Folder()
     public var slices: [String: [SliceMark]] = [:]
     /// Метки варпинга по ключу сэмпла (WARP; Warp.swift).
     public var warps: [String: WarpInfo] = [:]
-    public var vol: Double = Params.volDef
     /// SETTINGS → LEVEL RELATIVE (S9): подстройка громкости регулятором справа, dB вниз от громкости MIX
     /// (0 — как в MIX, volMin — тишина); итог — vol + trim; при LEVEL ABSOLUTE не действует.
     public var trim: Double = 0
@@ -70,17 +57,9 @@ public struct Track: Codable, Equatable, Sendable {
     public var morphEdited: Bool = false
     /// EQ дорожки (doc.eqs[i] веба): один на все клипы, переезжает и копируется вместе с дорожкой.
     public var eq: Eq = Eq()
-    /// Переход MIX (S10, t.home веба): свой звук дорожки, пока она играет клип PREV со звуком старой дорожки.
-    /// Хранится «в коробке» (массив из 0 или 1 элемента, копия при записи; объём сборки, 8.11).
-    var homeBox: [TrackSound] = []
-    public var home: TrackSound? {
-        get { return homeBox.first }
-        set { homeBox = newValue.map { [$0] } ?? [] }
-    }
     /// MIDI дорожки: вход нот и выход (TrackMidi).
     public var midi: TrackMidi = TrackMidi()
-    /// Аранжировщик (S15): блоки дорожки на таймлайне (по порядку, без перекрытий) и цвет (номер в ArrPalette).
-    public var blocks: [ArrBlock] = []
+    /// Цвет дорожки (номер в ArrPalette).
     public var color: Int = ArrPalette.defaultColor
     /// Стиль случайного ритма ударных (SHIFT + CHORD; номер в DrumRhythm.styles, по умолчанию HOUSE); один на проект —
     /// у всех дорожек одинаковый.
@@ -89,6 +68,99 @@ public struct Track: Codable, Equatable, Sendable {
     public var arp: TrackArp = TrackArp()
     /// Автоматизация на таймлайне (S15f): кривые ручек сетки дорожки, по одной на ручку.
     public var autos: [ArrAutoLane] = []
+}
+
+public struct Track: Codable, Equatable, Sendable {
+    public var id: Int
+    public var name: String
+    public var sample: String = ""
+    public var params: [String: Double]
+    /// Клипы столбца сетки паттернов (nil — пустая ячейка): у каждого свой паттерн (страницы, длина, играющие
+    /// страницы). Активная ячейка (играет или запустится) — slot; открытая в секвенсоре и миниатюрах — open.
+    public var clips: [Clip?] = Track.firstClips()
+    public var slot: Int = 0
+    public var open: Int = 0
+    public var mute: Bool = false
+    public var solo: Bool = false
+    /// Остановлена в сетке паттернов.
+    public var stopped: Bool = false
+    public var vol: Double = Params.volDef
+    /// Переход MIX (S10, t.home веба): свой звук дорожки, пока она играет клип PREV со звуком старой дорожки.
+    /// Хранится «в коробке» (массив из 0 или 1 элемента, копия при записи; объём сборки, 8.11).
+    var homeBox: [TrackSound] = []
+    public var home: TrackSound? {
+        get { return homeBox.first }
+        set { homeBox = newValue.map { [$0] } ?? [] }
+    }
+    /// Аранжировщик (S15): блоки дорожки на таймлайне (по порядку, без перекрытий) и цвет (номер в ArrPalette).
+    public var blocks: [ArrBlock] = []
+    /// Редко нужные поля дорожки — «в коробке» (TrackMore; массив из одного элемента, копия при записи): копия
+    /// дорожки не тянет их по значению (объём сборки, 8.11). Снаружи — как прежние свойства.
+    var moreBox: [TrackMore] = [TrackMore()]
+    public var folder: Folder {
+        get { return moreBox[0].folder }
+        set { moreBox[0].folder = newValue }
+    }
+    public var slices: [String: [SliceMark]] {
+        get { return moreBox[0].slices }
+        set { moreBox[0].slices = newValue }
+    }
+    public var warps: [String: WarpInfo] {
+        get { return moreBox[0].warps }
+        set { moreBox[0].warps = newValue }
+    }
+    public var trim: Double {
+        get { return moreBox[0].trim }
+        set { moreBox[0].trim = newValue }
+    }
+    public var table: String {
+        get { return moreBox[0].table }
+        set { moreBox[0].table = newValue }
+    }
+    public var grain: String {
+        get { return moreBox[0].grain }
+        set { moreBox[0].grain = newValue }
+    }
+    public var assigns: [String: ModAssign] {
+        get { return moreBox[0].assigns }
+        set { moreBox[0].assigns = newValue }
+    }
+    public var morphOrig: [String: Double] {
+        get { return moreBox[0].morphOrig }
+        set { moreBox[0].morphOrig = newValue }
+    }
+    public var morphOrigAssign: [String: ModAssign?] {
+        get { return moreBox[0].morphOrigAssign }
+        set { moreBox[0].morphOrigAssign = newValue }
+    }
+    public var morphEdited: Bool {
+        get { return moreBox[0].morphEdited }
+        set { moreBox[0].morphEdited = newValue }
+    }
+    public var eq: Eq {
+        get { return moreBox[0].eq }
+        set { moreBox[0].eq = newValue }
+    }
+    public var midi: TrackMidi {
+        get { return moreBox[0].midi }
+        set { moreBox[0].midi = newValue }
+    }
+    public var color: Int {
+        get { return moreBox[0].color }
+        set { moreBox[0].color = newValue }
+    }
+    public var drumStyle: Int {
+        get { return moreBox[0].drumStyle }
+        set { moreBox[0].drumStyle = newValue }
+    }
+    public var arp: TrackArp {
+        get { return moreBox[0].arp }
+        set { moreBox[0].arp = newValue }
+    }
+    public var autos: [ArrAutoLane] {
+        get { return moreBox[0].autos }
+        set { moreBox[0].autos = newValue }
+    }
     /// STEPS в аранжировщике (решение пользователя): номер блока, чья копия клипа открыта в секвенсоре и миниатюрах
     /// вместо клипа сетки (nil — клип сетки). Не хранится в файле (нет в CodingKeys).
     public var editBlock: Int? = nil

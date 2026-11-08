@@ -105,8 +105,13 @@ final class ProjectFileTests: XCTestCase {
         func check<K: CaseIterable & RawRepresentable>(_ value: Any, _ keys: K.Type, except: Set<String> = []) where K.RawValue == String {
             // Поля «в коробке» (8.11, объём сборки) пишутся под прежним ключом: srcBox → src, patternBox → pattern, homeBox → home.
             let boxed: [String: String] = ["srcBox": "src", "patternBox": "pattern", "homeBox": "home"]
-            let fields = Set(Mirror(reflecting: value).children.compactMap { $0.label }.map { boxed[$0] ?? $0 })
-                .subtracting(except)
+            var labels: [String] = Mirror(reflecting: value).children.compactMap { $0.label }.map { boxed[$0] ?? $0 }
+            // Track.moreBox — редко нужные поля дорожки (TrackMore), каждое под своим ключом.
+            if let k = labels.firstIndex(of: "moreBox") {
+                labels.remove(at: k)
+                labels += Mirror(reflecting: TrackMore()).children.compactMap { $0.label }
+            }
+            let fields = Set(labels).subtracting(except)
             XCTAssertEqual(fields, Set(K.allCases.map { $0.rawValue }), "\(type(of: value))")
         }
         check(Project(), Project.CodingKeys.self)
