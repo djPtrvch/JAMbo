@@ -107,11 +107,10 @@ final class ProjectFileTests: XCTestCase {
             // Поля «в коробке» (8.11, объём сборки) пишутся под прежним ключом: srcBox → src, patternBox → pattern, homeBox → home.
             let boxed: [String: String] = ["srcBox": "src", "patternBox": "pattern", "homeBox": "home"]
             var labels: [String] = Mirror(reflecting: value).children.compactMap { $0.label }.map { boxed[$0] ?? $0 }
-            // Track.moreBox, Project.moreBox, Clip.moreBox — редко нужные поля (TrackMore, ProjectMore, ClipMore), каждое под своим ключом.
+            // Track.moreBox, Project.moreBox — редко нужные поля (TrackMore, ProjectMore), каждое под своим ключом.
             if let k = labels.firstIndex(of: "moreBox") {
                 labels.remove(at: k)
-                let more: Any = value is Project ? ProjectMore() as Any : (value is Clip ? ClipMore() as Any : TrackMore() as Any)
-                labels += Mirror(reflecting: more).children
+                labels += Mirror(reflecting: value is Project ? ProjectMore() as Any : TrackMore() as Any).children
                     .compactMap { $0.label }
             }
             let fields = Set(labels).subtracting(except)
