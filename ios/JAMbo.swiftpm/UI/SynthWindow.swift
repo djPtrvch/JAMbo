@@ -105,7 +105,6 @@ struct SynthIcon: View {
         let ink: Color = theme.icon
         let ink2: Color = theme.icon2
         return TimelineView(.animation(minimumInterval: 1.0 / 60, paused: !live)) { tl in
-            let _ = RedrawMeter.hit(.synthIcon)
             Canvas { ctx, size in
                 let now: Double = tl.date.timeIntervalSinceReferenceDate
                 let v: IconValues = motion.step(target, now)

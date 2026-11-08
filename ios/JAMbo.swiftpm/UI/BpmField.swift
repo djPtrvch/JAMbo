@@ -85,7 +85,6 @@ struct PhaseBar: View {
     let sync: SyncSettings
 
     var body: some View {
-        let _ = RedrawMeter.hit(.phase)
         let lit: Int = sync.phaseLit(beat: beat)
         let n: Int = sync.phaseSegments
         return HStack(spacing: 2) {

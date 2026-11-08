@@ -14,7 +14,6 @@ struct SampleWindow: View {
     @State private var cache = PeakCache()
 
     var body: some View {
-        let _ = RedrawMeter.hit(.sampleWin)
         content
             .tile(theme.panel)
             .contentShape(Rectangle())
@@ -140,7 +139,6 @@ struct MixOverview: View {
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 60)) { tl in
-            let _ = RedrawMeter.hit(.mixOverview)
             MixOverviewBars(levels: levels, muted: muted, now: tl.date)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -194,7 +192,6 @@ struct WaveStrip: View {
         ZStack {
             wave
             TimelineView(.animation(minimumInterval: 1.0 / 60, paused: model.headCount == 0)) { _ in
-                let _ = RedrawMeter.hit(.wave)
                 heads
             }
         }

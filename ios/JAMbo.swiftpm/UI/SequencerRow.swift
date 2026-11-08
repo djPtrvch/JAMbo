@@ -11,7 +11,6 @@ struct SequencerRow: View {
     @State private var lastCopy: (index: Int, old: Step)? = nil
 
     var body: some View {
-        RedrawMeter.hit(.seq)
         let pages: ClosedRange<Int> = model.viewPages
         let look: SeqLook = SeqLook(pages: pages.count)
         return GeometryReader { geo in
@@ -194,7 +193,6 @@ struct StepFace: View, Equatable {
     }
 
     var body: some View {
-        let _ = RedrawMeter.hit(.step)
         ZStack(alignment: .trailing) {
             RoundedRectangle(cornerRadius: look.pages > 2 ? 2 : 4)
                 .fill(info.fill(theme))

@@ -195,10 +195,18 @@ extension AppModel {
             // MORPH на все дорожки (SETTINGS → MORPH): та же ручка у остальных — сдвиг на ту же долю хода.
             let all: Bool = morphAllNow
             let i = selectedTrack
-            edit { pr in
-                if m { pr.tracks[i].morphParam(p.id) }
-                pr.tracks[i].params[p.id] = v
-                if all { pr.morphShift(from: i, id: p.id, norm: norm) }
+            if m {
+                // MORPH — без UNDO (8.11, решение пользователя).
+                editMorph { pr in
+                    pr.tracks[i].morphParam(p.id)
+                    pr.tracks[i].params[p.id] = v
+                    if all { pr.morphShift(from: i, def: p, norm: norm) }
+                }
+            } else {
+                edit { pr in
+                    pr.tracks[i].params[p.id] = v
+                    if all { pr.morphShift(from: i, def: p, norm: norm) }
+                }
             }
         } else {
             usedSteps.formUnion(held)

@@ -33,10 +33,6 @@ extension AppModel {
         get { access(keyPath: \.spanView); return _spanView }
         set { put(\.spanView, \._spanView, newValue, observedChanged(_spanView, newValue)) }
     }
-    var appWindow: AppWindow? {
-        get { access(keyPath: \.appWindow); return _appWindow }
-        set { put(\.appWindow, \._appWindow, newValue, observedChanged(_appWindow, newValue)) }
-    }
     var shiftHeld: Bool {
         get { access(keyPath: \.shiftHeld); return _shiftHeld }
         set { put(\.shiftHeld, \._shiftHeld, newValue, observedChanged(_shiftHeld, newValue)) }

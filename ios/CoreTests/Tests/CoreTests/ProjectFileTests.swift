@@ -301,14 +301,59 @@ final class MorphModesTests: XCTestCase {
         p.tracks[2].params["filter"] = f.fromNorm(0.9)
         p.tracks[0].morphParam("filter")
         p.tracks[0].params["filter"] = f.fromNorm(0.6)
-        p.morphShift(from: 0, id: "filter", norm: 0.6)
+        p.morphShift(from: 0, def: Params.byId["filter"]!, norm: 0.6)
         XCTAssertEqual(f.toNorm(p.tracks[1].params["filter"] ?? 0), 0.3, accuracy: 1e-6)
         XCTAssertEqual(f.toNorm(p.tracks[2].params["filter"] ?? 0), 1.0, accuracy: 1e-6)
         XCTAssertTrue(p.tracks[1].morphEdited)
         // Вернули ручку — соотношение прежнее (у края не потерялось).
         p.tracks[0].params["filter"] = f.fromNorm(0.5)
-        p.morphShift(from: 0, id: "filter", norm: 0.5)
+        p.morphShift(from: 0, def: Params.byId["filter"]!, norm: 0.5)
         XCTAssertEqual(f.toNorm(p.tracks[2].params["filter"] ?? 0), 0.9, accuracy: 1e-6)
+    }
+
+    /// Выбранная дорожка — движок со своим диапазоном ручки (Decay у mi:16): сдвиг остальных — по её описанию,
+    /// без скачка (до 8.11 считался по общему описанию).
+    func testShiftUsesSelectedTrackDef() throws {
+        var p = Project()
+        p.tracks[0].sample = "mi:16"
+        let own: ParamDef = try XCTUnwrap(Params.grid(sound: "mi:16").first { $0.id == "decay" })
+        let gen: ParamDef = try XCTUnwrap(Params.grid(sound: p.tracks[1].sample).first { $0.id == "decay" })
+        XCTAssertNotEqual(own.fromNorm(0.3), gen.fromNorm(0.3), accuracy: 1e-6)
+        p.tracks[0].params["decay"] = own.fromNorm(0.5)
+        p.tracks[1].params["decay"] = gen.fromNorm(0.4)
+        p.tracks[0].morphParam("decay")
+        // Та же доля хода у выбранной — остальные на месте.
+        p.morphShift(from: 0, def: own, norm: 0.5)
+        XCTAssertEqual(gen.toNorm(p.tracks[1].params["decay"] ?? 0), 0.4, accuracy: 1e-6)
+        p.tracks[0].params["decay"] = own.fromNorm(0.7)
+        p.morphShift(from: 0, def: own, norm: 0.7)
+        XCTAssertEqual(gen.toNorm(p.tracks[1].params["decay"] ?? 0), 0.6, accuracy: 1e-6)
+    }
+
+    /// UNDO / REDO не трогают MORPH: накрученное остаётся, исходное — из снимка; MORPH, которого уже нет, — снят.
+    func testKeepMorphOnUndo() throws {
+        let f = try XCTUnwrap(Params.byId["filter"])
+        var cur = Project()
+        cur.tracks[0].params["filter"] = f.fromNorm(0.8)
+        cur.tracks[0].morphOrig["filter"] = f.fromNorm(0.2)
+        cur.tracks[0].morphEdited = true
+        var snap = cur
+        snap.tracks[0].morphOrig = [:]
+        snap.tracks[0].morphEdited = false
+        snap.tracks[0].params["filter"] = f.fromNorm(0.4)
+        snap.tracks[1].params["drive"] = 0.9
+        snap.tracks[1].morphOrig["drive"] = 0.1
+        snap.tracks[1].morphEdited = true
+        snap.keepMorph(from: cur)
+        XCTAssertEqual(f.toNorm(snap.tracks[0].params["filter"] ?? 0), 0.8, accuracy: 1e-6)
+        XCTAssertEqual(f.toNorm(snap.tracks[0].morphOrig["filter"] ?? 0), 0.4, accuracy: 1e-6)
+        XCTAssertTrue(snap.tracks[0].morphEdited)
+        XCTAssertEqual(snap.tracks[1].params["drive"], 0.1)
+        XCTAssertTrue(snap.tracks[1].morphOrig.isEmpty)
+        XCTAssertFalse(snap.tracks[1].morphEdited)
+        // Выключили MORPH после этого: возврат к исходному из снимка.
+        snap.tracks[0].undoMorph()
+        XCTAssertEqual(f.toNorm(snap.tracks[0].params["filter"] ?? 0), 0.4, accuracy: 1e-6)
     }
 
     func testReturnGlide() throws {

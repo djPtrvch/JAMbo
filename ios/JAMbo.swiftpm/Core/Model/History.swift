@@ -23,6 +23,14 @@ public struct History<T: Equatable> {
         push(before)
     }
 
+    /// Правка вне истории (MORPH, 8.11) посреди жеста: та же правка — и в начальное состояние жеста, чтобы конец жеста
+    /// её не записал.
+    public mutating func shiftGesture(_ change: (inout T) -> Void) {
+        guard gestureDepth > 0, var s = gestureStart else { return }
+        change(&s)
+        gestureStart = s
+    }
+
     /// Непрерывный жест (поворот ручки, протягивание): одна запись на весь жест.
     public mutating func beginGesture(_ current: T) {
         if gestureDepth == 0 { gestureStart = current }

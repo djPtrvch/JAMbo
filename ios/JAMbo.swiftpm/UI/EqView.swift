@@ -19,7 +19,6 @@ struct EqView: View {
     @State private var clash: NameClash? = nil
 
     var body: some View {
-        let _ = RedrawMeter.hit(.eq)
         // Поле EQ — AnyView: цепочка модификаторов ниже оборачивает маленький тип (S14, память сборки).
         AnyView(eqMain)
         // Другой канал — выбор полосы сбрасывается, точки съёма спектров — на новый канал.

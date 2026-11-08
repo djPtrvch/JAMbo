@@ -76,8 +76,6 @@ final class AppModel {
         get { access(keyPath: \.toneOn); return _toneOn }
         set { put(\.toneOn, \._toneOn, newValue, observedChanged(_toneOn, newValue)) }
     }
-    /// Окно раздела APP поверх экрана: DIAGNOSTICS (nil — закрыто).
-    @ObservationIgnored var _appWindow: AppWindow? = nil
     /// Зажатые шаги (индекс p·16 + s) — белый контур; с ними ручки ставят p-lock.
     @ObservationIgnored var _heldSteps: Set<Int> = []
     /// Зажатые шаги, на которых уже что-то сделали (p-lock) — триг на отпускании не переключается.
@@ -107,8 +105,6 @@ final class AppModel {
     @ObservationIgnored var morphGlide: MorphGlide? = nil
     /// KEY VELOCITY (S12): толчки iPad (акселерометр).
     @ObservationIgnored let tapSensor = TapSensor()
-    /// Кадры интерфейса и время drain (DIAGNOSTICS, S14a).
-    @ObservationIgnored let frameMeter = FrameMeter()
     /// MIDI (S13): CoreMIDI, устройства.
     let midi = MidiHost()
     let midiLearn = MidiLearnState()
@@ -455,9 +451,6 @@ final class AppModel {
         }
         RunLoop.main.add(timer, forMode: .common)
         pump = timer
-        // Замеры S14a — всё время (DIAGNOSTICS закрывает экран): время колбэка по разделам, кадры интерфейса.
-        audio.core.profile.enabled = true
-        frameMeter.start()
     }
 
     // MARK: — звук
@@ -496,8 +489,6 @@ final class AppModel {
 
     /// Сообщения колбэка → состояние интерфейса (60 раз в секунду).
     private func drain() {
-        let t0: Double = Date.timeIntervalSinceReferenceDate
-        defer { frameMeter.drained(Date.timeIntervalSinceReferenceDate - t0) }
         audio.core.releaseRetired()
         defer { applyPendingLead() }
         if autosaveDue > 0 && Date.timeIntervalSinceReferenceDate >= autosaveDue { autosave() }
@@ -692,6 +683,13 @@ final class AppModel {
         changed()
     }
 
+    /// Правка режима MORPH (8.11, решение пользователя): без UNDO — ни своей записи, ни в записи жеста.
+    func editMorph(_ change: (inout Project) -> Void) {
+        change(&project)
+        history.shiftGesture(change)
+        changed()
+    }
+
     /// Есть блок аранжировки без своей копии клипа.
     static func needsOwnPatterns(_ p: Project) -> Bool {
         for t in p.tracks where t.blocks.contains(where: { $0.pattern == nil }) { return true }
@@ -753,6 +751,8 @@ final class AppModel {
                 p.tracks[i].settleSound()
             }
         }
+        // MORPH — без UNDO (8.11): накрученное в режиме остаётся, снимок меняет только то, к чему MORPH вернётся.
+        p.keepMorph(from: project)
         let bpmChanged = p.bpm != project.bpm
         let oldIds: [Int] = project.tracks.map { $0.id }
         project = p

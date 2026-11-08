@@ -11,7 +11,6 @@ struct MasterWindowView: View {
     @State private var clash: NameClash? = nil
 
     var body: some View {
-        let _ = RedrawMeter.hit(.masterWin)
         // Содержимое — AnyView: цепочка модификаторов ниже оборачивает маленький тип (S14, память сборки).
         AnyView(VStack(spacing: Layout.barGap) {
             MasterStrip(model: model, module: module, bounds: frame, input: { t in openInput(t) })

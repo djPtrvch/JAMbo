@@ -8,7 +8,6 @@ struct ArrangeWindow: View {
     @State private var lift: ArrLift? = nil
 
     var body: some View {
-        let _ = RedrawMeter.hit(.arrange)
         GeometryReader { geo in
             ZStack(alignment: .topLeading) {
                 // Заголовки вплотную к таймлайну (решение пользователя: без зазора).
@@ -42,7 +41,6 @@ struct ArrTotalTime: View {
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !model.playing)) { _ in
-            let _ = RedrawMeter.hit(.arrPlay)
             let bpm: Double = max(20, model.project.bpm)
             // Шаг — шестнадцатая: 15 / BPM секунд.
             let now: String = ArrTotalTime.clock(model.arrNowX * 15 / bpm)
@@ -105,7 +103,6 @@ struct ArrCursorLayer: View {
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 60, paused: !model.playing)) { _ in
-            let _ = RedrawMeter.hit(.arrPlay)
             let pos: Double = model.arrNowX
             let rec: ArrRecorder? = model.live.recorder.active ? model.live.recorder : nil
             let colors: [Int] = model.project.tracks.map { $0.color }
