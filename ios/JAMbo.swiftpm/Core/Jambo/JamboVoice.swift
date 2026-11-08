@@ -82,31 +82,37 @@ struct WtRef {
 }
 
 final class JamboVoice {
-    private let tables: JamboTables
-    private let sr: Double
+    let tables: JamboTables
+    let sr: Double
     private(set) var engine = Jambo.drum
-    private var note = 48.0
-    // Цели ручек и сглаженные значения.
-    private var t1 = 0.5, t2 = 0.5, t3 = 0.5, t4 = 0.5, td = 500.0
-    private var s1 = 0.5, s2 = 0.5, s3 = 0.5, s4 = 0.5, sd = 500.0
+    var note = 48.0
+    // Цели ручек и сглаженные значения (ANALOG с модуляцией — в JamboAnalogMod.swift).
+    var t1 = 0.5, t2 = 0.5, t3 = 0.5, t4 = 0.5, td = 500.0
+    var s1 = 0.5, s2 = 0.5, s3 = 0.5, s4 = 0.5, sd = 500.0
     /// Ручка 3 в начале куска (KICK: DRIVE плавно по отсчётам — ступенька раз в кусок трещала при вращении).
     private var s3From = 0.5
-    private var t = 0.0
+    var t = 0.0
     private var rnd = 22222
     // DRUM
     private var p1 = 0.0, dc = 0.0
     /// Последний отсчёт DRUM до клиппера (сглаживание стыка при ретриге); 0 — голос молчал.
     var last = 0.0
     // ANALOG: осцилляторы A и B, у каждого своя форма (смена — кроссфейд).
-    private var a1 = 0.0, a2 = 0.0, tri1 = 0.0, tri2 = 0.0
-    private var wCur = 0, wPrev = 0, wMix = 1.0
-    private var bCur = 0, bPrev = 0, bMix = 1.0
+    var a1 = 0.0, a2 = 0.0, tri1 = 0.0, tri2 = 0.0
+    var wCur = 0, wPrev = 0, wMix = 1.0
+    var bCur = 0, bPrev = 0, bMix = 1.0
+    // ANALOG: модуляция B осциллятором A (AnalogMod: 0 — нет, 1 SYNC, 2 FM, 3 RING) и октава B; смена режима —
+    // кроссфейд прежнего и нового за 5 мс (mMix). o3 — фаза B под SYNC, pB — прошлая фаза B под FM, sAfter — поправка
+    // PolyBLEP сброса SYNC для следующего отсчёта.
+    var mCur = 0, mPrev = 0, mMix = 1.0
+    var aOct = false
+    var o3 = 0.0, pB = 0.0, sAfter = 0.0
     // SUB: фильтр постоянной составляющей после GRIT.
     private var hx = 0.0, hy = 0.0
     // FM
     private var pc = 0.0, pm = 0.0, m1 = 0.0, m2 = 0.0
-    private let hb: UnsafeMutablePointer<Double>
-    private var hbPos = 0
+    let hb: UnsafeMutablePointer<Double>
+    var hbPos = 0
     // WTABLE: центр и до четырёх боковых голосов (±DETUNE, ±DETUNE/2).
     private var w0 = 0.0, wl = 0.0, wr = 0.0, wl2 = 0.0, wr2 = 0.0
     // Вход новой ноты (кадров с её начала).
@@ -137,6 +143,22 @@ final class JamboVoice {
         td = decay
     }
 
+    /// ANALOG: режим модуляции (0…3) и октава B — до trigger и на каждом куске; смена режима на звучащей ноте —
+    /// кроссфейд 5 мс.
+    @inline(__always) func setAnalog(mode m: Int, oct: Bool) {
+        aOct = oct
+        if m == mCur { return }
+        // SYNC включается: ведомая фаза — с фазы B (волна без разрыва).
+        if m == 1 {
+            o3 = a2
+            sAfter = 0
+        }
+        if m == 2 { pB = a2 }
+        mPrev = mCur
+        mCur = m
+        mMix = 0
+    }
+
     /// Нота в кадре now (абсолютный кадр), tau — время дорожки с дрейфом на этот кадр.
     func trigger(engine e: Int, note n: Double, _ q1: Double, _ q2: Double, _ q3: Double, _ q4: Double, decay: Double,
                  now: Double, tau: Double) {
@@ -161,16 +183,21 @@ final class JamboVoice {
         if !subGoesOn {
             // Буфер децимации и фазы — заново; у продолжающегося SUB — как есть (иначе разрыв волны).
             hb.update(repeating: 0, count: Jambo.hbLen * 2)
-            // ANALOG: DETUNE — ручка 1.3 (S12).
-            let det = Jambo.analogDetune / 2 * s3 * s3
+            // ANALOG: DETUNE — ручка 1.3 (S12); с модуляцией расстройки нет, B на октаву ниже — вдвое медленнее.
+            let det = mCur == 0 ? Jambo.analogDetune / 2 * s3 * s3 : 0
             a1 = jFrac(f * pow(2, det / 1200) * tau)
-            a2 = jFrac(f * pow(2, -det / 1200) * tau)
+            a2 = jFrac((aOct ? 0.5 : 1) * f * pow(2, -det / 1200) * tau)
+            o3 = a2
+            pB = a2
+            sAfter = 0
             tri1 = jTriAt(a1)
             tri2 = jTriAt(a2)
             wCur = Jambo.waveIndex(t1)
             wPrev = wCur
         }
         wMix = 1
+        mPrev = mCur
+        mMix = 1
         bCur = Jambo.waveIndex(t2)
         bPrev = bCur
         bMix = 1
@@ -219,7 +246,11 @@ final class JamboVoice {
         if e == Jambo.drum {
             drum(out, n)
         } else if e == Jambo.analog {
-            analog(out, n, driftRatio)
+            if mCur != 0 || mMix < 1 {
+                analogMod(out, n, driftRatio)
+            } else {
+                analog(out, n, driftRatio)
+            }
         } else if e == Jambo.fm {
             fm(out, n)
         } else if e == Jambo.wtable {
@@ -305,7 +336,7 @@ final class JamboVoice {
         // DETUNE (1.3): A вверх, B вниз, в сумме 0…60 центов по кривой x².
         let det = Jambo.analogDetune / 2 * s3 * s3
         let dt1 = Swift.min(0.45, f0 * pow(2, det / 1200) / sr2)
-        let dt2 = Swift.min(0.45, f0 * pow(2, -det / 1200) / sr2)
+        let dt2 = Swift.min(0.45, (aOct ? 0.5 : 1) * f0 * pow(2, -det / 1200) / sr2)
         // WAVE A и WAVE B — ступенчатые (пункт по ручке, без сглаживания); смена пункта — кроссфейд форм за 5 мс.
         let ia = Jambo.waveIndex(t1)
         if ia != wCur {

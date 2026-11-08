@@ -7,13 +7,34 @@ import Foundation
 extension EngineIcons {
     /// ANALOG: сверху волна A (WAVE A, 1.1), снизу B (WAVE B, 1.2), при смене пункта форма перетекает; B уходит
     /// по фазе с DETUNE (1.3); прозрачность A и B — по MIX (1.4), у преобладающей — полная.
+    /// С модуляцией (am) B рисуется модулированной: SYNC — B сбрасывается с каждым периодом A и выше на AMOUNT
+    /// (до 2 октав), FM — фаза B сдвигается волной A, RING — B переходит в A·B; октава ниже (ao) — B вдвое медленнее.
     static func analogIcon(_ v: IconValues) -> [IconElement] {
         let ang = clamp(v.q) * Double.pi / 2
         let ga = cos(ang), gb = sin(ang), mx = Swift.max(ga, gb)
         let dd = v.m * v.m, sc = still * 0.16
         let waves = [0, 1, 2, 3]
+        let kb: Double = v.ao ? 0.5 : 1
+        let amt: Double = clamp(v.m)
+        let am: Int = v.am
         let a = gen { u, _ in morph(waves, v.h * 3, u * 2 - sc) }
-        let b = gen { u, _ in morph(waves, v.t * 3, u * 2 * (1 + 0.06 * dd) + 0.15 * dd - sc) }
+        let b = gen { u, _ in
+            let pa: Double = u * 2 - sc
+            if am == 1 {
+                let r: Double = pa - pa.rounded(.down)
+                return morph(waves, v.t * 3, r * kb * pow(2, amt * 2))
+            }
+            if am == 2 {
+                let x: Double = morph(waves, v.h * 3, pa)
+                return morph(waves, v.t * 3, pa * kb + amt * amt * x)
+            }
+            if am == 3 {
+                let x: Double = morph(waves, v.h * 3, pa)
+                let y: Double = morph(waves, v.t * 3, pa * kb)
+                return y + (x * y - y) * amt
+            }
+            return morph(waves, v.t * 3, u * 2 * kb * (1 + 0.06 * dd) + 0.15 * dd - sc)
+        }
         return [lane(a, IconLane(y0: 20, amp: 10.5, alpha: 0.15 + 0.85 * ga / mx)),
                 lane(b, IconLane(y0: 44, amp: 10.5, alpha: 0.15 + 0.85 * gb / mx))]
     }

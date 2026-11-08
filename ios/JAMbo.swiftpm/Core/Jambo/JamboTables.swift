@@ -108,6 +108,8 @@ enum Jambo {
     static let analogDriftRate = 2.0
     static let analogOut = 0.62
     static let analogWaveXf = 0.005
+    /// ANALOG FM (AnalogMod): индекс фазовой модуляции B при AMOUNT 100 % — 1 период (2π рад), по кривой x².
+    static let analogFmIndex = 1.0
 
     // WTABLE
     /// Расстройка UNISON до S12 (по ручке 1.3, 25…100 % → 0…40 центов) — для перевода старых проектов.

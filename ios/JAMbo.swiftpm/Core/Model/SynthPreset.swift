@@ -26,8 +26,18 @@ public struct SynthPreset: Codable, Equatable, Sendable {
         self.grain = grain
     }
 
-    /// Ручки звука, которые хранит пресет (PRESET_PARAMS веба).
-    public static let params: [String] = ["harm", "timbre", "morph", "p4", "level", "attack", "decay", "filter", "reso"]
+    /// Ручки звука, которые хранит пресет (PRESET_PARAMS веба); у ANALOG — ещё режим модуляции и октава B
+    /// (AnalogMod; нет в пресете — выключены).
+    public static let params: [String] = ["harm", "timbre", "morph", "p4", "level", "attack", "decay", "filter", "reso",
+                                          AnalogMod.modId, AnalogMod.octId]
+
+    /// Значение ручки id пресета: скрытые значения ANALOG, которых в пресете нет (старый пресет), — 0 (выключены);
+    /// у других движков их нет (nil).
+    public func value(_ id: String) -> Double? {
+        if let v = params[id] { return v }
+        if AnalogMod.ids.contains(id) && SynthKey.engine(sound) == Jambo.analog { return 0 }
+        return nil
+    }
 
     enum CodingKeys: String, CodingKey, CaseIterable { case name, sound, params, fmt, table, grain }
 

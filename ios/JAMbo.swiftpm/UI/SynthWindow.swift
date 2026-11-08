@@ -40,7 +40,7 @@ struct SynthInfo: View {
         let params: [String: Double] = model.track.params
         return VStack(alignment: .leading, spacing: 8) {
             ForEach(0..<4, id: \.self) { slot in
-                let p: ParamDef = grid[slot]
+                let p: ParamDef = AnalogMod.knob(grid[slot], engine: engine, params: params)
                 Text("\(p.label) · \(p.format(params[p.id] ?? p.def))")
                     .font(.system(size: 11))
                     .tracking(0.44)
@@ -365,6 +365,8 @@ final class IconMotion {
         s.m += (target.m - s.m) * a
         s.q += (target.q - s.q) * a
         s.d += (target.d - s.d) * a
+        s.am = target.am
+        s.ao = target.ao
         var far: Double = abs(target.h - s.h)
         far = max(far, abs(target.t - s.t))
         far = max(far, abs(target.m - s.m))

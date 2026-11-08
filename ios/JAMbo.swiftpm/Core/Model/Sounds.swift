@@ -71,7 +71,7 @@ extension Track {
         }
         sample = p.sound
         for id in SynthPreset.params {
-            if let v = p.params[id] { params[id] = v }
+            if let v = p.value(id) { params[id] = v }
         }
         if let t = p.table { table = t }
         if let g = p.grain { grain = g }
@@ -108,7 +108,9 @@ extension Track {
     public func preset(named name: String) -> SynthPreset? {
         guard let e = SynthKey.engine(sample) else { return nil }
         var p: [String: Double] = [:]
-        for id in SynthPreset.params { p[id] = params[id] ?? Params.byId[id]?.def ?? 0 }
+        for id in SynthPreset.params where e == Jambo.analog || !AnalogMod.ids.contains(id) {
+            p[id] = params[id] ?? Params.byId[id]?.def ?? 0
+        }
         // WTABLE (движок 19) — с таблицей дорожки, GRANULAR — с сэмплом.
         let wt: String? = e == 19 ? table : nil
         let gr: String? = e == Jambo.granular ? grain : nil
@@ -161,8 +163,8 @@ extension Track {
                 st.sound = it.key
                 // У пресета — ещё и p-lock его ручек (не ручные: шаг из-за них не жёлтый).
                 if let p = it.preset {
-                    let ids: [String] = SynthPreset.params.filter { p.params[$0] != nil }
-                    for id in ids { st.locks[id] = p.params[id] }
+                    let ids: [String] = SynthPreset.params.filter { p.value($0) != nil }
+                    for id in ids { st.locks[id] = p.value(id) }
                     st.soundLocks = ids
                 }
             }

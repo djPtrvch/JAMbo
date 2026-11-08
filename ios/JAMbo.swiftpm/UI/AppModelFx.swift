@@ -96,10 +96,15 @@ extension AppModel {
         return (track.params[Params.rateModeId] ?? 0) >= 0.5
     }
 
-    /// SHIFT + тап по ручке: Dly Time и Speed LFO — по темпу или свободно, RATE — PTCH / TSTR; true — тап обработан.
+    /// SHIFT + тап по ручке: Dly Time и Speed LFO — по темпу или свободно, RATE — PTCH / TSTR, у ANALOG — модуляция,
+    /// октава B и режим (undo — второй тап двойного: отменить первый); true — тап обработан.
     @discardableResult
-    func knobShiftTap(_ slot: Int) -> Bool {
+    func knobShiftTap(_ slot: Int, undo: Bool = false) -> Bool {
         guard channel == .track else { return false }
+        if !modMode && !fxMode && SynthKey.engine(track.sample) == Jambo.analog, let id = param(slot)?.id,
+           analogShiftTap(id, undo: undo) {
+            return true
+        }
         if !modMode && !fxMode && param(slot)?.id == "rate" {
             let on: Bool = !rateStretch
             editTrack { t in t.params[Params.rateModeId] = on ? 1 : 0 }
@@ -131,5 +136,29 @@ extension AppModel {
             writeLead(&pr)
         }
         return true
+    }
+}
+
+extension AppModel {
+    /// ANALOG: SHIFT + тап по WAVE A — модуляция вкл./выкл., по WAVE B — октава B, по AMOUNT — следующий режим
+    /// (AnalogMod); одна запись UNDO. false — ручка не из этих.
+    func analogShiftTap(_ id: String, undo: Bool) -> Bool {
+        let mod: Double = track.params[AnalogMod.modId] ?? 0
+        if id == "harm" {
+            let v: Double = AnalogMod.toggled(mod)
+            editTrack { t in t.params[AnalogMod.modId] = v }
+            return true
+        }
+        if id == "timbre" {
+            let on: Bool = (track.params[AnalogMod.octId] ?? 0) < 0.5
+            editTrack { t in t.params[AnalogMod.octId] = on ? 1 : 0 }
+            return true
+        }
+        if id == "morph" && AnalogMod.mode(mod) > 0 {
+            let v: Double = AnalogMod.cycled(mod, back: undo)
+            editTrack { t in t.params[AnalogMod.modId] = v }
+            return true
+        }
+        return false
     }
 }

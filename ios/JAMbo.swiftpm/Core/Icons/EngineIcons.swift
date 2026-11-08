@@ -13,6 +13,9 @@ public struct IconValues: Equatable, Sendable {
     public var q: Double
     public var d: Double
     public var a: Bool
+    /// ANALOG: режим модуляции (AnalogMod: 0 — нет, 1 SYNC, 2 FM, 3 RING) и октава B ниже.
+    public var am: Int = 0
+    public var ao: Bool = false
 
     public init(h: Double = 0.5, t: Double = 0.5, m: Double = 0.5, q: Double = 0.5, d: Double = 0.5, a: Bool = false) {
         self.h = h

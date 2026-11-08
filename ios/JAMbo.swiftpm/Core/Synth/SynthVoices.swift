@@ -440,6 +440,13 @@ public final class SynthVoices {
         let dec = knob(row, locks, mask, modE, t, frame0, VoiceParam.decay)
         let nt = Double(note[v])
         let dr = drift[t]
+        // ANALOG: режим модуляции и октава B — значения звука (пресет-лок — его), без LFO/ENV.
+        if e == Jambo.analog {
+            let am: Float = mask & bit[VoiceParam.amod] != 0 ? locks[VoiceParam.amod] : row[VoiceParam.amod]
+            let ao: Float = mask & bit[VoiceParam.aoct] != 0 ? locks[VoiceParam.aoct] : row[VoiceParam.aoct]
+            let mode: Int = am < 0.5 ? 0 : Swift.min(3, Int(am + 0.5))
+            bank.jamboAnalog(v, mode: mode, oct: ao >= 0.5)
+        }
         if triggered[v] == 0 {
             bank.jamboTrigger(v, e, note: nt, q1, q2, q3, q4, decay: dec, now: Double(Int(frame0)),
                               tau: dr.tau + Double(Int(frame0 - blockStart)) * dr.ratio)

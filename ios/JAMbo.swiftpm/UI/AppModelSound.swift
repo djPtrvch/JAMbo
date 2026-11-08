@@ -211,7 +211,15 @@ extension AppModel {
             return p.toNorm(synthValue(p))
         }
         // Ручки движка — строка 1 (места 0…3), Decay — 2.2 (место 5; 8.11 — группы в строках).
-        return IconValues(h: norm(0), t: norm(1), m: norm(2), q: norm(3), d: norm(5))
+        var v = IconValues(h: norm(0), t: norm(1), m: norm(2), q: norm(3), d: norm(5))
+        if engine == Jambo.analog {
+            // С зажатым шагом пресет-лока — значения его пресета.
+            let t: Track = track
+            let held: [String: Double] = firstHeld.flatMap { t.step($0)?.locks } ?? [:]
+            v.am = AnalogMod.mode(held[AnalogMod.modId] ?? t.params[AnalogMod.modId] ?? 0)
+            v.ao = (held[AnalogMod.octId] ?? t.params[AnalogMod.octId] ?? 0) >= 0.5
+        }
+        return v
     }
 
     func sample(_ key: String) -> SampleData? {

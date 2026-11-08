@@ -587,7 +587,9 @@ extension AppModel {
         if n.kind == .sample, let key = n.key {
             previewLibrarySample(key)
         } else if n.kind == .preset, let p = n.preset, channel == .track, selectedTrack < project.tracks.count {
-            let locks = NoteLocks(p.params)
+            var pp: [String: Double] = p.params
+            for id in AnalogMod.ids { if let v = p.value(id) { pp[id] = v } }
+            let locks = NoteLocks(pp)
             audio.core.events.push(.presetNote(track: selectedTrack, note: Params.sampleRoot, hash: SoundKey.hash(p.sound),
                                                locks: locks))
         }

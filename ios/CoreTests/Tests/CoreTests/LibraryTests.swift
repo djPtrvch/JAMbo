@@ -88,7 +88,7 @@ final class LibraryTests: XCTestCase {
         t.table = "builtin:ORGAN"
         let p = t.preset(named: "Wave")
         XCTAssertEqual(p?.table, "builtin:ORGAN")
-        XCTAssertEqual(p?.params.count, SynthPreset.params.count)
+        XCTAssertEqual(p?.params.count, SynthPreset.params.count - AnalogMod.ids.count, "скрытые ANALOG — только у ANALOG")
         t.setFolder([FolderItem(preset: bell), FolderItem(sample: "s2")])
         XCTAssertEqual(t.folder.index, 0)
         XCTAssertEqual(t.sample, "mi:18")

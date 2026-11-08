@@ -106,6 +106,10 @@ extension Track {
         if e.initKnobs.count == 4 && was != key {
             for k in 0..<4 { params[SynthEngines.knobIds[k]] = e.initKnobs[k] }
         }
+        // ANALOG с другого звука: модуляция и октава B выключены.
+        if was != key && engine == Jambo.analog {
+            for id in AnalogMod.ids { params[id] = 0 }
+        }
         if was != key { defaults?.applySound(to: &self) }
         if let max = e.decayMax, let d = params["decay"], d > max { params["decay"] = max }
     }
