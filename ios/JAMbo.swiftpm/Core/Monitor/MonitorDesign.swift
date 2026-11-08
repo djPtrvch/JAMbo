@@ -69,11 +69,12 @@ public struct MonitorSettings {
 }
 
 /// Профиль пункта SPACE: AMBIENCE, RAW, CORRECTION и CORRECT CURVE (JSON полос; nil — без своей кривой).
-public struct MonitorProfile {
-    public var ambienceDb: Double = -6
-    public var raw: Double = 1
-    public var strength: Double = 1
-    public var correct: Data? = nil
+/// Неизменяемый класс, а не структура: в словаре настроек монитора копируется ссылкой (объём сборки).
+public final class MonitorProfile: @unchecked Sendable {
+    public let ambienceDb: Double
+    public let raw: Double
+    public let strength: Double
+    public let correct: Data?
 
     public init(ambienceDb: Double, raw: Double, strength: Double, correct: Data?) {
         self.ambienceDb = ambienceDb
@@ -82,15 +83,13 @@ public struct MonitorProfile {
         self.correct = correct
     }
 
-    public init(plist d: [String: Any]) {
+    public convenience init(plist d: [String: Any]) {
         func num(_ k: String, _ def: Double, _ lo: Double, _ hi: Double) -> Double {
             let v: Double = (d[k] as? NSNumber)?.doubleValue ?? (d[k] as? Double) ?? def
             return v.isFinite ? Swift.min(hi, Swift.max(lo, v)) : def
         }
-        ambienceDb = num("ambienceDb", -6, MonitorSpec.ambienceMin, 0)
-        raw = num("raw", 1, 0, 1)
-        strength = num("strength", 1, 0, 1)
-        correct = d["correct"] as? Data
+        self.init(ambienceDb: num("ambienceDb", -6, MonitorSpec.ambienceMin, 0), raw: num("raw", 1, 0, 1),
+                  strength: num("strength", 1, 0, 1), correct: d["correct"] as? Data)
     }
 
     public var plist: [String: Any] {

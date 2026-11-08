@@ -264,10 +264,10 @@ final class AppModel {
     @ObservationIgnored var roomSet: RoomSet? = nil
     @ObservationIgnored var roomBuilding = false
     /// Профиль пункта SPACE сохранён удержанием — на секунду SAVED в меню.
-    var spaceSaved: String? = nil
+    @ObservationIgnored var _spaceSaved: String? = nil
     /// HEAD (AppModelHead): отслеживание головы включено, лицо видно (кнопка горит), трекер.
-    var headOn = false
-    var headFace = false
+    @ObservationIgnored var _headOn: Bool = false
+    @ObservationIgnored var _headFace: Bool = false
     @ObservationIgnored var headTracker: HeadTracker? = nil
     /// UNDO окна коррекции (AppModelMonitor): записи и жест (0 — нет, 1 — идёт, 2 — запись сделана).
     var monitorUndo: [MonitorSnap] = []

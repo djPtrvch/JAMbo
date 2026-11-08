@@ -9,6 +9,18 @@ import Observation
 // структуры (проект, библиотека, настройки, пресеты) — через макрос (без копии). Свойства private(set) — в AppModel.swift.
 
 extension AppModel {
+    var spaceSaved: String? {
+        get { access(keyPath: \.spaceSaved); return _spaceSaved }
+        set { put(\.spaceSaved, \._spaceSaved, newValue, observedChanged(_spaceSaved, newValue)) }
+    }
+    var headOn: Bool {
+        get { access(keyPath: \.headOn); return _headOn }
+        set { put(\.headOn, \._headOn, newValue, observedChanged(_headOn, newValue)) }
+    }
+    var headFace: Bool {
+        get { access(keyPath: \.headFace); return _headFace }
+        set { put(\.headFace, \._headFace, newValue, observedChanged(_headFace, newValue)) }
+    }
     var settingsTab: SettingsTab {
         get { access(keyPath: \.settingsTab); return _settingsTab }
         set { put(\.settingsTab, \._settingsTab, newValue, observedChanged(_settingsTab, newValue)) }

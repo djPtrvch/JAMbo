@@ -5,12 +5,12 @@ import Foundation
 // RR (колонка → ухо: левая → левое, левая → правое, правая → левое, правая → правое), 16/24/32 бит или float.
 // Прямая часть — первые direct отсчётов (128, 2,7 мс): на 0 dB всегда, остальное — хвост, его громкость — Ambience.
 
-/// Комната из rooms.json (без Codable — объём сборки).
-public struct RoomInfo {
-    public var name: String
-    public var file: String
-    public var gainDb: Double
-    public var direct: Int
+/// Комната из rooms.json (без Codable — объём сборки; класс, а не структура — копия ссылкой).
+public final class RoomInfo: @unchecked Sendable {
+    public let name: String
+    public let file: String
+    public let gainDb: Double
+    public let direct: Int
     /// HEAD (8.11): набор прямой части по углам поворота головы — файл (пусто — нет), первый угол и шаг (градусы,
     /// вправо +), громкость; число наборов — по длине файла (кадры / RoomConv.part).
     public var headFile: String = ""
@@ -23,6 +23,13 @@ public struct RoomInfo {
     public var flatHeadFile: String = ""
     public var flatHeadGainDb: Double = 0
 
+    public init(name: String, file: String, gainDb: Double, direct: Int) {
+        self.name = name
+        self.file = file
+        self.gainDb = gainDb
+        self.direct = direct
+    }
+
     /// Список из rooms.json ({"rooms": […]}); ошибка — пусто.
     public static func list(_ data: Data?) -> [RoomInfo] {
         guard let d = data, let root = (try? JSONSerialization.jsonObject(with: d)) as? [String: Any],
@@ -32,7 +39,7 @@ public struct RoomInfo {
             guard let name = r["name"] as? String, let file = r["file"] as? String else { continue }
             let g: Double = (r["gain_db"] as? NSNumber)?.doubleValue ?? 0
             let dn: Int = (r["direct"] as? NSNumber)?.intValue ?? RoomConv.part
-            var info = RoomInfo(name: name, file: file, gainDb: g, direct: dn)
+            let info = RoomInfo(name: name, file: file, gainDb: g, direct: dn)
             if let hd = r["head"] as? [String: Any], let hf = hd["file"] as? String {
                 info.headFile = hf
                 info.headFrom = (hd["from_deg"] as? NSNumber)?.doubleValue ?? -50
