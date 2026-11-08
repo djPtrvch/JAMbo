@@ -58,6 +58,15 @@ extension AppModel {
         return q
     }
 
+    /// Цепочка прослушивания меняет звук (значок наушников над CPU, 8.11): коррекция не в BYPASS и есть что-то из
+    /// PHONE CURVE (при CORRECTION > 0), CORRECT CURVE, SPACE (не Off), MONO, SUB. BYPASS выключает всё сразу.
+    var monitorAudible: Bool {
+        if !phonesEq.on { return false }
+        let curve: Bool = monitor.strength > 0 && phonesEq.bands.contains { $0?.on ?? false }
+        let correct: Bool = correctEq.bands.contains { $0?.on ?? false }
+        return curve || correct || translationPreset != nil || monitor.mono || monitor.sub
+    }
+
     /// Выбрать пункт TRANSLATION: тембр — сразу, пространство (комната пункта) — в фоне.
     func setTranslation(_ name: String) {
         setMonitor { $0.translation = name }

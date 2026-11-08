@@ -25,13 +25,14 @@ struct CPUIndicator: View {
     }
 }
 
-/// Коррекция наушников включена (8.11, решение пользователя): над CPU — жёлтый значок наушников, без кнопки и
-/// контура; выключена — значка нет. Тап — окно коррекции (как тап по имени MASTER EQ).
+/// Цепочка прослушивания меняет звук (коррекция наушников, CORRECT CURVE, SPACE, MONO, SUB — monitorAudible; 8.11,
+/// решение пользователя): над CPU — жёлтый значок наушников, без кнопки и контура; BYPASS или всё нейтрально —
+/// значка нет. Тап — окно коррекции (как тап по имени MASTER EQ).
 struct PhonesBadge: View {
     let model: AppModel
 
     var body: some View {
-        if model.phonesEq.on {
+        if model.monitorAudible {
             Image(systemName: "headphones")
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(theme.accent)
