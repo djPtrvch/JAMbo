@@ -364,18 +364,10 @@ public struct SceneRow: Codable, Equatable, Sendable {
     }
 }
 
-public struct Project: Codable, Equatable, Sendable {
-    /// Версия формата: 3 — S12 (Swing без p-lock и LFO/ENV), 4 — S12 (ручки 1.4 своих движков, SynthMigration),
-    /// 5 — S15 (аранжировка: Track.blocks, Track.color, arrange; в старых — пустая), 6 — ручки GRANULAR по ТЗ
-    /// «Granular» (GranularMigration), 7 — стили случайного ритма 4.11 (migrateRandomStyles).
-    public var version: Int = 7
+/// Редко нужные поля проекта (Project.moreBox, 8.11): мастер, сцены, файлы, сетка паттернов, аранжировщик.
+public struct ProjectMore: Equatable, Sendable {
     /// Сообщение при открытии проекта (перевод старой версии, например пропавший суб ANALOG); nil — нет.
-    public var notice: String?
-    public var bpm: Double = 120
-    public var scale: Int = 0
-    public var root: Int = 0
-    /// Общие FX (сетка FX и пред-задержка): принадлежат клипам — действуют FX клипа, запущенного последним.
-    public var fx: [String: Double] = Params.fxDefaults()
+    public var notice: String? = nil
     /// Назначения LFO/ENV на ручки FX (источник — LFO/ENV дорожки track).
     public var fxAssigns: [String: ModAssign] = [:]
     /// Мастер (как doc.master веба, без убранных в Swift параметров — MasterChain.ids): RELEASE AUTO — значение
@@ -389,7 +381,6 @@ public struct Project: Codable, Equatable, Sendable {
     public var outVol: Double = 0
     /// EQ мастера (doc.masterEq) — первый в цепочке мастера.
     public var masterEq: Eq = Eq()
-    public var tracks: [Track]
     /// Свои последовательности MIX и MST (doc.chanSeqs веба): страницы и p-lock шагов (нот нет) — у MIX громкости
     /// дорожек (mix.vol1…16), у MST — параметры мастера (ручки MST без p-lock — ставить нечего, как в вебе).
     /// Один клип; играют с PLAY с первого шага, без сетки паттернов.
@@ -416,6 +407,110 @@ public struct Project: Codable, Equatable, Sendable {
     public var prevRow: Bool = false
     /// Аранжировщик (S15): маркеры, петля, сетка и магнит, STEPS (блоки — у дорожек).
     public var arrange: Arrangement = Arrangement()
+}
+
+public struct Project: Codable, Equatable, Sendable {
+    /// Версия формата: 3 — S12 (Swing без p-lock и LFO/ENV), 4 — S12 (ручки 1.4 своих движков, SynthMigration),
+    /// 5 — S15 (аранжировка: Track.blocks, Track.color, arrange; в старых — пустая), 6 — ручки GRANULAR по ТЗ
+    /// «Granular» (GranularMigration), 7 — стили случайного ритма 4.11 (migrateRandomStyles).
+    public var version: Int = 7
+    public var bpm: Double = 120
+    public var scale: Int = 0
+    public var root: Int = 0
+    /// Общие FX (сетка FX и пред-задержка): принадлежат клипам — действуют FX клипа, запущенного последним.
+    public var fx: [String: Double] = Params.fxDefaults()
+    public var tracks: [Track]
+    /// Редко нужные поля проекта — «в коробке» (ProjectMore; массив из одного элемента, копия при записи): копия
+    /// проекта (UNDO и др.) не тянет их по значению (объём сборки, 8.11). Снаружи — как прежние свойства.
+    var moreBox: [ProjectMore] = [ProjectMore()]
+    public var notice: String? {
+        get { return moreBox[0].notice }
+        set { moreBox[0].notice = newValue }
+    }
+    public var fxAssigns: [String: ModAssign] {
+        get { return moreBox[0].fxAssigns }
+        set { moreBox[0].fxAssigns = newValue }
+    }
+    public var master: [String: Double] {
+        get { return moreBox[0].master }
+        set { moreBox[0].master = newValue }
+    }
+    public var satBypass: Bool {
+        get { return moreBox[0].satBypass }
+        set { moreBox[0].satBypass = newValue }
+    }
+    public var cmpBypass: Bool {
+        get { return moreBox[0].cmpBypass }
+        set { moreBox[0].cmpBypass = newValue }
+    }
+    public var clipBypass: Bool {
+        get { return moreBox[0].clipBypass }
+        set { moreBox[0].clipBypass = newValue }
+    }
+    public var limBypass: Bool {
+        get { return moreBox[0].limBypass }
+        set { moreBox[0].limBypass = newValue }
+    }
+    public var outVol: Double {
+        get { return moreBox[0].outVol }
+        set { moreBox[0].outVol = newValue }
+    }
+    public var masterEq: Eq {
+        get { return moreBox[0].masterEq }
+        set { moreBox[0].masterEq = newValue }
+    }
+    public var chanSeqs: [Track] {
+        get { return moreBox[0].chanSeqs }
+        set { moreBox[0].chanSeqs = newValue }
+    }
+    public var scenes: [SceneRow] {
+        get { return moreBox[0].scenes }
+        set { moreBox[0].scenes = newValue }
+    }
+    public var rows: Int {
+        get { return moreBox[0].rows }
+        set { moreBox[0].rows = newValue }
+    }
+    public var arrStart: Int {
+        get { return moreBox[0].arrStart }
+        set { moreBox[0].arrStart = newValue }
+    }
+    public var arrEndStop: Bool {
+        get { return moreBox[0].arrEndStop }
+        set { moreBox[0].arrEndStop = newValue }
+    }
+    public var plusCopy: Bool {
+        get { return moreBox[0].plusCopy }
+        set { moreBox[0].plusCopy = newValue }
+    }
+    public var files: [String: String] {
+        get { return moreBox[0].files }
+        set { moreBox[0].files = newValue }
+    }
+    public var roots: [String: Int] {
+        get { return moreBox[0].roots }
+        set { moreBox[0].roots = newValue }
+    }
+    public var rowLoop: Bool {
+        get { return moreBox[0].rowLoop }
+        set { moreBox[0].rowLoop = newValue }
+    }
+    public var arrowSwitch: Bool {
+        get { return moreBox[0].arrowSwitch }
+        set { moreBox[0].arrowSwitch = newValue }
+    }
+    public var gridHideSteps: Bool {
+        get { return moreBox[0].gridHideSteps }
+        set { moreBox[0].gridHideSteps = newValue }
+    }
+    public var prevRow: Bool {
+        get { return moreBox[0].prevRow }
+        set { moreBox[0].prevRow = newValue }
+    }
+    public var arrange: Arrangement {
+        get { return moreBox[0].arrange }
+        set { moreBox[0].arrange = newValue }
+    }
 
     public init() {
         tracks = (0..<Params.trackCount).map { Track(index: $0) }

@@ -198,6 +198,39 @@ extension Project {
         arrange = c.value(.arrange, Arrangement())
         gridHideSteps = c.value(.gridHideSteps, false)
     }
+
+    /// Запись — как прежняя синтезированная (notice — только если есть).
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(version, forKey: .version)
+        try c.encode(bpm, forKey: .bpm)
+        try c.encode(scale, forKey: .scale)
+        try c.encode(root, forKey: .root)
+        try c.encode(fx, forKey: .fx)
+        try c.encode(fxAssigns, forKey: .fxAssigns)
+        try c.encode(master, forKey: .master)
+        try c.encode(satBypass, forKey: .satBypass)
+        try c.encode(cmpBypass, forKey: .cmpBypass)
+        try c.encode(clipBypass, forKey: .clipBypass)
+        try c.encode(limBypass, forKey: .limBypass)
+        try c.encode(outVol, forKey: .outVol)
+        try c.encode(masterEq, forKey: .masterEq)
+        try c.encode(tracks, forKey: .tracks)
+        try c.encode(chanSeqs, forKey: .chanSeqs)
+        try c.encode(scenes, forKey: .scenes)
+        try c.encode(rows, forKey: .rows)
+        try c.encode(arrStart, forKey: .arrStart)
+        try c.encode(arrEndStop, forKey: .arrEndStop)
+        try c.encode(plusCopy, forKey: .plusCopy)
+        try c.encode(files, forKey: .files)
+        try c.encode(roots, forKey: .roots)
+        try c.encode(rowLoop, forKey: .rowLoop)
+        try c.encode(arrowSwitch, forKey: .arrowSwitch)
+        try c.encode(prevRow, forKey: .prevRow)
+        try c.encodeIfPresent(notice, forKey: .notice)
+        try c.encode(arrange, forKey: .arrange)
+        try c.encode(gridHideSteps, forKey: .gridHideSteps)
+    }
 }
 
 extension EqBand {
