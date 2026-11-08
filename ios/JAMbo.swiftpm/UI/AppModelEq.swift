@@ -265,6 +265,8 @@ extension AppModel {
     static let phonesSeededKey = "phonesSeeded"
     /// Переход на 10 полос сделан: профиль Sony — из 10 фильтров вместо подгонки в 8.
     static let phonesBands10Key = "phonesBands10"
+    /// Профиль AIAIAI TMA-2 Studio уже положен в список (8.11; удалённый больше не появляется).
+    static let phonesTma2Key = "phonesTma2Studio"
     static let phonesNameKey = "phonesName"
 
     func setPhonesName(_ name: String) {
@@ -355,7 +357,8 @@ extension AppModel {
         return e
     }
 
-    /// Список пресетов коррекции; в первый раз в нём — профиль Sony WH-1000XM4 (удалённый больше не появляется).
+    /// Список пресетов коррекции; в первый раз в нём — профили Sony WH-1000XM4 и AIAIAI TMA-2 Studio (удалённые
+    /// больше не появляются).
     static func loadPhonesPresets() -> EqPresetBook {
         let ud = UserDefaults.standard
         var b: EqPresetBook = EqPresetBook.decode(ud.data(forKey: AppModel.phonesPresetsKey))
@@ -367,6 +370,12 @@ extension AppModel {
         if !ud.bool(forKey: AppModel.phonesBands10Key) {
             if b.upgradeSonyXM4() { ud.set(b.encode(), forKey: AppModel.phonesPresetsKey) }
             ud.set(true, forKey: AppModel.phonesBands10Key)
+        }
+        if !ud.bool(forKey: AppModel.phonesTma2Key) {
+            let p: EqPreset = EqPresetBook.tma2Studio
+            if !b.list.contains(where: { $0.name == p.name }) { b.list.insert(p, at: Swift.min(1, b.list.count)) }
+            ud.set(b.encode(), forKey: AppModel.phonesPresetsKey)
+            ud.set(true, forKey: AppModel.phonesTma2Key)
         }
         return b
     }
