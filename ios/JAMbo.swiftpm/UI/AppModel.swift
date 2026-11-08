@@ -259,6 +259,10 @@ final class AppModel {
     /// Room: пространства из ресурсов (по пунктам TRANSLATION) и загруженное (имя и отклик для компенсации).
     @ObservationIgnored let rooms: [RoomInfo] = AppModel.loadRooms()
     @ObservationIgnored var roomLoaded: (name: String, resp: RoomResponse)? = nil
+    /// HEAD (AppModelHead): отслеживание головы включено, лицо видно (кнопка горит), трекер.
+    var headOn = false
+    var headFace = false
+    @ObservationIgnored var headTracker: HeadTracker? = nil
     /// UNDO окна коррекции (AppModelMonitor): записи и жест (0 — нет, 1 — идёт, 2 — запись сделана).
     var monitorUndo: [MonitorSnap] = []
     var monitorRedo: [MonitorSnap] = []

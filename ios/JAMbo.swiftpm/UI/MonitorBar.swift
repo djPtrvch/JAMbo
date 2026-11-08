@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Строка Headphone Monitor под строкой EQ окна коррекции — где и на чём звучит: SPACE (пункт TRANSLATION — тембр и пространство
-/// пункта), AMBIENCE (сколько пространства; у пунктов без него — серое), проверки MONO и SUB.
+/// пункта), AMBIENCE (сколько пространства; у пунктов без него — серое), проверки MONO и SUB, HEAD (отслеживание головы).
 /// Строка EQ — коррекция наушников: PHONE CURVE, CORRECT CURVE, CORRECTION, LEVEL, PRESETS, BYPASS. Поля — как у EQ:
 /// палец вверх-вниз, двойной тап — значение по умолчанию.
 struct MonitorBar: View {
@@ -14,6 +14,7 @@ struct MonitorBar: View {
             MonitorBar.field(m, 0), MonitorBar.field(m, 5),
             AnyView(EqTool(title: "MONO", enabled: true, active: s.mono) { m.setMonitor { $0.mono.toggle() } }),
             AnyView(EqTool(title: "SUB", enabled: true, active: s.sub) { m.setMonitor { $0.sub.toggle() } }),
+            AnyView(HeadButton(model: m)),
         ]
         return MonitorRow(name: "MONITOR", items: items, height: m.barH)
     }
@@ -26,6 +27,28 @@ struct MonitorBar: View {
                                set: { v in m.setMonitorUnits(k, v) },
                                tap: { r in m.monitorFieldTap(k, r) },
                                double: { m.resetMonitorField(k) }, model: m))
+    }
+}
+
+/// HEAD: отслеживание головы камерой — горит жёлтым, пока лицо видно; включён, а лица нет — серое с точкой; без
+/// пространства или камеры — серая надпись. Тап — вкл./выкл., SHIFT + тап — CENTER.
+struct HeadButton: View {
+    let model: AppModel
+
+    var body: some View {
+        let m: AppModel = model
+        let enabled: Bool = m.headEnabled
+        let lit: Bool = enabled && m.headOn && m.headFace
+        let lost: Bool = enabled && m.headOn && !m.headFace
+        let fg: Color = !enabled ? theme.off : (lit ? theme.onAccent : theme.text)
+        return HStack(spacing: 5) {
+            Text("HEAD").font(.system(size: 12, weight: .bold)).tracking(0.8).lineLimit(1).minimumScaleFactor(0.6)
+            if lost { Circle().fill(theme.accent).frame(width: 6, height: 6) }
+        }
+        .foregroundStyle(fg)
+        .tile(lit ? theme.accent : theme.panel2)
+        .contentShape(Rectangle())
+        .onTapGesture { m.headTap() }
     }
 }
 

@@ -107,6 +107,7 @@ extension AppModel {
     /// Свёртка комнаты пункта — звуку (при запуске, выборе пункта, UNDO): импульсы и отклик — в фоне, затем в звук
     /// (переход 40 мс).
     func syncRoom() {
+        syncHead()
         let stage: RoomStage = audio.core.monitor.room
         guard let info = roomInfo else {
             stage.set(nil)
