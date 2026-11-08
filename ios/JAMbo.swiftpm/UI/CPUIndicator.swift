@@ -19,8 +19,9 @@ struct CPUIndicator: View {
         }
         .foregroundStyle(high ? theme.rec : theme.dim)
         .frame(width: 48, height: 48)
-        // Чуть ниже середины (8.11: над подписями — значок наушников).
-        .offset(y: 5)
+        // Чуть ниже прежнего (8.11: над подписями — значок наушников): блок у верха панели и ещё на 3 pt вниз —
+        // всего на 5 pt ниже середины.
+        .offset(y: 3)
     }
 }
 
