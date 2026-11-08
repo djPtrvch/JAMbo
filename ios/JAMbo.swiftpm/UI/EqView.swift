@@ -280,30 +280,31 @@ struct EqBar: View {
         // У коррекции наушников BYPASS — вся монитор-цепочка (Headphone Monitor).
         default:
             let m: AppModel = model
-            return AnyView(EqTool(title: "BYPASS", enabled: true, active: !m.eqTarget.on) { m.toggleEqBypass() })
+            let off: Bool = m.phonesShown ? !m.phonesEq.on : !m.eqTarget.on
+            return AnyView(EqTool(title: "BYPASS", enabled: true, active: off) { m.toggleEqBypass() })
         }
     }
 
     /// PRESETS: меню пресетов EQ под кнопкой (горит, пока открыто).
     private var presetsButton: some View {
-        EqTool(title: "PRESETS", enabled: true, active: model.eqPresetMenu != nil) {
+        EqTool(title: model.phonesShown ? "PHONE CURVE PRESETS" : "PRESETS", enabled: true, active: model.eqPresetMenu != nil) {
             model.eqPresetMenu = model.eqPresetMenu == nil ? EqPresetMenuState(anchor: presetsFrame, bottom: plotFrame.maxY) : nil
         }
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { presetsFrame = $0 }
     }
 
     // Значения полей в пунктах движения пальца и обратно.
-    static func typeIndex(_ b: EqBand?) -> Double {
+    static func typeIndex(_ b: EqBand?, _ order: [Int]) -> Double {
         let t: Int = b?.type ?? 0
-        let i: Int = EqSpec.typeOrder.firstIndex(of: t) ?? 0
+        let i: Int = order.firstIndex(of: t) ?? 0
         return -Double(i)
     }
 
-    static func typeAt(_ v: Double) -> Int {
-        let n: Int = EqSpec.typeOrder.count
+    static func typeAt(_ v: Double, _ order: [Int]) -> Int {
+        let n: Int = order.count
         let i: Int = -Int(v)
         let j: Int = ((i % n) + n) % n
-        return EqSpec.typeOrder[j]
+        return order[j]
     }
 
     static func freqUnits(_ b: EqBand?) -> Double {
@@ -337,8 +338,8 @@ struct EqBar: View {
     private func typeField(_ b: EqBand?) -> some View {
         let k: Int = model.eqBand
         return EqField(label: "TYPE", value: b.map { EqFormat.type($0) } ?? "—", enabled: b != nil, pxPerUnit: 30,
-                       get: { EqBar.typeIndex(model.selectedBand) },
-                       set: { v in model.setEqType(k, EqBar.typeAt(v)) },
+                       get: { EqBar.typeIndex(model.selectedBand, model.eqTypeOrder) },
+                       set: { v in model.setEqType(k, EqBar.typeAt(v, model.eqTypeOrder)) },
                        tap: { f in
                            model.eqMenu = EqMenuState(band: k, anchor: CGPoint(x: f.midX, y: f.maxY), bounds: plotFrame)
                        },
@@ -553,7 +554,7 @@ struct EqBandMenu: View {
         VStack(spacing: 4) {
             // Типы и крутизна — отдельными сетками: id пунктов в одной сетке не повторяются.
             LazyVGrid(columns: cols, spacing: 4) {
-                ForEach(EqSpec.typeOrder, id: \.self) { t in
+                ForEach(model.eqTypeOrder, id: \.self) { t in
                     MenuItem(title: EqSpec.types[t].uppercased(), current: type == t) { pick { model.setEqType(state.band, t) } }
                         .frame(height: 44)
                 }

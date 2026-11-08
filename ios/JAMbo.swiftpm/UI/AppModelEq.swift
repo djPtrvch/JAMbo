@@ -391,7 +391,20 @@ extension AppModel {
 
     /// BYPASS: выключение EQ канала.
     func toggleEqBypass() {
+        // Окно коррекции: BYPASS — вся монитор-цепочка (обе кривые, Translation, Crossfeed, Room, MONO, SUB),
+        // какую бы кривую ни правили.
+        if phonesShown {
+            var e: Eq = phonesEq
+            e.on.toggle()
+            setPhonesEq(e)
+            return
+        }
         eqEdit { $0.on.toggle() }
+    }
+
+    /// Порядок типов полос: в окне коррекции — без notch (резонансы убирают узкой bell с нужной глубиной).
+    var eqTypeOrder: [Int] {
+        return phonesShown ? EqSpec.typeOrder.filter { $0 != EqSpec.notch } : EqSpec.typeOrder
     }
 }
 
