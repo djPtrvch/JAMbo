@@ -18,10 +18,9 @@ struct CPUIndicator: View {
             Text("\(percent)%").font(.system(size: 9)).monospacedDigit()
         }
         .foregroundStyle(high ? theme.rec : theme.dim)
-        // Высотой с кнопки верхней панели; подписи — к низу (8.11: над ними — значок наушников вровень с верхом
-        // кнопок).
-        .frame(width: 48, height: Layout.topHeight - 1, alignment: .bottom)
-        .frame(height: Layout.topHeight, alignment: .top)
+        .frame(width: 48, height: 48)
+        // Чуть ниже середины (8.11: над подписями — значок наушников).
+        .offset(y: 5)
     }
 }
 

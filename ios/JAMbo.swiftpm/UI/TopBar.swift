@@ -77,8 +77,12 @@ struct TopBar: View {
             .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { model.arrangeButtonFrame = $0 }
             .topFrame(model, \.arrange)
                 .midiTarget(model, "ARRANGE")
-            CPUIndicator(meter: model.audio.core.cpu).frame(width: Layout.meterWidth)
-                .overlay(alignment: .top) { PhonesBadge(model: model) }
+            // Значок наушников — вровень с верхом кнопок панели (не выше).
+            ZStack(alignment: .top) {
+                CPUIndicator(meter: model.audio.core.cpu)
+                PhonesBadge(model: model)
+            }
+            .frame(width: Layout.meterWidth, height: Layout.topHeight, alignment: .top)
         }
     }
 }
