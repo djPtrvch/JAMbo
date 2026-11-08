@@ -1,6 +1,6 @@
 import Foundation
 
-// ANALOG с модуляцией B осциллятором A (AnalogMod, решение пользователя 8.11): SYNC — B жёстко синхронизирован с A
+// ANALOG (весь движок; S12 + модуляция B осциллятором A (AnalogMod, решение пользователя 8.11): SYNC — B жёстко синхронизирован с A
 // (высота B 0 → +24 полутона по AMOUNT, скачок сброса сглажен PolyBLEP), FM — A модулирует фазу B (индекс 0 → 1 период
 // по AMOUNT², PolyBLEP с мгновенным шагом фазы), RING — B плавно переходит в A·B. AMOUNT — ручка 1.3 (s3), расстройки
 // нет; MIX — A ↔ B, как без модуляции. Смена режима — кроссфейд прежнего и нового за 5 мс (mMix). A и свободный B —
@@ -35,23 +35,19 @@ import Foundation
 
 @_transparent private func mTriAt(_ ph: Double) -> Double { 1 - 4 * abs(ph < 0.75 ? ph - 0.25 : ph - 1.25) }
 
-/// Форма k с фазой a (треугольник — по фазе, без интеграла: фаза B под SYNC и FM прыгает), пила и квадрат — PolyBLEP.
-@_transparent private func mShape(_ sine: UnsafePointer<Double>, _ k: Int, _ a: Double, _ dt: Double) -> Double {
+/// Отсчёт формы k в редких местах (кроссфейды, ведомый SYNC, FM, скачки сброса) — вызовом, а не копией кода в каждом
+/// месте (объём сборки): how 0 — свободный осциллятор (треугольник — интеграл tri), 1 — без сглаживания,
+/// 2 — PolyBLEP по шагу dt (треугольник — по фазе).
+@inline(never) private func mWave(_ sine: UnsafePointer<Double>, _ k: Int, _ a: Double, _ dt: Double, _ tri: Double,
+                                  _ how: Int) -> Double {
     if k == 0 { return mSin(sine, a) }
-    if k == 1 { return mTriAt(a) }
+    if k == 1 { return how == 0 ? tri : mTriAt(a) }
+    if how == 1 { return k == 2 ? 1 - 2 * a : (a < 0.5 ? 1 : -1) }
     if k == 2 { return 1 - 2 * a + mBlep(a, dt) }
     return (a < 0.5 ? 1 : -1) + mBlep(a, dt) - mBlep(a < 0.5 ? a + 0.5 : a - 0.5, dt)
 }
 
-/// Форма k без сглаживания (скачок сброса SYNC).
-@_transparent private func mNaive(_ sine: UnsafePointer<Double>, _ k: Int, _ a: Double) -> Double {
-    if k == 0 { return mSin(sine, a) }
-    if k == 1 { return mTriAt(a) }
-    if k == 2 { return 1 - 2 * a }
-    return a < 0.5 ? 1 : -1
-}
-
-/// Форма свободного осциллятора (как jShapeAt: треугольник — интеграл tri).
+/// Форма свободного осциллятора (как jShapeAt: треугольник — интеграл tri) — горячий путь, встраивается.
 @_transparent private func mFree(_ sine: UnsafePointer<Double>, _ k: Int, _ a: Double, _ dt: Double,
                                  _ tri: Double) -> Double {
     if k == 0 { return mSin(sine, a) }
@@ -83,15 +79,18 @@ import Foundation
 @_transparent private func mFlush(_ x: Double) -> Double { (x > 1e-20 || x < -1e-20) ? x : 0 }
 
 extension JamboVoice {
-    /// Кусок ANALOG с модуляцией (или кроссфейд из неё / в неё): ×2 передискретизация и полуполосный фильтр.
-    @inline(__always) func analogMod(_ out: UnsafeMutablePointer<Float>, _ n: Int, _ ratio: Double) {
+    /// Кусок ANALOG (без модуляции — как прежде: DETUNE, MIX; с модуляцией и в кроссфейде режимов — SYNC, FM, RING):
+    /// ×2 передискретизация и полуполосный фильтр. Один путь на все режимы (объём сборки).
+    func analog(_ out: UnsafeMutablePointer<Float>, _ n: Int, _ ratio: Double) {
         let sr2: Double = sr * 2
         let sine = UnsafePointer(tables.sineD)
         let f0: Double = 440 * pow(2, (note - 69) / 12) * ratio
         let fB: Double = (aOct ? 0.5 : 1) * f0
         let amt: Double = Swift.min(1, Swift.max(0, s3))
-        let dt1: Double = Swift.min(0.45, f0 / sr2)
-        let dt2: Double = Swift.min(0.45, fB / sr2)
+        // DETUNE (1.3, без модуляции): A вверх, B вниз, в сумме 0…60 центов по кривой x².
+        let det: Double = mCur == 0 ? Jambo.analogDetune / 2 * s3 * s3 : 0
+        let dt1: Double = Swift.min(0.45, f0 * pow(2, det / 1200) / sr2)
+        let dt2: Double = Swift.min(0.45, fB * pow(2, -det / 1200) / sr2)
         // SYNC: B выше A на 0…24 полутона (AnalogMod.syncSt), FM: индекс по AMOUNT².
         let dt3: Double = Swift.min(0.45, fB * pow(2, amt * 2) / sr2)
         let fmIdx: Double = Jambo.analogFmIndex * amt * amt
@@ -130,18 +129,28 @@ extension JamboVoice {
                 let b1 = o1 < 0.75 ? o1 + 0.25 : o1 - 0.75, b2 = o2 < 0.75 ? o2 + 0.25 : o2 - 0.75
                 tr1 = tr1 * leak + 4 * dt1 * ((b1 < 0.5 ? 1 : -1) + mBlep(b1, dt1) - mBlep(b1 < 0.5 ? b1 + 0.5 : b1 - 0.5, dt1))
                 tr2 = tr2 * leak + 4 * dt2 * ((b2 < 0.5 ? 1 : -1) + mBlep(b2, dt2) - mBlep(b2 < 0.5 ? b2 + 0.5 : b2 - 0.5, dt2))
+                // Смена формы — кроссфейд 5 мс (доля растёт до смешивания, как прежде).
                 var xa: Double = gA * mFree(sine, ca, o1, dt1, tr1)
                 if mixA < 1 {
-                    let old: Double = gAp * mFree(sine, pa, o1, dt1, tr1)
+                    mixA = Swift.min(1, mixA + xfStep)
+                    let old: Double = gAp * mWave(sine, pa, o1, dt1, tr1, 0)
                     xa = old + (xa - old) * mixA
                 }
                 var xb: Double = gB * mFree(sine, cb, o2, dt2, tr2)
+                if mixB < 1 {
+                    mixB = Swift.min(1, mixB + xfStep)
+                    let old: Double = gBp * mWave(sine, pb, o2, dt2, tr2, 0)
+                    xb = old + (xb - old) * mixB
+                }
                 var vS = 0.0, vF = 0.0
                 // SYNC: ведомый B — форма без сглаживания; все его скачки (свои и сброс) — поправкой PolyBLEP ниже.
-                let kS: Double = mixB < 1 ? mixB : 1
+                let kS: Double = mixB
                 if needS {
-                    vS = gB * mNaive(sine, cb, s)
-                    if kS < 1 { vS = gBp * mNaive(sine, pb, s) + (vS - gBp * mNaive(sine, pb, s)) * kS }
+                    vS = gB * mWave(sine, cb, s, dt3, 0, 1)
+                    if kS < 1 {
+                        let old: Double = gBp * mWave(sine, pb, s, dt3, 0, 1)
+                        vS = old + (vS - old) * kS
+                    }
                 }
                 if needF {
                     var p: Double = o2 + fmIdx * xa
@@ -149,21 +158,15 @@ extension JamboVoice {
                     var d: Double = p - pf
                     if d > 0.5 { d -= 1 } else if d < -0.5 { d += 1 }
                     let dte: Double = Swift.min(0.45, Swift.max(1e-5, abs(d)))
-                    vF = gB * mShape(sine, cb, p, dte)
-                    if mixB < 1 {
-                        let old: Double = gBp * mShape(sine, pb, p, dte)
-                        vF = old + (vF - old) * mixB
+                    vF = gB * mWave(sine, cb, p, dte, 0, 2)
+                    if kS < 1 {
+                        let old: Double = gBp * mWave(sine, pb, p, dte, 0, 2)
+                        vF = old + (vF - old) * kS
                     }
                     pf = p
                 } else {
                     pf = o2
                 }
-                if mixB < 1 {
-                    let old: Double = gBp * mFree(sine, pb, o2, dt2, tr2)
-                    xb = old + (xb - old) * mixB
-                    mixB = Swift.min(1, mixB + xfStep)
-                }
-                if mixA < 1 { mixA = Swift.min(1, mixA + xfStep) }
                 let vR: Double = xb + (xa * xb - xb) * amt
                 var bOut: Double = cm == 0 ? xb : (cm == 1 ? vS : (cm == 2 ? vF : vR))
                 var wS: Double = cm == 1 ? 1 : 0
@@ -173,8 +176,11 @@ extension JamboVoice {
                     bOut = old + (bOut - old) * mx
                     wS = (cm == 1 ? mx : 0) + (pm == 1 ? 1 - mx : 0)
                 }
-                var y: Double = wa * xa + wb * bOut + after
-                after = 0
+                var y: Double = wa * xa + wb * bOut
+                if after != 0 {
+                    y += after
+                    after = 0
+                }
                 o1 += dt1
                 let wrap: Bool = o1 >= 1
                 if wrap { o1 -= 1 }
@@ -211,11 +217,13 @@ extension JamboVoice {
                         // Сброс в τ = tr: фаза ведомого в этот миг → 0, затем ещё (1 − tr)·dt3.
                         var at: Double = s + dt3 * tr
                         if at >= 1 { at -= 1 }
-                        var old: Double = gB * mNaive(sine, cb, at)
-                        var new: Double = gB * mNaive(sine, cb, 0)
+                        var old: Double = gB * mWave(sine, cb, at, 0, 0, 1)
+                        var new: Double = gB * mWave(sine, cb, 0, 0, 0, 1)
                         if kS < 1 {
-                            old = gBp * mNaive(sine, pb, at) + (old - gBp * mNaive(sine, pb, at)) * kS
-                            new = gBp * mNaive(sine, pb, 0) + (new - gBp * mNaive(sine, pb, 0)) * kS
+                            let po: Double = gBp * mWave(sine, pb, at, 0, 0, 1)
+                            let pn: Double = gBp * mWave(sine, pb, 0, 0, 0, 1)
+                            old = po + (old - po) * kS
+                            new = pn + (new - pn) * kS
                         }
                         let h: Double = (new - old) * g
                         corr += h / 2 * (1 - tr) * (1 - tr)

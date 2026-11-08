@@ -86,7 +86,7 @@ final class JamboVoice {
     let sr: Double
     private(set) var engine = Jambo.drum
     var note = 48.0
-    // Цели ручек и сглаженные значения (ANALOG с модуляцией — в JamboAnalogMod.swift).
+    // Цели ручек и сглаженные значения (ANALOG с модуляцией — в JamboAnalog.swift).
     var t1 = 0.5, t2 = 0.5, t3 = 0.5, t4 = 0.5, td = 500.0
     var s1 = 0.5, s2 = 0.5, s3 = 0.5, s4 = 0.5, sd = 500.0
     /// Ручка 3 в начале куска (KICK: DRIVE плавно по отсчётам — ступенька раз в кусок трещала при вращении).
@@ -246,11 +246,7 @@ final class JamboVoice {
         if e == Jambo.drum {
             drum(out, n)
         } else if e == Jambo.analog {
-            if mCur != 0 || mMix < 1 {
-                analogMod(out, n, driftRatio)
-            } else {
-                analog(out, n, driftRatio)
-            }
+            analog(out, n, driftRatio)
         } else if e == Jambo.fm {
             fm(out, n)
         } else if e == Jambo.wtable {
@@ -327,85 +323,7 @@ final class JamboVoice {
         t = tt
     }
 
-    // MARK: — ANALOG: осцилляторы A и B (PolyBLEP, своя форма у каждого), ×2 передискретизация и полуполосный фильтр.
-
-    @inline(__always) private func analog(_ out: UnsafeMutablePointer<Float>, _ n: Int, _ ratio: Double) {
-        let sr2 = sr * 2
-        let sine = UnsafePointer(tables.sineD)
-        let f0 = 440 * pow(2, (note - 69) / 12) * ratio
-        // DETUNE (1.3): A вверх, B вниз, в сумме 0…60 центов по кривой x².
-        let det = Jambo.analogDetune / 2 * s3 * s3
-        let dt1 = Swift.min(0.45, f0 * pow(2, det / 1200) / sr2)
-        let dt2 = Swift.min(0.45, (aOct ? 0.5 : 1) * f0 * pow(2, -det / 1200) / sr2)
-        // WAVE A и WAVE B — ступенчатые (пункт по ручке, без сглаживания); смена пункта — кроссфейд форм за 5 мс.
-        let ia = Jambo.waveIndex(t1)
-        if ia != wCur {
-            wPrev = wCur
-            wCur = ia
-            wMix = 0
-        }
-        let ib = Jambo.waveIndex(t2)
-        if ib != bCur {
-            bPrev = bCur
-            bCur = ib
-            bMix = 0
-        }
-        let ca = wCur, pa = wPrev, cb = bCur, pb = bPrev
-        let gA = Double(tables.shapeGain[ca]), gAp = Double(tables.shapeGain[pa])
-        let gB = Double(tables.shapeGain[cb]), gBp = Double(tables.shapeGain[pb])
-        let xfStep = 1 / (Jambo.analogWaveXf * sr2)
-        var mixA = wMix, mixB = bMix
-        // MIX (1.4): доли по постоянной мощности (cos/sin), нормированные на сумму — пик не растёт; 50 % — поровну.
-        let ang = s4 * Double.pi / 2
-        let ka = cos(ang), kb = sin(ang)
-        let wa = Jambo.analogOut * ka / (ka + kb), wb = Jambo.analogOut * kb / (ka + kb)
-        let leak = 1 - 20 / sr2
-        var o1 = a1, o2 = a2, tr1 = tri1, tr2 = tri2, hp = hbPos
-        let buf = hb, len = Jambo.hbLen
-        let hk = tables.hbHK, kC = tables.hbCK, mid = Jambo.hbLen / 2
-        var i = 0
-        while i < n {
-            var j = 0
-            while j < 2 {
-                // Треугольник — интеграл квадрата, сдвинутого на четверть периода (пик на φ = 0.25).
-                let b1 = o1 < 0.75 ? o1 + 0.25 : o1 - 0.75, b2 = o2 < 0.75 ? o2 + 0.25 : o2 - 0.75
-                tr1 = tr1 * leak + 4 * dt1 * ((b1 < 0.5 ? 1 : -1) + jBlep(b1, dt1) - jBlep(b1 < 0.5 ? b1 + 0.5 : b1 - 0.5, dt1))
-                tr2 = tr2 * leak + 4 * dt2 * ((b2 < 0.5 ? 1 : -1) + jBlep(b2, dt2) - jBlep(b2 < 0.5 ? b2 + 0.5 : b2 - 0.5, dt2))
-                var xa = gA * jShapeAt(sine, ca, o1, dt1, tr1)
-                if mixA < 1 {
-                    mixA = Swift.min(1, mixA + xfStep)
-                    let old = gAp * jShapeAt(sine, pa, o1, dt1, tr1)
-                    xa = old + (xa - old) * mixA
-                }
-                var xb = gB * jShapeAt(sine, cb, o2, dt2, tr2)
-                if mixB < 1 {
-                    mixB = Swift.min(1, mixB + xfStep)
-                    let old = gBp * jShapeAt(sine, pb, o2, dt2, tr2)
-                    xb = old + (xb - old) * mixB
-                }
-                let y = Double(Float(wa * xa + wb * xb))
-                buf[hp] = y
-                buf[hp + len] = y
-                hp = hp + 1 == len ? 0 : hp + 1
-                o1 += dt1
-                if o1 >= 1 { o1 -= 1 }
-                o2 += dt2
-                if o2 >= 1 { o2 -= 1 }
-                j += 1
-            }
-            let acc: Double = jHalf(buf + hp + mid, hk, kC)
-            out[i] = Float(acc)
-            i += 1
-        }
-        wMix = mixA
-        bMix = mixB
-        a1 = o1
-        a2 = o2
-        tri1 = jFlush(tr1)
-        tri2 = jFlush(tr2)
-        hbPos = hp
-        t += Double(n)
-    }
+    // MARK: — ANALOG — JamboAnalog.swift (analog: без модуляции и с ней).
 
     // MARK: — SUB: OSC1 (нота) и OSC2 (октавой ниже, FAT), одна форма; GRIT (tanh), ×2 и полуполосный фильтр.
 
