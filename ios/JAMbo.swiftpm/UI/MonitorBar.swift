@@ -105,14 +105,12 @@ struct TranslationMenu: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(room ? "ROOM" : "TRANSLATION").font(.system(size: 12, weight: .bold)).tracking(1.2)
                     .foregroundStyle(theme.text)
-                ForEach(names.indices, id: \.self) { i in
-                    let name: String = names[i]
-                    MenuItem(title: name.uppercased(), current: name == cur) {
+                MenuChoiceColumn(items: names.map { (name: String) -> MenuChoice in
+                    MenuChoice(title: name.uppercased(), current: name == cur) {
                         if room { m.setRoom(name) } else { m.setMonitor { $0.translation = name } }
                         m.translationMenu = nil
                     }
-                    .frame(height: 40)
-                }
+                })
             }
             .padding(8)
             .frame(width: TranslationMenu.width)

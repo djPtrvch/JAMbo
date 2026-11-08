@@ -252,21 +252,14 @@ struct MonitorSettingsRows: View {
             .note("If off, the A/B comparison is unfair: the mix is heard with the correction, the reference without (RAW on the A/B switch)."),
             .toggle("REF LOUDNESS MATCH", s.refMatch) { v in m.setMonitor { $0.refMatch = v } },
             .note("The reference is matched to the mix: short-term loudness of the mix against the integrated loudness of the reference."),
-            .label("REF TRIM"),
-            .view(AnyView(trim(s.refTrim))),
+            .label("REF TRIM " + (s.refTrim == 0 ? "0.0 dB" : String(format: "%+.1f dB", s.refTrim))),
+            .choices([
+                MenuChoice(title: "−0.5 dB", current: false) { m.setMonitor { $0.refTrim = Swift.max(-12, $0.refTrim - 0.5) } },
+                MenuChoice(title: "0", current: s.refTrim == 0) { m.setMonitor { $0.refTrim = 0 } },
+                MenuChoice(title: "+0.5 dB", current: false) { m.setMonitor { $0.refTrim = Swift.min(12, $0.refTrim + 0.5) } },
+            ]),
             .note("Room impulses are built with the FABIAN head-related transfer function data base (F. Brinkmann et al., TU Berlin), licensed under CC BY 4.0."),
         ])
-    }
-
-    private func trim(_ db: Double) -> some View {
-        let m: AppModel = model
-        let t: String = db == 0 ? "0.0 dB" : String(format: "%+.1f dB", db)
-        return HStack(spacing: 8) {
-            MenuItem(title: "−") { m.setMonitor { $0.refTrim = Swift.max(-12, $0.refTrim - 0.5) } }.frame(width: 64, height: 44)
-            Text(t).font(.system(size: 13, weight: .bold)).monospacedDigit().foregroundStyle(theme.text).frame(width: 80)
-            MenuItem(title: "+") { m.setMonitor { $0.refTrim = Swift.min(12, $0.refTrim + 0.5) } }.frame(width: 64, height: 44)
-            MenuItem(title: "0") { m.setMonitor { $0.refTrim = 0 } }.frame(width: 64, height: 44)
-        }
     }
 }
 
