@@ -1,9 +1,9 @@
 import SwiftUI
 
-/// Строка Headphone Monitor в окне коррекции наушников (под строкой EQ): TRANSLATION (меню профилей прослушивания),
-/// MONO, SUB (проверки), LEVEL, справа над значком колонок — ANGLE и AMOUNT (Crossfeed). Поля — как у EQ: палец вверх-вниз, двойной тап — значение
-/// по умолчанию. В строке EQ (на месте M/S, DYN, LISTEN) — PHONE CURVE и CORRECT CURVE (какую кривую править) и
-/// CORRECTION (сила коррекции профилем наушников).
+/// Строка Headphone Monitor под строкой EQ окна коррекции — проверки и эмуляция прослушивания: TRANSLATION, MONO,
+/// SUB, затем (справа, над значком колонок) ROOM, AMBIENCE, ANGLE и AMOUNT (Crossfeed; при комнате — серые, «ROOM»).
+/// Строка EQ — коррекция наушников: кривая (PHONE | CORRECT), CORRECTION, LEVEL, PRESETS, BYPASS. Поля — как у EQ:
+/// палец вверх-вниз, двойной тап — значение по умолчанию.
 struct MonitorBar: View {
     let model: AppModel
 
@@ -14,17 +14,9 @@ struct MonitorBar: View {
             MonitorBar.field(m, 0),
             AnyView(EqTool(title: "MONO", enabled: true, active: s.mono) { m.setMonitor { $0.mono.toggle() } }),
             AnyView(EqTool(title: "SUB", enabled: true, active: s.sub) { m.setMonitor { $0.sub.toggle() } }),
-            AnyView(MonitorLevel(model: m)),
-            // ANGLE и AMOUNT — справа, над значком колонок.
-            MonitorBar.field(m, 2), MonitorBar.field(m, 3),
+            MonitorBar.field(m, 4), MonitorBar.field(m, 5), MonitorBar.field(m, 2), MonitorBar.field(m, 3),
         ]
         return MonitorRow(name: "MONITOR", items: items, height: m.barH)
-    }
-
-    /// PHONE CURVE / CORRECT CURVE в строке EQ: выбранная горит.
-    static func curveButton(_ m: AppModel, _ correct: Bool) -> AnyView {
-        return AnyView(EqTool(title: correct ? "CORRECT CURVE" : "PHONE CURVE", enabled: true,
-                              active: m.monitor.editCorrect == correct) { m.setEditCorrect(correct) })
     }
 
     /// Поле монитора k (AppModel.monitorField): одни замыкания на все поля (объём сборки).
@@ -75,19 +67,32 @@ struct MonitorRow: View {
     }
 }
 
-/// Строка ROOM (фаза 2): комната (тап — меню, палец вниз — следующая), AMBIENCE (громкость хвоста, −∞…0 dB,
-/// 0,5 dB на 2 px, двойной тап — −6 dB) и пояснение: пока комната включена, Crossfeed заменён ею.
-struct MonitorRoomBar: View {
+/// Выбор кривой окна коррекции: подпись CURVE и два сегмента PHONE | CORRECT (выбранный горит); правится выбранная.
+struct CurveSwitch: View {
     let model: AppModel
     @Environment(\.theme) private var theme
 
     var body: some View {
+        let c: Bool = model.monitor.editCorrect
+        return VStack(alignment: .leading, spacing: 2) {
+            Text("CURVE").font(.system(size: 9)).tracking(0.8).foregroundStyle(theme.dim).padding(.leading, 12)
+            HStack(spacing: 4) {
+                segment("PHONE", !c, false)
+                segment("CORRECT", c, true)
+            }
+        }
+        .padding(.vertical, 4)
+        .padding(.horizontal, 4)
+        .modifier(Tile(theme.panel, alignment: .leading))
+    }
+
+    private func segment(_ t: String, _ on: Bool, _ correct: Bool) -> some View {
         let m: AppModel = model
-        let note: String = m.roomOn ? "Crossfeed is replaced by the room" : "Room off: crossfeed works"
-        let label = Text(note).font(.system(size: 12)).foregroundStyle(theme.dim).lineLimit(2)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading).padding(.horizontal, 12)
-        return MonitorRow(name: "ROOM", items: [MonitorBar.field(m, 4), MonitorBar.field(m, 5), AnyView(label)],
-                          height: m.barH)
+        return Text(t).font(.system(size: 12, weight: .bold)).tracking(0.6).lineLimit(1).minimumScaleFactor(0.6)
+            .foregroundStyle(on ? theme.onAccent : theme.text)
+            .modifier(Tile(on ? theme.accent : theme.panel2))
+            .contentShape(Rectangle())
+            .onTapGesture { m.setEditCorrect(correct) }
     }
 }
 

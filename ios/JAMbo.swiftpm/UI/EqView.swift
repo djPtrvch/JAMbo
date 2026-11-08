@@ -68,7 +68,6 @@ struct EqView: View {
                 .frame(height: model.barH)
             // Окно коррекции наушников: строки Headphone Monitor.
             if model.phonesShown { MonitorBar(model: model) }
-            if model.phonesShown { MonitorRoomBar(model: model) }
             EqPlot(model: model)
                 .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { plotFrame = $0 }
         }
@@ -272,10 +271,10 @@ struct EqBar: View {
         case 1: return AnyView(freqField(b))
         case 2: return AnyView(gainField(b))
         case 3: return AnyView(qField(b))
-        // У коррекции наушников вместо M/S, DYN и LISTEN — выбор кривой (PHONE CURVE / CORRECT CURVE) и CORRECTION.
-        case 4: return phones ? MonitorBar.curveButton(model, false) : AnyView(msField(b))
-        case 5: return phones ? MonitorBar.curveButton(model, true) : AnyView(dynField(b))
-        case 6: return phones ? MonitorBar.field(model, 1) : AnyView(EqListenButton(model: model, enabled: true))
+        // У коррекции наушников вместо M/S, DYN и LISTEN — блок коррекции: кривая (PHONE | CORRECT), CORRECTION, LEVEL.
+        case 4: return phones ? AnyView(CurveSwitch(model: model)) : AnyView(msField(b))
+        case 5: return phones ? MonitorBar.field(model, 1) : AnyView(dynField(b))
+        case 6: return phones ? AnyView(MonitorLevel(model: model)) : AnyView(EqListenButton(model: model, enabled: true))
         case 7: return AnyView(presetsButton)
         // У коррекции наушников BYPASS — вся монитор-цепочка (Headphone Monitor).
         default:

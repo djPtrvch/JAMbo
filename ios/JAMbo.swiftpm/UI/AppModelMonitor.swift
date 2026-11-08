@@ -187,8 +187,8 @@ extension AppModel {
         case 0: return MonitorFieldInfo(label: "TRANSLATION", value: translationPreset?.name ?? "Off", enabled: true, px: 30)
         case 1: return MonitorFieldInfo(label: "CORRECTION", value: String(format: "%.0f %%", s.strength * 100), enabled: true, px: 2)
         // Room включена — Crossfeed заменён комнатой (связь каналов — в её импульсах).
-        case 2: return MonitorFieldInfo(label: "ANGLE", value: String(format: "%.0f°", s.angle), enabled: !roomOn, px: 4)
-        case 3: return MonitorFieldInfo(label: "AMOUNT", value: String(format: "%.0f %%", s.amount * 100), enabled: !roomOn, px: 2)
+        case 2: return MonitorFieldInfo(label: "ANGLE", value: roomOn ? "ROOM" : String(format: "%.0f°", s.angle), enabled: !roomOn, px: 4)
+        case 3: return MonitorFieldInfo(label: "AMOUNT", value: roomOn ? "ROOM" : String(format: "%.0f %%", s.amount * 100), enabled: !roomOn, px: 2)
         case 4: return MonitorFieldInfo(label: "ROOM", value: roomOn ? s.room : "Off", enabled: true, px: 30)
         default:
             let t: String = s.ambienceDb <= MonitorSpec.ambienceMin ? "−∞ dB" : String(format: "%.1f dB", s.ambienceDb)
