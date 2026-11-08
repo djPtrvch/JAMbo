@@ -17,7 +17,7 @@ TRANSLATION (8.11): Studio (студия, мониторы ±30° на 1,5 м), 
   * прямая часть (для Ambience) — первые DIRECT_N = 128 отсчётов (2,7 мс): до отражения от пола (3,9 мс);
   * поздний хвост — декоррелированный шум по октавам с затуханием по RT60 (между ушами — когерентность диффузного
     поля), стык с ранней частью по плотности энергии;
-  * WAV 48 кГц, 24 бит, 4 канала: LL, LR, RL, RR (колонка → ухо: левая → левое, левая → правое, правая → левое,
+  * WAV 48 кГц, 16 бит, 4 канала: LL, LR, RL, RR (колонка → ухо: левая → левое, левая → правое, правая → левое,
     правая → правое), пик 0,99; множитель громкости — gain_db в rooms.json.
   * HEAD (отслеживание головы, 8.11): Room*Head.wav — прямая часть (первые DIRECT_N отсчётов, 4 пути) для поворотов
     головы −50…+50° через 2° (вправо +; 51 набор подряд), с той же эквализацией, сдвигом и громкостью, что и импульс
@@ -450,16 +450,15 @@ def third_octave(h, nfft):
     return centers, np.array(out)
 
 
-def write_wav24(path, data):
-    """WAV PCM 24 бит, каналы — строки data (4 × кадры)."""
+def write_wav(path, data):
+    """WAV PCM 16 бит, каналы — строки data (4 × кадры). 16 бит, а не 24 (8.11): шум квантования ≈ −96 dB от пика —
+    ниже хвоста комнаты, а ресурсы на треть меньше (сборка в Playgrounds чувствительна к их объёму)."""
     ch, n = data.shape
-    q = np.clip(np.round(data.T * 8388607), -8388608, 8388607).astype(np.int32)
-    raw = bytearray()
-    for v in q.reshape(-1):
-        raw += struct.pack("<i", int(v))[:3]
+    q = np.clip(np.round(data.T * 32767), -32768, 32767).astype("<i2")
+    raw = q.tobytes()
     with open(path, "wb") as f:
         f.write(b"RIFF" + struct.pack("<I", 36 + len(raw)) + b"WAVE")
-        f.write(b"fmt " + struct.pack("<IHHIIHH", 16, 1, ch, SR, SR * ch * 3, ch * 3, 24))
+        f.write(b"fmt " + struct.pack("<IHHIIHH", 16, 1, ch, SR, SR * ch * 2, ch * 2, 16))
         f.write(b"data" + struct.pack("<I", len(raw)) + bytes(raw))
 
 
@@ -470,7 +469,7 @@ def write_head(cfg, sets, ctf, dirs, info, gain_db, file, res):
     hpeak = float(np.max(np.abs(hs)))
     hscale = 0.99 / max(hpeak, 0.99)
     head_file = file.replace(".wav", "Head.wav")
-    write_wav24(os.path.join(res, head_file), np.concatenate(list(hs * hscale), axis=-1))
+    write_wav(os.path.join(res, head_file), np.concatenate(list(hs * hscale), axis=-1))
     return head_file, round(gain_db - 20 * np.log10(hscale), 3), cut
 
 
@@ -488,13 +487,15 @@ def main():
     meta = []
     for k, cfg in enumerate(ROOMS):
         h, gain_db, length, info = make_room(cfg, ir, ctf, dirs, SEED + cfg.get("seed", k))
-        write_wav24(os.path.join(res, cfg["file"]), h)
+        write_wav(os.path.join(res, cfg["file"]), h)
         head_file, head_gain, cut = write_head(cfg, sets, ctf, dirs, info, gain_db, cfg["file"], res)
         # RAW (8.11): та же комната с выровненным тембром прямого звука (front 1) — приложение смешивает их.
         flat_cfg = dict(cfg, front=1.0)
         hf, flat_gain, _, finfo = make_room(flat_cfg, ir, ctf, dirs, SEED + cfg.get("seed", k))
         flat_file = cfg["file"].replace(".wav", "Flat.wav")
-        write_wav24(os.path.join(res, flat_file), hf)
+        # Выровненный вариант отличается только ранней частью (выравнивание — до хвоста): пишется до конца окна ранних
+        # отражений, дальше приложение берёт импульс с окраской (переход — последние 10 мс окна).
+        write_wav(os.path.join(res, flat_file), hf[:, :int(SR * cfg["early_ms"] / 1000)])
         flat_head, flat_head_gain, _ = write_head(flat_cfg, sets, ctf, dirs, finfo, flat_gain, flat_file, res)
         lst, spks = places(cfg)
         meta.append(dict(name=cfg["name"], file=cfg["file"], rt60=cfg["rt60"], size=cfg["size"],

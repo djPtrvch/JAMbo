@@ -39,15 +39,25 @@ final class MonitorProfileTests: XCTestCase {
             let ir: RoomIR = RoomTests.ir(k)
             let d = try! Data(contentsOf: RoomTests.res.appendingPathComponent(r.flatFile))
             let flat = RoomIR(name: r.name, wav: d, gainDb: r.flatGainDb, direct: r.direct)!
-            XCTAssertEqual(flat.frames, ir.frames)
+            XCTAssertLessThan(flat.frames, ir.frames)
             XCTAssertTrue(ir.mixed(flat: flat, raw: 1) === ir)
             let z: RoomIR = ir.mixed(flat: flat, raw: 0)
             let half: RoomIR = ir.mixed(flat: flat, raw: 0.5)
-            var e0: Float = 0, eh: Float = 0
-            for i in stride(from: 0, to: ir.h.count, by: 7) {
-                e0 = max(e0, abs(z.h[i] - flat.h[i]))
-                eh = max(eh, abs(half.h[i] - 0.5 * (ir.h[i] + flat.h[i])))
+            let n: Int = flat.frames
+            var e0: Float = 0, eh: Float = 0, tail: Float = 0
+            for path in 0..<4 {
+                for i in stride(from: 0, to: n - 480, by: 3) {
+                    let k: Int = path * ir.frames + i
+                    let fl: Float = flat.h[path * n + i]
+                    e0 = max(e0, abs(z.h[k] - fl))
+                    eh = max(eh, abs(half.h[k] - 0.5 * (ir.h[k] + fl)))
+                }
+                for i in stride(from: n, to: ir.frames, by: 5) {
+                    let k: Int = path * ir.frames + i
+                    tail = max(tail, abs(z.h[k] - ir.h[k]))
+                }
             }
+            XCTAssertEqual(tail, 0)
             XCTAssertLessThan(e0, 1e-6)
             XCTAssertLessThan(eh, 1e-6)
         }

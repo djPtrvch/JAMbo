@@ -86,13 +86,24 @@ public final class RoomIR: @unchecked Sendable {
         self.init(name: name, paths: p, frames: n, direct: Swift.max(0, direct))
     }
 
-    /// RAW: flat + raw · (self − flat) — смесь импульсов той же комнаты (self — с окраской уха, flat — выровненный);
-    /// разной длины — self как есть.
+    /// EAR TONE (в коде raw): flat + raw · (self − flat) — смесь импульсов той же комнаты (self — с окраской уха,
+    /// flat — выровненный). flat короче (только ранняя часть, 8.11 — объём ресурсов): дальше — self, за последние
+    /// 10 мс flat смесь плавно переходит в self.
     public func mixed(flat: RoomIR?, raw: Double) -> RoomIR {
-        guard let f = flat, f.frames == frames, raw < 0.9995 else { return self }
+        guard let f = flat, f.frames <= frames, f.frames > 0, raw < 0.9995 else { return self }
         let t: Float = Float(Swift.max(0, raw))
-        var p = [Float](repeating: 0, count: h.count)
-        for i in 0..<h.count { p[i] = f.h[i] + (h[i] - f.h[i]) * t }
+        let n: Int = f.frames
+        let fade: Int = Swift.min(n, 480)
+        var p: [Float] = h
+        for path in 0..<4 {
+            for i in 0..<n {
+                var w: Float = t
+                if i >= n - fade { w = t + (1 - t) * Float(i - (n - fade) + 1) / Float(fade) }
+                let k: Int = path * frames + i
+                let fl: Float = f.h[path * n + i]
+                p[k] = fl + (h[k] - fl) * w
+            }
+        }
         return RoomIR(name: name, paths: p, frames: frames, direct: direct)
     }
 
