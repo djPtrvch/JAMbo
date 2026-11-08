@@ -75,16 +75,20 @@ public struct SynthPreset: Codable, Equatable, Sendable {
 /// прежние файлы Swift-версии (S2–S11a) — строкой (ключ сэмпла или «mi:<n>»).
 public struct FolderItem: Codable, Equatable, Sendable, ExpressibleByStringLiteral {
     public var sample: String?
-    public var preset: SynthPreset?
+    /// Пресет «в коробке» (9.11, объём сборки): копия и сравнение папки не тянут пресет по значению.
+    var presetBox: [SynthPreset] = []
+    public var preset: SynthPreset? {
+        get { return presetBox.first }
+        set { presetBox = newValue.map { [$0] } ?? [] }
+    }
 
     public init(sample: String) {
         self.sample = sample
-        preset = nil
     }
 
     public init(preset: SynthPreset) {
         sample = nil
-        self.preset = preset
+        presetBox = [preset]
     }
 
     public init(stringLiteral value: String) {
