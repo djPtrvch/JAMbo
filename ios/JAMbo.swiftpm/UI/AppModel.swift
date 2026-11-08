@@ -257,6 +257,10 @@ final class AppModel {
     @ObservationIgnored let rooms: [RoomInfo] = AppModel.loadRooms()
     @ObservationIgnored var roomLoaded: (name: String, resp: RoomResponse)? = nil
     @ObservationIgnored var monitorMenuRoom: Bool = false
+    /// UNDO окна коррекции (AppModelMonitor): записи и жест (0 — нет, 1 — идёт, 2 — запись сделана).
+    var monitorUndo: [MonitorSnap] = []
+    var monitorRedo: [MonitorSnap] = []
+    @ObservationIgnored var monitorGesture: Int = 0
     /// EXPORT: готовый временный файл профиля (окно сохранения в «Файлы»).
     @ObservationIgnored var _phonesExported: URL? = nil
     @ObservationIgnored var _gridTop: Int = 0
@@ -696,20 +700,24 @@ final class AppModel {
 
     /// Непрерывный жест (поворот ручки, протягивание, BPM): одна запись на весь жест.
     func beginGesture() {
+        if phonesShown { monitorGesture = 1 }
         history.beginGesture(project)
     }
 
     func endGesture() {
+        monitorGesture = 0
         history.endGesture(project)
         refreshHistory()
     }
 
     func undo() {
+        if phonesShown { return monitorUndoStep() }
         guard let prev = history.undo(project) else { return }
         restore(prev)
     }
 
     func redo() {
+        if phonesShown { return monitorRedoStep() }
         guard let next = history.redo(project) else { return }
         restore(next)
     }

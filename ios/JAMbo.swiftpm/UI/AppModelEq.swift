@@ -128,15 +128,7 @@ extension AppModel {
     /// Двойной тап по пустому месту: новая bell-полоса, она же выбрана.
     func addEqBand(freq: Double, gain: Double) {
         var k = -1
-        // CORRECT CURVE — полос сколько угодно: мест нет — новое место.
-        let grow: Bool = phonesShown && monitor.editCorrect
-        eqEdit { e in
-            k = e.addBand(freq: freq, gain: gain)
-            if k < 0 && grow {
-                e.bands.append(nil)
-                k = e.addBand(freq: freq, gain: gain)
-            }
-        }
+        eqEdit { k = $0.addBand(freq: freq, gain: gain) }
         if k >= 0 { eqBand = k }
     }
 
@@ -379,6 +371,7 @@ extension AppModel {
 
     /// Новая коррекция: сохранить и отдать звуку.
     func setPhonesEq(_ e: Eq) {
+        monitorRecord()
         phonesEq = e
         UserDefaults.standard.set(try? JSONEncoder().encode(e), forKey: AppModel.phonesEqKey)
         publishMonitor()

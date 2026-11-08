@@ -1,9 +1,9 @@
 import SwiftUI
 
 /// Строка Headphone Monitor в окне коррекции наушников (под строкой EQ): TRANSLATION (меню профилей прослушивания),
-/// CORRECTION (сила коррекции профилем наушников), ANGLE и AMOUNT (Crossfeed), MONO, SUB (проверки). Поля — как у EQ:
-/// палец вверх-вниз, двойной тап — значение по умолчанию. В строке EQ (на месте M/S, DYN, LISTEN) — PHONE CURVE и
-/// CORRECT CURVE (какую кривую править) и LEVEL.
+/// ANGLE и AMOUNT (Crossfeed), MONO, SUB (проверки), LEVEL. Поля — как у EQ: палец вверх-вниз, двойной тап — значение
+/// по умолчанию. В строке EQ (на месте M/S, DYN, LISTEN) — PHONE CURVE и CORRECT CURVE (какую кривую править) и
+/// CORRECTION (сила коррекции профилем наушников).
 struct MonitorBar: View {
     let model: AppModel
 
@@ -11,9 +11,10 @@ struct MonitorBar: View {
         let m: AppModel = model
         let s: MonitorSettings = m.monitor
         let items: [AnyView] = [
-            MonitorBar.field(m, 0), MonitorBar.field(m, 1), MonitorBar.field(m, 2), MonitorBar.field(m, 3),
+            MonitorBar.field(m, 0), MonitorBar.field(m, 2), MonitorBar.field(m, 3),
             AnyView(EqTool(title: "MONO", enabled: true, active: s.mono) { m.setMonitor { $0.mono.toggle() } }),
             AnyView(EqTool(title: "SUB", enabled: true, active: s.sub) { m.setMonitor { $0.sub.toggle() } }),
+            AnyView(MonitorLevel(model: m)),
         ]
         return MonitorRow(name: "MONITOR", items: items, height: m.barH)
     }

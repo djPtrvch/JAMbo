@@ -25,15 +25,17 @@ extension AppModel {
         return UserDefaults.standard.dictionary(forKey: AppModel.correctCurvesKey) as? [String: Data] ?? [:]
     }
 
-    /// CORRECT CURVE текущего профиля (полос сколько угодно).
+    /// CORRECT CURVE текущего профиля (10 полос, как у PHONE CURVE).
     var correctEq: Eq {
         var e = Eq()
         guard let d = correctCurves[phonesName], let b = try? JSONDecoder().decode([EqBand?].self, from: d) else { return e }
-        e.bands = b + [EqBand?](repeating: nil, count: Swift.max(0, EqSpec.bands - b.count))
+        let top: [EqBand?] = Array(b.prefix(EqSpec.bands))
+        e.bands = top + [EqBand?](repeating: nil, count: EqSpec.bands - top.count)
         return e
     }
 
     func setCorrectEq(_ e: Eq) {
+        monitorRecord()
         var b: [EqBand?] = e.bands
         while let last = b.last, last == nil, b.count > EqSpec.bands { b.removeLast() }
         correctCurves[phonesName] = try? JSONEncoder().encode(b)
@@ -46,7 +48,7 @@ extension AppModel {
         if monitor.editCorrect == on { return }
         eqBand = -1
         stopEqListen()
-        setMonitor { $0.editCorrect = on }
+        setMonitor(record: false) { $0.editCorrect = on }
     }
 
     /// Пресет Translation: выбранный, иначе первый (Studio — по умолчанию).
@@ -125,7 +127,9 @@ extension AppModel {
         core.ref.throughMonitor.store(monitor.refMonitor ? 1 : 0)
     }
 
-    func setMonitor(_ change: (inout MonitorSettings) -> Void) {
+    /// record false — не правка (выбор кривой): без UNDO.
+    func setMonitor(record: Bool = true, _ change: (inout MonitorSettings) -> Void) {
+        if record { monitorRecord() }
         var m: MonitorSettings = monitor
         change(&m)
         monitor = m
@@ -250,3 +254,61 @@ struct MonitorFieldInfo {
     let enabled: Bool
     let px: CGFloat
 }
+
+/// Снимок окна коррекции наушников для его UNDO: кривые, настройки монитора, имя профиля.
+struct MonitorSnap {
+    let phones: Eq
+    let curves: [String: Data]
+    let settings: [String: Any]
+    let name: String
+}
+
+// UNDO / REDO окна коррекции (решение пользователя): своя история — коррекция не часть проекта; пока окно открыто,
+// кнопки UNDO и REDO верхней панели работают с ней. Жест (палец на поле или точке) — одна запись.
+extension AppModel {
+    static let monitorUndoMax = 100
+
+    var undoEnabled: Bool { return phonesShown ? !monitorUndo.isEmpty : canUndo }
+    var redoEnabled: Bool { return phonesShown ? !monitorRedo.isEmpty : canRedo }
+
+    func monitorSnap() -> MonitorSnap {
+        return MonitorSnap(phones: phonesEq, curves: correctCurves, settings: monitor.plist, name: phonesName)
+    }
+
+    /// Запись перед правкой (в жесте — только первая).
+    func monitorRecord() {
+        if monitorGesture == 2 { return }
+        if monitorGesture == 1 { monitorGesture = 2 }
+        monitorUndo.append(monitorSnap())
+        if monitorUndo.count > AppModel.monitorUndoMax { monitorUndo.removeFirst() }
+        if !monitorRedo.isEmpty { monitorRedo.removeAll() }
+    }
+
+    func monitorUndoStep() {
+        guard let s = monitorUndo.popLast() else { return }
+        monitorRedo.append(monitorSnap())
+        monitorRestore(s)
+    }
+
+    func monitorRedoStep() {
+        guard let s = monitorRedo.popLast() else { return }
+        monitorUndo.append(monitorSnap())
+        monitorRestore(s)
+    }
+
+    private func monitorRestore(_ s: MonitorSnap) {
+        let ud = UserDefaults.standard
+        phonesEq = s.phones
+        ud.set(try? JSONEncoder().encode(s.phones), forKey: AppModel.phonesEqKey)
+        correctCurves = s.curves
+        ud.set(s.curves, forKey: AppModel.correctCurvesKey)
+        monitor = MonitorSettings(plist: s.settings)
+        ud.set(monitor.plist, forKey: AppModel.monitorKey)
+        phonesName = s.name
+        ud.set(s.name, forKey: AppModel.phonesNameKey)
+        eqBand = -1
+        publishMonitor()
+        syncRoom()
+    }
+}
+

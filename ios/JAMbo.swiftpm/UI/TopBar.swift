@@ -32,14 +32,14 @@ struct TopBar: View {
                 .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { model.sampleRec.scaleFrame = $0 }
                 .topFrame(model, \.scale)
             RootField(model: model).topFrame(model, \.root)
-            HistoryButton(symbol: "arrow.turn.up.left", enabled: model.canUndo || model.morphHeld) { model.undoTapped() }
+            HistoryButton(symbol: "arrow.turn.up.left", enabled: model.undoEnabled || model.morphHeld) { model.undoTapped() }
                 .frame(width: Layout.topButton)
                 .topFrame(model, \.undo)
                 .midiTarget(model, "UNDO")
             PlayButton(model: model).frame(width: half).topFrame(model, \.play)
                 .midiTarget(model, "PLAY")
             RecButton(model: model).frame(width: half).topFrame(model, \.rec).midiTarget(model, "REC")
-            HistoryButton(symbol: "arrow.turn.up.right", enabled: model.canRedo) { model.redo() }
+            HistoryButton(symbol: "arrow.turn.up.right", enabled: model.redoEnabled) { model.redo() }
                 .frame(width: Layout.topButton)
                 .topFrame(model, \.redo)
                 .midiTarget(model, "REDO")

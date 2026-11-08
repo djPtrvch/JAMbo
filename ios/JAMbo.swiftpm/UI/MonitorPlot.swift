@@ -80,7 +80,7 @@ struct MonitorCurves: View {
 }
 
 /// Миниатюра Crossfeed: голова и две колонки под углом ANGLE (каждая — на ±ANGLE от центра); линии к дальнему уху —
-/// AMOUNT (не видны — Crossfeed выключен); угол — подпись в правом нижнем углу.
+/// AMOUNT (не видны — Crossfeed выключен); угол — подпись справа от головы.
 struct MonitorSpeakers: View {
     let angle: Double
     let amount: Double
@@ -105,9 +105,9 @@ struct MonitorSpeakers: View {
                 box.rotate(by: .radians(a))
                 box.fill(Path(roundedRect: CGRect(x: -6, y: -8, width: 12, height: 16), cornerRadius: 2), with: .color(theme.text))
             }
-            // Угол — в правом нижнем углу (не на голове и не на колонках).
+            // Угол — справа от головы, на её уровне.
             let t: Text = Text(String(format: "%.0f°", angle)).font(.system(size: 10, weight: .semibold)).foregroundColor(theme.dim)
-            ctx.draw(t, at: CGPoint(x: size.width - 2, y: size.height - 2), anchor: .bottomTrailing)
+            ctx.draw(t, at: CGPoint(x: head.x + 12, y: head.y), anchor: .leading)
         }
         .frame(width: 110, height: 84)
         .allowsHitTesting(false)
