@@ -38,6 +38,7 @@ final class HTTracker: NSObject, ARSessionDelegate {
     private var offset: Double = 0
     private var sign: Double = 1
     private var swapAxes = false
+    private var gravity = true
     private var frames: Int = 0
     private var rateStart: Double = 0
     private var latSum: Double = 0
@@ -57,6 +58,7 @@ final class HTTracker: NSObject, ARSessionDelegate {
         let c = ARFaceTrackingConfiguration()
         c.isLightEstimationEnabled = false
         c.maximumNumberOfTrackedFaces = 1
+        c.worldAlignment = .gravity
         session.delegate = self
         session.delegateQueue = queue
         session.run(c, options: [.resetTracking, .removeExistingAnchors])
@@ -81,6 +83,13 @@ final class HTTracker: NSObject, ARSessionDelegate {
     func setSwap(_ b: Bool) {
         lock.lock()
         swapAxes = b
+        lock.unlock()
+    }
+
+    // TILT FIX: поворот считается вокруг вертикали (по гравитации), а не вокруг оси наклонённого iPad.
+    func setGravity(_ b: Bool) {
+        lock.lock()
+        gravity = b
         lock.unlock()
     }
 
@@ -130,15 +139,33 @@ final class HTTracker: NSObject, ARSessionDelegate {
         }
         wasTracked = true
         m.status = "Tracking"
-        // Голова в осях камеры; ось z лица смотрит из лица вперёд (к камере, если смотреть на iPad).
-        let rel: simd_float4x4 = simd_mul(simd_inverse(frame.camera.transform), f.transform)
-        let z: simd_float4 = rel.columns.2
-        let h: Double = swapAxes ? Double(z.y) : Double(z.x)
-        let v: Double = swapAxes ? Double(z.x) : Double(z.y)
-        let yaw: Double = atan2(h, Double(z.z))
-        let pitch: Double = atan2(-v, Double(z.z))
+        var yaw: Double = 0
+        var pitch: Double = 0
+        if gravity {
+            // Мир ARKit: y — вверх по гравитации. Поворот головы — угол оси ушей (x лица) в горизонтальной плоскости
+            // минус такой же угол оси x камеры (в альбомной ориентации она горизонтальна при любом наклоне iPad).
+            // Не зависит ни от наклона iPad, ни от того, куда наклонена голова (вниз на экран).
+            let fx: simd_float4 = f.transform.columns.0
+            let cx: simd_float4 = frame.camera.transform.columns.0
+            let fz: simd_float4 = f.transform.columns.2
+            let headAng: Double = atan2(Double(-fx.z), Double(fx.x))
+            let padAng: Double = atan2(Double(-cx.z), Double(cx.x))
+            yaw = -(headAng - padAng)
+            pitch = asin(Double(max(-1, min(1, fz.y))))
+        } else {
+            // Прежний расчёт: голова в осях камеры; ось z лица смотрит из лица вперёд (к камере).
+            let rel: simd_float4x4 = simd_mul(simd_inverse(frame.camera.transform), f.transform)
+            let z: simd_float4 = rel.columns.2
+            let h: Double = swapAxes ? Double(z.y) : Double(z.x)
+            let v: Double = swapAxes ? Double(z.x) : Double(z.y)
+            yaw = atan2(h, Double(z.z))
+            pitch = atan2(-v, Double(z.z))
+        }
         rawYaw = yaw
-        let y: Double = sign * (yaw - offset)
+        var d: Double = yaw - offset
+        if d > Double.pi { d -= 2 * Double.pi }
+        if d < -Double.pi { d += 2 * Double.pi }
+        let y: Double = sign * d
         m.yawDeg = y * 180 / Double.pi
         m.pitchDeg = pitch * 180 / Double.pi
         if m.yawDeg < m.minYaw { m.minYaw = m.yawDeg }

@@ -22,6 +22,7 @@ final class HTModel: ObservableObject {
     @Published var tracking = true
     @Published var invert = false
     @Published var swapAxes = false
+    @Published var tiltFix = true
     @Published var source = 0
     @Published var outMs: Double = 0
     @Published var bufMs: Double = 0
@@ -51,10 +52,11 @@ final class HTModel: ObservableObject {
         applySign()
     }
 
-    // Знак поворота: в landscapeRight оси камеры развёрнуты на 180° относительно landscapeLeft; INVERT — ручная правка.
+    // Знак поворота: без TILT FIX в landscapeRight оси камеры развёрнуты на 180° относительно landscapeLeft
+    // (с TILT FIX ориентация не важна — разворот на 180° снимает CENTER); INVERT — ручная правка.
     func applySign() {
         var s: Double = 1
-        if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+        if !tiltFix, let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
             if scene.interfaceOrientation == .landscapeRight { s = -1 }
         }
         if invert { s = -s }
@@ -74,6 +76,12 @@ final class HTModel: ObservableObject {
     func toggleSwap() {
         swapAxes.toggle()
         tracker.setSwap(swapAxes)
+    }
+
+    func toggleTiltFix() {
+        tiltFix.toggle()
+        tracker.setGravity(tiltFix)
+        applySign()
     }
 
     func setSource(_ i: Int) {
@@ -165,6 +173,7 @@ struct HTButtons: View {
                 HTButton(title: model.tracking ? "TRACKING ON" : "TRACKING OFF", on: model.tracking) { model.toggleTracking() }
                 HTButton(title: "CENTER", on: false) { model.center() }
                 HTButton(title: "INVERT", on: model.invert) { model.toggleInvert() }
+                HTButton(title: "TILT FIX", on: model.tiltFix) { model.toggleTiltFix() }
                 HTButton(title: "SWAP AXES", on: model.swapAxes) { model.toggleSwap() }
             }
             HStack(spacing: 12) {
