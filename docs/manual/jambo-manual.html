@@ -1,0 +1,1165 @@
+<title>JAMbo Manual</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: contents rail + one reading column. Type and colours are the app's own: system font (SF on iPad),
+   theme tokens from Theme.swift (dark and light), headings in the app's menu style (bold, uppercase, tracked). */
+:root {
+  --bg: #e6e5e1; --panel: #f7f6f3; --panel2: #ffffff; --trackBg: #ffffff; --flash: #d6d5d0; --root: #e9e8e3;
+  --line: #cfceca; --text: #161616; --dim: #77766f; --off: #c4c3be; --accent: #f0b800; --onAccent: #161616;
+  --accentText: #8a6a00; --rec: #e01418; --gr: #f08a24; --meterTrack: #cfcfcf; --gridStrong: rgba(0,0,0,.2);
+  --muteGrey: #a3a29d; --ink: #161616;
+  --sys: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, "Helvetica Neue", Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #111111; --panel: #1c1c1c; --panel2: #272727; --trackBg: #2e2e2e; --flash: #4a4a4a; --root: #303030;
+  --line: #333333; --text: #ececec; --dim: #8a8a8a; --off: #3d3d3d; --accent: #ffc81e; --onAccent: #111111;
+  --accentText: #ffc81e; --rec: #ff2b2b; --gr: #ff8a3d; --meterTrack: #3a3a3a; --gridStrong: rgba(255,255,255,.18);
+  --muteGrey: #6b6b6b; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #111111; --panel: #1c1c1c; --panel2: #272727; --trackBg: #2e2e2e; --flash: #4a4a4a; --root: #303030;
+  --line: #333333; --text: #ececec; --dim: #8a8a8a; --off: #3d3d3d; --accent: #ffc81e; --onAccent: #111111;
+  --accentText: #ffc81e; --rec: #ff2b2b; --gr: #ff8a3d; --meterTrack: #3a3a3a; --gridStrong: rgba(255,255,255,.18);
+  --muteGrey: #6b6b6b; color-scheme: dark }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--text); font: 15px/1.55 var(--sys); font-variant-numeric: tabular-nums;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+a { color: var(--text); text-decoration-color: var(--accent); text-underline-offset: 3px; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-block: 28px 80px; display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 40px; }
+@media (max-width: 900px) { .wrap { grid-template-columns: minmax(0, 1fr); gap: 20px; } }
+
+/* contents — like the app's burger menu */
+nav.toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 20px); align-self: start; max-height: calc(100vh - 40px); overflow-y: auto;
+  background: var(--panel); border-radius: 10px; padding: 14px 10px 14px 14px; }
+@media (max-width: 900px) { nav.toc { position: static; max-height: none; } }
+.toc .brand { font: 700 15px/1 var(--sys); text-transform: uppercase; margin: 2px 0 4px; }
+.toc .sub { font-size: 12px; color: var(--dim); margin-bottom: 12px; }
+.menu-head { font: 700 12px/1.2 var(--sys); letter-spacing: 0.1em; text-transform: uppercase; color: var(--text); }
+.toc ol { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 2px; }
+.toc li { display: grid; grid-template-columns: 24px 1fr; padding: 6px 6px; border-radius: 6px; font: 700 13px/1.25 var(--sys); }
+.toc li .n { color: var(--dim); font-weight: 600; }
+.toc li a { text-decoration: none; }
+.toc li.ready a:hover, .toc li.ready a:focus-visible { color: var(--accentText); outline: none; }
+.toc li.soon { color: var(--off); }
+.toc li.soon .n { color: var(--off); }
+.toc .note { margin-top: 12px; font-size: 12px; color: var(--dim); }
+
+main { min-width: 0; }
+.cover { padding-bottom: 24px; margin-bottom: 36px; border-bottom: 1px solid var(--line); }
+.cover .eyebrow { font-size: 9px; color: var(--dim); letter-spacing: 0.08em; text-transform: uppercase; }
+.cover h1 { font: 800 clamp(30px, 5vw, 46px)/1.05 var(--sys); text-transform: uppercase; letter-spacing: 0.02em; margin: 8px 0 10px; text-wrap: balance; }
+.cover h1 span { color: var(--accentText); }
+.cover p { margin: 0; max-width: 64ch; color: var(--dim); font-size: 13px; }
+.chip { display: inline-block; margin-top: 14px; font: 700 12px/1 var(--sys); letter-spacing: 0.1em; text-transform: uppercase; padding: 9px 12px; border-radius: 10px; background: var(--panel); }
+.chip b { color: var(--accentText); }
+
+section.chapter { margin-bottom: 64px; }
+.chapter > header { display: flex; align-items: baseline; gap: 14px; margin-bottom: 6px; }
+.chapter .num { font: 800 34px/1 var(--sys); color: var(--accent); }
+.chapter h2 { font: 700 22px/1.2 var(--sys); text-transform: uppercase; letter-spacing: 0.04em; margin: 0; }
+.chapter .lede { color: var(--dim); font-size: 13px; margin: 0 0 8px; }
+h3 { font: 700 14px/1.25 var(--sys); letter-spacing: 0.1em; text-transform: uppercase; margin: 34px 0 10px; display: flex; gap: 10px; }
+h3 .sn { color: var(--dim); }
+p, ul { max-width: 68ch; }
+ul { padding-left: 20px; }
+li + li { margin-top: 4px; }
+.k { font: 600 12px/1 var(--sys); letter-spacing: 1px; padding: 3px 6px 4px; border-radius: 5px; background: var(--panel2); white-space: nowrap; }
+.k.y { color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.k.r { color: var(--rec); box-shadow: inset 0 0 0 1px var(--rec); }
+.note { max-width: 68ch; background: var(--panel); border-radius: 10px; padding: 12px 14px; font-size: 13px; }
+.note b { font-weight: 700; }
+.dim { color: var(--dim); font-size: 12px; }
+
+/* tables */
+.tbl { overflow-x: auto; margin: 14px 0 22px; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; vertical-align: top; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+th { font: 400 9px/1.2 var(--sys); letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); }
+td:first-child { white-space: nowrap; font-weight: 700; }
+
+/* legend */
+.legend-list { list-style: none; padding: 0; display: grid; gap: 10px; max-width: 72ch; }
+.legend-list li { display: grid; grid-template-columns: 28px 1fr; gap: 10px; margin: 0; }
+.badge { width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: var(--onAccent); font: 700 12px/22px var(--sys); text-align: center; }
+
+/* app screen renderer */
+figure { margin: 18px 0 24px; }
+.shot { position: relative; width: 100%; overflow: hidden; border-radius: 14px; background: var(--bg); }
+.shot .scr { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.scr { font-family: var(--sys); color: var(--text); background: var(--bg); overflow: hidden; }
+.scr * { position: absolute; }
+.scr .lbl { white-space: pre; text-align: center; line-height: 1.15; }
+.scr svg { overflow: visible; }
+.callout { position: absolute; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: var(--onAccent);
+  font: 800 14px/26px var(--sys); text-align: center; box-shadow: 0 0 0 3px var(--bg); transform: translate(-50%, -50%); z-index: 2; }
+.split { display: grid; grid-template-columns: var(--fw, 240px) minmax(0, 1fr); gap: 28px; align-items: start; margin: 14px 0 22px; }
+.split > figure { margin: 0; }
+.split ul { margin-top: 0; }
+@media (max-width: 640px) { .split { grid-template-columns: minmax(0, 1fr); } .split > figure { max-width: var(--fw, 240px); } }
+figcaption { font-size: 12px; color: var(--dim); margin-top: 8px; max-width: 72ch; }
+
+.modes { display: flex; flex-wrap: wrap; gap: 6px; margin: 16px 0 10px; }
+.modes button { font: 600 13px/1 var(--sys); letter-spacing: 1px; padding: 0 16px; height: 44px; border-radius: 10px; border: 0; background: var(--panel2); color: var(--text); cursor: pointer; }
+.modes button[aria-pressed="true"] { background: var(--text); color: var(--bg); }
+.modes button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mode-desc { font-size: 14px; max-width: 72ch; margin: 10px 0 0; }
+
+.fn-ref { font-size: 0.7em; line-height: 0; vertical-align: super; margin-left: 1px; }
+.fn-ref a { text-decoration: none; color: var(--accentText); font-weight: 700; }
+.notes { max-width: 68ch; margin-top: 28px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 13px; color: var(--dim); }
+.notes ol { padding-left: 0; list-style: none; margin: 8px 0 0; }
+.notes li { display: grid; grid-template-columns: 22px 1fr; }
+.notes li b { color: var(--accentText); }
+footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--dim); font-size: 12px; }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+
+<div class="wrap">
+<nav class="toc" aria-label="Contents">
+  <div class="brand">JAMbo</div>
+  <div class="sub">Руководство пользователя</div>
+  <div class="menu-head">Разделы</div>
+  <ol>
+    <li class="ready"><span class="n">0</span><a href="#intro">Введение</a></li>
+    <li class="ready"><span class="n">1</span><a href="#screen">Экран</a></li>
+    <li class="ready"><span class="n">2</span><a href="#knobs">Ручки и режимы сетки</a></li>
+    <li class="ready"><span class="n">3</span><a href="#tracks">Дорожки и микшер</a></li>
+    <li class="ready"><span class="n">4</span><a href="#sampler">Звук: сэмплер</a></li>
+    <li class="ready"><span class="n">5</span><a href="#synth">Звук: синтезатор</a></li>
+    <li class="soon"><span class="n">6</span><span>Секвенсор</span></li>
+    <li class="soon"><span class="n">7</span><span>P-lock</span></li>
+    <li class="soon"><span class="n">8</span><span>Пианоролл, арпеджиатор, Capture</span></li>
+    <li class="soon"><span class="n">9</span><span>Модуляция и MORPH</span></li>
+    <li class="soon"><span class="n">10</span><span>Эффекты дорожек</span></li>
+    <li class="soon"><span class="n">11</span><span>EQ</span></li>
+    <li class="soon"><span class="n">12</span><span>Мастер</span></li>
+    <li class="soon"><span class="n">13</span><span>Коррекция наушников</span></li>
+    <li class="soon"><span class="n">14</span><span>Автоматизация</span></li>
+    <li class="soon"><span class="n">15</span><span>Сетка паттернов</span></li>
+    <li class="soon"><span class="n">16</span><span>Аранжировщик</span></li>
+    <li class="soon"><span class="n">17</span><span>Проекты</span></li>
+    <li class="soon"><span class="n">18</span><span>SETTINGS</span></li>
+    <li class="soon"><span class="n">19</span><span>MIDI</span></li>
+    <li class="soon"><span class="n">20</span><span>SYNC и Ableton Link</span></li>
+    <li class="soon"><span class="n">21</span><span>Справочник жестов</span></li>
+  </ol>
+  <div class="note">Серым — разделы в работе.</div>
+</nav>
+
+<main>
+<div class="cover">
+  <div class="eyebrow">Руководство пользователя</div>
+  <h1>JAMbo<span>.</span> Грувбокс для живых джемов</h1>
+  <p>Названия кнопок и ручек даны так, как они написаны на экране, по-английски.</p>
+  <div class="chip">Черновик · <b>разделы 0–5</b></div>
+</div>
+
+<!-- ============ 0 ============ -->
+<section class="chapter" id="intro">
+  <header><span class="num">0</span><h2>Введение</h2></header>
+
+  <h3><span class="sn">0.1</span>Что такое JAMbo</h3>
+  <p>JAMbo — грувбокс для живой импровизации и написания треков. В нём 8 дорожек (можно добавить до 16), на каждой — сэмплер или синтезатор, свой пошаговый секвенсор, эффекты и EQ. Паттерны дорожек собираются в сетку паттернов для живого исполнения, а из неё — в аранжировку трека.</p>
+  <p>Главный принцип: всё под рукой. Нет глубоких меню — почти все параметры на экране, на сетке из 16 ручек. Ручки можно крутить несколькими пальцами одновременно.</p>
+  <p>JAMbo работает на iPad в альбомной ориентации.</p>
+
+  <h3><span class="sn">0.2</span>Знакомство с интерфейсом</h3>
+  <p>Экран JAMbo не меняет раскладку: зоны всегда на своих местах. Меняется только то, что показывают ручки и окно в центре.</p>
+
+  <figure>
+    <div class="shot" data-mode="track" data-callouts="1"></div>
+    <figcaption>Главный экран: выбрана дорожка 1 с сэмплом, на ручках — значения по умолчанию. Сэмпл и ноты — для примера.</figcaption>
+  </figure>
+
+  <ol class="legend-list">
+    <li><span class="badge">1</span><div><b>Верхняя панель.</b> Меню, темп, метроном, гамма и нота, UNDO и REDO, транспорт (PLAY, REC), кнопки окон: пианоролл, EQ, PATTERNS, ARRANGE.</div></li>
+    <li><span class="badge">2</span><div><b>Левая колонка.</b> Окно звука выбранной дорожки (форма волны сэмпла или окно синта), над ним — стрелки выбора звука, под ним — LFO1, LFO2, LFO3, ENV.</div></li>
+    <li><span class="badge">3</span><div><b>Сетка ручек 4×4.</b> Главное место экрана: 16 ручек параметров. Что они делают, зависит от выбранной дорожки и режима (FX, MOD, MIX, MST).</div></li>
+    <li><span class="badge">4</span><div><b>Правая колонка.</b> Стрелки и миниатюры страниц паттерна, под ними — FX, MOD, SHIFT, MORPH.</div></li>
+    <li><span class="badge">5</span><div><b>Измеритель уровня.</b> Уровень выбранной дорожки или мастера, LUFS и пик, регулятор громкости. Над ним — загрузка процессора CPU.</div></li>
+    <li><span class="badge">6</span><div><b>Строка дорожек.</b> MIX, дорожки 1–8 (до 16), MST. Тап выбирает дорожку, свайп вниз и вверх — mute и solo.</div></li>
+    <li><span class="badge">7</span><div><b>Секвенсор.</b> 16 шагов открытой страницы паттерна.</div></li>
+    <li><span class="badge">8</span><div><b>Клавиатура.</b> Ноты выбранной гаммы, режим аккордов CHORD, меню клавиатуры и стрелки октавы.</div></li>
+  </ol>
+  <p>Подробно каждая зона описана в разделе <a href="#screen">1 «Экран»</a>, ручки — в разделе <a href="#knobs">2</a>.</p>
+
+  <h3><span class="sn">0.3</span>Как устроены жесты</h3>
+  <p>В JAMbo несколько видов касаний. Их сочетания дают почти все действия, поэтому стоит запомнить их сразу.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Жест</th><th>Что делает</th><th>Пример</th></tr></thead>
+    <tbody>
+      <tr><td>Вертикальное движение</td><td>Меняет значение. Палец вверх — больше, вниз — меньше. Палец можно ставить на ручку и вести за её пределы.</td><td>Ручки, BPM, SCALE, ROOT</td></tr>
+      <tr><td>Несколько пальцев</td><td>Каждый палец ведёт свою ручку. Можно крутить несколько ручек одновременно.</td><td>Filter и Resonance вместе</td></tr>
+      <tr><td>Тап</td><td>Нажимает кнопку, ставит или убирает шаг, выбирает дорожку или страницу.</td><td>Шаг секвенсора, дорожка</td></tr>
+      <tr><td>Двойной тап</td><td>По ручке — возвращает значение по умолчанию. По другим элементам — открывает меню или поле ввода.</td><td>Ручка, BPM, миниатюра страницы</td></tr>
+      <tr><td>Удержание + действие</td><td>Пока палец держит кнопку или шаг, другой рукой поворачиваете ручку или нажимаете другую кнопку.</td><td>Шаг + ручка = p-lock</td></tr>
+      <tr><td>Удержание</td><td>Временно показывает другой набор ручек, пока палец на кнопке. Отпустили — всё вернулось.</td><td>FX, MOD</td></tr>
+      <tr><td>Свайп</td><td>Короткое движение по дорожке вверх или вниз.</td><td>Mute, solo</td></tr>
+      <tr><td><span class="k">SHIFT</span> + действие</td><td>SHIFT держат одним пальцем, другим делают второе действие. Так открываются дополнительные функции.</td><td>SHIFT + тап по Filter — тип фильтра</td></tr>
+    </tbody>
+  </table></div>
+  <div class="note"><b>Почти всё отменяется.</b> Если что-то пошло не так, нажмите UNDO (стрелка влево в верхней панели). REDO возвращает отменённое. Не попадают в историю запуск и остановка паттернов, mute и solo, а также правки в режиме MORPH.</div>
+</section>
+
+<!-- ============ 1 ============ -->
+<section class="chapter" id="screen">
+  <header><span class="num">1</span><h2>Экран</h2></header>
+  <p class="lede">Зона за зоной, сверху вниз.</p>
+
+  <h3><span class="sn">1.1</span>Верхняя панель</h3>
+  <figure>
+    <div class="shot" data-mode="track" data-zone="top"></div>
+  </figure>
+  <div class="tbl"><table>
+    <thead><tr><th>Кнопка</th><th>Что делает</th></tr></thead>
+    <tbody>
+      <tr><td>☰</td><td>Главное меню: PROJECTS, SETTINGS, MIDI, SYNC и другие.</td></tr>
+      <tr><td>BPM</td><td>Темп. Палец вверх-вниз меняет его; двойной тап открывает поле, где темп вводится числом. Тонкая полоса внизу — фаза такта при игре.</td></tr>
+      <tr><td>Метроном</td><td>Тап включает и выключает щелчок метронома. Включённый — в белом контуре, при игре мигает на долях.</td></tr>
+      <tr><td>SCALE, ROOT</td><td>Гамма и корневая нота. Палец вверх-вниз перебирает их, тап открывает список. Клавиатура показывает ноты выбранной гаммы.</td></tr>
+      <tr><td>UNDO, REDO</td><td>Стрелки влево и вправо: отменить последнее действие и вернуть отменённое. Неактивная стрелка — серая. Срабатывают и при открытом меню.</td></tr>
+      <tr><td>PLAY</td><td>Запуск и остановка. Первый шаг звучит сразу в момент касания. При игре кнопка горит жёлтым.</td></tr>
+      <tr><td>REC</td><td>Запись: при игре ноты с клавиатуры записываются в секвенсор. Включена — горит красным. Всё, что записано за один проход, отменяется одним UNDO.</td></tr>
+      <tr><td>Пианоролл</td><td>Кнопка со значком клавиш: открывает и закрывает окно пианоролла на месте центра экрана.</td></tr>
+      <tr><td>EQ</td><td>Окно эквалайзера выбранной дорожки или мастера.</td></tr>
+      <tr><td>PATTERNS</td><td>Сетка паттернов на месте центра экрана.</td></tr>
+      <tr><td>ARRANGE</td><td>Аранжировщик.</td></tr>
+      <tr><td>CPU</td><td>Над измерителем — загрузка процессора в процентах (от 70 % — красным). Если звук идёт через коррекцию наушников, над CPU появляется жёлтый значок наушников: тап по нему открывает окно коррекции.</td></tr>
+    </tbody>
+  </table></div>
+  <p>Окна PATTERNS, EQ, пианоролла, редактора сэмпла и модулей мастера открываются на месте центра экрана и не открываются одновременно. Верхняя панель видна всегда.</p>
+
+  <h3><span class="sn">1.2</span>Левая колонка: окно звука, LFO и ENV</h3>
+  <div class="split">
+  <figure><div class="shot" data-mode="track" data-zone="left" data-maxh="520"></div><figcaption>Левая колонка дорожки с сэмплом.</figcaption></figure>
+  <ul>
+    <li><b>Окно звука.</b> У дорожки с сэмплом — имя сэмпла (жёлтым), форма волны (стерео — двумя дорожками) и строка Note с высотой сэмпла<sup class="fn-ref"><a href="#fn-1" id="fr-1">1</a></sup>. Отрезанное ручками Start и End затемнено. У дорожки с синтом — иконка движка, имя движка и пресета и значения его первых ручек.</li>
+    <li><b>Тап по окну</b> открывает меню звука дорожки: ударные движки (KICK, SNARE, HAT, CLAP, PERC), SAMPLER, синты (ANALOG, SUB, FM, WTABLE, TEXTURE, GRANULAR) и кнопки LOAD, SAVE, MIDI.</li>
+    <li><b>Удержание окна</b> у дорожки с сэмплом открывает редактор сэмпла.</li>
+    <li><b>Стрелки ◀ ▶</b> над окном — соседний звук из папки дорожки; между ними — номер и общее число звуков. Если держать шаг секвенсора, стрелки меняют звук только этого шага.</li>
+    <li><b>LFO1, LFO2, LFO3, ENV</b> — источники модуляции. Держите кнопку и поверните ручку: LFO или огибающая будут управлять этим параметром. Подробно — в разделе 9.</li>
+  </ul>
+  </div>
+
+  <h3><span class="sn">1.3</span>Сетка ручек</h3>
+  <figure><div class="shot" data-mode="track" data-zone="grid" data-maxh="520"></div><figcaption>Сетка ручек дорожки с сэмплом, значения по умолчанию.</figcaption></figure>
+  <p>16 ручек в четыре строки по четыре. Строка — группа параметров: сэмпл; огибающая и фильтр; посылы на эффекты; Pan, Velocity, Ratchet, Chance. Ручки и режимы сетки описаны в разделе <a href="#knobs">2</a>.</p>
+
+  <h3><span class="sn">1.4</span>Правая колонка: страницы и кнопки режимов</h3>
+  <div class="split">
+  <figure><div class="shot" data-mode="track" data-zone="right" data-maxh="520"></div><figcaption>Одна страница в белой обводке и «+» для новой.</figcaption></figure>
+  <ul>
+    <li><b>Миниатюры страниц.</b> Паттерн дорожки — до 8 страниц по 16 шагов, каждая видна миниатюрой. Тап выбирает страницу, которая играет, и открывает её в секвенсоре. Протяжка по нескольким миниатюрам выбирает несколько страниц подряд — они окружены белой обводкой. Двойной тап открывает меню страницы. Пунктирная клетка «+» добавляет страницу.</li>
+    <li><b>Стрелки ◀ ▶ ▲ ▼</b> над миниатюрами действуют на открытую страницу, а если она в белой обводке — на все играющие страницы.</li>
+    <li><b>FX</b> и <b>MOD</b> — удержание: пока держите, ручки показывают эффекты или модуляцию.</li>
+    <li><b>SHIFT</b> — удержание для дополнительных действий. Пока зажата, кнопка белая.</li>
+    <li><b>MORPH</b> — режим, в котором можно свободно крутить ручки, а потом одним тапом вернуть всё как было. Включённый горит жёлтым.</li>
+  </ul>
+  </div>
+
+  <h3><span class="sn">1.5</span>Измеритель уровня</h3>
+  <div class="split" style="--fw:72px">
+  <figure><div class="shot" data-mode="track" data-zone="meter" data-maxh="520"></div></figure>
+  <div>
+  <p style="margin-top:0">Узкая колонка у правого края. Показывает уровень выбранной дорожки, а при MIX и MST — мастера. Стерео — две полосы, моно — одна. Выше 0 dB полоса красная, у заглушённой дорожки — серая.</p>
+  <ul>
+    <li>Сверху — интегральная громкость LUFS, под ней — метка клиппинга, внизу — наибольший пик в dB. Тап по числу сбрасывает его.</li>
+    <li>Белая планка поверх полос — регулятор громкости. У дорожки это её громкость в микшере, при MIX и MST — громкость выхода. Двигайте пальцем вверх-вниз.</li>
+    <li>Над измерителем — CPU, загрузка процессора.</li>
+  </ul>
+  </div>
+  </div>
+
+  <h3><span class="sn">1.6</span>Строка дорожек</h3>
+  <figure>
+    <div class="shot" data-mode="track" data-zone="tracks" data-state="mutesolo"></div>
+    <figcaption>Выбрана дорожка 1 (жёлтый контур, крупное имя), дорожка 3 заглушена (mute), дорожка 5 — solo.</figcaption>
+  </figure>
+  <p>Слева направо: MIX, дорожки 1…8 (до 16), MST. На дорожке только её имя, по умолчанию — номер.</p>
+  <ul>
+    <li><b>Тап</b> выбирает дорожку: ручки, окно звука и секвенсор показывают её.</li>
+    <li><b>Свайп вниз</b> — mute: красная заливка, контур и буква M. <b>Свайп вверх</b> — solo: жёлтая заливка и буква S. Любой свайп выключает включённый mute или solo.</li>
+    <li>При игре дорожка мигает в такт своим шагам.</li>
+    <li>Жёлтая точка в левом верхнем углу — дорожку меняли в режиме MORPH. Мигающая красная точка — идёт запись стема.</li>
+  </ul>
+
+  <h3><span class="sn">1.7</span>Секвенсор</h3>
+  <figure><div class="shot" data-mode="track" data-zone="seq"></div><figcaption>Ноты C3 на шагах 1, 5, 9 и 13.</figcaption></figure>
+  <p>16 шагов открытой страницы; каждый четвёртый шаг (начало доли) чуть светлее. Тап по шагу ставит или убирает ноту, на шаге написано её имя. Держите шаг и поверните ручку — получится p-lock, своё значение параметра на этом шаге (раздел 7). Шаг с p-lock отмечен жёлтой точкой, с p-lock нижней строки ручек — оранжевой.</p>
+
+  <h3><span class="sn">1.8</span>Клавиатура</h3>
+  <figure><div class="shot" data-mode="track" data-zone="keys"></div><figcaption>Гамма C Major, две октавы от C3. Клавиши C выделены тоном, Белый контур у C3 — выбранная нота (пока ничего не выбрано — первая клавиша).</figcaption></figure>
+  <p>Ноты выбранной гаммы, две октавы (или одна — в меню клавиатуры), по умолчанию от C3. Клавиши корневой ноты выделены тоном. Первая клавиша играет сэмпл в его исходной высоте.</p>
+  <ul>
+    <li>CHORD — режим аккордов: клавиша играет аккорд от своей ноты. Под словом CHORD — вид аккорда. Удержание CHORD — выбор вида.</li>
+    <li>☰ под CHORD — меню клавиатуры: OVERDUB, VELOCITY, Swing, арпеджиатор и другое.</li>
+    <li>▲ ▼ справа — октава вверх и вниз. У каждой дорожки своя октава.</li>
+  </ul>
+  <div class="notes"><div class="menu-head">Примечания</div><ol><li id="fn-1"><b><a href="#fr-1" style="color:inherit;text-decoration:none">1</a></b><span>Высота определяется не у всех сэмплов — только когда у звука ясная высота. У шумов, хэтов, тарелок и многих ударных вместо ноты стоит «—». На звучание это не влияет: сэмпл всегда играет в исходной высоте на ноте C3.</span></li></ol></div>
+</section>
+
+<!-- ============ 2 ============ -->
+<section class="chapter" id="knobs">
+  <header><span class="num">2</span><h2>Ручки и режимы сетки</h2></header>
+  <p class="lede">Одна сетка из 16 ручек — пять наборов параметров.</p>
+
+  <h3><span class="sn">2.1</span>Ручка</h3>
+  <figure>
+    <div class="shot" data-knobs="1"></div>
+    <figcaption>Слева направо: обычная ручка; двусторонняя (отсчёт от центра); p-lock на шаге — жёлтая дуга и стрелка; p-lock нижней строки — оранжевая.</figcaption>
+  </figure>
+  <ul>
+    <li>Подпись — под ручкой, значение — в центре. Белая дуга на сером кольце — положение ручки.</li>
+    <li><b>Плавные</b> ручки меняются непрерывно. <b>Ступенчатые</b> (Ratchet, форма LFO, тип Drive) перебирают пункты. Неактивная ручка — без кольца.</li>
+    <li>Значения в dB показывают единицу второй строкой под числом.</li>
+    <li><b>Двойной тап</b> возвращает значение по умолчанию.</li>
+    <li><b>SHIFT + удержание ручки 1 с</b> запоминает текущее значение как своё значение по умолчанию: на ручке на секунду появляется жёлтое SAVED. Свои значения общие для всех проектов. Забыть их все — SETTINGS → DEFAULTS.</li>
+    <li>Если на ручку назначен LFO или ENV, снаружи кольца появляется ещё одна дуга: она показывает, как источник двигает значение, в реальном времени.</li>
+  </ul>
+
+  <h3><span class="sn">2.2</span>Пять режимов сетки</h3>
+  <p>Режим зависит от того, что выбрано в строке дорожек и какая кнопка зажата. Номер ручки n.m — строка и место в ней, 1.1 — верхняя левая.</p>
+
+  <div class="modes" role="group" aria-label="Режим сетки">
+    <button type="button" id="m-track" data-mode="track" aria-pressed="true">TRACK</button>
+    <button type="button" id="m-fx" data-mode="fx" aria-pressed="false">FX</button>
+    <button type="button" id="m-mod" data-mode="mod" aria-pressed="false">MOD</button>
+    <button type="button" id="m-mix" data-mode="mix" aria-pressed="false">MIX</button>
+    <button type="button" id="m-mst" data-mode="mst" aria-pressed="false">MST</button>
+  </div>
+  <figure style="margin-top:0">
+    <div class="shot" id="modeShot" data-mode="track"></div>
+    <p class="mode-desc" id="mdesc"></p>
+  </figure>
+
+  <h3><span class="sn">2.3</span>Как включить режим</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Режим</th><th>Как включить</th><th>Что на ручках</th></tr></thead>
+    <tbody>
+      <tr><td>TRACK</td><td>Тап по дорожке 1…16</td><td>Звук, огибающая и фильтр, посылы на эффекты, Pan, Velocity, Ratchet, Chance</td></tr>
+      <tr><td>FX</td><td>Держать FX</td><td>Общие эффекты: Reverb, Delay, Drive, Duck (sidechain)</td></tr>
+      <tr><td>MOD</td><td>Держать MOD</td><td>LFO1, LFO2, LFO3 и огибающая ENV выбранной дорожки</td></tr>
+      <tr><td>MIX</td><td>Тап по MIX</td><td>Громкости всех дорожек</td></tr>
+      <tr><td>MST</td><td>Тап по MST</td><td>Цепочка мастера: сатуратор, компрессор, клиппер, лимитер</td></tr>
+    </tbody>
+  </table></div>
+  <p><b>Режим toggle.</b> SHIFT + тап по FX или MOD переключает кнопку: теперь тап включает страницу, следующий тап выключает. Внутри такой кнопки — вторая линия контура. Повторный SHIFT + тап возвращает удержание.</p>
+
+  <h3><span class="sn">2.4</span>Что означают цвета</h3>
+  <p>Цвета везде значат одно и то же — на ручках, шагах, дорожках и кнопках. Вот где встречается каждый.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Цвет</th><th>Где</th><th>Что значит</th></tr></thead>
+    <tbody>
+      <tr><td style="color:var(--accentText)">Жёлтый</td><td>Контур дорожки в строке дорожек</td><td>Дорожка выбрана</td></tr>
+      <tr><td></td><td>Заливка дорожки, буква S</td><td>Solo</td></tr>
+      <tr><td></td><td>PLAY</td><td>Идёт игра</td></tr>
+      <tr><td></td><td>Дуга и значение на ручке, точка на шаге</td><td>P-lock: у шага своё значение этой ручки</td></tr>
+      <tr><td></td><td>Контур шага</td><td>У шага свой звук (сэмпл-лок или пресет-лок); при игре — текущий шаг</td></tr>
+      <tr><td></td><td>MORPH, точка в углу дорожки</td><td>Режим MORPH включён; дорожку меняли в MORPH</td></tr>
+      <tr><td></td><td>Кнопка в меню</td><td>Выбранный пункт (движок, звук)</td></tr>
+      <tr><td style="color:var(--rec)">Красный</td><td>REC, ●, ● MASTER</td><td>Запись включена или готова</td></tr>
+      <tr><td></td><td>Контур и заливка дорожки, буква M</td><td>Mute</td></tr>
+      <tr><td></td><td>Верх полосы метра</td><td>Перегруз: уровень выше 0 dB</td></tr>
+      <tr><td></td><td>Надпись DELETE</td><td>Удаление</td></tr>
+      <tr><td style="color:var(--gr)">Оранжевый</td><td>Дуга и значение на ручке, точка на шаге</td><td>P-lock ручки нижней строки (Pan, Velocity, Ratchet, Chance)</td></tr>
+      <tr><td></td><td>Полоса сверху на метре, GR в индикации мастера</td><td>Снижение громкости: sidechain (Duck) или компрессия</td></tr>
+      <tr><td>Белый</td><td>FX, MOD, SHIFT, LFO1…ENV</td><td>Кнопку держат (или FX/MOD включены в toggle)</td></tr>
+      <tr><td></td><td>PATTERNS, EQ, ARRANGE</td><td>Окно открыто</td></tr>
+      <tr><td></td><td>Заливка шага, клавиша</td><td>На шаге нота; клавиша звучит</td></tr>
+      <tr><td></td><td>Обводка миниатюр страниц</td><td>Эти страницы играют</td></tr>
+      <tr><td style="color:var(--dim)">Серый</td><td>Кнопка, надпись, ручка</td><td>Сейчас недоступно</td></tr>
+      <tr><td></td><td>Полоса метра</td><td>Дорожка заглушена</td></tr>
+    </tbody>
+  </table></div>
+  <p>В приложении две темы — тёмная и светлая, с одинаковыми акцентами. Тема выбирается в SETTINGS → APPEARANCE → THEME. Схемы на этой странице следуют теме вашего устройства.</p>
+</section>
+
+
+<!-- ============ 3 ============ -->
+<section class="chapter" id="tracks">
+  <header><span class="num">3</span><h2>Дорожки и микшер</h2></header>
+  <p class="lede">Восемь дорожек, громкости, mute и solo, запись стемов.</p>
+
+  <h3><span class="sn">3.1</span>Дорожки</h3>
+  <p>В проекте всегда не меньше 8 дорожек, можно добавить до 16. У каждой дорожки свой звук (сэмплер или синтезатор), свои паттерны, EQ, папка звуков, громкость и панорама. Имя дорожки по умолчанию — её номер.</p>
+  <ul>
+    <li><b>Тап по дорожке</b> выбирает её: ручки, окно звука, секвенсор и клавиатура показывают выбранную дорожку.</li>
+    <li>При игре дорожка мигает в такт своим нотам.</li>
+    <li>Удержание дорожки ничего не делает.</li>
+  </ul>
+
+  <h3><span class="sn">3.2</span>Mute и solo</h3>
+  <figure><div class="shot" data-mode="track" data-zone="tracks" data-state="mutesolo"></div><figcaption>Дорожка 3 заглушена, дорожка 5 — solo.</figcaption></figure>
+  <ul>
+    <li><b>Свайп вниз</b> по дорожке — mute: красная заливка, контур и буква M.</li>
+    <li><b>Свайп вверх</b> — solo: жёлтая заливка и буква S. Звучат только дорожки с solo.</li>
+    <li>Любой свайп по дорожке с mute или solo выключает его. Mute и solo одновременно не включаются.</li>
+    <li>Срабатывает сразу, как только палец прошёл короткое расстояние, не дожидаясь отпускания.</li>
+    <li>Заглушённая дорожка продолжает играть «про себя»: её уровень виден серым, она остаётся источником sidechain (Duck). Хвосты Reverb и Delay от уже сыгранного звука доигрывают.</li>
+    <li>Mute и solo не попадают в UNDO.</li>
+  </ul>
+  <p>То же самое делают кнопки M и S в микшере.</p>
+
+  <h3><span class="sn">3.3</span>Микшер MIX</h3>
+  <figure><div class="shot" data-mode="mix" data-zone="upper"></div><figcaption>Микшер: 8 дорожек, ручки 9–16 — места для новых дорожек.</figcaption></figure>
+  <p>Тап по MIX в строке дорожек превращает сетку ручек в микшер. Ручка — громкость дорожки в dB, от −∞ до 0 dB, по умолчанию −10 dB. Подпись под ручкой — имя дорожки.</p>
+  <ul>
+    <li><b>Метр</b> слева от ручки — уровень дорожки после громкости. Стерео — две полосы, моно — одна; выше 0 dB — красный, у заглушённой — серый, приглушение от sidechain — оранжевым сверху.</li>
+    <li><b>M</b> — mute, <b>S</b> — solo, <b>●</b> — готовность к записи стема (раздел 3.5).</li>
+    <li>Ручки без кольца — свободные места для дорожек.</li>
+    <li>Над окном слева — <b>● MASTER</b>, запись выхода мастера. Справа — скоп мастера.</li>
+    <li>Громкость выбранной дорожки можно менять и регулятором на измерителе справа — это та же громкость.</li>
+  </ul>
+
+  <h3><span class="sn">3.4</span>Добавить, скопировать, удалить, переставить</h3>
+  <figure><div class="shot" data-mode="mix" data-zone="grid" data-state="trackmenu" data-maxh="520"></div><figcaption>Меню дорожки 2. PASTE и DELETE TRACK серые: ничего не скопировано, а дорожек всего 8.</figcaption></figure>
+  <div class="tbl"><table>
+    <thead><tr><th>Действие</th><th>Как</th></tr></thead>
+    <tbody>
+      <tr><td>Добавить дорожку</td><td>В MIX двойной тап по ручке без кольца → ADD TRACK. Дорожка встаёт в конец с громкостью по умолчанию.</td></tr>
+      <tr><td>Меню дорожки</td><td>В MIX двойной тап по ручке дорожки → COPY, PASTE, DELETE TRACK, RENAME.</td></tr>
+      <tr><td>COPY и PASTE</td><td>COPY запоминает настройки дорожки, PASTE переносит их на дорожку, у которой открыто меню. Переносятся звук (сэмпл или синт с его ручками), остальные ручки, EQ, папка звуков и громкость. Имя, паттерны, mute и solo у дорожки остаются свои.</td></tr>
+      <tr><td>DELETE TRACK</td><td>Удаляет дорожку. Доступно, когда дорожек больше 8.</td></tr>
+      <tr><td>RENAME</td><td>Поле ввода имени появляется на месте подписи под ручкой. Имя — до 12 знаков.</td></tr>
+      <tr><td>Переставить</td><td>Держите ручку дорожки в MIX полсекунды — она приподнимется. Перетащите её на место другой дорожки. С дорожкой переезжает всё: звук, паттерны, громкость, mute и solo, EQ. Музыка при этом не прерывается.</td></tr>
+    </tbody>
+  </table></div>
+  <p>Всё это отменяется UNDO.</p>
+
+  <h3><span class="sn">3.5</span>Запись стемов</h3>
+  <p>Стем — запись выхода одной дорожки в отдельный файл, например чтобы перенести партию в другую программу.</p>
+  <ol class="steps">
+    <li>В MIX нажмите ● у нужных дорожек — кнопки загорятся красным.</li>
+    <li>Нажмите PLAY. Запись всех готовых дорожек начинается с первого шага. Пока идёт запись, в углу дорожки мигает красная точка.</li>
+    <li>Запись кончается сама, когда паттерн прошёл свой круг (или строки сетки паттернов дошли до конца). Нажатие PLAY во время записи даёт дорожкам доиграть проход до конца.</li>
+  </ol>
+  <ul>
+    <li>Пишется то, что дорожка отдаёт в мастер: после EQ, громкости и mute/solo. Посылы на Reverb, Delay и Drive в стем не входят — это общие эффекты.</li>
+    <li>Стемы ложатся в папку <b>RECORDINGS</b> библиотеки (раздел 4.5).</li>
+    <li>● MASTER (или SHIFT + тап по REC) так же записывает весь выход мастера.</li>
+  </ul>
+
+  <h3><span class="sn">3.6</span>Путь звука</h3>
+  <p>Звук дорожки → EQ дорожки → громкость в микшере → мастер. Посылы Reverb, Delay и Drive уходят с дорожки в общие эффекты, а оттуда — в мастер. Мастер: EQ → сатуратор → компрессор → клиппер → лимитер → громкость выхода (раздел 12).</p>
+</section>
+
+<!-- ============ 4 ============ -->
+<section class="chapter" id="sampler">
+  <header><span class="num">4</span><h2>Звук: сэмплер</h2></header>
+  <p class="lede">Свои сэмплы, их обработка и библиотека.</p>
+
+  <h3><span class="sn">4.1</span>Загрузить сэмпл</h3>
+  <div class="split">
+  <figure><div class="shot" data-mode="track" data-zone="left" data-state="soundmenu" data-maxh="520"></div><figcaption>Меню звука дорожки с сэмплом.</figcaption></figure>
+  <div>
+  <p style="margin-top:0">Встроенных сэмплов нет — JAMbo играет ваши звуки. Пока на дорожке нет звука, она молчит.</p>
+  <ol class="steps">
+    <li>Тап по окну звука слева — откроется меню звука.</li>
+    <li>Нажмите <b>LOAD</b> — откроется библиотека (раздел 4.5).</li>
+    <li>Тап по сэмплу ставит его на дорожку. Чтобы взять файл с iPad или из iCloud Drive, нажмите в библиотеке <b>IMPORT</b>.</li>
+  </ol>
+  <p>Подходят аудиофайлы и видео: из видео берётся звуковая дорожка.</p>
+  <p>В меню звука: <b>DRUMS</b> и <b>SYNTH</b> — движки синтезатора (раздел 5), <b>SAMPLER</b> — пустая дорожка сэмплера (сразу открывается редактор: загрузить или записать звук), <b>MIDI</b> — вход и выход нот дорожки, <b>SAVE</b> — сохранить пресет синта. Тап мимо меню закрывает его.</p>
+  </div>
+  </div>
+
+  <h3><span class="sn">4.2</span>Ручки сэмпла</h3>
+  <p>Сэмпл звучит в исходной высоте на ноте C3. Другие ноты клавиатуры и секвенсора транспонируют его. В окне звука строка Note показывает, какую ноту сэмпл играет сам<sup class="fn-ref"><a href="#fn-2" id="fr-2">2</a></sup>.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Ручка</th><th>Что делает</th></tr></thead>
+    <tbody>
+      <tr><td>Pitch</td><td>Высота, ±24 полутона. Плавно или по полутонам — SETTINGS → SAMPLER → PITCH; с зажатой SHIFT — другим способом.</td></tr>
+      <tr><td>Start, End</td><td>Начало и конец сэмпла. Отрезанное затемнено в окне звука. С зажатой SHIFT ручки встают на доли: 0, ⅛, ¼, ½, ¾, весь.</td></tr>
+      <tr><td>Rate</td><td>Скорость: 100 % — обычная игра, в центре — стоп, левее центра — задом наперёд. SHIFT + тап переключает режим: <b>Rate Pitch</b> — скорость меняет высоту, как на виниле; <b>Rate Stretch</b> — высота прежняя, сэмпл идёт в темпе проекта и следует за BPM.</td></tr>
+      <tr><td>Attack, Decay</td><td>Огибающая громкости ноты.</td></tr>
+      <tr><td>Filter, Resonance</td><td>Фильтр и его резонанс. SHIFT + тап по Filter меняет тип: LP → HP → BP. У открытого фильтра на ручке написано OFF.</td></tr>
+    </tbody>
+  </table></div>
+  <p>Нижние строки — посылы и Pan, Velocity, Ratchet, Chance — одинаковы у сэмплера и синтезатора (раздел 2). Алгоритм растяжения для Rate Stretch выбирается в SETTINGS → SAMPLER → STRETCH: NORMAL или BEAT; попробуйте оба на своём материале.</p>
+
+  <h3><span class="sn">4.3</span>Папка дорожки</h3>
+  <p>У каждой дорожки своя папка звуков: всё, что на неё загружали. Стрелки ◀ ▶ над окном звука листают папку, между ними — номер звука и сколько их всего. Удобно загрузить несколько бочек сразу (раздел 4.5) и перебирать их стрелками прямо во время игры.</p>
+  <p>Если держать шаг секвенсора и нажимать стрелки, меняется звук только этого шага — сэмпл-лок (раздел 7).</p>
+
+  <h3><span class="sn">4.4</span>Редактор сэмпла</h3>
+  <figure><div class="shot" data-mode="track" data-zone="upper" data-state="editor"></div><figcaption>Редактор сэмпла: выделено начало звука, отрезанное затемнено.</figcaption></figure>
+  <p>Удержание окна звука у дорожки с сэмплом открывает редактор на месте центра экрана. ✕ закрывает его.</p>
+  <ul>
+    <li><b>Жёлтые маркеры</b> с квадратными ручками внизу выделяют часть сэмпла для TRIM и CUT. Тяните маркер за ручку; двумя пальцами — оба сразу. Над пальцем видно время.</li>
+    <li><b>Масштаб</b>: палец по пустому месту вверх-вниз увеличивает и уменьшает, влево-вправо — прокручивает.</li>
+    <li><b>Нарезка</b>: двойной тап по пустому месту ставит маркер нарезки — флажок с нотой в верхней полосе. Каждый кусок играется своей нотой клавиатуры. Флажок тянут за сам флажок, двойной тап по нему удаляет маркер. Держите флажок и нажмите клавишу — маркер получит эту ноту.</li>
+  </ul>
+  <div class="tbl"><table>
+    <thead><tr><th>Кнопка</th><th>Что делает</th></tr></thead>
+    <tbody>
+      <tr><td>▶</td><td>Прослушать выделенное (или весь сэмпл) в исходной высоте. Повторный тап — стоп.</td></tr>
+      <tr><td>REC</td><td>Записать сэмпл: с входа (микрофон iPad, аудиоинтерфейс), с любой дорожки или с выхода мастера. До 60 секунд. Записанное встаёт на дорожку.</td></tr>
+      <tr><td>WARP</td><td>Режим варпинга для Rate Stretch: сетка долей в темпе файла и метки, которые растягивают и сжимают звук между собой. AUTO WARP расставляет метки по атакам.</td></tr>
+      <tr><td>MONO</td><td>Свести стерео в моно. У моно-сэмпла неактивна.</td></tr>
+      <tr><td>CUT</td><td>Вырезать выделенное и склеить остальное.</td></tr>
+      <tr><td>TRIM</td><td>Оставить только выделенное.</td></tr>
+      <tr><td>NORMALIZE</td><td>Поднять громкость до пика −0,1 dBFS.</td></tr>
+      <tr><td>CLEAR</td><td>Убрать сэмпл с дорожки. В библиотеке он остаётся.</td></tr>
+      <tr><td>LOAD, SAVE</td><td>Загрузить другой сэмпл или сохранить этот в библиотеку.</td></tr>
+    </tbody>
+  </table></div>
+  <p>MONO, CUT, TRIM и NORMALIZE не портят исходник: на дорожку встаёт обработанная копия, а UNDO возвращает исходный сэмпл.</p>
+
+  <h3><span class="sn">4.5</span>Библиотека</h3>
+  <figure><div class="shot" data-mode="track" data-zone="upper" data-state="browser"></div><figcaption>Библиотека, папка Drums. Жёлтым — звук, который сейчас на дорожке. Имена — для примера.</figcaption></figure>
+  <p>Библиотека — общее хранилище сэмплов и пресетов для всех проектов. Открывается кнопками LOAD и SAVE в меню звука и в редакторе.</p>
+  <ul>
+    <li><b>Папки</b> — сверху списка, справа число элементов. Тап — войти, ‹ — на уровень выше. NEW FOLDER создаёт папку в открытой.</li>
+    <li><b>▶</b> слева от сэмпла или пресета — прослушать, не загружая.</li>
+    <li><b>Тап</b> по сэмплу или пресету ставит его на дорожку. Библиотека остаётся открытой — звуки можно пробовать клавиатурой.</li>
+    <li><b>Удержание</b> — выбор нескольких: отметьте звуки тапами и нажмите LOAD. Все они попадут в папку дорожки, стрелки ◀ ▶ будут их перебирать.</li>
+    <li><b>Свайп влево</b> по строке — карандаш (переименовать) и корзина (удалить).</li>
+    <li><b>Порядок папок</b> меняется удержанием и перетаскиванием.</li>
+    <li><b>IMPORT</b> — из «Файлов»: аудио, видео, пресеты .jambopreset и целые папки архивом .zip. <b>EXPORT</b> — открытая папка одним .zip в «Файлы».</li>
+    <li><b>RECORDINGS</b> (с красной точкой) — системная папка для стемов и записей мастера. Её нельзя удалить или переименовать.</li>
+  </ul>
+  <p>При сохранении (SAVE) внизу появляются поле NAME и кнопка SAVE HERE — звук сохранится в открытую папку. Если имя занято, JAMbo спросит: OVERWRITE, SAVE AS… или CANCEL.</p>
+  <div class="notes"><div class="menu-head">Примечания</div><ol><li id="fn-2"><b><a href="#fr-2" style="color:inherit;text-decoration:none">2</a></b><span>Высота определяется не у всех сэмплов — только когда у звука ясная высота. У шумов, хэтов, тарелок и многих ударных вместо ноты стоит «—». На звучание это не влияет: сэмпл всегда играет в исходной высоте на ноте C3.</span></li></ol></div>
+</section>
+
+<!-- ============ 5 ============ -->
+<section class="chapter" id="synth">
+  <header><span class="num">5</span><h2>Звук: синтезатор</h2></header>
+  <p class="lede">Одиннадцать движков: ударные и синтезаторы.</p>
+
+  <h3><span class="sn">5.1</span>Выбрать движок</h3>
+  <figure><div class="shot" data-mode="track" data-zone="leftgrid" data-state="synthmenu" data-maxh="520"></div><figcaption>Меню звука на дорожке с ANALOG и ручки движка в верхней строке.</figcaption></figure>
+  <p>Тап по окну звука → колонка <b>DRUMS</b> (ударные) или <b>SYNTH</b> (синтезаторы) → движок. Выбранный движок подсвечен жёлтым. Если держать шаги и выбрать движок, он станет звуком только этих шагов (раздел 7).</p>
+
+  <h3><span class="sn">5.2</span>Окно синта</h3>
+  <figure><div class="shot" data-mode="track" data-zone="leftgrid" data-state="synth" data-maxh="520"></div><figcaption>ANALOG: осциллятор A — синус, B — пила.</figcaption></figure>
+  <p>У дорожки с синтом в окне звука — имя движка (и пресета, если он загружен), живая иконка звука и значения четырёх ручек движка. Иконка меняется вместе с ручками, LFO и p-lock: по ней видно, что сейчас звучит.</p>
+  <p>Верхняя строка сетки — ручки движка, у каждого движка свои. Остальные строки — как у сэмплера: Attack, Decay, Filter, Resonance; посылы; Pan, Velocity, Ratchet, Chance. Высота синта — нотами клавиатуры и секвенсора.</p>
+
+  <h3><span class="sn">5.3</span>Движки</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Движок</th><th>Звук</th><th>Ручки 1.1–1.4</th></tr></thead>
+    <tbody>
+      <tr><td>KICK</td><td>Бочка: синус с падающей высотой и щелчком атаки. Одна нота за раз.</td><td>Pitch, Sweep, Drive, Click</td></tr>
+      <tr><td>SNARE</td><td>Малый барабан: корпус и шумовые «струны».</td><td>Tune, Snappy, Tone, Punch</td></tr>
+      <tr><td>HAT</td><td>Хай-хэт в духе 808.</td><td>Tune, Spread, Tone, Noise</td></tr>
+      <tr><td>CLAP</td><td>Хлопок из нескольких шумовых вспышек.</td><td>Tone, Bursts, Spread, Tail</td></tr>
+      <tr><td>PERC</td><td>Перкуссия: от кожи через дерево к металлу.</td><td>Tune, Material, Bend, Hit</td></tr>
+      <tr><td>ANALOG</td><td>Два осциллятора A и B: Sine, Triangle, Saw, Square.</td><td>Wave A, Wave B, Detune, Mix</td></tr>
+      <tr><td>SUB</td><td>Моно-бас: нота и октава ниже.</td><td>Wave, Sub, Fat, Grit</td></tr>
+      <tr><td>FM</td><td>Частотная модуляция: несущая и модулятор.</td><td>Ratio, Index, Contour, Feedback</td></tr>
+      <tr><td>WTABLE</td><td>Волновая таблица: волна меняется по кадрам таблицы.</td><td>Position, Warp, Unison, Detune</td></tr>
+      <tr><td>TEXTURE</td><td>Стерео-шум и треск — подложки и атмосфера.</td><td>Color, Grit, Tone, Metal</td></tr>
+      <tr><td>GRANULAR</td><td>Гранулярный синтез из вашего сэмпла.</td><td>Position, Size, Density, Spray</td></tr>
+    </tbody>
+  </table></div>
+  <p>Ударные движки (KICK, SNARE, HAT, CLAP, PERC) затухают сами — длина ноты их не обрывает. Синтезаторы держат ноту, пока она длится. На дорожке одновременно звучат до 6 нот синта.</p>
+
+  <h3><span class="sn">5.4</span>Особые жесты движков</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Движок</th><th>Жест</th><th>Что делает</th></tr></thead>
+    <tbody>
+      <tr><td>ANALOG</td><td>SHIFT + тап по Wave B</td><td>Осциллятор B на октаву ниже и обратно. На ручке — «−1».</td></tr>
+      <tr><td>ANALOG</td><td>SHIFT + тап по Wave A</td><td>Модуляция B осциллятором A вкл./выкл.</td></tr>
+      <tr><td>ANALOG</td><td>SHIFT + тап по 1.3</td><td>Следующий вид модуляции: Sync → FM → Ring. Ручка 1.3 тогда — сила модуляции.</td></tr>
+      <tr><td>SUB</td><td>SHIFT + тап по Filter</td><td>Тип фильтра: LP → LADDER → BP. LADDER — фильтр в духе Moog, Grit перегружает его.</td></tr>
+      <tr><td>WTABLE</td><td>TABLE в меню звука</td><td>Выбор волновой таблицы: встроенной или своей из WAV.</td></tr>
+      <tr><td>GRANULAR</td><td>SOURCE в меню звука</td><td>Выбор сэмпла, из которого GRANULAR берёт зёрна.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3><span class="sn">5.5</span>Пресеты</h3>
+  <ul>
+    <li><b>SAVE</b> в меню звука сохраняет синт дорожки пресетом в библиотеку: движок и все его ручки, Attack, Decay, Filter, Resonance (у WTABLE — и таблицу, у GRANULAR — сэмпл).</li>
+    <li><b>LOAD</b> загружает пресет из библиотеки, как сэмпл. Пресеты попадают в папку дорожки, и стрелки ◀ ▶ перебирают их.</li>
+    <li>Пресет в библиотеке отмечен значком клавиш, справа — имя движка. ▶ слева от него играет ноту этим пресетом, не загружая его.</li>
+  </ul>
+</section>
+
+<footer class="end">JAMbo · Руководство пользователя · черновик разделов 0–5. Следующие разделы появятся на этой же странице.</footer>
+</main>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  // ---------- layout of the app screen, from Layout.swift / RootView.swift (iPad 11" landscape, 1210×834 pt) ----------
+  var W = 1210, H = 834, PAD = 12, GAP = 6, TOP = 44, TRACK_H = 50, SEQ_H = 60, PAIR = 56, TOPBTN = 107, COL = 220, METER = 30, STEPGAP = 4, R = 10;
+  function units(h) {
+    var bar = 40, unit = 60;
+    for (var k = 0; k < 12; k++) {
+      var win = h - (TOP + GAP + bar + GAP);
+      unit = Math.max(20, (win - 38 - 7 * GAP) / 8);
+      var lowerH = 3 * unit + 2 * GAP;
+      var center = h - (TOP + GAP) - lowerH - GAP;
+      var pages = center - 2 * PAIR - 2 * GAP;
+      var rest = pages - GAP - 4 * 7;
+      bar = Math.max(24, rest / 9);
+    }
+    return { bar: bar, unit: unit };
+  }
+  var U = units(H);
+  var LOWER = 3 * U.unit + 2 * GAP;
+  var CENTER_H = H - TOP - LOWER - 2 * GAP;
+  var PIANO = LOWER - TRACK_H - SEQ_H - 2 * GAP;
+  var WIDTH = W - 2 * PAD;
+  var STEP = (WIDTH - 15 * STEPGAP) / 16;
+  var CY = TOP + GAP;                      // centre top
+  var LY = CY + CENTER_H + GAP;            // lower top
+  var GRID_X = PAD + COL + GAP, GRID_W = WIDTH - 2 * COL - METER - 3 * GAP;
+  var RIGHT_X = GRID_X + GRID_W + GAP, METER_X = RIGHT_X + COL + GAP;
+
+  // ---------- tiny DOM helpers (all units are points) ----------
+  function box(x, y, w, h, css, inner) {
+    return '<div style="left:' + x.toFixed(2) + 'px;top:' + y.toFixed(2) + 'px;width:' + w.toFixed(2) + 'px;height:' + h.toFixed(2) + 'px;' + (css || "") + '">' + (inner || "") + "</div>";
+  }
+  function tile(x, y, w, h, fill, inner, extra) { return box(x, y, w, h, "background:" + fill + ";border-radius:" + R + "px;" + (extra || ""), inner); }
+  function label(text, w, h, css) {
+    return '<div class="lbl" style="left:0;top:0;width:' + w + 'px;height:' + h + 'px;display:flex;align-items:center;justify-content:center;' + (css || "") + '">' + text + "</div>";
+  }
+  // SideButton / ViewButton look: 13 pt semibold, tracking 1.
+  function btn(x, y, w, h, title, o) {
+    o = o || {};
+    var fill = o.fill || "var(--panel2)", color = o.color || "var(--text)";
+    var ring = o.ring ? "box-shadow:inset 0 0 0 1px " + o.ring + ";" : "";
+    var inner = label(title, w, h, "font-size:" + (o.size || 13) + "px;font-weight:600;letter-spacing:1px;color:" + color + ";");
+    if (o.inner) inner += o.inner(w, h);
+    return tile(x, y, w, h, fill, inner, ring);
+  }
+  function innerLine(w, h) { return '<div style="left:3px;top:3px;width:' + (w - 6) + 'px;height:' + (h - 6) + 'px;border:1px solid #000;border-radius:7px"></div>'; }
+  function svg(w, h, body, x, y) { return '<svg style="left:' + (x || 0) + 'px;top:' + (y || 0) + 'px" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + " " + h + '">' + body + "</svg>"; }
+
+  // SF Symbol stand-ins (drawn to the symbol's size)
+  var ICON = {
+    play: function (c) { return '<path d="M-5 -7.5 L8 0 L-5 7.5 Z" fill="' + c + '" stroke="' + c + '" stroke-width="1.5" stroke-linejoin="round"/>'; },
+    dot: function (c, r) { return '<circle r="' + (r || 6) + '" fill="' + c + '"/>'; },
+    undo: function (c) { return '<path d="M6 8 V-1 a4 4 0 0 0 -4 -4 H-7" fill="none" stroke="' + c + '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M-3 -8.5 L-7.5 -5 L-3 -1.5" fill="none" stroke="' + c + '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>'; },
+    redo: function (c) { return '<g transform="scale(-1,1)">' + ICON.undo(c) + "</g>"; },
+    metronome: function (c) { return '<path d="M-4.5 -9.5 H4.5 L8.5 9.5 H-8.5 Z" fill="none" stroke="' + c + '" stroke-width="1.6" stroke-linejoin="round"/><path d="M-7.5 5 H7.5" stroke="' + c + '" stroke-width="1.6"/><path d="M0 5 L6.5 -8" stroke="' + c + '" stroke-width="1.6" stroke-linecap="round"/><circle cx="6.8" cy="-8.6" r="1.6" fill="' + c + '"/>'; },
+    piano: function (c) { return '<rect x="-10" y="-8" width="20" height="16" rx="2.5" fill="none" stroke="' + c + '" stroke-width="1.8"/><path d="M-3.3 -8 V8 M3.3 -8 V8" stroke="' + c + '" stroke-width="1.4"/><rect x="-5.2" y="-8" width="3.4" height="9" rx=".8" fill="' + c + '"/><rect x="1.8" y="-8" width="3.4" height="9" rx=".8" fill="' + c + '"/>'; }
+  };
+  function icon(name, w, h, color, extra) { return svg(w, h, '<g transform="translate(' + (w / 2) + " " + (h / 2) + ')">' + ICON[name](color, extra) + "</g>"); }
+
+  // ---------- knob (KnobView.draw) ----------
+  function ang(n) { return (-135 + 270 * n - 90) * Math.PI / 180; }
+  function pol(cx, cy, r, a) { return [cx + r * Math.cos(a), cy + r * Math.sin(a)]; }
+  function arc(cx, cy, r, n0, n1) {
+    if (Math.abs(n1 - n0) < 0.002) return "";
+    var a = Math.min(n0, n1), b = Math.max(n0, n1), p0 = pol(cx, cy, r, ang(a)), p1 = pol(cx, cy, r, ang(b));
+    var large = (b - a) * 270 > 180 ? 1 : 0;
+    return "M" + p0[0].toFixed(2) + " " + p0[1].toFixed(2) + " A" + r + " " + r + " 0 " + large + " 1 " + p1[0].toFixed(2) + " " + p1[1].toFixed(2);
+  }
+  // k: {l: label, v: value text, n: norm, b: bipolar, lock: {n, col4}, off: inactive}
+  function knob(x, y, w, h, k) {
+    var labelH = 13.5, cw = w, ch = h - 4 - 2 - labelH;
+    var side = Math.min(cw, ch), s = side / 100, cx = cw / 2, cy = ch / 2;
+    var g = "";
+    var active = !k.off;
+    g += '<path d="' + arc(cx, cy, 36 * s, 0, 1) + '" fill="none" stroke="' + (active ? "var(--off)" : "var(--panel)") + '" stroke-width="' + 6 * s + '" stroke-linecap="round"/>';
+    g += '<circle cx="' + cx + '" cy="' + cy + '" r="' + 24 * s + '" fill="' + (active ? "var(--panel2)" : "var(--panel)") + '"/>';
+    var lockCol = k.lock ? (k.lock.col4 ? "var(--gr)" : "var(--accent)") : null;
+    if (active) {
+      var o = k.b ? 0.5 : 0;
+      var d = arc(cx, cy, 36 * s, o, k.n);
+      if (d) g += '<path d="' + d + '" fill="none" stroke="var(--text)" stroke-width="' + 6 * s + '" stroke-linecap="round"/>';
+      if (k.lock) {
+        var dl = arc(cx, cy, 28 * s, o, k.lock.n);
+        if (dl) g += '<path d="' + dl + '" fill="none" stroke="' + lockCol + '" stroke-width="' + 5 * s + '" stroke-linecap="round"/>';
+      }
+      var a = ang(k.lock ? k.lock.n : k.n), p0 = pol(cx, cy, 21 * s, a), p1 = pol(cx, cy, 28 * s, a);
+      g += '<path d="M' + p0[0] + " " + p0[1] + " L" + p1[0] + " " + p1[1] + '" stroke="' + (lockCol || "var(--text)") + '" stroke-width="' + 3 * s + '" stroke-linecap="round"/>';
+    }
+    var out = svg(cw, ch, g, 0, 2);
+    if (active) out += '<div class="lbl" style="left:0;top:2px;width:' + cw + "px;height:" + ch + 'px;display:flex;align-items:center;justify-content:center;font-size:11px;color:' + (lockCol || "var(--text)") + '">' + (k.lock ? k.lock.v : k.v) + "</div>";
+    out += '<div class="lbl" style="left:0;top:' + (2 + ch + 2) + "px;width:" + cw + "px;height:" + labelH + 'px;font-size:11px;color:var(--dim)">' + k.l + "</div>";
+    return box(x, y, w, h, "", out);
+  }
+
+  // ---------- data per mode (labels from Params.swift; values = defaults / new project) ----------
+  function K(l, v, n, b) { return { l: l, v: v, n: n, b: !!b }; }
+  var GRIDS = {
+    track: [K("Pitch","0.0st",.5,1),K("Start","0%",0),K("End","100%",1),K("Rate Pitch","100%",1,1),
+            K("Attack","0ms",0),K("Decay","500ms",.5),K("Filter","LP OFF",1),K("Resonance","0%",0),
+            K("Reverb","0%",0),K("Delay","0%",0),K("Drive","0%",0),K("Duck","0%",0),
+            K("Pan","C",.5,1),K("Velocity","100%",1),K("Ratchet","1",0),K("Chance","100%",1)],
+    fx:    [K("Rev Size","30%",.3),K("Rev Decay","1.5s",.511),K("Rev Tone","0",.5,1),K("Rev Low Cut","120",.389),
+            K("Dly Time","1/8",.4545),K("Dly Feedback","40%",.4),K("Dly Spread","0%",0),K("Dly Filter","OFF",.5,1),
+            K("Drive","26%",.26),K("Drive Type","Soft",0),K("Drive Tone","50%",.5),K("Drive Low Cut","80.0",.354),
+            K("Duck Attack","5ms",.566),K("Duck Release","150ms",.588),K("Duck Source","1",0),K("Duck Curve","50%",.5)],
+    mod:   [K("LFO1 Wave","Sine",0),K("LFO1 Speed","0.10Hz",.116),K("LFO1 Invert","+100%",0),K("LFO1 Polarity","BI",0),
+            K("LFO2 Wave","Sine",0),K("LFO2 Speed","0.50Hz",.384),K("LFO2 Invert","+100%",0),K("LFO2 Polarity","BI",0),
+            K("LFO3 Wave","Sine",0),K("LFO3 Speed","1.0Hz",.5),K("LFO3 Invert","+100%",0),K("LFO3 Polarity","BI",0),
+            K("ENV Attack","10ms",.278),K("ENV Decay","100ms",.555),K("ENV Sustain","40%",.4),K("ENV Release","300ms",.688)],
+    mst:   [K("Drive","0.0\ndB",0),K("Type","TAPE",0),K("Tone","0.0\ndB",.5),K("Mix","100%",1),
+            K("Threshold","-10.0\ndB",.75),K("Attack","30 ms",.826),K("Release","400 ms",.6),K("Makeup","0.0\ndB",0),
+            K("Input","0.0\ndB",0),K("Ceiling","-1.0\ndB",.917),K("Softness","30%",.3),K("Bass","OFF",0),
+            K("Input","0.0\ndB",0),K("Ceiling","-1.0\ndB",.958),K("Lookahead","3.0 ms",.455),K("Release","150 ms",.55)]
+  };
+
+  // ---------- zones ----------
+  function topBar(mode) {
+    var y = 0, h = TOP, s = "";
+    // left group (220): burger 52, BPM, metronome 52
+    s += box(PAD, y, 52, h, "", (function () { var b = ""; for (var i = 0; i < 3; i++) b += box(15, 15 + i * 7, 22, 2, "background:var(--text);border-radius:1px"); return b; })());
+    var bx = PAD + 58, bw = COL - 52 - 52 - 12;
+    s += tile(bx, y, bw, h, "var(--panel)",
+      '<div class="lbl" style="left:12px;top:0;height:' + h + 'px;display:flex;align-items:center;font-size:11px;letter-spacing:.9px;color:var(--dim)">BPM</div>' +
+      '<div class="lbl" style="right:12px;top:0;height:' + h + 'px;display:flex;align-items:center;font-size:19px;color:var(--text)">120</div>' +
+      (function () { var b = "", sw = (bw - 24 - 6) / 4; for (var i = 0; i < 4; i++) b += box(12 + i * (sw + 2), h - 8, sw, 1, "background:var(--meterTrack)"); return b; })());
+    s += tile(PAD + COL - 52, y, 52, h, "var(--panel)", icon("metronome", 52, h, "var(--dim)"));
+    // middle (= grid width): SCALE 107, ROOT flex, UNDO 107, PLAY ½, REC ½, REDO 107, ROLL flex, EQ 107
+    var x = GRID_X, half = (TOPBTN - GAP) / 2, flex = (GRID_W - 4 * TOPBTN - 2 * half - 7 * GAP) / 2;
+    function field(x0, w, lab, val) {
+      return tile(x0, y, w, h, "var(--panel)",
+        '<div class="lbl" style="left:10px;top:6px;text-align:left;font-size:9px;letter-spacing:.8px;color:var(--dim)">' + lab + "</div>" +
+        '<div class="lbl" style="left:10px;top:18px;text-align:left;font-size:15px;color:var(--text)">' + val + "</div>");
+    }
+    s += field(x, TOPBTN, "SCALE", "Major"); x += TOPBTN + GAP;
+    s += field(x, flex, "ROOT", "C"); x += flex + GAP;
+    s += tile(x, y, TOPBTN, h, "var(--panel2)", icon("undo", TOPBTN, h, "var(--off)")); x += TOPBTN + GAP;
+    s += tile(x, y, half, h, "var(--panel2)", icon("play", half, h, "var(--accent)"), "box-shadow:inset 0 0 0 1px var(--accent)"); x += half + GAP;
+    s += tile(x, y, half, h, "var(--panel2)", icon("dot", half, h, "var(--rec)", 6), "box-shadow:inset 0 0 0 1px var(--rec)"); x += half + GAP;
+    s += tile(x, y, TOPBTN, h, "var(--panel2)", icon("redo", TOPBTN, h, "var(--off)")); x += TOPBTN + GAP;
+    s += tile(x, y, flex, h, "var(--panel2)", icon("piano", flex, h, "var(--text)")); x += flex + GAP;
+    s += btn(x, y, TOPBTN, h, "EQ");
+    // right group: PATTERNS, ARRANGE, CPU above the meter
+    s += btn(RIGHT_X, y, TOPBTN, h, "PATTERNS");
+    s += btn(RIGHT_X + TOPBTN + GAP, y, TOPBTN, h, "ARRANGE");
+    s += box(METER_X - 9, y + 7, 48, 48, "", '<div class="lbl" style="left:0;top:0;width:48px;height:48px;display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--dim)">CPU\n12%</div>');
+    return s;
+  }
+
+  function waveform(w, h) {
+    var n = 160, mid = h / 2, amp = h / 2, up = "", dn = "";
+    var peaks = [];
+    for (var i = 0; i < n; i++) {
+      var t = i / n, env = i < 2 ? 0.55 + i * 0.2 : Math.exp(-t * 7.5);
+      var body = 0.75 + 0.25 * Math.abs(Math.sin(i * 0.55));
+      peaks.push(Math.min(1, env * body * (i < 30 ? 1 : 0.9)));
+    }
+    var dx = w / n, d = "M0 " + mid;
+    for (i = 0; i < n; i++) { var hh = Math.max(0.5, peaks[i] * amp); d += " L" + (i * dx).toFixed(2) + " " + (mid - hh).toFixed(2) + " L" + ((i + 1) * dx).toFixed(2) + " " + (mid - hh).toFixed(2); }
+    d += " L" + w + " " + mid;
+    for (i = n - 1; i >= 0; i--) { hh = Math.max(0.5, peaks[i] * amp); d += " L" + ((i + 1) * dx).toFixed(2) + " " + (mid + hh).toFixed(2) + " L" + (i * dx).toFixed(2) + " " + (mid + hh).toFixed(2); }
+    return '<path d="' + d + ' Z" fill="var(--text)"/>';
+  }
+
+  function leftColumn(mode, state) {
+    var synth = state === "synth" || state === "synthmenu";
+    var s = "", x = PAD, y = CY, bar = U.bar;
+    var pairsH = 2 * PAIR + GAP, topH = CENTER_H - pairsH - GAP;
+    if (mode === "mst") {
+      // indicator (no bar row) + master buttons COMP CLIP / SAT LIM
+      s += tile(x, y, COL, topH, "var(--panel)", indicator(COL, topH));
+      var by = y + topH + GAP, bw = (COL - GAP) / 2;
+      var cols = ["var(--text)", "var(--accent)", "var(--gr)", "var(--rec)"];
+      s += btn(x, by, bw, PAIR, "COMP", { ring: cols[1] }); s += btn(x + bw + GAP, by, bw, PAIR, "CLIP", { ring: cols[2] });
+      s += btn(x, by + PAIR + GAP, bw, PAIR, "SAT", { ring: cols[0] }); s += btn(x + bw + GAP, by + PAIR + GAP, bw, PAIR, "LIM", { ring: cols[3] });
+      return s;
+    }
+    var winY = y + bar + GAP, winH = topH - bar - GAP;
+    if (mode === "mix") {
+      s += tile(x, y, COL, bar, "var(--panel2)", '<div class="lbl" style="left:0;top:0;width:' + COL + "px;height:" + bar + 'px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:13px;font-weight:600;letter-spacing:1px;color:var(--rec)"><span style="position:static;display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--rec)"></span>MASTER</div>', "box-shadow:inset 0 0 0 1px var(--rec)");
+      s += tile(x, winY, COL, winH, "var(--panel)", mixOverview(COL, winH));
+      s += tile(x, y + topH + GAP, COL, pairsH, "var(--panel)");
+      return s;
+    }
+    // folder arrows
+    s += btn(x, y, 56, bar, "◀");
+    s += box(x + 56 + GAP, y, COL - 112 - 2 * GAP, bar, "", label("1 / 4", COL - 112 - 2 * GAP, bar, "font-size:11px;color:var(--dim)"));
+    s += btn(x + COL - 56, y, 56, bar, "▶");
+    // sample window
+    var inner = '<div class="lbl" style="left:8px;top:14px;text-align:left;font-size:13px;font-weight:700;color:var(--accentText)">KICK 01</div>';
+    var waveW = COL - 16 - 12, contentTop = 14 + 18 + 4, contentH = winH - contentTop - 8, noteH = 13;
+    var waveH = Math.min(144, contentH - noteH - 3 * 8), gapV = (contentH - waveH - noteH) / 3;
+    inner += svg(waveW, waveH, waveform(waveW, waveH), 14, contentTop + gapV);
+    inner += '<div class="lbl" style="left:14px;top:' + (contentTop + 2 * gapV + waveH) + 'px;text-align:left;font-size:11px;letter-spacing:.44px;color:var(--text)">Note · C1</div>';
+    s += tile(x, winY, COL, winH, "var(--panel)", synth ? synthWindow(COL, winH) : inner);
+    // LFO1 LFO2 / LFO3 ENV
+    var by2 = y + topH + GAP, bw2 = (COL - GAP) / 2;
+    s += btn(x, by2, bw2, PAIR, "LFO1"); s += btn(x + bw2 + GAP, by2, bw2, PAIR, "LFO2");
+    s += btn(x, by2 + PAIR + GAP, bw2, PAIR, "LFO3"); s += btn(x + bw2 + GAP, by2 + PAIR + GAP, bw2, PAIR, "ENV");
+    return s;
+  }
+
+  function indicator(w, h) {
+    // COMP | CLIP | LIM, each IN GR OUT bars (LevelBars)
+    var s = "", pad = 8, bw = (w - 2 * pad - 2 * 8) / 3, names = ["COMP", "CLIP", "LIM"];
+    var lv = [[.62, .1, .58], [.58, .04, .57], [.57, .06, .55]];
+    for (var b = 0; b < 3; b++) {
+      var bx = pad + b * (bw + 8), top = pad + 16, barH = h - 2 * pad - 16 - 16;
+      s += '<div class="lbl" style="left:' + bx + "px;top:" + pad + "px;width:" + bw + 'px;font-size:10px;letter-spacing:1px;color:var(--dim)">' + names[b] + "</div>";
+      for (var i = 0; i < 3; i++) {
+        var cx = bx + bw * (i + 0.5) / 3 - 4.5, f = lv[b][i];
+        var fill = i === 1 ? "var(--gr)" : "var(--accent)";
+        s += box(cx, top, 9, barH, "background:var(--meterTrack);border-radius:3px;overflow:hidden",
+          i === 1 ? box(0, 0, 9, barH * f, "background:" + fill) : box(0, barH * (1 - f), 9, barH * f, "background:" + fill));
+        s += '<div class="lbl" style="left:' + (cx - 8) + "px;top:" + (top + barH + 3) + 'px;width:25px;font-size:9px;color:var(--dim)">' + ["IN", "GR", "OUT"][i] + "</div>";
+      }
+    }
+    return s;
+  }
+
+  function mixOverview(w, h) {
+    var s = "", pad = 10, slot = (w - 2 * pad) / 16, lv = [.78, .66, .55, .7, .45, .6, .5, .4];
+    for (var t = 0; t < 8; t++) {
+      var x = pad + t * slot + (slot - 9) / 2, bh = h - 2 * pad;
+      s += box(x, pad, 9, bh, "background:var(--meterTrack);border-radius:3px;overflow:hidden", box(0, bh * (1 - lv[t]), 9, bh * lv[t], "background:var(--accent)"));
+    }
+    return s;
+  }
+
+  function scope(w, h) {
+    var gh = (h - GAP) * 0.6, oh = (h - GAP) * 0.4, s = "";
+    var g = '<path d="M' + w / 2 + " 6 V" + (gh - 6) + " M6 " + gh / 2 + " H" + (w - 6) + '" stroke="var(--gridStrong)" stroke-width="1"/>';
+    var pts = "";
+    for (var i = 0; i < 260; i++) { var a = i * 0.37, r = 0.5 + 0.5 * Math.sin(i * 0.13); var px = w / 2 + Math.sin(a) * r * gh * 0.12, py = gh / 2 - Math.cos(a * 1.03) * r * gh * 0.32; pts += (i ? " L" : "M") + px.toFixed(1) + " " + py.toFixed(1); }
+    g += '<path d="' + pts + '" fill="none" stroke="var(--text)" stroke-width=".8" opacity=".55"/>';
+    s += tile(0, 0, w, gh, "var(--panel)", svg(w, gh, g) + '<div class="lbl" style="left:8px;top:6px;font-size:9px;color:var(--dim)">L</div><div class="lbl" style="right:8px;top:6px;font-size:9px;color:var(--dim)">R</div>');
+    var o = "", n = 110;
+    for (i = 0; i < n; i++) { var v = (0.35 + 0.3 * Math.abs(Math.sin(i * 0.31))) * (oh / 2 - 6); o += '<rect x="' + (6 + i * (w - 12) / n).toFixed(1) + '" y="' + (oh / 2 - v).toFixed(1) + '" width="' + ((w - 12) / n * 0.8).toFixed(2) + '" height="' + (2 * v).toFixed(1) + '" fill="var(--text)" opacity=".6"/>'; }
+    s += tile(0, gh + GAP, w, oh, "var(--panel)", svg(w, oh, o));
+    return s;
+  }
+
+  function rightColumn(mode) {
+    var s = "", x = RIGHT_X, y = CY, bar = U.bar;
+    var pairsH = 2 * PAIR + GAP, topH = CENTER_H - pairsH - GAP, by = y + topH + GAP, bw = (COL - GAP) / 2;
+    if (mode === "mst" || mode === "mix") {
+      s += box(x, y, COL, topH, "", scope(COL, topH));
+      if (mode === "mix") { s += tile(x, by, COL, pairsH, "var(--panel)"); return s; }
+      s += btn(x, by, bw, PAIR, "COMP"); s += btn(x + bw + GAP, by, bw, PAIR, "CLIP");
+      s += btn(x, by + PAIR + GAP, bw, PAIR, "SHIFT"); s += btn(x + bw + GAP, by + PAIR + GAP, bw, PAIR, "LIM");
+      return s;
+    }
+    var aw = (COL - 3 * GAP) / 4;
+    ["◀", "▶", "▲", "▼"].forEach(function (t, i) { s += btn(x + i * (aw + GAP), y, aw, bar, t); });
+    // 8 thumbnail rows
+    var py = y + bar + GAP, ph = topH - bar - GAP, rowH = (ph - 4 * 7) / 8;
+    var pattern = [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0];
+    var th = "", cw = (COL - 8 - 2 * 15) / 16;
+    for (var st = 0; st < 16; st++) th += box(4 + st * (cw + 2), 4, cw, rowH - 8, "border-radius:2px;background:" + (pattern[st] ? "var(--text)" : "var(--off)"));
+    s += box(x, py, COL, rowH, "background:var(--panel2);border-radius:6px", th);
+    s += box(x - 3, py - 3, COL + 6, rowH + 6, "border:1px solid var(--text);border-radius:8px");
+    s += box(x, py + rowH + 4, COL, rowH, "border:2px dashed var(--line);border-radius:6px", label("+", COL - 4, rowH - 4, "font-size:20px;color:var(--dim)"));
+    var fxLit = mode === "fx", modLit = mode === "mod";
+    s += btn(x, by, bw, PAIR, "FX", fxLit ? { fill: "var(--text)", color: "var(--bg)" } : {});
+    s += btn(x + bw + GAP, by, bw, PAIR, "MOD", modLit ? { fill: "var(--text)", color: "var(--bg)" } : {});
+    s += btn(x, by + PAIR + GAP, bw, PAIR, "SHIFT");
+    s += btn(x + bw + GAP, by + PAIR + GAP, bw, PAIR, "MORPH");
+    return s;
+  }
+
+  var ANALOG_ROW = [K("Wave A", "Sine", .125), K("Wave B", "Saw", .625), K("Detune", "0%", 0), K("Mix", "50%", .5)];
+  function knobGrid(mode, state) {
+    var s = "", cw = (GRID_W - 6) / 4, ch = (CENTER_H - 6) / 4, synth = state === "synth" || state === "synthmenu";
+    for (var i = 0; i < 16; i++) {
+      var x = GRID_X + (i % 4) * (cw + 2), y = CY + Math.floor(i / 4) * (ch + 2);
+      if (mode === "mix") s += mixCell(x, y, cw, ch, i);
+      else s += knob(x, y, cw, ch, synth && i < 4 ? ANALOG_ROW[i] : GRIDS[mode][i]);
+    }
+    return s;
+  }
+
+  function mixCell(x, y, w, h, slot) {
+    var exists = slot < 8, s = "";
+    var k = exists ? K(String(slot + 1), "-10.0\ndB", .833) : { l: String(slot + 1), off: true };
+    s += knob(21 + 4, 0, w - 25 - 32, h, k);
+    if (exists) {
+      var mh = (h - 17) * 0.8, my = (h - 17 - mh) / 2, lv = [.78, .66, .55, .7, .45, .6, .5, .4][slot];
+      for (var b = 0; b < 2; b++) s += box(2 + b * 12 - 3 + 3, my, 9, mh, "background:var(--meterTrack);border-radius:3px;overflow:hidden", box(0, mh * (1 - lv), 9, mh * lv, "background:var(--accent)"));
+      var knobH = h - 17, bh = Math.max(14, Math.min(26, (knobH - 8) / 3)), y0 = knobH / 2 - (3 * bh + 8) / 2 + 2, bx = w - 26 - 2;
+      var mk = function (i, t, c) { return box(bx, y0 + i * (bh + 4), 26, bh, "border-radius:5px;box-shadow:inset 0 0 0 1px " + c, t ? label(t, 26, bh, "font-size:11px;font-weight:700;color:" + c) : '<div style="left:9px;top:' + (bh / 2 - 4) + 'px;width:8px;height:8px;border-radius:50%;background:var(--rec)"></div>'); };
+      s += mk(0, "M", "var(--rec)") + mk(1, "S", "var(--accent)") + mk(2, "", "var(--rec)");
+    }
+    return box(x, y, w, h, "", s);
+  }
+
+  function meter(mode) {
+    var x = METER_X, y = CY, h = CENTER_H, s = "";
+    var lab = function (t, yy) { return '<div class="lbl" style="left:0;top:' + yy + 'px;width:' + METER + 'px;font-size:9px;color:var(--dim)">' + t + "</div>"; };
+    s += lab("LUFS\n-14.2", 0);
+    s += box((METER - 21) / 2, 26, 21, 4, "background:var(--off);border-radius:2px");
+    var by = 34, bh = h - by - 28, lv = [.74, .7];
+    for (var b = 0; b < 2; b++) s += box(METER / 2 - 10.5 + b * 12, by, 9, bh, "background:var(--meterTrack);border-radius:3px;overflow:hidden", box(0, bh * (1 - lv[b]), 9, bh * lv[b], "background:var(--accent)"));
+    s += box(0, by + bh * (10 / 60) - 4, 30, 8, "background:var(--text);border-radius:3px;box-shadow:0 0 0 1.5px var(--bg),0 1px 2px rgba(0,0,0,.4)");
+    s += lab("-3.1\ndB", by + bh + 4);
+    return box(x, y, METER, h, "", s);
+  }
+
+  function lower(mode, state) {
+    var s = "", y = LY;
+    // track row
+    var tw = (WIDTH - 2 * STEP - 9 * GAP) / 8;
+    function cell(x, w, name, o) {
+      o = o || {};
+      var fill = o.mute ? "color-mix(in srgb, var(--rec) 35%, transparent)" : o.solo ? "color-mix(in srgb, var(--accent) 35%, var(--trackBg))" : "var(--trackBg)";
+      var ring = o.mute ? "var(--rec)" : o.sel ? "var(--accent)" : null;
+      var inner = label(name, w, TRACK_H, "font-size:" + (o.big ? 15 : 12) + "px;font-weight:" + (o.sel ? 800 : 600) + ";letter-spacing:" + (o.big ? 0 : 0.7) + "px;color:var(--text)");
+      if (o.mute || o.solo) inner += '<div class="lbl" style="right:7px;top:3px;font-size:11px;font-weight:700;color:' + (o.mute ? "var(--rec)" : "var(--accent)") + '">' + (o.mute ? "M" : "S") + "</div>";
+      return tile(x, y, w, TRACK_H, fill, inner, ring ? "box-shadow:inset 0 0 0 1px " + ring : "");
+    }
+    s += cell(PAD, STEP, "MIX", { sel: mode === "mix" });
+    for (var t = 0; t < 8; t++) {
+      var sel = (mode === "track" || mode === "fx" || mode === "mod") && t === 0;
+      s += cell(PAD + STEP + GAP + t * (tw + GAP), tw, String(t + 1), { sel: sel, big: sel, mute: state === "mutesolo" && t === 2, solo: state === "mutesolo" && t === 4 });
+    }
+    s += cell(PAD + WIDTH - STEP, STEP, "MST", { sel: mode === "mst" });
+    // sequencer
+    var sy = y + TRACK_H + GAP;
+    for (var i = 0; i < 16; i++) {
+      var x = PAD + i * (STEP + STEPGAP), on = i % 4 === 0;
+      var inner = on ? box(5, 5, STEP - 10, SEQ_H - 10, "background:var(--text);border-radius:4px", label("C3", STEP - 10, SEQ_H - 10, "font-size:11px;font-weight:700;color:var(--bg)")) : "";
+      s += box(x, sy, STEP, SEQ_H, "border-radius:6px;background:" + (i % 4 === 0 ? "var(--panel2)" : "var(--panel)"), inner);
+    }
+    // keyboard
+    var ky = sy + SEQ_H + GAP, keyH = Math.min(STEP, PIANO - 50);
+    s += tile(PAD, ky, STEP, keyH, "var(--panel2)", '<div class="lbl" style="left:0;top:0;width:' + STEP + "px;height:" + keyH + 'px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--text)"><span style="position:static;font-size:12px;font-weight:600;letter-spacing:1px">CHORD</span><span style="position:static;font-size:10px">Triad</span></div>');
+    var burgerY = ky + keyH + GAP, burgerH = PIANO - keyH - GAP, bb = "";
+    for (var j = 0; j < 3; j++) bb += box(STEP / 2 - 11, burgerH / 2 - 7 + j * 7, 22, 2, "background:var(--text);border-radius:1px");
+    s += box(PAD, burgerY, STEP, burgerH, "", bb);
+    var names = ["C3", "D3", "E3", "F3", "G3", "A3", "B3", "C4", "D4", "E4", "F4", "G4", "A4", "B4", "C5"];
+    var kx = PAD + STEP + STEPGAP, kw = WIDTH - 2 * STEP - 2 * STEPGAP, kk = (kw - 3 * 14) / 15;
+    names.forEach(function (n, k) {
+      var root = n.charAt(0) === "C", shown = k === 0;
+      s += box(kx + k * (kk + 3), ky, kk, PIANO, "border-radius:6px;background:" + (root ? "var(--root)" : "var(--panel)") + (shown ? ";box-shadow:inset 0 0 0 1px var(--text)" : ""),
+        '<div class="lbl" style="left:0;bottom:6px;width:' + kk + 'px;font-size:11px;color:' + (root || shown ? "var(--text)" : "var(--dim)") + '">' + n + "</div>");
+    });
+    var ox = PAD + WIDTH - STEP, oh = (PIANO - STEPGAP) / 2;
+    s += btn(ox, ky, STEP, oh, "▲", { size: 14 }); s += btn(ox, ky + oh + STEPGAP, STEP, oh, "▼", { size: 14 });
+    return s;
+  }
+
+  // ---------- menus and windows (MenuItem, MenuBox, ToolButton, SoundMenu, SynthInfo, SampleEditor, LibraryBrowser) ----------
+  function menuItem(x, y, w, h, title, o) {
+    o = o || {};
+    var fg = o.off ? "var(--off)" : o.cur ? "var(--onAccent)" : o.red ? "var(--rec)" : "var(--text)";
+    return box(x, y, w, h, "background:" + (o.cur ? "var(--accent)" : "var(--panel)") + ";border-radius:8px", label(title, w, h, "font-size:13px;font-weight:700;color:" + fg));
+  }
+  function menuBox(x, y, w, h, inner) {
+    return box(x, y, w, h, "background:var(--bg);border-radius:10px;box-shadow:0 0 0 1px var(--line),0 4px 24px rgba(0,0,0,.5)", inner);
+  }
+  function tool(x, y, w, h, title, o) {
+    o = o || {};
+    return box(x, y, w, h, "background:" + (o.lit ? "var(--accent)" : "var(--panel2)") + ";border-radius:8px" + (o.ring ? ";box-shadow:inset 0 0 0 1px " + o.ring : ""),
+      o.inner || label(title, w, h, "font-size:13px;font-weight:" + (o.bold ? 700 : 400) + ";color:" + (o.off ? "var(--off)" : o.color || "var(--text)")));
+  }
+  function smallTitle(x, y, w, t) { return '<div class="lbl" style="left:' + x + "px;top:" + y + "px;width:" + w + 'px;font-size:10px;font-weight:700;letter-spacing:.4px;color:var(--dim)">' + t + "</div>"; }
+
+  function soundMenu(synth) {
+    var x = PAD, y = CY, w = COL, h = CENTER_H, p = 6, iw = w - 2 * p, cw = (iw - 4) / 2, s = "";
+    var drums = ["KICK", "SNARE", "HAT", "CLAP", "PERC", "SAMPLER"], synths = ["ANALOG", "SUB", "FM", "WTABLE", "TEXTURE", "GRANULAR"];
+    s += smallTitle(p, p, cw, "DRUMS") + smallTitle(p + cw + 4, p, cw, "SYNTH");
+    for (var i = 0; i < 6; i++) {
+      var cy = p + 16 + i * 44;
+      s += menuItem(p, cy, cw, 40, drums[i], { cur: !synth && i === 5 });
+      s += menuItem(p + cw + 4, cy, cw, 40, synths[i], { cur: synth && i === 0 });
+    }
+    var by = h - p - 84, half = (iw - 4) / 2;
+    s += smallTitle(p, by - 18, iw, "LOAD SAMPLE · PRESET · MIDI");
+    s += menuItem(p, by, half, 40, "LOAD", { cur: !synth }) + menuItem(p + half + 4, by, half, 40, "MIDI");
+    s += menuItem(p, by + 44, half, 40, "SAVE", { off: !synth }) + menuItem(p + half + 4, by + 44, half, 40, "TABLE", { off: true });
+    return menuBox(x, y, w, h, s);
+  }
+
+  function analogIcon(side) {
+    var k = side / 64, sc = 1.3 * 0.16, n = 432;
+    function shape(kind, ph) { var f = ph - Math.floor(ph); if (kind === 0) return Math.sin(2 * Math.PI * ph); if (kind === 1) return 1 - 4 * Math.abs(f < 0.75 ? f - 0.25 : f - 1.25); if (kind === 2) return 1 - 2 * f; return f < 0.5 ? 1 : -1; }
+    function lane(kind, y0) {
+      var top = [], bot = [];
+      for (var i = 0; i <= n; i++) {
+        var u = i / n, v = shape(kind, u * 2 - sc), x = (4 + 56 * u) * k;
+        top.push(x.toFixed(2) + " " + (Math.min(62.5, Math.max(1.5, y0 - Math.max(0, v) * 10.5 - 0.4)) * k).toFixed(2));
+        bot.unshift(x.toFixed(2) + " " + (Math.min(62.5, Math.max(1.5, y0 - Math.min(0, v) * 10.5 + 0.4)) * k).toFixed(2));
+      }
+      return '<path d="M' + top.join(" L") + " L" + bot.join(" L") + ' Z" fill="var(--text)"/>';
+    }
+    return lane(0, 20) + lane(2, 44);
+  }
+
+  function synthWindow(w, h) {
+    var s = '<div class="lbl" style="left:8px;top:14px;text-align:left;font-size:13px;font-weight:700;color:var(--accentText)">ANALOG</div>';
+    var top = 8 + 6 + 17 + 4, avail = h - top - 8, rowsH = 4 * 13 + 3 * 8;
+    var side = Math.min(144, w - 28, avail - rowsH - 22), block = side + 8 + 14 + rowsH, y0 = top + (avail - block) / 2;
+    s += svg(side, side, analogIcon(side), (w - side) / 2, y0 + 3);
+    var rows = ["Wave A · Sine", "Wave B · Saw", "Detune · 0%", "Mix · 50%"];
+    rows.forEach(function (r, i) { s += '<div class="lbl" style="left:14px;top:' + (y0 + side + 8 + 14 + i * 21) + 'px;text-align:left;font-size:11px;letter-spacing:.44px;color:var(--text)">' + r + "</div>"; });
+    return s;
+  }
+
+  function trackMenu(slot) {
+    var cw = (GRID_W - 6) / 4, ch = (CENTER_H - 6) / 4, gx = (slot % 4 + 0.5) * (GRID_W + 2) / 4, gy = (Math.floor(slot / 4) + 0.5) * (CENTER_H + 2) / 4;
+    var x = Math.min(Math.max(0, gx - 98), GRID_W - 196), y = gy + ch / 2, s = "";
+    var items = [["COPY", {}], ["PASTE", { off: true }], ["DELETE TRACK", { red: true, off: true }], ["RENAME", {}]];
+    items.forEach(function (it, i) { s += menuItem(8, 8 + i * 46, 180, 40, it[0], it[1]); });
+    return menuBox(GRID_X + x, CY + y, 196, 4 * 46 - 6 + 16, s);
+  }
+
+  function centerArea() { return { x: PAD, y: CY, w: METER_X - GAP - PAD, h: CENTER_H }; }
+
+  function editor() {
+    var a = centerArea(), bar = U.bar, s = "", g = GAP;
+    var infoW = GRID_X - PAD - g, bw = (COL - 3 * g) / 4;
+    s += '<div class="lbl" style="left:' + (a.x + 10) + "px;top:" + (a.y + bar / 2 - 15) + 'px;text-align:left;font-size:12px;font-weight:600;color:var(--text)">KICK 01\n0.820 s · M</div>';
+    var x = GRID_X;
+    s += tool(x, a.y, bw, bar, "", { inner: icon("play", bw, bar, "var(--text)") }); x += bw + g;
+    s += tool(x, a.y, bw, bar, "", { ring: "var(--rec)", inner: '<div class="lbl" style="left:0;top:0;width:' + bw + "px;height:" + bar + 'px;display:flex;align-items:center;justify-content:center;gap:5px;font-size:13px;color:var(--rec)"><span style="position:static;width:10px;height:10px;border-radius:50%;background:var(--rec)"></span>REC</div>' }); x += bw + g;
+    var midW = RIGHT_X - g - x, tw = (midW - 5 * g) / 6;
+    ["WARP", "MONO", "CUT", "TRIM", "NORMALIZE", "CLEAR"].forEach(function (t, i) { s += tool(x + i * (tw + g), a.y, tw, bar, t, { off: t === "MONO" }); });
+    var lw = (COL - bar - 2 * g) / 2;
+    s += tool(RIGHT_X, a.y, lw, bar, "LOAD", { bold: true }) + tool(RIGHT_X + lw + g, a.y, lw, bar, "SAVE", { bold: true });
+    s += tool(RIGHT_X + COL - bar, a.y, bar, bar, "✕");
+    // plot
+    var py = a.y + bar + g, ph = a.h - bar - g, pw = a.w, top = 40, lane = ph - top, mid = top + lane / 2, amp = lane / 2 - 6;
+    var wave = "", n = Math.floor(pw);
+    for (var i = 0; i < n; i++) {
+      var t = i / n, env = t < 0.004 ? 0.6 : Math.exp(-(t - 0.004) * 6.5), v = Math.min(1, env * (0.75 + 0.25 * Math.abs(Math.sin(i * 0.21))));
+      wave += '<rect x="' + i + '" y="' + (mid - v * amp).toFixed(1) + '" width="1" height="' + Math.max(1, 2 * v * amp).toFixed(1) + '"/>';
+    }
+    var xa = pw * 0.04, xb = pw * 0.78, hd = 22;
+    var plot = '<rect x="0" y="0" width="' + pw + '" height="' + top + '" fill="var(--meterTrack)" opacity=".35"/>' +
+      '<g fill="var(--text)">' + wave + "</g>" + '<rect x="0" y="' + mid + '" width="' + pw + '" height="1" fill="var(--line)"/>' +
+      '<rect x="0" y="' + top + '" width="' + xa + '" height="' + lane + '" fill="var(--bg)" opacity=".6"/>' +
+      '<rect x="' + xb + '" y="' + top + '" width="' + (pw - xb) + '" height="' + lane + '" fill="var(--bg)" opacity=".6"/>' +
+      '<rect x="' + (xa - 1) + '" y="' + top + '" width="2" height="' + lane + '" fill="var(--accent)"/><rect x="' + xa + '" y="' + (ph - hd) + '" width="' + hd + '" height="' + hd + '" fill="var(--accent)"/>' +
+      '<rect x="' + (xb - 1) + '" y="' + top + '" width="2" height="' + lane + '" fill="var(--accent)"/><rect x="' + (xb - hd) + '" y="' + (ph - hd) + '" width="' + hd + '" height="' + hd + '" fill="var(--accent)"/>';
+    s += box(a.x, py, pw, ph, "background:var(--panel);border-radius:10px;overflow:hidden", svg(pw, ph, plot));
+    return s;
+  }
+
+  var ICON2 = {
+    folder: function (c) { return '<path d="M-8 -5 h5 l2 2 h9 a1.5 1.5 0 0 1 1.5 1.5 v8 a1.5 1.5 0 0 1 -1.5 1.5 h-16 a1.5 1.5 0 0 1 -1.5 -1.5 v-10 a1.5 1.5 0 0 1 1.5 -1.5z" fill="' + c + '"/>'; },
+    wave: function (c) { var d = "", hs = [2, 5, 9, 6, 11, 7, 4, 8, 3]; hs.forEach(function (hh, i) { d += '<rect x="' + (-8.5 + i * 2.1) + '" y="' + (-hh / 2) + '" width="1.4" height="' + hh + '" rx=".7" fill="' + c + '"/>'; }); return d; },
+    keys: function (c) { return ICON.piano(c).replace(/stroke-width="1.8"/, 'stroke-width="1.6"'); }
+  };
+  function browser() {
+    var a = centerArea(), bar = U.bar, s = "", g = GAP;
+    var eqX = GRID_X + GRID_W - TOPBTN, pathW = eqX - a.x - bar - 2 * g;
+    s += tool(a.x, a.y, bar, bar, "‹");
+    s += '<div class="lbl" style="left:' + (a.x + bar + g + 6) + "px;top:" + (a.y + bar / 2 - 8) + 'px;text-align:left;font-size:13px;font-weight:700;color:var(--text)">LIBRARY / Drums</div>';
+    var bx = eqX, bw = (a.x + a.w - bar - g - eqX - 2 * g) / 3;
+    ["NEW FOLDER", "IMPORT", "EXPORT"].forEach(function (t, i) { s += tool(bx + i * (bw + g), a.y, bw, bar, t); });
+    s += tool(a.x + a.w - bar, a.y, bar, bar, "✕");
+    var ly = a.y + bar + g, lh = a.h - bar - g - 22, rows = "", rw = a.w - 12 - 6;
+    var items = [["rec", "RECORDINGS", "track stems  ›"], ["folder", "Kicks", "12  ›"], ["folder", "Snares", "8  ›"],
+      ["wave", "Kick 01", "sample", 1], ["wave", "Hat Closed", "sample"], ["wave", "Clap Room", "sample"], ["keys", "Warm Bass", "ANALOG"], ["keys", "Glass Pad", "WTABLE"]];
+    items.forEach(function (it, i) {
+      var y = 6 + i * 48; if (y + 44 > lh - 6) return;
+      var play = it[0] === "wave" || it[0] === "keys", x0 = play ? 40 : 0, cur = !!it[3], fg = cur ? "var(--onAccent)" : "var(--text)";
+      var inner = "";
+      if (play) inner += box(-40, 0, 40, 44, "", label("▶", 40, 44, "font-size:14px;color:var(--text)"));
+      var row = it[0] === "rec" ? '<div style="left:19.5px;top:18.5px;width:7px;height:7px;border-radius:50%;background:var(--rec)"></div>'
+        : box(12, 0, 22, 44, "", svg(22, 44, '<g transform="translate(11 22)">' + ICON2[it[0]](fg) + "</g>"));
+      row += '<div class="lbl" style="left:42px;top:14px;text-align:left;font-size:13px;font-weight:700;color:' + fg + '">' + it[1] + "</div>";
+      row += '<div class="lbl" style="right:12px;top:15px;font-size:12px;color:' + fg + ';opacity:.65">' + it[2] + "</div>";
+      rows += box(6 + x0, y, rw - x0, 44, "", inner + box(0, 0, rw - x0, 44, "background:" + (cur ? "var(--accent)" : "var(--panel)") + ";border-radius:8px", row));
+    });
+    s += box(a.x, ly, a.w, lh, "background:var(--panel2);border-radius:10px;overflow:hidden", rows);
+    s += '<div class="lbl" style="left:' + (a.x + 6) + "px;top:" + (ly + lh + 5) + 'px;text-align:left;font-size:12px;color:var(--dim)">Tap a sample or preset to load it on the track. Hold one to select several.</div>';
+    return s;
+  }
+
+  function screenHTML(mode, state) {
+    var c;
+    if (state === "editor" || state === "browser") c = (state === "editor" ? editor() : browser()) + meter(mode);
+    else c = leftColumn(mode, state) + knobGrid(mode, state) + rightColumn(mode) + meter(mode);
+    if (state === "soundmenu" || state === "synthmenu") c += soundMenu(state === "synthmenu");
+    if (state === "trackmenu") c += trackMenu(1);
+    return '<div class="scr" style="width:' + W + "px;height:" + H + 'px">' + topBar(mode) + c + lower(mode, state) + "</div>";
+  }
+
+  // callouts sit in a gutter around the screen: [side, screen coordinate along that side]
+  // "s" — on the screen itself (empty spot inside the zone): grid centre is the gap between knob rows 2 and 3,
+  // the right column has free space between the thumbnails and FX/MOD.
+  var CALLOUTS = [["l", TOP / 2], ["l", CY + CENTER_H / 2], ["s", GRID_X + GRID_W / 2, CY + CENTER_H / 2 - 1],
+    ["s", RIGHT_X + COL / 2, CY + CENTER_H * 0.56], ["r", CY + CENTER_H / 2],
+    ["l", LY + TRACK_H / 2], ["l", LY + TRACK_H + GAP + SEQ_H / 2], ["l", LY + TRACK_H + SEQ_H + 2 * GAP + PIANO / 2]];
+
+  // zones for close-up crops (screen points, with a 6 pt margin)
+  var M6 = 6;
+  var ZONES = {
+    top: [0, 0, W, TOP + M6],
+    upper: [0, 0, W, CY + CENTER_H + M6],
+    leftgrid: [PAD - M6, CY - M6, COL + GAP + GRID_W + M6 + 2, CENTER_H + 2 * M6],
+    left: [PAD - M6, CY - M6, COL + 2 * M6, CENTER_H + 2 * M6],
+    grid: [GRID_X - M6, CY - M6, GRID_W + M6 + 2, CENTER_H + 2 * M6],
+    right: [RIGHT_X - M6, CY - M6, COL + 2 * M6, CENTER_H + 2 * M6],
+    meter: [METER_X - 12, 0, METER + 18, CY + CENTER_H + M6],
+    tracks: [0, LY - M6, W, TRACK_H + 2 * M6],
+    seq: [0, LY + TRACK_H + GAP - M6, W, SEQ_H + 2 * M6],
+    keys: [0, LY + TRACK_H + SEQ_H + 2 * GAP - M6, W, PIANO + M6]
+  };
+
+  function mount(el) {
+    var mode = el.dataset.mode || "track";
+    if (el.dataset.knobs) return mountKnobs(el);
+    var crop = (el.dataset.crop || "0,0," + W + "," + H).split(",").map(Number);
+    if (el.dataset.zone) crop = ZONES[el.dataset.zone];
+    var maxH = Number(el.dataset.maxh || 0);
+    var G = el.dataset.callouts ? 34 : 0;
+    var html = '<div class="frame" style="position:absolute;overflow:hidden;border-radius:14px;box-shadow:0 0 0 1px var(--line);background:var(--bg)">' + screenHTML(mode, el.dataset.state) + "</div>";
+    if (G) {
+      el.style.background = "transparent"; el.style.boxShadow = "none"; el.style.overflow = "visible";
+      CALLOUTS.forEach(function (c, i) { html += '<div class="callout" data-s="' + c[0] + '" data-v="' + c[1] + '" data-w="' + (c[2] || 0) + '">' + (i + 1) + "</div>"; });
+    } else {
+      el.style.boxShadow = "none";
+    }
+    el.innerHTML = html;
+    var frame = el.querySelector(".frame"), scr = el.querySelector(".scr");
+    function fit() {
+      var cw = el.clientWidth - 2 * G, sc = cw / crop[2];
+      if (maxH && crop[3] * sc > maxH) { sc = maxH / crop[3]; cw = crop[2] * sc; }
+      var ch = crop[3] * sc;
+      el.style.height = (ch + 2 * G) + "px";
+      frame.style.left = G + "px"; frame.style.top = G + "px"; frame.style.width = cw + "px"; frame.style.height = ch + "px";
+      var whole = crop[2] === W && crop[3] === H;
+      frame.style.borderRadius = (whole ? 14 : 8) + "px";
+      frame.style.boxShadow = whole ? "0 0 0 1px var(--line)" : "none";
+      scr.style.transform = "scale(" + sc + ") translate(" + (-crop[0]) + "px," + (-crop[1]) + "px)";
+      el.querySelectorAll(".callout").forEach(function (c) {
+        var v = c.dataset.v * sc, s = c.dataset.s;
+        if (s === "s") { c.style.left = (G + v) + "px"; c.style.top = (G + c.dataset.w * sc) + "px"; return; }
+        c.style.left = (s === "l" ? G / 2 : s === "r" ? G + cw + G / 2 : G + v) + "px";
+        c.style.top = (s === "t" ? G / 2 : G + v) + "px";
+      });
+    }
+    fit();
+    if (window.ResizeObserver) new ResizeObserver(fit).observe(el);
+  }
+
+  function mountKnobs(el) {
+    var w = 173, h = 128, list = [
+      K("Decay", "500ms", .5),
+      K("Pan", "R30", .736, 1),
+      (function () { var k = K("Reverb", "0%", 0); k.lock = { n: .74, v: "74%" }; return k; })(),
+      (function () { var k = K("Chance", "100%", 1); k.lock = { n: .5, v: "50%", col4: true }; return k; })()
+    ];
+    var inner = "";
+    list.forEach(function (k, i) { inner += knob(i * (w + 2), 0, w, h, k); });
+    var tw = 4 * w + 6, th = h;
+    el.innerHTML = '<div class="scr" style="width:' + tw + "px;height:" + th + 'px">' + inner + "</div>";
+    var scr = el.querySelector(".scr");
+    function fit() { var sc = Math.min(1.4, el.clientWidth / tw); el.style.height = th * sc + 16 + "px"; scr.style.transform = "translate(" + (el.clientWidth - tw * sc) / 2 + "px,8px) scale(" + sc + ")"; }
+    fit();
+    if (window.ResizeObserver) new ResizeObserver(fit).observe(el);
+  }
+
+  document.querySelectorAll(".shot").forEach(mount);
+
+  // mode switcher
+  var DESC = {
+    track: "TRACK — выбрана дорожка с сэмплом. Верхняя строка — сэмпл (у синта — ручки движка, раздел 5), вторая — огибающая и фильтр, третья — посылы на общие эффекты, нижняя — Pan, Velocity, Ratchet, Chance. SHIFT + тап по Filter меняет тип фильтра, SHIFT + тап по Rate — режим RATE. Громкость дорожки — в MIX или регулятором на измерителе.",
+    fx: "FX — пока держите FX (кнопка белая). Строки: Reverb, Delay, Drive, Duck. Эффекты общие для всех дорожек; сколько звука дорожки идёт в каждый, задают посылы — третья строка режима TRACK. Duck Source выбирает дорожку, которая приглушает остальные.",
+    mod: "MOD — пока держите MOD. Строки: LFO1, LFO2, LFO3 и огибающая ENV выбранной дорожки. Куда они действуют, назначается кнопками LFO1…ENV в левой колонке (раздел 9).",
+    mix: "MIX — громкости дорожек в dB, подписи — имена дорожек. Слева от ручки — метр дорожки, справа — кнопки M (mute), S (solo) и ● (готовность к записи стема). Ручки без кольца — дорожки, которых ещё нет: двойной тап по ней добавляет дорожку. Двойной тап по ручке дорожки — меню COPY, PASTE, DELETE TRACK, RENAME; удержание и перетаскивание меняет порядок дорожек. Над окном — ● MASTER (запись мастера), справа — скоп мастера.",
+    mst: "MST — цепочка мастера сверху вниз: сатуратор, компрессор, клиппер, лимитер (перед ними — EQ мастера). В окне слева — индикация COMP, CLIP, LIM, под ним — кнопки окон модулей; справа — скоп мастера и кнопки его точек съёма (раздел 12)."
+  };
+  var modeShot = document.getElementById("modeShot"), desc = document.getElementById("mdesc");
+  function setMode(m) {
+    modeShot.dataset.mode = m; mount(modeShot); desc.textContent = DESC[m];
+    document.querySelectorAll(".modes button").forEach(function (b) { b.setAttribute("aria-pressed", b.dataset.mode === m ? "true" : "false"); });
+  }
+  document.querySelectorAll(".modes button").forEach(function (b) { b.addEventListener("click", function () { setMode(b.dataset.mode); }); });
+  setMode("track");
+})();
+</script>
