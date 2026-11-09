@@ -377,14 +377,14 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     <li><b>Стрелки ◀ ▶ ▲ ▼</b> над миниатюрами действуют на открытую страницу, а если она в белой обводке — на все играющие страницы.</li>
     <li><b>FX</b> и <b>MOD</b> — удержание: пока держите, ручки показывают эффекты или модуляцию.</li>
     <li><b>SHIFT</b> — удержание для дополнительных действий. Пока зажата, кнопка белая.</li>
-    <li><b>MORPH</b> — режим, в котором можно свободно крутить ручки, а потом одним тапом вернуть всё как было. Включённый горит жёлтым.</li>
+    <li><b>MORPH</b> — режим, в котором можно свободно крутить ручки, а потом одним тапом вернуть всё как было. Включённый горит жёлтым. Тонкая чёрная линия внутри — режим TAP (раздел 9.3).</li>
   </ul>
   <ul lang="en">
     <li><b>Page thumbnails.</b> A track's pattern has up to 8 pages of 16 steps, each shown as a thumbnail. Tap selects the page that plays and opens it in the sequencer. Dragging across several thumbnails selects several consecutive pages — they get a white outline. Double tap opens the page menu. The dashed “+” cell adds a page.</li>
     <li><b>The ◀ ▶ ▲ ▼ arrows</b> above the thumbnails act on the open page, or, if it is in the white outline, on all playing pages.</li>
     <li><b>FX</b> and <b>MOD</b> — hold: while held, the knobs show effects or modulation.</li>
     <li><b>SHIFT</b> — hold for extra actions. While held, the button is white.</li>
-    <li><b>MORPH</b> — a mode where you can freely turn knobs and then put everything back with a single tap. When on, it is lit yellow.</li>
+    <li><b>MORPH</b> — a mode where you can freely turn knobs and then put everything back with a single tap. When on, it is lit yellow. A thin black line inside means TAP mode (section 9.3).</li>
   </ul>
   </div>
 
@@ -754,8 +754,8 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
   <div lang="ru" class="tbl"><table>
     <thead><tr><th>Ручка</th><th>Что делает</th></tr></thead>
     <tbody>
-      <tr><td>Pitch</td><td>Высота, ±24 полутона. Плавно или по полутонам — SETTINGS → SAMPLER → PITCH; с зажатой SHIFT — другим способом.</td></tr>
-      <tr><td>Start, End</td><td>Начало и конец сэмпла. Отрезанное затемнено в окне звука. С зажатой SHIFT ручки встают на доли: 0, ⅛, ¼, ½, ¾, весь.</td></tr>
+      <tr><td>Pitch</td><td>Высота, ±24 полутона, плавно. По полутонам — как задано в SETTINGS → SAMPLER → PITCH SHIFT: HOLD — пока зажата SHIFT; TAP — SHIFT + тап по ручке переключает её у дорожки (подпись Pitch Semi) и обратно.</td></tr>
+      <tr><td>Start, End</td><td>Начало и конец сэмпла. Отрезанное затемнено в окне звука. Ручки могут вставать на доли: 0, ⅛, ¼, ½, ¾, весь — как задано в SETTINGS → SAMPLER → START / END SHIFT: HOLD — пока зажата SHIFT; TAP — SHIFT + тап по ручке переключает её у дорожки (Start Step, End Step) и обратно.</td></tr>
       <tr><td>Rate</td><td>Скорость: 100 % — обычная игра, в центре — стоп, левее центра — задом наперёд. SHIFT + тап переключает режим: <b>Rate Pitch</b> — скорость меняет высоту, как на виниле; <b>Rate Stretch</b> — высота прежняя, сэмпл идёт в темпе проекта и следует за BPM.</td></tr>
       <tr><td>Attack, Decay</td><td>Огибающая громкости ноты.</td></tr>
       <tr><td>Filter, Resonance</td><td>Фильтр и его резонанс. SHIFT + тап по Filter меняет тип: LP → HP → BP. У открытого фильтра на ручке написано OFF.</td></tr>
@@ -764,8 +764,8 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
   <div lang="en" class="tbl"><table>
     <thead><tr><th>Knob</th><th>What it does</th></tr></thead>
     <tbody>
-      <tr><td>Pitch</td><td>Pitch, ±24 semitones. Smooth or in semitones — SETTINGS → SAMPLER → PITCH; with SHIFT held — the other way.</td></tr>
-      <tr><td>Start, End</td><td>Start and end of the sample. The cut-off part is dimmed in the sound window. With SHIFT held, the knobs snap to fractions: 0, ⅛, ¼, ½, ¾, full.</td></tr>
+      <tr><td>Pitch</td><td>Pitch, ±24 semitones, smooth. In semitones — as set in SETTINGS → SAMPLER → PITCH SHIFT: HOLD — while SHIFT is held; TAP — SHIFT + tap on the knob switches it for the track (label Pitch Semi) and back.</td></tr>
+      <tr><td>Start, End</td><td>Start and end of the sample. The cut-off part is dimmed in the sound window. The knobs can snap to fractions: 0, ⅛, ¼, ½, ¾, full — as set in SETTINGS → SAMPLER → START / END SHIFT: HOLD — while SHIFT is held; TAP — SHIFT + tap on the knob switches it for the track (Start Step, End Step) and back.</td></tr>
       <tr><td>Rate</td><td>Speed: 100 % — normal playback, centre — stop, left of centre — reverse. SHIFT + tap switches the mode: <b>Rate Pitch</b> — speed changes pitch, like on vinyl; <b>Rate Stretch</b> — pitch stays, the sample plays in the project tempo and follows BPM.</td></tr>
       <tr><td>Attack, Decay</td><td>Volume envelope of the note.</td></tr>
       <tr><td>Filter, Resonance</td><td>Filter and its resonance. SHIFT + tap on Filter changes the type: LP → HP → BP. When the filter is fully open, the knob reads OFF.</td></tr>
@@ -1329,41 +1329,43 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
   </ul>
 
   <h3><span class="sn">9.3</span>MORPH</h3>
-  <figure><div class="shot" data-mode="track" data-state="morph"></div><figcaption lang="ru">MORPH включён тапом: внутри кнопки — чёрная линия. На дорожках 1 и 3 жёлтые точки — их ручки меняли.</figcaption>
-<figcaption lang="en">MORPH is on by a tap: a black line inside the button. Tracks 1 and 3 have yellow dots — their knobs were changed.</figcaption></figure>
+  <figure><div class="shot" data-mode="track" data-state="morph"></div><figcaption lang="ru">MORPH включён в режиме TAP: внутри кнопки — чёрная линия. На дорожках 1 и 3 жёлтые точки — их ручки меняли.</figcaption>
+<figcaption lang="en">MORPH is on in TAP mode: a black line inside the button. Tracks 1 and 3 have yellow dots — their knobs were changed.</figcaption></figure>
   <p lang="ru">MORPH — режим для живых изменений звука, которые потом нужно отменить одним движением.</p>
   <p lang="en">MORPH is a mode for live sound changes that you then want to undo in one move.</p>
   <div lang="ru" class="tbl"><table>
     <thead><tr><th>Жест</th><th>Как работает</th></tr></thead>
     <tbody>
-      <tr><td>Тап по MORPH</td><td>Ручки меняют только выбранную дорожку. Выбирайте дорожки в строке дорожек и крутите нужные параметры на каждой по отдельности. Внутри кнопки — тонкая чёрная линия.</td></tr>
-      <tr><td>Держать SHIFT + MORPH</td><td>Пока держите обе кнопки (в любом порядке), поворот ручки меняет этот параметр на всех дорожках, где он есть: каждая сдвигается на ту же величину от своего значения. Например, Filter закрывается на всём треке одним движением. Линии внутри кнопки нет, SHIFT на ручки не действует. Отпустили любую из кнопок — MORPH выключается, даже если был включён тапом.</td></tr>
+      <tr><td>Тап по MORPH (MODE TAP)</td><td>Ручки меняют только выбранную дорожку. Выбирайте дорожки в строке дорожек и крутите нужные параметры на каждой по отдельности. Повторный тап выключает MORPH. Внутри кнопки — тонкая чёрная линия, как у FX и MOD в режиме toggle.</td></tr>
+      <tr><td>Держать MORPH (MODE HOLD)</td><td>Пока держите MORPH, ручки меняют выбранную дорожку. Отпустили — MORPH выключается и ручки возвращаются. Линии внутри кнопки нет.</td></tr>
+      <tr><td>Держать SHIFT + MORPH</td><td>В любом режиме: пока держите обе кнопки (в любом порядке), поворот ручки меняет этот параметр на всех дорожках, где он есть: каждая сдвигается на ту же величину от своего значения. Например, Filter закрывается на всём треке одним движением. Линии внутри кнопки нет, SHIFT на ручки не действует. Отпустили любую из кнопок — MORPH выключается, даже если был включён тапом.</td></tr>
     </tbody>
   </table></div>
   <div lang="en" class="tbl"><table>
     <thead><tr><th>Gesture</th><th>How it works</th></tr></thead>
     <tbody>
-      <tr><td>Tap MORPH</td><td>Knobs change only the selected track. Select tracks in the track row and turn the parameters you need on each one separately. A thin black line is shown inside the button.</td></tr>
-      <tr><td>Hold SHIFT + MORPH</td><td>While you hold both buttons (in any order), turning a knob changes that parameter on all tracks that have it: each moves by the same amount from its own value. For example, Filter closes on the whole track in one move. There is no line inside the button, and SHIFT does not affect the knobs. Let go of either button — MORPH turns off, even if it was turned on by a tap.</td></tr>
+      <tr><td>Tap MORPH (MODE TAP)</td><td>Knobs change only the selected track. Select tracks in the track row and turn the parameters you need on each one separately. Another tap turns MORPH off. A thin black line is shown inside the button, like on FX and MOD in toggle mode.</td></tr>
+      <tr><td>Hold MORPH (MODE HOLD)</td><td>While you hold MORPH, knobs change the selected track. Let go — MORPH turns off and the knobs return. No line inside the button.</td></tr>
+      <tr><td>Hold SHIFT + MORPH</td><td>In either mode: while you hold both buttons (in any order), turning a knob changes that parameter on all tracks that have it: each moves by the same amount from its own value. For example, Filter closes on the whole track in one move. There is no line inside the button, and SHIFT does not affect the knobs. Let go of either button — MORPH turns off, even if it was turned on by a tap.</td></tr>
     </tbody>
   </table></div>
   <ol lang="ru" class="steps">
-    <li>Тап по MORPH — кнопка загорается жёлтым.</li>
+    <li>Тап по MORPH (в режиме HOLD — держите MORPH) — кнопка загорается жёлтым.</li>
     <li>Крутите ручки. Меняется звук дорожки целиком, p-lock на шагах остаются. На изменённых дорожках — жёлтая точка.</li>
-    <li>Тап по MORPH ещё раз — все ручки всех дорожек возвращаются туда, где были при включении.</li>
+    <li>Тап по MORPH ещё раз (в режиме HOLD — отпустите) — все ручки всех дорожек возвращаются туда, где были при включении.</li>
   </ol>
   <ol lang="en" class="steps">
-    <li>Tap MORPH — the button lights up yellow.</li>
+    <li>Tap MORPH (in HOLD mode — hold MORPH) — the button lights up yellow.</li>
     <li>Turn knobs. The track's sound changes as a whole; p-locks on steps stay. Changed tracks show a yellow dot.</li>
-    <li>Tap MORPH again — all knobs of all tracks return to where they were when MORPH was turned on.</li>
+    <li>Tap MORPH again (in HOLD mode — let go) — all knobs of all tracks return to where they were when MORPH was turned on.</li>
   </ol>
   <ul lang="ru">
     <li>Правки в MORPH не попадают в UNDO, и UNDO их не отменяет. Вернуть всё — только выключением MORPH.</li>
-    <li>В SETTINGS → MORPH: <b>RETURN</b> — плавный возврат за 1/4, 1/2, 1 или 2 такта вместо мгновенного.</li>
+    <li>В SETTINGS → MORPH: <b>MODE</b> — TAP (по умолчанию) или HOLD; <b>RETURN</b> — плавный возврат за 1/4, 1/2, 1 или 2 такта вместо мгновенного.</li>
   </ul>
   <ul lang="en">
     <li>Changes in MORPH are not recorded in UNDO, and UNDO does not revert them. The only way back is turning MORPH off.</li>
-    <li>In SETTINGS → MORPH: <b>RETURN</b> — a smooth return over 1/4, 1/2, 1 or 2 bars instead of an instant one.</li>
+    <li>In SETTINGS → MORPH: <b>MODE</b> — TAP (default) or HOLD; <b>RETURN</b> — a smooth return over 1/4, 1/2, 1 or 2 bars instead of an instant one.</li>
   </ul>
 </section>
 
@@ -2246,9 +2248,9 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     <thead><tr><th>Раздел</th><th>Что в нём</th></tr></thead>
     <tbody>
       <tr><td>RECORD</td><td><b>QUANTIZE</b> — записанные ноты встают точно на шаги (раздел 6.4). <b>ARRANGE REC START</b> — запись в аранжировку начинается с плейхеда (PLAYHEAD) или каждый раз с начала (BEGINNING). <b>METRONOME</b> — громкость щелчка, 0–200 %.</td></tr>
-      <tr><td>SAMPLER</td><td><b>STRETCH</b> — алгоритм Rate Stretch: NORMAL или BEAT. <b>SLICE NOTES</b> — ноты кусков нарезки: подряд (CHROMATIC) или по гамме (SCALE). <b>PITCH</b> — ручка Pitch плавно (SMOOTH) или по полутонам (SEMITONES). <b>CLEAR SAMPLE LOCKS</b> — загрузка звука из библиотеки снимает сэмпл-локи дорожки. <b>WARP TO PROJECT BPM</b> — у сэмплов с метками варпинга темп файла всегда равен темпу проекта.</td></tr>
+      <tr><td>SAMPLER</td><td><b>STRETCH</b> — алгоритм Rate Stretch: NORMAL или BEAT. <b>SLICE NOTES</b> — ноты кусков нарезки: подряд (CHROMATIC) или по гамме (SCALE). <b>PITCH SHIFT</b>, <b>START / END SHIFT</b> — как Pitch встаёт на полутоны, а Start и End — на доли сэмпла: TAP (SHIFT + тап по ручке) или HOLD (с зажатой SHIFT) (раздел 4.2). <b>CLEAR SAMPLE LOCKS</b> — загрузка звука из библиотеки снимает сэмпл-локи дорожки. <b>WARP TO PROJECT BPM</b> — у сэмплов с метками варпинга темп файла всегда равен темпу проекта.</td></tr>
       <tr><td>ARRANGE</td><td><b>TRACKS</b> — высота дорожек аранжировщика: FIX (кнопкой EXPANDED / COMPACT) или SCALE (двумя пальцами). <b>FOLLOW PLAYHEAD</b> — окно едет за плейхедом. <b>ROW REPEATS</b> — при переносе строки в аранжировку учитывать её повторы.</td></tr>
-      <tr><td>MORPH</td><td><b>RETURN</b> — плавный возврат после выключения MORPH (раздел 9.3).</td></tr>
+      <tr><td>MORPH</td><td><b>MODE</b> — TAP или HOLD, <b>RETURN</b> — плавный возврат после выключения MORPH (раздел 9.3).</td></tr>
       <tr><td>MIX</td><td>Переход между проектами (раздел 14.4). <b>CHANGE KEY</b> — новый проект приносит свою гамму и ноту. <b>CROSSFADER</b> — кроссфейдер для плавного перехода темпа, громкостей и мастера.</td></tr>
       <tr><td>RANDOM</td><td>Что генерирует SHIFT + тап по CHORD (раздел 8.2): <b>DRUMS</b> — ритм ударных, <b>CHORDS / ARP</b> — партии по роли дорожки, <b>SAMPLES</b> — случайная нарезка, <b>STEPS ALL TRACKS</b> — сразу на всех дорожках, <b>AUTO SWING</b> — свинг стиля, <b>SHOW PART TYPE</b> — выбор роли партии в окне CHORD. По умолчанию всё выключено.</td></tr>
       <tr><td>LEVEL</td><td><b>TRACK LEVEL FADER</b> — регулятор на измерителе справа: ABSOLUTE — та же громкость, что в MIX; RELATIVE — подстройка вниз от громкости MIX.</td></tr>
@@ -2263,9 +2265,9 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     <thead><tr><th>Section</th><th>What it holds</th></tr></thead>
     <tbody>
       <tr><td>RECORD</td><td><b>QUANTIZE</b> — recorded notes land exactly on steps (section 6.4). <b>ARRANGE REC START</b> — recording into the arrangement starts from the playhead (PLAYHEAD) or from the start every time (BEGINNING). <b>METRONOME</b> — click volume, 0–200 %.</td></tr>
-      <tr><td>SAMPLER</td><td><b>STRETCH</b> — the Rate Stretch algorithm: NORMAL or BEAT. <b>SLICE NOTES</b> — notes of the slices: consecutive (CHROMATIC) or in the scale (SCALE). <b>PITCH</b> — the Pitch knob moves smoothly (SMOOTH) or in semitones (SEMITONES). <b>CLEAR SAMPLE LOCKS</b> — loading a sound from the library removes the track's sample locks. <b>WARP TO PROJECT BPM</b> — for samples with warp markers, the file tempo always equals the project tempo.</td></tr>
+      <tr><td>SAMPLER</td><td><b>STRETCH</b> — the Rate Stretch algorithm: NORMAL or BEAT. <b>SLICE NOTES</b> — notes of the slices: consecutive (CHROMATIC) or in the scale (SCALE). <b>PITCH SHIFT</b>, <b>START / END SHIFT</b> — how Pitch goes to semitones and Start and End to sample fractions: TAP (SHIFT + tap on the knob) or HOLD (with SHIFT held) (section 4.2). <b>CLEAR SAMPLE LOCKS</b> — loading a sound from the library removes the track's sample locks. <b>WARP TO PROJECT BPM</b> — for samples with warp markers, the file tempo always equals the project tempo.</td></tr>
       <tr><td>ARRANGE</td><td><b>TRACKS</b> — arranger track height: FIX (with the EXPANDED / COMPACT button) or SCALE (with two fingers). <b>FOLLOW PLAYHEAD</b> — the view follows the playhead. <b>ROW REPEATS</b> — take a row's repeats into account when moving it into the arrangement.</td></tr>
-      <tr><td>MORPH</td><td><b>RETURN</b> — smooth return after MORPH is turned off (section 9.3).</td></tr>
+      <tr><td>MORPH</td><td><b>MODE</b> — TAP or HOLD, <b>RETURN</b> — smooth return after MORPH is turned off (section 9.3).</td></tr>
       <tr><td>MIX</td><td>Transitions between projects (section 14.4). <b>CHANGE KEY</b> — the new project brings its own scale and root note. <b>CROSSFADER</b> — a crossfader for a smooth transition of tempo, volumes and master.</td></tr>
       <tr><td>RANDOM</td><td>What SHIFT + tap on CHORD generates (section 8.2): <b>DRUMS</b> — a drum rhythm, <b>CHORDS / ARP</b> — parts by track role, <b>SAMPLES</b> — random slicing, <b>STEPS ALL TRACKS</b> — on all tracks at once, <b>AUTO SWING</b> — the style's swing, <b>SHOW PART TYPE</b> — choosing the part role in the CHORD window. Everything is off by default.</td></tr>
       <tr><td>LEVEL</td><td><b>TRACK LEVEL FADER</b> — the control on the meter on the right: ABSOLUTE — the same volume as in MIX; RELATIVE — a trim down from the MIX volume.</td></tr>
@@ -2398,6 +2400,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       <tr><td>LFO/ENV + двойной тап</td><td>Снять модуляцию</td><td>9.2</td></tr>
       <tr><td>SHIFT + тап по Filter</td><td>Тип фильтра</td><td>4.2</td></tr>
       <tr><td>SHIFT + тап по Rate</td><td>Rate Pitch / Rate Stretch</td><td>4.2</td></tr>
+      <tr><td>SHIFT + тап по Pitch, Start, End</td><td>Полутоны / доли сэмпла и обратно (режим TAP)</td><td>4.2</td></tr>
       <tr><td>SHIFT + тап по Speed LFO, Dly Time</td><td>По темпу / свободно</td><td>9.1, 10.3</td></tr>
       <tr><td>SHIFT + тап по Wave A, Wave B, 1.3 (ANALOG)</td><td>Модуляция, октава B, вид модуляции</td><td>5.4</td></tr>
     </tbody>
@@ -2415,6 +2418,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       <tr><td>LFO/ENV + double tap</td><td>Remove modulation</td><td>9.2</td></tr>
       <tr><td>SHIFT + tap on Filter</td><td>Filter type</td><td>4.2</td></tr>
       <tr><td>SHIFT + tap on Rate</td><td>Rate Pitch / Rate Stretch</td><td>4.2</td></tr>
+      <tr><td>SHIFT + tap on Pitch, Start, End</td><td>Semitones / sample fractions and back (TAP mode)</td><td>4.2</td></tr>
       <tr><td>SHIFT + tap on LFO Speed, Dly Time</td><td>Tempo-synced / free</td><td>9.1, 10.3</td></tr>
       <tr><td>SHIFT + tap on Wave A, Wave B, 1.3 (ANALOG)</td><td>Modulation, B octave, modulation type</td><td>5.4</td></tr>
     </tbody>
@@ -2468,6 +2472,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       <tr><td>Тап / удержание окна звука</td><td>Меню звука / редактор сэмпла</td><td>4.1, 4.4</td></tr>
       <tr><td>Удержание FX, MOD</td><td>Сетка эффектов / модуляции</td><td>2.3</td></tr>
       <tr><td>SHIFT + тап по FX, MOD</td><td>Режим toggle</td><td>2.3</td></tr>
+      <tr><td>Удержание MORPH (режим HOLD)</td><td>MORPH на выбранной дорожке, пока держат</td><td>9.3</td></tr>
       <tr><td>Удержание SHIFT + MORPH</td><td>MORPH на всех дорожках, пока держат</td><td>9.3</td></tr>
       <tr><td>SHIFT + тап по REC</td><td>Запись мастера</td><td>3.5</td></tr>
       <tr><td>SHIFT + тап по кнопке модуля (MST)</td><td>BYPASS модуля</td><td>12.3</td></tr>
@@ -2486,6 +2491,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       <tr><td>Tap / hold the sound window</td><td>Sound menu / sample editor</td><td>4.1, 4.4</td></tr>
       <tr><td>Hold FX, MOD</td><td>Effects / modulation grid</td><td>2.3</td></tr>
       <tr><td>SHIFT + tap on FX, MOD</td><td>Toggle mode</td><td>2.3</td></tr>
+      <tr><td>Hold MORPH (HOLD mode)</td><td>MORPH on the selected track while held</td><td>9.3</td></tr>
       <tr><td>Hold SHIFT + MORPH</td><td>MORPH on all tracks while held</td><td>9.3</td></tr>
       <tr><td>SHIFT + tap on REC</td><td>Master recording</td><td>3.5</td></tr>
       <tr><td>SHIFT + tap on a module button (MST)</td><td>Module BYPASS</td><td>12.3</td></tr>
@@ -2775,7 +2781,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     s += btn(x, by, bw, PAIR, "FX", fxLit ? { fill: "var(--text)", color: "var(--bg)" } : {});
     s += btn(x + bw + GAP, by, bw, PAIR, "MOD", modLit ? { fill: "var(--text)", color: "var(--bg)" } : {});
     s += btn(x, by + PAIR + GAP, bw, PAIR, "SHIFT");
-    s += btn(x + bw + GAP, by + PAIR + GAP, bw, PAIR, "MORPH", morphOn ? { fill: "var(--accent)", color: "var(--onAccent)", inner: innerLine } : {});
+    s += btn(x + bw + GAP, by + PAIR + GAP, bw, PAIR, "MORPH", morphOn ? { fill: "var(--accent)", color: "var(--onAccent)", inner: innerLine } : { inner: innerLine });
     return s;
   }
 
@@ -3047,7 +3053,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
   function chordWindow() {
     var k = keysFrame(), top = LY, h = Math.max(160, k.b - top), pad = 10, gap = 6, head = 14;
     var rowH = Math.max(28, (h - 2 * pad - head - 3 * gap) / 3), w = 2 * rowH + gap + 2 * pad, s = "";
-    s += '<div class="lbl" style="left:' + pad + "px;top:" + (pad + 3) + 'px;font-size:9px;font-weight:600;letter-spacing:.6px;color:var(--dim)">CHORD</div>';
+    s += '<div class="lbl" style="left:' + pad + "px;top:" + (pad + 3) + 'px;font-size:11px;font-weight:600;letter-spacing:.6px;color:var(--text)">CHORD</div>';
     ["Triad", "7th", "9th", "Sus2", "Sus4", "Add9"].forEach(function (t, i) { s += ink(pad + (i % 2) * (rowH + gap), pad + head + gap + Math.floor(i / 2) * (rowH + gap), rowH, rowH, t, i === 0); });
     return box(k.x, k.b - h, w, h, "background:var(--bg);border-radius:10px;box-shadow:0 0 0 1px var(--line),0 4px 24px rgba(0,0,0,.5)", s);
   }
@@ -3515,7 +3521,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     var s = '<div class="lbl" style="left:12px;top:12px;font-size:15px;font-weight:700;color:var(--text)">‹  ' + title + "</div>";
     return menuBox(x, y, w, h, s + body(iw, 42));
   }
-  function fieldLabel(x, y, t) { return '<div class="lbl" style="left:' + x + "px;top:" + y + 'px;font-size:9px;font-weight:600;letter-spacing:.6px;color:var(--dim)">' + t + "</div>"; }
+  function fieldLabel(x, y, t) { return '<div class="lbl" style="left:' + x + "px;top:" + y + 'px;font-size:11px;font-weight:600;letter-spacing:.6px;color:var(--text)">' + t + "</div>"; }
   function head(x, y, t) { return '<div class="lbl" style="left:' + x + "px;top:" + y + 'px;font-size:12px;font-weight:700;letter-spacing:.1em;color:var(--text)">' + t + "</div>"; }
   function toggleLine(x, y, w, t, on) { return '<div class="lbl" style="left:' + (x + 4) + "px;top:" + (y + 15) + 'px;font-size:13px;font-weight:700;color:var(--text)">' + t + "</div>" + toggle(x + w - 55, y + 8, on); }
   function settingsMenu() {
