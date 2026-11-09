@@ -1,6 +1,6 @@
 import Foundation
 
-// Room (Headphone Monitor, фаза 2): бинауральные импульсы комнат — Resources/Room*.wav и rooms.json (генератор —
+// Room (Headphone Monitor, фаза 2): бинауральные импульсы комнат — Resources/Room*.caf и rooms.json (генератор —
 // ios/tools/generate_rooms.py, HRTF FABIAN, CC BY 4.0; docs/LICENSES-room.md). WAV: 48 кГц, 4 канала — LL, LR, RL,
 // RR (колонка → ухо: левая → левое, левая → правое, правая → левое, правая → правое), 16/24/32 бит или float.
 // Прямая часть — первые direct отсчётов (128, 2,7 мс): на 0 dB всегда, остальное — хвост, его громкость — Ambience.
@@ -89,6 +89,20 @@ public final class RoomIR: @unchecked Sendable {
         var p = [Float](repeating: 0, count: 4 * n)
         for c in 0..<4 {
             for i in 0..<n { p[c * n + i] = w.samples[i * 4 + c] * g }
+        }
+        self.init(name: name, paths: p, frames: n, direct: Swift.max(0, direct))
+    }
+
+    /// Из отсчётов по каналам (канал за каналом, 4 канала по frames; ресурсы — ALAC в CAF, 9.11, читает AVAudioFile):
+    /// то же, что из WAV; неверные данные — nil.
+    public convenience init?(name: String, planar s: [Float], channels: Int, rate: Int, gainDb: Double, direct: Int) {
+        guard channels == 4, rate == 48000, s.count >= 4, s.count % 4 == 0 else { return nil }
+        let frames: Int = s.count / 4
+        let n: Int = Swift.min(frames, RoomIR.maxFrames)
+        let g: Float = Float(pow(10, gainDb / 20))
+        var p = [Float](repeating: 0, count: 4 * n)
+        for c in 0..<4 {
+            for i in 0..<n { p[c * n + i] = s[c * frames + i] * g }
         }
         self.init(name: name, paths: p, frames: n, direct: Swift.max(0, direct))
     }

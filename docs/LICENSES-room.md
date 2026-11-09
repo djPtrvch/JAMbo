@@ -1,7 +1,7 @@
 # Лицензии данных Room (Headphone Monitor, фаза 2)
 
-Импульсы пространств меню SPACE `ios/JAMbo.swiftpm/Resources/RoomStudio.wav`, `RoomHome.wav`, `RoomCar.wav`,
-`RoomClub.wav`, `RoomDesk.wav`, наборы HEAD `Room*Head.wav`, выровненные варианты для RAW `Room*Flat.wav`, `Room*FlatHead.wav` и `rooms.json` созданы скриптом `ios/tools/generate_rooms.py` (свои модели комнат: мнимые источники, хвост из шума). Чужих
+Импульсы пространств меню SPACE `ios/JAMbo.swiftpm/Resources/RoomStudio.caf`, `RoomHome.caf`, `RoomCar.caf`,
+`RoomClub.caf`, `RoomDesk.caf`, наборы HEAD `Room*Head.caf`, выровненные варианты для RAW `Room*Flat.caf`, `Room*FlatHead.caf` и `rooms.json` созданы скриптом `ios/tools/generate_rooms.py` (свои модели комнат: мнимые источники, хвост из шума). Чужих
 импульсов комнат и импульсов коммерческих продуктов нет.
 
 ## HRTF — FABIAN head-related transfer function data base, v4

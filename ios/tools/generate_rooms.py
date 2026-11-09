@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Генератор бинауральных импульсов комнат для Room (Headphone Monitor, фаза 2).
 
-Воспроизводимо (фиксированный seed) создаёт ios/JAMbo.swiftpm/Resources/Room*.wav и rooms.json — пространства пунктов
+Воспроизводимо (фиксированный seed) создаёт ios/JAMbo.swiftpm/Resources/Room*.caf (ALAC, без потерь) и rooms.json — пространства пунктов
 TRANSLATION (8.11): Studio (студия, мониторы ±30° на 1,5 м), Home (жилая комната), Car (салон, место водителя слева,
 динамики в дверях), Club (зал ~2500 м³, стеки в ~10 м, хвост ~0,8 с — ориентиры: Adelman-Larsen et al., JASA 2010,
 залы для поп- и рок-музыки — меньше 1 с, бас не длиннее середины), Desk (маленькие колонки на столе, ближнее поле):
@@ -22,7 +22,7 @@ TRANSLATION (8.11): Studio (студия, мониторы ±30° на 1,5 м), 
     в комнату; срез низа колонки — в приложении (rooms.json speaker);
   * WAV 48 кГц, 24 бит (наборы HEAD и ранняя часть выровненного варианта — 16 бит), 4 канала: LL, LR, RL, RR (колонка → ухо: левая → левое, левая → правое, правая → левое,
     правая → правое), пик 0,99; множитель громкости — gain_db в rooms.json.
-  * HEAD (отслеживание головы, 8.11): Room*Head.wav — прямая часть (первые DIRECT_N отсчётов, 4 пути) для поворотов
+  * HEAD (отслеживание головы, 8.11): Room*Head.caf — прямая часть (первые DIRECT_N отсчётов, 4 пути) для поворотов
     головы −50…+50° через 2° (вправо +; 51 набор подряд), с той же эквализацией, сдвигом и громкостью, что и импульс
     комнаты (при голове прямо — совпадает с ним). Голова повёрнута относительно корпуса (HATO FABIAN, измерения через
     10°, между ними — линейно по выровненным импульсам), колонки остаются на местах; отражения — те же, что в пределах
@@ -38,6 +38,7 @@ FABIAN_HRTF_DATABASE_v4.zip, папка «1 HRIRs/SOFA»). Ранние верс
         python3 ios/tools/generate_rooms.py <папка с SOFA-файлами> [--report]
 """
 import json
+import subprocess
 import os
 import struct
 import sys
@@ -80,19 +81,19 @@ HEIGHT = 1.2
 ROOMS = [
     # Студия — обработанная контрольная комната (8.11, решение пользователя): поглотители в точках первых отражений
     # (отражения первых 20 мс тише на 12 dB), рассеяние, басовые ловушки (низ не длиннее середины).
-    dict(name="Studio", file="RoomStudio.wav", size=[4.5, 3.5, 2.8], rt60=0.25, early_ms=40.0, tail=True, max_ms=300,
+    dict(name="Studio", file="RoomStudio.caf", size=[4.5, 3.5, 2.8], rt60=0.25, early_ms=40.0, tail=True, max_ms=300,
          jitter=0.1, rfz_ms=20.0, rfz_db=-12.0, shape=RT_TREATED, drv=dict(hp=(40, 4), ft=2000)),
-    dict(name="Home", file="RoomHome.wav", size=[5.5, 4.2, 2.6], rt60=0.45, early_ms=60.0, tail=True, max_ms=700, jitter=0.15,
+    dict(name="Home", file="RoomHome.caf", size=[5.5, 4.2, 2.6], rt60=0.45, early_ms=60.0, tail=True, max_ms=700, jitter=0.15,
          listener=[3.4, 2.1, 1.1], spk=[[1.4, 0.95, 1.0], [1.4, 3.25, 1.0]], drv=dict(hp=(35, 4), ft=2000)),
     # Салон: водитель слева, динамики низко в передних дверях (левый ближе), сиденья и обивка глушат.
-    dict(name="Car", file="RoomCar.wav", size=[2.4, 1.5, 1.15], rt60=0.07, early_ms=30.0, tail=True, max_ms=150, jitter=0.05, refl_ls=(80, -8),
+    dict(name="Car", file="RoomCar.caf", size=[2.4, 1.5, 1.15], rt60=0.07, early_ms=30.0, tail=True, max_ms=150, jitter=0.05, refl_ls=(80, -8),
          listener=[1.15, 0.42, 0.85], spk=[[0.75, 0.04, 0.35], [0.75, 1.46, 0.35]],
          drv=dict(hp=(55, 2), ft=1500, axis=[[0, 1, 0], [0, -1, 0]])),
-    dict(name="Club", file="RoomClub.wav", size=[22.0, 16.0, 7.0], rt60=0.8, early_ms=80.0, tail=True, max_ms=1100,
+    dict(name="Club", file="RoomClub.caf", size=[22.0, 16.0, 7.0], rt60=0.8, early_ms=80.0, tail=True, max_ms=1100,
          shape=RT_CLUB, jitter=0.3, floor=0.35, listener=[11.0, 8.0, 1.6], spk=[[1.0, 4.0, 2.5], [1.0, 12.0, 2.5]],
          drv=dict(hp=(28, 4), ft=900)),
     # Маленькие колонки на столе: ±20°, 0,6 м, обычная комната.
-    dict(name="Desk", file="RoomDesk.wav", size=[4.0, 3.5, 2.6], rt60=0.4, early_ms=50.0, tail=True, max_ms=600, jitter=0.1,
+    dict(name="Desk", file="RoomDesk.caf", size=[4.0, 3.5, 2.6], rt60=0.4, early_ms=50.0, tail=True, max_ms=600, jitter=0.1,
          listener=[1.3, 1.75, 1.15], spk=[[0.74, 1.545, 1.0], [0.74, 1.955, 1.0]], drv=dict(hp=(85, 4), ft=4000)),
 ]
 
@@ -519,14 +520,29 @@ def write_wav(path, data, bits=24):
         f.write(b"data" + struct.pack("<I", len(raw)) + bytes(raw))
 
 
+def write_audio(path, data, bits=24):
+    """Ресурс приложения — ALAC в CAF (9.11, объём ресурсов: сборка в Playgrounds к нему чувствительна): сжатие без
+    потерь, приложение читает AVAudioFile. Сначала WAV (write_wav), затем ffmpeg; распакованные отсчёты сверяются с WAV
+    бит в бит, иначе — ошибка."""
+    tmp = path[:-4] + ".tmp.wav"
+    write_wav(tmp, data, bits)
+    fmt = "s32p" if bits == 24 else "s16p"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", tmp, "-c:a", "alac", "-sample_fmt", fmt, path], check=True)
+    pcm = [subprocess.run(["ffmpeg", "-v", "error", "-i", p, "-f", "s32le", "-"], check=True, capture_output=True).stdout
+           for p in (tmp, path)]
+    os.remove(tmp)
+    if pcm[0] != pcm[1] or not pcm[0]:
+        raise SystemExit("ALAC: отсчёты не совпадают с WAV: " + path)
+
+
 def write_head(cfg, sets, ctf, dirs, info, gain_db, file, res):
     """HEAD: прямая часть по углам поворота головы — набор i в кадрах [i·DIRECT_N, (i+1)·DIRECT_N), своя громкость
     (у ближнего уха при повороте пик выше, чем у импульса комнаты). Возвращает файл, громкость, срезанную долю."""
     hs, cut = head_sets(cfg, sets, ctf, dirs, info)
     hpeak = float(np.max(np.abs(hs)))
     hscale = 0.99 / max(hpeak, 0.99)
-    head_file = file.replace(".wav", "Head.wav")
-    write_wav(os.path.join(res, head_file), np.concatenate(list(hs * hscale), axis=-1), 16)
+    head_file = file.replace(".caf", "Head.caf")
+    write_audio(os.path.join(res, head_file), np.concatenate(list(hs * hscale), axis=-1), 16)
     return head_file, round(gain_db - 20 * np.log10(hscale), 3), cut
 
 
@@ -544,15 +560,15 @@ def main():
     meta = []
     for k, cfg in enumerate(ROOMS):
         h, gain_db, length, info = make_room(cfg, ir, ctf, dirs, SEED + cfg.get("seed", k))
-        write_wav(os.path.join(res, cfg["file"]), h)
+        write_audio(os.path.join(res, cfg["file"]), h)
         head_file, head_gain, cut = write_head(cfg, sets, ctf, dirs, info, gain_db, cfg["file"], res)
         # RAW (8.11): та же комната с выровненным тембром прямого звука (front 1) — приложение смешивает их.
         flat_cfg = dict(cfg, front=1.0)
         hf, flat_gain, _, finfo = make_room(flat_cfg, ir, ctf, dirs, SEED + cfg.get("seed", k))
-        flat_file = cfg["file"].replace(".wav", "Flat.wav")
+        flat_file = cfg["file"].replace(".caf", "Flat.caf")
         # Выровненный вариант отличается только ранней частью (выравнивание — до хвоста): пишется до конца окна ранних
         # отражений, дальше приложение берёт импульс с окраской (переход — последние 10 мс окна).
-        write_wav(os.path.join(res, flat_file), hf[:, :int(SR * cfg["early_ms"] / 1000)], 16)
+        write_audio(os.path.join(res, flat_file), hf[:, :int(SR * cfg["early_ms"] / 1000)], 16)
         flat_head, flat_head_gain, _ = write_head(flat_cfg, sets, ctf, dirs, finfo, flat_gain, flat_file, res)
         lst, spks = places(cfg)
         meta.append(dict(name=cfg["name"], file=cfg["file"], rt60=cfg["rt60"], size=cfg["size"],

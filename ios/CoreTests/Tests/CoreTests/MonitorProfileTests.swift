@@ -37,7 +37,7 @@ final class MonitorProfileTests: XCTestCase {
             XCTAssertFalse(r.flatFile.isEmpty)
             XCTAssertFalse(r.flatHeadFile.isEmpty)
             let ir: RoomIR = RoomTests.ir(k)
-            let d = try! Data(contentsOf: RoomTests.res.appendingPathComponent(r.flatFile))
+            let d = RoomTests.audio(r.flatFile)
             let flat = RoomIR(name: r.name, wav: d, gainDb: r.flatGainDb, direct: r.direct)!
             XCTAssertLessThan(flat.frames, ir.frames)
             XCTAssertTrue(ir.mixed(flat: flat, raw: 1) === ir)
