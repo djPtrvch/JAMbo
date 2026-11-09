@@ -163,6 +163,30 @@ final class MidiMapTests: XCTestCase {
         XCTAssertEqual(s.midi.mappings[0].control, .momentary)
     }
 
+    /// Коробка AppSettings.more (9.11): в файле — прежние ключи appearance, midi, sync, без more; все поля
+    /// переживают запись и чтение; сравнение настроек — по значениям.
+    func testSettingsBoxKeepsFormat() throws {
+        var a = AppSettings()
+        a.appearance = "DARK"
+        a.midi.preset = "Twister"
+        a.sync.quantum = 4
+        a.sync.clockOuts = [7, 9]
+        a.randomDrums = true
+        let data: Data = try XCTUnwrap(a.encode())
+        let obj = try XCTUnwrap(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertNil(obj["more"])
+        XCTAssertEqual(obj["appearance"] as? String, "DARK")
+        XCTAssertNotNil(obj["midi"])
+        XCTAssertNotNil(obj["sync"])
+        XCTAssertEqual(obj.count, 36)
+        let back = AppSettings.decode(data)
+        XCTAssertEqual(back, a)
+        XCTAssertEqual(back.sync.clockOuts, [7, 9])
+        XCTAssertEqual(back.midi.preset, "Twister")
+        XCTAssertEqual(AppSettings.decode(nil), AppSettings())
+        XCTAssertNotEqual(back, AppSettings())
+    }
+
     /// APPLY TO ALL PAGES: ручки страницы TRACK (Current page) — на всех страницах, кнопки и Global не трогаются;
     /// на другой странице копия заменяет ручку и забирает источник у другой цели.
     func testApplyKnobsToAllPages() {

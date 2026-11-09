@@ -43,9 +43,24 @@ public struct SidechainSends: Codable, Equatable, Sendable {
     public init() {}
 }
 
-public struct AppSettings: Codable, Equatable, Sendable {
-    /// SYSTEM, LIGHT или DARK.
+/// Поля настроек со строками и массивами (оформление, MIDI, SYNC) — «в коробке» AppSettings.more: копия настроек
+/// (их читают многие виды) не тянет их по значению (объём сборки, 9.11).
+public struct SettingsMore: Equatable, Sendable {
     public var appearance: String = "SYSTEM"
+    public var midi = MidiSettings()
+    public var sync = SyncSettings()
+
+    public init() {}
+}
+
+public struct AppSettings: Codable, Equatable, Sendable {
+    /// Оформление, MIDI и SYNC — в коробке (всегда один элемент).
+    private var more: [SettingsMore] = [SettingsMore()]
+    /// SYSTEM, LIGHT или DARK.
+    public var appearance: String {
+        get { return more[0].appearance }
+        set { more[0].appearance = newValue }
+    }
     /// Октав гаммы на клавишах клавиатуры: 1 или 2.
     public var pianoOctaves: Int = 1
     /// Чувствительность клавиш к нажатию.
@@ -101,9 +116,15 @@ public struct AppSettings: Codable, Equatable, Sendable {
     /// SETTINGS → SAMPLER → PITCH (S12): ручка Pitch сэмпла и её p-lock — по полутонам (по умолчанию) или плавно.
     public var pitchSemitones: Bool = false
     /// Бутерброд → MIDI (S13): вход, обратная связь, ноты.
-    public var midi = MidiSettings()
+    public var midi: MidiSettings {
+        get { return more[0].midi }
+        set { more[0].midi = newValue }
+    }
     /// Бутерброд → SYNC (S13e): квант, MIDI-клок, настройки Ableton Link.
-    public var sync = SyncSettings()
+    public var sync: SyncSettings {
+        get { return more[0].sync }
+        set { more[0].sync = newValue }
+    }
     /// Режим строк при FIX (кнопки EXPANDED / COMPACT под измерителем аранжировщика): EXPANDED (по умолчанию) — 8
     /// строк на окно, дорожки прокручиваются; COMPACT — все дорожки на высоту окна.
     public var arrangeCompact: Bool = false
@@ -192,5 +213,46 @@ public struct AppSettings: Codable, Equatable, Sendable {
         showPartType = c.value(.showPartType, false)
         let mv: Double = c.value(.metronomeVol, 100)
         metronomeVol = Swift.min(200, Swift.max(0, mv))
+    }
+
+    /// Запись — по тем же ключам, что прежде (коробка more в файле не видна).
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(appearance, forKey: .appearance)
+        try c.encode(pianoOctaves, forKey: .pianoOctaves)
+        try c.encode(velocity, forKey: .velocity)
+        try c.encode(record, forKey: .record)
+        try c.encode(sliceMap, forKey: .sliceMap)
+        try c.encode(scSends, forKey: .scSends)
+        try c.encode(latchFx, forKey: .latchFx)
+        try c.encode(latchMod, forKey: .latchMod)
+        try c.encode(rollGrid, forKey: .rollGrid)
+        try c.encode(rollSound, forKey: .rollSound)
+        try c.encode(levelRelative, forKey: .levelRelative)
+        try c.encode(morphAll, forKey: .morphAll)
+        try c.encode(morphReturn, forKey: .morphReturn)
+        try c.encode(morphHold, forKey: .morphHold)
+        try c.encode(mixKey, forKey: .mixKey)
+        try c.encode(mixCrossfader, forKey: .mixCrossfader)
+        try c.encode(clearSampleLocks, forKey: .clearSampleLocks)
+        try c.encode(pitchSemitones, forKey: .pitchSemitones)
+        try c.encode(midi, forKey: .midi)
+        try c.encode(sync, forKey: .sync)
+        try c.encode(arrangeCompact, forKey: .arrangeCompact)
+        try c.encode(fxPictures, forKey: .fxPictures)
+        try c.encode(backgroundAudio, forKey: .backgroundAudio)
+        try c.encode(arrangeRepeats, forKey: .arrangeRepeats)
+        try c.encode(stretchBeat, forKey: .stretchBeat)
+        try c.encode(metronomeVol, forKey: .metronomeVol)
+        try c.encode(arrangeScale, forKey: .arrangeScale)
+        try c.encode(arrangeFollow, forKey: .arrangeFollow)
+        try c.encode(displayScale, forKey: .displayScale)
+        try c.encode(randomDrums, forKey: .randomDrums)
+        try c.encode(randomChords, forKey: .randomChords)
+        try c.encode(randomSwing, forKey: .randomSwing)
+        try c.encode(randomStepsAll, forKey: .randomStepsAll)
+        try c.encode(randomSamples, forKey: .randomSamples)
+        try c.encode(showPartType, forKey: .showPartType)
+        try c.encode(warpProjectBpm, forKey: .warpProjectBpm)
     }
 }
