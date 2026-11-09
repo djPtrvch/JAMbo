@@ -933,17 +933,79 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     <li>Справа — скоп мастера: сверху гониометр (стереобаза), снизу осциллограмма. Кнопки COMP, CLIP, LIM под скопом добавляют на осциллограмму сигнал после этого модуля.</li>
   </ul>
 
-  <h3><span class="sn">12.3</span>Окна модулей</h3>
-  <figure><div class="shot" data-mode="mst" data-zone="upper" data-state="comp"></div><figcaption>Окно компрессора: вход серым, выход жёлтым, сжатие оранжевым сверху, слева поверх — кривая TRANSFER. Сигнал — для примера.</figcaption></figure>
+  <h3><span class="sn">12.3</span>Окна модулей: общее</h3>
   <ul>
     <li>Кнопки SAT, COMP, CLIP, LIM под окном индикации (или тап по блоку индикации) открывают окно модуля на месте центра.</li>
-    <li>Вверху — все параметры модуля, в том числе те, которых нет на ручках: у компрессора RATIO, KNEE, MIX, SC HPF; у сатуратора FOCUS. Поле меняется пальцем вверх-вниз, двойной тап — ввод числом.</li>
-    <li>Тап по названию слева (например, COMP ▾) — переключиться на окно другого модуля.</li>
+    <li>Вверху — все параметры модуля, в том числе те, которых нет на ручках. Поле меняется пальцем вверх-вниз, двойной тап — ввод числом.</li>
+    <li>Тап по названию слева (например, MASTER COMP ▾) — переключиться на окно другого модуля.</li>
     <li><b>PRESETS</b> — свои пресеты у каждого модуля, общие для всех проектов. <b>BYPASS</b> — выключить модуль. ✕ — закрыть окно.</li>
     <li>Двойной тап по дисплею — FREEZE: картинка замирает, чтобы её рассмотреть.</li>
+    <li>Справа в окнах COMP, CLIP и LIM — блок <b>IN | GR | OUT</b>, как в индикации MST.</li>
     <li><b>SHIFT</b> при MST: кнопки модулей показывают BYPASS — тап выключает и включает модуль, не открывая окно.</li>
   </ul>
-  <p>Громкость выхода — регулятор на измерителе справа при MIX или MST. Масштаб дисплеев — SETTINGS → APPEARANCE → MASTER FX DISPLAY SCALE.</p>
+  <p>Масштаб дисплеев — SETTINGS → APPEARANCE → MASTER FX DISPLAY SCALE. Сигналы на рисунках ниже — для примера.</p>
+
+  <h3><span class="sn">12.4</span>SAT — сатуратор</h3>
+  <figure><div class="shot" data-mode="mst" data-zone="upper" data-state="sat"></div><figcaption>Слева — TRANSFER: кривая насыщения и ручка DRIVE на ней. Справа — SPECTRUM: вход серым, выход белой линией, линия FOCUS.</figcaption></figure>
+  <p>Сатуратор добавляет гармоники и плотность — звук становится теплее и громче на слух, пики мягко скругляются. Стоит первым в цепочке, после EQ мастера.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Поле</th><th>Что делает</th></tr></thead>
+    <tbody>
+      <tr><td>DRIVE</td><td>Сила насыщения, 0…+24 dB. Около 0 — сатуратор почти прозрачен. Громкость при этом выравнивается сама. В окне DRIVE можно менять и пальцем по полю TRANSFER.</td></tr>
+      <tr><td>TYPE</td><td>Характер: <b>TAPE</b> — мягкое симметричное насыщение, как плёнка; <b>TUBE</b> — ламповое, тёплое, плотнее в низах; <b>EDGE</b> — жёстче и ярче. Тап по полю — следующий тип.</td></tr>
+      <tr><td>TONE</td><td>Наклон спектра обработанного звука: вправо — ярче, влево — темнее, до ±6 dB.</td></tr>
+      <tr><td>MIX</td><td>Смесь обработанного и чистого звука (параллельная сатурация).</td></tr>
+      <tr><td>FOCUS</td><td>Частоты ниже FOCUS проходят мимо насыщения — бас остаётся чистым. OFF — насыщается всё. В окне линию FOCUS тянут пальцем.</td></tr>
+    </tbody>
+  </table></div>
+  <p><b>Как читать дисплей:</b> чем сильнее кривая TRANSFER отходит от диагонали, тем сильнее насыщение; жёлтая точка — текущий уровень на кривой. На SPECTRUM видно, где сатуратор добавил гармоники: белая линия выше серой заливки.</p>
+
+  <h3><span class="sn">12.5</span>COMP — компрессор</h3>
+  <figure><div class="shot" data-mode="mst" data-zone="upper" data-state="comp"></div><figcaption>LEVEL: вход серым, выход жёлтым, сжатие оранжевым сверху, пунктир — THRESHOLD. Слева поверх — TRANSFER.</figcaption></figure>
+  <p>Компрессор «склеивает» микс: приглушает громкие места, выравнивает уровень и добавляет плотности. Работает как шинный компрессор.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Поле</th><th>Что делает</th></tr></thead>
+    <tbody>
+      <tr><td>THRESHOLD</td><td>Порог: сигнал громче него сжимается. На дисплее — белый пунктир с числом.</td></tr>
+      <tr><td>ATTACK</td><td>Как быстро компрессор срабатывает. Длиннее — удары проходят ярче.</td></tr>
+      <tr><td>RELEASE</td><td>Как быстро отпускает. В конце хода — AUTO, подстраивается под музыку.</td></tr>
+      <tr><td>MAKEUP</td><td>Подъём громкости после сжатия.</td></tr>
+      <tr><td>RATIO</td><td>Сила сжатия, 1:1…20:1. Тап по полю — 2:1 → 4:1 → 10:1. Есть только в окне.</td></tr>
+      <tr><td>KNEE</td><td>Мягкость входа в сжатие: 0 — резко, больше — плавно.</td></tr>
+      <tr><td>MIX</td><td>Смесь сжатого и чистого звука (параллельная компрессия).</td></tr>
+      <tr><td>SC HPF</td><td>Компрессор не реагирует на бас ниже этой частоты — бочка не «качает» весь микс.</td></tr>
+    </tbody>
+  </table></div>
+  <p><b>Как читать дисплей:</b> оранжевая полоса сверху — сколько dB компрессор убрал (GR). Для склейки обычно хватает 2–6 dB. Кривая TRANSFER показывает, как вход превращается в выход: излом — порог, наклон после него — RATIO.</p>
+
+  <h3><span class="sn">12.6</span>CLIP — клиппер</h3>
+  <figure><div class="shot" data-mode="mst" data-zone="upper" data-state="clip"></div><figcaption>LEVEL: вход серым, выход оранжевым, срезанное — оранжевой заливкой сверху, белая линия — CEILING. Слева — TRANSFER.</figcaption></figure>
+  <p>Клиппер срезает самые короткие пики, которые лимитеру было бы тяжело удержать. Так микс становится громче без провалов и «качания».</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Поле</th><th>Что делает</th></tr></thead>
+    <tbody>
+      <tr><td>INPUT</td><td>Подъём уровня перед клиппером, 0…+12 dB. Больше — сильнее срезаются пики. Громкость не компенсируется.</td></tr>
+      <tr><td>CEILING</td><td>Уровень, выше которого сигнал срезается.</td></tr>
+      <tr><td>SOFTNESS</td><td>0 % — жёсткий срез, 100 % — мягкий, плавный вход в срез.</td></tr>
+      <tr><td>BASS</td><td>Защита баса: всё ниже этой частоты проходит мимо клиппера без искажений. OFF — срезается весь диапазон.</td></tr>
+    </tbody>
+  </table></div>
+  <p><b>Как читать дисплей:</b> оранжевая заливка сверху — где и насколько срезано. 1–4 dB обычно незаметны на слух, больше — появляются искажения.</p>
+
+  <h3><span class="sn">12.7</span>LIM — лимитер</h3>
+  <figure><div class="shot" data-mode="mst" data-zone="upper" data-state="lim"></div><figcaption>Вход серым, выход красным, работа лимитера — оранжевым сверху, белая линия — CEILING.</figcaption></figure>
+  <p>Лимитер — последняя ступень: выход никогда не поднимается выше CEILING. С INPUT он работает как максимайзер — делает микс громче.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Поле</th><th>Что делает</th></tr></thead>
+    <tbody>
+      <tr><td>INPUT</td><td>Подъём уровня перед лимитером, 0…+24 dB. Больше — громче и сильнее лимитирование.</td></tr>
+      <tr><td>CEILING</td><td>Наибольший уровень выхода, с учётом межсэмпловых пиков. Обычно −1 dB. В окне линию CEILING можно тянуть пальцем.</td></tr>
+      <tr><td>LOOKAHEAD</td><td>Насколько заранее лимитер видит пик, 0,5–6 ms. Короче — удары живее, но выше риск искажений; длиннее — безопаснее и мягче.</td></tr>
+      <tr><td>RELEASE</td><td>Как быстро лимитер отпускает. В конце хода — AUTO.</td></tr>
+    </tbody>
+  </table></div>
+  <p><b>Как читать дисплей:</b> оранжевое сверху — сколько лимитер убирает; 1–4 dB — норма. Красная точка у верхнего края — выход превысил CEILING; такого быть не должно.</p>
+  <p>Громкость выхода всего мастера — регулятор на измерителе справа при MIX или MST.</p>
 </section>
 
 <!-- ============ 13 ============ -->
@@ -2024,12 +2086,117 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     return menuBox(x, y, w, h, s);
   }
 
+  // ---------- master module windows: strip (title ▾, fields, PRESETS, BYPASS, ✕) + module display ----------
+  var MW = {
+    sat: { title: "SAT", lead: 2, f: [["DRIVE", "+6.0 dB"], ["TYPE", "TAPE"], ["TONE", "0.0 dB"], ["MIX", "100%"], ["FOCUS", "120 Hz"]] },
+    comp: { title: "COMP", lead: 4, f: [["THRESHOLD", "-10.0 dB"], ["ATTACK", "30 ms"], ["RELEASE", "400 ms"], ["MAKEUP", "0.0 dB"], ["RATIO", "2.00:1"], ["KNEE", "6.0 dB"], ["MIX", "100%"], ["SC HPF", "90 Hz"]] },
+    clip: { title: "CLIP", lead: 2, f: [["INPUT", "+3.0 dB"], ["CEILING", "-1.0 dB"], ["SOFTNESS", "30%"], ["BASS", "OFF"]] },
+    lim: { title: "LIM", lead: 2, f: [["INPUT", "+4.0 dB"], ["CEILING", "-1.0 dB"], ["LOOKAHEAD", "3.0 ms"], ["RELEASE", "150 ms"]] }
+  };
+  function dynBlock(name, lv) {
+    var bb = "", bh = 0;
+    return function (ph) {
+      bh = ph - 40;
+      for (var k = 0; k < 3; k++) {
+        var cx = 96 * (k + .5) / 3 - 4.5;
+        bb += box(cx, 16, 9, bh, "background:var(--meterTrack);border-radius:3px;overflow:hidden", k === 1 ? box(0, 0, 9, bh * lv[k], "background:var(--gr)") : box(0, bh * (1 - lv[k]), 9, bh * lv[k], "background:var(--accent)"));
+        bb += '<div class="lbl" style="left:' + (cx - 8) + "px;top:" + (16 + bh + 4) + 'px;width:25px;font-size:9px;color:var(--dim)">' + ["IN", "GR", "OUT"][k] + "</div>";
+      }
+      return bb + '<div class="lbl" style="left:0;top:2px;width:96px;font-size:10px;letter-spacing:1px;color:var(--dim)">' + name + "</div>";
+    };
+  }
+  function masterWin(mod) {
+    var a = centerArea(), bar = U.bar, g = GAP, s = "", M = MW[mod];
+    var high = a.h - bar - g, transfer = mod === "sat" ? Math.min(a.w * 0.35, high) : Math.min(a.w * 0.4, high * 1.4);
+    var x0 = 52 + g, end = transfer - g - 1, lw = (end - x0 - (M.lead - 1) * g) / M.lead;
+    s += '<div class="lbl" style="left:' + a.x + "px;top:" + (a.y + bar / 2 - 13) + 'px;width:52px;font-size:11px;letter-spacing:.9px;color:var(--dim)">MASTER\n' + M.title + ' ▾</div>';
+    for (var i = 0; i < M.lead; i++) s += fieldTile(a.x + x0 + i * (lw + g), a.y, lw, bar, M.f[i][0], M.f[i][1]);
+    if (mod !== "lim") s += box(a.x + transfer - 1, a.y + 8, 1, bar - 16, "background:var(--line)");
+    var rest = M.f.slice(M.lead), rx = a.x + transfer + g, right = a.x + a.w - bar - 2 * 100 - 3 * g, rw = (right - rx - rest.length * g) / rest.length;
+    rest.forEach(function (f, i) { s += fieldTile(rx + i * (rw + g), a.y, rw, bar, f[0], f[1]); });
+    s += eqToolTile(right + g, a.y, 100, bar, "PRESETS") + eqToolTile(right + 2 * g + 100, a.y, 100, bar, "BYPASS");
+    s += tool(a.x + a.w - bar, a.y, bar, bar, "✕");
+    var py = a.y + bar + g, ph = high;
+    if (mod === "sat") return s + satDisplay(a.x, py, a.w, ph, transfer);
+    var pw = a.w - 96 - g, p = "";
+    function Yd(db) { return Math.min(ph, Math.max(0, -db / 48 * ph)); }
+    for (var d = 0; d >= -48; d -= 6) p += '<path d="M0 ' + (Math.round(Yd(d)) + .5) + " H" + pw + '" stroke="var(--gridStrong)" stroke-opacity="' + (d % 12 === 0 ? .6 : .3) + '"/>';
+    var n = 240, inl = "", outl = "", grl = "", thr = mod === "comp" ? -10 : -1, gainIn = mod === "clip" ? 3 : mod === "lim" ? 4 : 0;
+    for (i = 0; i <= n; i++) {
+      var x = pw * i / n, beat = (i % 30) / 30, env = Math.exp(-beat * 5);
+      var inp = -20 + 17 * env + 2 * Math.sin(i * 1.7) + gainIn, gr, out;
+      if (mod === "comp") { gr = Math.max(0, (inp - thr) * 0.5); out = inp - gr; }
+      else { gr = Math.max(0, inp - thr); out = Math.min(inp, thr); }
+      inl += (i ? " L" : "M") + x.toFixed(1) + " " + Yd(inp).toFixed(1);
+      outl += (i ? " L" : "M") + x.toFixed(1) + " " + Yd(out).toFixed(1);
+      grl += (i ? " L" : "M") + x.toFixed(1) + " " + (gr / (mod === "comp" ? 18 : 12) * ph * 0.375).toFixed(1);
+    }
+    var outCol = mod === "comp" ? "var(--accent)" : mod === "clip" ? "var(--gr)" : "var(--rec)", outFill = mod === "lim" ? .2 : .15;
+    p += '<path d="' + inl + " L" + pw + " " + ph + " L0 " + ph + ' Z" fill="var(--dim)" fill-opacity=".35"/><path d="' + inl + '" fill="none" stroke="var(--dim)"/>';
+    p += '<path d="' + outl + " L" + pw + " " + ph + " L0 " + ph + ' Z" fill="' + outCol + '" fill-opacity="' + outFill + '"/><path d="' + outl + '" fill="none" stroke="' + outCol + '" stroke-width="1.5"/>';
+    var grFill = mod === "comp" ? .18 : mod === "clip" ? .25 : 1;
+    p += '<path d="' + grl + " L" + pw + " 0 L0 0 Z" + '" fill="var(--gr)" fill-opacity="' + grFill + '"/>';
+    if (mod === "comp") p += '<path d="' + grl + '" fill="none" stroke="var(--gr)" stroke-width="1.5"/>';
+    var ty = Yd(thr);
+    if (mod === "comp") p += '<path d="M0 ' + ty + " H" + pw + '" stroke="var(--text)" stroke-dasharray="4 3"/>';
+    else p += '<rect x="0" y="' + (ty - 1) + '" width="' + pw + '" height="2" fill="var(--text)"/>';
+    p += '<text x="' + (pw - 6) + '" y="' + (ty + 14) + '" text-anchor="end" font-size="11" fill="var(--text)">' + thr.toFixed(1) + "</text>";
+    if (mod !== "lim") p += '<text x="' + (pw - 6) + '" y="' + (ph - 4) + '" text-anchor="end" font-size="9" letter-spacing="1" fill="var(--dim)">LEVEL</text>';
+    if (mod !== "lim") {
+      var tw = transfer, tr = '<rect x="0" y="0" width="' + tw + '" height="' + ph + '" fill="var(--panel)" fill-opacity=".72"/>', tc = "";
+      for (i = 0; i <= 80; i++) {
+        var inDb = -48 + 48 * i / 80, o;
+        if (mod === "comp") o = inDb > thr ? thr + (inDb - thr) / 2 : inDb;
+        else { var dIn = inDb + 3, k2 = 3 * 0.3; o = dIn < thr - k2 ? dIn : dIn > thr + k2 ? thr : dIn - Math.pow(dIn - thr + k2, 2) / (4 * k2); }
+        tc += (i ? " L" : "M") + (tw * i / 80).toFixed(1) + " " + Yd(o).toFixed(1);
+      }
+      tr += '<path d="M0 ' + ph + " L" + tw + ' 0" stroke="var(--gridStrong)" stroke-dasharray="3 3"/><path d="' + tc + '" fill="none" stroke="var(--text)" stroke-width="2"/>';
+      tr += '<text x="' + (tw - 6) + '" y="' + (ph - 4) + '" text-anchor="end" font-size="9" letter-spacing="1" fill="var(--dim)">TRANSFER</text>';
+      p += tr;
+    }
+    s += box(a.x, py, pw, ph, "background:var(--panel);border-radius:10px;overflow:hidden", svg(pw, ph, p));
+    var lv = mod === "comp" ? [.62, .2, .5] : mod === "clip" ? [.72, .15, .68] : [.78, .25, .7];
+    s += box(a.x + pw + g, py, 96, ph, "background:var(--panel);border-radius:10px", dynBlock(M.title, lv)(ph));
+    return s;
+  }
+  function satDisplay(x, y, w, h, tw) {
+    var s = "", t = "";
+    for (var f = 0.25; f < 1; f += 0.25) { t += '<rect x="' + Math.round(f * tw) + '" y="0" width="1" height="' + h + '" fill="var(--line)"/><rect x="0" y="' + Math.round(f * h) + '" width="' + tw + '" height="1" fill="var(--line)"/>'; }
+    t += '<path d="M0 ' + h + " L" + tw + ' 0" stroke="var(--dim)" stroke-width="1"/>';
+    var gg = Math.pow(10, 6 / 20), c = Math.tanh(gg * .25) / .25, cv = "";
+    function X(v) { return (v + 1) / 2 * tw; } function Y(v) { return h - (v + 1) / 2 * h; }
+    for (var i = 0; i <= 100; i++) { var u = -1 + 2 * i / 100, yv = Math.max(-1, Math.min(1, Math.tanh(u * gg) / c)); cv += (i ? " L" : "M") + X(u).toFixed(1) + " " + Y(yv).toFixed(1); }
+    t += '<path d="' + cv + '" fill="none" stroke="var(--text)" stroke-width="1.5"/>';
+    var hx = X(.5), hy = Y(Math.min(1, Math.tanh(.5 * gg) / c));
+    t += '<circle cx="' + hx + '" cy="' + hy + '" r="14" fill="var(--panel)" stroke="var(--text)" stroke-width="1.5"/><circle cx="' + hx + '" cy="' + hy + '" r="3" fill="var(--text)"/>';
+    t += '<text x="' + hx + '" y="' + (hy + 30) + '" text-anchor="middle" font-size="10" fill="var(--text)">DRIVE +6.0 dB</text>';
+    var lx = X(.32), ly = Y(Math.tanh(.32 * gg) / c);
+    t += '<circle cx="' + lx + '" cy="' + ly + '" r="3" fill="var(--accent)"/>';
+    s += box(x, y, tw, h, "background:color-mix(in srgb, var(--bg) 50%, var(--panel));border-radius:10px 0 0 10px;box-shadow:inset -1px 0 0 var(--line);overflow:hidden", svg(tw, h, t));
+    var sw = w - tw, sp = "";
+    function SX(f) { return sw * Math.log2(f / 20) / Math.log2(1000); } function SY(db) { return -db / 96 * h; }
+    for (var db = 0; db >= -96; db -= 24) { sp += '<rect x="0" y="' + Math.round(SY(db)) + '" width="' + sw + '" height="1" fill="var(--line)"/><text x="4" y="' + (SY(db) + 12) + '" font-size="10" fill="var(--dim)">' + (db === 0 ? "0" : db) + "</text>"; }
+    [[100, "100"], [1000, "1k"], [10000, "10k"]].forEach(function (q) { sp += '<rect x="' + Math.round(SX(q[0])) + '" y="0" width="1" height="' + h + '" fill="var(--line)"/><text x="' + (SX(q[0]) + 3) + '" y="' + (h - 4) + '" font-size="10" fill="var(--dim)">' + q[1] + "</text>"; });
+    var inp = "", out = "";
+    for (i = 0; i <= 200; i++) {
+      var fq = 20 * Math.pow(1000, i / 200), base = -30 - 6 * Math.log2(fq / 120) * (fq > 120 ? 1 : -.8) + 1.5 * Math.sin(i * .3);
+      var harm = fq > 300 ? 5 * Math.exp(-Math.pow(Math.log2(fq / 2500), 2) / 3) : 0;
+      inp += " L" + SX(fq).toFixed(1) + " " + SY(base).toFixed(1); out += (i ? " L" : "M") + SX(fq).toFixed(1) + " " + SY(base + harm).toFixed(1);
+    }
+    sp += '<path d="M0 ' + h + inp + " L" + sw + " " + h + ' Z" fill="var(--dim)" fill-opacity=".35"/><path d="' + out + '" fill="none" stroke="var(--text)" stroke-width="1.5"/>';
+    var fx = SX(120);
+    sp += '<rect x="' + (fx - 1) + '" y="0" width="2" height="' + h + '" fill="var(--text)"/><text x="' + (fx + 6) + '" y="34" font-size="11" fill="var(--text)">FOCUS 120 Hz</text>';
+    sp += '<text x="' + (sw - 6) + '" y="' + (h - 4) + '" text-anchor="end" font-size="9" letter-spacing="1" fill="var(--dim)">SPECTRUM</text>';
+    s += box(x + tw, y, sw, h, "background:var(--panel);border-radius:0 10px 10px 0;overflow:hidden", svg(sw, h, sp));
+    return s;
+  }
+
   function screenHTML(mode, state) {
     var c;
     if (state === "editor" || state === "browser") c = (state === "editor" ? editor() : browser()) + meter(mode);
     else if (state === "roll") c = rollWindow();
     else if (state === "eq") c = eqWindow() + meter(mode);
-    else if (state === "comp") c = compWindow() + meter(mode);
+    else if (state === "comp" || state === "sat" || state === "clip" || state === "lim") c = masterWin(state) + meter(mode);
     else if (state === "phones") c = phonesWindow() + meter(mode);
     else if (state === "grid") c = patternGrid();
     else if (state === "arr" || state === "arrauto") c = arranger(state === "arrauto") + meter(mode);
