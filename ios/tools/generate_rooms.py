@@ -90,7 +90,7 @@ ROOMS = [
          drv=dict(hp=(55, 2), ft=1500, axis=[[0, 1, 0], [0, -1, 0]])),
     dict(name="Club", file="RoomClub.wav", size=[22.0, 16.0, 7.0], rt60=0.8, early_ms=80.0, tail=True, max_ms=1100,
          shape=RT_CLUB, jitter=0.3, floor=0.35, listener=[11.0, 8.0, 1.6], spk=[[1.0, 4.0, 2.5], [1.0, 12.0, 2.5]],
-         drv=dict(hp=(35, 4), ft=900)),
+         drv=dict(hp=(28, 4), ft=900)),
     # Маленькие колонки на столе: ±20°, 0,6 м, обычная комната.
     dict(name="Desk", file="RoomDesk.wav", size=[4.0, 3.5, 2.6], rt60=0.4, early_ms=50.0, tail=True, max_ms=600, jitter=0.1,
          listener=[1.3, 1.75, 1.15], spk=[[0.74, 1.545, 1.0], [0.74, 1.955, 1.0]], drv=dict(hp=(85, 4), ft=4000)),

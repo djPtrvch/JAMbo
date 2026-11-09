@@ -167,6 +167,26 @@ public final class RoomConv: @unchecked Sendable {
         hpN = qs.count
     }
 
+    /// Колбэк, при смене комнаты: история входа (спектры прошлых блоков, вход и выход текущего блока, HEAD, срез низа) —
+    /// из прежнего экземпляра той же длины. История от комнаты не зависит, поэтому новая свёртка сразу звучит с полным
+    /// хвостом (EAR TONE, 9.11: без неё каждый шаг ручки обрывал хвост — треск). Другая длина — false, с нуля.
+    @discardableResult
+    func takeState(from o: RoomConv) -> Bool {
+        if o.parts != parts || o.headCount != headCount { return false }
+        let n: Int = 2 * parts * RoomConv.bins
+        xr.update(from: o.xr, count: n)
+        xi.update(from: o.xi, count: n)
+        head = o.head
+        inL.update(from: o.inL, count: RoomConv.size)
+        inR.update(from: o.inR, count: RoomConv.size)
+        out.update(from: o.out, count: 4 * RoomConv.part)
+        hpR.update(from: o.hpR, count: 4 * RoomConv.bins)
+        hpI.update(from: o.hpI, count: 4 * RoomConv.bins)
+        headActive = o.headActive
+        if o.hpN == hpN { hps.update(from: o.hps, count: 8) }
+        return true
+    }
+
     /// Колбэк: отсчёт входа на место k (через срез низа колонок).
     @inline(__always)
     func feed(_ k: Int, _ l: Float, _ r: Float) {
@@ -403,6 +423,7 @@ public final class RoomStage: @unchecked Sendable {
                 if cur == nil { amb = ambience.load() }
                 next = pending
                 pending = nil
+                if let a = cur?.takeUnretainedValue(), let b = next?.takeUnretainedValue() { b.takeState(from: a) }
                 fading = true
                 fade = 0
             }

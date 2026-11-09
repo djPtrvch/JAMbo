@@ -64,8 +64,13 @@ final class AppModel {
     @ObservationIgnored private var _playing: Bool = false
     private(set) var playing: Bool {
         get { access(keyPath: \.playing); return _playing }
-        set { put(\.playing, \._playing, newValue, observedChanged(_playing, newValue)) }
+        set {
+            put(\.playing, \._playing, newValue, observedChanged(_playing, newValue))
+            if inBackground { syncBackgroundAudio() }
+        }
     }
+    /// Приложение в фоне (звук держится, только пока идёт игра).
+    @ObservationIgnored var inBackground = false
     @ObservationIgnored private var _metronome: Bool = false
     private(set) var metronome: Bool {
         get { access(keyPath: \.metronome); return _metronome }
@@ -464,6 +469,7 @@ final class AppModel {
 
     /// Приложение стало активным: возврат из фона (первый запуск звука — первым касанием, как в вебе).
     func activate() {
+        inBackground = false
         if audioStarted { audio.start() }
     }
 
@@ -472,10 +478,18 @@ final class AppModel {
         if audioStarted { audio.stop() }
     }
 
-    /// Уход в фон: BACKGROUND AUDIO включён — звук играет дальше (запись входа всё равно кончается), иначе — пауза.
+    /// Уход в фон: BACKGROUND AUDIO включён и идёт игра — звук играет дальше (запись входа всё равно кончается), иначе —
+    /// пауза: сессия отпускается, другие приложения (видео, музыка) играют без помех (9.11).
     func enterBackground() {
-        if settings.backgroundAudio {
+        inBackground = true
+        syncBackgroundAudio()
+    }
+
+    /// В фоне: звук — только пока идёт игра (остановили по MIDI или кончилась аранжировка — сессия отпускается).
+    func syncBackgroundAudio() {
+        if settings.backgroundAudio && playing {
             endInputRecForBackground()
+            if audioStarted && audio.suspended { audio.start() }
         } else {
             pauseAudio()
         }

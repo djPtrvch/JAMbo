@@ -13,6 +13,8 @@ final class AudioHost {
     private var latency: Double = -1
     /// Диагностика тормозов с USB-аудио (строка «Now:»): смены маршрута; прошлый замер скорости колбэка.
     private(set) var routeChanges: Int = 0
+    /// Звук остановлен (stop): перезапуск по смене выхода и по концу прерывания не идёт — сессия свободна для других.
+    private(set) var suspended = false
     /// Последняя смена маршрута: причина и прежний выход (диагностика переключений динамик ↔ интерфейс).
     private(set) var lastRoute: String = ""
     private var rateHost: Double = 0
@@ -68,6 +70,7 @@ final class AudioHost {
     /// Запуск звука (при старте приложения и возврате из фона).
     func start() {
         if exporting { return }
+        suspended = false
         do {
             trace("audio: session")
             try configureSession()
@@ -86,6 +89,9 @@ final class AudioHost {
 
     /// Остановка (уход в фон при выключенном BACKGROUND AUDIO).
     func stop() {
+        suspended = true
+        restartWork?.cancel()
+        restartWork = nil
         engine.pause()
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
@@ -104,6 +110,7 @@ final class AudioHost {
     /// Только движок: сессия уже настроена (категория и частота те же). Не запустился — полная настройка.
     func restart() {
         restartWork = nil
+        if suspended { return }
         restarts += 1
         engine.stop()
         do {
@@ -159,7 +166,8 @@ final class AudioHost {
     private func handleInterruption(_ note: Notification) {
         guard let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
               let type = AVAudioSession.InterruptionType(rawValue: raw) else { return }
-        if type == .ended && !exporting { start() }
+        // Звук остановлен нами (фон без игры) — сессию не забираем у других приложений (видео и т. п.).
+        if type == .ended && !exporting && !suspended { start() }
     }
 
     /// Экспорт песни (SongExporter): вывод на динамик — стоп; после — снова.

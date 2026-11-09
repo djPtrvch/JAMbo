@@ -178,7 +178,7 @@
       "direct": 128,
       "channels": "LL, LR, RL, RR",
       "speaker": {
-        "hp_hz": 35,
+        "hp_hz": 28,
         "hp_order": 4,
         "ft_hz": 900
       },
