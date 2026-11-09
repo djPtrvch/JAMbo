@@ -127,6 +127,13 @@ extension AppModel {
             filterShiftTap(undo: undo)
             return true
         }
+        // TAP (SETTINGS → SAMPLER): Pitch — по полутонам / плавно, Start и End — доли сэмпла / плавно.
+        if !modMode && !fxMode, let id = param(slot)?.id, stepByTap(id) {
+            let key: String = Params.stepModeId(id)
+            let on: Bool = !stepToggled(id)
+            editTrack { t in t.params[key] = on ? 1 : 0 }
+            return true
+        }
         if !modMode && !fxMode && param(slot)?.id == "rate" {
             let on: Bool = !rateStretch
             editTrack { t in t.params[Params.rateModeId] = on ? 1 : 0 }

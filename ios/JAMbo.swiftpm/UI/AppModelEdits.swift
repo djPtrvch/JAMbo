@@ -74,6 +74,7 @@ extension AppModel {
             if fxMode { return fxParam(slot) }
             let p: ParamDef = Params.grid(sound: track.sample)[slot]
             if p.id == "rate" && rateStretch { return Params.rateTstr }
+            if stepByTap(p.id) && stepToggled(p.id) { return AppModel.stepDef(p.id) }
             if p.id == "filter" { return Params.filterDef(filterType) }
             if p.id.isEmpty { return nil }
             // ANALOG: AMOUNT вместо DETUNE при модуляции, WAVE B с «−1» при октаве ниже.
@@ -140,10 +141,41 @@ extension AppModel {
         return p.toNorm(track.params[p.id] ?? p.def)
     }
 
-    /// Ручки, которые крутятся с зажатой SHIFT (с шагом): Pitch, Start и End сэмпла.
+    /// Ручки, которые крутятся с зажатой SHIFT (с шагом): Pitch, Start и End сэмпла в режиме HOLD (в TAP SHIFT + тап
+    /// переключает ход, ручка с SHIFT не крутится).
     func shiftTurns(_ slot: Int) -> Bool {
         guard channel == .track && !fxMode && !modMode, let id = param(slot)?.id else { return false }
-        return id == "pitch" || id == "start" || id == "end"
+        return samplerStep(id) && !stepByTap(id)
+    }
+
+    /// Pitch, Start, End сэмпла (у синта — нет: ручка pitch у KICK своя).
+    func samplerStep(_ id: String) -> Bool {
+        return AppModel.stepIds.contains(id) && SynthKey.engine(track.sample) == nil
+    }
+
+    static let stepIds: [String] = ["pitch", "start", "end"]
+
+    /// SETTINGS → SAMPLER: ход ручки id (Pitch, Start, End) переключается SHIFT + тапом (TAP), а не удержанием SHIFT.
+    func stepByTap(_ id: String) -> Bool {
+        if !samplerStep(id) { return false }
+        if id == "pitch" { return settings.pitchShiftTap }
+        if id == "start" || id == "end" { return settings.startEndShiftTap }
+        return false
+    }
+
+    /// TAP: ход ручки id выбранной дорожки переключён на ступенчатый.
+    func stepToggled(_ id: String) -> Bool {
+        return (track.params[Params.stepModeId(id)] ?? 0) >= 0.5
+    }
+
+    /// Поворот ручки id сейчас ступенчатый: TAP — по переключателю дорожки, HOLD — пока зажата SHIFT.
+    func steppedTurn(_ id: String) -> Bool {
+        return stepByTap(id) ? stepToggled(id) : knobShift
+    }
+
+    static func stepDef(_ id: String) -> ParamDef {
+        if id == "pitch" { return Params.pitchSemi }
+        return id == "start" ? Params.startStep : Params.endStep
     }
 
     /// Доли сэмпла для Start и End с SHIFT (Model:Samples: 0, 15, 30, 60, 90, 120 из 120), в процентах.
@@ -159,11 +191,12 @@ extension AppModel {
     func setKnob(_ slot: Int, norm: Double) {
         guard let p = param(slot) else { return }
         var v: Double = p.fromNorm(norm)
-        // Pitch сэмпла: режим по умолчанию — SETTINGS → SAMPLER → PITCH (SMOOTH / SEMITONES), с SHIFT — другой.
-        // Start и End с SHIFT — доли сэмпла, как в Model:Samples (120, 90, 60, 30, 15 из 120).
+        // Pitch сэмпла — по полутонам, Start и End — доли сэмпла, как в Model:Samples (120, 90, 60, 30, 15 из 120):
+        // SETTINGS → SAMPLER — TAP (переключатель дорожки) или HOLD (с зажатой SHIFT).
         if channel == .track && !fxMode && !modMode {
-            if p.id == "pitch" && settings.pitchSemitones != knobShift { v = v.rounded() }
-            if (p.id == "start" || p.id == "end") && knobShift { v = AppModel.snapShare(v) }
+            if samplerStep(p.id) && steppedTurn(p.id) {
+                v = p.id == "pitch" ? v.rounded() : AppModel.snapShare(v)
+            }
         }
         // MIX: с зажатыми шагами — p-lock громкости на шагах последовательности MIX, иначе громкость дорожки.
         if channel == .mix {

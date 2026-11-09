@@ -244,6 +244,15 @@ public enum Params {
     /// Режим RATE дорожки (значение звука дорожки, не на сетке, без p-lock): 0 — PTCH (по умолчанию), 1 — TSTR.
     public static let rateModeId = "rate.mode"
 
+    /// Ступенчатый ход Pitch, Start, End сэмпла в режиме TAP (SETTINGS → SAMPLER, 9.11): скрытое значение дорожки
+    /// "pitch.step", "start.step", "end.step" (1 — по полутонам / долям сэмпла), SHIFT + тап по ручке; подписи ручки —
+    /// Pitch Semi, Start Step, End Step.
+    public static func stepModeId(_ id: String) -> String { return id + ".step" }
+    public static let pitchSemi = ParamDef(id: "pitch", label: "Pitch Semi", min: -24, max: 24, def: 0, bipolar: true,
+                                           format: Fmt.pitch)
+    public static let startStep = ParamDef(id: "start", label: "Start Step", min: 0, max: 100, def: 0, format: Fmt.pct)
+    public static let endStep = ParamDef(id: "end", label: "End Step", min: 0, max: 100, def: 100, format: Fmt.pct)
+
     /// Filter (9.11): частота на всём ходу (Fmt.filterHz), тип — FilterType (SHIFT + тап по ручке). У каждого типа
     /// своё значение по умолчанию — открытый фильтр (BP — середина).
     public static let filterLp = ParamDef(id: "filter", label: "Filter", min: 0, max: 100, def: 100) { v in

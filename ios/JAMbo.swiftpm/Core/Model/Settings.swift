@@ -108,8 +108,12 @@ public struct AppSettings: Codable, Equatable, Sendable {
     /// SETTINGS → SAMPLER → STRETCH: алгоритм таймстретча RATE в режиме Stretch — NORMAL (фазовый вокодер, по
     /// умолчанию) или BEAT (WSOLA, для ударных лупов).
     public var stretchBeat: Bool = false
-    /// SETTINGS → SAMPLER → PITCH (S12): ручка Pitch сэмпла и её p-lock — по полутонам (по умолчанию) или плавно.
-    public var pitchSemitones: Bool = false
+    /// SETTINGS → SAMPLER → PITCH SHIFT и START / END SHIFT (9.11, решение пользователя; прежний PITCH SMOOTH /
+    /// SEMITONES убран): как SHIFT даёт ступенчатый ход Pitch (полутоны) и Start / End (доли сэмпла). false — HOLD
+    /// (по умолчанию): с зажатой SHIFT поворот ступенчатый; true — TAP: SHIFT + тап по ручке переключает её ход у
+    /// дорожки (Params.stepModeId), поворот без SHIFT.
+    public var pitchShiftTap: Bool = false
+    public var startEndShiftTap: Bool = false
     /// Бутерброд → MIDI (S13): вход, обратная связь, ноты.
     public var midi: MidiSettings {
         get { return more[0].midi }
@@ -160,7 +164,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
 
     private enum CodingKeys: String, CodingKey { case appearance, pianoOctaves, velocity, record, sliceMap, scSends, latchFx, latchMod, rollGrid,
                                          rollSound, levelRelative, morphReturn, mixKey, mixCrossfader,
-                                         clearSampleLocks, pitchSemitones, midi, sync,
+                                         clearSampleLocks, pitchShiftTap, startEndShiftTap, midi, sync,
                                          arrangeCompact, fxPictures, backgroundAudio, arrangeRepeats, stretchBeat,
                                          metronomeVol, arrangeScale, arrangeFollow, displayScale,
                                          randomDrums, randomChords, randomSwing, randomStepsAll, randomSamples, showPartType,
@@ -187,7 +191,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
         clearSampleLocks = c.value(.clearSampleLocks, true)
         warpProjectBpm = c.value(.warpProjectBpm, false)
         stretchBeat = c.value(.stretchBeat, false)
-        pitchSemitones = c.value(.pitchSemitones, false)
+        pitchShiftTap = c.value(.pitchShiftTap, false)
+        startEndShiftTap = c.value(.startEndShiftTap, false)
         midi = c.value(.midi, MidiSettings())
         sync = c.value(.sync, SyncSettings())
         arrangeCompact = c.value(.arrangeCompact, false)
@@ -226,7 +231,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
         try c.encode(mixKey, forKey: .mixKey)
         try c.encode(mixCrossfader, forKey: .mixCrossfader)
         try c.encode(clearSampleLocks, forKey: .clearSampleLocks)
-        try c.encode(pitchSemitones, forKey: .pitchSemitones)
+        try c.encode(pitchShiftTap, forKey: .pitchShiftTap)
+        try c.encode(startEndShiftTap, forKey: .startEndShiftTap)
         try c.encode(midi, forKey: .midi)
         try c.encode(sync, forKey: .sync)
         try c.encode(arrangeCompact, forKey: .arrangeCompact)

@@ -24,12 +24,18 @@ struct SettingsPage: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
+    /// Вкладки по 3 в ряд — обычные строки, не LazyVGrid: ленивая сетка в ScrollView после прокрутки вниз и обратно
+    /// (вкладка OUTPUT) не прорисовывала верхние ряды (9.11).
     private var tabs: some View {
-        let cols: [GridItem] = [GridItem(.flexible(), spacing: 4), GridItem(.flexible(), spacing: 4),
-                                GridItem(.flexible(), spacing: 4)]
-        return LazyVGrid(columns: cols, spacing: 4) {
-            ForEach(SettingsTab.allCases, id: \.self) { t in
-                MenuItem(title: t.rawValue, current: model.settingsTab == t) { model.settingsTab = t }
+        let all: [SettingsTab] = SettingsTab.allCases
+        let rows: [Int] = Array(stride(from: 0, to: all.count, by: 3))
+        return VStack(spacing: 4) {
+            ForEach(rows, id: \.self) { r in
+                HStack(spacing: 4) {
+                    ForEach(all[r..<min(r + 3, all.count)], id: \.self) { t in
+                        MenuItem(title: t.rawValue, current: model.settingsTab == t) { model.settingsTab = t }
+                    }
+                }
             }
         }
     }
@@ -158,7 +164,7 @@ struct RecordSettingsView: View {
 }
 
 /// SAMPLER: STRETCH — алгоритм таймстретча RATE (NORMAL по умолчанию, BEAT); SLICE NOTES — ноты маркеров нарезки по
-/// хроматической клавиатуре или по гамме; PITCH (S12; ещё — SHIFT + тап по ручке Pitch); CLEAR SAMPLE LOCKS (S11b).
+/// хроматической клавиатуре или по гамме; PITCH SHIFT и START / END SHIFT (9.11) — TAP или HOLD; CLEAR SAMPLE LOCKS (S11b).
 struct SamplerSettings: View {
     let model: AppModel
 
@@ -174,10 +180,14 @@ struct SamplerSettings: View {
             .choices([MenuChoice(title: "CHROMATIC", current: st.sliceMap == .chromatic) { m.setSliceMap(.chromatic) },
                       MenuChoice(title: "SCALE", current: st.sliceMap == .scale) { m.setSliceMap(.scale) }]),
             .note("Markers in the sample editor play their slice from a piano key. CHROMATIC: markers go up by semitone from C3 (C3, C#3, D3…). SCALE: markers follow the notes of the selected scale from its root note in octave 3; the marker notes change with the scale."),
-            .label("PITCH"),
-            .choices([MenuChoice(title: "SMOOTH", current: !st.pitchSemitones) { m.updateSettings { $0.pitchSemitones = false } },
-                      MenuChoice(title: "SEMITONES", current: st.pitchSemitones) { m.updateSettings { $0.pitchSemitones = true } }]),
-            .note("How the sample Pitch knob and its step locks turn: SMOOTH — any value, SEMITONES — whole semitones. Hold SHIFT while turning for the other mode. LFO and ENV stay smooth."),
+            .label("PITCH SHIFT"),
+            .choices([MenuChoice(title: "TAP", current: st.pitchShiftTap) { m.updateSettings { $0.pitchShiftTap = true } },
+                      MenuChoice(title: "HOLD", current: !st.pitchShiftTap) { m.updateSettings { $0.pitchShiftTap = false } }]),
+            .note("How the sample Pitch knob (and its step locks) goes to whole semitones. TAP: SHIFT + tap on Pitch switches the track's knob to semitones (Pitch Semi) and back. HOLD: turn with SHIFT held — semitones, without SHIFT — smooth. LFO and ENV stay smooth."),
+            .label("START / END SHIFT"),
+            .choices([MenuChoice(title: "TAP", current: st.startEndShiftTap) { m.updateSettings { $0.startEndShiftTap = true } },
+                      MenuChoice(title: "HOLD", current: !st.startEndShiftTap) { m.updateSettings { $0.startEndShiftTap = false } }]),
+            .note("How Start and End go in steps of the sample length (0, 1/8, 1/4, 1/2, 3/4, the end). TAP: SHIFT + tap on Start or End switches that knob of the track to steps (Start Step, End Step) and back. HOLD: turn with SHIFT held — steps, without SHIFT — smooth."),
             .toggle("CLEAR SAMPLE LOCKS", st.clearSampleLocks) { m.setClearSampleLocks($0) },
             .note("ON: loading sounds from the library onto a track removes its sample locks — those steps play the track sound at their own note. Preset locks stay. OFF: sample locks keep their samples."),
             .toggle("WARP TO PROJECT BPM", st.warpProjectBpm) { on in m.setWarpProjectBpm(on) },
@@ -333,10 +343,10 @@ struct RandomSettings: View {
             .note("SHIFT + tap on CHORD on a drum track (Kick, Snare, Hat, Clap, Perc, or a sample named kick, snare, hat, clap, perc, tom…) writes a random rhythm in the project's style (one style for all tracks; Breaks/D&B and Trap/R&B follow the tempo). OFF: nothing."),
             .toggle("CHORDS / ARP", s.randomChords) { m.setRandom(1, $0) },
             .note("SHIFT + tap on CHORD on other tracks writes a random part in the project's style by the track's role: BASS (Sub, a sample named bass or 808, keyboard octave C2 and lower) — a bass line; KEYS (CHORD mode, a sample named chord, keys, piano) — chords in the style's rhythm; PAD (Texture, Granular, a sample named pad) — long chords; LEAD (other tracks) — a melody; ARP mode — an arpeggio. Bass and lead follow the last random progression. OFF: nothing."),
-            .toggle("SHOW PART TYPE", s.showPartType) { m.setRandom(5, $0) },
-            .note("Holding CHORD on a melodic track opens the CHORD window with a PART column: BASS (bass, 808, sub), LEAD (lead, keys, piano) or PAD (pads, beds, textures, effects). The lit one is the random part SHIFT + CHORD will write; tap another to choose it for this track, tap the chosen one again to go back to automatic."),
             .toggle("SAMPLES", s.randomSamples) { m.setRandom(4, $0) },
             .note("SHIFT + tap on RANDOM on a track with a sliced sample writes a random pattern of its slices in the project's style. Hold a slice flag in the sample editor to give the slice a role: KICK, SNARE (snare and clap), HAT, PERC play where the style puts these drums; BASS follows the style's bass rhythm, LEAD — its melody or chord rhythm; PAD plays rarely, never over itself. Without roles the slices are reshuffled like a break."),
+            .toggle("SHOW PART TYPE", s.showPartType) { m.setRandom(5, $0) },
+            .note("Holding CHORD on a melodic track opens the CHORD window with a PART column: BASS (bass, 808, sub), LEAD (lead, keys, piano) or PAD (pads, beds, textures, effects). The lit one is the random part SHIFT + CHORD will write; tap another to choose it for this track, tap the chosen one again to go back to automatic."),
             .toggle("STEPS ALL TRACKS", s.randomStepsAll) { m.setRandom(3, $0) },
             .note("SHIFT + tap on CHORD (or tap on RANDOM) writes parts on every track with a sound at once, each by its role — drums, slices, bass, keys, pad, lead, arpeggio — over one new progression in the project's style. The DRUMS, CHORDS / ARP and SAMPLES switches still apply."),
             .toggle("AUTO SWING", s.randomSwing) { m.setRandom(2, $0) },
@@ -422,7 +432,7 @@ struct FieldLabel: View {
     let title: String
 
     var body: some View {
-        Text(title).font(.system(size: 9, weight: .semibold)).tracking(0.6).foregroundStyle(theme.dim)
+        Text(title).font(.system(size: 9, weight: .semibold)).tracking(0.6).foregroundStyle(theme.text)
     }
 }
 
