@@ -2,7 +2,7 @@
   "rooms": [
     {
       "name": "Studio",
-      "file": "RoomStudio.caf",
+      "file": "RoomStudio.wav",
       "rt60": 0.25,
       "size": [
         4.5,
@@ -36,22 +36,22 @@
         "ft_hz": 2000
       },
       "head": {
-        "file": "RoomStudioHead.caf",
+        "file": "RoomStudioHead.wav",
         "from_deg": -50,
         "step_deg": 2,
         "count": 51,
         "gain_db": -2.743
       },
       "flat": {
-        "file": "RoomStudioFlat.caf",
+        "file": "RoomStudioFlat.wav",
         "gain_db": -5.606,
-        "head_file": "RoomStudioFlatHead.caf",
+        "head_file": "RoomStudioFlatHead.wav",
         "head_gain_db": -1.44
       }
     },
     {
       "name": "Home",
-      "file": "RoomHome.caf",
+      "file": "RoomHome.wav",
       "rt60": 0.45,
       "size": [
         5.5,
@@ -85,22 +85,22 @@
         "ft_hz": 2000
       },
       "head": {
-        "file": "RoomHomeHead.caf",
+        "file": "RoomHomeHead.wav",
         "from_deg": -50,
         "step_deg": 2,
         "count": 51,
         "gain_db": -2.792
       },
       "flat": {
-        "file": "RoomHomeFlat.caf",
+        "file": "RoomHomeFlat.wav",
         "gain_db": -5.726,
-        "head_file": "RoomHomeFlatHead.caf",
+        "head_file": "RoomHomeFlatHead.wav",
         "head_gain_db": -1.464
       }
     },
     {
       "name": "Car",
-      "file": "RoomCar.caf",
+      "file": "RoomCar.wav",
       "rt60": 0.07,
       "size": [
         2.4,
@@ -134,22 +134,22 @@
         "ft_hz": 1500
       },
       "head": {
-        "file": "RoomCarHead.caf",
+        "file": "RoomCarHead.wav",
         "from_deg": -50,
         "step_deg": 2,
         "count": 51,
         "gain_db": -14.509
       },
       "flat": {
-        "file": "RoomCarFlat.caf",
+        "file": "RoomCarFlat.wav",
         "gain_db": -16.238,
-        "head_file": "RoomCarFlatHead.caf",
+        "head_file": "RoomCarFlatHead.wav",
         "head_gain_db": -14.464
       }
     },
     {
       "name": "Club",
-      "file": "RoomClub.caf",
+      "file": "RoomClub.wav",
       "rt60": 0.8,
       "size": [
         22.0,
@@ -183,22 +183,22 @@
         "ft_hz": 900
       },
       "head": {
-        "file": "RoomClubHead.caf",
+        "file": "RoomClubHead.wav",
         "from_deg": -50,
         "step_deg": 2,
         "count": 51,
         "gain_db": -3.791
       },
       "flat": {
-        "file": "RoomClubFlat.caf",
+        "file": "RoomClubFlat.wav",
         "gain_db": -6.255,
-        "head_file": "RoomClubFlatHead.caf",
+        "head_file": "RoomClubFlatHead.wav",
         "head_gain_db": -2.456
       }
     },
     {
       "name": "Desk",
-      "file": "RoomDesk.caf",
+      "file": "RoomDesk.wav",
       "rt60": 0.4,
       "size": [
         4.0,
@@ -232,16 +232,16 @@
         "ft_hz": 4000
       },
       "head": {
-        "file": "RoomDeskHead.caf",
+        "file": "RoomDeskHead.wav",
         "from_deg": -50,
         "step_deg": 2,
         "count": 51,
         "gain_db": -4.551
       },
       "flat": {
-        "file": "RoomDeskFlat.caf",
+        "file": "RoomDeskFlat.wav",
         "gain_db": -6.865,
-        "head_file": "RoomDeskFlatHead.caf",
+        "head_file": "RoomDeskFlatHead.wav",
         "head_gain_db": -2.411
       }
     }

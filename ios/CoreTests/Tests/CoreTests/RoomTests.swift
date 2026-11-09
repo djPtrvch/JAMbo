@@ -13,21 +13,8 @@ final class RoomTests: XCTestCase {
 
     static func ir(_ k: Int) -> RoomIR {
         let r: RoomInfo = rooms()[k]
-        return RoomIR(name: r.name, wav: audio(r.file), gainDb: r.gainDb, direct: r.direct)!
-    }
-
-    /// Импульс из ресурсов как WAV (32 бит): ресурсы — ALAC в CAF (9.11), приложение читает их AVAudioFile, здесь —
-    /// ffmpeg (тот же, что сжимал; на Linux AVFoundation нет). 24 и 16 бит в 32-битном WAV — те же значения float.
-    static func audio(_ file: String) -> Data {
-        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("room-\(UUID().uuidString).wav")
-        defer { try? FileManager.default.removeItem(at: tmp) }
-        let p = Process()
-        p.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        p.arguments = ["ffmpeg", "-v", "error", "-y", "-i", res.appendingPathComponent(file).path, "-c:a", "pcm_s32le", tmp.path]
-        try! p.run()
-        p.waitUntilExit()
-        precondition(p.terminationStatus == 0, "ffmpeg не распаковал \(file)")
-        return try! Data(contentsOf: tmp)
+        let d = try! Data(contentsOf: res.appendingPathComponent(r.file))
+        return RoomIR(name: r.name, wav: d, gainDb: r.gainDb, direct: r.direct)!
     }
 
     private func noise(_ n: Int, _ seed: UInt64) -> [Float] {
@@ -70,27 +57,6 @@ final class RoomTests: XCTestCase {
         XCTAssertNil(RoomIR.parseWav(Data("junk".utf8)))
         XCTAssertNil(RoomIR(name: "x", wav: Data([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0]), gainDb: 0, direct: 128))
         XCTAssertEqual(RoomInfo.list(Data("{".utf8)).count, 0)
-    }
-
-    /// Отсчёты по каналам (как из AVAudioFile в приложении) — тот же импульс, что из WAV; ресурсы — CAF; неверные
-    /// данные — nil.
-    func testPlanarMatchesWav() throws {
-        for r in RoomTests.rooms() {
-            XCTAssertTrue(r.file.hasSuffix(".caf"), r.file)
-            let w = try XCTUnwrap(RoomIR.parseWav(RoomTests.audio(r.file)))
-            var planar = [Float](repeating: 0, count: w.frames * 4)
-            for c in 0..<4 {
-                for i in 0..<w.frames { planar[c * w.frames + i] = w.samples[i * 4 + c] }
-            }
-            let a = try XCTUnwrap(RoomIR(name: r.name, wav: RoomTests.audio(r.file), gainDb: r.gainDb, direct: r.direct))
-            let b = try XCTUnwrap(RoomIR(name: r.name, planar: planar, channels: 4, rate: 48000, gainDb: r.gainDb,
-                                         direct: r.direct))
-            XCTAssertEqual(a.frames, b.frames)
-            XCTAssertEqual(a.h, b.h)
-        }
-        XCTAssertNil(RoomIR(name: "x", planar: [Float](repeating: 0, count: 8), channels: 2, rate: 48000, gainDb: 0, direct: 0))
-        XCTAssertNil(RoomIR(name: "x", planar: [Float](repeating: 0, count: 8), channels: 4, rate: 44100, gainDb: 0, direct: 0))
-        XCTAssertNil(RoomIR(name: "x", planar: [], channels: 4, rate: 48000, gainDb: 0, direct: 0))
     }
 
     /// Свёртка = прямая FIR (задержка 128) с ошибкой ≤ −120 dB; Ambience 0 — только прямая часть.

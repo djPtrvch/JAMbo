@@ -93,7 +93,7 @@ final class RoomSwitchTests: XCTestCase {
         let k: Int = rooms.firstIndex { $0.name == "Club" } ?? 0
         let info = rooms[k]
         let ir = RoomTests.ir(k)
-        let d = RoomTests.audio(info.flatFile)
+        let d = try! Data(contentsOf: RoomTests.res.appendingPathComponent(info.flatFile))
         let flat = RoomIR(name: info.name, wav: d, gainDb: info.flatGainDb, direct: info.direct)!
         let other: RoomIR = ir.mixed(flat: flat, raw: 0.3)
         var seed: UInt64 = 7

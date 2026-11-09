@@ -1,4 +1,3 @@
-import AVFoundation
 import Foundation
 
 /// Headphone Monitor (ТЗ, фаза 1): настройки монитор-цепочки (UserDefaults «monitor»), CORRECT CURVE профиля
@@ -120,13 +119,10 @@ extension AppModel {
     }
 
     static func resource(_ name: String, _ ext: String) -> Data? {
-        return resourceURL(name, ext).flatMap { try? Data(contentsOf: $0) }
-    }
-
-    static func resourceURL(_ name: String, _ ext: String) -> URL? {
         let b: Bundle = Bundle.main
-        return b.url(forResource: name, withExtension: ext)
+        let url: URL? = b.url(forResource: name, withExtension: ext)
             ?? b.url(forResource: name, withExtension: ext, subdirectory: "Resources")
+        return url.flatMap { try? Data(contentsOf: $0) }
     }
 
     /// Пространство пункта TRANSLATION (комната из rooms.json); нет — nil.
@@ -156,9 +152,7 @@ extension AppModel {
         roomBuilding = true
         let cached: RoomSet? = roomSet?.name == info.name ? roomSet : nil
         DispatchQueue.global(qos: .userInitiated).async {
-            var failed: [String] = []
-            let set: RoomSet? = cached ?? RoomSet.load(info, failed: &failed)
-            let bad: [String] = failed
+            let set: RoomSet? = cached ?? RoomSet.load(info)
             var conv: RoomConv? = nil
             var resp: RoomResponse? = nil
             if let s = set {
@@ -171,8 +165,6 @@ extension AppModel {
             }
             DispatchQueue.main.async {
                 self.roomBuilding = false
-                // Файл комнаты не прочитался — сообщение (общее окно ошибок, как у записи), а не тихо без комнаты.
-                if !bad.isEmpty { self.sampleRec.error = "Room files could not be read: " + bad.joined(separator: ", ") }
                 guard let s = set, let c = conv, let r = resp else { return }
                 self.roomSet = s
                 if self.roomInfo?.name == info.name {
@@ -383,37 +375,16 @@ final class RoomSet: @unchecked Sendable {
     }
 
     /// Из ресурсов (файлы rooms.json); нет импульсов комнаты — nil.
-    /// failed — файлы из rooms.json, которые не прочитались (пустое имя файла — набора нет, это не ошибка).
-    static func load(_ i: RoomInfo, failed: inout [String]) -> RoomSet? {
-        let ir: RoomIR? = RoomSet.audio(i.name, i.file, i.gainDb, i.direct, &failed)
-        let flat: RoomIR? = RoomSet.audio(i.name, i.flatFile, i.flatGainDb, i.direct, &failed)
-        let head: RoomIR? = RoomSet.audio(i.name, i.headFile, i.headGainDb, 0, &failed)
-        let flatHead: RoomIR? = RoomSet.audio(i.name, i.flatHeadFile, i.flatHeadGainDb, 0, &failed)
-        guard let main = ir else { return nil }
-        return RoomSet(name: i.name, ir: main, flat: flat, head: head, flatHead: flatHead)
+    static func load(_ i: RoomInfo) -> RoomSet? {
+        guard let ir = RoomSet.wav(i.name, i.file, i.gainDb, i.direct) else { return nil }
+        return RoomSet(name: i.name, ir: ir, flat: RoomSet.wav(i.name, i.flatFile, i.flatGainDb, i.direct),
+                       head: RoomSet.wav(i.name, i.headFile, i.headGainDb, 0),
+                       flatHead: RoomSet.wav(i.name, i.flatHeadFile, i.flatHeadGainDb, 0))
     }
 
-    /// Импульс из ресурсов (9.11: ALAC в CAF, без потерь) через AVAudioFile: 4 канала, 48 кГц, float по каналам —
-    /// те же значения, что из WAV; не прочитался — nil и имя в failed.
-    private static func audio(_ name: String, _ file: String, _ gain: Double, _ direct: Int,
-                              _ failed: inout [String]) -> RoomIR? {
+    private static func wav(_ name: String, _ file: String, _ gain: Double, _ direct: Int) -> RoomIR? {
         if file.isEmpty { return nil }
-        let ns: NSString = file as NSString
-        var ir: RoomIR? = nil
-        if let url = AppModel.resourceURL(ns.deletingPathExtension, ns.pathExtension),
-           let f = try? AVAudioFile(forReading: url),
-           let buf = AVAudioPCMBuffer(pcmFormat: f.processingFormat, frameCapacity: AVAudioFrameCount(f.length)),
-           (try? f.read(into: buf)) != nil, let ch = buf.floatChannelData {
-            let n: Int = Int(buf.frameLength)
-            let c: Int = Int(buf.format.channelCount)
-            var planar = [Float](repeating: 0, count: n * c)
-            for k in 0..<c {
-                for i in 0..<n { planar[k * n + i] = ch[k][i] }
-            }
-            ir = RoomIR(name: name, planar: planar, channels: c, rate: Int(buf.format.sampleRate), gainDb: gain,
-                        direct: direct)
-        }
-        if ir == nil { failed.append(file) }
-        return ir
+        guard let d = AppModel.resource((file as NSString).deletingPathExtension, "wav") else { return nil }
+        return RoomIR(name: name, wav: d, gainDb: gain, direct: direct)
     }
 }

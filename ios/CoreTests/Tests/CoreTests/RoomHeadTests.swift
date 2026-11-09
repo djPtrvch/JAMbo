@@ -6,7 +6,7 @@ import XCTest
 final class RoomHeadTests: XCTestCase {
     static func head(_ k: Int) -> (RoomIR, RoomInfo) {
         let r: RoomInfo = RoomTests.rooms()[k]
-        let d = RoomTests.audio(r.headFile)
+        let d = try! Data(contentsOf: RoomTests.res.appendingPathComponent(r.headFile))
         return (RoomIR(name: r.name, wav: d, gainDb: r.headGainDb, direct: 0)!, r)
     }
 
