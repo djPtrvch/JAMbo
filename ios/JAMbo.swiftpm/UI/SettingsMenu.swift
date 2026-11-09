@@ -432,7 +432,7 @@ struct FieldLabel: View {
     let title: String
 
     var body: some View {
-        Text(title).font(.system(size: 9, weight: .semibold)).tracking(0.6).foregroundStyle(theme.text)
+        Text(title).font(.system(size: 11, weight: .semibold)).tracking(0.6).foregroundStyle(theme.text)
     }
 }
 
