@@ -129,9 +129,9 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     <li class="ready"><span class="n">6</span><a href="#sequencer">Секвенсор</a></li>
     <li class="ready"><span class="n">7</span><a href="#plock">P-lock</a></li>
     <li class="ready"><span class="n">8</span><a href="#keys">Клавиатура, пианоролл, арпеджиатор, Capture</a></li>
-    <li class="soon"><span class="n">9</span><span>Модуляция и MORPH</span></li>
-    <li class="soon"><span class="n">10</span><span>Эффекты дорожек</span></li>
-    <li class="soon"><span class="n">11</span><span>EQ</span></li>
+    <li class="ready"><span class="n">9</span><a href="#mod">Модуляция и MORPH</a></li>
+    <li class="ready"><span class="n">10</span><a href="#fx">Эффекты дорожек</a></li>
+    <li class="ready"><span class="n">11</span><a href="#eq">EQ</a></li>
     <li class="soon"><span class="n">12</span><span>Мастер</span></li>
     <li class="soon"><span class="n">13</span><span>Коррекция наушников</span></li>
     <li class="soon"><span class="n">14</span><span>Автоматизация</span></li>
@@ -151,7 +151,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
   <div class="eyebrow">Руководство пользователя</div>
   <h1>JAMbo<span>.</span> Грувбокс для живых джемов</h1>
   <p>Названия кнопок и ручек даны так, как они написаны на экране, по-английски.</p>
-  <div class="chip">Черновик · <b>разделы 0–8</b></div>
+  <div class="chip">Черновик · <b>разделы 0–11</b></div>
 </div>
 
 <!-- ============ 0 ============ -->
@@ -746,7 +746,163 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
   </ul>
 </section>
 
-<footer class="end">JAMbo · Руководство пользователя · черновик разделов 0–8. Следующие разделы появятся на этой же странице.</footer>
+<!-- ============ 9 ============ -->
+<section class="chapter" id="mod">
+  <header><span class="num">9</span><h2>Модуляция и MORPH</h2></header>
+  <p class="lede">LFO и огибающая двигают ручки сами, MORPH позволяет крутить всё и вернуть одним тапом.</p>
+
+  <h3><span class="sn">9.1</span>LFO и ENV</h3>
+  <figure><div class="shot" data-mode="mod" data-zone="grid" data-maxh="520"></div><figcaption>Сетка MOD (пока держите MOD): строки LFO1, LFO2, LFO3 и ENV.</figcaption></figure>
+  <p>У каждой дорожки три LFO и огибающая ENV. Их настройки — на сетке MOD.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Ручка</th><th>Что делает</th></tr></thead>
+    <tbody>
+      <tr><td>Wave</td><td>Форма: Sine, Triangle, Saw, Square, Random.</td></tr>
+      <tr><td>Speed</td><td>Скорость в Гц. SHIFT + тап — по темпу: от 8 bars до 1/32, с точками и триолями.</td></tr>
+      <tr><td>Invert</td><td>Плавно переворачивает волну: +100 % — как есть, 0 — ровная линия, −100 % — перевёрнута.</td></tr>
+      <tr><td>Polarity</td><td>BI — в обе стороны от значения ручки, UNI — только в одну, между ними плавно.</td></tr>
+      <tr><td>ENV Attack, Decay, Sustain, Release</td><td>Огибающая. Запускается каждой нотой дорожки и держится, пока звучит нота.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3><span class="sn">9.2</span>Назначить LFO или ENV на ручку</h3>
+  <figure><div class="shot" data-mode="track" data-zone="leftgrid" data-state="lfo" data-maxh="520"></div><figcaption>LFO1 зажат, на Filter назначен LFO1 со степенью +25 %. Светлая дуга снаружи — зона, в которой LFO двигает фильтр; белая — где он сейчас.</figcaption></figure>
+  <ol class="steps">
+    <li>Держите LFO1, LFO2, LFO3 или ENV.</li>
+    <li>Поверните ручку, которой нужно управлять. Поворот задаёт степень: вправо — в плюс, влево — в минус. На ручке видно, например, «L1 +25%».</li>
+  </ol>
+  <ul>
+    <li>Снаружи кольца ручки появляется вторая дуга — она движется в реальном времени. У LFO1–3 разная яркость, у ENV дуга пунктиром.</li>
+    <li>На ручку назначается один источник.</li>
+    <li><b>Снять:</b> держите тот же источник и дважды тапните по ручке.</li>
+    <li>Ручки эффектов тоже модулируются: держите FX и LFO (или ENV) и поверните ручку эффекта.</li>
+  </ul>
+
+  <h3><span class="sn">9.3</span>MORPH</h3>
+  <figure><div class="shot" data-mode="track" data-state="morph"></div><figcaption>MORPH включён. На дорожках 1 и 3 жёлтые точки — их ручки меняли.</figcaption></figure>
+  <p>MORPH — режим для живых изменений звука, которые потом нужно отменить одним движением.</p>
+  <ol class="steps">
+    <li>Тап по MORPH — кнопка загорается жёлтым.</li>
+    <li>Крутите ручки. Меняется звук дорожки целиком, p-lock на шагах остаются. На изменённых дорожках — жёлтая точка.</li>
+    <li>Тап по MORPH ещё раз — все ручки всех дорожек возвращаются туда, где были при включении.</li>
+  </ol>
+  <ul>
+    <li><b>ALL TRACKS</b> (включён по умолчанию) — ручка меняет тот же параметр сразу на всех дорожках. SHIFT + тап по MORPH выключает и включает ALL TRACKS. Пока он выключен, внутри кнопки MORPH — тонкая чёрная линия.</li>
+    <li><b>MORPH + UNDO</b> — сбросить накрученное, не выключая режим.</li>
+    <li>Правки в MORPH не попадают в UNDO.</li>
+    <li>В SETTINGS → MORPH: <b>MODE</b> — SWITCH (как описано выше) или HOLD: тап по MORPH меняет только выбранную дорожку, а SHIFT + MORPH, пока их держат, — все дорожки; <b>RETURN</b> — плавный возврат за 1/4, 1/2, 1 или 2 такта вместо мгновенного.</li>
+  </ul>
+</section>
+
+<!-- ============ 10 ============ -->
+<section class="chapter" id="fx">
+  <header><span class="num">10</span><h2>Эффекты дорожек</h2></header>
+  <p class="lede">Четыре общих эффекта: Reverb, Delay, Drive и Duck.</p>
+
+  <h3><span class="sn">10.1</span>Как устроены эффекты</h3>
+  <figure><div class="shot" data-mode="fx" data-zone="leftgrid" data-state="fxpic" data-maxh="520"></div><figcaption>Пока палец на ручке эффекта, в окне звука — его картинка (здесь Delay).</figcaption></figure>
+  <ul>
+    <li>Эффекты общие для всех дорожек. Сколько звука дорожки идёт в Reverb, Delay и Drive, задают <b>посылы</b> — третья строка ручек дорожки.</li>
+    <li>Настройки эффектов — на сетке FX: держите FX.</li>
+    <li>Ручки эффектов принимают p-lock (держите FX и шаг) и LFO/ENV (раздел 9.2).</li>
+    <li>Пока палец на ручке эффекта, в окне звука видна его картинка: куб Reverb, повторы Delay, волна Drive, огибающая Duck. Выключить — SETTINGS → APPEARANCE → FX ANIMATION.</li>
+    <li>Настройки эффектов хранятся в паттернах сетки: действуют эффекты паттерна, запущенного последним (раздел 15).</li>
+  </ul>
+
+  <h3><span class="sn">10.2</span>Reverb</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Ручка</th><th>Что делает</th></tr></thead>
+    <tbody>
+      <tr><td>Rev Size</td><td>Размер пространства.</td></tr>
+      <tr><td>Rev Decay</td><td>Длина хвоста, 0,1–20 с.</td></tr>
+      <tr><td>Rev Tone</td><td>Тёмный или яркий хвост.</td></tr>
+      <tr><td>Rev Low Cut</td><td>Срезает низ в реверберации — чтобы не гудел бас.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3><span class="sn">10.3</span>Delay</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Ручка</th><th>Что делает</th></tr></thead>
+    <tbody>
+      <tr><td>Dly Time</td><td>Время повтора по темпу: от 1/32 до 1 bar, с точками и триолями. SHIFT + тап — свободное время в миллисекундах.</td></tr>
+      <tr><td>Dly Feedback</td><td>Сколько повторов.</td></tr>
+      <tr><td>Dly Spread</td><td>Разносит повторы по стерео, на 100 % — пинг-понг.</td></tr>
+      <tr><td>Dly Filter</td><td>Влево — повторы темнее (LP), вправо — тоньше (HP), в центре — OFF.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3><span class="sn">10.4</span>Drive</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Ручка</th><th>Что делает</th></tr></thead>
+    <tbody>
+      <tr><td>Drive</td><td>Сила перегруза.</td></tr>
+      <tr><td>Drive Type</td><td>Характер: Soft, Hard, Tube, Fuzz, Fold, Crush.</td></tr>
+      <tr><td>Drive Tone</td><td>Яркость.</td></tr>
+      <tr><td>Drive Low Cut</td><td>Срез низа перед перегрузом.</td></tr>
+    </tbody>
+  </table></div>
+  <p>Посылы всех дорожек складываются до перегруза: чем больше дорожек и громче посылы, тем сильнее искажение.</p>
+
+  <h3><span class="sn">10.5</span>Duck (sidechain)</h3>
+  <p>Duck приглушает дорожки в такт нотам одной дорожки-источника — классическая «качка» от бочки.</p>
+  <ol class="steps">
+    <li>На сетке FX ручкой <b>Duck Source</b> выберите дорожку-источник, например бочку.</li>
+    <li>На дорожках, которые должны приглушаться, поднимите ручку <b>Duck</b> (третья строка) — это глубина.</li>
+  </ol>
+  <div class="tbl"><table>
+    <thead><tr><th>Ручка</th><th>Что делает</th></tr></thead>
+    <tbody>
+      <tr><td>Duck Attack</td><td>Как быстро звук уходит вниз.</td></tr>
+      <tr><td>Duck Release</td><td>За сколько возвращается.</td></tr>
+      <tr><td>Duck Source</td><td>Дорожка-источник. Работает и заглушённой.</td></tr>
+      <tr><td>Duck Curve</td><td>Форма возврата: от резкого до плавного.</td></tr>
+    </tbody>
+  </table></div>
+  <p>Приглушение видно оранжевым сверху на метрах. Какие посылы приглушаются вместе с дорожкой — SETTINGS → DUCK.</p>
+</section>
+
+<!-- ============ 11 ============ -->
+<section class="chapter" id="eq">
+  <header><span class="num">11</span><h2>EQ</h2></header>
+  <p class="lede">Графический эквалайзер у каждой дорожки и у мастера.</p>
+
+  <h3><span class="sn">11.1</span>Окно EQ</h3>
+  <figure><div class="shot" data-mode="track" data-zone="upper" data-state="eq"></div><figcaption>EQ дорожки 1: срез низа, выбранная полоса 2, полоса 3 в режиме MID (красная) и полка вверху. Серым — спектр звука. Полосы и спектр — для примера.</figcaption></figure>
+  <p>Кнопка EQ открывает эквалайзер выбранной дорожки, а при MIX и MST — мастера. На дорожке EQ стоит до эффектов. Слева в строке — имя канала.</p>
+  <ul>
+    <li>Сетка: частоты 100 Hz, 1 kHz, 10 kHz и усиление ±12 dB.</li>
+    <li>Серая линия — спектр до EQ, серая заливка — после. Белая кривая — сумма всех полос.</li>
+    <li>Точки — полосы с номерами. Выбранная жёлтая, выключенная серая.</li>
+  </ul>
+
+  <h3><span class="sn">11.2</span>Полосы</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Жест</th><th>Что делает</th></tr></thead>
+    <tbody>
+      <tr><td>Двойной тап по пустому</td><td>Новая полоса Bell в этом месте. Полос — до 10.</td></tr>
+      <tr><td>Тянуть точку</td><td>Вбок — частота, вверх-вниз — усиление. У Low Cut, High Cut и Notch вверх-вниз — Q.</td></tr>
+      <tr><td>Двойной тап по точке</td><td>Выключить или включить полосу.</td></tr>
+      <tr><td>TYPE</td><td>Тип полосы и крутизна среза (12, 24, 48 dB/oct), а также удаление полосы.</td></tr>
+    </tbody>
+  </table></div>
+  <p>Типы: Bell, Low Shelf, High Shelf, Low Cut, High Cut, Notch. Поля <b>TYPE, FREQ, GAIN, Q</b> вверху меняются пальцем вверх-вниз, двойной тап по FREQ, GAIN или Q — ввод числом.</p>
+
+  <h3><span class="sn">11.3</span>M/S, DYN, LISTEN</h3>
+  <ul>
+    <li><b>M/S</b> — на что действует полоса: STEREO (весь звук), MID (середина) или SIDE (бока). Точки MID красные, SIDE оранжевые, у них свои кривые.</li>
+    <li><b>DYN</b> — динамическая полоса (Bell и полки): полоса сдвигается на RANGE, когда звук источника громче порога THRESHOLD. Источник — SELF (сам канал) или любая дорожка.</li>
+    <li><b>LISTEN</b> — пока держите, слышно только то, что попадает в выбранную полосу. Удобно искать резонанс.</li>
+  </ul>
+
+  <h3><span class="sn">11.4</span>Пресеты, BYPASS, сравнение</h3>
+  <ul>
+    <li><b>PRESETS</b> — общая библиотека EQ для всех дорожек и проектов: SAVE, тап — загрузить, свайп влево — переименовать или удалить.</li>
+    <li><b>BYPASS</b> — выключить EQ канала, чтобы сравнить с исходным звуком.</li>
+    <li><b>Тап по имени канала</b> у дорожки — показать поверх спектр другой дорожки (COMPARE): видно, где звуки мешают друг другу. У мастера — окно коррекции наушников (раздел 13).</li>
+  </ul>
+</section>
+
+<footer class="end">JAMbo · Руководство пользователя · черновик разделов 0–11. Следующие разделы появятся на этой же странице.</footer>
 </main>
 </div>
 
@@ -836,11 +992,15 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
         var dl = arc(cx, cy, 28 * s, o, k.lock.n);
         if (dl) g += '<path d="' + dl + '" fill="none" stroke="' + lockCol + '" stroke-width="' + 5 * s + '" stroke-linecap="round"/>';
       }
-      var a = ang(k.lock ? k.lock.n : k.n), p0 = pol(cx, cy, 21 * s, a), p1 = pol(cx, cy, 28 * s, a);
+      if (k.mod) {
+        if (k.mod.zone) g += '<path d="' + arc(cx, cy, 45 * s, k.mod.zone[0], k.mod.zone[1]) + '" fill="none" stroke="var(--text)" stroke-opacity=".18" stroke-width="' + 8 * s + '" stroke-linecap="round"/>';
+        g += '<path d="' + arc(cx, cy, 45 * s, k.n, k.mod.m) + '" fill="none" stroke="var(--text)" stroke-opacity=".95" stroke-width="' + 4 * s + '" stroke-linecap="round"/>';
+      }
+      var a = ang(k.lock ? k.lock.n : (k.mod ? k.mod.m : k.n)), p0 = pol(cx, cy, 21 * s, a), p1 = pol(cx, cy, 28 * s, a);
       g += '<path d="M' + p0[0] + " " + p0[1] + " L" + p1[0] + " " + p1[1] + '" stroke="' + (lockCol || "var(--text)") + '" stroke-width="' + 3 * s + '" stroke-linecap="round"/>';
     }
     var out = svg(cw, ch, g, 0, 2);
-    if (active) out += '<div class="lbl" style="left:0;top:2px;width:' + cw + "px;height:" + ch + 'px;display:flex;align-items:center;justify-content:center;font-size:11px;color:' + (lockCol || "var(--text)") + '">' + (k.lock ? k.lock.v : k.v) + "</div>";
+    if (active) out += '<div class="lbl" style="left:0;top:2px;width:' + cw + "px;height:" + ch + 'px;display:flex;align-items:center;justify-content:center;font-size:11px;color:' + (lockCol || "var(--text)") + '">' + (k.lock ? k.lock.v : k.mod && k.mod.v ? k.mod.v : k.v) + "</div>";
     out += '<div class="lbl" style="left:0;top:' + (2 + ch + 2) + "px;width:" + cw + "px;height:" + labelH + 'px;font-size:11px;color:var(--dim)">' + k.l + "</div>";
     return box(x, y, w, h, "", out);
   }
@@ -868,6 +1028,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
 
   // ---------- zones ----------
   function topBar(mode, state) {
+    var eqOn = state === "eq";
     var y = 0, h = TOP, s = "";
     // left group (220): burger 52, BPM, metronome 52
     s += box(PAD, y, 52, h, "", (function () { var b = ""; for (var i = 0; i < 3; i++) b += box(15, 15 + i * 7, 22, 2, "background:var(--text);border-radius:1px"); return b; })());
@@ -891,7 +1052,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     s += tile(x, y, half, h, "var(--panel2)", icon("dot", half, h, "var(--rec)", 6), "box-shadow:inset 0 0 0 1px var(--rec)"); x += half + GAP;
     s += tile(x, y, TOPBTN, h, "var(--panel2)", icon("redo", TOPBTN, h, "var(--off)")); x += TOPBTN + GAP;
     s += tile(x, y, flex, h, state === "roll" ? "var(--text)" : "var(--panel2)", icon("piano", flex, h, state === "roll" ? "var(--bg)" : "var(--text)")); x += flex + GAP;
-    s += btn(x, y, TOPBTN, h, "EQ");
+    s += btn(x, y, TOPBTN, h, "EQ", eqOn ? { fill: "var(--text)", color: "var(--bg)" } : {});
     // right group: PATTERNS, ARRANGE, CPU above the meter
     s += btn(RIGHT_X, y, TOPBTN, h, "PATTERNS");
     s += btn(RIGHT_X + TOPBTN + GAP, y, TOPBTN, h, "ARRANGE");
@@ -944,10 +1105,10 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     var waveH = Math.min(144, contentH - noteH - 3 * 8), gapV = (contentH - waveH - noteH) / 3;
     inner += svg(waveW, waveH, waveform(waveW, waveH), 14, contentTop + gapV);
     inner += '<div class="lbl" style="left:14px;top:' + (contentTop + 2 * gapV + waveH) + 'px;text-align:left;font-size:11px;letter-spacing:.44px;color:var(--text)">Note · C1</div>';
-    s += tile(x, winY, COL, winH, "var(--panel)", synth ? synthWindow(COL, winH) : inner);
+    s += tile(x, winY, COL, winH, "var(--panel)", state === "fxpic" ? delayPicture(COL, winH) : synth ? synthWindow(COL, winH) : inner);
     // LFO1 LFO2 / LFO3 ENV
     var by2 = y + topH + GAP, bw2 = (COL - GAP) / 2;
-    s += btn(x, by2, bw2, PAIR, "LFO1"); s += btn(x + bw2 + GAP, by2, bw2, PAIR, "LFO2");
+    s += btn(x, by2, bw2, PAIR, "LFO1", state === "lfo" ? { fill: "var(--text)", color: "var(--bg)" } : {}); s += btn(x + bw2 + GAP, by2, bw2, PAIR, "LFO2");
     s += btn(x, by2 + PAIR + GAP, bw2, PAIR, "LFO3"); s += btn(x + bw2 + GAP, by2 + PAIR + GAP, bw2, PAIR, "ENV");
     return s;
   }
@@ -992,7 +1153,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     return s;
   }
 
-  function rightColumn(mode) {
+  function rightColumn(mode, state) {
     var s = "", x = RIGHT_X, y = CY, bar = U.bar;
     var pairsH = 2 * PAIR + GAP, topH = CENTER_H - pairsH - GAP, by = y + topH + GAP, bw = (COL - GAP) / 2;
     if (mode === "mst" || mode === "mix") {
@@ -1012,15 +1173,16 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     s += box(x, py, COL, rowH, "background:var(--panel2);border-radius:6px", th);
     s += box(x - 3, py - 3, COL + 6, rowH + 6, "border:1px solid var(--text);border-radius:8px");
     s += box(x, py + rowH + 4, COL, rowH, "border:2px dashed var(--line);border-radius:6px", label("+", COL - 4, rowH - 4, "font-size:20px;color:var(--dim)"));
-    var fxLit = mode === "fx", modLit = mode === "mod";
+    var fxLit = mode === "fx", modLit = mode === "mod", morphOn = state === "morph";
     s += btn(x, by, bw, PAIR, "FX", fxLit ? { fill: "var(--text)", color: "var(--bg)" } : {});
     s += btn(x + bw + GAP, by, bw, PAIR, "MOD", modLit ? { fill: "var(--text)", color: "var(--bg)" } : {});
     s += btn(x, by + PAIR + GAP, bw, PAIR, "SHIFT");
-    s += btn(x + bw + GAP, by + PAIR + GAP, bw, PAIR, "MORPH");
+    s += btn(x + bw + GAP, by + PAIR + GAP, bw, PAIR, "MORPH", morphOn ? { fill: "var(--accent)", color: "var(--onAccent)" } : {});
     return s;
   }
 
   var LOCKS = { 6: { n: .62, v: "LP 1.4k" }, 8: { n: .74, v: "74%" }, 15: { n: .5, v: "50%", col4: true } };
+  var MORPHED = { 6: K("Filter", "LP 820", .48), 7: K("Resonance", "45%", .45), 9: K("Delay", "38%", .38) };
   var ANALOG_ROW = [K("Wave A", "Sine", .125), K("Wave B", "Saw", .625), K("Detune", "0%", 0), K("Mix", "50%", .5)];
   function knobGrid(mode, state) {
     var s = "", cw = (GRID_W - 6) / 4, ch = (CENTER_H - 6) / 4, synth = state === "synth" || state === "synthmenu";
@@ -1030,6 +1192,8 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       else {
         var kd = synth && i < 4 ? ANALOG_ROW[i] : GRIDS[mode][i];
         if (state === "plock" && LOCKS[i]) { kd = Object.assign({}, kd, { lock: LOCKS[i] }); }
+        if (state === "morph" && MORPHED[i]) kd = MORPHED[i];
+        if (state === "lfo" && i === 6) { kd = K("Filter", "LP 2.0k", .65); kd.mod = { m: .48, zone: [.4, .9], v: "L1 +25%" }; }
         s += knob(x, y, cw, ch, kd);
       }
     }
@@ -1071,13 +1235,14 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       var fill = o.mute ? "color-mix(in srgb, var(--rec) 35%, transparent)" : o.solo ? "color-mix(in srgb, var(--accent) 35%, var(--trackBg))" : "var(--trackBg)";
       var ring = o.mute ? "var(--rec)" : o.sel ? "var(--accent)" : null;
       var inner = label(name, w, TRACK_H, "font-size:" + (o.big ? 15 : 12) + "px;font-weight:" + (o.sel ? 800 : 600) + ";letter-spacing:" + (o.big ? 0 : 0.7) + "px;color:var(--text)");
+      if (o.morph) inner += '<div style="left:7px;top:6px;width:6px;height:6px;border-radius:50%;background:var(--accent)"></div>';
       if (o.mute || o.solo) inner += '<div class="lbl" style="right:7px;top:3px;font-size:11px;font-weight:700;color:' + (o.mute ? "var(--rec)" : "var(--accent)") + '">' + (o.mute ? "M" : "S") + "</div>";
       return tile(x, y, w, TRACK_H, fill, inner, ring ? "box-shadow:inset 0 0 0 1px " + ring : "");
     }
     s += cell(PAD, STEP, "MIX", { sel: mode === "mix" });
     for (var t = 0; t < 8; t++) {
       var sel = (mode === "track" || mode === "fx" || mode === "mod") && t === 0;
-      s += cell(PAD + STEP + GAP + t * (tw + GAP), tw, String(t + 1), { sel: sel, big: sel, mute: state === "mutesolo" && t === 2, solo: state === "mutesolo" && t === 4 });
+      s += cell(PAD + STEP + GAP + t * (tw + GAP), tw, String(t + 1), { sel: sel, big: sel, mute: state === "mutesolo" && t === 2, solo: state === "mutesolo" && t === 4, morph: state === "morph" && (t === 0 || t === 2) });
     }
     s += cell(PAD + WIDTH - STEP, STEP, "MST", { sel: mode === "mst" });
     // sequencer
@@ -1321,11 +1486,86 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     return s;
   }
 
+  function delayPicture(w, h) {
+    var s = '<div class="lbl" style="left:8px;top:14px;text-align:left;font-size:13px;font-weight:700;color:var(--text)">DELAY</div>';
+    var fx = 14, fy = 44, fw = w - 28, fh = h - 44 - 24, gap = fw / 5.2, fb = .4, g = "";
+    for (var i = 0; i < 6; i++) {
+      var x = fx + i * gap, hh = fh * Math.pow(fb, i) * .9; if (hh < 2 || x > fx + fw) break;
+      g += '<rect x="' + (x - 1.5) + '" y="' + (fy + fh / 2 - hh / 2) + '" width="3" height="' + hh + '" fill="var(--text)" opacity="' + (1 - i * .14) + '"/>';
+    }
+    return s + svg(w, h, g);
+  }
+
+  function eqResp(bands, f) {
+    var sr = 48000, tot = 0;
+    bands.forEach(function (b) {
+      var w0 = 2 * Math.PI * b.f / sr, cw = Math.cos(w0), sw = Math.sin(w0), al = sw / (2 * b.q), A = Math.pow(10, (b.g || 0) / 40), co;
+      if (b.t === "bell") co = [1 + al * A, -2 * cw, 1 - al * A, 1 + al / A, -2 * cw, 1 - al / A];
+      else if (b.t === "hp") co = [(1 + cw) / 2, -(1 + cw), (1 + cw) / 2, 1 + al, -2 * cw, 1 - al];
+      else { var sq = 2 * Math.sqrt(A) * al; co = [A * ((A + 1) + (A - 1) * cw + sq), -2 * A * ((A - 1) + (A + 1) * cw), A * ((A + 1) + (A - 1) * cw - sq), (A + 1) - (A - 1) * cw + sq, 2 * ((A - 1) - (A + 1) * cw), (A + 1) - (A - 1) * cw - sq]; }
+      var wv = 2 * Math.PI * f / sr, c1 = Math.cos(wv), s1 = Math.sin(wv), c2 = Math.cos(2 * wv), s2 = Math.sin(2 * wv);
+      var nr = co[0] + co[1] * c1 + co[2] * c2, ni = -(co[1] * s1 + co[2] * s2), dr = co[3] + co[4] * c1 + co[5] * c2, di = -(co[4] * s1 + co[5] * s2);
+      var mag = Math.sqrt((nr * nr + ni * ni) / (dr * dr + di * di)) * (b.n || 1);
+      tot += 20 * Math.log10(mag) * (b.n2 || 1);
+    });
+    return tot;
+  }
+
+  function eqWindow() {
+    var a = centerArea(), bar = U.bar, g = GAP, s = "";
+    var half = (TOPBTN - GAP) / 2, flex = (GRID_W - 4 * TOPBTN - 2 * half - 7 * GAP) / 2;
+    var undoMax = GRID_X + TOPBTN + g + flex + g + TOPBTN, eqMin = GRID_X + GRID_W - TOPBTN;
+    var x0 = a.x + 52 + g, w4 = (undoMax - x0 - 3 * g) / 4, w2 = (eqMin - undoMax - 3 * g) / 2;
+    s += '<div class="lbl" style="left:' + a.x + "px;top:" + (a.y + bar / 2 - 13) + 'px;width:52px;font-size:11px;letter-spacing:.9px;color:var(--dim)">1\nEQ</div>';
+    function field(x, w, lab, val) { return tile(x, a.y, w, bar, "var(--panel)", '<div class="lbl" style="left:10px;top:' + (bar / 2 - 15) + 'px;text-align:left;font-size:9px;letter-spacing:.8px;color:var(--dim)">' + lab + '</div><div class="lbl" style="left:10px;top:' + (bar / 2 - 3) + 'px;text-align:left;font-size:16px;color:var(--text)">' + val + "</div>"); }
+    [["TYPE", "Bell"], ["FREQ", "220 Hz"], ["GAIN", "-3.0 dB"], ["Q", "1.00"]].forEach(function (f, i) { s += field(x0 + i * (w4 + g), w4, f[0], f[1]); });
+    s += field(undoMax + g, w2, "M/S", "STEREO") + field(undoMax + 2 * g + w2, w2, "DYN", "OFF");
+    function eqTool(x, w, t) { return tile(x, a.y, w, bar, "var(--panel2)", label(t, w, bar, "font-size:12px;font-weight:700;letter-spacing:.8px;color:var(--text)")); }
+    s += eqTool(eqMin, TOPBTN, "LISTEN") + eqTool(RIGHT_X, TOPBTN, "PRESETS") + eqTool(RIGHT_X + TOPBTN + g, TOPBTN, "BYPASS");
+    var py = a.y + bar + g, pw = a.w, ph = a.h - bar - g, low = 10, oct = Math.log2(20000 / low);
+    function X(f) { return pw * Math.log2(f / low) / oct; }
+    function Y(db) { return ph / 2 - (db / 21) * ph / 2; }
+    var p = "";
+    for (var d = 10; d <= 10000; d *= 10) for (var m = 1; m <= 9; m++) { var f = d * m; if (f < low || f > 20000) continue; var xx = Math.round(X(f)) + .5; p += '<path d="M' + xx + ' 0 V' + ph + '" stroke="' + (m === 1 ? "var(--gridStrong)" : "var(--gridStrong)") + '" stroke-opacity="' + (m === 1 ? 1 : .33) + '"/>'; }
+    for (var db = -18; db <= 18; db += 6) { var yy = Math.round(Y(db)) + .5; p += '<path d="M0 ' + yy + " H" + pw + '" stroke="var(--gridStrong)" stroke-opacity="' + (db === 0 ? 1 : .33) + '"/>'; }
+    [[100, "100 Hz"], [1000, "1 kHz"], [10000, "10 kHz"]].forEach(function (q) { p += '<text x="' + (X(q[0]) + 4) + '" y="' + (ph - 4) + '" font-size="11" fill="var(--dim)">' + q[1] + "</text>"; });
+    [12, 0, -12].forEach(function (v) { p += '<text x="6" y="' + (Y(v) - 4) + '" font-size="11" fill="var(--dim)">' + (v > 0 ? "+" + v : v) + " dB</text>"; });
+    // spectrum (example): before EQ line, after EQ fill
+    var bands = [{ t: "hp", f: 40, q: .707, n2: 2 }, { t: "bell", f: 220, q: 1, g: -3 }, { t: "shelf", f: 9000, q: .707, g: 2.5 }];
+    var mid = [{ t: "bell", f: 3000, q: .8, g: 2.5 }];
+    var sp = "", spf = "", cur = "", curM = "";
+    for (var i = 0; i <= 200; i++) {
+      var fq = low * Math.pow(2, oct * i / 200), x = X(fq);
+      var lo = fq < 60 ? -14 * Math.log2(60 / fq) : 0;
+      var lvl = -4 - 3.2 * Math.max(0, Math.log2(fq / 120)) + lo + 0.9 * Math.sin(i * .21) + 0.4 * Math.sin(i * .57) - (fq > 14000 ? (fq - 14000) / 700 : 0);
+      var after = lvl + eqResp(bands, fq) + eqResp(mid, fq) * .5;
+      sp += (i ? " L" : "M") + x.toFixed(1) + " " + Y(Math.max(-30, lvl)).toFixed(1);
+      spf += " L" + x.toFixed(1) + " " + Y(Math.max(-30, after)).toFixed(1);
+      cur += (i ? " L" : "M") + x.toFixed(1) + " " + Y(eqResp(bands, fq)).toFixed(1);
+      curM += (i ? " L" : "M") + x.toFixed(1) + " " + Y(eqResp(bands, fq) + eqResp(mid, fq)).toFixed(1);
+    }
+    p += '<path d="M0 ' + ph + spf + " L" + pw + " " + ph + ' Z" fill="var(--dim)" opacity=".25"/>';
+    p += '<path d="' + sp + '" fill="none" stroke="var(--dim)" stroke-width="1"/>';
+    p += '<path d="' + curM + '" fill="none" stroke="var(--rec)" stroke-width="2"/>';
+    p += '<path d="' + cur + '" fill="none" stroke="var(--text)" stroke-width="2"/>';
+    function pt(n, f, db, col, sel, ring) {
+      var r = sel ? 13 : 10, cx = X(f), cy = Y(db), o = "";
+      o += '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="' + (sel ? "var(--accent)" : col) + '"/>';
+      if (ring) o += '<circle cx="' + cx + '" cy="' + cy + '" r="' + (r + 2.5) + '" fill="none" stroke="' + col + '" stroke-width="3"/>';
+      o += '<text x="' + cx + '" y="' + (cy + 4.5) + '" text-anchor="middle" font-size="' + (sel ? 13 : 11) + '" font-weight="600" fill="' + (sel ? "var(--onAccent)" : "var(--bg)") + '">' + n + "</text>";
+      return o;
+    }
+    p += pt(1, 40, 0, "var(--text)") + pt(2, 220, -3, "var(--text)", true) + pt(3, 3000, 2.5, "var(--rec)") + pt(4, 9000, 2.5, "var(--text)");
+    s += box(a.x, py, pw, ph, "background:var(--panel);border-radius:10px;overflow:hidden", svg(pw, ph, p));
+    return s;
+  }
+
   function screenHTML(mode, state) {
     var c;
     if (state === "editor" || state === "browser") c = (state === "editor" ? editor() : browser()) + meter(mode);
     else if (state === "roll") c = rollWindow();
-    else c = leftColumn(mode, state) + knobGrid(mode, state) + rightColumn(mode) + meter(mode);
+    else if (state === "eq") c = eqWindow() + meter(mode);
+    else c = leftColumn(mode, state) + knobGrid(mode, state) + rightColumn(mode, state) + meter(mode);
     if (state === "soundmenu" || state === "synthmenu") c += soundMenu(state === "synthmenu");
     if (state === "trackmenu") c += trackMenu(1);
     if (state === "pagemenu") c += pageMenu();
