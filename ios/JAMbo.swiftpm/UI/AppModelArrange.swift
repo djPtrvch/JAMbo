@@ -114,12 +114,6 @@ extension AppModel {
         audio.core.events.push(.returnToArrange(track: t))
     }
 
-    var anyOffTimeline: Bool {
-        if !playing { return false }
-        for t in 0..<project.tracks.count where !arrFollowing(t) { return true }
-        return false
-    }
-
     // MARK: — вторая строка: сетка, магнит, петля, STEPS
 
     func setArrGrid(_ k: Int) {
@@ -235,9 +229,6 @@ extension AppModel {
 
     /// Сколько снизу окна аранжировщика закрыто (STEPS или AUTO — три нижние дорожки): дорожки прокручиваются из-под низа.
     var arrInset: CGFloat { return arrangeView && (arrAuto || !project.arrange.hideSteps) ? arrLowerH + ArrMetrics.gap : 0 }
-
-    /// STEPS выключена: строка дорожек, секвенсор и клавиатура скрыты (только пока открыт аранжировщик).
-    var arrStepsHidden: Bool { return arrangeView && project.arrange.hideSteps }
 
     // MARK: — блоки
 

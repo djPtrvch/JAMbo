@@ -15,7 +15,6 @@ public struct History<T: Equatable> {
 
     public var canUndo: Bool { return !undoStack.isEmpty }
     public var canRedo: Bool { return !redoStack.isEmpty }
-    public var inGesture: Bool { return gestureDepth > 0 }
 
     /// Действие закончено: before — состояние до него, after — после. Внутри жеста — ничего (запись в конце жеста).
     public mutating func record(before: T, after: T) {

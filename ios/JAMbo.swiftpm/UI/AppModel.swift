@@ -76,11 +76,6 @@ final class AppModel {
         get { access(keyPath: \.metronome); return _metronome }
         set { put(\.metronome, \._metronome, newValue, observedChanged(_metronome, newValue)) }
     }
-    @ObservationIgnored private var _toneOn: Bool = false
-    private(set) var toneOn: Bool {
-        get { access(keyPath: \.toneOn); return _toneOn }
-        set { put(\.toneOn, \._toneOn, newValue, observedChanged(_toneOn, newValue)) }
-    }
     /// Зажатые шаги (индекс p·16 + s) — белый контур; с ними ручки ставят p-lock.
     @ObservationIgnored var _heldSteps: Set<Int> = []
     /// Зажатые шаги, на которых уже что-то сделали (p-lock) — триг на отпускании не переключается.
@@ -493,12 +488,6 @@ final class AppModel {
         } else {
             pauseAudio()
         }
-    }
-
-    func toggleTone() {
-        ensureAudio()
-        toneOn.toggle()
-        audio.core.events.push(.tone(on: toneOn))
     }
 
     /// Сообщения колбэка → состояние интерфейса (60 раз в секунду).

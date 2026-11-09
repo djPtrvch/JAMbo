@@ -8,7 +8,7 @@ import Foundation
 // DRIVE 0 или MIX 0 — выход = сухой с задержкой, обработка не считается; из покоя — 40 отсчётов и вход за 5 мс.
 // BYPASS — MIX 0 (за 20 мс в сухой, задержка та же). Расчёт — Double, как JS.
 
-// Горячий путь shape (4 отсчёта на входной): те же формулы, что tableF, anti и shapeY, — функциями файла с
+// Горячий путь shape (4 отсчёта на входной): те же формулы, что tableF и anti, — функциями файла с
 // @_transparent (в отладочной сборке встраивается только он; S14b).
 
 /// F(|u|) по таблице (кубический Эрмит); за 12: tanh — линейно, EDGE — с поправкой a − 1/(12a³).
@@ -209,15 +209,6 @@ public final class MasterSaturator {
         case 0: return tableF(d.tanhF, d.tanhD, d.tanhMax, false, u)
         case 1: return (tableF(d.tanhF, d.tanhD, d.tanhMax, false, u + 0.35) - d.lcB - u * d.tb) / d.td
         default: return tableF(t.edgeF, t.edgeD, t.edgeMax, true, u)
-        }
-    }
-
-    @inline(__always)
-    func shapeY(_ type: Int, _ u: Double) -> Double {
-        switch type {
-        case 0: return tanh(u)
-        case 1: return (tanh(u + 0.35) - t.d.tb) / t.d.td
-        default: return u / sqrt(sqrt(1 + u * u * u * u))
         }
     }
 

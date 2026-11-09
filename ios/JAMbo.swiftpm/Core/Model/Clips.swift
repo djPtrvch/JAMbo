@@ -76,15 +76,6 @@ extension Track {
         settleSound()
     }
 
-    /// Ближайшая пустая ячейка ниже k (потом сверху), −1 — свободных нет.
-    public func freeSlot(after k: Int) -> Int {
-        for d in 1..<Params.patternSlots {
-            let j = (k + d) % Params.patternSlots
-            if clips[j] == nil { return j }
-        }
-        return -1
-    }
-
     /// DELETE клипа (решение пользователя): клип — как созданный заново, одна пустая страница (16 шагов, скорость ×1);
     /// ячейка остаётся заполненной (пустых ячеек нет), гамма, нота, FX и свой звук клипа, другие клипы и звук дорожки
     /// не меняются.

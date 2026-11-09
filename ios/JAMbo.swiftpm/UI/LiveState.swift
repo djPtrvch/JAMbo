@@ -209,9 +209,4 @@ final class LiveState {
         sceneRow = -1
         sceneQueued = -1
     }
-
-    /// Без игры тап ставит ожидание сразу (интерфейс), чтобы мигание было видно до PLAY.
-    func setQueued(_ t: Int, _ v: Int) {
-        queued[t] = v
-    }
 }

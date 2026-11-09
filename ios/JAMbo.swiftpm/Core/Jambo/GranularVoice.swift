@@ -239,13 +239,6 @@ final class GranularVoice {
         gain = 0
     }
 
-    /// Дрейф и счёт нот дорожки без банка голосов (тесты одного голоса).
-    func standalone(_ n: Int) {
-        guard ownsTrack else { return }
-        track.pointee.notes = spawning ? 1 : 0
-        track.pointee.advance(Double(n) / sr)
-    }
-
     /// Новое зерно из src: start — момент, кадры от начала куска (дробный, ≥ 0); g — Гаусс.
     private func spawn(_ start: Double, _ src: GrainSrc, dur: Double, gauss g: Bool) {
         if grains >= GranularVoice.maxGrains || track.pointee.grains >= GranularVoice.maxGrains { return }

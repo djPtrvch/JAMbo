@@ -134,11 +134,6 @@ extension Track {
         for k in blocks.indices { blocks[k].autos = [] }
     }
 
-    /// Есть ли у дорожки хоть одна точка.
-    public var hasAutoPoints: Bool {
-        return blocks.contains { b in b.autos.contains { !$0.points.isEmpty } }
-    }
-
     /// Проект прежнего формата: точки кривых дорожки — в блоки под ними; на краях блоков, через которые кривая
     /// проходила, — точки (внутри блоков звучит как раньше; в промежутках — значение ручки). У строк точек не остаётся.
     mutating func migrateAutos() {

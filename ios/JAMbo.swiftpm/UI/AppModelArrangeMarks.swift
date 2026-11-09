@@ -60,10 +60,6 @@ extension AppModel {
         edit { p in p.renameMarker(k, name) }
     }
 
-    func arrSetMarkerColor(_ k: Int, _ c: Int) {
-        edit { p in p.setMarkerColor(k, c) }
-    }
-
     func arrDeleteMarker(_ k: Int) {
         edit { p in p.deleteMarker(k) }
     }
@@ -105,12 +101,6 @@ extension AppModel {
     }
 
     // MARK: — INSERT
-
-    func toggleArrInsert() {
-        arrInsert.toggle()
-        arrInserted = nil
-        arrMenu = nil
-    }
 
     /// Вставка клипа k в точку x дорожки t: блоки дорожки правее сдвигаются на его длину.
     func arrInsertBlock(track t: Int, clip k: Int, at x: Int) {

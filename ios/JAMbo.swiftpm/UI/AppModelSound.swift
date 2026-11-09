@@ -125,12 +125,6 @@ extension AppModel {
         }
     }
 
-    /// TABLE: встроенная таблица WTABLE на дорожку (UNDO).
-    func pickTable(_ name: String) {
-        let key = WavetableKey.builtin(name)
-        editTrack { t in t.table = key }
-    }
-
     /// Голоса из колбэка → полоса воспроизведения.
     func drainVoices() {
         var changed = false
@@ -247,15 +241,6 @@ extension AppModel {
     }
 
     // MARK: — загрузка файлов
-
-    /// Меню звука → LOAD: системный выбор файлов («Файлы» iPad и iCloud Drive), можно сразу несколько.
-    func chooseFiles(steps: [Int]) {
-        importTarget = ImportTarget(track: selectedTrack, steps: steps)
-        importingProject = false
-        importingLibrary = false
-        importingPhones = false
-        importing = true
-    }
 
     /// Выбранные файлы: все ложатся в папку дорожки, первый звучит (для шагов — первый становится их звуком).
     func importFiles(_ urls: [URL]) {

@@ -492,9 +492,4 @@ public final class Sequencer {
     }
 
     // MARK: — для тестов
-
-    /// Кадр шага k (для проверки точности).
-    public func frameOfStep(_ k: Int) -> Double {
-        return stepFrame(k)
-    }
 }
