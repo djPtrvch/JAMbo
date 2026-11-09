@@ -134,16 +134,15 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     <li class="ready"><span class="n">11</span><a href="#eq">EQ</a></li>
     <li class="ready"><span class="n">12</span><a href="#master">Мастер</a></li>
     <li class="ready"><span class="n">13</span><a href="#phones">Коррекция наушников</a></li>
-    <li class="ready"><span class="n">14</span><a href="#auto">Автоматизация</a></li>
-    <li class="ready"><span class="n">15</span><a href="#grid">Сетка паттернов</a></li>
-    <li class="ready"><span class="n">16</span><a href="#arranger">Аранжировщик</a></li>
+    <li class="ready"><span class="n">14</span><a href="#grid">Сетка паттернов</a></li>
+    <li class="ready"><span class="n">15</span><a href="#arranger">Аранжировщик</a></li>
+    <li class="ready"><span class="n">16</span><a href="#auto">Автоматизация</a></li>
     <li class="ready"><span class="n">17</span><a href="#projects">Проекты</a></li>
-    <li class="soon"><span class="n">18</span><span>SETTINGS</span></li>
-    <li class="soon"><span class="n">19</span><span>MIDI</span></li>
-    <li class="soon"><span class="n">20</span><span>SYNC и Ableton Link</span></li>
-    <li class="soon"><span class="n">21</span><span>Справочник жестов</span></li>
+    <li class="ready"><span class="n">18</span><a href="#settings">SETTINGS</a></li>
+    <li class="ready"><span class="n">19</span><a href="#midi">MIDI</a></li>
+    <li class="ready"><span class="n">20</span><a href="#sync">SYNC</a></li>
+    <li class="ready"><span class="n">21</span><a href="#gestures">Справочник жестов</a></li>
   </ol>
-  <div class="note">Серым — разделы в работе.</div>
 </nav>
 
 <main>
@@ -151,7 +150,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
   <div class="eyebrow">Руководство пользователя</div>
   <h1>JAMbo<span>.</span> Грувбокс для живых джемов</h1>
   <p>Названия кнопок и ручек даны так, как они написаны на экране, по-английски.</p>
-  <div class="chip">Черновик · <b>разделы 0–17</b></div>
+  <div class="chip">Черновик · <b>разделы 0–21</b></div>
 </div>
 
 <!-- ============ 0 ============ -->
@@ -812,7 +811,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     <li>Настройки эффектов — на сетке FX: держите FX.</li>
     <li>Ручки эффектов принимают p-lock (держите FX и шаг) и LFO/ENV (раздел 9.2).</li>
     <li>Пока палец на ручке эффекта, в окне звука видна его картинка: куб Reverb, повторы Delay, волна Drive, огибающая Duck. Выключить — SETTINGS → APPEARANCE → FX ANIMATION.</li>
-    <li>Настройки эффектов хранятся в паттернах сетки: действуют эффекты паттерна, запущенного последним (раздел 15).</li>
+    <li>Настройки эффектов хранятся в паттернах сетки: действуют эффекты паттерна, запущенного последним (раздел 14).</li>
   </ul>
 
   <h3><span class="sn">10.2</span>Reverb</h3>
@@ -1023,7 +1022,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     <li><b>PHONE CURVE | CORRECT CURVE</b> — две кривые: профиль ваших наушников и своя правка поверх него. Тап выбирает, какую править; правятся они как EQ (раздел 11).</li>
     <li><b>CORRECTION</b> — сила профиля, 0–100 %.</li>
     <li><b>LEVEL</b> — компенсация громкости, только показ: при сравнении меняется баланс, а не громкость.</li>
-    <li><b>PRESETS</b> — профили наушников, IMPORT и EXPORT профилей AutoEQ.</li>
+    <li><b>PRESETS</b> — профили наушников, IMPORT и EXPORT профилей <a href="https://github.com/jaakkopasanen/AutoEq" target="_blank" rel="noopener">AutoEQ</a> — открытой базы кривых коррекции для тысяч моделей наушников.</li>
     <li><b>BYPASS</b> — выключить всю коррекцию.</li>
   </ul>
 
@@ -1042,44 +1041,11 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
 </section>
 
 <!-- ============ 14 ============ -->
-<section class="chapter" id="auto">
-  <header><span class="num">14</span><h2>Автоматизация</h2></header>
-  <p class="lede">Кривые изменения ручек во времени — в аранжировщике.</p>
-
-  <h3><span class="sn">14.1</span>Окно AUTO</h3>
-  <figure><div class="shot" data-mode="track" data-state="arrauto"></div><figcaption>Аранжировщик с окном AUTO: кривая Filter на дорожке 1, выбранная точка — жёлтая.</figcaption></figure>
-  <p>Автоматизация рисуется на таймлайне аранжировщика (раздел 16). Кнопка AUTO (волна с точками) в строке кнопок аранжировщика открывает окно AUTO вместо STEPS.</p>
-  <ul>
-    <li>Слева — список кривых выбранной дорожки. «+» — добавить кривую для любой из 16 ручек.</li>
-    <li>Кривые хранятся в блоках: едут, копируются и удаляются вместе с блоком.</li>
-    <li>Кривая действует от первой до последней точки блока, пока дорожка играет по таймлайну. Вне точек и при игре из сетки — значение ручки.</li>
-  </ul>
-
-  <h3><span class="sn">14.2</span>Точки и рисование</h3>
-  <div class="tbl"><table>
-    <thead><tr><th>Жест</th><th>Что делает</th></tr></thead>
-    <tbody>
-      <tr><td>Тап по пустому</td><td>Новая точка (с SNAP TO GRID — на линии сетки).</td></tr>
-      <tr><td>Палец на точке</td><td>Двигать точку.</td></tr>
-      <tr><td>Двойной тап по точке</td><td>Удалить точку.</td></tr>
-      <tr><td>Карандаш</td><td>Рисовать кривую пальцем.</td></tr>
-    </tbody>
-  </table></div>
-
-  <h3><span class="sn">14.3</span>Запись ручками</h3>
-  <ol class="steps">
-    <li>В аранжировщике включите AUTO и REC (у AUTO появится красная обводка).</li>
-    <li>Запустите PLAY и крутите ручки — повороты пишутся в кривые. Ноты так не пишутся.</li>
-  </ol>
-  <p>Пока палец на ручке, слышна рука; отпустили — снова кривая. На ручке с действующей кривой снаружи кольца — жёлтая риска.</p>
-</section>
-
-<!-- ============ 15 ============ -->
 <section class="chapter" id="grid">
-  <header><span class="num">15</span><h2>Сетка паттернов</h2></header>
+  <header><span class="num">14</span><h2>Сетка паттернов</h2></header>
   <p class="lede">Клипы дорожек для живого исполнения.</p>
 
-  <h3><span class="sn">15.1</span>Клипы и строки</h3>
+  <h3><span class="sn">14.1</span>Клипы и строки</h3>
   <figure><div class="shot" data-mode="track" data-state="grid"></div><figcaption>Сетка паттернов: строка Intro играет (полосы хода внизу), клип дорожки 1 выбран для правки (жёлтый контур). Паттерны — для примера.</figcaption></figure>
   <p>PATTERNS открывает сетку на месте центра. Столбцы — дорожки, строки — сцены. Ячейка — <b>клип</b>: какие страницы паттерна играют, а также гамма, нота и настройки эффектов.</p>
   <ul>
@@ -1089,7 +1055,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     <li><b>Рамка</b> — протяжка по свободному месту выделяет несколько клипов или строк.</li>
   </ul>
 
-  <h3><span class="sn">15.2</span>Кнопки справа</h3>
+  <h3><span class="sn">14.2</span>Кнопки справа</h3>
   <div class="tbl"><table>
     <thead><tr><th>Кнопка</th><th>Что делает</th></tr></thead>
     <tbody>
@@ -1100,22 +1066,22 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     </tbody>
   </table></div>
 
-  <h3><span class="sn">15.3</span>Клипы в аранжировку</h3>
+  <h3><span class="sn">14.3</span>Клипы в аранжировку</h3>
   <ul>
     <li><b>TO ARRANGE</b> в меню клипа или строки — переносит их на таймлайн с курсора.</li>
     <li>Клип (или выделение) можно удержать и перетащить на кнопку ARRANGE — откроется аранжировщик, клип встанет под пальцем.</li>
   </ul>
 
-  <h3><span class="sn">15.4</span>Переход между проектами</h3>
+  <h3><span class="sn">14.4</span>Переход между проектами</h3>
   <p>При открытии проекта JAMbo спрашивает: <b>LOAD</b> — заменить текущий сразу; <b>MIX</b> — плавный переход: играющие паттерны остаются в нижней строке (PREV), а справа от сетки появляется вертикальный кроссфейдер — им переводят темп, громкости и мастер со старого проекта на новый; <b>IMPORT</b> — добавить строки проекта в свободные строки этой сетки.</p>
 </section>
 
-<!-- ============ 16 ============ -->
+<!-- ============ 15 ============ -->
 <section class="chapter" id="arranger">
-  <header><span class="num">16</span><h2>Аранжировщик</h2></header>
+  <header><span class="num">15</span><h2>Аранжировщик</h2></header>
   <p class="lede">Сборка трека из клипов на таймлайне.</p>
 
-  <h3><span class="sn">16.1</span>Окно аранжировщика</h3>
+  <h3><span class="sn">15.1</span>Окно аранжировщика</h3>
   <figure><div class="shot" data-mode="track" data-state="arr"></div><figcaption>Аранжировщик: секции Intro и Drop, выбранная дорожка 1 (жёлтые линии), выбранный блок (белая рамка), плейхед. Блоки — для примера.</figcaption></figure>
   <p>ARRANGE открывает аранжировщик. Один такт — 16 шагов, как в секвенсоре. PLAY в аранжировщике играет таймлайн с курсора; вне его — сетку паттернов.</p>
   <div class="tbl"><table>
@@ -1125,14 +1091,14 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       <tr><td>Ножницы</td><td>TRIM — разрезать блок под курсором.</td></tr>
       <tr><td>Стрелка к черте</td><td>Курсор в начало.</td></tr>
       <tr><td>LOOP</td><td>Петля по выделенному на линейке диапазону.</td></tr>
-      <tr><td>AUTO</td><td>Окно автоматизации (раздел 14).</td></tr>
+      <tr><td>AUTO</td><td>Окно автоматизации (раздел 16).</td></tr>
       <tr><td>Ручка</td><td>Окно дорожки с ручками поверх таймлайна.</td></tr>
       <tr><td>STEPS</td><td>Строка дорожек, секвенсор и клавиатура внизу — правят выбранный блок.</td></tr>
-      <tr><td>REF</td><td>Строка референс-трека (раздел 16.4).</td></tr>
+      <tr><td>REF</td><td>Строка референс-трека (раздел 15.4).</td></tr>
     </tbody>
   </table></div>
 
-  <h3><span class="sn">16.2</span>Блоки</h3>
+  <h3><span class="sn">15.2</span>Блоки</h3>
   <p>Блок — копия клипа на таймлайне. Правка клипа в сетке блок не меняет.</p>
   <div class="tbl"><table>
     <thead><tr><th>Жест</th><th>Что делает</th></tr></thead>
@@ -1147,20 +1113,77 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     </tbody>
   </table></div>
 
-  <h3><span class="sn">16.3</span>Линейка и секции</h3>
+  <h3><span class="sn">15.3</span>Линейка и секции</h3>
+  <p><b>Секция</b> — именованная часть трека на линейке: Intro, Verse, Build, Drop, Break, Outro. Секции не меняют звук — это разметка, которая помогает видеть форму трека и быстро работать с его частями:</p>
   <ul>
-    <li>Тап по линейке — курсор. Протяжка по номерам тактов — выделить диапазон (для петли и секций).</li>
-    <li>Двойной тап по линейке — ADD SECTION, на секции — RENAME и DELETE SECTION.</li>
-    <li>Плейхед (жёлтая линия с флажком) можно тянуть.</li>
-    <li>Слева от линейки — время плейхеда и длина трека.</li>
+    <li><b>Видно форму трека.</b> Над блоками подписано, где вступление, где дроп, где брейк, — не нужно вспоминать, что на каком такте.</li>
+    <li><b>Петля по части.</b> Выделите секцию на линейке и включите LOOP — например, крутите Drop по кругу, пока доводите его.</li>
+    <li><b>Навигация.</b> Тап по линейке ставит курсор на начало нужной части, PLAY играет с него.</li>
+  </ul>
+  <p>Пример формы трека:</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Секция</th><th>Такты</th><th>Что в ней обычно</th></tr></thead>
+    <tbody>
+      <tr><td>Intro</td><td>1–8</td><td>Бочка и хэт, без баса — вход в трек.</td></tr>
+      <tr><td>Build</td><td>9–16</td><td>Добавляются партии, растёт напряжение: фильтр открывается, больше Reverb.</td></tr>
+      <tr><td>Drop</td><td>17–32</td><td>Все дорожки, главная часть.</td></tr>
+      <tr><td>Break</td><td>33–40</td><td>Без бочки: пэд, эффекты, пауза перед возвратом.</td></tr>
+      <tr><td>Drop 2</td><td>41–56</td><td>Повтор главной части с вариацией.</td></tr>
+      <tr><td>Outro</td><td>57–64</td><td>Партии уходят, остаётся ритм — для сведения со следующим треком.</td></tr>
+    </tbody>
+  </table></div>
+  <ol class="steps">
+    <li><b>Добавить секцию:</b> протяните пальцем по номерам тактов — выделится диапазон (жёлтым). Дважды тапните по нему → ADD SECTION → введите имя.</li>
+    <li><b>Переименовать или удалить:</b> двойной тап по секции → RENAME или DELETE SECTION.</li>
+  </ol>
+  <ul>
+    <li>Начало и конец секции — тонкие жёлтые линии, имя — посередине.</li>
+    <li>Тап по линейке — курсор. Плейхед (жёлтая линия с флажком) можно тянуть пальцем.</li>
+    <li>Слева от линейки — время плейхеда и длина всего трека.</li>
   </ul>
 
-  <h3><span class="sn">16.4</span>Дорожки и REF</h3>
+  <h3><span class="sn">15.4</span>Дорожки, цвет и REF</h3>
   <ul>
-    <li>Заголовок дорожки: громкость с метром, имя, M и S. Тап — выбрать дорожку, двойной тап — меню дорожки (COPY, PASTE, DUPLICATE всех блоков и другое).</li>
-    <li><b>REF</b> — референс-трек: файл из библиотеки сверху таймлайна. Кнопками A/B слева от линейки переключают свой микс и референс без паузы. Референс идёт мимо мастера.</li>
-    <li>Готовый трек — PROJECTS → EXPORT SONG (раздел 17).</li>
+    <li>Заголовок дорожки слева: громкость с метром, имя, M и S. Тап — выбрать дорожку (жёлтые линии по краям строки).</li>
+    <li><b>Цвет дорожки:</b> дважды тапните по заголовку дорожки — в меню, кроме COPY, PASTE и DUPLICATE, есть палитра цветов. Цвет меняет только цвет блоков этой дорожки; первый квадрат палитры — цвет по умолчанию. Удобно красить партии по ролям: ударные — серым, бас — оранжевым, лиды — жёлтым.</li>
+    <li><b>REF</b> — референс-трек: чужой готовый трек из библиотеки, строкой сверху таймлайна. Кнопками A/B слева от линейки переключаете свой микс (A) и референс (B) без паузы — так удобно сравнивать громкость и баланс. Референс идёт мимо мастера и не попадает в экспорт.</li>
   </ul>
+
+  <h3><span class="sn">15.5</span>Готовый трек в файл</h3>
+  <p>Когда аранжировка готова, сохраните её как аудиофайл: <b>☰ → PROJECTS → EXPORT SONG</b>. Записывается весь трек от начала до конца последнего блока, со всеми эффектами и мастером, плюс хвост реверберации и дилея. Формат файла, частота и хвост выбираются там же — подробно в разделе 17.4.</p>
+</section>
+
+<!-- ============ 16 ============ -->
+<section class="chapter" id="auto">
+  <header><span class="num">16</span><h2>Автоматизация</h2></header>
+  <p class="lede">Кривые изменения ручек во времени — в аранжировщике.</p>
+
+  <h3><span class="sn">16.1</span>Окно AUTO</h3>
+  <figure><div class="shot" data-mode="track" data-state="arrauto"></div><figcaption>Аранжировщик с окном AUTO: кривая Filter на дорожке 1 — жёлтая линия с точками, серая линия — значение ручки.</figcaption></figure>
+  <p>Автоматизация рисуется на таймлайне аранжировщика (раздел 15). Кнопка AUTO (волна с точками) в строке кнопок аранжировщика открывает окно AUTO вместо STEPS.</p>
+  <ul>
+    <li>Слева — список кривых выбранной дорожки. «+» — добавить кривую для любой из 16 ручек.</li>
+    <li>Кривые хранятся в блоках: едут, копируются и удаляются вместе с блоком.</li>
+    <li>Кривая действует от первой до последней точки блока, пока дорожка играет по таймлайну. Вне точек и при игре из сетки — значение ручки.</li>
+  </ul>
+
+  <h3><span class="sn">16.2</span>Точки и рисование</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Жест</th><th>Что делает</th></tr></thead>
+    <tbody>
+      <tr><td>Тап по пустому</td><td>Новая точка (с SNAP TO GRID — на линии сетки).</td></tr>
+      <tr><td>Палец на точке</td><td>Двигать точку.</td></tr>
+      <tr><td>Двойной тап по точке</td><td>Удалить точку.</td></tr>
+      <tr><td>Карандаш</td><td>Рисовать кривую пальцем.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3><span class="sn">16.3</span>Запись ручками</h3>
+  <ol class="steps">
+    <li>В аранжировщике включите AUTO и REC (у AUTO появится красная обводка).</li>
+    <li>Запустите PLAY и крутите ручки — повороты пишутся в кривые. Ноты так не пишутся.</li>
+  </ol>
+  <p>Пока палец на ручке, слышна рука; отпустили — снова кривая. На ручке с действующей кривой снаружи кольца — жёлтая риска.</p>
 </section>
 
 <!-- ============ 17 ============ -->
@@ -1178,22 +1201,186 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       <tr><td>SAVE AS</td><td>Сохранить копию под новым именем и работать дальше в ней.</td></tr>
       <tr><td>EXPORT</td><td>Проект одним файлом .jambo со всеми сэмплами — в «Файлы».</td></tr>
       <tr><td>IMPORT</td><td>Открыть файл .jambo.</td></tr>
-      <tr><td>EXPORT SONG</td><td>Аранжировку — в аудиофайл: WAV (16, 24, 32 бит) или M4A (AAC или без потерь), 44,1 или 48 кГц, с хвостом эффектов.</td></tr>
+      <tr><td>EXPORT SONG</td><td>Сохранить трек из аранжировщика как аудиофайл (раздел 17.4).</td></tr>
     </tbody>
   </table></div>
 
   <h3><span class="sn">17.2</span>Список проектов</h3>
   <ul>
     <li>В строке — имя, время изменения, темп и тональность. Тональность окрашена по близости к открытому проекту: жёлтая — та же или соседняя, оранжевая — через 2–3 шага по квинтовому кругу, красная — далеко. Удобно подбирать проекты для перехода MIX.</li>
-    <li>Тап — открыть: LOAD, MIX или IMPORT (раздел 15.4).</li>
+    <li>Тап — открыть: LOAD, MIX или IMPORT (раздел 14.4).</li>
     <li>Свайп влево — карандаш (переименовать) и корзина (удалить).</li>
   </ul>
 
   <h3><span class="sn">17.3</span>Автосохранение</h3>
   <p>Через пару секунд после любого изменения работа сохраняется в отдельную запись <b>Autosave</b> (в списке — жёлтым). Сам проект меняется только кнопками SAVE и SAVE AS. Пока есть несохранённые изменения, рядом с именем написано «unsaved».</p>
+
+  <h3><span class="sn">17.4</span>EXPORT SONG — трек в аудиофайл</h3>
+  <p>EXPORT SONG сводит всю аранжировку (раздел 15) в один стереофайл: то, что вы слышите на выходе, после эффектов и мастера. Пишется от начала таймлайна до конца последнего блока, затем — хвост эффектов. Считается быстрее, чем в реальном времени; пока идёт экспорт, звук в динамиках молчит. Готовый файл сохраняется в «Файлы».</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Настройка</th><th>Варианты</th></tr></thead>
+    <tbody>
+      <tr><td>FORMAT</td><td>WAV — без сжатия, для мастеринга и других программ. M4A — компактный файл, чтобы послушать или отправить.</td></tr>
+      <tr><td>BIT DEPTH</td><td>У WAV: 16, 24 или 32 FLOAT.</td></tr>
+      <tr><td>QUALITY</td><td>У M4A: AAC 256, AAC 320 или LOSSLESS (без потерь).</td></tr>
+      <tr><td>SAMPLE RATE</td><td>44.1 или 48 KHZ.</td></tr>
+      <tr><td>TAIL</td><td>Хвост эффектов после последнего блока. AUTO — пока Reverb и Delay не затихнут.</td></tr>
+    </tbody>
+  </table></div>
+  <p>Петля аранжировщика, референс (REF) и коррекция наушников в файл не попадают.</p>
 </section>
 
-<footer class="end">JAMbo · Руководство пользователя · черновик разделов 0–17. Следующие разделы появятся на этой же странице.</footer>
+<!-- ============ 18 ============ -->
+<section class="chapter" id="settings">
+  <header><span class="num">18</span><h2>SETTINGS</h2></header>
+  <p class="lede">Настройки приложения — общие для всех проектов.</p>
+
+  <h3><span class="sn">18.1</span>Меню SETTINGS</h3>
+  <figure><div class="shot" data-mode="track" data-zone="upper" data-state="settings"></div><figcaption>☰ → SETTINGS, открыт раздел RECORD.</figcaption></figure>
+  <p>☰ → SETTINGS. Вверху — кнопки разделов (SECTIONS), под чертой — настройки открытого раздела. Настройки хранятся в приложении, а не в проекте: они одинаковы для всех проектов.</p>
+
+  <h3><span class="sn">18.2</span>Разделы</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Раздел</th><th>Что в нём</th></tr></thead>
+    <tbody>
+      <tr><td>RECORD</td><td><b>QUANTIZE</b> — записанные ноты встают точно на шаги (раздел 6.4). <b>ARRANGE REC START</b> — запись в аранжировку начинается с плейхеда (PLAYHEAD) или каждый раз с начала (BEGINNING). <b>METRONOME</b> — громкость щелчка, 0–200 %.</td></tr>
+      <tr><td>SAMPLER</td><td><b>STRETCH</b> — алгоритм Rate Stretch: NORMAL или BEAT. <b>SLICE NOTES</b> — ноты кусков нарезки: подряд (CHROMATIC) или по гамме (SCALE). <b>PITCH</b> — ручка Pitch плавно (SMOOTH) или по полутонам (SEMITONES). <b>CLEAR SAMPLE LOCKS</b> — загрузка звука из библиотеки снимает сэмпл-локи дорожки. <b>WARP TO PROJECT BPM</b> — у сэмплов с метками варпинга темп файла всегда равен темпу проекта.</td></tr>
+      <tr><td>ARRANGE</td><td><b>TRACKS</b> — высота дорожек аранжировщика: FIX (кнопкой EXPANDED / COMPACT) или SCALE (двумя пальцами). <b>FOLLOW PLAYHEAD</b> — окно едет за плейхедом. <b>ROW REPEATS</b> — при переносе строки в аранжировку учитывать её повторы.</td></tr>
+      <tr><td>MORPH</td><td><b>MODE</b> — SWITCH или HOLD, <b>ALL TRACKS</b>, <b>RETURN</b> — плавный возврат (раздел 9.3).</td></tr>
+      <tr><td>MIX</td><td>Переход между проектами (раздел 14.4). <b>CHANGE KEY</b> — новый проект приносит свою гамму и ноту. <b>CROSSFADER</b> — кроссфейдер для плавного перехода темпа, громкостей и мастера.</td></tr>
+      <tr><td>RANDOM</td><td>Что генерирует SHIFT + тап по CHORD (раздел 8.2): <b>DRUMS</b> — ритм ударных, <b>CHORDS / ARP</b> — партии по роли дорожки, <b>SAMPLES</b> — случайная нарезка, <b>STEPS ALL TRACKS</b> — сразу на всех дорожках, <b>AUTO SWING</b> — свинг стиля, <b>SHOW PART TYPE</b> — выбор роли партии в окне CHORD. По умолчанию всё выключено.</td></tr>
+      <tr><td>LEVEL</td><td><b>TRACK LEVEL FADER</b> — регулятор на измерителе справа: ABSOLUTE — та же громкость, что в MIX; RELATIVE — подстройка вниз от громкости MIX.</td></tr>
+      <tr><td>DUCK</td><td><b>DUCK SENDS</b> — какие посылы (REVERB, DELAY, DRIVE) приглушаются вместе с дорожкой при Duck (раздел 10.5).</td></tr>
+      <tr><td>DEFAULTS</td><td>Свои значения ручек по умолчанию (раздел 2.1): сколько запомнено и <b>FORGET ALL</b> — забыть все.</td></tr>
+      <tr><td>APPEARANCE</td><td><b>THEME</b> — SYSTEM, LIGHT, DARK. <b>MASTER FX DISPLAY SCALE</b> — масштаб дисплеев окон мастера: 48, 32 или 16 dB. <b>FX ANIMATION</b> — картинка эффекта в окне звука.</td></tr>
+      <tr><td>AUDIO ENGINE</td><td><b>BACKGROUND AUDIO</b> — звук играет дальше, когда приложение свёрнуто или экран заблокирован.</td></tr>
+      <tr><td>OUTPUT</td><td>Текущий аудиовыход и его выбор. <b>MONITORING</b> — как референс (REF) идёт через мастер и коррекцию наушников, подгонка его громкости и REF TRIM.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ============ 19 ============ -->
+<section class="chapter" id="midi">
+  <header><span class="num">19</span><h2>MIDI</h2></header>
+  <p class="lede">Контроллеры, синтезаторы и драм-машины по MIDI.</p>
+
+  <h3><span class="sn">19.1</span>DEVICES</h3>
+  <figure><div class="shot" data-mode="track" data-zone="upper" data-state="midi"></div><figcaption>☰ → MIDI, вкладка DEVICES. Устройство — для примера.</figcaption></figure>
+  <p>JAMbo видит все MIDI-устройства, подключённые к iPad: по USB, по сети и по Bluetooth.</p>
+  <ul>
+    <li><b>FEEDBACK OUTPUT</b> — куда JAMbo отправляет значения ручек и состояние кнопок. Например, кольца энкодеров Midi Fighter Twister повторяют ручки на экране. Отключённое устройство помечено NOT CONNECTED.</li>
+    <li><b>BLUETOOTH MIDI</b>: <b>CONNECT</b> — найти и подключить Bluetooth-устройство; <b>ADVERTISE</b> — iPad сам становится видимым как Bluetooth MIDI-устройство.</li>
+  </ul>
+
+  <h3><span class="sn">19.2</span>MAPPING — назначить контроллер</h3>
+  <ol class="steps">
+    <li>☰ → MIDI → MAPPING → <b>MIDI LEARN</b>. Меню закроется, внизу экрана появится полоса LEARN.</li>
+    <li>Тапните по ручке или кнопке на экране — она обведётся жёлтым.</li>
+    <li>Покрутите ручку или нажмите кнопку на контроллере — назначено. На цели появится подпись, например «CC 20».</li>
+    <li>DONE — выйти из LEARN.</li>
+  </ol>
+  <ul>
+    <li><b>TURN / PRESS</b> на полосе LEARN — назначить поворот энкодера или его нажатие.</li>
+    <li><b>Двойной тап по цели</b> в режиме LEARN — окно MIDI MAP: номер, канал, тип события, вход; UNMAP снимает назначение.</li>
+    <li><b>Ручки</b> назначаются по месту на сетке (KNOB 1.1…4.4) и управляют тем, что ручка показывает сейчас — дорожка, FX, MOD, MIX или MST. С зажатым шагом энкодер ставит p-lock, как палец.</li>
+    <li><b>Кнопки</b>: PLAY, REC, UNDO, REDO, PATTERNS, EQ, пианоролл, METRONOME, CHORD, OCTAVE, LFO1–3, ENV, FX, MOD, MORPH, выбор дорожек, MIX, MST, M, S и ● дорожек, ячейки сетки паттернов, кроссфейдер.</li>
+    <li><b>Preset</b> — набор назначений под свой контроллер: сохранить, загрузить, переименовать.</li>
+  </ul>
+
+  <h3><span class="sn">19.3</span>MIDI дорожки</h3>
+  <p>У каждой дорожки свои MIDI-вход и выход: тап по окну звука → <b>MIDI</b>.</p>
+  <ul>
+    <li><b>MIDI IN</b> — устройство и канал, с которых дорожка принимает ноты (по умолчанию NONE). Ноты играют как с клавиатуры, с REC — записываются.</li>
+    <li><b>MIDI OUT</b> — устройство и канал, куда уходят ноты дорожки. Тогда свой звук дорожки молчит, а секвенсор JAMbo играет внешним синтезатором или драм-машиной. Кнопка MIDI в меню звука горит, если у дорожки есть выход.</li>
+  </ul>
+</section>
+
+<!-- ============ 20 ============ -->
+<section class="chapter" id="sync">
+  <header><span class="num">20</span><h2>SYNC</h2></header>
+  <p class="lede">Синхронизация темпа с другими устройствами по MIDI-клоку.</p>
+
+  <h3><span class="sn">20.1</span>Меню SYNC</h3>
+  <figure><div class="shot" data-mode="track" data-zone="upper" data-state="sync"></div><figcaption>☰ → SYNC.</figcaption></figure>
+  <div class="tbl"><table>
+    <thead><tr><th>Пункт</th><th>Что делает</th></tr></thead>
+    <tbody>
+      <tr><td>SYNC QUANTUM</td><td>Длина фразы для выравнивания старта: 1, 2, 4 или 8 тактов. По ней делится полоса фазы под BPM.</td></tr>
+      <tr><td>MIDI CLOCK SYNC</td><td>Включить MIDI-клок.</td></tr>
+      <tr><td>SEND CLOCK</td><td>JAMbo задаёт темп: отправляет клок на выходы (CLOCK OUTPUTS).</td></tr>
+      <tr><td>RECEIVE CLOCK</td><td>JAMbo идёт за внешним клоком со входа (CLOCK INPUT): темп и старт — от другого устройства. Можно включить вместе с SEND — принятый клок раздаётся дальше.</td></tr>
+      <tr><td>SYNC START/STOP</td><td>Вместе с клоком передаются и принимаются старт и стоп. Выключено — PLAY у каждого устройства свой.</td></tr>
+      <tr><td>MIDI OFFSET</td><td>Сдвиг по времени в миллисекундах — если другое устройство звучит раньше или позже. Палец вбок.</td></tr>
+    </tbody>
+  </table></div>
+  <p>Полоса фазы — тонкая линия внизу поля BPM: при игре загораются отрезки до текущей доли фразы. По ней видно, совпадают ли фразы с другим устройством.</p>
+</section>
+
+<!-- ============ 21 ============ -->
+<section class="chapter" id="gestures">
+  <header><span class="num">21</span><h2>Справочник жестов</h2></header>
+  <p class="lede">Все жесты и SHIFT-комбинации в одном месте.</p>
+
+  <h3><span class="sn">21.1</span>Ручки</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Жест</th><th>Действие</th><th>Раздел</th></tr></thead>
+    <tbody>
+      <tr><td>Палец вверх-вниз</td><td>Изменить значение</td><td>2.1</td></tr>
+      <tr><td>Двойной тап</td><td>Значение по умолчанию</td><td>2.1</td></tr>
+      <tr><td>SHIFT + удержание 1 с</td><td>Запомнить своё значение по умолчанию</td><td>2.1</td></tr>
+      <tr><td>Шаг + поворот</td><td>P-lock</td><td>7.1</td></tr>
+      <tr><td>Шаг + двойной тап</td><td>Снять p-lock</td><td>7.2</td></tr>
+      <tr><td>SHIFT + двойной тап</td><td>Снять все p-lock дорожки</td><td>7.2</td></tr>
+      <tr><td>LFO/ENV + поворот</td><td>Назначить модуляцию</td><td>9.2</td></tr>
+      <tr><td>LFO/ENV + двойной тап</td><td>Снять модуляцию</td><td>9.2</td></tr>
+      <tr><td>SHIFT + тап по Filter</td><td>Тип фильтра</td><td>4.2</td></tr>
+      <tr><td>SHIFT + тап по Rate</td><td>Rate Pitch / Rate Stretch</td><td>4.2</td></tr>
+      <tr><td>SHIFT + тап по Speed LFO, Dly Time</td><td>По темпу / свободно</td><td>9.1, 10.3</td></tr>
+      <tr><td>SHIFT + тап по Wave A, Wave B, 1.3 (ANALOG)</td><td>Модуляция, октава B, вид модуляции</td><td>5.4</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3><span class="sn">21.2</span>Шаги, страницы, клавиатура</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Жест</th><th>Действие</th><th>Раздел</th></tr></thead>
+    <tbody>
+      <tr><td>Тап по шагу</td><td>Поставить или убрать ноту</td><td>6.1</td></tr>
+      <tr><td>Протяжка от шага</td><td>Длинная нота</td><td>6.1</td></tr>
+      <tr><td>Шаг + клавиша</td><td>Сменить ноту шага</td><td>6.1</td></tr>
+      <tr><td>Шаг + тап по другому шагу</td><td>Копировать шаг</td><td>6.1</td></tr>
+      <tr><td>Первый шаг + двойной тап по шагу</td><td>Длина паттерна</td><td>6.1</td></tr>
+      <tr><td>Шаг + ◀ ▶ над окном звука</td><td>Свой звук шага</td><td>7.3</td></tr>
+      <tr><td>Тап / протяжка по миниатюрам</td><td>Играющие страницы</td><td>6.2</td></tr>
+      <tr><td>Двойной тап по миниатюре</td><td>Меню страницы</td><td>6.2</td></tr>
+      <tr><td>SHIFT + ▲ ▼ над миниатюрами</td><td>Ноты на ступень гаммы</td><td>6.3</td></tr>
+      <tr><td>Удержание CHORD</td><td>Тип аккорда / настройки ARP</td><td>8.2, 8.4</td></tr>
+      <tr><td>SHIFT + тап по CHORD</td><td>Случайная партия</td><td>8.2</td></tr>
+      <tr><td>▲ и ▼ клавиатуры вместе</td><td>Capture</td><td>8.5</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3><span class="sn">21.3</span>Дорожки, кнопки, окна</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Жест</th><th>Действие</th><th>Раздел</th></tr></thead>
+    <tbody>
+      <tr><td>Свайп вниз / вверх по дорожке</td><td>Mute / solo</td><td>3.2</td></tr>
+      <tr><td>Двойной тап по ручке в MIX</td><td>Меню дорожки / ADD TRACK</td><td>3.4</td></tr>
+      <tr><td>Удержание ручки в MIX</td><td>Переставить дорожку</td><td>3.4</td></tr>
+      <tr><td>Тап / удержание окна звука</td><td>Меню звука / редактор сэмпла</td><td>4.1, 4.4</td></tr>
+      <tr><td>Удержание FX, MOD</td><td>Сетка эффектов / модуляции</td><td>2.3</td></tr>
+      <tr><td>SHIFT + тап по FX, MOD</td><td>Режим toggle</td><td>2.3</td></tr>
+      <tr><td>SHIFT + тап по MORPH</td><td>ALL TRACKS вкл./выкл.</td><td>9.3</td></tr>
+      <tr><td>SHIFT + тап по REC</td><td>Запись мастера</td><td>3.5</td></tr>
+      <tr><td>SHIFT + тап по кнопке модуля (MST)</td><td>BYPASS модуля</td><td>12.3</td></tr>
+      <tr><td>Двойной тап по BPM</td><td>Темп числом</td><td>1.1</td></tr>
+      <tr><td>Двойной тап по точке EQ</td><td>Выключить полосу</td><td>11.2</td></tr>
+      <tr><td>Двойной тап по дисплею мастера</td><td>FREEZE</td><td>12.3</td></tr>
+      <tr><td>Свайп влево в списках</td><td>Переименовать / удалить</td><td>4.5, 17.2</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<footer class="end">JAMbo · Руководство пользователя · черновик, разделы 0–21.</footer>
 </main>
 </div>
 
@@ -2021,7 +2208,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       for (b = 0; b <= bars; b++) lanes += '<rect x="' + b * 16 * stepW + '" y="' + ly + '" width="' + (b % 4 === 0 ? 2 : 1) + '" height="' + unit + '" fill="var(--gridStrong)"/>';
       blocks[t].forEach(function (bl, bi) {
         var bx0 = bl[0] * 16 * stepW, bwid = (bl[1] - bl[0]) * 16 * stepW;
-        lanes += '<rect x="' + (bx0 + .5) + '" y="' + ly + '" width="' + (bwid - 1) + '" height="' + unit + '" rx="4" fill="#D0D3D7"/>';
+        lanes += '<rect x="' + (bx0 + .5) + '" y="' + ly + '" width="' + (bwid - 1) + '" height="' + unit + '" rx="4" fill="#B5B0A8"/>';
         var side = Math.max(2, Math.min(stepW * .7, unit * .4));
         for (var st = bl[0] * 16; st < bl[1] * 16; st++) if (pats[t][st % 16]) lanes += '<rect x="' + (st * stepW + (stepW - side) / 2) + '" y="' + (ly + unit / 2 - side / 2) + '" width="' + side + '" height="' + side + '" fill="#111" fill-opacity=".6"/>';
         if (t === 4 && bi === 1) lanes += '<rect x="' + (bx0 + 1.5) + '" y="' + (ly + 1) + '" width="' + (bwid - 3) + '" height="' + (unit - 2) + '" rx="3" fill="none" stroke="var(--text)" stroke-width="2"/>';
@@ -2049,16 +2236,17 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
   function autoPanel() {
     var y = LY, h = LOWER, hw = COL + GAP, tx = PAD + hw, tW = METER_X - GAP - tx, s = "", stepW = tW / 256;
     s += box(0, y - GAP, W, h + GAP, "background:var(--bg)");
-    s += box(PAD, y, hw - GAP, 40, "border-radius:8px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--accent)", '<div class="lbl" style="left:10px;top:12px;font-size:13px;font-weight:700;color:var(--text)">Filter</div>');
-    s += box(PAD, y + 46, hw - GAP, 40, "border-radius:8px;background:var(--panel)", '<div class="lbl" style="left:10px;top:12px;font-size:13px;font-weight:700;color:var(--text)">Reverb</div>');
+    s += box(PAD, y, hw - GAP, 40, "border-radius:6px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--accent)", '<div class="lbl" style="left:10px;top:12px;font-size:13px;font-weight:700;color:var(--text)">Filter</div>');
+    s += box(PAD, y + 46, hw - GAP, 40, "border-radius:6px;background:var(--panel)", '<div class="lbl" style="left:10px;top:12px;font-size:13px;font-weight:700;color:var(--text)">Reverb</div>');
     s += box(PAD, y + 92, hw - GAP, 40, "border-radius:8px;border:2px dashed var(--line)", label("+", hw - GAP - 4, 36, "font-size:20px;color:var(--dim)"));
     var p = "", fh = h;
     for (var b = 0; b <= 16; b++) p += '<rect x="' + b * 16 * stepW + '" y="0" width="' + (b % 4 === 0 ? 2 : 1) + '" height="' + fh + '" fill="var(--gridStrong)"/>';
     [.25, .5, .75].forEach(function (v) { p += '<rect x="0" y="' + fh * (1 - v) + '" width="' + tW + '" height="1" fill="var(--gridStrong)" opacity=".4"/>'; });
     var pts = [[64, .8], [80, .8], [112, .35], [128, .25]], d = "";
+    p += '<rect x="0" y="' + (fh * (1 - .55) - .5) + '" width="' + tW + '" height="1" fill="var(--dim)" opacity=".6"/>';
     pts.forEach(function (q, i) { d += (i ? " L" : "M") + q[0] * stepW + " " + fh * (1 - q[1]); });
-    p += '<path d="' + d + " L" + 128 * stepW + " " + fh + " L" + 64 * stepW + " " + fh + ' Z" fill="var(--text)" opacity=".15"/><path d="' + d + '" fill="none" stroke="var(--text)" stroke-width="2"/>';
-    pts.forEach(function (q, i) { p += '<circle cx="' + q[0] * stepW + '" cy="' + fh * (1 - q[1]) + '" r="' + (i === 2 ? 7 : 5) + '" fill="' + (i === 2 ? "var(--accent)" : "var(--text)") + '"/>'; });
+    p += '<path d="' + d + '" fill="none" stroke="var(--accent)" stroke-width="2"/>';
+    pts.forEach(function (q) { p += '<circle cx="' + q[0] * stepW + '" cy="' + fh * (1 - q[1]) + '" r="4" fill="var(--accent)"/>'; });
     p += '<rect x="' + (40 - 1) + '" y="0" width="2" height="' + fh + '" fill="var(--accent)"/>';
     s += box(tx, y, tW, fh, "background:var(--panel);border-radius:0 10px 10px 0;overflow:hidden", svg(tW, fh, p));
     return s;
@@ -2191,6 +2379,59 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     return s;
   }
 
+  // ---------- burger submenus: SETTINGS (RECORD), MIDI (DEVICES), SYNC ----------
+  function menuFrame(title, body) {
+    var x = PAD, y = CY, w = GRID_X + TOPBTN - PAD, h = CENTER_H, iw = w - 24;
+    var s = '<div class="lbl" style="left:12px;top:12px;font-size:15px;font-weight:700;color:var(--text)">‹  ' + title + "</div>";
+    return menuBox(x, y, w, h, s + body(iw, 42));
+  }
+  function fieldLabel(x, y, t) { return '<div class="lbl" style="left:' + x + "px;top:" + y + 'px;font-size:9px;font-weight:600;letter-spacing:.6px;color:var(--dim)">' + t + "</div>"; }
+  function head(x, y, t) { return '<div class="lbl" style="left:' + x + "px;top:" + y + 'px;font-size:12px;font-weight:700;letter-spacing:.1em;color:var(--text)">' + t + "</div>"; }
+  function toggleLine(x, y, w, t, on) { return '<div class="lbl" style="left:' + (x + 4) + "px;top:" + (y + 15) + 'px;font-size:13px;font-weight:700;color:var(--text)">' + t + "</div>" + toggle(x + w - 55, y + 8, on); }
+  function settingsMenu() {
+    return menuFrame("SETTINGS", function (iw, y) {
+      var s = fieldLabel(12, y, "SECTIONS"); y += 16;
+      var tabs = [["RECORD", "SAMPLER", "ARRANGE"], ["MORPH", "MIX", "RANDOM"], ["LEVEL", "DUCK", "DEFAULTS"], ["APPEARANCE", "AUDIO ENGINE", "OUTPUT"]], t3 = (iw - 8) / 3;
+      tabs.forEach(function (row) { row.forEach(function (t, i) { s += menuItem(12 + i * (t3 + 4), y, t3, 40, t, { cur: t === "RECORD" }); }); y += 44; });
+      y += 6; s += box(12, y, iw, 1, "background:var(--line)"); y += 10;
+      s += toggleLine(12, y, iw, "QUANTIZE", true); y += 52;
+      s += fieldLabel(12, y, "ARRANGE REC START"); y += 16;
+      var t2 = (iw - 4) / 2;
+      s += menuItem(12, y, t2, 40, "PLAYHEAD", { cur: true }) + menuItem(16 + t2, y, t2, 40, "BEGINNING"); y += 52;
+      s += '<div class="lbl" style="left:16px;top:' + y + 'px;font-size:13px;font-weight:700;color:var(--text)">METRONOME</div><div class="lbl" style="right:' + (16) + "px;top:" + y + 'px;font-size:13px;font-weight:700;color:var(--text)">100%</div>';
+      s += box(16, y + 30, iw - 8, 6, "background:var(--meterTrack);border-radius:3px") + box(16, y + 30, (iw - 8) / 2, 6, "background:var(--accent);border-radius:3px") + box(16 + (iw - 8) / 2 - 11, y + 22, 22, 22, "background:#fff;border-radius:50%;box-shadow:0 1px 2px rgba(0,0,0,.3)");
+      return s;
+    });
+  }
+  function midiMenu() {
+    return menuFrame("MIDI", function (iw, y) {
+      var s = "", t2 = (iw - 4) / 2;
+      s += menuItem(12, y, t2, 40, "DEVICES", { cur: true }) + menuItem(16 + t2, y, t2, 40, "MAPPING"); y += 52;
+      s += fieldLabel(12, y, "FEEDBACK OUTPUT"); y += 16;
+      s += menuItem(12, y, iw, 40, "NONE") + ""; y += 44;
+      s += menuItem(12, y, iw, 40, "Midi Fighter Twister", { cur: true }); y += 56;
+      s += head(12, y, "BLUETOOTH MIDI"); y += 22;
+      s += menuItem(12, y, t2, 40, "CONNECT") + menuItem(16 + t2, y, t2, 40, "ADVERTISE");
+      return s;
+    });
+  }
+  function syncMenu() {
+    return menuFrame("SYNC", function (iw, y) {
+      var s = head(12, y, "GENERAL"); y += 22;
+      s += fieldLabel(12, y, "SYNC QUANTUM"); y += 16;
+      var t4 = (iw - 12) / 4;
+      ["1 BAR", "2 BARS", "4 BARS", "8 BARS"].forEach(function (t, i) { s += menuItem(12 + i * (t4 + 4), y, t4, 40, t, { cur: i === 0 }); }); y += 52;
+      s += box(12, y, iw, 1, "background:var(--line)"); y += 12;
+      s += head(12, y, "MIDI CLOCK"); y += 14;
+      s += toggleLine(12, y, iw, "MIDI CLOCK SYNC", true); y += 48;
+      s += toggleLine(12, y, iw, "SEND CLOCK", true); y += 48;
+      s += toggleLine(12, y, iw, "RECEIVE CLOCK", false); y += 48;
+      s += toggleLine(12, y, iw, "SYNC START/STOP", true); y += 54;
+      s += fieldTile(12, y, iw, 44, "MIDI OFFSET", "0 ms");
+      return s;
+    });
+  }
+
   function screenHTML(mode, state) {
     var c;
     if (state === "editor" || state === "browser") c = (state === "editor" ? editor() : browser()) + meter(mode);
@@ -2204,7 +2445,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     if (state === "soundmenu" || state === "synthmenu") c += soundMenu(state === "synthmenu");
     if (state === "trackmenu") c += trackMenu(1);
     if (state === "pagemenu") c += pageMenu();
-    var over = state === "kbmenu" ? keyboardMenu() : state === "chordmenu" ? chordWindow() : state === "arrauto" ? autoPanel() : state === "projects" ? projectsMenu() : "";
+    var over = state === "kbmenu" ? keyboardMenu() : state === "chordmenu" ? chordWindow() : state === "arrauto" ? autoPanel() : state === "projects" ? projectsMenu() : state === "settings" ? settingsMenu() : state === "midi" ? midiMenu() : state === "sync" ? syncMenu() : "";
     return '<div class="scr" style="width:' + W + "px;height:" + H + 'px">' + topBar(mode, state) + c + lower(mode, state) + over + "</div>";
   }
 
