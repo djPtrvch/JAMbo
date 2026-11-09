@@ -45,7 +45,12 @@ nav.toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 20px); ali
 .toc .note { margin-top: 12px; font-size: 12px; color: var(--dim); }
 
 main { min-width: 0; }
-.cover { padding-bottom: 24px; margin-bottom: 36px; border-bottom: 1px solid var(--line); }
+.cover { padding-bottom: 24px; margin-bottom: 36px; border-bottom: 1px solid var(--line); display: flex; gap: 24px; align-items: center; justify-content: space-between; }
+.cover-text { min-width: 0; }
+.panda-box { flex: none; width: 190px; height: 190px; display: flex; align-items: center; justify-content: center; }
+.panda-box svg { width: 92%; height: 92%; }
+@media (max-width: 640px) { .panda-box { width: 120px; height: 120px; } }
+@media (max-width: 420px) { .cover { flex-direction: column-reverse; align-items: flex-start; } }
 .cover .eyebrow { font-size: 9px; color: var(--dim); letter-spacing: 0.08em; text-transform: uppercase; }
 .cover h1 { font: 800 clamp(30px, 5vw, 46px)/1.05 var(--sys); text-transform: uppercase; letter-spacing: 0.02em; margin: 8px 0 10px; text-wrap: balance; }
 .cover h1 span { color: var(--accentText); }
@@ -146,12 +151,12 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
 </nav>
 
 <main>
-<div class="cover">
+<div class="cover"><div class="cover-text">
   <div class="eyebrow">Руководство пользователя</div>
   <h1>JAMbo<span>.</span> Грувбокс для живых джемов</h1>
   <p>Названия кнопок и ручек даны так, как они написаны на экране, по-английски.</p>
   <div class="chip">Черновик · <b>разделы 0–21</b></div>
-</div>
+</div><div class="panda-box"><svg class="panda" viewBox="-0.09 -0.09 1.18 1.12" role="img" aria-label="Панда JAMbo в наушниках с поднятыми лапами"><ellipse cx="0.320" cy="0.135" rx="0.085" ry="0.085" fill="#000"/><ellipse cx="0.680" cy="0.135" rx="0.085" ry="0.085" fill="#000"/><rect x="0.281" y="0.697" width="0.177" height="0.246" rx="0.088" fill="#000"/><rect x="0.541" y="0.697" width="0.177" height="0.246" rx="0.088" fill="#000"/><ellipse cx="0.500" cy="0.620" rx="0.270" ry="0.240" fill="#f0f0f0"/><ellipse cx="0.500" cy="0.660" rx="0.170" ry="0.150" fill="#e0e0e0"/><g transform="rotate(145 .27 .47)"><rect x="0.215" y="0.470" width="0.110" height="0.260" rx="0.055" fill="#000"/></g><g transform="rotate(-145 .73 .47)"><rect x="0.675" y="0.470" width="0.110" height="0.260" rx="0.055" fill="#000"/></g><ellipse cx="0.500" cy="0.300" rx="0.260" ry="0.260" fill="#f0f0f0"/><g transform="translate(.40 .30) rotate(20)"><ellipse cx="0.000" cy="0.000" rx="0.065" ry="0.085" fill="#000"/></g><g transform="translate(.60 .30) rotate(-20)"><ellipse cx="0.000" cy="0.000" rx="0.065" ry="0.085" fill="#000"/></g><ellipse cx="0.410" cy="0.295" rx="0.022" ry="0.022" fill="#f0f0f0"/><ellipse cx="0.590" cy="0.295" rx="0.022" ry="0.022" fill="#f0f0f0"/><ellipse cx="0.330" cy="0.380" rx="0.030" ry="0.030" fill="rgba(255,140,128,.35)"/><ellipse cx="0.670" cy="0.380" rx="0.030" ry="0.030" fill="rgba(255,140,128,.35)"/><ellipse cx="0.500" cy="0.355" rx="0.035" ry="0.022" fill="#000"/><rect x="0.460" y="0.377" width="0.080" height="0.065" rx="0.033" fill="#000"/><clipPath id="hpclip"><rect x="0" y="0" width="1" height=".20"/></clipPath><rect x=".21" y=".06" width=".58" height=".30" rx=".15" fill="none" stroke="var(--accent)" stroke-width=".02" clip-path="url(#hpclip)"/><rect x=".19" y=".255" width=".05" height=".11" rx=".02" fill="var(--accent)"/><rect x=".76" y=".255" width=".05" height=".11" rx=".02" fill="var(--accent)"/></svg></div></div>
 
 <!-- ============ 0 ============ -->
 <section class="chapter" id="intro">
@@ -1083,7 +1088,8 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
 
   <h3><span class="sn">15.1</span>Окно аранжировщика</h3>
   <figure><div class="shot" data-mode="track" data-state="arr"></div><figcaption>Аранжировщик: секции Intro и Drop, выбранная дорожка 1 (жёлтые линии), выбранный блок (белая рамка), плейхед. Блоки — для примера.</figcaption></figure>
-  <p>ARRANGE открывает аранжировщик. Один такт — 16 шагов, как в секвенсоре. PLAY в аранжировщике играет таймлайн с курсора; вне его — сетку паттернов.</p>
+  <p>ARRANGE открывает аранжировщик. Один такт — 16 шагов, как в секвенсоре.</p>
+  <div class="note"><b>Сетка и аранжировщик играют по отдельности.</b> PLAY в окне аранжировщика играет таймлайн — все дорожки по блокам, с курсора. PLAY в любом другом окне (в том числе в сетке паттернов) играет сетку: клипы, которые вы запускаете. Правка клипа в сетке не меняет блоки на таймлайне, а автоматизация (раздел 16) действует только при игре по таймлайну. Связь между ними — перенос клипов (раздел 14.3) и живая запись из сетки (раздел 15.6).</div>
   <div class="tbl"><table>
     <thead><tr><th>Кнопка</th><th>Что делает</th></tr></thead>
     <tbody>
