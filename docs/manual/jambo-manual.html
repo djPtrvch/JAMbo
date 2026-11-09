@@ -32,6 +32,8 @@ a { color: var(--text); text-decoration-color: var(--accent); text-underline-off
 nav.toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 20px); align-self: start; max-height: calc(100vh - 40px); overflow-y: auto;
   background: var(--panel); border-radius: 10px; padding: 14px 10px 14px 14px; }
 @media (max-width: 900px) { nav.toc { position: static; max-height: none; } }
+.toc .home { display: block; text-decoration: none; color: inherit; border-radius: 6px; }
+.toc .home:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .toc .brand { font: 700 15px/1 var(--sys); text-transform: uppercase; margin: 2px 0 4px; }
 .toc .sub { font-size: 12px; color: var(--dim); margin-bottom: 12px; }
 .menu-head { font: 700 12px/1.2 var(--sys); letter-spacing: 0.1em; text-transform: uppercase; color: var(--text); }
@@ -55,8 +57,7 @@ main { min-width: 0; }
 .cover h1 { font: 800 clamp(30px, 5vw, 46px)/1.05 var(--sys); text-transform: uppercase; letter-spacing: 0.02em; margin: 8px 0 10px; text-wrap: balance; }
 .cover h1 span { color: var(--accentText); }
 .cover p { margin: 0; max-width: 64ch; color: var(--dim); font-size: 13px; }
-.chip { display: inline-block; margin-top: 14px; font: 700 12px/1 var(--sys); letter-spacing: 0.1em; text-transform: uppercase; padding: 9px 12px; border-radius: 10px; background: var(--panel); }
-.chip b { color: var(--accentText); }
+
 
 section.chapter { margin-bottom: 64px; }
 .chapter > header { display: flex; align-items: baseline; gap: 14px; margin-bottom: 6px; }
@@ -137,9 +138,9 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
 
 <div class="wrap">
 <nav class="toc" aria-label="Contents">
-  <div class="brand">JAMbo</div>
+  <a class="home" href="#top" aria-label="Top of the page"><div class="brand">JAMbo</div>
   <div lang="ru" class="sub">Руководство пользователя</div>
-  <div lang="en" class="sub">User Manual</div>
+  <div lang="en" class="sub">User Manual</div></a>
   <div lang="ru" class="menu-head">Разделы</div>
   <div lang="en" class="menu-head">Contents</div>
   <ol lang="ru">
@@ -193,19 +194,15 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
 </nav>
 
 <main>
-<div class="cover"><div class="cover-main">
+<div class="cover" id="top"><div class="cover-main">
   <div class="langsw" role="group" aria-label="Language"><button type="button" data-lang-btn="ru">RU</button><button type="button" data-lang-btn="en">EN</button></div>
 <div lang="ru" class="cover-text">
   <div class="eyebrow">Руководство пользователя</div>
   <h1>JAMbo<span>.</span> Грувбокс для живых джемов</h1>
-  <p>Названия кнопок и ручек даны так, как они написаны на экране, по-английски.</p>
-  <div class="chip">Черновик · <b>разделы 0–21</b></div>
 </div>
 <div lang="en" class="cover-text">
   <div class="eyebrow">User Manual</div>
   <h1>JAMbo<span>.</span> A groovebox for live jams</h1>
-  <p>Button and knob names are given exactly as they appear on screen.</p>
-  <div class="chip">Draft · <b>sections 0–21</b></div>
 </div></div><div class="panda-box"><svg class="panda" viewBox="-0.09 -0.09 1.18 1.12" role="img" aria-label="JAMbo panda in headphones with raised paws"><ellipse cx="0.320" cy="0.135" rx="0.085" ry="0.085" fill="#000"/><ellipse cx="0.680" cy="0.135" rx="0.085" ry="0.085" fill="#000"/><rect x="0.281" y="0.697" width="0.177" height="0.246" rx="0.088" fill="#000"/><rect x="0.541" y="0.697" width="0.177" height="0.246" rx="0.088" fill="#000"/><ellipse cx="0.500" cy="0.620" rx="0.270" ry="0.240" fill="#f0f0f0"/><ellipse cx="0.500" cy="0.660" rx="0.170" ry="0.150" fill="#e0e0e0"/><g transform="rotate(145 .27 .47)"><rect x="0.215" y="0.470" width="0.110" height="0.260" rx="0.055" fill="#000"/></g><g transform="rotate(-145 .73 .47)"><rect x="0.675" y="0.470" width="0.110" height="0.260" rx="0.055" fill="#000"/></g><ellipse cx="0.500" cy="0.300" rx="0.260" ry="0.260" fill="#f0f0f0"/><g transform="translate(.40 .30) rotate(20)"><ellipse cx="0.000" cy="0.000" rx="0.065" ry="0.085" fill="#000"/></g><g transform="translate(.60 .30) rotate(-20)"><ellipse cx="0.000" cy="0.000" rx="0.065" ry="0.085" fill="#000"/></g><ellipse cx="0.410" cy="0.295" rx="0.022" ry="0.022" fill="#f0f0f0"/><ellipse cx="0.590" cy="0.295" rx="0.022" ry="0.022" fill="#f0f0f0"/><ellipse cx="0.330" cy="0.380" rx="0.030" ry="0.030" fill="rgba(255,140,128,.35)"/><ellipse cx="0.670" cy="0.380" rx="0.030" ry="0.030" fill="rgba(255,140,128,.35)"/><ellipse cx="0.500" cy="0.355" rx="0.035" ry="0.022" fill="#000"/><rect x="0.460" y="0.377" width="0.080" height="0.065" rx="0.033" fill="#000"/><clipPath id="hpclip"><rect x="0" y="0" width="1" height=".20"/></clipPath><rect x=".21" y=".06" width=".58" height=".30" rx=".15" fill="none" stroke="var(--accent)" stroke-width=".02" clip-path="url(#hpclip)"/><rect x=".19" y=".255" width=".05" height=".11" rx=".02" fill="var(--accent)"/><rect x=".76" y=".255" width=".05" height=".11" rx=".02" fill="var(--accent)"/></svg></div></div>
 
 <!-- ============ 0 ============ -->
@@ -2501,8 +2498,8 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
   </table></div>
 </section>
 
-<footer lang="ru" class="end">JAMbo · Руководство пользователя · черновик, разделы 0–21.</footer>
-<footer lang="en" class="end">JAMbo · User Manual · draft, sections 0–21.</footer>
+<footer lang="ru" class="end">JAMbo · Руководство пользователя</footer>
+<footer lang="en" class="end">JAMbo · User Manual</footer>
 </main>
 </div>
 
@@ -3692,6 +3689,8 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     document.querySelectorAll("[data-lang-btn]").forEach(function (b) { b.setAttribute("aria-pressed", b.dataset.langBtn === l ? "true" : "false"); });
     desc.textContent = (l === "en" ? DESC_EN : DESC)[curMode];
   }
+  var home = document.querySelector(".toc .home");
+  if (home) home.addEventListener("click", function (e) { e.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); });
   document.querySelectorAll("[data-lang-btn]").forEach(function (b) { b.addEventListener("click", function () { setLang(b.dataset.langBtn); }); });
   setLang(document.documentElement.getAttribute("data-lang") === "ru" ? "ru" : "en");
 })();
