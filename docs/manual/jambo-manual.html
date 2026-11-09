@@ -1062,7 +1062,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       <tr><td>☰</td><td>Меню сетки: START FROM ROW (с какой строки начинать), AT THE END (что делать в конце строк) и другое.</td></tr>
       <tr><td>LOOP ROW</td><td>Строка играет по кругу, не переходя к следующей.</td></tr>
       <tr><td>STEPS</td><td>Показать или скрыть строку дорожек, секвенсор и клавиатуру — тогда видно больше строк сетки.</td></tr>
-      <tr><td>Запись аранжировки</td><td>Всё, что играет в сетке, пишется на таймлайн аранжировщика.</td></tr>
+      <tr><td>Запись аранжировки</td><td>Живая запись: всё, что играет в сетке, пишется на таймлайн аранжировщика (раздел 15.6).</td></tr>
     </tbody>
   </table></div>
 
@@ -1151,6 +1151,42 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
 
   <h3><span class="sn">15.5</span>Готовый трек в файл</h3>
   <p>Когда аранжировка готова, сохраните её как аудиофайл: <b>☰ → PROJECTS → EXPORT SONG</b>. Записывается весь трек от начала до конца последнего блока, со всеми эффектами и мастером, плюс хвост реверберации и дилея. Формат файла, частота и хвост выбираются там же — подробно в разделе 17.4.</p>
+
+  <h3><span class="sn">15.6</span>Живое исполнение: запись из сетки в аранжировку</h3>
+  <p>Трек можно не собирать блоками вручную, а сыграть вживую: запускать клипы и строки в сетке паттернов, глушить дорожки, крутить ручки — а JAMbo запишет всё это на таймлайн аранжировщика. Потом запись правится как обычные блоки.</p>
+  <figure><div class="shot" data-mode="track" data-state="gridrec"></div><figcaption>Сетка паттернов, запись в аранжировку включена: кнопка справа горит красным, у ARRANGE — красный контур.</figcaption></figure>
+  <ol class="steps">
+    <li>Откройте PATTERNS. Справа от сетки, под STEPS, — кнопка записи аранжировки (значок: блоки лесенкой и красная точка). Тапните по ней — она загорится красным. То же самое — держать ARRANGE и тапнуть по REC.</li>
+    <li>Нажмите PLAY и играйте: запускайте клипы и строки, глушите и включайте дорожки, крутите ручки, играйте на клавиатуре.</li>
+    <li>Нажмите STOP или выключите кнопку записи. Записанное появится на таймлайне. Весь дубль отменяется одним UNDO.</li>
+  </ol>
+  <p>Контур кнопки ARRANGE показывает состояние в любом окне: тонкий красный — запись включена, толстый — идёт. Откуда начинать — SETTINGS → RECORD → ARRANGE REC START: с плейхеда (PLAYHEAD) или каждый раз с начала (BEGINNING).</p>
+  <figure><div class="shot" data-mode="track" data-state="arrrec"></div><figcaption>Аранжировщик во время записи: новые участки растут за плейхедом — цветом дорожки с красной рамкой.</figcaption></figure>
+
+  <p><b>Что и как записывается</b></p>
+  <div class="tbl"><table>
+    <thead><tr><th>Что вы делаете</th><th>Что появляется на таймлайне</th></tr></thead>
+    <tbody>
+      <tr><td>Запуск клипа или строки</td><td>Новый блок с момента запуска (по квантизации, как он реально вступил) до следующего переключения этой дорожки.</td></tr>
+      <tr><td>Клип играл до начала записи</td><td>Блок с того места прохода, где клип был, — без сдвига.</td></tr>
+      <tr><td>Остановка дорожки</td><td>Пустое место.</td></tr>
+      <tr><td>Mute, solo</td><td>Пока дорожка заглушена — пусто. Звук вернулся — новый блок того же клипа с того же места.</td></tr>
+      <tr><td>Переключение страниц миниатюрами</td><td>Записывается так, как играло.</td></tr>
+      <tr><td>Поворот ручки дорожки</td><td>Кривая автоматизации этой ручки (раздел 16). После записи ручки возвращаются к значениям до неё. Ручки FX так не пишутся.</td></tr>
+      <tr><td>Ноты с клавиатуры или MIDI</td><td>Добавляются к нотам шагов в блоке, на свой шаг, с длиной и силой. На дорожке без клипа — блоками по такту, где были ноты. Клип в сетке не меняется.</td></tr>
+    </tbody>
+  </table></div>
+
+  <p><b>Запись «по факту».</b> Каждый блок получает свою копию клипа — ровно такую, какой она прозвучала:</p>
+  <ul>
+    <li><b>P-lock</b> записываются вместе с шагами, как они были на каждом проходе.</li>
+    <li><b>Chance</b>: шаг, который не сыграл, в блоке пустой; шаг, который сыграл, получает Chance 100 %. Поэтому запись повторяется точно так, как вы её услышали.</li>
+    <li><b>Свой звук шага</b> (сэмпл-лок, пресет-лок) переносится вместе с шагом.</li>
+    <li><b>Правка во время записи</b> действует с того места, где вы её сделали; прошлые проходы остаются такими, как сыграли.</li>
+    <li>Блоки делятся по длине паттерна (не длиннее 8 тактов). Участок без прозвучавших нот не пишется — на таймлайне пусто.</li>
+  </ul>
+  <p>Запись заменяет прежние блоки записанных дорожек на записанном участке. Блоки — независимые копии: правка клипа в сетке их не меняет, а сам блок правится через STEPS аранжировщика.</p>
+  <p>Петля аранжировщика при игре из сетки не действует — запись идёт дальше. LOOP ROW включён — строка пишется до STOP; выключен — строки идут по очереди и в конце поступают по AT THE END.</p>
 </section>
 
 <!-- ============ 16 ============ -->
@@ -1533,7 +1569,9 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     s += btn(x, y, TOPBTN, h, "EQ", eqOn ? { fill: "var(--text)", color: "var(--bg)" } : {});
     // right group: PATTERNS, ARRANGE, CPU above the meter
     s += btn(RIGHT_X, y, TOPBTN, h, "PATTERNS", state === "grid" ? { fill: "var(--text)", color: "var(--bg)" } : {});
-    s += btn(RIGHT_X + TOPBTN + GAP, y, TOPBTN, h, "ARRANGE", state === "arr" || state === "arrauto" ? { fill: "var(--text)", color: "var(--bg)" } : {});
+    var arrOpt = state === "arr" || state === "arrauto" || state === "arrrec" ? { fill: "var(--text)", color: "var(--bg)" } : {};
+    if (state === "gridrec" || state === "arrrec") arrOpt.ring = "var(--rec);box-shadow:inset 0 0 0 3px var(--rec)";
+    s += btn(RIGHT_X + TOPBTN + GAP, y, TOPBTN, h, "ARRANGE", arrOpt);
     s += box(METER_X - 9, y + 7, 48, 48, "", '<div class="lbl" style="left:0;top:0;width:48px;height:48px;display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--dim)">CPU\n12%</div>');
     return s;
   }
@@ -2138,7 +2176,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     kick: [1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0], snare: [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hat: [0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0],
     bass: [1,0,0,1,0,0,1,0,0,0,1,0,0,1,0,0], lead: [1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0], fill: [1,0,1,0,1,0,1,1,1,0,1,0,1,1,1,1]
   };
-  function patternGrid() {
+  function patternGrid(rec) {
     var x0 = PAD, y0 = CY, rows = 8, rh = (CENTER_H - 7 * 4) / rows, tw = (WIDTH - 2 * STEP - 2 * GAP - 7 * GAP) / 8, s = "";
     var grid = [
       [[PATS.kick], [PATS.snare], [PATS.hat], [PATS.bass], [PATS.lead, PATS.lead], null, null, null],
@@ -2172,12 +2210,13 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     var stepsIco = ""; for (var q = 0; q < 4; q++) stepsIco += '<rect x="' + (STEP / 2 - 13 + q * 7) + '" y="' + (rh / 2 - 2.5) + '" width="5" height="5" rx="1" ' + (q % 2 === 0 ? 'fill="var(--onAccent)"' : 'fill="none" stroke="var(--onAccent)"') + "/>";
     s += box(sx, y0 + 2 * (rh + 4), STEP, rh, "border-radius:6px;background:var(--accent)", svg(STEP, rh, stepsIco));
     var recIco = '<rect x="' + (STEP / 2 - 12) + '" y="' + (rh / 2 - 7) + '" width="10" height="4" rx="1" fill="var(--text)"/><rect x="' + (STEP / 2 - 6) + '" y="' + (rh / 2 - 1) + '" width="10" height="4" rx="1" fill="var(--text)"/><rect x="' + (STEP / 2) + '" y="' + (rh / 2 + 5) + '" width="10" height="4" rx="1" fill="var(--text)"/><circle cx="' + (STEP / 2 + 9) + '" cy="' + (rh / 2 - 5) + '" r="3" fill="var(--rec)"/>';
-    s += box(sx, y0 + 3 * (rh + 4), STEP, rh, "border-radius:6px;background:var(--panel2)", svg(STEP, rh, recIco));
+    if (rec) recIco = recIco.replace(/var\(--text\)/g, "#fff").replace("var(--rec)", "#fff");
+    s += box(sx, y0 + 3 * (rh + 4), STEP, rh, "border-radius:6px;background:" + (rec ? "var(--rec)" : "var(--panel2)"), svg(STEP, rh, recIco));
     return s;
   }
 
   // ---------- arranger ----------
-  function arranger(auto) {
+  function arranger(auto, rec) {
     var s = "", bar = U.bar, g = GAP, bw = (COL - 3 * g) / 4;
     var gridIco = '<g stroke="CLR" stroke-width="1.6" fill="none"><rect x="-8" y="-8" width="16" height="16" rx="2"/><path d="M-2.7 -8 V8 M2.7 -8 V8 M-8 -2.7 H8 M-8 2.7 H8"/></g>';
     var sciss = '<g stroke="CLR" stroke-width="1.8" fill="none" stroke-linecap="round"><circle cx="-5" cy="5" r="3"/><circle cx="5" cy="5" r="3"/><path d="M-3 3 L7 -8 M3 3 L-7 -8"/></g>';
@@ -2215,12 +2254,21 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       });
       if (t === 0) lanes += '<rect x="0" y="' + ly + '" width="' + tW + '" height="1" fill="var(--accent)"/><rect x="0" y="' + (ly + unit - 1) + '" width="' + tW + '" height="1" fill="var(--accent)"/>';
     }
-    var px = 2.5 * 16 * stepW;
+    if (rec) {
+      var recEnd = 11.5 * 16 * stepW, recTracks = [0, 1, 2, 3, 5];
+      recTracks.forEach(function (t2) {
+        var ly2 = top + t2 * (unit + g), x8 = 8 * 16 * stepW;
+        lanes += '<rect x="' + (x8 + .5) + '" y="' + (ly2 + 1) + '" width="' + (recEnd - x8 - 1) + '" height="' + (unit - 2) + '" rx="4" fill="#B5B0A8" stroke="var(--rec)" stroke-width="1"/>';
+        var side2 = Math.max(2, Math.min(stepW * .7, unit * .4));
+        for (var st2 = 128; st2 < 11.5 * 16; st2++) if (pats[t2][st2 % 16]) lanes += '<rect x="' + (st2 * stepW + (stepW - side2) / 2) + '" y="' + (ly2 + unit / 2 - side2 / 2) + '" width="' + side2 + '" height="' + side2 + '" fill="#111" fill-opacity=".6"/>';
+      });
+    }
+    var px = (rec ? 11.5 : 2.5) * 16 * stepW;
     lanes += '<rect x="' + (px - 1) + '" y="0" width="2" height="' + (H - wy) + '" fill="var(--accent)"/><path d="M' + (px - 7) + " 0 H" + (px + 7) + " V" + (top - 10) + " L" + px + " " + top + " L" + (px - 7) + " " + (top - 10) + ' Z" fill="var(--accent)"/>';
     s2 += svg(tW, H - wy, lanes);
     s += box(tx, wy, tW, H - wy, "overflow:hidden;border-radius:0 10px 0 0", s2);
     // headers
-    s += '<div class="lbl" style="left:' + (PAD + 8) + "px;top:" + (wy + 10) + 'px;font-size:15px;color:var(--text)">0:05 / 0:16</div>';
+    s += '<div class="lbl" style="left:' + (PAD + 8) + "px;top:" + (wy + 10) + 'px;font-size:15px;color:var(--text)">' + (rec ? "0:21 / 0:21" : "0:05 / 0:16") + '</div>';
     var tn = ["1", "2", "3", "4", "5", "6", "7", "8"];
     for (t = 0; t < 8; t++) {
       var hy = wy + top + t * (unit + g), sel = t === 0, h = "";
@@ -2439,8 +2487,8 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     else if (state === "eq") c = eqWindow() + meter(mode);
     else if (state === "comp" || state === "sat" || state === "clip" || state === "lim") c = masterWin(state) + meter(mode);
     else if (state === "phones") c = phonesWindow() + meter(mode);
-    else if (state === "grid") c = patternGrid();
-    else if (state === "arr" || state === "arrauto") c = arranger(state === "arrauto") + meter(mode);
+    else if (state === "grid" || state === "gridrec") c = patternGrid(state === "gridrec");
+    else if (state === "arr" || state === "arrauto" || state === "arrrec") c = arranger(state === "arrauto", state === "arrrec") + meter(mode);
     else c = leftColumn(mode, state) + knobGrid(mode, state) + rightColumn(mode, state) + meter(mode);
     if (state === "soundmenu" || state === "synthmenu") c += soundMenu(state === "synthmenu");
     if (state === "trackmenu") c += trackMenu(1);
