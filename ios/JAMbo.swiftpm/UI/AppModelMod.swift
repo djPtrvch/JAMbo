@@ -127,26 +127,19 @@ extension AppModel {
         }
     }
 
-    /// Нажатие MORPH. SHIFT + тап — MORPH ALL TRACKS вкл./выкл. (как SETTINGS → MORPH → ALL TRACKS; решение
-    /// пользователя), сам режим MORPH при этом не переключается.
-    /// MODE HOLD: SHIFT и MORPH держат одновременно (в любом порядке, 3.11) — режим на всех дорожках, пока держат обе
-    /// (выключен был — включается); отпустили — MORPH выключается, даже если был включён тапом (решение пользователя 3.11).
+    /// Нажатие MORPH. Тап — режим на выбранной дорожке. SHIFT и MORPH держат одновременно (в любом порядке, 3.11) —
+    /// режим на всех дорожках, пока держат обе (выключен был — включается); отпустили — MORPH выключается, даже если
+    /// был включён тапом (решение пользователя 3.11). Режимы SWITCH и ALL TRACKS убраны (9.11, решение пользователя).
     func morphPress() {
         morphHeld = true
         morphUsed = false
-        guard shiftHeld else { return }
-        if settings.morphHold {
-            beginMorphAllHold()
-        } else {
-            morphUsed = true
-            setMorphAll(!settings.morphAll)
-        }
+        if shiftHeld { beginMorphAllHold() }
     }
 
-    /// Нажали SHIFT: в MODE HOLD при уже зажатой MORPH — режим на всех дорожках, пока держат обе.
+    /// Нажали SHIFT: при уже зажатой MORPH — режим на всех дорожках, пока держат обе.
     func shiftPressed() {
         shiftHeld = true
-        if settings.morphHold && morphHeld { beginMorphAllHold() }
+        if morphHeld { beginMorphAllHold() }
     }
 
     private func beginMorphAllHold() {
@@ -165,11 +158,11 @@ extension AppModel {
         if !morphUsed { toggleMorph() }
     }
 
-    /// SHIFT для ручек (тап, удержание, шаг Pitch / Start / End, ручки не крутятся): пока держат SHIFT + MORPH в MODE
-    /// HOLD, SHIFT занята удержанием — ручки крутятся как без неё.
+    /// SHIFT для ручек (тап, удержание, шаг Pitch / Start / End, ручки не крутятся): пока держат SHIFT + MORPH,
+    /// SHIFT занята удержанием — ручки крутятся как без неё.
     var knobShift: Bool { return shiftHeld && !morphAllHeld }
 
-    /// Отпустили SHIFT: удержание SHIFT + MORPH (MODE HOLD) кончилось.
+    /// Отпустили SHIFT: удержание SHIFT + MORPH кончилось.
     func shiftReleased() {
         shiftHeld = false
         if morphAllHeld { endMorphAllHold() }
@@ -180,11 +173,10 @@ extension AppModel {
         if morph { toggleMorph() }
     }
 
-    /// Ручка в MORPH меняет параметр на всех дорожках: MODE SWITCH — по ALL TRACKS, HOLD — пока держат SHIFT + MORPH.
+    /// Ручка в MORPH меняет параметр на всех дорожках — только пока прямо сейчас держат и SHIFT, и MORPH (не по
+    /// оставшемуся флагу).
     var morphAllNow: Bool {
-        if !morph { return false }
-        // HOLD — только пока прямо сейчас держат и SHIFT, и MORPH (не по оставшемуся флагу).
-        return settings.morphHold ? morphAllHeld && morphHeld && shiftHeld : settings.morphAll
+        return morph && morphAllHeld && morphHeld && shiftHeld
     }
 
     /// UNDO: с зажатой MORPH — сбросить изменения режима MORPH (режим не переключается), иначе — обычная отмена.

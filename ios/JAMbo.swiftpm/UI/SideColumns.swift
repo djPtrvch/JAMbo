@@ -220,21 +220,21 @@ struct SideButton: View {
 }
 
 /// MORPH: тап включает и выключает режим (жёлтая — включён; при касании сразу видно, каким станет режим, без белой
-/// подсветки); удержание + UNDO — сбросить изменения режима, отпускание тогда режим не переключает. SHIFT + двойной
-/// тап — ALL TRACKS вкл./выкл. (по умолчанию включён): пока выключен, внутри чёрная линия контура, как у FX и MOD
-/// в режиме toggle.
+/// подсветки); удержание + UNDO — сбросить изменения режима, отпускание тогда режим не переключает. Включён тапом
+/// (выбранная дорожка) — внутри чёрная линия контура, как у FX и MOD в режиме toggle; пока держат SHIFT + MORPH
+/// (все дорожки) — без линии.
 struct MorphButton: View {
     let model: AppModel
 
     var body: some View {
         let shown: Bool = model.morphHeld && !model.morphUsed && !model.shiftHeld ? !model.morph : model.morph
-        // Чёрная линия: SWITCH — пока ALL TRACKS выключен; HOLD — пока держат SHIFT + MORPH (все дорожки).
-        let all: Bool = model.settings.morphHold ? !model.morphAllHeld : model.settings.morphAll
+        // Чёрная линия: режим на выбранной дорожке (не держат SHIFT + MORPH).
+        let line: Bool = shown && !model.morphAllHeld
         return SideButton(title: "MORPH", accent: shown)
             .overlay(
                 RoundedRectangle(cornerRadius: Layout.radius)
                     .inset(by: 3)
-                    .stroke(all ? Color.clear : Color.black, lineWidth: 1)
+                    .stroke(line ? Color.black : Color.clear, lineWidth: 1)
             )
             .contentShape(Rectangle())
             .gesture(

@@ -389,7 +389,6 @@ final class MorphModesTests: XCTestCase {
     func testSettingsDefaults() {
         let s = AppSettings.decode(Data("{\"morphReturn\":99}".utf8))
         XCTAssertFalse(s.levelRelative)
-        XCTAssertTrue(s.morphAll, "ALL TRACKS по умолчанию включён")
         XCTAssertEqual(s.morphReturn, 0)
         XCTAssertTrue(s.mixKey)
         XCTAssertTrue(s.mixCrossfader)

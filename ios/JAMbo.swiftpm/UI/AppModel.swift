@@ -99,7 +99,7 @@ final class AppModel {
     @ObservationIgnored var _morph: Bool = false
     @ObservationIgnored var _morphHeld: Bool = false
     @ObservationIgnored var _morphUsed: Bool = false
-    /// MORPH → MODE HOLD: SHIFT + MORPH держат — все дорожки (отпустили — MORPH выключается).
+    /// SHIFT + MORPH держат — все дорожки (отпустили — MORPH выключается).
     @ObservationIgnored var _morphAllHeld: Bool = false
     /// Плавный возврат после выключения MORPH (SETTINGS → MORPH → RETURN; nil — нет).
     @ObservationIgnored var morphGlide: MorphGlide? = nil

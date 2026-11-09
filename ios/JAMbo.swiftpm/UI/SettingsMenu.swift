@@ -301,7 +301,7 @@ struct MixSettings: View {
     }
 }
 
-/// MORPH: ручки на все дорожки или на выбранную; возврат после выключения режима.
+/// MORPH: как работает тап и SHIFT + MORPH; возврат после выключения режима.
 struct MorphSettings: View {
     let model: AppModel
 
@@ -310,22 +310,9 @@ struct MorphSettings: View {
         let ret: [MenuChoice] = (0..<MorphReturn.names.count).map { (k: Int) -> MenuChoice in
             MenuChoice(title: MorphReturn.names[k], current: m.settings.morphReturn == k) { m.setMorphReturn(k) }
         }
-        let hold: Bool = m.settings.morphHold
-        let mode: [MenuChoice] = [
-            MenuChoice(title: "SWITCH", current: !hold) { m.setMorphHold(false) },
-            MenuChoice(title: "HOLD", current: hold) { m.setMorphHold(true) },
+        let rows: [FormRow] = [
+            .note("Tap MORPH: knobs change the selected track only. Hold SHIFT + MORPH: knobs change every track that has the parameter (each track moves by the same amount from its own value); let go — MORPH turns off."),
         ]
-        var rows: [FormRow] = [
-            .label("MODE"),
-            .choices(mode),
-            .note(hold
-                  ? "Tap MORPH: knobs change the selected track only. Hold SHIFT + MORPH: knobs change every track that has the parameter; let go — MORPH turns off."
-                  : "Tap MORPH: knobs change the selected track, or every track with ALL TRACKS on (SHIFT + tap on MORPH switches it)."),
-        ]
-        if !hold {
-            rows.append(.toggle("ALL TRACKS", m.settings.morphAll) { m.setMorphAll($0) })
-            rows.append(.note("ON: in MORPH a knob changes its parameter on every track that has it (each track moves by the same amount from its own value). OFF: only the selected track."))
-        }
         return FormRows(rows: rows + [
             .label("RETURN"),
             .choices(ret),

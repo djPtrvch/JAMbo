@@ -79,15 +79,10 @@ public struct AppSettings: Codable, Equatable, Sendable {
     /// SETTINGS → LEVEL (S9): регулятор справа у дорожки — ABSOLUTE (громкость MIX) или RELATIVE (подстройка
     /// Track.trim вниз от громкости MIX).
     public var levelRelative: Bool = false
-    /// SETTINGS → MORPH (S9): ручки в режиме MORPH — на все дорожки (сдвиг на ту же величину) или на выбранную;
-    /// возврат после выключения — MorphReturn.beats[morphReturn] долей (0 — сразу).
-    /// По умолчанию — на все дорожки (решение пользователя).
-    public var morphAll: Bool = true
+    /// SETTINGS → MORPH (S9): возврат после выключения режима — MorphReturn.beats[morphReturn] долей (0 — сразу).
+    /// ALL TRACKS и MODE SWITCH / HOLD убраны (9.11, решение пользователя): тап — выбранная дорожка, SHIFT + MORPH
+    /// держат — все дорожки; прежние ключи morphAll и morphHold в настройках не читаются.
     public var morphReturn: Int = 0
-    /// SETTINGS → MORPH → MODE (3.11, решение пользователя): false — SWITCH (как прежде: ALL TRACKS — переключатель,
-    /// SHIFT + тап по MORPH), true — HOLD (тап — только выбранная дорожка; SHIFT + MORPH держат — все дорожки,
-    /// отпустили — режим выключен).
-    public var morphHold: Bool = false
     /// SETTINGS → RANDOM (SHIFT + CHORD): случайный ритм ударных и прогрессия — вкл./выкл.; AUTO SWING — Swing
     /// дорожки по стилю ритма; ритм сразу на все ударные дорожки. Стиль — всегда общий (STYLE ALL TRACKS убран 4.11).
     public var randomDrums: Bool = false
@@ -164,7 +159,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
     }
 
     private enum CodingKeys: String, CodingKey { case appearance, pianoOctaves, velocity, record, sliceMap, scSends, latchFx, latchMod, rollGrid,
-                                         rollSound, levelRelative, morphAll, morphReturn, morphHold, mixKey, mixCrossfader,
+                                         rollSound, levelRelative, morphReturn, mixKey, mixCrossfader,
                                          clearSampleLocks, pitchSemitones, midi, sync,
                                          arrangeCompact, fxPictures, backgroundAudio, arrangeRepeats, stretchBeat,
                                          metronomeVol, arrangeScale, arrangeFollow, displayScale,
@@ -185,8 +180,6 @@ public struct AppSettings: Codable, Equatable, Sendable {
         rollGrid = Roll.grids.contains(g) ? g : Roll.gridDef
         rollSound = c.value(.rollSound, true)
         levelRelative = c.value(.levelRelative, false)
-        morphAll = c.value(.morphAll, true)
-        morphHold = c.value(.morphHold, false)
         let mr: Int = c.value(.morphReturn, 0)
         morphReturn = mr >= 0 && mr < MorphReturn.beats.count ? mr : 0
         mixKey = c.value(.mixKey, true)
@@ -229,9 +222,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         try c.encode(rollGrid, forKey: .rollGrid)
         try c.encode(rollSound, forKey: .rollSound)
         try c.encode(levelRelative, forKey: .levelRelative)
-        try c.encode(morphAll, forKey: .morphAll)
         try c.encode(morphReturn, forKey: .morphReturn)
-        try c.encode(morphHold, forKey: .morphHold)
         try c.encode(mixKey, forKey: .mixKey)
         try c.encode(mixCrossfader, forKey: .mixCrossfader)
         try c.encode(clearSampleLocks, forKey: .clearSampleLocks)
