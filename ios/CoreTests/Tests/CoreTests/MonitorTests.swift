@@ -208,16 +208,46 @@ final class MonitorTests: XCTestCase {
         return e
     }
 
-    /// Лимитер: громкий вход — выход не выше −0,5 dBFS.
+    /// Лимитер: громкий вход — выход не выше −0,5 dBFS (цепочка с коррекцией; нейтральная уходит из сигнала).
     func testLimiter() {
         var m = MonitorSettings()
-        let (c, _) = chain(nil, m)
+        let (c, _) = chain(sony(), m)
         let o = run(c, blocks: 40) { t, _ in Float(2 * sin(2 * Double.pi * 200 * Double(t) / 48000)) }
         // После перехода (25 мс) — не выше потолка.
         let peak: Float = (o.l.suffix(4800) + o.r.suffix(4800)).map { abs($0) }.max() ?? 0
         XCTAssertLessThanOrEqual(Double(peak), pow(10, -0.5 / 20) + 1e-6)
         XCTAssertGreaterThan(Double(peak), pow(10, -0.5 / 20) - 0.01)
         XCTAssertLessThan(c.limitGain.load(), 1)
+    }
+
+    /// Громкий бас (9.11, треск на бочке и басе): ровный синус 50 Гц выше потолка — усиление ровное, выход —
+    /// неискажённый синус (остаток после подгонки синуса ≤ −60 dB).
+    func testLimiterBassClean() {
+        let m = MonitorSettings()
+        let (c, _) = chain(sony(), m)
+        let sr: Double = 48000
+        let o = run(c, blocks: 600) { t, _ in Float(1.6 * sin(2 * Double.pi * 50 * Double(t) / sr)) }
+        let y: [Float] = Array(o.l.suffix(48000))
+        let t0: Int = o.l.count - 48000
+        var ss: Double = 0, cc: Double = 0
+        for (i, v) in y.enumerated() {
+            let w: Double = 2 * Double.pi * 50 * Double(t0 + i) / sr
+            ss += Double(v) * sin(w)
+            cc += Double(v) * cos(w)
+        }
+        let a: Double = 2 * ss / Double(y.count), b: Double = 2 * cc / Double(y.count)
+        var err: Double = 0, sig: Double = 0
+        for (i, v) in y.enumerated() {
+            let w: Double = 2 * Double.pi * 50 * Double(t0 + i) / sr
+            let fit: Double = a * sin(w) + b * cos(w)
+            err += pow(Double(v) - fit, 2)
+            sig += fit * fit
+        }
+        let db: Double = 10 * log10(err / sig)
+        print(String(format: "limiter, 50 Hz above ceiling: distortion %.1f dB", db))
+        XCTAssertLessThan(db, -60)
+        let peak: Float = y.map { abs($0) }.max() ?? 0
+        XCTAssertLessThanOrEqual(Double(peak), pow(10, -0.5 / 20) + 1e-6)
     }
 
     /// 44,1 и 96 кГц: коэффициенты по частоте, АЧХ — как расчётная.

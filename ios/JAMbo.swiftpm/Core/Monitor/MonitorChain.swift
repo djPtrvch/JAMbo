@@ -29,7 +29,16 @@ public final class MonitorChain: @unchecked Sendable {
     private var comp: Double = 1
     private var mono: Double = 0
     private var wet: Double = 0
+    /// Лимитер с упреждением: задержка входа (L, R), требуемое усиление (look + 1), сглаженное (look) и их сумма,
+    /// место в кольцах, огибающая и удержание.
+    private let ldl: UnsafeMutablePointer<Double>
+    private let ldr: UnsafeMutablePointer<Double>
+    private let lneed: UnsafeMutablePointer<Double>
+    private let lbox: UnsafeMutablePointer<Double>
+    private var lpos = 0
     private var limit: Double = 1
+    private var holdLeft = 0
+    private let holdN: Int
     private let fadeStep: Double
     private let release: Double
     private let ceiling: Double
@@ -51,6 +60,16 @@ public final class MonitorChain: @unchecked Sendable {
         wl.initialize(repeating: 0, count: AudioCore.maxFrames)
         wr = .allocate(capacity: AudioCore.maxFrames)
         wr.initialize(repeating: 0, count: AudioCore.maxFrames)
+        let la: Int = MonitorSpec.look
+        ldl = .allocate(capacity: la)
+        ldr = .allocate(capacity: la)
+        lneed = .allocate(capacity: la + 1)
+        lbox = .allocate(capacity: la)
+        ldl.initialize(repeating: 0, count: la)
+        ldr.initialize(repeating: 0, count: la)
+        lneed.initialize(repeating: 1, count: la + 1)
+        lbox.initialize(repeating: 1, count: la)
+        holdN = Int(MonitorSpec.hold * sampleRate)
         fadeStep = 1 / (MonitorSpec.fade * sampleRate)
         release = 1 - exp(-1 / (MonitorSpec.release * sampleRate))
         ceiling = pow(10, MonitorSpec.ceilingDb / 20)
@@ -68,6 +87,7 @@ public final class MonitorChain: @unchecked Sendable {
     deinit {
         ring.deallocate(); tgt.deallocate(); cur.deallocate(); state.deallocate()
         wl.deallocate(); wr.deallocate()
+        ldl.deallocate(); ldr.deallocate(); lneed.deallocate(); lbox.deallocate()
     }
 
     /// Новые параметры (основной поток; MonitorDesign.make, MonitorSpec.size значений).
@@ -92,7 +112,7 @@ public final class MonitorChain: @unchecked Sendable {
             return
         }
         let n: Int = Swift.min(frames, AudioCore.maxFrames)
-        let wetTarget: Double = tgt[MonitorSpec.onAt] > 0.5 && !raw ? 1 : 0
+        let wetTarget: Double = tgt[MonitorSpec.onAt] > 0.5 && !raw && !neutral() ? 1 : 0
         glide(n)
         var i = 0
         while i < n {
@@ -109,6 +129,20 @@ public final class MonitorChain: @unchecked Sendable {
         }
         processGain(n)
         output(left, right, n, wetTarget)
+    }
+
+    /// Цепочка ничего не меняет (без коррекции, комнаты, Mono и компенсации): уходит кроссфейдом — выход бит в бит
+    /// равен входу, без задержки лимитера (9.11).
+    @inline(__always)
+    private func neutral() -> Bool {
+        if tgt[MonitorSpec.compAt] != 1 || tgt[MonitorSpec.monoAt] != 0 || mono != 0 || room.active { return false }
+        var k = 0
+        while k < MonitorSpec.sections {
+            let c: UnsafeMutablePointer<Double> = tgt + k * 5
+            if c[0] != 1 || c[1] != 0 || c[2] != 0 || c[3] != 0 || c[4] != 0 { return false }
+            k += 1
+        }
+        return true
     }
 
     /// Коэффициенты биквадов — к цели за блок на долю 1 − e^(−n/τ); вплотную — ровно цель.
@@ -174,8 +208,9 @@ public final class MonitorChain: @unchecked Sendable {
         s[0] = s1l; s[1] = s2l; s[2] = s1r; s[3] = s2r
     }
 
-    /// Level compensation (линейно в блоке) и Safety limiter: потолок без задержки — снижение сразу, отпускание 50 мс;
-    /// ниже потолка усиление ровно 1.
+    /// Level compensation (линейно в блоке) и Safety limiter с упреждением look отсчётов (9.11): требуемое усиление —
+    /// минимум за look + 1 отсчётов, удержание 30 мс, отпускание 150 мс, затем среднее за look отсчётов — усиление
+    /// плавно доходит до нужного к приходу пика и не выше его (потолок не превышается). Выход цепочки задержан на look.
     @inline(__always)
     private func processGain(_ n: Int) {
         let l = wl, r = wr
@@ -192,27 +227,53 @@ public final class MonitorChain: @unchecked Sendable {
         }
         comp = c1
         let ceil: Double = ceiling, rel: Double = release
+        let la: Int = MonitorSpec.look
+        let inv: Double = 1 / Double(la)
+        let dl = ldl, dr = ldr, nd = lneed, bx = lbox
         var lg: Double = limit
+        var hold: Int = holdLeft
+        var pos: Int = lpos
+        var sum: Double = 0
+        var q = 0
+        while q < la { sum += bx[q]; q += 1 }
         var least: Double = 1
         var i = 0
         while i < n {
-            let al: Double = l[i] < 0 ? -l[i] : l[i]
-            let ar: Double = r[i] < 0 ? -r[i] : r[i]
+            let xl: Double = l[i], xr: Double = r[i]
+            let al: Double = xl < 0 ? -xl : xl
+            let ar: Double = xr < 0 ? -xr : xr
             let peak: Double = al > ar ? al : ar
-            let need: Double = peak > ceil ? ceil / peak : 1
-            if lg < 1 {
-                lg += (1 - lg) * rel
-                if lg > 0.999999 { lg = 1 }
+            nd[pos % (la + 1)] = peak > ceil ? ceil / peak : 1
+            var held: Double = 1
+            q = 0
+            while q <= la {
+                if nd[q] < held { held = nd[q] }
+                q += 1
             }
-            if need < lg { lg = need }
-            if lg < 1 {
-                l[i] *= lg
-                r[i] *= lg
-                if lg < least { least = lg }
+            if held < lg {
+                lg = held
+                hold = holdN
+            } else if hold > 0 {
+                hold -= 1
+            } else if lg < held {
+                lg += (held - lg) * rel
+                if lg > held - 1e-9 { lg = held }
             }
+            let k: Int = pos % la
+            sum += lg - bx[k]
+            bx[k] = lg
+            let g: Double = sum * inv
+            l[i] = dl[k] * g
+            r[i] = dr[k] * g
+            dl[k] = xl
+            dr[k] = xr
+            if g < least { least = g }
+            pos = (pos + 1) % (la * (la + 1))
             i += 1
         }
+        lpos = pos
         limit = lg
+        holdLeft = hold
         limitGain.store(Float(least))
     }
 

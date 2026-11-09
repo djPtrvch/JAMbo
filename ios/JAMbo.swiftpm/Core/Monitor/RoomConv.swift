@@ -390,6 +390,9 @@ public final class RoomStage: @unchecked Sendable {
         glide = Float(1 - exp(-1 / (0.02 * sampleRate)))
     }
 
+    /// Колбэк: комната звучит или идёт переход (цепочка не нейтральна).
+    var active: Bool { return cur != nil || fading || hasPending }
+
     /// Основной поток: новая комната (nil — Off).
     public func set(_ conv: RoomConv?) {
         let u: Unmanaged<RoomConv>? = conv.map { Unmanaged.passRetained($0) }

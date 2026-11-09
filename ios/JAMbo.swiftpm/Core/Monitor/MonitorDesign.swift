@@ -110,9 +110,12 @@ public enum MonitorSpec {
     public static let compMax: Double = 12
     /// Sub-check: ФНЧ 4-го порядка, Гц.
     public static let subHz: Double = 120
-    /// Потолок лимитера, dBFS, и его отпускание, с.
+    /// Потолок лимитера, dBFS, его удержание и отпускание, с; упреждение, отсчёты (9.11: без упреждения и с отпусканием
+    /// 50 мс усиление прыгало на каждом периоде баса — треск на бочке и басе).
     public static let ceilingDb: Double = -0.5
-    public static let release: Double = 0.05
+    public static let hold: Double = 0.03
+    public static let release: Double = 0.15
+    public static let look: Int = 64
     /// Плавность: переходы вкл./выкл. (Bypass, Mono, референс мимо цепочки), с; параметры и коэффициенты, с.
     public static let fade: Double = 0.025
     public static let glide: Double = 0.025
