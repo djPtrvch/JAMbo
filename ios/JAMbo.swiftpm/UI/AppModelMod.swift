@@ -130,10 +130,16 @@ extension AppModel {
     /// Нажатие MORPH. Тап — режим на выбранной дорожке. SHIFT и MORPH держат одновременно (в любом порядке, 3.11) —
     /// режим на всех дорожках, пока держат обе (выключен был — включается); отпустили — MORPH выключается, даже если
     /// был включён тапом (решение пользователя 3.11). Режимы SWITCH и ALL TRACKS убраны (9.11, решение пользователя).
+    /// MODE HOLD (SETTINGS → MORPH, 9.11): нажатие MORPH сразу включает режим на выбранной дорожке, отпускание — выключает.
     func morphPress() {
         morphHeld = true
         morphUsed = false
-        if shiftHeld { beginMorphAllHold() }
+        if shiftHeld {
+            beginMorphAllHold()
+        } else if settings.morphHoldMode {
+            morphUsed = true
+            if !morph { toggleMorph() }
+        }
     }
 
     /// Нажали SHIFT: при уже зажатой MORPH — режим на всех дорожках, пока держат обе.
@@ -153,6 +159,10 @@ extension AppModel {
         morphHeld = false
         if morphAllHeld {
             endMorphAllHold()
+            return
+        }
+        if settings.morphHoldMode {
+            if morph { toggleMorph() }
             return
         }
         if !morphUsed { toggleMorph() }

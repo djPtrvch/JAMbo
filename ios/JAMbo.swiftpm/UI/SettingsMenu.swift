@@ -311,7 +311,7 @@ struct MixSettings: View {
     }
 }
 
-/// MORPH: как работает тап и SHIFT + MORPH; возврат после выключения режима.
+/// MORPH: MODE — TAP или HOLD (выбранная дорожка), SHIFT + MORPH — все дорожки; возврат после выключения режима.
 struct MorphSettings: View {
     let model: AppModel
 
@@ -320,8 +320,15 @@ struct MorphSettings: View {
         let ret: [MenuChoice] = (0..<MorphReturn.names.count).map { (k: Int) -> MenuChoice in
             MenuChoice(title: MorphReturn.names[k], current: m.settings.morphReturn == k) { m.setMorphReturn(k) }
         }
+        let hold: Bool = m.settings.morphHoldMode
         let rows: [FormRow] = [
-            .note("Tap MORPH: knobs change the selected track only. Hold SHIFT + MORPH: knobs change every track that has the parameter (each track moves by the same amount from its own value); let go — MORPH turns off."),
+            .label("MODE"),
+            .choices([MenuChoice(title: "TAP", current: !hold) { m.updateSettings { $0.morphHoldMode = false } },
+                      MenuChoice(title: "HOLD", current: hold) { m.updateSettings { $0.morphHoldMode = true } }]),
+            .note(hold
+                  ? "HOLD: while you hold MORPH, knobs change the selected track; let go — MORPH turns off and the knobs return."
+                  : "TAP: tap MORPH to turn it on — knobs change the selected track; tap again to turn it off and return the knobs."),
+            .note("Hold SHIFT + MORPH (in either mode): knobs change every track that has the parameter (each track moves by the same amount from its own value); let go — MORPH turns off."),
         ]
         return FormRows(rows: rows + [
             .label("RETURN"),
