@@ -132,12 +132,12 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     <li class="ready"><span class="n">9</span><a href="#mod">Модуляция и MORPH</a></li>
     <li class="ready"><span class="n">10</span><a href="#fx">Эффекты дорожек</a></li>
     <li class="ready"><span class="n">11</span><a href="#eq">EQ</a></li>
-    <li class="soon"><span class="n">12</span><span>Мастер</span></li>
-    <li class="soon"><span class="n">13</span><span>Коррекция наушников</span></li>
-    <li class="soon"><span class="n">14</span><span>Автоматизация</span></li>
-    <li class="soon"><span class="n">15</span><span>Сетка паттернов</span></li>
-    <li class="soon"><span class="n">16</span><span>Аранжировщик</span></li>
-    <li class="soon"><span class="n">17</span><span>Проекты</span></li>
+    <li class="ready"><span class="n">12</span><a href="#master">Мастер</a></li>
+    <li class="ready"><span class="n">13</span><a href="#phones">Коррекция наушников</a></li>
+    <li class="ready"><span class="n">14</span><a href="#auto">Автоматизация</a></li>
+    <li class="ready"><span class="n">15</span><a href="#grid">Сетка паттернов</a></li>
+    <li class="ready"><span class="n">16</span><a href="#arranger">Аранжировщик</a></li>
+    <li class="ready"><span class="n">17</span><a href="#projects">Проекты</a></li>
     <li class="soon"><span class="n">18</span><span>SETTINGS</span></li>
     <li class="soon"><span class="n">19</span><span>MIDI</span></li>
     <li class="soon"><span class="n">20</span><span>SYNC и Ableton Link</span></li>
@@ -151,7 +151,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
   <div class="eyebrow">Руководство пользователя</div>
   <h1>JAMbo<span>.</span> Грувбокс для живых джемов</h1>
   <p>Названия кнопок и ручек даны так, как они написаны на экране, по-английски.</p>
-  <div class="chip">Черновик · <b>разделы 0–11</b></div>
+  <div class="chip">Черновик · <b>разделы 0–17</b></div>
 </div>
 
 <!-- ============ 0 ============ -->
@@ -781,15 +781,21 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
   <h3><span class="sn">9.3</span>MORPH</h3>
   <figure><div class="shot" data-mode="track" data-state="morph"></div><figcaption>MORPH включён. На дорожках 1 и 3 жёлтые точки — их ручки меняли.</figcaption></figure>
   <p>MORPH — режим для живых изменений звука, которые потом нужно отменить одним движением.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Режим</th><th>Как работает</th></tr></thead>
+    <tbody>
+      <tr><td>Обычный MORPH</td><td>Ручки меняют только выбранную дорожку. Выбирайте дорожки в строке дорожек и крутите нужные параметры на каждой по отдельности.</td></tr>
+      <tr><td>MORPH ALL TRACKS</td><td>Поворот ручки сразу меняет этот параметр на всех дорожках, где он есть. Например, Filter закрывается на всём треке одним движением.</td></tr>
+    </tbody>
+  </table></div>
+  <p>ALL TRACKS включён по умолчанию. SHIFT + тап по MORPH выключает и включает его; пока он выключен, внутри кнопки MORPH — тонкая чёрная линия.</p>
   <ol class="steps">
     <li>Тап по MORPH — кнопка загорается жёлтым.</li>
     <li>Крутите ручки. Меняется звук дорожки целиком, p-lock на шагах остаются. На изменённых дорожках — жёлтая точка.</li>
     <li>Тап по MORPH ещё раз — все ручки всех дорожек возвращаются туда, где были при включении.</li>
   </ol>
   <ul>
-    <li><b>ALL TRACKS</b> (включён по умолчанию) — ручка меняет тот же параметр сразу на всех дорожках. SHIFT + тап по MORPH выключает и включает ALL TRACKS. Пока он выключен, внутри кнопки MORPH — тонкая чёрная линия.</li>
-    <li><b>MORPH + UNDO</b> — сбросить накрученное, не выключая режим.</li>
-    <li>Правки в MORPH не попадают в UNDO.</li>
+    <li>Правки в MORPH не попадают в UNDO, и UNDO их не отменяет. Вернуть всё — только выключением MORPH.</li>
     <li>В SETTINGS → MORPH: <b>MODE</b> — SWITCH (как описано выше) или HOLD: тап по MORPH меняет только выбранную дорожку, а SHIFT + MORPH, пока их держат, — все дорожки; <b>RETURN</b> — плавный возврат за 1/4, 1/2, 1 или 2 такта вместо мгновенного.</li>
   </ul>
 </section>
@@ -891,7 +897,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
   <ul>
     <li><b>M/S</b> — на что действует полоса: STEREO (весь звук), MID (середина) или SIDE (бока). Точки MID красные, SIDE оранжевые, у них свои кривые.</li>
     <li><b>DYN</b> — динамическая полоса (Bell и полки): полоса сдвигается на RANGE, когда звук источника громче порога THRESHOLD. Источник — SELF (сам канал) или любая дорожка.</li>
-    <li><b>LISTEN</b> — пока держите, слышно только то, что попадает в выбранную полосу. Удобно искать резонанс.</li>
+    <li><b>LISTEN</b> — тап включает прослушивание (кнопка жёлтая), повторный тап выключает. Пока LISTEN включён, слышно только то, что попадает в полосу: возьмите любую точку и ведите её — слушается взятая полоса. Удобно искать резонанс.</li>
   </ul>
 
   <h3><span class="sn">11.4</span>Пресеты, BYPASS, сравнение</h3>
@@ -902,7 +908,230 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
   </ul>
 </section>
 
-<footer class="end">JAMbo · Руководство пользователя · черновик разделов 0–11. Следующие разделы появятся на этой же странице.</footer>
+<!-- ============ 12 ============ -->
+<section class="chapter" id="master">
+  <header><span class="num">12</span><h2>Мастер</h2></header>
+  <p class="lede">Общая обработка всего трека: сатуратор, компрессор, клиппер, лимитер.</p>
+
+  <h3><span class="sn">12.1</span>Режим MST</h3>
+  <figure><div class="shot" data-mode="mst"></div><figcaption>MST: ручки цепочки мастера, индикация COMP | CLIP | LIM слева, скоп справа.</figcaption></figure>
+  <p>Тап по MST в строке дорожек. Звук идёт по цепочке: сумма дорожек → EQ мастера → <b>SAT</b> (сатуратор) → <b>COMP</b> (компрессор) → <b>CLIP</b> (клиппер) → <b>LIM</b> (лимитер) → громкость выхода. Каждая строка ручек — один модуль, сверху вниз в том же порядке.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Модуль</th><th>Ручки</th><th>Для чего</th></tr></thead>
+    <tbody>
+      <tr><td>SAT</td><td>Drive, Type (TAPE, TUBE, EDGE), Tone, Mix</td><td>Тёплое насыщение и плотность.</td></tr>
+      <tr><td>COMP</td><td>Threshold, Attack, Release, Makeup</td><td>«Склеивает» микс, выравнивает громкость.</td></tr>
+      <tr><td>CLIP</td><td>Input, Ceiling, Softness, Bass</td><td>Срезает пики, даёт громкость без провалов.</td></tr>
+      <tr><td>LIM</td><td>Input, Ceiling, Lookahead, Release</td><td>Последняя защита: выход не выше Ceiling.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3><span class="sn">12.2</span>Индикация и скоп</h3>
+  <ul>
+    <li>В окне слева — три блока <b>COMP | CLIP | LIM</b>, у каждого три полосы: <b>IN</b> (вход), <b>GR</b> (сколько модуль прижимает, оранжевым сверху) и <b>OUT</b> (выход). Белая риска на IN — порог.</li>
+    <li>Как читать: IN или OUT красный — перегруз. GR в норме — компрессор 2–6 dB, клиппер и лимитер 1–4 dB.</li>
+    <li>Справа — скоп мастера: сверху гониометр (стереобаза), снизу осциллограмма. Кнопки COMP, CLIP, LIM под скопом добавляют на осциллограмму сигнал после этого модуля.</li>
+  </ul>
+
+  <h3><span class="sn">12.3</span>Окна модулей</h3>
+  <figure><div class="shot" data-mode="mst" data-zone="upper" data-state="comp"></div><figcaption>Окно компрессора: вход серым, выход жёлтым, сжатие оранжевым сверху, слева поверх — кривая TRANSFER. Сигнал — для примера.</figcaption></figure>
+  <ul>
+    <li>Кнопки SAT, COMP, CLIP, LIM под окном индикации (или тап по блоку индикации) открывают окно модуля на месте центра.</li>
+    <li>Вверху — все параметры модуля, в том числе те, которых нет на ручках: у компрессора RATIO, KNEE, MIX, SC HPF; у сатуратора FOCUS. Поле меняется пальцем вверх-вниз, двойной тап — ввод числом.</li>
+    <li>Тап по названию слева (например, COMP ▾) — переключиться на окно другого модуля.</li>
+    <li><b>PRESETS</b> — свои пресеты у каждого модуля, общие для всех проектов. <b>BYPASS</b> — выключить модуль. ✕ — закрыть окно.</li>
+    <li>Двойной тап по дисплею — FREEZE: картинка замирает, чтобы её рассмотреть.</li>
+    <li><b>SHIFT</b> при MST: кнопки модулей показывают BYPASS — тап выключает и включает модуль, не открывая окно.</li>
+  </ul>
+  <p>Громкость выхода — регулятор на измерителе справа при MIX или MST. Масштаб дисплеев — SETTINGS → APPEARANCE → MASTER FX DISPLAY SCALE.</p>
+</section>
+
+<!-- ============ 13 ============ -->
+<section class="chapter" id="phones">
+  <header><span class="num">13</span><h2>Коррекция наушников</h2></header>
+  <p class="lede">Сводить в наушниках, как на мониторах, и проверять микс на разных системах.</p>
+
+  <h3><span class="sn">13.1</span>Окно коррекции</h3>
+  <figure><div class="shot" data-mode="mst" data-zone="upper" data-state="phones"></div><figcaption>Окно коррекции: вверху — кривая наушников, ниже — строка MONITOR. Кривая — для примера.</figcaption></figure>
+  <p>Откройте EQ при MIX или MST и тапните по имени канала (MASTER) — откроется окно коррекции. Пока коррекция меняет звук, над CPU горит жёлтый значок наушников: тап по нему тоже открывает окно.</p>
+  <p>Коррекция стоит в самом конце выхода и действует только на прослушивание: в экспорт песни, запись мастера, стемы и REC она не попадает.</p>
+
+  <h3><span class="sn">13.2</span>Строка коррекции</h3>
+  <ul>
+    <li><b>PHONE CURVE | CORRECT CURVE</b> — две кривые: профиль ваших наушников и своя правка поверх него. Тап выбирает, какую править; правятся они как EQ (раздел 11).</li>
+    <li><b>CORRECTION</b> — сила профиля, 0–100 %.</li>
+    <li><b>LEVEL</b> — компенсация громкости, только показ: при сравнении меняется баланс, а не громкость.</li>
+    <li><b>PRESETS</b> — профили наушников, IMPORT и EXPORT профилей AutoEQ.</li>
+    <li><b>BYPASS</b> — выключить всю коррекцию.</li>
+  </ul>
+
+  <h3><span class="sn">13.3</span>Строка MONITOR</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Поле</th><th>Что делает</th></tr></thead>
+    <tbody>
+      <tr><td>SPACE</td><td>Где звучит микс: Off, Studio, Home Hi-Fi, Car, Club, Small Speakers, Phone, Earbuds. Удержание пункта в меню сохраняет в него текущие настройки.</td></tr>
+      <tr><td>AMBIENCE</td><td>Сколько пространства комнаты.</td></tr>
+      <tr><td>EAR TONE</td><td>Окраска звука ухом: 100 % — как есть, 0 % — выровнено.</td></tr>
+      <tr><td>MONO</td><td>Проверка в моно.</td></tr>
+      <tr><td>SUB</td><td>Проверка низа.</td></tr>
+      <tr><td>HEAD TRACK</td><td>Фронтальная камера следит за поворотом головы: колонки остаются на месте, как в комнате. Горит жёлтым, пока лицо видно.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ============ 14 ============ -->
+<section class="chapter" id="auto">
+  <header><span class="num">14</span><h2>Автоматизация</h2></header>
+  <p class="lede">Кривые изменения ручек во времени — в аранжировщике.</p>
+
+  <h3><span class="sn">14.1</span>Окно AUTO</h3>
+  <figure><div class="shot" data-mode="track" data-state="arrauto"></div><figcaption>Аранжировщик с окном AUTO: кривая Filter на дорожке 1, выбранная точка — жёлтая.</figcaption></figure>
+  <p>Автоматизация рисуется на таймлайне аранжировщика (раздел 16). Кнопка AUTO (волна с точками) в строке кнопок аранжировщика открывает окно AUTO вместо STEPS.</p>
+  <ul>
+    <li>Слева — список кривых выбранной дорожки. «+» — добавить кривую для любой из 16 ручек.</li>
+    <li>Кривые хранятся в блоках: едут, копируются и удаляются вместе с блоком.</li>
+    <li>Кривая действует от первой до последней точки блока, пока дорожка играет по таймлайну. Вне точек и при игре из сетки — значение ручки.</li>
+  </ul>
+
+  <h3><span class="sn">14.2</span>Точки и рисование</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Жест</th><th>Что делает</th></tr></thead>
+    <tbody>
+      <tr><td>Тап по пустому</td><td>Новая точка (с SNAP TO GRID — на линии сетки).</td></tr>
+      <tr><td>Палец на точке</td><td>Двигать точку.</td></tr>
+      <tr><td>Двойной тап по точке</td><td>Удалить точку.</td></tr>
+      <tr><td>Карандаш</td><td>Рисовать кривую пальцем.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3><span class="sn">14.3</span>Запись ручками</h3>
+  <ol class="steps">
+    <li>В аранжировщике включите AUTO и REC (у AUTO появится красная обводка).</li>
+    <li>Запустите PLAY и крутите ручки — повороты пишутся в кривые. Ноты так не пишутся.</li>
+  </ol>
+  <p>Пока палец на ручке, слышна рука; отпустили — снова кривая. На ручке с действующей кривой снаружи кольца — жёлтая риска.</p>
+</section>
+
+<!-- ============ 15 ============ -->
+<section class="chapter" id="grid">
+  <header><span class="num">15</span><h2>Сетка паттернов</h2></header>
+  <p class="lede">Клипы дорожек для живого исполнения.</p>
+
+  <h3><span class="sn">15.1</span>Клипы и строки</h3>
+  <figure><div class="shot" data-mode="track" data-state="grid"></div><figcaption>Сетка паттернов: строка Intro играет (полосы хода внизу), клип дорожки 1 выбран для правки (жёлтый контур). Паттерны — для примера.</figcaption></figure>
+  <p>PATTERNS открывает сетку на месте центра. Столбцы — дорожки, строки — сцены. Ячейка — <b>клип</b>: какие страницы паттерна играют, а также гамма, нота и настройки эффектов.</p>
+  <ul>
+    <li><b>Тап по клипу</b> запускает его. Новый клип стартует, когда текущий доиграет, — без сбоя ритма. Ожидающий клип мигает, играющий светлее, внизу — полоса хода.</li>
+    <li><b>Тап по пустой ячейке</b> — новый клип с пустой страницей, она сразу открыта в секвенсоре.</li>
+    <li><b>Колонка строк</b> слева: имя строки и число повторов. Тап запускает всю строку. «+» внизу добавляет строку.</li>
+    <li><b>Рамка</b> — протяжка по свободному месту выделяет несколько клипов или строк.</li>
+  </ul>
+
+  <h3><span class="sn">15.2</span>Кнопки справа</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Кнопка</th><th>Что делает</th></tr></thead>
+    <tbody>
+      <tr><td>☰</td><td>Меню сетки: START FROM ROW (с какой строки начинать), AT THE END (что делать в конце строк) и другое.</td></tr>
+      <tr><td>LOOP ROW</td><td>Строка играет по кругу, не переходя к следующей.</td></tr>
+      <tr><td>STEPS</td><td>Показать или скрыть строку дорожек, секвенсор и клавиатуру — тогда видно больше строк сетки.</td></tr>
+      <tr><td>Запись аранжировки</td><td>Всё, что играет в сетке, пишется на таймлайн аранжировщика.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3><span class="sn">15.3</span>Клипы в аранжировку</h3>
+  <ul>
+    <li><b>TO ARRANGE</b> в меню клипа или строки — переносит их на таймлайн с курсора.</li>
+    <li>Клип (или выделение) можно удержать и перетащить на кнопку ARRANGE — откроется аранжировщик, клип встанет под пальцем.</li>
+  </ul>
+
+  <h3><span class="sn">15.4</span>Переход между проектами</h3>
+  <p>При открытии проекта JAMbo спрашивает: <b>LOAD</b> — заменить текущий сразу; <b>MIX</b> — плавный переход: играющие паттерны остаются в нижней строке (PREV), а справа от сетки появляется вертикальный кроссфейдер — им переводят темп, громкости и мастер со старого проекта на новый; <b>IMPORT</b> — добавить строки проекта в свободные строки этой сетки.</p>
+</section>
+
+<!-- ============ 16 ============ -->
+<section class="chapter" id="arranger">
+  <header><span class="num">16</span><h2>Аранжировщик</h2></header>
+  <p class="lede">Сборка трека из клипов на таймлайне.</p>
+
+  <h3><span class="sn">16.1</span>Окно аранжировщика</h3>
+  <figure><div class="shot" data-mode="track" data-state="arr"></div><figcaption>Аранжировщик: секции Intro и Drop, выбранная дорожка 1 (жёлтые линии), выбранный блок (белая рамка), плейхед. Блоки — для примера.</figcaption></figure>
+  <p>ARRANGE открывает аранжировщик. Один такт — 16 шагов, как в секвенсоре. PLAY в аранжировщике играет таймлайн с курсора; вне его — сетку паттернов.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Кнопка</th><th>Что делает</th></tr></thead>
+    <tbody>
+      <tr><td>Сетка</td><td>Шаг сетки (1 BAR, 1/2, 1/4, 1 STEP) и SNAP TO GRID — прилипание к сетке.</td></tr>
+      <tr><td>Ножницы</td><td>TRIM — разрезать блок под курсором.</td></tr>
+      <tr><td>Стрелка к черте</td><td>Курсор в начало.</td></tr>
+      <tr><td>LOOP</td><td>Петля по выделенному на линейке диапазону.</td></tr>
+      <tr><td>AUTO</td><td>Окно автоматизации (раздел 14).</td></tr>
+      <tr><td>Ручка</td><td>Окно дорожки с ручками поверх таймлайна.</td></tr>
+      <tr><td>STEPS</td><td>Строка дорожек, секвенсор и клавиатура внизу — правят выбранный блок.</td></tr>
+      <tr><td>REF</td><td>Строка референс-трека (раздел 16.4).</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3><span class="sn">16.2</span>Блоки</h3>
+  <p>Блок — копия клипа на таймлайне. Правка клипа в сетке блок не меняет.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Жест</th><th>Что делает</th></tr></thead>
+    <tbody>
+      <tr><td>Тап по блоку</td><td>Выбрать (белая рамка).</td></tr>
+      <tr><td>Двойной тап по пустому месту</td><td>Меню: PASTE и клипы дорожки — блок встаёт сюда.</td></tr>
+      <tr><td>Двойной тап по блоку</td><td>COPY, PASTE, DUPLICATE, DELETE.</td></tr>
+      <tr><td>Удержание блока</td><td>Поднять и перетащить.</td></tr>
+      <tr><td>Край блока</td><td>Тянуть — длина.</td></tr>
+      <tr><td>Удержание по пустому и протяжка</td><td>Рамка выделения.</td></tr>
+      <tr><td>Палец по пустому</td><td>Прокрутка; два пальца — масштаб.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3><span class="sn">16.3</span>Линейка и секции</h3>
+  <ul>
+    <li>Тап по линейке — курсор. Протяжка по номерам тактов — выделить диапазон (для петли и секций).</li>
+    <li>Двойной тап по линейке — ADD SECTION, на секции — RENAME и DELETE SECTION.</li>
+    <li>Плейхед (жёлтая линия с флажком) можно тянуть.</li>
+    <li>Слева от линейки — время плейхеда и длина трека.</li>
+  </ul>
+
+  <h3><span class="sn">16.4</span>Дорожки и REF</h3>
+  <ul>
+    <li>Заголовок дорожки: громкость с метром, имя, M и S. Тап — выбрать дорожку, двойной тап — меню дорожки (COPY, PASTE, DUPLICATE всех блоков и другое).</li>
+    <li><b>REF</b> — референс-трек: файл из библиотеки сверху таймлайна. Кнопками A/B слева от линейки переключают свой микс и референс без паузы. Референс идёт мимо мастера.</li>
+    <li>Готовый трек — PROJECTS → EXPORT SONG (раздел 17).</li>
+  </ul>
+</section>
+
+<!-- ============ 17 ============ -->
+<section class="chapter" id="projects">
+  <header><span class="num">17</span><h2>Проекты</h2></header>
+  <p class="lede">Сохранение, обмен и экспорт.</p>
+
+  <h3><span class="sn">17.1</span>Меню PROJECTS</h3>
+  <figure><div class="shot" data-mode="track" data-zone="upper" data-state="projects"></div><figcaption>☰ → PROJECTS. Цвет тональности — насколько проект близок к открытому. Проекты — для примера.</figcaption></figure>
+  <div class="tbl"><table>
+    <thead><tr><th>Кнопка</th><th>Что делает</th></tr></thead>
+    <tbody>
+      <tr><td>NEW</td><td>Новый пустой проект.</td></tr>
+      <tr><td>SAVE</td><td>Сохранить. У нового проекта — окно имени со случайным свободным именем.</td></tr>
+      <tr><td>SAVE AS</td><td>Сохранить копию под новым именем и работать дальше в ней.</td></tr>
+      <tr><td>EXPORT</td><td>Проект одним файлом .jambo со всеми сэмплами — в «Файлы».</td></tr>
+      <tr><td>IMPORT</td><td>Открыть файл .jambo.</td></tr>
+      <tr><td>EXPORT SONG</td><td>Аранжировку — в аудиофайл: WAV (16, 24, 32 бит) или M4A (AAC или без потерь), 44,1 или 48 кГц, с хвостом эффектов.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3><span class="sn">17.2</span>Список проектов</h3>
+  <ul>
+    <li>В строке — имя, время изменения, темп и тональность. Тональность окрашена по близости к открытому проекту: жёлтая — та же или соседняя, оранжевая — через 2–3 шага по квинтовому кругу, красная — далеко. Удобно подбирать проекты для перехода MIX.</li>
+    <li>Тап — открыть: LOAD, MIX или IMPORT (раздел 15.4).</li>
+    <li>Свайп влево — карандаш (переименовать) и корзина (удалить).</li>
+  </ul>
+
+  <h3><span class="sn">17.3</span>Автосохранение</h3>
+  <p>Через пару секунд после любого изменения работа сохраняется в отдельную запись <b>Autosave</b> (в списке — жёлтым). Сам проект меняется только кнопками SAVE и SAVE AS. Пока есть несохранённые изменения, рядом с именем написано «unsaved».</p>
+</section>
+
+<footer class="end">JAMbo · Руководство пользователя · черновик разделов 0–17. Следующие разделы появятся на этой же странице.</footer>
 </main>
 </div>
 
@@ -1028,7 +1257,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
 
   // ---------- zones ----------
   function topBar(mode, state) {
-    var eqOn = state === "eq";
+    var eqOn = state === "eq" || state === "phones";
     var y = 0, h = TOP, s = "";
     // left group (220): burger 52, BPM, metronome 52
     s += box(PAD, y, 52, h, "", (function () { var b = ""; for (var i = 0; i < 3; i++) b += box(15, 15 + i * 7, 22, 2, "background:var(--text);border-radius:1px"); return b; })());
@@ -1054,8 +1283,8 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     s += tile(x, y, flex, h, state === "roll" ? "var(--text)" : "var(--panel2)", icon("piano", flex, h, state === "roll" ? "var(--bg)" : "var(--text)")); x += flex + GAP;
     s += btn(x, y, TOPBTN, h, "EQ", eqOn ? { fill: "var(--text)", color: "var(--bg)" } : {});
     // right group: PATTERNS, ARRANGE, CPU above the meter
-    s += btn(RIGHT_X, y, TOPBTN, h, "PATTERNS");
-    s += btn(RIGHT_X + TOPBTN + GAP, y, TOPBTN, h, "ARRANGE");
+    s += btn(RIGHT_X, y, TOPBTN, h, "PATTERNS", state === "grid" ? { fill: "var(--text)", color: "var(--bg)" } : {});
+    s += btn(RIGHT_X + TOPBTN + GAP, y, TOPBTN, h, "ARRANGE", state === "arr" || state === "arrauto" ? { fill: "var(--text)", color: "var(--bg)" } : {});
     s += box(METER_X - 9, y + 7, 48, 48, "", '<div class="lbl" style="left:0;top:0;width:48px;height:48px;display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--dim)">CPU\n12%</div>');
     return s;
   }
@@ -1486,14 +1715,21 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     return s;
   }
 
+  // FxPreview: same layout as the synth window — title, 64×64 field (up to 144 pt), four "label · value" rows.
   function delayPicture(w, h) {
     var s = '<div class="lbl" style="left:8px;top:14px;text-align:left;font-size:13px;font-weight:700;color:var(--text)">DELAY</div>';
-    var fx = 14, fy = 44, fw = w - 28, fh = h - 44 - 24, gap = fw / 5.2, fb = .4, g = "";
-    for (var i = 0; i < 6; i++) {
-      var x = fx + i * gap, hh = fh * Math.pow(fb, i) * .9; if (hh < 2 || x > fx + fw) break;
-      g += '<rect x="' + (x - 1.5) + '" y="' + (fy + fh / 2 - hh / 2) + '" width="3" height="' + hh + '" fill="var(--text)" opacity="' + (1 - i * .14) + '"/>';
-    }
-    return s + svg(w, h, g);
+    var top = 8 + 6 + 17 + 4, avail = h - top - 8, rowsH = 4 * 13 + 3 * 8;
+    var side = Math.min(144, w - 28, avail - rowsH - 22), block = side + 8 + 14 + rowsH, y0 = top + (avail - block) / 2, k = side / 64;
+    var dx = 0.05 + 0.4 * (Math.log(0.5 / 0.125) / Math.log(32)), fb = 0.4, x = dx, hgt = 1, ech = [];
+    while (x <= 1.0001 && hgt >= 0.03) { ech.push([x, hgt]); x += dx; hgt *= fb; }
+    var bw = 0.7 * 1.7, x0 = 4 + bw / 2, fw = 56 - bw, g = "";
+    ech.forEach(function (e) {
+      var xx = x0 + fw * (e[0] - ech[0][0]), hh = 40 * e[1], a = 0.25 + 0.75 * e[1];
+      g += '<rect x="' + ((xx - bw / 2) * k).toFixed(2) + '" y="' + ((32 - hh / 2) * k).toFixed(2) + '" width="' + (bw * k).toFixed(2) + '" height="' + (hh * k).toFixed(2) + '" rx="' + (bw / 2 * k).toFixed(2) + '" fill="color-mix(in srgb, var(--text) ' + Math.round(a * 100) + '%, var(--panel))"/>';
+    });
+    s += svg(side, side, g, (w - side) / 2, y0 + 3);
+    ["Dly Time · 1/8", "Dly Feedback · 40%", "Dly Spread · 0%", "Dly Filter · OFF"].forEach(function (r, i) { s += '<div class="lbl" style="left:14px;top:' + (y0 + side + 8 + 14 + i * 21) + 'px;text-align:left;font-size:11px;letter-spacing:.44px;color:var(--text)">' + r + "</div>"; });
+    return s;
   }
 
   function eqResp(bands, f) {
@@ -1560,16 +1796,248 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     return s;
   }
 
+  // ---------- master module window (COMP): strip + LEVEL display with TRANSFER overlay and IN/GR/OUT block ----------
+  function fieldTile(x, y, w, h, lab, val) {
+    return tile(x, y, w, h, "var(--panel)", '<div class="lbl" style="left:10px;top:' + (h / 2 - 15) + 'px;text-align:left;font-size:9px;letter-spacing:.8px;color:var(--dim)">' + lab + '</div><div class="lbl" style="left:10px;top:' + (h / 2 - 3) + 'px;text-align:left;font-size:16px;color:var(--text)">' + val + "</div>");
+  }
+  function eqToolTile(x, y, w, h, t, on) { return tile(x, y, w, h, on ? "var(--accent)" : "var(--panel2)", label(t, w, h, "font-size:12px;font-weight:700;letter-spacing:.8px;color:" + (on ? "var(--onAccent)" : "var(--text)"))); }
+  function compWindow() {
+    var a = centerArea(), bar = U.bar, g = GAP, s = "";
+    var high = a.h - bar - g, transfer = Math.min(a.w * 0.4, high * 1.4), x0 = 52 + g, end = transfer - g - 1, lw = (end - x0 - 3 * g) / 4;
+    s += '<div class="lbl" style="left:' + a.x + "px;top:" + (a.y + bar / 2 - 13) + 'px;width:52px;font-size:11px;letter-spacing:.9px;color:var(--dim)">MASTER\nCOMP ▾</div>';
+    [["THRESHOLD", "-10.0 dB"], ["ATTACK", "30 ms"], ["RELEASE", "400 ms"], ["MAKEUP", "0.0 dB"]].forEach(function (f, i) { s += fieldTile(a.x + x0 + i * (lw + g), a.y, lw, bar, f[0], f[1]); });
+    s += box(a.x + transfer - 1, a.y + 8, 1, bar - 16, "background:var(--line)");
+    var rx = a.x + transfer + g, right = a.x + a.w - bar - 2 * 100 - 3 * g, rw = (right - rx - 4 * g) / 4;
+    [["RATIO", "2.00:1"], ["KNEE", "6.0 dB"], ["MIX", "100%"], ["SC HPF", "90 Hz"]].forEach(function (f, i) { s += fieldTile(rx + i * (rw + g), a.y, rw, bar, f[0], f[1]); });
+    s += eqToolTile(right + g, a.y, 100, bar, "PRESETS") + eqToolTile(right + 2 * g + 100, a.y, 100, bar, "BYPASS");
+    s += tool(a.x + a.w - bar, a.y, bar, bar, "✕");
+    var py = a.y + bar + g, pw = a.w - 96 - g, ph = high, p = "";
+    function Yd(db) { return Math.min(ph, -db / 48 * ph); }
+    for (var d = 0; d >= -48; d -= 6) p += '<path d="M0 ' + (Math.round(Yd(d)) + .5) + " H" + pw + '" stroke="var(--gridStrong)" stroke-opacity="' + (d % 12 === 0 ? .6 : .3) + '"/>';
+    var n = 240, inl = "", outl = "", grl = "";
+    for (var i = 0; i <= n; i++) {
+      var x = pw * i / n, beat = (i % 30) / 30, env = Math.exp(-beat * 5);
+      var inp = -20 + 15 * env + 2 * Math.sin(i * 1.7), gr = Math.max(0, (inp + 10) * 0.5), out = inp - gr;
+      inl += (i ? " L" : "M") + x.toFixed(1) + " " + Yd(inp).toFixed(1);
+      outl += (i ? " L" : "M") + x.toFixed(1) + " " + Yd(out).toFixed(1);
+      grl += (i ? " L" : "M") + x.toFixed(1) + " " + (gr / 18 * ph * 0.375).toFixed(1);
+    }
+    p += '<path d="' + inl + " L" + pw + " " + ph + " L0 " + ph + ' Z" fill="var(--dim)" fill-opacity=".35"/><path d="' + inl + '" fill="none" stroke="var(--dim)"/>';
+    p += '<path d="' + outl + " L" + pw + " " + ph + " L0 " + ph + ' Z" fill="var(--accent)" fill-opacity=".15"/><path d="' + outl + '" fill="none" stroke="var(--accent)" stroke-width="1.5"/>';
+    p += '<path d="' + grl + " L" + pw + " 0 L0 0 Z" + '" fill="var(--gr)" fill-opacity=".18"/><path d="' + grl + '" fill="none" stroke="var(--gr)" stroke-width="1.5"/>';
+    var ty = Yd(-10);
+    p += '<path d="M0 ' + ty + " H" + pw + '" stroke="var(--text)" stroke-dasharray="4 3"/><text x="' + (pw - 6) + '" y="' + (ty - 4) + '" text-anchor="end" font-size="11" fill="var(--text)">-10.0</text>';
+    p += '<text x="' + (pw - 6) + '" y="' + (ph - 4) + '" text-anchor="end" font-size="9" letter-spacing="1" fill="var(--dim)">LEVEL</text>';
+    // TRANSFER overlay (left)
+    var tw = transfer, tr = '<rect x="0" y="0" width="' + tw + '" height="' + ph + '" fill="var(--panel)" fill-opacity=".72"/>', tc = "";
+    for (i = 0; i <= 60; i++) { var inDb = -48 + 48 * i / 60, o = inDb > -10 ? -10 + (inDb + 10) / 2 : inDb; tc += (i ? " L" : "M") + (tw * i / 60).toFixed(1) + " " + Yd(o).toFixed(1); }
+    tr += '<path d="M0 ' + ph + " L" + tw + ' 0" stroke="var(--gridStrong)" stroke-dasharray="3 3"/><path d="' + tc + '" fill="none" stroke="var(--text)" stroke-width="2"/>';
+    tr += '<text x="' + (tw - 6) + '" y="' + (ph - 4) + '" text-anchor="end" font-size="9" letter-spacing="1" fill="var(--dim)">TRANSFER</text>';
+    s += box(a.x, py, pw, ph, "background:var(--panel);border-radius:10px;overflow:hidden", svg(pw, ph, p + tr));
+    // IN / GR / OUT block
+    var bx = a.x + pw + g, bb = "", bh = ph - 40, lv = [.62, .2, .5];
+    for (var k = 0; k < 3; k++) {
+      var cx = 96 * (k + .5) / 3 - 4.5;
+      bb += box(cx, 16, 9, bh, "background:var(--meterTrack);border-radius:3px;overflow:hidden", k === 1 ? box(0, 0, 9, bh * lv[k], "background:var(--gr)") : box(0, bh * (1 - lv[k]), 9, bh * lv[k], "background:var(--accent)"));
+      bb += '<div class="lbl" style="left:' + (cx - 8) + "px;top:" + (16 + bh + 4) + 'px;width:25px;font-size:9px;color:var(--dim)">' + ["IN", "GR", "OUT"][k] + "</div>";
+    }
+    bb += '<div class="lbl" style="left:0;top:2px;width:96px;font-size:10px;letter-spacing:1px;color:var(--dim)">COMP</div>';
+    s += box(bx, py, 96, ph, "background:var(--panel);border-radius:10px", bb);
+    return s;
+  }
+
+  // ---------- headphone correction (EQ window, phones mode) ----------
+  function phonesWindow() {
+    var a = centerArea(), bar = U.bar, g = GAP, s = "";
+    var half = (TOPBTN - GAP) / 2, flex = (GRID_W - 4 * TOPBTN - 2 * half - 7 * GAP) / 2;
+    var undoMax = GRID_X + TOPBTN + g + flex + g + TOPBTN, eqMin = GRID_X + GRID_W - TOPBTN;
+    var x0 = a.x + 52 + g, w4 = (undoMax - x0 - 3 * g) / 4, w2 = (eqMin - undoMax - 3 * g) / 2, wa = w2 * 1.3;
+    var slots = [0, 1, 2, 3].map(function (i) { return [x0 + i * (w4 + g), w4]; }).concat([[undoMax + g, wa], [undoMax + 2 * g + wa, 2 * w2 - wa], [eqMin, TOPBTN], [RIGHT_X, TOPBTN], [RIGHT_X + TOPBTN + g, TOPBTN]]);
+    s += '<div class="lbl" style="left:' + a.x + "px;top:" + (a.y + bar / 2 - 13) + 'px;width:52px;font-size:11px;letter-spacing:.9px;color:var(--text)">CORRECT\nEQ</div>';
+    [["TYPE", "Bell"], ["FREQ", "3.20 kHz"], ["GAIN", "-2.5 dB"], ["Q", "2.00"]].forEach(function (f, i) { s += fieldTile(slots[i][0], a.y, slots[i][1], bar, f[0], f[1]); });
+    var cw = slots[4][1];
+    s += tile(slots[4][0], a.y, cw, bar, "var(--panel2)", box(0, 0, cw / 2, bar, "background:var(--text);border-radius:10px 0 0 10px", label("PHONE\nCURVE", cw / 2, bar, "font-size:11px;font-weight:700;color:var(--bg)")) + label("", cw, bar) + box(cw / 2, 0, cw / 2, bar, "", label("CORRECT\nCURVE", cw / 2, bar, "font-size:11px;font-weight:700;color:var(--text)")));
+    s += fieldTile(slots[5][0], a.y, slots[5][1], bar, "CORRECTION", "100%") + fieldTile(slots[6][0], a.y, slots[6][1], bar, "LEVEL", "-3.2 dB");
+    s += eqToolTile(slots[7][0], a.y, slots[7][1], bar, "PRESETS") + eqToolTile(slots[8][0], a.y, slots[8][1], bar, "BYPASS");
+    var y2 = a.y + bar + g;
+    s += '<div class="lbl" style="left:' + a.x + "px;top:" + (y2 + bar / 2 - 7) + 'px;width:52px;font-size:11px;letter-spacing:.9px;color:var(--dim)">MONITOR</div>';
+    [["SPACE", "Studio"], ["AMBIENCE", "50%"], ["EAR TONE", "100%"]].forEach(function (f, i) { s += fieldTile(slots[i][0], y2, slots[i][1], bar, f[0], f[1]); });
+    s += eqToolTile(slots[3][0], y2, slots[3][1], bar, "MONO") + eqToolTile(slots[4][0], y2, slots[4][1], bar, "SUB") + eqToolTile(slots[5][0], y2, slots[5][1], bar, "HEAD TRACK");
+    var py = y2 + bar + g, pw = a.w, ph = a.h - 2 * (bar + g), low = 10, oct = Math.log2(20000 / low), p = "";
+    function X(f) { return pw * Math.log2(f / low) / oct; }
+    function Y(db) { return ph / 2 - (db / 21) * ph / 2; }
+    for (var d = 10; d <= 10000; d *= 10) for (var m = 1; m <= 9; m++) { var f = d * m; if (f < low || f > 20000) continue; p += '<path d="M' + (Math.round(X(f)) + .5) + " 0 V" + ph + '" stroke="var(--gridStrong)" stroke-opacity="' + (m === 1 ? 1 : .33) + '"/>'; }
+    for (var db = -18; db <= 18; db += 6) p += '<path d="M0 ' + (Math.round(Y(db)) + .5) + " H" + pw + '" stroke="var(--gridStrong)" stroke-opacity="' + (db === 0 ? 1 : .33) + '"/>';
+    [[100, "100 Hz"], [1000, "1 kHz"], [10000, "10 kHz"]].forEach(function (q) { p += '<text x="' + (X(q[0]) + 4) + '" y="' + (ph - 4) + '" font-size="11" fill="var(--dim)">' + q[1] + "</text>"; });
+    var c = "", pts = [[40, 3.5, .7], [140, -1.2, 1], [900, .8, 1.2], [3200, -2.5, 2], [6500, 3, 3], [11000, -4, 1.5]];
+    for (var i = 0; i <= 200; i++) { var fq = low * Math.pow(2, oct * i / 200); c += (i ? " L" : "M") + X(fq).toFixed(1) + " " + Y(eqResp(pts.map(function (q) { return { t: "bell", f: q[0], g: q[1], q: q[2] }; }), fq)).toFixed(1); }
+    p += '<path d="' + c + '" fill="none" stroke="var(--text)" stroke-width="2"/>';
+    pts.forEach(function (q, k) { var sel = k === 3, r = sel ? 13 : 10; p += '<circle cx="' + X(q[0]) + '" cy="' + Y(q[1]) + '" r="' + r + '" fill="' + (sel ? "var(--accent)" : "var(--text)") + '"/><text x="' + X(q[0]) + '" y="' + (Y(q[1]) + 4.5) + '" text-anchor="middle" font-size="' + (sel ? 13 : 11) + '" font-weight="600" fill="' + (sel ? "var(--onAccent)" : "var(--bg)") + '">' + (k + 1) + "</text>"; });
+    s += box(a.x, py, pw, ph, "background:var(--panel);border-radius:10px;overflow:hidden", svg(pw, ph, p));
+    return s;
+  }
+
+  // ---------- pattern grid ----------
+  function thumbRows(rows) { // rows: array of 16-length patterns
+    return function (w, h) {
+      var units = Math.max(rows.length, 4), cw = w / 16, rh = h / units, top = (units - rows.length) / 2 * rh, o = "";
+      rows.forEach(function (row, r) { for (var st = 0; st < 16; st++) o += '<rect x="' + (st * cw + cw * .12).toFixed(2) + '" y="' + (top + r * rh + rh * .12).toFixed(2) + '" width="' + (cw * .76).toFixed(2) + '" height="' + (rh * .76).toFixed(2) + '" rx="1" fill="' + (row[st] ? "var(--text)" : "var(--off)") + '"/>'; });
+      return o;
+    };
+  }
+  var PATS = {
+    kick: [1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0], snare: [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0], hat: [0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0],
+    bass: [1,0,0,1,0,0,1,0,0,0,1,0,0,1,0,0], lead: [1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0], fill: [1,0,1,0,1,0,1,1,1,0,1,0,1,1,1,1]
+  };
+  function patternGrid() {
+    var x0 = PAD, y0 = CY, rows = 8, rh = (CENTER_H - 7 * 4) / rows, tw = (WIDTH - 2 * STEP - 2 * GAP - 7 * GAP) / 8, s = "";
+    var grid = [
+      [[PATS.kick], [PATS.snare], [PATS.hat], [PATS.bass], [PATS.lead, PATS.lead], null, null, null],
+      [[PATS.kick], [PATS.snare], [PATS.hat, PATS.fill], [PATS.bass], [PATS.lead], [PATS.lead], null, null],
+      [[PATS.fill], null, [PATS.hat], null, null, null, null, null]
+    ];
+    var names = ["Intro", "Drop", "Break"];
+    for (var r = 0; r < 4; r++) {
+      var y = y0 + r * (rh + 4);
+      if (r < 3) {
+        var filled = true, playing = r === 0;
+        s += box(x0, y, STEP, rh, "border-radius:6px;background:" + (filled ? "var(--panel2)" : "var(--panel)") + ";overflow:hidden",
+          '<div class="lbl" style="left:0;top:' + (rh / 2 - 15) + "px;width:" + STEP + 'px;font-size:12px;font-weight:600;color:var(--text)">' + names[r] + '</div><div class="lbl" style="left:0;top:' + (rh / 2 + 2) + "px;width:" + STEP + 'px;font-size:10px;color:var(--dim)">' + (playing ? "1/2" : "×2") + "</div>" + (playing ? box(0, rh - 3, STEP * .4, 3, "background:var(--accent)") : ""));
+        for (var t = 0; t < 8; t++) {
+          var cx = x0 + STEP + GAP + t * (tw + GAP), cell = grid[r][t], act = playing && cell, edit = r === 0 && t === 0;
+          var bg = !cell ? "var(--panel)" : act ? "var(--panel2)" : "color-mix(in srgb, var(--panel2) 62%, transparent)";
+          var inner = cell ? svg(tw - 12, rh - 12, thumbRows(cell)(tw - 12, rh - 12), 6, 5) : "";
+          if (act) inner += box(0, rh - 3, (tw) * .4, 3, "background:var(--accent)");
+          s += box(cx, y, tw, rh, "border-radius:6px;overflow:hidden;background:" + bg + (edit ? ";box-shadow:inset 0 0 0 1px var(--accent)" : ""), inner);
+        }
+      } else {
+        s += box(x0, y, STEP, rh, "border-radius:6px;box-shadow:inset 0 0 0 1px var(--line)", label("+", STEP, rh, "font-size:20px;color:var(--dim)"));
+      }
+    }
+    // side column: burger, LOOP ROW, STEPS, arrange record
+    var sx = PAD + WIDTH - STEP, bb = "";
+    for (var j = 0; j < 3; j++) bb += box(STEP / 2 - 11, rh / 2 - 7 + j * 7, 22, 2, "background:var(--text);border-radius:1px");
+    s += box(sx, y0, STEP, rh, "", bb);
+    var loopIco = '<path d="M-7 -2 v-2 a3 3 0 0 1 3 -3 h10 M3 -10 l3 3 l-3 3 M7 2 v2 a3 3 0 0 1 -3 3 h-10 M-3 10 l-3 -3 l3 -3" fill="none" stroke="var(--text)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>';
+    s += box(sx, y0 + rh + 4, STEP, rh, "border-radius:6px;background:var(--panel2)", svg(STEP, rh, '<g transform="translate(' + STEP / 2 + " " + rh / 2 + ')">' + loopIco + "</g>"));
+    var stepsIco = ""; for (var q = 0; q < 4; q++) stepsIco += '<rect x="' + (STEP / 2 - 13 + q * 7) + '" y="' + (rh / 2 - 2.5) + '" width="5" height="5" rx="1" ' + (q % 2 === 0 ? 'fill="var(--onAccent)"' : 'fill="none" stroke="var(--onAccent)"') + "/>";
+    s += box(sx, y0 + 2 * (rh + 4), STEP, rh, "border-radius:6px;background:var(--accent)", svg(STEP, rh, stepsIco));
+    var recIco = '<rect x="' + (STEP / 2 - 12) + '" y="' + (rh / 2 - 7) + '" width="10" height="4" rx="1" fill="var(--text)"/><rect x="' + (STEP / 2 - 6) + '" y="' + (rh / 2 - 1) + '" width="10" height="4" rx="1" fill="var(--text)"/><rect x="' + (STEP / 2) + '" y="' + (rh / 2 + 5) + '" width="10" height="4" rx="1" fill="var(--text)"/><circle cx="' + (STEP / 2 + 9) + '" cy="' + (rh / 2 - 5) + '" r="3" fill="var(--rec)"/>';
+    s += box(sx, y0 + 3 * (rh + 4), STEP, rh, "border-radius:6px;background:var(--panel2)", svg(STEP, rh, recIco));
+    return s;
+  }
+
+  // ---------- arranger ----------
+  function arranger(auto) {
+    var s = "", bar = U.bar, g = GAP, bw = (COL - 3 * g) / 4;
+    var gridIco = '<g stroke="CLR" stroke-width="1.6" fill="none"><rect x="-8" y="-8" width="16" height="16" rx="2"/><path d="M-2.7 -8 V8 M2.7 -8 V8 M-8 -2.7 H8 M-8 2.7 H8"/></g>';
+    var sciss = '<g stroke="CLR" stroke-width="1.8" fill="none" stroke-linecap="round"><circle cx="-5" cy="5" r="3"/><circle cx="5" cy="5" r="3"/><path d="M-3 3 L7 -8 M3 3 L-7 -8"/></g>';
+    var home = '<g stroke="CLR" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M-8 -8 V8 M8 0 H-4 M0 -4 L-4 0 L0 4"/></g>';
+    var loopI = '<path d="M-7 -2 v-2 a3 3 0 0 1 3 -3 h10 M3 -10 l3 3 l-3 3 M7 2 v2 a3 3 0 0 1 -3 3 h-10 M-3 10 l-3 -3 l3 -3" fill="none" stroke="CLR" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>';
+    var wave = '<path d="M-10 0 C-7 -8 -3 -8 0 0 S7 8 10 0" fill="none" stroke="CLR" stroke-width="1.8"/><circle cx="-5" cy="-6" r="1.8" fill="CLR"/><circle cx="5" cy="6" r="1.8" fill="CLR"/>';
+    var dial = '<circle r="8" fill="none" stroke="CLR" stroke-width="1.8"/><path d="M0 0 L4 -5" stroke="CLR" stroke-width="2" stroke-linecap="round"/>';
+    var stepsI = ""; for (var q = 0; q < 4; q++) stepsI += '<rect x="' + (-13 + q * 7) + '" y="-2.5" width="5" height="5" rx="1" ' + (q % 2 === 0 ? 'fill="CLR"' : 'fill="none" stroke="CLR"') + "/>";
+    function abtn(x, ico, on, ring) { var c = on ? "var(--bg)" : "var(--text)"; return tile(x, CY, bw, bar, on ? "var(--text)" : "var(--panel2)", svg(bw, bar, '<g transform="translate(' + bw / 2 + " " + bar / 2 + ')">' + ico.replace(/CLR/g, c) + "</g>"), ring ? "box-shadow:inset 0 0 0 3px var(--rec)" : ""); }
+    s += abtn(PAD, gridIco) + abtn(PAD + bw + g, sciss) + abtn(PAD + 2 * (bw + g), home) + abtn(PAD + 3 * (bw + g), loopI, true);
+    s += abtn(RIGHT_X, wave, auto) + abtn(RIGHT_X + bw + g, dial) + abtn(RIGHT_X + 2 * (bw + g), stepsI, !auto) + tile(RIGHT_X + 3 * (bw + g), CY, bw, bar, "var(--panel2)", label("REF", bw, bar, "font-size:12px;font-weight:600;color:var(--text)"));
+    var wy = CY + bar + g, hw = COL + GAP, tx = PAD + hw, tW = METER_X - GAP - tx, unit = U.unit, top = 38;
+    var bars = 16, stepW = tW / (bars * 16), s2 = "";
+    // ruler
+    s2 += box(0, 0, tW, top, "background:var(--panel2)");
+    var rul = "";
+    for (var b = 0; b <= bars; b++) { var bx = b * 16 * stepW, four = b % 4 === 0; rul += '<rect x="' + bx + '" y="0" width="' + (four ? 2 : 1) + '" height="' + (four ? top : 10) + '" fill="var(--gridStrong)"/>'; if (b < bars) rul += '<text x="' + (bx + 4) + '" y="10" font-size="9" fill="var(--dim)">' + (b + 1) + "</text>"; }
+    rul += '<rect x="0" y="0" width="' + (8 * 16 * stepW) + '" height="10" fill="var(--accent)" opacity=".75"/>';
+    [[0, 4, "Intro"], [4, 8, "Drop"]].forEach(function (m) { var a1 = m[0] * 16 * stepW, a2 = m[1] * 16 * stepW; rul += '<rect x="' + a1 + '" y="20" width="1" height="18" fill="var(--accent)"/><rect x="' + (a2 - 1) + '" y="20" width="1" height="18" fill="var(--accent)"/><text x="' + ((a1 + a2) / 2) + '" y="33" text-anchor="middle" font-size="9" font-weight="700" fill="var(--text)">' + m[2] + "</text>"; });
+    rul += '<rect x="0" y="' + (top - 1) + '" width="' + tW + '" height="1" fill="var(--line)"/>';
+    s2 += svg(tW, top, rul);
+    // lanes
+    var lanes = "", blocks = [[[0, 8]], [[4, 8]], [[0, 8]], [[4, 8]], [[2, 4], [4, 8]], [[4, 8]], [], []];
+    var pats = [PATS.kick, PATS.snare, PATS.hat, PATS.bass, PATS.lead, PATS.lead, PATS.kick, PATS.kick];
+    for (var t = 0; t < 8; t++) {
+      var ly = top + t * (unit + g);
+      lanes += '<rect x="0" y="' + ly + '" width="' + tW + '" height="' + unit + '" fill="var(--panel)"/>';
+      for (b = 0; b <= bars; b++) lanes += '<rect x="' + b * 16 * stepW + '" y="' + ly + '" width="' + (b % 4 === 0 ? 2 : 1) + '" height="' + unit + '" fill="var(--gridStrong)"/>';
+      blocks[t].forEach(function (bl, bi) {
+        var bx0 = bl[0] * 16 * stepW, bwid = (bl[1] - bl[0]) * 16 * stepW;
+        lanes += '<rect x="' + (bx0 + .5) + '" y="' + ly + '" width="' + (bwid - 1) + '" height="' + unit + '" rx="4" fill="#D0D3D7"/>';
+        var side = Math.max(2, Math.min(stepW * .7, unit * .4));
+        for (var st = bl[0] * 16; st < bl[1] * 16; st++) if (pats[t][st % 16]) lanes += '<rect x="' + (st * stepW + (stepW - side) / 2) + '" y="' + (ly + unit / 2 - side / 2) + '" width="' + side + '" height="' + side + '" fill="#111" fill-opacity=".6"/>';
+        if (t === 4 && bi === 1) lanes += '<rect x="' + (bx0 + 1.5) + '" y="' + (ly + 1) + '" width="' + (bwid - 3) + '" height="' + (unit - 2) + '" rx="3" fill="none" stroke="var(--text)" stroke-width="2"/>';
+      });
+      if (t === 0) lanes += '<rect x="0" y="' + ly + '" width="' + tW + '" height="1" fill="var(--accent)"/><rect x="0" y="' + (ly + unit - 1) + '" width="' + tW + '" height="1" fill="var(--accent)"/>';
+    }
+    var px = 2.5 * 16 * stepW;
+    lanes += '<rect x="' + (px - 1) + '" y="0" width="2" height="' + (H - wy) + '" fill="var(--accent)"/><path d="M' + (px - 7) + " 0 H" + (px + 7) + " V" + (top - 10) + " L" + px + " " + top + " L" + (px - 7) + " " + (top - 10) + ' Z" fill="var(--accent)"/>';
+    s2 += svg(tW, H - wy, lanes);
+    s += box(tx, wy, tW, H - wy, "overflow:hidden;border-radius:0 10px 0 0", s2);
+    // headers
+    s += '<div class="lbl" style="left:' + (PAD + 8) + "px;top:" + (wy + 10) + 'px;font-size:15px;color:var(--text)">0:05 / 0:16</div>';
+    var tn = ["1", "2", "3", "4", "5", "6", "7", "8"];
+    for (t = 0; t < 8; t++) {
+      var hy = wy + top + t * (unit + g), sel = t === 0, h = "";
+      h += box(8, 8, hw - 16 - 30, 22, "", box(0, 7, hw - 54 - 30, 8, "background:var(--meterTrack);border-radius:3px;overflow:hidden", box(0, 0, (hw - 84) * .55, 8, "background:var(--accent)")) + box((hw - 84) * .62, 3, 8, 16, "background:var(--text);border-radius:3px;box-shadow:0 0 0 1.5px var(--bg)") + '<div class="lbl" style="right:-30px;top:5px;font-size:9px;color:var(--dim)">-10.0</div>');
+      h += '<div class="lbl" style="left:8px;bottom:8px;font-size:12px;font-weight:' + (sel ? 800 : 600) + ';color:var(--text)">' + tn[t] + "</div>";
+      h += box(hw - 8 - 44, unit - 8 - 20, 20, 20, "border-radius:4px;box-shadow:inset 0 0 0 1px var(--rec)", label("M", 20, 20, "font-size:10px;font-weight:700;color:var(--rec)")) + box(hw - 8 - 20, unit - 8 - 20, 20, 20, "border-radius:4px;box-shadow:inset 0 0 0 1px var(--accent)", label("S", 20, 20, "font-size:10px;font-weight:700;color:var(--accent)"));
+      s += box(PAD, hy, hw, unit, "background:var(--trackBg);border-radius:10px 0 0 10px" + (sel ? ";box-shadow:inset 0 1px 0 var(--accent), inset 0 -1px 0 var(--accent)" : ""), h);
+    }
+    if (!auto) s += box(0, LY - GAP, W, H - LY + GAP, "background:var(--bg)");
+    return s;
+  }
+
+  function autoPanel() {
+    var y = LY, h = LOWER, hw = COL + GAP, tx = PAD + hw, tW = METER_X - GAP - tx, s = "", stepW = tW / 256;
+    s += box(0, y - GAP, W, h + GAP, "background:var(--bg)");
+    s += box(PAD, y, hw - GAP, 40, "border-radius:8px;background:var(--panel);box-shadow:inset 0 0 0 1px var(--accent)", '<div class="lbl" style="left:10px;top:12px;font-size:13px;font-weight:700;color:var(--text)">Filter</div>');
+    s += box(PAD, y + 46, hw - GAP, 40, "border-radius:8px;background:var(--panel)", '<div class="lbl" style="left:10px;top:12px;font-size:13px;font-weight:700;color:var(--text)">Reverb</div>');
+    s += box(PAD, y + 92, hw - GAP, 40, "border-radius:8px;border:2px dashed var(--line)", label("+", hw - GAP - 4, 36, "font-size:20px;color:var(--dim)"));
+    var p = "", fh = h;
+    for (var b = 0; b <= 16; b++) p += '<rect x="' + b * 16 * stepW + '" y="0" width="' + (b % 4 === 0 ? 2 : 1) + '" height="' + fh + '" fill="var(--gridStrong)"/>';
+    [.25, .5, .75].forEach(function (v) { p += '<rect x="0" y="' + fh * (1 - v) + '" width="' + tW + '" height="1" fill="var(--gridStrong)" opacity=".4"/>'; });
+    var pts = [[64, .8], [80, .8], [112, .35], [128, .25]], d = "";
+    pts.forEach(function (q, i) { d += (i ? " L" : "M") + q[0] * stepW + " " + fh * (1 - q[1]); });
+    p += '<path d="' + d + " L" + 128 * stepW + " " + fh + " L" + 64 * stepW + " " + fh + ' Z" fill="var(--text)" opacity=".15"/><path d="' + d + '" fill="none" stroke="var(--text)" stroke-width="2"/>';
+    pts.forEach(function (q, i) { p += '<circle cx="' + q[0] * stepW + '" cy="' + fh * (1 - q[1]) + '" r="' + (i === 2 ? 7 : 5) + '" fill="' + (i === 2 ? "var(--accent)" : "var(--text)") + '"/>'; });
+    p += '<rect x="' + (40 - 1) + '" y="0" width="2" height="' + fh + '" fill="var(--accent)"/>';
+    s += box(tx, y, tW, fh, "background:var(--panel);border-radius:0 10px 10px 0;overflow:hidden", svg(tW, fh, p));
+    return s;
+  }
+
+  // ---------- burger → PROJECTS ----------
+  function projectsMenu() {
+    var x = PAD, y = CY, w = GRID_X + TOPBTN - PAD, h = CENTER_H, s = "", iw = w - 24, yy = 12;
+    s += '<div class="lbl" style="left:12px;top:' + yy + 'px;font-size:15px;font-weight:700;color:var(--text)">‹  Velvet Comet</div>'; yy += 30;
+    var t3 = (iw - 8) / 3;
+    ["NEW", "SAVE", "SAVE AS"].forEach(function (t, i) { s += menuItem(12 + i * (t3 + 4), yy, t3, 40, t); }); yy += 44;
+    var t2 = (iw - 4) / 2;
+    ["EXPORT", "IMPORT"].forEach(function (t, i) { s += menuItem(12 + i * (t2 + 4), yy, t2, 40, t); }); yy += 44;
+    s += menuItem(12, yy, iw, 40, "EXPORT SONG"); yy += 52;
+    s += '<div class="lbl" style="left:12px;top:' + yy + 'px;font-size:12px;font-weight:700;letter-spacing:.1em;color:var(--text)">PROJECTS</div>'; yy += 22;
+    var list = [["Autosave · Velvet Comet", "today 12:31", "124", "C Min", "auto"], ["Velvet Comet", "today 12:20", "124", "C Min", "cur"], ["Night Drive", "yesterday 23:05", "118", "G Min", "near"], ["Sunday Dub", "7 Nov 18:40", "92", "D Dor", "mid"], ["Glass Rain", "2 Nov 21:12", "140", "F# Maj", "far"]];
+    list.forEach(function (it) {
+      if (yy + 48 > h - 8) return;
+      var cur = it[4] === "cur", fg = cur ? "var(--onAccent)" : it[4] === "auto" ? "var(--accentText)" : "var(--text)";
+      var kc = cur ? "var(--onAccent)" : it[4] === "near" ? "var(--accentText)" : it[4] === "mid" ? "var(--gr)" : it[4] === "far" ? "var(--rec)" : "var(--text)";
+      s += box(12, yy, iw, 48, "border-radius:8px;background:" + (cur ? "var(--accent)" : "var(--panel)"),
+        '<div class="lbl" style="left:12px;top:8px;font-size:13px;font-weight:700;color:' + fg + '">' + it[0] + '</div><div class="lbl" style="left:12px;top:27px;font-size:11px;color:' + (cur ? "var(--onAccent)" : "var(--dim)") + '">' + it[1] + '</div><div class="lbl" style="right:12px;top:16px;font-size:12px;font-weight:600;color:' + fg + '">' + it[2] + ' · <span style="position:static;color:' + kc + '">' + it[3] + "</span></div>");
+      yy += 52;
+    });
+    return menuBox(x, y, w, h, s);
+  }
+
   function screenHTML(mode, state) {
     var c;
     if (state === "editor" || state === "browser") c = (state === "editor" ? editor() : browser()) + meter(mode);
     else if (state === "roll") c = rollWindow();
     else if (state === "eq") c = eqWindow() + meter(mode);
+    else if (state === "comp") c = compWindow() + meter(mode);
+    else if (state === "phones") c = phonesWindow() + meter(mode);
+    else if (state === "grid") c = patternGrid();
+    else if (state === "arr" || state === "arrauto") c = arranger(state === "arrauto") + meter(mode);
     else c = leftColumn(mode, state) + knobGrid(mode, state) + rightColumn(mode, state) + meter(mode);
     if (state === "soundmenu" || state === "synthmenu") c += soundMenu(state === "synthmenu");
     if (state === "trackmenu") c += trackMenu(1);
     if (state === "pagemenu") c += pageMenu();
-    var over = state === "kbmenu" ? keyboardMenu() : state === "chordmenu" ? chordWindow() : "";
+    var over = state === "kbmenu" ? keyboardMenu() : state === "chordmenu" ? chordWindow() : state === "arrauto" ? autoPanel() : state === "projects" ? projectsMenu() : "";
     return '<div class="scr" style="width:' + W + "px;height:" + H + 'px">' + topBar(mode, state) + c + lower(mode, state) + over + "</div>";
   }
 
