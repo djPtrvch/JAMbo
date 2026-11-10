@@ -20,13 +20,13 @@ extension AppModel {
         // Скоп — только пока виден (MST и MIX).
         let sc: MasterScope = audio.core.master.scope
         if channel != .track {
-            // При MIX — только конечный сигнал после лимитера (точка LIM), красным.
-            let on: [Bool] = channel == .master ? scopeOn : [false, false, false, true]
+            // При MIX осциллоскопа нет (под гониометром — TONAL): точки съёма выключены.
+            let on: [Bool] = channel == .master ? scopeOn : [false, false, false, false]
             var m: Int = MasterScope.gonioBit
             for k in 0..<4 where on[k] { m |= 1 << k }
             sc.mask.store(m)
             scope.tick(sc, on: on)
-            if channel == .mix && _mixMode >> 2 == MixMode.tonal {
+            if channel == .mix {
                 tonal.tick(scope)
                 if tonalRef { ensureRefTonal() }
             }
@@ -127,7 +127,6 @@ extension AppModel {
     func resetLoudness() {
         let l = audio.core.levels.loudness
         l.resetRequests.store(l.resetRequests.load() + 1)
-        audio.core.master.truePeak.store(0)
     }
 }
 
@@ -160,7 +159,7 @@ extension AppModel {
     /// FREQ при MIX: съём дорожек — только пока виден; выключили — данные с нуля.
     private func tickMixAnalysis() {
         let taps: TrackTaps = audio.core.levels.trackTaps
-        let want: Bool = channel == .mix && _mixMode & 3 == MixMode.freq
+        let want: Bool = channel == .mix && _mixMode == MixMode.freq
         if want {
             if taps.on.load() == 0 { taps.on.store(1) }
             let n: Int = min(TrackTaps.tracks, project.tracks.count)

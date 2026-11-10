@@ -141,7 +141,7 @@ struct MixOverview: View {
     let model: AppModel
 
     var body: some View {
-        let mode: Int = model.mixMode & 3
+        let mode: Int = model.mixMode
         return TimelineView(.animation(minimumInterval: 1.0 / 60)) { tl in
             ScopeCanvas(now: tl.date) { ctx, size in MixOverview.draw(ctx, size, model, mode) }
         }

@@ -164,12 +164,10 @@ struct RightColumn: View {
                 ButtonPair(left: ShiftButton(model: model), right: ScopeButton(model: model, tap: MasterScope.lim))
             })
         } else if model.channel == .mix {
-            // MIX (10.11): SCOPE и TONAL — что под вектороскопом (осциллоскоп или тональный баланс); SHIFT; четвёртое место пустое (без кнопки).
+            // MIX (10.11): под скопом кнопок нет — пустое место (решение пользователя).
             AnyView(VStack(spacing: Layout.gap) {
                 RightTop(model: model)
-                ButtonPair(left: MixModeButton(model: model, title: "SCOPE", mode: MixMode.scope, right: true),
-                           right: MixModeButton(model: model, title: "TONAL", mode: MixMode.tonal, right: true))
-                ButtonPair(left: ShiftButton(model: model), right: Color.clear)
+                Color.clear.frame(height: 2 * Layout.pairHeight + Layout.gap)
             })
         } else {
             AnyView(VStack(spacing: Layout.gap) {
@@ -187,24 +185,18 @@ struct RightColumn: View {
 /// Вид полос MIX слева (в окне сэмпла при MIX).
 enum MixMode {
     static let level = 0, pan = 1, freq = 2
-    /// Справа: на месте скопа при MIX.
-    static let scope = 0, tonal = 1
 }
 
-/// Кнопка вида при MIX: слева — полосы окна (биты 0–1 mixMode), справа (right) — осциллоскоп или TONAL (биты 2+); тап — этот
-/// вид; выбранная — белая.
+/// Кнопка вида полос MIX (слева): тап — этот вид; выбранная — белая.
 struct MixModeButton: View {
     let model: AppModel
     let title: String
     let mode: Int
-    var right: Bool = false
 
     var body: some View {
-        let v: Int = model.mixMode
-        let cur: Int = right ? v >> 2 : v & 3
-        return SideButton(title: title, lit: cur == mode)
+        SideButton(title: title, lit: model.mixMode == mode)
             .contentShape(Rectangle())
-            .onTapGesture { model.mixMode = right ? (v & 3) | (mode << 2) : (v & ~3) | mode }
+            .onTapGesture { model.mixMode = mode }
     }
 }
 

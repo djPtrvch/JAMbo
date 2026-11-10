@@ -421,8 +421,7 @@ final class AppModel {
     /// не хранится).
     @ObservationIgnored let scope = ScopeState()
     @ObservationIgnored var _scopeOn: [Bool] = [true, false, false, false]
-    /// Виды при MIX: биты 0–1 — полосы слева (MixMode.level, pan, freq), биты 2+ — под вектороскопом (MixMode.scope,
-    /// tonal); в проекте не хранится.
+    /// Вид полос MIX слева (MixMode.level, pan, freq); в проекте не хранится.
     @ObservationIgnored var _mixMode: Int = 0
     /// FREQ и DYN при MIX; тональный баланс (TONAL).
     @ObservationIgnored let mixAn = MixAnalysis()

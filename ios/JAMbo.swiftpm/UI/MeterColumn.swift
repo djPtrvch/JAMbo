@@ -27,27 +27,18 @@ struct MeterColumn: View {
         let clip: Bool = m.clip(ch, now: now)
         return VStack(spacing: 4) {
             label("LUFS\n" + MeterColumn.fmtLufs(lufs)).onTapGesture { model.resetLoudness() }
-            if ch == Levels.master { tpLabel }
             RoundedRectangle(cornerRadius: 2).fill(clip ? theme.rec : theme.off).frame(width: 21, height: 4)
             bars(ch)
             label(bottomText(ch)).onTapGesture { model.resetMeterPeak() }
         }
     }
 
-    /// TP — наибольший true peak выхода мастера (при MIX и MST; тап — сброс вместе с LUFS); выше −1 dBTP — красный.
-    private var tpLabel: some View {
-        let tp: Float = model.audio.core.master.truePeak.load()
-        let over: Bool = tp > 0.891
-        return label("TP\n" + MeterColumn.fmtDb(tp), over ? theme.rec : nil)
-            .onTapGesture { model.resetLoudness() }
-    }
-
-    private func label(_ s: String, _ color: Color? = nil) -> some View {
+    private func label(_ s: String) -> some View {
         Text(s)
             .font(.system(size: 9)).monospacedDigit()
             .multilineTextAlignment(.center)
             .lineSpacing(0)
-            .foregroundStyle(color ?? theme.dim)
+            .foregroundStyle(theme.dim)
             .frame(width: Layout.meterWidth)
             .contentShape(Rectangle())
     }
