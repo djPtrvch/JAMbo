@@ -61,7 +61,7 @@ final class PowerFFT {
 
 /// FREQ и DYN при MIX (10.11): по кадру — две дорожки по кругу. FREQ — мощность в 30 полосах (по 1/3 октавы,
 /// 20 Гц…20 кГц); диапазон дорожки — полосы не ниже наибольшей на 20 dB, пик — наибольшая. DYN — пик к RMS
-/// (crest factor, dB) за последние 8192 отсчёта (~170 мс). Тишина (RMS ниже −60 dBFS) — нет данных.
+/// (crest factor, dB) по 8192 отсчётам (~170 мс); оба — среднее за ~2 с. Тишина (RMS ниже −60 dBFS) — нет данных.
 final class MixAnalysis {
     static let bands = 30
     static let range: Float = 20
@@ -97,11 +97,13 @@ final class MixAnalysis {
         for _ in 0..<2 {
             let t: Int = next % count
             next = (t + 1) % count
-            analyze(taps, t, freq: freq)
+            // Среднее за ~2 с: дорожка обновляется раз в count/2 кадров (60 в секунду).
+            let a: Float = exp(-Float(count) / 240)
+            analyze(taps, t, freq: freq, keep: a)
         }
     }
 
-    private func analyze(_ taps: TrackTaps, _ t: Int, freq: Bool) {
+    private func analyze(_ taps: TrackTaps, _ t: Int, freq: Bool, keep a: Float) {
         let n: Int = TrackTaps.capacity
         taps.read(t, into: raw, count: n)
         var pk: Float = 0, sq: Float = 0
@@ -120,10 +122,10 @@ final class MixAnalysis {
             return
         }
         let c: Float = 20 * log10(pk / r)
-        crest[t] = crest[t] < 0 ? c : crest[t] * 0.6 + c * 0.4
+        crest[t] = crest[t] < 0 ? c : crest[t] * a + c * (1 - a)
         if !freq { return }
         fftp.bands(UnsafePointer(raw + (n - PowerFFT.size)), map, into: &fresh)
-        for j in 0..<MixAnalysis.bands { power[t][j] = power[t][j] * 0.5 + fresh[j] * 0.5 }
+        for j in 0..<MixAnalysis.bands { power[t][j] = power[t][j] * a + fresh[j] * (1 - a) }
     }
 
     /// Диапазон дорожки t: доли оси (0 — 20 Гц, 1 — 20 кГц) низа, верха и пика; nil — тишина.
