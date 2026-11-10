@@ -101,6 +101,8 @@ figure { margin: 18px 0 24px; }
   font: 800 14px/26px var(--sys); text-align: center; box-shadow: 0 0 0 3px var(--bg); transform: translate(-50%, -50%); z-index: 2; }
 .split { display: grid; grid-template-columns: var(--fw, 240px) minmax(0, 1fr); gap: 28px; align-items: start; margin: 14px 0 22px; }
 .split > figure { margin: 0; }
+.figs { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin: 14px 0 22px; }
+.figs > figure { margin: 0; }
 .split ul { margin-top: 0; }
 @media (max-width: 640px) { .split { grid-template-columns: minmax(0, 1fr); } .split > figure { max-width: var(--fw, 240px); } }
 figcaption { font-size: 12px; color: var(--dim); margin-top: 8px; max-width: 72ch; }
@@ -642,16 +644,67 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     <li><b>Метр</b> слева от ручки — уровень дорожки после громкости. Стерео — две полосы, моно — одна; выше 0 dB — красный, у заглушённой — серый, приглушение от sidechain — оранжевым сверху.</li>
     <li><b>M</b> — mute, <b>S</b> — solo, <b>●</b> — готовность к записи стема (раздел 3.5).</li>
     <li>Ручки без кольца — свободные места для дорожек.</li>
-    <li>Над окном слева — <b>● MASTER</b>, запись выхода мастера. Справа — скоп мастера.</li>
+    <li>Над окном слева — <b>● MASTER</b>, запись выхода мастера. В окне слева — индикация дорожек, справа — вектороскоп и тональный баланс мастера (ниже).</li>
     <li>Громкость выбранной дорожки можно менять и регулятором на измерителе справа — это та же громкость.</li>
   </ul>
   <ul lang="en">
     <li><b>The meter</b> left of the knob — the track level after volume. Stereo — two bars, mono — one; above 0 dB — red, muted — grey, sidechain ducking — orange from the top.</li>
     <li><b>M</b> — mute, <b>S</b> — solo, <b>●</b> — arm for stem recording (section 3.5).</li>
     <li>Knobs without a ring are free slots for tracks.</li>
-    <li>Above the window on the left — <b>● MASTER</b>, recording of the master output. On the right — the master scope.</li>
+    <li>Above the window on the left — <b>● MASTER</b>, recording of the master output. The window on the left shows track meters, the right column — the vectorscope and the master tonal balance (below).</li>
     <li>The selected track's volume can also be changed with the control on the meter on the right — it is the same volume.</li>
   </ul>
+
+  <h4 lang="ru">Индикация дорожек: LEVEL, PAN, FREQ</h4>
+  <h4 lang="en">Track meters: LEVEL, PAN, FREQ</h4>
+  <p lang="ru">В окне слева — по полосе на каждую дорожку, в порядке дорожек. Что показывают полосы, выбирают кнопки под окном (выбранная — белая). Заглушённая дорожка — серая.</p>
+  <p lang="en">The window on the left has one bar per track, in track order. The buttons under the window choose what the bars show (the selected one is white). A muted track is grey.</p>
+  <div class="figs">
+  <figure><div class="shot" data-mode="mix" data-zone="left" data-state="mixlevel" data-maxh="420"></div><figcaption lang="ru">LEVEL. Уровни — для примера.</figcaption><figcaption lang="en">LEVEL. Levels are an example.</figcaption></figure>
+  <figure><div class="shot" data-mode="mix" data-zone="left" data-state="mixpan" data-maxh="420"></div><figcaption lang="ru">PAN. Дорожка 4 смещена вправо, 5 — влево (пример).</figcaption><figcaption lang="en">PAN. Track 4 leans right, 5 — left (example).</figcaption></figure>
+  <figure><div class="shot" data-mode="mix" data-zone="left" data-state="mixfreq" data-maxh="420"></div><figcaption lang="ru">FREQ. Бас и бочка — внизу, хэты — вверху (пример).</figcaption><figcaption lang="en">FREQ. Bass and kick at the bottom, hats at the top (example).</figcaption></figure>
+  </div>
+  <table lang="ru"><tr><th>Кнопка</th><th>Что показывают полосы</th></tr>
+    <tr><td>LEVEL</td><td>Уровень дорожки снизу вверх (−60…0 dBFS), выше 0 dBFS — красный. Белая черта — пик: держится полторы секунды и плавно опускается.</td></tr>
+    <tr><td>PAN</td><td>Где дорожка звучит в стерео — по самому сигналу, а не по ручке Pan: учитываются и стерео-сэмплы, и LFO на панораме. От средней линии вверх — вправо, вниз — влево; короткая черта по центру — посередине.</td></tr>
+    <tr><td>FREQ</td><td>Какой диапазон частот занимает дорожка (ниже).</td></tr></table>
+  <table lang="en"><tr><th>Button</th><th>What the bars show</th></tr>
+    <tr><td>LEVEL</td><td>Track level from the bottom up (−60…0 dBFS), red above 0 dBFS. The white line is the peak: it holds for a second and a half, then falls slowly.</td></tr>
+    <tr><td>PAN</td><td>Where the track sits in the stereo field — measured from the signal itself, not the Pan knob, so stereo samples and an LFO on Pan count too. Up from the centre line — right, down — left; a short dash in the middle — centred.</td></tr>
+    <tr><td>FREQ</td><td>Which frequency range the track occupies (below).</td></tr></table>
+  <p lang="ru"><b>FREQ.</b> Вертикаль — частота: снизу 20 Гц, сверху 20 кГц, линии 100, 1k и 10k. Полоса дорожки тянется от самой низкой до самой высокой частоты, где у неё заметная энергия (не тише самой сильной на 20 dB). Красная черта с размытием — самая сильная частота дорожки. Показания — среднее примерно за 4 секунды: паузы между ударами их не сбрасывают, полосы стоят спокойно и меняются плавно; полоса гаснет, только когда дорожка долго молчит.</p>
+  <p lang="en"><b>FREQ.</b> The vertical axis is frequency: 20 Hz at the bottom, 20 kHz at the top, lines at 100, 1k and 10k. A track's bar spans from the lowest to the highest frequency where it has noticeable energy (no more than 20 dB below its strongest band). The red line with a soft glow is the track's strongest frequency. Readings are averaged over about 4 seconds: gaps between hits do not reset them, so the bars stay steady and move smoothly; a bar disappears only when the track has been silent for a while.</p>
+  <p lang="ru">Зачем: увидеть, кто кому мешает. Если полосы бочки и баса лежат на одной высоте и красные черты рядом — они спорят за низ; разведите их EQ (раздел 11) или Duck. Пустая область между полосами — место, куда можно поставить новый звук.</p>
+  <p lang="en">Why: to see which tracks clash. If the kick and bass bars sit at the same height with their red lines close together, they fight over the low end; separate them with EQ (section 11) or Duck. An empty area between bars is room for a new sound.</p>
+
+  <h4 lang="ru">Справа: вектороскоп и тональный баланс</h4>
+  <h4 lang="en">On the right: vectorscope and tonal balance</h4>
+  <div class="figs">
+  <figure><div class="shot" data-mode="mix" data-zone="right" data-state="mix" data-maxh="520"></div><figcaption lang="ru">Цель — стиль проекта; имя проекта — цветом текста. Показания — для примера.</figcaption><figcaption lang="en">Target — the project style; the project name in text colour. Readings are an example.</figcaption></figure>
+  <figure><div class="shot" data-mode="mix" data-zone="right" data-state="mixref" data-maxh="520"></div><figcaption lang="ru">После тапа — цель по референсу, имя референса жёлтым.</figcaption><figcaption lang="en">After a tap — the reference target, its name in yellow.</figcaption></figure>
+  </div>
+  <p lang="ru"><b>Вектороскоп</b> — стереобаза выхода мастера: облако вытянуто вверх — звук ближе к моно, расползается вширь — шире стерео. Полоса внизу — корреляция каналов: от середины вправо к +1 — моно-совместимо, влево к −1 — каналы в противофазе, и на моно-колонке (телефон, клуб) часть звука пропадёт.</p>
+  <p lang="en"><b>The vectorscope</b> shows the stereo image of the master output: a cloud stretched upward is closer to mono, a wide cloud is wider stereo. The bar at the bottom is channel correlation: from the centre right towards +1 — mono-safe, left towards −1 — the channels are out of phase, and on a mono speaker (a phone, a club system) part of the sound will disappear.</p>
+  <p lang="ru"><b>Тональный баланс (TARGET)</b> делит выход мастера на четыре полосы — LOW (20–250 Гц), LOW MID (250 Гц–2 кГц), HIGH MID (2–6 кГц), HIGH (6–20 кГц) — и показывает, насколько каждой больше или меньше, чем у цели.</p>
+  <p lang="en"><b>Tonal balance (TARGET)</b> splits the master output into four bands — LOW (20–250 Hz), LOW MID (250 Hz–2 kHz), HIGH MID (2–6 kHz), HIGH (6–20 kHz) — and shows how much more or less each has compared with the target.</p>
+  <ul lang="ru">
+    <li><b>Серый коридор</b> — цель, где полоса «в норме». <b>Жёлтая метка</b> — твой микс. Метка в коридоре — эта область звучит как надо; выше — её слишком много (гудящий низ, резкий верх), ниже — не хватает (тонкий низ, тусклый верх).</li>
+    <li>Обычный спад к верхам, который есть у любой сведённой музыки, уже учтён — ровный трек не показывает «мало верха».</li>
+    <li>Громкость не влияет: тише или громче — метки на месте. Баланс относительный: если поднять бас, LOW уйдёт вверх, а остальные три метки немного опустятся.</li>
+    <li>Показания сглажены примерно за треть секунды — смотрите на среднее положение метки, а не на скачки.</li>
+    <li><b>Цель по стилю</b> (по умолчанию): после TARGET — имя проекта (без имени — UNKNOWN), коридор — по стилю проекта (House, Techno, Breaks/D&amp;B, Trap/R&amp;B, Pop, Ambient): например, у Trap/R&amp;B низ выше, у Ambient коридор шире. Коридоры стилей — приблизительные.</li>
+    <li><b>Цель по референсу:</b> тап по окну — коридор строится по треку из строки REF аранжировщика (раздел 15.4), его имя жёлтым. Центр коридора — баланс всего референса, ширина — насколько он меняется от секунды к секунде. Пока референс разбирается, после имени стоит «…»; если REF не загружен — «REF — LOAD IN ARRANGE». Повторный тап — снова стиль.</li>
+  </ul>
+  <ul lang="en">
+    <li><b>The grey corridor</b> is the target where a band is “right”. <b>The yellow mark</b> is your mix. A mark inside the corridor — that range sounds right; above — too much of it (boomy lows, harsh highs), below — not enough (thin lows, dull highs).</li>
+    <li>The usual roll-off towards the highs that any mixed music has is already accounted for — a balanced track does not show “too little top”.</li>
+    <li>Loudness does not matter: quieter or louder, the marks stay put. The balance is relative: raise the bass and LOW goes up while the other three marks drop a little.</li>
+    <li>Readings are smoothed over about a third of a second — watch where the mark sits on average, not its jumps.</li>
+    <li><b>Style target</b> (default): after TARGET — the project name (UNKNOWN if it has none); the corridor follows the project style (House, Techno, Breaks/D&amp;B, Trap/R&amp;B, Pop, Ambient): for example, Trap/R&amp;B has higher lows, Ambient a wider corridor. Style corridors are approximate.</li>
+    <li><b>Reference target:</b> tap the window — the corridor is built from the track in the arranger's REF row (section 15.4), its name in yellow. The corridor centre is the balance of the whole reference, its width — how much that balance changes from second to second. While the reference is being analysed, “…” follows the name; with no REF loaded — “REF — LOAD IN ARRANGE”. Tap again to go back to the style.</li>
+  </ul>
+  <p lang="ru">Пример: в TONAL у LOW метка над коридором, а в FREQ полосы бочки и баса на одной высоте — срежьте бас ниже бочки EQ или включите Duck от бочки, и LOW вернётся в коридор.</p>
+  <p lang="en">Example: in TONAL the LOW mark is above the corridor and in FREQ the kick and bass bars sit at the same height — cut the bass below the kick with EQ or duck it from the kick, and LOW returns to the corridor.</p>
 
   <h3 lang="ru"><span class="sn">3.4</span>Добавить, скопировать, удалить, переставить</h3>
   <h3 lang="en"><span class="sn">3.4</span>Add, copy, delete, reorder</h3>
@@ -2695,8 +2748,11 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     var winY = y + bar + GAP, winH = topH - bar - GAP;
     if (mode === "mix") {
       s += tile(x, y, COL, bar, "var(--panel2)", '<div class="lbl" style="left:0;top:0;width:' + COL + "px;height:" + bar + 'px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:13px;font-weight:600;letter-spacing:1px;color:var(--rec)"><span style="position:static;display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--rec)"></span>MASTER</div>', "box-shadow:inset 0 0 0 1px var(--rec)");
-      s += tile(x, winY, COL, winH, "var(--panel)", mixOverview(COL, winH));
-      s += tile(x, y + topH + GAP, COL, pairsH, "var(--panel)");
+      s += tile(x, winY, COL, winH, "var(--panel)", mixOverview(COL, winH, state));
+      var mb = y + topH + GAP, mw = (COL - GAP) / 2, lit = { fill: "var(--text)", color: "var(--bg)" };
+      var view = state === "mixpan" ? "pan" : state === "mixfreq" ? "freq" : "level";
+      s += btn(x, mb, mw, PAIR, "LEVEL", view === "level" ? lit : {}); s += btn(x + mw + GAP, mb, mw, PAIR, "PAN", view === "pan" ? lit : {});
+      s += btn(x + mw + GAP, mb + PAIR + GAP, mw, PAIR, "FREQ", view === "freq" ? lit : {});
       return s;
     }
     // folder arrows
@@ -2735,13 +2791,84 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     return s;
   }
 
-  function mixOverview(w, h) {
-    var s = "", pad = 10, slot = (w - 2 * pad) / 16, lv = [.78, .66, .55, .7, .45, .6, .5, .4];
-    for (var t = 0; t < 8; t++) {
-      var x = pad + t * slot + (slot - 9) / 2, bh = h - 2 * pad;
-      s += box(x, pad, 9, bh, "background:var(--meterTrack);border-radius:3px;overflow:hidden", box(0, bh * (1 - lv[t]), 9, bh * lv[t], "background:var(--accent)"));
+  // Window at MIX: one bar per track in 16 slots (example data). LEVEL — level + peak hold; PAN — balance from the
+  // centre line (up — right); FREQ — frequency range 20 Hz…20 kHz, red line with a short gradient — strongest band.
+  function mixOverview(w, h, state) {
+    var s = "", pad = 10, iw = w - 2 * pad, ih = h - 2 * pad, slot = iw / 16, g = "";
+    var dim = 'font-size:9px;color:var(--dim);text-align:right';
+    if (state === "mixpan") {
+      g += '<rect x="0" y="' + (ih / 2) + '" width="' + iw + '" height="1" fill="var(--gridStrong)"/>';
+      var bal = [0, .05, -.35, .55, -.6, .2, .02, -.15];
+      for (var t = 0; t < 8; t++) {
+        var bx = t * slot + (slot - 9) / 2, bh = Math.max(2, Math.abs(bal[t]) * ih / 2);
+        g += '<rect x="' + bx + '" y="' + (bal[t] >= 0 ? ih / 2 + 1 - bh : ih / 2) + '" width="9" height="' + bh + '" rx="3" fill="var(--accent)"/>';
+      }
+      s += svg(iw, ih, g, pad, pad);
+      s += '<div class="lbl" style="right:' + pad + 'px;top:' + pad + 'px;' + dim + '">R</div><div class="lbl" style="right:' + pad + 'px;bottom:' + pad + 'px;' + dim + '">L</div>';
+      return s;
     }
+    if (state === "mixfreq") {
+      var marks = [[.233, "100"], [.5663, "1k"], [.8997, "10k"]];
+      marks.forEach(function (m) { g += '<rect x="0" y="' + (ih - m[0] * ih) + '" width="' + iw + '" height="1" fill="var(--gridStrong)" opacity=".5"/>'; });
+      var sp = [[.06, .42, .14], [.12, .55, .3], [.62, .98, .86], [.55, .93, .72], [.2, .62, .42], [.1, .38, .18], [.3, .78, .55], [.45, .88, .68]];
+      g += '<defs><linearGradient id="fg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--rec)" stop-opacity="0"/><stop offset=".5" stop-color="var(--rec)"/><stop offset="1" stop-color="var(--rec)" stop-opacity="0"/></linearGradient></defs>';
+      for (t = 0; t < 8; t++) {
+        bx = t * slot + (slot - 9) / 2;
+        var top = ih - sp[t][1] * ih, py = ih - sp[t][2] * ih;
+        g += '<rect x="' + bx + '" y="' + top + '" width="9" height="' + ((sp[t][1] - sp[t][0]) * ih) + '" rx="3" fill="var(--accent)"/>';
+        g += '<rect x="' + bx + '" y="' + (py - 14) + '" width="9" height="28" fill="url(#fg)"/><rect x="' + bx + '" y="' + (py - 1) + '" width="9" height="2" fill="var(--rec)"/>';
+      }
+      s += svg(iw, ih, g, pad, pad);
+      marks.forEach(function (m) { s += '<div class="lbl" style="right:' + pad + 'px;top:' + (pad + ih - m[0] * ih - 12) + 'px;' + dim + '">' + m[1] + "</div>"; });
+      return s;
+    }
+    var lv = [.78, .66, .55, .7, .45, .6, .5, .4], hold = [.86, .74, .63, .76, .55, .68, .58, .5];
+    for (t = 0; t < 8; t++) {
+      bx = t * slot + (slot - 9) / 2;
+      g += '<rect x="' + bx + '" y="' + (ih * (1 - lv[t])) + '" width="9" height="' + (ih * lv[t]) + '" rx="3" fill="var(--accent)"/>';
+      g += '<rect x="' + bx + '" y="' + (ih * (1 - hold[t]) - 1) + '" width="9" height="2" fill="var(--text)"/>';
+    }
+    return svg(iw, ih, g, pad, pad);
+  }
+
+  // TONAL at MIX (example data): 4 bands, grey target corridor, yellow deviation mark; title — TARGET and the project
+  // name (text colour) or the reference name (yellow).
+  function tonal(w, h, ref) {
+    var s = "", top = 40, bottom = h - 36, cy = (top + bottom) / 2, k = (bottom - top) / 24, left = 28, cell = (w - left - 8) / 4;
+    var g = "", bw = Math.min(36, cell * 0.6), cen = ref ? [2.2, -.8, -1.2, -.2] : [1.2, -.3, -.6, -.3], wids = ref ? [2.2, 1.8, 2.6, 3.4] : [3, 3, 3, 3], dev = [3.5, -1.5, -2.6, 0.6];
+    ["+12", "0", "−12"].forEach(function (t, q) {
+      var yy = top + q * 12 * k;
+      g += '<rect x="' + left + '" y="' + yy + '" width="' + (w - left - 8) + '" height="1" fill="var(--gridStrong)" opacity=".5"/>';
+      s += '<div class="lbl" style="left:0;width:' + (left - 4) + 'px;top:' + (yy - 6) + 'px;font-size:9px;color:var(--dim);text-align:right">' + t + "</div>";
+    });
+    var names = ["LOW", "LOW MID", "HIGH MID", "HIGH"];
+    for (var j = 0; j < 4; j++) {
+      var x = left + cell * (j + 0.5), tc = cy - cen[j] * k, yy2 = cy - dev[j] * k;
+      g += '<rect x="' + (x - bw / 2) + '" y="' + (tc - wids[j] * k) + '" width="' + bw + '" height="' + (2 * wids[j] * k) + '" rx="3" fill="var(--meterTrack)"/>';
+      g += '<rect x="' + (x - bw / 2) + '" y="' + Math.min(cy, yy2) + '" width="' + bw + '" height="' + Math.abs(yy2 - cy) + '" fill="var(--accent)" opacity=".3"/>';
+      g += '<rect x="' + (x - bw / 2) + '" y="' + (yy2 - 2) + '" width="' + bw + '" height="4" rx="2" fill="var(--accent)"/>';
+      s += '<div class="lbl" style="left:' + (x - 30) + 'px;width:60px;top:' + (h - 22) + 'px;font-size:9px;color:var(--dim)">' + names[j] + "</div>";
+    }
+    s = svg(w, h, g) + s;
+    s += '<div class="lbl" style="left:8px;top:12px;font-size:9px;color:var(--dim);text-align:left;white-space:nowrap">TARGET&nbsp;&nbsp;<span style="font-weight:600;color:' + (ref ? "var(--accent)" : "var(--text)") + '">' + (ref ? "REFERENCE MIX" : "MY TRACK") + "</span></div>";
     return s;
+  }
+
+  // Goniometer with the correlation bar at the bottom.
+  function gonio(w, gh) {
+    var strip = 16, gg = gh - strip, r = (Math.min(w, gg) / 2 - 4) / 1.2, cx = w / 2, cy = gg / 2, d = r * .7071;
+    var g = '<path d="M' + cx + " " + (cy - r) + " V" + (cy + r) + " M" + (cx - r) + " " + cy + " H" + (cx + r) + " M" + (cx - d) + " " + (cy - d) + " L" + (cx + d) + " " + (cy + d) + " M" + (cx + d) + " " + (cy - d) + " L" + (cx - d) + " " + (cy + d) + '" stroke="var(--gridStrong)" stroke-width="1"/>';
+    for (var i = 0; i < 420; i++) {
+      var pa = i * 2.39996, rr = Math.sqrt((i * 37 % 101) / 101), m = Math.cos(pa) * rr * 0.6, sd = Math.sin(pa) * rr * 0.22;
+      g += '<rect x="' + (cx + sd * r - .6).toFixed(1) + '" y="' + (cy - m * r - .6).toFixed(1) + '" width="1.2" height="1.2" fill="var(--accent)" opacity="' + (0.15 + 0.4 * (i % 4) / 3).toFixed(2) + '"/>';
+    }
+    var bw = Math.min(w - 40, 160), x0 = (w - bw) / 2, by = gh - 6 - 4.5;
+    g += '<rect x="' + x0 + '" y="' + by + '" width="' + bw + '" height="4.5" rx="2" fill="var(--meterTrack)"/>';
+    g += '<rect x="' + (x0 + bw / 2) + '" y="' + by + '" width="' + (bw / 2 * 0.72) + '" height="4.5" fill="var(--accent)"/>';
+    g += '<rect x="' + (x0 + bw / 2 - .5) + '" y="' + (by - 2) + '" width="1" height="8.5" fill="var(--dim)"/>';
+    var lab = "position:absolute;font-size:9px;color:var(--dim)";
+    return svg(w, gh, g) + '<div class="lbl" style="left:' + (cx - d - 2) + "px;top:" + (cy - d - 15) + 'px;font-size:9px;color:var(--dim)">L</div><div class="lbl" style="left:' + (cx + d - 4) + "px;top:" + (cy - d - 15) + 'px;font-size:9px;color:var(--dim)">R</div>' +
+      '<div class="lbl" style="left:' + (x0 - 18) + "px;top:" + (by - 4) + 'px;font-size:9px;color:var(--dim)">−1</div><div class="lbl" style="left:' + (x0 + bw + 4) + "px;top:" + (by - 4) + 'px;font-size:9px;color:var(--dim)">+1</div>';
   }
 
   function scope(w, h) {
@@ -2761,8 +2888,14 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     var s = "", x = RIGHT_X, y = CY, bar = U.bar;
     var pairsH = 2 * PAIR + GAP, topH = CENTER_H - pairsH - GAP, by = y + topH + GAP, bw = (COL - GAP) / 2;
     if (mode === "mst" || mode === "mix") {
+      if (mode === "mix") {
+        // gonio 60 % of the old scope height, TONAL down to the bottom of the column (no buttons)
+        var gh = (topH - GAP) * 0.6;
+        s += tile(x, y, COL, gh, "var(--panel)", gonio(COL, gh));
+        s += tile(x, y + gh + GAP, COL, CENTER_H - gh - GAP, "var(--panel)", tonal(COL, CENTER_H - gh - GAP, state === "mixref"));
+        return s;
+      }
       s += box(x, y, COL, topH, "", scope(COL, topH));
-      if (mode === "mix") { s += tile(x, by, COL, pairsH, "var(--panel)"); return s; }
       s += btn(x, by, bw, PAIR, "COMP"); s += btn(x + bw + GAP, by, bw, PAIR, "CLIP");
       s += btn(x, by + PAIR + GAP, bw, PAIR, "SHIFT"); s += btn(x + bw + GAP, by + PAIR + GAP, bw, PAIR, "LIM");
       return s;
@@ -3669,14 +3802,14 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     track: "TRACK — выбрана дорожка с сэмплом. Верхняя строка — сэмпл (у синта — ручки движка, раздел 5), вторая — огибающая и фильтр, третья — посылы на общие эффекты, нижняя — Pan, Velocity, Ratchet, Chance. SHIFT + тап по Filter меняет тип фильтра, SHIFT + тап по Rate — режим RATE. Громкость дорожки — в MIX или регулятором на измерителе.",
     fx: "FX — пока держите FX (кнопка белая). Строки: Reverb, Delay, Drive, Duck. Эффекты общие для всех дорожек; сколько звука дорожки идёт в каждый, задают посылы — третья строка режима TRACK. Duck Source выбирает дорожку, которая приглушает остальные.",
     mod: "MOD — пока держите MOD. Строки: LFO1, LFO2, LFO3 и огибающая ENV выбранной дорожки. Куда они действуют, назначается кнопками LFO1…ENV в левой колонке (раздел 9).",
-    mix: "MIX — громкости дорожек в dB, подписи — имена дорожек. Слева от ручки — метр дорожки, справа — кнопки M (mute), S (solo) и ● (готовность к записи стема). Ручки без кольца — дорожки, которых ещё нет: двойной тап по ней добавляет дорожку. Двойной тап по ручке дорожки — меню COPY, PASTE, DELETE TRACK, RENAME; удержание и перетаскивание меняет порядок дорожек. Над окном — ● MASTER (запись мастера), справа — скоп мастера.",
+    mix: "MIX — громкости дорожек в dB, подписи — имена дорожек. Слева от ручки — метр дорожки, справа — кнопки M (mute), S (solo) и ● (готовность к записи стема). Ручки без кольца — дорожки, которых ещё нет: двойной тап по ней добавляет дорожку. Двойной тап по ручке дорожки — меню COPY, PASTE, DELETE TRACK, RENAME; удержание и перетаскивание меняет порядок дорожек. Над окном — ● MASTER (запись мастера); в окне слева — индикация дорожек LEVEL, PAN, FREQ (кнопки под ним); справа — вектороскоп с корреляцией и тональный баланс (раздел 3.3).",
     mst: "MST — цепочка мастера сверху вниз: сатуратор, компрессор, клиппер, лимитер (перед ними — EQ мастера). В окне слева — индикация COMP, CLIP, LIM, под ним — кнопки окон модулей; справа — скоп мастера и кнопки его точек съёма (раздел 12)."
   };
   var DESC_EN = {
     track: "TRACK — a track with a sample is selected. Top row — the sample (on a synth — the engine knobs, section 5), second — envelope and filter, third — sends to the shared effects, bottom — Pan, Velocity, Ratchet, Chance. SHIFT + tap on Filter changes the filter type, SHIFT + tap on Rate — the RATE mode. Track volume — in MIX or with the control on the meter.",
     fx: "FX — while you hold FX (the button is white). Rows: Reverb, Delay, Drive, Duck. The effects are shared by all tracks; how much of a track's sound goes into each is set by the sends — the third row of TRACK mode. Duck Source picks the track that ducks the others.",
     mod: "MOD — while you hold MOD. Rows: LFO1, LFO2, LFO3 and the ENV envelope of the selected track. Where they act is assigned with the LFO1…ENV buttons in the left column (section 9).",
-    mix: "MIX — track volumes in dB, labelled with track names. Left of a knob — the track meter, right — the M (mute), S (solo) and ● (arm stem recording) buttons. Knobs without a ring are tracks that do not exist yet: double tap one to add a track. Double tap a track's knob — the COPY, PASTE, DELETE TRACK, RENAME menu; hold and drag to reorder tracks. Above the window — ● MASTER (master recording), on the right — the master scope.",
+    mix: "MIX — track volumes in dB, labelled with track names. Left of a knob — the track meter, right — the M (mute), S (solo) and ● (arm stem recording) buttons. Knobs without a ring are tracks that do not exist yet: double tap one to add a track. Double tap a track's knob — the COPY, PASTE, DELETE TRACK, RENAME menu; hold and drag to reorder tracks. Above the window — ● MASTER (master recording); the window on the left shows track meters LEVEL, PAN, FREQ (buttons under it); on the right — the vectorscope with correlation and the tonal balance (section 3.3).",
     mst: "MST — the master chain top to bottom: saturator, compressor, clipper, limiter (preceded by the master EQ). The window on the left shows the COMP, CLIP, LIM display, with the module window buttons below it; on the right — the master scope and its tap point buttons (section 12)."
   };
   var curMode = "track";
