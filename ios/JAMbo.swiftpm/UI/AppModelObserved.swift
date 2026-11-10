@@ -497,10 +497,6 @@ extension AppModel {
         get { access(keyPath: \.mixMode); return _mixMode }
         set { put(\.mixMode, \._mixMode, newValue, _mixMode != newValue) }
     }
-    var rightMode: Int {
-        get { access(keyPath: \.rightMode); return _rightMode }
-        set { put(\.rightMode, \._rightMode, newValue, _rightMode != newValue) }
-    }
 }
 
 /// Изменилось ли значение (как shouldNotifyObservers макроса @Observable): у Equatable — сравнение, иначе — да. Одна

@@ -26,7 +26,7 @@ extension AppModel {
             for k in 0..<4 where on[k] { m |= 1 << k }
             sc.mask.store(m)
             scope.tick(sc, on: on)
-            if channel == .mix && _rightMode == MixMode.tonal {
+            if channel == .mix && _mixMode >> 2 == MixMode.tonal {
                 tonal.tick(scope)
                 if tonalRef { ensureRefTonal() }
             }
@@ -160,11 +160,12 @@ extension AppModel {
     /// FREQ и DYN при MIX: съём дорожек — только пока виден; выключили — данные с нуля.
     private func tickMixAnalysis() {
         let taps: TrackTaps = audio.core.levels.trackTaps
-        let want: Bool = channel == .mix && (_mixMode == MixMode.freq || _mixMode == MixMode.dyn)
+        let left: Int = _mixMode & 3
+        let want: Bool = channel == .mix && (left == MixMode.freq || left == MixMode.dyn)
         if want {
             if taps.on.load() == 0 { taps.on.store(1) }
             let n: Int = min(TrackTaps.tracks, project.tracks.count)
-            mixAn.tick(taps, count: n, freq: _mixMode == MixMode.freq)
+            mixAn.tick(taps, count: n, freq: left == MixMode.freq)
         } else if taps.on.load() != 0 {
             taps.on.store(0)
             mixAn.reset()

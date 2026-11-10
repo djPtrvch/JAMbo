@@ -265,6 +265,11 @@ final class TonalTarget {
     }
 }
 
+/// Подпись на холсте: 9 px цветом --dim.
+func dimText(_ ctx: GraphicsContext, _ s: String, _ p: CGPoint, _ a: UnitPoint) {
+    ctx.draw(Text(s).font(.system(size: 9)).foregroundColor(theme.dim), at: p, anchor: a)
+}
+
 /// TONAL — на месте осциллоскопа при MIX: 4 столбца полос; серый коридор цели (стиль проекта или, тапом по окну,
 /// референс REF аранжировщика), жёлтая метка — отклонение полосы (шкала ±12 dB); слева вверху — TARGET и стиль или
 /// имя референса; подписи — 9 px цветом --dim.
@@ -273,7 +278,7 @@ struct TonalView: View {
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 30)) { tl in
-            ScopeCanvas(now: tl.date) { ctx, size in draw(ctx, size) }
+            ScopeCanvas(now: tl.date) { ctx, size in TonalView.draw(ctx, size, model) }
         }
         .background(theme.panel, in: RoundedRectangle(cornerRadius: Layout.radius))
         .clipShape(RoundedRectangle(cornerRadius: Layout.radius))
@@ -281,51 +286,56 @@ struct TonalView: View {
         .onTapGesture { model.tonalRef.toggle() }
     }
 
-    /// Цель: заголовок, центры (среднее — 0) и половины ширины коридора по полосам; центры nil — цели нет.
-    private func target() -> (title: String, center: [Float]?, width: [Float]) {
+    /// Цель: стиль проекта или референс (nil — референса нет или ещё считается); title — подпись.
+    static func target(_ model: AppModel, _ title: inout String) -> TonalTarget? {
         if model.tonalRef {
-            guard let ref = model.project.arrange.ref else { return ("TARGET REF — LOAD IN ARRANGE", nil, [3, 3, 3, 3]) }
-            let name: String = String((ref.name.isEmpty ? "REF" : ref.name).prefix(24)).uppercased()
-            guard let t = model.refTonal, t.key == ref.key else { return ("TARGET " + name + " …", nil, [3, 3, 3, 3]) }
-            return ("TARGET " + name, t.center, t.width)
+            guard let ref = model.project.arrange.ref else {
+                title = "TARGET REF — LOAD IN ARRANGE"
+                return nil
+            }
+            title = "TARGET " + String((ref.name.isEmpty ? "REF" : ref.name).prefix(24)).uppercased()
+            guard let t = model.refTonal, t.key == ref.key else {
+                title += " …"
+                return nil
+            }
+            return t
         }
         let st: Int = DrumRhythm.styleIndex(model.project.tracks.first?.drumStyle ?? 0)
         let tg: [Float] = TonalState.targets[st]
         let m: Float = (tg[0] + tg[1] + tg[2] + tg[3]) / 4
         let w: Float = TonalState.widths[st]
-        return ("TARGET " + DrumRhythm.styles[st].uppercased(), tg.map { $0 - m }, [w, w, w, w])
+        title = "TARGET " + DrumRhythm.styles[st].uppercased()
+        return TonalTarget(key: "", center: [tg[0] - m, tg[1] - m, tg[2] - m, tg[3] - m], width: [w, w, w, w])
     }
 
-    private func draw(_ ctx: GraphicsContext, _ size: CGSize) {
+    static func draw(_ ctx: GraphicsContext, _ size: CGSize, _ model: AppModel) {
         let top: CGFloat = 24, bottom: CGFloat = size.height - 20
         let cy: CGFloat = (top + bottom) / 2
         let k: CGFloat = (bottom - top) / 24
         let left: CGFloat = 28
         let cell: CGFloat = (size.width - left - 8) / 4
-        for (v, s) in [(12, "+12"), (0, "0"), (-12, "−12")] {
-            let y: CGFloat = cy - CGFloat(v) * k
+        let scale: [String] = ["+12", "0", "−12"]
+        for q in 0..<3 {
+            let y: CGFloat = top + CGFloat(q) * 12 * k
             ctx.fill(Path(CGRect(x: left, y: y, width: size.width - left - 8, height: 1)), with: .color(theme.grid))
-            let t = ctx.resolve(Text(s).font(.system(size: 9)).foregroundColor(theme.dim))
-            ctx.draw(t, at: CGPoint(x: left - 4, y: y), anchor: .trailing)
+            dimText(ctx, scale[q], CGPoint(x: left - 4, y: y), .trailing)
         }
+        var title = ""
+        let tgt: TonalTarget? = target(model, &title)
+        dimText(ctx, title, CGPoint(x: 8, y: 4), .topLeading)
         let dev: [Float]? = model.tonal.dev
-        let tgt = target()
-        let title = ctx.resolve(Text(tgt.title).font(.system(size: 9)).foregroundColor(theme.dim))
-        ctx.draw(title, at: CGPoint(x: 8, y: 4), anchor: .topLeading)
         let w: CGFloat = min(36, cell * 0.6)
         for j in 0..<4 {
             let x: CGFloat = left + cell * (CGFloat(j) + 0.5)
-            if let c = tgt.center {
-                let cor: CGFloat = CGFloat(tgt.width[j]) * k
-                let tc: CGFloat = cy - CGFloat(c[j]) * k
-                let band = CGRect(x: x - w / 2, y: tc - cor, width: w, height: 2 * cor)
-                ctx.fill(Path(roundedRect: band, cornerRadius: 3), with: .color(theme.meterTrack))
+            dimText(ctx, TonalState.names[j], CGPoint(x: x, y: size.height - 8), .center)
+            if let t = tgt {
+                let cor: CGFloat = CGFloat(t.width[j]) * k
+                let tc: CGFloat = cy - CGFloat(t.center[j]) * k
+                ctx.fill(Path(roundedRect: CGRect(x: x - w / 2, y: tc - cor, width: w, height: 2 * cor), cornerRadius: 3),
+                         with: .color(theme.meterTrack))
             }
-            let name = ctx.resolve(Text(TonalState.names[j]).font(.system(size: 9)).foregroundColor(theme.dim))
-            ctx.draw(name, at: CGPoint(x: x, y: size.height - 8), anchor: .center)
             guard let d = dev else { continue }
-            let v: CGFloat = CGFloat(max(-12, min(12, d[j])))
-            let y: CGFloat = cy - v * k
+            let y: CGFloat = cy - CGFloat(max(-12, min(12, d[j]))) * k
             ctx.fill(Path(CGRect(x: x - w / 2, y: min(cy, y), width: w, height: abs(y - cy))), with: .color(theme.accent.opacity(0.3)))
             ctx.fill(Path(roundedRect: CGRect(x: x - w / 2, y: y - 2, width: w, height: 4), cornerRadius: 2), with: .color(theme.accent))
         }

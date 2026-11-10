@@ -192,7 +192,7 @@ enum MixMode {
     static let scope = 0, tonal = 1
 }
 
-/// Кнопка вида при MIX: слева — полосы окна (mixMode), справа (right) — скоп или TONAL (rightMode); тап — этот
+/// Кнопка вида при MIX: слева — полосы окна (биты 0–1 mixMode), справа (right) — осциллоскоп или TONAL (биты 2+); тап — этот
 /// вид; выбранная — белая.
 struct MixModeButton: View {
     let model: AppModel
@@ -201,12 +201,11 @@ struct MixModeButton: View {
     var right: Bool = false
 
     var body: some View {
-        let cur: Int = right ? model.rightMode : model.mixMode
+        let v: Int = model.mixMode
+        let cur: Int = right ? v >> 2 : v & 3
         return SideButton(title: title, lit: cur == mode)
             .contentShape(Rectangle())
-            .onTapGesture {
-                if right { model.rightMode = mode } else { model.mixMode = mode }
-            }
+            .onTapGesture { model.mixMode = right ? (v & 3) | (mode << 2) : (v & ~3) | mode }
     }
 }
 

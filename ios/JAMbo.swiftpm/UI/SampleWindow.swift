@@ -132,151 +132,87 @@ struct SampleWindow: View {
 }
 
 /// Превью MIXER (решение пользователя): по полосе на дорожку, 16 одинаковых мест на всю ширину (дорожек меньше —
-/// справа пусто); заглушённая — серая. Вид — кнопками слева внизу (MixMode, 10.11): LEVEL — уровень (стерео —
-/// наибольший из L и R) снизу вверх по шкале метров (−60…0 dBFS), выше 0 dBFS — красный, пик-холд — линия цвета
-/// текста; PAN — баланс сигнала (не ручка Pan): от средней линии вверх — вправо, вниз — влево, (R − L) / (R + L);
-/// FREQ — диапазон частот дорожки (снизу 20 Гц, сверху 20 кГц; градиент к красному — самая сильная частота); DYN — пик к RMS (0…30 dB).
-/// Приглушение Duck не показывается.
+/// справа пусто); заглушённая — серая. Вид — кнопками слева внизу (MixMode, 10.11): LEVEL — уровень (наибольший из
+/// L и R) снизу вверх по шкале метров (−60…0 dBFS), выше 0 dBFS — красный, пик-холд — линия цвета текста; PAN —
+/// баланс сигнала (не ручка Pan): от средней линии вверх — вправо, вниз — влево, (R − L) / (R + L); FREQ — диапазон
+/// частот дорожки (снизу 20 Гц, сверху 20 кГц; градиент к красному — самая сильная частота); DYN — пик к RMS
+/// (0…30 dB). Приглушение Duck не показывается.
 struct MixOverview: View {
     let model: AppModel
 
     var body: some View {
-        let mode: Int = model.mixMode
+        let mode: Int = model.mixMode & 3
         return TimelineView(.animation(minimumInterval: 1.0 / 60)) { tl in
-            MixOverviewBars(bars: bars, muted: muted, mode: mode, an: model.mixAn, now: tl.date)
+            ScopeCanvas(now: tl.date) { ctx, size in MixOverview.draw(ctx, size, model, mode) }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .allowsHitTesting(false)
     }
 
-    /// По дорожке: стерео L и R (уровень и пик-холд).
-    private var bars: [[(level: Float, hold: Float)]] {
-        let n: Int = min(Params.maxTracks, model.project.tracks.count)
-        return (0..<n).map { t in model.meters.bars(t, stereo: true) }
-    }
-
-    private var muted: [Bool] {
-        let n: Int = min(Params.maxTracks, model.project.tracks.count)
-        return (0..<n).map { t in !model.project.audible(t) }
-    }
-}
-
-struct MixOverviewBars: View {
-    let bars: [[(level: Float, hold: Float)]]
-    let muted: [Bool]
-    let mode: Int
-    let an: MixAnalysis
-    let now: Date
-
-    var body: some View {
-        Canvas { ctx, size in
-            if mode == MixMode.pan {
-                drawPan(ctx, size)
-            } else if mode == MixMode.freq {
-                drawFreq(ctx, size)
-            } else if mode == MixMode.dyn {
-                drawDyn(ctx, size)
-            } else {
-                drawLevel(ctx, size)
-            }
-        }
-    }
-
-    /// Подпись шкалы справа (9 px, --dim) и линия сетки.
-    private func mark(_ ctx: GraphicsContext, _ size: CGSize, _ y: CGFloat, _ s: String) {
-        ctx.fill(Path(CGRect(x: 0, y: y.rounded(), width: size.width, height: 1)), with: .color(theme.grid))
-        let t = ctx.resolve(Text(s).font(.system(size: 9)).foregroundColor(theme.dim))
-        ctx.draw(t, at: CGPoint(x: size.width, y: y - 1), anchor: .bottomTrailing)
-    }
-
-    private func drawFreq(_ ctx: GraphicsContext, _ size: CGSize) {
+    static func draw(_ ctx: GraphicsContext, _ size: CGSize, _ model: AppModel, _ mode: Int) {
         let h: CGFloat = size.height
-        // Ось 20 Гц…20 кГц — три декады: 100 Гц, 1 кГц, 10 кГц.
-        let marks: [(CGFloat, String)] = [(0.2330, "100"), (0.5663, "1k"), (0.8997, "10k")]
-        for (f, s) in marks { mark(ctx, size, h - f * h, s) }
-        let cell: CGFloat = size.width / 16
-        let w: CGFloat = MeterBars.width
-        for t in 0..<bars.count {
-            guard let sp = an.span(t) else { continue }
-            let x: CGFloat = cell * (CGFloat(t) + 0.5) - w / 2
-            let mute: Bool = t < muted.count && muted[t]
-            let y0: CGFloat = h - sp.hi * h
-            let r = CGRect(x: x, y: y0, width: w, height: max(3, (sp.hi - sp.lo) * h))
-            let shape = Path(roundedRect: r, cornerRadius: 3)
-            if mute {
-                ctx.fill(shape, with: .color(theme.muteGrey))
-                continue
-            }
-            // Градиент: жёлтый по краям диапазона, красный — на самой сильной частоте (решение пользователя 10.11).
-            let py: CGFloat = h - sp.peak * h
-            let at: CGFloat = max(0, min(1, (py - r.minY) / r.height))
-            let g = Gradient(stops: [.init(color: theme.accent, location: 0), .init(color: theme.rec, location: at),
-                                     .init(color: theme.accent, location: 1)])
-            ctx.fill(shape, with: .linearGradient(g, startPoint: CGPoint(x: x, y: r.minY), endPoint: CGPoint(x: x, y: r.maxY)))
-        }
-    }
-
-    private func drawDyn(_ ctx: GraphicsContext, _ size: CGSize) {
-        let h: CGFloat = size.height
-        let k: CGFloat = h / 30
-        for v in [6, 12, 18, 24] { mark(ctx, size, h - CGFloat(v) * k, "\(v)") }
-        let cell: CGFloat = size.width / 16
-        let w: CGFloat = MeterBars.width
-        for t in 0..<bars.count {
-            let c: Float = t < an.crest.count ? an.crest[t] : -1
-            if c < 0 { continue }
-            let bh: CGFloat = max(2, min(30, CGFloat(c)) * k)
-            let x: CGFloat = cell * (CGFloat(t) + 0.5) - w / 2
-            let mute: Bool = t < muted.count && muted[t]
-            let col: Color = mute ? theme.muteGrey : theme.accent
-            ctx.fill(Path(roundedRect: CGRect(x: x, y: h - bh, width: w, height: bh), cornerRadius: 3), with: .color(col))
-        }
-    }
-
-    private func drawLevel(_ ctx: GraphicsContext, _ size: CGSize) {
-        let cell: CGFloat = size.width / 16
-        let w: CGFloat = MeterBars.width
-        for (t, lr) in bars.enumerated() where lr.count == 2 {
-            let lv: Float = max(lr[0].level, lr[1].level)
-            let hold: Float = max(lr[0].hold, lr[1].hold)
-            let x: CGFloat = cell * (CGFloat(t) + 0.5) - w / 2
-            let mute: Bool = t < muted.count && muted[t]
-            let f: CGFloat = MeterState.frac(lv)
-            if f > 0 {
-                let h: CGFloat = f * size.height
-                let r = CGRect(x: x, y: size.height - h, width: w, height: h)
-                let c: Color = mute ? theme.muteGrey : (lv >= MeterState.over ? theme.rec : theme.accent)
-                ctx.fill(Path(roundedRect: r, cornerRadius: 3), with: .color(c))
-            }
-            let hf: CGFloat = MeterState.frac(hold)
-            if hf > 0.01 {
-                let y: CGFloat = size.height - hf * size.height
-                ctx.fill(Path(CGRect(x: x, y: max(0, y - 1), width: w, height: 2)), with: .color(theme.text))
+        let cy: CGFloat = (h / 2).rounded()
+        // Сетка и подписи справа: PAN — R, L; FREQ — 100, 1k, 10k; DYN — 6…24 dB.
+        if mode == MixMode.pan {
+            ctx.fill(Path(CGRect(x: 0, y: cy, width: size.width, height: 1)), with: .color(theme.gridStrong))
+            dimText(ctx, "R", CGPoint(x: size.width, y: 0), .topTrailing)
+            dimText(ctx, "L", CGPoint(x: size.width, y: h), .bottomTrailing)
+        } else if mode == MixMode.freq || mode == MixMode.dyn {
+            let names: [String] = mode == MixMode.freq ? ["100", "1k", "10k"] : ["6", "12", "18", "24"]
+            let ys: [CGFloat] = mode == MixMode.freq ? [0.2330, 0.5663, 0.8997] : [0.2, 0.4, 0.6, 0.8]
+            for k in 0..<names.count {
+                let y: CGFloat = (h - ys[k] * h).rounded()
+                ctx.fill(Path(CGRect(x: 0, y: y, width: size.width, height: 1)), with: .color(theme.grid))
+                dimText(ctx, names[k], CGPoint(x: size.width, y: y - 1), .bottomTrailing)
             }
         }
-    }
-
-    private func drawPan(_ ctx: GraphicsContext, _ size: CGSize) {
         let cell: CGFloat = size.width / 16
         let w: CGFloat = MeterBars.width
-        let cy: CGFloat = (size.height / 2).rounded()
-        let half: CGFloat = size.height / 2
-        ctx.fill(Path(CGRect(x: 0, y: cy, width: size.width, height: 1)), with: .color(theme.gridStrong))
-        let fr = ctx.resolve(Text("R").font(.system(size: 9)).foregroundColor(theme.dim))
-        let fl = ctx.resolve(Text("L").font(.system(size: 9)).foregroundColor(theme.dim))
-        ctx.draw(fr, at: CGPoint(x: size.width, y: 0), anchor: .topTrailing)
-        ctx.draw(fl, at: CGPoint(x: size.width, y: size.height), anchor: .bottomTrailing)
-        let floor: Float = 0.001
-        for (t, lr) in bars.enumerated() where lr.count == 2 {
+        let n: Int = min(Params.maxTracks, model.project.tracks.count)
+        let m: MeterState = model.meters
+        let an: MixAnalysis = model.mixAn
+        for t in 0..<n {
+            let x: CGFloat = cell * (CGFloat(t) + 0.5) - w / 2
+            let mute: Bool = !model.project.audible(t)
+            let lr = m.bars(t, stereo: true)
+            if lr.count < 2 { continue }
             let l: Float = lr[0].level, r: Float = lr[1].level
-            if max(l, r) < floor { continue }
-            let b: CGFloat = CGFloat((r - l) / (r + l))
-            let x: CGFloat = cell * (CGFloat(t) + 0.5) - w / 2
-            let mute: Bool = t < muted.count && muted[t]
-            let c: Color = mute ? theme.muteGrey : theme.accent
-            let h: CGFloat = max(2, abs(b) * half)
-            let y: CGFloat = b >= 0 ? cy + 1 - h : cy
-            ctx.fill(Path(roundedRect: CGRect(x: x, y: y, width: w, height: h), cornerRadius: 3), with: .color(c))
+            var rect = CGRect.zero
+            var col: Color = mute ? theme.muteGrey : theme.accent
+            if mode == MixMode.pan {
+                if max(l, r) < 0.001 { continue }
+                let b: CGFloat = CGFloat((r - l) / (r + l))
+                let bh: CGFloat = max(2, abs(b) * h / 2)
+                rect = CGRect(x: x, y: b >= 0 ? cy + 1 - bh : cy, width: w, height: bh)
+            } else if mode == MixMode.dyn {
+                let c: Float = an.crest[t]
+                if c < 0 { continue }
+                let bh: CGFloat = max(2, min(30, CGFloat(c)) * h / 30)
+                rect = CGRect(x: x, y: h - bh, width: w, height: bh)
+            } else if mode == MixMode.freq {
+                guard let sp = an.span(t) else { continue }
+                rect = CGRect(x: x, y: h - sp.hi * h, width: w, height: max(3, (sp.hi - sp.lo) * h))
+                if !mute {
+                    // Градиент: жёлтый по краям диапазона, красный — на самой сильной частоте (решение пользователя).
+                    let at: CGFloat = max(0, min(1, (h - sp.peak * h - rect.minY) / rect.height))
+                    let g = Gradient(stops: [.init(color: theme.accent, location: 0), .init(color: theme.rec, location: at),
+                                             .init(color: theme.accent, location: 1)])
+                    ctx.fill(Path(roundedRect: rect, cornerRadius: 3),
+                             with: .linearGradient(g, startPoint: CGPoint(x: x, y: rect.minY), endPoint: CGPoint(x: x, y: rect.maxY)))
+                    continue
+                }
+            } else {
+                let lv: Float = max(l, r)
+                let f: CGFloat = MeterState.frac(lv)
+                let hf: CGFloat = MeterState.frac(max(lr[0].hold, lr[1].hold))
+                if hf > 0.01 {
+                    ctx.fill(Path(CGRect(x: x, y: max(0, h - hf * h - 1), width: w, height: 2)), with: .color(theme.text))
+                }
+                if f <= 0 { continue }
+                rect = CGRect(x: x, y: h - f * h, width: w, height: f * h)
+                if !mute && lv >= MeterState.over { col = theme.rec }
+            }
+            ctx.fill(Path(roundedRect: rect, cornerRadius: 3), with: .color(col))
         }
     }
 }

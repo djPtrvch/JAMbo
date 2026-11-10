@@ -130,7 +130,7 @@ struct MasterScopeView: View {
             VStack(spacing: gap) {
                 panel { ctx, size in drawGonio(ctx, size) }.frame(height: h * 0.5)
                 // При MIX кнопка TONAL — тональный баланс на месте осциллоскопа (вектороскоп остаётся).
-                if !taps && model.rightMode == MixMode.tonal {
+                if !taps && model.mixMode >> 2 == MixMode.tonal {
                     TonalView(model: model).frame(height: h * 0.5)
                 } else {
                     panel { ctx, size in drawOsc(ctx, size) }.frame(height: h * 0.5)
@@ -162,10 +162,8 @@ struct MasterScopeView: View {
         axes.move(to: CGPoint(x: cx - d, y: cy - d)); axes.addLine(to: CGPoint(x: cx + d, y: cy + d))
         axes.move(to: CGPoint(x: cx + d, y: cy - d)); axes.addLine(to: CGPoint(x: cx - d, y: cy + d))
         ctx.stroke(axes, with: .color(theme.gridStrong), lineWidth: 1)
-        let fl = ctx.resolve(Text("L").font(.system(size: 9)).foregroundColor(theme.dim))
-        let fr = ctx.resolve(Text("R").font(.system(size: 9)).foregroundColor(theme.dim))
-        ctx.draw(fl, at: CGPoint(x: cx - d - 2, y: cy - d - 3), anchor: .bottomLeading)
-        ctx.draw(fr, at: CGPoint(x: cx + d - 4, y: cy - d - 3), anchor: .bottomLeading)
+        dimText(ctx, "L", CGPoint(x: cx - d - 2, y: cy - d - 3), .bottomLeading)
+        dimText(ctx, "R", CGPoint(x: cx + d - 4, y: cy - d - 3), .bottomLeading)
         let s: ScopeState = model.scope
         if !s.gonioOk { return }
         // Четыре части окна: старые бледнее (послесвечение веба — 0,75 за кадр).
@@ -205,10 +203,8 @@ struct MasterScopeView: View {
             cc.fill(Path(fill), with: .color(theme.accent))
         }
         ctx.fill(Path(CGRect(x: mid - 0.5, y: y - 2, width: 1, height: MeterBars.width + 4)), with: .color(theme.dim))
-        let lm = ctx.resolve(Text("−1").font(.system(size: 9)).foregroundColor(theme.dim))
-        let lp = ctx.resolve(Text("+1").font(.system(size: 9)).foregroundColor(theme.dim))
-        ctx.draw(lm, at: CGPoint(x: x0 - 4, y: bar.midY), anchor: .trailing)
-        ctx.draw(lp, at: CGPoint(x: bar.maxX + 4, y: bar.midY), anchor: .leading)
+        dimText(ctx, "−1", CGPoint(x: x0 - 4, y: bar.midY), .trailing)
+        dimText(ctx, "+1", CGPoint(x: bar.maxX + 4, y: bar.midY), .leading)
     }
 
     private func drawOsc(_ ctx: GraphicsContext, _ size: CGSize) {
