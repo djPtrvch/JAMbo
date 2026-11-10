@@ -164,11 +164,8 @@ struct RightColumn: View {
                 ButtonPair(left: ShiftButton(model: model), right: ScopeButton(model: model, tap: MasterScope.lim))
             })
         } else if model.channel == .mix {
-            // MIX (10.11): под скопом кнопок нет — пустое место (решение пользователя).
-            AnyView(VStack(spacing: Layout.gap) {
-                RightTop(model: model)
-                Color.clear.frame(height: 2 * Layout.pairHeight + Layout.gap)
-            })
+            // MIX (10.11): кнопок нет — скоп до низа колонки, TONAL растянут на место кнопок (решение пользователя).
+            AnyView(RightTop(model: model))
         } else {
             AnyView(VStack(spacing: Layout.gap) {
                 RightTop(model: model)
