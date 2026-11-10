@@ -129,7 +129,12 @@ struct MasterScopeView: View {
             let h: CGFloat = geo.size.height - gap
             VStack(spacing: gap) {
                 panel { ctx, size in drawGonio(ctx, size) }.frame(height: h * 0.5)
-                panel { ctx, size in drawOsc(ctx, size) }.frame(height: h * 0.5)
+                // При MIX кнопка TONAL — тональный баланс на месте осциллоскопа (вектороскоп остаётся).
+                if !taps && model.rightMode == MixMode.tonal {
+                    TonalView(model: model).frame(height: h * 0.5)
+                } else {
+                    panel { ctx, size in drawOsc(ctx, size) }.frame(height: h * 0.5)
+                }
             }
         }
     }
@@ -147,7 +152,8 @@ struct MasterScopeView: View {
         let strip: CGFloat = 20
         let gh: CGFloat = size.height - strip
         let cx: CGFloat = size.width / 2, cy: CGFloat = gh / 2
-        let r: CGFloat = min(size.width, gh) / 2 - 4
+        // Точки доходят до 1,2 радиуса — круг меньше, чтобы они не заходили на корреляцию.
+        let r: CGFloat = (min(size.width, gh) / 2 - 4) / 1.2
         drawCorr(ctx, size)
         let d: CGFloat = r * 0.70710678
         var axes = Path()
@@ -176,7 +182,9 @@ struct MasterScopeView: View {
                 i += 2
             }
             let alpha: Double = 0.55 * pow(0.75, Double(parts - 1 - q))
-            ctx.fill(dots, with: .color(theme.accent.opacity(alpha)))
+            var dc = ctx
+            dc.clip(to: Path(CGRect(x: 0, y: 0, width: size.width, height: gh)))
+            dc.fill(dots, with: .color(theme.accent.opacity(alpha)))
         }
     }
 

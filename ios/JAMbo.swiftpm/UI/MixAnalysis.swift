@@ -145,14 +145,18 @@ final class MixAnalysis {
 }
 
 /// Тональный баланс мастера (TONAL при MIX, 10.11): мощность выхода мастера (окно гониометра) в 4 полосах — LOW
-/// 20–250 Гц, LOW MID 250 Гц–2 кГц, HIGH MID 2–6 кГц, HIGH 6–20 кГц; плотность на октаву против цели (спад
-/// 1,5 dB на октаву от 1 кГц — 4,5 dB/oct спектра FFT, средний спектр сведённой музыки), минус среднее отклонение (громкость не важна).
-/// Сглаживание ~0,3 с.
+/// 20–250 Гц, LOW MID 250 Гц–2 кГц, HIGH MID 2–6 кГц, HIGH 6–20 кГц; плотность на октаву против базового наклона
+/// (спад 1,5 dB на октаву от 1 кГц — 4,5 dB/oct спектра FFT), минус среднее отклонение (громкость не важна).
+/// Цель — коридор стиля проекта (DrumRhythm.styles): свой сдвиг полос и ширина. Сглаживание ~0,3 с.
 final class TonalState {
     static let edges: [Float] = [20, 250, 2000, 6000, 20000]
     static let names: [String] = ["LOW", "LOW MID", "HIGH MID", "HIGH"]
-    /// Коридор цели, ± dB.
-    static let corridor: Float = 3
+    /// Сдвиг центра коридора по полосам (dB) для стилей House, Techno, Breaks/D&B, Trap/R&B, Pop, Ambient — оценка,
+    /// не замер эталонов.
+    static let targets: [[Float]] = [[1, 0, -0.5, -0.5], [2, -0.5, -1, -0.5], [2, -1, 0, -1], [4, -1, -1.5, -1.5],
+                                     [0, 0, 0.5, -0.5], [-1, 1, 0, 0]]
+    /// Половина ширины коридора, dB.
+    static let widths: [Float] = [3, 3, 3.5, 4, 3, 4]
     let fftp = PowerFFT()
     let map: [Int] = PowerFFT.bandMap(TonalState.edges)
     let mono = UnsafeMutablePointer<Float>.allocate(capacity: PowerFFT.size)
@@ -189,8 +193,8 @@ final class TonalState {
     }
 }
 
-/// TONAL — на месте скопа при MIX: 4 столбца полос; серый коридор цели ±3 dB, средняя линия, жёлтая метка —
-/// отклонение полосы (шкала ±12 dB); подписи полос и шкалы — 9 px цветом --dim.
+/// TONAL — на месте осциллоскопа при MIX: 4 столбца полос; серый коридор цели стиля проекта, жёлтая метка —
+/// отклонение полосы (шкала ±12 dB); слева вверху — TARGET и стиль; подписи — 9 px цветом --dim.
 struct TonalView: View {
     let model: AppModel
 
@@ -203,7 +207,7 @@ struct TonalView: View {
     }
 
     private func draw(_ ctx: GraphicsContext, _ size: CGSize) {
-        let top: CGFloat = 14, bottom: CGFloat = size.height - 22
+        let top: CGFloat = 24, bottom: CGFloat = size.height - 20
         let cy: CGFloat = (top + bottom) / 2
         let k: CGFloat = (bottom - top) / 24
         let left: CGFloat = 28
@@ -215,11 +219,17 @@ struct TonalView: View {
             ctx.draw(t, at: CGPoint(x: left - 4, y: y), anchor: .trailing)
         }
         let dev: [Float]? = model.tonal.dev
+        let st: Int = DrumRhythm.styleIndex(model.project.drumStyle)
+        let tg: [Float] = TonalState.targets[st]
+        let tMean: Float = (tg[0] + tg[1] + tg[2] + tg[3]) / 4
+        let title = ctx.resolve(Text("TARGET " + DrumRhythm.styles[st].uppercased()).font(.system(size: 9)).foregroundColor(theme.dim))
+        ctx.draw(title, at: CGPoint(x: 8, y: 4), anchor: .topLeading)
         let w: CGFloat = min(36, cell * 0.6)
-        let cor: CGFloat = CGFloat(TonalState.corridor) * k
+        let cor: CGFloat = CGFloat(TonalState.widths[st]) * k
         for j in 0..<4 {
             let x: CGFloat = left + cell * (CGFloat(j) + 0.5)
-            let band = CGRect(x: x - w / 2, y: cy - cor, width: w, height: 2 * cor)
+            let tc: CGFloat = cy - CGFloat(tg[j] - tMean) * k
+            let band = CGRect(x: x - w / 2, y: tc - cor, width: w, height: 2 * cor)
             ctx.fill(Path(roundedRect: band, cornerRadius: 3), with: .color(theme.meterTrack))
             let name = ctx.resolve(Text(TonalState.names[j]).font(.system(size: 9)).foregroundColor(theme.dim))
             ctx.draw(name, at: CGPoint(x: x, y: size.height - 8), anchor: .center)

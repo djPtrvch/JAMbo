@@ -70,8 +70,7 @@ struct RightTop: View {
             if mix {
                 // Скоп мастера того же размера, что при MST (решение пользователя 3.11): гониометр и осциллоскоп — только
                 // форма волны мастера, без точек съёма COMP, CLIP, LIM; пустой строки сверху нет.
-                AnyView(model.rightMode == MixMode.tonal ? AnyView(TonalView(model: model))
-                        : AnyView(MasterScopeView(model: model, taps: false)))
+                AnyView(MasterScopeView(model: model, taps: false))
             } else {
                 AnyView(VStack(spacing: Layout.barGap) {
                     PageArrows(model: model).frame(height: bar)
@@ -166,7 +165,7 @@ struct RightColumn: View {
                 ButtonPair(left: ShiftButton(model: model), right: ScopeButton(model: model, tap: MasterScope.lim))
             })
         } else if model.channel == .mix {
-            // MIX (10.11): SCOPE и TONAL — что на месте скопа; SHIFT; четвёртое место пустое.
+            // MIX (10.11): SCOPE и TONAL — что под вектороскопом (осциллоскоп или тональный баланс); SHIFT; четвёртое место пустое.
             AnyView(VStack(spacing: Layout.gap) {
                 RightTop(model: model)
                 ButtonPair(left: MixModeButton(model: model, title: "SCOPE", mode: MixMode.scope, right: true),
