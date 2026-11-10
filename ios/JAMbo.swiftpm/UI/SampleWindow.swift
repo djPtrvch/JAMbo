@@ -135,7 +135,7 @@ struct SampleWindow: View {
 /// справа пусто); заглушённая — серая. Вид — кнопками слева внизу (MixMode, 10.11): LEVEL — уровень (стерео —
 /// наибольший из L и R) снизу вверх по шкале метров (−60…0 dBFS), выше 0 dBFS — красный, пик-холд — линия цвета
 /// текста; PAN — баланс сигнала (не ручка Pan): от средней линии вверх — вправо, вниз — влево, (R − L) / (R + L);
-/// FREQ — диапазон частот дорожки (снизу 20 Гц, сверху 20 кГц, белая черта — пик); DYN — пик к RMS (0…30 dB).
+/// FREQ — диапазон частот дорожки (снизу 20 Гц, сверху 20 кГц; градиент к красному — самая сильная частота); DYN — пик к RMS (0…30 dB).
 /// Приглушение Duck не показывается.
 struct MixOverview: View {
     let model: AppModel
@@ -200,12 +200,19 @@ struct MixOverviewBars: View {
             guard let sp = an.span(t) else { continue }
             let x: CGFloat = cell * (CGFloat(t) + 0.5) - w / 2
             let mute: Bool = t < muted.count && muted[t]
-            let c: Color = mute ? theme.muteGrey : theme.accent
             let y0: CGFloat = h - sp.hi * h
             let r = CGRect(x: x, y: y0, width: w, height: max(3, (sp.hi - sp.lo) * h))
-            ctx.fill(Path(roundedRect: r, cornerRadius: 3), with: .color(c))
+            let shape = Path(roundedRect: r, cornerRadius: 3)
+            if mute {
+                ctx.fill(shape, with: .color(theme.muteGrey))
+                continue
+            }
+            // Градиент: жёлтый по краям диапазона, красный — на самой сильной частоте (решение пользователя 10.11).
             let py: CGFloat = h - sp.peak * h
-            ctx.fill(Path(CGRect(x: x, y: py - 1, width: w, height: 2)), with: .color(theme.text))
+            let at: CGFloat = max(0, min(1, (py - r.minY) / r.height))
+            let g = Gradient(stops: [.init(color: theme.accent, location: 0), .init(color: theme.rec, location: at),
+                                     .init(color: theme.accent, location: 1)])
+            ctx.fill(shape, with: .linearGradient(g, startPoint: CGPoint(x: x, y: r.minY), endPoint: CGPoint(x: x, y: r.maxY)))
         }
     }
 
