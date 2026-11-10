@@ -304,7 +304,7 @@ struct TonalView: View {
     }
 
     static func draw(_ ctx: GraphicsContext, _ size: CGSize, _ model: AppModel) {
-        let top: CGFloat = 24, bottom: CGFloat = size.height - 20
+        let top: CGFloat = 40, bottom: CGFloat = size.height - 36
         let cy: CGFloat = (top + bottom) / 2
         let k: CGFloat = (bottom - top) / 24
         let left: CGFloat = 28
@@ -318,14 +318,14 @@ struct TonalView: View {
         var title = ""
         let tgt: TonalTarget? = target(model, &title)
         // TARGET и имя: своего трека — цветом текста, референса — жёлтым.
-        dimText(ctx, "TARGET", CGPoint(x: 8, y: 4), .topLeading)
+        dimText(ctx, "TARGET", CGPoint(x: 8, y: 12), .topLeading)
         let col: Color = model.tonalRef ? theme.accent : theme.text
-        ctx.draw(Text(title).font(.system(size: 9, weight: .semibold)).foregroundColor(col), at: CGPoint(x: 50, y: 4), anchor: .topLeading)
+        ctx.draw(Text(title).font(.system(size: 9, weight: .semibold)).foregroundColor(col), at: CGPoint(x: 50, y: 12), anchor: .topLeading)
         let dev: [Float]? = model.tonal.dev
         let w: CGFloat = min(36, cell * 0.6)
         for j in 0..<4 {
             let x: CGFloat = left + cell * (CGFloat(j) + 0.5)
-            dimText(ctx, TonalState.names[j], CGPoint(x: x, y: size.height - 8), .center)
+            dimText(ctx, TonalState.names[j], CGPoint(x: x, y: size.height - 16), .center)
             if let t = tgt {
                 let cor: CGFloat = CGFloat(t.width[j]) * k
                 let tc: CGFloat = cy - CGFloat(t.center[j]) * k
