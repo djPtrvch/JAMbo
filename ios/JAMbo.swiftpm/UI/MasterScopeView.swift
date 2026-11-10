@@ -18,6 +18,8 @@ final class ScopeState {
     let gl = UnsafeMutablePointer<Float>.allocate(capacity: ScopeState.gonioN)
     let gr = UnsafeMutablePointer<Float>.allocate(capacity: ScopeState.gonioN)
     private(set) var gonioOk = false
+    /// Корреляция L и R за окно гониометра (−1…+1, сглажена); nil — тишина.
+    private(set) var corr: Float? = nil
 
     init() {
         buf.initialize(repeating: 0, count: SpectrumTap.capacity)
@@ -57,6 +59,27 @@ final class ScopeState {
         s.gonioL.read(into: gl, count: ScopeState.gonioN, end: end)
         s.gonioR.read(into: gr, count: ScopeState.gonioN, end: end)
         gonioOk = end > 0
+        corr = correlation()
+    }
+
+    /// Σ(L·R) / √(ΣL² · ΣR²) по окну; сглаживание 0,8 за кадр; ниже −60 dBFS — nil.
+    private func correlation() -> Float? {
+        var lr: Float = 0, ll: Float = 0, rr: Float = 0
+        var i = 0
+        let n: Int = ScopeState.gonioN
+        while i < n {
+            let l: Float = gl[i], r: Float = gr[i]
+            lr += l * r
+            ll += l * l
+            rr += r * r
+            i += 1
+        }
+        let floor: Float = 1e-6 * Float(n)
+        if ll + rr < floor { return nil }
+        let v: Float = lr / max(1e-12, (ll * rr).squareRoot())
+        let c: Float = max(-1, min(1, v))
+        guard let old = corr else { return c }
+        return old * 0.8 + c * 0.2
     }
 
     private func fold(_ k: Int, _ n: Int, _ spc: Int, _ w: Int) {
@@ -121,8 +144,11 @@ struct MasterScopeView: View {
     }
 
     private func drawGonio(_ ctx: GraphicsContext, _ size: CGSize) {
-        let cx: CGFloat = size.width / 2, cy: CGFloat = size.height / 2
-        let r: CGFloat = min(size.width, size.height) / 2 - 4
+        let strip: CGFloat = 20
+        let gh: CGFloat = size.height - strip
+        let cx: CGFloat = size.width / 2, cy: CGFloat = gh / 2
+        let r: CGFloat = min(size.width, gh) / 2 - 4
+        drawCorr(ctx, size)
         let d: CGFloat = r * 0.70710678
         var axes = Path()
         axes.move(to: CGPoint(x: cx, y: cy - r)); axes.addLine(to: CGPoint(x: cx, y: cy + r))
@@ -152,6 +178,29 @@ struct MasterScopeView: View {
             let alpha: Double = 0.55 * pow(0.75, Double(parts - 1 - q))
             ctx.fill(dots, with: .color(theme.accent.opacity(alpha)))
         }
+    }
+
+    /// Корреляция под гониометром (полоса метров 9 px): от середины (0) вправо — к +1 (моно), влево — к −1
+    /// (противофаза); подписи −1, 0, +1 — 9 px цветом --dim.
+    private func drawCorr(_ ctx: GraphicsContext, _ size: CGSize) {
+        let w: CGFloat = min(size.width - 40, 160)
+        let x0: CGFloat = (size.width - w) / 2
+        let y: CGFloat = size.height - 6 - MeterBars.width
+        let bar = CGRect(x: x0, y: y, width: w, height: MeterBars.width)
+        ctx.fill(Path(roundedRect: bar, cornerRadius: 3), with: .color(theme.meterTrack))
+        let mid: CGFloat = bar.midX
+        if let c = model.scope.corr {
+            let x: CGFloat = mid + CGFloat(c) * w / 2
+            let fill = CGRect(x: min(mid, x), y: y, width: max(2, abs(x - mid)), height: MeterBars.width)
+            var cc = ctx
+            cc.clip(to: Path(roundedRect: bar, cornerRadius: 3))
+            cc.fill(Path(fill), with: .color(theme.accent))
+        }
+        ctx.fill(Path(CGRect(x: mid - 0.5, y: y - 2, width: 1, height: MeterBars.width + 4)), with: .color(theme.dim))
+        let lm = ctx.resolve(Text("−1").font(.system(size: 9)).foregroundColor(theme.dim))
+        let lp = ctx.resolve(Text("+1").font(.system(size: 9)).foregroundColor(theme.dim))
+        ctx.draw(lm, at: CGPoint(x: x0 - 4, y: bar.midY), anchor: .trailing)
+        ctx.draw(lp, at: CGPoint(x: bar.maxX + 4, y: bar.midY), anchor: .leading)
     }
 
     private func drawOsc(_ ctx: GraphicsContext, _ size: CGSize) {
