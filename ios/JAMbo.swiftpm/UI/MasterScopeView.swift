@@ -128,12 +128,12 @@ struct MasterScopeView: View {
             let gap: CGFloat = 6
             let h: CGFloat = geo.size.height - gap
             VStack(spacing: gap) {
-                panel { ctx, size in drawGonio(ctx, size) }.frame(height: h * 0.5)
+                panel { ctx, size in drawGonio(ctx, size) }.frame(height: h * 0.6)
                 // При MIX кнопка TONAL — тональный баланс на месте осциллоскопа (вектороскоп остаётся).
                 if !taps && model.mixMode >> 2 == MixMode.tonal {
-                    TonalView(model: model).frame(height: h * 0.5)
+                    TonalView(model: model).frame(height: h * 0.4)
                 } else {
-                    panel { ctx, size in drawOsc(ctx, size) }.frame(height: h * 0.5)
+                    panel { ctx, size in drawOsc(ctx, size) }.frame(height: h * 0.4)
                 }
             }
         }
