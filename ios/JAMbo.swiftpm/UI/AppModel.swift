@@ -428,6 +428,10 @@ final class AppModel {
     /// FREQ и DYN при MIX; тональный баланс (TONAL).
     @ObservationIgnored let mixAn = MixAnalysis()
     @ObservationIgnored let tonal = TonalState()
+    /// Цель TONAL: false — стиль проекта, true — референс REF (тап по окну; не в проекте); цель по файлу референса.
+    @ObservationIgnored var tonalRef = false
+    @ObservationIgnored var refTonal: TonalTarget? = nil
+    @ObservationIgnored var refTonalPending: String = ""
     /// Окно модуля мастера на месте центра (MasterScope.sat…lim; nil — закрыто) и его меню (название, PRESETS);
     /// ввод числом или имени пресета. Открытость и FREEZE не в проекте.
     @ObservationIgnored var _masterWin: Int? = nil

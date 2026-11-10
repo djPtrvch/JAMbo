@@ -178,10 +178,15 @@ final class TonalState {
         if e < 1e-6 { return }
         fftp.bands(UnsafePointer(mono), map, into: &fresh)
         for j in 0..<4 { power[j] = power[j] == 0 ? fresh[j] : power[j] * 0.95 + fresh[j] * 0.05 }
+        dev = TonalState.devs(power)
+    }
+
+    /// Мощности 4 полос → отклонение от базового наклона, минус среднее (dB).
+    static func devs(_ power: [Float]) -> [Float] {
         var d = [Float](repeating: 0, count: 4)
         var mean: Float = 0
         for j in 0..<4 {
-            let lo: Float = TonalState.edges[j], hi: Float = TonalState.edges[j + 1]
+            let lo: Float = edges[j], hi: Float = edges[j + 1]
             let oct: Float = log2(hi / lo)
             let fc: Float = (lo * hi).squareRoot()
             let dens: Float = 10 * log10(max(1e-20, power[j]) / oct)
@@ -189,12 +194,80 @@ final class TonalState {
             d[j] = dens - target
             mean += d[j] / 4
         }
-        dev = d.map { $0 - mean }
+        return d.map { $0 - mean }
+    }
+
+    /// Цель по референсу (вне главного потока): центр — баланс всего файла (средняя мощность окон 4096 отсчётов, не
+    /// больше ~1500 окон), половина ширины — разброс баланса по отрезкам ~1 с (1,5 σ, 1,5…4 dB); тишина (ниже
+    /// −50 dBFS) не считается. nil — в файле нет звука.
+    static func profile(_ key: String, _ s: SampleData) -> TonalTarget? {
+        let n: Int = PowerFFT.size
+        if s.frames < n { return nil }
+        let fftp = PowerFFT()
+        let map: [Int] = PowerFFT.bandMap(edges)
+        let x = UnsafeMutablePointer<Float>.allocate(capacity: n)
+        defer { x.deallocate() }
+        let r: UnsafeMutablePointer<Float> = s.channels > 1 ? s.right : s.left
+        let hop: Int = max(n, (s.frames - n) / 1500)
+        let perChunk: Int = max(1, 48000 / hop)
+        var total = [Float](repeating: 0, count: 4)
+        var chunk = [Float](repeating: 0, count: 4)
+        var fresh = [Float](repeating: 0, count: 4)
+        var inChunk = 0
+        var chunks: [[Float]] = []
+        var start = 0
+        while start + n <= s.frames {
+            var e: Float = 0
+            for i in 0..<n {
+                let v: Float = 0.5 * (s.left[start + i] + r[start + i])
+                x[i] = v
+                e += v * v
+            }
+            start += hop
+            if e / Float(n) < 1e-5 { continue }
+            fftp.bands(UnsafePointer(x), map, into: &fresh)
+            for j in 0..<4 {
+                total[j] += fresh[j]
+                chunk[j] += fresh[j]
+            }
+            inChunk += 1
+            if inChunk >= perChunk {
+                chunks.append(devs(chunk))
+                for j in 0..<4 { chunk[j] = 0 }
+                inChunk = 0
+            }
+        }
+        if total.allSatisfy({ $0 <= 0 }) { return nil }
+        let center: [Float] = devs(total)
+        var width = [Float](repeating: 3, count: 4)
+        if chunks.count >= 4 {
+            for j in 0..<4 {
+                var v: Float = 0
+                for c in chunks { v += (c[j] - center[j]) * (c[j] - center[j]) }
+                let sd: Float = (v / Float(chunks.count)).squareRoot()
+                width[j] = max(1.5, min(4, 1.5 * sd))
+            }
+        }
+        return TonalTarget(key: key, center: center, width: width)
     }
 }
 
-/// TONAL — на месте осциллоскопа при MIX: 4 столбца полос; серый коридор цели стиля проекта, жёлтая метка —
-/// отклонение полосы (шкала ±12 dB); слева вверху — TARGET и стиль; подписи — 9 px цветом --dim.
+/// Цель TONAL по референсу: центр коридора и половина ширины по полосам, dB.
+final class TonalTarget {
+    let key: String
+    let center: [Float]
+    let width: [Float]
+
+    init(key: String, center: [Float], width: [Float]) {
+        self.key = key
+        self.center = center
+        self.width = width
+    }
+}
+
+/// TONAL — на месте осциллоскопа при MIX: 4 столбца полос; серый коридор цели (стиль проекта или, тапом по окну,
+/// референс REF аранжировщика), жёлтая метка — отклонение полосы (шкала ±12 dB); слева вверху — TARGET и стиль или
+/// имя референса; подписи — 9 px цветом --dim.
 struct TonalView: View {
     let model: AppModel
 
@@ -204,6 +277,23 @@ struct TonalView: View {
         }
         .background(theme.panel, in: RoundedRectangle(cornerRadius: Layout.radius))
         .clipShape(RoundedRectangle(cornerRadius: Layout.radius))
+        .contentShape(Rectangle())
+        .onTapGesture { model.tonalRef.toggle() }
+    }
+
+    /// Цель: заголовок, центры (среднее — 0) и половины ширины коридора по полосам; центры nil — цели нет.
+    private func target() -> (title: String, center: [Float]?, width: [Float]) {
+        if model.tonalRef {
+            guard let ref = model.project.arrange.ref else { return ("TARGET REF — LOAD IN ARRANGE", nil, [3, 3, 3, 3]) }
+            let name: String = String((ref.name.isEmpty ? "REF" : ref.name).prefix(24)).uppercased()
+            guard let t = model.refTonal, t.key == ref.key else { return ("TARGET " + name + " …", nil, [3, 3, 3, 3]) }
+            return ("TARGET " + name, t.center, t.width)
+        }
+        let st: Int = DrumRhythm.styleIndex(model.project.drumStyle)
+        let tg: [Float] = TonalState.targets[st]
+        let m: Float = (tg[0] + tg[1] + tg[2] + tg[3]) / 4
+        let w: Float = TonalState.widths[st]
+        return ("TARGET " + DrumRhythm.styles[st].uppercased(), tg.map { $0 - m }, [w, w, w, w])
     }
 
     private func draw(_ ctx: GraphicsContext, _ size: CGSize) {
@@ -219,18 +309,18 @@ struct TonalView: View {
             ctx.draw(t, at: CGPoint(x: left - 4, y: y), anchor: .trailing)
         }
         let dev: [Float]? = model.tonal.dev
-        let st: Int = DrumRhythm.styleIndex(model.project.drumStyle)
-        let tg: [Float] = TonalState.targets[st]
-        let tMean: Float = (tg[0] + tg[1] + tg[2] + tg[3]) / 4
-        let title = ctx.resolve(Text("TARGET " + DrumRhythm.styles[st].uppercased()).font(.system(size: 9)).foregroundColor(theme.dim))
+        let tgt = target()
+        let title = ctx.resolve(Text(tgt.title).font(.system(size: 9)).foregroundColor(theme.dim))
         ctx.draw(title, at: CGPoint(x: 8, y: 4), anchor: .topLeading)
         let w: CGFloat = min(36, cell * 0.6)
-        let cor: CGFloat = CGFloat(TonalState.widths[st]) * k
         for j in 0..<4 {
             let x: CGFloat = left + cell * (CGFloat(j) + 0.5)
-            let tc: CGFloat = cy - CGFloat(tg[j] - tMean) * k
-            let band = CGRect(x: x - w / 2, y: tc - cor, width: w, height: 2 * cor)
-            ctx.fill(Path(roundedRect: band, cornerRadius: 3), with: .color(theme.meterTrack))
+            if let c = tgt.center {
+                let cor: CGFloat = CGFloat(tgt.width[j]) * k
+                let tc: CGFloat = cy - CGFloat(c[j]) * k
+                let band = CGRect(x: x - w / 2, y: tc - cor, width: w, height: 2 * cor)
+                ctx.fill(Path(roundedRect: band, cornerRadius: 3), with: .color(theme.meterTrack))
+            }
             let name = ctx.resolve(Text(TonalState.names[j]).font(.system(size: 9)).foregroundColor(theme.dim))
             ctx.draw(name, at: CGPoint(x: x, y: size.height - 8), anchor: .center)
             guard let d = dev else { continue }
