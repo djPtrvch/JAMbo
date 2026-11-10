@@ -20,8 +20,8 @@ extension AppModel {
         // Скоп — только пока виден (MST и MIX).
         let sc: MasterScope = audio.core.master.scope
         if channel != .track {
-            // При MIX — только форма волны мастера (SAT), без точек съёма COMP, CLIP, LIM.
-            let on: [Bool] = channel == .master ? scopeOn : [true, false, false, false]
+            // При MIX — только конечный сигнал после лимитера (точка LIM), серым.
+            let on: [Bool] = channel == .master ? scopeOn : [false, false, false, true]
             var m: Int = MasterScope.gonioBit
             for k in 0..<4 where on[k] { m |= 1 << k }
             sc.mask.store(m)

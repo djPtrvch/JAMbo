@@ -192,15 +192,10 @@ struct MixOverview: View {
             } else if mode == MixMode.freq {
                 guard let sp = an.span(t) else { continue }
                 rect = CGRect(x: x, y: h - sp.hi * h, width: w, height: max(3, (sp.hi - sp.lo) * h))
-                if !mute {
-                    // Градиент: жёлтый по краям диапазона, красный — на самой сильной частоте (решение пользователя).
-                    let at: CGFloat = max(0, min(1, (h - sp.peak * h - rect.minY) / rect.height))
-                    let g = Gradient(stops: [.init(color: theme.accent, location: 0), .init(color: theme.rec, location: at),
-                                             .init(color: theme.accent, location: 1)])
-                    ctx.fill(Path(roundedRect: rect, cornerRadius: 3),
-                             with: .linearGradient(g, startPoint: CGPoint(x: x, y: rect.minY), endPoint: CGPoint(x: x, y: rect.maxY)))
-                    continue
-                }
+                // Самая сильная частота — красная черта (решение пользователя).
+                ctx.fill(Path(roundedRect: rect, cornerRadius: 3), with: .color(col))
+                ctx.fill(Path(CGRect(x: x, y: h - sp.peak * h - 1, width: w, height: 2)), with: .color(theme.rec))
+                continue
             } else {
                 let lv: Float = max(l, r)
                 let f: CGFloat = MeterState.frac(lv)

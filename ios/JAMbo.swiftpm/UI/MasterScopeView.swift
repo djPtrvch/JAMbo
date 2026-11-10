@@ -149,7 +149,7 @@ struct MasterScopeView: View {
     }
 
     private func drawGonio(_ ctx: GraphicsContext, _ size: CGSize) {
-        let strip: CGFloat = 20
+        let strip: CGFloat = 16
         let gh: CGFloat = size.height - strip
         let cx: CGFloat = size.width / 2, cy: CGFloat = gh / 2
         // Точки доходят до 1,2 радиуса — круг меньше, чтобы они не заходили на корреляцию.
@@ -191,18 +191,19 @@ struct MasterScopeView: View {
     private func drawCorr(_ ctx: GraphicsContext, _ size: CGSize) {
         let w: CGFloat = min(size.width - 40, 160)
         let x0: CGFloat = (size.width - w) / 2
-        let y: CGFloat = size.height - 6 - MeterBars.width
-        let bar = CGRect(x: x0, y: y, width: w, height: MeterBars.width)
-        ctx.fill(Path(roundedRect: bar, cornerRadius: 3), with: .color(theme.meterTrack))
+        let bh: CGFloat = 4.5
+        let y: CGFloat = size.height - 6 - bh
+        let bar = CGRect(x: x0, y: y, width: w, height: bh)
+        ctx.fill(Path(roundedRect: bar, cornerRadius: 2), with: .color(theme.meterTrack))
         let mid: CGFloat = bar.midX
         if let c = model.scope.corr {
             let x: CGFloat = mid + CGFloat(c) * w / 2
-            let fill = CGRect(x: min(mid, x), y: y, width: max(2, abs(x - mid)), height: MeterBars.width)
+            let fill = CGRect(x: min(mid, x), y: y, width: max(2, abs(x - mid)), height: bh)
             var cc = ctx
-            cc.clip(to: Path(roundedRect: bar, cornerRadius: 3))
+            cc.clip(to: Path(roundedRect: bar, cornerRadius: 2))
             cc.fill(Path(fill), with: .color(theme.accent))
         }
-        ctx.fill(Path(CGRect(x: mid - 0.5, y: y - 2, width: 1, height: MeterBars.width + 4)), with: .color(theme.dim))
+        ctx.fill(Path(CGRect(x: mid - 0.5, y: y - 2, width: 1, height: bh + 4)), with: .color(theme.dim))
         dimText(ctx, "−1", CGPoint(x: x0 - 4, y: bar.midY), .trailing)
         dimText(ctx, "+1", CGPoint(x: bar.maxX + 4, y: bar.midY), .leading)
     }
@@ -214,8 +215,9 @@ struct MasterScopeView: View {
         let cy: CGFloat = size.height / 2
         let amp: CGFloat = size.height / 2 - 2
         ctx.fill(Path(CGRect(x: 0, y: cy.rounded(), width: size.width, height: 1)), with: .color(theme.gridStrong))
-        let colors: [Color] = [theme.text, theme.accent, theme.gr, theme.rec]
-        for k in 0..<4 where k == 0 || (taps && model.scopeOn[k]) {
+        // При MIX (taps false) — только конечный сигнал после лимитера, серым.
+        let colors: [Color] = taps ? [theme.text, theme.accent, theme.gr, theme.rec] : [theme.dim, theme.dim, theme.dim, theme.dim]
+        for k in 0..<4 where taps ? (k == 0 || model.scopeOn[k]) : k == MasterScope.lim {
             let lo: [Float] = s.mins[k], hi: [Float] = s.maxs[k]
             let n: Int = lo.count
             if n == 0 { continue }

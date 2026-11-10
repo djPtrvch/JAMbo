@@ -286,14 +286,15 @@ struct TonalView: View {
         .onTapGesture { model.tonalRef.toggle() }
     }
 
-    /// Цель: стиль проекта или референс (nil — референса нет или ещё считается); title — подпись.
+    /// Цель: стиль проекта или референс (nil — референса нет или ещё считается); title — имя: проекта (без имени —
+    /// UNKNOWN) или референса.
     static func target(_ model: AppModel, _ title: inout String) -> TonalTarget? {
         if model.tonalRef {
             guard let ref = model.project.arrange.ref else {
-                title = "TARGET REF — LOAD IN ARRANGE"
+                title = "REF — LOAD IN ARRANGE"
                 return nil
             }
-            title = "TARGET " + String((ref.name.isEmpty ? "REF" : ref.name).prefix(24)).uppercased()
+            title = String((ref.name.isEmpty ? "UNKNOWN" : ref.name).prefix(24)).uppercased()
             guard let t = model.refTonal, t.key == ref.key else {
                 title += " …"
                 return nil
@@ -304,7 +305,8 @@ struct TonalView: View {
         let tg: [Float] = TonalState.targets[st]
         let m: Float = (tg[0] + tg[1] + tg[2] + tg[3]) / 4
         let w: Float = TonalState.widths[st]
-        title = "TARGET " + DrumRhythm.styles[st].uppercased()
+        let name: String = model.session.name
+        title = String((name.isEmpty ? "UNKNOWN" : name).prefix(24)).uppercased()
         return TonalTarget(key: "", center: [tg[0] - m, tg[1] - m, tg[2] - m, tg[3] - m], width: [w, w, w, w])
     }
 
@@ -322,7 +324,10 @@ struct TonalView: View {
         }
         var title = ""
         let tgt: TonalTarget? = target(model, &title)
-        dimText(ctx, title, CGPoint(x: 8, y: 4), .topLeading)
+        // TARGET и имя: своего трека — цветом текста, референса — жёлтым.
+        dimText(ctx, "TARGET", CGPoint(x: 8, y: 4), .topLeading)
+        let col: Color = model.tonalRef ? theme.accent : theme.text
+        ctx.draw(Text(title).font(.system(size: 9, weight: .semibold)).foregroundColor(col), at: CGPoint(x: 50, y: 4), anchor: .topLeading)
         let dev: [Float]? = model.tonal.dev
         let w: CGFloat = min(36, cell * 0.6)
         for j in 0..<4 {
