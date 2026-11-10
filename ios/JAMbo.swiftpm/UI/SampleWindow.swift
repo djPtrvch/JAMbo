@@ -149,19 +149,8 @@ struct MixOverview: View {
         .allowsHitTesting(false)
     }
 
-    /// Подпись дорожки под полосой: две буквы имени (из двух слов — первые буквы слов), без имени или имя-число —
-    /// номер дорожки.
-    static func short(_ name: String, _ t: Int) -> String {
-        let n: String = name.trimmingCharacters(in: .whitespaces)
-        if n.isEmpty || Int(n) != nil { return "\(t + 1)" }
-        let words: [Substring] = n.split(separator: " ")
-        if words.count >= 2, let a = words[0].first, let b = words[1].first { return String([a, b]).uppercased() }
-        return String(n.prefix(2)).uppercased()
-    }
-
     static func draw(_ ctx: GraphicsContext, _ size: CGSize, _ model: AppModel, _ mode: Int) {
-        // Внизу — строка подписей дорожек (12 pt), полосы — над ней.
-        let h: CGFloat = size.height - 14
+        let h: CGFloat = size.height
         let cy: CGFloat = (h / 2).rounded()
         // Сетка и подписи справа: PAN — R, L; FREQ — 100, 1k, 10k.
         if mode == MixMode.pan {
@@ -185,7 +174,6 @@ struct MixOverview: View {
         for t in 0..<n {
             let x: CGFloat = cell * (CGFloat(t) + 0.5) - w / 2
             let mute: Bool = !model.project.audible(t)
-            dimText(ctx, short(model.project.tracks[t].name, t), CGPoint(x: x + w / 2, y: size.height), .bottom)
             let lr = m.bars(t, stereo: true)
             if lr.count < 2 { continue }
             let l: Float = lr[0].level, r: Float = lr[1].level
