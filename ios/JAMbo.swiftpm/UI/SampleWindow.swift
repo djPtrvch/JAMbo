@@ -131,23 +131,27 @@ struct SampleWindow: View {
     }
 }
 
-/// Превью MIXER (решение пользователя): уровень каждой дорожки — одна полоса (стерео — наибольший из L и R),
-/// снизу вверх по шкале метров (−60…0 dBFS); 16 одинаковых мест на всю ширину (дорожек меньше — справа пусто);
-/// приглушение Duck не показывается; заглушённая — серая, выше 0 dBFS — красная.
+/// Превью MIXER (решение пользователя): по полосе на дорожку, 16 одинаковых мест на всю ширину (дорожек меньше —
+/// справа пусто); заглушённая — серая. Вид — кнопками слева внизу (MixMode, 10.11): LEVEL — уровень (стерео —
+/// наибольший из L и R) снизу вверх по шкале метров (−60…0 dBFS), выше 0 dBFS — красный, пик-холд — линия цвета
+/// текста; PAN — баланс сигнала (не ручка Pan): от средней линии вверх — вправо, вниз — влево, (R − L) / (R + L).
+/// Приглушение Duck не показывается.
 struct MixOverview: View {
     let model: AppModel
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 60)) { tl in
-            MixOverviewBars(levels: levels, muted: muted, now: tl.date)
+        let mode: Int = model.mixMode
+        return TimelineView(.animation(minimumInterval: 1.0 / 60)) { tl in
+            MixOverviewBars(bars: bars, muted: muted, mode: mode, now: tl.date)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .allowsHitTesting(false)
     }
 
-    private var levels: [Float] {
+    /// По дорожке: стерео L и R (уровень и пик-холд).
+    private var bars: [[(level: Float, hold: Float)]] {
         let n: Int = min(Params.maxTracks, model.project.tracks.count)
-        return (0..<n).map { t in model.meters.bars(t, stereo: false).first?.level ?? 0 }
+        return (0..<n).map { t in model.meters.bars(t, stereo: true) }
     }
 
     private var muted: [Bool] {
@@ -157,23 +161,65 @@ struct MixOverview: View {
 }
 
 struct MixOverviewBars: View {
-    let levels: [Float]
+    let bars: [[(level: Float, hold: Float)]]
     let muted: [Bool]
+    let mode: Int
     let now: Date
 
     var body: some View {
         Canvas { ctx, size in
-            let cell: CGFloat = size.width / 16
-            let w: CGFloat = MeterBars.width
-            for (t, lv) in levels.enumerated() {
-                let f: CGFloat = MeterState.frac(lv)
-                if f <= 0 { continue }
+            if mode == MixMode.pan {
+                drawPan(ctx, size)
+            } else {
+                drawLevel(ctx, size)
+            }
+        }
+    }
+
+    private func drawLevel(_ ctx: GraphicsContext, _ size: CGSize) {
+        let cell: CGFloat = size.width / 16
+        let w: CGFloat = MeterBars.width
+        for (t, lr) in bars.enumerated() where lr.count == 2 {
+            let lv: Float = max(lr[0].level, lr[1].level)
+            let hold: Float = max(lr[0].hold, lr[1].hold)
+            let x: CGFloat = cell * (CGFloat(t) + 0.5) - w / 2
+            let mute: Bool = t < muted.count && muted[t]
+            let f: CGFloat = MeterState.frac(lv)
+            if f > 0 {
                 let h: CGFloat = f * size.height
-                let x: CGFloat = cell * (CGFloat(t) + 0.5) - w / 2
                 let r = CGRect(x: x, y: size.height - h, width: w, height: h)
-                let c: Color = t < muted.count && muted[t] ? theme.muteGrey : (lv >= MeterState.over ? theme.rec : theme.accent)
+                let c: Color = mute ? theme.muteGrey : (lv >= MeterState.over ? theme.rec : theme.accent)
                 ctx.fill(Path(roundedRect: r, cornerRadius: 3), with: .color(c))
             }
+            let hf: CGFloat = MeterState.frac(hold)
+            if hf > 0.01 {
+                let y: CGFloat = size.height - hf * size.height
+                ctx.fill(Path(CGRect(x: x, y: max(0, y - 1), width: w, height: 2)), with: .color(theme.text))
+            }
+        }
+    }
+
+    private func drawPan(_ ctx: GraphicsContext, _ size: CGSize) {
+        let cell: CGFloat = size.width / 16
+        let w: CGFloat = MeterBars.width
+        let cy: CGFloat = (size.height / 2).rounded()
+        let half: CGFloat = size.height / 2
+        ctx.fill(Path(CGRect(x: 0, y: cy, width: size.width, height: 1)), with: .color(theme.gridStrong))
+        let fr = ctx.resolve(Text("R").font(.system(size: 9)).foregroundColor(theme.dim))
+        let fl = ctx.resolve(Text("L").font(.system(size: 9)).foregroundColor(theme.dim))
+        ctx.draw(fr, at: CGPoint(x: size.width, y: 0), anchor: .topTrailing)
+        ctx.draw(fl, at: CGPoint(x: size.width, y: size.height), anchor: .bottomTrailing)
+        let floor: Float = 0.001
+        for (t, lr) in bars.enumerated() where lr.count == 2 {
+            let l: Float = lr[0].level, r: Float = lr[1].level
+            if max(l, r) < floor { continue }
+            let b: CGFloat = CGFloat((r - l) / (r + l))
+            let x: CGFloat = cell * (CGFloat(t) + 0.5) - w / 2
+            let mute: Bool = t < muted.count && muted[t]
+            let c: Color = mute ? theme.muteGrey : theme.accent
+            let h: CGFloat = max(2, abs(b) * half)
+            let y: CGFloat = b >= 0 ? cy + 1 - h : cy
+            ctx.fill(Path(roundedRect: CGRect(x: x, y: y, width: w, height: h), cornerRadius: 3), with: .color(c))
         }
     }
 }

@@ -17,8 +17,12 @@ struct LeftColumn: View {
                                right: MasterButton(model: model, module: MasterScope.lim))
                 })
             } else if model.channel == .mix {
-                // MIX (8.11): LFO и ENV при MIX ничего не делают — пустое поле на месте всей группы.
-                AnyView(EmptyGroup())
+                // MIX (10.11): кнопки вида полос MIX — LEVEL, PAN; два места пока пустые.
+                AnyView(VStack(spacing: Layout.gap) {
+                    ButtonPair(left: MixModeButton(model: model, title: "LEVEL", mode: MixMode.level),
+                               right: MixModeButton(model: model, title: "PAN", mode: MixMode.pan))
+                    ButtonPair(left: EmptySlot(), right: EmptySlot())
+                })
             } else {
                 AnyView(VStack(spacing: Layout.gap) {
                     ButtonPair(left: SourceButton(model: model, title: "LFO1", source: 1).midiTarget(model, "LFO1"),
@@ -184,6 +188,31 @@ struct EmptyGroup: View {
         RoundedRectangle(cornerRadius: Layout.radius)
             .fill(theme.panel)
             .frame(height: 2 * Layout.pairHeight + Layout.gap)
+    }
+}
+
+/// Вид полос MIX слева (в окне сэмпла при MIX).
+enum MixMode {
+    static let level = 0, pan = 1
+}
+
+/// Кнопка вида полос MIX: тап — этот вид; выбранная — белая.
+struct MixModeButton: View {
+    let model: AppModel
+    let title: String
+    let mode: Int
+
+    var body: some View {
+        SideButton(title: title, lit: model.mixMode == mode)
+            .contentShape(Rectangle())
+            .onTapGesture { model.mixMode = mode }
+    }
+}
+
+/// Пустое место кнопки: фон панели, без подписи.
+struct EmptySlot: View {
+    var body: some View {
+        RoundedRectangle(cornerRadius: Layout.radius).fill(theme.panel)
     }
 }
 

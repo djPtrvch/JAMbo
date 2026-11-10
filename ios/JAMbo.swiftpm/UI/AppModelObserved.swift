@@ -493,6 +493,10 @@ extension AppModel {
         get { access(keyPath: \.scopeOn); return _scopeOn }
         set { put(\.scopeOn, \._scopeOn, newValue, observedChanged(_scopeOn, newValue)) }
     }
+    var mixMode: Int {
+        get { access(keyPath: \.mixMode); return _mixMode }
+        set { put(\.mixMode, \._mixMode, newValue, _mixMode != newValue) }
+    }
 }
 
 /// Изменилось ли значение (как shouldNotifyObservers макроса @Observable): у Equatable — сравнение, иначе — да. Одна
