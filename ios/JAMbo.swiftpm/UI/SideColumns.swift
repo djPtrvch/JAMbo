@@ -17,11 +17,11 @@ struct LeftColumn: View {
                                right: MasterButton(model: model, module: MasterScope.lim))
                 })
             } else if model.channel == .mix {
-                // MIX (10.11): кнопки вида полос MIX — LEVEL, PAN, FREQ (четвёртое место пустое).
+                // MIX (10.11): кнопки вида полос MIX — LEVEL, PAN, FREQ (справа внизу; слева внизу пусто).
                 AnyView(VStack(spacing: Layout.gap) {
                     ButtonPair(left: MixModeButton(model: model, title: "LEVEL", mode: MixMode.level),
                                right: MixModeButton(model: model, title: "PAN", mode: MixMode.pan))
-                    ButtonPair(left: MixModeButton(model: model, title: "FREQ", mode: MixMode.freq), right: Color.clear)
+                    ButtonPair(left: Color.clear, right: MixModeButton(model: model, title: "FREQ", mode: MixMode.freq))
                 })
             } else {
                 AnyView(VStack(spacing: Layout.gap) {
