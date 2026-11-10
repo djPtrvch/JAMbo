@@ -423,6 +423,11 @@ final class AppModel {
     @ObservationIgnored var _scopeOn: [Bool] = [true, false, false, false]
     /// Что показывают полосы MIX слева (MixMode.level, MixMode.pan); в проекте не хранится.
     @ObservationIgnored var _mixMode: Int = 0
+    /// Что на месте скопа при MIX (MixMode.scope, MixMode.tonal); в проекте не хранится.
+    @ObservationIgnored var _rightMode: Int = 0
+    /// FREQ и DYN при MIX; тональный баланс (TONAL).
+    @ObservationIgnored let mixAn = MixAnalysis()
+    @ObservationIgnored let tonal = TonalState()
     /// Окно модуля мастера на месте центра (MasterScope.sat…lim; nil — закрыто) и его меню (название, PRESETS);
     /// ввод числом или имени пресета. Открытость и FREEZE не в проекте.
     @ObservationIgnored var _masterWin: Int? = nil

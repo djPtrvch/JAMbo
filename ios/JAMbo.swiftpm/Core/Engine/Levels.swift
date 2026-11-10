@@ -20,6 +20,8 @@ public final class Levels: @unchecked Sendable {
     public let loudness = Loudness(sampleRate: AudioCore.sampleRate)
     /// Громкость выхода мастера всегда (short-term — подгонка громкости референса, Headphone Monitor).
     public let mixLoudness = Loudness(sampleRate: AudioCore.sampleRate)
+    /// Сигнал дорожек для FREQ и DYN при MIX (пишется, пока включён).
+    public let trackTaps = TrackTaps()
 
     public init() {
         mixLoudness.source.store(Levels.master)

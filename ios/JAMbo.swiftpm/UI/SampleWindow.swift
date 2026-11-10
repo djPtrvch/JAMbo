@@ -134,7 +134,8 @@ struct SampleWindow: View {
 /// Превью MIXER (решение пользователя): по полосе на дорожку, 16 одинаковых мест на всю ширину (дорожек меньше —
 /// справа пусто); заглушённая — серая. Вид — кнопками слева внизу (MixMode, 10.11): LEVEL — уровень (стерео —
 /// наибольший из L и R) снизу вверх по шкале метров (−60…0 dBFS), выше 0 dBFS — красный, пик-холд — линия цвета
-/// текста; PAN — баланс сигнала (не ручка Pan): от средней линии вверх — вправо, вниз — влево, (R − L) / (R + L).
+/// текста; PAN — баланс сигнала (не ручка Pan): от средней линии вверх — вправо, вниз — влево, (R − L) / (R + L);
+/// FREQ — диапазон частот дорожки (снизу 20 Гц, сверху 20 кГц, белая черта — пик); DYN — пик к RMS (0…30 dB).
 /// Приглушение Duck не показывается.
 struct MixOverview: View {
     let model: AppModel
@@ -142,7 +143,7 @@ struct MixOverview: View {
     var body: some View {
         let mode: Int = model.mixMode
         return TimelineView(.animation(minimumInterval: 1.0 / 60)) { tl in
-            MixOverviewBars(bars: bars, muted: muted, mode: mode, now: tl.date)
+            MixOverviewBars(bars: bars, muted: muted, mode: mode, an: model.mixAn, now: tl.date)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .allowsHitTesting(false)
@@ -164,15 +165,64 @@ struct MixOverviewBars: View {
     let bars: [[(level: Float, hold: Float)]]
     let muted: [Bool]
     let mode: Int
+    let an: MixAnalysis
     let now: Date
 
     var body: some View {
         Canvas { ctx, size in
             if mode == MixMode.pan {
                 drawPan(ctx, size)
+            } else if mode == MixMode.freq {
+                drawFreq(ctx, size)
+            } else if mode == MixMode.dyn {
+                drawDyn(ctx, size)
             } else {
                 drawLevel(ctx, size)
             }
+        }
+    }
+
+    /// Подпись шкалы справа (9 px, --dim) и линия сетки.
+    private func mark(_ ctx: GraphicsContext, _ size: CGSize, _ y: CGFloat, _ s: String) {
+        ctx.fill(Path(CGRect(x: 0, y: y.rounded(), width: size.width, height: 1)), with: .color(theme.grid))
+        let t = ctx.resolve(Text(s).font(.system(size: 9)).foregroundColor(theme.dim))
+        ctx.draw(t, at: CGPoint(x: size.width, y: y - 1), anchor: .bottomTrailing)
+    }
+
+    private func drawFreq(_ ctx: GraphicsContext, _ size: CGSize) {
+        let h: CGFloat = size.height
+        // Ось 20 Гц…20 кГц — три декады: 100 Гц, 1 кГц, 10 кГц.
+        let marks: [(CGFloat, String)] = [(0.2330, "100"), (0.5663, "1k"), (0.8997, "10k")]
+        for (f, s) in marks { mark(ctx, size, h - f * h, s) }
+        let cell: CGFloat = size.width / 16
+        let w: CGFloat = MeterBars.width
+        for t in 0..<bars.count {
+            guard let sp = an.span(t) else { continue }
+            let x: CGFloat = cell * (CGFloat(t) + 0.5) - w / 2
+            let mute: Bool = t < muted.count && muted[t]
+            let c: Color = mute ? theme.muteGrey : theme.accent
+            let y0: CGFloat = h - sp.hi * h
+            let r = CGRect(x: x, y: y0, width: w, height: max(3, (sp.hi - sp.lo) * h))
+            ctx.fill(Path(roundedRect: r, cornerRadius: 3), with: .color(c))
+            let py: CGFloat = h - sp.peak * h
+            ctx.fill(Path(CGRect(x: x, y: py - 1, width: w, height: 2)), with: .color(theme.text))
+        }
+    }
+
+    private func drawDyn(_ ctx: GraphicsContext, _ size: CGSize) {
+        let h: CGFloat = size.height
+        let k: CGFloat = h / 30
+        for v in [6, 12, 18, 24] { mark(ctx, size, h - CGFloat(v) * k, "\(v)") }
+        let cell: CGFloat = size.width / 16
+        let w: CGFloat = MeterBars.width
+        for t in 0..<bars.count {
+            let c: Float = t < an.crest.count ? an.crest[t] : -1
+            if c < 0 { continue }
+            let bh: CGFloat = max(2, min(30, CGFloat(c)) * k)
+            let x: CGFloat = cell * (CGFloat(t) + 0.5) - w / 2
+            let mute: Bool = t < muted.count && muted[t]
+            let col: Color = mute ? theme.muteGrey : theme.accent
+            ctx.fill(Path(roundedRect: CGRect(x: x, y: h - bh, width: w, height: bh), cornerRadius: 3), with: .color(col))
         }
     }
 

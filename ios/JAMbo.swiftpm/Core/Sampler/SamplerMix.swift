@@ -156,6 +156,10 @@ extension Sampler {
             }
             if loud, let l = lv { l.loudness.process(UnsafePointer(ml), UnsafePointer(mr), n) }
         }
+        // Съём для FREQ и DYN (MIX) — выходы дорожек этого блока.
+        if let l = lv, l.trackTaps.on.load() != 0 {
+            l.trackTaps.push(UnsafePointer(outL), UnsafePointer(outR), stride: mf, count: d.trackCount, n)
+        }
         // Дорожек нет — выходы молчат (источник удалённой дорожки не держит последний блок).
         var t = d.trackCount
         while t < SoundData.maxTracks {
