@@ -289,7 +289,7 @@ struct TonalView: View {
             guard let t = model.refTonal, t.key == ref.key else { return ("TARGET " + name + " …", nil, [3, 3, 3, 3]) }
             return ("TARGET " + name, t.center, t.width)
         }
-        let st: Int = DrumRhythm.styleIndex(model.project.drumStyle)
+        let st: Int = DrumRhythm.styleIndex(model.project.tracks.first?.drumStyle ?? 0)
         let tg: [Float] = TonalState.targets[st]
         let m: Float = (tg[0] + tg[1] + tg[2] + tg[3]) / 4
         let w: Float = TonalState.widths[st]
