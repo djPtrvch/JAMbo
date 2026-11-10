@@ -176,6 +176,8 @@ public final class MasterLimiter {
     public private(set) var frameIn: Double = 0
     public private(set) var frameGr: Double = 0
     public private(set) var frameOut: Double = 0
+    /// True peak выхода за последний блок (линейно; для TP измерителя).
+    public private(set) var blockOut: Double = 0
     public private(set) var frames = 0
 
     public init(sampleRate: Double, tables: MasterTables = .shared) {
@@ -301,6 +303,7 @@ public final class MasterLimiter {
         var gLin: Double = gainLin, cl: Double = ceil, wtv: Double = wet, wpos: Int = w, pkP: Double = pkPrev
         var mI: Double = mIn, mG: Double = mGr, mO: Double = mOut, xfv: Double = xf
         var pIn: Int = posIn, pOut: Int = posOut
+        var bO: Double = 0
         let wStep: Double = wetStep, xStep: Double = xfStep, delay: Int = delayFor(L), od: Int = oldDelay
         let gcv: LimiterGain = gc, hI = hIn, hO = hOut
         var i = 0
@@ -347,6 +350,7 @@ public final class MasterLimiter {
             let orr: Double = yr * wt + br * (1 - wt)
             let po: Double = truePeak(hO, &pOut, ol, orr)
             if po > mO { mO = po }
+            if po > bO { bO = po }
             outL[i] = Float(ol)
             outR[i] = Float(orr)
             i += 1
@@ -359,6 +363,7 @@ public final class MasterLimiter {
         mIn = mI
         mGr = mG
         mOut = mO
+        blockOut = bO
         xf = xfv
         posIn = pIn
         posOut = pOut

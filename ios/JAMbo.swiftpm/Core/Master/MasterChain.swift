@@ -84,6 +84,8 @@ public final class MasterChain {
     /// Точки съёма скопа (после SAT, COMP, CLIP, LIM; гониометр пишет AudioCore).
     public let scope = MasterScope()
     /// Спектр окна сатуратора: вход и выход сатуратора (моно), пишутся, только пока satOn ≠ 0 (окно SAT открыто).
+    /// Наибольший true peak конечного выхода мастера (линейно) с последнего сброса (интерфейс ставит 0).
+    public let truePeak = AtomicFloat(0)
     public let satIn = SpectrumTap()
     public let satOut = SpectrumTap()
     public let satOn = AtomicCounter()
@@ -139,6 +141,9 @@ public final class MasterChain {
                     bypass: p[I.limBypass])
         scope.tap(MasterScope.lim, sm, left, right, n)
         applyOut(left, right, n, Float(p[I.outGain]))
+        // True peak конечного выхода: true peak выхода лимитера (4×) · громкость выхода; наибольший — до сброса.
+        let tp: Float = Float(lim.blockOut) * (outCur < 0 ? 1 : outCur)
+        if tp > truePeak.load() { truePeak.store(tp) }
         compTele.push(frames: glue.frames, inPeak: glue.frameIn, gr: glue.frameGr, outPeak: glue.frameOut, det: glue.frameDet)
         clipTele.push(frames: clip.frames, inPeak: clip.frameIn, gr: clip.frameGr, outPeak: clip.frameOut, det: -240)
         limTele.push(frames: lim.frames, inPeak: lim.frameIn, gr: lim.frameGr, outPeak: lim.frameOut, det: -240)

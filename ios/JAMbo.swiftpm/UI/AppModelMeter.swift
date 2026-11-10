@@ -124,6 +124,7 @@ extension AppModel {
     func resetLoudness() {
         let l = audio.core.levels.loudness
         l.resetRequests.store(l.resetRequests.load() + 1)
+        audio.core.master.truePeak.store(0)
     }
 }
 
