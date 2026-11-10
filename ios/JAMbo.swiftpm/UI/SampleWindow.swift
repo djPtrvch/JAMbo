@@ -135,8 +135,8 @@ struct SampleWindow: View {
 /// справа пусто); заглушённая — серая. Вид — кнопками слева внизу (MixMode, 10.11): LEVEL — уровень (наибольший из
 /// L и R) снизу вверх по шкале метров (−60…0 dBFS), выше 0 dBFS — красный, пик-холд — линия цвета текста; PAN —
 /// баланс сигнала (не ручка Pan): от средней линии вверх — вправо, вниз — влево, (R − L) / (R + L); FREQ — диапазон
-/// частот дорожки (снизу 20 Гц, сверху 20 кГц; градиент к красному — самая сильная частота); DYN — пик к RMS
-/// (0…30 dB). Приглушение Duck не показывается.
+/// частот дорожки (снизу 20 Гц, сверху 20 кГц; красная черта с коротким градиентом — самая сильная частота).
+/// Приглушение Duck не показывается.
 struct MixOverview: View {
     let model: AppModel
 
@@ -152,15 +152,15 @@ struct MixOverview: View {
     static func draw(_ ctx: GraphicsContext, _ size: CGSize, _ model: AppModel, _ mode: Int) {
         let h: CGFloat = size.height
         let cy: CGFloat = (h / 2).rounded()
-        // Сетка и подписи справа: PAN — R, L; FREQ — 100, 1k, 10k; DYN — 6…24 dB.
+        // Сетка и подписи справа: PAN — R, L; FREQ — 100, 1k, 10k.
         if mode == MixMode.pan {
             ctx.fill(Path(CGRect(x: 0, y: cy, width: size.width, height: 1)), with: .color(theme.gridStrong))
             dimText(ctx, "R", CGPoint(x: size.width, y: 0), .topTrailing)
             dimText(ctx, "L", CGPoint(x: size.width, y: h), .bottomTrailing)
-        } else if mode == MixMode.freq || mode == MixMode.dyn {
-            let names: [String] = mode == MixMode.freq ? ["100", "1k", "10k"] : ["6", "12", "18", "24"]
-            let ys: [CGFloat] = mode == MixMode.freq ? [0.2330, 0.5663, 0.8997] : [0.2, 0.4, 0.6, 0.8]
-            for k in 0..<names.count {
+        } else if mode == MixMode.freq {
+            let names: [String] = ["100", "1k", "10k"]
+            let ys: [CGFloat] = [0.2330, 0.5663, 0.8997]
+            for k in 0..<3 {
                 let y: CGFloat = (h - ys[k] * h).rounded()
                 ctx.fill(Path(CGRect(x: 0, y: y, width: size.width, height: 1)), with: .color(theme.grid))
                 dimText(ctx, names[k], CGPoint(x: size.width, y: y - 1), .bottomTrailing)
@@ -184,17 +184,21 @@ struct MixOverview: View {
                 let b: CGFloat = CGFloat((r - l) / (r + l))
                 let bh: CGFloat = max(2, abs(b) * h / 2)
                 rect = CGRect(x: x, y: b >= 0 ? cy + 1 - bh : cy, width: w, height: bh)
-            } else if mode == MixMode.dyn {
-                let c: Float = an.crest[t]
-                if c < 0 { continue }
-                let bh: CGFloat = max(2, min(30, CGFloat(c)) * h / 30)
-                rect = CGRect(x: x, y: h - bh, width: w, height: bh)
             } else if mode == MixMode.freq {
                 guard let sp = an.span(t) else { continue }
                 rect = CGRect(x: x, y: h - sp.hi * h, width: w, height: max(3, (sp.hi - sp.lo) * h))
-                // Самая сильная частота — красная черта (решение пользователя).
-                ctx.fill(Path(roundedRect: rect, cornerRadius: 3), with: .color(col))
-                ctx.fill(Path(CGRect(x: x, y: h - sp.peak * h - 1, width: w, height: 2)), with: .color(theme.rec))
+                // Самая сильная частота — красная черта, от неё вверх и вниз — короткий градиент (решение пользователя).
+                let shape = Path(roundedRect: rect, cornerRadius: 3)
+                ctx.fill(shape, with: .color(col))
+                if !mute {
+                    let py: CGFloat = h - sp.peak * h
+                    let g = Gradient(colors: [theme.rec.opacity(0), theme.rec, theme.rec.opacity(0)])
+                    var c = ctx
+                    c.clip(to: shape)
+                    c.fill(Path(CGRect(x: x, y: py - 14, width: w, height: 28)),
+                           with: .linearGradient(g, startPoint: CGPoint(x: x, y: py - 14), endPoint: CGPoint(x: x, y: py + 14)))
+                    c.fill(Path(CGRect(x: x, y: py - 1, width: w, height: 2)), with: .color(theme.rec))
+                }
                 continue
             } else {
                 let lv: Float = max(l, r)

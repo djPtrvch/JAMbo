@@ -17,12 +17,11 @@ struct LeftColumn: View {
                                right: MasterButton(model: model, module: MasterScope.lim))
                 })
             } else if model.channel == .mix {
-                // MIX (10.11): кнопки вида полос MIX — LEVEL, PAN, DYN, FREQ.
+                // MIX (10.11): кнопки вида полос MIX — LEVEL, PAN, FREQ (четвёртое место пустое).
                 AnyView(VStack(spacing: Layout.gap) {
                     ButtonPair(left: MixModeButton(model: model, title: "LEVEL", mode: MixMode.level),
                                right: MixModeButton(model: model, title: "PAN", mode: MixMode.pan))
-                    ButtonPair(left: MixModeButton(model: model, title: "DYN", mode: MixMode.dyn),
-                               right: MixModeButton(model: model, title: "FREQ", mode: MixMode.freq))
+                    ButtonPair(left: MixModeButton(model: model, title: "FREQ", mode: MixMode.freq), right: Color.clear)
                 })
             } else {
                 AnyView(VStack(spacing: Layout.gap) {
@@ -165,12 +164,12 @@ struct RightColumn: View {
                 ButtonPair(left: ShiftButton(model: model), right: ScopeButton(model: model, tap: MasterScope.lim))
             })
         } else if model.channel == .mix {
-            // MIX (10.11): SCOPE и TONAL — что под вектороскопом (осциллоскоп или тональный баланс); SHIFT; четвёртое место пустое.
+            // MIX (10.11): SCOPE и TONAL — что под вектороскопом (осциллоскоп или тональный баланс); SHIFT; четвёртое место пустое (без кнопки).
             AnyView(VStack(spacing: Layout.gap) {
                 RightTop(model: model)
                 ButtonPair(left: MixModeButton(model: model, title: "SCOPE", mode: MixMode.scope, right: true),
                            right: MixModeButton(model: model, title: "TONAL", mode: MixMode.tonal, right: true))
-                ButtonPair(left: ShiftButton(model: model), right: EmptySlot())
+                ButtonPair(left: ShiftButton(model: model), right: Color.clear)
             })
         } else {
             AnyView(VStack(spacing: Layout.gap) {
@@ -187,7 +186,7 @@ struct RightColumn: View {
 
 /// Вид полос MIX слева (в окне сэмпла при MIX).
 enum MixMode {
-    static let level = 0, pan = 1, freq = 2, dyn = 3
+    static let level = 0, pan = 1, freq = 2
     /// Справа: на месте скопа при MIX.
     static let scope = 0, tonal = 1
 }
@@ -206,13 +205,6 @@ struct MixModeButton: View {
         return SideButton(title: title, lit: cur == mode)
             .contentShape(Rectangle())
             .onTapGesture { model.mixMode = right ? (v & 3) | (mode << 2) : (v & ~3) | mode }
-    }
-}
-
-/// Пустое место кнопки: фон панели, без подписи.
-struct EmptySlot: View {
-    var body: some View {
-        RoundedRectangle(cornerRadius: Layout.radius).fill(theme.panel)
     }
 }
 

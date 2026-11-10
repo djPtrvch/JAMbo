@@ -59,78 +59,69 @@ final class PowerFFT {
     }
 }
 
-/// FREQ и DYN при MIX (10.11): по кадру — две дорожки по кругу. FREQ — мощность в 30 полосах (по 1/3 октавы,
-/// 20 Гц…20 кГц); диапазон дорожки — полосы не ниже наибольшей на 20 dB, пик — наибольшая. DYN — пик к RMS
-/// (crest factor, dB) по 8192 отсчётам (~170 мс); оба — среднее за ~2 с. Тишина (RMS ниже −60 dBFS) — нет данных.
+/// FREQ при MIX (10.11): по кадру — две дорожки по кругу; мощность в 30 полосах (по 1/3 октавы, 20 Гц…20 кГц),
+/// среднее за ~4 с (тишина между ударами не обнуляет — полоса не мерцает); диапазон дорожки — полосы не ниже
+/// наибольшей на 20 dB, пик — наибольшая. Полоса гаснет, когда средний уровень дорожки ниже −66 dBFS.
 final class MixAnalysis {
     static let bands = 30
     static let range: Float = 20
     let fftp = PowerFFT()
     let map: [Int]
-    let raw = UnsafeMutablePointer<Float>.allocate(capacity: TrackTaps.capacity)
+    let raw = UnsafeMutablePointer<Float>.allocate(capacity: PowerFFT.size)
     private var power = [[Float]](repeating: [Float](repeating: 0, count: MixAnalysis.bands), count: TrackTaps.tracks)
     private var fresh = [Float](repeating: 0, count: MixAnalysis.bands)
-    private(set) var crest = [Float](repeating: -1, count: TrackTaps.tracks)
-    private(set) var rms = [Float](repeating: 0, count: TrackTaps.tracks)
+    /// Средний RMS дорожки (за ~4 с).
+    private var rms = [Float](repeating: 0, count: TrackTaps.tracks)
     private var next = 0
 
     init() {
         var e: [Float] = []
         for j in 0...MixAnalysis.bands { e.append(20 * pow(1000, Float(j) / Float(MixAnalysis.bands))) }
         map = PowerFFT.bandMap(e)
-        raw.initialize(repeating: 0, count: TrackTaps.capacity)
+        raw.initialize(repeating: 0, count: PowerFFT.size)
     }
 
     deinit { raw.deallocate() }
 
     func reset() {
         for t in 0..<TrackTaps.tracks {
-            crest[t] = -1
             rms[t] = 0
             for j in 0..<MixAnalysis.bands { power[t][j] = 0 }
         }
     }
 
-    /// Кадр: две дорожки из count; freq — считать и спектр.
-    func tick(_ taps: TrackTaps, count: Int, freq: Bool) {
+    /// Кадр: две дорожки из count.
+    func tick(_ taps: TrackTaps, count: Int) {
         if count <= 0 { return }
+        // Среднее за ~4 с: дорожка обновляется раз в count/2 кадров (60 в секунду).
+        let a: Float = exp(-Float(count) / 480)
         for _ in 0..<2 {
             let t: Int = next % count
             next = (t + 1) % count
-            // Среднее за ~2 с: дорожка обновляется раз в count/2 кадров (60 в секунду).
-            let a: Float = exp(-Float(count) / 240)
-            analyze(taps, t, freq: freq, keep: a)
+            analyze(taps, t, a)
         }
     }
 
-    private func analyze(_ taps: TrackTaps, _ t: Int, freq: Bool, keep a: Float) {
-        let n: Int = TrackTaps.capacity
+    private func analyze(_ taps: TrackTaps, _ t: Int, _ a: Float) {
+        let n: Int = PowerFFT.size
         taps.read(t, into: raw, count: n)
-        var pk: Float = 0, sq: Float = 0
+        var sq: Float = 0
         var i = 0
         while i < n {
-            let v: Float = raw[i]
-            let a: Float = v < 0 ? -v : v
-            if a > pk { pk = a }
-            sq += v * v
+            sq += raw[i] * raw[i]
             i += 1
         }
         let r: Float = (sq / Float(n)).squareRoot()
-        rms[t] = r
-        if r < 0.001 {
-            crest[t] = -1
-            return
-        }
-        let c: Float = 20 * log10(pk / r)
-        crest[t] = crest[t] < 0 ? c : crest[t] * a + c * (1 - a)
-        if !freq { return }
-        fftp.bands(UnsafePointer(raw + (n - PowerFFT.size)), map, into: &fresh)
-        for j in 0..<MixAnalysis.bands { power[t][j] = power[t][j] * a + fresh[j] * (1 - a) }
+        rms[t] = rms[t] * a + r * (1 - a)
+        // Тишина между ударами — спектр не трогаем (среднее держится).
+        if r < 0.001 { return }
+        fftp.bands(UnsafePointer(raw), map, into: &fresh)
+        for j in 0..<MixAnalysis.bands { power[t][j] = power[t][j] == 0 ? fresh[j] : power[t][j] * a + fresh[j] * (1 - a) }
     }
 
     /// Диапазон дорожки t: доли оси (0 — 20 Гц, 1 — 20 кГц) низа, верха и пика; nil — тишина.
     func span(_ t: Int) -> (lo: CGFloat, hi: CGFloat, peak: CGFloat)? {
-        guard t >= 0 && t < TrackTaps.tracks, rms[t] >= 0.001 else { return nil }
+        guard t >= 0 && t < TrackTaps.tracks, rms[t] >= 0.0005 else { return nil }
         let p: [Float] = power[t]
         var best = 0
         for j in 0..<p.count where p[j] > p[best] { best = j }
