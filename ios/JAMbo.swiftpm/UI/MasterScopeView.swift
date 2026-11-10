@@ -215,8 +215,8 @@ struct MasterScopeView: View {
         let cy: CGFloat = size.height / 2
         let amp: CGFloat = size.height / 2 - 2
         ctx.fill(Path(CGRect(x: 0, y: cy.rounded(), width: size.width, height: 1)), with: .color(theme.gridStrong))
-        // При MIX (taps false) — только конечный сигнал после лимитера, серым.
-        let colors: [Color] = taps ? [theme.text, theme.accent, theme.gr, theme.rec] : [theme.dim, theme.dim, theme.dim, theme.dim]
+        // При MIX (taps false) — только сигнал после лимитера, красным (как LIM при MST).
+        let colors: [Color] = taps ? [theme.text, theme.accent, theme.gr, theme.rec] : [theme.rec, theme.rec, theme.rec, theme.rec]
         for k in 0..<4 where taps ? (k == 0 || model.scopeOn[k]) : k == MasterScope.lim {
             let lo: [Float] = s.mins[k], hi: [Float] = s.maxs[k]
             let n: Int = lo.count
