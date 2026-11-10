@@ -105,8 +105,8 @@ struct MasterScopeView: View {
             let gap: CGFloat = 6
             let h: CGFloat = geo.size.height - gap
             VStack(spacing: gap) {
-                panel { ctx, size in drawGonio(ctx, size) }.frame(height: h * 0.6)
-                panel { ctx, size in drawOsc(ctx, size) }.frame(height: h * 0.4)
+                panel { ctx, size in drawGonio(ctx, size) }.frame(height: h * 0.5)
+                panel { ctx, size in drawOsc(ctx, size) }.frame(height: h * 0.5)
             }
         }
     }
