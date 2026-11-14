@@ -1,6 +1,6 @@
 # Лицензии данных Room (Headphone Monitor, фаза 2)
 
-Импульсы пространств меню SPACE `ios/JAMbo.swiftpm/Resources/RoomStudio.wav`, `RoomHome.wav`, `RoomCar.wav`,
+Импульсы пространств меню SPACE `ios/JAMbo.swiftpm/Resources/RoomStudio.wav`, `RoomCar.wav`,
 `RoomClub.wav`, `RoomDesk.wav`, наборы HEAD `Room*Head.wav`, выровненные варианты для RAW `Room*Flat.wav`, `Room*FlatHead.wav` и `rooms.json` созданы скриптом `ios/tools/generate_rooms.py` (свои модели комнат: мнимые источники, хвост из шума). Чужих
 импульсов комнат и импульсов коммерческих продуктов нет.
 
