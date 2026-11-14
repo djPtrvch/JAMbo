@@ -7,16 +7,17 @@ import Foundation
 
 public enum AnalogMod {
     /// Режим модуляции: 0 — нет; 1 SYNC, 2 FM, 3 RING, 4 AM — включена; −1…−4 — выключена, помнит выбранный режим
-    /// (вкл. снова — он же); 0 — выключена, при включении — AM (14.11, решение пользователя: AM — первый режим;
-    /// номер 4 — чтобы старые проекты с SYNC, FM, RING звучали как прежде). Порядок по SHIFT + тап: AM, SYNC, FM, RING.
+    /// (вкл. снова — он же); 0 — выключена, при включении — SYNC. AM (14.11, решение пользователя) — номер 4, чтобы
+    /// старые проекты с SYNC, FM, RING звучали как прежде; порядок по SHIFT + тап: SYNC, AM, FM, RING.
     public static let modId = "analog.mod"
     /// Октава B: 1 — на октаву ниже.
     public static let octId = "analog.oct"
     public static let ids: [String] = [modId, octId]
     /// Имена режимов SYNC, FM, RING, AM (подпись ручки 1.3 при включённой модуляции).
     public static let names: [String] = ["Sync", "FM", "Ring", "AM"]
-    /// AM — номер режима.
+    /// AM — номер режима; порядок режимов по SHIFT + тап по 1.3.
     public static let am = 4
+    static let order: [Int] = [1, 4, 2, 3]
     /// SYNC: AMOUNT 0 → 100 % — высота B 0 → +24 полутона.
     public static let syncSt = 24.0
 
@@ -31,17 +32,16 @@ public enum AnalogMod {
         let m: Int = mode(v)
         if m > 0 { return -Double(m) }
         let last: Int = Int(-v + 0.5)
-        return Double(last >= 1 && last <= 4 ? last : am)
+        return Double(last >= 1 && last <= 4 ? last : 1)
     }
 
     /// SHIFT + тап по 1.3: следующий режим (back — предыдущий: второй тап двойного отменяет первый); выключена — как есть.
     public static func cycled(_ v: Double, back: Bool = false) -> Double {
         let m: Int = mode(v)
         if m == 0 { return v }
-        // Порядок AM → SYNC → FM → RING → AM: место в цикле — номер mod 4 (AM — 0).
-        let at: Int = m % 4
+        let at: Int = order.firstIndex(of: m) ?? 0
         let next: Int = back ? (at + 3) % 4 : (at + 1) % 4
-        return Double(next == 0 ? am : next)
+        return Double(order[next])
     }
 
     /// Ручка 1.3 при включённой модуляции: AMOUNT с подписью режима (SYNC — полутоны, FM и RING — проценты).
