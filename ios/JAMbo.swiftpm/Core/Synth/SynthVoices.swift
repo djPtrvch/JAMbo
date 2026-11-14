@@ -449,7 +449,7 @@ public final class SynthVoices {
         let q4 = ladOK && fty > 2.5 ? 0 : q4k
         let dec = knob(row, locks, mask, modE, t, frame0, VoiceParam.decay)
         let nt = Double(note[v])
-        // Pitch по нотам у ударных (PitchKey): 1.1 — основа + (нота − C3).
+        // Слежение ударных за нотами (PitchKey): C3 — высота ручки, другие ноты — на полутоны от неё.
         if d.pitchKey[d.s(t)] != 0 && PitchKey.drum(e) { q1 = PitchKey.knob(e, q1, note: nt) }
         let dr = drift[t]
         // ANALOG: режим модуляции и октава B — значения звука (пресет-лок — его), без LFO/ENV.

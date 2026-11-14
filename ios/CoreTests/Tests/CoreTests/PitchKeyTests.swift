@@ -1,7 +1,7 @@
 import XCTest
 @testable import Core
 
-/// Pitch по нотам (14.11): шаг звучит своей нотой + сдвиг ручки (регистр движка), на ручке — нота.
+/// Слежение ударных за нотами (14.11): C3 — высота ручки, другие ноты — на полутоны от неё; подпись «… Key».
 final class PitchKeyTests: XCTestCase {
     private func hz(_ e: Int, _ n: Double) -> Double {
         if e == Jambo.drum { return Jambo.drumPitchMin * pow(Jambo.drumPitchMax / Jambo.drumPitchMin, n) }
@@ -9,28 +9,16 @@ final class PitchKeyTests: XCTestCase {
         return Jambo.clapTone(n)
     }
 
-    func testDrumNotes() {
-        // Сдвиг 0 (ручка 50): SNARE на F3 — F3 (174,6 Гц), KICK — на 2 октавы ниже (F1), CLAP — на 3 выше (F6).
-        let f3: Double = 53
-        XCTAssertEqual(hz(Jambo.snare, PitchKey.knob(Jambo.snare, 0.5, note: f3)), 174.614, accuracy: 0.01)
-        XCTAssertEqual(hz(Jambo.drum, PitchKey.knob(Jambo.drum, 0.5, note: f3)), 43.654, accuracy: 0.01)
-        XCTAssertEqual(hz(Jambo.clap, PitchKey.knob(Jambo.clap, 0.5, note: f3)), 1396.91, accuracy: 0.1)
-        // Ручка +12 полутонов (ход 0,48 полутона на единицу: 50 + 25) — октавой выше.
-        XCTAssertEqual(hz(Jambo.snare, PitchKey.knob(Jambo.snare, 0.75, note: f3)), 349.228, accuracy: 0.01)
-        // HAT: полутоны от C3, центр — C3.
-        XCTAssertEqual(PitchKey.knob(Jambo.hat, 0.5, note: PitchKey.root), 0.5, accuracy: 1e-9)
-        XCTAssertEqual(PitchKey.knob(Jambo.hat, 0.5, note: PitchKey.root + 6), 0.75, accuracy: 1e-9)
-    }
-
-    func testLabels() {
-        let kick: ParamDef = PitchKey.drumDefs[Jambo.drum]!
-        XCTAssertEqual(kick.format(50), "C3", "сдвиг 0")
-        XCTAssertEqual(kick.format(PitchKey.shifted(Jambo.drum, 50, note: 53)), "F3", "нота шага — как есть")
-        XCTAssertEqual(kick.format(PitchKey.shifted(Jambo.drum, 75, note: 53)), "F4", "со сдвигом +12")
-        XCTAssertEqual(PitchKey.sampleDef.format(0), "C3")
-        XCTAssertEqual(PitchKey.sampleDef.format(PitchKey.shifted(nil, 0, note: 53)), "F3")
-        XCTAssertEqual(PitchKey.snapped(Jambo.drum, 51), 50, accuracy: 1e-9)
-        XCTAssertNotNil(PitchKey.drumDefs[Jambo.clap])
+    func testRelativeNotes() {
+        let c3: Double = PitchKey.root
+        XCTAssertEqual(PitchKey.knob(Jambo.drum, 0.37, note: c3), 0.37, "C3 — ручка как есть")
+        let k: Double = hz(Jambo.drum, 0.5)
+        XCTAssertEqual(hz(Jambo.drum, PitchKey.knob(Jambo.drum, 0.5, note: c3 + 12)), 2 * k, accuracy: 1e-9)
+        XCTAssertEqual(hz(Jambo.snare, PitchKey.knob(Jambo.snare, 0.3, note: c3 - 7)), hz(Jambo.snare, 0.3) * pow(2, -7.0 / 12), accuracy: 1e-9)
+        XCTAssertEqual(hz(Jambo.clap, PitchKey.knob(Jambo.clap, 0.5, note: c3 + 5)), hz(Jambo.clap, 0.5) * pow(2, 5.0 / 12), accuracy: 1e-6)
+        XCTAssertEqual(PitchKey.knob(Jambo.hat, 0.5, note: c3 + 6), 0.75, accuracy: 1e-9, "TUNE ±1 октава")
+        XCTAssertEqual(PitchKey.drumDefs[Jambo.drum]?.label, "Pitch Key")
+        XCTAssertEqual(PitchKey.drumDefs[Jambo.drum]?.format(50), Params.synthGrids[Jambo.drum][0].format(50))
     }
 }
 

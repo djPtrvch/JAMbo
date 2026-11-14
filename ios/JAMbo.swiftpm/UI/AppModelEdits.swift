@@ -114,15 +114,9 @@ extension AppModel {
             let pos = openPlayPos
             if pos >= 0 { lock = t.step(pos)?.locks[p.id] }
         }
-        var v: Double = lock ?? base
-        var locked: Bool = lock != nil
-        // Pitch по нотам: нота шага — на ручке, как p-lock.
-        if let n = pitchKeyNote(p.id) {
-            v = PitchKey.shifted(pitchKeyEngine(p.id).engine, v, note: n)
-            locked = true
-        }
+        let v: Double = lock ?? base
         let am: ModAssign? = assign(slot)
-        var st = KnobState(param: p, value: v, norm: p.toNorm(v), baseNorm: p.toNorm(base), locked: locked,
+        var st = KnobState(param: p, value: v, norm: p.toNorm(v), baseNorm: p.toNorm(base), locked: lock != nil,
                            assign: am, heldSource: canAssign ? heldSource : nil, autoNorm: autoN,
                            col4: slot / 4 == 3)
         if let a = am {
@@ -141,7 +135,6 @@ extension AppModel {
             return p.toNorm(project.tracks[slot].vol)
         }
         if channel == .master { return p.toNorm(masterValue(p)) }
-        if !modMode && !fxMode, let held = heldSteps.min(), let v = pitchKeyShown(p, step: held) { return p.toNorm(v) }
         if let held = heldSteps.min(), let v = track.step(held)?.locks[p.id] { return p.toNorm(v) }
         if fxMode { return p.toNorm(fxValue(p)) }
         // Кривая аранжировки действует — ручка начинает с её значения (без скачка).
@@ -178,7 +171,6 @@ extension AppModel {
 
     /// Поворот ручки id сейчас ступенчатый: TAP — по переключателю дорожки, HOLD — пока зажата SHIFT.
     func steppedTurn(_ id: String) -> Bool {
-        if id == "pitch" && pitchKeyOn(id) { return true }
         return stepByTap(id) ? stepToggled(id) : knobShift
     }
 
@@ -206,8 +198,6 @@ extension AppModel {
             if samplerStep(p.id) && steppedTurn(p.id) {
                 v = p.id == "pitch" ? v.rounded() : AppModel.snapShare(v)
             }
-            // 1.1 ударного по нотам — на ближайшей ноте.
-            if p.id == "harm" && pitchKeyOn(p.id) { v = PitchKey.snapped(pitchKeyEngine(p.id).engine, v) }
         }
         // MIX: с зажатыми шагами — p-lock громкости на шагах последовательности MIX, иначе громкость дорожки.
         if channel == .mix {
@@ -253,8 +243,6 @@ extension AppModel {
                 }
             }
         } else {
-            // Pitch по нотам: поворот на шаге меняет его ноту (как p-lock).
-            if !modMode && !fxMode && pitchKeySetSteps(p.id, v, Array(held)) { return }
             usedSteps.formUnion(held)
             editTrack { t in
                 for i in held { t.setLock(i, p.id, v) }

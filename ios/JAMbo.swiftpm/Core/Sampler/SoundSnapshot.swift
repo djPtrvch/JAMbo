@@ -114,8 +114,8 @@ public struct SoundData {
     /// Режим RATE звука (Params.rateModeId; алгоритм — SETTINGS → SAMPLER → STRETCH): 0 — PTCH, 1 — TSTR NORMAL
     /// (вокодер), 2 — TSTR BEAT (WSOLA).
     public var rateMode: UnsafeMutablePointer<UInt8>
-    /// Pitch по нотам (14.11, Params.stepModeId("pitch") у ударных KICK, SNARE, HAT, PERC): 1 — высота от ноты
-    /// (PitchKey), 0 — нота высоту не меняет.
+    /// Слежение ударных за нотами (14.11, Params.stepModeId("pitch") у KICK, SNARE, HAT, CLAP, PERC): 1 — высота от
+    /// ноты (PitchKey), 0 — нота высоту не меняет.
     public var pitchKey: UnsafeMutablePointer<UInt8>
     /// Алгоритм таймстретча (SETTINGS → SAMPLER → STRETCH): 1 — NORMAL, 2 — BEAT (▶ WARP — у любой дорожки).
     public var stretchAlgo: UInt8 = 1
