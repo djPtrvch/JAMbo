@@ -260,3 +260,8 @@ struct ScopeButton: View {
             .onTapGesture { model.scopeOn[tap].toggle() }
     }
 }
+
+/// Подпись на холсте: 9 px цветом --dim.
+func dimText(_ ctx: GraphicsContext, _ s: String, _ p: CGPoint, _ a: UnitPoint) {
+    ctx.draw(Text(s).font(.system(size: 9)).foregroundColor(theme.dim), at: p, anchor: a)
+}
