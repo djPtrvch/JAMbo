@@ -3,7 +3,8 @@ import Foundation
 // Случайные BASS и PAD в стиле Techno — hypnotic (docs/ai/sequencer.md, «Случайная партия»). Гармония одна:
 // 70 % — один аккорд на тонике, 30 % — смена 1 → 7 или 6 посередине диапазона на границе страниц. Бас катится
 // шестнадцатыми по одной ячейке мимо бочки, пэд — широкий аккорд со своей прогрессией (аккорд на страницу). Из
-// p-lock — только Velocity; параметры звука не трогаются. LEAD — HypnoticLead.swift, KEYS и ARP — TechnoKeys.swift.
+// p-lock — только Velocity; параметры звука не трогаются. BASS, LEAD, KEYS и ARP — общий генератор
+// TechnoRun.swift.
 
 extension MelodyRhythm {
     /// Рисунок дорожки стиля style (вариант — по bpm) — Techno.
@@ -53,91 +54,6 @@ extension MelodyRhythm {
     /// Ячейки ритма баса (шаги 0…15; A…H) и их веса; офбиты — в каждой.
     static let technoBassCells: [[Int]] = hexRows("26ae 236abe 1235679abdef 2367abef 256ade 267aef 12569ade 2356abde")
     static let technoBassWeights: [Double] = [5, 15, 20, 20, 5, 10, 10, 15]
-
-    /// Вариация страницы: 1–2 шестнадцатых (не офбиты, не бочка) добавлены или убраны.
-    static func technoVary(_ steps: [Int], len: Int, kick: Set<Int>, using g: inout Rng) -> [Int] {
-        var out: [Int] = steps
-        let times: Int = Int.random(in: 1...2, using: &g)
-        for _ in 0..<times {
-            let present: [Int] = out.filter { !isOffbeat($0) }
-            let free: [Int] = (0..<len).filter { !out.contains($0) && !isOffbeat($0) && !kick.contains($0) }
-            let add: Bool = present.isEmpty || (!free.isEmpty && Bool.random(using: &g))
-            if add, let s = free.randomElement(using: &g) {
-                out.append(s)
-            } else if let s = present.randomElement(using: &g) {
-                out.removeAll { $0 == s }
-            }
-        }
-        return out.sorted()
-    }
-
-    /// Бас Techno на страницы lens по прогрессии degrees; kicks — шаги бочки страниц (nil — 1, 5, 9, 13). Одна
-    /// ячейка на рисунок (шаги бочки выброшены), средние страницы — 1–2 шестнадцатых добавлены или убраны,
-    /// последняя — то же и 1–2 ноты сняты в шагах 13–16. Ноты в 1 шаг; корень аккорда — не меньше 85 % нот, иначе
-    /// октава вверх или септима (ступень ниже корня): не больше 2 на страницу, на шагах 8–16, не первая после бочки.
-    /// Velocity (единственный p-lock): офбиты 100 %, остальные 60–80 % (до 20 % — призрачные 40–55 %).
-    static func technoBass(lens: [Int], degrees: [Int], scale: Int, root: Int, octave oct: Int,
-                           kicks: [Set<Int>]?, using g: inout Rng) -> [[SliceRhythm.Event]] {
-        var out: [[SliceRhythm.Event]] = lens.map { _ in [] }
-        let playing: [Int] = lens.indices.filter { lens[$0] > 0 }
-        if playing.isEmpty || degrees.isEmpty { return out }
-        let n: Int = Scales.all[Scales.wrap(scale, Scales.all.count)].steps.count
-        let ci0: Int = pick(Array(0..<technoBassCells.count), technoBassWeights, using: &g)
-        let cell: [Int] = technoBassCells[ci0]
-        let count: Int = playing.count
-        var pages: [[Int]] = []
-        for (pi, p) in playing.enumerated() {
-            let kick: Set<Int> = kickOf(kicks, p)
-            let len: Int = lens[p]
-            var steps: [Int] = cell.filter { $0 < len && !kick.contains($0) }
-            if pi > 0 { steps = technoVary(steps, len: len, kick: kick, using: &g) }
-            if pi == count - 1 && count > 1 {
-                let tail: [Int] = steps.filter { $0 >= 12 }
-                let cut: Int = Swift.min(tail.count, Int.random(in: 1...2, using: &g))
-                for s in tail.shuffled(using: &g).prefix(cut) { steps.removeAll { $0 == s } }
-            }
-            if steps.isEmpty, let s = (0..<len).first(where: { !kick.contains($0) }) { steps = [s] }
-            pages.append(steps)
-        }
-        let totalNotes: Int = pages.reduce(0) { $0 + $1.count }
-        var budget: Int = totalNotes * 15 / 100
-        for (pi, p) in playing.enumerated() {
-            let steps: [Int] = pages[pi]
-            let kick: Set<Int> = kickOf(kicks, p)
-            let ci: Int = technoChord(page: pi, pages: count, chords: degrees.count)
-            let k: Int = Chords.degreeIndex(degrees[ci], scale: scale)
-            var afterKick: Set<Int> = []
-            for kk in kick {
-                if let s = steps.first(where: { $0 > kk }) { afterKick.insert(s) }
-            }
-            let offCount: Int = steps.filter { !isOffbeat($0) }.count
-            var ghosts: Int = offCount / 5
-            var others: Int = 0
-            var evs: [SliceRhythm.Event] = []
-            for s in steps {
-                var deg: Int = k
-                if s >= 7 && !afterKick.contains(s) && others < 2 && budget > 0
-                    && Double.random(in: 0..<1, using: &g) < 0.2 {
-                    deg = Bool.random(using: &g) ? k + n : k - 1
-                    others += 1
-                    budget -= 1
-                }
-                let note: Int = Swift.min(127, Swift.max(0, Scales.note(scale: scale, root: root, octave: oct, degree: deg)))
-                var vel: Double = DrumRhythm.velFull
-                if !isOffbeat(s) {
-                    if ghosts > 0 && Double.random(in: 0..<1, using: &g) < 0.2 {
-                        ghosts -= 1
-                        vel = Double(Int.random(in: 51...69, using: &g))
-                    } else {
-                        vel = Double(Int.random(in: 77...101, using: &g))
-                    }
-                }
-                evs.append(SliceRhythm.Event(step: s, note: note, len: 1, vel: vel))
-            }
-            out[p] = evs
-        }
-        return out
-    }
 
     // MARK: — PAD
 

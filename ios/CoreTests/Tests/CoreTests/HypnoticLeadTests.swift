@@ -4,9 +4,9 @@ import XCTest
 /// Гипнотический LEAD (Techno): ячейка-полиметрия или евклид на 16, 1–3 высоты, короткие ноты.
 final class HypnoticLeadTests: XCTestCase {
     func testEuclid() {
-        XCTAssertEqual(MelodyRhythm.euclid(3, 8, rot: 0).map { $0 ? 1 : 0 }.reduce(0, +), 3)
-        XCTAssertEqual(MelodyRhythm.euclid(5, 16, rot: 3).filter { $0 }.count, 5)
-        XCTAssertTrue(MelodyRhythm.euclid(2, 5, rot: 0)[0])
+        XCTAssertEqual(MelodyRhythm.euclidCell(3, 8, rot: 0).map { $0 ? 1 : 0 }.reduce(0, +), 3)
+        XCTAssertEqual(MelodyRhythm.euclidCell(5, 16, rot: 3).filter { $0 }.count, 5)
+        XCTAssertTrue(MelodyRhythm.euclidCell(2, 5, rot: 0)[0])
     }
 
     func testTechnoLeadIsHypnotic() {

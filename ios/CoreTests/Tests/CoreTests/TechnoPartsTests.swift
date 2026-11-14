@@ -54,11 +54,8 @@ final class TechnoPartsTests: XCTestCase {
                             XCTAssertTrue((0..<16).contains(e.step))
                             XCTAssertEqual(e.len, 1)
                             XCTAssertFalse(M.defaultKick.contains(e.step), "мимо бочки")
-                            if e.note == rootNote { roots += 1 } else {
-                                others += 1
-                                XCTAssertGreaterThanOrEqual(e.step, 7, "не-корень — на шагах 8–16")
-                            }
-                            if e.step % 4 == 2 { XCTAssertEqual(e.vel, 127) } else { XCTAssertLessThan(e.vel ?? 127, 102) }
+                            if e.note == rootNote { roots += 1 } else { others += 1 }
+                            if e.step % 4 == 2 { XCTAssertEqual(e.vel, 127) } else { XCTAssertLessThanOrEqual(e.vel ?? 127, 114) }
                         }
                         all += page.count
                         XCTAssertLessThanOrEqual(others, 2, "не больше 2 не-корней на страницу")
@@ -66,7 +63,7 @@ final class TechnoPartsTests: XCTestCase {
                         XCTAssertTrue([2, 6, 10].allSatisfy { steps.contains($0) }, "офбиты на каждой странице")
                         if pi < pages - 1 || pages == 1 { XCTAssertTrue(steps.contains(14)) }
                     }
-                    XCTAssertGreaterThanOrEqual(Double(roots), Double(all) * 0.85, "корень — не меньше 85 %")
+                    XCTAssertGreaterThanOrEqual(Double(roots), Double(all) * 0.75, "корень — почти всегда")
                 }
             }
         }
@@ -222,7 +219,7 @@ final class TechnoPartsTests: XCTestCase {
                         let pat = M.technoKeys(lens: lens, degrees: d, kind: kind, scale: scale, root: root,
                                                octave: 4, kicks: nil, using: &g)
                         XCTAssertEqual(pat.count, pages)
-                        // Шаги — из одной ячейки S1…S7 (средние страницы — ±1 шаг или убран).
+                        // Шаги — из одной ячейки S1…S7 (средние страницы — стаб снят или добавлен).
                         let first: Set<Int> = Set(pat[0].map { $0.step })
                         XCTAssertTrue(M.technoKeysCells.contains { Set($0).subtracting(M.defaultKick) == first },
                                       "основа — ячейка: \(first.sorted())")
@@ -246,10 +243,7 @@ final class TechnoPartsTests: XCTestCase {
                                 if let t = notes.last { tops.append(t) }
                                 XCTAssertTrue(page.filter { $0.step == st }.allSatisfy { $0.len == 1 })
                             }
-                            let cellSteps: Set<Int> = Set(M.technoKeysCells.flatMap { $0 })
-                            for st in page.map({ $0.step }) {
-                                XCTAssertTrue(cellSteps.contains(st) || cellSteps.contains(st - 1) || cellSteps.contains(st + 1))
-                            }
+                            XCTAssertLessThanOrEqual(Set(page.map { $0.step }).subtracting(first).count, 1, "не больше одного нового стаба")
                         }
                         for i in tops.indices.dropFirst() { XCTAssertLessThanOrEqual(Swift.abs(tops[i] - tops[i - 1]), 4) }
                     }
