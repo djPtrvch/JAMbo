@@ -153,8 +153,16 @@ struct PagesColumn: View {
         let top: CGFloat = CGFloat(t.playFrom) * step
         let bottom: CGFloat = CGFloat(t.playTo + 1) * step - 4
         let grab: CGFloat = 0.4 * rowH
-        if abs(y - bottom) < grab && abs(y - bottom) <= abs(y - top) { return .bottom }
-        if abs(y - top) < grab { return .top }
+        // Обводка от первой страницы (14.11): над краем — уже не колонка (касаний нет), половина зоны края терялась —
+        // внутрь зона вдвое шире; выше верха колонки — тоже верхний край.
+        let grabTop: CGFloat = t.playFrom == 0 ? 0.8 * rowH : grab
+        let dTop: CGFloat = abs(y - top)
+        let dBottom: CGFloat = abs(y - bottom)
+        let inTop: Bool = dTop < grabTop || (t.playFrom == 0 && y < 0)
+        let inBottom: Bool = dBottom < grab
+        if inTop && inBottom { return dBottom <= dTop && t.playFrom != 0 || dBottom < dTop ? .bottom : .top }
+        if inBottom { return .bottom }
+        if inTop { return .top }
         if y > top && y < bottom { return .move }
         return .range
     }

@@ -6,21 +6,24 @@ import Foundation
 // что DETUNE). Подписи режимов — здесь (одна таблица).
 
 public enum AnalogMod {
-    /// Режим модуляции: 0 — нет; 1 SYNC, 2 FM, 3 RING — включена; −1…−3 — выключена, помнит выбранный режим
-    /// (вкл. снова — он же); 0 — выключена, при включении — SYNC.
+    /// Режим модуляции: 0 — нет; 1 SYNC, 2 FM, 3 RING, 4 AM — включена; −1…−4 — выключена, помнит выбранный режим
+    /// (вкл. снова — он же); 0 — выключена, при включении — AM (14.11, решение пользователя: AM — первый режим;
+    /// номер 4 — чтобы старые проекты с SYNC, FM, RING звучали как прежде). Порядок по SHIFT + тап: AM, SYNC, FM, RING.
     public static let modId = "analog.mod"
     /// Октава B: 1 — на октаву ниже.
     public static let octId = "analog.oct"
     public static let ids: [String] = [modId, octId]
-    /// Имена режимов SYNC, FM, RING (подпись ручки 1.3 при включённой модуляции).
-    public static let names: [String] = ["Sync", "FM", "Ring"]
+    /// Имена режимов SYNC, FM, RING, AM (подпись ручки 1.3 при включённой модуляции).
+    public static let names: [String] = ["Sync", "FM", "Ring", "AM"]
+    /// AM — номер режима.
+    public static let am = 4
     /// SYNC: AMOUNT 0 → 100 % — высота B 0 → +24 полутона.
     public static let syncSt = 24.0
 
-    /// Действующий режим по значению: 0 — нет, 1…3 — SYNC, FM, RING.
+    /// Действующий режим по значению: 0 — нет, 1…4 — SYNC, FM, RING, AM.
     @inline(__always) public static func mode(_ v: Double) -> Int {
         if v < 0.5 { return 0 }
-        return Swift.min(3, Int(v + 0.5))
+        return Swift.min(4, Int(v + 0.5))
     }
 
     /// SHIFT + тап по WAVE A: вкл. ↔ выкл. (выбранный режим запоминается).
@@ -28,19 +31,21 @@ public enum AnalogMod {
         let m: Int = mode(v)
         if m > 0 { return -Double(m) }
         let last: Int = Int(-v + 0.5)
-        return Double(last >= 1 && last <= 3 ? last : 1)
+        return Double(last >= 1 && last <= 4 ? last : am)
     }
 
     /// SHIFT + тап по 1.3: следующий режим (back — предыдущий: второй тап двойного отменяет первый); выключена — как есть.
     public static func cycled(_ v: Double, back: Bool = false) -> Double {
         let m: Int = mode(v)
         if m == 0 { return v }
-        let n: Int = back ? (m + 1) % 3 + 1 : m % 3 + 1
-        return Double(n)
+        // Порядок AM → SYNC → FM → RING → AM: место в цикле — номер mod 4 (AM — 0).
+        let at: Int = m % 4
+        let next: Int = back ? (at + 3) % 4 : (at + 1) % 4
+        return Double(next == 0 ? am : next)
     }
 
     /// Ручка 1.3 при включённой модуляции: AMOUNT с подписью режима (SYNC — полутоны, FM и RING — проценты).
-    static let amount: [ParamDef] = (0..<3).map { k in
+    static let amount: [ParamDef] = (0..<4).map { k in
         let label: String = names[k]
         if k == 0 {
             return ParamDef(id: "morph", label: label, min: 0, max: 100, def: 50) { v in

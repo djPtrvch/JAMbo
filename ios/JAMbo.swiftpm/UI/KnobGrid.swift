@@ -302,7 +302,7 @@ struct KnobCell: View {
 
 /// Ручка: кольцо (серое), дуга значения (белая; у двухполярных — от центра), p-lock — жёлтая (у 4-го столбца
 /// дорожки — оранжевая) дуга внутри и стрелка, значение в центре, подпись под ручкой; LFO/ENV — кольцо снаружи от значения до текущего
-/// (LFO1–3 — своя прозрачность, ENV — пунктир), пока держат источник — вся зона воздействия. Геометрия как в вебе.
+/// (LFO1–3 — по убыванию яркости, ENV — пунктир), пока держат источник — вся зона воздействия. Геометрия как в вебе.
 struct KnobView: View, Equatable {
     let state: KnobState
     /// Положение с модуляцией (0…1); nil — без назначения.
@@ -346,7 +346,8 @@ struct KnobView: View, Equatable {
         if let p = state.param, let a = state.assign {
             if let h = state.heldSource, h == a.lfo {
                 let pct = Int((a.amount * 100).rounded())
-                text = (h == 4 ? "ENV" : "L\(h)") + " " + (pct > 0 ? "+" : "") + "\(pct)%"
+                // Две строки (14.11): источник (LFO1–3, ENV) и степень.
+                text = (h == 4 ? "ENV" : "LFO\(h)") + "\n" + (pct > 0 ? "+" : "") + "\(pct)%"
             } else if let m = mod {
                 text = p.format(p.fromNorm(m))
             }
@@ -403,7 +404,7 @@ struct KnobView: View, Equatable {
     private func drawMod(_ ctx: GraphicsContext, _ c: CGPoint, _ k: CGFloat, _ am: ModAssign) {
         let n: Double = state.norm
         if let h = state.heldSource, h == am.lfo {
-            let op: Double = h == 1 ? 0.18 : (h == 2 ? 0.09 : 0.12)
+            let op: Double = h == 1 ? 0.18 : (h == 2 ? 0.13 : (h == 3 ? 0.09 : 0.12))
             let e0: Double = n + am.amount * state.srcLo
             let e1: Double = n + am.amount * state.srcHi
             let lo: Double = Swift.max(0, Swift.min(e0, e1))
@@ -413,7 +414,8 @@ struct KnobView: View, Equatable {
             ctx.stroke(r, with: .color(theme.text.opacity(op)), style: StrokeStyle(lineWidth: 8 * k, lineCap: .round))
         }
         guard let m = mod else { return }
-        let ops: [Double] = [0.95, 0.4, 0.65, 0.85]
+        // По порядку источников (14.11, решение пользователя): LFO1 ярче всех, LFO2 и LFO3 — по убыванию; ENV — пунктир.
+        let ops: [Double] = [0.95, 0.7, 0.45, 0.85]
         let op: Double = ops[Swift.max(0, Swift.min(3, am.lfo - 1))]
         let style: StrokeStyle = am.lfo == 4
             ? StrokeStyle(lineWidth: 4 * k, lineCap: .butt, dash: [3 * k, 3 * k])

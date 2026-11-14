@@ -151,7 +151,9 @@ struct LibraryBrowser: View {
             Text("\(model.libPicked?.count ?? 0) selected · tap " + (model.tableMode ? "tables" : "samples and presets") + " to add or remove")
                 .font(.system(size: 12)).foregroundStyle(theme.text).lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 6)
-            // По ширине PATTERNS и ARRANGE верхней панели, жирным.
+            // По ширине PATTERNS и ARRANGE верхней панели, жирным; SELECT ALL (14.11) — все сэмплы и пресеты папки
+            // (в LOAD TABLE — таблицы).
+            ToolButton(title: "SELECT ALL", width: buttonW(model.topFrames.patterns, 110), bold: true) { model.libPickAll() }
             ToolButton(title: "LOAD", width: buttonW(model.topFrames.patterns, 110), bold: true) { model.libLoadPicked() }
             ToolButton(title: "CANCEL", width: buttonW(model.topFrames.arrange, 110), bold: true) { model.libPicked = nil }
         }

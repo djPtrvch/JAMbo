@@ -41,8 +41,9 @@ extension AppModel {
     /// Строка REF на экране аранжировщика.
     var arrRefShown: Bool { return project.arrange.showRef && project.arrange.ref != nil }
 
-    /// Слышен референс: B, строка REF видна, аранжировщик открыт (вне его — всегда A: проект не глохнет).
-    var refBActive: Bool { return arrRefB && arrRefShown && arrangeView }
+    /// Слышен референс: B, строка REF видна, аранжировщик открыт (вне его — всегда A: проект не глохнет) или EQ
+    /// (и коррекция наушников) открыт из аранжировщика (arrRefHold).
+    var refBActive: Bool { return arrRefB && arrRefShown && (arrangeView || (arrRefHold && eqView)) }
 
     /// Кнопка REF: файла нет — браузер; иначе — показать или скрыть строку (скрыли — A).
     func toggleArrRef() {

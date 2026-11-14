@@ -271,6 +271,13 @@ extension AppModel {
         if ok { libPicked = [n.id] }
     }
 
+    /// SELECT ALL в выборе нескольких: все сэмплы и пресеты папки (в LOAD TABLE — таблицы).
+    func libPickAll() {
+        guard libPicked != nil else { return }
+        let ids: [String] = libItems.filter { tableMode ? $0.kind == .table : ($0.kind == .sample || $0.kind == .preset) }.map { $0.id }
+        libPicked = Set(ids)
+    }
+
     /// LOAD выбора: в папке дорожки — только отмеченные (по порядку списка), первый звучит; SETTINGS → SAMPLER →
     /// CLEAR SAMPLE LOCKS — сэмпл-локи дорожки снимаются. Затем браузер закрывается.
     func libLoadPicked() {

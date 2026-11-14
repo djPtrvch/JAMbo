@@ -101,7 +101,7 @@ final class JamboVoice {
     var a1 = 0.0, a2 = 0.0, tri1 = 0.0, tri2 = 0.0
     var wCur = 0, wPrev = 0, wMix = 1.0
     var bCur = 0, bPrev = 0, bMix = 1.0
-    // ANALOG: модуляция B осциллятором A (AnalogMod: 0 — нет, 1 SYNC, 2 FM, 3 RING) и октава B; смена режима —
+    // ANALOG: модуляция B осциллятором A (AnalogMod: 0 — нет, 1 SYNC, 2 FM, 3 RING, 4 AM) и октава B; смена режима —
     // кроссфейд прежнего и нового за 5 мс (mMix). o3 — фаза B под SYNC, pB — прошлая фаза B под FM, sAfter — поправка
     // PolyBLEP сброса SYNC для следующего отсчёта.
     var mCur = 0, mPrev = 0, mMix = 1.0
@@ -143,7 +143,7 @@ final class JamboVoice {
         td = decay
     }
 
-    /// ANALOG: режим модуляции (0…3) и октава B — до trigger и на каждом куске; смена режима на звучащей ноте —
+    /// ANALOG: режим модуляции (0…4) и октава B — до trigger и на каждом куске; смена режима на звучащей ноте —
     /// кроссфейд 5 мс.
     @inline(__always) func setAnalog(mode m: Int, oct: Bool) {
         aOct = oct
@@ -482,12 +482,16 @@ final class JamboVoice {
         let w = s2
         let bend = 1 + 3 * Swift.min(1, w * 2)
         let sync = w > 0.5 ? 1 + 3 * (w - 0.5) * 2 : 1
-        // UNISON (1.3, ступенчатая): 1 / 3 / 5 голосов; DETUNE (1.4): 0 → 60 центов — боковые на ±DETUNE
-        // (у пяти — ещё ±DETUNE/2), на −3 дБ; громкость нормируется по числу голосов.
-        let un = t3 < 1.0 / 3 ? 1 : (t3 < 2.0 / 3 ? 3 : 5)
+        // UNISON (1.3, ступенчатая): 1…5 голосов (14.11; прежде 1 / 3 / 5); DETUNE (1.4): 0 → 60 центов — боковые
+        // на ±DETUNE (у четырёх и пяти — ещё ±DETUNE/2), на −3 дБ; у нечётных — центральный голос, у чётных (2, 4)
+        // — только пары; громкость нормируется по сумме квадратов весов.
+        let un = 1 + Swift.min(4, Swift.max(0, Int(t3 * 5)))
+        let even = un % 2 == 0
+        let v0 = even ? 1 : 0
         let side = Jambo.wtSide
         let cents = un == 1 ? 0 : Jambo.wtDetune * s4
-        let norm = Jambo.wtOut / (1 + Double(un - 1) * side * side).squareRoot()
+        let sides = even ? un : un - 1
+        let norm = Jambo.wtOut / ((even ? 0 : 1) + Double(sides) * side * side).squareRoot()
         let dt0 = f0 / sr
         let dtl = dt0 * pow(2, -cents / 1200), dtr = dt0 * pow(2, cents / 1200)
         let dtl2 = dt0 * pow(2, -cents / 2400), dtr2 = dt0 * pow(2, cents / 2400)
@@ -504,8 +508,8 @@ final class JamboVoice {
         var i = 0
         while i < n {
             var y = 0.0
-            var v = 0
-            while v < un {
+            var v = v0
+            while v < v0 + un {
                 var ph = v == 0 ? c0 : (v == 1 ? cl : (v == 2 ? cr : (v == 3 ? cl2 : cr2)))
                 if sync != 1 {
                     ph *= sync

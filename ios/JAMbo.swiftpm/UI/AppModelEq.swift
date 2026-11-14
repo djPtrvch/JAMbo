@@ -59,6 +59,10 @@ extension AppModel {
 
     /// Кнопка EQ: центр экрана — EQ или обратно (PATTERNS и редактор сэмпла закрываются).
     func toggleEqView() {
+        // Из аранжировщика со строкой REF: A/B держится, пока открыт EQ; закрыли — назад в аранжировщик.
+        let hold: Bool = !eqView && arrangeView && arrRefShown
+        let back: Bool = eqView && arrRefHold
+        arrRefHold = hold
         eqView.toggle()
         // Кнопка EQ открывает EQ мастера, а не коррекцию наушников.
         eqPhones = false
@@ -75,6 +79,8 @@ extension AppModel {
             closeRoll()
             closeArrange()
             closeMasterWindow()
+        } else if back {
+            toggleArrange()
         }
     }
 

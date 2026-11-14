@@ -31,7 +31,7 @@ struct ModPreview: View {
         let envT: Double = Double(model.audio.core.mod.envOuts[t * 2].load())
         let envG: Double = Double(model.audio.core.mod.envOuts[t * 2 + 1].load())
         return VStack(alignment: .leading, spacing: 2) {
-            Text(title).font(.system(size: 10)).foregroundStyle(theme.dim).lineLimit(1)
+            Text(title).font(.system(size: 10)).foregroundStyle(theme.dim).lineLimit(1).minimumScaleFactor(0.8)
             Canvas { ctx, size in
                 _ = frame
                 if n < 4 {
@@ -50,10 +50,16 @@ struct ModPreview: View {
         return "LFO\(n) · \(name) · " + String(format: "%.2fHz", p["lfo\(n).speed"] ?? 0)
     }
 
+    /// Значения ADSR — в том же виде, что на ручках ENV (14.11, решение пользователя): 10ms, 1.20s, 40%.
     private func envTitle(_ p: [String: Double]) -> String {
-        let a = Int((p["env.attack"] ?? 0).rounded()), d = Int((p["env.decay"] ?? 0).rounded())
-        let s = Int((p["env.sustain"] ?? 0).rounded()), r = Int((p["env.release"] ?? 0).rounded())
-        return "ENV · A\(a) D\(d) S\(s)% R\(r)"
+        let defs: [ParamDef] = Params.modColumns[3]
+        let names: [String] = ["A", "D", "S", "R"]
+        var parts: [String] = []
+        for (k, d) in defs.enumerated() {
+            let v: Double = p[d.id] ?? d.def
+            parts.append(names[k] + " " + d.format(v))
+        }
+        return "ENV · " + parts.joined(separator: " ")
     }
 
     static func lfoValue(_ p: [String: Double], _ n: Int, _ ph: Double) -> Double {

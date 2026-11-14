@@ -35,7 +35,7 @@ struct ArrangeWindow: View {
 }
 
 /// Слева от линейки (решение пользователя): время плейхеда / длительность аранжировки (до конца последнего блока),
-/// мин:сек; при игре — каждый кадр.
+/// мин:сек; рядом — обратный отсчёт до конца (14.11, решение пользователя), цветом --dim; при игре — каждый кадр.
 struct ArrTotalTime: View {
     let model: AppModel
 
@@ -43,12 +43,18 @@ struct ArrTotalTime: View {
         TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !model.playing)) { _ in
             let bpm: Double = max(20, model.project.bpm)
             // Шаг — шестнадцатая: 15 / BPM секунд.
-            let now: String = ArrTotalTime.clock(model.arrNowX * 15 / bpm)
-            let total: String = ArrTotalTime.clock(Double(model.project.arrangeEnd) * 15 / bpm)
-            Text(now + " / " + total)
+            let nowSec: Double = model.arrNowX * 15 / bpm
+            let totalSec: Double = Double(model.project.arrangeEnd) * 15 / bpm
+            let now: String = ArrTotalTime.clock(nowSec)
+            let total: String = ArrTotalTime.clock(totalSec)
+            let left: String = "−" + ArrTotalTime.clock((totalSec - nowSec).rounded(.up))
+            let main: Text = Text(now + " / " + total).foregroundColor(theme.text)
+            let rest: Text = Text("  " + left).foregroundColor(theme.dim)
+            (main + rest)
                 .font(.system(size: 15, weight: .regular))
                 .monospacedDigit()
-                .foregroundStyle(theme.text)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
                 .padding(.leading, 10)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         }

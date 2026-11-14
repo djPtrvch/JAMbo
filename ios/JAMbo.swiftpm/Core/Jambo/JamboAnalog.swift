@@ -2,7 +2,8 @@ import Foundation
 
 // ANALOG (весь движок; S12 + модуляция B осциллятором A (AnalogMod, решение пользователя 8.11): SYNC — B жёстко синхронизирован с A
 // (высота B 0 → +24 полутона по AMOUNT, скачок сброса сглажен PolyBLEP), FM — A модулирует фазу B (индекс 0 → 1 период
-// по AMOUNT², PolyBLEP с мгновенным шагом фазы), RING — B плавно переходит в A·B. AMOUNT — ручка 1.3 (s3), расстройки
+// по AMOUNT², PolyBLEP с мгновенным шагом фазы), RING — B плавно переходит в A·B, AM (14.11) — громкость B идёт за A
+// (однополярно, глубина — AMOUNT). AMOUNT — ручка 1.3 (s3), расстройки
 // нет; MIX — A ↔ B, как без модуляции. Смена режима — кроссфейд прежнего и нового за 5 мс (mMix). A и свободный B —
 // те же, что в JamboVoice.analog (треугольник — интеграл квадрата), их состояние ведётся всегда: выключение модуляции
 // продолжает волну без разрыва. Помощники — копии из JamboVoice.swift (в отладочной сборке встраивание — только внутри
@@ -168,11 +169,13 @@ extension JamboVoice {
                     pf = o2
                 }
                 let vR: Double = xb + (xa * xb - xb) * amt
-                var bOut: Double = cm == 0 ? xb : (cm == 1 ? vS : (cm == 2 ? vF : vR))
+                // AM (14.11): однополярная — B · (1 − AMOUNT·(1 − A)/2), при 100 % громкость B ходит 0…1 за A.
+                let vA: Double = xb + xb * amt * (xa - 1) * 0.5
+                var bOut: Double = cm == 0 ? xb : (cm == 1 ? vS : (cm == 2 ? vF : (cm == 3 ? vR : vA)))
                 var wS: Double = cm == 1 ? 1 : 0
                 if mx < 1 {
                     mx = Swift.min(1, mx + xfStep)
-                    let old: Double = pm == 0 ? xb : (pm == 1 ? vS : (pm == 2 ? vF : vR))
+                    let old: Double = pm == 0 ? xb : (pm == 1 ? vS : (pm == 2 ? vF : (pm == 3 ? vR : vA)))
                     bOut = old + (bOut - old) * mx
                     wS = (cm == 1 ? mx : 0) + (pm == 1 ? 1 - mx : 0)
                 }

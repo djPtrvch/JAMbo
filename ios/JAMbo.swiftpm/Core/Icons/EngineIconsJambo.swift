@@ -8,7 +8,7 @@ extension EngineIcons {
     /// ANALOG: сверху волна A (WAVE A, 1.1), снизу B (WAVE B, 1.2), при смене пункта форма перетекает; B уходит
     /// по фазе с DETUNE (1.3); прозрачность A и B — по MIX (1.4), у преобладающей — полная.
     /// С модуляцией (am) B рисуется модулированной: SYNC — B сбрасывается с каждым периодом A и выше на AMOUNT
-    /// (до 2 октав), FM — фаза B сдвигается волной A, RING — B переходит в A·B; октава ниже (ao) — B вдвое медленнее.
+    /// (до 2 октав), FM — фаза B сдвигается волной A, RING — B переходит в A·B, AM — громкость B идёт за A; октава ниже (ao) — B вдвое медленнее.
     static func analogIcon(_ v: IconValues) -> [IconElement] {
         let ang = clamp(v.q) * Double.pi / 2
         let ga = cos(ang), gb = sin(ang), mx = Swift.max(ga, gb)
@@ -32,6 +32,11 @@ extension EngineIcons {
                 let x: Double = morph(waves, v.h * 3, pa)
                 let y: Double = morph(waves, v.t * 3, pa * kb)
                 return y + (x * y - y) * amt
+            }
+            if am == 4 {
+                let x: Double = morph(waves, v.h * 3, pa)
+                let y: Double = morph(waves, v.t * 3, pa * kb)
+                return y + y * amt * (x - 1) * 0.5
             }
             return morph(waves, v.t * 3, u * 2 * kb * (1 + 0.06 * dd) + 0.15 * dd - sc)
         }
@@ -88,7 +93,7 @@ extension EngineIcons {
     }
 
     /// WTABLE: текущий кадр таблицы (POSITION, 1.1, между кадрами — плавно); WARP (1.2) изгибает фазу, выше 50 % —
-    /// синхронизация; UNISON (1.3) добавляет бледные копии (3 или 5), DETUNE (1.4) разводит их по фазе.
+    /// синхронизация; UNISON (1.3) добавляет бледные копии (2…5 голосов), DETUNE (1.4) разводит их по фазе.
     /// frame(position, phase) — значение кадра −1…1 (фаза — любое число, период 1).
     public static func wtableIcon(_ v: IconValues, _ frame: (Double, Double) -> Double) -> [IconElement] {
         let pos = v.h, warp = v.t, uni = v.m, det = v.q
@@ -97,7 +102,9 @@ extension EngineIcons {
         let sy = warp <= 0.5 ? 1 : 1 + (warp - 0.5) * 6
         func warpP(_ p: Double) -> Double { return pow(frac(p), 1 + 3 * a) * sy }
         func mk(_ off: Double) -> [Double] { return gen { u, _ in frame(pos, warpP(cyc * u - sc - off)) } }
-        let a3 = clamp(uni * 2), a5 = clamp(uni * 2 - 1)
+        // UNISON 1…5 (14.11): ближняя пара — от двух голосов, дальняя — от четырёх.
+        let voices: Int = 1 + Swift.min(4, Swift.max(0, Int(uni * 5)))
+        let a3: Double = voices >= 2 ? 1 : 0, a5: Double = voices >= 4 ? 1 : 0
         let d = det * 0.2 * (1 + 0.12 * sin(still * 1.7))
         var els: [IconElement] = []
         let ghosts: [(Double, Double)] = [(d, 0.3 * a3), (-d, 0.3 * a3), (d / 2, 0.3 * a5), (-d / 2, 0.3 * a5)]

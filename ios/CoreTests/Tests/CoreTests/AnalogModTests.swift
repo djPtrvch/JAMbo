@@ -7,11 +7,14 @@ final class AnalogModTests: XCTestCase {
 
     func testToggleAndCycle() {
         XCTAssertEqual(AnalogMod.mode(0), 0)
-        XCTAssertEqual(AnalogMod.toggled(0), 1, "первое включение — SYNC")
+        XCTAssertEqual(AnalogMod.toggled(0), 4, "первое включение — AM (14.11)")
+        XCTAssertEqual(AnalogMod.cycled(4), 1, "AM → SYNC")
         XCTAssertEqual(AnalogMod.cycled(1), 2)
         XCTAssertEqual(AnalogMod.cycled(2), 3)
-        XCTAssertEqual(AnalogMod.cycled(3), 1)
-        XCTAssertEqual(AnalogMod.cycled(1, back: true), 3, "второй тап двойного отменяет первый")
+        XCTAssertEqual(AnalogMod.cycled(3), 4, "RING → AM")
+        XCTAssertEqual(AnalogMod.cycled(1, back: true), 4, "второй тап двойного отменяет первый")
+        XCTAssertEqual(AnalogMod.cycled(4, back: true), 3)
+        XCTAssertEqual(AnalogMod.toggled(AnalogMod.toggled(4)), 4)
         XCTAssertEqual(AnalogMod.cycled(AnalogMod.cycled(2), back: true), 2)
         let off: Double = AnalogMod.toggled(3)
         XCTAssertEqual(AnalogMod.mode(off), 0)
@@ -27,6 +30,7 @@ final class AnalogModTests: XCTestCase {
         XCTAssertEqual(sync.label, "Sync")
         XCTAssertEqual(sync.format(50), "+12.0 st")
         XCTAssertEqual(AnalogMod.knob(morph, engine: Jambo.analog, params: [AnalogMod.modId: 2]).label, "FM")
+        XCTAssertEqual(AnalogMod.knob(morph, engine: Jambo.analog, params: [AnalogMod.modId: 4]).label, "AM")
         XCTAssertEqual(AnalogMod.knob(morph, engine: Jambo.analog, params: [AnalogMod.modId: -3]).label, "Detune")
         let low = AnalogMod.knob(timbre, engine: Jambo.analog, params: [AnalogMod.octId: 1])
         XCTAssertEqual(low.format(62.5), "Saw\n−1", "«−1» — второй строкой")
@@ -91,7 +95,7 @@ final class AnalogModTests: XCTestCase {
     /// Все режимы, формы и AMOUNT 0 / 50 / 100 %, ноты C1–C7, октава: без NaN, пик ≤ 0 dBFS.
     func testFiniteAndPeak() {
         var worst: Float = 0
-        for mode in 1...3 {
+        for mode in 1...4 {
             for note in stride(from: 24.0, through: 96, by: 24) {
                 for w in [0.125, 0.375, 0.625, 0.875] {
                     for amt in [0.0, 0.5, 1] {
@@ -109,7 +113,7 @@ final class AnalogModTests: XCTestCase {
     /// AMOUNT 0: FM и RING звучат как без модуляции (B — свободный осциллятор).
     func testZeroAmountTransparent() {
         let plain = render(note: 57, [0.125, 0.625, 0, 0.5], mode: 0)
-        for mode in [2, 3] {
+        for mode in [2, 3, 4] {
             let x = render(note: 57, [0.125, 0.625, 0, 0.5], mode: mode)
             let d = zip(plain, x).map { abs($0 - $1) }.max() ?? 1
             XCTAssertLessThan(d, 1e-5, "режим \(mode)")
@@ -129,7 +133,7 @@ final class AnalogModTests: XCTestCase {
     /// Смена режима на звучащей ноте — кроссфейд 5 мс: шаг между отсчётами не больше, чем у самих волн.
     func testModeChangeNoClick() {
         func maxStep(_ y: [Float], _ r: Range<Int>) -> Float { r.map { abs(y[$0] - y[$0 - 1]) }.max() ?? 0 }
-        for (from, to) in [(0, 1), (1, 2), (2, 3), (3, 0), (1, 0)] {
+        for (from, to) in [(0, 1), (1, 2), (2, 3), (3, 0), (1, 0), (0, 4), (4, 1), (3, 4)] {
             let k = [0.375, 0.625, 0.7, 0.5]
             let x = render(note: 45, k, mode: from, change: (at: 12000, mode: to))
             let a = render(note: 45, k, mode: from), b = render(note: 45, k, mode: to)

@@ -36,7 +36,7 @@ public enum SynthEngines {
                     options: [[], [], [], []]),
         // WTABLE: таблица — у дорожки (Track.table), в окне синта вместо иконки — кадр таблицы.
         SynthEngine(id: 19, name: "WTABLE", full: "Wavetable", knobs: ["position", "warp", "unison", "detune"],
-                    options: [[], [], ["1", "3", "5"], []]),
+                    options: [[], [], ["1", "2", "3", "4", "5"], []]),
         // Ударные (этап 3): затухают сами, монофоничны; Decay — длина звука, своя шкала (предел — decayMax).
         SynthEngine(id: 20, name: "SNARE", full: "Snare", knobs: ["tune", "snappy", "tone", "punch"],
                     options: [[], [], [], []], decay: true, decayMax: 800),

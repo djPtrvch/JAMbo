@@ -209,11 +209,21 @@ extension AppModel {
     /// громкости файла; в B — последняя (не плывёт); плюс ручная подстройка ±12 dB.
     func tickRefMatch() {
         let core: AudioCore = audio.core
+        // A/B сменился не правкой (закрыли EQ, открытый из аранжировщика, и т. п.) — новый снимок звука.
+        if refBActive != refBSent { publishAudio() }
         if !refBActive, let ref = refLufs, ref.lufs.isFinite, ref.key == project.arrange.ref?.key {
             let st: Double = Double(core.levels.mixLoudness.shortTerm.load())
             if st.isFinite { refMatchDb = Swift.max(-24, Swift.min(24, st - ref.lufs)) }
         }
-        let db: Double = (monitor.refMatch ? refMatchDb : 0) + monitor.refTrim
+        // Подгонка не поднимает референс выше 0 dBFS (14.11): пик файла · громкость REF · подгонка ≤ 1 — иначе
+        // громкий микс (short-term выше integrated файла) давал перегруз на измерителе.
+        var auto: Double = monitor.refMatch ? refMatchDb : 0
+        if auto > 0, let ref = refLufs, ref.key == project.arrange.ref?.key, ref.peak > 0 {
+            let vol: Double = project.arrange.ref?.gain ?? 0
+            let room: Double = -20 * log10(ref.peak) - vol
+            auto = Swift.min(auto, Swift.max(0, room))
+        }
+        let db: Double = auto + monitor.refTrim
         let g: Float = db == 0 ? 1 : Float(pow(10, db / 20))
         if core.ref.matchGain.load() != g { core.ref.matchGain.store(g) }
     }
@@ -225,9 +235,19 @@ extension AppModel {
         Task.detached(priority: .utility) {
             let r: UnsafeMutablePointer<Float> = s.channels > 1 ? s.right : s.left
             let l: Double = Loudness.integrated(left: UnsafePointer(s.left), right: UnsafePointer(r), frames: s.frames)
+            var pk: Float = 0
+            var i: Int = 0
+            while i < s.frames {
+                let a: Float = abs(s.left[i])
+                let b: Float = abs(r[i])
+                if a > pk { pk = a }
+                if b > pk { pk = b }
+                i += 1
+            }
+            let peak: Double = Double(pk)
             await MainActor.run {
                 self.refLufsPending = ""
-                self.refLufs = (key, l)
+                self.refLufs = (key, l, peak)
             }
         }
     }

@@ -98,6 +98,7 @@ extension AppModel {
                            master: mixMaster,
                            extra: libPreviewKey.map { [$0] } ?? [], next: next, rebind: rebindNext,
                            refB: refBActive, warpFollow: settings.warpProjectBpm)
+        refBSent = refBActive
         rebindNext = false
         syncArp()
         ensureRoots()

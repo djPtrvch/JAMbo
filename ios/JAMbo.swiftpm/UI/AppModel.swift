@@ -197,6 +197,10 @@ final class AppModel {
     @ObservationIgnored var _arrInserted: ArrSel? = nil
     /// REF (S15g): A/B (true — слышен референс; не хранится в проекте), огибающая файла для строки REF.
     @ObservationIgnored var _arrRefB: Bool = false
+    /// EQ и коррекция наушников открыты из аранжировщика со строкой REF: A/B держится, закрыли EQ — назад в
+    /// аранжировщик (14.11); refBSent — A/B в последнем снимке звука.
+    @ObservationIgnored var arrRefHold: Bool = false
+    @ObservationIgnored var refBSent: Bool = false
     /// EXPORT SONG (AppModelSongExport): формат, ход, экспорт в работе.
     var songFormat: SongFormat = SongFormat()
     var songExport: SongExportState = SongExportState()
@@ -249,7 +253,7 @@ final class AppModel {
     var monitor: MonitorSettings = AppModel.loadMonitor()
     var correctCurves: [String: Data] = AppModel.loadCorrectCurves()
     @ObservationIgnored let translations: [TranslationPreset] = AppModel.loadTranslations()
-    @ObservationIgnored var refLufs: (key: String, lufs: Double)? = nil
+    @ObservationIgnored var refLufs: (key: String, lufs: Double, peak: Double)? = nil
     @ObservationIgnored var refLufsPending: String = ""
     @ObservationIgnored var refMatchDb: Double = 0
     /// Room: пространства из ресурсов (по пунктам TRANSLATION) и загруженное (имя и отклик для компенсации).
