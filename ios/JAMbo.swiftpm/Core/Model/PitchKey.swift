@@ -3,7 +3,8 @@ import Foundation
 // Pitch по нотам у ударных (14.11, решение пользователя — простой вариант): SHIFT + тап по 1.1 KICK, SNARE, HAT, CLAP,
 // PERC — слежение за нотами вкл./выкл. (значение звука Params.stepModeId("pitch")). Включено: C3 звучит на высоте
 // ручки, другие ноты (шаги, клавиатура, MIDI) — на столько же полутонов выше или ниже (HAT — TUNE, CLAP — TONE);
-// на ручке — её собственное значение (подпись «… Key»). Выключено — нота высоту не меняет (как прежде).
+// подпись «… Key»; на ручке — её значение, а пока звучит нота не C3 (клавиша, зажатый шаг, при игре — последний
+// прозвучавший шаг) — частота этой ноты (HAT — полутоны), жёлтым, как p-lock. Выключено — нота высоту не меняет (как прежде).
 
 public enum PitchKey {
     public static let id: String = Params.stepModeId("pitch")
@@ -47,7 +48,12 @@ public enum PitchKey {
         var out: [Int: ParamDef] = [:]
         for e in [Jambo.drum, Jambo.snare, Jambo.hat, Jambo.clap, Jambo.perc] {
             guard e < Params.synthGrids.count, let p = Params.synthGrids[e].first else { continue }
-            out[e] = ParamDef(id: p.id, label: p.label + " Key", min: p.min, max: p.max, def: p.def, format: p.format)
+            // KICK — без предела хода (нота шага может увести частоту за край ручки).
+            let f: (Double) -> String = e == Jambo.drum
+                ? { v in "\(Int((Jambo.drumPitchMin * pow(Jambo.drumPitchMax / Jambo.drumPitchMin, v / 100)).rounded())) Hz" }
+                : p.format
+            out[e] = ParamDef(id: p.id, label: p.label + " Key", min: p.min, max: p.max, def: p.def, bipolar: p.bipolar,
+                              format: f)
         }
         return out
     }()

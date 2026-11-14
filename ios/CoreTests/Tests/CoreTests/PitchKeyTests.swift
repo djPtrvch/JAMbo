@@ -44,3 +44,12 @@ final class PresetModTests: XCTestCase {
         XCTAssertEqual(u.assigns["harm"]?.lfo, 1)
     }
 }
+
+/// Показ частоты ноты (14.11): у KICK подпись идёт и за край хода.
+final class PitchKeyShowTests: XCTestCase {
+    func testKickBeyondRange() {
+        let kick: ParamDef = PitchKey.drumDefs[Jambo.drum]!
+        let v: Double = PitchKey.knob(Jambo.drum, 1, note: PitchKey.root + 12) * 100
+        XCTAssertEqual(kick.format(v), "200 Hz", "100 Гц на октаву выше")
+    }
+}

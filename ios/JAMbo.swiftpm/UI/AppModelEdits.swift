@@ -114,9 +114,15 @@ extension AppModel {
             let pos = openPlayPos
             if pos >= 0 { lock = t.step(pos)?.locks[p.id] }
         }
-        let v: Double = lock ?? base
+        var v: Double = lock ?? base
+        var locked: Bool = lock != nil
+        // Слежение ударных за нотами: частота звучащей ноты — на ручке, как p-lock.
+        if !modMode && !fxMode, let k = pitchKeyShown(p, v) {
+            v = k
+            locked = true
+        }
         let am: ModAssign? = assign(slot)
-        var st = KnobState(param: p, value: v, norm: p.toNorm(v), baseNorm: p.toNorm(base), locked: lock != nil,
+        var st = KnobState(param: p, value: v, norm: p.toNorm(v), baseNorm: p.toNorm(base), locked: locked,
                            assign: am, heldSource: canAssign ? heldSource : nil, autoNorm: autoN,
                            col4: slot / 4 == 3)
         if let a = am {
