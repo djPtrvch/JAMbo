@@ -87,6 +87,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
     /// выключает режим), true — HOLD (режим на выбранной дорожке, пока держат MORPH; отпустили — выключен). SHIFT +
     /// MORPH держат — все дорожки, в обоих режимах. Ключ новый: прежний morphHold значил другое и не читается.
     public var morphHoldMode: Bool = false
+    /// SETTINGS → MORPH → XY PADS (на пробу): страница ручек дорожки — четыре площадки XY (docs/ai/ui-layout.md).
+    public var xyPads: Bool = false
     /// SETTINGS → RANDOM (SHIFT + CHORD): случайный ритм ударных и прогрессия — вкл./выкл.; AUTO SWING — Swing
     /// дорожки по стилю ритма; ритм сразу на все ударные дорожки. Стиль — всегда общий (STYLE ALL TRACKS убран 4.11).
     public var randomDrums: Bool = false
@@ -172,7 +174,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
                                          arrangeCompact, fxPictures, backgroundAudio, arrangeRepeats, stretchBeat,
                                          metronomeVol, arrangeScale, arrangeFollow, displayScale,
                                          randomDrums, randomChords, randomSwing, randomStepsAll, randomSamples, showPartType,
-                                         warpProjectBpm }
+                                         warpProjectBpm, xyPads }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -189,6 +191,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         rollSound = c.value(.rollSound, true)
         levelRelative = c.value(.levelRelative, false)
         morphHoldMode = c.value(.morphHoldMode, false)
+        xyPads = c.value(.xyPads, false)
         let mr: Int = c.value(.morphReturn, 0)
         morphReturn = mr >= 0 && mr < MorphReturn.beats.count ? mr : 0
         mixKey = c.value(.mixKey, true)
@@ -234,6 +237,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         try c.encode(levelRelative, forKey: .levelRelative)
         try c.encode(morphReturn, forKey: .morphReturn)
         try c.encode(morphHoldMode, forKey: .morphHoldMode)
+        try c.encode(xyPads, forKey: .xyPads)
         try c.encode(mixKey, forKey: .mixKey)
         try c.encode(mixCrossfader, forKey: .mixCrossfader)
         try c.encode(clearSampleLocks, forKey: .clearSampleLocks)

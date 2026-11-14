@@ -334,6 +334,8 @@ struct MorphSettings: View {
             .label("RETURN"),
             .choices(ret),
             .note("How fast the knobs glide back when MORPH is turned off: OFF — at once, or over 1/4 bar to 2 bars at the current tempo."),
+            .toggle("XY PADS", m.settings.xyPads) { v in m.updateSettings { $0.xyPads = v } },
+            .note("The track knobs become four XY pads. Hold an axis name (X at the bottom, Y at the left) and turn a knob of any track, FX, MOD or MST to assign it; the turn sets how strongly the finger moves it (and its direction). Double-tap the knob to clear the axis."),
         ])
     }
 }

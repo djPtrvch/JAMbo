@@ -164,7 +164,7 @@ extension Project {
     enum CodingKeys: String, CodingKey, CaseIterable {
         case version, bpm, scale, root, fx, fxAssigns, master, satBypass, cmpBypass, clipBypass, limBypass, outVol,
              masterEq, tracks, chanSeqs, scenes, rows, arrStart, arrEndStop, plusCopy, files, roots, rowLoop,
-             arrowSwitch, prevRow, notice, arrange, gridHideSteps
+             arrowSwitch, prevRow, notice, arrange, gridHideSteps, xy
     }
 
     public init(from decoder: Decoder) throws {
@@ -197,6 +197,7 @@ extension Project {
         notice = c.optional(.notice)
         arrange = c.value(.arrange, Arrangement())
         gridHideSteps = c.value(.gridHideSteps, false)
+        xy = c.value(.xy, [XYAxis?]())
     }
 
     /// Запись — как прежняя синтезированная (notice — только если есть).
@@ -230,6 +231,7 @@ extension Project {
         try c.encodeIfPresent(notice, forKey: .notice)
         try c.encode(arrange, forKey: .arrange)
         try c.encode(gridHideSteps, forKey: .gridHideSteps)
+        if !xy.isEmpty { try c.encode(xy, forKey: .xy) }
     }
 }
 

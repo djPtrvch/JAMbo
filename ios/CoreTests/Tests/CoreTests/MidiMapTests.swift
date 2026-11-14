@@ -178,7 +178,7 @@ final class MidiMapTests: XCTestCase {
         XCTAssertEqual(obj["appearance"] as? String, "DARK")
         XCTAssertNotNil(obj["midi"])
         XCTAssertNotNil(obj["sync"])
-        XCTAssertEqual(obj.count, 36)
+        XCTAssertEqual(obj.count, 37)
         let back = AppSettings.decode(data)
         XCTAssertEqual(back, a)
         XCTAssertEqual(back.sync.clockOuts, [7, 9])

@@ -370,6 +370,8 @@ public struct ProjectMore: Equatable, Sendable {
     public var notice: String? = nil
     /// Назначения LFO/ENV на ручки FX (источник — LFO/ENV дорожки track).
     public var fxAssigns: [String: ModAssign] = [:]
+    /// Оси площадок XY (режим XY, на пробу; XYPads.swift): 8 осей, nil — не назначена.
+    public var xy: [XYAxis?] = []
     /// Мастер (как doc.master веба, без убранных в Swift параметров — MasterChain.ids): RELEASE AUTO — значение
     /// MasterChain.autoValue; BYPASS модулей — отдельно.
     public var master: [String: Double] = MasterChain.defaultValues()
@@ -431,6 +433,10 @@ public struct Project: Codable, Equatable, Sendable {
     public var fxAssigns: [String: ModAssign] {
         get { return moreBox[0].fxAssigns }
         set { moreBox[0].fxAssigns = newValue }
+    }
+    public var xy: [XYAxis?] {
+        get { return moreBox[0].xy }
+        set { moreBox[0].xy = newValue }
     }
     public var master: [String: Double] {
         get { return moreBox[0].master }
