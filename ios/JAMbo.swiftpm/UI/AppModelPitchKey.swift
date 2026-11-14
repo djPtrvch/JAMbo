@@ -1,7 +1,7 @@
 import Foundation
 
 /// Pitch по нотам (14.11, PitchKey): SHIFT + тап по Pitch сэмпла или 1.1 ударного (KICK, SNARE, HAT, PERC) — режим
-/// вкл./выкл. (одна запись UNDO); ручка — нота, по полутонам; нота зажатого или играющего шага (не C3) — на ручке, как p-lock.
+/// вкл./выкл. (одна запись UNDO); ручка — нота, по полутонам; нота зажатого или играющего шага — на ручке, как p-lock.
 extension AppModel {
     /// Ручка id выбранной дорожки умеет Pitch по нотам; движок — у ударного, nil — у сэмпла.
     func pitchKeyEngine(_ id: String) -> (ok: Bool, engine: Int?) {
@@ -36,7 +36,7 @@ extension AppModel {
         return PitchKey.drumDefs[e]
     }
 
-    /// Нота зажатого (иначе играющего) шага, если она не C3; nil — нет или режим выключен.
+    /// Нота зажатого (иначе играющего) шага — любая, и C3; nil — нет или режим выключен.
     func pitchKeyNote(_ id: String) -> Int? {
         if !pitchKeyOn(id) { return nil }
         var step: Step? = nil
@@ -46,7 +46,47 @@ extension AppModel {
             let pos = openPlayPos
             if pos >= 0 { step = track.step(pos) }
         }
-        guard let s = step, s.on, let n = s.notes.min(), n != Params.sampleRoot else { return nil }
+        guard let s = step, s.on, let n = s.notes.min() else { return nil }
         return n
+    }
+}
+
+extension AppModel {
+    /// Значение ручки с нотой шага (как на ручке): Pitch шага (p-lock или ручка дорожки) + нота.
+    func pitchKeyShown(_ p: ParamDef, step i: Int) -> Double? {
+        guard pitchKeyOn(p.id), let s = track.step(i), let n = s.notes.min() else { return nil }
+        let b: Double = s.locks[p.id] ?? track.params[p.id] ?? p.def
+        return PitchKey.shifted(pitchKeyEngine(p.id).engine, b, note: n)
+    }
+
+    /// Поворот на зажатых шагах — как p-lock (решение пользователя): меняется нота шага (аккорд — целиком), чтобы на
+    /// ручке встало значение v; шаг без ноты получает её. false — режим выключен (обычный p-lock).
+    func pitchKeySetSteps(_ id: String, _ v: Double, _ held: [Int]) -> Bool {
+        if !pitchKeyOn(id) { return false }
+        let e: Int? = pitchKeyEngine(id).engine
+        let def: Double = track.params[id] ?? Params.byId[id]?.def ?? 0
+        usedSteps.formUnion(held)
+        editTrack { t in
+            for i in held {
+                t.withStep(i) { s in
+                    let b: Double = s.locks[id] ?? def
+                    var want: Double = v.rounded() - b.rounded()
+                    if let eng = e {
+                        let to: Double = PitchKey.base(eng, v / 100)
+                        let at: Double = PitchKey.base(eng, b / 100)
+                        want = to - at
+                    }
+                    let target: Int = Params.sampleRoot + Int(want)
+                    let from: Int = s.notes.min() ?? Params.sampleRoot
+                    let d: Int = target - from
+                    if s.notes.isEmpty {
+                        s.notes = [Swift.max(0, Swift.min(127, target))]
+                    } else if d != 0 {
+                        s.notes = s.notes.map { Swift.max(0, Swift.min(127, $0 + d)) }
+                    }
+                }
+            }
+        }
+        return true
     }
 }

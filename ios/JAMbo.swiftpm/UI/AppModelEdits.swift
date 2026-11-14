@@ -141,6 +141,7 @@ extension AppModel {
             return p.toNorm(project.tracks[slot].vol)
         }
         if channel == .master { return p.toNorm(masterValue(p)) }
+        if !modMode && !fxMode, let held = heldSteps.min(), let v = pitchKeyShown(p, step: held) { return p.toNorm(v) }
         if let held = heldSteps.min(), let v = track.step(held)?.locks[p.id] { return p.toNorm(v) }
         if fxMode { return p.toNorm(fxValue(p)) }
         // Кривая аранжировки действует — ручка начинает с её значения (без скачка).
@@ -252,6 +253,8 @@ extension AppModel {
                 }
             }
         } else {
+            // Pitch по нотам: поворот на шаге меняет его ноту (как p-lock).
+            if !modMode && !fxMode && pitchKeySetSteps(p.id, v, Array(held)) { return }
             usedSteps.formUnion(held)
             editTrack { t in
                 for i in held { t.setLock(i, p.id, v) }
