@@ -78,25 +78,17 @@ public enum SliceRhythm {
         return (out, cuts)
     }
 
-    /// Нота на странице: шаг (0…15), нота куска, длина в шагах, velocity — Level ноты 0…127 (nil — без своей);
-    /// p-lock шага (nil — без него): chance — Chance 0…100, ratchet — Ratchet (0 — «1», 1 — «2»…), pan — Pan −64…63.
+    /// Нота на странице: шаг (0…15), нота куска, длина в шагах, velocity — Level ноты 0…127 (nil — без своей).
     public struct Event: Equatable, Sendable {
         public var step: Int
         public var note: Int
         public var len: Int
         public var vel: Double?
-        public var chance: Double?
-        public var ratchet: Int?
-        public var pan: Double?
-        public init(step: Int, note: Int, len: Int, vel: Double?, chance: Double? = nil, ratchet: Int? = nil,
-                    pan: Double? = nil) {
+        public init(step: Int, note: Int, len: Int, vel: Double?) {
             self.step = step
             self.note = note
             self.len = len
             self.vel = vel
-            self.chance = chance
-            self.ratchet = ratchet
-            self.pan = pan
         }
     }
 
@@ -356,14 +348,6 @@ extension Track {
                 let top: Double? = evs.filter { $0.step == st }.compactMap { $0.vel }.max()
                 // Напрямую, не через setLock: тот снимает velocity нот.
                 if let v = top { withStep(base + st) { s in s.locks["level"] = v } }
-            }
-            // p-lock Chance, Ratchet, Pan (случайные партии Techno) — с первой ноты шага, где они есть.
-            for e in evs where e.chance != nil || e.ratchet != nil || e.pan != nil {
-                withStep(base + e.step) { s in
-                    if let c = e.chance, s.locks["prob"] == nil { s.locks["prob"] = c }
-                    if let r = e.ratchet, s.locks["ratchet"] == nil { s.locks["ratchet"] = Double(r) }
-                    if let a = e.pan, s.locks["pan"] == nil { s.locks["pan"] = a }
-                }
             }
         }
     }

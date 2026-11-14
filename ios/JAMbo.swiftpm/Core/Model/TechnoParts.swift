@@ -2,8 +2,8 @@ import Foundation
 
 // Случайные BASS и PAD в стиле Techno — hypnotic (docs/ai/sequencer.md, «Случайная партия»). Гармония одна:
 // 70 % — один аккорд на тонике, 30 % — смена 1 → 7 или 6 посередине диапазона на границе страниц. Бас катится
-// шестнадцатыми по одной ячейке мимо бочки, пэд — широкий аккорд на 32 шага. Живость — только p-lock Velocity,
-// Chance, Ratchet; параметры звука не трогаются. LEAD Techno — HypnoticLead.swift.
+// шестнадцатыми по одной ячейке мимо бочки, пэд — широкий аккорд со своей прогрессией (аккорд на страницу). Из
+// p-lock — только Velocity; параметры звука не трогаются. LEAD — HypnoticLead.swift, KEYS и ARP — TechnoKeys.swift.
 
 extension MelodyRhythm {
     /// Рисунок дорожки стиля style (вариант — по bpm) — Techno.
@@ -79,8 +79,7 @@ extension MelodyRhythm {
     /// ячейка на рисунок (шаги бочки выброшены), средние страницы — 1–2 шестнадцатых добавлены или убраны,
     /// последняя — то же и 1–2 ноты сняты в шагах 13–16. Ноты в 1 шаг; корень аккорда — не меньше 85 % нот, иначе
     /// октава вверх или септима (ступень ниже корня): не больше 2 на страницу, на шагах 8–16, не первая после бочки.
-    /// Velocity: офбиты 100 %, остальные 60–80 % (до 20 % — призрачные 40–55 %); Chance: офбиты — ручка дорожки,
-    /// остальные 70–90 %, призрачные 40–60 %; Ratchet 2 — 25 %, одно место в шагах 15–16 последней страницы.
+    /// Velocity (единственный p-lock): офбиты 100 %, остальные 60–80 % (до 20 % — призрачные 40–55 %).
     static func technoBass(lens: [Int], degrees: [Int], scale: Int, root: Int, octave oct: Int,
                            kicks: [Set<Int>]?, using g: inout Rng) -> [[SliceRhythm.Event]] {
         var out: [[SliceRhythm.Event]] = lens.map { _ in [] }
@@ -118,10 +117,6 @@ extension MelodyRhythm {
             let offCount: Int = steps.filter { !isOffbeat($0) }.count
             var ghosts: Int = offCount / 5
             var others: Int = 0
-            var ratchetAt: Int = -1
-            if pi == count - 1 && Double.random(in: 0..<1, using: &g) < 0.25 {
-                ratchetAt = steps.filter { $0 >= 14 }.randomElement(using: &g) ?? -1
-            }
             var evs: [SliceRhythm.Event] = []
             for s in steps {
                 var deg: Int = k
@@ -133,19 +128,15 @@ extension MelodyRhythm {
                 }
                 let note: Int = Swift.min(127, Swift.max(0, Scales.note(scale: scale, root: root, octave: oct, degree: deg)))
                 var vel: Double = DrumRhythm.velFull
-                var chance: Double? = nil
                 if !isOffbeat(s) {
                     if ghosts > 0 && Double.random(in: 0..<1, using: &g) < 0.2 {
                         ghosts -= 1
                         vel = Double(Int.random(in: 51...69, using: &g))
-                        chance = Double(Int.random(in: 40...60, using: &g))
                     } else {
                         vel = Double(Int.random(in: 77...101, using: &g))
-                        chance = Double(Int.random(in: 70...90, using: &g))
                     }
                 }
-                let rat: Int? = s == ratchetAt ? 1 : nil
-                evs.append(SliceRhythm.Event(step: s, note: note, len: 1, vel: vel, chance: chance, ratchet: rat))
+                evs.append(SliceRhythm.Event(step: s, note: note, len: 1, vel: vel))
             }
             out[p] = evs
         }
@@ -154,7 +145,8 @@ extension MelodyRhythm {
 
     // MARK: — PAD
 
-    /// Типы аккорда Techno (ступени от корня): m7, m9, квинта + септима (без терции).
+    /// Типы аккорда Techno (ступени от корня): m7, m9, квинта + септима (без терции); один на прогрессию — общий у
+    /// PAD, KEYS, ARP (AppModel.lastRandomKind).
     static let technoKinds: [[Int]] = [[0, 2, 4, 6], [0, 2, 4, 6, 8], [0, 4, 6]]
 
     /// Наименьшая ступень не ниже from того же класса, что r + off.
@@ -198,18 +190,32 @@ extension MelodyRhythm {
         return best
     }
 
-    /// Пэд Techno на страницы lens по прогрессии degrees: один тип аккорда на прогрессию (m7, m9, квинта + септима),
-    /// широкое расположение (одно на рисунок; у второго аккорда верхний голос — не дальше 2 ступеней от прежнего),
-    /// удар — каждые 32 шага (2 страницы; одна страница — 16), смена аккорда — на границе страниц посередине.
-    /// Velocity: первый удар аккорда 75–85 %, повторные 60–75 %; Chance — ручка дорожки.
-    static func technoPad(lens: [Int], degrees: [Int], scale: Int, root: Int, octave oct: Int,
+    /// Прогрессии пэда Techno (ступени на страницы 1…4): своя у PAD, первая — тоника; гармония баса и лида — общая.
+    static let padProgressions: [[Int]] = [[1, 7, 6, 7], [1, 6, 7, 1], [1, 7, 7, 6], [1, 6, 1, 7], [1, 7, 1, 6],
+                                           [1, 6, 6, 7]]
+
+    /// Прогрессия пэда на pages страниц: аккорд на страницу (первые pages ступеней одной из прогрессий).
+    public static func padProgression(pages: Int, using g: inout Rng) -> [Int] {
+        let p: [Int] = padProgressions.randomElement(using: &g) ?? padProgressions[0]
+        var out: [Int] = []
+        for i in 0..<Swift.max(1, pages) { out.append(p[i % p.count]) }
+        return out
+    }
+
+    /// Пэд Techno на страницы lens: своя прогрессия (аккорд на страницу, padProgression; одна страница — тоника),
+    /// тип аккорда kind (technoKinds; один на прогрессию), широкое расположение (одно на рисунок; у следующего аккорда
+    /// верхний голос — не дальше 2 ступеней от прежнего). Удар — с началом аккорда, повтор каждые 32 шага, если
+    /// аккорд держится дольше. Velocity: первый удар аккорда 75–85 %, повторные 60–75 %.
+    static func technoPad(lens: [Int], kind kindIndex: Int, scale: Int, root: Int, octave oct: Int,
                           using g: inout Rng) -> [[SliceRhythm.Event]] {
         var out: [[SliceRhythm.Event]] = lens.map { _ in [] }
         let playing: [Int] = lens.indices.filter { lens[$0] > 0 }
-        guard let lastPage = playing.last, !degrees.isEmpty else { return out }
+        guard let lastPage = playing.last else { return out }
         let n: Int = Scales.all[Scales.wrap(scale, Scales.all.count)].steps.count
-        let kind: [Int] = technoKinds.randomElement(using: &g) ?? technoKinds[0]
+        let kind: [Int] = technoKinds[Scales.wrap(kindIndex, technoKinds.count)]
         let order: [Int] = Array(kind.dropFirst()).shuffled(using: &g)
+        let count: Int = playing.count
+        let degrees: [Int] = padProgression(pages: count, using: &g)
         var voices: [[Int]] = []
         var prevTop: Int? = nil
         for d in degrees {
@@ -224,13 +230,11 @@ extension MelodyRhythm {
             prevTop = v.last
         }
         let per: Int = Params.stepsPerPage
-        let count: Int = playing.count
         let endAbs: Int = (count - 1) * per + lens[lastPage]
         var pi: Int = 0
         while pi < count {
-            let ci: Int = technoChord(page: pi, pages: count, chords: degrees.count)
             var pj: Int = pi
-            while pj + 1 < count && technoChord(page: pj + 1, pages: count, chords: degrees.count) == ci { pj += 1 }
+            while pj + 1 < count && degrees[pj + 1] == degrees[pi] { pj += 1 }
             let a: Int = pi * per
             let b: Int = Swift.min(endAbs, (pj + 1) * per)
             var s: Int = a
@@ -240,9 +244,10 @@ extension MelodyRhythm {
                 let p: Int = playing[s / per]
                 let vel: Double = first ? Double(Int.random(in: 96...107, using: &g))
                                         : Double(Int.random(in: 77...95, using: &g))
-                for dg in voices[ci] {
-                    let note: Int = Scales.note(scale: scale, root: root, octave: oct, degree: dg)
-                    if note < 0 || note > 127 { continue }
+                for dg in voices[pi] {
+                    var note: Int = Scales.note(scale: scale, root: root, octave: oct, degree: dg)
+                    while note > 127 { note -= 12 }
+                    if note < 0 { continue }
                     out[p].append(SliceRhythm.Event(step: s % per, note: note, len: len, vel: vel))
                 }
                 first = false
@@ -255,13 +260,13 @@ extension MelodyRhythm {
 }
 
 extension Track {
-    /// Случайный пэд Techno на страницы range по прогрессии degrees (MelodyRhythm.technoPad): прежние шаги этих
-    /// страниц стираются.
-    public mutating func writeTechnoPad(pages range: ClosedRange<Int>, degrees: [Int], scale: Int, root: Int,
+    /// Случайный пэд Techno на страницы range (своя прогрессия, тип аккорда kind; MelodyRhythm.technoPad): прежние
+    /// шаги этих страниц стираются.
+    public mutating func writeTechnoPad(pages range: ClosedRange<Int>, kind: Int, scale: Int, root: Int,
                                         octave: Int, using g: inout Rng) {
         let t: Track = self
         let lens: [Int] = range.map { t.pageLen($0, from: range.lowerBound) }
-        let pattern: [[SliceRhythm.Event]] = MelodyRhythm.technoPad(lens: lens, degrees: degrees, scale: scale,
+        let pattern: [[SliceRhythm.Event]] = MelodyRhythm.technoPad(lens: lens, kind: kind, scale: scale,
                                                                     root: root, octave: octave, using: &g)
         writeSlices(pattern, pages: range)
     }

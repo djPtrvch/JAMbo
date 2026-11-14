@@ -58,11 +58,7 @@ final class TechnoPartsTests: XCTestCase {
                                 others += 1
                                 XCTAssertGreaterThanOrEqual(e.step, 7, "не-корень — на шагах 8–16")
                             }
-                            if e.step % 4 == 2 { XCTAssertEqual(e.vel, 127) } else { XCTAssertNotNil(e.chance) }
-                            if e.ratchet != nil {
-                                XCTAssertEqual(pi, pages - 1)
-                                XCTAssertGreaterThanOrEqual(e.step, 14)
-                            }
+                            if e.step % 4 == 2 { XCTAssertEqual(e.vel, 127) } else { XCTAssertLessThan(e.vel ?? 127, 102) }
                         }
                         all += page.count
                         XCTAssertLessThanOrEqual(others, 2, "не больше 2 не-корней на страницу")
@@ -70,7 +66,6 @@ final class TechnoPartsTests: XCTestCase {
                         XCTAssertTrue([2, 6, 10].allSatisfy { steps.contains($0) }, "офбиты на каждой странице")
                         if pi < pages - 1 || pages == 1 { XCTAssertTrue(steps.contains(14)) }
                     }
-                    XCTAssertLessThanOrEqual(pat.flatMap { $0 }.filter { $0.ratchet != nil }.count, 1)
                     XCTAssertGreaterThanOrEqual(Double(roots), Double(all) * 0.85, "корень — не меньше 85 %")
                 }
             }
@@ -103,39 +98,39 @@ final class TechnoPartsTests: XCTestCase {
         let kinds: [[Int]] = M.technoKinds
         for _ in 0..<300 {
             for pages in 1...4 {
-                for d in progressions(using: &g) {
+                for kind in 0..<3 {
                     let lens: [Int] = Array(repeating: 16, count: pages)
-                    let pat = M.technoPad(lens: lens, degrees: d, scale: scale, root: root, octave: 3, using: &g)
+                    let pat = M.technoPad(lens: lens, kind: kind, scale: scale, root: root, octave: 3, using: &g)
                     XCTAssertEqual(pat.count, pages)
                     let hits = pat.enumerated().flatMap { (pi, page) in page.map { (pi * 16 + $0.step, $0) } }
                     XCTAssertFalse(hits.isEmpty)
                     for (a, e) in hits {
                         XCTAssertTrue(inScale(e.note))
                         XCTAssertLessThanOrEqual(a + e.len, pages * 16, "не за выбранные страницы")
-                        XCTAssertNil(e.chance)
                     }
-                    // Длина удара — 32 (16 — одна страница или аккорд на одну страницу).
+                    // Удары — с начала страницы, 16 или 32 шага; прогрессия: от 2 страниц аккордов больше одного.
                     let starts: [Int] = Array(Set(hits.map { $0.0 })).sorted()
                     for s in starts {
                         let l: Int = hits.first { $0.0 == s }?.1.len ?? 0
                         XCTAssertTrue(l == 32 || l == 16, "удар \(l)")
                         XCTAssertEqual(s % 16, 0)
                     }
+                    let chords: Set<[Int]> = Set(starts.map { s in hits.filter { $0.0 == s }.map { $0.1.note }.sorted() })
+                    if pages > 1 { XCTAssertGreaterThan(chords.count, 1, "прогрессия") }
                     // Один тип аккорда: ступени всех ударов (от корня аккорда) — из одного набора.
                     var used = Set<Int>()
                     var tops: [Int] = []
                     let n: Int = 7
                     for s in starts {
                         let notes: [Int] = hits.filter { $0.0 == s }.map { $0.1.note }.sorted()
-                        let ci: Int = M.technoChord(page: s / 16, pages: pages, chords: d.count)
-                        let r: Int = Chords.degreeIndex(d[ci], scale: scale)
+                        let r: Int = Scales.all[scale].steps.firstIndex(of: ((notes[0] - root) % 12 + 12) % 12) ?? 0
                         for x in notes {
                             let deg: Int = Scales.all[scale].steps.firstIndex(of: ((x - root) % 12 + 12) % 12) ?? -1
                             used.insert(Scales.wrap(deg - r, n))
                         }
                         if let t = notes.last { tops.append(t) }
                     }
-                    XCTAssertTrue(kinds.contains { k in used.isSubset(of: Set(k.map { $0 % n })) }, "\(used)")
+                    XCTAssertTrue(used.isSubset(of: Set(kinds[kind].map { $0 % n })), "один тип: \(used)")
                     // Верхний голос при смене — не дальше 2 ступеней (≤ 4 полутонов).
                     for i in tops.indices.dropFirst() { XCTAssertLessThanOrEqual(Swift.abs(tops[i] - tops[i - 1]), 4) }
                 }
@@ -156,11 +151,7 @@ final class TechnoPartsTests: XCTestCase {
                 for e in all {
                     XCTAssertTrue(inScale(e.note))
                     XCTAssertFalse(M.defaultKick.contains(e.step), "мимо бочки")
-                    XCTAssertTrue((1...2).contains(e.len))
-                    XCTAssertNotNil(e.pan)
-                    let a: Double = Swift.abs(e.pan ?? 0)
-                    XCTAssertTrue((10...22).contains(a), "Pan 15–35 %")
-                    if let c = e.chance { XCTAssertTrue((80...95).contains(c)) }
+                    XCTAssertEqual(e.len, 1, "одиночные ноты")
                 }
             }
         }
@@ -184,7 +175,7 @@ final class TechnoPartsTests: XCTestCase {
         let d: [Int] = M.technoProgression(using: &g)
         p.tracks[0].writeRandomBass(pages: 0...1, degrees: d, scale: scale, root: root, octave: 1, bpm: bpm,
                                     kicks: p.kickGrid(pages: 0...1), using: &g)
-        p.tracks[1].writeTechnoPad(pages: 0...1, degrees: d, scale: scale, root: root, octave: 3, using: &g)
+        p.tracks[1].writeTechnoPad(pages: 0...1, kind: 0, scale: scale, root: root, octave: 3, using: &g)
         p.tracks[2].writeRandomLead(pages: 0...1, degrees: d, scale: scale, root: root, octave: 3, bpm: bpm,
                                     kicks: p.kickGrid(pages: 0...1), using: &g)
         h.record(before: before, after: p)
@@ -194,21 +185,129 @@ final class TechnoPartsTests: XCTestCase {
         XCTAssertFalse(h.canUndo, "одна запись")
     }
 
-    /// p-lock Chance, Ratchet, Pan пишутся на шаг; параметры звука — нет.
-    func testLocksWritten() {
+    /// Из p-lock — только Level: ни Chance, ни Ratchet, ни Pan, ни параметров звука.
+    func testOnlyVelocityLocks() {
         var g = SystemRandomNumberGenerator()
         var t = Track(index: 0)
         t.sample = "mi:24"
-        t.pages = [Track.emptyPage()]
-        t.writeSlices([[SliceRhythm.Event(step: 2, note: 60, len: 1, vel: 90, chance: 80, ratchet: 1, pan: -12)]],
-                      pages: 0...0)
-        XCTAssertEqual(t.pages[0][2].locks["prob"], 80)
-        XCTAssertEqual(t.pages[0][2].locks["ratchet"], 1)
-        XCTAssertEqual(t.pages[0][2].locks["pan"], -12)
+        t.pages = [Track.emptyPage(), Track.emptyPage()]
+        t.length = 32
+        t.arp.mode = true
         for _ in 0..<50 {
-            t.writeRandomBass(pages: 0...0, degrees: [1], scale: scale, root: root, octave: 1, bpm: bpm, using: &g)
-            let ids = Set(t.pages[0].flatMap { $0.locks.keys })
-            XCTAssertTrue(ids.isSubset(of: ["level", "prob", "ratchet", "pan"]), "\(ids)")
+            let d: [Int] = M.technoProgression(using: &g)
+            t.writeRandomBass(pages: 0...1, degrees: d, scale: scale, root: root, octave: 1, bpm: bpm, using: &g)
+            var ids = Set(t.pages.flatMap { $0 }.flatMap { $0.locks.keys })
+            t.writeRandomLead(pages: 0...1, degrees: d, scale: scale, root: root, octave: 3, bpm: bpm, using: &g)
+            ids.formUnion(t.pages.flatMap { $0 }.flatMap { $0.locks.keys })
+            t.writeTechnoPad(pages: 0...1, kind: 1, scale: scale, root: root, octave: 3, using: &g)
+            ids.formUnion(t.pages.flatMap { $0 }.flatMap { $0.locks.keys })
+            t.writeTechnoKeys(pages: 0...1, degrees: d, kind: 2, scale: scale, root: root, octave: 4, kicks: nil, using: &g)
+            ids.formUnion(t.pages.flatMap { $0 }.flatMap { $0.locks.keys })
+            t.writeTechnoArp(pages: 0...1, degrees: d, kind: 0, scale: scale, root: root, octave: 4, kicks: nil, using: &g)
+            ids.formUnion(t.pages.flatMap { $0 }.flatMap { $0.locks.keys })
+            XCTAssertTrue(ids.isSubset(of: ["level"]), "\(ids)")
+        }
+    }
+
+    // MARK: — KEYS
+
+    func testKeys() {
+        var g = SystemRandomNumberGenerator()
+        let n: Int = 7
+        for _ in 0..<200 {
+            for pages in 1...4 {
+                for d in progressions(using: &g) {
+                    for kind in 0..<3 {
+                        let lens: [Int] = Array(repeating: 16, count: pages)
+                        let pat = M.technoKeys(lens: lens, degrees: d, kind: kind, scale: scale, root: root,
+                                               octave: 4, kicks: nil, using: &g)
+                        XCTAssertEqual(pat.count, pages)
+                        // Шаги — из одной ячейки S1…S7 (средние страницы — ±1 шаг или убран).
+                        let first: Set<Int> = Set(pat[0].map { $0.step })
+                        XCTAssertTrue(M.technoKeysCells.contains { Set($0).subtracting(M.defaultKick) == first },
+                                      "основа — ячейка: \(first.sorted())")
+                        var tops: [Int] = []
+                        for (pi, page) in pat.enumerated() {
+                            let ci: Int = M.technoChord(page: pi, pages: pages, chords: d.count)
+                            let r: Int = Chords.degreeIndex(d[ci], scale: scale)
+                            for st in Set(page.map { $0.step }) {
+                                XCTAssertFalse(M.defaultKick.contains(st), "мимо бочки")
+                                let notes: [Int] = page.filter { $0.step == st }.map { $0.note }.sorted()
+                                XCTAssertEqual(notes.count, 3, "три голоса")
+                                var cls = Set<Int>()
+                                for x in notes {
+                                    XCTAssertTrue(inScale(x))
+                                    XCTAssertLessThanOrEqual(x, 127)
+                                    let deg: Int = Scales.all[scale].steps.firstIndex(of: ((x - root) % 12 + 12) % 12) ?? -1
+                                    cls.insert(Scales.wrap(deg - r, n))
+                                }
+                                XCTAssertEqual(cls, Set(M.technoKeysVoices[kind].map { $0 % n }), "тип \(kind)")
+                                if kind < 2 { XCTAssertFalse(cls.contains(0), "без корня") }
+                                if let t = notes.last { tops.append(t) }
+                                XCTAssertTrue(page.filter { $0.step == st }.allSatisfy { $0.len == 1 })
+                            }
+                            let cellSteps: Set<Int> = Set(M.technoKeysCells.flatMap { $0 })
+                            for st in page.map({ $0.step }) {
+                                XCTAssertTrue(cellSteps.contains(st) || cellSteps.contains(st - 1) || cellSteps.contains(st + 1))
+                            }
+                        }
+                        for i in tops.indices.dropFirst() { XCTAssertLessThanOrEqual(Swift.abs(tops[i] - tops[i - 1]), 4) }
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: — ARP
+
+    func testArpCycle() {
+        var g = SystemRandomNumberGenerator()
+        for _ in 0..<200 {
+            for dir in 0..<6 {
+                for rate in 0..<5 {
+                    let pages: Int = 4
+                    let d: [Int] = [1, 7]
+                    let lens: [Int] = Array(repeating: 16, count: pages)
+                    let notes = Arp.technoSteps(lens: lens, degrees: d, kind: 0, scale: scale, root: root, octave: 4,
+                                                dir: dir, octaves: 2, rate: rate, gate: 0.5, kicks: nil, using: &g)
+                    XCTAssertFalse(notes.isEmpty)
+                    let every: Int = Arp.gridSteps[rate]
+                    for (j, a) in notes.enumerated() {
+                        XCTAssertTrue(inScale(a.note))
+                        XCTAssertLessThanOrEqual(a.note, 127)
+                        XCTAssertTrue((0..<64).contains(a.step))
+                        XCTAssertFalse(M.defaultKick.contains(a.step % 16), "мимо бочки")
+                        XCTAssertEqual(a.step % every, 0)
+                        if j + 1 < notes.count { XCTAssertLessThanOrEqual(a.step + a.len, notes[j + 1].step) }
+                        XCTAssertEqual(a.vel, a.step % 4 == 2 ? 127 : a.vel)
+                    }
+                    if rate == 0 { XCTAssertTrue(notes.allSatisfy { $0.step % 4 == 2 }, "1/8 — офбиты") }
+                    // Период: индекс в ряду аккорда для слота k — один и тот же через N слотов, через страницы и смену.
+                    var byChord: [[Int]] = [[], []]
+                    for ci in 0..<2 {
+                        let r: Int = Chords.degreeIndex(d[ci], scale: scale)
+                        var row: [Int] = [0, 4, 6].map { M.technoNote(r + $0, scale: scale, root: root, octave: 4) }.sorted()
+                        row += row.map { $0 + 12 }
+                        byChord[ci] = row
+                    }
+                    var idx: [Int: Int] = [:]
+                    for a in notes where a.step < 48 {
+                        let ci: Int = a.step < 32 ? 0 : 1
+                        guard let i = byChord[ci].firstIndex(of: a.note) else {
+                            XCTFail("нота из звуков аккорда")
+                            continue
+                        }
+                        idx[a.step / every] = i
+                    }
+                    var period: Int = 0
+                    for n in [3, 5, 6, 7] {
+                        if dir == Arp.random || dir == Arp.order || dir >= 2 { break }
+                        let ok: Bool = idx.allSatisfy { (k, v) in idx[k + n].map { $0 == v } ?? true }
+                        if ok && period == 0 { period = n }
+                    }
+                    if dir < 2 { XCTAssertGreaterThan(period, 0, "цикл с периодом N") }
+                }
+            }
         }
     }
 }

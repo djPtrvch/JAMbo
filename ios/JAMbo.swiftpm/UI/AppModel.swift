@@ -165,6 +165,8 @@ final class AppModel {
     @ObservationIgnored var _chordMenuOpen: Bool = false
     /// Последняя случайная прогрессия (SHIFT + CHORD) — следующая будет другой.
     @ObservationIgnored var lastRandomProgression: [Int]? = nil
+    /// Тип аккорда случайной прогрессии Techno (MelodyRhythm.technoKinds): общий у PAD, KEYS, ARP.
+    @ObservationIgnored var lastRandomKind: Int? = nil
     /// Настройки арпеджиатора, уже отправленные в колбэк (по номеру дорожки).
     @ObservationIgnored var sentArp: [TrackArp?] = [TrackArp?](repeating: nil, count: SeqData.maxTracks)
     /// Тик последней ноты арпеджио дорожки (при игре на шаг пишется одна нота); касания Capture нот арпеджио.

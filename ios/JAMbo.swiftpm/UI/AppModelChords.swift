@@ -228,15 +228,8 @@ extension AppModel {
     func writeRandomChordPart(_ role: MelodyRhythm.Role) {
         guard channel == .track else { return }
         var g = SystemRandomNumberGenerator()
-        // PAD Techno — по общей прогрессии (TechnoParts: широкий аккорд на 32 шага).
-        if role == .pad && MelodyRhythm.isTechno(style: track.drumStyle, bpm: project.bpm) {
-            let degrees: [Int] = sharedProgression(using: &g)
-            lastRandomProgression = degrees
-            let range: ClosedRange<Int> = chordPages
-            let scale: Int = project.scale
-            let root: Int = randomRoot(track)
-            let oct: Int = octave
-            editTrack { t in t.writeTechnoPad(pages: range, degrees: degrees, scale: scale, root: root, octave: oct, using: &g) }
+        if MelodyRhythm.isTechno(style: track.drumStyle, bpm: project.bpm) {
+            writeTechnoChordPart(role, using: &g)
             return
         }
         let degrees: [Int] = newProgression(using: &g)
@@ -249,6 +242,39 @@ extension AppModel {
         editTrack { t in
             t.writeRandomChords(role, pages: range, chords: folded, bpm: bpm, using: &g)
             if swing && role == .keys { t.params["swing"] = DrumRhythm.swing(t.drumStyle, bpm: bpm) }
+        }
+    }
+
+    /// Тип аккорда Techno: прежний (PAD) или новый (KEYS, ARP — с новой прогрессией).
+    func technoKind(new: Bool, using g: inout Rng) -> Int {
+        if !new, let k = lastRandomKind { return k }
+        let k: Int = Int.random(in: 0..<MelodyRhythm.technoKinds.count, using: &g)
+        lastRandomKind = k
+        return k
+    }
+
+    /// Techno: PAD — своя прогрессия (аккорд на страницу) с общим типом аккорда; KEYS — новая прогрессия Techno и
+    /// новый тип, стабы мимо бочки (TechnoKeys). Одна запись UNDO; AUTO SWING — у KEYS.
+    private func writeTechnoChordPart(_ role: MelodyRhythm.Role, using g: inout Rng) {
+        let range: ClosedRange<Int> = chordPages
+        let scale: Int = project.scale
+        let root: Int = randomRoot(track)
+        let oct: Int = octave
+        if role == .pad {
+            let kind: Int = technoKind(new: false, using: &g)
+            editTrack { t in t.writeTechnoPad(pages: range, kind: kind, scale: scale, root: root, octave: oct, using: &g) }
+            return
+        }
+        let degrees: [Int] = MelodyRhythm.technoProgression(using: &g)
+        lastRandomProgression = degrees
+        let kind: Int = technoKind(new: true, using: &g)
+        let kicks: [Set<Int>] = project.kickGrid(pages: range)
+        let bpm: Double = project.bpm
+        let swing: Bool = settings.randomSwing
+        editTrack { t in
+            t.writeTechnoKeys(pages: range, degrees: degrees, kind: kind, scale: scale, root: root, octave: oct,
+                              kicks: kicks, using: &g)
+            if swing { t.params["swing"] = DrumRhythm.swing(t.drumStyle, bpm: bpm) }
         }
     }
 
@@ -279,6 +305,22 @@ extension AppModel {
     func writeRandomArp() {
         guard channel == .track else { return }
         var g = SystemRandomNumberGenerator()
+        // Techno — новая прогрессия Techno и тип аккорда, цикл из N нот мимо бочки (Arp.technoSteps).
+        if MelodyRhythm.isTechno(style: track.drumStyle, bpm: project.bpm) {
+            let degrees: [Int] = MelodyRhythm.technoProgression(using: &g)
+            lastRandomProgression = degrees
+            let kind: Int = technoKind(new: true, using: &g)
+            let range: ClosedRange<Int> = chordPages
+            let kicks: [Set<Int>] = project.kickGrid(pages: range)
+            let scale: Int = project.scale
+            let root: Int = randomRoot(track)
+            let oct: Int = octave
+            editTrack { t in
+                t.writeTechnoArp(pages: range, degrees: degrees, kind: kind, scale: scale, root: root, octave: oct,
+                                 kicks: kicks, using: &g)
+            }
+            return
+        }
         let degrees: [Int] = newProgression(using: &g)
         lastRandomProgression = degrees
         // Типы аккордов — по стилю (styleChords); каждый аккорд — в октаве клавиатуры (обращением, без drop 2 и
