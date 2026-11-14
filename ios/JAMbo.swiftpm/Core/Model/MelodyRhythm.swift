@@ -17,6 +17,7 @@ public enum MelodyRhythm {
     /// PAD — пэды, подклады, текстуры и эффекты.
     static let padWords: [String] = ["pad", "atmo", "drone", "string", "ambient", "choir", "texture", "fx", "noise",
                                      "riser", "sweep", "soundscape", "swell"]
+    /// Клавишные — LEAD без CHORD (не BASS в низкой октаве); KEYS — только в режиме CHORD.
     static let keysWords: [String] = ["chord", "keys", "piano", "stab", "organ", "rhodes", "epiano", "clav", "wurli"]
     /// LEAD — по имени и в низкой октаве (иначе октава C2 и ниже дала бы BASS).
     static let leadWords: [String] = ["lead", "pluck", "melody", "arp"]
@@ -43,8 +44,9 @@ public enum MelodyRhythm {
         return chord ? .keys : .lead
     }
 
-    /// Роль по звуку дорожки: ARP — арпеджиатор включён; KEYS — режим CHORD; SUB — BASS; TEXTURE, GRANULAR — PAD;
-    /// сэмпл — по словам в имени файла name (bass, pad, chord…); иначе по октаве клавиатуры: до C2 — BASS, выше — LEAD.
+    /// Роль по звуку дорожки: ARP — арпеджиатор включён; KEYS — только режим CHORD (сэмпл клавишных без CHORD —
+    /// LEAD); SUB — BASS; TEXTURE, GRANULAR — PAD; сэмпл — по словам в имени файла name (bass, pad, lead…); иначе по
+    /// октаве клавиатуры: до C2 — BASS, выше — LEAD.
     public static func role(sample: String, name: String = "", octave: Int, chord: Bool, arp: Bool) -> Role {
         if arp { return .arp }
         if chord { return .keys }
@@ -55,8 +57,9 @@ public enum MelodyRhythm {
             let name: String = DrumRhythm.words(name).joined(separator: " ")
             if bassWords.contains(where: { name.contains($0) }) { return .bass }
             if padWords.contains(where: { name.contains($0) }) { return .pad }
-            if keysWords.contains(where: { name.contains($0) }) { return .keys }
             if leadWords.contains(where: { name.contains($0) }) { return .lead }
+            // Клавишные без CHORD — LEAD (аккорды — только в режиме CHORD), и в низкой октаве.
+            if keysWords.contains(where: { name.contains($0) }) { return .lead }
         }
         return octave <= bassOctave ? .bass : .lead
     }

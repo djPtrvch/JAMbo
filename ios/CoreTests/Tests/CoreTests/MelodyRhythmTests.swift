@@ -14,7 +14,10 @@ final class MelodyRhythmTests: XCTestCase {
         XCTAssertEqual(M.role(sample: "mi:17", octave: 3, chord: false, arp: false), .lead)
         XCTAssertEqual(M.role(sample: "k1", name: "Deep 808 C.wav", octave: 4, chord: false, arp: false), .bass)
         XCTAssertEqual(M.role(sample: "k2", name: "Warm Pad.wav", octave: 4, chord: false, arp: false), .pad)
-        XCTAssertEqual(M.role(sample: "k3", name: "Piano Chord.wav", octave: 4, chord: false, arp: false), .keys)
+        XCTAssertEqual(M.role(sample: "k3", name: "Piano Chord.wav", octave: 4, chord: false, arp: false), .lead,
+                       "аккорды — только с CHORD")
+        XCTAssertEqual(M.role(sample: "k3", name: "Piano Chord.wav", octave: 2, chord: false, arp: false), .lead)
+        XCTAssertEqual(M.role(sample: "k3", name: "Piano Chord.wav", octave: 4, chord: true, arp: false), .keys)
         XCTAssertEqual(M.role(sample: "k4", name: "Vox.wav", octave: 4, chord: false, arp: false), .lead)
     }
 

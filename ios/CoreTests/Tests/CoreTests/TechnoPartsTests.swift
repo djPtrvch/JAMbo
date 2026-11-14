@@ -290,24 +290,42 @@ final class TechnoPartsTests: XCTestCase {
                         row += row.map { $0 + 12 }
                         byChord[ci] = row
                     }
-                    var idx: [Int: Int] = [:]
+                    // Фигура сдвигается по ударам: индексы нот подряд — с периодом N (3…7), через страницы и смену.
+                    var idx: [Int] = []
                     for a in notes where a.step < 48 {
                         let ci: Int = a.step < 32 ? 0 : 1
                         guard let i = byChord[ci].firstIndex(of: a.note) else {
                             XCTFail("нота из звуков аккорда")
                             continue
                         }
-                        idx[a.step / every] = i
+                        idx.append(i)
                     }
                     var period: Int = 0
-                    for n in [3, 5, 6, 7] {
+                    for n in 3...7 {
                         if dir == Arp.random || dir == Arp.order || dir >= 2 { break }
-                        let ok: Bool = idx.allSatisfy { (k, v) in idx[k + n].map { $0 == v } ?? true }
+                        let ok: Bool = idx.indices.allSatisfy { k in k + n >= idx.count || idx[k + n] == idx[k] }
                         if ok && period == 0 { period = n }
                     }
                     if dir < 2 { XCTAssertGreaterThan(period, 0, "цикл с периодом N") }
                 }
             }
         }
+    }
+
+    /// Ритм арпеджио Techno — не только «подряд мимо бочки»: среди рисунков на 1/16 есть с паузами вне бочки.
+    func testArpRhythmVaries() {
+        var g = SystemRandomNumberGenerator()
+        var shapes = Set<[Int]>()
+        var withRests: Int = 0
+        for _ in 0..<100 {
+            let notes = Arp.technoSteps(lens: [16, 16], degrees: [1], kind: 0, scale: scale, root: root, octave: 4,
+                                        dir: Arp.up, octaves: 1, rate: 2, gate: 0.5, kicks: nil, using: &g)
+            let steps: [Int] = notes.filter { $0.step < 16 }.map { $0.step }
+            shapes.insert(steps)
+            if steps.count < 12 { withRests += 1 }
+            XCTAssertGreaterThanOrEqual(steps.count, 6, "мимо бочки — не меньше половины шагов")
+        }
+        XCTAssertGreaterThan(withRests, 50)
+        XCTAssertGreaterThan(shapes.count, 15)
     }
 }
