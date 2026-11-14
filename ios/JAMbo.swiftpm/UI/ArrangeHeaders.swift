@@ -156,6 +156,12 @@ struct ArrRefHeader: View {
                 Text(name).font(.system(size: 11, weight: .semibold)).foregroundStyle(theme.dim).lineLimit(1)
                     .truncationMode(.middle)
                 Spacer(minLength: 0)
+                // Подгонка громкости на слух (в B измеритель — без неё).
+                if model.refHeardTenths != 0 {
+                    Text("MATCH " + String(format: "%+.1f dB", Double(model.refHeardTenths) / 10))
+                        .font(.system(size: 11, weight: .semibold)).monospacedDigit().foregroundStyle(theme.dim)
+                        .lineLimit(1).fixedSize()
+                }
                 Text(model.refBpmText).font(.system(size: 11, weight: .semibold)).monospacedDigit()
                     .foregroundStyle(theme.text)
             }

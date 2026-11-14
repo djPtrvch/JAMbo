@@ -181,6 +181,34 @@ final class LevelsTests: XCTestCase {
         }
     }
 
+    /// EBU Tech 3341, случаи 1 и 2 (14.11): стерео-синус 1 кГц −23 и −33 dBFS — Momentary, Short-term и Integrated
+    /// −23,0 и −33,0 LUFS ±0,1; файл целиком (Loudness.integrated) — так же.
+    func testEbu3341() {
+        for db in [-23.0, -33.0] {
+            let amp: Float = Float(pow(10, db / 20))
+            let n: Int = 48000 * 20
+            let s: [Float] = (0..<n).map { amp * Float(sin(2 * Double.pi * 1000 * Double($0) / 48000)) }
+            let m = Loudness(sampleRate: 48000)
+            m.source.store(0)
+            s.withUnsafeBufferPointer { b in
+                var at = 0
+                while at < n {
+                    _ = m.listens(0)
+                    m.process(b.baseAddress! + at, b.baseAddress! + at, 256)
+                    m.end(256)
+                    at += 256
+                }
+            }
+            XCTAssertEqual(Double(m.momentary.load()), db, accuracy: 0.1, "M \(db)")
+            XCTAssertEqual(Double(m.shortTerm.load()), db, accuracy: 0.1, "S \(db)")
+            XCTAssertEqual(Double(m.integrated.load()), db, accuracy: 0.1, "I \(db)")
+            let file: Double = s.withUnsafeBufferPointer { b in
+                Loudness.integrated(left: b.baseAddress!, right: b.baseAddress!, frames: n)
+            }
+            XCTAssertEqual(file, db, accuracy: 0.1, "файл \(db)")
+        }
+    }
+
     /// Синус 997 Гц на одном канале: моментальная и интегральная — по АЧХ фильтров (≈ −3 LUFS при 0 dBFS, как
     /// у BS.1770); тишина не тянет интегральную вниз (порог −70), тихий отрезок ниже −10 LU отсекается; сброс.
     func testLoudness() {

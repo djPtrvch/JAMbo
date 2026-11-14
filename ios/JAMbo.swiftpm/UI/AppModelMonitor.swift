@@ -224,6 +224,8 @@ extension AppModel {
             auto = Swift.min(auto, Swift.max(0, room))
         }
         let db: Double = auto + monitor.refTrim
+        let tenths: Int = Int((db * 10).rounded())
+        if tenths != refHeardTenths { refHeardTenths = tenths }
         let g: Float = db == 0 ? 1 : Float(pow(10, db / 20))
         if core.ref.matchGain.load() != g { core.ref.matchGain.store(g) }
     }

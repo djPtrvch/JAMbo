@@ -439,7 +439,8 @@ public final class SynthVoices {
         let e = engine[v]
         var peak: Float = 0
         // Свои движки (jambo-synth-worklet.js): p1–p4 — ручки 1.1–1.4 / 100, Decay — мс; сглаживание — в голосе (5 мс).
-        let q1 = knob(row, locks, mask, modE, t, frame0, VoiceParam.harm) / 100, q2 = knob(row, locks, mask, modE, t, frame0, VoiceParam.timbre) / 100, q3 = knob(row, locks, mask, modE, t, frame0, VoiceParam.morph) / 100
+        var q1 = knob(row, locks, mask, modE, t, frame0, VoiceParam.harm) / 100
+        let q2 = knob(row, locks, mask, modE, t, frame0, VoiceParam.timbre) / 100, q3 = knob(row, locks, mask, modE, t, frame0, VoiceParam.morph) / 100
         let q4k = knob(row, locks, mask, modE, t, frame0, VoiceParam.p4) / 100
         // Тип фильтра — значение звука (пресет-лок — его), без LFO/ENV; LADDER — только у SUB, GRIT тогда — перегруз
         // входа фильтра (tanh движка выключен).
@@ -448,12 +449,14 @@ public final class SynthVoices {
         let q4 = ladOK && fty > 2.5 ? 0 : q4k
         let dec = knob(row, locks, mask, modE, t, frame0, VoiceParam.decay)
         let nt = Double(note[v])
+        // Pitch по нотам у ударных (PitchKey): 1.1 — основа + (нота − C3).
+        if d.pitchKey[d.s(t)] != 0 && PitchKey.drum(e) { q1 = PitchKey.knob(e, q1, note: nt) }
         let dr = drift[t]
         // ANALOG: режим модуляции и октава B — значения звука (пресет-лок — его), без LFO/ENV.
         if e == Jambo.analog {
             let am: Float = mask & bit[VoiceParam.amod] != 0 ? locks[VoiceParam.amod] : row[VoiceParam.amod]
             let ao: Float = mask & bit[VoiceParam.aoct] != 0 ? locks[VoiceParam.aoct] : row[VoiceParam.aoct]
-            let mode: Int = am < 0.5 ? 0 : Swift.min(3, Int(am + 0.5))
+            let mode: Int = am < 0.5 ? 0 : Swift.min(4, Int(am + 0.5))
             bank.jamboAnalog(v, mode: mode, oct: ao >= 0.5)
         }
         if triggered[v] == 0 {

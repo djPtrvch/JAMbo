@@ -16,6 +16,10 @@ public final class RefPlayer: @unchecked Sendable {
     /// Звук референса в блоке (после громкости).
     public let outL: UnsafeMutablePointer<Float>
     public let outR: UnsafeMutablePointer<Float>
+    /// Тот же звук до подгонки громкости (matchGain) — для измерителя и LUFS: в B видна громкость самого файла с
+    /// регулятором REF (14.11, решение пользователя).
+    let rawL: UnsafeMutablePointer<Float>
+    let rawR: UnsafeMutablePointer<Float>
     /// Место чтения (кадр файла; до начала файла — отрицательное, тишина) и играет ли.
     public private(set) var pos: Int = 0
     public private(set) var active = false
@@ -40,6 +44,10 @@ public final class RefPlayer: @unchecked Sendable {
         outR.initialize(repeating: 0, count: AudioCore.maxFrames)
         post = .allocate(capacity: AudioCore.maxFrames)
         post.initialize(repeating: 0, count: AudioCore.maxFrames)
+        rawL = .allocate(capacity: AudioCore.maxFrames)
+        rawR = .allocate(capacity: AudioCore.maxFrames)
+        rawL.initialize(repeating: 0, count: AudioCore.maxFrames)
+        rawR.initialize(repeating: 0, count: AudioCore.maxFrames)
         throughMonitor.store(1)
     }
 
@@ -47,6 +55,8 @@ public final class RefPlayer: @unchecked Sendable {
         outL.deallocate()
         outR.deallocate()
         post.deallocate()
+        rawL.deallocate()
+        rawR.deallocate()
     }
 
     /// Место в файле по позиции курсора x (шаги, дробная) при темпе bpm.
@@ -62,6 +72,8 @@ public final class RefPlayer: @unchecked Sendable {
     public func render(_ d: SoundData, play: Bool, x: Double, bpm: Double, n: Int) {
         outL.update(repeating: 0, count: n)
         outR.update(repeating: 0, count: n)
+        rawL.update(repeating: 0, count: n)
+        rawR.update(repeating: 0, count: n)
         let has: Bool = d.refLeft != nil && d.refFrames > 0
         let same: Bool = d.refLeft == lastLeft
         let want: Bool = play && has
@@ -76,6 +88,8 @@ public final class RefPlayer: @unchecked Sendable {
             // Стоп: прежнее место — с затуханием.
             add(d, pos, n, g, 1, -1 / Float(n))
             active = false
+            rawL.update(from: outL, count: n)
+            rawR.update(from: outR, count: n)
             return
         }
         let target: Int = RefPlayer.frame(d, x: x, bpm: bpm)
@@ -94,6 +108,8 @@ public final class RefPlayer: @unchecked Sendable {
             }
         }
         pos += n
+        rawL.update(from: outL, count: n)
+        rawR.update(from: outR, count: n)
         applyMatch(n)
     }
 
@@ -137,14 +153,14 @@ public final class RefPlayer: @unchecked Sendable {
 
     /// До мастера (left, right — вход мастера), a — доля B, m — доля пути через мастер: микс · (1 − a·m) + референс · a·m;
     /// после мастера (mixPost) — выход · (1 − p) + референс · p, p = a·(1 − m) (при m = 0 — как прежде: микс уходит
-    /// после мастера). Пики и LUFS референса — в Levels.ref.
+    /// после мастера). Пики и LUFS референса — в Levels.ref, до подгонки громкости (rawL, rawR).
     @inline(__always)
     public func mixPre(refB: Bool, _ left: UnsafeMutablePointer<Float>, _ right: UnsafeMutablePointer<Float>, n: Int,
                        levels: Levels) {
         let target: Float = refB ? 1 : 0
         let thruTarget: Float = throughMaster.load() != 0 ? 1 : 0
         let step: Float = 1 / RefPlayer.abFrames
-        let ol = outL, or = outR, pp = post
+        let ol = outL, or = outR, pp = post, ql = rawL, qr = rawR
         var a: Float = ab
         var m: Float = thru
         var pl: Float = 0, pr: Float = 0
@@ -166,8 +182,10 @@ public final class RefPlayer: @unchecked Sendable {
             }
             let vl: Float = ol[k]
             let vr: Float = or[k]
-            let al: Float = vl < 0 ? -vl : vl
-            let ar: Float = vr < 0 ? -vr : vr
+            let ul: Float = ql[k]
+            let ur: Float = qr[k]
+            let al: Float = ul < 0 ? -ul : ul
+            let ar: Float = ur < 0 ? -ur : ur
             if al > pl { pl = al }
             if ar > pr { pr = ar }
             let am: Float = a * m
@@ -182,7 +200,7 @@ public final class RefPlayer: @unchecked Sendable {
         let lv = levels.current(Levels.ref)
         lv[0] = pl
         lv[1] = pr
-        if levels.loudness.listens(Levels.ref) { levels.loudness.process(UnsafePointer(ol), UnsafePointer(or), n) }
+        if levels.loudness.listens(Levels.ref) { levels.loudness.process(UnsafePointer(ql), UnsafePointer(qr), n) }
     }
 
     /// После мастера: референс мимо мастера (доля post), выход мастера — на остальное.

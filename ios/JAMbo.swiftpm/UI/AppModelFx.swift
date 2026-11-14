@@ -127,7 +127,9 @@ extension AppModel {
             filterShiftTap(undo: undo)
             return true
         }
-        // TAP (SETTINGS → SAMPLER): Pitch — по полутонам / плавно, Start и End — доли сэмпла / плавно.
+        // Pitch по нотам (14.11): сэмпл и 1.1 ударных — при любом PITCH SHIFT.
+        if !modMode && !fxMode, let id = param(slot)?.id, pitchKeyShiftTap(id) { return true }
+        // TAP (SETTINGS → SAMPLER): Start и End — доли сэмпла / плавно.
         if !modMode && !fxMode, let id = param(slot)?.id, stepByTap(id) {
             let key: String = Params.stepModeId(id)
             let on: Bool = !stepToggled(id)

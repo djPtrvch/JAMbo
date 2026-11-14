@@ -256,6 +256,9 @@ final class AppModel {
     @ObservationIgnored var refLufs: (key: String, lufs: Double, peak: Double)? = nil
     @ObservationIgnored var refLufsPending: String = ""
     @ObservationIgnored var refMatchDb: Double = 0
+    /// Подгонка громкости референса, которая сейчас звучит (подгонка и REF TRIM), в десятых dB — подпись в строке
+    /// REF (14.11): измеритель и LUFS в B показывают файл без неё.
+    var refHeardTenths: Int = 0
     /// Room: пространства из ресурсов (по пунктам TRANSLATION) и загруженное (имя и отклик для компенсации).
     @ObservationIgnored let rooms: [RoomInfo] = AppModel.loadRooms()
     @ObservationIgnored var roomLoaded: (name: String, resp: RoomResponse)? = nil

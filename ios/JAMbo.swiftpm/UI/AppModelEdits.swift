@@ -74,6 +74,7 @@ extension AppModel {
             if fxMode { return fxParam(slot) }
             let p: ParamDef = Params.grid(sound: track.sample)[slot]
             if p.id == "rate" && rateStretch { return Params.rateTstr }
+            if let k = pitchKeyDef(p) { return k }
             if stepByTap(p.id) && stepToggled(p.id) { return AppModel.stepDef(p.id) }
             if p.id == "filter" { return Params.filterDef(filterType) }
             if p.id.isEmpty { return nil }
@@ -113,9 +114,15 @@ extension AppModel {
             let pos = openPlayPos
             if pos >= 0 { lock = t.step(pos)?.locks[p.id] }
         }
-        let v: Double = lock ?? base
+        var v: Double = lock ?? base
+        var locked: Bool = lock != nil
+        // Pitch по нотам: нота шага — на ручке, как p-lock.
+        if let n = pitchKeyNote(p.id) {
+            v = PitchKey.shifted(pitchKeyEngine(p.id).engine, v, note: n)
+            locked = true
+        }
         let am: ModAssign? = assign(slot)
-        var st = KnobState(param: p, value: v, norm: p.toNorm(v), baseNorm: p.toNorm(base), locked: lock != nil,
+        var st = KnobState(param: p, value: v, norm: p.toNorm(v), baseNorm: p.toNorm(base), locked: locked,
                            assign: am, heldSource: canAssign ? heldSource : nil, autoNorm: autoN,
                            col4: slot / 4 == 3)
         if let a = am {
@@ -170,6 +177,7 @@ extension AppModel {
 
     /// Поворот ручки id сейчас ступенчатый: TAP — по переключателю дорожки, HOLD — пока зажата SHIFT.
     func steppedTurn(_ id: String) -> Bool {
+        if id == "pitch" && pitchKeyOn(id) { return true }
         return stepByTap(id) ? stepToggled(id) : knobShift
     }
 
@@ -197,6 +205,8 @@ extension AppModel {
             if samplerStep(p.id) && steppedTurn(p.id) {
                 v = p.id == "pitch" ? v.rounded() : AppModel.snapShare(v)
             }
+            // 1.1 ударного по нотам — на ближайшей ноте.
+            if p.id == "harm" && pitchKeyOn(p.id) { v = PitchKey.snapped(pitchKeyEngine(p.id).engine, v) }
         }
         // MIX: с зажатыми шагами — p-lock громкости на шагах последовательности MIX, иначе громкость дорожки.
         if channel == .mix {

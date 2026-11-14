@@ -114,6 +114,9 @@ public struct SoundData {
     /// Режим RATE звука (Params.rateModeId; алгоритм — SETTINGS → SAMPLER → STRETCH): 0 — PTCH, 1 — TSTR NORMAL
     /// (вокодер), 2 — TSTR BEAT (WSOLA).
     public var rateMode: UnsafeMutablePointer<UInt8>
+    /// Pitch по нотам (14.11, Params.stepModeId("pitch") у ударных KICK, SNARE, HAT, PERC): 1 — высота от ноты
+    /// (PitchKey), 0 — нота высоту не меняет.
+    public var pitchKey: UnsafeMutablePointer<UInt8>
     /// Алгоритм таймстретча (SETTINGS → SAMPLER → STRETCH): 1 — NORMAL, 2 — BEAT (▶ WARP — у любой дорожки).
     public var stretchAlgo: UInt8 = 1
     public var asSrc: UnsafeMutablePointer<Int8>
@@ -256,7 +259,7 @@ public final class SoundSnapshot: @unchecked Sendable {
             grainRef: .allocate(capacity: tracks2),
             fx: .allocate(capacity: Params.fxCount), scAmount: .allocate(capacity: tracks2), scSend: .allocate(capacity: 3),
             mod: .allocate(capacity: tracks2 * Params.modCount), lfoSync: .allocate(capacity: tracks2 * 3),
-            rateMode: .allocate(capacity: tracks2), asSrc: .allocate(capacity: tracks2 * ModTarget.count),
+            rateMode: .allocate(capacity: tracks2), pitchKey: .allocate(capacity: tracks2), asSrc: .allocate(capacity: tracks2 * ModTarget.count),
             asAmt: .allocate(capacity: tracks2 * ModTarget.count), scale: .allocate(capacity: tracks2 * ModTarget.count),
             asAny: .allocate(capacity: tracks2), fxSrc: .allocate(capacity: Params.fxCount),
             fxAmt: .allocate(capacity: Params.fxCount), fxTrack: .allocate(capacity: Params.fxCount),
@@ -322,6 +325,7 @@ public final class SoundSnapshot: @unchecked Sendable {
         d.mod.initialize(repeating: 0, count: tracks2 * Params.modCount)
         d.lfoSync.initialize(repeating: 0, count: tracks2 * 3)
         d.rateMode.initialize(repeating: 0, count: tracks2)
+        d.pitchKey.initialize(repeating: 0, count: tracks2)
         d.asSrc.initialize(repeating: 0, count: tracks2 * ModTarget.count)
         d.asAmt.initialize(repeating: 0, count: tracks2 * ModTarget.count)
         d.scale.initialize(repeating: ParamScale(), count: tracks2 * ModTarget.count)
@@ -412,6 +416,7 @@ public final class SoundSnapshot: @unchecked Sendable {
             for (l, id) in Params.lfoSyncIds.enumerated() { d.lfoSync[u * 3 + l] = (snd.params[id] ?? 0) >= 0.5 ? 1 : 0 }
             let tstr: Bool = (snd.params[Params.rateModeId] ?? 0) >= 0.5
             d.rateMode[u] = tstr ? (stretchBeat ? 2 : 1) : 0
+            d.pitchKey[u] = (snd.params[Params.stepModeId("pitch")] ?? 0) >= 0.5 ? 1 : 0
             // Шкалы целей — по сетке звука дорожки (у синта свои пределы и ступени).
             var grid: [String: ParamDef] = [:]
             for p in Params.grid(sound: snd.sample) where !p.id.isEmpty { grid[p.id] = p }
@@ -551,6 +556,7 @@ public final class SoundSnapshot: @unchecked Sendable {
         data.asAny.deallocate()
         data.lfoSync.deallocate()
         data.rateMode.deallocate()
+        data.pitchKey.deallocate()
         data.fxSrc.deallocate()
         data.fxAmt.deallocate()
         data.fxTrack.deallocate()

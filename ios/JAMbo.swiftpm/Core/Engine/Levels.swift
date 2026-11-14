@@ -75,15 +75,18 @@ public final class Levels: @unchecked Sendable {
     }
 }
 
-/// Громкость показанного канала, как в вебе: K-взвешивание (биквады Web Audio — highshelf 1682 Гц +4 dB и highpass
-/// 38 Гц, Q 0,5 dB) по каналам; моментальная — средний квадрат последних 16384 отсчётов (сумма каналов), раз в 100 мс;
-/// интегральная — по BS.1770 из этих блоков (пороги −70 LUFS и −10 LU, корзины по 0,1 LU — память не растёт).
+/// Громкость показанного канала по ITU-R BS.1770-4 / EBU R128 (14.11; прежде — как в вебе: биквады Web Audio и окно
+/// 16384): K-взвешивание — коэффициенты BS.1770 для 48 кГц (на другой частоте — те же фильтры по формулам EQ);
+/// Momentary — средний квадрат последних 400 мс (сумма каналов), раз в 100 мс; Short-term — последних 3 с;
+/// Integrated — из блоков Momentary с перекрытием 75 % (пороги −70 LUFS и −10 LU, корзины по 0,1 LU — память не растёт).
 public final class Loudness: @unchecked Sendable {
-    static let window = 16384
+    static let window = 19200
+    static let shortWindow = 144000
     static let hop = 4800
     static let bins = 800
     static let absGate = -70.0
-    static let ringBlocks = 512
+    /// Блоки колбэка за 3 с с запасом (блок может быть меньше 256 кадров).
+    static let ringBlocks = 2048
     /// Что слушать: дорожка, Levels.master; −1 — ничего (ставит интерфейс).
     public let source = AtomicCounter()
     /// Сброс интегральной (интерфейс увеличивает счётчик).
@@ -91,11 +94,8 @@ public final class Loudness: @unchecked Sendable {
     /// Моментальная и интегральная громкость, LUFS (−∞ — тишина или ещё нет блоков).
     public let momentary = AtomicFloat(-Float.infinity)
     public let integrated = AtomicFloat(-Float.infinity)
-    /// Short-term (около 3 с): средний квадрат последних shortHops моментальных окон.
+    /// Short-term: средний квадрат последних 3 с.
     public let shortTerm = AtomicFloat(-Float.infinity)
-    static let shortHops = 30
-    let shortRing: UnsafeMutablePointer<Double>
-    private var shortCount = 0
 
     let c: UnsafeMutablePointer<Double>
     /// Состояние биквадов (DF1, как Biquad.cpp): [канал][фильтр][x1, x2, y1, y2].
@@ -114,8 +114,16 @@ public final class Loudness: @unchecked Sendable {
 
     public init(sampleRate: Double) {
         c = .allocate(capacity: 10)
-        EqCoeffs.coeffs(EqSpec.highShelf, 1682, 4, 0, sampleRate, c)
-        EqCoeffs.coeffs(EqSpec.lowCut, 38, 0, 0.5, sampleRate, c + 5)
+        if sampleRate == 48000 {
+            // BS.1770-4, таблицы 1 и 2: предфильтр (полка) и RLB (ФВЧ) для 48 кГц.
+            c[0] = 1.53512485958697; c[1] = -2.69169618940638; c[2] = 1.19839281085285
+            c[3] = -1.69065929318241; c[4] = 0.73248077421585
+            c[5] = 1.0; c[6] = -2.0; c[7] = 1.0
+            c[8] = -1.99004745483398; c[9] = 0.99007225036621
+        } else {
+            EqCoeffs.coeffs(EqSpec.highShelf, 1682, 4, 0, sampleRate, c)
+            EqCoeffs.coeffs(EqSpec.lowCut, 38, 0, 0.5, sampleRate, c + 5)
+        }
         z = .allocate(capacity: 16)
         z.initialize(repeating: 0, count: 16)
         energy = .allocate(capacity: Loudness.ringBlocks)
@@ -128,15 +136,12 @@ public final class Loudness: @unchecked Sendable {
         binE.initialize(repeating: 0, count: Loudness.bins)
         zeros = .allocate(capacity: AudioCore.maxFrames)
         zeros.initialize(repeating: 0, count: AudioCore.maxFrames)
-        shortRing = .allocate(capacity: Loudness.shortHops)
-        shortRing.initialize(repeating: 0, count: Loudness.shortHops)
         source.store(-1)
     }
 
     deinit {
         c.deallocate(); z.deallocate(); energy.deallocate(); frames.deallocate(); binN.deallocate(); binE.deallocate()
         zeros.deallocate()
-        shortRing.deallocate()
     }
 
     /// Колбэк: слушает ли громкость канал ch (заодно — смена канала и сброс).
@@ -162,8 +167,6 @@ public final class Loudness: @unchecked Sendable {
         frames.update(repeating: 0, count: Loudness.ringBlocks)
         sinceHop = 0
         momentary.store(-Float.infinity)
-        shortRing.update(repeating: 0, count: Loudness.shortHops)
-        shortCount = 0
         shortTerm.store(-Float.infinity)
         clearIntegrated()
     }
@@ -231,30 +234,27 @@ public final class Loudness: @unchecked Sendable {
         sinceHop += n
         if sinceHop < Loudness.hop { return }
         sinceHop = 0
-        // Окно — последние 16384 отсчёта (целыми блоками), делится на длину окна, как буфер AnalyserNode веба.
+        let ms: Double = mean(Loudness.window)
+        momentary.store(ms > 1e-10 ? Float(-0.691 + 10 * log10(ms)) : -Float.infinity)
+        let st: Double = mean(Loudness.shortWindow)
+        shortTerm.store(st > 1e-10 ? Float(-0.691 + 10 * log10(st)) : -Float.infinity)
+        integrate(ms)
+    }
+
+    /// Средний квадрат последних span отсчётов (целыми блоками; делится на их длину, не меньше span — до заполнения
+    /// окна недостающее считается тишиной).
+    @inline(__always)
+    private func mean(_ span: Int) -> Double {
         var sum: Double = 0
         var got = 0
         var j = written - 1
-        while j >= 0 && j > written - 1 - Loudness.ringBlocks && got < Loudness.window {
+        while j >= 0 && j > written - 1 - Loudness.ringBlocks && got < span {
             let q = j % Loudness.ringBlocks
             sum += energy[q]
             got += frames[q]
             j -= 1
         }
-        let ms: Double = sum / Double(Loudness.window)
-        momentary.store(ms > 1e-10 ? Float(-0.691 + 10 * log10(ms)) : -Float.infinity)
-        shortRing[shortCount % Loudness.shortHops] = ms
-        shortCount += 1
-        let hops: Int = Swift.min(shortCount, Loudness.shortHops)
-        var st: Double = 0
-        var h = 0
-        while h < hops {
-            st += shortRing[h]
-            h += 1
-        }
-        st /= Double(hops)
-        shortTerm.store(st > 1e-10 ? Float(-0.691 + 10 * log10(st)) : -Float.infinity)
-        integrate(ms)
+        return sum / Double(Swift.max(got, span))
     }
 
     /// Блок в интегральную: корзина по громкости, затем относительный порог (средняя минус 10 LU).
@@ -291,7 +291,8 @@ extension Loudness {
         let m = Loudness(sampleRate: AudioCore.sampleRate)
         m.source.store(0)
         _ = m.listens(0)
-        let block = 4096
+        // Блок — ровно шаг 100 мс: окна 400 мс и 3 с — целыми блоками, как BS.1770.
+        let block = Loudness.hop
         var at = 0
         while at < frames {
             let n: Int = Swift.min(block, frames - at)
