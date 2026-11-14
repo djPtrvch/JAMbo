@@ -164,7 +164,7 @@ struct RightColumn: View {
                 ButtonPair(left: ShiftButton(model: model), right: ScopeButton(model: model, tap: MasterScope.lim))
             })
         } else if model.channel == .mix {
-            // MIX (10.11): кнопок нет — скоп до низа колонки, TONAL растянут на место кнопок (решение пользователя).
+            // MIX (10.11): кнопок нет — скоп до низа колонки, под ним — осциллоскоп после лимитера того же размера, что при MST (14.11).
             AnyView(RightTop(model: model))
         } else {
             AnyView(VStack(spacing: Layout.gap) {

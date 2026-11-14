@@ -20,16 +20,12 @@ extension AppModel {
         // Скоп — только пока виден (MST и MIX).
         let sc: MasterScope = audio.core.master.scope
         if channel != .track {
-            // При MIX осциллоскопа нет (под гониометром — TONAL): точки съёма выключены.
-            let on: [Bool] = channel == .master ? scopeOn : [false, false, false, false]
+            // При MIX (14.11, решение пользователя) — осциллоскоп только после лимитера.
+            let on: [Bool] = channel == .master ? scopeOn : [false, false, false, true]
             var m: Int = MasterScope.gonioBit
             for k in 0..<4 where on[k] { m |= 1 << k }
             sc.mask.store(m)
             scope.tick(sc, on: on)
-            if channel == .mix {
-                tonal.tick(scope)
-                if tonalRef { ensureRefTonal() }
-            }
         } else if sc.mask.load() != 0 {
             sc.mask.store(0)
         }
@@ -167,22 +163,6 @@ extension AppModel {
         } else if taps.on.load() != 0 {
             taps.on.store(0)
             mixAn.reset()
-        }
-    }
-
-    /// Цель TONAL по файлу референса — в фоне, один раз на файл (пока файл не в памяти — позже).
-    private func ensureRefTonal() {
-        guard let r = project.arrange.ref else { return }
-        let key: String = r.key
-        if refTonal?.key == key || refTonalPending == key { return }
-        guard let s = store.data(key) else { return }
-        refTonalPending = key
-        Task.detached(priority: .utility) {
-            let t: TonalTarget? = TonalState.profile(key, s)
-            await MainActor.run {
-                self.refTonalPending = ""
-                self.refTonal = t ?? TonalTarget(key: key, center: [0, 0, 0, 0], width: [3, 3, 3, 3])
-            }
         }
     }
 }

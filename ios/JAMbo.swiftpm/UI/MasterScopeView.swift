@@ -126,18 +126,13 @@ struct MasterScopeView: View {
     var body: some View {
         GeometryReader { geo in
             let gap: CGFloat = 6
-            // При MIX вид выше на место кнопок под ним (две пары и зазоры): гониометр — прежней высоты, TONAL — на
-            // остаток.
+            // При MIX вид выше на место кнопок под ним (две пары и зазоры): гониометр и осциллоскоп — того же размера,
+            // что при MST (14.11, решение пользователя), под ними пусто.
             let extra: CGFloat = taps ? 0 : 2 * Layout.pairHeight + 2 * Layout.gap
             let h: CGFloat = geo.size.height - extra - gap
             VStack(spacing: gap) {
                 panel { ctx, size in drawGonio(ctx, size) }.frame(height: h * 0.6)
-                // При MIX — тональный баланс на месте осциллоскопа (вектороскоп остаётся).
-                if !taps {
-                    TonalView(model: model).frame(height: h * 0.4 + extra)
-                } else {
-                    panel { ctx, size in drawOsc(ctx, size) }.frame(height: h * 0.4)
-                }
+                panel { ctx, size in drawOsc(ctx, size) }.frame(height: h * 0.4)
             }
         }
     }
