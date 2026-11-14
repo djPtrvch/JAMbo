@@ -151,9 +151,14 @@ public enum MelodyRhythm {
     /// аккорды поровну на все шаги — как Chords.places): первая играющая страница — основа ритма, средние — вариации,
     /// последняя — сбивка в последних 4 шагах (подход к корню первого аккорда). Первая нота каждого аккорда — его
     /// корень. Ноты — в гамме от октавы клавиатуры; velocity — доли 100 %, остальные 70–85 %.
+    /// Techno — катящийся бас мимо бочки kicks (TechnoParts.swift).
     public static func bass(style: Int, bpm: Double, lens: [Int], degrees: [Int],
                                                       scale: Int, root: Int, octave oct: Int,
+                                                      kicks: [Set<Int>]? = nil,
                                                       using g: inout Rng) -> [[SliceRhythm.Event]] {
+        if isTechno(style: style, bpm: bpm) {
+            return technoBass(lens: lens, degrees: degrees, scale: scale, root: root, octave: oct, kicks: kicks, using: &g)
+        }
         var out: [[SliceRhythm.Event]] = lens.map { _ in [] }
         let playing: [Int] = lens.indices.filter { lens[$0] > 0 }
         guard let first = playing.first, let last = playing.last, !degrees.isEmpty else { return out }
@@ -201,11 +206,12 @@ extension Track {
     /// этих страниц стираются, ноты — со своей длиной и velocity.
     public mutating func writeRandomBass(pages range: ClosedRange<Int>, degrees: [Int],
                                                                    scale: Int, root: Int, octave: Int, bpm: Double,
-                                                                   using g: inout Rng) {
+                                                                   kicks: [Set<Int>]? = nil, using g: inout Rng) {
         let t: Track = self
         let lens: [Int] = range.map { t.pageLen($0, from: range.lowerBound) }
         let pattern: [[SliceRhythm.Event]] = MelodyRhythm.bass(style: drumStyle, bpm: bpm, lens: lens, degrees: degrees,
-                                                               scale: scale, root: root, octave: octave, using: &g)
+                                                               scale: scale, root: root, octave: octave, kicks: kicks,
+                                                               using: &g)
         writeSlices(pattern, pages: range)
     }
 }

@@ -192,12 +192,22 @@ extension AppModel {
                                         avoid: lastRandomProgression, using: &g)
     }
 
+    /// Прогрессия BASS, PAD и LEAD: последняя случайная (её нет — новая); в Techno — только одна гармония или
+    /// 1 → 7/6 (MelodyRhythm.technoProgression; прежняя другого вида — новая).
+    func sharedProgression(using g: inout Rng) -> [Int] {
+        if MelodyRhythm.isTechno(style: track.drumStyle, bpm: project.bpm) {
+            if let d = lastRandomProgression, MelodyRhythm.isTechnoProgression(d) { return d }
+            return MelodyRhythm.technoProgression(using: &g)
+        }
+        return lastRandomProgression ?? newProgression(using: &g)
+    }
+
     /// Случайная мелодия (LEAD) выбранной дорожки (стиль проекта) на выбранные страницы — по прогрессии, общей с
     /// аккордами (последняя случайная; её нет — новая). Одна запись UNDO; AUTO SWING — Swing дорожки по стилю.
     func writeRandomLead() {
         guard channel == .track else { return }
         var g = SystemRandomNumberGenerator()
-        let degrees: [Int] = lastRandomProgression ?? newProgression(using: &g)
+        let degrees: [Int] = sharedProgression(using: &g)
         lastRandomProgression = degrees
         let range: ClosedRange<Int> = chordPages
         let scale: Int = project.scale
@@ -205,8 +215,10 @@ extension AppModel {
         let oct: Int = octave
         let bpm: Double = project.bpm
         let swing: Bool = settings.randomSwing
+        let kicks: [Set<Int>] = project.kickGrid(pages: range)
         editTrack { t in
-            t.writeRandomLead(pages: range, degrees: degrees, scale: scale, root: root, octave: oct, bpm: bpm, using: &g)
+            t.writeRandomLead(pages: range, degrees: degrees, scale: scale, root: root, octave: oct, bpm: bpm,
+                              kicks: kicks, using: &g)
             if swing { t.params["swing"] = DrumRhythm.swing(t.drumStyle, bpm: bpm) }
         }
     }
@@ -216,6 +228,17 @@ extension AppModel {
     func writeRandomChordPart(_ role: MelodyRhythm.Role) {
         guard channel == .track else { return }
         var g = SystemRandomNumberGenerator()
+        // PAD Techno — по общей прогрессии (TechnoParts: широкий аккорд на 32 шага).
+        if role == .pad && MelodyRhythm.isTechno(style: track.drumStyle, bpm: project.bpm) {
+            let degrees: [Int] = sharedProgression(using: &g)
+            lastRandomProgression = degrees
+            let range: ClosedRange<Int> = chordPages
+            let scale: Int = project.scale
+            let root: Int = randomRoot(track)
+            let oct: Int = octave
+            editTrack { t in t.writeTechnoPad(pages: range, degrees: degrees, scale: scale, root: root, octave: oct, using: &g) }
+            return
+        }
         let degrees: [Int] = newProgression(using: &g)
         lastRandomProgression = degrees
         let bpm: Double = project.bpm
@@ -234,7 +257,7 @@ extension AppModel {
     func writeRandomBass() {
         guard channel == .track else { return }
         var g = SystemRandomNumberGenerator()
-        let degrees: [Int] = lastRandomProgression ?? newProgression(using: &g)
+        let degrees: [Int] = sharedProgression(using: &g)
         lastRandomProgression = degrees
         let range: ClosedRange<Int> = chordPages
         let scale: Int = project.scale
@@ -242,8 +265,10 @@ extension AppModel {
         let oct: Int = octave
         let bpm: Double = project.bpm
         let swing: Bool = settings.randomSwing
+        let kicks: [Set<Int>] = project.kickGrid(pages: range)
         editTrack { t in
-            t.writeRandomBass(pages: range, degrees: degrees, scale: scale, root: root, octave: oct, bpm: bpm, using: &g)
+            t.writeRandomBass(pages: range, degrees: degrees, scale: scale, root: root, octave: oct, bpm: bpm,
+                              kicks: kicks, using: &g)
             if swing { t.params["swing"] = DrumRhythm.swing(t.drumStyle, bpm: bpm) }
         }
     }

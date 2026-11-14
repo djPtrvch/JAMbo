@@ -10,6 +10,7 @@ enum EnsembleJob {
     case bass(octave: Int, root: Int)
     case chords(role: MelodyRhythm.Role, chords: [[Int]])
     case lead(octave: Int, root: Int)
+    case technoPad(octave: Int, root: Int)
     case arp(notes: [ArpStepNote])
 }
 
@@ -36,6 +37,8 @@ extension AppModel {
         switch role {
         case .bass: return .bass(octave: oct, root: randomRoot(t))
         case .lead: return .lead(octave: oct, root: randomRoot(t))
+        case .pad where MelodyRhythm.isTechno(style: t.drumStyle, bpm: p.bpm):
+            return .technoPad(octave: oct, root: randomRoot(t))
         case .keys, .pad:
             let cs: [[Int]] = MelodyRhythm.styleChords(degrees, style: t.drumStyle, bpm: p.bpm, scale: p.scale,
                                                        root: randomRoot(t), octave: oct, using: &g)
@@ -54,11 +57,13 @@ extension AppModel {
 
     /// Партии на всех дорожках со звуком (и заглушённых): выбранная — на выбранные страницы, остальные — на
     /// страницы своего открытого клипа; одна новая прогрессия стиля на всех (её же потом берут BASS и LEAD).
-    /// Одна запись UNDO; AUTO SWING — Swing дорожек по стилю (кроме PAD).
+    /// Одна запись UNDO; AUTO SWING — Swing дорожек по стилю (кроме PAD). Techno — гармония Techno
+    /// (technoProgression), ударные пишутся первыми: бас и лид обходят новую бочку (Project.kickGrid).
     func writeEnsemble() {
         guard channel == .track else { return }
         var g = SystemRandomNumberGenerator()
-        let degrees: [Int] = newProgression(using: &g)
+        let techno: Bool = MelodyRhythm.isTechno(style: track.drumStyle, bpm: project.bpm)
+        let degrees: [Int] = techno ? MelodyRhythm.technoProgression(using: &g) : newProgression(using: &g)
         lastRandomProgression = degrees
         let sel: Int = selectedTrack
         let selRange: ClosedRange<Int> = chordPages
@@ -69,6 +74,13 @@ extension AppModel {
             if let j = ensembleJob(i, degrees: degrees, range: r, octave: oct, using: &g) { jobs.append((i, r, j)) }
         }
         if jobs.isEmpty { return }
+        // Ударные и нарезка — первыми (сетка бочки для баса и лида).
+        let isDrums: (EnsembleJob) -> Bool = { j in
+            if case .drums = j { return true }
+            if case .slices = j { return true }
+            return false
+        }
+        jobs = jobs.filter { isDrums($0.2) } + jobs.filter { !isDrums($0.2) }
         var last: [Int: [Int]] = lastRandomDrums
         let swing: Bool = settings.randomSwing
         edit { p in
@@ -85,13 +97,17 @@ extension AppModel {
                                                                   bpm: bpm, using: &g)
                 case .bass(let oct, let root):
                     p.tracks[i].writeRandomBass(pages: r, degrees: degrees, scale: p.scale, root: root, octave: oct,
-                                                bpm: bpm, using: &g)
+                                                bpm: bpm, kicks: p.kickGrid(pages: r), using: &g)
                 case .chords(let role, let cs):
                     pad = role == .pad
                     p.tracks[i].writeRandomChords(role, pages: r, chords: cs, bpm: bpm, using: &g)
                 case .lead(let oct, let root):
                     p.tracks[i].writeRandomLead(pages: r, degrees: degrees, scale: p.scale, root: root, octave: oct,
-                                                bpm: bpm, using: &g)
+                                                bpm: bpm, kicks: p.kickGrid(pages: r), using: &g)
+                case .technoPad(let oct, let root):
+                    pad = true
+                    p.tracks[i].writeTechnoPad(pages: r, degrees: degrees, scale: p.scale, root: root, octave: oct,
+                                               using: &g)
                 case .arp(let notes):
                     p.tracks[i].writeArpSteps(notes, pages: r)
                 }

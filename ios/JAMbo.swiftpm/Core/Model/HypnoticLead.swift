@@ -35,10 +35,13 @@ extension MelodyRhythm {
     /// Гипнотическая партия на страницы lens по прогрессии degrees. Два вида (наугад): ячейка-полиметрия длиной
     /// 3, 5, 6 или 7 шагов (евклидов ритм внутри, высоты на ударах ячейки) — повторяется подряд через все страницы, не
     /// с начала такта; или евклидов ритм на 16 шагов (5, 7, 9 ударов) с кругом из 2–3 высот другой длины. Высоты — от
-    /// корня текущего аккорда. Ноты 1–2 шага (не до следующей), акцент — первый удар ячейки (или круга высот);
-    /// последняя страница (если их больше одной) — сбивка: в последних 4 шагах часть нот снята.
+    /// корня аккорда страницы (аккорды — целыми страницами, TechnoParts). Ноты не на шагах бочки kicks (nil — 1, 5,
+    /// 9, 13), 1 шаг (25 % — 2). p-lock: Velocity — первый удар ячейки (или круга высот) 100 %, остальные 60–85 %;
+    /// Chance — у ~30 % нот 80–95 %; Pan — удары ячейки попеременно влево и вправо на 15–35 % (рисунок один на
+    /// ячейку); Ratchet 2 — 15 % на проход ячейки, одна нота. Последняя страница (если их больше одной) — сбивка:
+    /// в последних 4 шагах часть нот снята.
     static func hypnoticLead(lens: [Int], degrees: [Int], scale: Int, root: Int, octave oct: Int,
-                             using g: inout Rng) -> [[SliceRhythm.Event]] {
+                             kicks: [Set<Int>]? = nil, using g: inout Rng) -> [[SliceRhythm.Event]] {
         var out: [[SliceRhythm.Event]] = lens.map { _ in [] }
         let playing: [Int] = lens.indices.filter { lens[$0] > 0 }
         if playing.isEmpty || degrees.isEmpty { return out }
@@ -65,18 +68,35 @@ extension MelodyRhythm {
             let j: Int = cellHits[Int.random(in: 1..<cellHits.count, using: &g)]
             cellPitch[j] = pitches.count > 1 ? pitches[1] : 0
         }
-        let gate: Int = Double.random(in: 0..<1, using: &g) < 0.6 ? 1 : 2
+        // Pan ударов ячейки: попеременно влево и вправо на 15–35 % (−64…63).
+        var cellPan: [Double] = Array(repeating: 0, count: cellLen)
+        var side: Double = Bool.random(using: &g) ? 1 : -1
+        for j in cellHits {
+            cellPan[j] = side * Double(Int.random(in: 10...22, using: &g))
+            side = -side
+        }
         let fillFrom: Int = total - 4
         let firstHit: Int = rhythm.firstIndex(of: true) ?? 0
         var abs: [Int] = []
         var deg: [Int] = []
         var acc: [Bool] = []
+        var pans: [Double] = []
+        var rats: [Bool] = []
         var hitNo: Int = 0
+        var pass: Int = -1
+        var ratchetPos: Int = -1
         for s in 0..<total {
             let pos: Int = s % cellLen
+            if s / cellLen != pass {
+                pass = s / cellLen
+                let on: Bool = Double.random(in: 0..<1, using: &g) < 0.15
+                ratchetPos = on ? (cellHits.randomElement(using: &g) ?? -1) : -1
+            }
             if !rhythm[pos] { continue }
+            let pi: Int = s / per
+            if kickOf(kicks, playing[pi]).contains(s % per) { continue }
             if playing.count > 1 && s >= fillFrom && Bool.random(using: &g) { continue }
-            let ci: Int = Swift.min(degrees.count - 1, s * degrees.count / total)
+            let ci: Int = technoChord(page: pi, pages: playing.count, chords: degrees.count)
             let k: Int = Chords.degreeIndex(degrees[ci], scale: scale)
             let off: Int = poly ? cellPitch[pos] : pitches[hitNo % pitches.count]
             var d: Int = k + off
@@ -84,6 +104,8 @@ extension MelodyRhythm {
             abs.append(s)
             deg.append(Swift.max(0, d))
             acc.append(poly ? pos == firstHit : hitNo % pitches.count == 0)
+            pans.append(cellPan[pos])
+            rats.append(pos == ratchetPos)
             hitNo += 1
         }
         for i in abs.indices {
@@ -93,9 +115,12 @@ extension MelodyRhythm {
             if st >= lens[p] { continue }
             let next: Int = i + 1 < abs.count ? abs[i + 1] : total
             let gap: Int = Swift.max(1, Swift.min(next - abs[i], lens[p] - st))
+            let gate: Int = Double.random(in: 0..<1, using: &g) < 0.25 ? 2 : 1
             let note: Int = Swift.min(127, Swift.max(0, Scales.note(scale: scale, root: root, octave: oct, degree: deg[i])))
-            let v: Double = acc[i] ? DrumRhythm.velFull : Double.random(in: DrumRhythm.velMid, using: &g).rounded()
-            out[p].append(SliceRhythm.Event(step: st, note: note, len: Swift.min(gap, gate), vel: v))
+            let v: Double = acc[i] ? DrumRhythm.velFull : Double(Int.random(in: 77...107, using: &g))
+            let ch: Double? = Double.random(in: 0..<1, using: &g) < 0.3 ? Double(Int.random(in: 80...95, using: &g)) : nil
+            out[p].append(SliceRhythm.Event(step: st, note: note, len: Swift.min(gap, gate), vel: v, chance: ch,
+                                            ratchet: rats[i] ? 1 : nil, pan: pans[i]))
         }
         return out
     }
