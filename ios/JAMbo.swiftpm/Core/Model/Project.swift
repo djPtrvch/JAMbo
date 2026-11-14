@@ -68,9 +68,6 @@ public struct TrackMore: Equatable, Sendable {
     public var arp: TrackArp = TrackArp()
     /// Автоматизация на таймлайне (S15f): кривые ручек сетки дорожки, по одной на ручку.
     public var autos: [ArrAutoLane] = []
-    /// Режим XY (на пробу): ручки (0…15) осей четырёх площадок дорожки — ось k: площадка k / 2, X — чётные;
-    /// −1 или нет — не назначена.
-    public var xy: [Int] = []
 }
 
 public struct Track: Codable, Equatable, Sendable {
@@ -151,10 +148,6 @@ public struct Track: Codable, Equatable, Sendable {
     public var color: Int {
         get { return moreBox[0].color }
         set { moreBox[0].color = newValue }
-    }
-    public var xy: [Int] {
-        get { return moreBox[0].xy }
-        set { moreBox[0].xy = newValue }
     }
     public var drumStyle: Int {
         get { return moreBox[0].drumStyle }

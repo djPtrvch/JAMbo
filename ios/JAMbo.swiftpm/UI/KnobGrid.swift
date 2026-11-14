@@ -20,14 +20,10 @@ struct KnobGrid: View {
     var body: some View {
         GeometryReader { geo in
             ZStack(alignment: .topLeading) {
-                // Режим XY: площадки вместо ручек дорожки; касания — тот же жест.
-                ZStack {
-                    if model.xyShown { XYPadsView(model: model) } else { cells(geo.size) }
-                }
-                .contentShape(Rectangle())
-                .gesture(touches(size: geo.size))
+                cells(geo.size)
+                    .contentShape(Rectangle())
+                    .gesture(touches(size: geo.size))
                 TrackMenus(model: model, size: geo.size)
-                XYMenu(model: model, size: geo.size)
             }
         }
     }
@@ -106,10 +102,6 @@ struct KnobGrid: View {
     private func down(_ id: SpatialEventCollection.Event.ID, at p: CGPoint, size: CGSize) {
         model.ensureAudio()
         gridSize = size
-        if model.xyShown {
-            xyDown(id, at: p, size: size)
-            return
-        }
         let s: Int = slot(p, size: size)
         var turn = KnobTurn(slot: s, startY: p.y, lastY: p.y, acc: model.knobStart(s))
         // MIDI LEARN: тап выбирает цель — ручку (TURN / PRESS) или кнопку M, S, ● в MIX; действие не выполняется.
@@ -205,10 +197,6 @@ struct KnobGrid: View {
         }
         let y: CGFloat = p.y
         guard var t = turns[id], !t.consumed else { return }
-        if t.pad >= 0 {
-            xyMove(id, t, at: p)
-            return
-        }
         if !t.moved {
             if abs(y - t.startY) < KnobGrid.dead { return }
             t.moved = true
@@ -231,48 +219,6 @@ struct KnobGrid: View {
         model.setKnob(t.slot, norm: t.acc)
     }
 
-    /// Режим XY: палец на площадке; второй тап по той же площадке в пределах 0,35 с — меню осей.
-    private func xyDown(_ id: SpatialEventCollection.Event.ID, at p: CGPoint, size: CGSize) {
-        let pd: Int = XYLayout.pad(at: p, size)
-        var turn = KnobTurn(slot: -1, startY: p.y, lastY: p.y, acc: model.xyNorm(pd * 2) ?? 0)
-        turn.startX = p.x
-        turn.lastX = p.x
-        turn.pad = pd
-        turn.accY = model.xyNorm(pd * 2 + 1) ?? 0
-        if let t = lastTap[16 + pd], Date().timeIntervalSince(t) < 0.35 {
-            lastTap[16 + pd] = nil
-            turn.consumed = true
-            turns[id] = turn
-            model.xyMenu = pd
-            return
-        }
-        lastTap[16 + pd] = Date()
-        turns[id] = turn
-        model.beginGesture()
-        model.xyTouch(pd, true)
-    }
-
-    /// Палец на площадке: точка идёт за пальцем — сдвиг на всю ширину (высоту) площадки — весь ход ручки.
-    private func xyMove(_ id: SpatialEventCollection.Event.ID, _ turn: KnobTurn, at p: CGPoint) {
-        var t: KnobTurn = turn
-        let r: CGRect = XYLayout.rect(t.pad, gridSize)
-        let dx: Double = Double((p.x - t.lastX) / max(1, r.width))
-        let dy: Double = Double((t.lastY - p.y) / max(1, r.height))
-        t.lastX = p.x
-        t.lastY = p.y
-        // Тап с движением — не первый тап двойного (иначе меню открывалось бы во время игры).
-        if abs(p.x - t.startX) + abs(p.y - t.startY) > KnobGrid.dead { lastTap[16 + t.pad] = nil }
-        if let sx = model.xySlot(t.pad * 2), dx != 0 {
-            t.acc = min(1, max(0, t.acc + dx))
-            model.setKnob(sx, norm: t.acc)
-        }
-        if let sy = model.xySlot(t.pad * 2 + 1), dy != 0 {
-            t.accY = min(1, max(0, t.accY + dy))
-            model.setKnob(sy, norm: t.accY)
-        }
-        turns[id] = t
-    }
-
     /// Место для дорожки — ближайшая к пальцу ручка существующей дорожки.
     private func nearestTrack(_ p: CGPoint) -> Int {
         var best = 0
@@ -290,12 +236,6 @@ struct KnobGrid: View {
 
     private func up(_ id: SpatialEventCollection.Event.ID) {
         guard let turn = turns.removeValue(forKey: id) else { return }
-        if turn.pad >= 0 {
-            if turn.consumed { return }
-            if !turns.values.contains(where: { $0.pad == turn.pad }) { model.xyTouch(turn.pad, false) }
-            model.endGesture()
-            return
-        }
         if turn.shiftTap { model.knobShiftTap(turn.slot) }
         if !turns.values.contains(where: { $0.slot == turn.slot }) {
             model.knobFingers.remove(turn.slot)
@@ -331,11 +271,6 @@ struct KnobTurn {
     var lfo: Int? = nil
     /// SHIFT + касание: при отпускании до 1 с — тап (по темпу / свободно).
     var shiftTap: Bool = false
-    /// Режим XY: палец на площадке (0…3; −1 — нет), накопитель Y (X — acc), начальный и прежний x.
-    var pad: Int = -1
-    var accY: Double = 0
-    var startX: CGFloat = 0
-    var lastX: CGFloat = 0
 }
 
 /// Ручка сетки: с назначенным LFO/ENV — перерисовка каждый кадр, до 60 в секунду (кольцо модуляции идёт за

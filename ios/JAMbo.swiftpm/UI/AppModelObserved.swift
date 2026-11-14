@@ -65,10 +65,6 @@ extension AppModel {
         get { access(keyPath: \.morph); return _morph }
         set { put(\.morph, \._morph, newValue, observedChanged(_morph, newValue)) }
     }
-    var xyMenu: Int? {
-        get { access(keyPath: \.xyMenu); return _xyMenu }
-        set { put(\.xyMenu, \._xyMenu, newValue, observedChanged(_xyMenu, newValue)) }
-    }
     var morphHeld: Bool {
         get { access(keyPath: \.morphHeld); return _morphHeld }
         set { put(\.morphHeld, \._morphHeld, newValue, observedChanged(_morphHeld, newValue)) }
