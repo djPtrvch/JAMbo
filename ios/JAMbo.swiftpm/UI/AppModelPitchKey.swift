@@ -1,7 +1,8 @@
 import Foundation
 
-/// Pitch по нотам (14.11, PitchKey): SHIFT + тап по Pitch сэмпла или 1.1 ударного (KICK, SNARE, HAT, PERC) — режим
-/// вкл./выкл. (одна запись UNDO); ручка — нота, по полутонам; нота зажатого или играющего шага — на ручке, как p-lock.
+/// Pitch по нотам (14.11, PitchKey): SHIFT + тап по Pitch сэмпла или 1.1 ударного (KICK, SNARE, HAT, CLAP, PERC) —
+/// режим вкл./выкл. (одна запись UNDO); ручка — сдвиг нотой, по полутонам; нота зажатого или последнего прозвучавшего
+/// шага — на ручке, как p-lock.
 extension AppModel {
     /// Ручка id выбранной дорожки умеет Pitch по нотам; движок — у ударного, nil — у сэмпла.
     func pitchKeyEngine(_ id: String) -> (ok: Bool, engine: Int?) {
@@ -24,7 +25,9 @@ extension AppModel {
         let e: Int? = k.engine
         editTrack { t in
             t.params[PitchKey.id] = on ? 1 : 0
-            if on, let v = t.params[id] { t.params[id] = PitchKey.snapped(e, v) }
+            // Включение: у ударного сдвиг 0 (шаг звучит своей нотой), у сэмпла — Pitch на ближайшем полутоне.
+            if on && e != nil { t.params[id] = 50 }
+            if on && e == nil, let v = t.params[id] { t.params[id] = PitchKey.snapped(e, v) }
         }
         return true
     }
@@ -39,15 +42,25 @@ extension AppModel {
     /// Нота зажатого (иначе играющего) шага — любая, и C3; nil — нет или режим выключен.
     func pitchKeyNote(_ id: String) -> Int? {
         if !pitchKeyOn(id) { return nil }
-        var step: Step? = nil
         if let held = heldSteps.min() {
-            step = track.step(held)
-        } else if playing {
-            let pos = openPlayPos
-            if pos >= 0 { step = track.step(pos) }
+            guard let s = track.step(held), s.on, let n = s.notes.min() else { return nil }
+            return n
         }
-        guard let s = step, s.on, let n = s.notes.min() else { return nil }
-        return n
+        if !playing { return nil }
+        let pos = openPlayPos
+        if pos < 0 { return nil }
+        // При игре — нота последнего прозвучавшего шага играющих страниц (держится до следующей ноты).
+        let t: Track = track
+        let lo: Int = t.playFrom * Params.stepsPerPage
+        let len: Int = (t.playTo - t.playFrom + 1) * Params.stepsPerPage
+        if len <= 0 { return nil }
+        var k: Int = 0
+        while k < len {
+            let i: Int = lo + ((pos - lo - k) % len + len) % len
+            if let s = t.step(i), s.on, let n = s.notes.min() { return n }
+            k += 1
+        }
+        return nil
     }
 }
 
@@ -70,12 +83,7 @@ extension AppModel {
             for i in held {
                 t.withStep(i) { s in
                     let b: Double = s.locks[id] ?? def
-                    var want: Double = v.rounded() - b.rounded()
-                    if let eng = e {
-                        let to: Double = PitchKey.base(eng, v / 100)
-                        let at: Double = PitchKey.base(eng, b / 100)
-                        want = to - at
-                    }
+                    let want: Double = PitchKey.semis(e, v) - PitchKey.semis(e, b)
                     let target: Int = Params.sampleRoot + Int(want)
                     let from: Int = s.notes.min() ?? Params.sampleRoot
                     let d: Int = target - from

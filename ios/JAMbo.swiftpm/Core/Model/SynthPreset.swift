@@ -15,6 +15,10 @@ public struct SynthPreset: Codable, Equatable, Sendable {
     public var table: String?
     /// Сэмпл GRANULAR (ключ хранилища); nil — не GRANULAR.
     public var grain: String?
+    /// Модуляция (14.11, решение пользователя): ручки LFO1–3 и ENV (Params.modIds, LFO по темпу) и назначения LFO/ENV
+    /// на ручки звука; nil — прежний пресет без модуляции: у дорожки она остаётся как была.
+    public var mods: [String: Double]?
+    public var assigns: [String: ModAssign]?
 
     public init(name: String, sound: String, params: [String: Double], fmt: Int? = 5, table: String? = nil,
                 grain: String? = nil) {
@@ -41,7 +45,7 @@ public struct SynthPreset: Codable, Equatable, Sendable {
         return nil
     }
 
-    enum CodingKeys: String, CodingKey, CaseIterable { case name, sound, params, fmt, table, grain }
+    enum CodingKeys: String, CodingKey, CaseIterable { case name, sound, params, fmt, table, grain, mods, assigns }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -68,6 +72,8 @@ public struct SynthPreset: Codable, Equatable, Sendable {
         }
         table = c.optional(.table)
         grain = c.optional(.grain)
+        mods = c.optional(.mods)
+        assigns = c.optional(.assigns)
     }
 }
 

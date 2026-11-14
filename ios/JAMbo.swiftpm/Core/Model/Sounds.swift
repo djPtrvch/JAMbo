@@ -75,6 +75,11 @@ extension Track {
         }
         if let t = p.table { table = t }
         if let g = p.grain { grain = g }
+        // Пресет с модуляцией: ручки LFO/ENV и назначения на ручки звука — его (назначения на FX — у проекта).
+        if let m = p.mods {
+            for (id, v) in m { params[id] = v }
+        }
+        if let a = p.assigns { assigns = a }
     }
 
     /// Загруженные файлы — в папку, первый звучит на дорожке.
@@ -114,7 +119,13 @@ extension Track {
         // WTABLE (движок 19) — с таблицей дорожки, GRANULAR — с сэмплом.
         let wt: String? = e == 19 ? table : nil
         let gr: String? = e == Jambo.granular ? grain : nil
-        return SynthPreset(name: name, sound: sample, params: p, table: wt, grain: gr)
+        var preset = SynthPreset(name: name, sound: sample, params: p, table: wt, grain: gr)
+        // Модуляция (14.11): ручки LFO/ENV и назначения на ручки звука.
+        var m: [String: Double] = [:]
+        for id in Params.modIds + Params.lfoSyncIds { m[id] = params[id] ?? Params.byId[id]?.def ?? 0 }
+        preset.mods = m
+        preset.assigns = assigns
+        return preset
     }
 
     /// Имя пресета, если звук дорожки — пресет из её папки ("" — нет; folderItemName веба).
