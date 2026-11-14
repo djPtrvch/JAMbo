@@ -39,7 +39,7 @@ final class SynthTests: XCTestCase {
         XCTAssertEqual(Params.grid(sound: "mi:18")[3].label, "Feedback")
         let wt = Params.grid(sound: "mi:19")
         XCTAssertEqual(wt[2].label, "Unison")
-        XCTAssertEqual(wt[2].steps, 3)
+        XCTAssertEqual(wt[2].steps, 5, "UNISON 1…5 (14.11)")
         XCTAssertEqual(wt[2].format(50), "3")
         XCTAssertEqual(wt[3].label, "Detune")
         XCTAssertEqual(wt[3].format(50), "30 ct")

@@ -93,7 +93,7 @@ extension EngineIcons {
     }
 
     /// WTABLE: текущий кадр таблицы (POSITION, 1.1, между кадрами — плавно); WARP (1.2) изгибает фазу, выше 50 % —
-    /// синхронизация; UNISON (1.3) добавляет бледные копии (2…5 голосов), DETUNE (1.4) разводит их по фазе.
+    /// синхронизация; UNISON (1.3) плавно добавляет бледные копии, DETUNE (1.4) разводит их по фазе.
     /// frame(position, phase) — значение кадра −1…1 (фаза — любое число, период 1).
     public static func wtableIcon(_ v: IconValues, _ frame: (Double, Double) -> Double) -> [IconElement] {
         let pos = v.h, warp = v.t, uni = v.m, det = v.q
@@ -102,9 +102,8 @@ extension EngineIcons {
         let sy = warp <= 0.5 ? 1 : 1 + (warp - 0.5) * 6
         func warpP(_ p: Double) -> Double { return pow(frac(p), 1 + 3 * a) * sy }
         func mk(_ off: Double) -> [Double] { return gen { u, _ in frame(pos, warpP(cyc * u - sc - off)) } }
-        // UNISON 1…5 (14.11): ближняя пара — от двух голосов, дальняя — от четырёх.
-        let voices: Int = 1 + Swift.min(4, Swift.max(0, Int(uni * 5)))
-        let a3: Double = voices >= 2 ? 1 : 0, a5: Double = voices >= 4 ? 1 : 0
+        // Копии проявляются плавно по ходу UNISON (как в прототипе; сверка — EngineIconTests).
+        let a3 = clamp(uni * 2), a5 = clamp(uni * 2 - 1)
         let d = det * 0.2 * (1 + 0.12 * sin(still * 1.7))
         var els: [IconElement] = []
         let ghosts: [(Double, Double)] = [(d, 0.3 * a3), (-d, 0.3 * a3), (d / 2, 0.3 * a5), (-d / 2, 0.3 * a5)]
