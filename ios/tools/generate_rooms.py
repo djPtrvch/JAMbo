@@ -82,8 +82,7 @@ ROOMS = [
     # (отражения первых 20 мс тише на 12 dB), рассеяние, басовые ловушки (низ не длиннее середины).
     dict(name="Studio", file="RoomStudio.wav", size=[4.5, 3.5, 2.8], rt60=0.25, early_ms=40.0, tail=True, max_ms=300,
          jitter=0.1, rfz_ms=20.0, rfz_db=-12.0, shape=RT_TREATED, drv=dict(hp=(40, 4), ft=2000)),
-    dict(name="Home", file="RoomHome.wav", size=[5.5, 4.2, 2.6], rt60=0.45, early_ms=60.0, tail=True, max_ms=700, jitter=0.15,
-         listener=[3.4, 2.1, 1.1], spk=[[1.4, 0.95, 1.0], [1.4, 3.25, 1.0]], drv=dict(hp=(35, 4), ft=2000)),
+    # Home (жилая комната, Home Hi-Fi) убран 14.11 (решение пользователя: облегчить сборку).
     # Салон: водитель слева, динамики низко в передних дверях (левый ближе), сиденья и обивка глушат.
     dict(name="Car", file="RoomCar.wav", size=[2.4, 1.5, 1.15], rt60=0.07, early_ms=30.0, tail=True, max_ms=150, jitter=0.05, refl_ls=(80, -8),
          listener=[1.15, 0.42, 0.85], spk=[[0.75, 0.04, 0.35], [0.75, 1.46, 0.35]],

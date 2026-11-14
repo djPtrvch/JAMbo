@@ -10,7 +10,7 @@ final class MonitorProfileTests: XCTestCase {
         m.ambienceDb = -10
         let curve = Data([1, 2, 3])
         m.spaces["Studio"] = MonitorProfile(ambienceDb: -3, raw: 0.25, strength: 0.8, correct: curve)
-        m.spaces["Home Hi-Fi"] = MonitorProfile(ambienceDb: -60, raw: 1, strength: 1, correct: nil)
+        m.spaces["Car"] = MonitorProfile(ambienceDb: -60, raw: 1, strength: 1, correct: nil)
         let back = MonitorSettings(plist: m.plist)
         XCTAssertEqual(back.raw, 0.4)
         XCTAssertEqual(back.ambienceDb, -10)
@@ -18,7 +18,7 @@ final class MonitorProfileTests: XCTestCase {
         XCTAssertEqual(back.spaces["Studio"]?.raw, 0.25)
         XCTAssertEqual(back.spaces["Studio"]?.strength, 0.8)
         XCTAssertEqual(back.spaces["Studio"]?.correct, curve)
-        XCTAssertNil(back.spaces["Home Hi-Fi"]?.correct)
+        XCTAssertNil(back.spaces["Car"]?.correct)
         // Неверные значения — в пределах.
         let bad = MonitorProfile(plist: ["raw": 7, "strength": -1, "ambienceDb": 9])
         XCTAssertEqual(bad.raw, 1)

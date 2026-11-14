@@ -50,55 +50,6 @@
       }
     },
     {
-      "name": "Home",
-      "file": "RoomHome.wav",
-      "rt60": 0.45,
-      "size": [
-        5.5,
-        4.2,
-        2.6
-      ],
-      "listener": [
-        3.4,
-        2.1,
-        1.1
-      ],
-      "speakers": [
-        [
-          1.4,
-          0.95,
-          1.0
-        ],
-        [
-          1.4,
-          3.25,
-          1.0
-        ]
-      ],
-      "gain_db": -6.934,
-      "length_ms": 674.2,
-      "direct": 128,
-      "channels": "LL, LR, RL, RR",
-      "speaker": {
-        "hp_hz": 35,
-        "hp_order": 4,
-        "ft_hz": 2000
-      },
-      "head": {
-        "file": "RoomHomeHead.wav",
-        "from_deg": -50,
-        "step_deg": 2,
-        "count": 51,
-        "gain_db": -2.792
-      },
-      "flat": {
-        "file": "RoomHomeFlat.wav",
-        "gain_db": -5.726,
-        "head_file": "RoomHomeFlatHead.wav",
-        "head_gain_db": -1.464
-      }
-    },
-    {
       "name": "Car",
       "file": "RoomCar.wav",
       "rt60": 0.07,
