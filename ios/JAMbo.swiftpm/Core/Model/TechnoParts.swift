@@ -40,22 +40,18 @@ extension MelodyRhythm {
         return k[p]
     }
 
+    /// Таблица строкой (ради объёма сборки): ряды через пробел, в ряду — числа 0…15 шестнадцатеричными цифрами.
+    static func hexRows(_ s: String) -> [[Int]] {
+        return s.split(separator: " ").map { w in w.map { Int(String($0), radix: 16) ?? 0 } }
+    }
+
     /// Офбит: шаги 3, 7, 11, 15.
     static func isOffbeat(_ s: Int) -> Bool { return s % 4 == 2 }
 
     // MARK: — BASS
 
     /// Ячейки ритма баса (шаги 0…15; A…H) и их веса; офбиты — в каждой.
-    static let technoBassCells: [[Int]] = [
-        [2, 6, 10, 14],
-        [2, 3, 6, 10, 11, 14],
-        [1, 2, 3, 5, 6, 7, 9, 10, 11, 13, 14, 15],
-        [2, 3, 6, 7, 10, 11, 14, 15],
-        [2, 5, 6, 10, 13, 14],
-        [2, 6, 7, 10, 14, 15],
-        [1, 2, 5, 6, 9, 10, 13, 14],
-        [2, 3, 5, 6, 10, 11, 13, 14],
-    ]
+    static let technoBassCells: [[Int]] = hexRows("26ae 236abe 1235679abdef 2367abef 256ade 267aef 12569ade 2356abde")
     static let technoBassWeights: [Double] = [5, 15, 20, 20, 5, 10, 10, 15]
 
     /// Вариация страницы: 1–2 шестнадцатых (не офбиты, не бочка) добавлены или убраны.
@@ -147,7 +143,7 @@ extension MelodyRhythm {
 
     /// Типы аккорда Techno (ступени от корня): m7, m9, квинта + септима (без терции); один на прогрессию — общий у
     /// PAD, KEYS, ARP (AppModel.lastRandomKind).
-    static let technoKinds: [[Int]] = [[0, 2, 4, 6], [0, 2, 4, 6, 8], [0, 4, 6]]
+    static let technoKinds: [[Int]] = hexRows("0246 02468 046")
 
     /// Наименьшая ступень не ниже from того же класса, что r + off.
     static func degreeAtLeast(_ from: Int, root r: Int, off: Int, n: Int) -> Int {
@@ -191,8 +187,7 @@ extension MelodyRhythm {
     }
 
     /// Прогрессии пэда Techno (ступени на страницы 1…4): своя у PAD, первая — тоника; гармония баса и лида — общая.
-    static let padProgressions: [[Int]] = [[1, 7, 6, 7], [1, 6, 7, 1], [1, 7, 7, 6], [1, 6, 1, 7], [1, 7, 1, 6],
-                                           [1, 6, 6, 7]]
+    static let padProgressions: [[Int]] = hexRows("1767 1671 1776 1617 1716 1667")
 
     /// Прогрессия пэда на pages страниц: аккорд на страницу (первые pages ступеней одной из прогрессий).
     public static func padProgression(pages: Int, using g: inout Rng) -> [Int] {

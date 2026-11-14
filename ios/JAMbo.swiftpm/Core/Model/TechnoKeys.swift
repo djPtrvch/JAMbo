@@ -6,12 +6,11 @@ import Foundation
 
 extension MelodyRhythm {
     /// Ячейки стабов KEYS (шаги 0…15; S1…S7) и их веса.
-    static let technoKeysCells: [[Int]] = [[2, 10], [3, 10], [2, 6, 10, 14], [2, 5, 10, 13], [3, 6, 11, 14],
-                                           [2, 6, 11], [6, 14]]
+    static let technoKeysCells: [[Int]] = hexRows("2a 3a 26ae 25ad 36be 26b 6e")
     static let technoKeysWeights: [Double] = [20, 15, 15, 15, 15, 10, 10]
 
     /// Голоса KEYS без корня (ступени от корня) по типу аккорда: m7 — 3, 5, 7; m9 — 5, 7, 9; квинта + септима — 5, 7, 8.
-    static let technoKeysVoices: [[Int]] = [[2, 4, 6], [4, 6, 8], [4, 6, 7]]
+    static let technoKeysVoices: [[Int]] = hexRows("246 468 467")
 
     /// Тесное расположение голосов offs аккорда на ступени r в октаве клавиатуры (ступени от корня клавиатуры);
     /// prevTop — верхний голос прежнего аккорда: обращение и октава — так, чтобы верх сдвинулся меньше всего.
