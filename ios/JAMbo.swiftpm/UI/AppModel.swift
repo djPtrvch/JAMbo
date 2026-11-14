@@ -103,8 +103,8 @@ final class AppModel {
     @ObservationIgnored var _morphAllHeld: Bool = false
     /// Плавный возврат после выключения MORPH (SETTINGS → MORPH → RETURN; nil — нет).
     @ObservationIgnored var morphGlide: MorphGlide? = nil
-    /// Режим XY: удерживают подпись оси (0…7) — сетка на время показывает ручки (назначение оси).
-    @ObservationIgnored var _xyAssigning: Int? = nil
+    /// Режим XY: открыто меню площадки (0…3; двойной тап) — выбор ручек осей; nil — закрыто.
+    @ObservationIgnored var _xyMenu: Int? = nil
     /// KEY VELOCITY (S12): толчки iPad (акселерометр).
     @ObservationIgnored let tapSensor = TapSensor()
     /// MIDI (S13): CoreMIDI, устройства.

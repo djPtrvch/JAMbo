@@ -68,6 +68,9 @@ public struct TrackMore: Equatable, Sendable {
     public var arp: TrackArp = TrackArp()
     /// Автоматизация на таймлайне (S15f): кривые ручек сетки дорожки, по одной на ручку.
     public var autos: [ArrAutoLane] = []
+    /// Режим XY (на пробу): ручки (0…15) осей четырёх площадок дорожки — ось k: площадка k / 2, X — чётные;
+    /// −1 или нет — не назначена.
+    public var xy: [Int] = []
 }
 
 public struct Track: Codable, Equatable, Sendable {
@@ -148,6 +151,10 @@ public struct Track: Codable, Equatable, Sendable {
     public var color: Int {
         get { return moreBox[0].color }
         set { moreBox[0].color = newValue }
+    }
+    public var xy: [Int] {
+        get { return moreBox[0].xy }
+        set { moreBox[0].xy = newValue }
     }
     public var drumStyle: Int {
         get { return moreBox[0].drumStyle }
@@ -370,8 +377,6 @@ public struct ProjectMore: Equatable, Sendable {
     public var notice: String? = nil
     /// Назначения LFO/ENV на ручки FX (источник — LFO/ENV дорожки track).
     public var fxAssigns: [String: ModAssign] = [:]
-    /// Оси площадок XY (режим XY, на пробу; XYAxis.swift): 8 осей, nil — не назначена.
-    public var xy: [XYAxis?] = []
     /// Мастер (как doc.master веба, без убранных в Swift параметров — MasterChain.ids): RELEASE AUTO — значение
     /// MasterChain.autoValue; BYPASS модулей — отдельно.
     public var master: [String: Double] = MasterChain.defaultValues()
@@ -433,10 +438,6 @@ public struct Project: Codable, Equatable, Sendable {
     public var fxAssigns: [String: ModAssign] {
         get { return moreBox[0].fxAssigns }
         set { moreBox[0].fxAssigns = newValue }
-    }
-    public var xy: [XYAxis?] {
-        get { return moreBox[0].xy }
-        set { moreBox[0].xy = newValue }
     }
     public var master: [String: Double] {
         get { return moreBox[0].master }

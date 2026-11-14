@@ -1,9 +1,7 @@
 import SwiftUI
 
-/// Раскладка площадок XY на поле сетки ручек: 4 квадрата 2×2; подпись X — полоса у нижнего края, Y — у левого.
+/// Раскладка площадок XY на поле сетки ручек: 4 квадрата 2×2; поле точки — весь квадрат.
 enum XYLayout {
-    static let strip: CGFloat = 24
-
     /// Площадка под точкой (0…3, ряд за рядом).
     static func pad(at p: CGPoint, _ size: CGSize) -> Int {
         let col: Int = p.x < size.width / 2 ? 0 : 1
@@ -19,18 +17,9 @@ enum XYLayout {
         let y: CGFloat = CGFloat(pad / 2) * (h + sp)
         return CGRect(x: x, y: y, width: w, height: h)
     }
-
-    /// Подпись оси под точкой (0…7: площадка × 2, X — чётные); nil — поле площадки.
-    static func label(at p: CGPoint, _ size: CGSize) -> Int? {
-        let pd: Int = pad(at: p, size)
-        let r: CGRect = rect(pd, size)
-        if p.y > r.maxY - strip { return pd * 2 }
-        if p.x < r.minX + strip { return pd * 2 + 1 }
-        return nil
-    }
 }
 
-/// Четыре площадки XY вместо ручек дорожки (касания — у KnobGrid).
+/// Четыре площадки XY выбранной дорожки вместо ручек (касания — у KnobGrid).
 struct XYPadsView: View {
     let model: AppModel
 
@@ -47,77 +36,64 @@ struct XYPadsView: View {
     }
 }
 
-/// Площадка: точка — текущие значения осей (со знаком степени — по направлению пальца); с LFO/ENV — вторая,
-/// полупрозрачная, каждый кадр. Подписи: X — снизу, Y — слева (не назначена — серая).
+/// Площадка: точка — текущие значения ручек осей; с LFO/ENV — вторая, полупрозрачная, каждый кадр. Подписи поверх
+/// поля: X — снизу по центру, Y — у левого края; без назначений — подсказка DOUBLE-TAP TO ASSIGN.
 struct XYPadCell: View {
     let model: AppModel
     let pad: Int
 
     var body: some View {
         let live: Bool = model.xyModNorm(pad * 2) != nil || model.xyModNorm(pad * 2 + 1) != nil
-        return ZStack(alignment: .bottomLeading) {
+        return ZStack {
             if live {
                 TimelineView(.animation(minimumInterval: 1.0 / 60)) { _ in field }
             } else {
                 field
             }
-            labels
+            labels.allowsHitTesting(false)
         }
     }
 
     private var field: some View {
-        let xs: [Double?] = [dot(pad * 2, mod: false), dot(pad * 2 + 1, mod: false)]
-        let ms: [Double?] = [dot(pad * 2, mod: true), dot(pad * 2 + 1, mod: true)]
+        let xs: [Double?] = [model.xyNorm(pad * 2), model.xyNorm(pad * 2 + 1)]
+        let ms: [Double?] = [model.xyModNorm(pad * 2), model.xyModNorm(pad * 2 + 1)]
         return Canvas { ctx, size in
             XYPadCell.draw(ctx, size, xs, ms)
         }
     }
 
-    /// Положение точки по оси k (0…1, по направлению пальца); nil — ось не назначена.
-    private func dot(_ k: Int, mod: Bool) -> Double? {
-        guard let a = model.project.xyAxis(k) else { return nil }
-        let n: Double? = mod ? model.xyModNorm(k) : model.xyNorm(k)
-        guard let v = n else { return nil }
-        return a.amount < 0 ? 1 - v : v
-    }
-
     private var labels: some View {
         let x: String = model.xyLabel(pad * 2)
         let y: String = model.xyLabel(pad * 2 + 1)
-        let xOn: Bool = model.project.xyAxis(pad * 2) != nil
-        let yOn: Bool = model.project.xyAxis(pad * 2 + 1) != nil
         return GeometryReader { geo in
+            let w: CGFloat = geo.size.width
             let h: CGFloat = geo.size.height
-            Text(x)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(xOn ? theme.text : theme.dim)
-                .lineLimit(1)
-                .frame(width: geo.size.width - XYLayout.strip * 2, height: XYLayout.strip)
-                .position(x: geo.size.width / 2, y: h - XYLayout.strip / 2)
-            Text(y)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(yOn ? theme.text : theme.dim)
-                .lineLimit(1)
-                .frame(width: h - XYLayout.strip * 2, height: XYLayout.strip)
-                .rotationEffect(.degrees(-90))
-                .position(x: XYLayout.strip / 2, y: h / 2)
+            if x.isEmpty && y.isEmpty {
+                XYPadCell.caption("DOUBLE-TAP TO ASSIGN", theme.dim).position(x: w / 2, y: h / 2)
+            } else {
+                XYPadCell.caption("X  " + (x.isEmpty ? "—" : x), x.isEmpty ? theme.dim : theme.text)
+                    .position(x: w / 2, y: h - 12)
+                XYPadCell.caption("Y  " + (y.isEmpty ? "—" : y), y.isEmpty ? theme.dim : theme.text)
+                    .fixedSize()
+                    .rotationEffect(.degrees(-90))
+                    .position(x: 12, y: h / 2)
+            }
         }
-        .allowsHitTesting(false)
+    }
+
+    static func caption(_ s: String, _ c: Color) -> some View {
+        return Text(s).font(.system(size: 11, weight: .semibold)).foregroundStyle(c).lineLimit(1)
     }
 
     static func draw(_ ctx: GraphicsContext, _ size: CGSize, _ xs: [Double?], _ ms: [Double?]) {
-        let s: CGFloat = XYLayout.strip
-        let box = CGRect(origin: .zero, size: size)
-        ctx.fill(Path(roundedRect: box, cornerRadius: 6), with: .color(theme.panel))
-        // Поле точки — без полос подписей.
-        let f = CGRect(x: s, y: 6, width: size.width - s - 6, height: size.height - s - 6)
+        let f = CGRect(origin: .zero, size: size)
+        ctx.fill(Path(roundedRect: f, cornerRadius: Layout.radius), with: .color(theme.panel))
         var cross = Path()
         cross.move(to: CGPoint(x: f.midX, y: f.minY))
         cross.addLine(to: CGPoint(x: f.midX, y: f.maxY))
         cross.move(to: CGPoint(x: f.minX, y: f.midY))
         cross.addLine(to: CGPoint(x: f.maxX, y: f.midY))
         ctx.stroke(cross, with: .color(theme.line), lineWidth: 1)
-        ctx.stroke(Path(roundedRect: f, cornerRadius: 4), with: .color(theme.line), lineWidth: 1)
         if xs[0] == nil && xs[1] == nil { return }
         if ms[0] != nil || ms[1] != nil {
             let mp = XYPadCell.point(f, ms[0] ?? xs[0], ms[1] ?? xs[1])
@@ -133,5 +109,71 @@ struct XYPadCell: View {
         let nx: CGFloat = CGFloat(x ?? 0.5)
         let ny: CGFloat = CGFloat(y ?? 0.5)
         return CGPoint(x: f.minX + nx * f.width, y: f.maxY - ny * f.height)
+    }
+}
+
+/// Меню площадки (двойной тап): ось X или Y, ниже 16 ручек выбранной дорожки (4×4, как на сетке) и NONE. Выбор X
+/// переключает на Y, выбор Y закрывает меню; тап мимо — закрыть.
+struct XYMenu: View {
+    let model: AppModel
+    let size: CGSize
+    @State private var axisY: Bool = false
+
+    static let width: CGFloat = 400
+    static let height: CGFloat = 6 * 40 + 5 * 6 + 16
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            if let pad = model.xyMenu {
+                Color.black.opacity(0.001)
+                    .frame(width: size.width, height: size.height)
+                    .onTapGesture { model.xyMenu = nil }
+                AnyView(panel(pad).offset(offset(pad)))
+            }
+        }
+        .onChange(of: model.xyMenu) { axisY = false }
+    }
+
+    private func panel(_ pad: Int) -> some View {
+        let m: AppModel = model
+        let k: Int = pad * 2 + (axisY ? 1 : 0)
+        let cur: Int? = m.xySlot(k)
+        let axes: [MenuChoice] = [
+            MenuChoice(title: "X  " + m.xyLabel(pad * 2), current: !axisY) { axisY = false },
+            MenuChoice(title: "Y  " + m.xyLabel(pad * 2 + 1), current: axisY) { axisY = true },
+        ]
+        let rows: [[MenuChoice]] = (0..<4).map { (r: Int) -> [MenuChoice] in
+            (0..<4).map { (c: Int) -> MenuChoice in
+                let s: Int = r * 4 + c
+                let p: ParamDef? = m.param(s)
+                return MenuChoice(title: p?.label ?? "", enabled: p != nil, current: cur == s) { pick(k, s) }
+            }
+        }
+        let none: [MenuChoice] = [MenuChoice(title: "NONE", current: cur == nil) { pick(k, nil) }]
+        return VStack(spacing: 6) {
+            MenuChoiceButtons(items: axes)
+            ForEach(0..<4, id: \.self) { r in MenuChoiceButtons(items: rows[r]) }
+            MenuChoiceButtons(items: none)
+        }
+        .frame(width: XYMenu.width - 16)
+        .menuPanel()
+    }
+
+    private func pick(_ k: Int, _ slot: Int?) {
+        model.xyAssign(k, slot: slot)
+        if k % 2 == 0 {
+            axisY = true
+        } else {
+            model.xyMenu = nil
+            axisY = false
+        }
+    }
+
+    /// Над площадкой по центру, в пределах сетки.
+    private func offset(_ pad: Int) -> CGSize {
+        let r: CGRect = XYLayout.rect(pad, size)
+        let x: CGFloat = min(max(0, r.midX - XYMenu.width / 2), max(0, size.width - XYMenu.width))
+        let y: CGFloat = min(max(0, r.midY - XYMenu.height / 2), max(0, size.height - XYMenu.height))
+        return CGSize(width: x, height: y)
     }
 }

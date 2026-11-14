@@ -46,7 +46,7 @@ extension Step {
 extension Track {
     enum CodingKeys: String, CodingKey, CaseIterable {
         case id, name, sample, params, clips, slot, open, mute, solo, stopped, folder, slices, vol, trim, table, grain, assigns,
-             morphOrig, morphOrigAssign, morphEdited, eq, home, midi, blocks, color, autos, warps, drumStyle, arp
+             morphOrig, morphOrigAssign, morphEdited, eq, home, midi, blocks, color, autos, warps, drumStyle, arp, xy
     }
 
     public init(from decoder: Decoder) throws {
@@ -79,6 +79,7 @@ extension Track {
         color = c.value(.color, ArrPalette.defaultColor)
         autos = c.value(.autos, [ArrAutoLane]())
         drumStyle = DrumRhythm.styleIndex(c.value(.drumStyle, 0))
+        xy = c.value(.xy, [Int]())
         arp = c.value(.arp, TrackArp())
         migrateAutos()
         dropLegacyLinks()
@@ -115,6 +116,7 @@ extension Track {
         try c.encode(autos, forKey: .autos)
         try c.encode(warps, forKey: .warps)
         try c.encode(drumStyle, forKey: .drumStyle)
+        if !xy.isEmpty { try c.encode(xy, forKey: .xy) }
         try c.encode(arp, forKey: .arp)
     }
 }
@@ -164,7 +166,7 @@ extension Project {
     enum CodingKeys: String, CodingKey, CaseIterable {
         case version, bpm, scale, root, fx, fxAssigns, master, satBypass, cmpBypass, clipBypass, limBypass, outVol,
              masterEq, tracks, chanSeqs, scenes, rows, arrStart, arrEndStop, plusCopy, files, roots, rowLoop,
-             arrowSwitch, prevRow, notice, arrange, gridHideSteps, xy
+             arrowSwitch, prevRow, notice, arrange, gridHideSteps
     }
 
     public init(from decoder: Decoder) throws {
@@ -197,7 +199,6 @@ extension Project {
         notice = c.optional(.notice)
         arrange = c.value(.arrange, Arrangement())
         gridHideSteps = c.value(.gridHideSteps, false)
-        xy = c.value(.xy, [XYAxis?]())
     }
 
     /// Запись — как прежняя синтезированная (notice — только если есть).
@@ -231,7 +232,6 @@ extension Project {
         try c.encodeIfPresent(notice, forKey: .notice)
         try c.encode(arrange, forKey: .arrange)
         try c.encode(gridHideSteps, forKey: .gridHideSteps)
-        if !xy.isEmpty { try c.encode(xy, forKey: .xy) }
     }
 }
 
