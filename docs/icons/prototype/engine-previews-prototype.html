@@ -1108,21 +1108,7 @@ for (const n of Object.keys(PATCH)) {
   const v3 = (n) => V3.find((x) => x.name === n);
   const cur = (n) => ENGINES.find((x) => x.name === n);
   const mirrorLane = (g, a, y0, o, c) => { axisG(g, c, y0); lane(g, a, Object.assign({ y0, mirror: true, thin: true }, o), c); };
-  const K = v3('KICK');
-  K.draw = function (g, s, D, c) {
-    const [h, t, m, q] = s;
-    const gg = 1 + 11 * m, cmp = 0.7 / Math.tanh(gg * 0.7);
-    const mk = (k) => { let ph = 0; return gen(COLS, (u) => {
-      const f = (0.8 + 0.9 * h) * (1 + 9 * t * Math.exp(-u * 14));
-      ph += (f * TAU * 3) / NS;
-      return (cmp * Math.tanh(gg * 0.7 * Math.sin(ph) * Math.exp(-u * k))) / 0.7;
-    }); };
-    axisG(g, c, 32);
-    lane(g, mk(4.5 - 3.5 * D), { y0: 32, amp: 26, mirror: true, thin: true, color: c.gray }, c);
-    lane(g, mk(9), { y0: 32, amp: 26, mirror: true, thin: true, ext: startSpike(0.55 * q, 1.3) }, c);
-  };
-  K.notes = ['pitch: сколько волн в теле удара', 'sweep: в начале частота выше, начало плотнее', 'drive: вершины сплющиваются, тело становится плотнее', 'click: узкий всплеск в начале', 'белое — сам удар, серый хвост — Decay, чем он больше, тем дальше хвост'];
-  /* SNARE и PERC (решение пользователя 15.11): одна настоящая волна вместо зеркальной огибающей, чтобы были видны
+  /* KICK, SNARE и PERC (решение пользователя 15.11): одна настоящая волна вместо зеркальной огибающей, чтобы были видны
      число волн и их сжатие в начале; удар (PUNCH, HIT) — серый всплеск под началом волны. Decay — длина самого
      звука (35…100 % ширины), без серого хвоста. */
   const drumEnv = (u, D) => Math.pow(clamp(1 - u / lerp(0.35, 1, D)), 1.6);
@@ -1136,6 +1122,20 @@ for (const n of Object.keys(PATCH)) {
     for (let i = 40; i >= 0; i--) { const x = X0 + (5 * W * i) / 40; g.lineTo(x, Math.min(62.5, y0 + f(x))); }
     g.closePath(); g.fill();
   };
+  const K = v3('KICK');
+  K.draw = function (g, s, D, c) {
+    const [h, t, m, q] = s;
+    const cyc = 1.6 * Math.pow(2.5, h), gg = 1 + 7 * clamp(m), nrm = Math.tanh(gg);
+    let ph = 0;
+    const a = gen(COLS, (u) => {
+      ph += (cyc * (1 + 7 * t * Math.exp(-u * 12)) * TAU) / NS;
+      return (Math.tanh(gg * Math.sin(ph)) / nrm) * Math.pow(clamp(1 - u / lerp(0.3, 1, D)), 1.3);
+    });
+    axisG(g, c, 32);
+    drumBurst(g, c, 32, 25, 1.35 * q, 2.6);
+    lane(g, a, { y0: 32, amp: 25, thin: true }, c);
+  };
+  K.notes = ['одна волна', 'pitch: сколько волн (1,6…4)', 'sweep: начало сжато в частые волны', 'drive: вершины сплющиваются, волна почти квадратная', 'click: серый узкий щелчок под началом, выше волны', 'Decay: длина звука'];
   const S = v3('SNARE');
   S.draw = function (g, s, D, c) {
     const [h, t, m, q] = s;

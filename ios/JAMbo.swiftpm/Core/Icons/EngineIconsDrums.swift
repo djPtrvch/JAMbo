@@ -2,44 +2,16 @@ import Foundation
 
 // Иконки ударных KICK, SNARE, HAT, CLAP, PERC (16, 20–23) — секция «final mix» прототипа
 // (docs/icons/prototype/engine-previews-prototype.html). h, t, m, q — ручки 1.1–1.4, d — Decay (0…1), hx — подсветка
-// удара. KICK: одна волна симметрично серой оси; белое — сам удар с коротким спадом (k = 9), серое — хвост того же
-// сигнала со спадом от Decay (два прохода одного генератора). SNARE, PERC: одна настоящая волна (видно число волн),
-// удар — серый всплеск под её началом, Decay — длина звука.
+// удара. KICK, SNARE, PERC: одна настоящая волна (видно число волн), удар — серый всплеск под её началом, Decay —
+// длина звука.
 
 extension EngineIcons {
-    /// Короткий спад белого удара у KICK, SNARE, PERC.
-    static let hitDecay = 9.0
-
-    /// Белый удар поверх серого хвоста: ось, хвост (спад tail), удар (спад hitDecay) с всплеском spike.
-    static func hitTail(_ mk: (Double) -> [Double], tail: Double, spike: @escaping (Double) -> Double,
-                        _ hx: Double?) -> [IconElement] {
-        let back = IconLane(y0: 32, amp: 26, mirror: true, thin: true, ink: .secondary)
-        let front = IconLane(y0: 32, amp: 26, mirror: true, thin: true, ext: spike)
-        return [axis(32), lane(mk(tail), back, hx), lane(mk(hitDecay), front, hx)]
-    }
-
-    /// KICK: частота тела — PITCH, в начале выше на SWEEP, вершины сплющиваются по DRIVE, всплеск в начале — CLICK;
-    /// серый хвост — Decay.
-    static func kickIcon(_ v: IconValues, _ hx: Double?) -> [IconElement] {
-        let gg = 1 + 11 * v.m
-        let cmp = 0.7 / tanh(gg * 0.7)
-        func mk(_ k: Double) -> [Double] {
-            var ph = 0.0
-            return gen { u, _ in
-                let f = (0.8 + 0.9 * v.h) * (1 + 9 * v.t * exp(-u * 14))
-                ph += (f * tau * 3) / ns
-                return (cmp * tanh(gg * 0.7 * sin(ph) * exp(-u * k))) / 0.7
-            }
-        }
-        return hitTail(mk, tail: 4.5 - 3.5 * v.d, spike: startSpike(0.55 * v.q, 1.3), hx)
-    }
-
     /// Огибающая SNARE и PERC: звук кончается на 35…100 % ширины (Decay), спадает плавно, чтобы волны было видно.
     static func drumEnv(_ u: Double, _ d: Double) -> Double {
         return pow(clamp(1 - u / lerp(0.35, 1, d)), 1.6)
     }
 
-    /// Серый удар SNARE и PERC: гладкий симметричный всплеск от левого края, сужаясь уходит в волну. a — высота
+    /// Серый удар KICK, SNARE и PERC: гладкий симметричный всплеск от левого края, сужаясь уходит в волну. a — высота
     /// (доля amp), w — насколько далеко тянется (px); по 41 точке сверху и снизу. Тихий — нет элемента.
     static func drumBurst(y0: Double, amp: Double, _ a: Double, _ w: Double) -> [IconElement] {
         if a < 0.01 { return [] }
@@ -57,6 +29,19 @@ extension EngineIcons {
         }
         cmds.append(.close)
         return [IconElement(cmds, fill: true, ink: .secondary)]
+    }
+
+    /// KICK: одна волна — сколько волн — PITCH (1,6…4), SWEEP — начало сжато в частые волны, DRIVE — вершины
+    /// сплющиваются (почти квадрат), CLICK — серый узкий щелчок под началом, выше волны; Decay — длина звука.
+    static func kickIcon(_ v: IconValues, _ hx: Double?) -> [IconElement] {
+        let cyc = 1.6 * pow(2.5, v.h), gg = 1 + 7 * clamp(v.m), nrm = tanh(gg)
+        var ph = 0.0
+        let a = gen { u, _ in
+            ph += (cyc * (1 + 7 * v.t * exp(-u * 12)) * tau) / ns
+            return (tanh(gg * sin(ph)) / nrm) * pow(clamp(1 - u / lerp(0.3, 1, v.d)), 1.3)
+        }
+        return [axis(32)] + drumBurst(y0: 32, amp: 25, 1.35 * v.q, 2.6)
+            + [lane(a, IconLane(y0: 32, amp: 25, thin: true), hx)]
     }
 
     /// SNARE: одна волна корпуса — сколько волн — TUNE, SNAPPY — волна переходит в шум, TONE — зерно шума (крупные
