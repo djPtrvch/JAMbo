@@ -72,12 +72,14 @@ extension MelodyRhythm {
         return out
     }
 
-    /// Пэд Techno на страницы lens: своя прогрессия (аккорд на страницу, padProgression; одна страница — тоника),
-    /// тип аккорда kind (technoKinds; один на прогрессию), открытое расположение: корень внизу, остальные звуки тесно
-    /// октавой выше (у следующего аккорда обращение — верхний голос ближе всего к прежнему). Удар — с началом аккорда, повтор каждые 32 шага, если
-    /// аккорд держится дольше. Velocity: первый удар аккорда 75–85 %, повторные 60–75 %.
+    /// Пэд Techno на страницы lens: своя прогрессия (padProgression; одна страница — тоника), аккорд на 1 или 2
+    /// страницы (16 или 32 шага; наугад на рисунок, 2 — при 2 страницах и больше), тип аккорда kind (technoKinds; один
+    /// на прогрессию), открытое расположение: корень внизу, остальные звуки тесно октавой выше (у следующего аккорда
+    /// обращение — верхний голос ближе всего к прежнему); single (CHORD выключен) — одна нота, корень аккорда. Удар —
+    /// с началом аккорда, повтор каждые 32 шага, если аккорд держится дольше. Velocity: первый удар аккорда 75–85 %,
+    /// повторные 60–75 %.
     static func technoPad(lens: [Int], kind kindIndex: Int, scale: Int, root: Int, octave oct: Int,
-                          using g: inout Rng) -> [[SliceRhythm.Event]] {
+                          single: Bool = false, using g: inout Rng) -> [[SliceRhythm.Event]] {
         var out: [[SliceRhythm.Event]] = lens.map { _ in [] }
         let playing: [Int] = lens.indices.filter { lens[$0] > 0 }
         guard let lastPage = playing.last else { return out }
@@ -85,7 +87,9 @@ extension MelodyRhythm {
         let kind: [Int] = technoKinds[Scales.wrap(kindIndex, technoKinds.count)]
         let upper: [Int] = Array(kind.dropFirst())
         let count: Int = playing.count
-        let degrees: [Int] = padProgression(pages: count, using: &g)
+        let span: Int = count >= 2 && Bool.random(using: &g) ? 2 : 1
+        let chords: [Int] = padProgression(pages: (count + span - 1) / span, using: &g)
+        let degrees: [Int] = (0..<count).map { chords[$0 / span] }
         var voices: [[Int]] = []
         var prevTop: Int? = nil
         for d in degrees {
@@ -98,7 +102,7 @@ extension MelodyRhythm {
                 while y <= r { y += n }
                 v.append(y)
             }
-            voices.append(v)
+            voices.append(single ? [r] : v)
             prevTop = up.last
         }
         let per: Int = Params.stepsPerPage

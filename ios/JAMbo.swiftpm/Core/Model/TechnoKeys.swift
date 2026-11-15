@@ -43,10 +43,11 @@ extension MelodyRhythm {
 extension Track {
     /// Случайная партия Techno роли role на страницы range (прежние шаги этих страниц стираются): BASS, LEAD, KEYS,
     /// ARP — общий генератор (TechnoRun.swift; ARP — по настройкам ARP дорожки, они не меняются), PAD — technoPad
-    /// (своя прогрессия, degrees не нужны). kind — тип аккорда (technoKinds), kicks — шаги бочки страниц.
+    /// (своя прогрессия, degrees не нужны; single — одна длинная нота вместо аккорда). kind — тип аккорда
+    /// (technoKinds), kicks — шаги бочки страниц.
     public mutating func writeTechnoPart(_ role: MelodyRhythm.Role, pages range: ClosedRange<Int>, degrees: [Int],
                                          kind: Int, scale: Int, root: Int, octave: Int, kicks: [Set<Int>]?,
-                                         using g: inout Rng) {
+                                         single: Bool = false, using g: inout Rng) {
         let t: Track = self
         let lens: [Int] = range.map { t.pageLen($0, from: range.lowerBound) }
         if role == .arp {
@@ -67,7 +68,8 @@ extension Track {
             pattern = M.technoKeys(lens: lens, degrees: degrees, kind: kind, scale: scale, root: root, octave: octave,
                                    kicks: kicks, using: &g)
         case .pad:
-            pattern = M.technoPad(lens: lens, kind: kind, scale: scale, root: root, octave: octave, using: &g)
+            pattern = M.technoPad(lens: lens, kind: kind, scale: scale, root: root, octave: octave, single: single,
+                                  using: &g)
         default:
             pattern = M.hypnoticLead(lens: lens, degrees: degrees, scale: scale, root: root, octave: octave,
                                      kicks: kicks, using: &g)

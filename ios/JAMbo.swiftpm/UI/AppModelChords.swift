@@ -237,8 +237,9 @@ extension AppModel {
                                                        root: randomRoot(track), octave: octave, using: &g)
         let range: ClosedRange<Int> = chordPages
         let swing: Bool = settings.randomSwing
+        let single: Bool = role == .pad && !chordMode[selectedTrack]
         editTrack { t in
-            t.writeRandomChords(role, pages: range, chords: folded, bpm: bpm, using: &g)
+            t.writeRandomChords(role, pages: range, chords: folded, bpm: bpm, single: single, using: &g)
             if swing && role == .keys { t.params["swing"] = DrumRhythm.swing(t.drumStyle, bpm: bpm) }
         }
     }
@@ -253,7 +254,7 @@ extension AppModel {
 
     /// Techno (SHIFT + CHORD): партия роли role на выбранные страницы (Track.writeTechnoPart). Гармония: BASS и LEAD —
     /// последняя прогрессия Techno (её нет — новая), KEYS и ARP — новая прогрессия и новый тип аккорда, PAD — своя
-    /// прогрессия с прежним типом. Одна запись UNDO; AUTO SWING — кроме PAD и ARP.
+    /// прогрессия с прежним типом (без CHORD — одна длинная нота). Одна запись UNDO; AUTO SWING — кроме PAD и ARP.
     func writeTechnoPart(_ role: MelodyRhythm.Role) {
         guard channel == .track else { return }
         var g = SystemRandomNumberGenerator()
@@ -267,10 +268,11 @@ extension AppModel {
         let oct: Int = octave
         let bpm: Double = project.bpm
         let swing: Bool = settings.randomSwing && role != .pad && role != .arp
+        let single: Bool = !chordMode[selectedTrack]
         let kicks: [Set<Int>] = project.kickGrid(pages: range)
         editTrack { t in
             t.writeTechnoPart(role, pages: range, degrees: degrees, kind: kind, scale: scale, root: root, octave: oct,
-                              kicks: kicks, using: &g)
+                              kicks: kicks, single: single, using: &g)
             if swing { t.params["swing"] = DrumRhythm.swing(t.drumStyle, bpm: bpm) }
         }
     }

@@ -44,19 +44,27 @@ public enum MelodyRhythm {
         return chord ? .keys : .lead
     }
 
-    /// Роль по звуку дорожки: ARP — арпеджиатор включён; KEYS — только режим CHORD (сэмпл клавишных без CHORD —
-    /// LEAD); SUB — BASS; TEXTURE, GRANULAR — PAD; сэмпл — по словам в имени файла name (bass, pad, lead…); иначе по
-    /// октаве клавиатуры: до C2 — BASS, выше — LEAD.
+    /// Звук пэда: движок TEXTURE, GRANULAR или сэмпл со словом из padWords в имени файла (и без слова из bassWords).
+    public static func isPadSound(sample: String, name: String) -> Bool {
+        if let e = SynthKey.engine(sample) { return e == Jambo.texture || e == Jambo.granular }
+        if sample.isEmpty { return false }
+        let w: String = DrumRhythm.words(name).joined(separator: " ")
+        return !bassWords.contains(where: { w.contains($0) }) && padWords.contains(where: { w.contains($0) })
+    }
+
+    /// Роль по звуку дорожки: ARP — арпеджиатор включён; звук пэда (TEXTURE, GRANULAR; сэмпл со словом pad, atmo… в
+    /// имени файла name, не bass) — PAD и с CHORD, и без него (без CHORD — одна длинная нота вместо аккорда); другой
+    /// звук в режиме CHORD — KEYS; SUB — BASS; сэмпл — по словам в имени (bass, lead…; клавишные без CHORD — LEAD);
+    /// иначе по октаве клавиатуры: до C2 — BASS, выше — LEAD.
     public static func role(sample: String, name: String = "", octave: Int, chord: Bool, arp: Bool) -> Role {
         if arp { return .arp }
+        if isPadSound(sample: sample, name: name) { return .pad }
         if chord { return .keys }
         if let e = SynthKey.engine(sample) {
             if e == Jambo.sub { return .bass }
-            if e == Jambo.texture || e == Jambo.granular { return .pad }
         } else if !sample.isEmpty {
             let name: String = DrumRhythm.words(name).joined(separator: " ")
             if bassWords.contains(where: { name.contains($0) }) { return .bass }
-            if padWords.contains(where: { name.contains($0) }) { return .pad }
             if leadWords.contains(where: { name.contains($0) }) { return .lead }
             // Клавишные без CHORD — LEAD (аккорды — только в режиме CHORD), и в низкой октаве.
             if keysWords.contains(where: { name.contains($0) }) { return .lead }

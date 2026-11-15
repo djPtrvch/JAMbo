@@ -115,7 +115,8 @@ extension MelodyRhythm {
 
     /// Аккордовая партия на страницы lens по аккордам chords (поровну на все играющие шаги, как Chords.places):
     /// KEYS — ритм стиля (один вариант на рисунок, повтор по тактам; в отрезке аккорда короче такта — его начало),
-    /// PAD — аккорд на весь свой отрезок (с новой страницы — заново). Ноты не переходят за страницу; velocity — доли 100 %, остальные 70–85 % (PAD — 75–85 %).
+    /// PAD — аккорд на весь свой отрезок, нотой до 32 шагов (дольше — заново через 32 шага; через короткую страницу не
+    /// переходит). Ноты KEYS не переходят за страницу; velocity — доли 100 %, остальные 70–85 % (PAD — 75–85 %).
     public static func chordPart(_ role: Role, style: Int, bpm: Double, lens: [Int],
                                                            chords: [[Int]], using g: inout Rng) -> [[SliceRhythm.Event]] {
         var out: [[SliceRhythm.Event]] = lens.map { _ in [] }
@@ -139,15 +140,16 @@ extension MelodyRhythm {
                     let st: Int = s % per
                     let p: Int = playing[pi]
                     if st >= lens[p] { continue }
+                    let room: Int = role == .pad && lens[p] == per ? 2 * per : lens[p] - st
                     let want: Int = role == .pad ? end - s : l
-                    let len: Int = Swift.max(1, Swift.min(want, end - s, lens[p] - st))
+                    let len: Int = Swift.max(1, Swift.min(want, end - s, room))
                     var v: Double = st % 4 == 0 ? DrumRhythm.velFull : Double.random(in: DrumRhythm.velMid, using: &g).rounded()
                     if role == .pad { v = Double.random(in: 95...108, using: &g).rounded() }
                     for n in chord {
                         out[p].append(SliceRhythm.Event(step: st, note: n, len: len, vel: v))
                     }
                 }
-                bar += per
+                bar += role == .pad ? 2 * per : per
             }
         }
         return out
@@ -156,13 +158,16 @@ extension MelodyRhythm {
 
 extension Track {
     /// Случайная аккордовая партия (KEYS или PAD) стиля проекта на страницы range по аккордам chords: прежние шаги
-    /// этих страниц стираются, ноты — со своей длиной и velocity.
+    /// этих страниц стираются, ноты — со своей длиной и velocity; single (PAD без CHORD) — одна нота, нижняя нота
+    /// аккорда.
     public mutating func writeRandomChords(_ role: MelodyRhythm.Role, pages range: ClosedRange<Int>,
-                                                                     chords: [[Int]], bpm: Double, using g: inout Rng) {
+                                                                     chords: [[Int]], bpm: Double, single: Bool = false,
+                                                                     using g: inout Rng) {
         let t: Track = self
         let lens: [Int] = range.map { t.pageLen($0, from: range.lowerBound) }
+        let cs: [[Int]] = single ? chords.map { c in c.min().map { [$0] } ?? [] } : chords
         let pattern: [[SliceRhythm.Event]] = MelodyRhythm.chordPart(role, style: drumStyle, bpm: bpm, lens: lens,
-                                                                   chords: chords, using: &g)
+                                                                   chords: cs, using: &g)
         writeSlices(pattern, pages: range)
     }
 }

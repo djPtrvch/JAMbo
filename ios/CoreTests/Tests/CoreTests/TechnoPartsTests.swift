@@ -113,7 +113,7 @@ final class TechnoPartsTests: XCTestCase {
                         XCTAssertEqual(s % 16, 0)
                     }
                     let chords: Set<[Int]> = Set(starts.map { s in hits.filter { $0.0 == s }.map { $0.1.note }.sorted() })
-                    if pages > 1 { XCTAssertGreaterThan(chords.count, 1, "прогрессия") }
+                    if pages > 2 { XCTAssertGreaterThan(chords.count, 1, "прогрессия") }
                     // Один тип аккорда: ступени всех ударов (от корня аккорда) — из одного набора.
                     var used = Set<Int>()
                     var tops: [Int] = []
@@ -133,6 +133,21 @@ final class TechnoPartsTests: XCTestCase {
                 }
             }
         }
+    }
+
+    /// PAD без CHORD — одна длинная нота (корень аккорда), 16 или 32 шага.
+    func testPadSingle() {
+        var g = SystemRandomNumberGenerator()
+        var lens32: Int = 0
+        for _ in 0..<200 {
+            let pat = M.technoPad(lens: [16, 16, 16, 16], kind: 0, scale: scale, root: root, octave: 3, single: true,
+                                  using: &g)
+            let hits = pat.enumerated().flatMap { (pi, page) in page.map { (pi * 16 + $0.step, $0) } }
+            XCTAssertEqual(Set(hits.map { $0.0 }).count, hits.count, "одна нота на удар")
+            for (_, e) in hits { XCTAssertTrue(e.len == 16 || e.len == 32) }
+            if hits.contains(where: { $0.1.len == 32 }) { lens32 += 1 }
+        }
+        XCTAssertGreaterThan(lens32, 50, "бывают ноты на 32 шага")
     }
 
     func testLead() {
