@@ -230,7 +230,8 @@ struct MixOverview: View {
         }
     }
 
-    /// MASK: диапазон дорожки (как FREQ) — серый, полосы конфликта — жёлтые (ярче — сильнее), номер мешающей —
+    /// MASK: диапазон дорожки (как FREQ) — серый, полосы конфликта — жёлтые (ярче — сильнее), где дорожку
+    /// заглушают — жёлтые шире полосы; номер мешающей —
     /// над полосой (полоса до верха — под ней); заглушённые — серые, без конфликтов.
     static func drawMask(_ ctx: GraphicsContext, _ size: CGSize, _ model: AppModel, _ n: Int) {
         let h: CGFloat = size.height
@@ -254,9 +255,25 @@ struct MixOverview: View {
             let m = an.mask(t, audible)
             var c = ctx
             c.clip(to: shape)
-            for j in 0..<m.strength.count where m.strength[j] > 0.02 {
+            for j in 0..<m.strength.count where m.strength[j] > 0.02 && !m.buried[j] {
                 let y: CGFloat = h - CGFloat(j + 1) * bh
                 c.fill(Path(CGRect(x: x, y: y, width: w, height: bh)), with: .color(theme.accent.opacity(Double(m.strength[j]))))
+            }
+            // Где дорожку заглушают — жёлтым шире полосы (почти на ячейку; решение пользователя 15.11), подряд — одним
+            // блоком.
+            let ww: CGFloat = max(w, cell - 4)
+            var j = 0
+            while j < m.buried.count {
+                if !m.buried[j] {
+                    j += 1
+                    continue
+                }
+                var k: Int = j
+                while k + 1 < m.buried.count && m.buried[k + 1] { k += 1 }
+                let top: CGFloat = h - CGFloat(k + 1) * bh
+                let run = CGRect(x: x + w / 2 - ww / 2, y: top, width: ww, height: CGFloat(k - j + 1) * bh)
+                ctx.fill(Path(roundedRect: run, cornerRadius: 3), with: .color(theme.accent))
+                j = k + 1
             }
             if m.who < 0 { continue }
             let label: String = String(m.who + 1)
