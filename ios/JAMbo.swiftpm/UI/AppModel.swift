@@ -121,10 +121,9 @@ final class AppModel {
     @ObservationIgnored var pageClipboard: [[Step]]? = nil
     /// Октава клавиатуры у каждой дорожки своя (по умолчанию у всех одна — со второй: C2; не в проекте) — нота трига,
     /// пока нот не выбрали; от неё же — ноты маркеров нарезки дорожки.
-    @ObservationIgnored var _octaves: [Int] = [Int](repeating: Scales.octaveDef, count: Params.maxTracks)
     /// Октава клавиатуры выбранной дорожки.
     /// Не выше topOctave: при смене ноты, гаммы, CHORD или числа октав — сама опускается.
-    var octave: Int { return min(octaves[selectedTrack], topOctave) }
+    var octave: Int { return min(track.keyOctave, topOctave) }
     /// Настройки приложения (клавиатура, запись) — в UserDefaults, общие для проектов.
     private(set) var settings: AppSettings = AppModel.loadSettings()
     /// REC: ноты клавиатуры пишутся в секвенсор, пока идёт игра.
@@ -761,6 +760,7 @@ final class AppModel {
                 p.tracks[i].solo = cur.solo
                 // Арпеджиатор — без UNDO (как ход игры): остаётся как сейчас.
                 p.tracks[i].arp = cur.arp
+                p.tracks[i].keyOctave = cur.keyOctave
                 if p.tracks[i].clipFilled(cur.slot) || cur.blank { p.tracks[i].moveSlot(cur.slot) }
                 p.tracks[i].open = cur.open
                 // Звук — по активной ячейке (клип со своим звуком — его).

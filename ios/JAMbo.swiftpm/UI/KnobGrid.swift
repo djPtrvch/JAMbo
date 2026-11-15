@@ -131,7 +131,9 @@ struct KnobGrid: View {
             lastTap[s] = nil
             // SHIFT + двойной тап снимает p-lock: синхронизацию, переключённую первым тапом, — обратно.
             if model.knobShift { model.knobShiftTap(s, undo: true) }
-            if model.heldSteps.isEmpty && model.canAssign, let src = model.heldSource {
+            if model.knobShift && model.channel == .mix {
+                // MIX: SHIFT + двойной тап — ничего (меню дорожки — без SHIFT).
+            } else if model.heldSteps.isEmpty && model.canAssign, let src = model.heldSource {
                 model.clearAssign(s, lfo: src)
             } else {
                 model.knobDoubleTap(s)
@@ -141,7 +143,8 @@ struct KnobGrid: View {
             lastTap[s] = Date()
             // SHIFT: короткий тап (при отпускании) — Dly Time и Speed LFO по темпу / свободно; удержание 1 с —
             // значение ручки — своё по умолчанию.
-            if model.knobShift && model.channel != .mix {
+            // MIX — имя и громкость дорожки (перестановки с SHIFT нет: ручка не крутится и не поднимается).
+            if model.knobShift {
                 turn.shiftTap = true
                 armSave(id, s)
             }

@@ -11,13 +11,15 @@ public struct KnobDefaults: Codable, Equatable, Sendable {
     /// Свой EQ по умолчанию (SAVE DEFAULT в PRESETS EQ): полосы EQ дорожки и EQ мастера; nil — нет своего.
     public var eqTrack: [EqBand?]? = nil
     public var eqMaster: [EqBand?]? = nil
+    /// MIX (15.11): имена дорожек по местам (ключ — id ручки громкости mix.volN; громкость — в values, «mix/mix.volN»).
+    public var trackNames: [String: String]? = nil
     /// 2 — Filter на всём ходу и тип фильтра (9.11); nil — прежняя двухполярная ручка (переводится при чтении).
     public var filterV: Int? = 2
 
     public init() {}
 
     /// Ничего своего не запомнено.
-    public var isEmpty: Bool { return values.isEmpty && eqTrack == nil && eqMaster == nil }
+    public var isEmpty: Bool { return values.isEmpty && eqTrack == nil && eqMaster == nil && trackNames == nil }
 
     /// SAVE DEFAULT в PRESETS EQ: полосы EQ мастера или дорожки.
     public mutating func setEq(_ bands: [EqBand?], master: Bool) {
@@ -83,7 +85,28 @@ public struct KnobDefaults: Codable, Equatable, Sendable {
             if let v = value("mst", id) { p.master[id] = v }
         }
         if let b = eqMaster { p.masterEq.apply(KnobDefaults.eqPreset(b), tracks: 0) }
-        for i in p.tracks.indices { apply(to: &p.tracks[i]) }
+        for i in p.tracks.indices {
+            apply(to: &p.tracks[i])
+            applyMix(to: &p.tracks[i], slot: i)
+        }
+    }
+
+    /// MIX: имя и громкость дорожки на месте slot (SHIFT + удержание ручки громкости).
+    public func applyMix(to t: inout Track, slot i: Int) {
+        guard i >= 0 && i < Params.mixGrid.count else { return }
+        let id: String = Params.mixGrid[i].id
+        if let v = value("mix", id) { t.vol = v }
+        if let n = trackNames?[id] { t.name = n }
+    }
+
+    /// MIX: запомнить имя и громкость дорожки t на месте slot.
+    public mutating func setMix(_ t: Track, slot i: Int) {
+        guard i >= 0 && i < Params.mixGrid.count else { return }
+        let id: String = Params.mixGrid[i].id
+        values[KnobDefaults.key("mix", id)] = t.vol
+        var names: [String: String] = trackNames ?? [:]
+        names[id] = t.name
+        trackNames = names
     }
 
     public func encode() -> Data? {

@@ -303,7 +303,7 @@ extension AppModel {
 
     /// Октава клавиатуры дорожки i (у каждой своя).
     func octaveOf(_ i: Int) -> Int {
-        guard i >= 0 && i < octaves.count else { return Scales.octaveDef }
-        return min(octaves[i], topOctave)
+        guard i >= 0 && i < project.tracks.count else { return Scales.octaveDef }
+        return min(project.tracks[i].keyOctave, topOctave)
     }
 }

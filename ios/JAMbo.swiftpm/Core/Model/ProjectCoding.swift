@@ -46,7 +46,7 @@ extension Step {
 extension Track {
     enum CodingKeys: String, CodingKey, CaseIterable {
         case id, name, sample, params, clips, slot, open, mute, solo, stopped, folder, slices, vol, trim, table, grain, assigns,
-             morphOrig, morphOrigAssign, morphEdited, eq, home, midi, blocks, color, autos, warps, drumStyle, arp
+             morphOrig, morphOrigAssign, morphEdited, eq, home, midi, blocks, color, autos, warps, drumStyle, arp, keyOctave
     }
 
     public init(from decoder: Decoder) throws {
@@ -80,6 +80,7 @@ extension Track {
         autos = c.value(.autos, [ArrAutoLane]())
         drumStyle = DrumRhythm.styleIndex(c.value(.drumStyle, 0))
         arp = c.value(.arp, TrackArp())
+        keyOctave = c.value(.keyOctave, Scales.octaveDef)
         migrateAutos()
         dropLegacyLinks()
     }
@@ -116,6 +117,7 @@ extension Track {
         try c.encode(warps, forKey: .warps)
         try c.encode(drumStyle, forKey: .drumStyle)
         try c.encode(arp, forKey: .arp)
+        try c.encode(keyOctave, forKey: .keyOctave)
     }
 }
 

@@ -66,6 +66,8 @@ public struct TrackMore: Equatable, Sendable {
     public var drumStyle: Int = 0
     /// Арпеджиатор дорожки (режим кнопки CHORD — CHORD или ARP, направление, скорость…).
     public var arp: TrackArp = TrackArp()
+    /// Октава клавиатуры дорожки (15.11; без UNDO, как ARP): с ней пишутся случайные партии и звучат клавиши.
+    public var keyOctave: Int = Scales.octaveDef
     /// Автоматизация на таймлайне (S15f): кривые ручек сетки дорожки, по одной на ручку.
     public var autos: [ArrAutoLane] = []
 }
@@ -156,6 +158,10 @@ public struct Track: Codable, Equatable, Sendable {
     public var arp: TrackArp {
         get { return moreBox[0].arp }
         set { moreBox[0].arp = newValue }
+    }
+    public var keyOctave: Int {
+        get { return moreBox[0].keyOctave }
+        set { moreBox[0].keyOctave = newValue }
     }
     public var autos: [ArrAutoLane] {
         get { return moreBox[0].autos }

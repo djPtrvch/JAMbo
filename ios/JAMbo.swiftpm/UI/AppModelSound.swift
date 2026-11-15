@@ -609,7 +609,10 @@ extension AppModel {
         let kd: KnobDefaults = knobDefaults
         edit { p in
             p.addTrack()
-            if let last = p.tracks.indices.last { kd.apply(to: &p.tracks[last]) }
+            if let last = p.tracks.indices.last {
+                kd.apply(to: &p.tracks[last])
+                kd.applyMix(to: &p.tracks[last], slot: last)
+            }
         }
         let i: Int = project.tracks.count - 1
         guard i >= 0, project.tracks[i].clipFilled(newTrackRow) else { return }

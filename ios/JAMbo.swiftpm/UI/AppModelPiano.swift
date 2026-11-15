@@ -41,7 +41,11 @@ extension AppModel {
     func setOctave(_ o: Int) {
         let o2 = min(topOctave, max(Scales.octaveMin, o))
         if o2 == octave { return }
-        octaves[selectedTrack] = o2
+        let i: Int = selectedTrack
+        // Хранится в проекте у дорожки, без записи UNDO (как ARP).
+        mutatePlay({ p in
+            if i < p.tracks.count { p.tracks[i].keyOctave = o2 }
+        }, publish: false)
         // Ноты маркеров нарезки идут от первой клавиши клавиатуры.
         publishAudio()
     }

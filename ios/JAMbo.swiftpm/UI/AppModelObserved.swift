@@ -417,9 +417,10 @@ extension AppModel {
         get { access(keyPath: \.knobFingers); return _knobFingers }
         set { put(\.knobFingers, \._knobFingers, newValue, observedChanged(_knobFingers, newValue)) }
     }
+    /// Октавы клавиатуры дорожек по местам (хранятся в проекте у дорожки — Track.keyOctave), до Params.maxTracks.
     var octaves: [Int] {
-        get { access(keyPath: \.octaves); return _octaves }
-        set { put(\.octaves, \._octaves, newValue, observedChanged(_octaves, newValue)) }
+        let ts: [Track] = project.tracks
+        return (0..<Params.maxTracks).map { $0 < ts.count ? ts[$0].keyOctave : Scales.octaveDef }
     }
     var chordMode: [Bool] {
         get { access(keyPath: \.chordMode); return _chordMode }
