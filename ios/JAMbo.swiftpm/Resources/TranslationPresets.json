@@ -13,11 +13,6 @@
       "name": "Hall",
       "room": "Hall",
       "filters": []
-    },
-    {
-      "name": "Hall KU100",
-      "room": "HallKU",
-      "filters": []
     }
   ]
 }

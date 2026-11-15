@@ -22,6 +22,10 @@ public final class RoomInfo: @unchecked Sendable {
     public var flatGainDb: Double = 0
     public var flatHeadFile: String = ""
     public var flatHeadGainDb: Double = 0
+    /// Пространство (пункт SPACE — room в TranslationPresets.json) и голова (меню HEAD, 15.11): у пространства может быть
+    /// несколько комнат — та же комната с разными ушами; пусто — имя комнаты.
+    public var space: String = ""
+    public var headName: String = "FABIAN"
     /// Колонки (9.11): срез низа — частота (Гц) и порядок Баттерворта (0 — нет).
     public var hpHz: Double = 0
     public var hpOrder: Int = 0
@@ -43,6 +47,8 @@ public final class RoomInfo: @unchecked Sendable {
             let g: Double = (r["gain_db"] as? NSNumber)?.doubleValue ?? 0
             let dn: Int = (r["direct"] as? NSNumber)?.intValue ?? RoomConv.part
             let info = RoomInfo(name: name, file: file, gainDb: g, direct: dn)
+            info.space = r["space"] as? String ?? name
+            info.headName = r["head_name"] as? String ?? "FABIAN"
             if let hd = r["head"] as? [String: Any], let hf = hd["file"] as? String {
                 info.headFile = hf
                 info.headFrom = (hd["from_deg"] as? NSNumber)?.doubleValue ?? -50

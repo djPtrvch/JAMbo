@@ -2,6 +2,8 @@
   "rooms": [
     {
       "name": "StudioCR7",
+      "space": "StudioCR7",
+      "head_name": "FABIAN",
       "file": "RoomStudioCR7.wav",
       "source": "srir",
       "measurement": "WDR Control Room 7 (TH Köln WDR compilation, CC BY 4.0)",
@@ -30,7 +32,40 @@
       }
     },
     {
+      "name": "StudioCR7Mod",
+      "space": "StudioCR7",
+      "head_name": "FABIAN modeled",
+      "file": "RoomStudioCR7Mod.wav",
+      "source": "srir",
+      "measurement": "WDR Control Room 7 (TH Köln WDR compilation, CC BY 4.0)",
+      "rt60": 0.231,
+      "gain_db": -13.714,
+      "length_ms": 381.1,
+      "direct": 128,
+      "channels": "LL, LR, RL, RR",
+      "speaker": {
+        "hp_hz": 0,
+        "hp_order": 0,
+        "ft_hz": 0
+      },
+      "head": {
+        "file": "RoomStudioCR7ModHead.wav",
+        "from_deg": -50,
+        "step_deg": 2,
+        "count": 51,
+        "gain_db": -8.069
+      },
+      "flat": {
+        "file": "RoomStudioCR7ModFlat.wav",
+        "gain_db": -10.655,
+        "head_file": "RoomStudioCR7ModFlatHead.wav",
+        "head_gain_db": -5.712
+      }
+    },
+    {
       "name": "Hall",
+      "space": "Hall",
+      "head_name": "FABIAN",
       "file": "RoomHall.wav",
       "source": "srir",
       "measurement": "WDR Small Broadcast Studio, PA (TH Köln WDR compilation, CC BY 4.0)",
@@ -60,6 +95,8 @@
     },
     {
       "name": "HallKU",
+      "space": "Hall",
+      "head_name": "KU100",
       "file": "RoomHallKU.wav",
       "source": "brir",
       "measurement": "WDR Small Broadcast Studio, PA, KU100 BRIR (TH Köln WDR compilation, CC BY 4.0)",

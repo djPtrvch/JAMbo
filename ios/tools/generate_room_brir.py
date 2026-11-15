@@ -37,7 +37,7 @@ SR = G.SR
 
 ROOMS = [
     # Studio CR7 KU100 убран 15.11 (решение пользователя: с FABIAN — лучше).
-    dict(name="HallKU", file="RoomHallKU.wav", sofa=("BRIR_SBS_KU_ROTM_PAL.sofa", "BRIR_SBS_KU_ROTM_PAR.sofa"),
+    dict(name="HallKU", space="Hall", head_name="KU100", file="RoomHallKU.wav", sofa=("BRIR_SBS_KU_ROTM_PAL.sofa", "BRIR_SBS_KU_ROTM_PAR.sofa"),
          early_ms=80.0, max_ms=1000, bits=16, desc="WDR Small Broadcast Studio, PA, KU100 BRIR (TH Köln WDR compilation, CC BY 4.0)"),
 ]
 
@@ -137,7 +137,8 @@ def main():
         flat_file = cfg["file"].replace(".wav", "Flat.wav")
         G.write_wav(os.path.join(res, flat_file), hf[:, :int(SR * cfg["early_ms"] / 1000)], 16)
         flat_head, flat_head_gain, _ = write_head(spks, finfo, flat_gain, flat_file, res)
-        meta.append(dict(name=cfg["name"], file=cfg["file"], source="brir", measurement=cfg["desc"],
+        meta.append(dict(name=cfg["name"], space=cfg.get("space", cfg["name"]), head_name=cfg.get("head_name", "KU100"),
+                         file=cfg["file"], source="brir", measurement=cfg["desc"],
                          gain_db=round(gain_db, 3), length_ms=round(1000 * length / SR, 1), direct=G.DIRECT_N,
                          channels="LL, LR, RL, RR", speaker=dict(hp_hz=0, hp_order=0, ft_hz=0),
                          head=dict(file=head_file, from_deg=G.HEAD_FROM, step_deg=G.HEAD_STEP, count=G.HEAD_COUNT,

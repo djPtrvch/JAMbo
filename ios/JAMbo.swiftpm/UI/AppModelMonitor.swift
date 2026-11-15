@@ -158,8 +158,23 @@ extension AppModel {
 
     /// Пространство пункта TRANSLATION (комната из rooms.json); нет — nil.
     var roomInfo: RoomInfo? {
-        guard let r = translationPreset?.room else { return nil }
-        return rooms.first { $0.name == r }
+        let all: [RoomInfo] = spaceRooms
+        return all.first { $0.headName == monitor.head } ?? all.first
+    }
+
+    /// Комнаты пространства пункта (та же комната с разными ушами); без пространства — пусто.
+    var spaceRooms: [RoomInfo] {
+        guard let r = translationPreset?.room else { return [] }
+        return rooms.filter { $0.space == r }
+    }
+
+    /// Головы пространства пункта — меню HEAD.
+    var roomHeads: [String] { return spaceRooms.map { $0.headName } }
+
+    /// Голова (уши) пространства: комната пересобирается в фоне.
+    func setHead(_ name: String) {
+        setMonitor { $0.head = name }
+        syncRoom()
     }
 
     /// У пункта есть пространство.
@@ -288,7 +303,7 @@ extension AppModel {
         }
     }
 
-    // MARK: — поля монитора по ключу: 0 TRANSLATION, 1 CORRECTION, 5 AMBIENCE, 6 EAR TONE
+    // MARK: — поля монитора по ключу: 0 TRANSLATION, 1 CORRECTION, 5 AMBIENCE, 6 EAR TONE, 7 HEAD
 
     func monitorField(_ k: Int) -> MonitorFieldInfo {
         let s: MonitorSettings = monitor
@@ -296,6 +311,7 @@ extension AppModel {
         case 0: return MonitorFieldInfo(label: "SPACE", value: translationPreset?.name ?? "Off", enabled: true, px: 30)
         case 1: return MonitorFieldInfo(label: "CORRECTION", value: String(format: "%.0f %%", s.strength * 100), enabled: true, px: 2)
         case 6: return MonitorFieldInfo(label: "EAR TONE", value: String(format: "%.0f %%", s.raw * 100), enabled: roomOn, px: 2)
+        case 7: return MonitorFieldInfo(label: "HEAD", value: roomInfo?.headName ?? "—", enabled: roomHeads.count > 1, px: 30)
         default:
             let t: String = s.ambienceDb <= MonitorSpec.ambienceMin ? "−∞ dB" : String(format: "%.1f dB", s.ambienceDb)
             return MonitorFieldInfo(label: "AMBIENCE", value: t, enabled: roomOn, px: 2)
@@ -309,6 +325,7 @@ extension AppModel {
         case 0: return -Double(translations.firstIndex { $0.name == s.translation } ?? 0)
         case 1: return (s.strength * 100).rounded()
         case 6: return (s.raw * 100).rounded()
+        case 7: return -Double(roomHeads.firstIndex { $0 == roomInfo?.headName } ?? 0)
         default: return (s.ambienceDb * 2).rounded()
         }
     }
@@ -325,6 +342,12 @@ extension AppModel {
         case 6:
             setMonitor { $0.raw = Swift.max(0, Swift.min(100, v)) / 100 }
             syncRoom()
+        case 7:
+            let heads: [String] = roomHeads
+            let n: Int = heads.count
+            if n < 2 { return }
+            let name: String = heads[((-Int(v)) % n + n) % n]
+            if name != roomInfo?.headName { setHead(name) }
         default: setMonitor { $0.ambienceDb = Swift.max(MonitorSpec.ambienceMin, Swift.min(0, v / 2)) }
         }
     }
@@ -341,9 +364,10 @@ extension AppModel {
         }
     }
 
-    /// Тап: у TRANSLATION — меню под полем.
+    /// Тап: у TRANSLATION и HEAD — меню под полем.
     func monitorFieldTap(_ k: Int, _ r: CGRect) {
-        guard k == 0 else { return }
+        guard k == 0 || (k == 7 && roomHeads.count > 1) else { return }
+        translationMenuHeads = k == 7
         translationMenu = translationMenu == nil ? r : nil
     }
 }

@@ -142,9 +142,9 @@ final class MonitorTests: XCTestCase {
     /// компенсация вверх (≤ 12 dB); Sub-check — соло НЧ.
     func testTranslationAndSub() {
         let list: [TranslationPreset] = presets()
-        XCTAssertEqual(list.map { $0.name }, ["Off", "Studio CR7", "Hall", "Hall KU100"])
+        XCTAssertEqual(list.map { $0.name }, ["Off", "Studio CR7", "Hall"])
         // Пространство пунктов — комнаты rooms.json; у Off — нет.
-        XCTAssertEqual(list.map { $0.room ?? "-" }, ["-", "StudioCR7", "Hall", "HallKU"])
+        XCTAssertEqual(list.map { $0.room ?? "-" }, ["-", "StudioCR7", "Hall"])
         let phone: TranslationPreset = MonitorTests.phone
         var m = MonitorSettings()
         let p: [Double] = MonitorDesign.make(eq: nil, settings: m, correct: nil, preset: phone, sampleRate: 48000)
@@ -176,7 +176,9 @@ final class MonitorTests: XCTestCase {
         m.refMonitor = false
         m.refTrim = -3.5
         m.bypassSpace = true
+        m.head = "KU100"
         let back = MonitorSettings(plist: m.plist)
+        XCTAssertEqual(back.head, "KU100")
         XCTAssertTrue(back.bypassSpace)
         XCTAssertFalse(back.bypassCorr)
         XCTAssertEqual(back.strength, 0.4)

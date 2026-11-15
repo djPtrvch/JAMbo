@@ -64,6 +64,12 @@ ROOMS = [
     # +30° на 2,65 м и −25° на 3,11 м, как стояли в замере). Проба 15.11 — для сравнения с CR1.
     dict(name="StudioCR7", file="RoomStudioCR7.wav", sofa=("DRIR_CR7_VSA_110RS_L.sofa", "DRIR_CR7_VSA_110RS_R.sofa"),
          early_ms=60.0, max_ms=650, desc="WDR Control Room 7 (TH Köln WDR compilation, CC BY 4.0)"),
+    # Studio CR7 с ушами FABIAN modeled (15.11, проба меню HEAD): та же голова, но HRTF рассчитана по 3D-скану
+    # (метод граничных элементов — как будет для своей головы); HEAD — поворотом направлений (голова с корпусом: у
+    # рассчитанной HRTF наборов HATO нет). Импульс — 16 бит (объём ресурсов).
+    dict(name="StudioCR7Mod", space="StudioCR7", head_name="FABIAN modeled", hrtf="modeled",
+         file="RoomStudioCR7Mod.wav", sofa=("DRIR_CR7_VSA_110RS_L.sofa", "DRIR_CR7_VSA_110RS_R.sofa"),
+         early_ms=60.0, max_ms=650, bits=16, desc="WDR Control Room 7 (TH Köln WDR compilation, CC BY 4.0)"),
     # Hall (15.11: прежде Club Real — не клуб, а зал): WDR Small Broadcast Studio — концертный зал для камерной музыки (1247 м³, ~160 мест, RT ≈ 0,9 с),
     # PA AD-Systems Stium Mid/High + Flex 15 Sub, ±33° на 6 м. Ближайшая к клубу открытая площадка с PA (проба 15.11).
     # Хвост — 16 бит (объём ресурсов).
@@ -328,6 +334,41 @@ def make_room(cfg, spks, ir, dirs, ctf, sets, front):
     return h * scale, -20 * np.log10(scale), length, info
 
 
+class RotIR:
+    """HRIR при повороте головы вместе с корпусом на yaw (вправо +): источник с направления j слышен с направления,
+    повёрнутого на yaw влево (ближайшее измеренное)."""
+
+    def __init__(self, ir, dirs, yaw):
+        a = np.radians(yaw)
+        rot = np.array([[np.cos(a), -np.sin(a), 0], [np.sin(a), np.cos(a), 0], [0, 0, 1.0]])
+        self.ir, self.dirs, self.rot, self.cache = ir, dirs, rot, {}
+
+    def __getitem__(self, j):
+        if j not in self.cache:
+            self.cache[j] = self.ir[int(np.argmax(self.dirs @ (self.rot @ self.dirs[j])))]
+        return self.cache[j]
+
+
+def load_fabian(folder, kind):
+    """HRIR FABIAN (measured — как generate_rooms.load_hrtf, modeled — рассчитанная), инверсная CTF того же вида,
+    направления; поворот головы — HatoIR по HATO (measured) или RotIR (modeled)."""
+    if kind == "measured":
+        ir, ctf, dirs, lic = G.load_hrtf(folder)
+        sets = G.load_hato(folder)
+        return ir, ctf, dirs, lic, (lambda yaw: G.HatoIR(sets, -yaw))
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        h = sf.read_sofa(os.path.join(folder, "FABIAN_HRIR_modeled_HATO_0.sofa"), verify=False)
+        c = sf.read_sofa(os.path.join(folder, "FABIAN_CTF_modeled_inverted_smoothed.sofa"), verify=False)
+    assert abs(float(h.Data_SamplingRate) * 160 / 147 - SR) < 1
+    ir = sg.resample_poly(np.asarray(h.Data_IR, dtype=float), 160, 147, axis=-1)
+    ctf = sg.resample_poly(np.asarray(c.Data_IR, dtype=float)[0, 0], 160, 147)
+    pos = np.asarray(h.SourcePosition, dtype=float)
+    az, el = np.radians(pos[:, 0]), np.radians(pos[:, 1])
+    dirs = np.stack([np.cos(el) * np.cos(az), np.cos(el) * np.sin(az), np.sin(el)], axis=1)
+    return ir, ctf, dirs, getattr(h, "GLOBAL_License", ""), (lambda yaw: RotIR(ir, dirs, yaw))
+
+
 def head_sets(cfg, spks, sets, dirs, info):
     """HEAD: прямая часть (DIRECT_N, 4 пути) через HRIR повёрнутой головы — та же эквализация, сдвиг и громкость."""
     nfft, shift, t0, corr, eq = info["nfft"], info["shift"], info["t0"], info["corr"], info["eq"]
@@ -336,7 +377,7 @@ def head_sets(cfg, spks, sets, dirs, info):
     out = np.zeros((G.HEAD_COUNT, 4, G.DIRECT_N))
     for i in range(G.HEAD_COUNT):
         yaw = G.HEAD_FROM + G.HEAD_STEP * i
-        hrir = G.HatoIR(sets, -yaw)
+        hrir = sets(yaw)
         e = np.zeros((4, nfft))
         for s_i, s in enumerate(spks):
             p = np.zeros(s.n)
@@ -364,11 +405,14 @@ def main():
     report = "--report" in sys.argv
     here = os.path.dirname(os.path.abspath(__file__))
     res = os.path.join(here, "..", "JAMbo.swiftpm", "Resources")
-    ir, ctf, dirs, lic = G.load_hrtf(fab)
-    sets = G.load_hato(fab)
-    print("HRTF:", ir.shape, "license:", lic)
+    heads = {}
     meta = []
     for cfg in ROOMS:
+        kind = cfg.get("hrtf", "measured")
+        if kind not in heads:
+            heads[kind] = load_fabian(fab, kind)
+            print("HRTF FABIAN %s:" % kind, heads[kind][0].shape, "license:", heads[kind][3])
+        ir, ctf, dirs, lic, sets = heads[kind]
         spks = [Speaker(os.path.join(meas, f)) for f in cfg["sofa"]]
         for s, f in zip(spks, cfg["sofa"]):
             az = np.degrees(np.arctan2(s.src[1], s.src[0]))
@@ -385,7 +429,8 @@ def main():
         flat_file = cfg["file"].replace(".wav", "Flat.wav")
         G.write_wav(os.path.join(res, flat_file), hf[:, :int(SR * cfg["early_ms"] / 1000)], 16)
         flat_head, flat_head_gain, _ = write_head(cfg, spks, sets, dirs, finfo, flat_gain, flat_file, res)
-        meta.append(dict(name=cfg["name"], file=cfg["file"], source="srir", measurement=cfg["desc"],
+        meta.append(dict(name=cfg["name"], space=cfg.get("space", cfg["name"]), head_name=cfg.get("head_name", "FABIAN"),
+                         file=cfg["file"], source="srir", measurement=cfg["desc"],
                          rt60=round(float(np.median([np.median(r) for r in info["rts"]])), 3),
                          gain_db=round(gain_db, 3), length_ms=round(1000 * length / SR, 1), direct=G.DIRECT_N,
                          channels="LL, LR, RL, RR", speaker=dict(hp_hz=0, hp_order=0, ft_hz=0),

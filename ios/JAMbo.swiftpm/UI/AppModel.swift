@@ -228,6 +228,8 @@ final class AppModel {
     @ObservationIgnored var _eqMsMenu: CGRect? = nil
     /// Меню TRANSLATION (тап по полю в окне коррекции наушников): рамка поля («root»).
     @ObservationIgnored var _translationMenu: CGRect? = nil
+    /// Меню под полем — головы (HEAD), а не пункты SPACE; ставится до translationMenu.
+    @ObservationIgnored var translationMenuHeads = false
     /// Меню DYN (источник, THRESHOLD, RANGE): рамка поля DYN; ввод числом из меню (EqView открывает окно).
     @ObservationIgnored var _eqDynMenu: CGRect? = nil
     /// Сдвиг меню DYN пальцем (перетаскивание за заголовок); сбрасывается при открытии.

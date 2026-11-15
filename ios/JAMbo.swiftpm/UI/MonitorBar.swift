@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// Строка Headphone Monitor под строкой EQ окна коррекции — где и на чём звучит: SPACE (пункт TRANSLATION — тембр и пространство
-/// пункта; удержание пункта в меню — сохранить профиль), AMBIENCE (сколько пространства; у пунктов без него — серое), EAR TONE
+/// пункта; удержание пункта в меню — сохранить профиль), AMBIENCE (сколько пространства; у пунктов без него — серое), HEAD
+/// (уши: та же комната с разными головами, 15.11; меню по тапу; одна голова — серое), EAR TONE
 /// (окраска уха в прямом звуке), проверки MONO и SUB, HEAD TRACK (отслеживание головы).
 /// Строка EQ — коррекция наушников: PHONE CURVE, CORRECT CURVE, CORRECTION, LEVEL, PRESETS, BYPASS (на две строки —
 /// MonitorBypass; справа в строке MONITOR под него место). Поля — как у EQ:
@@ -13,7 +14,7 @@ struct MonitorBar: View {
         let m: AppModel = model
         let s: MonitorSettings = m.monitor
         let items: [AnyView] = [
-            MonitorBar.field(m, 0), MonitorBar.field(m, 5), MonitorBar.field(m, 6),
+            MonitorBar.field(m, 0), MonitorBar.field(m, 5), MonitorBar.field(m, 7), MonitorBar.field(m, 6),
             AnyView(EqTool(title: "MONO", enabled: true, active: s.mono) { m.setMonitor { $0.mono.toggle() } }),
             AnyView(EqTool(title: "SUB", enabled: true, active: s.sub) { m.setMonitor { $0.sub.toggle() } }),
             AnyView(HeadButton(model: m)),
@@ -84,17 +85,20 @@ struct MonitorBypass: View {
     }
 }
 
-/// Пункт меню SPACE: тап — выбрать и закрыть меню, удержание 0,6 с — сохранить профиль.
+/// Пункт меню SPACE: тап — выбрать и закрыть меню, удержание 0,6 с — сохранить профиль. heads — пункт меню HEAD
+/// (голова: тап — выбрать, без профиля).
 struct SpaceItem: View {
     let model: AppModel
     let name: String
     let current: Bool
+    var heads: Bool = false
 
     var body: some View {
         let m: AppModel = model
         let n: String = name
-        let saved: Bool = m.spaceSaved == n
-        let has: Bool = m.monitor.spaces[n] != nil
+        let hd: Bool = heads
+        let saved: Bool = !hd && m.spaceSaved == n
+        let has: Bool = !hd && m.monitor.spaces[n] != nil
         let fg: Color = current ? theme.onAccent : theme.text
         let title: String = saved ? "SAVED" : (has ? n.uppercased() + " •" : n.uppercased())
         return Text(title).font(.system(size: 13, weight: .bold)).lineLimit(1).minimumScaleFactor(0.7)
@@ -103,10 +107,10 @@ struct SpaceItem: View {
         .background(current || saved ? theme.accent : theme.panel, in: RoundedRectangle(cornerRadius: 8))
         .contentShape(Rectangle())
         .onTapGesture {
-            m.setTranslation(n)
+            if hd { m.setHead(n) } else { m.setTranslation(n) }
             m.translationMenu = nil
         }
-        .onLongPressGesture(minimumDuration: 0.6) { m.saveSpace(n) }
+        .onLongPressGesture(minimumDuration: 0.6) { if !hd { m.saveSpace(n) } }
     }
 }
 
@@ -175,7 +179,7 @@ struct CurveSwitch: View {
 
 /// Меню SPACE (пункты TRANSLATION): пункты одним столбцом под полем (Off — первым, выбранный горит); тап — выбрать
 /// (с профилем пункта), удержание — сохранить в пункт текущие AMBIENCE, EAR TONE, CORRECTION и CORRECT CURVE (на секунду
-/// SAVED; у пункта с профилем — точка •); тап мимо — закрыть.
+/// SAVED; у пункта с профилем — точка •); тап мимо — закрыть. То же меню — HEAD (головы пространства; без сохранения).
 struct TranslationMenu: View {
     static let width: CGFloat = 220
     let model: AppModel
@@ -183,17 +187,18 @@ struct TranslationMenu: View {
 
     var body: some View {
         let m: AppModel = model
-        let names: [String] = m.translations.map { $0.name }
-        let cur: String = m.translationPreset?.name ?? "Off"
+        let hd: Bool = m.translationMenuHeads
+        let names: [String] = hd ? m.roomHeads : m.translations.map { $0.name }
+        let cur: String = hd ? (m.roomInfo?.headName ?? "") : (m.translationPreset?.name ?? "Off")
         return ZStack(alignment: .topLeading) {
             Color.black.opacity(0.001).ignoresSafeArea().onTapGesture { m.translationMenu = nil }
             VStack(alignment: .leading, spacing: 6) {
-                Text("SPACE").font(.system(size: 12, weight: .bold)).tracking(1.2)
+                Text(hd ? "HEAD" : "SPACE").font(.system(size: 12, weight: .bold)).tracking(1.2)
                     .foregroundStyle(theme.text)
-                Text("HOLD TO SAVE").font(.system(size: 9)).foregroundStyle(theme.dim)
+                Text(hd ? "EARS FOR THIS SPACE" : "HOLD TO SAVE").font(.system(size: 9)).foregroundStyle(theme.dim)
                 VStack(spacing: 6) {
                     ForEach(names.indices, id: \.self) { i in
-                        SpaceItem(model: m, name: names[i], current: names[i] == cur)
+                        SpaceItem(model: m, name: names[i], current: names[i] == cur, heads: hd)
                     }
                 }
             }

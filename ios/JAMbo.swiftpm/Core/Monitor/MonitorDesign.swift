@@ -36,6 +36,8 @@ public struct MonitorSettings {
     /// низ — пространство (SPACE: комната и тембр пункта). Обе — вся цепочка в обход (Eq.on коррекции — false).
     public var bypassCorr: Bool = false
     public var bypassSpace: Bool = false
+    /// Голова (меню HEAD, 15.11): уши комнаты пространства (RoomInfo.headName); нет такой у пространства — первая.
+    public var head: String = "FABIAN"
 
     public init() {}
 
@@ -63,6 +65,7 @@ public struct MonitorSettings {
         refTrim = num("refTrim", 0, -12, 12)
         bypassCorr = flag("bypassCorr", false)
         bypassSpace = flag("bypassSpace", false)
+        head = g["head"] as? String ?? "FABIAN"
     }
 
     /// Словарь для UserDefaults.
@@ -70,7 +73,8 @@ public struct MonitorSettings {
         return ["strength": strength, "translation": translation, "mono": mono,
                 "sub": sub, "editCorrect": editCorrect, "ambienceDb": ambienceDb, "raw": raw,
                 "spaces": spaces.mapValues { $0.plist }, "refMaster": refMaster, "refMonitor": refMonitor, "refMatch": refMatch,
-                "refTrim": refTrim, "bypassCorr": bypassCorr, "bypassSpace": bypassSpace]
+                "refTrim": refTrim, "bypassCorr": bypassCorr, "bypassSpace": bypassSpace,
+                "head": head]
     }
 }
 
