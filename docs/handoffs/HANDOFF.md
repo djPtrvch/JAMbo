@@ -22,6 +22,7 @@ Groovebox для iPad. Веб (`src/`, `public/`, ветка main) — этал�
 - Студия под конкретные мониторы (по опубликованным замерам; без брендов в названии) — позже.
 - Проекты между сборками: Playgrounds хранит данные каждой копии приложения отдельно; пока — экспорт и импорт проектов; хранение в папке «Файлов» — когда освободится объём сборки.
 - S14e — App Store (Ableton Link по лицензии, privacy manifest, значок, App Store Connect).
+- **Перед публикацией в App Store — лицензия замеров комнат WDR (15.11):** на Zenodo у набора «A Spatial Audio Impulse Response Compilation Captured at the WDR Broadcast Studios» (TH Köln, DOI 10.5281/zenodo.3930833) стоит CC BY 4.0, а в самих SOFA-файлах и статье 2012 г. — CC BY-SA 3.0. Написать авторам (TH Köln, Audio Group) и получить подтверждение CC BY 4.0; при CC BY-SA импульсы Studio CR7 и Hall распространяются под той же лицензией. Плюс проверить строку об авторах в SETTINGS → OUTPUT (WDR, FABIAN, SADIE II) и упоминание в описании App Store. Подробно — docs/LICENSES-room.md.
 
 ## 5. Мануал (9.11) — русская версия готова
 - Файл: `docs/manual/jambo-manual.html` (ветка `swift`, последний коммит мануала — 19fb903). Артефакт (та же ссылка при каждой публикации): https://claude.ai/artifact/3Wuca2G1pKiQgpydmhCWHr — публиковать тем же файлом; исходник в сессии лежал во временной папке, в новой сессии публиковать из `docs/manual/jambo-manual.html` с `url` артефакта (сначала `read`).
