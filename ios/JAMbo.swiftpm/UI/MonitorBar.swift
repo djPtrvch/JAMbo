@@ -22,7 +22,7 @@ struct MonitorBar: View {
         // Справа — место под BYPASS строки EQ (он на две строки; столбец под ARRANGE).
         let top: TopFrames = m.topFrames
         let right: CGFloat = top.ready ? top.arrange.width + Layout.gap : 0
-        return MonitorRow(name: "MONITOR", items: items, height: m.barH).padding(.trailing, right)
+        return MonitorRow(name: "", items: items, height: m.barH).padding(.trailing, right)
     }
 
     /// Поле монитора k (AppModel.monitorField): одни замыкания на все поля (объём сборки).
@@ -130,7 +130,7 @@ struct MonitorLevel: View {
     }
 }
 
-/// Строка из имени (под именем канала EQ) и равных столбцов.
+/// Строка из имени (под именем канала EQ; у строки монитора — пусто, 15.11) и равных столбцов.
 struct MonitorRow: View {
     let name: String
     let items: [AnyView]
