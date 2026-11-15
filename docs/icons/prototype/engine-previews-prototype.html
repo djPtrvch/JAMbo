@@ -1122,44 +1122,57 @@ for (const n of Object.keys(PATCH)) {
     lane(g, mk(9), { y0: 32, amp: 26, mirror: true, thin: true, ext: startSpike(0.55 * q, 1.3) }, c);
   };
   K.notes = ['pitch: сколько волн в теле удара', 'sweep: в начале частота выше, начало плотнее', 'drive: вершины сплющиваются, тело становится плотнее', 'click: узкий всплеск в начале', 'белое — сам удар, серый хвост — Decay, чем он больше, тем дальше хвост'];
+  /* SNARE и PERC (решение пользователя 15.11): одна настоящая волна вместо зеркальной огибающей, чтобы были видны
+     число волн и их сжатие в начале; удар (PUNCH, HIT) — серый всплеск под началом волны. Decay — длина самого
+     звука (35…100 % ширины), без серого хвоста. */
+  const drumEnv = (u, D) => Math.pow(clamp(1 - u / lerp(0.35, 1, D)), 1.6);
+  /* Серый удар: гладкий симметричный всплеск от левого края, сужаясь уходит в волну. A — высота (доля amp),
+     W — насколько далеко тянется (px); 41 точка сверху и 41 снизу. */
+  const drumBurst = (g, c, y0, amp, A, W) => {
+    if (A < 0.01) return;
+    const f = (x) => A * amp * (1 - Math.exp(-(x - X0) / 0.5)) * Math.exp(-Math.pow((x - X0) / W, 1.3));
+    g.globalAlpha = 1; g.fillStyle = c.gray; g.beginPath(); g.moveTo(X0, y0);
+    for (let i = 0; i <= 40; i++) { const x = X0 + (5 * W * i) / 40; g.lineTo(x, Math.max(1.5, y0 - f(x))); }
+    for (let i = 40; i >= 0; i--) { const x = X0 + (5 * W * i) / 40; g.lineTo(x, Math.min(62.5, y0 + f(x))); }
+    g.closePath(); g.fill();
+  };
   const S = v3('SNARE');
   S.draw = function (g, s, D, c) {
     const [h, t, m, q] = s;
     const wb = Math.cos((t * Math.PI) / 2), wn = Math.sin((t * Math.PI) / 2);
-    const hold = SUB * (1.5 + 2.5 * (1 - clamp(m)));
-    const mk = (k) => { let p1 = 0; return gen(COLS, (u, i) => {
-      const f = (2 + 3 * h) * (1 + 2 * q * Math.exp(-u * 18));
-      p1 += (f * TAU) / NS;
-      const body = (Math.exp(-u * k) * (0.62 * Math.sin(p1) + 0.34 * Math.sin(1.8 * p1))) / 0.96;
-      const noise = 0.75 * Math.exp(-u * k * 0.8) * nzi(i / hold);
-      return clamp(wb * body + wn * noise, -1, 1);
-    }); };
+    const cyc = 3 * Math.pow(3, h), hold = 8 * Math.pow(1.2 / 8, clamp(m));
+    let ph = 0;
+    const a = gen(COLS, (u, i) => {
+      ph += (cyc * (1 + 2.5 * q * Math.exp(-u * 20)) * TAU) / NS;
+      const nn = 0.85 * clamp(1.2 * nzi(i / hold), -1, 1);
+      return clamp(wb * Math.sin(ph) + wn * nn, -1, 1) * drumEnv(u, D);
+    });
     axisG(g, c, 32);
-    lane(g, mk(4.5 - 3.5 * D), { y0: 32, amp: 26, mirror: true, thin: true, color: c.gray }, c);
-    lane(g, mk(9), { y0: 32, amp: 26, mirror: true, thin: true, ext: startSpike(0.3 * q, 1.3) }, c);
+    drumBurst(g, c, 32, 25, 1.2 * q, 2.6);
+    lane(g, a, { y0: 32, amp: 25, thin: true }, c);
   };
-  S.notes = ['корпус (f и 1.8·f) смешан с шумом в одну волну', 'tune: сколько волн в корпусе', 'snappy: от корпуса к шуму, шум даёт неровный край', 'tone: чем выше, тем мельче и ровнее шум', 'punch: начало выше, плюс всплеск', 'белое — сам удар, серый хвост — Decay'];
+  S.notes = ['одна волна корпуса', 'tune: сколько волн', 'snappy: волна переходит в шум', 'tone: зерно шума — крупные бугры ↔ мелкая рябь', 'punch: первые волны сжаты, серый щелчок под началом', 'Decay: длина звука'];
   const P = v3('PERC');
   P.draw = function (g, s, D, c) {
     const [h, t, m, q] = s;
-    const F0 = lerp(2.5, 8, h);
-    const modes = [0, 1, 2, 3, 4, 5].map((i) => percModeAt(t, q, i));
-    const norm = (1 / Math.max(1, modes.reduce((x, y) => x + y.a, 0))) * 1.6 / 1.3;
-    const fade = modes.map((md) => clamp((150 - F0 * md.r * (1 + m)) / 30));
-    const mk = (k0) => { const ph = [0, 0, 0, 0, 0, 0]; return gen(COLS, (u) => {
-      const dr = 1 + m * Math.exp(-u * 10);
-      let sum = 0;
-      for (let j = 0; j < 6; j++) {
-        ph[j] += (F0 * modes[j].r * dr * TAU) / NS;
-        sum += fade[j] * modes[j].a * Math.sin(ph[j]) * Math.exp(-u * k0 * Math.sqrt(modes[j].r));
-      }
-      return clamp(sum * norm, -1, 1);
-    }); };
-    const A = 0.25 + 0.5 * q, W = lerp(5, 1.2, q);
+    const cyc = 2.5 * Math.pow(3.2, h), x = clamp(t);
+    const rip = x < 0.5 ? lerp(0.05, 0.75, x * 2) : 0.75;
+    const rk = x < 0.5 ? lerp(10, 8, x * 2) : lerp(8, 0.8, (x - 0.5) * 2);
+    const R = x < 0.5 ? lerp(2.3, 5.4, x * 2) : lerp(5.4, 3.7, (x - 0.5) * 2);
+    const R2 = x < 0.5 ? lerp(2.9, 8.9, x * 2) : lerp(8.9, 5.3, (x - 0.5) * 2);
+    const att = 0.16 * Math.pow(1 - clamp(q), 1.5);
+    let ph = 0;
+    const a = gen(COLS, (u) => {
+      ph += (cyc * (1 + 1.6 * m * Math.exp(-u * 9)) * TAU) / NS;
+      const r = rip * Math.exp(-u * rk) * (0.6 * Math.sin(R * ph + 0.7) + 0.4 * Math.sin(R2 * ph + 1.9));
+      const sw = att > 0.001 ? Math.sin((Math.PI / 2) * clamp(u / att)) : 1;
+      return clamp((Math.sin(ph) + r) / (1 + 0.5 * rip), -1, 1) * drumEnv(u, D) * sw;
+    });
     axisG(g, c, 32);
-    lane(g, mk(5 - 4 * D), { y0: 32, amp: 26, mirror: true, thin: true, color: c.gray }, c);
-    lane(g, mk(9), { y0: 32, amp: 26, mirror: true, thin: true, ext: (x) => A * Math.exp(-(x - X0) / W) * 0.5 }, c);
+    drumBurst(g, c, 32, 25, lerp(0.45, 1.2, q), lerp(9, 2, q));
+    lane(g, a, { y0: 32, amp: 25, thin: true }, c);
   };
+  P.notes = ['одна волна', 'tune: сколько волн', 'material: кожа — гладкая волна, дерево — рябь только в начале, металл — рваная рябь до конца', 'bend: первые волны сжаты', 'hit: колотушка — волна нарастает плавно над низким широким серым толчком, палка — сразу, серый щелчок высокий и узкий', 'Decay: длина звука'];
   const order = ['Sample', 'KICK', 'SNARE', 'HAT', 'CLAP', 'PERC', 'ANALOG', 'FM', 'WTABLE', 'SUB'];
   const pick = { Sample: cur('Sample'), KICK: K, SNARE: S, HAT: cur('HAT'), CLAP: cur('CLAP'), PERC: P, ANALOG: v3('ANALOG'), FM: v3('FM'), WTABLE: v3('WTABLE'), SUB: v3('SUB') };
   order.forEach((n, i) => { const e = pick[n]; delete e.prev; ENGINES[i] = e; });

@@ -2,8 +2,9 @@ import Foundation
 
 // Иконки ударных KICK, SNARE, HAT, CLAP, PERC (16, 20–23) — секция «final mix» прототипа
 // (docs/icons/prototype/engine-previews-prototype.html). h, t, m, q — ручки 1.1–1.4, d — Decay (0…1), hx — подсветка
-// удара. KICK, SNARE, PERC: одна волна симметрично серой оси; белое — сам удар с коротким спадом (k = 9), серое —
-// хвост того же сигнала со спадом от Decay (два прохода одного генератора).
+// удара. KICK: одна волна симметрично серой оси; белое — сам удар с коротким спадом (k = 9), серое — хвост того же
+// сигнала со спадом от Decay (два прохода одного генератора). SNARE, PERC: одна настоящая волна (видно число волн),
+// удар — серый всплеск под её началом, Decay — длина звука.
 
 extension EngineIcons {
     /// Короткий спад белого удара у KICK, SNARE, PERC.
@@ -33,55 +34,65 @@ extension EngineIcons {
         return hitTail(mk, tail: 4.5 - 3.5 * v.d, spike: startSpike(0.55 * v.q, 1.3), hx)
     }
 
-    /// SNARE: корпус (f и 1.8·f, частота — TUNE, начало выше и всплеск — PUNCH) смешан с шумом по SNAPPY;
-    /// TONE — мелкость шума (медленный и ослабленный, без «пилы»); серый хвост — Decay.
-    static func snareIcon(_ v: IconValues, _ hx: Double?) -> [IconElement] {
-        let wb = cos(v.t * Double.pi / 2), wn = sin(v.t * Double.pi / 2)
-        let hold = Double(sub) * (1.5 + 2.5 * (1 - clamp(v.m)))
-        func mk(_ k: Double) -> [Double] {
-            var p1 = 0.0
-            return gen { u, i in
-                let f = (2 + 3 * v.h) * (1 + 2 * v.q * exp(-u * 18))
-                p1 += (f * tau) / ns
-                let body = (exp(-u * k) * (0.62 * sin(p1) + 0.34 * sin(1.8 * p1))) / 0.96
-                let noise = 0.75 * exp(-u * k * 0.8) * nzi(Double(i) / hold)
-                return clamp(wb * body + wn * noise, -1, 1)
-            }
-        }
-        return hitTail(mk, tail: 4.5 - 3.5 * v.d, spike: startSpike(0.3 * v.q, 1.3), hx)
+    /// Огибающая SNARE и PERC: звук кончается на 35…100 % ширины (Decay), спадает плавно, чтобы волны было видно.
+    static func drumEnv(_ u: Double, _ d: Double) -> Double {
+        return pow(clamp(1 - u / lerp(0.35, 1, d)), 1.6)
     }
 
-    /// PERC: сумма шести мод (MATERIAL — набор от кожи к дереву и металлу, HIT — яркость высоких мод и ширина
-    /// всплеска), частота — TUNE, в начале выше на BEND; серый хвост — Decay, высокие моды гаснут быстрее.
+    /// Серый удар SNARE и PERC: гладкий симметричный всплеск от левого края, сужаясь уходит в волну. a — высота
+    /// (доля amp), w — насколько далеко тянется (px); по 41 точке сверху и снизу. Тихий — нет элемента.
+    static func drumBurst(y0: Double, amp: Double, _ a: Double, _ w: Double) -> [IconElement] {
+        if a < 0.01 { return [] }
+        func f(_ x: Double) -> Double {
+            return a * amp * (1 - exp(-(x - x0) / 0.5)) * exp(-pow((x - x0) / w, 1.3))
+        }
+        var cmds: [IconCmd] = [.move(x0, y0)]
+        for i in 0...40 {
+            let x = x0 + (5 * w * Double(i)) / 40
+            cmds.append(.line(x, Swift.max(1.5, y0 - f(x))))
+        }
+        for i in stride(from: 40, through: 0, by: -1) {
+            let x = x0 + (5 * w * Double(i)) / 40
+            cmds.append(.line(x, Swift.min(62.5, y0 + f(x))))
+        }
+        cmds.append(.close)
+        return [IconElement(cmds, fill: true, ink: .secondary)]
+    }
+
+    /// SNARE: одна волна корпуса — сколько волн — TUNE, SNAPPY — волна переходит в шум, TONE — зерно шума (крупные
+    /// бугры ↔ мелкая рябь), PUNCH — первые волны сжаты и серый щелчок под началом; Decay — длина звука.
+    static func snareIcon(_ v: IconValues, _ hx: Double?) -> [IconElement] {
+        let wb = cos(v.t * Double.pi / 2), wn = sin(v.t * Double.pi / 2)
+        let cyc = 3 * pow(3, v.h), hold = 8 * pow(1.2 / 8, clamp(v.m))
+        var ph = 0.0
+        let a = gen { u, i in
+            ph += (cyc * (1 + 2.5 * v.q * exp(-u * 20)) * tau) / ns
+            let nn = 0.85 * clamp(1.2 * nzi(Double(i) / hold), -1, 1)
+            return clamp(wb * sin(ph) + wn * nn, -1, 1) * drumEnv(u, v.d)
+        }
+        return [axis(32)] + drumBurst(y0: 32, amp: 25, 1.2 * v.q, 2.6)
+            + [lane(a, IconLane(y0: 32, amp: 25, thin: true), hx)]
+    }
+
+    /// PERC: одна волна — сколько волн — TUNE; MATERIAL — что на волне: кожа — гладкая, дерево — рябь только в начале
+    /// (сухой стук), металл — рваная рябь до конца (звон); BEND — первые волны сжаты; HIT — удар: колотушка — волна
+    /// нарастает плавно над низким широким серым толчком, палка — сразу, серый щелчок высокий и узкий; Decay — длина.
     static func percIcon(_ v: IconValues, _ hx: Double?) -> [IconElement] {
-        let f0 = lerp(2.5, 8, v.h)
-        var mr = [Double](repeating: 0, count: 6), ma = [Double](repeating: 0, count: 6)
-        var fade = [Double](repeating: 0, count: 6)
-        var sum = 0.0
-        for j in 0..<6 {
-            let md = Jambo.percModeAt(v.t, v.q, j)
-            mr[j] = md.r
-            ma[j] = md.a
-            sum += md.a
-            fade[j] = clamp((150 - f0 * md.r * (1 + v.m)) / 30)
+        let cyc = 2.5 * pow(3.2, v.h), x = clamp(v.t)
+        let rip = x < 0.5 ? lerp(0.05, 0.75, x * 2) : 0.75
+        let rk = x < 0.5 ? lerp(10, 8, x * 2) : lerp(8, 0.8, (x - 0.5) * 2)
+        let r1 = x < 0.5 ? lerp(2.3, 5.4, x * 2) : lerp(5.4, 3.7, (x - 0.5) * 2)
+        let r2 = x < 0.5 ? lerp(2.9, 8.9, x * 2) : lerp(8.9, 5.3, (x - 0.5) * 2)
+        let att = 0.16 * pow(1 - clamp(v.q), 1.5)
+        var ph = 0.0
+        let a = gen { u, _ in
+            ph += (cyc * (1 + 1.6 * v.m * exp(-u * 9)) * tau) / ns
+            let r = rip * exp(-u * rk) * (0.6 * sin(r1 * ph + 0.7) + 0.4 * sin(r2 * ph + 1.9))
+            let sw = att > 0.001 ? sin((Double.pi / 2) * clamp(u / att)) : 1
+            return clamp((sin(ph) + r) / (1 + 0.5 * rip), -1, 1) * drumEnv(u, v.d) * sw
         }
-        let norm = (1 / Swift.max(1, sum)) * 1.6 / 1.3
-        func mk(_ k0: Double) -> [Double] {
-            var ph = [Double](repeating: 0, count: 6)
-            return gen { u, _ in
-                let dr = 1 + v.m * exp(-u * 10)
-                var s = 0.0
-                for j in 0..<6 {
-                    ph[j] += (f0 * mr[j] * dr * tau) / ns
-                    s += fade[j] * ma[j] * sin(ph[j]) * exp(-u * k0 * mr[j].squareRoot())
-                }
-                return clamp(s * norm, -1, 1)
-            }
-        }
-        let a = 0.25 + 0.5 * v.q, w = lerp(5, 1.2, v.q)
-        let spike: (Double) -> Double = { x in a * exp(-(x - 4) / w) * 0.5 }
-        // Хвост PERC — свой спад от Decay (5 − 4·d), как у звука.
-        return hitTail(mk, tail: 5 - 4 * v.d, spike: spike, hx)
+        return [axis(32)] + drumBurst(y0: 32, amp: 25, lerp(0.45, 1.2, v.q), lerp(9, 2, v.q))
+            + [lane(a, IconLane(y0: 32, amp: 25, thin: true), hx)]
     }
 
     /// HAT: спектр, а не время — шесть линий ряда 808 (сдвиг — TUNE, растяжение — SPREAD, рваные по NOISE),
