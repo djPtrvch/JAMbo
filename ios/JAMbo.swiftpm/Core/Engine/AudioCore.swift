@@ -111,9 +111,10 @@ public final class AudioCore: @unchecked Sendable {
                         warpFollow: Bool = false) {
         releaseRetired()
         if lastSeq == nil || !SeqSnapshot.same(lastSeq!, project) {
-            lastSeq = project
             let snap = Unmanaged.passRetained(SeqSnapshot(project))
-            if !snapshots.push(snap) { snap.release() }
+            // Очередь полна (колбэк стоит: прерывание, смена выхода) — снимок не ушёл: lastSeq прежний, и следующая
+            // публикация отправит паттерны заново (иначе секвенсор играл бы старые до следующей правки паттерна).
+            if snapshots.push(snap) { lastSeq = project } else { snap.release() }
         }
         let made = SoundSnapshot(project, samples: samples, map: map, octave: octave, octaves: octaves, tables: tables,
                                  scSends: scSends, levelRelative: levelRelative,
