@@ -5,10 +5,14 @@ import SwiftUI
 /// (уши: та же комната с разными головами, 15.11; меню по тапу; одна голова — серое), EAR TONE
 /// (окраска уха в прямом звуке), проверки MONO и SUB, HEAD TRACK (отслеживание головы).
 /// Строка EQ — коррекция наушников: PHONE CURVE, CORRECT CURVE, CORRECTION, LEVEL, PRESETS, BYPASS (на две строки —
-/// MonitorBypass; справа в строке MONITOR под него место). Поля — как у EQ:
+/// MonitorBypass; справа в строке монитора под него место; зазор EAR TONE | MONO — под чертой PHONE | CORRECT).
+/// Поля — как у EQ:
 /// палец вверх-вниз, двойной тап — значение по умолчанию.
 struct MonitorBar: View {
     let model: AppModel
+    /// Ширина и левый край строки («root») — места полей считаются от столбцов строки EQ (EqBar.slots).
+    @State private var width: CGFloat = 0
+    @State private var barX: CGFloat = 0
 
     var body: some View {
         let m: AppModel = model
@@ -19,10 +23,36 @@ struct MonitorBar: View {
             AnyView(EqTool(title: "SUB", enabled: true, active: s.sub) { m.setMonitor { $0.sub.toggle() } }),
             AnyView(HeadButton(model: m)),
         ]
-        // Справа — место под BYPASS строки EQ (он на две строки; столбец под ARRANGE).
-        let top: TopFrames = m.topFrames
-        let right: CGFloat = top.ready ? top.arrange.width + Layout.gap : 0
-        return MonitorRow(name: "", items: items, height: m.barH).padding(.trailing, right)
+        let slots: [EqSlot] = MonitorBar.slots(width: width, barX: barX, top: m.topFrames)
+        return ZStack(alignment: .topLeading) {
+            ForEach(items.indices, id: \.self) { i in
+                items[i].frame(width: slots[i].w, height: m.barH).offset(x: slots[i].x)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .frame(height: m.barH)
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { r in
+            width = r.width
+            barX = r.minX
+        }
+    }
+
+    /// Места полей (15.11, решение пользователя): SPACE, AMBIENCE, HEAD, EAR TONE — поровну от края имени до черты
+    /// между PHONE CURVE и CORRECT CURVE строки EQ; MONO, SUB, HEAD TRACK — поровну от неё до BYPASS (он на две строки).
+    static func slots(width: CGFloat, barX: CGFloat, top: TopFrames) -> [EqSlot] {
+        let g: CGFloat = Layout.gap
+        let eq: [EqSlot] = EqBar.slots(width: width, barX: barX, top: top, phones: true)
+        let x0: CGFloat = EqBar.nameWidth + g
+        let split: CGFloat = eq[4].x + eq[4].w / 2
+        let end: CGFloat = eq[EqBar.columns - 1].x - g
+        return MonitorBar.row(x0, split - g / 2, 4) + MonitorBar.row(split + g / 2, end, 3)
+    }
+
+    /// n равных мест с зазорами между a и b.
+    static func row(_ a: CGFloat, _ b: CGFloat, _ n: Int) -> [EqSlot] {
+        let g: CGFloat = Layout.gap
+        let w: CGFloat = max(0, (b - a - CGFloat(n - 1) * g) / CGFloat(n))
+        return (0..<n).map { EqSlot(x: a + CGFloat($0) * (w + g), w: w) }
     }
 
     /// Поле монитора k (AppModel.monitorField): одни замыкания на все поля (объём сборки).
@@ -127,25 +157,6 @@ struct MonitorLevel: View {
         }
         .padding(.horizontal, 12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-    }
-}
-
-/// Строка из имени (под именем канала EQ; у строки монитора — пусто, 15.11) и равных столбцов.
-struct MonitorRow: View {
-    let name: String
-    let items: [AnyView]
-    let height: CGFloat
-
-    var body: some View {
-        HStack(spacing: Layout.gap) {
-            Text(name).font(.system(size: 11)).tracking(0.9).lineLimit(1).minimumScaleFactor(0.6)
-                .foregroundStyle(theme.dim)
-                .frame(width: EqBar.nameWidth)
-            ForEach(items.indices, id: \.self) { i in
-                items[i].frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
-        }
-        .frame(height: height)
     }
 }
 
