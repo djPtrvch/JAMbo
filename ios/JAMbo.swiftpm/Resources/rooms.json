@@ -32,6 +32,68 @@
       }
     },
     {
+      "name": "StudioCR7H15",
+      "space": "StudioCR7",
+      "head_name": "SADIE H15",
+      "file": "RoomStudioCR7H15.wav",
+      "source": "srir",
+      "measurement": "WDR Control Room 7 (TH Köln WDR compilation, CC BY 4.0), SADIE II H15 (Apache 2.0)",
+      "rt60": 0.231,
+      "gain_db": -10.688,
+      "length_ms": 381.1,
+      "direct": 128,
+      "channels": "LL, LR, RL, RR",
+      "speaker": {
+        "hp_hz": 0,
+        "hp_order": 0,
+        "ft_hz": 0
+      },
+      "head": {
+        "file": "RoomStudioCR7H15Head.wav",
+        "from_deg": -50,
+        "step_deg": 2,
+        "count": 51,
+        "gain_db": -10.688
+      },
+      "flat": {
+        "file": "RoomStudioCR7H15Flat.wav",
+        "gain_db": -11.11,
+        "head_file": "RoomStudioCR7H15FlatHead.wav",
+        "head_gain_db": -7.703
+      }
+    },
+    {
+      "name": "StudioCR7H3",
+      "space": "StudioCR7",
+      "head_name": "SADIE H3",
+      "file": "RoomStudioCR7H3.wav",
+      "source": "srir",
+      "measurement": "WDR Control Room 7 (TH Köln WDR compilation, CC BY 4.0), SADIE II H3 (Apache 2.0)",
+      "rt60": 0.231,
+      "gain_db": -11.176,
+      "length_ms": 381.1,
+      "direct": 128,
+      "channels": "LL, LR, RL, RR",
+      "speaker": {
+        "hp_hz": 0,
+        "hp_order": 0,
+        "ft_hz": 0
+      },
+      "head": {
+        "file": "RoomStudioCR7H3Head.wav",
+        "from_deg": -50,
+        "step_deg": 2,
+        "count": 51,
+        "gain_db": -8.822
+      },
+      "flat": {
+        "file": "RoomStudioCR7H3Flat.wav",
+        "gain_db": -9.19,
+        "head_file": "RoomStudioCR7H3FlatHead.wav",
+        "head_gain_db": -3.513
+      }
+    },
+    {
       "name": "Hall",
       "space": "Hall",
       "head_name": "FABIAN",
@@ -60,36 +122,6 @@
         "gain_db": -7.762,
         "head_file": "RoomHallFlatHead.wav",
         "head_gain_db": -5.763
-      }
-    },
-    {
-      "name": "HallKU",
-      "space": "Hall",
-      "head_name": "KU100",
-      "file": "RoomHallKU.wav",
-      "source": "brir",
-      "measurement": "WDR Small Broadcast Studio, PA, KU100 BRIR (TH Köln WDR compilation, CC BY 4.0)",
-      "gain_db": -8.295,
-      "length_ms": 1000.0,
-      "direct": 128,
-      "channels": "LL, LR, RL, RR",
-      "speaker": {
-        "hp_hz": 0,
-        "hp_order": 0,
-        "ft_hz": 0
-      },
-      "head": {
-        "file": "RoomHallKUHead.wav",
-        "from_deg": -50,
-        "step_deg": 2,
-        "count": 51,
-        "gain_db": -6.501
-      },
-      "flat": {
-        "file": "RoomHallKUFlat.wav",
-        "gain_db": -7.596,
-        "head_file": "RoomHallKUFlatHead.wav",
-        "head_gain_db": -4.088
       }
     }
   ],

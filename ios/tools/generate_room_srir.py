@@ -26,8 +26,12 @@ DRIR_CR1_VSA_110RS_L.sofa и _R.sofa — Control Room 1 (93 м³, монитор
 DRIR_CR7_VSA_110RS_L.sofa и _R.sofa — Control Room 7 (168 м³).
 Записи комнат дописываются в rooms.json (generate_rooms.py их сохраняет: "source": "srir").
 
+Головы: FABIAN (по умолчанию) или живые люди из SADIE II (Йоркский университет, Zenodo 10.5281/zenodo.12092466,
+Apache 2.0; hrtf: "sadie:H<n>").
+
 Запуск: pip install numpy scipy sofar
-        python3 ios/tools/generate_room_srir.py <папка SOFA FABIAN> <папка SOFA замеров> [--report]
+        python3 ios/tools/generate_room_srir.py <папка SOFA FABIAN> <папка SOFA замеров> [--sadie <папка SADIE II>]
+                [--report]
 """
 import json
 import os
@@ -66,6 +70,16 @@ ROOMS = [
          early_ms=60.0, max_ms=650, desc="WDR Control Room 7 (TH Köln WDR compilation, CC BY 4.0)"),
     # Studio CR7 с ушами FABIAN modeled (рассчитанная по 3D-скану HRTF) убран 15.11 (решение пользователя: только
     # реальные головы); загрузка modeled (hrtf: "modeled") в load_fabian осталась — для своей рассчитанной головы.
+    # Studio CR7 с ушами живых людей из SADIE II (15.11, проба меню HEAD; решение пользователя — только реальные
+    # головы): H15 — самая «типичная» (ближе всех к среднему 18 человек по АЧХ уха для колонки спереди, 3–14 кГц,
+    # после диффузно-полевой эквализации), H3 — уши сильнее всех отличаются от H15 (7,8 dB), голова чуть крупнее
+    # (ITD 0,77 мс). HEAD — поворотом направлений (наборов HATO нет). Импульс — 16 бит (объём ресурсов).
+    dict(name="StudioCR7H15", space="StudioCR7", head_name="SADIE H15", hrtf="sadie:H15",
+         file="RoomStudioCR7H15.wav", sofa=("DRIR_CR7_VSA_110RS_L.sofa", "DRIR_CR7_VSA_110RS_R.sofa"),
+         early_ms=60.0, max_ms=650, bits=16, desc="WDR Control Room 7 (TH Köln WDR compilation, CC BY 4.0), SADIE II H15 (Apache 2.0)"),
+    dict(name="StudioCR7H3", space="StudioCR7", head_name="SADIE H3", hrtf="sadie:H3",
+         file="RoomStudioCR7H3.wav", sofa=("DRIR_CR7_VSA_110RS_L.sofa", "DRIR_CR7_VSA_110RS_R.sofa"),
+         early_ms=60.0, max_ms=650, bits=16, desc="WDR Control Room 7 (TH Köln WDR compilation, CC BY 4.0), SADIE II H3 (Apache 2.0)"),
     # Hall (15.11: прежде Club Real — не клуб, а зал): WDR Small Broadcast Studio — концертный зал для камерной музыки (1247 м³, ~160 мест, RT ≈ 0,9 с),
     # PA AD-Systems Stium Mid/High + Flex 15 Sub, ±33° на 6 м. Ближайшая к клубу открытая площадка с PA (проба 15.11).
     # Хвост — 16 бит (объём ресурсов).
@@ -345,6 +359,36 @@ class RotIR:
         return self.cache[j]
 
 
+def load_sadie(path):
+    """HRIR человека из SADIE II (Йоркский университет, Apache 2.0; 48 кГц, 2114–2818 направлений на 1,2 м) и своя
+    инверсная диффузно-полевая эквализация (у FABIAN — CTF из набора): средняя мощность по сфере (веса — площади ячеек
+    Вороного), сглаживание по третям октавы, обратная, в пределах ±15 dB, ниже 80 Гц и выше 18 кГц — без изменений,
+    минимально-фазовая (512 отсчётов)."""
+    from scipy.spatial import SphericalVoronoi
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        h = sf.read_sofa(path, verify=False)
+    assert float(h.Data_SamplingRate) == SR
+    ir = np.asarray(h.Data_IR, dtype=float)
+    pos = np.asarray(h.SourcePosition, dtype=float)
+    az, el = np.radians(pos[:, 0]), np.radians(pos[:, 1])
+    dirs = np.stack([np.cos(el) * np.cos(az), np.cos(el) * np.sin(az), np.sin(el)], axis=1)
+    _, idx = np.unique(np.round(dirs, 6), axis=0, return_index=True)
+    w = np.zeros(len(dirs))
+    w[idx] = SphericalVoronoi(dirs[idx] / np.linalg.norm(dirs[idx], axis=1, keepdims=True)).calculate_areas()
+    nfft = 512
+    freqs = np.fft.rfftfreq(nfft, 1 / SR)
+    pw = np.einsum("n,nef->f", w, np.abs(np.fft.rfft(ir, nfft, axis=-1)) ** 2) / (2 * w.sum())
+    pw = G.smooth_third(freqs, pw)
+    g = 1 / np.sqrt(np.maximum(pw, 1e-20))
+    ref = np.median(g[(freqs >= 200) & (freqs <= 2000)])
+    g = np.clip(g / ref, 10 ** (-15 / 20), 10 ** (15 / 20))
+    g = np.where(freqs < 80, g[np.argmin(np.abs(freqs - 80))], g)
+    g = np.where(freqs > 18000, g[np.argmin(np.abs(freqs - 18000))], g)
+    ctf = np.fft.irfft(G.min_phase(g, nfft), nfft)
+    return ir, ctf, dirs, getattr(h, "GLOBAL_License", ""), (lambda yaw: RotIR(ir, dirs, yaw))
+
+
 def load_fabian(folder, kind):
     """HRIR FABIAN (measured — как generate_rooms.load_hrtf, modeled — рассчитанная), инверсная CTF того же вида,
     направления; поворот головы — HatoIR по HATO (measured) или RotIR (modeled)."""
@@ -399,6 +443,8 @@ def main():
         sys.exit(1)
     fab, meas = sys.argv[1], sys.argv[2]
     report = "--report" in sys.argv
+    # Папка SADIE II: H<n>.sofa (48K_24bit_256tap из H<n>_HRIR_SOFA.zip).
+    sadie = sys.argv[sys.argv.index("--sadie") + 1] if "--sadie" in sys.argv else ""
     here = os.path.dirname(os.path.abspath(__file__))
     res = os.path.join(here, "..", "JAMbo.swiftpm", "Resources")
     heads = {}
@@ -406,8 +452,11 @@ def main():
     for cfg in ROOMS:
         kind = cfg.get("hrtf", "measured")
         if kind not in heads:
-            heads[kind] = load_fabian(fab, kind)
-            print("HRTF FABIAN %s:" % kind, heads[kind][0].shape, "license:", heads[kind][3])
+            if kind.startswith("sadie:"):
+                heads[kind] = load_sadie(os.path.join(sadie, kind[6:] + ".sofa"))
+            else:
+                heads[kind] = load_fabian(fab, kind)
+            print("HRTF %s:" % kind, heads[kind][0].shape, "license:", heads[kind][3][:80])
         ir, ctf, dirs, lic, sets = heads[kind]
         spks = [Speaker(os.path.join(meas, f)) for f in cfg["sofa"]]
         for s, f in zip(spks, cfg["sofa"]):

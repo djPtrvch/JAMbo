@@ -35,11 +35,8 @@ import generate_rooms as G  # noqa: E402
 
 SR = G.SR
 
-ROOMS = [
-    # Studio CR7 KU100 убран 15.11 (решение пользователя: с FABIAN — лучше).
-    dict(name="HallKU", space="Hall", head_name="KU100", file="RoomHallKU.wav", sofa=("BRIR_SBS_KU_ROTM_PAL.sofa", "BRIR_SBS_KU_ROTM_PAR.sofa"),
-         early_ms=80.0, max_ms=1000, bits=16, desc="WDR Small Broadcast Studio, PA, KU100 BRIR (TH Köln WDR compilation, CC BY 4.0)"),
-]
+# Hall KU100 убран 15.11 (решение пользователя: у Hall — только FABIAN); конфигурации — в истории git.
+ROOMS = []
 
 
 def load_brir(path):
