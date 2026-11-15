@@ -64,10 +64,10 @@ ROOMS = [
     # +30° на 2,65 м и −25° на 3,11 м, как стояли в замере). Проба 15.11 — для сравнения с CR1.
     dict(name="StudioCR7", file="RoomStudioCR7.wav", sofa=("DRIR_CR7_VSA_110RS_L.sofa", "DRIR_CR7_VSA_110RS_R.sofa"),
          early_ms=60.0, max_ms=650, desc="WDR Control Room 7 (TH Köln WDR compilation, CC BY 4.0)"),
-    # Club Real: WDR Small Broadcast Studio — концертный зал для камерной музыки (1247 м³, ~160 мест, RT ≈ 0,9 с),
+    # Hall (15.11: прежде Club Real — не клуб, а зал): WDR Small Broadcast Studio — концертный зал для камерной музыки (1247 м³, ~160 мест, RT ≈ 0,9 с),
     # PA AD-Systems Stium Mid/High + Flex 15 Sub, ±33° на 6 м. Ближайшая к клубу открытая площадка с PA (проба 15.11).
     # Хвост — 16 бит (объём ресурсов).
-    dict(name="ClubReal", file="RoomClubReal.wav", sofa=("DRIR_SBS_VSA_110RS_PAL.sofa", "DRIR_SBS_VSA_110RS_PAR.sofa"),
+    dict(name="Hall", file="RoomHall.wav", sofa=("DRIR_SBS_VSA_110RS_PAL.sofa", "DRIR_SBS_VSA_110RS_PAR.sofa"),
          early_ms=80.0, max_ms=1000, bits=16,
          desc="WDR Small Broadcast Studio, PA (TH Köln WDR compilation, CC BY 4.0)"),
 ]

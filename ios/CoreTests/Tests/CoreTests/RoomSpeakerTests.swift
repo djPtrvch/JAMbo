@@ -32,19 +32,20 @@ final class RoomSpeakerTests: XCTestCase {
     func testRoomsHaveSpeakers() {
         let rooms = RoomTests.rooms()
         XCTAssertFalse(rooms.isEmpty)
-        // Комнаты по замерам (StudioCR7, ClubReal и их KU100): срез низа колонок уже в импульсах — фильтра нет.
-        for r in rooms where r.name == "Studio" {
-            XCTAssertGreaterThan(r.hpHz, 20, r.name)
-            XCTAssertTrue(r.hpOrder == 2 || r.hpOrder == 4, r.name)
+        // С 15.11 все комнаты — по замерам: срез низа колонок уже в импульсах, фильтра нет (у моделей был — 20…85 Гц).
+        for r in rooms {
+            XCTAssertEqual(r.hpHz, 0, r.name)
+            XCTAssertEqual(r.hpOrder, 0, r.name)
         }
     }
 
-    /// Срез низа = Баттерворт (±0,5 dB на 30 и 60 Гц), на 1 кГц без изменений (±0,1 dB).
+    /// Срез низа = Баттерворт (±0,5 dB на 30 и 60 Гц), на 1 кГц без изменений (±0,1 dB). Комнат со срезом в
+    /// rooms.json нет (15.11) — срез модели Studio (40 Гц, 4-й порядок) на импульсе первой комнаты.
     func testHighpassMatchesButterworth() {
-        let rooms = RoomTests.rooms()
-        let k: Int = rooms.firstIndex { $0.name == "Studio" } ?? 0
-        let info = rooms[k]
-        let ir = RoomTests.ir(k)
+        let info = RoomInfo(name: "test", file: "", gainDb: 0, direct: 128)
+        info.hpHz = 40
+        info.hpOrder = 4
+        let ir = RoomTests.ir(0)
         for hz in [30.0, 60.0, 1000.0] {
             let plain = RoomConv(ir: ir)
             let cut = RoomConv(ir: ir)
@@ -91,7 +92,7 @@ final class RoomSwitchTests: XCTestCase {
 
     func testEarToneSwitchKeepsTail() {
         let rooms = RoomTests.rooms()
-        let k: Int = rooms.firstIndex { $0.name == "Studio" } ?? 0
+        let k: Int = rooms.firstIndex { $0.name == "Hall" } ?? 0
         let info = rooms[k]
         let ir = RoomTests.ir(k)
         let d = try! Data(contentsOf: RoomTests.res.appendingPathComponent(info.flatFile))

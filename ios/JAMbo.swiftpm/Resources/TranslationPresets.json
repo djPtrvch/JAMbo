@@ -1,24 +1,23 @@
 {
   "presets": [
-    { "name": "Off", "filters": [] },
-    { "name": "Studio", "room": "Studio", "filters": [
-      { "type": "HP", "freq": 30 },
-      { "type": "LS", "freq": 120, "gain": 1.5 },
-      { "type": "HS", "freq": 5000, "gain": -2 }
-    ] },
-    { "name": "Studio CR7", "room": "StudioCR7", "filters": [] },
-    { "name": "Studio CR7 KU100", "room": "StudioCR7KU", "filters": [] },
-    { "name": "Club Real", "room": "ClubReal", "filters": [] },
-    { "name": "Club Real KU100", "room": "ClubRealKU", "filters": [] },
-    { "name": "Phone", "mono": true, "filters": [
-      { "type": "HP", "freq": 300 },
-      { "type": "LP", "freq": 12000 },
-      { "type": "PK", "freq": 2500, "gain": 3, "q": 1 }
-    ] },
-    { "name": "Earbuds", "filters": [
-      { "type": "HP", "freq": 80 },
-      { "type": "PK", "freq": 3000, "gain": 2, "q": 1 },
-      { "type": "HS", "freq": 10000, "gain": -2 }
-    ] }
+    {
+      "name": "Off",
+      "filters": []
+    },
+    {
+      "name": "Studio CR7",
+      "room": "StudioCR7",
+      "filters": []
+    },
+    {
+      "name": "Hall",
+      "room": "Hall",
+      "filters": []
+    },
+    {
+      "name": "Hall KU100",
+      "room": "HallKU",
+      "filters": []
+    }
   ]
 }

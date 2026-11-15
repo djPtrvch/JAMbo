@@ -12,6 +12,13 @@ final class MonitorTests: XCTestCase {
         return e
     }
 
+    /// Тембр «телефона» для проверок цепочки (моно, срезы, подъём середины; пункта Phone в меню нет с 15.11).
+    private static let phone = TranslationPreset(name: "Phone", mono: true, filters: [
+        .init(type: "HP", freq: 300, gain: nil, q: nil, order: nil),
+        .init(type: "LP", freq: 12000, gain: nil, q: nil, order: nil),
+        .init(type: "PK", freq: 2500, gain: 3, q: 1, order: nil),
+    ])
+
     private func presets() -> [TranslationPreset] {
         let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
             .deletingLastPathComponent().deletingLastPathComponent()
@@ -90,10 +97,10 @@ final class MonitorTests: XCTestCase {
         full.sub = true
         var off: Eq = sony()
         off.on = false
-        let (b, _) = chain(sony(), full, correct: MonitorTests.curve([100, 400, 1500, 8000], [2, -2, 1, 3]), preset: presets().first { $0.name == "Phone" })
+        let (b, _) = chain(sony(), full, correct: MonitorTests.curve([100, 400, 1500, 8000], [2, -2, 1, 3]), preset: MonitorTests.phone)
         _ = run(b, blocks: 20, noise(2))
         b.publish(MonitorDesign.make(eq: off, settings: full, correct: MonitorTests.curve([100, 400, 1500, 8000], [2, -2, 1, 3]),
-                                     preset: presets().first { $0.name == "Phone" }, sampleRate: 48000))
+                                     preset: MonitorTests.phone, sampleRate: 48000))
         _ = run(b, blocks: 10, noise(3))
         let o2 = run(b, blocks: 20, noise(4))
         XCTAssertEqual(o2.l, o2.inL)
@@ -131,13 +138,14 @@ final class MonitorTests: XCTestCase {
         XCTAssertEqual(MonitorDesign.response(p, hz: 1000, sampleRate: 48000), 12, accuracy: 1e-6)
     }
 
-    /// Translation: пресеты из JSON; Phone — моно, срез низа, компенсация вверх (≤ 12 dB); Sub-check — соло НЧ.
+    /// Translation: пресеты из JSON (15.11 — только пространства по замерам); тембр «телефона» — моно, срез низа,
+    /// компенсация вверх (≤ 12 dB); Sub-check — соло НЧ.
     func testTranslationAndSub() {
         let list: [TranslationPreset] = presets()
-        XCTAssertEqual(list.map { $0.name }, ["Off", "Studio", "Studio CR7", "Studio CR7 KU100", "Club Real", "Club Real KU100", "Phone", "Earbuds"])
-        // Пространство пунктов — комнаты rooms.json; у Off, Phone и Earbuds — нет.
-        XCTAssertEqual(list.map { $0.room ?? "-" }, ["-", "Studio", "StudioCR7", "StudioCR7KU", "ClubReal", "ClubRealKU", "-", "-"])
-        guard let phone = list.first(where: { $0.name == "Phone" }) else { return XCTFail() }
+        XCTAssertEqual(list.map { $0.name }, ["Off", "Studio CR7", "Hall", "Hall KU100"])
+        // Пространство пунктов — комнаты rooms.json; у Off — нет.
+        XCTAssertEqual(list.map { $0.room ?? "-" }, ["-", "StudioCR7", "Hall", "HallKU"])
+        let phone: TranslationPreset = MonitorTests.phone
         var m = MonitorSettings()
         let p: [Double] = MonitorDesign.make(eq: nil, settings: m, correct: nil, preset: phone, sampleRate: 48000)
         XCTAssertEqual(p[MonitorSpec.monoAt], 1)
@@ -167,7 +175,10 @@ final class MonitorTests: XCTestCase {
         m.editCorrect = true
         m.refMonitor = false
         m.refTrim = -3.5
+        m.bypassSpace = true
         let back = MonitorSettings(plist: m.plist)
+        XCTAssertTrue(back.bypassSpace)
+        XCTAssertFalse(back.bypassCorr)
         XCTAssertEqual(back.strength, 0.4)
         XCTAssertEqual(back.translation, "Car")
         XCTAssertTrue(back.mono)
@@ -176,7 +187,7 @@ final class MonitorTests: XCTestCase {
         XCTAssertEqual(back.refTrim, -3.5)
         let bad = MonitorSettings(plist: ["ambienceDb": 500, "refTrim": -40, "mono": "x"])
         XCTAssertEqual(bad.ambienceDb, 0)
-        XCTAssertEqual(bad.translation, "Studio")
+        XCTAssertEqual(bad.translation, "Studio CR7")
         XCTAssertEqual(bad.refTrim, -12)
         XCTAssertFalse(bad.mono)
         XCTAssertEqual(MonitorSettings(plist: nil).strength, 1)
@@ -326,9 +337,9 @@ final class MonitorTests: XCTestCase {
             let s = SampleData(left: (0..<48000).map { Float(0.5 * sin(2 * Double.pi * 220 * Double($0) / 48000)) }, right: nil)
             core.publish(p, samples: ["s": s])
             var m = MonitorSettings()
-            m.translation = "Studio"
+            m.translation = "Studio CR7"
             core.monitor.publish(MonitorDesign.make(eq: self.sony(), settings: m, correct: MonitorTests.curve([100, 8000], [3, -3]),
-                                                    preset: self.presets().first { $0.name == "Studio" }, sampleRate: 48000))
+                                                    preset: self.presets().first { $0.name == "Studio CR7" }, sampleRate: 48000))
             core.monitor.paused.store(paused ? 1 : 0)
             core.spectra.channel.store(EqSpec.phonesChannel)
             var bl = [Float](repeating: 0, count: 256), br = [Float](repeating: 0, count: 256)

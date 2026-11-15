@@ -3,7 +3,8 @@ import SwiftUI
 /// Строка Headphone Monitor под строкой EQ окна коррекции — где и на чём звучит: SPACE (пункт TRANSLATION — тембр и пространство
 /// пункта; удержание пункта в меню — сохранить профиль), AMBIENCE (сколько пространства; у пунктов без него — серое), EAR TONE
 /// (окраска уха в прямом звуке), проверки MONO и SUB, HEAD TRACK (отслеживание головы).
-/// Строка EQ — коррекция наушников: PHONE CURVE, CORRECT CURVE, CORRECTION, LEVEL, PRESETS, BYPASS. Поля — как у EQ:
+/// Строка EQ — коррекция наушников: PHONE CURVE, CORRECT CURVE, CORRECTION, LEVEL, PRESETS, BYPASS (на две строки —
+/// MonitorBypass; справа в строке MONITOR под него место). Поля — как у EQ:
 /// палец вверх-вниз, двойной тап — значение по умолчанию.
 struct MonitorBar: View {
     let model: AppModel
@@ -17,7 +18,10 @@ struct MonitorBar: View {
             AnyView(EqTool(title: "SUB", enabled: true, active: s.sub) { m.setMonitor { $0.sub.toggle() } }),
             AnyView(HeadButton(model: m)),
         ]
-        return MonitorRow(name: "MONITOR", items: items, height: m.barH)
+        // Справа — место под BYPASS строки EQ (он на две строки; столбец под ARRANGE).
+        let top: TopFrames = m.topFrames
+        let right: CGFloat = top.ready ? top.arrange.width + Layout.gap : 0
+        return MonitorRow(name: "MONITOR", items: items, height: m.barH).padding(.trailing, right)
     }
 
     /// Поле монитора k (AppModel.monitorField): одни замыкания на все поля (объём сборки).
@@ -48,6 +52,35 @@ struct HeadButton: View {
         .tile(lit ? theme.accent : theme.panel2)
         .contentShape(Rectangle())
         .onTapGesture { m.headTap() }
+    }
+}
+
+/// BYPASS окна коррекции (15.11, решение пользователя): одна высокая кнопка на строки EQ и MONITOR из двух половин —
+/// верх выключает коррекцию наушников (PHONE CURVE и CORRECT CURVE), низ — пространство (SPACE); горит — в обходе;
+/// обе — вся цепочка в обход.
+struct MonitorBypass: View {
+    let model: AppModel
+
+    var body: some View {
+        let m: AppModel = model
+        return VStack(spacing: 0) {
+            half("BYPASS\nPHONES", m.bypassCorrShown, true)
+            Rectangle().fill(theme.line).frame(height: 1)
+            half("BYPASS\nSPACE", m.bypassSpaceShown, false)
+        }
+        .background(theme.panel2)
+        .clipShape(RoundedRectangle(cornerRadius: Layout.radius))
+    }
+
+    private func half(_ t: String, _ on: Bool, _ top: Bool) -> some View {
+        let m: AppModel = model
+        return Text(t).font(.system(size: 12, weight: .bold)).tracking(0.8).multilineTextAlignment(.center)
+            .lineLimit(2).minimumScaleFactor(0.6)
+            .foregroundStyle(on ? theme.onAccent : theme.text)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(on ? theme.accent : Color.clear)
+            .contentShape(Rectangle())
+            .onTapGesture { m.toggleMonitorBypass(top: top) }
     }
 }
 

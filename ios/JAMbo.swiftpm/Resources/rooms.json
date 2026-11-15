@@ -1,55 +1,6 @@
 {
   "rooms": [
     {
-      "name": "Studio",
-      "file": "RoomStudio.wav",
-      "rt60": 0.25,
-      "size": [
-        4.5,
-        3.5,
-        2.8
-      ],
-      "listener": [
-        2.199,
-        1.75,
-        1.2
-      ],
-      "speakers": [
-        [
-          0.9,
-          1.0,
-          1.2
-        ],
-        [
-          0.9,
-          2.5,
-          1.2
-        ]
-      ],
-      "gain_db": -6.74,
-      "length_ms": 300.0,
-      "direct": 128,
-      "channels": "LL, LR, RL, RR",
-      "speaker": {
-        "hp_hz": 40,
-        "hp_order": 4,
-        "ft_hz": 2000
-      },
-      "head": {
-        "file": "RoomStudioHead.wav",
-        "from_deg": -50,
-        "step_deg": 2,
-        "count": 51,
-        "gain_db": -2.743
-      },
-      "flat": {
-        "file": "RoomStudioFlat.wav",
-        "gain_db": -5.606,
-        "head_file": "RoomStudioFlatHead.wav",
-        "head_gain_db": -1.44
-      }
-    },
-    {
       "name": "StudioCR7",
       "file": "RoomStudioCR7.wav",
       "source": "srir",
@@ -79,8 +30,8 @@
       }
     },
     {
-      "name": "ClubReal",
-      "file": "RoomClubReal.wav",
+      "name": "Hall",
+      "file": "RoomHall.wav",
       "source": "srir",
       "measurement": "WDR Small Broadcast Studio, PA (TH Köln WDR compilation, CC BY 4.0)",
       "rt60": 0.927,
@@ -94,50 +45,22 @@
         "ft_hz": 0
       },
       "head": {
-        "file": "RoomClubRealHead.wav",
+        "file": "RoomHallHead.wav",
         "from_deg": -50,
         "step_deg": 2,
         "count": 51,
         "gain_db": -8.551
       },
       "flat": {
-        "file": "RoomClubRealFlat.wav",
+        "file": "RoomHallFlat.wav",
         "gain_db": -7.762,
-        "head_file": "RoomClubRealFlatHead.wav",
+        "head_file": "RoomHallFlatHead.wav",
         "head_gain_db": -5.763
       }
     },
     {
-      "name": "StudioCR7KU",
-      "file": "RoomStudioCR7KU.wav",
-      "source": "brir",
-      "measurement": "WDR Control Room 7, KU100 BRIR (TH Köln WDR compilation, CC BY 4.0)",
-      "gain_db": -7.003,
-      "length_ms": 500.0,
-      "direct": 128,
-      "channels": "LL, LR, RL, RR",
-      "speaker": {
-        "hp_hz": 0,
-        "hp_order": 0,
-        "ft_hz": 0
-      },
-      "head": {
-        "file": "RoomStudioCR7KUHead.wav",
-        "from_deg": -50,
-        "step_deg": 2,
-        "count": 51,
-        "gain_db": -3.396
-      },
-      "flat": {
-        "file": "RoomStudioCR7KUFlat.wav",
-        "gain_db": -6.137,
-        "head_file": "RoomStudioCR7KUFlatHead.wav",
-        "head_gain_db": -3.197
-      }
-    },
-    {
-      "name": "ClubRealKU",
-      "file": "RoomClubRealKU.wav",
+      "name": "HallKU",
+      "file": "RoomHallKU.wav",
       "source": "brir",
       "measurement": "WDR Small Broadcast Studio, PA, KU100 BRIR (TH Köln WDR compilation, CC BY 4.0)",
       "gain_db": -8.295,
@@ -150,16 +73,16 @@
         "ft_hz": 0
       },
       "head": {
-        "file": "RoomClubRealKUHead.wav",
+        "file": "RoomHallKUHead.wav",
         "from_deg": -50,
         "step_deg": 2,
         "count": 51,
         "gain_db": -6.501
       },
       "flat": {
-        "file": "RoomClubRealKUFlat.wav",
+        "file": "RoomHallKUFlat.wav",
         "gain_db": -7.596,
-        "head_file": "RoomClubRealKUFlatHead.wav",
+        "head_file": "RoomHallKUFlatHead.wav",
         "head_gain_db": -4.088
       }
     }

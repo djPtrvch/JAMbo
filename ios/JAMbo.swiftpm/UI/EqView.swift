@@ -189,7 +189,7 @@ struct EqBar: View {
         return ZStack(alignment: .topLeading) {
             name.frame(width: EqBar.nameWidth, height: model.barH)
             ForEach(0..<EqBar.columns, id: \.self) { i in
-                item(i).frame(width: slots[i].w, height: model.barH).offset(x: slots[i].x)
+                item(i).frame(width: slots[i].w, height: itemHeight(i)).offset(x: slots[i].x)
             }
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -275,12 +275,18 @@ struct EqBar: View {
         case 5: return phones ? MonitorBar.field(model, 1) : AnyView(dynField(b))
         case 6: return phones ? AnyView(MonitorLevel(model: model)) : AnyView(EqListenButton(model: model, enabled: true))
         case 7: return AnyView(presetsButton)
-        // У коррекции наушников BYPASS — вся монитор-цепочка (Headphone Monitor).
+        // У коррекции наушников BYPASS — на две строки (EQ и MONITOR), из двух половин (MonitorBypass).
         default:
             let m: AppModel = model
-            let off: Bool = m.phonesShown ? !m.phonesEq.on : !m.eqTarget.on
-            return AnyView(EqTool(title: "BYPASS", enabled: true, active: off) { m.toggleEqBypass() })
+            if phones { return AnyView(MonitorBypass(model: m)) }
+            return AnyView(EqTool(title: "BYPASS", enabled: true, active: !m.eqTarget.on) { m.toggleEqBypass() })
         }
+    }
+
+    /// Высота столбца: BYPASS окна коррекции — на строку EQ и строку MONITOR под ней.
+    private func itemHeight(_ i: Int) -> CGFloat {
+        let h: CGFloat = model.barH
+        return i == EqBar.columns - 1 && model.phonesShown ? 2 * h + Layout.barGap : h
     }
 
     /// PRESETS: меню пресетов EQ под кнопкой (горит, пока открыто).

@@ -36,9 +36,8 @@ import generate_rooms as G  # noqa: E402
 SR = G.SR
 
 ROOMS = [
-    dict(name="StudioCR7KU", file="RoomStudioCR7KU.wav", sofa=("BRIR_CR7_KU_ROTM_L.sofa", "BRIR_CR7_KU_ROTM_R.sofa"),
-         early_ms=60.0, max_ms=500, bits=16, desc="WDR Control Room 7, KU100 BRIR (TH Köln WDR compilation, CC BY 4.0)"),
-    dict(name="ClubRealKU", file="RoomClubRealKU.wav", sofa=("BRIR_SBS_KU_ROTM_PAL.sofa", "BRIR_SBS_KU_ROTM_PAR.sofa"),
+    # Studio CR7 KU100 убран 15.11 (решение пользователя: с FABIAN — лучше).
+    dict(name="HallKU", file="RoomHallKU.wav", sofa=("BRIR_SBS_KU_ROTM_PAL.sofa", "BRIR_SBS_KU_ROTM_PAR.sofa"),
          early_ms=80.0, max_ms=1000, bits=16, desc="WDR Small Broadcast Studio, PA, KU100 BRIR (TH Köln WDR compilation, CC BY 4.0)"),
 ]
 

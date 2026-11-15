@@ -58,13 +58,39 @@ extension AppModel {
         return q
     }
 
+    /// Пункт SPACE в звуке: нижняя половина BYPASS — нет (пункт в поле остаётся).
+    var spacePreset: TranslationPreset? { return monitor.bypassSpace ? nil : translationPreset }
+
     /// Цепочка прослушивания меняет звук (значок наушников над CPU, 8.11): коррекция не в BYPASS и есть что-то из
-    /// PHONE CURVE (при CORRECTION > 0), CORRECT CURVE, SPACE (не Off), MONO, SUB. BYPASS выключает всё сразу.
+    /// PHONE CURVE (при CORRECTION > 0), CORRECT CURVE, SPACE (не Off), MONO, SUB. Обе половины BYPASS — всё сразу.
     var monitorAudible: Bool {
         if !phonesEq.on { return false }
-        let curve: Bool = monitor.strength > 0 && phonesEq.bands.contains { $0?.on ?? false }
-        let correct: Bool = correctEq.bands.contains { $0?.on ?? false }
-        return curve || correct || translationPreset != nil || monitor.mono || monitor.sub
+        let corr: Bool = !monitor.bypassCorr
+        let curve: Bool = corr && monitor.strength > 0 && phonesEq.bands.contains { $0?.on ?? false }
+        let correct: Bool = corr && correctEq.bands.contains { $0?.on ?? false }
+        return curve || correct || spacePreset != nil || monitor.mono || monitor.sub
+    }
+
+    /// BYPASS окна коррекции (15.11): верхняя половина — коррекция наушников, нижняя — пространство; горит — в обходе.
+    /// Прежний BYPASS (вся цепочка, Eq.on) — обе половины сразу.
+    var bypassCorrShown: Bool { return monitor.bypassCorr || !phonesEq.on }
+    var bypassSpaceShown: Bool { return monitor.bypassSpace || !phonesEq.on }
+
+    /// Тап по половине BYPASS (top — верхняя): одна правка UNDO.
+    func toggleMonitorBypass(top: Bool) {
+        var c: Bool = bypassCorrShown
+        var sp: Bool = bypassSpaceShown
+        if top { c.toggle() } else { sp.toggle() }
+        monitorRecord()
+        var e: Eq = phonesEq
+        e.on = !(c && sp)
+        phonesEq = e
+        UserDefaults.standard.set(try? JSONEncoder().encode(e), forKey: AppModel.phonesEqKey)
+        setMonitor(record: false) { m in
+            m.bypassCorr = c
+            m.bypassSpace = sp
+        }
+        syncRoom()
     }
 
     /// Выбрать пункт TRANSLATION: тембр — сразу, пространство (комната пункта) — в фоне. Есть профиль пункта —
@@ -105,10 +131,15 @@ extension AppModel {
 
     /// Параметры цепочки по текущим настройкам (с комнатой — когда её отклик готов).
     func monitorDesign() -> [Double] {
-        let resp: RoomResponse? = roomOn ? roomLoaded?.resp : nil
-        return MonitorDesign.make(eq: phonesEq, settings: monitor, correct: correctEq, preset: translationPreset,
-                                  room: resp, ambience: MonitorSpec.ambience(monitor.ambienceDb),
-                                  sampleRate: AudioCore.sampleRate)
+        let resp: RoomResponse? = roomActive != nil ? roomLoaded?.resp : nil
+        // Верхняя половина BYPASS — без кривых коррекции; цепочка включена, пока не в обходе обе половины.
+        let corr: Bool = !monitor.bypassCorr
+        var p: [Double] = MonitorDesign.make(eq: corr ? phonesEq : nil, settings: monitor, correct: corr ? correctEq : nil,
+                                             preset: spacePreset, room: resp,
+                                             ambience: MonitorSpec.ambience(monitor.ambienceDb),
+                                             sampleRate: AudioCore.sampleRate)
+        p[MonitorSpec.onAt] = phonesEq.on ? 1 : 0
+        return p
     }
 
     // MARK: — Room (фаза 2)
@@ -134,13 +165,16 @@ extension AppModel {
     /// У пункта есть пространство.
     var roomOn: Bool { return roomInfo != nil }
 
+    /// Пространство в звуке: нижняя половина BYPASS — нет (поля AMBIENCE, EAR TONE, HEAD TRACK остаются доступны).
+    var roomActive: RoomInfo? { return monitor.bypassSpace ? nil : roomInfo }
+
     /// Свёртка комнаты пункта — звуку (при запуске, выборе пункта, EAR TONE, UNDO): импульсы — один раз на комнату, смесь
     /// по EAR TONE, свёртка и отклик — в фоне, затем в звук (переход 40 мс). Пока идёт сборка, новая не начинается — по её
     /// окончании синхронизация повторяется (EAR TONE при движении пальца не копит очередь).
     func syncRoom() {
         syncHead()
         let stage: RoomStage = audio.core.monitor.room
-        guard let info = roomInfo else {
+        guard let info = roomActive else {
             stage.set(nil)
             roomLoaded = nil
             publishMonitor()
@@ -167,7 +201,7 @@ extension AppModel {
                 self.roomBuilding = false
                 guard let s = set, let c = conv, let r = resp else { return }
                 self.roomSet = s
-                if self.roomInfo?.name == info.name {
+                if self.roomActive?.name == info.name {
                     self.roomLoaded = (key, r)
                     stage.set(c)
                     self.publishMonitor()

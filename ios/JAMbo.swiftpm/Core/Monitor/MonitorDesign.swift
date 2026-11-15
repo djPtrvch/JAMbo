@@ -13,8 +13,8 @@ import Foundation
 public struct MonitorSettings {
     /// CORRECTION (сила коррекции профилем), 0…1.
     public var strength: Double = 1
-    /// Пункт TRANSLATION (тембр и пространство; по умолчанию Studio).
-    public var translation: String = "Studio"
+    /// Пункт TRANSLATION (тембр и пространство; по умолчанию Studio CR7 — 15.11, модель Studio убрана).
+    public var translation: String = "Studio CR7"
     public var mono: Bool = false
     public var sub: Bool = false
     /// Ambience — громкость пространства (отражений и хвоста), dB (−60 и ниже — −∞; по умолчанию −6).
@@ -32,6 +32,10 @@ public struct MonitorSettings {
     /// Подгонка громкости референса к миксу и ручная подстройка (±12 dB).
     public var refMatch: Bool = true
     public var refTrim: Double = 0
+    /// BYPASS из двух половин (15.11, решение пользователя): верх — коррекция наушников (PHONE CURVE и CORRECT CURVE),
+    /// низ — пространство (SPACE: комната и тембр пункта). Обе — вся цепочка в обход (Eq.on коррекции — false).
+    public var bypassCorr: Bool = false
+    public var bypassSpace: Bool = false
 
     public init() {}
 
@@ -44,7 +48,7 @@ public struct MonitorSettings {
         }
         func flag(_ k: String, _ def: Bool) -> Bool { return (g[k] as? NSNumber)?.boolValue ?? def }
         strength = num("strength", 1, 0, 1)
-        translation = g["translation"] as? String ?? "Studio"
+        translation = g["translation"] as? String ?? "Studio CR7"
         mono = flag("mono", false)
         sub = flag("sub", false)
         editCorrect = flag("editCorrect", false)
@@ -57,6 +61,8 @@ public struct MonitorSettings {
         refMonitor = flag("refMonitor", true)
         refMatch = flag("refMatch", true)
         refTrim = num("refTrim", 0, -12, 12)
+        bypassCorr = flag("bypassCorr", false)
+        bypassSpace = flag("bypassSpace", false)
     }
 
     /// Словарь для UserDefaults.
@@ -64,7 +70,7 @@ public struct MonitorSettings {
         return ["strength": strength, "translation": translation, "mono": mono,
                 "sub": sub, "editCorrect": editCorrect, "ambienceDb": ambienceDb, "raw": raw,
                 "spaces": spaces.mapValues { $0.plist }, "refMaster": refMaster, "refMonitor": refMonitor, "refMatch": refMatch,
-                "refTrim": refTrim]
+                "refTrim": refTrim, "bypassCorr": bypassCorr, "bypassSpace": bypassSpace]
     }
 }
 
