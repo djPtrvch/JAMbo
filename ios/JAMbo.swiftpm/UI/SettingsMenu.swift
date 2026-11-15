@@ -264,7 +264,7 @@ struct MonitorSettingsRows: View {
                 MenuChoice(title: "0", current: s.refTrim == 0) { m.setMonitor { $0.refTrim = 0 } },
                 MenuChoice(title: "+0.5 dB", current: false) { m.setMonitor { $0.refTrim = Swift.min(12, $0.refTrim + 0.5) } },
             ]),
-            .note("The spaces of SPACE (Studio) are built with the FABIAN head-related transfer function data base (F. Brinkmann et al., TU Berlin), licensed under CC BY 4.0. Studio Real and Studio CR7 are rendered from the spatial room impulse responses of WDR Control Rooms 1 and 7 (A Spatial Audio Impulse Response Compilation Captured at the WDR Broadcast Studios, P. Stade, B. Bernschütz, M. Rühl, TH Köln), licensed under CC BY 4.0."),
+            .note("The spaces of SPACE (Studio) are built with the FABIAN head-related transfer function data base (F. Brinkmann et al., TU Berlin), licensed under CC BY 4.0. Studio CR7 and Club Real are rendered from the spatial room impulse responses, and their KU100 versions from the Neumann KU100 binaural room impulse responses, of WDR Control Room 7 and the WDR Small Broadcast Studio (A Spatial Audio Impulse Response Compilation Captured at the WDR Broadcast Studios, P. Stade, B. Bernschütz, M. Rühl, TH Köln), licensed under CC BY 4.0."),
         ])
     }
 }

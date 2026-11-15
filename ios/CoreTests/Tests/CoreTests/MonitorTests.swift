@@ -134,9 +134,9 @@ final class MonitorTests: XCTestCase {
     /// Translation: пресеты из JSON; Phone — моно, срез низа, компенсация вверх (≤ 12 dB); Sub-check — соло НЧ.
     func testTranslationAndSub() {
         let list: [TranslationPreset] = presets()
-        XCTAssertEqual(list.map { $0.name }, ["Off", "Studio", "Studio Real", "Studio CR7", "Phone", "Earbuds"])
+        XCTAssertEqual(list.map { $0.name }, ["Off", "Studio", "Studio CR7", "Studio CR7 KU100", "Club Real", "Club Real KU100", "Phone", "Earbuds"])
         // Пространство пунктов — комнаты rooms.json; у Off, Phone и Earbuds — нет.
-        XCTAssertEqual(list.map { $0.room ?? "-" }, ["-", "Studio", "StudioReal", "StudioCR7", "-", "-"])
+        XCTAssertEqual(list.map { $0.room ?? "-" }, ["-", "Studio", "StudioCR7", "StudioCR7KU", "ClubReal", "ClubRealKU", "-", "-"])
         guard let phone = list.first(where: { $0.name == "Phone" }) else { return XCTFail() }
         var m = MonitorSettings()
         let p: [Double] = MonitorDesign.make(eq: nil, settings: m, correct: nil, preset: phone, sampleRate: 48000)

@@ -32,8 +32,8 @@ final class RoomSpeakerTests: XCTestCase {
     func testRoomsHaveSpeakers() {
         let rooms = RoomTests.rooms()
         XCTAssertFalse(rooms.isEmpty)
-        // Комнаты по замерам (StudioReal, StudioCR7): срез низа колонок уже в импульсах — фильтра нет.
-        for r in rooms where !["StudioReal", "StudioCR7"].contains(r.name) {
+        // Комнаты по замерам (StudioCR7, ClubReal и их KU100): срез низа колонок уже в импульсах — фильтра нет.
+        for r in rooms where r.name == "Studio" {
             XCTAssertGreaterThan(r.hpHz, 20, r.name)
             XCTAssertTrue(r.hpOrder == 2 || r.hpOrder == 4, r.name)
         }

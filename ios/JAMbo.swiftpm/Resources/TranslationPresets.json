@@ -6,8 +6,10 @@
       { "type": "LS", "freq": 120, "gain": 1.5 },
       { "type": "HS", "freq": 5000, "gain": -2 }
     ] },
-    { "name": "Studio Real", "room": "StudioReal", "filters": [] },
     { "name": "Studio CR7", "room": "StudioCR7", "filters": [] },
+    { "name": "Studio CR7 KU100", "room": "StudioCR7KU", "filters": [] },
+    { "name": "Club Real", "room": "ClubReal", "filters": [] },
+    { "name": "Club Real KU100", "room": "ClubRealKU", "filters": [] },
     { "name": "Phone", "mono": true, "filters": [
       { "type": "HP", "freq": 300 },
       { "type": "LP", "freq": 12000 },

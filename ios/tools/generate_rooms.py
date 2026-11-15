@@ -576,11 +576,11 @@ def main():
             print("   " + " ".join("%g:%+.1f" % (f, d) for f, d in zip(np.round(c), dev)))
             c2, db2 = third_octave(h * 10 ** (gain_db / 20), nfft)
             print("   full IR:  " + " ".join("%g:%+.1f" % (f, d) for f, d in zip(np.round(c2), db2 - np.mean(db2))))
-    # Комнаты по замерам (generate_room_srir.py, "source": "srir") — сохраняются.
+    # Комнаты по замерам (generate_room_srir.py — "srir", generate_room_brir.py — "brir") — сохраняются.
     path = os.path.join(res, "rooms.json")
     if os.path.exists(path):
         with open(path) as f:
-            meta += [r for r in json.load(f).get("rooms", []) if r.get("source") == "srir"]
+            meta += [r for r in json.load(f).get("rooms", []) if r.get("source") in ("srir", "brir")]
     with open(path, "w") as f:
         json.dump(dict(rooms=meta, hrtf="FABIAN HRTF data base v4, TU Berlin, CC BY 4.0, DOI 10.14279/depositonce-5718.5"),
                   f, indent=2, ensure_ascii=False)

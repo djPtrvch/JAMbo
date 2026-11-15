@@ -59,13 +59,17 @@ TAIL_XO = 200.0
 TAIL_BANDS = np.array([250, 500, 1000, 2000, 4000, 8000, 16000], dtype=float)
 
 ROOMS = [
-    # Studio Real: WDR Control Room 1 (классическая музыка, Lawo mc²82, хорошо оценена звукорежиссёрами WDR).
-    dict(name="StudioReal", file="RoomStudioReal.wav", sofa=("DRIR_CR1_VSA_110RS_L.sofa", "DRIR_CR1_VSA_110RS_R.sofa"),
-         early_ms=50.0, max_ms=450, desc="WDR Control Room 1 (TH Köln WDR compilation, CC BY 4.0)"),
+    # Studio Real (WDR Control Room 1) убран 15.11 (решение пользователя: оставлена CR7).
     # Studio CR7: WDR Control Room 7 (радиоспектакли; 168 м³, RT ≈ 0,4 с, перепады высот; колонки по метаданным —
     # +30° на 2,65 м и −25° на 3,11 м, как стояли в замере). Проба 15.11 — для сравнения с CR1.
     dict(name="StudioCR7", file="RoomStudioCR7.wav", sofa=("DRIR_CR7_VSA_110RS_L.sofa", "DRIR_CR7_VSA_110RS_R.sofa"),
          early_ms=60.0, max_ms=650, desc="WDR Control Room 7 (TH Köln WDR compilation, CC BY 4.0)"),
+    # Club Real: WDR Small Broadcast Studio — концертный зал для камерной музыки (1247 м³, ~160 мест, RT ≈ 0,9 с),
+    # PA AD-Systems Stium Mid/High + Flex 15 Sub, ±33° на 6 м. Ближайшая к клубу открытая площадка с PA (проба 15.11).
+    # Хвост — 16 бит (объём ресурсов).
+    dict(name="ClubReal", file="RoomClubReal.wav", sofa=("DRIR_SBS_VSA_110RS_PAL.sofa", "DRIR_SBS_VSA_110RS_PAR.sofa"),
+         early_ms=80.0, max_ms=1000, bits=16,
+         desc="WDR Small Broadcast Studio, PA (TH Köln WDR compilation, CC BY 4.0)"),
 ]
 
 
@@ -372,7 +376,7 @@ def main():
             print("%s: %s, %s, az %.1f°, %.2f m, onset %d, direct peak %.1f dB, DOA error (direct) %.1f°, license: %s"
                   % (f, s.room, s.spk, az, s.dist, s.onset, peak, s.doa_err, s.lic))
         h, gain_db, length, info = make_room(cfg, spks, ir, dirs, ctf, sets, G.FRONT)
-        G.write_wav(os.path.join(res, cfg["file"]), h)
+        G.write_wav(os.path.join(res, cfg["file"]), h, cfg.get("bits", 24))
         head_file, head_gain, hs = write_head(cfg, spks, sets, dirs, info, gain_db, cfg["file"], res)
         # Совпадение HEAD при голове прямо с импульсом комнаты.
         i0 = (0 - G.HEAD_FROM) // G.HEAD_STEP
