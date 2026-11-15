@@ -28,7 +28,9 @@ extension AppModel {
             } else if sliceTrack {
                 writeRandomSlices()
             } else if settings.randomChords {
-                if arpMode {
+                if MelodyRhythm.isTechno(style: track.drumStyle, bpm: project.bpm) {
+                    writeTechnoPart(arpMode ? .arp : melodyRole)
+                } else if arpMode {
                     writeRandomArp()
                 } else if melodyRole == .bass {
                     writeRandomBass()
@@ -228,10 +230,6 @@ extension AppModel {
     func writeRandomChordPart(_ role: MelodyRhythm.Role) {
         guard channel == .track else { return }
         var g = SystemRandomNumberGenerator()
-        if MelodyRhythm.isTechno(style: track.drumStyle, bpm: project.bpm) {
-            writeTechnoChordPart(role, using: &g)
-            return
-        }
         let degrees: [Int] = newProgression(using: &g)
         lastRandomProgression = degrees
         let bpm: Double = project.bpm
@@ -253,26 +251,25 @@ extension AppModel {
         return k
     }
 
-    /// Techno: PAD — своя прогрессия (аккорд на страницу) с общим типом аккорда; KEYS — новая прогрессия Techno и
-    /// новый тип, стабы мимо бочки (TechnoKeys). Одна запись UNDO; AUTO SWING — у KEYS.
-    private func writeTechnoChordPart(_ role: MelodyRhythm.Role, using g: inout Rng) {
+    /// Techno (SHIFT + CHORD): партия роли role на выбранные страницы (Track.writeTechnoPart). Гармония: BASS и LEAD —
+    /// последняя прогрессия Techno (её нет — новая), KEYS и ARP — новая прогрессия и новый тип аккорда, PAD — своя
+    /// прогрессия с прежним типом. Одна запись UNDO; AUTO SWING — кроме PAD и ARP.
+    func writeTechnoPart(_ role: MelodyRhythm.Role) {
+        guard channel == .track else { return }
+        var g = SystemRandomNumberGenerator()
+        let fresh: Bool = role == .keys || role == .arp
+        let degrees: [Int] = fresh ? MelodyRhythm.technoProgression(using: &g) : sharedProgression(using: &g)
+        if role != .pad { lastRandomProgression = degrees }
+        let kind: Int = technoKind(new: fresh, using: &g)
         let range: ClosedRange<Int> = chordPages
         let scale: Int = project.scale
         let root: Int = randomRoot(track)
         let oct: Int = octave
-        if role == .pad {
-            let kind: Int = technoKind(new: false, using: &g)
-            editTrack { t in t.writeTechnoPad(pages: range, kind: kind, scale: scale, root: root, octave: oct, using: &g) }
-            return
-        }
-        let degrees: [Int] = MelodyRhythm.technoProgression(using: &g)
-        lastRandomProgression = degrees
-        let kind: Int = technoKind(new: true, using: &g)
-        let kicks: [Set<Int>] = project.kickGrid(pages: range)
         let bpm: Double = project.bpm
-        let swing: Bool = settings.randomSwing
+        let swing: Bool = settings.randomSwing && role != .pad && role != .arp
+        let kicks: [Set<Int>] = project.kickGrid(pages: range)
         editTrack { t in
-            t.writeTechnoKeys(pages: range, degrees: degrees, kind: kind, scale: scale, root: root, octave: oct,
+            t.writeTechnoPart(role, pages: range, degrees: degrees, kind: kind, scale: scale, root: root, octave: oct,
                               kicks: kicks, using: &g)
             if swing { t.params["swing"] = DrumRhythm.swing(t.drumStyle, bpm: bpm) }
         }
@@ -305,22 +302,6 @@ extension AppModel {
     func writeRandomArp() {
         guard channel == .track else { return }
         var g = SystemRandomNumberGenerator()
-        // Techno — новая прогрессия Techno и тип аккорда, цикл из N нот мимо бочки (Arp.technoSteps).
-        if MelodyRhythm.isTechno(style: track.drumStyle, bpm: project.bpm) {
-            let degrees: [Int] = MelodyRhythm.technoProgression(using: &g)
-            lastRandomProgression = degrees
-            let kind: Int = technoKind(new: true, using: &g)
-            let range: ClosedRange<Int> = chordPages
-            let kicks: [Set<Int>] = project.kickGrid(pages: range)
-            let scale: Int = project.scale
-            let root: Int = randomRoot(track)
-            let oct: Int = octave
-            editTrack { t in
-                t.writeTechnoArp(pages: range, degrees: degrees, kind: kind, scale: scale, root: root, octave: oct,
-                                 kicks: kicks, using: &g)
-            }
-            return
-        }
         let degrees: [Int] = newProgression(using: &g)
         lastRandomProgression = degrees
         // Типы аккордов — по стилю (styleChords); каждый аккорд — в октаве клавиатуры (обращением, без drop 2 и

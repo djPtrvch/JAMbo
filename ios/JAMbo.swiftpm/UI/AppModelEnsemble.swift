@@ -10,9 +10,7 @@ enum EnsembleJob {
     case bass(octave: Int, root: Int)
     case chords(role: MelodyRhythm.Role, chords: [[Int]])
     case lead(octave: Int, root: Int)
-    case technoPad(octave: Int, root: Int)
-    case technoKeys(octave: Int, root: Int)
-    case technoArp(octave: Int, root: Int)
+    case techno(role: MelodyRhythm.Role, octave: Int, root: Int)
     case arp(notes: [ArpStepNote])
 }
 
@@ -36,15 +34,12 @@ extension AppModel {
         let auto: MelodyRhythm.Role = MelodyRhythm.role(sample: t.sample, name: p.files[t.sample] ?? "", octave: oct,
                                                         chord: chordOn, arp: t.arp.mode)
         let role: MelodyRhythm.Role = MelodyRhythm.role(auto, part: partTypeOf(i), chord: chordOn)
+        if MelodyRhythm.isTechno(style: t.drumStyle, bpm: p.bpm) {
+            return .techno(role: role, octave: oct, root: randomRoot(t))
+        }
         switch role {
         case .bass: return .bass(octave: oct, root: randomRoot(t))
         case .lead: return .lead(octave: oct, root: randomRoot(t))
-        case .pad where MelodyRhythm.isTechno(style: t.drumStyle, bpm: p.bpm):
-            return .technoPad(octave: oct, root: randomRoot(t))
-        case .keys where MelodyRhythm.isTechno(style: t.drumStyle, bpm: p.bpm):
-            return .technoKeys(octave: oct, root: randomRoot(t))
-        case .arp where MelodyRhythm.isTechno(style: t.drumStyle, bpm: p.bpm):
-            return .technoArp(octave: oct, root: randomRoot(t))
         case .keys, .pad:
             let cs: [[Int]] = MelodyRhythm.styleChords(degrees, style: t.drumStyle, bpm: p.bpm, scale: p.scale,
                                                        root: randomRoot(t), octave: oct, using: &g)
@@ -111,15 +106,10 @@ extension AppModel {
                 case .lead(let oct, let root):
                     p.tracks[i].writeRandomLead(pages: r, degrees: degrees, scale: p.scale, root: root, octave: oct,
                                                 bpm: bpm, kicks: p.kickGrid(pages: r), using: &g)
-                case .technoPad(let oct, let root):
-                    pad = true
-                    p.tracks[i].writeTechnoPad(pages: r, kind: kind, scale: p.scale, root: root, octave: oct, using: &g)
-                case .technoKeys(let oct, let root):
-                    p.tracks[i].writeTechnoKeys(pages: r, degrees: degrees, kind: kind, scale: p.scale, root: root,
+                case .techno(let role, let oct, let root):
+                    pad = role == .pad
+                    p.tracks[i].writeTechnoPart(role, pages: r, degrees: degrees, kind: kind, scale: p.scale, root: root,
                                                 octave: oct, kicks: p.kickGrid(pages: r), using: &g)
-                case .technoArp(let oct, let root):
-                    p.tracks[i].writeTechnoArp(pages: r, degrees: degrees, kind: kind, scale: p.scale, root: root,
-                                               octave: oct, kicks: p.kickGrid(pages: r), using: &g)
                 case .arp(let notes):
                     p.tracks[i].writeArpSteps(notes, pages: r)
                 }

@@ -172,7 +172,8 @@ final class TechnoPartsTests: XCTestCase {
         let d: [Int] = M.technoProgression(using: &g)
         p.tracks[0].writeRandomBass(pages: 0...1, degrees: d, scale: scale, root: root, octave: 1, bpm: bpm,
                                     kicks: p.kickGrid(pages: 0...1), using: &g)
-        p.tracks[1].writeTechnoPad(pages: 0...1, kind: 0, scale: scale, root: root, octave: 3, using: &g)
+        p.tracks[1].writeTechnoPart(.pad, pages: 0...1, degrees: d, kind: 0, scale: scale, root: root, octave: 3, kicks: nil,
+                                    using: &g)
         p.tracks[2].writeRandomLead(pages: 0...1, degrees: d, scale: scale, root: root, octave: 3, bpm: bpm,
                                     kicks: p.kickGrid(pages: 0...1), using: &g)
         h.record(before: before, after: p)
@@ -196,11 +197,11 @@ final class TechnoPartsTests: XCTestCase {
             var ids = Set(t.pages.flatMap { $0 }.flatMap { $0.locks.keys })
             t.writeRandomLead(pages: 0...1, degrees: d, scale: scale, root: root, octave: 3, bpm: bpm, using: &g)
             ids.formUnion(t.pages.flatMap { $0 }.flatMap { $0.locks.keys })
-            t.writeTechnoPad(pages: 0...1, kind: 1, scale: scale, root: root, octave: 3, using: &g)
+            t.writeTechnoPart(.pad, pages: 0...1, degrees: d, kind: 1, scale: scale, root: root, octave: 3, kicks: nil, using: &g)
             ids.formUnion(t.pages.flatMap { $0 }.flatMap { $0.locks.keys })
-            t.writeTechnoKeys(pages: 0...1, degrees: d, kind: 2, scale: scale, root: root, octave: 4, kicks: nil, using: &g)
+            t.writeTechnoPart(.keys, pages: 0...1, degrees: d, kind: 2, scale: scale, root: root, octave: 4, kicks: nil, using: &g)
             ids.formUnion(t.pages.flatMap { $0 }.flatMap { $0.locks.keys })
-            t.writeTechnoArp(pages: 0...1, degrees: d, kind: 0, scale: scale, root: root, octave: 4, kicks: nil, using: &g)
+            t.writeTechnoPart(.arp, pages: 0...1, degrees: d, kind: 0, scale: scale, root: root, octave: 4, kicks: nil, using: &g)
             ids.formUnion(t.pages.flatMap { $0 }.flatMap { $0.locks.keys })
             XCTAssertTrue(ids.isSubset(of: ["level"]), "\(ids)")
         }
