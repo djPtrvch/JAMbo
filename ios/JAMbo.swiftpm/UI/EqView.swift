@@ -247,16 +247,16 @@ struct EqBar: View {
         return x0 + CGFloat(i) * col
     }
 
-    /// Имя канала: тап — у дорожки меню дорожек для сравнения, у мастера — окно коррекции наушников (CORRECTION, 15.11;
-    /// прежде CORRECT EQ) и обратно.
+    /// Имя канала: тап — у дорожки меню дорожек для сравнения, у мастера — окно коррекции наушников (CORRECT, 15.11;
+    /// прежде CORRECT EQ; не CORRECTION — так называется поле силы коррекции) и обратно.
     private var name: some View {
         let phones: Bool = model.phonesShown
         let lit: Bool = phones || model.eqCompareShown != nil
-        return Text(phones ? "CORRECTION" : "\(model.eqTargetName)\nEQ")
+        return Text(phones ? "CORRECT" : "\(model.eqTargetName)\nEQ")
             .font(.system(size: 11)).tracking(0.9)
             .multilineTextAlignment(.center)
             .lineLimit(2)
-            .minimumScaleFactor(phones ? 0.5 : 0.7)
+            .minimumScaleFactor(0.7)
             .foregroundStyle(lit ? theme.text : theme.dim)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(Rectangle())
