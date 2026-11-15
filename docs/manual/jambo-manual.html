@@ -397,7 +397,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
   <div lang="ru">
   <p style="margin-top:0">Узкая колонка у правого края. Показывает уровень выбранной дорожки, а при MIX и MST — мастера. Стерео — две полосы, моно — одна. Выше 0 dB полоса красная, у заглушённой дорожки — серая.</p>
   <ul>
-    <li>Сверху — интегральная громкость LUFS, под ней — метка клиппинга, внизу — наибольший пик в dB. Тап по числу сбрасывает его.</li>
+    <li>Сверху — интегральная громкость LUFS (по стандарту BS.1770 / EBU R128 — совпадает с другими измерителями, удобно сверять с требованиями площадок, например −14 LUFS), под ней — метка клиппинга, внизу — наибольший пик в dB. Тап по числу сбрасывает его.</li>
     <li>Белая планка поверх полос — регулятор громкости. У дорожки это её громкость в микшере, при MIX и MST — громкость выхода. Двигайте пальцем вверх-вниз.</li>
     <li>Над измерителем — CPU, загрузка процессора.</li>
   </ul>
@@ -405,7 +405,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
   <div lang="en">
   <p style="margin-top:0">A narrow column at the right edge. It shows the level of the selected track, or of the master in MIX and MST. Stereo — two bars, mono — one. Above 0 dB the bar turns red; on a muted track it is grey.</p>
   <ul>
-    <li>At the top — integrated loudness in LUFS, below it — the clip marker, at the bottom — the highest peak in dB. Tap the number to reset it.</li>
+    <li>At the top — integrated loudness in LUFS (to the BS.1770 / EBU R128 standard — it matches other meters, handy for checking platform targets such as −14 LUFS), below it — the clip marker, at the bottom — the highest peak in dB. Tap the number to reset it.</li>
     <li>The white handle over the bars is the volume control. For a track it is its mixer volume, in MIX and MST — the output volume. Drag up or down.</li>
     <li>Above the meter — CPU, the processor load.</li>
   </ul>
@@ -450,12 +450,12 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
   <ul lang="ru">
     <li>CHORD — режим аккордов: клавиша играет аккорд от своей ноты. Под словом CHORD — вид аккорда. Удержание CHORD — выбор вида.</li>
     <li>☰ под CHORD — меню клавиатуры: OVERDUB, VELOCITY, Swing, арпеджиатор и другое.</li>
-    <li>▲ ▼ справа — октава вверх и вниз. У каждой дорожки своя октава.</li>
+    <li>▲ ▼ справа — октава вверх и вниз. У каждой дорожки своя октава, она сохраняется в проекте.</li>
   </ul>
   <ul lang="en">
     <li>CHORD — chord mode: a key plays a chord from its note. Under the word CHORD — the chord type. Hold CHORD to choose the type.</li>
     <li>☰ under CHORD — the keyboard menu: OVERDUB, VELOCITY, Swing, arpeggiator and more.</li>
-    <li>▲ ▼ on the right — octave up and down. Each track has its own octave.</li>
+    <li>▲ ▼ on the right — octave up and down. Each track has its own octave, saved in the project.</li>
   </ul>
 </section>
 
@@ -644,14 +644,14 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     <li><b>Метр</b> слева от ручки — уровень дорожки после громкости. Стерео — две полосы, моно — одна; выше 0 dB — красный, у заглушённой — серый, приглушение от sidechain — оранжевым сверху.</li>
     <li><b>M</b> — mute, <b>S</b> — solo, <b>●</b> — готовность к записи стема (раздел 3.5).</li>
     <li>Ручки без кольца — свободные места для дорожек.</li>
-    <li>Над окном слева — <b>● MASTER</b>, запись выхода мастера. В окне слева — индикация дорожек, справа — вектороскоп и тональный баланс мастера (ниже).</li>
+    <li>Над окном слева — <b>● MASTER</b>, запись выхода мастера. В окне слева — индикация дорожек, справа — вектороскоп и осциллоскоп мастера (ниже).</li>
     <li>Громкость выбранной дорожки можно менять и регулятором на измерителе справа — это та же громкость.</li>
   </ul>
   <ul lang="en">
     <li><b>The meter</b> left of the knob — the track level after volume. Stereo — two bars, mono — one; above 0 dB — red, muted — grey, sidechain ducking — orange from the top.</li>
     <li><b>M</b> — mute, <b>S</b> — solo, <b>●</b> — arm for stem recording (section 3.5).</li>
     <li>Knobs without a ring are free slots for tracks.</li>
-    <li>Above the window on the left — <b>● MASTER</b>, recording of the master output. The window on the left shows track meters, the right column — the vectorscope and the master tonal balance (below).</li>
+    <li>Above the window on the left — <b>● MASTER</b>, recording of the master output. The window on the left shows track meters, the right column — the master vectorscope and oscilloscope (below).</li>
     <li>The selected track's volume can also be changed with the control on the meter on the right — it is the same volume.</li>
   </ul>
 
@@ -677,34 +677,15 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
   <p lang="ru">Зачем: увидеть, кто кому мешает. Если полосы бочки и баса лежат на одной высоте и красные черты рядом — они спорят за низ; разведите их EQ (раздел 11) или Duck. Пустая область между полосами — место, куда можно поставить новый звук.</p>
   <p lang="en">Why: to see which tracks clash. If the kick and bass bars sit at the same height with their red lines close together, they fight over the low end; separate them with EQ (section 11) or Duck. An empty area between bars is room for a new sound.</p>
 
-  <h4 lang="ru">Справа: вектороскоп и тональный баланс</h4>
-  <h4 lang="en">On the right: vectorscope and tonal balance</h4>
-  <div class="figs">
-  <figure><div class="shot" data-mode="mix" data-zone="right" data-state="mix" data-maxh="520"></div><figcaption lang="ru">Цель — стиль проекта; имя проекта — цветом текста. Показания — для примера.</figcaption><figcaption lang="en">Target — the project style; the project name in text colour. Readings are an example.</figcaption></figure>
-  <figure><div class="shot" data-mode="mix" data-zone="right" data-state="mixref" data-maxh="520"></div><figcaption lang="ru">После тапа — цель по референсу, имя референса жёлтым.</figcaption><figcaption lang="en">After a tap — the reference target, its name in yellow.</figcaption></figure>
-  </div>
+  <h4 lang="ru">Справа: вектороскоп и осциллоскоп</h4>
+  <h4 lang="en">On the right: vectorscope and oscilloscope</h4>
+  <figure><div class="shot" data-mode="mix" data-zone="right" data-state="mix" data-maxh="520"></div><figcaption lang="ru">Те же окна, что при MST; внизу — SHIFT. Показания — для примера.</figcaption><figcaption lang="en">The same windows as at MST; SHIFT below. Readings are an example.</figcaption></figure>
   <p lang="ru"><b>Вектороскоп</b> — стереобаза выхода мастера: облако вытянуто вверх — звук ближе к моно, расползается вширь — шире стерео. Полоса внизу — корреляция каналов: от середины вправо к +1 — моно-совместимо, влево к −1 — каналы в противофазе, и на моно-колонке (телефон, клуб) часть звука пропадёт.</p>
   <p lang="en"><b>The vectorscope</b> shows the stereo image of the master output: a cloud stretched upward is closer to mono, a wide cloud is wider stereo. The bar at the bottom is channel correlation: from the centre right towards +1 — mono-safe, left towards −1 — the channels are out of phase, and on a mono speaker (a phone, a club system) part of the sound will disappear.</p>
-  <p lang="ru"><b>Тональный баланс (TARGET)</b> делит выход мастера на четыре полосы — LOW (20–250 Гц), LOW MID (250 Гц–2 кГц), HIGH MID (2–6 кГц), HIGH (6–20 кГц) — и показывает, насколько каждой больше или меньше, чем у цели.</p>
-  <p lang="en"><b>Tonal balance (TARGET)</b> splits the master output into four bands — LOW (20–250 Hz), LOW MID (250 Hz–2 kHz), HIGH MID (2–6 kHz), HIGH (6–20 kHz) — and shows how much more or less each has compared with the target.</p>
-  <ul lang="ru">
-    <li><b>Серый коридор</b> — цель, где полоса «в норме». <b>Жёлтая метка</b> — твой микс. Метка в коридоре — эта область звучит как надо; выше — её слишком много (гудящий низ, резкий верх), ниже — не хватает (тонкий низ, тусклый верх).</li>
-    <li>Обычный спад к верхам, который есть у любой сведённой музыки, уже учтён — ровный трек не показывает «мало верха».</li>
-    <li>Громкость не влияет: тише или громче — метки на месте. Баланс относительный: если поднять бас, LOW уйдёт вверх, а остальные три метки немного опустятся.</li>
-    <li>Показания сглажены примерно за треть секунды — смотрите на среднее положение метки, а не на скачки.</li>
-    <li><b>Цель по стилю</b> (по умолчанию): после TARGET — имя проекта (без имени — UNKNOWN), коридор — по стилю проекта (House, Techno, Breaks/D&amp;B, Trap/R&amp;B, Pop, Ambient): например, у Trap/R&amp;B низ выше, у Ambient коридор шире. Коридоры стилей — приблизительные.</li>
-    <li><b>Цель по референсу:</b> тап по окну — коридор строится по треку из строки REF аранжировщика (раздел 15.4), его имя жёлтым. Центр коридора — баланс всего референса, ширина — насколько он меняется от секунды к секунде. Пока референс разбирается, после имени стоит «…»; если REF не загружен — «REF — LOAD IN ARRANGE». Повторный тап — снова стиль.</li>
-  </ul>
-  <ul lang="en">
-    <li><b>The grey corridor</b> is the target where a band is “right”. <b>The yellow mark</b> is your mix. A mark inside the corridor — that range sounds right; above — too much of it (boomy lows, harsh highs), below — not enough (thin lows, dull highs).</li>
-    <li>The usual roll-off towards the highs that any mixed music has is already accounted for — a balanced track does not show “too little top”.</li>
-    <li>Loudness does not matter: quieter or louder, the marks stay put. The balance is relative: raise the bass and LOW goes up while the other three marks drop a little.</li>
-    <li>Readings are smoothed over about a third of a second — watch where the mark sits on average, not its jumps.</li>
-    <li><b>Style target</b> (default): after TARGET — the project name (UNKNOWN if it has none); the corridor follows the project style (House, Techno, Breaks/D&amp;B, Trap/R&amp;B, Pop, Ambient): for example, Trap/R&amp;B has higher lows, Ambient a wider corridor. Style corridors are approximate.</li>
-    <li><b>Reference target:</b> tap the window — the corridor is built from the track in the arranger's REF row (section 15.4), its name in yellow. The corridor centre is the balance of the whole reference, its width — how much that balance changes from second to second. While the reference is being analysed, “…” follows the name; with no REF loaded — “REF — LOAD IN ARRANGE”. Tap again to go back to the style.</li>
-  </ul>
-  <p lang="ru">Пример: в TONAL у LOW метка над коридором, а в FREQ полосы бочки и баса на одной высоте — срежьте бас ниже бочки EQ или включите Duck от бочки, и LOW вернётся в коридор.</p>
-  <p lang="en">Example: in TONAL the LOW mark is above the corridor and in FREQ the kick and bass bars sit at the same height — cut the bass below the kick with EQ or duck it from the kick, and LOW returns to the corridor.</p>
+  <p lang="ru"><b>Осциллоскоп</b> под ним — форма волны того, что уходит из мастера после лимитера (красным). Ровная «стена» без пиков — лимитер давит слишком сильно, микс потерял удары; видны пики — динамика сохранилась.</p>
+  <p lang="en"><b>The oscilloscope</b> below shows the waveform leaving the master after the limiter (in red). A flat “wall” with no peaks — the limiter is squashing too hard and the mix has lost its punch; visible peaks — the dynamics are intact.</p>
+  <p lang="ru"><b>SHIFT</b> внизу слева: с удержанием ручки громкости — имя и громкость дорожки по умолчанию (раздел 3.4).</p>
+  <p lang="en"><b>SHIFT</b> at the bottom left: with a held volume knob it stores the track name and volume as defaults (section 3.4).</p>
 
   <h3 lang="ru"><span class="sn">3.4</span>Добавить, скопировать, удалить, переставить</h3>
   <h3 lang="en"><span class="sn">3.4</span>Add, copy, delete, reorder</h3>
@@ -719,6 +700,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       <tr><td>DELETE TRACK</td><td>Удаляет дорожку. Доступно, когда дорожек больше 8.</td></tr>
       <tr><td>RENAME</td><td>Поле ввода имени появляется на месте подписи под ручкой. Имя — до 12 знаков.</td></tr>
       <tr><td>Переставить</td><td>Держите ручку дорожки в MIX полсекунды — она приподнимется. Перетащите её на место другой дорожки. С дорожкой переезжает всё: звук, паттерны, громкость, mute и solo, EQ. Музыка при этом не прерывается.</td></tr>
+      <tr><td>Имя и громкость по умолчанию</td><td>Держите SHIFT и ручку дорожки в MIX секунду — на ручке появится SAVED. Имя и громкость запомнятся для этого места (T1…T16): так будут называться и звучать дорожки на этом месте в новом проекте (NEW) и при ADD TRACK. Пример: на месте 1 всегда KICK на −6 dB, на месте 2 — BASS. С SHIFT ручка не крутится и не поднимается для перестановки. Забыть — SETTINGS → DEFAULTS. Уже сохранённые проекты не меняются.</td></tr>
     </tbody>
   </table></div>
   <div lang="en" class="tbl"><table>
@@ -730,10 +712,11 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       <tr><td>DELETE TRACK</td><td>Deletes the track. Available when there are more than 8 tracks.</td></tr>
       <tr><td>RENAME</td><td>A name field appears in place of the label under the knob. Names are up to 12 characters.</td></tr>
       <tr><td>Reorder</td><td>Hold a track's knob in MIX for half a second — it lifts. Drag it onto another track's place. Everything moves with the track: sound, patterns, volume, mute and solo, EQ. The music does not stop.</td></tr>
+      <tr><td>Default name and volume</td><td>Hold SHIFT and a track's knob in MIX for a second — SAVED appears on the knob. The name and volume are stored for this place (T1…T16): tracks in this place get them in a new project (NEW) and on ADD TRACK. Example: place 1 is always KICK at −6 dB, place 2 — BASS. With SHIFT the knob neither turns nor lifts for reordering. To forget — SETTINGS → DEFAULTS. Saved projects do not change.</td></tr>
     </tbody>
   </table></div>
-  <p lang="ru">Всё это отменяется UNDO.</p>
-  <p lang="en">All of this can be undone with UNDO.</p>
+  <p lang="ru">Всё это, кроме имени и громкости по умолчанию, отменяется UNDO.</p>
+  <p lang="en">All of this except the default name and volume can be undone with UNDO.</p>
 
   <h3 lang="ru"><span class="sn">3.5</span>Запись стемов</h3>
   <h3 lang="en"><span class="sn">3.5</span>Stem recording</h3>
@@ -893,7 +876,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     <li><b>Папки</b> — сверху списка, справа число элементов. Тап — войти, ‹ — на уровень выше. NEW FOLDER создаёт папку в открытой.</li>
     <li><b>▶</b> слева от сэмпла или пресета — прослушать, не загружая.</li>
     <li><b>Тап</b> по сэмплу или пресету ставит его на дорожку. Библиотека остаётся открытой — звуки можно пробовать клавиатурой.</li>
-    <li><b>Удержание</b> — выбор нескольких: отметьте звуки тапами и нажмите LOAD. Все они попадут в папку дорожки, стрелки ◀ ▶ будут их перебирать.</li>
+    <li><b>Удержание</b> — выбор нескольких: отметьте звуки тапами (SELECT ALL — все сэмплы и пресеты папки) и нажмите LOAD. Все они попадут в папку дорожки, стрелки ◀ ▶ будут их перебирать. CANCEL — выйти из выбора.</li>
     <li><b>Свайп влево</b> по строке — карандаш (переименовать) и корзина (удалить).</li>
     <li><b>Порядок папок</b> меняется удержанием и перетаскиванием.</li>
     <li><b>IMPORT</b> — из «Файлов»: аудио, видео, пресеты .jambopreset и целые папки архивом .zip. <b>EXPORT</b> — открытая папка одним .zip в «Файлы».</li>
@@ -903,7 +886,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     <li><b>Folders</b> are at the top of the list, with the item count on the right. Tap to enter, ‹ to go up a level. NEW FOLDER creates a folder inside the open one.</li>
     <li><b>▶</b> left of a sample or preset — listen without loading.</li>
     <li><b>Tap</b> a sample or preset to put it on the track. The library stays open — you can try sounds on the keyboard.</li>
-    <li><b>Hold</b> — multiple selection: mark sounds with taps and press LOAD. They all go to the track folder, and the ◀ ▶ arrows will step through them.</li>
+    <li><b>Hold</b> — multiple selection: mark sounds with taps (SELECT ALL — every sample and preset in the folder) and press LOAD. They all go to the track folder, and the ◀ ▶ arrows will step through them. CANCEL leaves the selection.</li>
     <li><b>Swipe left</b> on a row — pencil (rename) and trash (delete).</li>
     <li><b>Folder order</b> is changed by holding and dragging.</li>
     <li><b>IMPORT</b> — from Files: audio, video, .jambopreset presets and whole folders as a .zip archive. <b>EXPORT</b> — the open folder as one .zip to Files.</li>
@@ -943,13 +926,13 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     <tbody>
       <tr><td>KICK</td><td>Бочка: синус с падающей высотой и щелчком атаки. Одна нота за раз.</td><td>Pitch, Sweep, Drive, Click</td></tr>
       <tr><td>SNARE</td><td>Малый барабан: корпус и шумовые «струны».</td><td>Tune, Snappy, Tone, Punch</td></tr>
-      <tr><td>HAT</td><td>Хай-хэт в духе 808.</td><td>Tune, Spread, Tone, Noise</td></tr>
+      <tr><td>HAT</td><td>Хай-хэт в духе 808. Tune — в полутонах от звучания 808 (±12 st), а не в герцах: у хэта шесть металлических тонов сразу, и ручка сдвигает их все вместе — одной частоты у звука нет.</td><td>Tune, Spread, Tone, Noise</td></tr>
       <tr><td>CLAP</td><td>Хлопок из нескольких шумовых вспышек.</td><td>Tone, Bursts, Spread, Tail</td></tr>
       <tr><td>PERC</td><td>Перкуссия: от кожи через дерево к металлу.</td><td>Tune, Material, Bend, Hit</td></tr>
       <tr><td>ANALOG</td><td>Два осциллятора A и B: Sine, Triangle, Saw, Square.</td><td>Wave A, Wave B, Detune, Mix</td></tr>
       <tr><td>SUB</td><td>Моно-бас: нота и октава ниже.</td><td>Wave, Sub, Fat, Grit</td></tr>
       <tr><td>FM</td><td>Частотная модуляция: несущая и модулятор.</td><td>Ratio, Index, Contour, Feedback</td></tr>
-      <tr><td>WTABLE</td><td>Волновая таблица: волна меняется по кадрам таблицы.</td><td>Position, Warp, Unison, Detune</td></tr>
+      <tr><td>WTABLE</td><td>Волновая таблица: волна меняется по кадрам таблицы. Unison — 1–5 голосов: больше голосов — шире и плотнее звук.</td><td>Position, Warp, Unison, Detune</td></tr>
       <tr><td>TEXTURE</td><td>Стерео-шум и треск — подложки и атмосфера.</td><td>Color, Grit, Tone, Metal</td></tr>
       <tr><td>GRANULAR</td><td>Гранулярный синтез из вашего сэмпла.</td><td>Position, Size, Density, Spray</td></tr>
     </tbody>
@@ -959,13 +942,13 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     <tbody>
       <tr><td>KICK</td><td>Kick drum: a sine with falling pitch and an attack click. One note at a time.</td><td>Pitch, Sweep, Drive, Click</td></tr>
       <tr><td>SNARE</td><td>Snare drum: body and noise “wires”.</td><td>Tune, Snappy, Tone, Punch</td></tr>
-      <tr><td>HAT</td><td>An 808-style hi-hat.</td><td>Tune, Spread, Tone, Noise</td></tr>
+      <tr><td>HAT</td><td>An 808-style hi-hat. Tune is in semitones from the 808 sound (±12 st), not in hertz: the hat has six metallic tones at once and the knob shifts them all together — the sound has no single frequency.</td><td>Tune, Spread, Tone, Noise</td></tr>
       <tr><td>CLAP</td><td>A clap made of several noise bursts.</td><td>Tone, Bursts, Spread, Tail</td></tr>
       <tr><td>PERC</td><td>Percussion: from skin through wood to metal.</td><td>Tune, Material, Bend, Hit</td></tr>
       <tr><td>ANALOG</td><td>Two oscillators, A and B: Sine, Triangle, Saw, Square.</td><td>Wave A, Wave B, Detune, Mix</td></tr>
       <tr><td>SUB</td><td>Mono bass: the note and an octave below.</td><td>Wave, Sub, Fat, Grit</td></tr>
       <tr><td>FM</td><td>Frequency modulation: carrier and modulator.</td><td>Ratio, Index, Contour, Feedback</td></tr>
-      <tr><td>WTABLE</td><td>Wavetable: the wave changes across the table's frames.</td><td>Position, Warp, Unison, Detune</td></tr>
+      <tr><td>WTABLE</td><td>Wavetable: the wave changes across the table's frames. Unison — 1–5 voices: more voices make the sound wider and thicker.</td><td>Position, Warp, Unison, Detune</td></tr>
       <tr><td>TEXTURE</td><td>Stereo noise and crackle — beds and atmosphere.</td><td>Color, Grit, Tone, Metal</td></tr>
       <tr><td>GRANULAR</td><td>Granular synthesis from your sample.</td><td>Position, Size, Density, Spray</td></tr>
     </tbody>
@@ -980,7 +963,8 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     <tbody>
       <tr><td>ANALOG</td><td>SHIFT + тап по Wave B</td><td>Осциллятор B на октаву ниже и обратно. На ручке — «−1».</td></tr>
       <tr><td>ANALOG</td><td>SHIFT + тап по Wave A</td><td>Модуляция B осциллятором A вкл./выкл.</td></tr>
-      <tr><td>ANALOG</td><td>SHIFT + тап по 1.3</td><td>Следующий вид модуляции: Sync → FM → Ring. Ручка 1.3 тогда — сила модуляции.</td></tr>
+      <tr><td>ANALOG</td><td>SHIFT + тап по 1.3</td><td>Следующий вид модуляции: Sync → AM → FM → Ring. Ручка 1.3 тогда — сила модуляции, подпись — имя вида. AM — громкость B следует за A: B пульсирует в такт осциллятору A.</td></tr>
+      <tr><td>KICK, SNARE, HAT, CLAP, PERC</td><td>SHIFT + тап по 1.1</td><td>Слежение за нотами вкл./выкл. (подпись — Pitch Key, Tune Key, Tone Key). C3 звучит на высоте ручки, другие ноты — на столько же полутонов выше или ниже: можно сыграть мелодию томами или подстроить бочку под тональность. Пока звучит не C3, ручка жёлтым показывает высоту этой ноты (у HAT — в полутонах). Выключено — нота высоту не меняет.</td></tr>
       <tr><td>SUB</td><td>SHIFT + тап по Filter</td><td>Тип фильтра: LP → LADDER → BP. LADDER — фильтр в духе Moog, Grit перегружает его.</td></tr>
       <tr><td>WTABLE</td><td>TABLE в меню звука</td><td>Выбор волновой таблицы: встроенной или своей из WAV.</td></tr>
       <tr><td>GRANULAR</td><td>SOURCE в меню звука</td><td>Выбор сэмпла, из которого GRANULAR берёт зёрна.</td></tr>
@@ -991,7 +975,8 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     <tbody>
       <tr><td>ANALOG</td><td>SHIFT + tap on Wave B</td><td>Oscillator B an octave lower and back. The knob shows “−1”.</td></tr>
       <tr><td>ANALOG</td><td>SHIFT + tap on Wave A</td><td>Modulation of B by oscillator A on/off.</td></tr>
-      <tr><td>ANALOG</td><td>SHIFT + tap on 1.3</td><td>Next modulation type: Sync → FM → Ring. Knob 1.3 then sets the modulation amount.</td></tr>
+      <tr><td>ANALOG</td><td>SHIFT + tap on 1.3</td><td>Next modulation type: Sync → AM → FM → Ring. Knob 1.3 then sets the modulation amount, labelled with the type. AM — B's level follows A: B pulses with oscillator A.</td></tr>
+      <tr><td>KICK, SNARE, HAT, CLAP, PERC</td><td>SHIFT + tap on 1.1</td><td>Note tracking on/off (label — Pitch Key, Tune Key, Tone Key). C3 plays at the knob's pitch, other notes the same number of semitones higher or lower: play a melody on toms or tune the kick to the key. While a note other than C3 plays, the knob shows its pitch in yellow (HAT — in semitones). Off — notes do not change the pitch.</td></tr>
       <tr><td>SUB</td><td>SHIFT + tap on Filter</td><td>Filter type: LP → LADDER → BP. LADDER is a Moog-style filter; Grit overdrives it.</td></tr>
       <tr><td>WTABLE</td><td>TABLE in the sound menu</td><td>Choose a wavetable: built-in or your own from a WAV.</td></tr>
       <tr><td>GRANULAR</td><td>SOURCE in the sound menu</td><td>Choose the sample GRANULAR takes its grains from.</td></tr>
@@ -1001,12 +986,12 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
   <h3 lang="ru"><span class="sn">5.5</span>Пресеты</h3>
   <h3 lang="en"><span class="sn">5.5</span>Presets</h3>
   <ul lang="ru">
-    <li><b>SAVE</b> в меню звука сохраняет синт дорожки пресетом в библиотеку: движок и все его ручки, Attack, Decay, Filter, Resonance (у WTABLE — и таблицу, у GRANULAR — сэмпл).</li>
+    <li><b>SAVE</b> в меню звука сохраняет синт дорожки пресетом в библиотеку: движок и все его ручки, Attack, Decay, Filter, Resonance (у WTABLE — и таблицу, у GRANULAR — сэмпл), а также модуляцию: LFO1–3, ENV и их назначения на ручки звука. Назначения на FX остаются у проекта.</li>
     <li><b>LOAD</b> загружает пресет из библиотеки, как сэмпл. Пресеты попадают в папку дорожки, и стрелки ◀ ▶ перебирают их.</li>
     <li>Пресет в библиотеке отмечен значком клавиш, справа — имя движка. ▶ слева от него играет ноту этим пресетом, не загружая его.</li>
   </ul>
   <ul lang="en">
-    <li><b>SAVE</b> in the sound menu saves the track's synth to the library as a preset: the engine and all its knobs, Attack, Decay, Filter, Resonance (for WTABLE also the table, for GRANULAR the sample).</li>
+    <li><b>SAVE</b> in the sound menu saves the track's synth to the library as a preset: the engine and all its knobs, Attack, Decay, Filter, Resonance (for WTABLE also the table, for GRANULAR the sample), plus the modulation: LFO1–3, ENV and their assignments to sound knobs. Assignments to FX stay with the project.</li>
     <li><b>LOAD</b> loads a preset from the library, like a sample. Presets go to the track folder, and the ◀ ▶ arrows step through them.</li>
     <li>A preset in the library is marked with a keys icon, with the engine name on the right. ▶ to its left plays a note with this preset without loading it.</li>
   </ul>
@@ -1242,13 +1227,73 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     <li><b>Тап по CHORD</b> включает режим аккордов: каждая клавиша играет аккорд от своей ноты. На клавишах — имя аккорда и ступень (например, «Em · iii»).</li>
     <li><b>Удержание CHORD</b> — выбор типа: Triad, 7th, 9th, Sus2, Sus4, Add9. Тип написан на кнопке под словом CHORD.</li>
     <li>Аккорды строятся по ступеням гаммы, поэтому все их ноты всегда в гамме.</li>
-    <li><b>SHIFT + тап по CHORD</b> — случайная партия на выбранные страницы: прогрессия аккордов, а на ударной дорожке — ритм в стиле проекта (House, Techno, Breaks/D&B, Trap/R&B, Pop, Ambient). Что можно генерировать — SETTINGS → RANDOM.</li>
+    <li><b>SHIFT + тап по CHORD</b> — случайная партия на выбранные страницы в стиле проекта (House, Techno, Breaks, Trap, Pop, Ambient; стиль выбирается в окне CHORD на ударной дорожке и один на весь проект). На ударной дорожке — ритм, на остальных — партия по роли дорожки (ниже). Что можно генерировать — SETTINGS → RANDOM. Отмена — UNDO.</li>
+  </ul>
+  <h4 lang="ru">Случайная партия: роли и стили</h4>
+  <p lang="ru">Роль дорожка получает сама — по звуку, режиму и октаве. Если угадала не так, роль можно выбрать в окне CHORD (раздел PART при SETTINGS → RANDOM → SHOW PART TYPE).</p>
+  <div lang="ru" class="tbl"><table>
+    <thead><tr><th>Роль</th><th>Когда</th><th>Что пишется</th></tr></thead>
+    <tbody>
+      <tr><td>BASS</td><td>SUB, сэмпл со словом bass, 808, sub, reese в имени или клавиатура в октаве C2 и ниже</td><td>Бас по ритму стиля; первая нота аккорда — его корень, в конце — подход к первому аккорду.</td></tr>
+      <tr><td>LEAD</td><td>Остальные звуки без CHORD</td><td>Мелодия-фраза: мотив, его повтор с изменённым концом, снова мотив и ответ, который приходит на корень.</td></tr>
+      <tr><td>KEYS</td><td>Звук в режиме CHORD</td><td>Удары аккордами по ритму стиля.</td></tr>
+      <tr><td>PAD</td><td>TEXTURE, GRANULAR, сэмпл со словом pad, atmo, drone, string, choir…</td><td>Аккорды на всю длину. Без CHORD — одна длинная нота, корень аккорда.</td></tr>
+      <tr><td>ARP</td><td>Включён арпеджиатор (раздел 8.4)</td><td>Звуки аккордов по DIRECTION, OCTAVES, RATE и GATE дорожки — фигурой стиля.</td></tr>
+    </tbody>
+  </table></div>
+  <div lang="ru" class="tbl"><table>
+    <thead><tr><th>Стиль</th><th>Характер партий</th></tr></thead>
+    <tbody>
+      <tr><td>House</td><td>Бас на офбитах мимо бочки, короткие стабы, мелодия с акцентами на звуках аккорда.</td></tr>
+      <tr><td>Techno</td><td>Одна гармония (или смена на одну ступень), бас катится шестнадцатыми мимо бочки, короткие стабы, арпеджио с паузами.</td></tr>
+      <tr><td>Breaks</td><td>Синкопы: бас и стабы обходят ломаную бочку.</td></tr>
+      <tr><td>Trap</td><td>808 — ровно на ударах бочки, мотив повторяется в каждом такте, широкий пэд.</td></tr>
+      <tr><td>Pop</td><td>Бас на долях с первого шага, мелодия на сильных долях, знакомые прогрессии.</td></tr>
+      <tr><td>Ambient</td><td>Два аккорда на весь отрезок, бас — долгий дрон, мелодия редкая, иногда целая страница тишины.</td></tr>
+    </tbody>
+  </table></div>
+  <ul lang="ru">
+    <li>Бочка — по дорожке KICK проекта (бас и стабы её обходят); дорожки KICK нет — по типичной бочке стиля.</li>
+    <li>PAD, KEYS и ARP каждый раз берут новую прогрессию, а BASS и LEAD — последнюю. Совет: сначала сделайте пэд или стабы, затем бас и мелодию — они лягут на те же аккорды.</li>
+    <li>Ноты — в октаве клавиатуры дорожки. Октава сохраняется в проекте, так что бас после перезапуска остаётся в своём регистре.</li>
+    <li>Меняются только ноты, длины и сила нот (Level); звук и ручки дорожки не трогаются (кроме Swing при AUTO SWING).</li>
+    <li>SETTINGS → RANDOM → STEPS ALL TRACKS — партии сразу на всех дорожках, по своей роли каждая и на одних аккордах.</li>
   </ul>
   <ul lang="en">
     <li><b>Tap CHORD</b> to turn on chord mode: each key plays a chord from its note. The keys show the chord name and degree (for example “Em · iii”).</li>
     <li><b>Hold CHORD</b> to choose the type: Triad, 7th, 9th, Sus2, Sus4, Add9. The type is written on the button under the word CHORD.</li>
     <li>Chords are built on the degrees of the scale, so all their notes are always in the scale.</li>
-    <li><b>SHIFT + tap on CHORD</b> — a random part on the selected pages: a chord progression, or on a drum track a rhythm in the project's style (House, Techno, Breaks/D&amp;B, Trap/R&amp;B, Pop, Ambient). What can be generated — SETTINGS → RANDOM.</li>
+    <li><b>SHIFT + tap on CHORD</b> — a random part on the selected pages in the project's style (House, Techno, Breaks, Trap, Pop, Ambient; the style is chosen in the CHORD window on a drum track and is one for the whole project). On a drum track — a rhythm, on the others — a part by the track's role (below). What can be generated — SETTINGS → RANDOM. Undo — UNDO.</li>
+  </ul>
+  <h4 lang="en">Random part: roles and styles</h4>
+  <p lang="en">A track gets its role by itself — from its sound, mode and octave. If the guess is wrong, choose the role in the CHORD window (the PART section with SETTINGS → RANDOM → SHOW PART TYPE).</p>
+  <div lang="en" class="tbl"><table>
+    <thead><tr><th>Role</th><th>When</th><th>What is written</th></tr></thead>
+    <tbody>
+      <tr><td>BASS</td><td>SUB, a sample with bass, 808, sub, reese in its name, or the keyboard at C2 and below</td><td>A bass line in the style's rhythm; the first note of a chord is its root, the end leads back to the first chord.</td></tr>
+      <tr><td>LEAD</td><td>Other sounds without CHORD</td><td>A melodic phrase: a motif, its repeat with a changed ending, the motif again and an answer that lands on the root.</td></tr>
+      <tr><td>KEYS</td><td>A sound in CHORD mode</td><td>Chord hits in the style's rhythm.</td></tr>
+      <tr><td>PAD</td><td>TEXTURE, GRANULAR, a sample with pad, atmo, drone, string, choir… in its name</td><td>Chords held for their full length. Without CHORD — one long note, the chord root.</td></tr>
+      <tr><td>ARP</td><td>The arpeggiator is on (section 8.4)</td><td>Chord tones by the track's DIRECTION, OCTAVES, RATE and GATE — in the style's figure.</td></tr>
+    </tbody>
+  </table></div>
+  <div lang="en" class="tbl"><table>
+    <thead><tr><th>Style</th><th>Character of the parts</th></tr></thead>
+    <tbody>
+      <tr><td>House</td><td>Off-beat bass around the kick, short stabs, a melody accenting chord tones.</td></tr>
+      <tr><td>Techno</td><td>One harmony (or a one-step change), a bass rolling in sixteenths around the kick, short stabs, an arpeggio with gaps.</td></tr>
+      <tr><td>Breaks</td><td>Syncopation: bass and stabs dodge the broken kick.</td></tr>
+      <tr><td>Trap</td><td>The 808 lands exactly on the kick hits, the motif repeats every bar, a wide pad.</td></tr>
+      <tr><td>Pop</td><td>Bass on the beats from step 1, a melody on the strong beats, familiar progressions.</td></tr>
+      <tr><td>Ambient</td><td>Two chords across the whole stretch, the bass a long drone, a sparse melody, sometimes a whole page of silence.</td></tr>
+    </tbody>
+  </table></div>
+  <ul lang="en">
+    <li>The kick comes from the project's KICK track (bass and stabs avoid it); with no KICK track — the style's typical kick.</li>
+    <li>PAD, KEYS and ARP take a new progression each time, BASS and LEAD the last one. Tip: make the pad or stabs first, then the bass and melody — they land on the same chords.</li>
+    <li>Notes are in the track's keyboard octave. The octave is saved in the project, so a bass stays in its register after a restart.</li>
+    <li>Only notes, lengths and note strength (Level) change; the track's sound and knobs are left alone (except Swing with AUTO SWING).</li>
+    <li>SETTINGS → RANDOM → STEPS ALL TRACKS — parts on all tracks at once, each by its own role and on the same chords.</li>
   </ul>
 
   <h3 lang="ru"><span class="sn">8.3</span>Окно пианоролла</h3>
@@ -1298,13 +1343,13 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     <li><b>Удержание ARP</b> — окно настроек: DIRECTION (Up, Down, Up-Down, Down-Up, Random, Order), OCTAVES (1–3), RATE (1/8, 1/8T, 1/16, 1/16T, 1/32) и LATCH (ноты играют и после того, как клавиши отпущены).</li>
     <li><b>GATE</b> — длина нот арпеджио, ползунок в разделе ARP меню клавиатуры. Двойной тап — 50 %.</li>
     <li>С REC ноты арпеджио пишутся в секвенсор.</li>
-    <li><b>SHIFT + тап по ARP</b> — случайное арпеджио по аккордам случайной прогрессии.</li>
+    <li><b>SHIFT + тап по ARP</b> — случайное арпеджио в стиле проекта (раздел 8.2); настройки ARP дорожки не меняются.</li>
   </ul>
   <ul lang="en">
     <li><b>Hold ARP</b> — the settings window: DIRECTION (Up, Down, Up-Down, Down-Up, Random, Order), OCTAVES (1–3), RATE (1/8, 1/8T, 1/16, 1/16T, 1/32) and LATCH (notes keep playing after the keys are released).</li>
     <li><b>GATE</b> — arpeggio note length, a slider in the ARP part of the keyboard menu. Double tap — 50 %.</li>
     <li>With REC, arpeggio notes are recorded into the sequencer.</li>
-    <li><b>SHIFT + tap on ARP</b> — a random arpeggio over the chords of a random progression.</li>
+    <li><b>SHIFT + tap on ARP</b> — a random arpeggio in the project's style (section 8.2); the track's ARP settings do not change.</li>
   </ul>
 
   <h3><span class="sn">8.5</span>Capture</h3>
@@ -1333,8 +1378,8 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
   <h3 lang="en"><span class="sn">9.1</span>LFO and ENV</h3>
   <figure><div class="shot" data-mode="mod" data-zone="grid" data-maxh="520"></div><figcaption lang="ru">Сетка MOD (пока держите MOD): строки LFO1, LFO2, LFO3 и ENV.</figcaption>
 <figcaption lang="en">MOD grid (while MOD is held): rows LFO1, LFO2, LFO3 and ENV.</figcaption></figure>
-  <p lang="ru">У каждой дорожки три LFO и огибающая ENV. Их настройки — на сетке MOD.</p>
-  <p lang="en">Each track has three LFOs and an ENV envelope. Their settings are on the MOD grid.</p>
+  <p lang="ru">У каждой дорожки три LFO и огибающая ENV. Их настройки — на сетке MOD. Пока держите MOD, в окне звука видны миниатюры: у LFO1–3 — форма волны, у ENV — форма огибающей (атака, спад, уровень, затухание), над ней — значения, например «ENV · A 10ms D 100ms S 40% R 300ms». Отпустили MOD — миниатюры гаснут.</p>
+  <p lang="en">Each track has three LFOs and an ENV envelope. Their settings are on the MOD grid. While you hold MOD, the sound window shows thumbnails: the waveform for LFO1–3 and the envelope shape for ENV (attack, decay, sustain, release) with its values above, for example “ENV · A 10ms D 100ms S 40% R 300ms”. Release MOD and the thumbnails disappear.</p>
   <div lang="ru" class="tbl"><table>
     <thead><tr><th>Ручка</th><th>Что делает</th></tr></thead>
     <tbody>
@@ -1362,11 +1407,11 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
 <figcaption lang="en">LFO1 is held; LFO1 is assigned to Filter with an amount of +25 %. The light arc outside is the range in which the LFO moves the filter; the white one is where it is now.</figcaption></figure>
   <ol lang="ru" class="steps">
     <li>Держите LFO1, LFO2, LFO3 или ENV.</li>
-    <li>Поверните ручку, которой нужно управлять. Поворот задаёт степень: вправо — в плюс, влево — в минус. На ручке видно, например, «L1 +25%».</li>
+    <li>Поверните ручку, которой нужно управлять. Поворот задаёт степень: вправо — в плюс, влево — в минус. На ручке в две строки — источник и степень, например «LFO1» и «+25%».</li>
   </ol>
   <ol lang="en" class="steps">
     <li>Hold LFO1, LFO2, LFO3 or ENV.</li>
-    <li>Turn the knob you want to control. The turn sets the amount: right — positive, left — negative. The knob shows, for example, “L1 +25%”.</li>
+    <li>Turn the knob you want to control. The turn sets the amount: right — positive, left — negative. The knob shows the source and amount on two lines, for example “LFO1” and “+25%”.</li>
   </ol>
   <ul lang="ru">
     <li>Снаружи кольца ручки появляется вторая дуга — она движется в реальном времени. У LFO1–3 разная яркость, у ENV дуга пунктиром.</li>
@@ -1842,7 +1887,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
   <div lang="ru" class="tbl"><table>
     <thead><tr><th>Поле</th><th>Что делает</th></tr></thead>
     <tbody>
-      <tr><td>SPACE</td><td>Где звучит микс: Off, Studio, Home Hi-Fi, Car, Club, Small Speakers, Phone, Earbuds. Удержание пункта в меню сохраняет в него текущие настройки.</td></tr>
+      <tr><td>SPACE</td><td>Где звучит микс: Off, Studio, Car, Club, Small Speakers, Phone, Earbuds. Удержание пункта в меню сохраняет в него текущие настройки.</td></tr>
       <tr><td>AMBIENCE</td><td>Сколько пространства комнаты.</td></tr>
       <tr><td>EAR TONE</td><td>Окраска звука ухом: 100 % — как есть, 0 % — выровнено.</td></tr>
       <tr><td>MONO</td><td>Проверка в моно.</td></tr>
@@ -1853,7 +1898,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
   <div lang="en" class="tbl"><table>
     <thead><tr><th>Field</th><th>What it does</th></tr></thead>
     <tbody>
-      <tr><td>SPACE</td><td>Where the mix plays: Off, Studio, Home Hi-Fi, Car, Club, Small Speakers, Phone, Earbuds. Holding an item in the menu stores the current settings in it.</td></tr>
+      <tr><td>SPACE</td><td>Where the mix plays: Off, Studio, Car, Club, Small Speakers, Phone, Earbuds. Holding an item in the menu stores the current settings in it.</td></tr>
       <tr><td>AMBIENCE</td><td>How much of the room's space.</td></tr>
       <tr><td>EAR TONE</td><td>The colouring of sound by the ear: 100 % — as is, 0 % — flattened.</td></tr>
       <tr><td>MONO</td><td>Mono check.</td></tr>
@@ -2047,12 +2092,12 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
   <ul lang="ru">
     <li>Начало и конец секции — тонкие жёлтые линии, имя — посередине.</li>
     <li>Тап по линейке — курсор. Плейхед (жёлтая линия с флажком) можно тянуть пальцем.</li>
-    <li>Слева от линейки — время плейхеда и длина всего трека.</li>
+    <li>Слева от линейки — время плейхеда и сколько осталось до конца трека (до конца последнего блока), например «0:05 / −0:11».</li>
   </ul>
   <ul lang="en">
     <li>The start and end of a section are thin yellow lines, the name is in the middle.</li>
     <li>Tap the ruler — cursor. The playhead (yellow line with a flag) can be dragged with a finger.</li>
-    <li>Left of the ruler — the playhead time and the length of the whole track.</li>
+    <li>Left of the ruler — the playhead time and how much is left to the end of the track (the end of the last block), for example “0:05 / −0:11”.</li>
   </ul>
 
   <h3 lang="ru"><span class="sn">15.4</span>Дорожки, цвет и REF</h3>
@@ -2060,12 +2105,12 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
   <ul lang="ru">
     <li>Заголовок дорожки слева: громкость с метром, имя, M и S. Тап — выбрать дорожку (жёлтые линии по краям строки).</li>
     <li><b>Цвет дорожки:</b> дважды тапните по заголовку дорожки — в меню, кроме COPY, PASTE и DUPLICATE, есть палитра цветов. Цвет меняет только цвет блоков этой дорожки; первый квадрат палитры — цвет по умолчанию. Удобно красить партии по ролям: ударные — серым, бас — оранжевым, лиды — жёлтым.</li>
-    <li><b>REF</b> — референс-трек: чужой готовый трек из библиотеки, строкой сверху таймлайна. Кнопками A/B слева от линейки переключаете свой микс (A) и референс (B) без паузы — так удобно сравнивать громкость и баланс. Референс идёт мимо мастера и не попадает в экспорт.</li>
+    <li><b>REF</b> — референс-трек: чужой готовый трек из библиотеки, строкой сверху таймлайна. Кнопками A/B слева от линейки переключаете свой микс (A) и референс (B) без паузы — так удобно сравнивать громкость и баланс. Референс идёт мимо мастера и не попадает в экспорт. Если из аранжировщика открыть EQ или коррекцию наушников, выбор A/B сохраняется — можно подстраивать EQ, слушая референс; закрыли EQ — снова аранжировщик.</li>
   </ul>
   <ul lang="en">
     <li>The track header on the left: volume with a meter, name, M and S. Tap to select the track (yellow lines along the edges of the lane).</li>
     <li><b>Track colour:</b> double tap the track header — besides COPY, PASTE and DUPLICATE, the menu has a colour palette. The colour changes only the colour of this track's blocks; the first square of the palette is the default colour. Handy for colouring parts by role: drums grey, bass orange, leads yellow.</li>
-    <li><b>REF</b> — a reference track: someone else's finished track from the library, as a lane at the top of the timeline. With the A/B buttons left of the ruler you switch between your mix (A) and the reference (B) without a gap — handy for comparing loudness and balance. The reference bypasses the master and is not included in the export.</li>
+    <li><b>REF</b> — a reference track: someone else's finished track from the library, as a lane at the top of the timeline. With the A/B buttons left of the ruler you switch between your mix (A) and the reference (B) without a gap — handy for comparing loudness and balance. The reference bypasses the master and is not included in the export. If you open EQ or headphone correction from the arranger, the A/B choice is kept — you can adjust EQ while listening to the reference; close EQ and you are back in the arranger.</li>
   </ul>
 
   <h3 lang="ru"><span class="sn">15.5</span>Готовый трек в файл</h3>
@@ -2445,7 +2490,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     <tbody>
       <tr><td>Палец вверх-вниз</td><td>Изменить значение</td><td>2.1</td></tr>
       <tr><td>Двойной тап</td><td>Значение по умолчанию</td><td>2.1</td></tr>
-      <tr><td>SHIFT + удержание 1 с</td><td>Запомнить своё значение по умолчанию</td><td>2.1</td></tr>
+      <tr><td>SHIFT + удержание 1 с</td><td>Запомнить своё значение по умолчанию (в MIX — имя и громкость дорожки)</td><td>2.1, 3.4</td></tr>
       <tr><td>Шаг + поворот</td><td>P-lock</td><td>7.1</td></tr>
       <tr><td>Шаг + двойной тап</td><td>Снять p-lock</td><td>7.2</td></tr>
       <tr><td>SHIFT + двойной тап</td><td>Снять все p-lock дорожки</td><td>7.2</td></tr>
@@ -2456,6 +2501,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       <tr><td>SHIFT + тап по Pitch, Start, End</td><td>Полутоны / доли сэмпла и обратно (режим TAP)</td><td>4.2</td></tr>
       <tr><td>SHIFT + тап по Speed LFO, Dly Time</td><td>По темпу / свободно</td><td>9.1, 10.3</td></tr>
       <tr><td>SHIFT + тап по Wave A, Wave B, 1.3 (ANALOG)</td><td>Модуляция, октава B, вид модуляции</td><td>5.4</td></tr>
+      <tr><td>SHIFT + тап по 1.1 ударного движка</td><td>Слежение за нотами вкл./выкл.</td><td>5.4</td></tr>
     </tbody>
   </table></div>
   <div lang="en" class="tbl"><table>
@@ -2463,7 +2509,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     <tbody>
       <tr><td>Drag up or down</td><td>Change the value</td><td>2.1</td></tr>
       <tr><td>Double tap</td><td>Default value</td><td>2.1</td></tr>
-      <tr><td>SHIFT + hold 1 s</td><td>Store your own default</td><td>2.1</td></tr>
+      <tr><td>SHIFT + hold 1 s</td><td>Store your own default (in MIX — the track name and volume)</td><td>2.1, 3.4</td></tr>
       <tr><td>Step + turn</td><td>P-lock</td><td>7.1</td></tr>
       <tr><td>Step + double tap</td><td>Remove the p-lock</td><td>7.2</td></tr>
       <tr><td>SHIFT + double tap</td><td>Remove all of the track's p-locks</td><td>7.2</td></tr>
@@ -2474,6 +2520,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       <tr><td>SHIFT + tap on Pitch, Start, End</td><td>Semitones / sample fractions and back (TAP mode)</td><td>4.2</td></tr>
       <tr><td>SHIFT + tap on LFO Speed, Dly Time</td><td>Tempo-synced / free</td><td>9.1, 10.3</td></tr>
       <tr><td>SHIFT + tap on Wave A, Wave B, 1.3 (ANALOG)</td><td>Modulation, B octave, modulation type</td><td>5.4</td></tr>
+      <tr><td>SHIFT + tap on 1.1 of a drum engine</td><td>Note tracking on/off</td><td>5.4</td></tr>
     </tbody>
   </table></div>
 
@@ -2831,29 +2878,6 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     return svg(iw, ih, g, pad, pad);
   }
 
-  // TONAL at MIX (example data): 4 bands, grey target corridor, yellow deviation mark; title — TARGET and the project
-  // name (text colour) or the reference name (yellow).
-  function tonal(w, h, ref) {
-    var s = "", top = 40, bottom = h - 36, cy = (top + bottom) / 2, k = (bottom - top) / 24, left = 28, cell = (w - left - 8) / 4;
-    var g = "", bw = Math.min(36, cell * 0.6), cen = ref ? [2.2, -.8, -1.2, -.2] : [1.2, -.3, -.6, -.3], wids = ref ? [2.2, 1.8, 2.6, 3.4] : [3, 3, 3, 3], dev = [3.5, -1.5, -2.6, 0.6];
-    ["+12", "0", "−12"].forEach(function (t, q) {
-      var yy = top + q * 12 * k;
-      g += '<rect x="' + left + '" y="' + yy + '" width="' + (w - left - 8) + '" height="1" fill="var(--gridStrong)" opacity=".5"/>';
-      s += '<div class="lbl" style="left:0;width:' + (left - 4) + 'px;top:' + (yy - 6) + 'px;font-size:9px;color:var(--dim);text-align:right">' + t + "</div>";
-    });
-    var names = ["LOW", "LOW MID", "HIGH MID", "HIGH"];
-    for (var j = 0; j < 4; j++) {
-      var x = left + cell * (j + 0.5), tc = cy - cen[j] * k, yy2 = cy - dev[j] * k;
-      g += '<rect x="' + (x - bw / 2) + '" y="' + (tc - wids[j] * k) + '" width="' + bw + '" height="' + (2 * wids[j] * k) + '" rx="3" fill="var(--meterTrack)"/>';
-      g += '<rect x="' + (x - bw / 2) + '" y="' + Math.min(cy, yy2) + '" width="' + bw + '" height="' + Math.abs(yy2 - cy) + '" fill="var(--accent)" opacity=".3"/>';
-      g += '<rect x="' + (x - bw / 2) + '" y="' + (yy2 - 2) + '" width="' + bw + '" height="4" rx="2" fill="var(--accent)"/>';
-      s += '<div class="lbl" style="left:' + (x - 30) + 'px;width:60px;top:' + (h - 22) + 'px;font-size:9px;color:var(--dim)">' + names[j] + "</div>";
-    }
-    s = svg(w, h, g) + s;
-    s += '<div class="lbl" style="left:8px;top:12px;font-size:9px;color:var(--dim);text-align:left;white-space:nowrap">TARGET&nbsp;&nbsp;<span style="font-weight:600;color:' + (ref ? "var(--accent)" : "var(--text)") + '">' + (ref ? "REFERENCE MIX" : "MY TRACK") + "</span></div>";
-    return s;
-  }
-
   // Goniometer with the correlation bar at the bottom.
   function gonio(w, gh) {
     var strip = 16, gg = gh - strip, r = (Math.min(w, gg) / 2 - 4) / 1.2, cx = w / 2, cy = gg / 2, d = r * .7071;
@@ -2871,15 +2895,13 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       '<div class="lbl" style="left:' + (x0 - 18) + "px;top:" + (by - 4) + 'px;font-size:9px;color:var(--dim)">−1</div><div class="lbl" style="left:' + (x0 + bw + 4) + "px;top:" + (by - 4) + 'px;font-size:9px;color:var(--dim)">+1</div>';
   }
 
-  function scope(w, h) {
+  // Scope (MST and MIX): goniometer with correlation (60 %) and the master waveform (40 %); MIX — only the signal
+  // after the limiter, red.
+  function scope(w, h, mix) {
     var gh = (h - GAP) * 0.6, oh = (h - GAP) * 0.4, s = "";
-    var g = '<path d="M' + w / 2 + " 6 V" + (gh - 6) + " M6 " + gh / 2 + " H" + (w - 6) + '" stroke="var(--gridStrong)" stroke-width="1"/>';
-    var pts = "";
-    for (var i = 0; i < 260; i++) { var a = i * 0.37, r = 0.5 + 0.5 * Math.sin(i * 0.13); var px = w / 2 + Math.sin(a) * r * gh * 0.12, py = gh / 2 - Math.cos(a * 1.03) * r * gh * 0.32; pts += (i ? " L" : "M") + px.toFixed(1) + " " + py.toFixed(1); }
-    g += '<path d="' + pts + '" fill="none" stroke="var(--text)" stroke-width=".8" opacity=".55"/>';
-    s += tile(0, 0, w, gh, "var(--panel)", svg(w, gh, g) + '<div class="lbl" style="left:8px;top:6px;font-size:9px;color:var(--dim)">L</div><div class="lbl" style="right:8px;top:6px;font-size:9px;color:var(--dim)">R</div>');
-    var o = "", n = 110;
-    for (i = 0; i < n; i++) { var v = (0.35 + 0.3 * Math.abs(Math.sin(i * 0.31))) * (oh / 2 - 6); o += '<rect x="' + (6 + i * (w - 12) / n).toFixed(1) + '" y="' + (oh / 2 - v).toFixed(1) + '" width="' + ((w - 12) / n * 0.8).toFixed(2) + '" height="' + (2 * v).toFixed(1) + '" fill="var(--text)" opacity=".6"/>'; }
+    s += tile(0, 0, w, gh, "var(--panel)", gonio(w, gh));
+    var o = '<rect x="0" y="' + Math.round(oh / 2) + '" width="' + w + '" height="1" fill="var(--gridStrong)"/>', n = 110;
+    for (var i = 0; i < n; i++) { var v = (0.35 + 0.3 * Math.abs(Math.sin(i * 0.31))) * (oh / 2 - 6); o += '<rect x="' + (6 + i * (w - 12) / n).toFixed(1) + '" y="' + (oh / 2 - v).toFixed(1) + '" width="' + ((w - 12) / n * 0.8).toFixed(2) + '" height="' + (2 * v).toFixed(1) + '" fill="' + (mix ? "var(--rec)" : "var(--text)") + '" opacity=".6"/>'; }
     s += tile(0, gh + GAP, w, oh, "var(--panel)", svg(w, oh, o));
     return s;
   }
@@ -2889,10 +2911,9 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     var pairsH = 2 * PAIR + GAP, topH = CENTER_H - pairsH - GAP, by = y + topH + GAP, bw = (COL - GAP) / 2;
     if (mode === "mst" || mode === "mix") {
       if (mode === "mix") {
-        // gonio 60 % of the old scope height, TONAL down to the bottom of the column (no buttons)
-        var gh = (topH - GAP) * 0.6;
-        s += tile(x, y, COL, gh, "var(--panel)", gonio(COL, gh));
-        s += tile(x, y + gh + GAP, COL, CENTER_H - gh - GAP, "var(--panel)", tonal(COL, CENTER_H - gh - GAP, state === "mixref"));
+        // MIX: the scope as at MST, below — SHIFT bottom left, the other places empty
+        s += box(x, y, COL, topH, "", scope(COL, topH, true));
+        s += btn(x, by + PAIR + GAP, bw, PAIR, "SHIFT");
         return s;
       }
       s += box(x, y, COL, topH, "", scope(COL, topH));
@@ -2930,7 +2951,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
         var kd = synth && i < 4 ? ANALOG_ROW[i] : GRIDS[mode][i];
         if (state === "plock" && LOCKS[i]) { kd = Object.assign({}, kd, { lock: LOCKS[i] }); }
         if (state === "morph" && MORPHED[i]) kd = MORPHED[i];
-        if (state === "lfo" && i === 6) { kd = K("Filter", "LP 2.0k", .65); kd.mod = { m: .48, zone: [.4, .9], v: "L1 +25%" }; }
+        if (state === "lfo" && i === 6) { kd = K("Filter", "LP 2.0k", .65); kd.mod = { m: .48, zone: [.4, .9], v: "LFO1\n+25%" }; }
         s += knob(x, y, cw, ch, kd);
       }
     }
@@ -3489,7 +3510,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     s2 += svg(tW, H - wy, lanes);
     s += box(tx, wy, tW, H - wy, "overflow:hidden;border-radius:0 10px 0 0", s2);
     // headers
-    s += '<div class="lbl" style="left:' + (PAD + 8) + "px;top:" + (wy + 10) + 'px;font-size:15px;color:var(--text)">' + (rec ? "0:21 / 0:21" : "0:05 / 0:16") + '</div>';
+    s += '<div class="lbl" style="left:' + (PAD + 8) + "px;top:" + (wy + 10) + 'px;font-size:15px;color:var(--text)">' + (rec ? "0:21 / −0:00" : "0:05 / −0:11") + '</div>';
     var tn = ["1", "2", "3", "4", "5", "6", "7", "8"];
     for (t = 0; t < 8; t++) {
       var hy = wy + top + t * (unit + g), sel = t === 0, h = "";
@@ -3802,14 +3823,14 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     track: "TRACK — выбрана дорожка с сэмплом. Верхняя строка — сэмпл (у синта — ручки движка, раздел 5), вторая — огибающая и фильтр, третья — посылы на общие эффекты, нижняя — Pan, Velocity, Ratchet, Chance. SHIFT + тап по Filter меняет тип фильтра, SHIFT + тап по Rate — режим RATE. Громкость дорожки — в MIX или регулятором на измерителе.",
     fx: "FX — пока держите FX (кнопка белая). Строки: Reverb, Delay, Drive, Duck. Эффекты общие для всех дорожек; сколько звука дорожки идёт в каждый, задают посылы — третья строка режима TRACK. Duck Source выбирает дорожку, которая приглушает остальные.",
     mod: "MOD — пока держите MOD. Строки: LFO1, LFO2, LFO3 и огибающая ENV выбранной дорожки. Куда они действуют, назначается кнопками LFO1…ENV в левой колонке (раздел 9).",
-    mix: "MIX — громкости дорожек в dB, подписи — имена дорожек. Слева от ручки — метр дорожки, справа — кнопки M (mute), S (solo) и ● (готовность к записи стема). Ручки без кольца — дорожки, которых ещё нет: двойной тап по ней добавляет дорожку. Двойной тап по ручке дорожки — меню COPY, PASTE, DELETE TRACK, RENAME; удержание и перетаскивание меняет порядок дорожек. Над окном — ● MASTER (запись мастера); в окне слева — индикация дорожек LEVEL, PAN, FREQ (кнопки под ним); справа — вектороскоп с корреляцией и тональный баланс (раздел 3.3).",
+    mix: "MIX — громкости дорожек в dB, подписи — имена дорожек. Слева от ручки — метр дорожки, справа — кнопки M (mute), S (solo) и ● (готовность к записи стема). Ручки без кольца — дорожки, которых ещё нет: двойной тап по ней добавляет дорожку. Двойной тап по ручке дорожки — меню COPY, PASTE, DELETE TRACK, RENAME; удержание и перетаскивание меняет порядок дорожек. Над окном — ● MASTER (запись мастера); в окне слева — индикация дорожек LEVEL, PAN, FREQ (кнопки под ним); справа — вектороскоп с корреляцией и осциллоскоп после лимитера, под ними SHIFT (с удержанием ручки — имя и громкость дорожки по умолчанию) (раздел 3.3).",
     mst: "MST — цепочка мастера сверху вниз: сатуратор, компрессор, клиппер, лимитер (перед ними — EQ мастера). В окне слева — индикация COMP, CLIP, LIM, под ним — кнопки окон модулей; справа — скоп мастера и кнопки его точек съёма (раздел 12)."
   };
   var DESC_EN = {
     track: "TRACK — a track with a sample is selected. Top row — the sample (on a synth — the engine knobs, section 5), second — envelope and filter, third — sends to the shared effects, bottom — Pan, Velocity, Ratchet, Chance. SHIFT + tap on Filter changes the filter type, SHIFT + tap on Rate — the RATE mode. Track volume — in MIX or with the control on the meter.",
     fx: "FX — while you hold FX (the button is white). Rows: Reverb, Delay, Drive, Duck. The effects are shared by all tracks; how much of a track's sound goes into each is set by the sends — the third row of TRACK mode. Duck Source picks the track that ducks the others.",
     mod: "MOD — while you hold MOD. Rows: LFO1, LFO2, LFO3 and the ENV envelope of the selected track. Where they act is assigned with the LFO1…ENV buttons in the left column (section 9).",
-    mix: "MIX — track volumes in dB, labelled with track names. Left of a knob — the track meter, right — the M (mute), S (solo) and ● (arm stem recording) buttons. Knobs without a ring are tracks that do not exist yet: double tap one to add a track. Double tap a track's knob — the COPY, PASTE, DELETE TRACK, RENAME menu; hold and drag to reorder tracks. Above the window — ● MASTER (master recording); the window on the left shows track meters LEVEL, PAN, FREQ (buttons under it); on the right — the vectorscope with correlation and the tonal balance (section 3.3).",
+    mix: "MIX — track volumes in dB, labelled with track names. Left of a knob — the track meter, right — the M (mute), S (solo) and ● (arm stem recording) buttons. Knobs without a ring are tracks that do not exist yet: double tap one to add a track. Double tap a track's knob — the COPY, PASTE, DELETE TRACK, RENAME menu; hold and drag to reorder tracks. Above the window — ● MASTER (master recording); the window on the left shows track meters LEVEL, PAN, FREQ (buttons under it); on the right — the vectorscope with correlation and the oscilloscope after the limiter, SHIFT below them (with a held knob — default track name and volume) (section 3.3).",
     mst: "MST — the master chain top to bottom: saturator, compressor, clipper, limiter (preceded by the master EQ). The window on the left shows the COMP, CLIP, LIM display, with the module window buttons below it; on the right — the master scope and its tap point buttons (section 12)."
   };
   var curMode = "track";
