@@ -8,16 +8,6 @@
     ] },
     { "name": "Studio Real", "room": "StudioReal", "filters": [] },
     { "name": "Studio CR7", "room": "StudioCR7", "filters": [] },
-    { "name": "Car", "room": "Car", "filters": [
-      { "type": "PK", "freq": 250, "gain": -2, "q": 1 },
-      { "type": "LP", "freq": 16000 }
-    ] },
-    { "name": "Club", "room": "Club", "filters": [
-      { "type": "HP", "freq": 28, "order": 4 },
-      { "type": "LS", "freq": 70, "gain": 5 },
-      { "type": "PK", "freq": 250, "gain": -2, "q": 1 },
-      { "type": "HS", "freq": 8000, "gain": -3 }
-    ] },
     { "name": "Phone", "mono": true, "filters": [
       { "type": "HP", "freq": 300 },
       { "type": "LP", "freq": 12000 },

@@ -46,7 +46,7 @@ final class RoomTests: XCTestCase {
 
     func testRoomsAndWav() {
         let list = RoomTests.rooms()
-        XCTAssertEqual(list.map { $0.name }, ["Studio", "Car", "Club", "StudioReal", "StudioCR7"])
+        XCTAssertEqual(list.map { $0.name }, ["Studio", "StudioReal", "StudioCR7"])
         for k in 0..<list.count {
             let ir = RoomTests.ir(k)
             XCTAssertGreaterThan(ir.frames, 1000)
@@ -199,9 +199,12 @@ final class RoomTests: XCTestCase {
         return (0..<n).map { t[$0] * g }
     }
 
-    /// Задержка — 128 отсчётов; нагрузка свёртки самой длинной комнаты — Club, 1 с (отладочная сборка, без vDSP на Linux).
+    /// Задержка — 128 отсчётов; нагрузка свёртки самой длинной комнаты (Club, 1 с; пока Club убран — самая длинная из
+    /// оставшихся; отладочная сборка, без vDSP на Linux).
     func testLatencyAndLoad() {
-        let ir = RoomTests.ir(3)
+        let list = RoomTests.rooms()
+        let longest: Int = (0..<list.count).max { RoomTests.ir($0).frames < RoomTests.ir($1).frames } ?? 0
+        let ir = RoomTests.ir(longest)
         let st = RoomStage(sampleRate: 48000)
         st.ambience.store(1)
         st.set(RoomConv(ir: ir))

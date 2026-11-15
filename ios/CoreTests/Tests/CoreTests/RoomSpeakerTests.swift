@@ -91,7 +91,7 @@ final class RoomSwitchTests: XCTestCase {
 
     func testEarToneSwitchKeepsTail() {
         let rooms = RoomTests.rooms()
-        let k: Int = rooms.firstIndex { $0.name == "Club" } ?? 0
+        let k: Int = rooms.firstIndex { $0.name == "Studio" } ?? 0
         let info = rooms[k]
         let ir = RoomTests.ir(k)
         let d = try! Data(contentsOf: RoomTests.res.appendingPathComponent(info.flatFile))
