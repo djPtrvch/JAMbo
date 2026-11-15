@@ -6,6 +6,7 @@
       { "type": "LS", "freq": 120, "gain": 1.5 },
       { "type": "HS", "freq": 5000, "gain": -2 }
     ] },
+    { "name": "Studio Real", "room": "StudioReal", "filters": [] },
     { "name": "Car", "room": "Car", "filters": [
       { "type": "PK", "freq": 250, "gain": -2, "q": 1 },
       { "type": "LP", "freq": 16000 }

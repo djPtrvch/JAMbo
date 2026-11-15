@@ -195,6 +195,35 @@
         "head_file": "RoomDeskFlatHead.wav",
         "head_gain_db": -2.411
       }
+    },
+    {
+      "name": "StudioReal",
+      "file": "RoomStudioReal.wav",
+      "source": "srir",
+      "measurement": "WDR Control Room 1 (TH Köln WDR compilation, CC BY 4.0)",
+      "rt60": 0.228,
+      "gain_db": -8.923,
+      "length_ms": 324.1,
+      "direct": 128,
+      "channels": "LL, LR, RL, RR",
+      "speaker": {
+        "hp_hz": 0,
+        "hp_order": 0,
+        "ft_hz": 0
+      },
+      "head": {
+        "file": "RoomStudioRealHead.wav",
+        "from_deg": -50,
+        "step_deg": 2,
+        "count": 51,
+        "gain_db": -5.805
+      },
+      "flat": {
+        "file": "RoomStudioRealFlat.wav",
+        "gain_db": -9.599,
+        "head_file": "RoomStudioRealFlatHead.wav",
+        "head_gain_db": -6.092
+      }
     }
   ],
   "hrtf": "FABIAN HRTF data base v4, TU Berlin, CC BY 4.0, DOI 10.14279/depositonce-5718.5"
