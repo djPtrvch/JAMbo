@@ -137,7 +137,7 @@ struct SampleWindow: View {
 /// баланс сигнала (не ручка Pan): от средней линии вверх — вправо, вниз — влево, (R − L) / (R + L); FREQ — диапазон
 /// частот дорожки (снизу 20 Гц, сверху 20 кГц; красная черта с коротким градиентом — самая сильная частота).
 /// LEVEL с LOUD (15.11): снизу сплошной слой до громкости по восприятию, выше до пика — полупрозрачный. MASK —
-/// конфликты частот (ось FREQ): диапазон серый, поверх жёлтым — полосы, где мешают остальные (заглушают — оранжевым), над ним номер того,
+/// конфликты частот (ось FREQ): диапазон серый, поверх жёлтым — полосы, где мешают остальные, над ним номер того,
 /// кто мешает больше всех. Приглушение Duck не показывается.
 struct MixOverview: View {
     let model: AppModel
@@ -230,8 +230,7 @@ struct MixOverview: View {
         }
     }
 
-    /// MASK: диапазон дорожки (как FREQ) — серый, полосы конфликта — жёлтые (ярче — сильнее), где дорожку
-    /// заглушают — оранжевые; номер мешающей —
+    /// MASK: диапазон дорожки (как FREQ) — серый, полосы конфликта — жёлтые (ярче — сильнее), номер мешающей —
     /// над полосой (полоса до верха — под ней); заглушённые — серые, без конфликтов.
     static func drawMask(_ ctx: GraphicsContext, _ size: CGSize, _ model: AppModel, _ n: Int) {
         let h: CGFloat = size.height
@@ -257,9 +256,7 @@ struct MixOverview: View {
             c.clip(to: shape)
             for j in 0..<m.strength.count where m.strength[j] > 0.02 {
                 let y: CGFloat = h - CGFloat(j + 1) * bh
-                // Заглушают — оранжевый (решение пользователя 15.11), иначе жёлтый: ярче — ближе по уровню.
-                let fill: Color = m.buried[j] ? theme.gr : theme.accent.opacity(Double(m.strength[j]))
-                c.fill(Path(CGRect(x: x, y: y, width: w, height: bh)), with: .color(fill))
+                c.fill(Path(CGRect(x: x, y: y, width: w, height: bh)), with: .color(theme.accent.opacity(Double(m.strength[j]))))
             }
             if m.who < 0 { continue }
             let label: String = String(m.who + 1)

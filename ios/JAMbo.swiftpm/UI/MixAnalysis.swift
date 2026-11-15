@@ -63,8 +63,7 @@ final class PowerFFT {
 /// 20 Гц…20 кГц), среднее за ~4 с (тишина между ударами не обнуляет — полоса не мерцает); диапазон дорожки — полосы
 /// не ниже наибольшей на 20 dB, пик — наибольшая. Полоса гаснет, когда средний уровень дорожки ниже −66 dBFS.
 /// LOUD — громкость по восприятию: средний квадрат сигнала с весами кривой K (BS.1770) по полосам, среднее за ~4 с.
-/// MASK — полосы диапазона дорожки, где сумма остальных слышимых дорожек не тише её больше чем на 12 dB
-/// (громче или вровень — дорожку там заглушают).
+/// MASK — полосы диапазона дорожки, где сумма остальных слышимых дорожек не тише её больше чем на 12 dB.
 final class MixAnalysis {
     static let bands = 30
     static let range: Float = 20
@@ -194,18 +193,16 @@ final class MixAnalysis {
         return (v * 1.7058).squareRoot()
     }
 
-    /// MASK дорожки t: сила конфликта по полосам (0…1; 0 — вне диапазона или нет конфликта), заглушают ли её там
-    /// (остальные громче или вровень) и номер дорожки, которая больше всех мешает в самом сильном конфликте (−1 — нет).
-    /// audible — слышимые дорожки (мешают только они).
-    func mask(_ t: Int, _ audible: [Bool]) -> (strength: [Float], buried: [Bool], who: Int) {
+    /// MASK дорожки t: сила конфликта по полосам (0…1; 0 — вне диапазона или нет конфликта) и номер дорожки, которая
+    /// больше всех мешает в самом сильном конфликте (−1 — нет). audible — слышимые дорожки (мешают только они).
+    func mask(_ t: Int, _ audible: [Bool]) -> (strength: [Float], who: Int) {
         let nb: Int = MixAnalysis.bands
         var st = [Float](repeating: 0, count: nb)
-        var bur = [Bool](repeating: false, count: nb)
-        guard t >= 0 && t < TrackTaps.tracks, rms[t] >= 0.0005 else { return (st, bur, -1) }
+        guard t >= 0 && t < TrackTaps.tracks, rms[t] >= 0.0005 else { return (st, -1) }
         let p: [Float] = power[t]
         var top: Float = 0
         for j in 0..<nb where p[j] > top { top = p[j] }
-        if top <= 0 { return (st, bur, -1) }
+        if top <= 0 { return (st, -1) }
         let thr: Float = top * pow(10, -MixAnalysis.range / 10)
         var bestScore: Float = 0, bestBand = -1
         for j in 0..<nb where p[j] >= thr {
@@ -218,7 +215,6 @@ final class MixAnalysis {
             let d: Float = 10 * log10(other / p[j])
             let s: Float = d >= 0 ? 1 : max(0, 1 + d / MixAnalysis.maskRange)
             st[j] = s
-            bur[j] = d >= 0
             let score: Float = s * p[j]
             if score > bestScore {
                 bestScore = score
@@ -235,6 +231,6 @@ final class MixAnalysis {
                 }
             }
         }
-        return (st, bur, who)
+        return (st, who)
     }
 }
