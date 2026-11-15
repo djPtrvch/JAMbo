@@ -97,8 +97,9 @@ public struct RowClip: Sendable {
 }
 
 extension Project {
-    /// Слышна ли дорожка (mute / solo).
+    /// Слышна ли дорожка (mute / solo). Номер вне дорожек (удалённая, событие колбэка ещё в пути) — не слышна.
     public func audible(_ i: Int) -> Bool {
+        guard i >= 0 && i < tracks.count else { return false }
         if tracks.contains(where: { $0.solo }) { return tracks[i].solo }
         return !tracks[i].mute
     }

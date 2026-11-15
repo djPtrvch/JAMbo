@@ -526,9 +526,9 @@ final class AppModel {
         tickMidiClock()
         tickClockFollow()
         tickMidiOut()
-        let tracks = project.tracks.count
+        // Число дорожек — на момент вызова: после DELETE TRACK события удалённой ещё приходят.
         live.audible = { [weak self] t in
-            guard let s = self, t < tracks else { return false }
+            guard let s = self, t < s.project.tracks.count else { return false }
             return s.project.audible(t)
         }
         live.stepAt = { [weak self] t, k, pos in
