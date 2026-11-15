@@ -152,10 +152,10 @@ extension AppModel {
         }
     }
 
-    /// FREQ при MIX: съём дорожек — только пока виден; выключили — данные с нуля.
+    /// LEVEL (LOUD), MASK, FREQ при MIX: съём дорожек — только пока виден один из них; выключили — данные с нуля.
     private func tickMixAnalysis() {
         let taps: TrackTaps = audio.core.levels.trackTaps
-        let want: Bool = channel == .mix && _mixMode == MixMode.freq
+        let want: Bool = channel == .mix && _mixMode != MixMode.pan
         if want {
             if taps.on.load() == 0 { taps.on.store(1) }
             let n: Int = min(TrackTaps.tracks, project.tracks.count)

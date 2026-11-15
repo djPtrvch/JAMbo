@@ -17,11 +17,12 @@ struct LeftColumn: View {
                                right: MasterButton(model: model, module: MasterScope.lim))
                 })
             } else if model.channel == .mix {
-                // MIX (10.11): кнопки вида полос MIX — LEVEL, PAN, FREQ (справа внизу; слева внизу пусто).
+                // MIX (10.11, 15.11): кнопки вида полос MIX — LEVEL, PAN / MASK, FREQ.
                 AnyView(VStack(spacing: Layout.gap) {
                     ButtonPair(left: MixModeButton(model: model, title: "LEVEL", mode: MixMode.level),
                                right: MixModeButton(model: model, title: "PAN", mode: MixMode.pan))
-                    ButtonPair(left: Color.clear, right: MixModeButton(model: model, title: "FREQ", mode: MixMode.freq))
+                    ButtonPair(left: MixModeButton(model: model, title: "MASK", mode: MixMode.mask),
+                               right: MixModeButton(model: model, title: "FREQ", mode: MixMode.freq))
                 })
             } else {
                 AnyView(VStack(spacing: Layout.gap) {
@@ -181,7 +182,7 @@ struct RightColumn: View {
 
 /// Вид полос MIX слева (в окне сэмпла при MIX).
 enum MixMode {
-    static let level = 0, pan = 1, freq = 2
+    static let level = 0, pan = 1, freq = 2, mask = 3
 }
 
 /// Кнопка вида полос MIX (слева): тап — этот вид; выбранная — белая.

@@ -136,7 +136,9 @@ struct SampleWindow: View {
 /// L и R) снизу вверх по шкале метров (−60…0 dBFS), выше 0 dBFS — красный, пик-холд — линия цвета текста; PAN —
 /// баланс сигнала (не ручка Pan): от средней линии вверх — вправо, вниз — влево, (R − L) / (R + L); FREQ — диапазон
 /// частот дорожки (снизу 20 Гц, сверху 20 кГц; красная черта с коротким градиентом — самая сильная частота).
-/// Приглушение Duck не показывается.
+/// LEVEL с LOUD (15.11): снизу сплошной слой до громкости по восприятию, выше до пика — полупрозрачный. MASK —
+/// конфликты частот (ось FREQ): диапазон серый, поверх жёлтым — полосы, где мешают остальные, над ним номер того,
+/// кто мешает больше всех. Приглушение Duck не показывается.
 struct MixOverview: View {
     let model: AppModel
 
@@ -157,7 +159,7 @@ struct MixOverview: View {
             ctx.fill(Path(CGRect(x: 0, y: cy, width: size.width, height: 1)), with: .color(theme.gridStrong))
             dimText(ctx, "R", CGPoint(x: size.width, y: 0), .topTrailing)
             dimText(ctx, "L", CGPoint(x: size.width, y: h), .bottomTrailing)
-        } else if mode == MixMode.freq {
+        } else if mode == MixMode.freq || mode == MixMode.mask {
             let names: [String] = ["100", "1k", "10k"]
             let ys: [CGFloat] = [0.2330, 0.5663, 0.8997]
             for k in 0..<3 {
@@ -171,6 +173,10 @@ struct MixOverview: View {
         let n: Int = min(Params.maxTracks, model.project.tracks.count)
         let m: MeterState = model.meters
         let an: MixAnalysis = model.mixAn
+        if mode == MixMode.mask {
+            drawMask(ctx, size, model, n)
+            return
+        }
         for t in 0..<n {
             let x: CGFloat = cell * (CGFloat(t) + 0.5) - w / 2
             let mute: Bool = !model.project.audible(t)
@@ -178,7 +184,7 @@ struct MixOverview: View {
             if lr.count < 2 { continue }
             let l: Float = lr[0].level, r: Float = lr[1].level
             var rect = CGRect.zero
-            var col: Color = mute ? theme.muteGrey : theme.accent
+            let col: Color = mute ? theme.muteGrey : theme.accent
             if mode == MixMode.pan {
                 if max(l, r) < 0.001 { continue }
                 let b: CGFloat = CGFloat((r - l) / (r + l))
@@ -201,17 +207,65 @@ struct MixOverview: View {
                 }
                 continue
             } else {
+                // LEVEL: пик — полупрозрачный (выше 0 dBFS — красный), LOUD — сплошной снизу, пик-холд — линия.
                 let lv: Float = max(l, r)
                 let f: CGFloat = MeterState.frac(lv)
+                let lf: CGFloat = MeterState.frac(an.loud(t))
+                let over: Bool = !mute && lv >= MeterState.over
+                if f > 0 {
+                    let pr = CGRect(x: x, y: h - f * h, width: w, height: f * h)
+                    ctx.fill(Path(roundedRect: pr, cornerRadius: 3), with: .color(over ? theme.rec : col.opacity(0.4)))
+                }
+                if lf > 0 {
+                    let lr2 = CGRect(x: x, y: h - lf * h, width: w, height: lf * h)
+                    ctx.fill(Path(roundedRect: lr2, cornerRadius: 3), with: .color(col))
+                }
                 let hf: CGFloat = MeterState.frac(max(lr[0].hold, lr[1].hold))
                 if hf > 0.01 {
                     ctx.fill(Path(CGRect(x: x, y: max(0, h - hf * h - 1), width: w, height: 2)), with: .color(theme.text))
                 }
-                if f <= 0 { continue }
-                rect = CGRect(x: x, y: h - f * h, width: w, height: f * h)
-                if !mute && lv >= MeterState.over { col = theme.rec }
+                continue
             }
             ctx.fill(Path(roundedRect: rect, cornerRadius: 3), with: .color(col))
+        }
+    }
+
+    /// MASK: диапазон дорожки (как FREQ) — серый, полосы конфликта — жёлтые (ярче — сильнее), номер мешающей —
+    /// над полосой (полоса до верха — под ней); заглушённые — серые, без конфликтов.
+    static func drawMask(_ ctx: GraphicsContext, _ size: CGSize, _ model: AppModel, _ n: Int) {
+        let h: CGFloat = size.height
+        let cell: CGFloat = size.width / 16
+        let w: CGFloat = MeterBars.width
+        let an: MixAnalysis = model.mixAn
+        var audible: [Bool] = []
+        for t in 0..<n { audible.append(model.project.audible(t)) }
+        let nb = CGFloat(MixAnalysis.bands)
+        let bh: CGFloat = h / nb
+        for t in 0..<n {
+            guard let sp = an.span(t) else { continue }
+            let x: CGFloat = cell * (CGFloat(t) + 0.5) - w / 2
+            let rect = CGRect(x: x, y: h - sp.hi * h, width: w, height: max(3, (sp.hi - sp.lo) * h))
+            let shape = Path(roundedRect: rect, cornerRadius: 3)
+            if !audible[t] {
+                ctx.fill(shape, with: .color(theme.muteGrey))
+                continue
+            }
+            ctx.fill(shape, with: .color(theme.meterTrack))
+            let m = an.mask(t, audible)
+            var c = ctx
+            c.clip(to: shape)
+            for j in 0..<m.strength.count where m.strength[j] > 0.02 {
+                let y: CGFloat = h - CGFloat(j + 1) * bh
+                c.fill(Path(CGRect(x: x, y: y, width: w, height: bh)), with: .color(theme.accent.opacity(Double(m.strength[j]))))
+            }
+            if m.who < 0 { continue }
+            let label: String = String(m.who + 1)
+            let cx: CGFloat = x + w / 2
+            if rect.minY >= 12 {
+                dimText(ctx, label, CGPoint(x: cx, y: rect.minY - 2), .bottom)
+            } else {
+                dimText(ctx, label, CGPoint(x: cx, y: rect.maxY + 2), .top)
+            }
         }
     }
 }

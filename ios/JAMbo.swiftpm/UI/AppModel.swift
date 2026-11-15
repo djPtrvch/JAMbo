@@ -435,9 +435,9 @@ final class AppModel {
     /// не хранится).
     @ObservationIgnored let scope = ScopeState()
     @ObservationIgnored var _scopeOn: [Bool] = [true, false, false, false]
-    /// Вид полос MIX слева (MixMode.level, pan, freq); в проекте не хранится.
+    /// Вид полос MIX слева (MixMode.level, pan, freq, mask); в проекте не хранится.
     @ObservationIgnored var _mixMode: Int = 0
-    /// FREQ при MIX.
+    /// FREQ, MASK и LOUD при MIX.
     @ObservationIgnored let mixAn = MixAnalysis()
     /// Окно модуля мастера на месте центра (MasterScope.sat…lim; nil — закрыто) и его меню (название, PRESETS);
     /// ввод числом или имени пресета. Открытость и FREEZE не в проекте.
