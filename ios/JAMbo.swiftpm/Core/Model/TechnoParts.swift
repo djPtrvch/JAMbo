@@ -138,8 +138,10 @@ extension MelodyRhythm {
 extension Project {
     /// Шаги бочки страниц range (для баса и лида Techno): первая дорожка KICK (движок или сэмпл по имени) с тригами
     /// в открытом клипе; странице range соответствует её страница, играющая одновременно (по кругу длины клипа
-    /// бочки). Страница бочки без тригов или бочки нет — fallback (1, 5, 9, 13; у стилей — MelodyRhythm.styleKick).
-    public func kickGrid(pages range: ClosedRange<Int>, fallback: Set<Int> = MelodyRhythm.defaultKick) -> [Set<Int>] {
+    /// бочки). Страница бочки без тригов или бочки нет — шаги стиля партий style (MelodyRhythm.styleKick; nil —
+    /// Techno: 1, 5, 9, 13).
+    public func kickGrid(pages range: ClosedRange<Int>, style ps: Int? = nil) -> [Set<Int>] {
+        let fallback: Set<Int> = ps.map { MelodyRhythm.styleKick($0) } ?? MelodyRhythm.defaultKick
         let fs: [String: String] = files
         let kt: Track? = tracks.first { t in
             t.drumRoleBy(name: fs[t.sample]) == .kick && t.pages.contains { pg in pg.contains { $0.on } }

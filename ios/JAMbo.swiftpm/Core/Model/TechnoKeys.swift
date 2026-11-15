@@ -41,15 +41,22 @@ extension MelodyRhythm {
 }
 
 extension Track {
-    /// Случайная партия Techno роли role на страницы range (прежние шаги этих страниц стираются): BASS, LEAD, KEYS,
-    /// ARP — общий генератор (TechnoRun.swift; ARP — по настройкам ARP дорожки, они не меняются), PAD — technoPad
-    /// (своя прогрессия, degrees не нужны; single — одна длинная нота вместо аккорда). kind — тип аккорда
-    /// (technoKinds), kicks — шаги бочки страниц.
-    public mutating func writeTechnoPart(_ role: MelodyRhythm.Role, pages range: ClosedRange<Int>, degrees: [Int],
-                                         kind: Int, scale: Int, root: Int, octave: Int, kicks: [Set<Int>]?,
-                                         single: Bool = false, using g: inout Rng) {
+    /// Случайная партия роли role на страницы range (прежние шаги этих страниц стираются). style — стиль партий
+    /// (MelodyRhythm.partStyle: House, Breaks, Trap, Pop, Ambient — stylePart), nil — Techno: BASS, LEAD, KEYS, ARP —
+    /// общий генератор (TechnoRun.swift), PAD — technoPad (своя прогрессия, degrees не нужны). ARP — по настройкам
+    /// ARP дорожки (они не меняются); single — PAD без CHORD (одна нота). kind — тип аккорда (Techno — technoKinds,
+    /// стили — Scales.chordKinds), kicks — шаги бочки страниц.
+    public mutating func writePart(_ role: MelodyRhythm.Role, style ps: Int? = nil, pages range: ClosedRange<Int>,
+                                   degrees: [Int], kind: Int, scale: Int, root: Int, octave: Int, kicks: [Set<Int>]?,
+                                   single: Bool = false, using g: inout Rng) {
         let t: Track = self
         let lens: [Int] = range.map { t.pageLen($0, from: range.lowerBound) }
+        if let st = ps {
+            writeSlices(MelodyRhythm.stylePart(role, style: st, lens: lens, degrees: degrees, kind: kind, scale: scale,
+                                               root: root, octave: octave, kicks: kicks, single: single, arp: arp,
+                                               using: &g), pages: range)
+            return
+        }
         if role == .arp {
             let a: TrackArp = arp
             let notes: [ArpStepNote] = Arp.technoSteps(lens: lens, degrees: degrees, kind: kind, scale: scale,

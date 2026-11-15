@@ -207,7 +207,7 @@ final class StylePartsTests: XCTestCase {
             for ps in 0..<5 {
                 for role in roles {
                     let d: [Int] = M.styleProgression(ps, scale: scale, avoid: nil, using: &g)
-                    t.writeStylePart(role, style: ps, pages: 0...1, degrees: d, kind: M.styleKind(ps, using: &g),
+                    t.writePart(role, style: ps, pages: 0...1, degrees: d, kind: M.styleKind(ps, using: &g),
                                      scale: scale, root: root, octave: 3, kicks: nil, using: &g)
                     ids.formUnion(t.pages.flatMap { $0 }.flatMap { $0.locks.keys })
                 }

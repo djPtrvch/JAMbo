@@ -185,11 +185,11 @@ final class TechnoPartsTests: XCTestCase {
         var h = History<Project>()
         let before: Project = p
         let d: [Int] = M.technoProgression(using: &g)
-        p.tracks[0].writeTechnoPart(.bass, pages: 0...1, degrees: d, kind: 0, scale: scale, root: root, octave: 1,
+        p.tracks[0].writePart(.bass, pages: 0...1, degrees: d, kind: 0, scale: scale, root: root, octave: 1,
                                     kicks: p.kickGrid(pages: 0...1), using: &g)
-        p.tracks[1].writeTechnoPart(.pad, pages: 0...1, degrees: d, kind: 0, scale: scale, root: root, octave: 3, kicks: nil,
+        p.tracks[1].writePart(.pad, pages: 0...1, degrees: d, kind: 0, scale: scale, root: root, octave: 3, kicks: nil,
                                     using: &g)
-        p.tracks[2].writeTechnoPart(.lead, pages: 0...1, degrees: d, kind: 0, scale: scale, root: root, octave: 3,
+        p.tracks[2].writePart(.lead, pages: 0...1, degrees: d, kind: 0, scale: scale, root: root, octave: 3,
                                     kicks: p.kickGrid(pages: 0...1), using: &g)
         h.record(before: before, after: p)
         XCTAssertNotEqual(p, before)
@@ -208,15 +208,15 @@ final class TechnoPartsTests: XCTestCase {
         t.arp.mode = true
         for _ in 0..<50 {
             let d: [Int] = M.technoProgression(using: &g)
-            t.writeTechnoPart(.bass, pages: 0...1, degrees: d, kind: 0, scale: scale, root: root, octave: 1, kicks: nil, using: &g)
+            t.writePart(.bass, pages: 0...1, degrees: d, kind: 0, scale: scale, root: root, octave: 1, kicks: nil, using: &g)
             var ids = Set(t.pages.flatMap { $0 }.flatMap { $0.locks.keys })
-            t.writeTechnoPart(.lead, pages: 0...1, degrees: d, kind: 0, scale: scale, root: root, octave: 3, kicks: nil, using: &g)
+            t.writePart(.lead, pages: 0...1, degrees: d, kind: 0, scale: scale, root: root, octave: 3, kicks: nil, using: &g)
             ids.formUnion(t.pages.flatMap { $0 }.flatMap { $0.locks.keys })
-            t.writeTechnoPart(.pad, pages: 0...1, degrees: d, kind: 1, scale: scale, root: root, octave: 3, kicks: nil, using: &g)
+            t.writePart(.pad, pages: 0...1, degrees: d, kind: 1, scale: scale, root: root, octave: 3, kicks: nil, using: &g)
             ids.formUnion(t.pages.flatMap { $0 }.flatMap { $0.locks.keys })
-            t.writeTechnoPart(.keys, pages: 0...1, degrees: d, kind: 2, scale: scale, root: root, octave: 4, kicks: nil, using: &g)
+            t.writePart(.keys, pages: 0...1, degrees: d, kind: 2, scale: scale, root: root, octave: 4, kicks: nil, using: &g)
             ids.formUnion(t.pages.flatMap { $0 }.flatMap { $0.locks.keys })
-            t.writeTechnoPart(.arp, pages: 0...1, degrees: d, kind: 0, scale: scale, root: root, octave: 4, kicks: nil, using: &g)
+            t.writePart(.arp, pages: 0...1, degrees: d, kind: 0, scale: scale, root: root, octave: 4, kicks: nil, using: &g)
             ids.formUnion(t.pages.flatMap { $0 }.flatMap { $0.locks.keys })
             XCTAssertTrue(ids.isSubset(of: ["level"]), "\(ids)")
         }

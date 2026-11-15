@@ -7,8 +7,7 @@ import Foundation
 enum EnsembleJob {
     case drums(note: Int, role: DrumRhythm.Role)
     case slices(pieces: [SliceRhythm.Piece], cuts: [Int: SliceRhythm.Cut])
-    case techno(role: MelodyRhythm.Role, octave: Int, root: Int, single: Bool)
-    case style(role: MelodyRhythm.Role, octave: Int, root: Int, single: Bool)
+    case part(role: MelodyRhythm.Role, octave: Int, root: Int, single: Bool)
 }
 
 extension AppModel {
@@ -30,10 +29,7 @@ extension AppModel {
         let auto: MelodyRhythm.Role = MelodyRhythm.role(sample: t.sample, name: p.files[t.sample] ?? "", octave: oct,
                                                         chord: chordOn, arp: t.arp.mode)
         let role: MelodyRhythm.Role = MelodyRhythm.role(auto, part: partTypeOf(i), chord: chordOn)
-        if MelodyRhythm.partStyle(t.drumStyle, bpm: p.bpm) != nil {
-            return .style(role: role, octave: oct, root: randomRoot(t), single: !chordOn)
-        }
-        return .techno(role: role, octave: oct, root: randomRoot(t), single: !chordOn)
+        return .part(role: role, octave: oct, root: randomRoot(t), single: !chordOn)
     }
 
     /// Партии на всех дорожках со звуком (и заглушённых): выбранная — на выбранные страницы, остальные — на
@@ -85,17 +81,11 @@ extension AppModel {
                 case .slices(let pieces, let cuts):
                     last[-1 - id] = p.tracks[i].writeRandomSlices(pieces, pages: r, avoid: last[-1 - id], cuts: cuts,
                                                                   bpm: bpm, using: &g)
-                case .techno(let role, let oct, let root, let single):
-                    pad = role == .pad
-                    p.tracks[i].writeTechnoPart(role, pages: r, degrees: degrees, kind: kind, scale: p.scale, root: root,
-                                                octave: oct, kicks: p.kickGrid(pages: r), single: single, using: &g)
-                case .style(let role, let oct, let root, let single):
-                    pad = role == .pad || role == .arp
-                    let s: Int = ps ?? 0
-                    p.tracks[i].writeStylePart(role, style: s, pages: r, degrees: degrees, kind: kind, scale: p.scale,
-                                               root: root, octave: oct,
-                                               kicks: p.kickGrid(pages: r, fallback: MelodyRhythm.styleKick(s)),
-                                               single: single, using: &g)
+                case .part(let role, let oct, let root, let single):
+                    pad = role == .pad || (ps != nil && role == .arp)
+                    p.tracks[i].writePart(role, style: ps, pages: r, degrees: degrees, kind: kind, scale: p.scale,
+                                          root: root, octave: oct, kicks: p.kickGrid(pages: r, style: ps),
+                                          single: single, using: &g)
                 }
                 if swing && !pad { p.tracks[i].params["swing"] = DrumRhythm.swing(p.tracks[i].drumStyle, bpm: bpm) }
             }

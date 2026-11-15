@@ -28,12 +28,7 @@ extension AppModel {
             } else if sliceTrack {
                 writeRandomSlices()
             } else if settings.randomChords {
-                let role: MelodyRhythm.Role = arpMode ? .arp : melodyRole
-                if let ps = MelodyRhythm.partStyle(track.drumStyle, bpm: project.bpm) {
-                    writeStylePart(ps, role)
-                } else {
-                    writeTechnoPart(role)
-                }
+                writePart(arpMode ? .arp : melodyRole)
             }
         } else if arpMode {
             toggleArp()
@@ -197,55 +192,43 @@ extension AppModel {
         return k
     }
 
-    /// Techno (SHIFT + CHORD): партия роли role на выбранные страницы (Track.writeTechnoPart). Гармония: BASS и LEAD —
+    /// SHIFT + CHORD: партия роли role в стиле проекта на выбранные страницы (Track.writePart). Techno: BASS и LEAD —
     /// последняя прогрессия Techno (её нет — новая), KEYS и ARP — новая прогрессия и новый тип аккорда, PAD — своя
-    /// прогрессия с прежним типом (без CHORD — одна длинная нота). Одна запись UNDO; AUTO SWING — кроме PAD и ARP.
-    func writeTechnoPart(_ role: MelodyRhythm.Role) {
-        guard channel == .track else { return }
-        var g = SystemRandomNumberGenerator()
-        let fresh: Bool = role == .keys || role == .arp
-        let degrees: [Int] = fresh ? MelodyRhythm.technoProgression(using: &g) : sharedProgression(using: &g)
-        if role != .pad { lastRandomProgression = degrees }
-        let kind: Int = technoKind(new: fresh, using: &g)
-        let range: ClosedRange<Int> = chordPages
-        let scale: Int = project.scale
-        let root: Int = randomRoot(track)
-        let oct: Int = octave
-        let bpm: Double = project.bpm
-        let swing: Bool = settings.randomSwing && role != .pad && role != .arp
-        let single: Bool = !chordMode[selectedTrack]
-        let kicks: [Set<Int>] = project.kickGrid(pages: range)
-        editTrack { t in
-            t.writeTechnoPart(role, pages: range, degrees: degrees, kind: kind, scale: scale, root: root, octave: oct,
-                              kicks: kicks, single: single, using: &g)
-            if swing { t.params["swing"] = DrumRhythm.swing(t.drumStyle, bpm: bpm) }
-        }
-    }
-
-    /// House, Breaks, Trap, Pop, Ambient (SHIFT + CHORD): партия роли role стиля ps на выбранные страницы
-    /// (Track.writeStylePart). Гармония: PAD, KEYS, ARP — новая прогрессия стиля, BASS и LEAD — последняя (её нет —
-    /// новая); тип аккорда — новый. Бочка — дорожка KICK, без неё — шаги стиля. Одна запись UNDO; AUTO SWING — кроме
-    /// PAD и ARP; PAD без CHORD — одна длинная нота.
-    func writeStylePart(_ ps: Int, _ role: MelodyRhythm.Role) {
+    /// прогрессия с прежним типом. House, Breaks, Trap, Pop, Ambient: PAD, KEYS, ARP — новая прогрессия стиля, BASS и
+    /// LEAD — последняя (её нет — новая), тип аккорда — новый; бочка без дорожки KICK — шаги стиля. Одна запись UNDO;
+    /// AUTO SWING — кроме PAD и ARP; PAD без CHORD — одна длинная нота.
+    func writePart(_ role: MelodyRhythm.Role) {
         guard channel == .track else { return }
         var g = SystemRandomNumberGenerator()
         let scale: Int = project.scale
-        let fresh: Bool = role == .pad || role == .keys || role == .arp
+        let ps: Int? = MelodyRhythm.partStyle(track.drumStyle, bpm: project.bpm)
         let last: [Int]? = lastRandomProgression
-        let degrees: [Int] = !fresh && last != nil ? last ?? [1]
-            : MelodyRhythm.styleProgression(ps, scale: scale, avoid: last, using: &g)
-        lastRandomProgression = degrees
-        let kind: Int = MelodyRhythm.styleKind(ps, using: &g)
+        var degrees: [Int] = []
+        var kind: Int = 0
+        if let s = ps {
+            let fresh: Bool = role == .pad || role == .keys || role == .arp
+            degrees = !fresh && last != nil ? last ?? [1]
+                : MelodyRhythm.styleProgression(s, scale: scale, avoid: last, using: &g)
+            lastRandomProgression = degrees
+            kind = MelodyRhythm.styleKind(s, using: &g)
+        } else {
+            let fresh: Bool = role == .keys || role == .arp
+            degrees = fresh ? MelodyRhythm.technoProgression(using: &g) : sharedProgression(using: &g)
+            if role != .pad { lastRandomProgression = degrees }
+            kind = technoKind(new: fresh, using: &g)
+        }
         let range: ClosedRange<Int> = chordPages
         let root: Int = randomRoot(track)
         let oct: Int = octave
         let bpm: Double = project.bpm
         let swing: Bool = settings.randomSwing && role != .pad && role != .arp
         let single: Bool = !chordMode[selectedTrack]
-        let kicks: [Set<Int>] = project.kickGrid(pages: range, fallback: MelodyRhythm.styleKick(ps))
+        let kicks: [Set<Int>] = project.kickGrid(pages: range, style: ps)
+        let k: Int = kind
+        let d: [Int] = degrees
         editTrack { t in
-            t.writeStylePart(role, style: ps, pages: range, degrees: degrees, kind: kind, scale: scale, root: root,
-                             octave: oct, kicks: kicks, single: single, using: &g)
+            t.writePart(role, style: ps, pages: range, degrees: d, kind: k, scale: scale, root: root, octave: oct,
+                        kicks: kicks, single: single, using: &g)
             if swing { t.params["swing"] = DrumRhythm.swing(t.drumStyle, bpm: bpm) }
         }
     }

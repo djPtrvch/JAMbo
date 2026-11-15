@@ -393,18 +393,3 @@ extension MelodyRhythm {
                          using: &g)
     }
 }
-
-extension Track {
-    /// Случайная партия стиля ps (MelodyRhythm.partStyle) роли role на страницы range: прежние шаги этих страниц
-    /// стираются; ARP — по настройкам ARP дорожки (они не меняются).
-    public mutating func writeStylePart(_ role: MelodyRhythm.Role, style ps: Int, pages range: ClosedRange<Int>,
-                                        degrees: [Int], kind: Int, scale: Int, root: Int, octave: Int,
-                                        kicks: [Set<Int>]?, single: Bool = false, using g: inout Rng) {
-        let t: Track = self
-        let lens: [Int] = range.map { t.pageLen($0, from: range.lowerBound) }
-        let pattern: [[SliceRhythm.Event]] = MelodyRhythm.stylePart(role, style: ps, lens: lens, degrees: degrees,
-                                                                    kind: kind, scale: scale, root: root, octave: octave,
-                                                                    kicks: kicks, single: single, arp: arp, using: &g)
-        writeSlices(pattern, pages: range)
-    }
-}
