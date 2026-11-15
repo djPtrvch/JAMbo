@@ -264,7 +264,7 @@ struct MonitorSettingsRows: View {
                 MenuChoice(title: "0", current: s.refTrim == 0) { m.setMonitor { $0.refTrim = 0 } },
                 MenuChoice(title: "+0.5 dB", current: false) { m.setMonitor { $0.refTrim = Swift.min(12, $0.refTrim + 0.5) } },
             ]),
-            .note("The spaces of SPACE are rendered from measurements of real rooms: Studio CR7 and Hall from the spatial room impulse responses of WDR Control Room 7 and the WDR Small Broadcast Studio with the measured and modeled FABIAN head-related transfer function data base (F. Brinkmann et al., TU Berlin), Hall KU100 from the Neumann KU100 binaural room impulse responses of the same hall (A Spatial Audio Impulse Response Compilation Captured at the WDR Broadcast Studios, P. Stade, B. Bernschütz, M. Rühl, TH Köln). All licensed under CC BY 4.0."),
+            .note("The spaces of SPACE are rendered from measurements of real rooms: Studio CR7 and Hall from the spatial room impulse responses of WDR Control Room 7 and the WDR Small Broadcast Studio with the FABIAN head-related transfer function data base (F. Brinkmann et al., TU Berlin), Hall KU100 from the Neumann KU100 binaural room impulse responses of the same hall (A Spatial Audio Impulse Response Compilation Captured at the WDR Broadcast Studios, P. Stade, B. Bernschütz, M. Rühl, TH Köln). All licensed under CC BY 4.0."),
         ])
     }
 }

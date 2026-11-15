@@ -64,12 +64,8 @@ ROOMS = [
     # +30° на 2,65 м и −25° на 3,11 м, как стояли в замере). Проба 15.11 — для сравнения с CR1.
     dict(name="StudioCR7", file="RoomStudioCR7.wav", sofa=("DRIR_CR7_VSA_110RS_L.sofa", "DRIR_CR7_VSA_110RS_R.sofa"),
          early_ms=60.0, max_ms=650, desc="WDR Control Room 7 (TH Köln WDR compilation, CC BY 4.0)"),
-    # Studio CR7 с ушами FABIAN modeled (15.11, проба меню HEAD): та же голова, но HRTF рассчитана по 3D-скану
-    # (метод граничных элементов — как будет для своей головы); HEAD — поворотом направлений (голова с корпусом: у
-    # рассчитанной HRTF наборов HATO нет). Импульс — 16 бит (объём ресурсов).
-    dict(name="StudioCR7Mod", space="StudioCR7", head_name="FABIAN modeled", hrtf="modeled",
-         file="RoomStudioCR7Mod.wav", sofa=("DRIR_CR7_VSA_110RS_L.sofa", "DRIR_CR7_VSA_110RS_R.sofa"),
-         early_ms=60.0, max_ms=650, bits=16, desc="WDR Control Room 7 (TH Köln WDR compilation, CC BY 4.0)"),
+    # Studio CR7 с ушами FABIAN modeled (рассчитанная по 3D-скану HRTF) убран 15.11 (решение пользователя: только
+    # реальные головы); загрузка modeled (hrtf: "modeled") в load_fabian осталась — для своей рассчитанной головы.
     # Hall (15.11: прежде Club Real — не клуб, а зал): WDR Small Broadcast Studio — концертный зал для камерной музыки (1247 м³, ~160 мест, RT ≈ 0,9 с),
     # PA AD-Systems Stium Mid/High + Flex 15 Sub, ±33° на 6 м. Ближайшая к клубу открытая площадка с PA (проба 15.11).
     # Хвост — 16 бит (объём ресурсов).
