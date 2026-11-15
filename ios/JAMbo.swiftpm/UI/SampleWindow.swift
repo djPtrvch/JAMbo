@@ -251,7 +251,7 @@ struct MixOverview: View {
                 ctx.fill(Path(roundedRect: rect, cornerRadius: 3), with: .color(theme.muteGrey))
                 continue
             }
-            let m = an.mask(t, audible)
+            let m = an.mask(t)
             // Участки подряд: заглушают — узкий сплошной жёлтый, иначе — широкий серый с жёлтым по силе конфликта.
             let first: Int = Int((sp.lo * nb).rounded())
             let last: Int = min(m.buried.count, Int((sp.hi * nb).rounded())) - 1

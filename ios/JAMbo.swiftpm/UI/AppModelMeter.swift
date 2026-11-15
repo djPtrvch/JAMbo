@@ -159,7 +159,9 @@ extension AppModel {
         if want {
             if taps.on.load() == 0 { taps.on.store(1) }
             let n: Int = min(TrackTaps.tracks, project.tracks.count)
-            mixAn.tick(taps, count: n)
+            var aud: [Bool] = []
+            for t in 0..<n { aud.append(project.audible(t)) }
+            mixAn.tick(taps, count: n, audible: aud, mask: _mixMode == MixMode.mask)
         } else if taps.on.load() != 0 {
             taps.on.store(0)
             mixAn.reset()

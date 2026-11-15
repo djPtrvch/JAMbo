@@ -63,8 +63,8 @@ final class PowerFFT {
 /// 20 Гц…20 кГц), среднее за ~4 с (тишина между ударами не обнуляет — полоса не мерцает); диапазон дорожки — полосы
 /// не ниже наибольшей на 20 dB, пик — наибольшая. Полоса гаснет, когда средний уровень дорожки ниже −66 dBFS.
 /// LOUD — громкость по восприятию: средний квадрат сигнала с весами кривой K (BS.1770) по полосам, среднее за ~4 с.
-/// MASK — полосы диапазона дорожки, где сумма остальных слышимых дорожек не тише её больше чем на 12 dB
-/// (громче или вровень — дорожку там заглушают).
+/// MASK — явные конфликты: полосы, важные и для дорожки, и для других слышимых, где эти другие не тише её больше
+/// чем на 12 dB (громче или вровень — дорожку там заглушают); сглажено (updateMask).
 final class MixAnalysis {
     static let bands = 30
     static let range: Float = 20
@@ -82,6 +82,18 @@ final class MixAnalysis {
     private var next = 0
     /// MASK: на сколько dB остальные могут быть тише дорожки, чтобы полоса ещё считалась конфликтом.
     static let maskRange: Float = 12
+    /// MASK: полоса важна для дорожки, если не ниже её самой сильной на столько dB.
+    static let maskSig: Float = 10
+    /// MASK: «заглушают» снимается, когда остальные стали тише дорожки больше чем на столько dB.
+    static let maskHyst: Float = 3
+    /// MASK: «заглушают» видно, когда сглаженная сила не меньше этой (~2 с конфликта).
+    static let maskShow: Float = 0.7
+    /// MASK, сглаженное: сила по полосам, «заглушают», номер мешающей и кандидат на смену с его счётчиком кадров.
+    private var mStr = [[Float]](repeating: [Float](repeating: 0, count: MixAnalysis.bands), count: TrackTaps.tracks)
+    private var mBur = [[Bool]](repeating: [Bool](repeating: false, count: MixAnalysis.bands), count: TrackTaps.tracks)
+    private var mWho = [Int](repeating: -1, count: TrackTaps.tracks)
+    private var whoCand = [Int](repeating: -1, count: TrackTaps.tracks)
+    private var whoHold = [Int](repeating: 0, count: TrackTaps.tracks)
 
     init() {
         var e: [Float] = []
@@ -122,12 +134,19 @@ final class MixAnalysis {
         for t in 0..<TrackTaps.tracks {
             rms[t] = 0
             kms[t] = 0
+            mWho[t] = -1
+            whoCand[t] = -1
+            whoHold[t] = 0
+            for j in 0..<MixAnalysis.bands {
+                mStr[t][j] = 0
+                mBur[t][j] = false
+            }
             for j in 0..<MixAnalysis.bands { power[t][j] = 0 }
         }
     }
 
-    /// Кадр: две дорожки из count.
-    func tick(_ taps: TrackTaps, count: Int) {
+    /// Кадр: две дорожки из count; MASK (если mask) — по всем; audible — слышимые дорожки.
+    func tick(_ taps: TrackTaps, count: Int, audible: [Bool], mask: Bool) {
         if count <= 0 { return }
         // Среднее за ~4 с: дорожка обновляется раз в count/2 кадров (60 в секунду).
         let a: Float = exp(-Float(count) / 480)
@@ -136,6 +155,7 @@ final class MixAnalysis {
             next = (t + 1) % count
             analyze(taps, t, a)
         }
+        if mask { updateMask(count, audible) }
     }
 
     private func analyze(_ taps: TrackTaps, _ t: Int, _ a: Float) {
@@ -194,47 +214,84 @@ final class MixAnalysis {
         return (v * 1.7058).squareRoot()
     }
 
-    /// MASK дорожки t: сила конфликта по полосам (0…1; 0 — вне диапазона или нет конфликта), заглушают ли её там
-    /// (остальные громче или вровень) и номер дорожки, которая больше всех мешает в самом сильном конфликте (−1 — нет).
-    /// audible — слышимые дорожки (мешают только они).
-    func mask(_ t: Int, _ audible: [Bool]) -> (strength: [Float], buried: [Bool], who: Int) {
+    /// MASK дорожки t (сглаженное, считает tick): сила конфликта по полосам (0…1), заглушают ли её там (узкая
+    /// полоса) и номер дорожки, которая больше всех мешает в самом сильном конфликте (−1 — нет).
+    func mask(_ t: Int) -> (strength: [Float], buried: [Bool], who: Int) {
         let nb: Int = MixAnalysis.bands
-        var st = [Float](repeating: 0, count: nb)
-        var bur = [Bool](repeating: false, count: nb)
-        guard t >= 0 && t < TrackTaps.tracks, rms[t] >= 0.0005 else { return (st, bur, -1) }
-        let p: [Float] = power[t]
-        var top: Float = 0
-        for j in 0..<nb where p[j] > top { top = p[j] }
-        if top <= 0 { return (st, bur, -1) }
-        let thr: Float = top * pow(10, -MixAnalysis.range / 10)
-        var bestScore: Float = 0, bestBand = -1
-        for j in 0..<nb where p[j] >= thr {
-            var other: Float = 0
-            for u in 0..<min(audible.count, TrackTaps.tracks) where u != t && audible[u] && rms[u] >= 0.0005 {
-                other += power[u][j]
-            }
-            if other <= 0 { continue }
-            // Остальные громче или вровень — полный конфликт; тише на maskRange — нет.
-            let d: Float = 10 * log10(other / p[j])
-            let s: Float = d >= 0 ? 1 : max(0, 1 + d / MixAnalysis.maskRange)
-            st[j] = s
-            bur[j] = d >= 0
-            let score: Float = s * p[j]
-            if score > bestScore {
-                bestScore = score
-                bestBand = j
-            }
+        guard t >= 0 && t < TrackTaps.tracks else {
+            return ([Float](repeating: 0, count: nb), [Bool](repeating: false, count: nb), -1)
         }
-        var who = -1
-        if bestBand >= 0 {
-            var loudest: Float = 0
-            for u in 0..<min(audible.count, TrackTaps.tracks) where u != t && audible[u] && rms[u] >= 0.0005 {
-                if power[u][bestBand] > loudest {
-                    loudest = power[u][bestBand]
-                    who = u
+        var bur = [Bool](repeating: false, count: nb)
+        for j in 0..<nb { bur[j] = mBur[t][j] && mStr[t][j] >= MixAnalysis.maskShow }
+        return (mStr[t], bur, mWho[t])
+    }
+
+    /// MASK за кадр (60 в секунду): явный конфликт — полоса важна для обеих дорожек (не ниже их самой сильной на
+    /// maskSig dB); остальные (только такие) не тише дорожки больше чем на maskRange dB — сила 0…1 (громче или
+    /// вровень — 1). Сила сглаживается (~1,5 с); «заглушают» — с гистерезисом maskHyst dB и видно, когда сила
+    /// ≥ maskShow (конфликт держится ~2 с); номер мешающей меняется, если новая держится 1 с.
+    private func updateMask(_ count: Int, _ audible: [Bool]) {
+        let nb: Int = MixAnalysis.bands
+        let tn: Int = TrackTaps.tracks
+        let sig: Float = pow(10, -MixAnalysis.maskSig / 10)
+        // 1 − exp(−1 / (60 · 1,5)).
+        let k: Float = 0.01105
+        var thr = [Float](repeating: Float.greatestFiniteMagnitude, count: tn)
+        var live = [Bool](repeating: false, count: tn)
+        for u in 0..<min(count, tn) {
+            let ok: Bool = u < audible.count && audible[u] && rms[u] >= 0.0005
+            var top: Float = 0
+            for j in 0..<nb where power[u][j] > top { top = power[u][j] }
+            if top > 0 { thr[u] = top * sig }
+            live[u] = ok && top > 0
+        }
+        for t in 0..<tn {
+            let on: Bool = t < count && rms[t] >= 0.0005 && thr[t] < Float.greatestFiniteMagnitude
+            var bestScore: Float = 0, bestBand = -1
+            for j in 0..<nb {
+                var raw: Float = 0
+                var bur: Bool = false
+                let pj: Float = power[t][j]
+                if on && pj >= thr[t] {
+                    var other: Float = 0
+                    for u in 0..<tn where u != t && live[u] && power[u][j] >= thr[u] { other += power[u][j] }
+                    if other > 0 {
+                        let d: Float = 10 * log10(other / pj)
+                        raw = d >= 0 ? 1 : max(0, 1 + d / MixAnalysis.maskRange)
+                        bur = mBur[t][j] ? d >= -MixAnalysis.maskHyst : d >= 0
+                    }
+                }
+                mBur[t][j] = bur
+                let v: Float = mStr[t][j] + (raw - mStr[t][j]) * k
+                mStr[t][j] = v
+                let score: Float = v * pj
+                if v >= 0.3 && score > bestScore {
+                    bestScore = score
+                    bestBand = j
                 }
             }
+            var cand = -1
+            if bestBand >= 0 {
+                var loudest: Float = 0
+                for u in 0..<tn where u != t && live[u] && power[u][bestBand] >= thr[u] {
+                    if power[u][bestBand] > loudest {
+                        loudest = power[u][bestBand]
+                        cand = u
+                    }
+                }
+            }
+            if cand == mWho[t] {
+                whoHold[t] = 0
+            } else if cand == whoCand[t] {
+                whoHold[t] += 1
+                if whoHold[t] >= 60 || mWho[t] < 0 && cand >= 0 && whoHold[t] >= 30 {
+                    mWho[t] = cand
+                    whoHold[t] = 0
+                }
+            } else {
+                whoCand[t] = cand
+                whoHold[t] = 1
+            }
         }
-        return (st, bur, who)
     }
 }
