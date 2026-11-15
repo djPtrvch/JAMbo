@@ -230,14 +230,14 @@ struct MixOverview: View {
         }
     }
 
-    /// MASK: диапазон дорожки (как FREQ) — серый, полосы конфликта — жёлтые (ярче — сильнее), где дорожку
-    /// заглушают — жёлтые шире полосы; номер мешающей —
-    /// над полосой (полоса до верха — под ней); заглушённые — серые, без конфликтов.
+    /// MASK: диапазон дорожки (как FREQ) — серый, полосы конфликта — жёлтые (ярче — сильнее); где дорожку заглушают —
+    /// полоса уже (решение пользователя 15.11): сплошной жёлтый 6 pt вместо 10; номер мешающей — над полосой (полоса
+    /// до верха — под ней); заглушённые — серые, без конфликтов.
     static func drawMask(_ ctx: GraphicsContext, _ size: CGSize, _ model: AppModel, _ n: Int) {
         let h: CGFloat = size.height
         let cell: CGFloat = size.width / 16
-        // Полоса MASK уже метра (5 pt), чтобы «заглушают» на ширину места дорожки было видно (место ~13 pt).
-        let w: CGFloat = 5
+        let wide: CGFloat = max(6, min(10, cell - 2))
+        let narrow: CGFloat = 6
         let an: MixAnalysis = model.mixAn
         var audible: [Bool] = []
         for t in 0..<n { audible.append(model.project.audible(t)) }
@@ -245,40 +245,46 @@ struct MixOverview: View {
         let bh: CGFloat = h / nb
         for t in 0..<n {
             guard let sp = an.span(t) else { continue }
-            let x: CGFloat = cell * (CGFloat(t) + 0.5) - w / 2
-            let rect = CGRect(x: x, y: h - sp.hi * h, width: w, height: max(3, (sp.hi - sp.lo) * h))
-            let shape = Path(roundedRect: rect, cornerRadius: 2)
+            let cx: CGFloat = cell * (CGFloat(t) + 0.5)
+            let rect = CGRect(x: cx - wide / 2, y: h - sp.hi * h, width: wide, height: max(3, (sp.hi - sp.lo) * h))
             if !audible[t] {
-                ctx.fill(shape, with: .color(theme.muteGrey))
+                ctx.fill(Path(roundedRect: rect, cornerRadius: 3), with: .color(theme.muteGrey))
                 continue
             }
-            ctx.fill(shape, with: .color(theme.meterTrack))
             let m = an.mask(t, audible)
-            var c = ctx
-            c.clip(to: shape)
-            for j in 0..<m.strength.count where m.strength[j] > 0.02 && !m.buried[j] {
-                let y: CGFloat = h - CGFloat(j + 1) * bh
-                c.fill(Path(CGRect(x: x, y: y, width: w, height: bh)), with: .color(theme.accent.opacity(Double(m.strength[j]))))
-            }
-            // Где дорожку заглушают — жёлтым на ширину места дорожки без 2 pt (решение пользователя 15.11), подряд —
-            // одним блоком.
-            let ww: CGFloat = max(w + 4, cell - 2)
-            var j = 0
-            while j < m.buried.count {
-                if !m.buried[j] {
-                    j += 1
-                    continue
-                }
+            // Участки подряд: заглушают — узкий сплошной жёлтый, иначе — широкий серый с жёлтым по силе конфликта.
+            let first: Int = Int((sp.lo * nb).rounded())
+            let last: Int = min(m.buried.count, Int((sp.hi * nb).rounded())) - 1
+            var j: Int = first
+            while j <= last {
+                let bur: Bool = m.buried[j]
                 var k: Int = j
-                while k + 1 < m.buried.count && m.buried[k + 1] { k += 1 }
+                while k + 1 <= last && m.buried[k + 1] == bur { k += 1 }
                 let top: CGFloat = h - CGFloat(k + 1) * bh
-                let run = CGRect(x: x + w / 2 - ww / 2, y: top, width: ww, height: CGFloat(k - j + 1) * bh)
-                ctx.fill(Path(roundedRect: run, cornerRadius: 3), with: .color(theme.accent))
+                let hh: CGFloat = CGFloat(k - j + 1) * bh
+                if bur {
+                    let run = CGRect(x: cx - narrow / 2, y: top, width: narrow, height: hh)
+                    ctx.fill(Path(roundedRect: run, cornerRadius: 2), with: .color(theme.accent))
+                } else {
+                    let run = CGRect(x: cx - wide / 2, y: top, width: wide, height: hh)
+                    let shape = Path(roundedRect: run, cornerRadius: 3)
+                    ctx.fill(shape, with: .color(theme.meterTrack))
+                    var c = ctx
+                    c.clip(to: shape)
+                    var q: Int = j
+                    while q <= k {
+                        let s: Float = m.strength[q]
+                        if s > 0.02 {
+                            let y: CGFloat = h - CGFloat(q + 1) * bh
+                            c.fill(Path(CGRect(x: run.minX, y: y, width: wide, height: bh)), with: .color(theme.accent.opacity(Double(s))))
+                        }
+                        q += 1
+                    }
+                }
                 j = k + 1
             }
             if m.who < 0 { continue }
             let label: String = String(m.who + 1)
-            let cx: CGFloat = x + w / 2
             if rect.minY >= 12 {
                 dimText(ctx, label, CGPoint(x: cx, y: rect.minY - 2), .bottom)
             } else {
