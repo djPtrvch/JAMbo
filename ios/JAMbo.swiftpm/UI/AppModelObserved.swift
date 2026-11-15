@@ -497,6 +497,54 @@ extension AppModel {
         get { access(keyPath: \.mixMode); return _mixMode }
         set { put(\.mixMode, \._mixMode, newValue, _mixMode != newValue) }
     }
+    var session: ProjectSession {
+        get { access(keyPath: \.session); return _session }
+        set { put(\.session, \._session, newValue, observedChanged(_session, newValue)) }
+    }
+    var projectList: [ProjectInfo] {
+        get { access(keyPath: \.projectList); return _projectList }
+        set { put(\.projectList, \._projectList, newValue, observedChanged(_projectList, newValue)) }
+    }
+    var arrPort: ArrPort {
+        get { access(keyPath: \.arrPort); return _arrPort }
+        set { put(\.arrPort, \._arrPort, newValue, observedChanged(_arrPort, newValue)) }
+    }
+    var songFormat: SongFormat {
+        get { access(keyPath: \.songFormat); return _songFormat }
+        set { put(\.songFormat, \._songFormat, newValue, observedChanged(_songFormat, newValue)) }
+    }
+    var songExport: SongExportState {
+        get { access(keyPath: \.songExport); return _songExport }
+        set { put(\.songExport, \._songExport, newValue, observedChanged(_songExport, newValue)) }
+    }
+    var refWave: RefWave? {
+        get { access(keyPath: \.refWave); return _refWave }
+        set { put(\.refWave, \._refWave, newValue, observedChanged(_refWave, newValue)) }
+    }
+    var refHeardTenths: Int {
+        get { access(keyPath: \.refHeardTenths); return _refHeardTenths }
+        set { put(\.refHeardTenths, \._refHeardTenths, newValue, observedChanged(_refHeardTenths, newValue)) }
+    }
+    var monitorUndo: [MonitorSnap] {
+        get { access(keyPath: \.monitorUndo); return _monitorUndo }
+        set { put(\.monitorUndo, \._monitorUndo, newValue, observedChanged(_monitorUndo, newValue)) }
+    }
+    var monitorRedo: [MonitorSnap] {
+        get { access(keyPath: \.monitorRedo); return _monitorRedo }
+        set { put(\.monitorRedo, \._monitorRedo, newValue, observedChanged(_monitorRedo, newValue)) }
+    }
+    var gridSel: GridSelection {
+        get { access(keyPath: \.gridSel); return _gridSel }
+        set { put(\.gridSel, \._gridSel, newValue, observedChanged(_gridSel, newValue)) }
+    }
+    var topFrames: TopFrames {
+        get { access(keyPath: \.topFrames); return _topFrames }
+        set { put(\.topFrames, \._topFrames, newValue, observedChanged(_topFrames, newValue)) }
+    }
+    var libTableAsk: [TableImport] {
+        get { access(keyPath: \.libTableAsk); return _libTableAsk }
+        set { put(\.libTableAsk, \._libTableAsk, newValue, observedChanged(_libTableAsk, newValue)) }
+    }
 }
 
 /// Изменилось ли значение (как shouldNotifyObservers макроса @Observable): у Equatable — сравнение, иначе — да. Одна

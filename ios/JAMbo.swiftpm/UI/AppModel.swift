@@ -32,13 +32,13 @@ final class AppModel {
     /// Проекты на диске; текущий проект (куда сохраняет SAVE, что сохранено); автосохранение — не раньше этого
     /// времени (0 — изменений нет), запись на диск — в своей очереди.
     @ObservationIgnored let projects = ProjectStore(dir: ProjectStore.appDir())
-    var session = ProjectSession(id: "", name: "")
+    @ObservationIgnored var _session: ProjectSession = ProjectSession(id: "", name: "")
     @ObservationIgnored var autosaveDue: Double = 0
     @ObservationIgnored let saveQueue = DispatchQueue(label: "jambo.save", qos: .utility)
     /// Открытая вкладка SETTINGS (не в настройках: при запуске — первая, RECORD).
     @ObservationIgnored var _settingsTab: SettingsTab = .record
     /// Список проектов в меню PROJECTS (перечитывается при открытии меню и после действий).
-    var projectList: [ProjectInfo] = []
+    @ObservationIgnored var _projectList: [ProjectInfo] = []
     /// Огибающие сэмплов SOURCE для иконки GRANULAR (по ключу сэмпла; ключ — по содержимому, правка — новый ключ).
     @ObservationIgnored var grainPeakCache: [String: [Double]] = [:]
     /// Стерео ли дорожка на метрах (trackStereo; по индексу дорожки) — до следующей правки проекта.
@@ -193,7 +193,7 @@ final class AppModel {
     /// Высота строки кнопок (RootView.units): строка папки, вторая строка аранжировщика, верх EQ и окон мастера.
     @ObservationIgnored var _barH: CGFloat = 40
     @ObservationIgnored var _arrMenu: ArrMenuState? = nil
-    var arrPort: ArrPort = ArrPort()
+    @ObservationIgnored var _arrPort: ArrPort = ArrPort()
     /// INSERT (S15d): режим вставки; только что вставленный блок (его правый край — длина со сдвигом).
     @ObservationIgnored var _arrInsert: Bool = false
     @ObservationIgnored var _arrInserted: ArrSel? = nil
@@ -204,10 +204,10 @@ final class AppModel {
     @ObservationIgnored var arrRefHold: Bool = false
     @ObservationIgnored var refBSent: Bool = false
     /// EXPORT SONG (AppModelSongExport): формат, ход, экспорт в работе.
-    var songFormat: SongFormat = SongFormat()
-    var songExport: SongExportState = SongExportState()
+    @ObservationIgnored var _songFormat: SongFormat = SongFormat()
+    @ObservationIgnored var _songExport: SongExportState = SongExportState()
     @ObservationIgnored var songExporter: SongExporter? = nil
-    var refWave: RefWave? = nil
+    @ObservationIgnored var _refWave: RefWave? = nil
     /// Файл, темп которого уже ищется (второй поиск не запускается).
     @ObservationIgnored var refBpmKey: String = ""
     @ObservationIgnored var arrBlockClipboard: ArrBlock? = nil
@@ -260,7 +260,7 @@ final class AppModel {
     @ObservationIgnored var refMatchDb: Double = 0
     /// Подгонка громкости референса, которая сейчас звучит (подгонка и REF TRIM), в десятых dB — подпись в строке
     /// REF (14.11): измеритель и LUFS в B показывают файл без неё.
-    var refHeardTenths: Int = 0
+    @ObservationIgnored var _refHeardTenths: Int = 0
     /// Room: пространства из ресурсов (по пунктам TRANSLATION) и загруженное (имя и отклик для компенсации).
     @ObservationIgnored let rooms: [RoomInfo] = AppModel.loadRooms()
     @ObservationIgnored var roomLoaded: (name: String, resp: RoomResponse)? = nil
@@ -275,8 +275,8 @@ final class AppModel {
     @ObservationIgnored var _headFace: Bool = false
     @ObservationIgnored var headTracker: HeadTracker? = nil
     /// UNDO окна коррекции (AppModelMonitor): записи и жест (0 — нет, 1 — идёт, 2 — запись сделана).
-    var monitorUndo: [MonitorSnap] = []
-    var monitorRedo: [MonitorSnap] = []
+    @ObservationIgnored var _monitorUndo: [MonitorSnap] = []
+    @ObservationIgnored var _monitorRedo: [MonitorSnap] = []
     @ObservationIgnored var monitorGesture: Int = 0
     /// EXPORT: готовый временный файл профиля (окно сохранения в «Файлы»).
     @ObservationIgnored var _phonesExported: URL? = nil
@@ -285,7 +285,7 @@ final class AppModel {
     @ObservationIgnored var _cellMenu: CellMenuState? = nil
     @ObservationIgnored var _rowMenu: Int? = nil
     /// Выделение рамкой в сетке паттернов (строки и клипы) — для TO ARRANGE.
-    var gridSel = GridSelection()
+    @ObservationIgnored var _gridSel: GridSelection = GridSelection()
     /// Строк в окне сетки паттернов: 8; STEPS выключена — сколько поместится той же высоты (RootView).
     @ObservationIgnored var _gridRowsShown: Int = Params.gridRows
     /// Перенос клипа из сетки на кнопку ARRANGE и в аранжировку (AppModelCarry); палец — в координатах «root».
@@ -296,7 +296,7 @@ final class AppModel {
     /// Рамки кнопки ARRANGE и таймлайна аранжировщика (координаты «root»).
     @ObservationIgnored var arrangeButtonFrame: CGRect = .zero
     /// Рамки кнопок верхней панели («root»): по ним выравниваются строки окон EQ и библиотеки.
-    var topFrames: TopFrames = TopFrames()
+    @ObservationIgnored var _topFrames: TopFrames = TopFrames()
     @ObservationIgnored var arrTimelineFrame: CGRect = .zero
     @ObservationIgnored var _gridMenuOpen: Bool = false
     /// Ячейка коротко вспыхивает красным (действие недоступно).
@@ -376,7 +376,7 @@ final class AppModel {
     @ObservationIgnored var _importingLibrary: Bool = false
     @ObservationIgnored var libraryLoaded: Bool = false
     /// IMPORT таблиц WAV без метки размера кадра — по очереди спрашивается размер (S11b4).
-    var libTableAsk: [TableImport] = []
+    @ObservationIgnored var _libTableAsk: [TableImport] = []
     /// IMPORT: сколько пресетов добавлено (для строки внизу).
     @ObservationIgnored var libImportedPresets: Int = 0
     /// Сэмпл библиотеки на ▶ (в снимке звука — вне дорожек).
