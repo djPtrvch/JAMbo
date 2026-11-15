@@ -26,6 +26,8 @@ public final class RoomInfo: @unchecked Sendable {
     /// несколько комнат — та же комната с разными ушами; пусто — имя комнаты.
     public var space: String = ""
     public var headName: String = "FABIAN"
+    /// Папка пакета голов (HeadPack), откуда читаются файлы комнаты; пусто — ресурсы сборки.
+    public var dir: String = ""
     /// Колонки (9.11): срез низа — частота (Гц) и порядок Баттерворта (0 — нет).
     public var hpHz: Double = 0
     public var hpOrder: Int = 0

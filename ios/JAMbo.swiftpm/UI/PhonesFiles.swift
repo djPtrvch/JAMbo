@@ -1,13 +1,13 @@
 import SwiftUI
 
-/// Коррекция наушников: окно сохранения профиля в «Файлы» (EXPORT) и итог IMPORT.
+/// Коррекция наушников: окно сохранения профиля в «Файлы» (EXPORT) и итог IMPORT (профилей и пакетов голов).
 struct PhonesFiles: ViewModifier {
     let model: AppModel
 
     func body(content: Content) -> some View {
         content
             .fileMover(isPresented: exportShown, file: model.phonesExported) { _ in model.phonesExported = nil }
-            .alert("Correct EQ profiles", isPresented: noteShown) {
+            .alert(model.headsNote ? "Head packs" : "Correct EQ profiles", isPresented: noteShown) {
                 Button("OK", role: .cancel) { model.phonesNote = nil }
             } message: {
                 Text(model.phonesNote ?? "")

@@ -300,6 +300,7 @@ extension AppModel {
     /// IMPORT в PHONE CURVE PRESETS: выбор текстовых файлов профилей.
     func choosePhonesFiles() {
         eqPresetMenu = nil
+        importingHeads = false
         importingPhones = true
         importingProject = false
         importingLibrary = false
@@ -342,6 +343,7 @@ extension AppModel {
         if !added.isEmpty { lines.append("Imported: " + added.joined(separator: ", ") + ". Loaded: " + added[0] + ".") }
         lines += fitted
         if !bad.isEmpty { lines.append("No filters found in " + bad.joined(separator: ", ") + ". Use the ParametricEQ.txt profile (GraphicEQ is not supported).") }
+        headsNote = false
         phonesNote = lines.joined(separator: "\n")
     }
 

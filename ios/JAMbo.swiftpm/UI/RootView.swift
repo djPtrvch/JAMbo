@@ -82,12 +82,18 @@ struct RootView: View {
     /// Типы файлов выбора: профили коррекции — текст, проект и библиотека — любые, иначе — аудио.
     private var importTypes: [UTType] {
         if model.importingPhones { return [.text] }
+        if model.importingHeads { return [.zip] }
         // Сэмплы — аудио и видео (8.11: из видео берётся только звук, SampleStore.decodeMedia).
         return model.importingProject || model.importingLibrary ? [.data] : [.audio, .movie]
     }
 
-    /// Выбранные файлы: профили коррекции наушников, библиотека, проект (IMPORT, один .jambo) или сэмплы (LOAD).
+    /// Выбранные файлы: пакеты голов, профили коррекции наушников, библиотека, проект (IMPORT, один .jambo) или сэмплы (LOAD).
     private func picked(_ result: Result<[URL], Error>) {
+        if model.importingHeads {
+            model.importingHeads = false
+            if case .success(let urls) = result { model.headsImport(urls) }
+            return
+        }
         if model.importingPhones {
             model.importingPhones = false
             if case .success(let urls) = result { model.phonesImport(urls) }

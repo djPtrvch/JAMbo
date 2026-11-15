@@ -263,7 +263,11 @@ final class AppModel {
     /// REF (14.11): измеритель и LUFS в B показывают файл без неё.
     @ObservationIgnored var _refHeardTenths: Int = 0
     /// Room: пространства из ресурсов (по пунктам TRANSLATION) и загруженное (имя и отклик для компенсации).
-    @ObservationIgnored let rooms: [RoomInfo] = AppModel.loadRooms()
+    /// Комнаты: сборки и пакетов голов (AppModelHeads; после IMPORT — заново).
+    @ObservationIgnored var rooms: [RoomInfo] = AppModel.loadRooms() + AppModel.loadPackRooms()
+    /// Выбор файлов — пакеты голов (IMPORT в меню HEAD); итог — в окне профилей коррекции (headsNote — его заголовок).
+    @ObservationIgnored var importingHeads = false
+    @ObservationIgnored var headsNote = false
     @ObservationIgnored var roomLoaded: (name: String, resp: RoomResponse)? = nil
     /// RAW: импульсы выбранной комнаты (с окраской уха и выровненные, с наборами HEAD TRACK) — смешиваются по RAW
     /// в фоне; идёт сборка — следующая после неё.

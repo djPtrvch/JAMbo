@@ -31,7 +31,8 @@ Apache 2.0; hrtf: "sadie:H<n>").
 
 Запуск: pip install numpy scipy sofar
         python3 ios/tools/generate_room_srir.py <папка SOFA FABIAN> <папка SOFA замеров> [--sadie <папка SADIE II>]
-                [--report]
+                [--packs ios/HeadPacks] [--report]
+Комнаты с pack (головы SADIE) — не в ресурсы сборки, а в пакеты голов: <packs>/<pack>.zip (IMPORT в меню HEAD).
 """
 import json
 import os
@@ -74,10 +75,10 @@ ROOMS = [
     # головы): H15 — самая «типичная» (ближе всех к среднему 18 человек по АЧХ уха для колонки спереди, 3–14 кГц,
     # после диффузно-полевой эквализации), H3 — уши сильнее всех отличаются от H15 (7,8 dB), голова чуть крупнее
     # (ITD 0,77 мс). HEAD — поворотом направлений (наборов HATO нет). Импульс — 16 бит (объём ресурсов).
-    dict(name="StudioCR7H15", space="StudioCR7", head_name="SADIE H15", hrtf="sadie:H15",
+    dict(name="StudioCR7H15", pack="JAMbo Head SADIE H15", space="StudioCR7", head_name="SADIE H15", hrtf="sadie:H15",
          file="RoomStudioCR7H15.wav", sofa=("DRIR_CR7_VSA_110RS_L.sofa", "DRIR_CR7_VSA_110RS_R.sofa"),
          early_ms=60.0, max_ms=650, bits=16, desc="WDR Control Room 7 (TH Köln WDR compilation, CC BY 4.0), SADIE II H15 (Apache 2.0)"),
-    dict(name="StudioCR7H3", space="StudioCR7", head_name="SADIE H3", hrtf="sadie:H3",
+    dict(name="StudioCR7H3", pack="JAMbo Head SADIE H3", space="StudioCR7", head_name="SADIE H3", hrtf="sadie:H3",
          file="RoomStudioCR7H3.wav", sofa=("DRIR_CR7_VSA_110RS_L.sofa", "DRIR_CR7_VSA_110RS_R.sofa"),
          early_ms=60.0, max_ms=650, bits=16, desc="WDR Control Room 7 (TH Köln WDR compilation, CC BY 4.0), SADIE II H3 (Apache 2.0)"),
     # Hall (15.11: прежде Club Real — не клуб, а зал): WDR Small Broadcast Studio — концертный зал для камерной музыки (1247 м³, ~160 мест, RT ≈ 0,9 с),
@@ -87,10 +88,10 @@ ROOMS = [
          early_ms=80.0, max_ms=1000, bits=16,
          desc="WDR Small Broadcast Studio, PA (TH Köln WDR compilation, CC BY 4.0)"),
     # Hall с ушами SADIE II H15 и H3 (15.11, решение пользователя: те же головы, что у Studio CR7).
-    dict(name="HallH15", space="Hall", head_name="SADIE H15", hrtf="sadie:H15", file="RoomHallH15.wav",
+    dict(name="HallH15", pack="JAMbo Head SADIE H15", space="Hall", head_name="SADIE H15", hrtf="sadie:H15", file="RoomHallH15.wav",
          sofa=("DRIR_SBS_VSA_110RS_PAL.sofa", "DRIR_SBS_VSA_110RS_PAR.sofa"), early_ms=80.0, max_ms=1000, bits=16,
          desc="WDR Small Broadcast Studio, PA (TH Köln WDR compilation, CC BY 4.0), SADIE II H15 (Apache 2.0)"),
-    dict(name="HallH3", space="Hall", head_name="SADIE H3", hrtf="sadie:H3", file="RoomHallH3.wav",
+    dict(name="HallH3", pack="JAMbo Head SADIE H3", space="Hall", head_name="SADIE H3", hrtf="sadie:H3", file="RoomHallH3.wav",
          sofa=("DRIR_SBS_VSA_110RS_PAL.sofa", "DRIR_SBS_VSA_110RS_PAR.sofa"), early_ms=80.0, max_ms=1000, bits=16,
          desc="WDR Small Broadcast Studio, PA (TH Köln WDR compilation, CC BY 4.0), SADIE II H3 (Apache 2.0)"),
 ]
@@ -452,11 +453,19 @@ def main():
     report = "--report" in sys.argv
     # Папка SADIE II: H<n>.sofa (48K_24bit_256tap из H<n>_HRIR_SOFA.zip).
     sadie = sys.argv[sys.argv.index("--sadie") + 1] if "--sadie" in sys.argv else ""
+    # Пакеты голов (комнаты с pack): папка для .zip (HeadPack — IMPORT в меню HEAD); без --packs — такие комнаты
+    # пропускаются.
+    packs = sys.argv[sys.argv.index("--packs") + 1] if "--packs" in sys.argv else ""
+    pack_meta = {}
     here = os.path.dirname(os.path.abspath(__file__))
     res = os.path.join(here, "..", "JAMbo.swiftpm", "Resources")
     heads = {}
     meta = []
     for cfg in ROOMS:
+        if cfg.get("pack") and not packs:
+            continue
+        out_dir = os.path.join(packs, cfg["pack"]) if cfg.get("pack") else res
+        os.makedirs(out_dir, exist_ok=True)
         kind = cfg.get("hrtf", "measured")
         if kind not in heads:
             if kind.startswith("sadie:"):
@@ -472,16 +481,16 @@ def main():
             print("%s: %s, %s, az %.1f°, %.2f m, onset %d, direct peak %.1f dB, DOA error (direct) %.1f°, license: %s"
                   % (f, s.room, s.spk, az, s.dist, s.onset, peak, s.doa_err, s.lic))
         h, gain_db, length, info = make_room(cfg, spks, ir, dirs, ctf, sets, G.FRONT)
-        G.write_wav(os.path.join(res, cfg["file"]), h, cfg.get("bits", 24))
-        head_file, head_gain, hs = write_head(cfg, spks, sets, dirs, info, gain_db, cfg["file"], res)
+        G.write_wav(os.path.join(out_dir, cfg["file"]), h, cfg.get("bits", 24))
+        head_file, head_gain, hs = write_head(cfg, spks, sets, dirs, info, gain_db, cfg["file"], out_dir)
         # Совпадение HEAD при голове прямо с импульсом комнаты.
         i0 = (0 - G.HEAD_FROM) // G.HEAD_STEP
         dev = np.max(np.abs(hs[i0] - h[:, :G.DIRECT_N])) / np.max(np.abs(h[:, :G.DIRECT_N]))
         hf, flat_gain, _, finfo = make_room(cfg, spks, ir, dirs, ctf, sets, 1.0)
         flat_file = cfg["file"].replace(".wav", "Flat.wav")
-        G.write_wav(os.path.join(res, flat_file), hf[:, :int(SR * cfg["early_ms"] / 1000)], 16)
-        flat_head, flat_head_gain, _ = write_head(cfg, spks, sets, dirs, finfo, flat_gain, flat_file, res)
-        meta.append(dict(name=cfg["name"], space=cfg.get("space", cfg["name"]), head_name=cfg.get("head_name", "FABIAN"),
+        G.write_wav(os.path.join(out_dir, flat_file), hf[:, :int(SR * cfg["early_ms"] / 1000)], 16)
+        flat_head, flat_head_gain, _ = write_head(cfg, spks, sets, dirs, finfo, flat_gain, flat_file, out_dir)
+        (pack_meta.setdefault(cfg["pack"], []) if cfg.get("pack") else meta).append(dict(name=cfg["name"], space=cfg.get("space", cfg["name"]), head_name=cfg.get("head_name", "FABIAN"),
                          file=cfg["file"], source="srir", measurement=cfg["desc"],
                          rt60=round(float(np.median([np.median(r) for r in info["rts"]])), 3),
                          gain_db=round(gain_db, 3), length_ms=round(1000 * length / SR, 1), direct=G.DIRECT_N,
@@ -502,12 +511,27 @@ def main():
     path = os.path.join(res, "rooms.json")
     with open(path) as f:
         data = json.load(f)
-    names = {m["name"] for m in meta}
+    names = {c["name"] for c in ROOMS}
     data["rooms"] = [r for r in data["rooms"] if r["name"] not in names] + meta
     with open(path, "w") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
         f.write("\n")
     print("written:", [m["file"] for m in meta])
+    # Пакеты голов: rooms.json и .zip (без сжатия — аудио почти не сжимается); папка пакета — рядом.
+    import shutil
+    import zipfile
+    for name, rooms in pack_meta.items():
+        d = os.path.join(packs, name)
+        with open(os.path.join(d, "rooms.json"), "w") as f:
+            json.dump(dict(rooms=rooms), f, indent=2, ensure_ascii=False)
+            f.write("\n")
+        files = ["rooms.json"] + [x for r in rooms for x in (r["file"], r["head"]["file"], r["flat"]["file"],
+                                                               r["flat"]["head_file"])]
+        with zipfile.ZipFile(os.path.join(packs, name + ".zip"), "w", zipfile.ZIP_STORED) as z:
+            for x in files:
+                z.write(os.path.join(d, x), x)
+        shutil.rmtree(d)
+        print("pack:", name + ".zip", [r["name"] for r in rooms])
 
 
 if __name__ == "__main__":

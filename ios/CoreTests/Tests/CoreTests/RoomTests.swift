@@ -46,10 +46,21 @@ final class RoomTests: XCTestCase {
 
     func testRoomsAndWav() {
         let list = RoomTests.rooms()
-        XCTAssertEqual(list.map { $0.name }, ["StudioCR7", "StudioCR7H15", "StudioCR7H3", "Hall", "HallH15", "HallH3"])
+        XCTAssertEqual(list.map { $0.name }, ["StudioCR7", "Hall"])
         // Меню HEAD (15.11): пространство и уши комнаты.
-        XCTAssertEqual(list.map { $0.space }, ["StudioCR7", "StudioCR7", "StudioCR7", "Hall", "Hall", "Hall"])
-        XCTAssertEqual(list.map { $0.headName }, ["FABIAN", "SADIE H15", "SADIE H3", "FABIAN", "SADIE H15", "SADIE H3"])
+        XCTAssertEqual(list.map { $0.space }, ["StudioCR7", "Hall"])
+        XCTAssertEqual(list.map { $0.headName }, ["FABIAN", "FABIAN"])
+        // Пакеты голов (ios/HeadPacks, IMPORT в меню HEAD): обе комнаты, все файлы на месте, WAV читается.
+        let packs: URL = RoomTests.res.deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("HeadPacks")
+        for h in ["H15", "H3"] {
+            let d = try? Data(contentsOf: packs.appendingPathComponent("JAMbo Head SADIE \(h).zip"))
+            guard let p = d.flatMap({ HeadPack.unpack($0) }) else { XCTFail("pack " + h); continue }
+            XCTAssertEqual(p.rooms.map { $0.space }, ["StudioCR7", "Hall"])
+            XCTAssertEqual(HeadPack.heads(p.rooms), ["SADIE " + h])
+            for f in HeadPack.referenced(p.rooms) { XCTAssertNotNil(p.files[f], f) }
+            XCTAssertNotNil(RoomIR(name: "x", wav: p.files[p.rooms[0].file]!, gainDb: 0, direct: 128))
+        }
+        XCTAssertNil(HeadPack.unpack(Data("junk".utf8)))
         for k in 0..<list.count {
             let ir = RoomTests.ir(k)
             XCTAssertGreaterThan(ir.frames, 1000)
@@ -64,7 +75,7 @@ final class RoomTests: XCTestCase {
 
     /// Свёртка = прямая FIR (задержка 128) с ошибкой ≤ −120 dB; Ambience 0 — только прямая часть.
     func testMatchesDirectFir() {
-        let ir = RoomTests.ir(2)
+        let ir = RoomTests.ir(RoomTests.rooms().count - 1)
         for amb in [Float(1), 0] {
             let st = RoomStage(sampleRate: 48000)
             st.ambience.store(amb)
@@ -109,12 +120,12 @@ final class RoomTests: XCTestCase {
         let n = 256 * 400
         let hz: Double = 300
         let l: [Float] = (0..<n).map { Float(0.3 * sin(2 * Double.pi * hz * Double($0) / 48000)) }
-        let irs: [RoomIR] = (0..<3).map { RoomTests.ir($0) }
+        let irs: [RoomIR] = (0..<RoomTests.rooms().count).map { RoomTests.ir($0) }
         weak var probe: RoomConv? = nil
         var sw: [Int: () -> Void] = [:]
         for b in stride(from: 0, to: 300, by: 3) {
             sw[b] = {
-                let c = RoomConv(ir: irs[b % 3])
+                let c = RoomConv(ir: irs[b % irs.count])
                 if b == 0 { probe = c }
                 st.set(b % 7 == 0 ? nil : c)
                 st.ambience.store(Float(b % 5) / 4)

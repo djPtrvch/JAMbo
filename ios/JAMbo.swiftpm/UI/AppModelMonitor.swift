@@ -311,7 +311,7 @@ extension AppModel {
         case 0: return MonitorFieldInfo(label: "SPACE", value: translationPreset?.name ?? "Off", enabled: true, px: 30)
         case 1: return MonitorFieldInfo(label: "CORRECTION", value: String(format: "%.0f %%", s.strength * 100), enabled: true, px: 2)
         case 6: return MonitorFieldInfo(label: "EAR TONE", value: String(format: "%.0f %%", s.raw * 100), enabled: roomOn, px: 2)
-        case 7: return MonitorFieldInfo(label: "HEAD", value: roomInfo?.headName ?? "—", enabled: roomHeads.count > 1, px: 30)
+        case 7: return MonitorFieldInfo(label: "HEAD", value: roomInfo?.headName ?? "—", enabled: roomOn, px: 30)
         default:
             let t: String = s.ambienceDb <= MonitorSpec.ambienceMin ? "−∞ dB" : String(format: "%.1f dB", s.ambienceDb)
             return MonitorFieldInfo(label: "AMBIENCE", value: t, enabled: roomOn, px: 2)
@@ -366,7 +366,7 @@ extension AppModel {
 
     /// Тап: у TRANSLATION и HEAD — меню под полем.
     func monitorFieldTap(_ k: Int, _ r: CGRect) {
-        guard k == 0 || (k == 7 && roomHeads.count > 1) else { return }
+        guard k == 0 || (k == 7 && roomOn) else { return }
         translationMenuHeads = k == 7
         translationMenu = translationMenu == nil ? r : nil
     }
@@ -456,15 +456,19 @@ final class RoomSet: @unchecked Sendable {
 
     /// Из ресурсов (файлы rooms.json); нет импульсов комнаты — nil.
     static func load(_ i: RoomInfo) -> RoomSet? {
-        guard let ir = RoomSet.wav(i.name, i.file, i.gainDb, i.direct) else { return nil }
-        return RoomSet(name: i.name, ir: ir, flat: RoomSet.wav(i.name, i.flatFile, i.flatGainDb, i.direct),
-                       head: RoomSet.wav(i.name, i.headFile, i.headGainDb, 0),
-                       flatHead: RoomSet.wav(i.name, i.flatHeadFile, i.flatHeadGainDb, 0))
+        let dir: String = i.dir
+        guard let ir = RoomSet.wav(dir, i.name, i.file, i.gainDb, i.direct) else { return nil }
+        return RoomSet(name: i.name, ir: ir, flat: RoomSet.wav(dir, i.name, i.flatFile, i.flatGainDb, i.direct),
+                       head: RoomSet.wav(dir, i.name, i.headFile, i.headGainDb, 0),
+                       flatHead: RoomSet.wav(dir, i.name, i.flatHeadFile, i.flatHeadGainDb, 0))
     }
 
-    private static func wav(_ name: String, _ file: String, _ gain: Double, _ direct: Int) -> RoomIR? {
+    /// Файл комнаты: из папки пакета голов (dir) или из ресурсов сборки (dir пусто).
+    private static func wav(_ dir: String, _ name: String, _ file: String, _ gain: Double, _ direct: Int) -> RoomIR? {
         if file.isEmpty { return nil }
-        guard let d = AppModel.resource((file as NSString).deletingPathExtension, "wav") else { return nil }
+        let data: Data? = dir.isEmpty ? AppModel.resource((file as NSString).deletingPathExtension, "wav")
+            : (try? Data(contentsOf: URL(fileURLWithPath: dir).appendingPathComponent(file)))
+        guard let d = data else { return nil }
         return RoomIR(name: name, wav: d, gainDb: gain, direct: direct)
     }
 }

@@ -110,7 +110,9 @@ struct SpaceItem: View {
             if hd { m.setHead(n) } else { m.setTranslation(n) }
             m.translationMenu = nil
         }
-        .onLongPressGesture(minimumDuration: 0.6) { if !hd { m.saveSpace(n) } }
+        .onLongPressGesture(minimumDuration: 0.6) {
+            if !hd { m.saveSpace(n) } else if m.headImported(n) { m.deleteHead(n) }
+        }
     }
 }
 
@@ -179,7 +181,8 @@ struct CurveSwitch: View {
 
 /// Меню SPACE (пункты TRANSLATION): пункты одним столбцом под полем (Off — первым, выбранный горит); тап — выбрать
 /// (с профилем пункта), удержание — сохранить в пункт текущие AMBIENCE, EAR TONE, CORRECTION и CORRECT CURVE (на секунду
-/// SAVED; у пункта с профилем — точка •); тап мимо — закрыть. То же меню — HEAD (головы пространства; без сохранения).
+/// SAVED; у пункта с профилем — точка •); тап мимо — закрыть. То же меню — HEAD: головы пространства, последним — IMPORT…
+/// (пакет голов .zip); удержание головы из пакета — удалить пакет.
 struct TranslationMenu: View {
     static let width: CGFloat = 220
     let model: AppModel
@@ -195,10 +198,17 @@ struct TranslationMenu: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(hd ? "HEAD" : "SPACE").font(.system(size: 12, weight: .bold)).tracking(1.2)
                     .foregroundStyle(theme.text)
-                Text(hd ? "EARS FOR THIS SPACE" : "HOLD TO SAVE").font(.system(size: 9)).foregroundStyle(theme.dim)
+                Text(hd ? "HOLD IMPORTED TO DELETE" : "HOLD TO SAVE").font(.system(size: 9)).foregroundStyle(theme.dim)
                 VStack(spacing: 6) {
                     ForEach(names.indices, id: \.self) { i in
                         SpaceItem(model: m, name: names[i], current: names[i] == cur, heads: hd)
+                    }
+                    if hd {
+                        Text("IMPORT…").font(.system(size: 13, weight: .bold)).foregroundStyle(theme.text)
+                            .frame(maxWidth: .infinity, minHeight: 40)
+                            .background(theme.panel2, in: RoundedRectangle(cornerRadius: 8))
+                            .contentShape(Rectangle())
+                            .onTapGesture { m.chooseHeadFiles() }
                     }
                 }
             }
