@@ -1,7 +1,8 @@
 import Foundation
 
 // Роли случайных партий House, Breaks, Trap, Pop, Ambient (docs/ai/sequencer.md, «Случайная партия по стилю»):
-// BASS, LEAD, KEYS, PAD, ARP; таблицы, отрезки аккордов, ритм и запись нот — StyleParts.swift.
+// BASS, LEAD, KEYS, PAD, ARP; таблицы, отрезки аккордов, ритм и запись нот — StyleParts.swift. Ритм для нарезки —
+// rhythmPart.
 
 extension MelodyRhythm {
     // MARK: — Голоса аккорда
@@ -115,6 +116,27 @@ extension MelodyRhythm {
     }
 
     // MARK: — LEAD
+
+    /// Звук аккорда ступени-индекса k (корень, терция, квинта) ближе всего к ступени cur (номера ступеней — от
+    /// корня клавиатуры, могут уходить в следующую октаву).
+    static func nearestChordTone(_ cur: Int, chordRoot k: Int, n: Int, lo: Int, hi: Int, preferRoot: Bool) -> Int {
+        var best: Int = cur
+        var bestD: Int = Int.max
+        var x: Int = lo
+        while x <= hi {
+            let r: Int = Scales.wrap(x - k, n)
+            let tone: Bool = preferRoot ? r == 0 : (r == 0 || r == 2 || r == 4)
+            if tone {
+                let d: Int = Swift.abs(x - cur)
+                if d < bestD {
+                    bestD = d
+                    best = x
+                }
+            }
+            x += 1
+        }
+        return best
+    }
 
     /// Ход мелодии: ±1, ±2 или скачок на 3–4 ступени по весам moves; после скачка — шаг в обратную сторону; в 0…hi.
     static func styleWalk(_ cur: Int, hi: Int, moves: [Double], last: inout Int, using g: inout Rng) -> Int {
@@ -349,6 +371,26 @@ extension MelodyRhythm {
         case .arp: notes = styleArp(c, kind: kind, arp: arp, using: &g)
         }
         return stylePages(notes, c, scale: scale, root: root, octave: oct)
+    }
+}
+
+extension MelodyRhythm {
+    /// Ритм партии роли в стиле проекта (нарезка: роли кусков BASS, LEAD): Techno — генератор Techno, остальные —
+    /// stylePart; прогрессия на тонике, бочка стиля.
+    static func rhythmPart(_ role: Role, style: Int, bpm: Double, lens: [Int],
+                           using g: inout Rng) -> [[SliceRhythm.Event]] {
+        let d: [Int] = [1, 1, 1, 1]
+        guard let ps = partStyle(style, bpm: bpm) else {
+            if role == .bass {
+                return technoBass(lens: lens, degrees: d, scale: 0, root: 0, octave: 3, kicks: nil, using: &g)
+            }
+            if role == .keys {
+                return technoKeys(lens: lens, degrees: d, kind: 0, scale: 0, root: 0, octave: 4, kicks: nil, using: &g)
+            }
+            return hypnoticLead(lens: lens, degrees: d, scale: 0, root: 0, octave: 4, using: &g)
+        }
+        return stylePart(role, style: ps, lens: lens, degrees: d, kind: 0, scale: 0, root: 0, octave: 3, kicks: nil,
+                         using: &g)
     }
 }
 

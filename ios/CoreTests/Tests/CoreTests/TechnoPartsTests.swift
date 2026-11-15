@@ -39,8 +39,8 @@ final class TechnoPartsTests: XCTestCase {
             for pages in 1...4 {
                 for d in progressions(using: &g) {
                     let lens: [Int] = Array(repeating: 16, count: pages)
-                    let pat = M.bass(style: style, bpm: bpm, lens: lens, degrees: d, scale: scale, root: root,
-                                     octave: 1, using: &g)
+                    let pat = M.technoBass(lens: lens, degrees: d, scale: scale, root: root,
+                                           octave: 1, kicks: nil, using: &g)
                     XCTAssertEqual(pat.count, pages, "ничего за пределами выбранных страниц")
                     var all: Int = 0
                     var roots: Int = 0
@@ -82,9 +82,9 @@ final class TechnoPartsTests: XCTestCase {
         XCTAssertEqual(grid, [[0, 3, 8, 11], [0, 3, 8, 11]], "страница бочки — по кругу её клипа")
         XCTAssertEqual(Project().kickGrid(pages: 0...0), [M.defaultKick], "без бочки — 1, 5, 9, 13")
         for _ in 0..<200 {
-            let pat = M.bass(style: style, bpm: bpm, lens: [16, 16], degrees: [1], scale: scale, root: root,
+            let pat = M.technoBass(lens: [16, 16], degrees: [1], scale: scale, root: root,
                              octave: 1, kicks: grid, using: &g)
-            let lead = M.lead(style: style, bpm: bpm, lens: [16, 16], degrees: [1], scale: scale, root: root,
+            let lead = M.hypnoticLead(lens: [16, 16], degrees: [1], scale: scale, root: root,
                               octave: 3, kicks: grid, using: &g)
             for e in (pat + lead).flatMap({ $0 }) { XCTAssertFalse(grid[0].contains(e.step), "мимо реальной бочки") }
         }
@@ -155,7 +155,7 @@ final class TechnoPartsTests: XCTestCase {
         for _ in 0..<300 {
             for pages in 1...4 {
                 let lens: [Int] = Array(repeating: 16, count: pages)
-                let pat = M.lead(style: style, bpm: bpm, lens: lens, degrees: [1], scale: scale, root: root,
+                let pat = M.hypnoticLead(lens: lens, degrees: [1], scale: scale, root: root,
                                  octave: 3, using: &g)
                 XCTAssertEqual(pat.count, pages)
                 let all = pat.flatMap { $0 }
@@ -185,11 +185,11 @@ final class TechnoPartsTests: XCTestCase {
         var h = History<Project>()
         let before: Project = p
         let d: [Int] = M.technoProgression(using: &g)
-        p.tracks[0].writeRandomBass(pages: 0...1, degrees: d, scale: scale, root: root, octave: 1, bpm: bpm,
+        p.tracks[0].writeTechnoPart(.bass, pages: 0...1, degrees: d, kind: 0, scale: scale, root: root, octave: 1,
                                     kicks: p.kickGrid(pages: 0...1), using: &g)
         p.tracks[1].writeTechnoPart(.pad, pages: 0...1, degrees: d, kind: 0, scale: scale, root: root, octave: 3, kicks: nil,
                                     using: &g)
-        p.tracks[2].writeRandomLead(pages: 0...1, degrees: d, scale: scale, root: root, octave: 3, bpm: bpm,
+        p.tracks[2].writeTechnoPart(.lead, pages: 0...1, degrees: d, kind: 0, scale: scale, root: root, octave: 3,
                                     kicks: p.kickGrid(pages: 0...1), using: &g)
         h.record(before: before, after: p)
         XCTAssertNotEqual(p, before)
@@ -208,9 +208,9 @@ final class TechnoPartsTests: XCTestCase {
         t.arp.mode = true
         for _ in 0..<50 {
             let d: [Int] = M.technoProgression(using: &g)
-            t.writeRandomBass(pages: 0...1, degrees: d, scale: scale, root: root, octave: 1, bpm: bpm, using: &g)
+            t.writeTechnoPart(.bass, pages: 0...1, degrees: d, kind: 0, scale: scale, root: root, octave: 1, kicks: nil, using: &g)
             var ids = Set(t.pages.flatMap { $0 }.flatMap { $0.locks.keys })
-            t.writeRandomLead(pages: 0...1, degrees: d, scale: scale, root: root, octave: 3, bpm: bpm, using: &g)
+            t.writeTechnoPart(.lead, pages: 0...1, degrees: d, kind: 0, scale: scale, root: root, octave: 3, kicks: nil, using: &g)
             ids.formUnion(t.pages.flatMap { $0 }.flatMap { $0.locks.keys })
             t.writeTechnoPart(.pad, pages: 0...1, degrees: d, kind: 1, scale: scale, root: root, octave: 3, kicks: nil, using: &g)
             ids.formUnion(t.pages.flatMap { $0 }.flatMap { $0.locks.keys })

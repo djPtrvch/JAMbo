@@ -1,9 +1,9 @@
 import Foundation
 
-// Случайные партии BASS, PAD, LEAD, KEYS, ARP в стилях House, Breaks (ниже 150 BPM), Trap (от 115 BPM), Pop и
+// Случайные партии BASS, PAD, LEAD, KEYS, ARP в стилях House, Breaks, Trap, Pop и
 // Ambient (docs/ai/sequencer.md, «Случайная партия по стилю»): таблицы — строками по стилям (ради объёма сборки),
-// ноты считаются ступенями гаммы от корня клавиатуры. Из p-lock — только Level (velocity). Techno — TechnoRun.swift,
-// D&B и R&B — прежние партии (MelodyRhythm.bass, lead, chordPart, Arp.randomSteps). Роли — StyleRoles.swift.
+// ноты считаются ступенями гаммы от корня клавиатуры. Из p-lock — только Level (velocity). Techno — TechnoRun.swift.
+// Роли — StyleRoles.swift.
 
 /// Нота партии стиля: шаг от начала играющих страниц (по 16 на страницу), ступени (у аккорда — несколько), длина,
 /// velocity 0…127.
@@ -47,7 +47,7 @@ struct StyleCtx {
 }
 
 extension MelodyRhythm {
-    /// Стиль партий по ТЗ: 0 House, 1 Breaks, 2 Trap, 3 Pop, 4 Ambient; Techno, D&B, R&B — nil.
+    /// Стиль партий по ТЗ: 0 House, 1 Breaks, 2 Trap, 3 Pop, 4 Ambient; Techno — nil.
     public static func partStyle(_ style: Int, bpm: Double) -> Int? {
         switch DrumRhythm.groove(style, bpm: bpm) {
         case .house: return 0

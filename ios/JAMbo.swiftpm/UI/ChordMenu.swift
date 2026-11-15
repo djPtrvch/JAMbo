@@ -65,7 +65,7 @@ struct ChordMenu: View {
         let cur: Int = model.chordTypeIndex
         return LazyVGrid(columns: cols, alignment: .leading, spacing: ChordMenuMetrics.gap) {
             ForEach(0..<names.count, id: \.self) { c in
-                InkButton(title: names[c], active: c == cur, height: rowH, split: true) {
+                InkButton(title: names[c], active: c == cur, height: rowH) {
                     if model.midiLearn.on {
                         model.learnTap(.button("CHORD TYPE \(c + 1)"))
                     } else {

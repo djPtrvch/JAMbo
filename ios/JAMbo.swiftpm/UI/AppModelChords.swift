@@ -28,18 +28,11 @@ extension AppModel {
             } else if sliceTrack {
                 writeRandomSlices()
             } else if settings.randomChords {
+                let role: MelodyRhythm.Role = arpMode ? .arp : melodyRole
                 if let ps = MelodyRhythm.partStyle(track.drumStyle, bpm: project.bpm) {
-                    writeStylePart(ps, arpMode ? .arp : melodyRole)
-                } else if MelodyRhythm.isTechno(style: track.drumStyle, bpm: project.bpm) {
-                    writeTechnoPart(arpMode ? .arp : melodyRole)
-                } else if arpMode {
-                    writeRandomArp()
-                } else if melodyRole == .bass {
-                    writeRandomBass()
-                } else if melodyRole == .keys || melodyRole == .pad {
-                    writeRandomChordPart(melodyRole)
+                    writeStylePart(ps, role)
                 } else {
-                    writeRandomLead()
+                    writeTechnoPart(role)
                 }
             }
         } else if arpMode {
@@ -91,10 +84,9 @@ extension AppModel {
         }
     }
 
-    /// Вариант стиля по темпу проекта (Breaks или D&B, Trap или R&B) — под словом RANDOM.
+    /// Стиль проекта — под словом RANDOM.
     var drumGrooveName: String {
-        let gr: DrumRhythm.Groove = DrumRhythm.groove(track.drumStyle, bpm: project.bpm)
-        return DrumRhythm.grooveNames[gr.rawValue]
+        return DrumRhythm.styles[DrumRhythm.styleIndex(track.drumStyle)]
     }
 
     /// Окно и MIDI CHORD TYPE n: на ударной дорожке — стиль, в режиме ARP — направление, иначе — тип аккорда.
@@ -190,60 +182,11 @@ extension AppModel {
         return project.root - (Scales.wrap(r - Params.sampleRoot + 6, 12) - 6)
     }
 
-    /// Случайная прогрессия стиля проекта (MelodyRhythm.progression), не равная прошлой.
-    func newProgression(using g: inout Rng) -> [Int] {
-        return MelodyRhythm.progression(style: track.drumStyle, bpm: project.bpm, scale: project.scale,
-                                        avoid: lastRandomProgression, using: &g)
-    }
-
-    /// Прогрессия BASS, PAD и LEAD: последняя случайная (её нет — новая); в Techno — только одна гармония или
-    /// 1 → 7/6 (MelodyRhythm.technoProgression; прежняя другого вида — новая).
+    /// Прогрессия BASS, PAD и LEAD Techno: последняя случайная, если она вида Techno (одна гармония или 1 → 7/6),
+    /// иначе новая (MelodyRhythm.technoProgression).
     func sharedProgression(using g: inout Rng) -> [Int] {
-        if MelodyRhythm.isTechno(style: track.drumStyle, bpm: project.bpm) {
-            if let d = lastRandomProgression, MelodyRhythm.isTechnoProgression(d) { return d }
-            return MelodyRhythm.technoProgression(using: &g)
-        }
-        return lastRandomProgression ?? newProgression(using: &g)
-    }
-
-    /// Случайная мелодия (LEAD) выбранной дорожки (стиль проекта) на выбранные страницы — по прогрессии, общей с
-    /// аккордами (последняя случайная; её нет — новая). Одна запись UNDO; AUTO SWING — Swing дорожки по стилю.
-    func writeRandomLead() {
-        guard channel == .track else { return }
-        var g = SystemRandomNumberGenerator()
-        let degrees: [Int] = sharedProgression(using: &g)
-        lastRandomProgression = degrees
-        let range: ClosedRange<Int> = chordPages
-        let scale: Int = project.scale
-        let root: Int = randomRoot(track)
-        let oct: Int = octave
-        let bpm: Double = project.bpm
-        let swing: Bool = settings.randomSwing
-        let kicks: [Set<Int>] = project.kickGrid(pages: range)
-        editTrack { t in
-            t.writeRandomLead(pages: range, degrees: degrees, scale: scale, root: root, octave: oct, bpm: bpm,
-                              kicks: kicks, using: &g)
-            if swing { t.params["swing"] = DrumRhythm.swing(t.drumStyle, bpm: bpm) }
-        }
-    }
-
-    /// Случайная аккордовая партия KEYS (ритм стиля) или PAD (аккорд на отрезок) на выбранные страницы: новая
-    /// прогрессия стиля (её же потом берёт бас), типы аккордов и расположение голосов — по стилю (styleChords). Одна запись UNDO; режим CHORD не меняется.
-    func writeRandomChordPart(_ role: MelodyRhythm.Role) {
-        guard channel == .track else { return }
-        var g = SystemRandomNumberGenerator()
-        let degrees: [Int] = newProgression(using: &g)
-        lastRandomProgression = degrees
-        let bpm: Double = project.bpm
-        let folded: [[Int]] = MelodyRhythm.styleChords(degrees, style: track.drumStyle, bpm: bpm, scale: project.scale,
-                                                       root: randomRoot(track), octave: octave, using: &g)
-        let range: ClosedRange<Int> = chordPages
-        let swing: Bool = settings.randomSwing
-        let single: Bool = role == .pad && !chordMode[selectedTrack]
-        editTrack { t in
-            t.writeRandomChords(role, pages: range, chords: folded, bpm: bpm, single: single, using: &g)
-            if swing && role == .keys { t.params["swing"] = DrumRhythm.swing(t.drumStyle, bpm: bpm) }
-        }
+        if let d = lastRandomProgression, MelodyRhythm.isTechnoProgression(d) { return d }
+        return MelodyRhythm.technoProgression(using: &g)
     }
 
     /// Тип аккорда Techno: прежний (PAD) или новый (KEYS, ARP — с новой прогрессией).
@@ -305,49 +248,6 @@ extension AppModel {
                              octave: oct, kicks: kicks, single: single, using: &g)
             if swing { t.params["swing"] = DrumRhythm.swing(t.drumStyle, bpm: bpm) }
         }
-    }
-
-    /// Случайная басовая линия выбранной дорожки (стиль проекта) на выбранные страницы — по прогрессии, общей с
-    /// аккордами (последняя случайная; её нет — новая). Одна запись UNDO; AUTO SWING — Swing дорожки по стилю.
-    func writeRandomBass() {
-        guard channel == .track else { return }
-        var g = SystemRandomNumberGenerator()
-        let degrees: [Int] = sharedProgression(using: &g)
-        lastRandomProgression = degrees
-        let range: ClosedRange<Int> = chordPages
-        let scale: Int = project.scale
-        let root: Int = randomRoot(track)
-        let oct: Int = octave
-        let bpm: Double = project.bpm
-        let swing: Bool = settings.randomSwing
-        let kicks: [Set<Int>] = project.kickGrid(pages: range)
-        editTrack { t in
-            t.writeRandomBass(pages: range, degrees: degrees, scale: scale, root: root, octave: oct, bpm: bpm,
-                              kicks: kicks, using: &g)
-            if swing { t.params["swing"] = DrumRhythm.swing(t.drumStyle, bpm: bpm) }
-        }
-    }
-
-    /// Режим ARP: случайная прогрессия стиля (newProgression) с типами аккордов стиля, разложенная по шагам выбранных страниц —
-    /// четверть на аккорд, фигура по направлению, ритм стиля проекта, октавы, RATE и GATE арпеджиатора
-    /// (Arp.randomSteps). Одна запись UNDO; ARP не меняется.
-    func writeRandomArp() {
-        guard channel == .track else { return }
-        var g = SystemRandomNumberGenerator()
-        let degrees: [Int] = newProgression(using: &g)
-        lastRandomProgression = degrees
-        // Типы аккордов — по стилю (styleChords); каждый аккорд — в октаве клавиатуры (обращением, без drop 2 и
-        // корня ниже): с OCTAVES 1 арпеджио не разбегается на две октавы.
-        let cs: [[Int]] = MelodyRhythm.styleChords(degrees, style: track.drumStyle, bpm: project.bpm, scale: project.scale,
-                                                   root: randomRoot(track), octave: octave, using: &g)
-        let range: ClosedRange<Int> = chordPages
-        let a: TrackArp = track.arp
-        let folded: [[Int]] = Arp.fold(cs, base: Scales.baseNote(root: randomRoot(track), octave: octave))
-        let total: Int = (range.upperBound - range.lowerBound + 1) * Params.stepsPerPage
-        let notes: [ArpStepNote] = Arp.randomSteps(folded, steps: total, dir: a.dir, octaves: a.octaves,
-                                                   rate: a.rate, gate: a.gate, style: track.drumStyle,
-                                                   bpm: project.bpm, using: &g)
-        editTrack { t in t.writeArpSteps(notes, pages: range) }
     }
 
     /// Случайный ритм ударного движка выбранной дорожки (KICK, SNARE, HAT, CLAP, PERC) на выбранные страницы: по

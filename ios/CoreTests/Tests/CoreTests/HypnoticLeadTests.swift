@@ -14,7 +14,7 @@ final class HypnoticLeadTests: XCTestCase {
         let scale: Int = 1, root: Int = 9, oct: Int = 3
         let steps: [Int] = Scales.all[scale].steps
         for _ in 0..<200 {
-            let pat = MelodyRhythm.lead(style: 1, bpm: 130, lens: [16, 16, 16, 16], degrees: [1, 1, 1, 1],
+            let pat = MelodyRhythm.hypnoticLead(lens: [16, 16, 16, 16], degrees: [1, 1, 1, 1],
                                         scale: scale, root: root, octave: oct, using: &g)
             XCTAssertEqual(pat.count, 4)
             var notes = Set<Int>()
@@ -35,13 +35,6 @@ final class HypnoticLeadTests: XCTestCase {
         }
     }
 
-    func testOtherStylesKeepMelody() {
-        var g = SystemRandomNumberGenerator()
-        let pat = MelodyRhythm.lead(style: 0, bpm: 124, lens: [16, 16], degrees: [1, 6], scale: 0, root: 0,
-                                    octave: 4, using: &g)
-        XCTAssertFalse(pat[0].isEmpty)
-    }
-
     /// Нота сэмпла (8.11): корневая со сдвигом может быть отрицательной — партии остаются в гамме от неё.
     func testShiftedRootInScale() {
         var g = SystemRandomNumberGenerator()
@@ -49,10 +42,11 @@ final class HypnoticLeadTests: XCTestCase {
         let steps: [Int] = Scales.all[scale].steps
         for root in [-6, -1, 3, 16] {
             for st in 0..<DrumRhythm.styles.count {
-                let lead = MelodyRhythm.lead(style: st, bpm: 125, lens: [16, 16], degrees: [1, 6], scale: scale, root: root,
-                                             octave: 3, using: &g)
-                let bass = MelodyRhythm.bass(style: st, bpm: 125, lens: [16, 16], degrees: [1, 6], scale: scale, root: root,
-                                             octave: 1, using: &g)
+                let ps: Int = MelodyRhythm.partStyle(st, bpm: 125) ?? 0
+                let lead = MelodyRhythm.stylePart(.lead, style: ps, lens: [16, 16], degrees: [1, 6], kind: 1, scale: scale,
+                                                  root: root, octave: 3, kicks: nil, using: &g)
+                let bass = MelodyRhythm.stylePart(.bass, style: ps, lens: [16, 16], degrees: [1, 6], kind: 1, scale: scale,
+                                                  root: root, octave: 1, kicks: nil, using: &g)
                 for e in (lead + bass).flatMap({ $0 }) {
                     XCTAssertTrue(steps.contains(((e.note - root) % 12 + 12) % 12), "в гамме от сдвинутой корневой")
                     XCTAssertTrue((0...127).contains(e.note))

@@ -90,45 +90,6 @@ public struct ArpStepNote: Equatable, Sendable {
 extension Arp {
     /// Шаг сетки (шестнадцатых) для RATE: 1/8 и 1/8T — через шаг, 1/16, 1/16T, 1/32 — каждый шаг.
     public static let gridSteps: [Int] = [2, 2, 1, 1, 1]
-
-    /// Аккорды в одну октаву от base (обращение: ноты выше — на октаву вниз, повторы убираются, по высоте):
-    /// случайное арпеджио с OCTAVES 1 не выходит за октаву клавиатуры, OCTAVES 2–3 — ряд выше.
-    public static func fold(_ chords: [[Int]], base: Int) -> [[Int]] {
-        return chords.map { c in
-            var out: [Int] = []
-            for n in c {
-                let m: Int = base + ((n - base) % 12 + 12) % 12
-                if !out.contains(m) { out.append(m) }
-            }
-            return out.sorted()
-        }
-    }
-
-    /// Аккорды поровну на steps шагов (четверть на аккорд при 4 аккордах), каждый — по направлению dir, с октавами,
-    /// шагом по RATE и длиной по GATE (не меньше шага); Random — ноты аккорда наугад.
-    public static func steps<G: RandomNumberGenerator>(_ chords: [[Int]], steps total: Int, dir: Int, octaves: Int,
-                                                       rate: Int, gate: Double, using g: inout G) -> [ArpStepNote] {
-        if chords.isEmpty || total <= 0 { return [] }
-        let every: Int = gridSteps[clampRate(rate)]
-        let len: Int = Swift.max(1, Int((clampGate(gate) * Double(every)).rounded()))
-        let part: Int = Swift.max(1, total / chords.count)
-        var out: [ArpStepNote] = []
-        for (i, chord) in chords.enumerated() {
-            let row: [Int] = sequence(chord, dir: dir, octaves: octaves)
-            if row.isEmpty { continue }
-            let start: Int = i * part
-            let end: Int = i == chords.count - 1 ? total : Swift.min(total, start + part)
-            var k: Int = 0
-            var s: Int = start
-            while s < end {
-                let n: Int = dir == random ? row[Int.random(in: 0..<row.count, using: &g)] : row[k % row.count]
-                out.append(ArpStepNote(step: s, note: n, len: Swift.min(len, end - s)))
-                k += 1
-                s += every
-            }
-        }
-        return out
-    }
 }
 
 extension Track {

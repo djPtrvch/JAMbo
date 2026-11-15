@@ -1,6 +1,6 @@
 // Случайный ритм ударных (SHIFT + CHORD на дорожке с KICK, SNARE, HAT, CLAP, PERC): рисунок страницы по
 // вероятностям шагов движка в стиле проекта, вариации средних страниц и сбивка последней (docs/ai/sequencer.md, «Пианоролл»).
-// Стиль — один на проект (у всех дорожек); Breaks / D&B и Trap / R&B выбирают вариант по темпу проекта.
+// Стиль — один на проект (у всех дорожек; 15.11 — без вариантов по темпу: D&B и R&B убраны).
 
 /// Генератор случайных партий (без обобщений, 7.11).
 public typealias Rng = SystemRandomNumberGenerator
@@ -61,7 +61,7 @@ public enum DrumRhythm {
     }
 
     /// Стили (кнопки окна CHORD, Track.drumStyle); подписи — с заглавной. Minimal — внутри Techno (решение 4.11).
-    public static let styles: [String] = ["House", "Techno", "Breaks/D&B", "Trap/R&B", "Pop", "Ambient"]
+    public static let styles: [String] = ["House", "Techno", "Breaks", "Trap", "Pop", "Ambient"]
 
     public static func styleIndex(_ s: Int) -> Int { return Swift.max(0, Swift.min(styles.count - 1, s)) }
 
@@ -71,29 +71,16 @@ public enum DrumRhythm {
         return map[Swift.max(0, Swift.min(map.count - 1, old))]
     }
 
-    /// Рисунок: стиль с вариантом по темпу.
-    public enum Groove: Int, Sendable, CaseIterable { case house, techno, breaks, dnb, trap, rnb, pop, ambient }
+    /// Рисунок стиля (номер — как у DrumRhythm.styles; до 15.11 Breaks и Trap по темпу давали D&B и R&B).
+    public enum Groove: Int, Sendable, CaseIterable { case house, techno, breaks, trap, pop, ambient }
 
-    /// Подписи вариантов (под словом RANDOM).
-    public static let grooveNames: [String] = ["House", "Techno", "Breaks", "D&B", "Trap", "R&B", "Pop", "Ambient"]
-
-    /// Breaks/D&B: с этого темпа — D&B. Trap/R&B: с этого темпа — Trap (половинный темп), ниже — R&B.
-    public static let dnbBpm: Double = 150
-    public static let trapBpm: Double = 115
-
+    /// Рисунок стиля style (bpm не влияет — вариантов по темпу нет).
     public static func groove(_ style: Int, bpm: Double) -> Groove {
-        switch styleIndex(style) {
-        case 0: return .house
-        case 1: return .techno
-        case 2: return bpm >= dnbBpm ? .dnb : .breaks
-        case 3: return bpm >= trapBpm ? .trap : .rnb
-        case 4: return .pop
-        default: return .ambient
-        }
+        return Groove(rawValue: styleIndex(style)) ?? .house
     }
 
     /// Swing дорожки по рисунку (SETTINGS → RANDOM → AUTO SWING), 50 — без swing.
-    public static let swings: [Double] = [54, 50, 56, 52, 50, 60, 52, 50]
+    public static let swings: [Double] = [54, 50, 56, 50, 52, 50]
 
     public static func swing(_ style: Int, bpm: Double) -> Double { return swings[groove(style, bpm: bpm).rawValue] }
 
@@ -132,21 +119,19 @@ public enum DrumRhythm {
         "x...x...x...x..2 x..2x...x.2.x...",                       // house: на каждую долю
         "x...x...x...x... x...x...x...x.2. x..1x...x..1x...",      // techno
         "x.6.......x5.... x.3....3..7.....",                       // breaks: 1, 3, 11, 12
-        "x......2..x..2.. x.3.......x.....",                       // dnb: two-step 1 и 11
         "x......4..53..3. x.....45...5....",                       // trap
-        "x..2...4..6..... x.......5.5.....",                       // rnb
         "x......2x.4..... x...x...x...x... x.....5.x.......",      // pop: 1 и 9 или на каждую долю
         "x.........2..... x...............",                       // ambient
     ]
     static let snares: [String] = [
-        "...1x.1..1.1x.11", "....x..1....x..1 .......1....x..1", "....x..4.4..x.44", "....x..2.2..x.22",
-        "...1..1.x..1..11", "...3x..3.3.3x.33", "...1x.1..1.1x.11", "............x...",
+        "...1x.1..1.1x.11", "....x..1....x..1 .......1....x..1", "....x..4.4..x.44", "...1..1.x..1..11",
+        "...1x.1..1.1x.11", "............x...",
     ]
     static let hats: [String] = [
         "22x222x222x222x2 66x666x666x666x6",                       // house: офбиты
         "55x555x555x555x5 88x888x888x888x8 ..7...7...7...7.",      // techno
-        "8282828282828282", "9292929292929292",                    // breaks, dnb: восьмые
-        "x4x4x4x4x4x4x4x4", "x5x5x5x5x5x5x5x5", "x1x1x1x1x1x1x1x1", // trap, rnb, pop
+        "8282828282828282",                                        // breaks: восьмые
+        "x4x4x4x4x4x4x4x4", "x1x1x1x1x1x1x1x1",                    // trap, pop
         "3333333333333333",                                        // ambient
     ]
 
@@ -155,9 +140,8 @@ public enum DrumRhythm {
         switch gr {
         case .house, .pop: return ghostSteps
         case .techno: return [7, 15]
-        case .breaks, .dnb: return [7, 9, 14, 15]
+        case .breaks: return [7, 9, 14, 15]
         case .trap: return [3, 6, 11, 14, 15]
-        case .rnb: return [3, 7, 9, 11, 14, 15]
         case .ambient: return []
         }
     }
@@ -186,7 +170,6 @@ public enum DrumRhythm {
         if role != .hat { return 0 }
         switch gr {
         case .trap: return 0.2
-        case .rnb: return 0.08
         default: return 0
         }
     }

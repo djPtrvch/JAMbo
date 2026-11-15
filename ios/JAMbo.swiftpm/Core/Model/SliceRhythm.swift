@@ -147,19 +147,9 @@ public enum SliceRhythm {
                 }
                 continue
             }
-            // Ритм баса или мелодии стиля (высоты не нужны — нота куска своя).
-            let degrees: [Int] = [1, 1, 1, 1]
-            var line: [[Event]] = []
-            if r == .bass {
-                line = MelodyRhythm.bass(style: style, bpm: bpm, lens: lens, degrees: degrees, scale: 0, root: 0,
-                                         octave: 3, using: &g)
-            } else if Bool.random(using: &g) {
-                line = MelodyRhythm.lead(style: style, bpm: bpm, lens: lens, degrees: degrees, scale: 0, root: 0,
-                                         octave: 4, using: &g)
-            } else {
-                let one: [[Int]] = [[60], [60], [60], [60]]
-                line = MelodyRhythm.chordPart(.keys, style: style, bpm: bpm, lens: lens, chords: one, using: &g)
-            }
+            // Ритм баса, мелодии или стабов KEYS стиля (высоты не нужны — нота куска своя).
+            let role: MelodyRhythm.Role = r == .bass ? .bass : (Bool.random(using: &g) ? .lead : .keys)
+            let line: [[Event]] = MelodyRhythm.rhythmPart(role, style: style, bpm: bpm, lens: lens, using: &g)
             for (p, page) in line.enumerated() {
                 for e in page {
                     guard let pc = own.randomElement(using: &g) else { continue }

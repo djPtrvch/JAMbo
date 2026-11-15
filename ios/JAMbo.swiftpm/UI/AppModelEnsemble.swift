@@ -7,18 +7,13 @@ import Foundation
 enum EnsembleJob {
     case drums(note: Int, role: DrumRhythm.Role)
     case slices(pieces: [SliceRhythm.Piece], cuts: [Int: SliceRhythm.Cut])
-    case bass(octave: Int, root: Int)
-    case chords(role: MelodyRhythm.Role, chords: [[Int]], single: Bool)
-    case lead(octave: Int, root: Int)
     case techno(role: MelodyRhythm.Role, octave: Int, root: Int, single: Bool)
     case style(role: MelodyRhythm.Role, octave: Int, root: Int, single: Bool)
-    case arp(notes: [ArpStepNote])
 }
 
 extension AppModel {
     /// Партия дорожки i по роли (рычажки DRUMS, SAMPLES, CHORDS / ARP); без звука или с выключенным рычажком — nil.
-    private func ensembleJob(_ i: Int, degrees: [Int], range: ClosedRange<Int>, octave oct: Int,
-                                                      using g: inout Rng) -> EnsembleJob? {
+    private func ensembleJob(_ i: Int, octave oct: Int) -> EnsembleJob? {
         let t: Track = project.tracks[i]
         if t.sample.isEmpty { return nil }
         let p: Project = project
@@ -38,26 +33,7 @@ extension AppModel {
         if MelodyRhythm.partStyle(t.drumStyle, bpm: p.bpm) != nil {
             return .style(role: role, octave: oct, root: randomRoot(t), single: !chordOn)
         }
-        if MelodyRhythm.isTechno(style: t.drumStyle, bpm: p.bpm) {
-            return .techno(role: role, octave: oct, root: randomRoot(t), single: !chordOn)
-        }
-        switch role {
-        case .bass: return .bass(octave: oct, root: randomRoot(t))
-        case .lead: return .lead(octave: oct, root: randomRoot(t))
-        case .keys, .pad:
-            let cs: [[Int]] = MelodyRhythm.styleChords(degrees, style: t.drumStyle, bpm: p.bpm, scale: p.scale,
-                                                       root: randomRoot(t), octave: oct, using: &g)
-            return .chords(role: role, chords: cs, single: role == .pad && !chordOn)
-        case .arp:
-            let cs: [[Int]] = MelodyRhythm.styleChords(degrees, style: t.drumStyle, bpm: p.bpm, scale: p.scale,
-                                                       root: randomRoot(t), octave: oct, using: &g)
-            let folded: [[Int]] = Arp.fold(cs, base: Scales.baseNote(root: randomRoot(t), octave: oct))
-            let total: Int = (range.upperBound - range.lowerBound + 1) * Params.stepsPerPage
-            let a: TrackArp = t.arp
-            let notes: [ArpStepNote] = Arp.randomSteps(folded, steps: total, dir: a.dir, octaves: a.octaves, rate: a.rate,
-                                                       gate: a.gate, style: t.drumStyle, bpm: p.bpm, using: &g)
-            return .arp(notes: notes)
-        }
+        return .techno(role: role, octave: oct, root: randomRoot(t), single: !chordOn)
     }
 
     /// Партии на всех дорожках со звуком (и заглушённых): выбранная — на выбранные страницы, остальные — на
@@ -68,7 +44,6 @@ extension AppModel {
     func writeEnsemble() {
         guard channel == .track else { return }
         var g = SystemRandomNumberGenerator()
-        let techno: Bool = MelodyRhythm.isTechno(style: track.drumStyle, bpm: project.bpm)
         let ps: Int? = MelodyRhythm.partStyle(track.drumStyle, bpm: project.bpm)
         var degrees: [Int] = []
         var kind: Int = 0
@@ -76,7 +51,7 @@ extension AppModel {
             degrees = MelodyRhythm.styleProgression(s, scale: project.scale, avoid: lastRandomProgression, using: &g)
             kind = MelodyRhythm.styleKind(s, using: &g)
         } else {
-            degrees = techno ? MelodyRhythm.technoProgression(using: &g) : newProgression(using: &g)
+            degrees = MelodyRhythm.technoProgression(using: &g)
             kind = technoKind(new: true, using: &g)
         }
         lastRandomProgression = degrees
@@ -86,7 +61,7 @@ extension AppModel {
         for i in project.tracks.indices {
             let r: ClosedRange<Int> = i == sel ? selRange : project.tracks[i].openClip.range
             let oct: Int = i == sel ? octave : octaveOf(i)
-            if let j = ensembleJob(i, degrees: degrees, range: r, octave: oct, using: &g) { jobs.append((i, r, j)) }
+            if let j = ensembleJob(i, octave: oct) { jobs.append((i, r, j)) }
         }
         if jobs.isEmpty { return }
         // Ударные и нарезка — первыми (сетка бочки для баса и лида).
@@ -110,15 +85,6 @@ extension AppModel {
                 case .slices(let pieces, let cuts):
                     last[-1 - id] = p.tracks[i].writeRandomSlices(pieces, pages: r, avoid: last[-1 - id], cuts: cuts,
                                                                   bpm: bpm, using: &g)
-                case .bass(let oct, let root):
-                    p.tracks[i].writeRandomBass(pages: r, degrees: degrees, scale: p.scale, root: root, octave: oct,
-                                                bpm: bpm, kicks: p.kickGrid(pages: r), using: &g)
-                case .chords(let role, let cs, let single):
-                    pad = role == .pad
-                    p.tracks[i].writeRandomChords(role, pages: r, chords: cs, bpm: bpm, single: single, using: &g)
-                case .lead(let oct, let root):
-                    p.tracks[i].writeRandomLead(pages: r, degrees: degrees, scale: p.scale, root: root, octave: oct,
-                                                bpm: bpm, kicks: p.kickGrid(pages: r), using: &g)
                 case .techno(let role, let oct, let root, let single):
                     pad = role == .pad
                     p.tracks[i].writeTechnoPart(role, pages: r, degrees: degrees, kind: kind, scale: p.scale, root: root,
@@ -130,8 +96,6 @@ extension AppModel {
                                                root: root, octave: oct,
                                                kicks: p.kickGrid(pages: r, fallback: MelodyRhythm.styleKick(s)),
                                                single: single, using: &g)
-                case .arp(let notes):
-                    p.tracks[i].writeArpSteps(notes, pages: r)
                 }
                 if swing && !pad { p.tracks[i].params["swing"] = DrumRhythm.swing(p.tracks[i].drumStyle, bpm: bpm) }
             }

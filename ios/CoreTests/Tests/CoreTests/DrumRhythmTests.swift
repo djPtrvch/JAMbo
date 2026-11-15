@@ -17,7 +17,7 @@ final class DrumRhythmTests: XCTestCase {
 
     func testBaseRules() {
         var g = SystemRandomNumberGenerator()
-        XCTAssertEqual(DrumRhythm.styles, ["House", "Techno", "Breaks/D&B", "Trap/R&B", "Pop", "Ambient"])
+        XCTAssertEqual(DrumRhythm.styles, ["House", "Techno", "Breaks", "Trap", "Pop", "Ambient"])
         for _ in 0..<300 {
             for st in 0..<DrumRhythm.styles.count {
                 for bpm in [90.0, 125.0, 172.0] {
@@ -41,11 +41,8 @@ final class DrumRhythmTests: XCTestCase {
             }
             let hh = Set(DrumRhythm.base(.hat, style: 0, len: 16, using: &g).map { $0.step })
             XCTAssertTrue(hh.isSuperset(of: [2, 6, 10, 14]))
-            // D&B (от 150): бочка 1 и 11; BREAKS (ниже): бочка 1.
-            let dk = Set(DrumRhythm.base(.kick, style: 2, bpm: 172, len: 16, using: &g).map { $0.step })
-            XCTAssertTrue(dk.isSuperset(of: [0, 10]))
-            // Малый 5 и 13: House, Breaks, D&B, R&B, Pop; призрачные — тихие.
-            for (st, bpm) in [(0, 124.0), (2, 130.0), (2, 172.0), (3, 90.0), (4, 110.0)] {
+            // Малый 5 и 13: House, Breaks (при любом темпе), Pop; призрачные — тихие.
+            for (st, bpm) in [(0, 124.0), (2, 130.0), (2, 172.0), (4, 110.0)] {
                 for r in [DrumRhythm.Role.snare, .clap] {
                     let s = DrumRhythm.base(r, style: st, bpm: bpm, len: 16, using: &g)
                     XCTAssertTrue(s.contains(DrumRhythm.Hit(step: 4, vel: 127)), "стиль \(st) \(bpm)")
@@ -55,7 +52,7 @@ final class DrumRhythmTests: XCTestCase {
                     }
                 }
             }
-            // TRAP (от 115): малый и хлопок на 9 (общий рисунок).
+            // TRAP: малый и хлопок на 9 (общий рисунок).
             XCTAssertTrue(DrumRhythm.base(.snare, style: 3, bpm: 140, len: 16, using: &g).contains { $0.step == 8 })
             XCTAssertTrue(DrumRhythm.base(.clap, style: 3, bpm: 140, len: 16, using: &g).contains { $0.step == 8 })
             // TECHNO: малый на 13 всегда.
@@ -72,13 +69,13 @@ final class DrumRhythmTests: XCTestCase {
 
     func testGrooveByTempo() {
         XCTAssertEqual(DrumRhythm.groove(2, bpm: 130), .breaks)
-        XCTAssertEqual(DrumRhythm.groove(2, bpm: 150), .dnb)
+        XCTAssertEqual(DrumRhythm.groove(2, bpm: 172), .breaks, "вариантов по темпу нет (15.11)")
         XCTAssertEqual(DrumRhythm.groove(3, bpm: 140), .trap)
-        XCTAssertEqual(DrumRhythm.groove(3, bpm: 90), .rnb)
+        XCTAssertEqual(DrumRhythm.groove(3, bpm: 90), .trap)
         XCTAssertEqual(DrumRhythm.groove(9, bpm: 90), .ambient)
-        XCTAssertEqual(DrumRhythm.swing(3, bpm: 90), 60)
+        XCTAssertEqual(DrumRhythm.swing(2, bpm: 90), 56)
         XCTAssertEqual(DrumRhythm.swing(1, bpm: 130), 50)
-        XCTAssertEqual(DrumRhythm.grooveNames.count, DrumRhythm.Groove.allCases.count)
+        XCTAssertEqual(DrumRhythm.styles.count, DrumRhythm.Groove.allCases.count)
         XCTAssertEqual(DrumRhythm.swings.count, DrumRhythm.Groove.allCases.count)
     }
 

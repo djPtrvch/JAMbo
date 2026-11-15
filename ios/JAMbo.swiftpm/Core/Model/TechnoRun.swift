@@ -222,7 +222,7 @@ extension MelodyRhythm {
 extension Arp {
     /// ARP Techno: звуки аккорда d, d+4, d+6 (m9 — ещё d+8), ряд по DIRECTION и OCTAVES (Arp.sequence); фигура
     /// из 3–7 нот (technoFigure), ячейка technoMask по сетке RATE; длина — по GATE, не дальше следующей ноты.
-    /// Возвращает ноты по шагам от начала range (как randomSteps).
+    /// Возвращает ноты по шагам от начала range.
     public static func technoSteps(lens: [Int], degrees: [Int], kind: Int, scale: Int, root: Int, octave oct: Int,
                                    dir: Int, octaves: Int, rate: Int, gate: Double, kicks: [Set<Int>]?,
                                    using g: inout Rng) -> [ArpStepNote] {
