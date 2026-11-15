@@ -164,13 +164,8 @@ struct RightColumn: View {
                 ButtonPair(left: ShiftButton(model: model), right: ScopeButton(model: model, tap: MasterScope.lim))
             })
         } else if model.channel == .mix {
-            // MIX (10.11): скоп и осциллоскоп после лимитера, как при MST (14.11); внизу слева — SHIFT (15.11: с
-            // удержанием ручки громкости — имя и громкость дорожки по умолчанию), справа — пусто.
-            AnyView(VStack(spacing: Layout.gap) {
-                MasterScopeView(model: model, taps: false, reserve: false)
-                ButtonPair(left: Color.clear, right: Color.clear)
-                ButtonPair(left: ShiftButton(model: model), right: Color.clear)
-            })
+            // MIX (10.11): кнопок нет — скоп до низа колонки, под ним — осциллоскоп после лимитера того же размера, что при MST (14.11).
+            AnyView(RightTop(model: model))
         } else {
             AnyView(VStack(spacing: Layout.gap) {
                 RightTop(model: model)

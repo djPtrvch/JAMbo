@@ -64,14 +64,6 @@ extension AppModel {
 
     /// SHIFT + удержание: значение ручки — своё по умолчанию (на ручке на секунду SAVED).
     func saveKnobDefault(_ slot: Int) {
-        if channel == .mix {
-            // MIX (15.11): имя дорожки и громкость — для её места в новом проекте и при ADD TRACK.
-            guard slot < project.tracks.count else { return }
-            let t: Track = project.tracks[slot]
-            storeDefaults { d in d.setMix(t, slot: slot) }
-            flashKnob(slot)
-            return
-        }
         guard let scope = defaultScope(slot), let p = param(slot), !p.id.isEmpty else { return }
         let v: Double = baseValue(p)
         let c: String? = KnobDefaults.companion(p.id)
@@ -80,11 +72,6 @@ extension AppModel {
             d.values[KnobDefaults.key(scope, p.id)] = v
             if let c = c, let cv = cv { d.values[KnobDefaults.key(scope, c)] = cv }
         }
-        flashKnob(slot)
-    }
-
-    /// SAVED на ручке slot — на секунду.
-    private func flashKnob(_ slot: Int) {
         defaultFlash = slot
         Later.run(1.0) {
             if self.defaultFlash == slot { self.defaultFlash = nil }
