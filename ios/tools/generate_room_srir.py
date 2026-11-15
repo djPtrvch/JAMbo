@@ -86,6 +86,13 @@ ROOMS = [
     dict(name="Hall", file="RoomHall.wav", sofa=("DRIR_SBS_VSA_110RS_PAL.sofa", "DRIR_SBS_VSA_110RS_PAR.sofa"),
          early_ms=80.0, max_ms=1000, bits=16,
          desc="WDR Small Broadcast Studio, PA (TH Köln WDR compilation, CC BY 4.0)"),
+    # Hall с ушами SADIE II H15 и H3 (15.11, решение пользователя: те же головы, что у Studio CR7).
+    dict(name="HallH15", space="Hall", head_name="SADIE H15", hrtf="sadie:H15", file="RoomHallH15.wav",
+         sofa=("DRIR_SBS_VSA_110RS_PAL.sofa", "DRIR_SBS_VSA_110RS_PAR.sofa"), early_ms=80.0, max_ms=1000, bits=16,
+         desc="WDR Small Broadcast Studio, PA (TH Köln WDR compilation, CC BY 4.0), SADIE II H15 (Apache 2.0)"),
+    dict(name="HallH3", space="Hall", head_name="SADIE H3", hrtf="sadie:H3", file="RoomHallH3.wav",
+         sofa=("DRIR_SBS_VSA_110RS_PAL.sofa", "DRIR_SBS_VSA_110RS_PAR.sofa"), early_ms=80.0, max_ms=1000, bits=16,
+         desc="WDR Small Broadcast Studio, PA (TH Köln WDR compilation, CC BY 4.0), SADIE II H3 (Apache 2.0)"),
 ]
 
 

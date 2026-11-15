@@ -123,6 +123,68 @@
         "head_file": "RoomHallFlatHead.wav",
         "head_gain_db": -5.763
       }
+    },
+    {
+      "name": "HallH15",
+      "space": "Hall",
+      "head_name": "SADIE H15",
+      "file": "RoomHallH15.wav",
+      "source": "srir",
+      "measurement": "WDR Small Broadcast Studio, PA (TH Köln WDR compilation, CC BY 4.0), SADIE II H15 (Apache 2.0)",
+      "rt60": 0.927,
+      "gain_db": -10.936,
+      "length_ms": 1000.0,
+      "direct": 128,
+      "channels": "LL, LR, RL, RR",
+      "speaker": {
+        "hp_hz": 0,
+        "hp_order": 0,
+        "ft_hz": 0
+      },
+      "head": {
+        "file": "RoomHallH15Head.wav",
+        "from_deg": -50,
+        "step_deg": 2,
+        "count": 51,
+        "gain_db": -8.649
+      },
+      "flat": {
+        "file": "RoomHallH15Flat.wav",
+        "gain_db": -9.351,
+        "head_file": "RoomHallH15FlatHead.wav",
+        "head_gain_db": -5.219
+      }
+    },
+    {
+      "name": "HallH3",
+      "space": "Hall",
+      "head_name": "SADIE H3",
+      "file": "RoomHallH3.wav",
+      "source": "srir",
+      "measurement": "WDR Small Broadcast Studio, PA (TH Köln WDR compilation, CC BY 4.0), SADIE II H3 (Apache 2.0)",
+      "rt60": 0.927,
+      "gain_db": -8.669,
+      "length_ms": 1000.0,
+      "direct": 128,
+      "channels": "LL, LR, RL, RR",
+      "speaker": {
+        "hp_hz": 0,
+        "hp_order": 0,
+        "ft_hz": 0
+      },
+      "head": {
+        "file": "RoomHallH3Head.wav",
+        "from_deg": -50,
+        "step_deg": 2,
+        "count": 51,
+        "gain_db": -6.94
+      },
+      "flat": {
+        "file": "RoomHallH3Flat.wav",
+        "gain_db": -8.073,
+        "head_file": "RoomHallH3FlatHead.wav",
+        "head_gain_db": -4.433
+      }
     }
   ],
   "hrtf": "FABIAN HRTF data base v4, TU Berlin, CC BY 4.0, DOI 10.14279/depositonce-5718.5"
