@@ -138,8 +138,8 @@ extension MelodyRhythm {
 extension Project {
     /// Шаги бочки страниц range (для баса и лида Techno): первая дорожка KICK (движок или сэмпл по имени) с тригами
     /// в открытом клипе; странице range соответствует её страница, играющая одновременно (по кругу длины клипа
-    /// бочки). Страница бочки без тригов или бочки нет — 1, 5, 9, 13.
-    public func kickGrid(pages range: ClosedRange<Int>) -> [Set<Int>] {
+    /// бочки). Страница бочки без тригов или бочки нет — fallback (1, 5, 9, 13; у стилей — MelodyRhythm.styleKick).
+    public func kickGrid(pages range: ClosedRange<Int>, fallback: Set<Int> = MelodyRhythm.defaultKick) -> [Set<Int>] {
         let fs: [String: String] = files
         let kt: Track? = tracks.first { t in
             t.drumRoleBy(name: fs[t.sample]) == .kick && t.pages.contains { pg in pg.contains { $0.on } }
@@ -148,14 +148,14 @@ extension Project {
         var out: [Set<Int>] = []
         for i in 0..<range.count {
             guard let t = kt else {
-                out.append(MelodyRhythm.defaultKick)
+                out.append(fallback)
                 continue
             }
             let kp: Int = Swift.max(1, Swift.min(t.pages.count, (t.length + per - 1) / per))
             let page: Int = (range.lowerBound + i) % kp
             var steps: Set<Int> = []
             for (s, st) in t.pages[page].enumerated() where st.on && page * per + s < t.length { steps.insert(s) }
-            out.append(steps.isEmpty ? MelodyRhythm.defaultKick : steps)
+            out.append(steps.isEmpty ? fallback : steps)
         }
         return out
     }

@@ -50,8 +50,8 @@ public enum Arp {
 
     /// Ряд нот арпеджио: notes — в порядке нажатия (повторы убираются), направление dir (Random — как Up, выбор
     /// наугад — у движка), octaves — ряд выше на 1…2 октавы (ноты выше 127 не берутся). Up-Down и Down-Up не
-    /// повторяют крайние ноты.
-    public static func sequence(_ notes: [Int], dir: Int, octaves: Int) -> [Int] {
+    /// повторяют крайние ноты. span — октава (12; у ступеней гаммы — число ступеней).
+    public static func sequence(_ notes: [Int], dir: Int, octaves: Int, span: Int = 12) -> [Int] {
         var base: [Int] = []
         for n in notes where !base.contains(n) { base.append(n) }
         if dir != order { base.sort() }
@@ -59,7 +59,7 @@ public enum Arp {
         let oc: Int = clampOctaves(octaves)
         for o in 0..<oc {
             for n in base {
-                let m: Int = n + 12 * o
+                let m: Int = n + span * o
                 if m <= 127 { row.append(m) }
             }
         }

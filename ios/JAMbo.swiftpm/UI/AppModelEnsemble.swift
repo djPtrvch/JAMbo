@@ -11,6 +11,7 @@ enum EnsembleJob {
     case chords(role: MelodyRhythm.Role, chords: [[Int]], single: Bool)
     case lead(octave: Int, root: Int)
     case techno(role: MelodyRhythm.Role, octave: Int, root: Int, single: Bool)
+    case style(role: MelodyRhythm.Role, octave: Int, root: Int, single: Bool)
     case arp(notes: [ArpStepNote])
 }
 
@@ -34,6 +35,9 @@ extension AppModel {
         let auto: MelodyRhythm.Role = MelodyRhythm.role(sample: t.sample, name: p.files[t.sample] ?? "", octave: oct,
                                                         chord: chordOn, arp: t.arp.mode)
         let role: MelodyRhythm.Role = MelodyRhythm.role(auto, part: partTypeOf(i), chord: chordOn)
+        if MelodyRhythm.partStyle(t.drumStyle, bpm: p.bpm) != nil {
+            return .style(role: role, octave: oct, root: randomRoot(t), single: !chordOn)
+        }
         if MelodyRhythm.isTechno(style: t.drumStyle, bpm: p.bpm) {
             return .techno(role: role, octave: oct, root: randomRoot(t), single: !chordOn)
         }
@@ -59,13 +63,22 @@ extension AppModel {
     /// Партии на всех дорожках со звуком (и заглушённых): выбранная — на выбранные страницы, остальные — на
     /// страницы своего открытого клипа; одна новая прогрессия стиля на всех (её же потом берут BASS и LEAD).
     /// Одна запись UNDO; AUTO SWING — Swing дорожек по стилю (кроме PAD). Techno — гармония Techno
-    /// (technoProgression), ударные пишутся первыми: бас и лид обходят новую бочку (Project.kickGrid).
+    /// (technoProgression), House, Breaks, Trap, Pop, Ambient — прогрессия и тип аккорда стиля (styleProgression);
+    /// ударные пишутся первыми: бас, лид и стабы обходят новую бочку (Project.kickGrid).
     func writeEnsemble() {
         guard channel == .track else { return }
         var g = SystemRandomNumberGenerator()
         let techno: Bool = MelodyRhythm.isTechno(style: track.drumStyle, bpm: project.bpm)
-        let degrees: [Int] = techno ? MelodyRhythm.technoProgression(using: &g) : newProgression(using: &g)
-        let kind: Int = technoKind(new: true, using: &g)
+        let ps: Int? = MelodyRhythm.partStyle(track.drumStyle, bpm: project.bpm)
+        var degrees: [Int] = []
+        var kind: Int = 0
+        if let s = ps {
+            degrees = MelodyRhythm.styleProgression(s, scale: project.scale, avoid: lastRandomProgression, using: &g)
+            kind = MelodyRhythm.styleKind(s, using: &g)
+        } else {
+            degrees = techno ? MelodyRhythm.technoProgression(using: &g) : newProgression(using: &g)
+            kind = technoKind(new: true, using: &g)
+        }
         lastRandomProgression = degrees
         let sel: Int = selectedTrack
         let selRange: ClosedRange<Int> = chordPages
@@ -110,6 +123,13 @@ extension AppModel {
                     pad = role == .pad
                     p.tracks[i].writeTechnoPart(role, pages: r, degrees: degrees, kind: kind, scale: p.scale, root: root,
                                                 octave: oct, kicks: p.kickGrid(pages: r), single: single, using: &g)
+                case .style(let role, let oct, let root, let single):
+                    pad = role == .pad || role == .arp
+                    let s: Int = ps ?? 0
+                    p.tracks[i].writeStylePart(role, style: s, pages: r, degrees: degrees, kind: kind, scale: p.scale,
+                                               root: root, octave: oct,
+                                               kicks: p.kickGrid(pages: r, fallback: MelodyRhythm.styleKick(s)),
+                                               single: single, using: &g)
                 case .arp(let notes):
                     p.tracks[i].writeArpSteps(notes, pages: r)
                 }
