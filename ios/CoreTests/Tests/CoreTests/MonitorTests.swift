@@ -134,9 +134,9 @@ final class MonitorTests: XCTestCase {
     /// Translation: пресеты из JSON; Phone — моно, срез низа, компенсация вверх (≤ 12 dB); Sub-check — соло НЧ.
     func testTranslationAndSub() {
         let list: [TranslationPreset] = presets()
-        XCTAssertEqual(list.map { $0.name }, ["Off", "Studio", "Studio Real", "Car", "Club", "Small Speakers", "Phone", "Earbuds"])
+        XCTAssertEqual(list.map { $0.name }, ["Off", "Studio", "Studio Real", "Studio CR7", "Car", "Club", "Phone", "Earbuds"])
         // Пространство пунктов — комнаты rooms.json; у Off, Phone и Earbuds — нет.
-        XCTAssertEqual(list.map { $0.room ?? "-" }, ["-", "Studio", "StudioReal", "Car", "Club", "Desk", "-", "-"])
+        XCTAssertEqual(list.map { $0.room ?? "-" }, ["-", "Studio", "StudioReal", "StudioCR7", "Car", "Club", "-", "-"])
         guard let phone = list.first(where: { $0.name == "Phone" }) else { return XCTFail() }
         var m = MonitorSettings()
         let p: [Double] = MonitorDesign.make(eq: nil, settings: m, correct: nil, preset: phone, sampleRate: 48000)
@@ -145,11 +145,12 @@ final class MonitorTests: XCTestCase {
         let comp: Double = 20 * log10(p[MonitorSpec.compAt])
         XCTAssertGreaterThan(comp, 0)
         XCTAssertLessThanOrEqual(comp, 12)
-        // Small Speakers: HPF 4-го порядка — 24 dB/окт ниже среза (на 110 Гц — −3 dB и подъём 2,5 кГц не мешает).
-        guard let small = list.first(where: { $0.name == "Small Speakers" }) else { return XCTFail() }
-        let ps: [Double] = MonitorDesign.make(eq: nil, settings: m, correct: nil, preset: small, sampleRate: 48000)
-        XCTAssertEqual(MonitorDesign.response(ps, hz: 110, sampleRate: 48000), -3.01, accuracy: 0.1)
-        XCTAssertEqual(MonitorDesign.response(ps, hz: 55, sampleRate: 48000), -24.1, accuracy: 0.5)
+        // Club: HPF 4-го порядка — 24 dB/окт ниже среза (на 28 Гц — около −3 dB, полка 70 Гц +5 dB рядом;
+        // на 14 Гц — глубоко вниз).
+        guard let club = list.first(where: { $0.name == "Club" }) else { return XCTFail() }
+        let ps: [Double] = MonitorDesign.make(eq: nil, settings: m, correct: nil, preset: club, sampleRate: 48000)
+        print(String(format: "Club HPF: 28 Hz %.2f dB, 14 Hz %.2f dB", MonitorDesign.response(ps, hz: 28, sampleRate: 48000), MonitorDesign.response(ps, hz: 14, sampleRate: 48000)))
+        XCTAssertLessThan(MonitorDesign.response(ps, hz: 14, sampleRate: 48000) - MonitorDesign.response(ps, hz: 28, sampleRate: 48000), -20)
         // Sub-check: 120 Гц — −3 dB, 1 кГц — глубоко вниз.
         m.sub = true
         let pb: [Double] = MonitorDesign.make(eq: nil, settings: m, correct: nil, preset: nil, sampleRate: 48000)

@@ -22,7 +22,8 @@
 
 Замеры — "A Spatial Audio Impulse Response Compilation Captured at the WDR Broadcast Studios" (TH Köln), Zenodo
 10.5281/zenodo.3930833, CC BY 4.0 (в метаданных SOFA — CC BY-SA 3.0, лицензия 2012 г.; docs/LICENSES-room.md):
-DRIR_CR1_VSA_110RS_L.sofa и _R.sofa — Control Room 1 (93 м³, мониторы Genelec 8260 ±36° на 2,44 м).
+DRIR_CR1_VSA_110RS_L.sofa и _R.sofa — Control Room 1 (93 м³, мониторы Genelec 8260 ±36° на 2,44 м),
+DRIR_CR7_VSA_110RS_L.sofa и _R.sofa — Control Room 7 (168 м³).
 Записи комнат дописываются в rooms.json (generate_rooms.py их сохраняет: "source": "srir").
 
 Запуск: pip install numpy scipy sofar
@@ -61,6 +62,10 @@ ROOMS = [
     # Studio Real: WDR Control Room 1 (классическая музыка, Lawo mc²82, хорошо оценена звукорежиссёрами WDR).
     dict(name="StudioReal", file="RoomStudioReal.wav", sofa=("DRIR_CR1_VSA_110RS_L.sofa", "DRIR_CR1_VSA_110RS_R.sofa"),
          early_ms=50.0, max_ms=450, desc="WDR Control Room 1 (TH Köln WDR compilation, CC BY 4.0)"),
+    # Studio CR7: WDR Control Room 7 (радиоспектакли; 168 м³, RT ≈ 0,4 с, перепады высот; колонки по метаданным —
+    # +30° на 2,65 м и −25° на 3,11 м, как стояли в замере). Проба 15.11 — для сравнения с CR1.
+    dict(name="StudioCR7", file="RoomStudioCR7.wav", sofa=("DRIR_CR7_VSA_110RS_L.sofa", "DRIR_CR7_VSA_110RS_R.sofa"),
+         early_ms=60.0, max_ms=650, desc="WDR Control Room 7 (TH Köln WDR compilation, CC BY 4.0)"),
 ]
 
 
@@ -363,8 +368,9 @@ def main():
         spks = [Speaker(os.path.join(meas, f)) for f in cfg["sofa"]]
         for s, f in zip(spks, cfg["sofa"]):
             az = np.degrees(np.arctan2(s.src[1], s.src[0]))
-            print("%s: %s, %s, az %.1f°, %.2f m, onset %d, DOA error (direct) %.1f°, license in file: %s"
-                  % (f, s.room, s.spk, az, s.dist, s.onset, s.doa_err, s.lic))
+            peak = 20 * np.log10(np.max(np.abs(s.p[s.onset - 16:s.onset + 64])))
+            print("%s: %s, %s, az %.1f°, %.2f m, onset %d, direct peak %.1f dB, DOA error (direct) %.1f°, license: %s"
+                  % (f, s.room, s.spk, az, s.dist, s.onset, peak, s.doa_err, s.lic))
         h, gain_db, length, info = make_room(cfg, spks, ir, dirs, ctf, sets, G.FRONT)
         G.write_wav(os.path.join(res, cfg["file"]), h)
         head_file, head_gain, hs = write_head(cfg, spks, sets, dirs, info, gain_db, cfg["file"], res)

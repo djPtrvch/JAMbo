@@ -32,8 +32,8 @@ final class RoomSpeakerTests: XCTestCase {
     func testRoomsHaveSpeakers() {
         let rooms = RoomTests.rooms()
         XCTAssertFalse(rooms.isEmpty)
-        // Комнаты по замерам (StudioReal): срез низа колонок уже в импульсах — фильтра нет.
-        for r in rooms where r.name != "StudioReal" {
+        // Комнаты по замерам (StudioReal, StudioCR7): срез низа колонок уже в импульсах — фильтра нет.
+        for r in rooms where !["StudioReal", "StudioCR7"].contains(r.name) {
             XCTAssertGreaterThan(r.hpHz, 20, r.name)
             XCTAssertTrue(r.hpOrder == 2 || r.hpOrder == 4, r.name)
         }
@@ -42,7 +42,7 @@ final class RoomSpeakerTests: XCTestCase {
     /// Срез низа = Баттерворт (±0,5 dB на 30 и 60 Гц), на 1 кГц без изменений (±0,1 dB).
     func testHighpassMatchesButterworth() {
         let rooms = RoomTests.rooms()
-        let k: Int = rooms.firstIndex { $0.name == "Desk" } ?? 0
+        let k: Int = rooms.firstIndex { $0.name == "Studio" } ?? 0
         let info = rooms[k]
         let ir = RoomTests.ir(k)
         for hz in [30.0, 60.0, 1000.0] {

@@ -7,6 +7,7 @@
       { "type": "HS", "freq": 5000, "gain": -2 }
     ] },
     { "name": "Studio Real", "room": "StudioReal", "filters": [] },
+    { "name": "Studio CR7", "room": "StudioCR7", "filters": [] },
     { "name": "Car", "room": "Car", "filters": [
       { "type": "PK", "freq": 250, "gain": -2, "q": 1 },
       { "type": "LP", "freq": 16000 }
@@ -16,10 +17,6 @@
       { "type": "LS", "freq": 70, "gain": 5 },
       { "type": "PK", "freq": 250, "gain": -2, "q": 1 },
       { "type": "HS", "freq": 8000, "gain": -3 }
-    ] },
-    { "name": "Small Speakers", "room": "Desk", "filters": [
-      { "type": "HP", "freq": 110, "order": 4 },
-      { "type": "PK", "freq": 2500, "gain": 1.5, "q": 1 }
     ] },
     { "name": "Phone", "mono": true, "filters": [
       { "type": "HP", "freq": 300 },

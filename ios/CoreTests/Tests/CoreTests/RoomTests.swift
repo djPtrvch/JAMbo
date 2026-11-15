@@ -46,7 +46,7 @@ final class RoomTests: XCTestCase {
 
     func testRoomsAndWav() {
         let list = RoomTests.rooms()
-        XCTAssertEqual(list.map { $0.name }, ["Studio", "Car", "Club", "Desk", "StudioReal"])
+        XCTAssertEqual(list.map { $0.name }, ["Studio", "Car", "Club", "StudioReal", "StudioCR7"])
         for k in 0..<list.count {
             let ir = RoomTests.ir(k)
             XCTAssertGreaterThan(ir.frames, 1000)
