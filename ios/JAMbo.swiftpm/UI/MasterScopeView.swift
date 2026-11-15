@@ -122,13 +122,15 @@ struct MasterScopeView: View {
     let model: AppModel
     /// Формы волны COMP, CLIP, LIM по кнопкам (при MST); false — только SAT (при MIX, без кнопок).
     var taps: Bool = true
+    /// При MIX без кнопок под видом — оставить под ним место двух пар кнопок (с SHIFT при MIX — false: кнопки ниже).
+    var reserve: Bool = true
 
     var body: some View {
         GeometryReader { geo in
             let gap: CGFloat = 6
             // При MIX вид выше на место кнопок под ним (две пары и зазоры): гониометр и осциллоскоп — того же размера,
             // что при MST (14.11, решение пользователя), под ними пусто.
-            let extra: CGFloat = taps ? 0 : 2 * Layout.pairHeight + 2 * Layout.gap
+            let extra: CGFloat = taps || !reserve ? 0 : 2 * Layout.pairHeight + 2 * Layout.gap
             let h: CGFloat = geo.size.height - extra - gap
             VStack(spacing: gap) {
                 panel { ctx, size in drawGonio(ctx, size) }.frame(height: h * 0.6)

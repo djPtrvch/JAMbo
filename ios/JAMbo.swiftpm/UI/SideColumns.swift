@@ -167,7 +167,8 @@ struct RightColumn: View {
             // MIX (10.11): скоп и осциллоскоп после лимитера, как при MST (14.11); внизу слева — SHIFT (15.11: с
             // удержанием ручки громкости — имя и громкость дорожки по умолчанию), справа — пусто.
             AnyView(VStack(spacing: Layout.gap) {
-                RightTop(model: model)
+                MasterScopeView(model: model, taps: false, reserve: false)
+                ButtonPair(left: Color.clear, right: Color.clear)
                 ButtonPair(left: ShiftButton(model: model), right: Color.clear)
             })
         } else {
