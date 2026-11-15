@@ -110,9 +110,7 @@ struct SpaceItem: View {
             if hd { m.setHead(n) } else { m.setTranslation(n) }
             m.translationMenu = nil
         }
-        .onLongPressGesture(minimumDuration: 0.6) {
-            if !hd { m.saveSpace(n) } else if m.headImported(n) { m.deleteHead(n) }
-        }
+        .onLongPressGesture(minimumDuration: 0.6) { if !hd { m.saveSpace(n) } }
     }
 }
 
@@ -182,9 +180,10 @@ struct CurveSwitch: View {
 /// Меню SPACE (пункты TRANSLATION): пункты одним столбцом под полем (Off — первым, выбранный горит); тап — выбрать
 /// (с профилем пункта), удержание — сохранить в пункт текущие AMBIENCE, EAR TONE, CORRECTION и CORRECT CURVE (на секунду
 /// SAVED; у пункта с профилем — точка •); тап мимо — закрыть. То же меню — HEAD: головы пространства, последним — IMPORT…
-/// (пакет голов .zip); удержание головы из пакета — удалить пакет.
+/// (пакет голов .zip); свайп влево по голове из пакета — корзина.
 struct TranslationMenu: View {
     static let width: CGFloat = 220
+    static let scrollHeight: CGFloat = 280
     let model: AppModel
     let anchor: CGRect
 
@@ -198,24 +197,43 @@ struct TranslationMenu: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(hd ? "HEAD" : "SPACE").font(.system(size: 12, weight: .bold)).tracking(1.2)
                     .foregroundStyle(theme.text)
-                Text(hd ? "HOLD IMPORTED TO DELETE" : "HOLD TO SAVE").font(.system(size: 9)).foregroundStyle(theme.dim)
-                VStack(spacing: 6) {
-                    ForEach(names.indices, id: \.self) { i in
-                        SpaceItem(model: m, name: names[i], current: names[i] == cur, heads: hd)
-                    }
-                    if hd {
-                        Text("IMPORT…").font(.system(size: 13, weight: .bold)).foregroundStyle(theme.text)
-                            .frame(maxWidth: .infinity, minHeight: 40)
-                            .background(theme.panel2, in: RoundedRectangle(cornerRadius: 8))
-                            .contentShape(Rectangle())
-                            .onTapGesture { m.chooseHeadFiles() }
-                    }
+                Text(hd ? "SWIPE IMPORTED LEFT TO DELETE" : "HOLD TO SAVE").font(.system(size: 9)).foregroundStyle(theme.dim)
+                // Много голов (пакеты) — список прокручивается, низ меню — над кнопками дорожек.
+                if names.count > 5 {
+                    MenuScroll { items(m, names, cur, hd) }.frame(height: TranslationMenu.scrollHeight)
+                } else {
+                    items(m, names, cur, hd)
                 }
             }
             .padding(8)
             .frame(width: TranslationMenu.width)
             .menuBox()
             .offset(x: anchor.minX, y: anchor.maxY + 4)
+        }
+    }
+
+    /// Пункты: SPACE — SpaceItem; HEAD — головы сборки SpaceItem, из пакетов — SwipeRow (свайп влево — корзина), последним
+    /// — IMPORT….
+    private func items(_ m: AppModel, _ names: [String], _ cur: String, _ hd: Bool) -> some View {
+        VStack(spacing: 6) {
+            ForEach(names.indices, id: \.self) { i in
+                let n: String = names[i]
+                if hd && m.headImported(n) {
+                    SwipeRow(title: n, current: n == cur, height: 40, tap: {
+                        m.setHead(n)
+                        m.translationMenu = nil
+                    }, delete: { m.deleteHead(n) })
+                } else {
+                    SpaceItem(model: m, name: n, current: n == cur, heads: hd)
+                }
+            }
+            if hd {
+                Text("IMPORT…").font(.system(size: 13, weight: .bold)).foregroundStyle(theme.text)
+                    .frame(maxWidth: .infinity, minHeight: 40)
+                    .background(theme.panel2, in: RoundedRectangle(cornerRadius: 8))
+                    .contentShape(Rectangle())
+                    .onTapGesture { m.chooseHeadFiles() }
+            }
         }
     }
 }

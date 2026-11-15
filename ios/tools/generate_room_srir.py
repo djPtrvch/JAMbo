@@ -31,7 +31,7 @@ Apache 2.0; hrtf: "sadie:H<n>").
 
 Запуск: pip install numpy scipy sofar
         python3 ios/tools/generate_room_srir.py <папка SOFA FABIAN> <папка SOFA замеров> [--sadie <папка SADIE II>]
-                [--packs ios/HeadPacks] [--report]
+                [--packs ios/HeadPacks] [--all-sadie] [--report]
 Комнаты с pack (головы SADIE) — не в ресурсы сборки, а в пакеты голов: <packs>/<pack>.zip (IMPORT в меню HEAD).
 """
 import json
@@ -457,11 +457,25 @@ def main():
     # пропускаются.
     packs = sys.argv[sys.argv.index("--packs") + 1] if "--packs" in sys.argv else ""
     pack_meta = {}
+    # --all-sadie: один пакет «JAMbo Heads SADIE» — все головы SADIE II (18 человек H3…H20, манекены D1 — KU100 и
+    # D2 — KEMAR) для Studio CR7 и Hall; остальные комнаты с pack при этом не считаются.
+    rooms_cfg = ROOMS
+    if "--all-sadie" in sys.argv:
+        base = [c for c in ROOMS if not c.get("pack")]
+        extra = []
+        ids = ["H%d" % i for i in range(3, 21)] + ["D1", "D2"]
+        names = {"D1": "KU100 (SADIE)", "D2": "KEMAR (SADIE)"}
+        for hid in ids:
+            for c in base:
+                extra.append(dict(c, name=c["name"] + hid, space=c["name"], head_name=names.get(hid, "SADIE " + hid),
+                                  hrtf="sadie:" + hid, pack="JAMbo Heads SADIE", file="Room%s%s.wav" % (c["name"], hid),
+                                  bits=16, desc=c["desc"] + ", SADIE II %s (Apache 2.0)" % hid))
+        rooms_cfg = base + extra
     here = os.path.dirname(os.path.abspath(__file__))
     res = os.path.join(here, "..", "JAMbo.swiftpm", "Resources")
     heads = {}
     meta = []
-    for cfg in ROOMS:
+    for cfg in rooms_cfg:
         if cfg.get("pack") and not packs:
             continue
         out_dir = os.path.join(packs, cfg["pack"]) if cfg.get("pack") else res
@@ -511,7 +525,7 @@ def main():
     path = os.path.join(res, "rooms.json")
     with open(path) as f:
         data = json.load(f)
-    names = {c["name"] for c in ROOMS}
+    names = {c["name"] for c in rooms_cfg}
     data["rooms"] = [r for r in data["rooms"] if r["name"] not in names] + meta
     with open(path, "w") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)

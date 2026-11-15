@@ -2,7 +2,7 @@ import Foundation
 
 // Пакеты голов (15.11, решение пользователя; Core/Monitor/HeadPack): IMPORT в меню HEAD — .zip с rooms.json и импульсами
 // комнат; пакет — папка в Application Support/Heads (имя — имя файла), его комнаты добавляются к комнатам сборки;
-// удержание импортированной головы в меню — удалить её пакет. Итог — окно с OK (как у профилей коррекции).
+// свайп влево по импортированной голове в меню — корзина (удалить голову). Итог — окно с OK (как у профилей коррекции).
 extension AppModel {
     /// Папка пакетов голов (создаётся при первом импорте).
     static var headsDir: URL {
@@ -65,11 +65,24 @@ extension AppModel {
         phonesNote = lines.joined(separator: "\n")
     }
 
-    /// Удержание головы из пакета в меню HEAD: пакеты с этой головой удаляются.
+    /// Свайп влево по голове из пакета в меню HEAD (корзина): её комнаты и файлы убираются из пакетов (в пакете может
+    /// быть несколько голов); пустой пакет — папка удаляется. Головы сборки (FABIAN) не удаляются.
     func deleteHead(_ name: String) {
+        let fm = FileManager.default
         let dirs: Set<String> = Set(rooms.filter { $0.headName == name && !$0.dir.isEmpty }.map { $0.dir })
-        for d in dirs { try? FileManager.default.removeItem(atPath: d) }
-        translationMenu = nil
+        for d in dirs {
+            let url = URL(fileURLWithPath: d)
+            let all: [RoomInfo] = RoomInfo.list(try? Data(contentsOf: url.appendingPathComponent("rooms.json")))
+            let gone: [RoomInfo] = all.filter { $0.headName == name }
+            let keep: [RoomInfo] = all.filter { $0.headName != name }
+            if keep.isEmpty {
+                try? fm.removeItem(at: url)
+                continue
+            }
+            let used: [String] = HeadPack.referenced(keep)
+            for f in HeadPack.referenced(gone) where !used.contains(f) { try? fm.removeItem(at: url.appendingPathComponent(f)) }
+            HeadPack.rewrite(url.appendingPathComponent("rooms.json"), without: name)
+        }
         reloadRooms()
     }
 

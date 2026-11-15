@@ -38,4 +38,13 @@ public enum HeadPack {
         for r in rooms where !out.contains(r.headName) { out.append(r.headName) }
         return out
     }
+
+    /// rooms.json пакета без комнат головы name (остальное в файле — как было).
+    public static func rewrite(_ url: URL, without name: String) {
+        guard let d = try? Data(contentsOf: url),
+              var root = (try? JSONSerialization.jsonObject(with: d)) as? [String: Any],
+              let arr = root["rooms"] as? [[String: Any]] else { return }
+        root["rooms"] = arr.filter { ($0["head_name"] as? String ?? "FABIAN") != name }
+        if let out = try? JSONSerialization.data(withJSONObject: root, options: [.prettyPrinted]) { try? out.write(to: url) }
+    }
 }

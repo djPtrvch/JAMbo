@@ -61,6 +61,13 @@ final class RoomTests: XCTestCase {
             XCTAssertNotNil(RoomIR(name: "x", wav: p.files[p.rooms[0].file]!, gainDb: 0, direct: 128))
         }
         XCTAssertNil(HeadPack.unpack(Data("junk".utf8)))
+        // Удаление головы из пакета (свайп в меню HEAD): из rooms.json уходят только её комнаты.
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("headpack-\(UUID().uuidString).json")
+        let json = #"{"rooms": [{"name": "A1", "file": "a.wav", "head_name": "A"}, {"name": "B1", "file": "b.wav", "head_name": "B"}]}"#
+        try? Data(json.utf8).write(to: tmp)
+        HeadPack.rewrite(tmp, without: "A")
+        XCTAssertEqual(RoomInfo.list(try? Data(contentsOf: tmp)).map { $0.name }, ["B1"])
+        try? FileManager.default.removeItem(at: tmp)
         for k in 0..<list.count {
             let ir = RoomTests.ir(k)
             XCTAssertGreaterThan(ir.frames, 1000)
