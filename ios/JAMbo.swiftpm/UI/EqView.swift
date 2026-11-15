@@ -62,8 +62,9 @@ struct EqView: View {
     /// Строка полей и поле EQ; меню COMPARE — поверх, раскладку не меняет: помещается в поле EQ (кнопки ужимаются).
     private var eqMain: some View {
         VStack(spacing: Layout.barGap) {
+            // Сверху: BYPASS окна коррекции выше строки (на две строки) — растёт вниз, строка не сдвигается.
             EqBar(model: model, layout: layout, plotFrame: plotFrame) { field in openInput(field) }
-                .frame(height: model.barH)
+                .frame(height: model.barH, alignment: .top)
             // Окно коррекции наушников: строки Headphone Monitor.
             if model.phonesShown { MonitorBar(model: model) }
             EqPlot(model: model)
