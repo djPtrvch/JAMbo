@@ -236,7 +236,8 @@ struct MixOverview: View {
     static func drawMask(_ ctx: GraphicsContext, _ size: CGSize, _ model: AppModel, _ n: Int) {
         let h: CGFloat = size.height
         let cell: CGFloat = size.width / 16
-        let w: CGFloat = MeterBars.width
+        // Полоса MASK уже метра (5 pt), чтобы «заглушают» на ширину места дорожки было видно (место ~13 pt).
+        let w: CGFloat = 5
         let an: MixAnalysis = model.mixAn
         var audible: [Bool] = []
         for t in 0..<n { audible.append(model.project.audible(t)) }
@@ -246,7 +247,7 @@ struct MixOverview: View {
             guard let sp = an.span(t) else { continue }
             let x: CGFloat = cell * (CGFloat(t) + 0.5) - w / 2
             let rect = CGRect(x: x, y: h - sp.hi * h, width: w, height: max(3, (sp.hi - sp.lo) * h))
-            let shape = Path(roundedRect: rect, cornerRadius: 3)
+            let shape = Path(roundedRect: rect, cornerRadius: 2)
             if !audible[t] {
                 ctx.fill(shape, with: .color(theme.muteGrey))
                 continue
@@ -259,9 +260,9 @@ struct MixOverview: View {
                 let y: CGFloat = h - CGFloat(j + 1) * bh
                 c.fill(Path(CGRect(x: x, y: y, width: w, height: bh)), with: .color(theme.accent.opacity(Double(m.strength[j]))))
             }
-            // Где дорожку заглушают — жёлтым шире полосы (почти на ячейку; решение пользователя 15.11), подряд — одним
-            // блоком.
-            let ww: CGFloat = max(w, cell - 4)
+            // Где дорожку заглушают — жёлтым на ширину места дорожки без 2 pt (решение пользователя 15.11), подряд —
+            // одним блоком.
+            let ww: CGFloat = max(w + 4, cell - 2)
             var j = 0
             while j < m.buried.count {
                 if !m.buried[j] {
