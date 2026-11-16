@@ -372,8 +372,8 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
   <h3 lang="en"><span class="sn">1.3</span>Knob grid</h3>
   <figure><div class="shot" data-mode="track" data-zone="grid" data-maxh="520"></div><figcaption lang="ru">Сетка ручек дорожки с сэмплом, значения по умолчанию.</figcaption>
 <figcaption lang="en">Knob grid of a sample track, default values.</figcaption></figure>
-  <p lang="ru">16 ручек в четыре строки по четыре. Строка — группа параметров: сэмпл; огибающая и фильтр; посылы на эффекты; Pan, Velocity, Ratchet, Chance. Ручки и режимы сетки описаны в разделе <a href="#knobs">2</a>.</p>
-  <p lang="en">16 knobs in four rows of four. Each row is a group of parameters: sample; envelope and filter; effect sends; Pan, Velocity, Ratchet, Chance. Knobs and grid modes are described in section <a href="#knobs">2</a>.</p>
+  <p lang="ru">16 ручек в четыре строки по четыре. Строка — группа параметров: сэмпл; огибающая и фильтр; посылы на эффекты; Pan, Velocity, Ratchet, Chance. Группы можно поставить столбцами — SETTINGS → APPEARANCE → KNOB GROUPS IN COLUMNS. Ручки и режимы сетки описаны в разделе <a href="#knobs">2</a>.</p>
+  <p lang="en">16 knobs in four rows of four. Each row is a group of parameters: sample; envelope and filter; effect sends; Pan, Velocity, Ratchet, Chance. Groups can be set as columns — SETTINGS → APPEARANCE → KNOB GROUPS IN COLUMNS. Knobs and grid modes are described in section <a href="#knobs">2</a>.</p>
 
   <h3 lang="ru"><span class="sn">1.4</span>Правая колонка: страницы и кнопки режимов</h3>
   <h3 lang="en"><span class="sn">1.4</span>Right column: pages and mode buttons</h3>
@@ -650,14 +650,14 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     <li><b>Метр</b> слева от ручки — уровень дорожки после громкости. Стерео — две полосы, моно — одна; выше 0 dB — красный, у заглушённой — серый, приглушение от sidechain — оранжевым сверху.</li>
     <li><b>M</b> — mute, <b>S</b> — solo, <b>●</b> — готовность к записи стема (раздел 3.5).</li>
     <li>Ручки без кольца — свободные места для дорожек.</li>
-    <li>Над окном слева — <b>● MASTER</b>, запись выхода мастера. В окне слева — индикация дорожек, справа — вектороскоп и осциллоскоп мастера (ниже).</li>
+    <li>Над окном слева — <b>● MASTER</b>, запись выхода мастера. В окне слева — индикация дорожек (тап по нему — окно микшера с фейдерами, ниже), справа — вектороскоп мастера и стерео по полосам (ниже).</li>
     <li>Громкость выбранной дорожки можно менять и регулятором на измерителе справа — это та же громкость.</li>
   </ul>
   <ul lang="en">
     <li><b>The meter</b> left of the knob — the track level after volume. Stereo — two bars, mono — one; above 0 dB — red, muted — grey, sidechain ducking — orange from the top.</li>
     <li><b>M</b> — mute, <b>S</b> — solo, <b>●</b> — arm for stem recording (section 3.5).</li>
     <li>Knobs without a ring are free slots for tracks.</li>
-    <li>Above the window on the left — <b>● MASTER</b>, recording of the master output. The window on the left shows track meters, the right column — the master vectorscope and oscilloscope (below).</li>
+    <li>Above the window on the left — <b>● MASTER</b>, recording of the master output. The window on the left shows track meters (tap it for the mixer window with faders, below), the right column — the master vectorscope and stereo by band (below).</li>
     <li>The selected track's volume can also be changed with the control on the meter on the right — it is the same volume.</li>
   </ul>
 
@@ -719,13 +719,33 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     <li>Wait a few seconds: the narrow spot should widen and the yellow fade.</li>
   </ol>
 
-  <h4 lang="ru">Справа: вектороскоп, осциллоскоп и история громкости</h4>
-  <h4 lang="en">On the right: vectorscope, oscilloscope and loudness history</h4>
-  <figure><div class="shot" data-mode="mix" data-zone="right" data-state="mix" data-maxh="520"></div><figcaption lang="ru">Вектороскоп и осциллоскоп — те же, что при MST; под ними — история громкости. Показания — для примера.</figcaption><figcaption lang="en">The vectorscope and oscilloscope are the same as at MST; below them — the loudness history. Readings are an example.</figcaption></figure>
+  <h4 lang="ru">Окно микшера</h4>
+  <h4 lang="en">Mixer window</h4>
+  <figure><div class="shot" data-mode="mix" data-zone="upper" data-state="mixer"></div><figcaption lang="ru">Окно микшера: фейдеры над дорожками, слева шкала dB, справа — измеритель мастера. Уровни и громкости — для примера.</figcaption><figcaption lang="en">The mixer window: faders above the tracks, the dB scale on the left, the master meter on the right. Levels and volumes are an example.</figcaption></figure>
+  <p lang="ru">Тап по окну индикации слева (в любом виде — LEVEL, PAN, MASK, FREQ) открывает микшер в привычном виде: над каждой дорожкой строки дорожек — свой фейдер, как измеритель справа. Справа так и остаётся измеритель — это фейдер мастера.</p>
+  <ul lang="ru">
+    <li><b>Фейдер</b> — полосы уровня дорожки (стерео — две, моно — одна, у заглушённой — серые, Duck — оранжевым сверху) и белая планка громкости. Палец вверх-вниз — громкость; можно двигать несколько фейдеров сразу. Это та же громкость, что у ручек MIX.</li>
+    <li><b>Шкала</b> слева, над MIX, — dB от 0 до −60, общая для полос и планок.</li>
+    <li><b>VOL</b> — строка громкостей фейдеров вверху; <b>PEAK</b> — строка пиков внизу. Тап по пику — сброс.</li>
+    <li><b>Закрыть</b> — двойной тап по кнопке MIX в строке дорожек. Открытое окно запоминается: ушли на дорожку и вернулись в MIX — оно снова открыто.</li>
+  </ul>
+  <p lang="en">Tap the display window on the left (in any view — LEVEL, PAN, MASK, FREQ) to open a classic mixer: a fader above each track in the track row, like the meter on the right. The meter on the right stays — it is the master fader.</p>
+  <ul lang="en">
+    <li><b>A fader</b> — the track's level bars (stereo — two, mono — one, grey when muted, Duck in orange from the top) and a white volume cap. Drag up and down to set the volume; you can move several faders at once. It is the same volume as the MIX knobs.</li>
+    <li><b>The scale</b> on the left, above MIX — dB from 0 to −60, shared by the bars and the caps.</li>
+    <li><b>VOL</b> — the row of fader volumes at the top; <b>PEAK</b> — the row of peaks at the bottom. Tap a peak to reset it.</li>
+    <li><b>Close</b> — double tap the MIX button in the track row. An open window is remembered: go to a track and back to MIX — it is open again.</li>
+  </ul>
+
+  <h4 lang="ru">Справа: вектороскоп, стерео по полосам и история громкости</h4>
+  <h4 lang="en">On the right: vectorscope, stereo by band and loudness history</h4>
+  <figure><div class="shot" data-mode="mix" data-zone="right" data-state="mix" data-maxh="520"></div><figcaption lang="ru">Вектороскоп — тот же, что при MST; под ним — стерео по полосам, ниже — история громкости. Показания — для примера.</figcaption><figcaption lang="en">The vectorscope is the same as at MST; below it — stereo by band, then the loudness history. Readings are an example.</figcaption></figure>
   <p lang="ru"><b>Вектороскоп</b> — стереобаза выхода мастера: облако вытянуто вверх — звук ближе к моно, расползается вширь — шире стерео. Полоса внизу — корреляция каналов: от середины вправо к +1 — моно-совместимо, влево к −1 — каналы в противофазе, и на моно-колонке (телефон, клуб) часть звука пропадёт.</p>
   <p lang="en"><b>The vectorscope</b> shows the stereo image of the master output: a cloud stretched upward is closer to mono, a wide cloud is wider stereo. The bar at the bottom is channel correlation: from the centre right towards +1 — mono-safe, left towards −1 — the channels are out of phase, and on a mono speaker (a phone, a club system) part of the sound will disappear.</p>
-  <p lang="ru"><b>Осциллоскоп</b> под ним — форма волны того, что уходит из мастера после лимитера (красным). Ровная «стена» без пиков — лимитер давит слишком сильно, микс потерял удары; видны пики — динамика сохранилась.</p>
-  <p lang="en"><b>The oscilloscope</b> below shows the waveform leaving the master after the limiter (in red). A flat “wall” with no peaks — the limiter is squashing too hard and the mix has lost its punch; visible peaks — the dynamics are intact.</p>
+  <p lang="ru"><b>Стерео по полосам</b> под ним — ширина стерео отдельно в трёх полосах частот: <b>LOW WIDTH</b> (до 150 Гц), <b>MID WIDTH</b> (150 Гц…2 кГц), <b>HIGH WIDTH</b> (выше 2 кГц). Число — ширина: 0 % — моно, 100 % — левый и правый каналы независимы, 200 % — противофаза. Под числом — корреляция этой полосы, как под вектороскопом. Полоса жёлтая — всё в порядке; оранжевая — у LOW корреляция ниже 0,7: бас расползается по сторонам; красная — ниже 0: противофаза, на моно-колонке эта часть пропадёт. Число окрашивается тем же цветом. Тап — сброс.</p>
+  <p lang="ru">Зачем: общая корреляция под вектороскопом может быть в порядке, а бас при этом широкий — в наушниках этого не слышно, а в клубе на моно-сабе низ проваливается. Здоровый микс — LOW почти в моно (единицы процентов), ширина растёт к HIGH. Широкий бас — сузьте стерео-эффекты на басовой дорожке или уберите с неё посылы реверба и дилея.</p>
+  <p lang="en"><b>Stereo by band</b> below it — stereo width separately in three frequency bands: <b>LOW WIDTH</b> (up to 150 Hz), <b>MID WIDTH</b> (150 Hz…2 kHz), <b>HIGH WIDTH</b> (above 2 kHz). The number is the width: 0 % — mono, 100 % — left and right independent, 200 % — out of phase. Below the number — the band's correlation, as under the vectorscope. A yellow bar is fine; orange — LOW correlation below 0.7: the bass spreads to the sides; red — below 0: out of phase, this part disappears on a mono speaker. The number takes the same colour. Tap to reset.</p>
+  <p lang="en">Why: the overall correlation under the vectorscope can look fine while the bass is wide — you won't hear it on headphones, but on a mono club sub the low end collapses. A healthy mix has LOW almost mono (a few per cent), with width growing towards HIGH. Wide bass — narrow the stereo effects on the bass track or take the reverb and delay sends off it.</p>
   <p lang="ru"><b>История громкости</b> — в самом низу: как громкость мастера менялась за последнюю минуту игры. Жёлтая линия — громкость за каждые 3 секунды (справа — новое), шкала от −6 до −24 LUFS; пунктир — средняя громкость с начала игры (то же число, что LUFS над измерителем). Сверху три числа:</p>
   <ul lang="ru">
     <li><b>SHORT LOUDNESS</b> — громкость сейчас (за последние 3 с), LUFS.</li>
@@ -1845,23 +1865,23 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     <li>Кнопки SAT, COMP, CLIP, LIM под окном индикации (или тап по блоку индикации) открывают окно модуля на месте центра.</li>
     <li>Вверху — все параметры модуля, в том числе те, которых нет на ручках. Поле меняется пальцем вверх-вниз, двойной тап — ввод числом.</li>
     <li>Тап по названию слева (например, MASTER COMP ▾) — переключиться на окно другого модуля.</li>
-    <li><b>PRESETS</b> — свои пресеты у каждого модуля, общие для всех проектов. <b>BYPASS</b> — выключить модуль. ✕ — закрыть окно.</li>
+    <li><b>PRESETS</b> — свои пресеты у каждого модуля, общие для всех проектов. <b>BYPASS</b> — выключить модуль. ✕ или двойной тап по кнопке MST в строке дорожек — закрыть окно.</li>
     <li>Двойной тап по дисплею — FREEZE: картинка замирает, чтобы её рассмотреть.</li>
     <li>Справа в окнах COMP, CLIP и LIM — блок <b>IN | GR | OUT</b>, как в индикации MST. Стержни идут в той же шкале, что дисплей слева: риска порога стоит на одной высоте с линией THRESHOLD или CEILING, а уровни и сжатие — с графиком.</li>
     <li><b>RELEASE</b> у COMP и LIM: тап по полю — AUTO, ещё тап — обратно к прежнему значению.</li>
     <li><b>UNITY</b> (CLIP и LIM) — честное сравнение: слышно настолько тише, насколько поднят INPUT, а измеритель справа, LUFS и запись показывают и пишут полный уровень. Работает, пока окно открыто (<a href="#tip-master">практический совет</a> в конце раздела 12).</li>
-    <li><b>SHIFT</b> при MST: кнопки модулей показывают BYPASS — тап выключает и включает модуль, не открывая окно.</li>
+    <li><b>SHIFT + тап</b> по кнопке модуля при MST — выключить и включить модуль (BYPASS), не открывая окно. Состояние видно всегда по контуру кнопки: контур цветом модуля — модуль работает, без контура — в обходе.</li>
   </ul>
   <ul lang="en">
     <li>The SAT, COMP, CLIP, LIM buttons under the display window (or a tap on a display block) open the module window in the centre.</li>
     <li>At the top — all parameters of the module, including those that are not on the knobs. A field changes with a vertical drag; double tap to type a number.</li>
     <li>Tap the title on the left (for example MASTER COMP ▾) to switch to another module's window.</li>
-    <li><b>PRESETS</b> — each module has its own presets, shared by all projects. <b>BYPASS</b> — turn the module off. ✕ — close the window.</li>
+    <li><b>PRESETS</b> — each module has its own presets, shared by all projects. <b>BYPASS</b> — turn the module off. ✕ or a double tap on the MST button in the track row closes the window.</li>
     <li>Double tap the display — FREEZE: the picture freezes so you can examine it.</li>
     <li>On the right of the COMP, CLIP and LIM windows — an <b>IN | GR | OUT</b> block, as in the MST display. The bars use the same scale as the display on the left: the threshold mark sits level with the THRESHOLD or CEILING line, and the levels and reduction line up with the graph.</li>
     <li><b>RELEASE</b> on COMP and LIM: tap the field for AUTO, tap again to go back to the previous value.</li>
     <li><b>UNITY</b> (CLIP and LIM) — a fair comparison: you hear the sound quieter by as much as INPUT adds, while the meter on the right, LUFS and recordings show and capture the full level. Works while the window is open (the <a href="#tip-master">practical tip</a> at the end of section 12).</li>
-    <li><b>SHIFT</b> in MST: the module buttons show BYPASS — a tap turns the module off and on without opening the window.</li>
+    <li><b>SHIFT + tap</b> on a module button in MST — turn the module off and on (BYPASS) without opening the window. The state is always visible from the button outline: outlined in the module colour — working, no outline — bypassed.</li>
   </ul>
   <p lang="ru">Масштаб дисплеев — SETTINGS → APPEARANCE → MASTER FX DISPLAY SCALE. Сигналы на рисунках ниже — для примера.</p>
   <p lang="en">The display scale is set in SETTINGS → APPEARANCE → MASTER FX DISPLAY SCALE. The signals in the pictures below are examples.</p>
@@ -2620,7 +2640,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       <tr><td>LEVEL</td><td><b>TRACK LEVEL FADER</b> — регулятор на измерителе справа: ABSOLUTE — та же громкость, что в MIX; RELATIVE — подстройка вниз от громкости MIX.</td></tr>
       <tr><td>DUCK</td><td><b>DUCK SENDS</b> — какие посылы (REVERB, DELAY, DRIVE) приглушаются вместе с дорожкой при Duck (раздел 10.5).</td></tr>
       <tr><td>DEFAULTS</td><td>Свои значения ручек по умолчанию (раздел 2.1): сколько запомнено и <b>FORGET ALL</b> — забыть все.</td></tr>
-      <tr><td>APPEARANCE</td><td><b>THEME</b> — SYSTEM, LIGHT, DARK. <b>MASTER FX DISPLAY SCALE</b> — масштаб дисплеев окон мастера: 48, 32 или 16 dB. <b>FX ANIMATION</b> — картинка эффекта в окне звука.</td></tr>
+      <tr><td>APPEARANCE</td><td><b>THEME</b> — SYSTEM, LIGHT, DARK. <b>MASTER FX DISPLAY SCALE</b> — масштаб дисплеев окон мастера: 48, 32 или 16 dB. <b>KNOB GROUPS IN COLUMNS</b> — группы ручек сетки столбцами, а не строками; p-lock, LFO, автоматизация и MIDI остаются при своих ручках. <b>FX ANIMATION</b> — картинка эффекта в окне звука.</td></tr>
       <tr><td>AUDIO ENGINE</td><td><b>BACKGROUND AUDIO</b> — звук играет дальше, когда приложение свёрнуто или экран заблокирован.</td></tr>
       <tr><td>OUTPUT</td><td>Текущий аудиовыход и его выбор. <b>MONITORING</b> — как референс (REF) идёт через мастер и коррекцию наушников, подгонка его громкости и REF TRIM.</td></tr>
     </tbody>
@@ -2637,7 +2657,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       <tr><td>LEVEL</td><td><b>TRACK LEVEL FADER</b> — the control on the meter on the right: ABSOLUTE — the same volume as in MIX; RELATIVE — a trim down from the MIX volume.</td></tr>
       <tr><td>DUCK</td><td><b>DUCK SENDS</b> — which sends (REVERB, DELAY, DRIVE) are ducked together with the track by Duck (section 10.5).</td></tr>
       <tr><td>DEFAULTS</td><td>Your own knob defaults (section 2.1): how many are stored, and <b>FORGET ALL</b> — forget them all.</td></tr>
-      <tr><td>APPEARANCE</td><td><b>THEME</b> — SYSTEM, LIGHT, DARK. <b>MASTER FX DISPLAY SCALE</b> — display scale of the master windows: 48, 32 or 16 dB. <b>FX ANIMATION</b> — the effect picture in the sound window.</td></tr>
+      <tr><td>APPEARANCE</td><td><b>THEME</b> — SYSTEM, LIGHT, DARK. <b>MASTER FX DISPLAY SCALE</b> — display scale of the master windows: 48, 32 or 16 dB. <b>KNOB GROUPS IN COLUMNS</b> — knob groups as columns instead of rows; p-locks, LFOs, automation and MIDI stay with their knobs. <b>FX ANIMATION</b> — the effect picture in the sound window.</td></tr>
       <tr><td>AUDIO ENGINE</td><td><b>BACKGROUND AUDIO</b> — sound keeps playing when the app is in the background or the screen is locked.</td></tr>
       <tr><td>OUTPUT</td><td>The current audio output and its selection. <b>MONITORING</b> — how the reference (REF) goes through the master and headphone correction, its level matching and REF TRIM.</td></tr>
     </tbody>
@@ -2682,14 +2702,16 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     <li><b>TURN / PRESS</b> на полосе LEARN — назначить поворот энкодера или его нажатие.</li>
     <li><b>Двойной тап по цели</b> в режиме LEARN — окно MIDI MAP: номер, канал, тип события, вход; UNMAP снимает назначение.</li>
     <li><b>Ручки</b> назначаются по месту на сетке (KNOB 1.1…4.4) и управляют тем, что ручка показывает сейчас — дорожка, FX, MOD, MIX или MST. С зажатым шагом энкодер ставит p-lock, как палец.</li>
-    <li><b>Кнопки</b>: PLAY, REC, UNDO, REDO, PATTERNS, EQ, пианоролл, METRONOME, CHORD, OCTAVE, LFO1–3, ENV, FX, MOD, MORPH, выбор дорожек, MIX, MST, M, S и ● дорожек, ячейки сетки паттернов, кроссфейдер.</li>
+    <li><b>Кнопки</b>: PLAY, REC, UNDO, REDO, PATTERNS, EQ, пианоролл, METRONOME, CHORD, OCTAVE, LFO1–3, ENV, FX, MOD, SHIFT, MORPH, выбор дорожек, MIX, MST, M, S и ● дорожек, ячейки сетки паттернов, кроссфейдер; стрелки над окном звука (соседний сэмпл или пресет) и над миниатюрами страниц; рычажок ARPEGGIATOR в меню под CHORD.</li>
+    <li><b>Страницы</b> — миниатюры по месту (PAGE 1…8). Одна кнопка — эта страница играет; зажаты несколько — играют страницы от первой до последней зажатой: две соседние — обе, первая и четвёртая — все четыре.</li>
     <li><b>Preset</b> — набор назначений под свой контроллер: сохранить, загрузить, переименовать.</li>
   </ul>
   <ul lang="en">
     <li><b>TURN / PRESS</b> on the LEARN strip — assign the encoder's turn or its press.</li>
     <li><b>Double tap a target</b> in LEARN mode — the MIDI MAP window: number, channel, event type, input; UNMAP removes the assignment.</li>
     <li><b>Knobs</b> are assigned by position on the grid (KNOB 1.1…4.4) and control whatever the knob shows at the moment — track, FX, MOD, MIX or MST. With a step held, an encoder sets a p-lock, just like a finger.</li>
-    <li><b>Buttons</b>: PLAY, REC, UNDO, REDO, PATTERNS, EQ, piano roll, METRONOME, CHORD, OCTAVE, LFO1–3, ENV, FX, MOD, MORPH, track selection, MIX, MST, the tracks' M, S and ●, pattern grid cells, crossfader.</li>
+    <li><b>Buttons</b>: PLAY, REC, UNDO, REDO, PATTERNS, EQ, piano roll, METRONOME, CHORD, OCTAVE, LFO1–3, ENV, FX, MOD, SHIFT, MORPH, track selection, MIX, MST, the tracks' M, S and ●, pattern grid cells, crossfader; the arrows above the sound window (next sample or preset) and above the page thumbnails; the ARPEGGIATOR switch in the menu under CHORD.</li>
+    <li><b>Pages</b> — the thumbnails by position (PAGE 1…8). One button — that page plays; several held — pages from the first to the last held play: two neighbours — both, the first and the fourth — all four.</li>
     <li><b>Preset</b> — a set of assignments for your controller: save, load, rename.</li>
   </ul>
 
@@ -2845,6 +2867,9 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       <tr><td>Двойной тап по BPM</td><td>Темп числом</td><td>1.1</td></tr>
       <tr><td>Двойной тап по точке EQ</td><td>Выключить полосу</td><td>11.2</td></tr>
       <tr><td>Двойной тап по дисплею мастера</td><td>FREEZE</td><td>12.3</td></tr>
+      <tr><td>Тап по окну индикации при MIX</td><td>Окно микшера</td><td>3.3</td></tr>
+      <tr><td>Двойной тап по MIX</td><td>Закрыть окно микшера</td><td>3.3</td></tr>
+      <tr><td>Двойной тап по MST</td><td>Закрыть окно модуля мастера</td><td>12.3</td></tr>
       <tr><td>Свайп влево в списках</td><td>Переименовать / удалить</td><td>4.5, 13.6, 17.2</td></tr>
     </tbody>
   </table></div>
@@ -2864,6 +2889,9 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       <tr><td>Double tap BPM</td><td>Type the tempo</td><td>1.1</td></tr>
       <tr><td>Double tap an EQ dot</td><td>Turn the band off</td><td>11.2</td></tr>
       <tr><td>Double tap the master display</td><td>FREEZE</td><td>12.3</td></tr>
+      <tr><td>Tap the display window at MIX</td><td>Mixer window</td><td>3.3</td></tr>
+      <tr><td>Double tap MIX</td><td>Close the mixer window</td><td>3.3</td></tr>
+      <tr><td>Double tap MST</td><td>Close the master module window</td><td>12.3</td></tr>
       <tr><td>Swipe left in lists</td><td>Rename / delete</td><td>4.5, 13.6, 17.2</td></tr>
     </tbody>
   </table></div>
@@ -3206,10 +3234,55 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
   function scope(w, h, mix) {
     var gh = (h - GAP) * 0.6, oh = (h - GAP) * 0.4, s = "";
     s += tile(0, 0, w, gh, "var(--panel)", gonio(w, gh));
+    if (mix) return s + tile(0, gh + GAP, w, oh, "var(--panel)", bandStereo(w, oh));
     var o = '<rect x="0" y="' + Math.round(oh / 2) + '" width="' + w + '" height="1" fill="var(--gridStrong)"/>', n = 110;
     for (var i = 0; i < n; i++) { var v = (0.35 + 0.3 * Math.abs(Math.sin(i * 0.31))) * (oh / 2 - 6); o += '<rect x="' + (6 + i * (w - 12) / n).toFixed(1) + '" y="' + (oh / 2 - v).toFixed(1) + '" width="' + ((w - 12) / n * 0.8).toFixed(2) + '" height="' + (2 * v).toFixed(1) + '" fill="' + (mix ? "var(--rec)" : "var(--text)") + '" opacity=".6"/>'; }
     s += tile(0, gh + GAP, w, oh, "var(--panel)", svg(w, oh, o));
     return s;
+  }
+
+  // Stereo by band at MIX (on the place of the oscilloscope): LOW, MID, HIGH WIDTH in %, correlation bars below.
+  function bandStereo(w, h) {
+    var s = "", cell = w / 3, data = [["LOW\nWIDTH", "12%", .86, "var(--accent)"], ["MID\nWIDTH", "48%", .52, "var(--accent)"], ["HIGH\nWIDTH", "71%", .29, "var(--accent)"]];
+    var barY = Math.max(48, (h + 40) / 2 - 6), g = "";
+    data.forEach(function (c, i) {
+      s += '<div class="lbl" style="left:' + (i * cell) + 'px;top:4px;width:' + cell + 'px;font-size:9px;color:var(--dim)">' + c[0] + "</div>";
+      s += '<div class="lbl" style="left:' + (i * cell) + 'px;top:27px;width:' + cell + 'px;font-size:12px;font-weight:600;color:var(--text)">' + c[1] + "</div>";
+      var bx = i * cell + 10, bw = cell - 20, mid = bx + bw / 2, x = mid + c[2] * bw / 2;
+      g += '<rect x="' + bx + '" y="' + barY + '" width="' + bw + '" height="4.5" rx="2" fill="var(--meterTrack)"/>';
+      g += '<rect x="' + Math.min(mid, x) + '" y="' + barY + '" width="' + Math.abs(x - mid) + '" height="4.5" fill="' + c[3] + '"/>';
+      g += '<rect x="' + (mid - .5) + '" y="' + (barY - 2) + '" width="1" height="8.5" fill="var(--dim)"/>';
+      g += '<text x="' + bx + '" y="' + (barY + 15) + '" font-size="9" fill="var(--dim)">−1</text><text x="' + (bx + bw) + '" y="' + (barY + 15) + '" font-size="9" fill="var(--dim)" text-anchor="end">+1</text>';
+    });
+    return s + svg(w, h, g);
+  }
+
+  // Mixer window at MIX (tap on the levels window): faders above the track buttons, the dB scale and VOL / PEAK
+  // row labels above MIX; the meter on the right stays — it is the master fader.
+  function mixerWindow() {
+    var s = "", x0 = PAD, w = METER_X - GAP - PAD, h = CENTER_H, tw = (WIDTH - 2 * STEP - 9 * GAP) / 8;
+    var top = 36, bh = h - top - 4 - 24, sx = STEP / 2, g = "";
+    var t = function (txt, x, y, css) { return '<div class="lbl" style="left:' + (x - 30) + "px;top:" + (y - 6) + 'px;width:60px;font-size:9px;' + css + '">' + txt + "</div>"; };
+    for (var db = 0; db >= -60; db -= 6) {
+      var yy = top + bh * (-db) / 60;
+      g += '<rect x="' + (sx + 6) + '" y="' + yy + '" width="8" height="1" fill="var(--gridStrong)"/>';
+      g += '<text x="' + (sx + 2) + '" y="' + (yy + 3) + '" font-size="9" fill="var(--dim)" text-anchor="end">' + (db === 0 ? "0" : "−" + (-db)) + "</text>";
+    }
+    s += t("VOL", sx, 14, "font-weight:500;color:color-mix(in srgb, var(--text) 75%, transparent)");
+    var peakY = (top + bh + h + GAP) / 2;
+    s += t("PEAK", sx, peakY, "color:var(--dim)");
+    var vols = [-6.0, -9.5, -14.0, -16.5, -12.0, -8.0, -11.0, -13.5], pk = [-3.2, -7.9, -12.4, -15.0, -10.1, -5.6, -9.8, -12.7];
+    var lv = [.86, .74, .62, .55, .7, .8, .66, .6], st = [false, false, false, false, false, false, true, true];
+    for (var i = 0; i < 8; i++) {
+      var cx = STEP + GAP + i * (tw + GAP) + tw / 2, n = st[i] ? 2 : 1, bw = n === 2 ? 21 : 9;
+      for (var b = 0; b < n; b++) s += box(cx - bw / 2 + b * 12, top, 9, bh, "background:var(--meterTrack);border-radius:3px;overflow:hidden", box(0, bh * (1 - lv[i]), 9, bh * lv[i], "background:var(--accent)"));
+      s += box(cx - 10.5, 28, 21, 4, "background:var(--off);border-radius:2px");
+      var f = (vols[i] + 60) / 60;
+      s += box(cx - 15, top + bh * (1 - f) - 4, 30, 8, "background:var(--text);border-radius:3px;box-shadow:0 0 0 1.5px var(--bg),0 1px 2px rgba(0,0,0,.4)");
+      s += t(vols[i].toFixed(1), cx, 14, "font-weight:500;color:color-mix(in srgb, var(--text) 75%, transparent)");
+      s += t(pk[i].toFixed(1), cx, peakY, "color:var(--dim)");
+    }
+    return box(x0, CY, w, h, "", svg(w, h, g) + s);
   }
 
   // Loudness history at MIX: three numbers (labels in two lines) and short-term over 60 s, −6…−24 LUFS, dashed — integrated.
@@ -4079,6 +4152,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     else if (state === "eq") c = eqWindow() + meter(mode);
     else if (state === "comp" || state === "sat" || state === "clip" || state === "lim") c = masterWin(state) + meter(mode);
     else if (state === "phones") c = phonesWindow() + meter(mode);
+    else if (state === "mixer") c = mixerWindow() + meter(mode);
     else if (state === "phoneshead") c = phonesWindow() + meter(mode) + headMenu();
     else if (state === "grid" || state === "gridrec") c = patternGrid(state === "gridrec");
     else if (state === "arr" || state === "arrauto" || state === "arrrec") c = arranger(state === "arrauto", state === "arrrec") + meter(mode);
@@ -4174,14 +4248,14 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     track: "TRACK — выбрана дорожка с сэмплом. Верхняя строка — сэмпл (у синта — ручки движка, раздел 5), вторая — огибающая и фильтр, третья — посылы на общие эффекты, нижняя — Pan, Velocity, Ratchet, Chance. SHIFT + тап по Filter меняет тип фильтра, SHIFT + тап по Rate — режим RATE. Громкость дорожки — в MIX или регулятором на измерителе.",
     fx: "FX — пока держите FX (кнопка белая). Строки: Reverb, Delay, Drive, Duck. Эффекты общие для всех дорожек; сколько звука дорожки идёт в каждый, задают посылы — третья строка режима TRACK. Duck Source выбирает дорожку, которая приглушает остальные.",
     mod: "MOD — пока держите MOD. Строки: LFO1, LFO2, LFO3 и огибающая ENV выбранной дорожки. Куда они действуют, назначается кнопками LFO1…ENV в левой колонке (раздел 9).",
-    mix: "MIX — громкости дорожек в dB, подписи — имена дорожек. Слева от ручки — метр дорожки, справа — кнопки M (mute), S (solo) и ● (готовность к записи стема). Ручки без кольца — дорожки, которых ещё нет: двойной тап по ней добавляет дорожку. Двойной тап по ручке дорожки — меню COPY, PASTE, DELETE TRACK, RENAME; удержание и перетаскивание меняет порядок дорожек. Над окном — ● MASTER (запись мастера); в окне слева — индикация дорожек LEVEL, PAN, MASK, FREQ (кнопки под ним); справа — вектороскоп с корреляцией, осциллоскоп после лимитера и история громкости (раздел 3.3).",
+    mix: "MIX — громкости дорожек в dB, подписи — имена дорожек. Слева от ручки — метр дорожки, справа — кнопки M (mute), S (solo) и ● (готовность к записи стема). Ручки без кольца — дорожки, которых ещё нет: двойной тап по ней добавляет дорожку. Двойной тап по ручке дорожки — меню COPY, PASTE, DELETE TRACK, RENAME; удержание и перетаскивание меняет порядок дорожек. Над окном — ● MASTER (запись мастера); в окне слева — индикация дорожек LEVEL, PAN, MASK, FREQ (кнопки под ним; тап по окну — микшер с фейдерами, двойной тап по MIX — закрыть); справа — вектороскоп с корреляцией, стерео по полосам и история громкости (раздел 3.3).",
     mst: "MST — цепочка мастера сверху вниз: сатуратор, компрессор, клиппер, лимитер (перед ними — EQ мастера). В окне слева — индикация COMP, CLIP, LIM, под ним — кнопки окон модулей; справа — скоп мастера и кнопки его точек съёма (раздел 12)."
   };
   var DESC_EN = {
     track: "TRACK — a track with a sample is selected. Top row — the sample (on a synth — the engine knobs, section 5), second — envelope and filter, third — sends to the shared effects, bottom — Pan, Velocity, Ratchet, Chance. SHIFT + tap on Filter changes the filter type, SHIFT + tap on Rate — the RATE mode. Track volume — in MIX or with the control on the meter.",
     fx: "FX — while you hold FX (the button is white). Rows: Reverb, Delay, Drive, Duck. The effects are shared by all tracks; how much of a track's sound goes into each is set by the sends — the third row of TRACK mode. Duck Source picks the track that ducks the others.",
     mod: "MOD — while you hold MOD. Rows: LFO1, LFO2, LFO3 and the ENV envelope of the selected track. Where they act is assigned with the LFO1…ENV buttons in the left column (section 9).",
-    mix: "MIX — track volumes in dB, labelled with track names. Left of a knob — the track meter, right — the M (mute), S (solo) and ● (arm stem recording) buttons. Knobs without a ring are tracks that do not exist yet: double tap one to add a track. Double tap a track's knob — the COPY, PASTE, DELETE TRACK, RENAME menu; hold and drag to reorder tracks. Above the window — ● MASTER (master recording); the window on the left shows track meters LEVEL, PAN, MASK, FREQ (buttons under it); on the right — the vectorscope with correlation, the oscilloscope after the limiter and the loudness history (section 3.3).",
+    mix: "MIX — track volumes in dB, labelled with track names. Left of a knob — the track meter, right — the M (mute), S (solo) and ● (arm stem recording) buttons. Knobs without a ring are tracks that do not exist yet: double tap one to add a track. Double tap a track's knob — the COPY, PASTE, DELETE TRACK, RENAME menu; hold and drag to reorder tracks. Above the window — ● MASTER (master recording); the window on the left shows track meters LEVEL, PAN, MASK, FREQ (buttons under it; tap the window for the mixer with faders, double tap MIX to close it); on the right — the vectorscope with correlation, stereo by band and the loudness history (section 3.3).",
     mst: "MST — the master chain top to bottom: saturator, compressor, clipper, limiter (preceded by the master EQ). The window on the left shows the COMP, CLIP, LIM display, with the module window buttons below it; on the right — the master scope and its tap point buttons (section 12)."
   };
   var curMode = "track";
