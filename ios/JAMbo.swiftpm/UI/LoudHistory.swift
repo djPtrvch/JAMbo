@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// История громкости мастера при MIX (под осциллоскопом): short-term (3 с) за последние 60 с игры, пунктир —
-/// интегральная; числа SHORT TERM (short-term сейчас), LOUDNESS RANGE (LRA, разброс громкости, EBU Tech 3342: short-term за всю игру,
+/// интегральная; числа SHORT LOUDNESS (short-term сейчас), LOUDNESS RANGE (LRA, разброс громкости, EBU Tech 3342: short-term за всю игру,
 /// пороги −70 LUFS и −20 LU, 10…95 %), PEAK TO LOUDNESS (PLR, пик отсчётов с начала минус интегральная). Копится только во время
 /// игры (тишина между джемами не портит LRA); тап по окну — с нуля (и LUFS измерителя).
 final class LoudHistory {
@@ -95,7 +95,7 @@ final class LoudHistory {
 struct LoudHistoryView: View {
     let model: AppModel
     static let top: Float = -6
-    static let bottom: Float = -36
+    static let bottom: Float = -30
 
     var body: some View {
         TimelineView(.animation(minimumInterval: LoudHistory.step)) { tl in
@@ -116,7 +116,7 @@ struct LoudHistoryView: View {
         let plr: Float = pk > 0 && int.isFinite ? 20 * log10(pk) - int : -Float.infinity
         let row: CGFloat = 44
         let cell: CGFloat = size.width / 3
-        cellText(ctx, "SHORT\nTERM", fmt(st), cell * 0.5, 4)
+        cellText(ctx, "SHORT\nLOUDNESS", fmt(st), cell * 0.5, 4)
         cellText(ctx, "LOUDNESS\nRANGE", h.lra >= 0 ? String(format: "%.1f", h.lra) : "—", cell * 1.5, 4)
         cellText(ctx, "PEAK TO\nLOUDNESS", fmt(plr), cell * 2.5, 4)
         let plot = CGRect(x: 6, y: row + 4, width: size.width - 12, height: max(1, size.height - row - 10))
