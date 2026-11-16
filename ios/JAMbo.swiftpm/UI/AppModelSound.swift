@@ -647,7 +647,7 @@ extension AppModel {
         let n: Int = project.tracks.count - 1
         // Выбор — до правки: правка сразу пересчитывает звук, и выбранная дорожка должна уже существовать.
         let next: Int = max(0, min(n - 1, sel > i ? sel - 1 : sel))
-        if next != sel { selectedTrack = next }
+        if next != sel { selectTrackIndex(next) }
         edit { p in p.deleteTrack(i) }
         forgetTrackCaches()
         if next != sel { selectTrackIndex(next) }
