@@ -2,8 +2,8 @@ import SwiftUI
 
 /// Окно микшера при MIX (16.11, решение пользователя): тап по окну полос слева открывает, ✕ справа вверху закрывает.
 /// На месте центра (окно полос, сетка ручек, правая колонка; справа остаётся измеритель — фейдер мастера). Над каждой
-/// дорожкой строки дорожек — фейдер, как измеритель справа: сверху громкость фейдера (число; подпись VOL — одна, над шкалой, с линией вдоль дорожек), метка клиппинга, полосы (стерео — две, моно — одна, пик-холд, выше 0 dB —
-/// красные, заглушённая — серая, Duck — оранжевым сверху) с белой планкой громкости, снизу наибольший пик (число; линия вдоль дорожек — к подписи dB измерителя справа; тап —
+/// дорожкой строки дорожек — фейдер, как измеритель справа: сверху громкость фейдера (число; подпись VOL — одна, над шкалой, на той же строке), метка клиппинга, полосы (стерео — две, моно — одна, пик-холд, выше 0 dB —
+/// красные, заглушённая — серая, Duck — оранжевым сверху) с белой планкой громкости, снизу наибольший пик (число; тап —
 /// сброс). Палец вверх-вниз — громкость (как регулятор справа, тот же ход); несколько
 /// фейдеров сразу. Все полосы рисует один холст, касания — прозрачные места фейдеров.
 struct MixerWindow: View {
@@ -85,24 +85,18 @@ struct MixerWindow: View {
             let mark = CGRect(x: x - 10.5, y: MixerWindow.labelH + MixerWindow.gap, width: 21, height: MixerWindow.clipH)
             ctx.fill(Path(roundedRect: mark, cornerRadius: 2), with: .color(clip ? theme.rec : theme.off))
             thumb(ctx, x, bars, model.meterVol(i))
-            // Сверху — громкость фейдера, снизу — наибольший пик: только числа, подписи VOL и dB — по одной на строку.
-            label(ctx, MeterColumn.fmtVol(model.meterVol(i)), CGPoint(x: x, y: 11))
+            // Сверху — громкость фейдера (ярче, на строке VOL), снизу — наибольший пик: только числа.
+            volText(ctx, MeterColumn.fmtVol(model.meterVol(i)), x)
             label(ctx, MeterColumn.fmtDb(m.maxPeak[i]), CGPoint(x: x, y: bars.maxY + MixerWindow.gap))
         }
-        if !xs.isEmpty { rowLines(ctx, size, sx, r.top + r.height + MixerWindow.gap) }
+        if !xs.isEmpty { volText(ctx, "VOL", sx) }
     }
 
-    /// Подписи строк (16.11, решение пользователя): VOL — над шкалой, от неё тонкая линия вдоль всех дорожек (до
-    /// крестика); снизу — линия вдоль всех дорожек к подписи dB измерителя справа (пик мастера) на высоте этой подписи.
-    private func rowLines(_ ctx: GraphicsContext, _ size: CGSize, _ sx: CGFloat, _ bottom: CGFloat) {
-        label(ctx, "VOL", CGPoint(x: sx, y: 0))
-        var p = Path()
-        p.move(to: CGPoint(x: sx + 14, y: 5.5))
-        p.addLine(to: CGPoint(x: size.width - 48, y: 5.5))
-        let y: CGFloat = bottom + 11 + 5.5
-        p.move(to: CGPoint(x: sx + 14, y: y))
-        p.addLine(to: CGPoint(x: size.width, y: y))
-        ctx.stroke(p, with: .color(theme.gridStrong), lineWidth: 1)
+    /// Строка VOL (16.11, решение пользователя): подпись над шкалой и громкости над дорожками — на одной высоте,
+    /// посередине между низом кнопок верхней панели и верхом полос; 9 px, ярче подписей (--text 75 %).
+    private func volText(_ ctx: GraphicsContext, _ s: String, _ x: CGFloat) {
+        let t = Text(s).font(.system(size: 9, weight: .medium)).monospacedDigit().foregroundColor(theme.text.opacity(0.75))
+        ctx.draw(t, at: CGPoint(x: x, y: 14), anchor: .center)
     }
 
     /// Шкала dB слева (над MIX, по центру его места; 16.11): 0…−60 через 6 dB — шкала полос и планок; подпись
