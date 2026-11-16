@@ -91,10 +91,12 @@ struct FolderArrows: View {
             SideButton(title: "◀", enabled: total > 0).frame(width: 56)
                 .contentShape(Rectangle())
                 .onTapGesture { model.folderArrow(-1) }
+                .midiTarget(model, "SOUND ◀")
             Text(model.folderLabel).font(.system(size: 11)).monospacedDigit().foregroundStyle(theme.dim).frame(maxWidth: .infinity)
             SideButton(title: "▶", enabled: total > 0).frame(width: 56)
                 .contentShape(Rectangle())
                 .onTapGesture { model.folderArrow(1) }
+                .midiTarget(model, "SOUND ▶")
         }
     }
 }
@@ -118,15 +120,23 @@ struct PageArrows: View {
         SideButton(title: title)
             .contentShape(Rectangle())
             .onTapGesture { tap(action) }
+            .midiTarget(model, "PAGE " + title)
     }
 
     private func tap(_ arrow: AppModel.PageAction) {
-        var action: AppModel.PageAction = arrow
-        if model.shiftHeld && arrow == .up { action = .noteUp }
-        if model.shiftHeld && arrow == .down { action = .noteDown }
-        let last: Int = model.seq.pages.count - 1
-        let page: Int = model.viewPage < last ? model.viewPage : last
-        model.pageAction(action, page: page < 0 ? 0 : page)
+        model.pageArrow(arrow)
+    }
+}
+
+extension AppModel {
+    /// Стрелка страниц (экран и MIDI PAGE ◀ ▶ ▲ ▼): открытая страница; ▲ ▼ с SHIFT — на ноту гаммы.
+    func pageArrow(_ arrow: PageAction) {
+        var action: PageAction = arrow
+        if shiftHeld && arrow == .up { action = .noteUp }
+        if shiftHeld && arrow == .down { action = .noteDown }
+        let last: Int = seq.pages.count - 1
+        let page: Int = viewPage < last ? viewPage : last
+        pageAction(action, page: page < 0 ? 0 : page)
     }
 }
 

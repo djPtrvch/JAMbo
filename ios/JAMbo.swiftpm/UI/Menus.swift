@@ -148,6 +148,7 @@ struct PianoMenu: View {
                 .foregroundStyle(theme.dim)
             if model.channel == .track {
                 ToggleRow(title: "ARPEGGIATOR", isOn: model.track.arp.mode) { model.setChordArpMode($0) }
+                    .midiTarget(model, "ARP")
                 Text(model.track.arp.mode
                      ? "The CHORD button plays an arpeggio of the held keys."
                      : "The CHORD button plays chords.")

@@ -12,7 +12,8 @@ enum MidiButtons {
     static let continuous: [String] = [bpm, level, xfader]
     static let fixed: [String] = ["PLAY", "REC", "PATTERNS", "ARRANGE", "EQ", "ROLL", "UNDO", "REDO", "METRONOME", "CHORD", "OCTAVE ▲",
                                   "OCTAVE ▼", "LFO1", "LFO2", "LFO3", "ENV", "FX", "MOD", "MORPH", "MIX", "MST",
-                                  "ARM MST", "GRID ▲", "GRID ▼", bpm, level, xfader]
+                                  "ARM MST", "GRID ▲", "GRID ▼", "ARP", "SOUND ◀", "SOUND ▶", "PAGE ◀", "PAGE ▶", "PAGE ▲",
+                                  "PAGE ▼", bpm, level, xfader]
 
     /// Все имена (список действий нажатия ручки в окне MIDI MAP): постоянные, затем с номерами.
     static var all: [String] {
@@ -25,6 +26,7 @@ enum MidiButtons {
         for n in 1...25 { out.append("KEY \(n)") }
         for n in 1...Scales.chordKinds.count { out.append("CHORD TYPE \(n)") }
         for n in 1...8 { out.append("ROW \(n)") }
+        for n in 1...PagesColumn.rows { out.append("PAGE \(n)") }
         return out
     }
 
@@ -64,6 +66,10 @@ extension AppModel {
             queueScene(k)
             return
         }
+        if let n = MidiButtons.number(name, prefix: "PAGE "), n >= 1 && n <= PagesColumn.rows {
+            midiPagePress(n - 1)
+            return
+        }
         if let n = MidiButtons.number(name, prefix: "T"), n >= 1 && n <= project.tracks.count {
             select(track: n - 1)
             return
@@ -97,6 +103,7 @@ extension AppModel {
         default: break
         }
         if name.hasPrefix("KEY ") { keyUp(id: midiKeyId(name)) }
+        if let n = MidiButtons.number(name, prefix: "PAGE ") { midiRun.pagesDown.removeAll { $0 == n - 1 } }
         if let n = MidiButtons.number(name, prefix: "STEP "), n >= 1 && n <= 16 {
             let index: Int = viewPages.lowerBound * 16 + n - 1
             guard let t0 = midiRun.stepDown.removeValue(forKey: index) else { return }
@@ -136,9 +143,28 @@ extension AppModel {
         case "ARM MST": stemTap(StemRing.master)
         case "GRID ▲": gridArrow(-1)
         case "GRID ▼": gridArrow(1)
+        case "ARP": if channel == .track { setChordArpMode(!track.arp.mode) }
+        case "SOUND ◀": folderArrow(-1)
+        case "SOUND ▶": folderArrow(1)
+        case "PAGE ◀": pageArrow(.left)
+        case "PAGE ▶": pageArrow(.right)
+        case "PAGE ▲": pageArrow(.up)
+        case "PAGE ▼": pageArrow(.down)
         default: return false
         }
         return true
+    }
+
+    /// PAGE n (миниатюры страниц, 16.11): одна кнопка — эта страница играет и открыта; зажаты несколько — играют
+    /// страницы от первой до последней зажатой (две соседние — две, первая и четвёртая — все четыре).
+    private func midiPagePress(_ r: Int) {
+        let n: Int = seq.pages.count
+        guard r < n else { return }
+        if !midiRun.pagesDown.contains(r) { midiRun.pagesDown.append(r) }
+        let held: [Int] = midiRun.pagesDown.filter { $0 < n }
+        let lo: Int = held.min() ?? r
+        let hi: Int = held.max() ?? r
+        playPages(lo, hi)
     }
 
     /// MUTE n, SOLO n, ARM n (кнопки M, S, ● в MIX; работают и вне MIX).

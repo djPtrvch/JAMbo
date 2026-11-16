@@ -94,7 +94,8 @@ extension AppModel {
             midiButton(name, on)
             return
         }
-        let stateless: [String] = ["UNDO", "REDO", "OCTAVE ▲", "OCTAVE ▼", "GRID ▲", "GRID ▼"]
+        let stateless: [String] = ["UNDO", "REDO", "OCTAVE ▲", "OCTAVE ▼", "GRID ▲", "GRID ▼", "SOUND ◀", "SOUND ▶",
+                                   "PAGE ◀", "PAGE ▶", "PAGE ▲", "PAGE ▼"]
         if stateless.contains(name) ? !on : midiLit(name) == on { return }
         midiButton(name, true)
         midiButton(name, false)
@@ -121,6 +122,7 @@ extension AppModel {
         case "MIX": return channel == .mix
         case "MST": return channel == .master
         case "ARM MST": return stemLit(StemRing.master)
+        case "ARP": return channel == .track && track.arp.mode
         default: return midiLitNumbered(name)
         }
     }
@@ -137,6 +139,10 @@ extension AppModel {
             let rows: [Int?] = gridWindow.rows
             guard n >= 1 && n <= rows.count, let k = rows[n - 1] else { return false }
             return playing && live.sceneRow == k
+        }
+        if let n = MidiButtons.number(name, prefix: "PAGE "), n >= 1 {
+            let t: Track = seq
+            return n - 1 < t.pages.count && n - 1 >= t.playFrom && n - 1 <= t.playTo
         }
         if let n = MidiButtons.number(name, prefix: "T"), n >= 1 {
             return channel == .track && selectedTrack == n - 1

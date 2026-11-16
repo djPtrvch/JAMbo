@@ -28,6 +28,7 @@ struct PagesColumn: View {
                         // Поднятая идёт за пальцем без анимации (иначе отстаёт и прыгает на смене места);
                         // плавно сдвигаются только соседи.
                         row(r).frame(height: rowH)
+                            .midiMarks(model, [.button("PAGE \(r + 1)")])
                             .offset(y: pageOffset(r, step: rowH + 4))
                             .scaleEffect(lifted ? 1.06 : 1)
                             .shadow(color: .black.opacity(lifted ? 0.5 : 0), radius: 8)
@@ -93,6 +94,7 @@ struct PagesColumn: View {
             .onChanged { g in
                 if press == nil { begin(g.startLocation.y, step: rowH) }
                 guard var p = press else { return }
+                if p.learn { return }
                 // Удержание страницы (она поднята) и протягивание — перенос: миниатюра идёт за пальцем, соседи сдвигаются.
                 if p.lifting {
                     p.liftY = g.location.y
@@ -116,6 +118,14 @@ struct PagesColumn: View {
         model.ensureAudio()
         let n: Int = model.seq.pages.count
         let r: Int = rowAt(y, step: step)
+        // MIDI LEARN: тап по миниатюре выбирает цель PAGE n (страница не трогается).
+        if model.midiLearn.on {
+            if r < PagesColumn.rows { model.learnTap(.button("PAGE \(r + 1)")) }
+            var l = PagePress(row: r, plus: false)
+            l.learn = true
+            press = l
+            return
+        }
         let mode: PageDragMode = dragMode(y, step: step)
         if r > n && mode == .range { return }
         var p = PagePress(row: min(r, n), plus: r == n && mode == .range)
@@ -197,6 +207,10 @@ struct PagesColumn: View {
 
     private func end() {
         guard let p = press else { return }
+        if p.learn {
+            press = nil
+            return
+        }
         if p.lifting {
             land(p)
             return
@@ -249,6 +263,8 @@ struct PagesColumn: View {
 struct PagePress {
     let row: Int
     let plus: Bool
+    /// Касание в MIDI LEARN (выбор цели PAGE n) — больше ничего не делает.
+    var learn: Bool = false
     let t0: Date = Date()
     var moved: Bool = false
     var held: Bool = false
