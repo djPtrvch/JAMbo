@@ -107,7 +107,9 @@ struct MasterIndicator: View {
     /// стержни кончаются над подписями IN, GR, OUT.
     static func draw(_ ctx: GraphicsContext, _ size: CGSize, _ s: DynBarsState, bypass: Bool, grMax: Float,
                      mark: Float, now: Double, theme: Theme, scale: Float = 48, alignTop: Bool = false) {
-        let barH: CGFloat = size.height - labelH
+        // В окне модуля — подписи чуть ниже стержней и чуть выше кромки (16.11).
+        let labelY: CGFloat = alignTop ? size.height - 4 : size.height
+        let barH: CGFloat = alignTop ? size.height - labelH - 10 : size.height - labelH
         if barH <= 0 { return }
         let span: CGFloat = alignTop ? size.height : barH
         let cw: CGFloat = size.width
@@ -146,7 +148,7 @@ struct MasterIndicator: View {
         let names: [String] = ["IN", "GR", "OUT"]
         for k in 0..<3 {
             let t = ctx.resolve(Text(names[k]).font(.system(size: 9)).foregroundColor(theme.dim))
-            ctx.draw(t, at: CGPoint(x: cx[k], y: size.height), anchor: .bottom)
+            ctx.draw(t, at: CGPoint(x: cx[k], y: labelY), anchor: .bottom)
         }
     }
 }
