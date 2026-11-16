@@ -48,6 +48,13 @@ public final class MasterChain {
     /// RELEASE при AUTO (как sendDynamics веба: rel 400, auto true).
     static let autoRel: Double = 400
 
+    /// MAKEUP AUTO (16.11): половина статического GR при входе 0 dBFS (по THRESHOLD, RATIO, KNEE), не больше 18 dB —
+    /// громкость после компрессора примерно та же, что до него; от уровня сигнала не зависит (не «дышит»).
+    public static func autoMakeup(thr: Double, ratio: Double, knee: Double) -> Double {
+        let g: Double = MasterGlue.staticGr(0, thr: thr, ratio: ratio, knee: knee)
+        return Swift.min(18, Swift.max(0, g / 2))
+    }
+
     public static func defaultValues() -> [String: Double] {
         var d: [String: Double] = [:]
         for (id, k) in ids { d[id] = defaults[k] }
@@ -62,6 +69,9 @@ public final class MasterChain {
         for (rel, auto) in [(Index.cmpRel, Index.cmpAuto), (Index.limRel, Index.limAuto)] where p[rel] >= autoValue {
             p[rel] = autoRel
             p[auto] = 1
+        }
+        if p[Index.cmpMakeup] >= autoValue {
+            p[Index.cmpMakeup] = autoMakeup(thr: p[Index.cmpThr], ratio: p[Index.cmpRatio], knee: p[Index.cmpKnee])
         }
         p[Index.satBypass] = project.satBypass ? 1 : 0
         p[Index.cmpBypass] = project.cmpBypass ? 1 : 0

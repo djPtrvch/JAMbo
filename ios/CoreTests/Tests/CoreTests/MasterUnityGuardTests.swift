@@ -112,4 +112,22 @@ final class MasterUnityGuardTests: XCTestCase {
         XCTAssertEqual(m["lim.guard"], 0)
         XCTAssertTrue(MasterPresetBook.ids(MasterScope.lim).contains("lim.guard"))
     }
+
+    /// MAKEUP AUTO: половина статического GR при 0 dBFS; в параметрах колбэка — число, на ручке — AUTO.
+    func testAutoMakeup() throws {
+        XCTAssertEqual(MasterChain.autoMakeup(thr: -17.5, ratio: 4, knee: 2), 6.5625, accuracy: 1e-9)
+        XCTAssertEqual(MasterChain.autoMakeup(thr: -40, ratio: 20, knee: 0), 18)
+        var pr = Project()
+        pr.master["cmp.makeup"] = MasterChain.autoValue
+        pr.master["cmp.threshold"] = -10
+        pr.master["cmp.ratio"] = 2
+        pr.master["cmp.knee"] = 0
+        var m = [Double](repeating: 0, count: MasterChain.Index.count)
+        m.withUnsafeMutableBufferPointer { MasterChain.fill($0.baseAddress!, pr) }
+        XCTAssertEqual(m[MasterChain.Index.cmpMakeup], 2.5, accuracy: 1e-9)
+        let p = try XCTUnwrap(Params.byId["cmp.makeup"])
+        XCTAssertEqual(p.format(MasterChain.autoValue), "AUTO")
+        XCTAssertEqual(p.fromNorm(0.95), MasterChain.autoValue)
+        XCTAssertEqual(MasterInput.parse(p, "auto"), MasterChain.autoValue)
+    }
 }

@@ -169,7 +169,7 @@ struct MasterStrip: View {
     private func tapAction(_ p: ParamDef) -> (() -> Void)? {
         if p.id == "cmp.ratio" { return { model.tapRatio() } }
         if p.id == "sat.type" { return { model.tapSatType() } }
-        if p.id == "cmp.release" || p.id == "lim.release" { return { model.tapRelease(p) } }
+        if p.autoTop != nil { return { model.tapAuto(p) } }
         return nil
     }
 

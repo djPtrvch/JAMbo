@@ -586,7 +586,10 @@ public enum Params {
             master("cmp.threshold", "Threshold", -40, 0, -10, step: 0.1, masterDb),
             master("cmp.attack", "Attack", 0.1, 100, MasterChain.newAttack, exp: true, masterMs),
             master("cmp.release", "Release", 20, 2000, 400, exp: true, autoTop: 0.08, masterMs),
-            master("cmp.makeup", "Makeup", 0, 18, 0, step: 0.1, masterDb),
+            // Последние 8 % хода — AUTO (16.11): MasterChain.autoMakeup.
+            master("cmp.makeup", "Makeup", 0, 18, 0, step: 0.1, autoTop: 0.08) { v in
+                v >= MasterChain.autoValue ? "AUTO" : masterDb(v)
+            },
         ],
         [
             master("clip.drive", "Input", 0, 12, 0, step: 0.1, masterDb),
