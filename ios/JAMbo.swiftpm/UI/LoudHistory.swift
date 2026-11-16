@@ -95,7 +95,7 @@ final class LoudHistory {
 struct LoudHistoryView: View {
     let model: AppModel
     static let top: Float = -6
-    static let bottom: Float = -30
+    static let bottom: Float = -24
 
     var body: some View {
         TimelineView(.animation(minimumInterval: LoudHistory.step)) { tl in
@@ -150,7 +150,7 @@ struct LoudHistoryView: View {
 
     private func grid(_ ctx: GraphicsContext, _ r: CGRect) {
         var p = Path()
-        for db in [-12, -18, -24, -30] {
+        for db in [-12, -18, -24] {
             let y: CGFloat = yOf(Float(db), r)
             p.move(to: CGPoint(x: r.minX, y: y))
             p.addLine(to: CGPoint(x: r.maxX, y: y))
