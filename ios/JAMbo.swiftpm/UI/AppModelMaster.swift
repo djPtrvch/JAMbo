@@ -56,8 +56,8 @@ extension AppModel {
         audio.core.master.unity.store(ok ? m + 1 : 0)
     }
 
-    /// Тап по полю RELEASE (COMP, LIM) и MAKEUP: AUTO ↔ последнее ручное значение (без него — по умолчанию).
-    func tapAuto(_ p: ParamDef) {
+    /// Тап по полю RELEASE (COMP, LIM): AUTO ↔ последнее ручное значение (без него — по умолчанию).
+    func tapRelease(_ p: ParamDef) {
         let v: Double = masterValue(p)
         let next: Double
         if v >= MasterChain.autoValue {
