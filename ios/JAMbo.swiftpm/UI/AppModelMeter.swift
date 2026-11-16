@@ -14,6 +14,7 @@ extension AppModel {
         meters.show(meterChannel, lv)
         let now: Double = Date.timeIntervalSinceReferenceDate
         meters.tick(lv, now: now)
+        loudHist.tick(lv.mixLoudness, framePeak: meters.framePeak(Levels.master), playing: playing, now: now)
         tickRefMatch()
         audio.core.monitor.room.drain()
         dynMeters.tick(audio.core.master, project, now: now)
@@ -118,6 +119,14 @@ extension AppModel {
 
     func resetMeterPeak() {
         meters.resetPeak(meterChannel)
+    }
+
+    /// Тап по истории громкости: история, LRA, пик и интегральная мастера — с нуля (и LUFS измерителя при MIX, MST).
+    func resetLoudHistory() {
+        loudHist.reset()
+        let m = audio.core.levels.mixLoudness
+        m.resetRequests.store(m.resetRequests.load() + 1)
+        if meterChannel == Levels.master { resetLoudness() }
     }
 
     func resetLoudness() {

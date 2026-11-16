@@ -313,7 +313,8 @@ public final class AudioCore: @unchecked Sendable {
         m[0] = pl
         m[1] = pr
         if levels.loudness.listens(Levels.master) { levels.loudness.process(UnsafePointer(l), UnsafePointer(r), n) }
-        levels.mixLoudness.process(UnsafePointer(l), UnsafePointer(r), n)
+        // listens — заодно сброс интегральной (тап по истории громкости при MIX).
+        if levels.mixLoudness.listens(Levels.master) { levels.mixLoudness.process(UnsafePointer(l), UnsafePointer(r), n) }
     }
 
     @inline(__always)

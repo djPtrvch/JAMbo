@@ -63,6 +63,11 @@ final class MeterState {
         lv.loudness.source.store(ch)
     }
 
+    /// Пик канала за последний кадр (L и R).
+    func framePeak(_ ch: Int) -> Float {
+        return max(peak[ch * 2], peak[ch * 2 + 1])
+    }
+
     func resetPeak(_ ch: Int) {
         if ch >= 0 && ch < MeterState.channels { maxPeak[ch] = 0 }
     }

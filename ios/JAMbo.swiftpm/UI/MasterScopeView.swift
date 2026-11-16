@@ -127,12 +127,14 @@ struct MasterScopeView: View {
         GeometryReader { geo in
             let gap: CGFloat = 6
             // При MIX вид выше на место кнопок под ним (две пары и зазоры): гониометр и осциллоскоп — того же размера,
-            // что при MST (14.11, решение пользователя), под ними пусто.
+            // что при MST (14.11, решение пользователя), под ними — история громкости (16.11).
             let extra: CGFloat = taps ? 0 : 2 * Layout.pairHeight + 2 * Layout.gap
             let h: CGFloat = geo.size.height - extra - gap
             VStack(spacing: gap) {
                 panel { ctx, size in drawGonio(ctx, size) }.frame(height: h * 0.6)
                 panel { ctx, size in drawOsc(ctx, size) }.frame(height: h * 0.4)
+                // При MIX под ними — история громкости мастера (16.11).
+                if !taps { LoudHistoryView(model: model).frame(height: max(0, extra - gap)) }
             }
         }
     }
