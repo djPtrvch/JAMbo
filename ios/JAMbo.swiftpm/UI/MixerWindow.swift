@@ -31,6 +31,8 @@ struct MixerWindow: View {
                 .frame(width: 44, height: 44)
                 .contentShape(Rectangle())
                 .onTapGesture { model.mixerOpen = false }
+                // Середина крестика — на строке VOL (14 px от верха окна).
+                .offset(y: -8)
         }
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { frame = $0 }
     }
@@ -87,7 +89,9 @@ struct MixerWindow: View {
             thumb(ctx, x, bars, model.meterVol(i))
             // Сверху — громкость фейдера (ярче, на строке VOL), снизу — наибольший пик: только числа.
             volText(ctx, MeterColumn.fmtVol(model.meterVol(i)), x)
-            label(ctx, MeterColumn.fmtDb(m.maxPeak[i]), CGPoint(x: x, y: bars.maxY + MixerWindow.gap))
+            // Пик — посередине между низом полос и верхом строки дорожек (как строка VOL сверху).
+            let pk = Text(MeterColumn.fmtDb(m.maxPeak[i])).font(.system(size: 9)).monospacedDigit().foregroundColor(theme.dim)
+            ctx.draw(pk, at: CGPoint(x: x, y: (bars.maxY + size.height + Layout.gap) / 2), anchor: .center)
         }
         if !xs.isEmpty { volText(ctx, "VOL", sx) }
     }
@@ -126,17 +130,6 @@ struct MixerWindow: View {
         sc.addFilter(.shadow(color: Color.black.opacity(0.4), radius: 2, y: 1))
         sc.fill(shape, with: .color(theme.text))
         ctx.stroke(shape, with: .color(theme.bg), lineWidth: 1.5)
-    }
-
-    /// Подпись в две строки (9 px, --dim), каждая по центру.
-    private func label(_ ctx: GraphicsContext, _ s: String, _ p: CGPoint) {
-        let lines: [Substring] = s.split(separator: "\n")
-        var k: Int = 0
-        while k < lines.count {
-            let t = Text(String(lines[k])).font(.system(size: 9)).monospacedDigit().foregroundColor(theme.dim)
-            ctx.draw(t, at: CGPoint(x: p.x, y: p.y + CGFloat(k) * 11), anchor: .top)
-            k += 1
-        }
     }
 }
 
