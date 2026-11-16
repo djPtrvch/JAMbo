@@ -645,7 +645,16 @@ extension AppModel {
         guard project.canDeleteTrack(i) else { return }
         let sel = selectedTrack
         edit { p in p.deleteTrack(i) }
+        forgetTrackCaches()
         if sel >= project.tracks.count || sel > i { selectTrackIndex(max(0, min(project.tracks.count - 1, sel > i ? sel - 1 : sel))) }
+    }
+
+    /// Удаление и перестановка дорожек (16.11): данные по номеру дорожки (анализ MIX — FREQ, MASK, LOUD; кэш стерео
+    /// метра; таблицы WTABLE до готовности) сдвинулись — сбросить, иначе полосы и номер мешающей у чужих дорожек.
+    func forgetTrackCaches() {
+        mixAn.reset()
+        stereoCache.removeAll()
+        heldTables.removeAll()
     }
 
     func renameTrack(_ i: Int, _ name: String) {
@@ -656,6 +665,7 @@ extension AppModel {
     func moveTrack(_ from: Int, _ to: Int) {
         let id = track.id
         edit { p in p.moveTrack(from, to) }
+        forgetTrackCaches()
         // Во время игры ход дорожек переезжает с ними — сдвинутые играют дальше без паузы.
         if playing {
             audio.core.events.push(.moveTrack(from: from, to: to))
