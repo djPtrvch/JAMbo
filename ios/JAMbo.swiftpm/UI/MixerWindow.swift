@@ -93,7 +93,12 @@ struct MixerWindow: View {
             let pk = Text(MeterColumn.fmtDb(m.maxPeak[i])).font(.system(size: 9)).monospacedDigit().foregroundColor(theme.dim)
             ctx.draw(pk, at: CGPoint(x: x, y: (bars.maxY + size.height + Layout.gap) / 2), anchor: .center)
         }
-        if !xs.isEmpty { volText(ctx, "VOL", sx) }
+        if !xs.isEmpty {
+            volText(ctx, "VOL", sx)
+            // Под шкалой — подпись строки пиков (тем же цветом, на той же высоте).
+            let pk = Text("PEAK").font(.system(size: 9)).foregroundColor(theme.dim)
+            ctx.draw(pk, at: CGPoint(x: sx, y: (r.top + r.height + size.height + Layout.gap) / 2), anchor: .center)
+        }
     }
 
     /// Строка VOL (16.11, решение пользователя): подпись над шкалой и громкости над дорожками — на одной высоте,
