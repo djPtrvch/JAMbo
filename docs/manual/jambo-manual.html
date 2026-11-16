@@ -657,27 +657,63 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     <li>The selected track's volume can also be changed with the control on the meter on the right — it is the same volume.</li>
   </ul>
 
-  <h4 lang="ru">Индикация дорожек: LEVEL, PAN, FREQ</h4>
-  <h4 lang="en">Track meters: LEVEL, PAN, FREQ</h4>
+  <h4 lang="ru">Индикация дорожек: LEVEL, PAN, MASK, FREQ</h4>
+  <h4 lang="en">Track meters: LEVEL, PAN, MASK, FREQ</h4>
   <p lang="ru">В окне слева — по полосе на каждую дорожку, в порядке дорожек. Что показывают полосы, выбирают кнопки под окном (выбранная — белая). Заглушённая дорожка — серая.</p>
   <p lang="en">The window on the left has one bar per track, in track order. The buttons under the window choose what the bars show (the selected one is white). A muted track is grey.</p>
   <div class="figs">
-  <figure><div class="shot" data-mode="mix" data-zone="left" data-state="mixlevel" data-maxh="420"></div><figcaption lang="ru">LEVEL. Уровни — для примера.</figcaption><figcaption lang="en">LEVEL. Levels are an example.</figcaption></figure>
+  <figure><div class="shot" data-mode="mix" data-zone="left" data-state="mixlevel" data-maxh="420"></div><figcaption lang="ru">LEVEL. Сплошное — громкость на слух, бледное выше — пик. У бочки (1) зазор большой, у пэда (5) почти нет (пример).</figcaption><figcaption lang="en">LEVEL. Solid — perceived loudness, pale above it — the peak. The kick (1) has a big gap, the pad (5) almost none (example).</figcaption></figure>
   <figure><div class="shot" data-mode="mix" data-zone="left" data-state="mixpan" data-maxh="420"></div><figcaption lang="ru">PAN. Дорожка 4 смещена вправо, 5 — влево (пример).</figcaption><figcaption lang="en">PAN. Track 4 leans right, 5 — left (example).</figcaption></figure>
+  <figure><div class="shot" data-mode="mix" data-zone="left" data-state="mixmask" data-maxh="420"></div><figcaption lang="ru">MASK. Гармоники баса (2) закрывает пэд (5) — полоса там узкая (пример).</figcaption><figcaption lang="en">MASK. The bass harmonics (2) are covered by the pad (5) — the bar is narrow there (example).</figcaption></figure>
   <figure><div class="shot" data-mode="mix" data-zone="left" data-state="mixfreq" data-maxh="420"></div><figcaption lang="ru">FREQ. Бас и бочка — внизу, хэты — вверху (пример).</figcaption><figcaption lang="en">FREQ. Bass and kick at the bottom, hats at the top (example).</figcaption></figure>
   </div>
   <table lang="ru"><tr><th>Кнопка</th><th>Что показывают полосы</th></tr>
-    <tr><td>LEVEL</td><td>Уровень дорожки снизу вверх (−60…0 dBFS), выше 0 dBFS — красный. Белая черта — пик: держится полторы секунды и плавно опускается.</td></tr>
+    <tr><td>LEVEL</td><td>Уровень дорожки снизу вверх (−60…0 dBFS). Полоса в два слоя: сплошной жёлтый снизу — громкость на слух (LOUD, ниже), бледный жёлтый над ним — пик; пик выше 0 dBFS — красный. Белая черта — пик-холд: держится полторы секунды и плавно опускается.</td></tr>
     <tr><td>PAN</td><td>Где дорожка звучит в стерео — по самому сигналу, а не по ручке Pan: учитываются и стерео-сэмплы, и LFO на панораме. От средней линии вверх — вправо, вниз — влево; короткая черта по центру — посередине.</td></tr>
+    <tr><td>MASK</td><td>Где дорожку закрывают другие дорожки (ниже).</td></tr>
     <tr><td>FREQ</td><td>Какой диапазон частот занимает дорожка (ниже).</td></tr></table>
   <table lang="en"><tr><th>Button</th><th>What the bars show</th></tr>
-    <tr><td>LEVEL</td><td>Track level from the bottom up (−60…0 dBFS), red above 0 dBFS. The white line is the peak: it holds for a second and a half, then falls slowly.</td></tr>
+    <tr><td>LEVEL</td><td>Track level from the bottom up (−60…0 dBFS). The bar has two layers: solid yellow at the bottom — perceived loudness (LOUD, below), pale yellow above it — the peak; a peak above 0 dBFS is red. The white line is the peak hold: it stays for a second and a half, then falls slowly.</td></tr>
     <tr><td>PAN</td><td>Where the track sits in the stereo field — measured from the signal itself, not the Pan knob, so stereo samples and an LFO on Pan count too. Up from the centre line — right, down — left; a short dash in the middle — centred.</td></tr>
+    <tr><td>MASK</td><td>Where other tracks cover this track (below).</td></tr>
     <tr><td>FREQ</td><td>Which frequency range the track occupies (below).</td></tr></table>
   <p lang="ru"><b>FREQ.</b> Вертикаль — частота: снизу 20 Гц, сверху 20 кГц, линии 100, 1k и 10k. Полоса дорожки тянется от самой низкой до самой высокой частоты, где у неё заметная энергия (не тише самой сильной на 20 dB). Красная черта с размытием — самая сильная частота дорожки. Показания — среднее примерно за 4 секунды: паузы между ударами их не сбрасывают, полосы стоят спокойно и меняются плавно; полоса гаснет, только когда дорожка долго молчит.</p>
   <p lang="en"><b>FREQ.</b> The vertical axis is frequency: 20 Hz at the bottom, 20 kHz at the top, lines at 100, 1k and 10k. A track's bar spans from the lowest to the highest frequency where it has noticeable energy (no more than 20 dB below its strongest band). The red line with a soft glow is the track's strongest frequency. Readings are averaged over about 4 seconds: gaps between hits do not reset them, so the bars stay steady and move smoothly; a bar disappears only when the track has been silent for a while.</p>
   <p lang="ru">Зачем: увидеть, кто кому мешает. Если полосы бочки и баса лежат на одной высоте и красные черты рядом — они спорят за низ; разведите их EQ (раздел 11) или Duck. Пустая область между полосами — место, куда можно поставить новый звук.</p>
   <p lang="en">Why: to see which tracks clash. If the kick and bass bars sit at the same height with their red lines close together, they fight over the low end; separate them with EQ (section 11) or Duck. An empty area between bars is room for a new sound.</p>
+
+  <p lang="ru"><b>LOUD в LEVEL.</b> Пик и громкость на слух — разные вещи: короткий щелчок бочки даёт высокий пик, но звучит тише ровного пэда с тем же пиком, а низ ухо слышит хуже середины. Сплошной слой показывает, насколько громко дорожка звучит для уха (как LUFS), в среднем примерно за 4 секунды, — поэтому он движется плавно, а пик над ним — быстро. Сравнивайте дорожки по сплошному слою: так видно, кто на самом деле «держит» микс. Зазор между слоями — динамика: большой у живых ударных, почти нулевой у сжатого звука. Если зазора нет у всех дорожек, микс пережат.</p>
+  <p lang="en"><b>LOUD in LEVEL.</b> Peak and perceived loudness are different things: a short kick click gives a high peak yet sounds quieter than a steady pad with the same peak, and the ear hears lows less than mids. The solid layer shows how loud the track sounds to the ear (like LUFS), averaged over about 4 seconds — so it moves smoothly while the peak above it moves fast. Compare tracks by the solid layer: it shows who really carries the mix. The gap between the layers is dynamics: large on live drums, almost none on a squashed sound. If no track has a gap, the mix is over-compressed.</p>
+  <p lang="ru"><b>MASK — кто кого закрывает.</b> Вертикаль та же, что у FREQ. Полоса дорожки — её диапазон частот, на ней отмечено, где её звук закрывают другие:</p>
+  <p lang="en"><b>MASK — who covers whom.</b> The vertical axis is the same as in FREQ. A track's bar is its frequency range, marked where other tracks cover its sound:</p>
+  <table lang="ru"><tr><th>На полосе</th><th>Что значит</th></tr>
+    <tr><td>Серый</td><td>Здесь дорожке никто не мешает.</td></tr>
+    <tr><td>Жёлтый</td><td>Здесь звучит и основное звучание другой дорожки, но эта громче. Чем ярче, тем ближе по уровню — тем сильнее спор.</td></tr>
+    <tr><td>Узкая полоса</td><td>Дорожку здесь закрывают: другие громче или вровень. Этот кусок её звука в миксе не слышен.</td></tr>
+    <tr><td>Число над полосой</td><td>Номер дорожки, которая мешает больше всех.</td></tr>
+    <tr><td>Серая полоса целиком</td><td>Дорожка заглушена (mute или не solo); заглушённые другим не мешают.</td></tr></table>
+  <table lang="en"><tr><th>On the bar</th><th>Meaning</th></tr>
+    <tr><td>Grey</td><td>Nothing gets in the track's way here.</td></tr>
+    <tr><td>Yellow</td><td>Another track's main sound is here too, but this track is louder. The brighter, the closer the levels — the harder they fight.</td></tr>
+    <tr><td>Narrow bar</td><td>The track is covered here: others are louder or level with it. This part of its sound is lost in the mix.</td></tr>
+    <tr><td>Number above the bar</td><td>The track that gets in the way most.</td></tr>
+    <tr><td>Whole bar grey</td><td>The track is muted (mute or not solo); muted tracks do not cover others.</td></tr></table>
+  <p lang="ru">MASK показывает только явные конфликты: у мешающей дорожки учитывается её основное звучание, слабые хвосты чужих звуков не в счёт. У самой дорожки, наоборот, учитывается весь её диапазон — вместе с гармониками и атакой<sup class="fn-ref"><a href="#fn-2" id="fr-2">2</a></sup>. Показ с инерцией: жёлтый нарастает и гаснет за полторы секунды, узкая полоса появляется, только когда конфликт держится пару секунд, а номер меняется, когда новая мешающая держится секунду. Поэтому после правки дайте картинке несколько секунд — она успокоится, а не перескочит на соседний случайный конфликт.</p>
+  <p lang="en">MASK shows only clear conflicts: for the track in the way only its main sound counts, weak tails of other sounds do not. For the track itself, on the contrary, its whole range counts — harmonics and attack included<sup class="fn-ref"><a href="#fn-2-en" id="fr-2-en">2</a></sup>. The display has inertia: yellow rises and fades over a second and a half, a narrow bar appears only when a conflict lasts a couple of seconds, and the number changes when the new culprit lasts a second. So after an edit give the picture a few seconds — it settles instead of jumping to the next random conflict.</p>
+  <p lang="ru">Как пользоваться:</p>
+  <ol lang="ru">
+    <li>Включите игру и откройте MASK. Найдите узкие места — с них и начинайте.</li>
+    <li>Посмотрите номер над полосой — это дорожка, которая мешает.</li>
+    <li>Освободите место: срежьте эту полосу у мешающей дорожки EQ (раздел 11), уведите её в Duck от пострадавшей или поменяйте октаву, звук, громкость.</li>
+    <li>Подождите несколько секунд: узкая полоса должна расшириться, жёлтый — потускнеть.</li>
+  </ol>
+  <p lang="en">How to use it:</p>
+  <ol lang="en">
+    <li>Start playback and open MASK. Look for narrow spots — start with those.</li>
+    <li>Check the number above the bar — that is the track in the way.</li>
+    <li>Make room: cut that band on the track in the way with EQ (section 11), duck it from the covered track, or change its octave, sound or volume.</li>
+    <li>Wait a few seconds: the narrow spot should widen and the yellow fade.</li>
+  </ol>
 
   <h4 lang="ru">Справа: вектороскоп и осциллоскоп</h4>
   <h4 lang="en">On the right: vectorscope and oscilloscope</h4>
@@ -686,6 +722,9 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
   <p lang="en"><b>The vectorscope</b> shows the stereo image of the master output: a cloud stretched upward is closer to mono, a wide cloud is wider stereo. The bar at the bottom is channel correlation: from the centre right towards +1 — mono-safe, left towards −1 — the channels are out of phase, and on a mono speaker (a phone, a club system) part of the sound will disappear.</p>
   <p lang="ru"><b>Осциллоскоп</b> под ним — форма волны того, что уходит из мастера после лимитера (красным). Ровная «стена» без пиков — лимитер давит слишком сильно, микс потерял удары; видны пики — динамика сохранилась.</p>
   <p lang="en"><b>The oscilloscope</b> below shows the waveform leaving the master after the limiter (in red). A flat “wall” with no peaks — the limiter is squashing too hard and the mix has lost its punch; visible peaks — the dynamics are intact.</p>
+
+  <div lang="ru" class="notes sub"><div class="menu-head">Примечания</div><ol><li id="fn-2"><b><a href="#fr-2" style="color:inherit;text-decoration:none">2</a></b><span>Почему важны хвосты своего звука. Самое слабое в звуке часто и делает его узнаваемым. Гармоники баса (200 Гц – 1 кГц) обычно на 10–20 dB тише основного тона, но на телефоне, ноутбуке и маленьких колонках, которые низ не играют, бас слышен только по ним: если их закрыл пэд, в студийных мониторах всё хорошо, а на телефоне баса нет. Так же щелчок бочки (2–5 кГц) намного тише её «тела», но именно он даёт удар и помогает бочке прорезаться в миксе; атака и «воздух» лида дают разборчивость. А слабые хвосты чужих звуков по одному не мешают: тихий низ хэта бас не закроет. Опасны они только вместе — когда понемногу низа у пэда, синтов и ревербов складывается в кашу на 100–300 Гц; поэтому при сведении низ обычно срезают всему, кроме бочки и баса.</span></li></ol></div>
+  <div lang="en" class="notes sub"><div class="menu-head">Notes</div><ol><li id="fn-2-en"><b><a href="#fr-2-en" style="color:inherit;text-decoration:none">2</a></b><span>Why a sound's own tails matter. The weakest part of a sound is often what makes it recognisable. Bass harmonics (200 Hz – 1 kHz) are usually 10–20 dB below the fundamental, yet on a phone, a laptop and small speakers that cannot play lows, the bass is heard only through them: if a pad covers them, everything is fine on studio monitors but the bass is gone on a phone. Likewise the kick's click (2–5 kHz) is far quieter than its body, but it is what gives the punch and helps the kick cut through the mix; the attack and “air” of a lead give it clarity. Weak tails of other sounds, on the other hand, do not matter one by one: a quiet low end on the hi-hat will not cover the bass. They matter only together — when a little low end from pads, synths and reverbs adds up to mud at 100–300 Hz; that is why in mixing the lows are usually cut on everything except the kick and bass.</span></li></ol></div>
 
   <h3 lang="ru"><span class="sn">3.4</span>Добавить, скопировать, удалить, переставить</h3>
   <h3 lang="en"><span class="sn">3.4</span>Add, copy, delete, reorder</h3>
@@ -783,8 +822,8 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
 
   <h3 lang="ru"><span class="sn">4.2</span>Ручки сэмпла</h3>
   <h3 lang="en"><span class="sn">4.2</span>Sample knobs</h3>
-  <p lang="ru">Сэмпл звучит в исходной высоте на ноте C3. Другие ноты клавиатуры и секвенсора транспонируют его. В окне звука строка Note показывает, какую ноту сэмпл играет сам<sup class="fn-ref"><a href="#fn-2" id="fr-2">2</a></sup>.</p>
-  <p lang="en">A sample plays at its original pitch on note C3. Other notes of the keyboard and sequencer transpose it. In the sound window, the Note line shows which note the sample itself plays<sup class="fn-ref"><a href="#fn-2-en" id="fr-2-en">2</a></sup>.</p>
+  <p lang="ru">Сэмпл звучит в исходной высоте на ноте C3. Другие ноты клавиатуры и секвенсора транспонируют его. В окне звука строка Note показывает, какую ноту сэмпл играет сам<sup class="fn-ref"><a href="#fn-3" id="fr-3">3</a></sup>.</p>
+  <p lang="en">A sample plays at its original pitch on note C3. Other notes of the keyboard and sequencer transpose it. In the sound window, the Note line shows which note the sample itself plays<sup class="fn-ref"><a href="#fn-3-en" id="fr-3-en">3</a></sup>.</p>
   <div lang="ru" class="tbl"><table>
     <thead><tr><th>Ручка</th><th>Что делает</th></tr></thead>
     <tbody>
@@ -807,8 +846,8 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
   </table></div>
   <p lang="ru">Нижние строки — посылы и Pan, Velocity, Ratchet, Chance — одинаковы у сэмплера и синтезатора (раздел 2). Алгоритм растяжения для Rate Stretch выбирается в SETTINGS → SAMPLER → STRETCH: NORMAL или BEAT; попробуйте оба на своём материале.</p>
   <p lang="en">The lower rows — sends and Pan, Velocity, Ratchet, Chance — are the same for the sampler and the synthesizer (section 2). The stretch algorithm for Rate Stretch is chosen in SETTINGS → SAMPLER → STRETCH: NORMAL or BEAT; try both on your material.</p>
-  <div lang="ru" class="notes sub"><div class="menu-head">Примечания</div><ol><li id="fn-2"><b><a href="#fr-2" style="color:inherit;text-decoration:none">2</a></b><span>Высота определяется не у всех сэмплов — только когда у звука ясная высота. У шумов, хэтов, тарелок и многих ударных вместо ноты стоит «—». На звучание это не влияет: сэмпл всегда играет в исходной высоте на ноте C3.</span></li></ol></div>
-  <div lang="en" class="notes sub"><div class="menu-head">Notes</div><ol><li id="fn-2-en"><b><a href="#fr-2-en" style="color:inherit;text-decoration:none">2</a></b><span>Pitch is not detected for every sample — only when the sound has a clear pitch. For noises, hi-hats, cymbals and many drums a “—” is shown instead of a note. This does not affect the sound: a sample always plays at its original pitch on note C3.</span></li></ol></div>
+  <div lang="ru" class="notes sub"><div class="menu-head">Примечания</div><ol><li id="fn-3"><b><a href="#fr-3" style="color:inherit;text-decoration:none">3</a></b><span>Высота определяется не у всех сэмплов — только когда у звука ясная высота. У шумов, хэтов, тарелок и многих ударных вместо ноты стоит «—». На звучание это не влияет: сэмпл всегда играет в исходной высоте на ноте C3.</span></li></ol></div>
+  <div lang="en" class="notes sub"><div class="menu-head">Notes</div><ol><li id="fn-3-en"><b><a href="#fr-3-en" style="color:inherit;text-decoration:none">3</a></b><span>Pitch is not detected for every sample — only when the sound has a clear pitch. For noises, hi-hats, cymbals and many drums a “—” is shown instead of a note. This does not affect the sound: a sample always plays at its original pitch on note C3.</span></li></ol></div>
 
   <h3 lang="ru"><span class="sn">4.3</span>Папка дорожки</h3>
   <h3 lang="en"><span class="sn">4.3</span>Track folder</h3>
@@ -1990,8 +2029,8 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
 
   <h3 lang="ru"><span class="sn">13.4</span>На что опираются комнаты</h3>
   <h3 lang="en"><span class="sn">13.4</span>What the rooms are based on</h3>
-  <p lang="ru">Обе комнаты — не эмуляции «на глаз», а замеры настоящих помещений радиостанции WDR в Кёльне<sup class="fn-ref"><a href="#fn-3" id="fr-3">3</a></sup>. В каждой комнате колонки проигрывали тестовый сигнал, а в точке слушателя его записывал шар из 110 микрофонов. По такой записи видно, откуда и когда пришёл каждый отзвук: прямой звук колонок, отражения от пульта, стен и потолка, хвост комнаты. Приложение пропускает каждый отзвук через уши выбранной головы (раздел 13.5) — так комната звучит в наушниках, как в жизни: с её настоящими отражениями, басовыми модами и затуханием.</p>
-  <p lang="en">Both rooms are not "by ear" emulations but measurements of real rooms of the WDR broadcaster in Cologne<sup class="fn-ref"><a href="#fn-3-en" id="fr-3-en">3</a></sup>. In each room the speakers played a test signal, and a sphere of 110 microphones recorded it at the listening position. Such a recording shows where and when every echo came from: the direct sound of the speakers, reflections from the console, walls and ceiling, the room's tail. The app passes every echo through the ears of the chosen head (section 13.5) — so the room sounds in headphones as in real life: with its real reflections, bass modes and decay.</p>
+  <p lang="ru">Обе комнаты — не эмуляции «на глаз», а замеры настоящих помещений радиостанции WDR в Кёльне<sup class="fn-ref"><a href="#fn-4" id="fr-4">4</a></sup>. В каждой комнате колонки проигрывали тестовый сигнал, а в точке слушателя его записывал шар из 110 микрофонов. По такой записи видно, откуда и когда пришёл каждый отзвук: прямой звук колонок, отражения от пульта, стен и потолка, хвост комнаты. Приложение пропускает каждый отзвук через уши выбранной головы (раздел 13.5) — так комната звучит в наушниках, как в жизни: с её настоящими отражениями, басовыми модами и затуханием.</p>
+  <p lang="en">Both rooms are not "by ear" emulations but measurements of real rooms of the WDR broadcaster in Cologne<sup class="fn-ref"><a href="#fn-4-en" id="fr-4-en">4</a></sup>. In each room the speakers played a test signal, and a sphere of 110 microphones recorded it at the listening position. Such a recording shows where and when every echo came from: the direct sound of the speakers, reflections from the console, walls and ceiling, the room's tail. The app passes every echo through the ears of the chosen head (section 13.5) — so the room sounds in headphones as in real life: with its real reflections, bass modes and decay.</p>
   <div lang="ru" class="tbl"><table>
     <thead><tr><th>Пункт</th><th>Комната</th><th>Для чего</th></tr></thead>
     <tbody>
@@ -2007,8 +2046,8 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     </tbody>
   </table></div>
 
-  <div lang="ru" class="notes sub"><div class="menu-head">Примечания</div><ol><li id="fn-3"><b><a href="#fr-3" style="color:inherit;text-decoration:none">3</a></b><span>«A Spatial Audio Impulse Response Compilation Captured at the WDR Broadcast Studios», TH Köln — <a href="https://zenodo.org/records/3930833" target="_blank" rel="noopener">открытый набор замеров</a>, лицензия CC BY 4.0.</span></li></ol></div>
-  <div lang="en" class="notes sub"><div class="menu-head">Notes</div><ol><li id="fn-3-en"><b><a href="#fr-3-en" style="color:inherit;text-decoration:none">3</a></b><span>"A Spatial Audio Impulse Response Compilation Captured at the WDR Broadcast Studios", TH Köln — <a href="https://zenodo.org/records/3930833" target="_blank" rel="noopener">an open measurement set</a>, CC BY 4.0 licence.</span></li></ol></div>
+  <div lang="ru" class="notes sub"><div class="menu-head">Примечания</div><ol><li id="fn-4"><b><a href="#fr-4" style="color:inherit;text-decoration:none">4</a></b><span>«A Spatial Audio Impulse Response Compilation Captured at the WDR Broadcast Studios», TH Köln — <a href="https://zenodo.org/records/3930833" target="_blank" rel="noopener">открытый набор замеров</a>, лицензия CC BY 4.0.</span></li></ol></div>
+  <div lang="en" class="notes sub"><div class="menu-head">Notes</div><ol><li id="fn-4-en"><b><a href="#fr-4-en" style="color:inherit;text-decoration:none">4</a></b><span>"A Spatial Audio Impulse Response Compilation Captured at the WDR Broadcast Studios", TH Köln — <a href="https://zenodo.org/records/3930833" target="_blank" rel="noopener">an open measurement set</a>, CC BY 4.0 licence.</span></li></ol></div>
 
   <h3 lang="ru"><span class="sn">13.5</span>Головы</h3>
   <h3 lang="en"><span class="sn">13.5</span>Heads</h3>
@@ -2017,19 +2056,19 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
   <p lang="ru">Звук доходит до барабанной перепонки, уже окрашенный головой и ушной раковиной: по этой окраске мозг понимает, откуда звук — спереди, сбоку, сверху. Окраску измеряют для каждого направления, такой замер называется HRTF. HEAD выбирает, чей HRTF использовать: комната и колонки те же, меняются только уши.</p>
   <p lang="en">Sound reaches the eardrum already coloured by the head and the outer ear: from this colouring the brain tells where the sound comes from — front, side, above. The colouring is measured for every direction; such a measurement is called an HRTF. HEAD chooses whose HRTF to use: the room and speakers stay the same, only the ears change.</p>
   <ul lang="ru">
-    <li><b>FABIAN</b> — измеренный манекен головы с торсом (TU Berlin)<sup class="fn-ref"><a href="#fn-4" id="fr-4">4</a></sup>. Встроен в приложение, голова по умолчанию.</li>
-    <li><b>SADIE H3…H20</b> — замеры ушей 18 реальных людей, <b>KU100 (SADIE)</b> и <b>KEMAR (SADIE)</b> — студийные манекены (Йоркский университет)<sup class="fn-ref"><a href="#fn-5" id="fr-5">5</a></sup>. Загружаются отдельными пакетами (раздел 13.6).</li>
+    <li><b>FABIAN</b> — измеренный манекен головы с торсом (TU Berlin)<sup class="fn-ref"><a href="#fn-5" id="fr-5">5</a></sup>. Встроен в приложение, голова по умолчанию.</li>
+    <li><b>SADIE H3…H20</b> — замеры ушей 18 реальных людей, <b>KU100 (SADIE)</b> и <b>KEMAR (SADIE)</b> — студийные манекены (Йоркский университет)<sup class="fn-ref"><a href="#fn-6" id="fr-6">6</a></sup>. Загружаются отдельными пакетами (раздел 13.6).</li>
   </ul>
   <ul lang="en">
-    <li><b>FABIAN</b> — a measured head-and-torso dummy (TU Berlin)<sup class="fn-ref"><a href="#fn-4-en" id="fr-4-en">4</a></sup>. Built into the app, the default head.</li>
-    <li><b>SADIE H3…H20</b> — ear measurements of 18 real people, <b>KU100 (SADIE)</b> and <b>KEMAR (SADIE)</b> — studio dummy heads (University of York)<sup class="fn-ref"><a href="#fn-5-en" id="fr-5-en">5</a></sup>. Loaded as separate packs (section 13.6).</li>
+    <li><b>FABIAN</b> — a measured head-and-torso dummy (TU Berlin)<sup class="fn-ref"><a href="#fn-5-en" id="fr-5-en">5</a></sup>. Built into the app, the default head.</li>
+    <li><b>SADIE H3…H20</b> — ear measurements of 18 real people, <b>KU100 (SADIE)</b> and <b>KEMAR (SADIE)</b> — studio dummy heads (University of York)<sup class="fn-ref"><a href="#fn-6-en" id="fr-6-en">6</a></sup>. Loaded as separate packs (section 13.6).</li>
   </ul>
   <p lang="ru">Уши у всех разные, и чужие уши звучат по-разному: с одними колонки отчётливо стоят впереди, с другими звук «в голове» или тембр неестественный. Как выбрать свою: включите знакомый трек, поставьте Studio CR7 и переключайте HEAD. Ищите голову, с которой колонки уверенно стоят перед вами, а тембр похож на привычные мониторы. Выбор головы общий для всех пространств — переключая SPACE, вы меняете только комнату.</p>
   <p lang="en">Everyone's ears are different, and other people's ears sound different: with some, the speakers clearly stand in front; with others the sound is "inside the head" or the tone is unnatural. How to choose yours: play a familiar track, set Studio CR7 and switch HEAD. Look for the head with which the speakers stand firmly in front of you and the tone resembles the monitors you know. The head choice is shared by all spaces — switching SPACE changes only the room.</p>
 
   
-  <div lang="ru" class="notes sub"><div class="menu-head">Примечания</div><ol><li id="fn-4"><b><a href="#fr-4" style="color:inherit;text-decoration:none">4</a></b><span><a href="https://depositonce.tu-berlin.de/items/3b423df7-a764-4ce1-9065-4e6034bba759" target="_blank" rel="noopener">FABIAN HRTF database</a>, TU Berlin, лицензия CC BY 4.0.</span></li><li id="fn-5"><b><a href="#fr-5" style="color:inherit;text-decoration:none">5</a></b><span><a href="https://zenodo.org/records/12092466" target="_blank" rel="noopener">SADIE II</a>, Йоркский университет, лицензия Apache 2.0.</span></li></ol></div>
-  <div lang="en" class="notes sub"><div class="menu-head">Notes</div><ol><li id="fn-4-en"><b><a href="#fr-4-en" style="color:inherit;text-decoration:none">4</a></b><span><a href="https://depositonce.tu-berlin.de/items/3b423df7-a764-4ce1-9065-4e6034bba759" target="_blank" rel="noopener">FABIAN HRTF database</a>, TU Berlin, CC BY 4.0 licence.</span></li><li id="fn-5-en"><b><a href="#fr-5-en" style="color:inherit;text-decoration:none">5</a></b><span><a href="https://zenodo.org/records/12092466" target="_blank" rel="noopener">SADIE II</a>, University of York, Apache 2.0 licence.</span></li></ol></div>
+  <div lang="ru" class="notes sub"><div class="menu-head">Примечания</div><ol><li id="fn-5"><b><a href="#fr-5" style="color:inherit;text-decoration:none">5</a></b><span><a href="https://depositonce.tu-berlin.de/items/3b423df7-a764-4ce1-9065-4e6034bba759" target="_blank" rel="noopener">FABIAN HRTF database</a>, TU Berlin, лицензия CC BY 4.0.</span></li><li id="fn-6"><b><a href="#fr-6" style="color:inherit;text-decoration:none">6</a></b><span><a href="https://zenodo.org/records/12092466" target="_blank" rel="noopener">SADIE II</a>, Йоркский университет, лицензия Apache 2.0.</span></li></ol></div>
+  <div lang="en" class="notes sub"><div class="menu-head">Notes</div><ol><li id="fn-5-en"><b><a href="#fr-5-en" style="color:inherit;text-decoration:none">5</a></b><span><a href="https://depositonce.tu-berlin.de/items/3b423df7-a764-4ce1-9065-4e6034bba759" target="_blank" rel="noopener">FABIAN HRTF database</a>, TU Berlin, CC BY 4.0 licence.</span></li><li id="fn-6-en"><b><a href="#fr-6-en" style="color:inherit;text-decoration:none">6</a></b><span><a href="https://zenodo.org/records/12092466" target="_blank" rel="noopener">SADIE II</a>, University of York, Apache 2.0 licence.</span></li></ol></div>
 
   <h3 lang="ru"><span class="sn">13.6</span>Загрузка голов</h3>
   <h3 lang="en"><span class="sn">13.6</span>Loading heads</h3>
@@ -2956,8 +2995,9 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       s += tile(x, y, COL, bar, "var(--panel2)", '<div class="lbl" style="left:0;top:0;width:' + COL + "px;height:" + bar + 'px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:13px;font-weight:600;letter-spacing:1px;color:var(--rec)"><span style="position:static;display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--rec)"></span>MASTER</div>', "box-shadow:inset 0 0 0 1px var(--rec)");
       s += tile(x, winY, COL, winH, "var(--panel)", mixOverview(COL, winH, state));
       var mb = y + topH + GAP, mw = (COL - GAP) / 2, lit = { fill: "var(--text)", color: "var(--bg)" };
-      var view = state === "mixpan" ? "pan" : state === "mixfreq" ? "freq" : "level";
+      var view = state === "mixpan" ? "pan" : state === "mixfreq" ? "freq" : state === "mixmask" ? "mask" : "level";
       s += btn(x, mb, mw, PAIR, "LEVEL", view === "level" ? lit : {}); s += btn(x + mw + GAP, mb, mw, PAIR, "PAN", view === "pan" ? lit : {});
+      s += btn(x, mb + PAIR + GAP, mw, PAIR, "MASK", view === "mask" ? lit : {});
       s += btn(x + mw + GAP, mb + PAIR + GAP, mw, PAIR, "FREQ", view === "freq" ? lit : {});
       return s;
     }
@@ -2998,7 +3038,9 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
   }
 
   // Window at MIX: one bar per track in 16 slots (example data). LEVEL — level + peak hold; PAN — balance from the
-  // centre line (up — right); FREQ — frequency range 20 Hz…20 kHz, red line with a short gradient — strongest band.
+  // centre line (up — right); FREQ — frequency range 20 Hz…20 kHz, red line with a short gradient — strongest band;
+  // MASK — range 10 pt grey, yellow by conflict strength, 6 pt solid yellow where covered, culprit number above;
+  // LEVEL — peak pale (40 %), perceived loudness solid below it.
   function mixOverview(w, h, state) {
     var s = "", pad = 10, iw = w - 2 * pad, ih = h - 2 * pad, slot = iw / 16, g = "";
     var dim = 'font-size:9px;color:var(--dim);text-align:right';
@@ -3028,10 +3070,41 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       marks.forEach(function (m) { s += '<div class="lbl" style="right:' + pad + 'px;top:' + (pad + ih - m[0] * ih - 12) + 'px;' + dim + '">' + m[1] + "</div>"; });
       return s;
     }
+    if (state === "mixmask") {
+      var mk = [.233, .5663, .8997], nb = 30, bh2 = ih / nb, wide = Math.min(10, slot - 2);
+      mk.forEach(function (m) { g += '<rect x="0" y="' + (ih - m * ih) + '" width="' + iw + '" height="1" fill="var(--gridStrong)" opacity=".5"/>'; });
+      // [first band, last band, {band: strength}, [covered from, to], culprit number] — example: kick, bass, snare, hat,
+      // pad, lead, perc, keys.
+      var ms = [[2, 16, { 4: .6, 5: .6, 6: .5, 21: .45, 22: .5 }, null, 2], [3, 18, { 3: .7, 4: .7, 5: .6, 15: .3 }, [10, 14], 5],
+        [8, 24, { 11: .35, 12: .4, 13: .35 }, null, 5], [22, 29, {}, null, 0], [9, 22, { 10: .5, 11: .55, 12: .5, 13: .4, 14: .3 }, null, 8],
+        [14, 25, { 16: .5, 17: .6, 18: .45 }, null, 8], [15, 26, {}, null, 0], [12, 22, { 13: .4, 14: .45, 19: .3 }, [15, 18], 6]];
+      var labels = "";
+      for (t = 0; t < 8; t++) {
+        var cx = t * slot + slot / 2, m2 = ms[t], j = m2[0];
+        while (j <= m2[1]) {
+          var cov = m2[3] && j >= m2[3][0] && j <= m2[3][1], k = j;
+          while (k + 1 <= m2[1] && (m2[3] && k + 1 >= m2[3][0] && k + 1 <= m2[3][1]) === cov) k++;
+          var ty = ih - (k + 1) * bh2, hh = (k - j + 1) * bh2;
+          if (cov) {
+            g += '<rect x="' + (cx - 3) + '" y="' + ty + '" width="6" height="' + hh + '" rx="2" fill="var(--accent)"/>';
+          } else {
+            g += '<rect x="' + (cx - wide / 2) + '" y="' + ty + '" width="' + wide + '" height="' + hh + '" rx="3" fill="var(--meterTrack)"/>';
+            for (var q = j; q <= k; q++) if (m2[2][q]) g += '<rect x="' + (cx - wide / 2) + '" y="' + (ih - (q + 1) * bh2) + '" width="' + wide + '" height="' + bh2 + '" fill="var(--accent)" opacity="' + m2[2][q] + '"/>';
+          }
+          j = k + 1;
+        }
+        if (m2[4]) labels += '<div class="lbl" style="left:' + (pad + cx - 10) + "px;top:" + (pad + ih - (m2[1] + 1) * bh2 - 14) + 'px;width:20px;font-size:9px;color:var(--dim)">' + m2[4] + "</div>";
+      }
+      s += svg(iw, ih, g, pad, pad) + labels;
+      mk.forEach(function (m, i) { s += '<div class="lbl" style="right:' + pad + 'px;top:' + (pad + ih - m * ih - 12) + 'px;' + dim + '">' + ["100", "1k", "10k"][i] + "</div>"; });
+      return s;
+    }
     var lv = [.78, .66, .55, .7, .45, .6, .5, .4], hold = [.86, .74, .63, .76, .55, .68, .58, .5];
+    var loud = [.5, .58, .38, .45, .42, .52, .3, .34];
     for (t = 0; t < 8; t++) {
       bx = t * slot + (slot - 9) / 2;
-      g += '<rect x="' + bx + '" y="' + (ih * (1 - lv[t])) + '" width="9" height="' + (ih * lv[t]) + '" rx="3" fill="var(--accent)"/>';
+      g += '<rect x="' + bx + '" y="' + (ih * (1 - lv[t])) + '" width="9" height="' + (ih * lv[t]) + '" rx="3" fill="var(--accent)" opacity=".4"/>';
+      g += '<rect x="' + bx + '" y="' + (ih * (1 - loud[t])) + '" width="9" height="' + (ih * loud[t]) + '" rx="3" fill="var(--accent)"/>';
       g += '<rect x="' + bx + '" y="' + (ih * (1 - hold[t]) - 1) + '" width="9" height="2" fill="var(--text)"/>';
     }
     return svg(iw, ih, g, pad, pad);
@@ -4005,14 +4078,14 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     track: "TRACK — выбрана дорожка с сэмплом. Верхняя строка — сэмпл (у синта — ручки движка, раздел 5), вторая — огибающая и фильтр, третья — посылы на общие эффекты, нижняя — Pan, Velocity, Ratchet, Chance. SHIFT + тап по Filter меняет тип фильтра, SHIFT + тап по Rate — режим RATE. Громкость дорожки — в MIX или регулятором на измерителе.",
     fx: "FX — пока держите FX (кнопка белая). Строки: Reverb, Delay, Drive, Duck. Эффекты общие для всех дорожек; сколько звука дорожки идёт в каждый, задают посылы — третья строка режима TRACK. Duck Source выбирает дорожку, которая приглушает остальные.",
     mod: "MOD — пока держите MOD. Строки: LFO1, LFO2, LFO3 и огибающая ENV выбранной дорожки. Куда они действуют, назначается кнопками LFO1…ENV в левой колонке (раздел 9).",
-    mix: "MIX — громкости дорожек в dB, подписи — имена дорожек. Слева от ручки — метр дорожки, справа — кнопки M (mute), S (solo) и ● (готовность к записи стема). Ручки без кольца — дорожки, которых ещё нет: двойной тап по ней добавляет дорожку. Двойной тап по ручке дорожки — меню COPY, PASTE, DELETE TRACK, RENAME; удержание и перетаскивание меняет порядок дорожек. Над окном — ● MASTER (запись мастера); в окне слева — индикация дорожек LEVEL, PAN, FREQ (кнопки под ним); справа — вектороскоп с корреляцией и осциллоскоп после лимитера (раздел 3.3).",
+    mix: "MIX — громкости дорожек в dB, подписи — имена дорожек. Слева от ручки — метр дорожки, справа — кнопки M (mute), S (solo) и ● (готовность к записи стема). Ручки без кольца — дорожки, которых ещё нет: двойной тап по ней добавляет дорожку. Двойной тап по ручке дорожки — меню COPY, PASTE, DELETE TRACK, RENAME; удержание и перетаскивание меняет порядок дорожек. Над окном — ● MASTER (запись мастера); в окне слева — индикация дорожек LEVEL, PAN, MASK, FREQ (кнопки под ним); справа — вектороскоп с корреляцией и осциллоскоп после лимитера (раздел 3.3).",
     mst: "MST — цепочка мастера сверху вниз: сатуратор, компрессор, клиппер, лимитер (перед ними — EQ мастера). В окне слева — индикация COMP, CLIP, LIM, под ним — кнопки окон модулей; справа — скоп мастера и кнопки его точек съёма (раздел 12)."
   };
   var DESC_EN = {
     track: "TRACK — a track with a sample is selected. Top row — the sample (on a synth — the engine knobs, section 5), second — envelope and filter, third — sends to the shared effects, bottom — Pan, Velocity, Ratchet, Chance. SHIFT + tap on Filter changes the filter type, SHIFT + tap on Rate — the RATE mode. Track volume — in MIX or with the control on the meter.",
     fx: "FX — while you hold FX (the button is white). Rows: Reverb, Delay, Drive, Duck. The effects are shared by all tracks; how much of a track's sound goes into each is set by the sends — the third row of TRACK mode. Duck Source picks the track that ducks the others.",
     mod: "MOD — while you hold MOD. Rows: LFO1, LFO2, LFO3 and the ENV envelope of the selected track. Where they act is assigned with the LFO1…ENV buttons in the left column (section 9).",
-    mix: "MIX — track volumes in dB, labelled with track names. Left of a knob — the track meter, right — the M (mute), S (solo) and ● (arm stem recording) buttons. Knobs without a ring are tracks that do not exist yet: double tap one to add a track. Double tap a track's knob — the COPY, PASTE, DELETE TRACK, RENAME menu; hold and drag to reorder tracks. Above the window — ● MASTER (master recording); the window on the left shows track meters LEVEL, PAN, FREQ (buttons under it); on the right — the vectorscope with correlation and the oscilloscope after the limiter (section 3.3).",
+    mix: "MIX — track volumes in dB, labelled with track names. Left of a knob — the track meter, right — the M (mute), S (solo) and ● (arm stem recording) buttons. Knobs without a ring are tracks that do not exist yet: double tap one to add a track. Double tap a track's knob — the COPY, PASTE, DELETE TRACK, RENAME menu; hold and drag to reorder tracks. Above the window — ● MASTER (master recording); the window on the left shows track meters LEVEL, PAN, MASK, FREQ (buttons under it); on the right — the vectorscope with correlation and the oscilloscope after the limiter (section 3.3).",
     mst: "MST — the master chain top to bottom: saturator, compressor, clipper, limiter (preceded by the master EQ). The window on the left shows the COMP, CLIP, LIM display, with the module window buttons below it; on the right — the master scope and its tap point buttons (section 12)."
   };
   var curMode = "track";
