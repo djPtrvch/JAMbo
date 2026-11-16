@@ -418,11 +418,11 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
   <h3 lang="en"><span class="sn">1.6</span>Track row</h3>
   <figure>
     <div class="shot" data-mode="track" data-zone="tracks" data-state="mutesolo"></div>
-    <figcaption lang="ru">Выбрана дорожка 1 (жёлтый контур, крупное имя), дорожка 3 заглушена (mute), дорожка 5 — solo.</figcaption>
-    <figcaption lang="en">Track 1 is selected (yellow outline, larger name), track 3 is muted, track 5 is soloed.</figcaption>
+    <figcaption lang="ru">Выбрана дорожка 1 (жёлтый контур, крупное имя), дорожка 3 заглушена (mute), дорожка 5 — solo. Имена — для примера.</figcaption>
+    <figcaption lang="en">Track 1 is selected (yellow outline, larger name), track 3 is muted, track 5 is soloed. The names are examples.</figcaption>
   </figure>
-  <p lang="ru">Слева направо: MIX, дорожки 1…8 (до 16), MST. На дорожке только её имя, по умолчанию — номер.</p>
-  <p lang="en">Left to right: MIX, tracks 1…8 (up to 16), MST. A track shows only its name, by default its number.</p>
+  <p lang="ru">Слева направо: MIX, дорожки 1…8 (до 16), MST. На дорожке — её имя (по умолчанию — номер), а слева внизу мелко — номер дорожки по порядку. По этому номеру дорожку легко найти среди полос в окне MIX (раздел 3.3). После перестановки или удаления дорожек номера идут заново.</p>
+  <p lang="en">Left to right: MIX, tracks 1…8 (up to 16), MST. A track shows its name (by default its number) and, small in the bottom left corner, its position number. Use it to find the track among the bars in the MIX window (section 3.3). After tracks are moved or deleted, the numbers run in order again.</p>
   <ul lang="ru">
     <li><b>Тап</b> выбирает дорожку: ручки, окно звука и секвенсор показывают её.</li>
     <li><b>Свайп вниз</b> — mute: красная заливка, контур и буква M. <b>Свайп вверх</b> — solo: жёлтая заливка и буква S. Любой свайп выключает включённый mute или solo.</li>
@@ -659,8 +659,8 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
 
   <h4 lang="ru">Индикация дорожек: LEVEL, PAN, MASK, FREQ</h4>
   <h4 lang="en">Track meters: LEVEL, PAN, MASK, FREQ</h4>
-  <p lang="ru">В окне слева — по полосе на каждую дорожку, в порядке дорожек. Что показывают полосы, выбирают кнопки под окном (выбранная — белая). Заглушённая дорожка — серая.</p>
-  <p lang="en">The window on the left has one bar per track, in track order. The buttons under the window choose what the bars show (the selected one is white). A muted track is grey.</p>
+  <p lang="ru">В окне слева — по полосе на каждую дорожку, в порядке дорожек; под полосами — номера дорожек, те же, что слева внизу на кнопках дорожек. Что показывают полосы, выбирают кнопки под окном (выбранная — белая). Заглушённая дорожка — серая.</p>
+  <p lang="en">The window on the left has one bar per track, in track order; under the bars are the track numbers, the same as in the bottom left corner of the track buttons. The buttons under the window choose what the bars show (the selected one is white). A muted track is grey.</p>
   <div class="figs">
   <figure><div class="shot" data-mode="mix" data-zone="left" data-state="mixlevel" data-maxh="420"></div><figcaption lang="ru">LEVEL. Сплошное — громкость на слух, бледное выше — пик. У бочки (1) зазор большой, у пэда (5) почти нет (пример).</figcaption><figcaption lang="en">LEVEL. Solid — perceived loudness, pale above it — the peak. The kick (1) has a big gap, the pad (5) almost none (example).</figcaption></figure>
   <figure><div class="shot" data-mode="mix" data-zone="left" data-state="mixpan" data-maxh="420"></div><figcaption lang="ru">PAN. Дорожка 4 смещена вправо, 5 — влево (пример).</figcaption><figcaption lang="en">PAN. Track 4 leans right, 5 — left (example).</figcaption></figure>
@@ -1829,7 +1829,9 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     <li>Тап по названию слева (например, MASTER COMP ▾) — переключиться на окно другого модуля.</li>
     <li><b>PRESETS</b> — свои пресеты у каждого модуля, общие для всех проектов. <b>BYPASS</b> — выключить модуль. ✕ — закрыть окно.</li>
     <li>Двойной тап по дисплею — FREEZE: картинка замирает, чтобы её рассмотреть.</li>
-    <li>Справа в окнах COMP, CLIP и LIM — блок <b>IN | GR | OUT</b>, как в индикации MST.</li>
+    <li>Справа в окнах COMP, CLIP и LIM — блок <b>IN | GR | OUT</b>, как в индикации MST. Стержни идут в той же шкале, что дисплей слева: риска порога стоит на одной высоте с линией THRESHOLD или CEILING, а уровни и сжатие — с графиком.</li>
+    <li><b>RELEASE</b> у COMP и LIM: тап по полю — AUTO, ещё тап — обратно к прежнему значению.</li>
+    <li><b>UNITY</b> (CLIP и LIM) — честное сравнение: слышно настолько тише, насколько поднят INPUT, а измеритель справа, LUFS и запись показывают и пишут полный уровень. Работает, пока окно открыто (раздел 12.8).</li>
     <li><b>SHIFT</b> при MST: кнопки модулей показывают BYPASS — тап выключает и включает модуль, не открывая окно.</li>
   </ul>
   <ul lang="en">
@@ -1838,7 +1840,9 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     <li>Tap the title on the left (for example MASTER COMP ▾) to switch to another module's window.</li>
     <li><b>PRESETS</b> — each module has its own presets, shared by all projects. <b>BYPASS</b> — turn the module off. ✕ — close the window.</li>
     <li>Double tap the display — FREEZE: the picture freezes so you can examine it.</li>
-    <li>On the right of the COMP, CLIP and LIM windows — an <b>IN | GR | OUT</b> block, as in the MST display.</li>
+    <li>On the right of the COMP, CLIP and LIM windows — an <b>IN | GR | OUT</b> block, as in the MST display. The bars use the same scale as the display on the left: the threshold mark sits level with the THRESHOLD or CEILING line, and the levels and reduction line up with the graph.</li>
+    <li><b>RELEASE</b> on COMP and LIM: tap the field for AUTO, tap again to go back to the previous value.</li>
+    <li><b>UNITY</b> (CLIP and LIM) — a fair comparison: you hear the sound quieter by as much as INPUT adds, while the meter on the right, LUFS and recordings show and capture the full level. Works while the window is open (section 12.8).</li>
     <li><b>SHIFT</b> in MST: the module buttons show BYPASS — a tap turns the module off and on without opening the window.</li>
   </ul>
   <p lang="ru">Масштаб дисплеев — SETTINGS → APPEARANCE → MASTER FX DISPLAY SCALE. Сигналы на рисунках ниже — для примера.</p>
@@ -1884,8 +1888,8 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     <tbody>
       <tr><td>THRESHOLD</td><td>Порог: сигнал громче него сжимается. На дисплее — белый пунктир с числом.</td></tr>
       <tr><td>ATTACK</td><td>Как быстро компрессор срабатывает. Длиннее — удары проходят ярче.</td></tr>
-      <tr><td>RELEASE</td><td>Как быстро отпускает. В конце хода — AUTO, подстраивается под музыку.</td></tr>
-      <tr><td>MAKEUP</td><td>Подъём громкости после сжатия.</td></tr>
+      <tr><td>RELEASE</td><td>Как быстро отпускает. В конце хода — AUTO, подстраивается под музыку: короткие пики отпускает быстро, долгое сжатие — медленно. Тап по полю — AUTO и обратно.</td></tr>
+      <tr><td>MAKEUP</td><td>Подъём громкости после сжатия. Подбирайте на слух так, чтобы с BYPASS и без него громкость была одинаковой.</td></tr>
       <tr><td>RATIO</td><td>Сила сжатия, 1:1…20:1. Тап по полю — 2:1 → 4:1 → 10:1. Есть только в окне.</td></tr>
       <tr><td>KNEE</td><td>Мягкость входа в сжатие: 0 — резко, больше — плавно.</td></tr>
       <tr><td>MIX</td><td>Смесь сжатого и чистого звука (параллельная компрессия).</td></tr>
@@ -1897,8 +1901,8 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     <tbody>
       <tr><td>THRESHOLD</td><td>Threshold: signal louder than this is compressed. On the display — a white dashed line with a number.</td></tr>
       <tr><td>ATTACK</td><td>How fast the compressor reacts. Longer — hits come through brighter.</td></tr>
-      <tr><td>RELEASE</td><td>How fast it lets go. At the end of the range — AUTO, which adapts to the music.</td></tr>
-      <tr><td>MAKEUP</td><td>Level boost after compression.</td></tr>
+      <tr><td>RELEASE</td><td>How fast it lets go. At the end of the range — AUTO, which adapts to the music: short peaks are released quickly, long compression slowly. Tap the field for AUTO and back.</td></tr>
+      <tr><td>MAKEUP</td><td>Level boost after compression. Set it by ear so that the level is the same with and without BYPASS.</td></tr>
       <tr><td>RATIO</td><td>Amount of compression, 1:1…20:1. Tap the field — 2:1 → 4:1 → 10:1. Only in the window.</td></tr>
       <tr><td>KNEE</td><td>How softly compression sets in: 0 — abruptly, higher — smoothly.</td></tr>
       <tr><td>MIX</td><td>Blend of compressed and clean sound (parallel compression).</td></tr>
@@ -1920,7 +1924,8 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       <tr><td>INPUT</td><td>Подъём уровня перед клиппером, 0…+12 dB. Больше — сильнее срезаются пики. Громкость не компенсируется.</td></tr>
       <tr><td>CEILING</td><td>Уровень, выше которого сигнал срезается.</td></tr>
       <tr><td>SOFTNESS</td><td>0 % — жёсткий срез, 100 % — мягкий, плавный вход в срез.</td></tr>
-      <tr><td>BASS</td><td>Защита баса: всё ниже этой частоты проходит мимо клиппера без искажений. OFF — срезается весь диапазон.</td></tr>
+      <tr><td>BASS</td><td>Защита баса: всё ниже этой частоты проходит мимо клиппера без искажений. OFF — срезается весь диапазон. Включайте (60–120 Hz), только если бочка или бас хрипят: защищённые пики низов достаются лимитеру.</td></tr>
+      <tr><td>UNITY</td><td>Кнопка: слышно на INPUT dB тише — сравнение с BYPASS на равной громкости (раздел 12.8).</td></tr>
     </tbody>
   </table></div>
   <div lang="en" class="tbl"><table>
@@ -1929,7 +1934,8 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       <tr><td>INPUT</td><td>Level boost before the clipper, 0…+12 dB. More — peaks are clipped harder. The level is not compensated.</td></tr>
       <tr><td>CEILING</td><td>The level above which the signal is clipped.</td></tr>
       <tr><td>SOFTNESS</td><td>0 % — hard clipping, 100 % — soft, gradual clipping.</td></tr>
-      <tr><td>BASS</td><td>Bass protection: everything below this frequency bypasses the clipper without distortion. OFF — the full range is clipped.</td></tr>
+      <tr><td>BASS</td><td>Bass protection: everything below this frequency bypasses the clipper without distortion. OFF — the full range is clipped. Turn it on (60–120 Hz) only if the kick or bass starts to crackle: the protected low peaks are left to the limiter.</td></tr>
+      <tr><td>UNITY</td><td>Button: you hear the sound INPUT dB quieter — a comparison with BYPASS at equal loudness (section 12.8).</td></tr>
     </tbody>
   </table></div>
   <p lang="ru"><b>Как читать дисплей:</b> оранжевая заливка сверху — где и насколько срезано. 1–4 dB обычно незаметны на слух, больше — появляются искажения.</p>
@@ -1946,8 +1952,10 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     <tbody>
       <tr><td>INPUT</td><td>Подъём уровня перед лимитером, 0…+24 dB. Больше — громче и сильнее лимитирование.</td></tr>
       <tr><td>CEILING</td><td>Наибольший уровень выхода, с учётом межсэмпловых пиков. Обычно −1 dB. В окне линию CEILING можно тянуть пальцем.</td></tr>
-      <tr><td>LOOKAHEAD</td><td>Насколько заранее лимитер видит пик, 0,5–6 ms. Короче — удары живее, но выше риск искажений; длиннее — безопаснее и мягче.</td></tr>
-      <tr><td>RELEASE</td><td>Как быстро лимитер отпускает. В конце хода — AUTO.</td></tr>
+      <tr><td>LOOKAHEAD</td><td>Насколько заранее лимитер видит пик и за сколько плавно опускает громкость, 0,5–6 ms. Короче — удары острее, но быстрое изменение громкости даёт хруст на низах; длиннее — чище, атака чуть мягче. Это и задержка всего мастера: при игре на клавишах 3 ms незаметны, 6 ms чувствительный палец может уловить.</td></tr>
+      <tr><td>RELEASE</td><td>Как быстро лимитер отпускает. В конце хода — AUTO: короткие пики отпускает быстро, долгое лимитирование — медленно. Тап по полю — AUTO и обратно.</td></tr>
+      <tr><td>GUARD</td><td>Защита от перегрузки в джеме, OFF или 2–8 dB. Если лимитер в среднем убирает больше этого, GUARD плавно убавляет его вход, а когда стало тише — медленно возвращает, но не выше INPUT. Тихие места он не поднимает. Пока работает, на дисплее слева вверху — оранжевое «GUARD -x.x dB». Есть только в окне.</td></tr>
+      <tr><td>UNITY</td><td>Кнопка: слышно на INPUT dB тише (с учётом GUARD) — сравнение с BYPASS на равной громкости (раздел 12.8).</td></tr>
     </tbody>
   </table></div>
   <div lang="en" class="tbl"><table>
@@ -1955,14 +1963,52 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     <tbody>
       <tr><td>INPUT</td><td>Level boost before the limiter, 0…+24 dB. More — louder and heavier limiting.</td></tr>
       <tr><td>CEILING</td><td>The highest output level, including inter-sample peaks. Usually −1 dB. In the window the CEILING line can be dragged with a finger.</td></tr>
-      <tr><td>LOOKAHEAD</td><td>How far ahead the limiter sees a peak, 0.5–6 ms. Shorter — livelier hits but a higher risk of distortion; longer — safer and softer.</td></tr>
-      <tr><td>RELEASE</td><td>How fast the limiter lets go. At the end of the range — AUTO.</td></tr>
+      <tr><td>LOOKAHEAD</td><td>How far ahead the limiter sees a peak and how long it takes to bring the level down smoothly, 0.5–6 ms. Shorter — sharper hits, but the fast level change makes the low end crackle; longer — cleaner, with a slightly softer attack. It is also the delay of the whole master: when playing keys, 3 ms goes unnoticed, 6 ms a sensitive finger may feel.</td></tr>
+      <tr><td>RELEASE</td><td>How fast the limiter lets go. At the end of the range — AUTO: short peaks are released quickly, long limiting slowly. Tap the field for AUTO and back.</td></tr>
+      <tr><td>GUARD</td><td>Overload protection for jams, OFF or 2–8 dB. If the limiter removes more than this on average, GUARD smoothly turns its input down, and when things get quieter it slowly brings it back, never above INPUT. It does not raise quiet parts. While it works, an orange “GUARD -x.x dB” is shown in the top left of the display. Only in the window.</td></tr>
+      <tr><td>UNITY</td><td>Button: you hear the sound INPUT dB quieter (taking GUARD into account) — a comparison with BYPASS at equal loudness (section 12.8).</td></tr>
     </tbody>
   </table></div>
   <p lang="ru"><b>Как читать дисплей:</b> оранжевое сверху — сколько лимитер убирает; 1–4 dB — норма. Красная точка у верхнего края — выход превысил CEILING; такого быть не должно.</p>
   <p lang="en"><b>How to read the display:</b> orange at the top shows how much the limiter removes; 1–4 dB is normal. A red dot at the top edge means the output exceeded CEILING; that should not happen.</p>
   <p lang="ru">Громкость выхода всего мастера — регулятор на измерителе справа при MIX или MST.</p>
   <p lang="en">The output volume of the whole master is the control on the meter on the right in MIX or MST.</p>
+  <h3 lang="ru"><span class="sn">12.8</span>Практика: как настроить мастер</h3>
+  <h3 lang="en"><span class="sn">12.8</span>In practice: setting up the master</h3>
+  <p lang="ru">Каждый модуль делает свою работу: компрессор склеивает микс, клиппер срезает острые пики, лимитер даёт итоговую громкость. Делить нагрузку между ними чище, чем отдать всё одному. Значения ниже — отправная точка, решает слух.</p>
+  <p lang="en">Each module has its own job: the compressor glues the mix, the clipper shaves sharp peaks, the limiter sets the final loudness. Sharing the load between them is cleaner than giving it all to one. The values below are a starting point; your ears decide.</p>
+  <ol lang="ru">
+    <li>Начните с INPUT 0 у клиппера и лимитера, CEILING у обоих −1 dB.</li>
+    <li><b>COMP:</b> RATIO 2:1, KNEE около 6 dB, ATTACK около 30 ms (короче — компрессор съедает щелчок бочки), RELEASE AUTO, SC HPF около 90 Hz (иначе весь микс «приседает» под бочку; OFF — когда эта накачка нужна специально). Опускайте THRESHOLD, пока GR не станет 1–3 dB. MAKEUP — до той же громкости, что с BYPASS.</li>
+    <li><b>CLIP:</b> поднимайте INPUT, пока GR не станет 1–3 dB на ударах. SOFTNESS 20–40 %. BASS — OFF.</li>
+    <li><b>LIM:</b> поднимайте INPUT до нужной громкости по LUFS над регулятором громкости справа: для клуба около −8…−10, для стриминга около −14. GR в громких местах — 2–4 dB. LOOKAHEAD 3 ms, RELEASE AUTO.</li>
+    <li>Проверьте каждый модуль с <b>UNITY</b>: включите UNITY и переключайте BYPASS. Громкость одинаковая — слышна только цена обработки: искажения, потерянная атака, «дыхание». Как только с UNITY звук стал хуже, чем в BYPASS, — отступите на 1–2 dB.</li>
+  </ol>
+  <ol lang="en">
+    <li>Start with INPUT 0 on the clipper and limiter, CEILING −1 dB on both.</li>
+    <li><b>COMP:</b> RATIO 2:1, KNEE around 6 dB, ATTACK around 30 ms (shorter and the compressor eats the kick's click), RELEASE AUTO, SC HPF around 90 Hz (otherwise the whole mix ducks under the kick; OFF when you want that pumping on purpose). Lower THRESHOLD until GR reaches 1–3 dB. MAKEUP — to the same loudness as with BYPASS.</li>
+    <li><b>CLIP:</b> raise INPUT until GR reaches 1–3 dB on the hits. SOFTNESS 20–40 %. BASS — OFF.</li>
+    <li><b>LIM:</b> raise INPUT to the loudness you want, judging by the LUFS above the volume control on the right: around −8…−10 for clubs, around −14 for streaming. GR in loud parts — 2–4 dB. LOOKAHEAD 3 ms, RELEASE AUTO.</li>
+    <li>Check each module with <b>UNITY</b>: turn UNITY on and toggle BYPASS. The loudness is the same, so you hear only the cost of processing: distortion, lost attack, breathing. As soon as the sound with UNITY gets worse than in BYPASS, back off by 1–2 dB.</li>
+  </ol>
+  <h4 lang="ru">UNITY — для чего</h4>
+  <h4 lang="en">What UNITY is for</h4>
+  <p lang="ru">Громче всегда кажется лучше, поэтому сравнивать обработку надо на равной громкости. UNITY убирает из того, что вы слышите, ровно столько dB, сколько добавил INPUT. Измеритель справа, LUFS, запись мастера и стемы — без UNITY: слушаете на равной громкости и тут же видите, дотянули ли до цели. Громкости UNITY не добавляет и не убавляет в итоге — это только прослушивание; закрыли окно — UNITY выключился.</p>
+  <p lang="en">Louder always seems better, so processing should be compared at equal loudness. UNITY takes away from what you hear exactly as many dB as INPUT adds. The meter on the right, LUFS, master recording and stems ignore UNITY: you listen at equal loudness and still see whether you have reached your target. UNITY does not change the final loudness — it is for listening only; close the window and UNITY turns off.</p>
+  <h4 lang="ru">В джеме и при записи трека</h4>
+  <h4 lang="en">In a jam and when making a track</h4>
+  <ul lang="ru">
+    <li><b>Джем:</b> настройте мастер заранее и включите <b>GUARD</b> 3–4 dB — сколько бы дорожек вы ни добавили, лимитер не перегрузится, а брейкдауны останутся тихими. RELEASE везде AUTO — следить за мастером на ходу не нужно.</li>
+    <li><b>Трек:</b> GUARD — OFF, чтобы громкость была только в ваших руках; сравнивайте с UNITY и смотрите на LUFS.</li>
+    <li><b>Правило соотношения:</b> лимитер убирает больше 4–5 dB — добавьте клиппера; клиппер звучит грязно — верните часть работы лимитеру.</li>
+    <li><b>LOOKAHEAD:</b> 3 ms — обычно; 4–6 ms — если при сильном лимитировании хрустят низы; 1–2 ms — при мягком лимитировании (GR до 2 dB), когда нужна острая бочка.</li>
+  </ul>
+  <ul lang="en">
+    <li><b>Jam:</b> set the master up in advance and turn on <b>GUARD</b> at 3–4 dB — however many tracks you add, the limiter will not be overloaded, and breakdowns stay quiet. RELEASE AUTO everywhere — no need to watch the master on the fly.</li>
+    <li><b>Track:</b> GUARD — OFF, so the loudness is in your hands only; compare with UNITY and watch LUFS.</li>
+    <li><b>Rule of balance:</b> the limiter removes more than 4–5 dB — add more clipping; the clipper sounds dirty — give part of the work back to the limiter.</li>
+    <li><b>LOOKAHEAD:</b> 3 ms — usually; 4–6 ms — if the low end crackles under heavy limiting; 1–2 ms — with light limiting (GR up to 2 dB) when you want a sharp kick.</li>
+  </ul>
 </section>
 
 <!-- ============ 13 ============ -->
@@ -3041,7 +3087,13 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
   // centre line (up — right); FREQ — frequency range 20 Hz…20 kHz, red line with a short gradient — strongest band;
   // MASK — range 10 pt grey, yellow by conflict strength, 6 pt solid yellow where covered, culprit number above;
   // LEVEL — peak pale (40 %), perceived loudness solid below it.
+  // Окно MIX: полосы и под ними — номера дорожек (9 px, --dim) по центру мест.
   function mixOverview(w, h, state) {
+    var nh = 14, s = mixOverviewPlots(w, h - nh, state), slot = (w - 20) / 16;
+    for (var t = 0; t < 8; t++) s += '<div class="lbl" style="left:' + (10 + t * slot) + "px;top:" + (h - nh - 4) + "px;width:" + slot + 'px;font-size:9px;color:var(--dim)">' + (t + 1) + "</div>";
+    return s;
+  }
+  function mixOverviewPlots(w, h, state) {
     var s = "", pad = 10, iw = w - 2 * pad, ih = h - 2 * pad, slot = iw / 16, g = "";
     var dim = 'font-size:9px;color:var(--dim);text-align:right';
     if (state === "mixpan") {
@@ -3225,13 +3277,14 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       var ring = o.mute ? "var(--rec)" : o.sel ? "var(--accent)" : null;
       var inner = label(name, w, TRACK_H, "font-size:" + (o.big ? 15 : 12) + "px;font-weight:" + (o.sel ? 800 : 600) + ";letter-spacing:" + (o.big ? 0 : 0.7) + "px;color:var(--text)");
       if (o.morph) inner += '<div style="left:7px;top:6px;width:6px;height:6px;border-radius:50%;background:var(--accent)"></div>';
+      if (o.num) inner += '<div class="lbl" style="left:7px;bottom:3px;font-size:10px;font-weight:600;color:var(--dim)">' + o.num + "</div>";
       if (o.mute || o.solo) inner += '<div class="lbl" style="right:7px;top:3px;font-size:11px;font-weight:700;color:' + (o.mute ? "var(--rec)" : "var(--accent)") + '">' + (o.mute ? "M" : "S") + "</div>";
       return tile(x, y, w, TRACK_H, fill, inner, ring ? "box-shadow:inset 0 0 0 1px " + ring : "");
     }
     s += cell(PAD, STEP, "MIX", { sel: mode === "mix" });
     for (var t = 0; t < 8; t++) {
       var sel = (mode === "track" || mode === "fx" || mode === "mod") && t === 0;
-      s += cell(PAD + STEP + GAP + t * (tw + GAP), tw, String(t + 1), { sel: sel, big: sel, mute: state === "mutesolo" && t === 2, solo: state === "mutesolo" && t === 4, morph: state === "morph" && (t === 0 || t === 2) });
+      s += cell(PAD + STEP + GAP + t * (tw + GAP), tw, ["Kick", "Clap", "Closed Hat", "Open Hat", "Perc", "Bass", "Lead", "Pad"][t], { num: t + 1, sel: sel, big: sel, mute: state === "mutesolo" && t === 2, solo: state === "mutesolo" && t === 4, morph: state === "morph" && (t === 0 || t === 2) });
     }
     s += cell(PAD + WIDTH - STEP, STEP, "MST", { sel: mode === "mst" });
     // sequencer
@@ -3823,19 +3876,18 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     sat: { title: "SAT", lead: 2, f: [["DRIVE", "+6.0 dB"], ["TYPE", "TAPE"], ["TONE", "0.0 dB"], ["MIX", "100%"], ["FOCUS", "120 Hz"]] },
     comp: { title: "COMP", lead: 4, f: [["THRESHOLD", "-10.0 dB"], ["ATTACK", "30 ms"], ["RELEASE", "400 ms"], ["MAKEUP", "0.0 dB"], ["RATIO", "2.00:1"], ["KNEE", "6.0 dB"], ["MIX", "100%"], ["SC HPF", "90 Hz"]] },
     clip: { title: "CLIP", lead: 2, f: [["INPUT", "+3.0 dB"], ["CEILING", "-1.0 dB"], ["SOFTNESS", "30%"], ["BASS", "OFF"]] },
-    lim: { title: "LIM", lead: 2, f: [["INPUT", "+4.0 dB"], ["CEILING", "-1.0 dB"], ["LOOKAHEAD", "3.0 ms"], ["RELEASE", "150 ms"]] }
+    lim: { title: "LIM", lead: 2, f: [["INPUT", "+4.0 dB"], ["CEILING", "-1.0 dB"], ["LOOKAHEAD", "3.0 ms"], ["RELEASE", "AUTO"], ["GUARD", "OFF"]] }
   };
-  function dynBlock(name, lv) {
-    var bb = "", bh = 0;
-    return function (ph) {
-      bh = ph - 40;
-      for (var k = 0; k < 3; k++) {
-        var cx = 96 * (k + .5) / 3 - 4.5;
-        bb += box(cx, 16, 9, bh, "background:var(--meterTrack);border-radius:3px;overflow:hidden", k === 1 ? box(0, 0, 9, bh * lv[k], "background:var(--gr)") : box(0, bh * (1 - lv[k]), 9, bh * lv[k], "background:var(--accent)"));
-        bb += '<div class="lbl" style="left:' + (cx - 8) + "px;top:" + (16 + bh + 4) + 'px;width:25px;font-size:9px;color:var(--dim)">' + ["IN", "GR", "OUT"][k] + "</div>";
-      }
-      return bb + '<div class="lbl" style="left:0;top:2px;width:96px;font-size:10px;letter-spacing:1px;color:var(--dim)">' + name + "</div>";
-    };
+  // Блок IN | GR | OUT окна модуля: стержни от 0 dB дисплея (отступ T сверху) в его шкале, риска порога — на IN,
+  // подписи снизу; db — [IN, GR, OUT] в dB, Yd — шкала дисплея.
+  function dynBlock(db, thr, T, ph, Yd) {
+    var bb = "", bh = ph - T - 24;
+    for (var k = 0; k < 3; k++) {
+      var cx = 96 * (k + .5) / 3 - 4.5, y = Math.min(bh, Yd(k === 1 ? 0 : db[k]) - T), gh = Math.min(bh, Yd(-db[1]) - T);
+      bb += box(cx, T, 9, bh, "background:var(--meterTrack);border-radius:3px;overflow:hidden", k === 1 ? box(0, 0, 9, gh, "background:var(--gr)") : box(0, y, 9, bh - y, "background:var(--accent)"));
+      bb += '<div class="lbl" style="left:' + (cx - 8) + "px;top:" + (ph - 18) + 'px;width:25px;font-size:9px;color:var(--dim)">' + ["IN", "GR", "OUT"][k] + "</div>";
+    }
+    return bb + box(96 / 6 - 10.5, Math.round(Yd(thr)) - 1, 21, 2, "background:var(--text)");
   }
   function masterWin(mod) {
     var a = centerArea(), bar = U.bar, g = GAP, s = "", M = MW[mod];
@@ -3844,14 +3896,17 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     s += '<div class="lbl" style="left:' + a.x + "px;top:" + (a.y + bar / 2 - 13) + 'px;width:52px;font-size:11px;letter-spacing:.9px;color:var(--dim)">MASTER\n' + M.title + ' ▾</div>';
     for (var i = 0; i < M.lead; i++) s += fieldTile(a.x + x0 + i * (lw + g), a.y, lw, bar, M.f[i][0], M.f[i][1]);
     if (mod !== "lim") s += box(a.x + transfer - 1, a.y + 8, 1, bar - 16, "background:var(--line)");
-    var rest = M.f.slice(M.lead), rx = a.x + transfer + g, right = a.x + a.w - bar - 2 * 100 - 3 * g, rw = (right - rx - rest.length * g) / rest.length;
+    // У CLIP и LIM — ещё UNITY между PRESETS и BYPASS.
+    var tools = mod === "clip" || mod === "lim" ? ["PRESETS", "UNITY", "BYPASS"] : ["PRESETS", "BYPASS"];
+    var rest = M.f.slice(M.lead), rx = a.x + transfer + g, right = a.x + a.w - bar - tools.length * (100 + g) - g, rw = (right - rx - rest.length * g) / rest.length;
     rest.forEach(function (f, i) { s += fieldTile(rx + i * (rw + g), a.y, rw, bar, f[0], f[1]); });
-    s += eqToolTile(right + g, a.y, 100, bar, "PRESETS") + eqToolTile(right + 2 * g + 100, a.y, 100, bar, "BYPASS");
+    tools.forEach(function (t, i) { s += eqToolTile(right + g + i * (100 + g), a.y, 100, bar, t); });
     s += tool(a.x + a.w - bar, a.y, bar, bar, "✕");
     var py = a.y + bar + g, ph = high;
     if (mod === "sat") return s + satDisplay(a.x, py, a.w, ph, transfer);
-    var pw = a.w - 96 - g, p = "";
-    function Yd(db) { return Math.min(ph, Math.max(0, -db / 48 * ph)); }
+    // Отступ сверху T: 0 dB — ниже кромки, на одной высоте со стержнями справа.
+    var pw = a.w - 96 - g, p = "", T = 12;
+    function Yd(db) { return T + Math.min(ph - T, Math.max(0, -db / 48 * (ph - T))); }
     for (var d = 0; d >= -48; d -= 6) p += '<path d="M0 ' + (Math.round(Yd(d)) + .5) + " H" + pw + '" stroke="var(--gridStrong)" stroke-opacity="' + (d % 12 === 0 ? .6 : .3) + '"/>';
     var n = 240, inl = "", outl = "", grl = "", thr = mod === "comp" ? -10 : -1, gainIn = mod === "clip" ? 3 : mod === "lim" ? 4 : 0;
     for (i = 0; i <= n; i++) {
@@ -3861,13 +3916,13 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       else { gr = Math.max(0, inp - thr); out = Math.min(inp, thr); }
       inl += (i ? " L" : "M") + x.toFixed(1) + " " + Yd(inp).toFixed(1);
       outl += (i ? " L" : "M") + x.toFixed(1) + " " + Yd(out).toFixed(1);
-      grl += (i ? " L" : "M") + x.toFixed(1) + " " + (gr / (mod === "comp" ? 18 : 12) * ph * 0.375).toFixed(1);
+      grl += (i ? " L" : "M") + x.toFixed(1) + " " + Yd(-gr).toFixed(1);
     }
     var outCol = mod === "comp" ? "var(--accent)" : mod === "clip" ? "var(--gr)" : "var(--rec)", outFill = mod === "lim" ? .2 : .15;
     p += '<path d="' + inl + " L" + pw + " " + ph + " L0 " + ph + ' Z" fill="var(--dim)" fill-opacity=".35"/><path d="' + inl + '" fill="none" stroke="var(--dim)"/>';
     p += '<path d="' + outl + " L" + pw + " " + ph + " L0 " + ph + ' Z" fill="' + outCol + '" fill-opacity="' + outFill + '"/><path d="' + outl + '" fill="none" stroke="' + outCol + '" stroke-width="1.5"/>';
     var grFill = mod === "comp" ? .18 : mod === "clip" ? .25 : 1;
-    p += '<path d="' + grl + " L" + pw + " 0 L0 0 Z" + '" fill="var(--gr)" fill-opacity="' + grFill + '"/>';
+    p += '<path d="' + grl + " L" + pw + " " + T + " L0 " + T + " Z" + '" fill="var(--gr)" fill-opacity="' + grFill + '"/>';
     if (mod === "comp") p += '<path d="' + grl + '" fill="none" stroke="var(--gr)" stroke-width="1.5"/>';
     var ty = Yd(thr);
     if (mod === "comp") p += '<path d="M0 ' + ty + " H" + pw + '" stroke="var(--text)" stroke-dasharray="4 3"/>';
@@ -3882,13 +3937,13 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
         else { var dIn = inDb + 3, k2 = 3 * 0.3; o = dIn < thr - k2 ? dIn : dIn > thr + k2 ? thr : dIn - Math.pow(dIn - thr + k2, 2) / (4 * k2); }
         tc += (i ? " L" : "M") + (tw * i / 80).toFixed(1) + " " + Yd(o).toFixed(1);
       }
-      tr += '<path d="M0 ' + ph + " L" + tw + ' 0" stroke="var(--gridStrong)" stroke-dasharray="3 3"/><path d="' + tc + '" fill="none" stroke="var(--text)" stroke-width="2"/>';
+      tr += '<path d="M0 ' + ph + " L" + tw + " " + T + '" stroke="var(--gridStrong)" stroke-dasharray="3 3"/><path d="' + tc + '" fill="none" stroke="var(--text)" stroke-width="2"/>';
       tr += '<text x="' + (tw - 6) + '" y="' + (ph - 4) + '" text-anchor="end" font-size="9" letter-spacing="1" fill="var(--dim)">TRANSFER</text>';
       p += tr;
     }
     s += box(a.x, py, pw, ph, "background:var(--panel);border-radius:10px;overflow:hidden", svg(pw, ph, p));
-    var lv = mod === "comp" ? [.62, .2, .5] : mod === "clip" ? [.72, .15, .68] : [.78, .25, .7];
-    s += box(a.x + pw + g, py, 96, ph, "background:var(--panel);border-radius:10px", dynBlock(M.title, lv)(ph));
+    var db = mod === "comp" ? [-8, 2, -9] : mod === "clip" ? [-0.5, 2.5, -1] : [0, 3, -1];
+    s += box(a.x + pw + g, py, 96, ph, "background:var(--panel);border-radius:10px", dynBlock(db, thr, T, ph, Yd));
     return s;
   }
   function satDisplay(x, y, w, h, tw) {
