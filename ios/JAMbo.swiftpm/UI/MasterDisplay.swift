@@ -245,8 +245,8 @@ enum MasterDraw {
 }
 
 /// Блок индикации модуля справа в окне (LevelBars — тот же компонент и данные, что слева при MST; 16.11): без
-/// названия и подписей IN, GR, OUT, стержни на всю высоту дисплея и в его шкале (SCALE) — риска порога, уровни и GR
-/// на одном уровне с линией и заливками дисплея слева.
+/// названия, подписи IN, GR, OUT снизу; стержни от верхнего края дисплея в его шкале (SCALE, dB на пиксель — как у
+/// дисплея) — риска порога, уровни и GR на одном уровне с линией и заливками дисплея слева.
 struct DynBlock: View {
     let model: AppModel
     let module: Int
@@ -277,7 +277,7 @@ struct DynBlock: View {
             mark = Float(model.masterValue(cols[3][1]))
         }
         MasterIndicator.draw(ctx, size, s, bypass: bypass, grMax: sc, mark: mark, now: now, theme: theme, scale: sc,
-                             labels: false)
+                             alignTop: true)
     }
 }
 

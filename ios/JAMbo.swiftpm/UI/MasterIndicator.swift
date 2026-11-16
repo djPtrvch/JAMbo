@@ -102,17 +102,20 @@ struct MasterIndicator: View {
     static let barW: CGFloat = 9
     static let labelH: CGFloat = 14
 
-    /// scale — шкала IN и OUT (dB вниз от 0); labels — подписи IN, GR, OUT снизу (в окне модуля их нет: стержни на
-    /// всю высоту, на одном уровне с дисплеем слева).
+    /// scale — шкала IN, OUT и GR (dB вниз от 0); alignTop — шкала дисплея окна модуля (16.11): dB на пиксель — как
+    /// у дисплея той же высоты слева, 0 dB — у верхнего края (уровни, риска порога и GR — на одной высоте с дисплеем),
+    /// стержни кончаются над подписями IN, GR, OUT.
     static func draw(_ ctx: GraphicsContext, _ size: CGSize, _ s: DynBarsState, bypass: Bool, grMax: Float,
-                     mark: Float, now: Double, theme: Theme, scale: Float = 48, labels: Bool = true) {
-        let barH: CGFloat = labels ? size.height - labelH : size.height
+                     mark: Float, now: Double, theme: Theme, scale: Float = 48, alignTop: Bool = false) {
+        let barH: CGFloat = size.height - labelH
         if barH <= 0 { return }
+        let span: CGFloat = alignTop ? size.height : barH
         let cw: CGFloat = size.width
         let cx: [CGFloat] = [cw / 6, cw / 2, 5 * cw / 6]
         let off: Color = theme.meterTrack.mix(with: .white, by: 0.2)
-        func frac(_ db: Float) -> CGFloat {
-            return CGFloat(min(1, max(0, (db + scale) / scale)))
+        let sc: CGFloat = CGFloat(scale)
+        func yOf(_ db: Float) -> CGFloat {
+            return min(barH, max(0, CGFloat(-db) / sc * span))
         }
         func levelColor(_ db: Float, _ until: Double) -> Color {
             if bypass { return off }
@@ -129,18 +132,17 @@ struct MasterIndicator: View {
                 c.fill(Path(CGRect(x: x, y: top, width: barW, height: h)), with: .color(fill))
             }
         }
-        let fIn: CGFloat = frac(s.inDb)
-        let fOut: CGFloat = frac(s.outDb)
-        bar(0, levelColor(s.inDb, s.inOverUntil), barH * (1 - fIn), barH * fIn)
-        bar(2, levelColor(s.outDb, s.outOverUntil), barH * (1 - fOut), barH * fOut)
-        let g: CGFloat = CGFloat(min(1, s.gr / grMax))
-        bar(1, bypass ? off : theme.gr, 0, barH * g)
+        let yIn: CGFloat = s.inDb <= -scale ? barH : yOf(s.inDb)
+        let yOut: CGFloat = s.outDb <= -scale ? barH : yOf(s.outDb)
+        bar(0, levelColor(s.inDb, s.inOverUntil), yIn, barH - yIn)
+        bar(2, levelColor(s.outDb, s.outOverUntil), yOut, barH - yOut)
+        let g: CGFloat = min(barH, CGFloat(max(0, s.gr) / grMax) * span)
+        bar(1, bypass ? off : theme.gr, 0, g)
         // Риска порога — только на IN.
-        let ry: CGFloat = (barH * (1 - frac(mark)) - 1).rounded()
+        let ry: CGFloat = (yOf(mark) - 1).rounded()
         let x0: CGFloat = (cx[0] - barW / 2).rounded()
         let risk = CGRect(x: x0 - 6, y: max(0, min(barH - 2, ry)), width: barW + 12, height: 2)
         ctx.fill(Path(risk), with: .color(theme.meterThr))
-        if !labels { return }
         let names: [String] = ["IN", "GR", "OUT"]
         for k in 0..<3 {
             let t = ctx.resolve(Text(names[k]).font(.system(size: 9)).foregroundColor(theme.dim))
