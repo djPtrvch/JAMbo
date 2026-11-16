@@ -157,11 +157,16 @@ enum MasterDraw {
         }
         peaks.sort { $0.v > $1.v }
         for p in peaks.prefix(6) {
+            // Слева от пика (16.11): правый край подписи — за 6 px до пика, не на волне; у левого края — справа.
             let y: CGFloat = min(size.height - 12, CGFloat(p.v) / scale * size.height + 3)
-            let px: CGFloat = min(size.width - 14, max(14, CGFloat(p.x)))
+            let px: CGFloat = CGFloat(p.x)
             let s: String = String(format: "-%.1f", p.v)
             let t = ctx.resolve(Text(s).font(.system(size: 10)).foregroundColor(theme.gr))
-            ctx.draw(t, at: CGPoint(x: px, y: y), anchor: .top)
+            if px < 34 {
+                ctx.draw(t, at: CGPoint(x: px + 6, y: y), anchor: .topLeading)
+            } else {
+                ctx.draw(t, at: CGPoint(x: px - 6, y: y), anchor: .topTrailing)
+            }
         }
     }
 

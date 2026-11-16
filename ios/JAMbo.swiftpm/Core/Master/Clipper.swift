@@ -1,8 +1,8 @@
 import Foundation
 
 // Клиппер мастера — перенос public/clipper-worklet.js (решение пользователя S5a: без MIX, UNITY, AUDIT и снимков WAVE —
-// MIX 100 %, как по умолчанию в вебе, звук тот же; UNITY вернули 16.11 — −DRIVE dB на обработанной ветке, OUT
-// индикации — реальный). Стерео, каналы независимо.
+// MIX 100 %, как по умолчанию в вебе, звук тот же; UNITY с 16.11 — в MasterChain.applyUnity, после метров).
+// Стерео, каналы независимо.
 // Вход · DRIVE → кроссовер LR4 на BASS (0 — OFF, без деления; переход за 20 мс) → ВЧ: 4× оверсэмплинг (oversampler.js)
 // → мягкое колено (SOFTNESS) по CEILING с антипроизводной и коррекцией [−1/8, 5/4, −1/8] → децимация;
 // НЧ — без обработки, с задержкой 32 → сумма. BYPASS — кроссфейд 10 мс с входом той же задержки.
@@ -98,8 +98,6 @@ public final class MasterClipper {
     var freq: Double = 100
     var split: Double = 1
     var wet: Double = 1
-    /// UNITY: усиление обработанной ветки (1 — выключен), сглаживается за 20 мс.
-    var unityG: Double = 1
     var engaged = false
     var grN = 0
     var winIn: Double = 0
@@ -255,10 +253,9 @@ public final class MasterClipper {
     /// bass 20…300 Гц (0 — OFF).
     public func process(inL: UnsafePointer<Float>, inR: UnsafePointer<Float>, outL: UnsafeMutablePointer<Float>,
                         outR: UnsafeMutablePointer<Float>, frames n: Int, drive: Double, ceiling: Double,
-                        softness: Double, bass: Double, bypass: Double, unity: Bool = false) {
+                        softness: Double, bass: Double, bypass: Double) {
         let ks: Double = kSmooth
         let driveT: Double = pow(10, drive / 20)
-        let unityT: Double = unity ? 1 / driveT : 1
         let ceilT: Double = pow(10, ceiling / 20)
         let kneeT: Double = 1 - 0.6 * (softness / 100)
         // bypass — доля глушения 0…1 (переход MIX ведёт её плавно; кнопка — 0 или 1).
@@ -279,7 +276,6 @@ public final class MasterClipper {
         let R = MasterClipper.ring
         // Состояние — в локальных на блок (в отладочной сборке каждое обращение к свойству — проверка доступа; S14b).
         var dl: Double = driveLin, cl: Double = ceil, kn: Double = knee, wt: Double = wet, spl: Double = split
-        var uv: Double = unityG
         var mI: Double = mIn, mO: Double = mOut, wI: Double = winIn, wO: Double = winOut, gN: Int = grN
         let wStep: Double = wetStep, sStep: Double = splitStep, gWin: Int = grWin
         var i = 0
@@ -296,7 +292,6 @@ public final class MasterClipper {
             dl = driveT + (dl - driveT) * ks
             cl = ceilT + (cl - ceilT) * ks
             kn = kneeT + (kn - kneeT) * ks
-            uv = unityT + (uv - unityT) * ks
             if wt < wetT { wt = Swift.min(wetT, wt + wStep) } else if wt > wetT { wt = Swift.max(wetT, wt - wStep) }
             if spl < splitT { spl = Swift.min(splitT, spl + sStep) } else if spl > splitT {
                 spl = Swift.max(splitT, spl - sStep)
@@ -330,9 +325,7 @@ public final class MasterClipper {
                 let w: Double = lfOut + yh
                 // В bypass клиппер отключён целиком (и DRIVE): сухой — исходный сигнал с той же задержкой.
                 let y: Double = wt * w + (1 - wt) * dryOut
-                // UNITY — только на обработанной ветке; индикация OUT — по y (реальный выход).
-                let yu: Double = wt * w * uv + (1 - wt) * dryOut
-                if k == 0 { outL[i] = Float(yu) } else { outR[i] = Float(yu) }
+                if k == 0 { outL[i] = Float(y) } else { outR[i] = Float(y) }
                 let al: Double = lin < 0 ? -lin : lin
                 let aw: Double = w < 0 ? -w : w
                 let ay: Double = y < 0 ? -y : y
@@ -362,7 +355,6 @@ public final class MasterClipper {
         knee = kn
         wet = wt
         split = spl
-        unityG = uv
         mIn = mI
         mOut = mO
         winIn = wI

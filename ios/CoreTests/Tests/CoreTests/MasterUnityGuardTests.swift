@@ -21,51 +21,39 @@ final class MasterUnityGuardTests: XCTestCase {
         return Double(m)
     }
 
-    /// Лимитер: UNITY при INPUT +12 — выход на 12 dB тише, OUT индикации и GR — те же; без UNITY — бит в бит прежний.
-    func testLimiterUnity() {
-        let a = MasterLimiter(sampleRate: sr), b = MasterLimiter(sampleRate: sr)
+    /// Цепочка с синусом 0,5: выход до UNITY (метры) и после (слышимый звук); unity — MasterScope.clip или lim + 1.
+    private func runChain(_ set: (UnsafeMutablePointer<Double>) -> Void, unity: Int) -> (meter: Double, heard: Double) {
+        let chain = MasterChain(sampleRate: sr)
+        chain.unity.store(unity)
         let l = UnsafeMutablePointer<Float>.allocate(capacity: n), r = UnsafeMutablePointer<Float>.allocate(capacity: n)
-        let l2 = UnsafeMutablePointer<Float>.allocate(capacity: n), r2 = UnsafeMutablePointer<Float>.allocate(capacity: n)
-        defer { [l, r, l2, r2].forEach { $0.deallocate() } }
-        var pa: Double = 0, pb: Double = 0
+        let p = UnsafeMutablePointer<Double>.allocate(capacity: MasterChain.Index.count)
+        defer { l.deallocate(); r.deallocate(); p.deallocate() }
+        for (k, v) in MasterChain.defaults.enumerated() { p[k] = v }
+        set(p)
+        var meter: Double = 0, heard: Double = 0
         for k in 0..<400 {
             fill(l, r, k, 0.5)
-            fill(l2, r2, k, 0.5)
-            a.process(inL: l, inR: r, outL: l, outR: r, frames: n, gain: 12, ceiling: -1, lookahead: 3, rel: 150,
-                      auto: false, bypass: 0)
-            b.process(inL: l2, inR: r2, outL: l2, outR: r2, frames: n, gain: 12, ceiling: -1, lookahead: 3, rel: 150,
-                      auto: false, bypass: 0, unity: true)
-            if k > 100 {
-                pa = max(pa, peak(l))
-                pb = max(pb, peak(l2))
-            }
+            chain.process(left: l, right: r, frames: n, params: p)
+            if k > 100 { meter = max(meter, peak(l)) }
+            chain.applyUnity(l, r, n)
+            if k > 100 { heard = max(heard, peak(l)) }
         }
-        XCTAssertEqual(20 * log10(pb / pa), -12, accuracy: 0.01)
-        XCTAssertEqual(a.frameGr, b.frameGr, accuracy: 1e-9)
-        XCTAssertEqual(a.frameOut, b.frameOut, accuracy: 1e-9)
+        return (meter, heard)
     }
 
-    /// Клиппер: UNITY при INPUT +6 — выход на 6 dB тише, OUT индикации тот же.
-    func testClipperUnity() {
-        let a = MasterClipper(sampleRate: sr), b = MasterClipper(sampleRate: sr)
-        let l = UnsafeMutablePointer<Float>.allocate(capacity: n), r = UnsafeMutablePointer<Float>.allocate(capacity: n)
-        let l2 = UnsafeMutablePointer<Float>.allocate(capacity: n), r2 = UnsafeMutablePointer<Float>.allocate(capacity: n)
-        defer { [l, r, l2, r2].forEach { $0.deallocate() } }
-        var pa: Double = 0, pb: Double = 0
-        for k in 0..<300 {
-            fill(l, r, k, 0.5)
-            fill(l2, r2, k, 0.5)
-            a.process(inL: l, inR: r, outL: l, outR: r, frames: n, drive: 6, ceiling: -1, softness: 30, bass: 0,
-                      bypass: 0)
-            b.process(inL: l2, inR: r2, outL: l2, outR: r2, frames: n, drive: 6, ceiling: -1, softness: 30, bass: 0,
-                      bypass: 0, unity: true)
-            if k > 100 {
-                pa = max(pa, peak(l))
-                pb = max(pb, peak(l2))
-            }
-        }
-        XCTAssertEqual(20 * log10(pb / pa), -6, accuracy: 0.01)
-        XCTAssertEqual(a.frameOut, b.frameOut, accuracy: 1e-9)
+    /// UNITY (как Unity Gain в Pro-L 2): слышимый звук −INPUT dB, уровень для метров — прежний; без UNITY — без
+    /// изменений; в BYPASS модуля — 0 dB.
+    func testUnityAfterMeters() {
+        let I = MasterChain.Index.self
+        let lim = runChain({ $0[I.limGain] = 12 }, unity: MasterScope.lim + 1)
+        XCTAssertEqual(20 * log10(lim.heard / lim.meter), -12, accuracy: 0.01)
+        let clip = runChain({ $0[I.clipDrive] = 6 }, unity: MasterScope.clip + 1)
+        XCTAssertEqual(20 * log10(clip.heard / clip.meter), -6, accuracy: 0.01)
+        let off = runChain({ $0[I.limGain] = 12 }, unity: 0)
+        XCTAssertEqual(off.heard, off.meter)
+        XCTAssertEqual(lim.meter, off.meter, accuracy: 1e-9)
+        let byp = runChain({ $0[I.limGain] = 12; $0[I.limBypass] = 1 }, unity: MasterScope.lim + 1)
+        XCTAssertEqual(byp.heard, byp.meter)
     }
 
     /// GUARD 3 dB: синус 0 dBFS при INPUT +12 (GR ~13 dB) — вход убавляется, GR приходит к пределу; затем тихо

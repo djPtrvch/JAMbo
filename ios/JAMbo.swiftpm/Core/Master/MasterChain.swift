@@ -84,6 +84,8 @@ public final class MasterChain {
     public let clipTele = DynTele()
     public let limTele = DynTele()
     /// UNITY окна (16.11): MasterScope.clip или lim + 1, 0 — выключен (ставит UI, только пока окно открыто).
+    /// Как Unity Gain в Pro-L 2: звук −INPUT dB (у LIM — с учётом GUARD) в самом конце, после метров, LUFS, скопа и
+    /// стемов (applyUnity) — метры и запись показывают и пишут уровень без UNITY; в BYPASS модуля — 0 dB.
     public let unity = AtomicCounter()
     /// GUARD: на сколько dB сейчас убавлен вход лимитера (для экрана).
     public let limGuardCut = AtomicFloat(0)
@@ -102,9 +104,14 @@ public final class MasterChain {
     /// дорожки в SamplerMix).
     private var outCur: Float = -1
     private let outK: Float
+    /// UNITY: цель (ставит process) и текущее усиление (сглаживание 20 мс).
+    private var unityTarget: Float = 1
+    private var unityCur: Float = 1
+    private let unityK: Float
 
     public init(sampleRate: Double) {
         outK = Float(1 - exp(-1 / (0.01 * sampleRate)))
+        unityK = Float(1 - exp(-1 / (0.02 * sampleRate)))
         sat = MasterSaturator(sampleRate: sampleRate)
         glue = MasterGlue(sampleRate: sampleRate)
         clip = MasterClipper(sampleRate: sampleRate)
@@ -139,17 +146,39 @@ public final class MasterChain {
         scope.tap(MasterScope.comp, sm, left, right, n)
         clip.process(inL: left, inR: right, outL: left, outR: right, frames: n, drive: p[I.clipDrive],
                      ceiling: p[I.clipCeiling], softness: p[I.clipSoftness], bass: p[I.clipBass],
-                     bypass: p[I.clipBypass], unity: un == MasterScope.clip + 1)
+                     bypass: p[I.clipBypass])
         scope.tap(MasterScope.clip, sm, left, right, n)
         lim.process(inL: left, inR: right, outL: left, outR: right, frames: n, gain: p[I.limGain],
                     ceiling: p[I.limCeiling], lookahead: p[I.limLookahead], rel: p[I.limRel], auto: p[I.limAuto] >= 0.5,
-                    bypass: p[I.limBypass], unity: un == MasterScope.lim + 1, guardDb: p[I.limGuard])
+                    bypass: p[I.limBypass], guardDb: p[I.limGuard])
         limGuardCut.store(Float(lim.guardCut))
+        var ut: Double = 1
+        if un == MasterScope.clip + 1 && p[I.clipBypass] < 0.5 { ut = pow(10, -p[I.clipDrive] / 20) }
+        if un == MasterScope.lim + 1 && p[I.limBypass] < 0.5 { ut = pow(10, -(p[I.limGain] - lim.guardCut) / 20) }
+        unityTarget = Float(ut)
         scope.tap(MasterScope.lim, sm, left, right, n)
         applyOut(left, right, n, Float(p[I.outGain]))
         compTele.push(frames: glue.frames, inPeak: glue.frameIn, gr: glue.frameGr, outPeak: glue.frameOut, det: glue.frameDet)
         clipTele.push(frames: clip.frames, inPeak: clip.frameIn, gr: clip.frameGr, outPeak: clip.frameOut, det: -240)
         limTele.push(frames: lim.frames, inPeak: lim.frameIn, gr: lim.frameGr, outPeak: lim.frameOut, det: -240)
+    }
+
+    /// UNITY (16.11): после метров и записи, до слышимого выхода (зовёт AudioCore); на 1 — без умножения.
+    public func applyUnity(_ l: UnsafeMutablePointer<Float>, _ r: UnsafeMutablePointer<Float>, _ n: Int) {
+        let target: Float = unityTarget
+        var g: Float = unityCur
+        if g == target && g == 1 { return }
+        let k: Float = unityK
+        var i = 0
+        while i < n {
+            g += (target - g) * k
+            l[i] *= g
+            r[i] *= g
+            i += 1
+        }
+        let rest: Float = target - g
+        if rest < 1e-6 && rest > -1e-6 { g = target }
+        unityCur = g
     }
 
     /// Громкость выхода (после лимитера, до гониометра и измерителя): плавно к цели; на цели и при 1 — без умножения.

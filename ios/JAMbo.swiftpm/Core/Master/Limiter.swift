@@ -1,8 +1,8 @@
 import Foundation
 
 // Лимитер мастера — перенос public/limiter-worklet.js (решение пользователя S5a: без LINK, UNITY, AUDIT — LINK 100 %,
-// как по умолчанию в вебе: один gain computer по максимуму L и R, звук тот же; UNITY вернули 16.11). Стерео.
-// UNITY: −INPUT dB (с учётом GUARD) на обработанной ветке после страховочного клипа; OUT индикации — реальный.
+// как по умолчанию в вебе: один gain computer по максимуму L и R, звук тот же). Стерео. UNITY (16.11) —
+// MasterChain.applyUnity, после метров.
 // GUARD (16.11): средний GR (за ~1 с) выше предела — вход убавляется на 1 dB/с (до 12 dB); ниже предела на 1 dB
 // дольше 2 с — возврат 0,3 dB/с, не выше INPUT; OFF — возврат 3 dB/с.
 // Вход · GAIN → true peak (4× полифазный FIR, окно Блэкмана) → цель g = min(1, Ceiling/Peak) → скользящий минимум
@@ -177,8 +177,6 @@ public final class MasterLimiter {
     var gainLin: Double = 1
     var ceil: Double = 0.8912509381337456
     var wet: Double = 1
-    /// UNITY: усиление обработанной ветки (1 — выключен).
-    var unityG: Double = 1
     /// GUARD: снижение входа (dB ≥ 0), средний GR (dB), пауза перед возвратом (с).
     public private(set) var guardCut: Double = 0
     var guardAvg: Double = 0
@@ -292,15 +290,13 @@ public final class MasterLimiter {
     /// rel 10…1000 мс (auto — AUTO).
     public func process(inL: UnsafePointer<Float>, inR: UnsafePointer<Float>, outL: UnsafeMutablePointer<Float>,
                         outR: UnsafeMutablePointer<Float>, frames n: Int, gain: Double, ceiling: Double,
-                        lookahead: Double, rel: Double, auto: Bool, bypass: Double, unity: Bool = false,
-                        guardDb: Double = 0) {
+                        lookahead: Double, rel: Double, auto: Bool, bypass: Double, guardDb: Double = 0) {
         if rel != relSig {
             relSig = rel
             kRel = rel <= 0 ? 0 : exp(-1 / ((rel / 1000) * sr))
         }
         let ks: Double = kSmooth
         let gainT: Double = guardCut > 0 ? pow(10, (gain - guardCut) / 20) : pow(10, gain / 20)
-        let unityT: Double = unity ? 1 / gainT : 1
         let ceilT: Double = pow(10, ceiling / 20)
         // bypass — доля глушения 0…1 (переход MIX ведёт её плавно; кнопка — 0 или 1).
         let wetT: Double = 1 - Swift.max(0, Swift.min(1, bypass))
@@ -318,14 +314,13 @@ public final class MasterLimiter {
         // Состояние — в локальных на блок (в отладочной сборке каждое обращение к свойству — проверка доступа; S14b).
         var gLin: Double = gainLin, cl: Double = ceil, wtv: Double = wet, wpos: Int = w, pkP: Double = pkPrev
         var mI: Double = mIn, mG: Double = mGr, mO: Double = mOut, xfv: Double = xf
-        var uv: Double = unityG, bG: Double = 1
+        var bG: Double = 1
         var pIn: Int = posIn, pOut: Int = posOut
         let wStep: Double = wetStep, xStep: Double = xfStep, delay: Int = delayFor(L), od: Int = oldDelay
         let gcv: LimiterGain = gc, hI = hIn, hO = hOut
         var i = 0
         while i < n {
             gLin = gainT + (gLin - gainT) * ks
-            uv = unityT + (uv - unityT) * ks
             cl = ceilT + (cl - ceilT) * ks
             if wtv < wetT { wtv = Swift.min(wetT, wtv + wStep) } else if wtv > wetT { wtv = Swift.max(wetT, wtv - wStep) }
             let rawL = Double(inL[i]), rawR = Double(inR[i])
@@ -368,14 +363,11 @@ public final class MasterLimiter {
             let orr: Double = yr * wt + br * (1 - wt)
             let po: Double = truePeak(hO, &pOut, ol, orr)
             if po > mO { mO = po }
-            // UNITY — только на обработанной ветке; индикация OUT — по ol, orr (реальный выход).
-            let wu: Double = wt * uv
-            outL[i] = Float(yl * wu + bl * (1 - wt))
-            outR[i] = Float(yr * wu + br * (1 - wt))
+            outL[i] = Float(ol)
+            outR[i] = Float(orr)
             i += 1
         }
         gainLin = gLin
-        unityG = uv
         guardStep(guardDb, wtv > 0.5 ? -20 * log10(Swift.max(bG, 1e-6)) : 0, Double(n) / sr)
         ceil = cl
         wet = wtv

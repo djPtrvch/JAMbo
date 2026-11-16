@@ -228,6 +228,8 @@ public final class AudioCore: @unchecked Sendable {
             if sampler.stemGate != nil { captureStems(ring, n, masterL, masterR) }
             meterMaster(n)
             master.scope.gonio(masterL, masterR, n)
+            // UNITY — только слышимый звук (метры, LUFS, скоп и стемы — без него, как Unity Gain в Pro-L 2).
+            master.applyUnity(masterL, masterR, n)
             ref.mixPost(masterL, masterR, n: n)
             var i = 0
             while i < n {
