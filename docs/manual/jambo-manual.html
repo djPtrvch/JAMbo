@@ -75,6 +75,10 @@ li + li { margin-top: 4px; }
 .k.r { color: var(--rec); box-shadow: inset 0 0 0 1px var(--rec); }
 .note { max-width: 68ch; background: var(--panel); border-radius: 10px; padding: 12px 14px; font-size: 13px; }
 .note b { font-weight: 700; }
+.note.tip { margin: 34px 0 10px; padding: 14px 16px; }
+.note.tip .tip-head { font: 700 13px/1.25 var(--sys); letter-spacing: 0.1em; text-transform: uppercase; color: var(--accentText); margin-bottom: 8px; }
+.note.tip h4 { margin: 14px 0 6px; font-size: 13px; }
+.note.tip p, .note.tip ul, .note.tip ol { margin: 6px 0; }
 .dim { color: var(--dim); font-size: 12px; }
 
 /* tables */
@@ -715,13 +719,27 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     <li>Wait a few seconds: the narrow spot should widen and the yellow fade.</li>
   </ol>
 
-  <h4 lang="ru">Справа: вектороскоп и осциллоскоп</h4>
-  <h4 lang="en">On the right: vectorscope and oscilloscope</h4>
-  <figure><div class="shot" data-mode="mix" data-zone="right" data-state="mix" data-maxh="520"></div><figcaption lang="ru">Те же окна, что при MST. Показания — для примера.</figcaption><figcaption lang="en">The same windows as at MST. Readings are an example.</figcaption></figure>
+  <h4 lang="ru">Справа: вектороскоп, осциллоскоп и история громкости</h4>
+  <h4 lang="en">On the right: vectorscope, oscilloscope and loudness history</h4>
+  <figure><div class="shot" data-mode="mix" data-zone="right" data-state="mix" data-maxh="520"></div><figcaption lang="ru">Вектороскоп и осциллоскоп — те же, что при MST; под ними — история громкости. Показания — для примера.</figcaption><figcaption lang="en">The vectorscope and oscilloscope are the same as at MST; below them — the loudness history. Readings are an example.</figcaption></figure>
   <p lang="ru"><b>Вектороскоп</b> — стереобаза выхода мастера: облако вытянуто вверх — звук ближе к моно, расползается вширь — шире стерео. Полоса внизу — корреляция каналов: от середины вправо к +1 — моно-совместимо, влево к −1 — каналы в противофазе, и на моно-колонке (телефон, клуб) часть звука пропадёт.</p>
   <p lang="en"><b>The vectorscope</b> shows the stereo image of the master output: a cloud stretched upward is closer to mono, a wide cloud is wider stereo. The bar at the bottom is channel correlation: from the centre right towards +1 — mono-safe, left towards −1 — the channels are out of phase, and on a mono speaker (a phone, a club system) part of the sound will disappear.</p>
   <p lang="ru"><b>Осциллоскоп</b> под ним — форма волны того, что уходит из мастера после лимитера (красным). Ровная «стена» без пиков — лимитер давит слишком сильно, микс потерял удары; видны пики — динамика сохранилась.</p>
   <p lang="en"><b>The oscilloscope</b> below shows the waveform leaving the master after the limiter (in red). A flat “wall” with no peaks — the limiter is squashing too hard and the mix has lost its punch; visible peaks — the dynamics are intact.</p>
+  <p lang="ru"><b>История громкости</b> — в самом низу: как громкость мастера менялась за последнюю минуту игры. Жёлтая линия — громкость за каждые 3 секунды (справа — новое), шкала от −6 до −24 LUFS; пунктир — средняя громкость с начала игры (то же число, что LUFS над измерителем). Сверху три числа:</p>
+  <ul lang="ru">
+    <li><b>SHORT LOUDNESS</b> — громкость сейчас (за последние 3 с), LUFS.</li>
+    <li><b>LOUDNESS RANGE</b> — насколько трек «дышит» между тихими и громкими частями, LU (1 LU = 1 dB). У плотного клубного трека обычно 3–6; меньше 3 — звучит ровно, без развития.</li>
+    <li><b>PEAK TO LOUDNESS</b> — насколько пики выше средней громкости, dB. Около 8–10 — живо, ниже 6 — пережато.</li>
+  </ul>
+  <p lang="ru">История копится только во время игры: паузы между джемами её не портят, график замирает. Тап по окну — всё с нуля (заодно и LUFS над измерителем). Зачем: в джеме видно, не уползла ли громкость за последние минуты и не стал ли новый проект после MIX тише старого; при записи трека — средняя громкость для площадок и не убили ли клиппер и лимитер динамику.</p>
+  <p lang="en"><b>The loudness history</b> is at the very bottom: how the master loudness changed over the last minute of playing. The yellow line is the loudness of every 3 seconds (new on the right), on a scale from −6 to −24 LUFS; the dashed line is the average loudness since playback started (the same number as LUFS above the meter). Three numbers at the top:</p>
+  <ul lang="en">
+    <li><b>SHORT LOUDNESS</b> — loudness right now (over the last 3 s), LUFS.</li>
+    <li><b>LOUDNESS RANGE</b> — how much the track “breathes” between quiet and loud parts, LU (1 LU = 1 dB). A dense club track is usually 3–6; below 3 it sounds flat, without development.</li>
+    <li><b>PEAK TO LOUDNESS</b> — how far the peaks rise above the average loudness, dB. Around 8–10 — lively, below 6 — squashed.</li>
+  </ul>
+  <p lang="en">The history builds up only while playing: pauses between jams do not spoil it, the graph just freezes. Tap the window to start over (it also resets LUFS above the meter). Why: in a jam you see whether the loudness has crept up over the last minutes or whether the new project after MIX is quieter than the old one; when making a track — the average loudness for platforms, and whether the clipper and limiter have killed the dynamics.</p>
 
   <div lang="ru" class="notes sub"><div class="menu-head">Примечания</div><ol><li id="fn-2"><b><a href="#fr-2" style="color:inherit;text-decoration:none">2</a></b><span>Почему важны хвосты своего звука. Самое слабое в звуке часто и делает его узнаваемым. Гармоники баса (200 Гц – 1 кГц) обычно на 10–20 dB тише основного тона, но на телефоне, ноутбуке и маленьких колонках, которые низ не играют, бас слышен только по ним: если их закрыл пэд, в студийных мониторах всё хорошо, а на телефоне баса нет. Так же щелчок бочки (2–5 кГц) намного тише её «тела», но именно он даёт удар и помогает бочке прорезаться в миксе; атака и «воздух» лида дают разборчивость. А слабые хвосты чужих звуков по одному не мешают: тихий низ хэта бас не закроет. Опасны они только вместе — когда понемногу низа у пэда, синтов и ревербов складывается в кашу на 100–300 Гц; поэтому при сведении низ обычно срезают всему, кроме бочки и баса.</span></li></ol></div>
   <div lang="en" class="notes sub"><div class="menu-head">Notes</div><ol><li id="fn-2-en"><b><a href="#fr-2-en" style="color:inherit;text-decoration:none">2</a></b><span>Why a sound's own tails matter. The weakest part of a sound is often what makes it recognisable. Bass harmonics (200 Hz – 1 kHz) are usually 10–20 dB below the fundamental, yet on a phone, a laptop and small speakers that cannot play lows, the bass is heard only through them: if a pad covers them, everything is fine on studio monitors but the bass is gone on a phone. Likewise the kick's click (2–5 kHz) is far quieter than its body, but it is what gives the punch and helps the kick cut through the mix; the attack and “air” of a lead give it clarity. Weak tails of other sounds, on the other hand, do not matter one by one: a quiet low end on the hi-hat will not cover the bass. They matter only together — when a little low end from pads, synths and reverbs adds up to mud at 100–300 Hz; that is why in mixing the lows are usually cut on everything except the kick and bass.</span></li></ol></div>
@@ -1831,7 +1849,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     <li>Двойной тап по дисплею — FREEZE: картинка замирает, чтобы её рассмотреть.</li>
     <li>Справа в окнах COMP, CLIP и LIM — блок <b>IN | GR | OUT</b>, как в индикации MST. Стержни идут в той же шкале, что дисплей слева: риска порога стоит на одной высоте с линией THRESHOLD или CEILING, а уровни и сжатие — с графиком.</li>
     <li><b>RELEASE</b> у COMP и LIM: тап по полю — AUTO, ещё тап — обратно к прежнему значению.</li>
-    <li><b>UNITY</b> (CLIP и LIM) — честное сравнение: слышно настолько тише, насколько поднят INPUT, а измеритель справа, LUFS и запись показывают и пишут полный уровень. Работает, пока окно открыто (раздел 12.8).</li>
+    <li><b>UNITY</b> (CLIP и LIM) — честное сравнение: слышно настолько тише, насколько поднят INPUT, а измеритель справа, LUFS и запись показывают и пишут полный уровень. Работает, пока окно открыто (<a href="#tip-master">практический совет</a> в конце раздела 12).</li>
     <li><b>SHIFT</b> при MST: кнопки модулей показывают BYPASS — тап выключает и включает модуль, не открывая окно.</li>
   </ul>
   <ul lang="en">
@@ -1842,7 +1860,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     <li>Double tap the display — FREEZE: the picture freezes so you can examine it.</li>
     <li>On the right of the COMP, CLIP and LIM windows — an <b>IN | GR | OUT</b> block, as in the MST display. The bars use the same scale as the display on the left: the threshold mark sits level with the THRESHOLD or CEILING line, and the levels and reduction line up with the graph.</li>
     <li><b>RELEASE</b> on COMP and LIM: tap the field for AUTO, tap again to go back to the previous value.</li>
-    <li><b>UNITY</b> (CLIP and LIM) — a fair comparison: you hear the sound quieter by as much as INPUT adds, while the meter on the right, LUFS and recordings show and capture the full level. Works while the window is open (section 12.8).</li>
+    <li><b>UNITY</b> (CLIP and LIM) — a fair comparison: you hear the sound quieter by as much as INPUT adds, while the meter on the right, LUFS and recordings show and capture the full level. Works while the window is open (the <a href="#tip-master">practical tip</a> at the end of section 12).</li>
     <li><b>SHIFT</b> in MST: the module buttons show BYPASS — a tap turns the module off and on without opening the window.</li>
   </ul>
   <p lang="ru">Масштаб дисплеев — SETTINGS → APPEARANCE → MASTER FX DISPLAY SCALE. Сигналы на рисунках ниже — для примера.</p>
@@ -1925,7 +1943,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       <tr><td>CEILING</td><td>Уровень, выше которого сигнал срезается.</td></tr>
       <tr><td>SOFTNESS</td><td>0 % — жёсткий срез, 100 % — мягкий, плавный вход в срез.</td></tr>
       <tr><td>BASS</td><td>Защита баса: всё ниже этой частоты проходит мимо клиппера без искажений. OFF — срезается весь диапазон. Включайте (60–120 Hz), только если бочка или бас хрипят: защищённые пики низов достаются лимитеру.</td></tr>
-      <tr><td>UNITY</td><td>Кнопка: слышно на INPUT dB тише — сравнение с BYPASS на равной громкости (раздел 12.8).</td></tr>
+      <tr><td>UNITY</td><td>Кнопка: слышно на INPUT dB тише — сравнение с BYPASS на равной громкости (<a href="#tip-master">практический совет</a> в конце раздела 12).</td></tr>
     </tbody>
   </table></div>
   <div lang="en" class="tbl"><table>
@@ -1935,7 +1953,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       <tr><td>CEILING</td><td>The level above which the signal is clipped.</td></tr>
       <tr><td>SOFTNESS</td><td>0 % — hard clipping, 100 % — soft, gradual clipping.</td></tr>
       <tr><td>BASS</td><td>Bass protection: everything below this frequency bypasses the clipper without distortion. OFF — the full range is clipped. Turn it on (60–120 Hz) only if the kick or bass starts to crackle: the protected low peaks are left to the limiter.</td></tr>
-      <tr><td>UNITY</td><td>Button: you hear the sound INPUT dB quieter — a comparison with BYPASS at equal loudness (section 12.8).</td></tr>
+      <tr><td>UNITY</td><td>Button: you hear the sound INPUT dB quieter — a comparison with BYPASS at equal loudness (the <a href="#tip-master">practical tip</a> at the end of section 12).</td></tr>
     </tbody>
   </table></div>
   <p lang="ru"><b>Как читать дисплей:</b> оранжевая заливка сверху — где и насколько срезано. 1–4 dB обычно незаметны на слух, больше — появляются искажения.</p>
@@ -1955,7 +1973,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       <tr><td>LOOKAHEAD</td><td>Насколько заранее лимитер видит пик и за сколько плавно опускает громкость, 0,5–6 ms. Короче — удары острее, но быстрое изменение громкости даёт хруст на низах; длиннее — чище, атака чуть мягче. Это и задержка всего мастера: при игре на клавишах 3 ms незаметны, 6 ms чувствительный палец может уловить.</td></tr>
       <tr><td>RELEASE</td><td>Как быстро лимитер отпускает. В конце хода — AUTO: короткие пики отпускает быстро, долгое лимитирование — медленно. Тап по полю — AUTO и обратно.</td></tr>
       <tr><td>GUARD</td><td>Защита от перегрузки в джеме, OFF или 2–8 dB. Если лимитер в среднем убирает больше этого, GUARD плавно убавляет его вход, а когда стало тише — медленно возвращает, но не выше INPUT. Тихие места он не поднимает. Пока работает, на дисплее слева вверху — оранжевое «GUARD -x.x dB». Есть только в окне.</td></tr>
-      <tr><td>UNITY</td><td>Кнопка: слышно на INPUT dB тише (с учётом GUARD) — сравнение с BYPASS на равной громкости (раздел 12.8).</td></tr>
+      <tr><td>UNITY</td><td>Кнопка: слышно на INPUT dB тише (с учётом GUARD) — сравнение с BYPASS на равной громкости (<a href="#tip-master">практический совет</a> в конце раздела 12).</td></tr>
     </tbody>
   </table></div>
   <div lang="en" class="tbl"><table>
@@ -1966,15 +1984,16 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       <tr><td>LOOKAHEAD</td><td>How far ahead the limiter sees a peak and how long it takes to bring the level down smoothly, 0.5–6 ms. Shorter — sharper hits, but the fast level change makes the low end crackle; longer — cleaner, with a slightly softer attack. It is also the delay of the whole master: when playing keys, 3 ms goes unnoticed, 6 ms a sensitive finger may feel.</td></tr>
       <tr><td>RELEASE</td><td>How fast the limiter lets go. At the end of the range — AUTO: short peaks are released quickly, long limiting slowly. Tap the field for AUTO and back.</td></tr>
       <tr><td>GUARD</td><td>Overload protection for jams, OFF or 2–8 dB. If the limiter removes more than this on average, GUARD smoothly turns its input down, and when things get quieter it slowly brings it back, never above INPUT. It does not raise quiet parts. While it works, an orange “GUARD -x.x dB” is shown in the top left of the display. Only in the window.</td></tr>
-      <tr><td>UNITY</td><td>Button: you hear the sound INPUT dB quieter (taking GUARD into account) — a comparison with BYPASS at equal loudness (section 12.8).</td></tr>
+      <tr><td>UNITY</td><td>Button: you hear the sound INPUT dB quieter (taking GUARD into account) — a comparison with BYPASS at equal loudness (the <a href="#tip-master">practical tip</a> at the end of section 12).</td></tr>
     </tbody>
   </table></div>
   <p lang="ru"><b>Как читать дисплей:</b> оранжевое сверху — сколько лимитер убирает; 1–4 dB — норма. Красная точка у верхнего края — выход превысил CEILING; такого быть не должно.</p>
   <p lang="en"><b>How to read the display:</b> orange at the top shows how much the limiter removes; 1–4 dB is normal. A red dot at the top edge means the output exceeded CEILING; that should not happen.</p>
   <p lang="ru">Громкость выхода всего мастера — регулятор на измерителе справа при MIX или MST.</p>
   <p lang="en">The output volume of the whole master is the control on the meter on the right in MIX or MST.</p>
-  <h3 lang="ru"><span class="sn">12.8</span>Практика: как настроить мастер</h3>
-  <h3 lang="en"><span class="sn">12.8</span>In practice: setting up the master</h3>
+  <div class="note tip" id="tip-master">
+  <div lang="ru" class="tip-head">Практический совет</div>
+  <div lang="en" class="tip-head">Practical tip</div>
   <p lang="ru">Каждый модуль делает свою работу: компрессор склеивает микс, клиппер срезает острые пики, лимитер даёт итоговую громкость. Делить нагрузку между ними чище, чем отдать всё одному. Значения ниже — отправная точка, решает слух.</p>
   <p lang="en">Each module has its own job: the compressor glues the mix, the clipper shaves sharp peaks, the limiter sets the final loudness. Sharing the load between them is cleaner than giving it all to one. The values below are a starting point; your ears decide.</p>
   <ol lang="ru">
@@ -2001,14 +2020,17 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     <li><b>Джем:</b> настройте мастер заранее и включите <b>GUARD</b> 3–4 dB — сколько бы дорожек вы ни добавили, лимитер не перегрузится, а брейкдауны останутся тихими. RELEASE везде AUTO — следить за мастером на ходу не нужно.</li>
     <li><b>Трек:</b> GUARD — OFF, чтобы громкость была только в ваших руках; сравнивайте с UNITY и смотрите на LUFS.</li>
     <li><b>Правило соотношения:</b> лимитер убирает больше 4–5 dB — добавьте клиппера; клиппер звучит грязно — верните часть работы лимитеру.</li>
+    <li><b>Не пережать:</b> следите за PEAK TO LOUDNESS в окне истории громкости при MIX (раздел 3.3): около 8–10 dB — звук живой, ниже 6 — пережат. Двигайте INPUT клиппера и лимитера и смотрите, как меняется число.</li>
     <li><b>LOOKAHEAD:</b> 3 ms — обычно; 4–6 ms — если при сильном лимитировании хрустят низы; 1–2 ms — при мягком лимитировании (GR до 2 dB), когда нужна острая бочка.</li>
   </ul>
   <ul lang="en">
     <li><b>Jam:</b> set the master up in advance and turn on <b>GUARD</b> at 3–4 dB — however many tracks you add, the limiter will not be overloaded, and breakdowns stay quiet. RELEASE AUTO everywhere — no need to watch the master on the fly.</li>
     <li><b>Track:</b> GUARD — OFF, so the loudness is in your hands only; compare with UNITY and watch LUFS.</li>
     <li><b>Rule of balance:</b> the limiter removes more than 4–5 dB — add more clipping; the clipper sounds dirty — give part of the work back to the limiter.</li>
+    <li><b>Don't over-squash:</b> watch PEAK TO LOUDNESS in the loudness history window at MIX (section 3.3): around 8–10 dB — the sound is alive, below 6 — squashed. Move the clipper and limiter INPUT and watch the number change.</li>
     <li><b>LOOKAHEAD:</b> 3 ms — usually; 4–6 ms — if the low end crackles under heavy limiting; 1–2 ms — with light limiting (GR up to 2 dB) when you want a sharp kick.</li>
   </ul>
+  </div>
 </section>
 
 <!-- ============ 13 ============ -->
@@ -3190,13 +3212,32 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     return s;
   }
 
+  // Loudness history at MIX: three numbers (labels in two lines) and short-term over 60 s, −6…−24 LUFS, dashed — integrated.
+  function loudHistory(w, h) {
+    var s = "", cell = w / 3, cells = [["SHORT\nLOUDNESS", "-11.3"], ["LOUDNESS\nRANGE", "4.6"], ["PEAK TO\nLOUDNESS", "10.5"]];
+    cells.forEach(function (c, i) {
+      s += '<div class="lbl" style="left:' + (i * cell) + 'px;top:4px;width:' + cell + 'px;font-size:9px;color:var(--dim)">' + c[0] + "</div>";
+      s += '<div class="lbl" style="left:' + (i * cell) + 'px;top:27px;width:' + cell + 'px;font-size:12px;font-weight:600;color:var(--text)">' + c[1] + "</div>";
+    });
+    var row = 44, px = 6, py = row + 4, pw = w - 12, ph = Math.max(1, h - row - 10), g = "";
+    function Y(v) { return Math.max(0, Math.min(1, (-6 - v) / 18)) * ph; }
+    [-12, -18, -24].forEach(function (d) { g += '<rect x="0" y="' + Y(d).toFixed(1) + '" width="' + pw + '" height="1" fill="var(--gridStrong)"/>'; });
+    [-12, -24].forEach(function (d) { g += '<text x="1" y="' + (Y(d) - 2).toFixed(1) + '" font-size="9" fill="var(--dim)">' + d + "</text>"; });
+    g += '<path d="M0 ' + Y(-11.1).toFixed(1) + " H" + pw + '" stroke="var(--text)" stroke-opacity=".6" stroke-dasharray="3 3"/>';
+    var d = "";
+    for (var i = 0; i <= 60; i++) { if (i < 24) continue; var v = i < 30 ? -24 + (i - 24) * 2.1 : -11.2 + 0.3 * Math.sin(i * 1.3) - (i === 52 ? 4 : 0); d += (d ? " L" : "M") + (pw * i / 60).toFixed(1) + " " + Y(v).toFixed(1); }
+    g += '<path d="' + d + '" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linejoin="round"/>';
+    return s + svg(pw, ph, g, px, py);
+  }
+
   function rightColumn(mode, state) {
     var s = "", x = RIGHT_X, y = CY, bar = U.bar;
     var pairsH = 2 * PAIR + GAP, topH = CENTER_H - pairsH - GAP, by = y + topH + GAP, bw = (COL - GAP) / 2;
     if (mode === "mst" || mode === "mix") {
       if (mode === "mix") {
-        // MIX: the scope of the same size as at MST, no buttons below
+        // MIX: the scope of the same size as at MST, the loudness history below it
         s += box(x, y, COL, topH, "", scope(COL, topH, true));
+        s += tile(x, by, COL, pairsH, "var(--panel)", loudHistory(COL, pairsH));
         return s;
       }
       s += box(x, y, COL, topH, "", scope(COL, topH));
@@ -4133,14 +4174,14 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     track: "TRACK — выбрана дорожка с сэмплом. Верхняя строка — сэмпл (у синта — ручки движка, раздел 5), вторая — огибающая и фильтр, третья — посылы на общие эффекты, нижняя — Pan, Velocity, Ratchet, Chance. SHIFT + тап по Filter меняет тип фильтра, SHIFT + тап по Rate — режим RATE. Громкость дорожки — в MIX или регулятором на измерителе.",
     fx: "FX — пока держите FX (кнопка белая). Строки: Reverb, Delay, Drive, Duck. Эффекты общие для всех дорожек; сколько звука дорожки идёт в каждый, задают посылы — третья строка режима TRACK. Duck Source выбирает дорожку, которая приглушает остальные.",
     mod: "MOD — пока держите MOD. Строки: LFO1, LFO2, LFO3 и огибающая ENV выбранной дорожки. Куда они действуют, назначается кнопками LFO1…ENV в левой колонке (раздел 9).",
-    mix: "MIX — громкости дорожек в dB, подписи — имена дорожек. Слева от ручки — метр дорожки, справа — кнопки M (mute), S (solo) и ● (готовность к записи стема). Ручки без кольца — дорожки, которых ещё нет: двойной тап по ней добавляет дорожку. Двойной тап по ручке дорожки — меню COPY, PASTE, DELETE TRACK, RENAME; удержание и перетаскивание меняет порядок дорожек. Над окном — ● MASTER (запись мастера); в окне слева — индикация дорожек LEVEL, PAN, MASK, FREQ (кнопки под ним); справа — вектороскоп с корреляцией и осциллоскоп после лимитера (раздел 3.3).",
+    mix: "MIX — громкости дорожек в dB, подписи — имена дорожек. Слева от ручки — метр дорожки, справа — кнопки M (mute), S (solo) и ● (готовность к записи стема). Ручки без кольца — дорожки, которых ещё нет: двойной тап по ней добавляет дорожку. Двойной тап по ручке дорожки — меню COPY, PASTE, DELETE TRACK, RENAME; удержание и перетаскивание меняет порядок дорожек. Над окном — ● MASTER (запись мастера); в окне слева — индикация дорожек LEVEL, PAN, MASK, FREQ (кнопки под ним); справа — вектороскоп с корреляцией, осциллоскоп после лимитера и история громкости (раздел 3.3).",
     mst: "MST — цепочка мастера сверху вниз: сатуратор, компрессор, клиппер, лимитер (перед ними — EQ мастера). В окне слева — индикация COMP, CLIP, LIM, под ним — кнопки окон модулей; справа — скоп мастера и кнопки его точек съёма (раздел 12)."
   };
   var DESC_EN = {
     track: "TRACK — a track with a sample is selected. Top row — the sample (on a synth — the engine knobs, section 5), second — envelope and filter, third — sends to the shared effects, bottom — Pan, Velocity, Ratchet, Chance. SHIFT + tap on Filter changes the filter type, SHIFT + tap on Rate — the RATE mode. Track volume — in MIX or with the control on the meter.",
     fx: "FX — while you hold FX (the button is white). Rows: Reverb, Delay, Drive, Duck. The effects are shared by all tracks; how much of a track's sound goes into each is set by the sends — the third row of TRACK mode. Duck Source picks the track that ducks the others.",
     mod: "MOD — while you hold MOD. Rows: LFO1, LFO2, LFO3 and the ENV envelope of the selected track. Where they act is assigned with the LFO1…ENV buttons in the left column (section 9).",
-    mix: "MIX — track volumes in dB, labelled with track names. Left of a knob — the track meter, right — the M (mute), S (solo) and ● (arm stem recording) buttons. Knobs without a ring are tracks that do not exist yet: double tap one to add a track. Double tap a track's knob — the COPY, PASTE, DELETE TRACK, RENAME menu; hold and drag to reorder tracks. Above the window — ● MASTER (master recording); the window on the left shows track meters LEVEL, PAN, MASK, FREQ (buttons under it); on the right — the vectorscope with correlation and the oscilloscope after the limiter (section 3.3).",
+    mix: "MIX — track volumes in dB, labelled with track names. Left of a knob — the track meter, right — the M (mute), S (solo) and ● (arm stem recording) buttons. Knobs without a ring are tracks that do not exist yet: double tap one to add a track. Double tap a track's knob — the COPY, PASTE, DELETE TRACK, RENAME menu; hold and drag to reorder tracks. Above the window — ● MASTER (master recording); the window on the left shows track meters LEVEL, PAN, MASK, FREQ (buttons under it); on the right — the vectorscope with correlation, the oscilloscope after the limiter and the loudness history (section 3.3).",
     mst: "MST — the master chain top to bottom: saturator, compressor, clipper, limiter (preceded by the master EQ). The window on the left shows the COMP, CLIP, LIM display, with the module window buttons below it; on the right — the master scope and its tap point buttons (section 12)."
   };
   var curMode = "track";
