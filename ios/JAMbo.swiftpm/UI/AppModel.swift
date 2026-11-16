@@ -444,6 +444,10 @@ final class AppModel {
     @ObservationIgnored var _masterWin: Int? = nil
     @ObservationIgnored var _masterMenu: MasterMenuState? = nil
     @ObservationIgnored var _masterInput: MasterInputTarget? = nil
+    /// UNITY окна CLIP или LIM (16.11): только пока окно открыто, не в проекте.
+    @ObservationIgnored var _masterUnity: Bool = false
+    /// Последний ручной RELEASE компрессора и лимитера (тап по полю RELEASE — AUTO и обратно), не в проекте.
+    @ObservationIgnored var releaseManual: [String: Double] = [:]
     /// Пресеты модулей мастера — общие для проектов (UserDefaults).
     var masterPresets: MasterPresetBook = AppModel.loadMasterPresets()
     /// Свои значения ручек по умолчанию (UserDefaults) и ручка, на которой на секунду видно SAVED.

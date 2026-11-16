@@ -244,37 +244,40 @@ enum MasterDraw {
     }
 }
 
-/// Блок индикации модуля справа в окне (LevelBars — тот же компонент и данные, что слева при MST).
+/// Блок индикации модуля справа в окне (LevelBars — тот же компонент и данные, что слева при MST; 16.11): без
+/// названия и подписей IN, GR, OUT, стержни на всю высоту дисплея и в его шкале (SCALE) — риска порога, уровни и GR
+/// на одном уровне с линией и заливками дисплея слева.
 struct DynBlock: View {
     let model: AppModel
     let module: Int
     let now: Double
 
     var body: some View {
-        let title: String = MasterPresetBook.titles[module]
-        return VStack(spacing: 4) {
-            Text(title).font(.system(size: 10)).tracking(1).foregroundStyle(theme.dim)
-            Canvas { ctx, size in draw(ctx, size) }
-        }
-        .padding(8)
-        .background(theme.panel, in: RoundedRectangle(cornerRadius: Layout.radius))
+        Canvas { ctx, size in draw(ctx, size) }
+            .padding(.horizontal, 8)
+            .background(theme.panel, in: RoundedRectangle(cornerRadius: Layout.radius))
     }
 
     private func draw(_ ctx: GraphicsContext, _ size: CGSize) {
         let d: MasterMeters = model.dynMeters
         let bypass: Bool = model.masterBypass(module)
         let cols: [[ParamDef]] = Params.masterColumns
+        let sc: Float = Float(MasterDraw.scale)
+        let s: DynBarsState
+        let mark: Float
         switch module {
         case MasterScope.comp:
-            let mark: Float = Float(model.masterValue(cols[1][0]))
-            MasterIndicator.draw(ctx, size, d.comp, bypass: bypass, grMax: 18, mark: mark, now: now, theme: theme)
+            s = d.comp
+            mark = Float(model.masterValue(cols[1][0]))
         case MasterScope.clip:
-            let mark: Float = Float(model.masterValue(cols[2][1]))
-            MasterIndicator.draw(ctx, size, d.clip, bypass: bypass, grMax: 12, mark: mark, now: now, theme: theme)
+            s = d.clip
+            mark = Float(model.masterValue(cols[2][1]))
         default:
-            let mark: Float = Float(model.masterValue(cols[3][1]))
-            MasterIndicator.draw(ctx, size, d.lim, bypass: bypass, grMax: 12, mark: mark, now: now, theme: theme)
+            s = d.lim
+            mark = Float(model.masterValue(cols[3][1]))
         }
+        MasterIndicator.draw(ctx, size, s, bypass: bypass, grMax: sc, mark: mark, now: now, theme: theme, scale: sc,
+                             labels: false)
     }
 }
 

@@ -393,6 +393,10 @@ extension AppModel {
         get { access(keyPath: \.masterMenu); return _masterMenu }
         set { put(\.masterMenu, \._masterMenu, newValue, observedChanged(_masterMenu, newValue)) }
     }
+    var masterUnity: Bool {
+        get { access(keyPath: \.masterUnity); return _masterUnity }
+        set { put(\.masterUnity, \._masterUnity, newValue, observedChanged(_masterUnity, newValue)) }
+    }
     var masterInput: MasterInputTarget? {
         get { access(keyPath: \.masterInput); return _masterInput }
         set { put(\.masterInput, \._masterInput, newValue, observedChanged(_masterInput, newValue)) }

@@ -7,7 +7,7 @@ final class MasterPresetTests: XCTestCase {
         XCTAssertEqual(MasterPresetBook.ids(0), ["sat.drive", "sat.type", "sat.tone", "sat.mix", "sat.focus"])
         XCTAssertEqual(MasterPresetBook.ids(1).count, 8)
         XCTAssertEqual(MasterPresetBook.ids(2), ["clip.drive", "clip.ceiling", "clip.softness", "clip.bass"])
-        XCTAssertEqual(MasterPresetBook.ids(3), ["lim.input", "lim.ceiling", "lim.lookahead", "lim.release"])
+        XCTAssertEqual(MasterPresetBook.ids(3), ["lim.input", "lim.ceiling", "lim.lookahead", "lim.release", "lim.guard"])
         // У каждого параметра мастера есть описание (ручка или поле окна).
         for (id, _) in MasterChain.ids { XCTAssertNotNil(Params.byId[id], id) }
     }
@@ -20,7 +20,7 @@ final class MasterPresetTests: XCTestCase {
         m["cmp.ratio"] = 4
         b.save(3, name: "  Loud  ", master: m)
         XCTAssertEqual(b.list(3).first?.name, "Loud")
-        XCTAssertEqual(b.list(3).first?.values.count, 4)
+        XCTAssertEqual(b.list(3).first?.values.count, 5)
         XCTAssertNil(b.list(3).first?.values["cmp.ratio"])
         var other: [String: Double] = MasterChain.defaultValues()
         other["cmp.ratio"] = 10

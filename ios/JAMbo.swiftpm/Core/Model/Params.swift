@@ -621,6 +621,10 @@ public enum Params {
         master("cmp.knee", "Knee", 0, 24, 6, step: 0.1) { v in String(format: "%.1f dB", v) },
         master("cmp.mix", "Mix", 0, 100, 100, Fmt.pct),
         master("cmp.schpf", "SC HPF", 20, 500, 90, exp: true, masterHz),
+        // GUARD лимитера (16.11): предел среднего GR 2…8 dB, первые 8 % хода — OFF.
+        master("lim.guard", "Guard", 2, 8, 0, step: 0.5, offBottom: 0.08) { v in
+            v <= 0 ? "OFF" : String(format: "%.1f dB", v)
+        },
     ]
 
     /// Сетка MST 4×4 ряд за рядом.

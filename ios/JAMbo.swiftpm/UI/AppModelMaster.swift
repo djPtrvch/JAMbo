@@ -26,6 +26,7 @@ extension AppModel {
     func openMasterWindow(_ m: Int) {
         guard channel == .master, m >= 0 && m < 4 else { return }
         masterWin = m
+        setUnity(false)
         masterMenu = nil
         browser = nil
         eqView = false
@@ -44,6 +45,28 @@ extension AppModel {
         masterWin = nil
         masterMenu = nil
         masterInput = nil
+        setUnity(false)
+    }
+
+    /// UNITY окна CLIP или LIM: выход модуля −INPUT dB (только обработанная ветка; индикация — реальная).
+    func setUnity(_ on: Bool) {
+        let m: Int = masterWin ?? -1
+        let ok: Bool = on && (m == MasterScope.clip || m == MasterScope.lim)
+        if masterUnity != ok { masterUnity = ok }
+        audio.core.master.unity.store(ok ? m + 1 : 0)
+    }
+
+    /// Тап по полю RELEASE (COMP, LIM): AUTO ↔ последнее ручное значение (без него — по умолчанию).
+    func tapRelease(_ p: ParamDef) {
+        let v: Double = masterValue(p)
+        let next: Double
+        if v >= MasterChain.autoValue {
+            next = releaseManual[p.id] ?? p.def
+        } else {
+            releaseManual[p.id] = v
+            next = MasterChain.autoValue
+        }
+        edit { pr in pr.master[p.id] = next }
     }
 
     /// Параметры модуля m в строке окна (порядок веба).

@@ -102,15 +102,17 @@ struct MasterIndicator: View {
     static let barW: CGFloat = 9
     static let labelH: CGFloat = 14
 
+    /// scale — шкала IN и OUT (dB вниз от 0); labels — подписи IN, GR, OUT снизу (в окне модуля их нет: стержни на
+    /// всю высоту, на одном уровне с дисплеем слева).
     static func draw(_ ctx: GraphicsContext, _ size: CGSize, _ s: DynBarsState, bypass: Bool, grMax: Float,
-                     mark: Float, now: Double, theme: Theme) {
-        let barH: CGFloat = size.height - labelH
+                     mark: Float, now: Double, theme: Theme, scale: Float = 48, labels: Bool = true) {
+        let barH: CGFloat = labels ? size.height - labelH : size.height
         if barH <= 0 { return }
         let cw: CGFloat = size.width
         let cx: [CGFloat] = [cw / 6, cw / 2, 5 * cw / 6]
         let off: Color = theme.meterTrack.mix(with: .white, by: 0.2)
         func frac(_ db: Float) -> CGFloat {
-            return CGFloat(min(1, max(0, (db + 48) / 48)))
+            return CGFloat(min(1, max(0, (db + scale) / scale)))
         }
         func levelColor(_ db: Float, _ until: Double) -> Color {
             if bypass { return off }
@@ -138,6 +140,7 @@ struct MasterIndicator: View {
         let x0: CGFloat = (cx[0] - barW / 2).rounded()
         let risk = CGRect(x: x0 - 6, y: max(0, min(barH - 2, ry)), width: barW + 12, height: 2)
         ctx.fill(Path(risk), with: .color(theme.meterThr))
+        if !labels { return }
         let names: [String] = ["IN", "GR", "OUT"]
         for k in 0..<3 {
             let t = ctx.resolve(Text(names[k]).font(.system(size: 9)).foregroundColor(theme.dim))

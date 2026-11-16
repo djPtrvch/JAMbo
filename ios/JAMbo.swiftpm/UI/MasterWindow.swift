@@ -106,7 +106,7 @@ struct MasterWindowView: View {
     }
 }
 
-/// Строка окна модуля: название, поля, PRESETS, BYPASS (рядом с крестиком), ✕. При BYPASS поля серые (у LIM —
+/// Строка окна модуля: название, поля, PRESETS, UNITY (у CLIP и LIM), BYPASS (рядом с крестиком), ✕. При BYPASS поля серые (у LIM —
 /// только INPUT и CEILING, как в вебе).
 struct MasterStrip: View {
     let model: AppModel
@@ -137,6 +137,10 @@ struct MasterStrip: View {
             }
             .frame(width: 100)
             .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { presetsFrame = $0 }
+            if module == MasterScope.clip || module == MasterScope.lim {
+                EqTool(title: "UNITY", enabled: true, active: model.masterUnity) { model.setUnity(!model.masterUnity) }
+                    .frame(width: 100)
+            }
             EqTool(title: "BYPASS", enabled: true, active: bypass) { model.toggleMasterBypass(module) }
                 .frame(width: 100)
             CloseButton(side: model.barH) { model.closeMasterWindow() }
@@ -165,6 +169,7 @@ struct MasterStrip: View {
     private func tapAction(_ p: ParamDef) -> (() -> Void)? {
         if p.id == "cmp.ratio" { return { model.tapRatio() } }
         if p.id == "sat.type" { return { model.tapSatType() } }
+        if p.id == "cmp.release" || p.id == "lim.release" { return { model.tapRelease(p) } }
         return nil
     }
 

@@ -72,7 +72,7 @@ extension MixTransition {
         return i < other.count ? other[i] : 0
     }
 
-    /// Параметры мастера: числа — плавно; RELEASE AUTO с одной стороны и TYPE сатуратора — на середине
+    /// Параметры мастера: числа — плавно; RELEASE AUTO и GUARD OFF с одной стороны и TYPE сатуратора — на середине
     /// (TYPE звучит через сухой сигнал — см. blend).
     static func blendMaster(_ a: [String: Double], _ b: [String: Double], _ t: Double) -> [String: Double] {
         var out: [String: Double] = [:]
@@ -80,7 +80,9 @@ extension MixTransition {
             let x: Double = a[id] ?? b[id] ?? 0
             let y: Double = b[id] ?? x
             let auto: Bool = x >= MasterChain.autoValue || y >= MasterChain.autoValue
-            if id == "sat.type" || auto {
+            // GUARD: OFF с одной стороны — на середине (между OFF и пределом значения нет).
+            let guardOff: Bool = id == "lim.guard" && (x <= 0 || y <= 0)
+            if id == "sat.type" || auto || guardOff {
                 out[id] = t < 0.5 ? x : y
             } else {
                 out[id] = lerp(x, y, t)

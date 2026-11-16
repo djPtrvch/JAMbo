@@ -4,6 +4,7 @@ import SwiftUI
 /// Слои: сетка; вход после INPUT — серая заливка с тонким контуром (выше 0 dBFS — светлая метка у кромки); выход —
 /// красный контур и заливка ~20 %; GR — оранжевая заливка сверху; линия CEILING с числом — тянется пальцем (±22 px,
 /// приоритет над FREEZE); подписи пиков GR; красная точка — выход выше CEILING больше чем на 0,1 dB. Двойной тап — FREEZE.
+/// GUARD (16.11): пока он убавляет вход — оранжевая надпись «GUARD -x.x dB» слева вверху.
 struct LimiterDisplay: View {
     let model: AppModel
     @State private var hist = TeleHistory()
@@ -44,6 +45,16 @@ struct LimiterDisplay: View {
             overDots(ctx, c.outDb, ceil)
         }
         if hist.frozen { MasterDraw.pauseLabel(ctx, "FREEZE", theme) }
+        guardLabel(ctx)
+    }
+
+    /// GUARD убавил вход (≥ 0,1 dB) — оранжевая надпись «GUARD -2.5 dB» слева вверху (под FREEZE, если он есть).
+    private func guardLabel(_ ctx: GraphicsContext) {
+        let cut: Float = model.audio.core.master.limGuardCut.load()
+        if cut < 0.1 || model.project.limBypass { return }
+        let s: String = String(format: "GUARD -%.1f dB", cut)
+        let t = ctx.resolve(Text(s).font(.system(size: 11, weight: .semibold)).foregroundColor(theme.gr))
+        ctx.draw(t, at: CGPoint(x: 30, y: hist.frozen ? 22 : 6), anchor: .topLeading)
     }
 
     /// Выход выше CEILING больше чем на 0,1 dB — красная точка у верхней кромки.

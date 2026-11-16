@@ -15,7 +15,9 @@ public final class MasterChain {
         public static let limGain = 21, limCeiling = 22, limLookahead = 23, limRel = 24, limAuto = 25, limBypass = 26
         /// Громкость выхода — усиление (Params.volGain).
         public static let outGain = 27
-        public static let count = 28
+        /// GUARD лимитера: предел среднего GR, dB (0 — OFF; 16.11).
+        public static let limGuard = 28
+        public static let count = 29
     }
 
     /// Значения по умолчанию (как ручки и поля веба; bypass выключены).
@@ -24,7 +26,7 @@ public final class MasterChain {
         -10, 10, 400, 0, 0, 2, 6, 100, 90, 0,
         0, -1, 30, 0, 0,
         0, -1, 3, 150, 0, 0,
-        1,
+        1, 0,
     ]
 
     /// Параметры мастера в проекте (id как в вебе) и их номера; RELEASE компрессора и лимитера ≥ autoValue — AUTO
@@ -38,7 +40,7 @@ public final class MasterChain {
         ("clip.drive", Index.clipDrive), ("clip.ceiling", Index.clipCeiling), ("clip.softness", Index.clipSoftness),
         ("clip.bass", Index.clipBass),
         ("lim.input", Index.limGain), ("lim.ceiling", Index.limCeiling), ("lim.lookahead", Index.limLookahead),
-        ("lim.release", Index.limRel),
+        ("lim.release", Index.limRel), ("lim.guard", Index.limGuard),
     ]
     public static let autoValue: Double = 1e9
     /// ATTACK компрессора нового проекта — 30 мс (решение пользователя; в вебе 10). Эталоны считаются от defaults веба.
@@ -81,6 +83,10 @@ public final class MasterChain {
     public let compTele = DynTele()
     public let clipTele = DynTele()
     public let limTele = DynTele()
+    /// UNITY окна (16.11): MasterScope.clip или lim + 1, 0 — выключен (ставит UI, только пока окно открыто).
+    public let unity = AtomicCounter()
+    /// GUARD: на сколько dB сейчас убавлен вход лимитера (для экрана).
+    public let limGuardCut = AtomicFloat(0)
     /// Точки съёма скопа (после SAT, COMP, CLIP, LIM; гониометр пишет AudioCore).
     public let scope = MasterScope()
     /// Спектр окна сатуратора: вход и выход сатуратора (моно), пишутся, только пока satOn ≠ 0 (окно SAT открыто).
@@ -125,6 +131,7 @@ public final class MasterChain {
                     tone: p[I.satTone], mix: p[I.satMix] * (1 - p[I.satBypass]), focus: p[I.satFocus])
         if satShown { satOut.push(left, right, n) }
         let sm: Int = scope.mask.load()
+        let un: Int = unity.load()
         scope.tap(MasterScope.sat, sm, left, right, n)
         glue.process(inL: left, inR: right, outL: left, outR: right, frames: n, thr: p[I.cmpThr], att: p[I.cmpAtt],
                      rel: p[I.cmpRel], auto: p[I.cmpAuto] >= 0.5, makeup: p[I.cmpMakeup], ratio: p[I.cmpRatio],
@@ -132,11 +139,12 @@ public final class MasterChain {
         scope.tap(MasterScope.comp, sm, left, right, n)
         clip.process(inL: left, inR: right, outL: left, outR: right, frames: n, drive: p[I.clipDrive],
                      ceiling: p[I.clipCeiling], softness: p[I.clipSoftness], bass: p[I.clipBass],
-                     bypass: p[I.clipBypass])
+                     bypass: p[I.clipBypass], unity: un == MasterScope.clip + 1)
         scope.tap(MasterScope.clip, sm, left, right, n)
         lim.process(inL: left, inR: right, outL: left, outR: right, frames: n, gain: p[I.limGain],
                     ceiling: p[I.limCeiling], lookahead: p[I.limLookahead], rel: p[I.limRel], auto: p[I.limAuto] >= 0.5,
-                    bypass: p[I.limBypass])
+                    bypass: p[I.limBypass], unity: un == MasterScope.lim + 1, guardDb: p[I.limGuard])
+        limGuardCut.store(Float(lim.guardCut))
         scope.tap(MasterScope.lim, sm, left, right, n)
         applyOut(left, right, n, Float(p[I.outGain]))
         compTele.push(frames: glue.frames, inPeak: glue.frameIn, gr: glue.frameGr, outPeak: glue.frameOut, det: glue.frameDet)
