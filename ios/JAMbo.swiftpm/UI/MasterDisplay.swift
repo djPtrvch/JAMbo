@@ -112,6 +112,8 @@ enum MasterDraw {
     /// SCALE из SETTINGS → APPEARANCE (48, 32, 16 dB; ставит AppModel), сетка — восьмая часть: 6, 4, 2 dB.
     static var scale: CGFloat = 48
     static var gridStep: Int { return max(1, Int(scale) / 8) }
+    /// Отступ сверху у дисплеев окон COMP, CLIP, LIM и стержней справа (16.11): 0 dB — на этой высоте от кромки.
+    static let topInset: CGFloat = 12
     /// Зона касания линии (CEILING, THRESHOLD), px (±).
     static let lineHit: CGFloat = 22
 
@@ -245,7 +247,7 @@ enum MasterDraw {
 }
 
 /// Блок индикации модуля справа в окне (LevelBars — тот же компонент и данные, что слева при MST; 16.11): без
-/// названия, подписи IN, GR, OUT снизу; стержни от верхнего края дисплея в его шкале (SCALE, dB на пиксель — как у
+/// названия, подписи IN, GR, OUT снизу; стержни от 0 dB дисплея (отступ topInset сверху) в его шкале (SCALE, dB на пиксель — как у
 /// дисплея) — риска порога, уровни и GR на одном уровне с линией и заливками дисплея слева.
 struct DynBlock: View {
     let model: AppModel
@@ -255,6 +257,7 @@ struct DynBlock: View {
     var body: some View {
         Canvas { ctx, size in draw(ctx, size) }
             .padding(.horizontal, 8)
+            .padding(.top, MasterDraw.topInset)
             .background(theme.panel, in: RoundedRectangle(cornerRadius: Layout.radius))
     }
 
@@ -312,6 +315,8 @@ struct LevelPlot: View {
                 touching = false
             })
         }
+        // Отступ сверху: 0 dB — ниже кромки, как верх стержней блока справа (16.11).
+        .padding(.top, MasterDraw.topInset)
         .background(theme.panel)
         .clipShape(RoundedRectangle(cornerRadius: Layout.radius))
     }
