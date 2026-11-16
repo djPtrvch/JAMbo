@@ -56,6 +56,7 @@ struct MixerWindow: View {
             ForEach(0..<xs.count, id: \.self) { i in
                 FaderTouch(model: model, ch: i, labelTop: r.height + MixerWindow.gap)
                     .frame(width: 44, height: r.height + MixerWindow.gap + MixerWindow.labelH)
+                    .midiMarks(model, [model.midiLearn.press ? .press(i) : .knob(i)])
                     .position(x: xs[i], y: r.top + (r.height + MixerWindow.gap + MixerWindow.labelH) / 2)
             }
         }
@@ -149,6 +150,8 @@ struct FaderTouch: View {
     private var drag: some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { g in
+                // LEARN: фейдер — та же цель, что ручка MIX дорожки (KNOB n.m), громкость не трогаем.
+                if model.midiLearn.on { return }
                 if start == nil {
                     start = model.knobStart(ch)
                     model.beginGesture()
@@ -157,6 +160,10 @@ struct FaderTouch: View {
                 model.setKnob(ch, norm: (start ?? 0) + dy)
             }
             .onEnded { g in
+                if model.midiLearn.on {
+                    if abs(g.translation.height) < 4 && abs(g.translation.width) < 4 { model.learnKnob(ch) }
+                    return
+                }
                 guard start != nil else { return }
                 start = nil
                 model.endGesture()
