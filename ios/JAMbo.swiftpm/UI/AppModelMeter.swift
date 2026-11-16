@@ -21,12 +21,13 @@ extension AppModel {
         // Скоп — только пока виден (MST и MIX).
         let sc: MasterScope = audio.core.master.scope
         if channel != .track {
-            // При MIX (14.11, решение пользователя) — осциллоскоп только после лимитера.
-            let on: [Bool] = channel == .master ? scopeOn : [false, false, false, true]
+            // При MIX (16.11, решение пользователя) — без осциллоскопа: на его месте стерео по полосам.
+            let on: [Bool] = channel == .master ? scopeOn : [false, false, false, false]
             var m: Int = MasterScope.gonioBit
             for k in 0..<4 where on[k] { m |= 1 << k }
             sc.mask.store(m)
             scope.tick(sc, on: on)
+            if channel == .mix { bandStereo.tick(sc) }
         } else if sc.mask.load() != 0 {
             sc.mask.store(0)
         }

@@ -433,6 +433,7 @@ final class AppModel {
     @ObservationIgnored let dynMeters = MasterMeters()
     /// История громкости мастера (окно под осциллоскопом при MIX).
     @ObservationIgnored let loudHist = LoudHistory()
+    @ObservationIgnored let bandStereo = BandStereo()
     /// Скоп мастера: точки съёма SAT (всегда), COMP, CLIP, LIM (по умолчанию выключены — отличие от веба; в проекте
     /// не хранится).
     @ObservationIgnored let scope = ScopeState()

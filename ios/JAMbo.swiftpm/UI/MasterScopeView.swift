@@ -120,19 +120,24 @@ final class ScopeState {
 /// полупрозрачные 60 %, SAT снизу, LIM сверху; COMP, CLIP, LIM по умолчанию выключены).
 struct MasterScopeView: View {
     let model: AppModel
-    /// Формы волны COMP, CLIP, LIM по кнопкам (при MST); false — только SAT (при MIX, без кнопок).
+    /// Формы волны COMP, CLIP, LIM по кнопкам (при MST); false — при MIX: на месте осциллоскопа стерео по полосам.
     var taps: Bool = true
 
     var body: some View {
         GeometryReader { geo in
             let gap: CGFloat = 6
-            // При MIX вид выше на место кнопок под ним (две пары и зазоры): гониометр и осциллоскоп — того же размера,
-            // что при MST (14.11, решение пользователя), под ними — история громкости (16.11).
+            // При MIX вид выше на место кнопок под ним (две пары и зазоры): гониометр и стерео по полосам — размера
+            // гониометра и осциллоскопа при MST (14.11, решение пользователя), под ними — история громкости (16.11).
             let extra: CGFloat = taps ? 0 : 2 * Layout.pairHeight + 2 * Layout.gap
             let h: CGFloat = geo.size.height - extra - gap
             VStack(spacing: gap) {
                 panel { ctx, size in drawGonio(ctx, size) }.frame(height: h * 0.6)
-                panel { ctx, size in drawOsc(ctx, size) }.frame(height: h * 0.4)
+                // При MIX на месте осциллоскопа — стерео по полосам (16.11).
+                if taps {
+                    panel { ctx, size in drawOsc(ctx, size) }.frame(height: h * 0.4)
+                } else {
+                    BandStereoView(model: model).frame(height: h * 0.4)
+                }
                 // При MIX под ними — история громкости мастера (16.11).
                 if !taps { LoudHistoryView(model: model).frame(height: max(0, extra - gap)) }
             }
@@ -215,9 +220,8 @@ struct MasterScopeView: View {
         let cy: CGFloat = size.height / 2
         let amp: CGFloat = size.height / 2 - 2
         ctx.fill(Path(CGRect(x: 0, y: cy.rounded(), width: size.width, height: 1)), with: .color(theme.gridStrong))
-        // При MIX (taps false) — только сигнал после лимитера, красным (как LIM при MST).
-        let colors: [Color] = taps ? [theme.text, theme.accent, theme.gr, theme.rec] : [theme.rec, theme.rec, theme.rec, theme.rec]
-        for k in 0..<4 where taps ? (k == 0 || model.scopeOn[k]) : k == MasterScope.lim {
+        let colors: [Color] = [theme.text, theme.accent, theme.gr, theme.rec]
+        for k in 0..<4 where k == 0 || model.scopeOn[k] {
             let lo: [Float] = s.mins[k], hi: [Float] = s.maxs[k]
             let n: Int = lo.count
             if n == 0 { continue }
