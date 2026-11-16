@@ -41,15 +41,24 @@ struct ChannelCell: View {
             .onTapGesture { tap() }
     }
 
-    /// Тап — выбор канала; двойной тап по MIX (второй за 0,35 с) закрывает окно микшера (16.11).
+    /// Тап — выбор канала; двойной тап (второй за 0,35 с) по MIX закрывает окно микшера, по MST — окно модуля мастера (16.11).
     private func tap() {
         let now: Date = Date()
-        if channel == .mix, model.mixerOpen, let t = model.mixTapAt, now.timeIntervalSince(t) < 0.35 {
-            model.mixTapAt = nil
-            model.mixerOpen = false
-            return
+        let again: Bool = model.mixTapAt.map { now.timeIntervalSince($0) < 0.35 } ?? false
+        if again && model.channel == channel {
+            // Двойной тап по MST (16.11) — закрыть окно модуля мастера (SAT, COMP, CLIP, LIM).
+            if channel == .master && model.masterWin != nil {
+                model.mixTapAt = nil
+                model.closeMasterWindow()
+                return
+            }
+            if channel == .mix && model.mixerOpen {
+                model.mixTapAt = nil
+                model.mixerOpen = false
+                return
+            }
         }
-        model.mixTapAt = channel == .mix ? now : nil
+        model.mixTapAt = channel == .track ? nil : now
         model.select(channel: channel)
     }
 }
