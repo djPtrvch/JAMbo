@@ -61,7 +61,7 @@ struct TrackCell: View {
     private func cell(_ t: Track) -> some View {
         let selected: Bool = model.channel == .track && model.selectedTrack == index
         let flash: Bool = index < model.live.flashing.count && model.live.flashing[index] && !t.mute
-        let face = TrackFace(name: t.name, selected: selected, mute: t.mute, solo: t.solo, flash: flash)
+        let face = TrackFace(name: t.name, number: index + 1, selected: selected, mute: t.mute, solo: t.solo, flash: flash)
         return face.equatable()
             .overlay(alignment: .topLeading) { morphDot(t) }
             .contentShape(Rectangle())
@@ -103,6 +103,8 @@ struct TrackCell: View {
 /// Картинка дорожки: имя, M / S, заливка (мигание, mute, solo), рамка; точки MORPH и стема — поверх, в TrackCell.
 struct TrackFace: View, Equatable {
     let name: String
+    /// Номер дорожки (с 1) — слева внизу, с тем же отступом, что M / S справа вверху (16.11).
+    let number: Int
     let selected: Bool
     let mute: Bool
     let solo: Bool
@@ -110,7 +112,7 @@ struct TrackFace: View, Equatable {
 
     /// Тема — через окружение, в сравнение не входит (Environment не Equatable).
     static func == (a: TrackFace, b: TrackFace) -> Bool {
-        return a.name == b.name && a.selected == b.selected && a.mute == b.mute && a.solo == b.solo && a.flash == b.flash
+        return a.name == b.name && a.number == b.number && a.selected == b.selected && a.mute == b.mute && a.solo == b.solo && a.flash == b.flash
     }
 
     var body: some View {
@@ -125,6 +127,13 @@ struct TrackFace: View, Equatable {
                 .foregroundStyle(theme.text)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             stateLetter
+        }
+        .overlay(alignment: .bottomLeading) {
+            Text("\(number)")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(theme.dim)
+                .padding(.bottom, 3)
+                .padding(.leading, 7)
         }
         .framed(background, line: border)
     }

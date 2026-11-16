@@ -151,7 +151,22 @@ struct MixOverview: View {
         .allowsHitTesting(false)
     }
 
+    /// Высота строки номеров дорожек под полосами (16.11).
+    static let numbersH: CGFloat = 14
+
+    /// Полосы и под ними — номера дорожек (9 px, --dim) по центру своих мест.
     static func draw(_ ctx: GraphicsContext, _ size: CGSize, _ model: AppModel, _ mode: Int) {
+        let plot = CGSize(width: size.width, height: max(0, size.height - numbersH))
+        drawPlots(ctx, plot, model, mode)
+        let cell: CGFloat = size.width / 16
+        let n: Int = min(Params.maxTracks, model.project.tracks.count)
+        for t in 0..<n {
+            let txt = ctx.resolve(Text("\(t + 1)").font(.system(size: 9)).foregroundColor(theme.dim))
+            ctx.draw(txt, at: CGPoint(x: cell * (CGFloat(t) + 0.5), y: size.height), anchor: .bottom)
+        }
+    }
+
+    private static func drawPlots(_ ctx: GraphicsContext, _ size: CGSize, _ model: AppModel, _ mode: Int) {
         let h: CGFloat = size.height
         let cy: CGFloat = (h / 2).rounded()
         // Сетка и подписи справа: PAN — R, L; FREQ — 100, 1k, 10k.
