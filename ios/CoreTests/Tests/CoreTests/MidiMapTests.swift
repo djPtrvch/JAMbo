@@ -172,17 +172,21 @@ final class MidiMapTests: XCTestCase {
         a.sync.quantum = 4
         a.sync.clockOuts = [7, 9]
         a.randomDrums = true
+        a.knobColumns = true
         let data: Data = try XCTUnwrap(a.encode())
         let obj = try XCTUnwrap(try JSONSerialization.jsonObject(with: data) as? [String: Any])
         XCTAssertNil(obj["more"])
         XCTAssertEqual(obj["appearance"] as? String, "DARK")
         XCTAssertNotNil(obj["midi"])
         XCTAssertNotNil(obj["sync"])
-        XCTAssertEqual(obj.count, 36)
+        XCTAssertEqual(obj.count, 37)
         let back = AppSettings.decode(data)
         XCTAssertEqual(back, a)
         XCTAssertEqual(back.sync.clockOuts, [7, 9])
         XCTAssertEqual(back.midi.preset, "Twister")
+        XCTAssertTrue(back.knobColumns)
+        // Старый файл без ключа — группы строками.
+        XCTAssertFalse(AppSettings.decode(Data("{}".utf8)).knobColumns)
         XCTAssertEqual(AppSettings.decode(nil), AppSettings())
         XCTAssertNotEqual(back, AppSettings())
     }

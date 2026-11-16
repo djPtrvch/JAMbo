@@ -151,6 +151,10 @@ public struct AppSettings: Codable, Equatable, Sendable {
     /// SETTINGS → APPEARANCE → SCALE: шкала дисплеев окон модулей мастера, dB (48, 32, 16; как в вебе).
     public var displayScale: Int = 48
     public static let displayScales: [Int] = [48, 32, 16]
+    /// SETTINGS → APPEARANCE → KNOB GROUPS (16.11, решение пользователя): группы ручек сеток 4×4 — строками (false,
+    /// по умолчанию) или столбцами (true, как до 8.11). Только раскладка на экране: ручка хранится по группе и месту
+    /// (p-lock, LFO/ENV, автоматизация, MIDI KNOB группа.место не меняются).
+    public var knobColumns: Bool = false
     /// Громкость метронома, % (0…200; 100 — прежний уровень).
     public var metronomeVol: Double = 100
 
@@ -170,7 +174,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
                                          rollSound, levelRelative, morphReturn, morphHoldMode, mixKey, mixCrossfader,
                                          clearSampleLocks, pitchShiftTap, startEndShiftTap, midi, sync,
                                          arrangeCompact, fxPictures, backgroundAudio, arrangeRepeats, stretchBeat,
-                                         metronomeVol, arrangeScale, arrangeFollow, displayScale,
+                                         metronomeVol, arrangeScale, arrangeFollow, displayScale, knobColumns,
                                          randomDrums, randomChords, randomSwing, randomStepsAll, randomSamples, showPartType,
                                          warpProjectBpm }
 
@@ -208,6 +212,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         arrangeFollow = c.value(.arrangeFollow, true)
         let ds: Int = c.value(.displayScale, 48)
         displayScale = AppSettings.displayScales.contains(ds) ? ds : 48
+        knobColumns = c.value(.knobColumns, false)
         randomDrums = c.value(.randomDrums, false)
         randomChords = c.value(.randomChords, false)
         randomSwing = c.value(.randomSwing, false)
@@ -250,6 +255,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         try c.encode(arrangeScale, forKey: .arrangeScale)
         try c.encode(arrangeFollow, forKey: .arrangeFollow)
         try c.encode(displayScale, forKey: .displayScale)
+        try c.encode(knobColumns, forKey: .knobColumns)
         try c.encode(randomDrums, forKey: .randomDrums)
         try c.encode(randomChords, forKey: .randomChords)
         try c.encode(randomSwing, forKey: .randomSwing)

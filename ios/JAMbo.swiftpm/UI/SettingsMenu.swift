@@ -270,7 +270,7 @@ struct MonitorSettingsRows: View {
 }
 
 /// APPEARANCE: тема SYSTEM (как на iPad), LIGHT, DARK; MASTER FX DISPLAY SCALE — масштаб дисплеев окон модулей
-/// мастера (48, 32, 16 dB);
+/// мастера (48, 32, 16 dB); KNOB GROUPS IN COLUMNS — группы ручек столбцами (16.11);
 /// FX ANIMATION — картинки FX в окне сэмпла.
 struct AppearanceSettings: View {
     let model: AppModel
@@ -290,6 +290,8 @@ struct AppearanceSettings: View {
             .label("MASTER FX DISPLAY SCALE"),
             .choices(scales),
             .note("Zoom of the level displays in the master effect windows (COMP, CLIP, LIM): from 0 dBFS down to −48, −32 or −16 dB."),
+            .toggle("KNOB GROUPS IN COLUMNS", m.settings.knobColumns) { v in m.updateSettings { $0.knobColumns = v } },
+            .note("OFF: each row of the 4×4 knob grid is one group (sound, envelope and filter, sends, mix). ON: each column is one group, as before. Locks, LFO assignments, automation and MIDI stay with their knobs."),
             .toggle("FX ANIMATION", m.settings.fxPictures) { m.setFxPictures($0) },
             .note("While an FX knob is turned, the sample window shows a picture of the effect."),
         ])

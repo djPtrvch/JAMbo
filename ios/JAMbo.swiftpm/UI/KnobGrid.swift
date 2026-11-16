@@ -43,7 +43,10 @@ struct KnobGrid: View {
                                 .zIndex(lift?.from == k ? 1 : 0)
                                 .animation(.easeOut(duration: 0.15), value: lift?.to)
                         } else {
-                            KnobCell(model: model, slot: k).midiMarks(model, [model.midiLearn.press ? .press(k) : .knob(k)])
+                            // Группы столбцами (SETTINGS → APPEARANCE → KNOB GROUPS): на месте (ряд, столбец) — ручка
+                            // (группа = столбец, место = ряд); сама ручка и всё, что к ней привязано, — по группе.
+                            let g: Int = KnobGrid.groupSlot(row, col, model.settings.knobColumns)
+                            KnobCell(model: model, slot: g).midiMarks(model, [model.midiLearn.press ? .press(g) : .knob(g)])
                         }
                     }
                 }
@@ -77,7 +80,14 @@ struct KnobGrid: View {
     private func slot(_ p: CGPoint, size: CGSize) -> Int {
         let col: Int = min(3, max(0, Int(p.x / (size.width / 4))))
         let row: Int = min(3, max(0, Int(p.y / (size.height / 4))))
-        return row * 4 + col
+        // MIX — громкости дорожек по порядку, раскладка групп их не касается.
+        if model.channel == .mix { return row * 4 + col }
+        return KnobGrid.groupSlot(row, col, model.settings.knobColumns)
+    }
+
+    /// Ручка (группа·4 + место) на экранном месте (ряд, столбец): группы строками — как есть, столбцами — транспонирование.
+    static func groupSlot(_ row: Int, _ col: Int, _ columns: Bool) -> Int {
+        return columns ? col * 4 + row : row * 4 + col
     }
 
     private func touches(size: CGSize) -> some Gesture {
