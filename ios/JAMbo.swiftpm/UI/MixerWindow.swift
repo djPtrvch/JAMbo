@@ -18,13 +18,20 @@ struct MixerWindow: View {
 
     var body: some View {
         let xs: [CGFloat] = centers()
-        let sx: CGFloat = model.tracksFrame.minX + layout.step - frame.minX
+        // Шкала — по центру места MIX.
+        let sx: CGFloat = model.tracksFrame.minX + layout.step / 2 - frame.minX
         return ZStack(alignment: .topTrailing) {
             TimelineView(.animation(minimumInterval: 1.0 / 60)) { tl in
                 ScopeCanvas(now: tl.date) { ctx, size in draw(ctx, size, xs, sx, tl.date.timeIntervalSinceReferenceDate) }
             }
             touches(xs)
-            CloseButton(side: min(model.barH, 44)) { model.mixerOpen = false }
+            // Крестик без квадрата (16.11, решение пользователя).
+            Text("✕")
+                .font(.system(size: 18, weight: .bold))
+                .foregroundStyle(theme.text)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+                .onTapGesture { model.mixerOpen = false }
         }
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { frame = $0 }
     }
@@ -88,18 +95,18 @@ struct MixerWindow: View {
         }
     }
 
-    /// Шкала dB слева (над MIX; 16.11): 0…−60 через 6 dB — шкала полос и планок; подписи 9 px --dim справа налево,
-    /// у правого края места MIX — короткие черты.
-    private func scale(_ ctx: GraphicsContext, _ right: CGFloat, _ top: CGFloat, _ h: CGFloat) {
+    /// Шкала dB слева (над MIX, по центру его места; 16.11): 0…−60 через 6 dB — шкала полос и планок; подпись
+    /// 9 px --dim и справа от неё короткая черта.
+    private func scale(_ ctx: GraphicsContext, _ mid: CGFloat, _ top: CGFloat, _ h: CGFloat) {
         var ticks = Path()
         var db: Int = 0
         while db >= -60 {
             let y: CGFloat = top + h * CGFloat(-db) / 60
-            ticks.move(to: CGPoint(x: right - 10, y: y))
-            ticks.addLine(to: CGPoint(x: right, y: y))
+            ticks.move(to: CGPoint(x: mid + 6, y: y))
+            ticks.addLine(to: CGPoint(x: mid + 14, y: y))
             let s: String = db == 0 ? "0" : "−\(-db)"
             let t = Text(s).font(.system(size: 9)).monospacedDigit().foregroundColor(theme.dim)
-            ctx.draw(t, at: CGPoint(x: right - 14, y: y), anchor: .trailing)
+            ctx.draw(t, at: CGPoint(x: mid + 2, y: y), anchor: .trailing)
             db -= 6
         }
         ctx.stroke(ticks, with: .color(theme.gridStrong), lineWidth: 1)
