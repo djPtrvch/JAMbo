@@ -77,9 +77,12 @@ struct MixerWindow: View {
             let clip: Bool = m.clip(i, now: now)
             let mark = CGRect(x: x - 10.5, y: MixerWindow.labelH + MixerWindow.gap, width: 21, height: MixerWindow.clipH)
             ctx.fill(Path(roundedRect: mark, cornerRadius: 2), with: .color(clip ? theme.rec : theme.off))
-            thumb(ctx, x, bars, model.meterVol(i))
+            // Громкость — ручки MIX (16.11, решение пользователя): та же, что на сетке MIX (с p-lock шага), а не
+            // регулятор дорожки справа (при LEVEL RELATIVE — подстройка trim).
+            let vol: Double = model.knobState(i).value
+            thumb(ctx, x, bars, vol)
             // Сверху — громкость фейдера (ярче, на строке VOL), снизу — наибольший пик: только числа.
-            volText(ctx, MeterColumn.fmtVol(model.meterVol(i)), x)
+            volText(ctx, MeterColumn.fmtVol(vol), x)
             // Пик — посередине между низом полос и верхом строки дорожек (как строка VOL сверху).
             let pk = Text(MeterColumn.fmtDb(m.maxPeak[i])).font(.system(size: 9)).monospacedDigit().foregroundColor(theme.dim)
             ctx.draw(pk, at: CGPoint(x: x, y: (bars.maxY + size.height + Layout.gap) / 2), anchor: .center)
@@ -129,8 +132,8 @@ struct MixerWindow: View {
     }
 }
 
-/// Место касания фейдера (полосы и нижняя подпись): палец вверх-вниз — громкость дорожки (ход — как у регулятора
-/// справа); тап по нижней подписи (ниже labelTop) — сброс пика.
+/// Место касания фейдера (полосы и нижняя подпись): палец вверх-вниз — ручка MIX дорожки (как поворот ручки на
+/// сетке MIX: с зажатыми шагами — p-lock; ход — как у регулятора справа); тап по нижней подписи (ниже labelTop) — сброс пика.
 struct FaderTouch: View {
     let model: AppModel
     let ch: Int
@@ -147,11 +150,11 @@ struct FaderTouch: View {
         DragGesture(minimumDistance: 0)
             .onChanged { g in
                 if start == nil {
-                    start = model.meterVol(ch)
+                    start = model.knobStart(ch)
                     model.beginGesture()
                 }
                 let dy: Double = Double(-g.translation.height / MeterColumn.travel)
-                model.setMeterVol(ch, (start ?? 0) + dy * -Params.volMin)
+                model.setKnob(ch, norm: (start ?? 0) + dy)
             }
             .onEnded { g in
                 guard start != nil else { return }
