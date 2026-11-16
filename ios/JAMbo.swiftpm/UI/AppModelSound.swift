@@ -644,9 +644,13 @@ extension AppModel {
     func deleteTrack(_ i: Int) {
         guard project.canDeleteTrack(i) else { return }
         let sel = selectedTrack
+        let n: Int = project.tracks.count - 1
+        // Выбор — до правки: правка сразу пересчитывает звук, и выбранная дорожка должна уже существовать.
+        let next: Int = max(0, min(n - 1, sel > i ? sel - 1 : sel))
+        if next != sel { selectedTrack = next }
         edit { p in p.deleteTrack(i) }
         forgetTrackCaches()
-        if sel >= project.tracks.count || sel > i { selectTrackIndex(max(0, min(project.tracks.count - 1, sel > i ? sel - 1 : sel))) }
+        if next != sel { selectTrackIndex(next) }
     }
 
     /// Удаление и перестановка дорожек (16.11): данные по номеру дорожки (анализ MIX — FREQ, MASK, LOUD; кэш стерео

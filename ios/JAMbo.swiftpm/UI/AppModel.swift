@@ -875,7 +875,9 @@ final class AppModel {
         rememberEditorMarks()
     }
 
-    var track: Track { return project.tracks[selectedTrack] }
+    /// Выбранная дорожка. Номер ограничен числом дорожек (16.11): после DELETE TRACK, UNDO добавления дорожки и т. п.
+    /// пересчёт звука (publishAudio внутри edit) идёт раньше, чем выбор поправлен, — без ограничения выход за массив.
+    var track: Track { return project.tracks[min(selectedTrack, project.tracks.count - 1)] }
 
     /// Действие ручки на другом месте (глобальный MIDI-маппинг, S13): на время body сетка ручек «показывает» place —
     /// страницу и дорожку, без зажатых шагов (p-lock не ставится) и MORPH; затем всё возвращается. Интерфейс видит
