@@ -271,6 +271,10 @@ struct RootView: View {
             // Редактор сэмпла — на месте центра (окно сэмпла, сетка ручек, правая колонка), справа измеритель.
             return AnyView(WithMeter(model: model) { SampleEditor(model: model) })
         }
+        if model.channel == .mix && model.mixerOpen {
+            // Окно микшера при MIX (16.11): фейдеры над дорожками, справа измеритель — фейдер мастера.
+            return AnyView(WithMeter(model: model) { MixerWindow(model: model, layout: layout) })
+        }
         return AnyView(MainCenter(model: model))
     }
 

@@ -502,6 +502,10 @@ extension AppModel {
         get { access(keyPath: \.mixMode); return _mixMode }
         set { put(\.mixMode, \._mixMode, newValue, _mixMode != newValue) }
     }
+    var mixerOpen: Bool {
+        get { access(keyPath: \.mixerOpen); return _mixerOpen }
+        set { put(\.mixerOpen, \._mixerOpen, newValue, _mixerOpen != newValue) }
+    }
     var session: ProjectSession {
         get { access(keyPath: \.session); return _session }
         set { put(\.session, \._session, newValue, observedChanged(_session, newValue)) }

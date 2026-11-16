@@ -115,6 +115,11 @@ struct SampleWindow: View {
                     return
                 }
                 if abs(g.translation.height) > 10 { return }
+                // При MIX тап по окну полос — окно микшера (16.11).
+                if model.channel == .mix {
+                    model.mixerOpen = true
+                    return
+                }
                 model.ensureAudio()
                 model.openSoundMenu()
             }

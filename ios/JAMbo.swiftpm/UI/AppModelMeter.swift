@@ -162,10 +162,11 @@ extension AppModel {
         }
     }
 
-    /// LEVEL (LOUD), MASK, FREQ при MIX: съём дорожек — только пока виден один из них; выключили — данные с нуля.
+    /// LEVEL (LOUD), MASK, FREQ и окно микшера при MIX: съём дорожек — только пока виден один из них; выключили — данные с нуля.
     private func tickMixAnalysis() {
         let taps: TrackTaps = audio.core.levels.trackTaps
-        let want: Bool = channel == .mix && _mixMode != MixMode.pan
+        // LOUD нужен и фейдерам окна микшера (16.11).
+        let want: Bool = channel == .mix && (_mixMode != MixMode.pan || _mixerOpen)
         if want {
             if taps.on.load() == 0 { taps.on.store(1) }
             let n: Int = min(TrackTaps.tracks, project.tracks.count)

@@ -440,6 +440,10 @@ final class AppModel {
     @ObservationIgnored var _scopeOn: [Bool] = [true, false, false, false]
     /// Вид полос MIX слева (MixMode.level, pan, freq, mask); в проекте не хранится.
     @ObservationIgnored var _mixMode: Int = 0
+    /// Окно микшера при MIX (16.11): открыто ли (тап по окну полос — открыть, ✕ — закрыть).
+    @ObservationIgnored var _mixerOpen: Bool = false
+    /// Фейдеры окна микшера под пальцем (подпись VOL).
+    @ObservationIgnored var mixerDrag: Set<Int> = []
     /// FREQ, MASK и LOUD при MIX.
     @ObservationIgnored let mixAn = MixAnalysis()
     /// Окно модуля мастера на месте центра (MasterScope.sat…lim; nil — закрыто) и его меню (название, PRESETS);
