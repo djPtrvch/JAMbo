@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// История громкости мастера при MIX (под осциллоскопом): short-term (3 с) за последние 60 с игры, пунктир —
-/// интегральная; числа ST (short-term сейчас), LRA (разброс громкости, EBU Tech 3342: short-term за всю игру,
-/// пороги −70 LUFS и −20 LU, 10…95 %), PLR (пик отсчётов с начала минус интегральная). Копится только во время
+/// интегральная; числа SHORT TERM (short-term сейчас), LOUDNESS RANGE (LRA, разброс громкости, EBU Tech 3342: short-term за всю игру,
+/// пороги −70 LUFS и −20 LU, 10…95 %), PEAK TO LOUDNESS (PLR, пик отсчётов с начала минус интегральная). Копится только во время
 /// игры (тишина между джемами не портит LRA); тап по окну — с нуля (и LUFS измерителя).
 final class LoudHistory {
     static let points: Int = 300
@@ -114,11 +114,11 @@ struct LoudHistoryView: View {
         let int: Float = ml.integrated.load()
         let pk: Float = h.peak
         let plr: Float = pk > 0 && int.isFinite ? 20 * log10(pk) - int : -Float.infinity
-        let row: CGFloat = 26
+        let row: CGFloat = 44
         let cell: CGFloat = size.width / 3
-        cellText(ctx, "ST", fmt(st), cell * 0.5, 4)
-        cellText(ctx, "LRA", h.lra >= 0 ? String(format: "%.1f", h.lra) : "—", cell * 1.5, 4)
-        cellText(ctx, "PLR", fmt(plr), cell * 2.5, 4)
+        cellText(ctx, "SHORT\nTERM", fmt(st), cell * 0.5, 4)
+        cellText(ctx, "LOUDNESS\nRANGE", h.lra >= 0 ? String(format: "%.1f", h.lra) : "—", cell * 1.5, 4)
+        cellText(ctx, "PEAK TO\nLOUDNESS", fmt(plr), cell * 2.5, 4)
         let plot = CGRect(x: 6, y: row + 4, width: size.width - 12, height: max(1, size.height - row - 10))
         grid(ctx, plot)
         if int.isFinite { intLine(ctx, plot, int) }
@@ -129,11 +129,17 @@ struct LoudHistoryView: View {
         return v.isFinite ? String(format: "%.1f", v) : "—"
     }
 
+    /// Подпись в две строки (каждая по центру) и значение под ней.
     private func cellText(_ ctx: GraphicsContext, _ label: String, _ value: String, _ x: CGFloat, _ y: CGFloat) {
-        let l = Text(label).font(.system(size: 9)).foregroundColor(theme.dim)
+        let lines: [Substring] = label.split(separator: "\n")
+        var k: Int = 0
+        while k < lines.count {
+            let l = Text(String(lines[k])).font(.system(size: 9)).foregroundColor(theme.dim)
+            ctx.draw(l, at: CGPoint(x: x, y: y + CGFloat(k) * 11), anchor: .top)
+            k += 1
+        }
         let v = Text(value).font(.system(size: 12, weight: .semibold)).monospacedDigit().foregroundColor(theme.text)
-        ctx.draw(l, at: CGPoint(x: x, y: y), anchor: .top)
-        ctx.draw(v, at: CGPoint(x: x, y: y + 10), anchor: .top)
+        ctx.draw(v, at: CGPoint(x: x, y: y + 23), anchor: .top)
     }
 
     private func yOf(_ v: Float, _ r: CGRect) -> CGFloat {
