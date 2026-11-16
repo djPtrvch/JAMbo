@@ -18,9 +18,10 @@ struct MixerWindow: View {
 
     var body: some View {
         let xs: [CGFloat] = centers()
+        let sx: CGFloat = model.tracksFrame.minX + layout.step - frame.minX
         return ZStack(alignment: .topTrailing) {
             TimelineView(.animation(minimumInterval: 1.0 / 60)) { tl in
-                ScopeCanvas(now: tl.date) { ctx, size in draw(ctx, size, xs, tl.date.timeIntervalSinceReferenceDate) }
+                ScopeCanvas(now: tl.date) { ctx, size in draw(ctx, size, xs, sx, tl.date.timeIntervalSinceReferenceDate) }
             }
             touches(xs)
             CloseButton(side: min(model.barH, 44)) { model.mixerOpen = false }
@@ -61,8 +62,9 @@ struct MixerWindow: View {
         }
     }
 
-    private func draw(_ ctx: GraphicsContext, _ size: CGSize, _ xs: [CGFloat], _ now: Double) {
+    private func draw(_ ctx: GraphicsContext, _ size: CGSize, _ xs: [CGFloat], _ sx: CGFloat, _ now: Double) {
         let r = MixerWindow.barsRect(size.height)
+        if !xs.isEmpty { scale(ctx, sx, r.top, r.height) }
         let m: MeterState = model.meters
         for i in 0..<xs.count where i < model.project.tracks.count {
             let x: CGFloat = xs[i]
@@ -84,6 +86,23 @@ struct MixerWindow: View {
             let bottom: String = drag ? "VOL\n" + MeterColumn.fmtVol(model.meterVol(i)) : MeterColumn.fmtDb(m.maxPeak[i]) + "\ndB"
             label(ctx, bottom, CGPoint(x: x, y: bars.maxY + MixerWindow.gap))
         }
+    }
+
+    /// Шкала dB слева (над MIX; 16.11): 0…−60 через 6 dB — шкала полос и планок; подписи 9 px --dim справа налево,
+    /// у правого края места MIX — короткие черты.
+    private func scale(_ ctx: GraphicsContext, _ right: CGFloat, _ top: CGFloat, _ h: CGFloat) {
+        var ticks = Path()
+        var db: Int = 0
+        while db >= -60 {
+            let y: CGFloat = top + h * CGFloat(-db) / 60
+            ticks.move(to: CGPoint(x: right - 10, y: y))
+            ticks.addLine(to: CGPoint(x: right, y: y))
+            let s: String = db == 0 ? "0" : "−\(-db)"
+            let t = Text(s).font(.system(size: 9)).monospacedDigit().foregroundColor(theme.dim)
+            ctx.draw(t, at: CGPoint(x: right - 14, y: y), anchor: .trailing)
+            db -= 6
+        }
+        ctx.stroke(ticks, with: .color(theme.gridStrong), lineWidth: 1)
     }
 
     /// Планка громкости — как у измерителя справа (30 × 8, цвет текста, обводка фоном, тень).
