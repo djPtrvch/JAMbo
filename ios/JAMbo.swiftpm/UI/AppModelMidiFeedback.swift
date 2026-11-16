@@ -122,6 +122,7 @@ extension AppModel {
         case "MIX": return channel == .mix
         case "MST": return channel == .master
         case "ARM MST": return stemLit(StemRing.master)
+        case "SHIFT": return shiftHeld
         case "ARP": return channel == .track && track.arp.mode
         default: return midiLitNumbered(name)
         }

@@ -341,5 +341,6 @@ struct ShiftButton: View {
                     .onChanged { _ in if !model.shiftHeld { model.shiftPressed() } }
                     .onEnded { _ in model.shiftReleased() }
             )
+            .midiTarget(model, "SHIFT")
     }
 }

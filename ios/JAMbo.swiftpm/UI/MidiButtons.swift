@@ -12,7 +12,7 @@ enum MidiButtons {
     static let continuous: [String] = [bpm, level, xfader]
     static let fixed: [String] = ["PLAY", "REC", "PATTERNS", "ARRANGE", "EQ", "ROLL", "UNDO", "REDO", "METRONOME", "CHORD", "OCTAVE ▲",
                                   "OCTAVE ▼", "LFO1", "LFO2", "LFO3", "ENV", "FX", "MOD", "MORPH", "MIX", "MST",
-                                  "ARM MST", "GRID ▲", "GRID ▼", "ARP", "SOUND ◀", "SOUND ▶", "PAGE ◀", "PAGE ▶", "PAGE ▲",
+                                  "ARM MST", "GRID ▲", "GRID ▼", "SHIFT", "ARP", "SOUND ◀", "SOUND ▶", "PAGE ◀", "PAGE ▶", "PAGE ▲",
                                   "PAGE ▼", bpm, level, xfader]
 
     /// Все имена (список действий нажатия ручки в окне MIDI MAP): постоянные, затем с номерами.
@@ -100,6 +100,7 @@ extension AppModel {
         case "FX": pageRelease(.fx)
         case "MOD": pageRelease(.mod)
         case "MORPH": morphRelease()
+        case "SHIFT": shiftReleased()
         default: break
         }
         if name.hasPrefix("KEY ") { keyUp(id: midiKeyId(name)) }
@@ -143,6 +144,7 @@ extension AppModel {
         case "ARM MST": stemTap(StemRing.master)
         case "GRID ▲": gridArrow(-1)
         case "GRID ▼": gridArrow(1)
+        case "SHIFT": if !shiftHeld { shiftPressed() }
         case "ARP": if channel == .track { setChordArpMode(!track.arp.mode) }
         case "SOUND ◀": folderArrow(-1)
         case "SOUND ▶": folderArrow(1)
