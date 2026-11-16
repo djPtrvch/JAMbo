@@ -2,10 +2,9 @@ import SwiftUI
 
 /// Окно микшера при MIX (16.11, решение пользователя): тап по окну полос слева открывает, ✕ справа вверху закрывает.
 /// На месте центра (окно полос, сетка ручек, правая колонка; справа остаётся измеритель — фейдер мастера). Над каждой
-/// дорожкой строки дорожек — фейдер, как измеритель справа: сверху громкость по восприятию (LUFS, K-взвешивание,
-/// среднее ~4 с — как LOUD окна LEVEL), метка клиппинга, полосы (стерео — две, моно — одна, пик-холд, выше 0 dB —
+/// дорожкой строки дорожек — фейдер, как измеритель справа: сверху громкость фейдера (VOL, dB), метка клиппинга, полосы (стерео — две, моно — одна, пик-холд, выше 0 dB —
 /// красные, заглушённая — серая, Duck — оранжевым сверху) с белой планкой громкости, снизу наибольший пик в dB (тап —
-/// сброс), пока палец на фейдере — VOL. Палец вверх-вниз — громкость (как регулятор справа, тот же ход); несколько
+/// сброс). Палец вверх-вниз — громкость (как регулятор справа, тот же ход); несколько
 /// фейдеров сразу. Все полосы рисует один холст, касания — прозрачные места фейдеров.
 struct MixerWindow: View {
     let model: AppModel
@@ -86,11 +85,9 @@ struct MixerWindow: View {
             let mark = CGRect(x: x - 10.5, y: MixerWindow.labelH + MixerWindow.gap, width: 21, height: MixerWindow.clipH)
             ctx.fill(Path(roundedRect: mark, cornerRadius: 2), with: .color(clip ? theme.rec : theme.off))
             thumb(ctx, x, bars, model.meterVol(i))
-            let loud: Float = model.mixAn.loud(i)
-            let lufs: Float = loud > 0 ? 20 * log10(loud) : -Float.infinity
-            label(ctx, "LUFS\n" + MeterColumn.fmtLufs(lufs), CGPoint(x: x, y: 0))
-            let drag: Bool = model.mixerDrag.contains(i)
-            let bottom: String = drag ? "VOL\n" + MeterColumn.fmtVol(model.meterVol(i)) : MeterColumn.fmtDb(m.maxPeak[i]) + "\ndB"
+            // Сверху — громкость фейдера (16.11, решение пользователя), снизу — наибольший пик.
+            label(ctx, "VOL\n" + MeterColumn.fmtVol(model.meterVol(i)), CGPoint(x: x, y: 0))
+            let bottom: String = MeterColumn.fmtDb(m.maxPeak[i]) + "\ndB"
             label(ctx, bottom, CGPoint(x: x, y: bars.maxY + MixerWindow.gap))
         }
     }
@@ -155,7 +152,6 @@ struct FaderTouch: View {
             .onChanged { g in
                 if start == nil {
                     start = model.meterVol(ch)
-                    model.mixerDrag.insert(ch)
                     model.beginGesture()
                 }
                 let dy: Double = Double(-g.translation.height / MeterColumn.travel)
@@ -164,7 +160,6 @@ struct FaderTouch: View {
             .onEnded { g in
                 guard start != nil else { return }
                 start = nil
-                model.mixerDrag.remove(ch)
                 model.endGesture()
                 let still: Bool = abs(g.translation.height) < 4 && abs(g.translation.width) < 4
                 if still && g.startLocation.y >= labelTop { model.meters.resetPeak(ch) }
