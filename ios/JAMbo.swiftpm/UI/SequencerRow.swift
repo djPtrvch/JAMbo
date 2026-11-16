@@ -72,6 +72,7 @@ struct SequencerRow: View {
         let index: Int = first * Params.stepsPerPage + col
         let firstHeld: Bool = presses.values.contains { $0.col == 0 }
         let secondary: Bool = firstHeld && col != 0
+        var lengthSet: Bool = false
         if secondary, let t = lastTap[col], Date().timeIntervalSince(t) < 0.35 {
             // Двойной тап: первый тап скопировал первый шаг — копия отменяется, шаг становится последним.
             if let c = lastCopy, c.index == index { model.restoreStep(index, c.old) }
@@ -79,8 +80,10 @@ struct SequencerRow: View {
             model.setPatternLength(lastIndex: index)
             for (k, v) in presses where v.col == 0 { presses[k]?.used = true }
             lastTap[col] = nil
+            lengthSet = true
         }
-        presses[id] = StepPress(col: col, index: index, t0: Date(), secondary: secondary)
+        // Второй тап двойного (длина паттерна) больше ничего не делает: без копии первого шага на отпускании.
+        presses[id] = StepPress(col: col, index: index, t0: Date(), secondary: secondary, used: lengthSet)
         model.heldSteps.insert(index)
         model.beginGesture()
     }
@@ -160,9 +163,9 @@ struct StepPress {
     let index: Int
     let t0: Date
     let secondary: Bool
-    var dragged: Bool = false
     /// Нажатие уже что-то сделало (протягивание, длина паттерна) — триг на отпускании не переключается.
     var used: Bool = false
+    var dragged: Bool = false
 }
 
 /// Шаг: триг (белый), хвост длинной ноты (полупрозрачный), нота или POLY, играющий — жёлтый контур,
