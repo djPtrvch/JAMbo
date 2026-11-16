@@ -38,7 +38,19 @@ struct ChannelCell: View {
             }
             .framed(theme.trackBg, line: selected ? theme.accent : Color.clear)
             .contentShape(Rectangle())
-            .onTapGesture { model.select(channel: channel) }
+            .onTapGesture { tap() }
+    }
+
+    /// Тап — выбор канала; двойной тап по MIX (второй за 0,35 с) закрывает окно микшера (16.11).
+    private func tap() {
+        let now: Date = Date()
+        if channel == .mix, model.mixerOpen, let t = model.mixTapAt, now.timeIntervalSince(t) < 0.35 {
+            model.mixTapAt = nil
+            model.mixerOpen = false
+            return
+        }
+        model.mixTapAt = channel == .mix ? now : nil
+        model.select(channel: channel)
     }
 }
 

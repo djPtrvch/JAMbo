@@ -442,6 +442,8 @@ final class AppModel {
     @ObservationIgnored var _mixMode: Int = 0
     /// Окно микшера при MIX (16.11): открыто ли (тап по окну полос — открыть, ✕ — закрыть).
     @ObservationIgnored var _mixerOpen: Bool = false
+    /// Последний тап по MIX (двойной — закрыть окно микшера).
+    @ObservationIgnored var mixTapAt: Date? = nil
     /// FREQ, MASK и LOUD при MIX.
     @ObservationIgnored let mixAn = MixAnalysis()
     /// Окно модуля мастера на месте центра (MasterScope.sat…lim; nil — закрыто) и его меню (название, PRESETS);
