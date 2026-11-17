@@ -22,11 +22,11 @@ struct MeterColumn: View {
         let ch: Int = model.meterChannel
         let still: Bool = paused
         return VStack(spacing: 4) {
-            TimelineView(.animation(minimumInterval: 0.1, paused: still)) { tl in
+            FrameTimeline(fps: 10, paused: still) { tl in
                 top(ch, now: tl.date.timeIntervalSinceReferenceDate)
             }
             bars(ch, still: still)
-            TimelineView(.animation(minimumInterval: 0.1, paused: still)) { _ in
+            FrameTimeline(fps: 10, paused: still) { _ in
                 label(bottomText(ch))
             }
             .onTapGesture { model.resetMeterPeak() }
@@ -79,7 +79,7 @@ struct MeterColumn: View {
         let meters: MeterState = model.meters
         return GeometryReader { geo in
             ZStack(alignment: .topLeading) {
-                TimelineView(.animation(minimumInterval: LoadAnim.frame(60), paused: LoadAnim.stop || still)) { tl in
+                FrameTimeline(fps: 60, paused: still) { tl in
                     ScopeCanvas(now: tl.date) { ctx, size in
                         let data = meters.bars(ch, stereo: stereo)
                         let w: CGFloat = MeterBars.span(data.count)

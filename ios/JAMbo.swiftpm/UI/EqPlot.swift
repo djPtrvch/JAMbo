@@ -83,7 +83,7 @@ struct EqPlot: View {
             ZStack(alignment: .topLeading) {
                 EqSpectrumLayer(model: model, display: spectrum)
                 // Динамические полосы: точки и кривая — с текущим сдвигом, 30 кадров в секунду (без них — пауза).
-                TimelineView(.animation(minimumInterval: LoadAnim.frame(30), paused: LoadAnim.stop || !model.eqHasDyn)) { _ in
+                FrameTimeline(fps: 30, paused: !model.eqHasDyn) { _ in
                     let offs: [Double] = model.eqDynOffsets()
                     let curves: EqCurves = EqPlot.curves(eq, g, offs)
                     Canvas { ctx, _ in

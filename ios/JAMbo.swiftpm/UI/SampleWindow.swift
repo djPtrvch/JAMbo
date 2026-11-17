@@ -149,7 +149,7 @@ struct MixOverview: View {
 
     var body: some View {
         let mode: Int = model.mixMode
-        return TimelineView(.animation(minimumInterval: LoadAnim.frame(60), paused: LoadAnim.stop)) { tl in
+        return FrameTimeline(fps: 60) { tl in
             ScopeCanvas(now: tl.date) { ctx, size in MixOverview.draw(ctx, size, model, mode) }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -327,7 +327,7 @@ struct WaveStrip: View {
     var body: some View {
         ZStack {
             wave
-            TimelineView(.animation(minimumInterval: LoadAnim.frame(60), paused: LoadAnim.stop || model.headCount == 0)) { _ in
+            FrameTimeline(fps: 60, paused: model.headCount == 0) { _ in
                 heads
             }
         }

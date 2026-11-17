@@ -12,7 +12,7 @@ struct LimiterDisplay: View {
     private var ceilingParam: ParamDef { return Params.masterColumns[3][1] }
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: LoadAnim.frame(60), paused: LoadAnim.stop)) { tl in
+        FrameTimeline(fps: 60) { tl in
             let now: Double = tl.date.timeIntervalSinceReferenceDate
             HStack(spacing: Layout.gap) {
                 LevelPlot(model: model, tele: model.audio.core.master.limTele, hist: hist, line: ceilingParam, now: now) {

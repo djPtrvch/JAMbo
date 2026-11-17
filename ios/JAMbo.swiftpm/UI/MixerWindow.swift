@@ -20,7 +20,7 @@ struct MixerWindow: View {
         // Шкала — по центру места MIX.
         let sx: CGFloat = model.tracksFrame.minX + layout.step / 2 - frame.minX
         return ZStack(alignment: .topTrailing) {
-            TimelineView(.animation(minimumInterval: LoadAnim.frame(60), paused: LoadAnim.stop)) { tl in
+            FrameTimeline(fps: 60) { tl in
                 ScopeCanvas(now: tl.date) { ctx, size in draw(ctx, size, xs, sx, tl.date.timeIntervalSinceReferenceDate) }
             }
             touches(xs)

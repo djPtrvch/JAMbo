@@ -57,11 +57,8 @@ final class LoadProbe {
     func next() { mode = (mode + 1) % LoadProbe.tags.count }
 }
 
-/// Частота анимаций (TimelineView) с учётом проб H и A.
+/// Проба A: все анимации стоят (FrameTimeline, MeterColumn).
 enum LoadAnim {
-    static func frame(_ fps: Double) -> Double {
-        return LoadProbe.shared.mode == LoadProbe.half ? 2 / fps : 1 / fps
-    }
     static var stop: Bool { return LoadProbe.shared.mode == LoadProbe.all }
 }
 

@@ -440,6 +440,8 @@ final class AppModel {
     /// других дорожек (openPlayPos и trackPlayPos читают их, drain обновляет).
     @ObservationIgnored var _openPosShown: Int = -1
     @ObservationIgnored var _trackPosShown: Int = -1
+    /// P-lock играющего шага по параметрам (17.11): ячейка на параметр, создаётся при первом чтении (playLock).
+    @ObservationIgnored var playLockCells: [String: LockCell] = [:]
     /// Индикация COMP / CLIP / LIM при MST.
     @ObservationIgnored let dynMeters = MasterMeters()
     /// История громкости мастера (окно под осциллоскопом при MIX).
@@ -573,6 +575,7 @@ final class AppModel {
         if op != _openPosShown { openPosShown = op }
         let tp: Int = rawTrackPlayPos
         if tp != _trackPosShown { trackPosShown = tp }
+        refreshPlayLocks()
     }
 
     // MARK: — транспорт

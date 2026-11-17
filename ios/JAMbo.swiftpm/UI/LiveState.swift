@@ -231,3 +231,16 @@ final class FlashCell: Observable {
         set { registrar.withMutation(of: self, keyPath: \.on) { _on = newValue } }
     }
 }
+
+/// P-lock одного параметра на играющем шаге (17.11): ручка следит за своей ячейкой — шаг без изменения её значения
+/// ручку не пересчитывает (AppModel.playLock).
+final class LockCell: Observable {
+    private let registrar = ObservationRegistrar()
+    private var _value: Double? = nil
+    var value: Double? {
+        get { registrar.access(self, keyPath: \.value); return _value }
+        set { registrar.withMutation(of: self, keyPath: \.value) { _value = newValue } }
+    }
+    /// Без подписки (для сравнения в drain).
+    var current: Double? { return _value }
+}

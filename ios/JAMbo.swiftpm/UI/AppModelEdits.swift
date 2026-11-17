@@ -111,8 +111,7 @@ extension AppModel {
         if let held = heldSteps.min() {
             lock = t.step(held)?.locks[p.id]
         } else if playing && !LoadProbe.shared.off(LoadProbe.knobs) {
-            let pos = openPlayPos
-            if pos >= 0 { lock = t.step(pos)?.locks[p.id] }
+            lock = playLock(p.id)
         }
         var v: Double = lock ?? base
         var locked: Bool = lock != nil
@@ -294,13 +293,44 @@ extension AppModel {
         }
     }
 
+    /// P-lock параметра id на играющем шаге показанной последовательности (дорожка — её клип, MIX и MST — их
+    /// последовательность); nil — не играет или p-lock нет. Ручка подписана только на свою ячейку (17.11).
+    func playLock(_ id: String) -> Double? {
+        if let c = playLockCells[id] { return c.value }
+        let c = LockCell()
+        c.value = currentPlayLock(id, playStep())
+        playLockCells[id] = c
+        return c.value
+    }
+
+    /// Играющий шаг показанной последовательности без подписки (nil — не играет).
+    private func playStep() -> Step? {
+        if !playing { return nil }
+        let pos: Int = rawOpenPlayPos
+        if pos < 0 { return nil }
+        return channel == .track ? track.step(pos) : seq.step(pos)
+    }
+
+    private func currentPlayLock(_ id: String, _ s: Step?) -> Double? {
+        return s?.locks[id]
+    }
+
+    /// Из drain: значения ячеек — по играющему шагу; меняются только те, что изменились.
+    func refreshPlayLocks() {
+        if playLockCells.isEmpty { return }
+        let s: Step? = playStep()
+        for (id, c) in playLockCells {
+            let v: Double? = currentPlayLock(id, s)
+            if v != c.current { c.value = v }
+        }
+    }
+
     /// P-lock ручки на показанной последовательности: зажатого шага, иначе играющего (жёлтым).
     func seqLock(_ p: ParamDef) -> Double? {
         let t = seq
         if let held = heldSteps.min() { return t.step(held)?.locks[p.id] }
         if playing && !LoadProbe.shared.off(LoadProbe.knobs) {
-            let pos = openPlayPos
-            if pos >= 0 { return t.step(pos)?.locks[p.id] }
+            return playLock(p.id)
         }
         return nil
     }

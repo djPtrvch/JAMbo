@@ -295,12 +295,12 @@ struct KnobCell: View {
         let saved: Bool = model.defaultFlash == slot
         return Group {
             if st.assign != nil {
-                TimelineView(.animation(minimumInterval: LoadAnim.frame(60), paused: LoadAnim.stop)) { _ in
+                FrameTimeline(fps: 60) { _ in
                     KnobView(state: st, mod: model.modulatedNorm(st), saved: saved).equatable()
                 }
             } else if st.autoNorm != nil {
                 // Кривая аранжировки: ручка идёт за ней каждый кадр.
-                TimelineView(.animation(minimumInterval: LoadAnim.frame(60), paused: LoadAnim.stop)) { _ in
+                FrameTimeline(fps: 60) { _ in
                     KnobView(state: model.knobState(slot), saved: saved).equatable()
                 }
             } else {

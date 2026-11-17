@@ -292,7 +292,7 @@ struct FxDuckPic: View {
     let d: FxPicture.Duck
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: LoadAnim.frame(60), paused: LoadAnim.stop)) { tl in
+        FrameTimeline(fps: 60) { tl in
             FxDuckFrame(d: d, dot: FxPicture.duckDot(tl.date.timeIntervalSinceReferenceDate))
         }
     }

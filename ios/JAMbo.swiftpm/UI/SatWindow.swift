@@ -7,7 +7,7 @@ struct SatDisplay: View {
     @State private var spec = SatSpectrumState()
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: LoadAnim.frame(60), paused: LoadAnim.stop)) { tl in
+        FrameTimeline(fps: 60) { tl in
             let now: Double = tl.date.timeIntervalSinceReferenceDate
             GeometryReader { geo in
                 let w: CGFloat = min(geo.size.width * 0.35, geo.size.height)

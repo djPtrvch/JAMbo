@@ -12,7 +12,7 @@ struct ModPreview: View {
     static let randomSteps: [Double] = [0.6, -0.3, 0.9, -0.8, 0.2, -0.5, 0.75, -0.1]
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: LoadAnim.frame(60), paused: LoadAnim.stop)) { tl in
+        FrameTimeline(fps: 60) { tl in
             VStack(spacing: 4) {
                 ForEach(1..<5, id: \.self) { n in mini(n, tl.date) }
             }

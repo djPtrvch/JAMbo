@@ -9,7 +9,7 @@ struct CompDisplay: View {
     private var thrParam: ParamDef { return Params.masterColumns[1][0] }
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: LoadAnim.frame(60), paused: LoadAnim.stop)) { tl in
+        FrameTimeline(fps: 60) { tl in
             let now: Double = tl.date.timeIntervalSinceReferenceDate
             GeometryReader { geo in
                 let w: CGFloat = min(geo.size.width * 0.4, geo.size.height * 1.4)
