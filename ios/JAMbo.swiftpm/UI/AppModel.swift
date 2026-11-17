@@ -991,7 +991,7 @@ final class AppModel {
         guard i < project.tracks.count else { return }
         selectedTrack = i
         channel = .track
-        closeMasterWindow()
+        hideMasterPopups()
         heldSteps.removeAll()
         viewPage = min(viewPage, project.tracks[i].pages.count - 1)
     }
@@ -1002,8 +1002,9 @@ final class AppModel {
         viewPage = min(viewPage, seq.pages.count - 1)
         // При MST на месте LFO1–3 и ENV — кнопки мастера: удержание источника не остаётся висеть.
         if c == .master { heldSources.removeAll() }
-        // Выход из MST закрывает окно модуля мастера.
-        if c != .master { closeMasterWindow() }
+        // Выход из MST окно модуля мастера не закрывает (17.11): оно скрыто и снова видно при MST; закрывает его
+        // двойной тап по MST. Всплывающие меню и ввод окна закрываются.
+        if c != .master { hideMasterPopups() }
     }
 
     /// Свайп по дорожке: вниз — mute, вверх — solo; включённый mute или solo выключается любым свайпом. Без UNDO.

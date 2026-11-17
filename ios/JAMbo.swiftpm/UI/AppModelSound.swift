@@ -353,7 +353,7 @@ extension AppModel {
         eqView = false
         closeRoll()
         closeArrange()
-        closeMasterWindow()
+        closeMasterWindowShown()
     }
 
     func closeEditor() {

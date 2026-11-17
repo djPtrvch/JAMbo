@@ -263,8 +263,8 @@ struct RootView: View {
         if model.rollView { return AnyView(RollWindow(model: model, layout: layout)) }
         if model.patternView { return AnyView(PatternGrid(model: model, layout: layout)) }
         if model.eqView { return AnyView(WithMeter(model: model) { EqView(model: model, layout: layout) }) }
-        if let m = model.masterWin {
-            // Окно модуля мастера — на месте центра (как EQ), справа измеритель.
+        if model.channel == .master, let m = model.masterWin {
+            // Окно модуля мастера — на месте центра (как EQ), справа измеритель; вне MST скрыто, но не закрыто (17.11).
             return AnyView(WithMeter(model: model) { MasterWindowView(model: model, module: m) })
         }
         if model.editorOpen {

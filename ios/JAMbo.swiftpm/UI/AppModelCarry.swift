@@ -46,7 +46,7 @@ extension AppModel {
         rowMenu = nil
         gridMenuOpen = false
         closeRoll()
-        closeMasterWindow()
+        closeMasterWindowShown()
         arrangeView = true
         clipCarry = carry
         carryAutoScroll()

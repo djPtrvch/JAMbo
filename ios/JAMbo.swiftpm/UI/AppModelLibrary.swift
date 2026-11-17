@@ -52,7 +52,7 @@ extension AppModel {
         eqView = false
         closeRoll()
         closeArrange()
-        closeMasterWindow()
+        closeMasterWindowShown()
         soundMenu = nil
     }
 

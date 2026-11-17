@@ -21,7 +21,7 @@ enum MasterInputTarget: Equatable {
 
 /// Окна модулей мастера SAT, COMP, CLIP, LIM (S6, как openMasterWindow веба): на месте центра, справа измеритель;
 /// кнопки мастера (тап без SHIFT) и блоки индикации COMP, CLIP, LIM. PATTERNS, EQ, редактор сэмпла и окно модуля
-/// не открыты одновременно; выход из MST закрывает окно. Параметры — те же, что у ручек MST.
+/// не открыты одновременно; выход из MST окно не закрывает (скрыто до возврата), закрывает двойной тап по MST (17.11). Параметры — те же, что у ручек MST.
 extension AppModel {
     func openMasterWindow(_ m: Int) {
         guard channel == .master, m >= 0 && m < 4 else { return }
@@ -38,6 +38,20 @@ extension AppModel {
         editorOpen = false
         closeRoll()
         closeArrange()
+    }
+
+    /// Открытие другого окна (EQ, PATTERNS, редактор, браузер, пианоролл, аранжировщик) закрывает окно модуля мастера,
+    /// только если оно на экране (MST); вне MST оно скрыто и остаётся открытым (17.11).
+    func closeMasterWindowShown() {
+        if channel == .master { closeMasterWindow() } else { hideMasterPopups() }
+    }
+
+    /// Уход с MST: всплывающие меню и окно ввода окна модуля мастера закрываются, UNITY выключается (слушать
+    /// дорожки с приглушённым мастером не нужно).
+    func hideMasterPopups() {
+        if masterMenu != nil { masterMenu = nil }
+        if masterInput != nil { masterInput = nil }
+        if masterUnity { setUnity(false) }
     }
 
     func closeMasterWindow() {

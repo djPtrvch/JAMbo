@@ -363,7 +363,7 @@ extension AppModel {
             eqView = false
             closeRoll()
             closeArrange()
-            closeMasterWindow()
+            closeMasterWindowShown()
             openClip(selectedTrack, track.slot)
         }
     }

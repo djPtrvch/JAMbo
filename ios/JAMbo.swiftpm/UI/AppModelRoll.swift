@@ -18,7 +18,7 @@ extension AppModel {
         eqDynMenu = nil
         eqPresetMenu = nil
         eqCompareMenu = false
-        closeMasterWindow()
+        closeMasterWindowShown()
         // Из аранжировщика (решение пользователя): пианоролл — поверх, аранжировщик остаётся открытым под ним;
         // закрыли пианоролл — снова аранжировка.
         arrMenu = nil

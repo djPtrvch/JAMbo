@@ -71,7 +71,7 @@ extension AppModel {
         eqView = false
         eqMenu = nil
         closeRoll()
-        closeMasterWindow()
+        closeMasterWindowShown()
         arrangeView = true
     }
 

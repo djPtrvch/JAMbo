@@ -143,7 +143,6 @@ struct MasterStrip: View {
             }
             EqTool(title: "BYPASS", enabled: true, active: bypass) { model.toggleMasterBypass(module) }
                 .frame(width: 100)
-            CloseButton(side: model.barH) { model.closeMasterWindow() }
         }
     }
 

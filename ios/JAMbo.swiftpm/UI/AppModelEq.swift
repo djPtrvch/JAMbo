@@ -78,7 +78,7 @@ extension AppModel {
             editorOpen = false
             closeRoll()
             closeArrange()
-            closeMasterWindow()
+            closeMasterWindowShown()
         } else if back {
             toggleArrange()
         }
