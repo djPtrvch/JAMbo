@@ -12,428 +12,428 @@ import Observation
 
 extension AppModel {
     var meterAsleep: Bool {
-        get { access(keyPath: \.obs._meterAsleep); return obs._meterAsleep }
-        set { put(\.obs._meterAsleep, newValue, observedChanged(obs._meterAsleep, newValue)) }
+        get { access(keyPath: \._meterAsleep); return _meterAsleep }
+        set { put(\._meterAsleep, newValue, observedChanged(_meterAsleep, newValue)) }
     }
     var openPosShown: Int {
-        get { access(keyPath: \.obs._openPosShown); return obs._openPosShown }
-        set { put(\.obs._openPosShown, newValue, observedChanged(obs._openPosShown, newValue)) }
+        get { access(keyPath: \._openPosShown); return _openPosShown }
+        set { put(\._openPosShown, newValue, observedChanged(_openPosShown, newValue)) }
     }
     var trackPosShown: Int {
-        get { access(keyPath: \.obs._trackPosShown); return obs._trackPosShown }
-        set { put(\.obs._trackPosShown, newValue, observedChanged(obs._trackPosShown, newValue)) }
+        get { access(keyPath: \._trackPosShown); return _trackPosShown }
+        set { put(\._trackPosShown, newValue, observedChanged(_trackPosShown, newValue)) }
     }
     var spaceSaved: String? {
-        get { access(keyPath: \.obs._spaceSaved); return obs._spaceSaved }
-        set { put(\.obs._spaceSaved, newValue, observedChanged(obs._spaceSaved, newValue)) }
+        get { access(keyPath: \._spaceSaved); return _spaceSaved }
+        set { put(\._spaceSaved, newValue, observedChanged(_spaceSaved, newValue)) }
     }
     var headOn: Bool {
-        get { access(keyPath: \.obs._headOn); return obs._headOn }
-        set { put(\.obs._headOn, newValue, observedChanged(obs._headOn, newValue)) }
+        get { access(keyPath: \._headOn); return _headOn }
+        set { put(\._headOn, newValue, observedChanged(_headOn, newValue)) }
     }
     var headFace: Bool {
-        get { access(keyPath: \.obs._headFace); return obs._headFace }
-        set { put(\.obs._headFace, newValue, observedChanged(obs._headFace, newValue)) }
+        get { access(keyPath: \._headFace); return _headFace }
+        set { put(\._headFace, newValue, observedChanged(_headFace, newValue)) }
     }
     var settingsTab: SettingsTab {
-        get { access(keyPath: \.obs._settingsTab); return obs._settingsTab }
-        set { put(\.obs._settingsTab, newValue, observedChanged(obs._settingsTab, newValue)) }
+        get { access(keyPath: \._settingsTab); return _settingsTab }
+        set { put(\._settingsTab, newValue, observedChanged(_settingsTab, newValue)) }
     }
     var viewPage: Int {
-        get { access(keyPath: \.obs._viewPage); return obs._viewPage }
-        set { put(\.obs._viewPage, newValue, observedChanged(obs._viewPage, newValue)) }
+        get { access(keyPath: \._viewPage); return _viewPage }
+        set { put(\._viewPage, newValue, observedChanged(_viewPage, newValue)) }
     }
     var spanView: Bool {
-        get { access(keyPath: \.obs._spanView); return obs._spanView }
-        set { put(\.obs._spanView, newValue, observedChanged(obs._spanView, newValue)) }
+        get { access(keyPath: \._spanView); return _spanView }
+        set { put(\._spanView, newValue, observedChanged(_spanView, newValue)) }
     }
     var shiftHeld: Bool {
-        get { access(keyPath: \.obs._shiftHeld); return obs._shiftHeld }
-        set { put(\.obs._shiftHeld, newValue, observedChanged(obs._shiftHeld, newValue)) }
+        get { access(keyPath: \._shiftHeld); return _shiftHeld }
+        set { put(\._shiftHeld, newValue, observedChanged(_shiftHeld, newValue)) }
     }
     var fxHeld: Bool {
-        get { access(keyPath: \.obs._fxHeld); return obs._fxHeld }
-        set { put(\.obs._fxHeld, newValue, observedChanged(obs._fxHeld, newValue)) }
+        get { access(keyPath: \._fxHeld); return _fxHeld }
+        set { put(\._fxHeld, newValue, observedChanged(_fxHeld, newValue)) }
     }
     var modHeld: Bool {
-        get { access(keyPath: \.obs._modHeld); return obs._modHeld }
-        set { put(\.obs._modHeld, newValue, observedChanged(obs._modHeld, newValue)) }
+        get { access(keyPath: \._modHeld); return _modHeld }
+        set { put(\._modHeld, newValue, observedChanged(_modHeld, newValue)) }
     }
     var lastPage: GridPage {
-        get { access(keyPath: \.obs._lastPage); return obs._lastPage }
-        set { put(\.obs._lastPage, newValue, observedChanged(obs._lastPage, newValue)) }
+        get { access(keyPath: \._lastPage); return _lastPage }
+        set { put(\._lastPage, newValue, observedChanged(_lastPage, newValue)) }
     }
     var lastSource: Int {
-        get { access(keyPath: \.obs._lastSource); return obs._lastSource }
-        set { put(\.obs._lastSource, newValue, observedChanged(obs._lastSource, newValue)) }
+        get { access(keyPath: \._lastSource); return _lastSource }
+        set { put(\._lastSource, newValue, observedChanged(_lastSource, newValue)) }
     }
     var fxPicCol: Int {
-        get { access(keyPath: \.obs._fxPicCol); return obs._fxPicCol }
-        set { put(\.obs._fxPicCol, newValue, observedChanged(obs._fxPicCol, newValue)) }
+        get { access(keyPath: \._fxPicCol); return _fxPicCol }
+        set { put(\._fxPicCol, newValue, observedChanged(_fxPicCol, newValue)) }
     }
     var fxMidiShow: Bool {
-        get { access(keyPath: \.obs._fxMidiShow); return obs._fxMidiShow }
-        set { put(\.obs._fxMidiShow, newValue, observedChanged(obs._fxMidiShow, newValue)) }
+        get { access(keyPath: \._fxMidiShow); return _fxMidiShow }
+        set { put(\._fxMidiShow, newValue, observedChanged(_fxMidiShow, newValue)) }
     }
     var morph: Bool {
-        get { access(keyPath: \.obs._morph); return obs._morph }
-        set { put(\.obs._morph, newValue, observedChanged(obs._morph, newValue)) }
+        get { access(keyPath: \._morph); return _morph }
+        set { put(\._morph, newValue, observedChanged(_morph, newValue)) }
     }
     var morphHeld: Bool {
-        get { access(keyPath: \.obs._morphHeld); return obs._morphHeld }
-        set { put(\.obs._morphHeld, newValue, observedChanged(obs._morphHeld, newValue)) }
+        get { access(keyPath: \._morphHeld); return _morphHeld }
+        set { put(\._morphHeld, newValue, observedChanged(_morphHeld, newValue)) }
     }
     var morphUsed: Bool {
-        get { access(keyPath: \.obs._morphUsed); return obs._morphUsed }
-        set { put(\.obs._morphUsed, newValue, observedChanged(obs._morphUsed, newValue)) }
+        get { access(keyPath: \._morphUsed); return _morphUsed }
+        set { put(\._morphUsed, newValue, observedChanged(_morphUsed, newValue)) }
     }
     var morphAllHeld: Bool {
-        get { access(keyPath: \.obs._morphAllHeld); return obs._morphAllHeld }
-        set { put(\.obs._morphAllHeld, newValue, observedChanged(obs._morphAllHeld, newValue)) }
+        get { access(keyPath: \._morphAllHeld); return _morphAllHeld }
+        set { put(\._morphAllHeld, newValue, observedChanged(_morphAllHeld, newValue)) }
     }
     var pageMenu: PageMenuState? {
-        get { access(keyPath: \.obs._pageMenu); return obs._pageMenu }
-        set { put(\.obs._pageMenu, newValue, observedChanged(obs._pageMenu, newValue)) }
+        get { access(keyPath: \._pageMenu); return _pageMenu }
+        set { put(\._pageMenu, newValue, observedChanged(_pageMenu, newValue)) }
     }
     var recOn: Bool {
-        get { access(keyPath: \.obs._recOn); return obs._recOn }
-        set { put(\.obs._recOn, newValue, observedChanged(obs._recOn, newValue)) }
+        get { access(keyPath: \._recOn); return _recOn }
+        set { put(\._recOn, newValue, observedChanged(_recOn, newValue)) }
     }
     var arrAuto: Bool {
-        get { access(keyPath: \.obs._arrAuto); return obs._arrAuto }
-        set { put(\.obs._arrAuto, newValue, observedChanged(obs._arrAuto, newValue)) }
+        get { access(keyPath: \._arrAuto); return _arrAuto }
+        set { put(\._arrAuto, newValue, observedChanged(_arrAuto, newValue)) }
     }
     var arrRecArm: Bool {
-        get { access(keyPath: \.obs._arrRecArm); return obs._arrRecArm }
-        set { put(\.obs._arrRecArm, newValue, observedChanged(obs._arrRecArm, newValue)) }
+        get { access(keyPath: \._arrRecArm); return _arrRecArm }
+        set { put(\._arrRecArm, newValue, observedChanged(_arrRecArm, newValue)) }
     }
     var arrPlayEnd: Int {
-        get { access(keyPath: \.obs._arrPlayEnd); return obs._arrPlayEnd }
-        set { put(\.obs._arrPlayEnd, newValue, observedChanged(obs._arrPlayEnd, newValue)) }
+        get { access(keyPath: \._arrPlayEnd); return _arrPlayEnd }
+        set { put(\._arrPlayEnd, newValue, observedChanged(_arrPlayEnd, newValue)) }
     }
     var arrPlay: Bool {
-        get { access(keyPath: \.obs._arrPlay); return obs._arrPlay }
-        set { put(\.obs._arrPlay, newValue, observedChanged(obs._arrPlay, newValue)) }
+        get { access(keyPath: \._arrPlay); return _arrPlay }
+        set { put(\._arrPlay, newValue, observedChanged(_arrPlay, newValue)) }
     }
     var arrDraw: Bool {
-        get { access(keyPath: \.obs._arrDraw); return obs._arrDraw }
-        set { put(\.obs._arrDraw, newValue, observedChanged(obs._arrDraw, newValue)) }
+        get { access(keyPath: \._arrDraw); return _arrDraw }
+        set { put(\._arrDraw, newValue, observedChanged(_arrDraw, newValue)) }
     }
     var arrAutoId: String {
-        get { access(keyPath: \.obs._arrAutoId); return obs._arrAutoId }
-        set { put(\.obs._arrAutoId, newValue, observedChanged(obs._arrAutoId, newValue)) }
+        get { access(keyPath: \._arrAutoId); return _arrAutoId }
+        set { put(\._arrAutoId, newValue, observedChanged(_arrAutoId, newValue)) }
     }
     var chordMenuOpen: Bool {
-        get { access(keyPath: \.obs._chordMenuOpen); return obs._chordMenuOpen }
-        set { put(\.obs._chordMenuOpen, newValue, observedChanged(obs._chordMenuOpen, newValue)) }
+        get { access(keyPath: \._chordMenuOpen); return _chordMenuOpen }
+        set { put(\._chordMenuOpen, newValue, observedChanged(_chordMenuOpen, newValue)) }
     }
     var patternView: Bool {
-        get { access(keyPath: \.obs._patternView); return obs._patternView }
-        set { put(\.obs._patternView, newValue, observedChanged(obs._patternView, newValue)) }
+        get { access(keyPath: \._patternView); return _patternView }
+        set { put(\._patternView, newValue, observedChanged(_patternView, newValue)) }
     }
     var arrangeView: Bool {
-        get { access(keyPath: \.obs._arrangeView); return obs._arrangeView }
-        set { put(\.obs._arrangeView, newValue, observedChanged(obs._arrangeView, newValue)) }
+        get { access(keyPath: \._arrangeView); return _arrangeView }
+        set { put(\._arrangeView, newValue, observedChanged(_arrangeView, newValue)) }
     }
     var arrCursor: Int {
-        get { access(keyPath: \.obs._arrCursor); return obs._arrCursor }
-        set { put(\.obs._arrCursor, newValue, observedChanged(obs._arrCursor, newValue)) }
+        get { access(keyPath: \._arrCursor); return _arrCursor }
+        set { put(\._arrCursor, newValue, observedChanged(_arrCursor, newValue)) }
     }
     var arrSel: ArrSel? {
-        get { access(keyPath: \.obs._arrSel); return obs._arrSel }
-        set { put(\.obs._arrSel, newValue, observedChanged(obs._arrSel, newValue)) }
+        get { access(keyPath: \._arrSel); return _arrSel }
+        set { put(\._arrSel, newValue, observedChanged(_arrSel, newValue)) }
     }
     var arrMarquee: CGRect? {
-        get { access(keyPath: \.obs._arrMarquee); return obs._arrMarquee }
-        set { put(\.obs._arrMarquee, newValue, observedChanged(obs._arrMarquee, newValue)) }
+        get { access(keyPath: \._arrMarquee); return _arrMarquee }
+        set { put(\._arrMarquee, newValue, observedChanged(_arrMarquee, newValue)) }
     }
     var arrKnobs: Bool {
-        get { access(keyPath: \.obs._arrKnobs); return obs._arrKnobs }
-        set { put(\.obs._arrKnobs, newValue, observedChanged(obs._arrKnobs, newValue)) }
+        get { access(keyPath: \._arrKnobs); return _arrKnobs }
+        set { put(\._arrKnobs, newValue, observedChanged(_arrKnobs, newValue)) }
     }
     var arrLowerH: CGFloat {
-        get { access(keyPath: \.obs._arrLowerH); return obs._arrLowerH }
-        set { put(\.obs._arrLowerH, newValue, observedChanged(obs._arrLowerH, newValue)) }
+        get { access(keyPath: \._arrLowerH); return _arrLowerH }
+        set { put(\._arrLowerH, newValue, observedChanged(_arrLowerH, newValue)) }
     }
     var barH: CGFloat {
-        get { access(keyPath: \.obs._barH); return obs._barH }
-        set { put(\.obs._barH, newValue, observedChanged(obs._barH, newValue)) }
+        get { access(keyPath: \._barH); return _barH }
+        set { put(\._barH, newValue, observedChanged(_barH, newValue)) }
     }
     var arrMenu: ArrMenuState? {
-        get { access(keyPath: \.obs._arrMenu); return obs._arrMenu }
-        set { put(\.obs._arrMenu, newValue, observedChanged(obs._arrMenu, newValue)) }
+        get { access(keyPath: \._arrMenu); return _arrMenu }
+        set { put(\._arrMenu, newValue, observedChanged(_arrMenu, newValue)) }
     }
     var arrInsert: Bool {
-        get { access(keyPath: \.obs._arrInsert); return obs._arrInsert }
-        set { put(\.obs._arrInsert, newValue, observedChanged(obs._arrInsert, newValue)) }
+        get { access(keyPath: \._arrInsert); return _arrInsert }
+        set { put(\._arrInsert, newValue, observedChanged(_arrInsert, newValue)) }
     }
     var arrInserted: ArrSel? {
-        get { access(keyPath: \.obs._arrInserted); return obs._arrInserted }
-        set { put(\.obs._arrInserted, newValue, observedChanged(obs._arrInserted, newValue)) }
+        get { access(keyPath: \._arrInserted); return _arrInserted }
+        set { put(\._arrInserted, newValue, observedChanged(_arrInserted, newValue)) }
     }
     var arrRefB: Bool {
-        get { access(keyPath: \.obs._arrRefB); return obs._arrRefB }
-        set { put(\.obs._arrRefB, newValue, observedChanged(obs._arrRefB, newValue)) }
+        get { access(keyPath: \._arrRefB); return _arrRefB }
+        set { put(\._arrRefB, newValue, observedChanged(_arrRefB, newValue)) }
     }
     var rollView: Bool {
-        get { access(keyPath: \.obs._rollView); return obs._rollView }
-        set { put(\.obs._rollView, newValue, observedChanged(obs._rollView, newValue)) }
+        get { access(keyPath: \._rollView); return _rollView }
+        set { put(\._rollView, newValue, observedChanged(_rollView, newValue)) }
     }
     var rollMenuOpen: Bool {
-        get { access(keyPath: \.obs._rollMenuOpen); return obs._rollMenuOpen }
-        set { put(\.obs._rollMenuOpen, newValue, observedChanged(obs._rollMenuOpen, newValue)) }
+        get { access(keyPath: \._rollMenuOpen); return _rollMenuOpen }
+        set { put(\._rollMenuOpen, newValue, observedChanged(_rollMenuOpen, newValue)) }
     }
     var rollVel: Bool {
-        get { access(keyPath: \.obs._rollVel); return obs._rollVel }
-        set { put(\.obs._rollVel, newValue, observedChanged(obs._rollVel, newValue)) }
+        get { access(keyPath: \._rollVel); return _rollVel }
+        set { put(\._rollVel, newValue, observedChanged(_rollVel, newValue)) }
     }
     var eqView: Bool {
-        get { access(keyPath: \.obs._eqView); return obs._eqView }
-        set { put(\.obs._eqView, newValue, observedChanged(obs._eqView, newValue)) }
+        get { access(keyPath: \._eqView); return _eqView }
+        set { put(\._eqView, newValue, observedChanged(_eqView, newValue)) }
     }
     var eqBand: Int {
-        get { access(keyPath: \.obs._eqBand); return obs._eqBand }
-        set { put(\.obs._eqBand, newValue, observedChanged(obs._eqBand, newValue)) }
+        get { access(keyPath: \._eqBand); return _eqBand }
+        set { put(\._eqBand, newValue, observedChanged(_eqBand, newValue)) }
     }
     var eqListenHeld: Bool {
-        get { access(keyPath: \.obs._eqListenHeld); return obs._eqListenHeld }
-        set { put(\.obs._eqListenHeld, newValue, observedChanged(obs._eqListenHeld, newValue)) }
+        get { access(keyPath: \._eqListenHeld); return _eqListenHeld }
+        set { put(\._eqListenHeld, newValue, observedChanged(_eqListenHeld, newValue)) }
     }
     var eqListenBand: Int {
-        get { access(keyPath: \.obs._eqListenBand); return obs._eqListenBand }
-        set { put(\.obs._eqListenBand, newValue, observedChanged(obs._eqListenBand, newValue)) }
+        get { access(keyPath: \._eqListenBand); return _eqListenBand }
+        set { put(\._eqListenBand, newValue, observedChanged(_eqListenBand, newValue)) }
     }
     var eqMenu: EqMenuState? {
-        get { access(keyPath: \.obs._eqMenu); return obs._eqMenu }
-        set { put(\.obs._eqMenu, newValue, observedChanged(obs._eqMenu, newValue)) }
+        get { access(keyPath: \._eqMenu); return _eqMenu }
+        set { put(\._eqMenu, newValue, observedChanged(_eqMenu, newValue)) }
     }
     var translationMenu: CGRect? {
-        get { access(keyPath: \.obs._translationMenu); return obs._translationMenu }
-        set { put(\.obs._translationMenu, newValue, observedChanged(obs._translationMenu, newValue)) }
+        get { access(keyPath: \._translationMenu); return _translationMenu }
+        set { put(\._translationMenu, newValue, observedChanged(_translationMenu, newValue)) }
     }
     var eqMsMenu: CGRect? {
-        get { access(keyPath: \.obs._eqMsMenu); return obs._eqMsMenu }
-        set { put(\.obs._eqMsMenu, newValue, observedChanged(obs._eqMsMenu, newValue)) }
+        get { access(keyPath: \._eqMsMenu); return _eqMsMenu }
+        set { put(\._eqMsMenu, newValue, observedChanged(_eqMsMenu, newValue)) }
     }
     var eqDynMenu: CGRect? {
-        get { access(keyPath: \.obs._eqDynMenu); return obs._eqDynMenu }
-        set { put(\.obs._eqDynMenu, newValue, observedChanged(obs._eqDynMenu, newValue)) }
+        get { access(keyPath: \._eqDynMenu); return _eqDynMenu }
+        set { put(\._eqDynMenu, newValue, observedChanged(_eqDynMenu, newValue)) }
     }
     var eqDynShift: CGSize {
-        get { access(keyPath: \.obs._eqDynShift); return obs._eqDynShift }
-        set { put(\.obs._eqDynShift, newValue, observedChanged(obs._eqDynShift, newValue)) }
+        get { access(keyPath: \._eqDynShift); return _eqDynShift }
+        set { put(\._eqDynShift, newValue, observedChanged(_eqDynShift, newValue)) }
     }
     var eqInputAsk: EqInput? {
-        get { access(keyPath: \.obs._eqInputAsk); return obs._eqInputAsk }
-        set { put(\.obs._eqInputAsk, newValue, observedChanged(obs._eqInputAsk, newValue)) }
+        get { access(keyPath: \._eqInputAsk); return _eqInputAsk }
+        set { put(\._eqInputAsk, newValue, observedChanged(_eqInputAsk, newValue)) }
     }
     var eqPresetMenu: EqPresetMenuState? {
-        get { access(keyPath: \.obs._eqPresetMenu); return obs._eqPresetMenu }
-        set { put(\.obs._eqPresetMenu, newValue, observedChanged(obs._eqPresetMenu, newValue)) }
+        get { access(keyPath: \._eqPresetMenu); return _eqPresetMenu }
+        set { put(\._eqPresetMenu, newValue, observedChanged(_eqPresetMenu, newValue)) }
     }
     var eqCompareMenu: Bool {
-        get { access(keyPath: \.obs._eqCompareMenu); return obs._eqCompareMenu }
-        set { put(\.obs._eqCompareMenu, newValue, observedChanged(obs._eqCompareMenu, newValue)) }
+        get { access(keyPath: \._eqCompareMenu); return _eqCompareMenu }
+        set { put(\._eqCompareMenu, newValue, observedChanged(_eqCompareMenu, newValue)) }
     }
     var eqPhones: Bool {
-        get { access(keyPath: \.obs._eqPhones); return obs._eqPhones }
-        set { put(\.obs._eqPhones, newValue, observedChanged(obs._eqPhones, newValue)) }
+        get { access(keyPath: \._eqPhones); return _eqPhones }
+        set { put(\._eqPhones, newValue, observedChanged(_eqPhones, newValue)) }
     }
     var phonesName: String {
-        get { access(keyPath: \.obs._phonesName); return obs._phonesName }
-        set { put(\.obs._phonesName, newValue, observedChanged(obs._phonesName, newValue)) }
+        get { access(keyPath: \._phonesName); return _phonesName }
+        set { put(\._phonesName, newValue, observedChanged(_phonesName, newValue)) }
     }
     var importingPhones: Bool {
-        get { access(keyPath: \.obs._importingPhones); return obs._importingPhones }
-        set { put(\.obs._importingPhones, newValue, observedChanged(obs._importingPhones, newValue)) }
+        get { access(keyPath: \._importingPhones); return _importingPhones }
+        set { put(\._importingPhones, newValue, observedChanged(_importingPhones, newValue)) }
     }
     var phonesNote: String? {
-        get { access(keyPath: \.obs._phonesNote); return obs._phonesNote }
-        set { put(\.obs._phonesNote, newValue, observedChanged(obs._phonesNote, newValue)) }
+        get { access(keyPath: \._phonesNote); return _phonesNote }
+        set { put(\._phonesNote, newValue, observedChanged(_phonesNote, newValue)) }
     }
     var phonesExported: URL? {
-        get { access(keyPath: \.obs._phonesExported); return obs._phonesExported }
-        set { put(\.obs._phonesExported, newValue, observedChanged(obs._phonesExported, newValue)) }
+        get { access(keyPath: \._phonesExported); return _phonesExported }
+        set { put(\._phonesExported, newValue, observedChanged(_phonesExported, newValue)) }
     }
     var gridTop: Int {
-        get { access(keyPath: \.obs._gridTop); return obs._gridTop }
-        set { put(\.obs._gridTop, newValue, observedChanged(obs._gridTop, newValue)) }
+        get { access(keyPath: \._gridTop); return _gridTop }
+        set { put(\._gridTop, newValue, observedChanged(_gridTop, newValue)) }
     }
     var cellMenu: CellMenuState? {
-        get { access(keyPath: \.obs._cellMenu); return obs._cellMenu }
-        set { put(\.obs._cellMenu, newValue, observedChanged(obs._cellMenu, newValue)) }
+        get { access(keyPath: \._cellMenu); return _cellMenu }
+        set { put(\._cellMenu, newValue, observedChanged(_cellMenu, newValue)) }
     }
     var rowMenu: Int? {
-        get { access(keyPath: \.obs._rowMenu); return obs._rowMenu }
-        set { put(\.obs._rowMenu, newValue, observedChanged(obs._rowMenu, newValue)) }
+        get { access(keyPath: \._rowMenu); return _rowMenu }
+        set { put(\._rowMenu, newValue, observedChanged(_rowMenu, newValue)) }
     }
     var gridRowsShown: Int {
-        get { access(keyPath: \.obs._gridRowsShown); return obs._gridRowsShown }
-        set { put(\.obs._gridRowsShown, newValue, observedChanged(obs._gridRowsShown, newValue)) }
+        get { access(keyPath: \._gridRowsShown); return _gridRowsShown }
+        set { put(\._gridRowsShown, newValue, observedChanged(_gridRowsShown, newValue)) }
     }
     var clipCarry: ClipCarry? {
-        get { access(keyPath: \.obs._clipCarry); return obs._clipCarry }
-        set { put(\.obs._clipCarry, newValue, observedChanged(obs._clipCarry, newValue)) }
+        get { access(keyPath: \._clipCarry); return _clipCarry }
+        set { put(\._clipCarry, newValue, observedChanged(_clipCarry, newValue)) }
     }
     var carryPoint: CGPoint {
-        get { access(keyPath: \.obs._carryPoint); return obs._carryPoint }
-        set { put(\.obs._carryPoint, newValue, observedChanged(obs._carryPoint, newValue)) }
+        get { access(keyPath: \._carryPoint); return _carryPoint }
+        set { put(\._carryPoint, newValue, observedChanged(_carryPoint, newValue)) }
     }
     var deniedCell: CellRef? {
-        get { access(keyPath: \.obs._deniedCell); return obs._deniedCell }
-        set { put(\.obs._deniedCell, newValue, observedChanged(obs._deniedCell, newValue)) }
+        get { access(keyPath: \._deniedCell); return _deniedCell }
+        set { put(\._deniedCell, newValue, observedChanged(_deniedCell, newValue)) }
     }
     var mix: MixTransition? {
-        get { access(keyPath: \.obs._mix); return obs._mix }
-        set { put(\.obs._mix, newValue, observedChanged(obs._mix, newValue)) }
+        get { access(keyPath: \._mix); return _mix }
+        set { put(\._mix, newValue, observedChanged(_mix, newValue)) }
     }
     var mixDropDone: Bool {
-        get { access(keyPath: \.obs._mixDropDone); return obs._mixDropDone }
-        set { put(\.obs._mixDropDone, newValue, observedChanged(obs._mixDropDone, newValue)) }
+        get { access(keyPath: \._mixDropDone); return _mixDropDone }
+        set { put(\._mixDropDone, newValue, observedChanged(_mixDropDone, newValue)) }
     }
     var choice: ChoiceState? {
-        get { access(keyPath: \.obs._choice); return obs._choice }
-        set { put(\.obs._choice, newValue, observedChanged(obs._choice, newValue)) }
+        get { access(keyPath: \._choice); return _choice }
+        set { put(\._choice, newValue, observedChanged(_choice, newValue)) }
     }
     var pianoMenuOpen: Bool {
-        get { access(keyPath: \.obs._pianoMenuOpen); return obs._pianoMenuOpen }
-        set { put(\.obs._pianoMenuOpen, newValue, observedChanged(obs._pianoMenuOpen, newValue)) }
+        get { access(keyPath: \._pianoMenuOpen); return _pianoMenuOpen }
+        set { put(\._pianoMenuOpen, newValue, observedChanged(_pianoMenuOpen, newValue)) }
     }
     var samplesVersion: Int {
-        get { access(keyPath: \.obs._samplesVersion); return obs._samplesVersion }
-        set { put(\.obs._samplesVersion, newValue, observedChanged(obs._samplesVersion, newValue)) }
+        get { access(keyPath: \._samplesVersion); return _samplesVersion }
+        set { put(\._samplesVersion, newValue, observedChanged(_samplesVersion, newValue)) }
     }
     var editorOpen: Bool {
-        get { access(keyPath: \.obs._editorOpen); return obs._editorOpen }
-        set { put(\.obs._editorOpen, newValue, observedChanged(obs._editorOpen, newValue)) }
+        get { access(keyPath: \._editorOpen); return _editorOpen }
+        set { put(\._editorOpen, newValue, observedChanged(_editorOpen, newValue)) }
     }
     var editorWarp: Bool {
-        get { access(keyPath: \.obs._editorWarp); return obs._editorWarp }
-        set { put(\.obs._editorWarp, newValue, observedChanged(obs._editorWarp, newValue)) }
+        get { access(keyPath: \._editorWarp); return _editorWarp }
+        set { put(\._editorWarp, newValue, observedChanged(_editorWarp, newValue)) }
     }
     var warpGrid: Double {
-        get { access(keyPath: \.obs._warpGrid); return obs._warpGrid }
-        set { put(\.obs._warpGrid, newValue, observedChanged(obs._warpGrid, newValue)) }
+        get { access(keyPath: \._warpGrid); return _warpGrid }
+        set { put(\._warpGrid, newValue, observedChanged(_warpGrid, newValue)) }
     }
     var warpSel: Int? {
-        get { access(keyPath: \.obs._warpSel); return obs._warpSel }
-        set { put(\.obs._warpSel, newValue, observedChanged(obs._warpSel, newValue)) }
+        get { access(keyPath: \._warpSel); return _warpSel }
+        set { put(\._warpSel, newValue, observedChanged(_warpSel, newValue)) }
     }
     var soundMenu: SoundMenuState? {
-        get { access(keyPath: \.obs._soundMenu); return obs._soundMenu }
-        set { put(\.obs._soundMenu, newValue, observedChanged(obs._soundMenu, newValue)) }
+        get { access(keyPath: \._soundMenu); return _soundMenu }
+        set { put(\._soundMenu, newValue, observedChanged(_soundMenu, newValue)) }
     }
     var importTarget: ImportTarget? {
-        get { access(keyPath: \.obs._importTarget); return obs._importTarget }
-        set { put(\.obs._importTarget, newValue, observedChanged(obs._importTarget, newValue)) }
+        get { access(keyPath: \._importTarget); return _importTarget }
+        set { put(\._importTarget, newValue, observedChanged(_importTarget, newValue)) }
     }
     var importing: Bool {
-        get { access(keyPath: \.obs._importing); return obs._importing }
-        set { put(\.obs._importing, newValue, observedChanged(obs._importing, newValue)) }
+        get { access(keyPath: \._importing); return _importing }
+        set { put(\._importing, newValue, observedChanged(_importing, newValue)) }
     }
     var importingProject: Bool {
-        get { access(keyPath: \.obs._importingProject); return obs._importingProject }
-        set { put(\.obs._importingProject, newValue, observedChanged(obs._importingProject, newValue)) }
+        get { access(keyPath: \._importingProject); return _importingProject }
+        set { put(\._importingProject, newValue, observedChanged(_importingProject, newValue)) }
     }
     var projectImport: ProjectImport? {
-        get { access(keyPath: \.obs._projectImport); return obs._projectImport }
-        set { put(\.obs._projectImport, newValue, observedChanged(obs._projectImport, newValue)) }
+        get { access(keyPath: \._projectImport); return _projectImport }
+        set { put(\._projectImport, newValue, observedChanged(_projectImport, newValue)) }
     }
     var browser: BrowserMode? {
-        get { access(keyPath: \.obs._browser); return obs._browser }
-        set { put(\.obs._browser, newValue, observedChanged(obs._browser, newValue)) }
+        get { access(keyPath: \._browser); return _browser }
+        set { put(\._browser, newValue, observedChanged(_browser, newValue)) }
     }
     var libFolder: String {
-        get { access(keyPath: \.obs._libFolder); return obs._libFolder }
-        set { put(\.obs._libFolder, newValue, observedChanged(obs._libFolder, newValue)) }
+        get { access(keyPath: \._libFolder); return _libFolder }
+        set { put(\._libFolder, newValue, observedChanged(_libFolder, newValue)) }
     }
     var libPicked: Set<String>? {
-        get { access(keyPath: \.obs._libPicked); return obs._libPicked }
-        set { put(\.obs._libPicked, newValue, observedChanged(obs._libPicked, newValue)) }
+        get { access(keyPath: \._libPicked); return _libPicked }
+        set { put(\._libPicked, newValue, observedChanged(_libPicked, newValue)) }
     }
     var libNote: String {
-        get { access(keyPath: \.obs._libNote); return obs._libNote }
-        set { put(\.obs._libNote, newValue, observedChanged(obs._libNote, newValue)) }
+        get { access(keyPath: \._libNote); return _libNote }
+        set { put(\._libNote, newValue, observedChanged(_libNote, newValue)) }
     }
     var libWarning: String? {
-        get { access(keyPath: \.obs._libWarning); return obs._libWarning }
-        set { put(\.obs._libWarning, newValue, observedChanged(obs._libWarning, newValue)) }
+        get { access(keyPath: \._libWarning); return _libWarning }
+        set { put(\._libWarning, newValue, observedChanged(_libWarning, newValue)) }
     }
     var importingLibrary: Bool {
-        get { access(keyPath: \.obs._importingLibrary); return obs._importingLibrary }
-        set { put(\.obs._importingLibrary, newValue, observedChanged(obs._importingLibrary, newValue)) }
+        get { access(keyPath: \._importingLibrary); return _importingLibrary }
+        set { put(\._importingLibrary, newValue, observedChanged(_importingLibrary, newValue)) }
     }
     var leftFrame: CGRect {
-        get { access(keyPath: \.obs._leftFrame); return obs._leftFrame }
-        set { put(\.obs._leftFrame, newValue, observedChanged(obs._leftFrame, newValue)) }
+        get { access(keyPath: \._leftFrame); return _leftFrame }
+        set { put(\._leftFrame, newValue, observedChanged(_leftFrame, newValue)) }
     }
     var pagesFrame: CGRect {
-        get { access(keyPath: \.obs._pagesFrame); return obs._pagesFrame }
-        set { put(\.obs._pagesFrame, newValue, observedChanged(obs._pagesFrame, newValue)) }
+        get { access(keyPath: \._pagesFrame); return _pagesFrame }
+        set { put(\._pagesFrame, newValue, observedChanged(_pagesFrame, newValue)) }
     }
     var keysFrame: CGRect {
-        get { access(keyPath: \.obs._keysFrame); return obs._keysFrame }
-        set { put(\.obs._keysFrame, newValue, observedChanged(obs._keysFrame, newValue)) }
+        get { access(keyPath: \._keysFrame); return _keysFrame }
+        set { put(\._keysFrame, newValue, observedChanged(_keysFrame, newValue)) }
     }
     var tracksFrame: CGRect {
-        get { access(keyPath: \.obs._tracksFrame); return obs._tracksFrame }
-        set { put(\.obs._tracksFrame, newValue, observedChanged(obs._tracksFrame, newValue)) }
+        get { access(keyPath: \._tracksFrame); return _tracksFrame }
+        set { put(\._tracksFrame, newValue, observedChanged(_tracksFrame, newValue)) }
     }
     var previewOn: Bool {
-        get { access(keyPath: \.obs._previewOn); return obs._previewOn }
-        set { put(\.obs._previewOn, newValue, observedChanged(obs._previewOn, newValue)) }
+        get { access(keyPath: \._previewOn); return _previewOn }
+        set { put(\._previewOn, newValue, observedChanged(_previewOn, newValue)) }
     }
     var heldFlag: Int? {
-        get { access(keyPath: \.obs._heldFlag); return obs._heldFlag }
-        set { put(\.obs._heldFlag, newValue, observedChanged(obs._heldFlag, newValue)) }
+        get { access(keyPath: \._heldFlag); return _heldFlag }
+        set { put(\._heldFlag, newValue, observedChanged(_heldFlag, newValue)) }
     }
     var roleFlag: Int? {
-        get { access(keyPath: \.obs._roleFlag); return obs._roleFlag }
-        set { put(\.obs._roleFlag, newValue, observedChanged(obs._roleFlag, newValue)) }
+        get { access(keyPath: \._roleFlag); return _roleFlag }
+        set { put(\._roleFlag, newValue, observedChanged(_roleFlag, newValue)) }
     }
     var trackMenu: TrackMenuState? {
-        get { access(keyPath: \.obs._trackMenu); return obs._trackMenu }
-        set { put(\.obs._trackMenu, newValue, observedChanged(obs._trackMenu, newValue)) }
+        get { access(keyPath: \._trackMenu); return _trackMenu }
+        set { put(\._trackMenu, newValue, observedChanged(_trackMenu, newValue)) }
     }
     var renaming: Int? {
-        get { access(keyPath: \.obs._renaming); return obs._renaming }
-        set { put(\.obs._renaming, newValue, observedChanged(obs._renaming, newValue)) }
+        get { access(keyPath: \._renaming); return _renaming }
+        set { put(\._renaming, newValue, observedChanged(_renaming, newValue)) }
     }
     var masterWin: Int? {
-        get { access(keyPath: \.obs._masterWin); return obs._masterWin }
-        set { put(\.obs._masterWin, newValue, observedChanged(obs._masterWin, newValue)) }
+        get { access(keyPath: \._masterWin); return _masterWin }
+        set { put(\._masterWin, newValue, observedChanged(_masterWin, newValue)) }
     }
     var masterMenu: MasterMenuState? {
-        get { access(keyPath: \.obs._masterMenu); return obs._masterMenu }
-        set { put(\.obs._masterMenu, newValue, observedChanged(obs._masterMenu, newValue)) }
+        get { access(keyPath: \._masterMenu); return _masterMenu }
+        set { put(\._masterMenu, newValue, observedChanged(_masterMenu, newValue)) }
     }
     var masterUnity: Bool {
-        get { access(keyPath: \.obs._masterUnity); return obs._masterUnity }
-        set { put(\.obs._masterUnity, newValue, observedChanged(obs._masterUnity, newValue)) }
+        get { access(keyPath: \._masterUnity); return _masterUnity }
+        set { put(\._masterUnity, newValue, observedChanged(_masterUnity, newValue)) }
     }
     var masterInput: MasterInputTarget? {
-        get { access(keyPath: \.obs._masterInput); return obs._masterInput }
-        set { put(\.obs._masterInput, newValue, observedChanged(obs._masterInput, newValue)) }
+        get { access(keyPath: \._masterInput); return _masterInput }
+        set { put(\._masterInput, newValue, observedChanged(_masterInput, newValue)) }
     }
     var defaultFlash: Int? {
-        get { access(keyPath: \.obs._defaultFlash); return obs._defaultFlash }
-        set { put(\.obs._defaultFlash, newValue, observedChanged(obs._defaultFlash, newValue)) }
+        get { access(keyPath: \._defaultFlash); return _defaultFlash }
+        set { put(\._defaultFlash, newValue, observedChanged(_defaultFlash, newValue)) }
     }
     var defaultSaved: DefaultSaved? {
-        get { access(keyPath: \.obs._defaultSaved); return obs._defaultSaved }
-        set { put(\.obs._defaultSaved, newValue, observedChanged(obs._defaultSaved, newValue)) }
+        get { access(keyPath: \._defaultSaved); return _defaultSaved }
+        set { put(\._defaultSaved, newValue, observedChanged(_defaultSaved, newValue)) }
     }
     var heldSteps: Set<Int> {
-        get { access(keyPath: \.obs._heldSteps); return obs._heldSteps }
-        set { put(\.obs._heldSteps, newValue, observedChanged(obs._heldSteps, newValue)) }
+        get { access(keyPath: \._heldSteps); return _heldSteps }
+        set { put(\._heldSteps, newValue, observedChanged(_heldSteps, newValue)) }
     }
     var heldSources: Set<Int> {
-        get { access(keyPath: \.obs._heldSources); return obs._heldSources }
-        set { put(\.obs._heldSources, newValue, observedChanged(obs._heldSources, newValue)) }
+        get { access(keyPath: \._heldSources); return _heldSources }
+        set { put(\._heldSources, newValue, observedChanged(_heldSources, newValue)) }
     }
     var knobFingers: Set<Int> {
-        get { access(keyPath: \.obs._knobFingers); return obs._knobFingers }
-        set { put(\.obs._knobFingers, newValue, observedChanged(obs._knobFingers, newValue)) }
+        get { access(keyPath: \._knobFingers); return _knobFingers }
+        set { put(\._knobFingers, newValue, observedChanged(_knobFingers, newValue)) }
     }
     /// Октавы клавиатуры дорожек по местам (хранятся в проекте у дорожки — Track.keyOctave), до Params.maxTracks.
     var octaves: [Int] {
@@ -441,132 +441,132 @@ extension AppModel {
         return (0..<Params.maxTracks).map { $0 < ts.count ? ts[$0].keyOctave : Scales.octaveDef }
     }
     var chordMode: [Bool] {
-        get { access(keyPath: \.obs._chordMode); return obs._chordMode }
-        set { put(\.obs._chordMode, newValue, observedChanged(obs._chordMode, newValue)) }
+        get { access(keyPath: \._chordMode); return _chordMode }
+        set { put(\._chordMode, newValue, observedChanged(_chordMode, newValue)) }
     }
     var chordKind: [Int] {
-        get { access(keyPath: \.obs._chordKind); return obs._chordKind }
-        set { put(\.obs._chordKind, newValue, observedChanged(obs._chordKind, newValue)) }
+        get { access(keyPath: \._chordKind); return _chordKind }
+        set { put(\._chordKind, newValue, observedChanged(_chordKind, newValue)) }
     }
     var partType: [Int] {
-        get { access(keyPath: \.obs._partType); return obs._partType }
-        set { put(\.obs._partType, newValue, observedChanged(obs._partType, newValue)) }
+        get { access(keyPath: \._partType); return _partType }
+        set { put(\._partType, newValue, observedChanged(_partType, newValue)) }
     }
     var selNotes: [[Int]] {
-        get { access(keyPath: \.obs._selNotes); return obs._selNotes }
-        set { put(\.obs._selNotes, newValue, observedChanged(obs._selNotes, newValue)) }
+        get { access(keyPath: \._selNotes); return _selNotes }
+        set { put(\._selNotes, newValue, observedChanged(_selNotes, newValue)) }
     }
     var pressedKeys: [Int: [Int]] {
-        get { access(keyPath: \.obs._pressedKeys); return obs._pressedKeys }
-        set { put(\.obs._pressedKeys, newValue, observedChanged(obs._pressedKeys, newValue)) }
+        get { access(keyPath: \._pressedKeys); return _pressedKeys }
+        set { put(\._pressedKeys, newValue, observedChanged(_pressedKeys, newValue)) }
     }
     var arrGroup: [ArrSel] {
-        get { access(keyPath: \.obs._arrGroup); return obs._arrGroup }
-        set { put(\.obs._arrGroup, newValue, observedChanged(obs._arrGroup, newValue)) }
+        get { access(keyPath: \._arrGroup); return _arrGroup }
+        set { put(\._arrGroup, newValue, observedChanged(_arrGroup, newValue)) }
     }
     var eqCompares: [Int: Int] {
-        get { access(keyPath: \.obs._eqCompares); return obs._eqCompares }
-        set { put(\.obs._eqCompares, newValue, observedChanged(obs._eqCompares, newValue)) }
+        get { access(keyPath: \._eqCompares); return _eqCompares }
+        set { put(\._eqCompares, newValue, observedChanged(_eqCompares, newValue)) }
     }
     var arrDropPending: (sel: GridSelection, start: Int)? {
-        get { access(keyPath: \.obs._arrDropPending); return obs._arrDropPending }
-        set { put(\.obs._arrDropPending, newValue, observedChanged(obs._arrDropPending, newValue)) }
+        get { access(keyPath: \._arrDropPending); return _arrDropPending }
+        set { put(\._arrDropPending, newValue, observedChanged(_arrDropPending, newValue)) }
     }
     var gridMenuOpen: Bool {
-        get { access(keyPath: \.obs._gridMenuOpen); return obs._gridMenuOpen }
-        set { put(\.obs._gridMenuOpen, newValue, observedChanged(obs._gridMenuOpen, newValue)) }
+        get { access(keyPath: \._gridMenuOpen); return _gridMenuOpen }
+        set { put(\._gridMenuOpen, newValue, observedChanged(_gridMenuOpen, newValue)) }
     }
     var mixDrop: [Int: Int] {
-        get { access(keyPath: \.obs._mixDrop); return obs._mixDrop }
-        set { put(\.obs._mixDrop, newValue, observedChanged(obs._mixDrop, newValue)) }
+        get { access(keyPath: \._mixDrop); return _mixDrop }
+        set { put(\._mixDrop, newValue, observedChanged(_mixDrop, newValue)) }
     }
     var captureFlash: Bool {
-        get { access(keyPath: \.obs._captureFlash); return obs._captureFlash }
-        set { put(\.obs._captureFlash, newValue, observedChanged(obs._captureFlash, newValue)) }
+        get { access(keyPath: \._captureFlash); return _captureFlash }
+        set { put(\._captureFlash, newValue, observedChanged(_captureFlash, newValue)) }
     }
     var wavetableSerial: Int {
-        get { access(keyPath: \.obs._wavetableSerial); return obs._wavetableSerial }
-        set { put(\.obs._wavetableSerial, newValue, observedChanged(obs._wavetableSerial, newValue)) }
+        get { access(keyPath: \._wavetableSerial); return _wavetableSerial }
+        set { put(\._wavetableSerial, newValue, observedChanged(_wavetableSerial, newValue)) }
     }
     var headCount: Int {
-        get { access(keyPath: \.obs._headCount); return obs._headCount }
-        set { put(\.obs._headCount, newValue, observedChanged(obs._headCount, newValue)) }
+        get { access(keyPath: \._headCount); return _headCount }
+        set { put(\._headCount, newValue, observedChanged(_headCount, newValue)) }
     }
     var stemArmed: Set<Int> {
-        get { access(keyPath: \.obs._stemArmed); return obs._stemArmed }
-        set { put(\.obs._stemArmed, newValue, observedChanged(obs._stemArmed, newValue)) }
+        get { access(keyPath: \._stemArmed); return _stemArmed }
+        set { put(\._stemArmed, newValue, observedChanged(_stemArmed, newValue)) }
     }
     var stemRecording: Set<Int> {
-        get { access(keyPath: \.obs._stemRecording); return obs._stemRecording }
-        set { put(\.obs._stemRecording, newValue, observedChanged(obs._stemRecording, newValue)) }
+        get { access(keyPath: \._stemRecording); return _stemRecording }
+        set { put(\._stemRecording, newValue, observedChanged(_stemRecording, newValue)) }
     }
     var refusedFlag: (idx: Int, until: Double) {
-        get { access(keyPath: \.obs._refusedFlag); return obs._refusedFlag }
-        set { put(\.obs._refusedFlag, newValue, observedChanged(obs._refusedFlag, newValue)) }
+        get { access(keyPath: \._refusedFlag); return _refusedFlag }
+        set { put(\._refusedFlag, newValue, observedChanged(_refusedFlag, newValue)) }
     }
     var hasTrackClip: Bool {
-        get { access(keyPath: \.obs._hasTrackClip); return obs._hasTrackClip }
-        set { put(\.obs._hasTrackClip, newValue, observedChanged(obs._hasTrackClip, newValue)) }
+        get { access(keyPath: \._hasTrackClip); return _hasTrackClip }
+        set { put(\._hasTrackClip, newValue, observedChanged(_hasTrackClip, newValue)) }
     }
     var scopeOn: [Bool] {
-        get { access(keyPath: \.obs._scopeOn); return obs._scopeOn }
-        set { put(\.obs._scopeOn, newValue, observedChanged(obs._scopeOn, newValue)) }
+        get { access(keyPath: \._scopeOn); return _scopeOn }
+        set { put(\._scopeOn, newValue, observedChanged(_scopeOn, newValue)) }
     }
     var mixMode: Int {
-        get { access(keyPath: \.obs._mixMode); return obs._mixMode }
-        set { put(\.obs._mixMode, newValue, obs._mixMode != newValue) }
+        get { access(keyPath: \._mixMode); return _mixMode }
+        set { put(\._mixMode, newValue, _mixMode != newValue) }
     }
     var mixerOpen: Bool {
-        get { access(keyPath: \.obs._mixerOpen); return obs._mixerOpen }
-        set { put(\.obs._mixerOpen, newValue, obs._mixerOpen != newValue) }
+        get { access(keyPath: \._mixerOpen); return _mixerOpen }
+        set { put(\._mixerOpen, newValue, _mixerOpen != newValue) }
     }
     var session: ProjectSession {
-        get { access(keyPath: \.obs._session); return obs._session }
-        set { put(\.obs._session, newValue, observedChanged(obs._session, newValue)) }
+        get { access(keyPath: \._session); return _session }
+        set { put(\._session, newValue, observedChanged(_session, newValue)) }
     }
     var projectList: [ProjectInfo] {
-        get { access(keyPath: \.obs._projectList); return obs._projectList }
-        set { put(\.obs._projectList, newValue, observedChanged(obs._projectList, newValue)) }
+        get { access(keyPath: \._projectList); return _projectList }
+        set { put(\._projectList, newValue, observedChanged(_projectList, newValue)) }
     }
     var arrPort: ArrPort {
-        get { access(keyPath: \.obs._arrPort); return obs._arrPort }
-        set { put(\.obs._arrPort, newValue, observedChanged(obs._arrPort, newValue)) }
+        get { access(keyPath: \._arrPort); return _arrPort }
+        set { put(\._arrPort, newValue, observedChanged(_arrPort, newValue)) }
     }
     var songFormat: SongFormat {
-        get { access(keyPath: \.obs._songFormat); return obs._songFormat }
-        set { put(\.obs._songFormat, newValue, observedChanged(obs._songFormat, newValue)) }
+        get { access(keyPath: \._songFormat); return _songFormat }
+        set { put(\._songFormat, newValue, observedChanged(_songFormat, newValue)) }
     }
     var songExport: SongExportState {
-        get { access(keyPath: \.obs._songExport); return obs._songExport }
-        set { put(\.obs._songExport, newValue, observedChanged(obs._songExport, newValue)) }
+        get { access(keyPath: \._songExport); return _songExport }
+        set { put(\._songExport, newValue, observedChanged(_songExport, newValue)) }
     }
     var refWave: RefWave? {
-        get { access(keyPath: \.obs._refWave); return obs._refWave }
-        set { put(\.obs._refWave, newValue, observedChanged(obs._refWave, newValue)) }
+        get { access(keyPath: \._refWave); return _refWave }
+        set { put(\._refWave, newValue, observedChanged(_refWave, newValue)) }
     }
     var refHeardTenths: Int {
-        get { access(keyPath: \.obs._refHeardTenths); return obs._refHeardTenths }
-        set { put(\.obs._refHeardTenths, newValue, observedChanged(obs._refHeardTenths, newValue)) }
+        get { access(keyPath: \._refHeardTenths); return _refHeardTenths }
+        set { put(\._refHeardTenths, newValue, observedChanged(_refHeardTenths, newValue)) }
     }
     var monitorUndo: [MonitorSnap] {
-        get { access(keyPath: \.obs._monitorUndo); return obs._monitorUndo }
-        set { put(\.obs._monitorUndo, newValue, observedChanged(obs._monitorUndo, newValue)) }
+        get { access(keyPath: \._monitorUndo); return _monitorUndo }
+        set { put(\._monitorUndo, newValue, observedChanged(_monitorUndo, newValue)) }
     }
     var monitorRedo: [MonitorSnap] {
-        get { access(keyPath: \.obs._monitorRedo); return obs._monitorRedo }
-        set { put(\.obs._monitorRedo, newValue, observedChanged(obs._monitorRedo, newValue)) }
+        get { access(keyPath: \._monitorRedo); return _monitorRedo }
+        set { put(\._monitorRedo, newValue, observedChanged(_monitorRedo, newValue)) }
     }
     var gridSel: GridSelection {
-        get { access(keyPath: \.obs._gridSel); return obs._gridSel }
-        set { put(\.obs._gridSel, newValue, observedChanged(obs._gridSel, newValue)) }
+        get { access(keyPath: \._gridSel); return _gridSel }
+        set { put(\._gridSel, newValue, observedChanged(_gridSel, newValue)) }
     }
     var topFrames: TopFrames {
-        get { access(keyPath: \.obs._topFrames); return obs._topFrames }
-        set { put(\.obs._topFrames, newValue, observedChanged(obs._topFrames, newValue)) }
+        get { access(keyPath: \._topFrames); return _topFrames }
+        set { put(\._topFrames, newValue, observedChanged(_topFrames, newValue)) }
     }
     var libTableAsk: [TableImport] {
-        get { access(keyPath: \.obs._libTableAsk); return obs._libTableAsk }
-        set { put(\.obs._libTableAsk, newValue, observedChanged(obs._libTableAsk, newValue)) }
+        get { access(keyPath: \._libTableAsk); return _libTableAsk }
+        set { put(\._libTableAsk, newValue, observedChanged(_libTableAsk, newValue)) }
     }
 }
 

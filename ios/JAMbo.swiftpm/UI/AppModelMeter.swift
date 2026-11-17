@@ -51,7 +51,7 @@ extension AppModel {
             meterQuietFrames = 0
         }
         let asleep: Bool = meterQuietFrames >= 6
-        if asleep != obs._meterAsleep { meterAsleep = asleep }
+        if asleep != _meterAsleep { meterAsleep = asleep }
     }
 
     /// Стерео ли дорожка на метре (правило: стерео где-то на дорожке — метр стерео): стерео-сэмпл или стерео-движок
@@ -185,13 +185,13 @@ extension AppModel {
     /// LEVEL (LOUD), MASK, FREQ при MIX: съём дорожек — только пока виден один из них; выключили — данные с нуля.
     private func tickMixAnalysis() {
         let taps: TrackTaps = audio.core.levels.trackTaps
-        let want: Bool = channel == .mix && obs._mixMode != MixMode.pan
+        let want: Bool = channel == .mix && _mixMode != MixMode.pan
         if want {
             if taps.on.load() == 0 { taps.on.store(1) }
             let n: Int = min(TrackTaps.tracks, project.tracks.count)
             var aud: [Bool] = []
             for t in 0..<n { aud.append(project.audible(t)) }
-            mixAn.tick(taps, count: n, audible: aud, mask: obs._mixMode == MixMode.mask)
+            mixAn.tick(taps, count: n, audible: aud, mask: _mixMode == MixMode.mask)
         } else if taps.on.load() != 0 {
             taps.on.store(0)
             mixAn.reset()

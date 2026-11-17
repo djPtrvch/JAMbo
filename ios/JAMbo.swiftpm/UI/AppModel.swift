@@ -23,8 +23,6 @@ final class AppModel {
         }
     }
 
-    /// Хранение свойств, наблюдаемых вручную (AppModelObserved.swift), — одной структурой (18.11, объём сборки).
-    @ObservationIgnored var obs = AppModelStore()
     let audio = AudioHost()
     /// Ход игры из колбэка (позиции шагов, мигание) — отдельно, чтобы не перерисовывать всё.
     let live = LiveState()
@@ -34,10 +32,13 @@ final class AppModel {
     /// Проекты на диске; текущий проект (куда сохраняет SAVE, что сохранено); автосохранение — не раньше этого
     /// времени (0 — изменений нет), запись на диск — в своей очереди.
     @ObservationIgnored let projects = ProjectStore(dir: ProjectStore.appDir())
+    @ObservationIgnored var _session: ProjectSession = ProjectSession(id: "", name: "")
     @ObservationIgnored var autosaveDue: Double = 0
     @ObservationIgnored let saveQueue = DispatchQueue(label: "jambo.save", qos: .utility)
     /// Открытая вкладка SETTINGS (не в настройках: при запуске — первая, RECORD).
+    @ObservationIgnored var _settingsTab: SettingsTab = .record
     /// Список проектов в меню PROJECTS (перечитывается при открытии меню и после действий).
+    @ObservationIgnored var _projectList: [ProjectInfo] = []
     /// Огибающие сэмплов SOURCE для иконки GRANULAR (по ключу сэмпла; ключ — по содержимому, правка — новый ключ).
     @ObservationIgnored var grainPeakCache: [String: [Double]] = [:]
     /// Стерео ли дорожка на метрах (trackStereo; по индексу дорожки) — до следующей правки проекта.
@@ -52,35 +53,54 @@ final class AppModel {
     private(set) var selectedTrack: Int = 0 {
         didSet { updateGrainSeconds() }
     }
+    @ObservationIgnored private var _channel: Channel = .track
     private(set) var channel: Channel {
-        get { access(keyPath: \.obs._channel); return obs._channel }
-        set { put(\.obs._channel, newValue, observedChanged(obs._channel, newValue)) }
+        get { access(keyPath: \._channel); return _channel }
+        set { put(\._channel, newValue, observedChanged(_channel, newValue)) }
     }
+    @ObservationIgnored var _viewPage: Int = 0
     /// Секвенсор показывает все играющие страницы (если открытая среди них); удержание миниатюры — одну.
+    @ObservationIgnored var _spanView: Bool = true
+    @ObservationIgnored private var _playing: Bool = false
     private(set) var playing: Bool {
-        get { access(keyPath: \.obs._playing); return obs._playing }
+        get { access(keyPath: \._playing); return _playing }
         set {
-            put(\.obs._playing, newValue, observedChanged(obs._playing, newValue))
+            put(\._playing, newValue, observedChanged(_playing, newValue))
             if inBackground { syncBackgroundAudio() }
         }
     }
     /// Приложение в фоне (звук держится, только пока идёт игра).
     @ObservationIgnored var inBackground = false
+    @ObservationIgnored private var _metronome: Bool = false
     private(set) var metronome: Bool {
-        get { access(keyPath: \.obs._metronome); return obs._metronome }
-        set { put(\.obs._metronome, newValue, observedChanged(obs._metronome, newValue)) }
+        get { access(keyPath: \._metronome); return _metronome }
+        set { put(\._metronome, newValue, observedChanged(_metronome, newValue)) }
     }
     /// Зажатые шаги (индекс p·16 + s) — белый контур; с ними ручки ставят p-lock.
+    @ObservationIgnored var _heldSteps: Set<Int> = []
     /// Зажатые шаги, на которых уже что-то сделали (p-lock) — триг на отпускании не переключается.
     @ObservationIgnored var usedSteps: Set<Int> = []
     /// Зажата SHIFT.
+    @ObservationIgnored var _shiftHeld: Bool = false
     /// Зажата FX: ручки — общие эффекты; MOD — LFO1–3 и ENV дорожки; из двух — нажатая последней.
+    @ObservationIgnored var _fxHeld: Bool = false
+    @ObservationIgnored var _modHeld: Bool = false
+    @ObservationIgnored var _lastPage: GridPage = .fx
     /// Зажатые LFO1–3 (1–3) и ENV (4); нажатая последней.
+    @ObservationIgnored var _heldSources: Set<Int> = []
+    @ObservationIgnored var _lastSource: Int = 1
     /// Ручки, которые сейчас держит палец (обводка кнопок назначенных источников).
+    @ObservationIgnored var _knobFingers: Set<Int> = []
     /// Картинка FX в окне сэмпла: колонка (0–3) ручки FX, тронутой последней; поворот ручки FX с MIDI — показ на 0,5 с.
+    @ObservationIgnored var _fxPicCol: Int = 0
+    @ObservationIgnored var _fxMidiShow: Bool = false
     @ObservationIgnored var fxMidiTask: LaterTask? = nil
     /// MORPH: режим включён; кнопка зажата; на удержании нажали UNDO (отпускание не переключает режим).
+    @ObservationIgnored var _morph: Bool = false
+    @ObservationIgnored var _morphHeld: Bool = false
+    @ObservationIgnored var _morphUsed: Bool = false
     /// SHIFT + MORPH держат — все дорожки (отпустили — MORPH выключается).
+    @ObservationIgnored var _morphAllHeld: Bool = false
     /// Плавный возврат после выключения MORPH (SETTINGS → MORPH → RETURN; nil — нет).
     @ObservationIgnored var morphGlide: MorphGlide? = nil
     /// KEY VELOCITY (S12): толчки iPad (акселерометр).
@@ -96,6 +116,7 @@ final class AppModel {
     /// Последний тап по LFO1–3 / ENV (двойной тап — снять назначение с удерживаемой ручки).
     @ObservationIgnored var lastSourceTap: (source: Int, at: Date)? = nil
     /// Открытое меню страницы (двойной тап по миниатюре).
+    @ObservationIgnored var _pageMenu: PageMenuState? = nil
     /// Скопированные страницы (copy в меню страницы).
     @ObservationIgnored var pageClipboard: [[Step]]? = nil
     /// Октава клавиатуры у каждой дорожки своя (по умолчанию у всех одна — со второй: C2; не в проекте) — нота трига,
@@ -106,17 +127,24 @@ final class AppModel {
     /// Настройки приложения (клавиатура, запись) — в UserDefaults, общие для проектов.
     private(set) var settings: AppSettings = AppModel.loadSettings()
     /// REC: ноты клавиатуры пишутся в секвенсор, пока идёт игра.
+    @ObservationIgnored var _recOn: Bool = false
     /// AUTO в аранжировщике: окно автоматизации; REC + PLAY + AUTO при игре по таймлайну — запись ручек в кривые.
+    @ObservationIgnored var _arrAuto: Bool = false
     /// Кнопка записи аранжировки под STEPS сетки: пока играет сетка, запуски клипов пишутся на таймлайн блоками.
+    @ObservationIgnored var _arrRecArm: Bool = false
     /// Докуда при игре можно прокрутить таймлайн (шаги; 0 — не играет): плейхед за концом аранжировки (arrViewEnd).
+    @ObservationIgnored var _arrPlayEnd: Int = 0
     /// Конец таймлайна для прокрутки: аранжировка или место плейхеда при игре.
     var arrViewEnd: Int { return max(project.arrangeEnd, arrPlayEnd) }
     /// ARRANGE зажата (с тапом REC — запись аранжировки; отпустили без REC — обычный тап).
     @ObservationIgnored var arrangeHeld: Bool = false
     @ObservationIgnored var arrangeHoldUsed: Bool = false
     /// Игра по таймлайну (PLAY в окне аранжировщика): сетка и аранжировщик разделены — клипы в сетке не запускаются.
+    @ObservationIgnored var _arrPlay: Bool = false
     /// Карандаш под измерителем аранжировщика (решение пользователя): рисование кривой в окне AUTO пальцем.
+    @ObservationIgnored var _arrDraw: Bool = false
     /// Ручка, кривая которой открыта в окне AUTO (id параметра).
+    @ObservationIgnored var _arrAutoId: String = ""
     /// Запись ручек в аранжировку (S15f3): кусок на ручку (ключ — дорожка·ArrAutoTarget.count + цель), кривые под рукой,
     /// отложенный конец куска (энкодер MIDI — без касания).
     @ObservationIgnored var autoTakes: [Int: AutoTake] = [:]
@@ -125,11 +153,15 @@ final class AppModel {
     @ObservationIgnored var autoSlotKeys: [Int: Int] = [:]
     @ObservationIgnored var autoFlush: DispatchWorkItem? = nil
     /// У каждой дорожки свои режим аккордов, прогрессия и выбранные ноты (не в проекте).
+    @ObservationIgnored var _chordMode: [Bool] = [Bool](repeating: false, count: Params.maxTracks)
     /// Тип аккорда клавиш в режиме CHORD (Scales.chordKinds: Triad, 7th, 9th, sus2, sus4, add9) — у каждой дорожки
     /// свой; живёт до закрытия приложения (в проекте не хранится).
+    @ObservationIgnored var _chordKind: [Int] = [Int](repeating: 0, count: Params.maxTracks)
     /// Тип случайной партии, выбранный в окне CHORD (MelodyRhythm.partNames; −1 — определяется сам) — у каждой
     /// дорожки свой, действует при SETTINGS → RANDOM → SHOW PART TYPE; в проекте не хранится.
+    @ObservationIgnored var _partType: [Int] = [Int](repeating: -1, count: Params.maxTracks)
     /// Окно CHORD (долгое нажатие на CHORD): тип аккорда и пресеты прогрессий.
+    @ObservationIgnored var _chordMenuOpen: Bool = false
     /// Последняя случайная прогрессия (SHIFT + CHORD) — следующая будет другой.
     @ObservationIgnored var lastRandomProgression: [Int]? = nil
     /// Тип аккорда случайной прогрессии Techno (MelodyRhythm.technoKinds): общий у PAD, KEYS, ARP.
@@ -141,21 +173,40 @@ final class AppModel {
     @ObservationIgnored var arpCaptureId: Int = -2_000_000_000
     /// Шаги основы прошлого случайного ритма по id дорожки (SHIFT + CHORD на ударном движке).
     @ObservationIgnored var lastRandomDrums: [Int: [Int]] = [:]
+    @ObservationIgnored var _selNotes: [[Int]] = [[Int]](repeating: [], count: Params.maxTracks)
     /// Зажатые клавиши и аккорды: касание → ноты.
+    @ObservationIgnored var _pressedKeys: [Int: [Int]] = [:]
     /// Сетка паттернов открыта; ячейка для правки выбранной дорожки (жёлтый контур); верх окна строк.
+    @ObservationIgnored var _patternView: Bool = false
     /// Аранжировщик (S15) на месте центра: открыт; курсор без игры (шаги); выбранный блок; меню; вид (масштаб, прокрутка).
+    @ObservationIgnored var _arrangeView: Bool = false
+    @ObservationIgnored var _arrCursor: Int = 0
+    @ObservationIgnored var _arrSel: ArrSel? = nil
     /// Выделение рамкой (S15, решение пользователя): блоки на разных дорожках (от двух) и рамка, пока её тянут.
+    @ObservationIgnored var _arrGroup: [ArrSel] = []
+    @ObservationIgnored var _arrMarquee: CGRect? = nil
     /// KNOBS (под UNDO): в аранжировщике на месте таймлайна — окно дорожки с ручками (запись ручек — REC + PLAY + AUTO).
+    @ObservationIgnored var _arrKnobs: Bool = false
     /// Высота строки дорожек, секвенсора и клавиатуры: окно AUTO поверх низа аранжировщика при выключенной STEPS.
+    @ObservationIgnored var _arrLowerH: CGFloat = 0
     /// Высота строки кнопок (RootView.units): строка папки, вторая строка аранжировщика, верх EQ и окон мастера.
+    @ObservationIgnored var _barH: CGFloat = 40
+    @ObservationIgnored var _arrMenu: ArrMenuState? = nil
+    @ObservationIgnored var _arrPort: ArrPort = ArrPort()
     /// INSERT (S15d): режим вставки; только что вставленный блок (его правый край — длина со сдвигом).
+    @ObservationIgnored var _arrInsert: Bool = false
+    @ObservationIgnored var _arrInserted: ArrSel? = nil
     /// REF (S15g): A/B (true — слышен референс; не хранится в проекте), огибающая файла для строки REF.
+    @ObservationIgnored var _arrRefB: Bool = false
     /// EQ и коррекция наушников открыты из аранжировщика со строкой REF: A/B держится, закрыли EQ — назад в
     /// аранжировщик (14.11); refBSent — A/B в последнем снимке звука.
     @ObservationIgnored var arrRefHold: Bool = false
     @ObservationIgnored var refBSent: Bool = false
     /// EXPORT SONG (AppModelSongExport): формат, ход, экспорт в работе.
+    @ObservationIgnored var _songFormat: SongFormat = SongFormat()
+    @ObservationIgnored var _songExport: SongExportState = SongExportState()
     @ObservationIgnored var songExporter: SongExporter? = nil
+    @ObservationIgnored var _refWave: RefWave? = nil
     /// Файл, темп которого уже ищется (второй поиск не запускается).
     @ObservationIgnored var refBpmKey: String = ""
     @ObservationIgnored var arrBlockClipboard: ArrBlock? = nil
@@ -163,23 +214,43 @@ final class AppModel {
     @ObservationIgnored var meterFrame: CGRect = .zero
     @ObservationIgnored var arrTrackClipboard: [ArrBlock]? = nil
     /// Пианоролл на месте центра (S8): открыт, меню бутерброда, режим VEL.
+    @ObservationIgnored var _rollView: Bool = false
+    @ObservationIgnored var _rollMenuOpen: Bool = false
+    @ObservationIgnored var _rollVel: Bool = true
     /// EQ на месте центра (EQ выбранной дорожки, при MIX и MST — мастера); выбранная полоса (−1 — нет); меню полосы.
+    @ObservationIgnored var _eqView: Bool = false
+    @ObservationIgnored var _eqBand: Int = -1
     /// LISTEN держат; полоса, которую слушают (−1 — нет).
+    @ObservationIgnored var _eqListenHeld: Bool = false
+    @ObservationIgnored var _eqListenBand: Int = -1
+    @ObservationIgnored var _eqMenu: EqMenuState? = nil
     /// Меню STEREO / MID / SIDE: рамка поля M/S («root»); nil — закрыто.
+    @ObservationIgnored var _eqMsMenu: CGRect? = nil
     /// Меню TRANSLATION (тап по полю в окне коррекции наушников): рамка поля («root»).
+    @ObservationIgnored var _translationMenu: CGRect? = nil
     /// Меню под полем — головы (HEAD), а не пункты SPACE; ставится до translationMenu.
     @ObservationIgnored var translationMenuHeads = false
     /// Меню DYN (источник, THRESHOLD, RANGE): рамка поля DYN; ввод числом из меню (EqView открывает окно).
+    @ObservationIgnored var _eqDynMenu: CGRect? = nil
     /// Сдвиг меню DYN пальцем (перетаскивание за заголовок); сбрасывается при открытии.
+    @ObservationIgnored var _eqDynShift: CGSize = .zero
+    @ObservationIgnored var _eqInputAsk: EqInput? = nil
     /// Меню PRESETS EQ (рамка кнопки и низ поля EQ, «root»); пресеты EQ — общие для каналов и проектов.
+    @ObservationIgnored var _eqPresetMenu: EqPresetMenuState? = nil
     var eqPresets: EqPresetBook = AppModel.loadEqPresets()
     /// Сравнение у каждой дорожки своё: id дорожки → id сравниваемой (спектр после её EQ); меню выбора.
+    @ObservationIgnored var _eqCompares: [Int: Int] = [:]
+    @ObservationIgnored var _eqCompareMenu: Bool = false
     /// Коррекция наушников: окно открыто вместо EQ мастера (тап по MASTER EQ), её полосы и пресеты — своя настройка
     /// приложения, не проекта (UserDefaults).
+    @ObservationIgnored var _eqPhones: Bool = false
     var phonesEq: Eq = AppModel.loadPhonesEq()
     var phonesPresets: EqPresetBook = AppModel.loadPhonesPresets()
     /// Имя профиля коррекции (последний загруженный или импортированный пресет) — имя файла EXPORT.
+    @ObservationIgnored var _phonesName: String = UserDefaults.standard.string(forKey: AppModel.phonesNameKey) ?? "Phones EQ"
     /// IMPORT профилей коррекции (тот же fileImporter, текстовые файлы); итог импорта — окно с OK.
+    @ObservationIgnored var _importingPhones: Bool = false
+    @ObservationIgnored var _phonesNote: String? = nil
     /// Headphone Monitor (AppModelMonitor): настройки цепочки, CORRECT CURVE по профилям, пресеты Translation, громкость файла
     /// референса (LUFS) и подгонка к миксу, dB.
     var monitor: MonitorSettings = AppModel.loadMonitor()
@@ -190,6 +261,7 @@ final class AppModel {
     @ObservationIgnored var refMatchDb: Double = 0
     /// Подгонка громкости референса, которая сейчас звучит (подгонка и REF TRIM), в десятых dB — подпись в строке
     /// REF (14.11): измеритель и LUFS в B показывают файл без неё.
+    @ObservationIgnored var _refHeardTenths: Int = 0
     /// Room: пространства из ресурсов (по пунктам TRANSLATION) и загруженное (имя и отклик для компенсации).
     /// Комнаты: сборки и пакетов голов (AppModelHeads; после IMPORT — заново).
     @ObservationIgnored var rooms: [RoomInfo] = AppModel.loadRooms() + AppModel.loadPackRooms()
@@ -202,21 +274,38 @@ final class AppModel {
     @ObservationIgnored var roomSet: RoomSet? = nil
     @ObservationIgnored var roomBuilding = false
     /// Профиль пункта SPACE сохранён удержанием — на секунду SAVED в меню.
+    @ObservationIgnored var _spaceSaved: String? = nil
     /// HEAD (AppModelHead): отслеживание головы включено, лицо видно (кнопка горит), трекер.
+    @ObservationIgnored var _headOn: Bool = false
+    @ObservationIgnored var _headFace: Bool = false
     @ObservationIgnored var headTracker: HeadTracker? = nil
     /// UNDO окна коррекции (AppModelMonitor): записи и жест (0 — нет, 1 — идёт, 2 — запись сделана).
+    @ObservationIgnored var _monitorUndo: [MonitorSnap] = []
+    @ObservationIgnored var _monitorRedo: [MonitorSnap] = []
     @ObservationIgnored var monitorGesture: Int = 0
     /// EXPORT: готовый временный файл профиля (окно сохранения в «Файлы»).
+    @ObservationIgnored var _phonesExported: URL? = nil
+    @ObservationIgnored var _gridTop: Int = 0
     /// Открытые меню сетки: ячейки (свайп вверх), строки (удержание), бутерброд сетки.
+    @ObservationIgnored var _cellMenu: CellMenuState? = nil
+    @ObservationIgnored var _rowMenu: Int? = nil
     /// Выделение рамкой в сетке паттернов (строки и клипы) — для TO ARRANGE.
+    @ObservationIgnored var _gridSel: GridSelection = GridSelection()
     /// Строк в окне сетки паттернов: 8; STEPS выключена — сколько поместится той же высоты (RootView).
+    @ObservationIgnored var _gridRowsShown: Int = Params.gridRows
     /// Перенос клипа из сетки на кнопку ARRANGE и в аранжировку (AppModelCarry); палец — в координатах «root».
+    @ObservationIgnored var _clipCarry: ClipCarry? = nil
+    @ObservationIgnored var _carryPoint: CGPoint = .zero
     /// Выделение, положенное поверх блоков, — ждёт выбора в меню (HERE, INSERT, TO END): что и с какого шага.
+    @ObservationIgnored var _arrDropPending: (sel: GridSelection, start: Int)? = nil
     /// Рамки кнопки ARRANGE и таймлайна аранжировщика (координаты «root»).
     @ObservationIgnored var arrangeButtonFrame: CGRect = .zero
     /// Рамки кнопок верхней панели («root»): по ним выравниваются строки окон EQ и библиотеки.
+    @ObservationIgnored var _topFrames: TopFrames = TopFrames()
     @ObservationIgnored var arrTimelineFrame: CGRect = .zero
+    @ObservationIgnored var _gridMenuOpen: Bool = false
     /// Ячейка коротко вспыхивает красным (действие недоступно).
+    @ObservationIgnored var _deniedCell: CellRef? = nil
     @ObservationIgnored var clipClipboard: Clip? = nil
     @ObservationIgnored var rowClipboard: RowClip? = nil
     /// Лидер (клип, запущенный последним): его гамма и нота — общие; дорожки, запущенные в этом кадре.
@@ -226,6 +315,7 @@ final class AppModel {
     @ObservationIgnored var pendingStarts: [Int] = []
     /// Переход MIX (S10): состояние (nil — нет перехода), параметры мастера кроссфейдера для колбэка (BYPASS — долей),
     /// CHANGE KEY OFF — гамма и нота старого проекта держатся, пока идёт игра.
+    @ObservationIgnored var _mix: MixTransition? = nil
     @ObservationIgnored var mixMaster: [Double]? = nil
     @ObservationIgnored var keyHold: Bool = false
     /// CROSSFADER OFF: темп старого проекта держится, пока идёт игра; здесь — темп нового проекта (для записи).
@@ -239,7 +329,11 @@ final class AppModel {
     /// Следующие клипы дорожек в последнем снимке звука (nextSlots).
     @ObservationIgnored var publishedNext: [Int] = []
     /// Анимация MIX: клипы опускаются в PREV из строк окна (дорожка → строка окна), пока mixDropDone false.
+    @ObservationIgnored var _mixDrop: [Int: Int] = [:]
+    @ObservationIgnored var _mixDropDone: Bool = true
     /// Открытое меню выбора (SCALE, ROOT) и меню клавиатуры.
+    @ObservationIgnored var _choice: ChoiceState? = nil
+    @ObservationIgnored var _pianoMenuOpen: Bool = false
     /// Дубль записи: номер истории после первой ноты (−1 — дубля нет), дорожки и записанные шаги дубля.
     @ObservationIgnored var recTake: Int = -1
     @ObservationIgnored var takeTracks: Set<Int> = []
@@ -249,6 +343,7 @@ final class AppModel {
     @ObservationIgnored var keyHolds: [Int: KeyHold] = [:]
     /// Capture: ноты, сыгранные без REC, по дорожкам; ▲ ▼ мигают после Capture.
     @ObservationIgnored var captureLog: [[CapturedKey]] = [[CapturedKey]](repeating: [], count: Params.maxTracks)
+    @ObservationIgnored var _captureFlash: Bool = false
     private(set) var appearance: Appearance = AppModel.loadAppearance()
     /// Сэмплы (в памяти и на диске); растёт при загрузке — окна перерисовываются.
     @ObservationIgnored let store = SampleStore()
@@ -259,54 +354,90 @@ final class AppModel {
     /// Таблицы, по готовности которых снимок звука публикуется заново.
     @ObservationIgnored var pendingTables: Set<String> = []
     /// Таблица достроилась — перерисовать кадр в окне синта.
+    @ObservationIgnored var _wavetableSerial: Int = 0
+    @ObservationIgnored var _samplesVersion: Int = 0
     /// Редактор сэмпла (на месте центра), меню звука (для дорожки или зажатых шагов), выбор файлов.
+    @ObservationIgnored var _editorOpen: Bool = false
     /// Редактор в режиме WARP (метки варпинга вместо маркеров нарезки) и его GRID (в четвертях: 1/16 — 0,25).
+    @ObservationIgnored var _editorWarp: Bool = false
+    @ObservationIgnored var _warpGrid: Double = 0.25
     /// Выделенная метка варпинга (её тянут и из любого места полосы флажков).
+    @ObservationIgnored var _warpSel: Int? = nil
+    @ObservationIgnored var _soundMenu: SoundMenuState? = nil
+    @ObservationIgnored var _importTarget: ImportTarget? = nil
+    @ObservationIgnored var _importing: Bool = false
     /// Выбор файла — для IMPORT проекта (.jambo), а не сэмплов; итог IMPORT (меню PROJECTS показывает LOAD / MIX).
+    @ObservationIgnored var _importingProject: Bool = false
+    @ObservationIgnored var _projectImport: ProjectImport? = nil
     /// Браузер библиотеки (S11b) на месте центра: режим (nil — закрыт), дерево, открытая папка, выбор нескольких
     /// (nil — нет), строка внизу (что загружено, ошибка); выбор файлов — для IMPORT в библиотеку.
+    @ObservationIgnored var _browser: BrowserMode? = nil
     var library: Library = Library()
+    @ObservationIgnored var _libFolder: String = Library.root
+    @ObservationIgnored var _libPicked: Set<String>? = nil
+    @ObservationIgnored var _libNote: String = ""
     /// Предупреждение импорта в библиотеку (архив больше предела, пропущенные большие файлы) — окно с OK.
+    @ObservationIgnored var _libWarning: String? = nil
+    @ObservationIgnored var _importingLibrary: Bool = false
     @ObservationIgnored var libraryLoaded: Bool = false
     /// IMPORT таблиц WAV без метки размера кадра — по очереди спрашивается размер (S11b4).
+    @ObservationIgnored var _libTableAsk: [TableImport] = []
     /// IMPORT: сколько пресетов добавлено (для строки внизу).
     @ObservationIgnored var libImportedPresets: Int = 0
     /// Сэмпл библиотеки на ▶ (в снимке звука — вне дорожек).
     @ObservationIgnored var libPreviewKey: String? = nil
     @ObservationIgnored let libraryStore = LibraryStore(url: LibraryStore.appFile())
     /// Рамка левой колонки (меню звука ложится на неё).
+    @ObservationIgnored var _leftFrame: CGRect = .zero
     /// Колонка миниатюр страниц (в координатах «root») — по ней встаёт меню страницы.
+    @ObservationIgnored var _pagesFrame: CGRect = .zero
     /// Клавиши клавиатуры (в координатах экрана): меню CHORD и бутерброда — от левого нижнего угла первой клавиши.
+    @ObservationIgnored var _keysFrame: CGRect = .zero
     /// Строка дорожек (в координатах «root»): верх окна CHORD и предел меню бутерброда под CHORD.
+    @ObservationIgnored var _tracksFrame: CGRect = .zero
     /// Звучащие голоса сэмплов (полоса воспроизведения): из колбэка; число — чтобы включать анимацию.
     @ObservationIgnored var heads: [Int: VoiceHead] = [:]
+    @ObservationIgnored var _headCount: Int = 0
     /// Запись стемов (S11d): готовые и пишущиеся каналы (дорожки, StemRing.master) — не в проекте и не в UNDO.
+    @ObservationIgnored var _stemArmed: Set<Int> = []
+    @ObservationIgnored var _stemRecording: Set<Int> = []
     @ObservationIgnored let stems = StemCollector()
     @ObservationIgnored var stemNames: [Int: String] = [:]
     /// REC в редакторе сэмпла (S11e).
     let sampleRec = SampleRec()
+    @ObservationIgnored var _previewOn: Bool = false
     /// Маркер нарезки, который держат в редакторе (не двигая): клавиша назначает ему ноту; отказ — красный.
+    @ObservationIgnored var _heldFlag: Int? = nil
     /// Флажок держат 0,5 с, не двигая: в строке редактора — роли куска (LOW, MID, HIGH, LONG); сразу — не мешает
     /// перетаскиванию.
+    @ObservationIgnored var _roleFlag: Int? = nil
     /// Номер удержания флажка (отложенный показ ролей — только для того же удержания).
     @ObservationIgnored var flagHoldId: Int = 0
     /// Клавиша назначила ноту флажку, который держат (его отпускание — не тап).
     @ObservationIgnored var flagUsed: Bool = false
+    @ObservationIgnored var _refusedFlag: (idx: Int, until: Double) = (-1, 0)
     /// MIX: меню дорожки у ручки громкости, переименование, скопированная дорожка.
+    @ObservationIgnored var _trackMenu: TrackMenuState? = nil
+    @ObservationIgnored var _renaming: Int? = nil
     @ObservationIgnored var trackClipboard: Track? = nil
+    @ObservationIgnored var _hasTrackClip: Bool = false
+    @ObservationIgnored private var _audioStarted: Bool = false
     private var audioStarted: Bool {
-        get { access(keyPath: \.obs._audioStarted); return obs._audioStarted }
-        set { put(\.obs._audioStarted, newValue, observedChanged(obs._audioStarted, newValue)) }
+        get { access(keyPath: \._audioStarted); return _audioStarted }
+        set { put(\._audioStarted, newValue, observedChanged(_audioStarted, newValue)) }
     }
     @ObservationIgnored private var pump: Timer?
     /// Измеритель и метры MIX (читают виды по таймеру анимации; не наблюдается).
     @ObservationIgnored let meters = MeterState()
     /// Измеритель справа спит (17.11): канал молчит, подписи не меняются — анимация на паузе, оживает на звук.
+    @ObservationIgnored var _meterAsleep: Bool = false
     /// Кадров подряд без изменений на измерителе и подписи, по которым они сравниваются.
     @ObservationIgnored var meterQuietFrames: Int = 0
     @ObservationIgnored var meterSeen: (ch: Int, lufs: Float, peak: Float) = (-1, 0, 0)
     /// Играющий шаг на экране (17.11): меняется, только когда меняется сам шаг, — виды не пересчитываются от хода
     /// других дорожек (openPlayPos и trackPlayPos читают их, drain обновляет).
+    @ObservationIgnored var _openPosShown: Int = -1
+    @ObservationIgnored var _trackPosShown: Int = -1
     /// P-lock играющего шага по параметрам (17.11): ячейка на параметр, создаётся при первом чтении (playLock).
     @ObservationIgnored var playLockCells: [String: LockCell] = [:]
     /// Индикация COMP / CLIP / LIM при MST.
@@ -317,22 +448,31 @@ final class AppModel {
     /// Скоп мастера: точки съёма SAT (всегда), COMP, CLIP, LIM (по умолчанию выключены — отличие от веба; в проекте
     /// не хранится).
     @ObservationIgnored let scope = ScopeState()
+    @ObservationIgnored var _scopeOn: [Bool] = [true, false, false, false]
     /// Вид полос MIX слева (MixMode.level, pan, freq, mask); в проекте не хранится.
+    @ObservationIgnored var _mixMode: Int = 0
     /// Окно микшера при MIX (16.11): открыто ли (тап по окну полос — открыть, ✕ — закрыть).
+    @ObservationIgnored var _mixerOpen: Bool = false
     /// Последний тап по MIX или MST (двойной — закрыть окно микшера или модуля мастера).
     @ObservationIgnored var mixTapAt: Date? = nil
     /// FREQ, MASK и LOUD при MIX.
     @ObservationIgnored let mixAn = MixAnalysis()
     /// Окно модуля мастера на месте центра (MasterScope.sat…lim; nil — закрыто) и его меню (название, PRESETS);
     /// ввод числом или имени пресета. Открытость и FREEZE не в проекте.
+    @ObservationIgnored var _masterWin: Int? = nil
+    @ObservationIgnored var _masterMenu: MasterMenuState? = nil
+    @ObservationIgnored var _masterInput: MasterInputTarget? = nil
     /// UNITY окна CLIP или LIM (16.11): только пока окно открыто, не в проекте.
+    @ObservationIgnored var _masterUnity: Bool = false
     /// Последний ручной RELEASE компрессора и лимитера (тап по полю RELEASE — AUTO и обратно), не в проекте.
     @ObservationIgnored var releaseManual: [String: Double] = [:]
     /// Пресеты модулей мастера — общие для проектов (UserDefaults).
     var masterPresets: MasterPresetBook = AppModel.loadMasterPresets()
     /// Свои значения ручек по умолчанию (UserDefaults) и ручка, на которой на секунду видно SAVED.
     var knobDefaults: KnobDefaults = KnobDefaults.decode(UserDefaults.standard.data(forKey: AppModel.knobDefaultsKey))
+    @ObservationIgnored var _defaultFlash: Int? = nil
     /// SAVE DEFAULT в PRESETS EQ или модуля мастера — на секунду SAVED жёлтым.
+    @ObservationIgnored var _defaultSaved: DefaultSaved? = nil
 
     init() {
         trace("model init")
@@ -428,9 +568,9 @@ final class AppModel {
         // Звук у клипа: колбэку — звук клипа, который дорожка запустит следующей (ожидание, строка).
         if nextSlots != publishedNext { publishAudio() }
         let op: Int = rawOpenPlayPos
-        if op != obs._openPosShown { openPosShown = op }
+        if op != _openPosShown { openPosShown = op }
         let tp: Int = rawTrackPlayPos
-        if tp != obs._trackPosShown { trackPosShown = tp }
+        if tp != _trackPosShown { trackPosShown = tp }
         refreshPlayLocks()
     }
 
@@ -570,13 +710,15 @@ final class AppModel {
 
     @ObservationIgnored var history = History<Project>()
     /// Есть что отменить или вернуть (для серых UNDO / REDO).
+    @ObservationIgnored private var _canUndo: Bool = false
     private(set) var canUndo: Bool {
-        get { access(keyPath: \.obs._canUndo); return obs._canUndo }
-        set { put(\.obs._canUndo, newValue, observedChanged(obs._canUndo, newValue)) }
+        get { access(keyPath: \._canUndo); return _canUndo }
+        set { put(\._canUndo, newValue, observedChanged(_canUndo, newValue)) }
     }
+    @ObservationIgnored private var _canRedo: Bool = false
     private(set) var canRedo: Bool {
-        get { access(keyPath: \.obs._canRedo); return obs._canRedo }
-        set { put(\.obs._canRedo, newValue, observedChanged(obs._canRedo, newValue)) }
+        get { access(keyPath: \._canRedo); return _canRedo }
+        set { put(\._canRedo, newValue, observedChanged(_canRedo, newValue)) }
     }
 
     /// Дискретное действие: одна запись в UNDO (внутри жеста — запись в конце жеста).
