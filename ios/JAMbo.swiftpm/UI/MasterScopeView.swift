@@ -252,7 +252,7 @@ struct ScopeCanvas: View {
     }
 }
 
-/// Кнопка точки съёма скопа (COMP, CLIP, LIM — при MST на месте MORPH, FX, MOD): тап включает и выключает;
+/// Кнопка точки съёма скопа (COMP, CLIP, LIM — при MST на месте MORPH, FX, MOD): тап включает её и выключает две другие (17.11);
 /// включённая — цветом своей формы волны.
 struct ScopeButton: View {
     let model: AppModel
@@ -268,7 +268,12 @@ struct ScopeButton: View {
             .foregroundStyle(on ? theme.onAccent : theme.text)
             .tile(on ? colors[tap] : theme.panel2)
             .contentShape(Rectangle())
-            .onTapGesture { model.scopeOn[tap].toggle() }
+            .onTapGesture {
+                // COMP, CLIP, LIM переключают друг друга (17.11): на осциллоскопе и во вкладе дорожек — один модуль.
+                var on: [Bool] = model.scopeOn
+                for k in 1..<4 { on[k] = k == tap }
+                if on != model.scopeOn { model.scopeOn = on }
+            }
     }
 }
 
