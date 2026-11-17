@@ -46,6 +46,8 @@ extension Sampler {
         let cap: Bool = stemG != nil
         let gw0: UnsafeMutablePointer<Float> = stemG ?? meterL
         let pf: RenderProfile? = profile
+        parallelEqs(d, n, sends: rack != nil)
+        pf?.lap(RenderProfile.eq)
         var oi = 0
         while oi < d.trackCount {
             let t: Int = d.eqOrder[oi]
@@ -74,7 +76,7 @@ extension Sampler {
                 continue
             }
             pf?.lap(RenderProfile.mix)
-            trackEq(t, d, n, sends: rack != nil)
+            if eqDone[t] == 0 { trackEq(t, d, n, sends: rack != nil) }
             pf?.lap(RenderProfile.eq)
             let bl = busL + t * Sampler.maxFrames
             let br = busR + t * Sampler.maxFrames
@@ -169,5 +171,42 @@ extension Sampler {
             (outR + t * mf).update(repeating: 0, count: n)
             t += 1
         }
+    }
+
+    /// EQ звучащих дорожек, которые не слушают другие дорожки, — заданиями пула до микшера (порядок им не важен: читают
+    /// только свои шины). По порядку в микшере остаются: EQ со слушанием дорожек (выход источника — в этом блоке),
+    /// показанный в окне EQ и сравниваемый (спектры), прослушиваемый (LISTEN) — как прежде.
+    func parallelEqs(_ d: SoundData, _ n: Int, sends: Bool) {
+        eqDone.update(repeating: 0, count: SoundData.maxTracks)
+        guard let p = pool, p.helperCount > 0, eqs != nil else { return }
+        let shown: Int = spectra?.channel.load() ?? -1
+        let cmp: Int = spectra?.compareTrack.load() ?? -1
+        let lis: Int = eqListen?.channel.load() ?? -1
+        let lisA: Int = eqListen?.active ?? -1
+        var jt: Int = 0
+        var t: Int = 0
+        while t < d.trackCount {
+            if used[t] != 0 && d.eqDep[t] == 0 && t != shown && t != cmp && t != lis && t != lisA {
+                eqJobs[jt] = t
+                jt += 1
+            }
+            t += 1
+        }
+        if jt < 2 { return }
+        eqJobData = d
+        eqJobN = n
+        eqJobSends = sends
+        p.run(jt, self)
+        var j: Int = 0
+        while j < jt {
+            eqDone[eqJobs[j]] = 1
+            j += 1
+        }
+    }
+
+    /// Задание пула: EQ j-й дорожки блока.
+    public func runJob(_ j: Int) {
+        guard let d = eqJobData else { return }
+        trackEq(eqJobs[j], d, eqJobN, sends: eqJobSends)
     }
 }

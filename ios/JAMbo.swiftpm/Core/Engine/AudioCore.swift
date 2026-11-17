@@ -77,6 +77,7 @@ public final class AudioCore: @unchecked Sendable {
         sequencer.sampler = sampler
         sampler.fx = fx
         fx.pool = pool
+        sampler.pool = pool
         sampler.mixLockMask = sequencer.mixLockMask
         sampler.mixLockGain = sequencer.mixLockGain
         sampler.mod = mod

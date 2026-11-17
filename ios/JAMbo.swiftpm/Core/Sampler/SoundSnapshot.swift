@@ -138,6 +138,9 @@ public struct SoundData {
     /// Порядок дорожек в микшере (S7b): источник динамической полосы EQ — раньше дорожки, которая его слушает
     /// (выход — в этом же блоке, как в вебе); в кольце источников одна дорожка слышит прошлый блок.
     public var eqOrder: UnsafeMutablePointer<Int>
+    /// EQ дорожки слушает другую дорожку (динамическая полоса с источником T1…T16, не своим): считается по порядку
+    /// eqOrder; без этого EQ дорожки — задание MULTICORE до микшера (17.11).
+    public var eqDep: UnsafeMutablePointer<UInt8>
     /// Референс аранжировщика (S15g; RefPlayer): буферы (nil — нет), кадров, сдвиг начала файла от начала таймлайна
     /// (кадры), громкость (усиление), A/B (true — слышен референс).
     public var refLeft: UnsafeMutablePointer<Float>? = nil
@@ -271,7 +274,8 @@ public final class SoundSnapshot: @unchecked Sendable {
             fxScale: .allocate(capacity: Params.fxCount),
             master: .allocate(capacity: MasterChain.Index.count),
             eq: .allocate(capacity: (EqSpec.channels + tracks) * EqSpec.stride),
-            eqOrder: .allocate(capacity: tracks)
+            eqOrder: .allocate(capacity: tracks),
+            eqDep: .allocate(capacity: tracks)
         )
         d.rebind = rebind
         d.stretchAlgo = stretchBeat ? 2 : 1
@@ -380,6 +384,8 @@ public final class SoundSnapshot: @unchecked Sendable {
         d.trackCount = Swift.min(project.tracks.count, tracks)
         let order: [Int] = EqSpec.mixOrder(project, d.trackCount)
         for t in 0..<tracks { d.eqOrder[t] = t < order.count ? order[t] : t }
+        d.eqDep.initialize(repeating: 0, count: tracks)
+        for t in 0..<d.trackCount where EqSpec.listensToTrack(project, t, d.trackCount) { d.eqDep[t] = 1 }
         for t in 0..<d.trackCount {
             let tr = project.tracks[t]
             d.trackId[t] = tr.id
@@ -571,6 +577,7 @@ public final class SoundSnapshot: @unchecked Sendable {
         data.master.deallocate()
         data.eq.deallocate()
         data.eqOrder.deallocate()
+        data.eqDep.deallocate()
     }
 }
 

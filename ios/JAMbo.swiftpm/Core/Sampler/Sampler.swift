@@ -14,7 +14,7 @@ public enum VoiceOut: Sendable {
     case end(voice: Int)
 }
 
-public final class Sampler {
+public final class Sampler: RenderJobs {
     /// Больше 48 голосов — самый старый гаснет за ~5 мс; ячеек с запасом на гаснущие.
     public static let maxVoices = 48
     static let slots = 64
@@ -112,6 +112,14 @@ public final class Sampler {
     public var fx: FxRack?
     /// EQ дорожек (до Sidechain и громкости микшера; TrackEqs).
     public var eqs: TrackEqs?
+    /// Многоядерный режим (ставит AudioCore): EQ дорожек, которые не слушают другие, — задания до микшера (17.11).
+    public var pool: RenderPool?
+    /// Задания EQ блока: дорожки; eqDone — EQ дорожки уже посчитан (микшер его пропускает).
+    let eqJobs = UnsafeMutablePointer<Int>.allocate(capacity: SoundData.maxTracks)
+    let eqDone = UnsafeMutablePointer<UInt8>.allocate(capacity: SoundData.maxTracks)
+    var eqJobData: SoundData?
+    var eqJobN: Int = 0
+    var eqJobSends: Bool = false
     /// Выходы дорожек после громкости микшера, до mute (дорожка·maxFrames) — источники динамических полос EQ.
     public let outL = UnsafeMutablePointer<Float>.allocate(capacity: SoundData.maxTracks * maxFrames)
     public let outR = UnsafeMutablePointer<Float>.allocate(capacity: SoundData.maxTracks * maxFrames)
@@ -159,6 +167,8 @@ public final class Sampler {
 
     public init(sampleRate: Double) {
         sr = sampleRate
+        eqJobs.initialize(repeating: 0, count: SoundData.maxTracks)
+        eqDone.initialize(repeating: 0, count: SoundData.maxTracks)
         let s = Sampler.slots
         active.initialize(repeating: 0, count: s)
         fading.initialize(repeating: 0, count: s)

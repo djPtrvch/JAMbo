@@ -92,6 +92,16 @@ public enum EqSpec {
 
     /// Порядок дорожек в микшере: каждая — после дорожек, которые слушают её динамические полосы (по возможности
     /// с меньшего номера); в кольце — дорожка с меньшим номером из оставшихся (она слышит прошлый блок).
+    /// EQ дорожки t слушает другую дорожку (включённая динамическая полоса с источником T1…T16, не своим).
+    public static func listensToTrack(_ project: Project, _ t: Int, _ count: Int) -> Bool {
+        let e: Eq = project.tracks[t].eq
+        if !e.on { return false }
+        for case let b? in e.bands where b.on && dynOn(b) && b.dyn >= 1 && b.dyn - 1 < count && b.dyn - 1 != t {
+            return true
+        }
+        return false
+    }
+
     public static func mixOrder(_ project: Project, _ count: Int) -> [Int] {
         var deps = [[Int]](repeating: [], count: count)
         for t in 0..<count {

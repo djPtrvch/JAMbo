@@ -33,7 +33,27 @@ final class RenderPoolTests: XCTestCase {
     /// Тяжёлый проект: синты дорожек на помощниках — шины дорожек и посылов те же, что без них (выход целиком не
     /// сравнить: у Reverb каждого ядра свой случайный засев).
     func testSameSoundWithHelpers() {
-        let a = make(), b = make()
+        compareWithHelpers(HeavyLoadTests.heavyProject())
+    }
+
+    /// EQ дорожек, которые не слушают другие (динамическая полоса — от своей дорожки), — задания пула до микшера:
+    /// звук тот же.
+    func testSameSoundWithParallelEqs() {
+        var p = HeavyLoadTests.heavyProject()
+        for t in 0..<8 {
+            let bell: Int = p.addEqBand(t, freq: 1200, gain: -4)
+            p.setEqDyn(t, bell, t + 1)
+            p.setEqDynParams(t, bell, thr: -30, range: -9)
+            for k in p.tracks[t].eq.bands.indices where p.tracks[t].eq.bands[k]?.dyn ?? 0 != t + 1 {
+                p.setEqDyn(t, k, 0)
+            }
+            XCTAssertFalse(EqSpec.listensToTrack(p, t, 8))
+        }
+        compareWithHelpers(p)
+    }
+
+    private func compareWithHelpers(_ project: Project) {
+        let a = make(project), b = make(project)
         var bl = [Float](repeating: 0, count: 256)
         var br = [Float](repeating: 0, count: 256)
         // Первый блок ставит синт и цель пула; помощники — после.
@@ -66,12 +86,12 @@ final class RenderPoolTests: XCTestCase {
         XCTAssertGreaterThan(peak, 0.01, "звук есть")
     }
 
-    private func make() -> AudioCore {
+    private func make(_ project: Project) -> AudioCore {
         let core = AudioCore()
         core.installSynth()
         var samples: [String: SampleData] = [:]
         for t in 4..<8 { samples["s\(t)"] = HeavyLoadTests.sample(t) }
-        core.publish(HeavyLoadTests.heavyProject(), samples: samples)
+        core.publish(project, samples: samples)
         core.events.push(.play(true))
         return core
     }
