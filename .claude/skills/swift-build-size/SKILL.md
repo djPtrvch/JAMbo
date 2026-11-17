@@ -14,6 +14,7 @@ Playgrounds на iPad собирает приложение отладочной
 
 | коммит | инструкций IR | на iPad |
 |---|---:|---|
+| 3ebbb15 | 1,5949 млн | с четвёртого раза (17.11: UNDO-место, FrameClock, MULTICORE и AudioWorkgroup, эффекты дорожек, MORPH FX, строка Load: +26 тыс. к 0ec6150; TOP FILES: AppModel 174 КБ, PatternGrid 169, EqView 137, LibraryBrowser 135, AudioHost 128 — other 75, AppModelObserved 125) |
 | 0ec6150 | 1,5688 млн | с первого раза (окно микшера при MIX — MixerWindow, ~170 строк: +4,8 тыс.; 16.11) |
 | edc6ace | 1,5640 млн | с первого раза (стерео по полосам вместо осциллоскопа при MIX — BandStereo; вместе с историей громкости +8,7 тыс. к e666bab; 16.11) |
 | 03f26c4 | без замера | с первого раза (история громкости при MIX — LoudHistory, ~200 строк; номера дорожек, исправление DELETE TRACK; 16.11) |
