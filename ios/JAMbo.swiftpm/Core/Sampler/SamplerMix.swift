@@ -6,7 +6,7 @@ import Foundation
 
 extension Sampler {
     /// Микшер: шина дорожки → EQ → · (1 − amount·e) · громкость · гейт → выход; посылы · громкость · гейт
-    /// (· (1 − amount·e), если посыл приглушается — SETTINGS → SIDECHAIN) → входы шин эффектов.
+    /// (· (1 − amount·e), если посыл приглушается — SETTINGS → SIDECHAIN) → входы эффектов дорожки (FxRack).
     func mix(_ d: SoundData, _ n: Int, _ left: UnsafeMutablePointer<Float>, _ right: UnsafeMutablePointer<Float>) {
         // Гейт mute/solo — за ~5 мс (постоянная 1,5 мс), громкость — за ~10 мс, глубина Sidechain и переключатели
         // посылов — за ~10 мс (постоянная 3,3 мс).
@@ -86,7 +86,9 @@ extension Sampler {
             var pl: Float = 0, pr: Float = 0
             if let r = rack, let eb = eBuf {
                 let s0L = sendL + t * 3 * Sampler.maxFrames, s0R = sendR + t * 3 * Sampler.maxFrames
-                let i0L = r.inL, i0R = r.inR
+                // Входы эффектов дорожки (17.11 — свои у дорожки): посылы этого блока — записью, не сложением.
+                let i0L = r.inL + t * 3 * mf, i0R = r.inR + t * 3 * mf
+                r.fed[t] = 1
                 var i = 0
                 while i < n {
                     vol += (vt - vol) * vk
@@ -113,14 +115,14 @@ extension Sampler {
                     }
                     // Посылы Reverb, Delay, Drive.
                     var gs: Float = g * (1 - fl0 * de)
-                    i0L[i] += s0L[i] * gs
-                    i0R[i] += s0R[i] * gs
+                    i0L[i] = s0L[i] * gs
+                    i0R[i] = s0R[i] * gs
                     gs = g * (1 - fl1 * de)
-                    i0L[mf + i] += s0L[mf + i] * gs
-                    i0R[mf + i] += s0R[mf + i] * gs
+                    i0L[mf + i] = s0L[mf + i] * gs
+                    i0R[mf + i] = s0R[mf + i] * gs
                     gs = g * (1 - fl2 * de)
-                    i0L[2 * mf + i] += s0L[2 * mf + i] * gs
-                    i0R[2 * mf + i] += s0R[2 * mf + i] * gs
+                    i0L[2 * mf + i] = s0L[2 * mf + i] * gs
+                    i0R[2 * mf + i] = s0R[2 * mf + i] * gs
                     i += 1
                 }
             } else {

@@ -76,6 +76,7 @@ public final class AudioCore: @unchecked Sendable {
         masterR.initialize(repeating: 0, count: AudioCore.maxFrames)
         sequencer.sampler = sampler
         sampler.fx = fx
+        fx.pool = pool
         sampler.mixLockMask = sequencer.mixLockMask
         sampler.mixLockGain = sequencer.mixLockGain
         sampler.mod = mod
@@ -327,7 +328,6 @@ public final class AudioCore: @unchecked Sendable {
             let v = s.takeRetainedValue()
             v.mod = mod
             v.pool = pool
-            pool.target = v
             sampler.synth = v
         }
         while let item = snapshots.pop() {

@@ -125,6 +125,9 @@ final class FxRoutingTests: XCTestCase {
         core.events.push(.play(true))
         _ = render(core, frames: 512)
         XCTAssertEqual(core.fx.live[FxRack.revSize], 10, accuracy: 1e-6, "шаг 1 с p-lock")
+        let c: Int = Params.fxCount
+        XCTAssertEqual(core.fx.tlive[FxRack.revSize], 10, accuracy: 1e-6, "p-lock — на эффект своей дорожки")
+        XCTAssertEqual(core.fx.tlive[c + FxRack.revSize], 30, accuracy: 1e-6, "у другой дорожки — значение клипа")
         _ = render(core, frames: 6000)
         XCTAssertEqual(core.fx.live[FxRack.revSize], 30, accuracy: 1e-6, "шаг 2 — значение клипа (по умолчанию 30 %)")
         XCTAssertEqual(Params.fxDefaults()["rev.decay"], 1.5)
@@ -136,23 +139,43 @@ final class FxRoutingTests: XCTestCase {
     func testReverbAndDelaySleepAndWake() {
         let core = AudioCore(master: false)
         core.publish(project(sends: ["reverb": 100, "delay": 100]), samples: ["k": burst()])
-        XCTAssertFalse(core.fx.revIdle)
+        XCTAssertTrue(core.fx.revIdle(0), "до первого посыла эффекты дорожки спят")
         core.events.push(.noteOn(track: 0, note: 48, id: 1, velocity: 1))
         var o = render(core, frames: 24000)
         XCTAssertGreaterThan(rms(o.l[4800..<24000]), 1e-3, "хвост звучит")
-        XCTAssertFalse(core.fx.revIdle)
+        XCTAssertFalse(core.fx.revIdle(0))
         core.events.push(.noteOff(track: 0, id: 1))
         // Reverb Decay 1,5 с: до −120 dB — около 3 с, затем 1 с тишины; Delay — до затухания повторов и 6,5 с.
         _ = render(core, frames: 48000 * 8)
-        XCTAssertTrue(core.fx.revIdle, "Reverb спит")
+        XCTAssertTrue(core.fx.revIdle(0), "Reverb спит")
         _ = render(core, frames: 48000 * 12)
-        XCTAssertTrue(core.fx.dlyIdle, "Delay спит")
+        XCTAssertTrue(core.fx.dlyIdle(0), "Delay спит")
         o = render(core, frames: 4800)
         XCTAssertEqual(o.l.reduce(Float(0)) { max($0, abs($1)) }, 0, "тишина")
         core.events.push(.noteOn(track: 0, note: 48, id: 2, velocity: 1))
         o = render(core, frames: 24000)
-        XCTAssertFalse(core.fx.revIdle, "посыл будит Reverb")
-        XCTAssertFalse(core.fx.dlyIdle, "посыл будит Delay")
+        XCTAssertFalse(core.fx.revIdle(0), "посыл будит Reverb")
+        XCTAssertFalse(core.fx.dlyIdle(0), "посыл будит Delay")
         XCTAssertGreaterThan(rms(o.l[4800..<24000]), 1e-3)
+    }
+
+    /// Эффекты дорожек (17.11): значения — FX клипа, который играет на дорожке; у клипа без своих — общие; Reverb одной
+    /// дорожки не звучит на другой.
+    func testTrackFxFromPlayingClip() {
+        let core = AudioCore(master: false)
+        var p = project(sends: ["reverb": 100])
+        p.tracks[0].clips[0]?.fx = ["rev.size": 80, "rev.decay": 4]
+        p.fx["rev.size"] = 20
+        core.publish(p, samples: ["k": burst()])
+        core.events.push(.play(true))
+        _ = render(core, frames: 512)
+        let c: Int = Params.fxCount
+        XCTAssertEqual(core.fx.tlive[FxRack.revSize], 80, accuracy: 1e-6, "дорожка 1 — FX своего клипа")
+        XCTAssertEqual(core.fx.tlive[FxRack.revDecay], 4, accuracy: 1e-6)
+        XCTAssertEqual(core.fx.tlive[c + FxRack.revSize], 20, accuracy: 1e-6, "дорожка 2 — общие FX")
+        core.events.push(.noteOn(track: 0, note: 48, id: 1, velocity: 1))
+        _ = render(core, frames: 4800)
+        XCTAssertFalse(core.fx.revIdle(0), "Reverb дорожки 1 звучит")
+        XCTAssertTrue(core.fx.revIdle(1), "Reverb дорожки 2 спит — посыла нет")
     }
 }

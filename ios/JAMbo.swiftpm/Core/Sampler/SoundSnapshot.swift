@@ -104,6 +104,10 @@ public struct SoundData {
     /// Общие FX (Params.fxIds, без p-lock), глубина Sidechain дорожки (0…100), переключатели SETTINGS → SIDECHAIN
     /// (посылы Reverb, Delay, Drive: 1 — приглушаются).
     public var fx: UnsafeMutablePointer<Float>
+    /// FX клипов дорожек (17.11, эффекты на каждой дорожке; решение пользователя — хранятся в клипах): (дорожка ·
+    /// patternSlots + клип) · fxCount; у клипа без своего значения — общее (fx). Колбэк берёт строку клипа, который
+    /// играет (slotRef).
+    public var clipFx: UnsafeMutablePointer<Float>
     public var scAmount: UnsafeMutablePointer<Float>
     public var scSend: UnsafeMutablePointer<Float>
     /// MOD: параметры LFO/ENV дорожки (Params.modIds), назначения на цели (ModTarget: источник 0 — нет, 1–4; степень;
@@ -257,7 +261,8 @@ public final class SoundSnapshot: @unchecked Sendable {
             sliceAt: .allocate(capacity: slices), sliceNote: .allocate(capacity: slices),
             tableRef: .allocate(capacity: tracks2),
             grainRef: .allocate(capacity: tracks2),
-            fx: .allocate(capacity: Params.fxCount), scAmount: .allocate(capacity: tracks2), scSend: .allocate(capacity: 3),
+            fx: .allocate(capacity: Params.fxCount),
+            clipFx: .allocate(capacity: tracks * Params.patternSlots * Params.fxCount), scAmount: .allocate(capacity: tracks2), scSend: .allocate(capacity: 3),
             mod: .allocate(capacity: tracks2 * Params.modCount), lfoSync: .allocate(capacity: tracks2 * 3),
             rateMode: .allocate(capacity: tracks2), pitchKey: .allocate(capacity: tracks2), asSrc: .allocate(capacity: tracks2 * ModTarget.count),
             asAmt: .allocate(capacity: tracks2 * ModTarget.count), scale: .allocate(capacity: tracks2 * ModTarget.count),
@@ -340,6 +345,7 @@ public final class SoundSnapshot: @unchecked Sendable {
         for (k, id) in Params.fxIds.enumerated() {
             (d.fx + k).initialize(to: Float(project.fx[id] ?? Params.byId[id]?.def ?? 0))
         }
+        SoundSnapshot.fillClipFx(d, project, tracks)
         d.scAmount.initialize(repeating: 0, count: tracks2)
         d.scSend[0] = scSends.rev ? 1 : 0
         d.scSend[1] = scSends.dly ? 1 : 0
@@ -547,6 +553,7 @@ public final class SoundSnapshot: @unchecked Sendable {
         data.tableRef.deallocate()
         data.grainRef.deallocate()
         data.fx.deallocate()
+        data.clipFx.deallocate()
         data.scAmount.deallocate()
         data.scSend.deallocate()
         data.mod.deallocate()
@@ -564,5 +571,32 @@ public final class SoundSnapshot: @unchecked Sendable {
         data.master.deallocate()
         data.eq.deallocate()
         data.eqOrder.deallocate()
+    }
+}
+
+extension SoundSnapshot {
+    /// FX клипов дорожек: у клипа без своего значения (нет клипа, нет fx, нет ключа) — общее (d.fx).
+    static func fillClipFx(_ d: SoundData, _ project: Project, _ tracks: Int) {
+        let c: Int = Params.fxCount
+        let slots: Int = Params.patternSlots
+        let ids: [String] = Params.fxIds
+        let n0: Int = Swift.min(project.tracks.count, tracks)
+        var t: Int = 0
+        while t < tracks {
+            var k: Int = 0
+            while k < slots {
+                let row: UnsafeMutablePointer<Float> = d.clipFx + (t * slots + k) * c
+                row.initialize(from: d.fx, count: c)
+                if t < n0, k < project.tracks[t].clips.count, let f = project.tracks[t].clips[k]?.fx {
+                    var p: Int = 0
+                    while p < c {
+                        if let v = f[ids[p]] { row[p] = Float(v) }
+                        p += 1
+                    }
+                }
+                k += 1
+            }
+            t += 1
+        }
     }
 }

@@ -423,7 +423,7 @@ public final class SynthVoices: RenderJobs {
         jobBusL = busL
         jobBusR = busR
         if let p = pool, jt > 1 {
-            p.run(jt)
+            p.run(jt, self)
         } else {
             var j: Int = 0
             while j < jt {

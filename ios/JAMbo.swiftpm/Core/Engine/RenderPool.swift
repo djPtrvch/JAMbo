@@ -23,8 +23,9 @@ public final class RenderPool: @unchecked Sendable {
     private let alive = Atomic<Int>(0)
     /// Семафоры помощников: два набора (поколение чётное / нечётное) — старые потоки не крадут пробуждения новых.
     private let sems: UnsafeMutablePointer<DispatchSemaphore>
-    /// Что считать (ставит колбэк до первого блока с помощниками; дальше не меняется).
-    public var target: RenderJobs?
+    /// Что считать в этом блоке (колбэк ставит до выдачи заданий; помощники читают после взятия задания).
+    /// Без счёта ссылок: цели живут всё время ядра (голоса синта, эффекты дорожек).
+    private unowned(unsafe) var active: RenderJobs? = nil
 
     public init() {
         let c: Int = 2 * RenderPool.maxHelpers
@@ -92,14 +93,13 @@ public final class RenderPool: @unchecked Sendable {
     /// Разобрать задания блока (любой поток); вернуть, сколько сделано.
     @inline(__always)
     private func work() -> Int {
-        guard let t = target else { return 0 }
         var mine: Int = 0
         while true {
             let v: Int = ticket.wrappingAdd(1, ordering: .acquiringAndReleasing).oldValue
             let idx: Int = v & 0xFFFF_FFFF
             let count: Int = v >> 32
             if idx >= count { break }
-            t.runJob(idx)
+            active?.runJob(idx)
             mine += 1
             done.wrappingAdd(1, ordering: .releasing)
         }
@@ -107,8 +107,8 @@ public final class RenderPool: @unchecked Sendable {
     }
 
     /// Колбэк: задания 0…count−1 на колбэке и помощниках; возврат — когда все сделаны.
-    public func run(_ count: Int) {
-        guard let t = target, count > 0 else { return }
+    public func run(_ count: Int, _ t: RenderJobs) {
+        if count <= 0 { return }
         allJobs.wrappingAdd(count, ordering: .relaxed)
         let h: Int = Swift.min(helpers.load(ordering: .acquiring), count - 1)
         if h <= 0 {
@@ -119,6 +119,7 @@ public final class RenderPool: @unchecked Sendable {
             }
             return
         }
+        active = t
         done.store(0, ordering: .relaxed)
         ticket.store(count << 32, ordering: .releasing)
         let set: Int = (generation.load(ordering: .relaxed) & 1) * RenderPool.maxHelpers

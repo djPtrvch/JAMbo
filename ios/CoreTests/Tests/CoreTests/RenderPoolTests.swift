@@ -18,13 +18,12 @@ final class RenderPoolTests: XCTestCase {
     func testEveryJobOnce() {
         let pool = RenderPool()
         let c = Counter()
-        pool.target = c
         pool.start(3) { return {} }
         var block = 0
         while block < 2000 {
             let n: Int = 2 + block % 14
             c.hits.update(repeating: 0, count: 64)
-            pool.run(n)
+            pool.run(n, c)
             for j in 0..<n where c.hits[j] != 1 { XCTFail("блок \(block): задание \(j) — \(c.hits[j]) раз") }
             block += 1
         }

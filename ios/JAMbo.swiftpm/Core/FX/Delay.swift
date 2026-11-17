@@ -74,10 +74,10 @@ public final class FxDelay {
         while p < need { p <<= 1 }
         len = p
         mask = p - 1
-        lineL = UnsafeMutablePointer<Float>.allocate(capacity: p)
-        lineR = UnsafeMutablePointer<Float>.allocate(capacity: p)
-        lineL.initialize(repeating: 0, count: p)
-        lineR.initialize(repeating: 0, count: p)
+        // calloc: страницы нулевые и занимают память, только когда в них пишут (Delay на каждой дорожке — 16 линий
+        // по ~4 МБ; пишет только звучащий).
+        lineL = calloc(p, MemoryLayout<Float>.size)!.bindMemory(to: Float.self, capacity: p)
+        lineR = calloc(p, MemoryLayout<Float>.size)!.bindMemory(to: Float.self, capacity: p)
         kHp = FxDelay.biquadHp(FxDelay.loopHpHz, sampleRate)
         rng = FxRandom(seed)
         wowPh = (rng.next(), rng.next())
@@ -93,8 +93,8 @@ public final class FxDelay {
     }
 
     deinit {
-        lineL.deallocate()
-        lineR.deallocate()
+        free(lineL)
+        free(lineR)
     }
 
     /// Биквад HP (RBJ, Q = 1/√2): [b0, b1, b2, a1, a2].
@@ -127,8 +127,12 @@ public final class FxDelay {
     }
 
     /// Покой (S14b, FxRack): линии и фильтры с нуля, ручки и время при пробуждении — сразу целевые (как новый Delay).
+    /// Сон (вход и выход тише −120 dB дольше всей линии): линия уже переписана почти нулями — не чистится (16 линий
+    /// по 4 МБ в колбэке), только фильтры.
     func sleep() {
-        reset()
+        zHp = (0, 0, 0, 0, 0, 0, 0, 0)
+        sLp = (0, 0, 0, 0)
+        sHp = (0, 0, 0, 0)
         started = false
         dL = 0
         dR = 0
