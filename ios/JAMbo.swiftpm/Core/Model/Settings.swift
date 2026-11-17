@@ -118,6 +118,9 @@ public struct AppSettings: Codable, Equatable, Sendable {
     /// дорожки (Params.stepModeId), поворот без SHIFT.
     public var pitchShiftTap: Bool = false
     public var startEndShiftTap: Bool = false
+    /// SETTINGS → RECORD → DRUM STEP PAINT (17.11, решение пользователя): на ударной дорожке палец по шагам ставит
+    /// триг на каждом пройденном шаге (выкл. — длинная нота, как на остальных дорожках). По умолчанию ON.
+    public var drumPaint: Bool = true
     /// Бутерброд → MIDI (S13): вход, обратная связь, ноты.
     public var midi: MidiSettings {
         get { return more[0].midi }
@@ -172,7 +175,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
 
     private enum CodingKeys: String, CodingKey { case appearance, pianoOctaves, velocity, record, sliceMap, scSends, latchFx, latchMod, rollGrid,
                                          rollSound, levelRelative, morphReturn, morphHoldMode, mixKey, mixCrossfader,
-                                         clearSampleLocks, pitchShiftTap, startEndShiftTap, midi, sync,
+                                         clearSampleLocks, pitchShiftTap, startEndShiftTap, midi, drumPaint, sync,
                                          arrangeCompact, fxPictures, backgroundAudio, arrangeRepeats, stretchBeat,
                                          metronomeVol, arrangeScale, arrangeFollow, displayScale, knobColumns,
                                          randomDrums, randomChords, randomSwing, randomStepsAll, randomSamples, showPartType,
@@ -203,6 +206,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         pitchShiftTap = c.value(.pitchShiftTap, false)
         startEndShiftTap = c.value(.startEndShiftTap, false)
         midi = c.value(.midi, MidiSettings())
+        drumPaint = c.value(.drumPaint, true)
         sync = c.value(.sync, SyncSettings())
         arrangeCompact = c.value(.arrangeCompact, false)
         arrangeRepeats = c.value(.arrangeRepeats, true)
@@ -245,6 +249,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         try c.encode(pitchShiftTap, forKey: .pitchShiftTap)
         try c.encode(startEndShiftTap, forKey: .startEndShiftTap)
         try c.encode(midi, forKey: .midi)
+        try c.encode(drumPaint, forKey: .drumPaint)
         try c.encode(sync, forKey: .sync)
         try c.encode(arrangeCompact, forKey: .arrangeCompact)
         try c.encode(fxPictures, forKey: .fxPictures)
