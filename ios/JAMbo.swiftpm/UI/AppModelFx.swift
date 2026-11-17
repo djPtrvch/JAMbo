@@ -46,19 +46,21 @@ extension AppModel {
     /// Значение FX на картинке — как на ручке: p-lock зажатого шага, иначе FX клипа.
     func fxShown(_ id: String) -> Double {
         if let held = heldSteps.min(), let v = track.step(held)?.locks[id] { return v }
-        return project.fx[id] ?? Params.byId[id]?.def ?? 0
+        return project.fxValue(track: selectedTrack, id)
     }
 
     /// Значение FX клипа (без p-lock).
     func fxValue(_ p: ParamDef) -> Double {
-        return project.fx[p.id] ?? p.def
+        return project.fxValue(track: selectedTrack, p.id)
     }
 
-    /// Поворот ручки FX без зажатого шага: значение — в проект и в клип лидера.
+    /// Поворот ручки FX без зажатого шага: Reverb, Delay, Drive — в клип выбранной дорожки (TrackFx.swift), Duck —
+    /// в проект и в клип лидера.
     func setFx(_ p: ParamDef, _ v: Double) {
+        let i: Int = selectedTrack
         edit { pr in
-            pr.fx[p.id] = v
-            writeLead(&pr)
+            pr.setFx(track: i, p.id, v)
+            if !Project.trackFx(p.id) { writeLead(&pr) }
         }
     }
 
@@ -66,7 +68,7 @@ extension AppModel {
 
     /// Время Delay по темпу (Dly Sync; по умолчанию — да).
     var delaySynced: Bool {
-        return (project.fx["dly.sync"] ?? 1) >= 0.5
+        return project.fxValue(track: selectedTrack, "dly.sync") >= 0.5
     }
 
     /// LFOn (0…2) выбранной дорожки по темпу.
@@ -161,10 +163,10 @@ extension AppModel {
             let k: Int = min(Params.delayDivs.count - 1, max(0, Int(v.rounded())))
             nv = Params.dlyFreeValue(ms: Params.delayDivs[k].beats * 60000 / max(1, bpm))
         }
+        let i: Int = selectedTrack
         edit { pr in
-            pr.fx["dly.sync"] = toSync ? 1 : 0
-            pr.fx["dly.time"] = nv
-            writeLead(&pr)
+            pr.setFx(track: i, "dly.sync", toSync ? 1 : 0)
+            pr.setFx(track: i, "dly.time", nv)
         }
         return true
     }

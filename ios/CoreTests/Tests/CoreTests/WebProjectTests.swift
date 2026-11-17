@@ -67,7 +67,8 @@ final class WebProjectTests: XCTestCase {
         XCTAssertEqual(a.playTo, 1)
         XCTAssertEqual(a.scale, 4)
         XCTAssertEqual(a.root, 7)
-        XCTAssertEqual(a.fx?["rev.size"], 70)
+        // FX клипов (17.11, версия 10): у всех клипов — Reverb, Delay, Drive проекта (прежде общие FX лидера).
+        XCTAssertEqual(a.fx?["rev.size"], p.fx["rev.size"])
         let s = a.pages[0][3]
         XCTAssertTrue(s.on)
         XCTAssertEqual(s.len, 2)
@@ -84,7 +85,7 @@ final class WebProjectTests: XCTestCase {
         XCTAssertEqual(c.playTo, 1)
         XCTAssertEqual(c.scale, 1)
         XCTAssertEqual(c.root, 3)
-        XCTAssertEqual(c.fx?["dly.time"], 9)
+        XCTAssertEqual(c.fx?["dly.time"], p.fx["dly.time"])
         // Без гаммы в вебе — гамма проекта (normalizeDoc).
         XCTAssertEqual(t.clips[5]?.scale, 2)
         XCTAssertEqual(t.slices[kick], [SliceMark(at: 0.5, note: 62), SliceMark(at: 0.75)])

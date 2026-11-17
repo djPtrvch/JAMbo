@@ -46,13 +46,14 @@ extension AppModel {
         mutatePlay({ p in
             if let s = c.scale, !hold { p.scale = s }
             if let r = c.root, !hold { p.root = r }
-            if let f = c.fx { p.fx.merge(f) { _, b in b } }
+            // FX клипа лидера — только общие (Duck); Reverb, Delay, Drive — у каждой дорожки свои (TrackFx.swift).
+            if let f = c.fx { p.fx.merge(f.filter { !Project.trackFx($0.key) }) { _, b in b } }
         }, publish: true)
     }
 
     /// Правка гаммы и ноты записывается в клип лидера и в активные клипы остальных играющих дорожек: при PLAY и на
     /// каждом круге строки лидером снова становится клип выбранной дорожки — со старой гаммой он возвращал её назад;
-    /// клипы PREV не трогаются (у каждого клипа своя гамма). FX — только в клип лидера.
+    /// клипы PREV не трогаются (у каждого клипа своя гамма). Общие FX (Duck) — только в клип лидера.
     func writeLead(_ p: inout Project) {
         let i = min(lead, p.tracks.count - 1)
         for t in p.tracks.indices where t == i || !p.tracks[t].stopped {
@@ -64,7 +65,9 @@ extension AppModel {
         }
         let k = p.tracks[i].slot
         guard p.tracks[i].clips[k] != nil else { return }
-        p.tracks[i].clips[k]?.fx = p.fx
+        var f: [String: Double] = p.tracks[i].clips[k]?.fx ?? [:]
+        for (id, v) in p.fx where !Project.trackFx(id) { f[id] = v }
+        p.tracks[i].clips[k]?.fx = f
     }
 
     // MARK: — запуск

@@ -62,7 +62,7 @@ final class FilterTypeTests: XCTestCase {
         let data = try JSONEncoder().encode(p)
         var q = try JSONDecoder().decode(Project.self, from: data)
         q.repair()
-        XCTAssertEqual(q.version, 9)
+        XCTAssertEqual(q.version, 10)
         let t0 = q.tracks[0]
         XCTAssertEqual(t0.params[Params.filterTypeId], Double(FilterType.lp))
         XCTAssertEqual(t0.params["filter"]!, FilterMigration.value(-40, type: FilterType.lp), accuracy: 1e-9)

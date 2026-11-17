@@ -11,7 +11,8 @@ extension Project {
         if version < 7 { migrateRandomStyles() }
         if version < 8 { migrateMidiIn() }
         if version < 9 { migrateFilter() }
-        version = Swift.max(version, 9)
+        if version < 10 { migrateTrackFx() }
+        version = Swift.max(version, 10)
         if !bpm.isFinite { bpm = 120 }
         bpm = Swift.min(Params.bpmMax, Swift.max(Params.bpmMin, bpm))
         scale = Project.clamp(scale, 0, Scales.all.count - 1)

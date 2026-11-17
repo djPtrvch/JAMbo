@@ -53,7 +53,7 @@ extension AppModel {
 
     /// Значение спутника (Dly Sync, синхронизация LFO) на текущей странице.
     private func companionValue(_ id: String) -> Double {
-        if fxMode { return project.fx[id] ?? Params.byId[id]?.def ?? 0 }
+        if fxMode { return project.fxValue(track: selectedTrack, id) }
         return track.params[id] ?? 0
     }
 
@@ -105,9 +105,9 @@ extension AppModel {
             edit { pr in pr.master[id] = v }
         case .track where fxMode:
             edit { pr in
-                pr.fx[id] = v
-                if let c = c, let cv = cv { pr.fx[c] = cv }
-                writeLead(&pr)
+                pr.setFx(track: i, id, v)
+                if let c = c, let cv = cv { pr.setFx(track: i, c, cv) }
+                if !Project.trackFx(id) { writeLead(&pr) }
             }
         default:
             edit { pr in
