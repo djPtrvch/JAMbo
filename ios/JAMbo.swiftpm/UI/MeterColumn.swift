@@ -13,23 +13,34 @@ struct MeterColumn: View {
     /// Ход пальца на всю шкалу регулятора, pt.
     static let travel: CGFloat = 240
 
+    /// Измеритель спит или заморожен пробой — анимация на паузе.
+    private var paused: Bool { return model.meterAsleep || LoadProbe.shared.freezeMeter }
+
+    // Нагрузка (17.11): 60 раз в секунду обновляются только полосы; подписи и метка клиппинга — 10 раз в секунду;
+    // регулятор, жест и MIDI — вне анимации (только когда меняются).
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 60, paused: model.meterAsleep || LoadProbe.shared.freezeMeter)) { tl in
-            column(now: tl.date.timeIntervalSinceReferenceDate)
+        let ch: Int = model.meterChannel
+        let still: Bool = paused
+        return VStack(spacing: 4) {
+            TimelineView(.animation(minimumInterval: 0.1, paused: still)) { tl in
+                top(ch, now: tl.date.timeIntervalSinceReferenceDate)
+            }
+            bars(ch, still: still)
+            TimelineView(.animation(minimumInterval: 0.1, paused: still)) { _ in
+                label(bottomText(ch))
+            }
+            .onTapGesture { model.resetMeterPeak() }
         }
         .frame(width: Layout.meterWidth)
     }
 
-    private func column(now: Double) -> some View {
-        let ch: Int = model.meterChannel
-        let m: MeterState = model.meters
+    /// LUFS и метка клиппинга.
+    private func top(_ ch: Int, now: Double) -> some View {
         let lufs: Float = model.audio.core.levels.loudness.integrated.load()
-        let clip: Bool = m.clip(ch, now: now)
+        let clip: Bool = model.meters.clip(ch, now: now)
         return VStack(spacing: 4) {
             label("LUFS\n" + MeterColumn.fmtLufs(lufs)).onTapGesture { model.resetLoudness() }
             RoundedRectangle(cornerRadius: 2).fill(clip ? theme.rec : theme.off).frame(width: 21, height: 4)
-            bars(ch)
-            label(bottomText(ch)).onTapGesture { model.resetMeterPeak() }
         }
     }
 
@@ -59,19 +70,22 @@ struct MeterColumn: View {
         return volValue(ch)
     }
 
-    private func bars(_ ch: Int) -> some View {
+    private func bars(_ ch: Int, still: Bool) -> some View {
         let stereo: Bool = ch >= Levels.master || model.trackStereo(ch)
-        let data = model.meters.bars(ch, stereo: stereo)
         let track: Bool = ch < Levels.master
         let vol: Double = faderValue(ch)
         // Заглушённая дорожка — серым, как в MIX (отличие от веба).
         let muted: Bool = track && ch < model.project.tracks.count && !model.project.audible(ch)
+        let meters: MeterState = model.meters
         return GeometryReader { geo in
             ZStack(alignment: .topLeading) {
-                Canvas { ctx, size in
-                    let w: CGFloat = MeterBars.span(data.count)
-                    MeterBars.draw(ctx, CGRect(x: (size.width - w) / 2, y: 0, width: w, height: size.height), data, theme: theme,
-                                   muted: muted)
+                TimelineView(.animation(minimumInterval: 1.0 / 60, paused: still)) { tl in
+                    ScopeCanvas(now: tl.date) { ctx, size in
+                        let data = meters.bars(ch, stereo: stereo)
+                        let w: CGFloat = MeterBars.span(data.count)
+                        MeterBars.draw(ctx, CGRect(x: (size.width - w) / 2, y: 0, width: w, height: size.height), data,
+                                       theme: theme, muted: muted)
+                    }
                 }
                 thumb(vol, geo.size)
             }
