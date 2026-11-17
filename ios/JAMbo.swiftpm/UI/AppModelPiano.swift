@@ -112,7 +112,7 @@ extension AppModel {
     /// Ноты звучащего шага выбранной дорожки (белая заливка, пока дорожка мигает).
     var playingNotes: Set<Int> {
         let t = selectedTrack
-        guard playing, live.flashing[t] else { return [] }
+        guard playing, t < live.flashCells.count, live.flashCells[t].on else { return [] }
         let pos = trackPlayPos
         if pos < 0 { return [] }
         return Set(track.step(pos)?.notes ?? [])

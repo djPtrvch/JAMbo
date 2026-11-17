@@ -431,6 +431,15 @@ final class AppModel {
     @ObservationIgnored var pumpNs: UInt64 = 0
     /// Измеритель и метры MIX (читают виды по таймеру анимации; не наблюдается).
     @ObservationIgnored let meters = MeterState()
+    /// Измеритель справа спит (17.11): канал молчит, подписи не меняются — анимация на паузе, оживает на звук.
+    @ObservationIgnored var _meterAsleep: Bool = false
+    /// Кадров подряд без изменений на измерителе и подписи, по которым они сравниваются.
+    @ObservationIgnored var meterQuietFrames: Int = 0
+    @ObservationIgnored var meterSeen: (ch: Int, lufs: Float, peak: Float) = (-1, 0, 0)
+    /// Играющий шаг на экране (17.11): меняется, только когда меняется сам шаг, — виды не пересчитываются от хода
+    /// других дорожек (openPlayPos и trackPlayPos читают их, drain обновляет).
+    @ObservationIgnored var _openPosShown: Int = -1
+    @ObservationIgnored var _trackPosShown: Int = -1
     /// Индикация COMP / CLIP / LIM при MST.
     @ObservationIgnored let dynMeters = MasterMeters()
     /// История громкости мастера (окно под осциллоскопом при MIX).
@@ -560,6 +569,10 @@ final class AppModel {
         if live.recorder.active { live.recordAudible(project, x: arrNowX) }
         // Звук у клипа: колбэку — звук клипа, который дорожка запустит следующей (ожидание, строка).
         if nextSlots != publishedNext { publishAudio() }
+        let op: Int = rawOpenPlayPos
+        if op != _openPosShown { openPosShown = op }
+        let tp: Int = rawTrackPlayPos
+        if tp != _trackPosShown { trackPosShown = tp }
     }
 
     // MARK: — транспорт
@@ -957,13 +970,25 @@ final class AppModel {
     /// Позиция играющего шага в открытом клипе выбранной дорожки (−1 — открыт не играющий клип); при MIX и MST —
     /// шаг их последовательности.
     var openPlayPos: Int {
+        _ = openPosShown
+        return rawOpenPlayPos
+    }
+
+    /// То же без наблюдения (для drain).
+    var rawOpenPlayPos: Int {
         if channel == .mix { return live.playPos[SeqData.maxTracks + Project.mixSeq] }
         if channel == .master { return live.playPos[SeqData.maxTracks + Project.mstSeq] }
-        return trackPlayPos
+        return rawTrackPlayPos
     }
 
     /// Позиция играющего шага в открытом клипе выбранной дорожки (и при MIX, MST — клавиатура, окно синта).
     var trackPlayPos: Int {
+        _ = trackPosShown
+        return rawTrackPlayPos
+    }
+
+    /// То же без наблюдения (для drain).
+    var rawTrackPlayPos: Int {
         let t = track
         let s: Int = selectedTrack
         let cell: Int = s < live.cell.count ? live.cell[s] : -1

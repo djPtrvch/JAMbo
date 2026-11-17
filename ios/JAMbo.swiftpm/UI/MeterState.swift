@@ -72,6 +72,16 @@ final class MeterState {
         if ch >= 0 && ch < MeterState.channels { maxPeak[ch] = 0 }
     }
 
+    /// Канал молчит и на измерителе нечего показывать: полосы и пик-холды ниже шкалы (−60 dB), метки клиппинга
+    /// нет, палец не на регуляторе (17.11: измеритель спит).
+    func quiet(_ ch: Int, now: Double) -> Bool {
+        guard ch >= 0 && ch < MeterState.channels else { return true }
+        if volDrag || now < clipUntil[ch] { return false }
+        let floor: Float = 0.001
+        let i: Int = ch * 2
+        return disp[i] < floor && disp[i + 1] < floor && hold[i] < floor && hold[i + 1] < floor
+    }
+
     func clip(_ ch: Int, now: Double) -> Bool {
         return ch >= 0 && ch < MeterState.channels && now < clipUntil[ch]
     }

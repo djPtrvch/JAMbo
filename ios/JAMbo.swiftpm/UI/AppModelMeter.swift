@@ -14,6 +14,7 @@ extension AppModel {
         meters.show(meterChannel, lv)
         let now: Double = Date.timeIntervalSinceReferenceDate
         meters.tick(lv, now: now)
+        tickMeterSleep(lv, now: now)
         loudHist.tick(lv.mixLoudness, framePeak: meters.framePeak(Levels.master), playing: playing, now: now)
         tickRefMatch()
         audio.core.monitor.room.drain()
@@ -32,6 +33,25 @@ extension AppModel {
             sc.mask.store(0)
         }
         tickMixAnalysis()
+    }
+
+    /// Сон измерителя справа (17.11): канал молчит, пик-холды и метка клиппинга погасли, LUFS и наибольший пик не
+    /// меняются — после нескольких тихих кадров анимация на паузе (последний кадр уже тихий); что-то изменилось —
+    /// сразу просыпается.
+    private func tickMeterSleep(_ lv: Levels, now: Double) {
+        let ch: Int = meterChannel
+        let lufs: Float = lv.loudness.integrated.load()
+        let peak: Float = ch >= 0 && ch < MeterState.channels ? meters.maxPeak[ch] : 0
+        let seen = meterSeen
+        let same: Bool = seen.ch == ch && seen.peak == peak && (seen.lufs == lufs || (!seen.lufs.isFinite && !lufs.isFinite))
+        meterSeen = (ch, lufs, peak)
+        if same && meters.quiet(ch, now: now) {
+            meterQuietFrames += 1
+        } else {
+            meterQuietFrames = 0
+        }
+        let asleep: Bool = meterQuietFrames >= 6
+        if asleep != _meterAsleep { meterAsleep = asleep }
     }
 
     /// Стерео ли дорожка на метре (правило: стерео где-то на дорожке — метр стерео): стерео-сэмпл или стерео-движок

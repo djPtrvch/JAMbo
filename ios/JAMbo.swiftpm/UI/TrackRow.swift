@@ -78,10 +78,10 @@ struct TrackCell: View {
         }
     }
 
-    /// Ход игры (мигание) пересчитывает все ячейки, рисуется только дорожка, у которой что-то изменилось (S14c).
+    /// Мигание — своя ячейка дорожки (live.flashCells, 17.11): мигнула одна — пересчитывается только она.
     private func cell(_ t: Track) -> some View {
         let selected: Bool = model.channel == .track && model.selectedTrack == index
-        let flash: Bool = index < model.live.flashing.count && model.live.flashing[index] && !t.mute
+        let flash: Bool = index < model.live.flashCells.count && model.live.flashCells[index].on && !t.mute
         let face = TrackFace(name: t.name, number: index + 1, selected: selected, mute: t.mute, solo: t.solo, flash: flash)
         return face.equatable()
             .overlay(alignment: .topLeading) { morphDot(t) }

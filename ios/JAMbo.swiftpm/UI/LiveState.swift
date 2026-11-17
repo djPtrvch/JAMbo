@@ -16,8 +16,12 @@ final class LiveState {
     }
 
     /// Дорожки, затем последовательности MIX и MST (SeqData.maxTracks + c).
-    private(set) var playPos: [Int] = [Int](repeating: -1, count: Params.maxTracks + SeqData.chans)
-    private(set) var flashing: [Bool] = [Bool](repeating: false, count: Params.maxTracks)
+    /// Не наблюдаются (17.11): ход любой дорожки пересчитывал бы все шаги и дорожки; виды читают openPlayPos /
+    /// trackPlayPos (AppModel) и мигание своей дорожки — flashCells.
+    @ObservationIgnored private(set) var playPos: [Int] = [Int](repeating: -1, count: Params.maxTracks + SeqData.chans)
+    @ObservationIgnored private(set) var flashing: [Bool] = [Bool](repeating: false, count: Params.maxTracks)
+    /// Мигание каждой дорожки — отдельно наблюдаемое: мигнула одна — перерисовывается только она.
+    @ObservationIgnored let flashCells: [FlashCell] = (0..<Params.maxTracks).map { _ in FlashCell() }
     /// Доля от старта (для полосы фазы и мигания метронома); −1 — стоп.
     @ObservationIgnored private var _beat: Int = -1
     private(set) var beat: Int {
@@ -92,7 +96,7 @@ final class LiveState {
                 // Заглушённая дорожка играет дальше, но не мигает.
                 if !audible(t) { continue }
                 flashUntil[t] = now + 0.09
-                if !flashing[t] { flashing[t] = true }
+                if !flashing[t] { setFlash(t, true) }
             case .clip(let t, let slot, let off, let start):
                 trackStart[t] = start
                 cell[t] = off ? -1 : slot
@@ -127,9 +131,14 @@ final class LiveState {
             }
         }
         for t in 0..<Params.maxTracks where flashing[t] && now >= flashUntil[t] {
-            flashing[t] = false
+            setFlash(t, false)
         }
         if beatFlash && now >= beatUntil { beatFlash = false }
+    }
+
+    private func setFlash(_ t: Int, _ on: Bool) {
+        flashing[t] = on
+        if flashCells[t].on != on { flashCells[t].on = on }
     }
 
     /// Дорожка from встала на место to: ход, ожидание и позиция шага переезжают с ней (как Launcher.move).
@@ -145,6 +154,7 @@ final class LiveState {
         mv(&playPos)
         mv(&following)
         mv(&flashing)
+        for t in 0..<n where flashCells[t].on != flashing[t] { flashCells[t].on = flashing[t] }
         mv(&flashUntil)
         journal.move(from, to)
         recorder.move(from, to)
@@ -208,5 +218,16 @@ final class LiveState {
         }
         sceneRow = -1
         sceneQueued = -1
+    }
+}
+
+/// Мигание одной дорожки (17.11): строка дорожек следит за своей ячейкой, а не за общим массивом.
+/// Наблюдение — вручную, без макроса (объём сборки, как в AppModelObserved.swift).
+final class FlashCell: Observable {
+    private let registrar = ObservationRegistrar()
+    private var _on: Bool = false
+    var on: Bool {
+        get { registrar.access(self, keyPath: \.on); return _on }
+        set { registrar.withMutation(of: self, keyPath: \.on) { _on = newValue } }
     }
 }

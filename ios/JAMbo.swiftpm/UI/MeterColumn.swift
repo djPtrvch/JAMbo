@@ -14,7 +14,7 @@ struct MeterColumn: View {
     static let travel: CGFloat = 240
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 60, paused: LoadProbe.shared.freezeMeter)) { tl in
+        TimelineView(.animation(minimumInterval: 1.0 / 60, paused: model.meterAsleep || LoadProbe.shared.freezeMeter)) { tl in
             column(now: tl.date.timeIntervalSinceReferenceDate)
         }
         .frame(width: Layout.meterWidth)
