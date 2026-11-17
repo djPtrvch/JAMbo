@@ -434,11 +434,10 @@ final class AppModel {
     /// История громкости мастера (окно под осциллоскопом при MIX).
     @ObservationIgnored let loudHist = LoudHistory()
     @ObservationIgnored let bandStereo = BandStereo()
-    @ObservationIgnored let grHistory = GrHistory()
     /// Скоп мастера: точки съёма SAT (всегда), COMP, CLIP, LIM (по умолчанию выключены — отличие от веба; в проекте
     /// не хранится).
     @ObservationIgnored let scope = ScopeState()
-    @ObservationIgnored var _scopeOn: [Bool] = [true, false, false, true]
+    @ObservationIgnored var _scopeOn: [Bool] = [true, false, false, false]
     /// Вид полос MIX слева (MixMode.level, pan, freq, mask); в проекте не хранится.
     @ObservationIgnored var _mixMode: Int = 0
     /// Окно микшера при MIX (16.11): открыто ли (тап по окну полос — открыть, ✕ — закрыть).

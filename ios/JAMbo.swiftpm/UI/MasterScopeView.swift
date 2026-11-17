@@ -114,10 +114,10 @@ final class ScopeState {
     }
 }
 
-/// Скоп при MST на месте миниатюр страниц: сверху (17.11) история GR модулей (GrHistoryView; при MIX — гониометр: конечный выход мастера; точки L/R, повёрнутые на 45°:
+/// Скоп при MST на месте миниатюр страниц: сверху гониометр (конечный выход мастера; точки L/R, повёрнутые на 45°:
 /// вертикаль — mid, горизонталь — side; послесвечение — старые отсчёты окна бледнее), под ним осциллоскоп (бегущая
-/// форма волны за ~1 с, справа — новое; SAT белая всегда, поверх — COMP жёлтая, CLIP оранжевая или LIM красная —
-/// одна, по кнопке (кнопки переключают друг друга, по умолчанию LIM; 17.11), полупрозрачная 60 %).
+/// форма волны за ~1 с, справа — новое; SAT белая всегда, COMP жёлтая, CLIP оранжевая, LIM красная — кнопками,
+/// полупрозрачные 60 %, SAT снизу, LIM сверху; COMP, CLIP, LIM по умолчанию выключены).
 struct MasterScopeView: View {
     let model: AppModel
     /// Формы волны COMP, CLIP, LIM по кнопкам (при MST); false — при MIX: на месте осциллоскопа стерео по полосам.
@@ -131,12 +131,7 @@ struct MasterScopeView: View {
             let extra: CGFloat = taps ? 0 : 2 * Layout.pairHeight + 2 * Layout.gap
             let h: CGFloat = geo.size.height - extra - gap
             VStack(spacing: gap) {
-                // При MST на месте гониометра — история GR модулей COMP, CLIP, LIM (17.11).
-                if taps {
-                    GrHistoryView(model: model).frame(height: h * 0.6)
-                } else {
-                    panel { ctx, size in drawGonio(ctx, size) }.frame(height: h * 0.6)
-                }
+                panel { ctx, size in drawGonio(ctx, size) }.frame(height: h * 0.6)
                 // При MIX на месте осциллоскопа — стерео по полосам (16.11).
                 if taps {
                     panel { ctx, size in drawOsc(ctx, size) }.frame(height: h * 0.4)
@@ -252,7 +247,7 @@ struct ScopeCanvas: View {
     }
 }
 
-/// Кнопка точки съёма скопа (COMP, CLIP, LIM — при MST на месте MORPH, FX, MOD): тап включает её и выключает две другие (17.11);
+/// Кнопка точки съёма скопа (COMP, CLIP, LIM — при MST на месте MORPH, FX, MOD): тап включает и выключает;
 /// включённая — цветом своей формы волны.
 struct ScopeButton: View {
     let model: AppModel
@@ -268,12 +263,7 @@ struct ScopeButton: View {
             .foregroundStyle(on ? theme.onAccent : theme.text)
             .tile(on ? colors[tap] : theme.panel2)
             .contentShape(Rectangle())
-            .onTapGesture {
-                // COMP, CLIP, LIM переключают друг друга (17.11): на осциллоскопе и во вкладе дорожек — один модуль.
-                var on: [Bool] = model.scopeOn
-                for k in 1..<4 { on[k] = k == tap }
-                if on != model.scopeOn { model.scopeOn = on }
-            }
+            .onTapGesture { model.scopeOn[tap].toggle() }
     }
 }
 
