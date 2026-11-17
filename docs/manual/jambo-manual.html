@@ -292,8 +292,8 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       <tr><td><span class="k">SHIFT</span> + action</td><td>Hold SHIFT with one finger and do the second action with another. This opens extra functions.</td><td>SHIFT + tap on Filter — filter type</td></tr>
     </tbody>
   </table></div>
-  <div lang="ru" class="note"><b>Почти всё отменяется.</b> Если что-то пошло не так, нажмите UNDO (стрелка влево в верхней панели). REDO возвращает отменённое. Не попадают в историю запуск и остановка паттернов, mute и solo, а также правки в режиме MORPH.</div>
-  <div lang="en" class="note"><b>Almost everything can be undone.</b> If something goes wrong, press UNDO (the left arrow in the top bar). REDO brings back what was undone. Starting and stopping patterns, mute and solo, and changes made in MORPH mode are not recorded in the history.</div>
+  <div lang="ru" class="note"><b>Почти всё отменяется.</b> Если что-то пошло не так, нажмите UNDO (стрелка влево в верхней панели). REDO возвращает отменённое. Каждая отмена сначала показывает, где была правка: отменили два действия на басе, а следующее было на хэтах — экран сам перейдёт на хэты. Не попадают в историю запуск и остановка паттернов, mute и solo, а также правки в режиме MORPH.</div>
+  <div lang="en" class="note"><b>Almost everything can be undone.</b> If something goes wrong, press UNDO (the left arrow in the top bar). REDO brings back what was undone. Each undo first shows where the change was made: undo two actions on the bass, and if the next one was on the hats, the screen switches to the hats by itself. Starting and stopping patterns, mute and solo, and changes made in MORPH mode are not recorded in the history.</div>
 </section>
 
 <!-- ============ 1 ============ -->
@@ -315,7 +315,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       <tr><td>BPM</td><td>Темп. Палец вверх-вниз меняет его; двойной тап открывает поле, где темп вводится числом. Тонкая полоса внизу — фаза такта при игре.</td></tr>
       <tr><td>Метроном</td><td>Тап включает и выключает щелчок метронома. Включённый — в белом контуре, при игре мигает на долях.</td></tr>
       <tr><td>SCALE, ROOT</td><td>Гамма и корневая нота. Палец вверх-вниз перебирает их, тап открывает список. Клавиатура показывает ноты выбранной гаммы.</td></tr>
-      <tr><td>UNDO, REDO</td><td>Стрелки влево и вправо: отменить последнее действие и вернуть отменённое. Неактивная стрелка — серая. Срабатывают и при открытом меню.</td></tr>
+      <tr><td>UNDO, REDO</td><td>Стрелки влево и вправо: отменить последнее действие и вернуть отменённое. Сначала экран переключается туда, где была правка (дорожка, клип и страница, окно — PATTERNS, EQ, редактор, окно модуля мастера и т. д.), и там же она отменяется. Неактивная стрелка — серая. Срабатывают и при открытом меню.</td></tr>
       <tr><td>PLAY</td><td>Запуск и остановка. Первый шаг звучит сразу в момент касания. При игре кнопка горит жёлтым.</td></tr>
       <tr><td>REC</td><td>Запись: при игре ноты с клавиатуры записываются в секвенсор. Включена — горит красным. Всё, что записано за один проход, отменяется одним UNDO.</td></tr>
       <tr><td>Пианоролл</td><td>Кнопка со значком клавиш: открывает и закрывает окно пианоролла на месте центра экрана.</td></tr>
@@ -332,7 +332,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       <tr><td>BPM</td><td>Tempo. Drag up or down to change it; double tap opens a field to type the tempo as a number. The thin bar at the bottom shows the bar phase during playback.</td></tr>
       <tr><td>Metronome</td><td>Tap turns the metronome click on and off. When on, it has a white outline and blinks on the beats during playback.</td></tr>
       <tr><td>SCALE, ROOT</td><td>Scale and root note. Drag up or down to step through them, tap opens a list. The keyboard shows the notes of the selected scale.</td></tr>
-      <tr><td>UNDO, REDO</td><td>Left and right arrows: undo the last action and redo it. An inactive arrow is grey. They also work while a menu is open.</td></tr>
+      <tr><td>UNDO, REDO</td><td>Left and right arrows: undo the last action and redo it. The screen first switches to where the change was made (track, clip and page, window — PATTERNS, EQ, the editor, a master module window and so on), and the change is undone right there. An inactive arrow is grey. They also work while a menu is open.</td></tr>
       <tr><td>PLAY</td><td>Start and stop. The first step sounds right at the moment of the touch. During playback the button is lit yellow.</td></tr>
       <tr><td>REC</td><td>Recording: during playback, notes played on the keyboard are recorded into the sequencer. When on, it is lit red. Everything recorded in one pass is undone with a single UNDO.</td></tr>
       <tr><td>Piano roll</td><td>The button with the keys icon: opens and closes the piano roll window in the centre of the screen.</td></tr>
@@ -1168,6 +1168,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       <tr><td>Поставить ноту</td><td>Тап по шагу. Ставится нота, выбранная на клавиатуре (по умолчанию — первая клавиша).</td></tr>
       <tr><td>Убрать ноту</td><td>Тап по шагу с нотой.</td></tr>
       <tr><td>Длинная нота</td><td>Нажмите шаг и протяните вправо. Шаги, которые держит нота, полупрозрачные.</td></tr>
+      <tr><td>Нарисовать ритм</td><td>На ударной дорожке и дорожке сэмпла палец по шагам ставит триг на каждый пройденный шаг (в обе стороны). Стоящие шаги не трогаются, весь жест — одна отмена UNDO. Выключается в SETTINGS → RECORD → DRUM STEP PAINT — тогда и там длинная нота.</td></tr>
       <tr><td>Сменить ноту шага</td><td>Держите шаг и нажмите клавишу. Несколько клавиш вместе — аккорд на шаге.</td></tr>
       <tr><td>Несколько нот</td><td>Зажмите несколько клавиш и тапните по шагу. На шаге с несколькими нотами написано POLY.</td></tr>
       <tr><td>Копировать шаг</td><td>Держите шаг и тапните по другому: копируются ноты, длина, p-lock и звук шага.</td></tr>
@@ -1180,6 +1181,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       <tr><td>Add a note</td><td>Tap a step. The note selected on the keyboard is placed (by default the first key).</td></tr>
       <tr><td>Remove a note</td><td>Tap a step with a note.</td></tr>
       <tr><td>Long note</td><td>Press a step and drag right. The steps the note holds are semi-transparent.</td></tr>
+      <tr><td>Paint a rhythm</td><td>On a drum track and a sample track, sliding a finger along the steps puts a trig on every step you pass (in both directions). Steps already on are left alone; the whole gesture is one UNDO. Turned off in SETTINGS → RECORD → DRUM STEP PAINT — then you get a long note there too.</td></tr>
       <tr><td>Change a step's note</td><td>Hold the step and press a key. Several keys together — a chord on the step.</td></tr>
       <tr><td>Several notes</td><td>Hold several keys and tap a step. A step with several notes reads POLY.</td></tr>
       <tr><td>Copy a step</td><td>Hold a step and tap another: notes, length, p-locks and the step's sound are copied.</td></tr>
@@ -1865,22 +1867,22 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     <li>Кнопки SAT, COMP, CLIP, LIM под окном индикации (или тап по блоку индикации) открывают окно модуля на месте центра.</li>
     <li>Вверху — все параметры модуля, в том числе те, которых нет на ручках. Поле меняется пальцем вверх-вниз, двойной тап — ввод числом.</li>
     <li>Тап по названию слева (например, MASTER COMP ▾) — переключиться на окно другого модуля.</li>
-    <li><b>PRESETS</b> — свои пресеты у каждого модуля, общие для всех проектов. <b>BYPASS</b> — выключить модуль. ✕ или двойной тап по кнопке MST в строке дорожек — закрыть окно.</li>
+    <li><b>PRESETS</b> — свои пресеты у каждого модуля, общие для всех проектов. <b>BYPASS</b> — выключить модуль. Закрывает окно двойной тап по кнопке MST в строке дорожек (крестика нет). Если перейти на дорожку или MIX, окно только прячется: вернулись на MST — оно снова на месте.</li>
     <li>Двойной тап по дисплею — FREEZE: картинка замирает, чтобы её рассмотреть.</li>
     <li>Справа в окнах COMP, CLIP и LIM — блок <b>IN | GR | OUT</b>, как в индикации MST. Стержни идут в той же шкале, что дисплей слева: риска порога стоит на одной высоте с линией THRESHOLD или CEILING, а уровни и сжатие — с графиком.</li>
     <li><b>RELEASE</b> у COMP и LIM: тап по полю — AUTO, ещё тап — обратно к прежнему значению.</li>
-    <li><b>UNITY</b> (CLIP и LIM) — честное сравнение: слышно настолько тише, насколько поднят INPUT, а измеритель справа, LUFS и запись показывают и пишут полный уровень. Работает, пока окно открыто (<a href="#tip-master">практический совет</a> в конце раздела 12).</li>
+    <li><b>UNITY</b> (CLIP и LIM; поле ON / OFF, тап переключает) — честное сравнение: слышно настолько тише, насколько поднят INPUT, а измеритель справа, LUFS и запись показывают и пишут полный уровень. Работает, пока окно открыто и видно; уход с MST его выключает (<a href="#tip-master">практический совет</a> в конце раздела 12).</li>
     <li><b>SHIFT + тап</b> по кнопке модуля при MST — выключить и включить модуль (BYPASS), не открывая окно. Состояние видно всегда по контуру кнопки: контур цветом модуля — модуль работает, без контура — в обходе.</li>
   </ul>
   <ul lang="en">
     <li>The SAT, COMP, CLIP, LIM buttons under the display window (or a tap on a display block) open the module window in the centre.</li>
     <li>At the top — all parameters of the module, including those that are not on the knobs. A field changes with a vertical drag; double tap to type a number.</li>
     <li>Tap the title on the left (for example MASTER COMP ▾) to switch to another module's window.</li>
-    <li><b>PRESETS</b> — each module has its own presets, shared by all projects. <b>BYPASS</b> — turn the module off. ✕ or a double tap on the MST button in the track row closes the window.</li>
+    <li><b>PRESETS</b> — each module has its own presets, shared by all projects. <b>BYPASS</b> — turn the module off. A double tap on the MST button in the track row closes the window (there is no ✕). If you switch to a track or MIX, the window is only hidden: back on MST, it is there again.</li>
     <li>Double tap the display — FREEZE: the picture freezes so you can examine it.</li>
     <li>On the right of the COMP, CLIP and LIM windows — an <b>IN | GR | OUT</b> block, as in the MST display. The bars use the same scale as the display on the left: the threshold mark sits level with the THRESHOLD or CEILING line, and the levels and reduction line up with the graph.</li>
     <li><b>RELEASE</b> on COMP and LIM: tap the field for AUTO, tap again to go back to the previous value.</li>
-    <li><b>UNITY</b> (CLIP and LIM) — a fair comparison: you hear the sound quieter by as much as INPUT adds, while the meter on the right, LUFS and recordings show and capture the full level. Works while the window is open (the <a href="#tip-master">practical tip</a> at the end of section 12).</li>
+    <li><b>UNITY</b> (CLIP and LIM; an ON / OFF field, tap to toggle) — a fair comparison: you hear the sound quieter by as much as INPUT adds, while the meter on the right, LUFS and recordings show and capture the full level. Works while the window is open and shown; leaving MST turns it off (the <a href="#tip-master">practical tip</a> at the end of section 12).</li>
     <li><b>SHIFT + tap</b> on a module button in MST — turn the module off and on (BYPASS) without opening the window. The state is always visible from the button outline: outlined in the module colour — working, no outline — bypassed.</li>
   </ul>
   <p lang="ru">Масштаб дисплеев — SETTINGS → APPEARANCE → MASTER FX DISPLAY SCALE. Сигналы на рисунках ниже — для примера.</p>
@@ -1963,7 +1965,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       <tr><td>CEILING</td><td>Уровень, выше которого сигнал срезается.</td></tr>
       <tr><td>SOFTNESS</td><td>0 % — жёсткий срез, 100 % — мягкий, плавный вход в срез.</td></tr>
       <tr><td>BASS</td><td>Защита баса: всё ниже этой частоты проходит мимо клиппера без искажений. OFF — срезается весь диапазон. Включайте (60–120 Hz), только если бочка или бас хрипят: защищённые пики низов достаются лимитеру.</td></tr>
-      <tr><td>UNITY</td><td>Кнопка: слышно на INPUT dB тише — сравнение с BYPASS на равной громкости (<a href="#tip-master">практический совет</a> в конце раздела 12).</td></tr>
+      <tr><td>UNITY</td><td>Поле ON / OFF (тап): слышно на INPUT dB тише — сравнение с BYPASS на равной громкости (<a href="#tip-master">практический совет</a> в конце раздела 12).</td></tr>
     </tbody>
   </table></div>
   <div lang="en" class="tbl"><table>
@@ -1973,7 +1975,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       <tr><td>CEILING</td><td>The level above which the signal is clipped.</td></tr>
       <tr><td>SOFTNESS</td><td>0 % — hard clipping, 100 % — soft, gradual clipping.</td></tr>
       <tr><td>BASS</td><td>Bass protection: everything below this frequency bypasses the clipper without distortion. OFF — the full range is clipped. Turn it on (60–120 Hz) only if the kick or bass starts to crackle: the protected low peaks are left to the limiter.</td></tr>
-      <tr><td>UNITY</td><td>Button: you hear the sound INPUT dB quieter — a comparison with BYPASS at equal loudness (the <a href="#tip-master">practical tip</a> at the end of section 12).</td></tr>
+      <tr><td>UNITY</td><td>ON / OFF field (tap): you hear the sound INPUT dB quieter — a comparison with BYPASS at equal loudness (the <a href="#tip-master">practical tip</a> at the end of section 12).</td></tr>
     </tbody>
   </table></div>
   <p lang="ru"><b>Как читать дисплей:</b> оранжевая заливка сверху — где и насколько срезано. 1–4 dB обычно незаметны на слух, больше — появляются искажения.</p>
@@ -1993,7 +1995,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       <tr><td>LOOKAHEAD</td><td>Насколько заранее лимитер видит пик и за сколько плавно опускает громкость, 0,5–6 ms. Короче — удары острее, но быстрое изменение громкости даёт хруст на низах; длиннее — чище, атака чуть мягче. Это и задержка всего мастера: при игре на клавишах 3 ms незаметны, 6 ms чувствительный палец может уловить.</td></tr>
       <tr><td>RELEASE</td><td>Как быстро лимитер отпускает. В конце хода — AUTO: короткие пики отпускает быстро, долгое лимитирование — медленно. Тап по полю — AUTO и обратно.</td></tr>
       <tr><td>GUARD</td><td>Защита от перегрузки в джеме, OFF или 2–8 dB. Если лимитер в среднем убирает больше этого, GUARD плавно убавляет его вход, а когда стало тише — медленно возвращает, но не выше INPUT. Тихие места он не поднимает. Пока работает, на дисплее слева вверху — оранжевое «GUARD -x.x dB». Есть только в окне.</td></tr>
-      <tr><td>UNITY</td><td>Кнопка: слышно на INPUT dB тише (с учётом GUARD) — сравнение с BYPASS на равной громкости (<a href="#tip-master">практический совет</a> в конце раздела 12).</td></tr>
+      <tr><td>UNITY</td><td>Поле ON / OFF (тап): слышно на INPUT dB тише (с учётом GUARD) — сравнение с BYPASS на равной громкости (<a href="#tip-master">практический совет</a> в конце раздела 12).</td></tr>
     </tbody>
   </table></div>
   <div lang="en" class="tbl"><table>
@@ -2004,7 +2006,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       <tr><td>LOOKAHEAD</td><td>How far ahead the limiter sees a peak and how long it takes to bring the level down smoothly, 0.5–6 ms. Shorter — sharper hits, but the fast level change makes the low end crackle; longer — cleaner, with a slightly softer attack. It is also the delay of the whole master: when playing keys, 3 ms goes unnoticed, 6 ms a sensitive finger may feel.</td></tr>
       <tr><td>RELEASE</td><td>How fast the limiter lets go. At the end of the range — AUTO: short peaks are released quickly, long limiting slowly. Tap the field for AUTO and back.</td></tr>
       <tr><td>GUARD</td><td>Overload protection for jams, OFF or 2–8 dB. If the limiter removes more than this on average, GUARD smoothly turns its input down, and when things get quieter it slowly brings it back, never above INPUT. It does not raise quiet parts. While it works, an orange “GUARD -x.x dB” is shown in the top left of the display. Only in the window.</td></tr>
-      <tr><td>UNITY</td><td>Button: you hear the sound INPUT dB quieter (taking GUARD into account) — a comparison with BYPASS at equal loudness (the <a href="#tip-master">practical tip</a> at the end of section 12).</td></tr>
+      <tr><td>UNITY</td><td>ON / OFF field (tap): you hear the sound INPUT dB quieter (taking GUARD into account) — a comparison with BYPASS at equal loudness (the <a href="#tip-master">practical tip</a> at the end of section 12).</td></tr>
     </tbody>
   </table></div>
   <p lang="ru"><b>Как читать дисплей:</b> оранжевое сверху — сколько лимитер убирает; 1–4 dB — норма. Красная точка у верхнего края — выход превысил CEILING; такого быть не должно.</p>
@@ -2631,7 +2633,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
   <div lang="ru" class="tbl"><table>
     <thead><tr><th>Раздел</th><th>Что в нём</th></tr></thead>
     <tbody>
-      <tr><td>RECORD</td><td><b>QUANTIZE</b> — записанные ноты встают точно на шаги (раздел 6.4). <b>ARRANGE REC START</b> — запись в аранжировку начинается с плейхеда (PLAYHEAD) или каждый раз с начала (BEGINNING). <b>METRONOME</b> — громкость щелчка, 0–200 %.</td></tr>
+      <tr><td>RECORD</td><td><b>QUANTIZE</b> — записанные ноты встают точно на шаги (раздел 6.4). <b>ARRANGE REC START</b> — запись в аранжировку начинается с плейхеда (PLAYHEAD) или каждый раз с начала (BEGINNING). <b>DRUM STEP PAINT</b> — на ударных и сэмплах палец по шагам рисует триги (раздел 6.1); по умолчанию включено. <b>METRONOME</b> — громкость щелчка, 0–200 %.</td></tr>
       <tr><td>SAMPLER</td><td><b>STRETCH</b> — алгоритм Rate Stretch: NORMAL или BEAT. <b>SLICE NOTES</b> — ноты кусков нарезки: подряд (CHROMATIC) или по гамме (SCALE). <b>PITCH SHIFT</b>, <b>START / END SHIFT</b> — как Pitch встаёт на полутоны, а Start и End — на доли сэмпла: TAP (SHIFT + тап по ручке) или HOLD (с зажатой SHIFT) (раздел 4.2). <b>CLEAR SAMPLE LOCKS</b> — загрузка звука из библиотеки снимает сэмпл-локи дорожки. <b>WARP TO PROJECT BPM</b> — у сэмплов с метками варпинга темп файла всегда равен темпу проекта.</td></tr>
       <tr><td>ARRANGE</td><td><b>TRACKS</b> — высота дорожек аранжировщика: FIX (кнопкой EXPANDED / COMPACT) или SCALE (двумя пальцами). <b>FOLLOW PLAYHEAD</b> — окно едет за плейхедом. <b>ROW REPEATS</b> — при переносе строки в аранжировку учитывать её повторы.</td></tr>
       <tr><td>MORPH</td><td><b>MODE</b> — TAP или HOLD, <b>RETURN</b> — плавный возврат после выключения MORPH (раздел 9.3).</td></tr>
@@ -2648,7 +2650,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
   <div lang="en" class="tbl"><table>
     <thead><tr><th>Section</th><th>What it holds</th></tr></thead>
     <tbody>
-      <tr><td>RECORD</td><td><b>QUANTIZE</b> — recorded notes land exactly on steps (section 6.4). <b>ARRANGE REC START</b> — recording into the arrangement starts from the playhead (PLAYHEAD) or from the start every time (BEGINNING). <b>METRONOME</b> — click volume, 0–200 %.</td></tr>
+      <tr><td>RECORD</td><td><b>QUANTIZE</b> — recorded notes land exactly on steps (section 6.4). <b>ARRANGE REC START</b> — recording into the arrangement starts from the playhead (PLAYHEAD) or from the start every time (BEGINNING). <b>DRUM STEP PAINT</b> — on drum and sample tracks a finger along the steps paints trigs (section 6.1); on by default. <b>METRONOME</b> — click volume, 0–200 %.</td></tr>
       <tr><td>SAMPLER</td><td><b>STRETCH</b> — the Rate Stretch algorithm: NORMAL or BEAT. <b>SLICE NOTES</b> — notes of the slices: consecutive (CHROMATIC) or in the scale (SCALE). <b>PITCH SHIFT</b>, <b>START / END SHIFT</b> — how Pitch goes to semitones and Start and End to sample fractions: TAP (SHIFT + tap on the knob) or HOLD (with SHIFT held) (section 4.2). <b>CLEAR SAMPLE LOCKS</b> — loading a sound from the library removes the track's sample locks. <b>WARP TO PROJECT BPM</b> — for samples with warp markers, the file tempo always equals the project tempo.</td></tr>
       <tr><td>ARRANGE</td><td><b>TRACKS</b> — arranger track height: FIX (with the EXPANDED / COMPACT button) or SCALE (with two fingers). <b>FOLLOW PLAYHEAD</b> — the view follows the playhead. <b>ROW REPEATS</b> — take a row's repeats into account when moving it into the arrangement.</td></tr>
       <tr><td>MORPH</td><td><b>MODE</b> — TAP or HOLD, <b>RETURN</b> — smooth return after MORPH is turned off (section 9.3).</td></tr>
@@ -3985,7 +3987,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     return menuBox(x, y, w, h, s);
   }
 
-  // ---------- master module windows: strip (title ▾, fields, PRESETS, BYPASS, ✕) + module display ----------
+  // ---------- master module windows: strip (title ▾, fields, UNITY у CLIP и LIM, PRESETS, BYPASS) + module display ----------
   var MW = {
     sat: { title: "SAT", lead: 2, f: [["DRIVE", "+6.0 dB"], ["TYPE", "TAPE"], ["TONE", "0.0 dB"], ["MIX", "100%"], ["FOCUS", "120 Hz"]] },
     comp: { title: "COMP", lead: 4, f: [["THRESHOLD", "-10.0 dB"], ["ATTACK", "30 ms"], ["RELEASE", "400 ms"], ["MAKEUP", "0.0 dB"], ["RATIO", "2.00:1"], ["KNEE", "6.0 dB"], ["MIX", "100%"], ["SC HPF", "90 Hz"]] },
@@ -4010,12 +4012,12 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     s += '<div class="lbl" style="left:' + a.x + "px;top:" + (a.y + bar / 2 - 13) + 'px;width:52px;font-size:11px;letter-spacing:.9px;color:var(--dim)">MASTER\n' + M.title + ' ▾</div>';
     for (var i = 0; i < M.lead; i++) s += fieldTile(a.x + x0 + i * (lw + g), a.y, lw, bar, M.f[i][0], M.f[i][1]);
     if (mod !== "lim") s += box(a.x + transfer - 1, a.y + 8, 1, bar - 16, "background:var(--line)");
-    // У CLIP и LIM — ещё UNITY между PRESETS и BYPASS.
-    var tools = mod === "clip" || mod === "lim" ? ["PRESETS", "UNITY", "BYPASS"] : ["PRESETS", "BYPASS"];
-    var rest = M.f.slice(M.lead), rx = a.x + transfer + g, right = a.x + a.w - bar - tools.length * (100 + g) - g, rw = (right - rx - rest.length * g) / rest.length;
+    // У CLIP и LIM — ещё поле UNITY (ON / OFF) перед PRESETS; PRESETS и BYPASS — под PATTERNS и ARRANGE, их ширины;
+    // крестика нет (закрытие — двойной тап по MST).
+    var rest = M.f.slice(M.lead).concat(mod === "clip" || mod === "lim" ? [["UNITY", "OFF"]] : []);
+    var rx = a.x + transfer + g, right = RIGHT_X - g, rw = (right - rx - (rest.length - 1) * g) / rest.length;
     rest.forEach(function (f, i) { s += fieldTile(rx + i * (rw + g), a.y, rw, bar, f[0], f[1]); });
-    tools.forEach(function (t, i) { s += eqToolTile(right + g + i * (100 + g), a.y, 100, bar, t); });
-    s += tool(a.x + a.w - bar, a.y, bar, bar, "✕");
+    s += eqToolTile(RIGHT_X, a.y, TOPBTN, bar, "PRESETS") + eqToolTile(RIGHT_X + TOPBTN + g, a.y, TOPBTN, bar, "BYPASS");
     var py = a.y + bar + g, ph = high;
     if (mod === "sat") return s + satDisplay(a.x, py, a.w, ph, transfer);
     // Отступ сверху T: 0 dB — ниже кромки, на одной высоте со стержнями справа.
@@ -4111,6 +4113,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       s += fieldLabel(12, y, "ARRANGE REC START"); y += 16;
       var t2 = (iw - 4) / 2;
       s += menuItem(12, y, t2, 40, "PLAYHEAD", { cur: true }) + menuItem(16 + t2, y, t2, 40, "BEGINNING"); y += 52;
+      s += toggleLine(12, y, iw, "DRUM STEP PAINT", true); y += 52;
       s += '<div class="lbl" style="left:16px;top:' + y + 'px;font-size:13px;font-weight:700;color:var(--text)">METRONOME</div><div class="lbl" style="right:' + (16) + "px;top:" + y + 'px;font-size:13px;font-weight:700;color:var(--text)">100%</div>';
       s += box(16, y + 30, iw - 8, 6, "background:var(--meterTrack);border-radius:3px") + box(16, y + 30, (iw - 8) / 2, 6, "background:var(--accent);border-radius:3px") + box(16 + (iw - 8) / 2 - 11, y + 22, 22, 22, "background:#fff;border-radius:50%;box-shadow:0 1px 2px rgba(0,0,0,.3)");
       return s;
