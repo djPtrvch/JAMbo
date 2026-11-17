@@ -84,6 +84,12 @@ extension AppModel {
         updateSettings { s in s.backgroundAudio = on }
     }
 
+    /// MULTICORE: помощники звука в аудио-группе (AudioHost.refreshPool).
+    func setMulticore(_ on: Bool) {
+        updateSettings { s in s.multicore = on }
+        audio.multicore = on
+    }
+
     func setFxPictures(_ on: Bool) {
         updateSettings { s in s.fxPictures = on }
     }

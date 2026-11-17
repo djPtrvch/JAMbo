@@ -179,7 +179,7 @@ final class MidiMapTests: XCTestCase {
         XCTAssertEqual(obj["appearance"] as? String, "DARK")
         XCTAssertNotNil(obj["midi"])
         XCTAssertNotNil(obj["sync"])
-        XCTAssertEqual(obj.count, 37)
+        XCTAssertEqual(obj.count, 39, "ключи AppSettings (17.11 — drumPaint, multicore)")
         let back = AppSettings.decode(data)
         XCTAssertEqual(back, a)
         XCTAssertEqual(back.sync.clockOuts, [7, 9])

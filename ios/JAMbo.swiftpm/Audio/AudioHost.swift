@@ -23,8 +23,13 @@ final class AudioHost {
     private(set) var lastError: String = ""
     /// Запись входа (tap на узле входа) — Audio/InputCapture.swift.
     let input = InputCapture()
-    /// Проверка многоядерного режима (временно, 17.11) — Audio/MultiCoreSpike.swift.
-    let spike = MultiCoreSpike()
+    /// MULTICORE (SETTINGS → AUDIO ENGINE): дорожки синта на помощниках в аудио-группе выхода.
+    var multicore: Bool = true {
+        didSet { if multicore != oldValue { refreshPool() } }
+    }
+    /// Состояние MULTICORE для строки в настройках.
+    private(set) var poolStatus: String = "off"
+    private var poolGroup: UnsafeMutableRawPointer? = nil
     /// Экспорт песни: движок стоит, AudioCore.render зовёт фоновый поток — перезапусков нет.
     private(set) var exporting: Bool = false
 
@@ -81,6 +86,7 @@ final class AudioHost {
             trace("audio: engine start")
             if !engine.isRunning { try engine.start() }
             refreshLatency()
+            refreshPool()
             trace("audio: running")
             lastError = ""
         } catch {
@@ -119,6 +125,7 @@ final class AudioHost {
             if source == nil { attachSource() }
             try engine.start()
             refreshLatency()
+            refreshPool()
             lastError = ""
         } catch {
             start()
@@ -143,7 +150,6 @@ final class AudioHost {
         guard let format = AVAudioFormat(standardFormatWithSampleRate: AudioCore.sampleRate, channels: 2) else { return }
         let core = self.core
         let clock = HostClock()
-        let spike = self.spike
         let node = AVAudioSourceNode(format: format) { _, timestamp, frameCount, bufferList -> OSStatus in
             let start = mach_absolute_time()
             // Время хоста, когда блок начнёт звучать (без задержки выхода — её добавляет интерфейс).
@@ -157,7 +163,6 @@ final class AudioHost {
                let right = buffers[1].mData?.assumingMemoryBound(to: Float.self) {
                 core.render(frames: frames, left: left, right: right, host: host)
             }
-            spike.run(frames: frames, start: start)
             let elapsed: UInt64 = mach_absolute_time() - start
             core.cpu.measure(ns: clock.nanoseconds(elapsed), frames: frames)
             return noErr
@@ -187,11 +192,28 @@ final class AudioHost {
         do { try engine.start() } catch { start() }
     }
 
-    /// Проверка многоядерного режима: N Reverb на шуме, режимы 1 поток, +1, +2, +3 помощника (по 4 с).
-    func runSpike(reverbs: Int, workgroup: Bool) {
-        if !engine.isRunning || spike.running { return }
-        let wg: UnsafeMutableRawPointer? = WorkgroupApi.outputGroup(engine.outputNode.audioUnit)
-        spike.start(jobs: reverbs, workgroup: wg, useGroup: workgroup)
+    /// Помощники MULTICORE: столько, сколько советует аудио-группа выхода (без самого аудиопотока); группа сменилась
+    /// (перезапуск движка, другой выход) — заново. Без группы — выкл. (помощники без неё запаздывают).
+    func refreshPool() {
+        let pool = core.pool
+        if !multicore || !engine.isRunning {
+            pool.stop()
+            poolGroup = nil
+            poolStatus = multicore ? "waiting for audio" : "off"
+            return
+        }
+        guard let wg = AudioWorkgroup.of(engine.outputNode.audioUnit) else {
+            pool.stop()
+            poolGroup = nil
+            poolStatus = "no audio workgroup — one core"
+            return
+        }
+        let helpers: Int = Swift.max(0, Swift.min(RenderPool.maxHelpers, wg.maxThreads - 1))
+        if poolGroup == wg.group && pool.helperCount == helpers { return }
+        poolGroup = wg.group
+        let sr: Double = AudioCore.sampleRate
+        pool.start(helpers) { return wg.enter(sampleRate: sr) }
+        poolStatus = "\(helpers + 1) cores (workgroup \(wg.maxThreads))"
     }
 
     /// Время хоста сейчас (с) и задержка выхода (с) — для записи нот: что слышно сейчас.

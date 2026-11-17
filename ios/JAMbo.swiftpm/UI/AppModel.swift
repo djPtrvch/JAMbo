@@ -499,6 +499,7 @@ final class AppModel {
     func ensureAudio() {
         if audioStarted { return }
         audioStarted = true
+        audio.multicore = settings.multicore
         audio.start()
     }
 

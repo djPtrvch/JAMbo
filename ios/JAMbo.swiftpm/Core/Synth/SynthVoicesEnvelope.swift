@@ -15,7 +15,7 @@ extension SynthVoices {
         let e0v = env0[v]
         let dk = decayK[v], fadeKV = fadeK[v]
         var envV = env[v], fadeV = fadeG[v], rel = released[v] != 0
-        let gb = gBuf
+        let gb = gBuf + (v / SynthVoices.perTrack) * SynthVoices.chunk
         var frame = frame0
         var tt = Double(frame0 - start[v])
         var j = 0

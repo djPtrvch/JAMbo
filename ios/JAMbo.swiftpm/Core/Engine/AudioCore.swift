@@ -63,6 +63,9 @@ public final class AudioCore: @unchecked Sendable {
     private let synthQueue = SPSCQueue<Unmanaged<SynthVoices>?>(capacity: 2, filler: nil)
     private var synthInstalled = false
 
+    /// Многоядерный режим (MULTICORE): помощники считают дорожки синта (RenderPool; потоки ставит AudioHost).
+    public let pool = RenderPool()
+
     private let tone = TestTone(sampleRate: AudioCore.sampleRate)
     /// Счётчик кадров колбэка — основа транспорта с точностью до отсчёта.
     public private(set) var sampleTime: Int64 = 0
@@ -323,6 +326,8 @@ public final class AudioCore: @unchecked Sendable {
             guard let s = item else { continue }
             let v = s.takeRetainedValue()
             v.mod = mod
+            v.pool = pool
+            pool.target = v
             sampler.synth = v
         }
         while let item = snapshots.pop() {

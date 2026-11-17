@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 
 // Голоса синта (в колбэке; как triggerSynth веба и jambo-synth-worklet.js): 6 голосов на дорожку, слот — по кругу
 // (свободный: голос дозвучал), иначе крадётся следующий — гаснет за ~5 мс (τ 1,5 мс), новая нота — через 8 мс.
@@ -10,7 +11,7 @@ import Foundation
 // 15 с), слот занят до атаки + 0,3 с + 4·Decay; с атакой ≤ 2,5 мс в свободном слоте огибающая не обнуляется — хвост
 // прошлой ноты не обрывается скачком, ручки звука слота подстраиваются за ~1 мс.
 
-public final class SynthVoices {
+public final class SynthVoices: RenderJobs {
     public static let perTrack = 6
     static let tracks = SoundData.maxTracks
     static let slots = tracks * perTrack
@@ -98,12 +99,22 @@ public final class SynthVoices {
     /// Дрейф ANALOG (общий на дорожку, как узел worklet) и начало текущего блока.
     let drift = UnsafeMutablePointer<JamboDrift>.allocate(capacity: tracks)
     private var blockStart: Int64 = 0
-    var nextSerial = 0
+    /// Номер запуска голоса (по возрастанию; атомарный — голоса дорожек запускаются на разных потоках, MULTICORE).
+    let serialCounter = Atomic<Int>(0)
 
-    private let outBuf = UnsafeMutablePointer<Float>.allocate(capacity: chunk)
-    private let outBufR = UnsafeMutablePointer<Float>.allocate(capacity: chunk)
+    /// Выход движка и огибающая куска — у каждой дорожки свои (дорожки считаются на разных потоках): дорожка·chunk.
+    private let outBuf = UnsafeMutablePointer<Float>.allocate(capacity: chunk * tracks)
+    private let outBufR = UnsafeMutablePointer<Float>.allocate(capacity: chunk * tracks)
     /// Огибающая · Level · затухание кражи на кусок (0 после остановки голоса).
-    let gBuf = UnsafeMutablePointer<Float>.allocate(capacity: chunk)
+    let gBuf = UnsafeMutablePointer<Float>.allocate(capacity: chunk * tracks)
+    /// Многоядерный режим (ставит AudioCore): дорожки блока — задания пула; без пула — по очереди.
+    public var pool: RenderPool?
+    /// Блок для заданий пула: звук, длина, шины, дорожки с голосами.
+    private var jobData: SoundData?
+    private var jobN: Int = 0
+    private var jobBusL: UnsafeMutablePointer<Float>?
+    private var jobBusR: UnsafeMutablePointer<Float>?
+    private let jobTracks = UnsafeMutablePointer<Int>.allocate(capacity: tracks)
     /// Бит p-lock параметра p (1 << p): в отладочной сборке VoiceMask(p) — обобщённое преобразование, вызов на каждый
     /// параметр каждого куска (S14b).
     private let bit = UnsafeMutablePointer<VoiceMask>.allocate(capacity: VoiceParam.count)
@@ -141,9 +152,11 @@ public final class SynthVoices {
         lockVal.initialize(repeating: 0, count: s * VoiceParam.count)
         pVal.initialize(repeating: 0, count: s * VoiceParam.count)
         next.initialize(repeating: 0, count: SynthVoices.tracks)
-        outBuf.initialize(repeating: 0, count: SynthVoices.chunk)
-        outBufR.initialize(repeating: 0, count: SynthVoices.chunk)
-        gBuf.initialize(repeating: 0, count: SynthVoices.chunk)
+        let cb: Int = SynthVoices.chunk * SynthVoices.tracks
+        outBuf.initialize(repeating: 0, count: cb)
+        outBufR.initialize(repeating: 0, count: cb)
+        gBuf.initialize(repeating: 0, count: cb)
+        jobTracks.initialize(repeating: 0, count: SynthVoices.tracks)
         for p in 0..<VoiceParam.count { bit[p] = VoiceMask(1) << VoiceMask(p) }
     }
 
@@ -158,6 +171,7 @@ public final class SynthVoices {
         for p in [decayK, env, env0, fadeK, fadeG, level, pan, z, zR, fdip, lockVal, pVal, outBuf, outBufR, gBuf]
             as [UnsafeMutablePointer<Float>] { p.deallocate() }
         bit.deallocate()
+        jobTracks.deallocate()
         coef.deallocate()
         drift.deallocate()
         lockMask.deallocate()
@@ -250,8 +264,7 @@ public final class SynthVoices {
         let keepEnv = decaying && !steal && pv(d, t, VoiceParam.attack, mask, vals) <= 2.5
         // Голос молчал — у KICK нет хвоста для стыка.
         if !wasActive { bank.jamboSilent(v) }
-        nextSerial += 1
-        serial[v] = nextSerial
+        serial[v] = serialCounter.wrappingAdd(1, ordering: .relaxed).newValue
         active[v] = 1
         fading[v] = 0
         own[v] = isOwn ? 1 : 0
@@ -368,25 +381,76 @@ public final class SynthVoices {
                 k += 1
             }
         }
-        for v in 0..<SynthVoices.slots where active[v] != 0 || pActive[v] != 0 {
-            let t = v / SynthVoices.perTrack
-            if t >= d.trackCount {
-                active[v] = 0
-                pActive[v] = 0
-                continue
-            }
-            if used[t] == 0 {
-                (busL + t * stride).update(repeating: 0, count: n)
-                (busR + t * stride).update(repeating: 0, count: n)
-                var k = 0
-                while k < 3 {
-                    (sendL + (t * 3 + k) * stride).update(repeating: 0, count: n)
-                    (sendR + (t * 3 + k) * stride).update(repeating: 0, count: n)
-                    k += 1
+        // Дорожки с голосами: шины — с нуля (если сэмплер их ещё не тронул), затем голоса дорожек — заданиями пула
+        // (дорожки независимы: голоса, шины, посылы, движки и куски — свои; порядок голосов внутри дорожки прежний).
+        var jt: Int = 0
+        t = 0
+        while t < SynthVoices.tracks {
+            let base: Int = t * SynthVoices.perTrack
+            var any = false
+            var v: Int = base
+            while v < base + SynthVoices.perTrack {
+                if active[v] != 0 || pActive[v] != 0 {
+                    if t >= d.trackCount {
+                        active[v] = 0
+                        pActive[v] = 0
+                    } else {
+                        any = true
+                    }
                 }
-                used[t] = 1
+                v += 1
             }
-            renderSlot(v, d, t, blockStart, n, busL + t * stride, busR + t * stride)
+            if any {
+                if used[t] == 0 {
+                    (busL + t * stride).update(repeating: 0, count: n)
+                    (busR + t * stride).update(repeating: 0, count: n)
+                    var k = 0
+                    while k < 3 {
+                        (sendL + (t * 3 + k) * stride).update(repeating: 0, count: n)
+                        (sendR + (t * 3 + k) * stride).update(repeating: 0, count: n)
+                        k += 1
+                    }
+                    used[t] = 1
+                }
+                jobTracks[jt] = t
+                jt += 1
+            }
+            t += 1
+        }
+        if jt == 0 { return }
+        jobData = d
+        jobN = n
+        jobBusL = busL
+        jobBusR = busR
+        if let p = pool, jt > 1 {
+            p.run(jt)
+        } else {
+            var j: Int = 0
+            while j < jt {
+                renderTrack(jobTracks[j], d, n, busL, busR)
+                j += 1
+            }
+        }
+    }
+
+    /// Задание пула: голоса j-й дорожки блока.
+    public func runJob(_ j: Int) {
+        guard let d = jobData, let bl = jobBusL, let br = jobBusR else { return }
+        renderTrack(jobTracks[j], d, jobN, bl, br)
+    }
+
+    /// Голоса дорожки t по порядку слотов.
+    @inline(__always)
+    private func renderTrack(_ t: Int, _ d: SoundData, _ n: Int, _ busL: UnsafeMutablePointer<Float>,
+                             _ busR: UnsafeMutablePointer<Float>) {
+        let st: Int = stride
+        let base: Int = t * SynthVoices.perTrack
+        var v: Int = base
+        while v < base + SynthVoices.perTrack {
+            if active[v] != 0 || pActive[v] != 0 {
+                renderSlot(v, d, t, blockStart, n, busL + t * st, busR + t * st)
+            }
+            v += 1
         }
     }
 
@@ -431,6 +495,9 @@ public final class SynthVoices {
     private func renderChunk(_ v: Int, _ d: SoundData, _ t: Int, _ frame0: Int64, _ m: Int,
                              _ bl: UnsafeMutablePointer<Float>, _ br: UnsafeMutablePointer<Float>, _ off: Int) {
         let mask = lockMask[v]
+        let outBuf: UnsafeMutablePointer<Float> = self.outBuf + t * SynthVoices.chunk
+        let outBufR: UnsafeMutablePointer<Float> = self.outBufR + t * SynthVoices.chunk
+        let gBuf: UnsafeMutablePointer<Float> = self.gBuf + t * SynthVoices.chunk
         // Ручки дорожки меняют звучащую ноту сразу; p-lock шага держит своё. Строка параметров дорожки, p-lock голоса
         // и биты — указатели на кусок (без SoundData.param и преобразований на каждый параметр).
         let modE: ModEngine? = mod != nil && mod!.modulated(t) ? mod : nil

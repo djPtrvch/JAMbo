@@ -151,6 +151,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
     /// SETTINGS → AUDIO ENGINE → BACKGROUND AUDIO (как в вебе): звук играет, когда приложение свёрнуто или экран
     /// заблокирован; по умолчанию — да. Нужен ключ UIBackgroundModes: audio (Info.plist рядом с Package.swift).
     public var backgroundAudio: Bool = true
+    /// SETTINGS → AUDIO ENGINE → MULTICORE (17.11): дорожки синта на нескольких ядрах (RenderPool); по умолчанию — да.
+    public var multicore: Bool = true
     /// SETTINGS → APPEARANCE → SCALE: шкала дисплеев окон модулей мастера, dB (48, 32, 16; как в вебе).
     public var displayScale: Int = 48
     public static let displayScales: [Int] = [48, 32, 16]
@@ -176,7 +178,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
     private enum CodingKeys: String, CodingKey { case appearance, pianoOctaves, velocity, record, sliceMap, scSends, latchFx, latchMod, rollGrid,
                                          rollSound, levelRelative, morphReturn, morphHoldMode, mixKey, mixCrossfader,
                                          clearSampleLocks, pitchShiftTap, startEndShiftTap, midi, drumPaint, sync,
-                                         arrangeCompact, fxPictures, backgroundAudio, arrangeRepeats, stretchBeat,
+                                         arrangeCompact, fxPictures, backgroundAudio, multicore, arrangeRepeats, stretchBeat,
                                          metronomeVol, arrangeScale, arrangeFollow, displayScale, knobColumns,
                                          randomDrums, randomChords, randomSwing, randomStepsAll, randomSamples, showPartType,
                                          warpProjectBpm }
@@ -212,6 +214,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         arrangeRepeats = c.value(.arrangeRepeats, true)
         fxPictures = c.value(.fxPictures, true)
         backgroundAudio = c.value(.backgroundAudio, true)
+        multicore = c.value(.multicore, true)
         arrangeScale = c.value(.arrangeScale, false)
         arrangeFollow = c.value(.arrangeFollow, true)
         let ds: Int = c.value(.displayScale, 48)
@@ -254,6 +257,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         try c.encode(arrangeCompact, forKey: .arrangeCompact)
         try c.encode(fxPictures, forKey: .fxPictures)
         try c.encode(backgroundAudio, forKey: .backgroundAudio)
+        try c.encode(multicore, forKey: .multicore)
         try c.encode(arrangeRepeats, forKey: .arrangeRepeats)
         try c.encode(stretchBeat, forKey: .stretchBeat)
         try c.encode(metronomeVol, forKey: .metronomeVol)

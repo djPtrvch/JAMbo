@@ -95,24 +95,19 @@ struct EngineSettings: View {
             .note("Always 48 kHz with a 256-sample buffer; iPadOS may choose another buffer."),
             .toggle("BACKGROUND AUDIO", m.settings.backgroundAudio) { m.setBackgroundAudio($0) },
             .note("ON: the sound keeps playing when JAMbo is in the background or the screen is locked. OFF: the sound stops."),
-            .label("MULTICORE TEST"),
-            .choices([8, 16].map { n in
-                MenuChoice(title: "\(n) REVERBS", current: false) { m.audio.runSpike(reverbs: n, workgroup: true) }
-            } + [8, 16].map { n in
-                MenuChoice(title: "\(n) NO GROUP", current: false) { m.audio.runSpike(reverbs: n, workgroup: false) }
-            }),
-            .view(spikeLines),
-            .note("Temporary test: extra reverbs on noise (not heard) are shared between the audio thread and 1, 2, 3 helper threads, 4 s each. NO GROUP: helpers are not joined to the audio workgroup. Stop the sequencer for a clean result."),
+            .toggle("MULTICORE", m.settings.multicore) { m.setMulticore($0) },
+            .view(poolLine),
+            .note("ON: synth tracks are shared between several CPU cores — more tracks and voices before the sound breaks up. OFF: one core."),
         ])
     }
 }
 
 extension EngineSettings {
-    /// Результат проверки многоядерного режима (раз в 0,5 с).
-    var spikeLines: AnyView {
+    /// Состояние MULTICORE (раз в 0,5 с).
+    var poolLine: AnyView {
         let m: AppModel = model
         return AnyView(TimelineView(.periodic(from: .now, by: 0.5)) { _ in
-            SettingsNote(text: m.audio.spike.lines.joined(separator: "\n"))
+            SettingsNote(text: "Now: " + m.audio.poolStatus)
         })
     }
 }

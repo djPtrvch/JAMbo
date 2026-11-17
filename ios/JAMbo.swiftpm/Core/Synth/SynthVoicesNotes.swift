@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 
 // Голоса синта: выбор слота, legato одной ноты, отпускание живых нот, новый снимок звука (перестановка дорожек, MIX), перезапуск держащихся нот
 // новым звуком — вне звукового пути (SynthVoices.swift).
@@ -37,7 +38,7 @@ extension SynthVoices {
         }
     }
 
-    var lastSerial: Int { return nextSerial }
+    var lastSerial: Int { return serialCounter.load(ordering: .relaxed) }
 
     /// Держащиеся ноты дорожки t (не свой звук шага, созданные до serial last) — для перезапуска новым звуком:
     /// голос гаснет за ~3 мс, body получает ноту, удержание, p-lock и liveId.
