@@ -95,7 +95,25 @@ struct EngineSettings: View {
             .note("Always 48 kHz with a 256-sample buffer; iPadOS may choose another buffer."),
             .toggle("BACKGROUND AUDIO", m.settings.backgroundAudio) { m.setBackgroundAudio($0) },
             .note("ON: the sound keeps playing when JAMbo is in the background or the screen is locked. OFF: the sound stops."),
+            .label("MULTICORE TEST"),
+            .choices([4, 8, 16].map { n in
+                MenuChoice(title: "\(n) REVERBS", current: m.audio.spike.running && m.audio.spike.loadJobs == n) {
+                    m.audio.runSpike(reverbs: n)
+                }
+            }),
+            .view(spikeLines),
+            .note("Temporary test: extra reverbs on noise (not heard) are shared between the audio thread and 1, 2, 3 helper threads, 4 s each. Stop the sequencer for a clean result."),
         ])
+    }
+}
+
+extension EngineSettings {
+    /// Результат проверки многоядерного режима (раз в 0,5 с).
+    var spikeLines: AnyView {
+        let m: AppModel = model
+        return AnyView(TimelineView(.periodic(from: .now, by: 0.5)) { _ in
+            SettingsNote(text: m.audio.spike.lines.joined(separator: "\n"))
+        })
     }
 }
 

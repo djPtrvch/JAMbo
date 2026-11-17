@@ -23,6 +23,8 @@ final class AudioHost {
     private(set) var lastError: String = ""
     /// Запись входа (tap на узле входа) — Audio/InputCapture.swift.
     let input = InputCapture()
+    /// Проверка многоядерного режима (временно, 17.11) — Audio/MultiCoreSpike.swift.
+    let spike = MultiCoreSpike()
     /// Экспорт песни: движок стоит, AudioCore.render зовёт фоновый поток — перезапусков нет.
     private(set) var exporting: Bool = false
 
@@ -141,6 +143,7 @@ final class AudioHost {
         guard let format = AVAudioFormat(standardFormatWithSampleRate: AudioCore.sampleRate, channels: 2) else { return }
         let core = self.core
         let clock = HostClock()
+        let spike = self.spike
         let node = AVAudioSourceNode(format: format) { _, timestamp, frameCount, bufferList -> OSStatus in
             let start = mach_absolute_time()
             // Время хоста, когда блок начнёт звучать (без задержки выхода — её добавляет интерфейс).
@@ -154,6 +157,7 @@ final class AudioHost {
                let right = buffers[1].mData?.assumingMemoryBound(to: Float.self) {
                 core.render(frames: frames, left: left, right: right, host: host)
             }
+            spike.run(frames: frames, start: start)
             let elapsed: UInt64 = mach_absolute_time() - start
             core.cpu.measure(ns: clock.nanoseconds(elapsed), frames: frames)
             return noErr
@@ -181,6 +185,12 @@ final class AudioHost {
     func endExport() {
         exporting = false
         do { try engine.start() } catch { start() }
+    }
+
+    /// Проверка многоядерного режима: N Reverb на шуме, режимы 1 поток, +1, +2, +3 помощника (по 4 с).
+    func runSpike(reverbs: Int) {
+        if !engine.isRunning || spike.running { return }
+        spike.start(jobs: reverbs, workgroup: engine.outputNode.auAudioUnit.osWorkgroup)
     }
 
     /// Время хоста сейчас (с) и задержка выхода (с) — для записи нот: что слышно сейчас.
