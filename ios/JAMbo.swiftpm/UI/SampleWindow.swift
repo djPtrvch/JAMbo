@@ -327,8 +327,10 @@ struct WaveStrip: View {
     var body: some View {
         ZStack {
             wave
-            FrameTimeline(fps: 60, paused: model.headCount == 0) { _ in
-                heads
+            GeometryReader { geo in
+                FrameTimeline(fps: 60, paused: model.headCount == 0) { _ in
+                    heads(geo.size)
+                }
             }
         }
     }
@@ -341,15 +343,20 @@ struct WaveStrip: View {
         return WaveShape(lanes: lanes, start: start, end: end).equatable()
     }
 
-    private var heads: some View {
+    /// Линии воспроизведения — прямоугольники 2 px (17.11, нагрузка): сдвиг слоёв делает видеочип, а Canvas на всё
+    /// окно растеризовался каждый кадр.
+    private func heads(_ size: CGSize) -> some View {
         let heads = model.playheads(track: model.selectedTrack, key: key)
         let accent: Color = theme.accent
-        return Canvas { ctx, size in
-            for h in heads {
-                let x: CGFloat = size.width * h.f
-                ctx.fill(Path(CGRect(x: x - 1, y: 0, width: 2, height: size.height)), with: .color(accent.opacity(h.a)))
+        return ZStack(alignment: .topLeading) {
+            ForEach(0..<heads.count, id: \.self) { i in
+                Rectangle().fill(accent.opacity(heads[i].a))
+                    .frame(width: 2, height: size.height)
+                    .offset(x: size.width * heads[i].f - 1)
             }
         }
+        .frame(width: size.width, height: size.height, alignment: .topLeading)
+        .allowsHitTesting(false)
     }
 
     /// Огибающая — сплошная фигура (верхний край слева направо, нижний обратно): тонкие штрихи с зазорами

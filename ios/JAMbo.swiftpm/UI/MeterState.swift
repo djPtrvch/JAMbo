@@ -173,3 +173,40 @@ enum MeterBars {
         return count <= 1 ? width : 2 * width + gap
     }
 }
+
+/// Полосы измерителя справа обычными прямоугольниками (17.11, нагрузка): их двигает видеочип (масштаб и сдвиг слоёв),
+/// без растеризации Canvas на главном потоке каждый кадр. Вид как у MeterBars.draw: дорожка, заливка снизу (выше
+/// 0 dBFS — красная, заглушённая — серая), пик-холд — белая черта 2 px.
+struct MeterBarsView: View {
+    let bars: [(level: Float, hold: Float)]
+    let muted: Bool
+    let height: CGFloat
+
+    var body: some View {
+        HStack(spacing: MeterBars.gap) {
+            ForEach(0..<bars.count, id: \.self) { k in
+                bar(bars[k])
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func bar(_ b: (level: Float, hold: Float)) -> some View {
+        let h: CGFloat = max(1, height)
+        let f: CGFloat = MeterState.frac(b.level)
+        let hf: CGFloat = MeterState.frac(b.hold)
+        let fill: Color = muted ? theme.muteGrey : (b.level >= MeterState.over ? theme.rec : theme.accent)
+        // Черта холда: низ — на hf·h + 1 от низа, верх не выше полосы.
+        let lift: CGFloat = min(h - 2, max(0, hf * h - 1))
+        return ZStack(alignment: .bottom) {
+            Rectangle().fill(theme.meterTrack)
+            // Масштаб 0 — вырожденное преобразование: не меньше 0,001, пустая — прозрачная.
+            Rectangle().fill(fill).scaleEffect(x: 1, y: max(0.001, f), anchor: .bottom).opacity(f > 0 ? 1 : 0)
+            if hf > 0.01 {
+                Rectangle().fill(theme.text).frame(height: 2).offset(y: -lift)
+            }
+        }
+        .frame(width: MeterBars.width, height: h)
+        .clipShape(RoundedRectangle(cornerRadius: 3))
+    }
+}

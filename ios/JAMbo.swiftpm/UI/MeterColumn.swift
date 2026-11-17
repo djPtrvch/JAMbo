@@ -79,14 +79,10 @@ struct MeterColumn: View {
         let meters: MeterState = model.meters
         return GeometryReader { geo in
             ZStack(alignment: .topLeading) {
-                FrameTimeline(fps: 60, paused: still) { tl in
-                    ScopeCanvas(now: tl.date) { ctx, size in
-                        let data = meters.bars(ch, stereo: stereo)
-                        let w: CGFloat = MeterBars.span(data.count)
-                        MeterBars.draw(ctx, CGRect(x: (size.width - w) / 2, y: 0, width: w, height: size.height), data,
-                                       theme: theme, muted: muted)
-                    }
+                FrameTimeline(fps: 60, paused: still) { _ in
+                    MeterBarsView(bars: meters.bars(ch, stereo: stereo), muted: muted, height: geo.size.height)
                 }
+                .frame(width: geo.size.width, height: geo.size.height)
                 thumb(vol, geo.size)
             }
             .contentShape(Rectangle())
