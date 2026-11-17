@@ -519,7 +519,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     <thead><tr><th>Режим</th><th>Как включить</th><th>Что на ручках</th></tr></thead>
     <tbody>
       <tr><td>TRACK</td><td>Тап по дорожке 1…16</td><td>Звук, огибающая и фильтр, посылы на эффекты, Pan, Velocity, Ratchet, Chance</td></tr>
-      <tr><td>FX</td><td>Держать FX</td><td>Общие эффекты: Reverb, Delay, Drive, Duck (sidechain)</td></tr>
+      <tr><td>FX</td><td>Держать FX</td><td>Эффекты выбранной дорожки: Reverb, Delay, Drive; Duck (sidechain) — общий</td></tr>
       <tr><td>MOD</td><td>Держать MOD</td><td>LFO1, LFO2, LFO3 и огибающая ENV выбранной дорожки</td></tr>
       <tr><td>MIX</td><td>Тап по MIX</td><td>Громкости всех дорожек</td></tr>
       <tr><td>MST</td><td>Тап по MST</td><td>Цепочка мастера: сатуратор, компрессор, клиппер, лимитер</td></tr>
@@ -529,7 +529,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     <thead><tr><th>Mode</th><th>How to enter</th><th>What the knobs hold</th></tr></thead>
     <tbody>
       <tr><td>TRACK</td><td>Tap a track 1…16</td><td>Sound, envelope and filter, effect sends, Pan, Velocity, Ratchet, Chance</td></tr>
-      <tr><td>FX</td><td>Hold FX</td><td>Shared effects: Reverb, Delay, Drive, Duck (sidechain)</td></tr>
+      <tr><td>FX</td><td>Hold FX</td><td>The selected track's effects: Reverb, Delay, Drive; Duck (sidechain) is shared</td></tr>
       <tr><td>MOD</td><td>Hold MOD</td><td>LFO1, LFO2, LFO3 and the ENV envelope of the selected track</td></tr>
       <tr><td>MIX</td><td>Tap MIX</td><td>Volumes of all tracks</td></tr>
       <tr><td>MST</td><td>Tap MST</td><td>Master chain: saturator, compressor, clipper, limiter</td></tr>
@@ -808,20 +808,20 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
     <li>Recording ends by itself when the pattern has completed its cycle (or the pattern grid rows have reached their end). Pressing PLAY during recording lets the tracks finish the pass.</li>
   </ol>
   <ul lang="ru">
-    <li>Пишется то, что дорожка отдаёт в мастер: после EQ, громкости и mute/solo. Посылы на Reverb, Delay и Drive в стем не входят — это общие эффекты.</li>
+    <li>Пишется то, что дорожка отдаёт в мастер: после EQ, громкости и mute/solo. Посылы на Reverb, Delay и Drive в стем не входят: эффекты дорожки идут в мастер отдельно.</li>
     <li>Стемы ложатся в папку <b>RECORDINGS</b> библиотеки (раздел 4.5).</li>
     <li>● MASTER (или SHIFT + тап по REC) так же записывает весь выход мастера.</li>
   </ul>
   <ul lang="en">
-    <li>What is recorded is what the track sends to the master: after EQ, volume and mute/solo. Reverb, Delay and Drive sends are not included in the stem — those are shared effects.</li>
+    <li>What is recorded is what the track sends to the master: after EQ, volume and mute/solo. Reverb, Delay and Drive sends are not included in the stem: the track's effects go to the master separately.</li>
     <li>Stems go to the <b>RECORDINGS</b> folder of the library (section 4.5).</li>
     <li>● MASTER (or SHIFT + tap on REC) records the whole master output the same way.</li>
   </ul>
 
   <h3 lang="ru"><span class="sn">3.6</span>Путь звука</h3>
   <h3 lang="en"><span class="sn">3.6</span>Signal path</h3>
-  <p lang="ru">Звук дорожки → EQ дорожки → громкость в микшере → мастер. Посылы Reverb, Delay и Drive уходят с дорожки в общие эффекты, а оттуда — в мастер. Мастер: EQ → сатуратор → компрессор → клиппер → лимитер → громкость выхода (раздел 12).</p>
-  <p lang="en">Track sound → track EQ → mixer volume → master. Reverb, Delay and Drive sends go from the track to the shared effects and from there to the master. Master: EQ → saturator → compressor → clipper → limiter → output volume (section 12).</p>
+  <p lang="ru">Звук дорожки → EQ дорожки → громкость в микшере → мастер. Посылы Reverb, Delay и Drive уходят в эффекты этой дорожки, а оттуда — в мастер. Мастер: EQ → сатуратор → компрессор → клиппер → лимитер → громкость выхода (раздел 12).</p>
+  <p lang="en">Track sound → track EQ → mixer volume → master. Reverb, Delay and Drive sends go to the track's own effects and from there to the master. Master: EQ → saturator → compressor → clipper → limiter → output volume (section 12).</p>
 </section>
 
 <!-- ============ 4 ============ -->
@@ -1627,26 +1627,32 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
 <section class="chapter" id="fx">
   <header lang="ru"><span class="num">10</span><h2>Эффекты дорожек</h2></header>
   <header lang="en"><span class="num">10</span><h2>Track effects</h2></header>
-  <p lang="ru" class="lede">Четыре общих эффекта: Reverb, Delay, Drive и Duck.</p>
-  <p lang="en" class="lede">Four shared effects: Reverb, Delay, Drive and Duck.</p>
+  <p lang="ru" class="lede">У каждой дорожки свои Reverb, Delay и Drive; Duck — один на проект.</p>
+  <p lang="en" class="lede">Every track has its own Reverb, Delay and Drive; Duck is one per project.</p>
 
   <h3 lang="ru"><span class="sn">10.1</span>Как устроены эффекты</h3>
   <h3 lang="en"><span class="sn">10.1</span>How the effects work</h3>
   <figure><div class="shot" data-mode="fx" data-zone="leftgrid" data-state="fxpic" data-maxh="520"></div><figcaption lang="ru">Пока палец на ручке эффекта, в окне звука — его картинка (здесь Delay).</figcaption>
 <figcaption lang="en">While your finger is on an effect knob, the sound window shows its picture (here Delay).</figcaption></figure>
   <ul lang="ru">
-    <li>Эффекты общие для всех дорожек. Сколько звука дорожки идёт в Reverb, Delay и Drive, задают <b>посылы</b> — третья строка ручек дорожки.</li>
-    <li>Настройки эффектов — на сетке FX: держите FX.</li>
-    <li>Ручки эффектов принимают p-lock (держите FX и шаг) и LFO/ENV (раздел 9.2).</li>
+    <li>У каждой дорожки свои Reverb, Delay и Drive: длинный реверб на хэтах не попадёт на бас. Сколько звука дорожки идёт в каждый, задают <b>посылы</b> — третья строка ручек дорожки.</li>
+    <li>Настройки эффектов — на сетке FX: держите FX. Сетка показывает и меняет эффекты выбранной дорожки.</li>
+    <li>Ручки эффектов принимают p-lock (держите FX и шаг) — он действует на эффекты своей дорожки — и LFO/ENV (раздел 9.2): LFO двигает эффекты той дорожки, с которой его назначили.</li>
+    <li>SHIFT + MORPH (все дорожки) на сетке FX: Reverb, Delay и Drive меняются у всех дорожек на ту же долю хода.</li>
+    <li>Duck (нижняя строка) — один на проект: одна дорожка-источник приглушает остальные.</li>
     <li>Пока палец на ручке эффекта, в окне звука видна его картинка: куб Reverb, повторы Delay, волна Drive, огибающая Duck. Выключить — SETTINGS → APPEARANCE → FX ANIMATION.</li>
-    <li>Настройки эффектов хранятся в паттернах сетки: действуют эффекты паттерна, запущенного последним (раздел 14).</li>
+    <li>Эффекты дорожки хранятся в её паттернах: звучат эффекты паттерна, который на ней играет, — запуск другого паттерна меняет и эффекты (раздел 14). У паттерна без своих настроек — общие настройки проекта. Настройки Duck — у паттерна, запущенного последним.</li>
+    <li>Старые проекты при открытии получают на всех дорожках эффекты, которые звучали последними, — звучат как раньше.</li>
   </ul>
   <ul lang="en">
-    <li>The effects are shared by all tracks. How much of a track's sound goes into Reverb, Delay and Drive is set by the <b>sends</b> — the third knob row of a track.</li>
-    <li>Effect settings are on the FX grid: hold FX.</li>
-    <li>Effect knobs accept p-locks (hold FX and a step) and LFO/ENV (section 9.2).</li>
+    <li>Every track has its own Reverb, Delay and Drive: a long reverb on the hats won't spill onto the bass. How much of a track's sound goes into each is set by the <b>sends</b> — the third knob row of a track.</li>
+    <li>Effect settings are on the FX grid: hold FX. The grid shows and changes the selected track's effects.</li>
+    <li>Effect knobs accept p-locks (hold FX and a step) — they act on their own track's effects — and LFO/ENV (section 9.2): an LFO moves the effects of the track it was assigned from.</li>
+    <li>SHIFT + MORPH (all tracks) on the FX grid: Reverb, Delay and Drive change on every track by the same share of the knob travel.</li>
+    <li>Duck (bottom row) is one per project: one source track ducks the others.</li>
     <li>While your finger is on an effect knob, the sound window shows its picture: the Reverb cube, Delay repeats, the Drive wave, the Duck envelope. To turn this off — SETTINGS → APPEARANCE → FX ANIMATION.</li>
-    <li>Effect settings are stored in the grid's patterns: the effects of the most recently launched pattern apply (section 14).</li>
+    <li>A track's effects are stored in its patterns: the effects of the pattern playing on it apply — launching another pattern changes the effects too (section 14). A pattern without its own settings uses the project's common settings. Duck settings come from the most recently launched pattern.</li>
+    <li>Old projects, when opened, get the effects that were last heard on every track — they sound as before.</li>
   </ul>
 
   <h3><span class="sn">10.2</span>Reverb</h3>
@@ -2643,7 +2649,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       <tr><td>DUCK</td><td><b>DUCK SENDS</b> — какие посылы (REVERB, DELAY, DRIVE) приглушаются вместе с дорожкой при Duck (раздел 10.5).</td></tr>
       <tr><td>DEFAULTS</td><td>Свои значения ручек по умолчанию (раздел 2.1): сколько запомнено и <b>FORGET ALL</b> — забыть все.</td></tr>
       <tr><td>APPEARANCE</td><td><b>THEME</b> — SYSTEM, LIGHT, DARK. <b>MASTER FX DISPLAY SCALE</b> — масштаб дисплеев окон мастера: 48, 32 или 16 dB. <b>KNOB GROUPS IN COLUMNS</b> — группы ручек сетки столбцами, а не строками; p-lock, LFO, автоматизация и MIDI остаются при своих ручках. <b>FX ANIMATION</b> — картинка эффекта в окне звука.</td></tr>
-      <tr><td>AUDIO ENGINE</td><td><b>BACKGROUND AUDIO</b> — звук играет дальше, когда приложение свёрнуто или экран заблокирован.</td></tr>
+      <tr><td>AUDIO ENGINE</td><td><b>BACKGROUND AUDIO</b> — звук играет дальше, когда приложение свёрнуто или экран заблокирован. <b>MULTICORE</b> (по умолчанию ON) — синты, эффекты и EQ дорожек считаются на нескольких ядрах процессора: больше дорожек и голосов до перегрузки. Строка Load под ним — нагрузка по частям звука.</td></tr>
       <tr><td>OUTPUT</td><td>Текущий аудиовыход и его выбор. <b>MONITORING</b> — как референс (REF) идёт через мастер и коррекцию наушников, подгонка его громкости и REF TRIM.</td></tr>
     </tbody>
   </table></div>
@@ -2660,7 +2666,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       <tr><td>DUCK</td><td><b>DUCK SENDS</b> — which sends (REVERB, DELAY, DRIVE) are ducked together with the track by Duck (section 10.5).</td></tr>
       <tr><td>DEFAULTS</td><td>Your own knob defaults (section 2.1): how many are stored, and <b>FORGET ALL</b> — forget them all.</td></tr>
       <tr><td>APPEARANCE</td><td><b>THEME</b> — SYSTEM, LIGHT, DARK. <b>MASTER FX DISPLAY SCALE</b> — display scale of the master windows: 48, 32 or 16 dB. <b>KNOB GROUPS IN COLUMNS</b> — knob groups as columns instead of rows; p-locks, LFOs, automation and MIDI stay with their knobs. <b>FX ANIMATION</b> — the effect picture in the sound window.</td></tr>
-      <tr><td>AUDIO ENGINE</td><td><b>BACKGROUND AUDIO</b> — sound keeps playing when the app is in the background or the screen is locked.</td></tr>
+      <tr><td>AUDIO ENGINE</td><td><b>BACKGROUND AUDIO</b> — sound keeps playing when the app is in the background or the screen is locked. <b>MULTICORE</b> (ON by default) — synths, effects and EQ of the tracks are shared between several CPU cores: more tracks and voices before overload. The Load line below shows the load per part of the sound.</td></tr>
       <tr><td>OUTPUT</td><td>The current audio output and its selection. <b>MONITORING</b> — how the reference (REF) goes through the master and headphone correction, its level matching and REF TRIM.</td></tr>
     </tbody>
   </table></div>
@@ -4248,15 +4254,15 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
 
   // mode switcher
   var DESC = {
-    track: "TRACK — выбрана дорожка с сэмплом. Верхняя строка — сэмпл (у синта — ручки движка, раздел 5), вторая — огибающая и фильтр, третья — посылы на общие эффекты, нижняя — Pan, Velocity, Ratchet, Chance. SHIFT + тап по Filter меняет тип фильтра, SHIFT + тап по Rate — режим RATE. Громкость дорожки — в MIX или регулятором на измерителе.",
-    fx: "FX — пока держите FX (кнопка белая). Строки: Reverb, Delay, Drive, Duck. Эффекты общие для всех дорожек; сколько звука дорожки идёт в каждый, задают посылы — третья строка режима TRACK. Duck Source выбирает дорожку, которая приглушает остальные.",
+    track: "TRACK — выбрана дорожка с сэмплом. Верхняя строка — сэмпл (у синта — ручки движка, раздел 5), вторая — огибающая и фильтр, третья — посылы на эффекты дорожки, нижняя — Pan, Velocity, Ratchet, Chance. SHIFT + тап по Filter меняет тип фильтра, SHIFT + тап по Rate — режим RATE. Громкость дорожки — в MIX или регулятором на измерителе.",
+    fx: "FX — пока держите FX (кнопка белая). Строки: Reverb, Delay, Drive, Duck. Reverb, Delay и Drive — свои у каждой дорожки (сетка — выбранной); сколько звука дорожки идёт в каждый, задают посылы — третья строка режима TRACK. Duck Source выбирает дорожку, которая приглушает остальные.",
     mod: "MOD — пока держите MOD. Строки: LFO1, LFO2, LFO3 и огибающая ENV выбранной дорожки. Куда они действуют, назначается кнопками LFO1…ENV в левой колонке (раздел 9).",
     mix: "MIX — громкости дорожек в dB, подписи — имена дорожек. Слева от ручки — метр дорожки, справа — кнопки M (mute), S (solo) и ● (готовность к записи стема). Ручки без кольца — дорожки, которых ещё нет: двойной тап по ней добавляет дорожку. Двойной тап по ручке дорожки — меню COPY, PASTE, DELETE TRACK, RENAME; удержание и перетаскивание меняет порядок дорожек. Над окном — ● MASTER (запись мастера); в окне слева — индикация дорожек LEVEL, PAN, MASK, FREQ (кнопки под ним; тап по окну — микшер с фейдерами, двойной тап по MIX — закрыть); справа — вектороскоп с корреляцией, стерео по полосам и история громкости (раздел 3.3).",
     mst: "MST — цепочка мастера сверху вниз: сатуратор, компрессор, клиппер, лимитер (перед ними — EQ мастера). В окне слева — индикация COMP, CLIP, LIM, под ним — кнопки окон модулей; справа — скоп мастера и кнопки его точек съёма (раздел 12)."
   };
   var DESC_EN = {
-    track: "TRACK — a track with a sample is selected. Top row — the sample (on a synth — the engine knobs, section 5), second — envelope and filter, third — sends to the shared effects, bottom — Pan, Velocity, Ratchet, Chance. SHIFT + tap on Filter changes the filter type, SHIFT + tap on Rate — the RATE mode. Track volume — in MIX or with the control on the meter.",
-    fx: "FX — while you hold FX (the button is white). Rows: Reverb, Delay, Drive, Duck. The effects are shared by all tracks; how much of a track's sound goes into each is set by the sends — the third row of TRACK mode. Duck Source picks the track that ducks the others.",
+    track: "TRACK — a track with a sample is selected. Top row — the sample (on a synth — the engine knobs, section 5), second — envelope and filter, third — sends to the track's effects, bottom — Pan, Velocity, Ratchet, Chance. SHIFT + tap on Filter changes the filter type, SHIFT + tap on Rate — the RATE mode. Track volume — in MIX or with the control on the meter.",
+    fx: "FX — while you hold FX (the button is white). Rows: Reverb, Delay, Drive, Duck. Reverb, Delay and Drive are per track (the grid shows the selected one); how much of a track's sound goes into each is set by the sends — the third row of TRACK mode. Duck Source picks the track that ducks the others.",
     mod: "MOD — while you hold MOD. Rows: LFO1, LFO2, LFO3 and the ENV envelope of the selected track. Where they act is assigned with the LFO1…ENV buttons in the left column (section 9).",
     mix: "MIX — track volumes in dB, labelled with track names. Left of a knob — the track meter, right — the M (mute), S (solo) and ● (arm stem recording) buttons. Knobs without a ring are tracks that do not exist yet: double tap one to add a track. Double tap a track's knob — the COPY, PASTE, DELETE TRACK, RENAME menu; hold and drag to reorder tracks. Above the window — ● MASTER (master recording); the window on the left shows track meters LEVEL, PAN, MASK, FREQ (buttons under it; tap the window for the mixer with faders, double tap MIX to close it); on the right — the vectorscope with correlation, stereo by band and the loudness history (section 3.3).",
     mst: "MST — the master chain top to bottom: saturator, compressor, clipper, limiter (preceded by the master EQ). The window on the left shows the COMP, CLIP, LIM display, with the module window buttons below it; on the right — the master scope and its tap point buttons (section 12)."
