@@ -1,7 +1,7 @@
 import Foundation
 import Synchronization
 
-/// Задания колбэка, которые можно считать на нескольких потоках (номер задания — 0…count−1; задания независимы).
+/// Задания колбэка, которые можно считать на нескольких потоках (MULTICORE) (номер задания — 0…count−1; задания независимы).
 public protocol RenderJobs: AnyObject {
     func runJob(_ j: Int)
 }
