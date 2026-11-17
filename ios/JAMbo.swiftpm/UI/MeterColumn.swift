@@ -14,7 +14,7 @@ struct MeterColumn: View {
     static let travel: CGFloat = 240
 
     /// Измеритель спит или заморожен пробой — анимация на паузе.
-    private var paused: Bool { return model.meterAsleep || LoadProbe.shared.freezeMeter }
+    private var paused: Bool { return model.meterAsleep || LoadProbe.shared.freezeMeter || LoadAnim.stop }
 
     // Нагрузка (17.11): 60 раз в секунду обновляются только полосы; подписи и метка клиппинга — 10 раз в секунду;
     // регулятор, жест и MIDI — вне анимации (только когда меняются).
@@ -79,7 +79,7 @@ struct MeterColumn: View {
         let meters: MeterState = model.meters
         return GeometryReader { geo in
             ZStack(alignment: .topLeading) {
-                TimelineView(.animation(minimumInterval: 1.0 / 60, paused: still)) { tl in
+                TimelineView(.animation(minimumInterval: LoadAnim.frame(60), paused: LoadAnim.stop || still)) { tl in
                     ScopeCanvas(now: tl.date) { ctx, size in
                         let data = meters.bars(ch, stereo: stereo)
                         let w: CGFloat = MeterBars.span(data.count)

@@ -37,21 +37,32 @@ struct CPUIndicator: View {
 }
 
 /// Пробы замера графики (17.11): что заморозить, чтобы сравнить VIEW. Тап по индикатору CPU — следующая проба:
-/// выкл. → M измеритель → S шаги → P миниатюры страниц → T дорожки (мигание) → K клавиатура → N ручки и окно звука.
+/// выкл. → M измеритель → S шаги → P миниатюры страниц → T дорожки (мигание) → K клавиатура → N ручки и окно звука →
+/// H все анимации вдвое реже → A все анимации стоят.
 @Observable
 final class LoadProbe {
     static let shared = LoadProbe()
-    static let tags: [String] = ["", "M", "S", "P", "T", "K", "N"]
+    static let tags: [String] = ["", "M", "S", "P", "T", "K", "N", "H", "A"]
     static let meter: Int = 1
     static let steps: Int = 2
     static let pages: Int = 3
     static let tracks: Int = 4
     static let keys: Int = 5
     static let knobs: Int = 6
+    static let half: Int = 7
+    static let all: Int = 8
     var mode: Int = 0
     var freezeMeter: Bool { return mode == LoadProbe.meter }
     func off(_ m: Int) -> Bool { return mode == m }
     func next() { mode = (mode + 1) % LoadProbe.tags.count }
+}
+
+/// Частота анимаций (TimelineView) с учётом проб H и A.
+enum LoadAnim {
+    static func frame(_ fps: Double) -> Double {
+        return LoadProbe.shared.mode == LoadProbe.half ? 2 / fps : 1 / fps
+    }
+    static var stop: Bool { return LoadProbe.shared.mode == LoadProbe.all }
 }
 
 /// Нагрузка главного потока по времени потока (main) и доля насоса (pump), проценты одного ядра

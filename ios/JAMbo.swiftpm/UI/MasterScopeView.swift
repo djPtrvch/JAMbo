@@ -146,7 +146,7 @@ struct MasterScopeView: View {
 
     private func panel(_ draw: @escaping (GraphicsContext, CGSize) -> Void) -> some View {
         // Время кадра — параметром вида: иначе SwiftUI не перерисовывает Canvas.
-        TimelineView(.animation(minimumInterval: 1.0 / 60)) { tl in
+        TimelineView(.animation(minimumInterval: LoadAnim.frame(60), paused: LoadAnim.stop)) { tl in
             ScopeCanvas(now: tl.date, draw: draw)
         }
         .background(theme.panel, in: RoundedRectangle(cornerRadius: Layout.radius))

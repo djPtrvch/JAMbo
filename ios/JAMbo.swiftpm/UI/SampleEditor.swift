@@ -97,7 +97,7 @@ struct SampleEditor: View {
             AnyView(RecordingPlot(model: model))
         } else if let d = data {
             AnyView(ZStack(alignment: .topLeading) {
-                TimelineView(.animation(minimumInterval: 1.0 / 60, paused: model.headCount == 0)) { _ in
+                TimelineView(.animation(minimumInterval: LoadAnim.frame(60), paused: LoadAnim.stop || model.headCount == 0)) { _ in
                     if model.editorWarp { warpCanvas(key, d, size) } else { canvas(key, d, size) }
                 }
                 if let t = tip {

@@ -63,7 +63,7 @@ struct MixCell: View {
         let stereo: Bool = model.trackStereo(t)
         let muted: Bool = !model.project.audible(t)
         // Значения кадра — параметрами вида (с временем кадра): иначе SwiftUI не перерисовывает Canvas.
-        return TimelineView(.animation(minimumInterval: 1.0 / 60)) { tl in
+        return TimelineView(.animation(minimumInterval: LoadAnim.frame(60), paused: LoadAnim.stop)) { tl in
             MixMeter(bars: model.meters.bars(t, stereo: stereo), duckDb: model.meters.duckDb(t), muted: muted,
                      now: tl.date)
         }

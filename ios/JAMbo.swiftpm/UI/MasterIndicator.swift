@@ -64,7 +64,7 @@ struct MasterIndicator: View {
     let model: AppModel
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 60)) { tl in
+        TimelineView(.animation(minimumInterval: LoadAnim.frame(60), paused: LoadAnim.stop)) { tl in
             blocks(now: tl.date.timeIntervalSinceReferenceDate)
         }
         .padding(8)

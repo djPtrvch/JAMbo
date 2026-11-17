@@ -40,7 +40,7 @@ struct ArrTotalTime: View {
     let model: AppModel
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !model.playing)) { _ in
+        TimelineView(.animation(minimumInterval: LoadAnim.frame(30), paused: LoadAnim.stop || !model.playing)) { _ in
             let bpm: Double = max(20, model.project.bpm)
             // Шаг — шестнадцатая: 15 / BPM секунд.
             let nowSec: Double = model.arrNowX * 15 / bpm
@@ -106,7 +106,7 @@ struct ArrCursorLayer: View {
     let head: Bool
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 60, paused: !model.playing)) { _ in
+        TimelineView(.animation(minimumInterval: LoadAnim.frame(60), paused: LoadAnim.stop || !model.playing)) { _ in
             let pos: Double = model.arrNowX
             let rec: ArrRecorder? = model.live.recorder.active ? model.live.recorder : nil
             let colors: [Int] = model.project.tracks.map { $0.color }

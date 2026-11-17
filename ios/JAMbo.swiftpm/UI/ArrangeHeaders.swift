@@ -218,7 +218,7 @@ struct ArrVolume: View {
                 let w: CGFloat = geo.size.width
                 ZStack(alignment: .topLeading) {
                     // Значения кадра — параметрами вида (с временем кадра): иначе SwiftUI не перерисовывает Canvas.
-                    TimelineView(.animation(minimumInterval: 1.0 / 60)) { tl in
+                    TimelineView(.animation(minimumInterval: LoadAnim.frame(60), paused: LoadAnim.stop)) { tl in
                         ArrMeter(bars: model.meters.bars(channel, stereo: stereo),
                                  duckDb: track ? model.meters.duckDb(channel) : 0, muted: muted, now: tl.date)
                     }

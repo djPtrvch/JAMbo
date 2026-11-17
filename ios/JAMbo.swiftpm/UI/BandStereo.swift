@@ -112,7 +112,7 @@ struct BandStereoView: View {
     let model: AppModel
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30)) { tl in
+        TimelineView(.animation(minimumInterval: LoadAnim.frame(30), paused: LoadAnim.stop)) { tl in
             ScopeCanvas(now: tl.date) { ctx, size in draw(ctx, size) }
         }
         .background(theme.panel, in: RoundedRectangle(cornerRadius: Layout.radius))

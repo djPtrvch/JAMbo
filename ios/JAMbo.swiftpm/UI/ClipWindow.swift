@@ -10,7 +10,7 @@ struct ClipDisplay: View {
     private var ceilingParam: ParamDef { return Params.masterColumns[2][1] }
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 60)) { tl in
+        TimelineView(.animation(minimumInterval: LoadAnim.frame(60), paused: LoadAnim.stop)) { tl in
             let now: Double = tl.date.timeIntervalSinceReferenceDate
             GeometryReader { geo in
                 let w: CGFloat = min(geo.size.width * 0.4, geo.size.height * 1.4)

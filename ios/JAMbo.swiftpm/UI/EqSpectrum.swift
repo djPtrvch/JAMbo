@@ -130,7 +130,7 @@ struct EqSpectrumLayer: View {
     var body: some View {
         let cmp: Int? = model.eqCompareShown
         let name: String = cmp.map { $0 < model.project.tracks.count ? model.project.tracks[$0].name : "" } ?? ""
-        return TimelineView(.animation(minimumInterval: 1.0 / 30)) { tl in
+        return TimelineView(.animation(minimumInterval: LoadAnim.frame(30), paused: LoadAnim.stop)) { tl in
             Canvas { ctx, size in
                 let f = display.frame(model.audio.core.spectra, size: size, compare: cmp != nil, now: tl.date)
                 draw(ctx, f, size, name)
