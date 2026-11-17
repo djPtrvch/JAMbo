@@ -434,6 +434,7 @@ final class AppModel {
     /// История громкости мастера (окно под осциллоскопом при MIX).
     @ObservationIgnored let loudHist = LoudHistory()
     @ObservationIgnored let bandStereo = BandStereo()
+    @ObservationIgnored let trackDrive = TrackDrive()
     /// Скоп мастера: точки съёма SAT (всегда), COMP, CLIP, LIM (по умолчанию выключены — отличие от веба; в проекте
     /// не хранится).
     @ObservationIgnored let scope = ScopeState()

@@ -23,11 +23,13 @@ extension AppModel {
         if channel != .track {
             // При MIX (16.11, решение пользователя) — без осциллоскопа: на его месте стерео по полосам.
             let on: [Bool] = channel == .master ? scopeOn : [false, false, false, false]
-            var m: Int = MasterScope.gonioBit
+            // Гониометр — только при MIX (17.11: при MST на его месте вклад дорожек, TrackDrive).
+            var m: Int = channel == .mix ? MasterScope.gonioBit : 0
             for k in 0..<4 where on[k] { m |= 1 << k }
             sc.mask.store(m)
             scope.tick(sc, on: on)
             if channel == .mix { bandStereo.tick(sc) }
+            if channel == .master { trackDrive.tick(meters, dynMeters, tracks: project.tracks.count, now: now) }
         } else if sc.mask.load() != 0 {
             sc.mask.store(0)
         }
