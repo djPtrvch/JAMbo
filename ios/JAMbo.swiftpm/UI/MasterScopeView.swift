@@ -132,14 +132,14 @@ struct MasterScopeView: View {
             let h: CGFloat = geo.size.height - extra - gap
             VStack(spacing: gap) {
                 panel { ctx, size in drawGonio(ctx, size) }.frame(height: h * 0.6)
-                // При MIX на месте осциллоскопа — история громкости мастера, под ней — стерео по полосам (17.11:
-                // громкости с графиком нужна высота, полосам хватает нижнего места; прежде — наоборот).
+                // При MIX на месте осциллоскопа — стерео по полосам (16.11).
                 if taps {
                     panel { ctx, size in drawOsc(ctx, size) }.frame(height: h * 0.4)
                 } else {
-                    LoudHistoryView(model: model).frame(height: h * 0.4)
+                    BandStereoView(model: model).frame(height: h * 0.4)
                 }
-                if !taps { BandStereoView(model: model).frame(height: max(0, extra - gap)) }
+                // При MIX под ними — история громкости мастера (16.11).
+                if !taps { LoudHistoryView(model: model).frame(height: max(0, extra - gap)) }
             }
         }
     }
