@@ -723,11 +723,13 @@ final class AppModel {
     /// Дискретное действие: одна запись в UNDO (внутри жеста — запись в конце жеста).
     func edit(_ change: (inout Project) -> Void) {
         let before = project
+        // Место правки — до неё (DELETE TRACK и т. п. меняют выбор): UNDO покажет его (AppModelUndoPlace).
+        let place: UndoPlace = undoPlaceNow()
         change(&project)
         // Новые блоки аранжировки (перенос из сетки, запись, вставка) — со своей копией клипа (решение пользователя).
         if AppModel.needsOwnPatterns(project) { project.ownArrPatterns() }
         if project == before { return }
-        history.record(before: before, after: project)
+        history.record(before: before, after: project, place: place)
         changed()
     }
 
@@ -764,7 +766,7 @@ final class AppModel {
 
     func endGesture() {
         monitorGesture = 0
-        history.endGesture(project)
+        history.endGesture(project, place: undoPlaceNow())
         refreshHistory()
     }
 
@@ -772,12 +774,14 @@ final class AppModel {
         if phonesShown { return monitorUndoStep() }
         guard let prev = history.undo(project) else { return }
         restore(prev)
+        showUndoPlace(history.lastPlace)
     }
 
     func redo() {
         if phonesShown { return monitorRedoStep() }
         guard let next = history.redo(project) else { return }
         restore(next)
+        showUndoPlace(history.lastPlace)
     }
 
     /// Вернуть проект к снимку: что сейчас играет (остановленные дорожки), mute, solo — UNDO не меняет.

@@ -19,6 +19,23 @@ final class EditTests: XCTestCase {
         XCTAssertFalse(h.canRedo)
     }
 
+    func testHistoryPlaces() {
+        var h = History<Int>()
+        h.record(before: 1, after: 2, place: "bass")
+        h.beginGesture(2)
+        h.endGesture(3, place: "hat")
+        XCTAssertEqual(h.undo(3), 2)
+        XCTAssertEqual(h.lastPlace as? String, "hat")
+        XCTAssertEqual(h.undo(2), 1)
+        XCTAssertEqual(h.lastPlace as? String, "bass")
+        XCTAssertEqual(h.redo(1), 2)
+        XCTAssertEqual(h.lastPlace as? String, "bass")
+        XCTAssertEqual(h.redo(2), 3)
+        XCTAssertEqual(h.lastPlace as? String, "hat")
+        XCTAssertEqual(h.undo(3), 2)
+        XCTAssertEqual(h.lastPlace as? String, "hat")
+    }
+
     func testHistoryLimit() {
         var h = History<Int>()
         for i in 0..<300 { h.record(before: i, after: i + 1) }
