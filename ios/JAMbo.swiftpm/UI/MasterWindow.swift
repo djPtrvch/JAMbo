@@ -106,7 +106,7 @@ struct MasterWindowView: View {
     }
 }
 
-/// Строка окна модуля: название, поля, PRESETS, UNITY (у CLIP и LIM), BYPASS (рядом с крестиком), ✕. При BYPASS поля серые (у LIM —
+/// Строка окна модуля: название, поля, UNITY (у CLIP и LIM, в виде поля), PRESETS, BYPASS (у правого края). При BYPASS поля серые (у LIM —
 /// только INPUT и CEILING, как в вебе).
 struct MasterStrip: View {
     let model: AppModel
@@ -132,17 +132,19 @@ struct MasterStrip: View {
                             input: { input(.param(p.id)) })
                     .frame(width: i < lead.count ? lead.width : nil)
             }
+            if module == MasterScope.clip || module == MasterScope.lim {
+                // UNITY (17.11) — в виде поля, как поля слева: подпись и ON / OFF, тап переключает.
+                MasterToggleField(title: "UNITY", on: model.masterUnity) { model.setUnity(!model.masterUnity) }
+            }
+            // PRESETS и BYPASS (17.11) — ровно под PATTERNS и ARRANGE верхней панели: та же ширина, правый край
+            // окна совпадает с правым краем ARRANGE (справа — измеритель шириной с индикатор CPU).
             EqTool(title: "PRESETS", enabled: true, active: model.masterMenu?.kind == .presets) {
                 model.masterMenu = MasterMenuState(kind: .presets, anchor: presetsFrame, bounds: bounds)
             }
-            .frame(width: 100)
+            .frame(width: Layout.topButton)
             .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("root")) } action: { presetsFrame = $0 }
-            if module == MasterScope.clip || module == MasterScope.lim {
-                EqTool(title: "UNITY", enabled: true, active: model.masterUnity) { model.setUnity(!model.masterUnity) }
-                    .frame(width: 100)
-            }
             EqTool(title: "BYPASS", enabled: true, active: bypass) { model.toggleMasterBypass(module) }
-                .frame(width: 100)
+                .frame(width: Layout.topButton)
         }
     }
 
@@ -206,6 +208,24 @@ struct MasterTitle: View {
 /// вверх-вниз — 240 px на весь диапазон, как у ручек (одна запись UNDO на жест); двойной тап без движения — ввод
 /// числом, как в EQ (решение пользователя; прежде — удержание 0,5 с); тап — tap (TYPE, RATIO — следующее значение;
 /// срабатывает, когда второго тапа не было за EqPlot.doubleTap).
+/// Вкл./выкл. в виде поля окна модуля (UNITY): подпись 9 px и ON / OFF, тап переключает.
+struct MasterToggleField: View {
+    let title: String
+    let on: Bool
+    let action: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(title).font(.system(size: 9)).tracking(0.8).foregroundStyle(theme.dim).lineLimit(1)
+            Text(on ? "ON" : "OFF").font(.system(size: 16)).lineLimit(1).foregroundStyle(theme.text)
+        }
+        .padding(.horizontal, 12)
+        .tile(theme.panel, alignment: .leading)
+        .contentShape(Rectangle())
+        .onTapGesture { action() }
+    }
+}
+
 struct MasterField: View {
     static let travel: CGFloat = 240
     let model: AppModel
