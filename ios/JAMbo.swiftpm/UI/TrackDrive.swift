@@ -31,9 +31,9 @@ final class TrackDrive {
     }
 }
 
-/// Полосы дорожек: белая линия — уровень дорожки (шкала −36…0 dBFS), с правого конца — полупрозрачные доли включённых
-/// кнопками модулей (COMP жёлтая, CLIP оранжевая, LIM красная; в порядке цепочки справа налево), длина — dB доли по той
-/// же шкале. Слева — номер дорожки 9 px --dim; заглушённые — серые.
+/// Полосы дорожек — вертикальные, как все метры: белая линия снизу вверх — уровень дорожки (шкала −36…0 dBFS),
+/// с верхнего конца вниз — полупрозрачные доли включённых кнопками модулей (COMP жёлтая, CLIP оранжевая, LIM красная;
+/// по цепочке сверху вниз), длина — dB доли по той же шкале. Под полосой — номер дорожки 9 px --dim; заглушённые — серые.
 struct TrackDriveView: View {
     let model: AppModel
     static let range: Float = 36
@@ -49,18 +49,17 @@ struct TrackDriveView: View {
     private func draw(_ ctx: GraphicsContext, _ size: CGSize) {
         let n: Int = min(model.project.tracks.count, Levels.master)
         if n == 0 { return }
-        let pad: CGFloat = 8
-        let left: CGFloat = 24
-        let bh: CGFloat = 9
-        let row: CGFloat = min(22, (size.height - 2 * pad) / CGFloat(n))
-        let top: CGFloat = (size.height - row * CGFloat(n)) / 2
-        let w: CGFloat = size.width - left - pad
+        let pad: CGFloat = 12
+        let label: CGFloat = 16
+        let bw: CGFloat = 9
+        let col: CGFloat = (size.width - 2 * pad) / CGFloat(n)
+        let h: CGFloat = size.height - pad - label
         let colors: [Color] = [theme.accent, theme.gr, theme.rec]
         let s: TrackDrive = model.trackDrive
         for t in 0..<n {
-            let y: CGFloat = top + row * CGFloat(t) + (row - bh) / 2
-            dimText(ctx, "\(t + 1)", CGPoint(x: left - 6, y: y + bh / 2), .trailing)
-            let bar = CGRect(x: left, y: y, width: w, height: bh)
+            let x: CGFloat = pad + col * (CGFloat(t) + 0.5) - bw / 2
+            dimText(ctx, "\(t + 1)", CGPoint(x: x + bw / 2, y: pad + h + 4), .top)
+            let bar = CGRect(x: x, y: pad, width: bw, height: h)
             let shape = Path(roundedRect: bar, cornerRadius: 3)
             ctx.fill(shape, with: .color(theme.meterTrack))
             let p: Float = model.meters.bars(t, stereo: false).first?.level ?? 0
@@ -70,18 +69,19 @@ struct TrackDriveView: View {
             let db: Float = 20 * log10(p)
             var cut: Float = 0
             for k in 0..<3 where model.scopeOn[k + 1] { cut += s.share[k][t] }
-            let solid: CGFloat = frac(db - cut) * w
+            let solid: CGFloat = frac(db - cut) * h
             let muted: Bool = !model.project.audible(t)
-            c.fill(Path(CGRect(x: left, y: y, width: solid, height: bh)), with: .color(muted ? theme.muteGrey : theme.text))
-            // Доли — от конца белой линии влево по порядку цепочки: COMP, затем CLIP, затем LIM.
+            c.fill(Path(CGRect(x: x, y: bar.maxY - solid, width: bw, height: solid)),
+                   with: .color(muted ? theme.muteGrey : theme.text))
+            // Доли — от верха белой линии вниз по порядку цепочки: COMP, затем CLIP, затем LIM.
             var acc: Float = 0
             for k in 0..<3 where model.scopeOn[k + 1] {
                 let v: Float = s.share[k][t]
                 if v <= 0.05 { continue }
-                let x1: CGFloat = left + frac(db - acc) * w
-                let x0: CGFloat = left + frac(db - acc - v) * w
+                let y0: CGFloat = bar.maxY - frac(db - acc) * h
+                let y1: CGFloat = bar.maxY - frac(db - acc - v) * h
                 acc += v
-                c.fill(Path(CGRect(x: x0, y: y, width: max(1, x1 - x0), height: bh)), with: .color(colors[k].opacity(0.5)))
+                c.fill(Path(CGRect(x: x, y: y0, width: bw, height: max(1, y1 - y0))), with: .color(colors[k].opacity(0.5)))
             }
         }
     }
