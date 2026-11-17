@@ -108,7 +108,7 @@ extension AppModel {
         }
         morphGlide = nil
         editMorph { p in
-            for i in p.tracks.indices where p.tracks[i].morphEdited { p.tracks[i].undoMorph() }
+            for i in p.tracks.indices where p.tracks[i].morphEdited { p.undoMorph(track: i) }
         }
     }
 
@@ -123,7 +123,7 @@ extension AppModel {
     func undoMorphEdits() {
         stopMorphGlide()
         editMorph { p in
-            for i in p.tracks.indices where p.tracks[i].morphEdited { p.tracks[i].undoMorph() }
+            for i in p.tracks.indices where p.tracks[i].morphEdited { p.undoMorph(track: i) }
         }
     }
 

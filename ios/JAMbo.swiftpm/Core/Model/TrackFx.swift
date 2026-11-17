@@ -61,3 +61,62 @@ extension Project {
         }
     }
 }
+
+// MARK: — MORPH эффектов дорожки (17.11): исходное — в Track.morphOrig под ключом «fx:» + id (возврат — в клип, который
+// тогда играет на дорожке), точка MORPH на дорожке и RETURN — как у ручек дорожки.
+
+extension Project {
+    static let morphFxKey: String = "fx:"
+
+    /// Ключ MORPH эффекта id (nil — не эффект дорожки).
+    public static func morphFxId(_ key: String) -> String? {
+        return key.hasPrefix(morphFxKey) ? String(key.dropFirst(morphFxKey.count)) : nil
+    }
+
+    /// Эффект id дорожки t меняют в режиме MORPH: исходное — при первом изменении.
+    public mutating func morphFx(track t: Int, _ id: String) {
+        guard t >= 0 && t < tracks.count else { return }
+        tracks[t].morphEdited = true
+        let key: String = Project.morphFxKey + id
+        if tracks[t].morphOrig[key] == nil { tracks[t].morphOrig[key] = fxValue(track: t, id) }
+    }
+
+    /// MORPH на все дорожки на сетке FX: эффект выбранной дорожки sel — на norm, у остальных дорожек с клипом — сдвиг
+    /// на ту же долю хода от их исходного (как morphShift у ручек).
+    public mutating func morphShiftFx(from sel: Int, def p: ParamDef, norm: Double) {
+        guard sel >= 0 && sel < tracks.count else { return }
+        let key: String = Project.morphFxKey + p.id
+        let o0: Double = tracks[sel].morphOrig[key] ?? fxValue(track: sel, p.id)
+        let delta: Double = norm - p.toNorm(o0)
+        for i in tracks.indices where i != sel && fxClip(i) >= 0 {
+            morphFx(track: i, p.id)
+            let o: Double = tracks[i].morphOrig[key] ?? fxValue(track: i, p.id)
+            let n: Double = Swift.min(1, Swift.max(0, p.toNorm(o) + delta))
+            setFx(track: i, p.id, p.fromNorm(n))
+        }
+    }
+
+    /// Вернуть всё, что меняли в режиме MORPH на дорожке i: эффекты — в клип, ручки и назначения — Track.undoMorph.
+    public mutating func undoMorph(track i: Int) {
+        guard i >= 0 && i < tracks.count else { return }
+        for (key, v) in tracks[i].morphOrig {
+            if let id = Project.morphFxId(key) { setFx(track: i, id, v) }
+        }
+        tracks[i].undoMorph()
+    }
+
+    /// Значение ключа MORPH на дорожке i сейчас (эффект — из клипа).
+    func morphValue(_ i: Int, _ key: String) -> Double? {
+        if let id = Project.morphFxId(key) { return fxValue(track: i, id) }
+        return tracks[i].params[key]
+    }
+
+    /// Поставить значение ключа MORPH на дорожке i.
+    mutating func setMorphValue(_ i: Int, _ key: String, _ v: Double) {
+        if let id = Project.morphFxId(key) {
+            setFx(track: i, id, v)
+        } else {
+            tracks[i].params[key] = v
+        }
+    }
+}

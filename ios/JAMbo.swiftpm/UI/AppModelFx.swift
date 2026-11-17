@@ -64,24 +64,6 @@ extension AppModel {
         }
     }
 
-    /// MORPH на все дорожки (SHIFT + MORPH) на сетке FX: эффект выбранной дорожки — значение v, у остальных дорожек с
-    /// клипом — сдвиг на ту же долю хода от их значения (эффекты у каждой дорожки свои, 17.11).
-    func setFxAll(_ p: ParamDef, _ v: Double) {
-        let i: Int = selectedTrack
-        let dn: Double = p.toNorm(v) - p.toNorm(project.fxValue(track: i, p.id))
-        edit { pr in
-            for t in pr.tracks.indices {
-                if t == i {
-                    pr.setFx(track: t, p.id, v)
-                    continue
-                }
-                if pr.fxClip(t) < 0 { continue }
-                let n: Double = min(1, max(0, p.toNorm(pr.fxValue(track: t, p.id)) + dn))
-                pr.setFx(track: t, p.id, p.fromNorm(n))
-            }
-        }
-    }
-
     // MARK: — по темпу: SHIFT + тап по Dly Time и по Speed LFO
 
     /// Время Delay по темпу (Dly Sync; по умолчанию — да).

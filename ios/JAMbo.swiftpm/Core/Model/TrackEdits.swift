@@ -418,7 +418,7 @@ extension Track {
 
     /// Вернуть всё, что меняли в режиме MORPH (p-lock шагов не трогаются).
     public mutating func undoMorph() {
-        for (id, v) in morphOrig { params[id] = v }
+        for (id, v) in morphOrig where Project.morphFxId(id) == nil { params[id] = v }
         for (id, a) in morphOrigAssign {
             if let x = a { assigns[id] = x } else { assigns.removeValue(forKey: id) }
         }

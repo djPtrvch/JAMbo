@@ -46,8 +46,22 @@ extension Project {
     /// накручено в режиме MORPH (значения, назначения и их исходные); исходное — из снимка (к нему MORPH вернётся).
     public mutating func keepMorph(from cur: Project) {
         for i in tracks.indices {
-            guard let c = cur.tracks.first(where: { $0.id == tracks[i].id }) else { continue }
+            guard let ci = cur.tracks.firstIndex(where: { $0.id == tracks[i].id }) else { continue }
+            let c: Track = cur.tracks[ci]
+            // Эффекты (ключи «fx:»): исходное — снимка без его MORPH, сейчас — как у текущего.
+            var fxOrig: [String: Double] = [:]
+            for (key, _) in c.morphOrig {
+                guard Project.morphFxId(key) != nil else { continue }
+                fxOrig[key] = tracks[i].morphOrig[key] ?? morphValue(i, key) ?? 0
+            }
+            for (key, b) in tracks[i].morphOrig where Project.morphFxId(key) != nil && c.morphOrig[key] == nil {
+                setMorphValue(i, key, b)
+            }
+            for (key, _) in c.morphOrig {
+                if Project.morphFxId(key) != nil, let v = cur.morphValue(ci, key) { setMorphValue(i, key, v) }
+            }
             tracks[i].keepMorph(from: c)
+            for (key, v) in fxOrig { tracks[i].morphOrig[key] = v }
         }
     }
 }
@@ -56,11 +70,11 @@ extension Track {
     /// Снимок дорожки (self) с MORPH дорожки cur: исходное — значение снимка без его MORPH, сейчас — как у cur.
     public mutating func keepMorph(from cur: Track) {
         var orig: [String: Double] = [:]
-        for (id, _) in cur.morphOrig {
+        for (id, _) in cur.morphOrig where Project.morphFxId(id) == nil {
             orig[id] = morphOrig[id] ?? params[id] ?? Params.byId[id]?.def ?? 0
         }
-        for (id, b) in morphOrig where cur.morphOrig[id] == nil { params[id] = b }
-        for (id, _) in cur.morphOrig { params[id] = cur.params[id] }
+        for (id, b) in morphOrig where cur.morphOrig[id] == nil && Project.morphFxId(id) == nil { params[id] = b }
+        for (id, _) in cur.morphOrig where Project.morphFxId(id) == nil { params[id] = cur.params[id] }
         var origA: [String: ModAssign?] = [:]
         for (id, _) in cur.morphOrigAssign {
             if let a = morphOrigAssign[id] { origA[id] = a } else { origA[id] = .some(assigns[id]) }
@@ -81,9 +95,9 @@ extension Project {
     /// Что вернуть при выключении MORPH: изменённые ручки всех дорожек.
     public func morphReturnPoints() -> [MorphPoint] {
         var out: [MorphPoint] = []
-        for t in tracks where t.morphEdited {
+        for (i, t) in tracks.enumerated() where t.morphEdited {
             for (id, to) in t.morphOrig {
-                let from: Double = t.params[id] ?? to
+                let from: Double = morphValue(i, id) ?? to
                 if from != to { out.append(MorphPoint(track: t.id, param: id, from: from, to: to)) }
             }
         }
@@ -94,10 +108,11 @@ extension Project {
     public mutating func applyMorphReturn(_ pts: [MorphPoint], _ f: Double) {
         let k: Double = Swift.min(1, Swift.max(0, f))
         for pt in pts {
-            guard let i = tracks.firstIndex(where: { $0.id == pt.track }), let p = Params.byId[pt.param] else { continue }
+            let pid: String = Project.morphFxId(pt.param) ?? pt.param
+            guard let i = tracks.firstIndex(where: { $0.id == pt.track }), let p = Params.byId[pid] else { continue }
             let a: Double = p.toNorm(pt.from)
             let b: Double = p.toNorm(pt.to)
-            tracks[i].params[pt.param] = k >= 1 ? pt.to : p.fromNorm(a + (b - a) * k)
+            setMorphValue(i, pt.param, k >= 1 ? pt.to : p.fromNorm(a + (b - a) * k))
         }
     }
 }

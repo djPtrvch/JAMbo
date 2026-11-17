@@ -242,8 +242,19 @@ extension AppModel {
         }
         let held = heldSteps
         if held.isEmpty && fxMode {
-            // SHIFT + MORPH (все дорожки): Reverb, Delay, Drive — у всех дорожек на ту же долю хода.
-            if morphAllNow && Project.trackFx(p.id) { setFxAll(p, v) } else { setFx(p, v) }
+            // MORPH (17.11): Reverb, Delay, Drive — как ручки дорожки (исходное, точка, RETURN; без UNDO); SHIFT + MORPH —
+            // у всех дорожек на ту же долю хода.
+            if morph && Project.trackFx(p.id) {
+                let all: Bool = morphAllNow
+                let i: Int = selectedTrack
+                editMorph { pr in
+                    pr.morphFx(track: i, p.id)
+                    pr.setFx(track: i, p.id, v)
+                    if all { pr.morphShiftFx(from: i, def: p, norm: norm) }
+                }
+            } else {
+                setFx(p, v)
+            }
         } else if held.isEmpty {
             // REC + PLAY + AUTO: поворот пишет кривую ручки (S15f3); сама ручка после записи — прежняя.
             let rec: Bool = !modMode && autoRecording(p.id)
