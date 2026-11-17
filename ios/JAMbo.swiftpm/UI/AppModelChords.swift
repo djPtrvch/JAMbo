@@ -43,6 +43,15 @@ extension AppModel {
         return drumRoleOf(track) != nil
     }
 
+    /// DRUM STEP PAINT (17.11): ударный движок (KICK, SNARE, HAT, CLAP, PERC) или сэмпл (одиночные удары — хэты,
+    /// перкуссия по любому имени файла); синты — длинная нота.
+    var paintTrack: Bool {
+        guard channel == .track else { return false }
+        let t: Track = track
+        if drumRoleOf(t) != nil { return true }
+        return !t.sample.isEmpty && SynthKey.engine(t.sample) == nil
+    }
+
     /// Дорожка с нарезанным сэмплом при SETTINGS → RANDOM → SAMPLES: у CHORD — RANDOM и стили, как у ударной.
     var sliceTrack: Bool {
         guard channel == .track, settings.randomSamples else { return false }

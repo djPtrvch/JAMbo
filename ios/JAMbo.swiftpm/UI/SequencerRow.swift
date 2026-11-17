@@ -88,12 +88,12 @@ struct SequencerRow: View {
         model.beginGesture()
     }
 
-    /// Палец по шагам вправо — длинная нота от первого шага; на ударной дорожке при DRUM STEP PAINT (17.11) — триг
+    /// Палец по шагам вправо — длинная нота от первого шага; на ударной дорожке и дорожке сэмпла при DRUM STEP PAINT (17.11) — триг
     /// на каждом пройденном шаге (в обе стороны; пропущенные при быстром движении — тоже).
     private func move(_ id: SpatialEventCollection.Event.ID, _ p: StepPress, to col: Int) {
         if p.secondary { return }
         if col == p.col && !p.dragged { return }
-        if model.drumTrack && model.settings.drumPaint {
+        if model.paintTrack && model.settings.drumPaint {
             presses[id]?.dragged = true
             presses[id]?.used = true
             let base: Int = p.index - p.col

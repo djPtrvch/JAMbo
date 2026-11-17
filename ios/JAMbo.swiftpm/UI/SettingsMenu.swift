@@ -158,7 +158,7 @@ struct RecordSettingsView: View {
                       MenuChoice(title: "BEGINNING", current: m.settings.record.arrFromStart) { m.updateSettings { $0.record.arrFromStart = true } }]),
             .note("Live recording into the arrangement (hold ARRANGE + tap REC, then PLAY in the pattern grid): PLAYHEAD — from the playhead. BEGINNING — always from the start of the timeline."),
             .toggle("DRUM STEP PAINT", m.settings.drumPaint) { v in m.updateSettings { $0.drumPaint = v } },
-            .note("Drum tracks: sliding a finger along the steps puts a trig on every step you pass. OFF — one long note, as on other tracks."),
+            .note("Drum and sample tracks: sliding a finger along the steps puts a trig on every step you pass. OFF — one long note, as on synth tracks."),
             .view(AnyView(MetronomeSlider(model: m))),
             .note("Click volume: 100% — the usual level, up to 200%."),
         ])
