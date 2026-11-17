@@ -427,8 +427,6 @@ final class AppModel {
         set { put(\.audioStarted, \._audioStarted, newValue, observedChanged(_audioStarted, newValue)) }
     }
     @ObservationIgnored private var pump: Timer?
-    /// Сколько всего насос drain() занял главный поток, нс (замер графики, CPUIndicator).
-    @ObservationIgnored var pumpNs: UInt64 = 0
     /// Измеритель и метры MIX (читают виды по таймеру анимации; не наблюдается).
     @ObservationIgnored let meters = MeterState()
     /// Измеритель справа спит (17.11): канал молчит, подписи не меняются — анимация на паузе, оживает на звук.
@@ -489,10 +487,7 @@ final class AppModel {
         audio.core.events.push(.tempo(project.bpm))
         audio.core.events.push(.metronomeGain(Float(settings.metronomeVol / 100)))
         let timer = Timer(timeInterval: 1.0 / 60, repeats: true) { [weak self] _ in
-            guard let s = self else { return }
-            let t0: UInt64 = DispatchTime.now().uptimeNanoseconds
-            s.drain()
-            s.pumpNs &+= DispatchTime.now().uptimeNanoseconds &- t0
+            self?.drain()
         }
         RunLoop.main.add(timer, forMode: .common)
         pump = timer

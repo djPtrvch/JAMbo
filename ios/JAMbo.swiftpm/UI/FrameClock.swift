@@ -74,8 +74,7 @@ struct FrameContext {
     let date: Date
 }
 
-/// Замена TimelineView(.animation) на общих часах: fps — 60, 30 или 10; paused — вид не подписан на часы (проба A —
-/// все стоят, проба H — вдвое реже).
+/// Замена TimelineView(.animation) на общих часах: fps — 60, 30 или 10; paused — вид не подписан на часы.
 struct FrameTimeline<Content: View>: View {
     let fps: Int
     let paused: Bool
@@ -88,10 +87,7 @@ struct FrameTimeline<Content: View>: View {
     }
 
     var body: some View {
-        if !paused && !LoadAnim.stop {
-            let half: Bool = LoadProbe.shared.mode == LoadProbe.half
-            _ = FrameClock.shared.tick(half ? fps / 2 : fps)
-        }
+        if !paused { _ = FrameClock.shared.tick(fps) }
         return content(FrameContext(date: Date()))
     }
 }

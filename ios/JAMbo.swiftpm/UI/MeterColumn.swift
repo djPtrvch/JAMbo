@@ -13,8 +13,8 @@ struct MeterColumn: View {
     /// Ход пальца на всю шкалу регулятора, pt.
     static let travel: CGFloat = 240
 
-    /// Измеритель спит или заморожен пробой — анимация на паузе.
-    private var paused: Bool { return model.meterAsleep || LoadProbe.shared.freezeMeter || LoadAnim.stop }
+    /// Измеритель спит — анимация на паузе.
+    private var paused: Bool { return model.meterAsleep }
 
     // Нагрузка (17.11): 60 раз в секунду обновляются только полосы; подписи и метка клиппинга — 10 раз в секунду;
     // регулятор, жест и MIDI — вне анимации (только когда меняются).
