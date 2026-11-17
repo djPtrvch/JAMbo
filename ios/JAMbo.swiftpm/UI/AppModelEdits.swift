@@ -242,7 +242,8 @@ extension AppModel {
         }
         let held = heldSteps
         if held.isEmpty && fxMode {
-            setFx(p, v)
+            // SHIFT + MORPH (все дорожки): Reverb, Delay, Drive — у всех дорожек на ту же долю хода.
+            if morphAllNow && Project.trackFx(p.id) { setFxAll(p, v) } else { setFx(p, v) }
         } else if held.isEmpty {
             // REC + PLAY + AUTO: поворот пишет кривую ручки (S15f3); сама ручка после записи — прежняя.
             let rec: Bool = !modMode && autoRecording(p.id)
