@@ -1,5 +1,6 @@
 import SwiftUI
 import Darwin
+import Observation
 
 /// Индикатор нагрузки, обновление 4 раза в секунду (17.11 — замер графики, на пробу), доли одного ядра:
 /// CPU — аудиоколбэк; PUMP — насос drain() (60 раз в секунду переносит сообщения звука в состояние интерфейса);
@@ -21,14 +22,25 @@ struct CPUIndicator: View {
         return VStack(spacing: 1) {
             Text("CPU \(cpu)%").foregroundStyle(high ? theme.rec : theme.dim)
             Text("PUMP \(pump)%").foregroundStyle(theme.dim)
-            Text("VIEW \(view)%").foregroundStyle(theme.dim)
+            Text("VIEW \(view)%").foregroundStyle(LoadProbe.shared.freezeMeter ? theme.accent : theme.dim)
         }
         .font(.system(size: 9)).monospacedDigit()
         .frame(width: 48, height: 48)
+        .contentShape(Rectangle())
+        // Проба (17.11): тап — заморозить измеритель справа и обратно (VIEW жёлтым — заморожен).
+        .onTapGesture { LoadProbe.shared.freezeMeter.toggle() }
         // По центру между низом значка наушников (~12 pt от верха панели) и надписью LUFS (верх панели + её высота
         // 44 + зазор 6 = 50 pt): центр подписей — на 31 pt (блок 48 от верха панели, его середина 24, + 7).
         .offset(y: 7)
     }
+}
+
+/// Пробы замера графики (17.11): что выключить, чтобы сравнить VIEW.
+@Observable
+final class LoadProbe {
+    static let shared = LoadProbe()
+    /// Измеритель справа не обновляется (тап по индикатору CPU).
+    var freezeMeter: Bool = false
 }
 
 /// Нагрузка главного потока по времени потока (main) и доля насоса (pump), проценты одного ядра
