@@ -5,11 +5,11 @@ import Observation
 @Observable
 final class LiveState {
     // Свойства простых типов — вручную, без макроса (как в AppModel, AppModelObserved.swift; S14, объём сборки).
-    private func put<T>(_ key: KeyPath<LiveState, T>, _ slot: ReferenceWritableKeyPath<LiveState, T>, _ value: T, _ notify: Bool) {
+    private func put<T>(_ slot: ReferenceWritableKeyPath<LiveState, T>, _ value: T, _ notify: Bool) {
         if notify {
-            _$observationRegistrar.willSet(self, keyPath: key)
+            _$observationRegistrar.willSet(self, keyPath: slot)
             self[keyPath: slot] = value
-            _$observationRegistrar.didSet(self, keyPath: key)
+            _$observationRegistrar.didSet(self, keyPath: slot)
         } else {
             self[keyPath: slot] = value
         }
@@ -25,18 +25,18 @@ final class LiveState {
     /// Доля от старта (для полосы фазы и мигания метронома); −1 — стоп.
     @ObservationIgnored private var _beat: Int = -1
     private(set) var beat: Int {
-        get { access(keyPath: \.beat); return _beat }
-        set { put(\.beat, \._beat, newValue, observedChanged(_beat, newValue)) }
+        get { access(keyPath: \._beat); return _beat }
+        set { put(\._beat, newValue, observedChanged(_beat, newValue)) }
     }
     @ObservationIgnored private var _beatFlash: Bool = false
     private(set) var beatFlash: Bool {
-        get { access(keyPath: \.beatFlash); return _beatFlash }
-        set { put(\.beatFlash, \._beatFlash, newValue, observedChanged(_beatFlash, newValue)) }
+        get { access(keyPath: \._beatFlash); return _beatFlash }
+        set { put(\._beatFlash, newValue, observedChanged(_beatFlash, newValue)) }
     }
     @ObservationIgnored private var _beatAccent: Bool = false
     private(set) var beatAccent: Bool {
-        get { access(keyPath: \.beatAccent); return _beatAccent }
-        set { put(\.beatAccent, \._beatAccent, newValue, observedChanged(_beatAccent, newValue)) }
+        get { access(keyPath: \._beatAccent); return _beatAccent }
+        set { put(\._beatAccent, newValue, observedChanged(_beatAccent, newValue)) }
     }
     @ObservationIgnored private var flashUntil: [Double] = [Double](repeating: 0, count: Params.maxTracks)
     @ObservationIgnored private var beatUntil: Double = 0
@@ -57,14 +57,14 @@ final class LiveState {
     /// Растёт, когда прошёл шаг (для полос хода в сетке паттернов).
     @ObservationIgnored private var _stepSerial: Int = 0
     private(set) var stepSerial: Int {
-        get { access(keyPath: \.stepSerial); return _stepSerial }
-        set { put(\.stepSerial, \._stepSerial, newValue, observedChanged(_stepSerial, newValue)) }
+        get { access(keyPath: \._stepSerial); return _stepSerial }
+        set { put(\._stepSerial, newValue, observedChanged(_stepSerial, newValue)) }
     }
     /// Аранжировщик (S15): курсор (шаги) и дорожки, которые идут по таймлайну.
     @ObservationIgnored private var _arrPos: Int = 0
     private(set) var arrPos: Int {
-        get { access(keyPath: \.arrPos); return _arrPos }
-        set { put(\.arrPos, \._arrPos, newValue, observedChanged(_arrPos, newValue)) }
+        get { access(keyPath: \._arrPos); return _arrPos }
+        set { put(\._arrPos, newValue, observedChanged(_arrPos, newValue)) }
     }
     private(set) var following: [Bool] = [Bool](repeating: false, count: Params.maxTracks)
     /// Тик транспорта от PLAY (шаги; −1 — ещё не было) и журнал запусков клипов в сетке (S15e, SEND TO ARRANGE).

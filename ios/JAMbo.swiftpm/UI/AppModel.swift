@@ -13,11 +13,11 @@ enum Channel: Equatable {
 final class AppModel {
     // Свойства простых типов — вручную, без макроса (AppModelObserved.swift): put — запись с уведомлением, как
     // withMutation макроса; observedChanged — изменилось ли значение (AppModelObserved.swift).
-    func put<T>(_ key: KeyPath<AppModel, T>, _ slot: ReferenceWritableKeyPath<AppModel, T>, _ value: T, _ notify: Bool) {
+    func put<T>(_ slot: ReferenceWritableKeyPath<AppModel, T>, _ value: T, _ notify: Bool) {
         if notify {
-            _$observationRegistrar.willSet(self, keyPath: key)
+            _$observationRegistrar.willSet(self, keyPath: slot)
             self[keyPath: slot] = value
-            _$observationRegistrar.didSet(self, keyPath: key)
+            _$observationRegistrar.didSet(self, keyPath: slot)
         } else {
             self[keyPath: slot] = value
         }
@@ -55,17 +55,17 @@ final class AppModel {
     }
     @ObservationIgnored private var _channel: Channel = .track
     private(set) var channel: Channel {
-        get { access(keyPath: \.channel); return _channel }
-        set { put(\.channel, \._channel, newValue, observedChanged(_channel, newValue)) }
+        get { access(keyPath: \._channel); return _channel }
+        set { put(\._channel, newValue, observedChanged(_channel, newValue)) }
     }
     @ObservationIgnored var _viewPage: Int = 0
     /// Секвенсор показывает все играющие страницы (если открытая среди них); удержание миниатюры — одну.
     @ObservationIgnored var _spanView: Bool = true
     @ObservationIgnored private var _playing: Bool = false
     private(set) var playing: Bool {
-        get { access(keyPath: \.playing); return _playing }
+        get { access(keyPath: \._playing); return _playing }
         set {
-            put(\.playing, \._playing, newValue, observedChanged(_playing, newValue))
+            put(\._playing, newValue, observedChanged(_playing, newValue))
             if inBackground { syncBackgroundAudio() }
         }
     }
@@ -73,8 +73,8 @@ final class AppModel {
     @ObservationIgnored var inBackground = false
     @ObservationIgnored private var _metronome: Bool = false
     private(set) var metronome: Bool {
-        get { access(keyPath: \.metronome); return _metronome }
-        set { put(\.metronome, \._metronome, newValue, observedChanged(_metronome, newValue)) }
+        get { access(keyPath: \._metronome); return _metronome }
+        set { put(\._metronome, newValue, observedChanged(_metronome, newValue)) }
     }
     /// Зажатые шаги (индекс p·16 + s) — белый контур; с ними ручки ставят p-lock.
     @ObservationIgnored var _heldSteps: Set<Int> = []
@@ -423,8 +423,8 @@ final class AppModel {
     @ObservationIgnored var _hasTrackClip: Bool = false
     @ObservationIgnored private var _audioStarted: Bool = false
     private var audioStarted: Bool {
-        get { access(keyPath: \.audioStarted); return _audioStarted }
-        set { put(\.audioStarted, \._audioStarted, newValue, observedChanged(_audioStarted, newValue)) }
+        get { access(keyPath: \._audioStarted); return _audioStarted }
+        set { put(\._audioStarted, newValue, observedChanged(_audioStarted, newValue)) }
     }
     @ObservationIgnored private var pump: Timer?
     /// Измеритель и метры MIX (читают виды по таймеру анимации; не наблюдается).
@@ -712,13 +712,13 @@ final class AppModel {
     /// Есть что отменить или вернуть (для серых UNDO / REDO).
     @ObservationIgnored private var _canUndo: Bool = false
     private(set) var canUndo: Bool {
-        get { access(keyPath: \.canUndo); return _canUndo }
-        set { put(\.canUndo, \._canUndo, newValue, observedChanged(_canUndo, newValue)) }
+        get { access(keyPath: \._canUndo); return _canUndo }
+        set { put(\._canUndo, newValue, observedChanged(_canUndo, newValue)) }
     }
     @ObservationIgnored private var _canRedo: Bool = false
     private(set) var canRedo: Bool {
-        get { access(keyPath: \.canRedo); return _canRedo }
-        set { put(\.canRedo, \._canRedo, newValue, observedChanged(_canRedo, newValue)) }
+        get { access(keyPath: \._canRedo); return _canRedo }
+        set { put(\._canRedo, newValue, observedChanged(_canRedo, newValue)) }
     }
 
     /// Дискретное действие: одна запись в UNDO (внутри жеста — запись в конце жеста).

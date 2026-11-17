@@ -27,11 +27,11 @@ struct RecTake: Equatable {
 @Observable
 final class SampleRec {
     // Свойства простых типов — вручную, без макроса (как в AppModel, AppModelObserved.swift; S14, объём сборки).
-    private func put<T>(_ key: KeyPath<SampleRec, T>, _ slot: ReferenceWritableKeyPath<SampleRec, T>, _ value: T, _ notify: Bool) {
+    private func put<T>(_ slot: ReferenceWritableKeyPath<SampleRec, T>, _ value: T, _ notify: Bool) {
         if notify {
-            _$observationRegistrar.willSet(self, keyPath: key)
+            _$observationRegistrar.willSet(self, keyPath: slot)
             self[keyPath: slot] = value
-            _$observationRegistrar.didSet(self, keyPath: key)
+            _$observationRegistrar.didSet(self, keyPath: slot)
         } else {
             self[keyPath: slot] = value
         }
@@ -40,33 +40,33 @@ final class SampleRec {
     /// Меню RECORD FROM: рамка кнопки REC («root»); nil — закрыто.
     @ObservationIgnored private var _menu: CGRect? = nil
     var menu: CGRect? {
-        get { access(keyPath: \.menu); return _menu }
-        set { put(\.menu, \._menu, newValue, observedChanged(_menu, newValue)) }
+        get { access(keyPath: \._menu); return _menu }
+        set { put(\._menu, newValue, observedChanged(_menu, newValue)) }
     }
     var ports: [InputPort] = []
     @ObservationIgnored private var _take: RecTake? = nil
     var take: RecTake? {
-        get { access(keyPath: \.take); return _take }
-        set { put(\.take, \._take, newValue, observedChanged(_take, newValue)) }
+        get { access(keyPath: \._take); return _take }
+        set { put(\._take, newValue, observedChanged(_take, newValue)) }
     }
     /// Секунд записано (меняется раз в секунду — строка и кнопка).
     @ObservationIgnored private var _seconds: Int = 0
     var seconds: Int {
-        get { access(keyPath: \.seconds); return _seconds }
-        set { put(\.seconds, \._seconds, newValue, observedChanged(_seconds, newValue)) }
+        get { access(keyPath: \._seconds); return _seconds }
+        set { put(\._seconds, newValue, observedChanged(_seconds, newValue)) }
     }
     var peaks = RecPeaks()
     /// Ошибка начала записи (окно с сообщением).
     @ObservationIgnored private var _error: String? = nil
     var error: String? {
-        get { access(keyPath: \.error); return _error }
-        set { put(\.error, \._error, newValue, observedChanged(_error, newValue)) }
+        get { access(keyPath: \._error); return _error }
+        set { put(\._error, newValue, observedChanged(_error, newValue)) }
     }
     /// Рамка SCALE верхней панели («root»): кнопки редактора сэмпла начинаются от её левого края.
     @ObservationIgnored private var _scaleFrame: CGRect = .zero
     var scaleFrame: CGRect {
-        get { access(keyPath: \.scaleFrame); return _scaleFrame }
-        set { put(\.scaleFrame, \._scaleFrame, newValue, observedChanged(_scaleFrame, newValue)) }
+        get { access(keyPath: \._scaleFrame); return _scaleFrame }
+        set { put(\._scaleFrame, newValue, observedChanged(_scaleFrame, newValue)) }
     }
 }
 
