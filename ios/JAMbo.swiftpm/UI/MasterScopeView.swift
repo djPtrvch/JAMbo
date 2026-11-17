@@ -114,7 +114,7 @@ final class ScopeState {
     }
 }
 
-/// Скоп при MST на месте миниатюр страниц: сверху (17.11) вклад дорожек (TrackDriveView; при MIX — гониометр: конечный выход мастера; точки L/R, повёрнутые на 45°:
+/// Скоп при MST на месте миниатюр страниц: сверху (17.11) история GR модулей (GrHistoryView; при MIX — гониометр: конечный выход мастера; точки L/R, повёрнутые на 45°:
 /// вертикаль — mid, горизонталь — side; послесвечение — старые отсчёты окна бледнее), под ним осциллоскоп (бегущая
 /// форма волны за ~1 с, справа — новое; SAT белая всегда, COMP жёлтая, CLIP оранжевая, LIM красная — кнопками,
 /// полупрозрачные 60 %, SAT снизу, LIM сверху; COMP, CLIP, LIM по умолчанию выключены).
@@ -131,9 +131,9 @@ struct MasterScopeView: View {
             let extra: CGFloat = taps ? 0 : 2 * Layout.pairHeight + 2 * Layout.gap
             let h: CGFloat = geo.size.height - extra - gap
             VStack(spacing: gap) {
-                // При MST на месте гониометра — вклад дорожек в работу COMP, CLIP, LIM (17.11).
+                // При MST на месте гониометра — история GR модулей COMP, CLIP, LIM (17.11).
                 if taps {
-                    TrackDriveView(model: model).frame(height: h * 0.6)
+                    GrHistoryView(model: model).frame(height: h * 0.6)
                 } else {
                     panel { ctx, size in drawGonio(ctx, size) }.frame(height: h * 0.6)
                 }
