@@ -188,9 +188,10 @@ final class AudioHost {
     }
 
     /// Проверка многоядерного режима: N Reverb на шуме, режимы 1 поток, +1, +2, +3 помощника (по 4 с).
-    func runSpike(reverbs: Int) {
+    func runSpike(reverbs: Int, workgroup: Bool) {
         if !engine.isRunning || spike.running { return }
-        spike.start(jobs: reverbs, workgroup: engine.outputNode.auAudioUnit.osWorkgroup)
+        let wg: UnsafeMutableRawPointer? = WorkgroupApi.outputGroup(engine.outputNode.audioUnit)
+        spike.start(jobs: reverbs, workgroup: wg, useGroup: workgroup)
     }
 
     /// Время хоста сейчас (с) и задержка выхода (с) — для записи нот: что слышно сейчас.

@@ -1,7 +1,7 @@
 import AVFoundation
 import Foundation
 import Synchronization
-import os
+import AudioToolbox
 
 /// Проверка многоядерного режима (17.11, спайк перед эффектами на каждой дорожке): сколько стоит разнести работу
 /// колбэка по нескольким потокам реального времени в аудио-группе (Audio Workgroup) выхода.
@@ -9,6 +9,38 @@ import os
 /// с 1, 2 и 3 помощниками. Задания (по одному Reverb) разбирают по очереди колбэк и помощники через атомарный счётчик:
 /// помощник не проснулся — всё досчитает колбэк. Строки результата — в SETTINGS → AUDIO ENGINE.
 /// После решения по многоядерному режиму файл и кнопки удаляются.
+/// Аудио-группа: в Swift API os_workgroup и AUAudioUnit.osWorkgroup закрыты («Swift is not supported for use with
+/// audio realtime threads»). Для проверки: группа — свойством выхода kAudioOutputUnitProperty_OSWorkgroup (2015)
+/// через AudioUnitGetProperty, функции os_workgroup_* — через dlsym (публичные функции libSystem). WORKGROUP OFF —
+/// помощники только потоки реального времени, без группы.
+
+/// Функции аудио-группы из libSystem (dlsym): join(wg, token), leave(wg, token), max_parallel_threads(wg, attr).
+struct WorkgroupApi {
+    typealias JoinFn = @convention(c) (UnsafeMutableRawPointer, UnsafeMutableRawPointer) -> Int32
+    typealias LeaveFn = @convention(c) (UnsafeMutableRawPointer, UnsafeMutableRawPointer) -> Void
+    typealias MaxFn = @convention(c) (UnsafeMutableRawPointer, UnsafeMutableRawPointer?) -> Int32
+    let join: JoinFn
+    let leave: LeaveFn
+    let maxThreads: MaxFn
+
+    static func load() -> WorkgroupApi? {
+        let all = UnsafeMutableRawPointer(bitPattern: -2)
+        guard let j = dlsym(all, "os_workgroup_join"),
+              let l = dlsym(all, "os_workgroup_leave"),
+              let m = dlsym(all, "os_workgroup_max_parallel_threads") else { return nil }
+        return WorkgroupApi(join: unsafeBitCast(j, to: JoinFn.self), leave: unsafeBitCast(l, to: LeaveFn.self),
+                            maxThreads: unsafeBitCast(m, to: MaxFn.self))
+    }
+
+    /// Аудио-группа выхода (свойство 2015 — kAudioOutputUnitProperty_OSWorkgroup); нет — nil.
+    static func outputGroup(_ unit: AudioUnit?) -> UnsafeMutableRawPointer? {
+        guard let u = unit else { return nil }
+        var wg: UnsafeMutableRawPointer? = nil
+        var size = UInt32(MemoryLayout<UnsafeMutableRawPointer?>.size)
+        let r: OSStatus = AudioUnitGetProperty(u, AudioUnitPropertyID(2015), kAudioUnitScope_Global, 0, &wg, &size)
+        return r == noErr ? wg : nil
+    }
+}
 final class MultiCoreSpike: @unchecked Sendable {
     static let maxJobs: Int = 16
     static let maxFrames: Int = 4096
@@ -54,6 +86,7 @@ final class MultiCoreSpike: @unchecked Sendable {
     private(set) var maxThreads: Int = 0
     private(set) var loadJobs: Int = 0
     private(set) var note: String = ""
+    private var api: WorkgroupApi? = nil
 
     private let scale: Double
     private let sr: Double = AudioCore.sampleRate
@@ -112,7 +145,7 @@ final class MultiCoreSpike: @unchecked Sendable {
     }
 
     /// Запуск (главный поток): помощники входят в аудио-группу выхода и ждут заданий.
-    func start(jobs j: Int, workgroup: WorkGroup?) {
+    func start(jobs j: Int, workgroup: UnsafeMutableRawPointer?, useGroup: Bool) {
         if state.load(ordering: .acquiring) == 1 { return }
         quit.store(0, ordering: .releasing)
         joinedOk.store(0, ordering: .relaxed)
@@ -126,8 +159,15 @@ final class MultiCoreSpike: @unchecked Sendable {
         modeFrames = 0
         maxThreads = 0
         note = ""
-        if let wg = workgroup {
-            maxThreads = Int(os_workgroup_max_parallel_threads(wg, nil))
+        api = WorkgroupApi.load()
+        var group: UnsafeMutableRawPointer? = nil
+        if !useGroup {
+            note = "workgroup off"
+        } else if api == nil {
+            note = "no workgroup functions"
+        } else if let wg = workgroup, let a = api {
+            maxThreads = Int(a.maxThreads(wg, nil))
+            group = wg
         } else {
             note = "no workgroup"
         }
@@ -136,7 +176,7 @@ final class MultiCoreSpike: @unchecked Sendable {
             let s = DispatchSemaphore(value: 0)
             sems.append(s)
             semPtr[k] = s
-            let t = Thread { [unowned self] in self.helperLoop(s, workgroup) }
+            let t = Thread { [unowned self] in self.helperLoop(s, group) }
             t.name = "JAMbo helper \(k + 1)"
             t.qualityOfService = .userInteractive
             t.stackSize = 1 << 19
@@ -155,12 +195,14 @@ final class MultiCoreSpike: @unchecked Sendable {
         sems = []
     }
 
-    private func helperLoop(_ sem: DispatchSemaphore, _ wg: WorkGroup?) {
+    private func helperLoop(_ sem: DispatchSemaphore, _ wg: UnsafeMutableRawPointer?) {
         if !makeRealtime() { rtFailed.wrappingAdd(1, ordering: .relaxed) }
-        var token = os_workgroup_join_token_s()
+        // Токен входа (os_workgroup_join_token_s — 40 байт; с запасом).
+        let token = UnsafeMutableRawPointer.allocate(byteCount: 128, alignment: 16)
+        token.initializeMemory(as: UInt8.self, repeating: 0, count: 128)
         var joined = false
-        if let g = wg {
-            let r: Int32 = os_workgroup_join(g, &token)
+        if let g = wg, let a = api {
+            let r: Int32 = a.join(g, token)
             if r == 0 {
                 joined = true
                 joinedOk.wrappingAdd(1, ordering: .relaxed)
@@ -174,7 +216,8 @@ final class MultiCoreSpike: @unchecked Sendable {
             let n: Int = runJobs()
             if n > 0 { helperJobs.wrappingAdd(n, ordering: .relaxed) }
         }
-        if joined, let g = wg { os_workgroup_leave(g, &token) }
+        if joined, let g = wg, let a = api { a.leave(g, token) }
+        token.deallocate()
     }
 
     /// Поток реального времени (как аудиопоток): период — блок 256 отсчётов, расчёт — до половины.
