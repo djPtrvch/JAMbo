@@ -1,28 +1,27 @@
 import SwiftUI
 import Darwin
 
-/// Индикатор нагрузки, обновление 4 раза в секунду (17.11 — замер графики, на пробу):
-/// CPU — средняя нагрузка аудиоколбэка (доля одного ядра);
-/// UI — главный поток (SwiftUI: виды, раскладка, Canvas, жесты), доля одного ядра;
-/// APP — всё приложение (все потоки, может быть больше 100 %).
+/// Индикатор нагрузки, обновление 4 раза в секунду (17.11 — замер графики, на пробу), доли одного ядра:
+/// CPU — аудиоколбэк; PUMP — насос drain() (60 раз в секунду переносит сообщения звука в состояние интерфейса);
+/// VIEW — остальное время главного потока (SwiftUI: виды, раскладка, Canvas, жесты).
 /// Отрисовку слоёв на GPU (отдельный системный процесс) ни одна цифра не видит.
 struct CPUIndicator: View {
-    let meter: CPUMeter
+    let model: AppModel
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 0.25)) { tl in
-            let ui: UILoad.Sample = UILoad.shared.sample(now: tl.date.timeIntervalSinceReferenceDate)
-            label(cpu: Int((meter.load * 100).rounded()), ui: ui.main, app: ui.app)
+            let ui: UILoad.Sample = UILoad.shared.sample(now: tl.date.timeIntervalSinceReferenceDate, pumpNs: model.pumpNs)
+            label(cpu: Int((model.audio.core.cpu.load * 100).rounded()), pump: ui.pump, view: max(0, ui.main - ui.pump))
         }
     }
 
-    private func label(cpu: Int, ui: Int, app: Int) -> some View {
+    private func label(cpu: Int, pump: Int, view: Int) -> some View {
         let high: Bool = cpu >= 70
         // Как в вебе: мелким обычным шрифтом, цвет --dim (CPU ≥ 70 % — красный).
         return VStack(spacing: 1) {
             Text("CPU \(cpu)%").foregroundStyle(high ? theme.rec : theme.dim)
-            Text("UI \(ui)%").foregroundStyle(theme.dim)
-            Text("APP \(app)%").foregroundStyle(theme.dim)
+            Text("PUMP \(pump)%").foregroundStyle(theme.dim)
+            Text("VIEW \(view)%").foregroundStyle(theme.dim)
         }
         .font(.system(size: 9)).monospacedDigit()
         .frame(width: 48, height: 48)
@@ -32,29 +31,28 @@ struct CPUIndicator: View {
     }
 }
 
-/// Нагрузка процессора по времени потоков: главный поток (UI) и весь процесс (APP), проценты одного ядра
+/// Нагрузка главного потока по времени потока (main) и доля насоса (pump), проценты одного ядра
 /// за время между замерами (не чаще 5 раз в секунду, иначе разница слишком мала).
 final class UILoad {
-    struct Sample { var main: Int = 0; var app: Int = 0 }
+    struct Sample { var main: Int = 0; var pump: Int = 0 }
     static let shared = UILoad()
     /// Порт главного потока (shared создаётся из body — на главном потоке).
     private let port: thread_act_t = mach_thread_self()
     private var lastMain: Double = -1
-    private var lastApp: Double = 0
+    private var lastPump: UInt64 = 0
     private var lastWall: Double = 0
     private var value = Sample()
 
-    func sample(now: Double) -> Sample {
+    func sample(now: Double, pumpNs: UInt64) -> Sample {
         if lastWall > 0, now - lastWall < 0.2 { return value }
         let main: Double = mainSeconds()
-        let app: Double = appSeconds()
         if lastMain >= 0, now > lastWall {
             let wall: Double = now - lastWall
             value.main = Int(((main - lastMain) / wall * 100).rounded())
-            value.app = Int(((app - lastApp) / wall * 100).rounded())
+            value.pump = Int((Double(pumpNs &- lastPump) / 1e9 / wall * 100).rounded())
         }
         lastMain = main
-        lastApp = app
+        lastPump = pumpNs
         lastWall = now
         return value
     }
@@ -70,30 +68,5 @@ final class UILoad {
         if kr != KERN_SUCCESS { return lastMain }
         return Double(info.user_time.seconds) + Double(info.user_time.microseconds) / 1e6
             + Double(info.system_time.seconds) + Double(info.system_time.microseconds) / 1e6
-    }
-
-    private func appSeconds() -> Double {
-        var u = rusage()
-        if getrusage(RUSAGE_SELF, &u) != 0 { return lastApp }
-        return Double(u.ru_utime.tv_sec) + Double(u.ru_utime.tv_usec) / 1e6
-            + Double(u.ru_stime.tv_sec) + Double(u.ru_stime.tv_usec) / 1e6
-    }
-}
-
-/// Цепочка прослушивания меняет звук (коррекция наушников, CORRECT CURVE, SPACE, MONO, SUB — monitorAudible; 8.11,
-/// решение пользователя): над CPU — жёлтый значок наушников, без кнопки и контура; BYPASS или всё нейтрально —
-/// значка нет. Тап — окно коррекции (как тап по имени MASTER EQ).
-struct PhonesBadge: View {
-    let model: AppModel
-
-    var body: some View {
-        if model.monitorAudible {
-            Image(systemName: "headphones")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(theme.accent)
-                .frame(width: 28, height: 13, alignment: .top)
-                .contentShape(Rectangle())
-                .onTapGesture { model.openPhones() }
-        }
     }
 }

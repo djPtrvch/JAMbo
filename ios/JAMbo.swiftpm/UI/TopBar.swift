@@ -78,7 +78,7 @@ struct TopBar: View {
                 .midiTarget(model, "ARRANGE")
             // Значок наушников — вровень с верхом кнопок панели (не выше).
             ZStack(alignment: .top) {
-                CPUIndicator(meter: model.audio.core.cpu)
+                CPUIndicator(model: model)
                 PhonesBadge(model: model)
             }
             .frame(width: Layout.meterWidth, height: Layout.topHeight, alignment: .top)
