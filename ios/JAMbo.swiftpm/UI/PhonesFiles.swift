@@ -7,11 +7,8 @@ struct PhonesFiles: ViewModifier {
     func body(content: Content) -> some View {
         content
             .fileMover(isPresented: exportShown, file: model.phonesExported) { _ in model.phonesExported = nil }
-            .alert(model.headsNote ? "Head packs" : "Correct EQ profiles", isPresented: noteShown) {
-                Button("OK", role: .cancel) { model.phonesNote = nil }
-            } message: {
-                Text(model.phonesNote ?? "")
-            }
+            .noticeAlert(model.headsNote ? "Head packs" : "Correct EQ profiles", shown: noteShown,
+                         message: model.phonesNote ?? "") { model.phonesNote = nil }
     }
 
     private var exportShown: Binding<Bool> {

@@ -36,14 +36,10 @@ struct ProjectsPage: View {
         .onChange(of: text) { old, new in
             if new.count > ProjectSession.nameLimit && new.count > old.count { text = old }
         }
-        .alert(inputTitle, isPresented: inputShown) {
-            TextField(inputTitle, text: $text)
-            Button("OK") { enter() }
-            Button("Cancel", role: .cancel) {}
-        }
+        .inputAlert(inputTitle, shown: inputShown, text: $text) { enter() }
         .fileMover(isPresented: exportShown, file: exported) { _ in exported = nil }
         .onChange(of: model.projectImport) { _, r in imported(r) }
-        .alert(failure ?? "", isPresented: failureShown) { Button("OK", role: .cancel) {} }
+        .noticeAlert(failure ?? "", shown: failureShown)
         .alert("Overwrite", isPresented: overwriteShown) {
             Button("CANCEL", role: .cancel) {}
             Button("OVERWRITE", role: .destructive) { confirmOverwrite() }

@@ -22,11 +22,7 @@ struct MasterWindowView: View {
         .onChange(of: model.masterInput) { _, t in
             if let t = t { text = initialText(t) }
         }
-        .alert(inputTitle, isPresented: inputShown) {
-            TextField(inputTitle, text: $text)
-            Button("OK") { enter() }
-            Button("Cancel", role: .cancel) {}
-        }
+        .inputAlert(inputTitle, shown: inputShown, text: $text) { enter() }
         .modifier(NameClashAlert(clash: $clash, overwrite: { k in
             model.saveMasterPreset(module, name: text, over: k)
         }, again: { c in

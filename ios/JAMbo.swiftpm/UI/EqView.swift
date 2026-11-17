@@ -40,11 +40,7 @@ struct EqView: View {
         }
         .onAppear { model.syncSpectra() }
         .onDisappear { model.syncSpectra() }
-        .alert(inputTitle, isPresented: inputShown) {
-            TextField(inputTitle, text: $text).keyboardType(isName ? .default : .numbersAndPunctuation)
-            Button("OK") { enter() }
-            Button("Cancel", role: .cancel) {}
-        }
+        .inputAlert(inputTitle, shown: inputShown, text: $text, keyboard: isName ? .default : .numbersAndPunctuation) { enter() }
         .modifier(PhonesFiles(model: model))
         .modifier(NameClashAlert(clash: $clash, overwrite: { k in
             model.saveEqPreset(name: text, over: k)

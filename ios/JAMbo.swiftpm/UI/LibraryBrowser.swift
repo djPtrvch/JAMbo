@@ -35,11 +35,7 @@ struct LibraryBrowser: View {
         .onChange(of: text) { old, new in
             if new.count > Library.nameLimit && new.count > old.count { text = old }
         }
-        .alert(inputTitle, isPresented: inputShown) {
-            TextField(inputTitle, text: $text)
-            Button("OK") { enter() }
-            Button("Cancel", role: .cancel) {}
-        }
+        .inputAlert(inputTitle, shown: inputShown, text: $text) { enter() }
         .fileMover(isPresented: exportShown, file: exported) { _ in exported = nil }
         .confirmationDialog(tableTitle, isPresented: tableShown, titleVisibility: .visible) { tableButtons }
         .alert("“\(overwrite?.name ?? "")” already exists", isPresented: overwriteShown) {
@@ -47,11 +43,7 @@ struct LibraryBrowser: View {
             Button("SAVE AS…") { askSaveAs() }
             Button("CANCEL", role: .cancel) {}
         }
-        .alert("Too large to import", isPresented: warningShown) {
-            Button("OK", role: .cancel) { model.libWarning = nil }
-        } message: {
-            Text(model.libWarning ?? "")
-        }
+        .noticeAlert("Too large to import", shown: warningShown, message: model.libWarning ?? "") { model.libWarning = nil }
     }
 
     private var libMain: some View {

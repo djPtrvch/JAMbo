@@ -268,11 +268,7 @@ struct MidiPresetAlert: ViewModifier {
             .onChange(of: model.midiLearn.presetInput) { _, i in
                 if let i = i { text = initial(i) }
             }
-            .alert(title, isPresented: shown) {
-                TextField(title, text: $text)
-                Button("OK") { enter() }
-                Button("Cancel", role: .cancel) {}
-            }
+            .inputAlert(title, shown: shown, text: $text) { enter() }
     }
 
     private var shown: Binding<Bool> {

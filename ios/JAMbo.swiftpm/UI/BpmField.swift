@@ -24,11 +24,7 @@ struct BpmField: View {
         .background(start != nil ? theme.panel2 : theme.panel, in: RoundedRectangle(cornerRadius: Layout.radius))
         .contentShape(Rectangle())
         .gesture(drag)
-        .alert("BPM", isPresented: $input) {
-            TextField("BPM", text: $text).keyboardType(.decimalPad)
-            Button("OK") { enter() }
-            Button("Cancel", role: .cancel) {}
-        }
+        .inputAlert("BPM", shown: $input, text: $text, keyboard: .decimalPad) { enter() }
     }
 
     private var bpmText: String {

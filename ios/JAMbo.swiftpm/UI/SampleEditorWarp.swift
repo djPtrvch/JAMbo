@@ -102,12 +102,8 @@ struct WarpBar: View {
             }
             // WARP TO PROJECT BPM: у сэмпла с метками BPM файла — темп проекта (серый, не правится).
             bpmButton(has && !model.warpBpmFollows)
-                .alert("FILE BPM", isPresented: $input) {
-                    TextField("BPM", text: $text).keyboardType(.decimalPad)
-                    Button("OK") { enter() }
-                    Button("AUTO") { model.setWarpBpm(nil) }
-                    Button("Cancel", role: .cancel) {}
-                }
+                .inputAlert("FILE BPM", shown: $input, text: $text, keyboard: .decimalPad, extra: "AUTO",
+                            extraAction: { model.setWarpBpm(nil) }) { enter() }
             ForEach(0..<WarpBar.grids.count, id: \.self) { i in
                 let g: (String, Double) = WarpBar.grids[i]
                 ToolButton(title: g.0, lit: model.warpGrid == g.1, width: nil) { model.warpGrid = g.1 }

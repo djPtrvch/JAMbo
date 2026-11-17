@@ -58,14 +58,10 @@ struct RootView: View {
         .ignoresSafeArea(.container, edges: .bottom)
         .fileImporter(isPresented: importing, allowedContentTypes: importTypes,
                       allowsMultipleSelection: !model.importingProject) { result in picked(result) }
-        .alert(model.sampleRec.error ?? "", isPresented: recError) {
-            Button("OK") { model.sampleRec.error = nil }
-        }
+        .noticeAlert(model.sampleRec.error ?? "", shown: recError, cancel: false) { model.sampleRec.error = nil }
         // Окно MIDI MAP открыли из списка маппингов — после закрытия снова меню MIDI (MAPPING).
         .onChange(of: model.midiLearn.reopenMenu) { _, r in if r { menuOpen = true } }
-        .alert(model.project.notice ?? "", isPresented: projectNotice) {
-            Button("OK") { model.clearNotice() }
-        }
+        .noticeAlert(model.project.notice ?? "", shown: projectNotice, cancel: false) { model.clearNotice() }
     }
 
     /// Сообщение при открытии проекта (перевод старой версии: пропавший суб ANALOG, S12).
