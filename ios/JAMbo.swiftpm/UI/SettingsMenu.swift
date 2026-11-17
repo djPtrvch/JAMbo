@@ -107,8 +107,10 @@ extension EngineSettings {
     var poolLine: AnyView {
         let m: AppModel = model
         return AnyView(TimelineView(.periodic(from: .now, by: 0.5)) { _ in
-            SettingsNote(text: "Now: " + m.audio.poolStatus)
-        })
+            SettingsNote(text: "Now: " + m.audio.poolStatus + "\n" + m.audio.loadLine)
+        }
+        .onAppear { m.audio.core.profile.enabled = true }
+        .onDisappear { m.audio.core.profile.enabled = false })
     }
 }
 

@@ -30,6 +30,25 @@ final class AudioHost {
     /// Состояние MULTICORE для строки в настройках.
     private(set) var poolStatus: String = "off"
     private var poolGroup: UnsafeMutableRawPointer? = nil
+    private var lastProfile: String = ""
+
+    /// Нагрузка по разделам и доля дорожек синта на помощниках (строка под MULTICORE, раз в 0,5 с; замер включён,
+    /// пока открыта вкладка AUDIO ENGINE).
+    var loadLine: String {
+        let pool = core.pool
+        let all: Int = pool.takeAllJobs()
+        let mine: Int = pool.takeHelperJobs()
+        if let s = core.profile.read() {
+            var parts: [String] = []
+            for k in 0..<RenderProfile.count {
+                parts.append(RenderProfile.names[k] + " " + String(format: "%.0f%%", s.avg[k] * 100))
+            }
+            lastProfile = parts.joined(separator: " · ")
+        }
+        var line: String = lastProfile.isEmpty ? "Load: measuring…" : "Load: " + lastProfile
+        if all > 0 { line += " · synth tracks on helpers \(Int((Double(mine) / Double(all) * 100).rounded()))%" }
+        return line
+    }
     /// Экспорт песни: движок стоит, AudioCore.render зовёт фоновый поток — перезапусков нет.
     private(set) var exporting: Bool = false
 

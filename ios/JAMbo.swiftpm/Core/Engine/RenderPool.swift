@@ -19,6 +19,7 @@ public final class RenderPool: @unchecked Sendable {
     private let generation = Atomic<Int>(0)
     private let helpers = Atomic<Int>(0)
     private let helperJobs = Atomic<Int>(0)
+    private let allJobs = Atomic<Int>(0)
     private let alive = Atomic<Int>(0)
     /// Семафоры помощников: два набора (поколение чётное / нечётное) — старые потоки не крадут пробуждения новых.
     private let sems: UnsafeMutablePointer<DispatchSemaphore>
@@ -39,6 +40,11 @@ public final class RenderPool: @unchecked Sendable {
     /// Заданий, взятых помощниками, с прошлого чтения (интерфейс: доля помощников).
     public func takeHelperJobs() -> Int {
         return helperJobs.exchange(0, ordering: .relaxed)
+    }
+
+    /// Всех заданий с прошлого чтения.
+    public func takeAllJobs() -> Int {
+        return allJobs.exchange(0, ordering: .relaxed)
     }
 
     /// Запустить k помощников (основной поток; прежние уходят). setup — на потоке помощника перед работой, возвращает
@@ -103,6 +109,7 @@ public final class RenderPool: @unchecked Sendable {
     /// Колбэк: задания 0…count−1 на колбэке и помощниках; возврат — когда все сделаны.
     public func run(_ count: Int) {
         guard let t = target, count > 0 else { return }
+        allJobs.wrappingAdd(count, ordering: .relaxed)
         let h: Int = Swift.min(helpers.load(ordering: .acquiring), count - 1)
         if h <= 0 {
             var j: Int = 0
