@@ -55,9 +55,10 @@ extension AppModel {
     func latched(_ page: GridPage) -> Bool { return page == .fx ? settings.latchFx : settings.latchMod }
 
     /// Нажатие FX или MOD. SHIFT + тап — режим toggle кнопки (и обратно); в режиме toggle тап включает страницу,
-    /// следующий — выключает, включённая toggle-кнопка выключает другую; иначе — удержание.
+    /// следующий — выключает, включённая toggle-кнопка выключает другую; иначе — удержание. Пока держат SHIFT + MORPH
+    /// (все дорожки), SHIFT занята MORPH: FX и MOD переключают страницу, режим toggle не меняется (17.11).
     func pagePress(_ page: GridPage) {
-        if shiftHeld {
+        if knobShift {
             let on = !latched(page)
             updateSettings { s in
                 if page == .fx { s.latchFx = on } else { s.latchMod = on }
