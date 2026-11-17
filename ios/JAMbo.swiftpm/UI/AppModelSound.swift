@@ -189,7 +189,7 @@ extension AppModel {
         let t = track
         if let held = firstHeld {
             if let v = t.step(held)?.locks[p.id] { return v }
-        } else if playing {
+        } else if playing && !LoadProbe.shared.off(LoadProbe.knobs) {
             let pos = trackPlayPos
             if pos >= 0, let v = t.step(pos)?.locks[p.id] { return v }
         }

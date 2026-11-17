@@ -30,7 +30,7 @@ extension AppModel {
             guard let s = track.step(held), s.on else { return nil }
             return s.notes.min()
         }
-        if !playing { return nil }
+        if !playing || LoadProbe.shared.off(LoadProbe.knobs) { return nil }
         let pos = openPlayPos
         if pos < 0 { return nil }
         let t: Track = track

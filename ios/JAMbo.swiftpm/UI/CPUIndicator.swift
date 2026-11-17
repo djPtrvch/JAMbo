@@ -22,25 +22,36 @@ struct CPUIndicator: View {
         return VStack(spacing: 1) {
             Text("CPU \(cpu)%").foregroundStyle(high ? theme.rec : theme.dim)
             Text("PUMP \(pump)%").foregroundStyle(theme.dim)
-            Text("VIEW \(view)%").foregroundStyle(LoadProbe.shared.freezeMeter ? theme.accent : theme.dim)
+            Text("VIEW \(view)%" + (LoadProbe.shared.mode > 0 ? " " + LoadProbe.tags[LoadProbe.shared.mode] : ""))
+                .foregroundStyle(LoadProbe.shared.mode > 0 ? theme.accent : theme.dim)
         }
         .font(.system(size: 9)).monospacedDigit()
         .frame(width: 48, height: 48)
         .contentShape(Rectangle())
-        // Проба (17.11): тап — заморозить измеритель справа и обратно (VIEW жёлтым — заморожен).
-        .onTapGesture { LoadProbe.shared.freezeMeter.toggle() }
+        // Проба (17.11): тап — следующая проба (VIEW жёлтым с буквой — что заморожено).
+        .onTapGesture { LoadProbe.shared.next() }
         // По центру между низом значка наушников (~12 pt от верха панели) и надписью LUFS (верх панели + её высота
         // 44 + зазор 6 = 50 pt): центр подписей — на 31 pt (блок 48 от верха панели, его середина 24, + 7).
         .offset(y: 7)
     }
 }
 
-/// Пробы замера графики (17.11): что выключить, чтобы сравнить VIEW.
+/// Пробы замера графики (17.11): что заморозить, чтобы сравнить VIEW. Тап по индикатору CPU — следующая проба:
+/// выкл. → M измеритель → S шаги → P миниатюры страниц → T дорожки (мигание) → K клавиатура → N ручки и окно звука.
 @Observable
 final class LoadProbe {
     static let shared = LoadProbe()
-    /// Измеритель справа не обновляется (тап по индикатору CPU).
-    var freezeMeter: Bool = false
+    static let tags: [String] = ["", "M", "S", "P", "T", "K", "N"]
+    static let meter: Int = 1
+    static let steps: Int = 2
+    static let pages: Int = 3
+    static let tracks: Int = 4
+    static let keys: Int = 5
+    static let knobs: Int = 6
+    var mode: Int = 0
+    var freezeMeter: Bool { return mode == LoadProbe.meter }
+    func off(_ m: Int) -> Bool { return mode == m }
+    func next() { mode = (mode + 1) % LoadProbe.tags.count }
 }
 
 /// Нагрузка главного потока по времени потока (main) и доля насоса (pump), проценты одного ядра

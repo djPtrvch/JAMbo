@@ -81,7 +81,8 @@ struct TrackCell: View {
     /// Мигание — своя ячейка дорожки (live.flashCells, 17.11): мигнула одна — пересчитывается только она.
     private func cell(_ t: Track) -> some View {
         let selected: Bool = model.channel == .track && model.selectedTrack == index
-        let flash: Bool = index < model.live.flashCells.count && model.live.flashCells[index].on && !t.mute
+        let flash: Bool = !LoadProbe.shared.off(LoadProbe.tracks) && index < model.live.flashCells.count
+            && model.live.flashCells[index].on && !t.mute
         let face = TrackFace(name: t.name, number: index + 1, selected: selected, mute: t.mute, solo: t.solo, flash: flash)
         return face.equatable()
             .overlay(alignment: .topLeading) { morphDot(t) }

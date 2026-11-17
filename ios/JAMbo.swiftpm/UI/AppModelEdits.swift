@@ -110,7 +110,7 @@ extension AppModel {
         var lock: Double? = nil
         if let held = heldSteps.min() {
             lock = t.step(held)?.locks[p.id]
-        } else if playing {
+        } else if playing && !LoadProbe.shared.off(LoadProbe.knobs) {
             let pos = openPlayPos
             if pos >= 0 { lock = t.step(pos)?.locks[p.id] }
         }
@@ -298,7 +298,7 @@ extension AppModel {
     func seqLock(_ p: ParamDef) -> Double? {
         let t = seq
         if let held = heldSteps.min() { return t.step(held)?.locks[p.id] }
-        if playing {
+        if playing && !LoadProbe.shared.off(LoadProbe.knobs) {
             let pos = openPlayPos
             if pos >= 0 { return t.step(pos)?.locks[p.id] }
         }

@@ -280,7 +280,7 @@ struct StepInfo: Equatable {
         } else {
             label = ""
         }
-        let pos: Int = model.playing ? model.openPlayPos : -1
+        let pos: Int = model.playing && !LoadProbe.shared.off(LoadProbe.steps) ? model.openPlayPos : -1
         playing = pos == index
         held = model.heldSteps.contains(index)
         let len: Int = t.pageLen(page)
