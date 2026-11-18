@@ -96,7 +96,7 @@ ui/auto.ts (644), ui/sampleedit.ts (633), params.ts (565), ui/sample.ts (571).
 | SETTINGS: SAMPLE RATE, BUFFER SIZE | settings.ts, ui/settings.ts | Н | всегда 48 кГц (ТЗ 3.1), буфер — система |
 | SETTINGS: OUTPUT / вход, BACKGROUND AUDIO | settings.ts, ui/settings.ts | П, если Playgrounds даст (вход — S11, фон — capability «Background Modes: Audio» в S0 проверить) | |
 | SETTINGS: RECORD, SAMPLER (SLICE NOTES), SIDECHAIN, SCALE | ui/settings.ts | П вместе со своими функциями | |
-| MIDI: устройства, маппинг, LEARN, MIDI MAP, Twister, ноты | midi.ts (582), ui/midi.ts, ui/learn.ts, ui/mapedit.ts | П (S12, CoreMIDI) | |
+| MIDI: устройства, маппинг, LEARN, MIDI MAP, ноты | midi.ts (582), ui/midi.ts, ui/learn.ts, ui/mapedit.ts | П (S12, CoreMIDI) | |
 | SYNC: MIDI-клок SEND / RECEIVE, офсеты, настройки Link | sync.ts, ui/sync.ts | П (S12) | Link — этап 9 по CLAUDE.md |
 | Экран отладки (задержки) | ui/debug.ts | Н | специфика браузера; CPU-индикатор остаётся |
 | PWA, HTML-аудиоэлемент для Safari, скрытие при неверном масштабе | main.ts | Н | ТЗ 1.2 |
@@ -180,7 +180,7 @@ ui/auto.ts (644), ui/sampleedit.ts (633), params.ts (565), ui/sample.ts (571).
 | S10 | переходы между проектами (MIX, PREV, кроссфейдер) |
 | S11 | библиотека с папками, импорт/экспорт (.jambo, ZIP, WAV), стемы и запись мастера, REC в редакторе |
 | S12 | движки синта: движки Mutable Instruments (Plaits) убираются из кода, проекты с ними загружаются с пустым пресетом; новые движки (ТЗ — в начале вехи) |
-| S13 | MIDI (CoreMIDI): маппинг, LEARN, MIDI MAP, Twister, клок |
+| S13 | MIDI (CoreMIDI): маппинг, LEARN, MIDI MAP, клок |
 | S14 | оптимизация, App Store (на паузе) |
 | S15 | аранжировщик (ARRANGE) — docs/ai/arranger.md |
 | S16 | автоматизация (AUTO) |
