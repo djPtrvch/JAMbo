@@ -61,19 +61,17 @@ final class ControllerTests: XCTestCase {
         XCTAssertFalse(pad.owns("Launchpad X"))
     }
 
-    /// Пресет по таблице раскладки: источники не повторяются, цели — существующие, обратная связь — на все SMC-PAD.
-    func testPreset() throws {
-        let p: MidiPreset = try XCTUnwrap(JamboPad().preset)
-        XCTAssertEqual(p.name, "SMC-PAD ×2")
-        XCTAssertTrue(Controllers.isBuiltIn("SMC-PAD ×2"))
-        XCTAssertEqual(p.mappings.count, 16 + 48 + 6 + 16 + 10)
-        XCTAssertEqual(Set(p.mappings.map { $0.src }).count, p.mappings.count)
-        XCTAssertTrue(p.mappings.allSatisfy { $0.port == .controller("JAMboPAD") && $0.input == nil && $0.cond == .global })
+    /// Маппинги по таблице раскладки: источники не повторяются, цели — существующие, обратная связь — на выходы устройства.
+    func testMappings() throws {
+        let maps: [MidiMapping] = JamboPad().mappings
+        XCTAssertEqual(maps.count, 16 + 48 + 6 + 16 + 10)
+        XCTAssertEqual(Set(maps.map { $0.src }).count, maps.count)
+        XCTAssertTrue(maps.allSatisfy { $0.port == .standard && $0.input == nil && $0.cond == .global })
         func target(_ t: MidiSourceType, _ ch: Int, _ n: Int) -> MidiTarget? {
-            return p.mappings.first { $0.src == MidiSource(type: t, ch: ch, num: n) }?.target
+            return maps.first { $0.src == MidiSource(type: t, ch: ch, num: n) }?.target
         }
         XCTAssertEqual(target(.cc, 0, 6), .knob(6))
-        XCTAssertEqual(p.mappings.first { $0.target == .knob(6) }?.control, .abs)
+        XCTAssertEqual(maps.first { $0.target == .knob(6) }?.control, .abs)
         XCTAssertEqual(target(.note, 1, 36), .button("STEP 1"))
         XCTAssertEqual(target(.note, 4, 51), .button("MUTE 16"))
         XCTAssertEqual(target(.note, 5, 40), .button("T5"))
@@ -82,8 +80,50 @@ final class ControllerTests: XCTestCase {
         XCTAssertEqual(target(.note, 2, 51), .button("MORPH"))
         XCTAssertEqual(target(.note, 2, 0), .button("PLAY"))
         XCTAssertEqual(target(.note, 2, 9), .button("METRONOME"))
-        // Пресет сохраняется и читается, как свои (порт по имени — тоже).
-        let back = try JSONDecoder().decode(MidiPreset.self, from: JSONEncoder().encode(p))
-        XCTAssertEqual(back, p)
+    }
+
+    /// Устройства: JAMboPAD в списке всегда, выключен; включённый работает только со своих входов; новый вход —
+    /// своё устройство, включённое; два включённых — маппинги вместе, один источник у каждого свой.
+    func testDevices() throws {
+        var s = MidiSettings()
+        XCTAssertEqual(s.devices.map { $0.name }, ["JAMboPAD"])
+        XCTAssertFalse(s.isOn("JAMboPAD"))
+        XCTAssertTrue(s.mappings.isEmpty)
+        let ctx = MidiContext(clipOpen: false, page: .track)
+        let cc6 = MidiSource(type: .cc, ch: 0, num: 6)
+        s.setOn("JAMboPAD", true)
+        XCTAssertEqual(s.mappings.count, 96)
+        XCTAssertEqual(s.resolve(cc6, input: 1, owners: s.owners("SMC-PAD"), ctx).active.map { $0.target }, [.knob(6)])
+        XCTAssertFalse(s.resolve(cc6, input: 2, owners: s.owners("Synth"), ctx).mapped)
+        XCTAssertTrue(s.addPort("Synth"))
+        XCTAssertFalse(s.addPort("Synth"))
+        XCTAssertFalse(s.addPort("JAMboPAD L"))
+        XCTAssertTrue(s.isOn("Synth"))
+        s.learn(.knob(0), src: cc6, input: 2, dev: "Synth", continuous: true, ctx)
+        XCTAssertEqual(s.device("Synth")?.mappings.count, 1)
+        XCTAssertEqual(s.device("JAMboPAD")?.mappings.count, 96)
+        XCTAssertEqual(s.resolve(cc6, input: 2, owners: s.owners("Synth"), ctx).active.map { $0.target }, [.knob(0)])
+        XCTAssertTrue(s.device("JAMboPAD")?.modified == false)
+        // Выключенный — его маппинги не действуют и не теряются.
+        s.setOn("JAMboPAD", false)
+        XCTAssertEqual(s.mappings.count, 1)
+        s.clear("Synth")
+        XCTAssertEqual(s.device("JAMboPAD")?.mappings.count, 96)
+        // RESTORE, RENAME, DELETE.
+        s.setOn("JAMboPAD", true)
+        s.unmap(.knob(6), ctx)
+        XCTAssertTrue(s.device("JAMboPAD")?.modified == true)
+        s.restore("JAMboPAD")
+        XCTAssertTrue(s.device("JAMboPAD")?.modified == false)
+        XCTAssertFalse(s.rename("JAMboPAD", to: "X"))
+        XCTAssertTrue(s.rename("Synth", to: "Keys"))
+        XCTAssertNotNil(s.device("Keys"))
+        s.remove("JAMboPAD")
+        s.remove("Keys")
+        XCTAssertEqual(s.devices.map { $0.name }, ["JAMboPAD"])
+        // Запись: устройства и их маппинги.
+        s.setOn("JAMboPAD", true)
+        let back = try JSONDecoder().decode(MidiSettings.self, from: JSONEncoder().encode(s))
+        XCTAssertEqual(back, s)
     }
 }

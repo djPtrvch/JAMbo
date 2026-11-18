@@ -21,7 +21,7 @@ extension AppModel {
             // обратно с задержкой, дёргало бы его. Энкодеры (RELATIVE) — с кольцом, пока крутят.
             if m.control == .abs, let t = midiRun.feedbackHold[m.src], now - t < 0.3 { continue }
             var v: Int? = nil
-            for dst in m.feedbackDests(default: ms.feedback, outputs: outs) where midi.hasDestination(dst) {
+            for dst in ms.feedbackDests(m, outputs: outs) where midi.hasDestination(dst) {
                 // Один источник на выходе — одно значение (маппинги с разных входов не спорят).
                 if !seen.insert(MidiFeedback.key(dest: dst, src: m.src)).inserted { continue }
                 if v == nil { v = midiFeedbackValue(m) }

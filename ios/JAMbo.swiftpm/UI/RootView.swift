@@ -59,7 +59,7 @@ struct RootView: View {
         .fileImporter(isPresented: importing, allowedContentTypes: importTypes,
                       allowsMultipleSelection: !model.importingProject) { result in picked(result) }
         .noticeAlert(model.sampleRec.error ?? "", shown: recError, cancel: false) { model.sampleRec.error = nil }
-        // Окно MIDI MAP открыли из списка маппингов — после закрытия снова меню MIDI (MAPPING).
+        // Окно MIDI MAP открыли из списка маппингов — после закрытия снова меню MIDI (страница устройства в DEVICES).
         .onChange(of: model.midiLearn.reopenMenu) { _, r in if r { menuOpen = true } }
         .noticeAlert(model.project.notice ?? "", shown: projectNotice, cancel: false) { model.clearNotice() }
     }

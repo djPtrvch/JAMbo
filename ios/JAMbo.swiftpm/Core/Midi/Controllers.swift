@@ -1,7 +1,8 @@
 import Foundation
 
 // Контроллеры со своим протоколом (JAMboPAD; позже — Launchpad X и др.). Общее — здесь и в приложении: поиск выходов
-// по имени, отправка состояния при его смене и при подключении, приём событий, встроенный пресет маппингов.
+// по имени, отправка состояния при его смене и при подключении, приём событий, встроенные маппинги (устройство в
+// MIDI → DEVICES; пока оно выключено, контроллеру ничего не шлётся).
 // Своё у контроллера — только описание (MidiController): какие байты слать и как читать ответы.
 
 /// Что контроллер может повторять за приложением: гамма, корневая нота, октава клавиатуры выбранной дорожки.
@@ -31,8 +32,8 @@ public protocol MidiController {
     /// Части имени устройства CoreMIDI (без учёта регистра; USB и Bluetooth называются по-разному): по ним — выходы
     /// контроллера.
     var portNames: [String] { get }
-    /// Встроенный пресет маппингов, ориентировочный (nil — нет); свой с тем же именем заменяет его в списке.
-    var preset: MidiPreset? { get }
+    /// Встроенные маппинги, ориентировочные (RESTORE устройства возвращает их).
+    var mappings: [MidiMapping] { get }
     /// Состояние слать на все выходы (не только контроллера).
     var stateToAll: Bool { get }
     /// SysEx (без F0 и F7) с состоянием приложения; nil — не слать.
@@ -51,18 +52,8 @@ extension MidiController {
 public enum Controllers {
     public static let all: [MidiController] = [JamboPad()]
 
-    /// Встроенные пресеты маппингов (выше своих в списке; свой с тем же именем — сохранённая настройка — заменяет
-    /// встроенный, удаление своего возвращает встроенный).
-    public static var presets: [MidiPreset] {
-        return all.compactMap { $0.preset }
-    }
-
     public static func named(_ name: String) -> MidiController? {
         return all.first { $0.name == name }
-    }
-
-    public static func isBuiltIn(_ name: String) -> Bool {
-        return presets.contains { $0.name == name }
     }
 }
 
@@ -74,7 +65,6 @@ public struct JamboPad: MidiController {
     public static let setMidiOut: UInt8 = 0x0D
     public static let rootEvent: UInt8 = 0x65
     public static let scaleEvent: UInt8 = 0x67
-    public static let presetName = "SMC-PAD ×2"
 
     public init() {}
 
@@ -83,7 +73,7 @@ public struct JamboPad: MidiController {
     public var portNames: [String] { return ["SMC-PAD", "JAMboPAD"] }
     /// SET_SCALE — на все выходы (по протоколу; другие устройства SysEx с ID 7D пропускают).
     public var stateToAll: Bool { return true }
-    public var preset: MidiPreset? { return MidiPreset(name: JamboPad.presetName, mappings: JamboPad.mappings()) }
+    public var mappings: [MidiMapping] { return JamboPad.mappings() }
 
     /// Маска гаммы: бит k — нота на k полутонов выше корня (Major — 0xAB5).
     public static func mask(scale: Int) -> Int {
@@ -116,9 +106,10 @@ public struct JamboPad: MidiController {
         return nil
     }
 
-    /// Ориентировочный пресет по раскладке пэдов по умолчанию (docs/jambo.md; раскладка меняется в конфигураторе,
+    /// Ориентировочные маппинги по раскладке пэдов по умолчанию (docs/jambo.md; раскладка меняется в конфигураторе,
     /// кнопки — любые кнопки JAMbo: здесь — пример). Каналы — с нуля (канал 1 — 0). Обратная связь — на все пэды:
-    /// номера и каналы у двух пэдов не пересекаются.
+    /// номера и каналы у двух пэдов не пересекаются
+    /// (обратная связь standard — выходы устройства).
     static func mappings() -> [MidiMapping] {
         var out: [MidiMapping] = []
         // 16 ручек: CC 0–15, канал 1, ABSOLUTE; CC = ряд · 4 + колонка — позиция ручки.
@@ -148,8 +139,6 @@ public struct JamboPad: MidiController {
     }
 
     private static func map(_ type: MidiSourceType, ch: Int, num: Int, _ t: MidiTarget, continuous: Bool = false) -> MidiMapping {
-        var m = MidiMapping(src: MidiSource(type: type, ch: ch, num: num), target: t, continuous: continuous)
-        m.port = .controller("JAMboPAD")
-        return m
+        return MidiMapping(src: MidiSource(type: type, ch: ch, num: num), target: t, continuous: continuous)
     }
 }

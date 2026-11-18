@@ -22,7 +22,6 @@ struct MidiMapWindow: View {
         .framed(theme.panel, line: theme.line)
         .shadow(color: Color.black.opacity(0.35), radius: 12, y: 4)
         .offset(x: p.x, y: p.y)
-        .modifier(MidiPresetAlert(model: model))
     }
 
     /// Левый верхний угол: перетащенный или по центру над полосой LEARN; в пределах экрана.
@@ -76,7 +75,6 @@ struct MidiMapBody: View {
             switch model.midiLearn.mapPage {
             case .main: MidiMapMain(model: model, m: m)
             case .range: MidiRangeEditor(model: model, m: m)
-            case .preset: MidiPresetPage(model: model)
             default: MidiMapOptions(model: model, m: m)
             }
         }
@@ -102,7 +100,7 @@ struct MidiMapLine: View {
     }
 }
 
-/// Главная страница: Preset, пояснение; Number, Channel, Event type, Control type, Encoder, Range, Action, Condition;
+/// Главная страница: Device (устройство маппинга), пояснение; Number, Channel, Event type, Control type, Encoder, Range, Action, Condition;
 /// ниже — порты: Input port и Feedback port.
 struct MidiMapMain: View {
     let model: AppModel
@@ -119,7 +117,7 @@ struct MidiMapMain: View {
 
     private var mainRows: [AnyView] {
         var r: [AnyView] = [
-            line("Preset", presetName, .preset),
+            AnyView(MidiMapLine(label: "Device", value: m.dev)),
             AnyView(SettingsNote(text: model.mapMapped ? "Move a control to remap."
                 : "Not mapped yet — move a control on your MIDI device or set the fields.").padding(.vertical, 6)),
             AnyView(MidiNumberLine(model: model, m: m)),
@@ -132,7 +130,7 @@ struct MidiMapMain: View {
         if case .press = m.target { r.append(actionLine) }
         r.append(line("Condition", MidiMapOptions.condName(m), .cond))
         r.append(AnyView(Divider().overlay(theme.line).padding(.vertical, 6)))
-        r.append(line("Input port", model.midiPortName(m.input, inputs: true, none: "Any"), .port))
+        r.append(line("Input port", model.midiPortName(m.input, inputs: true, none: "Device"), .port))
         r.append(line("Feedback port", feedbackName, .feedback))
         if allPages { r.append(AnyView(applyAll)) }
         return r
@@ -159,7 +157,7 @@ struct MidiMapMain: View {
 
     private var continuous: Bool { return model.midiContinuous(m.target) }
 
-    /// Action нажатия ручки; при KNOB PRESS: TOUCH (MIDI → MAPPING) — как палец, без выбора.
+    /// Action нажатия ручки; при KNOB PRESS: TOUCH (MIDI → GENERAL) — как палец, без выбора.
     private var actionLine: AnyView {
         if model.settings.midi.pressTouch {
             return AnyView(MidiMapLine(label: "Action", value: "Touch (tap, double tap)"))
@@ -174,16 +172,9 @@ struct MidiMapMain: View {
         return continuous
     }
 
-    private var presetName: String {
-        let p: String = model.settings.midi.preset
-        if p.isEmpty { return "None" }
-        return model.presetModified ? p + " *" : p
-    }
-
     private var feedbackName: String {
-        let def: String = model.midiPortName(model.settings.midi.feedback, inputs: false, none: "None")
         switch m.port {
-        case .standard: return "Default (\(def))"
+        case .standard: return "Device"
         case .none: return "None"
         case .device(let id): return model.midiPortName(id, inputs: false, none: "None")
         case .controller(let n): return "All " + n

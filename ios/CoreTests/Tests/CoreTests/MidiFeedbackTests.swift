@@ -25,20 +25,26 @@ final class MidiFeedbackTests: XCTestCase {
         XCTAssertEqual(m.feedbackValue(0.3), 0)
     }
 
-    /// Порт: Default — выход из DEVICES, None — нет, свой — свой, контроллер — все его выходы.
+    /// Порт: Device — выходы устройства маппинга, None — нет, свой — свой, контроллер — все его выходы.
     func testDest() {
+        var s = MidiSettings()
+        _ = s.addPort("Synth")
         var m = MidiMapping(src: cc20, target: .button("PLAY"), continuous: false)
         let outs: [(id: Int32, name: String)] = [(3, "SMC-PAD"), (4, "Synth"), (7, "JAMboPAD R")]
-        XCTAssertEqual(m.feedbackDests(default: 5, outputs: outs), [5])
-        XCTAssertEqual(m.feedbackDests(default: nil, outputs: outs), [])
+        m.dev = "Synth"
+        XCTAssertEqual(s.feedbackDests(m, outputs: outs), [4])
+        m.dev = "JAMboPAD"
+        XCTAssertEqual(s.feedbackDests(m, outputs: outs), [3, 7])
+        m.dev = "Unknown"
+        XCTAssertEqual(s.feedbackDests(m, outputs: outs), [])
         m.port = .none
-        XCTAssertEqual(m.feedbackDests(default: 5, outputs: outs), [])
+        XCTAssertEqual(s.feedbackDests(m, outputs: outs), [])
         m.port = .device(9)
-        XCTAssertEqual(m.feedbackDests(default: 5, outputs: outs), [9])
+        XCTAssertEqual(s.feedbackDests(m, outputs: outs), [9])
         m.port = .controller("JAMboPAD")
-        XCTAssertEqual(m.feedbackDests(default: 5, outputs: outs), [3, 7])
+        XCTAssertEqual(s.feedbackDests(m, outputs: outs), [3, 7])
         m.port = .controller("Unknown")
-        XCTAssertEqual(m.feedbackDests(default: 5, outputs: outs), [])
+        XCTAssertEqual(s.feedbackDests(m, outputs: outs), [])
     }
 
     /// Только изменения; другой выход или источник — свои значения; после reset — всё заново.

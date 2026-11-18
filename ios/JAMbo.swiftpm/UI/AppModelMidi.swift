@@ -50,16 +50,20 @@ extension AppModel {
                 let ctx: MidiContext = midiContext
                 let cont: Bool = midiContinuous(t)
                 let pin: String? = t == midiLearn.mapTarget ? midiLearn.pinned : nil
+                // Маппинг — в устройство входа (свой профиль; нет — новый, по имени входа).
+                let name: String = midiPortName(source, inputs: true, none: "")
                 var key: String = ""
                 setMidi { s in
-                    s.learn(t, src: src, input: source, continuous: cont, ctx, pinned: pin)
-                    key = s.mapping(for: t, ctx, pinned: pin)?.condKey ?? ""
+                    s.addPort(name)
+                    let dev: String? = s.owners(name).first
+                    s.learn(t, src: src, input: source, dev: dev, continuous: cont, ctx, pinned: pin)
+                    key = s.mapping(for: t, ctx, pinned: pin, dev: dev)?.condKey ?? ""
                 }
                 if t == midiLearn.mapTarget && !key.isEmpty { midiLearn.pinned = key }
             }
             return
         }
-        let r = ms.resolve(src, input: source, midiContext)
+        let r = ms.resolve(src, input: source, owners: ms.owners(midiPortName(source, inputs: true, none: "")), midiContext)
         if r.mapped {
             midiRun.feedbackHold[src] = Date.timeIntervalSinceReferenceDate
             let press: Bool = isCc ? msg.data2 >= 64 : on
@@ -155,7 +159,7 @@ extension AppModel {
         if fxMode { fxMidiPulse(s) }
     }
 
-    /// Нажатие ручки (PRESS): как палец на ручке (MIDI → MAPPING → KNOB PRESS: TOUCH, по умолчанию) или действие
+    /// Нажатие ручки (PRESS): как палец на ручке (MIDI → GENERAL → KNOB PRESS: TOUCH, по умолчанию) или действие
     /// из окна MIDI MAP — сброс, параметр позиции или кнопка.
     private func midiPress(_ s: Int, _ m: MidiMapping, _ down: Bool) {
         if settings.midi.pressTouch {
@@ -314,15 +318,5 @@ extension AppModel {
     func midiMapping(_ t: MidiTarget) -> MidiMapping? {
         let pin: String? = t == midiLearn.mapTarget ? midiLearn.pinned : nil
         return settings.midi.mapping(for: t, midiContext, pinned: pin)
-    }
-
-    func removeMapping(_ k: Int) {
-        setMidi { s in
-            if k < s.mappings.count { s.mappings.remove(at: k) }
-        }
-    }
-
-    func clearMappings() {
-        setMidi { $0.mappings = [] }
     }
 }

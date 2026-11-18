@@ -1,7 +1,7 @@
 import Foundation
 
 // MIDI-маппинг (S13b): источник (CC или нота на канале) → цель (ручка сетки по
-// позиции, нажатие ручки — PRESS, кнопка интерфейса по имени). Хранится в настройках (MidiSettings.mappings).
+// позиции, нажатие ручки — PRESS, кнопка интерфейса по имени). Хранится в своём устройстве (MidiDevice.mappings).
 
 public enum MidiSourceType: String, Codable, Sendable {
     case cc
@@ -155,8 +155,8 @@ public struct MidiPlace: Codable, Equatable, Hashable, Sendable {
     }
 }
 
-/// Порт обратной связи: по умолчанию (DEVICES → FEEDBACK OUTPUT), нет, выход по uniqueID или все выходы контроллера
-/// по его имени (Controllers; встроенные пресеты: два пэда JAMboPAD — два выхода).
+/// Порт обратной связи: выходы своего устройства (standard, по умолчанию; у JAMboPAD — два пэда, два выхода), нет,
+/// выход по uniqueID или все выходы контроллера по его имени (прежние маппинги JAMboPAD).
 public enum MidiPort: Codable, Equatable, Sendable {
     case standard
     case none
@@ -227,6 +227,8 @@ public struct MidiMapping: Codable, Equatable, Sendable {
     public var press: MidiPressAction = .reset
     /// Ручка в условии GLOBAL — параметр этого места (nil — у остальных).
     public var place: MidiPlace? = nil
+    /// Устройство (MidiDevice.name); не пишется — маппинги лежат внутри устройства.
+    public var dev: String = ""
 
     public init(src: MidiSource, target: MidiTarget, continuous: Bool) {
         self.src = src
@@ -271,9 +273,9 @@ public struct MidiMapping: Codable, Equatable, Sendable {
         if force || place == nil { place = MidiPlace(page: ctx.page, track: ctx.track) }
     }
 
-    /// Маппинги делят источник: тот же источник, то же условие и пересекающиеся входы.
+    /// Маппинги делят источник: то же устройство, тот же источник, то же условие и пересекающиеся входы.
     public func clashes(_ o: MidiMapping) -> Bool {
-        guard src == o.src && condKey == o.condKey else { return false }
+        guard dev == o.dev && src == o.src && condKey == o.condKey else { return false }
         guard let a = input, let b = o.input else { return true }
         return a == b
     }

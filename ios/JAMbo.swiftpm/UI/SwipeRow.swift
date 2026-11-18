@@ -12,6 +12,9 @@ struct SwipeRow: View {
     let meta: String?
     /// Тональность после meta своим цветом (PROJECTS: близость по квинтовому кругу); nil — без неё.
     var key: (String, Color)? = nil
+    /// Вместо корзины (устройства MIDI: у встроенного — RESTORE, изогнутая стрелка на сером).
+    var delIcon: String = "trash"
+    var delTint: Color? = nil
     /// Цвет текста (Autosave — жёлтый); current — строка горит акцентом (текущий проект).
     let tint: Color?
     let current: Bool
@@ -94,7 +97,7 @@ struct SwipeRow: View {
                     r()
                 }
             }
-            icon("trash", theme.rec) {
+            icon(delIcon, delTint ?? theme.rec) {
                 close()
                 delete()
             }

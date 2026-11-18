@@ -35,18 +35,25 @@ public enum MidiInput: Equatable, Sendable {
 
 extension MidiSettings {
     /// Маппинг цели: в закреплённом окном MIDI MAP условии (pinned), иначе в самом точном действующем.
-    public func mapping(for t: MidiTarget, _ ctx: MidiContext, pinned: String? = nil) -> MidiMapping? {
+    /// dev — только маппинг этого устройства (у цели в каждом устройстве свой).
+    public func mapping(for t: MidiTarget, _ ctx: MidiContext, pinned: String? = nil, dev: String? = nil) -> MidiMapping? {
         let conds: [String] = pinned.map { [$0] } ?? ctx.conds
+        let maps: [MidiMapping] = mappings
         for c in conds {
-            if let m = mappings.first(where: { $0.target == t && $0.condKey == c && $0.fits(ctx) }) { return m }
+            if let m = maps.first(where: { $0.target == t && $0.condKey == c && $0.fits(ctx) && (dev == nil || $0.dev == dev) }) { return m }
         }
         return nil
     }
 
     /// Маппинги источника с этого входа в самом точном действующем условии. mapped — источник назначен хоть где-то
-    /// (тогда нота не играет, даже если условие сейчас не действует).
-    public func resolve(_ src: MidiSource, input: Int32, _ ctx: MidiContext) -> (mapped: Bool, active: [MidiMapping]) {
-        let all: [MidiMapping] = mappings.filter { $0.src == src && ($0.input == nil || $0.input == input) }
+    /// (тогда нота не играет, даже если условие сейчас не действует). Маппинг без своего входа (Input port: Device)
+    /// слушает входы своего устройства (owners — устройства, которым принадлежит вход; nil — любые).
+    public func resolve(_ src: MidiSource, input: Int32, owners: [String]? = nil, _ ctx: MidiContext) -> (mapped: Bool, active: [MidiMapping]) {
+        let all: [MidiMapping] = mappings.filter { m in
+            guard m.src == src else { return false }
+            if let i = m.input { return i == input }
+            return owners.map { $0.contains(m.dev) } ?? true
+        }
         if all.isEmpty { return (false, []) }
         for c in ctx.conds {
             let maps: [MidiMapping] = all.filter { $0.condKey == c }
@@ -69,18 +76,25 @@ extension MidiSettings {
 
     /// Первый свободный CC на канале 1 (новый маппинг из окна MIDI MAP).
     public func freeSource() -> MidiSource {
+        let maps: [MidiMapping] = mappings
         var n: Int = 0
         while n < 128 {
             let src = MidiSource(type: .cc, ch: 0, num: n)
-            if !mappings.contains(where: { $0.src == src }) { return src }
+            if !maps.contains(where: { $0.src == src }) { return src }
             n += 1
         }
         return MidiSource(type: .cc, ch: 0, num: 0)
     }
 
+    /// Устройство черновика: первое включённое (нет — новое своё MY DEVICE).
+    var draftDev: String {
+        return devices.first { $0.on }?.name ?? "MY DEVICE"
+    }
+
     /// Черновик маппинга цели без маппинга (окно MIDI MAP до первой правки).
     public func draft(_ t: MidiTarget, continuous: Bool, _ ctx: MidiContext, pinned: String? = nil) -> MidiMapping {
         var m = MidiMapping(src: freeSource(), target: t, continuous: continuous)
+        m.dev = draftDev
         let (c, p) = defaultCond(t, ctx, pinned: pinned)
         m.cond = c
         m.page = p
@@ -92,19 +106,20 @@ extension MidiSettings {
     /// условия получившегося маппинга.
     @discardableResult
     public mutating func update(_ t: MidiTarget, continuous: Bool, _ ctx: MidiContext, pinned: String? = nil,
-                                _ change: (inout MidiMapping) -> Void) -> String {
-        let cur: MidiMapping? = mapping(for: t, ctx, pinned: pinned)
+                                dev: String? = nil, _ change: (inout MidiMapping) -> Void) -> String {
+        let cur: MidiMapping? = mapping(for: t, ctx, pinned: pinned, dev: dev)
         var m: MidiMapping = cur ?? draft(t, continuous: continuous, ctx, pinned: pinned)
         change(&m)
         m.target = t
         if t.isClip && m.cond == .page { m.cond = .clip }
         m.fixPlace(ctx, force: false)
-        let curIndex: Int? = cur.flatMap { c in mappings.firstIndex(where: { $0 == c }) }
+        let all: [MidiMapping] = mappings
+        let curIndex: Int? = cur.flatMap { c in all.firstIndex(where: { $0 == c }) }
         var kept: [MidiMapping] = []
         var i: Int = 0
-        while i < mappings.count {
-            let x: MidiMapping = mappings[i]
-            let mine: Bool = x.target == t && (i == curIndex || (x.condKey == m.condKey && x.place == m.place))
+        while i < all.count {
+            let x: MidiMapping = all[i]
+            let mine: Bool = x.target == t && (i == curIndex || (x.condKey == m.condKey && x.place == m.place && x.dev == m.dev))
             if !mine && !x.clashes(m) { kept.append(x) }
             i += 1
         }
@@ -113,14 +128,15 @@ extension MidiSettings {
         return m.condKey
     }
 
-    /// LEARN: движение контроллера назначает источник цели (тип управления, диапазон и порт остаются; у новой —
+    /// LEARN: движение контроллера назначает источник цели и устройство входа (dev) (тип управления, диапазон и порт остаются; у новой —
     /// по виду сообщения: CC на непрерывную цель — ABSOLUTE, иначе — кнопка).
-    public mutating func learn(_ t: MidiTarget, src: MidiSource, input: Int32, continuous: Bool, _ ctx: MidiContext,
-                               pinned: String? = nil) {
-        let had: Bool = mapping(for: t, ctx, pinned: pinned) != nil
-        update(t, continuous: continuous, ctx, pinned: pinned) { m in
+    public mutating func learn(_ t: MidiTarget, src: MidiSource, input: Int32, dev: String? = nil, continuous: Bool,
+                               _ ctx: MidiContext, pinned: String? = nil) {
+        let had: Bool = mapping(for: t, ctx, pinned: pinned, dev: dev) != nil
+        update(t, continuous: continuous, ctx, pinned: pinned, dev: dev) { m in
             m.src = src
             m.input = input
+            if let d = dev { m.dev = d }
             if !had { m.control = continuous && src.type == .cc ? .abs : .momentary }
             // LEARN на экране — параметр, который сейчас показывает ручка.
             m.fixPlace(ctx, force: true)
@@ -143,7 +159,7 @@ extension MidiSettings {
                 var c: MidiMapping = k
                 c.page = pg
                 c.place = nil
-                mappings.removeAll { x in (x.target == c.target && x.condKey == c.condKey) || x.clashes(c) }
+                mappings.removeAll { x in (x.target == c.target && x.condKey == c.condKey && x.dev == c.dev) || x.clashes(c) }
                 mappings.append(c)
             }
         }

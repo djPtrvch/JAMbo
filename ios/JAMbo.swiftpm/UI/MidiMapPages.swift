@@ -110,12 +110,15 @@ struct MidiMapOptions: View {
     private func portOptions(inputs: Bool) -> [MidiOption] {
         let devices: [MidiEndpoint] = inputs ? model.midi.inputs : model.midi.outputs
         if inputs {
-            var out: [MidiOption] = [opt("any", "Any", m.input == nil) { $0.input = nil }]
+            var any = opt("any", "Device", m.input == nil) { $0.input = nil }
+            any.hint = "any input of " + m.dev
+            var out: [MidiOption] = [any]
             for d in devices { out.append(opt("\(d.id)", d.name, m.input == d.id) { $0.input = d.id }) }
             return out
         }
-        let def: String = model.midiPortName(model.settings.midi.feedback, inputs: false, none: "None")
-        var out: [MidiOption] = [opt("def", "Default (\(def))", m.port == .standard) { $0.port = .standard },
+        var dev = opt("def", "Device", m.port == .standard) { $0.port = .standard }
+        dev.hint = "outputs of " + m.dev
+        var out: [MidiOption] = [dev,
                                  opt("none", "None", m.port == .none) { $0.port = .none }]
         for d in devices { out.append(opt("\(d.id)", d.name, m.port == .device(d.id)) { $0.port = .device(d.id) }) }
         if case .controller(let n) = m.port { out.append(opt("controller", "All " + n, true) { _ in }) }
@@ -227,82 +230,5 @@ struct MidiRangeEditor: View {
                 }
             }
             .onEnded { _ in end = nil }
-    }
-}
-
-/// Preset: тап — загрузить (маппинги пресета заменяют все нынешние); ниже — сохранить, перезаписать, переименовать,
-/// удалить (действия с текущим пресетом без него неактивны). Встроенный (SMC-PAD ×2) — первым, ориентировочный:
-/// SAVE TO сохраняет свою настройку под тем же именем, RESTORE DEFAULT возвращает исходный; переименовать нельзя.
-struct MidiPresetPage: View {
-    let model: AppModel
-
-    var body: some View {
-        let cur: String = model.settings.midi.preset
-        let builtIn: Bool = Controllers.isBuiltIn(cur)
-        let list: [MidiPreset] = model.midiPresetList
-        let restore: MenuChoice = MenuChoice(title: "RESTORE DEFAULT", enabled: model.midiPresetOverridden(cur), current: false) {
-            model.deleteMidiPreset(cur)
-            model.loadMidiPreset(cur)
-        }
-        let delete: MenuChoice = MenuChoice(title: "DELETE", enabled: !cur.isEmpty, red: !cur.isEmpty, current: false) {
-            model.deleteMidiPreset(cur)
-        }
-        return VStack(alignment: .leading, spacing: 4) {
-            ForEach(list, id: \.name) { p in
-                MidiMapLine(label: p.name + (p.name == cur ? "  ✓" : ""), value: "\(p.mappings.count)") {
-                    model.loadMidiPreset(p.name)
-                    model.midiLearn.mapPage = .main
-                }
-            }
-            SettingsNote(text: builtIn ? "Loading a preset replaces all current mappings. \(cur) is a starting point: adjust the mappings, then SAVE TO keeps your version; RESTORE DEFAULT brings back the original." : "Loading a preset replaces all current mappings.").padding(.vertical, 6)
-            MenuChoiceColumn(items: [
-                MenuChoice(title: "SAVE CURRENT AS NEW…", current: false) { model.midiLearn.presetInput = .save },
-                MenuChoice(title: cur.isEmpty ? "SAVE TO PRESET" : "SAVE TO “\(cur)”", enabled: !cur.isEmpty, current: false) {
-                    model.saveMidiPreset(cur)
-                },
-                MenuChoice(title: "RENAME…", enabled: !cur.isEmpty && !builtIn, current: false) { model.midiLearn.presetInput = .rename(cur) },
-                builtIn ? restore : delete,
-            ], spacing: 4)
-        }
-    }
-}
-
-/// Ввод имени пресета маппингов — системное окно (как имена пресетов модулей мастера).
-struct MidiPresetAlert: ViewModifier {
-    let model: AppModel
-    @State private var text: String = ""
-
-    func body(content: Content) -> some View {
-        content
-            .onChange(of: model.midiLearn.presetInput) { _, i in
-                if let i = i { text = initial(i) }
-            }
-            .inputAlert(title, shown: shown, text: $text) { enter() }
-    }
-
-    private var shown: Binding<Bool> {
-        Binding(get: { model.midiLearn.presetInput != nil }, set: { if !$0 { model.midiLearn.presetInput = nil } })
-    }
-
-    private var title: String {
-        if case .rename = model.midiLearn.presetInput { return "RENAME" }
-        return "PRESET NAME"
-    }
-
-    private func initial(_ i: MidiPresetInput) -> String {
-        switch i {
-        case .save: return model.midiLearn.presets.nextName
-        case .rename(let n): return n
-        }
-    }
-
-    private func enter() {
-        let name: String = String(text.prefix(MidiPresetBook.nameMax))
-        switch model.midiLearn.presetInput {
-        case .save: model.saveMidiPreset(name)
-        case .rename(let from): model.renameMidiPreset(from, to: name)
-        case nil: break
-        }
-        model.midiLearn.presetInput = nil
     }
 }

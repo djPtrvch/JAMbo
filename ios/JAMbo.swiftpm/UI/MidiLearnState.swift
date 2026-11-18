@@ -14,7 +14,6 @@ enum MidiMapPage: Equatable {
     case feedback
     case cond
     case action
-    case preset
 
     var title: String {
         switch self {
@@ -28,19 +27,12 @@ enum MidiMapPage: Equatable {
         case .feedback: return "Feedback port"
         case .cond: return "Condition"
         case .action: return "Action"
-        case .preset: return "Preset"
         }
     }
 }
 
-/// Ввод имени пресета маппингов (системное окно).
-enum MidiPresetInput: Equatable {
-    case save
-    case rename(String)
-}
-
 /// MIDI LEARN (S13b) и окно MIDI MAP (S13c): режим, выбранная цель, TURN / PRESS (что выбирает тап по ручке),
-/// последний источник; окно — цель, закреплённое условие, страница, положение (до перезапуска), пресеты маппингов.
+/// последний источник; окно — цель, закреплённое условие, страница, положение (до перезапуска); открытое устройство меню MIDI.
 @Observable
 final class MidiLearnState {
     // Свойства простых типов — вручную, без макроса (как в AppModel, AppModelObserved.swift; S14, объём сборки).
@@ -75,7 +67,7 @@ final class MidiLearnState {
         set { put(\._last, newValue, observedChanged(_last, newValue)) }
     }
     /// Открытая вкладка меню MIDI.
-    @ObservationIgnored private var _tab: MidiTab = .devices
+    @ObservationIgnored private var _tab: MidiTab = .general
     var tab: MidiTab {
         get { access(keyPath: \._tab); return _tab }
         set { put(\._tab, newValue, observedChanged(_tab, newValue)) }
@@ -112,12 +104,18 @@ final class MidiLearnState {
         get { access(keyPath: \._reopenMenu); return _reopenMenu }
         set { put(\._reopenMenu, newValue, observedChanged(_reopenMenu, newValue)) }
     }
-    @ObservationIgnored private var _presetInput: MidiPresetInput? = nil
-    var presetInput: MidiPresetInput? {
-        get { access(keyPath: \._presetInput); return _presetInput }
-        set { put(\._presetInput, newValue, observedChanged(_presetInput, newValue)) }
+    /// MIDI → DEVICES: открытая страница устройства (nil — список).
+    @ObservationIgnored private var _device: String? = nil
+    var device: String? {
+        get { access(keyPath: \._device); return _device }
+        set { put(\._device, newValue, observedChanged(_device, newValue)) }
     }
-    var presets: MidiPresetBook = MidiPresetBook.decode(UserDefaults.standard.data(forKey: "midiPresets"))
+    /// Переименование устройства (системное окно ввода).
+    @ObservationIgnored private var _renaming: String? = nil
+    var renaming: String? {
+        get { access(keyPath: \._renaming); return _renaming }
+        set { put(\._renaming, newValue, observedChanged(_renaming, newValue)) }
+    }
     /// Последний тап по цели в LEARN (двойной — окно MIDI MAP).
     @ObservationIgnored var lastTap: (target: MidiTarget, at: Double)? = nil
 }

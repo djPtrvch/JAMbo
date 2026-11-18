@@ -156,11 +156,15 @@ final class MidiMapTests: XCTestCase {
         a.midi.update(.knob(3), continuous: true, track) { $0.port = .device(-9) }
         let back = AppSettings.decode(a.encode())
         XCTAssertEqual(back.midi.mappings, a.midi.mappings)
-        let json = "{\"midi\":{\"mappings\":[{\"src\":{\"type\":\"cc\",\"ch\":0,\"num\":1},\"target\":{\"knob\":{\"_0\":2}}},{\"bad\":1}]}}"
+        let json = "{\"midi\":{\"devices\":[{\"name\":\"X\",\"on\":true,\"mappings\":[{\"src\":{\"type\":\"cc\",\"ch\":0,\"num\":1},\"target\":{\"knob\":{\"_0\":2}}},{\"bad\":1}]}]}}"
         let s = AppSettings.decode(Data(json.utf8))
         XCTAssertEqual(s.midi.mappings.count, 1)
         XCTAssertEqual(s.midi.mappings[0].target, .knob(2))
         XCTAssertEqual(s.midi.mappings[0].control, .momentary)
+        XCTAssertEqual(s.midi.mappings[0].dev, "X")
+        // Прежний общий список маппингов (до 18.11) пропускается (решение пользователя).
+        let old = AppSettings.decode(Data("{\"midi\":{\"mappings\":[{\"src\":{\"type\":\"cc\",\"ch\":0,\"num\":1},\"target\":{\"knob\":{\"_0\":2}}}]}}".utf8))
+        XCTAssertTrue(old.midi.mappings.isEmpty)
     }
 
     /// Коробка AppSettings.more (9.11): в файле — прежние ключи appearance, midi, sync, без more; все поля
@@ -168,7 +172,7 @@ final class MidiMapTests: XCTestCase {
     func testSettingsBoxKeepsFormat() throws {
         var a = AppSettings()
         a.appearance = "DARK"
-        a.midi.preset = "Twister"
+        a.midi.padThru = 2
         a.sync.quantum = 4
         a.sync.clockOuts = [7, 9]
         a.randomDrums = true
@@ -183,7 +187,7 @@ final class MidiMapTests: XCTestCase {
         let back = AppSettings.decode(data)
         XCTAssertEqual(back, a)
         XCTAssertEqual(back.sync.clockOuts, [7, 9])
-        XCTAssertEqual(back.midi.preset, "Twister")
+        XCTAssertEqual(back.midi.padThru, 2)
         XCTAssertTrue(back.knobColumns)
         // Старый файл без ключа — группы строками.
         XCTAssertFalse(AppSettings.decode(Data("{}".utf8)).knobColumns)

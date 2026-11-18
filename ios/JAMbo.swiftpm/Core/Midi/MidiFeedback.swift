@@ -42,12 +42,16 @@ extension MidiMapping {
         let x: Double = Swift.min(1, Swift.max(0, (norm - min) / span))
         return Int((x * 127).rounded())
     }
+}
 
-    /// Выходы обратной связи: Default — выход из DEVICES (feedback), None — нет, свой, или все выходы контроллера
-    /// (outputs — uniqueID и имена подключённых выходов).
-    public func feedbackDests(default def: Int32?, outputs: [(id: Int32, name: String)]) -> [Int32] {
-        switch port {
-        case .standard: return def.map { [$0] } ?? []
+extension MidiSettings {
+    /// Выходы обратной связи маппинга: Device (standard) — выходы его устройства, None — нет, свой выход или все выходы
+    /// контроллера (outputs — uniqueID и имена подключённых выходов).
+    public func feedbackDests(_ m: MidiMapping, outputs: [(id: Int32, name: String)]) -> [Int32] {
+        switch m.port {
+        case .standard:
+            guard let d = device(m.dev) else { return [] }
+            return outputs.filter { d.owns($0.name) }.map { $0.id }
         case .none: return []
         case .device(let id): return [id]
         case .controller(let n):
@@ -61,7 +65,7 @@ extension MidiSettings {
     /// Действующие маппинги для обратной связи: у источника — самое точное из действующих условий, как при управлении
     /// (resolve): маппинги источника с разных входов (Any и порт) не спорят по порядку в списке — иначе старый GLOBAL
     /// ручки с другим входом слал бы значение дорожки поверх Current page на MIX, MOD, FX, MST.
-    /// Нажатие ручки (PRESS) не шлёт ничего: у энкодеров с кнопкой (Twister) этот источник задаёт цвет подсветки.
+    /// Нажатие ручки (PRESS) не шлёт ничего: у энкодеров с кнопкой этот источник часто задаёт цвет подсветки.
     public func feedbackMappings(_ ctx: MidiContext) -> [MidiMapping] {
         let conds: [String] = ctx.conds
         var best: [String: (rank: Int, m: MidiMapping)] = [:]
@@ -69,7 +73,7 @@ extension MidiSettings {
         for m in mappings {
             if case .press = m.target { continue }
             guard let r = conds.firstIndex(of: m.condKey) else { continue }
-            let k: String = MidiFeedback.key(dest: 0, src: m.src)
+            let k: String = m.dev + "|" + MidiFeedback.key(dest: 0, src: m.src)
             if let b = best[k] {
                 if r < b.rank { best[k] = (r, m) }
             } else {

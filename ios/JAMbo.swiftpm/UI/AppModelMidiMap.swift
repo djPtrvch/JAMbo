@@ -1,6 +1,6 @@
 import Foundation
 
-/// Окно MIDI MAP (S13c): правка маппинга цели в закреплённом условии; пресеты маппингов.
+/// Окно MIDI MAP (S13c): правка маппинга цели в закреплённом условии; устройства меню MIDI → DEVICES.
 extension AppModel {
     /// Открыть окно для цели; cond — условие маппинга из списка (иначе — действующее сейчас); back — после закрытия
     /// снова меню MIDI.
@@ -20,7 +20,7 @@ extension AppModel {
         if !midiLearn.on { midiLearn.target = nil }
         if midiLearn.mapBack {
             midiLearn.mapBack = false
-            midiLearn.tab = .mapping
+            midiLearn.tab = .devices
             midiLearn.reopenMenu = true
         }
     }
@@ -71,53 +71,60 @@ extension AppModel {
         return settings.midi.mappings.first { $0.target != cur.target && $0.clashes(m) }?.target.label
     }
 
-    /// Открыть окно из списка маппингов меню MIDI (меню закрывается, после окна — снова меню).
-    func openMapFromList(_ k: Int) {
-        guard k < settings.midi.mappings.count else { return }
-        let m: MidiMapping = settings.midi.mappings[k]
+    /// Открыть окно из списка маппингов устройства (меню закрывается, после окна — снова меню).
+    func openMapFromList(_ m: MidiMapping) {
         openMap(m.target, cond: m.condKey, back: true)
     }
 
-    // MARK: — пресеты маппингов
+    // MARK: — устройства (MIDI → DEVICES)
 
-    /// Маппинги изменены после загрузки или сохранения пресета («*» в строке Preset).
-    var presetModified: Bool {
-        guard let p = midiPreset(settings.midi.preset) else { return false }
-        return p.mappings != settings.midi.mappings
+    /// Включить или выключить устройство; включённый контроллер сразу получает своё состояние и SET_MIDI_OUT.
+    func setDeviceOn(_ name: String, _ on: Bool) {
+        setMidi { $0.setOn(name, on) }
+        guard on, let c = settings.midi.device(name)?.controller else { return }
+        midiRun.controllerGen = -1
+        if c is JamboPad { setPadMidiOut() }
     }
 
-    /// Загрузить пресет: его маппинги заменяют все нынешние.
-    func loadMidiPreset(_ name: String) {
-        guard let p = midiPreset(name) else { return }
+    func renameDevice(_ from: String, to: String) {
+        var ok: Bool = false
+        setMidi { ok = $0.rename(from, to: to) }
+        if ok && midiLearn.device == from { midiLearn.device = to }
+    }
+
+    func removeDevice(_ name: String) {
+        setMidi { $0.remove(name) }
+        if midiLearn.device == name { midiLearn.device = nil }
+    }
+
+    func restoreDevice(_ name: String) {
+        setMidi { $0.restore(name) }
+    }
+
+    func clearDevice(_ name: String) {
+        setMidi { $0.clear(name) }
+    }
+
+    /// Снять маппинг устройства (✕ в списке).
+    func removeMapping(_ m: MidiMapping) {
         setMidi { s in
-            s.mappings = p.mappings
-            s.preset = p.name
+            guard let k = s.devices.firstIndex(where: { $0.name == m.dev }),
+                  let i = s.devices[k].mappings.firstIndex(of: m) else { return }
+            s.devices[k].mappings.remove(at: i)
         }
     }
 
-    /// Встроенный (SMC-PAD ×2) сохраняется своей настройкой под тем же именем; не переименовывается; удаление
-    /// настройки возвращает исходный.
-    func saveMidiPreset(_ name: String) {
-        guard let n = midiLearn.presets.save(name, settings.midi.mappings) else { return }
-        storeMidiPresets()
-        setMidi { $0.preset = n }
-    }
-
-    func renameMidiPreset(_ from: String, to: String) {
-        if Controllers.isBuiltIn(from) || Controllers.isBuiltIn(to) { return }
-        guard let n = midiLearn.presets.rename(from, to: to) else { return }
-        storeMidiPresets()
-        if settings.midi.preset == from { setMidi { $0.preset = n } }
-    }
-
-    func deleteMidiPreset(_ name: String) {
-        midiLearn.presets.delete(name)
-        storeMidiPresets()
-        if settings.midi.preset == name && !Controllers.isBuiltIn(name) { setMidi { $0.preset = "" } }
-    }
-
-    private func storeMidiPresets() {
-        UserDefaults.standard.set(midiLearn.presets.encode(), forKey: "midiPresets")
+    /// Новые входы — свои устройства (по поколению выходов MidiHost, вместе с контроллерами).
+    func addMidiPorts() {
+        let names: [String] = midi.inputs.map { $0.name }
+        let ms: MidiSettings = settings.midi
+        var fresh: [String] = []
+        for n in names {
+            var probe: MidiSettings = ms
+            if probe.addPort(n) && !fresh.contains(n) { fresh.append(n) }
+        }
+        if fresh.isEmpty { return }
+        setMidi { s in for n in fresh { s.addPort(n) } }
     }
 }
 
