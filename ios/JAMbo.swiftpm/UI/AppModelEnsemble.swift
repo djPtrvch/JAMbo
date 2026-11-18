@@ -6,7 +6,7 @@ import Foundation
 /// Партия одной дорожки ансамбля (считается до правки проекта).
 enum EnsembleJob {
     case drums(note: Int, role: DrumRhythm.Role)
-    case slices(pieces: [SliceRhythm.Piece], cuts: [Int: SliceRhythm.Cut])
+    case slices(pieces: [SliceRhythm.Piece], cuts: [Int: SliceRhythm.Cut], note: Int)
     case part(role: MelodyRhythm.Role, octave: Int, root: Int, single: Bool)
 }
 
@@ -22,7 +22,7 @@ extension AppModel {
         if settings.randomSamples && t.hasCuts {
             guard let d = sample(t.sample) else { return nil }
             let cut = slicePieces(t.sample, d, track: t, octave: oct)
-            return cut.pieces.isEmpty ? nil : .slices(pieces: cut.pieces, cuts: cut.cuts)
+            return cut.pieces.isEmpty ? nil : .slices(pieces: cut.pieces, cuts: cut.cuts, note: drumNote(t, octave: oct))
         }
         if !settings.randomChords { return nil }
         let chordOn: Bool = i < chordMode.count ? chordMode[i] : false
@@ -78,9 +78,9 @@ extension AppModel {
                 case .drums(let note, let role):
                     last[id] = p.tracks[i].writeRandomDrums(pages: r, note: note, bpm: bpm, avoid: last[id], role: role,
                                                             using: &g)
-                case .slices(let pieces, let cuts):
+                case .slices(let pieces, let cuts, let note):
                     last[-1 - id] = p.tracks[i].writeRandomSlices(pieces, pages: r, avoid: last[-1 - id], cuts: cuts,
-                                                                  bpm: bpm, using: &g)
+                                                                  bpm: bpm, cutNote: note, using: &g)
                 case .part(let role, let oct, let root, let single):
                     pad = role == .pad || (ps != nil && role == .arp)
                     p.tracks[i].writePart(role, style: ps, pages: r, degrees: degrees, kind: kind, scale: p.scale,

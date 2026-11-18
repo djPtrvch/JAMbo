@@ -49,7 +49,7 @@ public enum SliceRhythm {
         }
     }
 
-    /// «Ноты» кусков меток без ноты в рисунке (от этого номера по порядку; в шаг пишется Params.sampleRoot).
+    /// «Ноты» кусков меток без ноты в рисунке (от этого номера по порядку; в шаг пишется cutNote — writeSlices).
     public static let cutNote: Int = 1000
 
     /// Куски нарезки: marks — маркеры сэмпла, notes — их ноты (Slices.notes), lens — длина куска в шагах по
@@ -303,11 +303,12 @@ extension Track {
 
     /// Рисунок на страницы range открытого паттерна: прежние шаги этих страниц стираются, ноты — со своей длиной
     /// и velocity (Level ноты). Страницы вне range не трогаются. cuts — куски меток без ноты (по «ноте» куска —
-    /// отрезок сэмпла, доли длины): шаг играет исходную высоту (Params.sampleRoot) с p-lock Start и End (кроме границы,
+    /// отрезок сэмпла, доли длины): шаг играет ноту cutNote с p-lock Start и End (кроме границы,
     /// равной ручке дорожки); на шаге —
     /// не больше одного такого куска (первый).
+    /// cutNote — нота шагов кусков (18.11: корневая гаммы проекта, см. AppModel.drumNote).
     public mutating func writeSlices(_ pattern: [[SliceRhythm.Event]], pages range: ClosedRange<Int>,
-                                     cuts: [Int: SliceRhythm.Cut] = [:]) {
+                                     cuts: [Int: SliceRhythm.Cut] = [:], cutNote: Int = Params.sampleRoot) {
         let lo: Int = Swift.max(0, range.lowerBound)
         let hi: Int = Swift.min(pages.count - 1, range.upperBound)
         if lo > hi { return }
@@ -325,7 +326,7 @@ extension Track {
                     cutSteps.insert(e.step)
                     withStep(base + e.step) { s in
                         s.on = true
-                        s.addNote(Params.sampleRoot, len: e.len, vel: e.vel)
+                        s.addNote(cutNote, len: e.len, vel: e.vel)
                         // Граница, совпадающая с ручкой дорожки, — без p-lock (18.11, решение пользователя).
                         let st: Double = c.a * 100
                         let en: Double = c.b * 100
@@ -354,6 +355,7 @@ extension Track {
                                                                      pages range: ClosedRange<Int>, avoid: [Int]?,
                                                                      cuts: [Int: SliceRhythm.Cut] = [:],
                                                                      bpm: Double = 120,
+                                                                     cutNote: Int = Params.sampleRoot,
                                                                      using g: inout Rng) -> [Int]? {
         if pieces.isEmpty { return nil }
         let t: Track = self
@@ -361,7 +363,7 @@ extension Track {
         let pattern: [[SliceRhythm.Event]] = SliceRhythm.pattern(pieces, style: drumStyle, bpm: bpm, lens: lens,
                                                                  avoid: avoid,
                                                                  using: &g)
-        writeSlices(pattern, pages: range, cuts: cuts)
+        writeSlices(pattern, pages: range, cuts: cuts, cutNote: cutNote)
         return SliceRhythm.code(pattern.first(where: { !$0.isEmpty }) ?? [])
     }
 }

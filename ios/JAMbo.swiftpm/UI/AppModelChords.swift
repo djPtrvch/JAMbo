@@ -163,27 +163,17 @@ extension AppModel {
         return t.drumRoleBy(name: project.files[t.sample])
     }
 
-    /// Нота случайного ритма: у движка — корневая в октаве oct; у сэмпла — исходная высота (Params.sampleRoot), а
-    /// с определённой нотой сэмпла r (Project.roots; 8.11) — ближайшая к C3 нота, на которой он звучит корневой
-    /// проекта (подстройка от −6 до +5 полутонов).
+    /// Нота случайного ритма: у движка — корневая в октаве oct; у сэмпла (и кусков нарезки) — корневая гаммы проекта,
+    /// ближайшая к C3 (от −6 до +5 полутонов). 18.11, решение пользователя: ноты — по гамме и корневой проекта, без
+    /// подстройки под высоту сэмпла (иначе нота вне гаммы не видна в пианоролле); тон сэмпла меняют вручную.
     func drumNote(_ t: Track, octave oct: Int) -> Int {
         if SynthKey.engine(t.sample) != nil { return Scales.baseNote(root: project.root, octave: oct) }
-        guard let r = sampleNote(t) else { return Params.sampleRoot }
-        return Params.sampleRoot + Scales.wrap(project.root - r + 6, 12) - 6
+        return Params.sampleRoot + Scales.wrap(project.root + 6, 12) - 6
     }
 
-    /// Определённая нота сэмпла дорожки (Project.roots); у движка и сэмпла без ноты — nil.
-    func sampleNote(_ t: Track) -> Int? {
-        if t.sample.isEmpty || SynthKey.engine(t.sample) != nil { return nil }
-        return project.roots[t.sample]
-    }
-
-    /// Корневая нота случайной партии дорожки t (8.11). Сэмпл звучит исходной высотой на C3 (Params.sampleRoot):
-    /// с определённой нотой r нота N звучит как r + N − C3. Чтобы партия звучала в гамме проекта, ноты пишутся ниже
-    /// на (r − C3) по модулю 12 — от −6 до +5 (сэмпл подстраивается меньше всего, звучит в своём регистре).
+    /// Корневая нота случайной партии дорожки t: корневая проекта (18.11 — и у сэмпла, без подстройки под его высоту).
     func randomRoot(_ t: Track) -> Int {
-        guard let r = sampleNote(t) else { return project.root }
-        return project.root - (Scales.wrap(r - Params.sampleRoot + 6, 12) - 6)
+        return project.root
     }
 
     /// Прогрессия BASS, PAD и LEAD Techno: последняя случайная, если она вида Techno (одна гармония или 1 → 7/6),
@@ -280,8 +270,9 @@ extension AppModel {
         let cuts: [Int: SliceRhythm.Cut] = cut.cuts
         let bpm: Double = project.bpm
         let swing: Bool = settings.randomSwing
+        let note: Int = drumNote(track, octave: octave)
         editTrack { t in
-            code = t.writeRandomSlices(pieces, pages: range, avoid: avoid, cuts: cuts, bpm: bpm, using: &g)
+            code = t.writeRandomSlices(pieces, pages: range, avoid: avoid, cuts: cuts, bpm: bpm, cutNote: note, using: &g)
             if swing { t.params["swing"] = DrumRhythm.swing(t.drumStyle, bpm: bpm) }
         }
         lastRandomDrums[-1 - id] = code
