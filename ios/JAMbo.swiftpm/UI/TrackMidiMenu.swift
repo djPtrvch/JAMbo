@@ -23,8 +23,8 @@ struct TrackMidiPage: View {
                     Divider().overlay(theme.line).padding(.vertical, 6)
                     MenuHead(title: "MIDI OUT")
                     FieldLabel(title: "DEVICE")
-                    MidiDeviceList(none: "NONE", devices: model.midi.outputs, current: m.outDevice) { id in
-                        let name: String = model.midi.outputs.first { $0.id == id }?.name ?? ""
+                    MidiDeviceList(none: "NONE", devices: model.outputChoices, current: m.outDevice) { id in
+                        let name: String = model.outputChoices.first { $0.id == id }?.name ?? ""
                         set { t in
                             t.outDevice = id
                             t.outName = name

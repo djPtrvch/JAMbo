@@ -82,7 +82,7 @@ extension AppModel {
     func setDeviceOn(_ name: String, _ on: Bool) {
         setMidi { $0.setOn(name, on) }
         guard settings.midi.device(name)?.controller != nil else { return }
-        if on { midiRun.controllerGen = -1 } else { midiLearn.pads = [:] }
+        if on { midiRun.controllerGen = -1 } else { midiLearn.pads = [:]; updateJacks() }
     }
 
     func renameDevice(_ from: String, to: String) {

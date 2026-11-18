@@ -53,7 +53,13 @@ final class ControllerTests: XCTestCase {
         XCTAssertEqual(pad.event([0x7D, 0x4A, 0x50, 0x65, 7]), .root(7))
         // Ответ HELLO: статус, версия 1.2.3, формат 2, сторона LEFT, профиль 0, 4 профиля, MIDI OUT ALL, сообщения пэда.
         XCTAssertEqual(pad.event([0x7D, 0x4A, 0x50, 0x41, 0, 1, 2, 3, 2, 1, 0, 4, 2, 1, 0, 0]),
-                       .pad(side: 1, thru: 2, controls: true))
+                       .pad(side: 1, thru: 2, controls: true, version: 0x010203))
+        // DIN_OUT: 90 3C 64 → 01 10 3C 64 (пример из docs/jambo.md); 8 байт — две группы.
+        XCTAssertEqual(JamboPad.dinOutSysEx([0x90, 0x3C, 0x64]), [0x7D, 0x4A, 0x50, 0x11, 0x01, 0x10, 0x3C, 0x64])
+        XCTAssertEqual(JamboPad.pack([0x80, 1, 2, 3, 4, 5, 0xFF, 0xF8]), [0x41, 0, 1, 2, 3, 4, 5, 0x7F, 0x01, 0x78])
+        XCTAssertEqual(JamboPad.jackSide(JamboPad.jack(JamboPad.sideLeft)), JamboPad.sideLeft)
+        XCTAssertEqual(JamboPad.jackSide(JamboPad.jack(JamboPad.sideRight)), JamboPad.sideRight)
+        XCTAssertNil(JamboPad.jackSide(12345))
         XCTAssertNil(pad.event([0x7D, 0x4A, 0x50, 0x41, 1]))
         XCTAssertEqual(JamboPad.helloSysEx, [0x7D, 0x4A, 0x50, 0x01])
         XCTAssertEqual(JamboPad.side(name: "JAMboPAD L"), 1)

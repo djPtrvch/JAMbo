@@ -37,6 +37,7 @@ extension AppModel {
     func helloPads() {
         midiRun.padSide = [:]
         midiLearn.pads = [:]
+        updateJacks()
         let pad = JamboPad()
         guard settings.midi.isOn(pad.name) else { return }
         for o in midi.outputs where pad.owns(o.name) {
@@ -52,8 +53,8 @@ extension AppModel {
 
     /// SysEx с входа: событие контроллера (ROOT — корневая нота, SCALE — гамма; в ответ уйдёт SET_SCALE).
     func controllerSysEx(_ bytes: [UInt8], source: Int32) {
-        if let e = JamboPad().event(bytes), case .pad(let side, let thru, let controls) = e {
-            padHello(source, side: side, out: PadOut(thru: thru, controls: controls))
+        if let e = JamboPad().event(bytes), case .pad(let side, let thru, let controls, let version) = e {
+            padHello(source, side: side, out: PadOut(thru: thru, controls: controls, version: version))
             return
         }
         let ms: MidiSettings = settings.midi
@@ -74,6 +75,28 @@ extension AppModel {
             for o in midi.outputs where o.entity == ent { midiRun.padSide[o.id] = side }
         }
         midiLearn.pads[side] = out
+        updateJacks()
+    }
+
+    /// Разъёмы пэдов с DIN_OUT → выходы пэда (MidiHost шлёт туда ноты дорожек).
+    func updateJacks() {
+        var j: [Int32: [Int32]] = [:]
+        for (side, o) in midiLearn.pads where o.jack {
+            let outs: [Int32] = padOutputs(side)
+            if !outs.isEmpty { j[JamboPad.jack(side)] = outs }
+        }
+        midi.setJacks(j)
+    }
+
+    /// Выходы для MIDI OUT дорожки и CLOCK OUTPUTS: устройства CoreMIDI и разъёмы пэдов с DIN_OUT.
+    var outputChoices: [MidiEndpoint] {
+        var all: [MidiEndpoint] = midi.outputs
+        for side in [JamboPad.sideLeft, JamboPad.sideRight] {
+            if midiLearn.pads[side]?.jack == true && !padOutputs(side).isEmpty {
+                all.append(MidiEndpoint(id: JamboPad.jack(side), name: JamboPad.jackName(side)))
+            }
+        }
+        return all
     }
 
     /// JAMboPAD, разъём MIDI OUT пэда стороны side (SET_MIDI_OUT): сразу на этот пэд, он хранит у себя.

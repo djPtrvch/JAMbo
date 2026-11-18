@@ -240,7 +240,9 @@ enum JamboPadSection {
         let known: Int = model.padOutputs(JamboPad.sideLeft).count + model.padOutputs(JamboPad.sideRight).count
         let waiting: Int = model.controllerOutputs(JamboPad()).count - known
         if waiting > 0 { rows.append(.note("Pads not identified yet: \(waiting) (no reply to HELLO).")) }
-        rows.append(.note("MIDI OUT: what each pad passes from JAMbo to its 3.5 mm jack — CLOCK: clock, start and stop; ALL: everything JAMbo sends to that pad (track notes, clock and the pad’s light feedback). PAD MESSAGES: the pad’s own notes and CC go to the jack too. Each pad keeps its setting. Scale, key note and keyboard octave are sent to the pads automatically (over USB); a key note or scale picked on a pad changes ROOT or SCALE. The mappings follow the pads’ default layout; change them to match yours, the arrow (swipe left in DEVICES) restores them."))
+        let old: Bool = model.midiLearn.pads.values.contains { !$0.jack }
+        if old { rows.append(.note("Update the pad firmware to use its MIDI OUT jack for track notes.")) }
+        rows.append(.note("MIDI OUT: what each pad passes from JAMbo to its 3.5 mm jack — CLOCK: clock, start and stop; ALL: everything JAMbo sends to that pad, light feedback included. Track notes: pick JAMboPAD L or R · MIDI OUT as the track’s MIDI OUT device — they reach the jack in any mode. PAD MESSAGES: the pad’s own notes and CC go to the jack too. Each pad keeps its setting. Scale, key note and keyboard octave are sent to the pads automatically (over USB); a key note or scale picked on a pad changes ROOT or SCALE. The mappings follow the pads’ default layout; change them to match yours, the arrow (swipe left in DEVICES) restores them."))
         return rows
     }
 

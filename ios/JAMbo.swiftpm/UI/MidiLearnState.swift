@@ -149,6 +149,11 @@ final class MidiLearnState {
 struct PadOut: Equatable {
     var thru: Int
     var controls: Bool
+    /// Версия прошивки (major << 16 | minor << 8 | patch; 0 — неизвестна).
+    var version: Int = 0
+
+    /// Прошивка умеет DIN_OUT — разъём пэда можно выбрать выходом нот.
+    var jack: Bool { return version >= JamboPad.dinOutVersion }
 }
 
 /// Ход маппингов вне интерфейса: состояния TOGGLE, нажатые MIDI-кнопки (отпускание — той же кнопке), жест энкодера.

@@ -24,9 +24,9 @@ public enum ControllerEvent: Equatable, Sendable {
     case root(Int)
     /// Гамма — индекс в Scales.all (выбрана на контроллере).
     case scale(Int)
-    /// Ответ пэда на HELLO (JAMboPAD): сторона (0 RIGHT, 1 LEFT), разъём MIDI OUT (0 OFF, 1 CLOCK, 2 ALL) и
-    /// сообщения пэда туда же.
-    case pad(side: Int, thru: Int, controls: Bool)
+    /// Ответ пэда на HELLO (JAMboPAD): сторона (0 RIGHT, 1 LEFT), разъём MIDI OUT (0 OFF, 1 CLOCK, 2 ALL),
+    /// сообщения пэда туда же и версия прошивки (major << 16 | minor << 8 | patch).
+    case pad(side: Int, thru: Int, controls: Bool, version: Int)
 }
 
 public protocol MidiController {
@@ -67,6 +67,9 @@ public struct JamboPad: MidiController {
     public static let setScale: UInt8 = 0x0C
     public static let setMidiOut: UInt8 = 0x0D
     public static let hello: UInt8 = 0x01
+    /// DIN_OUT (прошивка 0.7.0+): упакованные байты MIDI — сразу в разъём пэда, при любом режиме MIDI OUT.
+    public static let dinOut: UInt8 = 0x11
+    public static let dinOutVersion: Int = 0x000700
     public static let reply: UInt8 = 0x40
     public static let sideRight = 0
     public static let sideLeft = 1
@@ -104,6 +107,42 @@ public struct JamboPad: MidiController {
         return header + [setMidiOut, UInt8(t), controls ? 1 : 0]
     }
 
+    /// Выход «разъём пэда» стороны side в списках выходов (MIDI OUT дорожки, CLOCK OUTPUTS): не uniqueID CoreMIDI —
+    /// ноты уходят пэду командой DIN_OUT (MidiHost), клок — на сам пэд (режим CLOCK).
+    public static func jack(_ side: Int) -> Int32 {
+        return Int32.min + 0x4A50 + Int32(side)
+    }
+
+    public static func jackSide(_ id: Int32) -> Int? {
+        if id == jack(sideRight) { return sideRight }
+        if id == jack(sideLeft) { return sideLeft }
+        return nil
+    }
+
+    public static func jackName(_ side: Int) -> String {
+        return "JAMboPAD " + (side == sideLeft ? "L" : "R") + " · MIDI OUT"
+    }
+
+    /// Упаковка 7 из 8 (docs/sysex.md): на каждые 7 байт — байт старших битов (бит k — байт k), затем байты без них.
+    public static func pack(_ bytes: [UInt8]) -> [UInt8] {
+        var out: [UInt8] = []
+        var i: Int = 0
+        while i < bytes.count {
+            let n: Int = min(7, bytes.count - i)
+            var hi: UInt8 = 0
+            for k in 0..<n where bytes[i + k] & 0x80 != 0 { hi |= 1 << UInt8(k) }
+            out.append(hi)
+            for k in 0..<n { out.append(bytes[i + k] & 0x7F) }
+            i += n
+        }
+        return out
+    }
+
+    /// DIN_OUT: байты MIDI (сообщения целиком) — в разъём пэда.
+    public static func dinOutSysEx(_ midi: [UInt8]) -> [UInt8] {
+        return header + [dinOut] + pack(midi)
+    }
+
     /// HELLO: пэд отвечает версией, стороной и настройкой MIDI OUT (docs/sysex.md).
     public static var helloSysEx: [UInt8] { return header + [hello] }
 
@@ -120,7 +159,8 @@ public struct JamboPad: MidiController {
         guard sysex.count >= 5, Array(sysex[0..<3]) == JamboPad.header else { return nil }
         if sysex[3] == JamboPad.hello | JamboPad.reply {
             guard sysex.count >= 14, sysex[4] == 0 else { return nil }
-            return .pad(side: Int(sysex[9]), thru: Int(sysex[12]), controls: sysex[13] != 0)
+            let v: Int = Int(sysex[5]) << 16 | Int(sysex[6]) << 8 | Int(sysex[7])
+            return .pad(side: Int(sysex[9]), thru: Int(sysex[12]), controls: sysex[13] != 0, version: v)
         }
         let v: Int = Int(sysex[4])
         if sysex[3] == JamboPad.rootEvent { return v < 12 ? .root(v) : nil }

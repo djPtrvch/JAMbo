@@ -32,6 +32,8 @@ final class MidiHost {
     @ObservationIgnored private let noteList = UnsafeMutablePointer<MIDIEventList>.allocate(capacity: 1)
     @ObservationIgnored private let lock = NSLock()
     @ObservationIgnored private var shared: [Int32: MIDIEndpointRef] = [:]
+    /// Разъёмы пэдов JAMboPAD (JamboPad.jack) → выходы этого пэда: ноты туда уходят командой DIN_OUT. Под замком.
+    @ObservationIgnored private var jacks: [Int32: [Int32]] = [:]
     @ObservationIgnored private(set) var started: Bool = false
     /// Сообщение, uniqueID источника и время прихода (секунды хоста, метка пакета) — на главном потоке.
     @ObservationIgnored var onMessage: ((MidiMessage, Int32, Double) -> Void)? = nil
@@ -204,29 +206,58 @@ final class MidiHost {
         }
     }
 
-    /// Ноты MIDI OUT дорожек с метками времени (такты mach) по выходам — только из потока MidiOutPump.
+    /// Разъёмы пэдов и их выходы (главный поток, при ответе пэда на HELLO).
+    func setJacks(_ j: [Int32: [Int32]]) {
+        lock.lock()
+        jacks = j
+        lock.unlock()
+    }
+
+    /// Ноты MIDI OUT дорожек с метками времени (такты mach) по выходам — только из потока MidiOutPump. На разъём пэда —
+    /// каждое сообщение своим SysEx DIN_OUT на выходы пэда.
     func sendNotes(_ byDest: [Int32: [(at: UInt64, word: UInt32)]]) {
         guard started, !byDest.isEmpty else { return }
         lock.lock()
         let dests: [Int32: MIDIEndpointRef] = shared
+        let pads: [Int32: [Int32]] = jacks
         lock.unlock()
+        for (id, events) in byDest where !events.isEmpty {
+            if let outs = pads[id] {
+                var packed: [(at: UInt64, words: [UInt32])] = []
+                for e in events {
+                    let b: [UInt8] = [UInt8((e.word >> 16) & 0xFF), UInt8((e.word >> 8) & 0x7F), UInt8(e.word & 0x7F)]
+                    packed.append((at: e.at, words: SysEx7.words(JamboPad.dinOutSysEx(b))))
+                }
+                for o in outs {
+                    if let dst = dests[o] { sendList(packed, dst) }
+                }
+            } else if let dst = dests[id] {
+                sendList(events.map { (at: $0.at, words: [$0.word]) }, dst)
+            }
+        }
+    }
+
+    /// Сообщения (слова одного сообщения — вместе) с метками времени на выход: по 16 слов на список.
+    private func sendList(_ msgs: [(at: UInt64, words: [UInt32])], _ dst: MIDIEndpointRef) {
         let size: Int = MemoryLayout<MIDIEventList>.size
-        for (id, events) in byDest {
-            guard let dst = dests[id], !events.isEmpty else { continue }
-            var packet: UnsafeMutablePointer<MIDIEventPacket> = MIDIEventListInit(noteList, ._1_0)
-            var count: Int = 0
-            for e in events {
-                if count == 16 {
+        var packet: UnsafeMutablePointer<MIDIEventPacket> = MIDIEventListInit(noteList, ._1_0)
+        var count: Int = 0
+        for m in msgs {
+            var i: Int = 0
+            while i < m.words.count {
+                let n: Int = min(MidiMessage.wordCount(m.words[i]), m.words.count - i)
+                if count + n > 16 {
                     MIDISendEventList(outPort, dst, noteList)
                     packet = MIDIEventListInit(noteList, ._1_0)
                     count = 0
                 }
-                var word: UInt32 = e.word
-                packet = MIDIEventListAdd(noteList, size, packet, e.at, 1, &word)
-                count += 1
+                var w: [UInt32] = Array(m.words[i..<(i + n)])
+                packet = MIDIEventListAdd(noteList, size, packet, m.at, n, &w)
+                count += n
+                i += n
             }
-            MIDISendEventList(outPort, dst, noteList)
         }
+        MIDISendEventList(outPort, dst, noteList)
     }
 
     /// Отменить отправленные, но ещё не ушедшие по времени сообщения на выходах ids.

@@ -165,11 +165,12 @@ enum ClockOutputList {
     static func view(_ model: AppModel) -> some View {
         let m: AppModel = model
         let s: SyncSettings = m.settings.sync
-        let gone: [Int32] = s.clockOuts.filter { id in !m.midi.outputs.contains(where: { $0.id == id }) }
+        let outs: [MidiEndpoint] = m.outputChoices
+        let gone: [Int32] = s.clockOuts.filter { id in !outs.contains(where: { $0.id == id }) }
         return VStack(alignment: .leading, spacing: 4) {
             MenuItem(title: "ALL OUTPUTS", current: s.clockOuts.isEmpty) { m.setSync { $0.clockOuts = [] } }
-            ForEach(m.midi.outputs) { d in
-                MenuItem(title: d.name, current: s.clockOuts.contains(d.id)) { m.setSync { $0.toggleOut(d.id) } }
+            ForEach(outs) { d in
+                MenuItem(title: d.name, current: s.clockOuts.contains(d.id)) { m.toggleClockOut(d.id) }
             }
             if !gone.isEmpty {
                 MenuItem(title: "NOT CONNECTED (\(gone.count))", enabled: false, current: true) {}

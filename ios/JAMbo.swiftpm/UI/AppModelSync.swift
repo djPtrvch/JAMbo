@@ -42,7 +42,19 @@ extension AppModel {
         }
         var ids: [Int32] = []
         for o in midi.outputs where s.sendsTo(o.id) && (skip.isEmpty || o.name != skip) { ids.append(o.id) }
+        // Разъём пэда — клок на сам пэд (в разъём его пропускает режим CLOCK или ALL).
+        for side in [JamboPad.sideLeft, JamboPad.sideRight] where !s.clockOuts.isEmpty && s.clockOuts.contains(JamboPad.jack(side)) {
+            for id in padOutputs(side) where !ids.contains(id) { ids.append(id) }
+        }
         return ids
+    }
+
+    /// CLOCK OUTPUTS: добавить или убрать выход; разъём пэда с MIDI OUT OFF — пэду режим CLOCK (иначе клок не дойдёт).
+    func toggleClockOut(_ id: Int32) {
+        setSync { $0.toggleOut(id) }
+        if let side = JamboPad.jackSide(id), settings.sync.clockOuts.contains(id), midiLearn.pads[side]?.thru == 0 {
+            setPadMidiOut(side, thru: 1)
+        }
     }
 
     /// Другой вход клока (S14d): тики прежнего не смешиваются с новым — темп и привязка шагов заново.
