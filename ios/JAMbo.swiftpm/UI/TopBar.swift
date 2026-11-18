@@ -115,50 +115,6 @@ extension View {
     }
 }
 
-/// Неактивная пока кнопка-значок верхней панели.
-struct TopIcon: View {
-    enum Tint { case normal, rec }
-    let symbol: String
-    var tint: Tint = .normal
-
-    var body: some View {
-        let color: Color = tint == .rec ? theme.rec : theme.off
-        return Image(systemName: symbol)
-            .font(.system(size: tint == .rec ? 12 : 18, weight: .semibold))
-            .foregroundStyle(color)
-            .tile(theme.panel2)
-            .overlay(RoundedRectangle(cornerRadius: Layout.radius).stroke(tint == .rec ? theme.rec : Color.clear, lineWidth: 1))
-    }
-}
-
-/// Неактивная пока кнопка-надпись верхней панели.
-struct TopText: View {
-    let title: String
-
-    var body: some View {
-        Text(title)
-            .font(.system(size: 13, weight: .semibold))
-            .tracking(1)
-            .foregroundStyle(theme.off)
-            .tile(theme.panel2)
-    }
-}
-
-/// Поле с подписью над значением (SCALE, ROOT; пока не меняются — S1c).
-struct TopField: View {
-    let label: String
-    let value: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(label).font(.system(size: 9)).tracking(0.8).foregroundStyle(theme.dim)
-            Text(value).font(.system(size: 15)).foregroundStyle(theme.off)
-        }
-        .padding(.horizontal, 10)
-        .tile(theme.panel, alignment: .leading)
-    }
-}
-
 /// PLAY: жёлтая окантовка, при игре горит жёлтым; срабатывает в момент касания.
 struct PlayButton: View {
     let model: AppModel

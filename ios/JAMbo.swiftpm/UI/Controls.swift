@@ -19,24 +19,6 @@ struct InkButton: View {
     }
 }
 
-/// Квадратная кнопка-крестик ✕ — закрыть окно (справа в верхней строке).
-struct CloseButton: View {
-    /// Сторона: в строке кнопок окон на месте центра — barH (квадрат во всю высоту строки).
-    var side: CGFloat = 48
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Text("✕")
-                .font(.system(size: 18, weight: .bold))
-                .foregroundStyle(theme.text)
-                .frame(width: side, height: side)
-                .background(theme.panel, in: RoundedRectangle(cornerRadius: 10))
-        }
-        .buttonStyle(.plain)
-    }
-}
-
 /// Бутерброд — только полоски, без фона.
 struct BurgerButton: View {
     let action: () -> Void

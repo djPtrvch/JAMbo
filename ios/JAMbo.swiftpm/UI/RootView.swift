@@ -368,19 +368,6 @@ extension RootView {
     }
 }
 
-/// Заглушка будущей части экрана.
-struct Placeholder: View {
-    let title: String
-
-    var body: some View {
-        Text(title)
-            .font(.system(size: 12, weight: .semibold))
-            .tracking(1)
-            .foregroundStyle(theme.off)
-            .tile(theme.panel)
-    }
-}
-
 /// Пункт бутерброда.
 enum MenuPage {
     case main

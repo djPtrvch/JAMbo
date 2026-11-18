@@ -119,4 +119,28 @@ final class MidiTests: XCTestCase {
         let c = AppSettings.decode(b.encode())
         XCTAssertFalse(c.midi.pressTouch)
     }
+
+    /// Своя запись перечислений (CaseCoding) — в прежнем формате синтезированной Codable (18.11).
+    func testCaseCodingFormat() throws {
+        let e = JSONEncoder()
+        e.outputFormatting = .sortedKeys
+        func json<T: Encodable>(_ v: T) throws -> String { return String(data: try e.encode(v), encoding: .utf8)! }
+        XCTAssertEqual(try json(MidiTarget.knob(3)), "{\"knob\":{\"_0\":3}}")
+        XCTAssertEqual(try json(MidiTarget.press(5)), "{\"press\":{\"_0\":5}}")
+        XCTAssertEqual(try json(MidiTarget.button("PLAY")), "{\"button\":{\"_0\":\"PLAY\"}}")
+        XCTAssertEqual(try json(MidiPort.standard), "{\"standard\":{}}")
+        XCTAssertEqual(try json(MidiPort.none), "{\"none\":{}}")
+        XCTAssertEqual(try json(MidiPort.device(-5)), "{\"device\":{\"_0\":-5}}")
+        XCTAssertEqual(try json(MidiPort.controller("JAMboPAD")), "{\"controller\":{\"_0\":\"JAMboPAD\"}}")
+        XCTAssertEqual(try json(MidiPressAction.param), "{\"param\":{}}")
+        XCTAssertEqual(try json(MidiPressAction.button("REC")), "{\"button\":{\"_0\":\"REC\"}}")
+        let d = JSONDecoder()
+        func back<T: Decodable>(_ t: T.Type, _ s: String) -> T? { return try? d.decode(t, from: Data(s.utf8)) }
+        XCTAssertEqual(back(MidiTarget.self, "{\"press\":{\"_0\":7}}"), .press(7))
+        XCTAssertEqual(back(MidiPort.self, "{\"device\":{\"_0\":123}}"), .device(123))
+        XCTAssertEqual(back(MidiPort.self, "{\"none\":{}}"), MidiPort.none)
+        XCTAssertEqual(back(MidiPressAction.self, "{\"reset\":{}}"), .reset)
+        XCTAssertNil(back(MidiTarget.self, "{\"knobs\":{\"_0\":1}}"))
+        XCTAssertNil(back(MidiTarget.self, "{}"))
+    }
 }

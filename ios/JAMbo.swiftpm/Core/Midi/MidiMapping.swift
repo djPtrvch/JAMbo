@@ -32,6 +32,25 @@ public enum MidiTarget: Codable, Equatable, Hashable, Sendable {
     case press(Int)
     case button(String)
 
+    // Запись — как у синтезированной (имя случая и "_0"), но одной общей функцией CaseCoding: объём сборки (18.11).
+    public init(from decoder: Decoder) throws {
+        let (name, p) = try CaseCoding.decode(decoder)
+        switch name {
+        case "knob": self = .knob(try p.decode(Int.self, forKey: CaseKey.payload))
+        case "press": self = .press(try p.decode(Int.self, forKey: CaseKey.payload))
+        case "button": self = .button(try p.decode(String.self, forKey: CaseKey.payload))
+        default: throw CaseCoding.bad(decoder)
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        switch self {
+        case .knob(let s): try CaseCoding.encode(encoder, "knob", int: s)
+        case .press(let s): try CaseCoding.encode(encoder, "press", int: s)
+        case .button(let n): try CaseCoding.encode(encoder, "button", string: n)
+        }
+    }
+
     /// KNOB строка.место (группа.ручка, как в описании сетки; 8.11 — группы в строках, прежде в столбцах); у нажатия — KNOB 2.1 PRESS.
     public var label: String {
         switch self {
@@ -143,6 +162,26 @@ public enum MidiPort: Codable, Equatable, Sendable {
     case none
     case device(Int32)
     case controller(String)
+
+    public init(from decoder: Decoder) throws {
+        let (name, p) = try CaseCoding.decode(decoder)
+        switch name {
+        case "standard": self = .standard
+        case "none": self = .none
+        case "device": self = .device(try p.decode(Int32.self, forKey: CaseKey.payload))
+        case "controller": self = .controller(try p.decode(String.self, forKey: CaseKey.payload))
+        default: throw CaseCoding.bad(decoder)
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        switch self {
+        case .standard: try CaseCoding.encode(encoder, "standard")
+        case .none: try CaseCoding.encode(encoder, "none")
+        case .device(let id): try CaseCoding.encode(encoder, "device", int: Int(id))
+        case .controller(let n): try CaseCoding.encode(encoder, "controller", string: n)
+        }
+    }
 }
 
 /// Что делает нажатие ручки (цель PRESS; строка Action окна MIDI MAP): сброс к значению по умолчанию (как двойной
@@ -151,6 +190,24 @@ public enum MidiPressAction: Codable, Equatable, Sendable {
     case reset
     case param
     case button(String)
+
+    public init(from decoder: Decoder) throws {
+        let (name, p) = try CaseCoding.decode(decoder)
+        switch name {
+        case "reset": self = .reset
+        case "param": self = .param
+        case "button": self = .button(try p.decode(String.self, forKey: CaseKey.payload))
+        default: throw CaseCoding.bad(decoder)
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        switch self {
+        case .reset: try CaseCoding.encode(encoder, "reset")
+        case .param: try CaseCoding.encode(encoder, "param")
+        case .button(let n): try CaseCoding.encode(encoder, "button", string: n)
+        }
+    }
 }
 
 public struct MidiMapping: Codable, Equatable, Sendable {
@@ -247,5 +304,40 @@ struct LossyMapping: Decodable {
 
     init(from decoder: Decoder) throws {
         value = try? MidiMapping(from: decoder)
+    }
+}
+
+/// Ключ записи случаев перечислений: имя случая и "_0" (значение), как у синтезированной Codable.
+struct CaseKey: CodingKey {
+    let stringValue: String
+    var intValue: Int? { return nil }
+
+    init(_ s: String) { stringValue = s }
+    init?(stringValue: String) { self.stringValue = stringValue }
+    init?(intValue: Int) { return nil }
+
+    static let payload = CaseKey("_0")
+}
+
+/// Запись перечислений со значениями одной функцией вместо синтезированной (у той — свои CodingKeys на каждый
+/// случай со всеми соответствиями: объём сборки). Формат прежний: {"knob":{"_0":3}}, {"standard":{}}.
+enum CaseCoding {
+    static func encode(_ encoder: Encoder, _ name: String, int: Int? = nil, string: String? = nil) throws {
+        var c = encoder.container(keyedBy: CaseKey.self)
+        var n = c.nestedContainer(keyedBy: CaseKey.self, forKey: CaseKey(name))
+        if let i = int { try n.encode(i, forKey: CaseKey.payload) }
+        if let t = string { try n.encode(t, forKey: CaseKey.payload) }
+    }
+
+    /// Имя случая и его значения; ключ должен быть ровно один.
+    static func decode(_ decoder: Decoder) throws -> (String, KeyedDecodingContainer<CaseKey>) {
+        let c = try decoder.container(keyedBy: CaseKey.self)
+        guard c.allKeys.count == 1, let k = c.allKeys.first else { throw bad(decoder) }
+        return (k.stringValue, try c.nestedContainer(keyedBy: CaseKey.self, forKey: k))
+    }
+
+    static func bad(_ decoder: Decoder) -> Error {
+        return DecodingError.dataCorrupted(DecodingError.Context(codingPath: decoder.codingPath,
+                                                                 debugDescription: "unknown case"))
     }
 }
