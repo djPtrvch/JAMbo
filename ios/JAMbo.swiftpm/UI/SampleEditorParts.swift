@@ -165,19 +165,20 @@ struct ToolButton: View {
     var width: CGFloat? = 76
     /// Жирный шрифт (в редакторе сэмпла — LOAD и SAVE; остальные — обычным).
     var bold: Bool = false
-    /// Тусклая подпись (18.11, решение пользователя): правки сэмпла и WARP в строке редактора — тусклее LOAD, SAVE,
-    /// ▶ и REC, как второстепенное в окнах модулей мастера.
+    /// Второстепенная кнопка (18.11, решение пользователя): правки сэмпла и WARP в строке редактора — на подложке
+    /// темнее (panel), как поля в окнах модулей мастера; LOAD, SAVE, ▶ и REC — на обычной (panel2).
     var quiet: Bool = false
     let action: () -> Void
 
     var body: some View {
-        let fg: Color = !enabled ? theme.off : (lit ? theme.onAccent : (quiet ? theme.dim : theme.text))
+        let fg: Color = !enabled ? theme.off : (lit ? theme.onAccent : theme.text)
+        let bg: Color = lit ? theme.accent : (quiet ? theme.panel : theme.panel2)
         return Button(action: action) {
             Text(title).font(.system(size: 13, weight: bold ? .bold : .regular)).lineLimit(1).minimumScaleFactor(0.7)
                 .foregroundStyle(fg)
                 .frame(width: width)
                 .frame(maxWidth: width == nil ? .infinity : nil, maxHeight: .infinity)
-                .background(lit ? theme.accent : theme.panel2, in: RoundedRectangle(cornerRadius: 8))
+                .background(bg, in: RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
         .disabled(!enabled)
@@ -194,13 +195,13 @@ struct HoldToolButton: View {
     let hold: () -> Void
 
     var body: some View {
-        // Тусклая подпись, как у ToolButton quiet (WARP — второстепенная кнопка строки редактора); выключен — зачёркнута.
-        let fg: Color = !enabled ? theme.off : (lit ? theme.onAccent : theme.dim)
+        let fg: Color = !enabled ? theme.off : (lit ? theme.onAccent : (strike ? theme.dim : theme.text))
         let gesture = LongPressGesture(minimumDuration: 0.5).onEnded { _ in hold() }
             .exclusively(before: TapGesture().onEnded { tap() })
         return Text(title).font(.system(size: 13)).strikethrough(strike).lineLimit(1).minimumScaleFactor(0.7)
             .foregroundStyle(fg)
-            .tile(lit ? theme.accent : theme.panel2, radius: 8)
+            // Второстепенная кнопка строки редактора (WARP) — на подложке темнее, как ToolButton quiet.
+            .tile(lit ? theme.accent : theme.panel, radius: 8)
             .contentShape(Rectangle())
             .gesture(gesture)
             .allowsHitTesting(enabled)
