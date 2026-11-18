@@ -389,12 +389,12 @@ enum GridMenu {
         .menuPanel()
     }
 
-    private func title(_ s: String) -> some View {
+    private static func title(_ s: String) -> some View {
         Text(s).font(.system(size: 12, weight: .bold)).tracking(1.2).foregroundStyle(theme.text).padding(.top, 4)
     }
 
     /// Два пункта: выбор левого — pick(true), правого — pick(false).
-    private func pair(_ a: String, _ aOn: Bool, _ b: String, _ bOn: Bool, pick: @escaping (Bool) -> Void) -> some View {
+    private static func pair(_ a: String, _ aOn: Bool, _ b: String, _ bOn: Bool, pick: @escaping (Bool) -> Void) -> some View {
         HStack(spacing: 6) {
             MenuItem(title: a, current: aOn) { pick(true) }
             MenuItem(title: b, current: bOn) { pick(false) }
