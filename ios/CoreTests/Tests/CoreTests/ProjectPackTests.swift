@@ -23,12 +23,12 @@ final class ProjectPackTests: XCTestCase {
         XCTAssertEqual(back.version, ProjectFormat.version)
         XCTAssertEqual(back.name, "Jam")
         XCTAssertEqual(back.samples, [s1, s2])
-        XCTAssertFalse(back.isWeb)
         let p = try XCTUnwrap(back.swiftProject())
         XCTAssertEqual(p, orig)
     }
 
-    /// Файл, собранный как packProject веба: формат jambo, длина заголовка старшим байтом вперёд.
+    /// Файл, собранный как packProject веба: формат jambo, длина заголовка старшим байтом вперёд. Контейнер читается,
+    /// проекта нет (перевод файлов веба убран 18.11).
     func testReadsWebLayout() throws {
         let header = #"{"format":"jambo","version":1,"name":"Web","doc":{"bpm":90,"tracks":[]},"samples":[{"key":"s:00ff","name":"a.wav","size":2},{"key":"s:11","name":"b.mp3","size":3}]}"#
         let h = Data(header.utf8)
@@ -37,7 +37,7 @@ final class ProjectPackTests: XCTestCase {
         data.append(h)
         data.append(contentsOf: [9, 8, 7, 6, 5])
         let pack = try XCTUnwrap(ProjectPack.decode(data))
-        XCTAssertTrue(pack.isWeb)
+        XCTAssertEqual(pack.format, "jambo")
         XCTAssertEqual(pack.name, "Web")
         XCTAssertEqual(pack.samples.map { $0.key }, ["s:00ff", "s:11"])
         XCTAssertEqual(pack.samples[0].bytes, Data([9, 8]))
@@ -46,6 +46,7 @@ final class ProjectPackTests: XCTestCase {
         let doc = try XCTUnwrap(JSONSerialization.jsonObject(with: pack.doc) as? [String: Any])
         XCTAssertEqual(doc["bpm"] as? Int, 90)
         XCTAssertNil(pack.swiftProject())
+        XCTAssertNil(pack.project())
     }
 
     func testRejectsBrokenFiles() throws {

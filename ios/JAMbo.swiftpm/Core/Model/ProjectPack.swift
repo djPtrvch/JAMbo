@@ -106,9 +106,6 @@ public struct ProjectPack: Equatable, Sendable {
         return nil
     }
 
-    /// Файл веба (проект нужно конвертировать).
-    public var isWeb: Bool { return format == ProjectPack.webFormat }
-
     /// Проект Swift-версии из файла (миграция и repair — как у файлов приложения); веб или чужой формат — nil.
     public func swiftProject() -> Project? {
         if format != ProjectFormat.name { return nil }
@@ -121,31 +118,28 @@ public struct ProjectPack: Equatable, Sendable {
         return ProjectFormat.decode(data)?.doc
     }
 
-    /// Проект из файла любого формата: веб — конвертер (WebProject), Swift — как есть; иначе nil.
+    /// Проект из файла: только Swift-версии (перевод файлов веба убран 18.11 — веб был пробной версией, проекты
+    /// перенесены); иначе nil.
     public func project() -> Project? {
-        return isWeb ? WebProject.convert(doc) : swiftProject()
+        return swiftProject()
     }
 
-    /// Сэмплы, нужные проекту p, с ключами Swift-версии (у веба — без 's:'); лишние (свои таблицы WTABLE) — нет.
+    /// Сэмплы, нужные проекту p; лишние (свои таблицы WTABLE) — нет.
     public func samples(for p: Project) -> [PackSample] {
         let need: Set<String> = p.sampleKeys
         var out: [PackSample] = []
         for s in samples {
-            var x = s
-            x.key = WebProject.key(s.key)
-            if need.contains(x.key) && !out.contains(where: { $0.key == x.key }) { out.append(x) }
+            if need.contains(s.key) && !out.contains(where: { $0.key == s.key }) { out.append(s) }
         }
         return out
     }
 
-    /// WAV своих таблиц WTABLE проекта p (ключи без 's:'): в Tables, не в Samples.
+    /// WAV своих таблиц WTABLE проекта p: в Tables, не в Samples.
     public func tables(for p: Project) -> [PackSample] {
         let need: Set<String> = p.tableKeys
         var out: [PackSample] = []
         for s in samples {
-            var x = s
-            x.key = WebProject.key(s.key)
-            if need.contains(x.key) && !out.contains(where: { $0.key == x.key }) { out.append(x) }
+            if need.contains(s.key) && !out.contains(where: { $0.key == s.key }) { out.append(s) }
         }
         return out
     }

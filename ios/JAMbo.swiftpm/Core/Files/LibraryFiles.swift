@@ -42,15 +42,13 @@ public enum PresetFile {
         return data
     }
 
-    /// Пресет из файла (веба или своего); не пресет — nil. Без имени — имя файла.
+    /// Пресет из файла; не пресет — nil. Без имени — имя файла.
     public static func decode(_ data: Data, fallback: String) -> SynthPreset? {
         guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let p = obj["preset"] as? [String: Any], p["sound"] is String, p["params"] is [String: Any],
               let pd = try? JSONSerialization.data(withJSONObject: p),
               var preset = try? JSONDecoder().decode(SynthPreset.self, from: pd) else { return nil }
         if preset.name.isEmpty { preset.name = fallback }
-        // Своя таблица веба ('wt:s:…') — ключ Swift.
-        if let t = preset.table { preset.table = WebProject.table(t) }
         return preset
     }
 }

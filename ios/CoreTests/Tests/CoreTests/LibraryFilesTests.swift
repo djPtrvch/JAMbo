@@ -69,9 +69,9 @@ final class LibraryFilesTests: XCTestCase {
     func testPresetFile() throws {
         let p = SynthPreset(name: "Bell", sound: "mi:18", params: ["harm": 30], table: "wt:abc:512")
         XCTAssertEqual(PresetFile.decode(PresetFile.encode(p), fallback: "x"), p)
-        // Файл веба: своя таблица с 's:', без имени — имя файла.
-        let web = Data(#"{"jambo":"preset","preset":{"name":"","sound":"mi:19","params":{"harm":1},"table":"wt:s:ab12:2048"}}"#.utf8)
-        let w = try XCTUnwrap(PresetFile.decode(web, fallback: "Wave"))
+        // Без имени — имя файла; ключ таблицы — как в файле (перевод ключей веба убран 18.11).
+        let raw = Data(#"{"jambo":"preset","preset":{"name":"","sound":"mi:19","params":{"harm":1},"table":"wt:ab12:2048"}}"#.utf8)
+        let w = try XCTUnwrap(PresetFile.decode(raw, fallback: "Wave"))
         XCTAssertEqual(w.name, "Wave")
         XCTAssertEqual(w.table, "wt:ab12:2048")
         XCTAssertNil(PresetFile.decode(Data("{}".utf8), fallback: "x"))

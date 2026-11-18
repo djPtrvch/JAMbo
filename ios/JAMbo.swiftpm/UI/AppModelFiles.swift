@@ -2,7 +2,7 @@ import Foundation
 
 // EXPORT / IMPORT проекта файлом .jambo (S11a, как exportProject / importProject веба; контейнер — ProjectPack).
 // EXPORT: проект (без строки PREV — savedProject) и его сэмплы (свои .caf) — во временный файл, его переносит в
-// «Файлы» системное окно (fileMover). IMPORT: файл веба (конвертер WebProject) или Swift-версии; сэмплы — в Samples,
+// «Файлы» системное окно (fileMover). IMPORT: файл Swift-версии (файлы веба не читаются, 18.11); сэмплы — в Samples,
 // проект — новой записью в списке («имя (imported)», если имя занято), затем окно LOAD / MIX.
 
 /// Итог IMPORT: новая запись в списке проектов или текст ошибки.
