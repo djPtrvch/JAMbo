@@ -95,9 +95,9 @@ extension AppModel {
         }
     }
 
-    /// Встроенные (SMC-PAD ×2) не перезаписываются, не переименовываются и не удаляются: имя занято.
+    /// Встроенный (SMC-PAD ×2) сохраняется своей настройкой под тем же именем; не переименовывается; удаление
+    /// настройки возвращает исходный.
     func saveMidiPreset(_ name: String) {
-        if Controllers.isBuiltIn(name) { return }
         guard let n = midiLearn.presets.save(name, settings.midi.mappings) else { return }
         storeMidiPresets()
         setMidi { $0.preset = n }
@@ -111,10 +111,9 @@ extension AppModel {
     }
 
     func deleteMidiPreset(_ name: String) {
-        if Controllers.isBuiltIn(name) { return }
         midiLearn.presets.delete(name)
         storeMidiPresets()
-        if settings.midi.preset == name { setMidi { $0.preset = "" } }
+        if settings.midi.preset == name && !Controllers.isBuiltIn(name) { setMidi { $0.preset = "" } }
     }
 
     private func storeMidiPresets() {

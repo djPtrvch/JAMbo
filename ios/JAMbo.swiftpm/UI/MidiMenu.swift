@@ -219,7 +219,7 @@ struct JamboPadSection: View {
             .label("PAD MIDI OUT"),
             .choices(thru),
             .toggle("PAD MESSAGES TO MIDI OUT", ms.padControls, toggle),
-            .note((pads == 0 ? "No SMC-PAD connected. " : "SMC-PAD connected: \(pads). ") + "MIDI OUT: what the pads pass from JAMbo to their 3.5 mm jack — CLOCK: clock, start and stop; ALL: everything JAMbo sends them. Scale, key note and keyboard octave are sent to the pads automatically; a key note picked on a pad changes ROOT. Mapping preset: MIDI MAP → Preset → SMC-PAD ×2."),
+            .note((pads == 0 ? "No pads connected. " : "Pads connected: \(pads). ") + "MIDI OUT: what the pads pass from JAMbo to their 3.5 mm jack — CLOCK: clock, start and stop; ALL: everything JAMbo sends them. Scale, key note and keyboard octave are sent to the pads automatically (over USB); a key note or scale picked on a pad changes ROOT or SCALE. Mapping preset to start from: MIDI MAP → Preset → SMC-PAD ×2."),
         ]
         return FormRows(rows: rows)
     }

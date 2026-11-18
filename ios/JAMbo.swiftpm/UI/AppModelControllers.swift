@@ -27,12 +27,13 @@ extension AppModel {
         }
     }
 
-    /// SysEx с входа: событие контроллера (ROOT — корневая нота; в ответ уйдёт SET_SCALE).
+    /// SysEx с входа: событие контроллера (ROOT — корневая нота, SCALE — гамма; в ответ уйдёт SET_SCALE).
     func controllerSysEx(_ bytes: [UInt8], source: Int32) {
         for c in Controllers.all {
             guard let e = c.event(bytes) else { continue }
             switch e {
             case .root(let r): setRoot(r)
+            case .scale(let k): setScale(k)
             }
             return
         }
@@ -50,8 +51,20 @@ extension AppModel {
 
     // MARK: — пресеты маппингов: встроенные (контроллеры) и свои
 
-    /// Пресет по имени: встроенный, затем свой.
+    /// Пресет по имени: свой (в том числе сохранённая настройка встроенного), затем встроенный.
     func midiPreset(_ name: String) -> MidiPreset? {
-        return Controllers.presets.first { $0.name == name } ?? midiLearn.presets.preset(name)
+        return midiLearn.presets.preset(name) ?? Controllers.presets.first { $0.name == name }
+    }
+
+    /// Список пресетов: встроенные (или их сохранённые настройки) первыми, затем свои.
+    var midiPresetList: [MidiPreset] {
+        let own: [MidiPreset] = midiLearn.presets.list
+        let builtIn: [MidiPreset] = Controllers.presets.map { b in own.first { $0.name == b.name } ?? b }
+        return builtIn + own.filter { !Controllers.isBuiltIn($0.name) }
+    }
+
+    /// Встроенный пресет сохранён со своей настройкой (DELETE вернёт исходный).
+    func midiPresetOverridden(_ name: String) -> Bool {
+        return Controllers.isBuiltIn(name) && midiLearn.presets.preset(name) != nil
     }
 }

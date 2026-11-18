@@ -21,14 +21,17 @@ public struct ControllerState: Equatable, Sendable {
 public enum ControllerEvent: Equatable, Sendable {
     /// Корневая нота 0–11 (выбрана на контроллере).
     case root(Int)
+    /// Гамма — индекс в Scales.all (выбрана на контроллере).
+    case scale(Int)
 }
 
 public protocol MidiController {
     /// Имя в меню MIDI.
     var name: String { get }
-    /// Часть имени устройства CoreMIDI (без учёта регистра): по ней — выходы контроллера.
-    var portName: String { get }
-    /// Встроенный пресет маппингов (nil — нет).
+    /// Части имени устройства CoreMIDI (без учёта регистра; USB и Bluetooth называются по-разному): по ним — выходы
+    /// контроллера.
+    var portNames: [String] { get }
+    /// Встроенный пресет маппингов, ориентировочный (nil — нет); свой с тем же именем заменяет его в списке.
     var preset: MidiPreset? { get }
     /// Состояние слать на все выходы (не только контроллера).
     var stateToAll: Bool { get }
@@ -41,16 +44,21 @@ public protocol MidiController {
 extension MidiController {
     /// Имя устройства принадлежит контроллеру.
     public func owns(_ deviceName: String) -> Bool {
-        return deviceName.range(of: portName, options: .caseInsensitive) != nil
+        return portNames.contains { deviceName.range(of: $0, options: .caseInsensitive) != nil }
     }
 }
 
 public enum Controllers {
     public static let all: [MidiController] = [JamboPad()]
 
-    /// Встроенные пресеты маппингов (выше своих в списке; не переименовываются и не удаляются).
+    /// Встроенные пресеты маппингов (выше своих в списке; свой с тем же именем — сохранённая настройка — заменяет
+    /// встроенный, удаление своего возвращает встроенный).
     public static var presets: [MidiPreset] {
         return all.compactMap { $0.preset }
+    }
+
+    public static func named(_ name: String) -> MidiController? {
+        return all.first { $0.name == name }
     }
 
     public static func isBuiltIn(_ name: String) -> Bool {
@@ -65,12 +73,14 @@ public struct JamboPad: MidiController {
     public static let setScale: UInt8 = 0x0C
     public static let setMidiOut: UInt8 = 0x0D
     public static let rootEvent: UInt8 = 0x65
+    public static let scaleEvent: UInt8 = 0x67
     public static let presetName = "SMC-PAD ×2"
 
     public init() {}
 
     public var name: String { return "JAMboPAD" }
-    public var portName: String { return "SMC-PAD" }
+    /// По USB — «SMC-PAD», по Bluetooth — «JAMboPAD L» и «JAMboPAD R».
+    public var portNames: [String] { return ["SMC-PAD", "JAMboPAD"] }
     /// SET_SCALE — на все выходы (по протоколу; другие устройства SysEx с ID 7D пропускают).
     public var stateToAll: Bool { return true }
     public var preset: MidiPreset? { return MidiPreset(name: JamboPad.presetName, mappings: JamboPad.mappings()) }
@@ -97,14 +107,17 @@ public struct JamboPad: MidiController {
         return header + [setMidiOut, UInt8(t), controls ? 1 : 0]
     }
 
-    /// ROOT (0x65): корневая нота, выбранная на пэде.
+    /// ROOT (0x65): корневая нота, выбранная на пэде; SCALE (0x67): номер гаммы (маска после него — не нужна).
     public func event(_ sysex: [UInt8]) -> ControllerEvent? {
-        guard sysex.count >= 5, Array(sysex[0..<3]) == JamboPad.header, sysex[3] == JamboPad.rootEvent else { return nil }
-        let r: Int = Int(sysex[4])
-        return r < 12 ? .root(r) : nil
+        guard sysex.count >= 5, Array(sysex[0..<3]) == JamboPad.header else { return nil }
+        let v: Int = Int(sysex[4])
+        if sysex[3] == JamboPad.rootEvent { return v < 12 ? .root(v) : nil }
+        if sysex[3] == JamboPad.scaleEvent { return v < Scales.all.count ? .scale(v) : nil }
+        return nil
     }
 
-    /// Пресет по таблице раскладки (профиль 1). Каналы — с нуля (канал 1 — 0). Обратная связь — на все SMC-PAD:
+    /// Ориентировочный пресет по раскладке пэдов по умолчанию (docs/jambo.md; раскладка меняется в конфигураторе,
+    /// кнопки — любые кнопки JAMbo: здесь — пример). Каналы — с нуля (канал 1 — 0). Обратная связь — на все пэды:
     /// номера и каналы у двух пэдов не пересекаются.
     static func mappings() -> [MidiMapping] {
         var out: [MidiMapping] = []
@@ -136,7 +149,7 @@ public struct JamboPad: MidiController {
 
     private static func map(_ type: MidiSourceType, ch: Int, num: Int, _ t: MidiTarget, continuous: Bool = false) -> MidiMapping {
         var m = MidiMapping(src: MidiSource(type: type, ch: ch, num: num), target: t, continuous: continuous)
-        m.port = .named("SMC-PAD")
+        m.port = .controller("JAMboPAD")
         return m
     }
 }

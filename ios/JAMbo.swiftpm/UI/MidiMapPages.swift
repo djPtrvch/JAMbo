@@ -118,7 +118,7 @@ struct MidiMapOptions: View {
         var out: [MidiOption] = [opt("def", "Default (\(def))", m.port == .standard) { $0.port = .standard },
                                  opt("none", "None", m.port == .none) { $0.port = .none }]
         for d in devices { out.append(opt("\(d.id)", d.name, m.port == .device(d.id)) { $0.port = .device(d.id) }) }
-        if case .named(let n) = m.port { out.append(opt("named", "All " + n, true) { _ in }) }
+        if case .controller(let n) = m.port { out.append(opt("controller", "All " + n, true) { _ in }) }
         return out
     }
 
@@ -231,15 +231,22 @@ struct MidiRangeEditor: View {
 }
 
 /// Preset: тап — загрузить (маппинги пресета заменяют все нынешние); ниже — сохранить, перезаписать, переименовать,
-/// удалить (действия с текущим пресетом без него неактивны).
+/// удалить (действия с текущим пресетом без него неактивны). Встроенный (SMC-PAD ×2) — первым, ориентировочный:
+/// SAVE TO сохраняет свою настройку под тем же именем, RESTORE DEFAULT возвращает исходный; переименовать нельзя.
 struct MidiPresetPage: View {
     let model: AppModel
 
     var body: some View {
         let cur: String = model.settings.midi.preset
-        // Встроенный (SMC-PAD ×2) — первым; сохранить в него, переименовать и удалить нельзя.
-        let own: String = Controllers.isBuiltIn(cur) ? "" : cur
-        let list: [MidiPreset] = Controllers.presets + model.midiLearn.presets.list
+        let builtIn: Bool = Controllers.isBuiltIn(cur)
+        let list: [MidiPreset] = model.midiPresetList
+        let restore: MenuChoice = MenuChoice(title: "RESTORE DEFAULT", enabled: model.midiPresetOverridden(cur), current: false) {
+            model.deleteMidiPreset(cur)
+            model.loadMidiPreset(cur)
+        }
+        let delete: MenuChoice = MenuChoice(title: "DELETE", enabled: !cur.isEmpty, red: !cur.isEmpty, current: false) {
+            model.deleteMidiPreset(cur)
+        }
         return VStack(alignment: .leading, spacing: 4) {
             ForEach(list, id: \.name) { p in
                 MidiMapLine(label: p.name + (p.name == cur ? "  ✓" : ""), value: "\(p.mappings.count)") {
@@ -247,14 +254,14 @@ struct MidiPresetPage: View {
                     model.midiLearn.mapPage = .main
                 }
             }
-            SettingsNote(text: "Loading a preset replaces all current mappings.").padding(.vertical, 6)
+            SettingsNote(text: builtIn ? "Loading a preset replaces all current mappings. \(cur) is a starting point: adjust the mappings, then SAVE TO keeps your version; RESTORE DEFAULT brings back the original." : "Loading a preset replaces all current mappings.").padding(.vertical, 6)
             MenuChoiceColumn(items: [
                 MenuChoice(title: "SAVE CURRENT AS NEW…", current: false) { model.midiLearn.presetInput = .save },
-                MenuChoice(title: own.isEmpty ? "SAVE TO PRESET" : "SAVE TO “\(own)”", enabled: !own.isEmpty, current: false) {
-                    model.saveMidiPreset(own)
+                MenuChoice(title: cur.isEmpty ? "SAVE TO PRESET" : "SAVE TO “\(cur)”", enabled: !cur.isEmpty, current: false) {
+                    model.saveMidiPreset(cur)
                 },
-                MenuChoice(title: "RENAME…", enabled: !own.isEmpty, current: false) { model.midiLearn.presetInput = .rename(own) },
-                MenuChoice(title: "DELETE", enabled: !own.isEmpty, red: !own.isEmpty, current: false) { model.deleteMidiPreset(own) },
+                MenuChoice(title: "RENAME…", enabled: !cur.isEmpty && !builtIn, current: false) { model.midiLearn.presetInput = .rename(cur) },
+                builtIn ? restore : delete,
             ], spacing: 4)
         }
     }
