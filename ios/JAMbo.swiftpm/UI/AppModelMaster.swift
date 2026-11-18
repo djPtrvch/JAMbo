@@ -136,7 +136,7 @@ extension AppModel {
     /// Значение поля MAKEUP: замер, тишина, AUTO с числом или обычное.
     func makeupLabel(_ plain: String) -> String {
         switch makeupState {
-        case 1: return "MEASURING…"
+        case 1: return "LISTEN…"
         case 3: return "NO SIGNAL"
         default: return makeupLive ? "AUTO " + plain : plain
         }

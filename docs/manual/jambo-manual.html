@@ -2684,11 +2684,11 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
   <p lang="ru">JAMbo видит все MIDI-устройства, подключённые к iPad: по USB, по сети и по Bluetooth.</p>
   <p lang="en">JAMbo sees all MIDI devices connected to the iPad: over USB, network and Bluetooth.</p>
   <ul lang="ru">
-    <li><b>FEEDBACK OUTPUT</b> — куда JAMbo отправляет значения ручек и состояние кнопок. Например, кольца энкодеров Midi Fighter Twister повторяют ручки на экране. Отключённое устройство помечено NOT CONNECTED.</li>
+    <li><b>FEEDBACK OUTPUT</b> — куда JAMbo отправляет значения ручек и состояние кнопок. Например, светодиодные кольца энкодеров контроллера повторяют ручки на экране. Отключённое устройство помечено NOT CONNECTED.</li>
     <li><b>BLUETOOTH MIDI</b>: <b>CONNECT</b> — найти и подключить Bluetooth-устройство; <b>ADVERTISE</b> — iPad сам становится видимым как Bluetooth MIDI-устройство.</li>
   </ul>
   <ul lang="en">
-    <li><b>FEEDBACK OUTPUT</b> — where JAMbo sends knob values and button states. For example, the encoder rings of a Midi Fighter Twister follow the knobs on screen. A disconnected device is marked NOT CONNECTED.</li>
+    <li><b>FEEDBACK OUTPUT</b> — where JAMbo sends knob values and button states. For example, the LED rings of a controller’s encoders follow the knobs on screen. A disconnected device is marked NOT CONNECTED.</li>
     <li><b>BLUETOOTH MIDI</b>: <b>CONNECT</b> — find and connect a Bluetooth device; <b>ADVERTISE</b> — the iPad itself becomes visible as a Bluetooth MIDI device.</li>
   </ul>
 
@@ -4131,7 +4131,7 @@ footer.end { border-top: 1px solid var(--line); padding-top: 16px; color: var(--
       s += menuItem(12, y, t2, 40, "DEVICES", { cur: true }) + menuItem(16 + t2, y, t2, 40, "MAPPING"); y += 52;
       s += fieldLabel(12, y, "FEEDBACK OUTPUT"); y += 16;
       s += menuItem(12, y, iw, 40, "NONE") + ""; y += 44;
-      s += menuItem(12, y, iw, 40, "Midi Fighter Twister", { cur: true }); y += 56;
+      s += menuItem(12, y, iw, 40, "MIDI Controller", { cur: true }); y += 56;
       s += head(12, y, "BLUETOOTH MIDI"); y += 22;
       s += menuItem(12, y, t2, 40, "CONNECT") + menuItem(16 + t2, y, t2, 40, "ADVERTISE");
       return s;
